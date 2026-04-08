@@ -1,7 +1,13 @@
 #!/usr/bin/env bash
 # apply.sh — applies manifest.json to local Claude Code state.
 #
-# Reads manifest from source repo (preferred) or marketplace cache (fallback).
+# Reads manifest from the first available source (in order):
+#   1. Source repo (dev machine with local clone)
+#   2. $CLAUDE_PLUGIN_ROOT (set by Claude Code when running as a hook)
+#   3. Plugin dir relative to this script (direct invocation within cache)
+#   4. Marketplace cache (consume-only with git-source marketplace)
+#   5. Plugin cache glob (consume-only with path-source marketplace)
+#
 # Compares with current state and runs claude plugin * commands to converge.
 #
 # Operations (in order):
@@ -19,9 +25,13 @@
 set -uo pipefail
 
 PEDRO_PLUGINS_REPO="${PEDRO_PLUGINS_REPO:-$HOME/PROGRAMACAO/PEDRO/pedro-plugins}"
-SOURCE_MANIFEST="$PEDRO_PLUGINS_REPO/plugins/bootstrap-third-party/skills/bootstrap-third-party/manifest.json"
-CACHE_MANIFEST="$HOME/.claude/plugins/marketplaces/pedro-plugins/plugins/bootstrap-third-party/skills/bootstrap-third-party/manifest.json"
 KNOWN_MARKETPLACES="$HOME/.claude/plugins/known_marketplaces.json"
+
+REL_MANIFEST="skills/bootstrap-third-party/manifest.json"
+SOURCE_MANIFEST="$PEDRO_PLUGINS_REPO/plugins/bootstrap-third-party/$REL_MANIFEST"
+HOOK_MANIFEST="${CLAUDE_PLUGIN_ROOT:-}/$REL_MANIFEST"
+SCRIPT_MANIFEST="$(cd "$(dirname "$0")/../.." 2>/dev/null && pwd)/$REL_MANIFEST"
+MKT_CACHE_MANIFEST="$HOME/.claude/plugins/marketplaces/pedro-plugins/plugins/bootstrap-third-party/$REL_MANIFEST"
 
 log() { echo "[pedro-plugins/apply] $*" >&2; }
 info() { echo "[pedro-plugins/apply] $*"; }
@@ -30,14 +40,32 @@ info() { echo "[pedro-plugins/apply] $*"; }
 command -v jq >/dev/null 2>&1 || { log "error: jq not found"; exit 1; }
 command -v claude >/dev/null 2>&1 || { log "error: claude CLI not found"; exit 1; }
 
-# Locate manifest — prefer source repo (most up-to-date after pull), fall back to cache
+# Locate manifest — walk through candidates, pick first that exists
 MANIFEST=""
-if [ -f "$SOURCE_MANIFEST" ]; then
-  MANIFEST="$SOURCE_MANIFEST"
-elif [ -f "$CACHE_MANIFEST" ]; then
-  MANIFEST="$CACHE_MANIFEST"
-else
-  log "error: manifest not found (tried $SOURCE_MANIFEST and $CACHE_MANIFEST)"
+for candidate in "$SOURCE_MANIFEST" "$HOOK_MANIFEST" "$SCRIPT_MANIFEST" "$MKT_CACHE_MANIFEST"; do
+  if [ -n "$candidate" ] && [ -f "$candidate" ]; then
+    MANIFEST="$candidate"
+    break
+  fi
+done
+
+# Last resort: glob the plugin cache (handles path-source marketplaces)
+if [ -z "$MANIFEST" ]; then
+  for candidate in "$HOME"/.claude/plugins/cache/pedro-plugins/bootstrap-third-party/*/$REL_MANIFEST; do
+    if [ -f "$candidate" ]; then
+      MANIFEST="$candidate"
+      break
+    fi
+  done
+fi
+
+if [ -z "$MANIFEST" ]; then
+  log "error: manifest not found. Tried:"
+  log "  source:       $SOURCE_MANIFEST"
+  log "  hook:         $HOOK_MANIFEST"
+  log "  script:       $SCRIPT_MANIFEST"
+  log "  mkt-cache:    $MKT_CACHE_MANIFEST"
+  log "  plugin-cache: ~/.claude/plugins/cache/pedro-plugins/bootstrap-third-party/*/$REL_MANIFEST"
   exit 1
 fi
 
