@@ -1,0 +1,10 @@
+{
+  "name": "bootstrap-third-party",
+  "version": "0.1.0",
+  "description": "Sincroniza marketplaces e plugins de terceiros entre máquinas via git. Instale uma vez e esqueça — hooks cuidam de tudo automaticamente.",
+  "author": {
+    "name": "Pedro Beraldo",
+    "email": "pedrotrberaldo@gmail.com"
+  },
+  "homepage": "https://github.com/pedroberaldo87/pedro-plugins"
+}

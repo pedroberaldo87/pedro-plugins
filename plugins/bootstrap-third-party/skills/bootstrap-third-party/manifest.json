@@ -1,0 +1,127 @@
+{
+  "version": 1,
+  "description": "Third-party Claude Code marketplaces and plugins Pedro uses. Auto-synced via bootstrap-third-party hooks.",
+  "marketplaces": [
+    {
+      "name": "claude-hud",
+      "source": "https://github.com/jarrodwatts/claude-hud.git",
+      "sourceType": "git",
+      "plugins": [
+        {
+          "name": "claude-hud",
+          "enabled": true
+        }
+      ]
+    },
+    {
+      "name": "claude-plugins-official",
+      "source": "anthropics/claude-plugins-official",
+      "sourceType": "github",
+      "plugins": [
+        {
+          "name": "claude-md-management",
+          "enabled": false
+        },
+        {
+          "name": "code-review",
+          "enabled": true
+        },
+        {
+          "name": "code-simplifier",
+          "enabled": true
+        },
+        {
+          "name": "context7",
+          "enabled": true
+        },
+        {
+          "name": "explanatory-output-style",
+          "enabled": true
+        },
+        {
+          "name": "figma",
+          "enabled": true
+        },
+        {
+          "name": "frontend-design",
+          "enabled": true
+        },
+        {
+          "name": "github",
+          "enabled": false
+        },
+        {
+          "name": "playwright",
+          "enabled": true
+        },
+        {
+          "name": "security-guidance",
+          "enabled": false
+        },
+        {
+          "name": "skill-creator",
+          "enabled": false
+        },
+        {
+          "name": "sonatype-guide",
+          "enabled": false
+        },
+        {
+          "name": "superpowers",
+          "enabled": true
+        },
+        {
+          "name": "swift-lsp",
+          "enabled": true
+        }
+      ]
+    },
+    {
+      "name": "voltagent-subagents",
+      "source": "https://github.com/VoltAgent/awesome-claude-code-subagents.git",
+      "sourceType": "git",
+      "plugins": [
+        {
+          "name": "voltagent-biz",
+          "enabled": true
+        },
+        {
+          "name": "voltagent-core-dev",
+          "enabled": true
+        },
+        {
+          "name": "voltagent-data-ai",
+          "enabled": true
+        },
+        {
+          "name": "voltagent-dev-exp",
+          "enabled": false
+        },
+        {
+          "name": "voltagent-domains",
+          "enabled": false
+        },
+        {
+          "name": "voltagent-infra",
+          "enabled": false
+        },
+        {
+          "name": "voltagent-lang",
+          "enabled": false
+        },
+        {
+          "name": "voltagent-meta",
+          "enabled": false
+        },
+        {
+          "name": "voltagent-qa-sec",
+          "enabled": true
+        },
+        {
+          "name": "voltagent-research",
+          "enabled": true
+        }
+      ]
+    }
+  ]
+}

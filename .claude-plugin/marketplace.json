@@ -1,0 +1,19 @@
+{
+  "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
+  "name": "pedro-plugins",
+  "description": "Marketplace privado do Pedro: skills, plugins e automações pessoais",
+  "owner": {
+    "name": "Pedro Beraldo",
+    "email": "pedrotrberaldo@gmail.com"
+  },
+  "plugins": [
+    {
+      "name": "bootstrap-third-party",
+      "source": "./plugins/bootstrap-third-party",
+      "description": "Sincroniza automaticamente marketplaces e plugins de terceiros entre todas as máquinas do Pedro via git. Instala o plugin e nunca mais pensa: hooks cuidam de snapshot, commit, push, pull e apply.",
+      "category": "productivity",
+      "version": "0.1.0",
+      "tags": ["sync", "bootstrap", "plugins", "automation"]
+    }
+  ]
+}
