@@ -1,7 +1,7 @@
 {
   "name": "bootstrap-third-party",
-  "version": "0.1.0",
-  "description": "Sincroniza marketplaces e plugins de terceiros entre máquinas via git. Instale uma vez e esqueça — hooks cuidam de tudo automaticamente.",
+  "version": "0.1.2",
+  "description": "Auto-sync third-party Claude Code marketplaces and plugins across machines via git hooks.",
   "author": {
     "name": "Pedro Beraldo",
     "email": "pedrotrberaldo@gmail.com"

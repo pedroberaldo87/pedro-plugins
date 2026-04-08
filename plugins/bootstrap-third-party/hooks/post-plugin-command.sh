@@ -16,6 +16,14 @@
 
 set -uo pipefail
 
+# Re-entrancy guard: if we're already inside a hook execution (session-sync
+# calling apply which runs claude plugin subcommands, or nested PostToolUse),
+# exit silently. Prevents recursive execution.
+if [ -n "${PEDRO_PLUGINS_HOOK_RUNNING:-}" ]; then
+  exit 0
+fi
+export PEDRO_PLUGINS_HOOK_RUNNING=post-plugin-command
+
 PEDRO_PLUGINS_REPO="${PEDRO_PLUGINS_REPO:-$HOME/PROGRAMACAO/PEDRO/pedro-plugins}"
 
 # Locate lib dir

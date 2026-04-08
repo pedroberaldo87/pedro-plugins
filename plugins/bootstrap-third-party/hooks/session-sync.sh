@@ -14,9 +14,19 @@
 
 set -uo pipefail
 
+# Re-entrancy guard: if we're already running (from a parent hook invocation
+# or from the PostToolUse hook firing on subprocess claude plugin commands),
+# exit silently. Prevents recursive execution.
+if [ -n "${PEDRO_PLUGINS_HOOK_RUNNING:-}" ]; then
+  exit 0
+fi
+export PEDRO_PLUGINS_HOOK_RUNNING=session-sync
+
 PEDRO_PLUGINS_REPO="${PEDRO_PLUGINS_REPO:-$HOME/PROGRAMACAO/PEDRO/pedro-plugins}"
+KNOWN_MARKETPLACES="$HOME/.claude/plugins/known_marketplaces.json"
 PLUGIN_CACHE_MARKETPLACE="$HOME/.claude/plugins/marketplaces/pedro-plugins"
 LAST_SYNC_FILE="$HOME/.claude/plugins/.pedro-plugins-last-sync"
+LOCK_DIR="$HOME/.claude/plugins/.pedro-plugins-sync.lock"
 THROTTLE_SECONDS="${PEDRO_PLUGINS_THROTTLE_SECONDS:-86400}"  # 24h default
 FORCE="${PEDRO_PLUGINS_FORCE_SYNC:-}"
 VERBOSE="${PEDRO_PLUGINS_VERBOSE:-}"
@@ -36,6 +46,22 @@ GIT_SYNC_SH="$LIB_DIR/git-sync.sh"
 log() { echo "[pedro-plugins/session-sync] $*" >&2; }
 info() { echo "[pedro-plugins/session-sync] $*"; }
 verbose() { [ -n "$VERBOSE" ] && info "$*"; }
+
+# Acquire lock to prevent concurrent syncs from multiple Claude Code sessions.
+# Using mkdir for atomic semantics (POSIX-portable, no flock dependency).
+# Lock is auto-released on exit via trap. Stale locks (>5min old) are broken.
+if [ -d "$LOCK_DIR" ]; then
+  LOCK_AGE=$(( $(date +%s) - $(stat -f %m "$LOCK_DIR" 2>/dev/null || stat -c %Y "$LOCK_DIR" 2>/dev/null || echo 0) ))
+  if [ "$LOCK_AGE" -gt 300 ]; then
+    verbose "stale lock (${LOCK_AGE}s old) — breaking"
+    rmdir "$LOCK_DIR" 2>/dev/null || true
+  fi
+fi
+if ! mkdir "$LOCK_DIR" 2>/dev/null; then
+  verbose "another sync in progress — skipping"
+  exit 0
+fi
+trap 'rmdir "$LOCK_DIR" 2>/dev/null || true' EXIT INT TERM
 
 # Detect source repo presence
 HAS_SOURCE=0
@@ -101,7 +127,17 @@ if [ "$HAS_SOURCE" -eq 1 ]; then
         git -C "$PEDRO_PLUGINS_REPO" rebase --abort 2>/dev/null || true
         exit 0
       else
-        log "⚠ git pull falhou (rede/auth?) — usando manifest local"
+        # Pull failed for a non-conflict reason (network, auth, disk).
+        # If we KNEW remote had new commits (from the earlier fetch), abort:
+        # applying a stale manifest would silently miss other machines' changes
+        # for up to 24h. Better to retry on next session.
+        if [ "$REMOTE_ADVANCED" -eq 1 ]; then
+          log "⚠ git pull falhou e sabemos que remote avançou — sync abortado"
+          log "   NÃO atualizando timestamp: próxima sessão vai tentar de novo imediatamente"
+          log "   motivo: $(echo "$PULL_OUTPUT" | head -3 | tr '\n' ' ')"
+          exit 0
+        fi
+        log "⚠ git pull falhou (rede/auth?) — usando manifest local (remote estava sincronizado)"
       fi
     else
       verbose "git pull ok"
@@ -110,7 +146,8 @@ if [ "$HAS_SOURCE" -eq 1 ]; then
 fi
 
 # 3b. Update marketplace cache (so apply can read fresh manifest)
-if claude plugin marketplace list 2>/dev/null | grep -q "pedro-plugins"; then
+# Use jq on known_marketplaces.json instead of grep (word-boundary safe)
+if [ -f "$KNOWN_MARKETPLACES" ] && jq -e '."pedro-plugins"' "$KNOWN_MARKETPLACES" >/dev/null 2>&1; then
   if [ "$HAS_SOURCE" -eq 0 ]; then
     # Only bother updating cache if we rely on it (no source repo)
     claude plugin marketplace update pedro-plugins >/dev/null 2>&1 || verbose "marketplace update failed"

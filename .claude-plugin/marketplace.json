@@ -10,9 +10,9 @@
     {
       "name": "bootstrap-third-party",
       "source": "./plugins/bootstrap-third-party",
-      "description": "Sincroniza automaticamente marketplaces e plugins de terceiros entre todas as máquinas do Pedro via git. Instala o plugin e nunca mais pensa: hooks cuidam de snapshot, commit, push, pull e apply.",
+      "description": "Auto-sync third-party Claude Code marketplaces + plugins across machines via git hooks",
       "category": "productivity",
-      "version": "0.1.0",
+      "version": "0.1.2",
       "tags": ["sync", "bootstrap", "plugins", "automation"]
     }
   ]
