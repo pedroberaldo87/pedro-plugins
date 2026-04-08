@@ -19,8 +19,13 @@
 # Never touches unmanaged marketplaces or plugins. Filters pedro-plugins always.
 #
 # Exit codes:
-#   0 — success (with possible individual operation failures reported)
-#   1 — fatal error (manifest missing, jq missing, etc)
+#   0 — success, zero individual failures
+#   N — N individual operations failed (capped at 200)
+#   255 — fatal error (manifest missing, jq missing, etc)
+#
+# IMPORTANT: callers MUST check exit code before trusting post-apply state.
+# A non-zero exit means the current local state diverges from the manifest's
+# intent and should NOT be used as a source of truth for snapshots.
 
 set -uo pipefail
 
@@ -37,8 +42,8 @@ log() { echo "[pedro-plugins/apply] $*" >&2; }
 info() { echo "[pedro-plugins/apply] $*"; }
 
 # Required tools
-command -v jq >/dev/null 2>&1 || { log "error: jq not found"; exit 1; }
-command -v claude >/dev/null 2>&1 || { log "error: claude CLI not found"; exit 1; }
+command -v jq >/dev/null 2>&1 || { log "error: jq not found"; exit 255; }
+command -v claude >/dev/null 2>&1 || { log "error: claude CLI not found"; exit 255; }
 
 # Locate manifest — walk through candidates, pick first that exists
 MANIFEST=""
@@ -66,18 +71,18 @@ if [ -z "$MANIFEST" ]; then
   log "  script:       $SCRIPT_MANIFEST"
   log "  mkt-cache:    $MKT_CACHE_MANIFEST"
   log "  plugin-cache: ~/.claude/plugins/cache/pedro-plugins/bootstrap-third-party/*/$REL_MANIFEST"
-  exit 1
+  exit 255
 fi
 
 # Validate manifest
 if ! jq empty "$MANIFEST" 2>/dev/null; then
   log "error: manifest is not valid JSON: $MANIFEST"
-  exit 1
+  exit 255
 fi
 
 if [ ! -f "$KNOWN_MARKETPLACES" ]; then
   log "error: $KNOWN_MARKETPLACES not found"
-  exit 1
+  exit 255
 fi
 
 # Counters for summary
@@ -222,4 +227,10 @@ else
   fi
 fi
 
-exit 0
+# Exit with failure count (capped at 200 to stay below shell reserved range 126-165)
+# 0 = clean success, N = N failed operations.
+# Callers use this to decide whether local state is safe to snapshot back upstream.
+if [ "$FAILURES" -gt 200 ]; then
+  exit 200
+fi
+exit "$FAILURES"

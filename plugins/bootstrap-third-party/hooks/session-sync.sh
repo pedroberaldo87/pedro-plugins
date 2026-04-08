@@ -124,12 +124,35 @@ if [ ! -x "$APPLY_SH" ]; then
 fi
 
 APPLY_OUTPUT="$(bash "$APPLY_SH" 2>&1)"
+APPLY_EXIT=$?
 echo "$APPLY_OUTPUT"
 
-# 3d. Snapshot + commit + push (only if HAS_SOURCE)
+# 3d. Snapshot + commit + push (only if HAS_SOURCE and apply was clean)
+#
+# CRITICAL: if apply had ANY failures, we skip snapshot entirely.
+# Why: snapshot would regenerate the manifest from the current (divergent) state,
+# and git-sync would commit+push it — effectively propagating the failed-apply
+# state as "new truth" to all other machines. A transient install failure on
+# one machine could uninstall a plugin from all machines. NEVER do that.
+#
+# If apply failed, we also update the timestamp so we don't retry on every
+# single session (which would be thrashy). Next scheduled sync (or manual
+# PEDRO_PLUGINS_FORCE_SYNC=1) will retry.
+if [ "$APPLY_EXIT" -ne 0 ]; then
+  if [ "$APPLY_EXIT" -eq 255 ]; then
+    log "⚠ apply teve erro fatal — snapshot pulado, estado local preservado"
+  else
+    log "⚠ apply teve $APPLY_EXIT operação(ões) com falha — snapshot pulado pra evitar propagação de estado degradado"
+    log "   investigue as falhas acima e rode 'PEDRO_PLUGINS_FORCE_SYNC=1 bash $(basename "$0")' pra tentar novamente"
+  fi
+  touch "$LAST_SYNC_FILE"
+  exit 0
+fi
+
 if [ "$HAS_SOURCE" -eq 1 ] && [ -x "$SNAPSHOT_SH" ]; then
-  SNAPSHOT_RESULT="$(bash "$SNAPSHOT_SH" 2>&1)"
-  SNAPSHOT_STATUS="$(echo "$SNAPSHOT_RESULT" | tail -1)"
+  # Capture stdout only — snapshot.sh prints "changed"/"unchanged" on stdout,
+  # log messages on stderr. Merging them creates ordering ambiguity.
+  SNAPSHOT_STATUS="$(bash "$SNAPSHOT_SH" 2>/dev/null)"
   if [ "$SNAPSHOT_STATUS" = "changed" ]; then
     verbose "manifest changed locally — committing"
     if [ -x "$GIT_SYNC_SH" ]; then

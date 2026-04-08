@@ -59,16 +59,20 @@ if [ ! -x "$SNAPSHOT_SH" ]; then
   exit 0
 fi
 
-SNAPSHOT_OUTPUT="$(bash "$SNAPSHOT_SH" 2>&1)"
-SNAPSHOT_STATUS="$(echo "$SNAPSHOT_OUTPUT" | tail -1)"
+# Capture stdout only — snapshot.sh prints "changed"/"unchanged" on stdout,
+# log messages on stderr. Merging them (2>&1) would create ordering ambiguity
+# because `tail -1` might grab a log line instead of the status.
+SNAPSHOT_STATUS="$(bash "$SNAPSHOT_SH" 2>/dev/null)"
 
 if [ "$SNAPSHOT_STATUS" != "changed" ]; then
   # Manifest didn't actually change (maybe the command was a no-op)
   exit 0
 fi
 
-# Extract a short description of what happened for the commit message
-ACTION="$(echo "$COMMAND" | grep -oE 'claude[[:space:]]+plugin[s]?[[:space:]]+[a-z]+([[:space:]]+[a-z]+)?' | head -1)"
+# Extract a short description of what happened for the commit message.
+# Note: the regex uses [a-z]+ which clips plugin names with digits (context7 → context).
+# Minor cosmetic issue in commit messages only — semantic state is correct.
+ACTION="$(echo "$COMMAND" | grep -oE 'claude[[:space:]]+plugin[s]?[[:space:]]+[a-z]+([[:space:]]+[a-z0-9_-]+)?' | head -1)"
 [ -z "$ACTION" ] && ACTION="plugin change"
 
 # Commit + push via git-sync
