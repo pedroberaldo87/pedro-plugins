@@ -1,0 +1,10 @@
+{
+  "name": "rev6",
+  "version": "1.0.0",
+  "description": "Multi-angle code review via 6 parallel voltagent specialists (architect, backend, frontend, fullstack, code-reviewer, UX). Consolidates findings with P0/P1 highlighting.",
+  "author": {
+    "name": "Pedro Beraldo",
+    "email": "pedrotrberaldo@gmail.com"
+  },
+  "homepage": "https://github.com/pedroberaldo87/pedro-plugins"
+}

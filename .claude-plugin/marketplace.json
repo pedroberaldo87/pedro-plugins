@@ -1,7 +1,8 @@
 {
-  "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
   "name": "pedro-plugins",
-  "description": "Marketplace privado do Pedro: skills, plugins e automações pessoais",
+  "metadata": {
+    "description": "Marketplace privado do Pedro: skills, plugins e automações pessoais — bootstrap, visual, rev6, handoff, improve, ship."
+  },
   "owner": {
     "name": "Pedro Beraldo",
     "email": "pedrotrberaldo@gmail.com"
@@ -14,6 +15,46 @@
       "category": "productivity",
       "version": "0.1.2",
       "tags": ["sync", "bootstrap", "plugins", "automation"]
+    },
+    {
+      "name": "visual",
+      "source": "./plugins/visual",
+      "description": "CLI walls-of-text → interactive HTML dark-theme views. Plans, diagnostics, and decisions rendered in the browser with live sync back to Claude via local daemon.",
+      "category": "productivity",
+      "version": "1.0.0",
+      "tags": ["visualization", "html", "plan-mode", "hooks", "live-sync"]
+    },
+    {
+      "name": "rev6",
+      "source": "./plugins/rev6",
+      "description": "Multi-angle code review via 6 parallel voltagent specialists (architect, backend, frontend, fullstack, code-reviewer, UX). Consolidates findings with P0/P1 highlighting.",
+      "category": "dev-tools",
+      "version": "1.0.0",
+      "tags": ["code-review", "parallel", "voltagent", "quality"]
+    },
+    {
+      "name": "handoff",
+      "source": "./plugins/handoff",
+      "description": "Session state preservation — creates a complete knowledge transfer document at {project_root}/.claude/HANDOFF.md for later continuation via /continue.",
+      "category": "productivity",
+      "version": "1.0.0",
+      "tags": ["session", "continuity", "documentation"]
+    },
+    {
+      "name": "improve",
+      "source": "./plugins/improve",
+      "description": "Generic self-improvement implementer using the autoresearch ML methodology. Reads the app's IMPROVEMENT_PROGRAM.md, fetches proposals from GitHub Issues (label 'autoresearch'), implements changes.",
+      "category": "dev-tools",
+      "version": "1.0.0",
+      "tags": ["automation", "ml", "improvement", "github-issues"]
+    },
+    {
+      "name": "ship",
+      "source": "./plugins/ship",
+      "description": "Production deploy flow: lint, type-check, commit, push, deploy in one disciplined sequence. Triggers on 'ship', 'manda', 'deploya tudo'.",
+      "category": "dev-tools",
+      "version": "1.0.0",
+      "tags": ["deploy", "lint", "typecheck", "production"]
     }
   ]
 }

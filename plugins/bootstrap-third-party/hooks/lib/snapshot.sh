@@ -5,7 +5,11 @@
 # Writes: $PEDRO_PLUGINS_REPO/plugins/bootstrap-third-party/skills/bootstrap-third-party/manifest.json
 #
 # Only runs if source repo exists. Silent no-op otherwise.
-# Filters out `pedro-plugins` marketplace (never self-sync).
+# Filters out `pedro-plugins` from the auto-generated section (never self-sync
+# based on local state), but PRESERVES any manually-maintained `pedro-plugins`
+# marketplace entry found in the existing manifest. This lets Pedro ship his
+# own personal plugins (visual, rev6, etc) via bootstrap without snapshot
+# erasing the entry on the next run.
 #
 # Exit codes:
 #   0 — success (manifest up-to-date or regenerated)
@@ -85,32 +89,43 @@ PLUGINS_JSON="$(printf '%s\n' "$PLUGIN_STATE" | awk -F'\t' '
   }
 ')"
 
+# Read manually-maintained pedro-plugins entry from existing manifest (preserve across snapshots).
+# First run or missing entry → empty array.
+PRESERVED_PEDRO_ENTRY="[]"
+if [ -f "$MANIFEST_PATH" ]; then
+  PRESERVED_PEDRO_ENTRY="$(jq '(.marketplaces // []) | map(select(.name == "pedro-plugins"))' "$MANIFEST_PATH" 2>/dev/null || echo '[]')"
+fi
+
 # Build marketplaces array by joining known_marketplaces.json with PLUGINS_JSON.
-# Filter out pedro-plugins. Sort alphabetically by marketplace name. Sort plugins alphabetically within.
+# Filter out pedro-plugins from auto-generated (based on local state) but prepend
+# the preserved manual entry. Sort alphabetically by marketplace name.
 NEW_MANIFEST="$(jq -n \
   --slurpfile marketplaces "$KNOWN_MARKETPLACES" \
   --argjson plugins "$PLUGINS_JSON" \
+  --argjson preservedPedro "$PRESERVED_PEDRO_ENTRY" \
   '{
     version: 1,
-    description: "Third-party Claude Code marketplaces and plugins Pedro uses. Auto-synced via bootstrap-third-party hooks.",
+    description: "Third-party Claude Code marketplaces and plugins Pedro uses. Auto-synced via bootstrap-third-party hooks. The pedro-plugins entry is manually maintained and preserved across snapshots.",
     marketplaces: (
-      $marketplaces[0]
-      | to_entries
-      | map(select(.key != "pedro-plugins"))
-      | sort_by(.key)
-      | map({
-          name: .key,
-          source: (
-            if .value.source.source == "github" then .value.source.repo
-            else .value.source.url
-            end
-          ),
-          sourceType: .value.source.source,
-          plugins: (
-            ($plugins[.key] // [])
-            | sort_by(.name)
-          )
-        })
+      $preservedPedro + (
+        $marketplaces[0]
+        | to_entries
+        | map(select(.key != "pedro-plugins"))
+        | sort_by(.key)
+        | map({
+            name: .key,
+            source: (
+              if .value.source.source == "github" then .value.source.repo
+              else .value.source.url
+              end
+            ),
+            sourceType: .value.source.source,
+            plugins: (
+              ($plugins[.key] // [])
+              | sort_by(.name)
+            )
+          })
+      )
     )
   }')"
 

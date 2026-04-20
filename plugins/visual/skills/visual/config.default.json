@@ -1,0 +1,8 @@
+{
+  "auto_mode": true,
+  "auto_triggers": {
+    "min_plan_items": 3,
+    "min_decisions": 2,
+    "min_output_lines": 40
+  }
+}

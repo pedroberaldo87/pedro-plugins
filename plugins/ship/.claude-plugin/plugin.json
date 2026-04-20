@@ -1,0 +1,10 @@
+{
+  "name": "ship",
+  "version": "1.0.0",
+  "description": "Production deploy flow: lint, type-check, commit, push, deploy in one disciplined sequence. Triggers on 'ship', 'manda', 'deploya tudo'.",
+  "author": {
+    "name": "Pedro Beraldo",
+    "email": "pedrotrberaldo@gmail.com"
+  },
+  "homepage": "https://github.com/pedroberaldo87/pedro-plugins"
+}

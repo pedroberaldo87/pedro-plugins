@@ -4,31 +4,55 @@ Marketplace privado de plugins Claude Code do Pedro. Monorepo — cada subdiret�
 
 ## Plugins disponíveis
 
-| Plugin | Descrição |
-|---|---|
-| `bootstrap-third-party` | Sincroniza automaticamente marketplaces e plugins de terceiros entre todas as máquinas do Pedro via git |
+| Plugin | O que faz | Ideal pra |
+|---|---|---|
+| `bootstrap-third-party` | Sincroniza marketplaces e plugins de terceiros entre máquinas via git. Declarativo (manifest.json). | Restaurar todo seu ambiente Claude Code numa máquina nova com 1 comando |
+| `visual` | Transforma textão do CLI em HTML dark-theme interativo. Abre no browser com live sync via daemon local. | Planos, diagnósticos e decisões que você escaneia em 30s em vez de rolar 20 páginas no terminal |
+| `rev6` | Dispara 6 agentes voltagent em paralelo (architect, backend, frontend, fullstack, code-reviewer, UX) pra review multi-ângulo. | Feedback multi-lente em feature nova antes de ship |
+| `handoff` | Cria documento de handoff (`.claude/HANDOFF.md`) com estado completo da sessão pra continuar depois. | Fim de sessão longa, antes de `/clear`, breakpoint natural |
+| `improve` | Implementa rodada de melhoria iterativa lendo `IMPROVEMENT_PROGRAM.md` + issues GitHub com label `autoresearch`. | Loops de auto-pesquisa/improvement em apps ML |
+| `ship` | Lint → type-check → commit → push → deploy em fluxo disciplinado. | Quando uma feature está pronta pra produção |
 
 ## Instalação (em qualquer máquina)
+
+### Fluxo rápido (pegar só o que quiser)
 
 ```bash
 # 1. Adicionar o marketplace
 claude plugin marketplace add git@github.com:pedroberaldo87/pedro-plugins.git
 
-# 2. Instalar o plugin que você quiser
-claude plugin install bootstrap-third-party@pedro-plugins
+# 2. Instalar os plugins que você quiser
+claude plugin install visual@pedro-plugins
+claude plugin install rev6@pedro-plugins
+# etc.
 ```
 
-Se você for desenvolver o marketplace nessa máquina, clone o repo também:
+### Fluxo completo (restaurar todo o setup de uma vez)
+
+Se você for o Pedro (ou qualquer pessoa que queira o setup inteiro: plugins de terceiros + skills pessoais):
+
+```bash
+# 1. Adicionar o marketplace + instalar bootstrap
+claude plugin marketplace add git@github.com:pedroberaldo87/pedro-plugins.git
+claude plugin install bootstrap-third-party@pedro-plugins
+
+# 2. Bootstrap lê manifest.json e instala terceiros + pessoais
+# (roda automaticamente no SessionStart, ou manualmente via skill)
+```
+
+## Desenvolvendo o marketplace localmente
+
+Se for contribuir com plugins novos ou editar os existentes, clone o repo:
 
 ```bash
 git clone git@github.com:pedroberaldo87/pedro-plugins.git ~/PROGRAMACAO/PEDRO/pedro-plugins
 ```
 
-Os hooks detectam automaticamente se o repo está clonado localmente e adaptam o comportamento (escreve/push se tem repo, só lê se não tem).
+O `bootstrap-third-party` detecta automaticamente se o repo está clonado localmente e adapta o comportamento:
+- **Com repo**: pode fazer `snapshot` (máquina → manifest, commit, push).
+- **Sem repo**: só `apply` (manifest → máquina).
 
-## Convenção de path
-
-Por padrão, hooks esperam o repo em `~/PROGRAMACAO/PEDRO/pedro-plugins`. Pra usar outro caminho, defina a env var:
+Pra usar outro caminho além de `~/PROGRAMACAO/PEDRO/pedro-plugins`:
 
 ```bash
 export PEDRO_PLUGINS_REPO="/caminho/alternativo/pedro-plugins"
@@ -39,14 +63,33 @@ export PEDRO_PLUGINS_REPO="/caminho/alternativo/pedro-plugins"
 ```
 pedro-plugins/
 ├── .claude-plugin/
-│   └── marketplace.json       # Manifest do marketplace
+│   └── marketplace.json          # Index do marketplace (lista todos os plugins)
 ├── plugins/
-│   └── bootstrap-third-party/
+│   ├── bootstrap-third-party/    # Sync declarativo de plugins de terceiros
+│   │   ├── .claude-plugin/plugin.json
+│   │   ├── hooks.json
+│   │   ├── hooks/
+│   │   └── skills/bootstrap-third-party/
+│   │       ├── SKILL.md
+│   │       └── manifest.json     # Fonte de verdade: quais terceiros + pessoais
+│   ├── visual/                   # HTML visual views com live sync
+│   │   ├── .claude-plugin/plugin.json
+│   │   ├── hooks.json
+│   │   ├── hooks/
+│   │   ├── server/               # Daemon Node pra live sync (zero deps)
+│   │   └── skills/visual/
+│   ├── rev6/                     # Multi-angle code review
+│   │   ├── .claude-plugin/plugin.json
+│   │   └── skills/rev6/
+│   ├── handoff/                  # Session handoff document
+│   │   ├── .claude-plugin/plugin.json
+│   │   └── skills/handoff/
+│   ├── improve/                  # Autoresearch improvement loop
+│   │   ├── .claude-plugin/plugin.json
+│   │   └── skills/improve/
+│   └── ship/                     # Production deploy flow
 │       ├── .claude-plugin/plugin.json
-│       ├── hooks.json
-│       ├── hooks/             # Bash scripts dos hooks
-│       ├── skills/            # Skills do plugin
-│       └── README.md
+│       └── skills/ship/
 └── README.md
 ```
 
