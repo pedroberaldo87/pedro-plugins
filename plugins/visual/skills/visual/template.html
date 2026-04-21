@@ -1154,32 +1154,80 @@ function updateDecProgress(sel) {
   wrap.classList.toggle('incomplete', done < total && total > 0);
 }
 
+// Collects EVERYTHING the user typed across decisions-box + feedback-box into
+// a single structured block. Every copy button emits this full state — they
+// differ only in the leading verdict and trailing action cue. Observations
+// made anywhere must survive to the clipboard regardless of which button was
+// pressed. Returns { lines: [...], hasChanges: bool }.
+function collectAllInput() {
+  var lines = [];
+  var hasChanges = false;
+
+  // --- Decisions block ---
+  var sel = getDecisionSelections();
+  if (sel.length > 0) {
+    lines.push('📋 **Escolhas:**', '');
+    sel.forEach(function(s) {
+      if (!s.choice) {
+        lines.push('- **Decisão ' + s.idx + '** — _sem escolha_ · ' + s.question);
+      } else {
+        var line = '- **Decisão ' + s.idx + '**: ' + s.choice + ' · ' + s.question;
+        if (s.custom) line += '\n  - _Nota_: ' + s.custom;
+        lines.push(line);
+      }
+    });
+    var dec = document.getElementById('dec-comments');
+    var dText = dec && dec.value.trim();
+    if (dText) {
+      lines.push('', '**Comentários / próximos passos:**', dText);
+    }
+    lines.push('');
+  }
+
+  // --- Feedback block ---
+  var items = document.querySelectorAll('.feedback-item');
+  if (items.length > 0) {
+    lines.push('📝 **Feedback por item:**', '');
+    items.forEach(function(item) {
+      var num = item.dataset.num;
+      var title = item.dataset.title;
+      var checked = item.querySelector('input[type=radio]:checked');
+      var val = checked ? checked.value : 'keep';
+      if (val === 'keep') {
+        lines.push('- **Item ' + num + '** (' + title + ') — ✓ ok');
+      } else if (val === 'remove') {
+        lines.push('- **Item ' + num + '** (' + title + ') — ✗ REMOVER');
+        hasChanges = true;
+      } else if (val === 'change') {
+        var ta = item.querySelector('.feedback-textarea');
+        var note = (ta && ta.value || '').trim();
+        lines.push('- **Item ' + num + '** (' + title + ') — ✏️ MUDAR: ' + (note || '(descrever no CLI)'));
+        hasChanges = true;
+      }
+    });
+    var gen = document.getElementById('fb-general');
+    var gText = (gen && gen.value || '').trim();
+    if (gText) {
+      lines.push('', '**Observação geral:**', gText);
+    }
+    lines.push('');
+  }
+
+  return { lines: lines, hasChanges: hasChanges };
+}
+
 function copyDecisions(btn) {
   var sel = getDecisionSelections();
   var done = sel.filter(function(s) { return s.choice !== null; }).length;
-  // P1 #4 fix: warn before copying incomplete selection.
   if (sel.length > 0 && done < sel.length) {
     var ok = confirm('Você respondeu ' + done + ' de ' + sel.length + ' decisões. Copiar assim mesmo?');
     if (!ok) return;
   }
-  // P1 #3 fix: versioned marker block so Claude can detect and evolve parser.
-  var lines = ['<!-- visual-decisions v1 -->', '📋 **Minhas escolhas:**', ''];
-  sel.forEach(function(s) {
-    if (!s.choice) {
-      lines.push('- **Decisão ' + s.idx + '** — _sem escolha_ · ' + s.question);
-    } else {
-      var line = '- **Decisão ' + s.idx + '**: ' + s.choice + ' · ' + s.question;
-      if (s.custom) line += '\n  - _Nota_: ' + s.custom;
-      lines.push(line);
-    }
-  });
-  var comments = document.getElementById('dec-comments');
-  var cText = comments && comments.value.trim();
-  if (cText) {
-    lines.push('', '**Comentários / próximos passos:**', cText);
-  }
-  lines.push('', '<!-- /visual-decisions -->');
-  copyText(lines.join('\n'))
+  var body = collectAllInput();
+  var out = ['<!-- visual-decisions v1 -->', '📋 **Snapshot — escolhas e comentários:**', ''];
+  out = out.concat(body.lines);
+  out.push('<!-- /visual-decisions -->');
+  copyText(out.join('\n'))
     .then(function() { flashBtn(btn, 'Copiado'); })
     .catch(function() { flashBtn(btn, 'Falha — copie manual', true); });
 }
@@ -1237,41 +1285,35 @@ function flashBtn(btn, label, isError) {
 }
 
 function approveAll(btn) {
-  // P3 fix: identify the plan via document.title so Claude knows which HTML was approved.
+  var body = collectAllInput();
+  if (body.hasChanges) {
+    var ok = confirm('Você marcou itens como MUDAR ou REMOVER. Aprovar mesmo assim? (Cancelar = use "Copiar feedback")');
+    if (!ok) return;
+  }
   var title = (document.title || '').trim();
-  var msg = '✅ Plano aprovado' + (title ? ' (' + title + ')' : '') + '. Pode prosseguir.';
-  copyText(msg)
+  var out = ['<!-- visual-approve v1 -->', '✅ **APROVADO**' + (title ? ' — ' + title : ''), ''];
+  if (body.lines.length > 0) {
+    out.push('Observações que fiz ao longo da leitura:', '');
+    out = out.concat(body.lines);
+  } else {
+    out.push('(sem observações adicionais — pode prosseguir)', '');
+  }
+  out.push('Pode prosseguir.');
+  out.push('', '<!-- /visual-approve -->');
+  copyText(out.join('\n'))
     .then(function() { flashBtn(btn, 'Copiado'); })
     .catch(function() { flashBtn(btn, 'Falha — copie manual', true); });
 }
 
 function copyFeedback(btn) {
-  var items = document.querySelectorAll('.feedback-item');
-  var lines = ['<!-- visual-feedback v1 -->', '📋 **Feedback no plano:**', ''];
-  var changed = false;
-  items.forEach(function(item) {
-    var num = item.dataset.num;
-    var title = item.dataset.title;
-    var checked = item.querySelector('input[type=radio]:checked');
-    var val = checked ? checked.value : 'keep';
-    if (val === 'keep') {
-      lines.push('- **Item ' + num + '** (' + title + ') — ✓ ok');
-    } else if (val === 'remove') {
-      lines.push('- **Item ' + num + '** (' + title + ') — ✗ REMOVER');
-      changed = true;
-    } else if (val === 'change') {
-      var ta = item.querySelector('.feedback-textarea');
-      var note = (ta && ta.value || '').trim();
-      lines.push('- **Item ' + num + '** (' + title + ') — ✏️ MUDAR: ' + (note || '(descrever no CLI)'));
-      changed = true;
-    }
-  });
-  var generalEl = document.getElementById('fb-general');
-  var general = (generalEl && generalEl.value || '').trim();
-  if (general) lines.push('', '**Observação geral:**', general);
-  lines.push('', changed ? 'Ajuste o plano e mostre de novo.' : 'Tudo certo — pode implementar.');
-  lines.push('', '<!-- /visual-feedback -->');
-  copyText(lines.join('\n'))
+  var body = collectAllInput();
+  var out = ['<!-- visual-feedback v1 -->', '📝 **Feedback no plano:**', ''];
+  if (body.lines.length > 0) {
+    out = out.concat(body.lines);
+  }
+  out.push(body.hasChanges ? 'Ajuste o plano e mostre de novo.' : 'Tudo certo — pode implementar.');
+  out.push('', '<!-- /visual-feedback -->');
+  copyText(out.join('\n'))
     .then(function() { flashBtn(btn, 'Feedback copiado'); })
     .catch(function() { flashBtn(btn, 'Falha — copie manual', true); });
 }

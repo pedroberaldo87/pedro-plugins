@@ -226,17 +226,29 @@ If `latest.json` doesn't exist or is stale (>30min old), Claude falls back to as
 - Radio name must be unique (`fb-1`, `fb-2`, …) — the radios share a name to be mutually exclusive per item.
 - When Pedro clicks "Mudar", the textarea appears (pure CSS via `.feedback-item.state-change .feedback-textarea { display: block }`).
 - The general observation textarea at the end catches plan-wide comments.
-- Two action buttons: **"Aprovar tudo"** (copies a simple "aprovado" line) and **"Copiar feedback estruturado"** (copies a markdown bullet list with the per-item state).
+- Two action buttons: **"Aprovar tudo"** and **"Copiar feedback"**. Both — together with **"Copiar escolhas"** in the decisions-box — emit the **full user-input state** (decisions + dec-comments + feedback items + fb-general). They differ only in the leading verdict and trailing action cue, never in what they capture.
+
+### Non-siloed copy semantics (mandatory)
+
+Historical bug (2026-04-21, flagged by Pedro): each copy button captured only the inputs inside its own box. `approveAll` emitted a bare `"✅ Plano aprovado"` and threw away every observation Pedro had written. `copyDecisions` ignored the feedback items. `copyFeedback` ignored the decisions and `#dec-comments`. Any comment Pedro typed anywhere could vanish depending on which button he pressed. Pedro's words: *"o botao final tem que resumir tudo qeu rolou ao longo do caminho"*.
+
+**Rule:** every copy button calls `collectAllInput()` which concatenates decisions + `#dec-comments` + feedback items (with per-item `change` notes) + `#fb-general`. The buttons then wrap this body with a button-specific envelope:
+
+| Button | Leading envelope | Trailing cue | Extra |
+|---|---|---|---|
+| `copyDecisions` ("Copiar escolhas") | `<!-- visual-decisions v1 -->` + `📋 Snapshot — escolhas e comentários` | `<!-- /visual-decisions -->` | confirm dialog if selections incomplete |
+| `approveAll` ("Aprovar tudo") | `<!-- visual-approve v1 -->` + `✅ APROVADO — <title>` | `Pode prosseguir.` + `<!-- /visual-approve -->` | confirm dialog if any feedback item is `change`/`remove` (prevents accidental approval while asking for changes) |
+| `copyFeedback` ("Copiar feedback") | `<!-- visual-feedback v1 -->` + `📝 Feedback no plano` | `Ajuste o plano e mostre de novo.` OR `Tudo certo — pode implementar.` + `<!-- /visual-feedback -->` | — |
+
+**Parser implications for Claude:** the three markers (`visual-decisions`, `visual-approve`, `visual-feedback`) signal intent (snapshot vs approval vs rework), but the **body structure is identical**. When parsing pasted content, Claude should extract decisions + feedback together regardless of which marker wrapped them. The marker tells Claude what Pedro wants done with the information, not what fields to look for.
 
 **How Pedro uses it:**
 
 1. Plan mode prompt appears in the CLI with the plan.
 2. Pedro reads it in the HTML (already open in browser).
-3. Pedro fills out feedback in the HTML: marks each item, writes general note if any.
-4. Pedro clicks "Copiar feedback estruturado" → clipboard gets a markdown-formatted feedback block.
-5. Pedro goes to the CLI:
-   - If approving: accepts in plan mode (no need to paste anything — the "aprovar tudo" text is just confirmation).
-   - If rejecting with feedback: rejects the plan in plan mode, then pastes the feedback as the next message. Claude reads the markdown bullets and adjusts the plan.
+3. Pedro fills out decisions + feedback + any comments in the HTML.
+4. Pedro clicks whichever button matches his verdict: "Aprovar tudo" (approves, includes his observations), "Copiar feedback" (asks for changes, includes full state), or "Copiar escolhas" (snapshot at any point, full state).
+5. Pedro goes to the CLI, pastes. Claude reads the marker + body and acts.
 
 **Never** dump the plan text into the CLI response. The HTML IS the plan view. The CLI just handles the accept/reject mechanical step.
 
