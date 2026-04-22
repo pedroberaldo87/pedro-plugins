@@ -1,7 +1,7 @@
 {
   "name": "pedro-plugins",
   "metadata": {
-    "description": "Marketplace privado do Pedro: skills, plugins e automações pessoais — bootstrap, visual, rev6, handoff, improve, ship."
+    "description": "Marketplace privado do Pedro: skills, plugins e automações pessoais — bootstrap, visual, rev6, handoff, improve, ship, project-doc."
   },
   "owner": {
     "name": "Pedro Beraldo",
@@ -55,6 +55,14 @@
       "category": "dev-tools",
       "version": "1.0.0",
       "tags": ["deploy", "lint", "typecheck", "production"]
+    },
+    {
+      "name": "project-doc",
+      "source": "./plugins/project-doc",
+      "description": "Auto-generate a structured CLAUDE.md reference block for a project (stack, ports, env vars, deploy flow, DB, gotchas). Supports standard and monorepo layouts with post-generation verification checks.",
+      "category": "productivity",
+      "version": "1.0.0",
+      "tags": ["documentation", "claude-md", "monorepo", "scaffolding"]
     }
   ]
 }

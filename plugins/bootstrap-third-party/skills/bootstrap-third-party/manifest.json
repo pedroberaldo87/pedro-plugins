@@ -26,6 +26,10 @@
         {
           "name": "ship",
           "enabled": true
+        },
+        {
+          "name": "project-doc",
+          "enabled": true
         }
       ]
     },

@@ -12,6 +12,7 @@ Marketplace privado de plugins Claude Code do Pedro. Monorepo — cada subdiret�
 | `handoff` | Cria documento de handoff (`.claude/HANDOFF.md`) com estado completo da sessão pra continuar depois. | Fim de sessão longa, antes de `/clear`, breakpoint natural |
 | `improve` | Implementa rodada de melhoria iterativa lendo `IMPROVEMENT_PROGRAM.md` + issues GitHub com label `autoresearch`. | Loops de auto-pesquisa/improvement em apps ML |
 | `ship` | Lint → type-check → commit → push → deploy em fluxo disciplinado. | Quando uma feature está pronta pra produção |
+| `project-doc` | Gera um bloco de referência estruturado em `.claude/CLAUDE.md` (stack, portas, env, deploy, DB, gotchas). Detecta monorepo vs standard e roda verificação pós-geração. | Entrar num projeto sem `CLAUDE.md` ou atualizar depois de mudanças estruturais |
 
 ## Instalação (em qualquer máquina)
 
@@ -87,9 +88,12 @@ pedro-plugins/
 │   ├── improve/                  # Autoresearch improvement loop
 │   │   ├── .claude-plugin/plugin.json
 │   │   └── skills/improve/
-│   └── ship/                     # Production deploy flow
+│   ├── ship/                     # Production deploy flow
+│   │   ├── .claude-plugin/plugin.json
+│   │   └── skills/ship/
+│   └── project-doc/              # Auto-generate project CLAUDE.md
 │       ├── .claude-plugin/plugin.json
-│       └── skills/ship/
+│       └── skills/project-doc/
 └── README.md
 ```
 

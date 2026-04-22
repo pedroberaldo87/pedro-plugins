@@ -1,0 +1,10 @@
+{
+  "name": "project-doc",
+  "version": "1.0.0",
+  "description": "Auto-generate a structured CLAUDE.md reference block for a project (stack, ports, env vars, deploy flow, DB, gotchas). Detects standard vs monorepo layouts, app/lib/cli type, and package manager. Includes post-generation verification with file-path, port, env, and security checks.",
+  "author": {
+    "name": "Pedro Beraldo",
+    "email": "pedrotrberaldo@gmail.com"
+  },
+  "homepage": "https://github.com/pedroberaldo87/pedro-plugins"
+}
