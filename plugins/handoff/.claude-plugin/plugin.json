@@ -1,7 +1,7 @@
 {
   "name": "handoff",
-  "version": "1.0.0",
-  "description": "Session state preservation — creates a complete knowledge transfer document at {project_root}/.claude/HANDOFF.md for later continuation via /continue.",
+  "version": "1.1.0",
+  "description": "Session continuity cycle — creates a complete knowledge transfer document at {project_root}/.claude/HANDOFF.md at the end of a session, and loads it back on the next session (via 'continue' / '/continue') to resume exactly where you left off.",
   "author": {
     "name": "Pedro Beraldo",
     "email": "pedrotrberaldo@gmail.com"

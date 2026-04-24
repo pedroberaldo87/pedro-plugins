@@ -9,7 +9,7 @@ Marketplace privado de plugins Claude Code do Pedro. Monorepo — cada subdiret�
 | `bootstrap-third-party` | Sincroniza marketplaces e plugins de terceiros entre máquinas via git. Declarativo (manifest.json). | Restaurar todo seu ambiente Claude Code numa máquina nova com 1 comando |
 | `visual` | Transforma textão do CLI em HTML dark-theme interativo. Abre no browser com live sync via daemon local. | Planos, diagnósticos e decisões que você escaneia em 30s em vez de rolar 20 páginas no terminal |
 | `rev6` | Dispara 6 agentes voltagent em paralelo (architect, backend, frontend, fullstack, code-reviewer, UX) pra review multi-ângulo. | Feedback multi-lente em feature nova antes de ship |
-| `handoff` | Cria documento de handoff (`.claude/HANDOFF.md`) com estado completo da sessão pra continuar depois. | Fim de sessão longa, antes de `/clear`, breakpoint natural |
+| `handoff` | Ciclo completo de continuidade: cria `.claude/HANDOFF.md` no fim da sessão e carrega de volta na próxima (via "continue" / `/continue`) pra retomar exatamente de onde parou. | Fim de sessão longa, antes de `/clear`, e início da sessão seguinte pra recuperar contexto |
 | `improve` | Implementa rodada de melhoria iterativa lendo `IMPROVEMENT_PROGRAM.md` + issues GitHub com label `autoresearch`. | Loops de auto-pesquisa/improvement em apps ML |
 | `ship` | Lint → type-check → commit → push → deploy em fluxo disciplinado. | Quando uma feature está pronta pra produção |
 | `project-doc` | Gera um bloco de referência estruturado em `.claude/CLAUDE.md` (stack, portas, env, deploy, DB, gotchas). Detecta monorepo vs standard e roda verificação pós-geração. | Entrar num projeto sem `CLAUDE.md` ou atualizar depois de mudanças estruturais |
@@ -82,9 +82,11 @@ pedro-plugins/
 │   ├── rev6/                     # Multi-angle code review
 │   │   ├── .claude-plugin/plugin.json
 │   │   └── skills/rev6/
-│   ├── handoff/                  # Session handoff document
+│   ├── handoff/                  # Session continuity cycle (create + load)
 │   │   ├── .claude-plugin/plugin.json
-│   │   └── skills/handoff/
+│   │   └── skills/
+│   │       ├── handoff/          # Cria HANDOFF.md
+│   │       └── carregar-handoff/ # Carrega HANDOFF.md na sessão seguinte
 │   ├── improve/                  # Autoresearch improvement loop
 │   │   ├── .claude-plugin/plugin.json
 │   │   └── skills/improve/
