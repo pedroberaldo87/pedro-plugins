@@ -1,0 +1,9 @@
+{
+  "name": "grill-with-docs",
+  "version": "1.0.0",
+  "description": "Relentless design review that challenges plans against the project's domain model, sharpens terminology, and updates CONTEXT.md and ADRs inline as decisions crystallise.",
+  "author": {
+    "name": "Matt Pocock",
+    "homepage": "https://github.com/mattpocock/skills"
+  }
+}
