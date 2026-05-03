@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "description": "Third-party Claude Code marketplaces and plugins Pedro uses. Auto-synced via bootstrap-third-party hooks. The 'pedro-plugins' entry is manually maintained (snapshot.sh filters it) and lists Pedro's own personal plugins.",
+  "description": "Third-party Claude Code marketplaces and plugins Pedro uses. Auto-synced via bootstrap-third-party hooks. The pedro-plugins entry is manually maintained and preserved across snapshots.",
   "marketplaces": [
     {
       "name": "pedro-plugins",
@@ -91,7 +91,7 @@
         },
         {
           "name": "skill-creator",
-          "enabled": false
+          "enabled": true
         },
         {
           "name": "sonatype-guide",
@@ -103,6 +103,28 @@
         },
         {
           "name": "swift-lsp",
+          "enabled": true
+        }
+      ]
+    },
+    {
+      "name": "obsidian-skills",
+      "source": "https://github.com/kepano/obsidian-skills.git",
+      "sourceType": "git",
+      "plugins": [
+        {
+          "name": "obsidian",
+          "enabled": true
+        }
+      ]
+    },
+    {
+      "name": "openai-codex",
+      "source": "https://github.com/openai/codex-plugin-cc.git",
+      "sourceType": "git",
+      "plugins": [
+        {
+          "name": "codex",
           "enabled": true
         }
       ]
