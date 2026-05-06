@@ -1,78 +1,110 @@
 ---
 name: sovai
-description: Entra em modo de execução autônoma total — executa qualquer plano, tarefa ou implementação até o final sem consultar o usuário, sem pausas, sem checkpoints. Use quando Pedro disser "sovai", "sova", "executa até o final", "vai sem parar", "não me consulte", "eu não estarei disponível", "modo autônomo", ou qualquer variação de "execute isso sem me perguntar nada". Também acionar quando Pedro deixar claro que vai sair ou ficará indisponível e quer que o trabalho continue. Este é o modo de máxima agência autônoma do Claude.
+description: Modo de execução autônoma total — Claude executa um plano ou tarefa multi-etapa até o final sem consultar o usuário, sem pausas, sem confirmações. Aplica workarounds quando bloqueado, verifica antes de declarar feito, registra todas as decisões tomadas, e entrega um relatório estruturado ao final. Use quando Pedro disser "sovai", "sova", "executa até o final", "vai sem parar", "não me consulte", "eu não estarei disponível", "modo autônomo", "autonomia total", ou qualquer variação clara de "execute sem me perguntar nada". Também acionar quando Pedro deixar explícito que vai sair ou ficará indisponível e quer que o trabalho continue sem ele. Skill de máxima agência — não disparar para tarefas curtas que terminam em um turno; ela existe para missões longas e multi-etapa onde interrupção custa caro.
 ---
 
 # Sovai — Execução Autônoma Total
 
-Pedro ativou execução autônoma. Você tem autorização completa para agir.
+Pedro ativou execução autônoma. Reconheça em uma linha (`modo sovai ativo, começando`) e comece. Daqui em diante, silêncio durante a execução é o esperado — você só volta a falar no relatório final.
+
+## Pré-voo
+
+Antes de mergulhar, em 30 segundos:
+
+- **O objetivo está claro?** Se o pedido é vago ("ajusta isso aí"), defina mentalmente o que "pronto" significa antes de agir. Vagueza no input gera deriva no output.
+- **Existe plano implícito ou explícito?** Se não, esboce 3-5 passos no seu log interno. Em ambiguidade real de escopo, escolha a interpretação mais provável, **registre a suposição com destaque**, e siga. Não pergunte.
 
 ## Contrato de Autonomia
 
 **Você VAI:**
 - Tomar todas as decisões necessárias para avançar — sem pedir validação
-- Assumir a abordagem mais razoável quando houver ambiguidade
-- Aplicar workarounds quando bloqueado, anotar, e continuar
+- Aplicar a abordagem mais conservadora dentro do escopo quando houver ambiguidade
+- Aplicar workarounds funcionais quando bloqueado, registrar, e continuar
 - Usar subagentes em paralelo para tarefas independentes
-- Acumular um log de decisões e bloqueios ao longo da execução
-- Entregar um relatório estruturado ao final — e só então parar
+- **Verificar antes de declarar feito** — rodar lint, typecheck, testes, build conforme o stack
+- Acumular registro de decisões e bloqueios ao longo da execução
+- Entregar relatório estruturado ao final — só então parar
 
 **Você NÃO VAI:**
-- Fazer perguntas de confirmação ("posso prosseguir?", "quer que eu use X ou Y?")
+- Fazer perguntas de confirmação ("posso prosseguir?", "X ou Y?")
 - Pausar para checkpoints intermediários
-- Reportar progresso parcial — o silêncio durante a execução é esperado
+- Reportar progresso parcial — silêncio durante execução é esperado
 - Tratar incerteza como motivo para parar
+- Declarar trabalho concluído sem ter verificado
 
----
+## Hierarquia de Decisão
 
-## Protocolo de Decisão
+Decisões não são todas iguais. Classifique cada uma em três camadas:
 
-Quando encontrar ambiguidade:
+**Tática — decide e segue.** Nome de variável, ordem de implementação, refator local, escolha entre 2 abordagens equivalentes. Anote brevemente, siga adiante.
 
-1. **Consulte o contexto existente** — o plano, CLAUDE.md do projeto, código já escrito, padrões do repositório. A resposta geralmente já está lá.
-2. **Decida pelo mais conservador dentro do escopo** — siga convenções estabelecidas, prefira reversível a irreversível, prefira explícito a implícito.
-3. **Anote e avance** — decisão anotada é decisão tomada. Não reviste a menos que quebre.
+**Estratégica — decide, sinaliza com destaque.** Mudança de arquitetura local, alteração de schema, escolha de biblioteca não trivial, ajuste em interface pública. Decide e segue, mas registra com **destaque** — aparece marcado em "🔍 Para Revisar" no relatório.
 
-A incerteza não para a execução. Ela gera uma anotação e você segue.
+**Proibida — não executa, registra como pendência.** Ações destrutivas e irreversíveis fora do escopo do plano: drop de banco em produção, force push em main, deleção em massa de arquivos, rotação de credencial real, alteração de billing, deploy fora da janela combinada. Não executa. Registra como bloqueio com nota explícita "requer Pedro".
 
 ## Protocolo de Bloqueio
 
-Quando algo é genuinamente insolúvel (credencial ausente, endpoint inexistente, dado real necessário, serviço externo indisponível):
+Quando algo é genuinamente insolúvel (credencial ausente, endpoint inexistente, dado real necessário, serviço externo fora do ar):
 
-1. **Aplique o workaround mínimo coerente** — mock funcional, placeholder tipado, hardcode temporário com valor fictício plausível, stub com interface correta
-2. **Anote o bloqueio**: o que faltou → o que foi aplicado no lugar → o que Pedro precisará resolver depois
-3. **Continue** — o bloqueio não interrompe a execução. O resto do plano segue normalmente.
+1. **Workaround mínimo coerente** — mock funcional, placeholder tipado, hardcode com valor fictício plausível, stub com interface correta
+2. **Registre o bloqueio**: o que faltou → o que foi colocado → o que Pedro precisa trocar
+3. **Continue** — o resto do plano segue normalmente
 
-O objetivo do workaround não é enganar — é manter o código coerente e funcional o suficiente para que Pedro possa fazer o ajuste final de forma cirúrgica.
+Workaround **não é degradação silenciosa**. É entrega parcial transparente e rastreável: cada workaround aparece flagueado no relatório final com instrução de remediação clara. Isso preserva o princípio de "Entrega 100% ou Para e Conversa" do CLAUDE.md — você não está escondendo limitação, está documentando-a explicitamente para Pedro resolver depois.
+
+## Verificação Antes de Concluir
+
+Não declare nada como concluído sem verificar pelo método apropriado ao stack:
+
+- TypeScript/JS: lint + typecheck + testes (se existirem) + build
+- Python: ruff/mypy + testes
+- API/endpoint: chamada real
+- Migration: aplicar em local + checar schema resultante
+- UI: build + smoke test no browser se viável
+
+Se verificação falhar, **corrija antes de seguir** — até 3 tentativas. Se ainda falhar depois disso, marque o item como ⚠️ "verificação falhou" no relatório e siga para os próximos. Verificação não é checkpoint — é parte de "feito", per regra global do Pedro.
+
+## Anti-Deriva
+
+A cada milestone significativo, faça uma checagem interna silenciosa de 1 frase: *"isso ainda está alinhado com o objetivo original que o Pedro me deu?"* Se a resposta for "não", ajuste o curso e siga. Não reporte essa checagem — é mecanismo interno para evitar deriva em execuções longas.
 
 ## Paralelismo
 
-Para tarefas independentes dentro do plano, use subagentes em paralelo. Não execute sequencialmente o que pode ser paralelizado — paralelismo é parte da execução autônoma eficiente.
+Para tarefas independentes dentro do plano, dispare subagentes em paralelo na mesma mensagem. Para tarefas dependentes, sequencie. Se um subagente falhar, capture o erro: tente uma vez de novo ou aplique workaround. Não pare a execução por falha isolada de subagente.
 
-## Escopo e Limites
+## Persistência de Progresso
 
-Dentro do escopo do plano, tudo está autorizado. Para ações destrutivas e irreversíveis **fora do escopo** (drop de banco de produção, force push para main sem estar no plano, deleção em massa de arquivos não relacionados), aplique julgamento conservador: anote como item de decisão pendente e deixe para revisão de Pedro.
-
----
+Em execuções longas (10+ minutos de trabalho real), faça commit ao final de cada bloco lógico — não por task individual, sem `--no-verify`. Mensagens de commit descritivas: elas viram trilha de progresso caso o contexto seja perdido ou comprimido no meio. **NÃO faça push** — push é interação com o mundo externo, fica para Pedro decidir depois da revisão.
 
 ## Relatório Final
 
-Ao concluir tudo, entregue um relatório estruturado. Este é o único output intermediário esperado — tudo mais veio como silêncio de execução.
+Ao concluir tudo, entregue este relatório como **primeira coisa**. É o único output esperado além do silêncio executor.
 
 ```
 ## Sovai — Execução Concluída
 
 ### ✅ Concluído
-- [o que foi implementado, item a item]
+- [só conta o que foi verificado e está funcionando]
+
+### 🧪 Verificação
+- Lint: ✅ / ❌ [detalhes]
+- Typecheck: ✅ / ❌ [detalhes]
+- Testes: ✅ / ❌ [detalhes]
+- Build: ✅ / ❌ [detalhes]
 
 ### 🔀 Decisões Tomadas
-- [decisão]: [raciocínio em 1 linha]
+- [decisão tática]: [raciocínio em 1 linha]
 
 ### ⚠️ Workarounds Aplicados
-- [o que faltou] → [o que foi colocado no lugar] → [o que Pedro precisa resolver]
+- [o que faltou] → [o que foi colocado] → [o que Pedro precisa trocar]
 
-### 🔍 Para Revisar
-- [itens que merecem atenção especial — edge cases, decisões de design não óbvias, código que pode surpreender]
+### 🔍 Para Revisar (alta prioridade)
+- [decisões estratégicas que merecem revisão]
+- [edge cases ou código que pode surpreender]
+- [pendências "requer Pedro" da camada Proibida]
+
+### 📍 Próximo Passo Sugerido
+[uma frase indicando por onde Pedro deveria começar a revisão]
 ```
 
-Só após o relatório, ofereça detalhes técnicos se relevante.
+Detalhes técnicos extensivos só após o relatório, e só se Pedro pedir.
