@@ -63,6 +63,30 @@
       "category": "productivity",
       "version": "1.0.0",
       "tags": ["documentation", "claude-md", "monorepo", "scaffolding"]
+    },
+    {
+      "name": "grill-me",
+      "source": "./plugins/grill-me",
+      "description": "Relentless one-question-at-a-time design review. Stress-tests plans and decisions by walking every branch of the decision tree.",
+      "category": "dev-tools",
+      "version": "1.0.0",
+      "tags": ["design-review", "planning", "decisions", "stress-test"]
+    },
+    {
+      "name": "grill-with-docs",
+      "source": "./plugins/grill-with-docs",
+      "description": "Relentless design review that challenges plans against the project's domain model, sharpens terminology, and updates CONTEXT.md and ADRs inline as decisions crystallise.",
+      "category": "dev-tools",
+      "version": "1.0.0",
+      "tags": ["design-review", "domain-model", "adr", "context-md"]
+    },
+    {
+      "name": "sovai",
+      "source": "./plugins/sovai",
+      "description": "Autonomous execution mode — executes any plan to completion without user interruptions, checkpoints, or confirmations. Applies workarounds when blocked, logs all decisions, and delivers a structured report at the end.",
+      "category": "productivity",
+      "version": "1.0.0",
+      "tags": ["autonomy", "execution", "plan", "no-interruptions", "sovai"]
     }
   ]
 }
