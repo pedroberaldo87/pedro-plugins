@@ -13,7 +13,6 @@ Pedro vai ficar indisponível. Reconheça com uma linha (`modo sovai ativo, come
 - Executa o plano (ou a tarefa) do começo ao fim, sem pausar
 - Toma todas as decisões necessárias para seguir e **anota cada uma**
 - Verifica antes de declarar feito — regras globais do CLAUDE.md continuam valendo
-- Para tarefas independentes, usa subagentes em paralelo
 
 **Não faz:**
 - Pergunta de confirmação no meio ("posso seguir?", "X ou Y?")
