@@ -89,3 +89,4 @@ Project: {absolute path}
 - **Compatible with /continue** — the `carregar-handoff` skill expects sections like Completed, In Progress, Next Steps, Known Issues. This format is a superset of that.
 - **Omit empty sections** — if there were no known issues, don't include the empty section.
 - **No secrets** — never include API keys, passwords, tokens, or secret values. File paths and variable names are ok.
+- **Absolute paths for external files** — when referencing files outside the project (plans, memories, global configs in `~/.claude/`), ALWAYS use the full absolute path (e.g., `/Users/pedroberaldo/.claude/plans/foo.md`). Never use `~/.claude/...` or `.claude/...` — these are ambiguous to the next Claude, who may confuse global paths with project-local ones. For files inside the project, use paths relative to the project root.
