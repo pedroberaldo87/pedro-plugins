@@ -1,0 +1,10 @@
+{
+  "name": "qa",
+  "version": "1.0.0",
+  "description": "Audits implementation against a plan using 4 parallel specialist agents. Loops via /goal until 100% adherent.",
+  "author": {
+    "name": "Pedro Beraldo",
+    "email": "pedrotrberaldo@gmail.com"
+  },
+  "homepage": "https://github.com/pedroberaldo87/pedro-plugins"
+}
