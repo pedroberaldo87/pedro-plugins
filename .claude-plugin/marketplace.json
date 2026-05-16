@@ -87,6 +87,14 @@
       "category": "productivity",
       "version": "1.0.0",
       "tags": ["autonomy", "execution", "plan", "no-interruptions", "sovai"]
+    },
+    {
+      "name": "qa",
+      "source": "./plugins/qa",
+      "description": "Audits implementation against a plan using 4 parallel specialist agents. Loops via /goal until 100% adherent.",
+      "category": "dev-tools",
+      "version": "1.0.0",
+      "tags": ["audit", "plan-adherence", "parallel", "voltagent", "quality"]
     }
   ]
 }
