@@ -24,9 +24,10 @@ O argumento é o path de um plano (`.claude/plans/*.md`, `docs/specs/*.md`, ou q
 4. **Em cada turn do /goal:**
    - Despachar os 4 agentes em paralelo (single message, 4 Agent calls)
    - Cada agente recebe o plano completo + o código atual
+   - **A partir da 2ª rodada:** cada agente também recebe os findings da rodada anterior e deve (a) verificar se foram resolvidos, (b) procurar novos problemas
    - Consolidar findings
    - Corrigir todos os P0/P1
-   - Se ainda há P0/P1 → /goal continua
+   - Se ainda há P0/P1 (não resolvidos ou novos) → /goal continua
    - Se zero P0/P1 → /goal encerra
 
 ## Prompt dos agentes
@@ -42,6 +43,17 @@ Você é um auditor de implementação. Seu trabalho: comparar o código atual c
 ## Sua lente
 <LENTE ESPECÍFICA DO AGENTE>
 
+## Findings da rodada anterior (se 2ª rodada em diante)
+<FINDINGS ANTERIORES OU "Primeira rodada — não se aplica">
+
+## O que fazer
+Audite o código como se fosse a primeira rodada — leia o plano, compare com o código, reporte tudo que encontrar. Não se limite aos findings anteriores. Sua auditoria deve ser completa e independente.
+
+Depois, como passo separado, cruze seus achados com os findings da rodada anterior:
+- Se um finding anterior sumiu do seu report → foi resolvido (não precisa mencionar)
+- Se um finding anterior ainda aparece → re-reporte como "NÃO RESOLVIDO"
+- Novos findings que não existiam antes → reporte normalmente
+
 ## O que reportar
 - P0: Bug crítico, feature do plano não implementada, comportamento quebrado
 - P1: Divergência do plano (abordagem diferente, nome errado, estrutura diferente)
@@ -52,7 +64,9 @@ Você é um auditor de implementação. Seu trabalho: comparar o código atual c
 Para cada finding:
 **P{N}** — {arquivo}:{linha} — {problema} — {direção de fix}
 
-Se nada encontrado: "✅ Zero findings sob minha lente."
+Para re-reports: **P{N} NÃO RESOLVIDO** — {arquivo}:{linha} — {problema original} — {por que não foi resolvido}
+
+Se nada encontrado: "✅ Zero findings sob minha lente (anteriores resolvidos + zero novos)."
 ```
 
 ## Consolidação
