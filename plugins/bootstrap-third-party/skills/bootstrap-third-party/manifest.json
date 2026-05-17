@@ -1,38 +1,7 @@
 {
   "version": 1,
-  "description": "Third-party Claude Code marketplaces and plugins Pedro uses. Auto-synced via bootstrap-third-party hooks. The pedro-plugins entry is manually maintained and preserved across snapshots.",
+  "description": "Third-party Claude Code marketplaces and plugins Pedro uses. Auto-synced via bootstrap-third-party hooks.",
   "marketplaces": [
-    {
-      "name": "pedro-plugins",
-      "source": "git@github.com:pedroberaldo87/pedro-plugins.git",
-      "sourceType": "git",
-      "plugins": [
-        {
-          "name": "visual",
-          "enabled": true
-        },
-        {
-          "name": "rev6",
-          "enabled": true
-        },
-        {
-          "name": "handoff",
-          "enabled": true
-        },
-        {
-          "name": "improve",
-          "enabled": true
-        },
-        {
-          "name": "ship",
-          "enabled": true
-        },
-        {
-          "name": "project-doc",
-          "enabled": true
-        }
-      ]
-    },
     {
       "name": "claude-hud",
       "source": "https://github.com/jarrodwatts/claude-hud.git",
