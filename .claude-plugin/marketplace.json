@@ -95,6 +95,14 @@
       "category": "dev-tools",
       "version": "1.0.0",
       "tags": ["audit", "plan-adherence", "parallel", "voltagent", "quality"]
+    },
+    {
+      "name": "principles",
+      "source": "./plugins/principles",
+      "description": "Contextual system design principles for planning and review",
+      "category": "dev-tools",
+      "version": "1.0.0",
+      "tags": ["architecture", "principles", "planning", "review"]
     }
   ]
 }

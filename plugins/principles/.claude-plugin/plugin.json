@@ -1,0 +1,10 @@
+{
+  "name": "principles",
+  "version": "1.0.0",
+  "description": "Contextual system design principles for planning and review",
+  "author": {
+    "name": "Pedro Beraldo",
+    "email": "pedrotrberaldo@gmail.com"
+  },
+  "homepage": "https://github.com/pedroberaldo87/pedro-plugins"
+}
