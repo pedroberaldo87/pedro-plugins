@@ -4,7 +4,7 @@
 
 ## Documento Fonte
 
-`/Users/pedroberaldo/Library/Mobile Documents/iCloud~md~obsidian/Documents/ObsidianPedro/DEV/PRINCIPIOS SISTEMAS.md`
+`${CLAUDE_PLUGIN_ROOT}/skills/principles/PRINCIPIOS-SISTEMAS.md`
 
 ## Mapa de Categorias
 
