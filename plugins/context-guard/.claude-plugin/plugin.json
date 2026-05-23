@@ -1,11 +1,11 @@
 {
   "name": "context-guard",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Auto-interrupts workflow when context window usage exceeds a configurable threshold. Blocks execution and tells the user to run /handoff before continuing.",
   "author": {
     "name": "Pedro Beraldo",
     "email": "pedrotrberaldo@gmail.com"
   },
-  "homepage": "https://github.com/pedroberaldo87/context-guard",
+  "homepage": "https://github.com/pedroberaldo87/pedro-plugins",
   "license": "GPL-3.0"
 }
