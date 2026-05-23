@@ -12,7 +12,7 @@ Marketplace privado de plugins Claude Code do Pedro. Monorepo — cada subdiret�
 | `visual` | Transforma textão do CLI em HTML dark-theme interativo. Abre no browser com live sync via daemon local. | Planos, diagnósticos e decisões que você escaneia em 30s em vez de rolar 20 páginas no terminal |
 | `handoff` | Ciclo completo de continuidade: cria `.claude/HANDOFF.md` no fim da sessão e carrega de volta na próxima (via "continue" / `/continue`) pra retomar exatamente de onde parou. | Fim de sessão longa, antes de `/clear`, e início da sessão seguinte pra recuperar contexto |
 | `sovai` | Modo autônomo — executa plano até o fim sem pausas, checkpoints ou confirmações. Toma decisões, loga tudo, entrega relatório estruturado. | Tarefas multi-etapa quando Pedro não está disponível pra responder |
-| `context-guard` | Auto-interrompe o workflow quando o context window ultrapassa threshold configurável. Ponte entre statusLine e PostToolUse hooks via temp file. | Evitar que sessões longas percam contexto sem aviso |
+| `context-guard` | Auto-interrompe o workflow quando o context window ultrapassa threshold configurável (default: 80%). Pensado pra modelos com contexto limitado — o threshold de 80% assume modelos como Opus 4.6 (200k tokens). Ponte entre statusLine e PostToolUse hooks via temp file. | Modelos com janela de contexto menor, onde ultrapassar 80% degrada qualidade sem aviso |
 
 ### Qualidade & Review
 
