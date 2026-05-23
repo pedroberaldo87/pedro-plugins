@@ -27,9 +27,9 @@
     {
       "name": "context-guard",
       "source": "./plugins/context-guard",
-      "description": "Auto-interrupts workflow when context window exceeds configurable threshold (default 80%). Designed for models with limited context — the 80% threshold assumes models like Opus 4.6 (200k tokens). Bridges statusLine and PostToolUse hooks via temp file.",
+      "description": "Auto-interrupts workflow when context window exceeds configurable threshold (default 80%). Bridges statusLine and PostToolUse hooks via temp file. Forwards to any existing statusLine (claude-hud or other) via CLAUDE_STATUSLINE_FORWARD env var.",
       "category": "productivity",
-      "version": "1.0.0",
+      "version": "1.1.0",
       "tags": ["context", "guard", "handoff", "session", "hooks"]
     },
     {
