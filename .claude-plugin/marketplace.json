@@ -1,7 +1,7 @@
 {
   "name": "pedro-plugins",
   "metadata": {
-    "description": "Marketplace privado do Pedro: 14 skills e automações pessoais para Claude Code — bootstrap, visual, rev6, handoff, improve, ship, project-doc, grill-me, grill-with-docs, sovai, qa, principles, context-guard, iterate."
+    "description": "Marketplace privado do Pedro: 14 skills e automações pessoais para Claude Code."
   },
   "owner": {
     "name": "Pedro Beraldo",
@@ -25,12 +25,12 @@
       "tags": ["visualization", "html", "plan-mode", "hooks", "live-sync"]
     },
     {
-      "name": "rev6",
-      "source": "./plugins/rev6",
-      "description": "Multi-angle code review via 6 parallel voltagent specialists (architect, backend, frontend, fullstack, code-reviewer, UX). Consolidates findings with P0/P1 highlighting.",
-      "category": "dev-tools",
+      "name": "context-guard",
+      "source": "./plugins/context-guard",
+      "description": "Auto-interrupts workflow when context window exceeds configurable threshold (default 80%). Designed for models with limited context — the 80% threshold assumes models like Opus 4.6 (200k tokens). Bridges statusLine and PostToolUse hooks via temp file.",
+      "category": "productivity",
       "version": "1.0.0",
-      "tags": ["code-review", "parallel", "voltagent", "quality"]
+      "tags": ["context", "guard", "handoff", "session", "hooks"]
     },
     {
       "name": "handoff",
@@ -41,20 +41,12 @@
       "tags": ["session", "continuity", "documentation"]
     },
     {
-      "name": "improve",
-      "source": "./plugins/improve",
-      "description": "Generic self-improvement implementer using the autoresearch ML methodology. Reads the app's IMPROVEMENT_PROGRAM.md, fetches proposals from GitHub Issues (label 'autoresearch'), implements changes.",
-      "category": "dev-tools",
+      "name": "sovai",
+      "source": "./plugins/sovai",
+      "description": "Autonomous execution mode — executes any plan to completion without user interruptions, checkpoints, or confirmations. Skips blocked items (no silent workarounds), logs all decisions, and delivers a structured report at the end.",
+      "category": "productivity",
       "version": "1.0.0",
-      "tags": ["automation", "ml", "improvement", "github-issues"]
-    },
-    {
-      "name": "ship",
-      "source": "./plugins/ship",
-      "description": "Production deploy flow: lint, type-check, commit, push, deploy in one disciplined sequence. Triggers on 'ship', 'manda', 'deploya tudo'.",
-      "category": "dev-tools",
-      "version": "1.0.0",
-      "tags": ["deploy", "lint", "typecheck", "production"]
+      "tags": ["autonomy", "execution", "plan", "no-interruptions", "sovai"]
     },
     {
       "name": "project-doc",
@@ -63,6 +55,22 @@
       "category": "productivity",
       "version": "1.0.0",
       "tags": ["documentation", "claude-md", "monorepo", "scaffolding"]
+    },
+    {
+      "name": "rev6",
+      "source": "./plugins/rev6",
+      "description": "Multi-angle code review via 6 parallel voltagent specialists (architect, backend, frontend, fullstack, code-reviewer, UX). Consolidates findings with P0/P1 highlighting.",
+      "category": "dev-tools",
+      "version": "1.0.0",
+      "tags": ["code-review", "parallel", "voltagent", "quality"]
+    },
+    {
+      "name": "qa",
+      "source": "./plugins/qa",
+      "description": "Audits implementation against a plan using 4 parallel specialist agents. Loops until 100% adherent (zero P0/P1 findings).",
+      "category": "dev-tools",
+      "version": "1.0.0",
+      "tags": ["audit", "plan-adherence", "parallel", "voltagent", "quality"]
     },
     {
       "name": "grill-me",
@@ -83,36 +91,20 @@
       "tags": ["design-review", "domain-model", "adr", "context-md"]
     },
     {
-      "name": "sovai",
-      "source": "./plugins/sovai",
-      "description": "Autonomous execution mode — executes any plan to completion without user interruptions, checkpoints, or confirmations. Applies workarounds when blocked, logs all decisions, and delivers a structured report at the end.",
-      "category": "productivity",
-      "version": "1.0.0",
-      "tags": ["autonomy", "execution", "plan", "no-interruptions", "sovai"]
-    },
-    {
-      "name": "qa",
-      "source": "./plugins/qa",
-      "description": "Audits implementation against a plan using 4 parallel specialist agents. Loops via /goal until 100% adherent.",
-      "category": "dev-tools",
-      "version": "1.0.0",
-      "tags": ["audit", "plan-adherence", "parallel", "voltagent", "quality"]
-    },
-    {
       "name": "principles",
       "source": "./plugins/principles",
-      "description": "Contextual system design principles for planning and review",
+      "description": "Contextual system design principles for planning and review. Reads PRINCIPIOS-SISTEMAS.md, maps relevant categories to the current context, generates a practical guide with WHY + HOW.",
       "category": "dev-tools",
       "version": "1.0.0",
       "tags": ["architecture", "principles", "planning", "review"]
     },
     {
-      "name": "context-guard",
-      "source": "./plugins/context-guard",
-      "description": "Auto-interrupts workflow when context window exceeds configurable threshold (default 80%). Designed for models with limited context — the 80% threshold assumes models like Opus 4.6 (200k tokens). Bridges statusLine and PostToolUse hooks via temp file.",
-      "category": "productivity",
+      "name": "ship",
+      "source": "./plugins/ship",
+      "description": "Production deploy flow: lint, type-check, commit, push, deploy in one disciplined sequence.",
+      "category": "dev-tools",
       "version": "1.0.0",
-      "tags": ["context", "guard", "handoff", "session", "hooks"]
+      "tags": ["deploy", "lint", "typecheck", "production"]
     },
     {
       "name": "iterate",
@@ -121,6 +113,14 @@
       "category": "dev-tools",
       "version": "1.0.0",
       "tags": ["iteration", "convergence", "verification", "autonomous", "loop"]
+    },
+    {
+      "name": "improve",
+      "source": "./plugins/improve",
+      "description": "Generic self-improvement implementer using the autoresearch ML methodology. Reads the app's IMPROVEMENT_PROGRAM.md, fetches proposals from GitHub Issues (label 'autoresearch'), implements changes.",
+      "category": "dev-tools",
+      "version": "1.0.0",
+      "tags": ["automation", "ml", "improvement", "github-issues"]
     }
   ]
 }
