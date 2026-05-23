@@ -1,0 +1,10 @@
+{
+  "name": "sovai",
+  "version": "1.0.0",
+  "description": "Autonomous execution mode — executes any plan to completion without user interruptions, checkpoints, or confirmations. Logs all decisions, delivers structured report at the end.",
+  "author": {
+    "name": "Pedro Beraldo",
+    "email": "pedrotrberaldo@gmail.com"
+  },
+  "homepage": "https://github.com/pedroberaldo87/pedro-plugins"
+}

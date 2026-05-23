@@ -1,7 +1,7 @@
 {
   "name": "pedro-plugins",
   "metadata": {
-    "description": "Marketplace privado do Pedro: skills, plugins e automações pessoais — bootstrap, visual, rev6, handoff, improve, ship, project-doc."
+    "description": "Marketplace privado do Pedro: 14 skills e automações pessoais para Claude Code — bootstrap, visual, rev6, handoff, improve, ship, project-doc, grill-me, grill-with-docs, sovai, qa, principles, context-guard, iterate."
   },
   "owner": {
     "name": "Pedro Beraldo",
@@ -68,6 +68,7 @@
       "name": "grill-me",
       "source": "./plugins/grill-me",
       "description": "Relentless one-question-at-a-time design review. Stress-tests plans and decisions by walking every branch of the decision tree.",
+      "author": "Matt Pocock (https://github.com/mattpocock/skills)",
       "category": "dev-tools",
       "version": "1.0.0",
       "tags": ["design-review", "planning", "decisions", "stress-test"]
@@ -76,6 +77,7 @@
       "name": "grill-with-docs",
       "source": "./plugins/grill-with-docs",
       "description": "Relentless design review that challenges plans against the project's domain model, sharpens terminology, and updates CONTEXT.md and ADRs inline as decisions crystallise.",
+      "author": "Matt Pocock (https://github.com/mattpocock/skills)",
       "category": "dev-tools",
       "version": "1.0.0",
       "tags": ["design-review", "domain-model", "adr", "context-md"]
@@ -111,6 +113,14 @@
       "category": "productivity",
       "version": "1.0.0",
       "tags": ["context", "guard", "handoff", "session", "hooks"]
+    },
+    {
+      "name": "iterate",
+      "source": "./plugins/iterate",
+      "description": "Autonomous convergence loop — iterates atomic changes until a verification command passes. Hard contract: verifiable result + means to verify. Capped, logged, respects project principles.",
+      "category": "dev-tools",
+      "version": "1.0.0",
+      "tags": ["iteration", "convergence", "verification", "autonomous", "loop"]
     }
   ]
 }
