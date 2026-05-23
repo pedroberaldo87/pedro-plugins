@@ -103,6 +103,14 @@
       "category": "dev-tools",
       "version": "1.0.0",
       "tags": ["architecture", "principles", "planning", "review"]
+    },
+    {
+      "name": "context-guard",
+      "source": "./plugins/context-guard",
+      "description": "Auto-interrupts workflow when context window exceeds configurable threshold. Bridges statusLine (context data) and PostToolUse hooks (execution blocking) via temp file.",
+      "category": "productivity",
+      "version": "1.0.0",
+      "tags": ["context", "guard", "handoff", "session", "hooks"]
     }
   ]
 }
