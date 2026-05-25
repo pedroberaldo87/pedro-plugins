@@ -38,11 +38,9 @@ For Pedro specifically — someone who learns by collision — the session isn't
 
 2. **Complement with code state** — run `git log` and `git diff --stat` to capture concrete changes that may have scrolled out of context
 
-3. **Compose the HANDOFF.md** — follow the format below, prioritizing **completeness over brevity**. The next Claude needs to reconstruct the full mental model from this document alone.
+3. **Compose and save the HANDOFF.md** — follow the format below, prioritizing **completeness over brevity**. The next Claude needs to reconstruct the full mental model from this document alone. Write directly to `{project_root}/.claude/HANDOFF.md`.
 
-4. **Show preview to Pedro** — present a summary of what was captured and ask if anything is missing. Do NOT save yet.
-
-5. **Save** — after Pedro confirms, write to `{project_root}/.claude/HANDOFF.md`
+4. **Show summary to Pedro** — present a brief summary of what was captured. Pedro can request changes after reviewing — the file is already saved and editable.
 
 ## HANDOFF.md Format
 
@@ -84,7 +82,7 @@ Project: {absolute path}
 - **Completeness > brevity** — better long and complete than short with gaps. The reader has no context.
 - **Preserve reasoning chains** — every decision with its "why". Every technical detail with its motivation.
 - **Written for someone who knows nothing** — assume zero context in the reader.
-- **Never auto-save** — always show preview, Pedro confirms before saving.
+- **Save first, ask later** — write the file immediately, then show a summary. Pedro edits after if needed.
 - **Overwrites previous** — HANDOFF.md is always the snapshot of the most recent session.
 - **Compatible with /continue** — the `carregar-handoff` skill expects sections like Completed, In Progress, Next Steps, Known Issues. This format is a superset of that.
 - **Omit empty sections** — if there were no known issues, don't include the empty section.
