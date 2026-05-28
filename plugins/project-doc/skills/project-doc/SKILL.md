@@ -1,37 +1,78 @@
 ---
 name: project-doc
-description: Use when entering a project without CLAUDE.md, after major structural changes, or when the user says "project-doc", "documenta", "documentar", "documenta o projeto", "gera o claude.md", "atualiza o claude.md"
+description: "Use when entering a project without CLAUDE.md, after major structural changes, or when the user says \"project-doc\", \"documenta\", \"documentar\", \"documenta o projeto\", \"gera o claude.md\", \"atualiza o claude.md\". Generates a modular documentation system: lightweight CLAUDE.md routing table + .claude/docs/*.md per concern + thin pointers for other AI tools."
 ---
 
-# Project Doc — Auto-Generate Project CLAUDE.md
+# Project Doc v2 — Documentation System Generator
 
 ## Overview
 
-Scans a project's files and generates a structured reference block in the project's CLAUDE.md with everything Claude needs to work effectively: stack, ports, env vars, deploy flow, SSH, database, gotchas. Sections are conditional — only included if relevant content is detected.
+Generates a **documentation system** for a project, not a single file. The system has three layers:
+
+1. **CLAUDE.md** — lightweight routing table (~60-100 lines). Always loaded in context. Contains: project identity, stack one-liner, quick commands, top gotchas, and a documentation index with "→ read when" hints
+2. **`.claude/docs/*.md`** — detailed docs per concern (architecture, database, API, deploy, etc.). Loaded on-demand when Claude needs them for the current task
+3. **Thin pointer files** — pure redirects (AGENTS.md, GEMINI.md, .cursorrules, etc.) that tell other AI tools to read CLAUDE.md
+
+Sections are conditional — only generated if relevant content is detected. Small sections (≤5 lines) stay inline in CLAUDE.md instead of becoming separate doc files.
 
 ## When to Suggest Proactively
 
 - Project has no `.claude/CLAUDE.md` → "Esse projeto não tem CLAUDE.md. Quer que eu rode o /project-doc pra gerar?"
 - CLAUDE.md exists but major structural changes detected (new services, new deploy scripts, new database) → "O CLAUDE.md pode estar desatualizado. Quer que eu rode o /project-doc pra atualizar?"
+- CLAUDE.md has v1 format (monolithic block with `project-doc:start/end` markers) → "O CLAUDE.md está no formato v1 (monolítico). Quer migrar pro v2 (indexado)? Roda `/project-doc migrate`"
+- `.claude/docs/` exists but CLAUDE.md index is missing or doesn't reference it → "Tem docs em .claude/docs/ mas o CLAUDE.md não aponta pra eles. Quer que eu rode o /project-doc index?"
+
+## Invocation Modes
+
+The skill accepts an optional argument to control scope:
+
+- `/project-doc` — **FULL**: scan everything, generate/update all docs + index + pointers
+- `/project-doc <doc-name>` — **INCREMENTAL**: regenerate only that doc. Valid names: `architecture`, `database`, `api`, `deploy`, `infrastructure`, `env-vars`, `auth`, `patterns`. For monorepos also: `{app-name}/api`, `{app-name}/database`, etc.
+- `/project-doc index` — regenerate only the CLAUDE.md routing table (re-scan for new/removed docs)
+- `/project-doc pointers` — regenerate only the thin pointer files
+- `/project-doc migrate` — migrate v1 monolithic CLAUDE.md → v2 indexed format (see Migration section)
+- `/project-doc verify` — run verification only, no generation
+
+Doc names map directly to `.claude/docs/{arg}.md`. If the argument doesn't match a known doc name, treat it as a full run and warn the user.
 
 ## Output Protocol
 
-Report each step to the user as you execute. Format:
+Report each step to the user as you execute. Don't skip steps or batch them silently.
+
+### Full Mode
 
 ```
-**Step 1/10:** Root → `/path/to/project`
-**Step 2/10:** Layout → Standard | Monorepo (N apps)
-**Step 3/10:** Type → app | lib | cli
-**Step 4/10:** Package manager → pnpm | yarn | bun | npm
-**Step 5/10:** CLAUDE.md → CREATE | APPEND | REPLACE (markers found)
-**Step 6/10:** Scanning... (list key files read)
-**Step 7/10:** Generating... (N sections)
-**Step 8/10:** Aux docs → {N docs created in docs/} | none needed
-**Step 9/10:** Written → `.claude/CLAUDE.md` (N lines)
-**Step 10/10:** Report — diff summary (if REPLACE), sections, TODOs, verification
+**Step 1/12:** Root → `/path/to/project`
+**Step 2/12:** Layout → Standard | Monorepo (N apps)
+**Step 3/12:** Type → app | lib | cli
+**Step 4/12:** Package manager → pnpm | yarn | bun | npm
+**Step 5/12:** Mode → FULL | MIGRATE (v1→v2 detected) | CREATE (no CLAUDE.md)
+**Step 6/12:** CLAUDE.md → v1 markers (will migrate) | v2 index (will update) | none (will create)
+**Step 7/12:** Scanning... (list key files read per doc target)
+**Step 8/12:** Generating docs → {list of .claude/docs/*.md to create/update, with line counts}
+**Step 9/12:** Writing CLAUDE.md index → {N lines}
+**Step 10/12:** Pointer files → {list created/updated/skipped}
+**Step 11/12:** Verification → {results summary}
+**Step 12/12:** Token impact → Before: {N} lines always-loaded | After: {M} lines always-loaded + {K} docs on-demand | Savings: {X}%
 ```
 
-This gives the user visibility into what's happening. Don't skip steps or batch them silently.
+### Incremental Mode
+
+```
+**Step 1/3:** Root → `/path/to/project`, scope → {doc-name}
+**Step 2/3:** Scanning {doc-name} sources... (list files read)
+**Step 3/3:** Written → `.claude/docs/{doc-name}.md` ({N} lines), CLAUDE.md index updated
+```
+
+### Migrate Mode
+
+```
+**Step 1/5:** Root → `/path/to/project`
+**Step 2/5:** Parsing v1 block... ({N} sections found)
+**Step 3/5:** Extracting to .claude/docs/... ({list of docs created})
+**Step 4/5:** Rewriting CLAUDE.md as v2 index... ({N} lines)
+**Step 5/5:** Token impact → Before: {N} lines monolithic | After: {M} lines index + {K} docs on-demand | Savings: {X}%
+```
 
 ## Process
 
@@ -40,47 +81,56 @@ This gives the user visibility into what's happening. Don't skip steps or batch 
    - `apps/` or `packages/` directory with 2+ subdirs containing Dockerfile, package.json, or main entry files
    - Root docker-compose.yml with services mapping to subdirs (e.g., `dockerfile: apps/X/Dockerfile`)
    - Workspace config (pnpm-workspace.yaml, package.json workspaces, lerna.json)
-   - If monorepo detected: use **Monorepo Output Format**. If not: use **Standard Output Format**.
+   - If monorepo detected: use Monorepo layout. If not: use Standard layout.
 3. **Detect project type** — classify as app, lib, or cli using the Detection Matrix rules. This determines which sections to include/omit.
 4. **Detect package manager** — check lockfiles (pnpm-lock.yaml → yarn.lock → bun.lockb → package-lock.json). First match wins.
-5. **Check for existing CLAUDE.md** at `{project_root}/.claude/CLAUDE.md` (standard) or `{project_root}/CLAUDE.md` (if already exists there)
-   - If exists: read it, check for `<!-- project-doc:start -->` / `<!-- project-doc:end -->` markers
-   - If markers found: will REPLACE content between markers (preserve everything outside). **Save old block for diff.**
-   - If no markers: will APPEND the block at the end
-   - If no CLAUDE.md: will CREATE `.claude/CLAUDE.md` with just the block
-6. **Scan project files** using the Detection Matrix below. For monorepos, also scan each app directory.
-   - **REPLACE mode — monorepo CRITICAL RULE:** NEVER carry forward app entries from the existing block. Every app entry must be regenerated from disk. For each app directory found in `apps/`:
+5. **Determine mode:**
+   - If argument is `migrate` → MIGRATE mode
+   - If argument is `verify` → VERIFY mode (skip to verification)
+   - If argument is `index` → INDEX mode (skip to step 9)
+   - If argument is `pointers` → POINTERS mode (skip to step 10)
+   - If argument is a doc name → INCREMENTAL mode (skip to step 6, scan only that doc's sources)
+   - If no argument and v1 markers found (`<!-- project-doc:start -->`) → auto-trigger MIGRATE, then FULL
+   - If no argument → FULL mode
+6. **Scan project files** using the Detection Matrix below.
+   - **FULL mode:** scan everything
+   - **INCREMENTAL mode:** scan only the source files mapped to the target doc
+   - For monorepos, also scan each app directory (see Monorepo-Specific Detection)
+   - **Monorepo CRITICAL RULE:** NEVER carry forward app entries from existing docs. Every app must be regenerated from disk. For each app directory found in `apps/`:
      - Read `apps/{name}/requirements.txt` or `package.json` (full content)
      - Read `apps/{name}/main.py` or main entry file (full content, or at minimum the imports + route definitions)
      - Read `apps/{name}/.env.example` if it exists
-     - Compare what you find against the existing CLAUDE.md entry
-     - Flag any discrepancy (new dep, removed dep, new feature, changed description) as a `~` diff item
-   - Skipping any app file read in REPLACE mode is a process violation. There are no shortcuts.
-7. **Generate the block** using the appropriate Output Format template. Only include sections where detection found content. Mark gaps with `[TODO: ...]`. Use today's date in the timestamp comment.
-8. **Check for auxiliary docs need** — if any section exceeds 30 lines or total block exceeds 350 lines:
-   - Extract detailed content into `docs/{topic}.md` (e.g., docs/deploy-flow.md, docs/monorepo-apps.md, docs/api-routes.md)
-   - Replace the detailed content in CLAUDE.md with a 2-3 line summary + reference: "Detalhes em **docs/{topic}.md**"
-   - Create the docs/ directory if needed
-9. **Write the block** to CLAUDE.md using the Update Mechanism.
-10. **Report to user:**
-    - **If REPLACE mode:** show diff summary — sections added (+), removed (-), and modified (~). Format: "Atualizado: +Seção API, ~Stack (pnpm detectado), -Seção Infra (arquivos removidos)". If no changes: "Sem mudanças detectadas."
-    - Show which sections were populated
-    - For monorepos: list which apps were documented
-    - List any `[TODO: ...]` gaps found
-    - List any auxiliary docs created
+   - Skipping any app file read is a process violation. There are no shortcuts.
+7. **Determine which docs to generate** based on detection results. A doc file is generated only if its detection found substantive content.
+   - **Inline threshold:** if a section would produce ≤5 lines of content, keep it inline in the CLAUDE.md index instead of creating a separate doc file. This prevents tiny projects from getting 8 doc files with 3 lines each.
+   - Map detection results → doc files (see Detection Matrix)
+8. **Generate `.claude/docs/*.md`** — each doc with YAML frontmatter and content from its template (see Doc File Templates). Create `.claude/docs/` directory if needed.
+9. **Generate CLAUDE.md index** — lightweight routing table (see Index Template). Preserve any Custom Rules section and any content outside the v2 markers.
+10. **Generate thin pointer files** — pure redirects for other AI tools (see Pointer Templates). Only create if file doesn't already exist with custom content.
+11. **Preserve human content** — any content outside `<!-- project-doc:v2 -->` / `<!-- project-doc:v2:end -->` markers is preserved untouched. The `## Custom Rules` section inside the markers is also preserved across regenerations.
+12. **Write all files**
+13. **Run verification** (see Verification section)
+14. **Report to user:**
+    - Token impact (before/after comparison)
+    - List of docs generated with line counts
+    - List of pointer files created/updated/skipped
+    - Any `[TODO: ...]` gaps found
+    - Verification results
     - Ask: "Quer preencher os TODOs agora?"
 
 ## Detection Matrix
 
-For each section, scan these files (read only those that exist):
+For each section, scan these files (read only those that exist). Detection results are grouped by their target doc file.
 
-**Project Type Detection (run first):**
+### Pre-Detection (run first, feeds multiple docs)
+
+**Project Type Detection:**
 - **app** — has server entry (main.py, index.ts, server.js), Dockerfile, docker-compose.yml, port bindings, deploy scripts
 - **lib** — has exports field in package.json, publishConfig, peer dependencies, or main/module/types fields pointing to dist/
 - **cli** — has bin field in package.json, or depends on commander/yargs/meow/oclif/click/argparse with entry script
-- Default to **app** if unclear. Libs and CLIs omit: Serviços/Containers, Portas, Deploy, Infraestrutura, Acesso Remoto
+- Default to **app** if unclear. Libs and CLIs omit: infrastructure, deploy, services docs
 
-**Package Manager Detection (run first):**
+**Package Manager Detection:**
 - pnpm-lock.yaml → pnpm
 - yarn.lock → yarn
 - bun.lockb → bun
@@ -95,31 +145,49 @@ For each section, scan these files (read only those that exist):
 - go test files (*_test.go) → go test
 - Cargo.toml with [dev-dependencies] + #[test] in src → cargo test
 
-**Per-Section Detection:**
+### Detection → Doc Mapping
 
+**→ architecture.md**
 - **Visão geral** — README.md, package.json (description), pyproject.toml, go.mod, pom.xml, build.gradle, Gemfile, composer.json, .csproj/.sln, mix.exs
 - **Stack** — package.json, requirements.txt, pyproject.toml, go.mod, Cargo.toml, docker-compose.yml, Dockerfile*, .tool-versions, .node-version, .python-version, pom.xml, build.gradle, Gemfile, composer.json, .csproj/.sln, mix.exs
 - **Estrutura de diretórios** — ls top-level + ls of src/, app/, lib/, pages/, components/ if they exist
-- **Serviços/Containers** — docker-compose.yml, docker-compose.*.yml (skip for lib/cli)
-- **Portas e URLs** — docker-compose.yml (ports), .env/.env.example (PORT/URL vars), nginx/*.conf, Dockerfile (EXPOSE), server config files (skip for lib/cli)
-- **Banco de dados** — docker-compose.yml (postgres/mysql/mongo/redis images), .env (DB_*/DATABASE_* vars), prisma/schema.prisma, drizzle.config.*, knexfile.*, sqlalchemy configs, migrations/ dir
-- **Variáveis de ambiente** — .env.example, .env.local.example, .env (names only, NEVER values), docker-compose.yml (environment section), .env.development, .env.staging, .env.production, .env.local, .env.test
-- **API / Endpoints** — app/api/ dir, routes/ dir, controllers/ dir, openapi.yaml, openapi.json, swagger.json, swagger.yaml, graphql schema files. Skip if no route patterns found
-- **Autenticação** — middleware.ts, middleware.js, src/middleware.*, auth/, src/auth/, lib/auth*, next-auth config, passport config, JWT patterns in code
-- **Padrões do projeto** — tsconfig.json (paths), .eslintrc*, .prettierrc*, src/ structure conventions, existing code patterns
 - **Dependências críticas** — package.json (non-obvious deps), requirements.txt (specialized libs), go.mod, pom.xml, build.gradle, Gemfile, composer.json
-- **Infraestrutura** — nginx/, nginx.conf, nginx/conf.d/*.conf, Caddyfile, traefik configs, certbot/SSL references (skip for lib/cli)
-- **Acesso remoto** — scripts/deploy*, .env (SERVER/VPS/SSH vars), Makefile (deploy targets), CI/CD configs (.github/workflows/*.yml, .gitlab-ci.yml) (skip for lib/cli)
-- **Deploy** — scripts/deploy*, deploy.sh, Makefile, CI/CD configs — READ the full deploy script to document the complete flow (skip for lib/cli)
-- **Testes** — detect framework (see above), add test command to Comandos Úteis with framework name
-- **Gotchas** — Known from scanning (e.g., network_mode:host, special env handling, non-standard configs)
 - **Decisões de arquitetura** — docs/ARCHITECTURE.md, docs/ADR*, docs/decisions/, README.md architecture sections
 - **Documentação disponível** — docs/*.md, README.md, CONTRIBUTING.md, API docs
-- **Comandos úteis** — package.json (scripts), Makefile (targets), scripts/*.sh, pyproject.toml (scripts)
+
+**→ database.md**
+- docker-compose.yml (postgres/mysql/mongo/redis images), .env (DB_*/DATABASE_* vars), prisma/schema.prisma, drizzle.config.*, knexfile.*, sqlalchemy configs, migrations/ dir
+
+**→ api.md**
+- app/api/ dir, routes/ dir, controllers/ dir, openapi.yaml, openapi.json, swagger.json, swagger.yaml, graphql schema files. Skip if no route patterns found
+
+**→ deploy.md** (skip for lib/cli)
+- scripts/deploy*, deploy.sh, Makefile, CI/CD configs — READ the full deploy script to document the complete flow
+- Acesso remoto: scripts/deploy*, .env (SERVER/VPS/SSH vars), Makefile (deploy targets), CI/CD configs (.github/workflows/*.yml, .gitlab-ci.yml)
+
+**→ infrastructure.md** (skip for lib/cli)
+- **Serviços/Containers** — docker-compose.yml, docker-compose.*.yml
+- **Portas e URLs** — docker-compose.yml (ports), .env/.env.example (PORT/URL vars), nginx/*.conf, Dockerfile (EXPOSE), server config files
+- **Infra** — nginx/, nginx.conf, nginx/conf.d/*.conf, Caddyfile, traefik configs, certbot/SSL references
+
+**→ env-vars.md**
+- .env.example, .env.local.example, .env (names only, NEVER values), docker-compose.yml (environment section), .env.development, .env.staging, .env.production, .env.local, .env.test
+
+**→ auth.md**
+- middleware.ts, middleware.js, src/middleware.*, auth/, src/auth/, lib/auth*, next-auth config, passport config, JWT patterns in code
+
+**→ patterns.md**
+- **Padrões do projeto** — tsconfig.json (paths), .eslintrc*, .prettierrc*, src/ structure conventions, existing code patterns
+- **Gotchas** — Known from scanning (e.g., network_mode:host, special env handling, non-standard configs)
+- **Testes** — detect framework (see above), add test command with framework name
+
+**→ Inline in CLAUDE.md index (not separate docs)**
+- **Comandos úteis** — package.json (scripts), Makefile (targets), scripts/*.sh, pyproject.toml (scripts) — top 5 only
+- **Top gotchas** — the 3-5 most dangerous gotchas (subset of what goes in patterns.md)
 
 ### Monorepo-Specific Detection
 
-When monorepo is detected, additionally scan per app. **This scan is mandatory for every app, every run — no exceptions, no shortcuts, no copying from the existing block.**
+When monorepo is detected, additionally scan per app. **This scan is mandatory for every app, every run — no exceptions, no shortcuts, no copying from existing docs.**
 
 For each directory in `apps/` (or `packages/`) that has a Dockerfile or main entry file:
 
@@ -136,110 +204,33 @@ Also scan shared infrastructure:
 - `.env.shared`, `.env.common` — shared env vars
 - Root docker-compose `networks`, `volumes` definitions
 
-## Output Format
+Per-app detection results feed into app-specific subdocs under `.claude/docs/{app-name}/`.
 
-Two templates exist: **Standard** (single project) and **Monorepo** (multiple apps). Use the one matching the detected project type. **Only include sections where content was detected.** Each section should be terse — bullet points, no prose.
+## CLAUDE.md Index Template
 
-### Standard Output Format
+The CLAUDE.md index is the always-loaded routing table. Two variants exist: Standard and Monorepo.
+
+### Standard Index Template
 
 ```markdown
-<!-- project-doc:start -->
+<!-- project-doc:v2 -->
 <!-- Generated by /project-doc on {YYYY-MM-DD} — run /project-doc to update -->
 
 # Project Reference
 
 ## Visão Geral
 {1-2 sentence description of what this project is}
-**Tipo:** {app | lib | cli} — detected automatically
+**Tipo:** {app | lib | cli} · **Stack:** {top 2-3 technologies} · **PM:** {pnpm | yarn | bun | npm}
 
-## Stack
-- **Package manager:** {pnpm | yarn | bun | npm} (detected from lockfile)
-- {Language}: {version if detected}
-- {Framework}: {version}
-- {Runtime}: {version}
-- {Key tool}: {version}
-
-## Estrutura de Diretórios
-```
-{tree, max 2 levels deep, only meaningful dirs}
-```
-
-## Serviços / Containers
-- **{name}** — {image} — ports {host:container} — {network_mode, volumes, depends_on}
-
-## Portas
-- **{port}** {TCP/UDP} — {serviço} — {internal/external, proxy target}
-
-## Banco de Dados
-- **Tipo:** {PostgreSQL/MySQL/MongoDB/Redis/SQLite}
-- **Host/Porta:** {host:port or socket}
-- **Env vars:** `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, `DB_PASSWORD`
-- **ORM/Driver:** {Prisma/Drizzle/Knex/SQLAlchemy/raw driver}
-- **Schema:** {path to schema file}
-- **Migrations:** {path to migrations dir, how to run}
-- **Admin tool:** {pgAdmin/Adminer/RedisInsight if configured}
-- **Acesso direto:** `{command to connect, e.g., docker exec -it db psql -U user dbname}`
-
-## Variáveis de Ambiente
-- **Arquivo base:** `.env` (from `.env.example`)
-- **Ambientes detectados:** {list .env.development, .env.staging, .env.production, .env.local, .env.test — only those that exist}
-- `VAR_NAME` — {what it does}
-- `VAR_NAME` — {what it does}
-
-## API / Endpoints (conditional — only for API-centric projects)
-- **Tipo:** {REST | GraphQL | gRPC | mixed}
-- **Padrão de rotas:** {e.g., src/app/api/[resource]/route.ts, routes/*.py, controllers/*.rb}
-- **Spec:** {path to openapi.yaml/swagger.json if exists}
-- **Base URL:** {/api/v1, /graphql, etc.}
-
-## Autenticação
-- **Tipo:** {JWT/Session/OAuth/API Key}
-- **Implementação:** {file paths}
-- **Fluxo:** {login → token → middleware validates}
-
-## Padrões do Projeto
-- **Imports:** {absolute via tsconfig paths / relative}
-- **Naming:** {camelCase/snake_case, file naming convention}
-- **Componentes:** {where they live, how to create new ones}
-- **Rotas API:** {pattern, e.g., src/app/api/[resource]/route.ts}
-
-## Dependências Críticas
-- `{package}` — {why it's important, what it does that's non-obvious}
-
-## Infraestrutura
-- **Proxy:** {Nginx/Caddy/Traefik} → {what it proxies}
-- **SSL:** {Let's Encrypt/self-signed/managed}
-- **Config:** {path to proxy config}
-
-## Acesso Remoto
-- **Host:** `{user@host}` or `{env var that holds it}`
-- **Key:** `{key path}`
-- **Project path (server):** `{path on server}`
-
-## Deploy
-- **Script:** `{path to deploy script}`
-- **Fluxo:** {step-by-step of what the deploy script does: build → prune → push/rsync → restart → healthcheck}
-- **Flags:** `{--dry-run, --force, etc.}`
-- **CI/CD:** {GitHub Actions/GitLab CI — workflow file path}
-
-## Gotchas
-- {Thing that looks right but breaks — 1 line each}
-
-## Decisões de Arquitetura
-- {Decision — 1 line each, e.g., "SRS uses network_mode:host because UDP+Docker NAT breaks SRT"}
-
-## Documentação
-- **{doc name}** — {path} — {what it covers}
-
-## Comandos Úteis
+## Quick Commands
 ```bash
+# Dev
+{command}
+
 # Build
 {command}
 
-# Test ({framework}: jest | vitest | pytest | rspec | go test | cargo test)
-{command}
-
-# Dev
+# Test ({framework})
 {command}
 
 # Deploy
@@ -249,99 +240,64 @@ Two templates exist: **Standard** (single project) and **Monorepo** (multiple ap
 {command}
 ```
 
-<!-- project-doc:end -->
+## Gotchas Críticos
+- {Top 3-5 most dangerous gotchas — things that cause bugs or data loss regardless of what you're working on}
+
+## Documentation Index
+
+- **[architecture.md](.claude/docs/architecture.md)** — project structure, stack details, dependencies, design decisions
+  → understanding the project, adding modules, onboarding
+- **[database.md](.claude/docs/database.md)** — schema, ORM, migrations, access commands
+  → writing migrations, querying data, changing schema
+- **[api.md](.claude/docs/api.md)** — endpoints, route patterns, specs
+  → adding endpoints, changing routes, API integration
+- **[deploy.md](.claude/docs/deploy.md)** — deploy scripts, CI/CD, server access, rollback
+  → deploying, server config, CI/CD changes
+- **[infrastructure.md](.claude/docs/infrastructure.md)** — Docker services, ports, proxy, SSL, networking
+  → infra changes, port conflicts, networking debug
+- **[env-vars.md](.claude/docs/env-vars.md)** — all environment variables by concern
+  → adding env vars, config changes, credentials
+- **[auth.md](.claude/docs/auth.md)** — authentication flow, middleware, permissions
+  → auth changes, new protected routes, permissions
+- **[patterns.md](.claude/docs/patterns.md)** — code conventions, naming, imports, full gotchas list
+  → writing new code, following conventions, avoiding pitfalls
+
+{Only include entries for docs that were actually generated. Omit entries where no doc was created.}
+
+{If any section was kept inline due to ≤5 lines threshold, include it here as a subsection instead of a doc link:}
+
+## {Inline Section Name}
+{content, ≤5 lines}
+
+## Custom Rules
+
+{Preserved from previous generation — human-written content. If no custom rules exist, include this section empty so users know where to add them.}
+
+<!-- project-doc:v2:end -->
 ```
 
-### Monorepo Output Format
-
-For monorepos, the structure changes: global sections first, then a compact **Apps** section with per-app entries. Each app gets ~5-10 lines max — only what's unique to that app. Shared patterns go in the global sections.
+### Monorepo Index Template
 
 ```markdown
-<!-- project-doc:start -->
+<!-- project-doc:v2 -->
 <!-- Generated by /project-doc on {YYYY-MM-DD} — run /project-doc to update -->
 
 # Project Reference
 
 ## Visão Geral
 {1-2 sentence description. Mention it's a monorepo with N apps.}
-**Tipo:** monorepo — detected automatically
+**Tipo:** monorepo · **Stack:** {common stack, top 2-3 techs} · **PM:** {pm}
 
-## Stack Comum
-- **Package manager:** {pnpm | yarn | bun | npm} (detected from lockfile)
-- {Language}: {version}
-- {Framework}: {version} (used by most/all apps)
-- {Runtime}: {version}
-- {Key tool}: {version}
-
-## Estrutura de Diretórios
-```
-{tree showing apps/, shared/, key root files — max 2 levels}
-```
-
-## Serviços / Containers
-- **{name}** — port {port} — apps/{name}/Dockerfile — healthcheck: {method}
-
-## Infra Compartilhada
-- **Shared libs:** {shared/, shared_lib/ — what they provide}
-- **Shared env:** `.env.shared` — {key vars: DB connection, API keys used by all apps}
-- **Networking:** {Docker network name, bridge/host}
-- **Proxy:** {Nginx/Caddy} → {routing pattern, e.g., /app-name → port}
-- **SSL:** {Let's Encrypt/managed}
-
-## Variáveis de Ambiente
-- **Shared (`.env.shared`):**
-  - `VAR_NAME` — {what it does}
-- **Per-app (`apps/X/.env`):**
-  - Each app has its own .env with app-specific vars (API keys, ports, feature flags)
-
-## Padrão Comum das Apps
-{Describe the repeating pattern so individual app sections only note exceptions}
-- **Entry point:** {main.py, index.ts}
-- **Structure:** {database.py, templates/, static/}
-- **New app:** {steps to create, e.g., "copy apps/_template/, adjust Dockerfile and port, add to docker-compose and deploy.sh"}
-
-## Deploy
-- **Script:** `{path}`
-- **Seletivo:** `./deploy.sh {app1} {app2}` — rebuilds only specified services
-- **Full:** `./deploy.sh` — rebuilds everything
-- **Fluxo:** {step-by-step}
-- **Valid services:** {list}
-
-## Acesso Remoto
-- **Host:** `{user@host}` or `{env var}`
-- **Project path (server):** `{path}`
-
-## Apps
-
-### {app-name} (porta {port})
-- **O que faz:** {1 sentence}
-- **Stack diferente:** {only if differs from common, e.g., "Next.js (not FastAPI)"}
-- **Deps críticas:** `{lib}` — {why}
-- **Env específico:** `{VAR}` — {what}
-- **Gotcha:** {if any}
-
-### {app-name} (porta {port})
-- **O que faz:** {1 sentence}
-- **Deps críticas:** `{lib}` — {why}
-
-{repeat for each app — omit bullets with nothing unique}
-
-## Gotchas Globais
-- {Things that affect the whole monorepo}
-
-## Documentação
-- **{doc name}** — {path} — {what it covers}
-
-## Comandos Úteis
+## Quick Commands
 ```bash
 # Dev (any app)
-cd apps/{name} && uvicorn main:app --port {port} --reload
+{command pattern, e.g., cd apps/{name} && uvicorn main:app --port {port} --reload}
 
 # Deploy selective
-./deploy.sh {app1} {app2}
+{command, e.g., ./deploy.sh {app1} {app2}}
 
 # Deploy all
-./deploy.sh
+{command}
 
 # Lint
 {command}
@@ -350,146 +306,611 @@ cd apps/{name} && uvicorn main:app --port {port} --reload
 {command}
 ```
 
-<!-- project-doc:end -->
+## Gotchas Críticos
+- {Top 3-5 project-wide gotchas}
+
+## Apps
+
+- **{app-name}** — porta {port} — {1 sentence what it does} → [docs](.claude/docs/{app-name}/)
+- **{app-name}** — porta {port} — {1 sentence} → [docs](.claude/docs/{app-name}/)
+{1 line per app. Omit app doc link if app has no unique docs (follows common pattern exactly).}
+
+## Shared Documentation
+
+- **[architecture.md](.claude/docs/architecture.md)** — overall structure, shared libs, common patterns
+  → project-wide changes, new apps, onboarding
+- **[infrastructure.md](.claude/docs/infrastructure.md)** — Docker, Nginx, networking, ports
+  → infra changes, proxy config, new services
+- **[deploy.md](.claude/docs/deploy.md)** — deploy script, CI/CD, server access
+  → deploying, server config
+- **[env-vars.md](.claude/docs/env-vars.md)** — shared + per-app env vars
+  → config changes, new vars
+- **[patterns.md](.claude/docs/patterns.md)** — common conventions, full gotchas list
+  → writing new code, following project patterns
+
+## Per-App Documentation
+
+- **[{app-name}/api.md](.claude/docs/{app-name}/api.md)** — {app} endpoints
+- **[{app-name}/database.md](.claude/docs/{app-name}/database.md)** — {app} schema, migrations
+{Only list per-app docs that were generated. Omit apps that follow common pattern exactly.}
+
+## Custom Rules
+
+{Preserved from previous generation.}
+
+<!-- project-doc:v2:end -->
 ```
+
+## Doc File Templates
+
+Each `.claude/docs/*.md` file follows this structure. Content level should be detailed — these files are loaded on-demand, so depth is free.
+
+### Frontmatter (required for all docs)
+
+```yaml
+---
+generated: {YYYY-MM-DD}
+project: {project-name}
+scope: {comma-separated list of key source files this doc was generated from}
+---
+```
+
+### architecture.md
+
+```markdown
+{frontmatter}
+
+# Architecture
+
+## Visão Geral
+{Expanded project description — what it does, who uses it, key workflows}
+
+## Stack
+- **Language:** {language} {version}
+- **Framework:** {framework} {version}
+- **Runtime:** {runtime} {version}
+- **Package manager:** {pm} (detected from lockfile)
+- **Database:** {type} {version}
+- **Testing:** {framework}
+- {other key technologies}
+
+## Estrutura de Diretórios
+```
+{tree — can go deeper than 2 levels here, show meaningful structure}
+```
+
+## Dependências Críticas
+- `{package}` — {why it's important, what it does that's non-obvious}
+
+## Decisões de Arquitetura
+- {Decision — 1 line each, e.g., "SRS uses network_mode:host because UDP+Docker NAT breaks SRT"}
+
+## Documentação Disponível
+- **{doc name}** — {path} — {what it covers}
+```
+
+### database.md
+
+```markdown
+{frontmatter}
+
+# Database
+
+## Overview
+- **Tipo:** {PostgreSQL/MySQL/MongoDB/Redis/SQLite}
+- **Host/Porta:** {host:port or socket}
+- **ORM/Driver:** {Prisma/Drizzle/Knex/SQLAlchemy/raw driver}
+
+## Schema
+- **Path:** {path to schema file}
+- **Models:** {count and list of key models with brief descriptions}
+
+## Migrations
+- **Path:** {path to migrations dir}
+- **Run:** `{migration command}`
+- **Create:** `{create migration command}`
+
+## Env Vars
+- `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, `DB_PASSWORD`
+
+## Seeds
+- {path and command if exists}
+
+## Admin Tool
+- {pgAdmin/Adminer/RedisInsight if configured}
+
+## Acesso Direto
+```bash
+{command to connect, e.g., docker exec -it db psql -U user dbname}
+```
+```
+
+### api.md
+
+```markdown
+{frontmatter}
+
+# API
+
+## Overview
+- **Tipo:** {REST | GraphQL | gRPC | mixed}
+- **Base URL:** {/api/v1, /graphql, etc.}
+- **Padrão de rotas:** {e.g., src/app/api/[resource]/route.ts}
+- **Spec:** {path to openapi.yaml/swagger.json if exists}
+
+## Route Groups
+{List all route groups with method counts}
+- **{/api/resource}** — {N routes} — {brief description}
+
+## Authentication
+- {Which routes require auth, which are public}
+
+## Health Check
+- {endpoint and expected response}
+```
+
+### deploy.md
+
+```markdown
+{frontmatter}
+
+# Deploy
+
+## Script
+- **Path:** `{path to deploy script}`
+- **Flags:** `{--dry-run, --force, etc.}`
+
+## Flow
+{Step-by-step of what the deploy script does — read the actual script}
+1. {step}
+2. {step}
+3. {step}
+
+## CI/CD
+- **Platform:** {GitHub Actions/GitLab CI}
+- **Config:** {path to workflow file}
+- **Triggers:** {push to main, manual, etc.}
+
+## Rollback
+- {how to rollback if deploy fails}
+
+## Server Access
+- **Host:** `{user@host}` or `{env var that holds it}`
+- **Key:** `{key path}`
+- **Project path (server):** `{path on server}`
+```
+
+### infrastructure.md
+
+```markdown
+{frontmatter}
+
+# Infrastructure
+
+## Serviços / Containers
+- **{name}** — {image} — ports {host:container} — {network_mode, volumes, depends_on, healthcheck}
+
+## Portas
+- **{port}** {TCP/UDP} — {service} — {internal/external, proxy target}
+
+## Proxy
+- **Tipo:** {Nginx/Caddy/Traefik}
+- **Config:** {path to proxy config}
+- **Routing:** {what it proxies where}
+
+## SSL
+- {Let's Encrypt/self-signed/managed}
+
+## Networking
+- **Docker network:** {name, driver}
+- {any special networking setup}
+
+## Cron / Scheduled Tasks
+- {if any}
+```
+
+### env-vars.md
+
+```markdown
+{frontmatter}
+
+# Environment Variables
+
+## Files Detected
+- {list all .env* files found and their purpose}
+
+## Variables
+
+### App Config
+- `{VAR_NAME}` — {what it does}
+
+### Database
+- `{DB_HOST}` — {what it does}
+
+### Auth / Secrets
+- `{JWT_SECRET}` — {what it does}
+
+### External Services
+- `{API_KEY_SERVICE}` — {what it does}
+
+### Feature Flags
+- `{FEATURE_X}` — {what it does}
+
+{Group by concern. List every var from .env.example. Names only, NEVER values.}
+```
+
+### auth.md
+
+```markdown
+{frontmatter}
+
+# Authentication
+
+## Overview
+- **Tipo:** {JWT/Session/OAuth/API Key}
+- **Implementation:** {key file paths}
+
+## Flow
+{Login → token/session → middleware validates → ...}
+
+## Middleware
+- **File:** {path}
+- **Behavior:** {what it checks, what it rejects}
+
+## Roles / Permissions
+- {role definitions if any}
+
+## Public Routes
+- {routes that don't require auth}
+
+## Token Details
+- {expiry, refresh mechanism, storage}
+```
+
+### patterns.md
+
+```markdown
+{frontmatter}
+
+# Patterns & Conventions
+
+## Code Style
+- **Imports:** {absolute via tsconfig paths / relative}
+- **Naming:** {camelCase/snake_case, file naming convention}
+- **Components:** {where they live, how to create new ones}
+
+## API Route Pattern
+- {pattern, e.g., src/app/api/[resource]/route.ts}
+
+## Error Handling
+- {project's error handling pattern}
+
+## Testing
+- **Framework:** {name}
+- **Command:** `{test command}`
+- **Pattern:** {where tests live, naming convention}
+
+## Gotchas
+- {COMPLETE list of all gotchas — 1 line each}
+- {Thing that looks right but breaks}
+- {Non-obvious behavior}
+- {Common mistake in this codebase}
+```
+
+## Thin Pointer Templates
+
+Five pointer files redirect other AI tools to read the same documentation. All use pure redirect — no project-specific content duplicated.
+
+### Write Rules for Pointers
+
+- **Only create if the file does not already exist** with custom content
+- If the file exists and matches the pointer template (detect by presence of "Read `CLAUDE.md`" in content), it was generated by project-doc — update it
+- If the file exists with different content, **do not touch it**. Report: "Skipped {file} — has custom content"
+- Create `.github/` directory if needed for copilot-instructions.md
+
+### AGENTS.md (Codex / OpenAI)
+
+```markdown
+# Project Documentation
+
+This project uses a structured documentation system optimized for AI coding agents.
+
+1. Read `CLAUDE.md` for the project index — it contains the stack, critical gotchas, and a documentation routing table
+2. Based on your current task, read the relevant docs from `.claude/docs/` as indicated in the Documentation Index
+3. Each doc entry includes "→ read when" hints to help you pick the right docs for the current task
+```
+
+### GEMINI.md (Gemini CLI)
+
+```markdown
+# Project Documentation
+
+This project uses a structured documentation system optimized for AI coding agents.
+
+1. Read `CLAUDE.md` for the project index — it contains the stack, critical gotchas, and a documentation routing table
+2. Based on your current task, read the relevant docs from `.claude/docs/` as indicated in the Documentation Index
+3. Each doc entry includes "→ read when" hints to help you pick the right docs for the current task
+```
+
+### .github/copilot-instructions.md (GitHub Copilot)
+
+```markdown
+Read `CLAUDE.md` at the project root for the project index and documentation routing table.
+Detailed docs by concern are in `.claude/docs/` — load only what's relevant to the current task.
+```
+
+### .cursorrules (Cursor)
+
+```markdown
+Read `CLAUDE.md` at the project root for the project index and documentation routing table.
+Detailed docs by concern are in `.claude/docs/` — load only what's relevant to the current task.
+```
+
+### .windsurfrules (Windsurf)
+
+```markdown
+Read `CLAUDE.md` at the project root for the project index and documentation routing table.
+Detailed docs by concern are in `.claude/docs/` — load only what's relevant to the current task.
+```
+
+## Monorepo Doc Layout
+
+For monorepos, `.claude/docs/` uses subdirectories per app alongside shared docs at root level.
+
+### Structure
+
+```
+.claude/docs/
+├── architecture.md         ← shared (project-wide structure, common stack)
+├── deploy.md               ← shared (single deploy script serves all)
+├── infrastructure.md       ← shared (docker-compose, networking, proxy)
+├── env-vars.md             ← shared, with per-app subsections
+├── patterns.md             ← shared (conventions + all gotchas)
+├── {app-name}/
+│   ├── api.md              ← app-specific routes
+│   ├── database.md         ← app-specific schema/migrations
+│   └── auth.md             ← if app has its own auth
+├── {app-name}/
+│   └── api.md
+```
+
+### Rules
+
+- Shared docs (deploy, infrastructure, architecture) are always at root level
+- Per-app docs are only created if the app has content distinct from the common pattern
+- env-vars.md is always shared but contains per-app subsections
+- patterns.md is always shared (gotchas are project-wide)
+- If an app follows the common pattern exactly, it gets no subdirectory — mentioned only in the CLAUDE.md index Apps section
+- Per-app doc frontmatter includes the app name: `scope: apps/{name}/main.py, apps/{name}/requirements.txt`
 
 ## Update Mechanism
 
-Three scenarios for writing the block:
+### CLAUDE.md
 
-1. **No CLAUDE.md exists:** Create `.claude/CLAUDE.md` with just the block
-2. **CLAUDE.md exists, no markers:** Append the block at the end of the file
-3. **CLAUDE.md exists, markers found:** Replace everything between `<!-- project-doc:start -->` and `<!-- project-doc:end -->` (inclusive). Preserve all content before and after the markers.
+1. **No CLAUDE.md exists:** Create `.claude/CLAUDE.md` with v2 index
+2. **CLAUDE.md exists with v1 markers** (`project-doc:start/end`): Run migration first (see Migration section), then write v2 index
+3. **CLAUDE.md exists with v2 markers** (`project-doc:v2` / `project-doc:v2:end`): Replace content between v2 markers. Preserve:
+   - All content before `<!-- project-doc:v2 -->`
+   - All content after `<!-- project-doc:v2:end -->`
+   - The `## Custom Rules` section content (extracted before write, reinserted)
+4. **CLAUDE.md exists with no markers:** Append the v2 block at the end
 
 **CRITICAL:** When replacing, include the markers themselves in the new content. The markers are part of the block.
 
+### .claude/docs/*.md
+
+- Create `.claude/docs/` directory if it doesn't exist
+- Write each doc file. If file exists, overwrite entirely — docs are fully generated, not hand-edited
+- Remove doc files that are no longer relevant (detection found no content for that concern)
+
+### Pointer Files
+
+- Only create if file does not exist or was previously generated by project-doc
+- If file exists with custom content, do not touch it
+- Detection: file was generated by project-doc if it contains "Read `CLAUDE.md`" in the first 5 lines
+
+## Migration v1 → v2
+
+Triggered when v1 markers are detected or user runs `/project-doc migrate`.
+
+### Steps
+
+1. Read entire existing CLAUDE.md
+2. Identify content outside markers (before `<!-- project-doc:start -->` and after `<!-- project-doc:end -->`) — this is preserved as-is
+3. Parse the v1 block section by section using `## ` headers
+4. Map each v1 section to its target doc:
+   - `## Visão Geral` + `## Stack` + `## Estrutura de Diretórios` + `## Dependências Críticas` + `## Decisões de Arquitetura` + `## Documentação` → `architecture.md`
+   - `## Banco de Dados` → `database.md`
+   - `## API / Endpoints` → `api.md`
+   - `## Deploy` + `## Acesso Remoto` → `deploy.md`
+   - `## Serviços / Containers` + `## Portas` + `## Infraestrutura` → `infrastructure.md`
+   - `## Variáveis de Ambiente` → `env-vars.md`
+   - `## Autenticação` → `auth.md`
+   - `## Padrões do Projeto` + `## Gotchas` → `patterns.md`
+   - `## Comandos Úteis` → stays inline in index (top 5)
+   - `## Gotchas` → top 3-5 stay inline, full list goes to patterns.md
+5. Write each doc file to `.claude/docs/` with frontmatter
+6. Rewrite CLAUDE.md with v2 index format
+7. Preserve content that was outside v1 markers
+8. Generate thin pointer files
+9. **Do NOT re-scan the project during migration** — use the existing v1 content as-is. Migration is a structural reorganization, not a content refresh. User can run `/project-doc` (full) afterward for fresh content.
+10. Report migration results with before/after token comparison
+
+### Monorepo v1 → v2 Migration
+
+For monorepo v1 blocks, additionally:
+- Parse per-app sections (### {app-name}) from the `## Apps` section
+- Create per-app subdirectories in `.claude/docs/{app-name}/`
+- Map each app's content to the appropriate doc (deps → note in architecture, gotcha → patterns, etc.)
+- Shared sections (Infra Compartilhada, Stack Comum, Deploy) go to shared root docs
+
 ## Token Limits
 
-**Standard projects:**
-- **Target:** ~200 lines total
-- **Hard max:** 400 lines
+### CLAUDE.md Index
+- **Target:** 60-100 lines
+- **Hard max:** 150 lines
+- If index exceeds 100 lines: compress Quick Commands (top 3 instead of 5), reduce inline gotchas (top 3 instead of 5)
+- If still over: something is wrong — check for content that should be in docs instead of inline
 
-**Monorepos:**
-- **Target:** ~250 lines (global sections ~150 + apps ~100)
-- **Hard max:** 400 lines
-- **Per app:** max 5-10 lines — only what's unique. If an app follows the common pattern exactly, 2 lines suffice (name, port, what it does).
-- If total exceeds 400 lines, compress app entries further (1-2 lines per app) or extract to docs/monorepo-apps.md
+### Individual Doc Files
+- No hard max — they're loaded on-demand
+- Should be focused: each doc covers one concern
+- If a single doc exceeds 200 lines: consider splitting, but don't force it
 
-**Both:**
-- **Per section:** max 30 lines (if exceeds, extract to docs/ — see step 8)
-- **No prose** — bullets, code blocks only. **NEVER use markdown tables** (render poorly in Pedro's terminal)
-- **Omit empty sections entirely** — do not include section headers with no content
+### Inline Threshold
+- Section ≤5 lines → stays inline in CLAUDE.md index, no separate doc
+- Section >5 lines → gets its own `.claude/docs/*.md` file
+
+### Monorepo Index
+- **Target:** 80-120 lines
+- **Hard max:** 150 lines
+- Per-app entry in index: 1 line (name, port, description, doc link)
+- If total exceeds 150: compress app entries to name + port only
+
+### Formatting Rules
+- **No prose** — bullets, code blocks only
+- **NEVER use markdown tables** — render poorly in terminal
+- **Omit empty sections entirely** — do not include headers with no content
 
 ## Rules
 
 - **NEVER include secret values** — only variable names from .env. Write `DB_PASSWORD` not `DB_PASSWORD=hunter2`
 - **NEVER include API keys, tokens, or passwords** — even if found in config files
 - **SSH key paths are OK** — key file contents are NEVER OK
-- **Seções condicionais** — if detection found nothing for a section, omit it entirely
+- **Seções condicionais** — if detection found nothing for a section, omit it entirely. Don't generate empty doc files.
 - **[TODO: ...]** — when information can't be auto-detected (e.g., SSH host that's not in any file), mark it with `[TODO: describe what's needed]` and list all TODOs to the user after generation
 - **Read deploy scripts fully** — don't just note "deploy.sh exists". Read it and document what it does step by step
 - **Read docker-compose fully** — extract all services, ports, volumes, network modes, environment variables
 - **Be specific** — file paths, port numbers, exact commands. No vague descriptions
 - **One line per item** — gotchas, decisions, deps are all one-liners
+- **NEVER duplicate content between CLAUDE.md index and .claude/docs/** — the index has identity + routing, docs have details. If information appears in both places, it should be a summary in the index and full detail in the doc.
+- **Gotchas inline = top 3-5 most dangerous ONLY** — the ones that cause real bugs or data loss. The complete list goes in patterns.md.
+- **"Read when" hints must be actionable** — not "→ general information" but "→ writing migrations, changing schema, querying data"
+- **Doc frontmatter is mandatory** — every `.claude/docs/*.md` must have the YAML frontmatter block
+- **Pointer files are pure redirects** — NEVER put project-specific content in them
 
 ## Verification (Post-Generation Quality Check)
 
-After writing the CLAUDE.md block, run this verification checklist. Report results to the user with pass/fail per check.
+After writing all files, run this verification checklist. Report results to the user with pass/fail per check.
 
-### Checks to Run
+### Index-Level Checks
 
 **1. Structural Integrity**
-- Markers present: both `<!-- project-doc:start -->` and `<!-- project-doc:end -->` exist
+- v2 markers present: both `<!-- project-doc:v2 -->` and `<!-- project-doc:v2:end -->` exist
 - Content between markers is not empty
-- No duplicate markers (only one start/end pair)
+- No duplicate markers (only one v2 start/end pair)
 - Manual content outside markers (if any) is preserved intact
+- No v1 markers remaining (if migration was performed)
 
-**2. File Path Accuracy**
-- For every file path mentioned in the doc (e.g., `dashboard/src/middleware.ts`, `scripts/deploy.sh`), verify the file actually exists using Glob
+**2. Link Validity**
+- For every doc referenced in the Documentation Index, verify the file exists in `.claude/docs/`
+- Report any broken link as **FAIL — doc referenced but not found**
+
+**3. No Orphan Docs**
+- List all files in `.claude/docs/` (and subdirectories for monorepo)
+- Compare against docs referenced in the CLAUDE.md index
+- Report any doc file not in the index as **WARN — orphan doc**
+
+**4. Coverage Gaps**
+- Scan source files for content that should be documented but isn't covered by any doc
+- Example: docker-compose.yml exists but no infrastructure.md → **WARN — undocumented area**
+
+**5. Token Budget**
+- Count total lines in CLAUDE.md between v2 markers
+- PASS if ≤100, WARN if 101-150, FAIL if >150
+
+### Per-Doc Checks
+
+**6. File Path Accuracy**
+- For every file path mentioned in any doc (e.g., `dashboard/src/middleware.ts`, `scripts/deploy.sh`), verify the file actually exists using Glob
 - Report any referenced paths that don't exist as **FAIL — phantom path**
 
-**3. Port Consistency**
-- Cross-reference ports listed in "Portas" section against docker-compose.yml (ports, EXPOSE), srs.conf (listen), nginx configs (listen, proxy_pass)
+**7. Port Consistency**
+- Cross-reference ports listed in infrastructure.md against docker-compose.yml (ports, EXPOSE), proxy configs (listen, proxy_pass)
 - Report any port in the doc not found in source files, or any port in source files missing from the doc
 
-**4. Env Var Coverage**
-- Compare env vars listed in "Variáveis de Ambiente" against all vars in .env.example
+**8. Env Var Coverage**
+- Compare env vars listed in env-vars.md against all vars in .env.example
 - Report any var in .env.example missing from the doc
 - Report any var in the doc not in .env.example (may be valid if from docker-compose environment)
 
-**5. Service Completeness**
-- Compare services listed in "Serviços / Containers" against all services in docker-compose.yml
+**9. Service Completeness**
+- Compare services listed in infrastructure.md against all services in docker-compose.yml
 - Report any service missing from the doc
 
-**6. Security — No Leaked Secrets**
-- Scan the generated block for patterns that look like secret values: strings after `=` that aren't placeholder/template values, base64-encoded strings, API keys, tokens
+**10. Security — No Leaked Secrets**
+- Scan ALL generated files for patterns that look like secret values: strings after `=` that aren't placeholder/template values, base64-encoded strings, API keys, tokens
 - Check that .env values are NEVER included — only variable names
 - Report any potential leak as **CRITICAL FAIL**
 
-**7. Token Budget**
-- Count total lines between markers
-- PASS if ≤200, WARN if 201-400, FAIL if >400
-
-**8. Section Relevance**
-- For each section present, verify it has actual content (not just the header)
-- For each section absent, verify no detection source exists (e.g., if "Banco de Dados" is missing, confirm no DB images in docker-compose, no DB_* vars in .env)
-- Report false negatives (section should exist but doesn't) and false positives (section exists but shouldn't)
-
-**9. Deploy Flow Accuracy**
-- If "Deploy" section exists, verify the documented steps match the actual deploy script content
+**11. Deploy Flow Accuracy**
+- If deploy.md exists, verify the documented steps match the actual deploy script content
 - Check that flags documented (--dry-run, --sync-only, etc.) actually exist in the script
 
-**10. App Completeness (monorepo only)**
+**12. Section Relevance**
+- For each doc present, verify it has actual content (not just frontmatter + empty template)
+- For each doc absent, verify no detection source exists (e.g., if database.md is missing, confirm no DB images in docker-compose, no DB_* vars in .env)
+- Report false negatives (doc should exist but doesn't) and false positives (doc exists but shouldn't)
+
+**13. Staleness Detection**
+- For each doc, read the `generated` date from frontmatter
+- Compare against `git log --format=%aI -1 -- {source files}` for each doc's scope
+- Report per-doc staleness: **WARN — {doc}.md may be stale (generated {date}, sources changed {date})**
+
+### Monorepo-Specific Checks
+
+**14. App Completeness**
 - List all app directories in `apps/` or `packages/` that have a Dockerfile or package.json
-- Compare against apps documented in the "Apps" section
-- Report any app present in filesystem but missing from the doc
-- Report any app in the doc that no longer exists in filesystem
+- Compare against apps documented in the CLAUDE.md index Apps section
+- Report any app present in filesystem but missing from the index
+- Report any app in the index that no longer exists in filesystem
 
-**10b. App Content Accuracy (monorepo only — REQUIRED)**
-- For each app in the "Apps" section, read `apps/{name}/requirements.txt` (or `package.json`) and the main entry file
-- Cross-reference non-obvious deps listed in requirements.txt against the app's "Deps críticas" bullet
-- Flag any dep that is in the file but missing from the doc as **FAIL — undocumented dep**
-- Flag any dep documented but no longer in requirements.txt as **FAIL — phantom dep**
-- Cross-reference the "O que faz" description against what the main file actually does — flag if description appears stale
-- This check cannot be skipped or approximated. "Looks right" is not evidence. Read the files.
-
-**11. Staleness Detection**
-- Compare file modification times of key source files (docker-compose.yml, package.json, .env.example, deploy scripts) against the CLAUDE.md modification time
-- If any source file is newer than CLAUDE.md, flag as **WARN — potentially stale**
+**15. App Content Accuracy (REQUIRED)**
+- For each app with docs in `.claude/docs/{app-name}/`, read the app's source files
+- Cross-reference deps listed in docs against actual requirements.txt/package.json
+- Flag any dep in the file but missing from the doc as **FAIL — undocumented dep**
+- Flag any dep documented but no longer in the source as **FAIL — phantom dep**
+- This check cannot be skipped or approximated. Read the files.
 
 ### Verification Output Format
 
 ```
 ## /project-doc Verification Results
 
-✅ Structural integrity — markers present, content valid
-✅ File paths — 23/23 paths exist
-❌ Port consistency — port 8080 in srs.conf not documented
+✅ Structural integrity — v2 markers present, content valid
+✅ Link validity — 5/5 docs exist
+✅ No orphan docs — 0 orphans
+✅ Coverage — all detected areas documented
+✅ Token budget — 82 lines (target: 60-100)
+✅ File paths — 23/23 paths exist across all docs
+❌ Port consistency — port 8080 in docker-compose not in infrastructure.md
 ✅ Env var coverage — 11/11 vars documented
 ✅ Service completeness — 3/3 services documented
 ✅ Security — no leaked secrets
-✅ Token budget — 188 lines (target: 200)
-✅ Section relevance — 16 sections, 0 false negatives
 ✅ Deploy flow — 3/3 flags documented, steps match script
-⚠️  Staleness — docker-compose.yml modified after CLAUDE.md
+✅ Section relevance — 5 docs, 0 false negatives
+⚠️  Staleness — database.md generated 2026-05-01, schema.prisma changed 2026-05-25
 
-Summary: 8 passed, 1 warning, 1 failed
+Summary: 11 passed, 1 warning, 1 failed
+Token impact: 305 lines (v1) → 82 lines index + 5 docs on-demand (73% context reduction)
 ```
 
 ### Auto-Fix
 
 After verification, if simple auto-correctable issues are found:
-- Port in docker-compose/nginx but missing from Portas section
-- Env var in .env.example but missing from Variáveis de Ambiente section
-- Service in docker-compose but missing from Serviços section
+- Port in docker-compose but missing from infrastructure.md
+- Env var in .env.example but missing from env-vars.md
+- Service in docker-compose but missing from infrastructure.md
+- Orphan doc not referenced in index → add entry
+- Doc referenced in index but file missing → remove entry from index
 - File path referenced that moved (old path doesn't exist, similar file found nearby)
 
-**Action:** report to user with: "Encontrei N issues corrigíveis automaticamente. Quer que eu corrija?" If user confirms, apply fixes directly to the CLAUDE.md block and re-run verification.
+**Action:** report to user with: "Encontrei N issues corrigíveis automaticamente. Quer que eu corrija?" If user confirms, apply fixes and re-run verification.
 
-Do NOT auto-fix without asking. Do NOT fix complex issues (wrong descriptions, outdated deploy flow, architectural changes) — those require re-running `/project-doc`.
+Do NOT auto-fix without asking. Do NOT fix complex issues (wrong descriptions, outdated deploy flow, architectural changes) — those require re-running `/project-doc` or `/project-doc {doc-name}`.
 
 ### When to Run Verification
 
-- **Automatically** after every `/project-doc` generation or update
-- **On demand** when user says "verifica o claude.md", "check project-doc", "valida a doc"
-- Verification can run standalone (without regenerating) — just read the existing CLAUDE.md and run checks against source files
+- **Automatically** after every `/project-doc` generation, update, or migration
+- **On demand** when user says "verifica o claude.md", "check project-doc", "valida a doc", or runs `/project-doc verify`
+- Verification can run standalone (without regenerating) — just read existing files and run checks against source files

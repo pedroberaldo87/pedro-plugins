@@ -1,7 +1,7 @@
 {
   "name": "project-doc",
-  "version": "1.0.0",
-  "description": "Auto-generate a structured CLAUDE.md reference block for a project (stack, ports, env vars, deploy flow, DB, gotchas). Detects standard vs monorepo layouts, app/lib/cli type, and package manager. Includes post-generation verification with file-path, port, env, and security checks.",
+  "version": "2.0.0",
+  "description": "Generate a modular documentation system: lightweight CLAUDE.md routing table + .claude/docs/*.md per concern + thin pointers for other AI tools (AGENTS.md, GEMINI.md, .cursorrules, etc.). Supports incremental updates, v1→v2 migration, standard and monorepo layouts.",
   "author": {
     "name": "Pedro Beraldo",
     "email": "pedrotrberaldo@gmail.com"
