@@ -35,9 +35,9 @@
     {
       "name": "handoff",
       "source": "./plugins/handoff",
-      "description": "Session continuity cycle — creates a complete knowledge transfer document at {project_root}/.claude/HANDOFF.md at the end of a session, and loads it back on the next session (via 'continue' / '/continue') to resume exactly where you left off.",
+      "description": "Session continuity in a single command — /handoff detects the session state and routes: full context → saves a complete knowledge transfer document at {project_root}/.claude/HANDOFF.md; freshly cleared session → resumes from it. Optional [salvar|retomar] argument forces the mode.",
       "category": "productivity",
-      "version": "1.1.0",
+      "version": "1.3.0",
       "tags": ["session", "continuity", "documentation"]
     },
     {

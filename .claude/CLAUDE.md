@@ -23,7 +23,7 @@ pedro-plugins/
 │   ├── visual/                       # ⚙️ hooks: PreToolUse (ExitPlanMode)
 │   ├── grill-me/                     # por Matt Pocock
 │   ├── grill-with-docs/              # por Matt Pocock
-│   ├── handoff/                      # 2 skills: handoff + carregar-handoff
+│   ├── handoff/                      # 1 skill: handoff (detecta salvar/retomar)
 │   ├── improve/
 │   ├── iterate/
 │   ├── principles/                   # inclui PRINCIPIOS-SISTEMAS.md
