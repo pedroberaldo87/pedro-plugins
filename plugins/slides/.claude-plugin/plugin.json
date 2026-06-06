@@ -1,0 +1,10 @@
+{
+  "name": "slides",
+  "version": "1.0.0",
+  "description": "Markdown outline → keynote-grade single-file HTML deck. Theme system (VIU default), big-typography presentation language, strict text fidelity (never invents text), output next to the source .md.",
+  "author": {
+    "name": "Pedro Beraldo",
+    "email": "pedrotrberaldo@gmail.com"
+  },
+  "homepage": "https://github.com/pedroberaldo87/pedro-plugins"
+}

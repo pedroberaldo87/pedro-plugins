@@ -17,6 +17,14 @@
       "tags": ["sync", "bootstrap", "plugins", "automation"]
     },
     {
+      "name": "slides",
+      "source": "./plugins/slides",
+      "description": "Markdown outline → keynote-grade single-file HTML deck. Theme system (VIU default), big-typography presentation language, strict text fidelity (never invents text), output next to the source .md.",
+      "category": "productivity",
+      "version": "1.0.0",
+      "tags": ["slides", "presentation", "html", "markdown", "keynote", "viu"]
+    },
+    {
       "name": "visual",
       "source": "./plugins/visual",
       "description": "CLI walls-of-text → interactive HTML dark-theme views. Plans, diagnostics, and decisions rendered in the browser with live sync back to Claude via local daemon.",
@@ -76,7 +84,7 @@
       "name": "grill-me",
       "source": "./plugins/grill-me",
       "description": "Relentless one-question-at-a-time design review. Stress-tests plans and decisions by walking every branch of the decision tree.",
-      "author": "Matt Pocock (https://github.com/mattpocock/skills)",
+      "author": { "name": "Matt Pocock", "homepage": "https://github.com/mattpocock/skills" },
       "category": "dev-tools",
       "version": "1.0.0",
       "tags": ["design-review", "planning", "decisions", "stress-test"]
@@ -85,7 +93,7 @@
       "name": "grill-with-docs",
       "source": "./plugins/grill-with-docs",
       "description": "Relentless design review that challenges plans against the project's domain model, sharpens terminology, and updates CONTEXT.md and ADRs inline as decisions crystallise.",
-      "author": "Matt Pocock (https://github.com/mattpocock/skills)",
+      "author": { "name": "Matt Pocock", "homepage": "https://github.com/mattpocock/skills" },
       "category": "dev-tools",
       "version": "1.0.0",
       "tags": ["design-review", "domain-model", "adr", "context-md"]
