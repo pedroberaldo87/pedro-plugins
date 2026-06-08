@@ -100,11 +100,16 @@ def build_buckets(dead, dupes, health, audit=None):
         if v == "falso_positivo":
             dead_items.append({
                 "path": p, "badge": "🛑 não deletar", "conf": "fp",
-                "prob_h": "O Fallow marcou como órfão — mas a <b>auditoria achou uso real</b>. É falso-positivo.",
-                "prob_t": f"Auditoria: {esc(reason)}." + (f" Prova: <code>{proof}</code>" if proof else ""),
-                "sol_h": "Manter — não deletar.",
-                "sol_t": "O Fallow é estático e não enxerga cron/systemd, rota HTTP ou import dinâmico. "
-                         "Este arquivo está em uso por um desses caminhos."})
+                "prob_h": "<b>Não é código morto nem bug do teu código.</b> É uma limitação do Fallow: "
+                          "este arquivo está em uso, mas acionado de fora do código.",
+                "prob_t": "Limitação da análise estática — o Fallow lê só o grafo de imports (quem chama quem "
+                          "no código) e <b>não enxerga</b> gatilhos externos: agendador do servidor (cron/systemd), "
+                          "requisição HTTP (rota) ou import dinâmico. "
+                          f"A auditoria confirmou o uso: {esc(reason)}." + (f" Prova: <code>{proof}</code>" if proof else ""),
+                "sol_h": "<b>Nada a fazer no código</b> — está correto. Só não deletar.",
+                "sol_t": "Mantido na lista de propósito, pra dar transparência. Se quiser que suma daqui, dá pra "
+                         "declarar o arquivo como ponto de entrada no <code>.fallowrc.json</code> — mas é cosmético, "
+                         "não muda nada no app."})
         elif v == "dead_confirmado":
             dead_items.append({
                 "path": p, "badge": None, "conf": "confirmado",
@@ -268,7 +273,7 @@ def render_html(project_name, buckets, health, session, stamp, audit=None):
             f'<p class="asub">Cada "órfão" do Fallow foi re-verificado com evidência real (import estático+dinâmico, '
             f'package.json, cron/systemd, rota HTTP). O goal repete a auditoria até dar igual 3× seguidas.</p>'
             f'<div class="astats">'
-            f'<span class="astat fp"><b>{n_fp}</b> falsos-positivos do Fallow<br><small>NÃO deletar — uso real</small></span>'
+            f'<span class="astat fp"><b>{n_fp}</b> limitações do Fallow<br><small>NÃO deletar — em uso, não é bug</small></span>'
             f'<span class="astat ok"><b>{n_real}</b> órfãos reais<br><small>auditados, seguros</small></span>'
             f'<span class="astat warn"><b>{n_man}</b> scripts manuais<br><small>arquivar</small></span>'
             f'</div></div>')
@@ -421,7 +426,7 @@ background:var(--deep);border:1px solid var(--border);border-radius:999px;font-s
 {audit_card}
 <div class="legend">
 <div class="lrow"><span class="tag ok">✓ confirmado</span><span><b>Órfão real, seguro eliminar.</b> A auditoria confirmou 0 referências — nem import, nem cron, nem rota.</span></div>
-<div class="lrow"><span class="tag fp">🛑 não deletar</span><span><b>Falso-positivo do Fallow.</b> A auditoria achou uso real (cron/systemd, rota HTTP, import dinâmico) que a análise estática não enxerga. Manter.</span></div>
+<div class="lrow"><span class="tag fp">🛑 não deletar</span><span><b>Limitação do Fallow, não bug do código.</b> O arquivo está em uso, mas acionado de fora do código (agendador, rota HTTP, import dinâmico) — coisa que a análise estática não enxerga. O código está certo; só não deletar.</span></div>
 <div class="lrow"><span class="tag warn">⚠ verificar</span><span><b>Script CLI manual / a decidir.</b> Sem refs e não agendado, mas pode ser ferramenta rodada à mão. Arquivar, não deletar. Vem desmarcado.</span></div>
 </div>
 {"".join(sections)}

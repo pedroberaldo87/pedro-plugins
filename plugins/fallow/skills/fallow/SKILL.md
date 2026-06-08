@@ -62,6 +62,8 @@ Antes de abrir o HTML: rodar `plugins/visual/server/start.sh` (live-sync). Depoi
 O Fallow é estático: **afirma** "órfão" mas não enxerga cron/systemd, rota HTTP, `import()` dinâmico nem uso via `package.json`. `audit.py` re-verifica cada `unused_file` com **evidência real** e classifica:
 
 - **`falso_positivo`** (🛑 não deletar) — achou uso real. Razão + prova (ex: `deploy/README.md` rodando o script via systemd). Inclui **propagação de vivacidade**: um FP-raiz (ex: script de cron) é entry vivo → o que ele importa e o Fallow marcou como morto também é vivo.
+
+  **Enquadramento (comunicar ao usuário em humano):** um falso-positivo **não é bug do código nem código morto** — é uma **limitação intrínseca da análise estática**. O Fallow lê só o grafo de imports (quem chama quem no código) e não enxerga gatilhos de fora: agendador do SO (cron/systemd), requisição HTTP (rota), import dinâmico. O código está correto; não há o que corrigir nele. Por padrão a skill **mantém os FPs visíveis** no relatório (não suprime via `entry`) — é escolha consciente, dá transparência. Suprimir é opção cosmética do usuário, não correção.
 - **`dead_confirmado`** (✓ seguro) — 0 referências em import estático, dinâmico, símbolo, cron/rota.
 - **`manual_cli`** (⚠ arquivar) — script sem refs e não agendado, mas é ferramenta CLI manual.
 

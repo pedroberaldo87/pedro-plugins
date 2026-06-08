@@ -19,9 +19,9 @@
     {
       "name": "fallow",
       "source": "./plugins/fallow",
-      "description": "Runs Fallow (static JS/TS analyzer — dead code, duplication, complexity), classifies findings by type and confidence, and delivers an interactive report where Pedro picks what to clean. Cleanup with a safety net (preview + build/test). Knows the systematic false-positives (Vite entry, shadcn re-exports, service workers).",
+      "description": "Runs Fallow (static JS/TS analyzer — dead code, duplication, complexity), classifies findings by type and confidence, and delivers an interactive report where Pedro picks what to clean. Audits the Fallow report (convergence goal + liveness propagation) to catch false-positives the static analysis misses — cron/systemd, HTTP routes, dynamic imports — framed as tool limitations, not code bugs. Cleanup with a safety net (preview + build/test).",
       "category": "dev-tools",
-      "version": "1.0.0",
+      "version": "1.0.1",
       "tags": ["fallow", "dead-code", "duplication", "cleanup", "static-analysis"]
     },
     {
