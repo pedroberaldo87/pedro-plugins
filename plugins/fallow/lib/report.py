@@ -431,7 +431,8 @@ background:var(--deep);border:1px solid var(--border);border-radius:999px;font-s
 </div>
 {"".join(sections)}
 <div class="bar"><span class="count"><b id="n">0</b> selecionados</span>
-<button class="btn" onclick="pick('confirmado')">Marcar só os seguros</button>
+<button class="btn" onclick="pick('confirmado')">Só os seguros (✓)</button>
+<button class="btn" onclick="pickNotFp()">Tudo menos 🛑</button>
 <button class="btn" onclick="clr()">Limpar</button>
 <button class="btn primary" onclick="cp(this)">📋 Copiar seleção</button></div>
 {audit_footer}
@@ -441,6 +442,7 @@ window.VISUAL_SESSION={json.dumps(session)};
 function boxes(){{return[...document.querySelectorAll('.row input')]}}
 function upd(){{document.getElementById('n').textContent=boxes().filter(b=>b.checked).length;post()}}
 function pick(c){{boxes().forEach(b=>{{b.checked=b.closest('.row').dataset.conf===c}});upd()}}
+function pickNotFp(){{boxes().forEach(b=>{{b.checked=b.closest('.row').dataset.conf!=='fp'}});upd()}}
 function clr(){{boxes().forEach(b=>b.checked=false);upd()}}
 boxes().forEach(b=>b.addEventListener('change',upd));
 function collect(){{
