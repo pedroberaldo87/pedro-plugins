@@ -30,7 +30,14 @@ import sys
 import hashlib
 
 ROOT = os.path.abspath(sys.argv[1]) if len(sys.argv) > 1 else "."
-GREP_EXT = ["--include=*.ts", "--include=*.tsx", "--include=*.js", "--include=*.mjs"]
+# .svelte/.vue/.astro incluídos: o Fallow (parser JS/TS puro) não enxerga import
+# dentro de componente, então a auditoria PRECISA grepar neles pra pegar o uso real.
+GREP_EXT = ["--include=*.ts", "--include=*.tsx", "--include=*.js", "--include=*.mjs",
+            "--include=*.mts", "--include=*.cts", "--include=*.jsx",
+            "--include=*.svelte", "--include=*.vue", "--include=*.astro"]
+# diretórios onde procurar uso de um símbolo exportado (filtrados por existência)
+SYMBOL_SEARCH = ["src", "app", "lib", "routes", "pages", "components",
+                 "tests", "test", "e2e", "scripts"]
 # infra de EXECUÇÃO (agendador/runtime), não prosa: aqui um script citado é de fato rodado.
 # docs/*.md ficam de fora — citar um script num plano é planejamento, não uso ativo.
 EXTERNAL_PATHS = ["deploy", "infra", ".github"]
@@ -220,23 +227,104 @@ def converge(dead, max_rounds=12):
     return final, rounds, stable >= 3
 
 
+# ---- auditoria de EXPORTS e TIPOS (o Fallow erra muito aqui em projeto Svelte/Vue) ----
+def fallow_unused_exports():
+    out = run(["npx", "-y", "fallow", "dead-code", "-r", ".", "--format", "json"])
+    try:
+        d = json.loads(out)
+    except json.JSONDecodeError:
+        return []
+    items = []
+    for e in d.get("unused_exports", []):
+        if e.get("path") and e.get("export_name"):
+            items.append({"path": e["path"], "name": e["export_name"], "line": e.get("line"),
+                          "kind": "type" if e.get("is_type_only") else "export"})
+    for t in d.get("unused_types", []):
+        if t.get("path") and t.get("export_name"):
+            items.append({"path": t["path"], "name": t["export_name"], "line": t.get("line"),
+                          "kind": "type"})
+    return items
+
+
+def _is_comment_ref(line, name):
+    """True se a ocorrência do símbolo está num comentário/prosa (// /* * <!-- #),
+    não em código. Evita FP de auditoria com nome genérico (ex.: 'send' em '// throttled send')."""
+    parts = line.split(":", 2)
+    text = parts[2] if len(parts) >= 3 else line
+    if text.lstrip().startswith(("//", "*", "/*", "<!--", "{/*", "#")):
+        return True
+    cpos = text.find("//")
+    npos = text.find(name)
+    return cpos != -1 and npos != -1 and cpos < npos
+
+
+def symbol_evidence(decl_path, name, decl_line=None):
+    """('externo', prova) se o símbolo é usado em OUTRO arquivo (FP do Fallow, ex.: import em .svelte);
+    ('interno', prova) se só é usado dentro do próprio arquivo (export redundante, símbolo vivo);
+    None se não há uso em lugar nenhum (morto de verdade).
+    Comentários/prosa são descartados — só uso em código conta."""
+    pat = rf"\b{re.escape(name)}\b"
+    ext = [l for l in grep_n(pat, *SYMBOL_SEARCH)
+           if not l.startswith(decl_path + ":") and not _is_comment_ref(l, name)]
+    if ext:
+        return ("externo", ext[0])
+    inner = []
+    for l in grep_n(pat, decl_path):
+        parts = l.split(":", 2)
+        if decl_line is not None and len(parts) >= 2 and parts[1] == str(decl_line):
+            continue  # a própria linha da declaração não conta como uso
+        if _is_comment_ref(l, name):
+            continue
+        inner.append(l)
+    if inner:
+        return ("interno", inner[0])
+    return None
+
+
+def audit_exports(items):
+    out = []
+    for it in items:
+        ev = symbol_evidence(it["path"], it["name"], it.get("line"))
+        if ev and ev[0] == "externo":
+            out.append({**it, "verdict": "falso_positivo",
+                        "reason": "usado em outro arquivo que o Fallow não enxergou (ex.: import dentro de .svelte/.vue)",
+                        "proof": ev[1]})
+        elif ev and ev[0] == "interno":
+            out.append({**it, "verdict": "usado_interno",
+                        "reason": "usado dentro do próprio arquivo; o `export` é redundante, mas o símbolo NÃO é morto",
+                        "proof": ev[1]})
+        else:
+            out.append({**it, "verdict": "dead_confirmado",
+                        "reason": "0 referências — nem em outro arquivo, nem dentro do próprio", "proof": ""})
+    return out
+
+
 def main():
     as_json = "--json" in sys.argv
     dead = fallow_unused_files()
     verdict, rounds, converged = converge(dead)
+    exports = audit_exports(fallow_unused_exports())
 
     groups = {"dead_confirmado": [], "falso_positivo": [], "manual_cli": []}
     for p, v in sorted(verdict.items()):
         groups[v["verdict"]].append({"path": p, **v})
 
+    # contagem AGREGADA (arquivos + exports/tipos) pro card do relatório refletir tudo
+    agg = {"dead_confirmado": 0, "falso_positivo": 0, "manual_cli": 0, "usado_interno": 0}
+    for k, lst in groups.items():
+        agg[k] = len(lst)
+    for ev in exports:
+        agg[ev["verdict"]] = agg.get(ev["verdict"], 0) + 1
+
     result = {
         "project": os.path.basename(ROOT),
-        "total_audited": len(dead),
+        "total_audited": len(dead) + len(exports),
         "converged": converged,
         "rounds": rounds,
         "identical_fingerprints": len({r["fingerprint"] for r in rounds}) == 1 if rounds else False,
-        "counts": {k: len(v) for k, v in groups.items()},
+        "counts": agg,
         "groups": groups,
+        "export_verdicts": exports,
     }
 
     if as_json:
@@ -251,7 +339,7 @@ def main():
     print(f"Goal de convergência: {len(rounds)} rodadas · "
           f"{'CONVERGIU ✓ (3 idênticas)' if converged else 'NÃO convergiu ✗'} · "
           f"fingerprints {[r['fingerprint'] for r in rounds]}")
-    print(f"Auditados: {result['total_audited']} arquivos órfãos\n")
+    print(f"Auditados: {len(dead)} arquivos órfãos + {len(exports)} exports/tipos\n")
     for k in ("falso_positivo", "dead_confirmado", "manual_cli"):
         g = groups[k]
         print(f"{icon[k]} {label[k]} — {len(g)}")
@@ -261,6 +349,24 @@ def main():
             if it["proof"]:
                 print(f"      prova: {it['proof'][:120]}")
         print()
+
+    if exports:
+        eicon = {"dead_confirmado": "✅", "falso_positivo": "🛑", "usado_interno": "↩"}
+        elabel = {"falso_positivo": "EXPORTS FALSO-POSITIVO (em uso via .svelte/.vue — NÃO remover)",
+                  "usado_interno": "EXPORTS SÓ INTERNOS (export redundante, símbolo vivo)",
+                  "dead_confirmado": "EXPORTS/TIPOS MORTOS (seguro remover o símbolo)"}
+        print("## Exports & tipos")
+        for k in ("falso_positivo", "usado_interno", "dead_confirmado"):
+            g = [e for e in exports if e["verdict"] == k]
+            if not g:
+                continue
+            print(f"{eicon[k]} {elabel[k]} — {len(g)}")
+            for e in g:
+                print(f"   {e['path']}::{e['name']}")
+                print(f"      → {e['reason']}")
+                if e["proof"]:
+                    print(f"      prova: {e['proof'][:120]}")
+            print()
 
 
 if __name__ == "__main__":

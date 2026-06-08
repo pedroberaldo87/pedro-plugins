@@ -59,34 +59,37 @@ Antes de abrir o HTML: rodar `plugins/visual/server/start.sh` (live-sync). Depoi
 
 ### 3. Auditoria — o goal (confirmar cada afirmação do Fallow)
 
-O Fallow é estático: **afirma** "órfão" mas não enxerga cron/systemd, rota HTTP, `import()` dinâmico nem uso via `package.json`. `audit.py` re-verifica cada `unused_file` com **evidência real** e classifica:
+O Fallow é estático: **afirma** "órfão/morto" mas não enxerga cron/systemd, rota HTTP, `import()` dinâmico, uso via `package.json`, **nem import dentro de `.svelte`/`.vue`/`.astro`** (o parser dele é JS/TS puro). `audit.py` re-verifica com **evidência real** tanto cada `unused_file` quanto cada `unused_export`/`unused_type` (auditoria de símbolo: grep ancorado por todo o projeto, incluindo componentes), e classifica:
 
-- **`falso_positivo`** (🛑 não deletar) — achou uso real. Razão + prova (ex: `deploy/README.md` rodando o script via systemd). Inclui **propagação de vivacidade**: um FP-raiz (ex: script de cron) é entry vivo → o que ele importa e o Fallow marcou como morto também é vivo.
+- **`falso_positivo`** (🛑 não deletar) — achou uso real. Razão + prova (ex: `deploy/README.md` rodando o script via systemd; ou **um export importado dentro de um `.svelte`**, que o Fallow não vê). Inclui **propagação de vivacidade**: um FP-raiz (ex: script de cron) é entry vivo → o que ele importa e o Fallow marcou como morto também é vivo.
 
-  **Enquadramento (comunicar ao usuário em humano):** um falso-positivo **não é bug do código nem código morto** — é uma **limitação intrínseca da análise estática**. O Fallow lê só o grafo de imports (quem chama quem no código) e não enxerga gatilhos de fora: agendador do SO (cron/systemd), requisição HTTP (rota), import dinâmico. O código está correto; não há o que corrigir nele. Por padrão a skill **mantém os FPs visíveis** no relatório (não suprime via `entry`) — é escolha consciente, dá transparência. Suprimir é opção cosmética do usuário, não correção.
-- **`dead_confirmado`** (✓ seguro) — 0 referências em import estático, dinâmico, símbolo, cron/rota.
+  **Enquadramento (comunicar ao usuário em humano):** um falso-positivo **não é bug do código nem código morto** — é uma **limitação intrínseca da análise estática**. O Fallow lê só o grafo de imports (quem chama quem no código) e não enxerga gatilhos de fora: agendador do SO (cron/systemd), requisição HTTP (rota), import dinâmico, ou import num componente Svelte/Vue. O código está correto; não há o que corrigir nele. Por padrão a skill **mantém os FPs visíveis** no relatório (não suprime via `entry`) — é escolha consciente, dá transparência. Suprimir é opção cosmética do usuário, não correção.
+- **`usado_interno`** (↩ só interno) — export/tipo usado **só dentro do próprio arquivo**: o `export` é redundante, mas o símbolo NÃO é morto (apagá-lo quebra o arquivo). Tirar só a keyword `export` é opcional/cosmético. É o caso típico de uma "ponte" usada internamente (ex.: um `send()` chamado pelos wrappers do mesmo módulo).
+- **`dead_confirmado`** (✓ seguro) — 0 referências: nem import estático/dinâmico, nem uso de símbolo em arquivo nenhum (incl. `.svelte`), nem cron/rota, nem uso interno.
 - **`manual_cli`** (⚠ arquivar) — script sem refs e não agendado, mas é ferramenta CLI manual.
 
-**Goal de convergência (não-negociável):** a auditoria roda repetidamente; cada rodada que descobre um buraco novo (FP que rodadas anteriores não pegaram) reinicia a contagem. **Converge só quando 3 rodadas consecutivas dão fingerprint idêntico.** Convergência prova determinismo — **não prova correção**: matches frouxos (substring de path, basename solto, símbolo genérico como `POST`/`GET`) geram falso-positivo de auditoria. Por isso os matches são **ancorados** (path com boundary, nome+extensão, infra de execução ≠ menção em doc de planejamento). Ao evoluir o `audit.py`, sempre re-validar contra uma auditoria manual de referência.
+**Goal de convergência (não-negociável):** a auditoria roda repetidamente; cada rodada que descobre um buraco novo (FP que rodadas anteriores não pegaram) reinicia a contagem. **Converge só quando 3 rodadas consecutivas dão fingerprint idêntico.** Convergência prova determinismo — **não prova correção**: matches frouxos (substring de path, basename solto, símbolo genérico como `POST`/`GET`/`send` casando a palavra num **comentário**) geram falso-positivo de auditoria. Por isso os matches são **ancorados** (path com boundary, nome+extensão, `\bsímbolo\b` com **descarte de comentário/prosa**, infra de execução ≠ menção em doc de planejamento). Ao evoluir o `audit.py`, sempre re-validar contra uma auditoria manual de referência.
 
 ### 3b. Classificar os demais baldes
 
-- 🧟 **Código morto** — arquivos usam o veredito da auditoria acima; `unused_exports`/`unused_types` usam heurística (`export_name`, `is_type_only`, `line`).
+- 🧟 **Código morto** — arquivos E exports/tipos usam o **veredito da auditoria** (`falso_positivo`/`usado_interno`/`dead_confirmado`), com a prova inline no item. Heurística de path só entra como fallback se a auditoria estiver indisponível — e nesse caso o item vai como `⚠ verificar`, nunca como morto afirmado.
 - 📦 **Dependências não usadas** — `unused_dependencies`. Quick-win seguro (auto-fixable). Excluir as típicas-FP se aparecerem (`@types/*`, `eslint`, `typescript`, `tsx`, test runners, `autoprefixer`/`@tailwindcss/postcss`).
 - 🔁 **Ciclos** — `circular_dependencies` + `re_export_cycles`. Não deletável; é refactor.
 - 👯 **Duplicação** — `clone_families` ordenadas por `total_duplicated_lines` (maiores primeiro). Refactor manual (extrair módulo via `suggestions`), nunca auto-fix.
 - 🧠 **Complexidade** — `targets` ordenados por `priority` (e `efficiency` = ROI); destacar `effort: "low"` como quick wins. Usar `recommendation` (texto humano) e `evidence` (dados acionáveis).
 
-### 4. Apresentar (relatório interativo)
+### 4. Apresentar (relatório interativo) — OBRIGATÓRIO, SEMPRE
+
+**Esta etapa NÃO é opcional e NÃO está sujeita ao seu julgamento.** Toda execução do `/fallow` — independente do volume (1 item ou 100), do tipo de projeto, ou de quão "óbvio" o resultado pareça — TEM que gerar o relatório HTML e abri-lo com `open` antes de qualquer limpeza ou conclusão. Apresentar os achados só no chat (tabela, lista, texto) NÃO substitui o relatório e é considerado falha de execução da skill. Se você está pensando "é pouca coisa, dá pra mostrar direto no chat" — pare: isso é exatamente o desvio proibido. Gere o HTML.
 
 Gerar um HTML **dark-theme self-contained** em `~/Desktop/claude-visual/YYYY-MM-DD-fallow-<projeto>.html` (reaproveitar o CSS e o daemon de live-sync da skill `visual` — `plugins/visual/server/start.sh` + `window.VISUAL_SESSION`). Estrutura:
 
-- **Topo**: saúde (health score) + contadores por balde + **card da auditoria** (goal): "convergiu em N rodadas idênticas" e os 3 números (🛑 falsos-positivos · ✓ órfãos reais · ⚠ scripts manuais).
+- **Topo**: saúde (health score) + contadores por balde + **card da auditoria** (goal): "convergiu em N rodadas idênticas" e os números (🛑 falso-positivo do Fallow · ✓ mortos reais · ↩ só uso interno · ⚠ scripts manuais).
 - **Seções colapsáveis por balde.** Cada item = checkbox + path + tag de confiança (`✓ confirmado` verde / `🛑 não deletar` vermelho / `⚠ verificar` amarelo) + **mini-resumo humano sempre visível**. Ao expandir: bloco **⛔ Problema** (humano + técnico) e bloco **✅ Solução** (humano + técnico, com a ação e a prova da auditoria).
 - Botões: **"Marcar só os seguros"** (só `confirmado` + deps — nunca `fp`/`verificar`), **"Limpar"**, **"Copiar seleção"** (+ live sync).
 - Abrir com `open`. Pedro marca o que quer eliminar e diz "ok"/"pronto" (live sync) ou cola a seleção.
 
-Se o volume for pequeno (≤ ~8 itens acionáveis), pode usar a skill `visual` direto. Para listas grandes (dezenas de itens), gerar o relatório de lista com checkboxes.
+O formato pode variar com o volume — listas grandes (dezenas de itens) usam o relatório de lista com checkboxes; volumes pequenos podem reaproveitar a skill `visual`. Mas **gerar e abrir um HTML é obrigatório nos dois casos** — "pouco volume" nunca é motivo para pular o relatório e mostrar só no chat.
 
 ### 5. Limpar só o marcado (ordem de risco crescente)
 
@@ -124,3 +127,5 @@ Criar `<projeto>/.fallowrc.json` (schema real — campos válidos: `entry`, `ign
 - `fallow fix` toca só export/deps/enum; deleção de arquivo é a skill, sempre com build/test depois.
 - Sempre commit/stash antes; sempre build/test depois de cada lote; reverter se quebrar.
 - Apresentar problemas em linguagem humana (1-2 linhas), técnico no colapsável.
+- **SEMPRE gerar e abrir o relatório HTML (passo 4), em toda execução, qualquer volume.** Mostrar achados só no chat = falha da skill. Não é decisão sua.
+- **O relatório RELATA tudo, inclusive os falso-positivos.** Todo veredito da auditoria (🛑 FP, ↩ só interno, ✓ morto, ⚠ verificar) tem que aparecer no próprio HTML, com a prova inline. **Proibido corrigir/ressalvar FP só no chat** — se o usuário precisa olhar o relatório E o chat pra ter a verdade, a skill falhou. Se tem relatório, o relatório é a fonte única.

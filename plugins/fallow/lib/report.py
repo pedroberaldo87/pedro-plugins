@@ -54,6 +54,53 @@ def audit_map(audit):
     return m
 
 
+def export_audit_map(audit):
+    """(path, name) -> verdict de export/tipo a partir do JSON do audit."""
+    m = {}
+    for ev in (audit.get("export_verdicts") or []):
+        m[(ev["path"], ev["name"])] = ev
+    return m
+
+
+def export_item(p, name, line, kind, rexp, ev):
+    """Monta o item de export/tipo no bucket de código morto, usando o VEREDITO da auditoria
+    (falso_positivo / usado_interno / dead_confirmado) — não a heurística cega do Fallow."""
+    label = "tipo" if kind == "type" else "export"
+    v = (ev or {}).get("verdict")
+    reason = esc((ev or {}).get("reason", ""))
+    proof = esc(str((ev or {}).get("proof", ""))[:200])
+    pf = f" Prova: <code>{proof}</code>" if proof else ""
+    if v == "falso_positivo":
+        return {"path": p, "badge": name, "conf": "fp",
+                "prob_h": f"O {label} <b>{esc(name)}</b> aparece como não-usado, mas <b>está em uso</b> — não é morto.",
+                "prob_t": f"Limitação do Fallow: ele não enxerga import dentro de <code>.svelte</code>/<code>.vue</code>. "
+                          f"A auditoria achou uso real: {reason}.{pf}",
+                "sol_h": "<b>Não remover.</b> O código está certo.",
+                "sol_t": "Mantido na lista de propósito (transparência). Pra sumir daqui, suprimir com "
+                         "<code>// fallow-ignore-next-line unused-export</code> — cosmético."}
+    if v == "usado_interno":
+        return {"path": p, "badge": name, "conf": "interno",
+                "prob_h": f"O {label} <b>{esc(name)}</b> é usado só dentro do próprio arquivo — o <code>export</code> é redundante.",
+                "prob_t": f"A auditoria achou uso interno: {reason}.{pf} Apagar a função/tipo inteiro quebraria o "
+                          "arquivo; só a palavra <code>export</code> sobra à toa.",
+                "sol_h": "Tirar só o <code>export</code> (o símbolo continua). Opcional, baixo valor.",
+                "sol_t": "Se for parte intencional da API pública (ex.: ponte de comandos do app), deixar como está."}
+    if v == "dead_confirmado":
+        return {"path": p, "badge": name, "conf": "confirmado",
+                "prob_h": f"O {label} <b>{esc(name)}</b> é morto — <b>confirmado pela auditoria</b> (0 uso interno e externo).",
+                "prob_t": f"Declarado em <code>{esc(p)}:{line}</code>{rexp}. O grep não achou nenhum consumidor em "
+                          "arquivo nenhum, incluindo <code>.svelte</code>.",
+                "sol_h": "Apagar o símbolo inteiro (não só o <code>export</code>).",
+                "sol_t": "Auditado: 0 referências. Ainda assim confirmo com build/test antes de remover."}
+    # auditoria indisponível → fallback honesto (NÃO afirmar que é morto)
+    return {"path": p, "badge": name, "conf": "verificar",
+            "prob_h": f"O {label} <b>{esc(name)}</b> aparece como não-usado pelo Fallow.",
+            "prob_t": f"Declarado em <code>{esc(p)}:{line}</code>{rexp}. <b>Auditoria de exports indisponível</b> — "
+                      "o Fallow não enxerga import dentro de .svelte, então pode ser falso-positivo.",
+            "sol_h": "Verificar com grep antes de tocar.",
+            "sol_t": "Confirmar 0 uso real (incl. <code>.svelte</code>) antes de remover o <code>export</code>."}
+
+
 # diretórios e nomes FP-prone: pedem verificação manual antes de deletar
 # (rotas/scripts/cron/assets que análise estática não enxerga como entry)
 VERIFY_DIRS = {"scripts", "cron", "public", "static", "api", "migrations", "e2e", "tests"}
@@ -88,6 +135,7 @@ def short(p):
 def build_buckets(dead, dupes, health, audit=None):
     buckets = []
     averd = audit_map(audit or {})
+    eaverd = export_audit_map(audit or {})
 
     # 🧟 código morto: arquivos órfãos (com VEREDITO da auditoria) + exports + types
     dead_items = []
@@ -142,25 +190,11 @@ def build_buckets(dead, dupes, health, audit=None):
         line = e.get("line", "?")
         kind = "type" if e.get("is_type_only") else "export"
         rexp = " · é um re-export" if e.get("is_re_export") else ""
-        dead_items.append({
-            "path": p, "badge": name, "conf": confidence(p),
-            "prob_h": f"O {kind} <b>{esc(name)}</b> é exposto, mas nenhum outro arquivo usa.",
-            "prob_t": f"Declarado em <code>{esc(p)}:{line}</code>{rexp}. Sem consumidores no grafo — aumenta a "
-                      f"superfície da API pública à toa.",
-            "sol_h": "Tirar o <code>export</code> (o código continua) ou apagar se for morto de vez.",
-            "sol_t": "<b>Auto-fixável</b> via <code>fallow fix</code>: remove só a palavra <code>export</code>. "
-                     "Se for API pública intencional (consumida de fora), suprimir com "
-                     "<code>// fallow-ignore-next-line unused-export</code>."})
+        dead_items.append(export_item(p, name, line, kind, rexp, eaverd.get((p, name))))
     for t in dead.get("unused_types", []):
         p = item_path(t)
         name = t.get("export_name", "?")
-        dead_items.append({
-            "path": p, "badge": name, "conf": confidence(p),
-            "prob_h": f"O tipo <b>{esc(name)}</b> é exportado, mas ninguém importa.",
-            "prob_t": f"Type export sem consumidores em <code>{esc(p)}:{t.get('line','?')}</code>. "
-                      f"Tipos somem no build, então é só ruído na API pública.",
-            "sol_h": "Remover o export do tipo.",
-            "sol_t": "Auto-fixável. Sem risco de runtime (tipo não vai pro bundle)."})
+        dead_items.append(export_item(p, name, t.get("line", "?"), "type", "", eaverd.get((p, name))))
     buckets.append({"key": "morto", "emoji": "🧟", "title": "Código morto", "items": dead_items})
 
     # 📦 dependências
@@ -261,6 +295,7 @@ def render_html(project_name, buckets, health, session, stamp, audit=None):
     n_fp = a_counts.get("falso_positivo", 0)
     n_real = a_counts.get("dead_confirmado", 0)
     n_man = a_counts.get("manual_cli", 0)
+    n_int = a_counts.get("usado_interno", 0)
     conv = audit.get("converged")
     ident = audit.get("identical_fingerprints")
     audit_card = ""
@@ -270,11 +305,13 @@ def render_html(project_name, buckets, health, session, stamp, audit=None):
         audit_card = (
             f'<div class="auditcard"><div class="ahead"><span class="apill">🔍 Auditoria do relatório · goal</span>'
             f'<span class="aconv {"ok" if (conv and ident) else "warn"}">{status}</span></div>'
-            f'<p class="asub">Cada "órfão" do Fallow foi re-verificado com evidência real (import estático+dinâmico, '
-            f'package.json, cron/systemd, rota HTTP). O goal repete a auditoria até dar igual 3× seguidas.</p>'
+            f'<p class="asub">Cada achado do Fallow (arquivo órfão, export e tipo) foi re-verificado com evidência '
+            f'real — import estático+dinâmico, uso de símbolo em <b>.svelte/.vue</b>, package.json, cron/systemd, rota '
+            f'HTTP. O goal repete a auditoria até dar igual 3× seguidas.</p>'
             f'<div class="astats">'
-            f'<span class="astat fp"><b>{n_fp}</b> limitações do Fallow<br><small>NÃO deletar — em uso, não é bug</small></span>'
-            f'<span class="astat ok"><b>{n_real}</b> órfãos reais<br><small>auditados, seguros</small></span>'
+            f'<span class="astat fp"><b>{n_fp}</b> falso-positivo do Fallow<br><small>NÃO mexer — em uso, não é bug</small></span>'
+            f'<span class="astat ok"><b>{n_real}</b> mortos reais<br><small>auditados, seguros</small></span>'
+            f'<span class="astat int"><b>{n_int}</b> só uso interno<br><small>export redundante, símbolo vivo</small></span>'
             f'<span class="astat warn"><b>{n_man}</b> scripts manuais<br><small>arquivar</small></span>'
             f'</div></div>')
 
@@ -298,7 +335,7 @@ def render_html(project_name, buckets, health, session, stamp, audit=None):
         rows = []
         for it in b["items"]:
             cmap = {"confirmado": ("ok", "✓ confirmado"), "fp": ("fp", "🛑 não deletar"),
-                    "verificar": ("warn", "⚠ verificar")}
+                    "verificar": ("warn", "⚠ verificar"), "interno": ("warn", "↩ só interno")}
             tag_cls, tag_txt = cmap.get(it["conf"], ("warn", "⚠ verificar"))
             badge = f'<span class="badge">{esc(it["badge"])}</span>' if it.get("badge") else ""
             sel = esc(it["path"] + ((" · " + it["badge"]) if it.get("badge") and it["badge"] not in ("dep",) else ""))
@@ -389,6 +426,7 @@ font-size:13px;color:var(--dim)}}
 .astat.fp{{border-left-color:var(--danger)}} .astat.fp b{{color:var(--danger)}}
 .astat.ok{{border-left-color:var(--ok)}} .astat.ok b{{color:var(--ok)}}
 .astat.warn{{border-left-color:var(--warn)}} .astat.warn b{{color:var(--warn)}}
+.astat.int{{border-left-color:var(--accent)}} .astat.int b{{color:var(--accent)}}
 .goalseal{{margin-top:40px;padding:20px 24px;border-radius:16px;background:var(--deep);border:1px solid var(--border)}}
 .goalseal.ok{{border-color:rgba(127,209,174,.35)}}
 .goalseal.warn{{border-color:rgba(255,209,102,.35)}}
@@ -426,7 +464,8 @@ background:var(--deep);border:1px solid var(--border);border-radius:999px;font-s
 {audit_card}
 <div class="legend">
 <div class="lrow"><span class="tag ok">✓ confirmado</span><span><b>Órfão real, seguro eliminar.</b> A auditoria confirmou 0 referências — nem import, nem cron, nem rota.</span></div>
-<div class="lrow"><span class="tag fp">🛑 não deletar</span><span><b>Limitação do Fallow, não bug do código.</b> O arquivo está em uso, mas acionado de fora do código (agendador, rota HTTP, import dinâmico) — coisa que a análise estática não enxerga. O código está certo; só não deletar.</span></div>
+<div class="lrow"><span class="tag fp">🛑 não deletar</span><span><b>Limitação do Fallow, não bug do código.</b> Está em uso, mas acionado de fora do que a análise estática enxerga: agendador/rota/import dinâmico, ou <b>import dentro de .svelte/.vue</b>. O código está certo; só não mexer.</span></div>
+<div class="lrow"><span class="tag warn">↩ só interno</span><span><b>Usado só dentro do próprio arquivo.</b> O <code>export</code> é redundante, mas o símbolo NÃO é morto — apagá-lo quebraria o arquivo. Tirar só a keyword <code>export</code> é opcional/cosmético.</span></div>
 <div class="lrow"><span class="tag warn">⚠ verificar</span><span><b>Script CLI manual / a decidir.</b> Sem refs e não agendado, mas pode ser ferramenta rodada à mão. Arquivar, não deletar. Vem desmarcado.</span></div>
 </div>
 {"".join(sections)}
