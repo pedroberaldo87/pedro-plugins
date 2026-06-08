@@ -67,9 +67,9 @@
     {
       "name": "project-doc",
       "source": "./plugins/project-doc",
-      "description": "Auto-generate a structured CLAUDE.md reference block for a project (stack, ports, env vars, deploy flow, DB, gotchas). Supports standard and monorepo layouts with post-generation verification checks.",
+      "description": "Auto-generate a structured CLAUDE.md reference block for a project (stack, ports, env vars, deploy flow, DB, gotchas). Supports standard and monorepo layouts with post-generation verification checks. Integrates with graphify knowledge graphs (detects, generates index section, suggests create/update).",
       "category": "productivity",
-      "version": "2.0.0",
+      "version": "2.1.0",
       "tags": ["documentation", "claude-md", "monorepo", "scaffolding"]
     },
     {
