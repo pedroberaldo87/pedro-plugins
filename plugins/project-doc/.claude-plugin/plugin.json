@@ -1,6 +1,6 @@
 {
   "name": "project-doc",
-  "version": "2.1.0",
+  "version": "2.2.0",
   "description": "Generate a modular documentation system: lightweight CLAUDE.md routing table + .claude/docs/*.md per concern + thin pointers for other AI tools (AGENTS.md, GEMINI.md, .cursorrules, etc.). Supports incremental updates, v1→v2 migration, standard and monorepo layouts.",
   "author": {
     "name": "Pedro Beraldo",
