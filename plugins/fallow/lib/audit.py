@@ -1,0 +1,267 @@
+#!/usr/bin/env python3
+"""
+Auditoria do relatório do Fallow.
+
+O Fallow é estático: ele AFIRMA "órfão/morto", mas não enxerga cron externo
+(systemd/crontab), import dinâmico, uso via package.json script ou rota HTTP.
+Este motor CONFIRMA cada afirmação com evidência real e classifica:
+
+  • dead_confirmado  — 0 referências em qualquer lugar; seguro eliminar.
+  • falso_positivo   — há uso que o Fallow não viu (com a razão e a prova).
+  • manual_cli       — script sem refs, mas é ferramenta CLI manual: arquivar, não deletar.
+
+Propagação de vivacidade: um falso-positivo "raiz" (ex: script de cron rodado por
+systemd) é tratado como entry point vivo; tudo que ele importa e que o Fallow havia
+marcado como morto também é vivo (foi assim que `gera-recorrencias.ts` foi pego —
+o `cron-recorrencias.ts` o importa e roda em produção).
+
+Goal de convergência: roda a auditoria repetidamente; cada rodada que descobre um
+buraco novo (FP que rodadas anteriores não pegaram) reinicia a contagem. Converge
+quando 3 rodadas consecutivas dão exatamente o mesmo resultado.
+
+Uso:  python3 audit.py <project_root> [--json]
+Sem --json: imprime relatório humano. Com --json: dump estruturado (pro report.py).
+"""
+import json
+import os
+import re
+import subprocess
+import sys
+import hashlib
+
+ROOT = os.path.abspath(sys.argv[1]) if len(sys.argv) > 1 else "."
+GREP_EXT = ["--include=*.ts", "--include=*.tsx", "--include=*.js", "--include=*.mjs"]
+# infra de EXECUÇÃO (agendador/runtime), não prosa: aqui um script citado é de fato rodado.
+# docs/*.md ficam de fora — citar um script num plano é planejamento, não uso ativo.
+EXTERNAL_PATHS = ["deploy", "infra", ".github"]
+EXTERNAL_GLOBS = ["docker-compose.yml", "docker-compose.prod.yml", "docker-compose.dev.yml",
+                  "Procfile", "crontab", "Makefile"]
+
+
+def run(cmd):
+    try:
+        return subprocess.run(cmd, cwd=ROOT, capture_output=True, text=True, timeout=180).stdout
+    except Exception:
+        return ""
+
+
+def read(rel):
+    try:
+        with open(os.path.join(ROOT, rel), encoding="utf-8", errors="ignore") as fh:
+            return fh.read()
+    except OSError:
+        return ""
+
+
+def exists(rel):
+    return os.path.exists(os.path.join(ROOT, rel))
+
+
+def fallow_unused_files():
+    out = run(["npx", "-y", "fallow", "dead-code", "-r", ".", "--unused-files", "--format", "json"])
+    try:
+        d = json.loads(out)
+    except json.JSONDecodeError:
+        return []
+    return [f.get("path", "") for f in d.get("unused_files", []) if f.get("path")]
+
+
+def basename_noext(p):
+    return re.sub(r"\.(ts|tsx|js|mjs)$", "", os.path.basename(p))
+
+
+def grep_n(pattern, *paths):
+    """grep -nIE em paths existentes; devolve linhas 'file:line:texto'."""
+    real = [p for p in paths if exists(p)]
+    if not real:
+        return []
+    cmd = ["grep", "-rnIE"] + GREP_EXT + [pattern] + real
+    return [l for l in run(cmd).splitlines() if l]
+
+
+def grep_plain(pattern, *files):
+    """grep -nE em arquivos específicos (não recursivo por extensão), ex package.json/README."""
+    real = [f for f in files if exists(f)]
+    if not real:
+        return []
+    return [l for l in run(["grep", "-rnE", pattern] + real).splitlines() if l]
+
+
+ROUTE_RE = re.compile(r"/(api|app)/.*\broute(\.\w+)?\.(ts|tsx|js)$")
+PAGE_RE = re.compile(r"/(page|layout|loading|error|not-found|middleware|instrumentation)(\.\w+)?\.(ts|tsx|js)$")
+
+
+# ---- evidência direta de uso por arquivo ----
+def direct_evidence(path):
+    """Retorna lista de (tipo, prova) se houver QUALQUER uso. Vazia = sem evidência direta.
+    Matches ancorados pra evitar falso-positivo (substring de path, basename solto, símbolo genérico)."""
+    base = re.escape(basename_noext(path))
+    found = []
+
+    # 1. import/require/dynamic do módulo pelo caminho (basename como último segmento do specifier)
+    refs = [l for l in grep_n(rf"(import|from|require|dynamic|lazy).*[/'\"]{base}['\"]",
+                              "src", "tests", "e2e", "prisma", "scripts")
+            if not l.startswith(path + ":")]
+    if refs:
+        found.append(("import-do-modulo", refs[0]))
+
+    # 2. rota HTTP ou arquivo de convenção de framework (acionado por request/runtime, não por import)
+    if ROUTE_RE.search(path):
+        found.append(("rota-http", "route handler em /api ou /app — acionado por request, não importado"))
+    elif PAGE_RE.search(path):
+        found.append(("convenção-framework", "page/layout/middleware — entry do framework"))
+
+    # 3. package.json aponta pro caminho EXATO (precedido por aspas/espaço → não casa sufixo de path aninhado)
+    pj = grep_plain(rf"[\"' ]{re.escape(path)}", "package.json")
+    if pj:
+        found.append(("package.json-script", pj[0]))
+
+    # 4. infra de execução (cron/systemd/docker/CI) roda o arquivo. Boundary à esquerda + nome+extensão:
+    #    "switch.tsx" não casa "switcher"; "data-table.tsx" não casa "advanced-data-table.tsx".
+    fname = re.escape(os.path.basename(path))
+    ext = grep_plain(rf"(^|[^A-Za-z0-9_-]){fname}", *EXTERNAL_PATHS, *EXTERNAL_GLOBS)
+    if ext:
+        found.append(("infra-execução", ext[0]))
+
+    return found
+
+
+# ---- resolução de imports pra propagação ----
+def imports_of(path):
+    txt = read(path)
+    specs = re.findall(r"(?:from|import)\s+['\"]([^'\"]+)['\"]", txt)
+    specs += re.findall(r"import\(\s*['\"]([^'\"]+)['\"]\s*\)", txt)
+    out = []
+    d = os.path.dirname(path)
+    for s in specs:
+        if s.startswith("@/"):
+            cand = os.path.join("src", s[2:])
+        elif s.startswith("."):
+            cand = os.path.normpath(os.path.join(d, s))
+        else:
+            continue  # pacote externo do node_modules
+        out.append(cand)
+    return out
+
+
+def resolve(cand):
+    for ext in (".ts", ".tsx", ".js", ".mjs", "/index.ts", "/index.tsx", "/index.js"):
+        if exists(cand + ext):
+            return cand + ext
+    return cand if exists(cand) else None
+
+
+def is_script(path):
+    return "scripts" in path.lower().split("/")[:-1]
+
+
+# ---- uma rodada de auditoria (com propagação interna até estável) ----
+def audit_round(dead):
+    dead_set = set(dead)
+    verdict = {}   # path -> {"verdict","reason","proof"}
+    live_roots = []
+
+    for p in dead:
+        ev = direct_evidence(p)
+        if ev:
+            kinds = ", ".join(k for k, _ in ev)
+            verdict[p] = {"verdict": "falso_positivo", "reason": f"uso real via {kinds}",
+                          "proof": ev[0][1], "origin": "evidência direta"}
+            live_roots.append(p)
+        elif is_script(p):
+            verdict[p] = {"verdict": "manual_cli",
+                          "reason": "sem refs e não agendado, mas é script CLI — arquivar, não deletar",
+                          "proof": "", "origin": "heurística"}
+        else:
+            verdict[p] = {"verdict": "dead_confirmado", "reason": "0 referências em todo o projeto",
+                          "proof": "", "origin": "evidência direta"}
+
+    # propagação: FP-raiz vira entry vivo; mortos que ele alcança também vivem
+    holes = 0
+    live = set(live_roots)
+    frontier = list(live_roots)
+    while frontier:
+        cur = frontier.pop()
+        for imp in imports_of(cur):
+            r = resolve(imp)
+            if r and r in dead_set and r not in live:
+                live.add(r)
+                frontier.append(r)
+                holes += 1
+                verdict[r] = {"verdict": "falso_positivo",
+                              "reason": f"vivo por propagação — importado por {os.path.basename(cur)} "
+                                        f"(que roda em produção)",
+                              "proof": f"{cur} importa {r}", "origin": "propagação"}
+    return verdict, holes
+
+
+def fingerprint(verdict):
+    items = sorted((p, v["verdict"]) for p, v in verdict.items())
+    return hashlib.sha256(json.dumps(items).encode()).hexdigest()[:16]
+
+
+def converge(dead, max_rounds=12):
+    """Goal: repetir até 3 rodadas consecutivas idênticas. Cada rodada que muda
+    o resultado (acha buraco novo) reinicia a contagem de estabilidade."""
+    rounds = []
+    last_fp = None
+    stable = 0
+    final = None
+    while stable < 3 and len(rounds) < max_rounds:
+        verdict, holes = audit_round(dead)
+        fp = fingerprint(verdict)
+        if fp == last_fp:
+            stable += 1
+        else:
+            stable = 1  # resultado novo: reinicia rumo às 3 iguais
+        last_fp = fp
+        final = verdict
+        rounds.append({"round": len(rounds) + 1, "fingerprint": fp, "holes_propagated": holes})
+    return final, rounds, stable >= 3
+
+
+def main():
+    as_json = "--json" in sys.argv
+    dead = fallow_unused_files()
+    verdict, rounds, converged = converge(dead)
+
+    groups = {"dead_confirmado": [], "falso_positivo": [], "manual_cli": []}
+    for p, v in sorted(verdict.items()):
+        groups[v["verdict"]].append({"path": p, **v})
+
+    result = {
+        "project": os.path.basename(ROOT),
+        "total_audited": len(dead),
+        "converged": converged,
+        "rounds": rounds,
+        "identical_fingerprints": len({r["fingerprint"] for r in rounds}) == 1 if rounds else False,
+        "counts": {k: len(v) for k, v in groups.items()},
+        "groups": groups,
+    }
+
+    if as_json:
+        print(json.dumps(result, ensure_ascii=False))
+        return
+
+    icon = {"dead_confirmado": "✅", "falso_positivo": "🛑", "manual_cli": "📦"}
+    label = {"dead_confirmado": "ÓRFÃOS REAIS (seguro eliminar)",
+             "falso_positivo": "FALSOS-POSITIVOS (NÃO deletar — o Fallow errou)",
+             "manual_cli": "SCRIPTS CLI MANUAIS (arquivar, não deletar)"}
+    print(f"# Auditoria do relatório Fallow — {result['project']}")
+    print(f"Goal de convergência: {len(rounds)} rodadas · "
+          f"{'CONVERGIU ✓ (3 idênticas)' if converged else 'NÃO convergiu ✗'} · "
+          f"fingerprints {[r['fingerprint'] for r in rounds]}")
+    print(f"Auditados: {result['total_audited']} arquivos órfãos\n")
+    for k in ("falso_positivo", "dead_confirmado", "manual_cli"):
+        g = groups[k]
+        print(f"{icon[k]} {label[k]} — {len(g)}")
+        for it in g:
+            print(f"   {it['path']}")
+            print(f"      → {it['reason']}")
+            if it["proof"]:
+                print(f"      prova: {it['proof'][:120]}")
+        print()
+
+
+if __name__ == "__main__":
+    main()

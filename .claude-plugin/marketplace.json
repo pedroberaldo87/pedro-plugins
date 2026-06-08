@@ -17,6 +17,14 @@
       "tags": ["sync", "bootstrap", "plugins", "automation"]
     },
     {
+      "name": "fallow",
+      "source": "./plugins/fallow",
+      "description": "Runs Fallow (static JS/TS analyzer — dead code, duplication, complexity), classifies findings by type and confidence, and delivers an interactive report where Pedro picks what to clean. Cleanup with a safety net (preview + build/test). Knows the systematic false-positives (Vite entry, shadcn re-exports, service workers).",
+      "category": "dev-tools",
+      "version": "1.0.0",
+      "tags": ["fallow", "dead-code", "duplication", "cleanup", "static-analysis"]
+    },
+    {
       "name": "slides",
       "source": "./plugins/slides",
       "description": "Markdown outline → keynote-grade single-file HTML deck. Theme system (VIU default), big-typography presentation language, strict text fidelity (never invents text), output next to the source .md.",
