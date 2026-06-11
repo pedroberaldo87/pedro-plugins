@@ -1,7 +1,7 @@
 {
   "name": "raiox",
-  "version": "0.1.0",
-  "description": "RAIOX — replicable YouTube channel intelligence for VIU Studio. Orchestrates the viu-raiox pipeline (public fetch → fact store → 7 analysis modules → orphan-number validation) per channel config. v0: code-only rail; LLM curation and output templates are Phase C.",
+  "version": "0.2.0",
+  "description": "RAIOX — replicable YouTube channel intelligence for VIU Studio. Pipeline per channel config: public fetch + Studio lifetime export (49col, dual view metrics) -> fact store -> gates -> diagnostic chapters (facts JSON + series CSV + manifest) -> validated documents (peça/one-pager/XLSX) -> raiox ask Q&A (backend-agnostic: claude-cli or API). Numbers are code-born, ever; LLM labels (write-once), writes and answers under the validator.",
   "author": {
     "name": "Pedro Beraldo",
     "email": "pedrotrberaldo@gmail.com"
