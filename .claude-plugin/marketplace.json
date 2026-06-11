@@ -57,6 +57,14 @@
       "tags": ["session", "continuity", "documentation"]
     },
     {
+      "name": "raiox",
+      "source": "./plugins/raiox",
+      "description": "RAIOX — replicable YouTube channel intelligence for VIU Studio. Orchestrates the viu-raiox pipeline (public fetch → DuckDB fact store → 7 code-only analysis modules → orphan-number validation) per channel YAML config. Honesty Rule: every citable number is born in code-generated JSON; LLM never originates numbers. v0 rail; LLM curation and output templates are Phase C.",
+      "category": "dev-tools",
+      "version": "0.1.0",
+      "tags": ["youtube", "analytics", "viu", "channel-intelligence", "duckdb"]
+    },
+    {
       "name": "sovai",
       "source": "./plugins/sovai",
       "description": "Autonomous execution mode — executes any plan to completion without user interruptions, checkpoints, or confirmations. Skips blocked items (no silent workarounds), logs all decisions, and delivers a structured report at the end.",

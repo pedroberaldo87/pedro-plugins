@@ -1,0 +1,10 @@
+{
+  "name": "raiox",
+  "version": "0.1.0",
+  "description": "RAIOX — replicable YouTube channel intelligence for VIU Studio. Orchestrates the viu-raiox pipeline (public fetch → fact store → 7 analysis modules → orphan-number validation) per channel config. v0: code-only rail; LLM curation and output templates are Phase C.",
+  "author": {
+    "name": "Pedro Beraldo",
+    "email": "pedrotrberaldo@gmail.com"
+  },
+  "homepage": "https://github.com/pedroberaldo87/pedro-plugins"
+}
