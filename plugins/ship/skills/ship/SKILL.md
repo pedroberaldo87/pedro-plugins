@@ -19,6 +19,9 @@ digraph ship {
     "Type-check + fix" [shape=box];
     "All clean?" [shape=diamond];
     "Fix errors" [shape=box];
+    "Run tests" [shape=box];
+    "Tests pass?" [shape=diamond];
+    "Fix test failures" [shape=box];
     "Commit + push" [shape=box];
     "Deploy" [shape=box];
     "Verify deploy" [shape=box];
@@ -28,9 +31,13 @@ digraph ship {
     "Detect tools" -> "Lint + fix";
     "Lint + fix" -> "Type-check + fix";
     "Type-check + fix" -> "All clean?";
-    "All clean?" -> "Commit + push" [label="yes"];
+    "All clean?" -> "Run tests" [label="yes"];
     "All clean?" -> "Fix errors" [label="no"];
     "Fix errors" -> "Lint + fix";
+    "Run tests" -> "Tests pass?";
+    "Tests pass?" -> "Commit + push" [label="yes"];
+    "Tests pass?" -> "Fix test failures" [label="no"];
+    "Fix test failures" -> "Run tests";
     "Commit + push" -> "Deploy";
     "Deploy" -> "Verify deploy";
     "Verify deploy" -> "Done";
@@ -64,6 +71,34 @@ Run lint and type-check. Fix ALL errors found — including pre-existing ones in
 4. Re-run both until zero errors
 
 **Do NOT skip pre-existing errors.** If the linter reports it, fix it.
+
+### 2.5. Run Tests (Hard Gate)
+
+Detect and run the full test suite before committing anything.
+
+| Look for | Tool |
+|----------|------|
+| `test` script in **package.json** | `npm test` (or `yarn test` / `pnpm test`) |
+| `jest` / `vitest` / `mocha` in devDependencies | run directly if no script |
+| `pytest` in **pyproject.toml** / **setup.cfg** | `pytest` |
+| **Cargo.toml** | `cargo test` |
+| **go.mod** | `go test ./...` |
+| `test` target in **Makefile** | `make test` |
+
+**If no test runner is found**, log a warning and continue — but note the absence.
+
+**Loop until all pass:**
+1. Run the full test suite
+2. If all pass → advance to Commit + Push
+3. If any fail → **stop here**
+   - Report which tests failed and the exact errors
+   - Fix the failures — pre-existing failures are **not acceptable** for deploy
+   - Re-run until zero failures
+   - Only then advance
+
+**This gate cannot be bypassed.** Even if Pedro instructs to proceed with failing tests, do not advance. The correct path is: fix the failures, re-run the suite, then resume the ship flow.
+
+> The `pre-deploy-test-check` hook (bundled with this plugin) enforces this gate at the harness level — it intercepts deploy commands and blocks them if the test suite fails.
 
 ### 3. Commit + Push
 
@@ -105,6 +140,7 @@ After deploy, verify the service is running:
 ## Safety Rules
 
 - **Never deploy without passing lint + type-check first**
+- **Never deploy with failing tests** — even pre-existing failures. If tests fail at gate 2.5, fix them before continuing. This gate cannot be bypassed.
 - **Never force-push** without explicit permission
 - **Check .env files** — they may be overwritten by git operations on VPS
 - **Back up server-specific config** before `git reset --hard` or `git pull` on a server
