@@ -1,6 +1,6 @@
 ---
 name: project-doc
-description: "Use when entering a project without CLAUDE.md, after major structural changes, or when the user says \"project-doc\", \"documenta\", \"documentar\", \"documenta o projeto\", \"gera o claude.md\", \"atualiza o claude.md\". Generates a modular documentation system: lightweight CLAUDE.md routing table + .claude/docs/*.md per concern + thin pointers for other AI tools."
+description: "Use when entering a project without CLAUDE.md, after major structural changes, or when the user says \"project-doc\", \"documenta\", \"documentar\", \"documenta o projeto\", \"gera o claude.md\", \"atualiza o claude.md\", \"limpa os artefatos\", \"limpa os prints\", \"limpa o projeto\", \"arquiva protótipos\", or runs \"/project-doc clean\". Generates a modular documentation system (lightweight CLAUDE.md routing table + .claude/docs/*.md per concern + thin pointers for other AI tools) and detects/cleans up stale test artifacts (screenshots, runner output, temp files)."
 ---
 
 # Project Doc v2 — Documentation System Generator
@@ -23,6 +23,7 @@ Sections are conditional — only generated if relevant content is detected. Sma
 - `.claude/docs/` exists but CLAUDE.md index is missing or doesn't reference it → "Tem docs em .claude/docs/ mas o CLAUDE.md não aponta pra eles. Quer que eu rode o /project-doc index?"
 - `graphify-out/graph.json` exists but is stale (source files changed after its mtime) → "O knowledge graph (graphify-out/) pode estar desatualizado. Quer que eu rode `graphify --update`?"
 - `graphify-out/graph.json` does NOT exist and the project is non-trivial (see Knowledge Graph Detection → Complexity Assessment — **default to suggesting** unless it's a trivial linear script) → "Esse projeto se beneficiaria de um knowledge graph: mapeia o acoplamento real e ajuda a localizar/debugar numa arquitetura intrincada. Quer gerar um com `/graphify`?"
+- Volume of stale test artifacts detected (loose images in root, `.playwright-mcp/`, `test-results/`, many `.DS_Store`) → "Achei {N} artefatos de teste/temporários largados ({breakdown curto, ex: 45 prints soltos, .playwright-mcp/ com 78 arquivos, 129 .DS_Store}). Quer revisar e limpar com `/project-doc clean`?"
 
 ## Invocation Modes
 
@@ -34,6 +35,7 @@ The skill accepts an optional argument to control scope:
 - `/project-doc pointers` — regenerate only the thin pointer files
 - `/project-doc migrate` — migrate v1 monolithic CLAUDE.md → v2 indexed format (see Migration section)
 - `/project-doc verify` — run verification only, no generation
+- `/project-doc clean` — detect, **cluster**, and offer cleanup/archival of stale test artifacts (see Artifact Cleanup). Nothing is removed without confirmation. Runs standalone (no doc regeneration).
 
 Doc names map directly to `.claude/docs/{arg}.md`. If the argument doesn't match a known doc name, treat it as a full run and warn the user.
 
@@ -74,6 +76,16 @@ Report each step to the user as you execute. Don't skip steps or batch them sile
 **Step 3/5:** Extracting to .claude/docs/... ({list of docs created})
 **Step 4/5:** Rewriting CLAUDE.md as v2 index... ({N} lines)
 **Step 5/5:** Token impact → Before: {N} lines monolithic | After: {M} lines index + {K} docs on-demand | Savings: {X}%
+```
+
+### Clean Mode
+
+```
+**Step 1/5:** Root → `/path`, escopo → cleanup
+**Step 2/5:** Varrendo artefatos... (imagens soltas, .playwright-mcp/, test-results/, temporários, .DS_Store, protótipos)
+**Step 3/5:** Classificação → 🗑️ deletar ({N}) · 📦 arquivar ({M}) · 🚩 revisar/sensível ({K}) · ✋ manter ({X})
+**Step 4/5:** Lista clusterizada para julgamento (ver Artifact Cleanup) — aguarda aprovação
+**Step 5/5:** Aplicado → {deletados} removidos, {arquivados} → _archive/, {pulados}. Rede de segurança: _archive/{nome}-housekeeping-{data}.tar.gz
 ```
 
 ## Process
@@ -119,6 +131,7 @@ Report each step to the user as you execute. Don't skip steps or batch them sile
     - Any `[TODO: ...]` gaps found
     - Verification results
     - Knowledge graph status + suggestion (see Knowledge Graph Integration section)
+    - Stale test artifacts detected: {N} ({breakdown}). Offer `/project-doc clean` (see Artifact Cleanup) — detect & report only, never delete here
     - Ask: "Quer preencher os TODOs agora?"
 
 ## Detection Matrix
@@ -793,6 +806,81 @@ For monorepo v1 blocks, additionally:
 - Map each app's content to the appropriate doc (deps → note in architecture, gotcha → patterns, etc.)
 - Shared sections (Infra Compartilhada, Stack Comum, Deploy) go to shared root docs
 
+## Artifact Cleanup
+
+Directory hygiene for stale test/scratch artifacts. **Detection runs on every full `/project-doc`** and is reported with the other results — but it NEVER deletes or moves anything on its own. Removal/archival only happens in `/project-doc clean`, and only after the user approves a clustered list. Same philosophy as Auto-Fix and the graphify suggestion: surface, then act on confirmation.
+
+### Detection
+
+Scan the project root recursively, honoring the hard exclusions below. Group findings into categories:
+
+- **Loose screenshots/prints** — image files (`*.png *.jpg *.jpeg *.webp *.gif`) **not inside asset folders**, typically dumped in the repo root or in `.playwright-mcp/`. Name patterns that confirm test origin: `e2e-*`, `screenshot*`, `print*`, `test-*`, `*-debug*`, `Screen Shot*`, timestamped names.
+- **Test runner / tool output** — `.playwright-mcp/` (its `*.yml` snapshots + `console-*.log`), `test-results/`, `playwright-report/`, `coverage/`, `.nyc_output/`, `.pytest_cache/`.
+- **Temp / scratch / OS cruft** — `*.tmp *.temp *.bak`, loose `*.log`, `tmp-* scratch-* debug-*`, `.DS_Store` (recursive), `*.dump`, core dumps.
+- **Prototypes** (→ archive, don't delete) — loose `*.html` outside the build output, `proto*/ mockup*/` folders.
+
+**Hard exclusions — NEVER scan or touch:** `.git/ node_modules/ .venv/ dist/ build/ vendor/`, `graphify-out/` (useful), `.claude/docs/` (the docs themselves), and any asset folder (`public/ assets/ static/ src/ docs/`) or referenced asset.
+
+### Classification (suggested action per finding)
+
+Every finding gets one of four proposed actions:
+
+- 🗑️ **Delete** — unambiguous junk: `.DS_Store`, old `console-*.log`, `test-results/`, `coverage/`.
+- 📦 **Archive** — has potential value: prototype HTML, prints that document a state. Moved to `_archive/`, never trashed.
+- 🚩 **Review (sensitive)** — listed individually, never acted on automatically (see Sensitivity).
+- ✋ **Keep** — recent/likely in use, or referenced somewhere.
+
+### Sensitivity assessment
+
+A finding goes to 🚩 (and is listed individually, never bulk-actioned) if ANY of:
+
+- **Git-tracked** — `git ls-files` includes it (deleting mutates the repo). *Conditional: only when the project is a git repo; if not, fall back to name/location/reference/mtime signals.*
+- **Referenced** — its basename appears via grep in code, `README*`, or `.claude/docs/` → it's an asset, not junk.
+- **Recent** — `mtime` < 24h → may be in use in the current session.
+- **Unclassifiable** — fits no clear pattern, or is a single large unique file.
+
+### Archive destination
+
+Reuse an existing archive dir if present (detect `_archive/ archive/ .archive/`), else create `_archive/`. Two modes:
+
+- **Reopenable items** (prototypes) → move the **raw file** into `_archive/<category>/`.
+- **Safety net before a bulk delete** → first pack the originals into `_archive/<project>-housekeeping-<YYYY-MM-DD>.tar.gz` (the convention already in use), THEN remove them. Guarantees reversibility ("look before you delete").
+- Check whether `_archive/` is gitignored; if not, mention it to the user.
+
+### Clustered report format
+
+Group by action, list sensitive items individually, end with an approval prompt:
+
+```
+## Artefatos detectados — 152 itens
+
+🗑️  Deletar (descarte seguro) — 95
+  • .DS_Store ×129 (lixo macOS, recursivo)
+  • .playwright-mcp/console-*.log ×22 (logs de console antigos)
+
+📦  Arquivar → _archive/ — 45
+  • Prints E2E soltos na raiz ×45 (e2e-*.jpeg, bulk-*.jpeg, c3-*.jpeg…)
+    → tarball _archive/viu-housekeeping-2026-06-13.tar.gz
+
+🚩  Revisar (sensível) — 2
+  • logo.png — referenciado em README.md (asset, provável manter)
+  • screenshot-novo.png — criado há 2h (pode estar em uso)
+
+Aprovar? [tudo | só deletar | só arquivar | escolher itens | cancelar]
+```
+
+### Confirmation protocol
+
+- **Never remove or move without explicit approval.** Show the clustered list first.
+- User approves per cluster or per item; sensitive (🚩) items require individual confirmation.
+- After acting, report a summary: how many deleted, how many archived (and where), how many skipped.
+
+### Scope & safety
+
+- Operate only inside the project root — never touch `~/Desktop/claude-visual/` or anything outside it.
+- Respect the hard exclusions above.
+- Default to reversible: pack into the dated tarball before any bulk delete.
+
 ## Token Limits
 
 ### CLAUDE.md Index
@@ -837,6 +925,11 @@ For monorepo v1 blocks, additionally:
 - **"Read when" hints must be actionable** — not "→ general information" but "→ writing migrations, changing schema, querying data"
 - **Doc frontmatter is mandatory** — every `.claude/docs/*.md` must have the YAML frontmatter block
 - **Pointer files are pure redirects** — NEVER put project-specific content in them
+- **NEVER delete or move an artifact without confirmation** — always show the clustered list first (same discipline as Auto-Fix)
+- **Sensitive items are listed individually** — git-tracked, referenced in code/docs, or `mtime` < 24h NEVER enter an automatic action
+- **Archive > delete for items of value** — prototypes and state-documenting prints go to `_archive/`, not the trash
+- **Safety net before any bulk delete** — pack originals into `_archive/*-housekeeping-<date>.tar.gz` first, then remove
+- **Cleanup scope = project root** — never touch outside it (e.g. `~/Desktop/claude-visual/`); never touch `.git/ node_modules/ graphify-out/ .claude/docs/` nor referenced assets
 
 ## Verification (Post-Generation Quality Check)
 
