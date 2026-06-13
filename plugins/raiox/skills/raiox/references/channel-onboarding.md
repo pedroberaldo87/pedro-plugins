@@ -7,11 +7,11 @@ Replicar = criar UM arquivo: `channels/<key>.yaml`. Nenhum `.py` é editado — 
 **Replica-se a PERGUNTA, nunca a resposta** (a grade do Massini não é template):
 
 1. Quais são os programas/atrações da grade deste influenciador? → bloco `programas:`
-2. Existe marco/era (quando a VIU assumiu)? → `marcos:`
+2. Existe marco/era (quando o VIU assumiu)? → `marcos:`
 3. Quem são os rivais/clássicos? → `taxonomia.rivais_classico`
 4. Quais competições/eventos importam? E quais MOMENTOS (títulos, finais, janelas) para o benchmark? → `taxonomia.competicoes` + `benchmark.momentos`
 5. Quem são os pares comparáveis do setor? → `benchmark.cesta_pares` (pré-registrada; DRAFT até Pedro validar)
-6. Qual o modelo comercial com a VIU (fee? % de patrocínio? produção inclusa?)? → define as defesas; vai como fato `s_inputs_comerciais`
+6. Qual o modelo comercial com o VIU (fee? % de patrocínio? produção inclusa?)? → define as defesas; vai como fato `s_inputs_comerciais`
 
 Ambiguidade no mapeamento vídeo→programa não trava nada: rotular `INDEFINIDO`, acumular exemplos reais e perguntar autocontido ao Pedro.
 

@@ -16,11 +16,11 @@ Motor de inteligência de canal do VIU Studio. Repo: `/Users/pedroberaldo/PROGRA
 REGRA DA METODOLOGIA: **o que se replica é a PERGUNTA, nunca a resposta** — a grade do Massini (pré/pós-jogo, M&M, Bom dia Massa) vale só para o Massini e jamais é template para outro canal.
 
 1. **Quais são os programas/atrações da grade deste influenciador?** (nomes, dias, status)
-2. **Existe marco/era?** (data em que a VIU assumiu; outros marcos relevantes)
+2. **Existe marco/era?** (data em que o VIU assumiu; outros marcos relevantes)
 3. **Quem são os rivais/clássicos?** (para a taxonomia de confrontos)
 4. **Quais competições/eventos importam?** (e quais MOMENTOS — títulos, finais — para o benchmark)
 5. **Quem são os pares comparáveis do setor?** (cesta do benchmark — pré-registrada e validada)
-6. **Qual o modelo comercial com a VIU?** (fee? % de patrocínio? produção? — define as defesas)
+6. **Qual o modelo comercial com o VIU?** (fee? % de patrocínio? produção? — define as defesas)
 
 As respostas viram blocos do YAML (`programas:`, `marcos:`, `taxonomia.rivais_classico`, `benchmark:`) — detalhe em `references/channel-onboarding.md`.
 
