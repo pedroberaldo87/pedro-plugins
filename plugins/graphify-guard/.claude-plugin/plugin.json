@@ -1,0 +1,11 @@
+{
+  "name": "graphify-guard",
+  "version": "1.0.0",
+  "description": "Ensures graphify knowledge graphs get consulted when relevant. SessionStart heads-up when a project has a graph; PreToolUse net redirects blind grep/glob/find to `graphify query` once per session. Detects stale graphs and offers `graphify --update`. Defense in depth, fail-open, monorepo-aware.",
+  "author": {
+    "name": "Pedro Beraldo",
+    "email": "pedrotrberaldo@gmail.com"
+  },
+  "homepage": "https://github.com/pedroberaldo87/pedro-plugins",
+  "license": "GPL-3.0"
+}
