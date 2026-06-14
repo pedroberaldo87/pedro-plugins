@@ -494,11 +494,11 @@ h2 {
 .fb-progress strong { color: var(--accent); font-weight: 800; }
 
 .feedback-item {
-  padding: 16px 20px;
+  padding: 18px 22px;
   background: var(--card-hi);
   border: 2px solid transparent;
   border-radius: 14px;
-  margin-bottom: 10px;
+  margin-bottom: 12px;
 }
 .feedback-item.state-change { border-color: var(--warn); }
 .feedback-item.state-remove { border-color: var(--danger); }
@@ -521,6 +521,10 @@ h2 {
   font-size: 16px;
   font-weight: 600;
   line-height: 1.3;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
 }
 .feedback-radios { display: flex; gap: 6px; }
 .feedback-radios label {
@@ -560,6 +564,64 @@ h2 {
 }
 .feedback-textarea:focus { border-color: var(--accent); }
 .feedback-item.state-change .feedback-textarea { display: block; }
+
+/* Severity tag (optional — for findings/benchmark items) */
+.sev {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 3px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  color: var(--text-dim);
+  white-space: nowrap;
+}
+.sev-high { color: var(--danger); border-color: var(--danger); }
+.sev-med  { color: var(--warn);   border-color: var(--warn); }
+.sev-low  { color: var(--accent-2); border-color: var(--accent-2); }
+
+/* Verdict radios change color per state (change → warn, remove → danger) */
+.feedback-radios label:has(input[value="change"]:checked) { background: var(--warn); border-color: var(--warn); color: var(--bg); }
+.feedback-radios label:has(input[value="remove"]:checked) { background: var(--danger); border-color: var(--danger); color: var(--bg); }
+
+/* Item detail — collapsible body INSIDE a reviewable item (replaces the old
+   double plan-item/feedback-item split). Verdict lives in .feedback-head above;
+   this is just the expandable depth, opened on demand. */
+.item-detail { margin-top: 10px; }
+.item-detail summary {
+  cursor: pointer;
+  list-style: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--text-dim);
+  user-select: none;
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px dashed var(--border);
+}
+.item-detail summary:hover { color: var(--text); border-color: var(--border-strong); }
+.item-detail summary::-webkit-details-marker { display: none; }
+.item-detail .dchev { transition: transform 0.2s; font-weight: 800; }
+.item-detail[open] .dchev { transform: rotate(90deg); color: var(--accent); }
+.item-detail[open] .read-dot,
+.item-detail.read .read-dot {
+  background: var(--accent);
+  border-color: var(--accent);
+  box-shadow: 0 0 0 4px rgba(255,168,140,0.18);
+}
+.item-detail .detail-body {
+  margin-top: 12px;
+  padding: 14px 16px;
+  background: var(--card-deep);
+  border-radius: 12px;
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--text-dim);
+}
+.item-detail .detail-body p { margin-bottom: 10px; }
+.item-detail .detail-body p:last-child { margin-bottom: 0; }
 
 .feedback-general {
   margin-top: 28px;
@@ -850,94 +912,129 @@ h2 {
     </div>
   </section>
 
-  <!-- SECTION 2: Plano -->
+  <!-- SECTION 2: Plano — veredito INLINE por item (um .feedback-item por passo) -->
   <section>
     <div class="section-head">
       <span class="section-num">2</span>
       <h2>O plano — 6 passos</h2>
     </div>
-    <p class="section-intro">Clica em cada item pra ver detalhes. Só essencial? Ignora o expand.</p>
+    <p class="section-intro">O veredito mora no próprio item — marca ✓/✏️/✗ enquanto lê. "detalhes" expande sem sair do lugar. Sem segunda tabela no fim.</p>
 
-    <details class="plan-item">
-      <summary>
-        <span class="read-dot"></span>
-        <span class="plan-num">1</span>
-        <span class="plan-title">Criar a skill /visual global</span>
-        <span class="pchev">›</span>
-      </summary>
-      <div class="plan-body">
-        <p>Arquivo de skill em <code class="inline">~/.claude/skills/visual/SKILL.md</code> com frontmatter e instruções.</p>
-        <div class="labels">
-          <div class="label-row"><span class="lk">🔧 Como</span><span class="lv">Skill global, não por projeto.</span></div>
-          <div class="label-row"><span class="lk">💡 Por quê</span><span class="lv">Description boa = auto-invocação.</span></div>
-          <div class="label-row"><span class="lk">📁 Toca em</span><span class="lv"><code>~/.claude/skills/visual/</code> (novo)</span></div>
+    <div class="feedback-item state-keep" data-num="1" data-title="Criar a skill /visual global">
+      <div class="feedback-head">
+        <span class="feedback-num">1</span>
+        <span class="feedback-title">Criar a skill /visual global</span>
+        <div class="feedback-radios">
+          <label><input type="radio" name="fb-1" value="keep" checked onchange="onFbChange(this)"> ✓ Manter</label>
+          <label><input type="radio" name="fb-1" value="change" onchange="onFbChange(this)"> ✏️ Mudar</label>
+          <label><input type="radio" name="fb-1" value="remove" onchange="onFbChange(this)"> ✗ Remover</label>
         </div>
       </div>
-    </details>
+      <details class="item-detail">
+        <summary><span class="read-dot"></span> detalhes <span class="dchev">›</span></summary>
+        <div class="detail-body">
+          <p>Arquivo de skill em <code class="inline">~/.claude/skills/visual/SKILL.md</code> com frontmatter e instruções.</p>
+          <p>🔧 Skill global, não por projeto · 💡 Description boa = auto-invocação · 📁 <code class="inline">~/.claude/skills/visual/</code> (novo)</p>
+        </div>
+      </details>
+      <textarea class="feedback-textarea" placeholder="O que mudar..."></textarea>
+    </div>
 
-    <details class="plan-item">
-      <summary>
-        <span class="read-dot"></span>
-        <span class="plan-num">2</span>
-        <span class="plan-title">Template HTML base</span>
-        <span class="pchev">›</span>
-      </summary>
-      <div class="plan-body">
-        <p>Variant B: cards arredondados, indigo bg, peach accent, emojis nas decisões.</p>
-        <div class="labels">
-          <div class="label-row"><span class="lk">🔧 Como</span><span class="lv">CSS inline, zero dependências externas.</span></div>
-          <div class="label-row"><span class="lk">💡 Por quê</span><span class="lv">Self-contained = funciona offline.</span></div>
+    <div class="feedback-item state-keep" data-num="2" data-title="Template HTML base">
+      <div class="feedback-head">
+        <span class="feedback-num">2</span>
+        <span class="feedback-title">Template HTML base</span>
+        <div class="feedback-radios">
+          <label><input type="radio" name="fb-2" value="keep" checked onchange="onFbChange(this)"> ✓ Manter</label>
+          <label><input type="radio" name="fb-2" value="change" onchange="onFbChange(this)"> ✏️ Mudar</label>
+          <label><input type="radio" name="fb-2" value="remove" onchange="onFbChange(this)"> ✗ Remover</label>
         </div>
       </div>
-    </details>
+      <details class="item-detail">
+        <summary><span class="read-dot"></span> detalhes <span class="dchev">›</span></summary>
+        <div class="detail-body">
+          <p>Variant B: cards arredondados, indigo bg, peach accent, emojis nas decisões.</p>
+          <p>🔧 CSS inline, zero dependências externas · 💡 Self-contained = funciona offline</p>
+        </div>
+      </details>
+      <textarea class="feedback-textarea" placeholder="O que mudar..."></textarea>
+    </div>
 
-    <details class="plan-item">
-      <summary>
-        <span class="read-dot"></span>
-        <span class="plan-num">3</span>
-        <span class="plan-title">Regras de hierarquia</span>
-        <span class="pchev">›</span>
-      </summary>
-      <div class="plan-body">
-        <p>Decisão no topo, contexto no meio, técnico collapsed no fundo.</p>
+    <div class="feedback-item state-keep" data-num="3" data-title="Regras de hierarquia">
+      <div class="feedback-head">
+        <span class="feedback-num">3</span>
+        <span class="feedback-title">Regras de hierarquia</span>
+        <div class="feedback-radios">
+          <label><input type="radio" name="fb-3" value="keep" checked onchange="onFbChange(this)"> ✓ Manter</label>
+          <label><input type="radio" name="fb-3" value="change" onchange="onFbChange(this)"> ✏️ Mudar</label>
+          <label><input type="radio" name="fb-3" value="remove" onchange="onFbChange(this)"> ✗ Remover</label>
+        </div>
       </div>
-    </details>
+      <details class="item-detail">
+        <summary><span class="read-dot"></span> detalhes <span class="dchev">›</span></summary>
+        <div class="detail-body">
+          <p>Decisão no topo, contexto no meio, técnico collapsed no fundo.</p>
+        </div>
+      </details>
+      <textarea class="feedback-textarea" placeholder="O que mudar..."></textarea>
+    </div>
 
-    <details class="plan-item">
-      <summary>
-        <span class="read-dot"></span>
-        <span class="plan-num">4</span>
-        <span class="plan-title">Fluxo de invocação + nomeação</span>
-        <span class="pchev">›</span>
-      </summary>
-      <div class="plan-body">
-        <p>Path: <code class="inline">~/Desktop/claude-visual/YYYY-MM-DD-slug.html</code>. Abre com <code class="inline">open</code>.</p>
+    <div class="feedback-item state-keep" data-num="4" data-title="Fluxo de invocação + nomeação">
+      <div class="feedback-head">
+        <span class="feedback-num">4</span>
+        <span class="feedback-title">Fluxo de invocação + nomeação</span>
+        <div class="feedback-radios">
+          <label><input type="radio" name="fb-4" value="keep" checked onchange="onFbChange(this)"> ✓ Manter</label>
+          <label><input type="radio" name="fb-4" value="change" onchange="onFbChange(this)"> ✏️ Mudar</label>
+          <label><input type="radio" name="fb-4" value="remove" onchange="onFbChange(this)"> ✗ Remover</label>
+        </div>
       </div>
-    </details>
+      <details class="item-detail">
+        <summary><span class="read-dot"></span> detalhes <span class="dchev">›</span></summary>
+        <div class="detail-body">
+          <p>Path: <code class="inline">~/Desktop/claude-visual/YYYY-MM-DD-slug.html</code>. Abre com <code class="inline">open</code>.</p>
+        </div>
+      </details>
+      <textarea class="feedback-textarea" placeholder="O que mudar..."></textarea>
+    </div>
 
-    <details class="plan-item">
-      <summary>
-        <span class="read-dot"></span>
-        <span class="plan-num">5</span>
-        <span class="plan-title">Hook pre-ExitPlanMode</span>
-        <span class="pchev">›</span>
-      </summary>
-      <div class="plan-body">
-        <p>Bloqueia apresentação do plano até HTML existir.</p>
+    <div class="feedback-item state-keep" data-num="5" data-title="Hook pre-ExitPlanMode">
+      <div class="feedback-head">
+        <span class="feedback-num">5</span>
+        <span class="feedback-title">Hook pre-ExitPlanMode</span>
+        <div class="feedback-radios">
+          <label><input type="radio" name="fb-5" value="keep" checked onchange="onFbChange(this)"> ✓ Manter</label>
+          <label><input type="radio" name="fb-5" value="change" onchange="onFbChange(this)"> ✏️ Mudar</label>
+          <label><input type="radio" name="fb-5" value="remove" onchange="onFbChange(this)"> ✗ Remover</label>
+        </div>
       </div>
-    </details>
+      <details class="item-detail">
+        <summary><span class="read-dot"></span> detalhes <span class="dchev">›</span></summary>
+        <div class="detail-body">
+          <p>Bloqueia apresentação do plano até HTML existir.</p>
+        </div>
+      </details>
+      <textarea class="feedback-textarea" placeholder="O que mudar..."></textarea>
+    </div>
 
-    <details class="plan-item">
-      <summary>
-        <span class="read-dot"></span>
-        <span class="plan-num">6</span>
-        <span class="plan-title">Canal de feedback</span>
-        <span class="pchev">›</span>
-      </summary>
-      <div class="plan-body">
-        <p>Radios por item + textarea geral + botão "copiar feedback" → clipboard.</p>
+    <div class="feedback-item state-keep" data-num="6" data-title="Canal de feedback">
+      <div class="feedback-head">
+        <span class="feedback-num">6</span>
+        <span class="feedback-title">Canal de feedback</span>
+        <div class="feedback-radios">
+          <label><input type="radio" name="fb-6" value="keep" checked onchange="onFbChange(this)"> ✓ Manter</label>
+          <label><input type="radio" name="fb-6" value="change" onchange="onFbChange(this)"> ✏️ Mudar</label>
+          <label><input type="radio" name="fb-6" value="remove" onchange="onFbChange(this)"> ✗ Remover</label>
+        </div>
       </div>
-    </details>
+      <details class="item-detail">
+        <summary><span class="read-dot"></span> detalhes <span class="dchev">›</span></summary>
+        <div class="detail-body">
+          <p>Veredito inline por item + textarea geral + botão "copiar feedback" → clipboard.</p>
+        </div>
+      </details>
+      <textarea class="feedback-textarea" placeholder="O que mudar..."></textarea>
+    </div>
   </section>
 
   <!-- SECTION 3: Riscos -->
@@ -992,55 +1089,15 @@ h2 {
     </div>
   </div>
 
-  <!-- FEEDBACK BOX -->
+  <!-- FECHAMENTO — NÃO é uma segunda lista. Os vereditos já estão nos itens acima.
+       Aqui só: progresso, observação geral e os botões de envio. -->
   <div class="feedback-box">
-    <h2>💬 Seu feedback</h2>
-    <p class="feedback-intro">Marque os itens, adicione observações, copie o feedback estruturado.</p>
+    <h2>🏁 Fechamento</h2>
+    <p class="feedback-intro">Os vereditos já estão nos itens acima — aqui não tem segunda tabela. Só o progresso, uma observação geral se quiser, e o envio.</p>
 
     <div class="fb-progress">
       <strong id="fb-done">0</strong>/<span id="fb-total">0</span> itens revisados
       <div class="fb-progress-bar"><div class="fb-progress-fill" id="fb-bar"></div></div>
-    </div>
-
-    <div id="feedback-items">
-      <div class="feedback-item state-keep" data-num="1" data-title="Criar skill /visual">
-        <div class="feedback-head">
-          <span class="feedback-num">1</span>
-          <span class="feedback-title">Criar skill /visual global</span>
-          <div class="feedback-radios">
-            <label><input type="radio" name="fb-1" value="keep" checked onchange="onFbChange(this)"> ✓ Manter</label>
-            <label><input type="radio" name="fb-1" value="change" onchange="onFbChange(this)"> ✏️ Mudar</label>
-            <label><input type="radio" name="fb-1" value="remove" onchange="onFbChange(this)"> ✗ Remover</label>
-          </div>
-        </div>
-        <textarea class="feedback-textarea" placeholder="O que mudar..."></textarea>
-      </div>
-
-      <div class="feedback-item state-keep" data-num="2" data-title="Template HTML Variant B">
-        <div class="feedback-head">
-          <span class="feedback-num">2</span>
-          <span class="feedback-title">Template Variant B</span>
-          <div class="feedback-radios">
-            <label><input type="radio" name="fb-2" value="keep" checked onchange="onFbChange(this)"> ✓ Manter</label>
-            <label><input type="radio" name="fb-2" value="change" onchange="onFbChange(this)"> ✏️ Mudar</label>
-            <label><input type="radio" name="fb-2" value="remove" onchange="onFbChange(this)"> ✗ Remover</label>
-          </div>
-        </div>
-        <textarea class="feedback-textarea" placeholder="O que mudar..."></textarea>
-      </div>
-
-      <div class="feedback-item state-keep" data-num="3" data-title="Canal de feedback">
-        <div class="feedback-head">
-          <span class="feedback-num">3</span>
-          <span class="feedback-title">Canal de feedback via clipboard</span>
-          <div class="feedback-radios">
-            <label><input type="radio" name="fb-3" value="keep" checked onchange="onFbChange(this)"> ✓ Manter</label>
-            <label><input type="radio" name="fb-3" value="change" onchange="onFbChange(this)"> ✏️ Mudar</label>
-            <label><input type="radio" name="fb-3" value="remove" onchange="onFbChange(this)"> ✗ Remover</label>
-          </div>
-        </div>
-        <textarea class="feedback-textarea" placeholder="O que mudar..."></textarea>
-      </div>
     </div>
 
     <div class="feedback-general">
@@ -1426,7 +1483,7 @@ document.addEventListener('DOMContentLoaded', function() {
   restoreState();
   updateFbProgress();
   updateDecisionsSummary();
-  document.querySelectorAll('.plan-item').forEach(function(el) {
+  document.querySelectorAll('.plan-item, .item-detail').forEach(function(el) {
     el.addEventListener('toggle', function() { if (el.open) el.classList.add('read'); });
   });
   document.querySelectorAll('.opt-custom-input').forEach(function(inp) {

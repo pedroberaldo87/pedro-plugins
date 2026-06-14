@@ -1,6 +1,6 @@
 {
   "name": "visual",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "CLI walls-of-text → interactive HTML dark-theme views. Plans, diagnostics, and decisions rendered in the browser with live sync back to Claude via local daemon.",
   "author": {
     "name": "Pedro Beraldo",

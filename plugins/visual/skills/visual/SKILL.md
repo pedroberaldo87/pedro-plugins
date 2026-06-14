@@ -65,10 +65,11 @@ After writing, always run `open <path>` to show it.
 1. **Top**: the decision Pedro must make. Max 1 main decision per HTML. Large, visually dominant.
 2. **Middle**: context + justification. 3-5 bullets max. Link to concrete data (friction counts, real metrics, file paths) when available.
 3. **Bottom**: technical detail in `<details>` collapsed by default. User expands only if they want depth.
-4. **Before feedback**: executive summary with 🔧/💡/📁 labels per item.
-5. **After `.exec` (when `.decision-card` is present)**: the **Decisions box** — live summary + comments + copy button. Mandatory whenever decision cards exist. See "Decisions channel" below.
-6. **After `.exec` (for plans)**: the **Feedback box** — per-item keep/change/remove + copy. See "Feedback channel" below.
-7. **When both exist**: decisions-box comes first (right after `.exec`), feedback-box is last. The CSS `:has()` rule automatically demotes the decisions-box sticky-actions to inline so the two sticky bars don't collide.
+4. **Reviewable items carry their verdict INLINE**: every item Pedro decides on (plan step, benchmark finding, proposed feature) is a `.feedback-item` with its keep/change/remove radios in the item's own header — NOT re-listed in a separate box at the bottom. See "Feedback channel" below. This is non-negotiable: the old "second table of approval" is a forbidden anti-pattern.
+5. **Before feedback**: executive summary with 🔧/💡/📁 labels per item.
+6. **After `.exec` (when `.decision-card` is present)**: the **Decisions box** — live summary + comments + copy button. Mandatory whenever decision cards exist. See "Decisions channel" below.
+7. **After `.exec` (when reviewable items exist)**: the **Feedback box is a CLOSING box only** — progress bar + general observation + the two action buttons. It NEVER re-lists the items. See "Feedback channel" below.
+8. **When both exist**: decisions-box comes first (right after `.exec`), feedback-box is last. The CSS `:has()` rule automatically demotes the decisions-box sticky-actions to inline so the two sticky bars don't collide.
 
 If there's no decision pending, skip the decision block — don't fake one.
 
@@ -213,20 +214,30 @@ If `latest.json` doesn't exist or is stale (>30min old), Claude falls back to as
 
 **Graceful degradation:** HTMLs generated without `window.VISUAL_SESSION` (old files, or Pedro opens template.html directly) never try to sync — `postState()` is a no-op when the session is absent. Backward compatible.
 
-## Feedback channel (for plans — the most important part)
+## Feedback channel (verdict INLINE per item — the most important part)
 
-**Context:** historically Pedro's CLAUDE.md required a `## Sumário Executivo` as the plan's last section, enforced by a `plan-verification-gate.sh` hook. That gate was removed because it was causing endless plan-rewrite loops. The visual skill now owns the "help Pedro review" job — the feedback box is the canonical way Pedro sends feedback back to Claude.
+**Context:** historically Pedro's CLAUDE.md required a `## Sumário Executivo` as the plan's last section, enforced by a `plan-verification-gate.sh` hook. That gate was removed because it was causing endless plan-rewrite loops. The visual skill now owns the "help Pedro review" job — the per-item verdict controls are the canonical way Pedro sends feedback back to Claude.
 
-**When to include the feedback-box:** always, when rendering a plan. Skip it for diagnostics, questions with options, or generic content where there's nothing to approve/reject item-by-item.
+### The verdict lives ON the item — never in a second table (non-negotiable)
 
-**How to build it:**
+**Historical bug (2026-06-10, flagged by Pedro):** the skill rendered every reviewable list TWICE — first the content (plan-items / findings), then a *separate* `.feedback-box` at the bottom that re-listed each item with its keep/change/remove radios. On a big report (a benchmark with dozens of findings), Pedro read all the content, hit the approval menu at the end, and had to scroll back up — or hold the item in memory — to remember what finding #1 even was when deciding on finding #50. His words: he wanted to decide *as he reads*, not re-derive every item at a menu afterward.
 
-- **One `.feedback-item` per task in the plan.** Extract each task's number and title from the plan file. Example: if the plan has `### Task 1: Migrate DB` and `### Task 2: Update API`, generate two `.feedback-item` divs, one with `data-num="1" data-title="Migrate DB"` and one with `data-num="2" data-title="Update API"`.
-- Each item gets three radio buttons: Manter (default), Mudar, Remover.
-- Radio name must be unique (`fb-1`, `fb-2`, …) — the radios share a name to be mutually exclusive per item.
-- When Pedro clicks "Mudar", the textarea appears (pure CSS via `.feedback-item.state-change .feedback-textarea { display: block }`).
-- The general observation textarea at the end catches plan-wide comments.
-- Two action buttons: **"Aprovar tudo"** and **"Copiar feedback"**. Both — together with **"Copiar escolhas"** in the decisions-box — emit the **full user-input state** (decisions + dec-comments + feedback items + fb-general). They differ only in the leading verdict and trailing action cue, never in what they capture.
+**Rule:** each reviewable item is a single `.feedback-item` that **contains** its own content. The keep/change/remove radios sit in the item's `.feedback-head` (right next to the title), and the depth goes in a `<details class="item-detail">` inside the same item. Pedro marks his verdict while reading the item. **Re-listing items with controls in a separate block at the bottom is a forbidden anti-pattern** — that is the "two tables" bug. There is exactly ONE list.
+
+**When to render inline verdicts:** any list where Pedro decides item-by-item — plan tasks, benchmark/report findings, proposed features, schema choices. A purely informational diagnostic (nothing to approve/reject) gets no verdict controls.
+
+**How to build each item:**
+
+- **One `.feedback-item` per reviewable item**, wrapping its content. `data-num` + `data-title` carry the identity (e.g. `data-num="1" data-title="Onboarding guiado"`).
+- The `.feedback-head` holds: `.feedback-num` + `.feedback-title` + the three radios. Radios go in the head, **outside** the `<details>` — this avoids the click-on-radio-toggles-the-details conflict without any `preventDefault` hack.
+- **Machine values are fixed: `keep` / `change` / `remove`** (the clipboard parser and live-sync depend on them). The visible label text adapts to the content: a plan → "✓ Manter / ✏️ Mudar / ✗ Remover"; findings or features → "✓ Aprovar / ✏️ Ajustar / ✗ Negar". Same values, humanized wording.
+- Radio `name` must be unique per item (`fb-1`, `fb-2`, …).
+- Depth goes in `<details class="item-detail">` with `.read-dot` + summary + `.dchev` + `.detail-body`. Optional `.sev` severity tag (`sev-high`/`sev-med`/`sev-low`) next to the title for findings.
+- When Pedro picks "Mudar/Ajustar", the textarea appears (pure CSS via `.feedback-item.state-change .feedback-textarea { display: block }`). The radios also recolor per state (change → warn, remove → danger).
+
+**The closing `.feedback-box` is NOT a second list.** It holds only: the progress bar (`X/N itens revisados`), the general-observation textarea (`#fb-general`), and the two action buttons. It must NEVER re-render the items. Title it "🏁 Fechamento", not "Seu feedback".
+
+**Action buttons:** **"Aprovar tudo"** and **"Copiar feedback"**. Both — together with **"Copiar escolhas"** in the decisions-box — emit the **full user-input state** (decisions + dec-comments + feedback items + fb-general). They differ only in the leading verdict and trailing action cue, never in what they capture.
 
 ### Non-siloed copy semantics (mandatory)
 
@@ -266,11 +277,13 @@ Read that file. It is a fully-working **Variant B** (indigo background + peach a
 - **`.meta-chips`** — reading-cost chips (time, items, decisions, date)
 - **`.decision-card`** — wraps 3 option cards
 - **`.opt`** — option card (emoji + title + tradeoff). 3 per decision. 3rd is always `.opt-custom` with embedded `.opt-custom-input` textarea
-- **`.plan-item`** (`<details>`) — collapsible plan step with `.read-dot` + `.plan-num` + `.plan-title`
+- **`.feedback-item`** — the unified reviewable item: `.feedback-head` (num + title + keep/change/remove radios) + `.item-detail` (`<details>` with `.read-dot`/`.dchev`/`.detail-body` for depth) + inline `.feedback-textarea`. This is what carries the INLINE verdict. Use it for every plan step / finding / feature Pedro decides on. Demo: section 2 of the template.
+- **`.sev`** — optional severity tag (`sev-high`/`sev-med`/`sev-low`) shown next to a finding's title
+- **`.plan-item`** (`<details>`) — legacy collapsible block with `.read-dot` + `.plan-num` + `.plan-title`, for NON-reviewable read-only content only. For anything Pedro decides on, use `.feedback-item` instead.
 - **`.card-tile`** — friction/metric grid cell
 - **`.callout`** — side-ruled note (info/warn/danger/ok variants)
 - **`.exec`** — exec summary card
-- **`.feedback-box`** — radios per item + progress + sticky actions (for plans)
+- **`.feedback-box`** — CLOSING box only: progress + general observation + sticky action buttons. NEVER re-lists items (the verdicts live inline on each `.feedback-item`).
 - **`.decisions-box`** — live summary of selected options + comments + copy button (mandatory when `.decision-card` is present)
 - **`.sticky-actions`** — copy-feedback bar glued to bottom
 - **`prefers-reduced-motion`** respected
@@ -346,7 +359,7 @@ This keeps the HTML self-contained and archivable indefinitely. Large images blo
 
 My inclination still shows — but as the `.recommended` card, not as the only answer. Pedro picks card or writes in "Outra".
 
-**Feedback-box mapping:** when the plan has N sub-decisions, the feedback-box gets N items (one per decision), and each is radio-driven (keep/change/remove). The copy-feedback output includes which option Pedro picked for each.
+**Inline-verdict mapping:** the N sub-decisions are option-card blocks (Pedro picks A/B/C inline, tracked by the decisions-box). If on top of that the plan also has reviewable tasks, those tasks are `.feedback-item`s with inline keep/change/remove — never re-listed in the closing box. The copy output includes both the picked options and the per-task verdict.
 
 
 ## Bugs to avoid (historical)
