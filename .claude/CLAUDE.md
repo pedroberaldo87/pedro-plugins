@@ -40,6 +40,9 @@ claude plugin list && claude plugin marketplace list
 - **[patterns.md](.claude/docs/patterns.md)** — regras de release (version bump), dependências entre plugins, fluxo de dev, gotchas completos
   → criar plugin, publicar mudança, evitar armadilhas
 
+## Knowledge Graph (graphify)
+Grafo do marketplace em `graphify-out/` (417 nós, 463 arestas, 50 comunidades). **Antes de analisar arquitetura ou mexer em código/convenção compartilhada entre plugins, consulte o grafo** em vez de grep cego: `graphify query "<pergunta>"` (relações, blast radius), `graphify explain "<símbolo>"`, `graphify path "A" "B"`. God nodes (alto fan-in): `PRINCIPIOS-SISTEMAS.md`, `visual skill`, `iterate skill`, `build_buckets()` (fallow), `SlideText` (slides). É **mapa, não verdade** — aponta onde olhar; confirme no código real; edges INFERRED são hipóteses. Snapshot: após um ciclo de mudanças, `graphify . --update`.
+
 ## Custom Rules
 
 <!-- project-doc:v2:end -->

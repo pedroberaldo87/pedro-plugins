@@ -19,3 +19,8 @@
 # Local overrides
 .env
 .env.local
+
+# graphify — máquina-específico / regenerável (o grafo em si é versionado)
+graphify-out/.graphify_python
+graphify-out/.graphify_root
+graphify-out/cache/
