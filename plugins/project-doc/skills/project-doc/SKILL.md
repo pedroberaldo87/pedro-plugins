@@ -22,7 +22,7 @@ Sections are conditional — only generated if relevant content is detected. Sma
 - CLAUDE.md has v1 format (monolithic block with `project-doc:start/end` markers) → "O CLAUDE.md está no formato v1 (monolítico). Quer migrar pro v2 (indexado)? Roda `/project-doc migrate`"
 - `.claude/docs/` exists but CLAUDE.md index is missing or doesn't reference it → "Tem docs em .claude/docs/ mas o CLAUDE.md não aponta pra eles. Quer que eu rode o /project-doc index?"
 - `graphify-out/graph.json` exists but is stale (source files changed after its mtime) → "O knowledge graph (graphify-out/) pode estar desatualizado. Quer que eu rode `graphify --update`?"
-- `graphify-out/graph.json` does NOT exist and the project is non-trivial (see Knowledge Graph Detection → Complexity Assessment — **default to suggesting** unless it's a trivial linear script) → "Esse projeto se beneficiaria de um knowledge graph: mapeia o acoplamento real e ajuda a localizar/debugar numa arquitetura intrincada. Quer gerar um com `/graphify`?"
+- `graphify-out/graph.json` does NOT exist → **ALWAYS suggest creating one. Unconditional — no exceptions.** Do not assess triviality, coupling, file count, or whether it "would compensate"; that judgment is unreliable and is not the model's to make. Just offer; whether to run it is the user's call. → "Esse projeto se beneficiaria de um knowledge graph: mapeia relações e ajuda a localizar/debugar. Quer gerar um com `/graphify`?"
 - Volume of stale test artifacts detected (loose images in root, `.playwright-mcp/`, `test-results/`, many `.DS_Store`) → "Achei {N} artefatos de teste/temporários largados ({breakdown curto, ex: 45 prints soltos, .playwright-mcp/ com 78 arquivos, 129 .DS_Store}). Quer revisar e limpar com `/project-doc clean`?"
 
 ## Invocation Modes
@@ -160,11 +160,9 @@ For each section, scan these files (read only those that exist). Detection resul
 
 **Complexity Assessment (when to suggest CREATING a graph):**
 
-The value of a knowledge graph comes from **architectural complexity / coupling, NOT file count.** A 66-file audio daemon produced 56 communities and was the hardest repo to navigate; a 300-file CRUD app may be trivially flat. So do not gate on size — gate on complexity, and **default to suggesting.**
+**Rule: if `graphify-out/` does not exist, ALWAYS suggest creating a graph. Unconditional.** No triviality test, no coupling assessment, no "this one won't compensate", no gating on size / file count / language / architecture. There is no project that is exempt from the suggestion. This judgment was removed on purpose: the model has repeatedly skipped graphs on projects that clearly warranted one, so it does not decide whether a graph is worth it. The model's only job is to **offer**; whether to actually run `/graphify` (which costs tokens/time) is the user's call, like deploy.
 
-**Suggest creating a graph UNLESS the project is trivial.** Trivial = ALL of: single module, ≤15 code files, flat (no meaningful subdirectory nesting), one language, no architecture docs. A linear script or a tiny flat lib. Only these skip the suggestion.
-
-For everything else, suggest — and suggest with extra conviction when ANY complexity signal is present (these warrant a graph regardless of how few files there are):
+The signals below are NOT a gate — they only tell you to suggest with *extra conviction* and to name the signal you saw. Their absence NEVER cancels the suggestion:
 - monorepo (`apps/` or `packages/`)
 - code spread across ≥3 directories, or multiple distinct modules
 - multiple languages in one repo (e.g. Rust backend + Svelte/TS frontend)
@@ -172,7 +170,7 @@ For everything else, suggest — and suggest with extra conviction when ANY comp
 - presence of `docs/ARCHITECTURE*`, ADRs, or a CONTEXT.md — the team already flagged it as complex
 - many cross-module references / high fan-in on shared state or service clients
 
-Frame the suggestion by **value, not size**: "arquitetura intrincada é difícil de localizar/debugar — o grafo mapeia o acoplamento contraintuitivo". Generating a graph has minimal downside (some processing time/tokens for doc semantics; AST is free; `graphify-out/` can be gitignored), so when in doubt, suggest.
+Frame the suggestion by **value**: "o grafo mapeia relações e ajuda a localizar/debugar". Generating a graph has minimal downside (some processing time/tokens; `graphify-out/` can be gitignored), so always offer.
 
 **Test Framework Detection:**
 - jest.config.{js,ts,cjs,mjs}, jest field in package.json → Jest
@@ -766,7 +764,7 @@ When the project has a graphify knowledge graph (`graphify-out/graph.json`), `/p
 
 3. **Proactive suggestion** — after writing all files (step 14 report), evaluate graph state and tell the user:
    - Graph exists but stale (sources changed after graph mtime) → "O knowledge graph está desatualizado (gerado {date}, sources mudaram {date}). Quer que eu rode `graphify --update`?"
-   - Graph absent and project is non-trivial (see Complexity Assessment — default to suggesting unless it's a trivial linear script) → "Esse projeto se beneficiaria de um knowledge graph (mapeia o acoplamento, ajuda a debugar arquitetura intrincada). Quer gerar um com `/graphify`?" — cite the complexity signal you saw (módulos, linguagens mistas, arquitetura event-driven, etc.).
+   - Graph absent → **ALWAYS suggest, unconditionally** (no triviality/coupling judgment — see Complexity Assessment) → "Esse projeto se beneficiaria de um knowledge graph (mapeia relações, ajuda a localizar/debugar). Quer gerar um com `/graphify`?" — name any complexity signal you saw, but NEVER withhold the offer for lack of one.
    - Graph exists and fresh → no prompt, just note "Knowledge graph: presente e atualizado" in the report.
 
 Do NOT run `graphify` or `graphify --update` automatically — only suggest. Graph generation can spawn many subagents and cost tokens; it is the user's call (same posture as deploy).
