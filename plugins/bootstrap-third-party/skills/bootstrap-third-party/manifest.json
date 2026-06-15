@@ -1,7 +1,18 @@
 {
   "version": 1,
-  "description": "Third-party Claude Code marketplaces and plugins Pedro uses. Auto-synced via bootstrap-third-party hooks.",
+  "description": "Third-party Claude Code marketplaces and plugins Pedro uses. Auto-synced via bootstrap-third-party hooks. The pedro-plugins entry is manually maintained and preserved across snapshots.",
   "marketplaces": [
+    {
+      "name": "agent-browser",
+      "source": "https://github.com/vercel-labs/agent-browser.git",
+      "sourceType": "git",
+      "plugins": [
+        {
+          "name": "agent-browser",
+          "enabled": true
+        }
+      ]
+    },
     {
       "name": "claude-hud",
       "source": "https://github.com/jarrodwatts/claude-hud.git",
