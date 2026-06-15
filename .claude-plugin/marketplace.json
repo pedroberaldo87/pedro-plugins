@@ -151,7 +151,7 @@
       "source": "./plugins/graphify-guard",
       "description": "Ensures graphify knowledge graphs get consulted when relevant. SessionStart heads-up when a project has a graph; PreToolUse net redirects blind grep/glob/find to `graphify query` once per session. Detects stale graphs and offers `graphify --update`. Defense in depth, fail-open, monorepo-aware.",
       "category": "productivity",
-      "version": "1.0.0",
+      "version": "1.0.1",
       "tags": ["graphify", "knowledge-graph", "hooks", "guardrail", "session"]
     }
   ]
