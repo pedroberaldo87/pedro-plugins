@@ -13,7 +13,7 @@
       "source": "./plugins/bootstrap-third-party",
       "description": "Auto-sync third-party Claude Code marketplaces + plugins across machines via git hooks",
       "category": "productivity",
-      "version": "0.1.2",
+      "version": "0.1.3",
       "tags": ["sync", "bootstrap", "plugins", "automation"]
     },
     {
@@ -37,7 +37,7 @@
       "source": "./plugins/visual",
       "description": "CLI walls-of-text → interactive HTML dark-theme views. Plans, diagnostics, and decisions rendered in the browser with live sync back to Claude via local daemon.",
       "category": "productivity",
-      "version": "1.1.0",
+      "version": "1.1.1",
       "tags": ["visualization", "html", "plan-mode", "hooks", "live-sync"]
     },
     {
@@ -45,7 +45,7 @@
       "source": "./plugins/context-guard",
       "description": "Auto-interrupts workflow when context window exceeds configurable threshold (default 80%). Bridges statusLine and PostToolUse hooks via temp file. Forwards to any existing statusLine (claude-hud or other) via CLAUDE_STATUSLINE_FORWARD env var.",
       "category": "productivity",
-      "version": "1.1.0",
+      "version": "1.1.1",
       "tags": ["context", "guard", "handoff", "session", "hooks"]
     },
     {
@@ -127,7 +127,7 @@
       "source": "./plugins/ship",
       "description": "Production deploy flow: lint, type-check, commit, push, deploy in one disciplined sequence.",
       "category": "dev-tools",
-      "version": "1.0.0",
+      "version": "1.0.1",
       "tags": ["deploy", "lint", "typecheck", "production"]
     },
     {
