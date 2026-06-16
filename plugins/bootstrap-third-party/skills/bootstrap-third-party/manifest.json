@@ -88,6 +88,17 @@
       ]
     },
     {
+      "name": "i-have-adhd",
+      "source": null,
+      "sourceType": "directory",
+      "plugins": [
+        {
+          "name": "i-have-adhd",
+          "enabled": true
+        }
+      ]
+    },
+    {
       "name": "obsidian-skills",
       "source": "https://github.com/kepano/obsidian-skills.git",
       "sourceType": "git",
