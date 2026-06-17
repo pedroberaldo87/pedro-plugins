@@ -1,5 +1,5 @@
 ---
-generated: 2026-06-15
+generated: 2026-06-17
 project: pedro-plugins
 scope: .claude-plugin/marketplace.json, plugins/*/plugin.json, plugins/*/hooks/hooks.json
 ---
@@ -67,10 +67,10 @@ Produtividade:
 - **context-guard** v1.1.1 — interrompe workflow ao ultrapassar threshold de contexto (default 80%)
 - **graphify-guard** v1.0.1 — garante consulta ao knowledge graph (graphify): heads-up no SessionStart + rede PreToolUse que redireciona grep/glob/find cego pra `graphify query`. Fail-open, monorepo-aware
 - **handoff** v1.3.0 — continuidade de sessão: salva ou retoma `.claude/HANDOFF.md` num único comando
-- **project-doc** v2.2.0 — gera sistema de documentação CLAUDE.md + `.claude/docs/` modular
-- **slides** v1.0.0 — outline Markdown → deck HTML keynote-grade single-file
+- **project-doc** v2.2.1 — gera sistema de documentação CLAUDE.md + `.claude/docs/` modular
+- **slides** v1.1.0 — outline Markdown → deck HTML keynote-grade single-file
 - **sovai** v1.0.0 — modo autônomo sem interrupções; pula itens bloqueados e anota
-- **visual** v1.1.1 — CLI textão → HTML dark-theme com live sync via daemon local
+- **visual** v1.1.2 — CLI textão → HTML dark-theme com live sync via daemon local
 
 Dev Tools:
 - **fallow** v1.0.2 — análise estática JS/TS (dead code, duplicação, complexidade) com report interativo

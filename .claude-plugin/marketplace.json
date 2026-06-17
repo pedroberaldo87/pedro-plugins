@@ -1,7 +1,7 @@
 {
   "name": "pedro-plugins",
   "metadata": {
-    "description": "Marketplace privado do Pedro: 14 skills e automações pessoais para Claude Code."
+    "description": "Marketplace privado do Pedro: 18 plugins (skills, hooks e automações) pessoais para Claude Code."
   },
   "owner": {
     "name": "Pedro Beraldo",
@@ -37,7 +37,7 @@
       "source": "./plugins/visual",
       "description": "CLI walls-of-text → interactive HTML dark-theme views. Plans, diagnostics, and decisions rendered in the browser with live sync back to Claude via local daemon.",
       "category": "productivity",
-      "version": "1.1.1",
+      "version": "1.1.2",
       "tags": ["visualization", "html", "plan-mode", "hooks", "live-sync"]
     },
     {
