@@ -62,8 +62,8 @@ After writing, always run `open <path>` to show it.
 
 ## Hierarchy rules (non-negotiable)
 
-1. **Top**: the decision Pedro must make. Max 1 main decision per HTML. Large, visually dominant.
-2. **Middle**: context + justification. 3-5 bullets max. Link to concrete data (friction counts, real metrics, file paths) when available.
+1. **Top**: the decision Pedro must make. Max 1 main decision per HTML. Large, visually dominant. Every decision carries its own plain-language context line (`.decision-context`) — see "O pedido de aprovação tem que se explicar sozinho" below.
+2. **Middle**: context + justification. 3-5 bullets max. Link to concrete data (friction counts, real metrics, file paths) when available. This is section-level background — it does NOT replace the per-decision context line. Both exist: the `.decision-context` says what's at stake for THAT decision; the middle bullets give the broader why.
 3. **Bottom**: technical detail in `<details>` collapsed by default. User expands only if they want depth.
 4. **Reviewable items carry their verdict INLINE**: every item Pedro decides on (plan step, benchmark finding, proposed feature) is a `.feedback-item` with its keep/change/remove radios in the item's own header — NOT re-listed in a separate box at the bottom. See "Feedback channel" below. This is non-negotiable: the old "second table of approval" is a forbidden anti-pattern.
 5. **Before feedback**: executive summary with 🔧/💡/📁 labels per item.
@@ -72,6 +72,49 @@ After writing, always run `open <path>` to show it.
 8. **When both exist**: decisions-box comes first (right after `.exec`), feedback-box is last. The CSS `:has()` rule automatically demotes the decisions-box sticky-actions to inline so the two sticky bars don't collide.
 
 If there's no decision pending, skip the decision block — don't fake one.
+
+## O pedido de aprovação tem que se explicar sozinho (non-negotiable)
+
+This skill governs the *container* well (where boxes go, copy semantics, sync). This section governs the thing that was missing: **the language and self-sufficiency of what you're asking Pedro to approve.** The mechanics being perfect is worthless if Pedro reads the card and still can't tell what he's signing off on.
+
+This is the most-violated rule. Read it before writing any decision, approval item, plan title, finding, or exec line.
+
+### The reader test (altitude)
+
+Pedro reads **only the HTML**. Never assume he read the CLI, the plan file, or the code — those don't exist for him at the moment of deciding. After reading a card, if he can't say **in his own words** (a) what he's approving, (b) why he's being asked, and (c) what changes with each choice — the card failed. Rewrite it.
+
+### Every decision / approval item carries three things, in its own body
+
+1. **O quê** — what's being approved or decided. One plain line. This is the title or the `.decision-q`.
+2. **Por quê / a premissa** — what prompted it, what's at stake. 1-2 sentences. For a decision card this is the `.decision-context` line (see below). For a plan item it's the first line of the body.
+3. **A consequência de cada opção** — what each choice actually causes. One plain line per option (the option's `<p>` or `.tradeoff`). "✔ Robusto · ✘ Polui Desktop" is a consequence; "Opção A" is not.
+
+This mirrors Pedro's `perguntas-autocontidas` memory: every decision carries its premises and consequences **in its own body**. A bare label is rejected.
+
+### Human language — banned vocabulary
+
+The text Pedro reads is for a human, not a log. Forbidden as the visible headline/title/option of what he approves:
+
+- **Code identifiers** as the thing on display: `data-num`, `latest.json`, `postState()`, `state-change`, class names, function names.
+- **Internal jargon / category codes**: `wrong_approach`, `buggy_code`, `over-planning`, error codes, enum values, ticket slugs. If a system emitted it, it's not human language.
+- **Agentic / process talk**: "injeta o script após o body", "o parser detecta o marker", "o hook dispara exit 2", "fetch POST pro daemon". Pedro doesn't approve your process — he approves an outcome.
+
+Allowed: a path or command as **secondary** detail inside `code.inline` (e.g. "salvo em `~/Desktop/...`") — never as the title of what's being approved. If a technical term is genuinely unavoidable, gloss it in one plain phrase right after: "o daemon (o programinha que sincroniza em segundo plano)".
+
+This mirrors Pedro's `sem-jargao-proprio` memory and the CLAUDE.md rule: *"Problemas devem ser explicados em 1-2 linhas, em linguagem humana e intuitiva"* — never "somente da forma técnica".
+
+### The two failure modes — and the ruler between them
+
+There's a chasm between two bad extremes, and the skill keeps falling into one or the other:
+
+- **❌ The wall** — a giant paragraph re-explaining everything from zero, every caveat, the whole history. Pedro can't find the decision inside it.
+- **❌ The bare label** — so terse he can't act: "Aprovar refactor?", "Opção A / B / C", a title that's just a code name.
+
+The ruler: **enough to decide, nothing more.** Concretely — question in one plain line, premise in 1-2 sentences, one consequence line per option. If you wrote three paragraphs, cut to the premise. If you wrote four words, you owe the premise and the consequences.
+
+### Self-check before opening the browser
+
+Reread each decision/approval block as if you'd never seen the conversation. Can you state what it approves, why, and what each path costs — from the card alone, with zero jargon? If not, it's not ready to show.
 
 ## Decisions channel (for questions/decisions — non-negotiable when decision cards are present)
 
@@ -276,7 +319,8 @@ Read that file. It is a fully-working **Variant B** (indigo background + peach a
 - **`h1`** + **`.subtitle`** — hero
 - **`.meta-chips`** — reading-cost chips (time, items, decisions, date)
 - **`.decision-card`** — wraps 3 option cards
-- **`.opt`** — option card (emoji + title + tradeoff). 3 per decision. 3rd is always `.opt-custom` with embedded `.opt-custom-input` textarea
+- **`.decision-context`** — mandatory plain-language line right below `.decision-q`. One or two sentences saying what's at stake / what prompted the question, in human language (no code, no jargon). See "O pedido de aprovação tem que se explicar sozinho". Required on every decision card.
+- **`.opt`** — option card (emoji + title + tradeoff). 3 per decision. 3rd is always `.opt-custom` with embedded `.opt-custom-input` textarea. Each option's `<p>`/`.tradeoff` states the consequence of picking it, in plain words.
 - **`.feedback-item`** — the unified reviewable item: `.feedback-head` (num + title + keep/change/remove radios) + `.item-detail` (`<details>` with `.read-dot`/`.dchev`/`.detail-body` for depth) + inline `.feedback-textarea`. This is what carries the INLINE verdict. Use it for every plan step / finding / feature Pedro decides on. Demo: section 2 of the template.
 - **`.sev`** — optional severity tag (`sev-high`/`sev-med`/`sev-low`) shown next to a finding's title
 - **`.plan-item`** (`<details>`) — legacy collapsible block with `.read-dot` + `.plan-num` + `.plan-title`, for NON-reviewable read-only content only. For anything Pedro decides on, use `.feedback-item` instead.

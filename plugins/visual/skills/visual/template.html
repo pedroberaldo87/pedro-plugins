@@ -125,6 +125,18 @@ h1 em { color: var(--accent); font-style: normal; }
   letter-spacing: -0.02em;
   max-width: 780px;
 }
+/* Plain-language "what's at stake" line under the question. Mandatory on every decision. */
+.decision-q:has(+ .decision-context) { margin-bottom: 14px; }
+.decision-context {
+  font-size: 16.5px;
+  line-height: 1.55;
+  color: var(--text-dim);
+  max-width: 760px;
+  margin-bottom: 32px;
+  padding-left: 16px;
+  border-left: 2px solid var(--accent-soft);
+}
+.decision-context strong { color: var(--text); font-weight: 600; }
 
 .options {
   display: grid;
@@ -875,6 +887,7 @@ h2 {
   <div class="decision-card">
     <div class="pill">⚡ Decisão principal</div>
     <h2 class="decision-q">Como a skill deve receber o conteúdo a renderizar?</h2>
+    <p class="decision-context">O que está em jogo: hoje você precisa digitar <code class="inline">/visual</code> pra eu montar a tela. A pergunta é se isso passa a acontecer sozinho. <strong>Automático = zero fricção, mas enche o Desktop de arquivos; sob comando = você controla, mas é um passo a mais.</strong></p>
     <div class="options" role="radiogroup">
       <div class="opt recommended" tabindex="0" role="radio" aria-checked="false" onclick="selectOpt(this)" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();selectOpt(this);}">
         <div class="opt-emoji">👆</div>
@@ -905,9 +918,9 @@ h2 {
     </div>
     <p class="section-intro">Atritos reais do relatório /insights apontam pra mesma raiz: CLI linear esconde decisões.</p>
     <div class="grid">
-      <div class="card-tile"><div class="count">66 ocorrências</div><h4>wrong_approach</h4><p>Você corrige rumo depois de gastar contexto. Visual no topo = veto antes.</p></div>
-      <div class="card-tile danger"><div class="count">60 ocorrências</div><h4>buggy_code</h4><p>Planos enterrados = dano só visível depois. "10 bugs por fix."</p></div>
-      <div class="card-tile info"><div class="count">3+ sessões</div><h4>over-planning</h4><p>Você pediu pra parar o textão 3 vezes. Skill consolida em uma tela.</p></div>
+      <div class="card-tile"><div class="count">66 ocorrências</div><h4>Rumo errado, corrigido tarde</h4><p>Você só percebe o caminho errado depois de gastar contexto. Decisão no topo da tela = veto antes de gastar.</p></div>
+      <div class="card-tile danger"><div class="count">60 ocorrências</div><h4>Bug que só aparece depois</h4><p>Plano enterrado = o estrago só fica visível lá na frente. "10 bugs por correção."</p></div>
+      <div class="card-tile info"><div class="count">3+ sessões</div><h4>Planejamento demais</h4><p>Você já pediu 3 vezes pra parar o textão. A skill junta tudo numa tela só.</p></div>
       <div class="card-tile"><div class="count">LIFE-OS</div><h4>completion 80→100%</h4><p>Status report com X/Y real elimina o "essencialmente completo".</p></div>
     </div>
   </section>
@@ -1062,7 +1075,7 @@ h2 {
     </div>
     <div class="exec-item">
       <h4><span class="elabel">3 ·</span> Regras de hierarquia</h4>
-      <p>Decisão no topo, técnico collapsed. Elimina "wrong_approach".</p>
+      <p>Decisão no topo, detalhe técnico recolhido. Mata o "corrigir rumo tarde demais".</p>
     </div>
     <div class="exec-item">
       <h4><span class="elabel">⚡</span> Decidir agora</h4>
