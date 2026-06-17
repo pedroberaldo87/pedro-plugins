@@ -14,10 +14,10 @@ Identidade VIU Studio: dark-only, Slate & Blue, ação em azul, destaque em viol
 
 ```css
 :root{
-    /* fonts */
-    --font-head:'Outfit',sans-serif;
-    --font-body:'Inter',sans-serif;
-    --font-mono:'JetBrains Mono',monospace;
+    /* fonts — fallback de sistema garante que nada fique em branco sem internet (Google Fonts off) */
+    --font-head:'Outfit',system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;
+    --font-body:'Inter',system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;
+    --font-mono:'JetBrains Mono',ui-monospace,SFMono-Regular,Menlo,monospace;
     /* backgrounds */
     --bg-body:#0f172a; --bg-surface:#1e293b;
     /* action / accent */
@@ -39,17 +39,22 @@ Identidade VIU Studio: dark-only, Slate & Blue, ação em azul, destaque em viol
 
 `VIU Studio` — texto da marca no rodapé (canto inferior esquerdo).
 
+## `__THEME_COLOR__`
+
+`#0f172a` — valor **literal** de `--bg-body` (a tag `<meta name="theme-color">` não lê CSS var). Pinta a barra do navegador no celular. Num tema novo, repita a mesma cor do `--bg-body`.
+
 ---
 
 ## Como criar um tema novo
 
 Um tema é só este arquivo com outros valores. Para um tema nomeado (ex: nome de cliente/projeto), copie `viu.md` → `<nome>.md` e troque:
 
-- **As 3 fontes** (`--font-head/body/mono`) e o `__FONT_LINKS__` correspondente. Fuja de Inter/Roboto/Arial genéricos — escolha um par com personalidade.
+- **As 3 fontes** (`--font-head/body/mono`) e o `__FONT_LINKS__` correspondente. Fuja de Inter/Roboto/Arial genéricos — escolha um par com personalidade. **Mantenha o fallback de sistema** (`system-ui,-apple-system,…`) no fim de cada `--font-*`: sem internet, o deck não pode ficar em branco.
 - **A paleta** (`--bg-*`, `--primary*`, `--accent*`, `--text-*`). Mantenha contraste alto: texto principal claro sobre fundo escuro (ou o inverso, num tema claro).
 - **`--glow-a/b`**: versões `rgba()` translúcidas das cores `--primary`/`--accent` (alpha ~.08–.15).
 - **`--glass-grad`**: gradiente do título de capa. Num tema escuro, `#fff → --text-muted`; num claro, inverta.
 - **`--border`**: cor da linha quando um item está em foco/hover (derive de `--primary`).
 - **`--hair`**: filete divisor quase invisível (~7% de contraste com o fundo).
+- **`__THEME_COLOR__`**: valor literal igual ao `--bg-body` (barra do navegador no celular).
 
-O contrato de variáveis acima é **fechado**: o `template.html` só usa essas vars. Se definir todas, o tema funciona. Não invente vars novas sem adicionar uso no template.
+O contrato de variáveis acima é **fechado**: o `template.html` só usa essas vars (mais os placeholders `__TITLE__`, `__OG_DESC__`, `__THEME_COLOR__`, `__FONT_LINKS__`, `__THEME_CSS__`, `__BRAND__`, `__SLIDES__`). Se definir todas, o tema funciona. Não invente vars novas sem adicionar uso no template.

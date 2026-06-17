@@ -1,6 +1,6 @@
 ---
 name: slides
-description: 'Transforma um arquivo markdown (outline de fala, notas, roteiro) numa apresentação HTML de slides — single-file, navegável por teclado, em linguagem keynote (tipografia grande, muito respiro, sem cara de dashboard), tema VIU Studio por padrão. REGRA DE OURO: usa o texto literal do .md, nunca inventa frases, callouts ou conclusões. Use sempre que Pedro pedir "/slides", "monta esse md numa apresentação", "transforma isso em slides", "faz um deck", "apresentação a partir desse markdown", "vira slides", ou apontar um .md e pedir pra apresentar — mesmo que não diga a palavra "slides". Suporta temas nomeados (sufixo): /slides arquivo.md [tema]. NÃO use para editar .pptx/Keynote existentes nem para gerar PDF.'
+description: 'Transforma um arquivo markdown (outline de fala, notas, roteiro) numa apresentação HTML de slides — single-file, navegável por teclado, em linguagem keynote (tipografia grande, muito respiro, sem cara de dashboard), tema VIU Studio por padrão. REGRA DE OURO: usa o texto literal do .md, nunca inventa frases, callouts ou conclusões. Use sempre que Pedro pedir "/slides", "monta esse md numa apresentação", "transforma isso em slides", "faz um deck", "apresentação a partir desse markdown", "vira slides", ou apontar um .md e pedir pra apresentar — mesmo que não diga a palavra "slides". Suporta temas nomeados (sufixo): /slides arquivo.md [tema]. O deck é ADAPTATIVO num arquivo só: apresentação navegável no desktop e documento scroll (tudo na tela, sem depender de JavaScript) no celular e no thumbnail do WhatsApp. NÃO use para editar .pptx/Keynote existentes nem para gerar PDF.'
 ---
 
 # Slides — markdown → deck keynote
@@ -18,6 +18,17 @@ Pedro reportou isso explicitamente e é o eixo da skill: **não invente texto.**
 
 O script `scripts/check_fidelity.py` faz cumprir isso automaticamente (passo 5).
 
+## Um arquivo, dois modos (desktop + mobile/WhatsApp)
+
+O deck é **adaptativo por progressive enhancement** — o mesmo `.html` serve os dois sem gerar nada a mais:
+
+- **Desktop (mouse + tela larga):** o JS ativa o modo apresentação — slide a slide, `← →`, `F`, swipe, reveals.
+- **Celular / sem-JS / thumbnail do WhatsApp:** a página é um **documento scroll vertical** com todos os slides empilhados e visíveis. O conteúdo está no HTML estático; **nada depende do JS** pra aparecer.
+
+Por que importa: Pedro manda o `.html` por WhatsApp, que gera o thumbnail renderizando o arquivo **sem garantir JS** — se o conteúdo dependesse de JS, o preview sairia preto. O template já resolve (estado base = documento). Seu único cuidado ao montar: **não reintroduzir dependência de JS no conteúdo** — todo texto/figura vai no markup do slide, nunca injetado por script.
+
+Nota: isso é o thumbnail de **anexo** (renderiza o arquivo). É diferente do preview de **link** (Open Graph / `og:image`), que exigiria hospedar numa URL pública — fora do escopo. As tags `og:title`/`og:description` entram só de brinde.
+
 ## Workflow
 
 ### 1. Leia a fonte e escolha o tema
@@ -34,7 +45,7 @@ O script `scripts/check_fidelity.py` faz cumprir isso automaticamente (passo 5).
 - Número de slides acompanha o número de seções/sub-seções do `.md`. Não comprima a fala para "caber em N slides".
 
 ### 4. Monte o HTML
-- Leia `assets/template.html`. Substitua os placeholders: `__TITLE__`, `__FONT_LINKS__`, `__THEME_CSS__`, `__BRAND__`, `__SLIDES__` (a sequência de `<section class="slide">`).
+- Leia `assets/template.html`. Substitua os placeholders: `__TITLE__`, `__OG_DESC__` (1 frase derivada do subtítulo da capa, p/ preview de link), `__THEME_COLOR__` (do tema, = `--bg-body`), `__FONT_LINKS__`, `__THEME_CSS__`, `__BRAND__`, `__SLIDES__` (a sequência de `<section class="slide">`).
 - Reveals escalonados em cada slide (`--d:40ms`, `120ms`, `240ms`...). Destaque palavras-chave do título com `<span class="hl">`.
 - **Saída: ao lado do `.md` de origem** — mesmo diretório, mesmo nome-base + `.html`. (Se o `.md` está num caminho read-only/sync como iCloud e a escrita falhar, caia para `~/Desktop/<nome>.html` e avise.)
 
@@ -44,16 +55,27 @@ python3 <skill>/scripts/check_fidelity.py <deck.html> <fonte.md>
 ```
 Se sinalizar trechos: cada um é prosa que não existe na fonte. Troque pelo texto literal do `.md` ou remova o acréscimo. Re-rode até `✓`. Não entregue com fidelidade pendente.
 
-### 6. Verifique o visual
-- `file://` é bloqueado no Playwright. Sirva o diretório e abra via localhost:
-  ```bash
-  (cd <dir-do-deck> && python3 -m http.server 8899 >/dev/null 2>&1 &)
-  ```
-  Navegue `http://localhost:8899/<deck>.html`, pule para os slides mais densos (via `show(n)` no console / `browser_evaluate`) e tire screenshot. Confirme que cabem sem estourar e que o tema renderiza. Ajuste o que vazar. Encerre o server depois.
-- Sem browser disponível: ao menos abra com `open <deck>.html` pro Pedro ver, e cheque o console por erros.
+### 6. Verifique o visual — os 4 cenários (reproduza e OLHE o print)
+Não basta inspecionar o DOM: tire screenshot e analise se está coerente com o esperado.
+
+1. **Thumbnail do WhatsApp (sem JS):** reproduza com a engine WebKit do macOS —
+   ```bash
+   qlmanage -t -s 1200 -o /tmp "<deck>.html" && open "/tmp/<deck>.png"
+   ```
+   A **capa** tem que aparecer (não pode sair preto/vazio). É exatamente o que o WhatsApp mostra no anexo.
+2. **Mobile:** Playwright a **390×844** → scroll vertical legível, **zero overflow horizontal**, fonte ok (fallback de sistema cobre sem internet).
+3. **Desktop:** Playwright a **1440** → deck navegável `← → / F` intacto (não regrediu).
+4. **Sem-JS desktop:** abra com JS desabilitado → slides empilham como documento.
+
+`file://` é bloqueado no Playwright. Sirva o diretório e use localhost:
+```bash
+(cd <dir-do-deck> && python3 -m http.server 8899 >/dev/null 2>&1 &)
+```
+Navegue `http://localhost:8899/<deck>.html`, pule pros slides mais densos e confira cabimento nos dois modos. Encerre o server depois. Sem browser: ao menos rode o `qlmanage` (cenário 1) + `open <deck>.html`.
 
 ### 7. Entregue
-- Informe o caminho do `.html`, total de slides, e os controles: **← / →** ou espaço (navegar), clique nas bordas, **F** (tela cheia).
+- Informe o caminho do `.html`, total de slides, e os controles do desktop: **← / →** ou espaço (navegar), clique nas bordas, **F** (tela cheia).
+- Lembre que o **mesmo arquivo** pode ser enviado por WhatsApp / aberto no celular — lá ele vira documento scroll automaticamente, sem JS.
 - Sinalize qualquer micro-decisão de título/encurtamento que tenha tomado, pra Pedro validar.
 
 ## Referências
