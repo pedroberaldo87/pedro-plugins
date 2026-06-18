@@ -13,6 +13,7 @@
 INPUT=$(cat)
 SESSION_ID=$(echo "$INPUT" | /opt/homebrew/bin/jq -r '.session_id // empty')
 PLAN_CONTENT=$(echo "$INPUT" | /opt/homebrew/bin/jq -r '.tool_input.plan // empty')
+CWD=$(echo "$INPUT" | /opt/homebrew/bin/jq -r '.cwd // empty')
 
 # Fallbacks — if session_id is missing (shouldn't happen), let it pass
 if [ -z "$SESSION_ID" ]; then
@@ -20,7 +21,12 @@ if [ -z "$SESSION_ID" ]; then
 fi
 
 SESSION_SHORT="${SESSION_ID:0:8}"
-VISUAL_DIR="$HOME/Desktop/claude-visual"
+
+# Where the visual is saved: the resolver applies the cascade
+# git root → project marker → ~/Desktop/claude-visual (fallback).
+# BASH_SOURCE gives us the plugin root whether running from source or cache.
+PLUGIN_ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
+VISUAL_DIR=$(bash "$PLUGIN_ROOT/skills/visual/resolve-dir.sh" "$CWD")
 mkdir -p "$VISUAL_DIR"
 
 # Is there a visual tagged with this session, modified in last 5 min?

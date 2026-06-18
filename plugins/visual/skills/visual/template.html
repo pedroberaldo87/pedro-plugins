@@ -887,7 +887,7 @@ h2 {
   <div class="decision-card">
     <div class="pill">⚡ Decisão principal</div>
     <h2 class="decision-q">Como a skill deve receber o conteúdo a renderizar?</h2>
-    <p class="decision-context">O que está em jogo: hoje você precisa digitar <code class="inline">/visual</code> pra eu montar a tela. A pergunta é se isso passa a acontecer sozinho. <strong>Automático = zero fricção, mas enche o Desktop de arquivos; sob comando = você controla, mas é um passo a mais.</strong></p>
+    <p class="decision-context">O que está em jogo: hoje você precisa digitar <code class="inline">/visual</code> pra eu montar a tela. A pergunta é se isso passa a acontecer sozinho. <strong>Automático = zero fricção, mas gera um arquivo a cada resposta; sob comando = você controla, mas é um passo a mais.</strong></p>
     <div class="options" role="radiogroup">
       <div class="opt recommended" tabindex="0" role="radio" aria-checked="false" onclick="selectOpt(this)" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();selectOpt(this);}">
         <div class="opt-emoji">👆</div>
@@ -899,7 +899,7 @@ h2 {
         <div class="opt-emoji">⚡</div>
         <h3>Auto-inline</h3>
         <p>Eu já gero o HTML junto da resposta, sem esperar comando.</p>
-        <div class="tradeoff">✔ Zero fricção · ✘ Polui Desktop</div>
+        <div class="tradeoff">✔ Zero fricção · ✘ Gera visual demais</div>
       </div>
       <div class="opt opt-custom" tabindex="0" role="radio" aria-checked="false" onclick="selectOpt(this)" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();selectOpt(this);}">
         <div class="opt-emoji">✏️</div>
@@ -1005,7 +1005,7 @@ h2 {
       <details class="item-detail">
         <summary><span class="read-dot"></span> detalhes <span class="dchev">›</span></summary>
         <div class="detail-body">
-          <p>Path: <code class="inline">~/Desktop/claude-visual/YYYY-MM-DD-slug.html</code>. Abre com <code class="inline">open</code>.</p>
+          <p>Path: <code class="inline">&lt;projeto&gt;/.claude/visual/YYYY-MM-DD-slug.html</code> (fora de projeto: <code class="inline">~/Desktop/claude-visual/</code>). Abre com <code class="inline">open</code>.</p>
         </div>
       </details>
       <textarea class="feedback-textarea" placeholder="O que mudar..."></textarea>

@@ -1,6 +1,6 @@
 ---
 name: visual
-description: Use when Pedro invokes `/visual` (with or without flags like `-auto-off`, `-auto-on`, `-status`), asks to "ver isso no HTML", wants a visual presentation of a plan/diagnostic/question, or when the PreToolUse hook `pre-exitplan-visualize.sh` on ExitPlanMode blocks. ALSO invoke PROACTIVELY when auto mode is on (default ON, check `${CLAUDE_PLUGIN_ROOT}/skills/visual/config.json`) and you're about to emit a plan with 3+ items, a decision with 2+ options, a diagnostic with 3+ problems, or a long explanation (40+ lines / 3+ sections). Generates a self-contained dark-theme HTML in ~/Desktop/claude-visual/, spawns a local daemon for live-sync back to Claude (Pedro types "ok" and Claude reads state from disk — no copy/paste), and opens it in the browser. Replaces 20-page CLI dumps with scannable visual surfaces — decisions on top, technical details collapsed below.
+description: Use when Pedro invokes `/visual` (with or without flags like `-auto-off`, `-auto-on`, `-status`), asks to "ver isso no HTML", wants a visual presentation of a plan/diagnostic/question, or when the PreToolUse hook `pre-exitplan-visualize.sh` on ExitPlanMode blocks. ALSO invoke PROACTIVELY when auto mode is on (default ON, check `${CLAUDE_PLUGIN_ROOT}/skills/visual/config.json`) and you're about to emit a plan with 3+ items, a decision with 2+ options, a diagnostic with 3+ problems, or a long explanation (40+ lines / 3+ sections). Generates a self-contained dark-theme HTML inside the project's `.claude/visual/` (falls back to `~/Desktop/claude-visual/` outside a project), spawns a local daemon for live-sync back to Claude (Pedro types "ok" and Claude reads state from disk — no copy/paste), and opens it in the browser. Replaces 20-page CLI dumps with scannable visual surfaces — decisions on top, technical details collapsed below.
 ---
 
 # Skill: /visual
@@ -48,13 +48,27 @@ Detect the content type from the last substantial message or plan file:
 
 ## Output location
 
+The visual is saved **inside the project**, not on the Desktop. The target directory is decided by a 3-level cascade (stops at the first that matches):
+
+1. **Git root** — if the cwd is inside a git repo → `<repo-root>/.claude/visual/`
+2. **Project marker** — else, walking up from the cwd (stopping before `$HOME`), the first dir holding `package.json` / `CLAUDE.md` / `pyproject.toml` / `Cargo.toml` / `go.mod` / `graphify-out/` / `.git` → `<dir>/.claude/visual/`
+3. **Desktop fallback** — nothing found (e.g. running loose in a non-project dir or `$HOME`) → `~/Desktop/claude-visual/`
+
+**Do not hardcode the directory.** Run the resolver and use its stdout:
+
 ```
-~/Desktop/claude-visual/YYYY-MM-DD-sess-<session8>-<slug>.html
+bash ${CLAUDE_PLUGIN_ROOT}/skills/visual/resolve-dir.sh "$PWD"
 ```
 
-**Session-scoped naming is mandatory when invoked by the pre-ExitPlanMode hook.** The `<session8>` is the first 8 characters of the Claude Code `session_id` that the hook passes to you via stderr. The hook finds the current session's visual by matching `*sess-<session8>*.html` — if the filename doesn't contain that token, the hook won't recognize it and will block again.
+It prints the absolute target dir and creates it (`mkdir -p`). The filename pattern is:
 
-For manual invocation (Pedro types `/visual` outside plan mode), session scoping is optional; a simpler `YYYY-MM-DD-<slug>.html` is fine.
+```
+<resolved-dir>/YYYY-MM-DD-sess-<session8>-<slug>.html
+```
+
+**Session-scoped naming is mandatory when invoked by the pre-ExitPlanMode hook.** The `<session8>` is the first 8 characters of the Claude Code `session_id` that the hook passes to you via stderr. The hook finds the current session's visual by matching `*sess-<session8>*.html` **in the same resolved dir** — if the filename doesn't contain that token, the hook won't recognize it and will block again. When the hook blocks, it already prints the full resolved path in stderr — save exactly there.
+
+For manual invocation (Pedro types `/visual` outside plan mode), session scoping is optional; a simpler `YYYY-MM-DD-<slug>.html` inside the resolved dir is fine.
 
 Slug = kebab-case of main topic (e.g., `plan`, `diagnostico-cron`, `decisao-arquitetura`).
 
@@ -463,13 +477,13 @@ Flow when the hook blocks (exit 2):
 
 1. You (Claude) just called `ExitPlanMode` with a plan file.
 2. `plan-verification-gate.sh` validates format → passes.
-3. `pre-exitplan-visualize.sh` runs → looks for a recent HTML matching the plan slug in `~/Desktop/claude-visual/`.
+3. `pre-exitplan-visualize.sh` runs → resolves the project's visual dir (cascade) and looks for a recent HTML matching this session in it.
 4. No recent HTML → exits 2 with stderr instructions. The tool call is BLOCKED. The plan is NOT shown to Pedro.
 5. You receive the stderr message and MUST:
    - Invoke this skill (Skill tool with `name: visual`)
    - Read the plan file named in the stderr
    - Render it as HTML using the template above
-   - Save to the path suggested in stderr (`~/Desktop/claude-visual/YYYY-MM-DD-<slug>.html`)
+   - Save to the **exact path suggested in stderr** (the hook already resolved the project dir for you — do not change it)
    - Open with `open "<path>"`
 6. Retry `ExitPlanMode`. The hook now finds the fresh HTML (< 5 min old) → exit 0, plan proceeds to Pedro in the CLI.
 7. Pedro reads the HTML in the browser, approves or rejects in the CLI.
@@ -485,9 +499,10 @@ Critical behavior when the hook blocks:
 
 1. Identify source content (last message, plan file, explicit content)
 2. Detect type (plan / diagnostic / question with options / generic)
-3. Pick slug from main topic → `YYYY-MM-DD-slug.html`
-4. Write file to `~/Desktop/claude-visual/` using template
-5. Run `open ~/Desktop/claude-visual/<file>`
-6. Tell Pedro in 1-2 lines: "Abri no browser: `<path>`"
+3. Resolve the target dir: `DIR=$(bash ${CLAUDE_PLUGIN_ROOT}/skills/visual/resolve-dir.sh "$PWD")`
+4. Pick slug from main topic → filename `YYYY-MM-DD-<slug>.html`
+5. Write file to `$DIR/<filename>` using template
+6. Run `open "$DIR/<filename>"`
+7. Tell Pedro in 1-2 lines: "Abri no browser: `<path>`"
 
 Never render and then text-dump the same content in the CLI response. The whole point is: HTML replaces the textão, doesn't duplicate it.
