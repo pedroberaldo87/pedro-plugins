@@ -245,6 +245,68 @@ def build(items, session_id):
     return "\n".join(log_lines), manifest
 
 
+def build_prospective(records, items):
+    """Deriva o bloco prospectivo MECÂNICO (o "o que falta fazer") do transcript.
+
+    O LOG/manifest cobrem o passado; este bloco cobre o futuro estruturado que JÁ
+    existe no transcript (CONFIRMADO em dados reais, jun/2026), em vez de confiar 100%
+    no Claude lembrar de cabeça:
+      • open_tasks — tarefas cujo status final != completed/deleted (trabalho aberto)
+      • last_plan  — o último ExitPlanMode (candidato a próximos passos; pode já ter
+                     sido executado, por isso "candidato")
+
+    Schema real dos tool_results de Task (record type=user, campo toolUseResult dict):
+      - TaskCreate -> {"task": {"id": "N", "subject": "..."}}
+      - TaskUpdate -> {"taskId": "N", "statusChange": {"from": "...", "to": "..."}}
+    O id REAL vem daí — NUNCA de um contador sequencial (1,2,3...), senão dá
+    falso-positivo (RAIOX: 7 "abertas" no join ingênuo vs 0 reais). O collect() acima
+    ignora esses records; aqui a gente os lê só pra derivar o status final.
+    """
+    created = {}       # id(str) -> subject
+    last_status = {}   # id(str) -> (ts, status)
+    for rec in records:
+        if rec.get("type") != "user":
+            continue
+        tur = rec.get("toolUseResult")
+        if not isinstance(tur, dict):
+            continue
+        ts = rec.get("timestamp") or ""
+        # TaskCreate (forma single): {"task": {"id","subject"}}
+        task = tur.get("task")
+        if isinstance(task, dict) and task.get("id") is not None:
+            created[str(task["id"])] = task.get("subject", "") or ""
+        # TaskCreate (forma batch, defensivo): {"tasks": [{"id","subject"}, ...]}
+        if isinstance(tur.get("tasks"), list):
+            for t in tur["tasks"]:
+                if isinstance(t, dict) and t.get("id") is not None:
+                    created[str(t["id"])] = t.get("subject", "") or t.get("title", "") or ""
+        # TaskUpdate: {"taskId","statusChange":{"to"}} — guarda o status de maior ts
+        tid = tur.get("taskId")
+        sc = tur.get("statusChange")
+        if tid is not None and isinstance(sc, dict) and sc.get("to"):
+            cur = last_status.get(str(tid))
+            if cur is None or ts >= cur[0]:
+                last_status[str(tid)] = (ts, sc["to"])
+
+    open_tasks = []
+    for tid, subject in created.items():
+        st = last_status.get(tid)
+        status = st[1] if st else "pending"
+        if status not in ("completed", "deleted"):
+            open_tasks.append({"id": tid, "subject": subject, "status": status})
+
+    # último plano (ExitPlanMode) — kind já coletado pelo collect()
+    plans = [it for it in items if it.get("kind") == "plan" and (it.get("text") or "").strip()]
+    last_plan = None
+    if plans:
+        plans.sort(key=lambda it: it.get("ts") or "")
+        p = plans[-1]
+        txt = p.get("text", "") or ""
+        last_plan = {"ts": p.get("ts", ""), "excerpt": txt[:1200]}
+
+    return {"open_tasks": open_tasks, "last_plan": last_plan}
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--transcript", action="append", default=[], help="caminho .jsonl (repetível)")
@@ -287,21 +349,25 @@ def main():
         return 2
 
     all_items = []
+    all_records = []
     stats = {"transcripts": len(transcripts), "records": 0}
     for idx, tp in enumerate(transcripts):
         recs = read_jsonl(tp)
         stats["records"] += len(recs)
+        all_records.extend(recs)
         tag = "self" if idx == 0 else f"teammate:{os.path.splitext(os.path.basename(tp))[0][:8]}"
         all_items.extend(collect(recs, tag))
 
     log_md, manifest = build(all_items, session_id)
+    prospective = build_prospective(all_records, all_items)
 
     os.makedirs(os.path.dirname(os.path.abspath(out_log)), exist_ok=True)
     os.makedirs(os.path.dirname(os.path.abspath(out_manifest)), exist_ok=True)
     with open(out_log, "w", encoding="utf-8") as fh:
         fh.write(log_md + "\n")
     manifest_doc = {"session": session_id, "transcripts": transcripts,
-                    "generated_unix": int(time.time()), "log_path": out_log, "items": manifest}
+                    "generated_unix": int(time.time()), "log_path": out_log,
+                    "prospective": prospective, "items": manifest}
     with open(out_manifest, "w", encoding="utf-8") as fh:
         json.dump(manifest_doc, fh, ensure_ascii=False, indent=2)
 
@@ -312,6 +378,7 @@ def main():
     if not args.quiet:
         print(json.dumps({"session": session_id, **stats, "items_total": len(manifest),
                           "by_kind": by_kind, "gate_items": gate_items,
+                          "prospective": prospective,
                           "log_path": out_log, "manifest_path": out_manifest},
                          ensure_ascii=False, indent=2))
     return 0
