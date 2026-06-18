@@ -21,7 +21,7 @@ Sections are conditional — only generated if relevant content is detected. Sma
 - CLAUDE.md exists but major structural changes detected (new services, new deploy scripts, new database) → "O CLAUDE.md pode estar desatualizado. Quer que eu rode o /project-doc pra atualizar?"
 - CLAUDE.md has v1 format (monolithic block with `project-doc:start/end` markers) → "O CLAUDE.md está no formato v1 (monolítico). Quer migrar pro v2 (indexado)? Roda `/project-doc migrate`"
 - `.claude/docs/` exists but CLAUDE.md index is missing or doesn't reference it → "Tem docs em .claude/docs/ mas o CLAUDE.md não aponta pra eles. Quer que eu rode o /project-doc index?"
-- `graphify-out/graph.json` exists but is stale (source files changed after its mtime) → "O knowledge graph (graphify-out/) pode estar desatualizado. Quer que eu rode `graphify --update`?"
+- `graphify-out/graph.json` exists but is stale (source files changed after its mtime) → "O knowledge graph (graphify-out/) pode estar desatualizado. Quer que eu rode `/graphify <path> --update`?"
 - `graphify-out/graph.json` does NOT exist → **ALWAYS suggest creating one. Unconditional — no exceptions.** Do not assess triviality, coupling, file count, or whether it "would compensate"; that judgment is unreliable and is not the model's to make. Just offer; whether to run it is the user's call. → "Esse projeto se beneficiaria de um knowledge graph: mapeia relações e ajuda a localizar/debugar. Quer gerar um com `/graphify`?"
 - Volume of stale test artifacts detected (loose images in root, `.playwright-mcp/`, `test-results/`, many `.DS_Store`) → "Achei {N} artefatos de teste/temporários largados ({breakdown curto, ex: 45 prints soltos, .playwright-mcp/ com 78 arquivos, 129 .DS_Store}). Quer revisar e limpar com `/project-doc clean`?"
 
@@ -155,7 +155,7 @@ For each section, scan these files (read only those that exist). Detection resul
 
 **Knowledge Graph Detection (graphify):**
 - Check for `graphify-out/graph.json`. If present, the project has a graphify knowledge graph.
-- **Staleness:** compare `graphify-out/graph.json` mtime (or the `date` in `graphify-out/cost.json` last run) against the most recent source-file change (`git log --format=%aI -1`). If sources are newer → graph is stale → suggest `graphify --update`.
+- **Staleness:** compare `graphify-out/graph.json` mtime (or the `date` in `graphify-out/cost.json` last run) against the most recent source-file change (`git log --format=%aI -1`). If sources are newer → graph is stale → suggest `/graphify <path> --update`.
 - This feeds the "## Knowledge Graph" index section (generated only when the graph exists) and the proactive suggestions above.
 
 **Complexity Assessment (when to suggest CREATING a graph):**
@@ -307,7 +307,7 @@ The CLAUDE.md index is the always-loaded routing table. Two variants exist: Stan
 {Only if graphify-out/graph.json exists — see Knowledge Graph Integration section:}
 
 ## Knowledge Graph (graphify)
-Grafo do projeto em `graphify-out/`. **Antes de analisar arquitetura ou mexer em código compartilhado, consultar o grafo** em vez de grep cego: `graphify query "<pergunta>"` (relações, blast radius), `graphify explain "<símbolo>"`, `graphify path "A" "B"`. É mapa, não verdade — confirmar causa-raiz no código real; edges INFERRED são hipóteses. Snapshot: após um ciclo de mudanças, `graphify --update`.
+Grafo do projeto em `graphify-out/`. **Antes de analisar arquitetura ou mexer em código compartilhado, consultar o grafo** em vez de grep cego: `graphify query "<pergunta>"` (relações, blast radius), `graphify explain "<símbolo>"`, `graphify path "A" "B"`. É mapa, não verdade — confirmar causa-raiz no código real; edges INFERRED são hipóteses. Snapshot: após um ciclo de mudanças, `/graphify <path> --update`.
 
 ## Custom Rules
 
@@ -377,7 +377,7 @@ Grafo do projeto em `graphify-out/`. **Antes de analisar arquitetura ou mexer em
 {Only if graphify-out/graph.json exists — see Knowledge Graph Integration section:}
 
 ## Knowledge Graph (graphify)
-Grafo do monorepo em `graphify-out/`. **Antes de analisar arquitetura ou mexer em código compartilhado, consultar o grafo** em vez de grep cego: `graphify query "<pergunta>"` (relações, blast radius cross-app), `graphify explain "<símbolo>"`, `graphify path "A" "B"`. É mapa, não verdade — confirmar causa-raiz no código real; edges INFERRED são hipóteses. Snapshot: após um ciclo de mudanças, `graphify --update`.
+Grafo do monorepo em `graphify-out/`. **Antes de analisar arquitetura ou mexer em código compartilhado, consultar o grafo** em vez de grep cego: `graphify query "<pergunta>"` (relações, blast radius cross-app), `graphify explain "<símbolo>"`, `graphify path "A" "B"`. É mapa, não verdade — confirmar causa-raiz no código real; edges INFERRED são hipóteses. Snapshot: após um ciclo de mudanças, `/graphify <path> --update`.
 
 ## Custom Rules
 
@@ -763,11 +763,11 @@ When the project has a graphify knowledge graph (`graphify-out/graph.json`), `/p
 2. **Anti-duplication** — if a `## Knowledge Graph` (or `## Knowledge Graph (graphify)`) section already exists OUTSIDE the v2 markers (a manual addition by a previous session), remove that manual copy and let the canonical one be generated inside the markers. Never leave two. Detect by header match; the manual one is the copy not enclosed by `<!-- project-doc:v2 -->` / `<!-- project-doc:v2:end -->`.
 
 3. **Proactive suggestion** — after writing all files (step 14 report), evaluate graph state and tell the user:
-   - Graph exists but stale (sources changed after graph mtime) → "O knowledge graph está desatualizado (gerado {date}, sources mudaram {date}). Quer que eu rode `graphify --update`?"
+   - Graph exists but stale (sources changed after graph mtime) → "O knowledge graph está desatualizado (gerado {date}, sources mudaram {date}). Quer que eu rode `/graphify <path> --update`?"
    - Graph absent → **ALWAYS suggest, unconditionally** (no triviality/coupling judgment — see Complexity Assessment) → "Esse projeto se beneficiaria de um knowledge graph (mapeia relações, ajuda a localizar/debugar). Quer gerar um com `/graphify`?" — name any complexity signal you saw, but NEVER withhold the offer for lack of one.
    - Graph exists and fresh → no prompt, just note "Knowledge graph: presente e atualizado" in the report.
 
-Do NOT run `graphify` or `graphify --update` automatically — only suggest. Graph generation can spawn many subagents and cost tokens; it is the user's call (same posture as deploy).
+Do NOT run `graphify` or `/graphify <path> --update` automatically — only suggest. Graph generation can spawn many subagents and cost tokens; it is the user's call (same posture as deploy).
 
 ## Migration v1 → v2
 
