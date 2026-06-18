@@ -52,69 +52,76 @@ Compaction silently removes nuance. It preserves facts but loses reasoning chain
 
 For Pedro specifically — someone who learns by collision — the session isn't just work output. It's a learning journey. The discussions, wrong turns, "aha" moments, and explanations of "why" ARE the value. The handoff preserves these explicitly.
 
+### The rito: LOG (verbatim, gerado por máquina) + PRD (você escreve)
+
+O handoff tem **dois produtos**, e a divisão de trabalho é a regra de ouro:
+
+- **LOG** (`{project_root}/.claude/ata/LOG-<sessão>.md`) — a **ata verbatim, cronológica**. É gerada **mecanicamente pelo extrator**, NÃO por você. Cada item (fala do Pedro, decisão de AskUserQuestion, rejeição com instrução, plano, tarefa, diagrama) recebe um **ID estável** (`[d3]`, `[a1]`, `[r1]`...). É a prova: nada de julgamento, nada de resumo, nada filtrado.
+- **PRD** (`{project_root}/.claude/HANDOFF.md`) — a **vista normativa, por tema**, que VOCÊ escreve a partir do LOG. É o que o RESUME lê.
+
+Por que o extrator gera o LOG e não você: o Pedro foi explícito — *"E o seu julgamento não serve. Vai no meu julgamento. Vai anotar tudo, vai carregar tudo."* Se você escrevesse o LOG, você filtraria. Tirando você do caminho do LOG, o "anotar tudo sem julgamento" é garantido por construção.
+
 ### Process
 
-1. **Review the entire conversation** — analyze the full session history, identifying:
-   - Purpose and objective of the session
-   - Discussions and their conclusions
-   - Decisions made and their complete reasoning (why yes, why not the alternatives)
-   - Technical details that matter
-   - Problems encountered and how they were resolved
-   - Pedro's learning moments and insights
-   - Preferences Pedro expressed, constraints mentioned
+1. **Rode o extrator** (ele gera o LOG verbatim + um manifest dos itens — mecânico):
+   ```bash
+   python3 "<skill_dir>/../../lib/extract_ata.py" --auto --cwd "$(pwd)" --out-dir "{project_root}/.claude/ata"
+   ```
+   `<skill_dir>` é a "Base directory for this skill" injetada ao carregar a skill; o extrator vive em `lib/extract_ata.py` na raiz do plugin (dois níveis acima). O `--auto` descobre o transcript da sessão (sentinel `/tmp/claude-ata-session-*` do hook de discovery, ou o `.jsonl` mais recente do cwd) e **agrega os transcripts de teammates** se houver clã. A saída JSON traz `gate_items` (os IDs que o PRD DEVE referenciar), `log_path` e `manifest_path`.
 
-2. **Complement with code state** — run `git log` and `git diff --stat` to capture concrete changes that may have scrolled out of context
+2. **Complemente com estado de código** — `git log` e `git diff --stat` para mudanças concretas que saíram do contexto.
 
-3. **Compose and save the HANDOFF.md** — follow the format below, prioritizing **completeness over brevity**. The next Claude needs to reconstruct the full mental model from this document alone. Write directly to `{project_root}/.claude/HANDOFF.md`.
+3. **Escreva SÓ o PRD** (`{project_root}/.claude/HANDOFF.md`) — você **não toca no LOG**. O PRD agrupa por tema o que está no LOG. Para CADA id em `gate_items`, o PRD referencia `[id]` no ponto onde aquela fala/decisão é tratada (assim o gate confirma que nada se perdeu). Findings e gotchas entram **verbatim** — não parafraseie.
 
-4. **Show summary to Pedro** — present a brief summary of what was captured. Pedro can request changes after reviewing — the file is already saved and editable.
+4. **Atualize o índice** `{project_root}/.claude/ata/INDEX.md` — uma linha por sessão: data, `<sid>`, link pro `LOG-<sid>.md`, e uma frase do que foi a sessão.
 
-### HANDOFF.md Format
+5. **Mostre o resumo ao Pedro.** O gate de completude verifica o PRD contra o manifest; se faltar algum `gate_items`, ele te diz e você completa antes de declarar pronto.
+
+### HANDOFF.md (PRD) Format
 
 ```markdown
-# Session Handoff
+# Session Handoff — PRD
 Date: {YYYY-MM-DD HH:MM}
 Project: {absolute path}
+LOG (ata verbatim): {project_root}/.claude/ata/LOG-<sessão>.md
 
 ## Resumo
 {1-3 sentences: what this session was about and where it ended}
 
 ## Contexto e Propósito
-{Why this session happened. The macro objective. What Pedro is trying to do/learn/solve. Enough context for the next Claude to understand the motivation without asking.}
+{Why this session happened. The macro objective. Each claim that came from Pedro cites its LOG id, e.g. "...montar o rito [d1]".}
 
 ## Discussões e Decisões
-{What was discussed. Decisions made with complete reasoning — not just "decided X", but "decided X because Y, discarding Z because of W". Alternatives considered and why they were rejected. Each decision must make sense to a reader with zero context.}
+{Por tema. Cada decisão com seu "porquê", citando o id do LOG: "decidiu-se X [a1] porque Y, descartando Z [d6]". TODO id em gate_items aparece referenciado em alguma seção.}
 
 ## O Que Foi Feito
-{Concrete actions: files created/modified, commits, configurations changed. With enough context to understand why each change was made.}
+{Concrete actions: files created/modified, commits, configs. Com contexto do porquê.}
 
 ## Em Andamento
-{What was left incomplete. Exactly where it stopped. Current state — what works, what doesn't yet.}
+{What was left incomplete. Exactly where it stopped. Current state.}
 
 ## Próximos Passos
-1. {Step with enough context to execute without asking "why are we doing this?"}
-2. ...
+1. {Step with enough context to execute without asking "why".}
 
-## Problemas Conhecidos
-{Bugs, gotchas, warnings, limitations discovered during the session.}
+## Findings & Gotchas
+{VERBATIM — descobertas técnicas e armadilhas, transcritas literais (não parafraseadas). Cite o id quando vier de uma fala/decisão.}
 
 ## Detalhes Técnicos
-{Architecture, patterns used, important configs, relevant file paths, dependencies, integrations. Everything the next Claude needs to work on the code.}
+{Architecture, patterns, configs, file paths, dependencies, integrations.}
 
 ## Contexto Extra
-{Anything that doesn't fit above but would be lost without recording. Preferences Pedro expressed, constraints mentioned, domain insights.}
+{Preferences, constraints, domain insights que se perderiam sem registro.}
 ```
 
 ### SAVE Rules
-- **Completeness > brevity** — better long and complete than short with gaps. The reader has no context.
-- **Preserve reasoning chains** — every decision with its "why". Every technical detail with its motivation.
-- **Written for someone who knows nothing** — assume zero context in the reader.
-- **Save first, ask later** — write the file immediately, then show a summary. Pedro edits after if needed.
-- **Overwrites previous** — HANDOFF.md is always the snapshot of the most recent session. But if the existing file is < 5 min old, confirm first (see Mode Detection guardrail).
-- **The RESUME side expects** sections like Resumo, Em Andamento, Próximos Passos, Problemas Conhecidos — this format is a superset of that.
-- **Omit empty sections** — if there were no known issues, don't include the empty section.
-- **No secrets** — never include API keys, passwords, tokens, or secret values. File paths and variable names are ok.
-- **Absolute paths for external files** — when referencing files outside the project (plans, memories, global configs in `~/.claude/`), ALWAYS use the full absolute path (e.g., `/Users/pedroberaldo/.claude/plans/foo.md`). Never use `~/.claude/...` or `.claude/...` — these are ambiguous to the next Claude, who may confuse global paths with project-local ones. For files inside the project, use paths relative to the project root.
+- **O LOG é da máquina; o PRD é seu.** Nunca edite o LOG à mão. No PRD, nunca corte um direcionamento, nunca reescreva uma decisão a ponto de mudar o sentido, nunca omita um finding/gotcha.
+- **Todo `gate_items` referenciado.** Cada id forte (`d`/`a`/`r`) do manifest aparece citado `[id]` no PRD. O gate bloqueia se faltar.
+- **Findings & gotchas verbatim** — transcrição literal, não paráfrase (direcionamento explícito do Pedro).
+- **Completeness > brevity** — o PRD é granular; melhor longo e completo que curto com lacunas.
+- **PRD é snapshot, sobrescrito; o LOG é histórico, append-only por sessão.** O git guarda o histórico do PRD; os `LOG-<sid>.md` guardam cada sessão.
+- **Save first, ask later** — escreva, depois mostre o resumo. Pedro edita o PRD se quiser (o LOG, não).
+- **No secrets** — nunca inclua API keys, senhas, tokens. Paths e nomes de variável ok.
+- **Absolute paths for external files** — ao referenciar arquivos fora do projeto (`~/.claude/...`), use o caminho absoluto completo (`/Users/pedroberaldo/.claude/...`), nunca `~/.claude/...` ou `.claude/...`.
 
 ---
 
@@ -125,7 +132,8 @@ Reads the handoff document from a previous session and presents it to Pedro for 
 ### Process
 
 1. **Find the handoff file:**
-   - Check `{project_root}/.claude/HANDOFF.md`
+   - Check `{project_root}/.claude/HANDOFF.md` (the PRD — read this first)
+   - The verbatim ata lives in `{project_root}/.claude/ata/LOG-<sessão>.md` (index in `INDEX.md`). The PRD references LOG ids like `[d3]`; open the LOG when you need the exact wording behind a reference.
    - If not found, check recent git log and git status for clues about the last session
    - If nothing found, tell Pedro and ask for context
 
