@@ -303,6 +303,24 @@ def build_prospective(records, items):
         p = plans[-1]
         txt = p.get("text", "") or ""
         last_plan = {"ts": p.get("ts", ""), "excerpt": txt[:1200]}
+        # Esse plano JÁ foi executado nesta sessão? Conta edits/commits APÓS o ts do plano.
+        # Se sim, ele é REGISTRO (vai pra "O Que Foi Feito"), não trabalho a fazer — evita o
+        # próximo Claude "reimplementar tudo" ao retomar um handoff de implementação concluída.
+        pts = last_plan["ts"]
+        edits_after = commits_after = 0
+        for rec in records:
+            if rec.get("type") != "assistant" or (rec.get("timestamp") or "") <= pts:
+                continue
+            for b in (rec.get("message") or {}).get("content") or []:
+                if not isinstance(b, dict) or b.get("type") != "tool_use":
+                    continue
+                nm = b.get("name")
+                if nm in ("Edit", "Write", "NotebookEdit"):
+                    edits_after += 1
+                elif nm == "Bash" and "git commit" in str((b.get("input") or {}).get("command", "")):
+                    commits_after += 1
+        last_plan["executed_after"] = {"edits": edits_after, "commits": commits_after}
+        last_plan["likely_executed"] = commits_after > 0 or edits_after >= 3
 
     return {"open_tasks": open_tasks, "last_plan": last_plan}
 

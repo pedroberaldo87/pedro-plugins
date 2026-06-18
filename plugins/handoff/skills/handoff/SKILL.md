@@ -72,7 +72,10 @@ Por que o extrator gera o LOG e não você: o Pedro foi explícito — *"E o seu
 2. **Complemente com estado de código** — `git log` e `git diff --stat` para mudanças concretas que saíram do contexto.
 
 3. **Escreva SÓ o PRD** (`{project_root}/.claude/HANDOFF.md`) — você **não toca no LOG**. O PRD agrupa por tema o que está no LOG. Para CADA id em `gate_items`, o PRD referencia `[id]` no ponto onde aquela fala/decisão é tratada (assim o gate confirma que nada se perdeu). Findings e gotchas entram **verbatim** — não parafraseie.
-   - **Pré-preencha o prospecto a partir de `prospective`** (não escreva do zero quando há material): cada `open_tasks[i]` vira um passo de `## Próximos Passos` com os 5 campos; o `last_plan` é a fonte dos próximos passos candidatos (rotule como candidato — pode já ter sido executado). Refine o que o extrator deu; não o ignore.
+   - **Pré-preencha o prospecto a partir de `prospective`** (não escreva do zero quando há material): cada `open_tasks[i]` vira um passo de `## Próximos Passos` com os 5 campos. O `last_plan` depende do flag `likely_executed`:
+     - `likely_executed: true` (houve commits/edits depois do plano) → **o plano JÁ foi executado nesta sessão.** Ele vira REGISTRO em `## O Que Foi Feito`, **NÃO** entra em `## Próximos Passos`. (Senão o próximo Claude acha que tem de reimplementar tudo.)
+     - `likely_executed: false` → é candidato a próximos passos; refine-o como tal.
+     - Refine o que o extrator deu; não o ignore.
 
 4. **Atualize o índice** `{project_root}/.claude/ata/INDEX.md` — uma linha por sessão: data, `<sid>`, link pro `LOG-<sid>.md`, e uma frase do que foi a sessão.
 
@@ -145,6 +148,7 @@ Rodar `npm run docs:push` quando o PR mergear.
 - **Todo `gate_items` referenciado.** Cada id forte (`d`/`a`/`r`) do manifest aparece citado `[id]` no PRD. O gate bloqueia se faltar.
 - **Findings & gotchas verbatim** — transcrição literal, não paráfrase (direcionamento explícito do Pedro).
 - **Próximos Passos executável, não ponteiro.** Se um passo referencia outro documento, transcreva o essencial inline. Se o documento referenciado **também** não especifica a ação (só lista/menciona), o passo honesto é **"destilar a spec primeiro"** — não "ver doc X". Cada passo não-trivial carrega os 5 campos do molde; passo trivial usa o escape `(trivial)`. O teste: um terceiro executa o passo sem abrir outro doc nem fazer arqueologia.
+- **Handoff de implementação CONCLUÍDA é registro, não ordem de refazer.** Se a sessão terminou de implementar algo (sinal: `last_plan.likely_executed: true`, ou você sabe que o plano virou código/commits): o grosso vai pra `## O Que Foi Feito`; `## Em Andamento` = "nada pendente"; `## Próximos Passos` só os follow-ups REAIS que sobraram (deploy, testes, decisões abertas) — **nunca** o plano que você acabou de executar. O PRD + o LOG juntos são o REGISTRO do que foi feito; quem retomar não deve reimplementar.
 - **Completeness > brevity** — o PRD é granular; melhor longo e completo que curto com lacunas.
 - **PRD é snapshot, sobrescrito; o LOG é histórico, append-only por sessão.** O git guarda o histórico do PRD; os `LOG-<sid>.md` guardam cada sessão.
 - **Save first, ask later** — escreva, depois mostre o resumo. Pedro edita o PRD se quiser (o LOG, não).
@@ -182,7 +186,7 @@ Reads the handoff document from a previous session and presents it to Pedro for 
    - "Esse é o estado da última sessão. Quer que eu continue de onde parou, ou tem alguma mudança de prioridade?"
    - Wait for explicit confirmation before doing anything
 
-5. **Only then start working** — pick up from "Em Andamento" or "Próximos Passos"
+5. **Reconcilie com o código real ANTES de executar — depois trabalhe.** Antes de tocar em qualquer "Próximo Passo", rode `git log --oneline -10` + `git status` e leia os arquivos que o passo cita. Se o que o passo descreve **já está no código / já foi commitado** (caso típico: o handoff foi tirado logo após uma implementação concluída), **NÃO reimplemente** — reconheça como feito e siga só pro que de fato falta. O handoff é um REGISTRO do que aconteceu, não uma ordem de refazer. Só então pegue de "Em Andamento" / "Próximos Passos".
 
 ### RESUME Rules
 - NEVER start working before Pedro confirms
@@ -191,3 +195,4 @@ Reads the handoff document from a previous session and presents it to Pedro for 
 - If Pedro provides additional context that conflicts with the handoff, ask which takes priority
 - Read the handoff file completely — do not skim or skip sections
 - **Prospecto magro → arqueologia ativa, não pergunta passiva.** Se um próximo passo aponta pra fora ou falta campo, recupere o contexto (LOG, `last_plan`, doc referenciado, `git diff`) e monte o plano de recuperação ANTES de apresentar — não devolva a lacuna pro Pedro como pergunta.
+- **NUNCA reimplemente o que já está feito.** Handoff de implementação concluída é registro. Sempre confira `git log`/`git status` e o código antes de executar um passo; se já existe, marque feito e siga. Na dúvida entre "refazer" e "já está pronto", leia o código — não refaça.
