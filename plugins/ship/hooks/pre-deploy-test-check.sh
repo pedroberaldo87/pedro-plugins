@@ -1,7 +1,14 @@
 #!/bin/bash
-# PreToolUse hook: blocks deploy commands if the test suite has failures
-# Fires on every Bash tool call; only acts when the command looks like a deploy
+# PreToolUse hook: blocks deploy commands if the relevant tests fail.
+# Fires on every Bash tool call; only acts when the command looks like a deploy.
 # Exit 0 = allow, Exit 2 = block (message shown to Claude)
+#
+# Two modes:
+#   1. Per-app gate (preferred) — if the project has scripts/run_app_tests.sh,
+#      run it for the app(s) being deployed. That script owns venv + scope +
+#      e2e exclusion, so a monorepo deploy of one app only runs that app's
+#      tests in the right interpreter (not the whole repo on the system python).
+#   2. Legacy whole-suite — projects without that script keep the old behavior.
 
 INPUT=$(cat)
 COMMAND=$(echo "$INPUT" | /opt/homebrew/bin/jq -r '.tool_input.command // empty')
@@ -46,7 +53,50 @@ if [ "$is_deploy" = false ]; then
 fi
 
 # ============================================================
-# Deploy detected — run tests first
+# Mode 1 — per-app gate (preferred when the project provides it)
+# ============================================================
+GATE="$CWD/scripts/run_app_tests.sh"
+if [ -x "$GATE" ] && echo "$COMMAND" | grep -qE 'deploy\.sh'; then
+  # Apps listed after deploy.sh, trimmed at the first shell separator; flags out.
+  ARGS=$(echo "$COMMAND" | sed -E 's/.*deploy\.sh//; s/[;&|].*//')
+  ARGS=$(echo "$ARGS" | tr ' ' '\n' | grep -vE '^(-|$)' | tr '\n' ' ')
+
+  app_has_tests() { [ -d "$CWD/tests/$1" ] || [ -d "$CWD/apps/$1/tests" ]; }
+  discover_apps() {
+    { ls -d "$CWD"/tests/*/ 2>/dev/null | xargs -n1 basename 2>/dev/null
+      for d in "$CWD"/apps/*/tests; do [ -d "$d" ] && basename "$(dirname "$d")"; done
+    } | sort -u
+  }
+
+  if [ -z "$(echo "$ARGS" | tr -d '[:space:]')" ]; then
+    APPS=$(discover_apps)   # full deploy → gate every app that has tests
+  else
+    APPS="$ARGS"
+  fi
+
+  FAILED=""
+  RAN=""
+  for app in $APPS; do
+    app_has_tests "$app" || continue
+    RAN="$RAN $app"
+    if ! ( cd "$CWD" && bash scripts/run_app_tests.sh "$app" ); then
+      FAILED="$FAILED $app"
+    fi
+  done
+
+  if [ -n "$FAILED" ]; then
+    echo "🚫 Deploy bloqueado — testes do(s) app(s) falhando:$FAILED" >&2
+    echo "" >&2
+    echo "Rode local e corrija:  bash scripts/run_app_tests.sh <app>" >&2
+    echo "(testes que precisam de produção ficam fora do gate via @pytest.mark.e2e)" >&2
+    exit 2
+  fi
+  [ -n "$RAN" ] && echo "✅ Gate de testes ok:$RAN" >&2
+  exit 0
+fi
+
+# ============================================================
+# Mode 2 — legacy whole-suite runner (projects without the per-app gate)
 # ============================================================
 TEST_CMD=""
 TEST_RUNNER=""

@@ -100,6 +100,16 @@ Detect and run the full test suite before committing anything.
 
 > The `pre-deploy-test-check` hook (bundled with this plugin) enforces this gate at the harness level — it intercepts deploy commands and blocks them if the test suite fails.
 
+#### 2.6 Per-app gate + LLM scope evaluation (monorepos)
+
+In a monorepo where each app has its own deps/venv, running the whole suite on the system Python collapses into import errors and blocks every deploy. Use a **deterministic floor + LLM evaluation on top**:
+
+- **Floor (deterministic):** if the project has `scripts/run_app_tests.sh`, the gate is `scripts/run_app_tests.sh <app>` — it runs ONLY the deployed app's tests, in the project's test venv (e.g. `.venv-test`), excluding `@pytest.mark.e2e` (tests that need production: live IMAP/SSH/psql). The `pre-deploy-test-check` hook calls this per app automatically.
+- **LLM evaluation (you, at ship time):** identify the target app(s) from the deploy command or the diff. You MAY **widen** scope — e.g. if the diff touches `shared_lib/`, also run the gates of the apps that depend on it. You may NEVER **narrow** below the floor: every non-e2e test of the target app must run. Report transparently what ran, what was excluded as e2e (and why), and the result.
+- The evaluation decides what to ADD and confirms the excluded tests are genuinely e2e — it is never an excuse to skip a relevant test.
+
+This satisfies the hard gate without the wrong interpreter or the wrong scope. e2e / integration-with-production tests run separately (CI or manual), not in the local pre-deploy gate.
+
 ### 3. Commit + Push
 
 Follow the standard commit flow:
