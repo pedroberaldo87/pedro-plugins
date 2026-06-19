@@ -22,14 +22,39 @@ except Exception:
     ok()
 
 cwd = data.get("cwd") or os.getcwd()
-prd_path = os.path.join(cwd, ".claude", "HANDOFF.md")
-ata_dir = os.path.join(cwd, ".claude", "ata")
-if not os.path.exists(prd_path) or not os.path.isdir(ata_dir):
-    ok()
-manis = glob.glob(os.path.join(ata_dir, "manifest-*.json"))
-if not manis:
-    ok()
-manifest_path = max(manis, key=os.path.getmtime)
+session_id = data.get("session_id") or os.environ.get("CLAUDE_CODE_SESSION_ID") or ""
+
+# Localiza o handoff por SESSAO. Como o handoff agora "pertence ao projeto", ele
+# pode estar fora do cwd (monorepo aninhado, guarda-chuva). O extrator gravou um
+# bilhete /tmp/claude-handoff-target-<sid> com o caminho real + o projeto-raiz.
+# Casa-se com o manifest da MESMA sessao (exato), nao "o mais recente por mtime".
+prd_path = None
+manifest_path = None
+if session_id:
+    try:
+        tgt = json.load(open("/tmp/claude-handoff-target-%s" % session_id))
+        hp = tgt.get("handoff_path")
+        mp = tgt.get("manifest_path")
+        # compat: bilhete de versao antiga sem manifest_path -> deriva do project_root
+        if not mp and tgt.get("project_root"):
+            mp = os.path.join(tgt["project_root"], ".claude", "ata", "manifest-%s.json" % session_id)
+        if hp and mp and os.path.exists(hp) and os.path.exists(mp):
+            prd_path, manifest_path = hp, mp
+    except Exception:
+        pass
+
+if not prd_path:
+    # Fallback legado: handoff fixo no cwd + manifest mais recente (single-repo
+    # sem bilhete = comportamento identico ao de antes).
+    prd_path = os.path.join(cwd, ".claude", "HANDOFF.md")
+    ata_dir = os.path.join(cwd, ".claude", "ata")
+    if not os.path.exists(prd_path) or not os.path.isdir(ata_dir):
+        ok()
+    manis = glob.glob(os.path.join(ata_dir, "manifest-*.json"))
+    if not manis:
+        ok()
+    manifest_path = max(manis, key=os.path.getmtime)
+
 try:
     prd_mtime = os.path.getmtime(prd_path)
     man_mtime = os.path.getmtime(manifest_path)
@@ -38,8 +63,9 @@ except OSError:
 # só age quando o PRD foi (re)escrito DEPOIS do extrator gerar o manifest
 if prd_mtime < man_mtime - 1:
     ok()
-# não re-disparar para um PRD já aprovado (sentinel por mtime do PRD)
-flagh = hashlib.sha1(("%s|%d" % (cwd, int(prd_mtime))).encode()).hexdigest()[:16]
+# não re-disparar para um PRD já aprovado (chave = caminho + sessao + mtime do PRD,
+# pra dois modulos salvos no mesmo segundo nao compartilharem o flag)
+flagh = hashlib.sha1(("%s|%s|%d" % (prd_path, session_id, int(prd_mtime))).encode()).hexdigest()[:16]
 okflag = "/tmp/claude-ata-gate-ok-%s" % flagh
 if os.path.exists(okflag):
     ok()
@@ -95,7 +121,7 @@ if prospective:
     lines.append("Proximos Passos sem os 5 campos do molde (preencha, ou marque o passo como "
                  "'(trivial)' se ele dispensa): " + "; ".join(prospective))
 lines.append("Manifest: %s" % manifest_path)
-lines.append("Complete o .claude/HANDOFF.md e finalize de novo.")
+lines.append("Complete o %s e finalize de novo." % prd_path)
 print(json.dumps({"decision": "block", "reason": "\n".join(lines)}, ensure_ascii=False))
 sys.exit(0)
 PY

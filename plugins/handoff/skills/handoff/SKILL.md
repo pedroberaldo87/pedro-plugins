@@ -1,6 +1,6 @@
 ---
 name: handoff
-description: Use when preserving the session for later (before /clear, long conversation, Pedro signals a pause, after a milestone) OR when resuming work at the start of a fresh/cleared session where a .claude/HANDOFF.md exists. One command, two modes — it detects the context state (full session → save, freshly cleared → resume) and routes accordingly. Also use when Pedro says "handoff", "salva a sessão", "retoma de onde paramos", or runs /handoff with an optional [salvar|retomar] argument.
+description: Use when preserving the session for later (before /clear, long conversation, Pedro signals a pause, after a milestone) OR when resuming work at the start of a fresh/cleared session where a .claude/HANDOFF*.md exists. One command, two modes — it detects the context state (full session → save, freshly cleared → resume) and routes accordingly. Workspace-aware: the handoff belongs to the project the session touched (resolves the .git boundary of the edited files), so it works for a standalone project, a monorepo (one HANDOFF-<module>.md per module), or an umbrella folder with nested projects. Also use when Pedro says "handoff", "salva a sessão", "retoma de onde paramos", or runs /handoff with an optional [salvar|retomar] argument.
 ---
 
 # Handoff — Save or Resume a Session (auto-detecting)
@@ -25,9 +25,9 @@ Decide **SAVE** vs **RESUME** using these signals, in order of confidence:
    - High → full session → **SAVE**.
    - Note: context-guard's reset hook deletes this file on `/clear`/SessionStart, so a *missing* file is itself a "fresh session" signal.
 
-3. **`.claude/HANDOFF.md` existence + mtime (guardrail).** Check it: `stat -f '%m' {project_root}/.claude/HANDOFF.md 2>/dev/null`.
-   - Leaning RESUME but **no** HANDOFF.md exists → nothing to resume → switch to SAVE (or ask).
-   - Leaning SAVE but HANDOFF.md was written **< 5 min ago** → suspicious (Pedro never saves two in a row) → confirm before overwriting.
+3. **Existe um handoff pra retomar? (guardrail).** Esta detecção roda ANTES do extrator, então ainda não há `scope` — faça uma checagem barata: `ls -t {cwd}/.claude/HANDOFF*.md 2>/dev/null` (o nome é dinâmico em monorepo, por isso o glob). Se o cwd for uma pasta guarda-chuva (sem `.git`), essa checagem rápida pode não achar — tudo bem: o RESUME (passo 1) faz a varredura completa nos projetos aninhados.
+   - Leaning RESUME but **nenhum** handoff existe (nem no cwd nem, no RESUME, aninhado) → nada a retomar → switch to SAVE (or ask).
+   - O guardrail anti-sobrescrita (não salvar duas vezes em < 5 min) é aplicado no SAVE, passo 3, depois que o `scope.handoff_path` já é conhecido.
 
 **Explicit override (skips detection):**
 - `/handoff salvar` (or "salva") → force **SAVE**.
@@ -57,7 +57,7 @@ For Pedro specifically — someone who learns by collision — the session isn't
 O handoff tem **dois produtos**, e a divisão de trabalho é a regra de ouro:
 
 - **LOG** (`{project_root}/.claude/ata/LOG-<sessão>.md`) — a **ata verbatim, cronológica**. É gerada **mecanicamente pelo extrator**, NÃO por você. Cada item (fala do Pedro, decisão de AskUserQuestion, rejeição com instrução, plano, tarefa, diagrama) recebe um **ID estável** (`[d3]`, `[a1]`, `[r1]`...). É a prova: nada de julgamento, nada de resumo, nada filtrado.
-- **PRD** (`{project_root}/.claude/HANDOFF.md`) — a **vista normativa, por tema**, que VOCÊ escreve a partir do LOG. É o que o RESUME lê.
+- **PRD** (`{project_root}/.claude/HANDOFF.md`, ou `HANDOFF-<módulo>.md` num monorepo) — a **vista normativa, por tema**, que VOCÊ escreve a partir do LOG. É o que o RESUME lê. O caminho exato vem de `scope.handoff_path` (ver Process).
 
 Por que o extrator gera o LOG e não você: o Pedro foi explícito — *"E o seu julgamento não serve. Vai no meu julgamento. Vai anotar tudo, vai carregar tudo."* Se você escrevesse o LOG, você filtraria. Tirando você do caminho do LOG, o "anotar tudo sem julgamento" é garantido por construção.
 
@@ -65,19 +65,27 @@ Por que o extrator gera o LOG e não você: o Pedro foi explícito — *"E o seu
 
 1. **Rode o extrator** (ele gera o LOG verbatim + um manifest dos itens — mecânico):
    ```bash
-   python3 "<skill_dir>/../../lib/extract_ata.py" --auto --cwd "$(pwd)" --out-dir "{project_root}/.claude/ata"
+   python3 "<skill_dir>/../../lib/extract_ata.py" --auto --session "$CLAUDE_CODE_SESSION_ID" --cwd "$(pwd)"
    ```
-   `<skill_dir>` é a "Base directory for this skill" injetada ao carregar a skill; o extrator vive em `lib/extract_ata.py` na raiz do plugin (dois níveis acima). O `--auto` descobre o transcript da sessão (sentinel `/tmp/claude-ata-session-*` do hook de discovery, ou o `.jsonl` mais recente do cwd) e **agrega os transcripts de teammates** se houver clã. A saída JSON traz `gate_items` (os IDs que o PRD DEVE referenciar), **`prospective`** (`open_tasks` = tarefas abertas no fim, com id/subject/status reais + `last_plan` = o último ExitPlanMode), `log_path` e `manifest_path`.
+   `<skill_dir>` é a "Base directory for this skill" injetada ao carregar a skill; o extrator vive em `lib/extract_ata.py` na raiz do plugin (dois níveis acima). O `--session "$CLAUDE_CODE_SESSION_ID"` identifica o transcript desta sessão de forma **determinística** (a env var é o nome do `.jsonl`), o que evita pegar a sessão errada quando há várias no mesmo cwd (monorepo). O `--auto` ainda **agrega os transcripts de teammates** se houver clã. **NÃO passe `--out-dir`** — o extrator deriva o destino do projeto-raiz que ele resolve.
+   A saída JSON traz `gate_items` (os IDs que o PRD DEVE referenciar), **`scope`** (`project_root`, `module`, `multi`, `modules`, **`handoff_path`** — onde gravar o PRD), **`prospective`** (`open_tasks` + `last_plan`), `log_path` e `manifest_path`.
 
-2. **Complemente com estado de código** — `git log` e `git diff --stat` para mudanças concretas que saíram do contexto.
+2. **Complemente com estado de código** — rode git **no projeto-raiz**, não no cwd: `git -C "<scope.project_root>" log` e `git -C "<scope.project_root>" diff --stat`. (No guarda-chuva o cwd nem é repositório; o `.git` que importa é o do projeto que o `scope` resolveu.)
 
-3. **Escreva SÓ o PRD** (`{project_root}/.claude/HANDOFF.md`) — você **não toca no LOG**. O PRD agrupa por tema o que está no LOG. Para CADA id em `gate_items`, o PRD referencia `[id]` no ponto onde aquela fala/decisão é tratada (assim o gate confirma que nada se perdeu). Findings e gotchas entram **verbatim** — não parafraseie.
+3. **Escreva SÓ o PRD** no caminho que o extrator resolveu (`scope.handoff_path`) — você **não toca no LOG**. O handoff **pertence ao projeto** que a sessão tocou (não ao cwd):
+   - `scope.multi == false` → `{project_root}/.claude/HANDOFF.md` (projeto avulso — igual a sempre).
+   - `scope.multi == true` com um `scope.module` → `{project_root}/.claude/HANDOFF-<módulo>.md` (monorepo: um por módulo).
+   - **Antes de sobrescrever, cheque o escopo** (não escreva cego):
+     - Se `scope.from_edits == false` (a sessão não editou arquivos — planejamento puro), o projeto-raiz foi **chutado pelo cwd**, não inferido do trabalho. **Confirme o destino com o Pedro** antes de gravar — sobretudo se `scope.project_root_is_boundary == false` (o cwd é uma pasta guarda-chuva, então o handoff cairia nela, não num projeto real).
+     - Se `scope.module` é `null` mas `scope.multi == true` (monorepo sem edits claros num módulo), **ou** `scope.module_ambiguous == true` (empate de edits entre dois módulos) → **pergunte** ao Pedro a qual módulo este handoff pertence.
+     - **Guardrail anti-sobrescrita:** se o `scope.handoff_path` já existe e foi escrito **< 5 min atrás** (ou é de uma frente claramente diferente do mesmo módulo) → suspeito (Pedro nunca salva dois seguidos) → **confirme** antes de sobrescrever.
+   - O PRD agrupa por tema o que está no LOG. Para CADA id em `gate_items`, referencia `[id]` no ponto onde aquela fala/decisão é tratada (o gate confirma que nada se perdeu). Findings e gotchas entram **verbatim** — não parafraseie.
    - **Pré-preencha o prospecto a partir de `prospective`** (não escreva do zero quando há material): cada `open_tasks[i]` vira um passo de `## Próximos Passos` com os 5 campos. O `last_plan` depende do flag `likely_executed`:
      - `likely_executed: true` (houve commits/edits depois do plano) → **o plano JÁ foi executado nesta sessão.** Ele vira REGISTRO em `## O Que Foi Feito`, **NÃO** entra em `## Próximos Passos`. (Senão o próximo Claude acha que tem de reimplementar tudo.)
      - `likely_executed: false` → é candidato a próximos passos; refine-o como tal.
      - Refine o que o extrator deu; não o ignore.
 
-4. **Atualize o índice** `{project_root}/.claude/ata/INDEX.md` — uma linha por sessão: data, `<sid>`, link pro `LOG-<sid>.md`, e uma frase do que foi a sessão.
+4. **Atualize o índice** no MESMO projeto-raiz do LOG/PRD — `<scope.project_root>/.claude/ata/INDEX.md` (não no cwd) — uma linha por sessão: data, `<sid>`, módulo (se houver), link pro `LOG-<sid>.md`, e uma frase do que foi a sessão.
 
 5. **Mostre o resumo ao Pedro.** O gate de completude verifica o PRD contra o manifest; se faltar algum `gate_items`, ele te diz e você completa antes de declarar pronto.
 
@@ -86,7 +94,9 @@ Por que o extrator gera o LOG e não você: o Pedro foi explícito — *"E o seu
 ```markdown
 # Session Handoff — PRD
 Date: {{AAAA-MM-DD HH:MM}}
-Project: {{caminho absoluto do projeto}}
+Project: {{caminho absoluto do projeto-raiz — scope.project_root}}
+Module: {{scope.module, ou omita a linha se for projeto avulso}}
+Session: {{$CLAUDE_CODE_SESSION_ID}}
 LOG (ata verbatim): {{project_root}}/.claude/ata/LOG-{{sessão}}.md
 
 ## Resumo
@@ -151,6 +161,7 @@ Rodar `npm run docs:push` quando o PR mergear.
 - **Handoff de implementação CONCLUÍDA é registro, não ordem de refazer.** Se a sessão terminou de implementar algo (sinal: `last_plan.likely_executed: true`, ou você sabe que o plano virou código/commits): o grosso vai pra `## O Que Foi Feito`; `## Em Andamento` = "nada pendente"; `## Próximos Passos` só os follow-ups REAIS que sobraram (deploy, testes, decisões abertas) — **nunca** o plano que você acabou de executar. O PRD + o LOG juntos são o REGISTRO do que foi feito; quem retomar não deve reimplementar.
 - **Completeness > brevity** — o PRD é granular; melhor longo e completo que curto com lacunas.
 - **PRD é snapshot, sobrescrito; o LOG é histórico, append-only por sessão.** O git guarda o histórico do PRD; os `LOG-<sid>.md` guardam cada sessão.
+- **O handoff pertence ao projeto, não ao cwd.** Sempre grave em `scope.handoff_path` (o extrator resolve o projeto-raiz pelos arquivos que a sessão tocou — sobe até o `.git`). Num monorepo, um por módulo (`HANDOFF-<módulo>.md`); avulso, `HANDOFF.md`. NÃO grave no cwd quando ele é uma pasta guarda-chuva — grave dentro do projeto real. Um handoff por módulo (slug puro, sobrescreve o anterior daquele módulo); se houver outra frente recente do mesmo módulo, pergunte antes.
 - **Save first, ask later** — escreva, depois mostre o resumo. Pedro edita o PRD se quiser (o LOG, não).
 - **No secrets** — nunca inclua API keys, senhas, tokens. Paths e nomes de variável ok.
 - **Absolute paths for external files** — ao referenciar arquivos fora do projeto (`~/.claude/...`), use o caminho absoluto completo (`/Users/pedroberaldo/.claude/...`), nunca `~/.claude/...` ou `.claude/...`.
@@ -163,11 +174,12 @@ Reads the handoff document from a previous session and presents it to Pedro for 
 
 ### Process
 
-1. **Find the handoff file:**
-   - Check `{project_root}/.claude/HANDOFF.md` (the PRD — read this first)
-   - The verbatim ata lives in `{project_root}/.claude/ata/LOG-<sessão>.md` (index in `INDEX.md`). The PRD references LOG ids like `[d3]`; open the LOG when you need the exact wording behind a reference.
-   - If not found, check recent git log and git status for clues about the last session
-   - If nothing found, tell Pedro and ask for context
+1. **Ache o handoff — o handoff pertence ao projeto, então onde procurar depende de onde você abriu:**
+   - **cwd é uma fronteira de projeto** (tem `.git` — projeto avulso ou raiz de monorepo): procure `{cwd}/.claude/HANDOFF*.md`. Avulso → um `HANDOFF.md`. Monorepo → vários `HANDOFF-<módulo>.md`; liste-os (módulo · idade · 1ª linha do `## Resumo`) e use `git status`/`git diff --name-only` pra inferir qual módulo você mexia por último → esse é o palpite de topo.
+   - **cwd é uma pasta guarda-chuva** (sem `.git` — ex: você abriu em `PROGRAMACAO`): os handoffs estão **dentro dos projetos aninhados**. Varra os projetos (dirs com `.git` até ~3 níveis, ignorando node_modules/.venv/etc.) por `.claude/HANDOFF*.md` recentes; use `git status`/`git diff` de cada um como pista do que você mexia; liste e proponha o mais provável.
+   - O LOG verbatim fica em `{project_root}/.claude/ata/LOG-<sessão>.md` (índice em `INDEX.md`). O PRD referencia ids como `[d3]`; abra o LOG quando precisar do texto exato.
+   - Se nada for encontrado, diga ao Pedro e peça contexto.
+   - **Sempre confirme o handoff escolhido antes de agir** (especialmente se houver mais de um candidato).
 
 2. **Present the summary (with its age):**
    - Show how long ago the handoff was written (from its mtime)
@@ -186,7 +198,7 @@ Reads the handoff document from a previous session and presents it to Pedro for 
    - "Esse é o estado da última sessão. Quer que eu continue de onde parou, ou tem alguma mudança de prioridade?"
    - Wait for explicit confirmation before doing anything
 
-5. **Reconcilie com o código real ANTES de executar — depois trabalhe.** Antes de tocar em qualquer "Próximo Passo", rode `git log --oneline -10` + `git status` e leia os arquivos que o passo cita. Se o que o passo descreve **já está no código / já foi commitado** (caso típico: o handoff foi tirado logo após uma implementação concluída), **NÃO reimplemente** — reconheça como feito e siga só pro que de fato falta. O handoff é um REGISTRO do que aconteceu, não uma ordem de refazer. Só então pegue de "Em Andamento" / "Próximos Passos".
+5. **Reconcilie com o código real ANTES de executar — depois trabalhe.** Antes de tocar em qualquer "Próximo Passo", rode git **no projeto-raiz do handoff que você retomou** (`Project:` no header dele, não o cwd): `git -C "<project_root>" log --oneline -10` + `git -C "<project_root>" status`, e leia os arquivos que o passo cita. Se o que o passo descreve **já está no código / já foi commitado** (caso típico: o handoff foi tirado logo após uma implementação concluída), **NÃO reimplemente** — reconheça como feito e siga só pro que de fato falta. O handoff é um REGISTRO do que aconteceu, não uma ordem de refazer. Só então pegue de "Em Andamento" / "Próximos Passos".
 
 ### RESUME Rules
 - NEVER start working before Pedro confirms

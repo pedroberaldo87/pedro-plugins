@@ -53,6 +53,254 @@ def cwd_to_projects_subdir(cwd):
     return os.path.join(PROJECTS_DIR, enc)
 
 
+# ---------------------------------------------------------------------------
+# Detecção de workspace — mecânica, sem julgamento de LLM.
+# Princípio: o handoff PERTENCE ao projeto. Resolve-se a fronteira de projeto
+# (.git) dos arquivos que a sessão editou e decide-se se esse projeto é
+# multi-módulo. Cobre os 3 cenários: projeto avulso, monorepo (apps/*) e pasta
+# guarda-chuva (cwd não é projeto; os projetos estão aninhados).
+# ---------------------------------------------------------------------------
+PROJECT_MARKERS = ("package.json", "pyproject.toml", "setup.py", "Cargo.toml",
+                   "go.mod", "pom.xml", "build.gradle", "composer.json", "Gemfile",
+                   "requirements.txt")
+WORKSPACE_FILES = ("pnpm-workspace.yaml", "turbo.json", "nx.json", "lerna.json", "go.work")
+MODULE_CONTAINERS = ("apps", "packages", "services", "libs", "modules")
+IGNORE_DIRS = {"node_modules", ".git", ".claude", ".venv", "venv", "__pycache__",
+               "dist", "build", ".next", ".turbo", "target", "vendor", "coverage",
+               ".cache", ".pytest_cache", ".ruff_cache", ".mypy_cache", "_archive",
+               "_template", "worktrees", ".worktrees", ".playwright-mcp", ".idea",
+               ".vscode"}
+
+
+def _has_workspace_marker(d):
+    """True se o dir é raiz de um monorepo FORMAL (pnpm/turbo/nx/.../workspaces)."""
+    for wf in WORKSPACE_FILES:
+        if os.path.exists(os.path.join(d, wf)):
+            return True
+    pj = os.path.join(d, "package.json")
+    if os.path.exists(pj):
+        try:
+            if "workspaces" in (json.load(open(pj, encoding="utf-8")) or {}):
+                return True
+        except Exception:
+            pass
+    cg = os.path.join(d, "Cargo.toml")
+    if os.path.exists(cg):
+        try:
+            if re.search(r"(?m)^\s*\[workspace\]", open(cg, encoding="utf-8").read()):
+                return True
+        except Exception:
+            pass
+    return False
+
+
+def _is_project_root(d):
+    """Fronteira de projeto = tem .git (dir/file/worktree) OU é monorepo formal."""
+    return os.path.exists(os.path.join(d, ".git")) or _has_workspace_marker(d)
+
+
+def resolve_project_root(path, stop_at=None):
+    """Sobe de `path` até o 1º ancestral que é fronteira de projeto. None se nada.
+
+    É o que distingue projeto de agrupador: PEDRO/ e VIU/ não têm .git (sobe-se
+    através deles), mas PEDRO/mytube e VIU/VIUSTUDIO-TOOLS têm.
+    """
+    stop_at = os.path.abspath(stop_at or HOME)
+    p = os.path.abspath(path)
+    if not os.path.isdir(p):
+        p = os.path.dirname(p)
+    while p and p != os.path.dirname(p):
+        if _is_project_root(p):
+            return p
+        if p == stop_at:
+            break
+        p = os.path.dirname(p)
+    return None
+
+
+def _has_project_marker(d):
+    return any(os.path.exists(os.path.join(d, m)) for m in PROJECT_MARKERS)
+
+
+def _child_has_marker(d):
+    """Algum filho direto de `d` é um projeto? (caso fullstack: X/client, X/server)."""
+    try:
+        for name in os.listdir(d):
+            if name in IGNORE_DIRS or name.startswith("."):
+                continue
+            sub = os.path.join(d, name)
+            if os.path.isdir(sub) and _has_project_marker(sub):
+                return True
+    except OSError:
+        pass
+    return False
+
+
+def slugify_module(name):
+    s = re.sub(r"[^a-z0-9_-]+", "-", (name or "").lower()).strip("-")
+    s = re.sub(r"-{2,}", "-", s)
+    return s or "modulo"
+
+
+def _module_candidates(project_root):
+    """Módulos internos do projeto-raiz, com poda backend/frontend.
+
+    Um subdir vira UM módulo se tem marker próprio OU tem filhos com marker
+    (apps/superlive/{client,server} → 1 módulo 'superlive', NÃO 2). Não desce
+    além disso — os papéis-internos não viram módulos separados.
+    """
+    mods, seen = [], set()
+
+    def add(name, path):
+        key = os.path.abspath(path)
+        if key not in seen:
+            seen.add(key)
+            mods.append({"name": name, "path": path})
+
+    for cont in MODULE_CONTAINERS:
+        cdir = os.path.join(project_root, cont)
+        if not os.path.isdir(cdir):
+            continue
+        try:
+            entries = sorted(os.listdir(cdir))
+        except OSError:
+            continue
+        for name in entries:
+            if name in IGNORE_DIRS or name.startswith("."):
+                continue
+            sub = os.path.join(cdir, name)
+            if os.path.isdir(sub) and (_has_project_marker(sub) or _child_has_marker(sub)):
+                add(name, sub)
+
+    try:
+        entries = sorted(os.listdir(project_root))
+    except OSError:
+        entries = []
+    for name in entries:
+        if name in IGNORE_DIRS or name in MODULE_CONTAINERS or name.startswith("."):
+            continue
+        sub = os.path.join(project_root, name)
+        if os.path.isdir(sub) and _has_project_marker(sub):
+            add(name, sub)
+    return mods
+
+
+def detect_modules(project_root):
+    """{multi, modules:[{name,path}], reason} para um projeto-raiz."""
+    if not project_root or not os.path.isdir(project_root):
+        return {"multi": False, "modules": [], "reason": "sem projeto-raiz"}
+    formal = _has_workspace_marker(project_root)
+    mods = _module_candidates(project_root)
+    multi = formal or len(mods) >= 2
+    if formal:
+        reason = "monorepo formal (workspace marker), %d módulos" % len(mods)
+    elif multi:
+        reason = "%d projetos-membro detectados" % len(mods)
+    else:
+        reason = "projeto único (%d sub-projeto)" % len(mods)
+    return {"multi": multi, "modules": mods, "reason": reason}
+
+
+def collect_edited_paths(records):
+    """file_path de todos os Edit/Write/NotebookEdit do transcript (revela ONDE)."""
+    out = []
+    for rec in records:
+        if rec.get("type") != "assistant":
+            continue
+        for b in (rec.get("message") or {}).get("content") or []:
+            if not isinstance(b, dict) or b.get("type") != "tool_use":
+                continue
+            if b.get("name") in ("Edit", "Write", "NotebookEdit"):
+                inp = b.get("input") or {}
+                fp = inp.get("file_path") or inp.get("notebook_path")
+                if fp:
+                    out.append(fp)
+    return out
+
+
+def infer_scope(edited_paths, cwd):
+    """Projeto-raiz dominante dos arquivos editados (+ módulo se monorepo).
+
+    Devolve project_root, module, multi, modules, handoff_path, edits_by_project,
+    edits_by_module, reason. Mecânico — o Claude valida e, se ambíguo, pergunta.
+    """
+    cwd = os.path.abspath(cwd or os.getcwd())
+
+    def absify(p):
+        return os.path.abspath(p if os.path.isabs(p) else os.path.join(cwd, p))
+
+    # absify 1x por edit; resolve_project_root cacheado por path (o mesmo arquivo
+    # editado N vezes não re-sobe a árvore).
+    abs_paths = [absify(p) for p in edited_paths]
+    root_cache, by_proj = {}, {}
+    for ap in abs_paths:
+        if ap not in root_cache:
+            root_cache[ap] = resolve_project_root(ap)
+        if root_cache[ap]:
+            by_proj[root_cache[ap]] = by_proj.get(root_cache[ap], 0) + 1
+    from_edits = bool(by_proj)
+    if from_edits:
+        project_root = max(by_proj, key=lambda k: by_proj[k])
+    else:
+        project_root = resolve_project_root(cwd) or cwd
+
+    det = detect_modules(project_root)
+    module = None
+    module_ambiguous = False
+    edits_by_module = {}
+    if det["multi"] and det["modules"]:
+        prefixes = [(m["name"], os.path.abspath(m["path"]) + os.sep) for m in det["modules"]]
+        for ap in abs_paths:
+            for name, prefix in prefixes:
+                if ap.startswith(prefix):
+                    edits_by_module[name] = edits_by_module.get(name, 0) + 1
+                    break
+        if edits_by_module:
+            module = max(edits_by_module, key=lambda k: edits_by_module[k])
+            # empate no topo (ex: 2 módulos com a mesma contagem) = ambíguo → a skill pergunta
+            top = sorted(edits_by_module.values(), reverse=True)
+            module_ambiguous = len(top) >= 2 and top[0] == top[1]
+
+    claude_dir = os.path.join(project_root, ".claude")
+    handoff = os.path.join(
+        claude_dir, "HANDOFF-%s.md" % slugify_module(module) if module else "HANDOFF.md")
+    return {
+        "project_root": project_root,
+        "module": module,
+        "multi": det["multi"],
+        "modules": [m["name"] for m in det["modules"]],
+        "handoff_path": handoff,
+        # from_edits=False → o projeto-raiz foi chutado pelo cwd (sessão sem edits);
+        # is_boundary=False → o cwd nem é fronteira de projeto (pasta guarda-chuva).
+        # A skill usa os dois pra decidir se confirma o destino com o Pedro.
+        "from_edits": from_edits,
+        "project_root_is_boundary": _is_project_root(project_root),
+        "module_ambiguous": module_ambiguous,
+        "edits_by_project": by_proj,
+        "edits_by_module": edits_by_module,
+        "reason": det["reason"],
+    }
+
+
+def write_gate_sentinel(session_id, scope, manifest_path=None):
+    """Bilhete por-sessão pro gate achar o handoff + manifest REAIS (não derivados).
+
+    Gravar o manifest_path explícito (em vez de o gate adivinhar
+    {project_root}/.claude/ata/manifest-<sid>.json) deixa o vínculo robusto a
+    --out-dir custom e a qualquer divergência de localização.
+    """
+    if not session_id:
+        return
+    try:
+        with open("/tmp/claude-handoff-target-%s" % session_id, "w") as fh:
+            json.dump({"project_root": scope.get("project_root"),
+                       "handoff_path": scope.get("handoff_path"),
+                       "manifest_path": manifest_path,
+                       "module": scope.get("module")}, fh)
+    except OSError:
+        pass
+
+
 def read_jsonl(path):
     out = []
     try:
@@ -70,8 +318,23 @@ def read_jsonl(path):
     return out
 
 
-def discover_transcript(cwd):
-    """Sentinel do hook de discovery primeiro; fallback = .jsonl mais recente do cwd."""
+def discover_transcript(cwd, session_id=None):
+    """sid-first (determinístico) → sentinel por-cwd → .jsonl mais recente do cwd.
+
+    Com várias sessões no mesmo cwd (monorepo), o sentinel por-cwd e o "mais
+    recente" são corridas. O session_id (= nome do .jsonl, único global) resolve
+    sem ambiguidade quando a skill o passa via --session "$CLAUDE_CODE_SESSION_ID".
+    """
+    # 1) sid explícito: o nome do .jsonl É o session_id
+    if session_id:
+        if cwd:
+            cand = os.path.join(cwd_to_projects_subdir(cwd), "%s.jsonl" % session_id)
+            if os.path.exists(cand):
+                return cand, session_id
+        hits = glob.glob(os.path.join(PROJECTS_DIR, "*", "%s.jsonl" % session_id))
+        if hits:
+            return hits[0], session_id
+    # 2) legado: sentinel por-cwd do hook de discovery
     if cwd:
         h = hashlib.sha1(cwd.encode("utf-8")).hexdigest()[:12]
         sentinel = f"/tmp/claude-ata-session-{h}"
@@ -83,6 +346,7 @@ def discover_transcript(cwd):
                 return tp, data.get("session_id")
         except (OSError, json.JSONDecodeError):
             pass
+        # 3) fallback: .jsonl mais recente do cwd
         sub = cwd_to_projects_subdir(cwd)
         cands = sorted(glob.glob(os.path.join(sub, "*.jsonl")), key=os.path.getmtime, reverse=True)
         if cands:
@@ -331,17 +595,32 @@ def main():
     ap.add_argument("--session", default=None)
     ap.add_argument("--cwd", default=os.getcwd())
     ap.add_argument("--auto", action="store_true", help="descobre transcript + agrega clã")
+    ap.add_argument("--detect-workspace", action="store_true",
+                    help="só detecta o workspace do --cwd e imprime o JSON (debug)")
     ap.add_argument("--out-log", default=None)
     ap.add_argument("--out-manifest", default=None)
     ap.add_argument("--out-dir", default=None,
-                    help="diretório onde gravar LOG-<sid>.md e manifest-<sid>.json (nomeados após descobrir o sid)")
+                    help="diretório do LOG/manifest. Se ausente, deriva do projeto-raiz resolvido pelos edits.")
     ap.add_argument("--quiet", action="store_true")
     args = ap.parse_args()
+
+    # Modo debug: detecta o workspace do cwd e sai (não toca em transcript).
+    if args.detect_workspace:
+        cwd = os.path.abspath(args.cwd)
+        if _is_project_root(cwd):
+            out = {"cwd": cwd, "project_root": cwd, **detect_modules(cwd)}
+        else:
+            out = {"cwd": cwd, "project_root": None,
+                   "note": "cwd não é fronteira de projeto (guarda-chuva); o escopo real "
+                           "sai de infer_scope pelos arquivos editados",
+                   **detect_modules(cwd)}
+        print(json.dumps(out, ensure_ascii=False, indent=2))
+        return 0
 
     transcripts = list(args.transcript)
     session_id = args.session
     if args.auto and not transcripts:
-        tp, sid = discover_transcript(args.cwd)
+        tp, sid = discover_transcript(args.cwd, session_id)
         if not tp:
             print("ERRO: não encontrei o transcript da sessão (sentinel ausente e nenhum .jsonl no cwd).",
                   file=sys.stderr)
@@ -357,15 +636,6 @@ def main():
         return 2
     session_id = session_id or os.path.splitext(os.path.basename(transcripts[0]))[0]
 
-    # Resolve paths de saída. --out-dir nomeia os arquivos a partir do session_id descoberto.
-    out_log, out_manifest = args.out_log, args.out_manifest
-    if args.out_dir:
-        out_log = out_log or os.path.join(args.out_dir, f"LOG-{session_id}.md")
-        out_manifest = out_manifest or os.path.join(args.out_dir, f"manifest-{session_id}.json")
-    if not out_log or not out_manifest:
-        print("ERRO: informe --out-dir OU (--out-log e --out-manifest).", file=sys.stderr)
-        return 2
-
     all_items = []
     all_records = []
     stats = {"transcripts": len(transcripts), "records": 0}
@@ -376,6 +646,18 @@ def main():
         tag = "self" if idx == 0 else f"teammate:{os.path.splitext(os.path.basename(tp))[0][:8]}"
         all_items.extend(collect(recs, tag))
 
+    # Escopo: projeto-raiz dominante dos arquivos editados + módulo (se monorepo).
+    scope = infer_scope(collect_edited_paths(all_records), args.cwd)
+
+    # Resolve paths de saída. --out-dir explícito vence; senão deriva do projeto-raiz
+    # (LOG/manifest ficam junto do handoff, em {project_root}/.claude/ata).
+    out_dir = args.out_dir or os.path.join(scope["project_root"], ".claude", "ata")
+    out_log = args.out_log or os.path.join(out_dir, f"LOG-{session_id}.md")
+    out_manifest = args.out_manifest or os.path.join(out_dir, f"manifest-{session_id}.json")
+
+    # Bilhete por-sessão pro gate, com o manifest REAL (não derivado).
+    write_gate_sentinel(session_id, scope, out_manifest)
+
     log_md, manifest = build(all_items, session_id)
     prospective = build_prospective(all_records, all_items)
 
@@ -385,7 +667,7 @@ def main():
         fh.write(log_md + "\n")
     manifest_doc = {"session": session_id, "transcripts": transcripts,
                     "generated_unix": int(time.time()), "log_path": out_log,
-                    "prospective": prospective, "items": manifest}
+                    "scope": scope, "prospective": prospective, "items": manifest}
     with open(out_manifest, "w", encoding="utf-8") as fh:
         json.dump(manifest_doc, fh, ensure_ascii=False, indent=2)
 
@@ -396,7 +678,7 @@ def main():
     if not args.quiet:
         print(json.dumps({"session": session_id, **stats, "items_total": len(manifest),
                           "by_kind": by_kind, "gate_items": gate_items,
-                          "prospective": prospective,
+                          "scope": scope, "prospective": prospective,
                           "log_path": out_log, "manifest_path": out_manifest},
                          ensure_ascii=False, indent=2))
     return 0
