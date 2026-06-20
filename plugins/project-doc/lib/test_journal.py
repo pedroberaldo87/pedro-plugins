@@ -425,6 +425,33 @@ def test_journal_cycle():
     shutil.rmtree(T, ignore_errors=True)
 
 
+# ---------------------------------------------------------------------------
+def test_scrubber_jwt():
+    print("\n== scrubber — JWT (classe do PRD que estava sem fixture) ==")
+    # canário bem-formado (header.payload.signature); NÃO é token real.
+    jwt = ("eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9."
+           "eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkNhbmFyaW8ifQ."
+           "s1gn4tur3CanarioDummyABCDEF0123")
+    payload = "eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkNhbmFyaW8ifQ"
+
+    # (a) JWT após palavra-sinal → corpo some e vira ‹cofre:JWT:…›
+    s, _ = journal.scrub("o token de sessão é " + jwt + " e expira amanhã")
+    check("JWT: payload não sobrevive", payload not in s)
+    check("JWT: vira placeholder de cofre JWT", "‹cofre:JWT:" in s)
+
+    # (a2) JWT isolado, SEM palavra-sinal por perto → a camada 1 (JWT_RE) pega sozinha
+    s, _ = journal.scrub("deploy log: " + jwt + " fim")
+    check("JWT: redigido sem depender de palavra-sinal", jwt not in s and "‹cofre:JWT:" in s)
+
+    # (b) fronteira: 'eyJ' curto sem os 3 segmentos NÃO é JWT → preservado intacto
+    s, _ = journal.scrub("o id eyJabc não é um token completo")
+    check("quase-JWT curto preservado (não casa JWT_RE)", "eyJabc" in s and "‹" not in s)
+
+    # (b2) fronteira: 2 segmentos (falta a assinatura) não vira ‹cofre:JWT› — JWT_RE exige 3
+    s, _ = journal.scrub("header eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxMjM0NTYifQ sem assinatura")
+    check("2-segmentos não vira ‹cofre:JWT› (regex exige 3)", "‹cofre:JWT:" not in s)
+
+
 if __name__ == "__main__":
     test_scrubber()
     test_scrubber_r2()
@@ -433,6 +460,7 @@ if __name__ == "__main__":
     test_scrubber_r5()
     test_scrubber_r6()
     test_scrubber_r7()
+    test_scrubber_jwt()
     test_curate_scrub()
     test_orphan_commit()
     test_engine_robust()
