@@ -33,6 +33,9 @@ graphify-out/cache/
 # qa-loop — relatórios e telemetria de sessões de review (local, regenerável)
 .claude/qa-loop/
 
+# project-doc — backups da doc antes de re-mineração (o journal/ledger em .project-doc/ SÃO versionados; só os backups não)
+.claude/.project-doc/backups/
+
 # Artefatos efêmeros de sessão (regeneráveis, local only)
 .playwright-mcp/
 .claude/visual/

@@ -125,7 +125,7 @@
       "source": "./plugins/project-doc",
       "description": "Generate a structured documentation system from ALL project evidence — files, handoffs, memory, graph, git log, and session transcripts — kept in a versioned append-only journal and projected into a CLAUDE.md index + .claude/docs/*.md + thin pointers. A scrubber moves secrets to a vault, never to git. Delta/--deep/--rebuild, monorepo layouts, a doc-first guard hook, post-generation verification, and stale-artifact cleanup.",
       "category": "productivity",
-      "version": "3.2.0",
+      "version": "3.3.0",
       "tags": [
         "documentation",
         "claude-md",

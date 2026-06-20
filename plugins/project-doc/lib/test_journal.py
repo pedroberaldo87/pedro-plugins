@@ -9,7 +9,11 @@ a colisão de id (64 chars), o self_path_match e a validação de invalidate/cur
 Self-contained: repo git temporário + cofre em /tmp via PROJECT_DOC_COFRE_DIR.
 Roda com:  python3 plugins/project-doc/lib/test_journal.py
 """
-import os, sys, shutil, subprocess, json, tempfile
+import json
+import os
+import shutil
+import subprocess
+import sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
@@ -379,13 +383,17 @@ def test_journal_cycle():
     shutil.rmtree(T, ignore_errors=True)
     os.makedirs(os.path.join(T, ".claude"))
     journal.state_dir = lambda pr: os.path.join(T, ".claude", ".project-doc")  # estado fora do repo real
-    _git(T, "init", "-q"); _git(T, "config", "user.email", "t@t"); _git(T, "config", "user.name", "t")
+    _git(T, "init", "-q")
+    _git(T, "config", "user.email", "t@t")
+    _git(T, "config", "user.name", "t")
     open(os.path.join(T, "rules.py"), "w").write("rule v1\n")
-    _git(T, "add", "-A"); _git(T, "commit", "-qm", "init rules.py")
+    _git(T, "add", "-A")
+    _git(T, "commit", "-qm", "init rules.py")
     open(os.path.join(T, ".claude", "HANDOFF.md"), "w").write(
         "# Handoff\n## Findings & Gotchas\n"
         "- O hook vai em hooks/hooks.json, nunca na raiz — comportamento ligado a rules.py do projeto\n")
-    _git(T, "add", "-A"); _git(T, "commit", "-qm", "add handoff")
+    _git(T, "add", "-A")
+    _git(T, "commit", "-qm", "add handoff")
 
     r1 = journal.run_update(T)
     check("delta run1 descobre findings", r1["new_events"] >= 3)
@@ -396,9 +404,9 @@ def test_journal_cycle():
 
     # backward via COMMIT: muda rules.py e commita
     open(os.path.join(T, "rules.py"), "w").write("rule v2\n")
-    _git(T, "add", "-A"); _git(T, "commit", "-qm", "change rules.py")
+    _git(T, "add", "-A")
+    _git(T, "commit", "-qm", "change rules.py")
     r3 = journal.run_update(T)
-    new_commit_ids = [e for e in r3["stale_ids"]]
     check("#8 backward não auto-marca a finding de commit nova",
           hf["id"] in r3["stale_ids"]
           and not any(f["raw_kind"] == "commit" and f["source"]["ts"] and f["id"] in r3["stale_ids"]
@@ -419,7 +427,7 @@ def test_journal_cycle():
     check("#14 curate em id inexistente → erro", cur_bad.get("error") is not None)
 
     # journal só cresce: discovered preservado
-    events = [json.loads(l) for l in open(os.path.join(T, ".claude", ".project-doc", "findings.jsonl")) if l.strip()]
+    events = [json.loads(ln) for ln in open(os.path.join(T, ".claude", ".project-doc", "findings.jsonl")) if ln.strip()]
     evs = [e["ev"] for e in events if e.get("id") == hf["id"] or e.get("target") == hf["id"]]
     check("journal só cresce (discovered + invalidated coexistem)", "discovered" in evs and "invalidated" in evs)
     shutil.rmtree(T, ignore_errors=True)
@@ -452,6 +460,38 @@ def test_scrubber_jwt():
     check("2-segmentos não vira ‹cofre:JWT› (regex exige 3)", "‹cofre:JWT:" not in s)
 
 
+def test_adopt():
+    print("\n== adopt — nuance da doc antiga vira finding discovered (scrubbed, idempotente) ==")
+    T = "/tmp/pdtest_adopt"
+    shutil.rmtree(T, ignore_errors=True)
+    os.makedirs(os.path.join(T, ".claude", ".project-doc"))
+    journal.state_dir = lambda pr: os.path.join(T, ".claude", ".project-doc")
+    jpath = os.path.join(T, ".claude", ".project-doc", "findings.jsonl")
+    NUANCE = "o deploy exige rodar a migration antes; DEPLOY_TOKEN=ghp_0123456789abcdefghij0123456789 no env"
+
+    # 1ª adoção: cria um finding novo, passa pelo scrubber
+    r1 = journal.run_adopt(T, NUANCE, raw_kind="doc_nuance")
+    check("adopt cria finding novo (new=True)", r1.get("new") is True and r1.get("id"))
+    body = open(jpath, encoding="utf-8").read()
+    check("adopt NÃO grava secret cru no journal git-tracked", "ghp_0123456789abcdefghij0123456789" not in body)
+    check("adopt grava como evento discovered", '"ev": "discovered"' in body)
+    ev = [json.loads(ln) for ln in open(jpath) if ln.strip()][0]
+    check("adopt: source.type = curated_from_doc", ev["source"]["type"] == "curated_from_doc")
+    st = journal.fold(journal.read_events(T))
+    check("adopt: finding fica vivo", any(f["id"] == r1["id"] for f in journal.live_findings(st)))
+
+    # idempotência: mesmo texto → não duplica evento, new=False
+    r2 = journal.run_adopt(T, NUANCE, raw_kind="doc_nuance")
+    check("adopt idempotente (mesmo texto → new=False, mesmo id)", r2.get("new") is False and r2["id"] == r1["id"])
+    body2 = open(jpath, encoding="utf-8").read()
+    check("adopt idempotente não duplica o discovered", body2.count('"ev": "discovered"') == 1)
+
+    # texto vazio → erro, não grava nada
+    r3 = journal.run_adopt(T, "   ", raw_kind="doc_nuance")
+    check("adopt texto vazio → erro", r3.get("error") is not None)
+    shutil.rmtree(T, ignore_errors=True)
+
+
 if __name__ == "__main__":
     test_scrubber()
     test_scrubber_r2()
@@ -461,6 +501,7 @@ if __name__ == "__main__":
     test_scrubber_r6()
     test_scrubber_r7()
     test_scrubber_jwt()
+    test_adopt()
     test_curate_scrub()
     test_orphan_commit()
     test_engine_robust()
