@@ -36,3 +36,6 @@ graphify-out/cache/
 # Artefatos efêmeros de sessão (regeneráveis, local only)
 .playwright-mcp/
 .claude/visual/
+
+# project-doc — estado interno do gerador (journal/ledger, regenerável via --rebuild; o OUTPUT CLAUDE.md/docs é versionado)
+.claude/.project-doc/
