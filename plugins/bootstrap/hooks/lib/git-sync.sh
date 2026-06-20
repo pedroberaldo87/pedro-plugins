@@ -15,7 +15,7 @@
 set -uo pipefail
 
 PEDRO_PLUGINS_REPO="${PEDRO_PLUGINS_REPO:-$HOME/PROGRAMACAO/PEDRO/pedro-plugins}"
-MANIFEST_REL="plugins/bootstrap-third-party/skills/bootstrap-third-party/manifest.json"
+MANIFEST_REL="plugins/bootstrap/config/manifest.json"
 COMMIT_MSG="${1:-chore(plugins): snapshot @ $(hostname -s) $(date +%Y-%m-%d)}"
 
 log() { echo "[pedro-plugins/git-sync] $*" >&2; }

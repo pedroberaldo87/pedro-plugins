@@ -32,11 +32,11 @@ set -uo pipefail
 PEDRO_PLUGINS_REPO="${PEDRO_PLUGINS_REPO:-$HOME/PROGRAMACAO/PEDRO/pedro-plugins}"
 KNOWN_MARKETPLACES="$HOME/.claude/plugins/known_marketplaces.json"
 
-REL_MANIFEST="skills/bootstrap-third-party/manifest.json"
-SOURCE_MANIFEST="$PEDRO_PLUGINS_REPO/plugins/bootstrap-third-party/$REL_MANIFEST"
+REL_MANIFEST="config/manifest.json"
+SOURCE_MANIFEST="$PEDRO_PLUGINS_REPO/plugins/bootstrap/$REL_MANIFEST"
 HOOK_MANIFEST="${CLAUDE_PLUGIN_ROOT:-}/$REL_MANIFEST"
 SCRIPT_MANIFEST="$(cd "$(dirname "$0")/../.." 2>/dev/null && pwd)/$REL_MANIFEST"
-MKT_CACHE_MANIFEST="$HOME/.claude/plugins/marketplaces/pedro-plugins/plugins/bootstrap-third-party/$REL_MANIFEST"
+MKT_CACHE_MANIFEST="$HOME/.claude/plugins/marketplaces/pedro-plugins/plugins/bootstrap/$REL_MANIFEST"
 
 log() { echo "[pedro-plugins/apply] $*" >&2; }
 info() { echo "[pedro-plugins/apply] $*"; }
@@ -56,7 +56,7 @@ done
 
 # Last resort: glob the plugin cache (handles path-source marketplaces)
 if [ -z "$MANIFEST" ]; then
-  for candidate in "$HOME"/.claude/plugins/cache/pedro-plugins/bootstrap-third-party/*/$REL_MANIFEST; do
+  for candidate in "$HOME"/.claude/plugins/cache/pedro-plugins/bootstrap/*/$REL_MANIFEST; do
     if [ -f "$candidate" ]; then
       MANIFEST="$candidate"
       break
@@ -70,7 +70,7 @@ if [ -z "$MANIFEST" ]; then
   log "  hook:         $HOOK_MANIFEST"
   log "  script:       $SCRIPT_MANIFEST"
   log "  mkt-cache:    $MKT_CACHE_MANIFEST"
-  log "  plugin-cache: ~/.claude/plugins/cache/pedro-plugins/bootstrap-third-party/*/$REL_MANIFEST"
+  log "  plugin-cache: ~/.claude/plugins/cache/pedro-plugins/bootstrap/*/$REL_MANIFEST"
   exit 255
 fi
 

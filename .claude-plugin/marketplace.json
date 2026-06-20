@@ -9,15 +9,16 @@
   },
   "plugins": [
     {
-      "name": "bootstrap-third-party",
-      "source": "./plugins/bootstrap-third-party",
-      "description": "Auto-sync third-party Claude Code marketplaces + plugins across machines via git hooks",
+      "name": "bootstrap",
+      "source": "./plugins/bootstrap",
+      "description": "Bootstrap a new machine to Pedro's Claude Code setup — auto-syncs marketplaces and plugins via hooks AND applies the versioned global config (env, permissions, flags, global CLAUDE.md, machine-resolved statusLine). Run /bootstrap:setup once per machine. Replaces bootstrap-third-party.",
       "category": "productivity",
-      "version": "0.1.3",
+      "version": "1.0.0",
       "tags": [
         "sync",
         "bootstrap",
         "plugins",
+        "config",
         "automation"
       ]
     },

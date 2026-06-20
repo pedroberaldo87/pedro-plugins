@@ -2,7 +2,7 @@
 # snapshot.sh — regenerates manifest.json from current Claude Code state.
 #
 # Reads: `claude plugin list`, `claude plugin marketplace list`
-# Writes: $PEDRO_PLUGINS_REPO/plugins/bootstrap-third-party/skills/bootstrap-third-party/manifest.json
+# Writes: $PEDRO_PLUGINS_REPO/plugins/bootstrap/config/manifest.json
 #
 # Only runs if source repo exists. Silent no-op otherwise.
 # Filters out `pedro-plugins` from the auto-generated section (never self-sync
@@ -18,7 +18,7 @@
 set -euo pipefail
 
 PEDRO_PLUGINS_REPO="${PEDRO_PLUGINS_REPO:-$HOME/PROGRAMACAO/PEDRO/pedro-plugins}"
-MANIFEST_PATH="$PEDRO_PLUGINS_REPO/plugins/bootstrap-third-party/skills/bootstrap-third-party/manifest.json"
+MANIFEST_PATH="$PEDRO_PLUGINS_REPO/plugins/bootstrap/config/manifest.json"
 KNOWN_MARKETPLACES="$HOME/.claude/plugins/known_marketplaces.json"
 
 log() { echo "[pedro-plugins/snapshot] $*" >&2; }
@@ -105,7 +105,7 @@ NEW_MANIFEST="$(jq -n \
   --argjson preservedPedro "$PRESERVED_PEDRO_ENTRY" \
   '{
     version: 1,
-    description: "Third-party Claude Code marketplaces and plugins Pedro uses. Auto-synced via bootstrap-third-party hooks. The pedro-plugins entry is manually maintained and preserved across snapshots.",
+    description: "Third-party Claude Code marketplaces and plugins Pedro uses. Auto-synced via bootstrap hooks. The pedro-plugins entry is manually maintained and preserved across snapshots.",
     marketplaces: (
       $preservedPedro + (
         $marketplaces[0]
