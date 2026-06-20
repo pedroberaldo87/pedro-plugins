@@ -9,10 +9,12 @@
 # - ESLint and tsc searches are independent (different roots possible)
 # - Python: ruff for lint, mypy for types (both optional)
 #
-# Portability: jq is resolved via PATH (falls back to the Apple-Silicon brew
-# path) so the hook works on any machine, not just the one it was authored on.
+# Portability: jq is resolved via PATH. If it isn't there, the hook fails OPEN
+# (exit 0) instead of falling back to a macOS-only path — a missing linter must
+# never block an edit, and we don't assume any particular install location.
 
-JQ="$(command -v jq || echo /opt/homebrew/bin/jq)"
+JQ="$(command -v jq)"
+[ -z "$JQ" ] && exit 0   # no jq → fail-open, don't block the edit
 
 INPUT=$(cat)
 FILE_PATH=$(echo "$INPUT" | "$JQ" -r '.tool_input.file_path // empty')
@@ -40,8 +42,11 @@ if [[ "$FILE_PATH" =~ \.(ts|tsx|js|jsx|mjs|cjs)$ ]]; then
   done
 
   if [ -n "$ESLINT_BIN" ]; then
-    LINT_OUTPUT=$("$ESLINT_BIN" "$FILE_PATH" --no-warn-ignored 2>&1 | head -30)
-    if [ $? -ne 0 ] && [ -n "$LINT_OUTPUT" ]; then
+    # Capture the linter's exit code BEFORE the pipe — `$(cmd | head)` would
+    # report head's status (always 0), so the error block never fired.
+    LINT_RAW=$("$ESLINT_BIN" "$FILE_PATH" --no-warn-ignored 2>&1); RC=$?
+    LINT_OUTPUT=$(printf '%s\n' "$LINT_RAW" | head -30)
+    if [ "$RC" -ne 0 ] && [ -n "$LINT_OUTPUT" ]; then
       ERRORS="${ERRORS}--- ESLint ---\n${LINT_OUTPUT}\n\n"
     fi
   fi
@@ -75,8 +80,9 @@ if [[ "$FILE_PATH" =~ \.(ts|tsx|js|jsx|mjs|cjs)$ ]]; then
   done
 
   if [ -n "$TSC_BIN" ] && [ -n "$TSC_CONFIG" ]; then
-    TSC_OUTPUT=$(cd "$TSC_ROOT" && "$TSC_BIN" --noEmit -p "$TSC_CONFIG" --pretty 2>&1 | head -30)
-    if [ $? -ne 0 ] && [ -n "$TSC_OUTPUT" ]; then
+    TSC_RAW=$(cd "$TSC_ROOT" && "$TSC_BIN" --noEmit -p "$TSC_CONFIG" --pretty 2>&1); RC=$?
+    TSC_OUTPUT=$(printf '%s\n' "$TSC_RAW" | head -30)
+    if [ "$RC" -ne 0 ] && [ -n "$TSC_OUTPUT" ]; then
       ERRORS="${ERRORS}--- TypeScript ---\n${TSC_OUTPUT}\n"
     fi
   fi
@@ -89,8 +95,9 @@ if [[ "$FILE_PATH" =~ \.py$ ]]; then
 
   # --- Ruff: lint ---
   if command -v ruff &>/dev/null; then
-    RUFF_OUTPUT=$(ruff check "$FILE_PATH" 2>&1 | head -30)
-    if [ $? -ne 0 ] && [ -n "$RUFF_OUTPUT" ]; then
+    RUFF_RAW=$(ruff check "$FILE_PATH" 2>&1); RC=$?
+    RUFF_OUTPUT=$(printf '%s\n' "$RUFF_RAW" | head -30)
+    if [ "$RC" -ne 0 ] && [ -n "$RUFF_OUTPUT" ]; then
       ERRORS="${ERRORS}--- Ruff ---\n${RUFF_OUTPUT}\n\n"
     fi
   fi
@@ -107,8 +114,9 @@ if [[ "$FILE_PATH" =~ \.py$ ]]; then
   done
 
   if [ "$HAS_MYPY_CONFIG" = true ] && command -v mypy &>/dev/null; then
-    MYPY_OUTPUT=$(mypy "$FILE_PATH" --no-error-summary 2>&1 | head -30)
-    if [ $? -ne 0 ] && [ -n "$MYPY_OUTPUT" ]; then
+    MYPY_RAW=$(mypy "$FILE_PATH" --no-error-summary 2>&1); RC=$?
+    MYPY_OUTPUT=$(printf '%s\n' "$MYPY_RAW" | head -30)
+    if [ "$RC" -ne 0 ] && [ -n "$MYPY_OUTPUT" ]; then
       ERRORS="${ERRORS}--- Mypy ---\n${MYPY_OUTPUT}\n"
     fi
   fi

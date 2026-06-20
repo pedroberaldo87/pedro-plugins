@@ -28,11 +28,15 @@ Three entries in `~/.claude/settings.json` → `.hooks`, all pointing at scripts
 
 ## Steps
 
-### 1. Sanity-check the file exists and is valid JSON
+### 1. Prerequisite + sanity-check
+
+Requires `jq` on PATH (`brew install jq` on macOS). Make sure `~/.claude` exists and the settings file is valid JSON:
 
 ```bash
+command -v jq >/dev/null || { echo "jq not found — install it (brew install jq) and re-run"; exit 1; }
+mkdir -p "$HOME/.claude"
 SETTINGS="$HOME/.claude/settings.json"
-jq . "$SETTINGS" > /dev/null || { echo "settings.json is not valid JSON — aborting"; exit 1; }
+[ -f "$SETTINGS" ] && { jq . "$SETTINGS" > /dev/null || { echo "settings.json is not valid JSON — aborting"; exit 1; }; }
 ```
 
 ### 2. Back it up
@@ -68,7 +72,7 @@ jq '
 
   | if (.hooks.PostToolUse // []) == [] then del(.hooks.PostToolUse) else . end
   | if (.hooks.PreToolUse  // []) == [] then del(.hooks.PreToolUse)  else . end
-' "$SETTINGS" > "$SETTINGS.tmp" && mv "$SETTINGS.tmp" "$SETTINGS"
+' "$SETTINGS" > "$SETTINGS.tmp" && mv "$SETTINGS.tmp" "$SETTINGS" || { rm -f "$SETTINGS.tmp"; echo "transform falhou — settings.json intacto, .tmp removido"; exit 1; }
 ```
 
 > Note on `any/2`: `any(generator; condition)` runs `condition` against each output of `generator`. Here the input is the entry's `.hooks` array, the generator `.[]` yields each individual hook object, and the condition inspects that hook's `.command` / `.prompt`. So an entry is dropped when **any** of its `hooks[]` looks like one of the old migrated hooks. (Using `.command` directly as the generator would try to index the array itself — wrong.)
@@ -97,6 +101,6 @@ Tell the user, in plain language:
 - `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1` is set.
 - A timestamped backup of `settings.json` was made.
 - Run `/reload-plugins` (or restart Claude Code) so the plugin's hooks load and the removed settings-hooks stop firing.
-- Quick check that they're live: `claude plugin details guardrails@pedro-plugins` should show **Hooks (3)**.
+- Quick check that they're live: `claude plugin details guardrails@pedro-plugins` should show **Hooks (2)**. That number counts EVENT types (PostToolUse + PreToolUse), not individual hooks — the plugin has 3 hooks total (1 PostToolUse + 2 PreToolUse), so **Hooks (2)** is correct and means they loaded. `Hooks (0)` would mean a problem (hooks.json not picked up).
 
 **Do not** delete the old scripts in `~/.claude/hooks/` automatically — leave that to the user.
