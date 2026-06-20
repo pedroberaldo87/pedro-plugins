@@ -56,12 +56,22 @@ echo "$CURRENT" | "$JQ" --slurpfile d "$DEFAULTS" '
   | .language = ($def.language // $cur.language)
   | .theme = ($def.theme // $cur.theme)
   | .autoCompactEnabled = (if ($def.autoCompactEnabled != null) then $def.autoCompactEnabled else $cur.autoCompactEnabled end)
+  | .permissions |= (if .defaultMode == null then del(.defaultMode) else . end)
+  | (if .language == null then del(.language) else . end)
+  | (if .theme == null then del(.theme) else . end)
+  | (if .autoCompactEnabled == null then del(.autoCompactEnabled) else . end)
 ' > "$SETTINGS.tmp" && mv "$SETTINGS.tmp" "$SETTINGS" || { rm -f "$SETTINGS.tmp"; echo "[bootstrap/config] merge falhou — settings.json intacto"; exit 1; }
 echo "[bootstrap/config] ✓ settings.json: env + permissions (union) + flags aplicados"
 
 # --- 2. Resolve statusLine to the context-guard writer on THIS machine ---
-CG_GLOB="${CLAUDE_CONFIG_DIR:-$HOME/.claude}/plugins/cache/pedro-plugins/context-guard/*/hooks/context-guard-writer.sh"
-CG_RESOLVED="$(ls -d $CG_GLOB 2>/dev/null | tail -1)"
+# nullglob loop (not `ls -d $glob`): survives no-match (no literal `*`) and paths
+# with spaces; last iteration wins = latest version dir (glob sorts ascending).
+CG_RESOLVED=""
+shopt -s nullglob 2>/dev/null
+for f in "${CLAUDE_CONFIG_DIR:-$HOME/.claude}"/plugins/cache/pedro-plugins/context-guard/*/hooks/context-guard-writer.sh; do
+  CG_RESOLVED="$f"
+done
+shopt -u nullglob 2>/dev/null
 if [ -z "$CG_RESOLVED" ] && [ -n "${PEDRO_PLUGINS_REPO:-}" ] && [ -f "$PEDRO_PLUGINS_REPO/plugins/context-guard/hooks/context-guard-writer.sh" ]; then
   CG_RESOLVED="$PEDRO_PLUGINS_REPO/plugins/context-guard/hooks/context-guard-writer.sh"
 fi
