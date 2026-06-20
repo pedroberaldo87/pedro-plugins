@@ -16,6 +16,10 @@
 *.tmp
 *.orig
 
+# Python
+__pycache__/
+*.pyc
+
 # Local overrides
 .env
 .env.local
@@ -24,3 +28,4 @@
 graphify-out/.graphify_python
 graphify-out/.graphify_root
 graphify-out/cache/
+.claude/secrets/

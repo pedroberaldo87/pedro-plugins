@@ -3,11 +3,15 @@ name: project-doc
 description: "Use when entering a project without CLAUDE.md, after major structural changes, or when the user says \"project-doc\", \"documenta\", \"documentar\", \"documenta o projeto\", \"gera o claude.md\", \"atualiza o claude.md\", \"limpa os artefatos\", \"limpa os prints\", \"limpa o projeto\", \"arquiva protótipos\", or runs \"/project-doc clean\". Generates a modular documentation system (lightweight CLAUDE.md routing table + .claude/docs/*.md per concern + thin pointers for other AI tools) and detects/cleans up stale test artifacts (screenshots, runner output, temp files)."
 ---
 
-# Project Doc v2 — Documentation System Generator
+# Project Doc v3 — Documentation System Generator
 
 ## Overview
 
-Generates a **documentation system** for a project, not a single file. The system has three layers:
+Generates a **documentation system** for a project, not a single file.
+
+**v3 em uma frase:** a doc deixa de ser file-scanner cego e passa a derivar de **toda evidência que o projeto tem** — arquivos, handoffs, memória, grafo, git log e os **transcripts das sessões** — guardando tudo num journal append-only versionado, projetando só o que está vivo e verdadeiro, sem nunca vazar um secret pro git. **A estrutura de saída é idêntica à v2** (markers `project-doc:v2` preservados): mudam a FONTE (cascata de 5 tiers — ver **Sources**) e o MOTOR (journal + projeção — ver **Collect & Project**). Quem conhece a doc v2 não vê diferença estrutural, só uma doc mais completa e auto-mantida.
+
+The system has three layers:
 
 1. **CLAUDE.md** — lightweight routing table (~60-100 lines). Always loaded in context. Contains: project identity, stack one-liner, quick commands, top gotchas, and a documentation index with "→ read when" hints
 2. **`.claude/docs/*.md`** — detailed docs per concern (architecture, database, API, deploy, etc.). Loaded on-demand when Claude needs them for the current task
@@ -36,6 +40,8 @@ The skill accepts an optional argument to control scope:
 - `/project-doc migrate` — migrate v1 monolithic CLAUDE.md → v2 indexed format (see Migration section)
 - `/project-doc verify` — run verification only, no generation
 - `/project-doc clean` — detect, **cluster**, and offer cleanup/archival of stale test artifacts (see Artifact Cleanup). Nothing is removed without confirmation. Runs standalone (no doc regeneration).
+- `/project-doc --deep` — **DEEP**: como o FULL, mas o tier 4 minera **TODAS** as sessões de transcript do projeto (cold-start / backfill do histórico de conversas), não só o delta. Pesado — rode pro primeiro mergulho completo.
+- `/project-doc --rebuild` — **REBUILD**: descarta a doc gerada e re-projeta do **journal inteiro** (`findings.jsonl`). Idempotente; não minera nada novo — só re-deriva a doc dos findings vivos.
 
 Doc names map directly to `.claude/docs/{arg}.md`. If the argument doesn't match a known doc name, treat it as a full run and warn the user.
 
@@ -52,7 +58,7 @@ Report each step to the user as you execute. Don't skip steps or batch them sile
 **Step 4/12:** Package manager → pnpm | yarn | bun | npm
 **Step 5/12:** Mode → FULL | MIGRATE (v1→v2 detected) | CREATE (no CLAUDE.md)
 **Step 6/12:** CLAUDE.md → v1 markers (will migrate) | v2 index (will update) | none (will create)
-**Step 7/12:** Scanning... (list key files read per doc target)
+**Step 7/12:** Collecting → tier 1 scan (key files per doc) + `journal.py` tiers 2-4 → {new_events, live_count, stale}
 **Step 8/12:** Generating docs → {list of .claude/docs/*.md to create/update, with line counts}
 **Step 9/12:** Writing CLAUDE.md index → {N lines}
 **Step 10/12:** Pointer files → {list created/updated/skipped}
@@ -106,16 +112,18 @@ Report each step to the user as you execute. Don't skip steps or batch them sile
    - If argument is a doc name → INCREMENTAL mode (skip to step 6, scan only that doc's sources)
    - If no argument and v1 markers found (`<!-- project-doc:start -->`) → auto-trigger MIGRATE, then FULL
    - If no argument → FULL mode
-6. **Scan project files** using the Detection Matrix below.
-   - **FULL mode:** scan everything
-   - **INCREMENTAL mode:** scan only the source files mapped to the target doc
+6. **Collect from the 5-tier source cascade** (see **Sources** + **Collect & Project**). Tier 1 = scan files via the Detection Matrix below; tiers 2-4 = run the lib (`journal.py`); tier 5 = ask the human for critical gaps.
+   - **FULL mode:** scan everything (tier 1) + `journal.py update` (tiers 2-4, delta)
+   - **DEEP mode:** tier 1 + `journal.py deep` (minera TODAS as sessões — cold-start)
+   - **REBUILD mode:** pula a mineração; `journal.py rebuild` re-projeta do journal existente
+   - **INCREMENTAL mode:** scan only the source files mapped to the target doc (tier 1); o journal já carrega os findings das outras fontes
    - For monorepos, also scan each app directory (see Monorepo-Specific Detection)
    - **Monorepo CRITICAL RULE:** NEVER carry forward app entries from existing docs. Every app must be regenerated from disk. For each app directory found in `apps/`:
      - Read `apps/{name}/requirements.txt` or `package.json` (full content)
      - Read `apps/{name}/main.py` or main entry file (full content, or at minimum the imports + route definitions)
      - Read `apps/{name}/.env.example` if it exists
    - Skipping any app file read is a process violation. There are no shortcuts.
-7. **Determine which docs to generate** based on detection results. A doc file is generated only if its detection found substantive content.
+7. **Project the live findings + tier-1 scan into doc sections** (see **Collect & Project** — relevância, kind→seção, reconciliação contra o código atual), then **determine which docs to generate** based on the projected results. A doc file is generated only if its detection/projection found substantive content.
    - **Inline threshold:** if a section would produce ≤5 lines of content, keep it inline in the CLAUDE.md index instead of creating a separate doc file. This prevents tiny projects from getting 8 doc files with 3 lines each.
    - Map detection results → doc files (see Detection Matrix)
 8. **Generate `.claude/docs/*.md`** — each doc with YAML frontmatter and content from its template (see Doc File Templates). Create `.claude/docs/` directory if needed.
@@ -134,7 +142,19 @@ Report each step to the user as you execute. Don't skip steps or batch them sile
     - Stale test artifacts detected: {N} ({breakdown}). Offer `/project-doc clean` (see Artifact Cleanup) — detect & report only, never delete here
     - Ask: "Quer preencher os TODOs agora?"
 
-## Detection Matrix
+## Sources — cascata de 5 tiers (v3)
+
+v2 documentava só a partir de **arquivos**. v3 colhe de TODA a evidência do projeto, em cascata ordenada por densidade/custo. Cada tier alimenta os MESMOS campos dos templates v2 (`## Decisões de Arquitetura`, `## Gotchas`, etc.) — a estrutura de saída é idêntica; muda a fonte e o motor.
+
+- **Tier 1 — Arquivos** (a Detection Matrix abaixo): stack, deps, rotas, schema, config. Custo baixo. É o scan que a v2 já fazia. Vive **nesta skill** (julgamento de leitura).
+- **Tier 2 — Destilado pronto:** `.claude/HANDOFF*.md`, `memory/*.md`, `graphify-out/`, `.claude/ata/`. Decisões/gotchas já mastigados. Colhido pelo lib (`journal.py`).
+- **Tier 3 — git log:** o "porquê" das mudanças (mensagens de commit + arquivos tocados, que viram âncoras). Colhido pelo lib.
+- **Tier 4 — Transcripts:** as sessões `.jsonl` de **todos os slugs sob o projeto** — direcionamentos, rejeições, decisões que nunca viraram arquivo. Custo alto. Colhido pelo lib via a engine compartilhada (`collect_engine.py`).
+- **Tier 5 — O humano:** lacuna crítica sem fonte (ex: host SSH que não está em arquivo nenhum) → **pergunte ao Pedro**, em vez de marcar `[TODO]` e seguir. Vive **nesta skill**.
+
+Tiers 2-4 são **mecânicos** e vivem em `plugins/project-doc/lib/journal.py` (degrada gracioso: sem a engine vendorada, pula o tier 4 e usa tiers 1-3). Tier 1 e tier 5 são desta skill. O fluxo completo (coleta → projeção) está em **Collect & Project**.
+
+## Tier 1 — Detection Matrix (scan de arquivos)
 
 For each section, scan these files (read only those that exist). Detection results are grouped by their target doc file.
 
@@ -240,6 +260,40 @@ Also scan shared infrastructure:
 - Root docker-compose `networks`, `volumes` definitions
 
 Per-app detection results feed into app-specific subdocs under `.claude/docs/{app-name}/`.
+
+## Collect & Project (v3 — o motor)
+
+A v3 separa **coleta** (mecânica, código) de **projeção** (julgamento, você). Nunca pule a projeção — o lib não decide relevância nem reconcilia; isso é seu.
+
+### Collect (rode o lib)
+
+Roda a parte mecânica — minera tiers 2-4, passa pelo **scrubber** (barreira de secret), dá append no journal append-only e devolve os findings **vivos**:
+
+```bash
+python3 plugins/project-doc/lib/journal.py update  --project-root "<root>" [--session "$CLAUDE_CODE_SESSION_ID"]
+# cold-start / backfill de TODAS as sessões:  python3 .../journal.py deep    --project-root "<root>"
+# re-derivar do journal sem minerar:          python3 .../journal.py rebuild --project-root "<root>"
+# só ler os findings vivos:                   python3 .../journal.py fold    --project-root "<root>"
+```
+
+Saída JSON: `{mode, new_events, live_count, stale_ids, live:[{id, raw_kind, text, anchors, source, scrubbed}]}`.
+
+- **Journal** (`.claude/.project-doc/findings.jsonl`, **versionado**): append-only, o "super git" do conhecimento — eventos `discovered`/`invalidated`/`curated`, **nunca apaga**. O estado vivo = *fold* dos eventos. É o único veículo do conhecimento entre máquinas (transcripts são locais e não viajam).
+- **Ledger** (`.claude/.project-doc/ledger.json`, **versionado**): `mined_sessions`/`last_commit`/`distilled_hashes` — é o que faz a rodada padrão ser um **delta** (não re-minera o que já foi). 2ª rodada sem mudança = `new_events: 0`.
+- **`stale_ids`**: findings cujas âncoras um commit recente tocou (backward delta). **Não estão mortos** — são suspeitos que precisam de re-validação na projeção.
+
+### Project (seu julgamento)
+
+Pegue os findings vivos + o scan tier 1 e **projete** na doc canônica (CLAUDE.md + `.claude/docs/`). Aqui entra o que o código não faz:
+
+- **Relevância:** filtre os candidatos doc-worthy. Os `gate=True` (direcionamentos/rejeições/decisões — `raw_kind` user_directive/tool_rejection/ask_answer) são primários; descarte ruído (status update, conversa trivial).
+- **kind → seção:** gotcha → `patterns.md`/Gotchas (+ top 3-5 no CLAUDE.md); decisão → `architecture.md`/Decisões; feature → Visão Geral; convenção → `patterns.md`. O `kind` semântico é atribuído **aqui** (não no journal).
+- **Reconciliação (OBRIGATÓRIA):** todo finding histórico é confirmado contra o **código atual** antes de entrar. Vale → entra. Não dá pra confirmar → entra marcado `[relatado]`. O código **contradiz** → NÃO entra e você o mata:
+  `python3 .../journal.py invalidate --project-root "<root>" --id <id> --reason "..."`. Trate os `stale_ids` com prioridade — são os suspeitos do backward delta.
+- **Curadoria:** se o Pedro editar à mão um finding gerado, registre pra sobreviver à re-projeção:
+  `python3 .../journal.py curate --project-root "<root>" --id <id> --text "..."` (a projeção respeita o texto curado).
+
+A doc canônica é **derivada e descartável** (`--rebuild` re-cria do journal). O journal é a verdade; a doc é a vista. Critério de aceite: a doc cita ≥1 gotcha/decisão que só existe em sessão/handoff, e **nenhum** gotcha que o código atual contradiz.
 
 ## CLAUDE.md Index Template
 
@@ -909,7 +963,9 @@ Aprovar? [tudo | só deletar | só arquivar | escolher itens | cancelar]
 
 ## Rules
 
-- **NEVER include secret values** — only variable names from .env. Write `DB_PASSWORD` not `DB_PASSWORD=hunter2`
+- **NEVER include secret values** — só nomes de variável. Escreva `DB_PASSWORD`, nunca `DB_PASSWORD=hunter2`. **Defense-in-depth:** o **scrubber** do lib já é a 1ª barreira (move valores-secreto pro cofre na escrita do journal — ver Collect & Project / check #10); a projeção é a 2ª barreira — não reintroduza um valor que o scrubber pegaria.
+- **Cofre operacional** — valores-secreto NÃO são perdidos, são **desviados** pro cofre (iCloud `Cofre/<projeto>.env`; o repo tem o symlink **gitignored** `.claude/secrets/ops.env`). Na doc, **referencie** em vez do valor: `SSH_HOST → ver cofre (.claude/secrets/ops.env)`.
+- **Nomes e contexto SIM, valores NÃO** — hosts, IPs, portas e paths são contexto de infra: **preserve**. Só o valor-secreto vai pro cofre.
 - **NEVER include API keys, tokens, or passwords** — even if found in config files
 - **SSH key paths are OK** — key file contents are NEVER OK
 - **Seções condicionais** — if detection found nothing for a section, omit it entirely. Don't generate empty doc files.
@@ -978,10 +1034,12 @@ After writing all files, run this verification checklist. Report results to the 
 - Compare services listed in infrastructure.md against all services in docker-compose.yml
 - Report any service missing from the doc
 
-**10. Security — No Leaked Secrets**
-- Scan ALL generated files for patterns that look like secret values: strings after `=` that aren't placeholder/template values, base64-encoded strings, API keys, tokens
-- Check that .env values are NEVER included — only variable names
-- Report any potential leak as **CRITICAL FAIL**
+**10. Security — Scrubber + No Leaked Secrets**
+- O **scrubber** (lib) é a 1ª barreira na escrita do journal; este check é a 2ª, na doc final (defense-in-depth — repo privado NÃO é controle de secret).
+- Scan ALL generated files for secret-looking values: strings após `=` que não são placeholder/template, base64 longo, JWT (`eyJ…`), `AKIA…`, blocos PEM, connection strings com senha embutida.
+- Garanta que valores de .env NUNCA entram — só nomes. Onde havia um secret, a doc deve **referenciar o cofre** (`.claude/secrets/ops.env`), não o valor.
+- Confirme que `.claude/secrets/` está no `.gitignore` (o lib adiciona; verifique).
+- Qualquer vazamento potencial = **CRITICAL FAIL** — corrija antes de declarar pronto.
 
 **11. Deploy Flow Accuracy**
 - If deploy.md exists, verify the documented steps match the actual deploy script content
