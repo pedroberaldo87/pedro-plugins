@@ -75,6 +75,15 @@ try:
 except Exception:
     ok()
 
+# Se o handoff foi (re)escrito por OUTRA sessao (header "Session: <sid>" != a nossa),
+# ele nao e nosso — outra sessao no mesmo projeto avulso sobrescreveu o HANDOFF.md.
+# Nao bloquear: a sessao dona tem o proprio gate/manifest. (Handoff legado sem header
+# Session: => sem match => valida normalmente, como antes.)
+if session_id:
+    mship = re.search(r"(?m)^Session:\s*(\S+)", prd)
+    if mship and mship.group(1) != session_id:
+        ok()
+
 gate_items = [it for it in manifest.get("items", []) if it.get("gate")]
 missing = [it["id"] for it in gate_items if ("[%s]" % it["id"]) not in prd]
 
