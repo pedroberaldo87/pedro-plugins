@@ -32,3 +32,7 @@ graphify-out/cache/
 
 # qa-loop — relatórios e telemetria de sessões de review (local, regenerável)
 .claude/qa-loop/
+
+# Artefatos efêmeros de sessão (regeneráveis, local only)
+.playwright-mcp/
+.claude/visual/
