@@ -21,8 +21,7 @@ Marketplace privado de plugins Claude Code do Pedro. Monorepo — cada subdiret�
 
 | Plugin | Trigger | O que faz |
 |---|---|---|
-| `rev6` | `/rev6` | Dispara 6 agentes voltagent em paralelo (architect, backend, frontend, fullstack, code-reviewer, UX) pra review multi-ângulo. |
-| `qa` | `/qa <path-do-plano>` | Audita implementação contra um plano com 4 agentes especialistas em paralelo. Repete até zero findings P0/P1. |
+| `qa-loop` | `/qa-loop <alvo>` | Loop de review→conserto que **para por retornos decrescentes**, não por zero. Motor roda como **Workflow determinístico** (Opus revisa → Opus planeja/adjudica → Sonnet conserta; gate/churn/parada em código). Ancora no plano (3 buckets: implementação / plan-drift / plano-falho), regression gate por conserto, accepted-limits, relatório HUMANO (HTML) + journal AGÊNTICO. Substitui `rev6`, `qa` e `iterate`. |
 | `grill-me` | `/grill-me` | Entrevista implacável uma pergunta por vez sobre um plano/design até esgotar a árvore de decisões. *Por [Matt Pocock](https://github.com/mattpocock/skills).* |
 | `grill-with-docs` | `/grill-with-docs` | Igual ao grill-me, mas confronta contra o domain model existente (CONTEXT.md, ADRs). Atualiza docs inline conforme decisões cristalizam. *Por [Matt Pocock](https://github.com/mattpocock/skills).* |
 | `principles` | `/principles` | Carrega princípios de sistema do projeto (PRINCIPIOS-SISTEMAS.md), mapeia categorias relevantes ao contexto, gera guia com WHY + HOW. Dois modos: planning e review. |
@@ -32,7 +31,6 @@ Marketplace privado de plugins Claude Code do Pedro. Monorepo — cada subdiret�
 | Plugin | Trigger | O que faz |
 |---|---|---|
 | `ship` | `/ship` | Lint → type-check → commit → push → deploy em fluxo disciplinado. |
-| `iterate` | `/iterate` | Loop de convergência autônoma — faz mudança atômica + verificação até o comando de verificação passar. Contrato duro: exige resultado verificável + meio de verificar. |
 | `improve` | `/improve` | Implementa rodada de melhoria iterativa lendo `IMPROVEMENT_PROGRAM.md` + issues GitHub com label `autoresearch`. Genérico — funciona com qualquer app que siga a metodologia. |
 
 ## Instalação (em qualquer máquina)
@@ -45,7 +43,7 @@ claude plugin marketplace add git@github.com:pedroberaldo87/pedro-plugins.git
 
 # 2. Instalar os plugins que você quiser
 claude plugin install visual@pedro-plugins
-claude plugin install rev6@pedro-plugins
+claude plugin install qa-loop@pedro-plugins
 # etc.
 ```
 

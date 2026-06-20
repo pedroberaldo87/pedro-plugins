@@ -29,3 +29,6 @@ graphify-out/.graphify_python
 graphify-out/.graphify_root
 graphify-out/cache/
 .claude/secrets/
+
+# qa-loop — relatórios e telemetria de sessões de review (local, regenerável)
+.claude/qa-loop/

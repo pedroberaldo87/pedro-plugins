@@ -7,7 +7,7 @@ scope: .claude-plugin/marketplace.json, plugins/*/plugin.json, plugins/*/hooks/h
 # Architecture
 
 ## Visão Geral
-Marketplace privado de plugins Claude Code do Pedro. 19 plugins independentes (skills, hooks, automações) distribuídos via `.claude-plugin/marketplace.json`. Qualquer máquina instala com `claude plugin install`.
+Marketplace privado de plugins Claude Code do Pedro. 17 plugins independentes (skills, hooks, automações) distribuídos via `.claude-plugin/marketplace.json`. Qualquer máquina instala com `claude plugin install`.
 
 ## Stack
 - **Linguagem:** Shell (hooks), Markdown (skills)
@@ -18,7 +18,7 @@ Marketplace privado de plugins Claude Code do Pedro. 19 plugins independentes (s
 ## Estrutura de Diretórios
 ```
 pedro-plugins/
-├── .claude-plugin/marketplace.json   # índice do marketplace (19 plugins)
+├── .claude-plugin/marketplace.json   # índice do marketplace (17 plugins)
 ├── plugins/                          # cada subdir = 1 plugin independente
 │   ├── bootstrap-third-party/        # ⚙️ hooks: SessionStart, PostToolUse
 │   ├── context-guard/                # ⚙️ hooks: SessionStart, PostToolUse
@@ -29,12 +29,10 @@ pedro-plugins/
 │   ├── guardrails/                   # ⚙️ hooks: PostToolUse, PreToolUse (Edit|Write, Agent)
 │   ├── handoff/
 │   ├── improve/
-│   ├── iterate/
 │   ├── principles/
 │   ├── project-doc/
-│   ├── qa/
+│   ├── qa-loop/                      # review→conserto em loop (substitui qa, rev6, iterate)
 │   ├── raiox/                        # pipeline YouTube (VIU Studio)
-│   ├── rev6/
 │   ├── ship/                         # ⚙️ hook: PreToolUse (Bash)
 │   ├── slides/
 │   ├── sovai/
@@ -62,7 +60,7 @@ plugins/<nome>/
 - **ship** — `PreToolUse (Bash)`: bloqueia deploy se testes falham (só age em comandos de deploy)
 - **visual** — `PreToolUse (ExitPlanMode)`: força renderização HTML do plano antes de apresentar ao usuário
 
-## Catálogo dos 19 Plugins
+## Catálogo dos 17 Plugins
 
 Produtividade:
 - **bootstrap-third-party** v0.1.3 — auto-sync marketplaces e plugins entre máquinas via manifest.json declarativo
@@ -80,11 +78,9 @@ Dev Tools:
 - **grill-with-docs** v1.0.0 — design review contra domain model existente, atualiza CONTEXT.md/ADRs inline (Matt Pocock)
 - **guardrails** v1.0.0 — guardrails globais de edição como hooks: lint+type-check pós-edição, scope-cop (juiz Haiku) e guarda de Agent Teams. Migrado dos hooks soltos do `~/.claude/settings.json`; `/guardrails:setup` liga a env e limpa os antigos
 - **improve** v1.0.0 — implementa melhorias via GitHub Issues com label `autoresearch`
-- **iterate** v1.0.0 — loop autônomo até verificação passar (contrato: resultado verificável + comando de verif.)
 - **principles** v1.0.0 — princípios de sistema mapeados ao contexto atual, guia WHY + HOW
-- **qa** v1.0.0 — auditoria implementação vs plano via 4 agentes especialistas paralelos
+- **qa-loop** v1.1.0 — loop de review→conserto que para por retornos decrescentes (não por zero). Motor roda como **Workflow determinístico** (Opus revisa → Opus planeja/adjudica → Sonnet conserta; gate/churn/parada em código). Ancora no plano (3 buckets: implementação/plan-drift/plano-falho), regression gate por conserto, accepted-limits, relatório HUMANO (HTML) + journal AGÊNTICO. Substitui qa, rev6 e iterate
 - **raiox** v0.1.0 — pipeline de inteligência de canal YouTube para VIU Studio (fetch → DuckDB → 7 módulos → validate)
-- **rev6** v1.0.0 — code review multi-ângulo via 6 agentes voltagent em paralelo
 - **ship** v1.0.1 — lint → typecheck → commit → push → deploy em sequência disciplinada
 
 ## Terceiros Gerenciados (via bootstrap-third-party)

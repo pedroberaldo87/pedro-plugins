@@ -24,6 +24,21 @@ Pedro vai ficar indisponível. Reconheça com uma linha (`modo sovai ativo, come
 
 Se um item não puder ser feito como pedido, **não invente workaround silencioso**. Pula o item, anota o bloqueio com o que faltou, e segue para o próximo. A regra global "Entrega 100% ou Para e Conversa" continua valendo — o "Para e Conversa" vira "Pula e Anota" porque Pedro está indisponível, mas a entrega ainda precisa ser honesta.
 
+## QA final (antes do relatório)
+
+Terminada a execução e **ANTES** de montar o relatório, rode a skill `/qa-loop` em **modo headless** sobre o que você implementou, passando o plano como âncora:
+
+```
+/qa-loop <mudanças desta sessão> --plan=<plano> --headless
+```
+
+Como o Pedro está indisponível, o headless nunca pergunta nada. Trate os 3 buckets assim:
+- **Implementação** (bug / divergência do plano) → conserta no loop. Você já tem mandato de executar o plano; o regression gate por conserto é a rede que evita as regressões auto-infligidas.
+- **Plan-drift** (um "fix" afastaria do plano em UX/backend/proposta) → **reverte pro plano**. Não "melhore" pra longe do combinado.
+- **Plano/arquitetura falho** → **NÃO implemente**. Vira item de "Bloqueios (precisam de você)" no relatório. Headless **não** é licença pra re-planejar.
+
+O relatório do `/qa-loop` (loops rodados, correções, regressões pegas, alertas de plano) vira a seção `### QA` do relatório final.
+
 ## Relatório Final
 
 Quando terminar, entregue **antes de qualquer outra coisa**:
@@ -42,6 +57,10 @@ Quando terminar, entregue **antes de qualquer outra coisa**:
 
 ### Verificação
 - [o que rodou, e o resultado]
+
+### QA (qa-loop)
+- [loops rodados + critério de parada · correções aplicadas · regressões pegas na hora]
+- [⚠️ alertas de plano/arquitetura que NÃO implementei — pra você julgar]
 ```
 
 Detalhe técnico só se Pedro pedir depois.

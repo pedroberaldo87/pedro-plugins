@@ -1,7 +1,7 @@
 {
   "name": "pedro-plugins",
   "metadata": {
-    "description": "Marketplace privado do Pedro: 19 plugins (skills, hooks e automações) pessoais para Claude Code."
+    "description": "Marketplace privado do Pedro: 17 plugins (skills, hooks e automações) pessoais para Claude Code."
   },
   "owner": {
     "name": "Pedro Beraldo",
@@ -14,7 +14,12 @@
       "description": "Auto-sync third-party Claude Code marketplaces + plugins across machines via git hooks",
       "category": "productivity",
       "version": "0.1.3",
-      "tags": ["sync", "bootstrap", "plugins", "automation"]
+      "tags": [
+        "sync",
+        "bootstrap",
+        "plugins",
+        "automation"
+      ]
     },
     {
       "name": "fallow",
@@ -22,7 +27,13 @@
       "description": "Runs Fallow (static JS/TS analyzer — dead code, duplication, complexity), classifies findings by type and confidence, and delivers an interactive report where Pedro picks what to clean. Audits the Fallow report (convergence goal + liveness propagation) to catch false-positives the static analysis misses — cron/systemd, HTTP routes, dynamic imports — framed as tool limitations, not code bugs. Cleanup with a safety net (preview + build/test).",
       "category": "dev-tools",
       "version": "1.0.2",
-      "tags": ["fallow", "dead-code", "duplication", "cleanup", "static-analysis"]
+      "tags": [
+        "fallow",
+        "dead-code",
+        "duplication",
+        "cleanup",
+        "static-analysis"
+      ]
     },
     {
       "name": "slides",
@@ -30,15 +41,28 @@
       "description": "Markdown outline → keynote-grade single-file HTML deck. Theme system (VIU default), big-typography presentation language, strict text fidelity (never invents text), output next to the source .md.",
       "category": "productivity",
       "version": "1.1.0",
-      "tags": ["slides", "presentation", "html", "markdown", "keynote", "viu"]
+      "tags": [
+        "slides",
+        "presentation",
+        "html",
+        "markdown",
+        "keynote",
+        "viu"
+      ]
     },
     {
       "name": "visual",
       "source": "./plugins/visual",
       "description": "CLI walls-of-text → interactive HTML dark-theme views. Plans, diagnostics, and decisions rendered in the browser with live sync back to Claude via local daemon.",
       "category": "productivity",
-      "version": "1.1.2",
-      "tags": ["visualization", "html", "plan-mode", "hooks", "live-sync"]
+      "version": "1.2.0",
+      "tags": [
+        "visualization",
+        "html",
+        "plan-mode",
+        "hooks",
+        "live-sync"
+      ]
     },
     {
       "name": "context-guard",
@@ -46,7 +70,13 @@
       "description": "Auto-interrupts workflow when context window exceeds configurable threshold (default 80%). Bridges statusLine and PostToolUse hooks via temp file. Forwards to any existing statusLine (claude-hud or other) via CLAUDE_STATUSLINE_FORWARD env var.",
       "category": "productivity",
       "version": "1.1.1",
-      "tags": ["context", "guard", "handoff", "session", "hooks"]
+      "tags": [
+        "context",
+        "guard",
+        "handoff",
+        "session",
+        "hooks"
+      ]
     },
     {
       "name": "handoff",
@@ -54,23 +84,40 @@
       "description": "Session continuity in a single command — /handoff detects the session state and routes: full context → saves a complete knowledge-transfer document; freshly cleared session → resumes from it. Workspace-aware: the handoff belongs to the project the session touched (resolves the .git boundary of the edited files), so it works for a standalone project, a monorepo (one HANDOFF-<module>.md per module), or an umbrella folder with nested projects — no more clobbering between parallel sessions on the same root. Optional [salvar|retomar] argument forces the mode.",
       "category": "productivity",
       "version": "1.7.0",
-      "tags": ["session", "continuity", "documentation", "monorepo"]
+      "tags": [
+        "session",
+        "continuity",
+        "documentation",
+        "monorepo"
+      ]
     },
     {
       "name": "raiox",
       "source": "./plugins/raiox",
       "description": "RAIOX — replicable YouTube channel intelligence for VIU Studio. Orchestrates the viu-raiox pipeline (public fetch → DuckDB fact store → 7 code-only analysis modules → orphan-number validation) per channel YAML config. Honesty Rule: every citable number is born in code-generated JSON; LLM never originates numbers. v0 rail; LLM curation and output templates are Phase C.",
       "category": "dev-tools",
-      "version": "0.1.0",
-      "tags": ["youtube", "analytics", "viu", "channel-intelligence", "duckdb"]
+      "version": "0.2.0",
+      "tags": [
+        "youtube",
+        "analytics",
+        "viu",
+        "channel-intelligence",
+        "duckdb"
+      ]
     },
     {
       "name": "sovai",
       "source": "./plugins/sovai",
-      "description": "Autonomous execution mode — executes any plan to completion without user interruptions, checkpoints, or confirmations. Skips blocked items (no silent workarounds), logs all decisions, and delivers a structured report at the end.",
+      "description": "Autonomous execution mode — executes any plan to completion without user interruptions, checkpoints, or confirmations. Skips blocked items (no silent workarounds), logs all decisions, runs a final headless qa-loop pass, and delivers a structured report at the end.",
       "category": "productivity",
-      "version": "1.0.0",
-      "tags": ["autonomy", "execution", "plan", "no-interruptions", "sovai"]
+      "version": "1.1.0",
+      "tags": [
+        "autonomy",
+        "execution",
+        "plan",
+        "no-interruptions",
+        "sovai"
+      ]
     },
     {
       "name": "project-doc",
@@ -78,41 +125,63 @@
       "description": "Generate a structured documentation system from ALL project evidence — files, handoffs, memory, graph, git log, and session transcripts — kept in a versioned append-only journal and projected into a CLAUDE.md index + .claude/docs/*.md + thin pointers. A scrubber moves secrets to a vault, never to git. Delta/--deep/--rebuild, monorepo layouts, a doc-first guard hook, post-generation verification, and stale-artifact cleanup.",
       "category": "productivity",
       "version": "3.0.0",
-      "tags": ["documentation", "claude-md", "monorepo", "scaffolding", "journal", "transcripts"]
+      "tags": [
+        "documentation",
+        "claude-md",
+        "monorepo",
+        "scaffolding",
+        "journal",
+        "transcripts"
+      ]
     },
     {
-      "name": "rev6",
-      "source": "./plugins/rev6",
-      "description": "Multi-angle code review via 6 parallel voltagent specialists (architect, backend, frontend, fullstack, code-reviewer, UX). Consolidates findings with P0/P1 highlighting.",
+      "name": "qa-loop",
+      "source": "./plugins/qa-loop",
+      "description": "Disciplined review-and-fix loop that stops on diminishing returns (quality vs worth-it), not on zero. Anchored to the implementation plan, with a per-fix regression gate, severity stop criterion, accepted-limits, churn detector, and a report plus journal to evaluate the ideal loop count. Replaces qa, rev6 and iterate.",
       "category": "dev-tools",
-      "version": "1.0.0",
-      "tags": ["code-review", "parallel", "voltagent", "quality"]
-    },
-    {
-      "name": "qa",
-      "source": "./plugins/qa",
-      "description": "Audits implementation against a plan using 4 parallel specialist agents. Loops until 100% adherent (zero P0/P1 findings).",
-      "category": "dev-tools",
-      "version": "1.0.0",
-      "tags": ["audit", "plan-adherence", "parallel", "voltagent", "quality"]
+      "version": "1.1.0",
+      "tags": [
+        "code-review",
+        "qa",
+        "loop",
+        "regression-gate",
+        "workflow",
+        "plan-fidelity"
+      ]
     },
     {
       "name": "grill-me",
       "source": "./plugins/grill-me",
       "description": "Relentless one-question-at-a-time design review. Stress-tests plans and decisions by walking every branch of the decision tree.",
-      "author": { "name": "Matt Pocock", "homepage": "https://github.com/mattpocock/skills" },
+      "author": {
+        "name": "Matt Pocock",
+        "homepage": "https://github.com/mattpocock/skills"
+      },
       "category": "dev-tools",
       "version": "1.0.0",
-      "tags": ["design-review", "planning", "decisions", "stress-test"]
+      "tags": [
+        "design-review",
+        "planning",
+        "decisions",
+        "stress-test"
+      ]
     },
     {
       "name": "grill-with-docs",
       "source": "./plugins/grill-with-docs",
       "description": "Relentless design review that challenges plans against the project's domain model, sharpens terminology, and updates CONTEXT.md and ADRs inline as decisions crystallise.",
-      "author": { "name": "Matt Pocock", "homepage": "https://github.com/mattpocock/skills" },
+      "author": {
+        "name": "Matt Pocock",
+        "homepage": "https://github.com/mattpocock/skills"
+      },
       "category": "dev-tools",
       "version": "1.0.0",
-      "tags": ["design-review", "domain-model", "adr", "context-md"]
+      "tags": [
+        "design-review",
+        "domain-model",
+        "adr",
+        "context-md"
+      ]
     },
     {
       "name": "principles",
@@ -120,7 +189,12 @@
       "description": "Contextual system design principles for planning and review. Reads PRINCIPIOS-SISTEMAS.md, maps relevant categories to the current context, generates a practical guide with WHY + HOW.",
       "category": "dev-tools",
       "version": "1.0.0",
-      "tags": ["architecture", "principles", "planning", "review"]
+      "tags": [
+        "architecture",
+        "principles",
+        "planning",
+        "review"
+      ]
     },
     {
       "name": "ship",
@@ -128,15 +202,12 @@
       "description": "Production deploy flow: lint, type-check, commit, push, deploy in one disciplined sequence.",
       "category": "dev-tools",
       "version": "1.0.1",
-      "tags": ["deploy", "lint", "typecheck", "production"]
-    },
-    {
-      "name": "iterate",
-      "source": "./plugins/iterate",
-      "description": "Autonomous convergence loop — iterates atomic changes until a verification command passes. Hard contract: verifiable result + means to verify. Capped, logged, respects project principles.",
-      "category": "dev-tools",
-      "version": "1.0.0",
-      "tags": ["iteration", "convergence", "verification", "autonomous", "loop"]
+      "tags": [
+        "deploy",
+        "lint",
+        "typecheck",
+        "production"
+      ]
     },
     {
       "name": "improve",
@@ -144,7 +215,12 @@
       "description": "Generic self-improvement implementer using the autoresearch ML methodology. Reads the app's IMPROVEMENT_PROGRAM.md, fetches proposals from GitHub Issues (label 'autoresearch'), implements changes.",
       "category": "dev-tools",
       "version": "1.0.0",
-      "tags": ["automation", "ml", "improvement", "github-issues"]
+      "tags": [
+        "automation",
+        "ml",
+        "improvement",
+        "github-issues"
+      ]
     },
     {
       "name": "graphify-guard",
@@ -152,7 +228,13 @@
       "description": "Ensures graphify knowledge graphs get consulted when relevant. SessionStart heads-up when a project has a graph; PreToolUse net redirects blind grep/glob/find to `graphify query` once per session. Detects stale graphs and offers `graphify --update`. Defense in depth, fail-open, monorepo-aware.",
       "category": "productivity",
       "version": "1.0.1",
-      "tags": ["graphify", "knowledge-graph", "hooks", "guardrail", "session"]
+      "tags": [
+        "graphify",
+        "knowledge-graph",
+        "hooks",
+        "guardrail",
+        "session"
+      ]
     },
     {
       "name": "guardrails",
@@ -160,7 +242,14 @@
       "description": "Global editing guardrails as hooks: post-edit lint & type-check (JS/TS/Python), an LLM scope-cop that blocks UI edits drifting from the approved plan, and an Agent Teams misuse guard. Portable across machines — replaces hand-rolled hooks in ~/.claude/settings.json. Run /guardrails:setup once per machine to set the env var and clear the old hooks.",
       "category": "dev-tools",
       "version": "1.0.0",
-      "tags": ["hooks", "guardrail", "lint", "typecheck", "scope-cop", "agent-teams"]
+      "tags": [
+        "hooks",
+        "guardrail",
+        "lint",
+        "typecheck",
+        "scope-cop",
+        "agent-teams"
+      ]
     }
   ]
 }

@@ -47,4 +47,5 @@ scope: .claude-plugin/marketplace.json, plugins/*/plugin.json, plugins/*/hooks/h
 - sovai não faz workarounds silenciosos — pula itens bloqueados e anota; a descrição no marketplace já reflete isso
 - context-guard é agnóstico de statusLine — encaminha via `CLAUDE_STATUSLINE_FORWARD` (env var); sem dependência direta do claude-hud
 - context-guard: os hooks (reset + check de 80%) vêm de `hooks/hooks.json`; a skill `/context-guard:setup` deve cuidar SÓ do statusLine wrapper — não registrar os hooks no settings.json também, senão duplica
-- `iterate` e `improve` são plugins válidos no marketplace mas raramente usados diretamente — não confundir com fluxos internos de outros plugins
+- `improve` é plugin válido no marketplace mas raramente usado diretamente — não confundir com fluxos internos de outros plugins
+- `qa-loop` substituiu `qa`, `rev6` e `iterate` (jun/2026): o convergente do iterate virou um modo embutido no qa-loop (a detecção lint/typecheck/test foi copiada, não referenciada)

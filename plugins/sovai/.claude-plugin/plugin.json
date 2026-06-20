@@ -1,7 +1,7 @@
 {
   "name": "sovai",
-  "version": "1.0.0",
-  "description": "Autonomous execution mode — executes any plan to completion without user interruptions, checkpoints, or confirmations. Logs all decisions, delivers structured report at the end.",
+  "version": "1.1.0",
+  "description": "Autonomous execution mode — executes any plan to completion without user interruptions, checkpoints, or confirmations. Logs all decisions, runs a final headless qa-loop pass, delivers structured report at the end.",
   "author": {
     "name": "Pedro Beraldo",
     "email": "pedrotrberaldo@gmail.com"
