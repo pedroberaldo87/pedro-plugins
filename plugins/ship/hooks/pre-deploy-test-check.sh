@@ -61,10 +61,27 @@ if [ -x "$GATE" ] && echo "$COMMAND" | grep -qE 'deploy\.sh'; then
   ARGS=$(echo "$COMMAND" | sed -E 's/.*deploy\.sh//; s/[;&|].*//')
   ARGS=$(echo "$ARGS" | tr ' ' '\n' | grep -vE '^(-|$)' | tr '\n' ' ')
 
-  app_has_tests() { [ -d "$CWD/tests/$1" ] || [ -d "$CWD/apps/$1/tests" ]; }
+  # An app "has tests" if it has a pytest dir OR is a Node app that declares a
+  # real `test` script (vitest/jest) — those tests live in __tests__/colocated,
+  # with no tests/ dir for the prober to find. run_app_tests.sh runs the right
+  # runner per app; this just decides whether to invoke it.
+  node_has_test_script() {
+    [ -f "$1" ] || return 1
+    local t
+    t=$(/opt/homebrew/bin/jq -r '.scripts.test // empty' "$1" 2>/dev/null)
+    [ -n "$t" ] && ! echo "$t" | grep -q 'no test specified'
+  }
+  app_has_tests() {
+    [ -d "$CWD/tests/$1" ] && return 0
+    [ -d "$CWD/apps/$1/tests" ] && return 0
+    node_has_test_script "$CWD/apps/$1/package.json"
+  }
   discover_apps() {
     { ls -d "$CWD"/tests/*/ 2>/dev/null | xargs -n1 basename 2>/dev/null
       for d in "$CWD"/apps/*/tests; do [ -d "$d" ] && basename "$(dirname "$d")"; done
+      for p in "$CWD"/apps/*/package.json; do
+        node_has_test_script "$p" && basename "$(dirname "$p")"
+      done
     } | sort -u
   }
 
