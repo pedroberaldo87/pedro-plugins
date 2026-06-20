@@ -13,18 +13,31 @@
 # e o estado mutável vive em ~/.claude/guardrails/ (por-máquina, fora do cache do
 # plugin que ${CLAUDE_PLUGIN_ROOT} reescreve a cada bump de versão).
 
-JQ="$(command -v jq || echo /opt/homebrew/bin/jq)"
-PY="$(command -v python3 || echo /opt/homebrew/bin/python3)"
+JQ="$(command -v jq)"
+PY="$(command -v python3)"
+# Sem jq ou python3 no PATH não dá pra parsear nem julgar — fail-open (não bloqueia).
+{ [ -z "$JQ" ] || [ -z "$PY" ]; } && exit 0
 HOOK_DIR="$HOME/.claude/guardrails"
 mkdir -p "$HOOK_DIR" 2>/dev/null
 MODE_FILE="$HOOK_DIR/scope-cop.mode"
 LOG_FILE="$HOOK_DIR/scope-cop.log"
 STREAK_FILE="$HOOK_DIR/scope-cop.blockstreak"
+BYPASS_FILE="$HOOK_DIR/scope-cop.bypass"
 MAX_STREAK=3   # após N BLOCKs seguidos, libera 1 edição e reseta (anti-loop)
 
-# Resolve o binário do claude (PATH do hook pode ser mínimo).
+# Rotação simples do log: acima de 5000 linhas, mantém as últimas 2000 (evita
+# que o scope-cop.log cresça indefinidamente — chegou a passar de 450 KB).
+if [ -f "$LOG_FILE" ]; then
+  LC="$(wc -l < "$LOG_FILE" 2>/dev/null || echo 0)"
+  if [ "$LC" -gt 5000 ] 2>/dev/null; then
+    tail -n 2000 "$LOG_FILE" > "$LOG_FILE.tmp" 2>/dev/null && mv "$LOG_FILE.tmp" "$LOG_FILE"
+  fi
+fi
+
+# Resolve o binário do claude (PATH do hook pode ser mínimo). Sem claude no PATH
+# não há juiz → fail-open na hora da chamada (ver abaixo). Sem path hardcoded de
+# app específico — isso amarrava o hook a uma máquina/app.
 CLAUDE_BIN="$(command -v claude 2>/dev/null)"
-[ -x "$CLAUDE_BIN" ] || CLAUDE_BIN="/Applications/cmux.app/Contents/Resources/bin/claude"
 
 INPUT="$(cat)"
 
@@ -66,8 +79,10 @@ log_line() {
   local verdict="$1" reason="$2"
   local ts; ts="$(date '+%Y-%m-%d %H:%M:%S')"
   local req_s diff_s
-  req_s="$(printf '%s' "$USER_REQ" | tr '\n' ' ' | cut -c1-140)"
-  diff_s="$(printf '%s' "$EDIT_DESC" | tr '\n' ' ' | cut -c1-140)"
+  # tr '\n|' ' /' — também troca o pipe por barra: o log é '|'-delimitado, então
+  # um '|' no pedido/diff quebraria o parsing das colunas.
+  req_s="$(printf '%s' "$USER_REQ" | tr '\n|' ' /' | cut -c1-140)"
+  diff_s="$(printf '%s' "$EDIT_DESC" | tr '\n|' ' /' | cut -c1-140)"
   printf '%s | %s | %s | streak=%s | plan=%s | %s | req="%s" | diff="%s"\n' \
     "$ts" "$MODE" "$verdict" "$STREAK" "${HAS_PLAN:-0}" "${FILE_PATH:-?}" "$req_s" "$diff_s" >> "$LOG_FILE"
 }
@@ -131,15 +146,16 @@ PY
   # escopo combinado: edição coberta pelo plano não é "desvio".
   PLAN="$("$PY" - "$TRANSCRIPT" <<'PY'
 import json, sys
-found = ""
+found_exit = ""    # ## Approved Plan: (ExitPlanMode)
+found_visual = ""  # bloco /visual colado pelo usuário
 try:
     for line in open(sys.argv[1], encoding='utf-8'):
         try: o = json.loads(line)
         except Exception: continue
-        # varre qualquer texto do transcript em busca do bloco aprovado
-        blobs = []
         msg = o.get("message", {})
         c = msg.get("content") if isinstance(msg, dict) else None
+        # (1) ## Approved Plan: (ExitPlanMode) vive em tool_result/assistant — varre TUDO.
+        blobs = []
         if isinstance(c, str):
             blobs.append(c)
         elif isinstance(c, list):
@@ -156,13 +172,64 @@ try:
         for t in blobs:
             i = t.rfind("## Approved Plan:")
             if i >= 0:
-                found = t[i+len("## Approved Plan:"):].strip()
+                found_exit = t[i+len("## Approved Plan:"):].strip()
+        # (2) /visual NÃO passa pelo ExitPlanMode — a aprovação mora no bloco que o Pedro
+        # COLA (começa com '<!-- visual-{approve|feedback|decisions} v1 -->'). Lê SÓ o texto
+        # que o usuário digitou/colou (string OU blocos type=='text' do topo); tool_result
+        # também é type=user e ecoa o marcador via outputs de comando/doc da skill — por
+        # isso é excluído. Marcador COMPLETO ('v1 -->') evita casar prosa solta.
+        if o.get("type") == "user":
+            utext = ""
+            if isinstance(c, str):
+                utext = c
+            elif isinstance(c, list):
+                for b in c:
+                    if isinstance(b, dict) and b.get("type") == "text" and isinstance(b.get("text"), str):
+                        utext += b["text"]
+            # Marcador no INÍCIO da mensagem = paste real do /visual. Enterrado (ex.: a doc
+            # da skill injeta blocos de exemplo lá pelo char 23k) é citação, não aprovação.
+            for mk in ("<!-- visual-approve v1 -->", "<!-- visual-feedback v1 -->", "<!-- visual-decisions v1 -->"):
+                j = utext.find(mk)
+                if 0 <= j <= 200:
+                    found_visual = utext[j:].strip()
 except Exception:
     pass
+# Precedência: o paste /visual (mensagem do usuário, gated por posição — sinal mais
+# confiável e o fluxo primário do Pedro) vence o '## Approved Plan:', que pode ser
+# ecoado por outputs de comando que contenham essa string literal.
+found = found_visual or found_exit
 # Plano inteiro (não só os 3500 primeiros): planos multi-item passavam disso, o juiz
 # não via os itens finais nem o Sumário Executivo (que fica no fim) e bloqueava
 # edições legítimas de itens 2+ como "fora do plano". 20k cobre planos grandes.
 print(found[:20000])
+PY
+)"
+fi
+
+# Fallback: plano aprovado via /visual por live-sync ("ok" sem colar o bloco). O daemon
+# do /visual grava o estado em ~/.claude/visual-state/latest.json (docTitle + itens +
+# verdito). Usa só se o transcript não trouxe plano E o estado é fresco (< 2h) — evita
+# herdar plano de outra sessão antiga.
+VISUAL_STATE="$HOME/.claude/visual-state/latest.json"
+if [ -z "$PLAN" ] && [ -f "$VISUAL_STATE" ]; then
+  PLAN="$("$PY" - "$VISUAL_STATE" <<'PY'
+import json, os, sys, time
+p = sys.argv[1]
+try:
+    if time.time() - os.path.getmtime(p) > 7200:
+        print(""); sys.exit(0)
+    o = json.load(open(p, encoding='utf-8'))
+    st = o.get("state", o)
+    fb = st.get("feedback") or []
+    approved = [f for f in fb if f.get("val") in ("keep", "change") and f.get("title")]
+    if not approved:
+        print(""); sys.exit(0)
+    out = ["(plano aprovado via /visual: " + str(o.get("docTitle") or "") + ")"]
+    for f in approved:
+        out.append("- " + str(f.get("title"))[:300] + " — aprovado")
+    print("\n".join(out)[:20000])
+except Exception:
+    print("")
 PY
 )"
 fi
@@ -185,7 +252,17 @@ fi
 # --- circuit breaker: já bati o teto de BLOCKs seguidos → libera 1 e reseta ---
 if [ "$STREAK" -ge "$MAX_STREAK" ]; then
   echo 0 > "$STREAK_FILE"
-  log_line "PASS:circuit-breaker" "liberado após $STREAK BLOCKs seguidos (anti-loop)"
+  # Deixa um rastro de que a liberação foi por circuit breaker (escopo NÃO julgado
+  # desta vez) — durável, pro Claude/Pedro saberem que a trava abriu mão aqui.
+  printf '%s | liberado após %s BLOCKs seguidos (anti-loop) | %s\n' \
+    "$(date '+%Y-%m-%d %H:%M:%S')" "$STREAK" "${FILE_PATH:-?}" > "$BYPASS_FILE"
+  log_line "PASS:circuit-breaker" "liberado após $STREAK BLOCKs seguidos (anti-loop) — escopo NÃO validado"
+  exit 0
+fi
+
+# --- sem binário do claude → não há juiz → fail-open (não bloqueia) ---
+if [ -z "$CLAUDE_BIN" ] || [ ! -x "$CLAUDE_BIN" ]; then
+  log_line "SKIP:no-claude-bin" "claude não encontrado no PATH (fail-open)"
   exit 0
 fi
 
