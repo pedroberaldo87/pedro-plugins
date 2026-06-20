@@ -76,7 +76,7 @@ Dev Tools (9):
 - **fallow** v1.0.2 — análise estática JS/TS (dead code, duplicação, complexidade) com report interativo
 - **grill-me** v1.0.0 — design review implacável uma pergunta por vez (Matt Pocock)
 - **grill-with-docs** v1.0.0 — design review contra domain model existente, atualiza CONTEXT.md/ADRs inline (Matt Pocock)
-- **guardrails** v1.1.0 — guardrails globais de edição como hooks: lint+type-check pós-edição, scope-cop (juiz Haiku) e guarda de Agent Teams. Migrado dos hooks soltos do `~/.claude/settings.json`; `/guardrails:setup` liga a env e limpa os antigos. ⚠️ marketplace.json ainda em 1.0.0 (desync de release)
+- **guardrails** v1.1.0 — guardrails globais de edição como hooks: lint+type-check pós-edição, scope-cop (juiz Haiku) e guarda de Agent Teams. Migrado dos hooks soltos do `~/.claude/settings.json`; `/guardrails:setup` liga a env e limpa os antigos
 - **improve** v1.0.0 — implementa melhorias via GitHub Issues com label `autoresearch`
 - **principles** v1.0.0 — princípios de sistema mapeados ao contexto atual, guia WHY + HOW
 - **qa-loop** v1.2.1 — loop de review→conserto que para por retornos decrescentes (não por zero). Motor roda como **Workflow determinístico** (Opus revisa → Opus planeja/adjudica → Sonnet conserta; gate/churn/parada em código). Ancora no plano (3 buckets: implementação/plan-drift/plano-falho), regression gate por conserto, accepted-limits, journal AGÊNTICO, e **relatório HUMANO interativo** (via /visual: 4 categorias de actionable + seleção live → próximo plano + gráfico de severidade por rodada). Substitui qa, rev6 e iterate

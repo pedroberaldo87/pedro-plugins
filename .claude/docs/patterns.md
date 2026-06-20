@@ -21,7 +21,7 @@ scope: .claude-plugin/marketplace.json, plugins/*/plugin.json, plugins/*/hooks/h
 ## Marketplace Registry — Regras de Release
 - **Arquivo índice:** `.claude-plugin/marketplace.json`
 - **`version` em `plugin.json`:** bumpar a cada mudança em qualquer arquivo do plugin — sem bump, clientes nunca recebem a atualização
-- **Sincronização:** a versão em `plugin.json` deve ser idêntica à entrada em `marketplace.json`. ⚠️ jun/2026: `guardrails` ficou em `1.1.0` no plugin.json e `1.0.0` no marketplace — re-sincronizar antes de publicar
+- **Sincronização:** a versão em `plugin.json` deve ser idêntica à entrada em `marketplace.json` — descasamento já mordeu aqui (jun/2026, `guardrails`); confira os dois antes de publicar
 - **`claude plugin validate .`** é o gate real que decide se um plugin instala a partir do marketplace — rodar antes de publicar (pega frontmatter quebrado e erro de schema; NÃO pega hooks.json no lugar errado)
 - **Cache local não auto-refresca:** mesmo nesta máquina, editar o source não basta — o Claude lê de `~/.claude/plugins/cache/pedro-plugins/<nome>/<versão>/`. Sincronize por cima do cache (ou reinstale) e rode `/reload-plugins`. O número da versão no path do cache é só o nome do diretório.
 - **`autoUpdate` (marketplace `source: directory`) atualiza um plugin JÁ instalado quando a versão sobe** (ex: 1.1.0→1.2.0 pegou no reload), mas **NÃO instala um plugin novo nem desinstala um removido** — pra isso só `claude plugin install`/`uninstall`.
