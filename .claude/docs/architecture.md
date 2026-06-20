@@ -27,10 +27,10 @@ pedro-plugins/
 │   ├── grill-me/                     # por Matt Pocock
 │   ├── grill-with-docs/              # por Matt Pocock
 │   ├── guardrails/                   # ⚙️ hooks: PostToolUse, PreToolUse (Edit|Write, Agent)
-│   ├── handoff/
+│   ├── handoff/                      # ⚙️ hooks: SessionStart, Stop, PreToolUse (TeamCreate)
 │   ├── improve/
 │   ├── principles/
-│   ├── project-doc/                  # tem lib/ (journal.py, collect_engine.py) — motor v3
+│   ├── project-doc/                  # ⚙️ hooks: SessionStart, PreToolUse · lib/ (journal.py) — motor v3
 │   ├── qa-loop/                      # review→conserto em loop (substitui qa, rev6, iterate)
 │   ├── raiox/                        # pipeline YouTube (VIU Studio)
 │   ├── ship/                         # ⚙️ hook: PreToolUse (Bash)
@@ -57,6 +57,8 @@ plugins/<nome>/
 - **context-guard** — `SessionStart`: reseta sentinel · `PostToolUse`: lê `/tmp/claude-context-pct`, bloqueia se > threshold (80%)
 - **graphify-guard** — `SessionStart`: avisa se o projeto tem knowledge graph · `PreToolUse (Grep/Glob/Bash)`: intercepta busca cega e redireciona pra `graphify query` (1x/sessão; cobre cwd container descendo)
 - **guardrails** — `PostToolUse (Edit|Write)`: lint + type-check pós-edição (JS/TS/Python) · `PreToolUse (Edit|Write)`: scope-cop (juiz Haiku) bloqueia edição de UI que foge do plano · `PreToolUse (Agent)`: guarda contra mau uso de Agent Teams. Estado mutável em `~/.claude/guardrails/` (NÃO no cache do plugin). Migrado dos hooks soltos do `settings.json`; `/guardrails:setup` liga a env e remove os hooks antigos
+- **handoff** — `SessionStart`: grava o path do transcript num sentinel `/tmp` pra skill achar o `.jsonl` certo (skill não recebe session_id) · `Stop`: completeness-gate — bloqueia o fim da sessão até o HANDOFF.md referenciar cada item forte do manifest, sem placeholders e com os 5 campos por passo · `PreToolUse (TeamCreate)`: nudge pra consolidar o PRD antes de espalhar teammates (fail-open). Rito ATA
+- **project-doc** — `SessionStart`: injeta heads-up se o projeto tem doc project-doc (manda ler `.claude/docs/` antes de grep/Explore) · `PreToolUse (Grep|Glob|Bash)`: nega busca cega 1x/sessão e redireciona pra doc (espelha o graphify-guard, sentinel separado)
 - **ship** — `PreToolUse (Bash)`: bloqueia deploy se testes falham (só age em comandos de deploy)
 - **visual** — `PreToolUse (ExitPlanMode)`: força renderização HTML do plano antes de apresentar ao usuário
 
