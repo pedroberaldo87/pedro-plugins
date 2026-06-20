@@ -1,6 +1,6 @@
 {
   "name": "qa-loop",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "description": "Disciplined review-and-fix loop that stops on diminishing returns (quality vs worth-it), not on zero findings. Anchored to the implementation plan, with a per-fix regression gate, severity-based stop criterion, accepted-limits, churn detector, and a report plus journal to evaluate the ideal loop count over time. Replaces qa, rev6 and iterate.",
   "author": {
     "name": "Pedro Beraldo",

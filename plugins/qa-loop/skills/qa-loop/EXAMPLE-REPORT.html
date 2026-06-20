@@ -2,7 +2,8 @@
 <!--
 EXEMPLO do RELATÓRIO HUMANO do /qa-loop — dados fictícios mas realistas (scrubber de secret).
 É a referência de FORMATO + POLISH. O relatório real é gerado em runtime INVOCANDO a skill /visual
-(esta é a saída renderizada). Os 4 grupos de actionable são feedback-items SELECIONÁVEIS: o Pedro marca
+(esta é a saída renderizada). Os 4 grupos de actionable são feedback-items SELECIONÁVEIS que entram NEUTROS (sem pré-seleção — nada assume "sim",
+o contador começa em 0 de N): o Pedro marca
 "Vira ação" / "Ação c/ ajuste" / "Descartar", clica em "Gerar plano dos selecionados", e o Claude lê o
 estado (via daemon ~/.claude/visual-state/latest.json, ou o clipboard) e monta o próximo plano só com os
 marcados. O journal AGÊNTICO é outro artefato — ver EXAMPLE-JOURNAL.md.
