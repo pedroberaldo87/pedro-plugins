@@ -79,7 +79,7 @@ Dev Tools:
 - **guardrails** v1.0.0 — guardrails globais de edição como hooks: lint+type-check pós-edição, scope-cop (juiz Haiku) e guarda de Agent Teams. Migrado dos hooks soltos do `~/.claude/settings.json`; `/guardrails:setup` liga a env e limpa os antigos
 - **improve** v1.0.0 — implementa melhorias via GitHub Issues com label `autoresearch`
 - **principles** v1.0.0 — princípios de sistema mapeados ao contexto atual, guia WHY + HOW
-- **qa-loop** v1.1.0 — loop de review→conserto que para por retornos decrescentes (não por zero). Motor roda como **Workflow determinístico** (Opus revisa → Opus planeja/adjudica → Sonnet conserta; gate/churn/parada em código). Ancora no plano (3 buckets: implementação/plan-drift/plano-falho), regression gate por conserto, accepted-limits, relatório HUMANO (HTML) + journal AGÊNTICO. Substitui qa, rev6 e iterate
+- **qa-loop** v1.2.0 — loop de review→conserto que para por retornos decrescentes (não por zero). Motor roda como **Workflow determinístico** (Opus revisa → Opus planeja/adjudica → Sonnet conserta; gate/churn/parada em código). Ancora no plano (3 buckets: implementação/plan-drift/plano-falho), regression gate por conserto, accepted-limits, journal AGÊNTICO, e **relatório HUMANO interativo** (via /visual: 4 categorias de actionable + seleção live → próximo plano + gráfico de severidade por rodada). Substitui qa, rev6 e iterate
 - **raiox** v0.1.0 — pipeline de inteligência de canal YouTube para VIU Studio (fetch → DuckDB → 7 módulos → validate)
 - **ship** v1.0.1 — lint → typecheck → commit → push → deploy em sequência disciplinada
 

@@ -1,0 +1,425 @@
+<!DOCTYPE html>
+<!--
+EXEMPLO do RELATÓRIO HUMANO do /qa-loop — dados fictícios mas realistas (scrubber de secret).
+É a referência de FORMATO + POLISH. O relatório real é gerado em runtime INVOCANDO a skill /visual
+(esta é a saída renderizada). Os 4 grupos de actionable são feedback-items SELECIONÁVEIS: o Pedro marca
+"Vira ação" / "Ação c/ ajuste" / "Descartar", clica em "Gerar plano dos selecionados", e o Claude lê o
+estado (via daemon ~/.claude/visual-state/latest.json, ou o clipboard) e monta o próximo plano só com os
+marcados. O journal AGÊNTICO é outro artefato — ver EXAMPLE-JOURNAL.md.
+-->
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>/qa-loop — Relatório · src/scrub.py</title>
+<style>
+:root {
+  --bg: #1A1625; --card: #2A2438; --card-hi: #342C44; --card-deep: #221D2E;
+  --text: #F0EDF5; --text-dim: #A599B5; --text-mute: #7A7089;
+  --accent: #FFA88C; --accent-2: #9D8CFF; --ok: #7FD1AE; --warn: #FFD166; --danger: #FF6B8A;
+  --accent-soft: rgba(255,168,140,0.12); --border: rgba(255,255,255,0.08); --border-strong: rgba(255,255,255,0.14);
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  background: var(--bg);
+  background-image: radial-gradient(circle at 10% 0%, rgba(157,140,255,0.12), transparent 50%), radial-gradient(circle at 100% 100%, rgba(255,168,140,0.07), transparent 50%);
+  background-attachment: fixed; color: var(--text);
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Helvetica Neue', sans-serif;
+  font-size: 16px; line-height: 1.6; -webkit-font-smoothing: antialiased;
+}
+::selection { background: var(--accent); color: var(--bg); }
+.wrap { max-width: 960px; margin: 0 auto; padding: 64px 32px 200px; }
+.pill { display: inline-block; padding: 9px 20px; background: var(--accent-soft); color: var(--accent); font-size: 12.5px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; border-radius: 999px; margin-bottom: 22px; }
+h1 { font-size: 44px; font-weight: 800; line-height: 1.1; letter-spacing: -0.02em; margin-bottom: 14px; }
+h1 code { font-family: 'SF Mono', Menlo, monospace; font-size: 0.7em; color: var(--accent); background: var(--card-deep); padding: 4px 12px; border-radius: 10px; border: 1px solid var(--border); }
+.meta-chips { display: flex; flex-wrap: wrap; gap: 10px; margin: 22px 0 16px; }
+.chip { display: inline-flex; align-items: center; gap: 8px; padding: 8px 15px; background: var(--card); border: 1px solid var(--border); border-radius: 999px; font-size: 12.5px; color: var(--text-dim); }
+.chip strong { color: var(--text); font-weight: 600; }
+.chip.ok { border-color: var(--ok); color: var(--ok); } .chip.ok strong { color: var(--ok); }
+.verdict-banner { display: flex; align-items: center; gap: 18px; padding: 20px 26px; margin-bottom: 56px; background: linear-gradient(145deg, var(--card), rgba(127,209,174,0.08)); border: 1px solid rgba(127,209,174,0.4); border-radius: 18px; }
+.verdict-banner .big { font-size: 40px; line-height: 1; }
+.verdict-banner .vb-text { font-size: 15px; color: var(--text-dim); line-height: 1.5; }
+.verdict-banner .vb-text strong { color: var(--text); }
+section { margin-bottom: 56px; }
+.section-head { display: flex; align-items: baseline; gap: 14px; margin-bottom: 8px; }
+.section-num { display: inline-flex; width: 34px; height: 34px; border-radius: 11px; align-items: center; justify-content: center; font-size: 14px; font-weight: 800; flex-shrink: 0; }
+h2 { font-size: 26px; font-weight: 800; line-height: 1.2; letter-spacing: -0.02em; }
+.section-sub { font-size: 14px; color: var(--text-mute); margin-bottom: 22px; margin-left: 48px; }
+/* curva */
+.curve-card { background: var(--card); border: 1px solid var(--border); border-radius: 20px; padding: 28px 30px; }
+.curve-card svg { width: 100%; height: auto; display: block; }
+.curve-legend { display: flex; gap: 18px; margin-top: 14px; font-size: 12.5px; color: var(--text-dim); flex-wrap: wrap; align-items: center; }
+.curve-legend b { color: var(--accent); font-variant-numeric: tabular-nums; }
+.curve-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+@media (max-width: 760px) { .curve-grid { grid-template-columns: 1fr; } }
+.curve-card h3 { font-size: 12px; font-weight: 800; color: var(--text-mute); margin-bottom: 16px; letter-spacing: 0.06em; text-transform: uppercase; }
+.sw { display: inline-flex; align-items: center; gap: 7px; font-weight: 600; }
+.sw i { width: 12px; height: 12px; border-radius: 4px; display: inline-block; flex-shrink: 0; box-shadow: 0 1px 3px rgba(0,0,0,0.35); }
+.curve-card.big { padding: 32px 38px 24px; background: linear-gradient(160deg, var(--card), var(--card-deep)); }
+.gchart { width: 100%; height: auto; display: block; overflow: visible; }
+.gchart .axis { fill: #7A7089; font-size: 11px; font-variant-numeric: tabular-nums; }
+.gchart .xlab { fill: #C9BFD6; font-size: 13px; font-weight: 600; }
+.bar-total { fill: var(--text); font-size: 16px; font-weight: 800; }
+.bar { animation: barRise 0.7s cubic-bezier(.2,.85,.25,1) backwards; }
+@keyframes barRise { from { opacity: 0; transform: translateY(20px) scaleY(0.82); transform-origin: bottom; } }
+.sevline { animation: sevFade 0.6s ease 0.55s backwards; }
+@keyframes sevFade { from { opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .bar, .sevline { animation: none; } }
+/* tabela rodadas */
+.rounds { display: grid; gap: 10px; }
+.round-row { background: var(--card); border: 1px solid var(--border); border-radius: 14px; overflow: hidden; }
+.round-row summary { list-style: none; cursor: pointer; display: grid; grid-template-columns: 56px 1fr auto; gap: 16px; align-items: center; padding: 16px 22px; user-select: none; }
+.round-row summary::-webkit-details-marker { display: none; }
+.round-badge { width: 40px; height: 40px; border-radius: 11px; background: var(--accent-soft); color: var(--accent); display: flex; align-items: center; justify-content: center; font-size: 16px; font-weight: 800; }
+.round-stat { font-size: 14.5px; color: var(--text-dim); }
+.round-stat b { color: var(--text); font-variant-numeric: tabular-nums; }
+.round-yield { font-size: 13px; font-weight: 700; padding: 5px 12px; border-radius: 999px; white-space: nowrap; }
+.round-yield.hot { background: rgba(255,107,138,0.14); color: var(--danger); }
+.round-yield.warm { background: rgba(255,209,102,0.14); color: var(--warn); }
+.round-yield.cool { background: rgba(127,209,174,0.14); color: var(--ok); }
+.round-body { padding: 4px 22px 20px 78px; font-size: 14px; color: var(--text-dim); line-height: 1.6; }
+.round-row[open] .round-badge { background: var(--accent); color: var(--bg); }
+/* categorias */
+.cat-importantes .section-num { background: rgba(255,107,138,0.15); color: var(--danger); }
+.cat-sugestoes .section-num { background: rgba(157,140,255,0.15); color: var(--accent-2); }
+.cat-limitacoes .section-num { background: rgba(255,209,102,0.15); color: var(--warn); }
+.cat-extras .section-num { background: rgba(127,209,174,0.15); color: var(--ok); }
+.feedback-item { padding: 16px 20px; background: var(--card-hi); border: 2px solid transparent; border-radius: 14px; margin-bottom: 10px; transition: border-color 0.15s; }
+.feedback-item.state-keep { border-color: rgba(127,209,174,0.5); }
+.feedback-item.state-change { border-color: var(--warn); }
+.feedback-item.state-remove { border-color: rgba(255,107,138,0.35); opacity: 0.6; }
+.feedback-head { display: flex; gap: 14px; align-items: flex-start; flex-wrap: wrap; }
+.feedback-title { flex: 1; min-width: 200px; font-size: 15.5px; font-weight: 600; line-height: 1.35; }
+.feedback-title .where { display: block; font-size: 12.5px; font-weight: 400; color: var(--text-mute); margin-top: 3px; font-family: 'SF Mono', Menlo, monospace; }
+.feedback-radios { display: flex; gap: 6px; flex-shrink: 0; }
+.feedback-radios label { cursor: pointer; user-select: none; padding: 6px 11px; border-radius: 999px; border: 1px solid var(--border); background: var(--card-deep); font-size: 11.5px; font-weight: 700; color: var(--text-dim); transition: all 0.15s; white-space: nowrap; }
+.feedback-radios label:hover { border-color: var(--border-strong); color: var(--text); }
+.feedback-radios input { display: none; }
+.feedback-radios label:has(input[value="keep"]:checked) { background: var(--ok); border-color: var(--ok); color: var(--bg); }
+.feedback-radios label:has(input[value="change"]:checked) { background: var(--warn); border-color: var(--warn); color: var(--bg); }
+.feedback-radios label:has(input[value="remove"]:checked) { background: var(--danger); border-color: var(--danger); color: var(--bg); }
+.why { font-size: 13.5px; color: var(--text-dim); line-height: 1.55; margin-top: 10px; padding-left: 14px; border-left: 2px solid var(--border); }
+.sev { font-size: 10.5px; font-weight: 800; padding: 2px 9px; border-radius: 999px; border: 1px solid; vertical-align: middle; margin-left: 6px; }
+.sev-p0 { color: var(--danger); border-color: var(--danger); } .sev-p1 { color: var(--warn); border-color: var(--warn); } .sev-p2 { color: var(--accent-2); border-color: var(--accent-2); }
+.feedback-textarea { display: none; width: 100%; margin-top: 12px; padding: 11px 14px; background: var(--card-deep); border: 1px solid var(--border); border-radius: 12px; color: var(--text); font-family: inherit; font-size: 13.5px; line-height: 1.55; resize: vertical; min-height: 60px; outline: none; }
+.feedback-textarea:focus { border-color: var(--accent); }
+.feedback-item.state-change .feedback-textarea { display: block; }
+/* fechamento */
+.gen-box { background: var(--card); border: 1px solid var(--border); border-radius: 24px; padding: 36px 34px; margin-top: 48px; position: relative; }
+.gen-box h2 { margin-bottom: 6px; }
+.gen-intro { color: var(--text-dim); font-size: 14px; margin-bottom: 22px; }
+.live-indicator { position: absolute; top: 22px; right: 24px; display: none; align-items: center; gap: 6px; padding: 4px 11px; background: var(--card-deep); border: 1px solid var(--border); border-radius: 999px; font-size: 10.5px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; }
+.live-indicator::before { content: ""; width: 8px; height: 8px; border-radius: 50%; }
+.live-indicator.ok { display: inline-flex; color: var(--ok); border-color: var(--ok); } .live-indicator.ok::before { background: var(--ok); box-shadow: 0 0 0 3px rgba(127,209,174,0.18); } .live-indicator.ok::after { content: "live sync"; }
+.live-indicator.err { display: inline-flex; color: var(--warn); border-color: var(--warn); } .live-indicator.err::before { background: var(--warn); } .live-indicator.err::after { content: "copy manual"; }
+.gen-progress { display: flex; align-items: center; gap: 14px; padding: 14px 20px; background: var(--card-deep); border-radius: 14px; margin-bottom: 18px; font-size: 13px; color: var(--text-dim); font-variant-numeric: tabular-nums; }
+.gen-progress b { color: var(--ok); font-weight: 800; }
+.gen-bar { flex: 1; height: 6px; background: var(--border); border-radius: 999px; overflow: hidden; }
+.gen-bar-fill { height: 100%; width: 0%; background: var(--ok); transition: width 0.3s; }
+.gen-note label { font-size: 13px; color: var(--text); font-weight: 600; display: block; margin-bottom: 8px; }
+.gen-note textarea { width: 100%; padding: 13px 15px; background: var(--card-deep); border: 1px solid var(--border); border-radius: 13px; color: var(--text); font-family: inherit; font-size: 14px; line-height: 1.6; resize: vertical; min-height: 70px; outline: none; }
+.gen-note textarea:focus { border-color: var(--accent); }
+.sticky-actions { position: sticky; bottom: 20px; margin-top: 24px; padding: 14px 18px; background: rgba(42,36,56,0.92); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); border: 1px solid var(--border-strong); border-radius: 16px; display: flex; gap: 10px; flex-wrap: wrap; box-shadow: 0 20px 60px rgba(0,0,0,0.4); z-index: 10; }
+.btn { cursor: pointer; padding: 13px 24px; border-radius: 14px; font-size: 14px; font-weight: 700; border: 1px solid var(--border-strong); background: var(--card-hi); color: var(--text); transition: all 0.15s; font-family: inherit; }
+.btn:hover { transform: translateY(-2px); border-color: var(--accent); }
+.btn-primary { background: var(--accent); border-color: var(--accent); color: var(--bg); }
+.btn-primary:hover { background: #FFB89C; }
+.btn.copied { background: var(--ok) !important; border-color: var(--ok) !important; color: var(--bg) !important; }
+code.inline { background: var(--card-deep); border: 1px solid var(--border); padding: 2px 7px; border-radius: 6px; font-family: 'SF Mono', Menlo, monospace; font-size: 12.5px; color: var(--accent); }
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { transition-duration: 0.01ms !important; } .btn:hover { transform: none !important; } }
+@media (max-width: 640px) { .wrap { padding: 44px 18px 120px; } h1 { font-size: 30px; } .round-row summary { grid-template-columns: 48px 1fr; } .round-yield { grid-column: 2; } .round-body { padding-left: 22px; } }
+</style>
+</head>
+<body>
+<script>window.VISUAL_SESSION = "202606201245-qarep0";</script>
+<div class="wrap">
+
+  <div class="pill">/qa-loop · relatório</div>
+  <h1>Relatório de QA · <code>src/scrub.py</code></h1>
+  <div class="meta-chips">
+    <span class="chip"><strong>Domínio:</strong> assintótico</span>
+    <span class="chip"><strong>Plano-âncora:</strong> scrubber-v3.md</span>
+    <span class="chip"><strong>Rede:</strong> suíte (41 testes)</span>
+    <span class="chip ok"><strong>Parou:</strong> rodada limpa (3)</span>
+  </div>
+  <div class="verdict-banner">
+    <span class="big">✅</span>
+    <span class="vb-text">Convergiu em <strong>3 rodadas</strong> pelo gate de severidade (não pelo teto). <strong>6 correções</strong>, <strong>1 regressão pega na hora</strong>. Código aderente ao plano, sem regressão conhecida. <strong>4 itens sobem pra você decidir</strong> abaixo.</span>
+  </div>
+
+  <section>
+    <div class="section-head"><span class="section-num" style="background:var(--accent-soft);color:var(--accent)">▦</span><h2>Findings por severidade</h2></div>
+    <p class="section-sub">Distribuição por nível (P0/P1/P2/P3) em cada rodada. A linha tracejada é a severidade real (P0+P1) — o que governa a parada.</p>
+    <div class="curve-card big">
+      <svg class="gchart" viewBox="0 0 720 296" role="img" aria-label="Findings por severidade por rodada">
+        <defs>
+          <linearGradient id="gp0" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FF8FA6"/><stop offset="1" stop-color="#FF6B8A"/></linearGradient>
+          <linearGradient id="gp1" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFE3A0"/><stop offset="1" stop-color="#FFD166"/></linearGradient>
+          <linearGradient id="gp2" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#B6A9FF"/><stop offset="1" stop-color="#9D8CFF"/></linearGradient>
+          <linearGradient id="gp3" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#8A8199"/><stop offset="1" stop-color="#655C7A"/></linearGradient>
+          <filter id="glow" x="-30%" y="-30%" width="160%" height="160%"><feDropShadow dx="0" dy="0" stdDeviation="3.5" flood-color="#FFA88C" flood-opacity="0.5"/></filter>
+        </defs>
+        <line x1="70" y1="30" x2="70" y2="240" stroke="rgba(255,255,255,0.08)"/>
+        <line x1="70" y1="240" x2="690" y2="240" stroke="rgba(255,255,255,0.13)"/>
+        <line x1="70" y1="170" x2="690" y2="170" stroke="rgba(255,255,255,0.05)"/>
+        <line x1="70" y1="100" x2="690" y2="100" stroke="rgba(255,255,255,0.05)"/>
+        <line x1="70" y1="30"  x2="690" y2="30"  stroke="rgba(255,255,255,0.05)"/>
+        <text class="axis" x="58" y="34"  text-anchor="end">15</text>
+        <text class="axis" x="58" y="104" text-anchor="end">10</text>
+        <text class="axis" x="58" y="174" text-anchor="end">5</text>
+        <text class="axis" x="58" y="244" text-anchor="end">0</text>
+        <!-- rodada 1: P0=2 P1=3 P2=4 P3=6 (total 15) -->
+        <g class="bar" style="animation-delay:0s">
+          <rect x="138" y="212" width="84" height="28" fill="url(#gp0)"/>
+          <rect x="138" y="170" width="84" height="42" fill="url(#gp1)"/>
+          <rect x="138" y="114" width="84" height="56" fill="url(#gp2)"/>
+          <path d="M138,114 L138,40 Q138,30 148,30 L212,30 Q222,30 222,40 L222,114 Z" fill="url(#gp3)"/>
+          <text class="bar-total" x="180" y="22" text-anchor="middle">15</text>
+        </g>
+        <!-- rodada 2: P1=1 P2=2 P3=3 (total 6) -->
+        <g class="bar" style="animation-delay:.09s">
+          <rect x="338" y="226" width="84" height="14" fill="url(#gp1)"/>
+          <rect x="338" y="198" width="84" height="28" fill="url(#gp2)"/>
+          <path d="M338,198 L338,166 Q338,156 348,156 L412,156 Q422,156 422,166 L422,198 Z" fill="url(#gp3)"/>
+          <text class="bar-total" x="380" y="148" text-anchor="middle">6</text>
+        </g>
+        <!-- rodada 3: P2=1 P3=2 (total 3) -->
+        <g class="bar" style="animation-delay:.18s">
+          <rect x="538" y="226" width="84" height="14" fill="url(#gp2)"/>
+          <path d="M538,226 L538,208 Q538,198 548,198 L612,198 Q622,198 622,208 L622,226 Z" fill="url(#gp3)"/>
+          <text class="bar-total" x="580" y="188" text-anchor="middle">3</text>
+        </g>
+        <!-- severidade real (P0+P1): 5 -> 1 -> 0 -->
+        <g class="sevline">
+          <polyline points="180,170 380,226 580,240" fill="none" stroke="#FFA88C" stroke-width="2.5" stroke-dasharray="7 5" stroke-linecap="round" filter="url(#glow)"/>
+          <circle cx="180" cy="170" r="5" fill="#FFA88C" stroke="#1A1625" stroke-width="2"/>
+          <circle cx="380" cy="226" r="5" fill="#FFA88C" stroke="#1A1625" stroke-width="2"/>
+          <circle cx="580" cy="240" r="5.5" fill="#7FD1AE" stroke="#1A1625" stroke-width="2"/>
+        </g>
+        <text class="xlab" x="180" y="264" text-anchor="middle">rodada 1</text>
+        <text class="xlab" x="380" y="264" text-anchor="middle">rodada 2</text>
+        <text class="xlab" x="580" y="264" text-anchor="middle">rodada 3</text>
+      </svg>
+      <div class="curve-legend">
+        <span class="sw"><i style="background:linear-gradient(#FF8FA6,#FF6B8A)"></i>P0</span>
+        <span class="sw"><i style="background:linear-gradient(#FFE3A0,#FFD166)"></i>P1</span>
+        <span class="sw"><i style="background:linear-gradient(#B6A9FF,#9D8CFF)"></i>P2</span>
+        <span class="sw"><i style="background:linear-gradient(#8A8199,#655C7A)"></i>P3</span>
+        <span class="sw" style="color:var(--accent)"><i style="background:#FFA88C"></i>severidade real (P0+P1) → governa a parada</span>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="section-head"><span class="section-num" style="background:var(--accent-soft);color:var(--accent)">▤</span><h2>Por rodada</h2></div>
+    <p class="section-sub">Considerações de cada rodada na própria linha — clique pra abrir.</p>
+    <div class="rounds">
+      <details class="round-row" open>
+        <summary><span class="round-badge">1</span><span class="round-stat">findings <b>2 / 3 / 4 / 6</b> · correções <b>5</b></span><span class="round-yield hot">retorno 5</span></summary>
+        <div class="round-body">Sweep completo do checklist (6 dimensões). Os 2 P0 de secret-leak são a raiz do valor — consertados por extensão enumerada (blast radius zero).</div>
+      </details>
+      <details class="round-row">
+        <summary><span class="round-badge">2</span><span class="round-stat">findings <b>0 / 1 / 2 / 3</b> · correções <b>1</b></span><span class="round-yield warm">retorno 1</span></summary>
+        <div class="round-body">Caça-regressão + <code class="inline">PUBLIC_SECRET</code>. A 1ª tentativa alargou a regra e quebrou um teste de rodada 1 — a suíte pegou na mesma edição, revertido e refeito por extensão. churn(<code class="inline">_is_secret_key</code>)=1.</div>
+      </details>
+      <details class="round-row">
+        <summary><span class="round-badge">3</span><span class="round-stat">findings <b>0 / 0 / 1 / 2</b> · correções <b>0</b></span><span class="round-yield cool">rodada limpa → PARA</span></summary>
+        <div class="round-body">Só P2/P3 e accepted-limits. Re-rodou o checklist completo pra confirmar a parada (não parar numa rodada magra). Gate de severidade disparou: zero P0/P1 fora dos limites.</div>
+      </details>
+    </div>
+  </section>
+
+  <!-- ====== 4 CATEGORIAS DE ACTIONABLE (feedback-items selecionáveis) ====== -->
+
+  <section class="cat-importantes">
+    <div class="section-head"><span class="section-num">1</span><h2>Importantes — recomendação</h2></div>
+    <p class="section-sub">Decisões de arquitetura do PLANO (não bugs). Não toquei — "apresento e julgamos".</p>
+
+    <div class="feedback-item" data-num="1" data-cat="Importante" data-title="Estágios do scrubber compartilham estado mutável">
+      <div class="feedback-head">
+        <span class="feedback-title">Estágios do scrubber compartilham estado mutável <span class="sev sev-p0">P0</span><span class="where">scrubber-v3.md · arquitetura</span></span>
+        <div class="feedback-radios">
+          <label><input type="radio" name="a1" value="keep" onchange="onFb(this)"> ✓ Vira ação</label>
+          <label><input type="radio" name="a1" value="change" onchange="onFb(this)"> ✏️ Ajuste</label>
+          <label><input type="radio" name="a1" value="remove" onchange="onFb(this)"> ✗ Descartar</label>
+        </div>
+      </div>
+      <p class="why">Os 4 estágios operam sobre o mesmo texto/spans — é a raiz estrutural das regressões (4 das 5 da sessão-base vieram daqui). Sugestão pra re-planejamento: detectores independentes que recebem o texto e devolvem spans, merge no fim.</p>
+      <textarea class="feedback-textarea" placeholder="Ajuste pra esta ação..."></textarea>
+    </div>
+
+    <div class="feedback-item" data-num="2" data-cat="Importante" data-title="Redação por substring de palavra-sinal é frágil por design">
+      <div class="feedback-head">
+        <span class="feedback-title">Redação por substring de palavra-sinal é frágil por design <span class="sev sev-p1">P1</span><span class="where">scrubber-v3.md · método</span></span>
+        <div class="feedback-radios">
+          <label><input type="radio" name="a2" value="keep" onchange="onFb(this)"> ✓ Vira ação</label>
+          <label><input type="radio" name="a2" value="change" onchange="onFb(this)"> ✏️ Ajuste</label>
+          <label><input type="radio" name="a2" value="remove" onchange="onFb(this)"> ✗ Descartar</label>
+        </div>
+      </div>
+      <p class="why">Substring vale pros dois lados da fronteira (<code class="inline">AUTHOR</code> contém <code class="inline">AUTH</code>). Contornei caso a caso, mas a abordagem-base gera cauda longa enquanto existir. Decisão de método, sua.</p>
+      <textarea class="feedback-textarea" placeholder="Ajuste pra esta ação..."></textarea>
+    </div>
+  </section>
+
+  <section class="cat-sugestoes">
+    <div class="section-head"><span class="section-num">2</span><h2>Sugestões de melhoria</h2></div>
+    <p class="section-sub">Drift restaurado pro plano + refators que o loop propôs.</p>
+
+    <div class="feedback-item" data-num="3" data-cat="Sugestão" data-title="Extrair detectores independentes (1 por classe de secret)">
+      <div class="feedback-head">
+        <span class="feedback-title">Extrair detectores independentes (1 por classe de secret)<span class="where">scrub.py · refator</span></span>
+        <div class="feedback-radios">
+          <label><input type="radio" name="a3" value="keep" onchange="onFb(this)"> ✓ Vira ação</label>
+          <label><input type="radio" name="a3" value="change" onchange="onFb(this)"> ✏️ Ajuste</label>
+          <label><input type="radio" name="a3" value="remove" onchange="onFb(this)"> ✗ Descartar</label>
+        </div>
+      </div>
+      <p class="why">Operacionaliza o item #1 sem mudar o plano: cada detector isola seu blast radius. Só vale se o churn nesse arquivo persistir.</p>
+      <textarea class="feedback-textarea" placeholder="Ajuste pra esta ação..."></textarea>
+    </div>
+
+    <div class="feedback-item" data-num="4" data-cat="Sugestão" data-title="Ordenar checagens positivas fortes antes das exceções">
+      <div class="feedback-head">
+        <span class="feedback-title">Ordenar checagens positivas fortes antes das exceções<span class="where">_is_secret_key() · ordem</span></span>
+        <div class="feedback-radios">
+          <label><input type="radio" name="a4" value="keep" onchange="onFb(this)"> ✓ Vira ação</label>
+          <label><input type="radio" name="a4" value="change" onchange="onFb(this)"> ✏️ Ajuste</label>
+          <label><input type="radio" name="a4" value="remove" onchange="onFb(this)"> ✗ Descartar</label>
+        </div>
+      </div>
+      <p class="why">Já apliquei pro <code class="inline">PUBLIC_SECRET</code>; vale generalizar pra evitar o mecanismo de curto-circuito em futuras exceções.</p>
+      <textarea class="feedback-textarea" placeholder="Ajuste pra esta ação..."></textarea>
+    </div>
+  </section>
+
+  <section class="cat-limitacoes">
+    <div class="section-head"><span class="section-num">3</span><h2>Limitações atuais</h2></div>
+    <p class="section-sub">Não quebram, mas importam. Accepted-limits propostos + funções acopladas (churn).</p>
+
+    <div class="feedback-item" data-num="5" data-cat="Limitação" data-title="Secret all-letter sem sinal a >160 chars">
+      <div class="feedback-head">
+        <span class="feedback-title">Secret all-letter sem sinal a &gt;160 chars<span class="where">limite inerente do domínio</span></span>
+        <div class="feedback-radios">
+          <label><input type="radio" name="a5" value="keep" onchange="onFb(this)"> ✓ Vira ação</label>
+          <label><input type="radio" name="a5" value="change" onchange="onFb(this)"> ✏️ Ajuste</label>
+          <label><input type="radio" name="a5" value="remove" onchange="onFb(this)"> ✗ Descartar</label>
+        </div>
+      </div>
+      <p class="why">Indistinguível de prosa longa sem um classificador semântico. Proposto como accepted-limit — só vira permanente se você ratificar na config.</p>
+      <textarea class="feedback-textarea" placeholder="Ajuste pra esta ação..."></textarea>
+    </div>
+
+    <div class="feedback-item" data-num="6" data-cat="Limitação" data-title="_is_secret_key() é hotspot de churn">
+      <div class="feedback-head">
+        <span class="feedback-title"><code class="inline">_is_secret_key()</code> é hotspot de churn<span class="where">scrub.py:88 · acoplamento</span></span>
+        <div class="feedback-radios">
+          <label><input type="radio" name="a6" value="keep" onchange="onFb(this)"> ✓ Vira ação</label>
+          <label><input type="radio" name="a6" value="change" onchange="onFb(this)"> ✏️ Ajuste</label>
+          <label><input type="radio" name="a6" value="remove" onchange="onFb(this)"> ✗ Descartar</label>
+        </div>
+      </div>
+      <p class="why">3 regressões auto-infligidas acumuladas em 2 sessões. Se passar de novo, é sinal forte pro refator do item #1.</p>
+      <textarea class="feedback-textarea" placeholder="Ajuste pra esta ação..."></textarea>
+    </div>
+  </section>
+
+  <section class="cat-extras">
+    <div class="section-head"><span class="section-num">4</span><h2>Extras</h2></div>
+    <p class="section-sub">Opcionais — P2/P3 abaixo do floor. Registrados, fora do caminho.</p>
+
+    <div class="feedback-item" data-num="7" data-cat="Extra" data-title="Naming: _chk é pouco descritivo">
+      <div class="feedback-head">
+        <span class="feedback-title">Naming: <code class="inline">_chk</code> é pouco descritivo <span class="sev sev-p2">P2</span><span class="where">scrub.py:54</span></span>
+        <div class="feedback-radios">
+          <label><input type="radio" name="a7" value="keep" onchange="onFb(this)"> ✓ Vira ação</label>
+          <label><input type="radio" name="a7" value="change" onchange="onFb(this)"> ✏️ Ajuste</label>
+          <label><input type="radio" name="a7" value="remove" onchange="onFb(this)"> ✗ Descartar</label>
+        </div>
+      </div>
+      <p class="why">Rebaixado pra P2 pelo Planejador (gosto, sem bug concreto). Picuinha — só sobe se você quiser.</p>
+      <textarea class="feedback-textarea" placeholder="Ajuste pra esta ação..."></textarea>
+    </div>
+  </section>
+
+  <!-- ====== FECHAMENTO — gerar plano dos selecionados ====== -->
+  <div class="gen-box">
+    <span class="live-indicator" id="live-indicator"></span>
+    <h2>⚙️ Gerar plano dos selecionados</h2>
+    <p class="gen-intro">Marque o que vira ação acima. Com o daemon ligado (<code class="inline">live sync</code>), eu já leio o que você escolheu — é só dizer "ok" no CLI. Sem daemon, o botão copia pro clipboard.</p>
+    <div class="gen-progress"><b id="gen-done">0</b>&nbsp;de&nbsp;<span id="gen-total">0</span>&nbsp;achados viram ação<div class="gen-bar"><div class="gen-bar-fill" id="gen-bar"></div></div></div>
+    <div class="gen-note"><label for="gen-comments">Algo a acrescentar ao plano? (opcional)</label><textarea id="gen-comments" placeholder="Ex: prioriza o refator #3 antes do resto..."></textarea></div>
+    <div class="sticky-actions"><button class="btn btn-primary" onclick="genPlan(this)">⚙️ Gerar plano dos selecionados</button></div>
+  </div>
+
+</div>
+
+<script>
+var STORAGE_KEY = 'claude-visual:' + location.pathname;
+function onFb(input) {
+  var item = input.closest('.feedback-item');
+  item.classList.remove('state-keep','state-change','state-remove');
+  item.classList.add('state-' + input.value);
+  updateGenProgress(); saveState();
+}
+function updateGenProgress() {
+  var items = document.querySelectorAll('.feedback-item'); var total = items.length; var act = 0;
+  items.forEach(function(it){ var c = it.querySelector('input:checked'); if (c && (c.value==='keep'||c.value==='change')) act++; });
+  var d = document.getElementById('gen-done'), t = document.getElementById('gen-total'), b = document.getElementById('gen-bar');
+  if (d) d.textContent = act; if (t) t.textContent = total; if (b) b.style.width = total ? (100*act/total)+'%' : '0%';
+}
+function collectSelected() {
+  var byCat = {}; var order = [];
+  document.querySelectorAll('.feedback-item').forEach(function(it){
+    var c = it.querySelector('input:checked'); if (!c) return;
+    if (c.value !== 'keep' && c.value !== 'change') return;
+    var cat = it.dataset.cat; if (!byCat[cat]) { byCat[cat] = []; order.push(cat); }
+    var line = '- ' + it.dataset.title;
+    if (c.value === 'change') {
+      var ta = it.querySelector('.feedback-textarea'); var note = (ta && ta.value || '').trim();
+      line += ' — _ajuste:_ ' + (note || '(descrever no CLI)');
+    }
+    byCat[cat].push(line);
+  });
+  return { byCat: byCat, order: order };
+}
+function genPlan(btn) {
+  var sel = collectSelected();
+  var lines = ['<!-- visual-feedback v1 -->', '⚙️ **Actionables do relatório /qa-loop — viram o próximo plano:**', ''];
+  if (!sel.order.length) { lines.push('_(nenhum item marcado como ação)_'); }
+  else { sel.order.forEach(function(cat){ lines.push('**' + cat + '**'); lines = lines.concat(sel.byCat[cat]); lines.push(''); }); }
+  var c = document.getElementById('gen-comments'); var cText = (c && c.value || '').trim();
+  if (cText) { lines.push('**Observação:**', cText, ''); }
+  lines.push('Monta o plano só com estes itens.', '', '<!-- /visual-feedback -->');
+  copyText(lines.join('\n')).then(function(){ flashBtn(btn,'Copiado — cola no CLI'); }).catch(function(){ flashBtn(btn,'Falha — copie manual', true); });
+}
+function copyText(text) {
+  if (navigator.clipboard && navigator.clipboard.writeText) return navigator.clipboard.writeText(text);
+  return new Promise(function(res, rej){ var ta=document.createElement('textarea'); ta.value=text; ta.style.position='fixed'; ta.style.opacity='0'; document.body.appendChild(ta); ta.select(); var ok=false; try{ok=document.execCommand('copy');}catch(e){} document.body.removeChild(ta); ok?res():rej(); });
+}
+function flashBtn(btn, label, isErr) { var o=btn.textContent; btn.textContent=(isErr?'✗ ':'✓ ')+label; btn.classList.add('copied'); setTimeout(function(){btn.textContent=o; btn.classList.remove('copied');},2600); }
+function buildStateSnapshot() {
+  return { feedback: Array.from(document.querySelectorAll('.feedback-item')).map(function(it){
+    var c = it.querySelector('input:checked'); var ta = it.querySelector('.feedback-textarea');
+    return { num: it.dataset.num, cat: it.dataset.cat, title: it.dataset.title, val: c?c.value:null, note: ta?ta.value:'' };
+  }), comments: (document.getElementById('gen-comments')||{}).value || '' };
+}
+function saveState(){ try{ localStorage.setItem(STORAGE_KEY, JSON.stringify(buildStateSnapshot())); }catch(e){} postState(); }
+var _t=null; var URL_ = (window.VISUAL_SERVER_URL||'http://127.0.0.1:7755')+'/state';
+function postState(){ if(!window.VISUAL_SESSION) return; if(_t) clearTimeout(_t);
+  _t=setTimeout(function(){ try{ fetch(URL_,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({session:window.VISUAL_SESSION,docTitle:document.title,state:buildStateSnapshot()}),keepalive:true})
+    .then(function(r){ var i=document.getElementById('live-indicator'); if(i) i.className=r.ok?'live-indicator ok':'live-indicator err'; })
+    .catch(function(){ var i=document.getElementById('live-indicator'); if(i) i.className='live-indicator err'; }); }catch(e){} }, 400); }
+function restoreState(){ try{ var raw=localStorage.getItem(STORAGE_KEY); if(!raw) return; var s=JSON.parse(raw);
+  if(s.feedback) s.feedback.forEach(function(f){ if(!f.val) return; var it=document.querySelector('.feedback-item[data-num="'+f.num+'"]'); if(!it) return;
+    it.classList.remove('state-keep','state-change','state-remove'); it.classList.add('state-'+f.val);
+    var r=it.querySelector('input[value="'+f.val+'"]'); if(r) r.checked=true; var ta=it.querySelector('.feedback-textarea'); if(ta&&f.note) ta.value=f.note; });
+  if(s.comments){ var c=document.getElementById('gen-comments'); if(c) c.value=s.comments; } }catch(e){} }
+document.addEventListener('DOMContentLoaded', function(){
+  restoreState(); updateGenProgress();
+  document.querySelectorAll('.feedback-textarea').forEach(function(ta){ ta.addEventListener('input', saveState); });
+  var c=document.getElementById('gen-comments'); if(c) c.addEventListener('input', saveState);
+});
+</script>
+</body>
+</html>

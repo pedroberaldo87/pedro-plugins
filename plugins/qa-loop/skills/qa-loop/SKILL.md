@@ -298,15 +298,35 @@ journal, nunca eixo de parada nem framing de "custo".**
 Quando o Workflow retorna, a casca roda a suíte completa + checks de integração, e produz **DOIS artefatos com
 públicos distintos**:
 
-### (A) Relatório HUMANO — HTML, estilo `/visual` (conciso, visual)
+### (A) Relatório HUMANO — gerador de actionables, via a skill `/visual` como parceira
 
-Reusa o template + daemon da skill `/visual`. Estrutura:
-- **Gráfico** da curva de retornos decrescentes (findings de severidade real por rodada).
-- **Tabela por rodada** com as considerações de cada rodada **DENTRO da linha** (clica → colapsável), NÃO um listão depois.
-- **Considerações gerais + sumário** no fim.
-- **Seção de ALERTAS** (os plan-flaw + os candidatos a mudança-de-plano que sobem pro Pedro).
-- **Seção visual** de recados + sugestões pra futuro planejamento / rever o plano daquele projeto.
-- Linguagem humana, sem parágrafos longos, com separação visual. (Ver `EXAMPLE-REPORT.md`.)
+**INVOQUE a skill `/visual`** pra renderizar (não reimplemente template nem daemon): o `/visual` já traz a
+hierarquia, o "pedido se explica sozinho", o vocabulário banido, o daemon de live-sync e a semântica de copy.
+Você passa o conteúdo estruturado (do `return` do Workflow); o `/visual` resolve template + daemon + path + abre.
+
+Estrutura do relatório (no topo → fundo):
+- **Gráfico único (SVG inline) — findings por severidade:** barras empilhadas P0/P1/P2/P3 por rodada, com a
+  linha de severidade real (P0+P1) sobreposta — mostra a composição E a queda (retornos decrescentes) no mesmo
+  lugar. Um gráfico só, porque com 4-5 rodadas dois lado a lado apertam. + **tabela por rodada** com as
+  considerações **DENTRO da linha** (colapsável), NÃO um listão depois. Read-only.
+- **4 categorias de ACTIONABLE** — o que sobe pro Pedro deixa de ser "alerta genérico" e vira 4 seções, cada
+  achado um **`feedback-item` SELECIONÁVEL** (os valores internos `keep`/`change`/`remove` ficam, mas os labels
+  viram **"✓ Vira ação" / "✏️ Ação c/ ajuste" / "✗ Descartar"** — o `/visual` autoriza relabelar). Cada item é
+  **auto-explicável**: título humano (1 linha, sem jargão de código) + porquê/impacto (1-2 linhas) + onde (path);
+  o detalhe técnico fica no colapsável. O mapeamento (a partir do `return`):
+  1. **Importantes — recomendação** ← `planFlawAlerts` P0/P1 (decisões de arquitetura do plano: "apresento e julgamos").
+  2. **Sugestões de melhoria** ← `plan-drift` (candidatos a mudança de plano) + refators propostos pelo loop.
+  3. **Limitações atuais** (não quebram, mas importam) ← `acceptedLimits` propostos + churn hotspots.
+  4. **Extras** (opcionais) ← P2/P3 documentados (picuinhas abaixo do floor, nice-to-have).
+- **Fechamento** (`feedback-box`): progresso + observação geral + botões "Aprovar tudo" / "Copiar feedback".
+
+**Seleção live → próximo plano (o ciclo fecha aqui).** O Pedro marca os itens, diz **"ok"**, e a casca lê
+`~/.claude/visual-state/latest.json` (o daemon do `/visual`) e **monta o próximo plano só com os itens marcados
+"✓ Vira ação" / "✏️ Ação c/ ajuste"** (a nota do "ajuste" entra como refinamento). Copy/paste é o fallback
+quando o daemon está off. É assim que o relatório de QA vira o INPUT do próximo plano, sem retrabalho.
+
+Polish: densidade controlada (sem parágrafo longo), hierarquia por cor + `sev`-tag, cada categoria com peso
+visual distinto. Linguagem humana. (Ver `EXAMPLE-REPORT.html`.)
 
 Se não headless, pergunta o **veredito 0-10** do Pedro (1 pergunta opcional/skipável) — a âncora subjetiva.
 

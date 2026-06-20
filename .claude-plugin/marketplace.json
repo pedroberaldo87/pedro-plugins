@@ -137,9 +137,9 @@
     {
       "name": "qa-loop",
       "source": "./plugins/qa-loop",
-      "description": "Disciplined review-and-fix loop that stops on diminishing returns (quality vs worth-it), not on zero. Anchored to the implementation plan, with a per-fix regression gate, severity stop criterion, accepted-limits, churn detector, and a report plus journal to evaluate the ideal loop count. Replaces qa, rev6 and iterate.",
+      "description": "Disciplined review-and-fix loop that stops on diminishing returns (quality vs worth-it), not on zero. Anchored to the implementation plan, with a per-fix regression gate, severity stop criterion, accepted-limits, churn detector, an interactive human report (via /visual: 4 actionable categories + live selection) and an agentic journal. Replaces qa, rev6 and iterate.",
       "category": "dev-tools",
-      "version": "1.1.0",
+      "version": "1.2.0",
       "tags": [
         "code-review",
         "qa",
