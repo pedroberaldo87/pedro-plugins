@@ -7,7 +7,7 @@ scope: .claude-plugin/marketplace.json, plugins/*/plugin.json, plugins/*/hooks/h
 # Architecture
 
 ## Visão Geral
-Marketplace privado de plugins Claude Code do Pedro. 18 plugins independentes (skills, hooks, automações) distribuídos via `.claude-plugin/marketplace.json`. Qualquer máquina instala com `claude plugin install`.
+Marketplace privado de plugins Claude Code do Pedro. 19 plugins independentes (skills, hooks, automações) distribuídos via `.claude-plugin/marketplace.json`. Qualquer máquina instala com `claude plugin install`.
 
 ## Stack
 - **Linguagem:** Shell (hooks), Markdown (skills)
@@ -18,7 +18,7 @@ Marketplace privado de plugins Claude Code do Pedro. 18 plugins independentes (s
 ## Estrutura de Diretórios
 ```
 pedro-plugins/
-├── .claude-plugin/marketplace.json   # índice do marketplace (18 plugins)
+├── .claude-plugin/marketplace.json   # índice do marketplace (19 plugins)
 ├── plugins/                          # cada subdir = 1 plugin independente
 │   ├── bootstrap-third-party/        # ⚙️ hooks: SessionStart, PostToolUse
 │   ├── context-guard/                # ⚙️ hooks: SessionStart, PostToolUse
@@ -26,6 +26,7 @@ pedro-plugins/
 │   ├── graphify-guard/               # ⚙️ hooks: SessionStart, PreToolUse
 │   ├── grill-me/                     # por Matt Pocock
 │   ├── grill-with-docs/              # por Matt Pocock
+│   ├── guardrails/                   # ⚙️ hooks: PostToolUse, PreToolUse (Edit|Write, Agent)
 │   ├── handoff/
 │   ├── improve/
 │   ├── iterate/
@@ -57,10 +58,11 @@ plugins/<nome>/
 - **bootstrap-third-party** — `SessionStart`: sincroniza plugins via manifest.json · `PostToolUse`: detecta comandos `claude plugin`
 - **context-guard** — `SessionStart`: reseta sentinel · `PostToolUse`: lê `/tmp/claude-context-pct`, bloqueia se > threshold (80%)
 - **graphify-guard** — `SessionStart`: avisa se o projeto tem knowledge graph · `PreToolUse (Grep/Glob/Bash)`: intercepta busca cega e redireciona pra `graphify query` (1x/sessão; cobre cwd container descendo)
+- **guardrails** — `PostToolUse (Edit|Write)`: lint + type-check pós-edição (JS/TS/Python) · `PreToolUse (Edit|Write)`: scope-cop (juiz Haiku) bloqueia edição de UI que foge do plano · `PreToolUse (Agent)`: guarda contra mau uso de Agent Teams. Estado mutável em `~/.claude/guardrails/`. Migrado dos hooks soltos do `settings.json`
 - **ship** — `PreToolUse (Bash)`: bloqueia deploy se testes falham (só age em comandos de deploy)
 - **visual** — `PreToolUse (ExitPlanMode)`: força renderização HTML do plano antes de apresentar ao usuário
 
-## Catálogo dos 18 Plugins
+## Catálogo dos 19 Plugins
 
 Produtividade:
 - **bootstrap-third-party** v0.1.3 — auto-sync marketplaces e plugins entre máquinas via manifest.json declarativo
@@ -76,6 +78,7 @@ Dev Tools:
 - **fallow** v1.0.2 — análise estática JS/TS (dead code, duplicação, complexidade) com report interativo
 - **grill-me** v1.0.0 — design review implacável uma pergunta por vez (Matt Pocock)
 - **grill-with-docs** v1.0.0 — design review contra domain model existente, atualiza CONTEXT.md/ADRs inline (Matt Pocock)
+- **guardrails** v1.0.0 — guardrails globais de edição como hooks: lint+type-check pós-edição, scope-cop (juiz Haiku) e guarda de Agent Teams. Migrado dos hooks soltos do `~/.claude/settings.json`; `/guardrails:setup` liga a env e limpa os antigos
 - **improve** v1.0.0 — implementa melhorias via GitHub Issues com label `autoresearch`
 - **iterate** v1.0.0 — loop autônomo até verificação passar (contrato: resultado verificável + comando de verif.)
 - **principles** v1.0.0 — princípios de sistema mapeados ao contexto atual, guia WHY + HOW

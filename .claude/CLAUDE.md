@@ -4,7 +4,7 @@
 # Project Reference
 
 ## Visão Geral
-Marketplace privado de plugins Claude Code. 18 plugins independentes (skills, hooks, automações) distribuídos via `.claude-plugin/marketplace.json`.
+Marketplace privado de plugins Claude Code. 19 plugins independentes (skills, hooks, automações) distribuídos via `.claude-plugin/marketplace.json`.
 **Tipo:** lib · **Stack:** Markdown + Shell · **PM:** nenhum
 
 ## Quick Commands

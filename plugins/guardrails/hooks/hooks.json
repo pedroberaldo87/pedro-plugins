@@ -1,0 +1,38 @@
+{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/lint-and-typecheck.sh",
+            "timeout": 30
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Agent",
+        "hooks": [
+          {
+            "type": "prompt",
+            "prompt": "You are a guardrail. Check if the Agent tool is being misused as a substitute for Agent Teams.\n\nThe tool input is: $ARGUMENTS\n\nRules:\n1. If the tool input contains a 'team_name' field — this IS an Agent Teams teammate spawn. ALLOW it.\n2. If the tool input does NOT have 'team_name', AND the prompt mentions 'Agent Teams', 'TeamCreate', 'waves', or 'swarm' as the required approach — BLOCK it.\n3. If the tool input is for a simple one-off task (explore, research, code review, debugging) with no team_name — ALLOW it.\n4. If unsure — ALLOW it.\n\nRespond with JSON: {\"decision\": \"allow\"} or {\"decision\": \"block\", \"reason\": \"O plano pede Agent Teams (TeamCreate), não subagents avulsos. Use TeamCreate para orquestrar os agents.\"}",
+            "timeout": 15
+          }
+        ]
+      },
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/scope-cop.sh",
+            "timeout": 25
+          }
+        ]
+      }
+    ]
+  }
+}
