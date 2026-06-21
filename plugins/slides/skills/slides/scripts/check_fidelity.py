@@ -14,7 +14,9 @@ Saída: lista de trechos suspeitos. Exit 1 se houver algum, 0 se limpo.
 Títulos de slide, rótulos e enumeradores curtos (<6 palavras) são ignorados
 de propósito — derivam dos headings e não são "texto inventado".
 """
-import sys, re, unicodedata
+import re
+import sys
+import unicodedata
 from html.parser import HTMLParser
 
 # h1/h2 ficam de fora: títulos de slide derivam/encurtam os headings do .md
