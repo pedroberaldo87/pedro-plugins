@@ -39,9 +39,9 @@
     {
       "name": "slides",
       "source": "./plugins/slides",
-      "description": "Markdown outline → keynote-grade single-file HTML deck. Theme system (VIU default), big-typography presentation language, strict text fidelity (never invents text), output next to the source .md.",
+      "description": "Markdown → keynote-grade single-file HTML deck. Two modes: (A) transcription — renders a ready .md faithfully, never invents text; (B) explainer — drives the didactics (narrative structure, audience level, granular vs summary, infographics) to teach a concept, grounded (factual + current). Theme system (VIU default), no-JS adaptive (WhatsApp thumbnail).",
       "category": "productivity",
-      "version": "1.1.1",
+      "version": "1.2.0",
       "tags": [
         "slides",
         "presentation",

@@ -187,6 +187,127 @@ body.js .slide.active .statement .strike::after{animation:strike .75s .55s cubic
 
 .mt{margin-top:36px;}
 
+/* ============================================================
+   INFOGRÁFICOS — editorial, no-JS, theme-vared (família F)
+   Lei: infográfico ≠ dashboard. UM gráfico por slide, rótulo
+   direto no dado, cor = acento (cinza o contexto), SEM moldura.
+   Os números estão no markup estático → aparecem no thumbnail.
+   Convenção de cor de foco: .hl pinta o único item que importa;
+   o resto fica em var(--text-dim)/var(--hair).
+   ============================================================ */
+.fig{margin-top:clamp(20px,3vh,40px);}
+.fig .cap{font-family:var(--font-mono);font-size:.82rem;letter-spacing:.03em;color:var(--text-dim);margin-top:20px;line-height:1.5;}
+.fig .cap b{color:var(--text-muted);font-weight:600;}
+/* convenção SVG compartilhada (curvas, dispersão, ciclo, venn) */
+.fig svg{width:100%;height:auto;overflow:visible;}
+.fig svg .axis{stroke:var(--hair);stroke-width:1;}
+.fig svg .grid{stroke:var(--hair);stroke-width:1;stroke-dasharray:2 5;}
+.fig svg .ln{fill:none;stroke:var(--primary-soft);stroke-width:2.5;stroke-linejoin:round;stroke-linecap:round;}
+.fig svg .ln.muted{stroke:var(--text-dim);}
+.fig svg .area{fill:var(--glow-a);stroke:none;}
+.fig svg .pt{fill:var(--bg-body);stroke:var(--primary-soft);stroke-width:2.5;}
+.fig svg .pt.hl{fill:var(--accent-soft);stroke:var(--accent-soft);}
+.fig svg .vlbl{fill:var(--text-main);font-family:var(--font-head);font-weight:700;font-size:15px;}
+.fig svg .albl{fill:var(--text-dim);font-family:var(--font-mono);font-size:11px;}
+
+/* BARS — comparação / ranking / magnitude (CSS puro) */
+.bars{display:flex;flex-direction:column;gap:clamp(11px,1.7vh,19px);}
+.bars .b{display:grid;grid-template-columns:minmax(80px,auto) 1fr auto;align-items:center;gap:clamp(14px,2vw,24px);}
+.bars .b .lbl{font-size:clamp(1rem,1.5vw,1.3rem);color:var(--text-muted);line-height:1.2;}
+.bars .b .track{height:clamp(13px,1.9vh,20px);background:var(--hair);border-radius:3px;overflow:hidden;}
+.bars .b .fill{height:100%;width:var(--v,0%);background:var(--text-dim);border-radius:3px;}
+.bars .b .val{font-family:var(--font-head);font-weight:700;font-size:clamp(1.1rem,1.8vw,1.55rem);color:var(--text-main);min-width:2.2em;text-align:right;}
+.bars .b.hl .fill{background:linear-gradient(90deg,var(--primary-soft),var(--accent-soft));}
+.bars .b.hl .lbl{color:var(--text-main);}
+.bars .b.hl .val{background:linear-gradient(120deg,var(--primary-soft),var(--accent-soft));-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;}
+
+/* COLCHART — colunas verticais sobre categorias/tempo (CSS puro) */
+.colchart{display:flex;align-items:flex-end;gap:clamp(10px,2vw,32px);height:clamp(180px,30vh,300px);border-bottom:1px solid var(--hair);padding-top:10px;}
+.colchart .c{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%;gap:10px;}
+.colchart .c .bar{width:100%;max-width:90px;height:var(--v,10%);background:var(--text-dim);border-radius:4px 4px 0 0;position:relative;}
+.colchart .c .bar .n{position:absolute;top:-1.7em;left:0;right:0;text-align:center;font-family:var(--font-head);font-weight:700;font-size:clamp(.95rem,1.4vw,1.25rem);color:var(--text-main);}
+.colchart .c .k{font-size:clamp(.85rem,1.2vw,1.05rem);color:var(--text-muted);text-align:center;}
+.colchart .c.hl .bar{background:linear-gradient(180deg,var(--accent-soft),var(--primary-soft));}
+.colchart .c.hl .k{color:var(--text-main);}
+
+/* PART — parte-do-todo: barra de proporção empilhada (CSS puro) */
+.part{display:flex;height:clamp(40px,7vh,68px);border-radius:6px;overflow:hidden;}
+.part .seg{height:100%;width:var(--v,10%);display:flex;align-items:center;justify-content:center;color:var(--bg-body);font-family:var(--font-head);font-weight:700;font-size:clamp(1rem,1.5vw,1.35rem);background:var(--seg,var(--text-dim));}
+.part .seg.a{--seg:var(--primary);}.part .seg.b{--seg:var(--accent);}.part .seg.c{--seg:var(--text-dim);}
+.part-key{display:flex;flex-wrap:wrap;gap:18px;margin-top:18px;}
+.part-key span{display:inline-flex;align-items:center;gap:8px;font-size:clamp(.92rem,1.3vw,1.1rem);color:var(--text-muted);}
+.part-key span::before{content:"";width:12px;height:12px;border-radius:3px;background:var(--k,var(--text-dim));}
+.part-key .a::before{background:var(--primary);}.part-key .b::before{background:var(--accent);}.part-key .c::before{background:var(--text-dim);}
+
+/* DONUT — parte-do-todo (use com parcimônia) — conic-gradient, sem JS */
+.donut{display:flex;align-items:center;gap:clamp(24px,4vw,56px);margin-top:10px;}
+.donut .ring{width:clamp(150px,22vw,220px);aspect-ratio:1;border-radius:50%;flex-shrink:0;
+    background:conic-gradient(var(--primary) 0 var(--p,60%),var(--hair) var(--p,60%) 100%);
+    position:relative;display:flex;align-items:center;justify-content:center;}
+.donut .ring::before{content:"";position:absolute;inset:24%;background:var(--bg-body);border-radius:50%;}
+.donut .ctr{position:relative;z-index:1;font-family:var(--font-head);font-weight:800;font-size:clamp(1.7rem,3.2vw,2.5rem);color:var(--text-main);}
+.donut .leg{display:flex;flex-direction:column;gap:12px;}
+.donut .leg span{font-size:clamp(1rem,1.5vw,1.3rem);color:var(--text-muted);}
+.donut .leg b{color:var(--text-main);}
+
+/* WAFFLE / isotype — parte-do-todo "humana" (CSS grid) */
+.waffle{display:grid;grid-template-columns:repeat(10,1fr);gap:clamp(5px,.7vw,9px);max-width:clamp(220px,32vw,340px);}
+.waffle i{aspect-ratio:1;border-radius:3px;background:var(--hair);}
+.waffle i.on{background:linear-gradient(135deg,var(--primary-soft),var(--accent-soft));}
+
+/* DIVERGE — desvio acima/abaixo de uma linha-base (CSS puro) */
+.diverge{display:flex;flex-direction:column;gap:clamp(9px,1.4vh,16px);}
+.diverge .d{display:grid;grid-template-columns:minmax(80px,auto) 1fr 1fr auto;align-items:center;gap:14px;}
+.diverge .d .lbl{font-size:clamp(.95rem,1.4vw,1.2rem);color:var(--text-muted);text-align:right;}
+.diverge .neg,.diverge .pos{height:clamp(13px,1.9vh,20px);display:flex;}
+.diverge .neg{justify-content:flex-end;border-right:2px solid var(--hair);}
+.diverge .pos{border-left:2px solid var(--hair);margin-left:-2px;}
+.diverge .neg i{width:var(--v,0%);height:100%;background:var(--danger);border-radius:3px 0 0 3px;display:block;}
+.diverge .pos i{width:var(--v,0%);height:100%;background:var(--success);border-radius:0 3px 3px 0;display:block;}
+.diverge .d .val{font-family:var(--font-head);font-weight:700;font-size:clamp(1rem,1.5vw,1.3rem);color:var(--text-main);min-width:2.4em;}
+
+/* TIMELINE — quando (marcos) — CSS puro */
+.timeline{display:flex;flex-direction:column;gap:0;border-left:2px solid var(--hair);margin-left:8px;padding-left:clamp(22px,3vw,40px);}
+.timeline .ev{position:relative;padding:clamp(10px,1.6vh,20px) 0;}
+.timeline .ev::before{content:"";position:absolute;left:calc(-1*clamp(22px,3vw,40px) - 7px);top:calc(clamp(10px,1.6vh,20px) + .55em);width:12px;height:12px;border-radius:50%;background:var(--bg-body);border:2px solid var(--primary-soft);}
+.timeline .ev.hl::before{background:var(--accent-soft);border-color:var(--accent-soft);box-shadow:0 0 0 5px var(--glow-b);}
+.timeline .ev .when{font-family:var(--font-mono);font-size:.85rem;letter-spacing:.06em;color:var(--primary-soft);}
+.timeline .ev h4{font-size:clamp(1.25rem,2vw,1.7rem);font-weight:700;margin:4px 0 4px;}
+.timeline .ev p{font-size:clamp(.98rem,1.4vw,1.18rem);color:var(--text-muted);}
+
+/* MATRIX — quadrante 2×2 (posicionamento) — CSS grid */
+.matrix{display:grid;grid-template-columns:1fr 1fr;gap:2px;background:var(--hair);border:1px solid var(--hair);aspect-ratio:1.5;max-width:clamp(420px,60vw,640px);position:relative;}
+.matrix .q{background:var(--bg-body);padding:clamp(16px,2.5vw,28px);display:flex;flex-direction:column;justify-content:center;gap:8px;}
+.matrix .q .qt{font-family:var(--font-head);font-weight:700;font-size:clamp(1.1rem,1.7vw,1.5rem);}
+.matrix .q .qd{font-size:clamp(.9rem,1.3vw,1.08rem);color:var(--text-muted);}
+.matrix .q.hl{background:linear-gradient(145deg,var(--bg-surface),var(--glow-a));}
+.matrix .q.hl .qt{background:linear-gradient(120deg,var(--primary-soft),var(--accent-soft));-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;}
+.matrix .ax-x,.matrix .ax-y{position:absolute;font-family:var(--font-mono);font-size:.78rem;letter-spacing:.08em;text-transform:uppercase;color:var(--text-dim);}
+.matrix .ax-x{bottom:-26px;left:50%;transform:translateX(-50%);}
+.matrix .ax-y{top:50%;left:-12px;transform:translateY(-50%) rotate(-90deg);transform-origin:left;}
+
+/* FUNNEL — funil / pirâmide (estágios) — CSS clip-path */
+.funnel{display:flex;flex-direction:column;gap:6px;align-items:center;}
+.funnel .st{width:var(--w,100%);padding:clamp(12px,1.8vh,20px);text-align:center;background:linear-gradient(135deg,var(--primary-soft),var(--accent-soft));color:var(--bg-body);font-family:var(--font-head);font-weight:700;font-size:clamp(1.05rem,1.6vw,1.4rem);clip-path:polygon(4% 0,96% 0,92% 100%,8% 100%);}
+.funnel .st small{display:block;font-weight:400;font-size:.7em;opacity:.85;}
+.funnel.pyr{flex-direction:column-reverse;}
+
+/* TREE — hierarquia (CSS) */
+.tree{display:flex;flex-direction:column;align-items:center;gap:0;}
+.tree .root{font-family:var(--font-head);font-weight:700;font-size:clamp(1.3rem,2vw,1.8rem);padding:12px 24px;border:1px solid var(--border);border-radius:12px;}
+.tree .branch{width:1px;height:26px;background:var(--hair);}
+.tree .kids{display:flex;gap:clamp(16px,2.5vw,40px);flex-wrap:wrap;justify-content:center;border-top:1px solid var(--hair);padding-top:26px;}
+.tree .kids .node{font-size:clamp(1rem,1.5vw,1.3rem);color:var(--text-muted);padding:10px 18px;border:1px solid var(--hair);border-radius:10px;}
+
+/* COMPARE / versus — A vs B lado a lado (CSS) */
+.versus{display:grid;grid-template-columns:1fr auto 1fr;gap:clamp(20px,3vw,48px);align-items:start;margin-top:10px;}
+.versus .side h3{font-size:clamp(1.4rem,2.2vw,2rem);font-weight:700;margin-bottom:14px;}
+.versus .side ul{list-style:none;display:flex;flex-direction:column;gap:12px;}
+.versus .side li{display:flex;gap:12px;font-size:clamp(1rem,1.5vw,1.25rem);color:var(--text-main);}
+.versus .side li::before{content:"";width:7px;height:7px;border-radius:50%;margin-top:.55em;flex-shrink:0;background:var(--text-dim);}
+.versus .side.win li::before{background:var(--success);}
+.versus .vs{font-family:var(--font-head);font-weight:800;font-size:clamp(1.4rem,2.5vw,2.2rem);color:var(--text-dim);align-self:center;}
+
 /* nav zones */
 .zone{position:fixed;top:0;bottom:0;width:14%;z-index:40;cursor:pointer;}
 .zone.left{left:0;}.zone.right{right:0;}
@@ -197,6 +318,12 @@ body.js .slide.active .statement .strike::after{animation:strike .75s .55s cubic
     .row{grid-template-columns:auto 1fr;}
     .row .ex{display:none;}
     .steps{flex-direction:column;}.steps .sep{display:none;}
+    /* infográficos no mobile */
+    .versus{grid-template-columns:1fr;gap:24px;}
+    .versus .vs{justify-self:center;}
+    .matrix{aspect-ratio:1.1;max-width:100%;}
+    .donut{flex-direction:column;align-items:flex-start;}
+    .colchart{gap:8px;}
 }
 
 /* defense-in-depth: force DOCUMENT MODE on small screens even if .js slipped through

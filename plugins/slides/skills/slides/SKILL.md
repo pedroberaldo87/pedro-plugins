@@ -1,13 +1,23 @@
 ---
 name: slides
-description: 'Transforma um arquivo markdown (outline de fala, notas, roteiro) numa apresentação HTML de slides — single-file, navegável por teclado, em linguagem keynote (tipografia grande, muito respiro, sem cara de dashboard), tema VIU Studio por padrão. REGRA DE OURO: usa o texto literal do .md, nunca inventa frases, callouts ou conclusões. Use sempre que Pedro pedir "/slides", "monta esse md numa apresentação", "transforma isso em slides", "faz um deck", "apresentação a partir desse markdown", "vira slides", ou apontar um .md e pedir pra apresentar — mesmo que não diga a palavra "slides". Suporta temas nomeados (sufixo): /slides arquivo.md [tema]. O deck é ADAPTATIVO num arquivo só: apresentação navegável no desktop e documento scroll (tudo na tela, sem depender de JavaScript) no celular e no thumbnail do WhatsApp. NÃO use para editar .pptx/Keynote existentes nem para gerar PDF.'
+description: 'Gera uma apresentação HTML de slides — single-file, navegável por teclado, em linguagem keynote (tipografia grande, muito respiro, sem cara de dashboard), tema VIU Studio por padrão. Tem DOIS modos. (A) TRANSCRIÇÃO: renderiza fiel um .md já redigido — REGRA DE OURO: usa o texto literal, nunca inventa frases, callouts ou conclusões. (B) EXPLICADOR: quando pedem um deck pra ENSINAR/explicar um conceito, a própria skill dirige a didática (estrutura narrativa, nível do público, granular vs resumo, infográficos), com grounding factual e atualizado, nunca da cabeça do modelo. Use sempre que Pedro pedir "/slides", "monta esse md numa apresentação", "transforma isso em slides", "faz um deck", "vira slides", ou apontar um .md e pedir pra apresentar (→ transcrição); ou "monta um deck pra me explicar X", "explica X em slides", "cria um deck didático sobre Y", "me ensina Z em slides" (→ explicador) — mesmo sem dizer a palavra "slides". Suporta temas nomeados (sufixo): /slides arquivo.md [tema]. O deck é ADAPTATIVO num arquivo só: apresentação navegável no desktop e documento scroll (tudo na tela, sem depender de JavaScript) no celular e no thumbnail do WhatsApp. NÃO use para editar .pptx/Keynote existentes nem para gerar PDF.'
 ---
 
-# Slides — markdown → deck keynote
+# Slides — deck keynote (transcrição ou explicador)
 
-Converte um outline em markdown numa apresentação HTML que se abre no navegador e se apresenta em tela cheia. A engine e os componentes visuais já estão prontos em `assets/template.html`; seu trabalho é **mapear o conteúdo do autor para os componentes certos** sem distorcer o texto.
+Gera uma apresentação HTML que abre no navegador e se apresenta em tela cheia. A engine, os componentes visuais e os infográficos já estão prontos em `assets/template.html`. A skill tem **dois modos**, com contratos de conteúdo opostos — decida qual ANTES de tudo.
 
-## A regra de ouro: o texto é do autor
+## Dois modos de uso (despacho)
+
+| O pedido é... | Modo | O que a skill faz |
+|:--|:--|:--|
+| apontar um `.md` já redigido e pedir pra "virar slides / apresentação / deck" | **A · Transcrição** | renderiza **fiel**, sem inventar texto (regra de ouro). É o **Workflow A** abaixo. |
+| "monta um deck pra me **explicar** X" / "me ensina Y em slides" / dar um tema ou material e pedir pra ENSINAR | **B · Explicador** | **autora a didática** — estrutura, nível do público, granular vs resumo, infográficos — com grounding. É o **Workflow B** abaixo. |
+| ambíguo (aponta um `.md` **e** pede pra "explicar/ensinar") | — | **pergunte** qual modo antes de montar. Não chute. |
+
+Os dois compartilham a mesma engine/template/temas e o mesmo cuidado de não-regressão (no-JS, thumbnail WhatsApp, 4 cenários de verificação).
+
+## A regra de ouro (modo A · transcrição): o texto é do autor
 
 Pedro reportou isso explicitamente e é o eixo da skill: **não invente texto.** O conteúdo dos slides sai literal do `.md`. Concretamente:
 
@@ -18,9 +28,9 @@ Pedro reportou isso explicitamente e é o eixo da skill: **não invente texto.**
 
 O script `scripts/check_fidelity.py` faz cumprir isso automaticamente (passo 5).
 
-## Um arquivo, dois modos (desktop + mobile/WhatsApp)
+## Um arquivo, duas formas de abrir (desktop + mobile/WhatsApp)
 
-O deck é **adaptativo por progressive enhancement** — o mesmo `.html` serve os dois sem gerar nada a mais:
+Vale para os dois modos de uso. O deck é **adaptativo por progressive enhancement** — o mesmo `.html` serve os dois sem gerar nada a mais:
 
 - **Desktop (mouse + tela larga):** o JS ativa o modo apresentação — slide a slide, `← →`, `F`, swipe, reveals.
 - **Celular / sem-JS / thumbnail do WhatsApp:** a página é um **documento scroll vertical** com todos os slides empilhados e visíveis. O conteúdo está no HTML estático; **nada depende do JS** pra aparecer.
@@ -29,7 +39,7 @@ Por que importa: Pedro manda o `.html` por WhatsApp, que gera o thumbnail render
 
 Nota: isso é o thumbnail de **anexo** (renderiza o arquivo). É diferente do preview de **link** (Open Graph / `og:image`), que exigiria hospedar numa URL pública — fora do escopo. As tags `og:title`/`og:description` entram só de brinde.
 
-## Workflow
+## Workflow A — transcrição (o `.md` já está pronto)
 
 ### 1. Leia a fonte e escolha o tema
 - Leia o `.md` inteiro. Entenda a estrutura de headings (`#`, `##`, `###`) e bullets — é o esqueleto do deck.
@@ -78,8 +88,39 @@ Navegue `http://localhost:8899/<deck>.html`, pule pros slides mais densos e conf
 - Lembre que o **mesmo arquivo** pode ser enviado por WhatsApp / aberto no celular — lá ele vira documento scroll automaticamente, sem JS.
 - Sinalize qualquer micro-decisão de título/encurtamento que tenha tomado, pra Pedro validar.
 
+## Workflow B — explicador (você vai ENSINAR um conceito)
+
+O conteúdo aqui é **autorado**, não transcrito — a regra de ouro (texto literal) **não vale**; vale a **trava de grounding**. Leia `references/explainer-method.md` (a didática) e `references/infographics.md` (a viz) **antes de montar**.
+
+### 1. Intake — pergunte só o que não veio
+Resolva: **público & nível**, **profundidade** (um nível vs progressivo), **altitude do dado** (resumo/granular), e **o trabalho do deck** (ensinar / defender mudança / apresentar análise). Use o que está explícito no pedido; **pergunte o que faltar** antes de montar.
+
+### 2. Grounding — factual E atualizado
+Ancore no material fornecido + **pesquise** pra ampliar o entorno e **atualizar** (nada de info velha do treino). Cite as fontes. **Nunca afirme o que não está no material/fonte.** Se só veio o tema (sem material), a pesquisa é **obrigatória** antes de autorar — nunca solte da cabeça do modelo.
+
+### 3. Proponha a abordagem e confirme
+Escolha, pelo `explainer-method.md`: a **arquitetura narrativa** (família A), o slide didático (**Assertion-Evidence**, B), a **calibração pro público** (dial C), e a **granularidade**. **Apresente a abordagem comparada com 1–2 alternativas (prós/contras)** e **confirme** antes de montar. Não escolha a didática calada.
+
+### 4. Monte o HTML
+Mesma engine do Workflow A (ver passo 4 acima): leia `assets/template.html`, substitua os placeholders, mapeie cada slide pro componente certo. Aqui os **infográficos entram em peso** — escolha pelo `infographics.md` (mensagem→gráfico / pergunta→diagrama). **Título = a afirmação; o gráfico/visual = a prova.** Saída ao lado da fonte (ou Desktop se read-only).
+
+### 5. Verifique o grounding (obrigatório)
+```bash
+python3 <skill>/scripts/check_provenance.py <deck.html> <fonte1> [fonte2 ...]
+```
+Cobra que **todo número** dos gráficos/métricas exista no material/fonte. Barra inventada é pior que prosa inventada. Re-rode até `✓`.
+
+### 6. Verifique o visual — os 4 cenários (reproduza e OLHE o print)
+Igual ao Workflow A (passo 6). Além disso, garanta que os infográficos **aparecem no HTML estático** (no-JS), são **keynote-limpos** (passam nas leis de Cairo/Tufte — sem nenhum tell de dashboard do `infographics.md`), e **cabem** em 1440×900.
+
+### 7. Entregue
+Caminho do `.html`, total de slides, controles do desktop, e o lembrete do modo documento no celular. Sinalize a **abordagem escolhida** (arquitetura · nível · altitude) e as **fontes citadas**.
+
 ## Referências
-- `references/layout-patterns.md` — mapa tipo-de-conteúdo → componente, snippets de cada um, regras de composição. **Leia antes de montar os slides.**
+- `references/layout-patterns.md` — mapa tipo-de-conteúdo → componente, snippets. **Leia antes de montar (os dois modos).**
+- `references/explainer-method.md` — **modo B:** a didática (arquitetura narrativa, Assertion-Evidence, dial novato↔expert, limites, granularidade, grounding). Menu de prós/contras pra propor-e-confirmar.
+- `references/infographics.md` — **modo B:** o ofício de viz (fronteira Cairo, leis de craft, tells proibidos, mapas FT/Roam, snippets de cada infográfico).
 - `references/themes/viu.md` — o tema canônico e o contrato de variáveis para criar temas novos.
-- `assets/template.html` — engine (navegação, reveals, progress) + CSS dos componentes. Parametrizado só por `var()` do tema.
-- `scripts/check_fidelity.py` — verificação anti-invenção.
+- `assets/template.html` — engine (navegação, reveals, progress) + CSS dos componentes **e dos infográficos**. Parametrizado só por `var()` do tema.
+- `scripts/check_fidelity.py` — **modo A:** verificação anti-invenção (texto literal).
+- `scripts/check_provenance.py` — **modo B:** verificação de proveniência numérica (todo número rastreia à fonte).
