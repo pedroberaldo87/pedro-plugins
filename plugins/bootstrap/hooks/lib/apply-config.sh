@@ -45,6 +45,7 @@ if [ -f "$SETTINGS" ]; then
   cp "$SETTINGS" "$SETTINGS.bak.$(date +%Y%m%d%H%M%S)"
 fi
 
+# shellcheck disable=SC2016,SC2015  # aspas simples = programa jq ($cur/$def/$d são vars do jq); o "A && mv || {cleanup}" é o cleanup intencional no erro do mv
 echo "$CURRENT" | "$JQ" --slurpfile d "$DEFAULTS" '
   . as $cur
   | ($d[0]) as $def
@@ -77,7 +78,9 @@ if [ -z "$CG_RESOLVED" ] && [ -n "${PEDRO_PLUGINS_REPO:-}" ] && [ -f "$PEDRO_PLU
 fi
 if [ -n "$CG_RESOLVED" ]; then
   # Runtime-resolving command (glob) so it survives context-guard version bumps.
+  # shellcheck disable=SC2016  # string literal de propósito: o $(...) é resolvido em runtime pelo Claude Code, não aqui
   SL_CMD='bash "$(ls -d ${CLAUDE_CONFIG_DIR:-$HOME/.claude}/plugins/cache/pedro-plugins/context-guard/*/hooks/context-guard-writer.sh 2>/dev/null | tail -1)"'
+  # shellcheck disable=SC2016  # $cmd é variável do jq (passada via --arg), não do shell
   "$JQ" --arg cmd "$SL_CMD" '.statusLine = {type:"command", command:$cmd}' "$SETTINGS" > "$SETTINGS.tmp" \
     && mv "$SETTINGS.tmp" "$SETTINGS" \
     && echo "[bootstrap/config] ✓ statusLine resolvido (glob runtime do context-guard)"

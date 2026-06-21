@@ -111,7 +111,7 @@ STALE=$(printf '%s' "$LINE" | cut -f4)
 NUDGE_NO=$((COUNT + 1))
 
 # List the real docs so the nudge is actionable (not just "read the index").
-DOCLIST=$(ls "$PROJ/.claude/docs"/*.md 2>/dev/null | xargs -n1 basename 2>/dev/null | paste -sd ', ' -)
+DOCLIST=$(for f in "$PROJ/.claude/docs"/*.md; do [ -e "$f" ] && basename "$f"; done | paste -sd ', ' -)
 [ -n "$DOCLIST" ] && DOCLIST=" Docs: ${DOCLIST}."
 
 # Staleness flag: the doc may not reflect current code.

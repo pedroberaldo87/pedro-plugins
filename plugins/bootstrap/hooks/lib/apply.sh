@@ -56,7 +56,7 @@ done
 
 # Last resort: glob the plugin cache (handles path-source marketplaces)
 if [ -z "$MANIFEST" ]; then
-  for candidate in "$HOME"/.claude/plugins/cache/pedro-plugins/bootstrap/*/$REL_MANIFEST; do
+  for candidate in "$HOME"/.claude/plugins/cache/pedro-plugins/bootstrap/*/"$REL_MANIFEST"; do
     if [ -f "$candidate" ]; then
       MANIFEST="$candidate"
       break

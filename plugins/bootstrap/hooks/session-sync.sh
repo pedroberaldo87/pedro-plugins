@@ -75,7 +75,7 @@ if [ "$HAS_SOURCE" -eq 1 ]; then
   if git -C "$PEDRO_PLUGINS_REPO" remote get-url origin >/dev/null 2>&1; then
     if git -C "$PEDRO_PLUGINS_REPO" fetch --quiet 2>/dev/null; then
       LOCAL_HEAD="$(git -C "$PEDRO_PLUGINS_REPO" rev-parse HEAD 2>/dev/null || echo "")"
-      REMOTE_HEAD="$(git -C "$PEDRO_PLUGINS_REPO" rev-parse @{u} 2>/dev/null || echo "")"
+      REMOTE_HEAD="$(git -C "$PEDRO_PLUGINS_REPO" rev-parse "@{u}" 2>/dev/null || echo "")"
       if [ -n "$LOCAL_HEAD" ] && [ -n "$REMOTE_HEAD" ] && [ "$LOCAL_HEAD" != "$REMOTE_HEAD" ]; then
         # Check if remote is actually ahead (not just diverged)
         if git -C "$PEDRO_PLUGINS_REPO" merge-base --is-ancestor "$LOCAL_HEAD" "$REMOTE_HEAD" 2>/dev/null; then
@@ -93,7 +93,7 @@ elif [ -d "$PLUGIN_CACHE_MARKETPLACE/.git" ]; then
   # No source repo, but marketplace cache exists
   if git -C "$PLUGIN_CACHE_MARKETPLACE" fetch --quiet 2>/dev/null; then
     LOCAL_HEAD="$(git -C "$PLUGIN_CACHE_MARKETPLACE" rev-parse HEAD 2>/dev/null || echo "")"
-    REMOTE_HEAD="$(git -C "$PLUGIN_CACHE_MARKETPLACE" rev-parse @{u} 2>/dev/null || echo "")"
+    REMOTE_HEAD="$(git -C "$PLUGIN_CACHE_MARKETPLACE" rev-parse "@{u}" 2>/dev/null || echo "")"
     if [ -n "$LOCAL_HEAD" ] && [ -n "$REMOTE_HEAD" ] && [ "$LOCAL_HEAD" != "$REMOTE_HEAD" ]; then
       REMOTE_ADVANCED=1
       verbose "marketplace cache behind — forcing sync"

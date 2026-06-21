@@ -52,7 +52,6 @@ MODE="deny"
 
 # --- campos do tool ---
 FILE_PATH="$(printf '%s' "$INPUT" | "$JQ" -r '.tool_input.file_path // empty')"
-TOOL_NAME="$(printf '%s' "$INPUT" | "$JQ" -r '.tool_name // empty')"
 [ -n "$FILE_PATH" ] || exit 0   # sem file_path → não é Edit/Write de arquivo
 
 # --- filtro barato: só julga arquivos de UI ---
@@ -76,7 +75,7 @@ STREAK=""
 
 # --- log helper ---
 log_line() {
-  local verdict="$1" reason="$2"
+  local verdict="$1"
   local ts; ts="$(date '+%Y-%m-%d %H:%M:%S')"
   local req_s diff_s
   # tr '\n|' ' /' — também troca o pipe por barra: o log é '|'-delimitado, então
@@ -325,6 +324,7 @@ if [ "$VERDICT" = "block" ]; then
   log_line "BLOCK" "$REASON"
   # permissionDecision "deny" = nega pra mim (Claude), NÃO pergunta ao Pedro.
   # O reason me instrui a repensar e reimplementar — auto-correção.
+  # shellcheck disable=SC2016  # as aspas simples são do programa jq; $REASON é interpolado via --arg, fora delas
   "$JQ" -n --arg r "Scope-cop (auto-revisão): essa edição parece desviar do escopo combinado. $REASON — REPENSE a implementação e reescreva de um jeito coerente com o plano/pedido (não reenvie idêntico). Isto é revisão automática; NÃO envolve o Pedro." '{
     hookSpecificOutput: {
       hookEventName: "PreToolUse",
