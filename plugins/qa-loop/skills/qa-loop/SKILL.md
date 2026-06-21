@@ -17,7 +17,8 @@ Um loop "conserte até zero erros" tratado como convergente sobre um problema **
 (scrubber/parser/ranker/regex/prompt — espaço de input infinito) nunca para sozinho: um finder
 adversarial SEMPRE acha mais um. "Zero findings" é assíntota, não estado. A skill troca o critério por
 **"uma rodada inteira sem finding novo de severidade real fora dos limites já aceitos"** — e gasta a
-maior parte da disciplina em **não gerar regressões** ao consertar.
+maior parte da disciplina em **não gerar regressões** ao consertar. (Esse é o eixo **assintótico**. O outro
+eixo — os checks objetivos lint/type/unit/integração — é **absoluto** e vive na Fase Gate; ver "As duas fases".)
 
 ## A arquitetura em uma frase — motor = Workflow, casca = skill
 
@@ -165,8 +166,11 @@ os aprendizados cross-projeto que afinam os prompts do Revisor/Planejador. Tudo 
 
 Fixa e **anuncia no header**: teto de rodadas (safety-cap), `severity_floor`, o plano-âncora, e a **camada de
 rede de regressão** disponível (ver Guard-rails → Detecção de rede). Snapshot do nº de erros de
-lint/typecheck ANTES da rodada 1 (`baseline_errors`) — é o que detecta regressão estrutural. Declara
-honestamente o blast-radius que a rede NÃO cobre. Esses valores entram nos args do Workflow.
+lint/typecheck ANTES da rodada 1 (`baseline_errors`) — é o que a **rede de regressão DURANTE o loop** usa pra
+pegar regressão estrutural (não piorar o baseline mid-loop). ⚠️ Isso é a rede in-loop, **NÃO o gate**: a
+**Fase Gate de saída** (Passo 8.0) exige lint/type/unit/integração **absolutamente 0** no fim, pré-existentes
+incluídos — o baseline tolera no meio, o gate não tolera no fim. Declara honestamente o blast-radius que a rede
+NÃO cobre. Esses valores entram nos args do Workflow.
 
 ---
 
@@ -293,7 +297,8 @@ em **3 buckets** no PLAN:
 ## Rubrica de severidade (R2) — 3 faixas, escrita, aplicada pelo árbitro único
 
 - **P0/P1 (acima do floor)** — exige gatilho **objetivo** OU **ancorado no plano**: quebra comportamento do
-  plano · classe de segurança (secret, injection, authz) · teste/build/lint falha · bug com repro determinístico.
+  plano · classe de segurança (secret, injection, authz) · bug com repro determinístico. *(Falha objetiva de
+  lint/type/unit/integração NÃO entra nesta escada — é da **Fase Gate**, absoluta e separada.)*
 - **P2/P3 (abaixo do floor)** — opinião de qualidade **sem** divergência do plano e **sem** falha objetiva
   (naming, gosto, micro-refator). **Picuinha nunca sobe sozinha** — só vira P1 com bug concreto anexado.
 - O **Opus Planejador é o ÁRBITRO ÚNICO** que aplica a rubrica. Não são N LLMs cada um carimbando — é um juiz,
