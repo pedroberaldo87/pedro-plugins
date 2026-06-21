@@ -13,7 +13,7 @@
       "source": "./plugins/bootstrap",
       "description": "Bootstrap a new machine to Pedro's Claude Code setup — auto-syncs marketplaces and plugins via hooks AND applies the versioned global config (env, permissions, flags, global CLAUDE.md, machine-resolved statusLine). Run /bootstrap:setup once per machine. Replaces bootstrap-third-party.",
       "category": "productivity",
-      "version": "1.0.0",
+      "version": "1.0.1",
       "tags": [
         "sync",
         "bootstrap",
@@ -242,7 +242,7 @@
       "source": "./plugins/guardrails",
       "description": "Global editing guardrails as hooks: post-edit lint & type-check (JS/TS/Python), an LLM scope-cop that blocks UI edits drifting from the approved plan, and an Agent Teams misuse guard. Portable across machines — replaces hand-rolled hooks in ~/.claude/settings.json. Run /guardrails:setup once per machine to set the env var and clear the old hooks.",
       "category": "dev-tools",
-      "version": "1.1.0",
+      "version": "1.1.1",
       "tags": [
         "hooks",
         "guardrail",
