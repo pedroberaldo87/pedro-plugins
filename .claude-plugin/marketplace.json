@@ -138,9 +138,9 @@
     {
       "name": "qa-loop",
       "source": "./plugins/qa-loop",
-      "description": "Disciplined review-and-fix loop that stops on diminishing returns (quality vs worth-it), not on zero. Anchored to the implementation plan, with a per-fix regression gate, severity stop criterion, accepted-limits, churn detector, an interactive human report (via /visual: 4 actionable categories + live selection) and an agentic journal. Replaces qa, rev6 and iterate.",
+      "description": "Two-phase QA: an asymptotic review phase (variable-severity findings, accepted-limits, stops on diminishing returns; e2e/Playwright as non-blocking actionables) plus an absolute exit Gate phase (lint, type-check, unit and integration must be 100% green across the whole repo, pre-existing errors included, or stopReason=gate-red). Per-fix regression gate, churn detector, interactive /visual report and agentic journal. Replaces qa, rev6 and iterate.",
       "category": "dev-tools",
-      "version": "1.2.1",
+      "version": "1.3.0",
       "tags": [
         "code-review",
         "qa",

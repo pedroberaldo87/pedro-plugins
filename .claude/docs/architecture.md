@@ -77,7 +77,7 @@ pedro-plugins/
 
 ### Planejamento & review
 
-- **qa-loop** `v1.2.1` — Loop de review→conserto que para por **retornos decrescentes**, não por zero. Motor = Workflow determinístico (Opus revisa → Opus planeja/adjudica → Sonnet conserta; gate/churn/parada em código). 3 buckets (implementação / plan-drift / plano-falho); relatório humano (HTML via `/visual`) + journal agêntico. **Substituiu e apagou** `qa`, `rev6`, `iterate`. `category: dev-tools`.
+- **qa-loop** `v1.3.0` — QA em **duas fases**: review **assintótico** (retornos decrescentes, severidade variável; e2e/Playwright como actionable não-bloqueante) + **Fase Gate absoluta** (lint/type/unit/integração 100% verde no repo inteiro, pré-existentes incluídos, ou `gate-red`). Motor = Workflow determinístico (Opus revisa → Opus planeja/adjudica → Sonnet conserta; gate/churn/parada em código). 3 buckets (implementação / plan-drift / plano-falho); relatório humano (HTML via `/visual`) + journal agêntico. **Substituiu e apagou** `qa`, `rev6`, `iterate`. `category: dev-tools`.
 - **grill-me** `v1.0.0` — Entrevista implacável, uma pergunta por vez, sobre um plano até esgotar a árvore de decisões. *Autor: Matt Pocock.* `category: dev-tools`.
 - **grill-with-docs** `v1.0.0` — Igual ao `grill-me`, mas confronta contra o domain model (CONTEXT.md, ADRs) e atualiza as docs inline. *Autor: Matt Pocock.* `category: dev-tools`.
 - **principles** `v1.0.0` — Carrega `PRINCIPIOS-SISTEMAS.md`, mapeia categorias ao contexto, gera guia WHY+HOW. Modos planning e review. `category: dev-tools`.

@@ -108,7 +108,7 @@ plugins/<nome>/
   nunca recebem a atualização (a versão é a chave de propagação).
 - **Versão tem que bater em DOIS lugares:** `plugins/<nome>/.claude-plugin/plugin.json`
   E a entrada `version` correspondente em `.claude-plugin/marketplace.json`. Hoje estão
-  alinhadas (ex.: project-doc 3.3.0 nos dois; qa-loop 1.2.1 nos dois).
+  alinhadas (ex.: project-doc 3.3.0 nos dois; qa-loop 1.3.0 nos dois).
 - **Cache local NÃO auto-refresca** nesta máquina:
   `~/.claude/plugins/cache/pedro-plugins/<nome>/<versão>/` precisa ser sincronizado por
   cima ou o plugin reinstalado; depois `/reload-plugins` (hooks recarregam sem restart).
