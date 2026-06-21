@@ -53,7 +53,7 @@ cobertura parcial e honesta, vira *actionable* no relatório — **não bloqueia
 **Fase Gate** — lint, type-check, teste unitário, teste de integração e afins. **Absolutista: 100% verde
 no repo inteiro ou não passou.** Binário. Sem severidade, sem julgamento, sem accepted-limit, sem "não vale
 a pena". É portão. Os checks **nunca foram** da fase assintótica — são a Fase Gate. Detalhe operacional no
-Passo 8 (gate de saída) + na seção "Detecção de rede".
+Passo 8.0 (gate de saída) + na seção "Detecção de rede".
 
 > As fases **não são sequenciais no tempo**. O gate é **invariante de saída**, protegido continuamente pelo
 > regression-net por-fix do motor (a suíte roda a cada conserto). A skill só declara **sucesso da sessão**
