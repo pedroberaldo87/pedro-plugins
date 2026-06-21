@@ -97,7 +97,7 @@ pedro-plugins/
 ### Apresentação visual
 
 - **visual** `v1.2.1` — Transforma textão do CLI em views HTML dark-theme interativas, abertas no browser com live-sync via daemon local; salva em `<projeto>/.claude/visual/`. Modo auto renderiza planos/decisões/diagnósticos (PreToolUse em ExitPlanMode). `category: productivity`. ⚙️ hooks.
-- **slides** `v1.1.1` — Outline em markdown → deck HTML single-file nível keynote (tema VIU default), adaptativo (desktop rico / mobile sem JS), fidelidade estrita ao texto. `category: productivity`.
+- **slides** `v1.2.0` — Markdown/conceito → deck HTML single-file nível keynote (tema VIU default), adaptativo (desktop rico / mobile sem JS). **Dois modos:** (A) transcrição — renderiza fiel um `.md` pronto, fidelidade estrita ao texto (`check_fidelity.py`); (B) explicador — quando pedem pra ENSINAR um conceito, autora a didática (estrutura narrativa, nível do público, granular vs resumo, biblioteca de infográficos SVG/CSS no-JS), ancorada no cânone (Cairo/FT/Duarte/Heath/Mayer/Jobs), com grounding factual+atual e trava de proveniência numérica (`check_provenance.py`). `category: productivity`.
 
 ### Setup de máquina
 
