@@ -1,5 +1,5 @@
 ---
-generated: 2026-06-20
+generated: 2026-06-21
 project: pedro-plugins
 scope:
   - .claude-plugin/marketplace.json
@@ -33,7 +33,7 @@ scope:
 - **Runtime:** Claude Code (plugin host). Hooks shell; engines Python via `python3` no PATH; `jq` no setup. Sem Node como dependência de plugin (o `visual` sobe um daemon `.mjs` em runtime, mas não é build).
 - **Package manager:** nenhum. **Build:** nenhum.
 - **Hosting / distribuição:** GitHub (`pedroberaldo87/pedro-plugins`), instalado via CLI de plugin do Claude Code.
-- **Knowledge graph:** `graphify-out/` (extração AST, refresh 2026-06-20 pós-rename `bootstrap-third-party`→`bootstrap`; ~2967 nós / 3084 arestas / 222 comunidades por backup; backups datados em `graphify-out/<data>/`).
+- **Knowledge graph:** `graphify-out/` (extração AST, refresh 2026-06-21; 3315 nós / 3458 arestas / 242 comunidades; backups datados em `graphify-out/<data>/`).
 
 ## Estrutura de Diretórios
 
@@ -71,7 +71,7 @@ pedro-plugins/
 
 ### Sessão & continuidade
 
-- **handoff** `v1.7.0` — Continuidade de sessão em um comando: detecta o estado e roteia (contexto cheio → salva PRD + LOG verbatim; sessão recém-limpa → retoma). Workspace-aware (resolve a fronteira `.git`). `category: productivity`. ⚙️ hooks.
+- **handoff** `v1.7.1` — Continuidade de sessão em um comando: detecta o estado e roteia (contexto cheio → salva PRD + LOG verbatim; sessão recém-limpa → retoma). Workspace-aware (resolve a fronteira `.git`). `category: productivity`. ⚙️ hooks.
 - **context-guard** `v1.1.1` — Auto-interrompe o workflow quando o context window passa de um threshold (default 80%); ponte statusLine↔PostToolUse via arquivo temp; encaminha para qualquer statusLine via `CLAUDE_STATUSLINE_FORWARD`. Use junto com `handoff`. `category: productivity`. ⚙️ hooks.
 - **sovai** `v1.3.0` — Modo de execução contínua: roda um plano do início ao fim sem pausas; pula bloqueios (sem workaround silencioso), registra decisões, roda `/qa-loop --headless`, atualiza a doc (`/project-doc`) e faz commit + push do trabalho, entrega relatório via `/visual`. `category: productivity`.
 
@@ -84,24 +84,24 @@ pedro-plugins/
 
 ### Documentação & conhecimento
 
-- **project-doc** `v3.3.0` — Gera sistema de documentação a partir de TODA a evidência (arquivos, handoffs, memory, grafo, git log, transcripts), num journal append-only versionado, projetado em índice `CLAUDE.md` + `.claude/docs/*.md` + ponteiros finos. Scrubber move segredos pro cofre. FULL/`--deep` mineram via Workflow e LEEM o código real por fan-in do grafo. `category: productivity`. ⚙️ hooks.
+- **project-doc** `v3.5.0` — Gera sistema de documentação a partir de TODA a evidência (arquivos, handoffs, memory, grafo, git log, transcripts), num journal append-only versionado, projetado em índice `CLAUDE.md` + `.claude/docs/*.md` + ponteiros finos. Scrubber move segredos pro cofre. FULL/`--deep` mineram via Workflow (grafo é premissa) e LEEM o código real por fan-in do grafo; auto commit+push escopado dos artefatos de doc no fim. `category: productivity`. ⚙️ hooks.
 - **graphify-guard** `v1.0.1` — Garante que os knowledge graphs do `graphify` sejam consultados. SessionStart avisa quando há grafo; PreToolUse redireciona grep/glob/find cego para `graphify query` (1×/sessão). Fail-open, monorepo-aware. **Único plugin sem `skills/` — puramente hooks.** `category: productivity`. ⚙️ hooks.
 
 ### Dev, deploy & limpeza
 
-- **ship** `v1.0.1` — Fluxo de deploy: lint → type-check → commit → push → deploy. PreToolUse gateia deploy com teste quebrado (reconhece apps Python e Node). `category: dev-tools`. ⚙️ hooks.
-- **guardrails** `v1.1.0` — Guardrails globais de edição como hooks: lint & type-check pós-edição, scope-cop LLM (Haiku) que bloqueia edições de UI fora do plano, e guard de uso indevido de Agent Teams. Portável — substitui hooks hand-rolled no `~/.claude/settings.json`. Rode `/guardrails:setup` 1×/máquina. `category: dev-tools`. ⚙️ hooks.
-- **fallow** `v1.0.2` — Roda o Fallow (analisador estático JS/TS), classifica achados por tipo e confiança, audita pra pegar falsos-positivos (cron, rota HTTP, import dinâmico), entrega relatório HTML interativo. Limpeza com rede de segurança. `category: dev-tools`.
+- **ship** `v1.1.0` — Fluxo de deploy: lint → type-check → commit → push → deploy. PreToolUse gateia deploy com teste quebrado (reconhece apps Python e Node). `category: dev-tools`. ⚙️ hooks.
+- **guardrails** `v1.1.1` — Guardrails globais de edição como hooks: lint & type-check pós-edição, scope-cop LLM (Haiku) que bloqueia edições de UI fora do plano, e guard de uso indevido de Agent Teams. Portável — substitui hooks hand-rolled no `~/.claude/settings.json`. Rode `/guardrails:setup` 1×/máquina. `category: dev-tools`. ⚙️ hooks.
+- **fallow** `v1.0.3` — Roda o Fallow (analisador estático JS/TS), classifica achados por tipo e confiança, audita pra pegar falsos-positivos (cron, rota HTTP, import dinâmico), entrega relatório HTML interativo. Limpeza com rede de segurança. `category: dev-tools`.
 - **improve** `v1.0.0` — Implementa rodadas de melhoria iterativa lendo `IMPROVEMENT_PROGRAM.md` + issues do GitHub com label `autoresearch`. `category: dev-tools`.
 
 ### Apresentação visual
 
-- **visual** `v1.2.0` — Transforma textão do CLI em views HTML dark-theme interativas, abertas no browser com live-sync via daemon local; salva em `<projeto>/.claude/visual/`. Modo auto renderiza planos/decisões/diagnósticos (PreToolUse em ExitPlanMode). `category: productivity`. ⚙️ hooks.
-- **slides** `v1.1.0` — Outline em markdown → deck HTML single-file nível keynote (tema VIU default), adaptativo (desktop rico / mobile sem JS), fidelidade estrita ao texto. `category: productivity`.
+- **visual** `v1.2.1` — Transforma textão do CLI em views HTML dark-theme interativas, abertas no browser com live-sync via daemon local; salva em `<projeto>/.claude/visual/`. Modo auto renderiza planos/decisões/diagnósticos (PreToolUse em ExitPlanMode). `category: productivity`. ⚙️ hooks.
+- **slides** `v1.1.1` — Outline em markdown → deck HTML single-file nível keynote (tema VIU default), adaptativo (desktop rico / mobile sem JS), fidelidade estrita ao texto. `category: productivity`.
 
 ### Setup de máquina
 
-- **bootstrap** `v1.0.0` — Prepara máquina nova: auto-sincroniza marketplaces e plugins de terceiros via hooks E aplica config global versionada (env, permissões, flags, CLAUDE.md global, statusLine resolvido por máquina). Rode `/bootstrap:setup` 1×/máquina. **Substituiu `bootstrap-third-party`.** `category: productivity`. ⚙️ hooks.
+- **bootstrap** `v1.0.1` — Prepara máquina nova: auto-sincroniza marketplaces e plugins de terceiros via hooks E aplica config global versionada (env, permissões, flags, CLAUDE.md global, statusLine resolvido por máquina). Rode `/bootstrap:setup` 1×/máquina. **Substituiu `bootstrap-third-party`.** `category: productivity`. ⚙️ hooks.
 
 ### Domínio VIU
 
