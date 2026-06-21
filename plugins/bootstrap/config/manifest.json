@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "description": "Third-party Claude Code marketplaces and plugins Pedro uses. Auto-synced via bootstrap-third-party hooks. The pedro-plugins entry is manually maintained and preserved across snapshots.",
+  "description": "Third-party Claude Code marketplaces and plugins Pedro uses. Auto-synced via bootstrap hooks. The pedro-plugins entry is manually maintained and preserved across snapshots.",
   "marketplaces": [
     {
       "name": "agent-browser",
