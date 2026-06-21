@@ -13,6 +13,7 @@ Pedro vai ficar indisponível. Reconheça com uma linha (`modo sovai ativo, come
 - Executa o plano (ou a tarefa) do começo ao fim, sem pausar
 - Toma todas as decisões necessárias para seguir e **anota cada uma**
 - Verifica antes de declarar feito — regras globais do CLAUDE.md continuam valendo
+- Ao final, atualiza a doc (`project-doc`) e faz commit + push do trabalho — ver **Persistência**
 
 **Não faz:**
 - Pergunta de confirmação no meio ("posso seguir?", "X ou Y?")
@@ -39,6 +40,18 @@ Como o Pedro está indisponível, o headless nunca pergunta nada. Trate os 3 buc
 
 O relatório do `/qa-loop` (loops rodados, correções, regressões pegas, alertas de plano) vira a seção `### QA` do relatório final.
 
+## Persistência — doc + commit/push (antes do relatório)
+
+Passada a QA e **ANTES** de montar o relatório, persista o trabalho. Esta é a última etapa de execução; o relatório só descreve o que já está salvo.
+
+1. **Atualiza a doc.** Invoque a skill **`project-doc`** (Skill tool, `skill: "project-doc"`) pra regenerar o `CLAUDE.md` + `.claude/docs/`. Uma execução autônoma costuma mexer em estrutura/arquivos — a doc tem que refletir a realidade antes de você fechar. (Não "digite /project-doc" — invoque a skill.)
+2. **Commit + push.** Stage do que esta sessão mudou, commit com mensagem no padrão do repo (`feat(...)`/`fix(...)`/`docs(...)`, 1 linha) e push pra **branch atual**.
+   - **Nunca** `--force`; **nunca** push direto numa branch protegida (`main`/`master`) — se a sessão estiver nela, crie uma branch de feature antes (mesma regra do "force push em main" do Contrato) e registre como decisão.
+   - Árvore limpa (nada pra commitar) → pula e anota "nada a persistir".
+   - Falha de push (sem remote, sem auth, rejeição) → **não force**; registra como `Bloqueio (precisa de você)` com o erro real e segue pro relatório (o commit local fica feito).
+
+O hash do commit + resultado do push entram na `### Verificação`; a doc regenerada é um item de `### Feito`.
+
 ## Relatório Final
 
 O relatório é a única coisa que Pedro lê desta sessão — e ele lê **depois**, pra revisar tudo e refatorar. Por isso ele sai como uma **superfície de revisão em HTML**, não como textão no CLI.
@@ -60,7 +73,7 @@ Cinco seções. Monte este conteúdo PRIMEIRO; a forma de entrega (HTML ou markd
 - [item pulado]: [o que faltou]
 
 ### Verificação
-- [o que rodou, e o resultado]
+- [o que rodou, e o resultado — incluindo doc atualizada (project-doc), commit e push]
 
 ### QA (qa-loop)
 - [loops rodados + critério de parada · correções aplicadas · regressões pegas na hora]

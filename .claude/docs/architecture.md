@@ -73,7 +73,7 @@ pedro-plugins/
 
 - **handoff** `v1.7.0` — Continuidade de sessão em um comando: detecta o estado e roteia (contexto cheio → salva PRD + LOG verbatim; sessão recém-limpa → retoma). Workspace-aware (resolve a fronteira `.git`). `category: productivity`. ⚙️ hooks.
 - **context-guard** `v1.1.1` — Auto-interrompe o workflow quando o context window passa de um threshold (default 80%); ponte statusLine↔PostToolUse via arquivo temp; encaminha para qualquer statusLine via `CLAUDE_STATUSLINE_FORWARD`. Use junto com `handoff`. `category: productivity`. ⚙️ hooks.
-- **sovai** `v1.2.0` — Modo de execução contínua: roda um plano do início ao fim sem pausas; pula bloqueios (sem workaround silencioso), registra decisões, roda `/qa-loop --headless` no fim, entrega relatório via `/visual`. `category: productivity`.
+- **sovai** `v1.3.0` — Modo de execução contínua: roda um plano do início ao fim sem pausas; pula bloqueios (sem workaround silencioso), registra decisões, roda `/qa-loop --headless`, atualiza a doc (`/project-doc`) e faz commit + push do trabalho, entrega relatório via `/visual`. `category: productivity`.
 
 ### Planejamento & review
 

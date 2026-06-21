@@ -109,9 +109,9 @@
     {
       "name": "sovai",
       "source": "./plugins/sovai",
-      "description": "Autonomous execution mode — executes any plan to completion without user interruptions, checkpoints, or confirmations. Skips blocked items (no silent workarounds), logs all decisions, runs a final headless qa-loop pass, and delivers the final report as an interactive /visual HTML review surface (markdown fallback).",
+      "description": "Autonomous execution mode — executes any plan to completion without user interruptions, checkpoints, or confirmations. Skips blocked items (no silent workarounds), logs all decisions, runs a final headless qa-loop pass, regenerates docs (project-doc) and commits + pushes the work, and delivers the final report as an interactive /visual HTML review surface (markdown fallback).",
       "category": "productivity",
-      "version": "1.2.0",
+      "version": "1.3.0",
       "tags": [
         "autonomy",
         "execution",
