@@ -44,7 +44,7 @@ The skill accepts an optional argument to control scope:
 - `/project-doc --rebuild` — **REBUILD**: descarta a doc gerada e re-projeta do **journal inteiro** (`findings.jsonl`). Idempotente; não minera nada novo — só re-deriva a doc dos findings vivos.
 - `/project-doc --solo` — escape: força FULL/`--deep` a rodar **single-agent** (sem Workflow) e **pula o grafo** (passo 0.0). Debug / projeto pequeno.
 
-**Escape do grafo (v3.2):** o FULL/`--deep` garante o grafo por padrão (passo 0.0). Pra desligar sem desligar o Workflow, ponha `project_doc.skip_graph: true` em `.claude/settings.json`. O `--solo` também pula o grafo.
+**Grafo é premissa do Workflow (v3.5):** o FULL/`--deep` **exige** o grafo — o passo 0.0 o gera (`graphify update --force`), então ele sempre existe. Se o Workflow roda, tem grafo. Pra rodar **sem** grafo de propósito (debug / projeto pequeno) use `--solo`, que cai pro single-agent (sem Workflow). Não existe mais "Workflow sem mapa": grafo ausente é erro no passo 0.0, não degradação.
 
 **FULL e `--deep` mineram via Workflow (fan-out por concern) por padrão** — ver **Workflow Engine**. Os demais modos rodam single-agent. `--solo` desliga o Workflow.
 
@@ -57,37 +57,40 @@ Report each step to the user as you execute. Don't skip steps or batch them sile
 ### Full Mode
 
 ```
-**Step 1/13:** Root → `/path/to/project`
-**Step 2/13:** Layout → Standard | Monorepo (N apps)
-**Step 3/13:** Type → app | lib | cli
-**Step 4/13:** Package manager → pnpm | yarn | bun | npm
-**Step 5/13:** Mode → FULL | MIGRATE (v1→v2 detected) | CREATE (no CLAUDE.md)
-**Step 6/13:** CLAUDE.md → v1 markers (will migrate) | v2 index (will update) | none (will create)
-**Step 7/13:** Graph (FULL/`--deep`) → `graphify update --force` {criado | atualizado | já fresco | graphify ausente} + graph_map → {N god nodes, M comunidades, K hyperedges} | skipped (`--solo` / `skip_graph`)
-**Step 8/13:** Collecting → tier 1 scan (arquivos por concern, **ranqueados por fan-in do grafo**) + `journal.py` tiers 2-4 → {new_events, live_count, stale}
-**Step 9/13:** Generating docs → {list of .claude/docs/*.md to create/update, with line counts}
-**Step 10/13:** Writing CLAUDE.md index → {N lines}
-**Step 11/13:** Pointer files → {list created/updated/skipped}
-**Step 12/13:** Verification → {results summary, inclui auditoria grafo×doc}
-**Step 13/13:** Token impact → Before: {N} lines always-loaded | After: {M} lines always-loaded + {K} docs on-demand | Savings: {X}%
+**Step 1/14:** Root → `/path/to/project`
+**Step 2/14:** Layout → Standard | Monorepo (N apps)
+**Step 3/14:** Type → app | lib | cli
+**Step 4/14:** Package manager → pnpm | yarn | bun | npm
+**Step 5/14:** Mode → FULL | MIGRATE (v1→v2 detected) | CREATE (no CLAUDE.md)
+**Step 6/14:** CLAUDE.md → v1 markers (will migrate) | v2 index (will update) | none (will create)
+**Step 7/14:** Graph (FULL/`--deep`, **obrigatório**) → `graphify update --force` {criado | atualizado | já fresco} + graph_map → {N god nodes, M comunidades, K hyperedges} | **graphify ausente → ERRO (instale ou use `--solo`)** | skipped (`--solo`)
+**Step 8/14:** Collecting → tier 1 scan (arquivos por concern, **ranqueados por fan-in do grafo**) + `journal.py` tiers 2-4 → {new_events, live_count, stale}
+**Step 9/14:** Generating docs → {list of .claude/docs/*.md to create/update, with line counts}
+**Step 10/14:** Writing CLAUDE.md index → {N lines}
+**Step 11/14:** Pointer files → {list created/updated/skipped}
+**Step 12/14:** Verification → {results summary, inclui auditoria grafo×doc}
+**Step 13/14:** Commit + push → {commitado `<hash>` + pushado | commitado, push pulado: `<motivo>` | nada a commitar}
+**Step 14/14:** Token impact → Before: {N} lines always-loaded | After: {M} lines always-loaded + {K} docs on-demand | Savings: {X}%
 ```
 
 ### Incremental Mode
 
 ```
-**Step 1/3:** Root → `/path/to/project`, scope → {doc-name}
-**Step 2/3:** Scanning {doc-name} sources... (list files read)
-**Step 3/3:** Written → `.claude/docs/{doc-name}.md` ({N} lines), CLAUDE.md index updated
+**Step 1/4:** Root → `/path/to/project`, scope → {doc-name}
+**Step 2/4:** Scanning {doc-name} sources... (list files read)
+**Step 3/4:** Written → `.claude/docs/{doc-name}.md` ({N} lines), CLAUDE.md index updated
+**Step 4/4:** Commit + push → {commitado `<hash>` + pushado | commitado, push pulado: `<motivo>` | nada a commitar}
 ```
 
 ### Migrate Mode
 
 ```
-**Step 1/5:** Root → `/path/to/project`
-**Step 2/5:** Parsing v1 block... ({N} sections found)
-**Step 3/5:** Extracting to .claude/docs/... ({list of docs created})
-**Step 4/5:** Rewriting CLAUDE.md as v2 index... ({N} lines)
-**Step 5/5:** Token impact → Before: {N} lines monolithic | After: {M} lines index + {K} docs on-demand | Savings: {X}%
+**Step 1/6:** Root → `/path/to/project`
+**Step 2/6:** Parsing v1 block... ({N} sections found)
+**Step 3/6:** Extracting to .claude/docs/... ({list of docs created})
+**Step 4/6:** Rewriting CLAUDE.md as v2 index... ({N} lines)
+**Step 5/6:** Commit + push → {commitado `<hash>` + pushado | commitado, push pulado: `<motivo>` | nada a commitar}
+**Step 6/6:** Token impact → Before: {N} lines monolithic | After: {M} lines index + {K} docs on-demand | Savings: {X}%
 ```
 
 ### Clean Mode
@@ -139,12 +142,18 @@ Report each step to the user as you execute. Don't skip steps or batch them sile
 11. **Preserve human content** — any content outside `<!-- project-doc:v2 -->` / `<!-- project-doc:v2:end -->` markers is preserved untouched. The `## Custom Rules` section inside the markers is also preserved across regenerations.
 12. **Write all files**
 13. **Run verification** (see Verification section)
-14. **Report to user:**
+14. **Auto commit + push** (FULL e qualquer modo que ESCREVE doc — `verify`/`clean` pulam) — persiste os artefatos de doc no git, **escopado**:
+    - **`git add` cirúrgico — SÓ os artefatos de doc:** `.claude/CLAUDE.md`, `.claude/docs/`, `.claude/.project-doc/findings.jsonl`, `.claude/.project-doc/ledger.json`, e os ponteiros gerados (`AGENTS.md`, `GEMINI.md`, `.cursorrules`, `.windsurfrules`, `.github/copilot-instructions.md`). **NUNCA `git add -A`** — não varrer trabalho não-relacionado do repo-alvo. `secrets/`/`backups/` ficam de fora (gitignored).
+    - **Commit** na branch atual, mensagem `docs(project-doc): regenera CLAUDE.md + .claude/docs + journal`. Nada staged (doc não mudou) → pula e anota "nada a commitar".
+    - **Push seguro:** `git fetch` antes; **nunca `--force`**; divergiu de `origin` → tenta `pull --rebase` e re-push, senão reporta. Sem remote/upstream → commita e **pula o push**. Não é repo git → pula commit+push.
+    - **Falha de push** (conflito/permissão) → reporta o erro real e segue (commit local feito; doc no disco).
+15. **Report to user:**
     - Token impact (before/after comparison)
     - List of docs generated with line counts
     - List of pointer files created/updated/skipped
     - Any `[TODO: ...]` gaps found
     - Verification results
+    - **Commit + push:** `commitado {hash} + pushado` | `commitado, push pulado: {motivo}` | `nada a commitar`
     - Knowledge graph status + suggestion (see Knowledge Graph Integration section)
     - Stale test artifacts detected: {N} ({breakdown}). Offer `/project-doc clean` (see Artifact Cleanup) — detect & report only, never delete here
     - Ask: "Quer preencher os TODOs agora?"
@@ -329,13 +338,13 @@ No FULL/`--deep` (não nos modos leves), ANTES da checagem ativa:
                                         # `--force`: sobrescreve graph.json mesmo se a re-extração tiver MENOS nós (após refactor que apaga código)
    ```
    Ausente → cria (AST); stale → atualiza; fresco → no-op. O `--force` garante o overwrite em refactors destrutivos (sem ele, uma re-extração menor poderia ser recusada). **Não anuncie custo nem peça confirmação** — informa "grafo: criado / atualizado / já fresco" no Output Protocol. O labeling LLM de comunidades (nomes bonitos) é upgrade opcional via `/graphify` completo, **fora** do caminho crítico; `update --force` preserva labels já existentes.
-   - **Escapes:** `--solo` (single-agent, pula o grafo) e um opt-out em `.claude/settings.json` (`project_doc.skip_graph: true`) pra quem não quiser; o **default é rodar**.
-   - **`graphify` não instalado** → degrada gracioso: pula o grafo, avisa "graphify ausente — fan-out sem mapa (v3.1)", segue.
+   - **Escape único:** `--solo` (single-agent, sem Workflow, pula o grafo) pra debug / projeto pequeno. Não há opt-out que mantenha o Workflow rodando sem grafo — o grafo é premissa do Workflow.
+   - **`graphify` não instalado** → **erro acionável no passo 0.0**: "o Workflow exige o grafo; instale o `graphify` (ou rode `--solo` pra um run single-agent sem grafo)". NÃO degrada pra Workflow sem mapa.
 2. **Destila o grafo num mapa enxuto** (o grafo bruto tem milhares de nós — não engula inline):
    ```bash
    python3 plugins/project-doc/lib/graph_map.py --project-root "<root>"
    ```
-   Devolve JSON: `{available, stats, files[], god_nodes[], communities[], generic_communities[], hyperedges[]}` (ver **Schemas / GRAPH_MAP**). `available:false` ⇒ sem grafo ⇒ comportamento v3.1 (fan-out sem mapa). O mapa alimenta o particionamento (passo 4) e a leitura profunda (Fase A).
+   Devolve JSON: `{available, stats, files[], god_nodes[], communities[], generic_communities[], hyperedges[]}` (ver **Schemas / GRAPH_MAP**). **`available:false` no FULL/`--deep` ⇒ ERRO no passo 0.0** (o grafo é premissa; não há fan-out sem mapa) — instale o `graphify` ou rode `--solo`. O mapa alimenta o particionamento (passo 4) e a leitura profunda (Fase A).
 
 
 
@@ -364,7 +373,6 @@ Espelha o qa-loop: o Workflow roda em background e **não pergunta nada no meio*
 - **Fase A — Scan+Reconcile + leitura profunda (PARALELO):** 1 agente por concern. Cada um executa o protocolo **Project (seu julgamento)** acima, restrito à sua fatia, e agora faz **leitura profunda guiada pelo grafo** (capacidade nova do v3.2 — caminho 1):
   - **Lê o código-fonte real** dos arquivos da fatia, na **ordem de fan-in** que o `GRAPH_MAP` deu (maior fan-in primeiro) — não só os manifestos, mas o **corpo das funções** dos `god_nodes` e dos arquivos quentes. Daí extrai gotchas/convenções/decisões que **só o código revela** (o que o AST não vê: invariantes, efeitos colaterais, "por que assim").
   - **Trava de contexto:** lê integralmente os **top-N por fan-in** do concern (teto por agente); o resto entra como "coberto por menção", não leitura integral. O agente **reporta no `DOC_SECTION` o que leu de fato vs o que só listou** (`files_read[]` / `files_listed[]`).
-  - Sem grafo (`available:false`) → cai no v3.1: lê os arquivos da Detection Matrix sem ranking, mesma reconciliação.
   - Reconcilia cada finding da fatia contra o código que leu (confirma / `[relatado]` / propõe invalidação), escreve a seção. Devolve `DOC_SECTION`. **A doc nova é a BASE canônica — projetada SEM ver a doc antiga.**
   - **Frontmatter obrigatório (v3.4):** todo `body_md` começa com o bloco YAML (`generated`/`project`/`scope`) — vale **inclusive pros shared docs do monorepo** (foi onde a v3.2 esquecia). O agente marca `has_frontmatter:true`; o gate de frontmatter (Stitch) injeta se vier `false`. Não é "lembrar a regra" — é trava.
 - **Fase B — Garimpeiro de nuances (1 agente, só se há doc antiga):** recebe a doc antiga (backup) + a nova + leitura do código/journal + o **JSON de `live_findings`** (`id`/`text`/`raw_kind`). Tarefa **negativa**: achar info verdadeira presente só na antiga e **ausente** na nova; validar cada candidata contra o código. Devolve `NUANCE_CANDIDATES`. Não reescreve nada — só propõe adições. **Anti-falso-positivo + finding_id (v3.4):** por candidata, (i) auto-check determinístico — se o **token-chave** da nuance já aparece na prosa nova, marca `proposed_action: drop` (a v3.2 trouxe 182 candidatas e só ~52 eram reais; ~70% era já-coberto reformulado); (ii) casa contra os findings vivos e preenche `match_to_journal{finding_id, relation}` — `curate_existing` quando achou par, `new_discovered` só quando é genuinamente nova (sem isso o `adopt` cego duplica, porque o journal só dedup por texto exato).
@@ -388,7 +396,7 @@ export const meta = {
 // A casca PREENCHE este RUN ao gerar o script (substitui os placeholders pelos valores reais do run):
 const RUN = {
   root: '<ABS_ROOT>', deep: false, hasOldDoc: true, backupPath: '<ABS_BACKUP>',
-  graphMap: { /* saída do graph_map.py — ou {available:false} */ },
+  graphMap: { /* saída do graph_map.py — sempre populado (o passo 0.0 garante; available:false já abortou antes) */ },
   // files[] já vem ranqueado por fan-in; findings/staleIds podem ser referenciados por id (os agentes leem do disco)
   concerns: [ /* {key, app, files:[], findings:[], staleIds:[], godNodes:[], template} */ ],
 }
@@ -430,7 +438,7 @@ A trava anti-"caminho fácil" é **estrutural**, não confiança: a doc nova já
 
 ### Schemas (campos pros gates, não texto solto)
 
-- **`GRAPH_MAP`** (saída do `graph_map.py`, lido pela casca; não é schema de agente) = `{available, stats{nodes, links, hyperedges_total, communities_named, god_nodes}, params{god_min, hyper_min}, files[{source_file, fan_in, node_count, god_nodes[]}], god_nodes[{id, label, source_file, source_location, fan_in, fan_in_total, relations_in}], communities[{label, size, community_ids[], files[]}], generic_communities[{label, count}], hyperedges[{id, label, confidence_score, nodes[], source_files[]}]}`. `available:false` ⇒ sem grafo (`{available, reason, expected_path}`). A casca pode ignorar campos extras — o contrato é um superset estável.
+- **`GRAPH_MAP`** (saída do `graph_map.py`, lido pela casca; não é schema de agente) = `{available, stats{nodes, links, hyperedges_total, communities_named, god_nodes}, params{god_min, hyper_min}, files[{source_file, fan_in, node_count, god_nodes[]}], god_nodes[{id, label, source_file, source_location, fan_in, fan_in_total, relations_in}], communities[{label, size, community_ids[], files[]}], generic_communities[{label, count}], hyperedges[{id, label, confidence_score, nodes[], source_files[]}]}`. **`available` é gate do passo 0.0, não modo do Workflow:** no FULL/`--deep`, `available:false` (`{available, reason, expected_path}`) ⇒ erro/abort ANTES das fases — quando o Workflow roda, `available` é sempre `true`. A casca pode ignorar campos extras — o contrato é um superset estável.
 - **`DOC_SECTION`** = `{concern, app, complete, doc_path, inline, body_md, has_frontmatter, confirmed_ids[], relatado_ids[], invalidations[{id, reason, evidence, confidence}], nuances[], todos[], secret_suspects[], files_read[], files_listed[]}` (`has_frontmatter`: bool — o agente confirma que o `body_md` abre com o bloco YAML; o gate de frontmatter injeta se `false`. `files_read`/`files_listed`: o que leu integralmente vs só listou — prova da leitura profunda v3.2).
 - **`NUANCE_CANDIDATES`** = `{candidates[{type, claim, where_in_old, covered_in_new (bool — o token-chave já aparece na prosa nova?), validation{status: confirmed|unconfirmable|contradicted, evidence}, match_to_journal{finding_id, relation: curate_existing|new_discovered}, proposed_action: curate|adopt|invalidate|drop}], summary}` (`covered_in_new` + `match_to_journal.finding_id` são **obrigatórios** na v3.4 — alimentam o gate de dedup-vs-prosa e o roteamento seguro de adopt/curate; sem eles a reintegração duplica).
 - **`STITCH_RESULT`** = `{index_md, docs_to_write[], inline_sections[], docs_with_nuances[{doc_path, body_md, approved_nuances[]}], approved_invalidations[], rejected_invalidations[], dropped_nuances[], frontmatter_injected[], dedup_log[], audit_warnings[]}` (`docs_with_nuances`: o que a Fase D vai mergear; `dropped_nuances`: as já-cobertas/contraditas; `frontmatter_injected`: docs que vieram sem o bloco e o gate consertou; `audit_warnings`: god nodes / comunidades / hyperedges do grafo sem cobertura — ver gate 7).
@@ -442,9 +450,9 @@ A trava anti-"caminho fácil" é **estrutural**, não confiança: a doc nova já
 2. **Invalidação (o crítico)** — o agente **propõe**; o JS **aplica** só se `confidence==="high"` **E** `evidence` não-vazio **E** o `id` está no `live[]`. Invalidar é destrutivo no journal — low-confidence vira `[relatado]`, não morte.
 3. **Reintegração de nuance (guarda de finding_id, v3.4)** — só `validation.status==="confirmed"` reintegra automático; `unconfirmable` → `[relatado]`; `contradicted` → `invalidate` da versão antiga. O **roteamento de escrita no journal** segue `match_to_journal.relation`: `curate_existing` → `curate` no `finding_id` casado; `new_discovered` → `adopt` **só** se o `finding_id` não estiver no `live[]`. **Nunca adopt cego** — o journal só dedup por texto exato (`finding_id = SHA1(texto_norm|raw_kind)`), então nuance reformulada com adopt cego viraria duplicata. As confirmadas viram `approved_nuances` por doc em `docs_with_nuances` (entrada da Fase D).
 4. **Dedup (intra-doc + vs-prosa-nova, v3.4)** — (a) gotcha repetido em 2 concerns (match por anchor+texto) fica em 1 (patterns vence); (b) **nuance candidata com `covered_in_new===true`** (ou cujo token-chave já aparece em qualquer `body_md`) é **dropada** pra `dropped_nuances` — é o filtro determinístico que mata os ~70% de falso-positivo do garimpo (já-coberto reformulado) que a v3.2 filtrava à mão.
-5. **Secret (CRITICAL) — paridade com o scrubber Python (v3.4)** — regex sobre todo `body_md` (e sobre o `merged[].body_md` da Fase D) antes de escrever; match ⇒ não escreve, devolve. **Espelha o `PROVIDER_RE` do `journal.py` (fonte única — se um mudar, alinhe o outro):** JWT `eyJ…`, AWS `AKIA…`/`ASIA…`, Google `AIza[0-9A-Za-z_-]{20,}` e `ya29\.[0-9A-Za-z_-]{20,}`, GitHub `gh[posu]_…`/`github_pat_…`, Stripe/OpenAI `sk-…`/`sk_live_`/`sk_test_`/`rk_live_`, Slack `xox[baprs]-…`, GitLab `glpat-…`, blocos PEM, connection string com senha, **e** atribuição genérica `(?i)(password|senha|passwd|pwd|secret|token|api[_-]?key|credential)\s*[:=]\s*\S+`. É a 2ª barreira (o scrubber Python é a 1ª, roda ao persistir no journal) — não pode depender de o agente se autocensurar.
+5. **Secret (CRITICAL) — paridade com o scrubber Python (v3.4)** — regex sobre todo `body_md` (e sobre o `merged[].body_md` da Fase D) antes de escrever; match ⇒ não escreve, devolve. **Espelha o `PROVIDER_RE` do `journal.py` (fonte única — se um mudar, alinhe o outro):** JWT `eyJ…`, AWS `AKIA…`/`ASIA…`, Google `AIza[0-9A-Za-z_-]{20,}` e `ya29\.[0-9A-Za-z_-]{20,}`, GitHub `gh[posu]_…`/`github_pat_…`, Stripe/OpenAI `sk-…`/`sk_live_`/`sk_test_`/`rk_live_`, Slack `xox[baprs]-…`, GitLab `glpat-…`, blocos PEM, connection string com senha, **e** atribuição genérica `(?i)(password|senha|passwd|pwd|secret|token|api[_-]?key|credential)\s*[:=]\s*<valor>` — onde `<valor>` precisa ser **credencial-shaped, NÃO bare `\S+`**: ≥16 chars de classe mista (letras+dígitos/símbolos) **ou** alta-entropia (Shannon ≥3.5), espelhando a Camada 4 do scrubber Python. Assim `secret = barreira` (prosa, palavra de dicionário, baixa entropia) **não** dispara, mas `secret = aB3x9Kf2pQ…` dispara. (`\S+` casava qualquer palavra → falso-positivo de prosa; o Python nunca teve isso.) É a 2ª barreira (o scrubber Python é a 1ª, roda ao persistir no journal) — não pode depender de o agente se autocensurar.
 6. **Token budget / cobertura** — índice >150 linhas ⇒ comprime; área detectada (ex: docker-compose) sem seção ⇒ WARN.
-7. **Auditoria grafo×doc (v3.2 — o repasse de completude)** — só se `graphMap.available`. Cruza o grafo contra o texto gerado (todos os `body_md` + índice): **god node** ou **comunidade nomeada** (não-generic) cujo `label`/`source_file` **não aparece** em nenhuma seção ⇒ `audit_warnings += "área importante não documentada: <X>"`; **hyperedge** ≥0.85 sem menção ⇒ candidato a nota de arquitetura. É o grafo como completeness-critic — orienta no início (mapa), audita no fim. WARN não bloqueia; alimenta o relatório (ou uma 2ª leva de agente pro gap, se a casca optar).
+7. **Auditoria grafo×doc (v3.2 — o repasse de completude)** — o grafo é premissa do Workflow (sempre disponível aqui). Cruza o grafo contra o texto gerado (todos os `body_md` + índice): **god node** ou **comunidade nomeada** (não-generic) cujo `label`/`source_file` **não aparece** em nenhuma seção ⇒ `audit_warnings += "área importante não documentada: <X>"`; **hyperedge** ≥0.85 sem menção ⇒ candidato a nota de arquitetura. É o grafo como completeness-critic — orienta no início (mapa), audita no fim. WARN não bloqueia; alimenta o relatório (ou uma 2ª leva de agente pro gap, se a casca optar).
 8. **Frontmatter (v3.4)** — todo `body_md` de doc (não-inline) tem que abrir com o bloco YAML (`generated`/`project`/`scope`). `DOC_SECTION.has_frontmatter===false` (ou ausência detectada por regex `^---\n`) ⇒ o JS **injeta** o bloco determinístico (`generated`=data do run, `project`=nome do projeto, `scope`=`files_read[]`) e registra em `frontmatter_injected`. Fecha o buraco da v3.2 (7 shared docs sem frontmatter) por construção, não por o agente lembrar.
 
 ## CLAUDE.md Index Template
@@ -968,13 +976,13 @@ For monorepos, `.claude/docs/` uses subdirectories per app alongside shared docs
 
 When the project has (or will have) a graphify knowledge graph (`graphify-out/graph.json`), `/project-doc` integrates with it in four ways:
 
-1. **Garantir + mapear (FULL/`--deep`, automático)** — o **passo 0.0 do Workflow** roda `graphify update . --force` (AST, sem LLM, ~segundos) quando ausente/stale e destila o mapa via `graph_map.py`. **Roda sempre, informa, não pergunta** (ver **Workflow Engine → Passo 0.0**). O mapa dirige a leitura profunda (Fase A) e a auditoria de completude (gate 7). Escapes: `--solo` ou `project_doc.skip_graph: true` em `.claude/settings.json`. `graphify` ausente → degrada gracioso (fan-out sem mapa).
+1. **Garantir + mapear (FULL/`--deep`, automático)** — o **passo 0.0 do Workflow** roda `graphify update . --force` (AST, sem LLM, ~segundos) quando ausente/stale e destila o mapa via `graph_map.py`. **Roda sempre, informa, não pergunta** (ver **Workflow Engine → Passo 0.0**). O mapa dirige a leitura profunda (Fase A) e a auditoria de completude (gate 7). Escape único: `--solo` (single-agent, sem grafo). `graphify` ausente no FULL/`--deep` → **erro no passo 0.0** (o grafo é premissa), não degradação.
 
 2. **Index section** — generate the `## Knowledge Graph (graphify)` section inside the v2 markers (see Index Templates). Generated ONLY when `graphify-out/graph.json` exists. Omit entirely otherwise. This makes "consult the graph before touching code" a durable instruction loaded every session.
 
 3. **Anti-duplication** — if a `## Knowledge Graph` (or `## Knowledge Graph (graphify)`) section already exists OUTSIDE the v2 markers (a manual addition by a previous session), remove that manual copy and let the canonical one be generated inside the markers. Never leave two. Detect by header match; the manual one is the copy not enclosed by `<!-- project-doc:v2 -->` / `<!-- project-doc:v2:end -->`.
 
-4. **Proactive suggestion (só nos modos leves, ou pra o labeling caro)** — após escrever os arquivos (step 14 report), avalie o estado do grafo:
+4. **Proactive suggestion (só nos modos leves, ou pra o labeling caro)** — após escrever os arquivos (no report final), avalie o estado do grafo:
    - **Modo leve com grafo stale** → "O knowledge graph está desatualizado (gerado {date}, sources mudaram {date}). Quer que eu rode `/graphify <path> --update`?"
    - **Modo leve sem grafo** → **ALWAYS suggest, unconditionally** (no triviality/coupling judgment — see Complexity Assessment) → "Esse projeto se beneficiaria de um knowledge graph (mapeia relações, ajuda a localizar/debugar). Quer gerar um com `/graphify`?" — name any complexity signal you saw, but NEVER withhold the offer for lack of one.
    - **Comunidades sem nome bonito** (criação inicial AST → "Community NNN") → no FULL/`--deep` o mapa já funciona (agrupa + fan-in) sem nomes; sugira o **labeling LLM opcional** via `/graphify` completo como upgrade — fora do caminho crítico.
@@ -1143,6 +1151,7 @@ Aprovar? [tudo | só deletar | só arquivar | escolher itens | cancelar]
 - **Archive > delete for items of value** — prototypes and state-documenting prints go to `_archive/`, not the trash
 - **Safety net before any bulk delete** — pack originals into `_archive/*-housekeeping-<date>.tar.gz` first, then remove
 - **Cleanup scope = project root** — never touch outside it (e.g. `~/Desktop/claude-visual/`); never touch `.git/ node_modules/ graphify-out/ .claude/docs/` nor referenced assets
+- **Auto commit+push é ESCOPADO — nunca `git add -A`** — o passo 14 stageia SÓ os artefatos de doc (`CLAUDE.md`, `.claude/docs/`, `findings.jsonl`, `ledger.json`, ponteiros). Varrer o working tree do repo-alvo (`-A`) é proibido — commitaria trabalho não-relacionado. Push nunca com `--force`; sem remote → pula push; falha → reporta e segue (commit local feito).
 
 ## Verification (Post-Generation Quality Check)
 
@@ -1195,7 +1204,7 @@ After writing all files, run this verification checklist. Report results to the 
 
 **10. Security — Scrubber + No Leaked Secrets**
 - O **scrubber** (lib) é a 1ª barreira na escrita do journal; este check é a 2ª, na doc final (defense-in-depth — repo privado NÃO é controle de secret).
-- Scan ALL generated files for secret-looking values, **em paridade com o gate 5 do Stitch e o `PROVIDER_RE` do `journal.py`** (fonte única): strings após `=`/`:` que não são placeholder/template (`(?i)(password|senha|passwd|pwd|secret|token|api[_-]?key|credential)\s*[:=]\s*\S+`), base64 longo, JWT (`eyJ…`), AWS `AKIA…`/`ASIA…`, **Google `AIza…` e `ya29.…`**, GitHub `gh[posu]_…`/`github_pat_…`, `sk-…`/`sk_live_`/`sk_test_`, Slack `xox…`, GitLab `glpat-…`, blocos PEM, connection strings com senha embutida.
+- Scan ALL generated files for secret-looking values, **em paridade com o gate 5 do Stitch e o `PROVIDER_RE` do `journal.py`** (fonte única): atribuição `(?i)(password|senha|passwd|pwd|secret|token|api[_-]?key|credential)\s*[:=]\s*<valor>` cujo `<valor>` seja **credencial-shaped** (≥16 chars de classe mista **ou** Shannon ≥3.5, como a Camada 4 do `journal.py` — **NÃO bare `\S+`**, pra não marcar prosa tipo `secret = barreira`), base64 longo, JWT (`eyJ…`), AWS `AKIA…`/`ASIA…`, **Google `AIza…` e `ya29.…`**, GitHub `gh[posu]_…`/`github_pat_…`, `sk-…`/`sk_live_`/`sk_test_`, Slack `xox…`, GitLab `glpat-…`, blocos PEM, connection strings com senha embutida.
 - Garanta que valores de .env NUNCA entram — só nomes. Onde havia um secret, a doc deve **referenciar o cofre** (`.claude/secrets/ops.env`), não o valor.
 - Confirme que `.claude/secrets/` está no `.gitignore` (o lib adiciona; verifique).
 - Qualquer vazamento potencial = **CRITICAL FAIL** — corrija antes de declarar pronto.
@@ -1243,7 +1252,7 @@ After writing all files, run this verification checklist. Report results to the 
 
 ### Graph Coverage Check (v3.2)
 
-**17. Auditoria grafo × doc (só se há grafo — `graphMap.available`)**
+**17. Auditoria grafo × doc** (no FULL/`--deep` o grafo é premissa → sempre roda; em `--solo` / modos leves sem grafo → N/A, não falha)
 - O grafo é o **completeness-critic** do fim: cruza o que o grafo diz ser importante contra o que a doc cobriu (espelha o gate 7 do Stitch; aqui é o check final da Verification).
 - Rode `graph_map.py` (ou reuse a saída do passo 0.0) e, para cada item, procure cobertura no texto gerado (qualquer `.claude/docs/*.md` + índice), por `label` ou `source_file`:
   - **god node** (fan-in alto) sem nenhuma menção → **WARN — função central não documentada: `{label}` ({source_file})**
