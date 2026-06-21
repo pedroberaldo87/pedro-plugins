@@ -289,6 +289,7 @@ If `latest.json` doesn't exist or is stale (>30min old), Claude falls back to as
 - The `.feedback-head` holds: `.feedback-num` + `.feedback-title` + the three radios. Radios go in the head, **outside** the `<details>` — this avoids the click-on-radio-toggles-the-details conflict without any `preventDefault` hack.
 - **Machine values are fixed: `keep` / `change` / `remove`** (the clipboard parser and live-sync depend on them). The visible label text adapts to the content: a plan → "✓ Manter / ✏️ Mudar / ✗ Remover"; findings or features → "✓ Aprovar / ✏️ Ajustar / ✗ Negar". Same values, humanized wording.
 - Radio `name` must be unique per item (`fb-1`, `fb-2`, …).
+- **NO pre-selected verdict (non-negotiable, Pedro 2026-06-20).** Never ship a radio with `checked` and never seed the item with `state-keep`. The item must render with NOTHING marked, so Pedro has to actively decide — *especially on implementation items*. A pre-checked `<input checked>` ALSO never fires `onchange` on load, so the progress counter would read 0 while the radio looks selected — the exact "parece marcado mas não conta, tenho que mudar e voltar" bug. Untouched items copy as "⚠️ sem veredito" (only **Aprovar tudo** treats untouched as ok).
 - Depth goes in `<details class="item-detail">` with `.read-dot` + summary + `.dchev` + `.detail-body`. Optional `.sev` severity tag (`sev-high`/`sev-med`/`sev-low`) next to the title for findings.
 - When Pedro picks "Mudar/Ajustar", the textarea appears (pure CSS via `.feedback-item.state-change .feedback-textarea { display: block }`). The radios also recolor per state (change → warn, remove → danger).
 
@@ -433,6 +434,18 @@ The first version had decision cards that were `.recommended` (bordered accent) 
 - When `.options:has(.opt.selected)` is true, any `.opt.recommended:not(.selected)` reverts to neutral card state (transparent border, no gradient, no shadow) — only the "★ RECOMENDADO" badge remains (at reduced opacity 0.55).
 
 Architectural principle: `.recommended` is a **suggestion**, not a permanent highlight. Once the user picks something, the suggestion steps aside so the real choice is unambiguous.
+
+### Nothing nasce pré-selecionado (2026-06-20, flagged by Pedro)
+Two surfaces shipped looking already-chosen while the counter said nothing was chosen:
+1. **Plan items** rendered with `state-keep` + `<input value="keep" checked>`. A pre-checked radio looks selected (the `:has(input:checked)` highlight) but **never fires `onchange` on load**, so `touched` stayed false and the "X/N itens revisados" counter read 0. To register even a simple "concordo", Pedro had to click "Mudar" and back. His words: the fields show up already filled but it "não tá contabilizando lá embaixo".
+2. **Recommended option card** had an accent border + peach gradient that made it impersonate the `.selected` state before any click — so a fresh decision looked already-decided.
+
+**Fix applied:**
+- `.feedback-item` ships with **no `state-keep` and no `checked`** — nothing marked. First click registers in the counter immediately.
+- `.opt.recommended` lost its border/gradient; the recommendation is now the **★ badge ALONE**. An unselected recommended card looks identical to its siblings, so nothing reads as pre-chosen.
+- JS made consistent so the fix survives copy and reload: `collectAllInput(untouchedAsKeep)` reports untouched items as "⚠️ sem veredito" (only `approveAll` passes `true`), and `restoreState` only re-marks items Pedro actually touched.
+
+Principle: **the human must take the decision** — render zero pre-selection, especially on implementation choices. A suggestion is a badge, never a pre-filled answer.
 
 ## Option cards (decision block) — always 3 with illustrations
 

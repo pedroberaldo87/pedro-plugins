@@ -56,7 +56,7 @@
       "source": "./plugins/visual",
       "description": "CLI walls-of-text → interactive HTML dark-theme views. Plans, diagnostics, and decisions rendered in the browser with live sync back to Claude via local daemon.",
       "category": "productivity",
-      "version": "1.2.0",
+      "version": "1.2.1",
       "tags": [
         "visualization",
         "html",

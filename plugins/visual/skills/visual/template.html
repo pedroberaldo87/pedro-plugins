@@ -162,11 +162,7 @@ h1 em { color: var(--accent); font-style: normal; }
   background: linear-gradient(145deg, var(--card-hi), rgba(255,168,140,0.22));
   box-shadow: 0 10px 28px rgba(255,168,140,0.22);
 }
-.options:has(.opt.selected) .opt.recommended:not(.selected) {
-  border-color: transparent;
-  background: var(--card-hi);
-  box-shadow: none;
-}
+/* Once any option is chosen, fade the recommendation badge so the real pick stands alone. */
 .options:has(.opt.selected) .opt.recommended:not(.selected)::before {
   opacity: 0.55;
 }
@@ -186,10 +182,9 @@ h1 em { color: var(--accent); font-style: normal; }
   font-size: 15px;
   font-weight: 800;
 }
-.opt.recommended {
-  border-color: var(--accent);
-  background: linear-gradient(145deg, var(--card-hi), rgba(255,168,140,0.1));
-}
+/* Recommendation = the ★ badge ALONE. No border/gradient on the card, so an
+   unselected recommended option never masquerades as already-chosen
+   (Pedro 2026-06-20: nada deve aparecer pré-selecionado). */
 .opt.recommended::before {
   content: "★ RECOMENDADO";
   position: absolute;
@@ -933,12 +928,12 @@ h2 {
     </div>
     <p class="section-intro">O veredito mora no próprio item — marca ✓/✏️/✗ enquanto lê. "detalhes" expande sem sair do lugar. Sem segunda tabela no fim.</p>
 
-    <div class="feedback-item state-keep" data-num="1" data-title="Criar a skill /visual global">
+    <div class="feedback-item" data-num="1" data-title="Criar a skill /visual global">
       <div class="feedback-head">
         <span class="feedback-num">1</span>
         <span class="feedback-title">Criar a skill /visual global</span>
         <div class="feedback-radios">
-          <label><input type="radio" name="fb-1" value="keep" checked onchange="onFbChange(this)"> ✓ Manter</label>
+          <label><input type="radio" name="fb-1" value="keep" onchange="onFbChange(this)"> ✓ Manter</label>
           <label><input type="radio" name="fb-1" value="change" onchange="onFbChange(this)"> ✏️ Mudar</label>
           <label><input type="radio" name="fb-1" value="remove" onchange="onFbChange(this)"> ✗ Remover</label>
         </div>
@@ -953,12 +948,12 @@ h2 {
       <textarea class="feedback-textarea" placeholder="O que mudar..."></textarea>
     </div>
 
-    <div class="feedback-item state-keep" data-num="2" data-title="Template HTML base">
+    <div class="feedback-item" data-num="2" data-title="Template HTML base">
       <div class="feedback-head">
         <span class="feedback-num">2</span>
         <span class="feedback-title">Template HTML base</span>
         <div class="feedback-radios">
-          <label><input type="radio" name="fb-2" value="keep" checked onchange="onFbChange(this)"> ✓ Manter</label>
+          <label><input type="radio" name="fb-2" value="keep" onchange="onFbChange(this)"> ✓ Manter</label>
           <label><input type="radio" name="fb-2" value="change" onchange="onFbChange(this)"> ✏️ Mudar</label>
           <label><input type="radio" name="fb-2" value="remove" onchange="onFbChange(this)"> ✗ Remover</label>
         </div>
@@ -973,12 +968,12 @@ h2 {
       <textarea class="feedback-textarea" placeholder="O que mudar..."></textarea>
     </div>
 
-    <div class="feedback-item state-keep" data-num="3" data-title="Regras de hierarquia">
+    <div class="feedback-item" data-num="3" data-title="Regras de hierarquia">
       <div class="feedback-head">
         <span class="feedback-num">3</span>
         <span class="feedback-title">Regras de hierarquia</span>
         <div class="feedback-radios">
-          <label><input type="radio" name="fb-3" value="keep" checked onchange="onFbChange(this)"> ✓ Manter</label>
+          <label><input type="radio" name="fb-3" value="keep" onchange="onFbChange(this)"> ✓ Manter</label>
           <label><input type="radio" name="fb-3" value="change" onchange="onFbChange(this)"> ✏️ Mudar</label>
           <label><input type="radio" name="fb-3" value="remove" onchange="onFbChange(this)"> ✗ Remover</label>
         </div>
@@ -992,12 +987,12 @@ h2 {
       <textarea class="feedback-textarea" placeholder="O que mudar..."></textarea>
     </div>
 
-    <div class="feedback-item state-keep" data-num="4" data-title="Fluxo de invocação + nomeação">
+    <div class="feedback-item" data-num="4" data-title="Fluxo de invocação + nomeação">
       <div class="feedback-head">
         <span class="feedback-num">4</span>
         <span class="feedback-title">Fluxo de invocação + nomeação</span>
         <div class="feedback-radios">
-          <label><input type="radio" name="fb-4" value="keep" checked onchange="onFbChange(this)"> ✓ Manter</label>
+          <label><input type="radio" name="fb-4" value="keep" onchange="onFbChange(this)"> ✓ Manter</label>
           <label><input type="radio" name="fb-4" value="change" onchange="onFbChange(this)"> ✏️ Mudar</label>
           <label><input type="radio" name="fb-4" value="remove" onchange="onFbChange(this)"> ✗ Remover</label>
         </div>
@@ -1011,12 +1006,12 @@ h2 {
       <textarea class="feedback-textarea" placeholder="O que mudar..."></textarea>
     </div>
 
-    <div class="feedback-item state-keep" data-num="5" data-title="Hook pre-ExitPlanMode">
+    <div class="feedback-item" data-num="5" data-title="Hook pre-ExitPlanMode">
       <div class="feedback-head">
         <span class="feedback-num">5</span>
         <span class="feedback-title">Hook pre-ExitPlanMode</span>
         <div class="feedback-radios">
-          <label><input type="radio" name="fb-5" value="keep" checked onchange="onFbChange(this)"> ✓ Manter</label>
+          <label><input type="radio" name="fb-5" value="keep" onchange="onFbChange(this)"> ✓ Manter</label>
           <label><input type="radio" name="fb-5" value="change" onchange="onFbChange(this)"> ✏️ Mudar</label>
           <label><input type="radio" name="fb-5" value="remove" onchange="onFbChange(this)"> ✗ Remover</label>
         </div>
@@ -1030,12 +1025,12 @@ h2 {
       <textarea class="feedback-textarea" placeholder="O que mudar..."></textarea>
     </div>
 
-    <div class="feedback-item state-keep" data-num="6" data-title="Canal de feedback">
+    <div class="feedback-item" data-num="6" data-title="Canal de feedback">
       <div class="feedback-head">
         <span class="feedback-num">6</span>
         <span class="feedback-title">Canal de feedback</span>
         <div class="feedback-radios">
-          <label><input type="radio" name="fb-6" value="keep" checked onchange="onFbChange(this)"> ✓ Manter</label>
+          <label><input type="radio" name="fb-6" value="keep" onchange="onFbChange(this)"> ✓ Manter</label>
           <label><input type="radio" name="fb-6" value="change" onchange="onFbChange(this)"> ✏️ Mudar</label>
           <label><input type="radio" name="fb-6" value="remove" onchange="onFbChange(this)"> ✗ Remover</label>
         </div>
@@ -1229,9 +1224,10 @@ function updateDecProgress(sel) {
 // differ only in the leading verdict and trailing action cue. Observations
 // made anywhere must survive to the clipboard regardless of which button was
 // pressed. Returns { lines: [...], hasChanges: bool }.
-function collectAllInput() {
+function collectAllInput(untouchedAsKeep) {
   var lines = [];
   var hasChanges = false;
+  var hasUnresolved = false;
 
   // --- Decisions block ---
   var sel = getDecisionSelections();
@@ -1261,18 +1257,22 @@ function collectAllInput() {
     items.forEach(function(item) {
       var num = item.dataset.num;
       var title = item.dataset.title;
+      var touched = item.dataset.touched === '1';
       var checked = item.querySelector('input[type=radio]:checked');
-      var val = checked ? checked.value : 'keep';
-      if (val === 'keep') {
-        lines.push('- **Item ' + num + '** (' + title + ') — ✓ ok');
-      } else if (val === 'remove') {
+      if (!touched && !untouchedAsKeep) {
+        // Nada foi decidido neste item — não inventa um "ok" silencioso.
+        lines.push('- **Item ' + num + '** (' + title + ') — ⚠️ sem veredito');
+        hasUnresolved = true;
+      } else if (checked && checked.value === 'remove') {
         lines.push('- **Item ' + num + '** (' + title + ') — ✗ REMOVER');
         hasChanges = true;
-      } else if (val === 'change') {
+      } else if (checked && checked.value === 'change') {
         var ta = item.querySelector('.feedback-textarea');
         var note = (ta && ta.value || '').trim();
         lines.push('- **Item ' + num + '** (' + title + ') — ✏️ MUDAR: ' + (note || '(descrever no CLI)'));
         hasChanges = true;
+      } else {
+        lines.push('- **Item ' + num + '** (' + title + ') — ✓ ok');
       }
     });
     var gen = document.getElementById('fb-general');
@@ -1283,7 +1283,7 @@ function collectAllInput() {
     lines.push('');
   }
 
-  return { lines: lines, hasChanges: hasChanges };
+  return { lines: lines, hasChanges: hasChanges, hasUnresolved: hasUnresolved };
 }
 
 function copyDecisions(btn) {
@@ -1293,7 +1293,7 @@ function copyDecisions(btn) {
     var ok = confirm('Você respondeu ' + done + ' de ' + sel.length + ' decisões. Copiar assim mesmo?');
     if (!ok) return;
   }
-  var body = collectAllInput();
+  var body = collectAllInput(false);
   var out = ['<!-- visual-decisions v1 -->', '📋 **Snapshot — escolhas e comentários:**', ''];
   out = out.concat(body.lines);
   out.push('<!-- /visual-decisions -->');
@@ -1355,7 +1355,7 @@ function flashBtn(btn, label, isError) {
 }
 
 function approveAll(btn) {
-  var body = collectAllInput();
+  var body = collectAllInput(true);
   if (body.hasChanges) {
     var ok = confirm('Você marcou itens como MUDAR ou REMOVER. Aprovar mesmo assim? (Cancelar = use "Copiar feedback")');
     if (!ok) return;
@@ -1376,12 +1376,14 @@ function approveAll(btn) {
 }
 
 function copyFeedback(btn) {
-  var body = collectAllInput();
+  var body = collectAllInput(false);
   var out = ['<!-- visual-feedback v1 -->', '📝 **Feedback no plano:**', ''];
   if (body.lines.length > 0) {
     out = out.concat(body.lines);
   }
-  out.push(body.hasChanges ? 'Ajuste o plano e mostre de novo.' : 'Tudo certo — pode implementar.');
+  out.push(body.hasChanges ? 'Ajuste o plano e mostre de novo.'
+    : body.hasUnresolved ? 'Ainda faltam vereditos — me diz o resto no CLI.'
+    : 'Tudo certo — pode implementar.');
   out.push('', '<!-- /visual-feedback -->');
   copyText(out.join('\n'))
     .then(function() { flashBtn(btn, 'Feedback copiado'); })
@@ -1476,11 +1478,15 @@ function restoreState() {
       state.feedback.forEach(function(f) {
         var item = document.querySelector('.feedback-item[data-num="' + f.num + '"]');
         if (!item) return;
-        if (f.touched) item.dataset.touched = '1';
-        item.classList.remove('state-keep', 'state-change', 'state-remove');
-        item.classList.add('state-' + f.val);
-        var radio = item.querySelector('input[value="' + f.val + '"]');
-        if (radio) radio.checked = true;
+        // Só restaura o veredito de itens que o Pedro REALMENTE tocou — intocados
+        // continuam sem nada marcado (nada pré-selecionado depois do reload).
+        if (f.touched) {
+          item.dataset.touched = '1';
+          item.classList.remove('state-keep', 'state-change', 'state-remove');
+          item.classList.add('state-' + f.val);
+          var radio = item.querySelector('input[value="' + f.val + '"]');
+          if (radio) radio.checked = true;
+        }
         var ta = item.querySelector('.feedback-textarea');
         if (ta && f.note) ta.value = f.note;
       });
