@@ -352,7 +352,7 @@ A regra-mãe: **doc fora do padrão não é base confiável** — não faça upd
 
 ### A casca (esta skill) vs o Workflow (o motor)
 
-Espelha o qa-loop: o Workflow roda em background e **não pergunta nada no meio**; tudo entra via `args`, os gates são lógica do script (JS), não "o agente lembrar a regra".
+Espelha o qa-loop: o Workflow roda em background e **não pergunta nada no meio**; tudo entra **embutido no script como `const`** (NÃO via `args` — ver gotcha no molde), os gates são lógica do script (JS), não "o agente lembrar a regra".
 
 **CASCA — passo 0 (antes de disparar):**
 1. Identify root/layout/type/PM + **grafo garantido + mapa (0.0)** + **checagem ativa (0.1)** → decide `update` vs `deep` e se força a sequência.
@@ -382,28 +382,36 @@ export const meta = {
   description: 'Minera a doc via fan-out por concern; cada agente lê o código da sua fatia e reconcilia',
   phases: [{ title: 'Scan+Reconcile' }, { title: 'Garimpo' }, { title: 'Stitch' }],
 }
-// args = { root, deep, hasOldDoc, backupPath, graphMap,                  // graphMap = saída do graph_map.py (ou {available:false})
-//          concerns:[{key, app, files[], findings[], staleIds[], godNodes[], template}] }   // files[] já vem ranqueado por fan-in
+// ⚠️ NÃO use `args` — embuta os dados do run como CONST no topo do script (ver gotcha abaixo).
+// A casca PREENCHE este RUN ao gerar o script (substitui os placeholders pelos valores reais do run):
+const RUN = {
+  root: '<ABS_ROOT>', deep: false, hasOldDoc: true, backupPath: '<ABS_BACKUP>',
+  graphMap: { /* saída do graph_map.py — ou {available:false} */ },
+  // files[] já vem ranqueado por fan-in; findings/staleIds podem ser referenciados por id (os agentes leem do disco)
+  concerns: [ /* {key, app, files:[], findings:[], staleIds:[], godNodes:[], template} */ ],
+}
 
 phase('Scan+Reconcile')                                  // FAN-OUT: 1 agente por concern
-const sections = (await parallel(args.concerns.map(c => () =>
-  agent(scanReconcilePrompt(args.root, c), { label: `concern:${c.app ? c.app+'/' : ''}${c.key}`,
+const sections = (await parallel(RUN.concerns.map(c => () =>
+  agent(scanReconcilePrompt(RUN.root, c), { label: `concern:${c.app ? c.app+'/' : ''}${c.key}`,
     phase: 'Scan+Reconcile', schema: DOC_SECTION })
 ))).filter(Boolean)
 
 let nuances = { candidates: [] }
-if (args.hasOldDoc) {                                     // só se havia doc antiga
+if (RUN.hasOldDoc) {                                      // só se havia doc antiga
   phase('Garimpo')
-  nuances = await agent(garimpoPrompt(args.root, args.backupPath, sections),
+  nuances = await agent(garimpoPrompt(RUN.root, RUN.backupPath, sections),
     { label: 'garimpeiro', phase: 'Garimpo', schema: NUANCE_CANDIDATES }) || nuances
 }
 
 phase('Stitch')                                          // GATES = JS puro, sem LLM
-const stitched = stitchAndGate(sections, nuances, args.graphMap)  // adjudica invalidação, dedup, inline, secret, budget + AUDITORIA grafo×doc
+const stitched = stitchAndGate(sections, nuances, RUN.graphMap)  // adjudica invalidação, dedup, inline, secret, budget + AUDITORIA grafo×doc
 return { sections, nuances, stitched }
 ```
 
 A casca lê o `return` e executa os efeitos colaterais (passo final). `scanReconcilePrompt`/`garimpoPrompt`/`stitchAndGate` são helpers do próprio script: os dois primeiros montam o prompt do agente a partir da fatia; o terceiro é JS determinístico.
+
+> **GOTCHA — embuta os dados como `const`, NÃO via `args`.** O script do Workflow é **específico deste run** (os concerns/findings/graphMap são daquele projeto naquele momento), então a casca o gera com os dados já dentro (`const RUN = {...}`). **Não dependa do `args` global do Workflow:** ele foi observado chegar `undefined` (passado como string JSON, ou na re-invocação via `scriptPath`, que NÃO recarrega `args`), e aí o `RUN.concerns.map`/`args.concerns.map` estoura com *"undefined is not an object"*. Const é uma peça móvel a menos e funciona de primeira. **Mantenha os dados pequenos:** embuta só a LISTA de concerns (keys, app, paths de arquivos ranqueados, ids de findings) + o `graphMap` **destilado** (a saída enxuta do `graph_map.py`, nunca o `graph.json` bruto de MBs); o conteúdo pesado (corpo dos findings, código-fonte) os **agentes leem do disco** (eles têm Read/Bash — o orquestrador JS não tem filesystem).
 
 ### Sequência "melhor dos dois mundos" (quando há doc antiga)
 
