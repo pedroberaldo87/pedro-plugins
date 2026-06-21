@@ -704,7 +704,7 @@ def collect_transcripts(project_root, mined_sessions, active_session=None, deep=
 
 def _iso(unix_ts):
     import datetime
-    return datetime.datetime.utcfromtimestamp(unix_ts).strftime("%Y-%m-%dT%H:%M:%SZ")
+    return datetime.datetime.fromtimestamp(unix_ts, datetime.UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
 # ---------------------------------------------------------------------------
