@@ -15,9 +15,13 @@ LINES=$(bash "$SCRIPT_DIR/doc-detect.sh" "$CWD" 2>/dev/null)
 [ -z "$LINES" ] && exit 0
 
 LIST=""
-while IFS=$'\t' read -r TAG PROJ N; do
+while IFS=$'\t' read -r TAG PROJ N STALE; do
   [ "$TAG" = "DOC" ] || continue
-  LIST="${LIST}- ${PROJ}/.claude/CLAUDE.md (${N} doc(s) em .claude/docs/)\n"
+  FLAG=""
+  if [ -n "$STALE" ] && [ "$STALE" -gt 8 ] 2>/dev/null; then
+    FLAG=" ⚠️ ${STALE} arquivo(s) mudaram desde a geração — pode estar defasada (/project-doc atualiza)"
+  fi
+  LIST="${LIST}- ${PROJ}/.claude/CLAUDE.md (${N} doc(s) em .claude/docs/)${FLAG}\n"
 done <<< "$LINES"
 
 [ -z "$LIST" ] && exit 0

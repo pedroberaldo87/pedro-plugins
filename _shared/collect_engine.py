@@ -20,7 +20,13 @@ CLI (modo engine, usado pelo project-doc — tier 4 da cascata de fontes):
                     [--scope all|session] [--session ID] [--all-kinds]
   collect_engine.py --discover-all  [--project-root D | --cwd D]
 """
-import argparse, glob, hashlib, json, os, re, sys
+import argparse
+import glob
+import hashlib
+import json
+import os
+import re
+import sys
 
 HOME = os.path.expanduser("~")
 PROJECTS_DIR = os.path.join(HOME, ".claude", "projects")

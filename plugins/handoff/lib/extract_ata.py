@@ -24,7 +24,11 @@ Uso:
       (auto: descobre o transcript via sentinel /tmp do hook de discovery; fallback = .jsonl mais
        recente da pasta projects do cwd; agrega transcripts de teammates se houver clã)
 """
-import argparse, json, os, sys, time
+import argparse
+import json
+import os
+import sys
+import time
 
 # A camada de coleta é vendorada como sibling (collect_engine.py). Inserir o dir
 # do script no path torna o import robusto a como o python foi invocado.
@@ -32,7 +36,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 try:
     from collect_engine import (  # noqa: E402
         anchor_of, collect, collect_edited_paths, detect_modules, discover_transcript,
-        find_team_transcripts, infer_scope, read_jsonl, resolve_project_root,
+        find_team_transcripts, infer_scope, read_jsonl,
         _is_project_root,
     )
 except ImportError as e:

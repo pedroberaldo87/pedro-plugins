@@ -285,7 +285,6 @@ def render_html(project_name, buckets, health, session, stamp, audit=None):
     hscore = health.get("health_score", {})
     grade = hscore.get("grade", "?") if isinstance(hscore, dict) else "?"
     score = hscore.get("score", "?") if isinstance(hscore, dict) else hscore
-    counts = {b["key"]: len(b["items"]) for b in buckets}
     chips = " · ".join(f"{b['emoji']} {len(b['items'])}" for b in buckets if b["items"])
 
     # card da auditoria (goal de convergência)

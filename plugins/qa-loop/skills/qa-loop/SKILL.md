@@ -1,6 +1,6 @@
 ---
 name: qa-loop
-description: Use quando o Pedro quer revisar código num loop disciplinado que para por retornos decrescentes (qualidade vs vale a pena), não por zero erros. Ancora no plano de implementação — toda rodada checa fidelidade ao plano e classifica cada finding em implementação, plan-drift ou plano-falho; conserta só implementação com regression gate por conserto; materializa accepted-limits; e entrega relatório humano (HTML) + journal agêntico pra avaliar o nº ideal de loops com o tempo. O motor roda como um Workflow determinístico (Opus revisa, Opus planeja, Sonnet conserta). Substitui /qa, /rev6 e /iterate. Trigger em "/qa-loop", "/qa", "/rev6", "audita o plano", "tá 100%", "revisa isso", "review multi-ângulo", "loopa o review", "revisa até valer a pena".
+description: Use quando o Pedro quer revisar código num loop disciplinado que para por retornos decrescentes (qualidade vs vale a pena), não por zero erros. Ancora no plano de implementação — toda rodada checa fidelidade ao plano e classifica cada finding em implementação, plan-drift ou plano-falho; conserta só implementação com regression gate por conserto; materializa accepted-limits; e entrega relatório humano (HTML) + journal agêntico pra avaliar o nº ideal de loops com o tempo. A skill tem duas fases — uma assintótica de review (severidade variável; e2e/Playwright vira actionable, não bloqueia) e uma Fase Gate absoluta (lint, type, unit e integração 100% verdes no repo inteiro, pré-existentes incluídos, ou gate-red). O motor roda como um Workflow determinístico (Opus revisa, Opus planeja, Sonnet conserta). Substitui /qa, /rev6 e /iterate. Trigger em "/qa-loop", "/qa", "/rev6", "audita o plano", "tá 100%", "revisa isso", "review multi-ângulo", "loopa o review", "revisa até valer a pena".
 ---
 
 # /qa-loop — Loop de review→conserto disciplinado
@@ -17,7 +17,8 @@ Um loop "conserte até zero erros" tratado como convergente sobre um problema **
 (scrubber/parser/ranker/regex/prompt — espaço de input infinito) nunca para sozinho: um finder
 adversarial SEMPRE acha mais um. "Zero findings" é assíntota, não estado. A skill troca o critério por
 **"uma rodada inteira sem finding novo de severidade real fora dos limites já aceitos"** — e gasta a
-maior parte da disciplina em **não gerar regressões** ao consertar.
+maior parte da disciplina em **não gerar regressões** ao consertar. (Esse é o eixo **assintótico**. O outro
+eixo — os checks objetivos lint/type/unit/integração — é **absoluto** e vive na Fase Gate; ver "As duas fases".)
 
 ## A arquitetura em uma frase — motor = Workflow, casca = skill
 
@@ -36,6 +37,29 @@ humanos. O Workflow roda em background e **não pergunta nada no meio**, então:
 > Por que Workflow e não sub-agente solto: sub-agente solto seria o Opus disparando Task ad-hoc (a regra
 > do Pedro condena, e o guard `PreToolUse(Agent)` acorda a cada fix). Por que não Agent Team: o fluxo é um
 > pipeline fechado, não conversa aberta entre teammates. Workflow dá determinismo + telemetria + resumível.
+
+## As duas fases — máquina assintótica + gate absoluto
+
+A skill roda **duas fases com lógicas próprias que convivem** — não uma máquina só. Cada finding pertence
+a UMA delas, e cada fase tem seu próprio critério de "pronto". Confundir as duas é o erro que esta seção
+existe pra matar: tratar um erro de type como "finding de severidade rebaixável", ou tratar um cheiro de
+código como "tem que zerar".
+
+**Fase Assintótica** — revisão de código, aderência ao plano (os 3 buckets), findings de **severidade
+variável** (P0-P3), accepted-limits, parada por **retornos decrescentes**. **e2e/Playwright vive aqui**:
+cobertura parcial e honesta, vira *actionable* no relatório — **não bloqueia**. É todo o corpo desta skill
+(os passos abaixo descrevem ela).
+
+**Fase Gate** — lint, type-check, teste unitário, teste de integração e afins. **Absolutista: 100% verde
+no repo inteiro ou não passou.** Binário. Sem severidade, sem julgamento, sem accepted-limit, sem "não vale
+a pena". É portão. Os checks **nunca foram** da fase assintótica — são a Fase Gate. Detalhe operacional no
+Passo 8.0 (gate de saída) + na seção "Detecção de rede".
+
+> As fases **não são sequenciais no tempo**. O gate é **invariante de saída**, protegido continuamente pelo
+> regression-net por-fix do motor (a suíte roda a cada conserto). A skill só declara **sucesso da sessão**
+> quando AS DUAS fecham: a Fase Assintótica chega a uma **rodada limpa** (seu evento interno — retornos
+> decrescentes) E a Fase Gate fica 100% verde. "Rodada limpa" é o desfecho do motor; "sucesso da sessão" é das
+> duas juntas. Gate vermelho **nunca** é sucesso — a casca seta `stopReason='gate-red'`.
 
 ## Input
 
@@ -72,12 +96,16 @@ digraph qa_loop {
     "Start" [shape=doublecircle];
     "CASCA: 0. domínio + lê journal" [shape=box];
     "CASCA: 1. contrato + baseline + rede" [shape=box];
-    "WORKFLOW: motor (loop de rodadas)" [shape=box, style=filled];
+    "WORKFLOW: motor (Fase Assintótica)" [shape=box, style=filled];
+    "CASCA: 8.0 FASE GATE (lint/type/unit/integração — 100% repo)" [shape=diamond];
     "CASCA: 8. relatório HTML + journal + nota" [shape=doublecircle];
 
     "Start" -> "CASCA: 0. domínio + lê journal" -> "CASCA: 1. contrato + baseline + rede";
-    "CASCA: 1. contrato + baseline + rede" -> "WORKFLOW: motor (loop de rodadas)";
-    "WORKFLOW: motor (loop de rodadas)" -> "CASCA: 8. relatório HTML + journal + nota";
+    "CASCA: 1. contrato + baseline + rede" -> "WORKFLOW: motor (Fase Assintótica)";
+    "WORKFLOW: motor (Fase Assintótica)" -> "CASCA: 8.0 FASE GATE (lint/type/unit/integração — 100% repo)";
+    "CASCA: 8.0 FASE GATE (lint/type/unit/integração — 100% repo)" -> "CASCA: 8.0 FASE GATE (lint/type/unit/integração — 100% repo)" [label="vermelho → conserta (Sonnet, fila objetiva) → re-roda"];
+    "CASCA: 8.0 FASE GATE (lint/type/unit/integração — 100% repo)" -> "CASCA: 8. relatório HTML + journal + nota" [label="travou → gate-red (BLOQUEANTE)"];
+    "CASCA: 8.0 FASE GATE (lint/type/unit/integração — 100% repo)" -> "CASCA: 8. relatório HTML + journal + nota" [label="verde / gate vazio declarado"];
 }
 ```
 
@@ -111,10 +139,20 @@ digraph motor {
 
 ## CASCA — Passo 0 · Classificar domínio + ler journal
 
-**Pergunta binária e barata:** "existe UM comando objetivo com pass/fail (testes/build/lint/um curl com `jq -e`)?"
+**Toda sessão roda AS DUAS fases** (ver "As duas fases"). A pergunta de domínio NÃO roteia a skill pra um
+lado só — ela faz duas coisas: define o **conteúdo da Fase Gate** E calibra o teto da Fase Assintótica.
 
-- **Convergente** — sim, há alvo objetivo. O comando vira um **sinal de parada adicional** (para também quando ele passa, exit 0, sem regressão lint/typecheck — a lógica herdada do antigo `/iterate`). Teto alto.
-- **Assintótico** (default pra heurística — scrubber/parser/ranker/regex/prompt/classificador/"achar todos os bugs") — não há estado-alvo binário. Governa o gate de severidade. **É o caso primário desta skill.**
+**Pergunta binária e barata:** "existe UM comando objetivo com pass/fail (testes/build/lint/type/um curl com `jq -e`)?"
+
+- **Convergente** — sim, há checks objetivos. Eles **compõem a Fase Gate** (Passo 8.0): lint/type/unit/
+  integração rodam ao fim como portão absoluto (100% verde no repo inteiro, ou `stopReason='gate-red'`).
+  Quanto mais forte a suíte, mais forte o gate; o alvo objetivo também dá teto alto pra Fase Assintótica.
+- **Assintótico** (default pra heurística — scrubber/parser/ranker/regex/prompt/classificador/"achar todos
+  os bugs") — não há estado-alvo binário pro review; governa o gate de **severidade** e a parada por
+  retornos decrescentes da Fase Assintótica. **É o caso primário desta skill.** **O domínio NÃO decide se há
+  Fase Gate:** se o projeto tem checks objetivos (até um scrubber tem lint+unit), eles compõem a Fase Gate
+  absoluta igual ao caso convergente — o domínio só muda o teto/severidade da fase assintótica. Só SEM nenhum
+  check objetivo a **Fase Gate fica vazia, declarada honesto** — nunca finge gate.
 
 Se ambíguo e **não headless**, pergunta 1× ao Pedro. Se headless, assume `asymptotic` (mais conservador).
 
@@ -127,9 +165,12 @@ os aprendizados cross-projeto que afinam os prompts do Revisor/Planejador. Tudo 
 ## CASCA — Passo 1 · Declarar contrato + baseline + rede de regressão
 
 Fixa e **anuncia no header**: teto de rodadas (safety-cap), `severity_floor`, o plano-âncora, e a **camada de
-rede de regressão** disponível (ver Guard-rails → fallback em camadas). Snapshot do nº de erros de
-lint/typecheck ANTES da rodada 1 (`baseline_errors`) — é o que detecta regressão estrutural. Declara
-honestamente o blast-radius que a rede NÃO cobre. Esses valores entram nos args do Workflow.
+rede de regressão** disponível (ver Guard-rails → Detecção de rede). Snapshot do nº de erros de
+lint/typecheck ANTES da rodada 1 (`baseline_errors`) — é o que a **rede de regressão DURANTE o loop** usa pra
+pegar regressão estrutural (não piorar o baseline mid-loop). ⚠️ Isso é a rede in-loop, **NÃO o gate**: a
+**Fase Gate de saída** (Passo 8.0) exige lint/type/unit/integração **absolutamente 0** no fim, pré-existentes
+incluídos — o baseline tolera no meio, o gate não tolera no fim. Declara honestamente o blast-radius que a rede
+NÃO cobre. Esses valores entram nos args do Workflow.
 
 ---
 
@@ -256,7 +297,8 @@ em **3 buckets** no PLAN:
 ## Rubrica de severidade (R2) — 3 faixas, escrita, aplicada pelo árbitro único
 
 - **P0/P1 (acima do floor)** — exige gatilho **objetivo** OU **ancorado no plano**: quebra comportamento do
-  plano · classe de segurança (secret, injection, authz) · teste/build/lint falha · bug com repro determinístico.
+  plano · classe de segurança (secret, injection, authz) · bug com repro determinístico. *(Falha objetiva de
+  lint/type/unit/integração NÃO entra nesta escada — é da **Fase Gate**, absoluta e separada.)*
 - **P2/P3 (abaixo do floor)** — opinião de qualidade **sem** divergência do plano e **sem** falha objetiva
   (naming, gosto, micro-refator). **Picuinha nunca sobe sozinha** — só vira P1 com bug concreto anexado.
 - O **Opus Planejador é o ÁRBITRO ÚNICO** que aplica a rubrica. Não são N LLMs cada um carimbando — é um juiz,
@@ -272,14 +314,21 @@ Fora da pasta ignorada `.claude/qa-loop/`. Versionado de propósito — viaja co
 
 Precedência: **flag > config do projeto > default da skill.**
 
-## Critério de parada (gate de severidade primário, teto = trava)
+## Critério de parada (DUAS condições: Fase Assintótica + Fase Gate)
 
-**PARA se qualquer um:**
+A skill só declara **sucesso** quando AS DUAS fecham. São critérios independentes.
+
+**Fase Assintótica — para se qualquer um (gate de severidade primário, teto = trava):**
 - **[PRIMÁRIO]** uma rodada INTEIRA completou (`complete=true`) E produziu ZERO findings novos de severidade
   ≥ `floor` FORA dos accepted-limits. → rodada limpa.
 - **[TRAVA]** atingiu `max_rounds` → reporta "teto atingido sem convergir" (ALARME, não sucesso).
 - **[ESCALADA]** churn escalou (≥`churn_threshold` regressões na mesma função).
-- **[CONVERGENTE]** o comando-alvo passa (exit 0) sem regressão lint/typecheck.
+
+**Fase Gate — condição ABSOLUTA de sucesso (não é "parada por retorno decrescente"):**
+- **Sucesso EXIGE a Fase Gate 100% verde** (lint/type/unit/integração no repo inteiro, incluindo
+  pré-existentes). Vermelho → vira fila de conserto; se travar, `stopReason='gate-red'` (fracasso
+  explícito, **nunca** sucesso). e2e/Playwright **NÃO** entra aqui — é Fase Assintótica, vira actionable.
+- Projeto sem checks objetivos → Fase Gate **vazia, declarada honesto** (não é sucesso fingido nem gate-red).
 
 > O teto NÃO é meta. Quem decide é o gate de severidade — para na rodada 2 se convergiu rápido, vai até o teto
 > se ainda acha P0. Cravar um número fixo agora seria o erro simétrico ao "até zero". A telemetria (passo 8) é
@@ -293,10 +342,40 @@ journal, nunca eixo de parada nem framing de "custo".**
 
 ---
 
-## CASCA — Passo 8 · Verificação de saída + Relatório (humano) + Journal (agêntico) — R7
+## CASCA — Passo 8 · Fase Gate (saída) + Relatório (humano) + Journal (agêntico) — R7
 
-Quando o Workflow retorna, a casca roda a suíte completa + checks de integração, e produz **DOIS artefatos com
-públicos distintos**:
+Quando o Workflow retorna, a casca executa a **Fase Gate** e SÓ ENTÃO produz os artefatos.
+
+### Passo 8.0 · FASE GATE — o portão absoluto de saída
+
+Antes de qualquer relatório, a casca roda os **checks objetivos do projeto** como portão binário:
+
+- **O que roda:** lint + type-check + teste unitário + teste de integração. **A detecção reusa as camadas
+  já definidas** (ver "Detecção de rede"): unit/integração = Camada 1; lint/type = Camada 3. **e2e marcado**
+  (`@pytest.mark.e2e`, specs Playwright, script `e2e`) é **EXCLUÍDO daqui** → vira actionable na Fase
+  Assintótica (lento demais e dependente de ambiente pra ser portão).
+- **Escopo: repo inteiro, absoluto.** Exige TODO o lint/type/unit/integração do repo **100% verde —
+  incluindo erros pré-existentes não-relacionados à revisão**. "Tá errado = corrige = fim." Sem severidade,
+  sem accepted-limit, sem "retornos decrescentes". (Mesma disciplina do `/ship`, rodada mais cedo.) Se o
+  projeto oferece um runner com escopo próprio (`scripts/run_app_tests.sh`, target de Makefile,
+  `pnpm --filter`, `cargo test -p`), use-o **pra rodar no ambiente certo** — nunca pra encolher o que
+  precisa passar; em monorepo de múltiplos ambientes é o que evita falso-vermelho de import.
+- **Vermelho → conserta (fila objetiva, FORA do roteamento de buckets).** Erro de lint/type/unit/integração é
+  objetivo e determinístico — não precisa do julgamento de severidade do REVIEW→PLAN. Vai direto pra uma fila
+  de conserto do Sonnet Executor (mesmo regression gate por conserto), re-roda o gate, até verde. **Não passa
+  pelos 3 buckets** (esses são pro review subjetivo da fase assintótica). Se travar de verdade (erro que exige
+  decisão de arquitetura), **NÃO declara sucesso**.
+- **Quem seta o `stopReason` FINAL é a CASCA, não o motor.** O motor (Workflow) reporta o stopReason da fase
+  assintótica (`no-severe-finding` / `churn-escalated` / `max-rounds`); a casca, pós-gate, computa o stopReason
+  da sessão — **promove a `gate-red`** quando o gate trava vermelho, e mantém o do motor quando o gate fecha
+  verde. O relatório **lidera** com "GATE VERMELHO — bloqueante" sempre que `gate-red`.
+- **Transparência (anti-violação-de-surgical-changes).** O conserto repo-wide é real, mas o relatório
+  **separa duas pilhas** — "consertos da revisão" vs "débito pré-existente que precisei zerar pro gate ficar
+  verde" — cada uma com seu diff, pra o Pedro ver e reverter o que quiser.
+- **Sem checks no projeto → Fase Gate vazia, declarada honesto** ("sem checks objetivos — só a fase
+  assintótica rodou"). Nunca finge portão.
+
+Passada a Fase Gate, a casca produz **DOIS artefatos com públicos distintos**:
 
 ### (A) Relatório HUMANO — gerador de actionables, via a skill `/visual` como parceira
 
@@ -305,6 +384,10 @@ hierarquia, o "pedido se explica sozinho", o vocabulário banido, o daemon de li
 Você passa o conteúdo estruturado (do `return` do Workflow); o `/visual` resolve template + daemon + path + abre.
 
 Estrutura do relatório (no topo → fundo):
+- **Faixa de STATUS DA FASE GATE (topo de tudo, read-only):** verde "gate 100% — N checks" ou vermelho
+  "GATE VERMELHO — bloqueante" (`stopReason='gate-red'`). Se houve conserto repo-wide, **separa duas pilhas**
+  com diff — "consertos da revisão" vs "débito pré-existente zerado" — pra o Pedro revisar/reverter. Fica
+  ACIMA de tudo: um gate vermelho é a primeira coisa que ele vê.
 - **Gráfico único (SVG inline) — findings por severidade:** barras empilhadas P0/P1/P2/P3 por rodada, com a
   linha de severidade real (P0+P1) sobreposta — mostra a composição E a queda (retornos decrescentes) no mesmo
   lugar. Um gráfico só, porque com 4-5 rodadas dois lado a lado apertam. + **tabela por rodada** com as
@@ -383,15 +466,24 @@ A suíte inteira a cada conserto converte 4 dos 5 mecanismos de regressão de "d
 - **D — conflito entre correções:** a correção K+n viola a invariante da correção K. → teste **nomeado com a invariante**; suíte inteira a cada conserto. Prevenido no PLAN (invariantes vivas) + pego pelo gate.
 - **E — interação entre estágios:** um estágio deixa resíduo que outro consome. → cada estágio neutraliza o que processou; teste a INTERAÇÃO entre estágios. Pego pelo gate.
 
-### Fallback em camadas quando NÃO há suíte de testes
-"Cumprir 100%" aqui = **honestidade 100%** sobre a rede, nunca fingir segurança. Detecte na ordem e declare o
-blast-radius-não-coberto, baixando o teto conforme a rede enfraquece:
+### Detecção de rede — DOIS usos da mesma detecção
+As camadas abaixo são detectadas UMA vez e servem a **dois propósitos distintos**:
+1. **Regression net DURANTE o loop** (Fase Assintótica) — a suíte roda a cada conserto pra pegar regressão
+   auto-infligida na hora. Aqui "cumprir 100%" = **honestidade 100%** sobre a rede, nunca fingir segurança;
+   com rede fraca, baixa o teto e declara o blast-radius não-coberto.
+2. **Fase Gate de SAÍDA** (Passo 8.0) — portão absoluto: **só as Camadas 1 e 3** (unit/integração + lint/type)
+   compõem o gate e têm que estar 100% verdes no repo pra declarar sucesso. A Camada 2 (caracterização, escopo
+   parcial) e a Camada 4 (e2e, dependente de ambiente) ficam **de FORA** do gate — são da fase assintótica.
+   Aqui NÃO há "teto" nem "retorno decrescente" — é binário. ("Teto" só governa o nº de rodadas da fase
+   assintótica quando a rede é fraca; não toca o gate.)
 
-- **Camada 1 — Suíte de testes (rede completa).** Detecta: `test` script em **package.json** · jest/vitest/mocha em devDependencies · `pytest` em **pyproject.toml**/**setup.cfg** · **Cargo.toml**→`cargo test` · **go.mod**→`go test ./...` · target `test` em **Makefile**. Teto normal.
-- **Camada 2 — Testes-de-caracterização gerados** dos próprios teste-red do gate. Cobre SÓ os findings já tocados — declara isso. Começa vazia (rodada 1 roda com menos rede).
-- **Camada 3 — Lint + typecheck baseline.** Detecta: **eslint.config.\***/**.eslintrc.\***/**biome.json**→lint; **tsconfig.json**/**pyproject.toml**(ruff/mypy/pyright)→typecheck. Pega tipo/sintaxe, **NÃO comportamento**. Teto 2.
-- **Camada 4 — Jornada Playwright** (alvo com UX). Print + análise da tela a cada conserto (não só DOM). Cobre só o caminho roteirizado. Teto 2.
-- **Camada 5 — Sem rede.** NÃO roda como se houvesse proteção. Declara em linguagem humana ("sem testes, sem lint/types, sem jornada — cada conserto é aposta cega; rodo no máx 1 rodada de críticos e paro"). Teto 1.
+Detecte na ordem:
+
+- **Camada 1 — Suíte de testes (unit + integração).** Detecta: `test` script em **package.json** · jest/vitest/mocha em devDependencies · `pytest` em **pyproject.toml**/**setup.cfg** · **Cargo.toml**→`cargo test` · **go.mod**→`go test ./...` · target `test` em **Makefile**. **→ compõe a Fase Gate (absoluta).** e2e marcado (`@pytest.mark.e2e`) é separado daqui → Camada 4.
+- **Camada 2 — Testes-de-caracterização gerados** dos próprios teste-red do gate. Cobre SÓ os findings já tocados — declara isso. Net da Fase Assintótica (não é portão absoluto). Começa vazia (rodada 1 roda com menos rede).
+- **Camada 3 — Lint + typecheck.** Detecta: **eslint.config.\***/**.eslintrc.\***/**biome.json**→lint; **tsconfig.json**/**pyproject.toml**(ruff/mypy/pyright)→typecheck. **→ compõe a Fase Gate (absoluta).** Era "net teto 2" — virou portão: um erro de type não é net fraco, é falha binária.
+- **Camada 4 — Jornada Playwright / e2e** (alvo com UX). Print + análise da tela (não só DOM). Cobre só o caminho roteirizado. **Fase Assintótica** — vira actionable, **não bloqueia** (lento e dependente de ambiente). Teto 2.
+- **Camada 5 — Sem rede objetiva.** Fase Gate **vazia, declarada honesto**. A Fase Assintótica NÃO roda como se houvesse proteção ("sem testes, sem lint/types, sem jornada — cada conserto é aposta cega; rodo no máx 1 rodada de críticos e paro"). Teto 1.
 
 A camada escolhida (e o que ela não cobre) é arg do Workflow, entra no header da rodada e no relatório.
 
@@ -405,6 +497,10 @@ Vivo, **ancorado ao alvo**. O loop **PROPÕE** (`plan.proposedLimits`); o Planej
 vira **PERMANENTE** quando o Pedro move pra `.claude/qa-loop.config.md`. **Critério explícito de entrada** (é
 genuinamente espaço-de-input-infinito? ou só difícil?) — não é o lixo do que cansou de consertar; um bug real
 classificado como limite some pra sempre. **Headless propõe + reporta, nunca grava permanente.**
+
+**Finding de Fase Gate (lint/type/unit/integração vermelho) é INELEGÍVEL a accepted-limit** — erro objetivo
+nunca vira "limite aceito" nem P2 rebaixado. Só findings da Fase Assintótica podem virar limite; o gate é
+absoluto por definição.
 
 ### Findings arquiteturais (não viram teste-red)
 "A abordagem é frágil", "acoplamento alto", "naming enganoso" não reproduzem por teste determinístico. →
@@ -420,6 +516,11 @@ defaults, pula o veredito 0-10). **Alertas de plan-flaw continuam NÃO virando f
 Pedro revisar depois. Headless ≠ licença pra re-planejar nem pra ratificar accepted-limit. O relatório da
 `/qa-loop` vira a seção final de QA do report do `/sovai`.
 
+**A Fase Gate (absoluta) vale em headless também** — o gate vermelho não pergunta nada, mas entra no
+relatório como bloqueante (`stopReason='gate-red'`), virando item de "Bloqueios (precisam de você)" no
+report do `/sovai`. Conserto de fundamento (lint/type/unit/integração) está no mandato do headless; re-planejar
+um plan-flaw, não.
+
 ## Quando NÃO usar
 
 - Sem nada implementado pra revisar → recuse.
@@ -429,6 +530,11 @@ Pedro revisar depois. Headless ≠ licença pra re-planejar nem pra ratificar ac
 ## Regras de segurança
 
 - Nunca declarar "rodada limpa" sem `complete=true` (todos os ângulos do checklist cobertos).
+- **Nunca declarar SUCESSO com a Fase Gate vermelha.** lint/type/unit/integração do repo têm que estar 100%
+  verdes (incluindo pré-existentes); se travar, `stopReason='gate-red'`, nunca "sucesso". Erro objetivo nunca
+  vira accepted-limit nem P2 rebaixado.
+- **Fase Gate é repo-inteiro-absoluto, mas com transparência:** o relatório separa "conserto da revisão" de
+  "débito pré-existente zerado" (com diff) — conserto repo-wide nunca é silencioso (respeita surgical-changes).
 - Nunca consertar um finding de bucket plan-drift no sentido que afasta do plano; nunca implementar um plan-flaw.
 - Nunca rodar como se houvesse rede de regressão quando não há (Camada 5 é declaração explícita, não fallback silencioso).
 - O teto é trava, não meta — não pare só porque "rodou N vezes" se ainda há severidade real.

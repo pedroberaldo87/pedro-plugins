@@ -26,9 +26,18 @@ CLI:
   journal.py rebuild --project-root D                  # re-fold do journal inteiro
   journal.py fold    --project-root D                  # só imprime findings vivos
   journal.py invalidate --project-root D --id ID --reason "..."   # agente confirma morte
+  journal.py adopt   --project-root D --text "..." [--raw-kind K]  # nuance da doc antiga → finding discovered
   journal.py scrub-test                                # smoke test do scrubber (stdin)
 """
-import argparse, hashlib, json, math, os, re, subprocess, sys, time
+import argparse
+import hashlib
+import json
+import math
+import os
+import re
+import subprocess
+import sys
+import time
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 try:
@@ -695,7 +704,7 @@ def collect_transcripts(project_root, mined_sessions, active_session=None, deep=
 
 def _iso(unix_ts):
     import datetime
-    return datetime.datetime.utcfromtimestamp(unix_ts).strftime("%Y-%m-%dT%H:%M:%SZ")
+    return datetime.datetime.fromtimestamp(unix_ts, datetime.UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
 # ---------------------------------------------------------------------------
@@ -823,15 +832,41 @@ def run_curate(project_root, fid, text):
     return {"mode": "curate", "id": fid, "live_count": len(live_findings(state))}
 
 
+def run_adopt(project_root, text, raw_kind="doc_nuance", ref=None):
+    """Adota uma nuance da doc ANTIGA (que nunca foi minerada de fonte nenhuma) como
+    finding `discovered` de 1ª classe. É a porta canônica do fluxo melhor-dos-dois-mundos:
+    curate/invalidate exigem id pré-existente, então não dá pra reintegrar conhecimento que
+    só vivia na doc renderizada — adopt cria o finding do zero. Passa pelo MESMO scrubber que
+    o discovered da mineração (barreira de secret p/ o git); id estável via finding_id →
+    idempotente (re-adotar o mesmo texto não duplica)."""
+    c = _candidate(raw_kind, text, {"type": "curated_from_doc",
+                                    "ref": ref or "doc-backup", "ts": _iso(time.time())})
+    if c is None:
+        return {"mode": "adopt", "error": "texto vazio"}
+    state = fold(read_events(project_root))
+    if c["id"] in state:
+        return {"mode": "adopt", "id": c["id"], "new": False, "live_count": len(live_findings(state))}
+    text_scrubbed, secrets = scrub(c["text"])
+    if secrets:
+        stash_secrets(secrets, project_root)
+    append_events(project_root, [{"ev": "discovered", "id": c["id"], "raw_kind": c["raw_kind"],
+                                  "text": text_scrubbed, "anchors": c["anchors"], "source": c["source"],
+                                  "scrubbed": bool(secrets), "ts": int(time.time())}])
+    state = fold(read_events(project_root))
+    return {"mode": "adopt", "id": c["id"], "new": True, "scrubbed": bool(secrets),
+            "live_count": len(live_findings(state))}
+
+
 def main():
     ap = argparse.ArgumentParser(description="project-doc journal/delta")
-    ap.add_argument("mode", choices=["update", "deep", "rebuild", "fold", "invalidate", "curate", "scrub-test"])
+    ap.add_argument("mode", choices=["update", "deep", "rebuild", "fold", "invalidate", "curate", "adopt", "scrub-test"])
     ap.add_argument("--project-root", default=None)
     ap.add_argument("--cwd", default=os.getcwd())
     ap.add_argument("--session", default=None)
     ap.add_argument("--id", default=None)
     ap.add_argument("--reason", default=None)
     ap.add_argument("--text", default=None)
+    ap.add_argument("--raw-kind", default="doc_nuance")
     args = ap.parse_args()
 
     if args.mode == "scrub-test":
@@ -856,6 +891,14 @@ def main():
             print("ERRO: --id e --text obrigatórios no modo curate", file=sys.stderr)
             return 2
         res = run_curate(project_root, args.id, args.text)
+        print(json.dumps(res, ensure_ascii=False, indent=2))
+        return 1 if res.get("error") else 0
+
+    if args.mode == "adopt":
+        if args.text is None:
+            print("ERRO: --text obrigatório no modo adopt", file=sys.stderr)
+            return 2
+        res = run_adopt(project_root, args.text, raw_kind=args.raw_kind)
         print(json.dumps(res, ensure_ascii=False, indent=2))
         return 1 if res.get("error") else 0
 

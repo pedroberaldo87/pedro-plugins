@@ -13,11 +13,23 @@
     ],
     "PreToolUse": [
       {
-        "matcher": "Grep|Glob|Bash",
+        "matcher": "Grep|Glob|Bash|Agent",
         "hooks": [
           {
             "type": "command",
             "command": "${CLAUDE_PLUGIN_ROOT}/hooks/pretooluse-doc-guard.sh",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Read",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/posttooluse-doc-read.sh",
             "timeout": 10
           }
         ]

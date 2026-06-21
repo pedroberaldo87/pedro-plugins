@@ -13,7 +13,7 @@
       "source": "./plugins/bootstrap",
       "description": "Bootstrap a new machine to Pedro's Claude Code setup — auto-syncs marketplaces and plugins via hooks AND applies the versioned global config (env, permissions, flags, global CLAUDE.md, machine-resolved statusLine). Run /bootstrap:setup once per machine. Replaces bootstrap-third-party.",
       "category": "productivity",
-      "version": "1.0.0",
+      "version": "1.0.1",
       "tags": [
         "sync",
         "bootstrap",
@@ -27,7 +27,7 @@
       "source": "./plugins/fallow",
       "description": "Runs Fallow (static JS/TS analyzer — dead code, duplication, complexity), classifies findings by type and confidence, and delivers an interactive report where Pedro picks what to clean. Audits the Fallow report (convergence goal + liveness propagation) to catch false-positives the static analysis misses — cron/systemd, HTTP routes, dynamic imports — framed as tool limitations, not code bugs. Cleanup with a safety net (preview + build/test).",
       "category": "dev-tools",
-      "version": "1.0.2",
+      "version": "1.0.3",
       "tags": [
         "fallow",
         "dead-code",
@@ -41,7 +41,7 @@
       "source": "./plugins/slides",
       "description": "Markdown outline → keynote-grade single-file HTML deck. Theme system (VIU default), big-typography presentation language, strict text fidelity (never invents text), output next to the source .md.",
       "category": "productivity",
-      "version": "1.1.0",
+      "version": "1.1.1",
       "tags": [
         "slides",
         "presentation",
@@ -56,7 +56,7 @@
       "source": "./plugins/visual",
       "description": "CLI walls-of-text → interactive HTML dark-theme views. Plans, diagnostics, and decisions rendered in the browser with live sync back to Claude via local daemon.",
       "category": "productivity",
-      "version": "1.2.0",
+      "version": "1.2.1",
       "tags": [
         "visualization",
         "html",
@@ -84,7 +84,7 @@
       "source": "./plugins/handoff",
       "description": "Session continuity in a single command — /handoff detects the session state and routes: full context → saves a complete knowledge-transfer document; freshly cleared session → resumes from it. Workspace-aware: the handoff belongs to the project the session touched (resolves the .git boundary of the edited files), so it works for a standalone project, a monorepo (one HANDOFF-<module>.md per module), or an umbrella folder with nested projects — no more clobbering between parallel sessions on the same root. Optional [salvar|retomar] argument forces the mode.",
       "category": "productivity",
-      "version": "1.7.0",
+      "version": "1.7.1",
       "tags": [
         "session",
         "continuity",
@@ -109,9 +109,9 @@
     {
       "name": "sovai",
       "source": "./plugins/sovai",
-      "description": "Autonomous execution mode — executes any plan to completion without user interruptions, checkpoints, or confirmations. Skips blocked items (no silent workarounds), logs all decisions, runs a final headless qa-loop pass, and delivers a structured report at the end.",
+      "description": "Autonomous execution mode — executes any plan to completion without user interruptions, checkpoints, or confirmations. Skips blocked items (no silent workarounds), logs all decisions, runs a final headless qa-loop pass, regenerates docs (project-doc) and commits + pushes the work, and delivers the final report as an interactive /visual HTML review surface (markdown fallback).",
       "category": "productivity",
-      "version": "1.1.0",
+      "version": "1.3.0",
       "tags": [
         "autonomy",
         "execution",
@@ -125,7 +125,7 @@
       "source": "./plugins/project-doc",
       "description": "Generate a structured documentation system from ALL project evidence — files, handoffs, memory, graph, git log, and session transcripts — kept in a versioned append-only journal and projected into a CLAUDE.md index + .claude/docs/*.md + thin pointers. A scrubber moves secrets to a vault, never to git. Delta/--deep/--rebuild, monorepo layouts, a doc-first guard hook, post-generation verification, and stale-artifact cleanup.",
       "category": "productivity",
-      "version": "3.0.0",
+      "version": "3.3.4",
       "tags": [
         "documentation",
         "claude-md",
@@ -138,9 +138,9 @@
     {
       "name": "qa-loop",
       "source": "./plugins/qa-loop",
-      "description": "Disciplined review-and-fix loop that stops on diminishing returns (quality vs worth-it), not on zero. Anchored to the implementation plan, with a per-fix regression gate, severity stop criterion, accepted-limits, churn detector, an interactive human report (via /visual: 4 actionable categories + live selection) and an agentic journal. Replaces qa, rev6 and iterate.",
+      "description": "Two-phase QA: an asymptotic review phase (variable-severity findings, accepted-limits, stops on diminishing returns; e2e/Playwright as non-blocking actionables) plus an absolute exit Gate phase (lint, type-check, unit and integration must be 100% green across the whole repo, pre-existing errors included, or stopReason=gate-red). Per-fix regression gate, churn detector, interactive /visual report and agentic journal. Replaces qa, rev6 and iterate.",
       "category": "dev-tools",
-      "version": "1.2.1",
+      "version": "1.3.0",
       "tags": [
         "code-review",
         "qa",
@@ -202,7 +202,7 @@
       "source": "./plugins/ship",
       "description": "Production deploy flow: lint, type-check, commit, push, deploy in one disciplined sequence.",
       "category": "dev-tools",
-      "version": "1.0.1",
+      "version": "1.1.0",
       "tags": [
         "deploy",
         "lint",
@@ -242,7 +242,7 @@
       "source": "./plugins/guardrails",
       "description": "Global editing guardrails as hooks: post-edit lint & type-check (JS/TS/Python), an LLM scope-cop that blocks UI edits drifting from the approved plan, and an Agent Teams misuse guard. Portable across machines — replaces hand-rolled hooks in ~/.claude/settings.json. Run /guardrails:setup once per machine to set the env var and clear the old hooks.",
       "category": "dev-tools",
-      "version": "1.1.0",
+      "version": "1.1.1",
       "tags": [
         "hooks",
         "guardrail",

@@ -83,7 +83,7 @@ def grep_n(pattern, *paths):
     if not real:
         return []
     cmd = ["grep", "-rnIE"] + GREP_EXT + [pattern] + real
-    return [l for l in run(cmd).splitlines() if l]
+    return [ln for ln in run(cmd).splitlines() if ln]
 
 
 def grep_plain(pattern, *files):
@@ -91,7 +91,7 @@ def grep_plain(pattern, *files):
     real = [f for f in files if exists(f)]
     if not real:
         return []
-    return [l for l in run(["grep", "-rnE", pattern] + real).splitlines() if l]
+    return [ln for ln in run(["grep", "-rnE", pattern] + real).splitlines() if ln]
 
 
 ROUTE_RE = re.compile(r"/(api|app)/.*\broute(\.\w+)?\.(ts|tsx|js)$")
@@ -106,9 +106,9 @@ def direct_evidence(path):
     found = []
 
     # 1. import/require/dynamic do módulo pelo caminho (basename como último segmento do specifier)
-    refs = [l for l in grep_n(rf"(import|from|require|dynamic|lazy).*[/'\"]{base}['\"]",
-                              "src", "tests", "e2e", "prisma", "scripts")
-            if not l.startswith(path + ":")]
+    refs = [ln for ln in grep_n(rf"(import|from|require|dynamic|lazy).*[/'\"]{base}['\"]",
+                                "src", "tests", "e2e", "prisma", "scripts")
+            if not ln.startswith(path + ":")]
     if refs:
         found.append(("import-do-modulo", refs[0]))
 
@@ -264,18 +264,18 @@ def symbol_evidence(decl_path, name, decl_line=None):
     None se não há uso em lugar nenhum (morto de verdade).
     Comentários/prosa são descartados — só uso em código conta."""
     pat = rf"\b{re.escape(name)}\b"
-    ext = [l for l in grep_n(pat, *SYMBOL_SEARCH)
-           if not l.startswith(decl_path + ":") and not _is_comment_ref(l, name)]
+    ext = [ln for ln in grep_n(pat, *SYMBOL_SEARCH)
+           if not ln.startswith(decl_path + ":") and not _is_comment_ref(ln, name)]
     if ext:
         return ("externo", ext[0])
     inner = []
-    for l in grep_n(pat, decl_path):
-        parts = l.split(":", 2)
+    for ln in grep_n(pat, decl_path):
+        parts = ln.split(":", 2)
         if decl_line is not None and len(parts) >= 2 and parts[1] == str(decl_line):
             continue  # a própria linha da declaração não conta como uso
-        if _is_comment_ref(l, name):
+        if _is_comment_ref(ln, name):
             continue
-        inner.append(l)
+        inner.append(ln)
     if inner:
         return ("interno", inner[0])
     return None

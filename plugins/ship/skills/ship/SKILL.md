@@ -1,6 +1,6 @@
 ---
 name: ship
-description: Use when code is ready to go to production — runs lint, type-check, commit, push, and deploy in one disciplined flow. Trigger on "ship", "manda", "deploya tudo", or end of implementation cycle.
+description: Use when code is ready to go to production — runs lint, type-check, commit, push, and deploy in one disciplined flow. Trigger on "ship", "manda", "deploya tudo". At the end of an implementation cycle, OFFER to ship — never deploy on your own without Pedro asking.
 ---
 
 # Ship — Lint, Commit, Push, Deploy
@@ -74,7 +74,7 @@ Run lint and type-check. Fix ALL errors found — including pre-existing ones in
 
 ### 2.5. Run Tests (Hard Gate)
 
-Detect and run the full test suite before committing anything.
+Detect and run the test suite before committing anything. In a monorepo with a per-app gate (`scripts/run_app_tests.sh`), run the relevant app's suite per §2.6 — not the whole repo on the wrong interpreter. Otherwise, run the full suite.
 
 | Look for | Tool |
 |----------|------|
@@ -145,7 +145,11 @@ After deploy, verify the service is running:
 - Verify config values survived the deploy (especially .env files on VPS)
 - Show evidence to Pedro
 
-**If verification fails**, diagnose and fix. Do not report as done.
+**If verification fails**, capture the evidence first, then roll back before retrying — do not leave production half-deployed:
+- **Capture logs first** (`pm2 logs`, `docker logs`, the failing health response) so the cause survives the rollback.
+- **Process manager** — restore the last good process (`pm2 reload <app>` to the previous build, or `pm2 resurrect`).
+- **Git-based deploy** — `git revert` the deploy commit (or reset the server to the last good tag) and re-deploy the last known-good.
+- Only retry the deploy after the cause is understood. Do not report as done while production is broken.
 
 ## Safety Rules
 
@@ -155,6 +159,8 @@ After deploy, verify the service is running:
 - **Check .env files** — they may be overwritten by git operations on VPS
 - **Back up server-specific config** before `git reset --hard` or `git pull` on a server
 - **Ask before deploying to production** if there's a staging environment available
+
+**Enforcement asymmetry (know this):** only the test gate (2.5) is backed by a harness hook (`pre-deploy-test-check`). Lint + type-check above are model-enforced discipline — no hook blocks a deploy with lint errors. Treat "lint clean" as your own responsibility, not a machine guarantee.
 
 ## When NOT to Use
 

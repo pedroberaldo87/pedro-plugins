@@ -1,6 +1,6 @@
 {
   "name": "project-doc",
-  "version": "3.0.0",
+  "version": "3.3.4",
   "description": "Generate a modular documentation system from ALL project evidence — files, handoffs, memory, graph, git log, and session transcripts — kept in a versioned append-only journal, projected into a lightweight CLAUDE.md routing table + .claude/docs/*.md per concern + thin pointers (AGENTS.md, GEMINI.md, .cursorrules). Scrubber moves secrets to a vault, never to git. Supports delta/--deep/--rebuild, incremental updates, v1→v2 migration, monorepo layouts, a doc-first guard hook, and cleanup of stale test artifacts.",
   "author": {
     "name": "Pedro Beraldo",

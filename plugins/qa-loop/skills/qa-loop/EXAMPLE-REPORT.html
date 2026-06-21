@@ -143,6 +143,10 @@ code.inline { background: var(--card-deep); border: 1px solid var(--border); pad
     <span class="chip"><strong>Rede:</strong> suíte (41 testes)</span>
     <span class="chip ok"><strong>Parou:</strong> rodada limpa (3)</span>
   </div>
+  <div style="display:flex;gap:14px;align-items:center;padding:16px 22px;margin-bottom:14px;background:rgba(127,209,174,0.08);border:1px solid rgba(127,209,174,0.4);border-left:4px solid #7FD1AE;border-radius:14px;font-size:15px;line-height:1.5;">
+    <span style="font-size:22px;">🟢</span>
+    <span style="color:#A599B5;"><strong style="color:#7FD1AE;">FASE GATE · 100% verde</strong> — lint + type-check + 41 testes (unit/integração) passando no repo inteiro. Nenhum débito pré-existente a zerar. <strong style="color:#F0EDF5;">e2e/Playwright:</strong> 1 actionable abaixo (não bloqueia). <span style="color:#7A7089;">Sucesso da sessão exige esta faixa verde — vermelho viraria <code style="color:#FFA88C;">gate-red</code> bloqueante no topo.</span></span>
+  </div>
   <div class="verdict-banner">
     <span class="big">✅</span>
     <span class="vb-text">Convergiu em <strong>3 rodadas</strong> pelo gate de severidade (não pelo teto). <strong>6 correções</strong>, <strong>1 regressão pega na hora</strong>. Código aderente ao plano, sem regressão conhecida. <strong>4 itens sobem pra você decidir</strong> abaixo.</span>

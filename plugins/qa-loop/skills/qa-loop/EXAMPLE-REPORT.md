@@ -3,6 +3,7 @@
 O exemplo **renderizado** vive em **`EXAMPLE-REPORT.html`** (gerado invocando a skill `/visual` como parceira).
 Abra no browser pra ver o formato + polish:
 
+- **Faixa de status da Fase Gate** (topo de tudo, read-only) — verde `100% — N checks` ou vermelho `GATE VERMELHO` (`gate-red`); se houve conserto repo-wide, separa "conserto da revisão" de "débito pré-existente zerado".
 - **Curva de retornos decrescentes** (SVG) + **tabela por rodada** (colapsável).
 - **4 categorias de actionable**, cada achado um item SELECIONÁVEL — **✓ Vira ação / ✏️ Ação c/ ajuste / ✗ Descartar**:
   1. Importantes — recomendação (plan-flaw) · 2. Sugestões de melhoria (drift + refators) ·
