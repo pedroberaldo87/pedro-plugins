@@ -303,7 +303,7 @@ Pegue os findings vivos + o scan tier 1 e **projete** na doc canônica (CLAUDE.m
 
 A doc canônica é **derivada e descartável** (`--rebuild` re-cria do journal). O journal é a verdade; a doc é a vista. Critério de aceite: a doc cita ≥1 gotcha/decisão que só existe em sessão/handoff, e **nenhum** gotcha que o código atual contradiz.
 
-## Workflow Engine — FULL e --deep mineram via Workflow (v3.1) + grafo dirige a leitura profunda (v3.2)
+## Workflow Engine — FULL e --deep mineram via Workflow (v3.1) + grafo dirige a leitura profunda (v3.2) + merge nativo de nuances (v3.4)
 
 **O problema que isso resolve:** numa janela única, sob volume de contexto, o agente "tira o pé" — corta o Tier 1 scan (não lê o código de verdade) e a Reconciliação (confere 5 de 30 `stale_ids`). A COLETA (Python) é determinística e não tira o pé; quem tira é a **projeção** quando feita numa janela só. A solução: nos modos que mineram, a projeção roda como um **Workflow** com **fan-out por concern** — cada agente recebe uma fatia (um doc-alvo), tem working-set pequeno, e não tem medo do volume. A soma cobre tudo.
 
@@ -366,13 +366,15 @@ Espelha o qa-loop: o Workflow roda em background e **não pergunta nada no meio*
   - **Trava de contexto:** lê integralmente os **top-N por fan-in** do concern (teto por agente); o resto entra como "coberto por menção", não leitura integral. O agente **reporta no `DOC_SECTION` o que leu de fato vs o que só listou** (`files_read[]` / `files_listed[]`).
   - Sem grafo (`available:false`) → cai no v3.1: lê os arquivos da Detection Matrix sem ranking, mesma reconciliação.
   - Reconcilia cada finding da fatia contra o código que leu (confirma / `[relatado]` / propõe invalidação), escreve a seção. Devolve `DOC_SECTION`. **A doc nova é a BASE canônica — projetada SEM ver a doc antiga.**
-- **Fase B — Garimpeiro de nuances (1 agente, só se há doc antiga):** recebe a doc antiga (backup) + a nova + leitura do código/journal. Tarefa **negativa**: achar info verdadeira presente só na antiga e **ausente** na nova; validar cada candidata contra o código. Devolve `NUANCE_CANDIDATES`. Não reescreve nada — só propõe adições.
-- **Fase C — Stitch (JS puro, sem LLM):** aplica os gates (abaixo), dedup, monta o índice. Devolve `STITCH_RESULT`.
+  - **Frontmatter obrigatório (v3.4):** todo `body_md` começa com o bloco YAML (`generated`/`project`/`scope`) — vale **inclusive pros shared docs do monorepo** (foi onde a v3.2 esquecia). O agente marca `has_frontmatter:true`; o gate de frontmatter (Stitch) injeta se vier `false`. Não é "lembrar a regra" — é trava.
+- **Fase B — Garimpeiro de nuances (1 agente, só se há doc antiga):** recebe a doc antiga (backup) + a nova + leitura do código/journal + o **JSON de `live_findings`** (`id`/`text`/`raw_kind`). Tarefa **negativa**: achar info verdadeira presente só na antiga e **ausente** na nova; validar cada candidata contra o código. Devolve `NUANCE_CANDIDATES`. Não reescreve nada — só propõe adições. **Anti-falso-positivo + finding_id (v3.4):** por candidata, (i) auto-check determinístico — se o **token-chave** da nuance já aparece na prosa nova, marca `proposed_action: drop` (a v3.2 trouxe 182 candidatas e só ~52 eram reais; ~70% era já-coberto reformulado); (ii) casa contra os findings vivos e preenche `match_to_journal{finding_id, relation}` — `curate_existing` quando achou par, `new_discovered` só quando é genuinamente nova (sem isso o `adopt` cego duplica, porque o journal só dedup por texto exato).
+- **Fase C — Stitch (JS puro, sem LLM):** aplica os gates (abaixo), dedup, frontmatter, secret, monta o índice. Devolve `STITCH_RESULT` — incluindo `docs_with_nuances[]` (cada doc + suas `approved_nuances[]`) pra Fase D.
+- **Fase D — Merge de nuances na prosa (PARALELO, só se há `docs_with_nuances`, v3.4):** 1 agente por doc que ganhou nuance aprovada. Recebe o `body_md` da Fase A + as `approved_nuances` daquele doc e **enxerta cada uma na prosa, sem inflar nem duplicar**. Travas: não reescreve o que já está lá, não copia a doc antiga, só costura as nuances confirmadas no ponto certo da seção. Devolve `MERGED_DOC` (`body_md` final + `merged_count` + `skipped[]`). **Por que existe:** o `journal.py rebuild` é mecânico (re-fold de findings, NÃO re-projeta prosa) — sem esta fase, `adopt`+`rebuild` registra a nuance mas ela nunca entra no `.md`. Era o passo que a v3.2 fazia à mão.
 
 **CASCA — passo final (depois do Workflow):**
-5. **Só a casca escreve no journal** (serializa o append-only): aplica as invalidações aprovadas + reintegra **automático** as nuances confirmadas — `curate` (finding existe, perdeu o tom), `adopt` (nuance que **nunca** foi minerada), `invalidate` (a antiga contradiz o código).
-6. **Re-projeta** (`journal.py rebuild`) pra materializar as nuances pela porta canônica — sem isso, o próximo `--rebuild` apagaria a edição.
-7. Escreve os arquivos + **Verification** (inclui o check de secret) + relatório com telemetria (nº de agentes, invalidações aplicadas vs propostas, nuances reintegradas).
+5. **Só a casca escreve no journal** (serializa o append-only): aplica as invalidações aprovadas + reintegra **com guarda de finding_id** (v3.4) — `curate` quando `relation==="curate_existing"` (finding existe, perdeu o tom), `adopt` **só** quando `relation==="new_discovered"` **e** o `finding_id` não está no `live[]` (nunca adopt cego — era o risco das duplicatas), `invalidate` quando a antiga contradiz o código.
+6. **Escreve os arquivos** usando o `body_md` **mergeado da Fase D** (não o cru da Fase A) pros docs que ganharam nuance; os demais saem da Fase A. A prosa já está materializada aqui — o journal (passo 5) é registro fiel, não a fonte da escrita.
+7. **Re-projeta** (`journal.py rebuild`) pra reconciliar o estado vivo do journal — o `--rebuild` futuro parte daí. + **Verification** (inclui secret + frontmatter) + relatório com telemetria (nº de agentes por fase, invalidações aplicadas vs propostas, nuances mergeadas vs dropadas).
 
 ### O script do Workflow (molde — estilo qa-loop)
 
@@ -380,7 +382,7 @@ Espelha o qa-loop: o Workflow roda em background e **não pergunta nada no meio*
 export const meta = {
   name: 'project-doc-mine',
   description: 'Minera a doc via fan-out por concern; cada agente lê o código da sua fatia e reconcilia',
-  phases: [{ title: 'Scan+Reconcile' }, { title: 'Garimpo' }, { title: 'Stitch' }],
+  phases: [{ title: 'Scan+Reconcile' }, { title: 'Garimpo' }, { title: 'Stitch' }, { title: 'Merge' }],
 }
 // ⚠️ NÃO use `args` — embuta os dados do run como CONST no topo do script (ver gotcha abaixo).
 // A casca PREENCHE este RUN ao gerar o script (substitui os placeholders pelos valores reais do run):
@@ -405,34 +407,45 @@ if (RUN.hasOldDoc) {                                      // só se havia doc an
 }
 
 phase('Stitch')                                          // GATES = JS puro, sem LLM
-const stitched = stitchAndGate(sections, nuances, RUN.graphMap)  // adjudica invalidação, dedup, inline, secret, budget + AUDITORIA grafo×doc
-return { sections, nuances, stitched }
+const stitched = stitchAndGate(sections, nuances, RUN.graphMap)  // adjudica invalidação, dedup-vs-prosa, frontmatter, secret, budget + AUDITORIA grafo×doc; devolve docsWithNuances[]
+
+let merged = []                                          // Fase D só roda se sobrou nuance aprovada
+if (stitched.docsWithNuances && stitched.docsWithNuances.length) {
+  phase('Merge')                                         // FAN-OUT: 1 agente por doc-que-ganhou-nuance
+  merged = (await parallel(stitched.docsWithNuances.map(d => () =>
+    agent(mergePrompt(RUN.root, d.doc_path, d.body_md, d.approved_nuances),
+      { label: `merge:${d.doc_path}`, phase: 'Merge', schema: MERGED_DOC })
+  ))).filter(Boolean)
+}
+return { sections, nuances, stitched, merged }
 ```
 
-A casca lê o `return` e executa os efeitos colaterais (passo final). `scanReconcilePrompt`/`garimpoPrompt`/`stitchAndGate` são helpers do próprio script: os dois primeiros montam o prompt do agente a partir da fatia; o terceiro é JS determinístico.
+A casca lê o `return` e executa os efeitos colaterais (passo final), escrevendo o `merged[].body_md` pros docs que passaram pela Fase D e o `sections[].body_md` pros demais. `scanReconcilePrompt`/`garimpoPrompt`/`mergePrompt`/`stitchAndGate` são helpers do próprio script: os três primeiros montam o prompt do agente a partir da fatia; o quarto é JS determinístico. `mergePrompt` instrui o agente a enxertar SÓ as `approved_nuances` na prosa existente, sem reescrever nem duplicar.
 
 > **GOTCHA — embuta os dados como `const`, NÃO via `args`.** O script do Workflow é **específico deste run** (os concerns/findings/graphMap são daquele projeto naquele momento), então a casca o gera com os dados já dentro (`const RUN = {...}`). **Não dependa do `args` global do Workflow:** ele foi observado chegar `undefined` (passado como string JSON, ou na re-invocação via `scriptPath`, que NÃO recarrega `args`), e aí o `RUN.concerns.map`/`args.concerns.map` estoura com *"undefined is not an object"*. Const é uma peça móvel a menos e funciona de primeira. **Mantenha os dados pequenos:** embuta só a LISTA de concerns (keys, app, paths de arquivos ranqueados, ids de findings) + o `graphMap` **destilado** (a saída enxuta do `graph_map.py`, nunca o `graph.json` bruto de MBs); o conteúdo pesado (corpo dos findings, código-fonte) os **agentes leem do disco** (eles têm Read/Bash — o orquestrador JS não tem filesystem).
 
 ### Sequência "melhor dos dois mundos" (quando há doc antiga)
 
-A trava anti-"caminho fácil" é **estrutural**, não confiança: a doc nova já existe e é a base ANTES de a antiga ser lida (Fase B vem depois da A). O garimpeiro só pode **propor adições validadas contra o código** — nunca reescrever, nunca copiar a antiga. Conteúdo presente nas duas é descartado por construção. Fluxo: backup → Fase A (doc nova, isolada) → Fase B (garimpa o que faltou, valida) → merge **automático** das confirmadas via journal → `rebuild` materializa. Resultado: mineração fresca + nuances curadas que só viviam na doc antiga.
+A trava anti-"caminho fácil" é **estrutural**, não confiança: a doc nova já existe e é a base ANTES de a antiga ser lida (Fase B vem depois da A). O garimpeiro só pode **propor adições validadas contra o código** — nunca reescrever, nunca copiar a antiga. Conteúdo presente nas duas é descartado por construção (o gate de dedup-vs-prosa dropa o já-coberto). Fluxo: backup → Fase A (doc nova, isolada, com frontmatter) → Fase B (garimpa o que faltou, valida, casa finding_id) → Stitch filtra e aprova as nuances reais → **Fase D enxerta as aprovadas na prosa** → casca escreve o `body_md` mergeado + registra no journal (`curate`/`adopt` com guarda) → `rebuild` reconcilia o estado vivo. Resultado: mineração fresca + nuances curadas que só viviam na doc antiga, **de fato dentro do `.md`** (não só no journal).
 
 ### Schemas (campos pros gates, não texto solto)
 
 - **`GRAPH_MAP`** (saída do `graph_map.py`, lido pela casca; não é schema de agente) = `{available, stats{nodes, links, hyperedges_total, communities_named, god_nodes}, params{god_min, hyper_min}, files[{source_file, fan_in, node_count, god_nodes[]}], god_nodes[{id, label, source_file, source_location, fan_in, fan_in_total, relations_in}], communities[{label, size, community_ids[], files[]}], generic_communities[{label, count}], hyperedges[{id, label, confidence_score, nodes[], source_files[]}]}`. `available:false` ⇒ sem grafo (`{available, reason, expected_path}`). A casca pode ignorar campos extras — o contrato é um superset estável.
-- **`DOC_SECTION`** = `{concern, app, complete, doc_path, inline, body_md, confirmed_ids[], relatado_ids[], invalidations[{id, reason, evidence, confidence}], nuances[], todos[], secret_suspects[], files_read[], files_listed[]}` (os dois últimos: o que o agente leu integralmente vs só listou — prova da leitura profunda v3.2).
-- **`NUANCE_CANDIDATES`** = `{candidates[{type, claim, where_in_old, validation{status: confirmed|unconfirmable|contradicted, evidence}, match_to_journal{finding_id, relation: curate_existing|new_discovered}, proposed_action: curate|adopt|invalidate|drop}], summary}`
-- **`STITCH_RESULT`** = `{index_md, docs_to_write[], inline_sections[], approved_invalidations[], rejected_invalidations[], dedup_log[], audit_warnings[]}` (`audit_warnings`: god nodes / comunidades / hyperedges do grafo sem cobertura na doc — ver gate 7).
+- **`DOC_SECTION`** = `{concern, app, complete, doc_path, inline, body_md, has_frontmatter, confirmed_ids[], relatado_ids[], invalidations[{id, reason, evidence, confidence}], nuances[], todos[], secret_suspects[], files_read[], files_listed[]}` (`has_frontmatter`: bool — o agente confirma que o `body_md` abre com o bloco YAML; o gate de frontmatter injeta se `false`. `files_read`/`files_listed`: o que leu integralmente vs só listou — prova da leitura profunda v3.2).
+- **`NUANCE_CANDIDATES`** = `{candidates[{type, claim, where_in_old, covered_in_new (bool — o token-chave já aparece na prosa nova?), validation{status: confirmed|unconfirmable|contradicted, evidence}, match_to_journal{finding_id, relation: curate_existing|new_discovered}, proposed_action: curate|adopt|invalidate|drop}], summary}` (`covered_in_new` + `match_to_journal.finding_id` são **obrigatórios** na v3.4 — alimentam o gate de dedup-vs-prosa e o roteamento seguro de adopt/curate; sem eles a reintegração duplica).
+- **`STITCH_RESULT`** = `{index_md, docs_to_write[], inline_sections[], docs_with_nuances[{doc_path, body_md, approved_nuances[]}], approved_invalidations[], rejected_invalidations[], dropped_nuances[], frontmatter_injected[], dedup_log[], audit_warnings[]}` (`docs_with_nuances`: o que a Fase D vai mergear; `dropped_nuances`: as já-cobertas/contraditas; `frontmatter_injected`: docs que vieram sem o bloco e o gate consertou; `audit_warnings`: god nodes / comunidades / hyperedges do grafo sem cobertura — ver gate 7).
+- **`MERGED_DOC`** (saída da Fase D, v3.4) = `{doc_path, body_md (a prosa final, com as nuances enxertadas), merged_count, skipped[{claim, reason}]}`. O agente NÃO reescreve o doc — só costura as `approved_nuances` no ponto certo; o que não couber sem inflar vai pra `skipped` com motivo.
 
 ### Gates determinísticos (JS no Stitch, não o agente)
 
 1. **`complete`** — `DOC_SECTION.complete===false` ⇒ o concern não entra como pronto (re-roda ou marca `[TODO: scan incompleto]`). Nunca declarar a doc pronta com concern incompleto.
 2. **Invalidação (o crítico)** — o agente **propõe**; o JS **aplica** só se `confidence==="high"` **E** `evidence` não-vazio **E** o `id` está no `live[]`. Invalidar é destrutivo no journal — low-confidence vira `[relatado]`, não morte.
-3. **Reintegração de nuance** — só `validation.status==="confirmed"` reintegra automático; `unconfirmable` → `[relatado]`; `contradicted` → `invalidate` da versão antiga.
-4. **Dedup** — gotcha repetido em 2 concerns (match por anchor+texto) fica em 1 (patterns vence).
-5. **Secret (CRITICAL)** — regex dos padrões óbvios (JWT `eyJ…`, `AKIA…`, PEM, conn-string) sobre todo `body_md` antes de escrever; match ⇒ não escreve, devolve. É a 2ª barreira (o scrubber Python é a 1ª, roda ao persistir no journal).
+3. **Reintegração de nuance (guarda de finding_id, v3.4)** — só `validation.status==="confirmed"` reintegra automático; `unconfirmable` → `[relatado]`; `contradicted` → `invalidate` da versão antiga. O **roteamento de escrita no journal** segue `match_to_journal.relation`: `curate_existing` → `curate` no `finding_id` casado; `new_discovered` → `adopt` **só** se o `finding_id` não estiver no `live[]`. **Nunca adopt cego** — o journal só dedup por texto exato (`finding_id = SHA1(texto_norm|raw_kind)`), então nuance reformulada com adopt cego viraria duplicata. As confirmadas viram `approved_nuances` por doc em `docs_with_nuances` (entrada da Fase D).
+4. **Dedup (intra-doc + vs-prosa-nova, v3.4)** — (a) gotcha repetido em 2 concerns (match por anchor+texto) fica em 1 (patterns vence); (b) **nuance candidata com `covered_in_new===true`** (ou cujo token-chave já aparece em qualquer `body_md`) é **dropada** pra `dropped_nuances` — é o filtro determinístico que mata os ~70% de falso-positivo do garimpo (já-coberto reformulado) que a v3.2 filtrava à mão.
+5. **Secret (CRITICAL) — paridade com o scrubber Python (v3.4)** — regex sobre todo `body_md` (e sobre o `merged[].body_md` da Fase D) antes de escrever; match ⇒ não escreve, devolve. **Espelha o `PROVIDER_RE` do `journal.py` (fonte única — se um mudar, alinhe o outro):** JWT `eyJ…`, AWS `AKIA…`/`ASIA…`, Google `AIza[0-9A-Za-z_-]{20,}` e `ya29\.[0-9A-Za-z_-]{20,}`, GitHub `gh[posu]_…`/`github_pat_…`, Stripe/OpenAI `sk-…`/`sk_live_`/`sk_test_`/`rk_live_`, Slack `xox[baprs]-…`, GitLab `glpat-…`, blocos PEM, connection string com senha, **e** atribuição genérica `(?i)(password|senha|passwd|pwd|secret|token|api[_-]?key|credential)\s*[:=]\s*\S+`. É a 2ª barreira (o scrubber Python é a 1ª, roda ao persistir no journal) — não pode depender de o agente se autocensurar.
 6. **Token budget / cobertura** — índice >150 linhas ⇒ comprime; área detectada (ex: docker-compose) sem seção ⇒ WARN.
 7. **Auditoria grafo×doc (v3.2 — o repasse de completude)** — só se `graphMap.available`. Cruza o grafo contra o texto gerado (todos os `body_md` + índice): **god node** ou **comunidade nomeada** (não-generic) cujo `label`/`source_file` **não aparece** em nenhuma seção ⇒ `audit_warnings += "área importante não documentada: <X>"`; **hyperedge** ≥0.85 sem menção ⇒ candidato a nota de arquitetura. É o grafo como completeness-critic — orienta no início (mapa), audita no fim. WARN não bloqueia; alimenta o relatório (ou uma 2ª leva de agente pro gap, se a casca optar).
+8. **Frontmatter (v3.4)** — todo `body_md` de doc (não-inline) tem que abrir com o bloco YAML (`generated`/`project`/`scope`). `DOC_SECTION.has_frontmatter===false` (ou ausência detectada por regex `^---\n`) ⇒ o JS **injeta** o bloco determinístico (`generated`=data do run, `project`=nome do projeto, `scope`=`files_read[]`) e registra em `frontmatter_injected`. Fecha o buraco da v3.2 (7 shared docs sem frontmatter) por construção, não por o agente lembrar.
 
 ## CLAUDE.md Index Template
 
@@ -933,7 +946,7 @@ For monorepos, `.claude/docs/` uses subdirectories per app alongside shared docs
    - The `## Custom Rules` section content (extracted before write, reinserted)
 4. **CLAUDE.md exists with no markers:** Append the v2 block at the end
 
-**Marker de geração (`gen`):** o marker de abertura grava a versão do **motor** que gerou a doc — `<!-- project-doc:v2 gen=3.3 -->`. A **versão atual do motor é `3.3`** (a release da **leitura-via-grafo**: grafo obrigatório + leitura profunda do código; a `3.1` introduziu o Workflow). A **checagem ativa (passo 0.1)** lê esse atributo: doc com `gen` **ausente ou menor** que `3.3` é **fora do padrão** → reconstrói via Workflow `deep` + garimpo (não um update delta leve) — porque a doc anterior nunca leu o código de verdade. Ao evoluir o motor de forma que a doc antiga deva ser reconstruída, **bump esse número** aqui e nos dois Index Templates.
+**Marker de geração (`gen`) — desacoplado da `version` do plugin:** o marker de abertura grava o **`gen` do contrato de doc** que gerou o arquivo — `<!-- project-doc:v2 gen=3.3 -->`. O **`gen` corrente é `3.3`** (a release da **leitura-via-grafo**: grafo obrigatório + leitura profunda do código; a `3.1` introduziu o Workflow). A **checagem ativa (passo 0.1)** lê esse atributo: doc com `gen` **ausente ou menor** que `3.3` é **fora do padrão** → reconstrói via Workflow `deep` + garimpo (não um update delta leve) — porque a doc anterior nunca leu o código de verdade. **`gen` ≠ `version` do plugin (de propósito):** a `version` (`plugin.json`) é a chave de **propagação** e bumpa a CADA mudança; o `gen` é o gatilho de **reconstrução** e só bumpa quando a doc antiga precisa ser refeita. Ex.: a **Fase D / merge nativo (plugin `3.4.0`)** melhora a captura de nuances mas **NÃO** invalida docs `gen=3.3` (que já liam o código via grafo) — por isso entrou sem bumpar o `gen`. Só bumpe o `gen` aqui e nos dois Index Templates quando a mudança tornar a doc antiga base não-confiável.
 
 **CRITICAL:** When replacing, include the markers themselves in the new content. The markers are part of the block.
 
@@ -1182,7 +1195,7 @@ After writing all files, run this verification checklist. Report results to the 
 
 **10. Security — Scrubber + No Leaked Secrets**
 - O **scrubber** (lib) é a 1ª barreira na escrita do journal; este check é a 2ª, na doc final (defense-in-depth — repo privado NÃO é controle de secret).
-- Scan ALL generated files for secret-looking values: strings após `=` que não são placeholder/template, base64 longo, JWT (`eyJ…`), `AKIA…`, blocos PEM, connection strings com senha embutida.
+- Scan ALL generated files for secret-looking values, **em paridade com o gate 5 do Stitch e o `PROVIDER_RE` do `journal.py`** (fonte única): strings após `=`/`:` que não são placeholder/template (`(?i)(password|senha|passwd|pwd|secret|token|api[_-]?key|credential)\s*[:=]\s*\S+`), base64 longo, JWT (`eyJ…`), AWS `AKIA…`/`ASIA…`, **Google `AIza…` e `ya29.…`**, GitHub `gh[posu]_…`/`github_pat_…`, `sk-…`/`sk_live_`/`sk_test_`, Slack `xox…`, GitLab `glpat-…`, blocos PEM, connection strings com senha embutida.
 - Garanta que valores de .env NUNCA entram — só nomes. Onde havia um secret, a doc deve **referenciar o cofre** (`.claude/secrets/ops.env`), não o valor.
 - Confirme que `.claude/secrets/` está no `.gitignore` (o lib adiciona; verifique).
 - Qualquer vazamento potencial = **CRITICAL FAIL** — corrija antes de declarar pronto.
