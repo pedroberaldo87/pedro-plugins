@@ -1,192 +1,110 @@
 ---
-generated: 2026-06-20
+generated: 2026-06-21
 project: pedro-plugins
-scope:
-  - .claude-plugin/marketplace.json
-  - plugins/*/.claude-plugin/plugin.json
-  - plugins/*/hooks/hooks.json
-  - plugins/*/hooks/*.sh
-  - plugins/*/skills/*/SKILL.md
-  - plugins/project-doc/lib/journal.py
+scope: plugins/project-doc/lib/journal.py, _shared/collect_engine.py, scripts/sync-shared.sh, plugins/guardrails/hooks/{scope-cop,lint-and-typecheck}.sh, plugins/context-guard/hooks/context-guard.sh, plugins/ship/hooks/pre-deploy-test-check.sh, plugins/bootstrap/hooks/{session-sync.sh,lib/apply.sh,lib/git-sync.sh}, plugins/graphify-guard/hooks/graphify-detect.sh, plugins/project-doc/lib/test_journal.py, .claude-plugin/marketplace.json, plugins/*/.claude-plugin/plugin.json, .gitignore
 ---
 
-# Patterns & Conventions
+# patterns.md — convenções, release, dependências, gotchas
 
-Convenções reais extraídas do código deste marketplace (17 plugins). Tudo aqui foi
-verificado lendo o arquivo-fonte na sessão de geração desta doc.
+Doc derivada do código real (não da doc antiga). Tudo abaixo foi CONFIRMADO lendo o arquivo, exceto onde marcado `[relatado]`.
 
-## Code Style
+## Convenções Shell — fail-open, estado em ~/.claude, padrões dos hooks
 
-### Shell (hooks `.sh`)
-- **Shebang misto, sem regra única:** os scripts de `context-guard`, `guardrails`,
-  `project-doc`, `ship`, `visual`, `graphify-guard` usam `#!/bin/bash`; os de
-  `bootstrap` e `handoff` usam `#!/usr/bin/env bash`. Não há lint forçando um padrão.
-- **Fail-open é a lei dos hooks.** Toda dependência externa é resolvida via PATH e,
-  se faltar, o hook sai com `exit 0` (deixa a ação passar) — NUNCA bloqueia por
-  causa de ferramenta ausente. Padrão canônico (8 scripts usam):
-  ```bash
-  command -v jq >/dev/null 2>&1 || exit 0
+Regra-mãe: **um hook NUNCA pode quebrar/bloquear o que não devia.** Toda dependência ausente → `exit 0` (fail-open).
+
+- **Shebang `#!/bin/bash` ou `#!/usr/bin/env bash`** + `chmod +x`. Hooks com lógica de sync usam `set -uo pipefail` (`apply.sh:30`, `session-sync.sh:15`, `git-sync.sh:15`); hooks-trava NÃO usam `set -e` (não podem abortar no meio).
+- **Fail-open por dependência ausente** — resolve binário via `command -v`, nunca path hardcoded de Homebrew:
+  - `jq` ausente → `exit 0`: `lint-and-typecheck.sh:16-17`, `pre-deploy-test-check.sh:16`, `scope-cop.sh:16-19`.
+  - `claude` (o juiz LLM) ausente → libera a edição: `scope-cop.sh:262-266`.
+  - juiz com erro/timeout/saída ilegível → libera + loga: `scope-cop.sh:296-299, 317-320`.
+- **Estado mutável vive em `~/.claude/…`, NUNCA dentro do plugin** (o cache `${CLAUDE_PLUGIN_ROOT}` é reescrito a cada bump de versão). Exemplos:
+  - `~/.claude/guardrails/scope-cop.{mode,log,blockstreak,bypass}` (`scope-cop.sh:8-25`)
+  - `~/.claude/plugins/.pedro-plugins-{last-sync,sync.lock}` (`session-sync.sh:28-29`)
+  - `~/.claude/visual-state/latest.json` (live-sync do /visual, lido pelo scope-cop:212)
+- **Exceção `/tmp`** para estado efêmero por-sessão: `/tmp/claude-context-pct` (escrito pela statusLine, lido pelo guard — `context-guard.sh:6`), sentinelas `/tmp/claude-context-warned-${SESSION_ID}` (`context-guard.sh:10`), `/tmp/claude-ata-session-<hash>` (sentinel legado de discovery — `collect_engine.py:319`).
+- **Protocolo de saída do hook:**
+  - PostToolUse bloqueante → `exit 2` + mensagem no stderr (`lint-and-typecheck.sh:128-131`).
+  - PreToolUse bloqueante → JSON `{"continue":false,"stopReason":…}` (context-guard) OU `{"hookSpecificOutput":{permissionDecision:"deny",…}}` (scope-cop:328-334).
+- **Sentinela por-sessão** pra disparar "uma vez por sessão": `session_id` vem de `jq -r '.session_id'` no stdin (`context-guard.sh:9`).
+- **stat portátil mac↔linux:** `stat -f %m … || stat -c %Y …` (`session-sync.sh:54,106`; `graphify-detect.sh:26-27`).
+- **Re-entrancy + lock atômico no sync:** guard via env `PEDRO_PLUGINS_HOOK_RUNNING` (`session-sync.sh:20-23`); lock por `mkdir` (POSIX, sem flock) com quebra de lock stale >5min (`session-sync.sh:53-64`).
+- **scope-cop é juiz-LLM, não régua de caracteres:** chama `claude -p --model haiku` com system-prompt classificador; só policia arquivos de UI (`*.html|*.tsx|*.css|…` — `scope-cop.sh:58-61`), isenta docs/`.claude/`/PRD/HANDOFF (`:67-69`); circuit-breaker libera 1 edição após 3 BLOCKs seguidos (`:251-260`). NÃO corta por tamanho.
+
+## Convenções Python — stdlib only, sem framework, onde mora o estado
+
+- **stdlib pura.** `journal.py` importa só `argparse, hashlib, json, math, os, re, subprocess, sys, time`. `collect_engine.py` idem (+`glob`). Zero dependências de terceiros, zero framework de teste.
+- **Degradação graciosa de import:** `journal.py:43-58` tenta importar `collect_engine`; se faltar, define fallbacks `anchor_of`/`finding_id` IDÊNTICOS (mesmo hash) e pula o tier de transcript — `HAVE_ENGINE` chaveia o resto.
+- **`finding_id` = sha1 do TEXTO COMPLETO normalizado + raw_kind, truncado em 16 hex** (`collect_engine.py:532-534`, espelhado em `journal.py:56-58`). Hashear o texto inteiro (não a âncora de 64 chars) evita colisão entre falas com prefixo comum — qualquer divergência entre as duas cópias re-chavearia o journal.
+- **Estado do project-doc: `.claude/.project-doc/`** (`journal.py:64-73`). É **VERSIONADO** — `findings.jsonl` (journal append-only) e `ledger.json` estão git-tracked (confirmado: `git ls-files`). É o veículo do conhecimento entre máquinas; só `.claude/.project-doc/backups/` fica gitignored (`.gitignore:37`).
+- **Journal append-only:** `append_events` só faz `open(...,"a")` (`journal.py:122-129`); o estado vivo = `fold()` dos eventos por id em ordem cronológica (`:132-159`). `discovered` cria, `invalidated` mata (sem apagar), `curated` sobrepõe texto. Morte é definitiva até curadoria/re-discovery explícita.
+- **Scrubber de secret = barreira entre conversa-verbatim e git** (`journal.py:330-458`). Scorer em 4 camadas: (1) estruturado PEM→connstring→JWT→provider; (1.5) pares JSON aninhados; (2) chave=valor de 1 linha; (3) prosa por palavra-sinal + entropia de Shannon (`_looks_random` ≥16 chars, entropia ≥3.5); (4) na dúvida marca `‹revisar?›`. Política: nomes/host/IP/porta/path/sha/uuid PRESERVADOS, só o VALOR vai pro cofre.
+- **Cofre fora do repo:** `cofre_paths` (`journal.py:461-474`) — override `PROJECT_DOC_COFRE_DIR` (testes) > iCloud (`~/Library/Mobile Documents/com~apple~CloudDocs/Cofre`) > fallback local gitignored `.claude/secrets/_local_cofre`. `ensure_gitignore` planta `.claude/secrets/` ANTES de escrever (`:477-492, 500`).
+- **Resolução de project-root mecânica** (`collect_engine.py:92-113`): sobe até o 1º ancestral com `.git` OU monorepo formal. Distingue projeto de agrupador (PEDRO/ e VIU/ sem `.git` são atravessados).
+
+## Engine compartilhada — vendoring, não import em runtime
+
+- **Fonte-da-verdade = `_shared/collect_engine.py`**; cópias derivadas em `plugins/handoff/lib/` e `plugins/project-doc/lib/`. As 3 são byte-idênticas (md5 confirmado).
+- **Por que copiar e não importar:** o Claude Code isola plugins na instalação — só `plugins/<nome>/` vai pro cache, sem variável cross-plugin (`_shared/collect_engine.py:13-16`).
+- **Build deste monorepo = `scripts/sync-shared.sh`** (o único "build"):
+  - `scripts/sync-shared.sh` → vendora (copia para os 2 consumidores).
+  - `scripts/sync-shared.sh --check` → NÃO copia, sai 1 se houver drift (gate de CI/pré-commit).
+- ⚠️ **Editar `_shared/` sem rodar o sync deixa as cópias defasadas** — rode `sync-shared.sh` antes de commitar; `--check` para verificar.
+
+## Regras de Release — bump plugin.json + espelhar marketplace.json
+
+- **A `version` em `plugins/<nome>/.claude-plugin/plugin.json` é a chave de propagação.** Toda mudança = bump. No install, `plugin.json` vence o `marketplace.json` (commit aa274781), mas a entrada do marketplace deve ESPELHAR pra não enganar. Hoje todas as 17 batem:
   ```
-  `guardrails/hooks/scope-cop.sh:16-19` exige `jq` E `python3`; sem qualquer um → `exit 0`.
-- **Binários resolvidos via PATH, nunca hardcoded.** `scope-cop.sh` resolve
-  `CLAUDE_BIN="$(command -v claude)"` e, se não achar, faz fail-open — não amarra a
-  máquina/app específico. Comentário explícito: "Sem path hardcoded de app específico".
-- **Estado mutável vive em `~/.claude/...` (por-máquina), fora do cache do plugin.**
-  `${CLAUDE_PLUGIN_ROOT}` é reescrito a cada bump de versão, então logs/flags/streak
-  não podem morar lá. Ex.: `scope-cop` grava em `~/.claude/guardrails/`,
-  `context-guard` em `/tmp/claude-context-pct` e `/tmp/claude-context-warned-<session>`.
-- **Sentinela por sessão (× projeto).** Hooks que devem avisar só 1x usam um arquivo
-  em `/tmp` chaveado por `session_id` (e por `cksum` do path do projeto em
-  `pretooluse-doc-guard.sh:92-93`). Padrão: `SESSION=$(... jq -r '.session_id')`.
-- **Re-entrância:** `session-sync.sh:20-23` usa env var-guard
-  (`PEDRO_PLUGINS_HOOK_RUNNING`) pra evitar recursão quando um hook dispara outro.
-- **Lock atômico portável:** `session-sync.sh:53-64` usa `mkdir` (não `flock`) +
-  `trap ... EXIT` pra lock POSIX-portável; quebra lock obsoleto (>5min).
-- **Veredito do juiz LLM lido por regex de JSON**, nunca parse ingênuo: `scope-cop.sh:302-314`
-  varre `{...}` no output do `claude -p` e valida `verdict in (pass|block)`; ilegível → fail-open.
-- **`2>/dev/null` num redirect de ENTRADA NÃO suprime falha de abertura.** Em `cmd < "$FILE" 2>/dev/null`
-  o `2>` cobre só o stderr do comando, não a abertura do `<` pelo shell. Guarde com `[ -f "$FILE" ]`
-  antes de ler (padrão defendido em `scope-cop.sh:49,74`).
-- **Comentários em pt-BR explicando o "porquê"** (não o "o quê") são a norma; cada
-  decisão não-óbvia tem 1-3 linhas de justificativa inline.
-
-### Hooks LLM ("juiz") — invocação do modelo
-- Hooks que precisam de julgamento chamam o modelo barato via CLI:
-  ```bash
-  claude -p --model haiku --system-prompt "$JUDGE_SYS" \
-    --exclude-dynamic-system-prompt-sections "$JUDGE_INPUT" </dev/null
+  bootstrap 1.0.1 · context-guard 1.1.1 · fallow 1.0.3 · graphify-guard 1.0.1
+  grill-me 1.0.0 · grill-with-docs 1.0.0 · guardrails 1.1.1 · handoff 1.7.1
+  improve 1.0.0 · principles 1.0.0 · project-doc 3.4.0 · qa-loop 1.3.0
+  raiox 0.2.0 · ship 1.1.0 · slides 1.1.1 · sovai 1.3.0 · visual 1.2.1
   ```
-  (`scope-cop.sh:293`). O `guardrails/hooks/hooks.json` Agent-guard usa `type: "prompt"`
-  (julgamento inline pelo próprio Claude Code, sem subprocesso).
-- O system-prompt do juiz começa SEMPRE com "Você é um classificador automático
-  (NÃO um assistente)" e restringe a saída a um JSON único — evita o modelo "conversar".
-
-### Python (`plugins/project-doc/lib/`)
-- `#!/usr/bin/env python3`; stdlib pura (argparse, hashlib, json, re, subprocess) —
-  **zero dependências externas** (journal.py:32-39).
-- **Degradação graciosa de import:** `journal.py:43-58` tenta importar `collect_engine`
-  e, no `ImportError`, define fallbacks locais — `finding_id`/`anchor_of` DEVEM ficar
-  idênticos à engine (hash do texto normalizado + kind), senão re-chaveia o journal.
-- Docstring de módulo descreve o CLI inteiro (subcomandos) e as fontes coletadas.
-- `sys.path.insert(0, os.path.dirname(...))` pra importar siblings vendorados.
-
-## Anatomia de um Plugin
-
-Layout canônico (ex.: `plugins/project-doc/`):
-```
-plugins/<nome>/
-├── .claude-plugin/
-│   └── plugin.json          # manifesto: name, version, description, author{}, homepage
-├── hooks/                   # OPCIONAL — só se o plugin tiver hooks
-│   ├── hooks.json           # ⚠️ SEMPRE aqui (subpasta), NUNCA na raiz do plugin
-│   ├── *.sh                 # scripts referenciados via ${CLAUDE_PLUGIN_ROOT}/hooks/...
-│   └── lib/                 # OPCIONAL — libs compartilhadas entre hooks (ex.: bootstrap)
-├── skills/                  # OPCIONAL — uma pasta por skill
-│   └── <skill>/SKILL.md     # frontmatter YAML (name, description) + corpo
-└── lib/                     # OPCIONAL — código de apoio (ex.: project-doc/lib/*.py)
-```
-- **Manifesto:** todos os 17 `plugin.json` usam `author` como **objeto** `{name, email}`
-  (verificado: 17/17 `type=object`). String em `author` bloqueia install silenciosamente.
-- **Skill `setup` para o que o plugin não consegue fazer sozinho.** Plugins que dependem
-  de env var ou de mexer no `settings.json` global trazem `skills/setup/SKILL.md`
-  (`bootstrap`, `context-guard`, `guardrails`). Plugin **não carrega env var** — daí o
-  setup. Nome da skill = `<plugin>:setup` no frontmatter.
-- **Plugin hooks-only existe:** `graphify-guard` não tem pasta `skills/` (só `hooks/`).
-- **Referência a script em hooks.json:** SEMPRE `${CLAUDE_PLUGIN_ROOT}/hooks/<script>.sh`
-  (8/8 hooks.json usam essa variável). `timeout` é opcional (em segundos).
-- **Schema do `hooks.json`:** `{ "hooks": { "<Evento>": [ { "matcher": "<tool|regex>", "hooks":
-  [ { "type": "command", "command": "${CLAUDE_PLUGIN_ROOT}/hooks/x.sh", "timeout": <s> } ] } ] } }`.
-  Eventos sem alvo de tool (`SessionStart`, `Stop`) omitem `matcher`. Os `.sh` precisam de `chmod +x`.
-- **Criar um plugin novo (checklist):** 1) anatomia (`.claude-plugin/`, `skills/`, `hooks/` se preciso);
-  2) `plugin.json` com `author` objeto; 3) `SKILL.md` com frontmatter; 4) `hooks/hooks.json` na subpasta
-  + `chmod +x`; 5) entrada no `marketplace.json`; 6) `claude plugin validate`; 7) `claude plugin details`
-  pra confirmar `Hooks (N)`.
-
-## Regras de Release
-
-- **Bump obrigatório do `plugin.json` em TODA mudança.** Sem subir a `version`, clientes
-  nunca recebem a atualização (a versão é a chave de propagação).
-- **Versão tem que bater em DOIS lugares:** `plugins/<nome>/.claude-plugin/plugin.json`
-  E a entrada `version` correspondente em `.claude-plugin/marketplace.json`. Hoje estão
-  alinhadas (ex.: project-doc 3.3.0 nos dois; qa-loop 1.3.0 nos dois).
-- **Cache local NÃO auto-refresca** nesta máquina:
-  `~/.claude/plugins/cache/pedro-plugins/<nome>/<versão>/` precisa ser sincronizado por
-  cima ou o plugin reinstalado; depois `/reload-plugins` (hooks recarregam sem restart).
-- **Validar antes de publicar:** `claude plugin validate`. Mas atenção — ele NÃO pega o
-  bug de hooks.json na raiz (ver Gotchas). Diagnóstico canônico de hook = `claude plugin details <plugin>@pedro-plugins` (mostra `Hooks (N)`).
-- **Instalar ≠ atualizar índice:** `/plugin marketplace update` e `/reload-plugins` só
-  atualizam catálogo/hooks; quem instala/desinstala de fato é `claude plugin install`/`uninstall`.
+- **`marketplace.json` é o ponto de convergência de TODAS as frentes** + é reformatado por um linter (single-line ↔ multi-line). Em commits cirúrgicos isole-o: `git stash push -- .claude-plugin/marketplace.json`, commita o resto, despausa. [relatado, dos handoffs]
+- **Cache não auto-refresca** (nesta máquina): `~/.claude/plugins/cache/pedro-plugins/<nome>/<versão>/`. Sincronize por cima ou reinstale; depois `/reload-plugins`. [relatado]
+- **`author` DEVE ser objeto `{name, …}`, nunca string** — string bloqueia o install em silêncio (commit b4770351 corrigiu grill-me/grill-with-docs; hoje ambos são dict, os outros 15 omitem o campo, o que é válido).
+- **Gate de release = `claude plugin validate`** (pega frontmatter quebrado, author-string). **Diagnóstico de hook = `claude plugin details <nome>`** (mostra `Hooks (N)`; `validate` NÃO pega hooks.json mal-posicionado).
+- **Passo-a-passo de plugin novo** [relatado, doc_nuance]: anatomia → `.claude-plugin/plugin.json` → `skills/<nome>/SKILL.md` → `hooks/hooks.json`+scripts `chmod +x` → entrada no `marketplace.json` com mesma version → `validate`+`details` → bump.
 
 ## Dependências entre Plugins
 
-- **context-guard + handoff** andam juntos: o context-guard, ao cruzar o threshold,
-  emite `stopReason` sugerindo rodar `/handoff` (`context-guard.sh:20-22`). Instalar um
-  sem o outro deixa a sugestão sem destino.
-- **context-guard depende de um statusLine wrapper** que escreve `/tmp/claude-context-pct`
-  (o hook só lê esse arquivo; quem o popula é o wrapper registrado pela `context-guard:setup`).
-- **`context-guard:setup` registra os hooks E o statusLine wrapper diretamente no `~/.claude/settings.json`
-  (paths absolutos), não via `hooks.json` do plugin** — porque o cache do marketplace `source: directory`
-  pode não existir no momento do setup; o `settings.json` é o ponto de registro garantido
-  (`context-guard/skills/setup/SKILL.md:18`).
-- **guardrails substitui hooks globais hand-rolled.** A `guardrails:setup` remove do
-  `~/.claude/settings.json` os hooks antigos (lint-and-typecheck, scope-cop, Agent-teams-guard)
-  pra não dispararem em dobro com os do plugin (senão lint roda 2x e paga 2 chamadas Haiku).
-  **Mas PRESERVA** o hook `SessionStart` que aponta pro `sessionstart-adhd-mode.sh` (auto-ativador do
-  modo ADHD) ao limpar os antigos — não apaga junto (`guardrails/skills/setup/SKILL.md:27,92-93`).
-- **bootstrap** orquestra a instalação dos demais a partir do manifest + aplica config
-  global versionada (`bootstrap/skills/setup` → `/bootstrap:setup`).
-- **project-doc + graphify** acoplados: o project-doc trata o grafo (`graphify-out/`) como
-  parte da documentação — atualiza/exige o grafo por padrão ao documentar.
-- **qa-loop + visual:** o relatório humano do qa-loop reusa a skill `/visual` pra a
-  superfície de seleção live (lê estado em `~/.claude/visual-state/latest.json`).
-  `scope-cop.sh:213-235` também consome esse `latest.json` como fonte de plano aprovado.
+- **context-guard → handoff:** o guard, ao cruzar o threshold, manda rodar `/handoff` (`context-guard.sh:21`). Andam juntos.
+- **project-doc + handoff → engine compartilhada:** ambos consomem `collect_engine.py` (vendorado de `_shared/`). project-doc é o único com scrubber/journal/cofre (`journal.py`) e grafo (`graph_map.py`).
+- **project-doc + graphify(-guard):** project-doc detecta `graphify-out/graph.json`, checa staleness e fia o grafo no CLAUDE.md (`graph_map.py`); graphify-guard usa `graphify-detect.sh` (helper compartilhado, fan-in 8) pra heads-up de freshness.
+- **bootstrap (ex bootstrap-third-party):** orquestra sync de marketplaces/plugins via `apply.sh` (lê `config/manifest.json`) + config global. `session-sync.sh` roda no SessionStart: fetch → throttle 24h → pull → apply → snapshot → commit+push do manifest (`git-sync.sh`).
+- **guardrails:** 3 hooks que viviam soltos em `~/.claude/settings.json`, empacotados pra replicar entre máquinas (lint-and-typecheck, scope-cop, agent-teams classifier). scope-cop lê o estado do /visual.
+- **ship → testes:** `pre-deploy-test-check.sh` bloqueia deploy se os testes do app falham (prefere `scripts/run_app_tests.sh` por-app; fallback whole-suite).
+- **qa-loop:** consolidou e substituiu `/qa`, `/rev6`, `/iterate`.
 
-## Testing
+## Testing — `python3 .../test_*.py`, stdlib, sem framework
 
-- **Suíte Python real no project-doc** (stdlib `assert`, sem framework):
-  - `plugins/project-doc/lib/test_journal.py` — scrubber, cofre, delta forward/backward,
-    colisão de id, validação de invalidate/curate. Roda com
-    `python3 plugins/project-doc/lib/test_journal.py`. **CONFIRMADO: 117 checks passam.**
-  - `plugins/project-doc/lib/test_graph_map.py`.
-  - Self-contained: cria repo git temporário + cofre em `/tmp` via env
-    `PROJECT_DOC_COFRE_DIR` (não toca o ambiente real).
-- **Não há CI nem runner agregado** — testes são invocados à mão por arquivo.
-- Para hooks/skills, "teste" = smoke test E2E manual (rodar a skill, `claude plugin details`).
+- **Só 2 suites, ambas em `plugins/project-doc/lib/`:**
+  ```bash
+  python3 plugins/project-doc/lib/test_journal.py     # 117 checks (CONFIRMADO passando)
+  python3 plugins/project-doc/lib/test_graph_map.py   #  23 checks (CONFIRMADO passando)
+  ```
+- **Padrão:** `assert` numa função `check(label, cond)` que conta PASS e imprime; sem pytest/unittest. Self-contained — `test_journal.py` cria repo git temporário + cofre em `/tmp` via `PROJECT_DOC_COFRE_DIR` (`:18-22`).
+- **O que `test_journal.py` cobre:** os 5 vazamentos de secret do code-review (PEM-newline, numérico, prosa, provider, PUBLIC word-boundary), integridade do cofre, delta forward, backward-delta (self-stale + working-tree), colisão de id de 64 chars, `self_path_match`, validação de invalidate/curate.
+- **Shell:** sem testes unitários; o "teste" é `claude plugin validate` + `claude plugin details`. `sync-shared.sh --check` é o gate de drift da engine.
+- ⚠️ **Os demais plugins não têm teste automatizado** — verificação é manual (validate/details, smoke E2E).
 
-## Gotchas
+## Gotchas — lista completa
 
-- ⚠️ **Hook de plugin vai em `hooks/hooks.json` (subpasta), NUNCA `hooks.json` na raiz.**
-  Na raiz o Claude Code ignora silenciosamente (`claude plugin details` mostra `Hooks (0)`);
-  `claude plugin validate` passa mesmo assim. Hoje os 8 plugins com hook estão corretos.
-- ⚠️ **`author` como STRING (em vez de objeto `{name,email}`) bloqueia o install sem erro.**
-  Rodar `claude plugin validate`. Hoje 17/17 estão como objeto.
-- ⚠️ **`SKILL.md` começando com `---` duplo (`---` na linha 1 E na 2) zera o frontmatter**
-  — `name`/`description` caem no corpo, o loader rejeita a skill e o plugin inteiro falha
-  ao instalar. Causou a falha histórica do grill-me; HOJE está correto (um `---` só abrindo,
-  `plugins/grill-me/skills/grill-me/SKILL.md:1-4`). Caracteres `: ` ou `<>` em valores do
-  frontmatter também bloqueiam install silenciosamente.
-- ⚠️ **Editar skill/hook sem bumpar `plugin.json` = cliente nunca recebe.** A versão é a chave.
-- ⚠️ **Cache do plugin não auto-refresca nesta máquina:** sincronizar por cima de
-  `~/.claude/plugins/cache/pedro-plugins/<nome>/<versão>/` ou reinstalar; depois `/reload-plugins`.
-- ⚠️ **`${CLAUDE_PLUGIN_ROOT}` muda a cada bump** — não guarde estado lá; use `~/.claude/...` ou `/tmp`.
-- Hooks devem ser **fail-open** (`exit 0` quando falta `jq`/`python3`/`claude`); um linter
-  ausente ou juiz indisponível nunca pode bloquear uma edição.
-- **scope-cop NÃO corta por limite de caracteres** — o veredito é julgamento de coerência
-  da LLM (Haiku) contra o plano/pedido. Tem isenção explícita pra artefatos
-  (`*/.claude/*`, `*/docs/*`, `*HANDOFF*`, `*PRD*`, `*plan*.html`, `*_archive/*`) e só
-  policia arquivos de UI; circuit breaker libera após 3 BLOCKs seguidos (anti-loop).
-- **scope-cop usa `deny` (não `ask`)** — nega pra o Claude se auto-corrigir, NUNCA escala
-  pro Pedro.
-- Plugins **não carregam env vars** — qualquer var necessária (ex.:
-  `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1`, `CLAUDE_CONTEXT_THRESHOLD`) entra via skill `setup`.
-- **`rm -rf` é bloqueado por permissão** (tanto em `~/.claude/` quanto no repo, `~/.claude/settings.json:160`)
-  — use remoção alvo (`rm <arquivo>`), nunca recursiva-forçada.
-- **`uninstall` não limpa o diretório do cache** [relatado] — a skill some de `installed_plugins.json`
-  mas o dir `~/.claude/plugins/cache/pedro-plugins/<nome>/` sobra ("slash fantasma"); limpar à mão se reaparecer.
-- **bootstrap nunca propaga estado degradado:** se `apply` falhar, o `session-sync` pula o
-  snapshot/commit/push — senão uma falha transitória de uma máquina desinstalaria plugins
-  de todas (`session-sync.sh:167-187`).
-- **Secrets nunca vão pro git.** O scrubber do project-doc (`journal.py`) move o
-  VALOR-secreto pro cofre (`~/Library/Mobile Documents/...` iCloud, override por
-  `PROJECT_DOC_COFRE_DIR`) e deixa só `‹cofre:LABEL:hash›` no journal versionado. Refira
-  segredos pelo NOME / pelo cofre `.claude/secrets/ops.env`, nunca pelo valor.
+- ⚠️ **Hook de plugin vai em `hooks/hooks.json` (subpasta), NUNCA na raiz.** Na raiz o Claude Code ignora em silêncio (`details` → `Hooks(0)`); `validate` passa mesmo assim. Hoje os 8 plugins com hook estão corretos (bootstrap, context-guard, graphify-guard, guardrails, handoff, project-doc, ship, visual). (commits 9389c512, 379b6b08)
+- ⚠️ **Bump `plugin.json` em TODA mudança** — a `version` é a chave de propagação; espelhe em `marketplace.json`.
+- ⚠️ **`author` como string bloqueia install em silêncio** — use objeto `{name,…}` ou omita. (commit b4770351)
+- ⚠️ **`SKILL.md` com `---` duplo (linha 1 E 2), ou `: `/`<>` em valores de frontmatter, bloqueiam install em silêncio.** Rode `claude plugin validate`. (memory 924b2b88, [relatado])
+- ⚠️ **Cache `~/.claude/plugins/cache/pedro-plugins/<nome>/<versão>/` não auto-refresca** nesta máquina — sincronize por cima/reinstale, depois `/reload-plugins`. [relatado]
+- ⚠️ **`validate` NÃO diagnostica hook mal-posicionado** — só `claude plugin details <nome>` (`Hooks N`) faz isso.
+- ⚠️ **Instalar ≠ atualizar índice:** `marketplace update`/`reload-plugins` só atualizam catálogo/hooks; instala/desinstala de fato é `claude plugin install`/`uninstall`. [relatado]
+- ⚠️ **Editar `_shared/collect_engine.py` sem rodar `scripts/sync-shared.sh`** deixa as cópias vendoradas defasadas (handoff + project-doc) — `--check` falha em drift.
+- ⚠️ **As 2 cópias de `finding_id` (`collect_engine.py:532` e `journal.py:56`) DEVEM ser idênticas** — divergência re-chaveia o journal inteiro.
+- ⚠️ **Estado mutável NUNCA dentro do plugin** (`${CLAUDE_PLUGIN_ROOT}` é reescrito a cada bump) — vai em `~/.claude/…` (`scope-cop.sh:13-14`).
+- ⚠️ **Plugins NÃO carregam env vars** — qualquer var necessária (`CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1`, `CLAUDE_CONTEXT_THRESHOLD`) entra via a skill `setup` do plugin (bootstrap/context-guard/guardrails). É a razão de existir das skills `:setup`. (context-guard.sh:5, guardrails/skills/setup/SKILL.md:12)
+- ⚠️ **`marketplace.json` é reformatado por linter + converge todas as frentes** — em commit cirúrgico, isole com `git stash push -- .claude-plugin/marketplace.json`. [relatado]
+- ⚠️ **`rm -rf` é bloqueado por permissão** (`Bash(rm -rf*)` no `deny` do `~/.claude/settings.json:161`), valendo tanto em `~/.claude/` quanto no repo — use remoção alvo (`rm <arquivo>`), nunca recursiva-forçada.
+- ⚠️ **last_commit órfão no ledger** (rebase/amend/reset) → `journal.py:727` trata como cold-start, senão `git log orfão..HEAD` sai 128 e perde TODOS os commits do range (`_commit_reachable:563-566`).
+- ⚠️ **`self_path_match`: basename puro (sem `/`) só marca stale se EXATAMENTE 1 arquivo mudado tem aquele nome** (`journal.py:787-804`) — evita `config.json`/`index.ts` marcarem homônimos no monorepo.
+- ⚠️ **apply falhou → snapshot/push PULADO** (`session-sync.sh:178-187`): senão um install que falhou numa máquina vira "nova verdade" e desinstala o plugin de TODAS. Nunca propague estado degradado.
+- ⚠️ **context-guard 80% assume modelo ~200k** (ex. Opus): feito pra modelos de contexto baixo. Threshold via `CLAUDE_CONTEXT_THRESHOLD` (`context-guard.sh:5`).
+- ⚠️ **scope-cop precisa de `claude` no PATH** (é o juiz) — sem ele, fail-open silencioso (trava destravada). Pra desligar: `~/.claude/guardrails/scope-cop.mode` = `off`.
+- ⚠️ **ship: `jq` resolvido via PATH** (commit e36fff61) — path Homebrew fixo deixava o gate fail-open silencioso fora deste mac.

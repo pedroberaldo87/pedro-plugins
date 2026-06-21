@@ -529,190 +529,10 @@
       "norm_label": "6be279d9-da87-447f-bc32-d76265a314cd"
     },
     {
-      "label": "05bb7152-4d6d-4044-810a-dcb48dbe498e",
-      "file_type": "code",
-      "source_file": ".claude/.project-doc/ledger.json",
-      "source_location": "L29",
-      "_origin": "ast",
-      "id": "project_doc_ledger_mined_sessions_05bb7152_4d6d_4044_810a_dcb48dbe498e",
-      "community": 233,
-      "norm_label": "05bb7152-4d6d-4044-810a-dcb48dbe498e"
-    },
-    {
-      "label": "28ce037d-d945-43c4-be7a-34c1e3360a96",
-      "file_type": "code",
-      "source_file": ".claude/.project-doc/ledger.json",
-      "source_location": "L30",
-      "_origin": "ast",
-      "id": "project_doc_ledger_mined_sessions_28ce037d_d945_43c4_be7a_34c1e3360a96",
-      "community": 233,
-      "norm_label": "28ce037d-d945-43c4-be7a-34c1e3360a96"
-    },
-    {
-      "label": "2c8b1dd7-6552-4417-bbc7-e1089e1b70f9",
-      "file_type": "code",
-      "source_file": ".claude/.project-doc/ledger.json",
-      "source_location": "L31",
-      "_origin": "ast",
-      "id": "project_doc_ledger_mined_sessions_2c8b1dd7_6552_4417_bbc7_e1089e1b70f9",
-      "community": 233,
-      "norm_label": "2c8b1dd7-6552-4417-bbc7-e1089e1b70f9"
-    },
-    {
-      "label": "464a2071-758b-461a-a1ac-7a74c35849dd",
-      "file_type": "code",
-      "source_file": ".claude/.project-doc/ledger.json",
-      "source_location": "L32",
-      "_origin": "ast",
-      "id": "project_doc_ledger_mined_sessions_464a2071_758b_461a_a1ac_7a74c35849dd",
-      "community": 233,
-      "norm_label": "464a2071-758b-461a-a1ac-7a74c35849dd"
-    },
-    {
-      "label": "4d447d32-44b3-4af6-947f-5a55d5ffbd74",
-      "file_type": "code",
-      "source_file": ".claude/.project-doc/ledger.json",
-      "source_location": "L33",
-      "_origin": "ast",
-      "id": "project_doc_ledger_mined_sessions_4d447d32_44b3_4af6_947f_5a55d5ffbd74",
-      "community": 233,
-      "norm_label": "4d447d32-44b3-4af6-947f-5a55d5ffbd74"
-    },
-    {
-      "label": "54adb04c-589e-4248-b4da-476b073623e3",
-      "file_type": "code",
-      "source_file": ".claude/.project-doc/ledger.json",
-      "source_location": "L34",
-      "_origin": "ast",
-      "id": "project_doc_ledger_mined_sessions_54adb04c_589e_4248_b4da_476b073623e3",
-      "community": 233,
-      "norm_label": "54adb04c-589e-4248-b4da-476b073623e3"
-    },
-    {
-      "label": "599ab805-d053-4216-869d-4c474cd7bebb",
-      "file_type": "code",
-      "source_file": ".claude/.project-doc/ledger.json",
-      "source_location": "L35",
-      "_origin": "ast",
-      "id": "project_doc_ledger_mined_sessions_599ab805_d053_4216_869d_4c474cd7bebb",
-      "community": 233,
-      "norm_label": "599ab805-d053-4216-869d-4c474cd7bebb"
-    },
-    {
-      "label": "5fda1910-5082-46cf-8dc3-1ec35aee33a7",
-      "file_type": "code",
-      "source_file": ".claude/.project-doc/ledger.json",
-      "source_location": "L36",
-      "_origin": "ast",
-      "id": "project_doc_ledger_mined_sessions_5fda1910_5082_46cf_8dc3_1ec35aee33a7",
-      "community": 233,
-      "norm_label": "5fda1910-5082-46cf-8dc3-1ec35aee33a7"
-    },
-    {
-      "label": "661a8e58-4038-41ac-85a8-75048e2d59c2",
-      "file_type": "code",
-      "source_file": ".claude/.project-doc/ledger.json",
-      "source_location": "L37",
-      "_origin": "ast",
-      "id": "project_doc_ledger_mined_sessions_661a8e58_4038_41ac_85a8_75048e2d59c2",
-      "community": 233,
-      "norm_label": "661a8e58-4038-41ac-85a8-75048e2d59c2"
-    },
-    {
-      "label": "8d18e087-e303-49a0-8863-6a7d4989c491",
-      "file_type": "code",
-      "source_file": ".claude/.project-doc/ledger.json",
-      "source_location": "L38",
-      "_origin": "ast",
-      "id": "project_doc_ledger_mined_sessions_8d18e087_e303_49a0_8863_6a7d4989c491",
-      "community": 233,
-      "norm_label": "8d18e087-e303-49a0-8863-6a7d4989c491"
-    },
-    {
-      "label": "a3f06807-6e92-41fa-b514-72cb22194a22",
-      "file_type": "code",
-      "source_file": ".claude/.project-doc/ledger.json",
-      "source_location": "L39",
-      "_origin": "ast",
-      "id": "project_doc_ledger_mined_sessions_a3f06807_6e92_41fa_b514_72cb22194a22",
-      "community": 233,
-      "norm_label": "a3f06807-6e92-41fa-b514-72cb22194a22"
-    },
-    {
-      "label": "b785a252-7ed3-4d2f-8a62-d03408c6b2cd",
-      "file_type": "code",
-      "source_file": ".claude/.project-doc/ledger.json",
-      "source_location": "L40",
-      "_origin": "ast",
-      "id": "project_doc_ledger_mined_sessions_b785a252_7ed3_4d2f_8a62_d03408c6b2cd",
-      "community": 233,
-      "norm_label": "b785a252-7ed3-4d2f-8a62-d03408c6b2cd"
-    },
-    {
-      "label": "c4adb43b-0e1b-4fa4-ae83-14761ae7ebe8",
-      "file_type": "code",
-      "source_file": ".claude/.project-doc/ledger.json",
-      "source_location": "L41",
-      "_origin": "ast",
-      "id": "project_doc_ledger_mined_sessions_c4adb43b_0e1b_4fa4_ae83_14761ae7ebe8",
-      "community": 233,
-      "norm_label": "c4adb43b-0e1b-4fa4-ae83-14761ae7ebe8"
-    },
-    {
-      "label": "d36339d8-ce10-48d8-ac0f-2e019ecc51ad",
-      "file_type": "code",
-      "source_file": ".claude/.project-doc/ledger.json",
-      "source_location": "L42",
-      "_origin": "ast",
-      "id": "project_doc_ledger_mined_sessions_d36339d8_ce10_48d8_ac0f_2e019ecc51ad",
-      "community": 233,
-      "norm_label": "d36339d8-ce10-48d8-ac0f-2e019ecc51ad"
-    },
-    {
-      "label": "e991b8fa-ba71-4755-b5f3-4bcf251ef655",
-      "file_type": "code",
-      "source_file": ".claude/.project-doc/ledger.json",
-      "source_location": "L43",
-      "_origin": "ast",
-      "id": "project_doc_ledger_mined_sessions_e991b8fa_ba71_4755_b5f3_4bcf251ef655",
-      "community": 233,
-      "norm_label": "e991b8fa-ba71-4755-b5f3-4bcf251ef655"
-    },
-    {
-      "label": "ea05ffe4-f18c-4679-b7dd-d31d45f86ef5",
-      "file_type": "code",
-      "source_file": ".claude/.project-doc/ledger.json",
-      "source_location": "L44",
-      "_origin": "ast",
-      "id": "project_doc_ledger_mined_sessions_ea05ffe4_f18c_4679_b7dd_d31d45f86ef5",
-      "community": 233,
-      "norm_label": "ea05ffe4-f18c-4679-b7dd-d31d45f86ef5"
-    },
-    {
-      "label": "ee3b27e9-ea5f-4b19-bdc7-e0f5b196fd27",
-      "file_type": "code",
-      "source_file": ".claude/.project-doc/ledger.json",
-      "source_location": "L45",
-      "_origin": "ast",
-      "id": "project_doc_ledger_mined_sessions_ee3b27e9_ea5f_4b19_bdc7_e0f5b196fd27",
-      "community": 233,
-      "norm_label": "ee3b27e9-ea5f-4b19-bdc7-e0f5b196fd27"
-    },
-    {
-      "label": "f7ba1ed7-f3bf-4cf0-9775-3d51b39481b4",
-      "file_type": "code",
-      "source_file": ".claude/.project-doc/ledger.json",
-      "source_location": "L46",
-      "_origin": "ast",
-      "id": "project_doc_ledger_mined_sessions_f7ba1ed7_f3bf_4cf0_9775_3d51b39481b4",
-      "community": 233,
-      "norm_label": "f7ba1ed7-f3bf-4cf0-9775-3d51b39481b4"
-    },
-    {
       "label": "last_commit",
       "file_type": "code",
       "source_file": ".claude/.project-doc/ledger.json",
-      "source_location": "L48",
+      "source_location": "L30",
       "_origin": "ast",
       "id": "project_doc_ledger_last_commit",
       "community": 233,
@@ -722,7 +542,7 @@
       "label": "distilled_hashes",
       "file_type": "code",
       "source_file": ".claude/.project-doc/ledger.json",
-      "source_location": "L49",
+      "source_location": "L31",
       "_origin": "ast",
       "id": "project_doc_ledger_distilled_hashes",
       "community": 233,
@@ -11545,7 +11365,7 @@
       "source_location": "L1401",
       "_origin": "ast",
       "id": "ata_log_1203e8d2_3ba6_4d58_ab35_f8ad34e0c174_refinamentos_p\u00f3s_grill_v1_1_supersedem_o_que_conflitar_abaixo",
-      "community": 136,
+      "community": 150,
       "norm_label": "refinamentos pos-grill (v1.1) \u2014 supersedem o que conflitar abaixo"
     },
     {
@@ -11555,7 +11375,7 @@
       "source_location": "L1406",
       "_origin": "ast",
       "id": "ata_log_1203e8d2_3ba6_4d58_ab35_f8ad34e0c174_r1_arquitetura_2_opus_sonnet_sai_o_motor_de_6_lentes_voltagent",
-      "community": 136,
+      "community": 150,
       "norm_label": "r1 \u00b7 arquitetura: 2 opus + sonnet (sai o motor de 6 lentes voltagent)"
     },
     {
@@ -11565,7 +11385,7 @@
       "source_location": "L1419",
       "_origin": "ast",
       "id": "ata_log_1203e8d2_3ba6_4d58_ab35_f8ad34e0c174_r2_rubrica_de_severidade_de_3_faixas_escrita_n\u00e3o_impl\u00edcita_\u00e1rbitro_\u00fanico",
-      "community": 136,
+      "community": 150,
       "norm_label": "r2 \u00b7 rubrica de severidade de 3 faixas (escrita, nao implicita) + arbitro unico"
     },
     {
@@ -11575,7 +11395,7 @@
       "source_location": "L1425",
       "_origin": "ast",
       "id": "ata_log_1203e8d2_3ba6_4d58_ab35_f8ad34e0c174_r3_config_em_3_camadas_versionada",
-      "community": 136,
+      "community": 150,
       "norm_label": "r3 \u00b7 config em 3 camadas (versionada)"
     },
     {
@@ -11585,7 +11405,7 @@
       "source_location": "L1430",
       "_origin": "ast",
       "id": "ata_log_1203e8d2_3ba6_4d58_ab35_f8ad34e0c174_r4_drift_restaura_pro_plano_sinaliza_como_candidato_a_mudan\u00e7a_de_plano",
-      "community": 136,
+      "community": 150,
       "norm_label": "r4 \u00b7 drift: restaura pro plano + sinaliza como candidato a mudanca de plano"
     },
     {
@@ -11595,7 +11415,7 @@
       "source_location": "L1434",
       "_origin": "ast",
       "id": "ata_log_1203e8d2_3ba6_4d58_ab35_f8ad34e0c174_r5_vale_a_pena_retornos_decrescentes_risco_de_regress\u00e3o_n\u00e3o_tokens",
-      "community": 136,
+      "community": 150,
       "norm_label": "r5 \u00b7 \"vale a pena\" = retornos decrescentes + risco de regressao (nao tokens)"
     },
     {
@@ -11605,7 +11425,7 @@
       "source_location": "L1439",
       "_origin": "ast",
       "id": "ata_log_1203e8d2_3ba6_4d58_ab35_f8ad34e0c174_r6_accepted_limits_proposto_nunca_enterrado_sozinho",
-      "community": 136,
+      "community": 150,
       "norm_label": "r6 \u00b7 accepted-limits: proposto, nunca enterrado sozinho"
     },
     {
@@ -11615,7 +11435,7 @@
       "source_location": "L1444",
       "_origin": "ast",
       "id": "ata_log_1203e8d2_3ba6_4d58_ab35_f8ad34e0c174_arquivos_do_refinamento",
-      "community": 136,
+      "community": 150,
       "norm_label": "arquivos do refinamento"
     },
     {
@@ -11625,7 +11445,7 @@
       "source_location": "L1454",
       "_origin": "ast",
       "id": "ata_log_1203e8d2_3ba6_4d58_ab35_f8ad34e0c174_verifica\u00e7\u00e3o_do_refinamento",
-      "community": 136,
+      "community": 150,
       "norm_label": "verificacao do refinamento"
     },
     {
@@ -11735,7 +11555,7 @@
       "source_location": "L1625",
       "_origin": "ast",
       "id": "ata_log_1203e8d2_3ba6_4d58_ab35_f8ad34e0c174_sum\u00e1rio_executivo_1625",
-      "community": 136,
+      "community": 145,
       "norm_label": "sumario executivo"
     },
     {
@@ -11745,7 +11565,7 @@
       "source_location": "L1627",
       "_origin": "ast",
       "id": "ata_log_1203e8d2_3ba6_4d58_ab35_f8ad34e0c174_esclarecimentos_d\u00favidas_que_voc\u00ea_levantou_no_planejamento_1627",
-      "community": 136,
+      "community": 145,
       "norm_label": "esclarecimentos (duvidas que voce levantou no planejamento)"
     },
     {
@@ -11755,7 +11575,7 @@
       "source_location": "L1634",
       "_origin": "ast",
       "id": "ata_log_1203e8d2_3ba6_4d58_ab35_f8ad34e0c174_1_uma_skill_qa_loop_que_substitui_qa_rev6_iterate_1634",
-      "community": 136,
+      "community": 145,
       "norm_label": "1 \u00b7 uma skill `/qa-loop` que substitui /qa + /rev6 + /iterate"
     },
     {
@@ -11765,7 +11585,7 @@
       "source_location": "L1641",
       "_origin": "ast",
       "id": "ata_log_1203e8d2_3ba6_4d58_ab35_f8ad34e0c174_2_ancorado_no_plano_fronteira_qa_re_planejamento_3_buckets_1641",
-      "community": 136,
+      "community": 145,
       "norm_label": "2 \u00b7 ancorado no plano + fronteira qa = re-planejamento (3 buckets)"
     },
     {
@@ -11775,7 +11595,7 @@
       "source_location": "L1648",
       "_origin": "ast",
       "id": "ata_log_1203e8d2_3ba6_4d58_ab35_f8ad34e0c174_3_loop_com_planejamento_formal_sua_vers\u00e3o_1648",
-      "community": 136,
+      "community": 145,
       "norm_label": "3 \u00b7 loop com planejamento formal (sua versao)"
     },
     {
@@ -11785,7 +11605,7 @@
       "source_location": "L1655",
       "_origin": "ast",
       "id": "ata_log_1203e8d2_3ba6_4d58_ab35_f8ad34e0c174_4_relat\u00f3rio_journaling_pra_avaliar_o_no_ideal_de_loops_1655",
-      "community": 136,
+      "community": 145,
       "norm_label": "4 \u00b7 relatorio + journaling pra avaliar o no ideal de loops"
     },
     {
@@ -11795,7 +11615,7 @@
       "source_location": "L1662",
       "_origin": "ast",
       "id": "ata_log_1203e8d2_3ba6_4d58_ab35_f8ad34e0c174_5_integra\u00e7\u00e3o_com_sovai_verifica\u00e7\u00e3o_antes_de_cravar_1662",
-      "community": 136,
+      "community": 145,
       "norm_label": "5 \u00b7 integracao com /sovai + verificacao antes de cravar"
     },
     {
@@ -11805,7 +11625,7 @@
       "source_location": "L1668",
       "_origin": "ast",
       "id": "ata_log_1203e8d2_3ba6_4d58_ab35_f8ad34e0c174_x87_2026_06_20t14_22_30_305z_discuss\u00e3o_assistant",
-      "community": 136,
+      "community": 145,
       "norm_label": "[x87] 2026-06-20t14:22:30.305z \u00b7 discussao (assistant)"
     },
     {
@@ -11815,7 +11635,7 @@
       "source_location": "L1672",
       "_origin": "ast",
       "id": "ata_log_1203e8d2_3ba6_4d58_ab35_f8ad34e0c174_x88_2026_06_20t14_25_05_098z_discuss\u00e3o_assistant",
-      "community": 136,
+      "community": 145,
       "norm_label": "[x88] 2026-06-20t14:25:05.098z \u00b7 discussao (assistant)"
     },
     {
@@ -11825,7 +11645,7 @@
       "source_location": "L1676",
       "_origin": "ast",
       "id": "ata_log_1203e8d2_3ba6_4d58_ab35_f8ad34e0c174_p4_2026_06_20t14_25_10_521z_plano_exitplanmode",
-      "community": 136,
+      "community": 145,
       "norm_label": "[p4] 2026-06-20t14:25:10.521z \u00b7 plano (exitplanmode)"
     },
     {
@@ -12255,7 +12075,7 @@
       "source_location": "L2059",
       "_origin": "ast",
       "id": "ata_log_1203e8d2_3ba6_4d58_ab35_f8ad34e0c174_refinamentos_p\u00f3s_grill_v1_1_supersedem_o_que_conflitar_abaixo_2059",
-      "community": 237,
+      "community": 106,
       "norm_label": "refinamentos pos-grill (v1.1) \u2014 supersedem o que conflitar abaixo"
     },
     {
@@ -12265,7 +12085,7 @@
       "source_location": "L2064",
       "_origin": "ast",
       "id": "ata_log_1203e8d2_3ba6_4d58_ab35_f8ad34e0c174_r1_arquitetura_2_opus_sonnet_sai_o_motor_de_6_lentes_voltagent_2064",
-      "community": 237,
+      "community": 106,
       "norm_label": "r1 \u00b7 arquitetura: 2 opus + sonnet (sai o motor de 6 lentes voltagent)"
     },
     {
@@ -12275,7 +12095,7 @@
       "source_location": "L2077",
       "_origin": "ast",
       "id": "ata_log_1203e8d2_3ba6_4d58_ab35_f8ad34e0c174_r2_rubrica_de_severidade_de_3_faixas_escrita_n\u00e3o_impl\u00edcita_\u00e1rbitro_\u00fanico_2077",
-      "community": 237,
+      "community": 106,
       "norm_label": "r2 \u00b7 rubrica de severidade de 3 faixas (escrita, nao implicita) + arbitro unico"
     },
     {
@@ -12285,7 +12105,7 @@
       "source_location": "L2083",
       "_origin": "ast",
       "id": "ata_log_1203e8d2_3ba6_4d58_ab35_f8ad34e0c174_r3_config_em_3_camadas_versionada_2083",
-      "community": 237,
+      "community": 106,
       "norm_label": "r3 \u00b7 config em 3 camadas (versionada)"
     },
     {
@@ -12295,7 +12115,7 @@
       "source_location": "L2088",
       "_origin": "ast",
       "id": "ata_log_1203e8d2_3ba6_4d58_ab35_f8ad34e0c174_r4_drift_restaura_pro_plano_sinaliza_como_candidato_a_mudan\u00e7a_de_plano_2088",
-      "community": 237,
+      "community": 106,
       "norm_label": "r4 \u00b7 drift: restaura pro plano + sinaliza como candidato a mudanca de plano"
     },
     {
@@ -12305,7 +12125,7 @@
       "source_location": "L2092",
       "_origin": "ast",
       "id": "ata_log_1203e8d2_3ba6_4d58_ab35_f8ad34e0c174_r5_vale_a_pena_retornos_decrescentes_risco_de_regress\u00e3o_n\u00e3o_tokens_2092",
-      "community": 237,
+      "community": 106,
       "norm_label": "r5 \u00b7 \"vale a pena\" = retornos decrescentes + risco de regressao (nao tokens)"
     },
     {
@@ -12315,7 +12135,7 @@
       "source_location": "L2097",
       "_origin": "ast",
       "id": "ata_log_1203e8d2_3ba6_4d58_ab35_f8ad34e0c174_r6_accepted_limits_proposto_nunca_enterrado_sozinho_2097",
-      "community": 237,
+      "community": 106,
       "norm_label": "r6 \u00b7 accepted-limits: proposto, nunca enterrado sozinho"
     },
     {
@@ -12325,7 +12145,7 @@
       "source_location": "L2102",
       "_origin": "ast",
       "id": "ata_log_1203e8d2_3ba6_4d58_ab35_f8ad34e0c174_r7_relat\u00f3rio_humano_html_journal_ag\u00eantico_pra_futuro_eu",
-      "community": 237,
+      "community": 106,
       "norm_label": "r7 \u00b7 relatorio humano (html) = journal agentico (pra futuro-eu)"
     },
     {
@@ -12335,7 +12155,7 @@
       "source_location": "L2109",
       "_origin": "ast",
       "id": "ata_log_1203e8d2_3ba6_4d58_ab35_f8ad34e0c174_arquivos_do_refinamento_2109",
-      "community": 237,
+      "community": 106,
       "norm_label": "arquivos do refinamento"
     },
     {
@@ -12345,7 +12165,7 @@
       "source_location": "L2122",
       "_origin": "ast",
       "id": "ata_log_1203e8d2_3ba6_4d58_ab35_f8ad34e0c174_verifica\u00e7\u00e3o_do_refinamento_2122",
-      "community": 237,
+      "community": 106,
       "norm_label": "verificacao do refinamento"
     },
     {
@@ -12395,7 +12215,7 @@
       "source_location": "L2219",
       "_origin": "ast",
       "id": "ata_log_1203e8d2_3ba6_4d58_ab35_f8ad34e0c174_relat\u00f3rio_humano_journal_ag\u00eantico_dois_artefatos_dois_p\u00fablicos_r7",
-      "community": 241,
+      "community": 106,
       "norm_label": "relatorio (humano) = journal (agentico) \u2014 dois artefatos, dois publicos [r7]"
     },
     {
@@ -12405,7 +12225,7 @@
       "source_location": "L2223",
       "_origin": "ast",
       "id": "ata_log_1203e8d2_3ba6_4d58_ab35_f8ad34e0c174_a_relat\u00f3rio_humano_html_estilo_visual_conciso_objetivo_visual",
-      "community": 241,
+      "community": 106,
       "norm_label": "a) relatorio humano (html, estilo /visual) \u2014 conciso, objetivo, visual"
     },
     {
@@ -12415,7 +12235,7 @@
       "source_location": "L2234",
       "_origin": "ast",
       "id": "ata_log_1203e8d2_3ba6_4d58_ab35_f8ad34e0c174_b_journal_ag\u00eantico_markdown_verborr\u00e1gico_pra_futuro_eu_linguagem_ag\u00eantica_\u00e0_exaust\u00e3o",
-      "community": 241,
+      "community": 106,
       "norm_label": "b) journal agentico (markdown verborragico, pra \"futuro-eu\") \u2014 linguagem agentica, a exaustao"
     },
     {
@@ -12425,7 +12245,7 @@
       "source_location": "L2250",
       "_origin": "ast",
       "id": "ata_log_1203e8d2_3ba6_4d58_ab35_f8ad34e0c174_o_loop_fecha_a_skill_l\u00ea_o_journal_no_in\u00edcio_de_cada_sess\u00e3o",
-      "community": 241,
+      "community": 106,
       "norm_label": "o loop fecha: a skill le o journal no inicio de cada sessao"
     },
     {
@@ -12435,7 +12255,7 @@
       "source_location": "L2256",
       "_origin": "ast",
       "id": "ata_log_1203e8d2_3ba6_4d58_ab35_f8ad34e0c174_onde_mora_cada_coisa",
-      "community": 241,
+      "community": 106,
       "norm_label": "onde mora cada coisa"
     },
     {
@@ -12495,7 +12315,7 @@
       "source_location": "L2320",
       "_origin": "ast",
       "id": "ata_log_1203e8d2_3ba6_4d58_ab35_f8ad34e0c174_sum\u00e1rio_executivo_2320",
-      "community": 236,
+      "community": 106,
       "norm_label": "sumario executivo"
     },
     {
@@ -12505,7 +12325,7 @@
       "source_location": "L2326",
       "_origin": "ast",
       "id": "ata_log_1203e8d2_3ba6_4d58_ab35_f8ad34e0c174_esclarecimentos_suas_d\u00favidas_resolvidas_no_grill",
-      "community": 236,
+      "community": 106,
       "norm_label": "esclarecimentos (suas duvidas, resolvidas no grill)"
     },
     {
@@ -12515,7 +12335,7 @@
       "source_location": "L2335",
       "_origin": "ast",
       "id": "ata_log_1203e8d2_3ba6_4d58_ab35_f8ad34e0c174_1_uma_skill_qa_loop_2_opus_sonnet_que_substitui_qa_rev6_iterate",
-      "community": 236,
+      "community": 106,
       "norm_label": "1 \u00b7 uma skill `/qa-loop` (2 opus + sonnet) que substitui /qa + /rev6 + /iterate"
     },
     {
@@ -12525,7 +12345,7 @@
       "source_location": "L2342",
       "_origin": "ast",
       "id": "ata_log_1203e8d2_3ba6_4d58_ab35_f8ad34e0c174_2_ancorado_no_plano_fronteira_qa_re_planejamento_3_buckets_feito",
-      "community": 236,
+      "community": 106,
       "norm_label": "2 \u00b7 ancorado no plano + fronteira qa = re-planejamento (3 buckets) **[feito]**"
     },
     {
@@ -12535,7 +12355,7 @@
       "source_location": "L2349",
       "_origin": "ast",
       "id": "ata_log_1203e8d2_3ba6_4d58_ab35_f8ad34e0c174_3_parada_por_retornos_decrescentes_risco_de_regress\u00e3o_n\u00e3o_custo_refinamento",
-      "community": 236,
+      "community": 106,
       "norm_label": "3 \u00b7 parada por retornos decrescentes + risco de regressao (nao custo) **[refinamento]**"
     },
     {
@@ -12545,7 +12365,7 @@
       "source_location": "L2356",
       "_origin": "ast",
       "id": "ata_log_1203e8d2_3ba6_4d58_ab35_f8ad34e0c174_4_relat\u00f3rio_humano_html_journal_ag\u00eantico_r7_refinamento",
-      "community": 236,
+      "community": 106,
       "norm_label": "4 \u00b7 relatorio humano (html) = journal agentico (r7) **[refinamento]**"
     },
     {
@@ -12555,7 +12375,7 @@
       "source_location": "L2363",
       "_origin": "ast",
       "id": "ata_log_1203e8d2_3ba6_4d58_ab35_f8ad34e0c174_5_integra\u00e7\u00e3o_sovai_headless_verifica\u00e7\u00e3o_sovai_feito_verifica\u00e7\u00e3o_2_opus_pendente",
-      "community": 236,
+      "community": 106,
       "norm_label": "5 \u00b7 integracao /sovai (headless) + verificacao **[/sovai feito; verificacao 2-opus pendente]**"
     },
     {
@@ -12565,7 +12385,7 @@
       "source_location": "L2369",
       "_origin": "ast",
       "id": "ata_log_1203e8d2_3ba6_4d58_ab35_f8ad34e0c174_d14_2026_06_20t14_38_42_640z_direcionamento_do_pedro",
-      "community": 236,
+      "community": 106,
       "norm_label": "[d14] 2026-06-20t14:38:42.640z \u00b7 direcionamento do pedro"
     },
     {
@@ -12575,7 +12395,7 @@
       "source_location": "L2373",
       "_origin": "ast",
       "id": "ata_log_1203e8d2_3ba6_4d58_ab35_f8ad34e0c174_x96_2026_06_20t14_39_59_777z_discuss\u00e3o_assistant",
-      "community": 236,
+      "community": 106,
       "norm_label": "[x96] 2026-06-20t14:39:59.777z \u00b7 discussao (assistant)"
     },
     {
@@ -12585,7 +12405,7 @@
       "source_location": "L2379",
       "_origin": "ast",
       "id": "ata_log_1203e8d2_3ba6_4d58_ab35_f8ad34e0c174_x97_2026_06_20t14_40_23_519z_discuss\u00e3o_assistant",
-      "community": 236,
+      "community": 106,
       "norm_label": "[x97] 2026-06-20t14:40:23.519z \u00b7 discussao (assistant)"
     },
     {
@@ -12595,7 +12415,7 @@
       "source_location": "L2383",
       "_origin": "ast",
       "id": "ata_log_1203e8d2_3ba6_4d58_ab35_f8ad34e0c174_x98_2026_06_20t14_40_37_449z_discuss\u00e3o_assistant",
-      "community": 236,
+      "community": 106,
       "norm_label": "[x98] 2026-06-20t14:40:37.449z \u00b7 discussao (assistant)"
     },
     {
@@ -21265,7 +21085,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "ata_log_8fda82c3_6298_4aeb_8f0f_86972dab5a2c",
-      "community": 231,
+      "community": 225,
       "norm_label": "log-8fda82c3-6298-4aeb-8f0f-86972dab5a2c.md"
     },
     {
@@ -21735,7 +21555,7 @@
       "source_location": "L331",
       "_origin": "ast",
       "id": "ata_log_8fda82c3_6298_4aeb_8f0f_86972dab5a2c_project_doc_v3_1_modo_workflow_checagem_ativa_melhor_dos_dois_mundos",
-      "community": 150,
+      "community": 225,
       "norm_label": "project-doc v3.1 \u2014 modo workflow + checagem ativa + melhor-dos-dois-mundos"
     },
     {
@@ -21745,7 +21565,7 @@
       "source_location": "L333",
       "_origin": "ast",
       "id": "ata_log_8fda82c3_6298_4aeb_8f0f_86972dab5a2c_context",
-      "community": 150,
+      "community": 225,
       "norm_label": "context"
     },
     {
@@ -21755,7 +21575,7 @@
       "source_location": "L345",
       "_origin": "ast",
       "id": "ata_log_8fda82c3_6298_4aeb_8f0f_86972dab5a2c_decis\u00f5es_ratificadas",
-      "community": 150,
+      "community": 225,
       "norm_label": "decisoes (ratificadas)"
     },
     {
@@ -21765,7 +21585,7 @@
       "source_location": "L353",
       "_origin": "ast",
       "id": "ata_log_8fda82c3_6298_4aeb_8f0f_86972dab5a2c_arquitetura",
-      "community": 150,
+      "community": 225,
       "norm_label": "arquitetura"
     },
     {
@@ -21775,7 +21595,7 @@
       "source_location": "L355",
       "_origin": "ast",
       "id": "ata_log_8fda82c3_6298_4aeb_8f0f_86972dab5a2c_a_fronteira_de_modos",
-      "community": 150,
+      "community": 225,
       "norm_label": "a. fronteira de modos"
     },
     {
@@ -21785,7 +21605,7 @@
       "source_location": "L365",
       "_origin": "ast",
       "id": "ata_log_8fda82c3_6298_4aeb_8f0f_86972dab5a2c_b_checagem_ativa_do_estado_da_doc_passo_0_1_novo",
-      "community": 150,
+      "community": 225,
       "norm_label": "b. checagem ativa do estado da doc (passo 0.1 \u2014 novo)"
     },
     {
@@ -21795,7 +21615,7 @@
       "source_location": "L378",
       "_origin": "ast",
       "id": "ata_log_8fda82c3_6298_4aeb_8f0f_86972dab5a2c_c_o_fluxo_full_via_workflow",
-      "community": 150,
+      "community": 225,
       "norm_label": "c. o fluxo full via workflow"
     },
     {
@@ -21805,7 +21625,7 @@
       "source_location": "L398",
       "_origin": "ast",
       "id": "ata_log_8fda82c3_6298_4aeb_8f0f_86972dab5a2c_d_pe\u00e7a_nova_no_motor_\u00fanica_adi\u00e7\u00e3o_ao_python",
-      "community": 150,
+      "community": 225,
       "norm_label": "d. peca nova no motor (unica adicao ao python)"
     },
     {
@@ -21815,7 +21635,7 @@
       "source_location": "L402",
       "_origin": "ast",
       "id": "ata_log_8fda82c3_6298_4aeb_8f0f_86972dab5a2c_e_schemas_campos_pros_gates_lerem_n\u00e3o_texto_solto",
-      "community": 150,
+      "community": 225,
       "norm_label": "e. schemas (campos pros gates lerem, nao texto solto)"
     },
     {
@@ -21825,7 +21645,7 @@
       "source_location": "L412",
       "_origin": "ast",
       "id": "ata_log_8fda82c3_6298_4aeb_8f0f_86972dab5a2c_arquivos_a_tocar",
-      "community": 150,
+      "community": 225,
       "norm_label": "arquivos a tocar"
     },
     {
@@ -21835,7 +21655,7 @@
       "source_location": "L423",
       "_origin": "ast",
       "id": "ata_log_8fda82c3_6298_4aeb_8f0f_86972dab5a2c_verifica\u00e7\u00e3o_e2e",
-      "community": 150,
+      "community": 225,
       "norm_label": "verificacao e2e"
     },
     {
@@ -21845,7 +21665,7 @@
       "source_location": "L433",
       "_origin": "ast",
       "id": "ata_log_8fda82c3_6298_4aeb_8f0f_86972dab5a2c_riscos",
-      "community": 150,
+      "community": 225,
       "norm_label": "riscos"
     },
     {
@@ -21855,7 +21675,7 @@
       "source_location": "L442",
       "_origin": "ast",
       "id": "ata_log_8fda82c3_6298_4aeb_8f0f_86972dab5a2c_sum\u00e1rio_executivo",
-      "community": 145,
+      "community": 225,
       "norm_label": "sumario executivo"
     },
     {
@@ -21865,7 +21685,7 @@
       "source_location": "L444",
       "_origin": "ast",
       "id": "ata_log_8fda82c3_6298_4aeb_8f0f_86972dab5a2c_esclarecimentos",
-      "community": 145,
+      "community": 225,
       "norm_label": "\u26a0\ufe0f esclarecimentos"
     },
     {
@@ -21875,7 +21695,7 @@
       "source_location": "L450",
       "_origin": "ast",
       "id": "ata_log_8fda82c3_6298_4aeb_8f0f_86972dab5a2c_1_checagem_ativa_doc_fora_do_padr\u00e3o_for\u00e7a_a_sequ\u00eancia_full",
-      "community": 145,
+      "community": 225,
       "norm_label": "1 \u00b7 checagem ativa: doc fora do padrao forca a sequencia full"
     },
     {
@@ -21885,7 +21705,7 @@
       "source_location": "L457",
       "_origin": "ast",
       "id": "ata_log_8fda82c3_6298_4aeb_8f0f_86972dab5a2c_2_full_vira_workflow_fan_out_por_concern_mata_o_medo_de_contexto",
-      "community": 145,
+      "community": 225,
       "norm_label": "2 \u00b7 full vira workflow: fan-out por concern mata o \"medo de contexto\""
     },
     {
@@ -21895,7 +21715,7 @@
       "source_location": "L464",
       "_origin": "ast",
       "id": "ata_log_8fda82c3_6298_4aeb_8f0f_86972dab5a2c_3_melhor_dos_dois_mundos_backup_minera_novo_garimpa_nuance_merge_autom\u00e1tico",
-      "community": 145,
+      "community": 225,
       "norm_label": "3 \u00b7 melhor-dos-dois-mundos: backup \u2192 minera novo \u2192 garimpa nuance \u2192 merge automatico"
     },
     {
@@ -21905,7 +21725,7 @@
       "source_location": "L471",
       "_origin": "ast",
       "id": "ata_log_8fda82c3_6298_4aeb_8f0f_86972dab5a2c_4_release_bump_vendoring_sync_de_cache_testes",
-      "community": 145,
+      "community": 225,
       "norm_label": "4 \u00b7 release: bump, vendoring, sync de cache, testes"
     },
     {
@@ -21915,7 +21735,7 @@
       "source_location": "L477",
       "_origin": "ast",
       "id": "ata_log_8fda82c3_6298_4aeb_8f0f_86972dab5a2c_x27_2026_06_20t22_11_37_313z_discuss\u00e3o_assistant",
-      "community": 145,
+      "community": 225,
       "norm_label": "[x27] 2026-06-20t22:11:37.313z \u00b7 discussao (assistant)"
     },
     {
@@ -21925,7 +21745,7 @@
       "source_location": "L481",
       "_origin": "ast",
       "id": "ata_log_8fda82c3_6298_4aeb_8f0f_86972dab5a2c_x28_2026_06_20t22_11_52_995z_discuss\u00e3o_assistant",
-      "community": 145,
+      "community": 225,
       "norm_label": "[x28] 2026-06-20t22:11:52.995z \u00b7 discussao (assistant)"
     },
     {
@@ -21935,7 +21755,7 @@
       "source_location": "L485",
       "_origin": "ast",
       "id": "ata_log_8fda82c3_6298_4aeb_8f0f_86972dab5a2c_x29_2026_06_20t22_12_39_811z_discuss\u00e3o_assistant",
-      "community": 145,
+      "community": 225,
       "norm_label": "[x29] 2026-06-20t22:12:39.811z \u00b7 discussao (assistant)"
     },
     {
@@ -21945,7 +21765,7 @@
       "source_location": "L489",
       "_origin": "ast",
       "id": "ata_log_8fda82c3_6298_4aeb_8f0f_86972dab5a2c_x30_2026_06_20t22_15_11_204z_discuss\u00e3o_assistant",
-      "community": 145,
+      "community": 225,
       "norm_label": "[x30] 2026-06-20t22:15:11.204z \u00b7 discussao (assistant)"
     },
     {
@@ -21955,7 +21775,7 @@
       "source_location": "L493",
       "_origin": "ast",
       "id": "ata_log_8fda82c3_6298_4aeb_8f0f_86972dab5a2c_x31_2026_06_20t22_15_16_111z_discuss\u00e3o_assistant",
-      "community": 145,
+      "community": 225,
       "norm_label": "[x31] 2026-06-20t22:15:16.111z \u00b7 discussao (assistant)"
     },
     {
@@ -21965,7 +21785,7 @@
       "source_location": "L497",
       "_origin": "ast",
       "id": "ata_log_8fda82c3_6298_4aeb_8f0f_86972dab5a2c_p2_2026_06_20t22_15_17_497z_plano_exitplanmode",
-      "community": 145,
+      "community": 225,
       "norm_label": "[p2] 2026-06-20t22:15:17.497z \u00b7 plano (exitplanmode)"
     },
     {
@@ -22005,7 +21825,7 @@
       "source_location": "L521",
       "_origin": "ast",
       "id": "ata_log_8fda82c3_6298_4aeb_8f0f_86972dab5a2c_arquitetura_521",
-      "community": 239,
+      "community": 231,
       "norm_label": "arquitetura"
     },
     {
@@ -22015,7 +21835,7 @@
       "source_location": "L523",
       "_origin": "ast",
       "id": "ata_log_8fda82c3_6298_4aeb_8f0f_86972dab5a2c_a_fronteira_de_modos_523",
-      "community": 239,
+      "community": 231,
       "norm_label": "a. fronteira de modos"
     },
     {
@@ -22025,7 +21845,7 @@
       "source_location": "L533",
       "_origin": "ast",
       "id": "ata_log_8fda82c3_6298_4aeb_8f0f_86972dab5a2c_b_checagem_ativa_do_estado_da_doc_passo_0_1_novo_533",
-      "community": 239,
+      "community": 231,
       "norm_label": "b. checagem ativa do estado da doc (passo 0.1 \u2014 novo)"
     },
     {
@@ -22035,7 +21855,7 @@
       "source_location": "L546",
       "_origin": "ast",
       "id": "ata_log_8fda82c3_6298_4aeb_8f0f_86972dab5a2c_c_o_fluxo_full_via_workflow_546",
-      "community": 239,
+      "community": 231,
       "norm_label": "c. o fluxo full via workflow"
     },
     {
@@ -22045,7 +21865,7 @@
       "source_location": "L566",
       "_origin": "ast",
       "id": "ata_log_8fda82c3_6298_4aeb_8f0f_86972dab5a2c_d_pe\u00e7a_nova_no_motor_\u00fanica_adi\u00e7\u00e3o_ao_python_566",
-      "community": 239,
+      "community": 231,
       "norm_label": "d. peca nova no motor (unica adicao ao python)"
     },
     {
@@ -22055,7 +21875,7 @@
       "source_location": "L570",
       "_origin": "ast",
       "id": "ata_log_8fda82c3_6298_4aeb_8f0f_86972dab5a2c_e_schemas_campos_pros_gates_lerem_n\u00e3o_texto_solto_570",
-      "community": 239,
+      "community": 231,
       "norm_label": "e. schemas (campos pros gates lerem, nao texto solto)"
     },
     {
@@ -23005,7 +22825,7 @@
       "source_location": "L1193",
       "_origin": "ast",
       "id": "ata_log_8fda82c3_6298_4aeb_8f0f_86972dab5a2c_sum\u00e1rio_executivo_1193",
-      "community": 238,
+      "community": 225,
       "norm_label": "sumario executivo"
     },
     {
@@ -23015,7 +22835,7 @@
       "source_location": "L1195",
       "_origin": "ast",
       "id": "ata_log_8fda82c3_6298_4aeb_8f0f_86972dab5a2c_esclarecimentos_1195",
-      "community": 238,
+      "community": 225,
       "norm_label": "\u26a0\ufe0f esclarecimentos"
     },
     {
@@ -23025,7 +22845,7 @@
       "source_location": "L1201",
       "_origin": "ast",
       "id": "ata_log_8fda82c3_6298_4aeb_8f0f_86972dab5a2c_1_grafo_obrigat\u00f3rio_parte_da_documenta\u00e7\u00e3o_sem_op\u00e7\u00e3o",
-      "community": 238,
+      "community": 225,
       "norm_label": "1 \u00b7 grafo obrigatorio \u2014 parte da documentacao, sem opcao"
     },
     {
@@ -23035,7 +22855,7 @@
       "source_location": "L1208",
       "_origin": "ast",
       "id": "ata_log_8fda82c3_6298_4aeb_8f0f_86972dab5a2c_2_grafo_dirige_a_leitura_profunda_do_c\u00f3digo_caminho_1",
-      "community": 238,
+      "community": 225,
       "norm_label": "2 \u00b7 grafo dirige a leitura profunda do codigo (caminho 1)"
     },
     {
@@ -23045,7 +22865,7 @@
       "source_location": "L1215",
       "_origin": "ast",
       "id": "ata_log_8fda82c3_6298_4aeb_8f0f_86972dab5a2c_3_auditoria_grafo_doc_o_repasse_de_completude",
-      "community": 238,
+      "community": 225,
       "norm_label": "3 \u00b7 auditoria grafo \u00d7 doc \u2014 o repasse de completude"
     },
     {
@@ -23055,7 +22875,7 @@
       "source_location": "L1222",
       "_origin": "ast",
       "id": "ata_log_8fda82c3_6298_4aeb_8f0f_86972dab5a2c_4_release_coordenar_vers\u00e3o_com_a_outra_sess\u00e3o",
-      "community": 238,
+      "community": 225,
       "norm_label": "4 \u00b7 release (coordenar versao com a outra sessao)"
     },
     {
@@ -23065,7 +22885,7 @@
       "source_location": "L1228",
       "_origin": "ast",
       "id": "ata_log_8fda82c3_6298_4aeb_8f0f_86972dab5a2c_x83_2026_06_20t22_54_07_457z_discuss\u00e3o_assistant",
-      "community": 238,
+      "community": 225,
       "norm_label": "[x83] 2026-06-20t22:54:07.457z \u00b7 discussao (assistant)"
     },
     {
@@ -23075,7 +22895,7 @@
       "source_location": "L1232",
       "_origin": "ast",
       "id": "ata_log_8fda82c3_6298_4aeb_8f0f_86972dab5a2c_x84_2026_06_20t22_56_37_954z_discuss\u00e3o_assistant",
-      "community": 238,
+      "community": 225,
       "norm_label": "[x84] 2026-06-20t22:56:37.954z \u00b7 discussao (assistant)"
     },
     {
@@ -23085,7 +22905,7 @@
       "source_location": "L1236",
       "_origin": "ast",
       "id": "ata_log_8fda82c3_6298_4aeb_8f0f_86972dab5a2c_x85_2026_06_20t22_56_51_202z_discuss\u00e3o_assistant",
-      "community": 238,
+      "community": 225,
       "norm_label": "[x85] 2026-06-20t22:56:51.202z \u00b7 discussao (assistant)"
     },
     {
@@ -28855,7 +28675,7 @@
       "source_location": "L958",
       "_origin": "ast",
       "id": "principles_principios_sistemas_12_resili\u00eancia_de_rede_e_service_discovery",
-      "community": 240,
+      "community": 68,
       "norm_label": "12 \u00b7 resiliencia de rede e service discovery"
     },
     {
@@ -28865,7 +28685,7 @@
       "source_location": "L963",
       "_origin": "ast",
       "id": "principles_principios_sistemas_dns_caching_e_ttl",
-      "community": 240,
+      "community": 68,
       "norm_label": "dns caching e ttl"
     },
     {
@@ -28875,7 +28695,7 @@
       "source_location": "L979",
       "_origin": "ast",
       "id": "principles_principios_sistemas_service_discovery",
-      "community": 240,
+      "community": 68,
       "norm_label": "service discovery"
     },
     {
@@ -28885,7 +28705,7 @@
       "source_location": "L991",
       "_origin": "ast",
       "id": "principles_principios_sistemas_service_mesh",
-      "community": 240,
+      "community": 68,
       "norm_label": "service mesh"
     },
     {
@@ -28895,7 +28715,7 @@
       "source_location": "L1012",
       "_origin": "ast",
       "id": "principles_principios_sistemas_health_aware_routing",
-      "community": 240,
+      "community": 68,
       "norm_label": "health-aware routing"
     },
     {
@@ -28905,7 +28725,7 @@
       "source_location": "L1020",
       "_origin": "ast",
       "id": "principles_principios_sistemas_parti\u00e7\u00f5es_de_rede_al\u00e9m_do_cap",
-      "community": 240,
+      "community": 68,
       "norm_label": "particoes de rede alem do cap"
     },
     {
@@ -30319,14 +30139,14 @@
       "norm_label": "project (seu julgamento)"
     },
     {
-      "label": "Workflow Engine \u2014 FULL e --deep mineram via Workflow (v3.1) + grafo dirige a leitura profunda (v3.2) + merge nativo de nuances (v3.4)",
+      "label": "Workflow Engine \u2014 FULL e --deep mineram via Workflow (v3.1) + grafo dirige a leitura profunda (v3.2)",
       "file_type": "document",
       "source_file": "plugins/project-doc/skills/project-doc/SKILL.md",
       "source_location": "L306",
       "_origin": "ast",
-      "id": "project_doc_skill_workflow_engine_full_e_deep_mineram_via_workflow_v3_1_grafo_dirige_a_leitura_profunda_v3_2_merge_nativo_de_nuances_v3_4",
+      "id": "project_doc_skill_workflow_engine_full_e_deep_mineram_via_workflow_v3_1_grafo_dirige_a_leitura_profunda_v3_2",
       "community": 133,
-      "norm_label": "workflow engine \u2014 full e --deep mineram via workflow (v3.1) + grafo dirige a leitura profunda (v3.2) + merge nativo de nuances (v3.4)"
+      "norm_label": "workflow engine \u2014 full e --deep mineram via workflow (v3.1) + grafo dirige a leitura profunda (v3.2)"
     },
     {
       "label": "Fronteira de modos \u2014 quando \u00e9 Workflow, quando \u00e9 single-agent",
@@ -30362,7 +30182,7 @@
       "label": "O script do Workflow (molde \u2014 estilo qa-loop)",
       "file_type": "document",
       "source_file": "plugins/project-doc/skills/project-doc/SKILL.md",
-      "source_location": "L379",
+      "source_location": "L377",
       "_origin": "ast",
       "id": "project_doc_skill_o_script_do_workflow_molde_estilo_qa_loop",
       "community": 133,
@@ -30372,7 +30192,7 @@
       "label": "Sequ\u00eancia \"melhor dos dois mundos\" (quando h\u00e1 doc antiga)",
       "file_type": "document",
       "source_file": "plugins/project-doc/skills/project-doc/SKILL.md",
-      "source_location": "L427",
+      "source_location": "L416",
       "_origin": "ast",
       "id": "project_doc_skill_sequ\u00eancia_melhor_dos_dois_mundos_quando_h\u00e1_doc_antiga",
       "community": 133,
@@ -30382,7 +30202,7 @@
       "label": "Schemas (campos pros gates, n\u00e3o texto solto)",
       "file_type": "document",
       "source_file": "plugins/project-doc/skills/project-doc/SKILL.md",
-      "source_location": "L431",
+      "source_location": "L420",
       "_origin": "ast",
       "id": "project_doc_skill_schemas_campos_pros_gates_n\u00e3o_texto_solto",
       "community": 133,
@@ -30392,7 +30212,7 @@
       "label": "Gates determin\u00edsticos (JS no Stitch, n\u00e3o o agente)",
       "file_type": "document",
       "source_file": "plugins/project-doc/skills/project-doc/SKILL.md",
-      "source_location": "L439",
+      "source_location": "L427",
       "_origin": "ast",
       "id": "project_doc_skill_gates_determin\u00edsticos_js_no_stitch_n\u00e3o_o_agente",
       "community": 133,
@@ -30402,7 +30222,7 @@
       "label": "CLAUDE.md Index Template",
       "file_type": "document",
       "source_file": "plugins/project-doc/skills/project-doc/SKILL.md",
-      "source_location": "L450",
+      "source_location": "L437",
       "_origin": "ast",
       "id": "project_doc_skill_claude_md_index_template",
       "community": 133,
@@ -30412,7 +30232,7 @@
       "label": "Standard Index Template",
       "file_type": "document",
       "source_file": "plugins/project-doc/skills/project-doc/SKILL.md",
-      "source_location": "L454",
+      "source_location": "L441",
       "_origin": "ast",
       "id": "project_doc_skill_standard_index_template",
       "community": 133,
@@ -30422,7 +30242,7 @@
       "label": "Dev",
       "file_type": "document",
       "source_file": "plugins/project-doc/skills/project-doc/SKILL.md",
-      "source_location": "L468",
+      "source_location": "L455",
       "_origin": "ast",
       "id": "project_doc_skill_dev",
       "community": 133,
@@ -30432,7 +30252,7 @@
       "label": "Build",
       "file_type": "document",
       "source_file": "plugins/project-doc/skills/project-doc/SKILL.md",
-      "source_location": "L471",
+      "source_location": "L458",
       "_origin": "ast",
       "id": "project_doc_skill_build",
       "community": 133,
@@ -30442,7 +30262,7 @@
       "label": "Test ({framework})",
       "file_type": "document",
       "source_file": "plugins/project-doc/skills/project-doc/SKILL.md",
-      "source_location": "L474",
+      "source_location": "L461",
       "_origin": "ast",
       "id": "project_doc_skill_test_framework",
       "community": 133,
@@ -30452,7 +30272,7 @@
       "label": "Deploy",
       "file_type": "document",
       "source_file": "plugins/project-doc/skills/project-doc/SKILL.md",
-      "source_location": "L477",
+      "source_location": "L464",
       "_origin": "ast",
       "id": "project_doc_skill_deploy",
       "community": 133,
@@ -30462,7 +30282,7 @@
       "label": "Lint",
       "file_type": "document",
       "source_file": "plugins/project-doc/skills/project-doc/SKILL.md",
-      "source_location": "L480",
+      "source_location": "L467",
       "_origin": "ast",
       "id": "project_doc_skill_lint",
       "community": 133,
@@ -30472,7 +30292,7 @@
       "label": "Monorepo Index Template",
       "file_type": "document",
       "source_file": "plugins/project-doc/skills/project-doc/SKILL.md",
-      "source_location": "L525",
+      "source_location": "L512",
       "_origin": "ast",
       "id": "project_doc_skill_monorepo_index_template",
       "community": 133,
@@ -30482,7 +30302,7 @@
       "label": "Dev (any app)",
       "file_type": "document",
       "source_file": "plugins/project-doc/skills/project-doc/SKILL.md",
-      "source_location": "L539",
+      "source_location": "L526",
       "_origin": "ast",
       "id": "project_doc_skill_dev_any_app",
       "community": 133,
@@ -30492,7 +30312,7 @@
       "label": "Deploy selective",
       "file_type": "document",
       "source_file": "plugins/project-doc/skills/project-doc/SKILL.md",
-      "source_location": "L542",
+      "source_location": "L529",
       "_origin": "ast",
       "id": "project_doc_skill_deploy_selective",
       "community": 133,
@@ -30502,7 +30322,7 @@
       "label": "Deploy all",
       "file_type": "document",
       "source_file": "plugins/project-doc/skills/project-doc/SKILL.md",
-      "source_location": "L545",
+      "source_location": "L532",
       "_origin": "ast",
       "id": "project_doc_skill_deploy_all",
       "community": 133,
@@ -30512,9 +30332,9 @@
       "label": "Lint",
       "file_type": "document",
       "source_file": "plugins/project-doc/skills/project-doc/SKILL.md",
-      "source_location": "L548",
+      "source_location": "L535",
       "_origin": "ast",
-      "id": "project_doc_skill_lint_548",
+      "id": "project_doc_skill_lint_535",
       "community": 133,
       "norm_label": "lint"
     },
@@ -30522,7 +30342,7 @@
       "label": "Tests",
       "file_type": "document",
       "source_file": "plugins/project-doc/skills/project-doc/SKILL.md",
-      "source_location": "L551",
+      "source_location": "L538",
       "_origin": "ast",
       "id": "project_doc_skill_tests",
       "community": 66,
@@ -30532,7 +30352,7 @@
       "label": "Doc File Templates",
       "file_type": "document",
       "source_file": "plugins/project-doc/skills/project-doc/SKILL.md",
-      "source_location": "L595",
+      "source_location": "L582",
       "_origin": "ast",
       "id": "project_doc_skill_doc_file_templates",
       "community": 62,
@@ -30542,7 +30362,7 @@
       "label": "Frontmatter (required for all docs)",
       "file_type": "document",
       "source_file": "plugins/project-doc/skills/project-doc/SKILL.md",
-      "source_location": "L599",
+      "source_location": "L586",
       "_origin": "ast",
       "id": "project_doc_skill_frontmatter_required_for_all_docs",
       "community": 62,
@@ -30552,7 +30372,7 @@
       "label": "architecture.md",
       "file_type": "document",
       "source_file": "plugins/project-doc/skills/project-doc/SKILL.md",
-      "source_location": "L609",
+      "source_location": "L596",
       "_origin": "ast",
       "id": "project_doc_skill_architecture_md",
       "community": 62,
@@ -30562,7 +30382,7 @@
       "label": "database.md",
       "file_type": "document",
       "source_file": "plugins/project-doc/skills/project-doc/SKILL.md",
-      "source_location": "L643",
+      "source_location": "L630",
       "_origin": "ast",
       "id": "project_doc_skill_database_md",
       "community": 62,
@@ -30572,7 +30392,7 @@
       "label": "api.md",
       "file_type": "document",
       "source_file": "plugins/project-doc/skills/project-doc/SKILL.md",
-      "source_location": "L679",
+      "source_location": "L666",
       "_origin": "ast",
       "id": "project_doc_skill_api_md",
       "community": 62,
@@ -30582,7 +30402,7 @@
       "label": "deploy.md",
       "file_type": "document",
       "source_file": "plugins/project-doc/skills/project-doc/SKILL.md",
-      "source_location": "L703",
+      "source_location": "L690",
       "_origin": "ast",
       "id": "project_doc_skill_deploy_md",
       "community": 62,
@@ -30592,7 +30412,7 @@
       "label": "infrastructure.md",
       "file_type": "document",
       "source_file": "plugins/project-doc/skills/project-doc/SKILL.md",
-      "source_location": "L734",
+      "source_location": "L721",
       "_origin": "ast",
       "id": "project_doc_skill_infrastructure_md",
       "community": 62,
@@ -30602,7 +30422,7 @@
       "label": "env-vars.md",
       "file_type": "document",
       "source_file": "plugins/project-doc/skills/project-doc/SKILL.md",
-      "source_location": "L763",
+      "source_location": "L750",
       "_origin": "ast",
       "id": "project_doc_skill_env_vars_md",
       "community": 62,
@@ -30612,7 +30432,7 @@
       "label": "auth.md",
       "file_type": "document",
       "source_file": "plugins/project-doc/skills/project-doc/SKILL.md",
-      "source_location": "L793",
+      "source_location": "L780",
       "_origin": "ast",
       "id": "project_doc_skill_auth_md",
       "community": 62,
@@ -30622,7 +30442,7 @@
       "label": "patterns.md",
       "file_type": "document",
       "source_file": "plugins/project-doc/skills/project-doc/SKILL.md",
-      "source_location": "L821",
+      "source_location": "L808",
       "_origin": "ast",
       "id": "project_doc_skill_patterns_md",
       "community": 62,
@@ -30632,7 +30452,7 @@
       "label": "Thin Pointer Templates",
       "file_type": "document",
       "source_file": "plugins/project-doc/skills/project-doc/SKILL.md",
-      "source_location": "L851",
+      "source_location": "L838",
       "_origin": "ast",
       "id": "project_doc_skill_thin_pointer_templates",
       "community": 81,
@@ -30642,7 +30462,7 @@
       "label": "Write Rules for Pointers",
       "file_type": "document",
       "source_file": "plugins/project-doc/skills/project-doc/SKILL.md",
-      "source_location": "L855",
+      "source_location": "L842",
       "_origin": "ast",
       "id": "project_doc_skill_write_rules_for_pointers",
       "community": 81,
@@ -30652,7 +30472,7 @@
       "label": "AGENTS.md (Codex / OpenAI)",
       "file_type": "document",
       "source_file": "plugins/project-doc/skills/project-doc/SKILL.md",
-      "source_location": "L862",
+      "source_location": "L849",
       "_origin": "ast",
       "id": "project_doc_skill_agents_md_codex_openai",
       "community": 81,
@@ -30662,7 +30482,7 @@
       "label": "GEMINI.md (Gemini CLI)",
       "file_type": "document",
       "source_file": "plugins/project-doc/skills/project-doc/SKILL.md",
-      "source_location": "L874",
+      "source_location": "L861",
       "_origin": "ast",
       "id": "project_doc_skill_gemini_md_gemini_cli",
       "community": 81,
@@ -30672,7 +30492,7 @@
       "label": ".github/copilot-instructions.md (GitHub Copilot)",
       "file_type": "document",
       "source_file": "plugins/project-doc/skills/project-doc/SKILL.md",
-      "source_location": "L886",
+      "source_location": "L873",
       "_origin": "ast",
       "id": "project_doc_skill_github_copilot_instructions_md_github_copilot",
       "community": 81,
@@ -30682,7 +30502,7 @@
       "label": ".cursorrules (Cursor)",
       "file_type": "document",
       "source_file": "plugins/project-doc/skills/project-doc/SKILL.md",
-      "source_location": "L893",
+      "source_location": "L880",
       "_origin": "ast",
       "id": "project_doc_skill_cursorrules_cursor",
       "community": 81,
@@ -30692,7 +30512,7 @@
       "label": ".windsurfrules (Windsurf)",
       "file_type": "document",
       "source_file": "plugins/project-doc/skills/project-doc/SKILL.md",
-      "source_location": "L900",
+      "source_location": "L887",
       "_origin": "ast",
       "id": "project_doc_skill_windsurfrules_windsurf",
       "community": 81,
@@ -30702,7 +30522,7 @@
       "label": "Monorepo Doc Layout",
       "file_type": "document",
       "source_file": "plugins/project-doc/skills/project-doc/SKILL.md",
-      "source_location": "L907",
+      "source_location": "L894",
       "_origin": "ast",
       "id": "project_doc_skill_monorepo_doc_layout",
       "community": 66,
@@ -30712,7 +30532,7 @@
       "label": "Structure",
       "file_type": "document",
       "source_file": "plugins/project-doc/skills/project-doc/SKILL.md",
-      "source_location": "L911",
+      "source_location": "L898",
       "_origin": "ast",
       "id": "project_doc_skill_structure",
       "community": 66,
@@ -30722,7 +30542,7 @@
       "label": "Rules",
       "file_type": "document",
       "source_file": "plugins/project-doc/skills/project-doc/SKILL.md",
-      "source_location": "L928",
+      "source_location": "L915",
       "_origin": "ast",
       "id": "project_doc_skill_rules",
       "community": 66,
@@ -30732,7 +30552,7 @@
       "label": "Update Mechanism",
       "file_type": "document",
       "source_file": "plugins/project-doc/skills/project-doc/SKILL.md",
-      "source_location": "L937",
+      "source_location": "L924",
       "_origin": "ast",
       "id": "project_doc_skill_update_mechanism",
       "community": 234,
@@ -30742,7 +30562,7 @@
       "label": "CLAUDE.md",
       "file_type": "document",
       "source_file": "plugins/project-doc/skills/project-doc/SKILL.md",
-      "source_location": "L939",
+      "source_location": "L926",
       "_origin": "ast",
       "id": "project_doc_skill_claude_md",
       "community": 234,
@@ -30752,7 +30572,7 @@
       "label": ".claude/docs/*.md",
       "file_type": "document",
       "source_file": "plugins/project-doc/skills/project-doc/SKILL.md",
-      "source_location": "L953",
+      "source_location": "L940",
       "_origin": "ast",
       "id": "project_doc_skill_claude_docs_md",
       "community": 234,
@@ -30762,7 +30582,7 @@
       "label": "Pointer Files",
       "file_type": "document",
       "source_file": "plugins/project-doc/skills/project-doc/SKILL.md",
-      "source_location": "L959",
+      "source_location": "L946",
       "_origin": "ast",
       "id": "project_doc_skill_pointer_files",
       "community": 234,
@@ -30772,7 +30592,7 @@
       "label": "Knowledge Graph Integration (graphify)",
       "file_type": "document",
       "source_file": "plugins/project-doc/skills/project-doc/SKILL.md",
-      "source_location": "L965",
+      "source_location": "L952",
       "_origin": "ast",
       "id": "project_doc_skill_knowledge_graph_integration_graphify",
       "community": 66,
@@ -30782,7 +30602,7 @@
       "label": "Migration v1 \u2192 v2",
       "file_type": "document",
       "source_file": "plugins/project-doc/skills/project-doc/SKILL.md",
-      "source_location": "L985",
+      "source_location": "L972",
       "_origin": "ast",
       "id": "project_doc_skill_migration_v1_v2",
       "community": 66,
@@ -30792,7 +30612,7 @@
       "label": "Steps",
       "file_type": "document",
       "source_file": "plugins/project-doc/skills/project-doc/SKILL.md",
-      "source_location": "L989",
+      "source_location": "L976",
       "_origin": "ast",
       "id": "project_doc_skill_steps",
       "community": 66,
@@ -30802,7 +30622,7 @@
       "label": "Monorepo v1 \u2192 v2 Migration",
       "file_type": "document",
       "source_file": "plugins/project-doc/skills/project-doc/SKILL.md",
-      "source_location": "L1012",
+      "source_location": "L999",
       "_origin": "ast",
       "id": "project_doc_skill_monorepo_v1_v2_migration",
       "community": 66,
@@ -30812,7 +30632,7 @@
       "label": "Artifact Cleanup",
       "file_type": "document",
       "source_file": "plugins/project-doc/skills/project-doc/SKILL.md",
-      "source_location": "L1020",
+      "source_location": "L1007",
       "_origin": "ast",
       "id": "project_doc_skill_artifact_cleanup",
       "community": 74,
@@ -30822,7 +30642,7 @@
       "label": "Detection",
       "file_type": "document",
       "source_file": "plugins/project-doc/skills/project-doc/SKILL.md",
-      "source_location": "L1024",
+      "source_location": "L1011",
       "_origin": "ast",
       "id": "project_doc_skill_detection",
       "community": 74,
@@ -30832,7 +30652,7 @@
       "label": "Classification (suggested action per finding)",
       "file_type": "document",
       "source_file": "plugins/project-doc/skills/project-doc/SKILL.md",
-      "source_location": "L1035",
+      "source_location": "L1022",
       "_origin": "ast",
       "id": "project_doc_skill_classification_suggested_action_per_finding",
       "community": 74,
@@ -30842,7 +30662,7 @@
       "label": "Sensitivity assessment",
       "file_type": "document",
       "source_file": "plugins/project-doc/skills/project-doc/SKILL.md",
-      "source_location": "L1044",
+      "source_location": "L1031",
       "_origin": "ast",
       "id": "project_doc_skill_sensitivity_assessment",
       "community": 74,
@@ -30852,7 +30672,7 @@
       "label": "Archive destination",
       "file_type": "document",
       "source_file": "plugins/project-doc/skills/project-doc/SKILL.md",
-      "source_location": "L1053",
+      "source_location": "L1040",
       "_origin": "ast",
       "id": "project_doc_skill_archive_destination",
       "community": 74,
@@ -30862,7 +30682,7 @@
       "label": "Clustered report format",
       "file_type": "document",
       "source_file": "plugins/project-doc/skills/project-doc/SKILL.md",
-      "source_location": "L1061",
+      "source_location": "L1048",
       "_origin": "ast",
       "id": "project_doc_skill_clustered_report_format",
       "community": 74,
@@ -30872,7 +30692,7 @@
       "label": "Confirmation protocol",
       "file_type": "document",
       "source_file": "plugins/project-doc/skills/project-doc/SKILL.md",
-      "source_location": "L1083",
+      "source_location": "L1070",
       "_origin": "ast",
       "id": "project_doc_skill_confirmation_protocol",
       "community": 74,
@@ -30882,7 +30702,7 @@
       "label": "Scope & safety",
       "file_type": "document",
       "source_file": "plugins/project-doc/skills/project-doc/SKILL.md",
-      "source_location": "L1089",
+      "source_location": "L1076",
       "_origin": "ast",
       "id": "project_doc_skill_scope_safety",
       "community": 74,
@@ -30892,7 +30712,7 @@
       "label": "Token Limits",
       "file_type": "document",
       "source_file": "plugins/project-doc/skills/project-doc/SKILL.md",
-      "source_location": "L1095",
+      "source_location": "L1082",
       "_origin": "ast",
       "id": "project_doc_skill_token_limits",
       "community": 86,
@@ -30902,7 +30722,7 @@
       "label": "CLAUDE.md Index",
       "file_type": "document",
       "source_file": "plugins/project-doc/skills/project-doc/SKILL.md",
-      "source_location": "L1097",
+      "source_location": "L1084",
       "_origin": "ast",
       "id": "project_doc_skill_claude_md_index",
       "community": 86,
@@ -30912,7 +30732,7 @@
       "label": "Individual Doc Files",
       "file_type": "document",
       "source_file": "plugins/project-doc/skills/project-doc/SKILL.md",
-      "source_location": "L1103",
+      "source_location": "L1090",
       "_origin": "ast",
       "id": "project_doc_skill_individual_doc_files",
       "community": 86,
@@ -30922,7 +30742,7 @@
       "label": "Inline Threshold",
       "file_type": "document",
       "source_file": "plugins/project-doc/skills/project-doc/SKILL.md",
-      "source_location": "L1108",
+      "source_location": "L1095",
       "_origin": "ast",
       "id": "project_doc_skill_inline_threshold",
       "community": 86,
@@ -30932,7 +30752,7 @@
       "label": "Monorepo Index",
       "file_type": "document",
       "source_file": "plugins/project-doc/skills/project-doc/SKILL.md",
-      "source_location": "L1112",
+      "source_location": "L1099",
       "_origin": "ast",
       "id": "project_doc_skill_monorepo_index",
       "community": 86,
@@ -30942,7 +30762,7 @@
       "label": "Formatting Rules",
       "file_type": "document",
       "source_file": "plugins/project-doc/skills/project-doc/SKILL.md",
-      "source_location": "L1118",
+      "source_location": "L1105",
       "_origin": "ast",
       "id": "project_doc_skill_formatting_rules",
       "community": 86,
@@ -30952,9 +30772,9 @@
       "label": "Rules",
       "file_type": "document",
       "source_file": "plugins/project-doc/skills/project-doc/SKILL.md",
-      "source_location": "L1123",
+      "source_location": "L1110",
       "_origin": "ast",
-      "id": "project_doc_skill_rules_1123",
+      "id": "project_doc_skill_rules_1110",
       "community": 66,
       "norm_label": "rules"
     },
@@ -30962,7 +30782,7 @@
       "label": "Verification (Post-Generation Quality Check)",
       "file_type": "document",
       "source_file": "plugins/project-doc/skills/project-doc/SKILL.md",
-      "source_location": "L1147",
+      "source_location": "L1134",
       "_origin": "ast",
       "id": "project_doc_skill_verification_post_generation_quality_check",
       "community": 82,
@@ -30972,7 +30792,7 @@
       "label": "Index-Level Checks",
       "file_type": "document",
       "source_file": "plugins/project-doc/skills/project-doc/SKILL.md",
-      "source_location": "L1151",
+      "source_location": "L1138",
       "_origin": "ast",
       "id": "project_doc_skill_index_level_checks",
       "community": 82,
@@ -30982,7 +30802,7 @@
       "label": "Per-Doc Checks",
       "file_type": "document",
       "source_file": "plugins/project-doc/skills/project-doc/SKILL.md",
-      "source_location": "L1177",
+      "source_location": "L1164",
       "_origin": "ast",
       "id": "project_doc_skill_per_doc_checks",
       "community": 82,
@@ -30992,7 +30812,7 @@
       "label": "Monorepo-Specific Checks",
       "file_type": "document",
       "source_file": "plugins/project-doc/skills/project-doc/SKILL.md",
-      "source_location": "L1217",
+      "source_location": "L1204",
       "_origin": "ast",
       "id": "project_doc_skill_monorepo_specific_checks",
       "community": 82,
@@ -31002,7 +30822,7 @@
       "label": "Git-Tracking Checks",
       "file_type": "document",
       "source_file": "plugins/project-doc/skills/project-doc/SKILL.md",
-      "source_location": "L1232",
+      "source_location": "L1219",
       "_origin": "ast",
       "id": "project_doc_skill_git_tracking_checks",
       "community": 82,
@@ -31012,7 +30832,7 @@
       "label": "Graph Coverage Check (v3.2)",
       "file_type": "document",
       "source_file": "plugins/project-doc/skills/project-doc/SKILL.md",
-      "source_location": "L1244",
+      "source_location": "L1231",
       "_origin": "ast",
       "id": "project_doc_skill_graph_coverage_check_v3_2",
       "community": 82,
@@ -31022,7 +30842,7 @@
       "label": "Verification Output Format",
       "file_type": "document",
       "source_file": "plugins/project-doc/skills/project-doc/SKILL.md",
-      "source_location": "L1254",
+      "source_location": "L1241",
       "_origin": "ast",
       "id": "project_doc_skill_verification_output_format",
       "community": 82,
@@ -31032,7 +30852,7 @@
       "label": "Auto-Fix",
       "file_type": "document",
       "source_file": "plugins/project-doc/skills/project-doc/SKILL.md",
-      "source_location": "L1279",
+      "source_location": "L1266",
       "_origin": "ast",
       "id": "project_doc_skill_auto_fix",
       "community": 82,
@@ -31042,7 +30862,7 @@
       "label": "When to Run Verification",
       "file_type": "document",
       "source_file": "plugins/project-doc/skills/project-doc/SKILL.md",
-      "source_location": "L1293",
+      "source_location": "L1280",
       "_origin": "ast",
       "id": "project_doc_skill_when_to_run_verification",
       "community": 82,
@@ -31162,7 +30982,7 @@
       "label": "A arquitetura em uma frase \u2014 motor = Workflow, casca = skill",
       "file_type": "document",
       "source_file": "plugins/qa-loop/skills/qa-loop/SKILL.md",
-      "source_location": "L23",
+      "source_location": "L22",
       "_origin": "ast",
       "id": "qa_loop_skill_a_arquitetura_em_uma_frase_motor_workflow_casca_skill",
       "community": 111,
@@ -31172,7 +30992,7 @@
       "label": "As duas fases \u2014 m\u00e1quina assint\u00f3tica + gate absoluto",
       "file_type": "document",
       "source_file": "plugins/qa-loop/skills/qa-loop/SKILL.md",
-      "source_location": "L41",
+      "source_location": "L40",
       "_origin": "ast",
       "id": "qa_loop_skill_as_duas_fases_m\u00e1quina_assint\u00f3tica_gate_absoluto",
       "community": 111,
@@ -31182,7 +31002,7 @@
       "label": "Input",
       "file_type": "document",
       "source_file": "plugins/qa-loop/skills/qa-loop/SKILL.md",
-      "source_location": "L64",
+      "source_location": "L63",
       "_origin": "ast",
       "id": "qa_loop_skill_input",
       "community": 111,
@@ -31192,7 +31012,7 @@
       "label": "Par\u00e2metros / knobs",
       "file_type": "document",
       "source_file": "plugins/qa-loop/skills/qa-loop/SKILL.md",
-      "source_location": "L74",
+      "source_location": "L73",
       "_origin": "ast",
       "id": "qa_loop_skill_par\u00e2metros_knobs",
       "community": 111,
@@ -31202,7 +31022,7 @@
       "label": "Fluxo",
       "file_type": "document",
       "source_file": "plugins/qa-loop/skills/qa-loop/SKILL.md",
-      "source_location": "L91",
+      "source_location": "L90",
       "_origin": "ast",
       "id": "qa_loop_skill_fluxo",
       "community": 111,
@@ -31212,7 +31032,7 @@
       "label": "CASCA \u2014 Passo 0 \u00b7 Classificar dom\u00ednio + ler journal",
       "file_type": "document",
       "source_file": "plugins/qa-loop/skills/qa-loop/SKILL.md",
-      "source_location": "L140",
+      "source_location": "L139",
       "_origin": "ast",
       "id": "qa_loop_skill_casca_passo_0_classificar_dom\u00ednio_ler_journal",
       "community": 111,
@@ -31222,7 +31042,7 @@
       "label": "CASCA \u2014 Passo 1 \u00b7 Declarar contrato + baseline + rede de regress\u00e3o",
       "file_type": "document",
       "source_file": "plugins/qa-loop/skills/qa-loop/SKILL.md",
-      "source_location": "L165",
+      "source_location": "L164",
       "_origin": "ast",
       "id": "qa_loop_skill_casca_passo_1_declarar_contrato_baseline_rede_de_regress\u00e3o",
       "community": 111,
@@ -31232,7 +31052,7 @@
       "label": "WORKFLOW \u2014 o motor (loop de rodadas)",
       "file_type": "document",
       "source_file": "plugins/qa-loop/skills/qa-loop/SKILL.md",
-      "source_location": "L177",
+      "source_location": "L173",
       "_origin": "ast",
       "id": "qa_loop_skill_workflow_o_motor_loop_de_rodadas",
       "community": 111,
@@ -31242,7 +31062,7 @@
       "label": "Os passos do motor, em detalhe",
       "file_type": "document",
       "source_file": "plugins/qa-loop/skills/qa-loop/SKILL.md",
-      "source_location": "L255",
+      "source_location": "L251",
       "_origin": "ast",
       "id": "qa_loop_skill_os_passos_do_motor_em_detalhe",
       "community": 111,
@@ -31252,7 +31072,7 @@
       "label": "CONSTRAINT CENTRAL \u2014 QA ancorado no plano (3 buckets)",
       "file_type": "document",
       "source_file": "plugins/qa-loop/skills/qa-loop/SKILL.md",
-      "source_location": "L286",
+      "source_location": "L282",
       "_origin": "ast",
       "id": "qa_loop_skill_constraint_central_qa_ancorado_no_plano_3_buckets",
       "community": 111,
@@ -31262,7 +31082,7 @@
       "label": "Rubrica de severidade (R2) \u2014 3 faixas, escrita, aplicada pelo \u00e1rbitro \u00fanico",
       "file_type": "document",
       "source_file": "plugins/qa-loop/skills/qa-loop/SKILL.md",
-      "source_location": "L297",
+      "source_location": "L293",
       "_origin": "ast",
       "id": "qa_loop_skill_rubrica_de_severidade_r2_3_faixas_escrita_aplicada_pelo_\u00e1rbitro_\u00fanico",
       "community": 111,
@@ -31272,7 +31092,7 @@
       "label": "Config em 3 camadas (R3) \u2014 `.claude/qa-loop.config.md` (VERSIONADO)",
       "file_type": "document",
       "source_file": "plugins/qa-loop/skills/qa-loop/SKILL.md",
-      "source_location": "L307",
+      "source_location": "L302",
       "_origin": "ast",
       "id": "qa_loop_skill_config_em_3_camadas_r3_claude_qa_loop_config_md_versionado",
       "community": 111,
@@ -31282,7 +31102,7 @@
       "label": "Crit\u00e9rio de parada (DUAS condi\u00e7\u00f5es: Fase Assint\u00f3tica + Fase Gate)",
       "file_type": "document",
       "source_file": "plugins/qa-loop/skills/qa-loop/SKILL.md",
-      "source_location": "L317",
+      "source_location": "L312",
       "_origin": "ast",
       "id": "qa_loop_skill_crit\u00e9rio_de_parada_duas_condi\u00e7\u00f5es_fase_assint\u00f3tica_fase_gate",
       "community": 111,
@@ -31292,7 +31112,7 @@
       "label": "\"Vale a pena\" (R5) \u2014 retornos decrescentes + risco de regress\u00e3o, NUNCA tokens",
       "file_type": "document",
       "source_file": "plugins/qa-loop/skills/qa-loop/SKILL.md",
-      "source_location": "L337",
+      "source_location": "L332",
       "_origin": "ast",
       "id": "qa_loop_skill_vale_a_pena_r5_retornos_decrescentes_risco_de_regress\u00e3o_nunca_tokens",
       "community": 111,
@@ -31302,7 +31122,7 @@
       "label": "CASCA \u2014 Passo 8 \u00b7 Fase Gate (sa\u00edda) + Relat\u00f3rio (humano) + Journal (ag\u00eantico) \u2014 R7",
       "file_type": "document",
       "source_file": "plugins/qa-loop/skills/qa-loop/SKILL.md",
-      "source_location": "L345",
+      "source_location": "L340",
       "_origin": "ast",
       "id": "qa_loop_skill_casca_passo_8_fase_gate_sa\u00edda_relat\u00f3rio_humano_journal_ag\u00eantico_r7",
       "community": 111,
@@ -31312,7 +31132,7 @@
       "label": "Passo 8.0 \u00b7 FASE GATE \u2014 o port\u00e3o absoluto de sa\u00edda",
       "file_type": "document",
       "source_file": "plugins/qa-loop/skills/qa-loop/SKILL.md",
-      "source_location": "L349",
+      "source_location": "L344",
       "_origin": "ast",
       "id": "qa_loop_skill_passo_8_0_fase_gate_o_port\u00e3o_absoluto_de_sa\u00edda",
       "community": 111,
@@ -31322,7 +31142,7 @@
       "label": "(A) Relat\u00f3rio HUMANO \u2014 gerador de actionables, via a skill `/visual` como parceira",
       "file_type": "document",
       "source_file": "plugins/qa-loop/skills/qa-loop/SKILL.md",
-      "source_location": "L380",
+      "source_location": "L375",
       "_origin": "ast",
       "id": "qa_loop_skill_a_relat\u00f3rio_humano_gerador_de_actionables_via_a_skill_visual_como_parceira",
       "community": 111,
@@ -31332,7 +31152,7 @@
       "label": "(B) Journal AG\u00caNTICO \u2014 markdown verborr\u00e1gico, pra \"futuro-eu\" (3 camadas)",
       "file_type": "document",
       "source_file": "plugins/qa-loop/skills/qa-loop/SKILL.md",
-      "source_location": "L424",
+      "source_location": "L419",
       "_origin": "ast",
       "id": "qa_loop_skill_b_journal_ag\u00eantico_markdown_verborr\u00e1gico_pra_futuro_eu_3_camadas",
       "community": 111,
@@ -31342,7 +31162,7 @@
       "label": "O loop fecha: a skill L\u00ca o journal no IN\u00cdCIO de cada sess\u00e3o (passo 0)",
       "file_type": "document",
       "source_file": "plugins/qa-loop/skills/qa-loop/SKILL.md",
-      "source_location": "L440",
+      "source_location": "L435",
       "_origin": "ast",
       "id": "qa_loop_skill_o_loop_fecha_a_skill_l\u00ea_o_journal_no_in\u00edcio_de_cada_sess\u00e3o_passo_0",
       "community": 111,
@@ -31352,7 +31172,7 @@
       "label": "Guard-rails operacionais",
       "file_type": "document",
       "source_file": "plugins/qa-loop/skills/qa-loop/SKILL.md",
-      "source_location": "L456",
+      "source_location": "L451",
       "_origin": "ast",
       "id": "qa_loop_skill_guard_rails_operacionais",
       "community": 111,
@@ -31362,7 +31182,7 @@
       "label": "Regression gate por conserto (o maior ROI)",
       "file_type": "document",
       "source_file": "plugins/qa-loop/skills/qa-loop/SKILL.md",
-      "source_location": "L458",
+      "source_location": "L453",
       "_origin": "ast",
       "id": "qa_loop_skill_regression_gate_por_conserto_o_maior_roi",
       "community": 111,
@@ -31372,7 +31192,7 @@
       "label": "Os 5 mecanismos de regress\u00e3o (operacionalizados)",
       "file_type": "document",
       "source_file": "plugins/qa-loop/skills/qa-loop/SKILL.md",
-      "source_location": "L462",
+      "source_location": "L457",
       "_origin": "ast",
       "id": "qa_loop_skill_os_5_mecanismos_de_regress\u00e3o_operacionalizados",
       "community": 111,
@@ -31382,7 +31202,7 @@
       "label": "Detec\u00e7\u00e3o de rede \u2014 DOIS usos da mesma detec\u00e7\u00e3o",
       "file_type": "document",
       "source_file": "plugins/qa-loop/skills/qa-loop/SKILL.md",
-      "source_location": "L469",
+      "source_location": "L464",
       "_origin": "ast",
       "id": "qa_loop_skill_detec\u00e7\u00e3o_de_rede_dois_usos_da_mesma_detec\u00e7\u00e3o",
       "community": 111,
@@ -31392,7 +31212,7 @@
       "label": "Churn detector",
       "file_type": "document",
       "source_file": "plugins/qa-loop/skills/qa-loop/SKILL.md",
-      "source_location": "L490",
+      "source_location": "L485",
       "_origin": "ast",
       "id": "qa_loop_skill_churn_detector",
       "community": 111,
@@ -31402,7 +31222,7 @@
       "label": "Accepted-limits (R6) \u2014 proposto, nunca enterrado sozinho",
       "file_type": "document",
       "source_file": "plugins/qa-loop/skills/qa-loop/SKILL.md",
-      "source_location": "L495",
+      "source_location": "L490",
       "_origin": "ast",
       "id": "qa_loop_skill_accepted_limits_r6_proposto_nunca_enterrado_sozinho",
       "community": 111,
@@ -31412,7 +31232,7 @@
       "label": "Findings arquiteturais (n\u00e3o viram teste-red)",
       "file_type": "document",
       "source_file": "plugins/qa-loop/skills/qa-loop/SKILL.md",
-      "source_location": "L505",
+      "source_location": "L500",
       "_origin": "ast",
       "id": "qa_loop_skill_findings_arquiteturais_n\u00e3o_viram_teste_red",
       "community": 111,
@@ -31422,7 +31242,7 @@
       "label": "Modo headless (pro /sovai)",
       "file_type": "document",
       "source_file": "plugins/qa-loop/skills/qa-loop/SKILL.md",
-      "source_location": "L512",
+      "source_location": "L507",
       "_origin": "ast",
       "id": "qa_loop_skill_modo_headless_pro_sovai",
       "community": 111,
@@ -31432,7 +31252,7 @@
       "label": "Quando N\u00c3O usar",
       "file_type": "document",
       "source_file": "plugins/qa-loop/skills/qa-loop/SKILL.md",
-      "source_location": "L524",
+      "source_location": "L519",
       "_origin": "ast",
       "id": "qa_loop_skill_quando_n\u00e3o_usar",
       "community": 111,
@@ -31442,7 +31262,7 @@
       "label": "Regras de seguran\u00e7a",
       "file_type": "document",
       "source_file": "plugins/qa-loop/skills/qa-loop/SKILL.md",
-      "source_location": "L530",
+      "source_location": "L525",
       "_origin": "ast",
       "id": "qa_loop_skill_regras_de_seguran\u00e7a",
       "community": 111,
@@ -34054,21 +33874,11 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": ".claude/.project-doc/ledger.json",
-      "source_location": "L29",
-      "weight": 1.0,
-      "source": "project_doc_ledger_mined_sessions",
-      "target": "project_doc_ledger_mined_sessions_05bb7152_4d6d_4044_810a_dcb48dbe498e",
-      "confidence_score": 1.0
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": ".claude/.project-doc/ledger.json",
       "source_location": "L3",
       "weight": 1.0,
-      "confidence_score": 1.0,
       "source": "project_doc_ledger_mined_sessions",
-      "target": "project_doc_ledger_mined_sessions_084c3749_3594_486f_a8dd_c7c0066a3a52"
+      "target": "project_doc_ledger_mined_sessions_084c3749_3594_486f_a8dd_c7c0066a3a52",
+      "confidence_score": 1.0
     },
     {
       "relation": "contains",
@@ -34076,9 +33886,9 @@
       "source_file": ".claude/.project-doc/ledger.json",
       "source_location": "L4",
       "weight": 1.0,
-      "confidence_score": 1.0,
       "source": "project_doc_ledger_mined_sessions",
-      "target": "project_doc_ledger_mined_sessions_1203e8d2_3ba6_4d58_ab35_f8ad34e0c174"
+      "target": "project_doc_ledger_mined_sessions_1203e8d2_3ba6_4d58_ab35_f8ad34e0c174",
+      "confidence_score": 1.0
     },
     {
       "relation": "contains",
@@ -34086,9 +33896,9 @@
       "source_file": ".claude/.project-doc/ledger.json",
       "source_location": "L5",
       "weight": 1.0,
-      "confidence_score": 1.0,
       "source": "project_doc_ledger_mined_sessions",
-      "target": "project_doc_ledger_mined_sessions_1da33ba7_2248_47ff_88d5_2535295ff90f"
+      "target": "project_doc_ledger_mined_sessions_1da33ba7_2248_47ff_88d5_2535295ff90f",
+      "confidence_score": 1.0
     },
     {
       "relation": "contains",
@@ -34096,9 +33906,9 @@
       "source_file": ".claude/.project-doc/ledger.json",
       "source_location": "L27",
       "weight": 1.0,
-      "confidence_score": 1.0,
       "source": "project_doc_ledger_mined_sessions",
-      "target": "project_doc_ledger_mined_sessions_2152d0ed_b32a_45eb_ae49_442edcdc40bb"
+      "target": "project_doc_ledger_mined_sessions_2152d0ed_b32a_45eb_ae49_442edcdc40bb",
+      "confidence_score": 1.0
     },
     {
       "relation": "contains",
@@ -34106,28 +33916,8 @@
       "source_file": ".claude/.project-doc/ledger.json",
       "source_location": "L6",
       "weight": 1.0,
-      "confidence_score": 1.0,
       "source": "project_doc_ledger_mined_sessions",
-      "target": "project_doc_ledger_mined_sessions_22d615af_cdb4_4e7b_999d_80663fe93e80"
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": ".claude/.project-doc/ledger.json",
-      "source_location": "L30",
-      "weight": 1.0,
-      "source": "project_doc_ledger_mined_sessions",
-      "target": "project_doc_ledger_mined_sessions_28ce037d_d945_43c4_be7a_34c1e3360a96",
-      "confidence_score": 1.0
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": ".claude/.project-doc/ledger.json",
-      "source_location": "L31",
-      "weight": 1.0,
-      "source": "project_doc_ledger_mined_sessions",
-      "target": "project_doc_ledger_mined_sessions_2c8b1dd7_6552_4417_bbc7_e1089e1b70f9",
+      "target": "project_doc_ledger_mined_sessions_22d615af_cdb4_4e7b_999d_80663fe93e80",
       "confidence_score": 1.0
     },
     {
@@ -34136,9 +33926,9 @@
       "source_file": ".claude/.project-doc/ledger.json",
       "source_location": "L7",
       "weight": 1.0,
-      "confidence_score": 1.0,
       "source": "project_doc_ledger_mined_sessions",
-      "target": "project_doc_ledger_mined_sessions_2d2aa22e_9d46_4c08_9799_9c19c6de32cb"
+      "target": "project_doc_ledger_mined_sessions_2d2aa22e_9d46_4c08_9799_9c19c6de32cb",
+      "confidence_score": 1.0
     },
     {
       "relation": "contains",
@@ -34146,9 +33936,9 @@
       "source_file": ".claude/.project-doc/ledger.json",
       "source_location": "L8",
       "weight": 1.0,
-      "confidence_score": 1.0,
       "source": "project_doc_ledger_mined_sessions",
-      "target": "project_doc_ledger_mined_sessions_2ff49b29_8d08_4edb_95e0_d66375acfef3"
+      "target": "project_doc_ledger_mined_sessions_2ff49b29_8d08_4edb_95e0_d66375acfef3",
+      "confidence_score": 1.0
     },
     {
       "relation": "contains",
@@ -34156,9 +33946,9 @@
       "source_file": ".claude/.project-doc/ledger.json",
       "source_location": "L9",
       "weight": 1.0,
-      "confidence_score": 1.0,
       "source": "project_doc_ledger_mined_sessions",
-      "target": "project_doc_ledger_mined_sessions_356fa584_1353_4266_8c37_4558f13062d2"
+      "target": "project_doc_ledger_mined_sessions_356fa584_1353_4266_8c37_4558f13062d2",
+      "confidence_score": 1.0
     },
     {
       "relation": "contains",
@@ -34166,48 +33956,8 @@
       "source_file": ".claude/.project-doc/ledger.json",
       "source_location": "L10",
       "weight": 1.0,
-      "confidence_score": 1.0,
       "source": "project_doc_ledger_mined_sessions",
-      "target": "project_doc_ledger_mined_sessions_36c1b1b1_c755_44db_9332_be6e763559d8"
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": ".claude/.project-doc/ledger.json",
-      "source_location": "L32",
-      "weight": 1.0,
-      "source": "project_doc_ledger_mined_sessions",
-      "target": "project_doc_ledger_mined_sessions_464a2071_758b_461a_a1ac_7a74c35849dd",
-      "confidence_score": 1.0
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": ".claude/.project-doc/ledger.json",
-      "source_location": "L33",
-      "weight": 1.0,
-      "source": "project_doc_ledger_mined_sessions",
-      "target": "project_doc_ledger_mined_sessions_4d447d32_44b3_4af6_947f_5a55d5ffbd74",
-      "confidence_score": 1.0
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": ".claude/.project-doc/ledger.json",
-      "source_location": "L34",
-      "weight": 1.0,
-      "source": "project_doc_ledger_mined_sessions",
-      "target": "project_doc_ledger_mined_sessions_54adb04c_589e_4248_b4da_476b073623e3",
-      "confidence_score": 1.0
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": ".claude/.project-doc/ledger.json",
-      "source_location": "L35",
-      "weight": 1.0,
-      "source": "project_doc_ledger_mined_sessions",
-      "target": "project_doc_ledger_mined_sessions_599ab805_d053_4216_869d_4c474cd7bebb",
+      "target": "project_doc_ledger_mined_sessions_36c1b1b1_c755_44db_9332_be6e763559d8",
       "confidence_score": 1.0
     },
     {
@@ -34216,28 +33966,8 @@
       "source_file": ".claude/.project-doc/ledger.json",
       "source_location": "L11",
       "weight": 1.0,
-      "confidence_score": 1.0,
       "source": "project_doc_ledger_mined_sessions",
-      "target": "project_doc_ledger_mined_sessions_59eed12d_e45d_49d4_9dd7_8500db429ba7"
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": ".claude/.project-doc/ledger.json",
-      "source_location": "L36",
-      "weight": 1.0,
-      "source": "project_doc_ledger_mined_sessions",
-      "target": "project_doc_ledger_mined_sessions_5fda1910_5082_46cf_8dc3_1ec35aee33a7",
-      "confidence_score": 1.0
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": ".claude/.project-doc/ledger.json",
-      "source_location": "L37",
-      "weight": 1.0,
-      "source": "project_doc_ledger_mined_sessions",
-      "target": "project_doc_ledger_mined_sessions_661a8e58_4038_41ac_85a8_75048e2d59c2",
+      "target": "project_doc_ledger_mined_sessions_59eed12d_e45d_49d4_9dd7_8500db429ba7",
       "confidence_score": 1.0
     },
     {
@@ -34246,9 +33976,9 @@
       "source_file": ".claude/.project-doc/ledger.json",
       "source_location": "L28",
       "weight": 1.0,
-      "confidence_score": 1.0,
       "source": "project_doc_ledger_mined_sessions",
-      "target": "project_doc_ledger_mined_sessions_6be279d9_da87_447f_bc32_d76265a314cd"
+      "target": "project_doc_ledger_mined_sessions_6be279d9_da87_447f_bc32_d76265a314cd",
+      "confidence_score": 1.0
     },
     {
       "relation": "contains",
@@ -34256,9 +33986,9 @@
       "source_file": ".claude/.project-doc/ledger.json",
       "source_location": "L12",
       "weight": 1.0,
-      "confidence_score": 1.0,
       "source": "project_doc_ledger_mined_sessions",
-      "target": "project_doc_ledger_mined_sessions_6efd861d_ce33_424f_b2d1_214f7bf428b1"
+      "target": "project_doc_ledger_mined_sessions_6efd861d_ce33_424f_b2d1_214f7bf428b1",
+      "confidence_score": 1.0
     },
     {
       "relation": "contains",
@@ -34266,9 +33996,9 @@
       "source_file": ".claude/.project-doc/ledger.json",
       "source_location": "L13",
       "weight": 1.0,
-      "confidence_score": 1.0,
       "source": "project_doc_ledger_mined_sessions",
-      "target": "project_doc_ledger_mined_sessions_7c0058d0_e014_4140_9676_7c401e25a0a0"
+      "target": "project_doc_ledger_mined_sessions_7c0058d0_e014_4140_9676_7c401e25a0a0",
+      "confidence_score": 1.0
     },
     {
       "relation": "contains",
@@ -34276,18 +34006,8 @@
       "source_file": ".claude/.project-doc/ledger.json",
       "source_location": "L14",
       "weight": 1.0,
-      "confidence_score": 1.0,
       "source": "project_doc_ledger_mined_sessions",
-      "target": "project_doc_ledger_mined_sessions_829c0d78_f2fb_45b6_bc6f_914847d4544a"
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": ".claude/.project-doc/ledger.json",
-      "source_location": "L38",
-      "weight": 1.0,
-      "source": "project_doc_ledger_mined_sessions",
-      "target": "project_doc_ledger_mined_sessions_8d18e087_e303_49a0_8863_6a7d4989c491",
+      "target": "project_doc_ledger_mined_sessions_829c0d78_f2fb_45b6_bc6f_914847d4544a",
       "confidence_score": 1.0
     },
     {
@@ -34296,9 +34016,9 @@
       "source_file": ".claude/.project-doc/ledger.json",
       "source_location": "L15",
       "weight": 1.0,
-      "confidence_score": 1.0,
       "source": "project_doc_ledger_mined_sessions",
-      "target": "project_doc_ledger_mined_sessions_8fda82c3_6298_4aeb_8f0f_86972dab5a2c"
+      "target": "project_doc_ledger_mined_sessions_8fda82c3_6298_4aeb_8f0f_86972dab5a2c",
+      "confidence_score": 1.0
     },
     {
       "relation": "contains",
@@ -34306,18 +34026,8 @@
       "source_file": ".claude/.project-doc/ledger.json",
       "source_location": "L16",
       "weight": 1.0,
-      "confidence_score": 1.0,
       "source": "project_doc_ledger_mined_sessions",
-      "target": "project_doc_ledger_mined_sessions_90076cd6_6387_42d5_9cca_e803e5be6f4c"
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": ".claude/.project-doc/ledger.json",
-      "source_location": "L39",
-      "weight": 1.0,
-      "source": "project_doc_ledger_mined_sessions",
-      "target": "project_doc_ledger_mined_sessions_a3f06807_6e92_41fa_b514_72cb22194a22",
+      "target": "project_doc_ledger_mined_sessions_90076cd6_6387_42d5_9cca_e803e5be6f4c",
       "confidence_score": 1.0
     },
     {
@@ -34326,9 +34036,9 @@
       "source_file": ".claude/.project-doc/ledger.json",
       "source_location": "L17",
       "weight": 1.0,
-      "confidence_score": 1.0,
       "source": "project_doc_ledger_mined_sessions",
-      "target": "project_doc_ledger_mined_sessions_ae9a4c6f_f0dc_4261_b41b_047d34c36ef4"
+      "target": "project_doc_ledger_mined_sessions_ae9a4c6f_f0dc_4261_b41b_047d34c36ef4",
+      "confidence_score": 1.0
     },
     {
       "relation": "contains",
@@ -34336,18 +34046,8 @@
       "source_file": ".claude/.project-doc/ledger.json",
       "source_location": "L18",
       "weight": 1.0,
-      "confidence_score": 1.0,
       "source": "project_doc_ledger_mined_sessions",
-      "target": "project_doc_ledger_mined_sessions_affbac68_e0b8_4d52_b8fc_f7ea0636dc8a"
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": ".claude/.project-doc/ledger.json",
-      "source_location": "L40",
-      "weight": 1.0,
-      "source": "project_doc_ledger_mined_sessions",
-      "target": "project_doc_ledger_mined_sessions_b785a252_7ed3_4d2f_8a62_d03408c6b2cd",
+      "target": "project_doc_ledger_mined_sessions_affbac68_e0b8_4d52_b8fc_f7ea0636dc8a",
       "confidence_score": 1.0
     },
     {
@@ -34356,18 +34056,8 @@
       "source_file": ".claude/.project-doc/ledger.json",
       "source_location": "L19",
       "weight": 1.0,
-      "confidence_score": 1.0,
       "source": "project_doc_ledger_mined_sessions",
-      "target": "project_doc_ledger_mined_sessions_bc9c01e0_88ff_4734_92b1_44e5aab5b3de"
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": ".claude/.project-doc/ledger.json",
-      "source_location": "L41",
-      "weight": 1.0,
-      "source": "project_doc_ledger_mined_sessions",
-      "target": "project_doc_ledger_mined_sessions_c4adb43b_0e1b_4fa4_ae83_14761ae7ebe8",
+      "target": "project_doc_ledger_mined_sessions_bc9c01e0_88ff_4734_92b1_44e5aab5b3de",
       "confidence_score": 1.0
     },
     {
@@ -34376,9 +34066,9 @@
       "source_file": ".claude/.project-doc/ledger.json",
       "source_location": "L20",
       "weight": 1.0,
-      "confidence_score": 1.0,
       "source": "project_doc_ledger_mined_sessions",
-      "target": "project_doc_ledger_mined_sessions_c65e7b7a_867b_494a_bbd4_bb68e08a02c1"
+      "target": "project_doc_ledger_mined_sessions_c65e7b7a_867b_494a_bbd4_bb68e08a02c1",
+      "confidence_score": 1.0
     },
     {
       "relation": "contains",
@@ -34386,18 +34076,8 @@
       "source_file": ".claude/.project-doc/ledger.json",
       "source_location": "L21",
       "weight": 1.0,
-      "confidence_score": 1.0,
       "source": "project_doc_ledger_mined_sessions",
-      "target": "project_doc_ledger_mined_sessions_d2b3016f_25aa_4f66_96fb_e82a957f669a"
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": ".claude/.project-doc/ledger.json",
-      "source_location": "L42",
-      "weight": 1.0,
-      "source": "project_doc_ledger_mined_sessions",
-      "target": "project_doc_ledger_mined_sessions_d36339d8_ce10_48d8_ac0f_2e019ecc51ad",
+      "target": "project_doc_ledger_mined_sessions_d2b3016f_25aa_4f66_96fb_e82a957f669a",
       "confidence_score": 1.0
     },
     {
@@ -34406,9 +34086,9 @@
       "source_file": ".claude/.project-doc/ledger.json",
       "source_location": "L22",
       "weight": 1.0,
-      "confidence_score": 1.0,
       "source": "project_doc_ledger_mined_sessions",
-      "target": "project_doc_ledger_mined_sessions_d470c171_bc7b_46ba_b22e_fe8abf29d111"
+      "target": "project_doc_ledger_mined_sessions_d470c171_bc7b_46ba_b22e_fe8abf29d111",
+      "confidence_score": 1.0
     },
     {
       "relation": "contains",
@@ -34416,38 +34096,8 @@
       "source_file": ".claude/.project-doc/ledger.json",
       "source_location": "L23",
       "weight": 1.0,
-      "confidence_score": 1.0,
       "source": "project_doc_ledger_mined_sessions",
-      "target": "project_doc_ledger_mined_sessions_e48ab410_03e2_467e_8491_b62a35ecb28a"
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": ".claude/.project-doc/ledger.json",
-      "source_location": "L43",
-      "weight": 1.0,
-      "source": "project_doc_ledger_mined_sessions",
-      "target": "project_doc_ledger_mined_sessions_e991b8fa_ba71_4755_b5f3_4bcf251ef655",
-      "confidence_score": 1.0
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": ".claude/.project-doc/ledger.json",
-      "source_location": "L44",
-      "weight": 1.0,
-      "source": "project_doc_ledger_mined_sessions",
-      "target": "project_doc_ledger_mined_sessions_ea05ffe4_f18c_4679_b7dd_d31d45f86ef5",
-      "confidence_score": 1.0
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": ".claude/.project-doc/ledger.json",
-      "source_location": "L45",
-      "weight": 1.0,
-      "source": "project_doc_ledger_mined_sessions",
-      "target": "project_doc_ledger_mined_sessions_ee3b27e9_ea5f_4b19_bdc7_e0f5b196fd27",
+      "target": "project_doc_ledger_mined_sessions_e48ab410_03e2_467e_8491_b62a35ecb28a",
       "confidence_score": 1.0
     },
     {
@@ -34456,9 +34106,9 @@
       "source_file": ".claude/.project-doc/ledger.json",
       "source_location": "L24",
       "weight": 1.0,
-      "confidence_score": 1.0,
       "source": "project_doc_ledger_mined_sessions",
-      "target": "project_doc_ledger_mined_sessions_ee4157c6_7cb1_4ca5_bdcf_801605cff245"
+      "target": "project_doc_ledger_mined_sessions_ee4157c6_7cb1_4ca5_bdcf_801605cff245",
+      "confidence_score": 1.0
     },
     {
       "relation": "contains",
@@ -34466,9 +34116,9 @@
       "source_file": ".claude/.project-doc/ledger.json",
       "source_location": "L25",
       "weight": 1.0,
-      "confidence_score": 1.0,
       "source": "project_doc_ledger_mined_sessions",
-      "target": "project_doc_ledger_mined_sessions_f2c39a55_f268_4058_8bfd_81bdb540e93a"
+      "target": "project_doc_ledger_mined_sessions_f2c39a55_f268_4058_8bfd_81bdb540e93a",
+      "confidence_score": 1.0
     },
     {
       "relation": "contains",
@@ -34476,18 +34126,8 @@
       "source_file": ".claude/.project-doc/ledger.json",
       "source_location": "L26",
       "weight": 1.0,
-      "confidence_score": 1.0,
       "source": "project_doc_ledger_mined_sessions",
-      "target": "project_doc_ledger_mined_sessions_f4e52030_90fc_4b25_86d2_85905adad909"
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": ".claude/.project-doc/ledger.json",
-      "source_location": "L46",
-      "weight": 1.0,
-      "source": "project_doc_ledger_mined_sessions",
-      "target": "project_doc_ledger_mined_sessions_f7ba1ed7_f3bf_4cf0_9775_3d51b39481b4",
+      "target": "project_doc_ledger_mined_sessions_f4e52030_90fc_4b25_86d2_85905adad909",
       "confidence_score": 1.0
     },
     {
@@ -36958,9 +36598,9 @@
       "source_file": "_shared/collect_engine.py",
       "source_location": "L46",
       "weight": 1.0,
-      "confidence_score": 1.0,
       "source": "shared_collect_engine_rationale_46",
-      "target": "shared_collect_engine_cwd_to_projects_subdir"
+      "target": "shared_collect_engine_cwd_to_projects_subdir",
+      "confidence_score": 1.0
     },
     {
       "relation": "calls",
@@ -36990,9 +36630,9 @@
       "source_file": "_shared/collect_engine.py",
       "source_location": "L71",
       "weight": 1.0,
-      "confidence_score": 1.0,
       "source": "shared_collect_engine_rationale_71",
-      "target": "shared_collect_engine_has_workspace_marker"
+      "target": "shared_collect_engine_has_workspace_marker",
+      "confidence_score": 1.0
     },
     {
       "relation": "calls",
@@ -37011,9 +36651,9 @@
       "source_file": "_shared/collect_engine.py",
       "source_location": "L93",
       "weight": 1.0,
-      "confidence_score": 1.0,
       "source": "shared_collect_engine_rationale_93",
-      "target": "shared_collect_engine_is_project_root"
+      "target": "shared_collect_engine_is_project_root",
+      "confidence_score": 1.0
     },
     {
       "relation": "calls",
@@ -37065,9 +36705,9 @@
       "source_file": "_shared/collect_engine.py",
       "source_location": "L98",
       "weight": 1.0,
-      "confidence_score": 1.0,
       "source": "shared_collect_engine_rationale_98",
-      "target": "shared_collect_engine_resolve_project_root"
+      "target": "shared_collect_engine_resolve_project_root",
+      "confidence_score": 1.0
     },
     {
       "relation": "calls",
@@ -37108,9 +36748,9 @@
       "source_file": "_shared/collect_engine.py",
       "source_location": "L121",
       "weight": 1.0,
-      "confidence_score": 1.0,
       "source": "shared_collect_engine_rationale_121",
-      "target": "shared_collect_engine_child_has_marker"
+      "target": "shared_collect_engine_child_has_marker",
+      "confidence_score": 1.0
     },
     {
       "relation": "calls",
@@ -37140,9 +36780,9 @@
       "source_file": "_shared/collect_engine.py",
       "source_location": "L141",
       "weight": 1.0,
-      "confidence_score": 1.0,
       "source": "shared_collect_engine_rationale_141",
-      "target": "shared_collect_engine_module_candidates"
+      "target": "shared_collect_engine_module_candidates",
+      "confidence_score": 1.0
     },
     {
       "relation": "calls",
@@ -37161,9 +36801,9 @@
       "source_file": "_shared/collect_engine.py",
       "source_location": "L184",
       "weight": 1.0,
-      "confidence_score": 1.0,
       "source": "shared_collect_engine_rationale_184",
-      "target": "shared_collect_engine_detect_modules"
+      "target": "shared_collect_engine_detect_modules",
+      "confidence_score": 1.0
     },
     {
       "relation": "rationale_for",
@@ -37171,9 +36811,9 @@
       "source_file": "_shared/collect_engine.py",
       "source_location": "L200",
       "weight": 1.0,
-      "confidence_score": 1.0,
       "source": "shared_collect_engine_rationale_200",
-      "target": "shared_collect_engine_collect_edited_paths"
+      "target": "shared_collect_engine_collect_edited_paths",
+      "confidence_score": 1.0
     },
     {
       "relation": "rationale_for",
@@ -37181,9 +36821,9 @@
       "source_file": "_shared/collect_engine.py",
       "source_location": "L217",
       "weight": 1.0,
-      "confidence_score": 1.0,
       "source": "shared_collect_engine_rationale_217",
-      "target": "shared_collect_engine_infer_scope"
+      "target": "shared_collect_engine_infer_scope",
+      "confidence_score": 1.0
     },
     {
       "relation": "calls",
@@ -37213,9 +36853,9 @@
       "source_file": "_shared/collect_engine.py",
       "source_location": "L300",
       "weight": 1.0,
-      "confidence_score": 1.0,
       "source": "shared_collect_engine_rationale_300",
-      "target": "shared_collect_engine_discover_transcript"
+      "target": "shared_collect_engine_discover_transcript",
+      "confidence_score": 1.0
     },
     {
       "relation": "calls",
@@ -37234,9 +36874,9 @@
       "source_file": "_shared/collect_engine.py",
       "source_location": "L346",
       "weight": 1.0,
-      "confidence_score": 1.0,
       "source": "shared_collect_engine_rationale_346",
-      "target": "shared_collect_engine_first_cwd"
+      "target": "shared_collect_engine_first_cwd",
+      "confidence_score": 1.0
     },
     {
       "relation": "calls",
@@ -37266,9 +36906,9 @@
       "source_file": "_shared/collect_engine.py",
       "source_location": "L372",
       "weight": 1.0,
-      "confidence_score": 1.0,
       "source": "shared_collect_engine_rationale_372",
-      "target": "shared_collect_engine_discover_all_transcripts"
+      "target": "shared_collect_engine_discover_all_transcripts",
+      "confidence_score": 1.0
     },
     {
       "relation": "rationale_for",
@@ -37276,9 +36916,9 @@
       "source_file": "_shared/collect_engine.py",
       "source_location": "L413",
       "weight": 1.0,
-      "confidence_score": 1.0,
       "source": "shared_collect_engine_rationale_413",
-      "target": "shared_collect_engine_find_team_transcripts"
+      "target": "shared_collect_engine_find_team_transcripts",
+      "confidence_score": 1.0
     },
     {
       "relation": "calls",
@@ -37308,9 +36948,9 @@
       "source_file": "_shared/collect_engine.py",
       "source_location": "L456",
       "weight": 1.0,
-      "confidence_score": 1.0,
       "source": "shared_collect_engine_rationale_456",
-      "target": "shared_collect_engine_extract_rejection_speech"
+      "target": "shared_collect_engine_extract_rejection_speech",
+      "confidence_score": 1.0
     },
     {
       "relation": "calls",
@@ -37340,9 +36980,9 @@
       "source_file": "_shared/collect_engine.py",
       "source_location": "L472",
       "weight": 1.0,
-      "confidence_score": 1.0,
       "source": "shared_collect_engine_rationale_472",
-      "target": "shared_collect_engine_collect"
+      "target": "shared_collect_engine_collect",
+      "confidence_score": 1.0
     },
     {
       "relation": "calls",
@@ -37372,9 +37012,9 @@
       "source_file": "_shared/collect_engine.py",
       "source_location": "L538",
       "weight": 1.0,
-      "confidence_score": 1.0,
       "source": "shared_collect_engine_rationale_538",
-      "target": "shared_collect_engine_emit_findings"
+      "target": "shared_collect_engine_emit_findings",
+      "confidence_score": 1.0
     },
     {
       "relation": "contains",
@@ -39925,9 +39565,9 @@
       "source_file": "plugins/handoff/lib/collect_engine.py",
       "source_location": "L46",
       "weight": 1.0,
-      "confidence_score": 1.0,
       "source": "plugins_handoff_lib_collect_engine_py_lib_collect_engine_rationale_46",
-      "target": "plugins_handoff_lib_collect_engine_py_lib_collect_engine_cwd_to_projects_subdir"
+      "target": "plugins_handoff_lib_collect_engine_py_lib_collect_engine_cwd_to_projects_subdir",
+      "confidence_score": 1.0
     },
     {
       "relation": "calls",
@@ -39957,9 +39597,9 @@
       "source_file": "plugins/handoff/lib/collect_engine.py",
       "source_location": "L71",
       "weight": 1.0,
-      "confidence_score": 1.0,
       "source": "plugins_handoff_lib_collect_engine_py_lib_collect_engine_rationale_71",
-      "target": "plugins_handoff_lib_collect_engine_py_lib_collect_engine_has_workspace_marker"
+      "target": "plugins_handoff_lib_collect_engine_py_lib_collect_engine_has_workspace_marker",
+      "confidence_score": 1.0
     },
     {
       "relation": "calls",
@@ -39978,9 +39618,9 @@
       "source_file": "plugins/handoff/lib/collect_engine.py",
       "source_location": "L93",
       "weight": 1.0,
-      "confidence_score": 1.0,
       "source": "plugins_handoff_lib_collect_engine_py_lib_collect_engine_rationale_93",
-      "target": "plugins_handoff_lib_collect_engine_py_lib_collect_engine_is_project_root"
+      "target": "plugins_handoff_lib_collect_engine_py_lib_collect_engine_is_project_root",
+      "confidence_score": 1.0
     },
     {
       "relation": "calls",
@@ -40032,9 +39672,9 @@
       "source_file": "plugins/handoff/lib/collect_engine.py",
       "source_location": "L98",
       "weight": 1.0,
-      "confidence_score": 1.0,
       "source": "plugins_handoff_lib_collect_engine_py_lib_collect_engine_rationale_98",
-      "target": "plugins_handoff_lib_collect_engine_py_lib_collect_engine_resolve_project_root"
+      "target": "plugins_handoff_lib_collect_engine_py_lib_collect_engine_resolve_project_root",
+      "confidence_score": 1.0
     },
     {
       "relation": "calls",
@@ -40075,9 +39715,9 @@
       "source_file": "plugins/handoff/lib/collect_engine.py",
       "source_location": "L121",
       "weight": 1.0,
-      "confidence_score": 1.0,
       "source": "plugins_handoff_lib_collect_engine_py_lib_collect_engine_rationale_121",
-      "target": "plugins_handoff_lib_collect_engine_py_lib_collect_engine_child_has_marker"
+      "target": "plugins_handoff_lib_collect_engine_py_lib_collect_engine_child_has_marker",
+      "confidence_score": 1.0
     },
     {
       "relation": "calls",
@@ -40107,9 +39747,9 @@
       "source_file": "plugins/handoff/lib/collect_engine.py",
       "source_location": "L141",
       "weight": 1.0,
-      "confidence_score": 1.0,
       "source": "plugins_handoff_lib_collect_engine_py_lib_collect_engine_rationale_141",
-      "target": "plugins_handoff_lib_collect_engine_py_lib_collect_engine_module_candidates"
+      "target": "plugins_handoff_lib_collect_engine_py_lib_collect_engine_module_candidates",
+      "confidence_score": 1.0
     },
     {
       "relation": "calls",
@@ -40128,9 +39768,9 @@
       "source_file": "plugins/handoff/lib/collect_engine.py",
       "source_location": "L184",
       "weight": 1.0,
-      "confidence_score": 1.0,
       "source": "plugins_handoff_lib_collect_engine_py_lib_collect_engine_rationale_184",
-      "target": "plugins_handoff_lib_collect_engine_py_lib_collect_engine_detect_modules"
+      "target": "plugins_handoff_lib_collect_engine_py_lib_collect_engine_detect_modules",
+      "confidence_score": 1.0
     },
     {
       "relation": "rationale_for",
@@ -40138,9 +39778,9 @@
       "source_file": "plugins/handoff/lib/collect_engine.py",
       "source_location": "L200",
       "weight": 1.0,
-      "confidence_score": 1.0,
       "source": "plugins_handoff_lib_collect_engine_py_lib_collect_engine_rationale_200",
-      "target": "plugins_handoff_lib_collect_engine_py_lib_collect_engine_collect_edited_paths"
+      "target": "plugins_handoff_lib_collect_engine_py_lib_collect_engine_collect_edited_paths",
+      "confidence_score": 1.0
     },
     {
       "relation": "rationale_for",
@@ -40148,9 +39788,9 @@
       "source_file": "plugins/handoff/lib/collect_engine.py",
       "source_location": "L217",
       "weight": 1.0,
-      "confidence_score": 1.0,
       "source": "plugins_handoff_lib_collect_engine_py_lib_collect_engine_rationale_217",
-      "target": "plugins_handoff_lib_collect_engine_py_lib_collect_engine_infer_scope"
+      "target": "plugins_handoff_lib_collect_engine_py_lib_collect_engine_infer_scope",
+      "confidence_score": 1.0
     },
     {
       "relation": "calls",
@@ -40180,9 +39820,9 @@
       "source_file": "plugins/handoff/lib/collect_engine.py",
       "source_location": "L300",
       "weight": 1.0,
-      "confidence_score": 1.0,
       "source": "plugins_handoff_lib_collect_engine_py_lib_collect_engine_rationale_300",
-      "target": "plugins_handoff_lib_collect_engine_py_lib_collect_engine_discover_transcript"
+      "target": "plugins_handoff_lib_collect_engine_py_lib_collect_engine_discover_transcript",
+      "confidence_score": 1.0
     },
     {
       "relation": "calls",
@@ -40201,9 +39841,9 @@
       "source_file": "plugins/handoff/lib/collect_engine.py",
       "source_location": "L346",
       "weight": 1.0,
-      "confidence_score": 1.0,
       "source": "plugins_handoff_lib_collect_engine_py_lib_collect_engine_rationale_346",
-      "target": "plugins_handoff_lib_collect_engine_py_lib_collect_engine_first_cwd"
+      "target": "plugins_handoff_lib_collect_engine_py_lib_collect_engine_first_cwd",
+      "confidence_score": 1.0
     },
     {
       "relation": "calls",
@@ -40233,9 +39873,9 @@
       "source_file": "plugins/handoff/lib/collect_engine.py",
       "source_location": "L372",
       "weight": 1.0,
-      "confidence_score": 1.0,
       "source": "plugins_handoff_lib_collect_engine_py_lib_collect_engine_rationale_372",
-      "target": "plugins_handoff_lib_collect_engine_py_lib_collect_engine_discover_all_transcripts"
+      "target": "plugins_handoff_lib_collect_engine_py_lib_collect_engine_discover_all_transcripts",
+      "confidence_score": 1.0
     },
     {
       "relation": "rationale_for",
@@ -40243,9 +39883,9 @@
       "source_file": "plugins/handoff/lib/collect_engine.py",
       "source_location": "L413",
       "weight": 1.0,
-      "confidence_score": 1.0,
       "source": "plugins_handoff_lib_collect_engine_py_lib_collect_engine_rationale_413",
-      "target": "plugins_handoff_lib_collect_engine_py_lib_collect_engine_find_team_transcripts"
+      "target": "plugins_handoff_lib_collect_engine_py_lib_collect_engine_find_team_transcripts",
+      "confidence_score": 1.0
     },
     {
       "relation": "calls",
@@ -40275,9 +39915,9 @@
       "source_file": "plugins/handoff/lib/collect_engine.py",
       "source_location": "L456",
       "weight": 1.0,
-      "confidence_score": 1.0,
       "source": "plugins_handoff_lib_collect_engine_py_lib_collect_engine_rationale_456",
-      "target": "plugins_handoff_lib_collect_engine_py_lib_collect_engine_extract_rejection_speech"
+      "target": "plugins_handoff_lib_collect_engine_py_lib_collect_engine_extract_rejection_speech",
+      "confidence_score": 1.0
     },
     {
       "relation": "calls",
@@ -40307,9 +39947,9 @@
       "source_file": "plugins/handoff/lib/collect_engine.py",
       "source_location": "L472",
       "weight": 1.0,
-      "confidence_score": 1.0,
       "source": "plugins_handoff_lib_collect_engine_py_lib_collect_engine_rationale_472",
-      "target": "plugins_handoff_lib_collect_engine_py_lib_collect_engine_collect"
+      "target": "plugins_handoff_lib_collect_engine_py_lib_collect_engine_collect",
+      "confidence_score": 1.0
     },
     {
       "relation": "calls",
@@ -40339,9 +39979,9 @@
       "source_file": "plugins/handoff/lib/collect_engine.py",
       "source_location": "L538",
       "weight": 1.0,
-      "confidence_score": 1.0,
       "source": "plugins_handoff_lib_collect_engine_py_lib_collect_engine_rationale_538",
-      "target": "plugins_handoff_lib_collect_engine_py_lib_collect_engine_emit_findings"
+      "target": "plugins_handoff_lib_collect_engine_py_lib_collect_engine_emit_findings",
+      "confidence_score": 1.0
     },
     {
       "relation": "contains",
@@ -40400,9 +40040,9 @@
       "source_file": "plugins/handoff/lib/extract_ata.py",
       "source_location": "L53",
       "weight": 1.0,
-      "confidence_score": 1.0,
       "source": "lib_extract_ata_rationale_53",
-      "target": "lib_extract_ata_write_gate_sentinel"
+      "target": "lib_extract_ata_write_gate_sentinel",
+      "confidence_score": 1.0
     },
     {
       "relation": "calls",
@@ -40421,9 +40061,9 @@
       "source_file": "plugins/handoff/lib/extract_ata.py",
       "source_location": "L79",
       "weight": 1.0,
-      "confidence_score": 1.0,
       "source": "lib_extract_ata_rationale_79",
-      "target": "lib_extract_ata_build"
+      "target": "lib_extract_ata_build",
+      "confidence_score": 1.0
     },
     {
       "relation": "calls",
@@ -40442,9 +40082,9 @@
       "source_file": "plugins/handoff/lib/extract_ata.py",
       "source_location": "L112",
       "weight": 1.0,
-      "confidence_score": 1.0,
       "source": "lib_extract_ata_rationale_112",
-      "target": "lib_extract_ata_build_prospective"
+      "target": "lib_extract_ata_build_prospective",
+      "confidence_score": 1.0
     },
     {
       "relation": "contains",
@@ -41035,9 +40675,9 @@
       "source_file": "plugins/project-doc/lib/collect_engine.py",
       "source_location": "L46",
       "weight": 1.0,
-      "confidence_score": 1.0,
       "source": "plugins_project_doc_lib_collect_engine_py_lib_collect_engine_rationale_46",
-      "target": "plugins_project_doc_lib_collect_engine_py_lib_collect_engine_cwd_to_projects_subdir"
+      "target": "plugins_project_doc_lib_collect_engine_py_lib_collect_engine_cwd_to_projects_subdir",
+      "confidence_score": 1.0
     },
     {
       "relation": "calls",
@@ -41067,9 +40707,9 @@
       "source_file": "plugins/project-doc/lib/collect_engine.py",
       "source_location": "L71",
       "weight": 1.0,
-      "confidence_score": 1.0,
       "source": "plugins_project_doc_lib_collect_engine_py_lib_collect_engine_rationale_71",
-      "target": "plugins_project_doc_lib_collect_engine_py_lib_collect_engine_has_workspace_marker"
+      "target": "plugins_project_doc_lib_collect_engine_py_lib_collect_engine_has_workspace_marker",
+      "confidence_score": 1.0
     },
     {
       "relation": "calls",
@@ -41088,9 +40728,9 @@
       "source_file": "plugins/project-doc/lib/collect_engine.py",
       "source_location": "L93",
       "weight": 1.0,
-      "confidence_score": 1.0,
       "source": "plugins_project_doc_lib_collect_engine_py_lib_collect_engine_rationale_93",
-      "target": "plugins_project_doc_lib_collect_engine_py_lib_collect_engine_is_project_root"
+      "target": "plugins_project_doc_lib_collect_engine_py_lib_collect_engine_is_project_root",
+      "confidence_score": 1.0
     },
     {
       "relation": "calls",
@@ -41142,9 +40782,9 @@
       "source_file": "plugins/project-doc/lib/collect_engine.py",
       "source_location": "L98",
       "weight": 1.0,
-      "confidence_score": 1.0,
       "source": "plugins_project_doc_lib_collect_engine_py_lib_collect_engine_rationale_98",
-      "target": "plugins_project_doc_lib_collect_engine_py_lib_collect_engine_resolve_project_root"
+      "target": "plugins_project_doc_lib_collect_engine_py_lib_collect_engine_resolve_project_root",
+      "confidence_score": 1.0
     },
     {
       "relation": "calls",
@@ -41185,9 +40825,9 @@
       "source_file": "plugins/project-doc/lib/collect_engine.py",
       "source_location": "L121",
       "weight": 1.0,
-      "confidence_score": 1.0,
       "source": "plugins_project_doc_lib_collect_engine_py_lib_collect_engine_rationale_121",
-      "target": "plugins_project_doc_lib_collect_engine_py_lib_collect_engine_child_has_marker"
+      "target": "plugins_project_doc_lib_collect_engine_py_lib_collect_engine_child_has_marker",
+      "confidence_score": 1.0
     },
     {
       "relation": "calls",
@@ -41217,9 +40857,9 @@
       "source_file": "plugins/project-doc/lib/collect_engine.py",
       "source_location": "L141",
       "weight": 1.0,
-      "confidence_score": 1.0,
       "source": "plugins_project_doc_lib_collect_engine_py_lib_collect_engine_rationale_141",
-      "target": "plugins_project_doc_lib_collect_engine_py_lib_collect_engine_module_candidates"
+      "target": "plugins_project_doc_lib_collect_engine_py_lib_collect_engine_module_candidates",
+      "confidence_score": 1.0
     },
     {
       "relation": "calls",
@@ -41238,9 +40878,9 @@
       "source_file": "plugins/project-doc/lib/collect_engine.py",
       "source_location": "L184",
       "weight": 1.0,
-      "confidence_score": 1.0,
       "source": "plugins_project_doc_lib_collect_engine_py_lib_collect_engine_rationale_184",
-      "target": "plugins_project_doc_lib_collect_engine_py_lib_collect_engine_detect_modules"
+      "target": "plugins_project_doc_lib_collect_engine_py_lib_collect_engine_detect_modules",
+      "confidence_score": 1.0
     },
     {
       "relation": "rationale_for",
@@ -41248,9 +40888,9 @@
       "source_file": "plugins/project-doc/lib/collect_engine.py",
       "source_location": "L200",
       "weight": 1.0,
-      "confidence_score": 1.0,
       "source": "plugins_project_doc_lib_collect_engine_py_lib_collect_engine_rationale_200",
-      "target": "plugins_project_doc_lib_collect_engine_py_lib_collect_engine_collect_edited_paths"
+      "target": "plugins_project_doc_lib_collect_engine_py_lib_collect_engine_collect_edited_paths",
+      "confidence_score": 1.0
     },
     {
       "relation": "rationale_for",
@@ -41258,9 +40898,9 @@
       "source_file": "plugins/project-doc/lib/collect_engine.py",
       "source_location": "L217",
       "weight": 1.0,
-      "confidence_score": 1.0,
       "source": "plugins_project_doc_lib_collect_engine_py_lib_collect_engine_rationale_217",
-      "target": "plugins_project_doc_lib_collect_engine_py_lib_collect_engine_infer_scope"
+      "target": "plugins_project_doc_lib_collect_engine_py_lib_collect_engine_infer_scope",
+      "confidence_score": 1.0
     },
     {
       "relation": "calls",
@@ -41290,9 +40930,9 @@
       "source_file": "plugins/project-doc/lib/collect_engine.py",
       "source_location": "L300",
       "weight": 1.0,
-      "confidence_score": 1.0,
       "source": "plugins_project_doc_lib_collect_engine_py_lib_collect_engine_rationale_300",
-      "target": "plugins_project_doc_lib_collect_engine_py_lib_collect_engine_discover_transcript"
+      "target": "plugins_project_doc_lib_collect_engine_py_lib_collect_engine_discover_transcript",
+      "confidence_score": 1.0
     },
     {
       "relation": "calls",
@@ -41311,9 +40951,9 @@
       "source_file": "plugins/project-doc/lib/collect_engine.py",
       "source_location": "L346",
       "weight": 1.0,
-      "confidence_score": 1.0,
       "source": "plugins_project_doc_lib_collect_engine_py_lib_collect_engine_rationale_346",
-      "target": "plugins_project_doc_lib_collect_engine_py_lib_collect_engine_first_cwd"
+      "target": "plugins_project_doc_lib_collect_engine_py_lib_collect_engine_first_cwd",
+      "confidence_score": 1.0
     },
     {
       "relation": "calls",
@@ -41343,9 +40983,9 @@
       "source_file": "plugins/project-doc/lib/collect_engine.py",
       "source_location": "L372",
       "weight": 1.0,
-      "confidence_score": 1.0,
       "source": "plugins_project_doc_lib_collect_engine_py_lib_collect_engine_rationale_372",
-      "target": "plugins_project_doc_lib_collect_engine_py_lib_collect_engine_discover_all_transcripts"
+      "target": "plugins_project_doc_lib_collect_engine_py_lib_collect_engine_discover_all_transcripts",
+      "confidence_score": 1.0
     },
     {
       "relation": "rationale_for",
@@ -41353,9 +40993,9 @@
       "source_file": "plugins/project-doc/lib/collect_engine.py",
       "source_location": "L413",
       "weight": 1.0,
-      "confidence_score": 1.0,
       "source": "plugins_project_doc_lib_collect_engine_py_lib_collect_engine_rationale_413",
-      "target": "plugins_project_doc_lib_collect_engine_py_lib_collect_engine_find_team_transcripts"
+      "target": "plugins_project_doc_lib_collect_engine_py_lib_collect_engine_find_team_transcripts",
+      "confidence_score": 1.0
     },
     {
       "relation": "calls",
@@ -41385,9 +41025,9 @@
       "source_file": "plugins/project-doc/lib/collect_engine.py",
       "source_location": "L456",
       "weight": 1.0,
-      "confidence_score": 1.0,
       "source": "plugins_project_doc_lib_collect_engine_py_lib_collect_engine_rationale_456",
-      "target": "plugins_project_doc_lib_collect_engine_py_lib_collect_engine_extract_rejection_speech"
+      "target": "plugins_project_doc_lib_collect_engine_py_lib_collect_engine_extract_rejection_speech",
+      "confidence_score": 1.0
     },
     {
       "relation": "calls",
@@ -41417,9 +41057,9 @@
       "source_file": "plugins/project-doc/lib/collect_engine.py",
       "source_location": "L472",
       "weight": 1.0,
-      "confidence_score": 1.0,
       "source": "plugins_project_doc_lib_collect_engine_py_lib_collect_engine_rationale_472",
-      "target": "plugins_project_doc_lib_collect_engine_py_lib_collect_engine_collect"
+      "target": "plugins_project_doc_lib_collect_engine_py_lib_collect_engine_collect",
+      "confidence_score": 1.0
     },
     {
       "relation": "calls",
@@ -41449,9 +41089,9 @@
       "source_file": "plugins/project-doc/lib/collect_engine.py",
       "source_location": "L538",
       "weight": 1.0,
-      "confidence_score": 1.0,
       "source": "plugins_project_doc_lib_collect_engine_py_lib_collect_engine_rationale_538",
-      "target": "plugins_project_doc_lib_collect_engine_py_lib_collect_engine_emit_findings"
+      "target": "plugins_project_doc_lib_collect_engine_py_lib_collect_engine_emit_findings",
+      "confidence_score": 1.0
     },
     {
       "relation": "contains",
@@ -61535,9 +61175,9 @@
       "source_file": ".claude/docs/architecture.md",
       "source_location": "L68",
       "weight": 1.0,
-      "confidence_score": 1.0,
       "source": "docs_architecture_architecture",
-      "target": "docs_architecture_cat\u00e1logo_dos_plugins"
+      "target": "docs_architecture_cat\u00e1logo_dos_plugins",
+      "confidence_score": 1.0
     },
     {
       "relation": "contains",
@@ -61545,9 +61185,9 @@
       "source_file": ".claude/docs/architecture.md",
       "source_location": "L142",
       "weight": 1.0,
-      "confidence_score": 1.0,
       "source": "docs_architecture_architecture",
-      "target": "docs_architecture_decis\u00f5es_de_arquitetura"
+      "target": "docs_architecture_decis\u00f5es_de_arquitetura",
+      "confidence_score": 1.0
     },
     {
       "relation": "contains",
@@ -61555,9 +61195,9 @@
       "source_file": ".claude/docs/architecture.md",
       "source_location": "L123",
       "weight": 1.0,
-      "confidence_score": 1.0,
       "source": "docs_architecture_architecture",
-      "target": "docs_architecture_depend\u00eancias_cr\u00edticas_modulos"
+      "target": "docs_architecture_depend\u00eancias_cr\u00edticas_modulos",
+      "confidence_score": 1.0
     },
     {
       "relation": "contains",
@@ -61595,9 +61235,9 @@
       "source_file": ".claude/docs/architecture.md",
       "source_location": "L155",
       "weight": 1.0,
-      "confidence_score": 1.0,
       "source": "docs_architecture_architecture",
-      "target": "docs_architecture_terceiros_gerenciados"
+      "target": "docs_architecture_terceiros_gerenciados",
+      "confidence_score": 1.0
     },
     {
       "relation": "contains",
@@ -61615,9 +61255,9 @@
       "source_file": ".claude/docs/architecture.md",
       "source_location": "L97",
       "weight": 1.0,
-      "confidence_score": 1.0,
       "source": "docs_architecture_cat\u00e1logo_dos_plugins",
-      "target": "docs_architecture_apresenta\u00e7\u00e3o_visual"
+      "target": "docs_architecture_apresenta\u00e7\u00e3o_visual",
+      "confidence_score": 1.0
     },
     {
       "relation": "contains",
@@ -61625,9 +61265,9 @@
       "source_file": ".claude/docs/architecture.md",
       "source_location": "L90",
       "weight": 1.0,
-      "confidence_score": 1.0,
       "source": "docs_architecture_cat\u00e1logo_dos_plugins",
-      "target": "docs_architecture_dev_deploy_limpeza"
+      "target": "docs_architecture_dev_deploy_limpeza",
+      "confidence_score": 1.0
     },
     {
       "relation": "contains",
@@ -61635,9 +61275,9 @@
       "source_file": ".claude/docs/architecture.md",
       "source_location": "L85",
       "weight": 1.0,
-      "confidence_score": 1.0,
       "source": "docs_architecture_cat\u00e1logo_dos_plugins",
-      "target": "docs_architecture_documenta\u00e7\u00e3o_conhecimento"
+      "target": "docs_architecture_documenta\u00e7\u00e3o_conhecimento",
+      "confidence_score": 1.0
     },
     {
       "relation": "contains",
@@ -61645,9 +61285,9 @@
       "source_file": ".claude/docs/architecture.md",
       "source_location": "L106",
       "weight": 1.0,
-      "confidence_score": 1.0,
       "source": "docs_architecture_cat\u00e1logo_dos_plugins",
-      "target": "docs_architecture_dom\u00ednio_viu"
+      "target": "docs_architecture_dom\u00ednio_viu",
+      "confidence_score": 1.0
     },
     {
       "relation": "contains",
@@ -61655,9 +61295,9 @@
       "source_file": ".claude/docs/architecture.md",
       "source_location": "L78",
       "weight": 1.0,
-      "confidence_score": 1.0,
       "source": "docs_architecture_cat\u00e1logo_dos_plugins",
-      "target": "docs_architecture_planejamento_review"
+      "target": "docs_architecture_planejamento_review",
+      "confidence_score": 1.0
     },
     {
       "relation": "contains",
@@ -61665,9 +61305,9 @@
       "source_file": ".claude/docs/architecture.md",
       "source_location": "L72",
       "weight": 1.0,
-      "confidence_score": 1.0,
       "source": "docs_architecture_cat\u00e1logo_dos_plugins",
-      "target": "docs_architecture_sess\u00e3o_continuidade"
+      "target": "docs_architecture_sess\u00e3o_continuidade",
+      "confidence_score": 1.0
     },
     {
       "relation": "contains",
@@ -61675,9 +61315,9 @@
       "source_file": ".claude/docs/architecture.md",
       "source_location": "L102",
       "weight": 1.0,
-      "confidence_score": 1.0,
       "source": "docs_architecture_cat\u00e1logo_dos_plugins",
-      "target": "docs_architecture_setup_de_m\u00e1quina"
+      "target": "docs_architecture_setup_de_m\u00e1quina",
+      "confidence_score": 1.0
     },
     {
       "relation": "references",
@@ -61735,9 +61375,9 @@
       "source_file": ".claude/docs/patterns.md",
       "source_location": "L73",
       "weight": 1.0,
-      "confidence_score": 1.0,
       "source": "docs_patterns_patterns_conventions",
-      "target": "docs_patterns_anatomia_de_um_plugin"
+      "target": "docs_patterns_anatomia_de_um_plugin",
+      "confidence_score": 1.0
     },
     {
       "relation": "contains",
@@ -61745,9 +61385,9 @@
       "source_file": ".claude/docs/patterns.md",
       "source_location": "L18",
       "weight": 1.0,
-      "confidence_score": 1.0,
       "source": "docs_patterns_patterns_conventions",
-      "target": "docs_patterns_code_style"
+      "target": "docs_patterns_code_style",
+      "confidence_score": 1.0
     },
     {
       "relation": "contains",
@@ -61775,9 +61415,9 @@
       "source_file": ".claude/docs/patterns.md",
       "source_location": "L105",
       "weight": 1.0,
-      "confidence_score": 1.0,
       "source": "docs_patterns_patterns_conventions",
-      "target": "docs_patterns_regras_de_release"
+      "target": "docs_patterns_regras_de_release",
+      "confidence_score": 1.0
     },
     {
       "relation": "contains",
@@ -61785,9 +61425,9 @@
       "source_file": ".claude/docs/patterns.md",
       "source_location": "L144",
       "weight": 1.0,
-      "confidence_score": 1.0,
       "source": "docs_patterns_patterns_conventions",
-      "target": "docs_patterns_testing"
+      "target": "docs_patterns_testing",
+      "confidence_score": 1.0
     },
     {
       "relation": "contains",
@@ -61795,9 +61435,9 @@
       "source_file": ".claude/docs/patterns.md",
       "source_location": "L53",
       "weight": 1.0,
-      "confidence_score": 1.0,
       "source": "docs_patterns_code_style",
-      "target": "docs_patterns_hooks_llm_juiz_invoca\u00e7\u00e3o_do_modelo"
+      "target": "docs_patterns_hooks_llm_juiz_invoca\u00e7\u00e3o_do_modelo",
+      "confidence_score": 1.0
     },
     {
       "relation": "contains",
@@ -61805,9 +61445,9 @@
       "source_file": ".claude/docs/patterns.md",
       "source_location": "L64",
       "weight": 1.0,
-      "confidence_score": 1.0,
       "source": "docs_patterns_code_style",
-      "target": "docs_patterns_python_plugins_project_doc_lib"
+      "target": "docs_patterns_python_plugins_project_doc_lib",
+      "confidence_score": 1.0
     },
     {
       "relation": "contains",
@@ -61815,9 +61455,9 @@
       "source_file": ".claude/docs/patterns.md",
       "source_location": "L20",
       "weight": 1.0,
-      "confidence_score": 1.0,
       "source": "docs_patterns_code_style",
-      "target": "docs_patterns_shell_hooks_sh"
+      "target": "docs_patterns_shell_hooks_sh",
+      "confidence_score": 1.0
     },
     {
       "relation": "contains",
@@ -65653,10 +65293,10 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "plugins/project-doc/skills/project-doc/SKILL.md",
-      "source_location": "L548",
+      "source_location": "L535",
       "weight": 1.0,
       "source": "project_doc_skill",
-      "target": "project_doc_skill_lint_548",
+      "target": "project_doc_skill_lint_535",
       "confidence_score": 1.0
     },
     {
@@ -65785,9 +65425,9 @@
       "source_file": "plugins/project-doc/skills/project-doc/SKILL.md",
       "source_location": "L306",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "project_doc_skill_project_doc_v3_documentation_system_generator",
-      "target": "project_doc_skill_workflow_engine_full_e_deep_mineram_via_workflow_v3_1_grafo_dirige_a_leitura_profunda_v3_2_merge_nativo_de_nuances_v3_4",
-      "confidence_score": 1.0
+      "target": "project_doc_skill_workflow_engine_full_e_deep_mineram_via_workflow_v3_1_grafo_dirige_a_leitura_profunda_v3_2"
     },
     {
       "relation": "contains",
@@ -65885,9 +65525,9 @@
       "source_file": "plugins/project-doc/skills/project-doc/SKILL.md",
       "source_location": "L353",
       "weight": 1.0,
-      "source": "project_doc_skill_workflow_engine_full_e_deep_mineram_via_workflow_v3_1_grafo_dirige_a_leitura_profunda_v3_2_merge_nativo_de_nuances_v3_4",
-      "target": "project_doc_skill_a_casca_esta_skill_vs_o_workflow_o_motor",
-      "confidence_score": 1.0
+      "confidence_score": 1.0,
+      "source": "project_doc_skill_workflow_engine_full_e_deep_mineram_via_workflow_v3_1_grafo_dirige_a_leitura_profunda_v3_2",
+      "target": "project_doc_skill_a_casca_esta_skill_vs_o_workflow_o_motor"
     },
     {
       "relation": "contains",
@@ -65895,29 +65535,29 @@
       "source_file": "plugins/project-doc/skills/project-doc/SKILL.md",
       "source_location": "L310",
       "weight": 1.0,
-      "source": "project_doc_skill_workflow_engine_full_e_deep_mineram_via_workflow_v3_1_grafo_dirige_a_leitura_profunda_v3_2_merge_nativo_de_nuances_v3_4",
-      "target": "project_doc_skill_fronteira_de_modos_quando_\u00e9_workflow_quando_\u00e9_single_agent",
-      "confidence_score": 1.0
+      "confidence_score": 1.0,
+      "source": "project_doc_skill_workflow_engine_full_e_deep_mineram_via_workflow_v3_1_grafo_dirige_a_leitura_profunda_v3_2",
+      "target": "project_doc_skill_fronteira_de_modos_quando_\u00e9_workflow_quando_\u00e9_single_agent"
     },
     {
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "plugins/project-doc/skills/project-doc/SKILL.md",
-      "source_location": "L439",
+      "source_location": "L419",
       "weight": 1.0,
-      "source": "project_doc_skill_workflow_engine_full_e_deep_mineram_via_workflow_v3_1_grafo_dirige_a_leitura_profunda_v3_2_merge_nativo_de_nuances_v3_4",
-      "target": "project_doc_skill_gates_determin\u00edsticos_js_no_stitch_n\u00e3o_o_agente",
-      "confidence_score": 1.0
+      "confidence_score": 1.0,
+      "source": "project_doc_skill_workflow_engine_full_e_deep_mineram_via_workflow_v3_1_grafo_dirige_a_leitura_profunda_v3_2",
+      "target": "project_doc_skill_gates_determin\u00edsticos_js_no_stitch_n\u00e3o_o_agente"
     },
     {
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "plugins/project-doc/skills/project-doc/SKILL.md",
-      "source_location": "L379",
+      "source_location": "L377",
       "weight": 1.0,
-      "source": "project_doc_skill_workflow_engine_full_e_deep_mineram_via_workflow_v3_1_grafo_dirige_a_leitura_profunda_v3_2_merge_nativo_de_nuances_v3_4",
-      "target": "project_doc_skill_o_script_do_workflow_molde_estilo_qa_loop",
-      "confidence_score": 1.0
+      "confidence_score": 1.0,
+      "source": "project_doc_skill_workflow_engine_full_e_deep_mineram_via_workflow_v3_1_grafo_dirige_a_leitura_profunda_v3_2",
+      "target": "project_doc_skill_o_script_do_workflow_molde_estilo_qa_loop"
     },
     {
       "relation": "contains",
@@ -65925,29 +65565,29 @@
       "source_file": "plugins/project-doc/skills/project-doc/SKILL.md",
       "source_location": "L320",
       "weight": 1.0,
-      "source": "project_doc_skill_workflow_engine_full_e_deep_mineram_via_workflow_v3_1_grafo_dirige_a_leitura_profunda_v3_2_merge_nativo_de_nuances_v3_4",
-      "target": "project_doc_skill_passo_0_0_grafo_\u00e9_documenta\u00e7\u00e3o_garantir_mapear_v3_2",
-      "confidence_score": 1.0
+      "confidence_score": 1.0,
+      "source": "project_doc_skill_workflow_engine_full_e_deep_mineram_via_workflow_v3_1_grafo_dirige_a_leitura_profunda_v3_2",
+      "target": "project_doc_skill_passo_0_0_grafo_\u00e9_documenta\u00e7\u00e3o_garantir_mapear_v3_2"
     },
     {
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "plugins/project-doc/skills/project-doc/SKILL.md",
-      "source_location": "L431",
+      "source_location": "L412",
       "weight": 1.0,
-      "source": "project_doc_skill_workflow_engine_full_e_deep_mineram_via_workflow_v3_1_grafo_dirige_a_leitura_profunda_v3_2_merge_nativo_de_nuances_v3_4",
-      "target": "project_doc_skill_schemas_campos_pros_gates_n\u00e3o_texto_solto",
-      "confidence_score": 1.0
+      "confidence_score": 1.0,
+      "source": "project_doc_skill_workflow_engine_full_e_deep_mineram_via_workflow_v3_1_grafo_dirige_a_leitura_profunda_v3_2",
+      "target": "project_doc_skill_schemas_campos_pros_gates_n\u00e3o_texto_solto"
     },
     {
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "plugins/project-doc/skills/project-doc/SKILL.md",
-      "source_location": "L427",
+      "source_location": "L408",
       "weight": 1.0,
-      "source": "project_doc_skill_workflow_engine_full_e_deep_mineram_via_workflow_v3_1_grafo_dirige_a_leitura_profunda_v3_2_merge_nativo_de_nuances_v3_4",
-      "target": "project_doc_skill_sequ\u00eancia_melhor_dos_dois_mundos_quando_h\u00e1_doc_antiga",
-      "confidence_score": 1.0
+      "confidence_score": 1.0,
+      "source": "project_doc_skill_workflow_engine_full_e_deep_mineram_via_workflow_v3_1_grafo_dirige_a_leitura_profunda_v3_2",
+      "target": "project_doc_skill_sequ\u00eancia_melhor_dos_dois_mundos_quando_h\u00e1_doc_antiga"
     },
     {
       "relation": "contains",
@@ -66023,10 +65663,10 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "plugins/project-doc/skills/project-doc/SKILL.md",
-      "source_location": "L1123",
+      "source_location": "L1110",
       "weight": 1.0,
       "source": "project_doc_skill_tests",
-      "target": "project_doc_skill_rules_1123",
+      "target": "project_doc_skill_rules_1110",
       "confidence_score": 1.0
     },
     {
@@ -66585,9 +66225,9 @@
       "source_file": "plugins/qa-loop/skills/qa-loop/SKILL.md",
       "source_location": "L40",
       "weight": 1.0,
-      "confidence_score": 1.0,
       "source": "qa_loop_skill_qa_loop_loop_de_review_conserto_disciplinado",
-      "target": "qa_loop_skill_as_duas_fases_m\u00e1quina_assint\u00f3tica_gate_absoluto"
+      "target": "qa_loop_skill_as_duas_fases_m\u00e1quina_assint\u00f3tica_gate_absoluto",
+      "confidence_score": 1.0
     },
     {
       "relation": "contains",
@@ -66615,9 +66255,9 @@
       "source_file": "plugins/qa-loop/skills/qa-loop/SKILL.md",
       "source_location": "L340",
       "weight": 1.0,
-      "confidence_score": 1.0,
       "source": "qa_loop_skill_qa_loop_loop_de_review_conserto_disciplinado",
-      "target": "qa_loop_skill_casca_passo_8_fase_gate_sa\u00edda_relat\u00f3rio_humano_journal_ag\u00eantico_r7"
+      "target": "qa_loop_skill_casca_passo_8_fase_gate_sa\u00edda_relat\u00f3rio_humano_journal_ag\u00eantico_r7",
+      "confidence_score": 1.0
     },
     {
       "relation": "contains",
@@ -66645,9 +66285,9 @@
       "source_file": "plugins/qa-loop/skills/qa-loop/SKILL.md",
       "source_location": "L312",
       "weight": 1.0,
-      "confidence_score": 1.0,
       "source": "qa_loop_skill_qa_loop_loop_de_review_conserto_disciplinado",
-      "target": "qa_loop_skill_crit\u00e9rio_de_parada_duas_condi\u00e7\u00f5es_fase_assint\u00f3tica_fase_gate"
+      "target": "qa_loop_skill_crit\u00e9rio_de_parada_duas_condi\u00e7\u00f5es_fase_assint\u00f3tica_fase_gate",
+      "confidence_score": 1.0
     },
     {
       "relation": "contains",
@@ -66765,9 +66405,9 @@
       "source_file": "plugins/qa-loop/skills/qa-loop/SKILL.md",
       "source_location": "L375",
       "weight": 1.0,
-      "confidence_score": 1.0,
       "source": "qa_loop_skill_casca_passo_8_fase_gate_sa\u00edda_relat\u00f3rio_humano_journal_ag\u00eantico_r7",
-      "target": "qa_loop_skill_a_relat\u00f3rio_humano_gerador_de_actionables_via_a_skill_visual_como_parceira"
+      "target": "qa_loop_skill_a_relat\u00f3rio_humano_gerador_de_actionables_via_a_skill_visual_como_parceira",
+      "confidence_score": 1.0
     },
     {
       "relation": "contains",
@@ -66775,9 +66415,9 @@
       "source_file": "plugins/qa-loop/skills/qa-loop/SKILL.md",
       "source_location": "L419",
       "weight": 1.0,
-      "confidence_score": 1.0,
       "source": "qa_loop_skill_casca_passo_8_fase_gate_sa\u00edda_relat\u00f3rio_humano_journal_ag\u00eantico_r7",
-      "target": "qa_loop_skill_b_journal_ag\u00eantico_markdown_verborr\u00e1gico_pra_futuro_eu_3_camadas"
+      "target": "qa_loop_skill_b_journal_ag\u00eantico_markdown_verborr\u00e1gico_pra_futuro_eu_3_camadas",
+      "confidence_score": 1.0
     },
     {
       "relation": "contains",
@@ -66785,9 +66425,9 @@
       "source_file": "plugins/qa-loop/skills/qa-loop/SKILL.md",
       "source_location": "L435",
       "weight": 1.0,
-      "confidence_score": 1.0,
       "source": "qa_loop_skill_casca_passo_8_fase_gate_sa\u00edda_relat\u00f3rio_humano_journal_ag\u00eantico_r7",
-      "target": "qa_loop_skill_o_loop_fecha_a_skill_l\u00ea_o_journal_no_in\u00edcio_de_cada_sess\u00e3o_passo_0"
+      "target": "qa_loop_skill_o_loop_fecha_a_skill_l\u00ea_o_journal_no_in\u00edcio_de_cada_sess\u00e3o_passo_0",
+      "confidence_score": 1.0
     },
     {
       "relation": "contains",
@@ -66795,9 +66435,9 @@
       "source_file": "plugins/qa-loop/skills/qa-loop/SKILL.md",
       "source_location": "L344",
       "weight": 1.0,
-      "confidence_score": 1.0,
       "source": "qa_loop_skill_casca_passo_8_fase_gate_sa\u00edda_relat\u00f3rio_humano_journal_ag\u00eantico_r7",
-      "target": "qa_loop_skill_passo_8_0_fase_gate_o_port\u00e3o_absoluto_de_sa\u00edda"
+      "target": "qa_loop_skill_passo_8_0_fase_gate_o_port\u00e3o_absoluto_de_sa\u00edda",
+      "confidence_score": 1.0
     },
     {
       "relation": "contains",
@@ -66825,9 +66465,9 @@
       "source_file": "plugins/qa-loop/skills/qa-loop/SKILL.md",
       "source_location": "L464",
       "weight": 1.0,
-      "confidence_score": 1.0,
       "source": "qa_loop_skill_guard_rails_operacionais",
-      "target": "qa_loop_skill_detec\u00e7\u00e3o_de_rede_dois_usos_da_mesma_detec\u00e7\u00e3o"
+      "target": "qa_loop_skill_detec\u00e7\u00e3o_de_rede_dois_usos_da_mesma_detec\u00e7\u00e3o",
+      "confidence_score": 1.0
     },
     {
       "relation": "contains",
@@ -67545,9 +67185,9 @@
       "source_file": "plugins/sovai/skills/sovai/SKILL.md",
       "source_location": "L43",
       "weight": 1.0,
-      "confidence_score": 1.0,
       "source": "sovai_skill_sovai_execu\u00e7\u00e3o_cont\u00ednua",
-      "target": "sovai_skill_persist\u00eancia_doc_commit_push_antes_do_relat\u00f3rio"
+      "target": "sovai_skill_persist\u00eancia_doc_commit_push_antes_do_relat\u00f3rio",
+      "confidence_score": 1.0
     },
     {
       "relation": "contains",
@@ -67875,9 +67515,9 @@
       "source_file": "plugins/visual/skills/visual/SKILL.md",
       "source_location": "L438",
       "weight": 1.0,
-      "confidence_score": 1.0,
       "source": "visual_skill_bugs_to_avoid_historical",
-      "target": "visual_skill_nothing_nasce_pr\u00e9_selecionado_2026_06_20_flagged_by_pedro"
+      "target": "visual_skill_nothing_nasce_pr\u00e9_selecionado_2026_06_20_flagged_by_pedro",
+      "confidence_score": 1.0
     },
     {
       "relation": "contains",
@@ -68944,5 +68584,5 @@
       "source_file": "plugins/ship/skills/ship/SKILL.md"
     }
   ],
-  "built_at_commit": "212ab6929fb223aff67a5beff10a505b47969d1d"
+  "built_at_commit": "a4b67c8af6be2d057c2b64b0a04057bff4d1d9c1"
 }

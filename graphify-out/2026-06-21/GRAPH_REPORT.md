@@ -1,16 +1,16 @@
-# Graph Report - pedro-plugins  (2026-06-21)
+# Graph Report - pedro-plugins  (2026-06-20)
 
 ## Corpus Check
-- 129 files · ~277,559 words
+- 129 files · ~276,455 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 3315 nodes · 3458 edges · 242 communities (207 shown, 35 thin omitted)
+- 3297 nodes · 3440 edges · 236 communities (201 shown, 35 thin omitted)
 - Extraction: 100% EXTRACTED · 0% INFERRED · 0% AMBIGUOUS · INFERRED: 16 edges (avg confidence: 0.84)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `212ab692`
+- Built from commit: `a4b67c8a`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -249,12 +249,6 @@
 - [[_COMMUNITY_Community 233|Community 233]]
 - [[_COMMUNITY_Community 234|Community 234]]
 - [[_COMMUNITY_Community 235|Community 235]]
-- [[_COMMUNITY_Community 236|Community 236]]
-- [[_COMMUNITY_Community 237|Community 237]]
-- [[_COMMUNITY_Community 238|Community 238]]
-- [[_COMMUNITY_Community 239|Community 239]]
-- [[_COMMUNITY_Community 240|Community 240]]
-- [[_COMMUNITY_Community 241|Community 241]]
 
 ## God Nodes (most connected - your core abstractions)
 1. `Sumário Executivo` - 89 edges
@@ -264,9 +258,9 @@
 5. `Sumário Executivo` - 63 edges
 6. `Sumário Executivo` - 55 edges
 7. `Sumário Executivo` - 50 edges
-8. `mined_sessions` - 45 edges
-9. `Sumário Executivo` - 45 edges
-10. `Sumário Executivo` - 44 edges
+8. `Sumário Executivo` - 45 edges
+9. `Sumário Executivo` - 44 edges
+10. `Sumário Executivo` - 43 edges
 
 ## Surprising Connections (you probably didn't know these)
 - `README (pedro-plugins)` --references--> `Marketplace Registry (marketplace.json)`  [INFERRED]
@@ -297,7 +291,7 @@
 - **slides deck generation: skill, template, layout map, theme, fidelity check** — slides_skill_slides, slides_assets_template, slides_references_layout_patterns, slides_references_themes_viu, slides_scripts_check_fidelity [EXTRACTED 0.85]
 - **ship test gate: skill flow, hooks config, enforcing hook script** — ship_skill_ship, hooks_ship_hooks_config, hooks_pre_deploy_test_check [EXTRACTED 0.85]
 
-## Communities (242 total, 35 thin omitted)
+## Communities (236 total, 35 thin omitted)
 
 ### Community 0 - "Bootstrap & Marketplace Sync"
 Cohesion: 0.15
@@ -528,8 +522,8 @@ Cohesion: 0.25
 Nodes (7): Custom Rules, Documentation Index, Gotchas Críticos, Knowledge Graph (graphify), Project Reference, Quick Commands, Visão Geral
 
 ### Community 68 - "Community 68"
-Cohesion: 0.17
-Nodes (11): 11 · Escala, Escalabilidade horizontal, Gaps que escapam de listas comuns, Livros, Papers e talks fundamentais, Princípios de Sistemas Robustos e Confiáveis, Referências, Sharding / particionamento (+3 more)
+Cohesion: 0.11
+Nodes (17): 11 · Escala, 12 · Resiliência de rede e service discovery, DNS caching e TTL, Escalabilidade horizontal, Gaps que escapam de listas comuns, Health-aware routing, Livros, Papers e talks fundamentais (+9 more)
 
 ### Community 69 - "Community 69"
 Cohesion: 0.25
@@ -660,8 +654,8 @@ Cohesion: 0.05
 Nodes (39): [a1] 2026-06-20T13:18:08.971Z · Decisão (AskUserQuestion), [a2] 2026-06-20T13:18:08.971Z · Decisão (AskUserQuestion), [a3] 2026-06-20T13:18:08.971Z · Decisão (AskUserQuestion), [d1] 2026-06-20T12:55:11.446Z · Direcionamento do Pedro, [d2] 2026-06-20T12:55:18.404Z · Direcionamento do Pedro, [d3] 2026-06-20T13:01:57.878Z · Direcionamento do Pedro, [d4] 2026-06-20T13:05:53.195Z · Direcionamento do Pedro, [d5] 2026-06-20T13:08:53.033Z · Direcionamento do Pedro (+31 more)
 
 ### Community 106 - "Community 106"
-Cohesion: 0.17
-Nodes (12): Arquitetura do loop (a versão do Pedro), CONSTRAINT CENTRAL — QA ancorado no plano + fronteira QA ≠ re-planejamento, Context, Critério de parada (gate de severidade primário, teto = trava), Decisões travadas com o Pedro, Entregáveis ao terminar a implementação (pedido do Pedro), Guard-rails operacionais (texto pronto entra na SKILL.md), Integração com `/sovai` (+4 more)
+Cohesion: 0.05
+Nodes (38): 1 · Uma skill `/qa-loop` (2 Opus + Sonnet) que substitui /qa + /rev6 + /iterate, 2 · Ancorado no plano + fronteira QA ≠ re-planejamento (3 buckets) **[feito]**, 3 · Parada por retornos decrescentes + risco de regressão (não custo) **[refinamento]**, 4 · Relatório HUMANO (HTML) ≠ Journal AGÊNTICO (R7) **[refinamento]**, 5 · Integração /sovai (headless) + verificação **[/sovai feito; verificação 2-Opus pendente]**, A) Relatório HUMANO (HTML, estilo /visual) — conciso, objetivo, visual, Arquitetura do loop (a versão do Pedro), Arquivos do refinamento (+30 more)
 
 ### Community 107 - "Community 107"
 Cohesion: 0.06
@@ -780,8 +774,8 @@ Cohesion: 0.15
 Nodes (12): Arquitetura do loop (a versão do Pedro), CONSTRAINT CENTRAL — QA ancorado no plano + fronteira QA ≠ re-planejamento, Context, Critério de parada (gate de severidade primário, teto = trava), Decisões travadas com o Pedro, Guard-rails operacionais (texto pronto entra na SKILL.md), Integração com `/sovai`, Packaging + plano de deleção (sites CONFIRMADOS pela varredura) (+4 more)
 
 ### Community 136 - "Community 136"
-Cohesion: 0.06
-Nodes (32): 1 · Uma skill `/qa-loop` que substitui /qa + /rev6 + /iterate, 2 · Ancorado no plano + fronteira QA ≠ re-planejamento (3 buckets), 3 · Loop com planejamento formal (sua versão), 4 · Relatório + journaling pra avaliar o nº ideal de loops, 5 · Integração com /sovai + verificação antes de cravar, Arquitetura do loop (a versão do Pedro), Arquivos do refinamento, CONSTRAINT CENTRAL — QA ancorado no plano + fronteira QA ≠ re-planejamento (+24 more)
+Cohesion: 0.15
+Nodes (13): Arquitetura do loop (a versão do Pedro), CONSTRAINT CENTRAL — QA ancorado no plano + fronteira QA ≠ re-planejamento, Context, Critério de parada (gate de severidade primário, teto = trava), Decisões travadas com o Pedro, Entregáveis ao terminar a implementação (pedido do Pedro), Guard-rails operacionais (texto pronto entra na SKILL.md), Integração com `/sovai` (+5 more)
 
 ### Community 137 - "Community 137"
 Cohesion: 0.29
@@ -816,8 +810,8 @@ Cohesion: 0.25
 Nodes (9): app_has_tests(), discover_apps(), node_has_test_script(), ship PreToolUse hooks.json, visual PreToolUse hooks.json, hard test gate (cannot be bypassed), ship skill (SKILL.md), pre-deploy-test-check.sh script (+1 more)
 
 ### Community 145 - "Community 145"
-Cohesion: 0.17
-Nodes (12): 1 · Checagem ativa: doc fora do padrão força a sequência full, 2 · Full vira Workflow: fan-out por concern mata o "medo de contexto", 3 · Melhor-dos-dois-mundos: backup → minera novo → garimpa nuance → merge automático, 4 · Release: bump, vendoring, sync de cache, testes, ⚠️ Esclarecimentos, [p2] 2026-06-20T22:15:17.497Z · Plano (ExitPlanMode), Sumário Executivo, [x27] 2026-06-20T22:11:37.313Z · Discussão (assistant) (+4 more)
+Cohesion: 0.20
+Nodes (10): 1 · Uma skill `/qa-loop` que substitui /qa + /rev6 + /iterate, 2 · Ancorado no plano + fronteira QA ≠ re-planejamento (3 buckets), 3 · Loop com planejamento formal (sua versão), 4 · Relatório + journaling pra avaliar o nº ideal de loops, 5 · Integração com /sovai + verificação antes de cravar, Esclarecimentos (dúvidas que você levantou no planejamento), [p4] 2026-06-20T14:25:10.521Z · Plano (ExitPlanMode), Sumário Executivo (+2 more)
 
 ### Community 146 - "Community 146"
 Cohesion: 0.20
@@ -836,8 +830,8 @@ Cohesion: 0.20
 Nodes (9): 1. Think Before Coding, 2. Simplicity First, 3. Surgical Changes, 4. Goal-Driven Execution, CLAUDE.md, Comportamentos INCENTIVADOS, Comportamentos PROIBIDOS, graphify (+1 more)
 
 ### Community 150 - "Community 150"
-Cohesion: 0.17
-Nodes (12): A. Fronteira de modos, Arquitetura, Arquivos a tocar, B. Checagem ativa do estado da doc (passo 0.1 — NOVO), C. O fluxo full via Workflow, Context, D. Peça nova no motor (única adição ao Python), Decisões (ratificadas) (+4 more)
+Cohesion: 0.22
+Nodes (9): Arquivos do refinamento, R1 · Arquitetura: 2 Opus + Sonnet (sai o motor de 6 lentes voltagent), R2 · Rubrica de severidade de 3 faixas (escrita, não implícita) + árbitro único, R3 · Config em 3 camadas (versionada), R4 · Drift: restaura pro plano + sinaliza como candidato a mudança de plano, R5 · "Vale a pena" = retornos decrescentes + risco de regressão (NÃO tokens), R6 · Accepted-limits: proposto, nunca enterrado sozinho, REFINAMENTOS pós-grill (v1.1) — SUPERSEDEM o que conflitar abaixo (+1 more)
 
 ### Community 151 - "Community 151"
 Cohesion: 0.22
@@ -1056,8 +1050,8 @@ Cohesion: 0.13
 Nodes (14): 1. Coordenar VERSÃO e COMMIT do v3.1 (bloqueia o resto), 2. Sincronizar o cache local do project-doc (trivial), 3. E2E real do workflow v3.1 (a prova que falta), 4. Implementar o v3.2 (grafo obrigatório + leitura profunda), Contexto e Propósito, Contexto Extra, Detalhes Técnicos, Discussões e Decisões (+6 more)
 
 ### Community 225 - "Community 225"
-Cohesion: 0.15
-Nodes (13): A. Grafo garantido — passo 0 da casca (muda a postura), Arquitetura (incrementa a seção `Workflow Engine` do v3.1), Arquivos a tocar, B. Grafo como mapa — dirige o fan-out e a leitura, C. Fase A — leitura profunda guiada (o miolo, caminho 1), Comparação com o que conversamos (cobertura), Context, D. Auditoria de completude — gate novo (grafo × doc) (+5 more)
+Cohesion: 0.04
+Nodes (46): 1 · Checagem ativa: doc fora do padrão força a sequência full, 1 · Grafo obrigatório — parte da documentação, sem opção, 2 · Full vira Workflow: fan-out por concern mata o "medo de contexto", 2 · Grafo dirige a leitura profunda do código (caminho 1), 3 · Auditoria grafo × doc — o repasse de completude, 3 · Melhor-dos-dois-mundos: backup → minera novo → garimpa nuance → merge automático, 4 · Release: bump, vendoring, sync de cache, testes, 4 · Release (coordenar versão com a outra sessão) (+38 more)
 
 ### Community 226 - "Community 226"
 Cohesion: 0.17
@@ -1080,47 +1074,23 @@ Cohesion: 0.25
 Nodes (8): A casca (a skill `/qa-loop`, no Opus principal), Arquitetura do motor (o Workflow script), Arquivos a tocar, Context, Decisão NOVA de hoje — R1 redefinido: o motor é um Workflow (não sub-agentes, não agent team), Plano — qa-loop v1.1: motor em **Workflow** + refinamentos R1–R7, Refinamentos R2–R7 (já desenhados no plano-fonte — aplicar no texto da SKILL.md), Verificação (E2E, reproduzir a jornada — não só ler o texto)
 
 ### Community 231 - "Community 231"
-Cohesion: 0.29
-Nodes (6): Arquivos a tocar, Context, Decisões (ratificadas), project-doc v3.1 — Modo Workflow + Checagem Ativa + Melhor-dos-Dois-Mundos, Riscos, Verificação E2E
+Cohesion: 0.17
+Nodes (12): A. Fronteira de modos, Arquitetura, Arquivos a tocar, B. Checagem ativa do estado da doc (passo 0.1 — NOVO), C. O fluxo full via Workflow, Context, D. Peça nova no motor (única adição ao Python), Decisões (ratificadas) (+4 more)
 
 ### Community 232 - "Community 232"
 Cohesion: 0.33
 Nodes (5): Context, Decisões travadas (suas respostas), Princípio unificado: o handoff pertence ao PROJETO, não ao cwd, Upgrade da skill handoff — handoff por projeto (avulso · monorepo · guarda-chuva), Verificação (E2E, não só leitura de código)
 
 ### Community 233 - "Community 233"
-Cohesion: 0.04
-Nodes (47): distilled_hashes, last_commit, mined_sessions, 05bb7152-4d6d-4044-810a-dcb48dbe498e, 084c3749-3594-486f-a8dd-c7c0066a3a52, 1203e8d2-3ba6-4d58-ab35-f8ad34e0c174, 1da33ba7-2248-47ff-88d5-2535295ff90f, 2152d0ed-b32a-45eb-ae49-442edcdc40bb (+39 more)
+Cohesion: 0.07
+Nodes (29): distilled_hashes, last_commit, mined_sessions, 084c3749-3594-486f-a8dd-c7c0066a3a52, 1203e8d2-3ba6-4d58-ab35-f8ad34e0c174, 1da33ba7-2248-47ff-88d5-2535295ff90f, 2152d0ed-b32a-45eb-ae49-442edcdc40bb, 22d615af-cdb4-4e7b-999d-80663fe93e80 (+21 more)
 
 ### Community 234 - "Community 234"
 Cohesion: 0.50
 Nodes (4): .claude/docs/*.md, CLAUDE.md, Pointer Files, Update Mechanism
 
-### Community 236 - "Community 236"
-Cohesion: 0.18
-Nodes (11): 1 · Uma skill `/qa-loop` (2 Opus + Sonnet) que substitui /qa + /rev6 + /iterate, 2 · Ancorado no plano + fronteira QA ≠ re-planejamento (3 buckets) **[feito]**, 3 · Parada por retornos decrescentes + risco de regressão (não custo) **[refinamento]**, 4 · Relatório HUMANO (HTML) ≠ Journal AGÊNTICO (R7) **[refinamento]**, 5 · Integração /sovai (headless) + verificação **[/sovai feito; verificação 2-Opus pendente]**, [d14] 2026-06-20T14:38:42.640Z · Direcionamento do Pedro, Esclarecimentos (suas dúvidas, resolvidas no grill), Sumário Executivo (+3 more)
-
-### Community 237 - "Community 237"
-Cohesion: 0.20
-Nodes (10): Arquivos do refinamento, R1 · Arquitetura: 2 Opus + Sonnet (sai o motor de 6 lentes voltagent), R2 · Rubrica de severidade de 3 faixas (escrita, não implícita) + árbitro único, R3 · Config em 3 camadas (versionada), R4 · Drift: restaura pro plano + sinaliza como candidato a mudança de plano, R5 · "Vale a pena" = retornos decrescentes + risco de regressão (NÃO tokens), R6 · Accepted-limits: proposto, nunca enterrado sozinho, R7 · Relatório HUMANO (HTML) ≠ Journal AGÊNTICO (pra futuro-eu) (+2 more)
-
-### Community 238 - "Community 238"
-Cohesion: 0.22
-Nodes (9): 1 · Grafo obrigatório — parte da documentação, sem opção, 2 · Grafo dirige a leitura profunda do código (caminho 1), 3 · Auditoria grafo × doc — o repasse de completude, 4 · Release (coordenar versão com a outra sessão), ⚠️ Esclarecimentos, Sumário Executivo, [x83] 2026-06-20T22:54:07.457Z · Discussão (assistant), [x84] 2026-06-20T22:56:37.954Z · Discussão (assistant) (+1 more)
-
-### Community 239 - "Community 239"
-Cohesion: 0.33
-Nodes (6): A. Fronteira de modos, Arquitetura, B. Checagem ativa do estado da doc (passo 0.1 — NOVO), C. O fluxo full via Workflow, D. Peça nova no motor (única adição ao Python), E. Schemas (campos pros gates lerem, não texto solto)
-
-### Community 240 - "Community 240"
-Cohesion: 0.33
-Nodes (6): 12 · Resiliência de rede e service discovery, DNS caching e TTL, Health-aware routing, Partições de rede além do CAP, Service discovery, Service mesh
-
-### Community 241 - "Community 241"
-Cohesion: 0.40
-Nodes (5): A) Relatório HUMANO (HTML, estilo /visual) — conciso, objetivo, visual, B) Journal AGÊNTICO (markdown verborrágico, pra "futuro-eu") — linguagem agêntica, à exaustão, O loop fecha: a skill LÊ o journal no INÍCIO de cada sessão, Onde mora cada coisa, Relatório (humano) ≠ Journal (agêntico) — DOIS artefatos, dois públicos [R7]
-
 ## Knowledge Gaps
-- **2514 isolated node(s):** `name`, `description`, `name`, `email`, `plugins` (+2509 more)
+- **2496 isolated node(s):** `name`, `description`, `name`, `email`, `plugins` (+2491 more)
   These have ≤1 connection - possible missing edges or undocumented components.
 - **35 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
@@ -1128,13 +1098,13 @@ Nodes (5): A) Relatório HUMANO (HTML, estilo /visual) — conciso, objetivo, vi
 _Questions this graph is uniquely positioned to answer:_
 
 - **Why does `Plano — Skill `/qa-loop` (consolida e substitui /qa + /rev6 + /iterate)` connect `Community 98` to `Hook Config (SessionStart/PostToolUse)`, `Community 135`?**
-  _High betweenness centrality (0.006) - this node is a cross-community bridge._
-- **Why does `Sumário Executivo` connect `Plugin Manifest Metadata` to `Community 232`?**
+  _High betweenness centrality (0.005) - this node is a cross-community bridge._
+- **Why does `Plano — Skill `/qa-loop` (consolida e substitui /qa + /rev6 + /iterate)` connect `Community 104` to `Community 135`?**
   _High betweenness centrality (0.004) - this node is a cross-community bridge._
-- **Why does `LOG — ata verbatim da sessão `1203e8d2-3ba6-4d58-ab35-f8ad34e0c174`` connect `Community 105` to `Community 135`?**
+- **Why does `Sumário Executivo` connect `Hook Config (SessionStart/PostToolUse)` to `Community 98`?**
   _High betweenness centrality (0.004) - this node is a cross-community bridge._
 - **What connects `name`, `description`, `name` to the rest of the system?**
-  _2609 weakly-connected nodes found - possible documentation gaps or missing edges._
+  _2591 weakly-connected nodes found - possible documentation gaps or missing edges._
 - **Should `Iterate Convergence Loop` be split into smaller, more focused modules?**
   _Cohesion score 0.046464646464646465 - nodes in this community are weakly interconnected._
 - **Should `RAIOX Channel Intelligence` be split into smaller, more focused modules?**

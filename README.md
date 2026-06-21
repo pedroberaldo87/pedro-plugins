@@ -152,10 +152,14 @@ plugins/<nome>/
 │   └── *.sh / *.py          #   scripts dos hooks
 ├── skills/<nome>/
 │   └── SKILL.md             # Instrução completa da skill
-└── lib/                     # (opcional) código compartilhado (ex.: project-doc, raiox)
+└── lib/                     # (opcional) código auxiliar do plugin (Python stdlib)
 ```
 
 O catálogo vive em `.claude-plugin/marketplace.json` na raiz — cada plugin tem uma entrada com `name`, `source`, `description`, `category`, `version` e `tags`.
+
+### Código compartilhado entre plugins
+
+Código realmente comum (ex.: `collect_engine.py` — leitura de transcripts, resolução de project-root, `collect()` de itens crus) mora em `_shared/` na raiz e é **vendorado** pra `lib/` de cada consumidor (`handoff`, `project-doc`) via `scripts/sync-shared.sh` — copiado, **não importado em runtime**, porque o Claude Code isola cada plugin no cache. `_shared/` é a fonte-da-verdade: edite lá e rode `scripts/sync-shared.sh` (o `--check` pega drift entre a fonte e as cópias).
 
 ---
 
