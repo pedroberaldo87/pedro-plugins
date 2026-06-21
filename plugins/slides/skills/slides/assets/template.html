@@ -308,6 +308,45 @@ body.js .slide.active .statement .strike::after{animation:strike .75s .55s cubic
 .versus .side.win li::before{background:var(--success);}
 .versus .vs{font-family:var(--font-head);font-weight:800;font-size:clamp(1.4rem,2.5vw,2.2rem);color:var(--text-dim);align-self:center;}
 
+/* LOLLIPOP — ranking/magnitude (variação enxuta de bars) */
+.lollipop{display:flex;flex-direction:column;gap:clamp(12px,2vh,22px);}
+.lollipop .l{display:grid;grid-template-columns:minmax(80px,auto) 1fr auto;align-items:center;gap:clamp(14px,2vw,24px);}
+.lollipop .l .lbl{font-size:clamp(1rem,1.5vw,1.3rem);color:var(--text-muted);}
+.lollipop .stem{position:relative;height:16px;}
+.lollipop .stem::before{content:"";position:absolute;left:0;right:0;top:50%;height:1px;background:var(--hair);}
+.lollipop .stem i{position:absolute;left:0;top:50%;transform:translateY(-50%);height:2px;width:var(--v,0%);background:var(--text-dim);}
+.lollipop .stem b{position:absolute;left:var(--v,0%);top:50%;transform:translate(-50%,-50%);width:15px;height:15px;border-radius:50%;background:var(--text-dim);}
+.lollipop .l .val{font-family:var(--font-head);font-weight:700;font-size:clamp(1.1rem,1.8vw,1.5rem);color:var(--text-main);min-width:2.2em;text-align:right;}
+.lollipop .l.hl .stem i,.lollipop .l.hl .stem b{background:linear-gradient(90deg,var(--primary-soft),var(--accent-soft));}
+.lollipop .l.hl .lbl{color:var(--text-main);}
+
+/* PAIRBARS — barra pareada (2 séries por categoria) */
+.pairbars{display:flex;flex-direction:column;gap:clamp(14px,2.2vh,26px);}
+.pairbars .pb{display:grid;grid-template-columns:minmax(80px,auto) 1fr;align-items:center;gap:clamp(14px,2vw,24px);}
+.pairbars .pb .lbl{font-size:clamp(1rem,1.5vw,1.3rem);color:var(--text-muted);}
+.pairbars .set{display:flex;flex-direction:column;gap:7px;}
+.pairbars .bar{height:clamp(12px,1.7vh,18px);width:var(--v,0%);border-radius:3px;position:relative;min-width:2.6em;}
+.pairbars .bar.a{background:var(--primary);}
+.pairbars .bar.b{background:var(--accent);}
+.pairbars .bar b{position:absolute;right:8px;top:50%;transform:translateY(-50%);font-family:var(--font-head);font-weight:700;font-size:.78rem;color:var(--bg-body);}
+
+/* WATERFALL — parte-do-todo cumulativa (autor calcula --o offset e --v largura) */
+.waterfall{display:flex;flex-direction:column;gap:clamp(9px,1.5vh,16px);}
+.waterfall .w{display:grid;grid-template-columns:minmax(90px,auto) 1fr auto;align-items:center;gap:clamp(12px,2vw,22px);}
+.waterfall .w .lbl{font-size:clamp(.95rem,1.4vw,1.2rem);color:var(--text-muted);}
+.waterfall .track{position:relative;height:clamp(16px,2.2vh,24px);}
+.waterfall .track i{position:absolute;top:0;bottom:0;left:var(--o,0%);width:var(--v,10%);border-radius:3px;display:block;}
+.waterfall .track i.base{background:var(--primary-soft);}
+.waterfall .track i.up{background:var(--success);}
+.waterfall .track i.down{background:var(--danger);}
+.waterfall .w .val{font-family:var(--font-head);font-weight:700;font-size:clamp(1rem,1.5vw,1.3rem);color:var(--text-main);min-width:2.6em;text-align:right;}
+
+/* ANNOTATED — diagrama anotado (rótulos-callout sobre uma figura/SVG; --x/--y posicionam) */
+.annotated{position:relative;}
+.annotated .anno{position:absolute;left:var(--x,50%);top:var(--y,50%);transform:translate(-50%,-50%);display:inline-flex;align-items:center;gap:9px;font-size:clamp(.92rem,1.35vw,1.15rem);color:var(--text-main);line-height:1.2;white-space:nowrap;}
+.annotated .anno::before{content:"";width:9px;height:9px;border-radius:50%;background:var(--accent-soft);box-shadow:0 0 0 4px var(--glow-b);flex-shrink:0;}
+.annotated .anno.r{flex-direction:row-reverse;}
+
 /* nav zones */
 .zone{position:fixed;top:0;bottom:0;width:14%;z-index:40;cursor:pointer;}
 .zone.left{left:0;}.zone.right{right:0;}

@@ -34,11 +34,12 @@ Pergunte "qual relação no dado é a mais importante pra história?" e escolha 
 
 | A mensagem é... | Família FT | Componente |
 |:--|:--|:--|
-| Comparar/ordenar itens (quem é maior) | Ranking / Magnitude | **bars** |
+| Comparar/ordenar itens (quem é maior) | Ranking / Magnitude | **bars**, **lollipop** (enxuto), **pairbars** (2 séries) |
 | Comparar categorias ou ao longo do tempo (poucos pontos) | Magnitude / Mudança | **colchart** |
 | Tendência ao longo do tempo (muitos pontos) | Mudança no tempo | **trend** (SVG) |
 | Comparar 2 estados ponta a ponta (antes→depois por item) | Ranking / Mudança | **slope** (SVG) |
 | Como um todo se divide | Parte-do-todo | **part** (barra), **donut** (parcimônia), **waffle** (isotype) |
+| Como o total é construído/reduzido (entra/sai) | Parte-do-todo cumulativo | **waterfall** |
 | Desvio acima/abaixo de uma base (meta, zero, média) | Desvio | **diverge** |
 | Distribuição / amplitude de valores | Distribuição | **dots** (SVG) |
 | Relação entre 2 variáveis | Correlação | **scatter** (SVG, com moderação) |
@@ -57,6 +58,7 @@ Pergunte "qual relação no dado é a mais importante pra história?" e escolha 
 | Afunilamento / camadas | funil/pirâmide | **funnel** (`.pyr` p/ pirâmide) |
 | Interseção de conceitos | sobreposição | **venn** (SVG) |
 | A vs B (escolha, antes/depois) | comparação | **versus** |
+| Detalhar as partes de uma figura | diagrama anotado | **annotated** |
 
 ## Narrar o dado (Dykes, Rosling, Jobs)
 
@@ -206,6 +208,53 @@ Geometria escrita à mão; o CSS dá a linguagem visual (`.ln`, `.area`, `.pt`, 
     <div class="side"><h3>Hoje</h3><ul><li>Manual</li><li>Lento</li></ul></div>
     <div class="vs">vs</div>
     <div class="side win"><h3>Proposto</h3><ul><li>Automático</li><li>Instantâneo</li></ul></div>
+</div>
+```
+
+### lollipop — ranking enxuto (variação de bars)
+```html
+<div class="fig lollipop reveal" style="--d:240ms">
+    <div class="l"><span class="lbl">A</span><div class="stem"><i style="--v:40%"></i><b></b></div><span class="val">40</span></div>
+    <div class="l hl"><span class="lbl">B</span><div class="stem"><i style="--v:88%"></i><b></b></div><span class="val">88</span></div>
+</div>
+```
+`--v` posiciona a bolinha (0–100%). `.hl` destaca a que importa. Use no lugar de `bars` quando há muitos itens (menos tinta).
+
+### pairbars — barra pareada (2 séries por categoria)
+```html
+<div class="fig pairbars reveal" style="--d:240ms">
+    <div class="pb"><span class="lbl">2023</span><div class="set">
+        <span class="bar a" style="--v:60%"><b>60</b></span>
+        <span class="bar b" style="--v:42%"><b>42</b></span></div></div>
+    <div class="pb"><span class="lbl">2024</span><div class="set">
+        <span class="bar a" style="--v:90%"><b>90</b></span>
+        <span class="bar b" style="--v:70%"><b>70</b></span></div></div>
+    <div class="part-key" style="margin-top:18px"><span class="a">Meta</span><span class="b">Real</span></div>
+</div>
+```
+
+### waterfall — como o total é construído (cumulativo)
+O autor calcula `--o` (offset acumulado) e `--v` (largura) de cada passo. `.up` verde (entra), `.down` vermelho (sai), `.base` neutro (início/fim).
+```html
+<div class="fig waterfall reveal" style="--d:240ms">
+    <div class="w"><span class="lbl">Início</span><div class="track"><i class="base" style="--o:0%;--v:60%"></i></div><span class="val">60</span></div>
+    <div class="w"><span class="lbl">+ Vendas</span><div class="track"><i class="up" style="--o:60%;--v:30%"></i></div><span class="val">+30</span></div>
+    <div class="w"><span class="lbl">− Custos</span><div class="track"><i class="down" style="--o:70%;--v:20%"></i></div><span class="val">−20</span></div>
+    <div class="w"><span class="lbl">Final</span><div class="track"><i class="base" style="--o:0%;--v:70%"></i></div><span class="val">70</span></div>
+</div>
+```
+
+### annotated — diagrama anotado (rótulos sobre uma figura/SVG)
+Qualquer figura (SVG inline ou outro componente) com rótulos-callout posicionados por `--x`/`--y` (% do container). `.anno.r` inverte o lado da bolinha.
+```html
+<div class="fig annotated reveal" style="--d:240ms">
+    <svg viewBox="0 0 600 280" role="img" aria-label="Diagrama do fluxo">
+        <rect x="40" y="110" width="140" height="60" rx="10" fill="none" stroke="var(--primary-soft)" stroke-width="1.5"/>
+        <path class="ln" d="M180,140 L420,140"/>
+        <rect x="420" y="110" width="140" height="60" rx="10" fill="none" stroke="var(--accent-soft)" stroke-width="1.5"/>
+    </svg>
+    <span class="anno" style="--x:18%;--y:30%">Entrada</span>
+    <span class="anno r" style="--x:82%;--y:30%">Saída</span>
 </div>
 ```
 
