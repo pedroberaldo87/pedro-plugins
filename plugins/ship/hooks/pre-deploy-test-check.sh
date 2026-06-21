@@ -10,9 +10,14 @@
 #      tests in the right interpreter (not the whole repo on the system python).
 #   2. Legacy whole-suite — projects without that script keep the old behavior.
 
+# Fail-open if jq is missing (marketplace convention — patterns.md:28). Resolve
+# via PATH instead of a hardcoded Homebrew path so the gate actually fires on
+# Intel macs / Linux / fresh bootstrap machines, not just this one.
+command -v jq >/dev/null 2>&1 || exit 0
+
 INPUT=$(cat)
-COMMAND=$(echo "$INPUT" | /opt/homebrew/bin/jq -r '.tool_input.command // empty')
-CWD=$(echo "$INPUT" | /opt/homebrew/bin/jq -r '.cwd // empty')
+COMMAND=$(echo "$INPUT" | jq -r '.tool_input.command // empty')
+CWD=$(echo "$INPUT" | jq -r '.cwd // empty')
 
 if [ -z "$COMMAND" ] || [ -z "$CWD" ]; then
   exit 0
@@ -68,7 +73,7 @@ if [ -x "$GATE" ] && echo "$COMMAND" | grep -qE 'deploy\.sh'; then
   node_has_test_script() {
     [ -f "$1" ] || return 1
     local t
-    t=$(/opt/homebrew/bin/jq -r '.scripts.test // empty' "$1" 2>/dev/null)
+    t=$(jq -r '.scripts.test // empty' "$1" 2>/dev/null)
     [ -n "$t" ] && ! echo "$t" | grep -q 'no test specified'
   }
   app_has_tests() {
@@ -77,7 +82,7 @@ if [ -x "$GATE" ] && echo "$COMMAND" | grep -qE 'deploy\.sh'; then
     node_has_test_script "$CWD/apps/$1/package.json"
   }
   discover_apps() {
-    { ls -d "$CWD"/tests/*/ 2>/dev/null | xargs -n1 basename 2>/dev/null
+    { for d in "$CWD"/tests/*/; do [ -d "$d" ] && basename "$d"; done
       for d in "$CWD"/apps/*/tests; do [ -d "$d" ] && basename "$(dirname "$d")"; done
       for p in "$CWD"/apps/*/package.json; do
         node_has_test_script "$p" && basename "$(dirname "$p")"
@@ -123,7 +128,7 @@ SEARCH_DIR="$CWD"
 while [ "$SEARCH_DIR" != "/" ]; do
   # package.json with a real test script
   if [ -f "$SEARCH_DIR/package.json" ]; then
-    HAS_TEST=$(/opt/homebrew/bin/jq -r '.scripts.test // empty' "$SEARCH_DIR/package.json" 2>/dev/null)
+    HAS_TEST=$(jq -r '.scripts.test // empty' "$SEARCH_DIR/package.json" 2>/dev/null)
     if [ -n "$HAS_TEST" ] && ! echo "$HAS_TEST" | grep -q 'no test specified'; then
       TEST_CMD="CI=true npm test"
       TEST_RUNNER="npm test"
