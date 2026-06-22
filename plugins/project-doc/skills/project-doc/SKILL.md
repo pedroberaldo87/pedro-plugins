@@ -43,12 +43,53 @@ The skill accepts an optional argument to control scope:
 - `/project-doc --deep` — **DEEP**: como o FULL, mas o tier 4 minera **TODAS** as sessões de transcript do projeto (cold-start / backfill do histórico de conversas), não só o delta. Pesado — rode pro primeiro mergulho completo.
 - `/project-doc --rebuild` — **REBUILD**: descarta a doc gerada e re-projeta do **journal inteiro** (`findings.jsonl`). Idempotente; não minera nada novo — só re-deriva a doc dos findings vivos.
 - `/project-doc --solo` — escape: força FULL/`--deep` a rodar **single-agent** (sem Workflow) e **pula o grafo** (passo 0.0). Debug / projeto pequeno.
+- `/project-doc --nested` — **NESTED (EXPERIMENTAL)**: monorepo only. Generates `apps/{app}/CLAUDE.md` as a **derived pointer** for each app that has a canonical doc in `.claude/docs/apps/{app}.md`. Serialized after t1d (runs only after a full FULL/`--deep` that already wrote the canonical docs). See **Nested Pointers** section.
 
 **Grafo é premissa do Workflow (v3.5):** o FULL/`--deep` **exige** o grafo — o passo 0.0 o gera (`graphify update --force`), então ele sempre existe. Se o Workflow roda, tem grafo. Pra rodar **sem** grafo de propósito (debug / projeto pequeno) use `--solo`, que cai pro single-agent (sem Workflow). Não existe mais "Workflow sem mapa": grafo ausente é erro no passo 0.0, não degradação.
 
 **FULL e `--deep` mineram via Workflow (fan-out por concern) por padrão** — ver **Workflow Engine**. Os demais modos rodam single-agent. `--solo` desliga o Workflow.
 
 Doc names map directly to `.claude/docs/{arg}.md`. If the argument doesn't match a known doc name, treat it as a full run and warn the user.
+
+## Nested Pointers (`--nested`, EXPERIMENTAL)
+
+**What it is:** In a monorepo, Claude Code natively lazy-loads `apps/{app}/CLAUDE.md` when the agent edits files under that app. Without `--nested`, an agent editing `apps/payments/src/routes.ts` directly — without first exploring the project — might miss the canonical doc in `.claude/docs/apps/payments.md`. The `--nested` flag generates a **derived pointer** at `apps/{app}/CLAUDE.md` that covers this "edit-without-exploring" path by surfacing the name, port, and the canonical doc location.
+
+**Why EXPERIMENTAL:** The gain is marginal (Claude Code users familiar with the project follow the Documentation Index; the lazy-load path is an edge case). Inline content would stale immediately (the canonical doc is the source of truth — duplicating gotchas causes drift). The pointer is intentionally thin.
+
+**When it runs:** `--nested` is **not default**. It is opt-in and runs **serialized after t1d** — only once the FULL/`--deep` Workflow has already written all canonical docs in `.claude/docs/apps/{app}.md`. Never runs as a standalone mode before the canonical docs exist.
+
+**What each generated file contains (the derived pointer format):**
+
+```markdown
+<!-- nested-pointer gen=3.6 derived-from=.claude/docs/apps/{app}.md sig=<sig> — nao editar a mao -->
+# {app-name}
+
+**Porta:** {port} · {1-line description of what this app does}
+
+→ doc canônico: `.claude/docs/apps/{app}.md` (leia antes de mexer)
+```
+
+- **Header only:** name + port + 1-line description. No gotchas, no stack details, no commands — avoids stale content. These live in the canonical doc.
+- **Provenance stamp:** HTML comment at the top: `<!-- nested-pointer gen=3.6 derived-from=.claude/docs/apps/{app}.md sig=<sig> — nao editar a mao -->`. The `sig` is the sha256 (first 8 hex) of the canonical doc body at generation time. Deterministic and content-addressed: the sig changes when the canonical doc changes, making staleness detectable.
+- **Pointer line:** `→ doc canônico: .claude/docs/apps/{app}.md (leia antes de mexer)` — the only factual guidance; always current by reference.
+
+**Scope:** one `apps/{app}/CLAUDE.md` per app that has a canonical doc. Apps without a `.claude/docs/apps/{app}.md` (because they follow the common pattern exactly) get **no nested pointer** — no empty file.
+
+**Sig generation (deterministic):**
+```python
+import hashlib, pathlib
+body = pathlib.Path(".claude/docs/apps/{app}.md").read_text()
+# strip frontmatter block (everything between leading --- delimiters)
+if body.startswith("---"):
+    end = body.index("---", 3) + 3
+    body = body[end:].lstrip("\n")
+sig = hashlib.sha256(body.encode()).hexdigest()[:8]
+```
+
+**Staleness detection:** compare the `sig` in the HTML comment against `sha256(canonical_doc_body)[:8]`. If they differ, the nested pointer is stale and should be regenerated (run `/project-doc --nested` again after the canonical doc was updated).
+
+**Do not hand-edit** the generated files — the comment warns explicitly. They are derived; the canonical doc is the source of truth.
 
 ## Output Protocol
 
@@ -122,7 +163,7 @@ Report each step to the user as you execute. Don't skip steps or batch them sile
    - If no argument and v1 markers found (`<!-- project-doc:start -->`) → auto-trigger MIGRATE, then FULL
    - If no argument → FULL mode
 6. **Collect from the 5-tier source cascade** (see **Sources** + **Collect & Project**). Tier 1 = scan files via the Detection Matrix below; tiers 2-4 = run the lib (`journal.py`); tier 5 = ask the human for critical gaps.
-   - **FULL / DEEP:** rode a **checagem ativa (passo 0.1)** e minere via **Workflow** (fan-out por concern) — ver **Workflow Engine**. A checagem classifica a doc existente, decide `update` vs `deep`, e dispara backup+garimpo se a doc estiver fora do padrão. `--solo` força single-agent.
+   - **FULL / DEEP:** rode a **checagem ativa (passo 0.1)** e minere via **Workflow** (fan-out por concern) — ver **Workflow Engine**. A checagem **executa** `python3 plugins/project-doc/lib/pattern_check.py --project-root "<root>"` (não só lê o número do marker — roda o script): `in_pattern==false` => fora do padrão => reconstrói via Workflow `deep` + garimpo. `--solo` força single-agent.
    - **FULL mode:** scan everything (tier 1) + `journal.py update` (tiers 2-4, delta)
    - **DEEP mode:** tier 1 + `journal.py deep` (minera TODAS as sessões — cold-start)
    - **REBUILD mode:** pula a mineração; `journal.py rebuild` re-projeta do journal existente
@@ -348,14 +389,16 @@ No FULL/`--deep` (não nos modos leves), ANTES da checagem ativa:
 
 
 
-Antes de minerar, **classifique a doc existente** (esta é a checagem ativa — roda no passo 0 da casca):
+Antes de minerar, **execute** `python3 plugins/project-doc/lib/pattern_check.py --project-root "<root>"` e **classifique a doc existente** com base no resultado (esta é a checagem ativa — roda no passo 0 da casca, **não é leitura manual do marker**):
 
 - **Ausente** (sem `.claude/CLAUDE.md`) → CREATE: Workflow + `deep` (cold-start). Sem backup/garimpo (não há doc antiga).
-- **Fora do padrão atual** → **sequência full forçada**: backup + Workflow + **`deep`** + garimpo. É "fora do padrão" se QUALQUER:
-  - markers v1 (`project-doc:start/end`), **ou sem markers**, ou doc escrita à mão;
-  - markers v2 **mas sem journal** (`.claude/.project-doc/findings.jsonl` ausente) → doc gerada por motor pré-v3, **nunca minerada** — o caso que mais engana (parece boa, o agente a "seguia");
-  - o marker registra `gen=<versão>` **menor** que a versão atual do plugin → o motor mudou de padrão desde a última geração.
-- **No padrão** (markers v2 + journal presente + `gen` atual) → FULL normal: Workflow + `update` (delta) + backup/garimpo (sempre que há doc, pra preservar nuance).
+- **`in_pattern==false`** (script retorna fora do padrão) → **sequência full forçada**: backup + Workflow + **`deep`** + garimpo. O script detecta QUALQUER das condições abaixo como violação:
+  - (a) markers v1 (`project-doc:start/end`), **ou sem markers**, ou doc escrita à mão;
+  - (c) markers v2 **mas sem journal** (`.claude/.project-doc/findings.jsonl` ausente) → doc gerada por motor pré-v3, **nunca minerada** — o caso que mais engana (parece boa, o agente a "seguia");
+  - (b) algum `.claude/docs/*.md` sem frontmatter YAML;
+  - (d) algum doc sem linha `doc-sig:` no frontmatter;
+  - (e) `gen_found` **ausente ou diferente** de `CURRENT_GEN` → o motor mudou de padrão desde a última geração.
+- **`in_pattern==true`** → FULL normal: Workflow + `update` (delta) + backup/garimpo (sempre que há doc, pra preservar nuance).
 
 A regra-mãe: **doc fora do padrão não é base confiável** — não faça update delta leve em cima dela; reconstrua por mineração (`deep`) e use a antiga só como fonte de nuances (garimpo). O marker passa a gravar a versão do gerador — ver **Update Mechanism**.
 
@@ -457,6 +500,47 @@ A trava anti-"caminho fácil" é **estrutural**, não confiança: a doc nova já
 8. **Frontmatter (v3.4)** — todo `body_md` de doc (não-inline) tem que abrir com o bloco YAML (`generated`/`project`/`scope`). `DOC_SECTION.has_frontmatter===false` (ou ausência detectada por regex `^---\n`) ⇒ o JS **injeta** o bloco determinístico (`generated`=data do run, `project`=nome do projeto, `scope`=`files_read[]`) e registra em `frontmatter_injected`. Fecha o buraco da v3.2 (7 shared docs sem frontmatter) por construção, não por o agente lembrar.
 9. **Anti-regressão da Fase D (v3.5.1 — `gateMergedDocs`, JS não prompt)** — a Fase A é a **base canônica**; a Fase D (LLM) só pode **inserir** nuances, **nunca alterar fato existente**. Pra cada `MERGED_DOC`, o JS extrai os **fatos-chave** do `merged.body_md` E do `body_md` da Fase A que entrou no merge — frontmatter `generated` (data), versões (`\d+\.\d+\.\d+`), contagens/números (ex: nós do grafo) — e compara. Se o merged **baixou a data**, **regrediu uma versão**, **diminuiu/removeu um número** que a Fase A tinha, ou **trocou o frontmatter** ⇒ **rejeita o merge**: usa o `body_md` da Fase A e registra `merge_rejected[{doc_path, reason}]`. **Por que é gate, não prompt:** delegar isso à instrução do `mergePrompt` ("não copie a antiga") é o anti-padrão que a skill condena — e foi o que deixou um agente de merge regredir a `architecture.md` pra versão do backup (v3.3.0/data antiga) apesar de a Fase A ter entregue a versão certa. Gate é JS, não o agente lembrar.
 
+## Pattern Manifest (v3.6)
+
+Contrato mínimo que define "doc no padrão". Verificado **mecanicamente** por `python3 plugins/project-doc/lib/pattern_check.py --project-root "<root>"` — **nunca por leitura manual**. O script retorna `{in_pattern, gen_found, gen_current, violations, docs}`.
+
+### Invariantes per-gen (a-e)
+
+- **(a) markers v2 presentes** — `.claude/CLAUDE.md` contém `<!-- project-doc:v2 … -->` e `<!-- project-doc:v2:end -->`
+- **(b) frontmatter em todos os docs** — todo `.claude/docs/*.md` abre com `---\n` (frontmatter YAML)
+- **(c) journal existe** — `.claude/.project-doc/findings.jsonl` presente (doc nunca foi minerada sem journal = base não-confiável)
+- **(d) doc-sig no frontmatter** — todo `.claude/docs/*.md` tem linha `doc-sig: <sig>` no frontmatter. A sig é gerada por `python3 plugins/project-doc/lib/pattern_check.py --sig <docfile>` e deve corresponder ao conteúdo atual do arquivo
+- **(e) gen atual** — `gen_found == CURRENT_GEN` (atualmente `3.6`); gen ausente ou menor = motor mudou de padrão → reconstrói
+
+### CONDITIONAL invariant — `--nested` pointers (t1d)
+
+This invariant is **conditional on whether `--nested` was used**. Detection: check if any `apps/*/CLAUDE.md` contains the marker `nested-pointer` in its first HTML comment.
+
+- **IF `--nested` was used** (any `apps/*/CLAUDE.md` exists with the `<!-- nested-pointer ... -->` marker): for every app that has a canonical doc in `.claude/docs/apps/{app}.md`, there MUST be an up-to-date `apps/{app}/CLAUDE.md` nested pointer whose `sig` matches `sha256(canonical_doc_body)[:8]`. A stale or missing nested pointer for any documented app = **WARN — nested pointer stale or missing for {app}** (run `/project-doc --nested` to regenerate).
+- **IF `--nested` was NOT used** (no `apps/*/CLAUDE.md` with the marker exists): do NOT require nested pointers. Their absence is NOT a violation. `in_pattern` must not be set to `false` due to missing nested pointers — this would silently force a deep rebuild on every project that never opted in.
+
+The `pattern_check.py` script MUST implement this conditional: presence of the marker in any `apps/*/CLAUDE.md` is the activation signal; without it, the check is skipped entirely.
+
+### HARD RULE — quando bumpar o gen
+
+**Toda mudança estrutural** (nova invariante, novo campo obrigatório no frontmatter, novo passo do Workflow que invalida docs antigas) **deve**:
+1. Bumpar `CURRENT_GEN` em `plugins/project-doc/lib/pattern_check.py`
+2. Bumpar `gen=X.Y` nos dois Index Templates (Standard e Monorepo) neste SKILL.md
+3. Atualizar esta seção descrevendo o que mudou
+
+Não bumpe o gen para melhorias que não tornam docs antigas não-confiáveis (ex.: Fase D mais inteligente, novos checks de verification, melhorias de prompt).
+
+### Assinatura determinística (`doc-sig`)
+
+Formato: `<project>/<scope_basename>@gen=<CURRENT_GEN>#<hash8>`
+
+- `project` — campo `project` do frontmatter, ou basename do project_root
+- `scope_basename` — basename do primeiro path em `scope`, ou nome do arquivo sem extensão
+- `CURRENT_GEN` — o gen vigente no momento da geração (`3.6`)
+- `hash8` — primeiros 8 hex do sha256 do **body** (conteúdo após o bloco `---…---` do frontmatter)
+
+A sig é **content-addressed** (muda quando o body muda) e **estável** (mesma para o mesmo conteúdo). Permite detectar regressão de conteúdo entre gerações. Gerada via `pattern_check.py --sig <docfile>`.
+
 ## CLAUDE.md Index Template
 
 The CLAUDE.md index is the always-loaded routing table. Two variants exist: Standard and Monorepo.
@@ -464,7 +548,7 @@ The CLAUDE.md index is the always-loaded routing table. Two variants exist: Stan
 ### Standard Index Template
 
 ```markdown
-<!-- project-doc:v2 gen=3.3 -->
+<!-- project-doc:v2 gen=3.6 -->
 <!-- Generated by /project-doc on {YYYY-MM-DD} — run /project-doc to update -->
 
 # Project Reference
@@ -535,7 +619,7 @@ Grafo do projeto em `graphify-out/`. **Antes de analisar arquitetura ou mexer em
 ### Monorepo Index Template
 
 ```markdown
-<!-- project-doc:v2 gen=3.3 -->
+<!-- project-doc:v2 gen=3.6 -->
 <!-- Generated by /project-doc on {YYYY-MM-DD} — run /project-doc to update -->
 
 # Project Reference
@@ -613,8 +697,11 @@ Each `.claude/docs/*.md` file follows this structure. Content level should be de
 generated: {YYYY-MM-DD}
 project: {project-name}
 scope: {comma-separated list of key source files this doc was generated from}
+doc-sig: {output of `python3 plugins/project-doc/lib/pattern_check.py --sig <this-file>`}
 ---
 ```
+
+`doc-sig` é a **assinatura determinística** do documento: `<project>/<scope_basename>@gen=<CURRENT_GEN>#<hash8>`, onde `hash8` = primeiros 8 hex do sha256 do body (conteúdo após o frontmatter). Formato produzido por `pattern_check.py --sig <docfile>`. Invariante (d) do Pattern Manifest — o check #19 falha se ausente.
 
 ### architecture.md
 
@@ -956,7 +1043,9 @@ For monorepos, `.claude/docs/` uses subdirectories per app alongside shared docs
    - The `## Custom Rules` section content (extracted before write, reinserted)
 4. **CLAUDE.md exists with no markers:** Append the v2 block at the end
 
-**Marker de geração (`gen`) — desacoplado da `version` do plugin:** o marker de abertura grava o **`gen` do contrato de doc** que gerou o arquivo — `<!-- project-doc:v2 gen=3.3 -->`. O **`gen` corrente é `3.3`** (a release da **leitura-via-grafo**: grafo obrigatório + leitura profunda do código; a `3.1` introduziu o Workflow). A **checagem ativa (passo 0.1)** lê esse atributo: doc com `gen` **ausente ou menor** que `3.3` é **fora do padrão** → reconstrói via Workflow `deep` + garimpo (não um update delta leve) — porque a doc anterior nunca leu o código de verdade. **`gen` ≠ `version` do plugin (de propósito):** a `version` (`plugin.json`) é a chave de **propagação** e bumpa a CADA mudança; o `gen` é o gatilho de **reconstrução** e só bumpa quando a doc antiga precisa ser refeita. Ex.: a **Fase D / merge nativo (plugin `3.4.0`)** melhora a captura de nuances mas **NÃO** invalida docs `gen=3.3` (que já liam o código via grafo) — por isso entrou sem bumpar o `gen`. Só bumpe o `gen` aqui e nos dois Index Templates quando a mudança tornar a doc antiga base não-confiável.
+**Marker de geração (`gen`) — desacoplado da `version` do plugin:** o marker de abertura grava o **`gen` do contrato de doc** que gerou o arquivo — `<!-- project-doc:v2 gen=3.6 -->`. O **`gen` corrente é `3.6`** (a release do **Pattern Manifest + assinatura determinística**: adiciona as invariantes (a-e) verificadas por `pattern_check.py`, a linha obrigatória `doc-sig:` no frontmatter de cada doc, e a checagem ativa via script em vez de leitura manual do marker). A **checagem ativa (passo 0.1)** **executa** `python3 plugins/project-doc/lib/pattern_check.py --project-root "<root>"`: `in_pattern==false` é **fora do padrão** → reconstrói via Workflow `deep` + garimpo. **`gen` ≠ `version` do plugin (de propósito):** a `version` (`plugin.json`) é a chave de **propagação** e bumpa a CADA mudança; o `gen` é o gatilho de **reconstrução** e só bumpa quando a doc antiga precisa ser refeita. Ex.: a **Fase D / merge nativo (plugin `3.4.0`)** melhorou a captura de nuances mas **não** invalidou docs `gen=3.3` (que já liam o código via grafo). Só bumpe o `gen` aqui, em `CURRENT_GEN` do `pattern_check.py`, e nos dois Index Templates quando a mudança tornar a doc antiga base não-confiável.
+
+**Assinatura determinística (`doc-sig`):** cada `.claude/docs/*.md` tem no frontmatter a linha `doc-sig: <sig>`, onde a sig = `<project>/<scope_basename>@gen=<CURRENT_GEN>#<hash8>`. `hash8` = primeiros 8 hex do sha256 do body (conteúdo após o frontmatter). Gerada por `python3 plugins/project-doc/lib/pattern_check.py --sig <docfile>`. A sig muda quando o body muda (content-addressed), mas é estável pra o mesmo conteúdo — permite detectar regressão de conteúdo entre gerações. É invariante (d) do Pattern Manifest; sua ausência é violação.
 
 **CRITICAL:** When replacing, include the markers themselves in the new content. The markers are part of the block.
 
@@ -1270,6 +1359,15 @@ After writing all files, run this verification checklist. Report results to the 
 - **`generated` não regrediu:** a data do frontmatter de cada doc escrito é ≥ a data do backup (nunca uma doc "nova" datada mais velha que a anterior).
 - **Números de mapa não regrediram:** contagens citadas (ex: nós/comunidades do grafo) ≥ as do snapshot anterior, salvo refactor que de fato apagou código (justifique).
 - Qualquer regressão = **FAIL — corrija antes de declarar pronto** (foi o que vazou pro commit quando se cravou "12/12 PASS" sem conferir os fatos do catálogo).
+
+### Pattern Conformance Check (v3.6)
+
+**19. Conformidade com o Pattern Manifest — execute o script, não leia o marker.**
+```bash
+python3 plugins/project-doc/lib/pattern_check.py --project-root "<root>"
+```
+- `in_pattern==true` → **PASS**
+- `in_pattern==false` → **FAIL — <lista de violations>**. As violations mapeiam diretamente para: (a) marker v2 ausente, (b) frontmatter ausente em algum doc, (c) findings.jsonl ausente, (d) `doc-sig:` ausente no frontmatter de algum doc, (e) gen desatualizado. Corrija cada uma antes de declarar pronto — nunca declarar PASS com `in_pattern==false`.
 
 ### Verification Output Format
 

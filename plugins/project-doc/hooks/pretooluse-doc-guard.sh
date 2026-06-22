@@ -5,6 +5,17 @@
 # it once per (session × project) and redirect to .claude/docs/. The nudge lists
 # the actual docs and flags staleness. Mirrors graphify-guard; separate sentinel.
 # Fail-open: any error → exit 0 (action proceeds).
+#
+# PRIMARY decision: SENTINEL-FILE
+#   posttooluse-doc-read.sh writes /tmp/claude-doc-guard-${SESSION}-${PHASH} the
+#   moment Claude reads any file under .claude/docs/ or .claude/CLAUDE.md. The
+#   guard checks for that sentinel; if present → doc was consulted → pass.
+#   MAX_NUDGES is a safety cap only (not the primary decision).
+#
+# MONOREPO: if the searched path is under apps/{app}/ and
+#   .claude/docs/apps/{app}.md exists, the nudge cites that specific doc.
+#
+# OUT_OF_PATTERN: 5th column from doc-detect.sh --one is included in the nudge.
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 command -v jq >/dev/null 2>&1 || exit 0
@@ -85,29 +96,67 @@ fi
 # No doc covers this → let it through.
 [ -z "$PROJ" ] && exit 0
 
-# Sentinel = "doc consulted (or gave up)" — per (session × PROJECT). It is set
-# when Claude actually READS the doc (posttooluse-doc-read.sh touches it), OR
-# after MAX_NUDGES blind searches. So the guard INSISTS until the doc is read,
-# then goes quiet — without nagging forever when the doc is irrelevant.
+# ---------------------------------------------------------------------------
+# MONOREPO detection: check if any candidate is under $PROJ/apps/{app}/.
+# If .claude/docs/apps/{app}.md exists → use it as the target doc.
+# ---------------------------------------------------------------------------
+APP_DOC=""
+APP_NAME=""
+while IFS= read -r c; do
+  [ -z "$c" ] && continue
+  # Normalize to absolute
+  case "$c" in /*) : ;; *) c="$CWD/$c" ;; esac
+  # Check if candidate is under $PROJ/apps/<something>/
+  suffix="${c#${PROJ}/apps/}"
+  if [ "$suffix" != "$c" ]; then
+    # extract the app name (first path component after apps/)
+    a="${suffix%%/*}"
+    [ -z "$a" ] && continue
+    candidate_doc="$PROJ/.claude/docs/apps/${a}.md"
+    if [ -f "$candidate_doc" ]; then
+      APP_DOC="$candidate_doc"
+      APP_NAME="$a"
+      break
+    fi
+  fi
+done <<EOF
+$CANDS
+EOF
+
+# ---------------------------------------------------------------------------
+# SENTINEL-FILE check (PRIMARY decision)
+# posttooluse-doc-read.sh writes /tmp/claude-doc-guard-${SESSION}-${PHASH}
+# the moment Claude reads any file under .claude/docs/ or .claude/CLAUDE.md.
+# Check for that sentinel; if present → doc was consulted → pass (exit 0).
+# Fail-open: any I/O issue → sentinel absent → continue to nudge.
+# ---------------------------------------------------------------------------
 PHASH=$(printf '%s' "$PROJ" | cksum | cut -d' ' -f1)
 SENTINEL="/tmp/claude-doc-guard-${SESSION}-${PHASH}"
-[ -f "$SENTINEL" ] && exit 0
+if [ -f "$SENTINEL" ]; then
+  exit 0
+fi
 
+# ---------------------------------------------------------------------------
+# MAX_NUDGES cap (loop-guard / safety valve — NOT the primary decision)
+# ---------------------------------------------------------------------------
 MAX_NUDGES=3
 COUNT_FILE="/tmp/claude-doc-guard-count-${SESSION}-${PHASH}"
 COUNT=0
 [ -f "$COUNT_FILE" ] && COUNT="$(cat "$COUNT_FILE" 2>/dev/null)"
 [ "$COUNT" -eq "$COUNT" ] 2>/dev/null || COUNT=0
 if [ "$COUNT" -ge "$MAX_NUDGES" ]; then
-  touch "$SENTINEL" 2>/dev/null   # gave up after MAX_NUDGES without a doc read
-  exit 0
+  exit 0   # gave up after MAX_NUDGES — let it through
 fi
 echo $((COUNT + 1)) > "$COUNT_FILE"
 
+# ---------------------------------------------------------------------------
+# Build nudge message
+# ---------------------------------------------------------------------------
 LINE=$(bash "$SCRIPT_DIR/doc-detect.sh" --one "$PROJ" 2>/dev/null)
 [ -z "$LINE" ] && exit 0
 N=$(printf '%s' "$LINE" | cut -f3)
 STALE=$(printf '%s' "$LINE" | cut -f4)
+OOP=$(printf '%s' "$LINE" | cut -f5)
 NUDGE_NO=$((COUNT + 1))
 
 # List the real docs so the nudge is actionable (not just "read the index").
@@ -120,7 +169,22 @@ if [ -n "$STALE" ] && [ "$STALE" -gt 8 ] 2>/dev/null; then
   STALEMSG=" ⚠️ ${STALE} arquivo(s) mudaram desde a geração da doc — pode estar defasada; confirme no código e considere /project-doc."
 fi
 
-MSG="📚 ${PROJ} tem documentação project-doc (${N} doc(s) em .claude/docs/).${DOCLIST} Antes de busca cega ou de delegar exploração, leia o índice ${PROJ}/.claude/CLAUDE.md e o doc relevante em .claude/docs/.${STALEMSG} Eu paro de avisar assim que você LER a doc (Read em .claude/docs/ ou no CLAUDE.md); se ela não cobrir o que precisa, refaça a ação (aviso ${NUDGE_NO}/${MAX_NUDGES} — depois disso eu silencio)."
+# Out-of-pattern flag (5th column from doc-detect.sh --one)
+OOPMSG=""
+if [ "$OOP" = "1" ]; then
+  OOPMSG=" ⚠️ out_of_pattern=true: o projeto não segue o padrão project-doc v2 atual — doc pode estar incompleta ou desatualizada."
+fi
+
+# App-specific nudge vs generic nudge
+if [ -n "$APP_NAME" ] && [ -n "$APP_DOC" ]; then
+  APPMSG=" Para o app '${APP_NAME}', leia o doc específico em .claude/docs/apps/${APP_NAME}.md."
+  READ_TARGET="${PROJ}/.claude/docs/apps/${APP_NAME}.md"
+else
+  APPMSG=""
+  READ_TARGET="${PROJ}/.claude/CLAUDE.md e o doc relevante em .claude/docs/"
+fi
+
+MSG="📚 ${PROJ} tem documentação project-doc (${N} doc(s) em .claude/docs/).${DOCLIST}${APPMSG} Antes de busca cega ou de delegar exploração, leia ${READ_TARGET}.${STALEMSG}${OOPMSG} Use a ferramenta Read em qualquer arquivo de .claude/docs/ ou .claude/CLAUDE.md; isso registra um sentinel e esta ação será liberada automaticamente na próxima tentativa (aviso ${NUDGE_NO}/${MAX_NUDGES} — depois disso silencio)."
 
 jq -n --arg r "$MSG" \
   '{hookSpecificOutput:{hookEventName:"PreToolUse",permissionDecision:"deny",permissionDecisionReason:$r}}'
