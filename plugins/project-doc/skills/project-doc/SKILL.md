@@ -184,7 +184,7 @@ Report each step to the user as you execute. Don't skip steps or batch them sile
 12. **Write all files**
 13. **Run verification** (see Verification section)
 14. **Auto commit + push** (FULL e qualquer modo que ESCREVE doc — `verify`/`clean` pulam) — persiste os artefatos de doc no git, **escopado**:
-    - **`git add` cirúrgico — SÓ os artefatos de doc:** `.claude/CLAUDE.md`, `.claude/docs/`, `.claude/.project-doc/findings.jsonl`, `.claude/.project-doc/ledger.json`, e os ponteiros gerados (`AGENTS.md`, `GEMINI.md`, `.cursorrules`, `.windsurfrules`, `.github/copilot-instructions.md`). **NUNCA `git add -A`** — não varrer trabalho não-relacionado do repo-alvo. `secrets/`/`backups/` ficam de fora (gitignored).
+    - **`git add` cirúrgico — SÓ os artefatos de doc:** `.claude/CLAUDE.md`, `.claude/docs/`, `.claude/.project-doc/findings.jsonl`, `.claude/.project-doc/ledger.json`, **`graphify-out/` se existir** (o grafo é documentação obrigatória — premissa do FULL/`--deep` — e precisa viajar entre máquinas igual à doc; `git add graphify-out/` **respeita o `.gitignore` interno**, então entram `graph.json`/`cost.json`/comunidades e ficam de fora `cache/`/`.graphify_*`), e os ponteiros gerados (`AGENTS.md`, `GEMINI.md`, `.cursorrules`, `.windsurfrules`, `.github/copilot-instructions.md`). **NUNCA `git add -A`** — não varrer trabalho não-relacionado do repo-alvo. `secrets/`/`backups/` ficam de fora (gitignored).
     - **Commit** na branch atual, mensagem `docs(project-doc): regenera CLAUDE.md + .claude/docs + journal`. Nada staged (doc não mudou) → pula e anota "nada a commitar".
     - **Push seguro:** `git fetch` antes; **nunca `--force`**; divergiu de `origin` → tenta `pull --rebase` e re-push, senão reporta. Sem remote/upstream → commita e **pula o push**. Não é repo git → pula commit+push.
     - **Falha de push** (conflito/permissão) → reporta o erro real e segue (commit local feito; doc no disco).
@@ -1242,7 +1242,7 @@ Aprovar? [tudo | só deletar | só arquivar | escolher itens | cancelar]
 - **Archive > delete for items of value** — prototypes and state-documenting prints go to `_archive/`, not the trash
 - **Safety net before any bulk delete** — pack originals into `_archive/*-housekeeping-<date>.tar.gz` first, then remove
 - **Cleanup scope = project root** — never touch outside it (e.g. `~/Desktop/claude-visual/`); never touch `.git/ node_modules/ graphify-out/ .claude/docs/` nor referenced assets
-- **Auto commit+push é ESCOPADO — nunca `git add -A`** — o passo 14 stageia SÓ os artefatos de doc (`CLAUDE.md`, `.claude/docs/`, `findings.jsonl`, `ledger.json`, ponteiros). Varrer o working tree do repo-alvo (`-A`) é proibido — commitaria trabalho não-relacionado. Push nunca com `--force`; sem remote → pula push; falha → reporta e segue (commit local feito).
+- **Auto commit+push é ESCOPADO — nunca `git add -A`** — o passo 14 stageia SÓ os artefatos de doc (`CLAUDE.md`, `.claude/docs/`, `findings.jsonl`, `ledger.json`, **`graphify-out/` se existir**, ponteiros). Varrer o working tree do repo-alvo (`-A`) é proibido — commitaria trabalho não-relacionado. Push nunca com `--force`; sem remote → pula push; falha → reporta e segue (commit local feito).
 
 ## Verification (Post-Generation Quality Check)
 
@@ -1336,10 +1336,11 @@ After writing all files, run this verification checklist. Report results to the 
 - Para cada path abaixo, rode `git -C "<root>" check-ignore -q <path>` (ignorado se exit 0) **e** `git -C "<root>" ls-files --error-unmatch <path>` (tracked se exit 0):
   - `.claude/CLAUDE.md` e todo `.claude/docs/*.md`
   - **`.claude/.project-doc/findings.jsonl`** e **`.claude/.project-doc/ledger.json`** — o journal + ledger, o ÚNICO veículo do conhecimento entre máquinas
+  - **`graphify-out/graph.json`** (se o projeto tem grafo) — o grafo é documentação obrigatória (premissa do FULL/`--deep`); o passo 0.0 o gera/atualiza, mas só viaja entre máquinas se entrar no git. Caso real do furo: a skill regenerava o grafo e **não o stageava** — cada clone ficava sem mapa, em silêncio (mesma classe do journal no `tools`).
   - os thin pointers gerados (`AGENTS.md`, `GEMINI.md`, `.cursorrules`)
 - **Ignorado** (`check-ignore` exit 0) → **CRITICAL FAIL — "{path} está no .gitignore; o conhecimento não vai viajar"**. Mostre a regra que casa (`git check-ignore -v <path>`) pro Pedro removê-la.
 - **Não-ignorado mas untracked** (nunca commitado) → **WARN — "{path} existe mas não está no git ainda (git add)"**.
-- **Distinção que NÃO pode confundir:** `.claude/.project-doc/backups/` e `.claude/secrets/` **DEVEM** estar gitignored (efêmero / cofre). O check é sobre os arquivos versionados-por-design (journal, ledger, docs), **não** a pasta `.project-doc/` inteira.
+- **Distinção que NÃO pode confundir:** `.claude/.project-doc/backups/`, `.claude/secrets/` e **`graphify-out/cache/` + `graphify-out/.graphify_*`** (máquina-específico / regenerável) **DEVEM** estar gitignored (efêmero / cofre / cache). O check é sobre os arquivos versionados-por-design (journal, ledger, docs, **`graph.json`**), **não** a pasta inteira — `graphify-out/graph.json` precisa viajar, mas `graphify-out/cache/` não.
 
 ### Graph Coverage Check (v3.2)
 
@@ -1384,7 +1385,7 @@ python3 plugins/project-doc/lib/pattern_check.py --project-root "<root>"
 ✅ Env var coverage — 11/11 vars documented
 ✅ Service completeness — 3/3 services documented
 ✅ Security — no leaked secrets
-✅ Versioned artifacts tracked — journal + ledger + 5 docs no git (backups/ e secrets/ ignorados, como esperado)
+✅ Versioned artifacts tracked — journal + ledger + 5 docs + graphify-out/graph.json no git (backups/, secrets/, graphify-out/cache/ ignorados, como esperado)
 ⚠️  Graph coverage — 18/20 god nodes documentados; "Bootstrap Sync Cycle" (hyperedge) sem nota de arquitetura
 ✅ Deploy flow — 3/3 flags documented, steps match script
 ✅ Section relevance — 5 docs, 0 false negatives
