@@ -121,6 +121,17 @@
       ]
     },
     {
+      "name": "ponytail",
+      "source": "https://github.com/DietrichGebert/ponytail.git",
+      "sourceType": "git",
+      "plugins": [
+        {
+          "name": "ponytail",
+          "enabled": true
+        }
+      ]
+    },
+    {
       "name": "voltagent-subagents",
       "source": "https://github.com/VoltAgent/awesome-claude-code-subagents.git",
       "sourceType": "git",
