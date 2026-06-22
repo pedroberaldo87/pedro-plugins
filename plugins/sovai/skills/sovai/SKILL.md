@@ -10,7 +10,7 @@ Pedro vai ficar indisponível. Reconheça com uma linha (`modo sovai ativo, come
 ## Contrato
 
 **Faz:**
-- Executa o plano (ou a tarefa) do começo ao fim, sem pausar
+- Executa o plano (ou a tarefa) do começo ao fim, sem pausar — através do **motor decompõe→executa→revisa** (Workflow; ver _Execução_)
 - Toma todas as decisões necessárias para seguir e **anota cada uma**
 - Verifica antes de declarar feito — regras globais do CLAUDE.md continuam valendo
 - Ao final, atualiza a doc (`project-doc`) e faz commit + push do trabalho — ver **Persistência**
@@ -24,6 +24,97 @@ Pedro vai ficar indisponível. Reconheça com uma linha (`modo sovai ativo, come
 ## Bloqueios
 
 Se um item não puder ser feito como pedido, **não invente workaround silencioso**. Pula o item, anota o bloqueio com o que faltou, e segue para o próximo. A regra global "Entrega 100% ou Para e Conversa" continua valendo — o "Para e Conversa" vira "Pula e Anota" porque Pedro está indisponível, mas a entrega ainda precisa ser honesta.
+
+## Execução — motor decompõe → executa → revisa (Workflow)
+
+A execução do plano **não roda solo no loop principal** — roda como **um Workflow determinístico** (a tool `Workflow`), mesmo padrão do `/qa-loop`: **motor = Workflow, casca = esta skill**. Três papéis, cada um com o modelo certo, e os freios (parada, paralelismo, fidelidade) são **lógica do script (JS)** — não "o Opus lembrar a regra a cada volta". É um **pipeline fechado**, por isso Workflow e não Agent Team (e não sub-agente solto, que a regra do Pedro condena e o guard `PreToolUse(Agent)` acorda a cada disparo).
+
+- **OPUS #1 — Decompositor.** NÃO planeja do zero. Pega o **plano que você deixou** e o quebra em tarefas de implementação, marcando para cada uma os **arquivos que toca**, se é **paralelizável** e de quais tarefas **depende**. Re-arquitetar é proibido (mesma regra do "não replanejar no headless"); buraco no plano que exija decisão de arquitetura vira **Bloqueio**, nunca invenção silenciosa.
+- **SONNETS — Executores.** Implementam as tarefas. Independentes rodam **em paralelo**; dependentes, **em série** na ordem do #1. Duas tarefas paralelas que tocam o mesmo arquivo → `isolation: 'worktree'` (senão se atropelam). Tarefa única ou missão sequencial pura → o Workflow degenera pra um executor por vez, sem cerimônia (o fan-out é ganho só quando há independência real).
+- **OPUS #2 — Revisor de construção.** Trata a decomposição do #1 como **contrato** e só checa se ele foi **cumprido**: toda tarefa decomposta saiu? (completude) · as peças paralelas integram, sem se contradizer? (coesão). **Não julga se a decomposição é fiel ao plano-macro** — isso é exclusivo do `/qa-loop` (etapa seguinte, bucket 1 dele). Devolve **feedback estruturado pro #1**, que re-decompõe **só o delta** (o que faltou / precisa refazer) na volta seguinte. A seta de volta #2→#1 é o coração do motor.
+
+### Fronteira com o `/qa-loop` (ângulos separados, sem retrabalho)
+
+Os dois loops olham coisas **diferentes** — e isso vai **escrito no prompt de cada papel** pra não duplicarem trabalho:
+
+- **Este loop (#1↔#2) garante que está CONSTRUÍDO** — completude + coesão de montagem, medidas **contra a decomposição do #1 (o contrato)**, não contra o plano-macro. Pergunta: _"a decomposição virou código inteiro e coerente?"_. **NÃO** julga fidelidade ao plano-macro, **NÃO** caça bug sutil, **NÃO** roda a suíte, **NÃO** mexe em lint/type.
+- **O `/qa-loop` (etapa seguinte) garante que está CORRETO** — bug, regressão, lint/type/test, segurança, e fidelidade ao **plano-macro** (os 3 buckets dele). Pergunta: _"o código construído tem defeito?"_.
+
+Resumo: **#2 = "está pronto?" · qa-loop = "está certo?"**. O motor de implementação fecha quando a obra está de pé; o qa-loop entra **depois** pra procurar defeito. Sem sobreposição: completude/coesão aqui, correção lá.
+
+### Freio do loop (não é "até o #2 ficar feliz")
+
+Revisão é poço sem fundo (mesma disciplina do review-loop: parada por retorno decrescente, não "até zero"). O loop #1↔#2 para no **primeiro** que ocorrer:
+- **[primário]** #2 reporta `complete && cohesive` e **zero gap de fidelidade** acima do floor de severidade → obra de pé, segue pro QA.
+- **[trava]** atingiu `maxRounds` (safety-cap, **não** meta) → o que faltou vira **Bloqueio (precisa de você)** no relatório.
+
+### Esqueleto do motor (referência — o princípio, não código imutável)
+
+A casca dispara a tool `Workflow` com o script abaixo. Os três schemas (`DECOMP`, `TASK_RESULT`, `BUILD_REVIEW`) são o que torna os gates determinísticos: o script lê campos estruturados, não texto solto.
+
+```javascript
+export const meta = {
+  name: 'sovai-build-engine',
+  description: 'Motor de implementação: Opus decompõe, Sonnets executam (paralelo qdo independentes), Opus revisa completude+coesão e devolve feedback',
+  phases: [{ title: 'Decompor' }, { title: 'Executar' }, { title: 'Revisar' }],
+}
+
+// args (da casca): { planPath, planText, maxRounds, severityFloor, repoRoot }
+const sevRank = s => ({ P0:3, P1:2, P2:1, P3:0 }[s] ?? 0)
+const floor = sevRank(args.severityFloor || 'P1')
+// 'shared' = a tarefa colide em arquivo com OUTRA paralela do MESMO lote → isola em worktree
+const touchesShared = (t, lote) => lote.some(o => o.id !== t.id && o.files?.some(f => t.files?.includes(f)))
+const rounds = []; const blockers = []
+let built = false, r = 0
+let feedback = null   // do #2 pro #1 na volta seguinte (a seta de volta)
+
+while (!built && r < args.maxRounds) {
+  r++; phase(`Rodada ${r}`)
+
+  // DECOMPOR — Opus #1. r==1: decompõe o plano inteiro; r>1: só o DELTA do feedback.
+  // NUNCA re-arquiteta; buraco que exige decisão de arquitetura vira blocker (não vira tarefa).
+  const decomp = await agent(decomposePrompt({ planPath: args.planPath, planText: args.planText, round: r, feedback }),
+    { model: 'opus', effort: 'high', phase: 'Decompor', schema: DECOMP })
+  if (decomp.blockers?.length) blockers.push(...decomp.blockers)
+
+  // EXECUTAR — Sonnets. Independentes em paralelo; dependentes em série (ordem do #1).
+  // worktree só quando paralelas tocam o mesmo arquivo.
+  const todo = decomp.tasks.filter(t => !t.done)
+  const par = todo.filter(t => t.parallelizable && !(t.dependsOn?.length))
+  const seq = todo.filter(t => !t.parallelizable || (t.dependsOn?.length))
+  const builtPar = await parallel(par.map(t => () =>
+    agent(execPrompt({ task: t }), {
+      model: 'sonnet', effort: 'high', phase: 'Executar', schema: TASK_RESULT,
+      isolation: touchesShared(t, par) ? 'worktree' : undefined })))
+  const builtSeq = []
+  for (const t of seq) builtSeq.push(await agent(execPrompt({ task: t }),
+    { model: 'sonnet', effort: 'high', phase: 'Executar', schema: TASK_RESULT }))
+  const results = builtPar.filter(Boolean).concat(builtSeq)
+
+  // REVISAR — Opus #2. Contra a DECOMPOSIÇÃO: completude + coesão + fidelidade.
+  // NÃO roda a suíte nem caça bug — isso é o /qa-loop depois (fronteira acima).
+  const review = await agent(reviewBuildPrompt({ decomp, results, round: r }),
+    { model: 'opus', effort: 'high', phase: 'Revisar', schema: BUILD_REVIEW })
+
+  rounds.push({ r, decomp, results, review })
+  const gaps = review.gaps.filter(g => sevRank(g.severity) >= floor)
+  if (review.complete && review.cohesive && gaps.length === 0) { built = true; break }
+  feedback = { gaps: review.gaps, missing: review.missingTasks }   // alimenta o DECOMPOR da próxima volta
+}
+
+return {
+  rounds, built, blockers,
+  stopReason: built ? 'build-complete' : 'max-rounds',
+  telemetry: rounds.map(x => ({ round: x.r, tasks: x.results.length, gaps: x.review.gaps.length })),
+}
+```
+
+**Schemas (JSON Schema, resumidos):**
+- `DECOMP` — `{ tasks: [{ id, desc, files: [...], parallelizable: bool, dependsOn: [id...], done: bool }], blockers: [{ what, whyNeedsYou }] }`.
+- `TASK_RESULT` — `{ task_id, files_touched: [...], summary, done: bool, note }`.
+- `BUILD_REVIEW` — `{ complete: bool, cohesive: bool, gaps: [{ task_id, severity: 'P0'|'P1'|'P2'|'P3', problem }], missingTasks: [id...] }`.
+
+O `stopReason`, os `blockers` e a telemetria entram no relatório final (`### Verificação` e `### Bloqueios`). Terminado o motor (`built` ou teto), segue direto pro **QA final** abaixo — que é onde defeito é caçado.
 
 ## QA final (antes do relatório)
 
