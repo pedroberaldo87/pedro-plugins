@@ -1,5 +1,5 @@
 ---
-generated: 2026-06-21
+generated: 2026-06-22
 project: pedro-plugins
 scope:
   - .claude-plugin/marketplace.json
@@ -9,6 +9,7 @@ scope:
   - plugins/project-doc/lib/journal.py
   - _shared/collect_engine.py
   - README.md
+doc-sig: pedro-plugins/marketplace.json@gen=3.6#2dc28c0a
 ---
 
 # Architecture
@@ -33,7 +34,7 @@ scope:
 - **Runtime:** Claude Code (plugin host). Hooks shell; engines Python via `python3` no PATH; `jq` no setup. Sem Node como dependência de plugin (o `visual` sobe um daemon `.mjs` em runtime, mas não é build).
 - **Package manager:** nenhum. **Build:** nenhum.
 - **Hosting / distribuição:** GitHub (`pedroberaldo87/pedro-plugins`), instalado via CLI de plugin do Claude Code.
-- **Knowledge graph:** `graphify-out/` (extração AST, refresh 2026-06-21; 3315 nós / 3458 arestas / 242 comunidades; backups datados em `graphify-out/<data>/`).
+- **Knowledge graph:** `graphify-out/` (extração AST, refresh 2026-06-22; 3418 nós / 3584 arestas / 244 comunidades, 30 nomeadas; backups datados em `graphify-out/<data>/`).
 
 ## Estrutura de Diretórios
 
@@ -73,7 +74,7 @@ pedro-plugins/
 
 - **handoff** `v1.7.1` — Continuidade de sessão em um comando: detecta o estado e roteia (contexto cheio → salva PRD + LOG verbatim; sessão recém-limpa → retoma). Workspace-aware (resolve a fronteira `.git`). `category: productivity`. ⚙️ hooks.
 - **context-guard** `v1.1.1` — Auto-interrompe o workflow quando o context window passa de um threshold (default 80%); ponte statusLine↔PostToolUse via arquivo temp; encaminha para qualquer statusLine via `CLAUDE_STATUSLINE_FORWARD`. Use junto com `handoff`. `category: productivity`. ⚙️ hooks.
-- **sovai** `v1.3.0` — Modo de execução contínua: roda um plano do início ao fim sem pausas; pula bloqueios (sem workaround silencioso), registra decisões, roda `/qa-loop --headless`, atualiza a doc (`/project-doc`) e faz commit + push do trabalho, entrega relatório via `/visual`. `category: productivity`.
+- **sovai** `v1.4.0` — Modo de execução contínua: roda um plano do início ao fim sem pausas. Motor = Workflow **decompõe→executa→revisa** (Opus decompõe o plano → Sonnets constroem em paralelo → 2º Opus revisa completude+coesão e realimenta). Pula bloqueios (sem workaround silencioso), registra decisões, roda um `qa-loop` headless final, atualiza a doc (`/project-doc`) e faz commit + push, entrega relatório via `/visual` (fallback markdown). `category: productivity`.
 
 ### Planejamento & review
 

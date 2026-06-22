@@ -1,7 +1,8 @@
 ---
-generated: 2026-06-21
+generated: 2026-06-22
 project: pedro-plugins
 scope: plugins/project-doc/lib/journal.py, _shared/collect_engine.py, scripts/sync-shared.sh, plugins/guardrails/hooks/{scope-cop,lint-and-typecheck}.sh, plugins/context-guard/hooks/context-guard.sh, plugins/ship/hooks/pre-deploy-test-check.sh, plugins/bootstrap/hooks/{session-sync.sh,lib/apply.sh,lib/git-sync.sh}, plugins/graphify-guard/hooks/graphify-detect.sh, plugins/project-doc/lib/test_journal.py, .claude-plugin/marketplace.json, plugins/*/.claude-plugin/plugin.json, .gitignore
+doc-sig: pedro-plugins/journal.py@gen=3.6#da241ca7
 ---
 
 # patterns.md — convenções, release, dependências, gotchas
@@ -56,8 +57,8 @@ Regra-mãe: **um hook NUNCA pode quebrar/bloquear o que não devia.** Toda depen
   ```
   bootstrap 1.0.1 · context-guard 1.1.1 · fallow 1.0.3 · graphify-guard 1.0.1
   grill-me 1.0.0 · grill-with-docs 1.0.0 · guardrails 1.1.1 · handoff 1.7.1
-  improve 1.0.0 · principles 1.0.0 · project-doc 3.4.0 · qa-loop 1.3.0
-  raiox 0.2.0 · ship 1.1.0 · slides 1.1.1 · sovai 1.3.0 · visual 1.2.1
+  improve 1.0.0 · principles 1.0.0 · project-doc 3.6.0 · qa-loop 1.3.0
+  raiox 0.2.0 · ship 1.1.0 · slides 1.2.0 · sovai 1.4.0 · visual 1.2.1
   ```
 - **`marketplace.json` é o ponto de convergência de TODAS as frentes** + é reformatado por um linter (single-line ↔ multi-line). Em commits cirúrgicos isole-o: `git stash push -- .claude-plugin/marketplace.json`, commita o resto, despausa. [relatado, dos handoffs]
 - **Cache não auto-refresca** (nesta máquina): `~/.claude/plugins/cache/pedro-plugins/<nome>/<versão>/`. Sincronize por cima ou reinstale; depois `/reload-plugins`. [relatado]
@@ -77,10 +78,11 @@ Regra-mãe: **um hook NUNCA pode quebrar/bloquear o que não devia.** Toda depen
 
 ## Testing — `python3 .../test_*.py`, stdlib, sem framework
 
-- **Só 2 suites, ambas em `plugins/project-doc/lib/`:**
+- **3 suites, todas em `plugins/project-doc/lib/`:**
   ```bash
-  python3 plugins/project-doc/lib/test_journal.py     # 117 checks (CONFIRMADO passando)
-  python3 plugins/project-doc/lib/test_graph_map.py   #  23 checks (CONFIRMADO passando)
+  python3 plugins/project-doc/lib/test_journal.py        # 117 checks (CONFIRMADO passando)
+  python3 plugins/project-doc/lib/test_graph_map.py      #  23 checks (CONFIRMADO passando)
+  python3 plugins/project-doc/lib/test_pattern_check.py  #  21 checks (CONFIRMADO passando)
   ```
 - **Padrão:** `assert` numa função `check(label, cond)` que conta PASS e imprime; sem pytest/unittest. Self-contained — `test_journal.py` cria repo git temporário + cofre em `/tmp` via `PROJECT_DOC_COFRE_DIR` (`:18-22`).
 - **O que `test_journal.py` cobre:** os 5 vazamentos de secret do code-review (PEM-newline, numérico, prosa, provider, PUBLIC word-boundary), integridade do cofre, delta forward, backward-delta (self-stale + working-tree), colisão de id de 64 chars, `self_path_match`, validação de invalidate/curate.

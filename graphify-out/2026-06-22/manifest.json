@@ -1,7 +1,7 @@
 {
   ".claude-plugin/marketplace.json": {
-    "mtime": 1782095726.690475,
-    "ast_hash": "670fae9a95afa077b3022a29632fb523",
+    "mtime": 1782012445.605072,
+    "ast_hash": "585953f8af59cebc829556cc2a49ad0c",
     "semantic_hash": ""
   },
   "plugins/context-guard/.claude-plugin/plugin.json": {
@@ -95,8 +95,8 @@
     "semantic_hash": "c4af25ab625379110db135d4b24e88bf"
   },
   "plugins/project-doc/.claude-plugin/plugin.json": {
-    "mtime": 1782095712.7761257,
-    "ast_hash": "cc825cf0bbd5d09726f3be0b95229e34",
+    "mtime": 1782012430.3553016,
+    "ast_hash": "0c6d21ca3d9c56f860da8756e45b04e5",
     "semantic_hash": ""
   },
   "plugins/raiox/.claude-plugin/plugin.json": {
@@ -120,8 +120,8 @@
     "semantic_hash": ""
   },
   "plugins/slides/.claude-plugin/plugin.json": {
-    "mtime": 1782057539.5361505,
-    "ast_hash": "e189ee745ee5566f151827b6ede6ff76",
+    "mtime": 1782011194.7051508,
+    "ast_hash": "b1c9f7697d78753b2408db63f7cb2a54",
     "semantic_hash": ""
   },
   "plugins/slides/skills/slides/scripts/check_fidelity.py": {
@@ -130,8 +130,8 @@
     "semantic_hash": ""
   },
   "plugins/sovai/.claude-plugin/plugin.json": {
-    "mtime": 1782092581.4032397,
-    "ast_hash": "885121fb9d85ee7776f79707f63eea9c",
+    "mtime": 1782011194.7056148,
+    "ast_hash": "fb8f6f43a57fb00b3ec630bd2ac57444",
     "semantic_hash": ""
   },
   "plugins/visual/.claude-plugin/plugin.json": {
@@ -165,18 +165,18 @@
     "semantic_hash": "16a1d1245f90e883ed3f483d3120cd90"
   },
   ".claude/CLAUDE.md": {
-    "mtime": 1782014565.0221128,
-    "ast_hash": "1a76b909898a9dfd0b91fa85eddd68e4",
+    "mtime": 1782011194.6727474,
+    "ast_hash": "022f886259c6f36bfe8daa42603d5529",
     "semantic_hash": ""
   },
   ".claude/docs/architecture.md": {
-    "mtime": 1782097229.8434782,
-    "ast_hash": "a6e58e5302fda5aaf7140ec3dfc0141f",
+    "mtime": 1782011194.6769516,
+    "ast_hash": "a29c59260b121007382b776d68952d78",
     "semantic_hash": ""
   },
   ".claude/docs/patterns.md": {
-    "mtime": 1782014565.0219743,
-    "ast_hash": "4d3c6d9619d4152f3e92660b8dce4fb4",
+    "mtime": 1782011194.6772842,
+    "ast_hash": "ebb05182ef3d34a525f7f6526b6dc052",
     "semantic_hash": ""
   },
   ".github/copilot-instructions.md": {
@@ -195,8 +195,8 @@
     "semantic_hash": "75e508f9c5c6a88e45a67c9bdb72b168"
   },
   "README.md": {
-    "mtime": 1782014822.199326,
-    "ast_hash": "93d93769ea83ff793b8a5b29ac40dd66",
+    "mtime": 1782011194.6096523,
+    "ast_hash": "28dd808b7b7a1db552920a6cc844d33e",
     "semantic_hash": ""
   },
   "plugins/context-guard/skills/setup/SKILL.md": {
@@ -260,8 +260,8 @@
     "semantic_hash": "d7a4395529111d9c54546a2acad1bc21"
   },
   "plugins/project-doc/skills/project-doc/SKILL.md": {
-    "mtime": 1782095658.1595647,
-    "ast_hash": "83969ffdabc52330d624f242ae2bb9b2",
+    "mtime": 1782012428.2925062,
+    "ast_hash": "2828ee966d75bb5be065080f50703fc0",
     "semantic_hash": ""
   },
   "plugins/raiox/skills/raiox/SKILL.md": {
@@ -285,13 +285,13 @@
     "semantic_hash": ""
   },
   "plugins/slides/skills/slides/SKILL.md": {
-    "mtime": 1782057539.5365765,
-    "ast_hash": "cc3fb08ced1f4bfb7241df1629c00270",
+    "mtime": 1781707017.5499992,
+    "ast_hash": "1f42f395db3fb4fedf46213b0219b783",
     "semantic_hash": ""
   },
   "plugins/slides/skills/slides/assets/template.html": {
-    "mtime": 1782057539.5369465,
-    "ast_hash": "2f7280bcdbbe8151925527296f022333",
+    "mtime": 1781707017.5523918,
+    "ast_hash": "f797819465e67bf9109c0957ad95ad1c",
     "semantic_hash": ""
   },
   "plugins/slides/skills/slides/references/layout-patterns.md": {
@@ -305,8 +305,8 @@
     "semantic_hash": ""
   },
   "plugins/sovai/skills/sovai/SKILL.md": {
-    "mtime": 1782092581.4036088,
-    "ast_hash": "bcd49598b8e165bda4a4737ee6bac99d",
+    "mtime": 1782011194.7058277,
+    "ast_hash": "30d821d85343ec292debe980860464ab",
     "semantic_hash": ""
   },
   "plugins/visual/skills/visual/SKILL.md": {
@@ -375,8 +375,8 @@
     "semantic_hash": ""
   },
   "plugins/bootstrap/config/manifest.json": {
-    "mtime": 1782053757.7147913,
-    "ast_hash": "ca9e7a437dfdc5bfd13bd02dd61a7f56",
+    "mtime": 1781978854.3387802,
+    "ast_hash": "848556e450cabd9c31af45c3c4e76968",
     "semantic_hash": ""
   },
   "plugins/bootstrap/config/settings-defaults.json": {
@@ -470,8 +470,8 @@
     "semantic_hash": ""
   },
   "plugins/project-doc/hooks/doc-detect.sh": {
-    "mtime": 1782095302.3367743,
-    "ast_hash": "ce5b2e832d7b6ab99c63dc0e5a349c77",
+    "mtime": 1782011194.700474,
+    "ast_hash": "f4f1f03c1a7884523e976d2b76787aa4",
     "semantic_hash": ""
   },
   "plugins/project-doc/hooks/hooks.json": {
@@ -480,13 +480,13 @@
     "semantic_hash": ""
   },
   "plugins/project-doc/hooks/pretooluse-doc-guard.sh": {
-    "mtime": 1782096615.7317348,
-    "ast_hash": "cf3d2dbd0425c022820bd07e3cb5b1be",
+    "mtime": 1782011194.7012675,
+    "ast_hash": "65af23c9c7cbb8621136018d3b9ac76e",
     "semantic_hash": ""
   },
   "plugins/project-doc/hooks/sessionstart-doc.sh": {
-    "mtime": 1782095373.2808921,
-    "ast_hash": "4b615fdf7939a8ee03d4816ac2ffeda2",
+    "mtime": 1782011194.701548,
+    "ast_hash": "32214dd8e7ddb13322d66aae94a95b57",
     "semantic_hash": ""
   },
   "plugins/project-doc/lib/collect_engine.py": {
@@ -625,8 +625,8 @@
     "semantic_hash": ""
   },
   ".claude/.project-doc/ledger.json": {
-    "mtime": 1782013157.234749,
-    "ast_hash": "5f574015a9332846658b3587f07c2f87",
+    "mtime": 1782011194.672266,
+    "ast_hash": "3351e48faab1e7fd59a0d0c409f149c5",
     "semantic_hash": ""
   },
   ".claude/ata/manifest-8fda82c3-6298-4aeb-8f0f-86972dab5a2c.json": {
@@ -657,31 +657,6 @@
   ".claude/ata/LOG-8fda82c3-6298-4aeb-8f0f-86972dab5a2c.md": {
     "mtime": 1782011194.674646,
     "ast_hash": "21daa4263f18dddc745f799204a12719",
-    "semantic_hash": ""
-  },
-  "plugins/project-doc/lib/pattern_check.py": {
-    "mtime": 1782096709.6711912,
-    "ast_hash": "bf200e8afc0ee80f020e155db31fa689",
-    "semantic_hash": ""
-  },
-  "plugins/project-doc/lib/test_pattern_check.py": {
-    "mtime": 1782096726.10391,
-    "ast_hash": "e4167175398631211f9f1f4cb7ffc3b0",
-    "semantic_hash": ""
-  },
-  "plugins/slides/skills/slides/scripts/check_provenance.py": {
-    "mtime": 1782057539.5381875,
-    "ast_hash": "53873d630344a981087024c79c75cd4c",
-    "semantic_hash": ""
-  },
-  "plugins/slides/skills/slides/references/explainer-method.md": {
-    "mtime": 1782057539.5372787,
-    "ast_hash": "bf80f4a7193895d94c6a3244e7f02f93",
-    "semantic_hash": ""
-  },
-  "plugins/slides/skills/slides/references/infographics.md": {
-    "mtime": 1782057539.5377736,
-    "ast_hash": "e82f3c2d578d98127422524fc37b8f64",
     "semantic_hash": ""
   }
 }
