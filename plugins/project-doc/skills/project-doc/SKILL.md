@@ -42,10 +42,10 @@ The skill accepts an optional argument to control scope:
 - `/project-doc clean` — detect, **cluster**, and offer cleanup/archival of stale test artifacts (see Artifact Cleanup). Nothing is removed without confirmation. Runs standalone (no doc regeneration).
 - `/project-doc --deep` — **DEEP**: como o FULL, mas o tier 4 minera **TODAS** as sessões de transcript do projeto (cold-start / backfill do histórico de conversas), não só o delta. Pesado — rode pro primeiro mergulho completo.
 - `/project-doc --rebuild` — **REBUILD**: descarta a doc gerada e re-projeta do **journal inteiro** (`findings.jsonl`). Idempotente; não minera nada novo — só re-deriva a doc dos findings vivos.
-- `/project-doc --solo` — escape: força FULL/`--deep` a rodar **single-agent** (sem Workflow) e **pula o grafo** (passo 0.0). Debug / projeto pequeno.
+- `/project-doc --solo` — escape: força FULL/`--deep` a rodar **single-agent** (sem Workflow). **NÃO pula mais o grafo** — o grafo é obrigatório em todo modo (Passo 0); `--solo` só desliga o Workflow. Debug / projeto pequeno.
 - `/project-doc --nested` — **NESTED (EXPERIMENTAL)**: monorepo only. Generates `apps/{app}/CLAUDE.md` as a **derived pointer** for each app that has a canonical doc in `.claude/docs/apps/{app}.md`. Serialized after t1d (runs only after a full FULL/`--deep` that already wrote the canonical docs). See **Nested Pointers** section.
 
-**Grafo é premissa do Workflow (v3.5):** o FULL/`--deep` **exige** o grafo — o passo 0.0 o gera (`graphify update --force`), então ele sempre existe. Se o Workflow roda, tem grafo. Pra rodar **sem** grafo de propósito (debug / projeto pequeno) use `--solo`, que cai pro single-agent (sem Workflow). Não existe mais "Workflow sem mapa": grafo ausente é erro no passo 0.0, não degradação.
+**Grafo é premissa de TODO modo (v3.7):** rodou o project-doc = o grafo tem que existir e estar fresco. **Qualquer** invocação — FULL, `--deep`, incremental, `index`, `pointers`, `--rebuild`, `migrate`, `verify`, `clean`, **inclusive `--solo`** — executa o **Passo 0** (`graphify update --force`: cria se ausente, atualiza se stale, no-op se fresco) antes de ramificar por modo. `graphify` **não instalado ⇒ erro que bloqueia** (não degrada, não pula). `--solo` só desliga o Workflow (single-agent); **não pula mais o grafo**. A **destilação do mapa** (`graph_map.py`) + o **fan-out** continuam exclusivos do FULL/`--deep` — são quem *consome* o mapa; ver **Workflow Engine**. Garantir o grafo (universal) ≠ consumir o mapa no fan-out (FULL/`--deep`).
 
 **FULL e `--deep` mineram via Workflow (fan-out por concern) por padrão** — ver **Workflow Engine**. Os demais modos rodam single-agent. `--solo` desliga o Workflow.
 
@@ -95,6 +95,8 @@ sig = hashlib.sha256(body.encode()).hexdigest()[:8]
 
 Report each step to the user as you execute. Don't skip steps or batch them silently.
 
+**Passo 0 — Grafo garantido (precede TODO modo, não renumerado nos protocolos abaixo):** antes de qualquer ramificação por modo, garanta o grafo fresco — `graphify update --force` (cria se ausente, atualiza se stale). `graphify` ausente ⇒ **erro que bloqueia** (instale; não há opt-out). Reporte `Grafo → criado | atualizado | já fresco`. No FULL/`--deep` o Passo 0 também destila o mapa (`graph_map.py`) pro fan-out (ver Workflow Engine); nos demais modos só garante o grafo.
+
 ### Full Mode
 
 ```
@@ -104,7 +106,7 @@ Report each step to the user as you execute. Don't skip steps or batch them sile
 **Step 4/14:** Package manager → pnpm | yarn | bun | npm
 **Step 5/14:** Mode → FULL | MIGRATE (v1→v2 detected) | CREATE (no CLAUDE.md)
 **Step 6/14:** CLAUDE.md → v1 markers (will migrate) | v2 index (will update) | none (will create)
-**Step 7/14:** Graph (FULL/`--deep`, **obrigatório**) → `graphify update --force` {criado | atualizado | já fresco} + graph_map → {N god nodes, M comunidades, K hyperedges} | **graphify ausente → ERRO (instale ou use `--solo`)** | skipped (`--solo`)
+**Step 7/14:** Graph (**Passo 0 — obrigatório em todo modo**) → `graphify update --force` {criado | atualizado | já fresco} + graph_map (FULL/`--deep`) → {N god nodes, M comunidades, K hyperedges} | **graphify ausente → ERRO que bloqueia (instale)**
 **Step 8/14:** Collecting → tier 1 scan (arquivos por concern, **ranqueados por fan-in do grafo**) + `journal.py` tiers 2-4 → {new_events, live_count, stale}
 **Step 9/14:** Generating docs → {list of .claude/docs/*.md to create/update, with line counts}
 **Step 10/14:** Writing CLAUDE.md index → {N lines}
@@ -145,6 +147,8 @@ Report each step to the user as you execute. Don't skip steps or batch them sile
 ```
 
 ## Process
+
+**Passo 0 (UNIVERSAL — roda em TODO modo, logo após identificar o root, antes de ramificar):** garanta o grafo fresco — `graphify update "<root>" --force` (cria se ausente, atualiza se stale, no-op se fresco). `graphify` **não instalado ⇒ erro que bloqueia** o run inteiro (único pré-requisito duro; nem `--solo` escapa). Ver **Knowledge Graph Integration** / **Workflow Engine → Passo 0**. A destilação do mapa (`graph_map.py`) só ocorre no FULL/`--deep` (quem consome o fan-out).
 
 1. **Identify project root** — find nearest git repo root or use cwd
 2. **Detect project layout** — check for monorepo indicators:
@@ -233,7 +237,7 @@ For each section, scan these files (read only those that exist). Detection resul
 **Knowledge Graph Detection (graphify):**
 - Check for `graphify-out/graph.json`. If present, the project has a graphify knowledge graph.
 - **Staleness:** compare `graphify-out/graph.json` mtime (or the `date` in `graphify-out/cost.json` last run) against the most recent source-file change (`git log --format=%aI -1`). If sources are newer → graph is stale.
-- **No FULL/`--deep` (v3.2), o grafo é GARANTIDO, não só detectado** — o passo 0.0 do Workflow roda `graphify update --force` (cria/atualiza) e destila o mapa via `graph_map.py`, que **prioriza os arquivos de cada concern por fan-in** pra leitura profunda. Nos modos leves, staleness/ausência só viram **sugestão** (ver **Knowledge Graph Integration**).
+- **Em TODO modo (v3.7), o grafo é GARANTIDO, não só detectado** — o **Passo 0** roda `graphify update --force` (cria/atualiza) em qualquer invocação do project-doc; `graphify` ausente ⇒ erro que bloqueia. **Adicionalmente no FULL/`--deep`** o Passo 0 destila o mapa via `graph_map.py`, que **prioriza os arquivos de cada concern por fan-in** pra leitura profunda. A sugestão (`/graphify`) sobrevive só **fora da execução** (proatividade ao navegar o projeto) ou pro labeling LLM caro — ver **Knowledge Graph Integration**.
 - This feeds the "## Knowledge Graph" index section (generated only when the graph exists), the **graph-ranked file reading** in the Workflow (Fase A), and the proactive suggestions.
 
 **Complexity Assessment (when to suggest CREATING a graph):**
@@ -367,25 +371,24 @@ A doc canônica é **derivada e descartável** (`--rebuild` re-cria do journal).
 - `--rebuild` re-projeta do journal **sem minerar** → single-agent, sem backup, sem garimpo.
 - Flag de escape **`--solo`**: força FULL/--deep a rodar single-agent (debug/projeto pequeno). Sem `--solo`, FULL/--deep **disparam o Workflow direto** — não anuncie custo nem peça confirmação.
 
-### Passo 0.0 — Grafo é documentação: garantir + mapear (v3.2)
+### Passo 0 — Grafo garantido (TODO modo) + Passo 0.0 — mapeado pro fan-out (FULL/`--deep`)
 
-**Premissa do v3.2:** nenhuma versão do project-doc jamais leu o código-fonte de verdade — o Tier 1 sempre foi uma allowlist (manifestos/configs/schemas/rotas) + `ls`. A única coisa que mapeia o codebase inteiro é o **grafo (graphify)**, mas até a v3.1 o project-doc só o **sugeria**, nunca o rodava nem o consumia. No v3.2 isso vira: **o grafo é parte da documentação, obrigatório no FULL/`--deep`** — ele garante o mapa que dirige a leitura profunda do código (Fase A) e audita a cobertura no fim (gate). **Postura: roda sempre, informa, não oferece** (≠ os modos leves, que mantêm só a sugestão — ver **Knowledge Graph Integration**).
+**Premissa (v3.7):** nenhuma versão do project-doc jamais leu o código-fonte de verdade — o Tier 1 sempre foi uma allowlist (manifestos/configs/schemas/rotas) + `ls`. A única coisa que mapeia o codebase inteiro é o **grafo (graphify)**. Desde a v3.7 o grafo é **documentação obrigatória em qualquer invocação do project-doc** (não só no FULL/`--deep`): rodou a doc = o grafo tem que existir e estar fresco. **Postura: roda sempre, informa, não oferece** (a sugestão `/graphify` sobrevive só fora da execução / pro labeling caro — ver **Knowledge Graph Integration**). O grafo garantido dirige a leitura profunda do código (Fase A, FULL/`--deep`) e audita a cobertura no fim (gate 7 / check #17).
 
-No FULL/`--deep` (não nos modos leves), ANTES da checagem ativa:
+**Passo 0 (UNIVERSAL — todo modo, ANTES de ramificar):** garante o grafo fresco, sem perguntar. Detecta staleness (graph.json ausente, ou mtime < `git log --format=%aI -1`) e roda:
+```bash
+graphify update "<root>" --force    # `update`: re-extrai por AST, ZERO LLM, ~segundos, não-interativo, idempotente
+                                     # `--force`: sobrescreve graph.json mesmo se a re-extração tiver MENOS nós (após refactor que apaga código)
+```
+Ausente → cria (AST); stale → atualiza; fresco → no-op. O `--force` garante o overwrite em refactors destrutivos (sem ele, uma re-extração menor poderia ser recusada). **Não anuncie custo nem peça confirmação** — informa "grafo: criado / atualizado / já fresco" no Output Protocol. O labeling LLM de comunidades (nomes bonitos) é upgrade opcional via `/graphify` completo, **fora** do caminho crítico; `update --force` preserva labels já existentes.
+- **`graphify` não instalado** → **erro que bloqueia, em QUALQUER modo**: "o project-doc exige o grafo; instale o `graphify`". NÃO degrada, NÃO pula — nem com `--solo`. É o único pré-requisito duro do project-doc.
+- **`--solo` NÃO pula o Passo 0** — ele só desliga o Workflow (cai pro single-agent). O grafo roda igual.
 
-1. **Garante o grafo fresco, sem perguntar.** Detecta staleness (graph.json ausente, ou mtime < `git log --format=%aI -1`) e roda:
-   ```bash
-   graphify update "<root>" --force    # `update`: re-extrai por AST, ZERO LLM, ~segundos, não-interativo, idempotente
-                                        # `--force`: sobrescreve graph.json mesmo se a re-extração tiver MENOS nós (após refactor que apaga código)
-   ```
-   Ausente → cria (AST); stale → atualiza; fresco → no-op. O `--force` garante o overwrite em refactors destrutivos (sem ele, uma re-extração menor poderia ser recusada). **Não anuncie custo nem peça confirmação** — informa "grafo: criado / atualizado / já fresco" no Output Protocol. O labeling LLM de comunidades (nomes bonitos) é upgrade opcional via `/graphify` completo, **fora** do caminho crítico; `update --force` preserva labels já existentes.
-   - **Escape único:** `--solo` (single-agent, sem Workflow, pula o grafo) pra debug / projeto pequeno. Não há opt-out que mantenha o Workflow rodando sem grafo — o grafo é premissa do Workflow.
-   - **`graphify` não instalado** → **erro acionável no passo 0.0**: "o Workflow exige o grafo; instale o `graphify` (ou rode `--solo` pra um run single-agent sem grafo)". NÃO degrada pra Workflow sem mapa.
-2. **Destila o grafo num mapa enxuto** (o grafo bruto tem milhares de nós — não engula inline):
-   ```bash
-   python3 plugins/project-doc/lib/graph_map.py --project-root "<root>"
-   ```
-   Devolve JSON: `{available, stats, files[], god_nodes[], communities[], generic_communities[], hyperedges[]}` (ver **Schemas / GRAPH_MAP**). **`available:false` no FULL/`--deep` ⇒ ERRO no passo 0.0** (o grafo é premissa; não há fan-out sem mapa) — instale o `graphify` ou rode `--solo`. O mapa alimenta o particionamento (passo 4) e a leitura profunda (Fase A).
+**Passo 0.0 (SÓ FULL/`--deep` — destila o mapa pro fan-out):** o grafo bruto tem milhares de nós — não engula inline. Só os modos com Workflow consomem o mapa, então só eles destilam:
+```bash
+python3 plugins/project-doc/lib/graph_map.py --project-root "<root>"
+```
+Devolve JSON: `{available, stats, files[], god_nodes[], communities[], generic_communities[], hyperedges[]}` (ver **Schemas / GRAPH_MAP**). Como o Passo 0 já garantiu o grafo, `available:false` aqui é anomalia (graphify falhou após o `update`) ⇒ **ERRO** — não há fan-out sem mapa. O mapa alimenta o particionamento (passo 4) e a leitura profunda (Fase A).
 
 
 
@@ -1063,23 +1066,22 @@ For monorepos, `.claude/docs/` uses subdirectories per app alongside shared docs
 
 ## Knowledge Graph Integration (graphify)
 
-**Postura (v3.2 — mudou):** o grafo é **documentação, obrigatório no FULL/`--deep`** — não se oferece, se garante. Nos **modos leves** (incremental/index/pointers/`--rebuild`/migrate/verify/clean) a postura antiga vale: **só sugere, não roda**. A fronteira é a mesma do Workflow.
+**Postura (v3.7 — mudou de novo):** o grafo é **documentação, obrigatório em QUALQUER invocação do project-doc** — FULL, `--deep`, incremental, `index`, `pointers`, `--rebuild`, `migrate`, `verify`, `clean`, `--solo`. Não se oferece dentro da execução: **se garante** (Passo 0 roda `graphify update --force`; ausente ⇒ erro que bloqueia). A sugestão `/graphify` sobrevive só **fora da execução** (proatividade ao navegar um projeto sem rodar o project-doc) ou pro **labeling LLM caro** (nomes bonitos de comunidade). O que muda entre modos NÃO é se o grafo roda (roda sempre), e sim se o mapa é **consumido no fan-out**: só FULL/`--deep` destilam `graph_map.py` e particionam por concern.
 
 When the project has (or will have) a graphify knowledge graph (`graphify-out/graph.json`), `/project-doc` integrates with it in four ways:
 
-1. **Garantir + mapear (FULL/`--deep`, automático)** — o **passo 0.0 do Workflow** roda `graphify update . --force` (AST, sem LLM, ~segundos) quando ausente/stale e destila o mapa via `graph_map.py`. **Roda sempre, informa, não pergunta** (ver **Workflow Engine → Passo 0.0**). O mapa dirige a leitura profunda (Fase A) e a auditoria de completude (gate 7). Escape único: `--solo` (single-agent, sem grafo). `graphify` ausente no FULL/`--deep` → **erro no passo 0.0** (o grafo é premissa), não degradação.
+1. **Garantir (TODO modo) + mapear (FULL/`--deep`)** — o **Passo 0** roda `graphify update . --force` (AST, sem LLM, ~segundos) quando ausente/stale, em **qualquer modo**. **Roda sempre, informa, não pergunta** (ver **Workflow Engine → Passo 0**). `graphify` ausente → **erro que bloqueia em todo modo** (o grafo é o único pré-requisito duro), não degradação — nem com `--solo` (que só desliga o Workflow, não pula o grafo). **Adicionalmente no FULL/`--deep`**, o Passo 0.0 destila o mapa via `graph_map.py`; o mapa dirige a leitura profunda (Fase A) e a auditoria de completude (gate 7).
 
 2. **Index section** — generate the `## Knowledge Graph (graphify)` section inside the v2 markers (see Index Templates). Generated ONLY when `graphify-out/graph.json` exists. Omit entirely otherwise. This makes "consult the graph before touching code" a durable instruction loaded every session.
 
 3. **Anti-duplication** — if a `## Knowledge Graph` (or `## Knowledge Graph (graphify)`) section already exists OUTSIDE the v2 markers (a manual addition by a previous session), remove that manual copy and let the canonical one be generated inside the markers. Never leave two. Detect by header match; the manual one is the copy not enclosed by `<!-- project-doc:v2 -->` / `<!-- project-doc:v2:end -->`.
 
-4. **Proactive suggestion (só nos modos leves, ou pra o labeling caro)** — após escrever os arquivos (no report final), avalie o estado do grafo:
-   - **Modo leve com grafo stale** → "O knowledge graph está desatualizado (gerado {date}, sources mudaram {date}). Quer que eu rode `/graphify <path> --update`?"
-   - **Modo leve sem grafo** → **ALWAYS suggest, unconditionally** (no triviality/coupling judgment — see Complexity Assessment) → "Esse projeto se beneficiaria de um knowledge graph (mapeia relações, ajuda a localizar/debugar). Quer gerar um com `/graphify`?" — name any complexity signal you saw, but NEVER withhold the offer for lack of one.
-   - **Comunidades sem nome bonito** (criação inicial AST → "Community NNN") → no FULL/`--deep` o mapa já funciona (agrupa + fan-in) sem nomes; sugira o **labeling LLM opcional** via `/graphify` completo como upgrade — fora do caminho crítico.
+4. **Sugestão proativa (só FORA da execução, ou pro labeling caro)** — DENTRO de qualquer `/project-doc` o grafo já é garantido pelo Passo 0 (não há mais "rodou e ficou sem grafo / stale"), então no report final só restam dois prompts:
+   - **Comunidades sem nome bonito** (criação inicial AST → "Community NNN") → o mapa já funciona (agrupa + fan-in) sem nomes; sugira o **labeling LLM opcional** via `/graphify` completo como upgrade — fora do caminho crítico, único pedaço do grafo que ainda é opt-in (custa tokens de LLM).
    - **Grafo fresco** → sem prompt, só nota "Knowledge graph: presente e atualizado" no report.
+   - A oferta "esse projeto se beneficiaria de um grafo" agora vale **só fora de execução** — quando o agente navega um projeto e o project-doc NÃO está rodando (ver **When to Suggest Proactively**). Ali a regra antiga continua: sem grafo ⇒ **ALWAYS suggest, unconditionally** (sem juízo de trivialidade — ver Complexity Assessment).
 
-**A distinção que importa:** `graphify update --force` (AST, barato, não-interativo) é o que o FULL/`--deep` **roda sozinho** — não custa tokens de LLM. O `/graphify` **completo** (extract LLM, labeling de comunidades) pode spawnar subagentes e custar tokens → esse continua sendo **sugestão/opt-in do usuário** (mesma postura do deploy). Rodar o AST automático ≠ rodar o LLM automático.
+**A distinção que importa:** `graphify update --force` (AST, barato, não-interativo) é o que **todo modo do project-doc roda sozinho** (Passo 0) — não custa tokens de LLM. O `/graphify` **completo** (extract LLM, labeling de comunidades) pode spawnar subagentes e custar tokens → esse continua sendo **sugestão/opt-in do usuário** (mesma postura do deploy). Rodar o AST automático ≠ rodar o LLM automático.
 
 ## Migration v1 → v2
 
@@ -1344,13 +1346,13 @@ After writing all files, run this verification checklist. Report results to the 
 
 ### Graph Coverage Check (v3.2)
 
-**17. Auditoria grafo × doc** (no FULL/`--deep` o grafo é premissa → sempre roda; em `--solo` / modos leves sem grafo → N/A, não falha)
+**17. Auditoria grafo × doc** (o grafo é premissa de todo modo → sempre presente; roda em qualquer modo que **gera/atualiza doc** — FULL/`--deep`/incremental/`--rebuild`/`--solo`; modos que NÃO tocam doc — `verify` standalone, `clean` — → N/A, nada novo pra auditar)
 - O grafo é o **completeness-critic** do fim: cruza o que o grafo diz ser importante contra o que a doc cobriu (espelha o gate 7 do Stitch; aqui é o check final da Verification).
 - Rode `graph_map.py` (ou reuse a saída do passo 0.0) e, para cada item, procure cobertura no texto gerado (qualquer `.claude/docs/*.md` + índice), por `label` ou `source_file`:
   - **god node** (fan-in alto) sem nenhuma menção → **WARN — função central não documentada: `{label}` ({source_file})**
   - **comunidade nomeada** (não-generic) sem seção que a cubra → **WARN — módulo não documentado: `{label}`**
   - **hyperedge ≥0.85** sem menção → **WARN — workflow não documentado: `{label}`** (candidato a nota de arquitetura)
-- WARN não bloqueia (o grafo pode ter ruído/defasagem) — alimenta o relatório e, opcionalmente, uma 2ª leva de agente pro gap. Sem grafo → check **N/A** (não falha).
+- WARN não bloqueia (o grafo pode ter ruído/defasagem) — alimenta o relatório e, opcionalmente, uma 2ª leva de agente pro gap. Em modo que não gera doc → check **N/A** (não falha). "Sem grafo" não é mais um estado possível: o Passo 0 garante o grafo em todo modo.
 
 ### Anti-Regression Check (v3.5.1)
 
