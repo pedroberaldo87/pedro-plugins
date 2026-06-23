@@ -74,7 +74,7 @@ while (!built && r < args.maxRounds) {
   // DECOMPOR — Opus #1. r==1: decompõe o plano inteiro; r>1: só o DELTA do feedback.
   // NUNCA re-arquiteta; buraco que exige decisão de arquitetura vira blocker (não vira tarefa).
   const decomp = await agent(decomposePrompt({ planPath: args.planPath, planText: args.planText, round: r, feedback }),
-    { model: 'opus', effort: 'high', phase: 'Decompor', schema: DECOMP })
+    { model: 'minimaxm3', effort: 'high', phase: 'Decompor', schema: DECOMP })
   if (decomp.blockers?.length) blockers.push(...decomp.blockers)
 
   // EXECUTAR — Sonnets. Independentes em paralelo; dependentes em série (ordem do #1).
@@ -84,17 +84,17 @@ while (!built && r < args.maxRounds) {
   const seq = todo.filter(t => !t.parallelizable || (t.dependsOn?.length))
   const builtPar = await parallel(par.map(t => () =>
     agent(execPrompt({ task: t }), {
-      model: 'sonnet', effort: 'high', phase: 'Executar', schema: TASK_RESULT,
+      model: 'deepseekflash', effort: 'high', phase: 'Executar', schema: TASK_RESULT,
       isolation: touchesShared(t, par) ? 'worktree' : undefined })))
   const builtSeq = []
   for (const t of seq) builtSeq.push(await agent(execPrompt({ task: t }),
-    { model: 'sonnet', effort: 'high', phase: 'Executar', schema: TASK_RESULT }))
+    { model: 'deepseekflash', effort: 'high', phase: 'Executar', schema: TASK_RESULT }))
   const results = builtPar.filter(Boolean).concat(builtSeq)
 
   // REVISAR — Opus #2. Contra a DECOMPOSIÇÃO: completude + coesão + fidelidade.
   // NÃO roda a suíte nem caça bug — isso é o /qa-loop depois (fronteira acima).
   const review = await agent(reviewBuildPrompt({ decomp, results, round: r }),
-    { model: 'opus', effort: 'high', phase: 'Revisar', schema: BUILD_REVIEW })
+    { model: 'minimaxm3', effort: 'high', phase: 'Revisar', schema: BUILD_REVIEW })
 
   rounds.push({ r, decomp, results, review })
   const gaps = review.gaps.filter(g => sevRank(g.severity) >= floor)
