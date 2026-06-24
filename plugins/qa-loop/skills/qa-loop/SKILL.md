@@ -71,19 +71,37 @@ Passo 8.0 (gate de saída) + na seção "Detecção de rede".
 - `--plan` — o plano de implementação a auditar contra (`.claude/plans/*.md`, `docs/specs/*.md`). Se ausente, tenta achar o plano mais recente; se não houver, roda em modo "review sem plano" (sem o bucket plan-drift/plan-flaw, só implementação — e avisa que está sem âncora).
 - Knobs (todos com default, abaixo).
 
+## Modelo & effort por etapa (R8) — tabela única, `/sovai` obedece a mesma
+
+Cada etapa do motor dispara no tier certo pro PESO da decisão ali — nunca "Opus em tudo" nem "Sonnet em
+tudo". O `/sovai` usa os **mesmos nomes de knob** pro motor dele (decompõe→executa→revisa) — trocar o tier
+aqui não diverge do `/sovai`; é a mesma tabela, dois motores.
+
+| Etapa do fluxo | Modelo | Effort | Knob | Onde no motor |
+|---|---|---|---|---|
+| Planejamento inicial e decomposição | Opus | `xhigh` | `decompose_model` | REVIEW + PLAN da **rodada 1** (sweep completo + plano pesado). |
+| Coordenação rotineira dos agentes | Opus | `high` | `coordinate_model` | REVIEW + PLAN das **rodadas 2+** (caça-regressão + delta). |
+| Execução das tarefas | Sonnet | `high` | `executor_model` | EXEC — Sonnet aplica 1 fix do bucket 1 por vez. |
+| Operações mecânicas e bem delimitadas | Sonnet | `medium` | `mechanical_model` | Fila objetiva da **Fase Gate** (Passo 8.0) — lint/type/unit/integração, sem julgamento. |
+| Diagnóstico após falhas repetidas | Opus | `xhigh` | `diagnose_model` | Escalada de **churn** — mesma função regrediu ≥ `churn_threshold` → diagnóstico de raiz, não mais remendo. |
+| Revisão final e integração | Opus | `xhigh` | `finalize_model` | **Confirm-pass** — antes de declarar rodada limpa, um re-sweep completo dedicado roda aqui; não confia no resultado mais barato (`coordinate_model`) da rodada que pareceu limpa. |
+
 ## Parâmetros / knobs
 
 | Knob | Default | O que faz |
 |---|---|---|
-| `reviewer_model` | `opus` / effort `high` | Modelo do Opus Revisor (acha — não julga severidade). |
-| `planner_model` | `opus` / effort `high` | Modelo do Opus Planejador (árbitro único: rubrica + buckets + sequência). |
-| `executor_model` | `sonnet` / effort `high` | Modelo do Sonnet Executor (aplica 1 fix por vez). |
+| `decompose_model` | `opus` / effort `xhigh` | Rodada 1 (REVIEW+PLAN) — planejamento inicial e decomposição do problema inteiro. |
+| `coordinate_model` | `opus` / effort `high` | Rodadas 2+ (REVIEW+PLAN) — coordenação rotineira, processa só o delta. |
+| `executor_model` | `sonnet` / effort `high` | Execução das tarefas — Sonnet Executor, 1 fix por vez. |
+| `mechanical_model` | `sonnet` / effort `medium` | Fila objetiva da Fase Gate — conserto de lint/type/unit/integração, determinístico. |
+| `diagnose_model` | `opus` / effort `xhigh` | Diagnóstico após churn escalado — raiz do acoplamento, não mais um remendo. |
+| `finalize_model` | `opus` / effort `xhigh` | Confirm-pass — re-sweep completo antes de declarar rodada limpa. |
 | `severity_floor` | `P1` | Conserta P0/P1; P2/P3 viram candidato a accepted-limit. **Load-bearing**: define "finding de severidade real". |
 | `max_rounds` | `6` | **TRAVA DE INCÊNDIO, NÃO META.** Quem decide a parada é o gate de severidade. |
 | `domain` | `auto` | `auto` infere; `convergent` (tem comando pass/fail objetivo) ou `asymptotic`. |
 | `regression_gate` | `on` | Sempre on — é o coração. |
 | `triage_threshold` | `2` | Com ≥2 findings (ou qualquer alargamento de regra), o PLAN vira tabela formal; com 1, decisão inline. |
-| `churn_threshold` | `2` | ≥N regressões auto-infligidas na mesma função → escala (para de remendar). |
+| `churn_threshold` | `2` | ≥N regressões auto-infligidas na mesma função → escala pro `diagnose_model` (para de remendar). |
 | `headless` | `off` | Modo não-interativo (pro `/sovai`) — nunca pergunta, alertas de plano não viram fix. |
 
 Precedência (R3): **flag de invocação > `.claude/qa-loop.config.md` do projeto > default acima.**
@@ -114,26 +132,36 @@ O loop interno (dentro do Workflow), por rodada:
 ```dot
 digraph motor {
     rankdir=TB;
-    "REVIEW (Opus, acha)" [shape=box];
+    "REVIEW (decompose/coordinate_model)" [shape=box];
     "Gate severidade (JS)" [shape=diamond];
-    "PLAN (Opus, adjudica)" [shape=box];
-    "EXEC (Sonnet, 1 fix)" [shape=box];
+    "CONFIRM (finalize_model, xhigh)" [shape=box, style=filled];
+    "PLAN (decompose/coordinate_model)" [shape=box];
+    "EXEC (executor_model)" [shape=box];
     "Gate regressão (JS)" [shape=diamond];
-    "Reverte + churn++" [shape=box];
+    "Reverte (refaz no tier da rodada)" [shape=box];
+    "DIAGNOSE (diagnose_model, xhigh)" [shape=box, style=filled];
     "PARA — rodada limpa" [shape=doublecircle];
     "Próxima rodada" [shape=box];
 
-    "REVIEW (Opus, acha)" -> "Gate severidade (JS)";
-    "Gate severidade (JS)" -> "PARA — rodada limpa" [label="rodada completa, 0 severo fora dos limites"];
-    "Gate severidade (JS)" -> "PLAN (Opus, adjudica)" [label="há P0/P1"];
-    "PLAN (Opus, adjudica)" -> "EXEC (Sonnet, 1 fix)";
-    "EXEC (Sonnet, 1 fix)" -> "Gate regressão (JS)";
-    "Gate regressão (JS)" -> "Reverte + churn++" [label="suíte vermelha"];
-    "Reverte + churn++" -> "EXEC (Sonnet, 1 fix)" [label="refaz cirúrgico / churn<teto"];
+    "REVIEW (decompose/coordinate_model)" -> "Gate severidade (JS)";
+    "Gate severidade (JS)" -> "CONFIRM (finalize_model, xhigh)" [label="parece limpa (rodada completa, 0 severo)"];
+    "CONFIRM (finalize_model, xhigh)" -> "PARA — rodada limpa" [label="confirma limpa"];
+    "CONFIRM (finalize_model, xhigh)" -> "PLAN (decompose/coordinate_model)" [label="achou algo que a rodada barata perdeu"];
+    "Gate severidade (JS)" -> "PLAN (decompose/coordinate_model)" [label="há P0/P1"];
+    "PLAN (decompose/coordinate_model)" -> "EXEC (executor_model)";
+    "EXEC (executor_model)" -> "Gate regressão (JS)";
+    "Gate regressão (JS)" -> "Reverte (refaz no tier da rodada)" [label="suíte vermelha, churn<teto"];
+    "Gate regressão (JS)" -> "DIAGNOSE (diagnose_model, xhigh)" [label="churn>=teto"];
+    "Reverte (refaz no tier da rodada)" -> "EXEC (executor_model)";
     "Gate regressão (JS)" -> "Próxima rodada" [label="verde / fim do bucket"];
-    "Próxima rodada" -> "REVIEW (Opus, acha)";
+    "Próxima rodada" -> "REVIEW (decompose/coordinate_model)";
 }
 ```
+
+Tier por rodada: **rodada 1** = `decompose_model` (Opus xhigh, planejamento inicial); **rodadas 2+** =
+`coordinate_model` (Opus high, coordenação rotineira). O nó CONFIRM é dedicado — sempre `finalize_model`
+(Opus xhigh), nunca o tier da rodada que pareceu limpa. DIAGNOSE também é dedicado — sempre `diagnose_model`
+(Opus xhigh), disparado só quando o churn escala (mesma função regredindo repetidamente).
 
 ---
 
@@ -183,8 +211,8 @@ script lê campos estruturados, não texto solto.
 ```javascript
 export const meta = {
   name: 'qa-loop-engine',
-  description: 'Motor de QA: Opus revisa, Opus planeja, Sonnet conserta — para por retornos decrescentes',
-  phases: [{ title: 'Review' }, { title: 'Plan' }, { title: 'Exec' }],
+  description: 'Motor de QA: tier por etapa (R8) — decompose/coordinate/executor/mechanical/diagnose/finalize',
+  phases: [{ title: 'Review' }, { title: 'Plan' }, { title: 'Exec' }, { title: 'Confirm' }],
 }
 
 // args (vindos da casca): { target, planPath, severityFloor, maxRounds, domain,
@@ -197,37 +225,66 @@ const churn = {}                 // { 'arquivo:função': nº de regressões }
 const rounds = []
 let cleanRound = false, churnEscalated = false, r = 0
 
+// Tier por rodada (R8 — tabela única com /sovai): rodada 1 = decompose_model (xhigh,
+// planejamento inicial); rodadas 2+ = coordinate_model (high, coordenação rotineira).
+const tierFor = round => round === 1
+  ? { model: 'opus', effort: 'xhigh' }   // decompose_model
+  : { model: 'opus', effort: 'high' }    // coordinate_model
+
 while (!cleanRound && r < args.maxRounds && !churnEscalated) {
   r++; phase(`Rodada ${r}`)
+  const tier = tierFor(r)
 
-  // REVIEW — 1 Opus Revisor INDEPENDENTE. Checklist de 6 dimensões (1 agente, não 6).
-  // Rodada 1 = sweep completo; 2+ = caça-regressão nas mudanças + ângulos frescos;
-  // a rodada que CONFIRMA a parada re-roda o checklist completo. Só ACHA — não julga severidade.
+  // REVIEW — 1 Opus Revisor INDEPENDENTE, no tier da rodada. Checklist de 6 dimensões
+  // (1 agente, não 6). Rodada 1 = sweep completo (decompose_model); 2+ = caça-regressão
+  // nas mudanças + ângulos frescos (coordinate_model). Só ACHA — não julga severidade.
   const review = await agent(reviewPrompt({ round: r, acceptedLimits, invariants }),
-    { model: 'opus', effort: 'high', phase: 'Review', schema: FINDINGS })
+    { model: tier.model, effort: tier.effort, phase: 'Review', schema: FINDINGS })
 
   // GATE de severidade (JS) — sobre rodada COMPLETA (todo ângulo retornou).
   const severe = review.findings.filter(f =>
     sevRank(f.severity) >= floor && !isAccepted(f, acceptedLimits))
+
   if (review.complete && severe.length === 0) {
-    rounds.push({ r, review, corrections: [], regressions: 0, alerts: [] }); cleanRound = true; break
+    // CONFIRM — finalize_model (Opus xhigh, R8 "revisão final e integração"). Re-sweep
+    // completo DEDICADO antes de declarar limpa — não confia no resultado mais barato
+    // (coordinate_model) da rodada que pareceu limpa.
+    const confirm = await agent(reviewPrompt({ round: r, acceptedLimits, invariants, confirming: true }),
+      { model: 'opus', effort: 'xhigh', phase: 'Confirm', schema: FINDINGS })   // finalize_model
+    const confirmSevere = confirm.findings.filter(f =>
+      sevRank(f.severity) >= floor && !isAccepted(f, acceptedLimits))
+    if (confirm.complete && confirmSevere.length === 0) {
+      rounds.push({ r, review, confirm, corrections: [], regressions: 0, alerts: [] })
+      cleanRound = true; break
+    }
+    // o confirm-pass achou algo que a rodada barata perdeu — processa, não ignora.
+    review.findings = review.findings.concat(confirm.findings)
   }
 
-  // PLAN — Opus Planejador ADVERSARIAL = árbitro único (R2). Adjudica "procede?" contra a rubrica,
-  // roteia nos 3 buckets, triagem por severidade E risco-de-conflito, sequencia. Rodada 1 pesada; 2+ = só o DELTA.
+  // PLAN — Opus Planejador ADVERSARIAL = árbitro único (R2), no MESMO tier da rodada.
+  // Adjudica "procede?" contra a rubrica, roteia nos 3 buckets, triagem por severidade
+  // E risco-de-conflito, sequencia. Rodada 1 (decompose_model) pesada; 2+ (coordinate_model) = só o DELTA.
   const plan = await agent(planPrompt({ review, round: r, invariants, acceptedLimits }),
-    { model: 'opus', effort: 'high', phase: 'Plan', schema: PLAN })
+    { model: tier.model, effort: tier.effort, phase: 'Plan', schema: PLAN })
 
-  // EXEC — Sonnet, SÓ bucket 1, EM SÉRIE (o gate roda a suíte entre fixes; pares de risco exigem ordem).
+  // EXEC — Sonnet (executor_model), SÓ bucket 1, EM SÉRIE (o gate roda a suíte entre
+  // fixes; pares de risco exigem ordem).
   const corrections = []; let regressions = 0
   for (const fix of plan.bucket1) {
     const res = await agent(execPrompt({ fix, invariants, safetyLayer: args.safetyLayer }),
-      { model: 'sonnet', effort: 'high', phase: 'Exec', schema: EXEC_RESULT })
+      { model: 'sonnet', effort: 'high', phase: 'Exec', schema: EXEC_RESULT })   // executor_model
     // GATE de regressão (JS) — quem decide keep/revert é o script/Opus, NÃO o Sonnet.
     if (res.suiteRegressed) {
       regressions++; churn[fix.fn] = (churn[fix.fn] || 0) + 1
-      await revertAndMaybeRedo(fix, res)            // reverte; refaz cirúrgico OU escala (mini-agent opus)
-      if (churn[fix.fn] >= (args.churnThreshold || 2)) { churnEscalated = true; break }
+      if (churn[fix.fn] >= (args.churnThreshold || 2)) {
+        // DIAGNOSE — diagnose_model (Opus xhigh, R8 "diagnóstico após falhas repetidas").
+        // Não é mais "refaz cirúrgico" — é a causa raiz do acoplamento que faz a mesma
+        // função regredir de novo a cada tentativa.
+        await agent(diagnosePrompt({ fix, churnCount: churn[fix.fn], invariants }),
+          { model: 'opus', effort: 'xhigh', phase: 'Diagnose' })   // diagnose_model
+        churnEscalated = true; break
+      }
+      await revertAndMaybeRedo(fix, res, tier)   // reverte; refaz cirúrgico no tier DA RODADA
     } else {
       corrections.push(res)
       if (res.newInvariant) invariants.push(res.newInvariant)   // invariante viva pras próximas rodadas
@@ -254,30 +311,42 @@ return {
 
 ### Os passos do motor, em detalhe
 
-**REVIEW = 1 Opus Revisor (R1).** Um único Opus cobre as **6 dimensões como CHECKLIST** (arquitetura ·
-backend · frontend · contratos fullstack · correção · UX) — **não** 6 agentes. Recebe o material inteiro + o
+**REVIEW = 1 Opus Revisor (R1), no tier da rodada (R8).** Um único Opus cobre as **6 dimensões como
+CHECKLIST** (arquitetura · backend · frontend · contratos fullstack · correção · UX) — **não** 6 agentes.
+Rodada 1 roda em `decompose_model` (xhigh — planejamento inicial, sweep completo); rodadas 2+ rodam em
+`coordinate_model` (high — coordenação rotineira, caça-regressão). Recebe o material inteiro + o
 **plano-âncora** + os accepted-limits vivos (não re-reportar) + as invariantes vivas (não violar). Formato de
 cada finding: `P{0-3} — {arquivo:linha} — {problema} — {direção de fix, SEM código}`. Inclui sempre: "compare
 contra o PLANO — sinalize onde a implementação DIVERGE do planejado, mesmo que o código pareça bom". **Regra
 dura:** se algum ângulo do checklist não foi coberto → `complete=false`, jamais "achou zero".
 
-**PLAN = Opus Planejador adversarial, árbitro único (R2).** Entre "achou" e "consertar". 4 sub-passos:
-(a) consolida + dedup os findings; (b) **rotula cada um por BUCKET** (impl / plan-drift / plan-flaw);
-(c) triagem do bucket 1 por severidade **e risco de conflito** (3 sinais checáveis ANTES de editar — dois
-fixes na mesma função / fix que ALARGA regra genérica / fix que viola invariante viva); (d) sequencia
-(extensão-enumerada primeiro, alargamento por último com negative-tests, agrupa por função). **Mandato
-adversarial:** default a REJEITAR um finding (ou um accepted-limit) a não ser que se justifique contra a
-rubrica. **Gerar ≠ julgar** — o Revisor acha, o Planejador é quem carimba a severidade (mata a oscilação
-entre rodadas). Rodada 1 = plano pesado; 2+ processam só o DELTA.
+**CONFIRM = Opus dedicado em `finalize_model` (xhigh, R8 "revisão final e integração").** Quando uma rodada
+parece limpa (`complete && severe.length===0`), o motor NÃO declara vitória direto — dispara um re-sweep
+completo independente em `finalize_model`, sempre xhigh, **mesmo que a rodada que pareceu limpa tenha rodado
+em `coordinate_model`**. Só confirma limpa se o confirm-pass TAMBÉM achar zero; senão os findings do
+confirm-pass entram no PLAN da mesma rodada — o resultado mais barato nunca tem a palavra final.
 
-**EXEC = Sonnet Executor (R1).** SÓ bucket 1, **um fix por vez**, na ordem do PLAN: (1) **test-first (red)** —
-escreve o teste que reproduz o finding e vê falhar; o teste recebe **nome com a invariante**
-(`test_atravessa_placeholder_pro_par_aws`); (2) **fix cirúrgico** — menor mudança, **extensão enumerada >
-alargamento de regra**; (3) **roda a SUÍTE INTEIRA**; (4) reporta. O Sonnet **nunca** toca bucket 2/3.
+**PLAN = Opus Planejador adversarial, árbitro único (R2), no MESMO tier da rodada.** Entre "achou" e
+"consertar". 4 sub-passos: (a) consolida + dedup os findings; (b) **rotula cada um por BUCKET** (impl /
+plan-drift / plan-flaw); (c) triagem do bucket 1 por severidade **e risco de conflito** (3 sinais checáveis
+ANTES de editar — dois fixes na mesma função / fix que ALARGA regra genérica / fix que viola invariante viva);
+(d) sequencia (extensão-enumerada primeiro, alargamento por último com negative-tests, agrupa por função).
+**Mandato adversarial:** default a REJEITAR um finding (ou um accepted-limit) a não ser que se justifique
+contra a rubrica. **Gerar ≠ julgar** — o Revisor acha, o Planejador é quem carimba a severidade (mata a
+oscilação entre rodadas). Rodada 1 (`decompose_model`) = plano pesado; 2+ (`coordinate_model`) processam só o
+DELTA.
+
+**EXEC = Sonnet Executor em `executor_model` (R1).** SÓ bucket 1, **um fix por vez**, na ordem do PLAN:
+(1) **test-first (red)** — escreve o teste que reproduz o finding e vê falhar; o teste recebe **nome com a
+invariante** (`test_atravessa_placeholder_pro_par_aws`); (2) **fix cirúrgico** — menor mudança, **extensão
+enumerada > alargamento de regra**; (3) **roda a SUÍTE INTEIRA**; (4) reporta. O Sonnet **nunca** toca
+bucket 2/3.
 
 **GATE de regressão (código, não LLM).** O `EXEC_RESULT.suiteRegressed` é objetivo (a suíte passou ou não).
-Vermelho → **reverte** + `churn++`; o Opus decide refazer cirúrgico (troca difuso por extensão enumerada /
-exceção mais específica) ou escalar. **Segurança não delega ao Sonnet.**
+Vermelho → **reverte** + `churn++`; o Opus (no tier da rodada) decide refazer cirúrgico (troca difuso por
+extensão enumerada / exceção mais específica) — até `churn_threshold`. A partir do threshold, escala pra
+`diagnose_model` (Opus xhigh, R8 "diagnóstico após falhas repetidas"): não é mais "refaz cirúrgico", é achar
+a causa raiz do acoplamento. **Segurança não delega ao Sonnet.**
 
 **Bucket 2 (plan-drift) e bucket 3 (plan-flaw)** nunca viram edição do Sonnet (R4 e a constraint central abaixo).
 
@@ -320,9 +389,11 @@ A skill só declara **sucesso** quando AS DUAS fecham. São critérios independe
 
 **Fase Assintótica — para se qualquer um (gate de severidade primário, teto = trava):**
 - **[PRIMÁRIO]** uma rodada INTEIRA completou (`complete=true`) E produziu ZERO findings novos de severidade
-  ≥ `floor` FORA dos accepted-limits. → rodada limpa.
+  ≥ `floor` FORA dos accepted-limits **E o confirm-pass dedicado (`finalize_model`, xhigh) concordou** —
+  rodada limpa nunca é declarada só pelo resultado mais barato (`coordinate_model`) que pareceu limpo.
 - **[TRAVA]** atingiu `max_rounds` → reporta "teto atingido sem convergir" (ALARME, não sucesso).
-- **[ESCALADA]** churn escalou (≥`churn_threshold` regressões na mesma função).
+- **[ESCALADA]** churn escalou (≥`churn_threshold` regressões na mesma função) → passa por `diagnose_model`
+  (xhigh) antes de virar `churn-escalated`.
 
 **Fase Gate — condição ABSOLUTA de sucesso (não é "parada por retorno decrescente"):**
 - **Sucesso EXIGE a Fase Gate 100% verde** (lint/type/unit/integração no repo inteiro, incluindo
@@ -360,11 +431,13 @@ Antes de qualquer relatório, a casca roda os **checks objetivos do projeto** co
   projeto oferece um runner com escopo próprio (`scripts/run_app_tests.sh`, target de Makefile,
   `pnpm --filter`, `cargo test -p`), use-o **pra rodar no ambiente certo** — nunca pra encolher o que
   precisa passar; em monorepo de múltiplos ambientes é o que evita falso-vermelho de import.
-- **Vermelho → conserta (fila objetiva, FORA do roteamento de buckets).** Erro de lint/type/unit/integração é
-  objetivo e determinístico — não precisa do julgamento de severidade do REVIEW→PLAN. Vai direto pra uma fila
-  de conserto do Sonnet Executor (mesmo regression gate por conserto), re-roda o gate, até verde. **Não passa
-  pelos 3 buckets** (esses são pro review subjetivo da fase assintótica). Se travar de verdade (erro que exige
-  decisão de arquitetura), **NÃO declara sucesso**.
+- **Vermelho → conserta em `mechanical_model` (fila objetiva, FORA do roteamento de buckets).** Erro de
+  lint/type/unit/integração é objetivo e determinístico — não precisa do julgamento de severidade do
+  REVIEW→PLAN, nem do tier caro do `executor_model`. Vai direto pra uma fila de conserto do Sonnet em
+  `mechanical_model` (sonnet/medium, R8 "operações mecânicas e bem delimitadas" — mesmo regression gate por
+  conserto), re-roda o gate, até verde. **Não passa pelos 3 buckets** (esses são pro review subjetivo da fase
+  assintótica). Se travar de verdade (erro que exige decisão de arquitetura), **NÃO declara sucesso** — e o
+  conserto que travou escala pra `diagnose_model` (xhigh) antes de virar `gate-red`.
 - **Quem seta o `stopReason` FINAL é a CASCA, não o motor.** O motor (Workflow) reporta o stopReason da fase
   assintótica (`no-severe-finding` / `churn-escalated` / `max-rounds`); a casca, pós-gate, computa o stopReason
   da sessão — **promove a `gate-red`** quando o gate trava vermelho, e mantém o do motor quando o gate fecha

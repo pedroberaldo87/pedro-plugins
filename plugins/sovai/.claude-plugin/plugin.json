@@ -1,6 +1,6 @@
 {
   "name": "sovai",
-  "version": "1.4.0",
+  "version": "1.5.0",
   "description": "Autonomous execution mode — executes any plan to completion without user interruptions, checkpoints, or confirmations. Builds via a decompose→execute→review Workflow engine (Opus decomposes the plan, Sonnets build in parallel, a second Opus reviews completeness+cohesion and feeds back). Skips blocked items (no silent workarounds), logs all decisions, runs a final headless qa-loop pass, regenerates docs (project-doc) and commits + pushes the work, and delivers the final report as an interactive /visual HTML review surface (markdown fallback).",
   "author": {
     "name": "Pedro Beraldo",

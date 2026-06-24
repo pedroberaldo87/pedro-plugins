@@ -27,11 +27,23 @@ Se um item não puder ser feito como pedido, **não invente workaround silencios
 
 ## Execução — motor decompõe → executa → revisa (Workflow)
 
-A execução do plano **não roda solo no loop principal** — roda como **um Workflow determinístico** (a tool `Workflow`), mesmo padrão do `/qa-loop`: **motor = Workflow, casca = esta skill**. Três papéis, cada um com o modelo certo, e os freios (parada, paralelismo, fidelidade) são **lógica do script (JS)** — não "o Opus lembrar a regra a cada volta". É um **pipeline fechado**, por isso Workflow e não Agent Team (e não sub-agente solto, que a regra do Pedro condena e o guard `PreToolUse(Agent)` acorda a cada disparo).
+A execução do plano **não roda solo no loop principal** — roda como **um Workflow determinístico** (a tool `Workflow`), mesmo padrão do `/qa-loop`: **motor = Workflow, casca = esta skill**. Três papéis, cada um no **tier certo pra etapa** (R8 — mesma tabela do `/qa-loop`, mesmos nomes de knob), e os freios (parada, paralelismo, fidelidade) são **lógica do script (JS)** — não "o Opus lembrar a regra a cada volta". É um **pipeline fechado**, por isso Workflow e não Agent Team (e não sub-agente solto, que a regra do Pedro condena e o guard `PreToolUse(Agent)` acorda a cada disparo).
 
-- **OPUS #1 — Decompositor.** NÃO planeja do zero. Pega o **plano que você deixou** e o quebra em tarefas de implementação, marcando para cada uma os **arquivos que toca**, se é **paralelizável** e de quais tarefas **depende**. Re-arquitetar é proibido (mesma regra do "não replanejar no headless"); buraco no plano que exija decisão de arquitetura vira **Bloqueio**, nunca invenção silenciosa.
-- **SONNETS — Executores.** Implementam as tarefas. Independentes rodam **em paralelo**; dependentes, **em série** na ordem do #1. Duas tarefas paralelas que tocam o mesmo arquivo → `isolation: 'worktree'` (senão se atropelam). Tarefa única ou missão sequencial pura → o Workflow degenera pra um executor por vez, sem cerimônia (o fan-out é ganho só quando há independência real).
-- **OPUS #2 — Revisor de construção.** Trata a decomposição do #1 como **contrato** e só checa se ele foi **cumprido**: toda tarefa decomposta saiu? (completude) · as peças paralelas integram, sem se contradizer? (coesão). **Não julga se a decomposição é fiel ao plano-macro** — isso é exclusivo do `/qa-loop` (etapa seguinte, bucket 1 dele). Devolve **feedback estruturado pro #1**, que re-decompõe **só o delta** (o que faltou / precisa refazer) na volta seguinte. A seta de volta #2→#1 é o coração do motor.
+## Modelo & effort por etapa (R8) — tabela única, `/qa-loop` obedece a mesma
+
+| Etapa do fluxo | Modelo | Effort | Knob | Onde no motor |
+|---|---|---|---|---|
+| Planejamento inicial e decomposição | Opus | `xhigh` | `decompose_model` | OPUS #1, **rodada 1** — quebra o plano inteiro em tarefas. |
+| Coordenação rotineira dos agentes | Opus | `high` | `coordinate_model` | OPUS #1 nas **rodadas 2+** (só o delta) + OPUS #2 nas rodadas normais. |
+| Execução das tarefas | Sonnet | `high` | `executor_model` | SONNETS — tarefa padrão (`complexity` ausente ou `'standard'`). |
+| Operações mecânicas e bem delimitadas | Sonnet | `medium` | `mechanical_model` | SONNETS — tarefa marcada `complexity: 'mechanical'` (renomear, mover arquivo, 1 config, 1 valor — sem julgamento amplo). |
+| Diagnóstico após falhas repetidas | Opus | `xhigh` | `diagnose_model` | Tarefa reaparece em `missingTasks`/`gaps` por ≥ `churn_threshold` rodadas → diagnóstico de raiz antes de pedir pro Sonnet de novo. |
+| Revisão final e integração | Opus | `xhigh` | `finalize_model` | OPUS #2 — **confirm-pass dedicado** antes de declarar `built=true`; não confia no veredito mais barato (`coordinate_model`) da rodada que pareceu pronta. |
+
+- **OPUS #1 — Decompositor.** NÃO planeja do zero. Pega o **plano que você deixou** e o quebra em tarefas de implementação, marcando para cada uma os **arquivos que toca**, se é **paralelizável**, de quais tarefas **depende**, e se é `complexity: 'mechanical'` (operação bem delimitada) ou `'standard'`. Na **rodada 1** roda em `decompose_model` (Opus xhigh — planejamento inicial do plano inteiro); nas rodadas seguintes (re-decompõe só o delta do feedback do #2) roda em `coordinate_model` (Opus high — é coordenação rotineira, não mais "decomposição inicial"). Re-arquitetar é proibido (mesma regra do "não replanejar no headless"); buraco no plano que exija decisão de arquitetura vira **Bloqueio**, nunca invenção silenciosa.
+- **SONNETS — Executores.** Implementam as tarefas. Tarefa padrão roda em `executor_model` (Sonnet high); tarefa marcada `complexity: 'mechanical'` roda em `mechanical_model` (Sonnet medium — operação bem delimitada não precisa do julgamento caro). Independentes rodam **em paralelo**; dependentes, **em série** na ordem do #1. Duas tarefas paralelas que tocam o mesmo arquivo → `isolation: 'worktree'` (senão se atropelam). Tarefa única ou missão sequencial pura → o Workflow degenera pra um executor por vez, sem cerimônia (o fan-out é ganho só quando há independência real).
+- **OPUS #2 — Revisor de construção.** Trata a decomposição do #1 como **contrato** e só checa se ele foi **cumprido**: toda tarefa decomposta saiu? (completude) · as peças paralelas integram, sem se contradizer? (coesão). **Não julga se a decomposição é fiel ao plano-macro** — isso é exclusivo do `/qa-loop` (etapa seguinte, bucket 1 dele). Roda em `coordinate_model` (Opus high) nas rodadas normais; quando a obra PARECE pronta (completude+coesão batendo), antes de declarar `built=true` dispara um **confirm-pass dedicado** em `finalize_model` (Opus xhigh, R8 "revisão final e integração") — re-checa do zero, não confia no veredito mais barato. Devolve **feedback estruturado pro #1**, que re-decompõe **só o delta** (o que faltou / precisa refazer) na volta seguinte. A seta de volta #2→#1 é o coração do motor.
+- **DIAGNÓSTICO — escalada de tarefa-presa.** Se a MESMA tarefa reaparece em `missingTasks`/`gaps` por ≥ `churn_threshold` rodadas seguidas (default 2, mesmo limiar do `/qa-loop`), o motor escala ANTES de pedir pro Sonnet tentar de novo: um diagnóstico dedicado em `diagnose_model` (Opus xhigh, R8 "diagnóstico após falhas repetidas") investiga a causa raiz (dependência não mapeada, arquivo errado, premissa furada) em vez de repetir o mesmo pedido esperando resultado diferente. O diagnóstico entra no `feedback` da próxima rodada do #1.
 
 ### Fronteira com o `/qa-loop` (ângulos separados, sem retrabalho)
 
@@ -55,11 +67,11 @@ A casca dispara a tool `Workflow` com o script abaixo. Os três schemas (`DECOMP
 ```javascript
 export const meta = {
   name: 'sovai-build-engine',
-  description: 'Motor de implementação: Opus decompõe, Sonnets executam (paralelo qdo independentes), Opus revisa completude+coesão e devolve feedback',
+  description: 'Motor de implementação: tier por etapa (R8) — decompose/coordinate/executor/mechanical/diagnose/finalize',
   phases: [{ title: 'Decompor' }, { title: 'Executar' }, { title: 'Revisar' }],
 }
 
-// args (da casca): { planPath, planText, maxRounds, severityFloor, repoRoot }
+// args (da casca): { planPath, planText, maxRounds, severityFloor, repoRoot, churnThreshold }
 const sevRank = s => ({ P0:3, P1:2, P2:1, P3:0 }[s] ?? 0)
 const floor = sevRank(args.severityFloor || 'P1')
 // 'shared' = a tarefa colide em arquivo com OUTRA paralela do MESMO lote → isola em worktree
@@ -67,39 +79,77 @@ const touchesShared = (t, lote) => lote.some(o => o.id !== t.id && o.files?.some
 const rounds = []; const blockers = []
 let built = false, r = 0
 let feedback = null   // do #2 pro #1 na volta seguinte (a seta de volta)
+const taskChurn = {}  // { task_id: nº de rodadas seguidas reaparecendo em missingTasks/gaps }
+
+// Tier por rodada (R8 — tabela única com /qa-loop): rodada 1 = decompose_model (xhigh,
+// planejamento inicial); rodadas 2+ = coordinate_model (high, coordenação rotineira).
+const tierFor = round => round === 1
+  ? { model: 'opus', effort: 'xhigh' }   // decompose_model
+  : { model: 'opus', effort: 'high' }    // coordinate_model
 
 while (!built && r < args.maxRounds) {
   r++; phase(`Rodada ${r}`)
+  const tier = tierFor(r)
 
-  // DECOMPOR — Opus #1. r==1: decompõe o plano inteiro; r>1: só o DELTA do feedback.
-  // NUNCA re-arquiteta; buraco que exige decisão de arquitetura vira blocker (não vira tarefa).
+  // DECOMPOR — Opus #1, no tier da rodada. r==1: decompõe o plano inteiro; r>1: só o
+  // DELTA do feedback. NUNCA re-arquiteta; buraco que exige decisão de arquitetura
+  // vira blocker (não vira tarefa).
   const decomp = await agent(decomposePrompt({ planPath: args.planPath, planText: args.planText, round: r, feedback }),
-    { model: 'minimaxm3', effort: 'high', phase: 'Decompor', schema: DECOMP })
+    { model: tier.model, effort: tier.effort, phase: 'Decompor', schema: DECOMP })
   if (decomp.blockers?.length) blockers.push(...decomp.blockers)
 
-  // EXECUTAR — Sonnets. Independentes em paralelo; dependentes em série (ordem do #1).
-  // worktree só quando paralelas tocam o mesmo arquivo.
+  // DIAGNÓSTICO de tarefa-presa — antes de tentar de novo, escala quem já reaparece
+  // ≥ churnThreshold rodadas seguidas pro diagnose_model (xhigh): causa raiz, não repetição.
+  const diagnoses = []
+  for (const t of decomp.tasks) {
+    if (taskChurn[t.id] >= (args.churnThreshold || 2)) {
+      const diag = await agent(diagnoseStuckTaskPrompt({ task: t, attempts: taskChurn[t.id] }),
+        { model: 'opus', effort: 'xhigh', phase: 'Diagnose' })   // diagnose_model
+      diagnoses.push({ task_id: t.id, diagnosis: diag })
+    }
+  }
+
+  // EXECUTAR — Sonnets. executor_model (padrão) ou mechanical_model (tarefa marcada
+  // complexity:'mechanical' — operação bem delimitada, sem julgamento amplo).
   const todo = decomp.tasks.filter(t => !t.done)
   const par = todo.filter(t => t.parallelizable && !(t.dependsOn?.length))
   const seq = todo.filter(t => !t.parallelizable || (t.dependsOn?.length))
+  const execTier = t => t.complexity === 'mechanical'
+    ? { model: 'sonnet', effort: 'medium' }    // mechanical_model
+    : { model: 'sonnet', effort: 'high' }      // executor_model
   const builtPar = await parallel(par.map(t => () =>
     agent(execPrompt({ task: t }), {
-      model: 'deepseekflash', effort: 'high', phase: 'Executar', schema: TASK_RESULT,
+      model: execTier(t).model, effort: execTier(t).effort, phase: 'Executar', schema: TASK_RESULT,
       isolation: touchesShared(t, par) ? 'worktree' : undefined })))
   const builtSeq = []
   for (const t of seq) builtSeq.push(await agent(execPrompt({ task: t }),
-    { model: 'deepseekflash', effort: 'high', phase: 'Executar', schema: TASK_RESULT }))
+    { model: execTier(t).model, effort: execTier(t).effort, phase: 'Executar', schema: TASK_RESULT }))
   const results = builtPar.filter(Boolean).concat(builtSeq)
 
-  // REVISAR — Opus #2. Contra a DECOMPOSIÇÃO: completude + coesão + fidelidade.
-  // NÃO roda a suíte nem caça bug — isso é o /qa-loop depois (fronteira acima).
+  // REVISAR — Opus #2, no tier da rodada (coordinate_model). Contra a DECOMPOSIÇÃO:
+  // completude + coesão + fidelidade. NÃO roda a suíte nem caça bug — isso é o /qa-loop depois.
   const review = await agent(reviewBuildPrompt({ decomp, results, round: r }),
-    { model: 'minimaxm3', effort: 'high', phase: 'Revisar', schema: BUILD_REVIEW })
+    { model: tier.model, effort: tier.effort, phase: 'Revisar', schema: BUILD_REVIEW })
 
-  rounds.push({ r, decomp, results, review })
+  // atualiza churn de tarefa (pra próxima rodada escalar se persistir)
+  for (const id of review.missingTasks || []) taskChurn[id] = (taskChurn[id] || 0) + 1
+  for (const g of review.gaps || []) taskChurn[g.task_id] = (taskChurn[g.task_id] || 0) + 1
+
+  rounds.push({ r, decomp, results, review, diagnoses })
   const gaps = review.gaps.filter(g => sevRank(g.severity) >= floor)
-  if (review.complete && review.cohesive && gaps.length === 0) { built = true; break }
-  feedback = { gaps: review.gaps, missing: review.missingTasks }   // alimenta o DECOMPOR da próxima volta
+
+  if (review.complete && review.cohesive && gaps.length === 0) {
+    // CONFIRM — finalize_model (Opus xhigh, R8 "revisão final e integração"). Re-checa
+    // completude+coesão do ZERO antes de declarar built=true — não confia no veredito
+    // mais barato (coordinate_model) da rodada que pareceu pronta.
+    const confirm = await agent(reviewBuildPrompt({ decomp, results, round: r, confirming: true }),
+      { model: 'opus', effort: 'xhigh', phase: 'Confirm', schema: BUILD_REVIEW })   // finalize_model
+    const confirmGaps = confirm.gaps.filter(g => sevRank(g.severity) >= floor)
+    if (confirm.complete && confirm.cohesive && confirmGaps.length === 0) { built = true; break }
+    feedback = { gaps: confirm.gaps, missing: confirm.missingTasks, diagnoses }
+    continue
+  }
+  feedback = { gaps: review.gaps, missing: review.missingTasks, diagnoses }   // alimenta o DECOMPOR da próxima volta
 }
 
 return {
@@ -110,7 +160,7 @@ return {
 ```
 
 **Schemas (JSON Schema, resumidos):**
-- `DECOMP` — `{ tasks: [{ id, desc, files: [...], parallelizable: bool, dependsOn: [id...], done: bool }], blockers: [{ what, whyNeedsYou }] }`.
+- `DECOMP` — `{ tasks: [{ id, desc, files: [...], parallelizable: bool, dependsOn: [id...], done: bool, complexity?: 'standard'|'mechanical' }], blockers: [{ what, whyNeedsYou }] }`. `complexity: 'mechanical'` = operação bem delimitada (renomear, mover arquivo, 1 config, 1 valor); ausente/`'standard'` = tarefa normal.
 - `TASK_RESULT` — `{ task_id, files_touched: [...], summary, done: bool, note }`.
 - `BUILD_REVIEW` — `{ complete: bool, cohesive: bool, gaps: [{ task_id, severity: 'P0'|'P1'|'P2'|'P3', problem }], missingTasks: [id...] }`.
 
