@@ -24,7 +24,19 @@ while IFS=$'\t' read -r TAG PROJ N STALE OOP; do
   if [ "$OOP" = "1" ]; then
     FLAG="${FLAG} ⚠️ fora do padrao atual (gen) — nao confie cegamente, considere /project-doc"
   fi
-  LIST="${LIST}- ${PROJ}/.claude/CLAUDE.md (${N} doc(s) em .claude/docs/)${FLAG}\n"
+  # CLAUDE.md pode estar na raiz (convenção nativa do Claude Code) ou aninhado
+  # (.claude/CLAUDE.md, projetos mais antigos) — prefere quem tem o marker v2
+  # (cobre projeto com os dois arquivos, ex.: MED-COMPANION), senão raiz-depois-aninhado.
+  if [ -f "${PROJ}/CLAUDE.md" ] && grep -q 'project-doc:v2' "${PROJ}/CLAUDE.md" 2>/dev/null; then
+    CLAUDE_MD_DISPLAY="${PROJ}/CLAUDE.md"
+  elif [ -f "${PROJ}/.claude/CLAUDE.md" ] && grep -q 'project-doc:v2' "${PROJ}/.claude/CLAUDE.md" 2>/dev/null; then
+    CLAUDE_MD_DISPLAY="${PROJ}/.claude/CLAUDE.md"
+  elif [ -f "${PROJ}/CLAUDE.md" ]; then
+    CLAUDE_MD_DISPLAY="${PROJ}/CLAUDE.md"
+  else
+    CLAUDE_MD_DISPLAY="${PROJ}/.claude/CLAUDE.md"
+  fi
+  LIST="${LIST}- ${CLAUDE_MD_DISPLAY} (${N} doc(s) em .claude/docs/)${FLAG}\n"
 done <<< "$LINES"
 
 [ -z "$LIST" ] && exit 0

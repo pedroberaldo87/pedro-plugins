@@ -68,11 +68,14 @@ $cand"
 esac
 
 # Nearest ancestor of a dir that owns project-doc documentation.
+# Checks BOTH CLAUDE.md locations (root — Claude Code's native convention — and
+# the older nested .claude/CLAUDE.md) so it stops at the project itself instead
+# of overshooting to an unrelated ancestor (e.g. $HOME) when CLAUDE.md is at root.
 find_doc_up() {
   local d="$1"
   case "$d" in /*) : ;; *) d="$CWD/$d" ;; esac
   while [ -n "$d" ] && [ "$d" != "/" ]; do
-    [ -f "$d/.claude/CLAUDE.md" ] && { printf '%s' "$d"; return 0; }
+    { [ -f "$d/CLAUDE.md" ] || [ -f "$d/.claude/CLAUDE.md" ]; } && { printf '%s' "$d"; return 0; }
     d=$(dirname "$d")
   done
   return 1
@@ -181,7 +184,21 @@ if [ -n "$APP_NAME" ] && [ -n "$APP_DOC" ]; then
   READ_TARGET="${PROJ}/.claude/docs/apps/${APP_NAME}.md"
 else
   APPMSG=""
-  READ_TARGET="${PROJ}/.claude/CLAUDE.md e o doc relevante em .claude/docs/"
+  # Point at whichever CLAUDE.md actually carries the project-doc:v2 marker
+  # (handles projects with BOTH a hand-written root file and the real, nested
+  # project-doc-generated one — e.g. MED-COMPANION); falls back to root-then-
+  # nested existence. A hardcoded .claude/CLAUDE.md here would tell Claude to
+  # read a file that doesn't exist for root-CLAUDE.md projects (e.g. Cybersec).
+  if [ -f "${PROJ}/CLAUDE.md" ] && grep -q 'project-doc:v2' "${PROJ}/CLAUDE.md" 2>/dev/null; then
+    CLAUDE_MD_PATH="${PROJ}/CLAUDE.md"
+  elif [ -f "${PROJ}/.claude/CLAUDE.md" ] && grep -q 'project-doc:v2' "${PROJ}/.claude/CLAUDE.md" 2>/dev/null; then
+    CLAUDE_MD_PATH="${PROJ}/.claude/CLAUDE.md"
+  elif [ -f "${PROJ}/CLAUDE.md" ]; then
+    CLAUDE_MD_PATH="${PROJ}/CLAUDE.md"
+  else
+    CLAUDE_MD_PATH="${PROJ}/.claude/CLAUDE.md"
+  fi
+  READ_TARGET="${CLAUDE_MD_PATH} e o doc relevante em .claude/docs/"
 fi
 
 MSG="📚 ${PROJ} tem documentação project-doc (${N} doc(s) em .claude/docs/).${DOCLIST}${APPMSG} Antes de busca cega ou de delegar exploração, leia ${READ_TARGET}.${STALEMSG}${OOPMSG} Use a ferramenta Read em qualquer arquivo de .claude/docs/ ou .claude/CLAUDE.md; isso registra um sentinel e esta ação será liberada automaticamente na próxima tentativa (aviso ${NUDGE_NO}/${MAX_NUDGES} — depois disso silencio)."

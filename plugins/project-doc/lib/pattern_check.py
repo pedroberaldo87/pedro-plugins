@@ -3,7 +3,8 @@
 pattern_check.py — verifica se o projeto segue o padrão project-doc v2 (gen=3.6).
 
 Checks 5 invariantes de disco:
-  (a) markers v2 presentes em .claude/CLAUDE.md
+  (a) markers v2 presentes em CLAUDE.md (raiz do projeto — convenção nativa do
+      Claude Code; fallback para .claude/CLAUDE.md em projetos mais antigos)
   (b) todo .claude/docs/*.md abre com frontmatter YAML `^---\n`
   (c) .claude/.project-doc/findings.jsonl existe
   (d) todo doc tem linha doc-sig no frontmatter (required from new gen)
@@ -119,26 +120,52 @@ def check_pattern(project_root):
         "docs": [],
     }
 
-    claude_md = os.path.join(project_root, ".claude", "CLAUDE.md")
+    # CLAUDE.md: prefere quem CARREGA o marker project-doc:v2 — cobre projetos
+    # com os DOIS arquivos (um CLAUDE.md na raiz escrito à mão + o real, gerado
+    # pelo project-doc, aninhado em .claude/ — visto na prática: MED-COMPANION).
+    # Sem marker em nenhum, cai pra raiz-depois-aninhado (raiz é a convenção
+    # nativa do Claude Code — é de lá que o harness carrega as instruções do
+    # projeto). Bug real corrigido aqui: só checar .claude/CLAUDE.md fazia todo
+    # projeto com CLAUDE.md na raiz (ex.: Cybersec) reportar in_pattern=False
+    # incondicionalmente, mesmo com a doc em dia.
+    root_md = os.path.join(project_root, "CLAUDE.md")
+    nested_md = os.path.join(project_root, ".claude", "CLAUDE.md")
+
+    def _has_v2_marker(path):
+        try:
+            with open(path, encoding="utf-8") as fh:
+                return bool(_MARKER_RE.search(fh.read()))
+        except OSError:
+            return False
+
+    if _has_v2_marker(root_md):
+        claude_md = root_md
+    elif _has_v2_marker(nested_md):
+        claude_md = nested_md
+    elif os.path.isfile(root_md):
+        claude_md = root_md
+    else:
+        claude_md = nested_md
 
     # --- Lê o CLAUDE.md ---
     try:
         with open(claude_md, encoding="utf-8") as fh:
             claude_content = fh.read()
     except OSError:
-        result["violations"].append("(a) .claude/CLAUDE.md não encontrado ou ilegível")
+        result["violations"].append("(a) CLAUDE.md não encontrado ou ilegível (raiz ou .claude/)")
         return result
 
     # --- (a) markers v2 presentes (abertura E fechamento) ---
+    claude_md_rel = os.path.relpath(claude_md, project_root)
     if not _MARKER_RE.search(claude_content):
-        result["violations"].append("(a) marker <!-- project-doc:v2 --> ausente em .claude/CLAUDE.md")
+        result["violations"].append(f"(a) marker <!-- project-doc:v2 --> ausente em {claude_md_rel}")
     else:
         # extrai gen do marker de abertura
         m = _GEN_RE.search(claude_content)
         if m:
             result["gen_found"] = m.group(1)
         if not _END_MARKER_RE.search(claude_content):
-            result["violations"].append("(a) marker <!-- project-doc:v2:end --> ausente em .claude/CLAUDE.md")
+            result["violations"].append(f"(a) marker <!-- project-doc:v2:end --> ausente em {claude_md_rel}")
 
     # --- (c) journal findings.jsonl existe ---
     journal_path = os.path.join(project_root, ".claude", ".project-doc", "findings.jsonl")

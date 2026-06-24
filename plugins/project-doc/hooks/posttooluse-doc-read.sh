@@ -20,11 +20,14 @@ CWD=$(printf '%s' "$INPUT" | jq -r '.cwd // empty' 2>/dev/null)
 # the sentinel (guard would nudge forever).
 case "$FP" in /*) : ;; *) FP="$CWD/$FP" ;; esac
 
-# Only a project-doc file resolves the guard. Derive the project dir (the part
-# before /.claude/) so the sentinel matches the one the guard checks.
+# Only a project-doc file resolves the guard. Derive the project dir so the
+# sentinel matches the one the guard checks. CLAUDE.md at project ROOT (Claude
+# Code's native convention) resolves it too, not just the nested .claude/CLAUDE.md —
+# order matters: the more specific nested pattern is tried first.
 case "$FP" in
   */.claude/docs/*)    PROJ="${FP%%/.claude/docs/*}" ;;
   */.claude/CLAUDE.md) PROJ="${FP%/.claude/CLAUDE.md}" ;;
+  */CLAUDE.md)         PROJ="${FP%/CLAUDE.md}" ;;
   *) exit 0 ;;
 esac
 [ -n "$PROJ" ] || exit 0
