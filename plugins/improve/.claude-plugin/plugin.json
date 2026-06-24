@@ -1,6 +1,6 @@
 {
   "name": "improve",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Generic self-improvement implementer using the autoresearch ML methodology. Reads the app's IMPROVEMENT_PROGRAM.md, fetches proposals from GitHub Issues (label 'autoresearch'), implements changes.",
   "author": {
     "name": "Pedro Beraldo",

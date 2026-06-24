@@ -1,6 +1,6 @@
 {
   "name": "context-guard",
-  "version": "1.1.1",
+  "version": "1.1.2",
   "description": "Auto-interrupts workflow when context window usage exceeds a configurable threshold. Blocks execution and tells the user to run /handoff before continuing.",
   "author": {
     "name": "Pedro Beraldo",

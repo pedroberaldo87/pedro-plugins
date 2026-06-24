@@ -1,71 +1,71 @@
 ---
 name: bootstrap:setup
-description: One-shot setup for a new machine — installs Pedro's marketplaces and plugins from the manifest, then applies the versioned global config (env vars, permissions, behavior flags, global CLAUDE.md, machine-resolved statusLine). Run once per machine after installing the bootstrap plugin. Does not manage secrets.
+description: Setup de máquina nova em um passo — instala os marketplaces e plugins do Pedro a partir do manifest, depois aplica a config global versionada (env vars, permissões, flags de comportamento, CLAUDE.md global, statusLine resolvido pra máquina). Rode 1× por máquina depois de instalar o plugin bootstrap. Não gerencia secrets.
 ---
 
 # Bootstrap Setup
 
-You are bringing a machine up to Pedro's Claude Code baseline. This plugin has **two layers**:
+Você está trazendo uma máquina pro baseline de Claude Code do Pedro. Este plugin tem **duas camadas**:
 
-1. **Plugin sync** (automatic, via hooks) — `config/manifest.json` is the source of truth for third-party marketplaces + plugins; the SessionStart/PostToolUse hooks converge local state to it (pull → apply → snapshot → push). You don't trigger this manually; it runs on its own.
-2. **Config layer** (on demand — this skill) — applies the versioned global config that a plugin can't carry by itself: env vars, permissions, behavior flags, the global `CLAUDE.md`, and a `statusLine` resolved to THIS machine's paths.
+1. **Sync de plugins** (automático, via hooks) — `config/manifest.json` é a fonte da verdade dos marketplaces + plugins de terceiros; os hooks SessionStart/PostToolUse convergem o estado local pra ele (pull → apply → snapshot → push). Você não dispara isso à mão; roda sozinho.
+2. **Camada de config** (sob demanda — esta skill) — aplica a config global versionada que um plugin não consegue carregar sozinho: env vars, permissões, flags de comportamento, o `CLAUDE.md` global e um `statusLine` resolvido pros paths DESTA máquina.
 
-This setup runs the config layer (and kicks the plugin sync once so the machine is fully provisioned). It is **idempotent** and **never touches `settings.local.json`** (which may hold secrets).
+Este setup roda a camada de config (e cutuca o sync de plugins uma vez pra máquina ficar 100% provisionada). É **idempotente** e **nunca toca em `settings.local.json`** (que pode guardar secrets).
 
-## Prerequisites
+## Pré-requisitos
 
 ```bash
-command -v jq >/dev/null || { echo "jq required — install it (brew install jq) and re-run"; exit 1; }
-command -v claude >/dev/null || { echo "claude CLI required"; exit 1; }
+command -v jq >/dev/null || { echo "jq necessário — instale (brew install jq) e rode de novo"; exit 1; }
+command -v claude >/dev/null || { echo "CLI claude necessária"; exit 1; }
 ```
 
-`${CLAUDE_PLUGIN_ROOT}` is the installed `bootstrap` plugin dir. Resolve it from the skill context.
+`${CLAUDE_PLUGIN_ROOT}` é o dir do plugin `bootstrap` instalado. Resolva a partir do contexto da skill.
 
-## Steps
+## Passos
 
-### 1. Install marketplaces + plugins from the manifest
+### 1. Instalar marketplaces + plugins do manifest
 
 ```bash
 bash "${CLAUDE_PLUGIN_ROOT}/hooks/lib/apply.sh"
 ```
 
-This adds every marketplace in `config/manifest.json` and installs/enables the plugins it lists. It's safe to re-run (converges, never touches unmanaged plugins). **Check the exit code** — non-zero means some operations failed; investigate before trusting the state.
+Isso adiciona cada marketplace de `config/manifest.json` e instala/habilita os plugins que ele lista. É seguro re-rodar (converge, nunca toca em plugins não-gerenciados). **Cheque o exit code** — diferente de zero significa que alguma operação falhou; investigue antes de confiar no estado.
 
-### 2. Apply the global config layer
+### 2. Aplicar a camada de config global
 
 ```bash
 bash "${CLAUDE_PLUGIN_ROOT}/hooks/lib/apply-config.sh"
 ```
 
-This merges `config/settings-defaults.json` into `~/.claude/settings.json`:
-- **env** — sets `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS`, `CLAUDE_CONTEXT_THRESHOLD`, `CLAUDE_STATUSLINE_FORWARD` (defaults win).
-- **permissions** — UNION of the machine's existing allow/deny with the versioned defaults (machine keeps its own, gains the shared ones).
+Isso faz merge de `config/settings-defaults.json` em `~/.claude/settings.json`:
+- **env** — seta `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS`, `CLAUDE_CONTEXT_THRESHOLD`, `CLAUDE_STATUSLINE_FORWARD` (os defaults vencem).
+- **permissions** — UNIÃO do allow/deny existente da máquina com os defaults versionados (a máquina mantém os seus, ganha os compartilhados).
 - **flags** — `language`, `theme`, `autoCompactEnabled`.
-- **statusLine** — resolved to the `context-guard` writer installed on THIS machine (runtime glob, survives version bumps). Requires `context-guard` installed (step 1 installs it).
-- **CLAUDE.md** — copies `config/CLAUDE-global.md` to `~/.claude/CLAUDE.md` (with a backup).
+- **statusLine** — resolvido pro writer do `context-guard` instalado NESTA máquina (glob em runtime, sobrevive a bumps de versão). Exige `context-guard` instalado (o passo 1 instala).
+- **CLAUDE.md** — copia `config/CLAUDE-global.md` pra `~/.claude/CLAUDE.md` (com backup).
 
-It backs up `settings.json` first and **does not touch `settings.local.json`**.
+Faz backup do `settings.json` antes e **não toca em `settings.local.json`**.
 
-### 3. Reload
+### 3. Recarregar
 
 ```bash
-# Tell the user to run /reload-plugins (or restart Claude Code) so the new
-# plugins' hooks load and the merged settings take effect.
+# Diga ao usuário pra rodar /reload-plugins (ou reiniciar o Claude Code) pra os hooks
+# dos novos plugins carregarem e o settings mergeado entrar em vigor.
 ```
 
-### 4. Report — and flag what setup does NOT do
+### 4. Reportar — e sinalizar o que o setup NÃO faz
 
-Tell the user, in plain language:
-- Which marketplaces/plugins were installed and whether anything failed.
-- That settings.json was merged (env, permissions, flags, statusLine, CLAUDE.md) with a backup made.
-- **Secrets are NOT managed.** Anything machine-specific or secret (SSH passphrases, API keys, machine-local paths) lives in `settings.local.json` and must be set up by hand on each machine — e.g. load the SSH key into `ssh-agent`/Keychain (`ssh-add --apple-use-keychain ~/.ssh/<key>`) instead of putting a passphrase in config.
+Diga ao usuário, em linguagem clara:
+- Quais marketplaces/plugins foram instalados e se algo falhou.
+- Que o settings.json foi mergeado (env, permissões, flags, statusLine, CLAUDE.md) com backup feito.
+- **Secrets NÃO são gerenciados.** Qualquer coisa máquina-específica ou secreta (passphrases de SSH, API keys, paths locais da máquina) vive em `settings.local.json` e tem que ser configurada à mão em cada máquina — ex: carregar a chave SSH no `ssh-agent`/Keychain (`ssh-add --apple-use-keychain ~/.ssh/<key>`) em vez de pôr uma passphrase na config.
 
-## Updating the versioned config (from the source machine)
+## Atualizando a config versionada (a partir da máquina-fonte)
 
-When Pedro changes his permissions / env / global CLAUDE.md and wants it to propagate, re-snapshot the defaults into the repo:
+Quando o Pedro muda as permissões / env / CLAUDE.md global dele e quer propagar, re-snapshote os defaults pro repo:
 
 ```bash
-# Regenerate settings-defaults.json from the current settings (drops any secret).
+# Regenera settings-defaults.json a partir do settings atual (descarta qualquer secret).
 jq '{
   env: .env,
   permissions: {
@@ -79,4 +79,4 @@ jq '{
 cp "$HOME/.claude/CLAUDE.md" "$PEDRO_PLUGINS_REPO/plugins/bootstrap/config/CLAUDE-global.md"
 ```
 
-Then bump `plugin.json`, commit, and push — other machines pick it up on their next `/bootstrap:setup`.
+Depois bumpe o `plugin.json`, faça commit e push — as outras máquinas pegam no próximo `/bootstrap:setup`.

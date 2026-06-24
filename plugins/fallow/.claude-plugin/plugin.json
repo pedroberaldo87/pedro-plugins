@@ -1,6 +1,6 @@
 {
   "name": "fallow",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "description": "Roda o Fallow (analisador estático JS/TS), classifica os achados por tipo e confiança, e entrega um relatório interativo onde Pedro escolhe o que limpar. Limpeza com rede de segurança (preview + build/test).",
   "author": {
     "name": "Pedro Beraldo",

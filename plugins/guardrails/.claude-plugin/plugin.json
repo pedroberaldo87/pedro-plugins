@@ -1,6 +1,6 @@
 {
   "name": "guardrails",
-  "version": "1.1.1",
+  "version": "1.1.2",
   "description": "Global editing guardrails as hooks: post-edit lint & type-check (JS/TS/Python), an LLM scope-cop that blocks UI edits drifting from the approved plan, and an Agent Teams misuse guard. Replicable across machines via the marketplace.",
   "author": {
     "name": "Pedro Beraldo",

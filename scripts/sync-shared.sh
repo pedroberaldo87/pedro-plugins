@@ -14,41 +14,45 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 SRC="$ROOT/_shared"
 
-# subpasta de destino (relativa à raiz do repo) por plugin consumidor
-CONSUMERS=(
-  "plugins/handoff/lib"
-  "plugins/project-doc/lib"
+# Cada spec é "destino::arquivo" — qual arquivo de _shared/ vai pra qual subpasta.
+# Mapa explícito (não "todos os FILES em todos os CONSUMERS") porque consumidores
+# diferentes vendoram arquivos diferentes: a engine de coleta vai pro lib/ do
+# handoff+project-doc; a tabela R8 vai pro references/ do sovai+qa-loop.
+SPECS=(
+  "plugins/handoff/lib::collect_engine.py"
+  "plugins/project-doc/lib::collect_engine.py"
+  "plugins/sovai/skills/sovai/references::r8-tiers.md"
+  "plugins/qa-loop/skills/qa-loop/references::r8-tiers.md"
 )
-FILES=("collect_engine.py")
 
 check_mode=0
 [[ "${1:-}" == "--check" ]] && check_mode=1
 
 status=0
-for dest in "${CONSUMERS[@]}"; do
-  [[ $check_mode -eq 1 ]] || mkdir -p "$ROOT/$dest"
-  for f in "${FILES[@]}"; do
-    src="$SRC/$f"
-    dst="$ROOT/$dest/$f"
-    if [[ ! -f "$src" ]]; then
-      echo "ERRO: fonte ausente: _shared/$f" >&2
-      exit 2
+for spec in "${SPECS[@]}"; do
+  dest="${spec%%::*}"
+  f="${spec##*::}"
+  src="$SRC/$f"
+  dst="$ROOT/$dest/$f"
+  if [[ ! -f "$src" ]]; then
+    echo "ERRO: fonte ausente: _shared/$f" >&2
+    exit 2
+  fi
+  if [[ $check_mode -eq 1 ]]; then
+    if ! cmp -s "$src" "$dst"; then
+      echo "DRIFT: $dest/$f difere de _shared/$f"
+      status=1
     fi
-    if [[ $check_mode -eq 1 ]]; then
-      if ! cmp -s "$src" "$dst"; then
-        echo "DRIFT: $dest/$f difere de _shared/$f"
-        status=1
-      fi
-    else
-      cp "$src" "$dst"
-      echo "vendored: _shared/$f -> $dest/$f"
-    fi
-  done
+  else
+    mkdir -p "$ROOT/$dest"
+    cp "$src" "$dst"
+    echo "vendored: _shared/$f -> $dest/$f"
+  fi
 done
 
 if [[ $check_mode -eq 1 ]]; then
   [[ $status -eq 0 ]] && echo "OK: cópias vendored idênticas a _shared/"
 else
-  echo "OK: vendoring concluído (${#CONSUMERS[@]} plugin(s))."
+  echo "OK: vendoring concluído (${#SPECS[@]} cópia(s))."
 fi
 exit $status

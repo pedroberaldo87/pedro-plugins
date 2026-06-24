@@ -1,81 +1,81 @@
 ---
 name: improve
-description: Generic self-improvement implementer for any app using the autoresearch ML methodology. Reads the app's IMPROVEMENT_PROGRAM.md for context, fetches proposals from GitHub Issues (label 'autoresearch'), implements changes. Use with "improve", "melhoria", "rodada de improvement".
+description: Implementador genérico de auto-melhoria pra qualquer app usando a metodologia de ML autoresearch. Lê o IMPROVEMENT_PROGRAM.md do app pra contexto, busca propostas de GitHub Issues (label 'autoresearch'), implementa as mudanças. Use com "improve", "melhoria", "rodada de improvement".
 ---
 
-# Improve — Generic Self-Improvement Implementer
+# Improve — Implementador Genérico de Auto-Melhoria
 
-## Overview
+## Visão Geral
 
-A generic skill that implements improvement proposals for ANY app following the autoresearch ML methodology. The skill knows HOW to implement — the app's `IMPROVEMENT_PROGRAM.md` knows WHAT to implement.
+Uma skill genérica que implementa propostas de melhoria pra QUALQUER app seguindo a metodologia de ML autoresearch. A skill sabe COMO implementar — o `IMPROVEMENT_PROGRAM.md` do app sabe O QUE implementar.
 
-**This skill is app-agnostic.** All app-specific knowledge lives in the app's documentation.
+**Esta skill é agnóstica de app.** Todo conhecimento específico do app vive na documentação do app.
 
-## How It Works
+## Como Funciona
 
 ```
 ┌──────────────────────────────┐     ┌──────────────────────────────┐
-│  /improve (this skill)       │     │  App's IMPROVEMENT_PROGRAM.md│
+│  /improve (esta skill)       │     │  IMPROVEMENT_PROGRAM.md do app│
 │  ─────────────────────       │     │  ─────────────────────────── │
-│  Generic implementer:        │────▶│  App-specific context:       │
-│  • Read docs                 │     │  • Objectives per stage      │
-│  • Fetch GitHub Issues       │     │  • What's tunable            │
-│  • Implement changes         │     │  • What's immutable          │
-│  • Lint, commit, deploy      │     │  • API endpoints             │
-│  • Close issues              │     │  • How to diagnose           │
-└──────────────────────────────┘     │  • How to evaluate           │
-                                     │  • Safety rules              │
+│  Implementador genérico:     │────▶│  Contexto específico do app: │
+│  • Ler docs                  │     │  • Objetivos por etapa       │
+│  • Buscar GitHub Issues      │     │  • O que é ajustável         │
+│  • Implementar mudanças      │     │  • O que é imutável           │
+│  • Lint, commit, deploy      │     │  • Endpoints da API          │
+│  • Fechar issues             │     │  • Como diagnosticar         │
+└──────────────────────────────┘     │  • Como avaliar              │
+                                     │  • Regras de segurança       │
                                      └──────────────────────────────┘
 ```
 
-## Process
+## Processo
 
-### 1. Find the App's Program
+### 1. Achar o Program do App
 
-Look for `IMPROVEMENT_PROGRAM.md` in the current working directory or in any `apps/*/` subdirectory. This file is REQUIRED — if it doesn't exist, tell the user they need to create one for their app.
+Procure `IMPROVEMENT_PROGRAM.md` no diretório de trabalho atual ou em qualquer subdir `apps/*/`. Este arquivo é OBRIGATÓRIO — se não existe, diga ao usuário que ele precisa criar um pro app dele.
 
 ```bash
-# Look for program files
+# Procura os arquivos de program
 find . -name "IMPROVEMENT_PROGRAM.md" -maxdepth 3
 ```
 
-If multiple are found (monorepo), ask the user which app to improve. If only one, use it.
+Se vários forem achados (monorepo), pergunte ao usuário qual app melhorar. Se só um, use ele.
 
-**Read the entire IMPROVEMENT_PROGRAM.md before doing anything.** It contains:
-- The app's objectives and metrics
-- What files can be modified and what files are IMMUTABLE
-- API endpoints for health/status
-- How to diagnose issues
-- How to generate proposals
-- Safety rules
+**Leia o IMPROVEMENT_PROGRAM.md inteiro antes de fazer qualquer coisa.** Ele contém:
+- Os objetivos e métricas do app
+- Quais arquivos podem ser modificados e quais são IMUTÁVEIS
+- Endpoints da API pra health/status
+- Como diagnosticar problemas
+- Como gerar propostas
+- Regras de segurança
 
-### 2. Fetch Status
+### 2. Buscar o Status
 
-Use the health/status endpoints documented in the program file to show current state:
-- Overall score / health metric
-- Per-stage or per-component scores
-- Trend (improving / declining / stable)
-- Active proposal status (if any)
+Use os endpoints de health/status documentados no program file pra mostrar o estado atual:
+- Score geral / métrica de saúde
+- Scores por etapa ou por componente
+- Tendência (melhorando / piorando / estável)
+- Status de proposta ativa (se houver)
 
-Present a concise summary to the user.
+Apresente um resumo conciso ao usuário.
 
-### 3. Check GitHub Issues
+### 3. Checar GitHub Issues
 
 ```bash
 gh issue list --repo {repo} --label autoresearch --state open --json number,title,body,labels
 ```
 
-Where `{repo}` is determined from git remote (`git remote get-url origin`).
+Onde `{repo}` é determinado pelo git remote (`git remote get-url origin`).
 
-**If open issues exist:** List them with number + title. Ask user which to implement.
+**Se houver issues abertas:** Liste com número + título. Pergunte ao usuário qual implementar.
 
-**If no open issues exist:** Offer two options:
-- Generate a new proposal: call the proposal generation endpoint from the program file. The API response includes a `github_issue` field with pre-formatted `title` and `body`. Use `gh issue create` to create the issue from this data.
-- Let the user describe what they want to improve manually
+**Se não houver issues abertas:** Ofereça duas opções:
+- Gerar uma proposta nova: chame o endpoint de geração de proposta do program file. A resposta da API inclui um campo `github_issue` com `title` e `body` pré-formatados. Use `gh issue create` pra criar a issue a partir desses dados.
+- Deixar o usuário descrever o que quer melhorar manualmente
 
-### 4. Implement the Change
+### 4. Implementar a Mudança
 
-Read the selected GitHub Issue body. Issues follow this structure:
+Leia o corpo da GitHub Issue selecionada. Issues seguem esta estrutura:
 
 ```markdown
 ## Diagnosis
@@ -99,53 +99,53 @@ config | code
 *Proposal ID: {id}*
 ```
 
-**For config changes:**
-1. Show the proposed changes
-2. Confirm with user
-3. Apply via the API endpoint documented in the program file
-4. No deploy needed (config is read from DB at runtime)
+**Pra mudanças de config:**
+1. Mostre as mudanças propostas
+2. Confirme com o usuário
+3. Aplique via o endpoint da API documentado no program file
+4. Sem deploy necessário (config é lida do DB em runtime)
 
-**For code changes:**
-1. Read the IMPROVEMENT_PROGRAM.md to understand what files are editable
-2. Read the relevant source files
-3. Implement the change described in the issue
-4. **NEVER modify files listed as IMMUTABLE in the program**
-5. Show the diff to the user
-6. Confirm before committing
-7. Lint using the project's lint tools (read from CLAUDE.md or pyproject.toml)
+**Pra mudanças de código:**
+1. Leia o IMPROVEMENT_PROGRAM.md pra entender quais arquivos são editáveis
+2. Leia os arquivos-fonte relevantes
+3. Implemente a mudança descrita na issue
+4. **NUNCA modifique arquivos listados como IMUTÁVEIS no program**
+5. Mostre o diff ao usuário
+6. Confirme antes de commitar
+7. Lint usando as ferramentas de lint do projeto (leia de CLAUDE.md ou pyproject.toml)
 8. Commit: `improve({app}): {short description} (closes #{issue_number})`
-9. Push + deploy using the project's deploy method
+9. Push + deploy usando o método de deploy do projeto
 
-### 5. Close the Issue
+### 5. Fechar a Issue
 
-- Code changes: commit message `closes #N` auto-closes
-- Config changes: close manually with a comment describing what was applied
+- Mudanças de código: a mensagem de commit `closes #N` auto-fecha
+- Mudanças de config: feche manualmente com um comentário descrevendo o que foi aplicado
 
 ```bash
-gh issue close {N} --comment "Applied via /improve. {summary of change}"
+gh issue close {N} --comment "Aplicado via /improve. {resumo da mudança}"
 ```
 
-### 6. Post-Implementation
+### 6. Pós-Implementação
 
-Remind the user based on what the program file says about evaluation:
-- How many runs are needed before evaluation
-- How to trigger runs (if documented)
-- How to check results later (`/improve status`)
+Lembre o usuário com base no que o program file diz sobre avaliação:
+- Quantas runs são necessárias antes da avaliação
+- Como disparar runs (se documentado)
+- Como checar resultados depois (`/improve status`)
 
-## Subcommands
+## Subcomandos
 
 ### `/improve` (default)
-Full cycle: read program → show status → pick issue → implement → deploy
+Ciclo completo: ler program → mostrar status → escolher issue → implementar → deploy
 
 ### `/improve status`
-Read program → show current scores + active proposal progress. No implementation.
+Ler program → mostrar scores atuais + progresso da proposta ativa. Sem implementação.
 
 ### `/improve history`
-Show past improvement rounds from the app's history endpoint.
+Mostrar rodadas de melhoria passadas do endpoint de histórico do app.
 
-## Creating a GitHub Issue from a Proposal
+## Criando uma GitHub Issue a partir de uma Proposta
 
-When the app generates a proposal (via API), create a GitHub Issue:
+Quando o app gera uma proposta (via API), crie uma GitHub Issue:
 
 ```bash
 gh issue create \
@@ -180,25 +180,25 @@ EOF
 )"
 ```
 
-## What This Skill Does NOT Do
+## O Que Esta Skill NÃO Faz
 
-- Does NOT contain app-specific logic — all context comes from the program file
-- Does NOT modify files marked as IMMUTABLE in the program
-- Does NOT auto-implement without user confirmation
-- Does NOT skip lint or deploy verification
-- Does NOT evaluate results — the app's pipeline does that automatically
+- NÃO contém lógica específica de app — todo contexto vem do program file
+- NÃO modifica arquivos marcados como IMUTÁVEIS no program
+- NÃO auto-implementa sem confirmação do usuário
+- NÃO pula verificação de lint ou deploy
+- NÃO avalia resultados — o pipeline do app faz isso automaticamente
 
-## Writing an IMPROVEMENT_PROGRAM.md
+## Escrevendo um IMPROVEMENT_PROGRAM.md
 
-For app developers who want to use this skill, your `IMPROVEMENT_PROGRAM.md` must include:
+Pra devs de app que querem usar esta skill, seu `IMPROVEMENT_PROGRAM.md` tem que incluir:
 
-1. **Architecture** — What executes vs what evaluates (separation of concerns)
-2. **Editable files** — List of files the improvement agent CAN modify
-3. **Immutable files** — List of files that MUST NOT be modified (evaluator, scorecard, etc.)
-4. **API endpoints** — Health, proposals, params, approve/reject URLs
-5. **Objectives per stage/component** — What each part should achieve
-6. **Metrics** — How success is measured (per component)
-7. **Tunable parameters** — What config can be changed without code changes
-8. **Deploy method** — How to deploy after code changes
-9. **Evaluation** — How many runs needed, how results are assessed
-10. **Safety rules** — What constraints must never be violated
+1. **Arquitetura** — o que executa vs o que avalia (separação de responsabilidades)
+2. **Arquivos editáveis** — lista de arquivos que o agente de melhoria PODE modificar
+3. **Arquivos imutáveis** — lista de arquivos que NÃO PODEM ser modificados (avaliador, scorecard, etc.)
+4. **Endpoints da API** — URLs de health, propostas, params, approve/reject
+5. **Objetivos por etapa/componente** — o que cada parte deve alcançar
+6. **Métricas** — como o sucesso é medido (por componente)
+7. **Parâmetros ajustáveis** — qual config pode ser mudada sem mudança de código
+8. **Método de deploy** — como deployar depois de mudanças de código
+9. **Avaliação** — quantas runs são necessárias, como os resultados são avaliados
+10. **Regras de segurança** — quais constraints nunca podem ser violadas

@@ -71,31 +71,33 @@ Passo 8.0 (gate de saída) + na seção "Detecção de rede".
 - `--plan` — o plano de implementação a auditar contra (`.claude/plans/*.md`, `docs/specs/*.md`). Se ausente, tenta achar o plano mais recente; se não houver, roda em modo "review sem plano" (sem o bucket plan-drift/plan-flaw, só implementação — e avisa que está sem âncora).
 - Knobs (todos com default, abaixo).
 
-## Modelo & effort por etapa (R8) — tabela única, `/sovai` obedece a mesma
+## Modelo & effort por etapa (R8) — contrato em `references/r8-tiers.md`
 
 Cada etapa do motor dispara no tier certo pro PESO da decisão ali — nunca "Opus em tudo" nem "Sonnet em
-tudo". O `/sovai` usa os **mesmos nomes de knob** pro motor dele (decompõe→executa→revisa) — trocar o tier
-aqui não diverge do `/sovai`; é a mesma tabela, dois motores.
+tudo". O tier de cada etapa (modelo · effort · knob) e a semântica dos knobs são o **contrato R8
+compartilhado** com o `/sovai`, vendorado em **`references/r8-tiers.md`** (fonte: `_shared/r8-tiers.md` —
+não editar a cópia à mão; `scripts/sync-shared.sh --check` pega drift). Trocar o tier de uma etapa lá vale
+pros dois motores. A tabela completa (Etapa · Modelo · Effort · Knob + o que cada knob significa + a regra de
+tier por rodada) está no arquivo. Abaixo, só **onde cada knob entra NESTE motor** (revisa→planeja→conserta):
 
-| Etapa do fluxo | Modelo | Effort | Knob | Onde no motor |
-|---|---|---|---|---|
-| Planejamento inicial e decomposição | Opus | `xhigh` | `decompose_model` | REVIEW + PLAN da **rodada 1** (sweep completo + plano pesado). |
-| Coordenação rotineira dos agentes | Opus | `high` | `coordinate_model` | REVIEW + PLAN das **rodadas 2+** (caça-regressão + delta). |
-| Execução das tarefas | Sonnet | `high` | `executor_model` | EXEC — Sonnet aplica 1 fix do bucket 1 por vez. |
-| Operações mecânicas e bem delimitadas | Sonnet | `medium` | `mechanical_model` | Fila objetiva da **Fase Gate** (Passo 8.0) — lint/type/unit/integração, sem julgamento. |
-| Diagnóstico após falhas repetidas | Opus | `xhigh` | `diagnose_model` | Escalada de **churn** — mesma função regrediu ≥ `churn_threshold` → diagnóstico de raiz, não mais remendo. |
-| Revisão final e integração | Opus | `xhigh` | `finalize_model` | **Confirm-pass** — antes de declarar rodada limpa, um re-sweep completo dedicado roda aqui; não confia no resultado mais barato (`coordinate_model`) da rodada que pareceu limpa. |
+| Knob | Onde no motor |
+|---|---|
+| `decompose_model` | REVIEW + PLAN da **rodada 1** (sweep completo + plano pesado). |
+| `coordinate_model` | REVIEW + PLAN das **rodadas 2+** (caça-regressão + delta). |
+| `executor_model` | EXEC — Sonnet aplica 1 fix do bucket 1 por vez. |
+| `mechanical_model` | Fila objetiva da **Fase Gate** (Passo 8.0) — lint/type/unit/integração, sem julgamento. |
+| `diagnose_model` | Escalada de **churn** — mesma função regrediu ≥ `churn_threshold` → diagnóstico de raiz, não mais remendo. |
+| `finalize_model` | **Confirm-pass** — antes de declarar rodada limpa, um re-sweep completo dedicado roda aqui; não confia no resultado mais barato (`coordinate_model`) da rodada que pareceu limpa. |
 
 ## Parâmetros / knobs
 
+Os **6 model-knobs** (`decompose_model`, `coordinate_model`, `executor_model`, `mechanical_model`,
+`diagnose_model`, `finalize_model`) com seus defaults de modelo/effort vivem no contrato R8
+(`references/r8-tiers.md`) — não repito os defaults aqui pra não reintroduzir o drift. Os knobs de
+**comportamento** do loop:
+
 | Knob | Default | O que faz |
 |---|---|---|
-| `decompose_model` | `opus` / effort `xhigh` | Rodada 1 (REVIEW+PLAN) — planejamento inicial e decomposição do problema inteiro. |
-| `coordinate_model` | `opus` / effort `high` | Rodadas 2+ (REVIEW+PLAN) — coordenação rotineira, processa só o delta. |
-| `executor_model` | `sonnet` / effort `high` | Execução das tarefas — Sonnet Executor, 1 fix por vez. |
-| `mechanical_model` | `sonnet` / effort `medium` | Fila objetiva da Fase Gate — conserto de lint/type/unit/integração, determinístico. |
-| `diagnose_model` | `opus` / effort `xhigh` | Diagnóstico após churn escalado — raiz do acoplamento, não mais um remendo. |
-| `finalize_model` | `opus` / effort `xhigh` | Confirm-pass — re-sweep completo antes de declarar rodada limpa. |
 | `severity_floor` | `P1` | Conserta P0/P1; P2/P3 viram candidato a accepted-limit. **Load-bearing**: define "finding de severidade real". |
 | `max_rounds` | `6` | **TRAVA DE INCÊNDIO, NÃO META.** Quem decide a parada é o gate de severidade. |
 | `domain` | `auto` | `auto` infere; `convergent` (tem comando pass/fail objetivo) ou `asymptotic`. |

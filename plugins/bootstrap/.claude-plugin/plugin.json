@@ -1,6 +1,6 @@
 {
   "name": "bootstrap",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "Bootstraps a new machine to Pedro's Claude Code setup. Two layers: (1) auto-syncs third-party marketplaces & plugins via hooks (manifest-driven convergence), and (2) applies the versioned global config — env vars, permissions, behavior flags, the global CLAUDE.md, and a machine-resolved statusLine. Replaces bootstrap-third-party. Run /bootstrap:setup once per new machine.",
   "author": {
     "name": "Pedro Beraldo",

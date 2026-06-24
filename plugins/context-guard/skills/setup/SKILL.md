@@ -1,52 +1,49 @@
 ---
 name: context-guard:setup
-description: Configure context-guard plugin — registers hooks and statusLine wrapper in settings.json. Run once after installing the plugin.
+description: Configura o plugin context-guard — registra o wrapper de statusLine e as env vars no settings.json (os hooks de reset/guarda vêm do próprio plugin via hooks.json). Rode 1× após instalar o plugin.
 ---
 
-# Context Guard Setup
+# Setup do Context Guard
 
-You are configuring the context-guard plugin. This plugin interrupts the workflow when context window usage exceeds a threshold, prompting the user to preserve session state.
+Você está configurando o plugin context-guard, que interrompe o workflow quando o uso do context window passa de um threshold, avisando pra preservar o estado da sessão.
 
-## Architecture
+## Arquitetura
 
-Three components that need to be registered in `~/.claude/settings.json`:
+São três componentes — e **só um precisa de setup manual**:
 
-1. **StatusLine wrapper** (`hooks/context-guard-writer.sh`) — intercepts stdin JSON from Claude Code, extracts `context_window.used_percentage`, writes to `/tmp/claude-context-pct`, then optionally forwards to whatever statusLine was previously configured via `CLAUDE_STATUSLINE_FORWARD`.
-2. **PostToolUse hook** (`hooks/context-guard.sh`) — reads that file after every tool call and blocks with `continue:false` if threshold is exceeded.
-3. **SessionStart hook** (`hooks/context-guard-reset.sh`) — clears sentinel and state files so the guard can fire again in new sessions.
+1. **Wrapper de statusLine** (`hooks/context-guard-writer.sh`) — intercepta o JSON de stdin do Claude Code, extrai `context_window.used_percentage`, grava em `/tmp/claude-context-pct` e encaminha pro statusLine que já existia (via `CLAUDE_STATUSLINE_FORWARD`). **Precisa do setup** — statusLine não pode ser um hook de plugin, então tem que ir no `settings.json`.
+2. **Hook PostToolUse** (`hooks/context-guard.sh`) — lê esse arquivo após cada tool call e bloqueia com `continue:false` se passar do threshold. **Vem do plugin** (`hooks/hooks.json`) — NÃO registre à mão.
+3. **Hook SessionStart** (`hooks/context-guard-reset.sh`) — limpa o sentinel e os arquivos de estado pra guarda poder disparar de novo em sessão nova. **Vem do plugin** (`hooks/hooks.json`) — NÃO registre à mão.
 
-**Why settings.json instead of hooks.json?** The plugin's `hooks.json` uses `${CLAUDE_PLUGIN_ROOT}` which depends on the plugin being cached. For directory-source marketplaces, the cache may not exist. Registering hooks directly in `settings.json` with absolute paths is reliable regardless of cache state.
+**Por que só o statusLine vai no settings.json:** os hooks de reset/guarda já são entregues pelo `hooks/hooks.json` do plugin e disparam sozinhos quando o plugin está instalado — registrá-los de novo no `settings.json` seria redundante (o sentinel por sessão neutraliza o disparo duplo, mas é peso à toa, e dois registros do mesmo hook é exatamente o tipo de coisa que o plugin `guardrails` existe pra desfazer). O **statusLine**, ao contrário, não existe como hook de plugin — é o único que precisa entrar no `settings.json`. Por isso o setup faz só isso (+ env vars).
 
-## Steps
+> **Caso directory-source (sem cache):** se o plugin vier de um marketplace de diretório local cujo cache não existe, o `hooks.json` (que usa `${CLAUDE_PLUGIN_ROOT}`) também não carrega — nem os hooks de reset/guarda. Aí instale via marketplace **git** (gera cache) pra os hooks funcionarem; o setup cobre só o que o `settings.json` sempre suporta (statusLine + env).
 
-### 1. Resolve the plugin path
+## Passos
 
-Find the context-guard plugin root dynamically:
+### 1. Resolver o caminho do plugin
+
+Ache a raiz do context-guard dinamicamente:
 
 ```bash
-# Option A: plugin cache (installed from git marketplace)
+# Instalado de marketplace git
 PLUGIN_PATH=$(ls -d ~/.claude/plugins/cache/*/context-guard/*/ 2>/dev/null | tail -1)
-
-# Option B: local directory marketplace
-# Parse extraKnownMarketplaces from settings.json to find the marketplace root,
-# then append plugins/context-guard/
 ```
 
-Validate that the path exists and contains `hooks/context-guard.sh`. Store the resolved path as `PLUGIN_PATH`.
+Valide que o caminho existe e contém `hooks/context-guard-writer.sh`. Guarde como `PLUGIN_PATH`.
 
-### 2. Read current settings
+### 2. Ler o settings atual
 
-Read `~/.claude/settings.json`. Check what already exists:
-- Current `statusLine` entry? (save the original command — we'll preserve it)
-- `CLAUDE_CONTEXT_THRESHOLD` in `env`?
-- `CLAUDE_STATUSLINE_FORWARD` in `env`?
-- Existing `PostToolUse` and `SessionStart` hooks? (don't overwrite — merge)
+Leia `~/.claude/settings.json`. Cheque o que já existe:
+- Tem `statusLine.command`? (salve o original — vamos preservá-lo via forward)
+- `CLAUDE_CONTEXT_THRESHOLD` no `env`?
+- `CLAUDE_STATUSLINE_FORWARD` no `env`?
 
-### 3. Configure statusLine
+### 3. Configurar o statusLine
 
-If there's an existing `statusLine.command`, save it as `CLAUDE_STATUSLINE_FORWARD` in the `env` section so the wrapper can forward to it.
+Se já houver um `statusLine.command`, salve-o como `CLAUDE_STATUSLINE_FORWARD` no `env` pra o wrapper encaminhar pra ele.
 
-Then set `statusLine.command` to:
+Então defina `statusLine.command`:
 ```json
 "statusLine": {
   "type": "command",
@@ -54,88 +51,58 @@ Then set `statusLine.command` to:
 }
 ```
 
-The wrapper extracts context% AND forwards stdin to the original command, so any existing statusLine (claude-hud or other) continues working.
+O wrapper extrai o context% E encaminha o stdin pro comando original — qualquer statusLine que já existia (claude-hud ou outro) continua funcionando.
 
-### 4. Register hooks
+### 4. Adicionar env vars
 
-Add to the `hooks` section in settings.json. **Merge** with existing hooks — don't replace.
-
-Add a **SessionStart** hook:
-```json
-"SessionStart": [
-  {
-    "hooks": [
-      {
-        "type": "command",
-        "command": "<PLUGIN_PATH>/hooks/context-guard-reset.sh",
-        "timeout": 5
-      }
-    ]
-  }
-]
-```
-
-Add a **PostToolUse** entry (append to existing PostToolUse array, don't replace other entries):
-```json
-{
-  "hooks": [
-    {
-      "type": "command",
-      "command": "<PLUGIN_PATH>/hooks/context-guard.sh",
-      "timeout": 5
-    }
-  ]
-}
-```
-
-No `matcher` on PostToolUse — it must fire on ALL tool calls.
-
-### 5. Add env vars
-
-Add to `env` in settings.json (if not already present):
+Adicione ao `env` do settings.json (se ainda não estiver):
 ```json
 "CLAUDE_CONTEXT_THRESHOLD": "80"
 ```
 
-If there was an original statusLine command (from step 3), also add:
+Se havia um statusLine original (passo 3), adicione também:
 ```json
-"CLAUDE_STATUSLINE_FORWARD": "<original statusLine command>"
+"CLAUDE_STATUSLINE_FORWARD": "<comando original do statusLine>"
 ```
 
-### 6. Verify
+### 5. Verificar
 
-Test the full chain:
+Confirme que o wrapper extrai o context% e que o guard do plugin dispara como esperado:
 
 ```bash
-# Test writer extracts context%
+# Wrapper extrai o context%
 rm -f /tmp/claude-context-pct /tmp/claude-context-warned-*
 echo '{"model":{"display_name":"Opus"},"context_window":{"used_percentage":45,"context_window_size":200000}}' | bash <PLUGIN_PATH>/hooks/context-guard-writer.sh > /dev/null 2>&1
-cat /tmp/claude-context-pct  # Should output: 45
+cat /tmp/claude-context-pct  # deve imprimir: 45
 
-# Test guard does NOT fire below threshold
-echo '{}' | CLAUDE_CONTEXT_THRESHOLD=80 bash <PLUGIN_PATH>/hooks/context-guard.sh
-# Should produce no output
+# Guard do plugin NÃO dispara abaixo do threshold
+echo '{}' | CLAUDE_CONTEXT_THRESHOLD=80 bash <PLUGIN_PATH>/hooks/context-guard.sh   # sem saída
 
-# Test guard DOES fire above threshold
+# Guard DISPARA acima do threshold
 printf '85' > /tmp/claude-context-pct
-echo '{}' | CLAUDE_CONTEXT_THRESHOLD=80 bash <PLUGIN_PATH>/hooks/context-guard.sh
-# Should output: {"continue":false,"stopReason":"..."}
+echo '{}' | CLAUDE_CONTEXT_THRESHOLD=80 bash <PLUGIN_PATH>/hooks/context-guard.sh   # {"continue":false,...}
 
-# Clean up test state
+# Limpa o estado de teste
 rm -f /tmp/claude-context-pct /tmp/claude-context-warned-*
 ```
 
-Validate settings.json syntax:
+Valide a sintaxe do settings.json:
 ```bash
 jq . ~/.claude/settings.json > /dev/null
 ```
 
-### 7. Report
+Confirme que os hooks do plugin carregaram:
+```bash
+claude plugin details context-guard@pedro-plugins   # deve mostrar Hooks (2)
+```
+`Hooks (2)` conta tipos de evento (SessionStart + PostToolUse) — correto. `Hooks (0)` = o `hooks.json` não foi reconhecido (problema — provável caso directory-source sem cache).
 
-Tell the user:
-- Context guard is active with threshold at X%
-- To change threshold: edit `CLAUDE_CONTEXT_THRESHOLD` in `~/.claude/settings.json` env section
-- The guard fires ONCE per session, then lets you continue (so you can run /handoff)
-- If a previous statusLine was configured, it's been preserved via `CLAUDE_STATUSLINE_FORWARD`
-- New sessions auto-reset via SessionStart hook
-- Run `/hooks` or restart Claude Code to reload config
+### 6. Reportar
+
+Diga ao usuário:
+- Context guard ativo, threshold em X%.
+- Os hooks de reset/guarda vêm do **plugin** (`hooks.json`) — o setup registrou só o statusLine + env vars no `settings.json` (sem duplicar hooks).
+- Pra mudar o threshold: edite `CLAUDE_CONTEXT_THRESHOLD` no `env` do `~/.claude/settings.json`.
+- A guarda dispara UMA vez por sessão, depois deixa continuar (pra você rodar /handoff).
+- Se havia statusLine antes, foi preservado via `CLAUDE_STATUSLINE_FORWARD`.
+- Rode `/reload-plugins` ou reinicie o Claude Code pra recarregar a config.

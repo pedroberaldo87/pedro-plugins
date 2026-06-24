@@ -52,7 +52,7 @@ Chaves reais dos JSON (confirmadas rodando — **não chutar**):
 
 A skill tem motores prontos e testados. O caminho normal é **rodá-los**, não recriar a lógica:
 
-- **`lib/report.py <projeto> [session]`** — roda os 3 fallow + a auditoria, classifica, e gera o HTML interativo em `~/Desktop/claude-visual/`. Imprime o path + um resumo JSON dos baldes.
+- **`lib/report.py <projeto> [session]`** — roda os 3 fallow + a auditoria, classifica, e gera o HTML interativo **dentro do projeto** (`<projeto>/.claude/visual/`, fallback `~/Desktop/claude-visual/` fora de projeto — mesma cascata da skill `visual`, replicada em `resolve_visual_dir()`). Imprime o path + um resumo JSON dos baldes.
 - **`lib/audit.py <projeto> [--json]`** — auditoria isolada (o `report.py` já a chama internamente). Útil pra rodar/inspecionar só a auditoria.
 
 Antes de abrir o HTML: rodar `plugins/visual/server/start.sh` (live-sync). Depois `open` o arquivo.
@@ -82,7 +82,7 @@ O Fallow é estático: **afirma** "órfão/morto" mas não enxerga cron/systemd,
 
 **Esta etapa NÃO é opcional e NÃO está sujeita ao seu julgamento.** Toda execução do `/fallow` — independente do volume (1 item ou 100), do tipo de projeto, ou de quão "óbvio" o resultado pareça — TEM que gerar o relatório HTML e abri-lo com `open` antes de qualquer limpeza ou conclusão. Apresentar os achados só no chat (tabela, lista, texto) NÃO substitui o relatório e é considerado falha de execução da skill. Se você está pensando "é pouca coisa, dá pra mostrar direto no chat" — pare: isso é exatamente o desvio proibido. Gere o HTML.
 
-Gerar um HTML **dark-theme self-contained** em `~/Desktop/claude-visual/YYYY-MM-DD-fallow-<projeto>.html` (reaproveitar o CSS e o daemon de live-sync da skill `visual` — `plugins/visual/server/start.sh` + `window.VISUAL_SESSION`). Estrutura:
+Gerar um HTML **dark-theme self-contained** em `<projeto>/.claude/visual/YYYY-MM-DD-fallow-<projeto>.html` (fallback `~/Desktop/claude-visual/` fora de projeto — o `report.py` resolve via `resolve_visual_dir()`, espelho da cascata do `resolve-dir.sh` da skill `visual`; reaproveitar o CSS e o daemon de live-sync — `plugins/visual/server/start.sh` + `window.VISUAL_SESSION`). Estrutura:
 
 - **Topo**: saúde (health score) + contadores por balde + **card da auditoria** (goal): "convergiu em N rodadas idênticas" e os números (🛑 falso-positivo do Fallow · ✓ mortos reais · ↩ só uso interno · ⚠ scripts manuais).
 - **Seções colapsáveis por balde.** Cada item = checkbox + path + tag de confiança (`✓ confirmado` verde / `🛑 não deletar` vermelho / `⚠ verificar` amarelo) + **mini-resumo humano sempre visível**. Ao expandir: bloco **⛔ Problema** (humano + técnico) e bloco **✅ Solução** (humano + técnico, com a ação e a prova da auditoria).

@@ -3,8 +3,9 @@
 Motor do relatório /fallow.
 Roda o Fallow (dead-code + dupes + health) num projeto, classifica os achados
 por tipo e nível de confiança, e gera um relatório HTML interativo (checkboxes)
-em ~/Desktop/claude-visual/. Pedro marca o que limpar; a seleção volta pro Claude
-via clipboard (marcador <!-- fallow-selection v1 -->) ou live-sync do daemon visual.
+DENTRO do projeto analisado (<projeto>/.claude/visual/, fallback ~/Desktop/claude-visual/
+fora de projeto) — mesma cascata da skill visual. Pedro marca o que limpar; a seleção
+volta pro Claude via clipboard (marcador <!-- fallow-selection v1 -->) ou live-sync do daemon visual.
 
 Uso:  python3 report.py <project_root> [session_token]
 Imprime no stdout o path do HTML gerado + um resumo JSON dos baldes.
@@ -502,6 +503,36 @@ function post(){{if(!window.VISUAL_SESSION)return;clearTimeout(pt);pt=setTimeout
 </script></body></html>"""
 
 
+def resolve_visual_dir(root):
+    """Espelha plugins/visual/skills/visual/resolve-dir.sh: salva o relatório
+    DENTRO do projeto analisado (<root>/.claude/visual), não no Desktop.
+    Cascata: raiz git → marcador de projeto subindo de root → fallback Desktop.
+    Replicado em Python (não chama o .sh do visual) porque o Claude Code isola
+    plugins no cache — report.py não acha o resolve-dir.sh do plugin visual de
+    forma confiável. Fonte da lógica: resolve-dir.sh."""
+    home = os.path.expanduser("~")
+    # Nível 1 — raiz do repositório git
+    try:
+        r = subprocess.run(["git", "-C", root, "rev-parse", "--show-toplevel"],
+                           capture_output=True, text=True, timeout=10)
+        top = r.stdout.strip()
+        if top:
+            return os.path.join(top, ".claude", "visual")
+    except (subprocess.TimeoutExpired, FileNotFoundError):
+        pass
+    # Nível 2 — sobe procurando marcador de projeto, parando antes de $HOME e /
+    markers = ("package.json", "CLAUDE.md", "pyproject.toml", "Cargo.toml", "go.mod")
+    d = os.path.abspath(root)
+    while d and d != "/" and d != home:
+        if any(os.path.exists(os.path.join(d, m)) for m in markers) \
+           or os.path.isdir(os.path.join(d, "graphify-out")) \
+           or os.path.isdir(os.path.join(d, ".git")):
+            return os.path.join(d, ".claude", "visual")
+        d = os.path.dirname(d)
+    # Nível 3 — fallback Desktop (legado, fora de projeto)
+    return os.path.join(home, "Desktop", "claude-visual")
+
+
 def main():
     if len(sys.argv) < 2:
         print("uso: report.py <project_root> [session]", file=sys.stderr)
@@ -517,7 +548,7 @@ def main():
 
     buckets = build_buckets(dead, dupes, health, audit)
     stamp = datetime.now(timezone.utc).strftime("%Y-%m-%d")
-    out_dir = os.path.expanduser("~/Desktop/claude-visual")
+    out_dir = resolve_visual_dir(root)
     os.makedirs(out_dir, exist_ok=True)
     out_path = os.path.join(out_dir, f"{stamp}-fallow-{name}.html")
     with open(out_path, "w") as f:

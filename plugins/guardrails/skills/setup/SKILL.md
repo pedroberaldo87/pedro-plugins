@@ -1,53 +1,53 @@
 ---
 name: guardrails:setup
-description: One-shot setup for the guardrails plugin — sets the env var the plugin can't carry and removes the old hand-rolled global hooks from settings.json so they don't double-fire alongside the plugin's. Run once per machine after installing.
+description: Setup em um passo do plugin guardrails — seta a env var que o plugin não consegue carregar e remove os hooks globais hand-rolled antigos do settings.json pra não dispararem em dobro junto com os do plugin. Rode 1× por máquina depois de instalar.
 ---
 
 # Guardrails Setup
 
-You are configuring the **guardrails** plugin. The plugin's three hooks (post-edit lint & type-check, scope-cop, Agent Teams guard) come from its own `hooks/hooks.json` and fire automatically once the plugin is installed — you do **NOT** register them here.
+Você está configurando o plugin **guardrails**. Os três hooks do plugin (lint & type-check pós-edição, scope-cop, guard de Agent Teams) vêm do próprio `hooks/hooks.json` dele e disparam automaticamente quando o plugin está instalado — você **NÃO** os registra aqui.
 
-This setup does only the two things a plugin **cannot** do on its own:
+Este setup faz só as duas coisas que um plugin **não consegue** fazer sozinho:
 
-1. **Set the env var** `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1` in `~/.claude/settings.json` (plugins can't carry env vars; the Agent Teams guard is about a feature this flag enables).
-2. **Remove the old hand-rolled global hooks** from `~/.claude/settings.json` so they don't fire **in addition to** the plugin's identical hooks. Without this, every edit runs lint twice and pays for two Haiku judge calls.
+1. **Setar a env var** `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1` em `~/.claude/settings.json` (plugins não carregam env vars; o guard de Agent Teams é sobre um recurso que essa flag habilita).
+2. **Remover os hooks globais hand-rolled antigos** de `~/.claude/settings.json` pra não dispararem **além dos** hooks idênticos do plugin. Sem isso, toda edição roda lint duas vezes e paga duas chamadas do juiz Haiku.
 
-It is **idempotent**: running it again sets an already-set env var and finds the old hooks already gone — no harm.
+É **idempotente**: rodar de novo seta uma env var já setada e acha os hooks antigos já removidos — sem dano.
 
-## What "the old hooks" are
+## O que são "os hooks antigos"
 
-Three entries in `~/.claude/settings.json` → `.hooks`, all pointing at scripts under `~/.claude/hooks/` (or inline):
+Três entradas em `~/.claude/settings.json` → `.hooks`, todas apontando pra scripts em `~/.claude/hooks/` (ou inline):
 
-| Event | Matcher | How to identify it |
+| Evento | Matcher | Como identificar |
 |---|---|---|
-| `PostToolUse` | `Edit\|Write` | a hook whose `command` contains `.claude/hooks/lint-and-typecheck` |
-| `PreToolUse` | `Edit\|Write` | a hook whose `command` contains `.claude/hooks/pretooluse-scope-cop` |
-| `PreToolUse` | `Agent` | a `type: "prompt"` hook whose `prompt` contains `substitute for Agent Teams` |
+| `PostToolUse` | `Edit\|Write` | um hook cujo `command` contém `.claude/hooks/lint-and-typecheck` |
+| `PreToolUse` | `Edit\|Write` | um hook cujo `command` contém `.claude/hooks/pretooluse-scope-cop` |
+| `PreToolUse` | `Agent` | um hook `type: "prompt"` cujo `prompt` contém `substitute for Agent Teams` |
 
-**Must be preserved:** the `SessionStart` hook pointing at `sessionstart-adhd-mode.sh` (the i-have-adhd auto-activator — deliberately out of scope), and any other unrelated hook the user has.
+**Tem que preservar:** o hook `SessionStart` que aponta pra `sessionstart-adhd-mode.sh` (o auto-ativador do i-have-adhd — deliberadamente fora de escopo), e qualquer outro hook não-relacionado que o usuário tenha.
 
-## Steps
+## Passos
 
-### 1. Prerequisite + sanity-check
+### 1. Pré-requisito + sanity-check
 
-Requires `jq` on PATH (`brew install jq` on macOS). Make sure `~/.claude` exists and the settings file is valid JSON:
+Exige `jq` no PATH (`brew install jq` no macOS). Garanta que `~/.claude` existe e que o settings é JSON válido:
 
 ```bash
-command -v jq >/dev/null || { echo "jq not found — install it (brew install jq) and re-run"; exit 1; }
+command -v jq >/dev/null || { echo "jq não encontrado — instale (brew install jq) e rode de novo"; exit 1; }
 mkdir -p "$HOME/.claude"
 SETTINGS="$HOME/.claude/settings.json"
-[ -f "$SETTINGS" ] && { jq . "$SETTINGS" > /dev/null || { echo "settings.json is not valid JSON — aborting"; exit 1; }; }
+[ -f "$SETTINGS" ] && { jq . "$SETTINGS" > /dev/null || { echo "settings.json não é JSON válido — abortando"; exit 1; }; }
 ```
 
-### 2. Back it up
+### 2. Fazer backup
 
 ```bash
 cp "$SETTINGS" "$SETTINGS.bak.$(date +%Y%m%d%H%M%S)"
 ```
 
-### 3. Apply the transform with jq
+### 3. Aplicar a transformação com jq
 
-Run this jq program against `~/.claude/settings.json`. It (a) sets the env var, (b) drops the three old hook entries by matching their command path / prompt text, and (c) deletes the `PostToolUse` / `PreToolUse` arrays only if they end up empty (so unrelated hooks survive).
+Rode este programa jq contra `~/.claude/settings.json`. Ele (a) seta a env var, (b) descarta as três entradas de hook antigas casando pelo path do command / texto do prompt, e (c) deleta os arrays `PostToolUse` / `PreToolUse` só se ficarem vazios (pra hooks não-relacionados sobreviverem).
 
 ```bash
 jq '
@@ -75,32 +75,32 @@ jq '
 ' "$SETTINGS" > "$SETTINGS.tmp" && mv "$SETTINGS.tmp" "$SETTINGS" || { rm -f "$SETTINGS.tmp"; echo "transform falhou — settings.json intacto, .tmp removido"; exit 1; }
 ```
 
-> Note on `any/2`: `any(generator; condition)` runs `condition` against each output of `generator`. Here the input is the entry's `.hooks` array, the generator `.[]` yields each individual hook object, and the condition inspects that hook's `.command` / `.prompt`. So an entry is dropped when **any** of its `hooks[]` looks like one of the old migrated hooks. (Using `.command` directly as the generator would try to index the array itself — wrong.)
+> Nota sobre `any/2`: `any(generator; condition)` roda `condition` contra cada saída de `generator`. Aqui a entrada é o array `.hooks` da entrada, o generator `.[]` produz cada objeto-hook, e a condition inspeciona o `.command` / `.prompt` daquele hook. Então uma entrada é descartada quando **qualquer** dos seus `hooks[]` parece um dos hooks antigos migrados. (Usar `.command` direto como generator tentaria indexar o array em si — errado.)
 
-### 4. Verify
+### 4. Verificar
 
 ```bash
-# Valid JSON?
+# JSON válido?
 jq . "$SETTINGS" > /dev/null && echo "settings.json OK"
 
-# Env var set?
+# Env var setada?
 jq -r '.env.CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS' "$SETTINGS"   # → 1
 
-# Old hooks gone? (all three greps should print nothing)
-jq -r '.hooks' "$SETTINGS" | grep -E 'lint-and-typecheck|pretooluse-scope-cop|substitute for Agent Teams' || echo "old hooks removed"
+# Hooks antigos sumiram? (os três greps não devem imprimir nada)
+jq -r '.hooks' "$SETTINGS" | grep -E 'lint-and-typecheck|pretooluse-scope-cop|substitute for Agent Teams' || echo "hooks antigos removidos"
 
-# adhd SessionStart preserved?
-jq -r '.hooks.SessionStart' "$SETTINGS" | grep -q 'sessionstart-adhd-mode' && echo "adhd hook preserved"
+# SessionStart do adhd preservado?
+jq -r '.hooks.SessionStart' "$SETTINGS" | grep -q 'sessionstart-adhd-mode' && echo "hook adhd preservado"
 ```
 
-### 5. Reload and report
+### 5. Recarregar e reportar
 
-Tell the user, in plain language:
+Diga ao usuário, em linguagem clara:
 
-- The three guardrails (lint/type-check, scope-cop, Agent Teams guard) now come from the **plugin**, not from loose scripts in `~/.claude/hooks/`. Those loose scripts still exist on this machine but are no longer wired up — safe to delete later if they want.
-- `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1` is set.
-- A timestamped backup of `settings.json` was made.
-- Run `/reload-plugins` (or restart Claude Code) so the plugin's hooks load and the removed settings-hooks stop firing.
-- Quick check that they're live: `claude plugin details guardrails@pedro-plugins` should show **Hooks (2)**. That number counts EVENT types (PostToolUse + PreToolUse), not individual hooks — the plugin has 3 hooks total (1 PostToolUse + 2 PreToolUse), so **Hooks (2)** is correct and means they loaded. `Hooks (0)` would mean a problem (hooks.json not picked up).
+- Os três guardrails (lint/type-check, scope-cop, guard de Agent Teams) agora vêm do **plugin**, não de scripts soltos em `~/.claude/hooks/`. Esses scripts soltos ainda existem na máquina mas não estão mais conectados — seguro deletar depois se quiser.
+- `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1` está setada.
+- Um backup com timestamp do `settings.json` foi feito.
+- Rode `/reload-plugins` (ou reinicie o Claude Code) pra os hooks do plugin carregarem e os hooks-settings removidos pararem de disparar.
+- Check rápido de que estão vivos: `claude plugin details guardrails@pedro-plugins` deve mostrar **Hooks (2)**. Esse número conta TIPOS DE EVENTO (PostToolUse + PreToolUse), não hooks individuais — o plugin tem 3 hooks no total (1 PostToolUse + 2 PreToolUse), então **Hooks (2)** está correto e significa que carregaram. `Hooks (0)` indicaria problema (hooks.json não reconhecido).
 
-**Do not** delete the old scripts in `~/.claude/hooks/` automatically — leave that to the user.
+**Não** delete os scripts antigos em `~/.claude/hooks/` automaticamente — deixe isso pro usuário.

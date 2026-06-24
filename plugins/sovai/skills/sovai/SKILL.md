@@ -29,16 +29,18 @@ Se um item não puder ser feito como pedido, **não invente workaround silencios
 
 A execução do plano **não roda solo no loop principal** — roda como **um Workflow determinístico** (a tool `Workflow`), mesmo padrão do `/qa-loop`: **motor = Workflow, casca = esta skill**. Três papéis, cada um no **tier certo pra etapa** (R8 — mesma tabela do `/qa-loop`, mesmos nomes de knob), e os freios (parada, paralelismo, fidelidade) são **lógica do script (JS)** — não "o Opus lembrar a regra a cada volta". É um **pipeline fechado**, por isso Workflow e não Agent Team (e não sub-agente solto, que a regra do Pedro condena e o guard `PreToolUse(Agent)` acorda a cada disparo).
 
-## Modelo & effort por etapa (R8) — tabela única, `/qa-loop` obedece a mesma
+## Modelo & effort por etapa (R8) — contrato em `references/r8-tiers.md`
 
-| Etapa do fluxo | Modelo | Effort | Knob | Onde no motor |
-|---|---|---|---|---|
-| Planejamento inicial e decomposição | Opus | `xhigh` | `decompose_model` | OPUS #1, **rodada 1** — quebra o plano inteiro em tarefas. |
-| Coordenação rotineira dos agentes | Opus | `high` | `coordinate_model` | OPUS #1 nas **rodadas 2+** (só o delta) + OPUS #2 nas rodadas normais. |
-| Execução das tarefas | Sonnet | `high` | `executor_model` | SONNETS — tarefa padrão (`complexity` ausente ou `'standard'`). |
-| Operações mecânicas e bem delimitadas | Sonnet | `medium` | `mechanical_model` | SONNETS — tarefa marcada `complexity: 'mechanical'` (renomear, mover arquivo, 1 config, 1 valor — sem julgamento amplo). |
-| Diagnóstico após falhas repetidas | Opus | `xhigh` | `diagnose_model` | Tarefa reaparece em `missingTasks`/`gaps` por ≥ `churn_threshold` rodadas → diagnóstico de raiz antes de pedir pro Sonnet de novo. |
-| Revisão final e integração | Opus | `xhigh` | `finalize_model` | OPUS #2 — **confirm-pass dedicado** antes de declarar `built=true`; não confia no veredito mais barato (`coordinate_model`) da rodada que pareceu pronta. |
+O tier de cada etapa (modelo · effort · knob) e a semântica dos knobs são o **contrato R8 compartilhado** com o `/qa-loop`, vendorado em **`references/r8-tiers.md`** (fonte: `_shared/r8-tiers.md` — não editar a cópia à mão; `scripts/sync-shared.sh --check` pega drift). A tabela completa (Etapa · Modelo · Effort · Knob + o que cada knob significa + a regra de tier por rodada) está lá. Abaixo, só **onde cada knob entra NESTE motor** (decompõe→executa→revisa):
+
+| Knob | Onde no motor |
+|---|---|
+| `decompose_model` | OPUS #1, **rodada 1** — quebra o plano inteiro em tarefas. |
+| `coordinate_model` | OPUS #1 nas **rodadas 2+** (só o delta) + OPUS #2 nas rodadas normais. |
+| `executor_model` | SONNETS — tarefa padrão (`complexity` ausente ou `'standard'`). |
+| `mechanical_model` | SONNETS — tarefa marcada `complexity: 'mechanical'` (renomear, mover arquivo, 1 config, 1 valor — sem julgamento amplo). |
+| `diagnose_model` | Tarefa reaparece em `missingTasks`/`gaps` por ≥ `churn_threshold` rodadas → diagnóstico de raiz antes de pedir pro Sonnet de novo. |
+| `finalize_model` | OPUS #2 — **confirm-pass dedicado** antes de declarar `built=true`; não confia no veredito mais barato (`coordinate_model`) da rodada que pareceu pronta. |
 
 - **OPUS #1 — Decompositor.** NÃO planeja do zero. Pega o **plano que você deixou** e o quebra em tarefas de implementação, marcando para cada uma os **arquivos que toca**, se é **paralelizável**, de quais tarefas **depende**, e se é `complexity: 'mechanical'` (operação bem delimitada) ou `'standard'`. Na **rodada 1** roda em `decompose_model` (Opus xhigh — planejamento inicial do plano inteiro); nas rodadas seguintes (re-decompõe só o delta do feedback do #2) roda em `coordinate_model` (Opus high — é coordenação rotineira, não mais "decomposição inicial"). Re-arquitetar é proibido (mesma regra do "não replanejar no headless"); buraco no plano que exija decisão de arquitetura vira **Bloqueio**, nunca invenção silenciosa.
 - **SONNETS — Executores.** Implementam as tarefas. Tarefa padrão roda em `executor_model` (Sonnet high); tarefa marcada `complexity: 'mechanical'` roda em `mechanical_model` (Sonnet medium — operação bem delimitada não precisa do julgamento caro). Independentes rodam **em paralelo**; dependentes, **em série** na ordem do #1. Duas tarefas paralelas que tocam o mesmo arquivo → `isolation: 'worktree'` (senão se atropelam). Tarefa única ou missão sequencial pura → o Workflow degenera pra um executor por vez, sem cerimônia (o fan-out é ganho só quando há independência real).

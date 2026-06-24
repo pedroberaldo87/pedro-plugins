@@ -1,14 +1,14 @@
 ---
 name: ship
-description: Use when code is ready to go to production — runs lint, type-check, commit, push, and deploy in one disciplined flow. Trigger on "ship", "manda", "deploya tudo". At the end of an implementation cycle, OFFER to ship — never deploy on your own without Pedro asking.
+description: Use quando o código está pronto pra ir pra produção — roda lint, type-check, commit, push e deploy num fluxo disciplinado. Dispara em "ship", "manda", "deploya tudo". No fim de um ciclo de implementação, OFEREÇA pra dar ship — nunca deploye por conta própria sem o Pedro pedir.
 ---
 
 # Ship — Lint, Commit, Push, Deploy
 
-## Overview
-Single command to take verified code from local to production. Enforces quality gates at each step — if any step fails, stop and fix before continuing.
+## Visão Geral
+Um comando pra levar código verificado do local pra produção. Aplica gates de qualidade em cada passo — se algum falha, para e conserta antes de continuar.
 
-## Flow
+## Fluxo
 
 ```dot
 digraph ship {
@@ -44,13 +44,13 @@ digraph ship {
 }
 ```
 
-## Process
+## Processo
 
-### 1. Detect Project Tools
+### 1. Detectar as ferramentas do projeto
 
-Check project config files to identify the right tools. Do NOT assume — read the configs.
+Cheque os arquivos de config do projeto pra identificar a ferramenta certa. NÃO assuma — leia os configs.
 
-| Look for | Tool |
+| Procure por | Ferramenta |
 |----------|------|
 | **eslint.config.***, **.eslintrc.*** | ESLint |
 | **biome.json** | Biome |
@@ -58,112 +58,112 @@ Check project config files to identify the right tools. Do NOT assume — read t
 | **pyproject.toml** (ruff/mypy/pyright) | ruff, mypy, pyright |
 | **setup.cfg**, **tox.ini** | flake8, mypy |
 
-If the project has a `lint` or `check` script in **package.json** or **Makefile**, prefer that — it's already configured.
+Se o projeto tem um script `lint` ou `check` no **package.json** ou **Makefile**, prefira ele — já está configurado.
 
-### 2. Lint + Type-Check (Fix ALL Errors)
+### 2. Lint + Type-Check (Conserte TODOS os erros)
 
-Run lint and type-check. Fix ALL errors found — including pre-existing ones in files you touched or nearby. Zero errors is the target.
+Rode lint e type-check. Conserte TODOS os erros achados — incluindo pré-existentes nos arquivos que você tocou ou perto deles. Zero erros é a meta.
 
-**Loop until clean:**
-1. Run linter with auto-fix flag if available (`--fix`, `--unsafe-fix`)
-2. Run type-checker
-3. If errors remain, fix manually
-4. Re-run both until zero errors
+**Loop até limpar:**
+1. Rode o linter com flag de auto-fix se houver (`--fix`, `--unsafe-fix`)
+2. Rode o type-checker
+3. Se sobrar erro, conserte à mão
+4. Re-rode os dois até zero erros
 
-**Do NOT skip pre-existing errors.** If the linter reports it, fix it.
+**NÃO pule erros pré-existentes.** Se o linter reporta, conserte.
 
-### 2.5. Run Tests (Hard Gate)
+### 2.5. Rodar Testes (Gate Duro)
 
-Detect and run the test suite before committing anything. In a monorepo with a per-app gate (`scripts/run_app_tests.sh`), run the relevant app's suite per §2.6 — not the whole repo on the wrong interpreter. Otherwise, run the full suite.
+Detecte e rode a suíte de testes antes de commitar qualquer coisa. Num monorepo com gate por-app (`scripts/run_app_tests.sh`), rode a suíte do app relevante por §2.6 — não o repo inteiro no interpretador errado. Senão, rode a suíte completa.
 
-| Look for | Tool |
+| Procure por | Ferramenta |
 |----------|------|
-| `test` script in **package.json** | `npm test` (or `yarn test` / `pnpm test`) |
-| `jest` / `vitest` / `mocha` in devDependencies | run directly if no script |
-| `pytest` in **pyproject.toml** / **setup.cfg** | `pytest` |
+| script `test` no **package.json** | `npm test` (ou `yarn test` / `pnpm test`) |
+| `jest` / `vitest` / `mocha` em devDependencies | rode direto se não houver script |
+| `pytest` em **pyproject.toml** / **setup.cfg** | `pytest` |
 | **Cargo.toml** | `cargo test` |
 | **go.mod** | `go test ./...` |
-| `test` target in **Makefile** | `make test` |
+| target `test` no **Makefile** | `make test` |
 
-**If no test runner is found**, log a warning and continue — but note the absence.
+**Se nenhum test runner for achado**, registre um aviso e continue — mas anote a ausência.
 
-**Loop until all pass:**
-1. Run the full test suite
-2. If all pass → advance to Commit + Push
-3. If any fail → **stop here**
-   - Report which tests failed and the exact errors
-   - Fix the failures — pre-existing failures are **not acceptable** for deploy
-   - Re-run until zero failures
-   - Only then advance
+**Loop até todos passarem:**
+1. Rode a suíte de testes completa
+2. Se todos passam → avança pro Commit + Push
+3. Se algum falha → **para aqui**
+   - Reporte quais testes falharam e os erros exatos
+   - Conserte as falhas — falhas pré-existentes **não são aceitáveis** pra deploy
+   - Re-rode até zero falhas
+   - Só então avance
 
-**This gate cannot be bypassed.** Even if Pedro instructs to proceed with failing tests, do not advance. The correct path is: fix the failures, re-run the suite, then resume the ship flow.
+**Este gate não pode ser burlado.** Mesmo que o Pedro mande seguir com testes falhando, não avance. O caminho certo é: consertar as falhas, re-rodar a suíte, então retomar o fluxo de ship.
 
-> The `pre-deploy-test-check` hook (bundled with this plugin) enforces this gate at the harness level — it intercepts deploy commands and blocks them if the test suite fails.
+> O hook `pre-deploy-test-check` (incluído neste plugin) aplica esse gate no nível do harness — intercepta comandos de deploy e os bloqueia se a suíte falha.
 
-#### 2.6 Per-app gate + LLM scope evaluation (monorepos)
+#### 2.6 Gate por-app + avaliação LLM de escopo (monorepos)
 
-In a monorepo where each app has its own deps/venv, running the whole suite on the system Python collapses into import errors and blocks every deploy. Use a **deterministic floor + LLM evaluation on top**:
+Num monorepo onde cada app tem suas deps/venv, rodar a suíte inteira no Python do sistema colapsa em erros de import e bloqueia todo deploy. Use um **piso determinístico + avaliação LLM por cima**:
 
-- **Floor (deterministic):** if the project has `scripts/run_app_tests.sh`, the gate is `scripts/run_app_tests.sh <app>` — it runs ONLY the deployed app's tests, in the project's test venv (e.g. `.venv-test`), excluding `@pytest.mark.e2e` (tests that need production: live IMAP/SSH/psql). The `pre-deploy-test-check` hook calls this per app automatically.
-- **LLM evaluation (you, at ship time):** identify the target app(s) from the deploy command or the diff. You MAY **widen** scope — e.g. if the diff touches `shared_lib/`, also run the gates of the apps that depend on it. You may NEVER **narrow** below the floor: every non-e2e test of the target app must run. Report transparently what ran, what was excluded as e2e (and why), and the result.
-- The evaluation decides what to ADD and confirms the excluded tests are genuinely e2e — it is never an excuse to skip a relevant test.
+- **Piso (determinístico):** se o projeto tem `scripts/run_app_tests.sh`, o gate é `scripts/run_app_tests.sh <app>` — roda SÓ os testes do app deployado, na venv de teste do projeto (ex: `.venv-test`), excluindo `@pytest.mark.e2e` (testes que precisam de produção: IMAP/SSH/psql ao vivo). O hook `pre-deploy-test-check` chama isso por app automaticamente.
+- **Avaliação LLM (você, na hora do ship):** identifique o(s) app(s)-alvo a partir do comando de deploy ou do diff. Você PODE **ampliar** o escopo — ex: se o diff toca `shared_lib/`, rode também os gates dos apps que dependem dele. Você NUNCA pode **estreitar** abaixo do piso: todo teste não-e2e do app-alvo tem que rodar. Reporte transparente o que rodou, o que foi excluído como e2e (e por quê) e o resultado.
+- A avaliação decide o que ADICIONAR e confirma que os testes excluídos são genuinamente e2e — nunca é desculpa pra pular um teste relevante.
 
-This satisfies the hard gate without the wrong interpreter or the wrong scope. e2e / integration-with-production tests run separately (CI or manual), not in the local pre-deploy gate.
+Isso satisfaz o gate duro sem o interpretador errado nem o escopo errado. Testes e2e / de integração-com-produção rodam à parte (CI ou manual), não no gate local de pré-deploy.
 
 ### 3. Commit + Push
 
-Follow the standard commit flow:
-1. `git status` — review what changed
-2. `git diff` — review the actual changes
-3. `git log --oneline -5` — match commit message style
-4. Stage specific files (no `git add -A` — avoid secrets/binaries)
-5. Write a concise commit message (focus on "why")
-6. `git push` to the current tracking branch
+Siga o fluxo de commit padrão:
+1. `git status` — revise o que mudou
+2. `git diff` — revise as mudanças reais
+3. `git log --oneline -5` — case o estilo da mensagem de commit
+4. Stage de arquivos específicos (sem `git add -A` — evita secrets/binários)
+5. Escreva uma mensagem de commit concisa (foco no "porquê")
+6. `git push` pra branch de tracking atual
 
-**If no tracking branch exists**, ask Pedro before pushing to a new remote branch.
+**Se não houver branch de tracking**, pergunte ao Pedro antes de dar push pra uma branch remota nova.
 
 ### 4. Deploy
 
-Deploy method depends on the project. Detect from:
+O método de deploy depende do projeto. Detecte a partir de:
 
-| Look for | Deploy method |
+| Procure por | Método de deploy |
 |----------|--------------|
-| **ecosystem.config.js**, PM2 in scripts | `pm2 restart` or `pm2 deploy` |
+| **ecosystem.config.js**, PM2 nos scripts | `pm2 restart` ou `pm2 deploy` |
 | **docker-compose.yml** | `docker compose up -d --build` |
-| **Dockerfile** only | Build + deploy per project convention |
+| **Dockerfile** só | Build + deploy pela convenção do projeto |
 | **vercel.json**, `.vercel` | `vercel --prod` |
 | **netlify.toml** | `netlify deploy --prod` |
-| **deploy.sh**, **Makefile deploy** | Run the project's deploy script |
-| SSH/VPS pattern in scripts | SSH deploy per project convention |
+| **deploy.sh**, **Makefile deploy** | Rode o script de deploy do projeto |
+| Padrão SSH/VPS nos scripts | Deploy SSH pela convenção do projeto |
 
-**If deploy method is unclear**, ask Pedro. Do NOT guess.
+**Se o método de deploy não estiver claro**, pergunte ao Pedro. NÃO chute.
 
-### 5. Verify Deploy
+### 5. Verificar o Deploy
 
-After deploy, verify the service is running:
-- Check process status (pm2 status, docker ps, curl health endpoint)
-- Verify config values survived the deploy (especially .env files on VPS)
-- Show evidence to Pedro
+Depois do deploy, verifique que o serviço está rodando:
+- Cheque o status do processo (pm2 status, docker ps, curl no health endpoint)
+- Verifique que os valores de config sobreviveram ao deploy (especialmente `.env` no VPS)
+- Mostre a evidência ao Pedro
 
-**If verification fails**, capture the evidence first, then roll back before retrying — do not leave production half-deployed:
-- **Capture logs first** (`pm2 logs`, `docker logs`, the failing health response) so the cause survives the rollback.
-- **Process manager** — restore the last good process (`pm2 reload <app>` to the previous build, or `pm2 resurrect`).
-- **Git-based deploy** — `git revert` the deploy commit (or reset the server to the last good tag) and re-deploy the last known-good.
-- Only retry the deploy after the cause is understood. Do not report as done while production is broken.
+**Se a verificação falha**, capture a evidência primeiro, depois faça rollback antes de tentar de novo — não deixe a produção meio-deployada:
+- **Capture os logs primeiro** (`pm2 logs`, `docker logs`, a resposta de health que falhou) pra a causa sobreviver ao rollback.
+- **Gerenciador de processos** — restaure o último processo bom (`pm2 reload <app>` pro build anterior, ou `pm2 resurrect`).
+- **Deploy via git** — `git revert` no commit de deploy (ou resete o servidor pra a última tag boa) e re-deploye o último bom-conhecido.
+- Só tente o deploy de novo depois de entender a causa. Não reporte como pronto enquanto a produção está quebrada.
 
-## Safety Rules
+## Regras de Segurança
 
-- **Never deploy without passing lint + type-check first**
-- **Never deploy with failing tests** — even pre-existing failures. If tests fail at gate 2.5, fix them before continuing. This gate cannot be bypassed.
-- **Never force-push** without explicit permission
-- **Check .env files** — they may be overwritten by git operations on VPS
-- **Back up server-specific config** before `git reset --hard` or `git pull` on a server
-- **Ask before deploying to production** if there's a staging environment available
+- **Nunca deploye sem passar lint + type-check primeiro**
+- **Nunca deploye com testes falhando** — mesmo pré-existentes. Se testes falham no gate 2.5, conserte antes de continuar. Este gate não pode ser burlado.
+- **Nunca force-push** sem permissão explícita
+- **Cheque arquivos `.env`** — podem ser sobrescritos por operações git no VPS
+- **Faça backup da config server-specific** antes de `git reset --hard` ou `git pull` num servidor
+- **Pergunte antes de deployar pra produção** se houver um ambiente de staging disponível
 
-**Enforcement asymmetry (know this):** only the test gate (2.5) is backed by a harness hook (`pre-deploy-test-check`). Lint + type-check above are model-enforced discipline — no hook blocks a deploy with lint errors. Treat "lint clean" as your own responsibility, not a machine guarantee.
+**Assimetria de enforcement (saiba disso):** só o gate de teste (2.5) é respaldado por um hook do harness (`pre-deploy-test-check`). Lint + type-check acima são disciplina model-enforced — nenhum hook bloqueia um deploy com erros de lint. Trate "lint limpo" como responsabilidade sua, não garantia da máquina.
 
-## When NOT to Use
+## Quando NÃO Usar
 
-- Code hasn't been tested/verified yet — test first, ship after
-- During a merge freeze (check project memory)
-- When only documentation changed and no deploy is needed — just commit+push, skip deploy
+- Código ainda não foi testado/verificado — teste primeiro, ship depois
+- Durante um merge freeze (cheque a memória do projeto)
+- Quando só documentação mudou e não precisa de deploy — só commit+push, pule o deploy
