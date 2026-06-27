@@ -34,7 +34,7 @@ Se `node`/`npx` **não** existir no ambiente, NÃO trave: caia na **checagem man
 Leia **references/spec.md** e siga a estrutura. Resumo operacional:
 
 - **Duas partes:** frontmatter YAML (entre `---` … `---`) com os tokens + corpo markdown com as seções.
-- **Seções (h2 `##`), nesta ordem**, omita as irrelevantes mas não reordene: **Overview** (ou "Brand & Style") · **Colors** · **Typography** · **Layout** · **Elevation & Depth** · **Shapes** · **Components** · **Do's and Don'ts**. Um `# h1` de título é opcional e não conta como seção. **Heading de seção duplicado = erro** (rejeita o arquivo).
+- **Seções (h2 `##`), nesta ordem**, omita as irrelevantes mas não reordene: **Overview** (ou "Brand & Style") · **Colors** · **Typography** · **Layout** · **Elevation & Depth** · **Shapes** · **Components** · **Do's and Don'ts**. Um `# h1` de título é opcional e não conta como seção. **Heading de seção duplicado** deveria ser erro pela spec — mas o lint v0.3.0 NÃO pega isso (confirmado por teste). **Cheque você mesmo:** nunca repita `## Colors`, `## Typography`, etc.
 - **Tokens no frontmatter:** `name` (obrigatório), `version: alpha`, `description?`, e os grupos `colors` (mínimo `primary`), `typography`, `rounded`, `spacing`, `components`.
 - **Referências entre tokens:** `"{colors.primary}"`, `"{rounded.md}"` — chaves apontam pra valores primitivos; em `components` pode referenciar composto (`{typography.label-md}`).
 - **Cor:** qualquer CSS color válido (hex recomendado). **Dimension:** string com unidade `px`/`em`/`rem`.
@@ -87,3 +87,4 @@ npx --yes @google/design.md export <arquivo> --format dtcg           # W3C Desig
 - **`design.md spec` está quebrado na v0.3.0 publicada** (`Failed to load spec.md` — o build não copia `docs/spec.md` pro pacote). Por isso a spec é **vendorada** em references/spec.md, não puxada do CLI. Quando o upstream consertar, dá pra trocar pra `npx @google/design.md spec`.
 - A versão do CLI não é pinada nos comandos (pega a `latest`); foi validada na **0.3.0**. Se um bump quebrar o comportamento, pine: `@google/design.md@0.3.0`.
 - O formato é `alpha` — a seção Components é declaradamente instável upstream.
+- **O que o lint v0.3.0 pega** (testado): ref quebrada (ERROR), contraste WCAG abaixo de 4.5:1 (WARNING), `primary` ausente, seção fora de ordem, tokens órfãos. **O que NÃO pega:** seção duplicada (contradiz a própria spec) — a checagem manual cobre.
