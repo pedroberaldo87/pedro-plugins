@@ -1,7 +1,7 @@
 {
   "name": "pedro-plugins",
   "metadata": {
-    "description": "Marketplace privado do Pedro: 17 plugins (skills, hooks e automações) pessoais para Claude Code."
+    "description": "Marketplace privado do Pedro: 18 plugins (skills, hooks e automações) pessoais para Claude Code."
   },
   "owner": {
     "name": "Pedro Beraldo",
@@ -195,6 +195,19 @@
         "principles",
         "planning",
         "review"
+      ]
+    },
+    {
+      "name": "design-md",
+      "source": "./plugins/design-md",
+      "description": "Authoring assistant for Google's DESIGN.md format (design-system-as-markdown). Write, validate and export DESIGN.md files — backed by the official @google/design.md CLI via npx, with a spec-based manual fallback when the CLI is unavailable.",
+      "category": "dev-tools",
+      "version": "1.0.0",
+      "tags": [
+        "design-system",
+        "design-tokens",
+        "tailwind",
+        "markdown"
       ]
     },
     {

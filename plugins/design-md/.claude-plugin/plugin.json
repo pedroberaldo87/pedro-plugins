@@ -1,0 +1,10 @@
+{
+  "name": "design-md",
+  "version": "1.0.0",
+  "description": "Authoring assistant for Google's DESIGN.md format (design-system-as-markdown). Write, validate and export DESIGN.md files — backed by the official @google/design.md CLI via npx, with a spec-based manual fallback when the CLI is unavailable.",
+  "author": {
+    "name": "Pedro Beraldo",
+    "email": "pedrotrberaldo@gmail.com"
+  },
+  "homepage": "https://github.com/pedroberaldo87/pedro-plugins"
+}
