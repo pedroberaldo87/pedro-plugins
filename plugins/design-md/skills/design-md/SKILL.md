@@ -7,7 +7,7 @@ description: "Use quando o Pedro quer criar, editar ou validar um design system 
 
 `DESIGN.md` é o formato aberto do Google pra representar um **design system em texto puro**: um arquivo auto-contido com **frontmatter YAML** (tokens de design — cores, tipografia, espaçamento, etc.) + um **corpo markdown** com as seções que explicam o racional. Os tokens são os valores normativos; a prosa dá o contexto de aplicação. É o mesmo arquivo que humano e agente leem e refinam entre sessões.
 
-Esta skill **embrulha o CLI oficial** (`@google/design.md`) — não reimplementa o linter. Escreve o arquivo pela spec, valida pelo CLI, exporta os tokens. A spec completa está vendorada em **references/spec.md** (consulte antes de escrever).
+Esta skill **embrulha o CLI oficial** (`@google/design.md`) — não reimplementa o linter. Escreve o arquivo pela spec, valida pelo CLI, exporta os tokens. A spec completa está vendorada em **`${CLAUDE_PLUGIN_ROOT}/skills/design-md/references/spec.md`** — leia antes de escrever ou de validar manualmente.
 
 ## Quando usar
 - Criar um `DESIGN.md` do zero pra um produto/marca.
@@ -20,18 +20,18 @@ Esta skill **embrulha o CLI oficial** (`@google/design.md`) — não reimplement
 - Editar `tokens.json`/Figma direto — use o `export` pra derivar desses, não o contrário aqui.
 
 ## Pré-requisito (e o fallback)
-O caminho titular usa o CLI via **npx** (precisa de `node`/`npx` no PATH):
+O caminho titular usa o CLI via **npx** (precisa de `node`/`npx` no PATH). A versão é **pinada em `@0.3.0`** — a única testada; o formato é `alpha` e versões futuras podem mudar a sintaxe sem aviso:
 
 ```bash
-npx --yes @google/design.md <comando> ...   # validado na v0.3.0
+npx --yes @google/design.md@0.3.0 <comando> ...
 ```
 
-Se `node`/`npx` **não** existir no ambiente, NÃO trave: caia na **checagem manual pela spec** (references/spec.md) — valide as regras você mesmo (ordem de seções, `primary` presente, refs `{...}` resolvem, contraste WCAG) e **avise explicitamente** que rodou em modo reserva (sem o linter oficial). O fallback é à altura: a spec vendorada tem as mesmas regras; só perde a checagem determinística de contraste.
+Se `node`/`npx` **não** existir no ambiente, NÃO trave: caia na **checagem manual pela spec** (`${CLAUDE_PLUGIN_ROOT}/skills/design-md/references/spec.md`) — valide as regras você mesmo (ordem de seções, `primary` presente, refs `{...}` resolvem, sem seção duplicada, contraste WCAG) e **avise explicitamente** que rodou em modo reserva (sem o linter oficial). O fallback é à altura: a spec vendorada tem as mesmas regras; só perde a checagem determinística de contraste.
 
 ## Fluxo
 
 ### 1. Escrever / editar o arquivo
-Leia **references/spec.md** e siga a estrutura. Resumo operacional:
+Leia a spec (path acima) e siga a estrutura. Resumo operacional:
 
 - **Duas partes:** frontmatter YAML (entre `---` … `---`) com os tokens + corpo markdown com as seções.
 - **Seções (h2 `##`), nesta ordem**, omita as irrelevantes mas não reordene: **Overview** (ou "Brand & Style") · **Colors** · **Typography** · **Layout** · **Elevation & Depth** · **Shapes** · **Components** · **Do's and Don'ts**. Um `# h1` de título é opcional e não conta como seção. **Heading de seção duplicado** deveria ser erro pela spec — mas o lint v0.3.0 NÃO pega isso (confirmado por teste). **Cheque você mesmo:** nunca repita `## Colors`, `## Typography`, etc.
@@ -68,23 +68,27 @@ typography:
 
 ### 2. Validar (titular = CLI)
 ```bash
-npx --yes @google/design.md lint <arquivo> --format text   # legível
-npx --yes @google/design.md lint <arquivo> --format json    # pra parsear
+npx --yes @google/design.md@0.3.0 lint <arquivo> --format json
 ```
-Use `-` no lugar do arquivo pra ler de stdin. Conserte o que o lint apontar (refs quebradas, seção fora de ordem, faltando `primary`, contraste abaixo de WCAG, tokens órfãos) e re-rode até limpo. **Trabalhe a partir da saída real do lint — não presuma o formato.**
+Use `-` no lugar do arquivo pra ler de stdin. **Na v0.3.0 só `--format json` produz saída estruturada** — `--format text` também devolve JSON (bug deles), então parseie o JSON.
+
+Cada finding tem `severity` (`error` / `warning` / `info`) e o `summary` traz as contagens. Critério de "limpo": **`errors: 0` é obrigatório** (ref quebrada é error). **Warnings** (contraste abaixo de WCAG, seção fora de ordem, `primary` ausente, tokens órfãos) são **julgamento** — conserte ou justifique caso a caso; não são bloqueio absoluto. **Trabalhe a partir da saída real do lint — não presuma o formato.**
 
 ### 3. Exportar tokens (sob demanda)
 ```bash
-npx --yes @google/design.md export <arquivo> --format css-tailwind   # Tailwind v4 (@theme CSS)
-npx --yes @google/design.md export <arquivo> --format json-tailwind  # Tailwind v3 (theme.extend) — alias: tailwind
-npx --yes @google/design.md export <arquivo> --format dtcg           # W3C Design Tokens
+npx --yes @google/design.md@0.3.0 export <arquivo> --format css-tailwind   # Tailwind v4 (@theme CSS)
+npx --yes @google/design.md@0.3.0 export <arquivo> --format json-tailwind  # Tailwind v3 (theme.extend) — alias: tailwind
+npx --yes @google/design.md@0.3.0 export <arquivo> --format dtcg           # W3C Design Tokens
 ```
 
 ### 4. Comparar versões (opcional)
-`npx --yes @google/design.md diff <a> <b>` reporta o que mudou entre dois `DESIGN.md`. Rode `diff --help` pra a sintaxe exata antes de usar.
+```bash
+npx --yes @google/design.md@0.3.0 diff <arquivo-antes> <arquivo-depois> --format json
+```
+Reporta `added` / `removed` / `modified` por grupo de token entre dois `DESIGN.md`.
 
 ## Notas de manutenção (honestas)
-- **`design.md spec` está quebrado na v0.3.0 publicada** (`Failed to load spec.md` — o build não copia `docs/spec.md` pro pacote). Por isso a spec é **vendorada** em references/spec.md, não puxada do CLI. Quando o upstream consertar, dá pra trocar pra `npx @google/design.md spec`.
-- A versão do CLI não é pinada nos comandos (pega a `latest`); foi validada na **0.3.0**. Se um bump quebrar o comportamento, pine: `@google/design.md@0.3.0`.
-- O formato é `alpha` — a seção Components é declaradamente instável upstream.
+- **Versão pinada em `@0.3.0`** porque é a única que testei. Pra pegar correções futuras (ex: os bugs abaixo), rode com `@latest` e **re-teste** os comandos antes de confiar — não troque às cegas.
+- **`design.md spec` está quebrado na v0.3.0** (`Failed to load spec.md` — o build não copia `docs/spec.md` pro pacote). Por isso a spec é **vendorada** em references/spec.md, não puxada do CLI. Quando o upstream consertar, dá pra trocar pra `npx @google/design.md spec`.
 - **O que o lint v0.3.0 pega** (testado): ref quebrada (ERROR), contraste WCAG abaixo de 4.5:1 (WARNING), `primary` ausente, seção fora de ordem, tokens órfãos. **O que NÃO pega:** seção duplicada (contradiz a própria spec) — a checagem manual cobre.
+- O formato é `alpha` — a seção Components é declaradamente instável upstream.
