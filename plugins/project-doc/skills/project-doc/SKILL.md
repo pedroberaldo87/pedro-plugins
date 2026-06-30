@@ -9,7 +9,7 @@ description: "Use when entering a project without CLAUDE.md, after major structu
 
 Generates a **documentation system** for a project, not a single file.
 
-**v3 em uma frase:** a doc deixa de ser file-scanner cego e passa a derivar de **toda evidência que o projeto tem** — arquivos, handoffs, memória, grafo, git log e os **transcripts das sessões** — guardando tudo num journal append-only versionado, projetando só o que está vivo e verdadeiro, sem nunca vazar um secret pro git. **A estrutura de saída é idêntica à v2** (markers `project-doc:v2` preservados): mudam a FONTE (cascata de 5 tiers — ver **Sources**) e o MOTOR (journal + projeção — ver **Collect & Project**). Quem conhece a doc v2 não vê diferença estrutural, só uma doc mais completa e auto-mantida.
+**v3 em uma frase:** a doc deixa de ser file-scanner cego e passa a derivar de **toda evidência que o projeto tem** — arquivos, handoffs, memória, grafo, git log e os **transcripts das sessões** — guardando tudo num journal append-only versionado, projetando só o que está vivo e verdadeiro, sem nunca vazar um secret pro git. **A estrutura de saída é idêntica à v2** (markers `project-doc:v2` preservados): mudam a FONTE (cascata de tiers — Tier 0 discurso da invocação → Tier 1 arquivos → … → Tier 5 humano; ver **Sources**) e o MOTOR (journal + projeção — ver **Collect & Project**). Quem conhece a doc v2 não vê diferença estrutural, só uma doc mais completa e auto-mantida.
 
 The system has three layers:
 
@@ -49,7 +49,9 @@ The skill accepts an optional argument to control scope:
 
 **FULL e `--deep` mineram via Workflow (fan-out por concern) por padrão** — ver **Workflow Engine**. Os demais modos rodam single-agent. `--solo` desliga o Workflow.
 
-Doc names map directly to `.claude/docs/{arg}.md`. If the argument doesn't match a known doc name, treat it as a full run and warn the user.
+Doc names map directly to `.claude/docs/{arg}.md`.
+
+**Separe o flag de modo da prosa (v3.8):** o argumento que casa um modo/doc-name conhecido (`migrate`, `verify`, `index`, `pointers`, `clean`, `--deep`, `--rebuild`, `--solo`, `--nested`, ou um doc-name válido) controla o **modo**; **todo o resto da invocação é prosa — o discurso direcionado (Tier 0), NÃO um doc-name desconhecido.** Não trate prosa livre como "doc-name que não casou → warn"; capture-a como o **brief do run** (ver **Tier 0** em Sources e o passo de captura na casca). Só avise "doc-name desconhecido" quando o argumento for claramente um token único parecido com doc-name e que não casa nenhum doc — não quando é uma frase. Sem flag reconhecido + prosa presente → FULL mode **com brief**.
 
 ## Nested Pointers (`--nested`, EXPERIMENTAL)
 
@@ -107,7 +109,7 @@ Report each step to the user as you execute. Don't skip steps or batch them sile
 **Step 5/14:** Mode → FULL | MIGRATE (v1→v2 detected) | CREATE (no CLAUDE.md)
 **Step 6/14:** CLAUDE.md → v1 markers (will migrate) | v2 index (will update) | none (will create)
 **Step 7/14:** Graph (**Passo 0 — obrigatório em todo modo**) → `graphify update --force` {criado | atualizado | já fresco} + graph_map (FULL/`--deep`) → {N god nodes, M comunidades, K hyperedges} | **graphify ausente → ERRO que bloqueia (instale)**
-**Step 8/14:** Collecting → tier 1 scan (arquivos por concern, **ranqueados por fan-in do grafo**) + `journal.py` tiers 2-4 → {new_events, live_count, stale}
+**Step 8/14:** Collecting → **tier 0 discurso** (se houve: {N fato(s) persistido(s) no journal · M direção(ões) guiando este run}) + tier 1 scan (arquivos por concern, **ranqueados por fan-in do grafo**) + `journal.py` tiers 2-4 → {new_events, live_count, stale}
 **Step 9/14:** Generating docs → {list of .claude/docs/*.md to create/update, with line counts}
 **Step 10/14:** Writing CLAUDE.md index → {N lines}
 **Step 11/14:** Pointer files → {list created/updated/skipped}
@@ -120,7 +122,7 @@ Report each step to the user as you execute. Don't skip steps or batch them sile
 
 ```
 **Step 1/4:** Root → `/path/to/project`, scope → {doc-name}
-**Step 2/4:** Scanning {doc-name} sources... (list files read)
+**Step 2/4:** Scanning {doc-name} sources... (list files read) + **tier 0 discurso** (se houve prosa: {N fato(s) persistido(s) · M direção(ões)})
 **Step 3/4:** Written → `.claude/docs/{doc-name}.md` ({N} lines), CLAUDE.md index updated
 **Step 4/4:** Commit + push → {commitado `<hash>` + pushado | commitado, push pulado: `<motivo>` | nada a commitar}
 ```
@@ -166,7 +168,9 @@ Report each step to the user as you execute. Don't skip steps or batch them sile
    - If argument is a doc name → INCREMENTAL mode (skip to step 6, scan only that doc's sources)
    - If no argument and v1 markers found (`<!-- project-doc:start -->`) → auto-trigger MIGRATE, then FULL
    - If no argument → FULL mode
-6. **Collect from the 5-tier source cascade** (see **Sources** + **Collect & Project**). Tier 1 = scan files via the Detection Matrix below; tiers 2-4 = run the lib (`journal.py`); tier 5 = ask the human for critical gaps.
+   - **Em QUALQUER ramo acima, a prosa livre que sobra além do flag/doc-name é o discurso direcionado (Tier 0)** — separada do flag (ver **Invocation Modes**), capturada no passo 6 (não muda o modo escolhido). Prosa sem nenhum flag reconhecido → FULL mode + brief.
+6. **Collect from the source cascade** (see **Sources** + **Collect & Project**). Tier 0 = capture the invocation discourse and `adopt` the durable facts; Tier 1 = scan files via the Detection Matrix below; tiers 2-4 = run the lib (`journal.py`); tier 5 = ask the human for critical gaps.
+   - **Tier 0 vale em TODO modo que aceita prosa** (FULL, `--deep`, **e os single-agent** incremental/`index`/`pointers`/`--rebuild`/`--solo`): classifique fato vs direção, `adopt` os fatos (passa pelo scrubber, idempotente), e **reporte o echo-back**. A descrição detalhada está na **casca passo 2** (Workflow Engine) — é a instanciação FULL/`--deep`; **nos modos single-agent a casca roda o MESMO passo** (capturar → classificar → `adopt` fatos → echo-back), só que **sem `RUN.brief`** (não há fan-out): a direção orienta o agente único direto. Nunca descarte prosa só porque o modo é single-agent.
    - **FULL / DEEP:** rode a **checagem ativa (passo 0.1)** e minere via **Workflow** (fan-out por concern) — ver **Workflow Engine**. A checagem **executa** `python3 plugins/project-doc/lib/pattern_check.py --project-root "<root>"` (não só lê o número do marker — roda o script): `in_pattern==false` => fora do padrão => reconstrói via Workflow `deep` + garimpo. `--solo` força single-agent.
    - **FULL mode:** scan everything (tier 1) + `journal.py update` (tiers 2-4, delta)
    - **DEEP mode:** tier 1 + `journal.py deep` (minera TODAS as sessões — cold-start)
@@ -193,6 +197,7 @@ Report each step to the user as you execute. Don't skip steps or batch them sile
     - **Push seguro:** `git fetch` antes; **nunca `--force`**; divergiu de `origin` → tenta `pull --rebase` e re-push, senão reporta. Sem remote/upstream → commita e **pula o push**. Não é repo git → pula commit+push.
     - **Falha de push** (conflito/permissão) → reporta o erro real e segue (commit local feito; doc no disco).
 15. **Report to user:**
+    - **Discurso capturado (Tier 0, echo-back):** `→ N fato(s) persistido(s) no journal · M direção(ões) guiando este run` + lista curta de cada um (fato: o texto; direção: a ordem) — é a garantia visível de que nada do que o humano falou foi descartado. Omita a linha se não houve prosa na invocação.
     - Token impact (before/after comparison)
     - List of docs generated with line counts
     - List of pointer files created/updated/skipped
@@ -203,17 +208,21 @@ Report each step to the user as you execute. Don't skip steps or batch them sile
     - Stale test artifacts detected: {N} ({breakdown}). Offer `/project-doc clean` (see Artifact Cleanup) — detect & report only, never delete here
     - Ask: "Quer preencher os TODOs agora?"
 
-## Sources — cascata de 5 tiers (v3)
+## Sources — cascata de tiers (v3; Tier 0 desde v3.8)
 
 v2 documentava só a partir de **arquivos**. v3 colhe de TODA a evidência do projeto, em cascata ordenada por densidade/custo. Cada tier alimenta os MESMOS campos dos templates v2 (`## Decisões de Arquitetura`, `## Gotchas`, etc.) — a estrutura de saída é idêntica; muda a fonte e o motor.
 
+- **Tier 0 — O discurso da invocação** (v3.8): toda a prosa que o humano digita JUNTO da invocação, além do flag de modo ("documenta, e lembra que o módulo X é legado e vai morrer", "o motivo do network_mode host é Y", "foca no auth", "ignora a pasta Z"). Fonte **autoritativa** — é o humano falando AGORA, conhecimento que não está em arquivo nenhum e que uma mineração cega perde. **Captura automática** (sem marcador — a prosa já está no contexto do agente). Classificada em DUAS naturezas:
+  - **fato / conhecimento durável** ("o motivo do X é Y", "o módulo Z é legado") → **persiste** no journal via `journal.py adopt` (versionado, viaja entre máquinas, sobrevive a `--rebuild`). É o "não se perde" forte.
+  - **direção de processo** ("foca no auth nesta rodada", "ignora a pasta experimental") → **só guia este run** (vai pro `RUN.brief` do Workflow), NÃO grava no journal — não polui o conhecimento durável com ordem efêmera.
+  Distingue do **Tier 5** (o humano **reativo** — a skill *pergunta* quando acha lacuna): o Tier 0 é o humano **proativo**, no momento da invocação. Vive **nesta skill** (captura + julgamento de classificação). Ver o passo de captura na casca (**Workflow Engine → A casca**) e a composição com a Fase B (**Sequência "melhor dos dois mundos"**).
 - **Tier 1 — Arquivos** (a Detection Matrix abaixo): stack, deps, rotas, schema, config. Custo baixo. É o scan que a v2 já fazia. Vive **nesta skill** (julgamento de leitura).
 - **Tier 2 — Destilado pronto:** `.claude/HANDOFF*.md`, `memory/*.md`, `graphify-out/`, `.claude/ata/`. Decisões/gotchas já mastigados. Colhido pelo lib (`journal.py`).
 - **Tier 3 — git log:** o "porquê" das mudanças (mensagens de commit + arquivos tocados, que viram âncoras). Colhido pelo lib.
 - **Tier 4 — Transcripts:** as sessões `.jsonl` de **todos os slugs sob o projeto** — direcionamentos, rejeições, decisões que nunca viraram arquivo. Custo alto. Colhido pelo lib via a engine compartilhada (`collect_engine.py`).
 - **Tier 5 — O humano:** lacuna crítica sem fonte (ex: host SSH que não está em arquivo nenhum) → **pergunte ao Pedro**, em vez de marcar `[TODO]` e seguir. Vive **nesta skill**.
 
-Tiers 2-4 são **mecânicos** e vivem em `plugins/project-doc/lib/journal.py` (degrada gracioso: sem a engine vendorada, pula o tier 4 e usa tiers 1-3). Tier 1 e tier 5 são desta skill. O fluxo completo (coleta → projeção) está em **Collect & Project**.
+Tiers 2-4 são **mecânicos** e vivem em `plugins/project-doc/lib/journal.py` (degrada gracioso: sem a engine vendorada, pula o tier 4 e usa tiers 1-3). Tier 0, tier 1 e tier 5 são desta skill (captura/julgamento). O fluxo completo (coleta → projeção) está em **Collect & Project**.
 
 ## Tier 1 — Detection Matrix (scan de arquivos)
 
@@ -352,6 +361,7 @@ Pegue os findings vivos + o scan tier 1 e **projete** na doc canônica (CLAUDE.m
 - **kind → seção:** gotcha → `patterns.md`/Gotchas (+ top 3-5 no CLAUDE.md); decisão → `architecture.md`/Decisões; feature → Visão Geral; convenção → `patterns.md`. O `kind` semântico é atribuído **aqui** (não no journal).
 - **Reconciliação (OBRIGATÓRIA):** todo finding histórico é confirmado contra o **código atual** antes de entrar. Vale → entra. Não dá pra confirmar → entra marcado `[relatado]`. O código **contradiz** → NÃO entra e você o mata:
   `python3 .../journal.py invalidate --project-root "<root>" --id <id> --reason "..."`. Trate os `stale_ids` com prioridade — são os suspeitos do backward delta.
+  **Exceção Tier 0 (v3.8):** fato vindo do discurso da invocação (é o humano falando AGORA — opinião/intenção como "o módulo X vai morrer") é **autoritativo**: não-confirmável pelo código → `[relatado]`, **nunca** invalidado por "código não confirma". Só mata se o código o **contradiz** frontalmente (evidência alta, igual ao gate 2).
 - **Curadoria:** se o Pedro editar à mão um finding gerado, registre pra sobreviver à re-projeção:
   `python3 .../journal.py curate --project-root "<root>" --id <id> --text "..."` (a projeção respeita o texto curado).
 
@@ -388,7 +398,7 @@ Ausente → cria (AST); stale → atualiza; fresco → no-op. O `--force` garant
 ```bash
 python3 plugins/project-doc/lib/graph_map.py --project-root "<root>"
 ```
-Devolve JSON: `{available, stats, files[], god_nodes[], communities[], generic_communities[], hyperedges[]}` (ver **Schemas / GRAPH_MAP**). Como o Passo 0 já garantiu o grafo, `available:false` aqui é anomalia (graphify falhou após o `update`) ⇒ **ERRO** — não há fan-out sem mapa. O mapa alimenta o particionamento (passo 4) e a leitura profunda (Fase A).
+Devolve JSON: `{available, stats, files[], god_nodes[], communities[], generic_communities[], hyperedges[]}` (ver **Schemas / GRAPH_MAP**). Como o Passo 0 já garantiu o grafo, `available:false` aqui é anomalia (graphify falhou após o `update`) ⇒ **ERRO** — não há fan-out sem mapa. O mapa alimenta o particionamento (passo 5) e a leitura profunda (Fase A).
 
 
 
@@ -410,10 +420,13 @@ A regra-mãe: **doc fora do padrão não é base confiável** — não faça upd
 Espelha o qa-loop: o Workflow roda em background e **não pergunta nada no meio**; tudo entra **embutido no script como `const`** (NÃO via `args` — ver gotcha no molde), os gates são lógica do script (JS), não "o agente lembrar a regra".
 
 **CASCA — passo 0 (antes de disparar):**
-1. Identify root/layout/type/PM + **grafo garantido + mapa (0.0)** + **checagem ativa (0.1)** → decide `update` vs `deep` e se força a sequência.
-2. **Backup** (se há doc): garanta `.claude/.project-doc/backups/` no `.gitignore` (é **efêmero, não versiona** — ao contrário do journal/ledger, que SÃO versionados); então `cp` de `CLAUDE.md` + `.claude/docs/` → `.claude/.project-doc/backups/<UTC-ts>/` + `MANIFEST.json` (git_head, mode). Sem agente.
-3. Roda a **coleta Python 1×** (`journal.py update|deep`) → `{live[], stale_ids, ...}`. A mineração **nunca** entra no fan-out (é determinística e barata).
-4. **Dimensiona** o fan-out e **particiona** por concern, carregando DUAS coisas por concern: (a) os findings (`live[]`/`stale_ids`, roteamento grosso por `raw_kind`+anchor: gotcha→patterns, decisão→architecture, anchor `schema.prisma`→database, etc.) **e** (b) a **lista de arquivos-fonte priorizada pelo grafo** — cruze a Detection Matrix invertida (padrões de path: `schema.prisma`→database, `routes/`→api, etc.) com `GRAPH_MAP.files[]` (ranqueado por fan-in) pra dar a cada agente seus arquivos do concern **em ordem de relevância**, mais os `god_nodes` que caem na fatia. As `communities`/`hyperedges` nomeadas do grafo (módulos/workflows que a Detection Matrix não vê) vão pro concern **architecture** (conteúdo de `architecture.md`/Decisões), não viram eixo de fan-out. No monorepo, um sub-agente por `app×concern` que diverge do comum.
+1. Identify root/layout/type/PM + **grafo garantido + mapa (0.0)** + **checagem ativa (0.1)** → decide `update` vs `deep` e se força a sequência. **Separa o flag de modo da prosa** da invocação (ver **Invocation Modes**): o que sobra de prosa é o **discurso direcionado (Tier 0)**.
+2. **Captura do discurso (Tier 0, v3.8 — antes da coleta Python):** se houve prosa na invocação, **classifique** cada pedaço em **fato durável** vs **direção de processo** (mesmo julgamento da projeção). Para cada **fato**, **persista** com a porta que já existe:
+   `python3 plugins/project-doc/lib/journal.py adopt --project-root "<root>" --text "<fato>" --raw-kind user_directive`
+   (`adopt` → `discovered` de 1ª classe; passa pelo MESMO scrubber de secret; idempotente por `finding_id` — re-rodar não duplica; ver `run_adopt`). `user_directive` é tratado como primário (`gate=True`) na projeção. **A direção de processo NÃO é persistida** — vai só pro `RUN.brief` (montado no passo 5). Persistir ANTES da coleta (passo 4) garante que os fatos entrem no `live[]` desta rodada. Guarde os contadores `{fatos_persistidos, direcoes}` pro echo-back.
+3. **Backup** (se há doc): garanta `.claude/.project-doc/backups/` no `.gitignore` (é **efêmero, não versiona** — ao contrário do journal/ledger, que SÃO versionados); então `cp` de `CLAUDE.md` + `.claude/docs/` → `.claude/.project-doc/backups/<UTC-ts>/` + `MANIFEST.json` (git_head, mode). Sem agente.
+4. Roda a **coleta Python 1×** (`journal.py update|deep`) → `{live[], stale_ids, ...}` (já inclui os fatos do Tier 0 adotados no passo 2). A mineração **nunca** entra no fan-out (é determinística e barata).
+5. **Dimensiona** o fan-out e **particiona** por concern, carregando DUAS coisas por concern: (a) os findings (`live[]`/`stale_ids`, roteamento grosso por `raw_kind`+anchor: gotcha→patterns, decisão→architecture, anchor `schema.prisma`→database, etc.) **e** (b) a **lista de arquivos-fonte priorizada pelo grafo** — cruze a Detection Matrix invertida (padrões de path: `schema.prisma`→database, `routes/`→api, etc.) com `GRAPH_MAP.files[]` (ranqueado por fan-in) pra dar a cada agente seus arquivos do concern **em ordem de relevância**, mais os `god_nodes` que caem na fatia. As `communities`/`hyperedges` nomeadas do grafo (módulos/workflows que a Detection Matrix não vê) vão pro concern **architecture** (conteúdo de `architecture.md`/Decisões), não viram eixo de fan-out. No monorepo, um sub-agente por `app×concern` que diverge do comum. **Monta o `RUN.brief`** (v3.8): o discurso direcionado verbatim (fato + direção) num campo do `const RUN` — dado pequeno, vai inteiro pro prompt de **todo** agente da **Fase A** (é onde a projeção/leitura acontece), pra orientação sem anchor (ex.: "foca no auth") não depender do roteamento por concern. Garimpo/Merge não consomem o brief (tarefa negativa / inserção de nuance já aprovada).
 
 **WORKFLOW — fases:**
 - **Fase A — Scan+Reconcile + leitura profunda (PARALELO):** 1 agente por concern. Cada um executa o protocolo **Project (seu julgamento)** acima, restrito à sua fatia, e agora faz **leitura profunda guiada pelo grafo** (capacidade nova do v3.2 — caminho 1):
@@ -426,9 +439,9 @@ Espelha o qa-loop: o Workflow roda em background e **não pergunta nada no meio*
 - **Fase D — Merge de nuances na prosa (PARALELO, só se há `docs_with_nuances`, v3.4):** 1 agente por doc que ganhou nuance aprovada. Recebe o `body_md` da Fase A + as `approved_nuances` daquele doc e **enxerta cada uma na prosa, sem inflar nem duplicar**. Travas: não reescreve o que já está lá, não copia a doc antiga, só costura as nuances confirmadas no ponto certo da seção. Devolve `MERGED_DOC` (`body_md` final + `merged_count` + `skipped[]`). **A Fase D é LLM — então NÃO é a autoridade final:** o `gateMergedDocs` (JS, gate 9) valida a saída e rejeita qualquer merge que tenha regredido fatos-chave vs a Fase A (a base canônica), caindo pro body da Fase A. As "travas" acima são só instrução de prompt; a garantia é o gate. **Por que existe:** o `journal.py rebuild` é mecânico (re-fold de findings, NÃO re-projeta prosa) — sem esta fase, `adopt`+`rebuild` registra a nuance mas ela nunca entra no `.md`. Era o passo que a v3.2 fazia à mão.
 
 **CASCA — passo final (depois do Workflow):**
-5. **Só a casca escreve no journal** (serializa o append-only): aplica as invalidações aprovadas + reintegra **com guarda de finding_id** (v3.4) — `curate` quando `relation==="curate_existing"` (finding existe, perdeu o tom), `adopt` **só** quando `relation==="new_discovered"` **e** o `finding_id` não está no `live[]` (nunca adopt cego — era o risco das duplicatas), `invalidate` quando a antiga contradiz o código.
-6. **Escreve os arquivos** usando o `body_md` **mergeado da Fase D que passou no gate anti-regressão** (gate 9) pros docs que ganharam nuance; merge **rejeitado** ⇒ escreve o `body_md` da **Fase A** daquele doc (preserva a correção, perde só a costura); os demais saem da Fase A. A prosa já está materializada aqui — o journal (passo 5) é registro fiel, não a fonte da escrita.
-7. **Re-projeta** (`journal.py rebuild`) pra reconciliar o estado vivo do journal — o `--rebuild` futuro parte daí. + **Verification** (inclui secret + frontmatter + anti-regressão, check #18) + relatório com telemetria (nº de agentes por fase, invalidações aplicadas vs propostas, nuances mergeadas vs dropadas, **merges rejeitados pelo gate 9**). **Nunca declarar PASS com `merge_rejected` não reportado.**
+6. **Só a casca escreve no journal** (serializa o append-only): aplica as invalidações aprovadas + reintegra **com guarda de finding_id** (v3.4) — `curate` quando `relation==="curate_existing"` (finding existe, perdeu o tom), `adopt` **só** quando `relation==="new_discovered"` **e** o `finding_id` não está no `live[]` (nunca adopt cego — era o risco das duplicatas), `invalidate` quando a antiga contradiz o código.
+7. **Escreve os arquivos** usando o `body_md` **mergeado da Fase D que passou no gate anti-regressão** (gate 9) pros docs que ganharam nuance; merge **rejeitado** ⇒ escreve o `body_md` da **Fase A** daquele doc (preserva a correção, perde só a costura); os demais saem da Fase A. A prosa já está materializada aqui — o journal (passo 6) é registro fiel, não a fonte da escrita.
+8. **Re-projeta** (`journal.py rebuild`) pra reconciliar o estado vivo do journal — o `--rebuild` futuro parte daí. + **Verification** (inclui secret + frontmatter + anti-regressão, check #18) + relatório com telemetria (nº de agentes por fase, invalidações aplicadas vs propostas, nuances mergeadas vs dropadas, **merges rejeitados pelo gate 9**). **Nunca declarar PASS com `merge_rejected` não reportado.**
 
 ### O script do Workflow (molde — estilo qa-loop)
 
@@ -442,6 +455,7 @@ export const meta = {
 // A casca PREENCHE este RUN ao gerar o script (substitui os placeholders pelos valores reais do run):
 const RUN = {
   root: '<ABS_ROOT>', deep: false, hasOldDoc: true, backupPath: '<ABS_BACKUP>',
+  brief: '<DISCURSO_DIRECIONADO_VERBATIM>',  // Tier 0 (v3.8): prosa da invocação (fato já adotado no journal + direção de processo). '' se não houve. Vai pro prompt de TODO agente.
   graphMap: { /* saída do graph_map.py — sempre populado (o passo 0.0 garante; available:false já abortou antes) */ },
   // files[] já vem ranqueado por fan-in; findings/staleIds podem ser referenciados por id (os agentes leem do disco)
   concerns: [ /* {key, app, files:[], findings:[], staleIds:[], godNodes:[], template} */ ],
@@ -449,7 +463,7 @@ const RUN = {
 
 phase('Scan+Reconcile')                                  // FAN-OUT: 1 agente por concern
 const sections = (await parallel(RUN.concerns.map(c => () =>
-  agent(scanReconcilePrompt(RUN.root, c), { label: `concern:${c.app ? c.app+'/' : ''}${c.key}`,
+  agent(scanReconcilePrompt(RUN.root, c, RUN.brief), { label: `concern:${c.app ? c.app+'/' : ''}${c.key}`,
     phase: 'Scan+Reconcile', schema: DOC_SECTION })
 ))).filter(Boolean)
 
@@ -475,13 +489,17 @@ if (stitched.docsWithNuances && stitched.docsWithNuances.length) {
 return { sections, nuances, stitched, merged }
 ```
 
-A casca lê o `return` e executa os efeitos colaterais (passo final), escrevendo o `merged[].body_md` pros docs que passaram pela Fase D e o `sections[].body_md` pros demais. `scanReconcilePrompt`/`garimpoPrompt`/`mergePrompt`/`stitchAndGate`/`gateMergedDocs` são helpers do próprio script: os três primeiros montam o prompt do agente a partir da fatia; os dois últimos são **JS determinístico** (sem LLM). `mergePrompt` instrui o agente a (a) usar o `body_md` **do prompt** como base e **NÃO ler o `.md` do disco** (ainda é a versão ANTIGA — a casca só escreve depois do Workflow), e (b) enxertar SÓ as `approved_nuances` na prosa, sem reescrever nem duplicar. `gateMergedDocs` é a **rede determinística** que não confia nessa instrução (ver gate 9).
+A casca lê o `return` e executa os efeitos colaterais (passo final), escrevendo o `merged[].body_md` pros docs que passaram pela Fase D e o `sections[].body_md` pros demais. `scanReconcilePrompt`/`garimpoPrompt`/`mergePrompt`/`stitchAndGate`/`gateMergedDocs` são helpers do próprio script: os três primeiros montam o prompt do agente a partir da fatia; os dois últimos são **JS determinístico** (sem LLM). `scanReconcilePrompt` recebe o `RUN.brief` (Tier 0) e o **costura no prompt como orientação do humano pra esta rodada** ("o usuário direcionou: …"); o agente segue a direção (foco/escopo) e trata os fatos como conhecimento autoritativo a projetar na sua fatia. `mergePrompt` instrui o agente a (a) usar o `body_md` **do prompt** como base e **NÃO ler o `.md` do disco** (ainda é a versão ANTIGA — a casca só escreve depois do Workflow), e (b) enxertar SÓ as `approved_nuances` na prosa, sem reescrever nem duplicar. `gateMergedDocs` é a **rede determinística** que não confia nessa instrução (ver gate 9).
 
 > **GOTCHA — embuta os dados como `const`, NÃO via `args`.** O script do Workflow é **específico deste run** (os concerns/findings/graphMap são daquele projeto naquele momento), então a casca o gera com os dados já dentro (`const RUN = {...}`). **Não dependa do `args` global do Workflow:** ele foi observado chegar `undefined` (passado como string JSON, ou na re-invocação via `scriptPath`, que NÃO recarrega `args`), e aí o `RUN.concerns.map`/`args.concerns.map` estoura com *"undefined is not an object"*. Const é uma peça móvel a menos e funciona de primeira. **Mantenha os dados pequenos:** embuta só a LISTA de concerns (keys, app, paths de arquivos ranqueados, ids de findings) + o `graphMap` **destilado** (a saída enxuta do `graph_map.py`, nunca o `graph.json` bruto de MBs); o conteúdo pesado (corpo dos findings, código-fonte) os **agentes leem do disco** (eles têm Read/Bash — o orquestrador JS não tem filesystem).
 
 ### Sequência "melhor dos dois mundos" (quando há doc antiga)
 
 A trava anti-"caminho fácil" é **estrutural**, não confiança: a doc nova já existe e é a base ANTES de a antiga ser lida (Fase B vem depois da A). O garimpeiro só pode **propor adições validadas contra o código** — nunca reescrever, nunca copiar a antiga. Conteúdo presente nas duas é descartado por construção (o gate de dedup-vs-prosa dropa o já-coberto). Fluxo: backup → Fase A (doc nova, isolada, com frontmatter) → Fase B (garimpa o que faltou, valida, casa finding_id) → Stitch filtra e aprova as nuances reais → **Fase D enxerta as aprovadas na prosa** → casca escreve o `body_md` mergeado + registra no journal (`curate`/`adopt` com guarda) → `rebuild` reconcilia o estado vivo. Resultado: mineração fresca + nuances curadas que só viviam na doc antiga, **de fato dentro do `.md`** (não só no journal).
+
+**Composição Tier 0 × Fase B — duas garantias diferentes (v3.8, não confundir):**
+- **Tier 0 + journal = garantia PRIMÁRIA.** O discurso da invocação (fato durável) é `adopt`-ado no journal **versionado** ANTES da coleta, então entra no `live[]` e é projetado nesta mesma rodada. É a fonte da verdade — viaja entre máquinas e sobrevive a `--rebuild`. Esse é o "não se perde" forte.
+- **Fase B (garimpeiro) = rede SECUNDÁRIA cross-run.** Compara a doc **antiga renderizada** × a nova fria e preserva conteúdo opinativo que só vivia no `.md` (entra `[relatado]` quando o código não confirma). **Mas ela não cobre o discurso de invocação na primeira vez** — esse texto não está na doc antiga, está só no chat; quem o captura é o Tier 0. As duas se compõem: **o Tier 0 põe o discurso DENTRO da doc/journal; a Fase B protege o que já está documentado.** Não confiar só no diff: sem o Tier 0, o que o humano fala na invocação nunca chega à doc pra a Fase B ter o que preservar.
 
 ### Schemas (campos pros gates, não texto solto)
 
@@ -762,4 +780,4 @@ Aprovar? [tudo | só deletar | só arquivar | escolher itens | cancelar]
 
 ## Verification (Post-Generation Quality Check) → `references/verification.md`
 
-O checklist de verificação pós-geração — os **19 checks** (integridade estrutural, links, órfãos, cobertura, token budget, paths, portas, env vars, serviços, **secret/scrubber**, deploy flow, relevância, staleness, monorepo, **artefatos versionados no git**, **grafo×doc**, **anti-regressão da Fase D**, **conformidade com o Pattern Manifest**), o formato de output, o Auto-Fix e quando rodar — vivem em **`references/verification.md`**. Rode esse checklist no passo 13 (e no modo `verify`). Não declare PASS sem rodar o check #18 (anti-regressão) e o #19 (`pattern_check.py`).
+O checklist de verificação pós-geração — os **20 checks** (integridade estrutural, links, órfãos, cobertura, token budget, paths, portas, env vars, serviços, **secret/scrubber**, deploy flow, relevância, staleness, monorepo, **artefatos versionados no git**, **grafo×doc**, **anti-regressão da Fase D**, **conformidade com o Pattern Manifest**, **discurso da invocação capturado (Tier 0)**), o formato de output, o Auto-Fix e quando rodar — vivem em **`references/verification.md`**. Rode esse checklist no passo 13 (e no modo `verify`). Não declare PASS sem rodar o check #18 (anti-regressão) e o #19 (`pattern_check.py`).

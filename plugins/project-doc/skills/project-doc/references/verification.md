@@ -1,6 +1,6 @@
 # Verification — project-doc
 
-> Checklist de verificação pós-geração do `/project-doc` (19 checks + output format + auto-fix + quando rodar). Consultado on-demand pela skill no passo 13 e no modo `verify`. Fonte canônica; o `SKILL.md` referencia este arquivo.
+> Checklist de verificação pós-geração do `/project-doc` (20 checks + output format + auto-fix + quando rodar). Consultado on-demand pela skill no passo 13 e no modo `verify`. Fonte canônica; o `SKILL.md` referencia este arquivo.
 
 ## Verification (Post-Generation Quality Check)
 
@@ -127,6 +127,14 @@ python3 plugins/project-doc/lib/pattern_check.py --project-root "<root>"
 ```
 - `in_pattern==true` → **PASS**
 - `in_pattern==false` → **FAIL — <lista de violations>**. As violations mapeiam diretamente para: (a) marker v2 ausente, (b) frontmatter ausente em algum doc, (c) findings.jsonl ausente, (d) `doc-sig:` ausente no frontmatter de algum doc, (e) gen desatualizado. Corrija cada uma antes de declarar pronto — nunca declarar PASS com `in_pattern==false`.
+
+### Invocation Discourse Check (v3.8)
+
+**20. Discurso da invocação capturado (Tier 0)** — só aplica quando houve prosa direcionada na invocação; sem prosa → **N/A**.
+- **Echo-back reportado:** o relatório final tem a linha de discurso capturado (`Discurso capturado … → N fato(s) … · M direção(ões) …`) — ver SKILL.md, **Process passo 15** (e, no Full Mode protocol, o **Step 8/14**). Ausente com prosa presente → **FAIL — discurso capturado mas não reportado** (o humano não tem como saber que nada caiu).
+- **Fatos persistidos:** cada **fato** classificado aparece no journal — `python3 plugins/project-doc/lib/journal.py fold --project-root "<root>"` lista o `id`/`text` no `live[]` (ou está projetado em algum `.claude/docs/*.md`). Fato classificado que não está nem no journal nem na doc → **FAIL**.
+- **Direção não vazou pro journal:** ordem de processo ("foca no auth", "ignora a pasta Z") **não** deve virar finding `discovered` — se aparecer no journal, foi mal-classificada → **WARN — direção de processo persistida indevidamente**.
+- **Secret no discurso:** se o discurso continha algo credencial-shaped, confirme que o scrubber do `adopt` desviou (o `live[]` mostra o texto já limpo) — vazamento = **CRITICAL FAIL** (mesmo critério do check #10).
 
 ### Verification Output Format
 
