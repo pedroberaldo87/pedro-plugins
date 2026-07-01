@@ -42,9 +42,12 @@ if [[ "$FILE_PATH" =~ \.(ts|tsx|js|jsx|mjs|cjs)$ ]]; then
   done
 
   if [ -n "$ESLINT_BIN" ]; then
+    # ESLint v9 looks for its config relative to cwd, not the file path.
+    # cd to the directory where the binary (and config) live so it finds eslint.config.mjs.
+    ESLINT_ROOT=$(dirname "$(dirname "$(dirname "$ESLINT_BIN")")")
     # Capture the linter's exit code BEFORE the pipe — `$(cmd | head)` would
     # report head's status (always 0), so the error block never fired.
-    LINT_RAW=$("$ESLINT_BIN" "$FILE_PATH" --no-warn-ignored 2>&1); RC=$?
+    LINT_RAW=$(cd "$ESLINT_ROOT" && "$ESLINT_BIN" "$FILE_PATH" --no-warn-ignored 2>&1); RC=$?
     LINT_OUTPUT=$(printf '%s\n' "$LINT_RAW" | head -30)
     if [ "$RC" -ne 0 ] && [ -n "$LINT_OUTPUT" ]; then
       ERRORS="${ERRORS}--- ESLint ---\n${LINT_OUTPUT}\n\n"
