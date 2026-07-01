@@ -47,6 +47,7 @@ raiox planilha --channel <key>        # planilha-mestre XLSX do manifest
 raiox ask      --channel <key> "pergunta" [--backend claude-cli|api] [--mostrar-fatos]
 raiox validate <arquivo> --metrics explore/relatorio/<key>/fatos \
                --series-dir explore/relatorio/<key>/series      # prosa E gráficos
+raiox conformidade --channel <key>    # GATE do deck: jargão/rodapé/estrutura vs Constituição
 .venv/bin/python -m pytest tests/ -q   # após qualquer mudança de código
 ```
 
@@ -55,6 +56,7 @@ Regras de operação:
 - Capítulo 8 (benchmark) nasce DRAFT: cesta e momentos pré-registrados no YAML e validados com Pedro ANTES de qualquer conclusão ir para peça.
 - Validações que dependem de Pedro não bloqueiam: computar provisório carimbado DRAFT, acumular perguntas autocontidas, entregar no final.
 - Todo documento com número passa pelo `raiox validate` antes de chegar a Pedro; peça/one-pager também com `--series-dir`.
+- **GATE OBRIGATÓRIO do deck (não opcional):** gerou/regenerou o deck (`raiox slides`) → ele PASSA pelo gate de conformidade antes de chegar a Pedro. Porta dura `raiox conformidade --channel <key>` (REPROVA jargão/rodapé ausente) **e** o loop multi-agente `Workflow({name: "slides-conformidade", args: {channel: "<key>"}})` (Opus revisa contra a Constituição → Opus planeja → Sonnet implementa só no motor de apresentação → Opus re-revisa → Opus adjudicator decide; assintótico, dois-motores hard-fail). NÃO usa nem mexe no qa-loop. Engine no projeto: `.claude/workflows/slides-conformidade.js`; doutrina em `.claude/docs/apresentacao.md › Cumprimento`.
 
 ## Cadência
 
