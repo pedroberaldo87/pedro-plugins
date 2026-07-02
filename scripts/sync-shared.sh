@@ -23,6 +23,8 @@ SPECS=(
   "plugins/project-doc/lib::collect_engine.py"
   "plugins/sovai/skills/sovai/references::r8-tiers.md"
   "plugins/qa-loop/skills/qa-loop/references::r8-tiers.md"
+  "plugins/ship/hooks::green-cache.sh"
+  "plugins/qa-loop/lib::green-cache.sh"
 )
 
 check_mode=0

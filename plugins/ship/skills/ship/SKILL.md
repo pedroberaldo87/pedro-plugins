@@ -10,39 +10,7 @@ Um comando pra levar código verificado do local pra produção. Aplica gates de
 
 ## Fluxo
 
-```dot
-digraph ship {
-    rankdir=TB;
-    "Start" [shape=doublecircle];
-    "Detect tools" [shape=box];
-    "Lint + fix" [shape=box];
-    "Type-check + fix" [shape=box];
-    "All clean?" [shape=diamond];
-    "Fix errors" [shape=box];
-    "Run tests" [shape=box];
-    "Tests pass?" [shape=diamond];
-    "Fix test failures" [shape=box];
-    "Commit + push" [shape=box];
-    "Deploy" [shape=box];
-    "Verify deploy" [shape=box];
-    "Done" [shape=doublecircle];
-
-    "Start" -> "Detect tools";
-    "Detect tools" -> "Lint + fix";
-    "Lint + fix" -> "Type-check + fix";
-    "Type-check + fix" -> "All clean?";
-    "All clean?" -> "Run tests" [label="yes"];
-    "All clean?" -> "Fix errors" [label="no"];
-    "Fix errors" -> "Lint + fix";
-    "Run tests" -> "Tests pass?";
-    "Tests pass?" -> "Commit + push" [label="yes"];
-    "Tests pass?" -> "Fix test failures" [label="no"];
-    "Fix test failures" -> "Run tests";
-    "Commit + push" -> "Deploy";
-    "Deploy" -> "Verify deploy";
-    "Verify deploy" -> "Done";
-}
-```
+Detectar ferramentas → lint/type-check até zerar → testes (gate duro) → commit + push → deploy → verificar. Qualquer gate vermelho para o fluxo e conserta antes de avançar.
 
 ## Processo
 
@@ -62,6 +30,8 @@ Se o projeto tem um script `lint` ou `check` no **package.json** ou **Makefile**
 
 ### 2. Lint + Type-Check (Conserte TODOS os erros)
 
+**Atalho de delta:** se a sessão passou pelo guardrails (lint/type por-edit a cada arquivo salvo) **e** a Fase Gate do qa-loop fechou verde neste tree-hash (`green_cache_check` HIT — ver §2.5), rode lint/type **só nos arquivos do diff** (`git diff --name-only` + staged). Qualquer erro no delta, ou sem HIT no cache → o loop completo abaixo.
+
 Rode lint e type-check. Conserte TODOS os erros achados — incluindo pré-existentes nos arquivos que você tocou ou perto deles. Zero erros é a meta.
 
 **Loop até limpar:**
@@ -73,6 +43,8 @@ Rode lint e type-check. Conserte TODOS os erros achados — incluindo pré-exist
 **NÃO pule erros pré-existentes.** Se o linter reporta, conserte.
 
 ### 2.5. Rodar Testes (Gate Duro)
+
+**Cache verde primeiro:** `source "${CLAUDE_PLUGIN_ROOT}/hooks/green-cache.sh"`. Monorepo com gate por-app → consulte `green_cache_check <repo-root> app:<alvo>` (um por app do deploy); senão `green_cache_check <repo-root> full`. **HIT** → pule a suíte e **reporte**: "suite verde via cache (tree `<hash>`, gravado por `<writer>` às `<ts>`)" — nunca pule em silêncio. **MISS** → rode como abaixo; ao fechar 100% verde, `green_cache_mark <repo-root> <escopo-que-rodou> ship`. Suite vermelha nunca grava.
 
 Detecte e rode a suíte de testes antes de commitar qualquer coisa. Num monorepo com gate por-app (`scripts/run_app_tests.sh`), rode a suíte do app relevante por §2.6 — não o repo inteiro no interpretador errado. Senão, rode a suíte completa.
 
@@ -96,7 +68,7 @@ Detecte e rode a suíte de testes antes de commitar qualquer coisa. Num monorepo
    - Re-rode até zero falhas
    - Só então avance
 
-**Este gate não pode ser burlado.** Mesmo que o Pedro mande seguir com testes falhando, não avance. O caminho certo é: consertar as falhas, re-rodar a suíte, então retomar o fluxo de ship.
+**Este gate não pode ser burlado.** Mesmo que o Pedro mande seguir com testes falhando, não avance. O caminho certo é: consertar as falhas, re-rodar a suíte, então retomar o fluxo de ship. (Cache HIT não é burla — é a MESMA suíte, verde, no mesmo estado exato da árvore; qualquer edição muda o tree-hash e invalida o hit.)
 
 > O hook `pre-deploy-test-check` (incluído neste plugin) aplica esse gate no nível do harness — intercepta comandos de deploy e os bloqueia se a suíte falha.
 

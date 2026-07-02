@@ -57,6 +57,11 @@ if [ "$is_deploy" = false ]; then
   exit 0
 fi
 
+# Cache verde (fail-open): suite já passou 100% neste exato tree-hash → pula a
+# re-execução. Qualquer edição muda o hash e invalida; vermelho nunca grava.
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+[ -f "$SCRIPT_DIR/green-cache.sh" ] && . "$SCRIPT_DIR/green-cache.sh"
+
 # ============================================================
 # Mode 1 — per-app gate (preferred when the project provides it)
 # ============================================================
@@ -100,9 +105,15 @@ if [ -x "$GATE" ] && echo "$COMMAND" | grep -qE 'deploy\.sh'; then
   RAN=""
   for app in $APPS; do
     app_has_tests "$app" || continue
+    if type green_cache_check >/dev/null 2>&1 && green_cache_check "$CWD" "app:$app"; then
+      RAN="$RAN $app(cache)"
+      continue
+    fi
     RAN="$RAN $app"
     if ! ( cd "$CWD" && bash scripts/run_app_tests.sh "$app" ); then
       FAILED="$FAILED $app"
+    else
+      type green_cache_mark >/dev/null 2>&1 && green_cache_mark "$CWD" "app:$app" ship-hook
     fi
   done
 
@@ -183,6 +194,12 @@ if [ -z "$TEST_CMD" ]; then
   exit 0
 fi
 
+# Green cache: whole suite already passed at this exact tree state → allow.
+if type green_cache_check >/dev/null 2>&1 && green_cache_check "$TEST_DIR" full; then
+  echo "✅ Cache verde: suite já passou 100% neste tree-hash — deploy liberado sem re-execução." >&2
+  exit 0
+fi
+
 # Run the tests
 TEST_OUTPUT=$(cd "$TEST_DIR" && eval "$TEST_CMD" 2>&1)
 TEST_EXIT=$?
@@ -192,5 +209,7 @@ if [ $TEST_EXIT -ne 0 ]; then
   echo -e "🚫 Deploy bloqueado — testes falhando ($TEST_RUNNER em $TEST_DIR)\n\nCorreja os testes antes de fazer deploy. Falhas:\n\n$TRUNCATED" >&2
   exit 2
 fi
+
+type green_cache_mark >/dev/null 2>&1 && green_cache_mark "$TEST_DIR" full ship-hook
 
 exit 0

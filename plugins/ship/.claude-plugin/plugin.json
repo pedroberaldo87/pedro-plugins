@@ -1,6 +1,6 @@
 {
   "name": "ship",
-  "version": "1.1.1",
+  "version": "1.2.0",
   "description": "Production deploy flow: lint, type-check, commit, push, deploy in one disciplined sequence. Triggers on 'ship', 'manda', 'deploya tudo'.",
   "author": {
     "name": "Pedro Beraldo",
