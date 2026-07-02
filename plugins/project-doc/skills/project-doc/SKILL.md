@@ -37,67 +37,34 @@ The skill accepts an optional argument to control scope:
 - `/project-doc <doc-name>` — **INCREMENTAL**: regenerate only that doc. Valid names: `architecture`, `database`, `api`, `deploy`, `infrastructure`, `env-vars`, `auth`, `patterns`. For monorepos also: `{app-name}/api`, `{app-name}/database`, etc.
 - `/project-doc index` — regenerate only the CLAUDE.md routing table (re-scan for new/removed docs)
 - `/project-doc pointers` — regenerate only the thin pointer files
-- `/project-doc migrate` — migrate v1 monolithic CLAUDE.md → v2 indexed format (see Migration section)
+- `/project-doc migrate` — migrate v1 monolithic CLAUDE.md → v2 indexed format (see `references/migration.md`)
 - `/project-doc verify` — run verification only, no generation
-- `/project-doc clean` — detect, **cluster**, and offer cleanup/archival of stale test artifacts (see Artifact Cleanup). Nothing is removed without confirmation. Runs standalone (no doc regeneration).
+- `/project-doc clean` — detect, **cluster**, and offer cleanup/archival of stale test artifacts (see `references/artifact-cleanup.md`). Nothing is removed without confirmation. Runs standalone (no doc regeneration).
 - `/project-doc --deep` — **DEEP**: como o FULL, mas o tier 4 minera **TODAS** as sessões de transcript do projeto (cold-start / backfill do histórico de conversas), não só o delta. Pesado — rode pro primeiro mergulho completo.
 - `/project-doc --rebuild` — **REBUILD**: descarta a doc gerada e re-projeta do **journal inteiro** (`findings.jsonl`). Idempotente; não minera nada novo — só re-deriva a doc dos findings vivos.
-- `/project-doc --solo` — escape: força FULL/`--deep` a rodar **single-agent** (sem Workflow). **NÃO pula mais o grafo** — o grafo é obrigatório em todo modo (Passo 0); `--solo` só desliga o Workflow. Debug / projeto pequeno.
-- `/project-doc --nested` — **NESTED (EXPERIMENTAL)**: monorepo only. Generates `apps/{app}/CLAUDE.md` as a **derived pointer** for each app that has a canonical doc in `.claude/docs/apps/{app}.md`. Serialized after t1d (runs only after a full FULL/`--deep` that already wrote the canonical docs). See **Nested Pointers** section.
+- `/project-doc --solo` — escape: força FULL/`--deep` a rodar **single-agent** (sem Workflow). É modo pesado — o grafo continua obrigatório (ver **Workflow Engine → Passo 0**). Debug / projeto pequeno.
+- `/project-doc --nested` — **NESTED (EXPERIMENTAL)**: monorepo only. Generates `apps/{app}/CLAUDE.md` as a **derived pointer** for each app that has a canonical doc in `.claude/docs/apps/{app}.md`. Serialized after t1d (runs only after a full FULL/`--deep` that already wrote the canonical docs). See `references/nested-pointers.md`.
 
-**Grafo é premissa de TODO modo (v3.7):** rodou o project-doc = o grafo tem que existir e estar fresco. **Qualquer** invocação — FULL, `--deep`, incremental, `index`, `pointers`, `--rebuild`, `migrate`, `verify`, `clean`, **inclusive `--solo`** — executa o **Passo 0** (`graphify update --force`: cria se ausente, atualiza se stale, no-op se fresco) antes de ramificar por modo. `graphify` **não instalado ⇒ erro que bloqueia** (não degrada, não pula). `--solo` só desliga o Workflow (single-agent); **não pula mais o grafo**. A **destilação do mapa** (`graph_map.py`) + o **fan-out** continuam exclusivos do FULL/`--deep` — são quem *consome* o mapa; ver **Workflow Engine**. Garantir o grafo (universal) ≠ consumir o mapa no fan-out (FULL/`--deep`).
+**Grafo — regra pesado/leve (v3.9):** modos que DOCUMENTAM (FULL, `--deep`, incremental, `--solo`) garantem o grafo fresco (`graphify update --force`; ausente ⇒ erro que bloqueia); modos leves (`clean`, `verify`, `index`, `pointers`, `migrate`, `--rebuild`) só checam staleness (mtime, barato) e avisam — nunca rodam o update. Regra completa: ver **Workflow Engine → Passo 0** (seção canônica).
 
 **FULL e `--deep` mineram via Workflow (fan-out por concern) por padrão** — ver **Workflow Engine**. Os demais modos rodam single-agent. `--solo` desliga o Workflow.
 
 Doc names map directly to `.claude/docs/{arg}.md`.
 
-**Separe o flag de modo da prosa (v3.8):** o argumento que casa um modo/doc-name conhecido (`migrate`, `verify`, `index`, `pointers`, `clean`, `--deep`, `--rebuild`, `--solo`, `--nested`, ou um doc-name válido) controla o **modo**; **todo o resto da invocação é prosa — o discurso direcionado (Tier 0), NÃO um doc-name desconhecido.** Não trate prosa livre como "doc-name que não casou → warn"; capture-a como o **brief do run** (ver **Tier 0** em Sources e o passo de captura na casca). Só avise "doc-name desconhecido" quando o argumento for claramente um token único parecido com doc-name e que não casa nenhum doc — não quando é uma frase. Sem flag reconhecido + prosa presente → FULL mode **com brief**.
+**Separe o flag de modo da prosa (v3.8):** o argumento que casa um modo/doc-name conhecido controla o **modo**; **todo o resto da invocação é prosa — o discurso direcionado (Tier 0)**, nunca "doc-name desconhecido → warn" (warn só pra token único parecido com doc-name). Sem flag reconhecido + prosa presente → FULL mode **com brief**. Captura/classificação: ver **Tier 0** em Sources + o passo 2 da casca.
 
-## Nested Pointers (`--nested`, EXPERIMENTAL)
+## Nested Pointers (`--nested`, EXPERIMENTAL) → `references/nested-pointers.md`
 
-**What it is:** In a monorepo, Claude Code natively lazy-loads `apps/{app}/CLAUDE.md` when the agent edits files under that app. Without `--nested`, an agent editing `apps/payments/src/routes.ts` directly — without first exploring the project — might miss the canonical doc in `.claude/docs/apps/payments.md`. The `--nested` flag generates a **derived pointer** at `apps/{app}/CLAUDE.md` that covers this "edit-without-exploring" path by surfacing the name, port, and the canonical doc location.
-
-**Why EXPERIMENTAL:** The gain is marginal (Claude Code users familiar with the project follow the Documentation Index; the lazy-load path is an edge case). Inline content would stale immediately (the canonical doc is the source of truth — duplicating gotchas causes drift). The pointer is intentionally thin.
-
-**When it runs:** `--nested` is **not default**. It is opt-in and runs **serialized after t1d** — only once the FULL/`--deep` Workflow has already written all canonical docs in `.claude/docs/apps/{app}.md`. Never runs as a standalone mode before the canonical docs exist.
-
-**What each generated file contains (the derived pointer format):**
-
-```markdown
-<!-- nested-pointer gen=3.6 derived-from=.claude/docs/apps/{app}.md sig=<sig> — nao editar a mao -->
-# {app-name}
-
-**Porta:** {port} · {1-line description of what this app does}
-
-→ doc canônico: `.claude/docs/apps/{app}.md` (leia antes de mexer)
-```
-
-- **Header only:** name + port + 1-line description. No gotchas, no stack details, no commands — avoids stale content. These live in the canonical doc.
-- **Provenance stamp:** HTML comment at the top: `<!-- nested-pointer gen=3.6 derived-from=.claude/docs/apps/{app}.md sig=<sig> — nao editar a mao -->`. The `sig` is the sha256 (first 8 hex) of the canonical doc body at generation time. Deterministic and content-addressed: the sig changes when the canonical doc changes, making staleness detectable.
-- **Pointer line:** `→ doc canônico: .claude/docs/apps/{app}.md (leia antes de mexer)` — the only factual guidance; always current by reference.
-
-**Scope:** one `apps/{app}/CLAUDE.md` per app that has a canonical doc. Apps without a `.claude/docs/apps/{app}.md` (because they follow the common pattern exactly) get **no nested pointer** — no empty file.
-
-**Sig generation (deterministic):**
-```python
-import hashlib, pathlib
-body = pathlib.Path(".claude/docs/apps/{app}.md").read_text()
-# strip frontmatter block (everything between leading --- delimiters)
-if body.startswith("---"):
-    end = body.index("---", 3) + 3
-    body = body[end:].lstrip("\n")
-sig = hashlib.sha256(body.encode()).hexdigest()[:8]
-```
-
-**Staleness detection:** compare the `sig` in the HTML comment against `sha256(canonical_doc_body)[:8]`. If they differ, the nested pointer is stale and should be regenerated (run `/project-doc --nested` again after the canonical doc was updated).
-
-**Do not hand-edit** the generated files — the comment warns explicitly. They are derived; the canonical doc is the source of truth.
+Modo opt-in de monorepo: gera `apps/{app}/CLAUDE.md` como ponteiro derivado (nome + porta + link pro doc
+canônico), serializado após o t1d. Invocação usou `--nested` → **leia `references/nested-pointers.md`**
+(formato do pointer, geração da sig, staleness). O CONDITIONAL invariant do Pattern Manifest (abaixo)
+continua nesta skill.
 
 ## Output Protocol
 
 Report each step to the user as you execute. Don't skip steps or batch them silently.
 
-**Passo 0 — Grafo garantido (precede TODO modo, não renumerado nos protocolos abaixo):** antes de qualquer ramificação por modo, garanta o grafo fresco — `graphify update --force` (cria se ausente, atualiza se stale). `graphify` ausente ⇒ **erro que bloqueia** (instale; não há opt-out). Reporte `Grafo → criado | atualizado | já fresco`. No FULL/`--deep` o Passo 0 também destila o mapa (`graph_map.py`) pro fan-out (ver Workflow Engine); nos demais modos só garante o grafo.
+**Passo 0 — Grafo (precede todo modo, não renumerado nos protocolos abaixo):** regra pesado/leve — ver **Workflow Engine → Passo 0**. Modo pesado → reporte `Grafo → criado | atualizado | já fresco`; modo leve → reporte `Grafo → fresco | ⚠️ stale (aviso, não atualiza)`.
 
 ### Full Mode
 
@@ -108,7 +75,7 @@ Report each step to the user as you execute. Don't skip steps or batch them sile
 **Step 4/14:** Package manager → pnpm | yarn | bun | npm
 **Step 5/14:** Mode → FULL | MIGRATE (v1→v2 detected) | CREATE (no CLAUDE.md)
 **Step 6/14:** CLAUDE.md → v1 markers (will migrate) | v2 index (will update) | none (will create)
-**Step 7/14:** Graph (**Passo 0 — obrigatório em todo modo**) → `graphify update --force` {criado | atualizado | já fresco} + graph_map (FULL/`--deep`) → {N god nodes, M comunidades, K hyperedges} | **graphify ausente → ERRO que bloqueia (instale)**
+**Step 7/14:** Graph (**Passo 0 — modo pesado**) → `graphify update --force` {criado | atualizado | já fresco} + graph_map (FULL/`--deep`) → {N god nodes, M comunidades, K hyperedges} | **graphify ausente → ERRO que bloqueia (instale)**
 **Step 8/14:** Collecting → **tier 0 discurso** (se houve: {N fato(s) persistido(s) no journal · M direção(ões) guiando este run}) + tier 1 scan (arquivos por concern, **ranqueados por fan-in do grafo**) + `journal.py` tiers 2-4 → {new_events, live_count, stale}
 **Step 9/14:** Generating docs → {list of .claude/docs/*.md to create/update, with line counts}
 **Step 10/14:** Writing CLAUDE.md index → {N lines}
@@ -144,13 +111,13 @@ Report each step to the user as you execute. Don't skip steps or batch them sile
 **Step 1/5:** Root → `/path`, escopo → cleanup
 **Step 2/5:** Varrendo artefatos... (imagens soltas, .playwright-mcp/, test-results/, temporários, .DS_Store, protótipos)
 **Step 3/5:** Classificação → 🗑️ deletar ({N}) · 📦 arquivar ({M}) · 🚩 revisar/sensível ({K}) · ✋ manter ({X})
-**Step 4/5:** Lista clusterizada para julgamento (ver Artifact Cleanup) — aguarda aprovação
+**Step 4/5:** Lista clusterizada para julgamento (ver `references/artifact-cleanup.md`) — aguarda aprovação
 **Step 5/5:** Aplicado → {deletados} removidos, {arquivados} → _archive/, {pulados}. Rede de segurança: _archive/{nome}-housekeeping-{data}.tar.gz
 ```
 
 ## Process
 
-**Passo 0 (UNIVERSAL — roda em TODO modo, logo após identificar o root, antes de ramificar):** garanta o grafo fresco — `graphify update "<root>" --force` (cria se ausente, atualiza se stale, no-op se fresco). `graphify` **não instalado ⇒ erro que bloqueia** o run inteiro (único pré-requisito duro; nem `--solo` escapa). Ver **Knowledge Graph Integration** / **Workflow Engine → Passo 0**. A destilação do mapa (`graph_map.py`) só ocorre no FULL/`--deep` (quem consome o fan-out).
+**Passo 0 (logo após identificar o root, antes de ramificar):** aplique a regra pesado/leve do grafo — ver **Workflow Engine → Passo 0** (canônica). A destilação do mapa (`graph_map.py`) só ocorre no FULL/`--deep` (quem consome o fan-out).
 
 1. **Identify project root** — find nearest git repo root or use cwd
 2. **Detect project layout** — check for monorepo indicators:
@@ -170,7 +137,7 @@ Report each step to the user as you execute. Don't skip steps or batch them sile
    - If no argument → FULL mode
    - **Em QUALQUER ramo acima, a prosa livre que sobra além do flag/doc-name é o discurso direcionado (Tier 0)** — separada do flag (ver **Invocation Modes**), capturada no passo 6 (não muda o modo escolhido). Prosa sem nenhum flag reconhecido → FULL mode + brief.
 6. **Collect from the source cascade** (see **Sources** + **Collect & Project**). Tier 0 = capture the invocation discourse and `adopt` the durable facts; Tier 1 = scan files via the Detection Matrix below; tiers 2-4 = run the lib (`journal.py`); tier 5 = ask the human for critical gaps.
-   - **Tier 0 vale em TODO modo que aceita prosa** (FULL, `--deep`, **e os single-agent** incremental/`index`/`pointers`/`--rebuild`/`--solo`): classifique fato vs direção, `adopt` os fatos (passa pelo scrubber, idempotente), e **reporte o echo-back**. A descrição detalhada está na **casca passo 2** (Workflow Engine) — é a instanciação FULL/`--deep`; **nos modos single-agent a casca roda o MESMO passo** (capturar → classificar → `adopt` fatos → echo-back), só que **sem `RUN.brief`** (não há fan-out): a direção orienta o agente único direto. Nunca descarte prosa só porque o modo é single-agent.
+   - **Tier 0 vale em TODO modo que aceita prosa** (inclusive os single-agent): capturar → classificar → `adopt` fatos → echo-back, como na **casca passo 2** (Workflow Engine); nos single-agent não há `RUN.brief` — a direção orienta o agente único direto. Nunca descarte prosa só porque o modo é single-agent.
    - **FULL / DEEP:** rode a **checagem ativa (passo 0.1)** e minere via **Workflow** (fan-out por concern) — ver **Workflow Engine**. A checagem **executa** `python3 plugins/project-doc/lib/pattern_check.py --project-root "<root>"` (não só lê o número do marker — roda o script): `in_pattern==false` => fora do padrão => reconstrói via Workflow `deep` + garimpo. `--solo` força single-agent.
    - **FULL mode:** scan everything (tier 1) + `journal.py update` (tiers 2-4, delta)
    - **DEEP mode:** tier 1 + `journal.py deep` (minera TODAS as sessões — cold-start)
@@ -205,7 +172,7 @@ Report each step to the user as you execute. Don't skip steps or batch them sile
     - Verification results
     - **Commit + push:** `commitado {hash} + pushado` | `commitado, push pulado: {motivo}` | `nada a commitar`
     - Knowledge graph status + suggestion (see Knowledge Graph Integration section)
-    - Stale test artifacts detected: {N} ({breakdown}). Offer `/project-doc clean` (see Artifact Cleanup) — detect & report only, never delete here
+    - Stale test artifacts detected: {N} ({breakdown}). Offer `/project-doc clean` (see `references/artifact-cleanup.md`) — detect & report only, never delete here
     - Ask: "Quer preencher os TODOs agora?"
 
 ## Sources — cascata de tiers (v3; Tier 0 desde v3.8)
@@ -224,113 +191,14 @@ v2 documentava só a partir de **arquivos**. v3 colhe de TODA a evidência do pr
 
 Tiers 2-4 são **mecânicos** e vivem em `plugins/project-doc/lib/journal.py` (degrada gracioso: sem a engine vendorada, pula o tier 4 e usa tiers 1-3). Tier 0, tier 1 e tier 5 são desta skill (captura/julgamento). O fluxo completo (coleta → projeção) está em **Collect & Project**.
 
-## Tier 1 — Detection Matrix (scan de arquivos)
+## Tier 1 — Detection Matrix (scan de arquivos) → `references/detection-matrix.md`
 
-For each section, scan these files (read only those that exist). Detection results are grouped by their target doc file.
-
-### Pre-Detection (run first, feeds multiple docs)
-
-**Project Type Detection:**
-- **app** — has server entry (main.py, index.ts, server.js), Dockerfile, docker-compose.yml, port bindings, deploy scripts
-- **lib** — has exports field in package.json, publishConfig, peer dependencies, or main/module/types fields pointing to dist/
-- **cli** — has bin field in package.json, or depends on commander/yargs/meow/oclif/click/argparse with entry script
-- Default to **app** if unclear. Libs and CLIs omit: infrastructure, deploy, services docs
-
-**Package Manager Detection:**
-- pnpm-lock.yaml → pnpm
-- yarn.lock → yarn
-- bun.lockb → bun
-- package-lock.json → npm
-- (check in this order — first match wins)
-
-**Knowledge Graph Detection (graphify):**
-- Check for `graphify-out/graph.json`. If present, the project has a graphify knowledge graph.
-- **Staleness:** compare `graphify-out/graph.json` mtime (or the `date` in `graphify-out/cost.json` last run) against the most recent source-file change (`git log --format=%aI -1`). If sources are newer → graph is stale.
-- **Em TODO modo (v3.7), o grafo é GARANTIDO, não só detectado** — o **Passo 0** roda `graphify update --force` (cria/atualiza) em qualquer invocação do project-doc; `graphify` ausente ⇒ erro que bloqueia. **Adicionalmente no FULL/`--deep`** o Passo 0 destila o mapa via `graph_map.py`, que **prioriza os arquivos de cada concern por fan-in** pra leitura profunda. A sugestão (`/graphify`) sobrevive só **fora da execução** (proatividade ao navegar o projeto) ou pro labeling LLM caro — ver **Knowledge Graph Integration**.
-- This feeds the "## Knowledge Graph" index section (generated only when the graph exists), the **graph-ranked file reading** in the Workflow (Fase A), and the proactive suggestions.
-
-**Complexity Assessment (when to suggest CREATING a graph):**
-
-**Rule: if `graphify-out/` does not exist, ALWAYS suggest creating a graph. Unconditional.** No triviality test, no coupling assessment, no "this one won't compensate", no gating on size / file count / language / architecture. There is no project that is exempt from the suggestion. This judgment was removed on purpose: the model has repeatedly skipped graphs on projects that clearly warranted one, so it does not decide whether a graph is worth it. The model's only job is to **offer**; whether to actually run `/graphify` (which costs tokens/time) is the user's call, like deploy.
-
-The signals below are NOT a gate — they only tell you to suggest with *extra conviction* and to name the signal you saw. Their absence NEVER cancels the suggestion:
-- monorepo (`apps/` or `packages/`)
-- code spread across ≥3 directories, or multiple distinct modules
-- multiple languages in one repo (e.g. Rust backend + Svelte/TS frontend)
-- event-driven / daemon / WebSocket / DI-container / plugin architecture — wiring that isn't obvious from imports
-- presence of `docs/ARCHITECTURE*`, ADRs, or a CONTEXT.md — the team already flagged it as complex
-- many cross-module references / high fan-in on shared state or service clients
-
-Frame the suggestion by **value**: "o grafo mapeia relações e ajuda a localizar/debugar". Generating a graph has minimal downside (some processing time/tokens; `graphify-out/` can be gitignored), so always offer.
-
-**Test Framework Detection:**
-- jest.config.{js,ts,cjs,mjs}, jest field in package.json → Jest
-- vitest.config.{js,ts,mjs}, vite.config with test → Vitest
-- pytest.ini, conftest.py, pyproject.toml [tool.pytest] → pytest
-- .rspec, spec/ dir → RSpec
-- go test files (*_test.go) → go test
-- Cargo.toml with [dev-dependencies] + #[test] in src → cargo test
-
-### Detection → Doc Mapping
-
-**→ architecture.md**
-- **Visão geral** — README.md, package.json (description), pyproject.toml, go.mod, pom.xml, build.gradle, Gemfile, composer.json, .csproj/.sln, mix.exs
-- **Stack** — package.json, requirements.txt, pyproject.toml, go.mod, Cargo.toml, docker-compose.yml, Dockerfile*, .tool-versions, .node-version, .python-version, pom.xml, build.gradle, Gemfile, composer.json, .csproj/.sln, mix.exs
-- **Estrutura de diretórios** — ls top-level + ls of src/, app/, lib/, pages/, components/ if they exist
-- **Dependências críticas** — package.json (non-obvious deps), requirements.txt (specialized libs), go.mod, pom.xml, build.gradle, Gemfile, composer.json
-- **Decisões de arquitetura** — docs/ARCHITECTURE.md, docs/ADR*, docs/decisions/, README.md architecture sections
-- **Documentação disponível** — docs/*.md, README.md, CONTRIBUTING.md, API docs
-
-**→ database.md**
-- docker-compose.yml (postgres/mysql/mongo/redis images), .env (DB_*/DATABASE_* vars), prisma/schema.prisma, drizzle.config.*, knexfile.*, sqlalchemy configs, migrations/ dir
-
-**→ api.md**
-- app/api/ dir, routes/ dir, controllers/ dir, openapi.yaml, openapi.json, swagger.json, swagger.yaml, graphql schema files. Skip if no route patterns found
-
-**→ deploy.md** (skip for lib/cli)
-- scripts/deploy*, deploy.sh, Makefile, CI/CD configs — READ the full deploy script to document the complete flow
-- Acesso remoto: scripts/deploy*, .env (SERVER/VPS/SSH vars), Makefile (deploy targets), CI/CD configs (.github/workflows/*.yml, .gitlab-ci.yml)
-
-**→ infrastructure.md** (skip for lib/cli)
-- **Serviços/Containers** — docker-compose.yml, docker-compose.*.yml
-- **Portas e URLs** — docker-compose.yml (ports), .env/.env.example (PORT/URL vars), nginx/*.conf, Dockerfile (EXPOSE), server config files
-- **Infra** — nginx/, nginx.conf, nginx/conf.d/*.conf, Caddyfile, traefik configs, certbot/SSL references
-
-**→ env-vars.md**
-- .env.example, .env.local.example, .env (names only, NEVER values), docker-compose.yml (environment section), .env.development, .env.staging, .env.production, .env.local, .env.test
-
-**→ auth.md**
-- middleware.ts, middleware.js, src/middleware.*, auth/, src/auth/, lib/auth*, next-auth config, passport config, JWT patterns in code
-
-**→ patterns.md**
-- **Padrões do projeto** — tsconfig.json (paths), .eslintrc*, .prettierrc*, src/ structure conventions, existing code patterns
-- **Gotchas** — Known from scanning (e.g., network_mode:host, special env handling, non-standard configs)
-- **Testes** — detect framework (see above), add test command with framework name
-
-**→ Inline in CLAUDE.md index (not separate docs)**
-- **Comandos úteis** — package.json (scripts), Makefile (targets), scripts/*.sh, pyproject.toml (scripts) — top 5 only
-- **Top gotchas** — the 3-5 most dangerous gotchas (subset of what goes in patterns.md)
-
-### Monorepo-Specific Detection
-
-When monorepo is detected, additionally scan per app. **This scan is mandatory for every app, every run — no exceptions, no shortcuts, no copying from existing docs.**
-
-For each directory in `apps/` (or `packages/`) that has a Dockerfile or main entry file:
-
-- **App stack** — package.json, requirements.txt, pyproject.toml (only if different from common stack)
-- **App port** — docker-compose.yml (port mapping for this service), main entry file (uvicorn/express port)
-- **App deps** — requirements.txt, package.json — read the full file, list all non-obvious deps specific to this app
-- **App env** — apps/X/.env, apps/X/.env.example (app-specific vars, names only)
-- **App DB/migrations** — apps/X/database.py, apps/X/migrations/, docker-compose DB service for this app
-- **App gotchas** — Non-standard patterns, exceptions to the common pattern (e.g., Next.js app in a FastAPI monorepo)
-- **App description** — read main.py or index file to understand what the app actually does now (description may have drifted)
-
-Also scan shared infrastructure:
-- `shared/`, `shared_lib/`, `packages/shared/` — common libraries
-- `.env.shared`, `.env.common` — shared env vars
-- Root docker-compose `networks`, `volumes` definitions
-
-Per-app detection results feed into app-specific subdocs under `.claude/docs/{app-name}/`.
+O mapa completo do scan Tier 1 — Pre-Detection (project type, package manager, knowledge graph, test
+framework, Complexity Assessment do grafo), o mapeamento detecção→doc (architecture/database/api/deploy/
+infrastructure/env-vars/auth/patterns/inline) e a varredura por-app de monorepo (mandatória, sem
+carry-forward) — vive em **`references/detection-matrix.md`**. **Leia esse arquivo** ao executar o scan
+(passo 6), ao particionar o fan-out por concern (casca passo 5) e ao escanear apps de monorepo. Regra do
+grafo (pesado/leve): ver **Workflow Engine → Passo 0**.
 
 ## Collect & Project (v3 — o motor)
 
@@ -381,18 +249,18 @@ A doc canônica é **derivada e descartável** (`--rebuild` re-cria do journal).
 - `--rebuild` re-projeta do journal **sem minerar** → single-agent, sem backup, sem garimpo.
 - Flag de escape **`--solo`**: força FULL/--deep a rodar single-agent (debug/projeto pequeno). Sem `--solo`, FULL/--deep **disparam o Workflow direto** — não anuncie custo nem peça confirmação.
 
-### Passo 0 — Grafo garantido (TODO modo) + Passo 0.0 — mapeado pro fan-out (FULL/`--deep`)
+### Passo 0 — Grafo (SEÇÃO CANÔNICA — regra pesado/leve, v3.9) + Passo 0.0 — mapa pro fan-out (FULL/`--deep`)
 
-**Premissa (v3.7):** nenhuma versão do project-doc jamais leu o código-fonte de verdade — o Tier 1 sempre foi uma allowlist (manifestos/configs/schemas/rotas) + `ls`. A única coisa que mapeia o codebase inteiro é o **grafo (graphify)**. Desde a v3.7 o grafo é **documentação obrigatória em qualquer invocação do project-doc** (não só no FULL/`--deep`): rodou a doc = o grafo tem que existir e estar fresco. **Postura: roda sempre, informa, não oferece** (a sugestão `/graphify` sobrevive só fora da execução / pro labeling caro — ver **Knowledge Graph Integration**). O grafo garantido dirige a leitura profunda do código (Fase A, FULL/`--deep`) e audita a cobertura no fim (gate 7 / check #17).
+**Premissa (v3.7):** nenhuma versão do project-doc jamais leu o código-fonte de verdade — o Tier 1 sempre foi uma allowlist (manifestos/configs/schemas/rotas) + `ls`. A única coisa que mapeia o codebase inteiro é o **grafo (graphify)**. Quem DOCUMENTA precisa do grafo fresco; quem só verifica/limpa/reindexa não consome o grafo — e não deve pagar o update dele (v3.9).
 
-**Passo 0 (UNIVERSAL — todo modo, ANTES de ramificar):** garante o grafo fresco, sem perguntar. Detecta staleness (graph.json ausente, ou mtime < `git log --format=%aI -1`) e roda:
-```bash
-graphify update "<root>" --force    # `update`: re-extrai por AST, ZERO LLM, ~segundos, não-interativo, idempotente
-                                     # `--force`: sobrescreve graph.json mesmo se a re-extração tiver MENOS nós (após refactor que apaga código)
-```
-Ausente → cria (AST); stale → atualiza; fresco → no-op. O `--force` garante o overwrite em refactors destrutivos (sem ele, uma re-extração menor poderia ser recusada). **Não anuncie custo nem peça confirmação** — informa "grafo: criado / atualizado / já fresco" no Output Protocol. O labeling LLM de comunidades (nomes bonitos) é upgrade opcional via `/graphify` completo, **fora** do caminho crítico; `update --force` preserva labels já existentes.
-- **`graphify` não instalado** → **erro que bloqueia, em QUALQUER modo**: "o project-doc exige o grafo; instale o `graphify`". NÃO degrada, NÃO pula — nem com `--solo`. É o único pré-requisito duro do project-doc.
-- **`--solo` NÃO pula o Passo 0** — ele só desliga o Workflow (cai pro single-agent). O grafo roda igual.
+**A regra pesado/leve (v3.9):**
+- **Modos PESADOS** — FULL, `--deep`, incremental (`<doc-name>`), `--solo`: o grafo é **obrigatório e garantido**. Detecta staleness (graph.json ausente, ou mtime < `git log --format=%aI -1`) e roda:
+  ```bash
+  graphify update "<root>" --force    # `update`: re-extrai por AST, ZERO LLM, ~segundos, não-interativo, idempotente
+                                       # `--force`: sobrescreve graph.json mesmo se a re-extração tiver MENOS nós (após refactor que apaga código)
+  ```
+  Ausente → cria (AST); stale → atualiza; fresco → no-op. `graphify` **não instalado ⇒ erro que bloqueia** (não degrada, não pula — nem com `--solo`, que só desliga o Workflow). **Não anuncie custo nem peça confirmação** — informa "grafo: criado / atualizado / já fresco" no Output Protocol. O labeling LLM de comunidades é upgrade opcional via `/graphify` completo, fora do caminho crítico; `update --force` preserva labels existentes.
+- **Modos LEVES** — `clean`, `verify`, `index`, `pointers`, `migrate`, `--rebuild` (nenhum consome o grafo): **só staleness-check barato** — compara o mtime de `graphify-out/graph.json` contra `git log --format=%aI -1` e **AVISA** se o grafo está stale/ausente ("grafo stale/ausente — o próximo FULL atualiza, ou rode `graphify update`"). **Nunca roda `graphify update`, nunca bloqueia** — nem por graphify ausente. A doc de verdade continua nunca saindo de grafo velho: quem escreve doc é modo pesado.
 
 **Passo 0.0 (SÓ FULL/`--deep` — destila o mapa pro fan-out):** o grafo bruto tem milhares de nós — não engula inline. Só os modos com Workflow consomem o mapa, então só eles destilam:
 ```bash
@@ -497,9 +365,11 @@ A casca lê o `return` e executa os efeitos colaterais (passo final), escrevendo
 
 A trava anti-"caminho fácil" é **estrutural**, não confiança: a doc nova já existe e é a base ANTES de a antiga ser lida (Fase B vem depois da A). O garimpeiro só pode **propor adições validadas contra o código** — nunca reescrever, nunca copiar a antiga. Conteúdo presente nas duas é descartado por construção (o gate de dedup-vs-prosa dropa o já-coberto). Fluxo: backup → Fase A (doc nova, isolada, com frontmatter) → Fase B (garimpa o que faltou, valida, casa finding_id) → Stitch filtra e aprova as nuances reais → **Fase D enxerta as aprovadas na prosa** → casca escreve o `body_md` mergeado + registra no journal (`curate`/`adopt` com guarda) → `rebuild` reconcilia o estado vivo. Resultado: mineração fresca + nuances curadas que só viviam na doc antiga, **de fato dentro do `.md`** (não só no journal).
 
-**Composição Tier 0 × Fase B — duas garantias diferentes (v3.8, não confundir):**
-- **Tier 0 + journal = garantia PRIMÁRIA.** O discurso da invocação (fato durável) é `adopt`-ado no journal **versionado** ANTES da coleta, então entra no `live[]` e é projetado nesta mesma rodada. É a fonte da verdade — viaja entre máquinas e sobrevive a `--rebuild`. Esse é o "não se perde" forte.
-- **Fase B (garimpeiro) = rede SECUNDÁRIA cross-run.** Compara a doc **antiga renderizada** × a nova fria e preserva conteúdo opinativo que só vivia no `.md` (entra `[relatado]` quando o código não confirma). **Mas ela não cobre o discurso de invocação na primeira vez** — esse texto não está na doc antiga, está só no chat; quem o captura é o Tier 0. As duas se compõem: **o Tier 0 põe o discurso DENTRO da doc/journal; a Fase B protege o que já está documentado.** Não confiar só no diff: sem o Tier 0, o que o humano fala na invocação nunca chega à doc pra a Fase B ter o que preservar.
+**Composição Tier 0 × Fase B (v3.8):** Tier 0 + journal = garantia PRIMÁRIA (o fato da invocação é
+`adopt`-ado ANTES da coleta, entra no `live[]` desta rodada, viaja versionado). Fase B = rede SECUNDÁRIA
+cross-run (preserva o que só vivia na doc antiga) — ela **não** cobre o discurso da invocação na primeira
+vez (esse só existe no chat; quem o captura é o Tier 0). O Tier 0 põe o discurso DENTRO da doc/journal; a
+Fase B protege o que já está documentado.
 
 ### Schemas (campos pros gates, não texto solto)
 
@@ -571,7 +441,7 @@ Os moldes de saída — **CLAUDE.md Index Template** (Standard + Monorepo, com o
 ### CLAUDE.md
 
 1. **No CLAUDE.md exists:** Create `.claude/CLAUDE.md` with v2 index
-2. **CLAUDE.md exists with v1 markers** (`project-doc:start/end`): Run migration first (see Migration section), then write v2 index
+2. **CLAUDE.md exists with v1 markers** (`project-doc:start/end`): Run migration first (see `references/migration.md`), then write v2 index
 3. **CLAUDE.md exists with v2 markers** (`project-doc:v2` / `project-doc:v2:end`): Replace content between v2 markers. Preserve:
    - All content before `<!-- project-doc:v2 -->`
    - All content after `<!-- project-doc:v2:end -->`
@@ -598,132 +468,36 @@ Os moldes de saída — **CLAUDE.md Index Template** (Standard + Monorepo, com o
 
 ## Knowledge Graph Integration (graphify)
 
-**Postura (v3.7 — mudou de novo):** o grafo é **documentação, obrigatório em QUALQUER invocação do project-doc** — FULL, `--deep`, incremental, `index`, `pointers`, `--rebuild`, `migrate`, `verify`, `clean`, `--solo`. Não se oferece dentro da execução: **se garante** (Passo 0 roda `graphify update --force`; ausente ⇒ erro que bloqueia). A sugestão `/graphify` sobrevive só **fora da execução** (proatividade ao navegar um projeto sem rodar o project-doc) ou pro **labeling LLM caro** (nomes bonitos de comunidade). O que muda entre modos NÃO é se o grafo roda (roda sempre), e sim se o mapa é **consumido no fan-out**: só FULL/`--deep` destilam `graph_map.py` e particionam por concern.
+**Postura (v3.9):** grafo é documentação — **garantido nos modos pesados, staleness-check + aviso nos leves** (regra canônica: **Workflow Engine → Passo 0**). Dentro da execução não se oferece: modo pesado garante, modo leve avisa. A sugestão `/graphify` sobrevive só **fora da execução** ou pro **labeling LLM caro** (nomes bonitos de comunidade).
 
 When the project has (or will have) a graphify knowledge graph (`graphify-out/graph.json`), `/project-doc` integrates with it in four ways:
 
-1. **Garantir (TODO modo) + mapear (FULL/`--deep`)** — o **Passo 0** roda `graphify update . --force` (AST, sem LLM, ~segundos) quando ausente/stale, em **qualquer modo**. **Roda sempre, informa, não pergunta** (ver **Workflow Engine → Passo 0**). `graphify` ausente → **erro que bloqueia em todo modo** (o grafo é o único pré-requisito duro), não degradação — nem com `--solo` (que só desliga o Workflow, não pula o grafo). **Adicionalmente no FULL/`--deep`**, o Passo 0.0 destila o mapa via `graph_map.py`; o mapa dirige a leitura profunda (Fase A) e a auditoria de completude (gate 7).
+1. **Garantir (modos pesados) + mapear (FULL/`--deep`)** — ver **Workflow Engine → Passo 0**. No FULL/`--deep`, o Passo 0.0 destila o mapa via `graph_map.py`; o mapa dirige a leitura profunda (Fase A) e a auditoria de completude (gate 7).
 
 2. **Index section** — generate the `## Knowledge Graph (graphify)` section inside the v2 markers (see `references/templates.md` → Index Templates). Generated ONLY when `graphify-out/graph.json` exists. Omit entirely otherwise. This makes "consult the graph before touching code" a durable instruction loaded every session.
 
 3. **Anti-duplication** — if a `## Knowledge Graph` (or `## Knowledge Graph (graphify)`) section already exists OUTSIDE the v2 markers (a manual addition by a previous session), remove that manual copy and let the canonical one be generated inside the markers. Never leave two. Detect by header match; the manual one is the copy not enclosed by `<!-- project-doc:v2 -->` / `<!-- project-doc:v2:end -->`.
 
-4. **Sugestão proativa (só FORA da execução, ou pro labeling caro)** — DENTRO de qualquer `/project-doc` o grafo já é garantido pelo Passo 0 (não há mais "rodou e ficou sem grafo / stale"), então no report final só restam dois prompts:
-   - **Comunidades sem nome bonito** (criação inicial AST → "Community NNN") → o mapa já funciona (agrupa + fan-in) sem nomes; sugira o **labeling LLM opcional** via `/graphify` completo como upgrade — fora do caminho crítico, único pedaço do grafo que ainda é opt-in (custa tokens de LLM).
+4. **Sugestão proativa (só FORA da execução, ou pro labeling caro)** — no report final só restam dois prompts:
+   - **Comunidades sem nome bonito** (criação inicial AST → "Community NNN") → sugira o **labeling LLM opcional** via `/graphify` completo como upgrade — fora do caminho crítico, único pedaço do grafo que ainda é opt-in (custa tokens de LLM).
    - **Grafo fresco** → sem prompt, só nota "Knowledge graph: presente e atualizado" no report.
-   - A oferta "esse projeto se beneficiaria de um grafo" agora vale **só fora de execução** — quando o agente navega um projeto e o project-doc NÃO está rodando (ver **When to Suggest Proactively**). Ali a regra antiga continua: sem grafo ⇒ **ALWAYS suggest, unconditionally** (sem juízo de trivialidade — ver Complexity Assessment).
+   - A oferta "esse projeto se beneficiaria de um grafo" vale **só fora de execução** (ver **When to Suggest Proactively**): sem grafo ⇒ **ALWAYS suggest, unconditionally** (sem juízo de trivialidade — ver Complexity Assessment).
 
-**A distinção que importa:** `graphify update --force` (AST, barato, não-interativo) é o que **todo modo do project-doc roda sozinho** (Passo 0) — não custa tokens de LLM. O `/graphify` **completo** (extract LLM, labeling de comunidades) pode spawnar subagentes e custar tokens → esse continua sendo **sugestão/opt-in do usuário** (mesma postura do deploy). Rodar o AST automático ≠ rodar o LLM automático.
+**A distinção que importa:** `graphify update --force` (AST, barato, não-interativo) é o que os modos pesados rodam sozinhos — não custa tokens de LLM. O `/graphify` **completo** (extract LLM, labeling de comunidades) pode spawnar subagentes e custar tokens → esse continua sendo **sugestão/opt-in do usuário**. Rodar o AST automático ≠ rodar o LLM automático.
 
-## Migration v1 → v2
+## Migration v1 → v2 → `references/migration.md`
 
-Triggered when v1 markers are detected or user runs `/project-doc migrate`.
+Disparada quando markers v1 são detectados ou o usuário roda `/project-doc migrate`. Reorganização
+estrutural, não refresh de conteúdo (não re-escaneia o projeto). Modo migrate ativo → **leia
+`references/migration.md`** (passos, mapeamento seção→doc, variante monorepo).
 
-### Steps
+## Artifact Cleanup → `references/artifact-cleanup.md`
 
-1. Read entire existing CLAUDE.md
-2. Identify content outside markers (before `<!-- project-doc:start -->` and after `<!-- project-doc:end -->`) — this is preserved as-is
-3. Parse the v1 block section by section using `## ` headers
-4. Map each v1 section to its target doc:
-   - `## Visão Geral` + `## Stack` + `## Estrutura de Diretórios` + `## Dependências Críticas` + `## Decisões de Arquitetura` + `## Documentação` → `architecture.md`
-   - `## Banco de Dados` → `database.md`
-   - `## API / Endpoints` → `api.md`
-   - `## Deploy` + `## Acesso Remoto` → `deploy.md`
-   - `## Serviços / Containers` + `## Portas` + `## Infraestrutura` → `infrastructure.md`
-   - `## Variáveis de Ambiente` → `env-vars.md`
-   - `## Autenticação` → `auth.md`
-   - `## Padrões do Projeto` + `## Gotchas` → `patterns.md`
-   - `## Comandos Úteis` → stays inline in index (top 5)
-   - `## Gotchas` → top 3-5 stay inline, full list goes to patterns.md
-5. Write each doc file to `.claude/docs/` with frontmatter
-6. Rewrite CLAUDE.md with v2 index format
-7. Preserve content that was outside v1 markers
-8. Generate thin pointer files
-9. **Do NOT re-scan the project during migration** — use the existing v1 content as-is. Migration is a structural reorganization, not a content refresh. User can run `/project-doc` (full) afterward for fresh content.
-10. Report migration results with before/after token comparison
-
-### Monorepo v1 → v2 Migration
-
-For monorepo v1 blocks, additionally:
-- Parse per-app sections (### {app-name}) from the `## Apps` section
-- Create per-app subdirectories in `.claude/docs/{app-name}/`
-- Map each app's content to the appropriate doc (deps → note in architecture, gotcha → patterns, etc.)
-- Shared sections (Infra Compartilhada, Stack Comum, Deploy) go to shared root docs
-
-## Artifact Cleanup
-
-Directory hygiene for stale test/scratch artifacts. **Detection runs on every full `/project-doc`** and is reported with the other results — but it NEVER deletes or moves anything on its own. Removal/archival only happens in `/project-doc clean`, and only after the user approves a clustered list. Same philosophy as Auto-Fix and the graphify suggestion: surface, then act on confirmation.
-
-### Detection
-
-Scan the project root recursively, honoring the hard exclusions below. Group findings into categories:
-
-- **Loose screenshots/prints** — image files (`*.png *.jpg *.jpeg *.webp *.gif`) **not inside asset folders**, typically dumped in the repo root or in `.playwright-mcp/`. Name patterns that confirm test origin: `e2e-*`, `screenshot*`, `print*`, `test-*`, `*-debug*`, `Screen Shot*`, timestamped names.
-- **Test runner / tool output** — `.playwright-mcp/` (its `*.yml` snapshots + `console-*.log`), `test-results/`, `playwright-report/`, `coverage/`, `.nyc_output/`, `.pytest_cache/`.
-- **Temp / scratch / OS cruft** — `*.tmp *.temp *.bak`, loose `*.log`, `tmp-* scratch-* debug-*`, `.DS_Store` (recursive), `*.dump`, core dumps.
-- **Prototypes** (→ archive, don't delete) — loose `*.html` outside the build output, `proto*/ mockup*/` folders.
-
-**Hard exclusions — NEVER scan or touch:** `.git/ node_modules/ .venv/ dist/ build/ vendor/`, `graphify-out/` (useful), `.claude/docs/` (the docs themselves), and any asset folder (`public/ assets/ static/ src/ docs/`) or referenced asset.
-
-### Classification (suggested action per finding)
-
-Every finding gets one of four proposed actions:
-
-- 🗑️ **Delete** — unambiguous junk: `.DS_Store`, old `console-*.log`, `test-results/`, `coverage/`.
-- 📦 **Archive** — has potential value: prototype HTML, prints that document a state. Moved to `_archive/`, never trashed.
-- 🚩 **Review (sensitive)** — listed individually, never acted on automatically (see Sensitivity).
-- ✋ **Keep** — recent/likely in use, or referenced somewhere.
-
-### Sensitivity assessment
-
-A finding goes to 🚩 (and is listed individually, never bulk-actioned) if ANY of:
-
-- **Git-tracked** — `git ls-files` includes it (deleting mutates the repo). *Conditional: only when the project is a git repo; if not, fall back to name/location/reference/mtime signals.*
-- **Referenced** — its basename appears via grep in code, `README*`, or `.claude/docs/` → it's an asset, not junk.
-- **Recent** — `mtime` < 24h → may be in use in the current session.
-- **Unclassifiable** — fits no clear pattern, or is a single large unique file.
-
-### Archive destination
-
-Reuse an existing archive dir if present (detect `_archive/ archive/ .archive/`), else create `_archive/`. Two modes:
-
-- **Reopenable items** (prototypes) → move the **raw file** into `_archive/<category>/`.
-- **Safety net before a bulk delete** → first pack the originals into `_archive/<project>-housekeeping-<YYYY-MM-DD>.tar.gz` (the convention already in use), THEN remove them. Guarantees reversibility ("look before you delete").
-- Check whether `_archive/` is gitignored; if not, mention it to the user.
-
-### Clustered report format
-
-Group by action, list sensitive items individually, end with an approval prompt:
-
-```
-## Artefatos detectados — 152 itens
-
-🗑️  Deletar (descarte seguro) — 95
-  • .DS_Store ×129 (lixo macOS, recursivo)
-  • .playwright-mcp/console-*.log ×22 (logs de console antigos)
-
-📦  Arquivar → _archive/ — 45
-  • Prints E2E soltos na raiz ×45 (e2e-*.jpeg, bulk-*.jpeg, c3-*.jpeg…)
-    → tarball _archive/viu-housekeeping-2026-06-13.tar.gz
-
-🚩  Revisar (sensível) — 2
-  • logo.png — referenciado em README.md (asset, provável manter)
-  • screenshot-novo.png — criado há 2h (pode estar em uso)
-
-Aprovar? [tudo | só deletar | só arquivar | escolher itens | cancelar]
-```
-
-### Confirmation protocol
-
-- **Never remove or move without explicit approval.** Show the clustered list first.
-- User approves per cluster or per item; sensitive (🚩) items require individual confirmation.
-- After acting, report a summary: how many deleted, how many archived (and where), how many skipped.
-
-### Scope & safety
-
-- Operate only inside the project root — never touch `~/Desktop/claude-visual/` or anything outside it.
-- Respect the hard exclusions above.
-- Default to reversible: pack into the dated tarball before any bulk delete.
+Higiene de artefatos de teste/scratch. A **detecção roda em todo FULL** e só reporta; remoção/arquivamento
+só em `/project-doc clean`, após aprovação da lista clusterizada. Modo clean ativo (ou ao reportar
+artefatos no FULL) → **leia `references/artifact-cleanup.md`** (detecção, classificação 🗑️/📦/🚩/✋,
+sensibilidade, arquivo, formato do report, protocolo de confirmação). As regras duras de segurança do
+cleanup continuam na seção **Rules** desta skill.
 
 ## Token Limits
 

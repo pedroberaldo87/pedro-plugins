@@ -102,13 +102,13 @@ After writing all files, run this verification checklist. Report results to the 
 
 ### Graph Coverage Check (v3.2)
 
-**17. Auditoria grafo × doc** (o grafo é premissa de todo modo → sempre presente; roda em qualquer modo que **gera/atualiza doc** — FULL/`--deep`/incremental/`--rebuild`/`--solo`; modos que NÃO tocam doc — `verify` standalone, `clean` — → N/A, nada novo pra auditar)
+**17. Auditoria grafo × doc** (o grafo é premissa dos modos PESADOS — regra pesado/leve, v3.9; roda em qualquer modo que **gera/atualiza doc** — FULL/`--deep`/incremental/`--solo`; modos que NÃO tocam doc — `verify` standalone, `clean`, e o `--rebuild` que só re-projeta — → N/A, nada novo pra auditar)
 - O grafo é o **completeness-critic** do fim: cruza o que o grafo diz ser importante contra o que a doc cobriu (espelha o gate 7 do Stitch; aqui é o check final da Verification).
 - Rode `graph_map.py` (ou reuse a saída do passo 0.0) e, para cada item, procure cobertura no texto gerado (qualquer `.claude/docs/*.md` + índice), por `label` ou `source_file`:
   - **god node** (fan-in alto) sem nenhuma menção → **WARN — função central não documentada: `{label}` ({source_file})**
   - **comunidade nomeada** (não-generic) sem seção que a cubra → **WARN — módulo não documentado: `{label}`**
   - **hyperedge ≥0.85** sem menção → **WARN — workflow não documentado: `{label}`** (candidato a nota de arquitetura)
-- WARN não bloqueia (o grafo pode ter ruído/defasagem) — alimenta o relatório e, opcionalmente, uma 2ª leva de agente pro gap. Em modo que não gera doc → check **N/A** (não falha). "Sem grafo" não é mais um estado possível: o Passo 0 garante o grafo em todo modo.
+- WARN não bloqueia (o grafo pode ter ruído/defasagem) — alimenta o relatório e, opcionalmente, uma 2ª leva de agente pro gap. Em modo que não gera doc → check **N/A** (não falha). Nos modos pesados "sem grafo" não é um estado possível (o Passo 0 garante); nos leves o grafo pode estar stale — é só aviso, não falha.
 
 ### Anti-Regression Check (v3.5.1)
 
