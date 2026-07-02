@@ -79,9 +79,9 @@ Por que o extrator gera o LOG e não você: o Pedro foi explícito — *"E o seu
      - Se `scope.from_edits == false` (a sessão não editou arquivos — planejamento puro), o projeto-raiz foi **chutado pelo cwd**, não inferido do trabalho. **Confirme o destino com o Pedro** antes de gravar — sobretudo se `scope.project_root_is_boundary == false` (o cwd é uma pasta guarda-chuva, então o handoff cairia nela, não num projeto real).
      - Se `scope.module` é `null` mas `scope.multi == true` (monorepo sem edits claros num módulo), **ou** `scope.module_ambiguous == true` (empate de edits entre dois módulos) → **pergunte** ao Pedro a qual módulo este handoff pertence.
      - **Guardrail anti-sobrescrita:** se o `scope.handoff_path` já existe e foi escrito **< 5 min atrás** (ou é de uma frente claramente diferente do mesmo módulo) → suspeito (Pedro nunca salva dois seguidos) → **confirme** antes de sobrescrever.
-   - O PRD agrupa por tema o que está no LOG. Para CADA id em `gate_items`, referencia `[id]` no ponto onde aquela fala/decisão é tratada (o gate confirma que nada se perdeu). Findings e gotchas entram **verbatim** — não parafraseie.
+   - O PRD agrupa por tema o que está no LOG. Para CADA id em `gate_items`, referencia `[id]` no ponto onde aquela fala/decisão é tratada (o gate confirma que nada se perdeu). Findings e gotchas: ver a regra "verbatim" nas Regras do SALVAR.
    - **Pré-preencha o prospecto a partir de `prospective`** (não escreva do zero quando há material): cada `open_tasks[i]` vira um passo de `## Próximos Passos` com os 5 campos. O `last_plan` depende do flag `likely_executed`:
-     - `likely_executed: true` (houve commits/edits depois do plano) → **o plano JÁ foi executado nesta sessão.** Ele vira REGISTRO em `## O Que Foi Feito`, **NÃO** entra em `## Próximos Passos`. (Senão o próximo Claude acha que tem de reimplementar tudo.)
+     - `likely_executed: true` (houve commits/edits depois do plano) → **o plano JÁ foi executado nesta sessão.** Ele vira REGISTRO em `## O Que Foi Feito`, **NÃO** entra em `## Próximos Passos` (ver a regra "registro, não ordem de refazer" nas Regras do SALVAR).
      - `likely_executed: false` → é candidato a próximos passos; refine-o como tal.
      - Refine o que o extrator deu; não o ignore.
 
@@ -198,7 +198,7 @@ Lê o documento de handoff de uma sessão anterior e apresenta ao Pedro pra conf
    - "Esse é o estado da última sessão. Quer que eu continue de onde parou, ou tem alguma mudança de prioridade?"
    - Espere confirmação explícita antes de fazer qualquer coisa
 
-5. **Reconcilie com o código real ANTES de executar — depois trabalhe.** Antes de tocar em qualquer "Próximo Passo", rode git **no projeto-raiz do handoff que você retomou** (`Project:` no header dele, não o cwd): `git -C "<project_root>" log --oneline -10` + `git -C "<project_root>" status`, e leia os arquivos que o passo cita. Se o que o passo descreve **já está no código / já foi commitado** (caso típico: o handoff foi tirado logo após uma implementação concluída), **NÃO reimplemente** — reconheça como feito e siga só pro que de fato falta. O handoff é um REGISTRO do que aconteceu, não uma ordem de refazer. Só então pegue de "Em Andamento" / "Próximos Passos".
+5. **Reconcilie com o código real ANTES de executar — depois trabalhe.** Antes de tocar em qualquer "Próximo Passo", rode git **no projeto-raiz do handoff que você retomou** (`Project:` no header dele, não o cwd): `git -C "<project_root>" log --oneline -10` + `git -C "<project_root>" status`, e leia os arquivos que o passo cita. O que já está no código → aplica a regra "NUNCA reimplemente" (Regras do RETOMAR, abaixo). Só então pegue de "Em Andamento" / "Próximos Passos".
 
 ### Regras do RETOMAR
 - NUNCA comece a trabalhar antes do Pedro confirmar
