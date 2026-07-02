@@ -140,7 +140,7 @@
       "source": "./plugins/qa-loop",
       "description": "Two-phase QA: an asymptotic review phase (variable-severity findings, accepted-limits, stops on diminishing returns; e2e/Playwright as non-blocking actionables) plus an absolute exit Gate phase (lint, type-check, unit and integration must be 100% green across the whole repo, pre-existing errors included, or stopReason=gate-red). Per-fix regression gate, churn detector, interactive /visual report and agentic journal. Replaces qa, rev6 and iterate.",
       "category": "dev-tools",
-      "version": "1.4.1",
+      "version": "1.5.0",
       "tags": [
         "code-review",
         "qa",

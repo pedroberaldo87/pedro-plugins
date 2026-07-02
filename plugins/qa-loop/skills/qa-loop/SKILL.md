@@ -226,6 +226,7 @@ let invariants = args.invariants || []
 const churn = {}                 // { 'arquivo:função': nº de regressões }
 const rounds = []
 let cleanRound = false, churnEscalated = false, r = 0
+let touchedLastRound = [], openFindings = []   // delta pro REVIEW das rodadas 2+
 
 // Tier por rodada (R8 — tabela única com /sovai): rodada 1 = decompose_model (xhigh,
 // planejamento inicial); rodadas 2+ = coordinate_model (high, coordenação rotineira).
@@ -238,10 +239,12 @@ while (!cleanRound && r < args.maxRounds && !churnEscalated) {
   const tier = tierFor(r)
 
   // REVIEW — 1 Opus Revisor INDEPENDENTE, no tier da rodada. Checklist de 6 dimensões
-  // (1 agente, não 6). Rodada 1 = sweep completo (decompose_model); 2+ = caça-regressão
-  // nas mudanças + ângulos frescos (coordinate_model). Só ACHA — não julga severidade.
-  const review = await agent(reviewPrompt({ round: r, acceptedLimits, invariants }),
-    { model: tier.model, effort: tier.effort, phase: 'Review', schema: FINDINGS })
+  // (1 agente, não 6). Rodada 1 = sweep completo do material inteiro (decompose_model);
+  // 2+ = DELTA (coordinate_model): só os arquivos tocados pelos fixes da rodada anterior
+  // + findings abertos — caça-regressão, não releitura do material inteiro.
+  const review = await agent(reviewPrompt({ round: r, acceptedLimits, invariants,
+      scope: r === 1 ? 'full' : { touchedFiles: touchedLastRound, openFindings } }),
+    { model: tier.model, effort: tier.effort, phase: 'Review', schema: FINDINGS, agentType: 'voltagent-qa-sec:code-reviewer' })
 
   // GATE de severidade (JS) — sobre rodada COMPLETA (todo ângulo retornou).
   const severe = review.findings.filter(f =>
@@ -252,7 +255,7 @@ while (!cleanRound && r < args.maxRounds && !churnEscalated) {
     // completo DEDICADO antes de declarar limpa — não confia no resultado mais barato
     // (coordinate_model) da rodada que pareceu limpa.
     const confirm = await agent(reviewPrompt({ round: r, acceptedLimits, invariants, confirming: true }),
-      { model: 'opus', effort: 'xhigh', phase: 'Confirm', schema: FINDINGS })   // finalize_model
+      { model: 'opus', effort: 'xhigh', phase: 'Confirm', schema: FINDINGS, agentType: 'voltagent-qa-sec:security-auditor' })   // finalize_model
     const confirmSevere = confirm.findings.filter(f =>
       sevRank(f.severity) >= floor && !isAccepted(f, acceptedLimits))
     if (confirm.complete && confirmSevere.length === 0) {
@@ -267,14 +270,14 @@ while (!cleanRound && r < args.maxRounds && !churnEscalated) {
   // Adjudica "procede?" contra a rubrica, roteia nos 3 buckets, triagem por severidade
   // E risco-de-conflito, sequencia. Rodada 1 (decompose_model) pesada; 2+ (coordinate_model) = só o DELTA.
   const plan = await agent(planPrompt({ review, round: r, invariants, acceptedLimits }),
-    { model: tier.model, effort: tier.effort, phase: 'Plan', schema: PLAN })
+    { model: tier.model, effort: tier.effort, phase: 'Plan', schema: PLAN, agentType: 'voltagent-qa-sec:error-detective' })
 
   // EXEC — Sonnet (executor_model), SÓ bucket 1, EM SÉRIE (o gate roda a suíte entre
   // fixes; pares de risco exigem ordem).
   const corrections = []; let regressions = 0
   for (const fix of plan.bucket1) {
     const res = await agent(execPrompt({ fix, invariants, safetyLayer: args.safetyLayer }),
-      { model: 'sonnet', effort: 'high', phase: 'Exec', schema: EXEC_RESULT })   // executor_model
+      { model: 'sonnet', effort: 'high', phase: 'Exec', schema: EXEC_RESULT, agentType: 'voltagent-core-dev:backend-developer' })   // executor_model
     // GATE de regressão (JS) — quem decide keep/revert é o script/Opus, NÃO o Sonnet.
     if (res.suiteRegressed) {
       regressions++; churn[fix.fn] = (churn[fix.fn] || 0) + 1
@@ -283,7 +286,7 @@ while (!cleanRound && r < args.maxRounds && !churnEscalated) {
         // Não é mais "refaz cirúrgico" — é a causa raiz do acoplamento que faz a mesma
         // função regredir de novo a cada tentativa.
         await agent(diagnosePrompt({ fix, churnCount: churn[fix.fn], invariants }),
-          { model: 'opus', effort: 'xhigh', phase: 'Diagnose' })   // diagnose_model
+          { model: 'opus', effort: 'xhigh', phase: 'Diagnose', agentType: 'voltagent-qa-sec:architect-reviewer' })   // diagnose_model
         churnEscalated = true; break
       }
       await revertAndMaybeRedo(fix, res, tier)   // reverte; refaz cirúrgico no tier DA RODADA
@@ -294,6 +297,8 @@ while (!cleanRound && r < args.maxRounds && !churnEscalated) {
   }
 
   acceptedLimits = acceptedLimits.concat(plan.proposedLimits || [])   // propostos (não ratificados — R6)
+  touchedLastRound = corrections.flatMap(c => c.files_touched || [])  // delta do REVIEW da próxima rodada
+  openFindings = review.findings.filter(f => !corrections.some(c => c.fix_id === f.id))
   rounds.push({ r, review, plan, corrections, regressions, alerts: plan.alerts || [] })
 }
 
@@ -309,18 +314,24 @@ return {
 **Schemas (JSON Schema, resumidos):**
 - `FINDINGS` — `{ complete: boolean, findings: [{ id, file, line, severity: 'P0'|'P1'|'P2'|'P3', dimension, problem, fix_direction }] }`. `complete=false` se algum ângulo não retornou → NUNCA conta como rodada limpa.
 - `PLAN` — `{ bucket1: [{ id, fn, severity, conflict_risk, order, fix_direction }], drift: [...], alerts: [...], proposedLimits: [...], invariants: [...] }`.
-- `EXEC_RESULT` — `{ fix_id, fn, test_name, suiteRegressed: boolean, newInvariant?, note }`.
+- `EXEC_RESULT` — `{ fix_id, fn, files_touched: [...], test_name, suiteRegressed: boolean, newInvariant?, note }`.
+
+> Os `agentType: voltagent-*` nos spawns são otimização de persona — se o agent type não existir na
+> máquina, spawne sem `agentType` (o motor não depende deles).
 
 ### Os passos do motor, em detalhe
 
 **REVIEW = 1 Opus Revisor (R1), no tier da rodada (R8).** Um único Opus cobre as **6 dimensões como
 CHECKLIST** (arquitetura · backend · frontend · contratos fullstack · correção · UX) — **não** 6 agentes.
-Rodada 1 roda em `decompose_model` (xhigh — planejamento inicial, sweep completo); rodadas 2+ rodam em
-`coordinate_model` (high — coordenação rotineira, caça-regressão). Recebe o material inteiro + o
-**plano-âncora** + os accepted-limits vivos (não re-reportar) + as invariantes vivas (não violar). Formato de
-cada finding: `P{0-3} — {arquivo:linha} — {problema} — {direção de fix, SEM código}`. Inclui sempre: "compare
-contra o PLANO — sinalize onde a implementação DIVERGE do planejado, mesmo que o código pareça bom". **Regra
-dura:** se algum ângulo do checklist não foi coberto → `complete=false`, jamais "achou zero".
+**Rodada 1** roda em `decompose_model` (xhigh — sweep completo): recebe **o material inteiro** + o
+**plano-âncora** + os accepted-limits vivos (não re-reportar) + as invariantes vivas (não violar).
+**Rodadas 2+** rodam em `coordinate_model` (high) e recebem **o DELTA, não o material inteiro**: os arquivos
+tocados pelos fixes da rodada anterior + os findings ainda abertos + accepted-limits/invariantes (pequenos) —
+caça-regressão nas mudanças + ângulos frescos sobre elas. Formato de cada finding:
+`P{0-3} — {arquivo:linha} — {problema} — {direção de fix, SEM código}`. Inclui sempre: "compare
+contra o PLANO — sinalize onde a implementação DIVERGE do planejado, mesmo que o código pareça bom" (nas
+rodadas 2+, restrito ao delta). **Regra dura:** se algum ângulo do checklist não foi coberto →
+`complete=false`, jamais "achou zero".
 
 **CONFIRM = Opus dedicado em `finalize_model` (xhigh, R8 "revisão final e integração").** Quando uma rodada
 parece limpa (`complete && severe.length===0`), o motor NÃO declara vitória direto — dispara um re-sweep
@@ -423,6 +434,12 @@ Quando o Workflow retorna, a casca executa a **Fase Gate** e SÓ ENTÃO produz o
 
 Antes de qualquer relatório, a casca roda os **checks objetivos do projeto** como portão binário:
 
+- **Cache verde (consulta → grava):** `source "${CLAUDE_PLUGIN_ROOT}/lib/green-cache.sh"`. Antes de rodar a
+  fila, `green_cache_check <repo-root> full`: **HIT** → declara o gate verde via cache e **reporta** no
+  relatório ("gate 100% via cache — tree `<hash>`, gravado por `<writer>` às `<ts>`") sem re-executar.
+  **MISS** → roda a fila normal; ao fechar 100% verde, `green_cache_mark <repo-root> full qa-loop-gate`.
+  **Gate vermelho nunca grava.** Falha do helper (sem git, fora de repo) → MISS silencioso, roda tudo.
+  Cache HIT não é burla: é a mesma fila, verde, no mesmo tree-hash — qualquer edição invalida.
 - **O que roda:** lint + type-check + teste unitário + teste de integração. **A detecção reusa as camadas
   já definidas** (ver "Detecção de rede"): unit/integração = Camada 1; lint/type = Camada 3. **e2e marcado**
   (`@pytest.mark.e2e`, specs Playwright, script `e2e`) é **EXCLUÍDO daqui** → vira actionable na Fase
