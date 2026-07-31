@@ -52,6 +52,15 @@ claude plugin install bootstrap@pedro-plugins
 /bootstrap:setup
 ```
 
+Resultado esperado numa máquina zerada: **17 plugins ligados + 2 desligados de fábrica**
+(`graphify-guard` e `intent-guard`), mais os marketplaces de terceiros do manifest.
+
+> ⚠️ **Se aparecer `sync incompleto: N operações falharam`, rode `/bootstrap:setup` de novo.**
+> Medido numa instalação limpa: a primeira rodada deixou um marketplace de terceiro para trás
+> e a segunda o instalou. O script é convergente de propósito (re-rodar é seguro e nunca toca
+> em marketplace que o manifest não declara), e o auto-sync do início de sessão faria isso
+> sozinho — mas o aviso amarelo assusta antes disso acontecer.
+
 > `bootstrap` substitui o antigo `bootstrap-third-party`.
 
 **Antes de rodar, saiba o que ele sobrescreve.** O passo 2 copia o `CLAUDE.md` global
@@ -93,6 +102,10 @@ claude plugin details <nome>@pedro-plugins   # diagnóstico canônico (mostra Ho
 ## Plugins
 
 Plugins marcados com **⚙️** registram hooks que rodam **sozinhos** (sem slash command) — veja [Hooks automáticos](#hooks-automáticos). Os demais são invocados sob demanda via slash command / skill.
+
+Dois vêm **desligados de fábrica** na receita do `bootstrap` e você liga se quiser:
+`graphify-guard` (precisa de um binário externo, veja abaixo) e `intent-guard` (é experimental
+e intercepta cada mensagem sua). Ligar: `claude plugin enable <nome>@pedro-plugins`.
 
 ### Sessão & continuidade
 
@@ -142,24 +155,27 @@ Plugins marcados com **⚙️** registram hooks que rodam **sozinhos** (sem slas
 
 | Plugin | Trigger | O que faz |
 |---|---|---|
-| `bootstrap` ⚙️ | `/bootstrap:setup` · automático no SessionStart + Stop | Prepara uma máquina nova: auto-sincroniza marketplaces e plugins via hooks **e** aplica a config global versionada (env, permissões, flags, `CLAUDE.md` global, output style, statusLine resolvido por máquina). Traz também o **Clean Style** (resultado na primeira linha, teto de prosa, prova colada sem teto) e um **verificador de conformidade** que compara a máquina viva contra o contrato versionado sem escrever nada. Rode `/bootstrap:setup` uma vez por máquina. |
+| `bootstrap` ⚙️ | `/bootstrap:setup` · automático no SessionStart + Stop | Prepara uma máquina nova: auto-sincroniza marketplaces e plugins via hooks **e** aplica a config global versionada (env, permissões, flags, `CLAUDE.md` global, output style, statusLine resolvido por máquina). Traz também o **Clean Style** (resultado na primeira linha, teto de prosa, prova colada sem teto) e um **verificador de conformidade** que compara a máquina viva contra o contrato versionado sem escrever nada. A qualidade do relato tem duas camadas no fim do turno: uma **mecânica** (conta linhas de prosa, exige veredito na 1ª linha quando a pergunta foi fechada — custo zero, roda sempre) e um **juiz** que chama modelo e só acorda quando a resposta é um relato com prova colada. Os dois são fail-open e têm desligamento visível (`PROSE_CEILING=0`, `FORMA_RELATO=0`). Rode `/bootstrap:setup` uma vez por máquina. |
 
 ---
 
 ## Hooks automáticos
 
-8 plugins registram hooks que disparam sem slash command:
+10 plugins registram hooks que disparam sem slash command — 34 registros no total
+(derivado neste run: `python3 scripts/hook_contract.py`):
 
 | Plugin | Eventos | Papel |
 |---|---|---|
-| `bootstrap` | SessionStart · PostToolUse | Auto-sync de marketplaces/plugins |
+| `bootstrap` | SessionStart · PostToolUse · Stop×2 | Auto-sync de marketplaces/plugins + os dois guardas de forma do relato |
+| `branches` | SessionStart · PostToolUse | Aviso de branch parada, silencioso quando não há |
 | `context-guard` | SessionStart · PostToolUse | Vigia o context window, sugere handoff |
 | `graphify-guard` | SessionStart · PreToolUse | Redireciona busca cega pro knowledge graph |
-| `guardrails` | PreToolUse · PostToolUse | Lint/type-check + scope-cop de UI |
+| `guardrails` | PreToolUse×3 · PostToolUse | Lint/type-check + scope-cop de UI + gate de pergunta |
 | `handoff` | SessionStart · PreToolUse · Stop | Detecta retomada e salva continuidade |
-| `project-doc` | SessionStart · PreToolUse | Guard doc-first + aviso de doc defasada |
+| `intent-guard` | UserPromptSubmit · PreToolUse · PostToolUse×2 · Stop | Caderno de pedidos + gate de entrega (desligado de fábrica) |
+| `project-doc` | SessionStart×2 · UserPromptSubmit · PreToolUse×3 · PostToolUse · Stop | Guard doc-first + aviso de doc defasada + gate de plano |
 | `ship` | PreToolUse | Guarda o fluxo de deploy |
-| `visual` | PreToolUse | Intercepta ExitPlanMode pra renderizar o plano |
+| `visual` | SessionStart · PreToolUse · Stop | Intercepta ExitPlanMode e ressuscita o plano aberto |
 
 > ⚠️ **Hook de plugin vai em `hooks/hooks.json` (subpasta), nunca `hooks.json` na raiz.** Na raiz o Claude Code ignora silenciosamente — `claude plugin details` mostra `Hooks (0)` e nada dispara. `claude plugin validate` passa mesmo assim. Diagnóstico canônico = `claude plugin details <plugin>@pedro-plugins`.
 
