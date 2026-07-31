@@ -1,0 +1,25 @@
+# Modelo de scripts/public_repo_terms — COPIE para `public_repo_terms` e preencha.
+#
+# O arquivo real é gitignorado de propósito: ele guarda os nomes que não podem
+# aparecer no repositório, e uma lista desses nomes VERSIONADA seria exatamente o
+# vazamento que o gate existe pra impedir.
+#
+# Formato: uma linha `# <seção>` abre um bloco, um termo por linha. A busca é
+# case-insensitive e casa palavra inteira. Um `!` no fim cria exceção:
+# `Fulano!-plugins` pega "Fulano" mas deixa passar "Fulano-plugins".
+#
+# Sem este arquivo o gate roda só as regras estruturais (caminho de máquina,
+# e-mail pessoal, credencial) e avisa que está sem a lista de termos.
+
+# nome-proprio
+Fulano!-plugins
+Sobrenome
+
+# cliente-ou-sistema-interno
+nome-do-cliente
+NOME-DO-SISTEMA-INTERNO
+tabela_interna
+
+# hostname-de-maquina
+maquina-de-casa
+maquina-do-trabalho

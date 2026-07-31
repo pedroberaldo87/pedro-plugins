@@ -1,0 +1,293 @@
+{
+  "version": 1,
+  "description": "Third-party Claude Code marketplaces and plugins the user uses. Auto-synced via bootstrap hooks. The pedro-plugins entry is manually maintained and preserved across snapshots.",
+  "marketplaces": [
+    {
+      "name": "pedro-plugins",
+      "source": "https://github.com/pedroberaldo87/pedro-plugins.git",
+      "sourceType": "git",
+      "plugins": [
+        {
+          "name": "archify",
+          "enabled": true
+        },
+        {
+          "name": "bootstrap",
+          "enabled": true
+        },
+        {
+          "name": "branches",
+          "enabled": true
+        },
+        {
+          "name": "context-guard",
+          "enabled": true
+        },
+        {
+          "name": "fallow",
+          "enabled": true
+        },
+        {
+          "name": "graphify-guard",
+          "enabled": false
+        },
+        {
+          "name": "grill-me",
+          "enabled": true
+        },
+        {
+          "name": "grill-with-docs",
+          "enabled": true
+        },
+        {
+          "name": "guardrails",
+          "enabled": true
+        },
+        {
+          "name": "handoff",
+          "enabled": true
+        },
+        {
+          "name": "improve",
+          "enabled": true
+        },
+        {
+          "name": "intent-guard",
+          "enabled": false
+        },
+        {
+          "name": "principles",
+          "enabled": true
+        },
+        {
+          "name": "project-doc",
+          "enabled": true
+        },
+        {
+          "name": "qa-loop",
+          "enabled": true
+        },
+        {
+          "name": "ship",
+          "enabled": true
+        },
+        {
+          "name": "slides",
+          "enabled": true
+        },
+        {
+          "name": "sovai",
+          "enabled": true
+        },
+        {
+          "name": "visual",
+          "enabled": true
+        }
+      ]
+    },
+    {
+      "name": "agent-browser",
+      "source": "https://github.com/vercel-labs/agent-browser.git",
+      "sourceType": "git",
+      "plugins": [
+        {
+          "name": "agent-browser",
+          "enabled": true
+        }
+      ]
+    },
+    {
+      "name": "claude-hud",
+      "source": "https://github.com/jarrodwatts/claude-hud.git",
+      "sourceType": "git",
+      "plugins": [
+        {
+          "name": "claude-hud",
+          "enabled": true
+        }
+      ]
+    },
+    {
+      "name": "claude-plugins-official",
+      "source": "anthropics/claude-plugins-official",
+      "sourceType": "github",
+      "plugins": [
+        {
+          "name": "claude-md-management",
+          "enabled": false
+        },
+        {
+          "name": "code-review",
+          "enabled": true
+        },
+        {
+          "name": "code-simplifier",
+          "enabled": true
+        },
+        {
+          "name": "context7",
+          "enabled": true
+        },
+        {
+          "name": "explanatory-output-style",
+          "enabled": false
+        },
+        {
+          "name": "figma",
+          "enabled": true
+        },
+        {
+          "name": "frontend-design",
+          "enabled": true
+        },
+        {
+          "name": "github",
+          "enabled": false
+        },
+        {
+          "name": "playwright",
+          "enabled": true
+        },
+        {
+          "name": "security-guidance",
+          "enabled": false
+        },
+        {
+          "name": "skill-creator",
+          "enabled": true
+        },
+        {
+          "name": "sonatype-guide",
+          "enabled": false
+        },
+        {
+          "name": "superpowers",
+          "enabled": true
+        },
+        {
+          "name": "swift-lsp",
+          "enabled": true
+        }
+      ]
+    },
+    {
+      "name": "obsidian-skills",
+      "source": "https://github.com/kepano/obsidian-skills.git",
+      "sourceType": "git",
+      "plugins": [
+        {
+          "name": "obsidian",
+          "enabled": true
+        }
+      ]
+    },
+    {
+      "name": "openai-codex",
+      "source": "https://github.com/openai/codex-plugin-cc.git",
+      "sourceType": "git",
+      "plugins": [
+        {
+          "name": "codex",
+          "enabled": true
+        }
+      ]
+    },
+    {
+      "name": "ponytail",
+      "source": "https://github.com/DietrichGebert/ponytail.git",
+      "sourceType": "git",
+      "plugins": [
+        {
+          "name": "ponytail",
+          "enabled": true
+        }
+      ]
+    },
+    {
+      "name": "voltagent-subagents",
+      "source": "https://github.com/VoltAgent/awesome-claude-code-subagents.git",
+      "sourceType": "git",
+      "plugins": [
+        {
+          "name": "voltagent-biz",
+          "enabled": false
+        },
+        {
+          "name": "voltagent-core-dev",
+          "enabled": false
+        },
+        {
+          "name": "voltagent-data-ai",
+          "enabled": false
+        },
+        {
+          "name": "voltagent-dev-exp",
+          "enabled": false
+        },
+        {
+          "name": "voltagent-domains",
+          "enabled": false
+        },
+        {
+          "name": "voltagent-infra",
+          "enabled": false
+        },
+        {
+          "name": "voltagent-lang",
+          "enabled": false
+        },
+        {
+          "name": "voltagent-meta",
+          "enabled": false
+        },
+        {
+          "name": "voltagent-qa-sec",
+          "enabled": false
+        },
+        {
+          "name": "voltagent-research",
+          "enabled": false
+        }
+      ]
+    }
+  ],
+  "skills": {
+    "_nota": "Skills fora de plugin, em ~/.claude/skills. O bootstrap NAO as instala e NAO as exige — a lista e um retrato do que o dono do manifest usa, pro conformance acusar skill que APARECEU sem ser declarada (deteccao de drift). A direcao oposta nao e cobrada: em maquina que nao e a do dono, 'declarada mas nao instalada' seria ruido, nao desvio. snapshot.sh preserva esta chave (ver GENERATED_KEYS).",
+    "permitidas": [
+      "brandkit",
+      "design-taste-frontend",
+      "drawio-skill",
+      "efficient-fable",
+      "find-skills",
+      "firecrawl",
+      "gpt-taste",
+      "graphify",
+      "high-end-visual-design",
+      "imagegen-frontend-mobile",
+      "imagegen-frontend-web",
+      "improve-codebase-architecture",
+      "industrial-brutalist-ui",
+      "minimalist-ui",
+      "redesign-existing-projects",
+      "remotion-best-practices",
+      "stitch-design-taste",
+      "stop-slop"
+    ]
+  },
+  "ferramentas_externas": {
+    "_nota": "Binarios que PLUGINS deste marketplace precisam pra funcionar, e que nao sao instalaveis via marketplace. O bootstrap NAO instala sozinho — a skill setup confere e oferece; o conformance acusa plugin habilitado com dependencia faltando (mesmo padrao do gate meio-ligado).",
+    "itens": [
+      {
+        "comando": "graphify",
+        "pacote": "graphifyy",
+        "instalar": "uv tool install graphifyy",
+        "alternativa": "pipx install graphifyy",
+        "licenca": "MIT",
+        "requerido_por": [
+          "graphify-guard"
+        ],
+        "porque": "o graphify-guard procura graphify-out/graph.json e redireciona busca cega pro grafo; sem o binario ninguem cria esse diretorio e o guarda vira decorativo"
+      }
+    ]
+  }
+}

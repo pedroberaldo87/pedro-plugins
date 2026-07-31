@@ -1,0 +1,200 @@
+#!/usr/bin/env bash
+# snapshot.sh — regenerates manifest.json from current Claude Code state.
+#
+# Reads: `claude plugin list`, `claude plugin marketplace list`
+# Writes: $PEDRO_PLUGINS_REPO/plugins/bootstrap/config/manifest.json
+#
+# Only runs if source repo exists. Silent no-op otherwise.
+# Filters out `pedro-plugins` from the auto-generated section (never self-sync
+# based on local state), but PRESERVES any manually-maintained `pedro-plugins`
+# marketplace entry found in the existing manifest. This lets the user ship
+# their own plugins (visual, rev6, etc) via bootstrap without snapshot
+# erasing the entry on the next run.
+#
+# Exit codes:
+#   0 — success (manifest up-to-date or regenerated)
+#   1 — error (jq missing, write failed, etc)
+
+set -euo pipefail
+
+PEDRO_PLUGINS_REPO="${PEDRO_PLUGINS_REPO:-$HOME/pedro-plugins}"
+MANIFEST_PATH="$PEDRO_PLUGINS_REPO/plugins/bootstrap/config/manifest.json"
+KNOWN_MARKETPLACES="$HOME/.claude/plugins/known_marketplaces.json"
+
+log() { echo "[pedro-plugins/snapshot] $*" >&2; }
+
+# Early exit if no source repo
+if [ ! -d "$PEDRO_PLUGINS_REPO/.git" ]; then
+  exit 0
+fi
+
+# Required tools
+command -v jq >/dev/null 2>&1 || { log "error: jq not found in PATH"; exit 1; }
+command -v claude >/dev/null 2>&1 || { log "error: claude CLI not found in PATH"; exit 1; }
+
+if [ ! -f "$KNOWN_MARKETPLACES" ]; then
+  log "error: $KNOWN_MARKETPLACES not found"
+  exit 1
+fi
+
+# Parse `claude plugin list` output into a JSON array of {name, marketplace, enabled}
+# Output format is:
+#   ❯ <plugin>@<marketplace>
+#     Version: ...
+#     Scope: ...
+#     Status: ✔ enabled | ✘ disabled
+#
+# Plugins installed at multiple scopes appear twice — dedupe by (plugin, marketplace).
+PLUGIN_STATE="$(claude plugin list 2>/dev/null | awk '
+  /^  ❯ / {
+    # Extract "plugin@marketplace"
+    gsub(/^  ❯ /, ""); gsub(/[[:space:]]+$/, "")
+    current = $0
+    next
+  }
+  /^    Status:/ {
+    status = ($0 ~ /enabled/) ? "true" : "false"
+    print current "\t" status
+    current = ""
+  }
+' | sort -u)"
+
+if [ -z "$PLUGIN_STATE" ]; then
+  log "warning: claude plugin list returned no plugins"
+fi
+
+# Build JSON of plugins per marketplace, respecting enabled state.
+# Filter out pedro-plugins marketplace entirely.
+PLUGINS_JSON="$(printf '%s\n' "$PLUGIN_STATE" | awk -F'\t' '
+  NF == 2 {
+    split($1, parts, "@")
+    plugin = parts[1]
+    marketplace = parts[2]
+    if (marketplace == "pedro-plugins") next
+    key = marketplace
+    if (!(key in seen)) {
+      seen[key] = 1
+      order[++count] = key
+    }
+    entries[key] = entries[key] (entries[key] ? "," : "") \
+      "{\"name\":\"" plugin "\",\"enabled\":" $2 "}"
+  }
+  END {
+    printf "{"
+    for (i = 1; i <= count; i++) {
+      if (i > 1) printf ","
+      printf "\"%s\":[%s]", order[i], entries[order[i]]
+    }
+    printf "}"
+  }
+')"
+
+# Read manually-maintained pedro-plugins entry from existing manifest (preserve across snapshots).
+# First run or missing entry → empty array.
+PRESERVED_OWN_ENTRY="[]"
+if [ -f "$MANIFEST_PATH" ]; then
+  PRESERVED_OWN_ENTRY="$(jq '(.marketplaces // []) | map(select(.name == "pedro-plugins"))' "$MANIFEST_PATH" 2>/dev/null || echo '[]')"
+fi
+
+# Build marketplaces array by joining known_marketplaces.json with PLUGINS_JSON.
+# Filter out pedro-plugins from auto-generated (based on local state) but prepend
+# the preserved manual entry. Sort alphabetically by marketplace name.
+NEW_MANIFEST="$(jq -n \
+  --slurpfile marketplaces "$KNOWN_MARKETPLACES" \
+  --argjson plugins "$PLUGINS_JSON" \
+  --argjson preservedOwn "$PRESERVED_OWN_ENTRY" \
+  '{
+    version: 1,
+    description: "Third-party Claude Code marketplaces and plugins the user uses. Auto-synced via bootstrap hooks. The pedro-plugins entry is manually maintained and preserved across snapshots.",
+    marketplaces: (
+      $preservedOwn + (
+        $marketplaces[0]
+        | to_entries
+        | map(select(.key != "pedro-plugins"))
+        | sort_by(.key)
+        | map({
+            name: .key,
+            source: (
+              if .value.source.source == "github" then .value.source.repo
+              else .value.source.url
+              end
+            ),
+            sourceType: .value.source.source,
+            plugins: (
+              ($plugins[.key] // [])
+              | sort_by(.name)
+            )
+          })
+      )
+    )
+  }')"
+
+# Preserve hand-maintained top-level keys.
+#
+# A lista é do que ESTE script GERA, não do que preservar — inverter importa. A
+# primeira versão listava o que salvar (`jq '{skills}'`) e consertava o caso deixando
+# a classe viva: qualquer OUTRA chave mantida à mão seguia sumindo em silêncio no
+# primeiro SessionStart. Aconteceu com "skills" em 2026-07-30, minutos depois de
+# criada. Assim, chave nova mantida à mão sobrevive sem ninguém precisar lembrar
+# de vir aqui; só quem passa a GERAR uma chave nova mexe nesta lista.
+GENERATED_KEYS='["version","description","marketplaces"]'
+if [ -f "$MANIFEST_PATH" ]; then
+  PRESERVED_KEYS="$(jq --argjson gen "$GENERATED_KEYS" \
+    'with_entries(select(.key as $k | $gen | index($k) | not))' \
+    "$MANIFEST_PATH" 2>/dev/null || echo '{}')"
+  NEW_MANIFEST="$(echo "$NEW_MANIFEST" | jq --argjson keep "$PRESERVED_KEYS" '. + $keep')"
+fi
+
+# União com o manifest anterior: o snapshot NUNCA remove entrada de plugin.
+#
+# Causa-raiz medida em 2026-07-30: `claude plugin list` devolve saída INCOMPLETA de vez
+# em quando — cinco chamadas seguidas deram 49, 15, 49, 49, 49 linhas "Status:" (4790 vs
+# 1537 bytes). O snapshot gravava fielmente a amostra da vez, então o manifest encolhia
+# sozinho (29 → 22 → 13) e voltava sozinho (→ 29) sem ninguém mexer. Como não dá pra
+# distinguir "desinstalado" de "a CLI não listou desta vez", a única leitura segura é
+# ADITIVA: entrada nova entra, estado enabled da amostra vence, entrada ausente FICA.
+# Desinstalar de verdade passa a ser edição explícita do manifest.
+if [ -f "$MANIFEST_PATH" ]; then
+  NEW_MANIFEST="$(jq -n \
+    --argjson novo "$NEW_MANIFEST" \
+    --slurpfile velhoArr "$MANIFEST_PATH" '
+    ($velhoArr[0] // {}) as $velho
+    | ($velho.marketplaces // []) as $vm
+    | $novo
+    | .marketplaces = (
+        .marketplaces
+        | map(
+            . as $m
+            | ($vm[] | select(.name == $m.name) | .plugins // []) as $antigos
+            | $m.plugins = (
+                ($antigos + $m.plugins)
+                | group_by(.name)
+                | map(if length > 1 then .[1] else .[0] end)   # amostra nova vence
+                | sort_by(.name)
+              )
+          )
+      )')"
+  NOVO_N="$(echo "$NEW_MANIFEST" | jq '[.marketplaces[].plugins[]] | length')"
+  VELHO_N="$(jq '[.marketplaces[].plugins[]] | length' "$MANIFEST_PATH" 2>/dev/null || echo 0)"
+  [ "$NOVO_N" -lt "$VELHO_N" ] && log "warning: manifest encolheu $VELHO_N -> $NOVO_N (não deveria: a união é aditiva)"
+fi
+
+# Compare with existing manifest. Skip write if identical.
+if [ -f "$MANIFEST_PATH" ]; then
+  OLD_NORMALIZED="$(jq -S . "$MANIFEST_PATH" 2>/dev/null || echo "{}")"
+  NEW_NORMALIZED="$(echo "$NEW_MANIFEST" | jq -S .)"
+  if [ "$OLD_NORMALIZED" = "$NEW_NORMALIZED" ]; then
+    # No changes
+    echo "unchanged"
+    exit 0
+  fi
+fi
+
+# Write new manifest atomically
+TMP_FILE="$(mktemp)"
+echo "$NEW_MANIFEST" | jq . > "$TMP_FILE"
+mv "$TMP_FILE" "$MANIFEST_PATH"
+
+log "manifest regenerated: $MANIFEST_PATH"
+echo "changed"
+exit 0
