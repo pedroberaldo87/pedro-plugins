@@ -1,6 +1,6 @@
 ---
 generated: 2026-07-31
-generated-commit: 2587006
+generated-commit: fdeac13
 project: pedro-plugins
 scope:
   - plugins/project-doc/hooks/sessionstart-doc.sh
