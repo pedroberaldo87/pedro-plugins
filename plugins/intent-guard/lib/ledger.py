@@ -20,6 +20,7 @@ import subprocess
 import sys
 import tempfile
 import time
+from pathlib import Path
 
 MARKERS = ("package.json", "CLAUDE.md", "pyproject.toml", "Cargo.toml", "go.mod", ".git")
 CLASSES = ("pedido", "correcao", "restricao", "conversa")
@@ -169,11 +170,19 @@ def fold(evs, session=None):
     if session:
         pending = [r for r in pending if r.get("session") == session]
     pending.sort(key=lambda r: r.get("ts", 0))
-    live = [v for v in entries.values() if v["status"] == "vivo"]
+    vivos = [v for v in entries.values() if v["status"] == "vivo"]
     if session:
-        live = [v for v in live if v.get("session") == session]
+        vivos = [v for v in vivos if v.get("session") == session]
+    # Restrição não CONCLUI — ela vale enquanto valer. Misturada aos pedidos, nunca
+    # saía da lista de "a fazer" e dava a impressão de trabalho parado; e o gate
+    # cobrava dela um veredito que um auditor escreveu ser impossível: "o cumprimento
+    # dela na conversa não é auditável por mim, por desenho". Sai da cobrança e vira
+    # CONTAGEM (ver furos_da_regua) — quem consome `live` cobra só o que se conclui.
+    live = [v for v in vivos if v["class"] != "restricao"]
+    standing = [v for v in vivos if v["class"] == "restricao"]
     live.sort(key=lambda v: int(v["id"].split("-", 1)[1]))
-    return {"pending": pending, "live": live, "entries": entries}
+    standing.sort(key=lambda v: int(v["id"].split("-", 1)[1]))
+    return {"pending": pending, "live": live, "standing": standing, "entries": entries}
 
 
 # Artefatos que a PRÓPRIA auditoria cria ao executar o código (o prompt canônico
@@ -459,6 +468,43 @@ def cmd_verify(cwd, session=None):
     return {"resolved": resolved, "failed": failed, "remaining": remaining}
 
 
+def furos_da_regua():
+    """(total, desde a última olhada, marca). Os dois números saem do MESMO log —
+    append-only —, então mostrar os dois não custa nada e não obriga a escolher entre
+    perder o histórico e perder a leitura do que é novo.
+
+    Duas fontes, que é onde a régua de forma deixa rastro: o guarda mecânico registra
+    em bypass.log a resposta que furou o teto (ele desiste após 2 bloqueios pra não
+    travar a sessão), e o juiz registra em batidas.log o veredito de cada julgamento.
+    """
+    claude = Path(os.environ.get("CLAUDE_CONFIG_DIR", Path.home() / ".claude"))
+    marca = claude / "state" / "intent-guard" / "olhado"
+    try:
+        desde = float(marca.read_text().strip())
+    except (OSError, ValueError):
+        desde = 0.0
+    total = novos = fontes = 0
+    for log, e_furo in ((claude / "state" / "prose-ceiling" / "bypass.log", lambda d: True),
+                        (claude / "state" / "forma-relato" / "batidas.log",
+                         lambda d: d.get("motivo") == "julgou" and d.get("veredito") != "passa")):
+        try:
+            linhas = log.read_text(encoding="utf-8").splitlines()
+        except OSError:
+            continue  # log ausente ≠ zero furo — quem conta as fontes é `fontes`
+        fontes += 1
+        for ln in linhas:
+            try:
+                dd = json.loads(ln)
+            except ValueError:
+                continue
+            if not e_furo(dd):
+                continue
+            total += 1
+            if float(dd.get("ts") or 0) > desde:
+                novos += 1
+    return total, novos, fontes, marca
+
+
 def cmd_status(cwd):
     d = intent_dir(cwd)
     evs = load(d)
@@ -468,6 +514,23 @@ def cmd_status(cwd):
     for e in st["live"]:
         print("  %s [%s] (sessão %s) %s — %r" % (
             e["id"], e["class"], (e.get("session") or "?")[:8], e["resumo"], e["text"][:80]))
+    if st["standing"]:
+        total, novos, fontes, marca = furos_da_regua()
+        print("\nCOBRANÇAS PERMANENTES (%d) — não concluem, então não entram na conta acima:"
+              % len(st["standing"]))
+        for e in st["standing"]:
+            print("  %s %s — %r" % (e["id"], e["resumo"], e["text"][:80]))
+        if fontes:
+            print("  régua de forma furada: %d vez(es) no total · %d desde a última vez que você olhou"
+                  % (total, novos))
+        else:
+            print("  régua de forma furada: SEM REGISTRO nesta máquina — os guardas não deixaram "
+                  "rastro,\n  e isso não quer dizer zero furo; quer dizer que ninguém sabe.")
+        try:
+            marca.parent.mkdir(parents=True, exist_ok=True)
+            marca.write_text(str(time.time()))
+        except OSError:
+            pass  # fail-open: não poder marcar nunca derruba o status
     done = [e for e in st["entries"].values() if e["status"] != "vivo"]
     print("\nRESOLVIDOS/ARQUIVADOS (%d):" % len(done))
     for e in done:

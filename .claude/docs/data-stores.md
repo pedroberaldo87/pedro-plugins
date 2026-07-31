@@ -1,570 +1,595 @@
 ---
 generated: 2026-07-31
-generated-commit: a57ea6e
+generated-commit: 2587006
 project: pedro-plugins
 scope:
+  - .gitignore
   - .claude/.project-doc/findings.jsonl
   - .claude/.project-doc/ledger.json
+  - .claude/hook-contract.baseline.json
   - graphify-out/graph.json
-  - .gitignore
+  - graphify-out/manifest.json
+  - graphify-out/.graphify_labels.json
+  - graphify-out/GRAPH_REPORT.md
   - plugins/project-doc/lib/journal.py
   - plugins/project-doc/lib/graph_map.py
   - plugins/intent-guard/lib/ledger.py
   - _shared/green-cache.sh
   - plugins/visual/server/visual_server.mjs
   - plugins/visual/lib/plan_state.py
-  - .claude/hook-contract.baseline.json
+  - plugins/visual/lib/visual_page.py
+  - plugins/visual/hooks/stop-plan-status.sh
   - scripts/hook_contract.py
   - plugins/branches/lib/branch_state.py
   - plugins/guardrails/hooks/scope-cop.sh
+  - plugins/guardrails/hooks/askq-humanize.sh
   - plugins/context-guard/hooks/context-guard.sh
   - plugins/context-guard/hooks/context-guard-reset.sh
-  - graphify-out/.graphify_labels.json
-  - graphify-out/GRAPH_REPORT.md
-  - graphify-out/manifest.json
-  - plugins/guardrails/hooks/askq-humanize.sh
+  - plugins/context-guard/hooks/context-guard-writer.sh
   - plugins/bootstrap/hooks/stop-prose-ceiling.py
+  - plugins/bootstrap/hooks/stop-forma-relato.py
+  - plugins/bootstrap/hooks/hooks.json
+  - plugins/bootstrap/lib/conformance.py
+  - plugins/project-doc/hooks/stop-doc-touch.sh
 verified-by:
   - plugins/visual/lib/test_plan_state.py
+  - plugins/visual/lib/test_visual_page.py
+  - plugins/intent-guard/lib/test_ledger.py
+  - plugins/branches/lib/test_branch_state.py
   - plugins/project-doc/lib/test_journal.py
   - plugins/project-doc/lib/test_graph_map.py
-  - plugins/intent-guard/lib/test_ledger.py
-  - plugins/project-doc/lib/pattern_check.py
-doc-sig: pedro-plugins/findings.jsonl@gen=3.8#1f2a8160
+doc-sig: pedro-plugins/.gitignore@gen=3.8#72db48a0
 ---
 
 # Data Stores — onde o dado mora
 
-Este repo **não tem banco, ORM, migrations nem `docker-compose`**. Os depósitos são arquivos. Eles se dividem em três regiões com garantias de durabilidade completamente diferentes:
+Sem banco, sem ORM, sem migrations, sem `docker-compose`. Todo depósito é arquivo. O que separa um depósito do outro não é o formato — é **quem faz backup dele**:
 
-- **(A) dentro do repo, versionado** — backup = git + GitHub. É o que viaja entre máquinas.
-- **(B) fora do repo, em `~/.claude/`** — escrito por hooks/daemons dos plugins. **Zero backup.** Perder a máquina = perder tudo isso.
-- **(C) dentro do repo, mas gitignored** — moram na árvore de trabalho e parecem protegidos, mas estão fora do índice do git. **Zero backup.**
+- **(A) no repo e rastreado** — cobertura = git + `origin`. É o que viaja pra outra máquina.
+- **(B) fora do repo, em `~/.claude/`** — escrito por hooks e pelo daemon do `/visual`. Zero backup.
+- **(C) no repo, mas gitignorado** — mora na árvore de trabalho, parece protegido, está fora do índice. Zero backup.
+- **(D) o cofre** — fora do repo, no iCloud. É o único depósito de (B)/(C)/(D) com cobertura de terceiro.
 
-⚠️ **A região (C) mudou de tamanho em 2026-07-31 e a mudança foi grande.** Cinco conjuntos que viviam em (A) saíram do índice (`git rm -r --cached`) e entraram no `.gitignore`: `graphify-out/`, `.claude/.project-doc/`, `.claude/ata/`, `.claude/plans/` e os três `.claude/HANDOFF*.md`. Nenhum arquivo foi apagado do disco — o que mudou foi só a garantia. **Cada um deles perdeu a única cobertura que tinha (git + o remote) e hoje existe apenas nesta máquina.** É perda de garantia decidida de propósito, não descuido; a contabilidade item a item está em `durability.md §3.15`.
-
-Todas as medidas abaixo foram tiradas **em 2026-07-26, com `HEAD = 5ce0c1b`**, e cada uma vem com o comando que a produziu. [confirmado] As que um `/doc-touch` re-mediu — `graphify-out/` (A3), `.claude/plans/` (A4), o baseline dos hooks (A5), as tags de arquivo (A5b) e tudo em `~/.claude/` (B) — trazem **2026-07-30, `HEAD = 64acf18`** anotado no próprio item. Um segundo toque no mesmo dia, com **`HEAD = 781e923`**, re-mediu só o que mudou de natureza: `.claude/plans/` (A4), o vigia de escopo (B1) e o teto de prosa (B8).
-
-**Em 2026-07-31, com `HEAD = ff32947`, foram re-medidos todos os depósitos que o destrack tocou** — A1, A2, A3, A4 e A6 — mais o índice do repo inteiro. O número que resume a mudança:
+⚠️ **O repositório foi recriado hoje como história nova de UM commit órfão.** Isso mudou o que a região (A) protege, e mudou de um jeito que não aparece no `git status`: [confirmado]
 
 ```bash
-git ls-files -i -c --exclude-standard | wc -l   # 0   (era 35 antes do destrack)
-git ls-files | wc -l                            # 251 (o HEAD ff32947 tinha 335)
+git rev-parse HEAD                              # 2587006652a46b1c53272ccf53f117be8d6c634f
+git ls-files | wc -l                            # 252
+git ls-files -i -c --exclude-standard | wc -l   # 0   (nada rastreado E ignorado)
+git ls-remote origin
+#   2587006652a46b1c53272ccf53f117be8d6c634f	HEAD
+#   2587006652a46b1c53272ccf53f117be8d6c634f	refs/heads/main
 ```
 
-A primeira linha é a que importa: **não há mais nenhum arquivo simultaneamente rastreado e ignorado.** Era exatamente essa a contradição que o inventário registrava como dívida em vários itens abaixo — "a regra existe no `.gitignore` mas o arquivo continua no índice". Ela acabou.
+Duas consequências que valem para tudo abaixo:
+
+- **`git log` não é mais fonte de história.** Qualquer medida do tipo "N commits neste arquivo" devolve 1 — a história antiga não é ancestral desta.
+- **O remote tem exatamente duas refs e nenhuma tag.** Tudo que era protegido por tag (A5b) hoje existe só neste clone. [confirmado — a saída acima é a resposta inteira do `ls-remote`]
+
+E a região (C) é grande: cinco conjuntos que já foram rastreados vivem hoje só no disco, mais um que entrou nela nesta rodada (`.claude/hook-contract.baseline.json`, `.gitignore:45`).
+
+---
+
+## O critério, escrito no próprio `.gitignore`
+
+O arquivo é organizado por **motivo**, não por ferramenta, e o cabeçalho dele é a régra do repo (copiado literal): [confirmado]
+
+```
+# Este repositório é PÚBLICO e é instalado por terceiros. A pergunta que decide se um
+# arquivo entra não é "isso é útil?" — é "isso pertence a QUEM INSTALA, ou pertence a
+# QUEM ESCREVEU?". Só o primeiro sobe.
+#
+# Ignorar NÃO destrackeia: arquivo já rastreado sai com `git rm --cached`.
+# Régua: `git ls-files -i -c --exclude-standard` tem que devolver zero.
+```
+
+As cinco seções e as linhas que decidem cada depósito deste doc:
+
+```
+1 · REGISTRO DE TRABALHO   .claude/ata/ · .claude/plans/ · .claude/HANDOFF*.md
+                           .claude/BRIEFING-*.md · .claude/.project-doc/ · .claude/intent/
+                           docs/superpowers/
+2 · SEGREDO                scripts/public_repo_terms · .claude/secrets/ · .env · .env.*
+                           *.pem · *.key · *.p12 · id_rsa* · .netrc
+3 · RETRATO DESTA MÁQUINA  graphify-out/ · .claude/hook-contract.baseline.json
+                           .claude/qa-loop/ · .claude/visual/ · .playwright-mcp/
+4 · LIXO DE FERRAMENTA     .DS_Store · __pycache__/ · *.bak · *.tmp · …
+5 · CÓPIA LOCAL DEFASADA   pi-plugins/
+```
+
+A régua fecha: `git ls-files -i -c --exclude-standard` → **0**. [confirmado]
 
 ---
 
 ## (A) Dentro do repo — versionado
 
-### A5 · `.claude/hook-contract.baseline.json` — o retrato do contrato dos hooks
+### A5c · `plugins/bootstrap/config/manifest.json` — escrito por máquina, editado à mão
 
-- **Tipo:** JSON único, sobrescrito por `python3 scripts/hook_contract.py --json > …`.
-- **Onde vive:** `.claude/hook-contract.baseline.json`, **tracked no git**.
-- **Tamanho:** 38.035 bytes (40K). **5 chaves de topo, lidas do arquivo real:** `root` (o abspath da máquina que mediu), `entries` **31**, `scripts` **30**, `findings` **3**, `measured` **31**. ⚠️ **`entries` (31) > `scripts` (30) porque um mesmo script é registrado em mais de um evento** — contar entradas como "quantos hooks eu tenho" infla, exatamente como contar chaves do `manifest.json` como "quantos arquivos" (A3). [re-medido 2026-07-30, `HEAD = 64acf18`; eram 29 na rodada anterior]
-- ⚠️ **O `root` gravado é o caminho absoluto da máquina que mediu** (`/Users/<usuário>/…/pedro-plugins`). O arquivo é versionado, então esse campo viaja e não vale em outra máquina — é metadado de proveniência, não configuração.
-- **Natureza: RECONSTRUÍVEL, mas com JULGAMENTO embutido.** Regerar o arquivo é um comando; o que **não** se regenera é a decisão de quais achados foram aceitos. Essa parte vive em prosa, em `patterns.md §5.3` ("As isenções — e por que cada uma existe"). O par funciona: o JSON é o estado, o `patterns.md` é o porquê.
-- **Quem escreve:** um humano/agente rodando o comando acima, conscientemente. Nenhum hook o reescreve sozinho — de propósito: um baseline que se auto-atualiza aceita silenciosamente qualquer regressão.
-- **Quem lê:** o **check E** do `.claude/hooks/release-gate.sh`, via `--baseline`. Ele barra só o que piorou em relação a este arquivo.
+- **Tipo:** JSON rastreado, **293 linhas / 7.161 bytes** (`wc -lc` nesta rodada). [confirmado]
+- **Por que ele é o único depósito de máquina que mora no git:** é regenerado a cada `SessionStart` por `plugins/bootstrap/hooks/lib/snapshot.sh` (a partir do `claude plugin list`) e commitado automaticamente pelo `git-sync.sh`. O `marketplace.json`, ao lado, é escrito só por humano.
+- **Chaves de topo hoje** (`jq keys`): `description`, `ferramentas_externas`, `marketplaces`, `skills`, `version`. **Só três são geradas** — a lista está literal no script: [confirmado]
 
-⚠️ **A armadilha:** recongelar o retrato sem escrever o motivo transforma o gate em carimbo. O comando está documentado junto da ordem de registrar o porquê (`patterns.md §5.3`).
+  ```
+  snapshot.sh:140   GENERATED_KEYS='["version","description","marketplaces"]'
+  ```
 
-**Três sentinelas em `/tmp` acompanham este depósito**, todas chaveadas por
-`(uid, session_id, cksum do dir)` — a regra do repo pra estado por-sessão:
-`claude-plan-mark-*` (marco do início da sessão, quem data o "encerrado agora"),
-`claude-plan-nudge-*` (a cobrança já saiu nesta sessão) e `claude-plan-closed-*`
-(quais encerramentos já foram confirmados). Sem a terceira, o 🏁 do resumo de
-fim de turno repetia a cada turno até a sessão acabar. Efêmeras por definição.
+  `skills` e `ferramentas_externas` são mantidas à mão e sobrevivem por construção: a lista diz o que o script **gera**, não o que preservar, então tudo fora dela passa incólume.
+- **Conteúdo medido nesta rodada:** 8 marketplaces · 48 entradas de plugin (31 ligadas) · 18 itens em `skills.permitidas` · 1 item em `ferramentas_externas.itens`. [confirmado]
+- **Dois escritores de naturezas opostas.** O snapshot escreve sem perguntar; o humano escreve chave que o snapshot não conhece. A guarda que os faz conviver é a união **aditiva** com o manifest anterior — entrada ausente da amostra fica, porque `claude plugin list` devolve saída incompleta de vez em quando; desinstalar de verdade virou edição explícita do arquivo.
+- **Perder o arquivo não perde trabalho** (a próxima sessão o regenera da máquina viva). **Perder as chaves manuais, sim** — `skills.permitidas` e `ferramentas_externas` não têm origem nenhuma além do próprio arquivo.
 
-### A5b · tags `archive/<branch>-<data>` — a rede do `/branches`
+### Sementes versionadas (o resto de (A) que é depósito)
 
-- **Tipo:** tag anotada leve do git, uma por branch apagada (`plugins/branches/lib/branch_state.py:cmd_prune`).
-- **Onde vive:** no próprio repositório onde a branch foi apagada. **Versionada** como qualquer tag — mas note que tag só viaja com `git push --tags`.
-- **Natureza: rede de resgate.** Apagar branch `equivalent` exige `git branch -D` (o git a considera não-mergeada), e é exatamente aí que um erro custa trabalho. A tag torna a volta um comando: `git branch <nome> archive/<branch>-<data>`.
-- **Formato do nome:** `archive/<nome-da-branch>-<YYYYMMDD>` (`"archive/%s-%s" % (b["name"], dia)`, com `dia = time.strftime("%Y%m%d")`). Como o nome da branch entra cru, tag de branch com barra vira tag com barra: `archive/feat/design-md-plugin-20260728`.
-- **Já existem 6 no repo** (`git tag -l 'archive/*' | wc -l` → 6, em 2026-07-30): `docs/readme-20260728`, `feat/design-md-plugin-20260728`, `feat/project-doc-organism-20260728`, `feat/project-doc-pattern-signature-20260728`, `feat/sovai-build-engine-20260728`, `project-doc-organism-conformance-20260728`. **Todas do mesmo dia** — foi uma faxina única, não um hábito contínuo. [confirmado]
-- ✅ **A rede deixou de ser local — MEDIDO contra o remote.** `git ls-remote --tags origin | grep -c 'archive/'` → **6** nesta sessão, contra **6** locais. As seis foram empurradas em 2026-07-30, depois que uma auditoria mediu 0. ⚠️ O que segue aberto é o automatismo: `git push` normal não leva tag e o `cmd_prune` não empurra, então a **próxima** branch apagada volta a nascer só neste clone. Cobertura em `durability.md §2.8`.
-- **Invariante:** o `prune` cria a tag **antes** de apagar e **aborta** se não conseguir criá-la — nunca apaga sem rede. Duas travas a mais no mesmo verbo: só nomes explícitos (nunca "todas as seguras") e recusa de branch com trabalho exclusivo sem `--force`.
-- **Sem poda.** Uma tag por branch apagada, acumulando. Aceito: são bytes, e o valor é justamente durar.
+- `plugins/visual/skills/visual/config.default.json` — semente do `config.json` do `/visual`, que vive em (B2). O default sobe; a escolha do usuário, não.
+- `.claude-plugin/marketplace.json` — catálogo da distribuição, escrito só por humano.
 
-### A5c · `plugins/bootstrap/config/manifest.json` — o depósito ESCRITO POR MÁQUINA que também é editado à mão
-
-- **Tipo:** JSON versionado, **211 linhas / 5.326 bytes**, **20 commits no histórico** (`git log --follow`), o último sendo `575c33e` (2026-07-30). [confirmado — `wc -lc` + `git log` nesta rodada]
-- **Por que ele está aqui e o `marketplace.json` não** (ver *Fora do inventário*): o catálogo é escrito só por humano; este é **regenerado por um hook a cada `SessionStart`** (`plugins/bootstrap/hooks/lib/snapshot.sh`, a partir de `claude plugin list`) e **commitado automaticamente** por `git-sync.sh`. É estado de máquina que mora no repo — a única coisa neste projeto com esse formato.
-- **5 chaves de topo hoje** (`jq keys`, rodado nesta rodada): `description`, `ferramentas_externas`, `marketplaces`, `skills`, `version`. **Só as 3 primeiras da lista `GENERATED_KEYS` (`version`, `description`, `marketplaces`) são geradas** — as outras duas (`skills`, `ferramentas_externas`) são **mantidas à mão** e o snapshot as preserva por construção.
-- ⚠️ **É um depósito com DOIS escritores de naturezas opostas, e é daí que saem os defeitos.** O snapshot escreve sem perguntar; o humano escreve chave que o snapshot não conhece. As duas guardas que fazem os dois conviverem (`architecture.md §10.1`):
-  - **A união com o manifest anterior é ADITIVA** — entrada de plugin ausente da amostra **fica**, porque `claude plugin list` devolve saída incompleta de vez em quando (medido: 49/15/49/49/49 linhas em 5 chamadas seguidas). Desinstalar de verdade virou edição explícita do arquivo. Se o total encolher mesmo assim, o script loga `warning: manifest encolheu`.
-  - **`GENERATED_KEYS` é a lista do que o script GERA, não do que preservar** — tudo fora dela sobrevive. ✅ **Isso foi exercitado de verdade em `575c33e`:** `ferramentas_externas` entrou **sem uma linha de mudança no `snapshot.sh`**. Com a lógica anterior (`jq '{skills}'`, lista do que salvar) seria a segunda chave manual a sumir sozinha no primeiro `SessionStart` — foi o que aconteceu com `skills`, minutos depois de ela ser criada.
-- **Conteúdo hoje** (lido do JSON nesta rodada): 7 marketplaces · 29 entradas de plugin (14 ligadas, 15 desligadas) · 19 skills em `skills.permitidas` · **1** item em `ferramentas_externas.itens` (o binário `graphify`, pacote `graphifyy`, exigido pelo `graphify-guard`).
-- **Quem lê:** `hooks/lib/apply.sh` (converge a máquina) e `lib/conformance.py` (`check_plugins`, `check_skills`, `check_ferramentas_externas` — as três chaves não-geradas mais a de plugins). **Nenhuma das três últimas instala nada**: declaram o esperado pra o verificador poder acusar a diferença.
-- **Perder este arquivo** não perde trabalho: a próxima sessão o regenera a partir da máquina viva. **Perder as chaves manuais, sim** — `skills.permitidas` e `ferramentas_externas` não têm origem nenhuma além do próprio arquivo.
+Fora esses, **(A) é código e prosa**, não depósito de estado.
 
 ---
 
 ## (B) Fora do repo, em `~/.claude/` — sem backup nenhum
 
-Regra do repo, escrita literalmente no cabeçalho de `_shared/green-cache.sh`: *"Estado em `~/.claude/green-suite/` (NUNCA dentro do plugin — o cache `${CLAUDE_PLUGIN_ROOT}` é reescrito a cada bump de versão)."* É por isso que estes depósitos existem — e é por isso que **nenhum deles tem backup**: eles são por-máquina de propósito.
+A regra está escrita no cabeçalho de `_shared/green-cache.sh`, copiada literal: [confirmado]
 
-⚠️ **"`~/.claude/`" é o valor efetivo nesta máquina, não o caminho literal de todos eles.** Desde 2026-07-30 pelo menos um depósito desta região (B8) resolve a pasta por `CLAUDE_CONFIG_DIR`, caindo em `~/.claude/` só quando a env var está unset — que é o caso aqui. **A regra ao mexer em qualquer depósito de (B): escritor e leitor têm que resolver o diretório pela MESMA expressão.** Quando não resolvem, o sintoma não é erro, é o leitor reportando "está tudo bem" sobre uma pasta vazia que ninguém escreve (B8).
+```
+# Estado em ~/.claude/green-suite/ (NUNCA dentro do plugin — o cache
+# ${CLAUDE_PLUGIN_ROOT} é reescrito a cada bump de versão).
+```
 
-Medidas desta rodada [2026-07-30, `HEAD = 64acf18`]:
+⚠️ **"`~/.claude/`" é o valor efetivo nesta máquina, não o caminho literal de todos.** Parte destes depósitos resolve a pasta por `CLAUDE_CONFIG_DIR` e cai em `~/.claude/` só quando a env var está unset — que é o caso aqui (`echo "${CLAUDE_CONFIG_DIR:-unset}"` → `unset`). **A regra ao mexer em qualquer depósito de (B): escritor e leitor têm que resolver o diretório pela MESMA expressão.** Quando não resolvem, o sintoma não é erro — é o leitor dizendo "está tudo bem" sobre uma pasta vazia que ninguém escreve.
+
+Volumes desta rodada:
 
 ```bash
 du -sh ~/.claude/plans ~/.claude/visual-state ~/.claude/guardrails ~/.claude/intent \
        ~/.claude/green-suite ~/.claude/context-guard ~/.claude/intent-guard ~/.claude/state
-# 2,7M  plans        1,3M  visual-state   384K  guardrails
-# 264K  intent       192K  green-suite      0B  context-guard      0B  intent-guard
-#  36K  state        ← diretório NOVO nesta rodada (B8)
+# 2,7M  plans        1,3M  visual-state   516K  guardrails    264K  intent
+# 192K  green-suite    0B  context-guard    0B  intent-guard   48K  state
 ```
 
-Re-medidos no toque seguinte do mesmo dia [`HEAD = 781e923`]: `guardrails` **388K** (+4K, o crescimento do `scope-cop.log` ao voltar a logar) e `state` **0B** — os 9 contadores do teto de prosa sumiram (B8).
+### B1 · `${CLAUDE_CONFIG_DIR:-$HOME/.claude}/guardrails/` — 516K · os dois vigias
 
-Terceiro toque, mesma noite [`HEAD = a134e9c`]: `guardrails` **464K** (+76K em poucas horas — o `scope-cop.log` foi de 847 para **916** linhas e o modo `warn` virou o regime corrente, B1) e `.claude/intent/` **420K** (o depósito de (D), fora desta região). O `guardrails` é hoje o que mais rápido cresce em (B), e cresce **porque o gate voltou a logar** — o oposto do silêncio do modo `off`.
-
-### B1 · `$CLAUDE_CONFIG_DIR/guardrails/` — 464K · estado operacional dos vigias de edição e de pergunta
-
-- **Escrito por dois hooks:** `plugins/guardrails/hooks/scope-cop.sh` (os quatro arquivos `scope-cop.*` abaixo) e, desde 2026-07-30, `plugins/guardrails/hooks/askq-humanize.sh` (`askq.log` + `askq.count.<session_id>`).
-- ⚠️ **Os dois escritores da MESMA pasta resolvem o caminho por expressões DIFERENTES, e isso é divergência viva.** [confirmado — `grep -n "HOOK_DIR=" plugins/guardrails/hooks/*.sh` nesta rodada]
+- **Dois escritores, e eles resolvem o caminho por expressões DIFERENTES.** [confirmado — `grep -n "HOOK_DIR=" plugins/guardrails/hooks/*.sh` nesta rodada]
 
   ```
   scope-cop.sh:39      HOOK_DIR="${CLAUDE_CONFIG_DIR:-$HOME/.claude}/guardrails"
   askq-humanize.sh:45  HOOK_DIR="$HOME/.claude/guardrails"
   ```
 
-  O `scope-cop.sh` migrou na v1.5.0 para a **mesma expressão** do `lib/conformance.py:CLAUDE_DIR` e do `hooks/lib/apply-config.sh`; o `askq-humanize.sh` ficou para trás. O comentário do `scope-cop.sh` diz o que a divergência custa: *"o hook lendo o modo numa pasta e o conformance varrendo `**/*.mode` noutra: o gate que o auditor acusa não seria o que o hook obedece, e cada lado ficaria coerente sozinho"* — e classifica como *"o mesmo defeito silencioso do `bypass.log` do `stop-prose-ceiling`"* (B8). **Nesta máquina `CLAUDE_CONFIG_DIR` está unset, então as duas expressões dão a mesma pasta e a divergência é invisível** — é exatamente a condição em que ela sobrevive. Numa máquina com a env var setada, `scope-cop.*` e `askq.*` se separam em dois diretórios.
-- ✅ **O `~/.claude/hooks/scope-cop.mode` inerte foi aposentado** no `32cfe28` [confirmado — `ls` nesta rodada: *No such file or directory*]. Ele era um homônimo em pasta errada: o hook nunca o leu, editá-lo não mudava nada e não avisava. O `conformance.py:check_gates_enganosos` ganhou no mesmo commit a checagem que acusa `.mode` homônimo em pastas distintas — **o defeito é a existência do duplicado, não o valor dele**.
-- **Quatro arquivos, quatro naturezas** (conferidos no disco e no script). ⚠️ Desde 2026-07-27 o streak e o bypass são **por sessão** (`scope-cop.blockstreak.<session_id>`), com poda de 1 dia: o arquivo único fazia os BLOCKs de uma sessão contarem pro freio da outra, liberando edição sem julgar o escopo:
-  - `scope-cop.log` — 398.909 bytes, **916 linhas** [re-medido 2026-07-30 à noite; eram 370.884 / 847]. Trilha de auditoria **delimitada por `|`** (não TSV — `log_line` usa `printf '%s | %s | …'` e ainda troca qualquer `|` do pedido/diff por `/` justamente pra não quebrar as colunas): `ts · modo · veredito · streak · tem-plano · arquivo · req · diff`. **Descartável** (histórico de decisão, não entrada de nada).
-  - `scope-cop.mode` — **não é mais um kill-switch de dois estados: desde 2026-07-30 o vocabulário tem TRÊS valores** — `deny` (default), `warn` e `off`. O hook lê `[ "$MODE" = "off" ] && exit 0` e depois `[ "$MODE" = "warn" ] || MODE="deny"`, ou seja **qualquer valor que não seja exatamente `off` ou `warn` cai em `deny`** — inclusive lixo ou erro de digitação, o que é a direção segura. **Configuração.** [confirmado no código, `plugins/guardrails/hooks/scope-cop.sh`, o bloco logo após `MODE_FILE`]
-    ✅ **Na v1.5.0 o conjunto virou FECHADO e o valor inválido deixou de ser silencioso.** Um `case` explícito aceita `off | deny | warn | ""` (vazio/ausente = default de máquina nova) e manda qualquer outro valor para `MODE_IGNORADO`, que vira uma linha `MODE:invalido | valor ignorado="…"` no `scope-cop.log`. O motivo escrito no arquivo é a consequência de ter três estados: *"errar a grafia entrega o gate MAIS severo justamente a quem pediu o mais brando, que é o que o `warn` nasceu pra evitar"*. **Onde o rastro é escrito importa para este depósito:** ele sai *depois* dos filtros baratos, não na leitura do modo — o matcher é `Edit|Write`, e registrar cedo daria uma linha por edição de qualquer arquivo, afogando a auditoria num log que rotaciona em 5000 linhas.
-    Um segundo interruptor nasceu junto e **não é arquivo**: `SCOPE_COP_GATE=0` (env var, avaliada antes de ler o stdin) desliga o hook sem tocar neste depósito. É a propriedade 3 do contrato de hook, no mesmo molde do `GRAPHIFY_GATE`. Consequência para quem lê o disco: **`scope-cop.mode` deixou de ser a única forma de o gate estar desligado** — o arquivo pode dizer `deny` e o gate estar mudo.
-  - `scope-cop.blockstreak` — contador de BLOCKs seguidos; ao atingir `MAX_STREAK=3` o circuit-breaker libera 1 edição e zera. **Estado efêmero.**
-  - `scope-cop.bypass` — registro da última liberação por circuit-breaker. **Descartável.**
-- 🟡 **O valor no disco hoje é `warn`, e o log conta a história inteira desse arquivo de 5 bytes.** [confirmado nesta rodada] `cat ~/.claude/guardrails/scope-cop.mode` → `warn`. A distribuição `modo/veredito` das 916 linhas mostra por quê:
+  Nesta máquina `CLAUDE_CONFIG_DIR` está unset, então as duas dão a mesma pasta e a divergência é invisível — é exatamente a condição em que ela sobrevive. Numa máquina que seta a var, `scope-cop.*` e `askq.*` se separam em dois diretórios e o auditor passa a varrer o lado errado.
+- **`scope-cop.log`** — 420.133 bytes, **974 linhas**. Trilha delimitada por `|` (não TSV: o `log_line` troca qualquer `|` do pedido/diff por `/` pra não quebrar as colunas): `ts · modo · veredito · streak · tem-plano · arquivo · req · diff`. Rotação acima de 5000 linhas mantém as últimas 2000. **Descartável** — é histórico de decisão, não entrada de nada.
+
   ```bash
   awk -F' \\| ' '{print $2"/"$3}' ~/.claude/guardrails/scope-cop.log | sort | uniq -c | sort -rn
   #  455 deny/PASS   ·  191 deny/SKIP:no-ui-request  ·  158 deny/BLOCK
+  #   60 warn/PASS   ·   41 warn/SKIP:no-request     ·   21 warn/SKIP:no-ui-request
   #   21 deny/PASS:circuit-breaker · 9 deny/SKIP:parse-error · 9 deny/SKIP:judge-error
-  #    1 deny/SKIP:no-request
-  #   52 warn/PASS  ·  11 warn/SKIP:no-request  ·  5 warn/WARN  ·  4 warn/SKIP:no-ui-request
+  #    8 warn/WARN   ·    1 deny/SKIP:no-request
   ```
-  ⚠️ **As linhas em `warn` saltaram de 3 para 72 em poucas horas** (as 4 categorias `warn/*` acima). O modo deixou de ser uma anotação e virou o regime corrente do depósito.
-  As três **últimas** linhas em `deny` são três `BLOCK` seguidos, em `2026-07-02` 10:04:34, 10:05:13 e 10:06:38 — e depois disso **o log fica 28 dias em silêncio**, até `2026-07-30 17:14:34`, quando volta já em `warn`. O silêncio é a assinatura do `off`: nesse modo o hook sai antes de logar, então *ausência de linha* é o único registro que o `off` deixa. **Consequência para quem lê este depósito: um `scope-cop.log` parado não significa "nenhuma edição aconteceu", significa "o gate estava desligado".**
-- ⚠️ **Em `warn` o `blockstreak` para de acumular.** O ramo novo faz `echo 0 > "$STREAK_FILE"` antes de logar (*"em aviso não há streak: nada foi bloqueado"*), então o circuit-breaker de `MAX_STREAK=3` fica inerte enquanto o modo for `warn` — não porque nada dispare, mas porque o contador é zerado a cada aviso. ✅ **O ramo de aviso deixou de ser teórico: `grep -c "| WARN"` → 5** [confirmado nesta rodada; era 0 na rodada anterior, quando havia 3 linhas em `warn` e nenhuma delas era `WARN`]. Ou seja, cinco edições que em `deny` teriam sido bloqueadas passaram com aviso — e o `blockstreak` foi zerado cinco vezes. **O depósito hoje registra exatamente o que o modo `off` apagava.**
-  ⚠️ **E o aviso passou a sair por DOIS canais.** Na v1.5.0 o ramo `warn` emite `systemMessage` **junto** com o `additionalContext`, com o motivo escrito no hook: *"o transcript filtra `hook_additional_context` da renderização — sozinho ele deixaria o usuário no mesmo silêncio do modo `off`"*. As 5 linhas `WARN` no log são a prova de que o gate observou; o `systemMessage` é o que faz o usuário ver.
-- ~~⚠️ **Existe um SEGUNDO `scope-cop.mode` no disco, em `~/.claude/hooks/`, e ele é inerte.**~~ **RESOLVIDO em `32cfe28`** — o arquivo foi apagado [confirmado nesta rodada: `ls ~/.claude/hooks/scope-cop.mode` → *No such file or directory*] e a **classe** virou checagem no `conformance.py:check_gates_enganosos`, que agora acusa `.mode` homônimo em pastas distintas. O relato original, mantido porque explica a checagem: `~/.claude/hooks/scope-cop.mode` também continha `warn` (5 bytes, mesmo horário), mas pertencia ao hook global hand-rolled antigo (`~/.claude/hooks/pretooluse-scope-cop.sh`, de 19/jun) que **não está registrado em nenhum lugar**: `grep -c "claude/hooks" ~/.claude/settings.json` → **0**, e a única chave em `.hooks` do `settings.json` é `UserPromptSubmit`. Pior: aquele script só conhece `off | deny`, então `warn` ali seria lido como `deny`. **Editar o arquivo errado não muda nada e não avisa** — o que o plugin lê é `~/.claude/guardrails/scope-cop.mode` (`plugins/guardrails/hooks/scope-cop.sh`, variável `HOOK_DIR`). [confirmado]
-- **Mais dois arquivos, do vigia da pergunta** (`askq-humanize.sh`, 2026-07-30):
-  - `askq.log` — **4.762 bytes, EXISTE desde 2026-07-30 10:28.** Uma entrada por invocação, limpa ou suja: `=== ts · session · rc` + o `tool_input` cru (`jq -c`, cortado em 4000 chars) + as violações. Rotação no molde do scope-cop (acima de 3000 linhas mantém as últimas 1000).
-  - `askq.count.<session_id>` — cap de devoluções da sessão (teto 3, poda de 1 dia via `find -mtime +1`). **Estado efêmero**, escopado por sessão pela regra do §1.5 do `patterns.md`. **Nenhum no disco agora** — a poda de 1 dia já levou os das sessões de ontem.
-- ✅ **O wiring do `PreToolUse` no `AskUserQuestion` deixou de ser inferência — está MEDIDO.** Até a rodada anterior este doc dizia que o `askq.log` não existia e que o disparo era hipótese tirada da doc do harness. O log agora prova o disparo **e** prova que o gate julga: **5 invocações registradas, 3 com `rc=1` (devolvidas) e 2 com `rc=0` (passaram)**. Não é um gate que só loga: ele reprovou a maioria das perguntas reais que viu. [confirmado]
+
+  O modo `warn` é o regime corrente: 130 das 974 linhas são `warn/*`, e **8 são `WARN`** — oito edições que em `deny` teriam sido bloqueadas e passaram com aviso. [confirmado]
+- **`scope-cop.mode`** — 5 bytes, valor no disco hoje: `warn`. **Três valores, conjunto fechado:** um `case` aceita `off | deny | warn | ""` (vazio = default de máquina nova) e manda qualquer outro para `MODE_IGNORADO`, que vira uma linha `MODE:invalido` no log. O motivo de o conjunto ser fechado está no arquivo: errar a grafia entregaria o gate mais severo a quem pediu o mais brando. **Configuração.**
+  ⚠️ **O arquivo deixou de ser a única forma de o gate estar desligado:** `SCOPE_COP_GATE=0` (linha 28, avaliada antes de ler o stdin) desliga o hook sem tocar no disco. O `.mode` pode dizer `deny` e o gate estar mudo.
+- **`scope-cop.blockstreak.<session_id>` / `scope-cop.bypass.<session_id>`** — contador de BLOCKs seguidos (`MAX_STREAK=3` libera 1 edição e zera) e o registro da última liberação. **Por sessão** desde 2026-07-27: o arquivo único fazia os BLOCKs de uma sessão contarem pro freio da outra. Em `warn` o streak é zerado a cada aviso (`echo 0 > "$STREAK_FILE"`), então o circuit-breaker fica inerte enquanto esse for o modo. **Efêmero.**
+  ⚠️ **Os dois SEM sufixo continuam no disco, órfãos e imortais** — `scope-cop.blockstreak` e `scope-cop.bypass`, ambos de **2 jul**. Ninguém mais os lê e a poda não os alcança (o padrão exige o ponto do sufixo). Hoje há 5 com sufixo de sessão. Lixo estável, não estado. [confirmado por `ls -la`]
+- **`askq.log`** — 17.430 bytes / 48 linhas, do `askq-humanize.sh`. Uma entrada por invocação, limpa ou suja: `=== ts · session · rc` + o `tool_input` cru (`jq -c`, cortado em 4000 chars) + as violações. Rotação acima de 3000 linhas mantém 1000. **O gate julga, não só loga:** [confirmado]
+
   ```bash
-  grep -c '^=== ' ~/.claude/guardrails/askq.log            # 5
+  grep -c '^=== ' ~/.claude/guardrails/askq.log          # 10
   grep -o 'rc=[0-9]*' ~/.claude/guardrails/askq.log | sort | uniq -c
-  #   2 rc=0      (limpo)
-  #   3 rc=1      (violou → deny)
+  #   6 rc=0   (limpo)
+  #   4 rc=1   (violou → permissionDecision:deny)
   ```
-- ⚠️ **Os `scope-cop.blockstreak`/`.bypass` SEM sufixo de sessão ficaram órfãos.** Desde a mudança pra por-sessão, o hook só escreve `scope-cop.blockstreak.<session_id>`; os dois arquivos sem sufixo no disco são de **2 jul** e ninguém mais os lê nem os apaga (a poda `find -name 'scope-cop.blockstreak.*'` exige o ponto, então não casa com eles). **Lixo estável, não estado.** Hoje há **1** arquivo com sufixo de sessão (`scope-cop.blockstreak.b3e7c7b7…`, de hoje 17:16) — os de ontem já foram pela poda de 1 dia. Note a coincidência de data dos órfãos: eles congelaram em **2 jul**, o mesmo dia dos três `BLOCK` finais que motivaram desligar o gate. [confirmado] <!-- lint:ignore commit-hash — b3e7c7b7 e prefixo de session_id, nao de commit: existe o .jsonl correspondente em ~/.claude/projects/ no disco -->
-- **Natureza global: descartável.** Perder tudo isso reseta os dois guards para o default (`MODE="deny"`, streak 0, cap 0) — nenhum conhecimento se perde. O `askq.log` é o único com valor além do histórico: é o insumo bruto pra afinar as réguas do `askq_lint.py` sobre pergunta real em vez de suposição de formato.
-- **Costura verificada nos dois lados:** `scope-cop.sh` lê `VISUAL_STATE="$HOME/.claude/visual-state/latest.json"` para reconhecer plano aprovado via `/visual`; e `visual_server.mjs` de fato escreve esse `latest.json`. [confirmado]
 
-### B2 · `~/.claude/visual-state/` — 1,3M · estado de UI do daemon do /visual
+  É o único arquivo desta pasta com valor além do histórico: é o insumo bruto pra afinar as réguas do `askq_lint.py` sobre pergunta real em vez de suposição de formato.
+- **`askq.count.<session_id>`** — cap de 3 devoluções por sessão, poda `find -maxdepth 1 -name 'askq.count.*' -mtime +1 -delete`. **1 no disco agora.** Efêmero.
+- **Costura verificada nos DOIS lados:** `scope-cop.sh:281` lê `VISUAL_STATE="$HOME/.claude/visual-state/latest.json"` pra reconhecer plano aprovado via `/visual`; `visual_server.mjs` de fato escreve esse `latest.json` no `POST /state`. [confirmado nos dois arquivos]
+- **Natureza global: descartável.** Perder a pasta reseta os dois guards para o default (`MODE="deny"`, streak 0, cap 0). Nenhum conhecimento se perde.
 
-- **Escrito por:** `plugins/visual/server/visual_server.mjs`. `STATE_DIR = path.join(os.homedir(), '.claude', 'visual-state')` (criado com `fs.mkdir(..., {recursive:true})` na subida). O `POST /state` grava **dois** arquivos: `<session>.json` e `latest.json` (este último é o mesmo record + a chave `stateFile` apontando para o per-sessão).
-- **Conteúdo:** `{session, timestamp, docTitle, state}` — a seleção que o usuário fez na página HTML (aprovar/ajustar/descartar), que a skill lê de volta quando ele digita "ok".
-- **Hóspede novo desde 2026-07-28 — `config.json`, e ele NÃO é do daemon.** É a preferência do
-  `/visual` (`auto_mode` + os quatro `auto_triggers`), que antes morava **dentro do plugin**, em
-  `plugins/visual/skills/visual/config.json`. Mudou de casa porque `${CLAUDE_PLUGIN_ROOT}` é cache
-  reescrito a cada bump, então a escolha do usuário sumia em silêncio na atualização
-  (`architecture.md §11`). Quem escreve é a **skill**, não o `visual_server.mjs` — o daemon nunca
-  toca nele. Semente versionada: `plugins/visual/skills/visual/config.default.json`. Ver
-  `durability.md §3.9`.
-- **Tamanho / volume:** 1,3M, **276 entradas** (`ls ~/.claude/visual-state | wc -l`, medido neste
-  run — eram 255 na rodada anterior e 239 na anterior a essa: **+37 em duas rodadas de doc**),
-  incluindo um `.daemon.log`.
-- **Natureza: estado de UI, descartável** — com uma exceção de grau: o `config.json` acima é
-  preferência, não sessão, e por isso não deve entrar num eventual prune por idade. O daemon
-  aceita `session` só se casar `SESSION_RE = /^[a-zA-Z0-9_-]{4,64}$/`, corpo limitado a
-  `MAX_BODY_SIZE = 256 * 1024`, liga só em `127.0.0.1` e se auto-mata após
-  `IDLE_TIMEOUT_MS = 30 min`. Nada aqui é entrada de outro sistema além do handshake da sessão
-  corrente. **Não há prune** — o acúmulo é desde abr/2026. [confirmado]
+### B2 · `~/.claude/visual-state/` — 1,3M · estado de UI do daemon do `/visual`
+
+- **Escrito por** `plugins/visual/server/visual_server.mjs`: `STATE_DIR = path.join(os.homedir(), '.claude', 'visual-state')`, criado com `fs.mkdir(..., {recursive:true})` na subida. Note que **este é o único depósito de (B) que ignora `CLAUDE_CONFIG_DIR` por construção** — `os.homedir()` é fixo. [confirmado]
+- **O `POST /state` grava dois arquivos:** `<session>.json` e `latest.json` (o mesmo record + a chave `stateFile` apontando pro per-sessão). Conteúdo: `{session, timestamp, docTitle, state}` — a seleção que o usuário fez na página (aprovar/ajustar/descartar), que a skill lê de volta quando ele digita "ok".
+- **Limites do daemon, copiados do arquivo:** `SESSION_RE = /^[a-zA-Z0-9_-]{4,64}$/`, `MAX_BODY_SIZE = 256 * 1024`, `IDLE_TIMEOUT_MS = 30 * 60 * 1000`, `HOST = '127.0.0.1'`, `PORT = Number(process.env.CLAUDE_VISUAL_PORT || 7755)`. Porta ocupada → `EADDRINUSE` → sai com 0 em silêncio (outra instância já serve).
+- **Hóspede que não é do daemon: `config.json`.** É a preferência do `/visual` (`auto_mode` + os `auto_triggers`), escrita pela **skill**; o daemon nunca a toca. Mudou de casa porque `${CLAUDE_PLUGIN_ROOT}` é cache reescrito a cada bump e a escolha do usuário sumia na atualização. Semente versionada em `plugins/visual/skills/visual/config.default.json`.
+- **Volume:** 1,3M, **280 entradas** (`ls ~/.claude/visual-state | wc -l`), incluindo um `.daemon.log` e arquivos de teste (`test-live-abc123.json`, `test-session-abc123.json`). **Não há prune.** [confirmado]
+- **Natureza: descartável**, com uma exceção de grau — o `config.json` é preferência, não sessão, e não deve entrar num eventual prune por idade.
 
 ### B3 · `~/.claude/green-suite/` — 192K · cache de "suite verde"
 
-- **Escrito por:** `_shared/green-cache.sh` (fonte-da-verdade) e suas cópias vendoradas `plugins/ship/hooks/green-cache.sh` e `plugins/qa-loop/lib/green-cache.sh`. Função `green_cache_mark`.
-- **Chave:** `<cksum(root)>-<tree_hash>`, onde `tree_hash` é o `git write-tree` sobre um **index temporário** com `read-tree HEAD` + `add -A` — ou seja, inclui untracked. Qualquer edição/criação/remoção muda a chave e invalida o hit.
-- **Formato:** TSV, uma linha por marca — `scope \t epoch \t iso-ts \t writer`.
-- **Natureza: CACHE PURO, descartável por design.** As três garantias estão no cabeçalho do arquivo: fail-open na direção segura (qualquer erro → MISS → a suite roda), **gate vermelho nunca grava**, e TTL de 24h **por linha** (`GREEN_SUITE_TTL_SECS=86400`, epoch da linha e não mtime do arquivo). Ele mesmo se poda: `green_cache_mark` roda `find "$GREEN_SUITE_DIR" -type f -mtime +7 -delete`. Apagar a pasta inteira só faz as suites rodarem de novo.
-- **Volume:** 48 arquivos (`ls ~/.claude/green-suite | wc -l`, 2026-07-30 — eram 34), 42–106 bytes cada. É o único depósito de (B) que **se poda sozinho**, e ainda assim cresceu: a poda é de 7 dias e o ritmo de gates recentes é maior que isso.
+- **Escrito por** `_shared/green-cache.sh` (fonte-da-verdade) e suas cópias vendoradas em `plugins/ship/hooks/` e `plugins/qa-loop/lib/`. Função `green_cache_mark`.
+- **Diretório e TTL vêm de env com default, copiados literal:** [confirmado]
+
+  ```bash
+  GREEN_SUITE_DIR="${GREEN_SUITE_DIR:-$HOME/.claude/green-suite}"
+  GREEN_SUITE_TTL_SECS="${GREEN_SUITE_TTL_SECS:-86400}"
+  ```
+- **Chave:** `<cksum(root)>-<tree_hash>`, com `tree_hash` = `git write-tree` sobre um index temporário (`read-tree HEAD` + `add -A`) — inclui untracked. Qualquer edição, criação ou remoção muda a chave e invalida o hit. `git stash create` e `HEAD + diff` não serviriam: ignoram untracked → falso HIT.
+- **Formato:** TSV, uma linha por marca — `scope \t epoch \t iso-ts \t writer`. `scope` é `full` ou `app:<nome>`; `full` satisfaz qualquer consulta.
+- **Natureza: CACHE PURO.** As três garantias estão no cabeçalho: fail-open na direção segura (qualquer erro → MISS → a suite roda), **gate vermelho nunca grava**, e TTL **por linha** (epoch da linha, não mtime do arquivo — um mark novo não ressuscita registro vencido).
+- **Único depósito de (B) que se poda sozinho:** `green_cache_mark` roda `find "$GREEN_SUITE_DIR" -type f -mtime +7 -delete`. Mesmo assim tem **48 arquivos** hoje — a poda é de 7 dias e o ritmo de gates é maior que isso.
 
 ### B4 · `~/.claude/intent-guard/` — 0B · só o kill-switch
 
-- **Único arquivo previsto:** `mode`. Cinco hooks o leem com o mesmo `MODE_FILE="$HOME/.claude/intent-guard/mode"`: `plan-gate.sh`, `mark-work.sh`, `capture-prompt.sh`, `delivery-audit.sh`, `task-checkpoint.sh`. `plugins/intent-guard/hooks/test_hooks_capture.sh` faz backup/restore dele durante o teste.
-- **Estado atual: o diretório existe e está VAZIO (0B)** — nenhum `mode` gravado, logo o guard opera no default. **Configuração, descartável.** [confirmado]
+- **Único arquivo previsto:** `mode`. **Seis scripts do plugin o mencionam pelo mesmo caminho** (`grep -rl 'intent-guard/mode' plugins/intent-guard/hooks/` → `capture-prompt.sh`, `delivery-audit.sh`, `mark-work.sh`, `plan-gate.sh`, `task-checkpoint.sh` e o teste `test_hooks_capture.sh`, que faz backup/restore dele). [confirmado]
+- **Estado atual: o diretório existe e está VAZIO (0B)** — sem `mode`, o guard opera no default. Configuração, descartável.
 
 ### B5 · `~/.claude/context-guard/` — 0B · nada mora aqui
 
-- O único vínculo é um **comentário** em `plugins/context-guard/hooks/context-guard.sh`: *"Kill-switch: crie `~/.claude/context-guard/mode` com 'off' pra desligar o guard globalmente"*. O diretório existe (criado em 2/jul) e está vazio.
-- **O estado real do context-guard NÃO mora aqui — mora em `/tmp`, chaveado por sessão:** `STATE="/tmp/claude-context-pct-${SESSION_ID}"` e `SENTINEL="/tmp/claude-context-warned-${SESSION_ID}"` (`context-guard.sh`). O `context-guard-reset.sh` apaga os dois da sessão e ainda faz prune dos órfãos: `find /tmp -maxdepth 1 -name 'claude-context-pct-*' -mtime +1 -delete`. **Efêmero por definição** — `/tmp` some no boot. [confirmado; casa com o histórico de que o estado global entre sessões era o bug corrigido na v1.2.0]
-- ⚠️ **Desde 2026-07-30 os dois scripts abortam sem `jq`** (`command -v jq >/dev/null 2>&1 || exit 0`, primeira linha executável de cada um). É fail-open **na direção do depósito**, não só do usuário: sem `jq` o `session_id` sai vazio, e aí `context-guard.sh` leria o contador da sessão errada e `context-guard-reset.sh` apagaria o sentinel de **outra** sessão. A guarda existe pra proteger a chave do estado, não pra evitar erro na tela. Mesma classe do bug de estado global da v1.2.0. [confirmado no código]
+- O único vínculo é um **comentário** em `context-guard.sh`: *"Kill-switch: crie `~/.claude/context-guard/mode` com 'off' pra desligar o guard globalmente"*. O diretório existe e está vazio. [confirmado]
+- **O estado real mora em `/tmp`, chaveado por sessão** — ver a seção de sentinelas abaixo.
+- ⚠️ **Os dois scripts abortam sem `jq`** (`command -v jq >/dev/null 2>&1 || exit 0`, primeira linha executável de cada um). É fail-open **na direção do depósito**, não só do usuário: sem `jq` o `session_id` sai vazio, e aí o guard leria o contador da sessão errada e o reset apagaria o sentinel de **outra** sessão. A guarda protege a chave do estado, não a tela.
 
 ### B6 · `~/.claude/intent/` — 264K · **fallback**, não o depósito principal
 
-⚠️ Correção importante de premissa: o ledger do intent-guard **deste projeto NÃO está em `~/.claude/intent/`**. `plugins/intent-guard/lib/ledger.py:intent_dir` resolve assim:
+O ledger do intent-guard **deste projeto não está aqui**. `plugins/intent-guard/lib/ledger.py:intent_dir` resolve assim: [confirmado, corpo lido]
 
 ```python
-root = project_root(cwd)                       # git rev-parse --show-toplevel, ou markers
-if root: return os.path.join(root, ".claude", "intent")
+root = project_root(cwd)                       # git rev-parse --show-toplevel, ou MARKERS
+if root:
+    if os.path.realpath(cwd) == os.path.realpath(root):
+        return os.path.join(cwd, ".claude", "intent")
+    return os.path.join(root, ".claude", "intent")
 slug = re.sub(r"[^a-zA-Z0-9]+", "-", os.path.abspath(cwd)).strip("-")
 return os.path.join(os.path.expanduser("~/.claude/intent"), slug)
 ```
 
-- Como este repo é git, o caderno vive em **`.claude/intent/`** (ver C2 abaixo). O `~/.claude/intent/` só recebe os cwd **sem** raiz de projeto — e é exatamente o que o disco mostra: as entradas são slugs de paths de outros projetos (`Users-<usuario>-PROGRAMACAO`, `…-<outro-projeto>`, `tmp`, …), **nenhuma de pedro-plugins**.
-- **Natureza: histórico de intenção, insubstituível dentro do seu escopo, sem backup.** Vale para os projetos que caem no fallback, não para este.
-- Provado por `plugins/intent-guard/lib/test_ledger.py`: o teste roda `ledger.py resolve-dir` num repo git temporário e afirma `== os.path.join(repo, ".claude", "intent")`. [confirmado]
+- Como este repo é git, o caderno vive em `.claude/intent/` (região C). O `~/.claude/intent/` só recebe os cwd **sem** raiz de projeto — e é o que o disco mostra: slugs de caminhos de outros projetos, nenhum de pedro-plugins.
+- **Natureza: histórico de intenção, insubstituível dentro do seu escopo, sem backup.** Vale pros projetos que caem no fallback, não pra este.
+- Provado por `plugins/intent-guard/lib/test_ledger.py`, que roda `ledger.py resolve-dir` num repo git temporário e afirma `== os.path.join(repo, ".claude", "intent")`. Suíte verde nesta rodada. [confirmado]
 
-### B7 · `~/.claude/plans/` — 2,7M, 213 arquivos · o dos PLANOS DO HARNESS (≠ A4)
+### B7 · `~/.claude/plans/` — 2,7M, 209 arquivos · os planos do HARNESS (≠ A4)
 
-- Grep desta rodada em `plugins/`, `_shared/` e `.claude/hooks/`: **nenhum escritor**. Só leitores e uma proibição explícita:
-  - `plugins/qa-loop/skills/qa-loop/SKILL.md` — `--plan` procura o plano de implementação (`.claude/plans/*.md`, `docs/specs/*.md`).
-  - `plugins/principles/skills/principles/SKILL.md` — procura seção "Princípios de Sistema" em `.claude/plans/*.md`.
-  - `plugins/visual/hooks/pre-exitplan-visualize.sh` — diz literalmente *"não busque em `~/.claude/plans/`"*.
-- **Quem escreve é o harness do Claude Code** (fluxo de plano), não este marketplace. [inferido — verifiquei a ausência de escritor no repo; não inspecionei o harness]
-- **Natureza: insumo insubstituível e sem backup.** É a âncora do `/qa-loop` (fidelidade ao plano) e é referenciado por caminho absoluto dentro de HANDOFFs versionados — ou seja, o repo aponta para um depósito que não protege.
-- ⚠️ **Ele ENCOLHEU entre as duas rodadas: 226 → 213 arquivos, 2,9M → 2,7M.** É o único depósito deste inventário que perdeu conteúdo sem que nada neste repo tenha apagado nada (o grep acima confirma: zero escritores no marketplace). Um depósito insubstituível, sem backup, que diminui sozinho é o pior par de propriedades da tabela toda. [medido; a causa da remoção é do harness e não foi determinada — inferido]
-- ✅ **Endereçado em parte pela A4.** O `visual` v1.5.0 passou a escrever o plano **dentro do repo** (`<raiz>/.claude/plans/<id>.plan.json`, versionado) justamente porque este depósito não protege nada. Os dois coexistem e **não se falam**: `~/.claude/plans/*.md` continua sendo do harness (e `pre-exitplan-visualize.sh` segue dizendo literalmente *"não busque em `~/.claude/plans/`"*), enquanto `.claude/plans/*.plan.json` é do marketplace. **A colisão de nome é a armadilha**: um caminho relativo `.claude/plans` e um `~/.claude/plans` apontam para garantias opostas. [confirmado]
+- **Nenhum escritor neste marketplace.** Só leitores (`qa-loop` procura `.claude/plans/*.md` como plano de implementação; `principles` procura a seção "Princípios de Sistema") e uma proibição explícita em `plugins/visual/hooks/pre-exitplan-visualize.sh`: *"não busque em `~/.claude/plans/`"*.
+- **Quem escreve é o harness do Claude Code.** [inferido — verifiquei a ausência de escritor no repo; não inspecionei o harness]
+- **Natureza: insumo insubstituível e sem backup**, e que **encolhe sozinho**: 209 arquivos hoje, contra 213 na rodada anterior e 226 na anterior a essa. Um depósito insubstituível, sem backup, que diminui sem que nada neste repo apague nada é o pior par de propriedades do inventário. [medido; a causa da remoção é do harness — inferido]
+- ⚠️ **A colisão de nome é a armadilha:** `~/.claude/plans/*.md` é do harness e não tem rede; `<repo>/.claude/plans/*.plan.json` é do marketplace (A4) e hoje **também** não tem — os dois caminhos parecidos apontam pra garantias diferentes, e nenhuma delas é backup.
 
-### B8 · `$CLAUDE_CONFIG_DIR/state/prose-ceiling/` — o orçamento de bloqueio do teto de prosa
+### B8 · `${CLAUDE_CONFIG_DIR:-~/.claude}/state/prose-ceiling/` — o orçamento do teto de prosa
 
-Depósito **novo em 2026-07-30**, e o primeiro deste repo a morar em `<config>/state/` (o diretório `state/` nasceu com ele: `ls ~/.claude/state` mostra `prose-ceiling` e nada mais).
+- **Escrito por** `plugins/bootstrap/hooks/stop-prose-ceiling.py`, hook de `Stop`. O caminho é resolvido por env, com a mesma linha do leitor: [confirmado nos dois arquivos]
 
-- **Escrito por:** `plugins/bootstrap/hooks/stop-prose-ceiling.py`, um hook de `Stop`, criado com `mkdir(parents=True, exist_ok=True)` **só quando há problema a reportar**. Resposta aprovada não toca no disco.
-- ⚠️ **O caminho NÃO é fixo em `~/.claude/` — é resolvido por `CLAUDE_CONFIG_DIR`, e essa mudança consertou uma falha silenciosa.** Desde 2026-07-30 o hook faz `CLAUDE_DIR = Path(os.environ.get("CLAUDE_CONFIG_DIR", Path.home() / ".claude"))` e `ESTADO = CLAUDE_DIR / "state" / "prose-ceiling"`; antes era `Path.home()` fixo. O leitor deste depósito (`plugins/bootstrap/lib/conformance.py`, constante `CLAUDE_DIR`) **sempre** honrou a env var, com a linha idêntica. Numa máquina com `CLAUDE_CONFIG_DIR` setado, o escritor gravava num lugar e o verificador lia noutro — e o relatório dizia *"nenhuma resposta furou o teto"* com o teto furado. O comentário no código nomeia o defeito: *"Falha silenciosa."* **Nesta máquina `CLAUDE_CONFIG_DIR` está unset**, então o caminho efetivo continua sendo `~/.claude/state/prose-ceiling/` — a mudança não move nada aqui; ela só faz o par escritor/leitor concordar em qualquer máquina. [confirmado nos dois arquivos + `echo "${CLAUDE_CONFIG_DIR:-unset}"` nesta rodada]
-- **Dois tipos de arquivo, e eles guardam coisas diferentes:**
-  - `<sha1[:16]>` — **um contador por resposta bloqueada**. A chave é `sha1(session_id + texto_INTEIRO_da_resposta)[:16]`; o conteúdo é um único dígito ASCII (**1 byte**), o número de bloqueios já gastos naquela resposta. Teto `MAX_BLOQUEIOS = 2`.
-    ⚠️ **A chave é o texto inteiro de propósito, e o comentário no código explica o defeito que isso conserta:** com `texto[:200]` duas respostas diferentes dividiam o mesmo orçamento — e como o output style manda a primeira linha ser estável, a colisão era o **caso comum**, não a exceção. Chave curta em depósito chaveado por conteúdo não é otimização, é bug.
-  - `bypass.log` — **JSONL, uma linha por desistência.** Quando o contador chega a 2 o hook para de bloquear (bloquear pra sempre trava a sessão) e, em vez de desistir em silêncio, grava `{session (8 chars), linhas_prosa, problemas, trecho (120 chars)}`. **Não existe no disco nesta rodada.**
-- **Volume hoje: 0B, ZERO arquivos** — `ls -a ~/.claude/state/prose-ceiling` devolve só `.` e `..`; `du -sh` → `0B`. Eram **9 contadores de 1 byte** na rodada anterior do mesmo dia. ⚠️ **E isso não é o sistema se podando.** Nada no código apaga contador (ver o item abaixo); o diretório esvaziou porque alguém apagou de fora. **É o modelo de retenção funcionando como documentado — à mão** [o esvaziamento é confirmado; a autoria do `rm` é inferida, já que não há escritor nem podador que remova].
-- **Quem lê:** `plugins/bootstrap/lib/conformance.py:check_bypass_teto` — e ele lê **só o `bypass.log`**, nunca os contadores. Ausência do log = `conforme("teto", "nenhuma resposta furou o teto de prosa")`; presença = desvio com as 3 últimas linhas de amostra e a instrução `rm <log>`.
-- ⚠️ **NADA poda os contadores.** Não há `find -mtime`, não há TTL, não há limpeza no `SessionStart`: o único `rm` do sistema inteiro é o que o `conformance.py` **sugere ao usuário em texto**, e ele mira o `bypass.log`, não os `<sha1>`. Cada resposta reprovada deposita um arquivo de 1 byte que fica pra sempre. **A retenção desejada é "zero depois de lido" e ela depende de o usuário dar o `rm` à mão** — mesma forma do `askq.log` (B1). Está declarado assim em `durability.md §3.13`, não é omissão.
-- **Natureza: efêmero por intenção, permanente na prática — descartável.** Apagar o diretório inteiro devolve o orçamento de bloqueio a zero para todas as respostas (e perde a contagem de furos do teto, se algum dia houver). Nenhum conhecimento se perde. **Sem backup**, como todo o resto de (B).
-- **Desligado por `PROSE_CEILING=0`; teto configurável por `PROSE_CEILING_MAX` (default 6).** Com o hook desligado o depósito simplesmente não nasce.
-- **Cobertura de durabilidade: `durability.md §3.13`** — classificado *sem cobertura, com justificativa válida*, e com **duas** justificativas distintas para os dois arquivos (contador = orçamento de execução; `bypass.log` = medição de curto prazo cujo valor acaba quando o conformance a mostra). ✔ Regra da gen 3.8 satisfeita.
+  ```python
+  # stop-prose-ceiling.py          e          lib/conformance.py
+  CLAUDE_DIR = Path(os.environ.get("CLAUDE_CONFIG_DIR", Path.home() / ".claude"))
+  ESTADO = CLAUDE_DIR / "state" / "prose-ceiling"
+  ```
+
+  O comentário no hook nomeia o defeito que essa igualdade conserta: com `Path.home()` fixo, quem usa `CLAUDE_CONFIG_DIR` fazia o hook escrever num lugar e o verificador ler noutro, e o relatório dizia "nenhuma resposta furou o teto" com o teto furado — *"Falha silenciosa."*
+- **Três tipos de arquivo, e eles guardam coisas diferentes:**
+  - `<sha1[:16]>` — **contador por resposta bloqueada**, 1 byte cada. Chave = `sha1(session_id + texto_INTEIRO_da_resposta)[:16]`; teto `MAX_BLOQUEIOS = 2`. A chave usa o texto inteiro de propósito: com `texto[:200]`, e com o output style mandando a primeira linha ser estável, duas respostas diferentes dividiam o mesmo orçamento — a colisão era o caso comum. **9 no disco hoje.**
+  - **`batidas.log` — NOVO, e é o que faz o guarda ser auditável.** Uma linha JSON por **execução**, não só por bloqueio: `{ts, sessao (8 chars), motivo, linhas, teto}`. O comentário diz por que nasceu: sem ele, *"o guarda não rodou"* e *"o guarda rodou e aprovou"* eram indistinguíveis, e uma resposta de 9 linhas passou sem ninguém notar. 4.296 bytes hoje: [confirmado]
+
+    ```
+    motivos: aprovou 6 · "sem texto do assistente" 36     (42 execuções)
+    ```
+  - `bypass.log` — JSONL, uma linha por desistência (`{session, linhas_prosa, problemas, trecho}`), gravado quando o contador bate em 2 e o hook para de bloquear pra não travar a sessão. **Não existe no disco nesta rodada.** [confirmado]
+- **Quem lê:** `plugins/bootstrap/lib/conformance.py`, em duas checagens distintas — `check_teto_rodou` lê o `batidas.log` (ausência = desvio *"o guarda de prosa nunca executou"*; última batida > 24h = desvio *"está mudo"*) e `check_bypass_teto` lê **só** o `bypass.log` (ausência = conforme). **Nenhuma das duas olha os contadores.**
+- ⚠️ **Nada poda os contadores.** Sem `find -mtime`, sem TTL, sem limpeza no `SessionStart`. O único `rm` do sistema é o que o `conformance.py` **sugere em texto**, e ele mira o `bypass.log`. Cada resposta reprovada deposita 1 byte que fica pra sempre.
+- **O teto é premissa, não preferência:** `TETO_PADRAO = 6`, e `PROSE_CEILING_MAX` só **ajusta o número** (`0` ou lixo caem no padrão). Desligar exige `PROSE_CEILING=0`, que derruba o hook inteiro — e mesmo aí ele grava uma batida `kill-switch` antes de sair. Com o hook desligado o depósito não nasce.
+- **Regra nova nesta rodada, e ela muda o que entra no log:** pergunta fechada do usuário passou a exigir **veredito na 1ª linha** da resposta. O hook lê a última fala do usuário, casa `PERGUNTA_FECHADA` na cauda (200 chars) e exclui as abertas via `PERGUNTA_ABERTA`; se a primeira linha não casar `ABRE_COM_VEREDITO`, o problema `"pergunta fechada sem veredito na 1a linha"` entra na lista e a resposta é barrada. [confirmado no código]
+
+### B9 · `${CLAUDE_CONFIG_DIR:-~/.claude}/state/forma-relato/` — o juiz de forma do relato
+
+Depósito **novo nesta rodada**, irmão do B8 e deliberadamente diferente dele: o teto de prosa é mecânico, roda todo turno e custa zero token; **este chama um modelo**, então só roda quando a resposta é um RELATO.
+
+- **Escrito por** `plugins/bootstrap/hooks/stop-forma-relato.py`. O caminho tem **variável própria**, e o motivo está no comentário: [confirmado]
+
+  ```python
+  CLAUDE_DIR = Path(os.environ.get("CLAUDE_CONFIG_DIR", Path.home() / ".claude"))
+  # estado com var propria: isolar o teste via CLAUDE_CONFIG_DIR tirava a credencial
+  # do `claude -p` junto, e o juiz passava a aprovar tudo por fail-open.
+  ESTADO = Path(os.environ.get("FORMA_RELATO_STATE", CLAUDE_DIR / "state" / "forma-relato"))
+  ```
+- **O gatilho é medido no próprio texto:** é relato quando há pelo menos um bloco ` ``` ` **e** ≥ `MIN_PROSA = 2` linhas de prosa fora dos blocos. Resposta curta e conversa não chegam ao modelo — mandar cada turno custaria segundos em todos eles.
+- **Dois tipos de arquivo, mesmo desenho do B8:**
+  - `<sha1[:16]>` — contador anti-loop por resposta, `MAX_BLOQUEIOS = 2`, chave `sha1(session_id + texto)[:16]`. **Zero no disco.**
+  - `batidas.log` — uma linha JSON por execução: `{ts, sessao, motivo, veredito}`. **984 bytes, 12 linhas hoje.**
+- 🔴 **As 12 batidas são todas do mesmo motivo, e nenhuma é `julgou`:** [confirmado]
+
+  ```
+  motivos: "sem texto" 12     (0 julgou · 0 kill-switch · 0 desistiu)
+  ```
+
+  Ou seja: **o hook está carregado e executando, e o juiz nunca chegou a rodar** — o leitor da última mensagem do assistente voltou vazio em todas as vezes. Nenhum contador foi criado porque nenhuma reprovação aconteceu. O depósito existe, o modelo não foi chamado.
+- **Wiring confirmado** em `plugins/bootstrap/hooks/hooks.json`, no mesmo array `Stop` do teto de prosa: [confirmado]
+
+  ```json
+  "Stop": [{ "hooks": [
+     {"type":"command","command":"python3 \"${CLAUDE_PLUGIN_ROOT}/hooks/stop-prose-ceiling.py\"","timeout":10},
+     {"type":"command","command":"python3 \"${CLAUDE_PLUGIN_ROOT}/hooks/stop-forma-relato.py\"","timeout":30}
+  ]}]
+  ```
+- **Quem lê:** `plugins/bootstrap/lib/conformance.py:check_juiz_rodou`. Ele só cobra de quem tem o bootstrap habilitado (varre `enabledPlugins` do `settings.json` por `bootstrap@`), e então: arquivo ausente → desvio *"o juiz de forma nunca executou"*; `juiz sem resposta` > `julgou` → desvio *"o juiz está mudo"*, com a causa mais comum nomeada (`claude -p` sem credencial sai rc=1 e o fail-open aprova tudo); última batida > 24h → desvio; senão, conforme.
+  ⚠️ **Com o estado de hoje o check passa** — não há nenhum `juiz sem resposta` e a última batida é recente —, mas o juiz nunca julgou nada. A checagem cobre o modo de falha "modelo mudo"; **não** cobre "gatilho nunca casou".
+- **Kill-switch e modelo, copiados do arquivo:** `FORMA_RELATO=0` desliga (e grava a batida `kill-switch`); `FORMA_RELATO_MODEL` escolhe o modelo (default `haiku`); `TIMEOUT_S = 25`. O subprocesso herda `FORMA_RELATO="interno"` pra o juiz não chamar a si mesmo — e nesse modo nem batida grava.
+- **Natureza: descartável.** Apagar devolve o orçamento de bloqueio a zero e perde o registro de execução. Sem backup, como todo o resto de (B).
 
 ---
 
-## (C) Dentro do repo, mas **gitignored** — some se a máquina sumir
-
-Estes moram no repo e parecem protegidos, mas não estão no git.
+## (C) Dentro do repo, mas gitignorado — some se a máquina sumir
 
 ### A1 · `.claude/.project-doc/findings.jsonl` — o journal do conhecimento
 
-**Destrackeado em 2026-07-31** — saiu do índice do git (`git rm -r --cached`) e entrou no `.gitignore` (**linha 35**, `.claude/.project-doc/`); continua no disco desta máquina.
+- **Tipo:** JSONL append-only, 1 evento por linha. **3.353.192 bytes / 1.133 linhas.** [confirmado — `wc -lc` nesta rodada]
+- **Fora do git**, com a pasta inteira ignorada:
 
-- **Tipo:** JSONL append-only (1 evento por linha).
-- **Onde vive:** `.claude/.project-doc/findings.jsonl`, **fora do git desde 2026-07-31** — a pasta inteira é ignorada, com o comentário versionado *"journal, ledger e backups da doc: estado local da máquina, não distribuído"*.
-- **Tamanho:** 1.176.651 bytes (1,1M no `du`), **898** linhas [re-medido 2026-07-31, `HEAD = ff32947` — byte a byte idêntico às duas rodadas anteriores, porque a adoção no journal não rodou nestes ciclos].
   ```bash
-  du -h  .claude/.project-doc/findings.jsonl   # 1,1M
-  wc -lc .claude/.project-doc/findings.jsonl   # 898  1176651
-  git ls-files    .claude/.project-doc/        # (vazio — 0 arquivos rastreados)
-  git ls-tree -r --name-only HEAD -- .claude/.project-doc | wc -l   # 3  (o que HEAD ainda carrega)
   git check-ignore -v .claude/.project-doc/findings.jsonl
-  #   .gitignore:35:.claude/.project-doc/	.claude/.project-doc/findings.jsonl
+  #   .gitignore:21:.claude/.project-doc/	.claude/.project-doc/findings.jsonl
+  git ls-files .claude/.project-doc/      # (vazio)
   ```
-- **Natureza: INSUBSTITUÍVEL, e desde 2026-07-31 insubstituível SEM CÓPIA NENHUMA.** Não existe regenerador. A matéria-prima (transcripts `.jsonl` das sessões) é **local à máquina e não viaja** [confirmado — a mineração vive em `journal.py:collect_transcripts`, que lê `discover_all_transcripts(project_root)`]. Até 2026-07-30 o journal era o veículo do conhecimento **entre** máquinas, e era o git que o carregava. 🔴 **Tirá-lo do git tirou o veículo:** o arquivo continua sendo a única forma persistida daquele conhecimento, só que agora existe num disco só. Perder este Mac perde os 898 eventos, e não há de onde restaurar. A decisão foi consciente (o `.gitignore` a documenta), mas o preço é este e está medido. Cobertura: `durability.md §3.15`.
-- **Quem escreve:** `plugins/project-doc/lib/journal.py`, função `append_events()` — abre em modo `"a"` e escreve `json.dumps(e) + "\n"`. Não existe caminho de reescrita/truncamento no arquivo. Chamadores: `run_update`, `run_invalidate`, `run_curate`, `run_adopt`, `run_fuse`.
-- **Quem lê:** `journal.py:read_events` → `journal.py:fold`; `plugins/project-doc/lib/doc_lint.py` (monta o caminho em `.claude/.project-doc/findings.jsonl`); `plugins/project-doc/lib/pattern_check.py` (check `(c)`: falha se o journal não existir).
-- ⚠️ **Armadilha de ORDEM, e ela morde este doc especificamente.** `findings.jsonl` está no `scope:` deste arquivo, então **qualquer `journal.py adopt` rodado DEPOIS do `--restamp` deixa este doc `stale` na hora** — o `project_staleness` vê o arquivo de escopo mais novo que o carimbo e acusa, mesmo sem uma linha de conteúdo ter envelhecido. Aconteceu duas vezes em 2026-07-30, e a segunda foi o que expôs a regressão do manifest do bootstrap (§10.1 do `architecture.md`), porque investigar o `stale` em vez de re-carimbar por cima foi o que achou o defeito. **A ordem certa no `/doc-touch` é: adotar no journal PRIMEIRO, carimbar DEPOIS, e não adotar mais nada até o próximo ciclo.** Corolário: as medições de volume acima (linhas, bytes, composição) são as que envelhecem mais rápido de toda a doc — cada rodada de touch acrescenta eventos.
+- **Natureza: INSUBSTITUÍVEL, e sem cópia nenhuma.** Não existe regenerador. A matéria-prima (transcripts `.jsonl` das sessões) é local à máquina e não viaja — a mineração vive em `journal.py:collect_transcripts`, que lê `discover_all_transcripts(project_root)`. **Perder este disco perde os 1.133 eventos.** [confirmado]
+- ⚠️ **O código ainda afirma o contrário.** `journal.py`, no cabeçalho da seção de estado, diz literal: `# Estado: .claude/.project-doc/  (versionado — é o veículo do conhecimento)`. O `.gitignore:21` desmente. O comentário é de antes do destrack e não acompanhou. [confirmado nos dois arquivos]
+- **Quem escreve:** `journal.py:append_events()` — abre em modo `"a"` e escreve `json.dumps(e) + "\n"`. **Não existe caminho de reescrita nem truncamento no arquivo.** Chamadores: `run_update`, `run_invalidate`, `run_curate`, `run_adopt`, `run_fuse`.
+- **Quem lê:** `journal.py:read_events` → `journal.py:fold`; `plugins/project-doc/lib/doc_lint.py` (monta o caminho na linha 153); `plugins/project-doc/lib/pattern_check.py` (check `(c)`: falha se o journal não existir, linha 339). Costura confirmada nos dois lados. [confirmado]
 
-**Formato (evidência: `journal.py:fold`, corpo lido integralmente):** três tipos de evento, e o estado vivo é o *fold* deles em ordem de append.
+**Formato — três eventos, e o estado vivo é o *fold* deles em ordem de append** (evidência: `journal.py:fold`, corpo lido):
 
 ```
-{"ev":"discovered","id":<sha1[:16]>,"raw_kind":...,"text":...,"anchors":[...],"source":{...},"scrubbed":bool,"ts":epoch}
-{"ev":"invalidated","target":<id>,"reason":"...","ts":epoch}
-{"ev":"curated","target":<id>,"text":"...","ts":epoch}
+{"ev":"discovered","id":<sha1[:16]>,"raw_kind":…,"text":…,"anchors":[…],"source":{…},"scrubbed":bool,"ts":epoch}
+{"ev":"invalidated","target":<id>,"reason":"…","ts":epoch}
+{"ev":"curated","target":<id>,"text":"…","ts":epoch}
 ```
 
-- `discovered` cria (só a **primeira** ocorrência de um id conta — `if fid and fid not in state`).
-- `invalidated` mata sem apagar o `discovered`; a morte é **definitiva** até uma curadoria/rediscovery explícita (docstring de `fold` diz literalmente: "Um id invalidado permanece morto mesmo que re-apareça num discovered posterior").
-- `curated` sobrepõe o texto exibido (`live_findings` troca `text` por `curated` quando presente).
-- `id` = `sha1(texto_normalizado + "|" + raw_kind)[:16]` (`journal.py:finding_id`) → append idempotente: re-minerar a mesma fala não duplica.
+- `discovered` cria, e **só a primeira ocorrência de um id conta** (`if fid and fid not in state`).
+- `invalidated` mata sem apagar o `discovered`. A docstring de `fold` é explícita: *"Um id invalidado permanece morto mesmo que re-apareça num discovered posterior"* — a morte é definitiva até uma curadoria/rediscovery.
+- `curated` sobrepõe o texto exibido; `live_findings` troca `text` por `curated` quando presente, filtra o que não está `live` e ordena por `source.ts`.
+- `id = sha1(texto_normalizado + "|" + raw_kind)[:16]` (`finding_id`) → append idempotente: re-minerar a mesma fala não duplica.
 
-**Composição real do arquivo hoje** (derivado mecanicamente nesta rodada):
+**Composição real hoje** (derivada mecanicamente nesta rodada):
 
-```bash
-python3 -c "
-import json,collections
-c=collections.Counter(); k=collections.Counter(); scr=0
-for ln in open('.claude/.project-doc/findings.jsonl',encoding='utf-8'):
-    if not ln.strip(): continue
-    e=json.loads(ln); c[e.get('ev')]+=1
-    if e.get('ev')=='discovered': k[e.get('raw_kind')]+=1
-    if e.get('scrubbed'): scr+=1
-print(dict(c)); print(dict(k)); print('scrubbed:',scr)"
 ```
-```
-eventos:   discovered 885 · invalidated 11 · curated 2         (= 898 linhas)
-raw_kind:  user_directive 380 · commit 212 · handoff 129 · ask_answer 112
+eventos:   discovered 1120 · invalidated 11 · curated 2        (= 1133 linhas)
+raw_kind:  user_directive 584 · commit 213 · handoff 154 · ask_answer 117
            gotcha 26 · doc_nuance 14 · memory 9 · tool_rejection 3
-scrubbed:  23
+scrubbed:  60
 ```
 
-**Por que um arquivo cheio de conversa verbatim podia ser versionado — e por que a barreira continua valendo mesmo agora que ele não é:** todo texto passa pelo scrubber antes do append — `run_update` chama `scrub(c["text"])` e, se houver captura, `stash_secrets(secrets, project_root)` **antes** de montar o evento. O mesmo acontece em `run_invalidate` (o `reason`), `run_curate` e `run_adopt`. O valor-secreto sai do arquivo e vira o placeholder `‹cofre:LABEL:8hex›`; nome, host, porta e contexto ficam. Os 23 eventos com `scrubbed: true` são exatamente os que tiveram captura. [confirmado] ⚠️ **O destrack não afrouxa nada aqui:** o scrubber roda na escrita, não no `git add`, então ele segue sendo a barreira mesmo com o arquivo fora do índice — e continua sendo o que impede que um `git add -f` acidental publique um segredo.
+**Por que um arquivo cheio de conversa verbatim pode existir num repo público:** todo texto passa pelo scrubber **na escrita**, não no `git add`. `run_update` chama `scrub(c["text"])` e, havendo captura, `stash_secrets(secrets, project_root)` **antes** de montar o evento; o mesmo vale para `run_invalidate` (o `reason`), `run_curate` e `run_adopt`. O valor-segredo sai do arquivo e vira o placeholder `‹cofre:LABEL:8hex›`; nome, host, porta e contexto ficam. Os **60** eventos com `scrubbed: true` são os que tiveram captura. O scrubber segue sendo a barreira mesmo com o arquivo fora do índice — é o que impede que um `git add -f` acidental publique um valor. [confirmado]
+
+O `scrub()` é um scorer em **quatro camadas**, cada span redigido sendo pulado pelas seguintes (ordem lida do corpo): (1) estruturado — PEM → connection string → JWT → prefixos de provider; (1.5) par JSON/dict aninhado; (2) `chave=valor` de uma linha; (3) prosa — palavra-sinal perto de token de alta entropia; (4) na dúvida — token de alta entropia vira `‹revisar?›`, preservado e sinalizado. Política: **nomes e contexto sim, valores não**; host, IP, porta, path, sha e uuid são preservados de propósito.
+
+⚠️ **Armadilha de ordem, e ela morde este doc especificamente.** `findings.jsonl` está no `scope:` deste arquivo, então **qualquer `journal.py adopt` rodado depois do carimbo deixa este doc `stale` na hora** — o arquivo de escopo fica mais novo que o carimbo, sem uma linha de conteúdo ter envelhecido. A ordem certa: **adotar no journal primeiro, carimbar depois.** Corolário: as medições de volume acima são as que envelhecem mais rápido de toda a doc.
 
 ### A2 · `.claude/.project-doc/ledger.json` — o que faz a rodada ser delta
 
-**Destrackeado em 2026-07-31** — saiu do índice junto com o resto de `.claude/.project-doc/` (`.gitignore:35`); continua no disco desta máquina.
+- **Tipo:** JSON único, sobrescrito a cada rodada (`journal.py:save_ledger`, modo `"w"` + `json.dump`). **17.111 bytes.** Gitignorado pela mesma `.gitignore:21`.
+- **Três chaves, lidas do arquivo real:** [confirmado]
 
-- **Tipo:** JSON único, sobrescrito a cada rodada (`journal.py:save_ledger`, modo `"w"` + `json.dump`).
-- **Onde vive:** `.claude/.project-doc/ledger.json`, **fora do git desde 2026-07-31**.
-- **Tamanho:** 8,0K — `du -h .claude/.project-doc/ledger.json` [re-medido 2026-07-31, `HEAD = ff32947`]. A pasta inteira: **1,4M**.
-- **Natureza: RECONSTRUÍVEL, com custo — e é o único dos cinco destrackeados que sai barato dessa mudança.** Perdê-lo não perde conhecimento (o journal é a verdade); só força uma rodada de cold-start — re-mineração de todas as sessões e do histórico de commits (com teto de 1000, ver `collect_commits`, constante `CAP`). O journal deduplica por `finding_id`, então nada duplica.
-- **Quem escreve:** `journal.py:save_ledger`, chamado no fim de `run_update`.
-
-**Conteúdo (3 chaves, lidas de `journal.py:load_ledger` e conferidas no arquivo real):**
-
-```bash
-python3 -c "
-import json;d=json.load(open('.claude/.project-doc/ledger.json'))
-print(list(d.keys()), len(d['mined_sessions']), d['last_commit'], len(d['distilled_hashes']))"
-# ['mined_sessions','last_commit','distilled_hashes'] 113 5ce0c1bc34018ed2e894f5aaeac263e4141d2410 0
-```
-
-- `mined_sessions` — **mapa `{session_id: mtime_do_jsonl}`**, hoje com 113 entradas. Não é "lista de vistas": `collect_transcripts` re-minera quando `mtime > mined_sessions.get(sid, -1.0)`, o que recupera falas acrescentadas a uma sessão depois que ela deixou de ser a ativa. `load_ledger` migra o formato antigo (lista) para `{sid: 0}`, forçando re-mineração.
-- `last_commit` — SHA do HEAD da última rodada **completa** de `journal.py update`; hoje `5ce0c1bc…`, que **não** é o `HEAD` desta rodada (`ff32947`): os `/doc-touch` seguintes re-projetaram doc sem re-minerar, e é por isso que o ledger ficou para trás. É a base do range `last..HEAD` do forward delta **e** do backward delta (`git diff last_commit..HEAD --name-only`). Se a história for reescrita (rebase/amend/reset), `_commit_reachable` detecta o SHA órfão e degrada para cold-start em vez de deixar `git log` sair 128 e perder todos os commits do range.
-- `distilled_hashes` — **presente no schema e vazio (0 chaves)**. `load_ledger` só faz `setdefault("distilled_hashes", {})`; não há nenhuma escrita nessa chave em `plugins/` (grep desta rodada só acha o setdefault, a fixture em `test_journal.py`, o `PRD-v3.md` e a menção no SKILL.md). Campo **declarado e não usado**. [confirmado]
-
-### A3 · `graphify-out/graph.json` — o knowledge graph
-
-🔴 **Destrackeado em 2026-07-31, e aqui não foi um arquivo que saiu do git: foi o diretório inteiro.** `git rm -r --cached graphify-out/` tirou os **40** arquivos que `HEAD = ff32947` ainda carrega, e o `.gitignore` ganhou a linha **28** — `graphify-out/`, sem exceção nenhuma —, com o comentário versionado *"o diretório INTEIRO saiu do controle de versão nesta limpeza (regenerável com `graphify update`)"*. Nada foi apagado do disco: são **76M** e **1119** arquivos ali agora, todos invisíveis para o git.
-
-- **Tipo:** JSON node-link (formato NetworkX): `nodes[]`, `links[]`, `hyperedges[]`.
-- **Onde vive:** `graphify-out/graph.json`, **fora do git desde 2026-07-31**.
-- **Tamanho:** 3.178.225 bytes (3,0M) — `du -h graphify-out/graph.json` [re-medido 2026-07-31, `HEAD = ff32947`; eram 5.696.943 bytes / 5,4M em 2026-07-30]. **A queda de 2,5M não é poda: é o plugin de terceiro que saiu do repo** — o corpus encolheu junto.
-- **Natureza: RECONSTRUÍVEL, e é isso que torna este destrack o mais barato dos cinco.** `graphify update . --force` re-extrai por AST, sem LLM, em segundos; perder o diretório custa CPU, não conhecimento. A camada que **custa LLM** é o nome de comunidade (`graphify-out/.graphify_labels.json`, 10.939 bytes, **403 chaves** [re-medido nesta rodada; eram 14.537 bytes / 542 chaves]) — essa sim vale ouro relativo, porque `/graphify` cobra tokens pra recriar, e ⚠️ **ela saiu do git junto com o resto**: é o único pedaço de `graphify-out/` cuja perda não se resolve com um comando. Cobertura: `durability.md §3.15`.
-- **Quem escreve:** a CLI externa `graphify` (não é código deste repo). O `/project-doc` FULL e o `/doc-touch` a invocam antes de escrever doc.
-- **Quem lê:** `plugins/project-doc/lib/graph_map.py` — `graph_paths()` monta os dois caminhos canônicos (`graphify-out/graph.json` + `graphify-out/.graphify_labels.json`), `load_graph()` degrada para `(None, None)` se ausente/ilegível, e `build_map()` destila em `files` (ranking por fan-in), `god_nodes`, `communities` e `hyperedges`. O fan-in **semântico** exclui as relações estruturais `{"contains","defines","method"}` (constante `STRUCTURAL_RELATIONS`) — sem isso o `contains` domina o ranking. Saída desta rodada (`python3 plugins/project-doc/lib/graph_map.py --project-root .`): **3920 nós, 5039 links, 6 hyperedges (de 12 no cru), 30 comunidades nomeadas, 60 god nodes**, com `god_min: 3` e `hyper_min: 0.85` — medido em **2026-07-31** contra o commit que o próprio `GRAPH_REPORT.md` carimba (*"Built from commit: `ff329471`"*, = `HEAD`). ⚠️ **A queda de 6797/7737 para 3920/5039 NÃO é perda de código deste marketplace** — é o plugin de terceiro que foi removido do repo por inteiro; o corpus encolheu, e o grafo com ele. É a mesma classe do que aconteceu quando `pi-plugins/` saiu do corpus em 2026-07-28 (de 7219/8167 para 6423/7271): **queda no grafo depois de uma limpeza mede a limpeza, não uma regressão.** ⚠️ **`god_nodes: 60` é TETO, não medição** — `build_map()` corta em `top_gods=60` (a linha `god_nodes = god_nodes[:top_gods]` vem com o comentário de que o corte é ANTES de derivar `god_ids`). O número não sobe nem que o repo dobre; tratá-lo como grandeza medida é ler um limite como resultado. ⚠️ **Não cite o `manifest.json` como "quantos arquivos"** — ele tem **435** chaves, **106** delas entradas mortas de `pi-plugins/` e mais **4** do plugin de terceiro já removido; o número que o grafo realmente cobre é **287** (`source_file` distinto nos nós, e **zero** deles em `pi-plugins/`). ⚠️ **A gordura do manifest não encolhe nem quando o corpus encolhe: as chaves foram de 422 → 430 → 435 enquanto os nós caíam pela metade** — o manifest só cresce, nunca reconcilia, e a remoção do plugin de terceiro é a demonstração mais limpa disso (4 chaves mortas novas, criadas por uma remoção). Ver o item de reconciliação nas Pendências. ⚠️ Os `hyperedges` caíram de 12 para 6 porque `build_map()` **filtra** — o `graph.json` cru segue com 12; citar um número sem dizer qual instrumento mediu é como os dois divergem. [confirmado]
-
-**O que de `graphify-out/` é versionado hoje: NADA.** O `.gitignore` foi reescrito em 2026-07-31 e a lista de cinco exceções que existia aqui **deixou de existir** — no lugar dela ficou uma linha só, lida integralmente do arquivo real nesta rodada:
-
-```
-27:# graphify — o diretório INTEIRO saiu do controle de versão nesta limpeza (regenerável com `graphify update`)
-28:graphify-out/
-```
-
-Comparação com a regra anterior, que este doc descrevia até 2026-07-30: havia cinco padrões (`​.graphify_python`, `.graphify_root`, `cache/`, `20*/`, `graph.html`) e cinco arquivos tracked na raiz (`graph.json`, `manifest.json`, `GRAPH_REPORT.md`, `cost.json`, `.graphify_labels.json`). **A regra nova engole as duas listas.** Verificado nos dois sentidos:
-
-```bash
-git ls-files graphify-out/ | wc -l                          # 0
-git ls-tree -r --name-only HEAD -- graphify-out/ | wc -l     # 40   (o que HEAD ainda carrega)
-git check-ignore -v graphify-out/graph.json
-#   .gitignore:28:graphify-out/	graphify-out/graph.json
-find graphify-out -type f | wc -l                            # 1119 (no disco, intacto)
-du -sh graphify-out                                          # 76M
-```
-
-✅ **A dívida dos backups datados acabou — e acabou por inclusão, não por decisão sobre ela.** Até 2026-07-30 este bloco trazia o gotcha *"20M de backups datados continuam TRACKED apesar da regra `graphify-out/20*/`"*: a regra valia pra frente e era inerte pra trás, porque `.gitignore` não destrackeia o que já entrou. O `git rm -r --cached` fez o que a regra não podia fazer. Medido:
-
-```bash
-git ls-tree -r --name-only HEAD -- graphify-out/ | grep -c '^graphify-out/20'  # 35  (ainda no HEAD)
-git ls-files graphify-out/ | grep -c '^graphify-out/20'                        # 0   (fora do índice)
-find graphify-out -maxdepth 1 -type d -name '20*' | wc -l                      # 13  (no disco)
-du -ch graphify-out/20*/ | tail -1                                             # 56M
-```
-
-⚠️ **Mas o histórico não encolheu, e é aí que mora a leitura correta.** Destrackear tira do índice e do próximo commit; **não** tira do passado. O `.git` continua carregando tudo o que já entrou:
-
-```bash
-du -sh .git             # 37M  (era 11M em 2026-07-26 e 31M em 2026-07-30)
-git count-objects -vH   # size: 31.30 MiB · size-pack: 4.67 MiB
-git rev-list --objects HEAD -- graphify-out/graph.json \
-  | git cat-file --batch-check='%(objecttype) %(objectsize) %(rest)' \
-  | awk '$1=="blob"{s+=$2;n++} END{print n" blobs, "s" bytes"}'   # 32 blobs, 153936130 bytes
-```
-
-**32 blobs distintos de `graph.json`, 153.936.130 bytes brutos somados** — quatro a mais que na medição de 2026-07-30, porque cada rodada de doc rodava um `graphify update --force` e reescrevia o arquivo inteiro. O destrack **para o sangramento pra frente** (não entra blob novo) e **não devolve** um byte do que já entrou; para isso seria preciso reescrever a história. É a diferença entre fechar a torneira e esvaziar a banheira, e só a primeira aconteceu. [confirmado]
-
-### A4 · `<repo>/.claude/plans/*.plan.json` — os planos de implementação ticáveis
-
-🔴 **Destrackeado em 2026-07-31** — `.gitignore:39` (`.claude/plans/`), sob o comentário versionado *"Memória de sessão — pertence a esta cópia de trabalho, não ao marketplace"*. Continua no disco desta máquina.
-
-> ⚠️ **Não confundir com `~/.claude/plans/` (B7).** Mesmo nome, depósitos diferentes: aquele é global, do harness; este é do marketplace, dentro do repo. **Até 2026-07-30 a diferença que importava era a cobertura** — o de lá sem backup, este versionado. **Essa diferença acabou:** desde o destrack os dois estão igualmente sem cobertura, e o que ainda os separa é só quem escreve. O argumento que criou este depósito no `visual` v1.5.0 (*"o de lá não protege nada"*) deixou de valer para ele mesmo.
-
-- **Tipo:** um JSON por plano, sobrescrito por `os.replace` de um `.tmp` (escrita atômica — `plan_state.py:save`).
-- **Onde vive:** `<raiz-do-projeto>/.claude/plans/<id>.plan.json`, **fora do git desde 2026-07-31**.
-  ```bash
-  git ls-files    .claude/plans/ | wc -l                          # 0
-  git ls-tree -r --name-only HEAD -- .claude/plans | wc -l        # 8   (o que HEAD ainda carrega)
-  ls -1 .claude/plans/*.plan.json | wc -l                         # 9   (no disco)
-  git check-ignore -v .claude/plans
-  #   .gitignore:39:.claude/plans/	.claude/plans
   ```
-- **Tamanho hoje:** 92K, **9 arquivos**, 1476 linhas (`du -sh .claude/plans` · `wc -l .claude/plans/*.plan.json`) — eram 1 arquivo / 159 linhas em 2026-07-27 e 6 / 938 em 2026-07-30. **O depósito nonuplicou em quatro dias e continua sem prune** — só que agora cresce fora de qualquer cópia.
-- **Natureza: INSUBSTITUÍVEL, e desde 2026-07-31 insubstituível sem cópia nenhuma.** Não existe regenerador. A alternativa — reconstruir o plano do transcript — é exatamente o mecanismo lossy que o depósito veio substituir (ver B7 e o cabeçalho de `plan_state.py`), e o transcript é local. 🔴 **O que se perde junto não é o plano, é a prova:** cada passo `done` carrega o `evidence` que o `tick` exigiu, e essa é a parte que nenhuma releitura de transcript devolve. Cobertura: `durability.md §3.15`.
-- **Quem escreve:** `plugins/visual/lib/plan_state.py` — verbos `init` (autoria, uma vez), `tick` (marca com prova), `state`, `close`/`reopen`. Estado (`status`, `evidence`, `done_at`) é do programa; o modelo não escreve esses campos à mão.
-- **Quem lê:** o próprio `plan_state.py` (`render`/`page`/`open`), `plugins/visual/hooks/sessionstart-plan.sh` e `plugins/visual/hooks/stop-plan-status.sh` (o primeiro via `open --json`, o segundo via `brief`), e a skill `handoff` (que passa a preferi-lo ao `last_plan` do transcript).
-- **Onde o diretório é resolvido:** `plugins/visual/skills/visual/resolve-dir.sh <cwd> plans` — a mesma cascata do `/visual` (raiz git → marcador de projeto → `~/Desktop/claude-plans`), com o subdiretório como 2º argumento.
+  mined_sessions     dict com 267 entradas   {session_id: mtime_do_jsonl}
+  last_commit        "2587006652a46b1c53272ccf53f117be8d6c634f"
+  distilled_hashes   {}  (vazio)
+  ```
+- **`mined_sessions` guarda mtime, não "já vista"** — e isso é o que permite re-minerar uma sessão que **cresceu** depois de deixar de ser a ativa. `load_ledger` migra o formato antigo (lista) para `mtime 0`, forçando re-mineração.
+- **`last_commit` é a base do delta forward e do backward.** Há uma guarda explícita: `_commit_reachable()` verifica se o sha ainda existe, porque *"um rebase/amend/reset órfã o last_commit do ledger; usá-lo como base de range (`orfão..HEAD`) faz o git sair 128 e perderíamos TODOS os commits"*. ✅ **Essa guarda é exatamente o que salvou esta rodada:** o repo virou história órfã hoje, e o `last_commit` gravado já é o `2587006` novo. [confirmado]
+- **Natureza: RECONSTRUÍVEL, com custo.** Perder o ledger não perde conhecimento — perde a memória de "o que já foi minerado", e a próxima rodada vira um cold-start (que `collect_commits` trunca em `CAP = 1000` commits, com aviso em stderr, nunca em silêncio).
+- **`backups/`** ao lado: 712K, 6 diretórios datados (`20260621T002445Z` … `20260731T221815Z`), o mais recente de hoje. Também gitignorado.
 
-**Formato (evidência: `plan_state.py:validate`, lido integralmente):**
+### A3 · `graphify-out/` — 75M · o knowledge graph desta máquina
 
-```
-{"id":<slug>, "title":..., "created":"YYYY-MM-DD", "status":"active|done|abandoned",
- "phases":[{"id":"F1","title":...,"detail":[<linhas>]?,
-            "items":[{"id":"F1.1","title":...,"desc":<=140 chars,
-                      "status":"todo|doing|blocked|done","evidence":...,"done_at":...}]}]}
-```
+- **Gitignorado desde sempre nesta história** (`.gitignore:44`, seção "RETRATO DESTA MÁQUINA — regenerável, e carimba caminho absoluto e hostname. Sobe o gerador, nunca a saída").
+- **`graph.json`** — 3.107.545 bytes. Chaves de topo: `built_at_commit`, `directed`, `graph`, `hyperedges`, `links`, `multigraph`, `nodes`. Medido nesta rodada: [confirmado]
 
-- `id` de fase casa `^F\d+$`; de passo, `^F\d+\.\d+$` **com o prefixo da própria fase**. O id é a identidade — `merge()` recusa id existente que venha com outro `title`.
-- `desc` é obrigatório e limitado a `DESC_MAX = 140`. É a linha didática que aparece na árvore; parágrafo é rejeitado pelo schema.
-- **Fase não tem `status` próprio** — `phase_status()` deriva dos passos. Não existe onde gravar a contradição "fase pronta com passo pendente".
-- `evidence` só entra por `tick --evidencia` (mínimo `EVIDENCE_MIN = 8` chars); `state` não consegue marcar `done`.
-
-**Estado real dos 6 arquivos deste repo hoje** (derivado nesta rodada):
-
-```bash
-python3 -c "
-import json,os
-for f in sorted('.claude/plans/'+x for x in os.listdir('.claude/plans') if x.endswith('.json')):
-    d=json.load(open(f)); it=[i for p in d['phases'] for i in p['items']]
-    print(os.path.basename(f), d['status'], len(d['phases']),'fases', len(it),'passos',
-          sum(1 for i in it if i['status']=='done'),'feitos',
-          sum(1 for i in it if i.get('evidence')),'com prova')"
-```
-```
-2026-07-27-arvore-do-plano-no-visual         done    5 fases · 15 passos · 15 feitos · 15 com prova
-2026-07-28-design-como-doc-autoral           done    3 fases ·  9 passos ·  9 feitos ·  9 com prova
-2026-07-28-plugin-branches                   done    4 fases · 12 passos · 12 feitos · 12 com prova
-2026-07-28-varredura-de-contrato-dos-plugins done    5 fases · 20 passos · 20 feitos · 20 com prova
-2026-07-29-furos-do-gate-de-deploy           active  3 fases · 12 passos · 11 feitos · 11 com prova
-2026-07-30-bootstrap-instalacao-nova         done    6 fases · 10 passos · 10 feitos · 10 com prova
-2026-07-30-intent-guard-catraca              done    5 fases ·  9 passos ·  9 feitos ·  9 com prova
-2026-07-30-marketplace-presenteavel          done    6 fases · 15 passos · 15 feitos · 15 com prova
-2026-07-31-repo-limpo-do-zero                active  5 fases · 18 passos ·  0 feitos ·  0 com prova
-```
-
-- **A invariante "feito ⇒ com prova" vale nos 9**: em cada arquivo o nº de `done` é idêntico ao nº de `evidence`, sem uma única exceção. Não é disciplina do autor — é o schema: `evidence` só entra por `tick --evidencia` e `state` não consegue marcar `done`. O depósito não tem onde gravar "feito sem prova". ⚠️ **O `2026-07-31-repo-limpo-do-zero` com 0/18 é o caso-limite que confirma a regra pelo outro lado:** um plano recém-aberto satisfaz a invariante trivialmente (0 = 0). "Invariante satisfeita" não quer dizer "trabalho feito".
-- **Exatamente 2 planos `active`** (`2026-07-29-furos-do-gate-de-deploy`, 11 de 12; e `2026-07-31-repo-limpo-do-zero`, 0 de 18) — são os que o `sessionstart-plan.sh` ressuscita depois do `/clear`. Os 7 `done` ficam no disco e somem do `open`.
-- ⚠️ **Fase não é unidade de trabalho neste schema, é agrupamento** — `phase_status()` deriva o estado dos passos e a fase não guarda status próprio. O par mais extremo hoje é `bootstrap-instalacao-nova` (6 fases / 10 passos) contra `varredura-de-contrato` (5 fases / 20 passos): mesma ordem de grandeza de moldura, o dobro de conteúdo. Contar fases pra estimar tamanho de plano mede a moldura, não o conteúdo.
-
-**Custo de crescimento:** ≈ 10 KB por plano na média de hoje (92K / 9). Não há prune nem arquivamento; plano encerrado (`status != "active"`) some do `open` mas fica no disco. Ao ritmo de 8 planos em 4 dias, este é o depósito deste repo que **mais rápido** ganha arquivos. ⚠️ **Até 2026-07-30 a frase aqui era "fica no git para sempre … o preço aceito de viajar entre máquinas". As duas metades caíram junto com o destrack:** não fica no git, e não viaja. O que sobrou do custo é só o disco local.
-
-### A6 · `.claude/ata/` — logs de sessão (30 arquivos, 1,8M)
-
-🔴 **Destrackeado em 2026-07-31** — `.gitignore:38` (`.claude/ata/`), sob o comentário versionado *"Memória de sessão — pertence a esta cópia de trabalho, não ao marketplace"*. Continua no disco desta máquina.
-
-```bash
-git ls-files    .claude/ata | wc -l                        # 0
-git ls-tree -r --name-only HEAD -- .claude/ata | wc -l     # 30   (o que HEAD ainda carrega)
-ls -1 .claude/ata | wc -l                                  # 30   (no disco)
-du -sh .claude/ata                                         # 1,8M
-```
-
-Os 30 se dividem em **14 `LOG-<uuid>.md` + 14 `manifest-<uuid>.json` + 1 `INDEX.md` + 1 handoff legado**. São transcrições/atas narrativas de sessões (eram 24 / 1,4M em 2026-07-26 e 28 / 1,6M em 2026-07-30). 🔴 **Insubstituível** pelo mesmo motivo do journal — o transcript-fonte é local e não viaja —, **e desde o destrack é insubstituível sem cópia nenhuma**: era a única classe deste inventário cuja proteção não tinha ressalva alguma, e passou direto de "coberta" para "só nesta máquina". Não passam pelo scrubber do `journal.py` — são escritos por fluxo humano/skill, não por `append_events` [inferido — não localizei nesta rodada o escritor exato desses arquivos]. Cobertura: `durability.md §3.15`.
-
-- **`.claude/intent/` — 476K.** O caderno append-only do intent-guard **deste projeto**: `ledger.jsonl` (**460 linhas** em 2026-07-31 — eram 409 na noite anterior, 377 poucas horas antes disso e 155 em 2026-07-26, **+197% em cinco dias**; era o depósito que mais crescia em proporção neste inventário e o único desse ritmo sem backup — hoje divide essa condição com os cinco destrackeados), `ledger.lock` (arquivo de `fcntl.flock` de `ledger.py:locked`), **27** `audit-<epoch>.json`, **16** marcadores `.applied` (`ledger.py:apply_audit` grava o marker para não re-aplicar), **1** `.escopo` e um `ledger.jsonl.poluido.bak`.
-  Não está no `.gitignore` do repo — está em **`.git/info/exclude`** (linha 18: `.claude/intent/`), escrito por `ledger.py:ensure_exclude`, cuja docstring explica a escolha: *"Ignore LOCAL (.git/info/exclude) — nunca toca arquivo versionado do repo."*
-  Eventos: `raw` / `classify` / `verdict` / `baixa` (docstring do módulo). Estado vivo = `ledger.py:fold`, que **filtra por `session`** — sem esse filtro, sessões paralelas no mesmo projeto compartilhavam a lista de vivos e uma auditoria cobrava frentes de outra.
-  **Natureza: histórico de intenção — insubstituível e sem backup.** [confirmado]
-
-  🔴 **A contagem de arquivos aqui não é volumetria — é a medição de um defeito, e ela está na diferença entre dois números.** Derivado nesta rodada:
-
-  ```bash
-  ls -1 .claude/intent/audit-*.json  | wc -l     # 27  auditorias geradas
-  ls -1 .claude/intent/*.applied     | wc -l     # 16  transcritas pro ledger
-  ls -1 .claude/intent/*.escopo      | wc -l     #  1
-  wc -l .claude/intent/ledger.jsonl              # 460 eventos
-  # fold(load(dir), session=None) → live 42 · pending 17 · faixa p-12 … p-75
-  # eventos por tipo: raw 200 · classify 183 · verdict 44 · baixa 33
+  ```
+  nodes 3791 · links 4961 · hyperedges 12
+  source_file distinto: 259        communities: 376
+  built_at_commit: 2587006652a46b1c53272ccf53f117be8d6c634f   (== HEAD)
+  relações: contains 3078 · calls 1193 · rationale_for 260 · imports 162
+            defines 133 · references 61 · method 28 · imports_from 21
   ```
 
-  **11 das 27 auditorias nunca viraram `.applied`** — foram geradas, custaram um subagente cada, e o veredito nunca chegou ao caderno. É a mesma assinatura do defeito relatado de fora em 30/07 (*"3 auditorias geradas, só 1 transcrita"*), e a razão está do outro lado da conta: **42 pedidos vivos** acumulados de `p-12` a `p-75`, contra **44 `verdict`** e **33 `baixa`** em 460 eventos. O gate cobrava veredito de todo pedido vivo **no instante da leitura**, mas o auditor só fora encarregado dos vivos **no instante do bloqueio** — e cada mensagem entre um e outro criava pedido novo. Reproduzido nesta sessão contra a auditoria mais recente:
+  ⚠️ **Estes números valem para este commit e só.** Todo modo que escreve doc roda `graphify update --force` antes; o que é utilizável é o par número + `built_at_commit`, nunca o número solto.
+- **`.graphify_labels.json`** — 10.227 bytes, **376 labels, dos quais 50 são nomeados** (o resto é o placeholder `Community NNN`, que `graph_map._is_named` descarta). [confirmado]
+- **`manifest.json`** — 73.403 bytes, **439 chaves**, das quais **106 são de `pi-plugins/`**, que não está no grafo. Contar o manifest é medir o índice, não o mapa: o grafo enxerga 259 arquivos-fonte distintos. [confirmado]
+- **`GRAPH_REPORT.md`** — 84.095 bytes, relatório humano gerado junto. O cabeçalho dele traz a contagem de corpus (`252 files · ~643.929 words`) e o `Built from commit: 25870066`.
+- **Como o project-doc consome:** `plugins/project-doc/lib/graph_map.py` destila o grafo num mapa compacto. O que ele muda em relação ao arquivo cru — e o que é **teto**, não medida: [confirmado, saída real do run]
 
   ```bash
-  python3 plugins/intent-guard/lib/ledger.py audit-check --cwd . \
-    --file .claude/intent/audit-1785436084.json
-  # {"ok": false, "why": ["pedido vivo p-12 sem veredito", … 34 linhas …]}
-  # o arquivo julgou UM pedido: p-62
+  python3 plugins/project-doc/lib/graph_map.py --project-root .
+  # stats: nodes 3791 · links 4961 · hyperedges_total 12
+  #        communities_named 30 · god_nodes 60
+  # files listados: 40      hyperedges retidas: 6
+  # comunidade genérica descartada: "Plugin Manifest Metadata" (18 comunidades)
   ```
 
-- **`<auditoria>.escopo` — o depósito de NATUREZA NOVA (intent-guard v0.5.0), 1 arquivo hoje.** Companheiro de cada `audit-<epoch>.json`, mora no mesmo `.claude/intent/` e herda o mesmo `.git/info/exclude`.
-  - **Tipo:** array JSON de ids numa linha, escrito por `jq -c '[.[] | .id]'`. O único que existe hoje é `audit-1785466744.json.escopo`, conteúdo `["p-74","p-75"]` [lido nesta rodada].
-  - **Quem escreve — e este é o ponto:** o **hook**, `plugins/intent-guard/hooks/delivery-audit.sh`, na linha `> "${OUTP}.escopo"`, **no instante do bloqueio**. Não o auditor. É o único arquivo deste diretório que nasce antes do artefato que ele acompanha: quando o gate roda, o `audit-<epoch>.json` **ainda não existe** — quem vai escrevê-lo é o subagente. O comentário do hook nomeia a alternativa recusada: *"Depender do modelo ecoar a lista seria trocar mecanismo por exortação."*
-  - **Quem lê:** `ledger.py:audit_check`, que abre `path + ".escopo"` e reduz o conjunto cobrado a `perguntados ∩ vivos` — *"só cobra o que foi perguntado E continua vivo"*.
-  - **Natureza: registro de um INSTANTE, não regenerável.** Ele grava quem estava vivo às 21h06 de um dia específico; o ledger de amanhã não sabe reconstruir isso. Ver `durability.md §3.14`.
-  - **O primeiro sidecar apareceu:** o mecanismo nasceu em `a134e9c` e o primeiro bloqueio de entrega desde então produziu o par `audit-1785466744.json` + `.escopo`. As 26 auditorias anteriores continuam sem sidecar **de propósito** — sem ele, `audit_check` cai no comportamento anterior (cobra todos os vivos). Nada retroage.
-  ⚠️ **Nada apaga `.escopo`.** Como o `.applied`, ele acumula um arquivo minúsculo por bloqueio, para sempre. Mesma forma de retenção do resto do diretório: nenhuma.
-- **`.claude/visual/` — 3,9M.** As páginas HTML geradas pelo `/visual`. Gitignored (`.gitignore:44`). **Descartável** (é apresentação). ⚠️ **A ressalva que existia aqui — "note que os HANDOFFs versionados referenciam arquivos daqui por nome" — mudou de forma:** os três `.claude/HANDOFF*.md` saíram do git em 2026-07-31 (`.gitignore:40`). Não é mais um arquivo coberto apontando para um descoberto; agora **as duas pontas estão descobertas**, o que remove a inconsistência e aumenta a exposição.
-- **`.claude/.project-doc/backups/` — 248K, 5 snapshots** (`20260621T002445Z` … `20260726T235657Z`). Cópia de `CLAUDE.md` + `.claude/docs/` antes de cada re-mineração, + `MANIFEST.json`. ⚠️ **Até 2026-07-30 esta pasta era o caso interessante do diretório — a única parte ignorada de um `.project-doc/` versionado, e o `.gitignore` explicava a distinção com todas as letras (*"o journal/ledger em .project-doc/ SÃO versionados; só os backups não"*). A distinção sumiu:** a regra de hoje é `.claude/.project-doc/` inteiro (`.gitignore:35`), backups e journal no mesmo saco. **Descartável** (rede de segurança de uma rodada) — o que mudou não foi a natureza dela, foi a dos vizinhos.
-- **`.claude/.project-doc/.run-*.json` — ausentes agora, ~1,2M quando existem.** Snapshots de uma rodada de doc: `.run-collect.json` (~1.224.983 bytes, a coleta) e `.run-graphmap.json` (~11.572 bytes, o mapa do grafo). **Descartáveis / regeneráveis** — são o insumo do run corrente, e por isso só existem *durante* uma rodada: `ls .claude/.project-doc/` hoje mostra apenas `backups/`, `findings.jsonl`, `ledger.json` e `lint-allow.txt`. A linha própria que o `.gitignore` tinha para eles deixou de ser necessária — a regra do diretório inteiro já os cobre.
-- **`.claude/qa-loop/telemetry.jsonl` — 3 linhas** (4,0K na pasta). Telemetria de sessões de review. Gitignored (`.gitignore:32`). **Descartável.**
+  - **`god_nodes: 60` é o corte `top_gods=60`, não uma contagem** — não sobe nem que o repo dobre.
+  - **`communities_named: 30` ≠ os 50 labels nomeados** do arquivo: o mapa deduplica por nome e joga fora quem aparece em ≥ `GENERIC_COMMUNITY_MIN = 4` comunidades (metadado repetido, não módulo).
+  - **`hyperedges: 6` de 12** — o filtro é `confidence_score >= 0.85`.
+  - **Fan-in semântico exclui `STRUCTURAL_RELATIONS = {"contains", "defines", "method"}`**; `contains` sozinho é 3078 das 4961 arestas, e sem a exclusão o ranking viraria "quem tem mais símbolos", não "quem importa".
+  - Degrada gracioso: sem grafo, `run()` devolve `{"available": false}` e o exit code continua 0 — ausência de grafo não é erro.
+- **Natureza: RECONSTRUÍVEL por comando** (`graphify update . --force`, AST, sem LLM). É o depósito mais pesado do repo (75M com os snapshots datados de junho e julho) e o mais barato de perder.
+
+### A4 · `<repo>/.claude/plans/*.plan.json` — os planos ticáveis
+
+- **11 planos, 112K.** Gitignorado por `.gitignore:18` (seção "REGISTRO DE TRABALHO").
+- ⚠️ **A docstring do módulo ainda afirma o contrário**, e é a segunda contradição código-vs-gitignore deste doc: `plan_state.py` diz literal *"`<raiz-do-projeto>/.claude/plans/<id>.plan.json` — VERSIONADO no git de propósito: a dor é perda, e /tmp ou `${CLAUDE_PLUGIN_ROOT}` morrem no /clear e no bump"*. **A dor citada continua real; a cobertura que a resolvia não existe mais.** [confirmado nos dois arquivos]
+- **Estado hoje**, derivado dos arquivos: [confirmado]
+
+  ```
+  2026-07-27-arvore-do-plano-no-visual         done       15/15
+  2026-07-28-design-como-doc-autoral           done         9/9
+  2026-07-28-plugin-branches                   done       12/12
+  2026-07-28-varredura-de-contrato-dos-plugins done       20/20
+  2026-07-29-furos-do-gate-de-deploy           abandoned  11/12
+  2026-07-30-bootstrap-instalacao-nova         done       10/10
+  2026-07-30-intent-guard-catraca              done         9/9
+  2026-07-30-marketplace-presenteavel          done       15/15
+  2026-07-31-fechar-a-regua-e-publicar         active       7/11
+  2026-07-31-fechar-os-14-pedidos-abertos      abandoned    0/10
+  2026-07-31-repo-limpo-do-zero                abandoned  13/18
+  ```
+- **Por que o arquivo existe:** antes disto o plano só vivia no transcript e todo consumidor o **re-derivava por LLM** — lossy: encurta, renomeia fase, chuta se já foi executado. O caso concreto está citado na docstring (`extract_ata.py`: `excerpt: txt[:1200]` e `likely_executed = commits_after > 0 or edits_after >= 3` — um plano de 10 fases + 1 commit virava "concluído").
+- **A correção é estrutural:** o modelo **autora uma vez** (`init`) e daí em diante só **marca** (`tick`). Quem desenha a árvore é o programa lendo o arquivo. Como o modelo nunca redigita um título, não há de onde a mudança de nome vir.
+- **As travas do schema, lidas de `validate()`:** `id` slug minúsculo; fase casa `F<n>`, passo casa `F<n>.<m>` com prefixo batendo com a fase; `desc` obrigatório e ≤ `DESC_MAX = 140` chars (*"é UMA linha, não um parágrafo"*); `status` ∈ `("todo","doing","blocked","done")`. Erros saem **todos de uma vez**, pra o autor não gastar N rodadas.
+- **Duas recusas que protegem o depósito:**
+  - `tick` exige `--evidencia` com ≥ `EVIDENCE_MIN = 8` chars: *"Sem isso, 'concluído' é palpite — foi assim que planos foram dados como prontos sem estar."* `done` só existe via `tick`; `cmd_state` recusa explicitamente `done`.
+  - `merge()` **trava a identidade**: título divergente do que está no arquivo aborta o `init` inteiro, e renomear exige `--rename <id> "<novo título>"`. Nó que sumiu do `init` novo é **mantido**, não apagado.
+  - Escrita é atômica: `save()` grava em `.tmp` e faz `os.replace`.
+- **Quem lê no fim do turno:** `plugins/visual/hooks/stop-plan-status.sh`, via `plan_state.py brief`. Canal `systemMessage` (informa, nunca bloqueia), desligável por `PLAN_STATUS=0` / `PLAN_NUDGE=0`. Costura confirmada nos dois lados. [confirmado]
+- **Natureza: registro de trabalho, insubstituível, sem cobertura.** Verde em `plugins/visual/lib/test_plan_state.py` nesta rodada.
+
+### A5 · `.claude/hook-contract.baseline.json` — o retrato do contrato dos hooks
+
+🔴 **Mudou de região nesta rodada: era rastreado, hoje é ignorado** (`.gitignore:45`, seção "RETRATO DESTA MÁQUINA"). [confirmado por `git check-ignore -v`]
+
+- **Tipo:** JSON único, sobrescrito por `python3 scripts/hook_contract.py --json > …`. **38.035 bytes.**
+- **Cinco chaves de topo, lidas do arquivo real:** `root` (abspath da máquina que mediu), `entries` **31**, `scripts` **30**, `findings` **3**, `measured` **31**. ⚠️ **`entries` (31) > `scripts` (30) porque um mesmo script é registrado em mais de um evento** — contar entradas como "quantos hooks eu tenho" infla, do mesmo jeito que contar chaves do `manifest.json` como "quantos arquivos" (A3).
+- ⚠️ **O `root` gravado é o caminho absoluto desta máquina.** Era metadado de proveniência inútil quando o arquivo viajava; agora que ele não viaja mais, é coerente — e é justamente por carregar isso que ele saiu do índice.
+- **O que o script mede** (`scripts/hook_contract.py`, cabeçalho): as 5 propriedades que separam um gate saudável de um que trava ou se desliga sozinho — canal de saída, cap anti-loop escopado por sessão, kill-switch, binário fixo, fail-open. O aviso do próprio arquivo: *"Isto é grep sofisticado, não verdade."* Por isso a saída traz sempre a linha e o trecho que dispararam o achado.
+- **Natureza: RECONSTRUÍVEL, mas com JULGAMENTO embutido.** Regerar é um comando; o que **não** se regenera é quais achados foram aceitos — essa parte vive em prosa (`patterns.md`, "As isenções"). O JSON é o estado, o `patterns.md` é o porquê.
+- **Quem lê:** o check E do `.claude/hooks/release-gate.sh` (linhas 99-107), via `--baseline`, barrando só o que **piorou**. Costura confirmada nos dois lados. [confirmado]
+- ⚠️ **mtime de 28/jul.** O retrato não foi refeito depois da recriação do repo: o gate compara o presente contra uma medida de três dias atrás, e o baseline agora nem viaja mais para outra máquina reproduzir a comparação.
+- **Nenhum hook o reescreve sozinho, de propósito** — baseline que se auto-atualiza aceita silenciosamente qualquer regressão.
+
+### A5b · tags `archive/<branch>-<data>` — a rede do `/branches`, e ela está rompida
+
+- **Tipo:** tag do git, uma por branch apagada, criada por `plugins/branches/lib/branch_state.py:cmd_prune`. Formato `archive/<nome-da-branch>-<YYYYMMDD>` (`"archive/%s-%s" % (b["name"], dia)`) — como o nome da branch entra cru, branch com barra vira tag com barra.
+- **Invariante forte, lido do corpo:** o `prune` cria a tag **antes** de apagar e **aborta** se não conseguir criá-la (*"não consegui criar a tag de resgate de '%s' — nada foi apagado"*). Duas travas a mais no mesmo verbo: só nomes explícitos (nunca "todas as seguras") e recusa de branch com trabalho exclusivo sem `--force`.
+- 🔴 **A rede voltou a ser SÓ local, e desta vez o motivo não é `git push` esquecido — é história nova.** [confirmado]
+
+  ```bash
+  git tag -l 'archive/*' | wc -l          # 6
+  git ls-remote --tags origin             # (saída vazia)
+  git merge-base HEAD archive/docs/readme-20260728   # (saída vazia — sem ancestral comum)
+  ```
+
+  As seis tags **resolvem** localmente (os objetos ainda estão no `.git` deste clone) e apontam para commits da história antiga, que não é ancestral do `2587006`. O remote não tem nenhuma. Restaurar uma branch por `git branch <nome> archive/…` ainda funciona **aqui**; em qualquer outro clone, não existe.
+- **Sem poda.** Uma tag por branch apagada, acumulando. Aceito: são bytes, e o valor é durar.
+- Verde em `plugins/branches/lib/test_branch_state.py` nesta rodada.
+
+### A6 · `.claude/ata/` — 1,9M, 32 arquivos · logs de sessão
+
+- Gitignorado por `.gitignore:17`. Escrito pelo `/handoff` (`plugins/handoff/lib/extract_ata.py`), lido pelo `/project-doc` e pelo próprio `/handoff` na retomada.
+- Conteúdo: `INDEX.md` + `LOG-<uuid>.md` por sessão + um `HANDOFF-legado-*.md`.
+- **Natureza: registro de trabalho, insubstituível, sem cobertura.** É a mesma classe do journal — e a mesma razão de estar fora do git: é onde nome de cliente e caminho de máquina se acumulam sem ninguém revisar.
+
+### `.claude/intent/` — 716K · o caderno de pedidos DESTE projeto
+
+- Gitignorado por `.gitignore:22`, **e por um segundo mecanismo**: `ledger.py:ensure_exclude` escreve `.claude/intent/` no `.git/info/exclude` **local**, via `git rev-parse --git-path info/exclude` — nunca toca arquivo versionado do repo (e usa `--git-path` porque num worktree o `.git` é arquivo, não diretório). [confirmado]
+- **`ledger.jsonl`** — 429.127 bytes, **622 linhas**. Composição derivada: [confirmado]
+
+  ```
+  raw 256 · classify 205 · verdict 92 · baixa 69
+  ```
+- **Quatro eventos, e o estado vivo é o `fold` deles** (docstring lida): `raw` (o pedido verbatim), `classify` (vira `pedido|correcao|restricao|conversa`; só os três primeiros viram entrada `p-N`), `verdict` (`feito|parcial|nao_feito` × `confirmado|inferido` + evidência) e `baixa` (`by: auditor|usuario|substituido|receita`).
+- ⚠️ **`fold(evs, session)` filtra `pending`/`live` por sessão, e isso é conserto de bug medido:** sem o filtro, sessões paralelas no mesmo projeto compartilhavam a lista de vivos e *"uma única auditoria cobrou 3 frentes de 3 sessões"*. `entries` continua completo — o filtro é só para quem **cobra**.
+- **Escrita concorrente é protegida:** `locked(d)` faz `fcntl.flock(LOCK_EX)` sobre `ledger.lock` pra `load+append` ser atômico — sem isso, hooks concorrentes geravam `r-N`/`p-N` duplicados. O `ledger.lock` (0 bytes) está no disco.
+- **Arquivos satélites no mesmo diretório**, todos parte do protocolo de auditoria: `audit-*.json` (o veredito de uma rodada), `<audit>.applied` (marcador de idempotência — `apply_audit` sai cedo se existir), `<audit>.escopo` (a lista de ids que o gate **perguntou**, gravada no instante do bloqueio). O `.escopo` conserta uma catraca medida: sem ele, cada mensagem enviada entre auditar e consumir entrava na conta e o veredito nascia impossível de aprovar — *"33 pedidos vivos cobrados de uma auditoria que perguntou por 1"*.
+- **O `tree_hash` protege o veredito de envelhecer**, e exclui `EXEC_ARTIFACTS` (`__pycache__`, `*.pyc`, `node_modules`, `*.log`, `dist`, `build`, `coverage`, …) porque a própria auditoria roda código e sujaria a árvore — *"o gate nunca fecha, bate o cap e libera SEM auditoria, o oposto do propósito"*.
+- **Degradação declarada:** erro de I/O silencia os comandos de escrita e devolve fallback seguro nos de leitura — `verify` falhando devolve `remaining: -1`, jogando tudo pro auditor caro, porque *"degradar pro caro é seguro; pro barato não"*.
+- **Natureza: histórico de intenção, insubstituível, sem backup.**
+
+### Os outros de (C)
+
+- **`.claude/visual/` — 4,1M, 84 entradas** (`.gitignore:47`). As páginas HTML que o `/visual` gera. Descartável: são a apresentação, não a fonte.
+- **`.claude/qa-loop/telemetry.jsonl` — 3 linhas** (`.gitignore:46`). Uma linha por rodada de `/qa-loop`: `{ts, target, domain, severity_floor, max_rounds_config, rounds_run, corrections_per_round, …}`. É o insumo pra avaliar o número ideal de loops com o tempo — **insubstituível e minúsculo**, a pior combinação para ficar sem cópia.
+- **`.claude/HANDOFF.md`, `HANDOFF-guardrails.md`, `HANDOFF-project-doc.md`, `BRIEFING-review-loop-skill.md`** (`.gitignore:19-20`). São **fonte de mineração** — `journal.py:collect_handoffs` lê os bullets das seções de conhecimento (`HANDOFF_SECTIONS`: "Findings & Gotchas", "Gotchas", "Discussões e Decisões", "Detalhes Técnicos", "Contexto Extra") e os transforma em findings `handoff` — que são **154** no journal de hoje.
+
+---
+
+## (D) O cofre — o único depósito com cobertura de terceiro
+
+- **Onde:** `~/Library/Mobile Documents/com~apple~CloudDocs/Cofre/<projeto>-<8hex>.env`, resolvido por `journal.py:cofre_paths` nesta cascata: [confirmado]
+
+  ```python
+  env = os.environ.get("PROJECT_DOC_COFRE_DIR")     # override (testes / máquina sem iCloud)
+  icloud = "~/Library/Mobile Documents/com~apple~CloudDocs"
+  base = env or (icloud + "/Cofre" se existir) or "<repo>/.claude/secrets/_local_cofre"
+  slug = "<basename>-<sha1(abspath)[:8]>"           # PATH completo, não só o nome
+  ```
+
+  O slug usa o caminho completo de propósito: **dois projetos de mesmo nome não colidem**.
+- **O arquivo deste projeto tem 39 linhas.** Formato: uma linha `LABEL:8hex=valor` por segredo, com `\n` escapado (PEM é multilinha e quebraria o `.env`). O `8hex` é `sha1(valor)[:8]`, então o mapeamento placeholder→valor é sempre exato: mesma chave com dois valores não colide, mesmo valor dedupa. Os rótulos vistos são os das palavras-sinal que o scrubber usa (`token`, `tokens`, `secret`, `secrets`, `chaves`, `credenciais`, …). **Nenhum valor foi lido nem transcrito.**
+- **A ordem de escrita importa:** `stash_secrets` chama `ensure_gitignore(project_root, ".claude/secrets/")` **antes** de escrever — porque no fallback local o cofre cai dentro do repo, e proteger depois seria tarde.
+- **Ponte no repo:** `.claude/secrets/ops.env` é um **symlink** para o arquivo do iCloud, recriado se ficar stale. `.claude/secrets/` está no `.gitignore:31` (seção SEGREDO). [confirmado por `ls -la`]
+- **Natureza: insubstituível e sincronizado.** É o único depósito fora de (A) que tem cópia em outro lugar — e a cópia é do iCloud, não deste projeto.
+
+---
+
+## Estado efêmero em `/tmp` — chaveado por sessão, some no boot
+
+Regra do repo: estado por-sessão em `/tmp` **tem que** ser chaveado por `session_id`. As três famílias vivas:
+
+- **context-guard** — `/tmp/claude-context-pct-<session_id>` (escrito pelo wrapper de statusLine `context-guard-writer.sh`) e `/tmp/claude-context-warned-<session_id>` (sentinel do disparo). O `context-guard-reset.sh` apaga **só os da própria sessão** e depois poda órfãos: `find /tmp -maxdepth 1 -name 'claude-context-pct-*' -mtime +1 -delete` (idem `-warned-`). O comentário registra o bug que motivou o per-sessão: um arquivo global era sobrescrito pela última statusLine a renderizar, e **uma** sessão a 80% fazia o guard bloquear **todas**. [confirmado]
+  ⚠️ **A poda não está dando conta:** `ls /tmp | grep claude-context-warned` devolve mais de 20 sentinelas de sessões mortas. A poda só roda no `SessionStart` **de uma sessão que tenha `jq`** — sem ele o script sai na primeira linha, e a limpeza nunca acontece. [confirmado]
+- **plano do `/visual`** — três sentinelas em `${TMPDIR:-/tmp}`, todas com a mesma chave `$(id -u)-${SESSION}-${PHASH}`, onde `PHASH` é o `cksum` do **diretório de planos resolvido** (não do cwd — canonicalizar path na chave é uma armadilha conhecida do repo): `claude-plan-mark-*` (marco do início da sessão, que data o "encerrado agora"), `claude-plan-nudge-*` (a cobrança já saiu nesta sessão) e `claude-plan-closed-*` (quais encerramentos já foram confirmados). Sem a terceira, o 🏁 repetia a cada turno até a sessão acabar. [confirmado em `stop-plan-status.sh` e `plan_state.py:_seen_ids`]
+- **handoff / ata** — `/tmp/claude-ata-session-<h>`, `/tmp/claude-handoff-target-<sid>`, `/tmp/claude-ata-gate-ok-<h>`.
+
+Efêmeras por definição. Nenhuma delas é entrada de nada — reconstroem-se sozinhas na sessão seguinte.
+
+---
+
+## Os símbolos que mais gente depende (e o que eles guardam)
+
+- **`scrub()`** (`journal.py`) — a barreira entre conversa-verbatim e disco. Devolve `(texto_scrubbed, [(cofre_key, valor)])`. É o que decide se um segredo vira placeholder ou vaza. Roda na **escrita**, não no commit.
+- **`fold()`** — existe em **duas encarnações independentes e com regras diferentes**: `journal.py:fold` (discovered/invalidated/curated; invalidação é definitiva) e `ledger.py:fold` (raw/classify/verdict/baixa; filtra vivos por sessão). Ambas seguem o mesmo princípio: **o estado vem do arquivo, nunca do julgamento do modelo.**
+- **`live_findings()`** (`journal.py`) — projeta o fold: descarta o que não está `live`, troca `text` por `curated` quando há, ordena por `source.ts`. É o que a doc realmente lê.
+- **`read_events()` / `append()` / `append_events()`** — as portas de I/O dos dois journals. Ambas só abrem em modo `"a"`; nenhuma tem caminho de truncamento. `ledger.py:append` ainda faz `ev.setdefault("ts", ...)` pra nenhum evento nascer sem relógio.
+- **`load()`** (`ledger.py`) — leitura tolerante: linha ilegível é pulada (`continue`), arquivo ausente devolve `[]`. Um JSONL corrompido no meio degrada, não derruba.
+- **`intent_dir()` / `resolve_dir()`** — os dois resolvedores de "onde este projeto guarda seu estado". `intent_dir` implementa a cascata em Python; `resolve_dir` (`plan_state.py`) **delega ao `skills/visual/resolve-dir.sh`** de propósito, *"pra não haver duas implementações da cascata que possam divergir"*.
+- **`pick_plan()` / `plan_progress()`** — `pick_plan` recusa adivinhar: sem id, exige que haja **exatamente um** plano ativo, porque *"adivinhar aqui é como o plano se perde"*. `plan_progress` conta passos `done` sobre o total — o número que aparece em todo lugar.
+- **`PlanError`** — a exceção única do `plan_state.py`. Toda recusa (título divergente, tick sem prova, plano ambíguo) sai por ela, com a mensagem já formatada pro usuário.
+- **`git()`** — também em duas encarnações, e as duas escolheram a mesma direção: `journal.py:git` devolve `""` em qualquer erro (delta degrada, não quebra); `branch_state.py:git` levanta `BranchError` por padrão e devolve `None` com `ok_fail=True` (verbo que **apaga** não pode falhar em silêncio).
+- **`classify()`** (`branch_state.py`) — a leitura pura do estado das branches (*"NÃO escreve nada"*). É o insumo do `prune`; usa o relógio real (`int(time.time())`) e não o último commit da base, porque com a base parada uma branch mais nova dava idade 0 e sumia do radar.
+- **`_e()` / `_rich()`** (`visual_page.py`, e `_e` também em `plan_state.py` e `branch_state.py`) — `_e` é `html.escape(..., quote=True)`; `_rich` escapa **e depois** reabre um subconjunto mínimo de markdown (só `` `code` `` e `**negrito**`). Existe pra o spec JSON não precisar carregar HTML: *"se o modelo escrevesse HTML dentro do JSON, a gente teria trocado de sintaxe sem trocar de problema."*
 
 ---
 
 ## Fora do inventário — verificado e não guarda dado
 
-Checado mecanicamente nesta rodada; nada aqui é depósito:
-
-```bash
-git ls-files | grep -Ei 'docker-compose|Dockerfile|\.sql$|migrations?/|prisma|package-lock|yarn\.lock|pnpm-lock|poetry\.lock|requirements.*\.txt|\.env$|\.db$|\.sqlite'
-# → plugins/archify/skills/archify/package-lock.json   (e nada mais)
-git ls-files | wc -l   # 251 arquivos versionados no total
-```
-
-⚠️ **Os 251 são MENOS do que os 286 de 2026-07-26 e do que os 328 de 2026-07-30, e a queda não é código apagado.** `HEAD = ff32947` ainda carrega **335** arquivos (`git ls-tree -r --name-only HEAD | wc -l`); os **84** que faltam no índice são as remoções deste destrack, ainda não commitadas. Ler "o repo encolheu" a partir daqui é ler errado: **o índice encolheu, o disco não.**
-
-- **Nenhum banco de dados.** Sem SQLite, sem Postgres, sem Redis, sem Mongo. As únicas ocorrências das strings `sqlite`/`redis` em código são: a lista de extensões conhecidas `KNOWN_EXT` do scrubber (`journal.py`) e sua fixture de teste. Nada abre conexão.
-- **Sem `docker-compose.yml`, sem `Dockerfile`, sem migrations, sem ORM.**
-- **Sem lockfile de projeto.** O único `package-lock.json` tracked pertence a um plugin (`archify`) — é dependência de renderer, não depósito de dado.
-- **Sem `.env` versionado.** `.env` e `.env.local` estão no `.gitignore` e não há nenhum tracked.
-- **`.claude-plugin/marketplace.json` e os `plugins/*/.claude-plugin/plugin.json`** são **manifesto/catálogo**, não depósito: descrevem plugins e versões, nenhum estado de runtime é acumulado neles, e **só humano escreve neles**. ⚠️ **Não confunda com `plugins/bootstrap/config/manifest.json`**, que tem nome parecido e é o oposto: um hook o reescreve a cada `SessionStart` e o commita sozinho. Esse é depósito e está inventariado em **A5c**.
-- **`pi-plugins/` (raiz, GITIGNORED desde 2026-07-28)** — cópia obsoleta e já divergente de plugins do marketplace. **Não é depósito, é lixo a limpar.** ✅ **Deixou de poluir o grafo:** a regra `pi-plugins/` está no `.gitignore` (**linha 47** após a reescrita de 2026-07-31, com o comentário *"cópia local defasada de plugins/ (não é fonte, ver architecture.md §12)"*, commit `1f80b3b`), e o `graph.json` de hoje tem **zero** nós com `source_file` em `pi-plugins/` — o fan-in inflado que induzia a erro no ranking sumiu na raiz. ⚠️ **Mas o `manifest.json` do graphify ainda carrega as 106 entradas mortas** (A3): o corpus foi limpo, o índice não. E em 2026-07-31 as entradas mortas ganharam companhia — as do plugin de terceiro removido, morrendo pela mesma mecânica.
-- **`~/.claude/plugins/`** — cache de instalação de plugin gerido pelo Claude Code; o `bootstrap` lê/sincroniza (`plugins/bootstrap/hooks/session-sync.sh`, `lib/apply.sh`, `lib/snapshot.sh`), mas nenhum dado de projeto mora lá. Reconstruído por `claude plugin install`. **103M** hoje, em **13** marketplaces — **8 nomeados** (`agent-browser`, `claude-hud`, `claude-plugins-official`, `obsidian-skills`, `openai-codex`, `pedro-plugins` com 19 plugins, `ponytail`, `voltagent-subagents`) e **5** `temp_git_*` [confirmado, `du -sh` + `ls` nesta rodada].
-  ⚠️ **Contar pastas aqui dá número errado, e o erro é sempre pra CIMA — uma pasta por versão, todas convivendo.** Hoje `visual` tem **12** diretórios de versão e `project-doc` **9**. O caso que expôs isso: varrer `~/.claude/plugins/cache/*/*/*/hooks/hooks.json` procurando hooks de `Stop` devolve **28**; os ativos são **6**, um por plugin distinto (`handoff`, `intent-guard`, `project-doc`, `visual` do `pedro-plugins`, mais `security-guidance` e `codex` de marketplaces de terceiros). A pergunta *"quantos hooks de Stop eu tenho?"* só tem resposta certa por **plugin distinto**, nunca por arquivo em cache. Mesma família do erro de contar as chaves do `manifest.json` como "quantos arquivos" (A3). [confirmado nesta rodada]
+- **Nenhum banco, ORM, migration ou `docker-compose`.** O único lockfile do repo é `plugins/archify/skills/archify/package-lock.json`.
+- **`.claude-plugin/marketplace.json`** e os `plugin.json` — catálogo e metadado, escritos só por humano. Não são estado.
+- **`_shared/`** — código vendorado para 6 cópias. Fonte, não depósito.
+- **`pi-plugins/`** (`.gitignore:71`) — cópia local defasada de `plugins/`, explicitamente **não é fonte**. Continua fora do grafo; as 106 chaves dela que sobrevivem no `manifest.json` do graphify são entradas mortas do índice.
 
 ---
 
 ## Resumo por natureza
 
-⚠️ **Leia esta lista sabendo o que mudou em 2026-07-31:** até 2026-07-30, três das linhas abaixo traziam "protegido por git ✔". Hoje sobra **uma**. Não foi o dado que mudou de natureza — foi a garantia que saiu de baixo dele.
+**Insubstituível e SEM cobertura nenhuma** (perder o disco = perder o conteúdo):
 
-**Insubstituível (perder = perder conhecimento):**
-- `.claude/.project-doc/findings.jsonl` — **desprotegido** ✗ (A1) — destrackeado em 2026-07-31, hoje ignorado por `.gitignore:35`. **898 eventos, 1,1M, zero cópias.**
-- `.claude/ata/` — **desprotegido** ✗ (A6) — destrackeado em 2026-07-31, `.gitignore:38`. **30 arquivos, 1,8M, zero cópias.**
-- `.claude/plans/*.plan.json` — **desprotegido** ✗ (A4) — destrackeado em 2026-07-31, `.gitignore:39`. **9 arquivos no disco, 92K; `git ls-files .claude/plans/` → 0.** É o que perde a prova junto com o plano.
-- `.claude/HANDOFF*.md` — **desprotegido** ✗ — os **3** arquivos saíram do índice em 2026-07-31 (`.gitignore:40`). Insubstituíveis pelo mesmo motivo das atas: destilam sessões cujo transcript é local.
-- `.claude/hook-contract.baseline.json` — **protegido por git ✔** (A5) — o único desta lista que ainda passa no teste [confirmado: `git ls-files .claude/hook-contract.baseline.json` devolve o arquivo nesta rodada]; o *julgamento* que ele carrega mora em `patterns.md §5.3`
-- `.claude/intent/ledger.jsonl` — **desprotegido** ✗ (git-excluded local), **460 linhas**
-- `.claude/intent/<auditoria>.escopo` — **desprotegido** ✗ e **não regenerável**: grava quem estava vivo no instante do bloqueio, e esse instante não volta. Perdê-lo não apaga conhecimento (o ledger e a auditoria continuam inteiros), mas **degrada a auditoria correspondente para o comportamento pré-v0.5.0** — ela volta a ser cobrada contra todos os vivos do momento da leitura, hoje **34 reprovações em vez de aprovação** (medido). Cobertura: `durability.md §3.14`
-- `~/.claude/plans/` — **desprotegido** ✗ (do harness). ⚠️ **A consolação que este item trazia acabou:** dizia-se aqui que "o equivalente deste repo é a A4, versionada" — a A4 foi destrackeada em 2026-07-31 e hoje está tão desprotegida quanto. **213** arquivos, 2,7M, e **encolhendo**: eram 226 em 2026-07-26
-- tags `archive/<branch>-<data>` — **protegidas** ✔ (A5b): **6 locais, 6 no remote** (`git ls-remote --tags origin | grep -c 'archive/'` medido nesta rodada; empurradas em 2026-07-30). ⚠️ Tag não sai em `git push` normal e o `cmd_prune` não empurra — a próxima nasce local. Cobertura: `durability.md §2.8`
+```
+.claude/.project-doc/findings.jsonl   3,3M · 1133 eventos   (journal do conhecimento)
+.claude/intent/ledger.jsonl           429K ·  622 eventos   (caderno de pedidos)
+.claude/ata/                          1,9M ·   32 arquivos  (logs de sessão)
+.claude/plans/*.plan.json             112K ·   11 planos    (o que foi feito, com prova)
+.claude/qa-loop/telemetry.jsonl        3 linhas             (calibração do /qa-loop)
+~/.claude/plans/                      2,7M ·  209 arquivos  (do harness; encolhe sozinho)
+~/.claude/intent/                     264K                  (fallback de outros projetos)
+```
 
-**Reconstruível (custa tempo, não conhecimento):**
-- `graphify-out/graph.json` — `graphify update . --force`, AST, segundos. Saiu do índice em 2026-07-31 (A3) — **e é o único destrack desta rodada sem consequência real**: o custo de perder é CPU, não conhecimento
-- `.claude/.project-doc/ledger.json` — uma rodada de cold-start. Também saiu do índice em 2026-07-31 (A2), mesma leitura
-- `graphify-out/.graphify_labels.json` — reconstruível **só com LLM** (`/graphify`); é o mais caro do grupo, **403 chaves** hoje. ⚠️ **Saiu do git junto com o diretório inteiro (`.gitignore:28`), e essa é a exceção dentro da exceção:** o resto de `graphify-out/` volta com um comando barato, este volta cobrando tokens
-- `plugins/bootstrap/config/manifest.json` — **reconstruível só em PARTE** (A5c): as 3 chaves geradas voltam no próximo `SessionStart` a partir de `claude plugin list`; `skills.permitidas` e `ferramentas_externas` são escritas à mão e **não têm outra origem** — perdê-las é perder conhecimento, não tempo
+**Reconstruível, com custo:**
 
-**Descartável (cache / log / estado de UI):**
-- `~/.claude/green-suite/` (TTL 24h + prune de 7d, self-managing — 48 arquivos)
-- `~/.claude/guardrails/` (log, mode — hoje em `warn`, 3º valor do vocabulário desde 2026-07-30 —, streak, bypass do scope-cop + `askq.log`/`askq.count.*` do vigia da pergunta)
-- `~/.claude/visual-state/` (280 arquivos, **sem prune**) — **menos o `config.json`**, que desde
-  2026-07-28 mora ali e é preferência, não sessão (B2); um prune por idade teria que preservá-lo
-- `$CLAUDE_CONFIG_DIR/state/prose-ceiling/` (contadores de 1 byte, **sem prune nenhum**; vazio agora — B8)
-- `/tmp/claude-context-{pct,warned}-<session_id>` (prune de 1 dia)
-- `.claude/visual/`, `.claude/qa-loop/`, `.claude/.project-doc/backups/`, `.claude/.project-doc/.run-*.json`
+```
+.claude/.project-doc/ledger.json      re-minerar vira cold-start (CAP=1000 commits)
+.claude/hook-contract.baseline.json   1 comando — mas o JULGAMENTO das isenções não volta
+graphify-out/                         graphify update . --force (AST, sem LLM)
+plugins/bootstrap/config/manifest.json  regenerado no SessionStart, MENOS as chaves manuais
+```
+
+**Descartável por desenho:**
+
+```
+~/.claude/green-suite/          cache puro, TTL 24h por linha, poda de 7 dias
+~/.claude/visual-state/         estado de UI (exceto config.json, que é preferência)
+~/.claude/guardrails/           logs e contadores dos dois vigias
+~/.claude/state/prose-ceiling/  contadores + batidas + bypass do teto
+~/.claude/state/forma-relato/   contadores + batidas do juiz de forma
+/tmp/claude-*                   sentinelas por sessão
+.claude/visual/                 páginas HTML geradas
+```
+
+**Com cobertura de terceiro:** só o cofre, no iCloud.
+
+---
 
 ## Pendências
 
-- ✅ **RESOLVIDO em 2026-07-31 — era o TODO dos 20M de `graphify-out/20*/` já tracked.** O `git rm -r --cached graphify-out/` que este item pedia foi dado, sobre o diretório inteiro: `git ls-files graphify-out/ | wc -l` → **0**, contra **40** que `HEAD = ff32947` ainda carrega. ⚠️ **O que ele NÃO resolveu, e o item fica registrado por isso:** o histórico não encolheu (`du -sh .git` → **37M**, `git count-objects -vH` → `size: 31.30 MiB`). Destrackear fecha a torneira; esvaziar a banheira exigiria reescrever a história — decisão que continua em aberto.
-- [TODO: o preço do destrack — cinco depósitos (`graphify-out/`, `.claude/.project-doc/`, `.claude/ata/`, `.claude/plans/`, `.claude/HANDOFF*.md`) perderam a única cobertura que tinham e hoje existem só nesta máquina. **Quatro deles são insubstituíveis.** Decidir a rede de reposição: cópia agendada para fora da máquina, um segundo remote privado, ou registrar por escrito que a perda é aceita. Hoje não há nenhuma das três — ver `durability.md §3.15`]
-- [TODO: `~/.claude/visual-state/` não tem prune e acumulou **280** arquivos desde abr/2026 (276 na rodada anterior, 255 na anterior a essa); o `green-cache.sh` tem `find -mtime +7 -delete`, o daemon não tem equivalente. ⚠️ Quando for escrito, o prune **tem que preservar `config.json`** — desde 2026-07-28 ele mora nesse mesmo diretório e é preferência do `/visual`, não estado de sessão (B2)]
-- [TODO: `$CLAUDE_CONFIG_DIR/state/prose-ceiling/` acumula um arquivo de 1 byte por resposta reprovada e **nada o poda** — sem `find -mtime`, sem TTL, sem limpeza no `SessionStart`. O único `rm` que existe é uma sugestão em texto do `conformance.py`, e ela mira o `bypass.log`, não os contadores. A falta de backup já está justificada (`durability.md §3.13`); o que segue em aberto é o **prune**. Estado hoje: **0 arquivos** — mas o zero é prova do TODO, não do conserto, porque só um `rm` de fora do sistema poderia tê-lo produzido: 9 arquivos apareceram em 2h de uso e nenhuma linha de código os remove]
-- [TODO: `~/.claude/plans/` **perdeu 13 arquivos** (226 → 213) entre 2026-07-26 e 2026-07-30 sem que nada neste repo escreva ou apague lá. Depósito insubstituível, sem backup, encolhendo sozinho — descobrir se o harness poda por idade e a partir de que janela]
-- [TODO: o `.git` foi de 11M (2026-07-26) a **37M** (2026-07-31), com **32 blobs distintos de `graph.json`** somando **153.936.130** bytes brutos. Metade do TODO original foi decidida em 2026-07-31 — o grafo **deixou** de ser versionado —, mas isso só impede blob novo. **Continua em aberto o que fazer com os 32 que já entraram**: reescrever a história (`filter-repo`), aceitar o peso, ou rodar um `git gc --aggressive` que empacota mas não remove]
-- [TODO: as 6 tags `archive/*` foram empurradas em 2026-07-30 (`git ls-remote --tags origin | grep -c 'archive/'` → **6**), mas à mão. Falta fazer o `cmd_prune` empurrar sozinho (`--follow-tags` ou push explícito depois de criar a tag) — sem isso a próxima branch apagada volta a nascer só neste clone. Ver `durability.md §2.8`]
-- [TODO: confirmar quem escreve `.claude/ata/*.md` — não localizei o produtor nesta rodada]
-- Reconciliado em 2026-07-31 (7ª vez): `.claude/CLAUDE.md` e este doc precisam citar os mesmos números — **3920 nós / 5039 arestas / 403 comunidades (30 nomeadas) / 60 god nodes (teto) / 12 hyperedges (6 sobrevivem ao filtro `hyper_min 0.85` do `graph_map.py`) / 14 edges INFERRED de 5039**, medidos por `graph_map.py --project-root .` + leitura direta do `graph.json`. Commit do build: **`ff329471`** (= `HEAD`), lido de *"Built from commit"* no `GRAPH_REPORT.md`. [confirmado neste run] ⚠️ **A queda em relação a 2026-07-30 (6797/7737/542) mede a remoção do plugin de terceiro, não uma regressão** — mesma classe da queda de 2026-07-28, quando `pi-plugins/` saiu do corpus.
-  ⚠️ **`built_at_commit` NÃO existe dentro do `graph.json`** — as rodadas anteriores citavam esse nome de campo como se fosse chave do JSON; o `graph.json` só tem `hyperedges` no bloco `graph`. A procedência do build está no `GRAPH_REPORT.md`, seção *Graph Freshness*. Citar um campo que não existe é pior que citar um número velho: quem for conferir não acha.
-- ⚠️ **Que esta reconciliação já esteja na 7ª vez é o sinal, não o conserto.** Os números mudam a cada `graphify update --force`, e **todo modo que escreve doc roda um** — então qualquer doc que cite a contagem nasce com prazo de validade de uma rodada. O que sobrevive é o **par número + `built_at_commit`**: com ele, quem lê sabe contra que estado o número valia e consegue re-medir. Número solto nesta doc é dívida, não fato.
-- ⚠️ **"Quantos arquivos" tem TRÊS medidores que não concordam, e a doc citava o único inflado.** Até 2026-07-29 dizia-se **411 arquivos** — número que vinha de contar as chaves do `manifest.json`. Mas o manifest **retém entradas mortas**: das 416 chaves de hoje, **106 são de `pi-plugins/`**, gitignorado desde 2026-07-28 — e o grafo tem **zero** nós de lá. Os três medidores, re-lidos em 2026-07-31 com `HEAD = ff32947`: `manifest.json` **435** chaves (**329** fora de `pi-plugins/`) · `source_file` distinto nos nós **287** · `GRAPH_REPORT.md` **280 files**. **O número honesto é 287** — `source_file` distinto nos nós é o único que mede o que o grafo de fato cobre; citar a contagem do manifest é medir o índice, não o mapa. ⚠️ **O viés era estável e DEIXOU de ser, e é a limpeza que explica:** manifest−`source_file` era 112 em duas rodadas seguidas (422−310, 430−318) e saltou para **148** (435−287); `source_file`−report era 4 e virou 7. O manifest não só reteve as 106 entradas mortas de `pi-plugins/` como acrescentou as do plugin de terceiro removido — **cada limpeza no repo aumenta o erro desse medidor, porque ele conta o que já existiu**. Viés que muda com o tempo é o pior tipo: usar o medidor errado deixou de ter até uma correção fixa. ⚠️ Até 2026-07-30 este item dizia *"o número honesto é 304"* **na mesma frase em que declarava 305 como `source_file` distinto** — os dois não podiam estar certos juntos. Contradição interna dura mais que número velho, porque não dá pra saber qual metade confiar.
+1. **O baseline dos hooks (A5) é de 28/jul e agora é local.** O check E do release-gate compara o presente contra um retrato que não foi refeito depois da recriação do repo e que não viaja mais. Refazer ou aceitar explicitamente.
+2. **As 6 tags `archive/*` apontam para história órfã e não existem no remote.** Decidir se são empurradas (dando ao remote novo a rede antiga) ou descartadas junto com a história velha. Hoje elas resgatam branch só neste clone.
+3. **Dois comentários de código afirmam versionamento que o `.gitignore` desmente** — `journal.py` ("versionado — é o veículo do conhecimento") e `plan_state.py` ("VERSIONADO no git de propósito"). Quem ler o código antes do `.gitignore` conclui que há backup onde não há.
+4. **`askq-humanize.sh` e `scope-cop.sh` resolvem a MESMA pasta por expressões diferentes.** Invisível aqui (`CLAUDE_CONFIG_DIR` unset), divergente em qualquer máquina que a sete.
+5. **O juiz de forma (B9) nunca julgou:** 12 batidas, todas `sem texto`. O `check_juiz_rodou` aprova esse estado porque só cobra idade e `juiz sem resposta` — o modo de falha "o gatilho nunca casou" não tem checagem.
+6. **Nada poda os contadores de B8 e B9**, e os órfãos sem sufixo de B1 (`scope-cop.blockstreak`, `scope-cop.bypass`, de 2/jul) estão fora do alcance da poda por causa do padrão com ponto.
