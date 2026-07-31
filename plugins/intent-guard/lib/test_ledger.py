@@ -383,6 +383,56 @@ def main():
             shutil.rmtree(esc, ignore_errors=True)
             shutil.rmtree(bare, ignore_errors=True)
 
+        # RESTRIÇÃO NÃO CONCLUI — sai da lista que cobra veredito e vira contagem.
+        # Enquanto ficava junto, o gate exigia veredito de algo que um auditor
+        # escreveu ser inauditável por desenho, e a lista nunca esvaziava.
+        evs = [
+            {"ev": "raw", "id": "r-1", "session": "s1", "text": "faz X"},
+            {"ev": "raw", "id": "r-2", "session": "s1", "text": "fala portugues comigo"},
+            {"ev": "classify", "raw": "r-1", "id": "p-1", "class": "pedido", "resumo": "faz X"},
+            {"ev": "classify", "raw": "r-2", "id": "p-2", "class": "restricao", "resumo": "portugues"},
+        ]
+        st = ledger.fold(evs)
+        assert [e["id"] for e in st["live"]] == ["p-1"], st["live"]
+        assert [e["id"] for e in st["standing"]] == ["p-2"], st["standing"]
+        assert st["entries"]["p-2"]["status"] == "vivo", "permanente continua viva, só não é cobrada"
+
+        # CONTAGEM DE FUROS: os dois números saem do mesmo log append-only, e log
+        # AUSENTE não é zero furo — é ausência de registro (foi assim que o bypass.log
+        # ausente virou o elogio "nenhuma resposta furou o teto" com o teto furado).
+        cont = tempfile.mkdtemp()
+        try:
+            velho, novo = 1000, 9000
+            os.environ["CLAUDE_CONFIG_DIR"] = cont
+            t, n, fontes, marca = ledger.furos_da_regua()
+            assert (t, n, fontes) == (0, 0, 0), "sem fonte nenhuma, fontes tem que ser 0"
+
+            bp = os.path.join(cont, "state", "prose-ceiling")
+            os.makedirs(bp, exist_ok=True)
+            with open(os.path.join(bp, "bypass.log"), "w") as f:
+                f.write(json.dumps({"ts": velho, "linhas_prosa": 9}) + "\n")
+                f.write(json.dumps({"ts": novo, "linhas_prosa": 12}) + "\n")
+            fr = os.path.join(cont, "state", "forma-relato")
+            os.makedirs(fr, exist_ok=True)
+            with open(os.path.join(fr, "batidas.log"), "w") as f:
+                f.write(json.dumps({"ts": novo, "motivo": "julgou", "veredito": "passa"}) + "\n")
+                f.write(json.dumps({"ts": novo, "motivo": "julgou", "veredito": "corte a prosa"}) + "\n")
+                f.write(json.dumps({"ts": novo, "motivo": "nao e relato", "veredito": None}) + "\n")
+            t, n, fontes, marca = ledger.furos_da_regua()
+            assert fontes == 2, fontes
+            assert t == 3, ("2 furos do teto + 1 reprovação do juiz; 'passa' e "
+                            "'nao e relato' não contam — deu %s" % t)
+            assert n == 3, n
+            os.makedirs(os.path.dirname(marca), exist_ok=True)
+            with open(marca, "w") as f:
+                f.write(str(velho + 1))
+            t, n, fontes, marca = ledger.furos_da_regua()
+            assert (t, n) == (3, 2), ("o total não muda com a marca; só o 'desde a "
+                                      "última olhada' — deu %s/%s" % (t, n))
+        finally:
+            os.environ.pop("CLAUDE_CONFIG_DIR", None)
+            shutil.rmtree(cont, ignore_errors=True)
+
         print("test_ledger: OK")
     finally:
         shutil.rmtree(repo, ignore_errors=True)
