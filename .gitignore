@@ -1,0 +1,71 @@
+# .gitignore — organizado por CRITÉRIO, não por ferramenta.
+#
+# Este repositório é PÚBLICO e é instalado por terceiros. A pergunta que decide se um
+# arquivo entra não é "isso é útil?" — é "isso pertence a QUEM INSTALA, ou pertence a
+# QUEM ESCREVEU?". Só o primeiro sobe.
+#
+# Quem cobra isto no commit: scripts/public_repo_check.py (ligado no release-gate.sh).
+# Ignorar NÃO destrackeia: arquivo já rastreado sai com `git rm --cached`.
+# Régua: `git ls-files -i -c --exclude-standard` tem que devolver zero.
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 1 · REGISTRO DE TRABALHO — pertence a quem escreveu, não a quem instala.
+#     Transcrição de sessão, plano em execução, handoff, achado de mineração.
+#     Nada disto é produto, e é onde nome de cliente e caminho de máquina se
+#     acumulam sem ninguém revisar.
+# ─────────────────────────────────────────────────────────────────────────────
+.claude/ata/
+.claude/plans/
+.claude/HANDOFF*.md
+.claude/BRIEFING-*.md
+.claude/.project-doc/
+.claude/intent/
+docs/superpowers/
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 2 · SEGREDO — nunca, em nenhuma hipótese.
+#     A lista de termos proibidos entra aqui: versioná-la seria publicar
+#     exatamente os nomes que ela existe para manter fora do repositório.
+# ─────────────────────────────────────────────────────────────────────────────
+scripts/public_repo_terms
+.claude/secrets/
+.env
+.env.*
+*.pem
+*.key
+*.p12
+id_rsa*
+.netrc
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 3 · RETRATO DESTA MÁQUINA — regenerável, e carimba caminho absoluto e hostname.
+#     Sobe o gerador, nunca a saída.
+# ─────────────────────────────────────────────────────────────────────────────
+graphify-out/
+.claude/hook-contract.baseline.json
+.claude/qa-loop/
+.claude/visual/
+.playwright-mcp/
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 4 · LIXO DE FERRAMENTA
+# ─────────────────────────────────────────────────────────────────────────────
+.DS_Store
+._*
+.Spotlight-V100
+.Trashes
+*.swp
+*.swo
+*~
+.vscode/
+.idea/
+*.bak
+*.tmp
+*.orig
+__pycache__/
+*.pyc
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 5 · CÓPIA LOCAL DEFASADA de plugins/ — não é fonte (architecture.md §12)
+# ─────────────────────────────────────────────────────────────────────────────
+pi-plugins/

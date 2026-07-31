@@ -1,0 +1,10 @@
+{
+  "name": "visual",
+  "version": "1.8.6",
+  "description": "CLI walls-of-text → interactive HTML dark-theme views. The page carries the EVIDENCE, not the account of it: real artifact embedded, raw output verbatim, provenance for every number — enforced by a pre-ExitPlanMode gate. Plans, diagnostics and decisions in the browser with live sync back to Claude.",
+  "author": {
+    "name": "pedroberaldo87",
+    "email": "tools@viustudio.com.br"
+  },
+  "homepage": "https://github.com/pedroberaldo87/pedro-plugins"
+}

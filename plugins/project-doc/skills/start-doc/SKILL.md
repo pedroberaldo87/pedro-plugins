@@ -1,0 +1,183 @@
+---
+name: start-doc
+description: "Cria e evolui a documentação AUTORAL de um projeto — as metas de qualidade, as restrições, o contexto/fronteiras, a estratégia, o glossário, e (só para quem tem interface) o design.md. É a entrevista, não a mineração: a skill pergunta e grava a resposta do humano, NUNCA inventa conteúdo. Terceira skill do plugin project-doc, ao lado do /project-doc (minera tudo) e do /doc-touch (incremental). Use quando o usuário diz \"/start-doc\", \"vamos conceber\", \"começando um projeto novo\", \"documenta a intenção\", \"quais são as metas do sistema\", \"esse projeto não tem doc nenhuma\". Dispare PROATIVAMENTE quando: o projeto não tem CLAUDE.md nem .claude/docs/; o projeto está nascendo (repositório novo, poucos commits); existe doc minerada mas os documentos autorais estão ausentes ou com lacunas; ou o gate de plano barrou um plano por falta de documentação. A entrevista vem SEMPRE antes da mineração — o porquê guia tudo que vem depois."
+---
+
+# start-doc — a documentação que só o humano tem
+
+## O que é
+
+O `/project-doc` minera: lê arquivos, git log, transcripts e grafo, e escreve o que o código já sabe.
+Existe uma classe de documentação que **nenhuma mineração produz**, porque a informação não está em
+arquivo nenhum — está na cabeça de quem decidiu:
+
+- o que o sistema **prioriza** quando não dá para ter tudo;
+- o que é **inegociável**, e por quê;
+- onde o sistema **termina** e o mundo começa;
+- as poucas decisões que explicam o **formato** de tudo;
+- o vocabulário que **só a equipe** usa.
+
+Esta skill produz esses cinco — e um sexto, **condicional**: `design.md`, só para quem tem interface
+(a personalidade visual e os tokens normativos do produto). Ela **entrevista**.
+
+### O trio
+
+| Skill | O que faz | Quando |
+|---|---|---|
+| **`/start-doc`** | entrevista o humano, escreve o autoral | concepção, e sempre que o autoral tiver lacuna |
+| **`/project-doc`** | minera tudo e re-projeta a doc inteira | mudança estrutural, drift amplo, doc nunca minerada |
+| **`/doc-touch`** | re-projeta só os docs que o diff tocou | entre FULLs, depois de um ciclo de código |
+
+**A entrevista vem primeiro.** Num projeto sem documentação, `/start-doc` roda antes da mineração —
+mesmo num codebase grande e antigo. O motivo é que o resultado da entrevista **guia a sessão inteira**,
+não só o arquivo: sem saber o que o sistema prioriza, toda decisão posterior recomeça do zero.
+
+## A REGRA DURA — a skill pergunta, a skill não responde
+
+**Nunca preencha um campo autoral com conteúdo inferido.** Documentação de intenção fabricada por
+máquina é ficção com aparência de autoridade — é **pior** que arquivo ausente, porque ninguém
+desconfia de um documento que parece completo.
+
+Sem resposta ⇒ o campo fica `[PENDENTE]`, o documento fica `status: draft`, e o relatório cobra.
+Isso não é falha da rodada; é o estado honesto.
+
+**O que a mineração PODE fazer aqui:** levantar **pistas** para a pergunta ficar concreta ("achei
+versões travadas no lockfile — restrição dura ou só desatualizado?"). Pista alimenta a pergunta.
+Pista nunca vira resposta.
+
+## Quando dispara
+
+**Explícito:** `/start-doc`, "vamos conceber", "documenta a intenção", "esse projeto não tem doc".
+
+**Proativo (ofereça, não execute sem aval):**
+- Projeto sem `CLAUDE.md` e sem `.claude/docs/` — não importa o tamanho do codebase.
+- Repositório recém-criado / poucos commits — está nascendo, não há o que minerar ainda.
+- Doc minerada existe, mas falta algum dos autorais (os cinco universais, ou `design.md` quando o
+  projeto tem interface), ou algum tem `[PENDENTE]` aberto.
+- O gate de plano barrou um plano por falta de documentação (ver `hooks/pretooluse-plan-gate.sh`).
+- Passaram-se meses do último `reviewed:` e o projeto mudou de forma — as metas envelheceram.
+
+## Modos
+
+- `/start-doc` — **entrevista completa**: os 5 documentos, em ordem, um por vez, mais `design.md` no
+  fim **se o projeto tiver interface** (ver `hooks/lib-has-frontend.sh` — não pergunte, verifique).
+- `/start-doc <doc>` — só um. Nomes válidos: `quality-goals`, `constraints`, `context`,
+  `solution-strategy`, `glossary`, `design` (este último só se houver interface).
+- `/start-doc review` — **revisita**: lê os que já existem, mostra o que envelheceu (`reviewed:`
+  antigo, `[PENDENTE]` aberto, decisão citada que não existe mais) e pergunta só o que mudou.
+  Nunca reescreve resposta do humano sem ele mandar.
+- `/start-doc gaps` — **read-only**: lista as lacunas e para. Não pergunta nada. É o que o
+  `/project-doc` chama no Tier 5 para saber o que cobrar.
+
+Prosa livre junto da invocação é contexto e vale como resposta antecipada — se o humano já disse
+"o que importa aqui é não perder dado", **não pergunte a meta 1 de novo**: mostre o que entendeu e
+peça confirmação.
+
+## Fluxo
+
+### 1 · Situar
+Identifique a raiz do projeto (git root ou cwd). Detecte o que já existe: `.claude/docs/*.md`
+autorais, `CLAUDE.md`, journal do project-doc, handoffs. **Nada é perguntado antes disso** — perguntar
+o que já está escrito queima a sessão e irrita.
+
+**Também decida aqui se `design.md` entra na entrevista** — o projeto tem interface? (`bash
+hooks/lib-has-frontend.sh` expõe `has_frontend <dir>`; sinais: `.tsx`/`.jsx`/`.vue`/`.svelte`
+versionado, `index.html`, framework de UI no `package.json`, ou `.swift`/`.kt`). Sem esses sinais, não
+pergunte sobre design — a pergunta sem pista visível é o mesmo erro que perguntar o que já está
+escrito.
+
+### 2 · Minerar as pistas (barato, sem LLM)
+Colha só o que serve de insumo para as perguntas:
+
+```bash
+git log --oneline | wc -l                     # o projeto está nascendo ou é antigo?
+ls -d */ 2>/dev/null                          # forma do repositório
+grep -rhoE '^[A-Z_]+(_URL|_KEY|_TOKEN|_HOST)=' .env.example 2>/dev/null | sort -u   # integrações externas
+```
+
+Mais: versões pinadas (lockfile, `engines`), limites de recurso e serviços (compose), biblioteca de
+auth, onde o banco mora. Cada pista entra na pergunta **com a evidência** — o humano confirma ou
+corrige, não adivinha o seu contexto.
+
+### 3 · Entrevistar — uma pergunta por vez
+Siga o roteiro de `references/authorial-kit.md`, **nesta ordem**: metas → restrições → contexto →
+estratégia → glossário. A ordem não é estética: as metas são o critério que os outros consomem.
+
+- Use `AskUserQuestion` quando as opções forem enumeráveis (ordenar atributos, dura vs datada);
+  pergunta aberta em texto quando for narrativa (o trade-off já decidido, o porquê de uma decisão).
+- **Toda pergunta carrega a pista visível.** Sem insumo à vista, não pergunte — minere antes.
+- "Não sei" e "depois" são respostas válidas ⇒ `[PENDENTE]`. Não insista.
+- Grave a resposta **literal**. Organizar em bullets e corrigir digitação é permitido; trocar o
+  julgamento do humano por uma redação mais bonita, não.
+
+### 4 · Escrever
+Um arquivo por documento em `.claude/docs/`, com o frontmatter do contrato (`authored-by: human`,
+`status`, `reviewed`) e o molde de `references/authorial-kit.md`.
+
+**Exceção: `design.md`.** Não escreva este à mão — depois de colher as respostas do roteiro
+(personalidade, cor primária, tipografia, "don'ts"), **invoque a skill `design-md`** para formatar e
+gravar `.claude/docs/design.md` no padrão `DESIGN.md` e validar pelo CLI oficial (`npx --yes
+@google/design.md@0.3.0 lint`). Sem `node`/`npx`, ela já degrada pra checagem manual — diga isso em
+voz alta no relatório, nunca finja que o CLI rodou.
+
+### 5 · Semear o log de decisões
+Cada decisão estruturante que apareceu na estratégia vira candidata a registro em
+`.claude/docs/decisions/`. Escreva o **primeiro** (`0001-<slug>.md`) com o que o humano acabou de
+dizer; os demais entram como `[PENDENTE]` na lista da estratégia.
+
+### 6 · Fechar
+**Se já existe um `CLAUDE.md` com os markers `project-doc:v2`:** atualize o índice — documento com
+`status: ready` entra no roteamento; `draft` **não entra**, vira linha de cobrança no relatório.
+
+**Se NÃO existe `CLAUDE.md`** (o cenário-bandeira desta skill — projeto virgem): **não crie o
+índice.** Liste os documentos escritos no relatório e diga que o `/project-doc` vai criá-lo. Criar
+markers `v2` à mão deixaria o projeto `in_pattern==false` na hora (o contrato exige também journal e
+`doc-sig`, que só a mineração produz) — e todo hook do plugin passaria a acusar "fora do padrão".
+
+Depois, ofereça o próximo passo:
+
+- Projeto com código e sem doc minerada → "agora dá pra rodar `/project-doc` e minerar o resto."
+- Projeto nascendo → "quando tiver código, `/project-doc` documenta o como."
+
+## Output Protocol
+
+```
+**Passo 1/6:** Raiz → `/path` · autoral existente → {N de 5, ou N de 6 se houver interface} · minerada → {sim | não}
+**Passo 2/6:** Pistas → {N integrações · M versões travadas · K commits}
+**Passo 3/6:** Entrevista → {doc}: {respondido | PENDENTE} … (uma linha por documento)
+**Passo 4/6:** Escrito → {lista de arquivos com status draft|ready}
+**Passo 5/6:** Decisões → `decisions/0001-{slug}.md` + {N} candidatas pendentes
+**Passo 6/6:** Índice → {N docs promovidos} · Pendências → {lista de [PENDENTE] por doc}
+```
+
+Ao final, sempre: **o que ficou pendente e o que destrava quando for respondido.**
+
+## Convivência com o `/project-doc`
+
+- **O FULL nunca reescreve estes arquivos.** `authored-by: human` é a trava. Ele lê, cita, e cobra —
+  não regenera, não sobrescreve, e não os inclui no fan-out por concern.
+- **A única escrita automática permitida** ao FULL é atualizar `reviewed:` e promover `draft → ready`
+  quando o último `[PENDENTE]` sai.
+- **O Tier 5 do FULL chama `/start-doc gaps`** para saber o que perguntar. Uma fonte de perguntas,
+  dois pontos de entrada — o banco vive em `references/authorial-kit.md` e não é duplicado.
+- **Ordem num projeto virgem:** `/start-doc` (entrevista) → `/project-doc` (mineração). Nunca o
+  inverso: minerar primeiro produz um "como" sem "por quê", e o humano perde a chance de enquadrar.
+
+## Rules
+
+- **NUNCA preencha conteúdo autoral por inferência.** É a regra que justifica a skill existir.
+- **Uma pergunta por vez.** Despejar as cinco de uma vez derruba a qualidade da resposta.
+- **Nenhuma pergunta sem pista visível** — mostre o que minerou junto. O humano não adivinha o seu
+  contexto, e pergunta sem apoio custa uma rodada de re-pergunta.
+- **`[PENDENTE]` é resultado legítimo**, não fracasso. Documento honesto e incompleto vale mais que
+  documento completo e inventado.
+- **Resposta do humano é literal.** Não reescreva o julgamento dele.
+- **Nunca apague resposta anterior.** `review` propõe atualização e pede aval; decisão substituída
+  muda de status e aponta para a sucessora, nunca some.
+- **Documento `draft` não entra no índice** do `CLAUDE.md` — evita cinco linhas mortas no arquivo que
+  carrega em toda sessão. Entra quando vira `ready`.
+- **Não invente estrutura nova** — os seis documentos (cinco universais + `design.md` condicional), os
+  moldes e o frontmatter estão em `references/authorial-kit.md`. Se precisar de um sétimo, é mudança
+  de contrato, não improviso.
+- **`design.md` nunca escrito à mão.** A entrevista é sua; a escrita e a validação são da skill
+  `design-md` — não duplique a spec do formato aqui.

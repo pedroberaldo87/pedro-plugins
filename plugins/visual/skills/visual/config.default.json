@@ -1,0 +1,9 @@
+{
+  "auto_mode": true,
+  "auto_triggers": {
+    "plan_min_items": 3,
+    "decision_min_options": 2,
+    "diagnostic_min_problems": 3,
+    "explanation_min_lines": 40
+  }
+}

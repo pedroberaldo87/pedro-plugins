@@ -1,0 +1,11 @@
+{
+  "name": "context-guard",
+  "version": "1.3.3",
+  "description": "Dispara o handoff quando o contexto DESTA sessão passa do threshold. Estado por-sessão (v1.2.0) — uma sessão cheia não bloqueia as concorrentes. v1.3.0: não interrompe se já estiver no meio de um handoff, e usa decision:block pra fazer o Claude EXECUTAR o /handoff em vez de só parar. Kill-switch via ~/.claude/context-guard/mode=off.",
+  "author": {
+    "name": "pedroberaldo87",
+    "email": "tools@viustudio.com.br"
+  },
+  "homepage": "https://github.com/pedroberaldo87/pedro-plugins",
+  "license": "GPL-3.0"
+}

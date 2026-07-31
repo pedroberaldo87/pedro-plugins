@@ -1,0 +1,290 @@
+{
+  "name": "pedro-plugins",
+  "metadata": {
+    "description": "Marketplace pessoal: 19 plugins (skills, hooks e automações) para Claude Code."
+  },
+  "owner": {
+    "name": "pedroberaldo87",
+    "email": "tools@viustudio.com.br"
+  },
+  "plugins": [
+    {
+      "name": "archify",
+      "source": "./plugins/archify",
+      "description": "Create professional architecture, workflow, sequence, data-flow, and lifecycle/state diagrams as explorable standalone HTML files with SVG graphics, dark/light themes, and export to PNG/JPEG/WebP/SVG/WebM. Accepts plain-language descriptions or pasted Mermaid code.",
+      "category": "productivity",
+      "version": "2.11.0",
+      "tags": [
+        "diagram",
+        "architecture",
+        "visualization",
+        "mermaid",
+        "svg",
+        "export"
+      ]
+    },
+    {
+      "name": "bootstrap",
+      "source": "./plugins/bootstrap",
+      "description": "Bootstrap a new machine to this versioned Claude Code setup — auto-syncs marketplaces and plugins via hooks AND applies the versioned global config (env, permissions, flags, global CLAUDE.md, machine-resolved statusLine). Run /bootstrap:setup once per machine. Replaces bootstrap-third-party.",
+      "category": "productivity",
+      "version": "1.8.5",
+      "tags": [
+        "sync",
+        "bootstrap",
+        "plugins",
+        "config",
+        "automation",
+        "output-style",
+        "conformance"
+      ]
+    },
+    {
+      "name": "branches",
+      "source": "./plugins/branches",
+      "description": "Diz quais branches dá pra apagar e quais NÃO dá. O `git branch --merged` mente por omissão: squash-merge e rebase produzem sha novo, então a branch aparece como não-mergeada mesmo com o conteúdo inteiro no tronco — e é por isso que a pilha cresce até o deploy reclamar de 15 branches abertas. Classifica por CONTEÚDO (patch-id), mostra o que só existe em cada branch antes de você decidir, e apaga só o que você marcar — sempre com tag de resgate. Mais dois avisos: no push de branch que ainda não entrou no tronco, e no começo da sessão quando há branch parada há mais de um mês.",
+      "category": "dev-tools",
+      "version": "1.0.2",
+      "tags": [
+        "fallow",
+        "dead-code",
+        "duplication",
+        "cleanup",
+        "static-analysis"
+      ]
+    },
+    {
+      "name": "context-guard",
+      "source": "./plugins/context-guard",
+      "description": "Dispara o handoff quando o contexto DESTA sessão passa do threshold (default 80%). Estado por-sessão (v1.2.0) — uma sessão cheia não bloqueia as concorrentes. v1.3.0: não interrompe se já estiver no meio de um handoff, e faz o Claude EXECUTAR o /handoff (decision:block) em vez de só parar. Kill-switch: ~/.claude/context-guard/mode=off.",
+      "category": "productivity",
+      "version": "1.3.3",
+      "tags": [
+        "context",
+        "guard",
+        "handoff",
+        "session",
+        "hooks"
+      ]
+    },
+    {
+      "name": "fallow",
+      "source": "./plugins/fallow",
+      "description": "Runs Fallow (static JS/TS analyzer — dead code, duplication, complexity), classifies findings by type and confidence, and delivers an interactive report where you pick what to clean. Audits the Fallow report (convergence goal + liveness propagation) to catch false-positives the static analysis misses — cron/systemd, HTTP routes, dynamic imports — framed as tool limitations, not code bugs. Cleanup with a safety net (preview + build/test).",
+      "category": "dev-tools",
+      "version": "1.0.7",
+      "tags": [
+        "fallow",
+        "dead-code",
+        "duplication",
+        "cleanup",
+        "static-analysis"
+      ]
+    },
+    {
+      "name": "graphify-guard",
+      "source": "./plugins/graphify-guard",
+      "description": "Ensures graphify knowledge graphs get consulted when relevant. SessionStart heads-up when a project has a graph; PreToolUse net redirects blind grep/glob/find to `graphify query` once per session. Detects stale graphs and offers `graphify --update`. Defense in depth, fail-open, monorepo-aware.",
+      "category": "productivity",
+      "version": "1.1.4",
+      "tags": [
+        "graphify",
+        "knowledge-graph",
+        "hooks",
+        "guardrail",
+        "session"
+      ]
+    },
+    {
+      "name": "grill-me",
+      "source": "./plugins/grill-me",
+      "description": "Relentless one-question-at-a-time design review. Stress-tests plans and decisions by walking every branch of the decision tree.",
+      "author": {
+        "name": "Matt Pocock",
+        "homepage": "https://github.com/mattpocock/skills"
+      },
+      "category": "dev-tools",
+      "version": "1.0.0",
+      "tags": [
+        "design-review",
+        "planning",
+        "decisions",
+        "stress-test"
+      ]
+    },
+    {
+      "name": "grill-with-docs",
+      "source": "./plugins/grill-with-docs",
+      "description": "Relentless design review that challenges plans against the project's domain model, sharpens terminology, and updates CONTEXT.md and ADRs inline as decisions crystallise.",
+      "author": {
+        "name": "Matt Pocock",
+        "homepage": "https://github.com/mattpocock/skills"
+      },
+      "category": "dev-tools",
+      "version": "1.0.0",
+      "tags": [
+        "design-review",
+        "domain-model",
+        "adr",
+        "context-md"
+      ]
+    },
+    {
+      "name": "guardrails",
+      "source": "./plugins/guardrails",
+      "description": "Global editing guardrails as hooks: post-edit lint & type-check (JS/TS/Python), an LLM scope-cop that blocks UI edits drifting from the approved plan, and an Agent Teams misuse guard. Portable across machines — replaces hand-rolled hooks in ~/.claude/settings.json. Run /guardrails:setup once per machine to set the env var and clear the old hooks.",
+      "category": "dev-tools",
+      "version": "1.5.2",
+      "tags": [
+        "hooks",
+        "guardrail",
+        "lint",
+        "typecheck",
+        "scope-cop",
+        "agent-teams"
+      ]
+    },
+    {
+      "name": "handoff",
+      "source": "./plugins/handoff",
+      "description": "Session continuity in a single command — /handoff detects the session state and routes: full context → saves a complete knowledge-transfer document; freshly cleared session → resumes from it. Workspace-aware: the handoff belongs to the project the session touched (resolves the .git boundary of the edited files), so it works for a standalone project, a monorepo (one HANDOFF-<module>.md per module), or an umbrella folder with nested projects — no more clobbering between parallel sessions on the same root. Optional [salvar|retomar] argument forces the mode.",
+      "category": "productivity",
+      "version": "1.8.5",
+      "tags": [
+        "session",
+        "continuity",
+        "documentation",
+        "monorepo"
+      ]
+    },
+    {
+      "name": "improve",
+      "source": "./plugins/improve",
+      "description": "Generic self-improvement implementer using the autoresearch ML methodology. Reads the app's IMPROVEMENT_PROGRAM.md, fetches proposals from GitHub Issues (label 'autoresearch'), implements changes.",
+      "category": "dev-tools",
+      "version": "1.0.3",
+      "tags": [
+        "automation",
+        "ml",
+        "improvement",
+        "github-issues"
+      ]
+    },
+    {
+      "name": "intent-guard",
+      "source": "./plugins/intent-guard",
+      "description": "EXPERIMENTAL — Guarda de intenção: caderno append-only dos pedidos verbatim do usuário + gates de plano, checkpoint e ENTREGA (auditoria independente por subagente de contexto virgem, prompt canônico, veredito CONFIRMADO/INFERIDO com evidência). v0.4.0: auditoria dispara no COMMIT (não a cada turno) e ganha escada de custo — pedido com receita mecânica (ex.: 'commit push' → compara hashes) é resolvido por CÓDIGO, sem agente; numa sessão real 4 de 7 pedidos eram isso, ~50k tokens cada. O juiz só ESCOLHE de um catálogo fechado, nunca escreve comando. v0.3.0: pedidos escopados por sessão (sessões paralelas dividiam a lista de vivos). v0.2.0: tree-hash ignora artefato de execução; juízes internos não poluem o caderno. Baixa automática é experimental. Kill-switch: ~/.claude/intent-guard/mode=off.",
+      "category": "dev-tools",
+      "version": "0.5.4",
+      "tags": [
+        "intent",
+        "audit",
+        "guard",
+        "hooks",
+        "ledger"
+      ]
+    },
+    {
+      "name": "principles",
+      "source": "./plugins/principles",
+      "description": "Contextual system design principles for planning and review. Reads PRINCIPIOS-SISTEMAS.md, maps relevant categories to the current context, generates a practical guide with WHY + HOW.",
+      "category": "dev-tools",
+      "version": "1.0.2",
+      "tags": [
+        "architecture",
+        "principles",
+        "planning",
+        "review"
+      ]
+    },
+    {
+      "name": "project-doc",
+      "source": "./plugins/project-doc",
+      "description": "Generate a modular documentation system from ALL project evidence — the invocation discourse, files, handoffs, memory, graph, git log, and session transcripts — kept in a versioned append-only journal, projected into a lightweight CLAUDE.md routing table + .claude/docs/*.md per concern + thin pointers (AGENTS.md, GEMINI.md, .cursorrules). FOUR skills: /project-doc (mines everything), /doc-touch (incremental), /start-doc (interviews the human for the authorial docs no mining can produce — quality goals, constraints, context, strategy, glossary, and design.md for projects with a UI — and never invents them), and /design-md (absorbed from the standalone design-md plugin: writes/validates/exports Google's DESIGN.md format via the official CLI). v3.17.0: the doc-touch stamp is now a verb (--restamp) that writes generated, generated-commit and doc-sig in one go, preserving the DOC-SET gen instead of the code's — a doc cannot cite the commit that contains it, so the ritual is two commits and the tool now owns it. v3.16.0: the staleness measure the HOOKS consume (project_staleness) now honors generated-commit instead of a day-granularity date window, and matches scope entries with _scope_match instead of raw string intersection — a /doc-touch followed by a same-day commit no longer reports freshly generated docs as stale, and a doc scoped by directory can finally go stale. v3.15.0: design.md becomes the 6th authorial doc, gated to projects with a detected frontend (lib-has-frontend.sh); sessionstart-doc.sh now also nudges when a mined project has zero authorial docs (not just when there's no doc at all). Gen 3.8 adds the data-asset axis (data-stores.md + durability.md: every store enumerated, every store's backup declared or explicitly justified), runtime.md end-to-end scenarios, verified-by provenance in frontmatter, and a project-root ADR log. A plan gate hook blocks planning in an undocumented project until /start-doc runs, with a verbal escape. Scrubber moves secrets to a vault, never to git. Supports delta/--deep/--rebuild, monorepo layouts, artifact cleanup, and ORGANISM support (de-silo) with an inverted blast-radius gate.",
+      "category": "productivity",
+      "version": "3.18.4",
+      "tags": [
+        "documentation",
+        "claude-md",
+        "monorepo",
+        "scaffolding",
+        "journal",
+        "transcripts",
+        "doc-lint",
+        "incremental"
+      ]
+    },
+    {
+      "name": "qa-loop",
+      "source": "./plugins/qa-loop",
+      "description": "Two-phase QA: an asymptotic review phase (variable-severity findings, accepted-limits, stops on diminishing returns; e2e/Playwright as non-blocking actionables) plus an absolute exit Gate phase (lint, type-check, unit and integration must be 100% green across the whole repo, pre-existing errors included, or stopReason=gate-red). All-Opus engine (review, plan and fix), per-fix regression gate, churn detector, interactive /visual report and agentic journal. Replaces qa, rev6 and iterate.",
+      "category": "dev-tools",
+      "version": "1.7.2",
+      "tags": [
+        "code-review",
+        "qa",
+        "loop",
+        "regression-gate",
+        "workflow",
+        "plan-fidelity"
+      ]
+    },
+    {
+      "name": "ship",
+      "source": "./plugins/ship",
+      "description": "Production deploy flow: lint, type-check, commit, push, deploy in one disciplined sequence.",
+      "category": "dev-tools",
+      "version": "1.3.9",
+      "tags": [
+        "deploy",
+        "lint",
+        "typecheck",
+        "production"
+      ]
+    },
+    {
+      "name": "slides",
+      "source": "./plugins/slides",
+      "description": "Markdown → keynote-grade single-file HTML deck. Two modes: (A) transcription — renders a ready .md faithfully, never invents text; (B) explainer — drives the didactics (narrative structure, audience level, granular vs summary, infographics) to teach a concept, grounded (factual + current). Theme system (VIU default), no-JS adaptive (WhatsApp thumbnail).",
+      "category": "productivity",
+      "version": "1.3.2",
+      "tags": [
+        "slides",
+        "presentation",
+        "html",
+        "markdown",
+        "keynote",
+        "viu"
+      ]
+    },
+    {
+      "name": "sovai",
+      "source": "./plugins/sovai",
+      "description": "Autonomous execution mode — executes any plan to completion without user interruptions, checkpoints, or confirmations. Builds via a decompose→execute→review Workflow engine (all-Opus: one Opus decomposes the plan, Opus executors build in parallel, a second Opus reviews completeness+cohesion and feeds back). Skips blocked items (no silent workarounds), logs all decisions, runs a final headless qa-loop pass, regenerates docs (project-doc) and commits + pushes the work, and delivers the final report as an interactive /visual HTML review surface (markdown fallback).",
+      "category": "productivity",
+      "version": "1.8.2",
+      "tags": [
+        "autonomy",
+        "execution",
+        "plan",
+        "no-interruptions",
+        "sovai"
+      ]
+    },
+    {
+      "name": "visual",
+      "source": "./plugins/visual",
+      "description": "CLI walls-of-text → interactive HTML dark-theme views. The page carries the EVIDENCE, not the account of it: real artifact embedded, raw output verbatim, provenance for every number — enforced by a pre-ExitPlanMode gate. Plans, diagnostics and decisions in the browser with live sync back to Claude.",
+      "category": "productivity",
+      "version": "1.8.6",
+      "tags": [
+        "visualization",
+        "html",
+        "plan-mode",
+        "hooks",
+        "live-sync",
+        "evidence"
+      ]
+    }
+  ]
+}

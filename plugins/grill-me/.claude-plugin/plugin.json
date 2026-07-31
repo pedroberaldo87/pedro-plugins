@@ -1,0 +1,9 @@
+{
+  "name": "grill-me",
+  "version": "1.0.0",
+  "description": "Relentless one-question-at-a-time design review. Stress-tests plans and decisions by walking every branch of the decision tree.",
+  "author": {
+    "name": "Matt Pocock",
+    "homepage": "https://github.com/mattpocock/skills"
+  }
+}
