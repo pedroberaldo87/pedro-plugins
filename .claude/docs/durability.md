@@ -1,6 +1,6 @@
 ---
 generated: 2026-08-01
-generated-commit: e692e1e
+generated-commit: b01f035
 project: pedro-plugins
 scope:
   - .gitignore
@@ -30,7 +30,7 @@ verified-by:
   - plugins/project-doc/lib/test_journal.py
   - plugins/visual/lib/test_plan_state.py
   - plugins/visual/lib/test_cobertura.py
-doc-sig: pedro-plugins/.gitignore@gen=3.8#8b698fe7
+doc-sig: pedro-plugins/.gitignore@gen=3.8#e57b6eab
 ---
 
 # Durabilidade
@@ -353,7 +353,7 @@ Cada bloco abaixo diz o mesmo em variações: existe no disco desta máquina, n�
   wc: .../bypass.log: open: No such file or directory
   ```
   O guarda **passou a barrar**: 7 bloqueios, contra 0 na rodada anterior. O `bypass.log` segue inexistente — nenhuma resposta reincidiu duas vezes na mesma chave, que é a condição para o hook desistir.
-- **Consequência de durabilidade específica do `bypass.log`, e ela dobrou nesta rodada:** ele é o registro dos furos conhecidos, o próprio conserto sugerido pelo verificador é `rm` (§3.15), e agora **um segundo programa depende dele** — `ledger.py:furos_da_regua` conta cada linha do `bypass.log` como um furo e reporta ao dono (§3.20). Não há cópia; apagado é apagado, e o efeito deixou de ser só "o conformance esquece" para incluir "o dono passa a ver menos furos do que houve".
+- **Consequência de durabilidade específica do `bypass.log`, e ela dobrou nesta rodada:** ele é o registro dos furos conhecidos, o próprio conserto sugerido pelo verificador é `rm` (§3.15), e agora **um segundo programa depende dele** — `ledger.py:furos_da_regua` conta cada linha do `bypass.log` como um furo e reporta ao dono (§3.14-b). Não há cópia; apagado é apagado, e o efeito deixou de ser só "o conformance esquece" para incluir "o dono passa a ver menos furos do que houve".
 - **Volume dos três diretórios** [confirmado]: `du -sh ~/.claude/state` → **204K** (forma-relato 104K · prose-ceiling 96K · intent-guard 4,0K), contra 48K na rodada anterior.
 - ⚠️ **Teto conhecido, documentado no cabeçalho do arquivo:** hook de plugin só carrega no `SessionStart` — sessão já aberta no momento da instalação fica descoberta até o próximo `/clear`.
 
@@ -394,7 +394,7 @@ arquivo com um número. Escrito e lido por `plugins/intent-guard/lib/ledger.py:f
 - **Guarda de escopo:** as duas checagens saem cedo se `bootstrap@` não estiver ligado em `enabledPlugins` do `settings.json`. Acusar guarda ausente numa máquina que não instalou o guarda seria desvio inventado.
 - ⚠️ **O furo do verificador continua no código, mas deixou de ser o caso deste disco** [confirmado]: com o `batidas.log` real de hoje (**228** linhas, `julgou` **50** e `juiz sem resposta` **0**), `mudo > julgou` é falso **por mérito** e a idade é recente — a checagem carimba "juiz de forma ativo" e desta vez ela está certa. O que não mudou: um log composto só de `sem texto` seguiria passando como saudável, porque o verificador cobre *não rodou* e *rodou e o modelo não respondeu*, e não cobre *rodou e nunca chegou ao modelo*.
 - **Consequência de durabilidade:** esses `batidas.log` deixaram de ser log e viraram **entrada de um verificador**. Apagar `~/.claude/state/` não degrada só a auditoria retroativa — faz o conformance reportar "nunca executou" para um hook que está funcionando.
-- 🔴 **E agora são DOIS verificadores lendo os mesmos dois arquivos, com filtros diferentes** [confirmado, li os dois]. O `conformance.py` conta **execuções** (`julgou` vs `juiz sem resposta`, para saber se o guarda está vivo); o `ledger.py:furos_da_regua` conta **reprovações** (`motivo == "julgou" and veredito != "passa"`, para dizer ao dono quantas vezes a régua foi furada). Mesmo arquivo de 228 linhas, respostas de naturezas distintas — "o guarda está ativo" e "20 furos". Apagar `~/.claude/state/` hoje quebra as duas leituras de uma vez, e cada uma falha de um jeito: uma acusa hook morto, a outra some com o histórico de furos (§3.20).
+- 🔴 **E agora são DOIS verificadores lendo os mesmos dois arquivos, com filtros diferentes** [confirmado, li os dois]. O `conformance.py` conta **execuções** (`julgou` vs `juiz sem resposta`, para saber se o guarda está vivo); o `ledger.py:furos_da_regua` conta **reprovações** (`motivo == "julgou" and veredito != "passa"`, para dizer ao dono quantas vezes a régua foi furada). Mesmo arquivo de 228 linhas, respostas de naturezas distintas — "o guarda está ativo" e "20 furos". Apagar `~/.claude/state/` hoje quebra as duas leituras de uma vez, e cada uma falha de um jeito: uma acusa hook morto, a outra some com o histórico de furos (§3.14-b).
 - Coberto por teste [confirmado, rodado nesta sessão]: `plugins/bootstrap/lib/test_conformance.py` traz `teste_juiz_de_forma_mudo()`, que semeia `state/forma-relato/batidas.log` num `CLAUDE_DIR` de mentira e afirma os dois desvios ("nunca executou" e "mudo"). Saída: `59 ok · 0 FAIL`.
 
 ### 3.16 · Kill-switches e flags de modo
