@@ -1,6 +1,6 @@
 ---
-generated: 2026-07-31
-generated-commit: fdeac13
+generated: 2026-08-01
+generated-commit: e692e1e
 project: pedro-plugins
 scope:
   - plugins/project-doc/hooks/sessionstart-doc.sh
@@ -29,6 +29,7 @@ scope:
   - plugins/visual/hooks/stop-plan-status.sh
   - plugins/visual/hooks/hooks.json
   - plugins/visual/lib/plan_state.py
+  - plugins/visual/lib/cobertura.py
   - plugins/guardrails/hooks/lint-and-typecheck.sh
   - plugins/guardrails/hooks/scope-cop.sh
   - plugins/guardrails/hooks/hooks.json
@@ -59,7 +60,7 @@ verified-by:
   - plugins/visual/hooks/test_plan_hooks.sh
   - plugins/visual/lib/test_plan_state.py
   - plugins/ship/hooks/test_pre_deploy.sh
-doc-sig: pedro-plugins/sessionstart-doc.sh@gen=3.8#5ff772c3
+doc-sig: pedro-plugins/sessionstart-doc.sh@gen=3.8#59dcf20f
 ---
 
 # Runtime — fluxos ponta-a-ponta
@@ -221,7 +222,11 @@ O índice carrega o marker `<!-- project-doc:v2 gen=3.8 -->` na primeira linha. 
 
 **A regra estrutural:** o Claude **autora** o plano uma vez (`init`) e daí em diante só **marca** (`tick`). Quem desenha a árvore é o programa, lendo o arquivo — por isso o título não deriva entre renders. `[confirmado]`
 
-**Verbos** (subparsers de `plan_state.py:build_parser`): `init`, `tick`, `state`, `render`, `page`, `brief`, `open`, `close`, `reopen`.
+**Verbos** (os **11** subparsers de `plan_state.py:build_parser`): `init`, `tick`, `state`, `render`, `page`, `brief`, `cobertura`, `reabrir`, `open`, `close`, `reopen`. Os dois últimos a entrar são `cobertura` (o mapa entre requisito e tarefa, nos dois sentidos) e `reabrir` (derruba uma decisão que o agente tomou no lugar do dono). `[confirmado — leitura de `build_parser` nesta rodada]`
+
+**As duas árvores.** `render` e `page` aceitam `--vista execucao|valor`. A de execução é fase → tarefa, a de sempre; a de **valor** é épico → requisito → grupo → tarefa e é **derivada em tempo de render**, não guardada — o arquivo só conhece fase→tarefa, e os dois níveis de cima vêm do documento de requisitos. A vista entra no nome do arquivo da página (`plano-<id>-<modo>-valor.html`), então as duas convivem sem uma sobrescrever a outra. `[confirmado — `plan_state.py:cmd_render`, `cmd_page` e `_html_valor`]`
+
+**De onde vêm os requisitos** — cascata de `plan_state.py:_requisitos_do_projeto`, nesta ordem: bloco `requisitos` no topo do próprio plano → variável `PLAN_REQS` apontando um arquivo → `<raiz>/docs/PRD.md` → `<raiz>/docs/REQUISITOS.md` → nenhum. **Nenhum não é erro**: sem documento, a checagem de citação simplesmente não roda. O bloco no plano vem primeiro por ser o mais específico. `[confirmado]`
 
 ### Os quatro símbolos de maior fan-in
 
@@ -232,17 +237,39 @@ O índice carrega o marker `<!-- project-doc:v2 gen=3.8 -->` na primeira linha. 
 
 ### Travas do arquivo
 
-- **`validate`** acumula **todos** os erros de forma e levanta um `PlanError` só. Ids: fase casa `^F\d+$`, passo casa `^F\d+\.\d+$` e o prefixo tem que bater com a fase. `desc` é obrigatório em cada passo e tem teto de `DESC_MAX = 140` chars — é a linha didática que aparece na árvore. `STATUSES = ("todo","doing","blocked","done")`. `[confirmado]`
+- **`erros_do_plano` acumula, `validate` levanta.** A checagem de forma é uma função que **devolve a lista** (`plan_state.py:erros_do_plano`) e uma casca fina que a transforma em `PlanError` único (`plan_state.py:validate`). A separação existe porque quem MARCA precisa distinguir defeito da própria tarefa de defeito alheio, e a exceção derruba tudo junto. Ids: fase casa `^F\d+$`, passo casa `^F\d+\.\d+$` e o prefixo tem que bater com a fase. `desc` é obrigatório em cada passo e tem teto de `DESC_MAX = 140` chars — é a linha didática que aparece na árvore. `STATUSES = ("todo","doing","blocked","done")`. `[confirmado]`
+- **Dois campos são cobrados só em tarefa NOVA** — o parâmetro `exigir` de `erros_do_plano` recebe o conjunto de ids que estão entrando, e para esses exige `requisito` (o id do requisito que a tarefa atende, **exatamente um**) e `pronto` (como se prova que ela terminou). Tarefa que já existia no arquivo não é cobrada retroativamente, então o campo novo não invalida plano em andamento. `[confirmado]`
+- **Citação a requisito inexistente RECUSA gravar.** `validate` recebe `reqs` e, para cada tarefa com `requisito` preenchido, exige que o id exista no documento — a mensagem de erro lista os ids conhecidos. `reqs` vazio **desliga a checagem**, porque projeto sem documento de requisitos é o caso comum, não um defeito. `[confirmado]`
+- **`pendencia` trava o tique.** Enquanto o campo estiver escrito, `cmd_tick` recusa com *"tem decisão em aberto"*; quem fecha a decisão escreve o resultado em `decidido` e **apaga a `pendencia`**. `plan_state.py:cmd_reabrir` faz o caminho de volta — devolve a pergunta ao campo `pendencia`, remove o `decidido` e joga a tarefa de volta pra `todo`, pra que toda decisão tomada na ausência do dono seja reversível por construção. `[confirmado]`
 - **`merge`** mantém o que é **estado** (`status`, `evidence`, `done_at`) e trava o que é **identidade**: título diferente com o mesmo id é conflito e o `init` é recusado, salvo `--rename <id> "<título>"`. Nó que existia no arquivo e não veio no `init` é **mantido**, com aviso. `[confirmado]`
 - **`cmd_tick`** recusa tique de fase e recusa prova com menos de `EVIDENCE_MIN = 8` caracteres. `cmd_state` recusa o valor `done` — "done só via tick, que exige prova". `[confirmado]`
-- **`cmd_page`** grava a página no **mesmo caminho** por (plano, modo): `plano-<id>-<modo>.html` no diretório do `/visual`. O usuário dá refresh na aba, em vez de acumular arquivos. `[confirmado]`
+- **O validador passou a morder no `tick`, mas só pela tarefa ticada.** Até então ele só rodava no `init`, e por isso um `desc` de 356 chars sobreviveu num plano cujo teto é 140. Agora `cmd_tick` chama `erros_do_plano`, filtra com `plan_state.py:_erro_e_do_no` os erros que citam **aquele** nó e **só esses bloqueiam**; defeito em outra tarefa vira aviso no stderr (os 3 primeiros). É fail-open deliberado: bloquear precisa de evidência sobre o alvo, senão uma tarefa torta congelaria o plano inteiro. A tradução posição↔id é necessária porque `erros_do_plano` prefixa com `fase[i] passo[j]`, que são posições, não ids. `[confirmado]`
+- **`cmd_tick` fecha o requisito em RELATÓRIO, não em estado.** Quando a tarefa ticada era a última daquele `requisito`, o comando imprime o critério de aceite do documento e a ordem de conferir — mas o requisito **não ganha campo `status`**, pelo mesmo motivo pelo qual a fase não tem estado próprio: estado duplicado é estado que diverge. E o motor não verifica critério de aceite, ele **lembra**; quem confere é o usuário. `[confirmado]`
+- **`cmd_page`** grava a página no **mesmo caminho** por (plano, modo, vista): `plano-<id>-<modo>.html` na vista de execução e `plano-<id>-<modo>-valor.html` na de valor, no diretório do `/visual`. O usuário dá refresh na aba, em vez de acumular arquivos — e o sufixo da vista existe porque sem ele as duas árvores do mesmo plano gravariam no mesmo arquivo e a última apagaria a outra em silêncio. `[confirmado]`
+
+### Quando a pendência aparece no meio da execução
+
+A regra de quem decide é do modelo, não do programa: mora em `plugins/visual/skills/visual/SKILL.md`, seção "Motor de decisão". Em sessão **interativa** a pendência sempre para e vai ao usuário — com o parecer junto, quando há. Em execução **autônoma**, três perguntas convocam um segundo parecer, e qualquer "sim" basta: a ação é irreversível (remoto publicado, migração de banco, apagar dado, envio a terceiro); contradiz a norma que o requisito cita; ou o repositório não desempata sozinho. `[confirmado — leitura da seção nesta rodada]`
+
+Empate se resolve **por natureza, nunca por contagem de votos** — quem escreveu o plano não vota. Divergência sobre **fato** vira medição: roda e cola a saída (`por: "medicao"`, saída crua no campo `prova`). Divergência sobre **mérito** vai ao usuário no modo interativo e, no autônomo, segue a opção **mais reversível** (`por: "mais-reversivel"`), com a decisão obrigatoriamente no topo do relatório final. O registro vai no campo `decidido` da tarefa e guarda a pergunta original, pra que `plan_state.py reabrir` consiga restaurá-la. `[confirmado]`
 
 ### Os dois hooks que costuram o plano à sessão
 
-- **`sessionstart-plan.sh`** (SessionStart, timeout 10) — cria o marco `${TMPDIR:-/tmp}/claude-plan-mark-$(id -u)-${SESSION}-${PHASH}` **mesmo sem plano aberto**, e injeta `additionalContext` listando os planos abertos com `done/total`, o próximo passo e o caminho do arquivo. `[confirmado]`
+- **`sessionstart-plan.sh`** (SessionStart, timeout 10) — cria o marco `${TMPDIR:-/tmp}/claude-plan-mark-$(id -u)-${SESSION}-${PHASH}` **mesmo sem plano aberto**, e injeta `additionalContext` listando os planos abertos com `done/total`, o próximo passo e o caminho do arquivo. Desde esta rodada ele acrescenta uma linha `🔎 Cobertura requisito↔tarefa:` com as **duas primeiras linhas** de `plan_state.py --dir "$PLANS_DIR" cobertura` — o resumo e o aviso de "nenhum documento de requisitos encontrado". O comentário do arquivo dá o motivo de o número entrar aqui e não pelo `brief`: este hook monta o texto a partir do `open --json` e não passa pelo `brief`, e sem isso o número apareceria só no fim do turno, *"e não no começo da sessão, que é justamente quando o Claude novo decide o que fazer"*. Saída vazia (2+ planos ativos, nenhum plano) não acrescenta nada — fail-open como o resto do hook. `[confirmado — leitura do script nesta rodada]`
 - **`stop-plan-status.sh`** (Stop, timeout 15) — emite `systemMessage` com os bullets de `plan_state.py brief`, nunca `decision:block`. Desliga com `PLAN_STATUS=0`; só a cobrança do tique desliga com `PLAN_NUDGE=0`. A cobrança entra 1× por (sessão, projeto), e **só** quando há marco antigo, nenhum `*.plan.json` foi tocado desde ele e o transcript mostra 3+ chamadas de `Edit|Write|MultiEdit|NotebookEdit`. Se o marco não existe, o hook **cria** o marco e não cobra naquele turno — o comentário registra a regra geral: hook que depende de outro hook ter rodado é frágil, então crie o pré-requisito você mesmo. `[confirmado]`
 
-**Verificado:** `python3 plugins/visual/lib/test_plan_state.py` → **OK** neste run. `[confirmado]`
+### O fio requisito↔tarefa — quatro estados, e onde cada um aparece
+
+`plugins/visual/lib/cobertura.py` cruza o documento de requisitos com as tarefas do plano e nomeia quatro situações, nenhuma silenciosa: **coberto**, **tarefa sem requisito** (trabalho que ninguém pediu), **requisito sem tarefa** (pedido que ninguém planejou) e **citação a requisito que não existe**. Os três primeiros são relatório; o quarto é erro que recusa gravar. `[confirmado — `cobertura.py:mapa` e `plan_state.py:validate`]`
+
+O número **aparece sem ser pedido**, em quatro superfícies, todas lendo a mesma `cobertura.py:resumo` pra que um só programa calcule:
+
+- no **começo da sessão**, pela linha que o `sessionstart-plan.sh` injeta;
+- no **fim do turno**, por `plan_state.py:brief_lines` — e ali ele **toma o lugar** do bullet "Falta", nunca vira um 4º, porque o teto de 3 bullets é do pedido. Só entra quando há tarefa sem requisito ou citação inexistente; a cobrança do tique, quando existe, ganha o slot;
+- no **cabeçalho da árvore de valor**, texto e HTML;
+- sob demanda, em `plan_state.py cobertura` (com `--json` pra consumo por programa e `--reqs` pra apontar outro documento). `[confirmado — leitura das quatro chamadas]`
+
+**Verificado:** `python3 plugins/visual/lib/test_plan_state.py` → **OK** e `python3 plugins/visual/lib/test_cobertura.py` → **OK**, ambas nesta rodada. `[confirmado]`
 
 ---
 
@@ -309,7 +336,7 @@ TOTAL 8
    - **projeto documentado** → lista `CLAUDE.md` + nº de docs, com flag `⚠️ DEFASADA` (staleness `stale`) ou `⚠️ staleness indeterminado` (`unknown`) e `⚠️ fora do padrao atual (gen)` quando `pattern_check` reporta `in_pattern=false`;
    - **documentado mas sem nenhum autoral** → nudge `/start-doc gaps`, 1× por (sessão, projeto) via `${TMPDIR:-/tmp}/claude-doc-autoral-nudge-$(id -u)-${SID}-${PHASH}`, desligável com `DOC_AUTORAL_GATE=0`;
    - **sem doc nenhuma** → oferta do `/start-doc` mais o aviso de que o gate de plano vai barrar. Antes de afirmar ausência, o hook **reconsulta a raiz** com `doc-detect.sh --one "$PROJ"`, porque o modo descida não enxerga doc que vive acima do cwd. Os autorais cobrados são `quality-goals constraints context solution-strategy glossary`, mais `design` só quando `has_frontend` retorna verdadeiro. `[confirmado]`
-7. **`visual/sessionstart-plan.sh`** — cenário 5. `[confirmado]`
+7. **`visual/sessionstart-plan.sh`** — cenário 5. Injeta `additionalContext` com os planos abertos, o próximo passo, o caminho do arquivo e a linha de cobertura requisito↔tarefa; sem plano aberto sai calado, mas **o marco em `TMPDIR` é criado antes disso**. `[confirmado]`
 8. **`branches/sessionstart-branches.sh`** — registrado no `hooks.json` do plugin `branches`. `[confirmado — registro; conteúdo não lido nesta rodada]`
 
 **Quem pode bloquear no SessionStart:** nenhum dos 8. Os que falam usam `hookSpecificOutput.additionalContext`; os demais só escrevem em disco ou em stdout/stderr. `[confirmado — leitura dos 6 scripts desta fatia]`
