@@ -54,7 +54,12 @@ def main():
 
     r = cb.resumo(m)
     check("o resumo traz os quatro números",
-          all(x in r for x in ("4 tarefas", "2 com requisito", "1 sem", "1 requisito(s) sem")))
+          all(x in r for x in ("4 tarefas", "2 com requisito", "1 sem", "1 requisito sem")))
+    # o plural vem do helper, não de "(s)" fixo — texto que o dono lê não escreve "(s)"
+    um = cb.resumo({"total": 1, "cobertas": [], "sem_requisito": ["F1.1"],
+                    "orfaos": ["S-1.1"], "inexistentes": [], "por_req": {}})
+    check("plural concorda no singular", "1 tarefa ·" in um and "1 requisito sem" in um)
+    check("e no plural", "4 tarefas" in r)
 
     print()
     print("FALHOU: %d" % len(FAILS) if FAILS else "OK")

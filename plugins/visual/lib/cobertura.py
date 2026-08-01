@@ -70,10 +70,13 @@ def mapa(plan, reqs):
 
 def resumo(m):
     """A linha única. Um só programa calcula; todos os lugares leem dela."""
-    partes = ["%d tarefas" % m["total"],
+    def _pl(n, s, p=None):
+        return "%d %s" % (n, s if n == 1 else (p or s + "s"))
+
+    partes = [_pl(m["total"], "tarefa"),
               "%d com requisito" % len(m["cobertas"]),
               "%d sem" % len(m["sem_requisito"]),
-              "%d requisito(s) sem tarefa" % len(m["orfaos"])]
+              "%s sem tarefa" % _pl(len(m["orfaos"]), "requisito")]
     if m["inexistentes"]:
         partes.append("⛔ %d citando requisito inexistente" % len(m["inexistentes"]))
     return " · ".join(partes)
