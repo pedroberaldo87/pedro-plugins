@@ -1,6 +1,6 @@
 ---
-generated: 2026-07-31
-generated-commit: fdeac13
+generated: 2026-08-01
+generated-commit: e692e1e
 project: pedro-plugins
 scope:
   - .gitignore
@@ -17,6 +17,7 @@ scope:
   - _shared/green-cache.sh
   - plugins/visual/server/visual_server.mjs
   - plugins/visual/lib/plan_state.py
+  - plugins/visual/lib/cobertura.py
   - plugins/visual/lib/visual_page.py
   - plugins/visual/hooks/stop-plan-status.sh
   - scripts/hook_contract.py
@@ -33,12 +34,13 @@ scope:
   - plugins/project-doc/hooks/stop-doc-touch.sh
 verified-by:
   - plugins/visual/lib/test_plan_state.py
+  - plugins/visual/lib/test_cobertura.py
   - plugins/visual/lib/test_visual_page.py
   - plugins/intent-guard/lib/test_ledger.py
   - plugins/branches/lib/test_branch_state.py
   - plugins/project-doc/lib/test_journal.py
   - plugins/project-doc/lib/test_graph_map.py
-doc-sig: pedro-plugins/.gitignore@gen=3.8#72db48a0
+doc-sig: pedro-plugins/.gitignore@gen=3.8#a049965b
 ---
 
 # Data Stores — onde o dado mora
@@ -143,9 +145,14 @@ Volumes desta rodada:
 ```bash
 du -sh ~/.claude/plans ~/.claude/visual-state ~/.claude/guardrails ~/.claude/intent \
        ~/.claude/green-suite ~/.claude/context-guard ~/.claude/intent-guard ~/.claude/state
-# 2,7M  plans        1,3M  visual-state   516K  guardrails    264K  intent
-# 192K  green-suite    0B  context-guard    0B  intent-guard   48K  state
+# 2,3M  plans        1,3M  visual-state   680K  guardrails    264K  intent
+# 140K  green-suite    0B  context-guard    0B  intent-guard  204K  state
+
+du -sh ~/.claude/state/*
+# 104K  state/forma-relato    4,0K  state/intent-guard    96K  state/prose-ceiling
 ```
+
+⚠️ **`~/.claude/state/` quadruplicou nesta rodada (48K → 204K)** e ganhou um terceiro subdiretório. O crescimento não é lixo: é o juiz de forma que **começou a julgar de verdade** (B9) e uma marca de leitura nova (B10).
 
 ### B1 · `${CLAUDE_CONFIG_DIR:-$HOME/.claude}/guardrails/` — 516K · os dois vigias
 
@@ -213,6 +220,7 @@ du -sh ~/.claude/plans ~/.claude/visual-state ~/.claude/guardrails ~/.claude/int
 
 - **Único arquivo previsto:** `mode`. **Seis scripts do plugin o mencionam pelo mesmo caminho** (`grep -rl 'intent-guard/mode' plugins/intent-guard/hooks/` → `capture-prompt.sh`, `delivery-audit.sh`, `mark-work.sh`, `plan-gate.sh`, `task-checkpoint.sh` e o teste `test_hooks_capture.sh`, que faz backup/restore dele). [confirmado]
 - **Estado atual: o diretório existe e está VAZIO (0B)** — sem `mode`, o guard opera no default. Configuração, descartável.
+- ⚠️ **Colisão de nome nova nesta rodada:** existe agora um `~/.claude/**state**/intent-guard/` (B10), que é outro diretório, com outro dono e outra natureza. `~/.claude/intent-guard/` é kill-switch e está vazio; `~/.claude/state/intent-guard/` é marca de leitura e tem conteúdo. Quem apagar "o diretório do intent-guard" pelo nome apaga o errado. [confirmado por `ls -la` nos dois]
 
 ### B5 · `~/.claude/context-guard/` — 0B · nada mora aqui
 
@@ -257,14 +265,18 @@ return os.path.join(os.path.expanduser("~/.claude/intent"), slug)
 
   O comentário no hook nomeia o defeito que essa igualdade conserta: com `Path.home()` fixo, quem usa `CLAUDE_CONFIG_DIR` fazia o hook escrever num lugar e o verificador ler noutro, e o relatório dizia "nenhuma resposta furou o teto" com o teto furado — *"Falha silenciosa."*
 - **Três tipos de arquivo, e eles guardam coisas diferentes:**
-  - `<sha1[:16]>` — **contador por resposta bloqueada**, 1 byte cada. Chave = `sha1(session_id + texto_INTEIRO_da_resposta)[:16]`; teto `MAX_BLOQUEIOS = 2`. A chave usa o texto inteiro de propósito: com `texto[:200]`, e com o output style mandando a primeira linha ser estável, duas respostas diferentes dividiam o mesmo orçamento — a colisão era o caso comum. **9 no disco hoje.**
-  - **`batidas.log` — NOVO, e é o que faz o guarda ser auditável.** Uma linha JSON por **execução**, não só por bloqueio: `{ts, sessao (8 chars), motivo, linhas, teto}`. O comentário diz por que nasceu: sem ele, *"o guarda não rodou"* e *"o guarda rodou e aprovou"* eram indistinguíveis, e uma resposta de 9 linhas passou sem ninguém notar. 4.296 bytes hoje: [confirmado]
+  - `<sha1[:16]>` — **contador por resposta bloqueada**, 1 byte cada. Chave = `sha1(session_id + texto_INTEIRO_da_resposta)[:16]`; teto `MAX_BLOQUEIOS = 2`. A chave usa o texto inteiro de propósito: com `texto[:200]`, e com o output style mandando a primeira linha ser estável, duas respostas diferentes dividiam o mesmo orçamento — a colisão era o caso comum. **15 no disco hoje** (17 entradas no diretório, menos `batidas.log` e o `.DS_Store`).
+  - **`batidas.log` — é o que faz o guarda ser auditável.** Uma linha JSON por **execução**, não só por bloqueio: `{ts, sessao (8 chars), motivo, linhas, teto}`. O comentário diz por que nasceu: sem ele, *"o guarda não rodou"* e *"o guarda rodou e aprovou"* eram indistinguíveis, e uma resposta de 9 linhas passou sem ninguém notar. **32.611 bytes / 341 linhas hoje**, contra 42 execuções na rodada anterior: [confirmado]
 
     ```
-    motivos: aprovou 6 · "sem texto do assistente" 36     (42 execuções)
+    motivos: "sem texto do assistente" 163 · aprovou 146 · stop_hook_active 25 · barrou 7
     ```
-  - `bypass.log` — JSONL, uma linha por desistência (`{session, linhas_prosa, problemas, trecho}`), gravado quando o contador bate em 2 e o hook para de bloquear pra não travar a sessão. **Não existe no disco nesta rodada.** [confirmado]
-- **Quem lê:** `plugins/bootstrap/lib/conformance.py`, em duas checagens distintas — `check_teto_rodou` lê o `batidas.log` (ausência = desvio *"o guarda de prosa nunca executou"*; última batida > 24h = desvio *"está mudo"*) e `check_bypass_teto` lê **só** o `bypass.log` (ausência = conforme). **Nenhuma das duas olha os contadores.**
+
+    **`barrou` 7 é a novidade que importa:** na rodada anterior o guarda tinha 0 bloqueios registrados. Ele passou a barrar de verdade.
+  - `bypass.log` — JSONL, uma linha por desistência (`{session, linhas_prosa, problemas, trecho}`), gravado quando o contador bate em 2 e o hook para de bloquear pra não travar a sessão. **Continua sem existir no disco** — os 7 `barrou` nunca chegaram a duas reincidências na mesma resposta. [confirmado — `wc -l` devolve `No such file or directory`]
+- **Quem lê — passaram a ser DOIS consumidores, e eles leem arquivos diferentes:** [confirmado]
+  - `plugins/bootstrap/lib/conformance.py`, em duas checagens — `check_teto_rodou` lê o `batidas.log` (ausência = desvio *"o guarda de prosa nunca executou"*; última batida > 24h = desvio *"está mudo"*) e `check_bypass_teto` lê **só** o `bypass.log` (ausência = conforme). **Nenhuma das duas olha os contadores.**
+  - **`plugins/intent-guard/lib/ledger.py:furos_da_regua` — NOVO.** Lê **só** o `bypass.log`, e trata **toda** linha dele como furo (`lambda d: True`). É o segundo lugar do repositório onde este arquivo vira número, e o primeiro que o mostra ao dono em vez de ao verificador de máquina — ver B10.
 - ⚠️ **Nada poda os contadores.** Sem `find -mtime`, sem TTL, sem limpeza no `SessionStart`. O único `rm` do sistema é o que o `conformance.py` **sugere em texto**, e ele mira o `bypass.log`. Cada resposta reprovada deposita 1 byte que fica pra sempre.
 - **O teto é premissa, não preferência:** `TETO_PADRAO = 6`, e `PROSE_CEILING_MAX` só **ajusta o número** (`0` ou lixo caem no padrão). Desligar exige `PROSE_CEILING=0`, que derruba o hook inteiro — e mesmo aí ele grava uma batida `kill-switch` antes de sair. Com o hook desligado o depósito não nasce.
 - **Regra nova nesta rodada, e ela muda o que entra no log:** pergunta fechada do usuário passou a exigir **veredito na 1ª linha** da resposta. O hook lê a última fala do usuário, casa `PERGUNTA_FECHADA` na cauda (200 chars) e exclui as abertas via `PERGUNTA_ABERTA`; se a primeira linha não casar `ABRE_COM_VEREDITO`, o problema `"pergunta fechada sem veredito na 1a linha"` entra na lista e a resposta é barrada. [confirmado no código]
@@ -283,15 +295,16 @@ Depósito **novo nesta rodada**, irmão do B8 e deliberadamente diferente dele: 
   ```
 - **O gatilho é medido no próprio texto:** é relato quando há pelo menos um bloco ` ``` ` **e** ≥ `MIN_PROSA = 2` linhas de prosa fora dos blocos. Resposta curta e conversa não chegam ao modelo — mandar cada turno custaria segundos em todos eles.
 - **Dois tipos de arquivo, mesmo desenho do B8:**
-  - `<sha1[:16]>` — contador anti-loop por resposta, `MAX_BLOQUEIOS = 2`, chave `sha1(session_id + texto)[:16]`. **Zero no disco.**
-  - `batidas.log` — uma linha JSON por execução: `{ts, sessao, motivo, veredito}`. **984 bytes, 12 linhas hoje.**
-- 🔴 **As 12 batidas são todas do mesmo motivo, e nenhuma é `julgou`:** [confirmado]
+  - `<sha1[:16]>` — contador anti-loop por resposta, `MAX_BLOQUEIOS = 2`, chave `sha1(session_id + texto)[:16]`. **20 no disco** (21 entradas menos o `batidas.log`) — eram **zero** na rodada anterior.
+  - `batidas.log` — uma linha JSON por execução: `{ts, sessao, motivo, veredito}`. **104K de diretório, 228 linhas hoje** (eram 12).
+- ✅ **O 🔴 da rodada anterior CAIU: o juiz passou a julgar.** [confirmado]
 
   ```
-  motivos: "sem texto" 12     (0 julgou · 0 kill-switch · 0 desistiu)
+  motivos:    "nao e relato" 79 · "sem texto" 74 · julgou 50 · stop_hook_active 25
+  vereditos:  passa 30 · reprova 20      (dos 50 `julgou`)
   ```
 
-  Ou seja: **o hook está carregado e executando, e o juiz nunca chegou a rodar** — o leitor da última mensagem do assistente voltou vazio em todas as vezes. Nenhum contador foi criado porque nenhuma reprovação aconteceu. O depósito existe, o modelo não foi chamado.
+  Três coisas mudaram no que o depósito guarda: (1) `julgou` saiu de 0 para 50, então o modelo está sendo chamado; (2) `nao e relato` **79** apareceu como motivo — é o gatilho recusando gastar token em resposta que não é relato, e ele é hoje o motivo mais frequente; (3) **o campo `veredito` deixou de ser sempre nulo** — as 20 reprovações trazem o defeito em texto livre, do tipo *"Resultado no parágrafo 3, primeira linha não diz nada"*. Esse texto é o único registro do que a régua reprovou, e não existe em lugar nenhum além deste arquivo.
 - **Wiring confirmado** em `plugins/bootstrap/hooks/hooks.json`, no mesmo array `Stop` do teto de prosa: [confirmado]
 
   ```json
@@ -300,10 +313,36 @@ Depósito **novo nesta rodada**, irmão do B8 e deliberadamente diferente dele: 
      {"type":"command","command":"python3 \"${CLAUDE_PLUGIN_ROOT}/hooks/stop-forma-relato.py\"","timeout":30}
   ]}]
   ```
-- **Quem lê:** `plugins/bootstrap/lib/conformance.py:check_juiz_rodou`. Ele só cobra de quem tem o bootstrap habilitado (varre `enabledPlugins` do `settings.json` por `bootstrap@`), e então: arquivo ausente → desvio *"o juiz de forma nunca executou"*; `juiz sem resposta` > `julgou` → desvio *"o juiz está mudo"*, com a causa mais comum nomeada (`claude -p` sem credencial sai rc=1 e o fail-open aprova tudo); última batida > 24h → desvio; senão, conforme.
-  ⚠️ **Com o estado de hoje o check passa** — não há nenhum `juiz sem resposta` e a última batida é recente —, mas o juiz nunca julgou nada. A checagem cobre o modo de falha "modelo mudo"; **não** cobre "gatilho nunca casou".
+- **Quem lê — também passaram a ser DOIS, e eles filtram o mesmo arquivo por regras diferentes:** [confirmado]
+  - `plugins/bootstrap/lib/conformance.py:check_juiz_rodou`. Só cobra de quem tem o bootstrap habilitado (varre `enabledPlugins` do `settings.json` por `bootstrap@`), e então: arquivo ausente → desvio *"o juiz de forma nunca executou"*; `juiz sem resposta` > `julgou` → desvio *"o juiz está mudo"*, com a causa mais comum nomeada (`claude -p` sem credencial sai rc=1 e o fail-open aprova tudo); última batida > 24h → desvio; senão, conforme. **Com 50 `julgou` e 0 `juiz sem resposta`, o check passa por mérito agora** — o furo descrito na rodada anterior ("passa mesmo sem nunca ter julgado") continua existindo como furo, mas deixou de ser o caso deste disco.
+  - **`plugins/intent-guard/lib/ledger.py:furos_da_regua` — NOVO.** Conta como furo **só** a linha que satisfaz `motivo == "julgou" and veredito != "passa"`; `passa`, `nao e relato`, `sem texto` e `stop_hook_active` não entram. É por isso que o mesmo arquivo de 228 linhas vira o número **20** — ver B10.
 - **Kill-switch e modelo, copiados do arquivo:** `FORMA_RELATO=0` desliga (e grava a batida `kill-switch`); `FORMA_RELATO_MODEL` escolhe o modelo (default `haiku`); `TIMEOUT_S = 25`. O subprocesso herda `FORMA_RELATO="interno"` pra o juiz não chamar a si mesmo — e nesse modo nem batida grava.
-- **Natureza: descartável.** Apagar devolve o orçamento de bloqueio a zero e perde o registro de execução. Sem backup, como todo o resto de (B).
+- **Natureza: descartável, com uma ressalva nova.** O orçamento de bloqueio e o registro de execução se refazem. **O texto dos 20 vereditos de reprovação, não** — é a única lista escrita de onde a régua de forma falhou, e nada o regenera.
+
+### B10 · `${CLAUDE_CONFIG_DIR:-~/.claude}/state/intent-guard/olhado` — 17 bytes · a marca de "até onde o dono já viu"
+
+**Depósito novo nesta rodada**, e o menor do inventário: um arquivo, um número.
+
+- **Escrito e lido por** `plugins/intent-guard/lib/ledger.py:furos_da_regua` e `cmd_status`. O caminho sai da mesma expressão dos B8/B9: [confirmado, copiado do arquivo]
+
+  ```python
+  claude = Path(os.environ.get("CLAUDE_CONFIG_DIR", Path.home() / ".claude"))
+  marca = claude / "state" / "intent-guard" / "olhado"
+  ```
+- **Conteúdo: um epoch em texto, e só.** Valor no disco hoje: `1785538855.766836` (17 bytes, mtime de 31/jul 20:00). É a hora da última vez que o dono viu a contagem de furos.
+- **Para que serve:** `furos_da_regua()` devolve `(total, novos, fontes, marca)`. O `total` sai do log inteiro; o `novos` conta só as linhas com `ts` maior que a marca. Os dois números saem do MESMO log append-only, então mostrar ambos *"não obriga a escolher entre perder o histórico e perder a leitura do que é novo"* [confirmado, docstring].
+- **Quando a marca é reescrita:** dentro de `cmd_status`, e **só quando há cobrança permanente viva** (`if st["standing"]`) — restrição do dono que não conclui. Sem nenhuma restrição no caderno, a contagem não é exibida e a marca não avança.
+- **Estado medido rodando o próprio código nesta rodada:** [confirmado]
+
+  ```bash
+  python3 -c "import sys; sys.path.insert(0,'plugins/intent-guard/lib'); import ledger; print(ledger.furos_da_regua())"
+  # (20, 20, 1, PosixPath('~/.claude/state/intent-guard/olhado'))
+  ```
+
+  **`fontes = 1`, não 2** — o `bypass.log` do B8 não existe, então só o `batidas.log` do B9 respondeu. `novos == total` porque a marca é de 31/jul e as 20 reprovações são de hoje.
+- ⚠️ **`fontes` existe justamente para log ausente não virar zero furo.** Quando as duas fontes faltam, o status escreve *"SEM REGISTRO nesta máquina — os guardas não deixaram rastro, e isso não quer dizer zero furo; quer dizer que ninguém sabe"*. É o mesmo defeito que já produziu o elogio *"nenhuma resposta furou o teto"* com o teto furado. [confirmado — o caso está no `test_ledger.py`, que afirma `(0, 0, 0)` sem fonte nenhuma e `fontes == 2` com as duas]
+- **Natureza: descartável, com efeito visível.** Apagar não perde furo nenhum (o `total` continua exato); zera o `desde a última vez que você olhou`, e a próxima leitura mostra o histórico inteiro como novidade.
+- **Fail-open na escrita:** `except OSError: pass` — *"não poder marcar nunca derruba o status"*. A consequência é silenciosa e vale saber: num disco somente-leitura o `novos` fica permanentemente igual ao `total` e ninguém é avisado.
 
 ---
 
@@ -403,7 +442,7 @@ O `scrub()` é um scorer em **quatro camadas**, cada span redigido sendo pulado 
 
 ### A4 · `<repo>/.claude/plans/*.plan.json` — os planos ticáveis
 
-- **11 planos, 112K.** Gitignorado por `.gitignore:18` (seção "REGISTRO DE TRABALHO").
+- **13 planos, 132K** (115.686 bytes de JSON). Gitignorado por `.gitignore:18` (seção "REGISTRO DE TRABALHO"). [confirmado — `git check-ignore -v .claude/plans/` → `.gitignore:18`]
 - ⚠️ **A docstring do módulo ainda afirma o contrário**, e é a segunda contradição código-vs-gitignore deste doc: `plan_state.py` diz literal *"`<raiz-do-projeto>/.claude/plans/<id>.plan.json` — VERSIONADO no git de propósito: a dor é perda, e /tmp ou `${CLAUDE_PLUGIN_ROOT}` morrem no /clear e no bump"*. **A dor citada continua real; a cobertura que a resolvia não existe mais.** [confirmado nos dois arquivos]
 - **Estado hoje**, derivado dos arquivos: [confirmado]
 
@@ -416,15 +455,47 @@ O `scrub()` é um scorer em **quatro camadas**, cada span redigido sendo pulado 
   2026-07-30-bootstrap-instalacao-nova         done       10/10
   2026-07-30-intent-guard-catraca              done         9/9
   2026-07-30-marketplace-presenteavel          done       15/15
-  2026-07-31-fechar-a-regua-e-publicar         active       7/11
+  2026-07-31-fechar-a-regua-e-publicar         active      10/11
   2026-07-31-fechar-os-14-pedidos-abertos      abandoned    0/10
   2026-07-31-repo-limpo-do-zero                abandoned  13/18
+  2026-08-01-formato-de-plano                  abandoned    0/10
+  2026-08-01-formato-de-plano-hierarquico      active       0/20
   ```
+
+  ⚠️ **Dois planos ATIVOS ao mesmo tempo.** `pick_plan` recusa adivinhar nessa situação (*"há %d planos ativos (…) — diga qual"*), então todo comando sem `--plan` explícito falha até um deles ser encerrado. [confirmado — a recusa está em `plan_state.py:pick_plan`]
+
+**O QUE O ARQUIVO GUARDA mudou nesta rodada — a tarefa ganhou cinco campos e o plano ganhou um bloco.** [confirmado, lidos em `plan_state.py:erros_do_plano` e `plan_state.py:_requisitos_do_plano`]
+
+Por tarefa, ao lado de `id`/`title`/`desc`/`status`/`evidence`/`done_at`:
+
+```
+requisito   obrigatório em tarefa NOVA · ≤ 40 chars · o id do requisito que ela atende,
+            EXATAMENTE UM ("tarefa que atende dois requisitos são duas tarefas")
+pronto      obrigatório em tarefa NOVA · ≤ 140 chars · COMO se prova que terminou
+grupo       opcional · ≤ 40 chars · a natureza do trabalho (Backend · Tela · Teste)
+pendencia   opcional · ≤ 140 chars · a decisão que falta. TRAVA o tick enquanto existir
+decidido    opcional · objeto {escolha, pergunta, porque} · a decisão tomada sem o dono
+```
+
+No topo do plano, ao lado de `phases`:
+
+```json
+"requisitos": [{"id": "S-1.1", "titulo": "...", "ca": "...",
+                "ancora": "Art. 6", "epico": "E1 — Base"}]
+```
+
+- **Por que o bloco existe no próprio plano:** o requisito é obrigatório, mas o *lugar* dele é opcional. Projeto com documento de requisitos aponta pra lá; projeto sem documento — *"o caso deste repositório, que não tem PRD"* — declara aqui. Sem essa porta, todo projeto sem PRD voltaria a ter tarefa que não rastreia pra nada. [confirmado, docstring de `_requisitos_do_plano`]
+- **Nenhum dos 13 planos no disco usa qualquer um desses campos hoje.** As chaves de topo presentes nos 13 arquivos são só `id`, `title`, `phases`, `created`, `status` e `closed_at` (11 destes); `requisito`, `pronto`, `grupo`, `pendencia`, `decidido` e o bloco `requisitos` aparecem **zero** vezes. O schema é novo, os arquivos são anteriores a ele — e é exatamente esse o desenho: a exigência só morde tarefa que **nasce agora**. [confirmado — derivado com `json.load` sobre os 13 arquivos nesta rodada]
+- **O que protege o registro histórico:** `merge()` recarrega os cinco campos do arquivo quando o `init` novo os omite, pelo mesmo motivo que não apaga a prova. A exceção declarada é a `pendencia` — *"declará-la vazia É resolvê-la de propósito"*. [confirmado, `plan_state.py:merge`]
+- **`cmd_reabrir` é o caminho de volta:** desfaz uma `decidido`, devolve o texto dela para `pendencia` e a tarefa para `todo`, zerando `evidence` e `done_at`. Existe porque *"toda decisão tomada na ausência do dono seja reversível por construção"* — sem ele, `decidido` seria fato consumado. [confirmado]
+- **Quem calcula em cima disso NÃO guarda nada:** `plugins/visual/lib/cobertura.py` é arquivo novo e **não é depósito** — lê os requisitos de um markdown (`le_requisitos`), cruza com o plano (`mapa`) e devolve a linha única (`resumo`). Zero escrita em disco. A vista "épico › requisito › grupo › tarefa" é **derivada, não armazenada**, pelo mesmo princípio que faz a fase não ter estado próprio. [confirmado — o arquivo tem 79 linhas e nenhuma abre arquivo para escrita]
 - **Por que o arquivo existe:** antes disto o plano só vivia no transcript e todo consumidor o **re-derivava por LLM** — lossy: encurta, renomeia fase, chuta se já foi executado. O caso concreto está citado na docstring (`extract_ata.py`: `excerpt: txt[:1200]` e `likely_executed = commits_after > 0 or edits_after >= 3` — um plano de 10 fases + 1 commit virava "concluído").
 - **A correção é estrutural:** o modelo **autora uma vez** (`init`) e daí em diante só **marca** (`tick`). Quem desenha a árvore é o programa lendo o arquivo. Como o modelo nunca redigita um título, não há de onde a mudança de nome vir.
 - **As travas do schema, lidas de `validate()`:** `id` slug minúsculo; fase casa `F<n>`, passo casa `F<n>.<m>` com prefixo batendo com a fase; `desc` obrigatório e ≤ `DESC_MAX = 140` chars (*"é UMA linha, não um parágrafo"*); `status` ∈ `("todo","doing","blocked","done")`. Erros saem **todos de uma vez**, pra o autor não gastar N rodadas.
-- **Duas recusas que protegem o depósito:**
+- **A trava nova: citação órfã não grava.** Quando há requisitos conhecidos, `validate()` recusa o `init` inteiro se alguma tarefa citar um id que não existe na lista. Não é aviso — é erro. O comentário traz a medida que originou a regra: *"7 de 154 itens de um plano real citaram artigo de lei sem ninguém nunca conferir se o artigo existia"*. `reqs` vazio desliga a checagem, porque projeto sem documento de requisitos é o caso comum, não defeito. [confirmado, `plan_state.py:validate`]
+- **Três recusas que protegem o depósito:**
   - `tick` exige `--evidencia` com ≥ `EVIDENCE_MIN = 8` chars: *"Sem isso, 'concluído' é palpite — foi assim que planos foram dados como prontos sem estar."* `done` só existe via `tick`; `cmd_state` recusa explicitamente `done`.
+  - `tick` **também recusa tarefa com `pendencia` preenchida** — decisão em aberto trava o "feito". Fechar a decisão é escrever a escolha em `decidido` e apagar a `pendencia`. [confirmado, `plan_state.py:cmd_tick`]
   - `merge()` **trava a identidade**: título divergente do que está no arquivo aborta o `init` inteiro, e renomear exige `--rename <id> "<novo título>"`. Nó que sumiu do `init` novo é **mantido**, não apagado.
   - Escrita é atômica: `save()` grava em `.tmp` e faz `os.replace`.
 - **Quem lê no fim do turno:** `plugins/visual/hooks/stop-plan-status.sh`, via `plan_state.py brief`. Canal `systemMessage` (informa, nunca bloqueia), desligável por `PLAN_STATUS=0` / `PLAN_NUDGE=0`. Costura confirmada nos dois lados. [confirmado]
@@ -554,10 +625,11 @@ Efêmeras por definição. Nenhuma delas é entrada de nada — reconstroem-se s
 .claude/.project-doc/findings.jsonl   3,3M · 1133 eventos   (journal do conhecimento)
 .claude/intent/ledger.jsonl           429K ·  622 eventos   (caderno de pedidos)
 .claude/ata/                          1,9M ·   32 arquivos  (logs de sessão)
-.claude/plans/*.plan.json             112K ·   11 planos    (o que foi feito, com prova)
+.claude/plans/*.plan.json             132K ·   13 planos    (o que foi feito, com prova)
 .claude/qa-loop/telemetry.jsonl        3 linhas             (calibração do /qa-loop)
-~/.claude/plans/                      2,7M ·  209 arquivos  (do harness; encolhe sozinho)
+~/.claude/plans/                      2,3M                  (do harness; encolhe sozinho)
 ~/.claude/intent/                     264K                  (fallback de outros projetos)
+~/.claude/state/forma-relato/         104K ·  20 vereditos  (o texto do que a régua reprovou)
 ```
 
 **Reconstruível, com custo:**
@@ -576,7 +648,7 @@ plugins/bootstrap/config/manifest.json  regenerado no SessionStart, MENOS as cha
 ~/.claude/visual-state/         estado de UI (exceto config.json, que é preferência)
 ~/.claude/guardrails/           logs e contadores dos dois vigias
 ~/.claude/state/prose-ceiling/  contadores + batidas + bypass do teto
-~/.claude/state/forma-relato/   contadores + batidas do juiz de forma
+~/.claude/state/intent-guard/   a marca `olhado`; apagar zera o "desde a última vez"
 /tmp/claude-*                   sentinelas por sessão
 .claude/visual/                 páginas HTML geradas
 ```
@@ -591,5 +663,8 @@ plugins/bootstrap/config/manifest.json  regenerado no SessionStart, MENOS as cha
 2. **As 6 tags `archive/*` apontam para história órfã e não existem no remote.** Decidir se são empurradas (dando ao remote novo a rede antiga) ou descartadas junto com a história velha. Hoje elas resgatam branch só neste clone.
 3. **Dois comentários de código afirmam versionamento que o `.gitignore` desmente** — `journal.py` ("versionado — é o veículo do conhecimento") e `plan_state.py` ("VERSIONADO no git de propósito"). Quem ler o código antes do `.gitignore` conclui que há backup onde não há.
 4. **`askq-humanize.sh` e `scope-cop.sh` resolvem a MESMA pasta por expressões diferentes.** Invisível aqui (`CLAUDE_CONFIG_DIR` unset), divergente em qualquer máquina que a sete.
-5. **O juiz de forma (B9) nunca julgou:** 12 batidas, todas `sem texto`. O `check_juiz_rodou` aprova esse estado porque só cobra idade e `juiz sem resposta` — o modo de falha "o gatilho nunca casou" não tem checagem.
-6. **Nada poda os contadores de B8 e B9**, e os órfãos sem sufixo de B1 (`scope-cop.blockstreak`, `scope-cop.bypass`, de 2/jul) estão fora do alcance da poda por causa do padrão com ponto.
+5. ✅ **Resolvida: o juiz de forma (B9) passou a julgar** — 50 `julgou`, 30 `passa`, 20 reprovas, contra 12 batidas `sem texto` e zero julgamentos na rodada anterior. O furo do `check_juiz_rodou` (aprovar um log que nunca julgou) continua existindo no código; deixou de ser o estado deste disco.
+6. **Nada poda os contadores de B8 e B9**, e agora são **35** deles (15 + 20, contra 9 + 0). Os órfãos sem sufixo de B1 (`scope-cop.blockstreak`, `scope-cop.bypass`, de 2/jul) seguem fora do alcance da poda por causa do padrão com ponto.
+7. **Dois planos ativos ao mesmo tempo em A4** (`2026-07-31-fechar-a-regua-e-publicar` 10/11 e `2026-08-01-formato-de-plano-hierarquico` 0/20). `pick_plan` recusa adivinhar, então todo comando sem `--plan` explícito falha até um ser encerrado.
+8. **O `bypass.log` do B8 nunca existiu, e agora isso tem consequência em dois lugares.** Para o `check_bypass_teto`, ausência = conforme; para o `furos_da_regua`, ausência = `fontes` 1 em vez de 2 — a contagem de furos que o dono vê é hoje meia fonte, e o programa diz isso, mas só quem lê a linha inteira percebe.
+9. **Os cinco campos novos de A4 não existem em nenhum dos 13 planos no disco.** O schema exige `requisito` e `pronto` só de tarefa nova; até o próximo `init`, a cobertura entre requisito e tarefa é 0 de 0 e nada no repositório exercita o caminho em dado real.

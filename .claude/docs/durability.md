@@ -1,11 +1,12 @@
 ---
-generated: 2026-07-31
-generated-commit: fdeac13
+generated: 2026-08-01
+generated-commit: e692e1e
 project: pedro-plugins
 scope:
   - .gitignore
   - .git/info/exclude
   - plugins/visual/lib/plan_state.py
+  - plugins/visual/lib/cobertura.py
   - _shared/green-cache.sh
   - plugins/project-doc/lib/journal.py
   - plugins/bootstrap/hooks/hooks.json
@@ -27,7 +28,9 @@ verified-by:
   - plugins/bootstrap/lib/test_conformance.py
   - plugins/intent-guard/lib/test_ledger.py
   - plugins/project-doc/lib/test_journal.py
-doc-sig: pedro-plugins/.gitignore@gen=3.8#fa950b43
+  - plugins/visual/lib/test_plan_state.py
+  - plugins/visual/lib/test_cobertura.py
+doc-sig: pedro-plugins/.gitignore@gen=3.8#8b698fe7
 ---
 
 # Durabilidade
@@ -178,7 +181,8 @@ $ grep -rniE "crontab|systemd|launchd|launchctl|pg_dump|mysqldump|restic|borg|rs
 
 ### 2.2 · Catálogo do marketplace — `.claude-plugin/marketplace.json`
 
-- [confirmado] Rastreado. É a fonte da verdade da distribuição (versões: `bootstrap` 1.8.5, `visual` 1.8.6, `project-doc` 3.18.4, `qa-loop` 1.7.2, `guardrails` 1.5.2, `context-guard` 1.3.3, `intent-guard` 0.5.4).
+- [confirmado] Rastreado. É a fonte da verdade da distribuição: **19 entradas**, e nesta rodada duas subiram — `visual` **1.8.6 → 1.9.1** e `intent-guard` **0.5.4 → 0.6.0**, que são exatamente os dois plugins cujo estado mudou aqui. As demais seguem: `bootstrap` 1.8.5, `project-doc` 3.18.4, `qa-loop` 1.7.2, `guardrails` 1.5.2, `context-guard` 1.3.3.
+- [confirmado, derivado nesta rodada] O espelho `plugin.json` ↔ `marketplace.json` fecha nas **19** entradas — nenhuma diverge. É o check B do release-gate, e ele passa hoje.
 - Cobertura real: quem instala pelo marketplace só depende deste arquivo e do `plugins/**` — ambos no remote.
 
 ### 2.3 · Documentação gerada — `.claude/docs/*.md` e `.claude/CLAUDE.md`
@@ -235,10 +239,18 @@ Cada bloco abaixo diz o mesmo em variações: existe no disco desta máquina, n�
 
 ### 3.5 · Planos ticáveis — `.claude/plans/*.plan.json` e `~/.claude/plans/`
 
-- [confirmado] `.claude/plans/` ignorado por `.gitignore:18`. **11** arquivos no repo (**112K**); em `~/.claude/plans/` há **209** arquivos (**2,7M**).
-- ⚠️ **Costura desalinhada, verificada nos dois lados** [confirmado]: o docstring de `plugins/visual/lib/plan_state.py` diz que o plano mora em `<raiz>/.claude/plans/<id>.plan.json` e é "VERSIONADO no git de propósito: a dor é perda". O `.gitignore` de hoje o ignora. O motivo escrito no `.gitignore` (registro de trabalho, com nome de cliente e caminho de máquina) venceu; o comentário do código ficou para trás.
-- O que o formato protege sozinho: `save()` escreve em `<path>.tmp` e faz `os.replace()` — escrita atômica, então falha no meio não corrompe o plano. `merge()` recusa renomear um id existente sem `--rename` e mantém nós que não vieram no `init` novo. `cmd_tick()` exige `--evidencia` com pelo menos `EVIDENCE_MIN = 8` caracteres.
+- [confirmado] `.claude/plans/` ignorado por `.gitignore:18`. **13** arquivos no repo (**132K**, 115.686 bytes de JSON); `~/.claude/plans/` está em **2,3M**.
+- ⚠️ **Costura desalinhada, verificada nos dois lados** [confirmado, reconferido nesta rodada]: o docstring de `plugins/visual/lib/plan_state.py` diz que o plano mora em `<raiz>/.claude/plans/<id>.plan.json` e é "VERSIONADO no git de propósito: a dor é perda". `git check-ignore -v .claude/plans/` devolve `.gitignore:18`. O motivo escrito no `.gitignore` (registro de trabalho, com nome de cliente e caminho de máquina) venceu; o comentário do código ficou para trás.
+- 🔴 **O que está sem cobertura AUMENTOU nesta rodada, e não em bytes.** O arquivo passou a guardar cinco campos novos por tarefa (`requisito`, `pronto`, `grupo`, `pendencia`, `decidido`) e um bloco `requisitos` no topo do plano. O bloco é a **fonte de requisitos** para projeto sem documento separado — *"o caso deste repositório, que não tem PRD"* [confirmado, docstring de `_requisitos_do_plano`]. Ou seja: num projeto assim, o `.plan.json` deixa de ser só o registro do que foi feito e passa a ser **o único lugar onde o que o sistema deve fazer está escrito**. Perdê-lo passou a perder também o pedido, não só a execução.
+- [confirmado, derivado nesta rodada] **Nenhum dos 13 planos no disco usa esses campos ainda** — as chaves de topo dos 13 são só `id`, `title`, `phases`, `created`, `status` e `closed_at`. A exposição descrita acima é do formato, não do conteúdo de hoje.
+- O que o formato protege sozinho: `save()` escreve em `<path>.tmp` e faz `os.replace()` — escrita atômica, então falha no meio não corrompe o plano. `merge()` recusa renomear um id existente sem `--rename`, mantém nós que não vieram no `init` novo e **recarrega os cinco campos novos do arquivo quando o `init` os omite** — um init que esquece não apaga histórico, pelo mesmo motivo que não apaga a prova. `cmd_tick()` exige `--evidencia` com pelo menos `EVIDENCE_MIN = 8` caracteres e recusa tarefa com `pendencia` em aberto. `cmd_reabrir()` desfaz uma decisão registrada em `decidido`, devolvendo-a a `pendencia` — reversibilidade por construção, não por backup.
 - Nada disso é cobertura: protege contra o plano *virar outro*, não contra o arquivo sumir.
+- Coberto por teste [confirmado, rodado nesta sessão]: `python3 plugins/visual/lib/test_plan_state.py` → `OK` (a última asserção impressa é `list_plans pula o corrompido`) e `python3 plugins/visual/lib/test_cobertura.py` → `OK`.
+
+#### 3.5.1 · O calculador do fio — `plugins/visual/lib/cobertura.py`
+
+- [confirmado] **Arquivo novo desta rodada, e NÃO é depósito.** 79 linhas, três funções (`le_requisitos`, `mapa`, `resumo`), nenhuma escrita em disco. Lê um markdown de requisitos, cruza com o plano e devolve os quatro estados do fio (coberta · sem requisito · requisito órfão · citação inexistente).
+- **Consequência de durabilidade: nenhuma direta, e uma indireta que importa.** Perder o arquivo é perder código, que está no `plugins/**` coberto pelo remote (§2.1). Mas a saída dele — a cobertura entre requisito e tarefa — **é derivada em toda leitura, nunca armazenada**, então não há o que envelhecer nem o que restaurar: some junto com o plano e volta junto com ele.
 
 ### 3.6 · Retrato do contrato dos hooks — `.claude/hook-contract.baseline.json`
 
@@ -301,12 +313,14 @@ Cada bloco abaixo diz o mesmo em variações: existe no disco desta máquina, n�
 - **Estado real desta máquina** [confirmado, lido nesta sessão]:
   ```bash
   $ wc -l < ~/.claude/state/forma-relato/batidas.log
-  12
-  $ python3 -c "..."   # contagem por motivo
-  {'sem texto': 12}
+  228
+  $ python3 -c "..."   # contagem por motivo, e veredito dos que julgaram
+  {'sem texto': 74, 'nao e relato': 79, 'julgou': 50, 'stop_hook_active': 25}
+  vereditos: {'passa': 30, <20 reprovações, cada uma com o defeito em texto livre>}
   ```
-  Ou seja: o hook executou **12** vezes e em nenhuma delas chegou a julgar — todas caíram em "sem texto" (`ultima_msg_assistente()` não achou texto do assistente no transcript). O juiz está **implementado e ativo, mas ainda sem veredito registrado nesta máquina**.
-- **Cobertura:** nenhuma. `~/.claude/` inteiro está fora de qualquer repo. Perder o log apaga o histórico de quantas vezes a forma foi reprovada e por quê.
+  ✅ **Mudou de estado nesta rodada.** Na anterior eram 12 batidas, todas `sem texto`, e o juiz nunca tinha chamado o modelo. Hoje ele julgou **50** vezes, aprovou 30 e reprovou 20. `~/.claude/state/` foi de 48K para **204K**, e o diretório do juiz responde por **104K** disso.
+- 🔴 **A perda passou a ter conteúdo, não só contagem.** Cada uma das 20 reprovações grava o defeito em texto livre no campo `veredito` — frases como *"Resultado no parágrafo 3, primeira linha não diz nada"*. **Esse texto não existe em nenhum outro lugar**: não é derivável do transcript, não é regenerável (exigiria re-julgar cada resposta com o modelo), e é a única lista escrita de onde a régua de forma falhou na prática. Enquanto o log só tinha `sem texto`, apagá-lo custava um número; hoje custa o único corpus de calibração da régua.
+- **Cobertura:** nenhuma. `~/.claude/` inteiro está fora de qualquer repo.
 - Coberto por teste [confirmado, rodado nesta sessão] — `plugins/bootstrap/hooks/test_bootstrap_hooks.sh`:
   ```
   -- juiz de forma do relato
@@ -332,14 +346,40 @@ Cada bloco abaixo diz o mesmo em variações: existe no disco desta máquina, n�
 - **Estado real desta máquina** [confirmado]:
   ```bash
   $ wc -l < ~/.claude/state/prose-ceiling/batidas.log
-  42
+  341
   $ python3 -c "..."   # contagem por motivo
-  {'aprovou': 6, 'sem texto do assistente': 36}
-  $ ls ~/.claude/state/prose-ceiling/bypass.log
-  (não existe — nenhuma resposta furou o teto)
+  {'sem texto do assistente': 163, 'aprovou': 146, 'stop_hook_active': 25, 'barrou': 7}
+  $ wc -l ~/.claude/state/prose-ceiling/bypass.log
+  wc: .../bypass.log: open: No such file or directory
   ```
-- **Consequência de durabilidade específica do `bypass.log`:** ele é o registro dos furos conhecidos, e o próprio conserto sugerido pelo verificador é `rm` (§3.15). Não há cópia; apagado é apagado. `du -sh ~/.claude/state` → **48K** para os dois diretórios somados.
+  O guarda **passou a barrar**: 7 bloqueios, contra 0 na rodada anterior. O `bypass.log` segue inexistente — nenhuma resposta reincidiu duas vezes na mesma chave, que é a condição para o hook desistir.
+- **Consequência de durabilidade específica do `bypass.log`, e ela dobrou nesta rodada:** ele é o registro dos furos conhecidos, o próprio conserto sugerido pelo verificador é `rm` (§3.15), e agora **um segundo programa depende dele** — `ledger.py:furos_da_regua` conta cada linha do `bypass.log` como um furo e reporta ao dono (§3.20). Não há cópia; apagado é apagado, e o efeito deixou de ser só "o conformance esquece" para incluir "o dono passa a ver menos furos do que houve".
+- **Volume dos três diretórios** [confirmado]: `du -sh ~/.claude/state` → **204K** (forma-relato 104K · prose-ceiling 96K · intent-guard 4,0K), contra 48K na rodada anterior.
 - ⚠️ **Teto conhecido, documentado no cabeçalho do arquivo:** hook de plugin só carrega no `SessionStart` — sessão já aberta no momento da instalação fica descoberta até o próximo `/clear`.
+
+### 3.14-b · A marca de "até onde o dono já viu" — `~/.claude/state/intent-guard/olhado`
+
+Depósito **novo nesta rodada** (ver `data-stores.md` §B10), e o menor do inventário: um
+arquivo com um número. Escrito e lido por `plugins/intent-guard/lib/ledger.py:furos_da_regua`.
+
+- **Estado real desta máquina** [confirmado, medido nesta rodada]:
+  ```bash
+  $ ls -l ~/.claude/state/intent-guard/olhado
+  -rw-r--r--  17 bytes
+  $ python3 -c "…; print(ledger.furos_da_regua())"
+  (20, 20, 1, PosixPath('~/.claude/state/intent-guard/olhado'))
+  #  ↑ total, novos-desde-a-marca, nº de fontes que responderam
+  ```
+- **Cobertura: NENHUMA, e a perda é aceita** [confirmado — decisão desta rodada]. O arquivo
+  vive fora do repositório, não entra em backup nenhum, e nada o replica.
+- **O que se perde se sumir:** o "desde a última vez que você olhou" volta a valer o total
+  inteiro — a contagem de furos aparece toda como nova. **O total não se perde**, porque ele
+  é derivado dos logs do §3.13 e do §3.14, não deste arquivo.
+- **Por que a perda é aceita:** o arquivo é um marcador de leitura, não um registro. O dano
+  de perdê-lo é ver de novo um número que já tinha visto — enquanto o dado que importa (as
+  linhas de furo) continua nos dois logs vizinhos. Recriar custa um `cmd_status`.
+- ⚠️ **O que NÃO é aceito calado:** os logs de onde a contagem sai (§3.13, §3.14) continuam
+  sem cópia, e ali a perda é real — o texto dos vereditos de reprovação não se regenera.
 
 ### 3.15 · Quem lê esses logs — `check_juiz_rodou` e `check_teto_rodou` no conformance
 
@@ -352,8 +392,9 @@ Cada bloco abaixo diz o mesmo em variações: existe no disco desta máquina, n�
   - última batida com mais de 24h → desvio de silêncio;
   - senão → conforme.
 - **Guarda de escopo:** as duas checagens saem cedo se `bootstrap@` não estiver ligado em `enabledPlugins` do `settings.json`. Acusar guarda ausente numa máquina que não instalou o guarda seria desvio inventado.
-- ⚠️ **Furo verificado hoje** [confirmado]: com o `batidas.log` real desta máquina (**12** linhas, todas `sem texto`), `mudo = 0` e `julgou = 0`, então `mudo > julgou` é falso e a idade é recente — a checagem carimbaria **"juiz de forma ativo (sem texto 12)"**. Um log só de turnos sem texto passa como saudável. O verificador cobre *não rodou* e *rodou e o modelo não respondeu*; não cobre *rodou e nunca chegou ao modelo*.
+- ⚠️ **O furo do verificador continua no código, mas deixou de ser o caso deste disco** [confirmado]: com o `batidas.log` real de hoje (**228** linhas, `julgou` **50** e `juiz sem resposta` **0**), `mudo > julgou` é falso **por mérito** e a idade é recente — a checagem carimba "juiz de forma ativo" e desta vez ela está certa. O que não mudou: um log composto só de `sem texto` seguiria passando como saudável, porque o verificador cobre *não rodou* e *rodou e o modelo não respondeu*, e não cobre *rodou e nunca chegou ao modelo*.
 - **Consequência de durabilidade:** esses `batidas.log` deixaram de ser log e viraram **entrada de um verificador**. Apagar `~/.claude/state/` não degrada só a auditoria retroativa — faz o conformance reportar "nunca executou" para um hook que está funcionando.
+- 🔴 **E agora são DOIS verificadores lendo os mesmos dois arquivos, com filtros diferentes** [confirmado, li os dois]. O `conformance.py` conta **execuções** (`julgou` vs `juiz sem resposta`, para saber se o guarda está vivo); o `ledger.py:furos_da_regua` conta **reprovações** (`motivo == "julgou" and veredito != "passa"`, para dizer ao dono quantas vezes a régua foi furada). Mesmo arquivo de 228 linhas, respostas de naturezas distintas — "o guarda está ativo" e "20 furos". Apagar `~/.claude/state/` hoje quebra as duas leituras de uma vez, e cada uma falha de um jeito: uma acusa hook morto, a outra some com o histórico de furos (§3.20).
 - Coberto por teste [confirmado, rodado nesta sessão]: `plugins/bootstrap/lib/test_conformance.py` traz `teste_juiz_de_forma_mudo()`, que semeia `state/forma-relato/batidas.log` num `CLAUDE_DIR` de mentira e afirma os dois desvios ("nunca executou" e "mudo"). Saída: `59 ok · 0 FAIL`.
 
 ### 3.16 · Kill-switches e flags de modo

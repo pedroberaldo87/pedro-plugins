@@ -1,6 +1,6 @@
 ---
-generated: 2026-07-31
-generated-commit: fdeac13
+generated: 2026-08-01
+generated-commit: e692e1e
 project: pedro-plugins
 scope:
   - .claude-plugin/marketplace.json
@@ -20,6 +20,7 @@ scope:
   - plugins/intent-guard/lib/ledger.py
   - plugins/visual/server/visual_server.mjs
   - plugins/visual/lib/plan_state.py
+  - plugins/visual/lib/cobertura.py
   - plugins/visual/lib/visual_page.py
   - plugins/branches/lib/branch_state.py
   - plugins/slides/lib/md2deck.py
@@ -53,7 +54,7 @@ verified-by:
   - plugins/branches/lib/test_branch_state.py
   - plugins/guardrails/lib/test_askq_lint.py
   - plugins/slides/lib/test_md2deck.py
-doc-sig: pedro-plugins/marketplace.json@gen=3.8#d2284591
+doc-sig: pedro-plugins/marketplace.json@gen=3.8#9830b22d
 ---
 
 # Arquitetura — pedro-plugins
@@ -108,12 +109,14 @@ ls -1d plugins/*/ | wc -l                            # 19
 ls -1 plugins/*/.claude-plugin/plugin.json | wc -l   # 19
 ls -1 plugins/*/skills/*/SKILL.md | wc -l            # 21
 ls -1 plugins/*/hooks/hooks.json | wc -l             # 10
-find plugins -path '*/lib/*.py' | wc -l              # 29
+find plugins -path '*/lib/*.py' | wc -l              # 31
 python3 -c "import json;print(len(json.load(open('.claude-plugin/marketplace.json'))['plugins']))"   # 19
 ```
 
 - **19 diretórios de plugin · 19 manifestos · 19 entradas no catálogo · 21 skills ·
-  10 plugins com hooks · 29 arquivos `.py` em `lib/`.**
+  10 plugins com hooks · 31 arquivos `.py` em `lib/`.** [confirmado — os seis comandos
+  re-rodados nesta passada de `/doc-touch`; **só o último mudou**, de 29 para 31, com
+  `plugins/visual/lib/cobertura.py` e a suíte `test_cobertura.py` que nasceram nesta rodada.]
 - **34 registros de hook — 33 do tipo `command` + 1 do tipo `prompt`**, em **33 scripts
   distintos** [confirmado — varredura própria dos 10 `plugins/*/hooks/hooks.json` neste run,
   e `python3 scripts/hook_contract.py` imprime a mesma medida: *"Contrato dos hooks — 34
@@ -253,15 +256,20 @@ grill-with-docs  1.0.0  [grill-with-docs]                                -
 guardrails       1.5.2  [setup]                                          HOOKS
 handoff          1.8.5  [handoff]                                        HOOKS
 improve          1.0.3  [improve]                                        -
-intent-guard     0.5.4  [intent-guard]                                   HOOKS
+intent-guard     0.6.0  [intent-guard]                                   HOOKS
 principles       1.0.2  [principles]                                     -
 project-doc     3.18.4  [design-md, doc-touch, project-doc, start-doc]   HOOKS
 qa-loop          1.7.2  [qa-loop]                                        -
 ship             1.3.9  [ship]                                           HOOKS
 slides           1.3.2  [slides]                                         -
 sovai            1.8.2  [sovai]                                          -
-visual           1.8.6  [visual]                                         HOOKS
+visual           1.9.1  [visual]                                         HOOKS
 ```
+
+Duas linhas mudaram nesta rodada e as duas foram re-derivadas do mesmo laço acima:
+`intent-guard` de `0.5.4` para `0.6.0` (a separação de `standing` no caderno, §8.5) e `visual`
+de `1.8.6` para `1.9.1` (o fio requisito↔tarefa, §8.7). [confirmado — o laço foi re-executado
+nesta passada e as outras 17 vieram idênticas]
 
 As 19 versões batem com o campo `version` da entrada correspondente em
 `.claude-plugin/marketplace.json` [confirmado — comparação mecânica das duas fontes rodada
@@ -519,7 +527,7 @@ NÃO editar as cópias vendoradas."*
 
 ## 8. Módulos Python e dependências
 
-Inventário mecânico (`find plugins -path '*/lib/*.py'` → **29 arquivos**), agrupados:
+Inventário mecânico (`find plugins -path '*/lib/*.py'` → **31 arquivos**), agrupados:
 
 ```
 plugins/project-doc/lib/   collect_engine.py (vendorado) · journal.py · pattern_check.py
@@ -528,8 +536,8 @@ plugins/project-doc/lib/   collect_engine.py (vendorado) · journal.py · patter
 plugins/handoff/lib/       collect_engine.py (vendorado) · extract_ata.py
 plugins/intent-guard/lib/  ledger.py + test_ledger.py
 plugins/fallow/lib/        audit.py · report.py
-plugins/visual/lib/        plan_state.py · visual_page.py
-                           + test_{plan_state,visual_page}.py
+plugins/visual/lib/        plan_state.py · cobertura.py · visual_page.py
+                           + test_{plan_state,cobertura,visual_page}.py
 plugins/slides/lib/        md2deck.py + test_md2deck.py
 plugins/branches/lib/      branch_state.py + test_branch_state.py
 plugins/guardrails/lib/    askq_lint.py + test_askq_lint.py
@@ -545,6 +553,8 @@ pattern_check.py → organism        (find_organism, costuras_for_path)
 pattern_check.py → journal         (touch_plan lê journal.load_ledger → last_commit)
 journal.py       → collect_engine  (try/except ImportError → HAVE_ENGINE, degrada sem tier 4)
 organism.py      → yaml (PyYAML)   (try/except ImportError → mini_yaml stdlib)
+plan_state.py    → cobertura       (import lazy em 5 pontos: _requisitos_do_projeto,
+                                    cmd_cobertura, brief_lines, _render_valor, _html_valor)
 ```
 
 Os dois `try/except ImportError` são a mesma decisão de arquitetura: **stdlib-puro é requisito,
@@ -657,6 +667,25 @@ Caderno append-only dos pedidos verbatim do usuário, `1 JSON/linha` em `ledger.
 quatro eventos: `raw`, `classify`, `verdict`, `baixa`. Estado vivo = `fold` dos eventos, mesma
 forma arquitetural do `journal.py`.
 
+- **`fold` devolve DUAS listas de vivos, não uma** (`0.6.0`): `live` são os pedidos e as
+  correções — o que **conclui** e portanto pode ser cobrado por veredito; `standing` são as
+  entradas de classe `restricao`, que não concluem porque valem enquanto valerem. O comentário
+  do arquivo dá o motivo dos dois lados: misturada aos pedidos a restrição *"nunca saía da lista
+  de 'a fazer' e dava a impressão de trabalho parado"*, e o gate cobrava dela um veredito
+  *"impossível: o cumprimento dela na conversa não é auditável por mim, por desenho"*. O retorno
+  é `{"pending", "live", "standing", "entries"}`, e **todo consumidor que cobra lê só `live`** —
+  `ledger.py:audit_check`, `ledger.py:apply_audit`, `ledger.py:cmd_verify` (inclusive o contador
+  `remaining`) e a lista VIVOS do `ledger.py:cmd_status`. O `standing` aparece num bloco
+  separado, rotulado *"COBRANÇAS PERMANENTES (N) — não concluem, então não entram na conta acima"*.
+  [confirmado — leitura de `fold` e mapeamento mecânico dos 7 usos de `["live"]` para as funções
+  que os contêm, neste run]
+- **Restrição vira CONTAGEM, não lista de pendência** — `ledger.py:furos_da_regua` conta quantas
+  vezes a régua de forma foi furada, lendo dois logs append-only: `~/.claude/state/prose-ceiling/bypass.log`
+  (o guarda mecânico do teto de prosa) e `~/.claude/state/forma-relato/batidas.log` (o juiz de
+  forma, contando só `motivo == "julgou"` com veredito diferente de `passa`). Devolve
+  `(total, novos, fontes, marca)` — os dois números saem do mesmo log, então não é preciso
+  escolher entre perder o histórico e perder o que é novo, e `fontes == 0` distingue *"log
+  ausente"* de *"zero furo"*. [confirmado — leitura da função]
 - **`intent_dir(cwd)`** (god node) é o resolvedor de onde o caderno mora: raiz do git →
   `<root>/.claude/intent`; sem raiz, cai num slug do path absoluto sob `~/.claude/intent/`.
   O ramo que compara `os.path.realpath(cwd) == os.path.realpath(root)` existe pra preservar a
@@ -679,9 +708,9 @@ Node stdlib puro, HTTP local. Constantes copiadas literal: `PORT = Number(proces
 justificativa colada no código: *"only listens on 127.0.0.1 so only local contexts reach it;
 `file://` shows up as origin `null`, handled by '*'"*.
 
-### 8.7 `plan_state.py`, `visual_page.py`, `md2deck.py` — o HTML sai de programa, não de token
+### 8.7 `plan_state.py`, `cobertura.py`, `visual_page.py`, `md2deck.py` — o HTML sai de programa, não de token
 
-Três módulos, uma decisão. O cabeçalho do `visual_page.py` traz a medida que a motivou: as
+Quatro módulos, uma decisão. O cabeçalho do `visual_page.py` traz a medida que a motivou: as
 páginas do `/visual` digitadas pelo modelo custavam **20-31 KB de HTML por página**, algo entre
 5 e 8 mil tokens de saída cada; a página de plano, emitida por programa, gasta zero.
 
@@ -692,6 +721,44 @@ páginas do `/visual` digitadas pelo modelo custavam **20-31 KB de HTML por pág
   uma vez (`init`) e daí em diante só MARCA (`tick`, que **recusa sem prova**, `EVIDENCE_MIN = 8`).
   Quem desenha a árvore é o programa. `PlanError` (god node) é a exceção única de todos os
   verbos; `DESC_MAX = 140` é limite de schema *"porque a linha didática é o produto do arquivo"*.
+  O módulo tem **1262 linhas** e **11 subcomandos** — `init`, `tick`, `state`, `render`, `page`,
+  `brief`, `cobertura`, `reabrir`, `open`, `close`, `reopen` [confirmado — `wc -l` e leitura de
+  `plan_state.py:build_parser` neste run].
+  - **O validador foi partido em dois** porque quem MARCA precisa separar defeito da própria
+    tarefa de defeito alheio, e uma exceção derruba tudo junto: `plan_state.py:erros_do_plano`
+    **devolve a lista**, `plan_state.py:validate` a levanta como `PlanError`. É essa divisão que
+    deixa o `tick` validar sem congelar o plano inteiro por causa de uma tarefa torta (§5 do
+    `runtime.md`).
+  - **A tarefa ganhou cinco campos**, todos opcionais no schema mas dois deles cobrados em tarefa
+    nova (parâmetro `exigir` de `erros_do_plano`): `requisito` (o id do requisito que ela atende,
+    **exatamente um** — *"tarefa que atende dois requisitos são duas tarefas: é essa regra que
+    torna a tarefa atômica"*), `pronto` (como se prova que terminou), `grupo` (a natureza do
+    trabalho), `pendencia` (a decisão que falta, e que **recusa o tique** enquanto estiver
+    escrita) e `decidido` (o registro da decisão tomada, que `plan_state.py:cmd_reabrir` desfaz
+    devolvendo a pergunta ao campo `pendencia`). Teto de tamanho por campo, copiado do código:
+    `pronto` e `pendencia` em `DESC_MAX`, `grupo` e `requisito` em 40.
+  - **Duas vistas sobre os mesmos itens** — `execucao` (fase → tarefa, a de sempre) e `valor`
+    (épico → requisito → grupo → tarefa). A segunda é **derivada, nunca armazenada**: o arquivo
+    guarda fase→tarefa e a vista junta com o documento de requisitos. Texto sai por
+    `plan_state.py:_render_valor`, HTML por `plan_state.py:_html_valor` — e neste, ao contrário
+    do resto do `/visual`, **tudo nasce fechado** em `<details>`, com as marcas de atenção
+    (⛔ pendência, ⚠️ bloqueado) somando para cima em `plan_state.py:_marcas` pra que a dobra não
+    esconda o problema junto com o resto.
+  - **Onde os requisitos são procurados** — cascata em `plan_state.py:_requisitos_do_projeto`:
+    bloco `requisitos` no próprio plano (`_requisitos_do_plano`) → `$PLAN_REQS` → `docs/PRD.md` →
+    `docs/REQUISITOS.md` → `{}`. **Nenhum documento não é erro**, é o caso comum — inclusive o
+    deste repositório, que não tem PRD. A regra escrita no código: *"o requisito é obrigatório;
+    o LUGAR dele é opcional"*.
+- **`cobertura.py`** (novo) é o fio entre o requisito e a tarefa, e cabe em **79 linhas**
+  [confirmado — `wc -l`]. `cobertura.py:le_requisitos` lê o formato que o dono já escreve à mão
+  (`- **S-4.3 Título** · F1 · Art. 6 — corpo. CA: ...`) e devolve `{id: {titulo, ca, ancora, epico}}`;
+  `cobertura.py:mapa` cruza com as tarefas do plano e nomeia **quatro estados** — coberto, tarefa
+  sem requisito (trabalho que ninguém pediu), requisito sem tarefa (pedido que ninguém planejou)
+  e citação a requisito inexistente. O quarto **não é aviso: é erro que recusa gravar**, tratado
+  em `plan_state.py:validate`. O docstring traz a medição que originou o módulo: num projeto
+  real, 5 de 157 tarefas apontavam para algum dos 77 requisitos escritos — *"silêncio é o estado
+  padrão de hoje; este módulo o torna impossível"*. `cobertura.py:resumo` é a linha única que
+  todos os consumidores imprimem, pra que um só programa calcule o número.
 - **`visual_page.py`** converte seis regras que viviam como prosa na SKILL.md em coisas
   impossíveis de violar — entre elas "nenhum rádio nasce `checked`", "`name` único por item",
   "ordem fixa decisions-box antes de feedback-box" e **"decisão/item sem nenhuma evidência crua
@@ -1033,6 +1100,16 @@ plugins/project-doc/lib/test_pattern_check.py:: TODOS OS 84 CHECKS PASSARAM
 plugins/slides/lib/test_md2deck.py           :: 50 passou · 0 falhou
 plugins/visual/lib/test_plan_state.py        :: OK
 plugins/visual/lib/test_visual_page.py       :: 60 passou · 0 falhou
+```
+
+⚠️ **Falta uma suíte nessa lista** e a ausência é de data, não de defeito: `plugins/visual/lib/test_cobertura.py`
+nasceu depois daquele run. Executada agora, junto com as duas que cobrem o resto do código novo
+desta rodada [confirmado — as três rodadas nesta passada de `/doc-touch`]:
+
+```
+plugins/visual/lib/test_cobertura.py         :: OK
+plugins/visual/lib/test_plan_state.py        :: OK
+plugins/intent-guard/lib/test_ledger.py      :: test_ledger: OK
 ```
 
 Mais duas verificações rodadas aqui:
