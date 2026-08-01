@@ -798,12 +798,14 @@ def _e(s):
     return html.escape(str(s or ""), quote=True)
 
 
-def render_html(plan, mode="track"):
+def render_html(plan, mode="track", reqs=None, vista="execucao"):
     """Emite o HTML do componente .plan-tree do template.html.
 
     É ESTE programa que escreve a árvore, nunca o modelo — por isso os títulos
     não derivam entre um render e o seguinte.
     """
+    if vista == "valor":
+        return _html_valor(plan, reqs or {})
     done, total = plan_progress(plan)
     pct = int(round(100.0 * done / total)) if total else 0
     parts = ['<div class="plan-tree">',
@@ -864,6 +866,81 @@ def render_html(plan, mode="track"):
 
     parts.append('</div>')
     return "\n".join(parts) + "\n"
+
+
+def _html_valor(plan, reqs):
+    """Árvore dobrável. TUDO nasce fechado: o usuário abre um ramo por vez.
+
+    Reverte, SÓ nesta vista, a escolha declarada em PAGE_COPY ('a árvore É a lista').
+    Motivo, do dono: 'idealmente é esse negócio no visual poder ser colapsável, para eu
+    poder esconder o que não me interessa olhar, durante a análise do doc'.
+    """
+    import cobertura
+    m = cobertura.mapa(plan, reqs)
+    idx = {it["id"]: it for _, it in iter_items(plan)}
+    p = ['<div class="plan-tree pt-valor">',
+         '  <div class="pt-cobertura">%s</div>' % _e(cobertura.resumo(m))]
+
+    def nivel(classe, rotulo, itens, corpo):
+        feitas = sum(1 for t in itens if t.get("status") == "done")
+        p.append('  <details class="pt-n %s">' % classe)
+        p.append('    <summary><span class="pt-chev">▸</span>'
+                 '<span class="pt-rot">%s</span>'
+                 '<span class="pt-cnt">%d/%d</span>'
+                 '<span class="pt-marcas">%s</span></summary>'
+                 % (_e(rotulo), feitas, len(itens), _e(_marcas(itens).strip())))
+        corpo()
+        p.append('  </details>')
+
+    por_epico = {}
+    for rid in sorted(m["por_req"]):
+        por_epico.setdefault(reqs.get(rid, {}).get("epico") or "(sem épico)", []).append(rid)
+
+    for ep in sorted(por_epico):
+        rids = por_epico[ep]
+        t_ep = [idx[t] for rid in rids for t in m["por_req"][rid]]
+        def corpo_ep(rids=rids):
+            for rid in rids:
+                ts = [idx[t] for t in m["por_req"][rid]]
+                r = reqs.get(rid, {})
+                rot = "%s  %s%s" % (rid, r.get("titulo", "?"),
+                                    (" · " + r["ancora"]) if r.get("ancora") else "")
+                def corpo_req(ts=ts):
+                    if r.get("ca"):
+                        p.append('    <div class="pt-ca">critério de aceite: %s</div>' % _e(r["ca"]))
+                    grupos = {}
+                    for t in ts:
+                        grupos.setdefault(t.get("grupo") or "(sem grupo)", []).append(t)
+                    for g in sorted(grupos):
+                        def corpo_g(gt=grupos[g]):
+                            p.append('      <ul class="pt-items">')
+                            for t in gt:
+                                p.append('        <li class="pt-item pt-%s">'
+                                         '<span class="pt-dot">%s</span>'
+                                         '<span class="pt-item-title">'
+                                         '<span class="pt-id">%s</span>%s</span>'
+                                         '<span class="pt-desc">%s</span></li>'
+                                         % (t.get("status", "todo"), DOT[t.get("status", "todo")],
+                                            _e(t["id"]), _e(t["title"]),
+                                            _e(str(t.get("pendencia", "")).strip()
+                                               and "⛔ falta decidir: " + t["pendencia"]
+                                               or t.get("desc", ""))))
+                            p.append('      </ul>')
+                        nivel("pt-grupo", g, grupos[g], corpo_g)
+                nivel("pt-req", rot, ts, corpo_req)
+        nivel("pt-epico", ep, t_ep, corpo_ep)
+
+    for chave, titulo, classe in (("sem_requisito", "tarefas sem requisito", "pt-aviso"),
+                                  ("orfaos", "requisitos sem nenhuma tarefa", "pt-alerta"),
+                                  ("inexistentes", "tarefas citando requisito inexistente", "pt-erro")):
+        if m[chave]:
+            p.append('  <div class="pt-ausencias %s">' % classe)
+            p.append('    <b>%d %s</b>' % (len(m[chave]), _e(titulo)))
+            p.append('    <p>%s</p>' % _e(", ".join(
+                x if isinstance(x, str) else "%s → %s" % x for x in m[chave])))
+            p.append('  </div>')
+    p.append('</div>')
+    return "\n".join(p) + "\n"
 
 
 def cmd_render(args):
@@ -952,7 +1029,8 @@ def cmd_page(args):
         '    <span class="chip primary">%d/%d feitos</span>' % (done, total),
         '    <span class="chip">📅 %s</span>' % time.strftime("%Y-%m-%d"),
         '  </div>',
-        render_html(plan, args.mode),
+        render_html(plan, args.mode, reqs=_requisitos_do_projeto(directory),
+                    vista=getattr(args, "vista", "execucao")),
     ]
     if args.mode == "approve":
         body.append(CLOSING_BOX)
@@ -1020,6 +1098,7 @@ def build_parser():
     q.add_argument("plan", nargs="?")
     q.add_argument("--mode", choices=("track", "approve"), default="track")
     q.add_argument("--out", help="caminho do HTML (default: <dir do /visual>/plano-<id>-<modo>.html)")
+    q.add_argument("--vista", choices=("execucao", "valor"), default="execucao")
     q.set_defaults(func=cmd_page)
 
     q = sub.add_parser("brief", help="1-3 bullets de 'onde nós estamos' (usado pelo hook de fim de turno)")
