@@ -131,12 +131,16 @@ def save(directory, plan):
 
 # ── schema ─────────────────────────────────────────────────────────────────
 
-def validate(plan):
+def erros_do_plano(plan, exigir=None):
     """Erros de forma, todos de uma vez — devolver um por vez faz o autor
-    gastar N rodadas pra escrever um arquivo."""
+    gastar N rodadas pra escrever um arquivo.
+
+    Devolve a lista em vez de levantar porque quem marca uma tarefa precisa
+    separar defeito DA tarefa de defeito alheio; a exceção derruba tudo junto.
+    """
     errs = []
     if not isinstance(plan, dict):
-        raise PlanError("o plano tem que ser um objeto JSON")
+        return ["o plano tem que ser um objeto JSON"]
     if not SLUG_RE.match(str(plan.get("id", ""))):
         errs.append("id: precisa ser slug minúsculo (ex: 2026-07-27-arvore-do-plano)")
     if not str(plan.get("title", "")).strip():
@@ -144,7 +148,7 @@ def validate(plan):
     phases = plan.get("phases")
     if not isinstance(phases, list) or not phases:
         errs.append("phases: precisa ser uma lista com ao menos 1 fase")
-        raise PlanError("plano inválido:\n  - " + "\n  - ".join(errs))
+        return errs
 
     seen = set()
     for pi, ph in enumerate(phases):
@@ -189,6 +193,11 @@ def validate(plan):
             st = it.get("status", "todo")
             if st not in STATUSES:
                 errs.append("%s status '%s': use %s" % (itag, st, "|".join(STATUSES)))
+    return errs
+
+
+def validate(plan, exigir=None):
+    errs = erros_do_plano(plan, exigir)
     if errs:
         raise PlanError("plano inválido:\n  - " + "\n  - ".join(errs))
     return plan

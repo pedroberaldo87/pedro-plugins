@@ -42,6 +42,14 @@ def raises(label, fn, needle=None):
     FAILS.append(label)
 
 
+def _levanta(fn):
+    try:
+        fn()
+        return False
+    except ps.PlanError:
+        return True
+
+
 def sample(**over):
     plan = {
         "id": "2026-07-27-teste",
@@ -101,6 +109,16 @@ def main():
                lambda: ps.validate(sample(phases=[{"id": "F1", "title": "x", "items": [
                    {"id": "F1.1", "title": "a", "desc": "d"},
                    {"id": "F1.1", "title": "b", "desc": "d"}]}])), "repetido")
+
+        print("erros_do_plano")
+        check("plano bom devolve lista vazia", ps.erros_do_plano(sample()) == [])
+        errs = ps.erros_do_plano(sample(phases=[{"id": "F1", "title": "x", "items": [
+            {"id": "F1.1", "title": "t", "desc": "a" * 200}]}]))
+        check("plano ruim devolve mensagem sem levantar",
+              len(errs) == 1 and "UMA linha" in errs[0])
+        check("validate continua levantando",
+              _levanta(lambda: ps.validate(sample(phases=[{"id": "F1", "title": "x", "items": [
+                  {"id": "F1.1", "title": "t", "desc": "a" * 200}]}]))))
 
         print("init")
         init_into(d, sample())
