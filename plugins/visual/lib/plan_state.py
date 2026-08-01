@@ -697,7 +697,9 @@ MARK = {"done": "✅", "doing": "🔄", "blocked": "⛔", "todo": "⬜"}
 DOT = {"done": "●", "doing": "◐", "blocked": "✕", "todo": "○"}
 
 
-def render_text(plan):
+def render_text(plan, reqs=None, vista="execucao"):
+    if vista == "valor":
+        return _render_valor(plan, reqs or {})
     done, total = plan_progress(plan)
     out = ["📋 %s — %d/%d passos" % (plan.get("title", plan["id"]), done, total), ""]
     for ph in plan["phases"]:
@@ -711,6 +713,85 @@ def render_text(plan):
             out.append("            %s%s" % (prefix, detail or it.get("desc", "")))
         out.append("")
     return "\n".join(out).rstrip() + "\n"
+
+
+def _render_valor(plan, reqs):
+    """Épico › requisito › grupo › tarefa — DERIVADO, não armazenado.
+
+    O arquivo guarda fase→tarefa; esta vista junta com o documento de requisitos.
+    Duas árvores sobre os mesmos itens é o que WBS manda: a decomposição do trabalho
+    não é a estrutura dos requisitos.
+    """
+    import cobertura
+    m = cobertura.mapa(plan, reqs)
+    idx = {it["id"]: it for _, it in iter_items(plan)}
+    done, total = plan_progress(plan)
+    out = ["📋 %s — %d/%d tarefas" % (plan.get("title", plan["id"]), done, total),
+           "   %s" % cobertura.resumo(m), ""]
+
+    por_epico = {}
+    for rid in sorted(m["por_req"]):
+        por_epico.setdefault(reqs.get(rid, {}).get("epico") or "(sem épico)", []).append(rid)
+
+    for ep in sorted(por_epico):
+        rids = por_epico[ep]
+        tarefas = [t for rid in rids for t in m["por_req"][rid]]
+        feitas = sum(1 for t in tarefas if idx[t].get("status") == "done")
+        marcas = _marcas([idx[t] for t in tarefas])
+        out.append("▸ %s   %d req · %d tarefas  %d/%d%s"
+                   % (ep, len(rids), len(tarefas), feitas, len(tarefas), marcas))
+        for rid in rids:
+            ts = [idx[t] for t in m["por_req"][rid]]
+            r = reqs.get(rid, {})
+            cab = "%s  %s" % (rid, r.get("titulo", "?"))
+            if r.get("ancora"):
+                cab += " · %s" % r["ancora"]
+            out.append("    ▸ %s   %d tarefas  %d/%d%s"
+                       % (cab, len(ts), sum(1 for t in ts if t.get("status") == "done"),
+                          len(ts), _marcas(ts)))
+            grupos = {}
+            for t in ts:
+                grupos.setdefault(t.get("grupo") or "(sem grupo)", []).append(t)
+            for g in sorted(grupos):
+                gt = grupos[g]
+                out.append("        ▸ %s   %d tarefas  %d/%d%s"
+                           % (g, len(gt), sum(1 for t in gt if t.get("status") == "done"),
+                              len(gt), _marcas(gt)))
+                for t in gt:
+                    out.append("            %s %s  %s%s"
+                               % (DOT[t.get("status", "todo")], t["id"], t["title"],
+                                  _marcas([t])))
+        out.append("")
+
+    if m["sem_requisito"]:
+        out.append("⚠️ %d tarefa(s) sem requisito — trabalho que ninguém pediu:"
+                   % len(m["sem_requisito"]))
+        out.append("   %s" % ", ".join(m["sem_requisito"]))
+        out.append("")
+    if m["orfaos"]:
+        out.append("🔴 %d requisito(s) sem nenhuma tarefa — pedido que ninguém planejou:"
+                   % len(m["orfaos"]))
+        for rid in m["orfaos"]:
+            out.append("   %s  %s" % (rid, reqs.get(rid, {}).get("titulo", "")))
+        out.append("")
+    if m["inexistentes"]:
+        out.append("⛔ %d tarefa(s) citam requisito que não existe:" % len(m["inexistentes"]))
+        for tid, rid in m["inexistentes"]:
+            out.append("   %s → %s" % (tid, rid))
+    return "\n".join(out).rstrip() + "\n"
+
+
+def _marcas(itens):
+    """As marcas de atenção somam pra cima. Sem isto a dobra esconde o problema
+    junto com o resto — a mesma armadilha que a spec §2 documenta."""
+    pend = sum(1 for t in itens if str(t.get("pendencia", "")).strip())
+    blq = sum(1 for t in itens if t.get("status") == "blocked")
+    partes = []
+    if pend:
+        partes.append("⛔%d" % pend)
+    if blq:
+        partes.append("⚠️%d" % blq)
+    return ("  " + " ".join(partes)) if partes else ""
 
 
 def _e(s):
@@ -788,8 +869,11 @@ def render_html(plan, mode="track"):
 def cmd_render(args):
     directory = args.dir or resolve_dir()
     plan = pick_plan(directory, args.plan)
-    sys.stdout.write(render_text(plan) if args.format == "text"
-                     else render_html(plan, args.mode))
+    if args.format == "text":
+        sys.stdout.write(render_text(plan, reqs=_requisitos_do_projeto(directory),
+                                     vista=getattr(args, "vista", "execucao")))
+    else:
+        sys.stdout.write(render_html(plan, args.mode))
     return 0
 
 
@@ -929,6 +1013,7 @@ def build_parser():
     q.add_argument("plan", nargs="?")
     q.add_argument("--mode", choices=("track", "approve"), default="track")
     q.add_argument("--format", choices=("html", "text"), default="html")
+    q.add_argument("--vista", choices=("execucao", "valor"), default="execucao")
     q.set_defaults(func=cmd_render)
 
     q = sub.add_parser("page", help="monta a PÁGINA inteira (template + árvore) e imprime o caminho")
