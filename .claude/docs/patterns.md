@@ -175,6 +175,7 @@ Locais de estado em uso, entre eles [confirmado, `grep -rhoE` sobre hooks e libs
 - `$HOME/.claude/plugins/` — `session-sync.sh` (`.pedro-plugins-last-sync`, `.pedro-plugins-sync.lock`, `known_marketplaces.json`)
 - `CLAUDE_DIR/state/prose-ceiling/` — `stop-prose-ceiling.py:ESTADO` (contador por resposta + `batidas.log` + `bypass.log`)
 - `CLAUDE_DIR/state/forma-relato/` — `stop-forma-relato.py:ESTADO`, com **variável própria** `FORMA_RELATO_STATE`
+- `CLAUDE_DIR/state/intent-guard/olhado` — `ledger.py:furos_da_regua`, **novo nesta rodada**. Um plugin lendo o estado que **outro** plugin escreve (`state/prose-ceiling/` e `state/forma-relato/`), e por isso ele copia a expressão de raiz literalmente igual à dos dois escritores. ⚠️ **Não confundir com `$HOME/.claude/intent-guard/mode`**, que é outro diretório, de outro dono: um é kill-switch, o outro é marca de leitura.
 
 **Por que o juiz tem variável de estado separada** [confirmado, comentário literal em `stop-forma-relato.py`]: *"estado com var propria: isolar o teste via CLAUDE_CONFIG_DIR tirava a credencial do `claude -p` junto, e o juiz passava a aprovar tudo por fail-open."* Régua durável: **hook que chama binário autenticado não pode ter o isolamento do teste amarrado ao mesmo diretório da credencial.** A suíte confirma que o cuidado é real — `test_bootstrap_hooks.sh` roda o juiz com `env -u CLAUDE_CONFIG_DIR FORMA_RELATO_STATE="$TMP/forma-$2"`.
 
@@ -305,15 +306,15 @@ Não há `requirements.txt`, lockfile nem venv no repo. Duas varreduras neste ru
 
 ```bash
 grep -rhoE '^(import|from) +[a-zA-Z_][a-zA-Z0-9_]*' plugins/*/lib/*.py _shared/*.py | awk '{print $2}' | sort -u
-# argparse askq_lint branch_state collections contextlib datetime difflib doc_lint fcntl glob
-# graph_map hashlib html io journal json ledger math md2deck organism os pathlib pattern_check
-# plan_state random re shlex shutil string subprocess sys tempfile time visual_page
+# argparse askq_lint branch_state cobertura collections contextlib datetime difflib doc_lint
+# fcntl glob graph_map hashlib html io journal json ledger math md2deck organism os pathlib
+# pattern_check plan_state random re shlex shutil string subprocess sys tempfile time visual_page
 
 grep -rhoE '^(import|from) +[a-zA-Z_][a-zA-Z0-9_]*' plugins/*/hooks/*.py | awk '{print $2}' | sort -u
 # hashlib json os pathlib re shutil subprocess sys time
 ```
 
-Tudo é stdlib ou módulo-irmão do próprio plugin (`askq_lint`, `branch_state`, `doc_lint`, `graph_map`, `journal`, `ledger`, `md2deck`, `organism`, `pattern_check`, `plan_state`, `visual_page`). **Por quê:** o plugin é copiado pro cache sem passo de instalação — não existe onde rodar `pip install`. `doc_lint.py` carrega isso na docstring (*"Stdlib-puro."*), `conformance.py` repete no topo (*"Python 3 stdlib apenas — convencao do repo (patterns.md)"*), `askq_lint.py` explica a consequência (*"o plugin é copiado pro cache sem passo de instalação, não existe onde rodar pip install"*), e `visual_page.py`/`md2deck.py` fecham com *"stdlib only (requisito do repo)"* [confirmado, os cinco arquivos].
+Tudo é stdlib ou módulo-irmão do próprio plugin (`askq_lint`, `branch_state`, `cobertura`, `doc_lint`, `graph_map`, `journal`, `ledger`, `md2deck`, `organism`, `pattern_check`, `plan_state`, `visual_page`). ⚠️ **`cobertura` entrou nesta rodada e o import dele é LOCAL, dentro da função** (`plan_state.py:_requisitos_do_projeto` e `cmd_cobertura` fazem `import cobertura` no corpo, não no topo) — os dois moram na mesma pasta, e o import no topo obrigaria quem só usa `tick` a carregar o módulo do fio. **Por quê:** o plugin é copiado pro cache sem passo de instalação — não existe onde rodar `pip install`. `doc_lint.py` carrega isso na docstring (*"Stdlib-puro."*), `conformance.py` repete no topo (*"Python 3 stdlib apenas — convencao do repo (patterns.md)"*), `askq_lint.py` explica a consequência (*"o plugin é copiado pro cache sem passo de instalação, não existe onde rodar pip install"*), e `visual_page.py`/`md2deck.py` fecham com *"stdlib only (requisito do repo)"* [confirmado, os cinco arquivos].
 
 ### 2.2 Fail-open também vale no Python: "não sei" ≠ "zero"
 
@@ -549,6 +550,44 @@ A origem é caso real, registrada no comentário: *"a resposta trouxe a varredur
 ⚠️ **A régua exige o teste do lado que ela não pode pegar**, e aqui isso virou desenho de suíte [confirmado — `test_bootstrap_hooks.sh`, comentário literal]: as 4 perguntas abertas do teste *"tambem disparam a fechada de proposito: so passam se a exclusao de pergunta aberta estiver viva. Sem isso o caso passaria por nao casar nada."* [confirmado — suíte verde nesta rodada: `36 ok · 0 FAIL`].
 
 `ultima_pergunta_usuario` também filtra o que **não** é pergunta: *"resultado de ferramenta e lembrete do sistema entram como 'user' e nao sao pergunta"* — descarta texto com `<system-reminder>` ou que comece com `<`.
+
+### 5.7 Validador que roda em dois momentos, e bloqueia só pelo alvo
+
+Padrão que nasceu de um defeito medido: `plan_state.py:validate` só rodava no `init`, e por
+isso um campo `desc` editado à mão para 356 caracteres sobreviveu num plano cujo teto é 140
+[confirmado — `plan_state.py:erros_do_plano`, `DESC_MAX = 140`].
+
+O conserto tem duas metades, e a segunda é a que importa como padrão:
+
+- **`erros_do_plano(plan, exigir=None, ...)` devolve a lista**; `validate` é o invólucro que
+  levanta. Quem chama escolhe entre decidir sobre a lista ou explodir.
+- **`cmd_tick` roda o validador no plano inteiro mas só RECUSA por defeito da tarefa que está
+  sendo marcada** — defeito em outra tarefa vira aviso em `stderr` e o tique passa
+  [confirmado, `plan_state.py:_erro_e_do_no`].
+
+A razão é o mesmo fail-open das §1.1: **bloquear precisa de evidência sobre o alvo**. Sem essa
+separação, um único item torto congelaria o plano inteiro — e num arquivo de 157 tarefas que
+nasceu antes da regra, isso é a diferença entre adotar o portão e ter que reescrever tudo.
+
+Vale como forma sempre que um gate passa a valer sobre dado que já existe: **cobra do que
+nasce agora, avisa sobre o que já estava lá, e nunca trava o trabalho por dívida alheia.** No
+`cmd_init` a mesma regra aparece como `exigir` — o conjunto dos ids que não estão no arquivo
+em disco [confirmado, suíte: `plano NOVO sem os campos é recusado` e `o item que JÁ estava no
+disco continua entrando sem os campos`].
+
+### 5.8 O obrigatório é o dado; o LUGAR dele é uma cascata
+
+`plan_state.py:_requisitos_do_projeto` procura os requisitos em quatro fontes, parando na
+primeira que responde [confirmado, li a função]: o bloco `requisitos` **dentro do próprio
+plano** → `$PLAN_REQS` → `docs/PRD.md` → `docs/REQUISITOS.md` → `{}`.
+
+O bloco vem primeiro porque é o mais específico: quem o declarou no plano quis aquele conjunto,
+não o do projeto inteiro. E `{}` **não é erro** — projeto sem documento de requisitos é o caso
+comum, inclusive o deste repositório (`ls docs/*.md` não casa nada).
+
+O padrão que isso resolve: uma regra que exige um dado externo morre no projeto que não tem o
+artefato externo. Dar ao dado um endereço local **opcional** mantém a regra viva em todo lugar
+sem obrigar ninguém a criar documento que não quer.
 
 ---
 
