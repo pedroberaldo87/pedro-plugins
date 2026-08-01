@@ -27,6 +27,8 @@ scope:
   - plugins/visual/lib/visual_page.py
   - plugins/visual/lib/plan_state.py
   - plugins/visual/lib/cobertura.py
+  - plugins/visual/hooks/pre-exitplan-visualize.sh
+  - plugins/handoff/skills/handoff/SKILL.md
   - plugins/slides/lib/md2deck.py
   - scripts/hook_contract.py
   - .claude-plugin/marketplace.json
@@ -44,6 +46,9 @@ verified-by:
   - plugins/visual/lib/test_visual_page.py
   - plugins/visual/lib/test_plan_state.py
   - plugins/visual/lib/test_cobertura.py
+  - plugins/visual/hooks/test_exitplan_gate.sh
+  - plugins/handoff/lib/test_handoff_skill.py
+  - .claude/hooks/test_release_gate.sh
   - plugins/slides/lib/test_md2deck.py
   - scripts/sync-shared.sh
   - scripts/hook_contract.py
@@ -65,7 +70,7 @@ Hook que erra **libera a ação**. Derivado mecanicamente neste run:
 
 ```bash
 grep -rli 'fail-open\|fail open' plugins/*/hooks/*.sh .claude/hooks/*.sh _shared/*.sh | wc -l
-# → 41 arquivos (inclui as suítes test_*.sh, que herdam a convenção)
+# → 42 arquivos (era 41: entrou visual/hooks/test_exitplan_gate.sh, que testa o fail-open do gate)
 ```
 
 Arquivos que **declaram** a regra no cabeçalho, entre eles [confirmado]:
@@ -99,7 +104,7 @@ Três canais, escolhidos por evento e por intenção:
   }
   ```
 
-- **`exit 2` + mensagem em stderr** — bloqueia de fato; o stderr volta pro modelo. Arquivos com `exit 2` neste run (`grep -rln 'exit 2' plugins/*/hooks/*.sh .claude/hooks/*.sh`): `.claude/hooks/release-gate.sh`, `plugins/guardrails/hooks/lint-and-typecheck.sh`, `plugins/intent-guard/hooks/plan-gate.sh`, `plugins/ship/hooks/pre-deploy-test-check.sh`, `plugins/visual/hooks/pre-exitplan-visualize.sh` (+ as suítes `intent-guard/hooks/test_plan_gate.sh` e `ship/hooks/test_pre_deploy.sh`).
+- **`exit 2` + mensagem em stderr** — bloqueia de fato; o stderr volta pro modelo. Arquivos com `exit 2` neste run (`grep -rln 'exit 2' plugins/*/hooks/*.sh .claude/hooks/*.sh`): `.claude/hooks/release-gate.sh`, `plugins/guardrails/hooks/lint-and-typecheck.sh`, `plugins/intent-guard/hooks/plan-gate.sh`, `plugins/ship/hooks/pre-deploy-test-check.sh`, `plugins/visual/hooks/pre-exitplan-visualize.sh` (+ as suítes `intent-guard/hooks/test_plan_gate.sh`, `ship/hooks/test_pre_deploy.sh` e `visual/hooks/test_exitplan_gate.sh`) — **8 arquivos neste run**.
 - **JSON no stdout** — o canal estruturado:
 
 ```bash
@@ -275,6 +280,8 @@ CMDPFX='([A-Za-z_][A-Za-z0-9_]*=[^[:space:];&|]*[[:space:]]+|(sudo|nohup|env|tim
 ```
 
   O comentário nomeia o contrapeso: *"senão a âncora deixa de existir e a menção volta a disparar (o contrapeso está na suíte: `echo sudo ./deploy.sh` e `git commit -m "sudo ./deploy.sh quebrou"` seguem 0)"* [confirmado — `test_pre_deploy.sh` nesta rodada: `100 ok, 0 falhas`].
+
+- 🔴 **E aqui está o limite da âncora: prefixo enumerado só cobre o que alguém lembrou de enumerar.** O `release-gate.sh` usava a mesma ideia (`(^|[;&|]|&&)[[:space:]]*git[[:space:]]+.*commit`) e **quatro formas legítimas passavam caladas** — `env FOO=1 git commit`, `(git commit …)`, `bash -c "git commit …"` e `VAR=x git commit` — enquanto `git log --grep commit` disparava à toa. O conserto trocou o casamento de forma por **parse**: o comando é quebrado em tokens (o split inclui `(`, `)`, `;`, `&`, `|`, `<`, `>`, aspas e crase) e o subcomando do git é lido pulando as opções globais e os valores delas (§5.2). **Quando o alvo é um comando de verdade, tokenize e leia o subcomando; regex de forma é para texto, não para linha de comando.** [confirmado — `.claude/hooks/test_release_gate.sh` → `OK (17 checks)`, com um caso por forma]
 
 ### 1.9 Chamada interna de LLM tem que se auto-marcar
 
@@ -492,9 +499,9 @@ if old is not None and old.get("version") == pver:
     viol.append("❌ BUMP ESQUECIDO — %s mudou mas version continua %s\n"…)
 ```
 
-[inferido, **não** verificado nesta rodada] A explicação compatível é que esses commits não passaram pela ferramenta Bash — o gate é um `PreToolUse` com `matcher: "Bash"` (§5.2), então commit feito por qualquer outro caminho não o dispara, e nem precisa de `--no-verify` para isso.
+✅ **A causa foi achada e consertada, e não era a que estava escrita aqui.** A hipótese anterior — commits fora da ferramenta Bash — foi substituída: o gate **disparava** pela ferramenta Bash, mas o **gatilho era um `grep` na FORMA do comando** e deixava passar `env FOO=1 git commit`, `(git commit)`, `bash -c "git commit"` e `VAR=x git commit`. Com o gatilho mudo, os oito checks saíam calados. O gatilho hoje quebra o comando em tokens e lê o subcomando do git de verdade (§5.2). [confirmado — o comentário do próprio arquivo nomeia as quatro formas e a suíte `.claude/hooks/test_release_gate.sh` cobre cada uma]
 
-**Régua durável, e ela vale para todo gate deste repositório: gate amarrado a UMA ferramenta não é gate do repositório — é gate daquela ferramenta.** O sinal de que isso aconteceu não aparece em lugar nenhum; foi preciso reconstruir commit a commit para enxergar.
+**Régua durável, e ela vale para todo gate deste repositório: detecção que casa FORMA de comando não é detecção — quem escreve o comando de outro jeito, mesmo sem querer, desliga o gate inteiro em silêncio.** O sinal de que isso aconteceu não aparece em lugar nenhum; foi preciso reconstruir commit a commit para enxergar. O corolário anterior continua de pé: o gate segue amarrado ao `matcher: "Bash"`, então commit por outro caminho continua fora do alcance dele.
 
 ### 5.2 O gate mecânico de commit
 
@@ -505,7 +512,8 @@ if old is not None and old.get("version") == pver:
 **Como decide o que olhar** [confirmado, copiado literal]:
 
 ```bash
-printf '%s' "$CMD" | grep -qE '(^|[;&|]|&&)[[:space:]]*git[[:space:]]+.*commit' || exit 0
+GATILHO=$(printf '%s' "$INPUT" | python3 -c '…' 2>/dev/null) || exit 0
+[ -n "$GATILHO" ] || exit 0
 ROOT=$(git rev-parse --show-toplevel 2>/dev/null) || exit 0
 [ -f "$ROOT/.claude-plugin/marketplace.json" ] || exit 0   # não é este monorepo
 FILES=$( { git -C "$ROOT" diff --cached --name-only
@@ -514,11 +522,19 @@ FILES=$( { git -C "$ROOT" diff --cached --name-only
 
 Untracked **não** entra, e o comentário diz por quê: *"sem `git add` ele não é commitado — incluí-lo dava falso-positivo com estado de runtime"*.
 
+🔴 **O gatilho deixou de ser um `grep` na FORMA do comando, e essa era a origem do furo do §5.1.** A regex antiga (`(^|[;&|]|&&)[[:space:]]*git[[:space:]]+.*commit`) exigia que o `git` estivesse em início de linha ou logo depois de `;`/`&`/`|` — então **`env FOO=1 git commit`, `(git commit …)`, `bash -c "git commit …"` e `VAR=x git commit` passavam calados**, e com eles saíam os oito checks inteiros. No outro sentido ela disparava em `git log --grep commit`, que não commita nada, e *"falso positivo ensina a contornar, e contornar desliga tudo"*.
+
+Hoje o comando é **quebrado em tokens** (o split inclui `(`, `)`, `;`, `&`, `|`, `<`, `>`, aspas e crase — é isso que recupera as quatro formas) e o **subcomando do git é lido de verdade**: para cada token `git` (ou `…/git`), o parser pula as opções globais e os valores delas (`-c`, `-C`, `--git-dir`, `--work-tree`, `--namespace`, `--exec-path`) e só age se o token seguinte for literalmente `commit`. [confirmado — li o bloco inteiro nesta rodada]
+
+⚠️ **`--amend` é detectado, e ele muda o que o check C compara.** Como as aspas somem no split, a mensagem do commit vira token solto e um `--amend` escrito DENTRO dela passaria por flag; por isso só contam as opções **coladas ao subcomando** — o primeiro token que não é opção nem valor de opção encerra a varredura. Detectado o amend, o check C compara com **`HEAD~1:`** em vez de `HEAD:`, porque em amend o `HEAD` **é** o commit sendo reescrito e a comparação acusava `BUMP ESQUECIDO` de uma version que já estava dentro do próprio commit. Amend do commit raiz: `git show` falha e nada é acusado. [confirmado]
+
+**Suíte dedicada: `.claude/hooks/test_release_gate.sh` → `OK (17 checks)` nesta rodada** — ela exercita as quatro formas que passavam, o falso positivo do `git log --grep commit`, o `--amend` dentro da mensagem (*"é texto, não amend"*) e o fail-open fora do monorepo. ⚠️ **Ela mora em `.claude/hooks/`, fora dos globs dos checks D e F**, então nenhum commit a dispara automaticamente — mesma exceção das duas suítes de `scripts/`.
+
 **Os checks são OITO**, com as letras do próprio arquivo e nesta ordem de declaração: `A · B+C · D · E · G · H · F` [confirmado — li o arquivo inteiro nesta rodada]. A ordem de execução não importa: todos só acumulam em `VIOL`.
 
 - **A · vendoring** — roda `scripts/sync-shared.sh --check`. Drift ⇒ `❌ VENDORING EM DRIFT`, mandando corrigir **na fonte** `_shared/<arquivo>`.
 - **B · espelho `plugin.json` ↔ `marketplace.json`** — divergiu ⇒ `❌ ESPELHO QUEBRADO`, com as duas versões impressas.
-- **C · bump esquecido** — compara com `git show HEAD:<manifesto>`. Iguais ⇒ `❌ BUMP ESQUECIDO — <nome> mudou mas version continua <v>`.
+- **C · bump esquecido** — compara com `git show HEAD:<manifesto>`, ou com `HEAD~1:` quando o gatilho detectou `--amend`. Iguais ⇒ `❌ BUMP ESQUECIDO — <nome> mudou mas version continua <v>`.
 - **D · testes Python** — roda `plugins/<nome>/lib/test_*.py` dos plugins tocados. Vermelho ⇒ `❌ TESTE VERMELHO` com as últimas 15 linhas.
 - **E · contrato dos hooks** — só quando o commit toca `plugins/*/hooks/`. Roda `python3 scripts/hook_contract.py --baseline .claude/hook-contract.baseline.json --fail-on high` e barra **o que piorou**. O comentário explica a escolha: *"Comparar com o baseline (e não exigir zero) é o que impede a regra de apodrecer"*.
 - **G · gen defasado no marker do project-doc** — só quando o commit toca `plugins/project-doc/`. Lê `CURRENT_GEN` de `pattern_check.py` (hoje **"3.8"** [confirmado, li a constante]) e varre `plugins/project-doc/skills/` procurando `gen=X.Y` **dentro de comentário HTML**. Menção em prosa a um gen antigo **não** é violação — *"barrá-las ensinaria a ignorar o gate"*. Fail-open se `CURRENT_GEN` não resolver (`sys.exit(0)`).
@@ -636,11 +652,14 @@ Não há runner nem CI: cada suite é um arquivo executável, stdlib/bash puro, 
 Contagem de arquivos neste run [confirmado, `ls … | wc -l`]:
 
 ```bash
-ls plugins/*/lib/test_*.py scripts/test_*.py | wc -l   # → 15   (era 14: entrou test_cobertura.py)
-ls plugins/*/hooks/test_*.sh                 | wc -l   # → 15
+ls plugins/*/lib/test_*.py scripts/test_*.py | wc -l   # → 16   (era 15: entrou test_handoff_skill.py)
+ls plugins/*/hooks/test_*.sh                 | wc -l   # → 16   (era 15: entrou test_exitplan_gate.sh)
+ls .claude/hooks/test_*.sh                   | wc -l   # →  1   (novo: test_release_gate.sh)
 ```
 
-⚠️ As duas de `scripts/` (`test_hook_contract.py`, `test_public_repo_check.py`) ficam **fora** de `plugins/`, logo fora do check D do gate.
+**32 suítes pelos dois globs de sempre — eram 30 — e 33 contando a que mora em `.claude/hooks/`.**
+
+⚠️ As duas de `scripts/` (`test_hook_contract.py`, `test_public_repo_check.py`) ficam **fora** de `plugins/`, logo fora do check D do gate. **`.claude/hooks/test_release_gate.sh` está na mesma situação** — e é a suíte do próprio gate de commit, então o gate não roda o teste que o cobre.
 
 Suites executadas nesta rodada, com o número que cada uma imprime [confirmado, todas verdes]:
 
@@ -652,10 +671,16 @@ Suites executadas nesta rodada, com o número que cada uma imprime [confirmado, 
 - `plugins/guardrails/lib/test_askq_lint.py` — `47 passou · 0 falhou`
 - `plugins/guardrails/hooks/test_scope_cop.sh` — `15 passou · 0 falhou`
 - `plugins/ship/hooks/test_pre_deploy.sh` — `100 ok, 0 falhas`
-- `plugins/visual/lib/test_visual_page.py` — `60 passou · 0 falhou`
-- `plugins/visual/lib/test_plan_state.py` — `OK` (135 asserções `ok`)
-- `plugins/visual/lib/test_cobertura.py` — `OK` (11 asserções `ok`) · **suíte nova desta rodada**
+- `plugins/visual/lib/test_visual_page.py` — `68 passou · 0 falhou` (eram 60; entraram os casos do bloco de prova colapsável)
+- `plugins/visual/lib/test_plan_state.py` — `OK` (173 asserções `ok`; eram 135)
+- `plugins/visual/lib/test_cobertura.py` — `OK` (13 asserções `ok`)
 - `plugins/slides/lib/test_md2deck.py` — `50 passou · 0 falhou`
+
+**As três suítes que nasceram na rodada de consertos**, todas verdes aqui [confirmado, executadas nesta passada]:
+
+- `.claude/hooks/test_release_gate.sh` — `OK (17 checks)` · o gatilho do gate de commit, uma forma de comando por check
+- `plugins/visual/hooks/test_exitplan_gate.sh` — `OK (12 checks)` · o gate do `ExitPlanMode`, incluindo kill-switch e fail-open
+- `plugins/handoff/lib/test_handoff_skill.py` — `OK` (7 asserções `ok`) · cobra que a prosa da skill mande **copiar** `pronto` e `pendencia` do arquivo de plano, não redigi-los de novo
 
 ⚠️ **Duas grafias de "verde" convivem no repo, e isso importa pra quem lê o exit code.** A maioria imprime um placar (`N passou · 0 falhou`); as duas do `plan_state`/`cobertura` imprimem só `OK` no fim, com um `ok <descrição>` por asserção acima. As duas formas saem 0 quando verdes — mas **só a primeira permite ver, no log, que o número de casos não caiu**.
 
@@ -675,6 +700,7 @@ for t in plugins/*/hooks/test_*.sh;               do bash    "$t" || echo "RED: 
 - **Sabotagem da allowlist.** `test_askq_lint.py` esvazia `NOMES_PROPRIOS` e reafirma que aí *"GitHub"* barra — um caso "GitHub passa" sozinho seria satisfeito também por uma régua quebrada que não pega nada.
 - **Verde por fail-open não conta como verde.** `test_bootstrap_hooks.sh` não aceita o exit code do juiz sem conferir o motivo no log: `grep -q '"motivo": "julgou"'` — *"fail-open por juiz mudo aprova tudo: so vale como verde se ele REALMENTE julgou"* [confirmado, citação literal].
 - **Teste de hook de detecção precisa distinguir os dois `exit 0`.** No gate do ship, "não detectou deploy" e "detectou e a suíte passou" são ambos 0; a suíte resolve com um fixture cujo alvo de teste falha de propósito, e aí o exit code responde uma pergunta só.
+- **Prosa que dá ordem operacional pode ser testada — e ela também apodrece.** `plugins/handoff/lib/test_handoff_skill.py` trata a `SKILL.md` do handoff como código: extrai os blocos ```` ```bash ```` do markdown (com `textwrap.dedent`, *"o bloco como quem copia recebe"*), **executa** o comando prescrito contra um plano de fixture e confere que ele imprime `pronto` e `pendencia` de verdade; depois lê a prosa e cobra que ela mande **copiar** esses campos, não redigi-los. É o mesmo princípio do `visual_page.py` (*"prosa apodrece"*) aplicado a instrução que o modelo vai seguir. [confirmado — docstring e execução]
 
 ---
 
@@ -693,6 +719,8 @@ for t in plugins/*/hooks/test_*.sh;               do bash    "$t" || echo "RED: 
 - Fronteira de palavra antes de todo verbo, senão constatação vira ordem (§1.7).
 - Âncora de posição-de-comando, senão menção em `git commit -m "…"` dispara o gate (§1.8).
 - Prefixo de lançador **enumerado**, nunca "qualquer palavra antes" — senão a âncora deixa de existir.
+- 🔴 **Mas se o alvo é um comando, tokenize e leia o subcomando em vez de casar a forma** — o prefixo enumerado do release-gate deixou passar quatro formas comuns e disparou numa que não commita (§1.8, §5.2).
+- **Gate não pode barrar o artefato que ele mesmo manda gerar.** O gate do `ExitPlanMode` contava o veredito de fase (`feedback-item pt-phase`) da página de aprovação como "decisão sem prova" e bloqueava exatamente a saída de `plan_state.py page --mode approve`, que o texto de conserto dele manda rodar. E o exemplo de JSON que ele ensinava era recusado pelo `init`, que exige `requisito` e `pronto` em toda tarefa nova. **Todo texto de conserto de um gate precisa ser executado pelo teste dele** (`plugins/visual/hooks/test_exitplan_gate.sh` → `OK (12 checks)`).
 - Toda liberação precisa de revogação (`--com-doc` no plan-escape).
 
 ### Release
@@ -700,7 +728,8 @@ for t in plugins/*/hooks/test_*.sh;               do bash    "$t" || echo "RED: 
 - ⚠️ **Bump em toda mudança e espelho no marketplace** — o gate avalia **staged ∪ tracked-modificados**, então mudança solta em OUTRO plugin bloqueia o seu commit [confirmado, `FILES` do release-gate].
 - ⚠️ **Plugin novo entra em três arquivos** — e quem cobra o terceiro é o `conformance.py`, depois do commit (§5.1).
 - ⚠️ **`author` tem que ser objeto** no `marketplace.json`; string é rejeitada pelo `validate` [relatado; o estado atual é consistente — os dois `author` presentes hoje são objeto, verificado neste run].
-- 🔴 **O release-gate só existe para commit feito pela ferramenta Bash** (`matcher: "Bash"`). Nesta rodada, 7 dos 9 commits que tocaram `plugins/visual/` foram sem bump e nenhum foi barrado (§5.1). **Bump esquecido não deixa rastro** — quem quiser saber se aconteceu tem que reconstruir commit a commit.
+- 🔴 **O release-gate só existe para commit feito pela ferramenta Bash** (`matcher: "Bash"`). Commit por outro caminho não o dispara e nem precisa de `--no-verify` pra isso. **Bump esquecido não deixa rastro** — quem quiser saber se aconteceu tem que reconstruir commit a commit.
+- ✅ **O furo que fez 7 de 9 commits passarem sem bump era o GATILHO, e ele foi consertado** (§5.1, §5.2): o `grep` na forma do comando deixava passar `env FOO=1 git commit`, `(git commit)`, `bash -c "git commit"` e `VAR=x git commit`. Hoje o comando é tokenizado e o subcomando do git é lido. **Detecção que casa forma de comando é gate desligável por acidente.**
 
 ### Código compartilhado
 

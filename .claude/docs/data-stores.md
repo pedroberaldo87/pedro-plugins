@@ -20,6 +20,7 @@ scope:
   - plugins/visual/lib/cobertura.py
   - plugins/visual/lib/visual_page.py
   - plugins/visual/hooks/stop-plan-status.sh
+  - plugins/handoff/skills/handoff/SKILL.md
   - scripts/hook_contract.py
   - plugins/branches/lib/branch_state.py
   - plugins/guardrails/hooks/scope-cop.sh
@@ -36,6 +37,7 @@ verified-by:
   - plugins/visual/lib/test_plan_state.py
   - plugins/visual/lib/test_cobertura.py
   - plugins/visual/lib/test_visual_page.py
+  - plugins/handoff/lib/test_handoff_skill.py
   - plugins/intent-guard/lib/test_ledger.py
   - plugins/branches/lib/test_branch_state.py
   - plugins/project-doc/lib/test_journal.py
@@ -486,19 +488,25 @@ No topo do plano, ao lado de `phases`:
 
 - **Por que o bloco existe no próprio plano:** o requisito é obrigatório, mas o *lugar* dele é opcional. Projeto com documento de requisitos aponta pra lá; projeto sem documento — *"o caso deste repositório, que não tem PRD"* — declara aqui. Sem essa porta, todo projeto sem PRD voltaria a ter tarefa que não rastreia pra nada. [confirmado, docstring de `_requisitos_do_plano`]
 - **Nenhum dos 13 planos no disco usa qualquer um desses campos hoje.** As chaves de topo presentes nos 13 arquivos são só `id`, `title`, `phases`, `created`, `status` e `closed_at` (11 destes); `requisito`, `pronto`, `grupo`, `pendencia`, `decidido` e o bloco `requisitos` aparecem **zero** vezes. O schema é novo, os arquivos são anteriores a ele — e é exatamente esse o desenho: a exigência só morde tarefa que **nasce agora**. [confirmado — derivado com `json.load` sobre os 13 arquivos nesta rodada]
-- **O que protege o registro histórico:** `merge()` recarrega os cinco campos do arquivo quando o `init` novo os omite, pelo mesmo motivo que não apaga a prova. A exceção declarada é a `pendencia` — *"declará-la vazia É resolvê-la de propósito"*. [confirmado, `plan_state.py:merge`]
+- **O que protege o registro histórico:** `merge()` recarrega do arquivo o que o `init` novo omitiu, pelo mesmo motivo que não apaga a prova. **A regra passou a ser uma só e a valer para o plano inteiro** [confirmado, `plan_state.py:merge`]:
+  - **No nó**, os cinco campos da tarefa **mais o `detail`** — que mora na FASE e é o único lugar do 🔧 Como / 💡 Por quê / 📁 Toca em. Ele estava fora da lista antiga e era apagado no `init` seguinte; **os 13 planos no disco carregam 60 blocos `detail`** hoje. [confirmado — derivado com `json.load` sobre os 13 arquivos nesta rodada]
+  - **No topo do plano**, TODA chave que o `init` não trouxe, e não mais só `created` e `status`. O que morria na lista fixa era justamente o bloco `requisitos` — a fonte que as tarefas citam — e o `closed_at`. Perder `requisitos` no segundo `init` desligava, em silêncio, o portão que recusa citação para o nada: sem fonte, `reqs` fica vazio e a checagem não roda.
+  - **Apagar de propósito continua possível e agora é uniforme: declare a chave VAZIA** (`"requisitos": []`), porque o merge só preenche o ausente. É a mesma regra que já valia para a `pendencia`.
 - **`cmd_reabrir` é o caminho de volta:** desfaz uma `decidido`, devolve o texto dela para `pendencia` e a tarefa para `todo`, zerando `evidence` e `done_at`. Existe porque *"toda decisão tomada na ausência do dono seja reversível por construção"* — sem ele, `decidido` seria fato consumado. [confirmado]
 - **Quem calcula em cima disso NÃO guarda nada:** `plugins/visual/lib/cobertura.py` é arquivo novo e **não é depósito** — lê os requisitos de um markdown (`le_requisitos`), cruza com o plano (`mapa`) e devolve a linha única (`resumo`). Zero escrita em disco. A vista "épico › requisito › grupo › tarefa" é **derivada, não armazenada**, pelo mesmo princípio que faz a fase não ter estado próprio. [confirmado — o arquivo tem 79 linhas e nenhuma abre arquivo para escrita]
 - **Por que o arquivo existe:** antes disto o plano só vivia no transcript e todo consumidor o **re-derivava por LLM** — lossy: encurta, renomeia fase, chuta se já foi executado. O caso concreto está citado na docstring (`extract_ata.py`: `excerpt: txt[:1200]` e `likely_executed = commits_after > 0 or edits_after >= 3` — um plano de 10 fases + 1 commit virava "concluído").
 - **A correção é estrutural:** o modelo **autora uma vez** (`init`) e daí em diante só **marca** (`tick`). Quem desenha a árvore é o programa lendo o arquivo. Como o modelo nunca redigita um título, não há de onde a mudança de nome vir.
 - **As travas do schema, lidas de `validate()`:** `id` slug minúsculo; fase casa `F<n>`, passo casa `F<n>.<m>` com prefixo batendo com a fase; `desc` obrigatório e ≤ `DESC_MAX = 140` chars (*"é UMA linha, não um parágrafo"*); `status` ∈ `("todo","doing","blocked","done")`. Erros saem **todos de uma vez**, pra o autor não gastar N rodadas.
 - **A trava nova: citação órfã não grava.** Quando há requisitos conhecidos, `validate()` recusa o `init` inteiro se alguma tarefa citar um id que não existe na lista. Não é aviso — é erro. O comentário traz a medida que originou a regra: *"7 de 154 itens de um plano real citaram artigo de lei sem ninguém nunca conferir se o artigo existia"*. `reqs` vazio desliga a checagem, porque projeto sem documento de requisitos é o caso comum, não defeito. [confirmado, `plan_state.py:validate`]
-- **Três recusas que protegem o depósito:**
+- **Quatro recusas que protegem o depósito:**
   - `tick` exige `--evidencia` com ≥ `EVIDENCE_MIN = 8` chars: *"Sem isso, 'concluído' é palpite — foi assim que planos foram dados como prontos sem estar."* `done` só existe via `tick`; `cmd_state` recusa explicitamente `done`.
-  - `tick` **também recusa tarefa com `pendencia` preenchida** — decisão em aberto trava o "feito". Fechar a decisão é escrever a escolha em `decidido` e apagar a `pendencia`. [confirmado, `plan_state.py:cmd_tick`]
+  - **`init` fecha a mesma porta pelo outro lado:** `status: "done"` escrito à mão com `evidence` abaixo de `EVIDENCE_MIN` recusa o arquivo. O teto da prova é o mesmo dos dois lados, senão há dois — quem escreve o JSON do `init` é o modelo, e por ali "concluído" entrava sem prova nenhuma. [confirmado, `plan_state.py:erros_do_plano`]
+  - `tick` **também recusa tarefa com decisão em aberto** — e o que fecha a decisão é o REGISTRO: `decidido` com uma `escolha` preenchida. **Apagar a `pendencia` não é mais o caminho**, porque o `merge` preserva o campo que o `init` omite e a pergunta voltava, travando a tarefa pra sempre. A `pendencia` continua gravada de propósito: é dela que o `reabrir` vive. [confirmado, `plan_state.py:cmd_tick`]
   - `merge()` **trava a identidade**: título divergente do que está no arquivo aborta o `init` inteiro, e renomear exige `--rename <id> "<novo título>"`. Nó que sumiu do `init` novo é **mantido**, não apagado.
   - Escrita é atômica: `save()` grava em `.tmp` e faz `os.replace`.
-- **Quem lê no fim do turno:** `plugins/visual/hooks/stop-plan-status.sh`, via `plan_state.py brief`. Canal `systemMessage` (informa, nunca bloqueia), desligável por `PLAN_STATUS=0` / `PLAN_NUDGE=0`. Costura confirmada nos dois lados. [confirmado]
+- **Leitura tem porta única, e ela nomeia o estrago:** `plan_state.py:le_plano`. Arquivo que não abre ou não é JSON vira `PlanError` com o CAMINHO e a CAUSA (*"o arquivo existe e não é JSON válido. Conserte-o à mão — é o registro do que já foi feito, e nada aqui o reescreve"*), em vez de traceback. Quem LISTA (`list_plans`) segue engolindo o arquivo torto de propósito: um byte errado num plano não pode apagar os outros 12 da listagem. [confirmado, e a suíte fecha com a asserção `list_plans pula o corrompido`]
+- **Quem lê no fim do turno:** `plugins/visual/hooks/stop-plan-status.sh`, via `plan_state.py brief`. Canal `systemMessage` (informa, nunca bloqueia), desligável por `PLAN_STATUS=0` / `PLAN_NUDGE=0`. Costura confirmada nos dois lados. [confirmado] O resumo que ele mostra **parou de afirmar prova sem olhar a prova**: o trecho *"cada um com prova anexada"* era escrito por construção e hoje só entra depois de `plan_state.py:_com_prova` conferir a `evidence` de cada passo feito. [confirmado]
+- **Quem lê na hora de guardar a sessão:** a skill `handoff`. Ela passou a **ler os campos do arquivo em vez de pedir que sejam reinventados** — a árvore de `render --format text` é a vista de execução e não mostra `pronto`, `pendencia` nem `requisito`, que são justamente os três que a sessão seguinte ia redigir de cabeça. A `SKILL.md` traz o comando que os imprime e manda copiá-los **verbatim**: o `pronto` vira o "Critério de pronto" e a `pendencia` vira "Decisão em aberto", com o passo marcado como **bloqueado** — listar como executável um passo cuja `pendencia` trava o tique manda a próxima sessão bater na mesma parede sem saber qual é a pergunta. [confirmado — `plugins/handoff/skills/handoff/SKILL.md`, e a suíte `plugins/handoff/lib/test_handoff_skill.py` executa o comando prescrito e cobra a prosa]
 - **Natureza: registro de trabalho, insubstituível, sem cobertura.** Verde em `plugins/visual/lib/test_plan_state.py` nesta rodada.
 
 ### A5 · `.claude/hook-contract.baseline.json` — o retrato do contrato dos hooks
