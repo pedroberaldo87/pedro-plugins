@@ -43,6 +43,16 @@ LIST=$(printf '%s' "$SUMMARY" | jq -r '
         "\n  arquivo: .claude/plans/\(.path)"' 2>/dev/null)
 [ -z "$LIST" ] && exit 0
 
+# A cobertura entra aqui porque este hook NÃO passa pelo `brief` — ele monta o
+# texto do `open --json`. Sem isto, o número apareceria no fim do turno e não no
+# começo da sessão, que é justamente quando o Claude novo decide o que fazer.
+# As duas primeiras linhas são o resumo e o aviso de "sem documento de requisitos".
+# Vazio (2+ planos ativos, sem plano) → nada; fail-open como o resto do hook.
+COB=$("$PY3" "$PLAN_STATE" --dir "$PLANS_DIR" cobertura 2>/dev/null | head -2)
+[ -n "$COB" ] && LIST="${LIST}
+
+🔎 Cobertura requisito↔tarefa: ${COB}"
+
 CTX=$(cat <<EOF
 📋 Há plano(s) de implementação ABERTO(S) neste projeto:
 

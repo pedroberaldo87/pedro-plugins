@@ -488,6 +488,15 @@ def main():
         finally:
             shutil.rmtree(empty, ignore_errors=True)
 
+        print("o número aparece sem pedir")
+        b = ps.brief_lines(p, reqs=reqs)
+        check("o brief traz a cobertura", any("sem requisito" in x for x in b))
+        check("a cobertura não vira um 4º bullet",
+              len([x for x in b if x.startswith("•")]) == 3)
+        b2 = ps.brief_lines(sample())
+        check("plano sem os campos não ganha linha nova",
+              not any("requisito" in x for x in b2))
+
         print("render escapa HTML (título vem de texto livre)")
         evil = sample(id="2026-07-27-escape", title="<script>alert(1)</script>")
         evil["phases"][0]["items"][0]["desc"] = 'aspas " e <b>tags</b>'
