@@ -1,6 +1,6 @@
 ---
 generated: 2026-08-01
-generated-commit: 73d2fce
+generated-commit: 436ab37
 project: pedro-plugins
 scope:
   - .gitignore
@@ -30,7 +30,7 @@ verified-by:
   - plugins/project-doc/lib/test_journal.py
   - plugins/visual/lib/test_plan_state.py
   - plugins/visual/lib/test_cobertura.py
-doc-sig: pedro-plugins/.gitignore@gen=3.8#67cc734b
+doc-sig: pedro-plugins/.gitignore@gen=3.8#08191b16
 ---
 
 # Durabilidade
