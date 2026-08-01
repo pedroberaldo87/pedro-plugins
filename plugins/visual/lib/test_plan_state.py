@@ -345,6 +345,31 @@ def main():
         check("aprovação mostra o detail", "item-detail" in ha and "🔧 Como: assim" in ha)
         check("fase sem detail não gera <details> vazio", ha.count("item-detail") == 1)
 
+        print("vista de valor")
+        reqs = {"S-4.3": {"titulo": "Orçamento de energia", "ca": "dia estourado corta",
+                          "ancora": "Art. 6", "epico": "E4 — Planner"},
+                "S-4.8": {"titulo": "Janela de medicação", "ca": "respeita horário",
+                          "ancora": None, "epico": "E4 — Planner"}}
+        p = sample(phases=[{"id": "F1", "title": "x", "items": [
+            {"id": "F1.1", "title": "campo custo", "desc": "d",
+             "requisito": "S-4.3", "grupo": "Backend"},
+            {"id": "F1.2", "title": "tela do corte", "desc": "d",
+             "requisito": "S-4.3", "grupo": "Tela", "pendencia": "qual cor?"},
+            {"id": "F1.3", "title": "sem dono", "desc": "d"}]}])
+        v = ps.render_text(p, reqs=reqs, vista="valor")
+        check("mostra o épico", "E4 — Planner" in v)
+        check("mostra o requisito com o artigo", "S-4.3" in v and "Art. 6" in v)
+        check("agrupa por natureza", "Backend" in v and "Tela" in v)
+        check("a pendência vira marca", "⛔" in v)
+        check("tarefa sem requisito tem endereço próprio",
+              "sem requisito" in v and "F1.3" in v)
+        check("requisito sem tarefa aparece", "S-4.8" in v)
+
+        e = ps.render_text(p)
+        check("a vista de execução é o padrão", "F1 ·" in e and "E4 — Planner" not in e)
+        limpo = ps.render_text(sample())
+        check("plano antigo desenha igual a hoje", "⛔" not in limpo and "sem requisito" not in limpo)
+
         print("brief — 'onde nós estamos' em 1-3 bullets")
         b = sample(id="2026-07-27-brief")
         init_into(d, b)
