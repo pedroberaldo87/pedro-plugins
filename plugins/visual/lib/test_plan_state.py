@@ -76,10 +76,38 @@ class Args(object):
             setattr(self, k, v)
 
 
-def init_into(d, plan, renames=None):
+def completo(plan):
+    """Preenche `pronto` e `requisito` em toda tarefa que não os declara.
+
+    O `init` cobra os dois de tarefa que nasce agora, e num plano de teste TODAS
+    nascem agora. Os casos que provam a cobrança passam os campos de propósito
+    (ou os omitem de propósito) e chamam `ps.validate` direto; os outros usam
+    isto pra não repetir o preenchimento em ~15 lugares.
+    """
+    declarados = {r["id"] for r in plan.get("requisitos") or []}
+    citados = set()
+    for ph in plan.get("phases") or []:
+        for it in ph.get("items") or []:
+            it.setdefault("pronto", "o comando roda e sai 0")
+            it.setdefault("requisito", "S-0.1")
+            citados.add(it["requisito"])
+    # o bloco tem que cobrir TODO id citado, senão o próprio molde cai na recusa
+    # por requisito inexistente — que é uma regra de verdade, não do molde
+    faltam = sorted(citados - declarados)
+    if faltam:
+        plan.setdefault("requisitos", [])
+        plan["requisitos"] += [{"id": r, "titulo": "Requisito do molde",
+                                "ca": "o comando sai 0", "epico": "E0 — Molde"}
+                               for r in faltam]
+    return plan
+
+
+def init_into(d, plan, renames=None, crus=False):
+    """Grava o plano. Por padrão completa `pronto`/`requisito` — `crus=True` pra
+    os casos que provam justamente a recusa por falta deles."""
     path = os.path.join(d, "_in.json")
     with open(path, "w", encoding="utf-8") as fh:
-        json.dump(plan, fh)
+        json.dump(plan if crus else completo(plan), fh)
     return ps.cmd_init(Args(dir=d, file=path, rename=renames))
 
 
@@ -135,16 +163,34 @@ def main():
         check("a mensagem do requisito diz UM",
               any("requisito" in e and "um" in e.lower() for e in errs))
 
-        print("init cobra só do item novo")
+        # A cobrança pega TODA tarefa que nasce agora — num plano novo, todas.
+        # Deixar o plano novo passar faria o portão morder só a partir da SEGUNDA
+        # gravação, que é o caso raro. O que fica de fora é só o que JÁ ESTÁ no
+        # disco: reescrever 295 itens não pode ser o preço de adotar a regra.
+        print("init cobra de toda tarefa que nasce agora")
         d2 = tempfile.mkdtemp(prefix="plan-novo-")
         try:
-            init_into(d2, magro)
-            check("plano antigo entra sem os campos", load(d2) is not None)
+            check("plano NOVO sem os campos é recusado",
+                  _levanta(lambda: init_into(d2, sample(phases=[
+                      {"id": "F1", "title": "x", "items": [
+                          {"id": "F1.1", "title": "t", "desc": "d"}]}]), crus=True)))
+            # nasce cru direto no disco: imita o plano anterior à regra
+            os.makedirs(d2, exist_ok=True)
+            with open(os.path.join(d2, "2026-07-27-teste.plan.json"), "w",
+                      encoding="utf-8") as fh:
+                json.dump(dict(sample(phases=[{"id": "F1", "title": "x", "items": [
+                    {"id": "F1.1", "title": "t", "desc": "d"}]}]),
+                    created="2026-07-01", status="active"), fh)
             com_novo = sample(phases=[{"id": "F1", "title": "x", "items": [
                 {"id": "F1.1", "title": "t", "desc": "d"},
                 {"id": "F1.2", "title": "novo", "desc": "d"}]}])
-            check("item NOVO sem pronto/requisito derruba o init",
-                  _levanta(lambda: init_into(d2, com_novo)))
+            check("item NOVO num plano ANTIGO sem os campos derruba o init",
+                  _levanta(lambda: init_into(d2, com_novo, crus=True)))
+            so_o_velho = sample(phases=[{"id": "F1", "title": "x", "items": [
+                {"id": "F1.1", "title": "t", "desc": "d"}]}])
+            init_into(d2, so_o_velho, crus=True)
+            check("o item que JÁ estava no disco continua entrando sem os campos",
+                  load(d2) is not None)
         finally:
             shutil.rmtree(d2, ignore_errors=True)
 
@@ -152,8 +198,10 @@ def main():
         d5 = tempfile.mkdtemp(prefix="plan-preserva-")
         try:
             init_into(d5, bom)
+            # crus=True: o 2o init OMITE os campos de propósito — é isso que o
+            # caso prova, e o `completo()` os preencheria, matando o teste
             init_into(d5, sample(phases=[{"id": "F1", "title": "x", "items": [
-                {"id": "F1.1", "title": "t", "desc": "d"}]}]))
+                {"id": "F1.1", "title": "t", "desc": "d"}]}]), crus=True)
             it = load(d5, "2026-07-27-teste")["phases"][0]["items"][0]
             check("requisito sobrevive a init que o omitiu", it.get("requisito") == "S-9.5")
             check("grupo sobrevive", it.get("grupo") == "Tela")
@@ -242,8 +290,14 @@ def main():
             fim = tick_out("F1.2")
             check("na última tarefa, o requisito é anunciado", "S-1.1 fechou (2/2 tarefas)" in fim)
             check("e o critério de aceite vem junto", "o comando sai 0" in fim)
-            check("o requisito NÃO virou estado no arquivo",
-                  "requisitos" not in load(planos, "2026-07-27-teste"))
+            # O eco é RELATÓRIO, não estado: o requisito não ganha `status`, senão
+            # seria estado duplicado — o mesmo motivo pelo qual a fase também não
+            # tem. (A chave `requisitos` PODE existir: é a fonte declarada, não
+            # estado. O que não pode é status dentro dela.)
+            salvo = load(planos, "2026-07-27-teste")
+            check("o requisito NÃO ganhou status no arquivo",
+                  all("status" not in r and "done_at" not in r
+                      for r in salvo.get("requisitos") or []))
         finally:
             shutil.rmtree(raiz, ignore_errors=True)
 
@@ -524,6 +578,46 @@ def main():
                   _levanta(lambda: ps.cmd_reabrir(Args(dir=d7, node="F1.1"))))
         finally:
             shutil.rmtree(d7, ignore_errors=True)
+
+        # O quarto estado do fio NÃO é aviso: citação que aponta pro nada recusa
+        # gravar. Sem isto ela apodrece em silêncio — foi assim que 7 de 154 itens
+        # de um plano real citaram artigo de lei sem ninguém conferir se existia.
+        print("requisito inexistente recusa gravar")
+        REQS = {"S-1.1": {"titulo": "Existe", "ca": "o comando sai 0",
+                          "ancora": None, "epico": "E1 — Base"}}
+        bom = sample(phases=[{"id": "F1", "title": "x", "items": [
+            {"id": "F1.1", "title": "t", "desc": "d", "requisito": "S-1.1"}]}])
+        check("requisito que existe passa", ps.validate(bom, reqs=REQS) is not None)
+        ruim = sample(phases=[{"id": "F1", "title": "x", "items": [
+            {"id": "F1.1", "title": "t", "desc": "d", "requisito": "S-99.9"}]}])
+        check("requisito inexistente é recusado",
+              _levanta(lambda: ps.validate(ruim, reqs=REQS)))
+        check("sem reqs a checagem não roda (projeto sem documento não é erro)",
+              ps.validate(ruim) is not None)
+
+        # O requisito é obrigatório; o LUGAR dele é opcional. Sem esta porta, todo
+        # projeto sem documento de requisitos volta a ter tarefa que não rastreia.
+        print("requisitos declarados no próprio plano")
+        com_bloco = dict(sample(phases=[{"id": "F1", "title": "x", "items": [
+            {"id": "F1.1", "title": "t", "desc": "d", "requisito": "S-2.1"}]}]),
+            requisitos=[{"id": "S-2.1", "titulo": "No plano", "ca": "sai 0",
+                         "epico": "E2 — Aqui"}])
+        lidos = ps._requisitos_do_plano(com_bloco)
+        check("lê o bloco do plano", sorted(lidos) == ["S-2.1"])
+        check("o bloco traz o critério de aceite", lidos["S-2.1"]["ca"] == "sai 0")
+        check("plano sem bloco devolve vazio", ps._requisitos_do_plano(sample()) == {})
+        check("o bloco do plano vence a cascata do projeto",
+              sorted(ps._requisitos_do_projeto(d, com_bloco)) == ["S-2.1"])
+        check("com o bloco, o requisito do plano é aceito",
+              ps.validate(com_bloco, reqs=lidos) is not None)
+
+        print("a vista não se sobrescreve nem é ignorada")
+        pv = sample(phases=[{"id": "F1", "title": "x", "items": [
+            {"id": "F1.1", "title": "t", "desc": "d", "requisito": "S-1.1"}]}])
+        hv = ps.render_html(pv, mode="track", reqs=REQS, vista="valor")
+        he = ps.render_html(pv, mode="track")
+        check("as duas vistas produzem html diferente", hv != he)
+        check("a vista de valor traz o épico", "E1 — Base" in hv)
 
         print("arquivo corrompido não derruba a listagem")
         before = len(ps.list_plans(d))

@@ -212,8 +212,20 @@ def erros_do_plano(plan, exigir=None):
     return errs
 
 
-def validate(plan, exigir=None):
+def validate(plan, exigir=None, reqs=None):
     errs = erros_do_plano(plan, exigir)
+    # Citação que aponta pro nada é o quarto estado do fio, e ele NÃO é aviso: é erro
+    # que recusa gravar. Sem isto a citação apodrece em silêncio — foi assim que 7 de
+    # 154 itens de um plano real citaram artigo de lei sem ninguém nunca conferir se o
+    # artigo existia. `reqs` vazio desliga a checagem: projeto sem documento de
+    # requisitos não é erro, é o caso comum.
+    if reqs:
+        for _, it in iter_items(plan):
+            rid = str(it.get("requisito", "")).strip()
+            if rid and rid not in reqs:
+                errs.append("%s requisito '%s': não existe no documento de requisitos.\n"
+                            "     Ids conhecidos: %s" % (it.get("id", "?"), rid,
+                                                         ", ".join(sorted(reqs)[:8]) or "(nenhum)"))
     if errs:
         raise PlanError("plano inválido:\n  - " + "\n  - ".join(errs))
     return plan
@@ -269,23 +281,28 @@ def cmd_init(args):
         validate(incoming)   # sem id não há arquivo pra achar; o validador explica
 
     path = plan_path(directory, incoming["id"])
-    # Cobra os campos novos só do item ACRESCENTADO a um plano que já está no
-    # disco: o arquivo que já existe é anterior à regra, e reescrever os itens
-    # dele não pode ser o preço de adotá-la.
-    novos = set()
+    # O que é COBRADO é a tarefa que nasce agora: todas, num plano novo; só as
+    # acrescentadas, num plano que já está no disco. O arquivo que já existe é
+    # anterior à regra, e reescrever os itens dele não pode ser o preço de adotá-la
+    # ("zero migração") — mas plano novo não tem essa desculpa, e deixá-lo passar
+    # faria o portão morder só a partir da SEGUNDA gravação, que é o caso raro.
+    antigos = set()
     if os.path.exists(path):
         try:
             with open(path, encoding="utf-8") as fh:
                 antigos = {n["id"] for ph in json.load(fh).get("phases", [])
                            for n in [ph] + ph.get("items", [])}
         except (OSError, ValueError, KeyError, TypeError):
-            antigos = None   # arquivo corrompido: trata como plano novo
-        if antigos is not None:
-            novos = {it.get("id") for ph in incoming.get("phases", []) or []
-                     if isinstance(ph, dict)
-                     for it in ph.get("items", []) or []
-                     if isinstance(it, dict) and it.get("id") not in antigos}
-    validate(incoming, exigir=novos)
+            # arquivo ilegível: não dá pra saber o que é velho, e cobrar tudo
+            # apagaria um plano em curso por causa de um byte torto. Não cobra.
+            antigos = None
+    novos = set() if antigos is None else {
+        it.get("id") for ph in incoming.get("phases", []) or []
+        if isinstance(ph, dict)
+        for it in ph.get("items", []) or []
+        if isinstance(it, dict) and it.get("id") not in antigos}
+    validate(incoming, exigir=novos,
+             reqs=_requisitos_do_projeto(directory, incoming))
 
     notes = []
     if os.path.exists(path):
@@ -399,13 +416,38 @@ def _erro_e_do_no(msg, plan, node_id):
     return False
 
 
-def _requisitos_do_projeto(directory):
-    """Acha o documento de requisitos, ou o bloco no próprio plano. {} se não houver.
+def _requisitos_do_plano(plan):
+    """Os requisitos declarados DENTRO do próprio arquivo do plano.
 
-    Cascata: $PLAN_REQS → <raiz>/docs/PRD.md → <raiz>/docs/REQUISITOS.md → {}.
-    Projeto sem documento de requisitos NÃO é erro — é o caso comum (spec §5.1).
+    O requisito é obrigatório; o LUGAR dele é opcional. Projeto com documento de
+    requisitos aponta pra lá; projeto sem documento — o caso deste repositório, que
+    não tem PRD — declara aqui. Sem esta porta, todo projeto sem PRD voltaria a ter
+    tarefa que não rastreia pra nada, que é o defeito que o fio existe pra fechar.
+
+    Formato, no topo do plano, ao lado de `phases`:
+        "requisitos": [{"id": "S-1.1", "titulo": "...", "ca": "...",
+                        "ancora": "Art. 6", "epico": "E1 — Base"}]
+    """
+    out = {}
+    for r in plan.get("requisitos") or []:
+        if isinstance(r, dict) and str(r.get("id", "")).strip():
+            out[r["id"].strip()] = {"titulo": r.get("titulo", ""), "ca": r.get("ca"),
+                                    "ancora": r.get("ancora"), "epico": r.get("epico")}
+    return out
+
+
+def _requisitos_do_projeto(directory, plan=None):
+    """Acha os requisitos. {} se não houver — e isso não é erro.
+
+    Cascata: bloco no próprio plano → $PLAN_REQS → <raiz>/docs/PRD.md →
+    <raiz>/docs/REQUISITOS.md → {}. O bloco vem primeiro porque é o mais específico:
+    quem o declarou no plano quis aquele conjunto, não o do projeto inteiro.
     """
     import cobertura
+    if plan is not None:
+        do_plano = _requisitos_do_plano(plan)
+        if do_plano:
+            return do_plano
     env = os.environ.get("PLAN_REQS")
     if env and os.path.exists(env):
         return cobertura.le_requisitos(env)
@@ -476,7 +518,7 @@ def cmd_tick(args):
     # que diverge — o mesmo motivo pelo qual a fase também não tem estado próprio.
     rid = str(it.get("requisito", "")).strip()
     if rid:
-        reqs = _requisitos_do_projeto(directory)
+        reqs = _requisitos_do_projeto(directory, plan)
         irmas = [x for _, x in iter_items(plan) if x.get("requisito") == rid]
         faltam = [x["id"] for x in irmas if x.get("status") != "done"]
         if not faltam and rid in reqs and reqs[rid].get("ca"):
@@ -493,7 +535,8 @@ def cmd_cobertura(args):
     directory = args.dir or resolve_dir()
     plan = pick_plan(directory, args.plan)
     import cobertura
-    reqs = cobertura.le_requisitos(args.reqs) if args.reqs else _requisitos_do_projeto(directory)
+    reqs = (cobertura.le_requisitos(args.reqs) if args.reqs
+            else _requisitos_do_projeto(directory, plan))
     m = cobertura.mapa(plan, reqs)
     if args.json:
         print(json.dumps(m, ensure_ascii=False))
@@ -722,10 +765,11 @@ def cmd_brief(args):
     seen_path = getattr(args, "mark_seen", None)
     seen = _seen_ids(seen_path)
     blocks, novos = [], []
-    reqs = _requisitos_do_projeto(directory)
     for plan in list_plans(directory):
         if plan.get("status") == "active":
-            blocks.append(brief_lines(plan, getattr(args, "nudge", None), reqs))
+            # por plano, não uma vez só: cada um pode declarar os próprios requisitos
+            blocks.append(brief_lines(plan, getattr(args, "nudge", None),
+                                      _requisitos_do_projeto(directory, plan)))
         elif args.closed_since is not None:   # 0 é epoch válido, e é falsy
             # Encerrado DEPOIS do marco → confirma. `--mark-seen` guarda quais
             # já foram confirmados: sem isso o 🏁 repetia a CADA turno até a
@@ -1008,10 +1052,12 @@ def cmd_render(args):
     directory = args.dir or resolve_dir()
     plan = pick_plan(directory, args.plan)
     if args.format == "text":
-        sys.stdout.write(render_text(plan, reqs=_requisitos_do_projeto(directory),
+        sys.stdout.write(render_text(plan, reqs=_requisitos_do_projeto(directory, plan),
                                      vista=getattr(args, "vista", "execucao")))
     else:
-        sys.stdout.write(render_html(plan, args.mode))
+        sys.stdout.write(render_html(plan, args.mode,
+                                     reqs=_requisitos_do_projeto(directory, plan),
+                                     vista=getattr(args, "vista", "execucao")))
     return 0
 
 
@@ -1090,7 +1136,7 @@ def cmd_page(args):
         '    <span class="chip primary">%d/%d feitos</span>' % (done, total),
         '    <span class="chip">📅 %s</span>' % time.strftime("%Y-%m-%d"),
         '  </div>',
-        render_html(plan, args.mode, reqs=_requisitos_do_projeto(directory),
+        render_html(plan, args.mode, reqs=_requisitos_do_projeto(directory, plan),
                     vista=getattr(args, "vista", "execucao")),
     ]
     if args.mode == "approve":
@@ -1115,7 +1161,11 @@ def cmd_page(args):
         vdir = (vis.stdout or "").strip()
         if not vdir:
             raise PlanError("não consegui resolver o diretório do /visual — passe --out")
-        out = os.path.join(vdir, "plano-%s-%s.html" % (plan["id"], args.mode))
+        # a vista entra no nome: sem ela, as duas árvores do mesmo plano gravam no
+        # mesmo arquivo e a última apaga a outra em silêncio
+        vista = getattr(args, "vista", "execucao")
+        sufixo = args.mode if vista == "execucao" else "%s-%s" % (args.mode, vista)
+        out = os.path.join(vdir, "plano-%s-%s.html" % (plan["id"], sufixo))
     os.makedirs(os.path.dirname(os.path.abspath(out)), exist_ok=True)
     with open(out, "w", encoding="utf-8") as fh:
         fh.write(page)

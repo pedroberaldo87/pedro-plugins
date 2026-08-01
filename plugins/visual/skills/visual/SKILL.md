@@ -192,11 +192,36 @@ Isso respeita a regra "existe exatamente UMA lista" (ver "Feedback channel" abai
 - **Épico e requisito** são do dono, no documento de requisitos (`docs/PRD.md`). O
   requisito carrega o **critério de aceite** e o **artigo da lei**.
 - **Grupo e tarefa** são seus, no arquivo do plano. A tarefa carrega **como se prova**.
-- Projeto **sem** documento de requisitos: os requisitos nascem num bloco no topo do
-  arquivo do plano. O requisito é obrigatório; o lugar dele é opcional.
+- Projeto **sem** documento de requisitos: declare-os num bloco `requisitos` no topo do
+  próprio plano, ao lado de `phases`. O requisito é obrigatório; o lugar dele é opcional.
+
+```json
+{
+  "id": "2026-08-01-meu-plano", "title": "…",
+  "requisitos": [
+    {"id": "S-1.1", "titulo": "O que o sistema deve fazer",
+     "ca": "como se sabe que ele faz", "ancora": "Art. 6", "epico": "E1 — Base"}
+  ],
+  "phases": [ … ]
+}
+```
+
+Onde os requisitos são procurados, nesta ordem: **o bloco no próprio plano** → `$PLAN_REQS`
+→ `docs/PRD.md` → `docs/REQUISITOS.md` → nenhum (e nenhum **não é erro**).
 
 **A árvore de valor é DERIVADA.** O arquivo guarda fase→tarefa; a vista de quatro níveis é
-calculada juntando com o documento de requisitos. Duas árvores sobre os mesmos itens.
+calculada juntando com os requisitos. Duas árvores sobre os mesmos itens.
+
+**As duas vistas, e como pedir cada uma:**
+
+```bash
+plan_state.py render --format text                  # execução: fase › tarefa (o padrão)
+plan_state.py render --format text --vista valor    # valor: épico › requisito › grupo › tarefa
+plan_state.py page --mode track --vista valor       # a mesma árvore, dobrável, no browser
+```
+
+A vista entra no nome do arquivo (`plano-<id>-track-valor.html`), então as duas convivem
+sem uma apagar a outra.
 
 ## Os campos da tarefa
 
@@ -207,7 +232,7 @@ calculada juntando com o documento de requisitos. Duas árvores sobre os mesmos 
 | `grupo` | não | a natureza do trabalho (Backend · Tela · Teste). Você infere; o dono não escreve |
 | `pendencia` | não | a decisão que falta. **Trava o tique** e vira ⛔ que sobe a árvore |
 
-## O fio — três estados, nunca um quarto
+## O fio — três estados, e um quarto que é erro
 
 `plan_state.py cobertura` mostra os dois lados: requisito sem tarefa (pedido que ninguém
 planejou) e tarefa sem requisito (trabalho que ninguém pediu). Tarefa citando requisito

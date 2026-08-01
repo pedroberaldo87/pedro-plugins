@@ -39,13 +39,24 @@ mk_transcript() {
 }
 
 mk_plan() {
+  # `requisitos`, `pronto` e `requisito` são obrigatórios desde 2026-08-01 em toda
+  # tarefa que nasce agora — e num plano de teste todas nascem agora.
   cat > "$ROOT/in.json" <<JSON
-{"id":"p-teste","title":"Plano de teste","phases":[
+{"id":"p-teste","title":"Plano de teste",
+ "requisitos":[{"id":"S-1.1","titulo":"Requisito do teste","ca":"o comando sai 0",
+                "epico":"E1 — Teste"}],
+ "phases":[
  {"id":"F1","title":"Fase um","items":[
-   {"id":"F1.1","title":"passo um","desc":"faz a coisa"},
-   {"id":"F1.2","title":"passo dois","desc":"faz a outra coisa"}]}]}
+   {"id":"F1.1","title":"passo um","desc":"faz a coisa",
+    "pronto":"o comando sai 0","requisito":"S-1.1"},
+   {"id":"F1.2","title":"passo dois","desc":"faz a outra coisa",
+    "pronto":"o comando sai 0","requisito":"S-1.1"}]}]}
 JSON
-  python3 "$PS" --dir "$PLANS" init --file "$ROOT/in.json" >/dev/null 2>&1
+  # SEM silenciar stderr: init recusado tem que quebrar o teste, não sumir
+  python3 "$PS" --dir "$PLANS" init --file "$ROOT/in.json" >/dev/null || {
+    echo "mk_plan: init recusado — o fixture está fora do schema" >&2
+    return 1
+  }
 }
 
 run_ss()  { printf '{"session_id":"%s","cwd":"%s"}' "$1" "$ROOT/proj" | bash "$SS" 2>/dev/null; }
