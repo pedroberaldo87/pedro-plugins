@@ -192,6 +192,61 @@ def main():
         check("fase fecha sozinha quando os passos fecham",
               ps.phase_status(p["phases"][0]) == "done")
 
+        print("validate no tick + pendencia")
+        d3 = tempfile.mkdtemp(prefix="plan-tick-")
+        try:
+            init_into(d3, sample(phases=[{"id": "F1", "title": "x", "items": [
+                {"id": "F1.1", "title": "a", "desc": "d"},
+                {"id": "F1.2", "title": "b", "desc": "d"},
+                {"id": "F1.3", "title": "c", "desc": "d",
+                 "pendencia": "zera quando ele olha, ou acumula?"}]}]))
+            arq = ps.plan_path(d3, "2026-07-27-teste")
+            plano = json.load(open(arq, encoding="utf-8"))
+            plano["phases"][0]["items"][0]["desc"] = "a" * 356   # edição à mão
+            json.dump(plano, open(arq, "w", encoding="utf-8"), ensure_ascii=False)
+
+            check("tique da tarefa DEFEITUOSA é recusado",
+                  _levanta(lambda: ps.cmd_tick(Args(dir=d3, node="F1.1",
+                                                    evidencia="rodei e passou"))))
+            ps.cmd_tick(Args(dir=d3, node="F1.2", evidencia="rodei e passou"))
+            check("tique de OUTRA tarefa passa com o plano sujo",
+                  load(d3, "2026-07-27-teste")["phases"][0]["items"][1]["status"] == "done")
+            check("pendencia aberta recusa o tique",
+                  _levanta(lambda: ps.cmd_tick(Args(dir=d3, node="F1.3",
+                                                    evidencia="rodei e passou"))))
+        finally:
+            shutil.rmtree(d3, ignore_errors=True)
+
+        print("o critério de aceite ecoa quando o requisito fecha")
+        raiz = tempfile.mkdtemp(prefix="plan-ca-")
+        try:
+            import io
+            import contextlib
+            os.makedirs(os.path.join(raiz, "docs"))
+            planos = os.path.join(raiz, ".claude", "plans")
+            os.makedirs(planos)
+            with open(os.path.join(raiz, "docs", "PRD.md"), "w", encoding="utf-8") as fh:
+                fh.write("## E1 — Base\n\n"
+                         "- **S-1.1 Eco do critério** · F1 — corpo. CA: o comando sai 0.\n")
+            init_into(planos, sample(phases=[{"id": "F1", "title": "x", "items": [
+                {"id": "F1.1", "title": "a", "desc": "d", "requisito": "S-1.1"},
+                {"id": "F1.2", "title": "b", "desc": "d", "requisito": "S-1.1"}]}]))
+
+            def tick_out(node):
+                buf = io.StringIO()
+                with contextlib.redirect_stdout(buf):
+                    ps.cmd_tick(Args(dir=planos, node=node, evidencia="rodei e passou"))
+                return buf.getvalue()
+
+            check("com tarefa irmã em aberto, não ecoa nada", "S-1.1 fechou" not in tick_out("F1.1"))
+            fim = tick_out("F1.2")
+            check("na última tarefa, o requisito é anunciado", "S-1.1 fechou (2/2 tarefas)" in fim)
+            check("e o critério de aceite vem junto", "o comando sai 0" in fim)
+            check("o requisito NÃO virou estado no arquivo",
+                  "requisitos" not in load(planos, "2026-07-27-teste"))
+        finally:
+            shutil.rmtree(raiz, ignore_errors=True)
+
         print("state")
         raises("done via state é recusado (só tick tem prova)",
                lambda: ps.cmd_state(Args(dir=d, node="F2.1", value="done")), "só via tick")

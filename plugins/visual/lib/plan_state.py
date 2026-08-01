@@ -386,6 +386,37 @@ def merge(stored, incoming, renames=None):
     return incoming, notes
 
 
+def _erro_e_do_no(msg, plan, node_id):
+    """A mensagem cita a tarefa `node_id`?
+
+    `erros_do_plano` prefixa com 'fase[i] passo[j]', que são POSIÇÕES e não ids.
+    Traduz a posição do nó procurado e casa pelo prefixo.
+    """
+    for pi, ph in enumerate(plan.get("phases", [])):
+        for ii, it in enumerate(ph.get("items", [])):
+            if it.get("id") == node_id:
+                return msg.startswith("fase[%d] passo[%d]" % (pi, ii))
+    return False
+
+
+def _requisitos_do_projeto(directory):
+    """Acha o documento de requisitos, ou o bloco no próprio plano. {} se não houver.
+
+    Cascata: $PLAN_REQS → <raiz>/docs/PRD.md → <raiz>/docs/REQUISITOS.md → {}.
+    Projeto sem documento de requisitos NÃO é erro — é o caso comum (spec §5.1).
+    """
+    import cobertura
+    env = os.environ.get("PLAN_REQS")
+    if env and os.path.exists(env):
+        return cobertura.le_requisitos(env)
+    raiz = os.path.dirname(os.path.dirname(os.path.abspath(directory)))
+    for cand in ("docs/PRD.md", "docs/REQUISITOS.md"):
+        p = os.path.join(raiz, cand)
+        if os.path.exists(p):
+            return cobertura.le_requisitos(p)
+    return {}
+
+
 def cmd_tick(args):
     directory = args.dir or resolve_dir()
     plan = pick_plan(directory, args.plan)
@@ -398,6 +429,29 @@ def cmd_tick(args):
     ph, it = find_item(plan, node_id)
     if it is None:
         raise PlanError("passo '%s' não existe no plano '%s'" % (node_id, plan["id"]))
+
+    # O validador passa a morder aqui: até 2026-08-01 ele só rodava no init, e por isso
+    # um desc de 356 chars sobreviveu num plano cujo teto é 140. Só BLOQUEIA por defeito
+    # DA TAREFA TICADA — defeito alheio vira aviso, senão uma tarefa torta congelaria o
+    # plano inteiro (fail-open: bloquear precisa de evidência sobre o alvo).
+    erros = erros_do_plano(plan)
+    do_alvo = [e for e in erros if _erro_e_do_no(e, plan, node_id)]
+    if do_alvo:
+        raise PlanError("⛔ tick recusado: %s está fora do schema.\n  - %s"
+                        % (node_id, "\n  - ".join(do_alvo)))
+    if erros:
+        print("⚠️  %d defeito(s) em outras tarefas (não bloqueiam este tique):" % len(erros),
+              file=sys.stderr)
+        for e in erros[:3]:
+            print("     %s" % e, file=sys.stderr)
+
+    pend = str(it.get("pendencia", "")).strip()
+    if pend:
+        raise PlanError(
+            "⛔ tick recusado: %s tem decisão em aberto.\n   %s\n\n"
+            "   Feche a decisão antes de marcar feito. Em execução autônoma o motor de\n"
+            "   decisão escreve a escolha em `decidido` e apaga a `pendencia` —\n"
+            "   ver plugins/visual/skills/visual/SKILL.md, 'Motor de decisão'." % (node_id, pend))
 
     ev = (args.evidencia or "").strip()
     if len(ev) < EVIDENCE_MIN:
@@ -417,6 +471,21 @@ def cmd_tick(args):
     print("✅ %s concluído  ·  %s agora %d/%d  ·  plano %d/%d" % (node_id, ph["id"], pd, pt, d, t))
     if d == t:
         print("   🏁 todos os passos fechados — encerre com: plan_state.py close %s" % plan["id"])
+
+    # Relatório, não estado: o requisito NÃO ganha `status`. Estado duplicado é estado
+    # que diverge — o mesmo motivo pelo qual a fase também não tem estado próprio.
+    rid = str(it.get("requisito", "")).strip()
+    if rid:
+        reqs = _requisitos_do_projeto(directory)
+        irmas = [x for _, x in iter_items(plan) if x.get("requisito") == rid]
+        faltam = [x["id"] for x in irmas if x.get("status") != "done"]
+        if not faltam and rid in reqs and reqs[rid].get("ca"):
+            print()
+            print("🎯 %s fechou (%d/%d tarefas). O critério de aceite era:"
+                  % (rid, len(irmas), len(irmas)))
+            print("   %s" % reqs[rid]["ca"])
+            print("   → confira antes de seguir. O motor não verifica critério de aceite;")
+            print("     ele lembra, e quem confere é você.")
     return 0
 
 
