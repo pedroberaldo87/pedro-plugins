@@ -25,6 +25,8 @@ scope:
   - plugins/context-guard/hooks/context-guard-writer.sh
   - plugins/ship/hooks/pre-deploy-test-check.sh
   - plugins/visual/lib/visual_page.py
+  - plugins/visual/lib/plan_state.py
+  - plugins/visual/lib/cobertura.py
   - plugins/slides/lib/md2deck.py
   - scripts/hook_contract.py
   - .claude-plugin/marketplace.json
@@ -40,6 +42,8 @@ verified-by:
   - plugins/guardrails/hooks/test_setup_skill.sh
   - plugins/ship/hooks/test_pre_deploy.sh
   - plugins/visual/lib/test_visual_page.py
+  - plugins/visual/lib/test_plan_state.py
+  - plugins/visual/lib/test_cobertura.py
   - plugins/slides/lib/test_md2deck.py
   - scripts/sync-shared.sh
   - scripts/hook_contract.py
@@ -355,6 +359,47 @@ def _rich(s): ...   # só `code` e **negrito**, sobre o texto JÁ escapado
 
 Corolário no `visual_page.py:extract_block`: bloco canônico é **extraído do template.html**, nunca redigitado — *"foi uma cópia redigitada em prosa que divergiu do template e produziu página sem `.live-indicator`"*.
 
+### 2.5 Gate de duas camadas: valida nas duas pontas, bloqueia só pelo alvo
+
+**Padrão novo nesta rodada**, nascido de um defeito medido. `plan_state.py` validava o plano só no `init`; quem editasse o arquivo à mão depois passava incólume. O comentário registra o resultado [confirmado, citação literal]:
+
+> O validador passa a morder aqui: até 2026-08-01 ele só rodava no `init`, e por isso um `desc` de 356 chars sobreviveu num plano cujo teto é 140.
+
+A correção **não** foi rodar o validador inteiro no `tick` e abortar em qualquer erro — isso congelaria o plano todo por causa de uma tarefa torta que ninguém está mexendo. A forma é esta [confirmado, `plan_state.py:cmd_tick`]:
+
+```python
+erros = erros_do_plano(plan)
+do_alvo = [e for e in erros if _erro_e_do_no(e, plan, node_id)]
+if do_alvo:
+    raise PlanError("⛔ tick recusado: %s está fora do schema.…")
+if erros:
+    print("⚠️  %d defeito(s) em outras tarefas (não bloqueiam este tique):", file=sys.stderr)
+```
+
+As três propriedades que fazem o padrão fechar:
+
+- **A validação roda nas duas portas de escrita** (`init` e `tick`). Gate que só mora na porta de entrada não protege arquivo que tem segunda porta.
+- **O bloqueio exige evidência SOBRE O ALVO.** É o fail-open do §1.1 aplicado dentro do Python, com a direção segura escolhida por escopo em vez de por tipo de erro: *"bloquear precisa de evidência sobre o alvo"*. Defeito alheio vira aviso em stderr, cortado nos 3 primeiros.
+- **Traduzir posição em identidade é parte do padrão, não detalhe.** `erros_do_plano` prefixa com `fase[i] passo[j]`, que são **posições**; `_erro_e_do_no()` existe só para casar essas posições com o `id` do nó ticado. Sem essa tradução não há como separar erro do alvo de erro alheio, e o gate volta a ser tudo-ou-nada.
+
+**Régua durável: gate que valida no caminho de escrita tardio precisa dizer de QUEM é o defeito antes de decidir se bloqueia.** Bloquear por defeito alheio é como um arquivo com 154 tarefas fica impossível de tocar por causa da 37ª.
+
+### 2.6 O dado é obrigatório; o LUGAR dele é opcional (cascata de fontes)
+
+Também novo nesta rodada, e é o par do §2.5: o `requisito` virou campo obrigatório em tarefa nova, mas exigir também um *documento* de requisitos teria transformado a regra em bloqueio para todo projeto sem PRD — inclusive este repositório. A saída é uma cascata explícita [confirmado, `plan_state.py:_requisitos_do_projeto`]:
+
+```
+bloco `requisitos` no próprio plano  →  $PLAN_REQS  →  <raiz>/docs/PRD.md
+                                    →  <raiz>/docs/REQUISITOS.md  →  {}
+```
+
+- **O mais específico vem primeiro**, e a docstring diz por quê: *"quem o declarou no plano quis aquele conjunto, não o do projeto inteiro"*.
+- **O fim da cascata é `{}`, e `{}` não é erro.** *"Projeto sem documento de requisitos não é erro, é o caso comum"* — dicionário vazio **desliga** a checagem de citação órfã em vez de reprovar tudo. É a mesma escolha do §2.2: "não sei" ≠ "zero".
+- **A checagem que o dicionário liga é dura.** Com requisitos conhecidos, tarefa que cita um id inexistente **recusa a gravação inteira** — não é aviso. O comentário traz a medida: *"7 de 154 itens de um plano real citaram artigo de lei sem ninguém nunca conferir se o artigo existia"*.
+- **Quem calcula não guarda.** `cobertura.py` (79 linhas, arquivo novo) lê, cruza e devolve; a vista "épico › requisito › grupo › tarefa" é **derivada em toda leitura**, nunca gravada — mesmo princípio de `phase_status`, que deriva o estado da fase dos passos porque *"estado duplicado é estado que diverge"*.
+
+**Régua durável: quando um campo passa a ser obrigatório, a fonte que o valida precisa de cascata com fundo vazio — senão a regra nova vira bloqueio para todo projeto que ainda não tem a estrutura que ela pressupõe.**
+
 ---
 
 ## 3 · Vendoring de `_shared/` (o único "build")
@@ -418,7 +463,18 @@ Consumidores declarados no próprio cabeçalho: *"Fase Gate do qa-loop (grava), 
 4. **Rode as suites do plugin tocado** (§6) — os checks D e F do release-gate fazem isso no commit.
 5. **Plugin novo entra em TRÊS arquivos**: `plugin.json`, `marketplace.json` e `plugins/bootstrap/config/manifest.json`. Catálogo diz *o que existe pra instalar*; receita diz *o que a máquina instala*. Quem cobra é `conformance.py:check_catalogo` [confirmado, li a função], **não** o `release-gate.sh` — então o commit **passa** com a receita desatualizada e o desvio só aparece no próximo `bootstrap:setup`. A docstring nomeia o modo de falha: *"Plugin que entra no catalogo e nao entra na receita nunca chega em maquina nenhuma — e ninguem descobre, porque nada mais compara os dois lados."*
 
-**Estado do catálogo neste run** [confirmado — derivado com `python3` sobre `.claude-plugin/marketplace.json`]: **19** entradas em `plugins`; `bootstrap` está em **1.8.5**, igual ao `plugins/bootstrap/.claude-plugin/plugin.json` [confirmado, os dois lidos]. Dos 19, apenas `grill-me` e `grill-with-docs` trazem chave `author`, e nas duas ela é **objeto** — a forma que o `validate` aceita.
+**Estado do catálogo neste run** [confirmado — derivado com `python3` sobre `.claude-plugin/marketplace.json` e sobre os 19 `plugin.json`]: **19** entradas em `plugins`, e o espelho do check B **fecha nas 19** — nenhuma diverge. Dos 19, apenas `grill-me` e `grill-with-docs` trazem chave `author`, e nas duas ela é **objeto**, a forma que o `validate` aceita.
+
+Duas versões subiram nesta rodada, e elas são exatamente os dois plugins tocados:
+
+```
+visual         1.8.6 → 1.9.1      (o fio requisito↔tarefa, a vista de valor, o motor de decisão)
+intent-guard   0.5.4 → 0.6.0      (a contagem de furos da régua de forma)
+```
+
+As demais seguem onde estavam: `archify` 2.11.0 · `bootstrap` 1.8.5 · `branches` 1.0.2 · `context-guard` 1.3.3 · `fallow` 1.0.7 · `graphify-guard` 1.1.4 · `grill-me` 1.0.0 · `grill-with-docs` 1.0.0 · `guardrails` 1.5.2 · `handoff` 1.8.5 · `improve` 1.0.3 · `principles` 1.0.2 · `project-doc` 3.18.4 · `qa-loop` 1.7.2 · `ship` 1.3.9 · `slides` 1.3.2 · `sovai` 1.8.2.
+
+⚠️ **O salto do `visual` foi de 1.8.6 para 1.9.1 — cinco bumps, não um.** É o que a regra 1 produz quando o trabalho sai em vários commits (`git log --oneline` mostra 5 commits do `visual` nesta rodada): **a `version` acompanha o COMMIT, não a entrega.** Quem lê o catálogo procurando "o que mudou" não acha a resposta no número; acha no diff.
 
 ### 5.2 O gate mecânico de commit
 
@@ -550,44 +606,6 @@ A origem é caso real, registrada no comentário: *"a resposta trouxe a varredur
 ⚠️ **A régua exige o teste do lado que ela não pode pegar**, e aqui isso virou desenho de suíte [confirmado — `test_bootstrap_hooks.sh`, comentário literal]: as 4 perguntas abertas do teste *"tambem disparam a fechada de proposito: so passam se a exclusao de pergunta aberta estiver viva. Sem isso o caso passaria por nao casar nada."* [confirmado — suíte verde nesta rodada: `36 ok · 0 FAIL`].
 
 `ultima_pergunta_usuario` também filtra o que **não** é pergunta: *"resultado de ferramenta e lembrete do sistema entram como 'user' e nao sao pergunta"* — descarta texto com `<system-reminder>` ou que comece com `<`.
-
-### 5.7 Validador que roda em dois momentos, e bloqueia só pelo alvo
-
-Padrão que nasceu de um defeito medido: `plan_state.py:validate` só rodava no `init`, e por
-isso um campo `desc` editado à mão para 356 caracteres sobreviveu num plano cujo teto é 140
-[confirmado — `plan_state.py:erros_do_plano`, `DESC_MAX = 140`].
-
-O conserto tem duas metades, e a segunda é a que importa como padrão:
-
-- **`erros_do_plano(plan, exigir=None, ...)` devolve a lista**; `validate` é o invólucro que
-  levanta. Quem chama escolhe entre decidir sobre a lista ou explodir.
-- **`cmd_tick` roda o validador no plano inteiro mas só RECUSA por defeito da tarefa que está
-  sendo marcada** — defeito em outra tarefa vira aviso em `stderr` e o tique passa
-  [confirmado, `plan_state.py:_erro_e_do_no`].
-
-A razão é o mesmo fail-open das §1.1: **bloquear precisa de evidência sobre o alvo**. Sem essa
-separação, um único item torto congelaria o plano inteiro — e num arquivo de 157 tarefas que
-nasceu antes da regra, isso é a diferença entre adotar o portão e ter que reescrever tudo.
-
-Vale como forma sempre que um gate passa a valer sobre dado que já existe: **cobra do que
-nasce agora, avisa sobre o que já estava lá, e nunca trava o trabalho por dívida alheia.** No
-`cmd_init` a mesma regra aparece como `exigir` — o conjunto dos ids que não estão no arquivo
-em disco [confirmado, suíte: `plano NOVO sem os campos é recusado` e `o item que JÁ estava no
-disco continua entrando sem os campos`].
-
-### 5.8 O obrigatório é o dado; o LUGAR dele é uma cascata
-
-`plan_state.py:_requisitos_do_projeto` procura os requisitos em quatro fontes, parando na
-primeira que responde [confirmado, li a função]: o bloco `requisitos` **dentro do próprio
-plano** → `$PLAN_REQS` → `docs/PRD.md` → `docs/REQUISITOS.md` → `{}`.
-
-O bloco vem primeiro porque é o mais específico: quem o declarou no plano quis aquele conjunto,
-não o do projeto inteiro. E `{}` **não é erro** — projeto sem documento de requisitos é o caso
-comum, inclusive o deste repositório (`ls docs/*.md` não casa nada).
-
-O padrão que isso resolve: uma regra que exige um dado externo morre no projeto que não tem o
-artefato externo. Dar ao dado um endereço local **opcional** mantém a regra viva em todo lugar
-sem obrigar ninguém a criar documento que não quer.
 
 ---
 
