@@ -269,7 +269,7 @@ Cada bloco abaixo diz o mesmo em variações: existe no disco desta máquina, n�
 ### 3.8 · Cache de suite verde — `~/.claude/green-suite/`
 
 - [confirmado] Fora do repo por desenho: `_shared/green-cache.sh` define `GREEN_SUITE_DIR="${GREEN_SUITE_DIR:-$HOME/.claude/green-suite}"` com o motivo no cabeçalho — *NUNCA dentro do plugin, o cache `${CLAUDE_PLUGIN_ROOT}` é reescrito a cada bump de versão*.
-- [confirmado] **48** arquivos, **192K**.
+- [confirmado] **35** arquivos, **140K** (eram 48 / 192K — a poda de 7 dias alcançou os mais velhos).
 - **Perder isto não custa nada.** A semântica é fail-open na direção segura: qualquer erro vira MISS e a suite roda. TTL por linha em `GREEN_SUITE_TTL_SECS` (default `86400`), e `green_cache_mark()` faz `find "$GREEN_SUITE_DIR" -type f -mtime +7 -delete` — o próprio código já poda. É o único depósito deste documento cuja perda é um não-evento.
 - Costura verificada nos dois lados [confirmado]: a fonte é `_shared/green-cache.sh`, as cópias vendoradas são `plugins/qa-loop/lib/green-cache.sh` e `plugins/ship/hooks/green-cache.sh`, e o consumidor concreto é `plugins/ship/hooks/pre-deploy-test-check.sh`.
 
@@ -281,7 +281,7 @@ Cada bloco abaixo diz o mesmo em variações: existe no disco desta máquina, n�
 ### 3.10 · Estado do live-sync do `/visual` — `~/.claude/visual-state/`
 
 - [confirmado] `plugins/visual/server/visual_server.mjs` define `const STATE_DIR = path.join(os.homedir(), '.claude', 'visual-state')` e escreve `<session>.json` mais um `latest.json` a cada POST do browser.
-- [confirmado] **280** arquivos, **1,3M**.
+- [confirmado] **282** arquivos, **1,3M**. Continua sem prune.
 - Costura verificada nos dois lados [confirmado]: `visual_server.mjs` escreve `latest.json`; `plugins/guardrails/hooks/scope-cop.sh` lê o mesmo caminho — `VISUAL_STATE="$HOME/.claude/visual-state/latest.json"` — para descobrir se há plano em curso. Um lado escreve, o outro lê, hoje.
 - Perda: o estado por sessão é descartável (o HTML é regerado); o `config.json` é o que dói menos e some mais fácil.
 
@@ -298,7 +298,7 @@ Cada bloco abaixo diz o mesmo em variações: existe no disco desta máquina, n�
 
 ### 3.12 · Logs dos vigias de edição e de pergunta — `~/.claude/guardrails/`
 
-- [confirmado] **520K**. `plugins/guardrails/hooks/scope-cop.sh` define `HOOK_DIR="${CLAUDE_CONFIG_DIR:-$HOME/.claude}/guardrails"`, com `MODE_FILE="$HOOK_DIR/scope-cop.mode"` e `LOG_FILE="$HOOK_DIR/scope-cop.log"`; `plugins/guardrails/hooks/askq-humanize.sh` usa `HOOK_DIR="$HOME/.claude/guardrails"` e `LOG_FILE="$HOOK_DIR/askq.log"`.
+- [confirmado] **680K**. `plugins/guardrails/hooks/scope-cop.sh` define `HOOK_DIR="${CLAUDE_CONFIG_DIR:-$HOME/.claude}/guardrails"`, com `MODE_FILE="$HOOK_DIR/scope-cop.mode"` e `LOG_FILE="$HOOK_DIR/scope-cop.log"`; `plugins/guardrails/hooks/askq-humanize.sh` usa `HOOK_DIR="$HOME/.claude/guardrails"` e `LOG_FILE="$HOOK_DIR/askq.log"`.
 - ⚠️ [confirmado] Os dois resolvem o diretório de forma **diferente**: o scope-cop respeita `CLAUDE_CONFIG_DIR`, o askq usa `$HOME` fixo. Numa máquina com `CLAUDE_CONFIG_DIR` setado, os dois logs caem em pastas distintas.
 - Auto-poda embutida: ambos truncam o log (`tail -n 2000` no scope-cop, `tail -n 1000` no askq). O arquivo não cresce sem limite — e isso significa que **o registro antigo já é descartado por desenho**, antes de qualquer questão de backup.
 - Ao lado dos logs há sentinelas por sessão (`scope-cop.blockstreak.<session-id>`, `askq.count.<session-id>`), descartáveis.
