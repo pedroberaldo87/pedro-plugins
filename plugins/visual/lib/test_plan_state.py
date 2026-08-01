@@ -120,6 +120,47 @@ def main():
               _levanta(lambda: ps.validate(sample(phases=[{"id": "F1", "title": "x", "items": [
                   {"id": "F1.1", "title": "t", "desc": "a" * 200}]}]))))
 
+        print("os quatro campos")
+        bom = sample(phases=[{"id": "F1", "title": "x", "items": [
+            {"id": "F1.1", "title": "t", "desc": "d", "pronto": "`pytest -q` passa",
+             "requisito": "S-9.5", "grupo": "Tela", "pendencia": "qual o padrão da URL?"}]}])
+        check("os quatro campos passam", ps.erros_do_plano(bom) == [])
+        magro = sample(phases=[{"id": "F1", "title": "x", "items": [
+            {"id": "F1.1", "title": "t", "desc": "d"}]}])
+        check("sem exigir, item sem os campos passa", ps.erros_do_plano(magro) == [])
+        errs = ps.erros_do_plano(magro, exigir={"F1.1"})
+        check("exigido, falta pronto E requisito", len(errs) == 2)
+        check("a mensagem do pronto diz COMO se prova",
+              any("pronto" in e and "prova" in e for e in errs))
+        check("a mensagem do requisito diz UM",
+              any("requisito" in e and "um" in e.lower() for e in errs))
+
+        print("init cobra só do item novo")
+        d2 = tempfile.mkdtemp(prefix="plan-novo-")
+        try:
+            init_into(d2, magro)
+            check("plano antigo entra sem os campos", load(d2) is not None)
+            com_novo = sample(phases=[{"id": "F1", "title": "x", "items": [
+                {"id": "F1.1", "title": "t", "desc": "d"},
+                {"id": "F1.2", "title": "novo", "desc": "d"}]}])
+            check("item NOVO sem pronto/requisito derruba o init",
+                  _levanta(lambda: init_into(d2, com_novo)))
+        finally:
+            shutil.rmtree(d2, ignore_errors=True)
+
+        print("init preserva os campos")
+        d5 = tempfile.mkdtemp(prefix="plan-preserva-")
+        try:
+            init_into(d5, bom)
+            init_into(d5, sample(phases=[{"id": "F1", "title": "x", "items": [
+                {"id": "F1.1", "title": "t", "desc": "d"}]}]))
+            it = load(d5, "2026-07-27-teste")["phases"][0]["items"][0]
+            check("requisito sobrevive a init que o omitiu", it.get("requisito") == "S-9.5")
+            check("grupo sobrevive", it.get("grupo") == "Tela")
+            check("pronto sobrevive", it.get("pronto") == "`pytest -q` passa")
+        finally:
+            shutil.rmtree(d5, ignore_errors=True)
+
         print("init")
         init_into(d, sample())
         p = load(d)
@@ -186,7 +227,8 @@ def main():
         grown = sample()
         grown["phases"][0]["title"] = "Primeira fase (reescrita pelo modelo)"
         grown["phases"][1]["items"].append(
-            {"id": "F2.2", "title": "Passo quatro", "desc": "acrescentado depois"})
+            {"id": "F2.2", "title": "Passo quatro", "desc": "acrescentado depois",
+             "pronto": "aparece na árvore", "requisito": "S-1.1"})
         init_into(d, grown)
         p = load(d)
         check("passo novo acrescentado", ps.find_item(p, "F2.2")[1] is not None)

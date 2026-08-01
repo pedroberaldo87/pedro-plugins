@@ -190,6 +190,22 @@ def erros_do_plano(plan, exigir=None):
             elif len(desc) > DESC_MAX:
                 errs.append("%s desc: %d chars, máximo %d — é UMA linha, não um parágrafo"
                             % (itag, len(desc), DESC_MAX))
+            for campo, teto in (("pronto", DESC_MAX), ("pendencia", DESC_MAX),
+                                ("grupo", 40), ("requisito", 40)):
+                v = str(it.get(campo, "")).strip()
+                if v and len(v) > teto:
+                    errs.append("%s %s: %d chars, máximo %d" % (itag, campo, len(v), teto))
+            if exigir and iid in exigir:
+                if not str(it.get("pronto", "")).strip():
+                    errs.append(
+                        "%s pronto: obrigatório — COMO se prova que esta tarefa terminou.\n"
+                        "     Um comando que roda, um arquivo:linha que passa a existir,\n"
+                        "     uma tela que muda. Sem isso 'feito' vira palpite." % itag)
+                if not str(it.get("requisito", "")).strip():
+                    errs.append(
+                        "%s requisito: obrigatório — o id do requisito que esta tarefa\n"
+                        "     atende, exatamente um. Tarefa que atende dois requisitos são\n"
+                        "     duas tarefas: é essa regra que torna a tarefa atômica." % itag)
             st = it.get("status", "todo")
             if st not in STATUSES:
                 errs.append("%s status '%s': use %s" % (itag, st, "|".join(STATUSES)))
@@ -249,9 +265,28 @@ def cmd_init(args):
         incoming = json.loads(raw)
     except ValueError as exc:
         raise PlanError("JSON inválido: %s" % exc)
-    validate(incoming)
+    if not isinstance(incoming, dict) or not isinstance(incoming.get("id"), str):
+        validate(incoming)   # sem id não há arquivo pra achar; o validador explica
 
     path = plan_path(directory, incoming["id"])
+    # Cobra os campos novos só do item ACRESCENTADO a um plano que já está no
+    # disco: o arquivo que já existe é anterior à regra, e reescrever os itens
+    # dele não pode ser o preço de adotá-la.
+    novos = set()
+    if os.path.exists(path):
+        try:
+            with open(path, encoding="utf-8") as fh:
+                antigos = {n["id"] for ph in json.load(fh).get("phases", [])
+                           for n in [ph] + ph.get("items", [])}
+        except (OSError, ValueError, KeyError, TypeError):
+            antigos = None   # arquivo corrompido: trata como plano novo
+        if antigos is not None:
+            novos = {it.get("id") for ph in incoming.get("phases", []) or []
+                     if isinstance(ph, dict)
+                     for it in ph.get("items", []) or []
+                     if isinstance(it, dict) and it.get("id") not in antigos}
+    validate(incoming, exigir=novos)
+
     notes = []
     if os.path.exists(path):
         with open(path, encoding="utf-8") as fh:
@@ -308,6 +343,12 @@ def merge(stored, incoming, renames=None):
                 node["status"] = old.get("status", "todo")
                 node["evidence"] = old.get("evidence")
                 node["done_at"] = old.get("done_at")
+                # registro histórico: um init que omite não pode apagar, pelo mesmo
+                # motivo que não apaga a prova. `pendencia` entra com a diferença de
+                # que declará-la vazia É resolvê-la de propósito.
+                for campo in ("requisito", "grupo", "pronto", "pendencia", "decidido"):
+                    if campo not in node and old.get(campo) is not None:
+                        node[campo] = old.get(campo)
 
     if conflicts:
         lines = ["⛔ init recusado: %d nó(s) já existem com outro título." % len(conflicts),
