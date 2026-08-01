@@ -869,18 +869,19 @@ def _render_valor(plan, reqs):
         out.append("")
 
     if m["sem_requisito"]:
-        out.append("⚠️ %d tarefa(s) sem requisito — trabalho que ninguém pediu:"
-                   % len(m["sem_requisito"]))
+        out.append("⚠️ %s sem requisito — trabalho que ninguém pediu:"
+                   % _plural(len(m["sem_requisito"]), "tarefa"))
         out.append("   %s" % ", ".join(m["sem_requisito"]))
         out.append("")
     if m["orfaos"]:
-        out.append("🔴 %d requisito(s) sem nenhuma tarefa — pedido que ninguém planejou:"
-                   % len(m["orfaos"]))
+        out.append("🔴 %s sem nenhuma tarefa — pedido que ninguém planejou:"
+                   % _plural(len(m["orfaos"]), "requisito"))
         for rid in m["orfaos"]:
             out.append("   %s  %s" % (rid, reqs.get(rid, {}).get("titulo", "")))
         out.append("")
     if m["inexistentes"]:
-        out.append("⛔ %d tarefa(s) citam requisito que não existe:" % len(m["inexistentes"]))
+        out.append("⛔ %s citando requisito que não existe:"
+                   % _plural(len(m["inexistentes"]), "tarefa"))
         for tid, rid in m["inexistentes"]:
             out.append("   %s → %s" % (tid, rid))
     return "\n".join(out).rstrip() + "\n"
