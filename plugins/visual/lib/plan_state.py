@@ -489,6 +489,29 @@ def cmd_tick(args):
     return 0
 
 
+def cmd_cobertura(args):
+    directory = args.dir or resolve_dir()
+    plan = pick_plan(directory, args.plan)
+    import cobertura
+    reqs = cobertura.le_requisitos(args.reqs) if args.reqs else _requisitos_do_projeto(directory)
+    m = cobertura.mapa(plan, reqs)
+    if args.json:
+        print(json.dumps(m, ensure_ascii=False))
+        return 0
+    print(cobertura.resumo(m))
+    if not reqs:
+        print("   (nenhum documento de requisitos encontrado — veja PLAN_REQS)")
+    for chave, rotulo in (("sem_requisito", "⚠️ tarefas sem requisito"),
+                          ("orfaos", "🔴 requisitos sem tarefa"),
+                          ("inexistentes", "⛔ citando requisito inexistente")):
+        if m[chave]:
+            print()
+            print("%s (%d):" % (rotulo, len(m[chave])))
+            for x in m[chave]:
+                print("   %s" % (x if isinstance(x, str) else "%s → %s" % x))
+    return 0
+
+
 def cmd_state(args):
     directory = args.dir or resolve_dir()
     plan = pick_plan(directory, args.plan)
@@ -594,7 +617,7 @@ def _plural(n, s, p=None):
     return "%d %s" % (n, s if n == 1 else (p or s + "s"))
 
 
-def brief_lines(plan, nudge=None):
+def brief_lines(plan, nudge=None, reqs=None):
     """As linhas de um plano. Lista vazia = não há o que dizer.
 
     TETO DE 3 BULLETS, e ele é do pedido: "3 bullets curtos" e "dentro dos
@@ -602,6 +625,11 @@ def brief_lines(plan, nudge=None):
     4º — ela toma o lugar do "Falta", que é o mais dedutível dos três (falta =
     total − feito) e o menos urgente naquele momento. A conta vive aqui, num
     lugar testável, e não montada em pedaços pelo shell.
+
+    `reqs` faz a cobertura aparecer SEM ser pedida: transparente é o número
+    estar onde o plano já está, não num comando que alguém precisa lembrar de
+    rodar. Disputa o mesmo slot do "Falta"; com cobrança, a cobrança ganha,
+    porque ela fala do que acabou de acontecer nesta sessão.
     """
     s = summary(plan)
     done, total = s["done"], s["total"]
@@ -642,6 +670,12 @@ def brief_lines(plan, nudge=None):
                  % (_plural(falta, "passo"),
                     (" · %s %s" % ("fase" if len(resto) == 1 else "fases", ", ".join(resto)))
                     if resto else ""))
+    if reqs:
+        import cobertura
+        m = cobertura.mapa(plan, reqs)
+        if m["sem_requisito"] or m["inexistentes"]:
+            lines[-1] = ("• **Cobertura:** %s. Quem está sem requisito e qual requisito "
+                         "ficou sem tarefa: `plan_state.py cobertura`." % cobertura.resumo(m))
     if nudge:
         lines[-1] = "• " + nudge.strip().lstrip("• ").strip()
     return lines
@@ -662,9 +696,10 @@ def cmd_brief(args):
     seen_path = getattr(args, "mark_seen", None)
     seen = _seen_ids(seen_path)
     blocks, novos = [], []
+    reqs = _requisitos_do_projeto(directory)
     for plan in list_plans(directory):
         if plan.get("status") == "active":
-            blocks.append(brief_lines(plan, getattr(args, "nudge", None)))
+            blocks.append(brief_lines(plan, getattr(args, "nudge", None), reqs))
         elif args.closed_since is not None:   # 0 é epoch válido, e é falsy
             # Encerrado DEPOIS do marco → confirma. `--mark-seen` guarda quais
             # já foram confirmados: sem isso o 🏁 repetia a CADA turno até a
@@ -1109,6 +1144,12 @@ def build_parser():
     q.add_argument("--nudge", help="cobrança a incluir: ENTRA NO LUGAR do bullet 'Falta', "
                                    "nunca como 4º (o teto de 3 é do pedido)")
     q.set_defaults(func=cmd_brief)
+
+    q = sub.add_parser("cobertura", help="o mapa entre requisito e tarefa, os dois lados")
+    q.add_argument("plan", nargs="?")
+    q.add_argument("--reqs", help="caminho do documento de requisitos (default: cascata)")
+    q.add_argument("--json", action="store_true")
+    q.set_defaults(func=cmd_cobertura)
 
     q = sub.add_parser("open", help="lista os planos abertos")
     q.add_argument("--json", action="store_true")
