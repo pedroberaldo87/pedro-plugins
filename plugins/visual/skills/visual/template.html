@@ -1041,13 +1041,26 @@ h2 {
   margin: 16px 0 22px;
   overflow: hidden;
 }
+/* A prova nasce FECHADA e a linha de origem é o que se clica. Motivo do dono:
+   "que seja algo colapsável que começa colapsado. que eu possa abrir SE EU QUISER."
+   Saída de 30 linhas empurra a decisão pra fora da tela, e a página existe pra decidir.
+   `<details open>` (prova curta, ou `aberto: true` no spec) usa o mesmo estilo. */
 .evidencia-src {
   display: flex; flex-wrap: wrap; gap: 6px 14px; align-items: baseline;
   padding: 9px 14px;
   background: rgba(127,209,174,0.07);
   border-bottom: 1px solid var(--border);
   font-size: 12px; color: var(--text-dim);
+  cursor: pointer; list-style: none; user-select: none;
 }
+.evidencia-src::-webkit-details-marker { display: none; }
+.evidencia:not([open]) .evidencia-src { border-bottom-color: transparent; }
+.evidencia-src:hover { background: rgba(127,209,174,0.12); }
+.evidencia-conta { margin-left: auto; color: var(--text-dim); font-size: 11px;
+                   font-variant-numeric: tabular-nums; }
+.evidencia-chev { color: var(--ok); font-size: 13px; transition: transform .15s; }
+.evidencia[open] .evidencia-chev { transform: rotate(90deg); }
+@media (prefers-reduced-motion: reduce) { .evidencia-chev { transition: none; } }
 .evidencia-src .lbl { color: var(--ok); font-weight: 800; font-size: 10.5px; letter-spacing: 0.08em; text-transform: uppercase; }
 .evidencia-src code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; color: var(--text); font-size: 12px; }
 .evidencia pre, pre.raw {

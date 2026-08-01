@@ -144,6 +144,10 @@ python3 $PS brief
 {
   "id": "2026-07-27-slug-do-plano",
   "title": "O plano em uma linha",
+  "requisitos": [
+    {"id": "S-1.1", "titulo": "O que o sistema deve fazer",
+     "ca": "como se sabe que ele faz"}
+  ],
   "phases": [
     {
       "id": "F1",
@@ -151,12 +155,18 @@ python3 $PS brief
       "detail": ["🔧 Como: …", "💡 Por quê: …", "📁 Toca em: …"],
       "items": [
         {"id": "F1.1", "title": "o passo, pode ser técnico",
-         "desc": "UMA linha didática do que ele faz — é o que aparece na árvore"}
+         "desc": "UMA linha didática do que ele faz — é o que aparece na árvore",
+         "requisito": "S-1.1", "pronto": "`python3 lib/test_x.py` sai 0"}
       ]
     }
   ]
 }
 ```
+
+Este bloco grava como está: `requisito` e `pronto` são **obrigatórios** em toda tarefa
+nova (ver "Os campos da tarefa"), e o id citado tem que existir na fonte de requisitos —
+por isso o exemplo carrega o bloco `requisitos` junto. Onde os requisitos já moram noutro
+lugar (`docs/PRD.md`), o bloco sai e o `requisito` cita o id de lá.
 
 - `id` de fase casa `F<n>`; de passo, `F<n>.<m>` com o prefixo da própria fase. **O id é a identidade** — é por ele que se diz "tica o F2.3".
 - `desc` é **obrigatório e no máximo 140 caracteres**. O título pode ser técnico; a linha de baixo, nunca. Um parágrafo ali é recusado pelo schema.
@@ -236,7 +246,11 @@ sem uma apagar a outra.
 
 `plan_state.py cobertura` mostra os dois lados: requisito sem tarefa (pedido que ninguém
 planejou) e tarefa sem requisito (trabalho que ninguém pediu). Tarefa citando requisito
-inexistente **recusa gravar o plano** — sem isso a citação apodrece em silêncio.
+inexistente **recusa gravar o plano quando o projeto tem fonte de requisitos** (o bloco no
+plano, `$PLAN_REQS`, `docs/PRD.md` ou `docs/REQUISITOS.md`) — sem isso a citação apodrece
+em silêncio. **Sem fonte de requisitos a checagem não roda**: o `init` grava, o `brief`
+não acusa nada, e conferir vira trabalho seu — rode `plan_state.py cobertura` à mão, ou
+declare o bloco `requisitos` no plano e ganhe a recusa de volta.
 
 O número aparece sem ser pedido: na árvore, na tela, no início de sessão, no fim de turno.
 

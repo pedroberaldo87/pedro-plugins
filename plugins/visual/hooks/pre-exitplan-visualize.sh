@@ -71,7 +71,13 @@ if [ -n "$RECENT_VISUAL" ]; then
   # modo de falha real: decisão pedida sem artefato, sem saída e sem procedência.
   # grep -c já imprime 0 quando não acha (e sai 1) — nada de "|| echo 0", que
   # somaria um segundo zero e quebraria a comparação numérica.
-  DECIDE=$(grep -c 'class="decision-card\|class="feedback-item' "$RECENT_VISUAL" 2>/dev/null)
+  # `feedback-item pt-phase` fica FORA da conta: é o veredito de fase que o
+  # próprio `plan_state.py page --mode approve` desenha — o controle de aprovação
+  # de trabalho que ainda não aconteceu, não uma conclusão afirmada. Contá-lo
+  # fazia o gate barrar exatamente a página que ele manda gerar duas telas abaixo,
+  # e o modelo ficava preso entre duas ordens do mesmo arquivo.
+  DECIDE=$(grep 'class="decision-card\|class="feedback-item' "$RECENT_VISUAL" 2>/dev/null \
+           | grep -vc 'class="feedback-item pt-phase')
   PROVA=$(grep -c 'class="evidencia"\|class="artefato"\|<pre' "$RECENT_VISUAL" 2>/dev/null)
   VAZIO=$(grep -c 'class="evidencia vazio' "$RECENT_VISUAL" 2>/dev/null)
   ISENTO=$(grep -c 'visual-sem-evidencia:' "$RECENT_VISUAL" 2>/dev/null)
@@ -124,8 +130,18 @@ concluído sem estar. Foi assim que planos se perderam antes.
 
 Antes de chamar ExitPlanMode de novo:
 
-  1. Escreva o plano em JSON (fases F1..Fn, passos F1.1.., cada passo com uma
-     linha didática de no máximo 140 chars no campo "desc").
+  1. Escreva o plano em JSON. Todo passo NOVO precisa dos quatro campos — sem
+     "requisito" e "pronto" o init recusa o arquivo inteiro:
+
+     {"id": "meu-plano", "title": "Meu plano",
+      "requisitos": [{"id": "S-1.1", "titulo": "o que o usuário ganha",
+                      "ca": "como se aceita isso", "epico": "E1 — Nome do épico"}],
+      "phases": [{"id": "F1", "title": "Fase um", "items": [
+        {"id": "F1.1", "title": "passo um",
+         "desc": "uma linha didática de no máximo 140 chars",
+         "pronto": "COMO se prova que este passo terminou",
+         "requisito": "S-1.1"}]}]}
+
   2. python3 \${CLAUDE_PLUGIN_ROOT}/lib/plan_state.py init --file <arquivo.json>
   3. Daí em diante NUNCA reescreva o plano — só marque:
      python3 \${CLAUDE_PLUGIN_ROOT}/lib/plan_state.py tick F1.2 --evidencia "<prova>"
@@ -141,7 +157,7 @@ PLANFILE
 
   cat >&2 << FEEDBACK
 📊 Visual HTML da sessão atual já existe: $RECENT_VISUAL
-Prova presente ($PROVA bloco(s)) e plano em arquivo. Prossiga com a apresentação.
+Prova: $PROVA bloco(s) · plano em arquivo. Prossiga com a apresentação.
 FEEDBACK
   exit 0
 fi
@@ -167,7 +183,18 @@ $PLAN_CONTENT
 Passos obrigatórios ANTES de chamar ExitPlanMode de novo:
 
 1. Invoque a skill 'visual' (Skill tool com name='visual')
-2. Grave o plano como ARQUIVO (é o que o faz sobreviver ao /clear e ao handoff):
+2. Grave o plano como ARQUIVO (é o que o faz sobreviver ao /clear e ao handoff).
+   Todo passo NOVO precisa de "requisito" e "pronto" — sem eles o init recusa:
+
+   {"id": "meu-plano", "title": "Meu plano",
+    "requisitos": [{"id": "S-1.1", "titulo": "o que o usuário ganha",
+                    "ca": "como se aceita isso", "epico": "E1 — Nome do épico"}],
+    "phases": [{"id": "F1", "title": "Fase um", "items": [
+      {"id": "F1.1", "title": "passo um",
+       "desc": "uma linha didática de no máximo 140 chars",
+       "pronto": "COMO se prova que este passo terminou",
+       "requisito": "S-1.1"}]}]}
+
    python3 \${CLAUDE_PLUGIN_ROOT}/lib/plan_state.py init --file <plano.json>
 3. Monte a página a partir dele (não escreva a árvore à mão):
    python3 \${CLAUDE_PLUGIN_ROOT}/lib/plan_state.py page --mode approve

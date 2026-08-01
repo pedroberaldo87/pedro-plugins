@@ -8,11 +8,52 @@
 set -uo pipefail
 
 INPUT=$(cat 2>/dev/null) || exit 0
-CMD=$(printf '%s' "$INPUT" | python3 -c \
-  'import json,sys; print(json.load(sys.stdin).get("tool_input",{}).get("command",""))' 2>/dev/null) || exit 0
 
-# só reage a git commit; `git commit --amend`/`-am` incluídos
-printf '%s' "$CMD" | grep -qE '(^|[;&|]|&&)[[:space:]]*git[[:space:]]+.*commit' || exit 0
+# O gatilho não pode depender da FORMA do comando. O grep ancorado em início-de-linha
+# (ou logo depois de ; & |) que morava aqui deixava passar `env FOO=1 git commit`,
+# `(git commit …)`, `bash -c "git commit …"` e `VAR=x git commit` — e com eles saíam,
+# calados, os oito checks abaixo. Foi assim que 7 de 9 commits de uma rodada foram
+# sem bump. Ele também disparava em `git log --grep commit`, que não commita nada:
+# falso positivo ensina a contornar, e contornar desliga tudo.
+# Aqui o comando é QUEBRADO em tokens (inclusive por (, ), ; e aspas, que é o que
+# recupera as quatro formas) e o subcomando do git é lido de verdade, pulando as
+# opções globais e os valores delas.
+GATILHO=$(printf '%s' "$INPUT" | python3 -c '
+import json, re, sys
+
+try:
+    cmd = json.load(sys.stdin).get("tool_input", {}).get("command", "") or ""
+except Exception:
+    sys.exit(1)
+
+toks = [t for t in re.split(r"""[\s;&|()<>"'"'"'`]+""", cmd) if t]
+GLOBAL_VALOR = {"-c", "-C", "--git-dir", "--work-tree", "--namespace", "--exec-path"}
+COMMIT_VALOR = {"-m", "--message", "-F", "--file", "-C", "--reuse-message",
+                "-c", "--reedit-message", "--author", "--date", "-t",
+                "--template", "--fixup", "--squash", "--trailer"}
+
+for i, t in enumerate(toks):
+    if t != "git" and not t.endswith("/git"):
+        continue
+    j = i + 1
+    while j < len(toks) and toks[j].startswith("-"):
+        j += 2 if toks[j] in GLOBAL_VALOR else 1
+    if j >= len(toks) or toks[j] != "commit":
+        continue
+    # As aspas somem no split, então a mensagem vira token solto e um "--amend"
+    # escrito DENTRO dela passaria por flag. Só as opções coladas no subcomando
+    # contam: o primeiro token que não é opção nem valor de opção encerra.
+    amend, k = False, j + 1
+    while k < len(toks) and toks[k].startswith("-"):
+        if toks[k] == "--amend":
+            amend = True
+            break
+        k += 2 if toks[k] in COMMIT_VALOR else 1
+    print("amend" if amend else "commit")
+    sys.exit(0)
+sys.exit(1)
+' 2>/dev/null) || exit 0
+[ -n "$GATILHO" ] || exit 0
 
 ROOT=$(git rev-parse --show-toplevel 2>/dev/null) || exit 0
 [ -f "$ROOT/.claude-plugin/marketplace.json" ] || exit 0   # não é este monorepo
@@ -37,16 +78,21 @@ ${OUT}
 fi
 
 # B+C · espelho plugin.json↔marketplace.json e bump esquecido
-PYOUT=$(cd "$ROOT" && printf '%s\n' "$FILES" | python3 -c '
+PYOUT=$(cd "$ROOT" && printf '%s\n' "$FILES" | GATE_AMEND="$GATILHO" python3 -c '
 import json, subprocess, sys, os, re
 
 files = [l.strip() for l in sys.stdin if l.strip()]
 mk = {e["name"]: e.get("version") for e in json.load(open(".claude-plugin/marketplace.json"))["plugins"]}
 viol = []
 
+# Em `--amend` o HEAD É o commit que está sendo reescrito: comparar com ele acusava
+# BUMP ESQUECIDO de uma version que já estava dentro do próprio commit. O antes de
+# verdade é HEAD~1. (Amend do commit raiz: `git show` falha e nada é acusado.)
+BASE = "HEAD~1:" if os.environ.get("GATE_AMEND") == "amend" else "HEAD:"
+
 def head_json(path):
     try:
-        return json.loads(subprocess.run(["git", "show", "HEAD:" + path],
+        return json.loads(subprocess.run(["git", "show", BASE + path],
                                          capture_output=True, text=True, check=True).stdout)
     except Exception:
         return None

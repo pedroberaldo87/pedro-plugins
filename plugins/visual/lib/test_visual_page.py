@@ -203,6 +203,30 @@ check("highlight aplicado no texto JÁ escapado",
           V.r_evidencia({"src": "s", "output": "x <b> y", "highlight": "<b>"}, {})))
 
 
+# ── a prova nasce fechada ──────────────────────────────────────────────────
+#
+# Saída crua de 30 linhas empurra a decisão pra fora da tela — e a página existe
+# pra decidir, não pra ler log. Pedido do dono: "que eu possa abrir SE EU QUISER".
+
+print("\n[evidência colapsável]")
+_longa = "\n".join("linha %d" % i for i in range(30))
+_h_longa = "\n".join(V.r_evidencia({"src": "cmd", "output": _longa}, {}))
+check("prova longa nasce FECHADA", "<details class=\"evidencia\">" in _h_longa)
+check("e não traz o atributo open", " open>" not in _h_longa)
+check("a origem virou o que se clica", "<summary class=\"evidencia-src\">" in _h_longa)
+check("mostra quantas linhas tem, fechada", "30 linhas" in _h_longa)
+
+_h_curta = "\n".join(V.r_evidencia({"src": "cmd", "output": "1 linha só"}, {}))
+check("prova curta nasce ABERTA (não empurra nada)", " open>" in _h_curta)
+
+_h_forcada = "\n".join(V.r_evidencia({"src": "cmd", "output": _longa, "aberto": True}, {}))
+check("'aberto: true' força a longa a abrir", " open>" in _h_forcada)
+
+check("o conteúdo continua lá, fechado ou não", "linha 29" in _h_longa)
+check("as classes que o CSS precisa são emitidas",
+      "evidencia-conta" in _h_longa and "evidencia-chev" in _h_longa)
+
+
 # ── rótulos relabelados (o /qa-loop) ───────────────────────────────────────
 
 print("\n[relabel — o /qa-loop troca os rótulos, nunca os valores]")
