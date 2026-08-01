@@ -100,6 +100,25 @@ def list_plans(directory):
     return out
 
 
+def le_plano(path):
+    """Lê UM arquivo de plano nomeando-o quando ele não abre.
+
+    `json.load` cru mata o programa com traceback e rc=1, sem dizer sequer qual
+    arquivo está torto — e o plano é justamente o registro que este módulo existe
+    pra não perder. Quem lista (`list_plans`) segue engolindo: um arquivo torto não
+    pode derrubar a listagem dos outros.
+    """
+    try:
+        with open(path, encoding="utf-8") as fh:
+            return json.load(fh)
+    except OSError as exc:
+        raise PlanError("plano ilegível em %s: %s" % (path, exc))
+    except ValueError as exc:
+        raise PlanError("plano ilegível em %s: %s\n"
+                        "   O arquivo existe e não é JSON válido. Conserte-o à mão —\n"
+                        "   é o registro do que já foi feito, e nada aqui o reescreve." % (path, exc))
+
+
 def pick_plan(directory, plan_id=None):
     """Resolve QUAL plano. Com id, é o id. Sem id, o único ativo — e é erro
     quando há 0 ou 2+, porque adivinhar aqui é como o plano se perde."""
@@ -107,8 +126,7 @@ def pick_plan(directory, plan_id=None):
         path = plan_path(directory, plan_id)
         if not os.path.exists(path):
             raise PlanError("plano '%s' não existe em %s" % (plan_id, directory))
-        with open(path, encoding="utf-8") as fh:
-            return json.load(fh)
+        return le_plano(path)
     active = [p for p in list_plans(directory) if p.get("status") == "active"]
     if not active:
         raise PlanError("nenhum plano ativo em %s" % directory)
@@ -209,6 +227,13 @@ def erros_do_plano(plan, exigir=None):
             st = it.get("status", "todo")
             if st not in STATUSES:
                 errs.append("%s status '%s': use %s" % (itag, st, "|".join(STATUSES)))
+            # Quem escreve o JSON do init é o modelo, e sem isto `status: "done"`
+            # entrava à mão com `evidence: null` — o mesmo "concluído sem estar" que o
+            # tick recusa. O teto da prova é o mesmo dos dois lados, senão há dois.
+            elif st == "done" and len(str(it.get("evidence") or "").strip()) < EVIDENCE_MIN:
+                errs.append(
+                    "%s status 'done' sem prova: marcar feito é `tick <id> --evidencia`,\n"
+                    "     que grava a prova junto. Escrito à mão, 'concluído' é palpite." % itag)
     return errs
 
 
@@ -281,33 +306,36 @@ def cmd_init(args):
         validate(incoming)   # sem id não há arquivo pra achar; o validador explica
 
     path = plan_path(directory, incoming["id"])
+    stored = le_plano(path) if os.path.exists(path) else None
     # O que é COBRADO é a tarefa que nasce agora: todas, num plano novo; só as
     # acrescentadas, num plano que já está no disco. O arquivo que já existe é
     # anterior à regra, e reescrever os itens dele não pode ser o preço de adotá-la
     # ("zero migração") — mas plano novo não tem essa desculpa, e deixá-lo passar
     # faria o portão morder só a partir da SEGUNDA gravação, que é o caso raro.
     antigos = set()
-    if os.path.exists(path):
+    if stored is not None:
         try:
-            with open(path, encoding="utf-8") as fh:
-                antigos = {n["id"] for ph in json.load(fh).get("phases", [])
-                           for n in [ph] + ph.get("items", [])}
-        except (OSError, ValueError, KeyError, TypeError):
-            # arquivo ilegível: não dá pra saber o que é velho, e cobrar tudo
-            # apagaria um plano em curso por causa de um byte torto. Não cobra.
+            antigos = {n["id"] for ph in stored.get("phases", [])
+                       for n in [ph] + ph.get("items", [])}
+        except (AttributeError, KeyError, TypeError):
+            # estrutura torta: não dá pra saber o que é velho, e cobrar tudo
+            # apagaria um plano em curso por causa de um nó sem id. Não cobra.
             antigos = None
     novos = set() if antigos is None else {
         it.get("id") for ph in incoming.get("phases", []) or []
         if isinstance(ph, dict)
         for it in ph.get("items", []) or []
         if isinstance(it, dict) and it.get("id") not in antigos}
+    # O bloco de requisitos que vai FICAR gravado é o do init quando ele traz um, e o
+    # do arquivo quando não traz (o merge o preserva). Validar a citação contra outro
+    # conjunto é validar contra o que não vai ficar — foi assim que o init que apagava
+    # a fonte era o mesmo que deixava de conferir as citações.
+    fonte = incoming if stored is None or _requisitos_do_plano(incoming) else stored
     validate(incoming, exigir=novos,
-             reqs=_requisitos_do_projeto(directory, incoming))
+             reqs=_requisitos_do_projeto(directory, fonte))
 
     notes = []
-    if os.path.exists(path):
-        with open(path, encoding="utf-8") as fh:
-            stored = json.load(fh)
+    if stored is not None:
         incoming, notes = merge(stored, incoming, renames=dict(args.rename or []))
     else:
         incoming.setdefault("created", time.strftime("%Y-%m-%d"))
@@ -360,12 +388,12 @@ def merge(stored, incoming, renames=None):
                 node["status"] = old.get("status", "todo")
                 node["evidence"] = old.get("evidence")
                 node["done_at"] = old.get("done_at")
-                # registro histórico: um init que omite não pode apagar, pelo mesmo
-                # motivo que não apaga a prova. `pendencia` entra com a diferença de
-                # que declará-la vazia É resolvê-la de propósito.
-                for campo in ("requisito", "grupo", "pronto", "pendencia", "decidido"):
-                    if campo not in node and old.get(campo) is not None:
-                        node[campo] = old.get(campo)
+            # registro histórico: um init que omite não pode apagar, pelo mesmo
+            # motivo que não apaga a prova. Vale pra FASE também — é nela que mora o
+            # `detail`, o único lugar do 🔧 Como / 💡 Por quê / 📁 Toca em.
+            for campo in ("requisito", "grupo", "pronto", "pendencia", "decidido", "detail"):
+                if campo not in node and old.get(campo) is not None:
+                    node[campo] = old.get(campo)
 
     if conflicts:
         lines = ["⛔ init recusado: %d nó(s) já existem com outro título." % len(conflicts),
@@ -398,6 +426,13 @@ def merge(stored, incoming, renames=None):
 
     for key in ("created", "status"):
         incoming[key] = stored.get(key, incoming.get(key))
+    # O topo do plano segue a MESMA regra dos nós: o que o init não trouxe vem do
+    # arquivo. Uma lista fixa de chaves apagava tudo o que não estivesse nela — e o
+    # que morava ali era o bloco `requisitos` (a fonte que as tarefas citam) e o
+    # `closed_at`. Pra apagar de propósito, declare a chave vazia, como na `pendencia`.
+    for key, valor in stored.items():
+        if key not in incoming:
+            incoming[key] = valor
     incoming.setdefault("created", time.strftime("%Y-%m-%d"))
     incoming.setdefault("status", "active")
     return incoming, notes
@@ -487,13 +522,20 @@ def cmd_tick(args):
         for e in erros[:3]:
             print("     %s" % e, file=sys.stderr)
 
-    pend = str(it.get("pendencia", "")).strip()
+    # Quem resolve a pendência é a DECISÃO registrada, não a ausência do campo: o init
+    # que omite a `pendencia` não a apaga (o merge preserva o que o init não trouxe), e
+    # o autor do plano não tem que saber que existe um merge pra conseguir destravar.
+    # A pergunta continua no arquivo — é dela que o `reabrir` vive.
+    dec = it.get("decidido")
+    pend = "" if isinstance(dec, dict) and str(dec.get("escolha", "")).strip() \
+        else str(it.get("pendencia", "")).strip()
     if pend:
         raise PlanError(
             "⛔ tick recusado: %s tem decisão em aberto.\n   %s\n\n"
-            "   Feche a decisão antes de marcar feito. Em execução autônoma o motor de\n"
-            "   decisão escreve a escolha em `decidido` e apaga a `pendencia` —\n"
-            "   ver plugins/visual/skills/visual/SKILL.md, 'Motor de decisão'." % (node_id, pend))
+            "   Feche a decisão antes de marcar feito. Quem destrava é o registro: o\n"
+            "   motor de decisão escreve a escolha em `decidido` e o tique volta a\n"
+            "   passar — ver plugins/visual/skills/visual/SKILL.md, 'Motor de decisão'."
+            % (node_id, pend))
 
     ev = (args.evidencia or "").strip()
     if len(ev) < EVIDENCE_MIN:
@@ -686,6 +728,16 @@ def _plural(n, s, p=None):
     return "%d %s" % (n, s if n == 1 else (p or s + "s"))
 
 
+def _com_prova(plan):
+    """Todo passo marcado tem prova anexada?
+
+    O brief é o texto que o hook de fim de turno mostra ao usuário; afirmar prova
+    sem olhar a `evidence` é a mesma mentira que o módulo existe pra impedir.
+    """
+    return all(str(it.get("evidence") or "").strip()
+               for _, it in iter_items(plan) if it.get("status") == "done")
+
+
 def brief_lines(plan, nudge=None, reqs=None):
     """As linhas de um plano. Lista vazia = não há o que dizer.
 
@@ -703,12 +755,14 @@ def brief_lines(plan, nudge=None, reqs=None):
     s = summary(plan)
     done, total = s["done"], s["total"]
     pd, pt = len(s["phases_done"]), s["phases_total"]
+    provado = _com_prova(plan)
+    prova = ", cada um com prova anexada" if provado else ""
 
     if s["status"] != "active":
         if done == total and total:
             return ["🏁 **PLANO ENCERRADO — %s**" % s["title"],
-                    "• Os %s das %s foram concluídos, cada um com prova anexada."
-                    % (_plural(total, "passo"), _plural(pt, "fase")),
+                    "• Os %s das %s foram concluídos%s."
+                    % (_plural(total, "passo"), _plural(pt, "fase"), prova),
                     "• O arquivo fica em `.claude/plans/%s` como registro do que foi feito." % s["path"]]
         return ["🏁 **PLANO ENCERRADO (incompleto) — %s**" % s["title"],
                 "• %d de %d passos marcados; %s ficaram sem marcar."
@@ -717,16 +771,17 @@ def brief_lines(plan, nudge=None, reqs=None):
 
     if total and done == total:
         return ["✅ **CONCLUÍDO — %s**" % s["title"],
-                "• Os %s das %s estão marcados, cada um com prova anexada."
-                % (_plural(total, "passo"), _plural(pt, "fase")),
+                "• Os %s das %s estão marcados%s."
+                % (_plural(total, "passo"), _plural(pt, "fase"), prova),
                 "• Nada ficou em aberto neste plano. Encerre com `plan_state.py close` "
                 "pra ele parar de aparecer aqui."]
 
     lines = ["📍 **Onde estamos — %s**" % s["title"]]
     if pd:
-        lines.append("• **Feito:** %d de %d passos · %s %s fechada%s, com prova em cada passo."
+        lines.append("• **Feito:** %d de %d passos · %s %s fechada%s%s."
                      % (done, total, _plural(pd, "fase"),
-                        "(%s)" % ", ".join(s["phases_done"]), "" if pd == 1 else "s"))
+                        "(%s)" % ", ".join(s["phases_done"]), "" if pd == 1 else "s",
+                        ", com prova em cada passo" if provado else ""))
     else:
         lines.append("• **Feito:** %d de %d passos — nenhuma fase fechou ainda." % (done, total))
     nx = s["next"]
@@ -802,6 +857,24 @@ MARK = {"done": "✅", "doing": "🔄", "blocked": "⛔", "todo": "⬜"}
 DOT = {"done": "●", "doing": "◐", "blocked": "✕", "todo": "○"}
 
 
+def _detalhe(it):
+    """A linha de baixo do item, e a classe com que ela vai pro HTML.
+
+    Uma regra só, lida pelas duas vistas: a PROVA quando o passo está feito, a decisão
+    em aberto quando ela trava o tique, a linha didática no resto. Enquanto eram duas
+    cópias, a `pendencia` era invisível justo na vista em que o dono aprova o plano —
+    o motor recusava o tique por um bloqueio que a página nunca tinha mostrado.
+    """
+    st = it.get("status", "todo")
+    ev = str(it.get("evidence") or "").strip()
+    if st == "done" and ev:
+        return "prova: " + ev, "pt-evidence"
+    pend = str(it.get("pendencia", "")).strip()
+    if pend:
+        return "⛔ falta decidir: " + pend, "pt-desc"
+    return it.get("desc", "") or "", "pt-desc"
+
+
 def render_text(plan, reqs=None, vista="execucao"):
     if vista == "valor":
         return _render_valor(plan, reqs or {})
@@ -813,9 +886,7 @@ def render_text(plan, reqs=None, vista="execucao"):
         for it in ph["items"]:
             st = it.get("status", "todo")
             out.append("     %s %s  %s" % (DOT[st], it["id"], it["title"]))
-            detail = it.get("evidence") if st == "done" else it.get("desc")
-            prefix = "prova: " if st == "done" and it.get("evidence") else ""
-            out.append("            %s%s" % (prefix, detail or it.get("desc", "")))
+            out.append("            %s" % _detalhe(it)[0])
         out.append("")
     return "\n".join(out).rstrip() + "\n"
 
@@ -833,6 +904,24 @@ def _render_valor(plan, reqs):
     done, total = plan_progress(plan)
     out = ["📋 %s — %d/%d tarefas" % (plan.get("title", plan["id"]), done, total),
            "   %s" % cobertura.resumo(m), ""]
+
+    sem_eixo = _sem_eixo(m, idx)
+    if sem_eixo:
+        todas = [it for _, it in iter_items(plan)]
+        out.append("⚠️ %s" % SEM_REQ_AVISO)
+        out.append("")
+        out.append("▸ sem requisito   %s  %d/%d%s"
+                   % (_plural(len(todas), "tarefa"),
+                      sum(1 for t in todas if t.get("status") == "done"),
+                      len(todas), _marcas(todas)))
+        for g, gt in sorted(_por_grupo(todas).items()):
+            out.append("    ▸ %s   %s  %d/%d%s"
+                       % (g, _plural(len(gt), "tarefa"),
+                          sum(1 for t in gt if t.get("status") == "done"),
+                          len(gt), _marcas(gt)))
+            for t in gt:
+                out.extend(_tarefa_txt(t, "        "))
+        out.append("")
 
     por_epico = {}
     for rid in sorted(m["por_req"]):
@@ -863,12 +952,11 @@ def _render_valor(plan, reqs):
                            % (g, len(gt), sum(1 for t in gt if t.get("status") == "done"),
                               len(gt), _marcas(gt)))
                 for t in gt:
-                    out.append("            %s %s  %s%s"
-                               % (DOT[t.get("status", "todo")], t["id"], t["title"],
-                                  _marcas([t])))
+                    out.extend(_tarefa_txt(t, "            "))
         out.append("")
 
-    if m["sem_requisito"]:
+    # a lista de ids não se repete: sem eixo, a árvore acima JÁ é ela inteira
+    if m["sem_requisito"] and not sem_eixo:
         out.append("⚠️ %s sem requisito — trabalho que ninguém pediu:"
                    % _plural(len(m["sem_requisito"]), "tarefa"))
         out.append("   %s" % ", ".join(m["sem_requisito"]))
@@ -885,6 +973,41 @@ def _render_valor(plan, reqs):
         for tid, rid in m["inexistentes"]:
             out.append("   %s → %s" % (tid, rid))
     return "\n".join(out).rstrip() + "\n"
+
+
+SEM_REQ_AVISO = (
+    "Nenhuma tarefa declara requisito ainda — sem esse fio não há eixo de valor pra "
+    "desenhar. Abaixo estão as tarefas do plano, agrupadas em «sem requisito»; declare "
+    "`requisito` nelas pra esta vista virar o que promete.")
+
+
+def _sem_eixo(m, idx):
+    """A vista de valor tem plano pra mostrar, mas não tem requisito nenhum?
+
+    Medido em 14 planos reais: 0 tarefas com `requisito` em 14 deles. Sair em branco
+    num plano de 157 tarefas afirma, por omissão, que não há trabalho — o oposto do
+    arquivo. Então quando o eixo não existe, a vista diz isso e desenha o que existe.
+    """
+    return bool(idx) and not m["por_req"]
+
+
+def _por_grupo(itens):
+    grupos = {}
+    for t in itens:
+        grupos.setdefault(t.get("grupo") or "(sem grupo)", []).append(t)
+    return grupos
+
+
+def _tarefa_txt(t, ind):
+    """A tarefa no texto da vista de valor. A prova entra porque 'feito' sem prova
+    anexada é exatamente o que este módulo existe pra impedir — e era no eixo de
+    valor, onde se decide se um requisito fechou, que ela não aparecia."""
+    linhas = ["%s%s %s  %s%s" % (ind, DOT[t.get("status", "todo")], t["id"],
+                                 t["title"], _marcas([t]))]
+    ev = str(t.get("evidence") or "").strip()
+    if t.get("status") == "done" and ev:
+        linhas.append("%s    prova: %s" % (ind, ev))
+    return linhas
 
 
 def _marcas(itens):
@@ -951,10 +1074,8 @@ def render_html(plan, mode="track", reqs=None, vista="execucao"):
             parts.append('        <span class="pt-dot">%s</span>' % DOT[ist])
             parts.append('        <span class="pt-item-title"><span class="pt-id">%s</span>%s</span>'
                          % (_e(it["id"]), _e(it["title"])))
-            if ist == "done" and it.get("evidence"):
-                parts.append('        <span class="pt-evidence">prova: %s</span>' % _e(it["evidence"]))
-            else:
-                parts.append('        <span class="pt-desc">%s</span>' % _e(it.get("desc", "")))
+            texto, classe = _detalhe(it)
+            parts.append('        <span class="%s">%s</span>' % (classe, _e(texto)))
             parts.append('      </li>')
         parts.append('    </ul>')
         if mode == "approve":
@@ -998,6 +1119,29 @@ def _html_valor(plan, reqs):
         corpo()
         p.append('  </details>')
 
+    def itens(gt):
+        p.append('      <ul class="pt-items">')
+        for t in gt:
+            st = t.get("status", "todo")
+            texto, classe = _detalhe(t)
+            p.append('        <li class="pt-item pt-%s">'
+                     '<span class="pt-dot">%s</span>'
+                     '<span class="pt-item-title">'
+                     '<span class="pt-id">%s</span>%s</span>'
+                     '<span class="%s">%s</span></li>'
+                     % (st, DOT[st], _e(t["id"]), _e(t["title"]), classe, _e(texto)))
+        p.append('      </ul>')
+
+    sem_eixo = _sem_eixo(m, idx)
+    if sem_eixo:
+        todas = [it for _, it in iter_items(plan)]
+        p.append('  <div class="pt-ausencias pt-aviso">%s</div>' % _e(SEM_REQ_AVISO))
+
+        def corpo_sem(todas=todas):
+            for g, gt in sorted(_por_grupo(todas).items()):
+                nivel("pt-grupo", g, gt, lambda gt=gt: itens(gt))
+        nivel("pt-epico", "sem requisito", todas, corpo_sem)
+
     por_epico = {}
     for rid in sorted(m["por_req"]):
         por_epico.setdefault(reqs.get(rid, {}).get("epico") or "(sem épico)", []).append(rid)
@@ -1014,32 +1158,17 @@ def _html_valor(plan, reqs):
                 def corpo_req(ts=ts):
                     if r.get("ca"):
                         p.append('    <div class="pt-ca">critério de aceite: %s</div>' % _e(r["ca"]))
-                    grupos = {}
-                    for t in ts:
-                        grupos.setdefault(t.get("grupo") or "(sem grupo)", []).append(t)
+                    grupos = _por_grupo(ts)
                     for g in sorted(grupos):
-                        def corpo_g(gt=grupos[g]):
-                            p.append('      <ul class="pt-items">')
-                            for t in gt:
-                                p.append('        <li class="pt-item pt-%s">'
-                                         '<span class="pt-dot">%s</span>'
-                                         '<span class="pt-item-title">'
-                                         '<span class="pt-id">%s</span>%s</span>'
-                                         '<span class="pt-desc">%s</span></li>'
-                                         % (t.get("status", "todo"), DOT[t.get("status", "todo")],
-                                            _e(t["id"]), _e(t["title"]),
-                                            _e(str(t.get("pendencia", "")).strip()
-                                               and "⛔ falta decidir: " + t["pendencia"]
-                                               or t.get("desc", ""))))
-                            p.append('      </ul>')
-                        nivel("pt-grupo", g, grupos[g], corpo_g)
+                        nivel("pt-grupo", g, grupos[g], lambda gt=grupos[g]: itens(gt))
                 nivel("pt-req", rot, ts, corpo_req)
         nivel("pt-epico", ep, t_ep, corpo_ep)
 
     for chave, titulo, classe in (("sem_requisito", "tarefas sem requisito", "pt-aviso"),
                                   ("orfaos", "requisitos sem nenhuma tarefa", "pt-alerta"),
                                   ("inexistentes", "tarefas citando requisito inexistente", "pt-erro")):
-        if m[chave]:
+        # a lista de ids não se repete: sem eixo, a árvore acima JÁ é ela inteira
+        if m[chave] and not (sem_eixo and chave == "sem_requisito"):
             p.append('  <div class="pt-ausencias %s">' % classe)
             p.append('    <b>%d %s</b>' % (len(m[chave]), _e(titulo)))
             p.append('    <p>%s</p>' % _e(", ".join(
@@ -1105,6 +1234,19 @@ def cmd_page(args):
     import random
     import string
 
+    vista = getattr(args, "vista", "execucao")
+    # O veredito (Manter/Mudar/Remover) mora na FASE, e a vista de valor não desenha
+    # fase nenhuma — a página saía com a caixa de fechamento, os dois botões e ZERO
+    # item revisável, e o "Aprovar tudo" devolvia uma aprovação que ninguém deu.
+    if args.mode == "approve" and vista != "execucao":
+        raise PlanError(
+            "⛔ aprovação não existe na vista '%s'.\n"
+            "   O veredito mora na FASE, e essa vista desenha épico › requisito › grupo:\n"
+            "   a página sairia com os botões e nenhum item pra você marcar, e o botão\n"
+            "   devolveria uma aprovação que você não deu.\n"
+            "   Aprove com `--vista execucao`; pra ler o eixo de valor, `--mode track`."
+            % vista)
+
     directory = args.dir or resolve_dir()
     plan = pick_plan(directory, args.plan)
     here = os.path.dirname(os.path.abspath(__file__))
@@ -1138,7 +1280,7 @@ def cmd_page(args):
         '    <span class="chip">📅 %s</span>' % time.strftime("%Y-%m-%d"),
         '  </div>',
         render_html(plan, args.mode, reqs=_requisitos_do_projeto(directory, plan),
-                    vista=getattr(args, "vista", "execucao")),
+                    vista=vista),
     ]
     if args.mode == "approve":
         body.append(CLOSING_BOX)
@@ -1164,7 +1306,6 @@ def cmd_page(args):
             raise PlanError("não consegui resolver o diretório do /visual — passe --out")
         # a vista entra no nome: sem ela, as duas árvores do mesmo plano gravam no
         # mesmo arquivo e a última apaga a outra em silêncio
-        vista = getattr(args, "vista", "execucao")
         sufixo = args.mode if vista == "execucao" else "%s-%s" % (args.mode, vista)
         out = os.path.join(vdir, "plano-%s-%s.html" % (plan["id"], sufixo))
     os.makedirs(os.path.dirname(os.path.abspath(out)), exist_ok=True)

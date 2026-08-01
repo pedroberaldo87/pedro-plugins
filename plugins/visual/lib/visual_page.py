@@ -48,6 +48,10 @@ TEMPLATE = os.path.normpath(os.path.join(HERE, "..", "skills", "visual", "templa
 RESOLVE_DIR = os.path.normpath(os.path.join(HERE, "..", "skills", "visual", "resolve-dir.sh"))
 
 ESTADOS = ("rascunho", "gerado", "noar", "apresentado")
+# Prova até este tamanho nasce ABERTA: são 6 linhas, cabem no olho sem empurrar a
+# decisão pra fora da tela. Acima disso a página vira scroll de log — e ela existe
+# pra decidir. Ver r_evidencia.
+LINHAS_ABERTO = 6
 SEV = {"high": "sev-high", "med": "sev-med", "low": "sev-low"}
 DEFAULT_ITEM_LABELS = ["✓ Manter", "✏️ Mudar", "✗ Remover"]
 CALLOUT_VARIANTS = ("info", "warn", "danger", "ok")
@@ -230,15 +234,33 @@ def r_bullets(blk, ctx):
 
 
 def r_evidencia(blk, ctx):
+    """A prova NASCE FECHADA — a linha de origem é o que se clica pra abrir.
+
+    O motivo é do dono: 'este tipo de artefato anexado é bem-vindo, mas o ideal é
+    que seja algo colapsável que começa colapsado. que eu possa abrir SE EU QUISER'.
+    Saída crua de 30 linhas empurra a decisão pra fora da tela — e a página existe
+    pra decidir, não pra ler log.
+
+    Duas exceções, as duas por segurança:
+      - `aberto: true` no bloco — quem escreveu diz que ESTA prova é o ponto da página;
+      - saída curta (≤ LINHAS_ABERTO), que não empurra nada.
+    O bloco VAZIO continua aberto e gritando: esconder ausência de prova seria o
+    oposto do que o componente existe pra fazer.
+    """
     txt = _e(blk.get("output"))
     hl = blk.get("highlight")
     if hl:
         # <mark> na linha que decide — aplicado ao texto JÁ escapado
         txt = txt.replace(_e(hl), "<mark>%s</mark>" % _e(hl), 1)
-    return ['  <div class="evidencia">',
-            '    <div class="evidencia-src">%s</div>' % _rich(blk.get("src")),
+    linhas = str(blk.get("output") or "").count("\n") + 1
+    aberto = bool(blk.get("aberto")) or linhas <= LINHAS_ABERTO
+    return ['  <details class="evidencia"%s>' % (" open" if aberto else ""),
+            '    <summary class="evidencia-src">%s'
+            '<span class="evidencia-conta">%d linhas</span>'
+            '<span class="evidencia-chev">›</span></summary>'
+            % (_rich(blk.get("src")), linhas),
             "    <pre>%s</pre>" % txt,
-            "  </div>"]
+            "  </details>"]
 
 
 def r_artefato(blk, ctx):

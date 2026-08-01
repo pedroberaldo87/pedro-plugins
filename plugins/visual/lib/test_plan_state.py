@@ -10,6 +10,7 @@ O foco é o que o módulo PROMETE impedir:
 
 import json
 import os
+import re
 import shutil
 import sys
 import tempfile
@@ -100,6 +101,34 @@ def completo(plan):
                                 "ca": "o comando sai 0", "epico": "E0 — Molde"}
                                for r in faltam]
     return plan
+
+
+SKILL_MD = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                        "..", "skills", "visual", "SKILL.md")
+
+
+def planos_da_skill(texto):
+    """Os blocos ```json da skill que são plano copiável.
+
+    Bloco com `…` no meio é recorte de prosa, não exemplo — não parseia e fica
+    de fora. O que sobra é exatamente o que alguém copia e cola no `init`.
+    """
+    achados = []
+    for bloco in re.findall(r"```json\n(.*?)```", texto, re.S):
+        try:
+            obj = json.loads(bloco)
+        except ValueError:
+            continue
+        if isinstance(obj, dict) and obj.get("phases"):
+            achados.append(obj)
+    return achados
+
+
+def paragrafo_com(texto, agulha):
+    for par in texto.split("\n\n"):
+        if agulha in par:
+            return par
+    return ""
 
 
 def init_into(d, plan, renames=None, crus=False):
@@ -437,6 +466,48 @@ def main():
         check("a vista de aprovação não ganhou dobra nova",
               he.count("<details") == ps.render_html(sample(), mode="approve").count("<details"))
 
+        # Nenhum plano real declara `requisito` ainda: a vista saía em branco num plano
+        # de 157 tarefas — que é afirmar, por omissão, que não há trabalho nenhum.
+        print("vista de valor num plano sem nenhum requisito")
+        nada = sample(phases=[{"id": "F1", "title": "x", "items": [
+            {"id": "F1.1", "title": "gravar o json", "desc": "init grava em .claude/plans"},
+            {"id": "F1.2", "title": "ler de volta", "desc": "d", "grupo": "Backend"}]}])
+        tv = ps.render_text(nada, reqs={}, vista="valor")
+        check("o texto diz que ninguém declarou requisito", "declara requisito ainda" in tv)
+        check("o texto desenha as tarefas assim mesmo", "F1.1" in tv and "F1.2" in tv)
+        check("o texto agrupa pelo que sobrou", "Backend" in tv)
+        hv0 = ps.render_html(nada, mode="track", reqs={}, vista="valor")
+        check("o html diz que ninguém declarou requisito", "declara requisito ainda" in hv0)
+        check("o html desenha as tarefas assim mesmo",
+              'class="pt-item' in hv0 and "F1.1" in hv0 and "F1.2" in hv0)
+        check("o html continua dobrável no fallback", hv0.count("<details") >= 2)
+        check("a lista de ids não vem duas vezes", hv0.count(">F1.1<") == 1)
+
+        print("a prova aparece na vista de valor")
+        pr = sample(phases=[{"id": "F1", "title": "x", "items": [
+            {"id": "F1.1", "title": "campo custo", "desc": "o que ainda seria feito",
+             "requisito": "S-4.3", "grupo": "Backend",
+             "status": "done", "evidence": "ls plano.json -> existe (sha 9f2a1)"}]}])
+        tpv = ps.render_text(pr, reqs=reqs, vista="valor")
+        check("texto: a prova entra no lugar da intenção", "prova: ls plano.json" in tpv)
+        hpv = ps.render_html(pr, mode="track", reqs=reqs, vista="valor")
+        check("html: a prova entra no lugar da intenção",
+              "pt-evidence" in hpv and "9f2a1" in hpv)
+        check("html: a descrição do que ainda seria feito sai",
+              "o que ainda seria feito" not in hpv)
+
+        print("a pendência aparece na vista de execução")
+        pe = sample(phases=[{"id": "F1", "title": "x", "items": [
+            {"id": "F1.1", "title": "decidir o formato", "desc": "faz a coisa",
+             "pendencia": "A ou B?"}]}])
+        tev = ps.render_text(pe)
+        check("texto: a decisão em aberto aparece", "⛔ falta decidir: A ou B?" in tev)
+        check("texto: a linha didática cede o lugar", "faz a coisa" not in tev)
+        hev = ps.render_html(pe, mode="track")
+        check("html: a decisão em aberto aparece", "⛔ falta decidir: A ou B?" in hev)
+        check("aprovação: quem vai aprovar vê o bloqueio",
+              "⛔ falta decidir: A ou B?" in ps.render_html(pe, mode="approve"))
+
         print("brief — 'onde nós estamos' em 1-3 bullets")
         b = sample(id="2026-07-27-brief")
         init_into(d, b)
@@ -618,6 +689,199 @@ def main():
         he = ps.render_html(pv, mode="track")
         check("as duas vistas produzem html diferente", hv != he)
         check("a vista de valor traz o épico", "E1 — Base" in hv)
+
+        # O merge preservava com todo cuidado o campo `requisito` de CADA tarefa e
+        # jogava fora o bloco pra onde esses campos apontam: sobravam os ponteiros e
+        # sumia o destino — e como a checagem de citação órfã desliga quando não há
+        # requisito nenhum, o mesmo init que apagava a fonte deixava de conferir.
+        print("o merge não apaga o topo do plano")
+        d8 = tempfile.mkdtemp(prefix="plan-topo-")
+        try:
+            v1 = dict(sample(id="2026-08-01-topo", phases=[
+                {"id": "F1", "title": "x", "items": [
+                    {"id": "F1.1", "title": "a", "desc": "d", "pronto": "sai 0",
+                     "requisito": "S-1.1"}]}]),
+                requisitos=[{"id": "S-1.1", "titulo": "Existe", "ca": "sai 0",
+                             "epico": "E1 — Base"}])
+            init_into(d8, v1, crus=True)
+            v2 = sample(id="2026-08-01-topo", phases=[{"id": "F1", "title": "x", "items": [
+                {"id": "F1.1", "title": "a", "desc": "d"},
+                {"id": "F1.2", "title": "b", "desc": "d", "pronto": "sai 0",
+                 "requisito": "S-1.1"}]}])
+            init_into(d8, v2, crus=True)
+            salvo = load(d8, "2026-08-01-topo")
+            check("o bloco `requisitos` sobrevive ao init que o omitiu",
+                  [r["id"] for r in salvo.get("requisitos") or []] == ["S-1.1"])
+            orfa = sample(id="2026-08-01-topo", phases=[{"id": "F1", "title": "x", "items": [
+                {"id": "F1.1", "title": "a", "desc": "d"},
+                {"id": "F1.3", "title": "c", "desc": "d", "pronto": "sai 0",
+                 "requisito": "S-9.9"}]}])
+            check("com o bloco preservado, citação órfã continua sendo recusada",
+                  _levanta(lambda: init_into(d8, orfa, crus=True)))
+            ps.cmd_close(Args(dir=d8, plan="2026-08-01-topo"))
+            init_into(d8, v2, crus=True)
+            check("closed_at sobrevive ao init", "closed_at" in load(d8, "2026-08-01-topo"))
+            vazio = dict(sample(id="2026-08-01-topo", phases=[
+                {"id": "F1", "title": "x", "items": [
+                    {"id": "F1.1", "title": "a", "desc": "d"},
+                    {"id": "F1.2", "title": "b", "desc": "d"}]}]), requisitos=[])
+            init_into(d8, vazio, crus=True)
+            check("declarar o bloco vazio apaga de propósito",
+                  load(d8, "2026-08-01-topo").get("requisitos") == [])
+        finally:
+            shutil.rmtree(d8, ignore_errors=True)
+
+        # A caixa de fechamento entrava olhando só o `mode`, e a vista de valor não
+        # desenha fase nenhuma: sobrava a página com os botões e ZERO veredito, e o
+        # "Aprovar tudo" devolvia uma aprovação que ninguém tinha dado.
+        print("aprovação não existe na vista de valor")
+        d10 = tempfile.mkdtemp(prefix="plan-page-")
+        try:
+            init_into(d10, sample(id="2026-08-01-pagina"))
+            alvo = os.path.join(d10, "p.html")
+            raises("--mode approve --vista valor é recusado",
+                   lambda: ps.cmd_page(Args(dir=d10, plan="2026-08-01-pagina",
+                                            mode="approve", vista="valor", out=alvo)),
+                   "execucao")
+            check("nem o arquivo foi gravado", not os.path.exists(alvo))
+            check("a mesma aprovação na vista de execução grava",
+                  ps.cmd_page(Args(dir=d10, plan="2026-08-01-pagina", mode="approve",
+                                   vista="execucao", out=alvo)) == 0
+                  and '<strong id="fb-done">' in open(alvo, encoding="utf-8").read())
+            check("track na vista de valor continua valendo",
+                  ps.cmd_page(Args(dir=d10, plan="2026-08-01-pagina", mode="track",
+                                   vista="valor", out=alvo)) == 0
+                  and '<strong id="fb-done">' not in open(alvo, encoding="utf-8").read())
+        finally:
+            shutil.rmtree(d10, ignore_errors=True)
+
+        print("o merge não apaga o `detail` da fase")
+        d9 = tempfile.mkdtemp(prefix="plan-detail-")
+        try:
+            com = sample(id="2026-08-01-detail")
+            com["phases"][0]["detail"] = ["🔧 Como: assim", "💡 Por quê: por isso"]
+            init_into(d9, com)
+            init_into(d9, sample(id="2026-08-01-detail"))   # o 2º init omite o detail
+            check("detail da fase sobrevive ao init que o omitiu",
+                  load(d9, "2026-08-01-detail")["phases"][0].get("detail")
+                  == ["🔧 Como: assim", "💡 Por quê: por isso"])
+        finally:
+            shutil.rmtree(d9, ignore_errors=True)
+
+        # Quem escreve o JSON do init é o modelo. Sem este portão, `status: "done"`
+        # escrito à mão passava — e o brief anunciava "cada um com prova anexada".
+        print("'done' escrito à mão sem prova é recusado")
+        fraude = completo(sample(phases=[{"id": "F1", "title": "x", "items": [
+            {"id": "F1.1", "title": "t", "desc": "d", "status": "done"}]}]))
+        raises("done sem prova é recusado", lambda: ps.validate(fraude), "prova")
+        curta = completo(sample(phases=[{"id": "F1", "title": "x", "items": [
+            {"id": "F1.1", "title": "t", "desc": "d", "status": "done",
+             "evidence": "ok"}]}]))
+        check("prova curta demais também é recusada", _levanta(lambda: ps.validate(curta)))
+        honesto = completo(sample(phases=[{"id": "F1", "title": "x", "items": [
+            {"id": "F1.1", "title": "t", "desc": "d", "status": "done",
+             "evidence": "python3 test_plan_state.py -> 12 OK"}]}]))
+        check("done COM prova passa", ps.validate(honesto) is not None)
+
+        print("o brief não afirma prova que não conferiu")
+        semp = sample(phases=[{"id": "F1", "title": "x", "items": [
+            {"id": "F1.1", "title": "t", "desc": "d", "status": "done"}]}])
+        L = ps.brief_lines(semp)
+        check("concluído sem prova não diz 'com prova anexada'",
+              L[0].startswith("✅") and "prova anexada" not in L[1])
+        meio = sample(phases=[
+            {"id": "F1", "title": "x", "items": [
+                {"id": "F1.1", "title": "t", "desc": "d", "status": "done"}]},
+            {"id": "F2", "title": "y", "items": [
+                {"id": "F2.1", "title": "t", "desc": "d"}]}])
+        check("fase fechada sem prova não diz 'com prova em cada passo'",
+              "prova em cada passo" not in ps.brief_lines(meio)[1])
+
+        print("plano ilegível DIZ qual arquivo, em vez de estourar traceback")
+        d10 = tempfile.mkdtemp(prefix="plan-ilegivel-")
+        try:
+            def erro(fn):
+                try:
+                    fn()
+                    return "(não levantou nada)"
+                except ps.PlanError as exc:
+                    return str(exc)
+                except Exception as exc:   # traceback bruto é exatamente o defeito
+                    return "%s: %s" % (type(exc).__name__, exc)
+
+            with open(ps.plan_path(d10, "2026-08-01-torto"), "w", encoding="utf-8") as fh:
+                fh.write('{"id": "2026-08-01-torto", "phases": [')
+            check("pick_plan com id explícito nomeia o arquivo torto",
+                  "ilegível" in erro(lambda: ps.pick_plan(d10, "2026-08-01-torto")))
+            check("init sobre arquivo torto explica em vez de estourar",
+                  "ilegível" in erro(lambda: init_into(d10, sample(id="2026-08-01-torto"))))
+        finally:
+            shutil.rmtree(d10, ignore_errors=True)
+
+        # A skill manda apagar a `pendencia` ao registrar a decisão, e o merge
+        # ressuscitava o campo omitido. Quem resolve é a DECISÃO, não a ausência do
+        # campo — assim o autor não precisa saber que existe um merge.
+        print("decidir resolve a pendência")
+        d11 = tempfile.mkdtemp(prefix="plan-decidido-")
+        try:
+            init_into(d11, sample(phases=[{"id": "F1", "title": "x", "items": [
+                {"id": "F1.1", "title": "a", "desc": "d", "pendencia": "fila ou cron?"}]}]))
+            check("sem decisão, a pendência trava o tique",
+                  _levanta(lambda: ps.cmd_tick(Args(dir=d11, node="F1.1",
+                                                    evidencia="rodei e passou"))))
+            init_into(d11, sample(phases=[{"id": "F1", "title": "x", "items": [
+                {"id": "F1.1", "title": "a", "desc": "d",
+                 "decidido": {"por": "mais-reversivel", "quando": "2026-08-01T10:00:00",
+                              "escolha": "cron", "porque": "menos peça nova",
+                              "pergunta": "fila ou cron?"}}]}]), crus=True)
+            ps.cmd_tick(Args(dir=d11, node="F1.1", evidencia="rodei e passou"))
+            check("com a decisão registrada, o tique passa",
+                  load(d11)["phases"][0]["items"][0]["status"] == "done")
+            ps.cmd_reabrir(Args(dir=d11, node="F1.1"))
+            check("reabrir volta a travar",
+                  _levanta(lambda: ps.cmd_tick(Args(dir=d11, node="F1.1",
+                                                    evidencia="rodei e passou"))))
+        finally:
+            shutil.rmtree(d11, ignore_errors=True)
+
+        # O que a SKILL.md ENSINA tem que passar pelo próprio validador, e o que ela
+        # PROMETE tem que ser o que o código faz. Exemplo que não grava e frase que
+        # promete recusa onde não há recusa custam a mesma coisa: uma sessão perdida.
+        print("a SKILL.md bate com o código")
+        skill = open(SKILL_MD, encoding="utf-8").read()
+        exemplos = planos_da_skill(skill)
+        check("a skill tem exemplo de plano copiável", len(exemplos) >= 1)
+        for n, ex in enumerate(exemplos):
+            d12 = tempfile.mkdtemp(prefix="plan-skill-")
+            try:
+                path = os.path.join(d12, "_skill.json")
+                with open(path, "w", encoding="utf-8") as fh:
+                    json.dump(ex, fh)
+                erro = None
+                try:
+                    ps.cmd_init(Args(dir=d12, file=path, rename=None))
+                except ps.PlanError as exc:
+                    erro = str(exc)
+                check("exemplo %d da skill grava sem erro (%s)" % (n + 1, erro or "ok"),
+                      erro is None)
+            finally:
+                shutil.rmtree(d12, ignore_errors=True)
+
+        d13 = tempfile.mkdtemp(prefix="plan-sem-prd-")
+        try:
+            init_into(d13, sample(phases=[{"id": "F1", "title": "x", "items": [
+                {"id": "F1.1", "title": "a", "desc": "d", "pronto": "roda o teste",
+                 "requisito": "S-99.9"}]}]), crus=True)
+            check("sem fonte de requisitos, citação inexistente GRAVA", True)
+        except ps.PlanError:
+            check("sem fonte de requisitos, citação inexistente GRAVA", False)
+        finally:
+            shutil.rmtree(d13, ignore_errors=True)
+        frase = paragrafo_com(skill, "recusa gravar o plano")
+        check("a frase da recusa diz que ela depende de haver fonte de requisitos",
+              "quando o projeto tem fonte de requisitos" in frase.lower())
+        check("a frase da recusa aponta o comando de quem não tem fonte",
+              "cobertura" in frase)
 
         print("arquivo corrompido não derruba a listagem")
         before = len(ps.list_plans(d))

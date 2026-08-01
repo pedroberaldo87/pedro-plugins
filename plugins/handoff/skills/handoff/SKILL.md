@@ -81,9 +81,26 @@ Por que o extrator gera o LOG e não você: o seu julgamento não entra no LOG �
      - **Guardrail anti-sobrescrita:** se o `scope.handoff_path` já existe e foi escrito **< 5 min atrás** (ou é de uma frente claramente diferente do mesmo módulo) → suspeito (salvar dois handoffs seguidos não é o fluxo normal) → **confirme** antes de sobrescrever.
    - O PRD agrupa por tema o que está no LOG. Para CADA id em `gate_items`, referencia `[id]` no ponto onde aquela fala/decisão é tratada (o gate confirma que nada se perdeu). Findings e gotchas: ver a regra "verbatim" nas Regras do SALVAR.
    - **⚠️ ANTES de olhar o `last_plan`: existe arquivo de plano no disco?** Rode `ls <scope.project_root>/.claude/plans/*.plan.json 2>/dev/null`. **Se existir, ele MANDA e o `last_plan` é ignorado.** O `last_plan` é derivado do transcript: guarda só `txt[:1200]` do plano e adivinha a conclusão por `commits_after > 0 or edits_after >= 3` — 1 commit basta pra ele carimbar um plano de 10 fases como executado. O arquivo, ao contrário, tem o estado **passo a passo, com a prova de cada conclusão**. Com arquivo presente:
-     - Leia a árvore: `python3 <plugin visual>/lib/plan_state.py --dir <project_root>/.claude/plans render --format text`
+     - Leia a árvore: `python3 <plugin visual>/lib/plan_state.py --dir <project_root>/.claude/plans render --format text` — ela dá o progresso e a prova de cada tique, mas é a vista de **execução**: `pronto`, `pendencia` e `requisito` NÃO aparecem nela. Esses três só existem no JSON, e são justamente os que você ia reescrever de cabeça. Leia-os do arquivo:
+       ```bash
+       python3 - "<project_root>/.claude/plans" <<'PY'
+       import glob, json, os, sys
+       for f in sorted(glob.glob(os.path.join(sys.argv[1], "*.plan.json"))):
+           plano = json.load(open(f, encoding="utf-8"))
+           for fase in plano.get("phases", []):
+               for it in fase.get("items", []):
+                   if it.get("status") == "done":
+                       continue
+                   print("%s · %s" % (it["id"], it["title"]))
+                   print("   pronto:    %s" % (it.get("pronto") or "—"))
+                   print("   pendencia: %s" % (it.get("pendencia") or "—"))
+                   print("   requisito: %s" % (it.get("requisito") or "—"))
+       PY
+       ```
      - Passos com ✅ e prova → `## O Que Foi Feito`, citando a prova gravada.
-     - Passos sem marca → `## Próximos Passos`, **com os títulos e ids EXATOS do arquivo** (`F3.2`, não um título reescrito). Renomear aqui reintroduz a perda que o arquivo existe pra impedir.
+     - Passos sem marca → `## Próximos Passos`, **com os títulos e ids EXATOS do arquivo** (`F3.2`, não um título reescrito). Renomear aqui reintroduz a perda que o arquivo existe pra impedir. Dois dos 5 campos JÁ ESTÃO escritos no arquivo — **copie, não redija**:
+       - **Critério de pronto:** o `pronto` da tarefa, **verbatim**. Ele foi escrito e validado quando o plano nasceu; redigir outro aqui é a divergência entre sessões que o arquivo existe pra impedir. Só escreva do seu bolso quando o campo vier vazio.
+       - **Decisão em aberto:** a `pendencia` da tarefa, **verbatim** — e o passo entra marcado como **bloqueado** por ela. `pendencia` trava o tique no `plan_state.py`: listar o passo como executável manda a próxima sessão bater na mesma parede sem saber qual é a pergunta.
      - **Nunca declare o plano concluído** se `plan_state.py open` ainda o lista como aberto.
    - **Pré-preencha o prospecto a partir de `prospective`** (não escreva do zero quando há material): cada `open_tasks[i]` vira um passo de `## Próximos Passos` com os 5 campos. **Sem arquivo de plano no disco**, o `last_plan` depende do flag `likely_executed`:
      - `likely_executed: true` (houve commits/edits depois do plano) → **o plano JÁ foi executado nesta sessão.** Ele vira REGISTRO em `## O Que Foi Feito`, **NÃO** entra em `## Próximos Passos` (ver a regra "registro, não ordem de refazer" nas Regras do SALVAR).
@@ -122,7 +139,9 @@ LOG (ata verbatim): {{project_root}}/.claude/ata/LOG-{{sessão}}.md
 ## Próximos Passos
 <!-- Um passo = um bloco "### N." com os 5 campos abaixo. O extrator pré-preenche aqui as
      tarefas abertas + o último plano (campo `prospective` do JSON). Passo trivial (deploy quando
-     o usuário mandar, etc.): marque "(trivial)" no fim do título e use UMA linha, sem os 5 campos. -->
+     o usuário mandar, etc.): marque "(trivial)" no fim do título e use UMA linha, sem os 5 campos.
+     Passo vindo de arquivo de plano: "Critério de pronto" e "Decisão em aberto" são cópia
+     verbatim dos campos `pronto` e `pendencia` da tarefa — ver o passo 3 do Processo. -->
 
 ### 1. {{título curto do passo}}
 - **Ação:** {{o que fazer concretamente}}
