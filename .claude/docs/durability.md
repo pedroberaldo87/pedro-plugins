@@ -444,7 +444,11 @@ $ bash plugins/bootstrap/hooks/test_bootstrap_hooks.sh      # 36 ok · 0 FAIL
 $ python3 plugins/bootstrap/lib/test_conformance.py         # 59 ok · 0 FAIL
 $ python3 plugins/intent-guard/lib/test_ledger.py           # test_ledger: OK
 $ python3 plugins/project-doc/lib/test_journal.py           # TODOS OS 123 CHECKS PASSARAM
+$ python3 plugins/visual/lib/test_plan_state.py             # OK
+$ python3 plugins/visual/lib/test_cobertura.py              # OK
 ```
+
+O `test_ledger.py` ganhou nesta rodada o caso que prova a regra de leitura da marca do §3.14-b — e ele é do tipo que protege contra o pior modo de falha: com o diretório de estado vazio, `furos_da_regua()` tem que devolver `(0, 0, 0)`, e o comentário nomeia o defeito histórico que a asserção fecha — *"foi assim que o `bypass.log` ausente virou o elogio 'nenhuma resposta furou o teto' com o teto furado"*. Com as duas fontes semeadas, `fontes == 2` e o total é 3 (2 furos do teto + 1 reprovação do juiz; `passa` e `nao e relato` não contam). [confirmado, li os três casos]
 
 Esses testes provam **round-trip de estado** (o snapshot devolve o manifest inteiro e é idempotente; o fold do journal reconstrói o estado vivo; o ledger sobrevive a append concorrente) — não provam restauração a partir de cópia, porque cópia não existe.
 
@@ -458,8 +462,9 @@ Ordenado por custo da perda, do pior para o mais barato:
 
 - 🔴 **A história do repo até hoje** — 395 commits e 6 tags de resgate, só nesta máquina (§0, §3.1). Irrecuperável e sem substituto.
 - 🔴 **Journal do project-doc** (4,8M, 1133 eventos) e **aprendizado cross-projeto do qa-loop** — conhecimento acumulado, não regenerável, zero cobertura (§3.2, §3.9).
-- 🔴 **Atas, planos ticáveis e ledger do intent-guard** — registro de decisão com prova anexada; append-only protege contra corrupção, não contra sumiço (§3.4, §3.5, §3.7).
-- 🟡 **Batidas do juiz de forma e do teto de prosa** — viraram entrada do conformance nesta rodada; apagar faz o verificador reportar "nunca executou" para hook que funciona (§3.13, §3.14, §3.15).
+- 🔴 **Atas, planos ticáveis e ledger do intent-guard** — registro de decisão com prova anexada; append-only protege contra corrupção, não contra sumiço (§3.4, §3.5, §3.7). ⚠️ **Os planos subiram de classe nesta rodada:** com o bloco `requisitos` no topo do arquivo, num projeto sem PRD o `.plan.json` passou a ser também o único lugar onde o *pedido* está escrito, não só a execução (§3.5).
+- 🔴 **Os 20 vereditos de reprovação do juiz de forma** — texto livre descrevendo cada defeito, sem cópia e sem regenerador; era contagem na rodada anterior, virou corpus nesta (§3.13).
+- 🟡 **Batidas do juiz de forma e do teto de prosa** — entrada de **dois** verificadores desde esta rodada (o conformance, que pergunta se o guarda está vivo, e o `furos_da_regua`, que conta furos pro dono); apagar faz um reportar "nunca executou" para hook que funciona e o outro perder o histórico de furos (§3.13, §3.14, §3.14-b, §3.15).
 - 🟡 **Preferências e kill-switches** (`config.json` do `/visual`, arquivos `mode`) — perder não custa dado, custa **inversão silenciosa de comportamento** (§3.11, §3.16).
 - 🟢 **Grafo do graphify, saída do `/visual`, baseline de hooks** — regeneráveis por comando (§3.3, §3.6, §3.19).
 - 🟢 **Green-cache e sentinelas de `/tmp`** — perda é não-evento; o próprio código já poda (§3.8, §3.18).
