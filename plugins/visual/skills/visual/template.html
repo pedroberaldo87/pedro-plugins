@@ -437,6 +437,29 @@ h2 {
   .pt-phase-count, .pt-count { font-size: 11.5px; }
 }
 
+/* Vista de valor: árvore dobrável. Tudo nasce fechado — a dobra é o que torna
+   a hierarquia navegável; sem ela, cada nível novo é só mais linha pra rolar. */
+.pt-cobertura { font-size: 13px; color: var(--text-dim); margin-bottom: 14px; }
+.pt-n { border-left: 2px solid var(--border); margin: 2px 0 2px 0; padding-left: 10px; }
+.pt-n > summary { cursor: pointer; list-style: none; display: flex; gap: 10px;
+                  align-items: baseline; padding: 5px 0; }
+.pt-n > summary::-webkit-details-marker { display: none; }
+.pt-chev { transition: transform .15s; color: var(--text-dim); font-size: 11px; }
+.pt-n[open] > summary .pt-chev { transform: rotate(90deg); }
+.pt-rot { flex: 1; }
+.pt-epico > summary .pt-rot { font-weight: 600; }
+.pt-cnt { color: var(--text-dim); font-variant-numeric: tabular-nums; font-size: 13px; }
+.pt-marcas { color: var(--accent); font-size: 13px; }
+.pt-ca { font-size: 13px; color: var(--text-dim); margin: 4px 0 8px 20px;
+         border-left: 2px solid var(--accent); padding-left: 8px; }
+.pt-n .pt-n { margin-left: 14px; }
+.pt-ausencias { margin-top: 16px; padding: 10px 12px; border-radius: 8px;
+                border-left: 3px solid var(--border); background: var(--card); }
+.pt-ausencias.pt-alerta { border-left-color: var(--danger); }
+.pt-ausencias.pt-erro { border-left-color: var(--danger); }
+.pt-ausencias p { font-size: 13px; color: var(--text-dim); margin: 4px 0 0; }
+@media (prefers-reduced-motion: reduce) { .pt-chev { transition: none; } }
+
 /* PLAN ITEMS */
 .plan-item {
   background: var(--card);

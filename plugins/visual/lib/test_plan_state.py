@@ -370,6 +370,19 @@ def main():
         limpo = ps.render_text(sample())
         check("plano antigo desenha igual a hoje", "⛔" not in limpo and "sem requisito" not in limpo)
 
+        print("dobra no html")
+        h = ps.render_html(p, mode="track", reqs=reqs, vista="valor")
+        check("cada nível é um details", h.count("<details") >= 4)
+        check("nasce fechado", " open" not in h)
+        check("o resumo do nível está no summary", "<summary" in h and "S-4.3" in h)
+        check("as marcas aparecem no summary fechado", "⛔" in h)
+        check("continua escapando", "&lt;" in ps.render_html(sample(phases=[
+            {"id": "F1", "title": "x", "items": [
+                {"id": "F1.1", "title": "<script>", "desc": "d"}]}])))
+        he = ps.render_html(p, mode="approve")
+        check("a vista de aprovação não ganhou dobra nova",
+              he.count("<details") == ps.render_html(sample(), mode="approve").count("<details"))
+
         print("brief — 'onde nós estamos' em 1-3 bullets")
         b = sample(id="2026-07-27-brief")
         init_into(d, b)
