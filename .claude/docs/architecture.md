@@ -51,6 +51,9 @@ verified-by:
   - plugins/intent-guard/lib/test_ledger.py
   - plugins/visual/lib/test_plan_state.py
   - plugins/visual/lib/test_visual_page.py
+  - plugins/visual/hooks/test_exitplan_gate.sh
+  - plugins/handoff/lib/test_handoff_skill.py
+  - .claude/hooks/test_release_gate.sh
   - plugins/branches/lib/test_branch_state.py
   - plugins/guardrails/lib/test_askq_lint.py
   - plugins/slides/lib/test_md2deck.py
@@ -109,14 +112,15 @@ ls -1d plugins/*/ | wc -l                            # 19
 ls -1 plugins/*/.claude-plugin/plugin.json | wc -l   # 19
 ls -1 plugins/*/skills/*/SKILL.md | wc -l            # 21
 ls -1 plugins/*/hooks/hooks.json | wc -l             # 10
-find plugins -path '*/lib/*.py' | wc -l              # 31
+find plugins -path '*/lib/*.py' | wc -l              # 32
 python3 -c "import json;print(len(json.load(open('.claude-plugin/marketplace.json'))['plugins']))"   # 19
 ```
 
 - **19 diretórios de plugin · 19 manifestos · 19 entradas no catálogo · 21 skills ·
-  10 plugins com hooks · 31 arquivos `.py` em `lib/`.** [confirmado — os seis comandos
-  re-rodados nesta passada de `/doc-touch`; **só o último mudou**, de 29 para 31, com
-  `plugins/visual/lib/cobertura.py` e a suíte `test_cobertura.py` que nasceram nesta rodada.]
+  10 plugins com hooks · 32 arquivos `.py` em `lib/`.** [confirmado — os seis comandos
+  re-rodados nesta passada de `/doc-touch`; **só o de `lib/` mudou**, de 31 para 32, com
+  `plugins/handoff/lib/test_handoff_skill.py`, a suíte que nasceu nesta rodada pra cobrar
+  que a skill de handoff LEIA os campos do arquivo de plano em vez de mandar reinventá-los.]
 - **34 registros de hook — 33 do tipo `command` + 1 do tipo `prompt`**, em **33 scripts
   distintos** [confirmado — varredura própria dos 10 `plugins/*/hooks/hooks.json` neste run,
   e `python3 scripts/hook_contract.py` imprime a mesma medida: *"Contrato dos hooks — 34
@@ -721,9 +725,30 @@ páginas do `/visual` digitadas pelo modelo custavam **20-31 KB de HTML por pág
   uma vez (`init`) e daí em diante só MARCA (`tick`, que **recusa sem prova**, `EVIDENCE_MIN = 8`).
   Quem desenha a árvore é o programa. `PlanError` (god node) é a exceção única de todos os
   verbos; `DESC_MAX = 140` é limite de schema *"porque a linha didática é o produto do arquivo"*.
-  O módulo tem **1262 linhas** e **11 subcomandos** — `init`, `tick`, `state`, `render`, `page`,
-  `brief`, `cobertura`, `reabrir`, `open`, `close`, `reopen` [confirmado — `wc -l` e leitura de
-  `plan_state.py:build_parser` neste run].
+  O módulo tem **1404 linhas** e **11 subcomandos** — `init`, `tick`, `state`, `render`, `page`,
+  `brief`, `cobertura`, `reabrir`, `open`, `close`, `reopen` [confirmado — `wc -l` e
+  `grep -c 'add_parser('` neste run devolvem `1404` e `11`].
+  - **O `merge` era a causa comum de quatro defeitos, e o conserto é uma regra só: o que o
+    `init` não trouxe vem do arquivo.** A versão anterior preservava uma lista fixa de campos no
+    nó e apenas `created` e `status` no topo do plano — então o segundo `init` apagava, calado, o
+    bloco `requisitos` (a fonte que as tarefas citam), o `closed_at` e o `detail` da fase. Apagar
+    de propósito continua possível e agora é uniforme: **declare a chave vazia**. [confirmado —
+    `plan_state.py:merge`, laço `for key, valor in stored.items()`]
+  - **Apagar a `pendencia` deixou de ser o jeito de destravar o tique**, porque o próprio `merge`
+    a ressuscitava e a tarefa travava pra sempre. Quem resolve agora é o REGISTRO: `decidido`
+    com uma `escolha` preenchida faz `plan_state.py:cmd_tick` passar, e a pergunta original fica
+    no arquivo — é dela que o `reabrir` vive. [confirmado]
+  - **`status: "done"` escrito à mão passou a ser recusado no `init`** quando a `evidence` não
+    chega a `EVIDENCE_MIN`: o teto da prova é o mesmo dos dois lados, senão o `tick` cobra prova
+    e o `init` a contorna. [confirmado — `plan_state.py:erros_do_plano`]
+  - **`plan_state.py:le_plano`** é a única porta de leitura de um plano: arquivo ilegível vira
+    `PlanError` dizendo QUAL arquivo e QUAL erro, em vez de traceback. Quem LISTA
+    (`list_plans`) segue engolindo o arquivo torto, pra que um byte errado não derrube a
+    listagem dos outros. [confirmado]
+  - **`plan_state.py:_detalhe`** é a regra ÚNICA da linha de baixo do item, lida pelas duas
+    vistas e pelos dois formatos: a prova quando o passo está feito, `⛔ falta decidir: …`
+    quando uma decisão trava o tique, a linha didática no resto. Enquanto eram duas cópias, a
+    pendência era invisível justo na vista em que o dono aprova o plano. [confirmado]
   - **O validador foi partido em dois** porque quem MARCA precisa separar defeito da própria
     tarefa de defeito alheio, e uma exceção derruba tudo junto: `plan_state.py:erros_do_plano`
     **devolve a lista**, `plan_state.py:validate` a levanta como `PlanError`. É essa divisão que
@@ -733,8 +758,8 @@ páginas do `/visual` digitadas pelo modelo custavam **20-31 KB de HTML por pág
     nova (parâmetro `exigir` de `erros_do_plano`): `requisito` (o id do requisito que ela atende,
     **exatamente um** — *"tarefa que atende dois requisitos são duas tarefas: é essa regra que
     torna a tarefa atômica"*), `pronto` (como se prova que terminou), `grupo` (a natureza do
-    trabalho), `pendencia` (a decisão que falta, e que **recusa o tique** enquanto estiver
-    escrita) e `decidido` (o registro da decisão tomada, que `plan_state.py:cmd_reabrir` desfaz
+    trabalho), `pendencia` (a decisão que falta, e que **recusa o tique** enquanto nenhuma
+    `decidido.escolha` a responder) e `decidido` (o registro da decisão tomada, que `plan_state.py:cmd_reabrir` desfaz
     devolvendo a pergunta ao campo `pendencia`). Teto de tamanho por campo, copiado do código:
     `pronto` e `pendencia` em `DESC_MAX`, `grupo` e `requisito` em 40.
   - **Duas vistas sobre os mesmos itens** — `execucao` (fase → tarefa, a de sempre) e `valor`
@@ -744,6 +769,21 @@ páginas do `/visual` digitadas pelo modelo custavam **20-31 KB de HTML por pág
     do resto do `/visual`, **tudo nasce fechado** em `<details>`, com as marcas de atenção
     (⛔ pendência, ⚠️ bloqueado) somando para cima em `plan_state.py:_marcas` pra que a dobra não
     esconda o problema junto com o resto.
+  - **A vista de valor sem eixo passou a DIZER isso em vez de sair vazia.** Medido em 14 planos
+    reais: nenhum declara `requisito`, e a vista saía em branco — o que, num plano de 157
+    tarefas, afirma por omissão que não há trabalho. `plan_state.py:_sem_eixo` detecta a
+    situação (há plano, não há nenhuma tarefa com requisito), a página abre com o aviso e as
+    tarefas são desenhadas sob um nó **"sem requisito"**, agrupadas por `grupo`. A lista de ids
+    "tarefas sem requisito" some nesse caso, porque a árvore acima JÁ é ela inteira. [confirmado]
+  - **`--mode approve --vista valor` é RECUSADO.** O veredito (Manter/Mudar/Remover) mora na
+    FASE, e a vista de valor não desenha fase nenhuma: a página saía com a caixa de fechamento,
+    os dois botões e ZERO item revisável, e o "Aprovar tudo" devolvia uma aprovação que ninguém
+    deu. `plan_state.py:cmd_page` levanta `PlanError` explicando onde aprovar e como só ler.
+    [confirmado]
+  - **O resumo de fim de turno parou de afirmar prova sem olhar a prova.**
+    `plan_state.py:brief_lines` dizia *"cada um com prova anexada"* por construção; hoje o
+    trecho só entra depois de `plan_state.py:_com_prova` percorrer os passos feitos e conferir
+    a `evidence`. [confirmado]
   - **Onde os requisitos são procurados** — cascata em `plan_state.py:_requisitos_do_projeto`:
     bloco `requisitos` no próprio plano (`_requisitos_do_plano`) → `$PLAN_REQS` → `docs/PRD.md` →
     `docs/REQUISITOS.md` → `{}`. **Nenhum documento não é erro**, é o caso comum — inclusive o
@@ -764,6 +804,12 @@ páginas do `/visual` digitadas pelo modelo custavam **20-31 KB de HTML por pág
   "ordem fixa decisions-box antes de feedback-box" e **"decisão/item sem nenhuma evidência crua
   na página é RECUSADO"**. O motivo escrito: *"prosa apodrece: a cópia do bloco `.decisions-box`
   colada na skill JÁ divergiu do template"*.
+  - **O bloco de prova virou `<details>` que NASCE FECHADO**, com a contagem de linhas no
+    cabeçalho clicável (`visual_page.py:r_evidencia`). Saída crua longa empurrava a decisão pra
+    fora da tela, e a página existe pra decidir, não pra ler log. Duas exceções, as duas por
+    segurança: prova de até `LINHAS_ABERTO = 6` linhas nasce aberta porque não empurra nada, e
+    `"aberto": true` no spec força abrir. **O bloco VAZIO continua aberto e gritando** —
+    esconder ausência de prova seria o oposto do que o componente existe pra fazer. [confirmado]
 - **`_e()`** (god node) é o escape de HTML, e ele existe **três vezes** no repo —
   `visual_page.py`, `plan_state.py` e `branch_state.py`. São implementações independentes, uma
   por emissor de HTML, não uma função compartilhada. [confirmado — `grep -rn --include='*.py'
@@ -1118,6 +1164,21 @@ Mais duas verificações rodadas aqui:
 $ bash plugins/bootstrap/hooks/test_bootstrap_hooks.sh   →  36 ok · 0 FAIL
 $ bash scripts/sync-shared.sh --check                    →  OK: cópias vendored idênticas a _shared/
 ```
+
+**Três suítes nasceram na rodada de consertos**, e as três cobrem exatamente o que não tinha
+teste: os dois gates e a leitura do arquivo de plano pela skill de handoff. Saída literal
+[confirmado — as três executadas nesta passada de `/doc-touch`]:
+
+```
+$ bash    .claude/hooks/test_release_gate.sh              →  OK (17 checks)
+$ bash    plugins/visual/hooks/test_exitplan_gate.sh      →  OK (12 checks)
+$ python3 plugins/handoff/lib/test_handoff_skill.py       →  OK (7 asserções `ok`)
+```
+
+⚠️ **`.claude/hooks/test_release_gate.sh` fica FORA dos dois globs do check D/F** — ela mora em
+`.claude/hooks/`, não em `plugins/<nome>/`, então nenhum commit a dispara automaticamente.
+É a mesma exceção que já vale para as duas suítes de `scripts/`. [confirmado — a régua do
+gate está em `patterns.md` §5.2]
 
 ### 13.1 As duas suítes que cobrem o código novo desta rodada
 
