@@ -474,7 +474,27 @@ intent-guard   0.5.4 → 0.6.0      (a contagem de furos da régua de forma)
 
 As demais seguem onde estavam: `archify` 2.11.0 · `bootstrap` 1.8.5 · `branches` 1.0.2 · `context-guard` 1.3.3 · `fallow` 1.0.7 · `graphify-guard` 1.1.4 · `grill-me` 1.0.0 · `grill-with-docs` 1.0.0 · `guardrails` 1.5.2 · `handoff` 1.8.5 · `improve` 1.0.3 · `principles` 1.0.2 · `project-doc` 3.18.4 · `qa-loop` 1.7.2 · `ship` 1.3.9 · `slides` 1.3.2 · `sovai` 1.8.2.
 
-⚠️ **O salto do `visual` foi de 1.8.6 para 1.9.1 — cinco bumps, não um.** É o que a regra 1 produz quando o trabalho sai em vários commits (`git log --oneline` mostra 5 commits do `visual` nesta rodada): **a `version` acompanha o COMMIT, não a entrega.** Quem lê o catálogo procurando "o que mudou" não acha a resposta no número; acha no diff.
+🔴 **A regra 1 ("bump em TODA mudança") foi contornada 7 vezes nesta rodada, e o gate mecânico que a cobra não reclamou.** Derivado commit a commit: [confirmado]
+
+```bash
+# para cada commit que tocou plugins/visual/, o plugin.json entrou no diff?
+e692e1e BUMPOU     649d737 BUMPOU
+11c18fa sem bump   52baade sem bump   8941271 sem bump   e03ac98 sem bump
+4395447 sem bump   65fe78d sem bump   892d146 sem bump
+```
+
+**Nove commits tocaram `plugins/visual/`; apenas dois mexeram na `version`** (1.8.6 → 1.9.0 → 1.9.1). Pelo texto do check C, os outros sete deviam ter sido barrados — ele acusa `BUMP ESQUECIDO` para todo plugin tocado cuja `version` é idêntica à do `HEAD`, e sem o `plugin.json` no diff ela é idêntica por construção [confirmado, `.claude/hooks/release-gate.sh`]:
+
+```python
+touched = sorted({m.group(1) for m in (re.match(r"plugins/([^/]+)/", f) for f in files) if m})
+old = head_json(mf)
+if old is not None and old.get("version") == pver:
+    viol.append("❌ BUMP ESQUECIDO — %s mudou mas version continua %s\n"…)
+```
+
+[inferido, **não** verificado nesta rodada] A explicação compatível é que esses commits não passaram pela ferramenta Bash — o gate é um `PreToolUse` com `matcher: "Bash"` (§5.2), então commit feito por qualquer outro caminho não o dispara, e nem precisa de `--no-verify` para isso.
+
+**Régua durável, e ela vale para todo gate deste repositório: gate amarrado a UMA ferramenta não é gate do repositório — é gate daquela ferramenta.** O sinal de que isso aconteceu não aparece em lugar nenhum; foi preciso reconstruir commit a commit para enxergar.
 
 ### 5.2 O gate mecânico de commit
 
@@ -616,7 +636,7 @@ Não há runner nem CI: cada suite é um arquivo executável, stdlib/bash puro, 
 Contagem de arquivos neste run [confirmado, `ls … | wc -l`]:
 
 ```bash
-ls plugins/*/lib/test_*.py scripts/test_*.py | wc -l   # → 14
+ls plugins/*/lib/test_*.py scripts/test_*.py | wc -l   # → 15   (era 14: entrou test_cobertura.py)
 ls plugins/*/hooks/test_*.sh                 | wc -l   # → 15
 ```
 
@@ -633,7 +653,11 @@ Suites executadas nesta rodada, com o número que cada uma imprime [confirmado, 
 - `plugins/guardrails/hooks/test_scope_cop.sh` — `15 passou · 0 falhou`
 - `plugins/ship/hooks/test_pre_deploy.sh` — `100 ok, 0 falhas`
 - `plugins/visual/lib/test_visual_page.py` — `60 passou · 0 falhou`
+- `plugins/visual/lib/test_plan_state.py` — `OK` (135 asserções `ok`)
+- `plugins/visual/lib/test_cobertura.py` — `OK` (11 asserções `ok`) · **suíte nova desta rodada**
 - `plugins/slides/lib/test_md2deck.py` — `50 passou · 0 falhou`
+
+⚠️ **Duas grafias de "verde" convivem no repo, e isso importa pra quem lê o exit code.** A maioria imprime um placar (`N passou · 0 falhou`); as duas do `plan_state`/`cobertura` imprimem só `OK` no fim, com um `ok <descrição>` por asserção acima. As duas formas saem 0 quando verdes — mas **só a primeira permite ver, no log, que o número de casos não caiu**.
 
 ⚠️ `plugins/guardrails/hooks/test_setup_skill.sh` leva minutos — é a única do repo que não roda em segundos; não foi executada nesta rodada.
 
@@ -676,6 +700,7 @@ for t in plugins/*/hooks/test_*.sh;               do bash    "$t" || echo "RED: 
 - ⚠️ **Bump em toda mudança e espelho no marketplace** — o gate avalia **staged ∪ tracked-modificados**, então mudança solta em OUTRO plugin bloqueia o seu commit [confirmado, `FILES` do release-gate].
 - ⚠️ **Plugin novo entra em três arquivos** — e quem cobra o terceiro é o `conformance.py`, depois do commit (§5.1).
 - ⚠️ **`author` tem que ser objeto** no `marketplace.json`; string é rejeitada pelo `validate` [relatado; o estado atual é consistente — os dois `author` presentes hoje são objeto, verificado neste run].
+- 🔴 **O release-gate só existe para commit feito pela ferramenta Bash** (`matcher: "Bash"`). Nesta rodada, 7 dos 9 commits que tocaram `plugins/visual/` foram sem bump e nenhum foi barrado (§5.1). **Bump esquecido não deixa rastro** — quem quiser saber se aconteceu tem que reconstruir commit a commit.
 
 ### Código compartilhado
 

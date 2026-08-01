@@ -154,7 +154,7 @@ du -sh ~/.claude/state/*
 
 ⚠️ **`~/.claude/state/` quadruplicou nesta rodada (48K → 204K)** e ganhou um terceiro subdiretório. O crescimento não é lixo: é o juiz de forma que **começou a julgar de verdade** (B9) e uma marca de leitura nova (B10).
 
-### B1 · `${CLAUDE_CONFIG_DIR:-$HOME/.claude}/guardrails/` — 516K · os dois vigias
+### B1 · `${CLAUDE_CONFIG_DIR:-$HOME/.claude}/guardrails/` — 680K · os dois vigias
 
 - **Dois escritores, e eles resolvem o caminho por expressões DIFERENTES.** [confirmado — `grep -n "HOOK_DIR=" plugins/guardrails/hooks/*.sh` nesta rodada]
 
@@ -199,10 +199,10 @@ du -sh ~/.claude/state/*
 - **O `POST /state` grava dois arquivos:** `<session>.json` e `latest.json` (o mesmo record + a chave `stateFile` apontando pro per-sessão). Conteúdo: `{session, timestamp, docTitle, state}` — a seleção que o usuário fez na página (aprovar/ajustar/descartar), que a skill lê de volta quando ele digita "ok".
 - **Limites do daemon, copiados do arquivo:** `SESSION_RE = /^[a-zA-Z0-9_-]{4,64}$/`, `MAX_BODY_SIZE = 256 * 1024`, `IDLE_TIMEOUT_MS = 30 * 60 * 1000`, `HOST = '127.0.0.1'`, `PORT = Number(process.env.CLAUDE_VISUAL_PORT || 7755)`. Porta ocupada → `EADDRINUSE` → sai com 0 em silêncio (outra instância já serve).
 - **Hóspede que não é do daemon: `config.json`.** É a preferência do `/visual` (`auto_mode` + os `auto_triggers`), escrita pela **skill**; o daemon nunca a toca. Mudou de casa porque `${CLAUDE_PLUGIN_ROOT}` é cache reescrito a cada bump e a escolha do usuário sumia na atualização. Semente versionada em `plugins/visual/skills/visual/config.default.json`.
-- **Volume:** 1,3M, **280 entradas** (`ls ~/.claude/visual-state | wc -l`), incluindo um `.daemon.log` e arquivos de teste (`test-live-abc123.json`, `test-session-abc123.json`). **Não há prune.** [confirmado]
+- **Volume:** 1,3M, **282 entradas** (`ls ~/.claude/visual-state | wc -l`), incluindo um `.daemon.log` e arquivos de teste (`test-live-abc123.json`, `test-session-abc123.json`). **Não há prune.** [confirmado]
 - **Natureza: descartável**, com uma exceção de grau — o `config.json` é preferência, não sessão, e não deve entrar num eventual prune por idade.
 
-### B3 · `~/.claude/green-suite/` — 192K · cache de "suite verde"
+### B3 · `~/.claude/green-suite/` — 140K · cache de "suite verde"
 
 - **Escrito por** `_shared/green-cache.sh` (fonte-da-verdade) e suas cópias vendoradas em `plugins/ship/hooks/` e `plugins/qa-loop/lib/`. Função `green_cache_mark`.
 - **Diretório e TTL vêm de env com default, copiados literal:** [confirmado]
@@ -214,7 +214,7 @@ du -sh ~/.claude/state/*
 - **Chave:** `<cksum(root)>-<tree_hash>`, com `tree_hash` = `git write-tree` sobre um index temporário (`read-tree HEAD` + `add -A`) — inclui untracked. Qualquer edição, criação ou remoção muda a chave e invalida o hit. `git stash create` e `HEAD + diff` não serviriam: ignoram untracked → falso HIT.
 - **Formato:** TSV, uma linha por marca — `scope \t epoch \t iso-ts \t writer`. `scope` é `full` ou `app:<nome>`; `full` satisfaz qualquer consulta.
 - **Natureza: CACHE PURO.** As três garantias estão no cabeçalho: fail-open na direção segura (qualquer erro → MISS → a suite roda), **gate vermelho nunca grava**, e TTL **por linha** (epoch da linha, não mtime do arquivo — um mark novo não ressuscita registro vencido).
-- **Único depósito de (B) que se poda sozinho:** `green_cache_mark` roda `find "$GREEN_SUITE_DIR" -type f -mtime +7 -delete`. Mesmo assim tem **48 arquivos** hoje — a poda é de 7 dias e o ritmo de gates é maior que isso.
+- **Único depósito de (B) que se poda sozinho:** `green_cache_mark` roda `find "$GREEN_SUITE_DIR" -type f -mtime +7 -delete`. Mesmo assim tem **35 arquivos** hoje — a poda é de 7 dias e o ritmo de gates é maior que isso.
 
 ### B4 · `~/.claude/intent-guard/` — 0B · só o kill-switch
 
@@ -246,11 +246,11 @@ return os.path.join(os.path.expanduser("~/.claude/intent"), slug)
 - **Natureza: histórico de intenção, insubstituível dentro do seu escopo, sem backup.** Vale pros projetos que caem no fallback, não pra este.
 - Provado por `plugins/intent-guard/lib/test_ledger.py`, que roda `ledger.py resolve-dir` num repo git temporário e afirma `== os.path.join(repo, ".claude", "intent")`. Suíte verde nesta rodada. [confirmado]
 
-### B7 · `~/.claude/plans/` — 2,7M, 209 arquivos · os planos do HARNESS (≠ A4)
+### B7 · `~/.claude/plans/` — 2,3M, 182 arquivos · os planos do HARNESS (≠ A4)
 
 - **Nenhum escritor neste marketplace.** Só leitores (`qa-loop` procura `.claude/plans/*.md` como plano de implementação; `principles` procura a seção "Princípios de Sistema") e uma proibição explícita em `plugins/visual/hooks/pre-exitplan-visualize.sh`: *"não busque em `~/.claude/plans/`"*.
 - **Quem escreve é o harness do Claude Code.** [inferido — verifiquei a ausência de escritor no repo; não inspecionei o harness]
-- **Natureza: insumo insubstituível e sem backup**, e que **encolhe sozinho**: 209 arquivos hoje, contra 213 na rodada anterior e 226 na anterior a essa. Um depósito insubstituível, sem backup, que diminui sem que nada neste repo apague nada é o pior par de propriedades do inventário. [medido; a causa da remoção é do harness — inferido]
+- **Natureza: insumo insubstituível e sem backup**, e que **encolhe sozinho**: 182 arquivos hoje, contra 209 na rodada anterior, 213 na anterior a essa e 226 na anterior àquela — **27 sumiram em um dia**, a maior queda já registrada aqui. Um depósito insubstituível, sem backup, que diminui sem que nada neste repo apague nada é o pior par de propriedades do inventário. [medido; a causa da remoção é do harness — inferido]
 - ⚠️ **A colisão de nome é a armadilha:** `~/.claude/plans/*.md` é do harness e não tem rede; `<repo>/.claude/plans/*.plan.json` é do marketplace (A4) e hoje **também** não tem — os dois caminhos parecidos apontam pra garantias diferentes, e nenhuma delas é backup.
 
 ### B8 · `${CLAUDE_CONFIG_DIR:-~/.claude}/state/prose-ceiling/` — o orçamento do teto de prosa
