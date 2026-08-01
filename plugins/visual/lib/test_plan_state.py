@@ -505,6 +505,26 @@ def main():
         check("script no título vira texto", "<script>alert(1)</script>" not in h)
         check("tag na descrição vira texto", "<b>tags</b>" not in h)
 
+        print("reabrir")
+        d7 = tempfile.mkdtemp(prefix="plan-reabrir-")
+        try:
+            init_into(d7, sample(phases=[{"id": "F1", "title": "x", "items": [
+                {"id": "F1.1", "title": "a", "desc": "d",
+                 "decidido": {"por": "eu", "quando": "2026-08-01T10:00:00",
+                              "escolha": "/app/{id}", "porque": "padrão das 3 telas",
+                              "pergunta": "qual o padrão da URL?"}}]}]))
+            ps.cmd_tick(Args(dir=d7, node="F1.1", evidencia="rodei e passou"))
+            ps.cmd_reabrir(Args(dir=d7, node="F1.1"))
+            it = load(d7, "2026-07-27-teste")["phases"][0]["items"][0]
+            check("apaga a decisão", it.get("decidido") is None)
+            check("restaura a pergunta", it.get("pendencia") == "qual o padrão da URL?")
+            check("destica", it["status"] == "todo")
+            check("limpa a prova", it.get("evidence") is None)
+            check("sem decisão, não reabre",
+                  _levanta(lambda: ps.cmd_reabrir(Args(dir=d7, node="F1.1"))))
+        finally:
+            shutil.rmtree(d7, ignore_errors=True)
+
         print("arquivo corrompido não derruba a listagem")
         before = len(ps.list_plans(d))
         with open(os.path.join(d, "quebrado.plan.json"), "w") as fh:

@@ -180,6 +180,80 @@ Isso respeita a regra "existe exatamente UMA lista" (ver "Feedback channel" abai
 
 **Retomando trabalho?** Rode `python3 $PS render --format text` antes de qualquer coisa. Não reconstrua o plano de memória.
 
+## Os quatro níveis, e onde cada um mora
+
+```
+▸ E9  Cockpit                              13 req · 22 tarefas  6/22  ⛔2
+    ▸ S-9.5  Central de integrações · Art. 12    6 tarefas  0/6  ⛔2
+        ▸ Tela                                   3 tarefas  0/3  ⛔2
+            ○ F5.1  registro declara as 6 fontes             ⛔
+```
+
+- **Épico e requisito** são do dono, no documento de requisitos (`docs/PRD.md`). O
+  requisito carrega o **critério de aceite** e o **artigo da lei**.
+- **Grupo e tarefa** são seus, no arquivo do plano. A tarefa carrega **como se prova**.
+- Projeto **sem** documento de requisitos: os requisitos nascem num bloco no topo do
+  arquivo do plano. O requisito é obrigatório; o lugar dele é opcional.
+
+**A árvore de valor é DERIVADA.** O arquivo guarda fase→tarefa; a vista de quatro níveis é
+calculada juntando com o documento de requisitos. Duas árvores sobre os mesmos itens.
+
+## Os campos da tarefa
+
+| campo | obrigatório | o que é |
+|---|---|---|
+| `requisito` | **sim**, em tarefa nova | o id do requisito. **Exatamente um** — tarefa que atende dois são duas tarefas |
+| `pronto` | **sim**, em tarefa nova | como se prova que terminou. Um comando, um `arquivo:linha`, uma tela |
+| `grupo` | não | a natureza do trabalho (Backend · Tela · Teste). Você infere; o dono não escreve |
+| `pendencia` | não | a decisão que falta. **Trava o tique** e vira ⛔ que sobe a árvore |
+
+## O fio — três estados, nunca um quarto
+
+`plan_state.py cobertura` mostra os dois lados: requisito sem tarefa (pedido que ninguém
+planejou) e tarefa sem requisito (trabalho que ninguém pediu). Tarefa citando requisito
+inexistente **recusa gravar o plano** — sem isso a citação apodrece em silêncio.
+
+O número aparece sem ser pedido: na árvore, na tela, no início de sessão, no fim de turno.
+
+## Motor de decisão — quando a pendência aparece na execução
+
+| situação | o que fazer |
+|---|---|
+| interativo, sem parecer | pare e pergunte ao dono |
+| interativo, com parecer | pare, **apresente o parecer** e pergunte |
+| autônomo, conselho concorda | anote, prossiga, **relate depois** |
+| autônomo, conselho diverge | ver "Empate" |
+| autônomo, sem necessidade de conselho | decida e registre |
+
+### Régua de escalada — 3 perguntas, qualquer "sim" convoca
+
+1. **É irreversível?** remoto publicado, migração de banco, apagar dado, envio a terceiro.
+2. **Contradiz a lei?** bate de frente com o artigo que o requisito cita.
+3. **O repositório não desempata?** as opções divergem e nenhuma evidência local decide.
+
+### Empate — por natureza, nunca por contagem de votos
+
+Nem terceiro parecerista, nem você como voto: você escreveu o plano e está implementando.
+
+- **Discordam sobre FATO** → **meça**. Rode e cole a saída. `por: "medicao"`, saída em `prova`.
+- **Discordam sobre MÉRITO** → interativo vai pro dono com os dois pareceres; autônomo segue
+  a **mais reversível**, `por: "mais-reversivel"`, e a decisão vai pro **topo** do relatório.
+
+### O registro
+
+```json
+"decidido": {
+  "por": "eu | conselho | medicao | mais-reversivel",
+  "quando": "2026-08-01T14:22:00",
+  "escolha": "…", "porque": "…",
+  "pergunta": "<a pendência original, pra o reabrir restaurar>",
+  "parecer": "<resumo dos dois>", "prova": "<saída crua, quando por = medicao>"
+}
+```
+
+Ao registrar, **apague a `pendencia`** — é ela que trava o tique. O dono derruba com
+`plan_state.py reabrir <plano> <tarefa>`.
+
 ## A página é EMITIDA por programa, a partir de um spec (non-negotiable)
 
 Mesma decisão do plano, agora pra todas as páginas: **você escreve um spec JSON, o
