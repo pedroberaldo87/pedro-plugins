@@ -529,6 +529,32 @@ def cmd_state(args):
     return 0
 
 
+def cmd_reabrir(args):
+    """Derruba uma decisão que o agente tomou no lugar do dono.
+
+    A decisão volta a ser pergunta e a tarefa volta a `todo`. Sem isto, `decidido`
+    seria fato consumado — e o combinado é que toda decisão tomada na ausência do
+    dono seja reversível por construção.
+    """
+    directory = args.dir or resolve_dir()
+    plan = pick_plan(directory, args.plan)
+    ph, it = find_item(plan, args.node)
+    if it is None:
+        raise PlanError("tarefa '%s' não existe no plano '%s'" % (args.node, plan["id"]))
+    dec = it.get("decidido")
+    if not isinstance(dec, dict) or not dec.get("escolha"):
+        raise PlanError("⛔ %s não tem decisão registrada pra reabrir." % args.node)
+    it["pendencia"] = dec.get("pergunta") or dec.get("porque") or "decisão reaberta pelo dono"
+    it.pop("decidido", None)
+    it["status"] = "todo"
+    it["evidence"] = None
+    it["done_at"] = None
+    save(directory, plan)
+    print("↩️  %s reaberto  ·  a escolha era: %s" % (args.node, dec.get("escolha")))
+    print("   falta decidir de novo: %s" % it["pendencia"])
+    return 0
+
+
 def cmd_close(args):
     directory = args.dir or resolve_dir()
     plan = pick_plan(directory, args.plan)
@@ -1150,6 +1176,11 @@ def build_parser():
     q.add_argument("--reqs", help="caminho do documento de requisitos (default: cascata)")
     q.add_argument("--json", action="store_true")
     q.set_defaults(func=cmd_cobertura)
+
+    q = sub.add_parser("reabrir", help="derruba uma decisão tomada no seu lugar")
+    q.add_argument("plan", nargs="?")
+    q.add_argument("node")
+    q.set_defaults(func=cmd_reabrir)
 
     q = sub.add_parser("open", help="lista os planos abertos")
     q.add_argument("--json", action="store_true")
