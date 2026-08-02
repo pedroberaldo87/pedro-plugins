@@ -250,7 +250,7 @@ Saída desta rodada (nome · versão · skills · tem hook):
 
 ```
 archify         2.11.0  [archify]                                        -
-bootstrap        1.8.5  [setup]                                          HOOKS
+bootstrap        1.9.0  [setup]                                          HOOKS
 branches         1.0.2  [branches]                                       HOOKS
 context-guard    1.3.3  [setup]                                          HOOKS
 fallow           1.0.7  [fallow]                                         -
@@ -946,6 +946,38 @@ A nota do bloco fixa a política: *"O bootstrap NAO instala sozinho — a skill 
 oferece; o conformance acusa plugin habilitado com dependencia faltando (mesmo padrao do gate
 meio-ligado)."* O `conformance.py:check_ferramentas_externas` **só cobra quando o plugin que
 precisa está LIGADO** — quem não usa não é incomodado.
+
+#### A statusLine é uma CADEIA de dois elos, e o de trás sai em silêncio
+
+O `claude-hud` já era instalado pelo manifest, como marketplace e plugin. O que faltava era o
+tratamento que o `graphify` tem: **alguém acusar quando ele está ligado e não está fazendo nada**.
+
+A cadeia tem papéis distintos, e essa distinção é o cerne [confirmado — `ELOS_STATUSLINE` em
+`conformance.py`]:
+
+```
+statusLine.command → context-guard-writer.sh   (ESCRITOR: grava o % da sessão)
+                       └ encaminha via CLAUDE_STATUSLINE_FORWARD
+                          → claude-hud/dist/index.js   (RENDERIZADOR: desenha a barra)
+```
+
+🔴 **Perder o escritor não quebra a tela** — e é exatamente por isso que passou. Medido em
+2026-08-02 nesta máquina: `context-guard` habilitado, writer fora do comando, e o único
+`/tmp/claude-context-pct-*` existente era um **fixture de teste de três dias antes**. Nenhuma
+sessão real gravou. O guarda do context-guard depende desse arquivo para disparar; sem ele
+nunca disparou, e a barra continuou perfeita o tempo todo.
+
+`conformance.py:check_statusline_meio_ligada` cobra isso. Duas decisões de desenho que valem
+copiar [confirmado — `test_conformance.py`, 6 casos]:
+
+- **Procura no comando E no forward.** Olhar só o `statusLine.command` acusaria o renderizador
+  toda vez que ele fosse o forward — que é o arranjo normal. Falso-positivo ensina a ignorar.
+- **Cada elo carrega o próprio `conserto`**, porque o conserto é diferente por papel: o escritor
+  volta com `/context-guard:setup`, o renderizador com `/claude-hud:setup`.
+
+⚠️ **Trocar o `statusLine.command` sem mover o antigo para o forward mata o elo de trás.** Foi a
+causa aqui, e o conserto preservou o comando anterior **inteiro** no forward — inclusive o
+cálculo de `COLUMNS`, que se perderia se o forward fosse remontado à mão.
 
 ### 10.2 O contrato de forma (bootstrap v1.8.5) — regra, mecanismo e verificador
 
