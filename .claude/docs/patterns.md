@@ -407,6 +407,49 @@ bloco `requisitos` no próprio plano  →  $PLAN_REQS  →  <raiz>/docs/PRD.md
 
 **Régua durável: quando um campo passa a ser obrigatório, a fonte que o valida precisa de cascata com fundo vazio — senão a regra nova vira bloqueio para todo projeto que ainda não tem a estrutura que ela pressupõe.**
 
+### 2.7 Régua de forma: onde há teto mecânico a prosa não cresce
+
+**Nova nesta rodada** (`visual_page.py:erros_de_estilo`, 2026-08-02), e ela nasceu de uma comparação medida entre dois artefatos do mesmo autor [confirmado]:
+
+```
+campos do PLANO (teto de 140 cobrado por plan_state desde sempre)
+   desc   n=171  mediana=100  p90=128  máx=137     ← nunca encostou no teto
+parágrafos das PÁGINAS HTML (nenhum teto)
+   n=1624  p50=140  p90=272  p95=330  máx=2182     ← 24% acima de 200
+```
+
+**Mesmo autor, mesma sessão, uma ordem de grandeza de diferença.** O que separa os dois não é cuidado — é a existência de um número cobrado por programa. É o mesmo achado do §5.1 (o bump que "todo mundo lembra" foi contornado 7 vezes) e do `stop-prose-ceiling.py` (*"premissa que nasce desligada não é premissa — é comentário"*), agora aplicado a texto.
+
+As quatro checagens, e por que nenhuma sozinha resolve [confirmado, `test_visual_page.py`]:
+
+- **≤ 140 caracteres por bullet.** O número **não** foi calibrado do zero: é o teto que `plan_state` já cobra no `desc`, com máximo real de 137. Reusar número provado em produção é mais barato que justificar um novo.
+- **Uma frase por bullet** (`_DUAS_FRASES`, ponto seguido de espaço). O teto sozinho produz *enjambment*: a prosa de 600 caracteres vira 8 bullets de 75 que se leem em sequência, passa no teto e continua prosa.
+- **Sem conectivo de continuação abrindo bullet** (`_CONECTIVO`: `e`, `mas`, `que`, `porque`, `então`, `ou seja`, `além disso`). Pega o que as duas primeiras deixam passar.
+- **Máximo 6 bullets por bloco.** Acima disso é prosa picada, ou são dois itens.
+
+**A calibração foi feita contra o corpus, não no chute** [confirmado — medido sobre `ul.bullets` reais, n=145, mediana 117]: teto 120 reprovava 59%, teto 140 reprova 48%. Bullet autoral típico já cabe; o que reprova é a cauda.
+
+⚠️ **O escopo da régua é o REGIME, não o arquivo.** Ela vale para tudo que sai do gerador de página (regime "informação rápida"); `SKILL.md` e `.claude/docs/` são constituição, admitem nuance e **não** passam por ela. A fronteira é o pipeline — **não existe campo `regime` no spec**, de propósito: campo declarável viraria a saída de emergência universal.
+
+Duas isenções escritas no código, as duas por natureza do conteúdo: `evidencia.output` (saída crua é literal por obrigação — parafrasear a prova é o defeito original com outra roupa) e `raw_html` (a válvula de layout). Linha de árvore de plano também fica fora: é gerada por programa, não é redação.
+
+**Régua durável: teto de tamanho não mata prosa — mata a metade fácil. Quem quer bullet de verdade precisa cobrar também a ESTRUTURA da frase, senão o texto se refatora pra caber e volta igual.**
+
+### 2.8 Colapso que não vira ocultação: derive tudo que fica visível
+
+Par do §2.7, mesma rodada. O corpo do problema passou a nascer dobrado, e a pergunta que isso abre é quem garante que dobrar não é esconder — sendo que **quem escreve o artefato é quem executou o trabalho** [confirmado, `visual_page.py:_tri`].
+
+O desenho recusado, e o motivo, ficam registrados porque a tentação volta: **gravidade decidindo o colapso** (item grave nasce aberto, o resto fechado) é o mesmo problema mudado de lugar — quem preenche a gravidade é a parte interessada, e o campo manipulável ganharia o poder novo de **fechar**. Regra final não tem ramo: nível 0 visível, resto fechado, para todo item.
+
+O que sobra é derivação, não disciplina:
+
+- **O rótulo do que está fechado é promoção de conteúdo**, não campo à parte: sai o primeiro bullet da consequência (já sob a régua do §2.7) mais a contagem do resto. Rótulo livre seria o novo lugar de amaciar; etiqueta fixa foi tentada (*"o que isso causa · como resolver"*) e rejeitada — a mesma linha em todo bloco não ajuda a decidir se vale abrir.
+- **Placar agregado no topo, sempre aberto**, computado do spec (`_placar`): esconder um item passa a exigir omiti-lo por inteiro.
+- **Colapsar não é amputar:** o validador continua exigindo as três partes do `tri` — mudou onde ele procura, não o que ele exige.
+- **A válvula só abre.** `"aberto": true` fica na mão de quem escreve porque **revelar mais nunca esconde**; o simétrico (um campo que feche) não existe.
+
+**O que fica declaradamente fora do alcance:** omissão total de um item. Nenhum validador de página pega o que nunca entrou nela — colapso sempre foi o vetor secundário. Onde existe fonte estruturada (o registro do `/qa-loop`) dá pra cruzar contagem; onde não existe, o vetor está escrito no `quality-goals.md` em vez de fingido.
+
 ---
 
 ## 3 · Vendoring de `_shared/` (o único "build")

@@ -812,6 +812,23 @@ páginas do `/visual` digitadas pelo modelo custavam **20-31 KB de HTML por pág
     uma válvula só: `"aberto": true` no spec força abrir — **revelar mais nunca esconde**, então
     esta é segura de deixar na mão de quem escreve. Bloco vazio não chega aqui: o validador
     recusa evidência sem `output`. [confirmado — `test_visual_page.py`, 3 checks]
+  - **`erros_de_estilo()` recusa prosa em TODO campo de texto do spec** — título, corpo,
+    pergunta, aviso, sumário. Quatro checagens: ≤ 140 caracteres por bullet, uma frase por
+    bullet, sem conectivo de continuação abrindo, no máximo 6 bullets por bloco. Estourar é
+    `exit 2` **sem escrever a página**, com a lista inteira de erros de uma vez. As regras e a
+    calibração estão em `patterns.md §2.7`; o princípio que as gerou, no doc autoral
+    `quality-goals.md`. [confirmado — `test_visual_page.py`, 25 checks]
+  - **`_tri()` dobra o corpo do problema e DERIVA o rótulo do dobrador.** O problema fica
+    visível; consequência e proposta nascem fechadas, em `<ul>`. O texto do `<summary>` é o
+    primeiro bullet da consequência mais a contagem do resto — promoção de conteúdo, não campo
+    à parte, que seria onde amaciar um problema grave. `_placar()` acrescenta a contagem
+    agregada no topo, sempre aberta. Medido na mesma página antes e depois: **89% → 46% de
+    texto exposto de cara**. [confirmado — `test_visual_page.py`, 22 checks]
+  - **`_plural()` existe DUAS vezes** — `visual_page.py:90` e `plan_state.py:727`, mesma
+    assinatura, 2 linhas cada [confirmado — `grep -rn '^def _plural' --include='*.py' plugins/`
+    devolve exatamente esses dois neste run]. Não é descuido: importar `plan_state` inteiro por
+    um formatador de duas linhas custa mais que copiá-lo. Mesma lógica das três cópias de `_e()`
+    logo abaixo.
 - **`_e()`** (god node) é o escape de HTML, e ele existe **três vezes** no repo —
   `visual_page.py`, `plan_state.py` e `branch_state.py`. São implementações independentes, uma
   por emissor de HTML, não uma função compartilhada. [confirmado — `grep -rn --include='*.py'

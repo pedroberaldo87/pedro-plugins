@@ -84,6 +84,11 @@ que alguém mede a tela e conta blocos abertos que ninguém pediu para ver.
 - **O simétrico não existe.** Não há campo que feche o que a regra manda mostrar. Fosse
   possível, seria o lugar de esconder.
 
+**Página gerada não avisa que ficou velha.** A aba do navegador continua mostrando o
+arquivo de quando foi aberta, e nada na tela denuncia isso — em 2026-08-02 um bloco
+aparecia aberto numa aba de 8 horas antes, com o arquivo já corrigido no disco. Antes de
+tratar o que se vê na tela como defeito, confira o HTML no disco.
+
 ## Anti-ocultação: por derivação, não por disciplina
 
 Colapsar não pode virar esconder. Quem escreve o artefato é quem executou o trabalho — é
