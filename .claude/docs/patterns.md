@@ -413,6 +413,30 @@ Detalhe que decide o resto: **a moldura INTEIRA entra em fullscreen, não só o 
 
 **Régua durável: todo componente que encolhe conteúdo para caber no fluxo deve emitir a saída para vê-lo inteiro, e essa saída é parte do componente — não enfeite opcional de quem escreve o spec.**
 
+### 1.16 Teto por unidade não é teto do conjunto
+
+Quarta variação da mesma família nesta rodada. O resumo de fim de turno prometia *"1-3 bullets"* e entregava **3×N** [confirmado — `plan_state.py`]:
+
+```
+brief_lines()  → TETO DE 3 BULLETS ... por PLANO
+cmd_brief()    → for plan in list_plans(): if active: blocks.append(...)
+                 nenhum teto no NÚMERO de planos
+
+medido: 4 planos ativos = 16 linhas.  Depois do conserto: 6.
+```
+
+Cada peça estava dentro do que prometia. **O conjunto é que não tinha dono** — e é a forma mais comum do defeito, porque cada autor confere o próprio limite e nenhum confere a soma.
+
+O mesmo vale um nível acima: seis hooks disputam o `Stop`, cada um com o próprio teto, e `6/9 · 35s · 773 tokens` foi o que o dono viu. Daí nasceu `hook_contract.py --stop-budget` (ver `runtime.md §10a`), que não barra nada — **só torna a soma visível**, que era o que faltava.
+
+Três regras que caíram daí:
+
+- **Cortar não pode ser sumir.** O excedente vira contagem visível (*"⋯ e mais 3 plano(s) aberto(s)"*), nunca omissão. Trocar excesso de ruído por perda de informação é trocar um defeito por um pior.
+- **Nem tudo no lote tem a mesma natureza.** O teto corta os planos **ativos**; a confirmação de plano **encerrado** fica fora, porque ela acontece uma vez e some — cortá-la engoliria o *"🏁 acabou"* que o hook existe pra dar. Esse caso reprovou na primeira versão e é por isso que os dois grupos viraram listas separadas.
+- **Testar a função não é testar o caminho.** A primeira suíte chamava o cortador direto, e sabotar a chamada dentro do emissor deixava tudo verde. Só o E2E pelo comando real pegou.
+
+**Régua durável: quando N unidades com teto próprio desembocam na mesma saída, o teto que importa é o da saída — e ele precisa de dono, de número e de um medidor que mostre a soma.**
+
 ## 2 · Python
 
 ### 2.1 Stdlib puro, sem exceção observada
