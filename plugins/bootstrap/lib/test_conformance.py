@@ -725,6 +725,103 @@ def teste_catalogo_ausente_nao_acusa():
               str([d["o_que"] for d in res["desvios"] if d["area"] == "catalogo"]))
 
 
+def _mundo_statusline(raiz, *, comando=None, forward=None, ligados=("context-guard", "claude-hud")):
+    """Mundo minimo com a cadeia da statusLine montada a dedo."""
+    vivo, cfg = monta_mundo(raiz)
+    s = json.loads((vivo / "settings.json").read_text(encoding="utf-8"))
+    for nome in ligados:
+        s["enabledPlugins"]["%s@algum-marketplace" % nome] = True
+    if comando is None:
+        s.pop("statusLine", None)
+    else:
+        s["statusLine"] = {"type": "command", "command": comando}
+    if forward is not None:
+        s.setdefault("env", {})["CLAUDE_STATUSLINE_FORWARD"] = forward
+    (vivo / "settings.json").write_text(json.dumps(s))
+    return vivo, cfg
+
+
+def _desvios_sl(res):
+    return [d["o_que"] for d in res["desvios"] if d["area"] == "statusline"]
+
+
+def teste_statusline_cadeia_inteira_nao_acusa():
+    """Escritor no comando, renderizador no forward: a cadeia esta de pe, silencio."""
+    with tempfile.TemporaryDirectory() as t:
+        vivo, cfg = _mundo_statusline(
+            Path(t),
+            comando='bash ".../hooks/context-guard-writer.sh"',
+            forward="node .../claude-hud/1.0.0/dist/index.js")
+        res = roda_conformance(vivo, cfg)
+        check("cadeia inteira nao vira desvio", not _desvios_sl(res), str(_desvios_sl(res)))
+        check("e ela e reportada como conforme, na ordem",
+              any(d["area"] == "statusline" and "context-guard → claude-hud" in d["o_que"]
+                  for d in res["conforme"]),
+              str([d["o_que"] for d in res["conforme"] if d["area"] == "statusline"]))
+
+
+def teste_escritor_fora_da_cadeia_acusa():
+    """O defeito real medido em 2026-08-02: statusLine so com o renderizador.
+
+    A tela continua bonita — quem sumiu foi o elo que GRAVA dado pra outro consumir.
+    E o sintoma nao aparece em lugar nenhum: nenhuma sessao real escreveu por 3 dias.
+    """
+    with tempfile.TemporaryDirectory() as t:
+        vivo, cfg = _mundo_statusline(
+            Path(t), comando="node .../claude-hud/1.0.0/dist/index.js")
+        res = roda_conformance(vivo, cfg)
+        d = _desvios_sl(res)
+        check("escritor fora da cadeia vira desvio",
+              any("context-guard" in x and "FORA" in x for x in d), str(d))
+        check("o renderizador presente NAO vira desvio junto",
+              not any("claude-hud" in x for x in d), str(d))
+
+
+def teste_renderizador_fora_da_cadeia_acusa():
+    """Simetrico: hud ligado, cadeia so com o escritor e nada desenhando."""
+    with tempfile.TemporaryDirectory() as t:
+        vivo, cfg = _mundo_statusline(
+            Path(t), comando='bash ".../hooks/context-guard-writer.sh"')
+        res = roda_conformance(vivo, cfg)
+        d = _desvios_sl(res)
+        check("renderizador fora da cadeia vira desvio",
+              any("claude-hud" in x and "FORA" in x for x in d), str(d))
+
+
+def teste_elo_no_forward_conta_como_dentro():
+    """O elo pode morar no forward, e isso e o arranjo NORMAL do renderizador.
+
+    Procurar so em statusLine.command acusaria o hud toda vez que ele fosse o forward —
+    falso-positivo que ensina o dono a ignorar o check.
+    """
+    with tempfile.TemporaryDirectory() as t:
+        vivo, cfg = _mundo_statusline(
+            Path(t),
+            comando='bash ".../hooks/context-guard-writer.sh"',
+            forward="node .../claude-hud/9.9.9/dist/index.js")
+        res = roda_conformance(vivo, cfg)
+        check("elo que mora no forward nao e acusado", not _desvios_sl(res), str(_desvios_sl(res)))
+
+
+def teste_sem_statusline_com_plugin_ligado_acusa():
+    """Sem statusLine nenhuma e escolha legitima — mas nao com os plugins dela ligados."""
+    with tempfile.TemporaryDirectory() as t:
+        vivo, cfg = _mundo_statusline(Path(t), comando=None)
+        res = roda_conformance(vivo, cfg)
+        check("plugin de statusline ligado sem statusLine acusa",
+              any("sem statusLine configurada" in x for x in _desvios_sl(res)),
+              str(_desvios_sl(res)))
+
+
+def teste_plugin_desligado_nao_acusa():
+    """Fail-open na direcao certa: quem nao esta ligado nao e cobrado."""
+    with tempfile.TemporaryDirectory() as t:
+        vivo, cfg = _mundo_statusline(
+            Path(t), comando="echo oi", ligados=())
+        res = roda_conformance(vivo, cfg)
+        check("nenhum elo ligado, nenhum desvio", not _desvios_sl(res), str(_desvios_sl(res)))
+
+
 if __name__ == "__main__":
     print("test_conformance.py")
     for fn in (teste_mundo_conforme, teste_plugin_religado_na_mao,
@@ -750,7 +847,13 @@ if __name__ == "__main__":
                teste_dependencia_externa_de_plugin_ligado,
                teste_skill_declarada_e_nao_instalada_nao_e_desvio,
                teste_plugin_publicado_fora_da_receita,
-               teste_catalogo_ausente_nao_acusa):
+               teste_catalogo_ausente_nao_acusa,
+               teste_statusline_cadeia_inteira_nao_acusa,
+               teste_escritor_fora_da_cadeia_acusa,
+               teste_renderizador_fora_da_cadeia_acusa,
+               teste_elo_no_forward_conta_como_dentro,
+               teste_sem_statusline_com_plugin_ligado_acusa,
+               teste_plugin_desligado_nao_acusa):
         fn()
     print(f"\n{ok} ok · {falhas} FAIL")
     sys.exit(1 if falhas else 0)
