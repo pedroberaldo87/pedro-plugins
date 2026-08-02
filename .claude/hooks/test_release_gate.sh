@@ -92,6 +92,60 @@ rc=$( cd "$O" && printf '{"tool_input":{"command":"git commit -m x"}}' | bash "$
 rm -rf "$O"
 check "sem marketplace.json na raiz, sai 0" "$([ "$rc" = "0" ] && echo 1 || echo 0)"
 
+# devolve o TEXTO que o gate imprime (o `gate` acima só dá o rc)
+gate_out() {
+  ( cd "$R" || exit 0
+    printf '{"tool_input":{"command":%s}}' \
+      "$(python3 -c 'import json,sys;print(json.dumps(sys.argv[1]))' "$1")" \
+      | bash "$GATE" 2>&1 )
+}
+
+# ── B2 · description divergente entre plugin.json e marketplace.json ────────
+# O erro que originou (2026-08-02): quatro descriptions foram reescritas SÓ no
+# marketplace.json, e `claude plugin details` mostra a do plugin.json. A vitrine
+# nova nunca chegaria a quem instala, e nada acusava.
+desc() {
+  printf '{"name":"exemplo","version":"%s","description":"%s"}\n' "$1" "$2" \
+    > "$R/plugins/exemplo/.claude-plugin/plugin.json"
+  printf '{"plugins":[{"name":"exemplo","version":"%s","source":"./plugins/exemplo","description":"%s"}]}\n' "$1" "$3" \
+    > "$R/.claude-plugin/marketplace.json"
+}
+
+desc 1.0.0 "mesma coisa nos dois" "mesma coisa nos dois"
+git -C "$R" add -A >/dev/null; git -C "$R" commit -qm "com description"
+printf 'x=2\n' >> "$R/plugins/exemplo/lib/mod.py"
+desc 1.1.0 "mesma coisa nos dois" "mesma coisa nos dois"
+out=$(gate_out "git commit -m x")
+check "description igual nos dois NÃO acusa" \
+  "$(printf '%s' "$out" | grep -qc 'DESCRIPTION DIVERGENTE' >/dev/null && echo 0 || echo 1)"
+
+desc 1.2.0 "o que o details mostra" "o que a listagem mostra"
+out=$(gate_out "git commit -m x")
+check "description divergente ACUSA" \
+  "$(printf '%s' "$out" | grep -q 'DESCRIPTION DIVERGENTE' && echo 1 || echo 0)"
+check "a mensagem mostra os DOIS textos, pra dar pra escolher" \
+  "$(printf '%s' "$out" | grep -q 'o que o details mostra' \
+     && printf '%s' "$out" | grep -q 'o que a listagem mostra' && echo 1 || echo 0)"
+check "e explica que as duas sao lidas" \
+  "$(printf '%s' "$out" | grep -q 'As duas sao lidas' && echo 1 || echo 0)"
+
+# divida antiga nao trava trabalho alheio: o gate so olha o plugin TOCADO
+mkdir -p "$R/plugins/outro/.claude-plugin"
+printf '{"name":"outro","version":"1.0.0","description":"A"}\n' > "$R/plugins/outro/.claude-plugin/plugin.json"
+desc 1.3.0 "igual" "igual"
+python3 - "$R" <<'PYEOF'
+import json, sys
+m = sys.argv[1] + "/.claude-plugin/marketplace.json"
+d = json.load(open(m))
+d["plugins"].append({"name": "outro", "version": "1.0.0", "source": "./plugins/outro",
+                     "description": "B — divergente de proposito"})
+json.dump(d, open(m, "w"))
+PYEOF
+out=$(gate_out "git commit -m x")
+check "plugin NAO tocado com description divergente nao trava o commit" \
+  "$(printf '%s' "$out" | grep -q 'outro' && echo 0 || echo 1)"
+
+
 echo
 if [ "$FAIL" -gt 0 ]; then echo "FALHOU: $FAIL de $((PASS+FAIL))"; exit 1; fi
 echo "OK ($PASS checks)"

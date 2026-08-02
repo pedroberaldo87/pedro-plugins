@@ -82,7 +82,9 @@ PYOUT=$(cd "$ROOT" && printf '%s\n' "$FILES" | GATE_AMEND="$GATILHO" python3 -c 
 import json, subprocess, sys, os, re
 
 files = [l.strip() for l in sys.stdin if l.strip()]
-mk = {e["name"]: e.get("version") for e in json.load(open(".claude-plugin/marketplace.json"))["plugins"]}
+_cat = json.load(open(".claude-plugin/marketplace.json"))["plugins"]
+mk = {e["name"]: e.get("version") for e in _cat}
+mk_desc = {e["name"]: e.get("description") for e in _cat}
 viol = []
 
 # Em `--amend` o HEAD É o commit que está sendo reescrito: comparar com ele acusava
@@ -113,11 +115,25 @@ for name in touched:
                     "   → suba a version em %s E espelhe em .claude-plugin/marketplace.json"
                     % (name, pver, mf))
 
-    # B · espelho
+    # B · espelho da VERSION
     if mk.get(pname) != pver:
         viol.append("❌ ESPELHO QUEBRADO — %s: plugin.json=%s · marketplace.json=%s\n"
                     "   → iguale as duas (o cliente lê a do marketplace)"
                     % (pname, pver, mk.get(pname)))
+
+    # B2 · espelho da DESCRIPTION. Nasceu de erro medido em 2026-08-02: quatro
+    # descricoes foram reescritas SO no marketplace.json, e `claude plugin details`
+    # mostra a do plugin.json — a vitrine nova nunca chegaria a quem instala.
+    # So cobra o plugin TOCADO neste commit: 6 dos 19 ja divergiam antes, e barrar
+    # divida antiga trava trabalho alheio (mesma regra do public_repo_check --staged).
+    cdesc, mdesc = cur.get("description"), mk_desc.get(pname)
+    if cdesc and mdesc and cdesc != mdesc:
+        viol.append("❌ DESCRIPTION DIVERGENTE — %s\n"
+                    "   plugin.json  (%d chars): %s...\n"
+                    "   marketplace  (%d chars): %s...\n"
+                    "   → `claude plugin details` mostra a do plugin.json; a listagem do\n"
+                    "     catalogo mostra a do marketplace. As duas sao lidas: iguale."
+                    % (pname, len(cdesc), cdesc[:60], len(mdesc), mdesc[:60]))
 
 print("\n".join(viol))
 ' 2>/dev/null)

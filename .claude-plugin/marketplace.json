@@ -26,7 +26,7 @@
     {
       "name": "bootstrap",
       "source": "./plugins/bootstrap",
-      "description": "Bootstrap a new machine to this versioned Claude Code setup — auto-syncs marketplaces and plugins via hooks AND applies the versioned global config (env, permissions, flags, global CLAUDE.md, machine-resolved statusLine). Run /bootstrap:setup once per machine. Replaces bootstrap-third-party.",
+      "description": "Bootstraps a new machine to this versioned Claude Code setup. Two layers: (1) auto-syncs third-party marketplaces & plugins via hooks (manifest-driven convergence), and (2) applies the versioned global config — env vars, permissions, behavior flags, the global CLAUDE.md, and a machine-resolved statusLine. Replaces bootstrap-third-party. Run /bootstrap:setup once per new machine. Ships the 'Clean Style' output style (single prose ceiling, pasted evidence exempt) and a report-only conformance checker that diffs the live machine against the versioned contract.",
       "category": "productivity",
       "version": "1.9.0",
       "tags": [
@@ -219,7 +219,7 @@
       "source": "./plugins/qa-loop",
       "description": "Review→fix loop that stops at diminishing returns, not at zero. Runs as a deterministic Workflow (Opus reviews → Opus plans/adjudicates → fixes; gate, churn and stop condition live in code). Anchored to the plan in 3 buckets — implementation / plan-drift / broken-plan — and to the project's own quality goals, read from .claude/docs/quality-goals.md at review time rather than copied into the skill. Regression gate per fix, accepted-limits, a human HTML report plus an agent-facing journal. Replaces qa, rev6 and iterate.",
       "category": "dev-tools",
-      "version": "1.8.0",
+      "version": "1.8.1",
       "tags": [
         "code-review",
         "qa",
@@ -262,7 +262,7 @@
       "source": "./plugins/sovai",
       "description": "Autonomous run mode — executes a plan end to end with no pauses, checkpoints or confirmations. Skips blockers without silent workarounds, records every decision, runs a headless qa-loop pass and delivers a structured report. The engine is a deterministic Workflow (decompose → execute → review) and a PreToolUse hook enforces it: while the mission is armed every sub-agent spawn is denied. The reviewer judges the work against the SPEC, not against the orchestrator's own decomposition — reviewing against your own breakdown is a closed circuit where a wrong breakdown gets approved. Five axes: spec · the project's own quality goals · traceability (every task carries its requirement and its definition of done) · completeness · cohesion. A dead agent degrades the mission instead of killing the engine.",
       "category": "productivity",
-      "version": "1.11.0",
+      "version": "1.11.1",
       "tags": [
         "autonomy",
         "execution",
@@ -276,7 +276,7 @@
       "source": "./plugins/visual",
       "description": "CLI walls-of-text → interactive HTML dark-theme views. The page carries the EVIDENCE, not the account of it: real artifact embedded, raw output verbatim, provenance for every number — enforced by a pre-ExitPlanMode gate. Prose is REFUSED by the builder: every text field is checked (≤140 chars per bullet, one sentence each, no continuation connective, max 6 per block) and a violation aborts without writing the page. Each problem's body is born folded — the title stays visible, consequence and proposal open on click under a label derived from the content itself. Plans, diagnostics and decisions in the browser with live sync back to Claude.",
       "category": "productivity",
-      "version": "1.13.0",
+      "version": "1.13.1",
       "tags": [
         "visualization",
         "html",
