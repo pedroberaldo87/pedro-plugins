@@ -394,6 +394,25 @@ Três regras que caíram daí:
 
 **Régua durável: componente cujo produto é consumido por terceiro precisa de check de PRESENÇA na cadeia — o uso normal não o testa, porque o uso normal não olha para o que ele produz.**
 
+### 1.15 Componente que encolhe conteúdo tem que emitir a SAÍDA junto
+
+Par do §1.14, do outro lado: lá o elo sumia sem sintoma, aqui o conteúdo fica visível mas **inalcançável**. Mesmo desenho de conserto — a garantia é do programa, não da lembrança de quem escreve.
+
+O `.artefato` embute o artefato real num quadro pequeno, e pequeno é a escolha certa: em tamanho natural ele quebra a leitura do documento e empurra a decisão pra fora da tela. O que faltava não era tamanho, era **saída** — não havia como olhar de perto sem sair da página. Desde 2026-08-02 `r_artefato()` emite dois botões, e eles não são redundantes [confirmado — `visual_page.py`, `test_visual_page.py` com 11 checks]:
+
+- **tela cheia** — ler agora **sem perder o lugar** no documento (`Esc` volta).
+- **nova janela** — deixar aberto e **comparar** com o resto.
+
+Três decisões de implementação, cada uma amarrada a um modo de falha concreto:
+
+- **`<a target="_blank">`, nunca `window.open()`.** Bloqueador de popup mata o segundo e não o primeiro, e a página abre em `file://`, onde a política é mais restritiva ainda.
+- **`.artefato:fullscreen` precisa de `background` próprio.** O navegador pinta branco por padrão em fullscreen; sem a regra, o tema escuro pisca na moldura ao redor.
+- **Sem Fullscreen API, cai em abrir-em-aba.** Clique que não faz nada é pior que botão ausente — o usuário conclui que a página está quebrada.
+
+Detalhe que decide o resto: **a moldura INTEIRA entra em fullscreen, não só o quadro.** Levando a barra junto, a procedência continua visível lá dentro e o caminho de volta fica na mão. Ampliar só o conteúdo tiraria da tela exatamente o que prova de onde ele veio.
+
+**Régua durável: todo componente que encolhe conteúdo para caber no fluxo deve emitir a saída para vê-lo inteiro, e essa saída é parte do componente — não enfeite opcional de quem escreve o spec.**
+
 ## 2 · Python
 
 ### 2.1 Stdlib puro, sem exceção observada
