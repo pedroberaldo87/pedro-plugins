@@ -36,6 +36,9 @@ bash plugins/project-doc/hooks/test_plan_gate.sh
 
 ## Documentation Index
 
+- **[quality-goals.md](.claude/docs/quality-goals.md)** — *autoral, `authored-by: human`* — a ordem de prioridade quando não dá para ter tudo (escaneabilidade > drill-down > completude > elegância), os dois regimes de documento, os três níveis de leitura, a régua de estilo que abole prosa em página gerada, e o mecanismo anti-ocultação do colapso
+  → antes de escrever relatório, plano, página de aprovação ou qualquer artefato que um humano lê para decidir
+
 - **[architecture.md](.claude/docs/architecture.md)** — estrutura do repo, anatomia de plugin, catálogo dos 19 plugins distribuídos com versões, os 10 plugins com hooks evento a evento, a engine vendorada (`_shared/` → 6 cópias), decisões de arquitetura, terceiros do bootstrap
   → entender o projeto, adicionar plugin, mexer em hooks, onboarding de máquina nova
 - **[patterns.md](.claude/docs/patterns.md)** — convenções de shell (fail-open, protocolo de saída de hook) e Python (stdlib only), vendoring, green-cache, regras de release + os 4 checks do gate de commit, testing, e a lista completa de gotchas com arquivo:símbolo

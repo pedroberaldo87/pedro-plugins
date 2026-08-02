@@ -806,10 +806,12 @@ páginas do `/visual` digitadas pelo modelo custavam **20-31 KB de HTML por pág
   colada na skill JÁ divergiu do template"*.
   - **O bloco de prova virou `<details>` que NASCE FECHADO**, com a contagem de linhas no
     cabeçalho clicável (`visual_page.py:r_evidencia`). Saída crua longa empurrava a decisão pra
-    fora da tela, e a página existe pra decidir, não pra ler log. Duas exceções, as duas por
-    segurança: prova de até `LINHAS_ABERTO = 6` linhas nasce aberta porque não empurra nada, e
-    `"aberto": true` no spec força abrir. **O bloco VAZIO continua aberto e gritando** —
-    esconder ausência de prova seria o oposto do que o componente existe pra fazer. [confirmado]
+    fora da tela, e a página existe pra decidir, não pra ler log. **Sem exceção por tamanho
+    desde 2026-08-02**: a antiga `LINHAS_ABERTO = 6` deixava prova curta nascer aberta, e o dono
+    mediu na tela quatro blocos abertos (4, 1, 6 e 3 linhas) que ele não pediu para ver. Sobrou
+    uma válvula só: `"aberto": true` no spec força abrir — **revelar mais nunca esconde**, então
+    esta é segura de deixar na mão de quem escreve. Bloco vazio não chega aqui: o validador
+    recusa evidência sem `output`. [confirmado — `test_visual_page.py`, 3 checks]
 - **`_e()`** (god node) é o escape de HTML, e ele existe **três vezes** no repo —
   `visual_page.py`, `plan_state.py` e `branch_state.py`. São implementações independentes, uma
   por emissor de HTML, não uma função compartilhada. [confirmado — `grep -rn --include='*.py'

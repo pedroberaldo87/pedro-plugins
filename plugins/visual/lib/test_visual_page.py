@@ -216,8 +216,14 @@ check("e não traz o atributo open", " open>" not in _h_longa)
 check("a origem virou o que se clica", "<summary class=\"evidencia-src\">" in _h_longa)
 check("mostra quantas linhas tem, fechada", "30 linhas" in _h_longa)
 
-_h_curta = "\n".join(V.r_evidencia({"src": "cmd", "output": "1 linha só"}, {}))
-check("prova curta nasce ABERTA (não empurra nada)", " open>" in _h_curta)
+_h_curta = "\n".join(V.r_evidencia({"src": "cmd", "output": "só uma linha"}, {}))
+check("prova CURTA também nasce fechada — sem exceção por tamanho",
+      " open>" not in _h_curta, _h_curta)
+check("o plural concorda em 1 linha", "1 linha<" in _h_curta and "1 linhas" not in _h_curta,
+      _h_curta)
+
+_h_seis = "\n".join(V.r_evidencia({"src": "cmd", "output": "\n".join("l%d" % i for i in range(6))}, {}))
+check("6 linhas (o antigo limite) já não abre nada", " open>" not in _h_seis)
 
 _h_forcada = "\n".join(V.r_evidencia({"src": "cmd", "output": _longa, "aberto": True}, {}))
 check("'aberto: true' força a longa a abrir", " open>" in _h_forcada)
@@ -336,6 +342,175 @@ r = subprocess.run([sys.executable, os.path.join(HERE, "visual_page.py"), "schem
                    capture_output=True, text=True)
 check("schema imprime o contrato", r.returncode == 0 and "evidencia" in r.stdout
       and "RECUSADO PELO PROGRAMA" in r.stdout)
+
+
+# ── a régua de estilo: prosa é proibida em página gerada ───────────────────
+# O caso que originou tudo: o bloco real do relatório de 2026-08-01, que o dono não
+# conseguiu ler. Ver quality-goals.md, "Trade-off já decidido por esta ordem".
+print("\n[régua de estilo — prosa proibida]")
+
+PROSA_REAL = ("Das cinco decisões que vazaram na sessão de ontem, quatro nasceram no meio "
+              "da implementação — e nenhum campo do plano as teria capturado, porque elas "
+              "não existiam quando o plano foi escrito. O que foi construído hoje resolve "
+              "a decisão que o autor do plano JÁ SABIA que existia.")
+
+e = V.erros_de_estilo(PROSA_REAL, "x")
+check("o textão real do relatório é REPROVADO", len(e) >= 2, e)
+check("reprova por tamanho", any("caracteres" in x for x in e), e)
+check("reprova por duas frases", any("duas frases" in x for x in e), e)
+
+check("bullet de 140 passa", V.erros_de_estilo("a" * 140, "x") == [])
+check("bullet de 141 reprova", len(V.erros_de_estilo("a" * 141, "x")) == 1)
+check("marcação não conta no teto",
+      V.erros_de_estilo("`%s`" % ("a" * 140), "x") == [])
+check("duas frases no mesmo bullet reprovam",
+      any("duas frases" in x for x in V.erros_de_estilo("Rodei a suite. Passou tudo.", "x")))
+check("uma frase que termina em ponto NÃO reprova",
+      V.erros_de_estilo("Rodei a suite e passou tudo.", "x") == [])
+check("reticências não viram duas frases",
+      V.erros_de_estilo("o gate desligou... e ninguém viu", "x") == [])
+check("decimal não vira duas frases",
+      V.erros_de_estilo("são 1.500 itens no plano", "x") == [])
+check("`arquivo.py` no meio não vira duas frases",
+      V.erros_de_estilo("o `plan_state.py` grava o arquivo", "x") == [])
+check("bullet que abre com conectivo reprova",
+      any("conectivo" in x for x in V.erros_de_estilo(["ok", "e por isso o gate caiu"], "x")))
+check("7 bullets reprovam (teto 6)",
+      any("teto é 6" in x for x in V.erros_de_estilo(["b%d" % i for i in range(7)], "x")))
+check("6 bullets passam", V.erros_de_estilo(["b%d" % i for i in range(6)], "x") == [])
+check("o erro diz QUAL bullet",
+      any("bullet 2" in x for x in V.erros_de_estilo(["ok", "a" * 200], "x")))
+
+# a régua tem que morder em TODO campo, não só na consequência
+CAMPOS = [
+    ({"kind": "text", "text": "a" * 200}, "text"),
+    ({"kind": "bullets", "items": ["a" * 200]}, "bullets"),
+    ({"kind": "callout", "text": "a" * 200}, "callout"),
+    ({"kind": "item", "title": "a" * 200}, "item.title"),
+    ({"kind": "item", "title": "ok", "body": "a" * 200}, "item.body"),
+    ({"kind": "artefato", "src": "file:///x.png", "procedencia": "a" * 200}, "artefato"),
+]
+for blk, nome in CAMPOS:
+    errs = V._validate_block(blk["kind"], blk, "s1 b1")
+    check("a régua morde em %s" % nome, any("caracteres" in x for x in errs), errs)
+
+d = {"kind": "decision", "question": "a" * 200, "context": "ok",
+     "options": [{"title": "A", "tradeoff": "b" * 200}, {"title": "B", "tradeoff": "ok"}]}
+errs = V._validate_block("decision", d, "s1 b1")
+check("a régua morde na pergunta da decisão", any("decision.question" in x for x in errs), errs)
+check("a régua morde no tradeoff da opção", any("opção 1 tradeoff" in x for x in errs), errs)
+
+check("prova crua fica FORA da régua (é literal por obrigação)",
+      V._validate_block("evidencia", {"kind": "evidencia", "src": "cmd",
+                                      "output": "x" * 900}, "s1 b1") == [])
+check("raw_html fica fora da régua (é a válvula)",
+      V._validate_block("raw_html", {"kind": "raw_html", "html": "<p>%s</p>" % ("a" * 300)},
+                        "s1 b1") == [])
+
+
+# ── o dobrador do tri: colapsa sem esconder ────────────────────────────────
+print("\n[tri — o problema fica; consequência e proposta dobram]")
+
+TRI = {"kind": "tri", "problema": "O gate de bump não cobrava a forma do comando",
+       "consequencia": ["7 de 9 commits passaram sem bump", "ninguém foi avisado"],
+       "proposta": ["tokenizar o comando e ler o subcomando do git"]}
+html_tri = "\n".join(V._tri(TRI))
+
+check("o problema fica FORA do details",
+      html_tri.index('class="p"') < html_tri.index("<details"), html_tri[:200])
+check("consequência fica DENTRO do details",
+      html_tri.index("<details") < html_tri.index('class="c"'))
+check("proposta fica DENTRO do details",
+      html_tri.index("<details") < html_tri.index('class="s"'))
+check("o details nasce FECHADO (sem `open`)", "<details class=\"item-detail tri-fold\">" in html_tri)
+check("o rótulo promove o primeiro impacto, não uma etiqueta de categoria",
+      "7 de 9 commits passaram sem bump" in html_tri and "o que isso causa" not in html_tri,
+      html_tri)
+check("o rótulo conta o que sobrou dentro", "+1" in html_tri, html_tri)
+check("o rótulo diz que o conserto está lá dentro", "como resolver" in html_tri)
+
+_um_só = V._tri({"problema": "p", "consequencia": ["única"], "proposta": ["x"]})
+_s1 = next(ln for ln in _um_só if "<summary>" in ln)
+check("com uma consequência só, não sai '+0'", "+0" not in _s1, _s1)
+check("o rótulo é DERIVADO: muda quando o conteúdo muda",
+      "única" in _s1 and "7 de 9 commits" not in _s1, _s1)
+_summary_tri = next(ln for ln in V._tri(TRI) if "<summary>" in ln)
+check("nome de campo do schema não vaza pro rótulo fechado",
+      "consequência" not in _summary_tri and "proposta" not in _summary_tri, _summary_tri)
+check("a contagem de bullets saiu do rótulo (ocupava espaço sem informar)",
+      "2 bullets" not in html_tri and "1 bullet" not in html_tri)
+check("a palavra 'detalhes' não aparece (não denuncia nada)", "detalhes" not in html_tri)
+check("sem sev o card sai neutro", 'class="tri">' in html_tri, html_tri[:80])
+check("sev no tri colore a régua do card (classe própria, não .sev-*)",
+      'class="tri tri-med"' in "\n".join(V._tri(dict(TRI, sev="med"))))
+check("item com sev propaga a régua pro tri embutido",
+      'class="tri tri-high"' in "\n".join(V.r_item(
+          {"kind": "item", "title": "x", "sev": "high", "tri": dict(TRI)},
+          {"n_items": 0, "item_labels": ("✓", "✏️", "✗")})))
+check("vários bullets viram lista", "<ul class=\"tri-bullets\">" in html_tri)
+check("um bullet só NÃO vira lista",
+      html_tri.count("<ul class=\"tri-bullets\">") == 1)
+
+# colapsar não é amputar: as três partes seguem obrigatórias
+for falta in ("consequencia", "proposta", "problema"):
+    incompleto = {k: v for k, v in TRI.items() if k != falta}
+    errs = V._validate_block("tri", incompleto, "s1 b1")
+    check("tri sem %s continua sendo RECUSADO" % falta,
+          any("sem '%s'" % falta in x for x in errs), errs)
+
+check("lista vazia conta como ausente",
+      any("sem 'consequencia'" in x
+          for x in V._validate_block("tri", dict(TRI, consequencia=[]), "s1 b1")))
+
+
+# ── o placar agregado: escrito pelo programa, sempre aberto ────────────────
+print("\n[placar — a superfície que o redator não escreve]")
+
+SPEC_PLACAR = {"title": "t", "ident": {"projeto": "p", "artefato": "a"},
+               "sections": [{"blocks": [
+                   dict(TRI, sev="high"),
+                   {"kind": "item", "title": "x", "sev": "med", "tri": TRI},
+                   EVID]}]}
+placar = "\n".join(V._placar(SPEC_PLACAR))
+check("conta todos os problemas, dobrados ou não", "<strong>2 problemas</strong>" in placar, placar)
+check("conta os graves à parte", "<strong>1 grave</strong>" in placar, placar)
+_um = V._placar({"sections": [{"blocks": [{"kind": "tri", "problema": "p",
+                                           "consequencia": ["c"], "proposta": ["s"]}]}]})
+check("o placar concorda no singular",
+      "<strong>1 problema</strong> apontado ·" in "\n".join(_um)
+      and "o corpo a um clique" in "\n".join(_um), _um)
+check("diz que o corpo está a um clique", "clique" in placar)
+check("página sem problema não ganha placar",
+      V._placar({"sections": [{"blocks": [EVID]}]}) == [])
+
+pagina, _ = V.build_page(SPEC_PLACAR, tpl())
+i_placar = pagina.index('class="callout warn"')
+check("o placar sai ANTES da primeira seção", i_placar < pagina.index("<section>"))
+check("o placar não nasce dentro de nenhum details",
+      "<details" not in pagina[pagina.index('<div class="wrap">'):i_placar])
+
+# a medida que originou tudo: quanto da página fica atrás de um clique
+corpo = pagina[pagina.index('<div class="wrap">'):]
+corpo = re.sub(r"<script.*?</script>", "", corpo, flags=re.S)
+
+
+def _texto(s):
+    import html as _h
+    return re.sub(r"\s+", " ", _h.unescape(re.sub(r"<[^>]+>", " ", s))).strip()
+
+
+fechado = sum(len(_texto(x)) for x in
+              re.findall(r"<details(?![^>]*\bopen\b)[^>]*>.*?</details>", corpo, flags=re.S))
+total = len(_texto(corpo))
+check("mais de um terço do texto nasce atrás de um clique",
+      fechado > total / 3.0, "%d de %d" % (fechado, total))
+visivel = corpo
+for x in re.findall(r"<details(?![^>]*\bopen\b)[^>]*>.*?</details>", corpo, flags=re.S):
+    visivel = visivel.replace(x, "")
+check("o problema aparece sem precisar clicar",
+      "O gate de bump não cobrava a forma do comando" in _texto(visivel))
+check("a consequência NÃO aparece sem clicar",
+      "7 de 9 commits passaram sem bump" not in _texto(visivel))
 
 
 print("\n%d passou · %d falhou" % (PASS, FAIL))
