@@ -519,6 +519,48 @@ def main():
         check("diz o que falta", L[3].startswith("• **Falta:** 3 passos"))
         check("nunca passa de 3 bullets", len([x for x in L if x.startswith("•")]) <= 3)
 
+        # O teto de 3 é POR PLANO — e até 2026-08-02 era só isso que existia, então
+        # N planos abertos davam 3×N bullets. Medido num projeto real: 4 planos
+        # ativos renderam 16 linhas, num Stop que ja soma 6 hooks.
+        print("brief — o teto vale para o CONJUNTO, não por plano")
+        quatro = [ps.brief_lines(sample(id="p-%d" % i)) for i in range(4)]
+        check("sem teto global, 4 planos dariam 16 linhas",
+              sum(len(x) for x in quatro) == 16)
+        cortado = ps._cabe_no_teto(quatro)
+        check("com o teto, sobra 1 bloco + a linha da contagem", len(cortado) == 2)
+        check("e o total cai de 16 para 5 linhas",
+              sum(len(x) for x in cortado) == 5)
+        check("o que foi cortado é CONTADO, não some em silêncio",
+              "mais 3 plano(s) aberto(s)" in cortado[-1][0])
+        check("a contagem diz como ver os outros",
+              "plan_state.py open" in cortado[-1][0])
+        check("um plano só não ganha linha de contagem",
+              ps._cabe_no_teto(quatro[:1]) == quatro[:1])
+        check("exatamente no teto também não ganha",
+              len(ps._cabe_no_teto(quatro, teto=4)) == 4)
+
+        # E2E pelo caminho REAL. Os checks acima chamam `_cabe_no_teto` direto, e
+        # por isso não pegam quem tira a função do `print` do cmd_brief — sabotar
+        # a chamada deixava a suíte verde. Testar a função não é testar o caminho.
+        dbr = tempfile.mkdtemp(prefix="brief-teto-")
+        try:
+            for i in range(4):
+                init_into(dbr, sample(id="cheio-%d" % i))
+            import io
+            import contextlib
+            buf = io.StringIO()
+            with contextlib.redirect_stdout(buf):
+                ps.cmd_brief(Args(dir=dbr, nudge=None, closed_since=None, mark_seen=None))
+            saida = buf.getvalue()
+            check("E2E: com 4 planos, o comando sai com 1 bloco só",
+                  saida.count("📍") == 1)
+            check("E2E: e a contagem dos outros 3 aparece",
+                  "mais 3 plano(s) aberto(s)" in saida)
+            check("E2E: a saída inteira cabe em 6 linhas",
+                  len([x for x in saida.strip().split("\n") if x.strip()]) <= 5)
+        finally:
+            shutil.rmtree(dbr, ignore_errors=True)
+
         ps.cmd_tick(Args(dir=d, plan="2026-07-27-brief", node="F1.1", evidencia="python3 t.py -> OK"))
         ps.cmd_tick(Args(dir=d, plan="2026-07-27-brief", node="F1.2", evidencia="commit a1b2c3d"))
         L = ps.brief_lines(ps.pick_plan(d, "2026-07-27-brief"))

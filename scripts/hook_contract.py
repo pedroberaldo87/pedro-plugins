@@ -33,6 +33,7 @@ Só stdlib.
 """
 
 import argparse
+import glob
 import json
 import os
 import re
@@ -356,13 +357,117 @@ def report(res):
     return "\n".join(out) + "\n"
 
 
+# ── orçamento do fim de turno ──────────────────────────────────────────────
+# Seis hooks disputam o `Stop` neste marketplace, cada um respeitando o próprio
+# teto e nenhum sabendo do total. Em 2026-08-02 o dono mediu na tela: quatro
+# blocos de progresso de plano, `6/9 · 35s · 773 tokens`. Cada emissor estava
+# dentro do que prometia; o CONJUNTO é que não tinha dono.
+#
+# Isto não é gate — é medidor. Roda cada emissor num sandbox (HOME e
+# CLAUDE_CONFIG_DIR temporários, projeto vazio) com o payload que o harness
+# manda, e conta as linhas que saem. Sandbox porque emissor de Stop escreve
+# estado, e medir não pode sujar a máquina de quem mede.
+STOP_TETO_LINHAS = 6
+
+
+def stop_budget(root):
+    """Quanto o fim de turno custa em linhas, emissor a emissor."""
+    import shutil
+    import subprocess
+    import tempfile
+
+    emissores = []
+    for f in sorted(glob.glob(os.path.join(root, "plugins/*/hooks/hooks.json"))):
+        plug = f.split(os.sep)[-3]
+        try:
+            with open(f, encoding="utf-8") as fh:
+                cfg = json.load(fh)
+        except (OSError, ValueError):
+            continue
+        for h in cfg.get("hooks", {}).get("Stop", []):
+            for hh in h.get("hooks", []):
+                cmd = hh.get("command", "")
+                m = re.search(r"([\w.-]+\.(?:sh|py))", cmd)
+                if not m:
+                    continue
+                caminho = os.path.join(root, "plugins", plug, "hooks", m.group(1))
+                if os.path.exists(caminho):
+                    emissores.append((plug, m.group(1), caminho, hh.get("timeout")))
+
+    sandbox = tempfile.mkdtemp(prefix="stop-budget-")
+    linhas_tot = 0
+    saida = []
+    try:
+        # Sandbox VAZIO mede o caso trivial e não serve: emissor calado num projeto
+        # sem nada é o que já esperávamos. O que interessa é o PIOR caso realista —
+        # o que o dono viu na tela. Então o sandbox nasce povoado: N planos abertos
+        # e um transcript com edições, que é o gatilho das cobranças.
+        # MARCADOR DE PROJETO, e ele não é detalhe: `resolve-dir.sh` aplica uma
+        # cascata (raiz git → marcador → ~/Desktop). Sem marcador o sandbox não é
+        # projeto, a cascata cai no Desktop, e o medidor passa a LER OS PLANOS
+        # REAIS do dono — foi o que aconteceu na primeira versão disto.
+        open(os.path.join(sandbox, "CLAUDE.md"), "w").close()
+        planos = os.path.join(sandbox, ".claude", "plans")
+        os.makedirs(planos, exist_ok=True)
+        for i in range(4):
+            with open(os.path.join(planos, "p%d.plan.json" % i), "w", encoding="utf-8") as fh:
+                json.dump({"id": "p%d" % i, "title": "Plano de medição %d" % i,
+                           "status": "active",
+                           "phases": [{"id": "F1", "title": "Fase", "items": [
+                               {"id": "F1.%d" % j, "title": "passo %d" % j,
+                                "desc": "linha didática do passo %d" % j,
+                                "status": "todo"} for j in (1, 2, 3)]}]}, fh)
+        trans = os.path.join(sandbox, "t.jsonl")
+        with open(trans, "w", encoding="utf-8") as fh:
+            for i in range(5):
+                fh.write(json.dumps({"type": "assistant", "message": {"content": [
+                    {"type": "tool_use", "name": "Edit",
+                     "input": {"file_path": "/x/a%d.py" % i}}]}}) + "\n")
+        payload = json.dumps({"session_id": "budget-probe", "cwd": sandbox,
+                              "transcript_path": trans})
+        env = dict(os.environ, HOME=sandbox, CLAUDE_CONFIG_DIR=os.path.join(sandbox, ".claude"),
+                   CLAUDE_PROJECT_DIR=sandbox, TMPDIR=sandbox)
+        for plug, nome, caminho, timeout in emissores:
+            runner = ["python3", caminho] if caminho.endswith(".py") else ["bash", caminho]
+            try:
+                r = subprocess.run(runner, input=payload, capture_output=True,
+                                   text=True, env=env, cwd=sandbox, timeout=20)
+                out = (r.stdout or "") + (r.stderr or "")
+            except (subprocess.TimeoutExpired, OSError) as exc:
+                out = ""
+                nome = "%s (nao mediu: %s)" % (nome, type(exc).__name__)
+            n = len([x for x in out.split("\n") if x.strip()])
+            linhas_tot += n
+            saida.append({"plugin": plug, "script": nome, "linhas": n, "timeout": timeout})
+    finally:
+        shutil.rmtree(sandbox, ignore_errors=True)
+    return {"emissores": saida, "total_linhas": linhas_tot, "teto": STOP_TETO_LINHAS}
+
+
 def main(argv=None):
     ap = argparse.ArgumentParser(prog="hook_contract.py", description=__doc__.split("\n")[0])
+    ap.add_argument("--stop-budget", action="store_true",
+                    help="mede quantas linhas os emissores de Stop produzem juntos")
     ap.add_argument("--root", default=".")
     ap.add_argument("--json", action="store_true")
     ap.add_argument("--fail-on", choices=("high", "med", "low"), help="exit 1 se houver achado nesse nível ou pior")
     ap.add_argument("--baseline", help="JSON de um retrato anterior: reporta só o que PIOROU")
     args = ap.parse_args(argv)
+
+    if args.stop_budget:
+        b = stop_budget(os.path.abspath(args.root))
+        if args.json:
+            print(json.dumps(b, ensure_ascii=False, indent=2))
+            return 0
+        print("Orçamento do fim de turno — linhas que cada emissor de Stop produz\n")
+        for e in b["emissores"]:
+            print("  %-13s %-34s %3d linha(s)   timeout=%ss"
+                  % (e["plugin"], e["script"], e["linhas"], e["timeout"]))
+        print("\n  TOTAL: %d linha(s) · teto de referência: %d"
+              % (b["total_linhas"], b["teto"]))
+        if b["total_linhas"] > b["teto"]:
+            print("  ⚠️  acima do teto — o fim de turno virou relatório, não resumo")
+        return 0
 
     res = run(os.path.abspath(args.root))
 

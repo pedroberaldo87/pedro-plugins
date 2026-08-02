@@ -815,15 +815,38 @@ def _seen_ids(path):
         return set()
 
 
+# O teto do fim de turno é do CONJUNTO, não de cada plano. `brief_lines` já corta
+# em 3 bullets por plano — e era só isso que existia, então N planos abertos davam
+# 3×N. Medido em 2026-08-02 num projeto real: 4 planos ativos renderam 12 bullets
+# mais 4 cabeçalhos, num Stop que já soma 6 hooks.
+BRIEF_MAX_BLOCOS = 1
+
+
+def _cabe_no_teto(blocks, teto=BRIEF_MAX_BLOCOS):
+    """Corta o excedente e DIZ quantos ficaram de fora.
+
+    Sumir com plano aberto em silêncio seria trocar um defeito por outro pior: o
+    dono deixaria de saber que existem. A contagem é a linha que impede isso.
+    """
+    if len(blocks) <= teto:
+        return blocks
+    sobra = len(blocks) - teto
+    return blocks[:teto] + [["   ⋯ e mais %d plano(s) aberto(s) neste projeto — "
+                             "veja com `plan_state.py open`" % sobra]]
+
+
 def cmd_brief(args):
     directory = args.dir or resolve_dir()
     seen_path = getattr(args, "mark_seen", None)
     seen = _seen_ids(seen_path)
-    blocks, novos = [], []
+    # Dois grupos, e SÓ o primeiro tem teto. A confirmação de plano encerrado é
+    # um evento que acontece uma vez e some — cortá-la seria engolir justamente o
+    # "🏁 acabou" que o hook existe pra dar de forma inequívoca.
+    ativos, blocks, novos = [], [], []
     for plan in list_plans(directory):
         if plan.get("status") == "active":
             # por plano, não uma vez só: cada um pode declarar os próprios requisitos
-            blocks.append(brief_lines(plan, getattr(args, "nudge", None),
+            ativos.append(brief_lines(plan, getattr(args, "nudge", None),
                                       _requisitos_do_projeto(directory, plan)))
         elif args.closed_since is not None:   # 0 é epoch válido, e é falsy
             # Encerrado DEPOIS do marco → confirma. `--mark-seen` guarda quais
@@ -838,7 +861,7 @@ def cmd_brief(args):
                     novos.append(plan["id"])
             except (OSError, ValueError):
                 pass
-    if not blocks:
+    if not ativos and not blocks:
         return 0
     if seen_path and novos:
         try:
@@ -847,7 +870,7 @@ def cmd_brief(args):
                 fh.write("".join(i + "\n" for i in novos))
         except OSError:
             pass  # não conseguiu lembrar → repete; melhor que sumir
-    print("\n\n".join("\n".join(b) for b in blocks))
+    print("\n\n".join("\n".join(b) for b in _cabe_no_teto(ativos) + blocks))
     return 0
 
 
