@@ -496,6 +496,33 @@ Ambos usam o helper `le_batidas(log)`, que devolve `(contagem por motivo, idade 
 
 Os três canais de bloqueio coexistem hoje e o script **não normaliza, só mede**: `exit 2` (intent-guard, visual), `permissionDecision:"deny"` (project-doc, guardrails) e `"decision":"block"` (handoff). Cap conta em duas formas — contador (`-ge` perto de um `exit 0`, dentro de `CAP_ESCAPE_WINDOW = 8` linhas) e sentinela (`[ -f "$SENTINEL" ]` e variantes). O cabeçalho é explícito sobre a direção do erro: detectar um cap que não existe é o erro caro, porque o script deixaria de acusar um gate que trava de verdade.
 
+### 10a · `--stop-budget` — o custo somado do fim de turno
+
+**Novo em 2026-08-02.** As 5 propriedades acima medem cada hook **isolado**; nenhuma mede o CONJUNTO. Seis hooks disputam o `Stop` neste marketplace, cada um respeitando o próprio teto, e o dono viu na tela `6/9 · 35s · ↓773 tokens` com quatro blocos de progresso de plano. Todo emissor estava dentro do que prometia — **o conjunto é que não tinha dono**.
+
+```bash
+python3 scripts/hook_contract.py --stop-budget       # humano
+python3 scripts/hook_contract.py --stop-budget --json
+```
+
+Saída desta rodada `[confirmado]`:
+
+```
+bootstrap     stop-prose-ceiling.py            0 linha(s)   timeout=10s
+bootstrap     stop-forma-relato.py             0 linha(s)   timeout=30s
+handoff       handoff-completeness-gate.sh     0 linha(s)   timeout=30s
+intent-guard  delivery-audit.sh                1 linha(s)   timeout=60s
+project-doc   stop-doc-touch.sh                0 linha(s)   timeout=15s
+visual        stop-plan-status.sh              3 linha(s)   timeout=15s
+TOTAL: 4 linha(s) · teto de referência: 6
+```
+
+**É medidor, não gate** — imprime `⚠️ acima do teto` e não barra nada. Roda cada emissor num sandbox (`HOME`, `CLAUDE_CONFIG_DIR`, `TMPDIR` e `cwd` temporários) porque emissor de `Stop` escreve estado, e medir não pode sujar a máquina de quem mede.
+
+⚠️ **O sandbox precisa de marcador de projeto, e isso não é detalhe.** `resolve-dir.sh` aplica a cascata raiz-git → marcador → `~/Desktop`: sem um `CLAUDE.md` no sandbox, a cascata **sai do diretório temporário** e o medidor passa a ler os planos reais do dono. Foi o defeito da primeira versão, pego na própria medição.
+
+⚠️ **Sandbox vazio mede o caso trivial.** Emissor calado num projeto sem nada é o esperado; o que interessa é o pior caso realista. O sandbox nasce povoado com **4 planos ativos e um transcript com 5 edições** — que é o gatilho das cobranças.
+
 Uso: `--json` para a medida crua, `--fail-on high` para virar gate (exit 1), `--baseline f.json` para ver só o que piorou. ⚠️ O próprio cabeçalho classifica: **isto é grep sofisticado, não verdade** — o achado vem com linha e trecho para a conferência custar segundos. `[confirmado — cabeçalho e blocos de regex lidos; script não executado nesta rodada]`
 
 ---
