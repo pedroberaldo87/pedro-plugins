@@ -117,7 +117,7 @@ python3 -c "import json;print(len(json.load(open('.claude-plugin/marketplace.jso
 ```
 
 - **19 diretórios de plugin · 19 manifestos · 19 entradas no catálogo · 21 skills ·
-  10 plugins com hooks · 32 arquivos `.py` em `lib/`.** [confirmado — os seis comandos
+  **11** plugins com hooks · 32 arquivos `.py` em `lib/`.** [confirmado — os seis comandos
   re-rodados nesta passada de `/doc-touch`; **só o de `lib/` mudou**, de 31 para 32, com
   `plugins/handoff/lib/test_handoff_skill.py`, a suíte que nasceu nesta rodada pra cobrar
   que a skill de handoff LEIA os campos do arquivo de plano em vez de mandar reinventá-los.]
@@ -266,8 +266,8 @@ project-doc     3.18.4  [design-md, doc-touch, project-doc, start-doc]   HOOKS
 qa-loop          1.7.2  [qa-loop]                                        -
 ship             1.3.9  [ship]                                           HOOKS
 slides           1.3.2  [slides]                                         -
-sovai            1.8.2  [sovai]                                          -
-visual           1.9.1  [visual]                                         HOOKS
+sovai            1.9.0  [sovai]                                          HOOKS
+visual          1.11.1  [visual]                                         HOOKS
 ```
 
 Duas linhas mudaram nesta rodada e as duas foram re-derivadas do mesmo laço acima:
@@ -286,9 +286,9 @@ Terceiros vendorados como plugin próprio: `grill-me` e `grill-with-docs` declar
 [relatado — a atribuição vivia em mensagem de commit da história antiga, que não existe mais
 neste repo; o `marketplace.json` de hoje não carrega campo `author` nessa entrada].
 
-## 6. Os 10 plugins com hooks — evento por evento
+## 6. Os 11 plugins com hooks — evento por evento
 
-Inventário gerado neste run lendo os 10 `plugins/*/hooks/hooks.json`
+Inventário gerado neste run lendo os 11 `plugins/*/hooks/hooks.json`
 (`evento[matcher] → script (timeout)`):
 
 ```
@@ -341,6 +341,9 @@ project-doc      (5 eventos, 8 hooks)   ← o maior; ver §6.1
 ship             (1 evento, 1 hook)
   PreToolUse[Bash]                   → pre-deploy-test-check.sh     (120s)
 
+sovai            (1 evento, 1 hook)                                         ← novo
+  PreToolUse[Agent]                  → pretooluse-sovai-motor.sh    (10s)
+
 visual           (3 eventos, 3 hooks)
   SessionStart[*]                    → sessionstart-plan.sh         (10s)
   Stop[*]                            → stop-plan-status.sh          (15s)
@@ -357,8 +360,19 @@ Observações de arquitetura:
   a resposta e um RELATO"*. Detalhe em §10.2. [confirmado — `plugins/bootstrap/hooks/hooks.json`
   tem os dois no array `Stop`, e os dois arquivos existem em `plugins/bootstrap/hooks/`]
 - `guardrails` é o único que usa `"type": "prompt"` (classificador LLM inline no `hooks.json`,
-  sem script) — os outros **33** são `"type": "command"`, num total de **34 registros**
-  [confirmado, varredura própria neste run; bate com `scripts/hook_contract.py`].
+  sem script) — os outros **34** são `"type": "command"`, num total de **35 registros**
+  [confirmado, varredura própria neste run; bate com `scripts/hook_contract.py`, que imprime
+  *"35 registros, 34 scripts distintos"*].
+- **Dois plugins gateiam o `Agent`, e eles não concorrem — respondem a perguntas opostas.**
+  O do `guardrails` é o classificador LLM e existe pra **proteger** Agent Teams: ele nega
+  sub-agente avulso **quando o prompt pede Agent Teams**, e libera explicitamente *"tarefa
+  one-off sem team_name"*. O do `sovai` (`pretooluse-sovai-motor.sh`, novo em 2026-08-02) nega
+  **todo** disparo de sub-agente enquanto a missão estiver armada, porque ali o motor é a tool
+  `Workflow`. A distinção importa: a SKILL do sovai afirmava que o guard do `guardrails` a
+  protegia, e a regra 3 dele fazia o oposto — prosa descrevendo mecanismo ausente não dá erro.
+  O gate do sovai lê um sinal por sessão (`~/.claude/sovai/ativo-<session_id>`), tem cap de 3
+  negações e kill-switch `SOVAI_GATE=0`. [confirmado — `plugins/sovai/hooks/test_sovai_gate.sh`
+  → `OK (20 checks)` neste run]
 - **O `AskUserQuestion` é gateável** (`guardrails/hooks/askq-humanize.sh`). O contrato de gate
   está escrito no cabeçalho do próprio arquivo, copiado literal: *canal* `permissionDecision:"deny"`
   em JSON no stdout com exit 0; *cap* 3 devoluções por sessão; *desligar* `ASKQ_GATE=0`;

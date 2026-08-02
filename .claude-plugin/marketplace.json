@@ -260,7 +260,7 @@
     {
       "name": "sovai",
       "source": "./plugins/sovai",
-      "description": "Autonomous execution mode — executes any plan to completion without user interruptions, checkpoints, or confirmations. Builds via a decompose→execute→review Workflow engine (all-Opus: one Opus decomposes the plan, Opus executors build in parallel, a second Opus reviews completeness+cohesion and feeds back). Skips blocked items (no silent workarounds), logs all decisions, runs a final headless qa-loop pass, regenerates docs (project-doc) and commits + pushes the work, and delivers the final report as an interactive /visual HTML review surface (markdown fallback).",
+      "description": "Autonomous run mode — executes a plan end to end with no pauses, checkpoints or confirmations. Skips blockers without silent workarounds, records every decision, runs a headless qa-loop pass and delivers a structured report. The engine is a deterministic Workflow (decompose → execute → review), and a PreToolUse hook enforces it: while the mission is armed every sub-agent spawn is denied and sent back to the Workflow. The gate degrades instead of trapping — it gives up after 3 denials and logs it, because a long mission with the owner away must not die stuck.",
       "category": "productivity",
       "version": "1.9.0",
       "tags": [

@@ -309,6 +309,25 @@ O mesmo raciocínio aparece nos dois hooks Python de `Stop` como `batidas.log` �
 
 ---
 
+### 1.11 Skill que se diz protegida por um guard: cheque o guard
+
+**Novo em 2026-08-02**, e o defeito era invisível por construção. A `sovai/SKILL.md` afirmava, em prosa, que *"o guard `PreToolUse(Agent)` acorda a cada disparo"* — justificando por que a skill não precisava de mecanismo próprio contra descambar pra sub-agente. O guard existia mesmo, mas fazia o **oposto** [confirmado — `plugins/guardrails/hooks/hooks.json`, prompt do classificador, copiado literal]:
+
+```
+1. tem 'team_name'                         → ALLOW  (é Agent Teams)
+2. sem team_name E prompt cita Agent Teams → DENY
+3. tarefa one-off sem team_name            → ALLOW   ← o caso do sovai
+4. na dúvida                               → ALLOW
+```
+
+Ele foi escrito pra **proteger** Agent Teams de serem substituídos por sub-agente avulso. A regra 3 libera exatamente a forma pela qual o sovai descambava.
+
+Por que ninguém viu: **prosa que descreve mecanismo ausente não dá erro**. Não é ponteiro morto (o arquivo citado existe), não é classe CSS inexistente (o `doc_lint` pegaria), não é teste vermelho. É uma afirmação sobre comportamento, e a única forma de checá-la é ler o outro arquivo.
+
+**Régua durável: toda vez que um documento dispensa mecanismo alegando que outro componente já cobre, abra o componente e leia a regra dele na mesma passada.** O custo é um `grep`; o custo de não fazer é uma proteção que só existe no texto. Corolário para quem escreve: cite o arquivo **e a regra**, não só o nome — "o guard `X` acorda" é inauditável; "a regra 3 de `X` libera one-off, então **não** cobre este caso" é.
+
+Dois guards podem coexistir no mesmo matcher respondendo a perguntas opostas — é o caso de `Agent` hoje (§6 do `architecture.md`). Coexistir não é conflito; **presumir** que o do vizinho cobre o seu caso é.
+
 ## 2 · Python
 
 ### 2.1 Stdlib puro, sem exceção observada
