@@ -48,13 +48,20 @@ TEMPLATE = os.path.normpath(os.path.join(HERE, "..", "skills", "visual", "templa
 RESOLVE_DIR = os.path.normpath(os.path.join(HERE, "..", "skills", "visual", "resolve-dir.sh"))
 
 ESTADOS = ("rascunho", "gerado", "noar", "apresentado")
-# Prova até este tamanho nasce ABERTA: são 6 linhas, cabem no olho sem empurrar a
-# decisão pra fora da tela. Acima disso a página vira scroll de log — e ela existe
-# pra decidir. Ver r_evidencia.
-LINHAS_ABERTO = 6
 SEV = {"high": "sev-high", "med": "sev-med", "low": "sev-low"}
 DEFAULT_ITEM_LABELS = ["✓ Manter", "✏️ Mudar", "✗ Remover"]
 CALLOUT_VARIANTS = ("info", "warn", "danger", "ok")
+
+# ── a régua de estilo (quality-goals.md, regime "informação rápida") ────────
+# Página gerada é lida com pressa: prosa é PROIBIDA, bullets são a forma. As três
+# checagens abaixo são mecânicas de propósito — teto sozinho não mata prosa, só a
+# fatia em bullets que se leem em sequência.
+BULLET_MAX = 140      # o mesmo teto que plan_state já cobra no `desc` (máx real medido: 137)
+BULLETS_MAX = 6       # acima disso é prosa picada, ou são dois itens
+# Ponto/!/? seguido de espaço = segunda frase. Ignora "..." e decimal ("1.500 itens").
+_DUAS_FRASES = re.compile(r"(?<![.\d])[.!?](?=\s)(?!\s*$)")
+# Bullet que abre continuando o anterior é parágrafo fatiado — passa no teto e segue prosa.
+_CONECTIVO = re.compile(r"^(e|mas|que|porque|pois|ent[ãa]o|ou seja|al[ée]m disso|sendo que)\b", re.I)
 
 
 class SpecError(Exception):
@@ -78,6 +85,52 @@ def _rich(s):
     out = re.sub(r"`([^`]+)`", r'<code class="inline">\1</code>', out)
     out = re.sub(r"\*\*([^*]+)\*\*", r"<strong>\1</strong>", out)
     return out
+
+
+def _plural(n, s, p=None):
+    """Mesma assinatura do `plan_state._plural` — o texto que o dono lê concorda."""
+    return "%d %s" % (n, s if n == 1 else (p or s + "s"))
+
+
+def _cru(s):
+    """Texto sem a marcação do `_rich` — o teto conta o que o olho lê, não a sintaxe."""
+    t = re.sub(r"`([^`]+)`", r"\1", str(s or ""))
+    return re.sub(r"\*\*([^*]+)\*\*", r"\1", t).strip()
+
+
+def bullets_de(v):
+    """Normaliza campo de texto em lista de bullets. String vira lista de um."""
+    if isinstance(v, (list, tuple)):
+        return [str(x or "").strip() for x in v if str(x or "").strip()]
+    s = str(v or "").strip()
+    return [s] if s else []
+
+
+def erros_de_estilo(v, onde):
+    """A régua, aplicada a QUALQUER campo de texto que o gerador emite.
+
+    Fora do alcance de propósito: `evidencia.output` (saída crua é literal por
+    obrigação) e `raw_html`. Ver quality-goals.md, "A régua de estilo".
+    """
+    errs = []
+    itens = bullets_de(v)
+    lista = isinstance(v, (list, tuple))
+    if lista and len(itens) > BULLETS_MAX:
+        errs.append("%s: %d bullets, o teto é %d — acima disso é prosa picada, "
+                    "ou são dois itens" % (onde, len(itens), BULLETS_MAX))
+    for i, t in enumerate(itens, 1):
+        alvo = "%s bullet %d" % (onde, i) if lista else onde
+        nu = _cru(t)
+        if len(nu) > BULLET_MAX:
+            errs.append("%s: %d caracteres, o teto é %d — quebre em bullets, "
+                        "não encolha a informação" % (alvo, len(nu), BULLET_MAX))
+        if _DUAS_FRASES.search(nu):
+            errs.append("%s: duas frases no mesmo bullet — parágrafo disfarçado; "
+                        "vire dois bullets" % alvo)
+        if _CONECTIVO.match(nu):
+            errs.append("%s: abre com conectivo de continuação — é o parágrafo "
+                        "anterior fatiado, não um bullet" % alvo)
+    return errs
 
 
 # ── extração dos blocos canônicos do template ──────────────────────────────
@@ -121,11 +174,23 @@ def validate(spec):
     if est not in ESTADOS:
         errs.append("ident.estado inválido: %r (use %s)" % (est, "|".join(ESTADOS)))
 
+    # A régua vale para TODO texto da página, inclusive o que não mora em bloco.
+    for f in ("title", "subtitle", "tldr", "kicker"):
+        if spec.get(f):
+            errs.extend(erros_de_estilo(spec.get(f), "spec.%s" % f))
+    for ei, it in enumerate(spec.get("exec") or [], 1):
+        if isinstance(it, dict):
+            for f in ("title", "como", "porque", "toca", "text"):
+                if it.get(f):
+                    errs.extend(erros_de_estilo(it.get(f), "exec %d %s" % (ei, f)))
+
     kinds = []
     for si, sec in enumerate(spec.get("sections") or [], 1):
         if not isinstance(sec, dict):
             errs.append("seção %d não é objeto" % si)
             continue
+        if sec.get("title"):
+            errs.extend(erros_de_estilo(sec.get("title"), "seção %d título" % si))
         for bi, blk in enumerate(sec.get("blocks") or [], 1):
             where = "seção %d bloco %d" % (si, bi)
             if not isinstance(blk, dict) or not blk.get("kind"):
@@ -167,13 +232,28 @@ def _validate_block(k, blk, where):
     elif k == "artefato":
         if not str(blk.get("src") or "").strip():
             errs.append("%s: artefato sem 'src' (caminho absoluto file:// ou data:)" % where)
+        for f in ("procedencia", "alt"):
+            if blk.get(f):
+                errs.extend(erros_de_estilo(blk.get(f), "%s: artefato.%s" % (where, f)))
     elif k == "tri":
+        # Colapsar não é amputar: consequência e proposta ficam atrás do clique, mas
+        # continuam OBRIGATÓRIAS. O gate só mudou de lugar, não de exigência.
         for f in ("problema", "consequencia", "proposta"):
-            if not str(blk.get(f) or "").strip():
+            if not bullets_de(blk.get(f)):
                 errs.append("%s: tri sem '%s' — as três partes são obrigatórias" % (where, f))
+            errs.extend(erros_de_estilo(blk.get(f), "%s: tri.%s" % (where, f)))
     elif k == "item":
         if not str(blk.get("title") or "").strip():
             errs.append("%s: item sem 'title'" % where)
+        errs.extend(erros_de_estilo(blk.get("title"), "%s: item.title" % where))
+        for f in ("body", "paragraphs"):
+            if blk.get(f):
+                errs.extend(erros_de_estilo(blk.get(f), "%s: item.%s" % (where, f)))
+        det = blk.get("detail") or {}
+        if isinstance(det, dict):
+            for f in ("summary", "paragraphs"):
+                if det.get(f):
+                    errs.extend(erros_de_estilo(det.get(f), "%s: detail.%s" % (where, f)))
         if blk.get("sev") and blk["sev"] not in SEV:
             errs.append("%s: sev inválido %r (use high|med|low)" % (where, blk["sev"]))
         if blk.get("tri"):
@@ -184,6 +264,8 @@ def _validate_block(k, blk, where):
         if not str(blk.get("context") or "").strip():
             errs.append("%s: decision sem 'context' — a linha que diz o que está "
                         "em jogo, em linguagem humana" % where)
+        for f in ("question", "context"):
+            errs.extend(erros_de_estilo(blk.get(f), "%s: decision.%s" % (where, f)))
         opts = blk.get("options") or []
         if len(opts) != 2:
             errs.append("%s: decision precisa de EXATAMENTE 2 opções — a 3ª "
@@ -194,7 +276,14 @@ def _validate_block(k, blk, where):
             elif not str(o.get("tradeoff") or "").strip():
                 errs.append("%s: opção %d sem 'tradeoff' — a consequência de "
                             "escolher ela" % (where, oi))
+            if isinstance(o, dict):
+                for f in ("title", "body", "tradeoff"):
+                    if o.get(f):
+                        errs.extend(erros_de_estilo(o.get(f), "%s: opção %d %s"
+                                                    % (where, oi, f)))
     elif k == "chart":
+        if blk.get("title"):
+            errs.extend(erros_de_estilo(blk.get("title"), "%s: chart.title" % where))
         rounds = blk.get("rounds") or []
         if not rounds:
             errs.append("%s: chart sem 'rounds'" % where)
@@ -211,7 +300,13 @@ def _validate_block(k, blk, where):
         if blk.get("variant", "info") not in CALLOUT_VARIANTS:
             errs.append("%s: callout variant inválida %r (use %s)"
                         % (where, blk.get("variant"), "|".join(CALLOUT_VARIANTS)))
-    elif k in ("text", "bullets", "raw_html"):
+        errs.extend(erros_de_estilo(blk.get("text"), "%s: callout.text" % where))
+    elif k == "text":
+        errs.extend(erros_de_estilo(blk.get("text"), "%s: text" % where))
+    elif k == "bullets":
+        errs.extend(erros_de_estilo(blk.get("items") or [], "%s: bullets" % where))
+    elif k == "raw_html":
+        # Válvula declarada: layout excepcional. Fora da régua de propósito.
         pass
     else:
         errs.append("%s: kind desconhecido %r" % (where, k))
@@ -253,12 +348,11 @@ def r_evidencia(blk, ctx):
         # <mark> na linha que decide — aplicado ao texto JÁ escapado
         txt = txt.replace(_e(hl), "<mark>%s</mark>" % _e(hl), 1)
     linhas = str(blk.get("output") or "").count("\n") + 1
-    aberto = bool(blk.get("aberto")) or linhas <= LINHAS_ABERTO
-    return ['  <details class="evidencia"%s>' % (" open" if aberto else ""),
+    return ['  <details class="evidencia"%s>' % (" open" if blk.get("aberto") else ""),
             '    <summary class="evidencia-src">%s'
-            '<span class="evidencia-conta">%d linhas</span>'
+            '<span class="evidencia-conta">%s</span>'
             '<span class="evidencia-chev">›</span></summary>'
-            % (_rich(blk.get("src")), linhas),
+            % (_rich(blk.get("src")), _plural(linhas, "linha")),
             "    <pre>%s</pre>" % txt,
             "  </details>"]
 
@@ -280,15 +374,64 @@ def r_callout(blk, ctx):
             % (_e(blk.get("variant", "info")), _rich(blk.get("text")))]
 
 
-def _tri(t, indent="  "):
+def _tri_parte(cls, icone, rotulo, bullets, indent):
+    """Uma das três partes. Um bullet só sai como linha; vários saem como lista."""
+    corpo = ("<ul class=\"tri-bullets\">%s</ul>"
+             % "".join("<li>%s</li>" % _rich(b) for b in bullets)
+             if len(bullets) > 1 else _rich(bullets[0] if bullets else ""))
+    return ('%s<div class="%s"><span class="ic">%s</span><span>'
+            '<span class="lbl">%s</span>%s</span></div>'
+            % (indent, cls, icone, rotulo, corpo))
+
+
+def _tri(t, indent="  ", sev=None):
+    """O problema fica VISÍVEL; consequência e proposta nascem fechadas.
+
+    Por que assim (quality-goals.md): a régua antiga mandava as três partes ficarem
+    fora do `<details>` pra impedir que um problema fosse escondido — e o efeito foi
+    obrigar toda seção de bloqueio a nascer aberta (89% do último relatório vinha
+    exposto de cara). O invariante que importava sobrevive: **a posição é do
+    programa, não de quem escreve**. O que mudou foi qual é a posição.
+
+    O rótulo do que está fechado é DERIVADO do conteúdo, nunca escrito à parte.
+    Ele promove o primeiro impacto — o texto real que está lá dentro, já sujeito
+    à régua de estilo — e conta quanto sobrou. Duas propriedades de uma vez:
+
+      - **denuncia**: o rótulo fala DESTE problema, não da categoria dele.
+        "o que isso causa" era a mesma etiqueta em todo bloco da página, e uma
+        etiqueta que não muda não ajuda ninguém a decidir se abre.
+      - **não esconde**: como é promoção de conteúdo, e não campo separado, não
+        existe onde amaciar. Rótulo livre seria o novo lugar de esconder — um
+        problema grave viraria "impacto pontual" e ninguém abriria.
+
+    A palavra "detalhes" não aparece: não denuncia nada. Nome de campo do schema
+    ("consequência", "proposta") também não vaza pra superfície fechada.
+
+    `sev` colore a régua lateral do card (high=danger, med=warn, low=roxo);
+    vem do próprio tri ou é herdado do item que o embute.
+    """
+    cons = bullets_de(t.get("consequencia"))
+    prop = bullets_de(t.get("proposta"))
+    prob = bullets_de(t.get("problema"))
+    sev = t.get("sev") or sev
+    cls = "tri tri-%s" % sev if sev in SEV else "tri"
+
+    # O rótulo promove o primeiro impacto e conta o que sobrou.
+    lede = cons[0] if cons else (prop[0] if prop else "")
+    resto = max(0, len(cons) - 1)
+    mais = "+%d &nbsp;·&nbsp; como resolver" % resto if resto else "como resolver"
+
     return [
-        '%s<div class="tri">' % indent,
-        '%s  <div class="p"><span class="ic">🔴</span><span>'
-        '<span class="lbl">O problema</span>%s</span></div>' % (indent, _rich(t.get("problema"))),
-        '%s  <div class="c"><span class="ic">⚡</span><span>'
-        '<span class="lbl">A consequência</span>%s</span></div>' % (indent, _rich(t.get("consequencia"))),
-        '%s  <div class="s"><span class="ic">✅</span><span>'
-        '<span class="lbl">A proposta</span>%s</span></div>' % (indent, _rich(t.get("proposta"))),
+        '%s<div class="%s">' % (indent, cls),
+        _tri_parte("p", "🔴", "O problema", prob, indent + "  "),
+        '%s  <details class="item-detail tri-fold">' % indent,
+        '%s    <summary><span class="read-dot"></span>'
+        '<span class="fold-lede">⚡ %s</span>'
+        '<span class="fold-mais">%s</span>'
+        '<span class="dchev">›</span></summary>' % (indent, _rich(lede), mais),
+        _tri_parte("c", "⚡", "A consequência", cons, indent + "    "),
+        _tri_parte("s", "✅", "A proposta", prop, indent + "    "),
+        "%s  </details>" % indent,
         "%s</div>" % indent,
     ]
 
@@ -320,9 +463,13 @@ def r_item(blk, ctx):
                    'onchange="onFbChange(this)"> %s</label>' % (n, val, _e(lbl)))
     out += ["      </div>", "    </div>"]
     if blk.get("tri"):
-        out += _tri(blk["tri"], indent="    ")
-    if blk.get("body"):
-        out.append("    <p>%s</p>" % _rich(blk["body"]))
+        out += _tri(blk["tri"], indent="    ", sev=blk.get("sev"))
+    corpo = bullets_de(blk.get("body"))
+    if len(corpo) > 1:
+        out.append('    <ul class="tri-bullets">%s</ul>'
+                   % "".join("<li>%s</li>" % _rich(b) for b in corpo))
+    elif corpo:
+        out.append("    <p>%s</p>" % _rich(corpo[0]))
     det = blk.get("detail")
     if det:
         out += ['    <details class="item-detail">',
@@ -453,6 +600,37 @@ RENDERERS = {"text": r_text, "bullets": r_bullets, "evidencia": r_evidencia,
 
 # ── a página ───────────────────────────────────────────────────────────────
 
+def _placar(spec):
+    """Contagem agregada, sempre aberta, computada do próprio conteúdo.
+
+    Com o corpo dos bloqueios atrás de um clique, precisa existir uma superfície que
+    o programa escreve e o redator não: quantos problemas a página carrega. Esconder
+    um passa a exigir omiti-lo do spec inteiro — que é um vetor mais caro e visível
+    do que rebaixá-lo pra dentro de um `<details>`.
+    """
+    tris = 0
+    sevs = {"high": 0, "med": 0, "low": 0}
+    for sec in (spec.get("sections") or []):
+        if not isinstance(sec, dict):
+            continue
+        for b in (sec.get("blocks") or []):
+            if not isinstance(b, dict):
+                continue
+            if b.get("kind") == "tri" or (b.get("kind") == "item" and b.get("tri")):
+                tris += 1
+                if b.get("sev") in sevs:
+                    sevs[b["sev"]] += 1
+    if not tris:
+        return []
+    partes = ["<strong>%s</strong> apontado%s" % (_plural(tris, "problema"),
+                                                  "" if tris == 1 else "s")]
+    graves = sevs["high"]
+    if graves:
+        partes.append("<strong>%s</strong>" % _plural(graves, "grave"))
+    partes.append("corpo de cada um a um clique" if tris > 1 else "o corpo a um clique")
+    return ['  <div class="callout warn">%s</div>' % " · ".join(partes)]
+
+
 def build_body(spec, tpl):
     ctx = {"n_items": 0, "n_decisions": 0,
            "item_labels": spec.get("item_labels") or DEFAULT_ITEM_LABELS}
@@ -482,6 +660,7 @@ def build_body(spec, tpl):
         out += ['  <div class="tldr">', '    <span class="tldr-emoji">%s</span>'
                 % _e(spec.get("tldr_emoji") or "🎯"),
                 "    <div>%s</div>" % _rich(spec["tldr"]), "  </div>"]
+    out += _placar(spec)
 
     for i, sec in enumerate(spec["sections"], 1):
         out.append("  <section>")
@@ -597,16 +776,28 @@ SPEC do /visual — o modelo escreve ISTO, o programa escreve o HTML.
   "exec_title": "Sumário"
 }
 
+A RÉGUA DE ESTILO — vale para TODO campo de texto abaixo (prosa é proibida):
+  ≤ 140 caracteres por bullet (marcação não conta) · uma frase por bullet ·
+  não abra bullet com "e/mas/que/porque/então/ou seja/além disso" · máx. 6 por bloco
+  FORA da régua: evidencia.output (prova é literal) e raw_html (a válvula)
+  Estourar não é aviso: sai 2 e NÃO escreve a página. O teto manda quebrar em
+  bullets, nunca encolher a informação.
+
 BLOCOS (campo "kind"):
-  text       {"text": "prosa. aceita `code` e **negrito**", "intro": false}
+  text       {"text": "uma frase. aceita `code` e **negrito**", "intro": false}
   bullets    {"items": ["…"], "problema": false}
   evidencia  {"src": "comando · projeto · quando", "output": "a saída CRUA",
               "highlight": "trecho que decide"}          ← output vazio é RECUSADO
   artefato   {"src": "file:///abs ou data:image/...", "procedencia": "…", "alt": "…"}
   callout    {"variant": "info|warn|danger|ok", "text": "…"}
-  tri        {"problema": "…", "consequencia": "…", "proposta": "…"}
-  item       {"title": "…", "sev": "high|med|low", "sev_label": "…",
-              "tri": {…}, "body": "…",
+  tri        {"problema": "uma linha — fica VISÍVEL",
+              "consequencia": ["bullet", "bullet"],    ← nasce FECHADA
+              "proposta":     ["bullet"],              ← nasce FECHADA
+              "sev": "high|med|low"}                   ← opcional; colore a régua do card
+             o rótulo do dobrador é fixo, do programa ("⚡ o que isso causa · ✅ como resolver")
+  item       {"title": "que tipo de coisa aconteceu + a providência, 1 linha",
+              "sev": "high|med|low", "sev_label": "…",
+              "tri": {…}, "body": "…" ou ["bullet", "bullet"],
               "detail": {"summary": "…", "paragraphs": ["…"]}}
   decision   {"question": "…", "context": "o que está em jogo, humano",
               "options": [{"title": "…", "body": "o que é a opção",
@@ -619,10 +810,11 @@ BLOCOS (campo "kind"):
 GARANTIDO PELO PROGRAMA (não escreva à mão, não precisa lembrar):
   faixa de identidade · numeração e name único dos rádios · nenhum rádio pré-marcado ·
   .decisions-box quando há decisão · .feedback-box quando há item · a ordem das duas ·
-  a 3ª opção "Outra — eu especifico" · escape de todo texto · token de sessão do live-sync
+  a 3ª opção "Outra — eu especifico" · escape de todo texto · token de sessão do live-sync ·
+  o dobrador do tri e seu rótulo fixo · o placar de problemas no topo
 RECUSADO PELO PROGRAMA:
   decisão/veredito sem nenhuma prova na página · bloco de evidência vazio ·
-  decisão com 2 ou 4 opções · tri incompleto
+  decisão com 2 ou 4 opções · tri incompleto · prosa em qualquer campo de texto
 """
 
 

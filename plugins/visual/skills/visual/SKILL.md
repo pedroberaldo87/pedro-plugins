@@ -418,12 +418,42 @@ Quando a página aponta um **bloqueio, pendência, risco realizado ou problema**
 3. **✅ A proposta** — o que você propõe fazer, e por quê. Se já implementou o caminho conservador, diga isso: "aprovar mantém o que está no código".
 
 No spec é o bloco `tri` (solto) ou o campo `tri` de um `item`. As três partes são
-obrigatórias — faltar uma é recusado pelo build. A posição (corpo do item, nunca dentro
-do `<details>`) é do programa; a prova continua indo no `detail`.
+obrigatórias — faltar uma é recusado pelo build.
+
+**A posição é do programa, não sua** — e desde 2026-08-01 a posição mudou: **o problema
+fica visível; consequência e proposta nascem FECHADAS**, num dobrador cujo rótulo o
+programa escreve com a contagem dentro ("⚡ consequência · 3 bullets"). Você não escolhe o
+que dobra e não escreve o rótulo — as duas coisas eram, juntas, o lugar de esconder.
+
+**Consequência e proposta são LISTA de bullets**, não parágrafo. A régua de estilo abaixo
+é cobrada pelo build. A prova continua indo no `detail`.
+
+Por que mudou: a regra antiga mandava as três partes ficarem fora do `<details>` para
+impedir que um problema fosse escondido. O efeito medido foi o oposto do pretendido —
+**89% do último relatório vinha exposto de cara** e o dono não conseguiu ler. O que fica
+atrás do clique é a explicação do problema, nunca a existência dele.
 
 Complementos, não substitutos: `sev` (`high`/`med`/`low`) no item quando eles têm
 gravidade diferente; o bloco `bullets` com `"problema": true` continua para os 2-3
 bullets de "qual é o problema" da página como um todo — não para itens de bloqueio.
+
+### Prosa é PROIBIDA — a régua de estilo, cobrada pelo build
+
+Página gerada é lida com pressa e vem volumosa. **Bullets, nunca parágrafo.** Quatro
+checagens, aplicadas a **todo campo de texto** do spec — título, corpo, pergunta,
+consequência, proposta, aviso, sumário:
+
+1. **≤ 140 caracteres por bullet.** Marcação (`` `code` ``, `**negrito**`) não conta.
+2. **Uma frase por bullet.** Ponto seguido de espaço = parágrafo disfarçado.
+3. **Não abra bullet com conectivo de continuação** (`e`, `mas`, `que`, `porque`, `então`,
+   `ou seja`, `além disso`). É o parágrafo anterior fatiado — passa no teto e continua prosa.
+4. **Máximo 6 bullets por bloco.** Acima disso é prosa picada, ou são dois itens.
+
+**Fora da régua, de propósito:** `evidencia.output` (saída crua é literal por obrigação) e
+`raw_html` (a válvula). Estourar não é aviso: o build sai 2 e **não escreve a página**.
+
+O teto não existe para você encolher informação — existe para você **quebrar em bullets**.
+Informação que não cabe no nível 0 desce para o nível 1; nada é apagado para caber.
 
 ### Human language — banned vocabulary
 
@@ -653,9 +683,9 @@ estilo. É **Variant B** (fundo indigo + acento pêssego + cards arredondados).
 
 - **`.ident-strip`** — faixa de identidade no topo: projeto · artefato pelo título visível · o que gerou · `.estado` (`estado-rascunho`/`estado-gerado`/`estado-noar`/`estado-apresentado`). **Obrigatória em toda página que fala de algo que existe.**
 - **`.artefato`** — moldura do artefato real: `.artefato-bar` (selo "artefato real" + procedência) + `<iframe src="file:///…">` ou `srcdoc` ou `<img>`. Nunca uma versão fabricada.
-- **`.evidencia`** — a prova crua: `.evidencia-src` (comando · projeto · quando) + `<pre>` com scroll próprio e `max-height`. Use `<mark>` pra destacar a linha que decide. A variante `.evidencia.vazio` grita na tela quando não há prova colada — e o hook bloqueia antes de abrir.
+- **`.evidencia`** — a prova crua: `.evidencia-src` (comando · projeto · quando) + `<pre>` com scroll próprio e `max-height`. Use `<mark>` pra destacar a linha que decide. A variante `.evidencia.vazio` grita na tela quando não há prova colada — e o hook bloqueia antes de abrir. **Nasce SEMPRE fechada, sem exceção por tamanho** (o antigo "até 6 linhas abre" caiu em 2026-08-02): a única válvula é `"aberto": true` no bloco, porque revelar mais nunca esconde.
 - **`.bullets`** / **`.bullets.problema`** — os 4-5 bullets do que se trata e os 2-3 do problema.
-- **`.tri`** — problema (`.p`) · consequência (`.c`) · proposta (`.s`). **Obrigatório em todo bloqueio/problema apontado.** Fica fora do `<details>`; dentro de `.feedback-item` vem logo após o `.feedback-head`. Demo: item 3 do template.
+- **`.tri`** — problema (`.p`) · consequência (`.c`) · proposta (`.s`). **Obrigatório em todo bloqueio/problema apontado.** O problema fica visível; consequência e proposta nascem **fechadas** no `.tri-fold`, com rótulo derivado pelo programa. Dentro de `.feedback-item` vem logo após o `.feedback-head`. Demo: item 3 do template.
 - **`.diagram`** — container de SVG/ASCII inline (com `figcaption`/`.cap` opcional)
 - **`.opt-illustration`** — SVG dentro do card de opção (viewBox `0 0 100 60`, 64px de altura)
 - **`.pill`** — label tags (kicker, decision-label, etc.)

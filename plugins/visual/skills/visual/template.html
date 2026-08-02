@@ -1102,21 +1102,72 @@ h2 {
 .bullets.problema li::before { background: var(--danger); }
 
 /* TRI — problema → consequência → proposta. A forma obrigatória de todo bloqueio/
-   problema apontado num relatório. Uma linha rotulada por parte, nesta ordem. */
-.tri { display: grid; gap: 10px; margin-top: 12px; }
-.tri > div {
+   problema apontado num relatório. Cada tri é uma UNIDADE FECHADA: moldura própria,
+   régua lateral na cor da severidade e respiro ENTRE cards maior que o respiro
+   interno — é isso que impede dois problemas consecutivos de se fundirem num só. */
+.tri {
+  display: grid; gap: 12px;
+  margin: 20px 0;
+  padding: 18px 20px;
+  background: var(--card-deep);
+  border: 1px solid var(--border);
+  border-left: 4px solid var(--danger);
+  border-radius: 14px;
+}
+.tri + .tri { margin-top: 24px; }
+/* a régua acompanha a severidade — classes próprias (.sev-* é a tag do título) */
+.tri.tri-med { border-left-color: var(--warn); }
+.tri.tri-low { border-left-color: var(--accent-2); }
+/* Seletor por CLASSE, não por filho direto: consequência e proposta passaram a morar
+   dentro do <details> do dobrador, e `.tri > div` deixaria de alcançá-las. */
+.tri .p, .tri .c, .tri .s {
   display: grid; grid-template-columns: 26px 1fr; gap: 12px; align-items: start;
   font-size: 15px; line-height: 1.55; color: var(--text-dim);
 }
+/* o TEXTO do problema é quem domina o card — não o rótulo */
+.tri .p { font-size: 16px; color: var(--text); font-weight: 600; }
+.tri-bullets { margin: 0; padding-left: 18px; }
+.tri-bullets li { margin-bottom: 5px; }
+.tri-bullets li:last-child { margin-bottom: 0; }
 .tri .ic { font-size: 17px; line-height: 1.4; }
 .tri strong { color: var(--text); font-weight: 700; }
 .tri .lbl {
   display: block; font-size: 10.5px; letter-spacing: 0.1em; text-transform: uppercase;
   font-weight: 800; margin-bottom: 2px;
 }
-.tri .p .lbl { color: var(--danger); }
+/* o rótulo do problema é discreto — a régua e o 🔴 já carregam a severidade */
+.tri .p .lbl { color: var(--text-mute); }
 .tri .c .lbl { color: var(--warn); }
 .tri .s .lbl { color: var(--ok); }
+/* o dobrador é um botão de verdade, não uma pílula de rodapé */
+.tri .tri-fold { margin-top: 2px; }
+/* O rótulo do dobrador carrega o primeiro impacto, então precisa de largura e de
+   quebra — a pílula inline do .item-detail foi desenhada para 3 palavras. */
+.tri-fold summary {
+  display: flex; align-items: baseline; gap: 8px;
+  width: 100%; text-align: left; font-size: 13.5px; line-height: 1.5;
+  padding: 7px 12px; border-radius: 10px;
+}
+.tri-fold .fold-lede { flex: 1; color: var(--text); font-weight: 600; }
+.tri-fold .fold-mais {
+  flex: none; font-size: 11.5px; font-weight: 700; letter-spacing: 0.03em;
+  color: var(--text-dim); opacity: 0.85; white-space: nowrap;
+}
+.tri-fold[open] .fold-lede { opacity: 0.45; font-weight: 500; }
+.tri .tri-fold > summary {
+  display: flex; align-items: center; gap: 10px;
+  width: 100%;
+  padding: 10px 14px;
+  background: var(--card-hi);
+  border: 1px solid var(--border-strong);
+  border-radius: 10px;
+  font-size: 13px; font-weight: 700; color: var(--text);
+  cursor: pointer; list-style: none; user-select: none;
+}
+.tri .tri-fold > summary:hover { border-color: var(--accent); }
+.tri .tri-fold[open] > summary { border-color: var(--accent); margin-bottom: 12px; }
+.tri .tri-fold > summary .dchev { margin-left: auto; color: var(--text-dim); }
+.tri .tri-fold .c { margin-bottom: 12px; }
 
 /* NÚMERO COM PROCEDÊNCIA — todo valor citado no corpo aponta pro bloco que o sustenta. */
 .num-src {
@@ -1163,6 +1214,7 @@ h2 {
   .plan-body { padding: 0 20px 20px 20px; }
   .label-row { grid-template-columns: 1fr; gap: 4px; }
   .ident-strip .estado { margin-left: 0; }
+  .tri { padding: 14px 14px; }
   .evidencia pre, pre.raw { font-size: 11.5px; max-height: 260px; }
 }
 </style>
@@ -1372,11 +1424,16 @@ $ for f in $(ls -t .claude/visual/*.html | head -3); do
           <label><input type="radio" name="fb-3" value="remove" onchange="onFbChange(this)"> ✗ Remover</label>
         </div>
       </div>
-      <!-- TRI: todo bloqueio/problema apontado vem nestes três, nesta ordem. -->
-      <div class="tri">
+      <!-- TRI: todo bloqueio/problema apontado vem nestes três, nesta ordem.
+           O problema fica visível; consequência+proposta ficam atrás do botão do
+           dobrador (o markup é do programa — visual_page.py emite exatamente isto). -->
+      <div class="tri tri-high">
         <div class="p"><span class="ic">🔴</span><span><span class="lbl">O problema</span>O gate de hoje só olha se <strong>existe</strong> um HTML recente da sessão. Não olha o que tem dentro — página que descreve a prova em prosa passa igual.</span></div>
-        <div class="c"><span class="ic">⚡</span><span><span class="lbl">A consequência</span>O bloqueio vira carimbo: o usuário abre o browser e continua sem ver o artefato nem a saída crua, mas o plano já foi liberado pro CLI. O gate custa uma rodada e não entrega nada.</span></div>
-        <div class="s"><span class="ic">✅</span><span><span class="lbl">A proposta</span><strong>Ler o conteúdo.</strong> Sem <code class="inline">.artefato</code>, sem <code class="inline">.evidencia</code> preenchida ou sem procedência, sai exit 2 com o motivo. Custa um grep a mais no hook que já roda.</span></div>
+        <details class="item-detail tri-fold">
+          <summary><span class="read-dot"></span> ⚡ o que isso causa &nbsp;·&nbsp; ✅ como resolver <span class="dchev">›</span></summary>
+          <div class="c"><span class="ic">⚡</span><span><span class="lbl">A consequência</span>O bloqueio vira carimbo: o usuário abre o browser e continua sem ver o artefato nem a saída crua, mas o plano já foi liberado pro CLI. O gate custa uma rodada e não entrega nada.</span></div>
+          <div class="s"><span class="ic">✅</span><span><span class="lbl">A proposta</span><strong>Ler o conteúdo.</strong> Sem <code class="inline">.artefato</code>, sem <code class="inline">.evidencia</code> preenchida ou sem procedência, sai exit 2 com o motivo. Custa um grep a mais no hook que já roda.</span></div>
+        </details>
       </div>
       <details class="item-detail">
         <summary><span class="read-dot"></span> detalhes <span class="dchev">›</span></summary>
