@@ -121,6 +121,7 @@ A régua fecha: `git ls-files -i -c --exclude-standard` → **0**. [confirmado]
 - **Conteúdo medido nesta rodada:** 8 marketplaces · 48 entradas de plugin (31 ligadas) · 18 itens em `skills.permitidas` · 1 item em `ferramentas_externas.itens`. [confirmado]
 - **Dois escritores de naturezas opostas.** O snapshot escreve sem perguntar; o humano escreve chave que o snapshot não conhece. A guarda que os faz conviver é a união **aditiva** com o manifest anterior — entrada ausente da amostra fica, porque `claude plugin list` devolve saída incompleta de vez em quando; desinstalar de verdade virou edição explícita do arquivo.
 - **Perder o arquivo não perde trabalho** (a próxima sessão o regenera da máquina viva). **Perder as chaves manuais, sim** — `skills.permitidas` e `ferramentas_externas` não têm origem nenhuma além do próprio arquivo.
+- ⚠️ **Ele NÃO guarda versão de plugin, e é por isso que bump não o toca.** Cada entrada é `{"name": …, "enabled": …}` e nada mais — verificável com `grep -c '[0-9]\+\.[0-9]\+\.[0-9]\+' plugins/bootstrap/config/manifest.json`, que devolve **0** nesta rodada [confirmado]. Consequência prática, apurada em 2026-08-02: subir a versão de um plugin exige mexer em `plugin.json` e `marketplace.json`, **nunca** aqui. O que toca este arquivo é plugin **novo** (ou ligar/desligar um), e aí quem cobra é `conformance.py:check_catalogo` — **não** o release-gate —, então o commit passa e o desvio só aparece no próximo `bootstrap:setup`.
 
 ### Sementes versionadas (o resto de (A) que é depósito)
 

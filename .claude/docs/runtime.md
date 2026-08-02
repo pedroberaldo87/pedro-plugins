@@ -203,6 +203,10 @@ O índice carrega o marker `<!-- project-doc:v2 gen=3.8 -->` na primeira linha. 
 
 **Estado nesta máquina:** o daemon **não está no ar** agora (`curl http://127.0.0.1:7755/ping` falhou) e `latest.json` existe com mtime de 30/jul 22:32. **Implementado, ocioso.** `[confirmado]`
 
+**Passo 0, desde 2026-08-02: o spec passa pela régua de forma antes de virar HTML.** `visual_page.py:validate` roda `erros_de_estilo()` sobre todo campo de texto — título, corpo, pergunta, aviso, sumário — e devolve **todos** os erros de uma vez. Estourar é `exit 2` **sem escrever arquivo**, então o passo 1 nem começa. As quatro checagens e a calibração estão em `patterns.md §2.7`. Duas isenções declaradas: `evidencia.output` e `raw_html`. `[confirmado — `visual_page.py:validate`; `test_visual_page.py` cobre com 25 checks]`
+
+⚠️ **A página aberta no navegador não sabe que ficou velha.** A aba mostra o arquivo de quando foi aberta, e nada na tela denuncia — em 2026-08-02 um bloco aparecia expandido numa aba de 8 horas antes, com o arquivo já corrigido no disco. O daemon sincroniza **browser → disco** (estado de rádio e textarea), nunca o contrário: **não há recarga automática**. Antes de tratar o que se vê na tela como defeito do gerador, confira o HTML no disco. `[confirmado — `restoreState()` no `template.html` mexe em rádios e textareas, nunca em `details.open`]`
+
 ### 4a · O gate do ExitPlanMode, condição por condição
 
 `pre-exitplan-visualize.sh` — kill-switch `VISUAL_GATE=0` na primeira linha; `command -v jq` logo abaixo; sem `session_id` → `exit 0`. Cap de **3** devoluções por (sessão, projeto), chaveado por `${TMPDIR:-/tmp}/claude-visual-gate-$(id -u)-${SESSION_ID}-${PHASH}` com `PHASH` = `cksum` do diretório resolvido. `[confirmado]`

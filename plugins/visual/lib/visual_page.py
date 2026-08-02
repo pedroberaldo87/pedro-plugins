@@ -336,11 +336,14 @@ def r_evidencia(blk, ctx):
     Saída crua de 30 linhas empurra a decisão pra fora da tela — e a página existe
     pra decidir, não pra ler log.
 
-    Duas exceções, as duas por segurança:
-      - `aberto: true` no bloco — quem escreveu diz que ESTA prova é o ponto da página;
-      - saída curta (≤ LINHAS_ABERTO), que não empurra nada.
-    O bloco VAZIO continua aberto e gritando: esconder ausência de prova seria o
-    oposto do que o componente existe pra fazer.
+    **Sem exceção por tamanho desde 2026-08-02.** A antiga `LINHAS_ABERTO = 6`
+    deixava prova curta nascer aberta, e o dono contou na tela quatro blocos
+    abertos (4, 1, 6 e 3 linhas) que não pediu pra ver. "Isso é pequeno, não
+    atrapalha" é a exceção que sempre volta.
+
+    Sobrou uma válvula, e ela só abre: `aberto: true` no bloco, pra quando ESTA
+    prova é o ponto da página. Fechar não tem válvula — seria onde esconder.
+    Bloco vazio não chega aqui: o validador recusa evidência sem `output`.
     """
     txt = _e(blk.get("output"))
     hl = blk.get("highlight")
