@@ -361,13 +361,30 @@ def r_evidencia(blk, ctx):
 
 
 def r_artefato(blk, ctx):
+    """O artefato real, encolhido no fluxo do documento — com saída para ver grande.
+
+    Pequeno é a escolha certa no meio da página: artefato em tamanho natural quebra
+    a leitura e empurra a decisão pra fora da tela. O que faltava era a SAÍDA. Dois
+    botões, porque resolvem coisas diferentes: **tela cheia** é ler agora sem perder
+    o lugar na página; **nova janela** é deixar aberto e comparar com o resto.
+
+    A nova janela é `<a target="_blank">`, não `window.open()`: bloqueador de popup
+    mata o segundo e não o primeiro, e a página é aberta em `file://`, onde a
+    política é mais restritiva ainda.
+    """
     src = str(blk.get("src"))
     inner = ('    <img src="%s" alt="%s">' % (_e(src), _e(blk.get("alt") or "artefato"))
              if src.startswith("data:image") or re.search(r"\.(png|jpe?g|gif|webp|svg)$", src, re.I)
              else '    <iframe src="%s" loading="lazy"></iframe>' % _e(src))
     return ['  <div class="artefato">',
-            '    <div class="artefato-bar"><span>artefato real</span>'
-            "<span>%s</span></div>" % _rich(blk.get("procedencia") or src),
+            '    <div class="artefato-bar"><span class="real">artefato real</span>'
+            "<span>%s</span>" % _rich(blk.get("procedencia") or src),
+            '      <span class="art-acoes">'
+            '<button type="button" onclick="artefatoTelaCheia(this)" '
+            'title="Ver em tela cheia (Esc volta)">⛶ tela cheia</button>'
+            '<a class="art-btn" href="%s" target="_blank" rel="noopener" '
+            'title="Abrir numa janela nova">↗ nova janela</a></span>' % _e(src),
+            "    </div>",
             inner,
             "  </div>"]
 
@@ -814,7 +831,8 @@ GARANTIDO PELO PROGRAMA (não escreva à mão, não precisa lembrar):
   faixa de identidade · numeração e name único dos rádios · nenhum rádio pré-marcado ·
   .decisions-box quando há decisão · .feedback-box quando há item · a ordem das duas ·
   a 3ª opção "Outra — eu especifico" · escape de todo texto · token de sessão do live-sync ·
-  o dobrador do tri e seu rótulo fixo · o placar de problemas no topo
+  o dobrador do tri e seu rótulo derivado · o placar de problemas no topo ·
+  os botões de tela cheia e janela nova na barra do artefato
 RECUSADO PELO PROGRAMA:
   decisão/veredito sem nenhuma prova na página · bloco de evidência vazio ·
   decisão com 2 ou 4 opções · tri incompleto · prosa em qualquer campo de texto

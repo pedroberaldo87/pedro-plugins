@@ -276,7 +276,7 @@
       "source": "./plugins/visual",
       "description": "CLI walls-of-text → interactive HTML dark-theme views. The page carries the EVIDENCE, not the account of it: real artifact embedded, raw output verbatim, provenance for every number — enforced by a pre-ExitPlanMode gate. Prose is REFUSED by the builder: every text field is checked (≤140 chars per bullet, one sentence each, no continuation connective, max 6 per block) and a violation aborts without writing the page. Each problem's body is born folded — the title stays visible, consequence and proposal open on click under a label derived from the content itself. Plans, diagnostics and decisions in the browser with live sync back to Claude.",
       "category": "productivity",
-      "version": "1.12.0",
+      "version": "1.13.0",
       "tags": [
         "visualization",
         "html",

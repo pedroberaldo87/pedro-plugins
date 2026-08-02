@@ -513,5 +513,39 @@ check("a consequência NÃO aparece sem clicar",
       "7 de 9 commits passaram sem bump" not in _texto(visivel))
 
 
+# ── o artefato encolhido precisa de saída pra ser visto grande ──────────────
+print("\n[artefato — ver em tela cheia e em janela nova]")
+
+_ART = {"kind": "artefato", "src": "file:///tmp/proto.html",
+        "procedencia": "protótipo que escrevi agora"}
+_h_art = "\n".join(V.r_artefato(_ART, {}))
+
+check("tem botão de tela cheia", "artefatoTelaCheia(this)" in _h_art, _h_art)
+check("tem link de janela nova", 'target="_blank"' in _h_art)
+check("o link aponta pro artefato, não pra página",
+      'href="file:///tmp/proto.html"' in _h_art, _h_art)
+check("janela nova leva rel=noopener", 'rel="noopener"' in _h_art)
+check("os botões ficam na BARRA, não sobre o artefato",
+      _h_art.index("art-acoes") < _h_art.index("<iframe"), _h_art)
+check("o selo 'artefato real' ganhou a classe que o CSS estiliza",
+      'class="real"' in _h_art)
+
+_h_img = "\n".join(V.r_artefato({"kind": "artefato", "src": "file:///tmp/tela.png"}, {}))
+check("imagem também ganha as duas saídas",
+      "artefatoTelaCheia" in _h_img and 'target="_blank"' in _h_img)
+
+_T = tpl()
+check("o handler existe no template (senão o onclick chama o vazio)",
+      "function artefatoTelaCheia" in _T)
+check("o CSS pinta o fundo em fullscreen (senão pisca branco)",
+      ".artefato:fullscreen" in _T)
+check("o fallback abre em aba quando não há Fullscreen API",
+      "requestFullscreen" in _T and "window.open" in _T)
+
+_pg, _ = V.build_page(spec(sections=[{"blocks": [dict(EVID), dict(_ART)]}]), _T)
+check("na página montada, o botão e o handler coexistem",
+      "artefatoTelaCheia(this)" in _pg and "function artefatoTelaCheia" in _pg)
+
+
 print("\n%d passou · %d falhou" % (PASS, FAIL))
 sys.exit(1 if FAIL else 0)
