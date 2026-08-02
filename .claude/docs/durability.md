@@ -401,6 +401,14 @@ arquivo com um número. Escrito e lido por `plugins/intent-guard/lib/ledger.py:f
 - 🔴 **E agora são DOIS verificadores lendo os mesmos dois arquivos, com filtros diferentes** [confirmado, li os dois]. O `conformance.py` conta **execuções** (`julgou` vs `juiz sem resposta`, para saber se o guarda está vivo); o `ledger.py:furos_da_regua` conta **reprovações** (`motivo == "julgou" and veredito != "passa"`, para dizer ao dono quantas vezes a régua foi furada). Mesmo arquivo de 228 linhas, respostas de naturezas distintas — "o guarda está ativo" e "20 furos". Apagar `~/.claude/state/` hoje quebra as duas leituras de uma vez, e cada uma falha de um jeito: uma acusa hook morto, a outra some com o histórico de furos (§3.14-b).
 - Coberto por teste [confirmado, rodado nesta sessão]: `plugins/bootstrap/lib/test_conformance.py` traz `teste_juiz_de_forma_mudo()`, que semeia `state/forma-relato/batidas.log` num `CLAUDE_DIR` de mentira e afirma os dois desvios ("nunca executou" e "mudo"). Saída: `59 ok · 0 FAIL`.
 
+### 3.15b · Interruptor da missão autônoma — `~/.claude/sovai/`
+
+Nasceu em 2026-08-02 com o gate que mantém o `/sovai` no motor Workflow. Ver `data-stores.md §B11` para a anatomia.
+
+- **Perder não perde trabalho, e isso é por desenho.** O conteúdo é interruptor (`ativo-<session_id>` é arquivo **vazio**; o que significa é existir) e contador (`bloqueios-<session_id>`). Sumindo o diretório, o gate volta a ser mudo e a próxima missão o recria.
+- **O único conteúdo com valor de leitura é `desistencias.log`** — uma linha por vez que o cap de 3 estourou. É diagnóstico ("o gate desistiu N vezes, vá ver por quê"), não dado de trabalho. Sem cobertura, e a perda custa a série histórica dessas desistências. **Mesma classe do `bypass.log`** do teto de prosa (§3.14): log de desistência existe justamente para desistir não ser silencioso, então perdê-lo devolve o silêncio.
+- ⚠️ **A exposição real aqui é a inversa da dos outros ativos: não é perder, é sobrar.** Missão interrompida antes da entrega (sessão morta, `/clear`, limite de sessão) deixa o `ativo-*` aceso, e **a sessão inteira segue sem despachar sub-agente** sem que nada explique. Não há poda por idade — o `scope-cop` ganhou `find … -mtime +1 -delete` no mesmo commit em que nasceu, e este não. `[confirmado — `pretooluse-sovai-motor.sh` não tem nenhuma chamada de poda]` Diagnóstico e conserto manual: `ls ~/.claude/sovai/` e `rm` do sinal órfão.
+
 ### 3.16 · Kill-switches e flags de modo
 
 - [confirmado] `~/.claude/intent-guard/mode` e `~/.claude/context-guard/mode` existem como diretórios na máquina; o `SKILL.md` do intent-guard descreve `off`/`on` no arquivo `mode` (vale para todas as sessões, sem reload) e `.claude/intent/off` para desligar por projeto.

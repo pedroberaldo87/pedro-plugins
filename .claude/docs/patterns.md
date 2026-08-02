@@ -328,6 +328,44 @@ Por que ninguém viu: **prosa que descreve mecanismo ausente não dá erro**. N�
 
 Dois guards podem coexistir no mesmo matcher respondendo a perguntas opostas — é o caso de `Agent` hoje (§6 do `architecture.md`). Coexistir não é conflito; **presumir** que o do vizinho cobre o seu caso é.
 
+### 1.12 Motor de agentes: quem revisa precisa de âncora FORA do que foi construído
+
+**Novo em 2026-08-02**, e vale para os dois motores do marketplace (`/sovai` e `/qa-loop`). O revisor de construção do `/sovai` julgava a obra contra a **decomposição do próprio orquestrador**, declarado literal na skill até esta rodada: *"Trata a decomposição do #1 como **contrato** e só checa se ele foi **cumprido**"* + *"**Não julga se a decomposição é fiel ao plano-macro**"*.
+
+**É circuito fechado: quem decompõe errado é aprovado errado.** A decomposição sai do mesmo motor que produz o código, então revisar contra ela mede coerência interna, nunca cumprimento. O sintoma no repo: 7 commits em 2026-08-02 sem plano nenhum, e nenhum revisor acusou — porque nenhum tinha a spec em mãos.
+
+A correção tem três partes, e a ordem importa:
+
+- **A spec vai ao revisor como vai ao decompositor.** O motor passa `planPath`/`planText` aos dois; a decomposição vira **meio**, não régua. Desvio de spec vira gap mesmo com a decomposição 100% cumprida.
+- **Gap de spec e de rastreio não podem cair no filtro de severidade.** Os dois **nascem** em severidade ≥ floor e o script os segura mesmo se o revisor devolver abaixo — senão o gap sai da conta e passa calado. É lógica de script (`holdsBuild`), não memória do revisor.
+- **A constituição é lida do projeto, nunca copiada pra dentro da skill.** O eixo abre `.claude/docs/quality-goals.md` do projeto onde a missão roda. Projeto sem o arquivo: o eixo não roda e **isso não é gap** — mesmo fundo-vazio do §2.6.
+
+**Régua durável: revisor cuja única referência é o artefato do próprio motor não revisa, confere. Toda revisão precisa de pelo menos uma âncora que o motor não escreveu.**
+
+### 1.13 Agente que morre não pode derrubar o motor
+
+Corolário medido na mesma rodada. `agent()` devolve **`null`** quando o subagente morre por erro terminal (limite de sessão, erro de API após os retries) ou quando o usuário o pula. O esqueleto do motor lia `review.gaps` direto.
+
+O resultado, com saída crua desta sessão:
+
+```
+Dynamic workflow failed: Error: null is not an object (evaluating 'review.gaps')
+[exec:T8] failed: You've hit your session limit · resets 3:40pm
+[exec:T9] failed · [exec:T10] failed · [revisar:r1] failed
+agent_count 12 · agents_done 8 · agents_error 4
+```
+
+**8 de 12 agentes tinham entregue, e o motor devolveu falha total.** O trabalho existia em disco; o que se perdeu foi o relato dele.
+
+As quatro portas, e a direção segura de cada uma [confirmado — `sovai/SKILL.md`, esqueleto do motor]:
+
+- **decompositor morto** → `break`. Sem decomposição não há o que executar; o que as rodadas anteriores construíram continua valendo.
+- **revisor morto** → `continue` com blocker. A direção segura é **não** declarar `built`: revisor que não respondeu não aprovou nada.
+- **confirm-pass morto** → `break` com blocker. É a única segunda checagem quando não há `/qa-loop` adiante; sem ele ninguém conferiu.
+- **executor morto** → `.filter(Boolean)` **nos dois lados** (paralelo e sequencial). Filtrar só o paralelo deixava `null` entrar em `results` e estourar no revisor — e a tarefa **sumia do relato** em vez de reaparecer em `missingTasks`, que é o caminho que a manda de volta pro decompositor.
+
+**Régua durável: em motor de agentes, toda chamada que pode devolver `null` precisa de porta declarada — e a porta nunca é "declara pronto". Falha de infra tem que degradar a missão, nunca fabricar aprovação.**
+
 ## 2 · Python
 
 ### 2.1 Stdlib puro, sem exceção observada

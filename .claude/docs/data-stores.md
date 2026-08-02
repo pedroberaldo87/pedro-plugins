@@ -347,6 +347,23 @@ Depósito **novo nesta rodada**, irmão do B8 e deliberadamente diferente dele: 
 - **Natureza: descartável, com efeito visível.** Apagar não perde furo nenhum (o `total` continua exato); zera o `desde a última vez que você olhou`, e a próxima leitura mostra o histórico inteiro como novidade.
 - **Fail-open na escrita:** `except OSError: pass` — *"não poder marcar nunca derruba o status"*. A consequência é silenciosa e vale saber: num disco somente-leitura o `novos` fica permanentemente igual ao `total` e ninguém é avisado.
 
+### B11 · `${CLAUDE_CONFIG_DIR:-~/.claude}/sovai/` — 0B · o interruptor da missão autônoma
+
+- **Nasceu em 2026-08-02**, com o gate que mantém o `/sovai` no motor Workflow.
+- **Três arquivos, todos chaveados por sessão** [confirmado — `pretooluse-sovai-motor.sh`]:
+  - `ativo-<session_id>` — **arquivo vazio; o que importa é existir.** Aceso pela casca da skill antes de disparar o Workflow, apagado na entrega. Enquanto existe, todo disparo de sub-agente naquela sessão é negado.
+  - `bloqueios-<session_id>` — o contador do cap (3). Sanitizado na leitura: lixo no arquivo vira `0`, nunca erro de shell.
+  - `desistencias.log` — append-only, uma linha por vez que o cap estourou. Existe porque *desistir em silêncio* é o defeito que o `bypass.log` do teto de prosa registrou primeiro.
+- **Por sessão, nunca global** — mesma lição do `context-guard` e do `scope-cop` (§1.5 de `patterns.md`): marcador global faria uma sessão em sovai tirar de **todas** as outras o direito de despachar sub-agente.
+- **Perder o diretório não perde trabalho.** É interruptor, não registro: some o `ativo-*` e o gate volta a ser mudo. O único conteúdo com valor histórico é o `desistencias.log`, e ele é diagnóstico, não dado.
+- ⚠️ **O risco real é o oposto: o arquivo ficar aceso.** A casca apaga na entrega, mas missão interrompida no meio (sessão morta, `/clear`) deixa o sinal aceso e **a sessão inteira segue sem despachar sub-agente**, sem ninguém saber por quê. Não há poda por idade — diferente do `scope-cop`, que ganhou `find … -mtime +1 -delete` no mesmo commit em que nasceu. Diagnóstico: `ls ~/.claude/sovai/`.
+- **Estado medido nesta rodada** [confirmado]:
+
+  ```bash
+  ls -la ~/.claude/sovai/     # 1 arquivo, 0 bytes: ativo-3191409e-…  (a missão desta sessão)
+  du -sh ~/.claude/sovai      # 0B
+  ```
+
 ---
 
 ## (C) Dentro do repo, mas gitignorado — some se a máquina sumir
