@@ -267,7 +267,7 @@ qa-loop          1.8.0  [qa-loop]                                        -
 ship             1.3.9  [ship]                                           HOOKS
 slides           1.3.2  [slides]                                         -
 sovai           1.11.0  [sovai]                                          HOOKS
-visual          1.12.0  [visual]                                         HOOKS
+visual          1.13.0  [visual]                                         HOOKS
 ```
 
 Duas linhas mudaram nesta rodada e as duas foram re-derivadas do mesmo laço acima:
@@ -826,6 +826,15 @@ páginas do `/visual` digitadas pelo modelo custavam **20-31 KB de HTML por pág
     uma válvula só: `"aberto": true` no spec força abrir — **revelar mais nunca esconde**, então
     esta é segura de deixar na mão de quem escreve. Bloco vazio não chega aqui: o validador
     recusa evidência sem `output`. [confirmado — `test_visual_page.py`, 3 checks]
+  - **`r_artefato()` emite a saída para ver o artefato grande.** A moldura fica pequena de
+    propósito no fluxo do documento — artefato em tamanho natural quebra a leitura e empurra a
+    decisão pra fora da tela —, e desde 2026-08-02 a barra carrega dois botões escritos pelo
+    programa: **tela cheia** (a moldura INTEIRA em fullscreen, com a procedência junto, `Esc`
+    volta) e **nova janela**. Três decisões, cada uma por um modo de falha: o link é
+    `<a target="_blank">` e não `window.open()` porque bloqueador de popup mata o segundo e a
+    página roda em `file://`; `.artefato:fullscreen` traz `background` próprio porque o
+    navegador pinta branco por padrão e o tema escuro piscaria; sem Fullscreen API o clique cai
+    em abrir-em-aba, nunca fica sem resposta. [confirmado — `test_visual_page.py`, 11 checks]
   - **`erros_de_estilo()` recusa prosa em TODO campo de texto do spec** — título, corpo,
     pergunta, aviso, sumário. Quatro checagens: ≤ 140 caracteres por bullet, uma frase por
     bullet, sem conectivo de continuação abrindo, no máximo 6 bullets por bloco. Estourar é
