@@ -114,7 +114,7 @@ e intercepta cada mensagem sua). Ligar: `claude plugin enable <nome>@pedro-plugi
 | `handoff` ⚙️ | `/handoff` · override `/handoff salvar\|retomar` | Continuidade de sessão em um comando: detecta o estado e roteia — contexto cheio → salva um documento de transferência; sessão recém-limpa → retoma de onde parou. Workspace-aware: o handoff pertence ao projeto que a sessão tocou (resolve a fronteira `.git`), funciona em projeto único, monorepo (`HANDOFF-<módulo>.md`) ou pasta guarda-chuva. |
 | `context-guard` ⚙️ | automático (PostToolUse) · setup `/context-guard:setup` | Auto-interrompe o workflow quando o context window passa de um threshold configurável (default 80%) e sugere `/handoff`. Agnóstico de statusLine — encaminha para qualquer comando existente via `CLAUDE_STATUSLINE_FORWARD`. **Use junto com `handoff`.** |
 | `intent-guard` ⚙️ | automático (UserPromptSubmit + Stop + PreToolUse) | Caderno append-only dos pedidos **verbatim** do usuário. Classifica cada mensagem (pedido / correção / restrição / conversa) e mantém a lista de pedidos vivos. No fim do turno, bloqueia declarar entrega sem auditoria independente: despacha um auditor que julga cada pedido e grava veredito com prova. O gate carimba num sidecar `.escopo` **quais** pedidos ele perguntou — sem isso, mensagem nova chegando no meio fazia o veredito nascer impossível de aprovar. |
-| `sovai` | `/sovai` | Modo autônomo — executa um plano até o fim sem pausas, checkpoints ou confirmações. Pula bloqueios (sem workaround silencioso), registra cada decisão, roda um passe final headless de `qa-loop` e entrega relatório estruturado. |
+| `sovai` ⚙️ | `/sovai` · PreToolUse | Modo autônomo — executa um plano até o fim sem pausas, checkpoints ou confirmações. Pula bloqueios (sem workaround silencioso), registra cada decisão, roda um passe final headless de `qa-loop` e entrega relatório estruturado. O motor é um **Workflow determinístico** (decompõe → executa → revisa), e isso é **cobrado por hook**: enquanto a missão está armada, todo disparo de sub-agente é negado e mandado de volta pro Workflow. O gate degrada em vez de travar — desiste depois de 3 negações e grava a desistência, porque missão longa com o dono ausente não pode morrer parada. |
 
 ### Planejamento & review
 
@@ -175,6 +175,7 @@ e intercepta cada mensagem sua). Ligar: `claude plugin enable <nome>@pedro-plugi
 | `intent-guard` | UserPromptSubmit · PreToolUse · PostToolUse×2 · Stop | Caderno de pedidos + gate de entrega (desligado de fábrica) |
 | `project-doc` | SessionStart×2 · UserPromptSubmit · PreToolUse×3 · PostToolUse · Stop | Guard doc-first + aviso de doc defasada + gate de plano |
 | `ship` | PreToolUse | Guarda o fluxo de deploy |
+| `sovai` | PreToolUse | Mantém a missão autônoma no motor Workflow — nega sub-agente enquanto ela dura |
 | `visual` | SessionStart · PreToolUse · Stop | Intercepta ExitPlanMode e ressuscita o plano aberto |
 
 > ⚠️ **Hook de plugin vai em `hooks/hooks.json` (subpasta), nunca `hooks.json` na raiz.** Na raiz o Claude Code ignora silenciosamente — `claude plugin details` mostra `Hooks (0)` e nada dispara. `claude plugin validate` passa mesmo assim. Diagnóstico canônico = `claude plugin details <plugin>@pedro-plugins`.
