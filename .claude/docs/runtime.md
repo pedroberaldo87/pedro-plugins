@@ -231,6 +231,15 @@ O índice carrega o marker `<!-- project-doc:v2 gen=3.8 -->` na primeira linha. 
 
 **A regra estrutural:** o Claude **autora** o plano uma vez (`init`) e daí em diante só **marca** (`tick`). Quem desenha a árvore é o programa, lendo o arquivo — por isso o título não deriva entre renders. `[confirmado]`
 
+**Duas portas cobram o plano, e desde 2026-08-02 elas cobrem casos opostos** `[confirmado — `plugins/visual/hooks/`]`:
+
+- **Antes do plano existir** — `PreToolUse[ExitPlanMode]` (`pre-exitplan-visualize.sh`) exige arquivo de plano + HTML com prova. Só arma **se você entrar em plan mode**.
+- **Depois do trabalho acontecer** — `Stop` (`stop-plan-status.sh:155-191`) cobra o plano **ausente**: sessão que editou ≥ `PISO` arquivos **distintos** e não tem nenhum plano ativo recebe o aviso uma vez, com sentinela própria (`claude-plan-missing-…`).
+
+O segundo nasceu de um buraco medido: **7 commits em 2026-08-02 sem plano nenhum, e nada acusou** — porque o gate antigo só dispara em plan mode, e trabalho feito direto nunca passa por lá.
+
+⚠️ **A métrica é ARQUIVO distinto, não chamada de edição** (`arquivos_editados()`, linha 82, compartilhada pelas duas cobranças). O caminho antigo contava `"name":"Edit"` no transcript e a frase dizia *"editou N arquivos"* — 6 edições no mesmo arquivo imprimiam *"editou 6 arquivos"*. A mensagem mentia. `[confirmado — `test_plan_hooks.sh` → `OK (46 checks)`, com o caso "6 edições no MESMO arquivo não cobram" e três sabotagens]`
+
 **Verbos** (os **11** subparsers de `plan_state.py:build_parser`): `init`, `tick`, `state`, `render`, `page`, `brief`, `cobertura`, `reabrir`, `open`, `close`, `reopen`. Os dois últimos a entrar são `cobertura` (o mapa entre requisito e tarefa, nos dois sentidos) e `reabrir` (derruba uma decisão que o agente tomou no lugar do dono). `[confirmado — leitura de `build_parser` nesta rodada]`
 
 **As duas árvores.** `render` e `page` aceitam `--vista execucao|valor`. A de execução é fase → tarefa, a de sempre; a de **valor** é épico → requisito → grupo → tarefa e é **derivada em tempo de render**, não guardada — o arquivo só conhece fase→tarefa, e os dois níveis de cima vêm do documento de requisitos. A vista entra no nome do arquivo da página (`plano-<id>-<modo>-valor.html`), então as duas convivem sem uma sobrescrever a outra. `[confirmado — `plan_state.py:cmd_render`, `cmd_page` e `_html_valor`]`

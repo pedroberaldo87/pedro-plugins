@@ -219,7 +219,7 @@
       "source": "./plugins/qa-loop",
       "description": "Two-phase QA: an asymptotic review phase (variable-severity findings, accepted-limits, stops on diminishing returns; e2e/Playwright as non-blocking actionables) plus an absolute exit Gate phase (lint, type-check, unit and integration must be 100% green across the whole repo, pre-existing errors included, or stopReason=gate-red). All-Opus engine (review, plan and fix), per-fix regression gate, churn detector, interactive /visual report and agentic journal. Replaces qa, rev6 and iterate.",
       "category": "dev-tools",
-      "version": "1.7.2",
+      "version": "1.8.0",
       "tags": [
         "code-review",
         "qa",
@@ -260,9 +260,9 @@
     {
       "name": "sovai",
       "source": "./plugins/sovai",
-      "description": "Autonomous run mode — executes a plan end to end with no pauses, checkpoints or confirmations. Skips blockers without silent workarounds, records every decision, runs a headless qa-loop pass and delivers a structured report. The engine is a deterministic Workflow (decompose → execute → review), and a PreToolUse hook enforces it: while the mission is armed every sub-agent spawn is denied and sent back to the Workflow. The gate degrades instead of trapping — it gives up after 3 denials and logs it, because a long mission with the owner away must not die stuck.",
+      "description": "Autonomous run mode — executes a plan end to end with no pauses, checkpoints or confirmations. Skips blockers without silent workarounds, records every decision, runs a headless qa-loop pass and delivers a structured report. The engine is a deterministic Workflow (decompose → execute → review) and a PreToolUse hook enforces it: while the mission is armed every sub-agent spawn is denied. The reviewer judges the work against the SPEC, not against the orchestrator's own decomposition — reviewing against your own breakdown is a closed circuit where a wrong breakdown gets approved. Five axes: spec · the project's own quality goals · traceability (every task carries its requirement and its definition of done) · completeness · cohesion. A dead agent degrades the mission instead of killing the engine.",
       "category": "productivity",
-      "version": "1.9.0",
+      "version": "1.11.0",
       "tags": [
         "autonomy",
         "execution",
@@ -276,7 +276,7 @@
       "source": "./plugins/visual",
       "description": "CLI walls-of-text → interactive HTML dark-theme views. The page carries the EVIDENCE, not the account of it: real artifact embedded, raw output verbatim, provenance for every number — enforced by a pre-ExitPlanMode gate. Prose is REFUSED by the builder: every text field is checked (≤140 chars per bullet, one sentence each, no continuation connective, max 6 per block) and a violation aborts without writing the page. Each problem's body is born folded — the title stays visible, consequence and proposal open on click under a label derived from the content itself. Plans, diagnostics and decisions in the browser with live sync back to Claude.",
       "category": "productivity",
-      "version": "1.11.1",
+      "version": "1.12.0",
       "tags": [
         "visualization",
         "html",

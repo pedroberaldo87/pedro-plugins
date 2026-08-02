@@ -263,11 +263,11 @@ improve          1.0.3  [improve]                                        -
 intent-guard     0.6.0  [intent-guard]                                   HOOKS
 principles       1.0.2  [principles]                                     -
 project-doc     3.18.4  [design-md, doc-touch, project-doc, start-doc]   HOOKS
-qa-loop          1.7.2  [qa-loop]                                        -
+qa-loop          1.8.0  [qa-loop]                                        -
 ship             1.3.9  [ship]                                           HOOKS
 slides           1.3.2  [slides]                                         -
-sovai            1.9.0  [sovai]                                          HOOKS
-visual          1.11.1  [visual]                                         HOOKS
+sovai           1.11.0  [sovai]                                          HOOKS
+visual          1.12.0  [visual]                                         HOOKS
 ```
 
 Duas linhas mudaram nesta rodada e as duas foram re-derivadas do mesmo laço acima:

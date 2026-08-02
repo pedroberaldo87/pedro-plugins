@@ -13,10 +13,12 @@
 # CONTRATO DE GATE (.claude/docs/patterns.md → §5.3):
 #   canal      systemMessage (informa, não bloqueia — nunca emite decision:block)
 #   cap        n/a (não bloqueia); a COBRANÇA é 1× por (sessão, projeto)
-#   desligar   PLAN_STATUS=0  (e PLAN_NUDGE=0 desliga só a cobrança)
-#   fail-open  sem jq, sem python3, sem plano → exit 0 calado
+#   desligar   PLAN_STATUS=0  (e PLAN_NUDGE=0 desliga as duas cobranças)
+#   fail-open  sem jq, sem python3, sem transcript → exit 0 calado
 #
-# O silêncio é o comportamento normal: sem plano ativo, não fala nada.
+# Sem plano ativo o silêncio continua sendo o normal — com UMA exceção: se a
+# sessão editou 3+ arquivos distintos e não há plano nenhum aberto, isso é dito
+# uma vez (ver "plano AUSENTE" no fim do arquivo).
 
 [ "${PLAN_STATUS:-1}" = "0" ] && exit 0
 command -v jq >/dev/null 2>&1 || exit 0
@@ -66,10 +68,57 @@ SINCE=""
 # reaparecia a cada turno até a sessão acabar.
 SEEN="${TMPDIR:-/tmp}/claude-plan-closed-$(id -u)-${SESSION}-${PHASH}"
 
+# ── quantos ARQUIVOS DISTINTOS esta sessão editou ────────────────────────────
+# DISTINTOS, não chamadas. Até 2026-08-02 isto era `grep '"name":"Edit"' | wc -l`,
+# e a frase que ele alimenta diz "arquivos": 6 edições no MESMO arquivo
+# imprimiam "editou 6 arquivos", e o piso disparava por insistência em vez de
+# por tamanho do trabalho. O formato abaixo é o real do transcript (JSONL, um
+# bloco `tool_use` por chamada), lido de um transcript de verdade:
+#   {"message":{"content":[{"type":"tool_use","name":"Edit",
+#                           "input":{"file_path":"/caminho/absoluto"}}]}}
+# Mesma leitura que `handoff/lib/collect_engine.py:collect_edited_paths`.
+# Fail-open: linha corrompida, arquivo ilegível ou python3 caído → 0, e 0 nunca
+# alcança o piso, então o hook cala.
+arquivos_editados() {
+  "$PY3" - "$1" <<'PY' 2>/dev/null
+import json, sys
+
+TOOLS = ("Edit", "Write", "MultiEdit", "NotebookEdit")
+vistos = set()
+try:
+    with open(sys.argv[1], encoding="utf-8", errors="replace") as fh:
+        for linha in fh:
+            try:
+                rec = json.loads(linha)
+            except ValueError:
+                continue          # linha truncada no meio da escrita
+            msg = rec.get("message") if isinstance(rec, dict) else None
+            blocos = msg.get("content") if isinstance(msg, dict) else None
+            if not isinstance(blocos, list):
+                continue
+            for b in blocos:
+                if not isinstance(b, dict) or b.get("type") != "tool_use":
+                    continue
+                if b.get("name") not in TOOLS:
+                    continue
+                inp = b.get("input") or {}
+                fp = inp.get("file_path") or inp.get("notebook_path")
+                if fp:
+                    vistos.add(fp)
+except OSError:
+    pass
+print(len(vistos))
+PY
+}
+
+# O piso das DUAS cobranças. Um número só: dois pisos divergentes no mesmo
+# arquivo viram duas réguas, e ninguém sabe qual valeu.
+PISO=3
+
 # ── a cobrança do tique ──────────────────────────────────────────────────────
 # Só entra quando: há marco, nenhum *.plan.json foi tocado nesta sessão, e o
-# transcript mostra 3+ edições. 1× por (sessão, projeto) — cobrar todo turno
-# transforma o aviso em ruído, e ruído a gente aprende a ignorar.
+# transcript mostra 3+ arquivos editados. 1× por (sessão, projeto) — cobrar
+# todo turno transforma o aviso em ruído, e ruído a gente aprende a ignorar.
 NUDGE=""
 # MARCO_NOVO=1 → o marco nasceu AGORA, então "nada foi marcado desde o marco"
 # é verdade vazia: não houve intervalo. Cobrar aqui seria acusar sem base.
@@ -84,11 +133,11 @@ if [ "${PLAN_NUDGE:-1}" != "0" ] && [ "$MARCO_NOVO" = "0" ] && [ -f "$MARK" ] \
       [ "$f" -nt "$MARK" ] && TICKED=1 && break
     done
     if [ "$TICKED" = "0" ]; then
-      EDITS=$(grep -oE '"name":"(Edit|Write|MultiEdit|NotebookEdit)"' "$TRANSCRIPT" 2>/dev/null | wc -l | tr -d ' ')
-      case "$EDITS" in ''|*[!0-9]*) EDITS=0 ;; esac
-      if [ "$EDITS" -ge 3 ]; then
+      FILES=$(arquivos_editados "$TRANSCRIPT")
+      case "$FILES" in ''|*[!0-9]*) FILES=0 ;; esac
+      if [ "$FILES" -ge "$PISO" ]; then
         touch "$SENTINEL" 2>/dev/null
-        NUDGE="⚠️ **Nada marcado nesta sessão**, e ela editou ${EDITS} arquivos. Marque o que terminou com \`tick <id> --evidencia\` — senão o próximo Claude herda um plano que mente."
+        NUDGE="⚠️ **Nada marcado nesta sessão**, e ela editou ${FILES} arquivos. Marque o que terminou com \`tick <id> --evidencia\` — senão o próximo Claude herda um plano que mente."
       fi
     fi
   fi
@@ -102,7 +151,44 @@ if [ -n "$SINCE" ]; then
 else
   BRIEF=$("$PY3" "$PLAN_STATE" --dir "$PLANS_DIR" brief ${NUDGE:+--nudge "$NUDGE"} 2>/dev/null)
 fi
-[ -z "$BRIEF" ] && exit 0
+
+# ── plano AUSENTE ────────────────────────────────────────────────────────────
+# Sem plano ativo o `brief` devolve VAZIO — e até 2026-08-02 a linha acima
+# engolia tudo, inclusive a cobrança montada lá em cima (ela é argumento do
+# brief). Resultado: sessão grande sem plano nenhum passava calada; num único
+# dia foram 7 commits assim, e nada acusou. O gate que exige plano só arma no
+# ExitPlanMode, então quem nunca entra em plan mode nunca é cobrado.
+#
+# Canal próprio, mesma disciplina do resto do arquivo: systemMessage (não
+# bloqueia), 1× por (sessão, projeto), kill-switch PLAN_NUDGE=0, fail-open.
+# Sentinela SEPARADA da cobrança do tique: aquela já foi queimada lá em cima
+# sem nada ter sido dito, e as duas cobram coisas diferentes.
+if [ -z "$BRIEF" ]; then
+  [ "${PLAN_NUDGE:-1}" = "0" ] && exit 0
+  [ -n "$TRANSCRIPT" ] && [ -f "$TRANSCRIPT" ] || exit 0
+  MISSING="${TMPDIR:-/tmp}/claude-plan-missing-$(id -u)-${SESSION}-${PHASH}"
+  [ -f "$MISSING" ] && exit 0
+
+  # `open --json` imprime `[]` quando não há plano ativo. Exigir o `[]` LITERAL
+  # é o que separa "não há plano" de "o motor quebrou": quebra dá saída vazia,
+  # e aí o hook cala em vez de acusar plano ausente que talvez exista.
+  OPEN=$("$PY3" "$PLAN_STATE" --dir "$PLANS_DIR" open --json 2>/dev/null)
+  [ "$OPEN" = "[]" ] || exit 0
+
+  # Mesma métrica e mesmo piso da cobrança do tique — o requisito fala em
+  # "sessão que edita N arquivos", e ARQUIVO é o que `arquivos_editados` conta.
+  ARQS=$(arquivos_editados "$TRANSCRIPT")
+  case "$ARQS" in ''|*[!0-9]*) ARQS=0 ;; esac
+  [ "$ARQS" -ge "$PISO" ] || exit 0
+
+  touch "$MISSING" 2>/dev/null
+  jq -n --arg n "$ARQS" '{systemMessage:(
+    "⚠️ **Sem plano aberto — esta sessão editou " + $n + " arquivos**\n" +
+    "• Trabalho desse tamanho sem plano não deixa rastro: o próximo Claude não sabe o que ficou pela metade.\n" +
+    "• Abra um com `/visual` (ele grava em `.claude/plans/`), ou siga sem — este aviso não volta nesta sessão."
+  )}' 2>/dev/null
+  exit 0
+fi
 
 jq -n --arg m "$BRIEF" '{systemMessage:$m}' 2>/dev/null
 exit 0
