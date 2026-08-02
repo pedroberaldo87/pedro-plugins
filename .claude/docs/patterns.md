@@ -366,6 +366,34 @@ As quatro portas, e a direção segura de cada uma [confirmado — `sovai/SKILL.
 
 **Régua durável: em motor de agentes, toda chamada que pode devolver `null` precisa de porta declarada — e a porta nunca é "declara pronto". Falha de infra tem que degradar a missão, nunca fabricar aprovação.**
 
+### 1.14 Componente que produz dado para OUTRO consumir sai de cena sem sintoma
+
+Terceira variação do mesmo defeito nesta rodada, e a mais silenciosa das três. O §1.11 tratou de prosa que descreve mecanismo ausente; o §1.13, de agente que morre; este trata do elo que some de uma cadeia **sem quebrar nada visível**.
+
+Medido em 2026-08-02: a `statusLine` desta máquina chamava o `claude-hud` direto, e o writer do `context-guard` estava fora da cadeia. Resultado [confirmado]:
+
+```
+único /tmp/claude-context-pct-* no disco:  claude-context-pct-smoke-123
+mtime:                                     30/jul 22:22  ← fixture de TESTE
+sessões reais que gravaram em 3 dias:      zero
+context-guard@pedro-plugins:               enabled = True
+```
+
+**A barra de status continuou perfeita o tempo todo.** Quem sumiu foi o elo que grava dado para outro consumir — o guarda do context-guard, que sem esse arquivo simplesmente nunca dispara. Não há tela em branco, não há erro, não há log.
+
+Como distinguir os dois tipos de elo, e por que importa:
+
+- **Elo de saída visível** (renderizador): sumiu, você vê. O próprio uso é o teste.
+- **Elo de efeito colateral** (escritor): sumiu, nada muda na tela. **Só um check que cruza "está habilitado" com "está na cadeia" pega.**
+
+Três regras que caíram daí:
+
+- **Cadeia se verifica inteira, nunca por um elo.** `check_statusline_meio_ligada` procura no `statusLine.command` **e** no `CLAUDE_STATUSLINE_FORWARD`: olhar só o comando acusaria o renderizador toda vez que ele fosse o forward, que é o arranjo normal.
+- **Substituir um elo é mover o anterior, não sobrescrever.** O conserto pôs o comando antigo **inteiro** no forward — inclusive o cálculo de `COLUMNS`, que se perderia num forward remontado à mão.
+- **Fixture de teste no mesmo diretório do estado real é armadilha.** O `smoke-123` de 30/jul fazia `ls /tmp/claude-context-pct-*` parecer saudável. Só o `mtime` e o nome denunciavam.
+
+**Régua durável: componente cujo produto é consumido por terceiro precisa de check de PRESENÇA na cadeia — o uso normal não o testa, porque o uso normal não olha para o que ele produz.**
+
 ## 2 · Python
 
 ### 2.1 Stdlib puro, sem exceção observada

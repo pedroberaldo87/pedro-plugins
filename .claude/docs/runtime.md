@@ -180,9 +180,11 @@ O índice carrega o marker `<!-- project-doc:v2 gen=3.8 -->` na primeira linha. 
 6. **Kill-switch** — `~/.claude/context-guard/mode` contendo `off` desliga o guard globalmente. `[confirmado]`
 7. **Reset** — `context-guard-reset.sh` (SessionStart) apaga **só** os dois arquivos da própria sessão e faz prune de órfãos com `find /tmp -maxdepth 1 -name 'claude-context-pct-*' -mtime +1 -delete` (idem `-warned-`). `[confirmado]`
 
-> ⚠️ **A ponte segue DESLIGADA nesta máquina, e a metade que falta é a do meio.** As env vars **existem** — `sorted(settings['env'].keys())` devolve `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS`, `CLAUDE_CONTEXT_THRESHOLD` (=`80`), `CLAUDE_STATUSLINE_FORWARD`. Mas `statusLine.command` **não contém `context-guard-writer`**: aponta direto pro `claude-hud`. Sem o wrapper na cadeia, ninguém escreve `/tmp/claude-context-pct-<sid>` — o único arquivo desse padrão em `/tmp` é `claude-context-pct-smoke-123`, de 30/jul. `context-guard.sh` sai em `[ -z "$PCT" ] && exit 0`. **Implementado e habilitado, mas inativo aqui.** `[confirmado — leitura de ~/.claude/settings.json e `ls /tmp/claude-context-pct-*` nesta rodada]`
+> ✅ **A ponte foi LIGADA em 2026-08-02, e ela ficou quebrada 3 dias sem ninguém notar.** Até então `statusLine.command` apontava direto pro `claude-hud` e **não continha `context-guard-writer`**: sem o wrapper na cadeia ninguém escrevia `/tmp/claude-context-pct-<sid>`, e o único arquivo desse padrão em `/tmp` era `claude-context-pct-smoke-123` — **fixture de teste**, de 30/jul. O `context-guard.sh` saía em `[ -z "$PCT" ] && exit 0` toda vez.
 >
-> Ativar = rodar a skill `context-guard:setup`, que registra o wrapper como `statusLine.command` e move o comando antigo pra `CLAUDE_STATUSLINE_FORWARD`.
+> O conserto pôs o comando antigo **inteiro** em `CLAUDE_STATUSLINE_FORWARD` (preservando o cálculo de `COLUMNS`, que se perderia num forward remontado à mão) e o writer em `statusLine.command`. E2E com o payload do harness: writer gravou `73` e o hud renderizou `Context 73%` na mesma passada. `[confirmado nesta rodada]`
+>
+> 🔴 **A lição não é o conserto, é o tempo que levou.** Este bloco já descrevia o defeito **antes** desta rodada, e ele continuou lá — porque documentar um estado quebrado não conserta nem avisa de novo. Agora quem cobra é `conformance.py:check_statusline_meio_ligada`: plugin de statusLine habilitado e ausente da cadeia vira desvio a cada execução do verificador. Ver `patterns.md §1.14` — elo que produz dado para outro consumir sai de cena sem sintoma nenhum na tela.
 
 - **Passo 3, `jq` ausente** → `command -v jq … || exit 0` no topo: o guard nem lê o stdin. `[confirmado]`
 

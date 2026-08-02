@@ -183,7 +183,7 @@ $ grep -rniE "crontab|systemd|launchd|launchctl|pg_dump|mysqldump|restic|borg|rs
 
 ### 2.2 · Catálogo do marketplace — `.claude-plugin/marketplace.json`
 
-- [confirmado] Rastreado. É a fonte da verdade da distribuição: **19 entradas**, e nesta rodada duas subiram — `visual` **1.8.6 → 1.9.1** e `intent-guard` **0.5.4 → 0.6.0**, que são exatamente os dois plugins cujo estado mudou aqui. As demais seguem: `bootstrap` 1.8.5, `project-doc` 3.18.4, `qa-loop` 1.7.2, `guardrails` 1.5.2, `context-guard` 1.3.3.
+- [confirmado] Rastreado. É a fonte da verdade da distribuição: **19 entradas**. Nesta rodada quatro subiram — `sovai` **1.9.0 → 1.11.0**, `visual` **1.11.1 → 1.12.0**, `qa-loop` **1.7.2 → 1.8.0** e `bootstrap` **1.8.5 → 1.9.0** —, que são exatamente os plugins cujo estado mudou aqui. As demais seguem: `project-doc` 3.18.4, `intent-guard` 0.6.0, `guardrails` 1.5.2, `context-guard` 1.3.3.
 - [confirmado, derivado nesta rodada] O espelho `plugin.json` ↔ `marketplace.json` fecha nas **19** entradas — nenhuma diverge. É o check B do release-gate, e ele passa hoje.
 - Cobertura real: quem instala pelo marketplace só depende deste arquivo e do `plugins/**` — ambos no remote.
 
