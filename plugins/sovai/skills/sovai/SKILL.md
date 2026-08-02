@@ -27,7 +27,28 @@ Se um item não puder ser feito como pedido, **não invente workaround silencios
 
 ## Execução — motor decompõe → executa → revisa (Workflow)
 
-A execução do plano **não roda solo no loop principal** — roda como **um Workflow determinístico** (a tool `Workflow`), mesmo padrão do `/qa-loop`: **motor = Workflow, casca = esta skill**. Três papéis, cada um no **tier certo pra etapa** (R8 — mesma tabela do `/qa-loop`, mesmos nomes de knob), e os freios (parada, paralelismo, fidelidade) são **lógica do script (JS)** — não "o Opus lembrar a regra a cada volta". É um **pipeline fechado**, por isso Workflow e não Agent Team (e não sub-agente solto, que a regra global do usuário condena e o guard `PreToolUse(Agent)` acorda a cada disparo).
+A execução do plano **não roda solo no loop principal** — roda como **um Workflow determinístico** (a tool `Workflow`), mesmo padrão do `/qa-loop`: **motor = Workflow, casca = esta skill**. Três papéis, cada um no **tier certo pra etapa** (R8 — mesma tabela do `/qa-loop`, mesmos nomes de knob), e os freios (parada, paralelismo, fidelidade) são **lógica do script (JS)** — não "o Opus lembrar a regra a cada volta". É um **pipeline fechado**, por isso Workflow e não Agent Team.
+
+### O sinal que arma o gate (obrigatório, e é a PRIMEIRA coisa)
+
+Antes de disparar o Workflow, acenda o sinal; ao entregar o relatório, apague. É ele que faz o gate existir:
+
+```bash
+SOVAI_DIR="${CLAUDE_CONFIG_DIR:-$HOME/.claude}/sovai"
+mkdir -p "$SOVAI_DIR"
+: > "$SOVAI_DIR/ativo-$CLAUDE_CODE_SESSION_ID"          # ao armar a missão
+rm -f "$SOVAI_DIR"/{ativo,bloqueios}-"$CLAUDE_CODE_SESSION_ID"   # ao entregar
+```
+
+Enquanto o sinal está aceso, `plugins/sovai/hooks/pretooluse-sovai-motor.sh` **nega** todo disparo de sub-agente e manda rodar o Workflow. Fora do sovai ele é mudo. Desligamento: `SOVAI_GATE=0`.
+
+⚠️ **Esqueceu de apagar o sinal, a sessão inteira fica sem despachar sub-agente.** Apagar é parte da entrega, não faxina opcional.
+
+### Por que o gate precisou nascer
+
+A frase que ficou aqui de 2026-08-01 até 2026-08-02 dizia que *"o guard `PreToolUse(Agent)` acorda a cada disparo"*. **Não acordava.** O guard que existe é o do `guardrails`, e ele foi escrito para **proteger** Agent Teams — a regra 3 dele libera explicitamente *"tarefa one-off sem team_name"*, que é exatamente a forma pela qual o `/sovai` descambava. A skill se apoiava numa proteção inexistente, e ninguém tinha como saber: prosa descrevendo mecanismo ausente não dá erro.
+
+**O gate degrada, não trava.** Depois de 3 negações na mesma sessão ele desiste, libera e grava a desistência em `desistencias.log`. O motivo é o cenário: missão longa, dono ausente. Se a inferência de que o Workflow não passa por aqui estiver errada, a missão continua manca em vez de morrer parada.
 
 ## Modelo & effort por etapa (R8) — contrato em `references/r8-tiers.md`
 
@@ -227,6 +248,14 @@ Passada a QA e **ANTES** de montar o relatório, persista o trabalho. Esta é a 
    - **Nunca** `--force`; **nunca** push direto numa branch protegida (`main`/`master`) — se a sessão estiver nela, crie uma branch de feature antes (mesma regra do "force push em main" do Contrato) e registre como decisão.
    - Árvore limpa (nada pra commitar) → pula e anota "nada a persistir".
    - Falha de push (sem remote, sem auth, rejeição) → **não force**; registra como `Bloqueio (precisa de você)` com o erro real e segue pro relatório (o commit local fica feito).
+
+3. **Apaga o sinal do sovai.** É o par do `mkdir` da seção _Execução_, e é obrigatório:
+
+   ```bash
+   rm -f "${CLAUDE_CONFIG_DIR:-$HOME/.claude}/sovai"/{ativo,bloqueios}-"$CLAUDE_CODE_SESSION_ID"
+   ```
+
+   Deixar aceso faz a sessão inteira continuar sem poder despachar sub-agente **depois** de a missão acabar — o gate não sabe que você terminou, só sabe do arquivo.
 
 O hash do commit + resultado do push entram na `### Verificação`; a doc regenerada é um item de `### Feito`.
 
