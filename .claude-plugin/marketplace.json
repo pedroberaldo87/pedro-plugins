@@ -217,7 +217,7 @@
     {
       "name": "qa-loop",
       "source": "./plugins/qa-loop",
-      "description": "Two-phase QA: an asymptotic review phase (variable-severity findings, accepted-limits, stops on diminishing returns; e2e/Playwright as non-blocking actionables) plus an absolute exit Gate phase (lint, type-check, unit and integration must be 100% green across the whole repo, pre-existing errors included, or stopReason=gate-red). All-Opus engine (review, plan and fix), per-fix regression gate, churn detector, interactive /visual report and agentic journal. Replaces qa, rev6 and iterate.",
+      "description": "Review→fix loop that stops at diminishing returns, not at zero. Runs as a deterministic Workflow (Opus reviews → Opus plans/adjudicates → fixes; gate, churn and stop condition live in code). Anchored to the plan in 3 buckets — implementation / plan-drift / broken-plan — and to the project's own quality goals, read from .claude/docs/quality-goals.md at review time rather than copied into the skill. Regression gate per fix, accepted-limits, a human HTML report plus an agent-facing journal. Replaces qa, rev6 and iterate.",
       "category": "dev-tools",
       "version": "1.8.0",
       "tags": [
