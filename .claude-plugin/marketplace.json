@@ -28,7 +28,7 @@
       "source": "./plugins/bootstrap",
       "description": "Bootstrap a new machine to this versioned Claude Code setup — auto-syncs marketplaces and plugins via hooks AND applies the versioned global config (env, permissions, flags, global CLAUDE.md, machine-resolved statusLine). Run /bootstrap:setup once per machine. Replaces bootstrap-third-party.",
       "category": "productivity",
-      "version": "1.8.5",
+      "version": "1.9.0",
       "tags": [
         "sync",
         "bootstrap",

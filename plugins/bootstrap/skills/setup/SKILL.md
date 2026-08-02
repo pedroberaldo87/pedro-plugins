@@ -88,7 +88,11 @@ Isso faz merge de `config/settings-defaults.json` em `~/.claude/settings.json`:
 - **permissions** — UNIÃO do allow/deny existente da máquina com os defaults versionados (a máquina mantém os seus, ganha os compartilhados). O `defaultMode` **não** vem nos defaults: o modo de aprovação continua o que já estava nesta máquina, e o setup nunca liga aprovação automática.
 - **flags** — `language`, `theme`, `autoCompactEnabled`, `outputStyle` (fixa `"Clean Style"`; sem
   isso o teto de prosa não entra no prompt de sistema e só o Stop hook barra, depois do fato).
-- **statusLine** — resolvido pro writer do `context-guard` instalado NESTA máquina (glob em runtime, sobrevive a bumps de versão). Exige `context-guard` instalado — ele é uma das entradas do marketplace `pedro-plugins` no manifest, então o passo 1 instala. Se mesmo assim não achar, o script avisa e deixa o `statusLine` como está.
+- **statusLine — uma CADEIA de dois elos, não um comando.** O `statusLine.command` chama o **escritor** (`context-guard`, glob de versão em runtime), que grava o percentual de contexto da sessão e **encaminha** para o que estiver em `CLAUDE_STATUSLINE_FORWARD` — o **renderizador**, hoje o `claude-hud`. Os dois são entradas do manifest, então o passo 1 instala ambos. Se o writer não for achado, o script avisa e deixa o `statusLine` como está.
+
+  ⚠️ **Trocar o `statusLine.command` sem mover o antigo para o forward mata o elo de trás em silêncio.** Foi o que aconteceu nesta máquina: o comando passou a chamar o `claude-hud` direto, o writer saiu da cadeia, e **nenhuma sessão real gravou o percentual por 3 dias** — o único `/tmp/claude-context-pct-*` existente era um fixture de teste. A tela continuava perfeita, porque quem sumiu foi o elo que produz dado para **outro** consumir: o guarda do context-guard, que sem esse arquivo nunca dispara.
+
+  Quem cobra isso agora é `conformance.py:check_statusline_meio_ligada` — plugin de statusLine habilitado e ausente da cadeia (comando **ou** forward) vira desvio nomeado, com o conserto junto. Mesma família do `check_gates_enganosos`.
 - **CLAUDE.md** — copia `config/CLAUDE-global.md` pra `~/.claude/CLAUDE.md` (com backup).
 
 Faz backup do `settings.json` antes e **não toca em `settings.local.json`**.

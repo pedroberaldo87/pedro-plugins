@@ -622,10 +622,79 @@ def check_catalogo(rep, cfg):
                      f"os {len(publicados)} plugins do catalogo estao na receita")
 
 
+# A cadeia da statusLine tem elos com papeis diferentes, e cada um sai de um jeito.
+# Ordem importa: o ESCRITOR intercepta e encaminha; o RENDERIZADOR desenha. Escritor fora
+# da cadeia nao quebra a tela — some so o dado que ele produz, em silencio.
+ELOS_STATUSLINE = (
+    {"plugin": "context-guard", "papel": "escritor",
+     "marca": "context-guard-writer",
+     "produz": "o percentual de contexto por sessao em /tmp/claude-context-pct-<session_id>",
+     "quem_consome": "o guarda do context-guard, que so dispara com esse arquivo na mao",
+     "conserto": "rode `/context-guard:setup` — ele registra o wrapper e move o comando "
+                 "atual pra CLAUDE_STATUSLINE_FORWARD, preservando o que ja renderizava"},
+    {"plugin": "claude-hud", "papel": "renderizador",
+     "marca": "claude-hud",
+     "produz": "a propria barra de status",
+     "quem_consome": "voce, na tela",
+     "conserto": "rode `/claude-hud:setup`, ou aponte CLAUDE_STATUSLINE_FORWARD pro "
+                 "`dist/index.js` dele se houver um escritor na frente"},
+)
+
+
+def check_statusline_meio_ligada(rep, cfg):
+    """Plugin de statusLine habilitado que NAO esta na cadeia do comando.
+
+    Mesma familia do check_gates_enganosos: o plugin aparece ligado em toda listagem,
+    o dono acha que tem a funcao, e nada dispara. A diferenca e que aqui o sintoma e
+    ainda mais mudo — statusLine que perdeu o ESCRITOR continua desenhando bonito,
+    porque quem sumiu foi o elo que grava dado pra outro consumir.
+
+    Medido em 2026-08-02 nesta maquina: `context-guard` habilitado, writer fora do
+    comando, e o unico /tmp/claude-context-pct-* existente era um fixture de teste de
+    tres dias antes. Nenhuma sessao real gravou, e nenhum check acusava.
+    """
+    settings = load_json(CLAUDE_DIR / "settings.json")
+    if not settings:
+        return
+    vivo = settings.get("enabledPlugins", {}) or {}
+    sl = (settings.get("statusLine") or {}).get("command") or ""
+    fwd = ((settings.get("env") or {}).get("CLAUDE_STATUSLINE_FORWARD") or "")
+    # A cadeia inteira e o comando MAIS o forward: um elo pode morar em qualquer um dos
+    # dois. Procurar so no comando acusaria o renderizador toda vez que ele for o forward.
+    cadeia = sl + "\n" + fwd
+
+    if not sl:
+        # Sem statusLine nenhuma e escolha legitima; so vira desvio se algum elo esta ligado.
+        ligados = [e for e in ELOS_STATUSLINE
+                   if any(k.split("@")[0] == e["plugin"] and v for k, v in vivo.items())]
+        if ligados:
+            rep.desvio("statusline", "plugin de statusLine habilitado sem statusLine configurada",
+                       "settings.json nao tem statusLine.command · ligados: "
+                       + ", ".join(e["plugin"] for e in ligados),
+                       ligados[0]["conserto"])
+        return
+
+    for elo in ELOS_STATUSLINE:
+        habilitado = any(k.split("@")[0] == elo["plugin"] and v for k, v in vivo.items())
+        if not habilitado or elo["marca"] in cadeia:
+            continue
+        rep.desvio(
+            "statusline",
+            "%s (%s) esta habilitado e FORA da cadeia da statusLine" % (elo["plugin"], elo["papel"]),
+            "nem statusLine.command nem CLAUDE_STATUSLINE_FORWARD citam %r — "
+            "entao %s nunca acontece, e quem esperava isso (%s) fica sem dado"
+            % (elo["marca"], elo["produz"], elo["quem_consome"]),
+            elo["conserto"])
+
+    presentes = [e["plugin"] for e in ELOS_STATUSLINE if e["marca"] in cadeia]
+    if presentes:
+        rep.conforme("statusline", "na cadeia: " + " → ".join(presentes))
+
+
 CHECAGENS = [check_plugins, check_claude_md, check_teto_unico,
              check_output_style, check_skills, check_hooks_duplicados,
              check_gates_enganosos, check_teto_rodou, check_juiz_rodou, check_bypass_teto,
-             check_ferramentas_externas, check_catalogo]
+             check_ferramentas_externas, check_catalogo, check_statusline_meio_ligada]
 
 
 def main():
