@@ -46,13 +46,32 @@ import subprocess
 import sys
 import time
 
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from regua_texto import BULLET_MAX  # noqa: E402
+from regua_texto import erros_de_estilo as _erros_de_estilo  # noqa: E402
+
 PHASE_RE = re.compile(r"^F\d+$")
 ITEM_RE = re.compile(r"^F\d+\.\d+$")
 SLUG_RE = re.compile(r"^[a-z0-9][a-z0-9-]{2,63}$")
 
+# A régua de estilo (quality-goals.md, regime "informação rápida"): o plano é lido
+# com a mesma pressa que a página, e até 2026-08-03 só o TAMANHO era cobrado aqui —
+# um passo com duas frases entrava. As quatro checagens moram em
+# `_shared/regua_texto.py`; o que este gerador faz é DECLARAR qual perfil usa. O
+# perfil "plano" deixa fora da régua a árvore que o próprio programa desenha.
+PERFIL = "plano"
+
+# O fim de turno é o SÉTIMO emissor do canal de texto, e ele não sai numa página:
+# sai no terminal, pelo `stop-plan-status.sh`. Sob o perfil do plano ele passava
+# livre — a régua da página não cobra markdown nem cabeçalho, e foi assim que `**`
+# chegou literal na tela em 2026-08-03. O canal manda na forma, então o perfil é
+# outro: sem markdown, e todo cabeçalho abre com emoji.
+PERFIL_BRIEF = "hook"
+
 # A linha didática é o produto do arquivo: é ela que aparece na árvore. Um
-# parágrafo ali destrói a leitura de mapa, então o limite é do schema.
-DESC_MAX = 140
+# parágrafo ali destrói a leitura de mapa, então o limite é do schema. É o MESMO
+# número da régua — dois números para o mesmo teto divergem no primeiro ajuste.
+DESC_MAX = BULLET_MAX
 EVIDENCE_MIN = 8
 
 STATUSES = ("todo", "doing", "blocked", "done")
@@ -60,6 +79,25 @@ STATUSES = ("todo", "doing", "blocked", "done")
 
 class PlanError(Exception):
     pass
+
+
+def erros_de_estilo(v, onde):
+    """A régua no perfil DESTE gerador — a definição mora em `regua_texto.py`.
+
+    Fora do alcance de propósito: `evidence` (é prova, literal por obrigação) e
+    `grupo`/`requisito`, que são rótulo e não redação.
+    """
+    return _erros_de_estilo(v, onde, PERFIL)
+
+
+def erros_do_brief(linhas, onde):
+    """A régua do CANAL do fim de turno — terminal, não HTML.
+
+    Separada de `erros_de_estilo` porque o artefato é outro, não porque é mais
+    frouxa: o mesmo texto que passa na página reprova aqui se traz markdown ou se
+    o cabeçalho não abre com emoji.
+    """
+    return _erros_de_estilo(linhas, onde, PERFIL_BRIEF)
 
 
 # ── localização ────────────────────────────────────────────────────────────
@@ -210,11 +248,14 @@ def erros_do_plano(plan, exigir=None):
             desc = str(it.get("desc", "")).strip()
             if not desc:
                 errs.append("%s desc: obrigatório — é a linha didática que aparece na árvore" % itag)
-            elif len(desc) > DESC_MAX:
-                errs.append("%s desc: %d chars, máximo %d — é UMA linha, não um parágrafo"
-                            % (itag, len(desc), DESC_MAX))
-            for campo, teto in (("pronto", DESC_MAX), ("pendencia", DESC_MAX),
-                                ("grupo", 40), ("requisito", 40)):
+            # As QUATRO checagens, não só o tamanho: `desc`, `pronto` e `pendencia`
+            # são redação lida com pressa, e o teto sozinho deixava passar o parágrafo
+            # de duas frases que cabe em 140 caracteres.
+            for campo in ("desc", "pronto", "pendencia"):
+                v = str(it.get(campo, "")).strip()
+                if v:
+                    errs.extend(erros_de_estilo(v, "%s %s" % (itag, campo)))
+            for campo, teto in (("grupo", 40), ("requisito", 40)):
                 v = str(it.get(campo, "")).strip()
                 if v and len(v) > teto:
                     errs.append("%s %s: %d chars, máximo %d" % (itag, campo, len(v), teto))
@@ -550,6 +591,16 @@ def cmd_tick(args):
             "   do commit. Sem isso, 'concluído' é palpite — foi assim que planos foram\n"
             "   dados como prontos sem estar." % node_id)
 
+    if len(ev) > BULLET_MAX and len(prova_bullets(ev)) < 2:
+        raise PlanError(
+            "⛔ tick recusado: a prova de %s tem %d caracteres num bloco só.\n"
+            "   A prova aparece colada ao título do passo, onde a constituição manda\n"
+            "   bullet — um plano de trinta itens vira trinta parágrafos.\n"
+            "   Separe com ` · `, `; `, ` + ` ou quebra de linha. Exemplo:\n"
+            "     --evidencia \"$ pytest -q → 62 ok · sync-shared --check OK · a1b2c3d\"\n"
+            "   Saída crua de um comando só passa inteira — o teto só vale pro texto\n"
+            "   que VOCÊ redigiu." % (node_id, len(ev)))
+
     it["status"] = "done"
     it["evidence"] = ev
     it["done_at"] = time.strftime("%Y-%m-%dT%H:%M:%S")
@@ -778,8 +829,8 @@ def brief_lines(plan, nudge=None, reqs=None, desta_sessao=True):
         return ["✅ CONCLUÍDO — %s" % s["title"],
                 "• Os %s das %s estão marcados%s."
                 % (_plural(total, "passo"), _plural(pt, "fase"), prova),
-                "• Nada ficou em aberto neste plano. Encerre com plan_state.py close "
-                "pra ele parar de aparecer aqui."]
+                "• Nada ficou em aberto — encerre com plan_state.py close pra ele "
+                "parar de aparecer aqui."]
 
     # "Onde estamos" é uma AFIRMAÇÃO sobre a sessão, e ela só vale se a sessão estiver
     # mesmo nesse plano. Medido em produção (2026-08-02): a sessão mexia numa frente
@@ -810,8 +861,14 @@ def brief_lines(plan, nudge=None, reqs=None, desta_sessao=True):
         import cobertura
         m = cobertura.mapa(plan, reqs)
         if m["sem_requisito"] or m["inexistentes"]:
-            lines[-1] = ("• 🎯 Cobertura: %s. Quem está sem requisito e qual requisito "
-                         "ficou sem tarefa: plan_state.py cobertura." % cobertura.resumo(m))
+            base = "• 🎯 Cobertura: %s" % cobertura.resumo(m)
+            ponteiro = " — veja com plan_state.py cobertura."
+            # Quem cede quando a linha estoura o teto é o PONTEIRO, nunca o número:
+            # ele é navegação, e o rótulo 🎯 Cobertura já nomeia o comando. Com
+            # tarefa citando requisito inexistente o resumo sozinho passa de 95
+            # caracteres, e teto que só vale com dado pequeno não é teto.
+            cheia = base + ponteiro
+            lines[-1] = cheia if len(cheia) <= BULLET_MAX else base + "."
     if nudge:
         lines[-1] = "• " + nudge.strip().lstrip("• ").strip()
     return lines
@@ -832,6 +889,12 @@ def _seen_ids(path):
 # 3×N. Medido em 2026-08-02 num projeto real: 4 planos ativos renderam 12 bullets
 # mais 4 cabeçalhos, num Stop que já soma 6 hooks.
 BRIEF_MAX_BLOCOS = 1
+
+# O 🏁 tem teto PRÓPRIO, e maior: ele acontece uma vez e some, então cortá-lo custa
+# mais que cortar um plano aberto, que continua lá amanhã. Mas tem teto — fechar
+# planos em lote despejava 3 linhas por plano no mesmo Stop, e aí o "acabou" vira
+# lista. Quem for cortado entra na contagem, como no grupo ativo.
+BRIEF_MAX_ENCERRADOS = 2
 
 
 def _sentinel_sessao(directory, sid):
@@ -896,26 +959,34 @@ def _tocado_em(directory, plan_id):
         return 0.0
 
 
-def _cabe_no_teto(blocks, teto=BRIEF_MAX_BLOCOS):
+SOBRA_ABERTOS = "plano(s) aberto(s) neste projeto — veja com plan_state.py open"
+SOBRA_ENCERRADOS = "plano(s) encerrado(s) — o registro de cada um fica em .claude/plans/"
+
+
+def _cabe_no_teto(blocks, teto=BRIEF_MAX_BLOCOS, sobra_msg=SOBRA_ABERTOS):
     """Corta o excedente e DIZ quantos ficaram de fora.
 
-    Sumir com plano aberto em silêncio seria trocar um defeito por outro pior: o
-    dono deixaria de saber que existem. A contagem é a linha que impede isso.
+    Sumir com plano em silêncio seria trocar um defeito por outro pior: o dono
+    deixaria de saber que existem. A contagem é a linha que impede isso — e é por
+    ela que o grupo dos encerrados também pode ser cortado sem engolir o 🏁.
     """
     if len(blocks) <= teto:
         return blocks
     sobra = len(blocks) - teto
-    return blocks[:teto] + [["   ⋯ e mais %d plano(s) aberto(s) neste projeto — "
-                             "veja com plan_state.py open" % sobra]]
+    # Bullet, e não linha indentada: o resumo sai no canal de texto, onde o perfil
+    # `hook` só admite duas formas — bullet, ou cabeçalho abrindo com emoji. O "⋯"
+    # não é emoji, então a linha indentada de antes reprovava.
+    return blocks[:teto] + [["• ⋯ e mais %d %s" % (sobra, sobra_msg)]]
 
 
 def cmd_brief(args):
     directory = args.dir or resolve_dir()
     seen_path = getattr(args, "mark_seen", None)
     seen = _seen_ids(seen_path)
-    # Dois grupos, e SÓ o primeiro tem teto. A confirmação de plano encerrado é
-    # um evento que acontece uma vez e some — cortá-la seria engolir justamente o
-    # "🏁 acabou" que o hook existe pra dar de forma inequívoca.
+    # Dois grupos, cada um com o SEU teto. O do encerrado é maior porque a
+    # confirmação acontece uma vez e some — mas "sem teto" não era a forma de
+    # protegê-la: com muito plano fechado desde o marco, o 🏁 inequívoco virava um
+    # despejo de blocos. Cortado, ele sai contado, nunca em silêncio.
     ativos, blocks, novos = [], [], []
     for plan in list_plans(directory):
         if plan.get("status") == "active":
@@ -985,7 +1056,8 @@ def cmd_brief(args):
     ordenados = [brief_lines(plan, getattr(args, "nudge", None),
                              _requisitos_do_projeto(directory, plan), desta)
                  for _, plan in ativos]
-    print("\n\n".join("\n".join(b) for b in _cabe_no_teto(ordenados) + blocks))
+    encerrados = _cabe_no_teto(blocks, BRIEF_MAX_ENCERRADOS, SOBRA_ENCERRADOS)
+    print("\n\n".join("\n".join(b) for b in _cabe_no_teto(ordenados) + encerrados))
     return 0
 
 
@@ -993,6 +1065,43 @@ def cmd_brief(args):
 
 MARK = {"done": "✅", "doing": "🔄", "blocked": "⛔", "todo": "⬜"}
 DOT = {"done": "●", "doing": "◐", "blocked": "✕", "todo": "○"}
+
+
+def prova_bullets(ev):
+    """A prova, quebrada nos separadores que quem a escreveu já usou.
+
+    Um plano de trinta passos com um parágrafo em cada não se lê — foi essa a
+    queixa que abriu o assunto. A prova vive no nível do corpo, onde a
+    constituição manda bullet (`quality-goals.md:47`); a isenção de lá cobre a
+    saída crua DENTRO do bloco de prova, não a linha colada ao título.
+
+    Não inventa corte: quebra só onde já existe `\\n`, ` · `, `; ` ou ` + `.
+    Prova de um segmento só continua um bullet — quem barra a linha corrida
+    longa é o `tick`, no momento de gravar, não o renderizador.
+    """
+    ev = str(ev or "").strip()
+    if not ev:
+        return []
+    partes = [ev]
+    for sep in ("\n", " · ", "; ", " + "):
+        partes = [p for bloco in partes for p in bloco.split(sep)]
+    return [p.strip(" ·;") for p in partes if p.strip(" ·;")]
+
+
+def _detalhe_html(texto, classe):
+    """A prova multilinha vira lista no HTML; o resto continua um span.
+
+    O `_detalhe` devolve `prova:` + bullets separados por `\n` — jogar isso num
+    span colapsaria tudo numa linha, que é o defeito que F6.1 conserta.
+    """
+    if classe == "pt-evidence" and "\n" in texto:
+        linhas = texto.split("\n")
+        out = ['<div class="pt-evidence"><span class="pt-prova-rot">%s</span>' % _e(linhas[0]),
+               '<ul class="pt-prova">']
+        out += ["<li>%s</li>" % _e(b.lstrip("· ")) for b in linhas[1:] if b.strip()]
+        out += ["</ul></div>"]
+        return "".join(out)
+    return '<span class="%s">%s</span>' % (classe, _e(texto))
 
 
 def _detalhe(it):
@@ -1006,6 +1115,9 @@ def _detalhe(it):
     st = it.get("status", "todo")
     ev = str(it.get("evidence") or "").strip()
     if st == "done" and ev:
+        bs = prova_bullets(ev)
+        if len(bs) > 1:
+            return "prova:\n" + "\n".join("· " + b for b in bs), "pt-evidence"
         return "prova: " + ev, "pt-evidence"
     pend = str(it.get("pendencia", "")).strip()
     if pend:
@@ -1024,7 +1136,9 @@ def render_text(plan, reqs=None, vista="execucao"):
         for it in ph["items"]:
             st = it.get("status", "todo")
             out.append("     %s %s  %s" % (DOT[st], it["id"], it["title"]))
-            out.append("            %s" % _detalhe(it)[0])
+            det = _detalhe(it)[0]
+            # `prova:` multilinha chega com \n — cada bullet ganha a mesma sangria
+            out += ["            %s" % ln for ln in det.split("\n")]
         out.append("")
     return "\n".join(out).rstrip() + "\n"
 
@@ -1144,7 +1258,12 @@ def _tarefa_txt(t, ind):
                                  t["title"], _marcas([t]))]
     ev = str(t.get("evidence") or "").strip()
     if t.get("status") == "done" and ev:
-        linhas.append("%s    prova: %s" % (ind, ev))
+        bs = prova_bullets(ev)
+        if len(bs) > 1:
+            linhas.append("%s    prova:" % ind)
+            linhas += ["%s      · %s" % (ind, b) for b in bs]
+        else:
+            linhas.append("%s    prova: %s" % (ind, ev))
     return linhas
 
 
@@ -1213,7 +1332,7 @@ def render_html(plan, mode="track", reqs=None, vista="execucao"):
             parts.append('        <span class="pt-item-title"><span class="pt-id">%s</span>%s</span>'
                          % (_e(it["id"]), _e(it["title"])))
             texto, classe = _detalhe(it)
-            parts.append('        <span class="%s">%s</span>' % (classe, _e(texto)))
+            parts.append('        ' + _detalhe_html(texto, classe))
             parts.append('      </li>')
         parts.append('    </ul>')
         if mode == "approve":
@@ -1262,12 +1381,10 @@ def _html_valor(plan, reqs):
         for t in gt:
             st = t.get("status", "todo")
             texto, classe = _detalhe(t)
-            p.append('        <li class="pt-item pt-%s">'
-                     '<span class="pt-dot">%s</span>'
-                     '<span class="pt-item-title">'
-                     '<span class="pt-id">%s</span>%s</span>'
-                     '<span class="%s">%s</span></li>'
-                     % (st, DOT[st], _e(t["id"]), _e(t["title"]), classe, _e(texto)))
+            p.append(('    <div class="pt-t pt-%s"><span class="pt-mark">%s</span>'
+                      '<span class="pt-id">%s</span> %s'
+                      % (st, DOT[st], _e(t["id"]), _e(t["title"])))
+                     + _detalhe_html(texto, classe) + '</div>')
         p.append('      </ul>')
 
     sem_eixo = _sem_eixo(m, idx)
@@ -1344,8 +1461,8 @@ PAGE_COPY = {
 CLOSING_BOX = """
   <div class="feedback-box">
     <h2>🏁 Fechamento</h2>
-    <p class="feedback-intro">Os vereditos já estão nas fases acima — aqui não tem segunda tabela.
-       Só o progresso, uma observação geral se quiser, e o envio.</p>
+    <p class="feedback-intro">Os vereditos já estão nas fases acima — aqui não tem segunda tabela,
+       só o progresso, uma observação geral e o envio.</p>
     <div class="fb-progress">
       <strong id="fb-done">0</strong>/<span id="fb-total">0</span> itens revisados
       <div class="fb-progress-bar"><div class="fb-progress-fill" id="fb-bar"></div></div>

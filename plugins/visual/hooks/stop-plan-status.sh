@@ -42,6 +42,16 @@ PLAN_STATE="$SCRIPT_DIR/../lib/plan_state.py"
 PLANS_DIR=$(bash "$SCRIPT_DIR/../skills/visual/resolve-dir.sh" "$CWD" plans 2>/dev/null)
 [ -d "$PLANS_DIR" ] || exit 0
 
+# A régua do canal (perfil `hook` de `lib/regua_texto.py`, vinda de quality-goals.md):
+# sem markdown, cabeçalho com emoji, uma ideia por linha, 6 linhas de orçamento. São
+# DOIS textos saindo daqui (o resumo e o aviso de plano ausente), por isso a função.
+# Defeito de forma não cala um aviso: o motivo vai pro stderr (debug log do harness) e
+# o texto sai assim mesmo. Régua ausente → silêncio, nunca queda.
+REGUA="$SCRIPT_DIR/../lib/regua_texto.py"
+regua_hook() {   # $1 = texto, $2 = rótulo
+  [ -f "$REGUA" ] && printf '%s\n' "$1" | "$PY3" "$REGUA" --perfil hook --onde "$2" - || :
+}
+
 PHASH=$(printf '%s' "$PLANS_DIR" | cksum | cut -d' ' -f1)
 MARK="${TMPDIR:-/tmp}/claude-plan-mark-$(id -u)-${SESSION}-${PHASH}"
 
@@ -193,11 +203,11 @@ if [ -z "$BRIEF" ]; then
   [ "$ARQS" -ge "$PISO" ] || exit 0
 
   touch "$MISSING" 2>/dev/null
-  jq -n --arg n "$ARQS" '{systemMessage:(
-    "⚠️ Sem plano aberto — esta sessão editou " + $n + " arquivos\n" +
-    "• Trabalho desse tamanho sem plano não deixa rastro: o próximo Claude não sabe o que ficou pela metade.\n" +
-    "• Abra um com /visual (ele grava em .claude/plans/), ou siga sem — este aviso não volta nesta sessão."
-  )}' 2>/dev/null
+  AUSENTE="⚠️ Sem plano aberto — esta sessão editou ${ARQS} arquivos
+• Trabalho desse tamanho sem plano não deixa rastro: o próximo Claude não sabe o que ficou pela metade.
+• Abra um com /visual (ele grava em .claude/plans/), ou siga sem — este aviso não volta nesta sessão."
+  regua_hook "$AUSENTE" "aviso de plano ausente"
+  jq -n --arg m "$AUSENTE" '{systemMessage:$m}' 2>/dev/null
   exit 0
 fi
 
@@ -206,5 +216,6 @@ fi
 # nível diferente dos bullets que vêm abaixo. Com ela, o prefixo fica sozinho e o
 # cabeçalho desce pro mesmo alinhamento dos três. Não entra no orçamento do Stop —
 # `_linhas_visiveis` só conta linha com conteúdo.
+regua_hook "$BRIEF" "resumo de fim de turno"
 jq -n --arg m "$BRIEF" '{systemMessage:("\n\n" + $m)}' 2>/dev/null
 exit 0

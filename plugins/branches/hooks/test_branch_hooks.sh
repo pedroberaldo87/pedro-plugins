@@ -104,9 +104,22 @@ echo "PostToolUse — quando é pra falar"
 m=$(msg "$(push "$R" t5)")
 check "push em branch com trabalho: pergunta" "$(printf '%s' "$m" | grep -q 'Push feito' && echo 1 || echo 0)"
 check "nomeia a branch e o tronco" "$(printf '%s' "$m" | grep -q 'feat/entregue' && printf '%s' "$m" | grep -q 'main' && echo 1 || echo 0)"
-check "oferece os dois caminhos, sem decidir" "$(printf '%s' "$m" | grep -q 'merge no main agora' && printf '%s' "$m" | grep -q 'fica aberta' && echo 1 || echo 0)"
+check "oferece os dois caminhos, sem decidir" "$(printf '%s' "$m" | grep -q 'Merge no main agora' && printf '%s' "$m" | grep -q 'fica aberta' && echo 1 || echo 0)"
 check "pergunta 1× por (branch, sessão)" "$([ -z "$(push "$R" t5)" ] && echo 1 || echo 0)"
 check "mas em OUTRA sessão pergunta de novo" "$([ -n "$(push "$R" t6)" ] && echo 1 || echo 0)"
+
+echo "PostToolUse — a régua do canal de texto (perfil hook)"
+# O canal do systemMessage é terminal, não markdown. Sem este caso, o texto volta a
+# crescer em parágrafo e a ganhar `**` — foi o que aconteceu nos três emissores antes
+# de 2026-08-03. Quem cobra é a MESMA régua do gerador de página, pelo perfil `hook`.
+REGUA="$HERE/../lib/regua_texto.py"
+# Saída vazia = passou; cada motivo recusado sai numa linha do stderr.
+regua() { printf '%s\n' "$1" | python3 "$REGUA" --perfil hook --onde "aviso de push" - 2>&1 || :; }
+m7=$(msg "$(push "$R" t7)")
+check "a régua está vendorada no plugin (instalado, ele só enxerga a própria pasta)" "$([ -f "$REGUA" ] && echo 1 || echo 0)"
+check "o aviso REAL do hook passa na régua" "$([ -z "$(regua "$m7")" ] && echo 1 || echo 0)"
+check "o mesmo aviso com markdown é RECUSADO" "$(regua "$(printf '%s' "$m7" | sed 's/Push feito/**Push feito**/')" | grep -q markdown && echo 1 || echo 0)"
+check "o mesmo aviso sem emoji no cabeçalho é RECUSADO" "$(regua "$(printf '%s' "$m7" | sed 's/^🌿 //')" | grep -q emoji && echo 1 || echo 0)"
 
 echo
 if [ "$FAIL" -gt 0 ]; then echo "FALHOU: $FAIL de $((PASS+FAIL))"; exit 1; fi

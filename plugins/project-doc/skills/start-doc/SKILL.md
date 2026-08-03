@@ -1,6 +1,6 @@
 ---
 name: start-doc
-description: "Cria e evolui a documentação AUTORAL de um projeto — as metas de qualidade, as restrições, o contexto/fronteiras, a estratégia, o glossário, e (só para quem tem interface) o design.md. É a entrevista, não a mineração: a skill pergunta e grava a resposta do humano, NUNCA inventa conteúdo. Terceira skill do plugin project-doc, ao lado do /project-doc (minera tudo) e do /doc-touch (incremental). Use quando o usuário diz \"/start-doc\", \"vamos conceber\", \"começando um projeto novo\", \"documenta a intenção\", \"quais são as metas do sistema\", \"esse projeto não tem doc nenhuma\". Dispare PROATIVAMENTE quando: o projeto não tem CLAUDE.md nem .claude/docs/; o projeto está nascendo (repositório novo, poucos commits); existe doc minerada mas os documentos autorais estão ausentes ou com lacunas; ou o gate de plano barrou um plano por falta de documentação. A entrevista vem SEMPRE antes da mineração — o porquê guia tudo que vem depois."
+description: "Conduz a concepção de um projeto em QUATRO etapas de acordo, nesta ordem — autoral (metas de qualidade, restrições, contexto/fronteiras, estratégia, glossário), arquitetura (architecture-intent.md), interface (design.md, só para quem tem tela) e jornadas (journeys.md). Cada etapa tem documento próprio, é apresentada e REAPRESENTADA até o dono estar satisfeito, e só fecha com a aprovação dele gravada no frontmatter do documento. É a entrevista, não a mineração: a skill pergunta e grava a resposta do humano, NUNCA inventa conteúdo. Terceira skill do plugin project-doc, ao lado do /project-doc (minera tudo) e do /doc-touch (incremental). Use quando o usuário diz \"/start-doc\", \"vamos conceber\", \"começando um projeto novo\", \"documenta a intenção\", \"quais são as metas do sistema\", \"esse projeto não tem doc nenhuma\". Dispare PROATIVAMENTE quando: o projeto não tem CLAUDE.md nem .claude/docs/; o projeto está nascendo (repositório novo, poucos commits); existe doc minerada mas os documentos autorais estão ausentes ou com lacunas; ou o gate de plano barrou um plano por falta de documentação. A entrevista vem SEMPRE antes da mineração — o porquê guia tudo que vem depois."
 ---
 
 # start-doc — a documentação que só o humano tem
@@ -17,14 +17,35 @@ arquivo nenhum — está na cabeça de quem decidiu:
 - as poucas decisões que explicam o **formato** de tudo;
 - o vocabulário que **só a equipe** usa.
 
-Esta skill produz esses cinco — e um sexto, **condicional**: `design.md`, só para quem tem interface
-(a personalidade visual e os tokens normativos do produto). Ela **entrevista**.
+Esta skill produz esses cinco — e mais o desenho da arquitetura, a personalidade da interface e as
+jornadas. Ela **entrevista**.
+
+## As quatro etapas de acordo
+
+Concepção não é uma entrevista só. São **quatro acordos, nesta ordem**, e a ordem é o próprio
+argumento: arquitetura decidida sem as metas fechadas é palpite, e jornada desenhada sem a interface
+acordada é ficção.
+
+| # | Etapa | Documento em `.claude/docs/` | Quando |
+|---|---|---|---|
+| 1 | **Autoral** | `quality-goals.md` · `constraints.md` · `context.md` · `solution-strategy.md` · `glossary.md` | sempre |
+| 2 | **Arquitetura** | `architecture-intent.md` | sempre |
+| 3 | **Interface** | `design.md` — escrito pela skill `design-md`, não por esta | só projeto com interface |
+| 4 | **Jornadas** | `journeys.md` | sempre |
+
+**Cada etapa fecha do mesmo jeito, e só desse jeito:** o documento é apresentado inteiro, sabatinado
+com `/grill-me`, corrigido e **reapresentado** quantas vezes for preciso, e o de acordo do dono é
+gravado no frontmatter do próprio documento (`status: approved` + `approved: {data}`). Etapa aberta
+não deixa a próxima começar.
+
+O contrato completo — nomes de arquivo, frontmatter, roteiro e molde de cada documento — está em
+`references/authorial-kit.md`. É a fonte única; não duplique aqui.
 
 ### O trio
 
 | Skill | O que faz | Quando |
 |---|---|---|
-| **`/start-doc`** | entrevista o humano, escreve o autoral | concepção, e sempre que o autoral tiver lacuna |
+| **`/start-doc`** | entrevista o humano e conduz as quatro etapas de acordo | concepção, e sempre que uma etapa tiver lacuna ou seguir sem aprovação |
 | **`/project-doc`** | minera tudo e re-projeta a doc inteira | mudança estrutural, drift amplo, doc nunca minerada |
 | **`/doc-touch`** | re-projeta só os docs que o diff tocou | entre FULLs, depois de um ciclo de código |
 
@@ -52,22 +73,25 @@ Pista nunca vira resposta.
 **Proativo (ofereça, não execute sem aval):**
 - Projeto sem `CLAUDE.md` e sem `.claude/docs/` — não importa o tamanho do codebase.
 - Repositório recém-criado / poucos commits — está nascendo, não há o que minerar ainda.
-- Doc minerada existe, mas falta algum dos autorais (os cinco universais, ou `design.md` quando o
-  projeto tem interface), ou algum tem `[PENDENTE]` aberto.
+- Doc minerada existe, mas falta o documento de alguma etapa, algum tem `[PENDENTE]` aberto, ou
+  algum está escrito e **sem `approved:`** — etapa escrita e não aprovada é etapa aberta.
 - O gate de plano barrou um plano por falta de documentação (ver `hooks/pretooluse-plan-gate.sh`).
 - Passaram-se meses do último `reviewed:` e o projeto mudou de forma — as metas envelheceram.
 
 ## Modos
 
-- `/start-doc` — **entrevista completa**: os 5 documentos, em ordem, um por vez, mais `design.md` no
-  fim **se o projeto tiver interface** (ver `hooks/lib-has-frontend.sh` — não pergunte, verifique).
+- `/start-doc` — **concepção completa**: as quatro etapas, na ordem, uma de cada vez, cada uma
+  fechada com o de acordo do dono antes da seguinte. A etapa 3 (interface) só entra **se o projeto
+  tiver interface** (ver `hooks/lib-has-frontend.sh` — não pergunte, verifique).
 - `/start-doc <doc>` — só um. Nomes válidos: `quality-goals`, `constraints`, `context`,
-  `solution-strategy`, `glossary`, `design` (este último só se houver interface).
+  `solution-strategy`, `glossary`, `architecture-intent`, `journeys`, `design` (este último só se
+  houver interface).
 - `/start-doc review` — **revisita**: lê os que já existem, mostra o que envelheceu (`reviewed:`
-  antigo, `[PENDENTE]` aberto, decisão citada que não existe mais) e pergunta só o que mudou.
-  Nunca reescreve resposta do humano sem ele mandar.
+  antigo, `approved:` ausente, `[PENDENTE]` aberto, decisão citada que não existe mais) e pergunta só
+  o que mudou. Nunca reescreve resposta do humano sem ele mandar.
 - `/start-doc gaps` — **read-only**: lista as lacunas e para. Não pergunta nada. É o que o
-  `/project-doc` chama no Tier 5 para saber o que cobrar.
+  `/project-doc` chama no Tier 5 para saber o que cobrar. **Etapa escrita e não aprovada conta como
+  lacuna** — `approved:` vazio é etapa aberta.
 
 Prosa livre junto da invocação é contexto e vale como resposta antecipada — se o humano já disse
 "o que importa aqui é não perder dado", **não pergunte a meta 1 de novo**: mostre o que entendeu e
@@ -99,9 +123,11 @@ Mais: versões pinadas (lockfile, `engines`), limites de recurso e serviços (co
 auth, onde o banco mora. Cada pista entra na pergunta **com a evidência** — o humano confirma ou
 corrige, não adivinha o seu contexto.
 
-### 3 · Entrevistar — uma pergunta por vez
-Siga o roteiro de `references/authorial-kit.md`, **nesta ordem**: metas → restrições → contexto →
-estratégia → glossário. A ordem não é estética: as metas são o critério que os outros consomem.
+### 3 · Entrevistar — uma pergunta por vez, uma etapa por vez
+Siga o roteiro de `references/authorial-kit.md`. Dentro da etapa 1, **nesta ordem**: metas →
+restrições → contexto → estratégia → glossário. A ordem não é estética: as metas são o critério que
+os outros consomem. Entre as etapas, a ordem é a da tabela acima — e a próxima só abre com a
+anterior aprovada.
 
 - Use `AskUserQuestion` quando as opções forem enumeráveis (ordenar atributos, dura vs datada);
   pergunta aberta em texto quando for narrativa (o trade-off já decidido, o porquê de uma decisão).
@@ -112,7 +138,8 @@ estratégia → glossário. A ordem não é estética: as metas são o critério
 
 ### 4 · Escrever
 Um arquivo por documento em `.claude/docs/`, com o frontmatter do contrato (`authored-by: human`,
-`status`, `reviewed`) e o molde de `references/authorial-kit.md`.
+`status`, `reviewed`, `approved`) e o molde de `references/authorial-kit.md`. Nasce
+`status: draft | ready` e `approved:` vazio — a aprovação é o passo seguinte, nunca a mesma escrita.
 
 **Exceção: `design.md`.** Não escreva este à mão — depois de colher as respostas do roteiro
 (personalidade, cor primária, tipografia, "don'ts"), **invoque a skill `design-md`** para formatar e
@@ -120,12 +147,31 @@ gravar `.claude/docs/design.md` no padrão `DESIGN.md` e validar pelo CLI oficia
 @google/design.md@0.3.0 lint`). Sem `node`/`npx`, ela já degrada pra checagem manual — diga isso em
 voz alta no relatório, nunca finja que o CLI rodou.
 
-### 5 · Semear o log de decisões
+### 5 · Apresentar, sabatinar e colher o de acordo — por etapa
+Escrever **não fecha** a etapa. O ciclo é este, e ele repete até o dono estar satisfeito:
+
+1. **Apresente o documento inteiro** — o texto real, não um resumo dele. Ele não adivinha o que você
+   escreveu, e resumo de documento é a forma mais barata de comprar aprovação que não existe.
+2. **Sabatine** com `/grill-me` — ou `/grill-with-docs` quando já houver `CONTEXT.md` ou ADR para
+   confrontar. É a sabatina que transforma texto escrito em acordo.
+3. **Corrija e REAPRESENTE.** Cada objeção volta pro documento e o documento volta pra tela. Não há
+   teto de rodadas: quem fecha o loop é a fala do dono, não o seu cansaço.
+4. **Grave o de acordo** no frontmatter do próprio documento — `status: approved` e
+   `approved: {data de hoje}` — só depois de ele dizer que está satisfeito.
+
+**A sabatina não julga o documento.** Ela não aprova, não reprova e não decide se ficou bom o
+bastante: ela é **como se chega** ao acordo. Quem aprova é o dono, e a aprovação mora no frontmatter
+— nunca numa conclusão da sabatina, numa nota sua ou na sua memória da conversa.
+
+**Silêncio não é aprovação**, e "tá bom" dito no meio de outra pergunta também não. Sem uma frase que
+você consiga apontar, a etapa continua aberta e a próxima não começa.
+
+### 6 · Semear o log de decisões
 Cada decisão estruturante que apareceu na estratégia vira candidata a registro em
 `.claude/docs/decisions/`. Escreva o **primeiro** (`0001-<slug>.md`) com o que o humano acabou de
 dizer; os demais entram como `[PENDENTE]` na lista da estratégia.
 
-### 6 · Fechar
+### 7 · Fechar
 **Se já existe um `CLAUDE.md` com os markers `project-doc:v2`:** atualize o índice — documento com
 `status: ready` entra no roteamento; `draft` **não entra**, vira linha de cobrança no relatório.
 
@@ -142,22 +188,24 @@ Depois, ofereça o próximo passo:
 ## Output Protocol
 
 ```
-**Passo 1/6:** Raiz → `/path` · autoral existente → {N de 5, ou N de 6 se houver interface} · minerada → {sim | não}
-**Passo 2/6:** Pistas → {N integrações · M versões travadas · K commits}
-**Passo 3/6:** Entrevista → {doc}: {respondido | PENDENTE} … (uma linha por documento)
-**Passo 4/6:** Escrito → {lista de arquivos com status draft|ready}
-**Passo 5/6:** Decisões → `decisions/0001-{slug}.md` + {N} candidatas pendentes
-**Passo 6/6:** Índice → {N docs promovidos} · Pendências → {lista de [PENDENTE] por doc}
+**Passo 1/7:** Raiz → `/path` · docs de etapa existentes → {N de 7, ou N de 8 se houver interface} · minerada → {sim | não}
+**Passo 2/7:** Pistas → {N integrações · M versões travadas · K commits}
+**Passo 3/7:** Entrevista → {doc}: {respondido | PENDENTE} … (uma linha por documento)
+**Passo 4/7:** Escrito → {lista de arquivos com status draft|ready}
+**Passo 5/7:** De acordo → {etapa}: {aprovada em YYYY-MM-DD | ABERTA, {N} reapresentações} … (uma linha por etapa)
+**Passo 6/7:** Decisões → `decisions/0001-{slug}.md` + {N} candidatas pendentes
+**Passo 7/7:** Índice → {N docs promovidos} · Pendências → {lista de [PENDENTE] por doc}
 ```
 
-Ao final, sempre: **o que ficou pendente e o que destrava quando for respondido.**
+Ao final, sempre: **o que ficou pendente, que etapa segue aberta, e o que destrava quando fechar.**
 
 ## Convivência com o `/project-doc`
 
 - **O FULL nunca reescreve estes arquivos.** `authored-by: human` é a trava. Ele lê, cita, e cobra —
   não regenera, não sobrescreve, e não os inclui no fan-out por concern.
 - **A única escrita automática permitida** ao FULL é atualizar `reviewed:` e promover `draft → ready`
-  quando o último `[PENDENTE]` sai.
+  quando o último `[PENDENTE]` sai. **`approved:` está fora do alcance dele** — só o dono aprova, e
+  `ready → approved` sem a fala dele é registro falso.
 - **O Tier 5 do FULL chama `/start-doc gaps`** para saber o que perguntar. Uma fonte de perguntas,
   dois pontos de entrada — o banco vive em `references/authorial-kit.md` e não é duplicado.
 - **Ordem num projeto virgem:** `/start-doc` (entrevista) → `/project-doc` (mineração). Nunca o
@@ -176,8 +224,15 @@ Ao final, sempre: **o que ficou pendente e o que destrava quando for respondido.
   muda de status e aponta para a sucessora, nunca some.
 - **Documento `draft` não entra no índice** do `CLAUDE.md` — evita cinco linhas mortas no arquivo que
   carrega em toda sessão. Entra quando vira `ready`.
-- **Não invente estrutura nova** — os seis documentos (cinco universais + `design.md` condicional), os
-  moldes e o frontmatter estão em `references/authorial-kit.md`. Se precisar de um sétimo, é mudança
-  de contrato, não improviso.
+- **Nenhuma etapa fecha sem aprovação explícita gravada no documento.** `status: approved` +
+  `approved:` no frontmatter, e nunca por inferência: sem uma frase do dono que você consiga apontar,
+  a etapa está aberta.
+- **Reapresente quantas vezes ele quiser.** Não existe rodada final decidida por você.
+- **A sabatina não é juíza.** `/grill-me` e `/grill-with-docs` são o caminho até o acordo, não o
+  veredito sobre ele — nem sobre a constituição do projeto, que é justamente o que elas ajudam a
+  escrever.
+- **Não invente estrutura nova** — os oito documentos das quatro etapas, os moldes e o frontmatter
+  estão em `references/authorial-kit.md`. Se precisar de um nono, é mudança de contrato, não
+  improviso.
 - **`design.md` nunca escrito à mão.** A entrevista é sua; a escrita e a validação são da skill
   `design-md` — não duplique a spec do formato aqui.

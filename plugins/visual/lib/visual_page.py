@@ -43,6 +43,10 @@ import subprocess
 import sys
 import time
 
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from regua_texto import (BULLET_MAX, BULLETS_MAX, _cru, bullets_de,  # noqa: E402,F401
+                         erros_de_estilo as _erros_de_estilo)
+
 HERE = os.path.dirname(os.path.abspath(__file__))
 TEMPLATE = os.path.normpath(os.path.join(HERE, "..", "skills", "visual", "template.html"))
 RESOLVE_DIR = os.path.normpath(os.path.join(HERE, "..", "skills", "visual", "resolve-dir.sh"))
@@ -53,15 +57,12 @@ DEFAULT_ITEM_LABELS = ["✓ Manter", "✏️ Mudar", "✗ Remover"]
 CALLOUT_VARIANTS = ("info", "warn", "danger", "ok")
 
 # ── a régua de estilo (quality-goals.md, regime "informação rápida") ────────
-# Página gerada é lida com pressa: prosa é PROIBIDA, bullets são a forma. As três
-# checagens abaixo são mecânicas de propósito — teto sozinho não mata prosa, só a
-# fatia em bullets que se leem em sequência.
-BULLET_MAX = 140      # o mesmo teto que plan_state já cobra no `desc` (máx real medido: 137)
-BULLETS_MAX = 6       # acima disso é prosa picada, ou são dois itens
-# Ponto/!/? seguido de espaço = segunda frase. Ignora "..." e decimal ("1.500 itens").
-_DUAS_FRASES = re.compile(r"(?<![.\d])[.!?](?=\s)(?!\s*$)")
-# Bullet que abre continuando o anterior é parágrafo fatiado — passa no teto e segue prosa.
-_CONECTIVO = re.compile(r"^(e|mas|que|porque|pois|ent[ãa]o|ou seja|al[ée]m disso|sendo que)\b", re.I)
+# Página gerada é lida com pressa: prosa é PROIBIDA, bullets são a forma. As quatro
+# checagens moram em `_shared/regua_texto.py` desde 2026-08-03, porque os outros
+# geradores (plano, slide, texto de hook) emitem texto para o mesmo leitor apressado
+# e cada um estava livre para inventar a própria forma. O que este gerador faz aqui é
+# DECLARAR qual perfil ele usa.
+PERFIL = "pagina"
 
 
 class SpecError(Exception):
@@ -92,45 +93,13 @@ def _plural(n, s, p=None):
     return "%d %s" % (n, s if n == 1 else (p or s + "s"))
 
 
-def _cru(s):
-    """Texto sem a marcação do `_rich` — o teto conta o que o olho lê, não a sintaxe."""
-    t = re.sub(r"`([^`]+)`", r"\1", str(s or ""))
-    return re.sub(r"\*\*([^*]+)\*\*", r"\1", t).strip()
-
-
-def bullets_de(v):
-    """Normaliza campo de texto em lista de bullets. String vira lista de um."""
-    if isinstance(v, (list, tuple)):
-        return [str(x or "").strip() for x in v if str(x or "").strip()]
-    s = str(v or "").strip()
-    return [s] if s else []
-
-
 def erros_de_estilo(v, onde):
-    """A régua, aplicada a QUALQUER campo de texto que o gerador emite.
+    """A régua no perfil DESTE gerador — a definição mora em `regua_texto.py`.
 
     Fora do alcance de propósito: `evidencia.output` (saída crua é literal por
     obrigação) e `raw_html`. Ver quality-goals.md, "A régua de estilo".
     """
-    errs = []
-    itens = bullets_de(v)
-    lista = isinstance(v, (list, tuple))
-    if lista and len(itens) > BULLETS_MAX:
-        errs.append("%s: %d bullets, o teto é %d — acima disso é prosa picada, "
-                    "ou são dois itens" % (onde, len(itens), BULLETS_MAX))
-    for i, t in enumerate(itens, 1):
-        alvo = "%s bullet %d" % (onde, i) if lista else onde
-        nu = _cru(t)
-        if len(nu) > BULLET_MAX:
-            errs.append("%s: %d caracteres, o teto é %d — quebre em bullets, "
-                        "não encolha a informação" % (alvo, len(nu), BULLET_MAX))
-        if _DUAS_FRASES.search(nu):
-            errs.append("%s: duas frases no mesmo bullet — parágrafo disfarçado; "
-                        "vire dois bullets" % alvo)
-        if _CONECTIVO.match(nu):
-            errs.append("%s: abre com conectivo de continuação — é o parágrafo "
-                        "anterior fatiado, não um bullet" % alvo)
-    return errs
+    return _erros_de_estilo(v, onde, PERFIL)
 
 
 # ── extração dos blocos canônicos do template ──────────────────────────────

@@ -666,7 +666,7 @@ Efêmeras por definição. Nenhuma delas é entrada de nada — reconstroem-se s
 
 - **Nenhum banco, ORM, migration ou `docker-compose`.** O único lockfile do repo é `plugins/archify/skills/archify/package-lock.json`.
 - **`.claude-plugin/marketplace.json`** e os `plugin.json` — catálogo e metadado, escritos só por humano. Não são estado.
-- **`_shared/`** — código vendorado para 6 cópias. Fonte, não depósito.
+- **`_shared/`** — código vendorado para 14 cópias. Fonte, não depósito.
 - **`pi-plugins/`** (`.gitignore:71`) — cópia local defasada de `plugins/`, explicitamente **não é fonte**. Continua fora do grafo; as 106 chaves dela que sobrevivem no `manifest.json` do graphify são entradas mortas do índice.
 
 ---

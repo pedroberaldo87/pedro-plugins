@@ -21,8 +21,25 @@ SRC="$ROOT/_shared"
 SPECS=(
   "plugins/handoff/lib::collect_engine.py"
   "plugins/project-doc/lib::collect_engine.py"
+  # O contrato R8: os DADOS (.json) + o servidor (.py) + a vista humana (.md, gerada
+  # do json). A skill instalada só enxerga a própria pasta, então a casca lê o tier
+  # da cópia local e passa em args — nenhum SKILL.md carimba o valor.
+  "plugins/sovai/skills/sovai/references::r8-tiers.json"
+  "plugins/qa-loop/skills/qa-loop/references::r8-tiers.json"
+  "plugins/sovai/skills/sovai/references::r8_tiers.py"
+  "plugins/qa-loop/skills/qa-loop/references::r8_tiers.py"
   "plugins/sovai/skills/sovai/references::r8-tiers.md"
   "plugins/qa-loop/skills/qa-loop/references::r8-tiers.md"
+  "plugins/visual/lib::regua_texto.py"
+  "plugins/branches/lib::regua_texto.py"
+  "plugins/fallow/lib::regua_texto.py"
+  "plugins/slides/lib::regua_texto.py"
+  # Os emissores de hook: o .sh chama a régua pela linha de comando, e o plugin
+  # instalado só enxerga a própria pasta — sem cópia aqui, a régua some em produção.
+  "plugins/guardrails/lib::regua_texto.py"
+  "plugins/project-doc/lib::regua_texto.py"
+  "plugins/ship/lib::regua_texto.py"
+  "plugins/graphify-guard/lib::regua_texto.py"
   "plugins/ship/hooks::green-cache.sh"
   "plugins/qa-loop/lib::green-cache.sh"
 )

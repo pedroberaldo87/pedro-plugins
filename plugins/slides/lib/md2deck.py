@@ -32,12 +32,22 @@ import re
 import sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
+sys.path.insert(0, HERE)
+from regua_texto import erros_de_estilo as _erros_de_estilo  # noqa: E402
+
 SKILL = os.path.normpath(os.path.join(HERE, "..", "skills", "slides"))
 TEMPLATE = os.path.join(SKILL, "assets", "template.html")
 THEMES = os.path.join(SKILL, "references", "themes")
 
 MAX_ITEMS = 6          # acima disso, quebra em outro slide (regra de densidade da skill)
 STATEMENT_WORDS = 20   # parágrafo curto e solto vira frase de impacto
+
+# A régua de estilo (quality-goals.md, regime "informação rápida"), no perfil que é
+# do slide: 140 caracteres cabem numa página e não cabem numa linha lida de longe,
+# então quem decide é o teto de palavras. Ela RECUSA o deck — não existe perfil
+# frouxo. O programa continua sem reescrever o texto do autor: ele devolve o .md
+# com os motivos, e quem corrige a frase é quem a escreveu.
+PERFIL = "slide"
 REVEAL = (40, 130, 210, 290, 370, 450, 530, 610)
 
 COMPONENTES = ("cover", "divider", "numlist", "idx", "feats", "statement",
@@ -174,6 +184,27 @@ def escolher(slide, i):
             return "idx"
         return "numlist"
     return "pull"
+
+
+def erros_de_estilo(v, onde):
+    """A régua no perfil DESTE gerador — a definição mora em `regua_texto.py`."""
+    return _erros_de_estilo(v, onde, PERFIL)
+
+
+def desvios_de_estilo(pl):
+    """O que no deck não cabe num slide, medido — uma linha por desvio.
+
+    Devolve em vez de levantar para poder ser testado. Quem recusa é o `build`.
+    """
+    desvios = []
+    for p in pl:
+        onde = p["heading"] or "slide %d" % p["i"]
+        for pedaco in p["_pedacos"]:
+            desvios += erros_de_estilo([txt(b["text"]) for b in pedaco], onde)
+        for b in p["_slide"]["corpo"]:
+            if b["t"] == "p":
+                desvios += erros_de_estilo(txt(b["text"]), "%s: parágrafo" % onde)
+    return desvios
 
 
 def plano(slides, anota):
@@ -374,6 +405,12 @@ def build(md_path, tema="viu", anota=None, out=None):
                         "estrutura que o autor não escreveu." % md_path)
     slides = agrupar(blocos)
     pl = plano(slides, anota or {})
+    # A régua recusa o deck em vez de avisar: aviso no stderr sai junto do caminho
+    # do HTML, e ninguém volta pra corrigir uma frase de um comando que deu certo.
+    desvios = desvios_de_estilo(pl)
+    if desvios:
+        raise DeckError("deck recusado pela régua de estilo:\n  - "
+                        + "\n  - ".join(desvios))
 
     secoes = 0
     html_slides = []

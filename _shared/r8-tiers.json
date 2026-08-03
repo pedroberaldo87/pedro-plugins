@@ -1,0 +1,57 @@
+{
+  "_comment": "FONTE DA VERDADE do contrato R8. Nenhum SKILL.md pode repetir estes valores — quem precisa deles carrega este arquivo e passa em args. O r8-tiers.md é GERADO daqui por r8_tiers.py render. O check E3 do release-gate barra literal de effort em SKILL.md.",
+  "revised": "2026-08-03",
+  "model": "opus",
+  "api_default_effort": "high",
+  "tiers": {
+    "decompose": {
+      "effort": "high",
+      "etapa": "Planejamento inicial e decomposição",
+      "quando": "rodada 1 — quebra o problema inteiro; o sweep mais pesado, uma vez",
+      "porque": "decide o que todo o resto vai fazer, e um erro aqui se paga em cada tarefa depois"
+    },
+    "coordinate": {
+      "effort": "medium",
+      "etapa": "Coordenação rotineira dos agentes",
+      "quando": "rodadas 2+ — processa só o delta do feedback",
+      "porque": "não é mais decomposição inicial; o problema já está mapeado"
+    },
+    "executor": {
+      "effort": "medium",
+      "etapa": "Execução das tarefas",
+      "quando": "tarefa padrão (complexity ausente ou 'standard')",
+      "porque": "desvio deliberado de custo — a recomendação de partida da Anthropic para trabalho agentic é xhigh"
+    },
+    "mechanical": {
+      "effort": "low",
+      "etapa": "Operações mecânicas e bem delimitadas",
+      "quando": "tarefa marcada complexity: 'mechanical' — renomear, mover arquivo, um valor",
+      "porque": "não há julgamento amplo a fazer; o que cai é profundidade, não capacidade"
+    },
+    "diagnose": {
+      "effort": "medium",
+      "etapa": "Diagnóstico após falhas repetidas",
+      "quando": "a mesma tarefa reaparece falhando por churn_threshold rodadas seguidas",
+      "porque": "o que o separa da rodada não é esforço, é contexto limpo"
+    },
+    "finalize": {
+      "effort": "medium",
+      "etapa": "Revisão final e integração",
+      "quando": "confirm-pass dedicado antes de declarar pronto ou limpo",
+      "porque": "o que o separa da rodada não é esforço, é reabrir o problema do zero"
+    }
+  },
+  "regra_por_rodada": [
+    "Rodada 1 usa o tier de `decompose`.",
+    "Rodadas 2+ usam o tier de `coordinate`, e processam só o delta.",
+    "CONFIRM e DIAGNOSE são sempre agentes dedicados, em qualquer rodada.",
+    "Nenhum dos dois pode ser dispensado por a rodada já ter passado no mesmo tier."
+  ],
+  "fundamento": [
+    "É tudo Opus 5: nenhuma etapa roda em modelo mais barato, só o effort varia.",
+    "Nenhum nível tem tarifa própria — o preço por token é o mesmo nos cinco.",
+    "O anúncio do Opus 5 mede que no menor esforço ele já passa mais tarefas que qualquer outro modelo.",
+    "O guia de migração manda varrer para baixo a partir do padrão da API, que é `high`.",
+    "Effort não encurta resposta — o guia diz que mexer nele move raciocínio, não tamanho visível."
+  ]
+}

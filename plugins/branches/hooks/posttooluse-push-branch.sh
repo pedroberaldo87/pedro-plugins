@@ -71,7 +71,19 @@ SENTINEL="${TMPDIR:-/tmp}/claude-branch-ask-$(id -u)-${SESSION}-${PHASH}-${BHASH
 touch "$SENTINEL" 2>/dev/null
 find "${TMPDIR:-/tmp}" -maxdepth 1 -name "claude-branch-ask-$(id -u)-*" -mtime +1 -delete 2>/dev/null
 
-MSG="🌿 Push feito em ${BRANCH} — ${AHEAD} commit(s) à frente de ${BASE}, e o conteúdo ainda não está lá. Enquanto você lembra do que esta branch é: merge no ${BASE} agora, ou ela fica aberta de propósito? (branch esquecida vira as 15 que reclamam no deploy · /branches lista as que já dá pra apagar · desligar: BRANCHES_GATE=0)"
+# Cabeçalho com emoji e um bullet por ideia, porque o canal é texto puro: `**` chega
+# literal na tela, e linha de 300 caracteres vira parágrafo no meio do terminal.
+MSG="🌿 Push feito em ${BRANCH} — ${AHEAD} commit(s) à frente de ${BASE}
+• O conteúdo ainda não está no ${BASE}, e você lembra AGORA do que esta branch é.
+• Merge no ${BASE} agora, ou ela fica aberta de propósito?
+• Branch esquecida vira as 15 que reclamam no deploy — /branches lista as que já dá pra apagar.
+• Desligar: BRANCHES_GATE=0"
+
+# A régua do canal (perfil `hook`, de quality-goals.md). Defeito de forma não cala um
+# aviso: o motivo vai pro stderr (debug log do harness) e o texto sai assim mesmo.
+# Régua ausente → silêncio, nunca queda — mesmo fail-open do resto do arquivo.
+REGUA="$SCRIPT_DIR/../lib/regua_texto.py"
+[ -f "$REGUA" ] && printf '%s\n' "$MSG" | "$PY3" "$REGUA" --perfil hook --onde "push de branch" - || :
 
 jq -n --arg m "$MSG" '{systemMessage:$m}' 2>/dev/null
 exit 0

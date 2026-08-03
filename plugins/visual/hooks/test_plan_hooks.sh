@@ -278,7 +278,41 @@ check "plano ativo porém torto não vira 'plano ausente' (motor quebrado ≠ se
       "$([ "$(ausente m9 "$TA3")" = "0" ] && echo 1 || echo 0)"
 rm -f "$VAZIO/.claude/plans/torto.plan.json"
 
-rm -f "${TMPDIR:-/tmp}"/claude-plan-{mark,nudge,closed,missing}-"$(id -u)"-s*-"$PHASH" \
+echo "Stop — a régua do canal de texto (perfil hook), nos DOIS textos que saem daqui"
+# O systemMessage sai num terminal: `**` chega literal e cabeçalho sem emoji não se
+# destaca de nada. Quem cobra é a MESMA régua do gerador de página, pelo perfil `hook`.
+# Saída vazia = passou; cada motivo recusado sai numa linha do stderr.
+REGUA="$HERE/../lib/regua_texto.py"
+regua() { printf '%s\n' "$1" | python3 "$REGUA" --perfil hook --onde "$2" - 2>&1 || :; }
+check "a régua está vendorada no plugin (instalado, ele só enxerga a própria pasta)" \
+      "$([ -f "$REGUA" ] && echo 1 || echo 0)"
+
+# (1) o resumo de fim de turno
+python3 "$PS" --dir "$PLANS" reopen p-teste >/dev/null 2>&1
+rm -f "$(missing_of g1)" "$(nudge_of g1)"
+RESUMO=$(run_st g1 "$TA3" | jq -r '.systemMessage // empty' 2>/dev/null)
+check "o resumo REAL de fim de turno passa na régua" "$([ -z "$(regua "$RESUMO" resumo)" ] && echo 1 || echo 0)"
+check "o mesmo resumo com markdown é RECUSADO" \
+      "$(regua "$(printf '%s' "$RESUMO" | sed 's/Plano/**Plano**/')" resumo | grep -q markdown && echo 1 || echo 0)"
+# O emoji do cabeçalho varia com o estado do plano (📍 / 📋 / ✅ / 🏁) e o texto abre
+# com linha em branco (o prefixo do harness), então a mutação tira o primeiro token de
+# toda linha que NÃO é bullet — é o cabeçalho, seja ele qual for.
+check "o mesmo resumo sem emoji no cabeçalho é RECUSADO" \
+      "$(regua "$(printf '%s' "$RESUMO" | sed '/^• /!s/^[^ ]* //')" resumo | grep -q emoji && echo 1 || echo 0)"
+python3 "$PS" --dir "$PLANS" close p-teste >/dev/null 2>&1
+
+# (2) o aviso de plano ausente — texto próprio, montado no shell
+rm -f "$(missing_of g2 "$PHASH_V")"
+AUSENTE=$(run_st_v g2 "$TA3" | jq -r '.systemMessage // empty' 2>/dev/null)
+check "o aviso REAL de plano ausente passa na régua" "$([ -z "$(regua "$AUSENTE" ausente)" ] && echo 1 || echo 0)"
+check "o mesmo aviso com markdown é RECUSADO" \
+      "$(regua "$(printf '%s' "$AUSENTE" | sed 's/Sem plano/**Sem plano**/')" ausente | grep -q markdown && echo 1 || echo 0)"
+check "o mesmo aviso sem emoji no cabeçalho é RECUSADO" \
+      "$(regua "$(printf '%s' "$AUSENTE" | sed 's/^⚠️ //')" ausente | grep -q emoji && echo 1 || echo 0)"
+
+rm -f "${TMPDIR:-/tmp}"/claude-plan-{mark,nudge,closed,missing}-"$(id -u)"-g*-"$PHASH" \
+      "${TMPDIR:-/tmp}"/claude-plan-{mark,nudge,closed,missing}-"$(id -u)"-g*-"$PHASH_V" \
+      "${TMPDIR:-/tmp}"/claude-plan-{mark,nudge,closed,missing}-"$(id -u)"-s*-"$PHASH" \
       "${TMPDIR:-/tmp}"/claude-plan-{mark,nudge,closed,missing}-"$(id -u)"-r*-"$PHASH" \
       "${TMPDIR:-/tmp}"/claude-plan-{mark,nudge,closed,missing}-"$(id -u)"-h*-"$PHASH" \
       "${TMPDIR:-/tmp}"/claude-plan-{mark,nudge,closed,missing}-"$(id -u)"-m*-"$PHASH" \

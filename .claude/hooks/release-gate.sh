@@ -77,6 +77,19 @@ ${OUT}
   fi
 fi
 
+# A2 · contrato R8 servido de uma fonte só. Nasceu de defeito medido em 2026-08-03:
+# trocar seis tiers custou 45 substituições em dois SKILL.md, três saíram invertidas e
+# duas passaram por dois verificadores — porque o número morava em quinze lugares.
+if [ -f "$ROOT/_shared/r8_tiers.py" ]; then
+  if ! OUT=$(python3 "$ROOT/_shared/r8_tiers.py" check 2>&1); then
+    VIOL="${VIOL}
+❌ CONTRATO R8 FURADO — o tier voltou a ser carimbado fora da fonte:
+${OUT}
+   → o valor vive em _shared/r8-tiers.json e chega ao motor por args;
+     o SKILL.md cita o KNOB, nunca o número. Isenção: 'r8-ok: <motivo>' na linha."
+  fi
+fi
+
 # B+C · espelho plugin.json↔marketplace.json e bump esquecido
 PYOUT=$(cd "$ROOT" && printf '%s\n' "$FILES" | GATE_AMEND="$GATILHO" python3 -c '
 import json, subprocess, sys, os, re
@@ -151,6 +164,23 @@ $(printf '%s' "$OUT" | tail -15)"
     fi
   done
 done
+
+# D2 · suíte de _shared/ — a FONTE do código vendorado.
+# O check D varre plugins/<nome>/lib/test_*.py e o F varre plugins/<nome>/hooks/test_*.sh:
+# nenhum dos dois globs casa com _shared/test_*.py. A suíte que DEFINE o comportamento do
+# código compartilhado (os perfis da régua de estilo) nunca rodava no commit, e o único
+# jeito de ela valer era alguém lembrar de chamá-la à mão. Aqui ela passa a valer por
+# derivação. Roda quando o commit toca _shared/ — no resto do tempo custa zero.
+if printf '%s\n' "$FILES" | grep -qE '^_shared/'; then
+  for t in "$ROOT/_shared/"test_*.py; do
+    [ -f "$t" ] || continue
+    if ! OUT=$(cd "$ROOT" && python3 "$t" 2>&1); then
+      VIOL="${VIOL}
+❌ TESTE VERMELHO — ${t#$ROOT/}
+$(printf '%s' "$OUT" | tail -15)"
+    fi
+  done
+fi
 
 # E · contrato dos hooks — só o que PIOROU vs o retrato congelado.
 # Comparar com o baseline (e não exigir zero) é o que impede a regra de apodrecer:
@@ -241,6 +271,22 @@ if [ -f "$PRC" ]; then
 ❌ DADO PESSOAL NO COMMIT — o repositório é público:
 $(printf '%s' "$POUT" | head -20)
    → régua: python3 scripts/public_repo_check.py --staged"
+  fi
+fi
+
+# I · gerador de página que não passa pela régua de estilo.
+# A régua (_shared/regua_texto.py, vinda de quality-goals.md) só vale para o texto
+# que passa por ela: gerador novo monta HTML, emite texto autoral e nasce fora da
+# regra sem que nada acuse — foi assim que cada gerador inventou a própria forma.
+# Só olha o que ESTE commit traz: os 4 geradores que já estavam fora não travam
+# ninguém (mesma regra do check H), mas gerador tocado agora é barrado na porta.
+RCC="$ROOT/scripts/regua_call_check.py"
+if [ -f "$RCC" ]; then
+  if ! ROUT=$(cd "$ROOT" && python3 "$RCC" --staged 2>&1); then
+    VIOL="${VIOL}
+❌ PÁGINA SEM RÉGUA — o arquivo monta HTML e não chama a régua de estilo:
+$(printf '%s' "$ROUT" | head -20)
+   → régua: python3 scripts/regua_call_check.py --staged"
   fi
 fi
 

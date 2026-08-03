@@ -1,4 +1,4 @@
-# Authorial Kit — os 5 documentos que nenhuma mineração produz
+# Authorial Kit — os documentos que nenhuma mineração produz
 
 > Banco de perguntas + moldes de saída dos documentos **autorais**. Fonte única, dois consumidores:
 > a skill **`/start-doc`** (que os cria e evolui por entrevista) e o **Tier 5 do `/project-doc`**
@@ -7,6 +7,38 @@
 > Derivado do kit canônico de documentação de arquitetura (Grupo A + glossário), que por sua vez
 > mapeia o **arc42**. Os documentos 1-4 e o glossário são consenso de mercado; a decisão de
 > **perguntar em vez de esqueletar** é nossa.
+
+## As quatro etapas de acordo
+
+A concepção não é uma entrevista só — são **quatro acordos**, nesta ordem, e cada um tem documento
+próprio e aprovação própria. Etapa não aprovada não deixa a seguinte começar: arquitetura decidida
+sem as metas fechadas é palpite, e jornada desenhada sem a interface acordada é ficção.
+
+| # | Etapa | Documento | Quando entra |
+|---|---|---|---|
+| 1 | **Acordo autoral** | `quality-goals.md` · `constraints.md` · `context.md` · `solution-strategy.md` · `glossary.md` | sempre — são os 5 universais |
+| 2 | **Acordo de arquitetura** | `architecture-intent.md` | sempre |
+| 3 | **Acordo de interface** | `design.md` (escrito pela skill `design-md`) | só projeto com interface |
+| 4 | **Acordo de jornadas** | `journeys.md` | sempre |
+
+**Os nomes de arquivo acima são o contrato.** Todos moram em `.claude/docs/`. Quem cobra lacuna lê
+daqui — inventar outro nome quebra a cobrança em silêncio.
+
+**Quem cobra, e com que marca.** O gate de plano (`hooks/pretooluse-plan-gate.sh`) recusa
+`EnterPlanMode`/`ExitPlanMode` enquanto `quality-goals.md`, `architecture-intent.md` e `journeys.md`
+— mais `design.md`, em projeto com interface — não estiverem com `status: approved` e sem
+`[PENDENTE]`. `status: ready` **não** libera: o gate cobra o de acordo, e `ready` é só "escrito". A
+cobrança vale **sempre**, inclusive para o projeto novo que ainda não abriu etapa nenhuma — era ele
+que passava batido enquanto ela dependia de já existir um dos arquivos. Quem não quer o regime
+autoriza com `--sem-doc`, que é decisão do usuário, não do agente.
+
+**A numeração das seções abaixo é catálogo de documento, não ordem de etapa.** Cada seção diz a que
+etapa pertence; a ordem em que as etapas fecham é a da tabela acima.
+
+- **`architecture-intent.md` não é `architecture.md`.** O segundo é minerado pelo `/project-doc` e
+  descreve o que o código **é**; o primeiro é autoral e diz o que a arquitetura **deve ser**.
+- **`journeys.md` não é `runtime.md`.** O segundo é minerado e narra o fluxo que o código executa; o
+  primeiro é autoral e narra o percurso que a **pessoa** faz.
 
 ## A regra que manda em todas as outras
 
@@ -21,7 +53,7 @@ avisa. Nunca "deduza" uma meta de qualidade a partir do código.
 travadas no lockfile — isso é restrição dura ou só não foi atualizado?"). Pista alimenta a pergunta;
 nunca vira a resposta.
 
-## Contrato de saída (vale para os 5)
+## Contrato de saída (vale para todos)
 
 Frontmatter obrigatório:
 
@@ -31,7 +63,8 @@ generated: {YYYY-MM-DD}          # quando o arquivo nasceu
 reviewed: {YYYY-MM-DD}           # última vez que o humano confirmou/atualizou
 project: {nome}
 authored-by: human               # TRAVA — o motor de mineração NUNCA reescreve este arquivo
-status: draft | ready            # ready = sem [PENDENTE] no corpo
+status: draft | ready | approved # draft = tem [PENDENTE] · ready = escrito · approved = o dono deu o de acordo
+approved: {YYYY-MM-DD}           # a data do de acordo explícito. Ausente ou [PENDENTE] = etapa aberta
 scope: []                        # vazio de propósito: não é derivado de arquivo
 ---
 ```
@@ -39,10 +72,37 @@ scope: []                        # vazio de propósito: não é derivado de arqu
 - **`authored-by: human` é a trava.** O FULL do `/project-doc` lê estes arquivos e pode **citá-los**,
   mas não os regenera, não os sobrescreve e não os inclui no fan-out por concern. A única escrita
   automática permitida é o `reviewed:` e a promoção `draft → ready` quando o último `[PENDENTE]` sai.
+- **`approved:` nenhuma máquina escreve sozinha.** Nem o FULL, nem esta skill por conta própria. Ela
+  só grava a data quando o dono acabou de dizer, com todas as letras, que está satisfeito. Promover
+  `ready → approved` sem essa fala é falsificar o registro.
 - **`[PENDENTE]`** é o marcador de lacuna. Enquanto existir um, `status: draft` e o documento **não
   entra no índice** do CLAUDE.md — vira uma linha de cobrança no relatório. Some o último → entra.
 - **Resposta do humano vai literal.** Não "melhore" a redação dele. Pode organizar em bullets e
   corrigir digitação; não pode trocar o julgamento por outro mais bonito.
+
+**Exceção de forma no `design.md`:** o frontmatter dele é o do formato `DESIGN.md` (tokens), não este.
+O par `status:` / `approved:` entra **por cima** dos tokens, e só ele — confirmado rodando o linter
+oficial com os dois campos presentes: `errors: 0, warnings: 0`.
+
+## Como uma etapa fecha — apresentar, sabatinar, ouvir o de acordo
+
+Escrever o documento **não fecha** a etapa. O ciclo é este, e ele repete:
+
+1. **Apresentar o documento inteiro** ao dono — o texto real, não um resumo dele. Ele não adivinha o
+   que você escreveu.
+2. **Sabatinar** com `/grill-me` (ou `/grill-with-docs`, quando já existe `CONTEXT.md` ou ADR para
+   confrontar). É aqui que a coisa vira acordo de verdade.
+3. **Corrigir e REAPRESENTAR.** Toda objeção volta pro documento e o documento volta pra tela. Não
+   há teto de rodadas: o que fecha o loop é a fala do dono, não o cansaço.
+4. **Gravar o de acordo** — `status: approved` + `approved: {data de hoje}` — só depois de ele dizer
+   que está satisfeito.
+
+**A sabatina não é juíza.** Ela não aprova, não reprova e não decide se o documento está bom: ela é o
+**caminho** até o acordo. Quem aprova é o dono, e a aprovação dele mora no frontmatter do próprio
+documento — não numa conclusão da sabatina, não numa nota da skill, não na sua memória da conversa.
+
+**Silêncio não é aprovação.** Nem "tá bom", nem "pode seguir" dito no meio de outra pergunta. Se você
+não consegue apontar a frase, a etapa continua aberta.
 
 ## Como conduzir a entrevista
 
@@ -50,8 +110,9 @@ scope: []                        # vazio de propósito: não é derivado de arqu
 - **Sempre com pista visível.** Traga o que você minerou junto da pergunta (lockfile, compose,
   git log). Pergunta sem insumo obriga o humano a adivinhar o seu contexto.
 - **Aceite "não sei" e "depois".** Vira `[PENDENTE]` com a data. Insistir queima a sessão.
-- **Ordem importa:** metas → restrições → contexto → estratégia → glossário. As metas são o critério
-  que as outras consomem; se você inverter, a estratégia vira preferência pessoal.
+- **Ordem importa** — dentro da etapa 1: metas → restrições → contexto → estratégia → glossário. As
+  metas são o critério que as outras consomem; se você inverter, a estratégia vira preferência
+  pessoal.
 - **Reaproveite o que já foi dito.** Se a resposta já apareceu nesta sessão, no `CLAUDE.md`, num
   handoff ou no journal, **não pergunte** — mostre o que achou e peça só a confirmação.
 
@@ -274,7 +335,7 @@ sem definição. Apresente a lista candidata; o humano define ou descarta.
 
 ---
 
-## 6 · `design.md` — Design system (SÓ projeto com interface)
+## 6 · `design.md` — Design system · **etapa 3, acordo de interface** (SÓ projeto com interface)
 
 > **Condicional — os outros 5 são universais, este não.** Só entra na entrevista e na contagem de
 > lacunas quando o projeto **tem interface** (frontend web ou mobile). Backend puro, CLI e biblioteca
@@ -316,6 +377,111 @@ npx --yes @google/design.md@0.3.0 lint .claude/docs/design.md --format json
 **Sem `npx`/`node` disponível:** a skill `design-md` já degrada pra checagem manual pela spec
 vendorada — **diga isso em voz alta** no relatório (F2.4): "validado em modo reserva, sem o linter
 oficial", nunca finja que rodou o CLI.
+
+**O de acordo desta etapa** vai no frontmatter do próprio `design.md`, com o mesmo par dos outros
+(`status: approved` + `approved:`). Linter limpo **não é aprovação** — ele diz que o arquivo é
+válido, não que o dono concordou com a personalidade que está lá dentro.
+
+---
+
+## 7 · `architecture-intent.md` — Arquitetura pretendida · **etapa 2**
+
+- **Pergunta que responde:** que desenho a solução vai ter — quais peças, com que fronteiras entre
+  elas?
+- **Não confunda com a estratégia (documento 4):** a estratégia diz **quais decisões** mandam no
+  formato; a arquitetura pretendida **desenha o resultado** — as peças, quem fala com quem, e onde o
+  estado mora.
+- **Não confunda com `architecture.md`:** aquele é minerado pelo `/project-doc` e descreve o que o
+  código **é**. Este é autoral e diz o que a arquitetura **deve ser**. Coexistem; divergência entre
+  os dois é achado, não erro de arquivo.
+- **Conteúdo mínimo:** as peças com a responsabilidade de cada uma, as fronteiras (quem pode chamar
+  quem), onde o estado mora, e o que foi deliberadamente deixado de fora.
+- **Critério de pronto:** toda peça nova proposta depois cai numa fronteira já descrita — ou o
+  documento muda antes do código.
+
+**Pistas a minerar antes de perguntar:** layout de pastas, serviços no compose, imports que cruzam
+módulo, onde o banco mora, e o grafo do `graphify` se o projeto tiver um.
+
+**Roteiro:**
+1. "Quais são as peças deste sistema, e do que cada uma é responsável?"
+2. "Achei {estas pastas / estes serviços} — cada uma é uma peça, ou tem peça que não virou pasta?"
+3. "Quem pode chamar quem? Tem chamada que você quer proibir de propósito?"
+4. "Onde o estado mora, e quem tem permissão de escrever nele?"
+5. "O que você decidiu NÃO construir, mesmo sendo tentador?"
+6. Para cada peça: "ela serve qual das metas do `quality-goals.md`?"
+
+**Molde:**
+
+```markdown
+{frontmatter}
+
+# Arquitetura pretendida
+
+> O desenho acordado antes do código. Quando o código divergir daqui, um dos dois
+> está errado — e a conversa começa por qual.
+
+## As peças
+- **{peça}** — responsável por {o quê} · **serve à meta:** {atributo do quality-goals.md}
+
+## As fronteiras — quem pode chamar quem
+- **{peça A} → {peça B}** — {por quê, e por qual porta}
+- **PROIBIDO: {peça C} → {peça D}** — {o que isso quebraria}
+
+## Onde o estado mora
+- **{depósito}** — {o que guarda} · **escreve:** {quem} · **lê:** {quem}
+
+## Deixado de fora de propósito
+- **{o que não vai existir}** — {por quê}
+
+## Desenho
+
+```
+{as peças e as setas entre elas}
+```
+```
+
+---
+
+## 8 · `journeys.md` — Jornadas · **etapa 4**
+
+- **Pergunta que responde:** o que uma pessoa vem fazer aqui, do começo ao fim?
+- **Não confunda com `runtime.md`:** aquele é minerado e narra o fluxo que o **código** executa. Este
+  é autoral e narra o percurso que a **pessoa** faz — inclusive as partes que nenhum código toca.
+- **Por que é a última etapa:** jornada escrita antes da interface acordada vira desenho de tela.
+  Escrita depois, ela vira cobrança — sobre a interface e sobre a arquitetura.
+- **Conteúdo mínimo:** 3 a 5 jornadas, cada uma com ator, gatilho, percurso, o que a pessoa leva
+  embora quando dá certo, e onde ela costuma travar.
+- **Critério de pronto:** toda jornada tem um fim declarado e um caminho de erro. Jornada sem fim é
+  lista de funcionalidade disfarçada.
+
+**Pistas a minerar antes de perguntar:** rotas e endpoints, telas versionadas, comandos e flags do
+CLI, entradas de menu, jobs agendados (jornada sem humano também é jornada).
+
+**Roteiro:**
+1. "Quem abre isso, e o que aconteceu na vida dessa pessoa pra ela precisar abrir?"
+2. "Me conta do começo ao fim o que ela faz até conseguir o que veio buscar."
+3. "Onde ela trava, desiste ou faz errado?"
+4. "O que ela leva embora quando dá certo — como ela sabe que terminou?"
+5. "Tem jornada de alguém que não é o usuário principal?" (operação, suporte, um agente)
+
+**Molde:**
+
+```markdown
+{frontmatter}
+
+# Jornadas
+
+> O percurso da pessoa, não o do código. Se um passo aqui não tem onde acontecer
+> na interface nem quem o execute na arquitetura, achamos um buraco.
+
+## {nome da jornada}
+- **Ator:** {quem}
+- **Gatilho:** {o que aconteceu pra ela começar}
+- **Percurso:** {passo → passo → passo}
+- **Fim feliz:** {o que ela leva embora, e como sabe que terminou}
+- **Onde quebra:** {o ponto de desistência, e o que acontece então}
+- **Toca as peças:** {peças do architecture-intent.md que essa jornada exercita}
+```
 
 ---
 

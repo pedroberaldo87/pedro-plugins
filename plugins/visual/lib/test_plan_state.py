@@ -21,6 +21,11 @@ import plan_state as ps  # noqa: E402
 FAILS = []
 
 
+def _ns(**kw):
+    import argparse
+    return argparse.Namespace(**kw)
+
+
 def check(label, cond):
     if cond:
         print("  ok   %s" % label)
@@ -170,7 +175,19 @@ def main():
                    {"id": "F1.1", "title": "t", "desc": "  "}]}])), "linha didática")
         raises("desc de parágrafo é recusada",
                lambda: ps.validate(sample(phases=[{"id": "F1", "title": "x", "items": [
-                   {"id": "F1.1", "title": "t", "desc": "a" * 200}]}])), "UMA linha")
+                   {"id": "F1.1", "title": "t", "desc": "a" * 200}]}])), "o teto é 140")
+        # A régua inteira, não só o teto: um passo com DUAS FRASES cabe em 140
+        # caracteres e passava. É o parágrafo disfarçado que a linha didática existe
+        # pra não ser (quality-goals.md, "A régua de estilo").
+        raises("passo com duas frases é recusado",
+               lambda: ps.validate(sample(phases=[{"id": "F1", "title": "x", "items": [
+                   {"id": "F1.1", "title": "t",
+                    "desc": "O gate roda no commit. Sem bump ele barra."}]}])),
+               "duas frases")
+        raises("pronto que abre com conectivo de continuação é recusado",
+               lambda: ps.validate(sample(phases=[{"id": "F1", "title": "x", "items": [
+                   {"id": "F1.1", "title": "t", "desc": "d",
+                    "pronto": "e o comando sai 0"}]}])), "conectivo")
         raises("prefixo do passo tem que bater com a fase",
                lambda: ps.validate(sample(phases=[{"id": "F1", "title": "x", "items": [
                    {"id": "F2.1", "title": "t", "desc": "d"}]}])), "prefixo")
@@ -184,7 +201,7 @@ def main():
         errs = ps.erros_do_plano(sample(phases=[{"id": "F1", "title": "x", "items": [
             {"id": "F1.1", "title": "t", "desc": "a" * 200}]}]))
         check("plano ruim devolve mensagem sem levantar",
-              len(errs) == 1 and "UMA linha" in errs[0])
+              len(errs) == 1 and "o teto é 140" in errs[0])
         check("validate continua levantando",
               _levanta(lambda: ps.validate(sample(phases=[{"id": "F1", "title": "x", "items": [
                   {"id": "F1.1", "title": "t", "desc": "a" * 200}]}]))))
@@ -819,6 +836,161 @@ def main():
               "2026-07-27-brief-outro" in brief_seen() or "ENCERRADO" in brief_seen())
         check("o arquivo de vistos guarda os ids", "2026-07-27-brief" in open(seen).read())
 
+        # O grupo dos encerrados não tinha teto NENHUM — "só o primeiro tem teto",
+        # dizia o comentário. Com muito plano fechado desde o marco (limpeza de
+        # diretório), o 🏁 inequívoco virava um despejo de 3 linhas por plano num
+        # Stop que já soma 6 hooks. Agora ele tem teto próprio, e o que sobra é
+        # CONTADO — que é a mesma garantia do grupo ativo.
+        print("brief — o 🏁 também tem teto, e o cortado sai contado")
+        denc = tempfile.mkdtemp(prefix="brief-encerrados-")
+        try:
+            for i in range(5):
+                init_into(denc, sample(id="fechado-%d" % i))
+                ps.cmd_close(Args(dir=denc, plan="fechado-%d" % i))
+            buf = io.StringIO()
+            with contextlib.redirect_stdout(buf):
+                ps.cmd_brief(Args(dir=denc, nudge=None, closed_since=0, mark_seen=None))
+            saida = buf.getvalue()
+            check("5 encerrados dariam 5 blocos de 🏁; saem %d" % ps.BRIEF_MAX_ENCERRADOS,
+                  saida.count("🏁") == ps.BRIEF_MAX_ENCERRADOS)
+            check("os 3 cortados são contados, não somem em silêncio",
+                  "mais 3 plano(s) encerrado(s)" in saida)
+            check("a contagem diz onde ficou o registro de cada um",
+                  ".claude/plans/" in saida)
+            dois = [ps.brief_lines(ps.pick_plan(denc, "fechado-%d" % i)) for i in range(2)]
+            check("dentro do teto, nenhum 🏁 é cortado e não há linha de contagem",
+                  ps._cabe_no_teto(dois, ps.BRIEF_MAX_ENCERRADOS,
+                                   ps.SOBRA_ENCERRADOS) == dois)
+        finally:
+            shutil.rmtree(denc, ignore_errors=True)
+
+        # O teto é do CONJUNTO, e o caso que o quebrava era o volume: limpar o
+        # diretório fecha dezessete planos de uma vez, e o grupo encerrado era
+        # somado DEPOIS do corte do grupo ativo. Saíam dezessete blocos de 🏁 num
+        # Stop que já soma 6 hooks. Cortar tudo junto engoliria o "acabou"; por
+        # isso são dois tetos, e o excedente de cada um sai CONTADO.
+        print("brief — 17 encerrados de uma vez não estouram o teto do conjunto")
+        d17 = tempfile.mkdtemp(prefix="brief-17-")
+        try:
+            init_into(d17, sample(id="ainda-aberto"))
+            for i in range(17):
+                init_into(d17, sample(id="fechado-%02d" % i))
+                ps.cmd_close(Args(dir=d17, plan="fechado-%02d" % i))
+            buf = io.StringIO()
+            with contextlib.redirect_stdout(buf):
+                ps.cmd_brief(Args(dir=d17, nudge=None, closed_since=0, mark_seen=None))
+            saida = buf.getvalue()
+            linhas = [x for x in saida.strip().split("\n") if x.strip()]
+            check("17 encerrados dariam 51 linhas de 🏁; a saída inteira sai com %d"
+                  % len(linhas), len(linhas) <= 12)
+            check("o 🏁 não foi engolido pelo teto", "🏁" in saida)
+            check("saem %d blocos de 🏁, não 17" % ps.BRIEF_MAX_ENCERRADOS,
+                  saida.count("🏁") == ps.BRIEF_MAX_ENCERRADOS)
+            check("os 15 cortados saem contados, não somem em silêncio",
+                  "mais 15 plano(s) encerrado(s)" in saida)
+            check("e o plano que continua aberto não foi expulso pelos encerrados",
+                  "ainda-aberto" in saida or "Plano de teste" in saida)
+        finally:
+            shutil.rmtree(d17, ignore_errors=True)
+
+        # O resumo é o SÉTIMO emissor do canal de texto, e rodava sob o perfil da
+        # PÁGINA — que não cobra markdown nem cabeçalho, porque HTML renderiza os
+        # dois. O canal dele é o terminal do `stop-plan-status.sh`, onde `**` e
+        # crase chegam literais e o destaque só vem do emoji. Os checks de markdown
+        # logo acima eram a régua redigitada à mão aqui; agora quem cobra é o perfil.
+        print("brief — o resumo roda sob o perfil do CANAL (hook), não o da página")
+        check("o resumo declara o perfil do canal de texto", ps.PERFIL_BRIEF == "hook")
+        dhk = tempfile.mkdtemp(prefix="brief-perfil-")
+        try:
+            init_into(dhk, sample(id="hook-1"))
+            casos = [("em curso", ps.brief_lines(ps.pick_plan(dhk, "hook-1"))),
+                     ("sem marca da sessão",
+                      ps.brief_lines(ps.pick_plan(dhk, "hook-1"), desta_sessao=False)),
+                     ("com cobertura",
+                      ps.brief_lines(ps.pick_plan(dhk, "hook-1"), reqs=reqs)),
+                     ("excedente de abertos", ps._cabe_no_teto([["a"], ["b"], ["c"]])[-1]),
+                     ("excedente de encerrados",
+                      ps._cabe_no_teto([["a"]] * 20, ps.BRIEF_MAX_ENCERRADOS,
+                                       ps.SOBRA_ENCERRADOS)[-1])]
+            for nid in ("F1.1", "F1.2", "F2.1"):
+                ps.cmd_tick(Args(dir=dhk, plan="hook-1", node=nid,
+                                 evidencia="rodou o teste e passou"))
+            casos.append(("tudo marcado", ps.brief_lines(ps.pick_plan(dhk, "hook-1"))))
+            ps.cmd_close(Args(dir=dhk, plan="hook-1"))
+            casos.append(("encerrado", ps.brief_lines(ps.pick_plan(dhk, "hook-1"))))
+            init_into(dhk, sample(id="hook-2"))
+            ps.cmd_close(Args(dir=dhk, plan="hook-2"))
+            casos.append(("encerrado incompleto",
+                          ps.brief_lines(ps.pick_plan(dhk, "hook-2"))))
+            for nome, linhas in casos:
+                errs = ps.erros_do_brief(linhas, nome)
+                check("resumo '%s' passa no perfil hook%s"
+                      % (nome, (" — " + "; ".join(errs)) if errs else ""), errs == [])
+            # Se o perfil não RECUSASSE o que o canal não renderiza, trocar de perfil
+            # não teria mudado nada — o check tem que provar que ele morde.
+            check("o perfil recusa markdown, que chega literal na tela",
+                  any("markdown" in e
+                      for e in ps.erros_do_brief(["• **Feito:** 2 de 3 passos"], "x")))
+            check("o perfil recusa cabeçalho sem emoji",
+                  any("emoji" in e
+                      for e in ps.erros_do_brief(["Onde estamos — Plano de teste"], "x")))
+            check("o MESMO texto passa na régua da página — quem manda é o canal",
+                  ps.erros_de_estilo(["• **Feito:** 2 de 3 passos"], "x") == [])
+        finally:
+            shutil.rmtree(dhk, ignore_errors=True)
+
+        # A régua vale pra TODO campo de texto que o gerador emite (quality-goals.md),
+        # e até 2026-08-03 o validador só olhava campo vindo do spec: o literal que o
+        # próprio programa escreve passava livre. Media 227 caracteres em 3 frases no
+        # `.decisions-intro`, e 2 frases no `.feedback-intro` — em toda página que já
+        # nasceu. A varredura audita o HTML PRONTO, que é onde o literal do programa e
+        # o campo do spec ficam indistinguíveis — que é como o leitor os vê.
+        print("régua — o literal que o próprio gerador escreve também é cobrado")
+        import regua_audit as ra
+        import visual_page as vp
+
+        def viola(html, perfil_pag):
+            ex = ra.Extrator(ra.PERFIS[perfil_pag]["fora"])
+            ex.feed(html)
+            return ra.violacoes_de(ex.eventos)
+
+        def motivo(vs):
+            return "" if not vs else " — " + "; ".join(
+                "%s · %s" % (v["regra"], v["trecho"][:60]) for v in vs)
+
+        with open(vp.TEMPLATE, encoding="utf-8") as fh:
+            tpl_txt = fh.read()
+        # Só estes dois blocos do template entram na página gerada (`extract_block`);
+        # o resto do arquivo é demo e nunca é emitido — auditá-lo mediria o que
+        # ninguém lê.
+        for cls in ("decisions-box", "feedback-box"):
+            vs = viola(vp.extract_block(tpl_txt, cls), "relatorio")
+            check("literal do template .%s sob a régua%s" % (cls, motivo(vs)), vs == [])
+        vs = viola(ps.CLOSING_BOX, "plano")
+        check("literal da caixa de fechamento do plan_state sob a régua%s" % motivo(vs),
+              vs == [])
+        for chave, tupla in sorted(ps.PAGE_COPY.items()):
+            for i, frase in enumerate(tupla):
+                errs = ps.erros_de_estilo(frase, "PAGE_COPY[%s][%d]" % (chave, i))
+                check("literal PAGE_COPY[%s][%d] sob a régua%s"
+                      % (chave, i, (" — " + "; ".join(errs)) if errs else ""), errs == [])
+        # E a página INTEIRA pelo caminho real: pega o literal que só existe montado,
+        # e é o mesmo artefato que o `regua_audit.py` julga no disco.
+        dlit = tempfile.mkdtemp(prefix="regua-literal-")
+        try:
+            init_into(dlit, sample(id="literal-1"))
+            alvo = os.path.join(dlit, "pagina.html")
+            buf = io.StringIO()
+            with contextlib.redirect_stdout(buf):
+                ps.cmd_page(Args(dir=dlit, plan="literal-1", mode="approve",
+                                 vista="execucao", out=alvo))
+            with open(alvo, encoding="utf-8") as fh:
+                vs = viola(fh.read(), "plano")
+            check("a página de aprovação inteira sai sem violação%s" % motivo(vs),
+                  vs == [])
+        finally:
+            shutil.rmtree(dlit, ignore_errors=True)
+
         empty = tempfile.mkdtemp(prefix="plan-brief-vazio-")
         try:
             buf = io.StringIO()
@@ -830,7 +1002,10 @@ def main():
 
         print("o número aparece sem pedir")
         b = ps.brief_lines(p, reqs=reqs)
-        check("o brief traz a cobertura", any("sem requisito" in x for x in b))
+        check("o brief traz a cobertura",
+              any(x.startswith("• 🎯 Cobertura:") and "requisito" in x for x in b))
+        check("e ela cabe no teto do canal, com ou sem o ponteiro",
+              all(len(x) <= ps.BULLET_MAX for x in b))
         check("a cobertura não vira um 4º bullet",
               len([x for x in b if x.startswith("•")]) == 3)
         b2 = ps.brief_lines(sample())
@@ -1103,6 +1278,47 @@ def main():
         with open(os.path.join(d, "quebrado.plan.json"), "w") as fh:
             fh.write("{ isto não é json")
         check("list_plans pula o corrompido", len(ps.list_plans(d)) == before)
+    finally:
+        shutil.rmtree(d, ignore_errors=True)
+
+    # ── F6 · a prova sai em bullets, e a linha corrida longa é recusada ──────
+    print("F6: a prova do passo em bullets")
+    pb = ps.prova_bullets
+    check("quebra no separador de ponto", pb("a · b · c") == ["a", "b", "c"])
+    check("quebra em ponto-e-virgula e em mais", pb("x; y + z") == ["x", "y", "z"])
+    check("quebra na linha nova",
+          pb("$ cmd\n  saida 1\n  saida 2") == ["$ cmd", "saida 1", "saida 2"])
+    check("um segmento so continua um bullet", pb("pytest -q -> 62 ok") == ["pytest -q -> 62 ok"])
+    check("prova vazia nao gera bullet", pb("") == [] and pb(None) == [])
+
+    d = tempfile.mkdtemp()
+    try:
+        plano = {"id": "p-f6", "title": "t", "phases": [
+            {"id": "F1", "title": "f", "items": [
+                {"id": "F1.1", "title": "i", "desc": "d"},
+                {"id": "F1.2", "title": "j", "desc": "o segundo passo"}]}]}
+        with open(os.path.join(d, "p-f6.plan.json"), "w", encoding="utf-8") as fh:
+            json.dump(plano, fh)
+
+        raises("tick recusa prova longa num bloco so",
+               lambda: ps.cmd_tick(_ns(dir=d, plan="p-f6", node="F1.1", evidencia="c" * 150)),
+               "num bloco")
+        ps.cmd_tick(_ns(dir=d, plan="p-f6", node="F1.1",
+                        evidencia="$ pytest -q\n" + "x" * 150))
+        check("saida crua multilinha passa inteira",
+              ps.pick_plan(d, "p-f6")["phases"][0]["items"][0]["status"] == "done")
+
+        ps.cmd_tick(_ns(dir=d, plan="p-f6", node="F1.2", evidencia="a rodou · b passou · c1d2e3f"))
+        it = ps.pick_plan(d, "p-f6")["phases"][0]["items"][1]
+        texto, classe = ps._detalhe(it)
+        check("prova feita vira bloco multilinha",
+              classe == "pt-evidence" and texto.startswith("prova:\n"))
+        check("cada segmento vira um bullet", texto.count("\n· ") == 3)
+        html = ps._detalhe_html(texto, classe)
+        check("html da prova sai como lista",
+              'ul class="pt-prova"' in html and html.count("<li>") == 3)
+        check("prova de um segmento continua span",
+              ps._detalhe_html("prova: x", "pt-evidence").startswith("<span"))
     finally:
         shutil.rmtree(d, ignore_errors=True)
 

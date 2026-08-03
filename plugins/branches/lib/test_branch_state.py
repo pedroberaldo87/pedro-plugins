@@ -329,6 +329,58 @@ def main():
     finally:
         shutil.rmtree(root, ignore_errors=True)
 
+    # A régua de estilo (quality-goals.md): esta página é relatório, e o `why` é o
+    # único texto autoral dela. Quem o escreve é o programa, então uma violação é
+    # defeito DESTE arquivo — e o jeito de saber é medir os quatro `why` reais que
+    # o classificador sabe produzir, não confiar na leitura.
+    print("régua de estilo — todo `why` que o programa escreve passa nas quatro")
+    check("o perfil declarado é o de página", bs.PERFIL == "pagina")
+    WHYS = ["o git já reconhece o merge",
+            "não tem nada à frente da base",
+            "os 4 commits já estão na base por conteúdo (squash/rebase) — "
+            "o --merged NÃO vê isto",
+            "não consegui comparar os commits com a base",
+            "2 de 5 commits só existem aqui"]
+    for w in WHYS:
+        check("passa na régua: %r" % w[:34], bs.erros_de_estilo(w, "why") == [])
+    check("e a régua NÃO está cega — prosa de duas frases seria recusada",
+          bs.erros_de_estilo("a branch entrou no tronco. o resto ficou de fora.", "why") != [])
+
+    # E recusar é RECUSAR: a página não nasce torta com um aviso no stderr. O `why`
+    # é mexido à mão porque o programa não sabe escrever um torto — é justamente o
+    # defeito futuro que a recusa existe pra pegar.
+    r = Repo()
+    try:
+        r.branch("feat/x")
+        r.commit("trabalho", "a.txt", "a\n")
+        r.co("main")
+        res = bs.classify(r.path)
+        check("o relatório sai quando todo `why` passa na régua",
+              "<!DOCTYPE html>" in bs.render_html(res, "2026-01-01 00:00"))
+
+        torto = [b for b in res["branches"] if b["name"] == "feat/x"][0]
+        torto["why"] = "a branch entrou no tronco. o resto ficou de fora."
+        try:
+            bs.render_html(res, "2026-01-01 00:00")
+            check("texto corrido no `why` é recusado", False)
+        except bs.BranchError as exc:
+            check("texto corrido no `why` é recusado", True)
+            check("e a recusa vem com o motivo medido", "duas frases" in str(exc))
+            check("e diz em qual branch", "branch feat/x: why" in str(exc))
+
+        # Nada de HTML sai — o `cmd_report` renderiza ANTES de abrir o arquivo.
+        alvo = os.path.join(r.path, "recusa.html")
+        classify_real = bs.classify
+        bs.classify = lambda repo, base=None: res
+        try:
+            check("o `report` sai 2 na recusa",
+                  bs.main(["--repo", r.path, "report", "--out", alvo]) == 2)
+        finally:
+            bs.classify = classify_real
+        check("e nenhum HTML sai", not os.path.exists(alvo))
+    finally:
+        r.close()
+
     print()
     if FAILS:
         print("FALHOU: %d" % len(FAILS))

@@ -74,8 +74,8 @@ Passo 8.0 (gate de saída) + na seção "Detecção de rede".
 ## Modelo & effort por etapa (R8) — contrato em `references/r8-tiers.md`
 
 **É TUDO Opus 5** (contrato R8 desde 2026-07-26): os seis knobs rodam `model: 'opus'` e o que dispara no
-tier certo pro PESO da decisão é o **`effort`** — `xhigh` no sweep e no confirm-pass, `medium` na fila
-mecânica. A semântica dos knobs é o **contrato R8 compartilhado** com o `/sovai`, vendorado em
+tier certo pro PESO da decisão é o **`effort`**, e **o valor não mora aqui**: ele vem de
+`references/r8-tiers.json`, que a casca carrega e passa no `args` do Workflow. A semântica dos knobs é o **contrato R8 compartilhado** com o `/sovai`, vendorado em
 **`references/r8-tiers.md`** (fonte: `_shared/r8-tiers.md` — não editar a cópia à mão;
 `scripts/sync-shared.sh --check` pega drift). Trocar o tier de uma etapa lá vale pros dois motores. A tabela
 completa (Etapa · Modelo · Effort · Knob + o que cada knob significa + a regra de tier por rodada) está no
@@ -89,6 +89,22 @@ arquivo. Abaixo, só **onde cada knob entra NESTE motor** (revisa→planeja→co
 | `mechanical_model` | Fila objetiva da **Fase Gate** (Passo 8.0) — lint/type/unit/integração, sem julgamento. |
 | `diagnose_model` | Escalada de **churn** — mesma função regrediu ≥ `churn_threshold` → diagnóstico de raiz, não mais remendo. |
 | `finalize_model` | **Confirm-pass** — antes de declarar rodada limpa, um re-sweep completo dedicado roda aqui; não confia no resultado mais barato (`coordinate_model`) da rodada que pareceu limpa. |
+
+### Como o tier chega ao motor (obrigatório, antes de disparar o Workflow)
+
+O valor do `effort` **não vive nesta skill**. Rode isto e passe o resultado dentro do
+`args` do Workflow, junto com os outros parâmetros:
+
+```bash
+python3 "<skill_dir>/references/r8_tiers.py" args
+# -> { "model": "opus", "tiers": { "decompose": {"effort": "high"}, ... } }
+```
+
+O script então lê `args.tiers.<knob>.effort` e nunca um literal. Se `args.tiers` chegar
+`undefined` o motor morre na primeira volta, e essa é a falha certa: um default carimbado
+no script seria mais uma cópia do valor, que é justamente o defeito que o contrato R8
+existe pra impedir. Trocar um tier é editar `_shared/r8-tiers.json` e rodar
+`scripts/sync-shared.sh` — nenhum `SKILL.md` muda.
 
 ## Parâmetros / knobs
 
@@ -137,34 +153,35 @@ digraph motor {
     rankdir=TB;
     "REVIEW (decompose/coordinate_model)" [shape=box];
     "Gate severidade (JS)" [shape=diamond];
-    "CONFIRM (finalize_model, xhigh)" [shape=box, style=filled];
+    "CONFIRM (finalize_model, medium)" [shape=box, style=filled];
     "PLAN (decompose/coordinate_model)" [shape=box];
     "EXEC (executor_model)" [shape=box];
     "Gate regressão (JS)" [shape=diamond];
     "Reverte (refaz no tier da rodada)" [shape=box];
-    "DIAGNOSE (diagnose_model, xhigh)" [shape=box, style=filled];
+    "DIAGNOSE (diagnose_model, medium)" [shape=box, style=filled];
     "PARA — rodada limpa" [shape=doublecircle];
     "Próxima rodada" [shape=box];
 
     "REVIEW (decompose/coordinate_model)" -> "Gate severidade (JS)";
-    "Gate severidade (JS)" -> "CONFIRM (finalize_model, xhigh)" [label="parece limpa (rodada completa, 0 severo)"];
-    "CONFIRM (finalize_model, xhigh)" -> "PARA — rodada limpa" [label="confirma limpa"];
-    "CONFIRM (finalize_model, xhigh)" -> "PLAN (decompose/coordinate_model)" [label="achou algo que a rodada barata perdeu"];
+    "Gate severidade (JS)" -> "CONFIRM (finalize_model, medium)" [label="parece limpa (rodada completa, 0 severo)"];
+    "CONFIRM (finalize_model, medium)" -> "PARA — rodada limpa" [label="confirma limpa"];
+    "CONFIRM (finalize_model, medium)" -> "PLAN (decompose/coordinate_model)" [label="achou algo que a rodada barata perdeu"];
     "Gate severidade (JS)" -> "PLAN (decompose/coordinate_model)" [label="há P0/P1"];
     "PLAN (decompose/coordinate_model)" -> "EXEC (executor_model)";
     "EXEC (executor_model)" -> "Gate regressão (JS)";
     "Gate regressão (JS)" -> "Reverte (refaz no tier da rodada)" [label="suíte vermelha, churn<teto"];
-    "Gate regressão (JS)" -> "DIAGNOSE (diagnose_model, xhigh)" [label="churn>=teto"];
+    "Gate regressão (JS)" -> "DIAGNOSE (diagnose_model, medium)" [label="churn>=teto"];
     "Reverte (refaz no tier da rodada)" -> "EXEC (executor_model)";
     "Gate regressão (JS)" -> "Próxima rodada" [label="verde / fim do bucket"];
     "Próxima rodada" -> "REVIEW (decompose/coordinate_model)";
 }
 ```
 
-Tier por rodada: **rodada 1** = `decompose_model` (Opus xhigh, planejamento inicial); **rodadas 2+** =
-`coordinate_model` (Opus high, coordenação rotineira). O nó CONFIRM é dedicado — sempre `finalize_model`
-(Opus xhigh), nunca o tier da rodada que pareceu limpa. DIAGNOSE também é dedicado — sempre `diagnose_model`
-(Opus xhigh), disparado só quando o churn escala (mesma função regredindo repetidamente).
+Tier por rodada: **rodada 1** = `decompose_model` (planejamento inicial); **rodadas 2+** =
+`coordinate_model` (coordenação rotineira). O nó CONFIRM é dedicado — sempre `finalize_model`, nunca o
+tier da rodada que pareceu limpa. DIAGNOSE também é dedicado — sempre `diagnose_model`, disparado só
+quando o churn escala (mesma função regredindo repetidamente). O que separa os dois dedicados da rodada
+é o **contexto limpo**: cada um reabre o problema do zero, independentemente do tier que estiver valendo.
 
 ---
 
@@ -240,11 +257,12 @@ const LAYER_CAP = { 4: 2, 5: 1 }
 const churnThreshold = args.churnThreshold || 2
 const maxRounds = Math.min(args.maxRounds || 6, LAYER_CAP[args.safetyLayer] ?? Infinity)
 
-// Tier por rodada (R8 — tabela única com /sovai): rodada 1 = decompose_model (xhigh,
-// planejamento inicial); rodadas 2+ = coordinate_model (high, coordenação rotineira).
-const tierFor = round => round === 1
-  ? { model: 'opus', effort: 'xhigh' }   // decompose_model
-  : { model: 'opus', effort: 'high' }    // coordinate_model
+// Tier por rodada (R8): rodada 1 = decompose_model (sweep completo); rodadas 2+ =
+// coordinate_model (caça-regressão + delta). Os valores chegam em args.tiers, servidos
+// de references/r8-tiers.json pela casca — nunca literais aqui.
+const T = args.tiers
+const tierFor = round => ({ model: args.model,
+  effort: round === 1 ? T.decompose.effort : T.coordinate.effort })
 
 while (!cleanRound && r < maxRounds && !churnEscalated) {
   r++; phase(`Rodada ${r}`)
@@ -263,11 +281,11 @@ while (!cleanRound && r < maxRounds && !churnEscalated) {
     sevRank(f.severity) >= floor && !isAccepted(f, acceptedLimits))
 
   if (review.complete && severe.length === 0) {
-    // CONFIRM — finalize_model (Opus xhigh, R8 "revisão final e integração"). Re-sweep
+    // CONFIRM — finalize_model (Opus medium, R8 "revisão final e integração"). Re-sweep
     // completo DEDICADO antes de declarar limpa — não confia no resultado mais barato
     // (coordinate_model) da rodada que pareceu limpa.
     const confirm = await agent(reviewPrompt({ round: r, acceptedLimits, invariants, confirming: true }),
-      { model: 'opus', effort: 'xhigh', phase: 'Confirm', schema: FINDINGS, agentType: 'voltagent-qa-sec:security-auditor' })   // finalize_model
+      { model: args.model, effort: T.finalize.effort, phase: 'Confirm', schema: FINDINGS, agentType: 'voltagent-qa-sec:security-auditor' })   // finalize_model
     const confirmSevere = confirm.findings.filter(f =>
       sevRank(f.severity) >= floor && !isAccepted(f, acceptedLimits))
     if (confirm.complete && confirmSevere.length === 0) {
@@ -284,22 +302,22 @@ while (!cleanRound && r < maxRounds && !churnEscalated) {
   const plan = await agent(planPrompt({ review, round: r, invariants, acceptedLimits }),
     { model: tier.model, effort: tier.effort, phase: 'Plan', schema: PLAN, agentType: 'voltagent-qa-sec:error-detective' })
 
-  // EXEC — executor_model (Opus high, R8 all-Opus), SÓ bucket 1, EM SÉRIE (o gate roda a
+  // EXEC — executor_model (Opus medium, R8 all-Opus), SÓ bucket 1, EM SÉRIE (o gate roda a
   // suíte entre fixes; pares de risco exigem ordem).
   const corrections = []; let regressions = 0
   for (const fix of plan.bucket1) {
     const res = await agent(execPrompt({ fix, invariants, safetyLayer: args.safetyLayer }),
-      { model: 'opus', effort: 'high', phase: 'Exec', schema: EXEC_RESULT, agentType: 'voltagent-core-dev:backend-developer' })   // executor_model
+      { model: args.model, effort: T.executor.effort, phase: 'Exec', schema: EXEC_RESULT, agentType: 'voltagent-core-dev:backend-developer' })   // executor_model
     // GATE de regressão (JS) — quem decide keep/revert é o SCRIPT, nunca o executor.
     if (res.suiteRegressed) {
       const k = churnKey(fix)
       regressions++; churn[k] = (churn[k] || 0) + 1
       if (churn[k] >= churnThreshold) {
-        // DIAGNOSE — diagnose_model (Opus xhigh, R8 "diagnóstico após falhas repetidas").
+        // DIAGNOSE — diagnose_model (Opus medium, R8 "diagnóstico após falhas repetidas").
         // Não é mais "refaz cirúrgico" — é a causa raiz do acoplamento que faz a mesma
         // função regredir de novo a cada tentativa.
         await agent(diagnosePrompt({ fix, churnCount: churn[k], invariants }),
-          { model: 'opus', effort: 'xhigh', phase: 'Diagnose', agentType: 'voltagent-qa-sec:architect-reviewer' })   // diagnose_model
+          { model: args.model, effort: T.diagnose.effort, phase: 'Diagnose', agentType: 'voltagent-qa-sec:architect-reviewer' })   // diagnose_model
         churnEscalated = true; break
       }
       await revertAndMaybeRedo(fix, res, tier)   // reverte; refaz cirúrgico no tier DA RODADA
@@ -336,9 +354,9 @@ return {
 
 **REVIEW = 1 Opus Revisor (R1), no tier da rodada (R8).** Um único Opus cobre as **6 dimensões como
 CHECKLIST** (arquitetura · backend · frontend · contratos fullstack · correção · UX) — **não** 6 agentes.
-**Rodada 1** roda em `decompose_model` (xhigh — sweep completo): recebe **o material inteiro** + o
+**Rodada 1** roda em `decompose_model` (high — sweep completo): recebe **o material inteiro** + o
 **plano-âncora** + os accepted-limits vivos (não re-reportar) + as invariantes vivas (não violar).
-**Rodadas 2+** rodam em `coordinate_model` (high) e recebem **o DELTA, não o material inteiro**: os arquivos
+**Rodadas 2+** rodam em `coordinate_model` (medium) e recebem **o DELTA, não o material inteiro**: os arquivos
 tocados pelos fixes da rodada anterior + os findings ainda abertos + accepted-limits/invariantes (pequenos) —
 caça-regressão nas mudanças + ângulos frescos sobre elas. Formato de cada finding:
 `P{0-3} — {arquivo:linha} — {problema} — {direção de fix, SEM código}`. Inclui sempre **duas âncoras** (nas
@@ -352,9 +370,9 @@ rodadas 2+, as duas restritas ao delta):
 
 **Regra dura:** se algum ângulo do checklist não foi coberto → `complete=false`, jamais "achou zero".
 
-**CONFIRM = Opus dedicado em `finalize_model` (xhigh, R8 "revisão final e integração").** Quando uma rodada
+**CONFIRM = Opus dedicado em `finalize_model` (medium, R8 "revisão final e integração").** Quando uma rodada
 parece limpa (`complete && severe.length===0`), o motor NÃO declara vitória direto — dispara um re-sweep
-completo independente em `finalize_model`, sempre xhigh, **mesmo que a rodada que pareceu limpa tenha rodado
+completo independente em `finalize_model`, sempre medium, **mesmo que a rodada que pareceu limpa tenha rodado
 em `coordinate_model`**. Só confirma limpa se o confirm-pass TAMBÉM achar zero; senão os findings do
 confirm-pass entram no PLAN da mesma rodada — o resultado mais barato nunca tem a palavra final.
 
@@ -378,7 +396,7 @@ limitação de modelo.
 **GATE de regressão (código, não LLM).** O `EXEC_RESULT.suiteRegressed` é objetivo (a suíte passou ou não).
 Vermelho → **reverte** + `churn++`; o Planejador (no tier da rodada) decide refazer cirúrgico (troca difuso
 por extensão enumerada / exceção mais específica) — até `churn_threshold`. A partir do threshold, escala pra
-`diagnose_model` (Opus xhigh, R8 "diagnóstico após falhas repetidas"): não é mais "refaz cirúrgico", é achar
+`diagnose_model` (Opus medium, R8 "diagnóstico após falhas repetidas"): não é mais "refaz cirúrgico", é achar
 a causa raiz do acoplamento. **Quem decide keep/revert é sempre o script + o Planejador, nunca o executor
 que fez o fix** — é separação de papel, não desconfiança de modelo (agora os dois são Opus).
 
@@ -426,11 +444,11 @@ A skill só declara **sucesso** quando AS DUAS fecham. São critérios independe
 
 **Fase Assintótica — para se qualquer um (gate de severidade primário, teto = trava):**
 - **[PRIMÁRIO]** uma rodada INTEIRA completou (`complete=true`) E produziu ZERO findings novos de severidade
-  ≥ `floor` FORA dos accepted-limits **E o confirm-pass dedicado (`finalize_model`, xhigh) concordou** —
+  ≥ `floor` FORA dos accepted-limits **E o confirm-pass dedicado (`finalize_model`, medium) concordou** —
   rodada limpa nunca é declarada só pelo resultado mais barato (`coordinate_model`) que pareceu limpo.
 - **[TRAVA]** atingiu `max_rounds` → reporta "teto atingido sem convergir" (ALARME, não sucesso).
 - **[ESCALADA]** churn escalou (≥`churn_threshold` regressões na mesma função) → passa por `diagnose_model`
-  (xhigh) antes de virar `churn-escalated`.
+  (medium) antes de virar `churn-escalated`.
 
 **Fase Gate — condição ABSOLUTA de sucesso (não é "parada por retorno decrescente"):**
 - **Sucesso EXIGE a Fase Gate 100% verde** (lint/type/unit/integração no repo inteiro, incluindo
@@ -477,10 +495,10 @@ Antes de qualquer relatório, a casca roda os **checks objetivos do projeto** co
 - **Vermelho → conserta em `mechanical_model` (fila objetiva, FORA do roteamento de buckets).** Erro de
   lint/type/unit/integração é objetivo e determinístico — não precisa do julgamento de severidade do
   REVIEW→PLAN, nem do effort caro do `executor_model`. Vai direto pra uma fila de conserto em
-  `mechanical_model` (opus/`medium`, R8 "operações mecânicas e bem delimitadas" — mesmo regression gate por
+  `mechanical_model` (R8, "operações mecânicas e bem delimitadas" — mesmo regression gate por
   conserto), re-roda o gate, até verde. **Não passa pelos 3 buckets** (esses são pro review subjetivo da fase
   assintótica). Se travar de verdade (erro que exige decisão de arquitetura), **NÃO declara sucesso** — e o
-  conserto que travou escala pra `diagnose_model` (xhigh) antes de virar `gate-red`.
+  conserto que travou escala pra `diagnose_model` (medium) antes de virar `gate-red`.
 - **Quem seta o `stopReason` FINAL é a CASCA, não o motor.** O motor (Workflow) reporta o stopReason da fase
   assintótica (`no-severe-finding` / `churn-escalated` / `max-rounds`); a casca, pós-gate, computa o stopReason
   da sessão — **promove a `gate-red`** quando o gate trava vermelho, e mantém o do motor quando o gate fecha

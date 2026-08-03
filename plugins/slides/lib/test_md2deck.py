@@ -263,6 +263,62 @@ r = subprocess.run([sys.executable, os.path.join(HERE, "md2deck.py"), src, "--te
 check("tema inválido sai 2", r.returncode == 2 and "xpto" in r.stderr)
 
 
+# ── a régua de estilo (quality-goals.md), no perfil do slide ───────────────
+
+print("\n[régua — o slide é lido de longe, então quem decide é o teto de PALAVRAS]")
+
+check("o perfil declarado é o do slide", M.PERFIL == "slide")
+
+# 23 palavras: cabe nos 140 caracteres da página e não cabe numa linha projetada.
+LONGO = """\
+# Deck
+
+## Um bullet que não cabe num slide
+
+- o gate roda no commit e barra o bump que não veio, e o resto do time nem fica sabendo que já era
+"""
+d = tempfile.mkdtemp(prefix="md2deck-regua-")
+longo = os.path.join(d, "longo.md")
+with open(longo, "w", encoding="utf-8") as fh:
+    fh.write(LONGO)
+desvios = M.desvios_de_estilo(M.plano(M.agrupar(M.parse_md(LONGO)), {}))
+check("o bullet de 23 palavras é acusado", any("palavras" in a for a in desvios), desvios)
+check("e o desvio diz em QUAL slide",
+      any("Um bullet que não cabe num slide" in a for a in desvios), desvios)
+check("o mesmo bullet cabe nos 140 caracteres — o teto de página não pegaria",
+      not any("caracteres" in a for a in desvios), desvios)
+
+alvo = os.path.join(d, "longo.html")
+r = subprocess.run([sys.executable, os.path.join(HERE, "md2deck.py"), longo,
+                    "--out", alvo], capture_output=True, text=True)
+check("o deck é RECUSADO — perfil de slide não ganha modo permissivo",
+      r.returncode == 2, (r.returncode, r.stderr[:200]))
+check("e a recusa vem com o motivo medido", "palavras" in r.stderr, r.stderr[:300])
+check("e nenhum HTML sai", not os.path.exists(alvo))
+
+# Texto corrido: duas frases no mesmo parágrafo, dentro dos dois tetos.
+PROSA = """\
+# Deck
+
+## Um parágrafo que é prosa
+
+O gate roda no commit. Quem não bumpou fica sabendo ali.
+"""
+prosa = os.path.join(d, "prosa.md")
+with open(prosa, "w", encoding="utf-8") as fh:
+    fh.write(PROSA)
+alvo_prosa = os.path.join(d, "prosa.html")
+r = subprocess.run([sys.executable, os.path.join(HERE, "md2deck.py"), prosa,
+                    "--out", alvo_prosa], capture_output=True, text=True)
+check("texto corrido de duas frases é recusado", r.returncode == 2 and "duas frases" in r.stderr,
+      (r.returncode, r.stderr[:300]))
+check("e nenhum HTML sai da recusa por prosa", not os.path.exists(alvo_prosa))
+
+check("o deck de exemplo, que respeita a régua, não gera desvio nenhum",
+      M.desvios_de_estilo(M.plano(M.agrupar(M.parse_md(MD)), {})) == [],
+      M.desvios_de_estilo(M.plano(M.agrupar(M.parse_md(MD)), {})))
+
+
 # ── o gate que a skill sempre rodou à mão ──────────────────────────────────
 
 print("\n[fidelidade — o check_fidelity.py REAL, sobre o deck compilado]")

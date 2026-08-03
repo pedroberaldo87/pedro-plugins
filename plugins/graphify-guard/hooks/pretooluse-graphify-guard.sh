@@ -100,11 +100,15 @@ DATE=$(printf '%s' "$LINE" | cut -f5)
 # We're about to nudge — mark it so the rest of the session is silent.
 touch "$SENTINEL" 2>/dev/null
 
-COMO="cd ${PROJ} && graphify query \"o que você procura\" (ou graphify explain \"Nó\" / graphify path \"A\" \"B\")"
+# A crase saiu do texto e o caminho do projeto ganhou linha própria: o canal é terminal
+# puro (o `graphify --update` chegava com as crases na tela), e o caminho colado num
+# cabeçalho estoura sozinho o teto de 140 caracteres da régua deste canal.
 STALE=""
 if [ "$STATE" = "stale" ]; then
-  STALE=" ⚠️ Grafo defasado (${N} arquivo(s) desde ${DATE}) — considere oferecer \`graphify --update\` ao usuário antes de confiar nele."
+  STALE="
+• ⚠️ Grafo defasado: ${N} arquivo(s) desde ${DATE} — ofereça graphify --update antes de confiar nele."
 fi
+COMANDOS="• graphify query \"o que você procura\" — ou graphify explain \"Nó\" / graphify path \"A\" \"B\""
 
 # Dois textos porque os dois ramos enquadram situações diferentes: no deny ESTE hook
 # barrou a busca (cabe "refaça"). No aviso ele não barrou — mas também não pode afirmar
@@ -113,8 +117,25 @@ fi
 # da sessão, com matcher mais largo). O aviso fica só no que é verdade no instante em que
 # ele fala: a busca é cega, há grafo em ${PROJ}, confirme lá antes de concluir. Sem
 # consultar o vizinho — espaço infinito, e o hook não precisa saber quem mais opinou.
-MSG_DENY="🕸️ Há knowledge graph graphify em ${PROJ}. Antes de busca cega (grep/glob/find), consulte o grafo: ${COMO}.${STALE} Se o grafo não cobrir o que precisa, refaça esta busca — este aviso é único por sessão."
-MSG_WARN="🕸️ Busca cega (grep/glob/find) num projeto que tem knowledge graph graphify em ${PROJ}. Confirme no grafo antes de concluir qualquer coisa a partir dela: ${COMO}.${STALE} Este aviso é único por sessão."
+MSG_DENY="🕸️ Busca cega barrada — este projeto tem knowledge graph graphify
+• Antes de grep/glob/find, consulte o grafo.
+• Vá até ele: cd ${PROJ}
+${COMANDOS}${STALE}
+• Se o grafo não cobrir o que precisa, refaça esta busca — aviso único por sessão."
+MSG_WARN="🕸️ Busca cega (grep/glob/find) num projeto que tem knowledge graph graphify
+• Confirme no grafo antes de concluir qualquer coisa a partir dela.
+• Vá até ele: cd ${PROJ}
+${COMANDOS}${STALE}
+• Este aviso é único por sessão."
+
+# A régua do canal (perfil `hook` de `lib/regua_texto.py`, vinda de quality-goals.md):
+# sem markdown, cabeçalho com emoji, uma ideia por linha, 6 linhas de orçamento. Cobra
+# só o texto que VAI SAIR; o do outro ramo é cobrado na suíte. Defeito de forma não cala
+# o aviso: o motivo vai pro stderr e o texto sai assim mesmo. Sem python3 ou sem a
+# régua vendorada → silêncio, nunca queda (mesmo fail-open do resto do arquivo).
+REGUA="$SCRIPT_DIR/../lib/regua_texto.py"
+PY3=$(command -v python3 2>/dev/null)
+regua_hook() { [ -n "$PY3" ] && [ -f "$REGUA" ] && printf '%s\n' "$1" | "$PY3" "$REGUA" --perfil hook --onde "$2" - || :; }
 
 # conformance: default-warn — o caminho de deny existe, mas só com GRAPHIFY_DENY=1
 # AVISO, não deny. O project-doc já nega a primeira busca da sessão com matcher mais
@@ -124,12 +145,14 @@ MSG_WARN="🕸️ Busca cega (grep/glob/find) num projeto que tem knowledge grap
 # que sai é o segundo bloqueio. Um gate por ferramenta é o suficiente.
 # Voltar a bloquear: GRAPHIFY_DENY=1.
 if [ "${GRAPHIFY_DENY:-0}" = "1" ]; then
+  regua_hook "$MSG_DENY" "deny do graphify-guard"
   jq -n --arg r "$MSG_DENY" \
     '{hookSpecificOutput:{hookEventName:"PreToolUse",permissionDecision:"deny",permissionDecisionReason:$r}}'
 else
   # Sem systemMessage de propósito: este aviso é endereçado ao MODELO, que é quem roda o
   # `graphify query` — o usuário não tem o que fazer com ele, e um systemMessage por sessão
   # em todo projeto com grafo vira ruído recorrente (§5.3, propriedade 1).
+  regua_hook "$MSG_WARN" "aviso do graphify-guard"
   jq -n --arg r "$MSG_WARN" \
     '{hookSpecificOutput:{hookEventName:"PreToolUse",additionalContext:$r}}'
 fi

@@ -86,3 +86,22 @@ Only offer to create an ADR when all three are true:
 If any of the three is missing, skip the ADR. Use the format in [ADR-FORMAT.md](./ADR-FORMAT.md).
 
 </supporting-info>
+
+---
+
+## Adição local — quando o chamador é o `/start-doc`
+
+*(Esta seção é do marketplace, não do autor original. O texto acima está verbatim.)*
+
+O `/start-doc` conduz a concepção em **quatro etapas de acordo** — autoral, arquitetura, interface,
+jornadas — e cada uma fecha com uma sabatina. Você é a escolha certa quando já existe `CONTEXT.md` ou
+ADR para confrontar. Ainda assim, você é **como se chega ao acordo**, e é só isso:
+
+- **Você não é juiz.** Não aprove, não reprove, não declare que o documento está bom o bastante.
+  Sabatinar a constituição do projeto não é julgá-la — é o caminho de escrevê-la.
+- **Quem aprova é o dono**, e a aprovação vive no frontmatter do documento da etapa
+  (`status: approved` + `approved:`), nunca numa conclusão sua nem num ADR.
+- **Objeção não resolvida volta pro documento**, e o documento é reapresentado. O loop fecha quando o
+  dono diz que está satisfeito — não quando as perguntas acabam.
+- **A atualização inline continua valendo**, mas o alvo aqui são os documentos da etapa em
+  `.claude/docs/` — não abra um `CONTEXT.md` paralelo para guardar o que pertence a eles.
