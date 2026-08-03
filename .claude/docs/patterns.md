@@ -208,6 +208,16 @@ Sem `session_id` o writer **não grava** — fail-safe declarado no arquivo: *"g
 
 A mesma classe de bug reapareceu no `scope-cop.sh` e foi consertada do mesmo jeito [confirmado, comentário literal]: *"Com duas sessões abertas no mesmo projeto, os BLOCKs de uma contavam pro freio da outra … É a mesma classe de bug que já mordeu o context-guard"*. O conserto acrescentou poda (`find … -mtime +1 -delete`) — **arquivo por sessão precisa de janela de expiração no mesmo commit em que nasce**.
 
+**Terceira reincidência, 2026-08-03, e ela é o inverso das duas: o estado era COMPARTILHADO onde precisava ser por-sessão.** O resumo de fim de turno escolhia qual plano mostrar pela data de escrita do arquivo — e `mtime` diz que **alguém** mexeu, nunca **quem**. Com 6 sessões abertas no mesmo repositório, a vizinha marcando um passo empurrava o plano dela para o topo do fim de turno de todas. Foi relatado com print de produção **duas vezes** antes de virar código, e a primeira vez eu registrei o teto no comentário e adiei: *"o conserto de verdade é registrar QUAL plano esta sessão marcou — estado novo por sessão, que só se paga se o caso aparecer"*.
+
+Três lições, e a terceira é a que dói:
+
+1. **Atributo de arquivo nunca identifica autor.** `mtime`, tamanho, ordem no diretório — todos respondem "mudou", nenhum responde "quem mudou". Quando a pergunta é de autoria, quem escreve tem que assinar: aqui, `save()` grava o id do plano num sentinel chaveado pela sessão que o escreveu.
+2. **A assinatura vai no ponto de escrita COMUM, não em cada comando.** A marca mora em `save()`, por onde `tick`, `state`, `init` e `close` já passam — pendurar em cada verbo deixaria o próximo verbo novo de fora, em silêncio.
+3. **Com o id da sessão em mãos, ausência de marca também é informação.** Não é "não sei": é "nada liga esta sessão a estes planos", e a saída honesta é relatar em vez de afirmar. Foi isso que separou o cabeçalho `📍 Onde estamos` (afirma) do `📋 Plano aberto no projeto` (relata).
+
+**Régua que sai daqui: `ponytail:` que adia um conserto tem que nomear o SINTOMA que autoriza pagá-lo.** O comentário dizia "se o caso aparecer" sem dizer como o caso se pareceria — então ele apareceu duas vezes antes de alguém reconhecer. Escreva o gatilho observável: *"se o resumo mostrar a frente de outra sessão, pague isto"*.
+
 ### 1.6 PHASH: a chave dos sentinels precisa nascer da MESMA string
 
 **A armadilha mais cara do repo.** Sentinel em `/tmp` é chaveado por `(session_id × projeto)`, e o projeto entra como `cksum` da string da raiz:

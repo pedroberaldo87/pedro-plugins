@@ -498,4 +498,5 @@ Ordenado por custo da perda, do pior para o mais barato:
 - 🟡 **Preferências e kill-switches** (`config.json` do `/visual`, arquivos `mode`) — perder não custa dado, custa **inversão silenciosa de comportamento** (§3.11, §3.16).
 - 🟢 **Grafo do graphify, saída do `/visual`, baseline de hooks** — regeneráveis por comando (§3.3, §3.6, §3.19).
 - 🟢 **Green-cache e sentinelas de `/tmp`** — perda é não-evento; o próprio código já poda (§3.8, §3.18).
+  ⚠️ **Com uma ressalva desde 2026-08-03:** a sentinela `claude-plan-sessao-*` guarda **conteúdo** (o id do plano daquela sessão), não um sim/não. Perdê-la não perde trabalho — o resumo de fim de turno apenas volta a **relatar** em vez de afirmar, e a marca renasce no próximo passo marcado. Degrada a precisão, nunca o dado. `[confirmado — `plan_state.py:_plano_da_sessao` devolve `None` em qualquer erro de leitura, e o `brief` trata `None` como "não sei"]`
 - 🔵 **Cofre no iCloud** — único com replicação de verdade, e por acidente de local, não por política (§3.17).

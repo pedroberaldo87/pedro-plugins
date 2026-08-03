@@ -290,6 +290,16 @@ Empate se resolve **por natureza, nunca por contagem de votos** — quem escreve
 
   ⚠️ **O marco também decide se o resumo pode AFIRMAR, e desde 2026-08-02 ele só é repassado ao `brief` quando é antigo.** Marco recém-criado significa "não sei", nunca "a sessão não tocou nada": nenhum plano pode ser posterior a um marco que acabou de nascer, então repassá-lo faria o primeiro turno de toda sessão cair no caminho errado. `[confirmado — `stop-plan-status.sh`, a guarda `[ "$MARCO_NOVO" = "0" ]`]`
 
+  🔴 **QUAL plano o resumo mostra: a marca de sessão, desde 2026-08-03.** O hook passa `--sessao "$SESSION"` ao `brief`, e é isso que faz o resumo ser **desta** sessão. Antes a escolha era por data de escrita do arquivo, e `mtime` diz que **alguém** mexeu, nunca **quem** — num projeto com frentes paralelas (6 sessões abertas no mesmo repositório em 2026-08-03) a vizinha marcando um passo empurrava o plano dela para o topo do fim de turno de todo mundo. Relatado com print de produção duas vezes antes de virar código. Três estados `[confirmado — 48 checks em `test_plan_hooks.sh`, e medição pelo hook real com duas sessões]`:
+
+  | a sessão… | o cabeçalho | qual plano |
+  |---|---|---|
+  | marcou **este** plano | 📍 `Onde estamos` — afirma | o dela, no topo |
+  | marcou **outro** | 📍 `Onde estamos` | o **dela**, não o mexido por último |
+  | não marcou **nada** | 📋 `Plano aberto no projeto` — relata | o mais recente, sem afirmar |
+
+  A marca vive em `plan_state.py:save()` — **não** em cada comando —, então `tick`, `state`, `init` e `close` já nascem cobertos e comando novo também. Formato: `<TMPDIR>/claude-plan-sessao-<uid>-<sid>-<sha1(abspath do dir de planos)[:12]>`, com o id do plano dentro. A chave é calculada por **uma** função (`_sentinel_sessao`), usada por quem escreve e por quem lê: chave computada em dois lugares diverge, e sentinel que nunca casa é pior que sentinel nenhum — a mesma armadilha do `cksum` sobre path canonicalizado que já mordeu este repo (§1.5 de `patterns.md`). Com o id em mãos, **ausência de marca também é informação**: nada liga a sessão àqueles planos, então o cabeçalho recua em vez de afirmar. Chamada sem `--sessao` (hook de versão antiga) cai no critério de marco, como antes.
+
 - **`stop-anuncio-sem-acao.py`** (Stop, timeout 20) — **novo em 2026-08-02**, e o único do `visual` que emite `decision:block`. Devolve o turno que termina prometendo a próxima etapa sem executá-la. Três condições, todas necessárias: há plano ativo com passo em aberto, o texto final promete em 1ª pessoa (`sigo para`, `vou seguir`, `prossigo com`…) e **não** espera o usuário (pergunta no fim ou `posso seguir`/`quando você mandar` desarmam). Cap de 2 devoluções por (sessão, projeto) além do cap nativo do harness; kill-switch `ANUNCIO_ACAO=0`; toda passagem vira linha em `~/.claude/state/anuncio-acao/batidas.log`. `[confirmado — 38 checks em `test_anuncio_sem_acao.py`, a maioria de casos que NÃO podem armar]`
 
   ⚠️ **O sinal NÃO é "o turno não chamou ferramenta".** No `Stop` isso é trivialmente verdade — o evento dispara porque a última mensagem foi texto. No caso que originou o hook o tique **aconteceu** (`plano 5/41`) e só depois veio o `Sigo para F2`. Medido nos transcripts de origem: 2 de 2 fechamentos com anúncio pararam, contra 0 de 42 sem anúncio. ⚠️ **Teto conhecido e deliberado:** a detecção é lexical, então promessa fora dos padrões passa — o falso NEGATIVO foi preferido, porque devolver turno legítimo custa mais caro. O `batidas.log` existe para medir se o léxico está largo ou estreito demais.
@@ -530,7 +540,19 @@ project-doc   stop-doc-touch.sh                0 linha(s)   timeout=15s
 visual        stop-plan-status.sh              5 linha(s)   timeout=15s
 visual        stop-anuncio-sem-acao.py         0 linha(s)   timeout=20s
 TOTAL: 6 linha(s) · teto de referência: 6
+
+Instalados nesta máquina, FORA do gate:
+claude-plugins-official  security-guidance 2.0.6     0 linha(s)
+impeccable               impeccable 4.0.4            0 linha(s)   timeout=30s
+openai-codex             codex 1.0.6                 0 linha(s)   timeout=900s
+
+SOMADO ao que a máquina realmente paga: 6 linha(s)
 ```
+
+⚠️ **Plugin de OUTRO marketplace também emite no `Stop`, e até 2026-08-03 não aparecia aqui.** Quem paga o fim de turno é a máquina, não o repositório — instalar o `impeccable` (que registra `PostToolUse` + `Stop`) deixou o buraco visível. Eles entram no relatório e ficam **fora do total gateado**, de propósito: o retrato viaja no git, o que cada máquina instala não, e um total que os incluísse faria o mesmo commit passar numa máquina e barrar noutra. Dois detalhes que só apareceram medindo `[confirmado]`:
+
+- **Mede pelo COMANDO registrado, não por caminho de script.** O hook do `impeccable` é um one-liner de shell que chama `node`, e o regex de `.sh|.py` do laço principal não o alcança. `CLAUDE_PLUGIN_ROOT` é interpolado por eles, então o sandbox aponta essa var para a raiz do plugin instalado — sem isso o hook não acha o próprio script e mede zero pelo motivo errado.
+- **Só a versão VIVA entra.** O cache guarda toda versão já instalada; sem filtro o `codex` aparecia duas vezes (1.0.3 e 1.0.6) e o relatório media código morto. O índice vivo está em `installed_plugins.json → ["plugins"]`, **não** na raiz do arquivo. Sem o índice, mede a mais em vez de a menos — esconder emissor é o defeito que este medidor existe pra evitar.
 
 Roda cada emissor num sandbox (`HOME`, `CLAUDE_CONFIG_DIR`, `TMPDIR` e `cwd` temporários) porque emissor de `Stop` escreve estado, e medir não pode sujar a máquina de quem mede.
 
