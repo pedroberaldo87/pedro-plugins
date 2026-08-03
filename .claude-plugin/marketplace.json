@@ -44,7 +44,7 @@
       "source": "./plugins/branches",
       "description": "Diz quais branches dá pra apagar e quais NÃO dá. O `git branch --merged` mente por omissão: squash-merge e rebase produzem sha novo, então a branch aparece como não-mergeada mesmo com o conteúdo inteiro no tronco — e é por isso que a pilha cresce até o deploy reclamar de 15 branches abertas. Classifica por CONTEÚDO (patch-id), mostra o que só existe em cada branch antes de você decidir, e apaga só o que você marcar — sempre com tag de resgate. Mais dois avisos: no push de branch que ainda não entrou no tronco, e no começo da sessão quando há branch parada há mais de um mês.",
       "category": "dev-tools",
-      "version": "1.0.2",
+      "version": "1.0.3",
       "tags": [
         "fallow",
         "dead-code",
@@ -276,7 +276,7 @@
       "source": "./plugins/visual",
       "description": "CLI walls-of-text → interactive HTML dark-theme views. The page carries the EVIDENCE, not the account of it: real artifact embedded, raw output verbatim, provenance for every number — enforced by a pre-ExitPlanMode gate. Prose is REFUSED by the builder: every text field is checked (≤140 chars per bullet, one sentence each, no continuation connective, max 6 per block) and a violation aborts without writing the page. Each problem's body is born folded — the title stays visible, consequence and proposal open on click under a label derived from the content itself. Plans, diagnostics and decisions in the browser with live sync back to Claude.",
       "category": "productivity",
-      "version": "1.15.0",
+      "version": "1.15.1",
       "tags": [
         "visualization",
         "html",

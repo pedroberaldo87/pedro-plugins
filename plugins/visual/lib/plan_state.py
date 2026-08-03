@@ -765,20 +765,20 @@ def brief_lines(plan, nudge=None, reqs=None, desta_sessao=True):
 
     if s["status"] != "active":
         if done == total and total:
-            return ["🏁 **PLANO ENCERRADO — %s**" % s["title"],
+            return ["🏁 PLANO ENCERRADO — %s" % s["title"],
                     "• Os %s das %s foram concluídos%s."
                     % (_plural(total, "passo"), _plural(pt, "fase"), prova),
-                    "• O arquivo fica em `.claude/plans/%s` como registro do que foi feito." % s["path"]]
-        return ["🏁 **PLANO ENCERRADO (incompleto) — %s**" % s["title"],
+                    "• O arquivo fica em .claude/plans/%s como registro do que foi feito." % s["path"]]
+        return ["🏁 PLANO ENCERRADO (incompleto) — %s" % s["title"],
                 "• %d de %d passos marcados; %s ficaram sem marcar."
                 % (done, total, _plural(total - done, "passo")),
-                "• O que ficou aberto continua registrado em `.claude/plans/%s`." % s["path"]]
+                "• O que ficou aberto continua registrado em .claude/plans/%s." % s["path"]]
 
     if total and done == total:
-        return ["✅ **CONCLUÍDO — %s**" % s["title"],
+        return ["✅ CONCLUÍDO — %s" % s["title"],
                 "• Os %s das %s estão marcados%s."
                 % (_plural(total, "passo"), _plural(pt, "fase"), prova),
-                "• Nada ficou em aberto neste plano. Encerre com `plan_state.py close` "
+                "• Nada ficou em aberto neste plano. Encerre com plan_state.py close "
                 "pra ele parar de aparecer aqui."]
 
     # "Onde estamos" é uma AFIRMAÇÃO sobre a sessão, e ela só vale se a sessão estiver
@@ -787,22 +787,22 @@ def brief_lines(plan, nudge=None, reqs=None, desta_sessao=True):
     # outro plano, com progresso e fase em curso — o material que faz o agente misturar
     # frentes. Sem sinal de que a sessão encostou no plano, o cabeçalho relata a
     # existência dele em vez de situar quem lê dentro dele.
-    lines = [("📍 **Onde estamos — %s**" if desta_sessao
-              else "📋 **Plano aberto no projeto — %s**") % s["title"]]
+    lines = [("📍 Onde estamos — %s" if desta_sessao
+              else "📋 Plano aberto no projeto — %s") % s["title"]]
     if pd:
-        lines.append("• **Feito:** %d de %d passos · %s %s fechada%s%s."
+        lines.append("• Feito: %d de %d passos · %s %s fechada%s%s."
                      % (done, total, _plural(pd, "fase"),
                         "(%s)" % ", ".join(s["phases_done"]), "" if pd == 1 else "s",
                         ", com prova em cada passo" if provado else ""))
     else:
-        lines.append("• **Feito:** %d de %d passos — nenhuma fase fechou ainda." % (done, total))
+        lines.append("• Feito: %d de %d passos — nenhuma fase fechou ainda." % (done, total))
     nx = s["next"]
     if nx:
-        lines.append("• **Agora:** %s · %s — %d de %d passos."
+        lines.append("• Agora: %s · %s — %d de %d passos."
                      % (nx["id"], nx["title"], nx["done"], nx["total"]))
     falta = total - done
     resto = [p for p in s["pending_phases"] if not nx or p != nx["id"]]
-    lines.append("• **Falta:** %s%s."
+    lines.append("• Falta: %s%s."
                  % (_plural(falta, "passo"),
                     (" · %s %s" % ("fase" if len(resto) == 1 else "fases", ", ".join(resto)))
                     if resto else ""))
@@ -810,8 +810,8 @@ def brief_lines(plan, nudge=None, reqs=None, desta_sessao=True):
         import cobertura
         m = cobertura.mapa(plan, reqs)
         if m["sem_requisito"] or m["inexistentes"]:
-            lines[-1] = ("• **Cobertura:** %s. Quem está sem requisito e qual requisito "
-                         "ficou sem tarefa: `plan_state.py cobertura`." % cobertura.resumo(m))
+            lines[-1] = ("• Cobertura: %s. Quem está sem requisito e qual requisito "
+                         "ficou sem tarefa: plan_state.py cobertura." % cobertura.resumo(m))
     if nudge:
         lines[-1] = "• " + nudge.strip().lstrip("• ").strip()
     return lines
@@ -906,7 +906,7 @@ def _cabe_no_teto(blocks, teto=BRIEF_MAX_BLOCOS):
         return blocks
     sobra = len(blocks) - teto
     return blocks[:teto] + [["   ⋯ e mais %d plano(s) aberto(s) neste projeto — "
-                             "veja com `plan_state.py open`" % sobra]]
+                             "veja com plan_state.py open" % sobra]]
 
 
 def cmd_brief(args):

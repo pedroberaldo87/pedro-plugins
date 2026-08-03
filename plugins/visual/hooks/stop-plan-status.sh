@@ -143,7 +143,7 @@ if [ "${PLAN_NUDGE:-1}" != "0" ] && [ "$MARCO_NOVO" = "0" ] && [ -f "$MARK" ] \
       case "$FILES" in ''|*[!0-9]*) FILES=0 ;; esac
       if [ "$FILES" -ge "$PISO" ]; then
         touch "$SENTINEL" 2>/dev/null
-        NUDGE="⚠️ **Nada marcado nesta sessão**, e ela editou ${FILES} arquivos. Marque o que terminou com \`tick <id> --evidencia\` — senão o próximo Claude herda um plano que mente."
+        NUDGE="⚠️ Nada marcado nesta sessão, e ela editou ${FILES} arquivos. Marque o que terminou com: tick <id> --evidencia — senão o próximo Claude herda um plano que mente."
       fi
     fi
   fi
@@ -194,9 +194,9 @@ if [ -z "$BRIEF" ]; then
 
   touch "$MISSING" 2>/dev/null
   jq -n --arg n "$ARQS" '{systemMessage:(
-    "⚠️ **Sem plano aberto — esta sessão editou " + $n + " arquivos**\n" +
+    "⚠️ Sem plano aberto — esta sessão editou " + $n + " arquivos\n" +
     "• Trabalho desse tamanho sem plano não deixa rastro: o próximo Claude não sabe o que ficou pela metade.\n" +
-    "• Abra um com `/visual` (ele grava em `.claude/plans/`), ou siga sem — este aviso não volta nesta sessão."
+    "• Abra um com /visual (ele grava em .claude/plans/), ou siga sem — este aviso não volta nesta sessão."
   )}' 2>/dev/null
   exit 0
 fi

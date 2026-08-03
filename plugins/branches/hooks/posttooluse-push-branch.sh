@@ -71,7 +71,7 @@ SENTINEL="${TMPDIR:-/tmp}/claude-branch-ask-$(id -u)-${SESSION}-${PHASH}-${BHASH
 touch "$SENTINEL" 2>/dev/null
 find "${TMPDIR:-/tmp}" -maxdepth 1 -name "claude-branch-ask-$(id -u)-*" -mtime +1 -delete 2>/dev/null
 
-MSG="🌿 **Push feito em \`${BRANCH}\`** — ${AHEAD} commit(s) à frente de \`${BASE}\`, e o conteúdo ainda não está lá. Enquanto você lembra do que esta branch é: **merge no ${BASE} agora**, ou ela fica aberta de propósito? (branch esquecida vira as 15 que reclamam no deploy · \`/branches\` lista as que já dá pra apagar · desligar: \`BRANCHES_GATE=0\`)"
+MSG="🌿 Push feito em ${BRANCH} — ${AHEAD} commit(s) à frente de ${BASE}, e o conteúdo ainda não está lá. Enquanto você lembra do que esta branch é: merge no ${BASE} agora, ou ela fica aberta de propósito? (branch esquecida vira as 15 que reclamam no deploy · /branches lista as que já dá pra apagar · desligar: BRANCHES_GATE=0)"
 
 jq -n --arg m "$MSG" '{systemMessage:$m}' 2>/dev/null
 exit 0
