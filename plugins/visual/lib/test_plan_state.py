@@ -561,6 +561,94 @@ def main():
         finally:
             shutil.rmtree(dbr, ignore_errors=True)
 
+        # QUAL plano cabe no teto. `list_plans` entrega em ordem alfabética e o id
+        # começa com a data de criação, então o único bloco que sobrava era o do
+        # plano mais ANTIGO. Num projeto com frentes paralelas, a sessão que mexia
+        # em Propostas recebia o "onde estamos" de PRISMA — e a frente dela ficava
+        # escondida atrás do "e mais N".
+        print("brief — o bloco que sobra é o da frente EM CURSO")
+        dsel = tempfile.mkdtemp(prefix="brief-frente-")
+        try:
+            frentes = [("2026-06-01-prisma", "PRISMA"),
+                       ("2026-07-15-video", "Video Review"),
+                       ("2026-08-02-propostas", "Propostas")]
+            for pid, titulo in frentes:
+                init_into(dsel, sample(id=pid, title=titulo))
+            # mtime crescente na ordem alfabética; depois a sessão toca o do MEIO,
+            # que assim não é nem o primeiro nem o último por nome — só por recência.
+            base = 1_700_000_000
+            for i, (pid, _) in enumerate(frentes):
+                os.utime(ps.plan_path(dsel, pid), (base + i, base + i))
+            os.utime(ps.plan_path(dsel, "2026-07-15-video"), (base + 99, base + 99))
+
+            import io
+            import contextlib
+            buf = io.StringIO()
+            with contextlib.redirect_stdout(buf):
+                ps.cmd_brief(Args(dir=dsel, nudge=None, closed_since=None, mark_seen=None))
+            saida = buf.getvalue()
+            check("o bloco é o do plano tocado por último", "Video Review" in saida)
+            check("e não o do mais antigo por nome", "PRISMA" not in saida)
+            check("nem o de nome mais recente", "Propostas" not in saida)
+            check("os outros dois seguem contados", "mais 2 plano(s) aberto(s)" in saida)
+
+            # Plano ilegível vai pro fim da fila em vez de derrubar a listagem.
+            with open(ps.plan_path(dsel, "2026-08-02-propostas"), "w", encoding="utf-8") as fh:
+                fh.write("{ nao e json")
+            buf = io.StringIO()
+            with contextlib.redirect_stdout(buf):
+                ps.cmd_brief(Args(dir=dsel, nudge=None, closed_since=None, mark_seen=None))
+            check("arquivo torto não derruba a escolha", "Video Review" in buf.getvalue())
+        finally:
+            shutil.rmtree(dsel, ignore_errors=True)
+
+        # Medido em produção: a sessão mexia numa frente SEM plano próprio e o fim de
+        # turno afirmava "Onde estamos" sobre a frente de outro plano, com progresso e
+        # fase em curso. Ordenar por data não alcança — sem NENHUM plano tocado, o mais
+        # recente ainda é de outra frente. O conteúdo continua saindo (orientação é o
+        # que o hook existe pra dar); o que muda é o cabeçalho parar de AFIRMAR.
+        print("brief — sem sinal da sessão, o cabeçalho relata em vez de afirmar")
+        dses = tempfile.mkdtemp(prefix="brief-sessao-")
+        try:
+            for pid in ("2026-06-01-a", "2026-07-01-b", "2026-08-01-c"):
+                init_into(dses, sample(id=pid, title="Frente " + pid[-1]))
+            base = 1_700_000_000
+            for pid in ("2026-06-01-a", "2026-07-01-b", "2026-08-01-c"):
+                os.utime(ps.plan_path(dses, pid), (base, base))
+            import io
+            import contextlib
+
+            def corre(marco, nudge=None):
+                buf = io.StringIO()
+                with contextlib.redirect_stdout(buf):
+                    ps.cmd_brief(Args(dir=dses, nudge=nudge, closed_since=marco,
+                                      mark_seen=None))
+                return buf.getvalue()
+
+            depois = corre(base + 500)          # marco POSTERIOR a todos os planos
+            check("não afirma estar na frente que a sessão não tocou",
+                  "Onde estamos" not in depois)
+            check("relata a existência do plano em vez de situar quem lê nele",
+                  "Plano aberto no projeto" in depois)
+            check("o progresso continua saindo — o cabeçalho muda, o conteúdo não",
+                  "de 3 passos" in depois and "**Agora:**" in depois)
+            check("os outros planos seguem contados",
+                  "mais 2 plano(s) aberto(s)" in depois)
+
+            com_cobranca = corre(base + 500, nudge="⚠️ Nada marcado nesta sessão.")
+            check("a cobrança do tique sobrevive à troca de cabeçalho",
+                  "Nada marcado nesta sessão" in com_cobranca)
+
+            antes = corre(base - 500)           # marco ANTERIOR: a sessão tocou os planos
+            check("com plano tocado na sessão, a afirmação volta",
+                  "Onde estamos" in antes)
+
+            sem_marco = corre(None)             # sem marco não dá pra julgar
+            check("sem marco da sessão, 'não sei' não vira 'não é desta sessão'",
+                  "Onde estamos" in sem_marco)
+        finally:
+            shutil.rmtree(dses, ignore_errors=True)
+
         ps.cmd_tick(Args(dir=d, plan="2026-07-27-brief", node="F1.1", evidencia="python3 t.py -> OK"))
         ps.cmd_tick(Args(dir=d, plan="2026-07-27-brief", node="F1.2", evidencia="commit a1b2c3d"))
         L = ps.brief_lines(ps.pick_plan(d, "2026-07-27-brief"))

@@ -61,8 +61,14 @@ if [ ! -f "$MARK" ]; then
   # Recém-criado: tudo que fechou ANTES deste instante fica de fora desta vez,
   # e é o certo — não dá pra afirmar que fechou "nesta sessão".
 fi
+# MARCO_NOVO=1 → o marco nasceu AGORA, e nenhum plano pode ser posterior a ele. O
+# brief usa o marco pra decidir se algum plano é DESTA sessão; com marco recém-criado
+# isso não é "nenhum é", é "não dá pra saber". Passar o marco aqui faria o primeiro
+# turno de toda sessão trocar o resumo pela linha de "nenhum tocado nesta sessão" —
+# mesmo raciocínio que já vale pra cobrança logo abaixo.
 SINCE=""
-[ -f "$MARK" ] && SINCE=$("$PY3" -c "import os,sys;print(os.path.getmtime(sys.argv[1]))" "$MARK" 2>/dev/null)
+[ -f "$MARK" ] && [ "$MARCO_NOVO" = "0" ] && \
+  SINCE=$("$PY3" -c "import os,sys;print(os.path.getmtime(sys.argv[1]))" "$MARK" 2>/dev/null)
 
 # O "já confirmei o encerramento" mora por (sessão, projeto): sem isso o 🏁
 # reaparecia a cada turno até a sessão acabar.

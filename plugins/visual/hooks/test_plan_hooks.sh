@@ -126,8 +126,11 @@ check "stop_hook_active=true cala TUDO (anti-loop)" "$([ -z "$out" ] && echo 1 |
 
 run_ss s6 >/dev/null; rm -f "$(nudge_of s6)"
 out=$(PLAN_NUDGE=0 run_st s6 "$T3" | jq -r '.systemMessage // empty' 2>/dev/null)
+# O resumo sai igual; o cabeçalho é que depende de a sessão ter tocado o plano — aqui
+# ela não tocou, então ele RELATA ("Plano aberto no projeto") em vez de AFIRMAR
+# ("Onde estamos"). Ver a nota em plan_state.py:brief_lines.
 check "PLAN_NUDGE=0 tira a cobrança e MANTÉM o resumo" \
-      "$(! grep -q -- 'Nada marcado' <<< "$out" && grep -q -- 'Onde estamos' <<< "$out" && echo 1 || echo 0)"
+      "$(! grep -q -- 'Nada marcado' <<< "$out" && grep -q -- 'Plano aberto no projeto' <<< "$out" && echo 1 || echo 0)"
 
 run_ss s7 >/dev/null; rm -f "$(nudge_of s7)"
 check "transcript inexistente não cobra (fail-open)" "$([ "$(cobranca s7 "$ROOT/nao-existe.jsonl")" = "0" ] && echo 1 || echo 0)"
@@ -172,7 +175,13 @@ echo "Stop — o resumo de fim de turno"
 python3 "$PS" --dir "$PLANS" reopen p-teste >/dev/null 2>&1
 run_ss r1 >/dev/null
 msg=$(run_st r1 "$T1" | jq -r '.systemMessage // empty' 2>/dev/null)
-check "com plano ativo, resume onde estamos" "$(grep -q -- 'Onde estamos' <<< "$msg" && echo 1 || echo 0)"
+# Sessão que ainda não marcou passo nenhum: o resumo sai, sem afirmar que ela está ali.
+check "com plano ativo, o resumo sai" "$(grep -q -- 'Plano aberto no projeto' <<< "$msg" && echo 1 || echo 0)"
+# E marcar um passo é o que devolve a afirmação — este é o par do check acima.
+python3 "$PS" --dir "$PLANS" tick F1.1 --evidencia "prova do teste" >/dev/null 2>&1
+msg_tocado=$(run_st r1 "$T1" | jq -r '.systemMessage // empty' 2>/dev/null)
+check "marcado um passo, o resumo AFIRMA onde estamos" \
+      "$(grep -q -- 'Onde estamos' <<< "$msg_tocado" && echo 1 || echo 0)"
 check "o resumo cabe em no máximo 3 bullets" "$([ "$(grep -c -- '^•' <<< "$msg")" -le 3 ] && echo 1 || echo 0)"
 check "o resumo diz o progresso" "$(grep -q -- 'Feito:' <<< "$msg" && echo 1 || echo 0)"
 check "o resumo diz onde estamos agora" "$(grep -q -- 'Agora:' <<< "$msg" && echo 1 || echo 0)"

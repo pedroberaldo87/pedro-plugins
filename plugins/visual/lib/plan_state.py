@@ -738,7 +738,7 @@ def _com_prova(plan):
                for _, it in iter_items(plan) if it.get("status") == "done")
 
 
-def brief_lines(plan, nudge=None, reqs=None):
+def brief_lines(plan, nudge=None, reqs=None, desta_sessao=True):
     """As linhas de um plano. Lista vazia = não há o que dizer.
 
     TETO DE 3 BULLETS, e ele é do pedido: "3 bullets curtos" e "dentro dos
@@ -776,7 +776,14 @@ def brief_lines(plan, nudge=None, reqs=None):
                 "• Nada ficou em aberto neste plano. Encerre com `plan_state.py close` "
                 "pra ele parar de aparecer aqui."]
 
-    lines = ["📍 **Onde estamos — %s**" % s["title"]]
+    # "Onde estamos" é uma AFIRMAÇÃO sobre a sessão, e ela só vale se a sessão estiver
+    # mesmo nesse plano. Medido em produção (2026-08-02): a sessão mexia numa frente
+    # SEM plano próprio e o fim de turno afirmava "Onde estamos" sobre a frente de
+    # outro plano, com progresso e fase em curso — o material que faz o agente misturar
+    # frentes. Sem sinal de que a sessão encostou no plano, o cabeçalho relata a
+    # existência dele em vez de situar quem lê dentro dele.
+    lines = [("📍 **Onde estamos — %s**" if desta_sessao
+              else "📋 **Plano aberto no projeto — %s**") % s["title"]]
     if pd:
         lines.append("• **Feito:** %d de %d passos · %s %s fechada%s%s."
                      % (done, total, _plural(pd, "fase"),
@@ -822,6 +829,19 @@ def _seen_ids(path):
 BRIEF_MAX_BLOCOS = 1
 
 
+def _tocado_em(directory, plan_id):
+    """Quando o arquivo do plano foi escrito pela última vez.
+
+    É o desempate de QUAL plano cabe no teto. Marcar um passo reescreve o arquivo,
+    então o plano da frente em curso é, por construção, o mais recente. Ilegível
+    conta como epoch: vai para o fim da fila, não derruba a listagem.
+    """
+    try:
+        return os.path.getmtime(plan_path(directory, plan_id))
+    except (OSError, ValueError):
+        return 0.0
+
+
 def _cabe_no_teto(blocks, teto=BRIEF_MAX_BLOCOS):
     """Corta o excedente e DIZ quantos ficaram de fora.
 
@@ -845,10 +865,9 @@ def cmd_brief(args):
     ativos, blocks, novos = [], [], []
     for plan in list_plans(directory):
         if plan.get("status") == "active":
-            # por plano, não uma vez só: cada um pode declarar os próprios requisitos
-            ativos.append(brief_lines(plan, getattr(args, "nudge", None),
-                                      _requisitos_do_projeto(directory, plan)))
-        elif args.closed_since is not None:   # 0 é epoch válido, e é falsy
+            ativos.append((_tocado_em(directory, plan["id"]), plan))
+            continue
+        if args.closed_since is not None:   # 0 é epoch válido, e é falsy
             # Encerrado DEPOIS do marco → confirma. `--mark-seen` guarda quais
             # já foram confirmados: sem isso o 🏁 repetia a CADA turno até a
             # sessão acabar. Aviso que repete vira ruído, e ruído a gente
@@ -870,7 +889,30 @@ def cmd_brief(args):
                 fh.write("".join(i + "\n" for i in novos))
         except OSError:
             pass  # não conseguiu lembrar → repete; melhor que sumir
-    print("\n\n".join("\n".join(b) for b in _cabe_no_teto(ativos) + blocks))
+    # Quem cabe no teto é o plano DESTA sessão. `list_plans` entrega em ordem
+    # alfabética e o nome começa com a data de criação, então o primeiro era o mais
+    # ANTIGO do diretório: num projeto com frentes paralelas o fim de turno afirmava
+    # "onde estamos" sobre a frente errada, e escondia a da sessão atrás do "e mais N".
+    # Medido em 2026-08-02: sessão de Propostas recebia o brief de PRISMA.
+    #
+    # ponytail: desempate por mtime, e o teto é conhecido — DUAS sessões no mesmo
+    # projeto ao mesmo tempo compartilham o diretório, então a vizinha marcando
+    # passos em outra frente rouba o topo do meu fim de turno. O conserto de verdade
+    # é registrar QUAL plano esta sessão marcou — estado novo por sessão, que só se
+    # paga se o caso aparecer.
+    marco = None
+    if args.closed_since is not None:
+        try:
+            marco = float(args.closed_since)
+        except (TypeError, ValueError):
+            marco = None
+    # Sem marco não dá pra julgar, e "não sei" nunca vira "não é desta sessão".
+    desta = marco is None or any(mt > marco for mt, _ in ativos)
+    ativos.sort(key=lambda par: par[0], reverse=True)
+    ordenados = [brief_lines(plan, getattr(args, "nudge", None),
+                             _requisitos_do_projeto(directory, plan), desta)
+                 for _, plan in ativos]
+    print("\n\n".join("\n".join(b) for b in _cabe_no_teto(ordenados) + blocks))
     return 0
 
 
