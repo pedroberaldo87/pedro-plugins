@@ -370,6 +370,63 @@ exit 0
           hc._piorou({"emissores": [], "total_linhas": 6}, no_limite) == 0)
 
     print()
+    print("o medidor enxerga hook de plugin de TERCEIRO, e só a versão viva")
+    lar = _tf.mkdtemp(prefix="cc-terceiros-")
+    try:
+        def instala(mercado, plug, versao, cmd, registrado=True):
+            d = os.path.join(lar, "plugins", "cache", mercado, plug, versao, "hooks")
+            os.makedirs(d, exist_ok=True)
+            with open(os.path.join(d, "hooks.json"), "w", encoding="utf-8") as fh:
+                _json.dump({"hooks": {"Stop": [{"matcher": "*", "hooks": [
+                    {"type": "command", "command": cmd, "timeout": 9}]}]}}, fh)
+            return "%s@%s" % (plug, mercado), versao if registrado else None
+
+        idx = {}
+        for mercado, plug, versao, reg in [("outro", "novo", "2.0.0", True),
+                                           ("outro", "novo", "1.0.0", False),
+                                           ("pedro-plugins", "meu", "1.0.0", True)]:
+            k, v = instala(mercado, plug, versao, "echo oi", reg)
+            if v:
+                idx.setdefault(k, []).append({"version": v})
+        os.makedirs(os.path.join(lar, "plugins"), exist_ok=True)
+        with open(os.path.join(lar, "plugins", "installed_plugins.json"), "w",
+                  encoding="utf-8") as fh:
+            _json.dump({"version": 2, "plugins": idx}, fh)
+
+        antigo = os.environ.get("CLAUDE_CONFIG_DIR")
+        os.environ["CLAUDE_CONFIG_DIR"] = lar
+        try:
+            achados = hc._emissores_de_terceiros()
+        finally:
+            if antigo is None:
+                os.environ.pop("CLAUDE_CONFIG_DIR", None)
+            else:
+                os.environ["CLAUDE_CONFIG_DIR"] = antigo
+
+        chaves = {(a["marketplace"], a["plugin"], a["versao"]) for a in achados}
+        check("acha o hook de Stop de um marketplace de fora",
+              ("outro", "novo", "2.0.0") in chaves)
+        check("versão antiga no cache NÃO é medida — é código morto",
+              ("outro", "novo", "1.0.0") not in chaves)
+        check("o próprio marketplace fica de fora — já entra pelo repositório",
+              not any(m == "pedro-plugins" for m, _, _ in chaves))
+        check("guarda a raiz do plugin, que é o que o comando dele interpola",
+              all(a["raiz"].endswith(os.path.join("novo", "2.0.0")) for a in achados))
+        # índice ausente não pode ESCONDER emissor: sem saber quem é vivo, mede todos
+        os.remove(os.path.join(lar, "plugins", "installed_plugins.json"))
+        os.environ["CLAUDE_CONFIG_DIR"] = lar
+        try:
+            sem_indice = hc._emissores_de_terceiros()
+        finally:
+            if antigo is None:
+                os.environ.pop("CLAUDE_CONFIG_DIR", None)
+            else:
+                os.environ["CLAUDE_CONFIG_DIR"] = antigo
+        check("sem o índice, mede a mais em vez de a menos", len(sem_indice) == 2)
+    finally:
+        shutil.rmtree(lar, ignore_errors=True)
+
+    print()
     print("kill-switch de hook Python é reconhecido")
     r = Repo()
     r.hook("guarda.py",
