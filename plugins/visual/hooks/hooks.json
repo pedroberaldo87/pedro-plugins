@@ -20,6 +20,11 @@
             "type": "command",
             "command": "${CLAUDE_PLUGIN_ROOT}/hooks/stop-plan-status.sh",
             "timeout": 15
+          },
+          {
+            "type": "command",
+            "command": "python3 \"${CLAUDE_PLUGIN_ROOT}/hooks/stop-anuncio-sem-acao.py\"",
+            "timeout": 20
           }
         ]
       }
