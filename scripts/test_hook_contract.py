@@ -322,6 +322,44 @@ exit 0
     r.close()
 
     print()
+    print("o medidor do fim de turno conta o TEXTO, não o embrulho de dados")
+    envelope = '{\n  "systemMessage": "a\\nb\\nc\\nd\\ne"\n}'
+    check("cinco linhas de mensagem contam cinco, não as três do JSON",
+          hc._linhas_visiveis(envelope) == 5)
+    check("o campo de bloqueio também é desembrulhado",
+          hc._linhas_visiveis('{"reason": "um\\ndois"}') == 2)
+    check("texto puro em stderr segue contado como sempre",
+          hc._linhas_visiveis("uma\ndupla") == 2)
+    check("saída vazia custa zero", hc._linhas_visiveis("") == 0)
+    check("linha em branco no meio não conta",
+          hc._linhas_visiveis('{"systemMessage": "a\\n\\n\\nb"}') == 2)
+    check("JSON sem campo de texto cai na contagem crua",
+          hc._linhas_visiveis('{"outro": 1}') == 1)
+    check("saída que não é JSON não quebra o medidor",
+          hc._linhas_visiveis("{ isto nao fecha") == 1)
+
+    print()
+    print("kill-switch de hook Python é reconhecido")
+    r = Repo()
+    r.hook("guarda.py",
+           '#!/usr/bin/env python3\nimport os, json, sys\n'
+           'if os.environ.get("MEU_GUARDA") == "0":\n    sys.exit(0)\n'
+           'print(json.dumps({"decision": "block", "reason": "x"}))\n',
+           event="Stop", matcher="*")
+    achados = [f for f in hc.run(r.root)["findings"] if f["rule"] == "R3-sem-killswitch"]
+    check("guarda Python com interruptor não é acusado de não ter", achados == [])
+    r.close()
+
+    r = Repo()
+    r.hook("sem-guarda.py",
+           '#!/usr/bin/env python3\nimport json\n'
+           'print(json.dumps({"decision": "block", "reason": "x"}))\n',
+           event="Stop", matcher="*")
+    achados = [f for f in hc.run(r.root)["findings"] if f["rule"] == "R3-sem-killswitch"]
+    check("guarda Python SEM interruptor continua sendo acusado", len(achados) == 1)
+    r.close()
+
+    print()
     if FAILS:
         print("FALHOU: %d" % len(FAILS))
         for f in FAILS:
