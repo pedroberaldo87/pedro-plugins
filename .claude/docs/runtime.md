@@ -284,6 +284,12 @@ Empate se resolve **por natureza, nunca por contagem de votos** — quem escreve
 - **`sessionstart-plan.sh`** (SessionStart, timeout 10) — cria o marco `${TMPDIR:-/tmp}/claude-plan-mark-$(id -u)-${SESSION}-${PHASH}` **mesmo sem plano aberto**, e injeta `additionalContext` listando os planos abertos com `done/total`, o próximo passo e o caminho do arquivo. Desde esta rodada ele acrescenta uma linha `🔎 Cobertura requisito↔tarefa:` com as **duas primeiras linhas** de `plan_state.py --dir "$PLANS_DIR" cobertura` — o resumo e o aviso de "nenhum documento de requisitos encontrado". O comentário do arquivo dá o motivo de o número entrar aqui e não pelo `brief`: este hook monta o texto a partir do `open --json` e não passa pelo `brief`, e sem isso o número apareceria só no fim do turno, *"e não no começo da sessão, que é justamente quando o Claude novo decide o que fazer"*. Saída vazia (2+ planos ativos, nenhum plano) não acrescenta nada — fail-open como o resto do hook. `[confirmado — leitura do script nesta rodada]`
 - **`stop-plan-status.sh`** (Stop, timeout 15) — emite `systemMessage` com os bullets de `plan_state.py brief`, nunca `decision:block`. Desliga com `PLAN_STATUS=0`; só a cobrança do tique desliga com `PLAN_NUDGE=0`. A cobrança entra 1× por (sessão, projeto), e **só** quando há marco antigo, nenhum `*.plan.json` foi tocado desde ele e o transcript mostra 3+ chamadas de `Edit|Write|MultiEdit|NotebookEdit`. Se o marco não existe, o hook **cria** o marco e não cobra naquele turno — o comentário registra a regra geral: hook que depende de outro hook ter rodado é frágil, então crie o pré-requisito você mesmo. `[confirmado]`
 
+  ⚠️ **O marco também decide se o resumo pode AFIRMAR, e desde 2026-08-02 ele só é repassado ao `brief` quando é antigo.** Marco recém-criado significa "não sei", nunca "a sessão não tocou nada": nenhum plano pode ser posterior a um marco que acabou de nascer, então repassá-lo faria o primeiro turno de toda sessão cair no caminho errado. `[confirmado — `stop-plan-status.sh`, a guarda `[ "$MARCO_NOVO" = "0" ]`]`
+
+- **`stop-anuncio-sem-acao.py`** (Stop, timeout 20) — **novo em 2026-08-02**, e o único do `visual` que emite `decision:block`. Devolve o turno que termina prometendo a próxima etapa sem executá-la. Três condições, todas necessárias: há plano ativo com passo em aberto, o texto final promete em 1ª pessoa (`sigo para`, `vou seguir`, `prossigo com`…) e **não** espera o usuário (pergunta no fim ou `posso seguir`/`quando você mandar` desarmam). Cap de 2 devoluções por (sessão, projeto) além do cap nativo do harness; kill-switch `ANUNCIO_ACAO=0`; toda passagem vira linha em `~/.claude/state/anuncio-acao/batidas.log`. `[confirmado — 38 checks em `test_anuncio_sem_acao.py`, a maioria de casos que NÃO podem armar]`
+
+  ⚠️ **O sinal NÃO é "o turno não chamou ferramenta".** No `Stop` isso é trivialmente verdade — o evento dispara porque a última mensagem foi texto. No caso que originou o hook o tique **aconteceu** (`plano 5/41`) e só depois veio o `Sigo para F2`. Medido nos transcripts de origem: 2 de 2 fechamentos com anúncio pararam, contra 0 de 42 sem anúncio. ⚠️ **Teto conhecido e deliberado:** a detecção é lexical, então promessa fora dos padrões passa — o falso NEGATIVO foi preferido, porque devolver turno legítimo custa mais caro. O `batidas.log` existe para medir se o léxico está largo ou estreito demais.
+
 ### O fio requisito↔tarefa — quatro estados, e onde cada um aparece
 
 `plugins/visual/lib/cobertura.py` cruza o documento de requisitos com as tarefas do plano e nomeia quatro situações, nenhuma silenciosa: **coberto**, **tarefa sem requisito** (trabalho que ninguém pediu), **requisito sem tarefa** (pedido que ninguém planejou) e **citação a requisito que não existe**. Os três primeiros são relatório; o quarto é erro que recusa gravar. `[confirmado — `cobertura.py:mapa` e `plan_state.py:validate`]`
@@ -408,18 +414,21 @@ TOTAL 8
 
 ## 9 · ENCERRAMENTO — o que roda no `Stop`
 
-**Os 6 comandos, derivados mecanicamente** neste run:
+**Os 7 comandos, derivados mecanicamente** neste run:
 
 ```
-plugins/bootstrap/hooks/hooks.json    python3 "${CLAUDE_PLUGIN_ROOT}/hooks/stop-prose-ceiling.py"   10s
-plugins/bootstrap/hooks/hooks.json    python3 "${CLAUDE_PLUGIN_ROOT}/hooks/stop-forma-relato.py"    30s
-plugins/handoff/hooks/hooks.json      ${CLAUDE_PLUGIN_ROOT}/hooks/handoff-completeness-gate.sh      30s
-plugins/intent-guard/hooks/hooks.json ${CLAUDE_PLUGIN_ROOT}/hooks/delivery-audit.sh                 60s
-plugins/project-doc/hooks/hooks.json  ${CLAUDE_PLUGIN_ROOT}/hooks/stop-doc-touch.sh                 15s
-plugins/visual/hooks/hooks.json       ${CLAUDE_PLUGIN_ROOT}/hooks/stop-plan-status.sh               15s
+plugins/bootstrap/hooks/hooks.json    python3 "${CLAUDE_PLUGIN_ROOT}/hooks/stop-prose-ceiling.py"      10s
+plugins/bootstrap/hooks/hooks.json    python3 "${CLAUDE_PLUGIN_ROOT}/hooks/stop-forma-relato.py"       30s
+plugins/handoff/hooks/hooks.json      ${CLAUDE_PLUGIN_ROOT}/hooks/handoff-completeness-gate.sh         30s
+plugins/intent-guard/hooks/hooks.json ${CLAUDE_PLUGIN_ROOT}/hooks/delivery-audit.sh                    60s
+plugins/project-doc/hooks/hooks.json  ${CLAUDE_PLUGIN_ROOT}/hooks/stop-doc-touch.sh                    15s
+plugins/visual/hooks/hooks.json       ${CLAUDE_PLUGIN_ROOT}/hooks/stop-plan-status.sh                  15s
+plugins/visual/hooks/hooks.json       python3 "${CLAUDE_PLUGIN_ROOT}/hooks/stop-anuncio-sem-acao.py"   20s
 ```
 
-`intent-guard` não está ligado nesta máquina, então **5 rodam aqui**. `[confirmado]`
+`intent-guard` não está ligado nesta máquina, então **6 rodam aqui**. `[confirmado]`
+
+⚠️ **Hook Python registrado sem `python3` na frente depende do bit de execução sobreviver ao empacotamento**, e um `CLAUDE_PLUGIN_ROOT` com espaço no caminho o quebra em silêncio. Os três acima chamam o interpretador e citam o caminho entre aspas — é o padrão, não estilo. `[confirmado]`
 
 ### 9a · O teto de prosa — `stop-prose-ceiling.py`
 
@@ -498,11 +507,12 @@ Os três canais de bloqueio coexistem hoje e o script **não normaliza, só mede
 
 ### 10a · `--stop-budget` — o custo somado do fim de turno
 
-**Novo em 2026-08-02.** As 5 propriedades acima medem cada hook **isolado**; nenhuma mede o CONJUNTO. Seis hooks disputam o `Stop` neste marketplace, cada um respeitando o próprio teto, e o dono viu na tela `6/9 · 35s · ↓773 tokens` com quatro blocos de progresso de plano. Todo emissor estava dentro do que prometia — **o conjunto é que não tinha dono**.
+**Novo em 2026-08-02.** As 5 propriedades acima medem cada hook **isolado**; nenhuma mede o CONJUNTO. **Sete** hooks disputam o `Stop` neste marketplace, cada um respeitando o próprio teto, e o dono viu na tela `6/9 · 35s · ↓773 tokens` com quatro blocos de progresso de plano. Todo emissor estava dentro do que prometia — **o conjunto é que não tinha dono**.
 
 ```bash
 python3 scripts/hook_contract.py --stop-budget       # humano
 python3 scripts/hook_contract.py --stop-budget --json
+python3 scripts/hook_contract.py --stop-budget --baseline .claude/stop-budget.baseline.json
 ```
 
 Saída desta rodada `[confirmado]`:
@@ -513,17 +523,24 @@ bootstrap     stop-forma-relato.py             0 linha(s)   timeout=30s
 handoff       handoff-completeness-gate.sh     0 linha(s)   timeout=30s
 intent-guard  delivery-audit.sh                1 linha(s)   timeout=60s
 project-doc   stop-doc-touch.sh                0 linha(s)   timeout=15s
-visual        stop-plan-status.sh              3 linha(s)   timeout=15s
-TOTAL: 4 linha(s) · teto de referência: 6
+visual        stop-plan-status.sh              5 linha(s)   timeout=15s
+visual        stop-anuncio-sem-acao.py         0 linha(s)   timeout=20s
+TOTAL: 6 linha(s) · teto de referência: 6
 ```
 
-**É medidor, não gate** — imprime `⚠️ acima do teto` e não barra nada. Roda cada emissor num sandbox (`HOME`, `CLAUDE_CONFIG_DIR`, `TMPDIR` e `cwd` temporários) porque emissor de `Stop` escreve estado, e medir não pode sujar a máquina de quem mede.
+Roda cada emissor num sandbox (`HOME`, `CLAUDE_CONFIG_DIR`, `TMPDIR` e `cwd` temporários) porque emissor de `Stop` escreve estado, e medir não pode sujar a máquina de quem mede.
 
-⚠️ **O sandbox precisa de marcador de projeto, e isso não é detalhe.** `resolve-dir.sh` aplica a cascata raiz-git → marcador → `~/Desktop`: sem um `CLAUDE.md` no sandbox, a cascata **sai do diretório temporário** e o medidor passa a ler os planos reais do dono. Foi o defeito da primeira versão, pego na própria medição.
+⚠️ **Ele contava o ENVELOPE, não o texto — corrigido em 2026-08-02.** Emissor de `Stop` imprime `{"systemMessage": "…"}`, e contar a saída crua media três linhas de JSON com o texto inteiro dentro. Um resumo de 5 linhas na tela era reportado como 3, e o teto estava sendo comparado contra um número menor que o real. `_linhas_visiveis()` desembrulha `systemMessage`/`reason`/`additionalContext` antes de contar; texto puro em stderr cai no caminho de baixo, inalterado. **O total no mesmo cenário foi de 4 para 6** — não sobrava, encostava. `[confirmado]`
+
+⚠️ **O sandbox precisa de marcador de projeto, e o `HOME` tem que ficar FORA dele.** `resolve-dir.sh` aplica a cascata raiz-git → marcador → `~/Desktop`, e a busca por marcador **para ao chegar no `HOME`**. Com `HOME` == sandbox a cascata caía no Desktop e o medidor lia os planos reais do dono; depois de plantar um `CLAUDE.md`, ela ainda caía no fallback, e os 4 planos que o próprio medidor criava **nunca eram lidos** — o que ele reportava era o aviso de plano AUSENTE, o cenário oposto ao que declara medir. Hoje são dois diretórios irmãos, `lar/` e `projeto/`. `[confirmado]`
 
 ⚠️ **Sandbox vazio mede o caso trivial.** Emissor calado num projeto sem nada é o esperado; o que interessa é o pior caso realista. O sandbox nasce povoado com **4 planos ativos e um transcript com 5 edições** — que é o gatilho das cobranças.
 
+**Virou gate em 2026-08-02, e barra a DERIVA, não o número.** `--stop-budget --baseline <retrato>` sai 1 quando o total **sobe** em relação a `.claude/stop-budget.baseline.json`, nomeando quem subiu e quem é emissor novo. Teto absoluto não serviria: o total já está em 6 de 6, então exigir um número barraria o próximo commit que tocasse hook sem nada ter piorado. Retrato ilegível **não** barra. Pendurado no check **E2** do `release-gate.sh`, no mesmo gatilho do E (só quando o commit toca `plugins/*/hooks/`). Recongelar é explícito: `--stop-budget --json > .claude/stop-budget.baseline.json`. `[confirmado — retrato magro devolve rc=1; 6 checks em test_hook_contract.py]`
+
 Uso: `--json` para a medida crua, `--fail-on high` para virar gate (exit 1), `--baseline f.json` para ver só o que piorou. ⚠️ O próprio cabeçalho classifica: **isto é grep sofisticado, não verdade** — o achado vem com linha e trecho para a conferência custar segundos. `[confirmado — cabeçalho e blocos de regex lidos; script não executado nesta rodada]`
+
+⚠️ **O detector de kill-switch só conhecia shell até 2026-08-02.** Os quatro padrões eram todos de `[ "${X:-1}" = "0" ]` e parentes, então **todo guarda escrito em Python era acusado de não ter interruptor que tem** — a regra R3 disparava em falso. Um quinto padrão lê `os.environ.get("X") == "0"`. Alarme falso importa porque treina a ignorar o relatório. `[confirmado — 2 checks em test_hook_contract.py]`
 
 ---
 

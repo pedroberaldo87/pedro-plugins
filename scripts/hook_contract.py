@@ -481,6 +481,47 @@ def stop_budget(root):
     return {"emissores": saida, "total_linhas": linhas_tot, "teto": STOP_TETO_LINHAS}
 
 
+def _piorou(atual, caminho):
+    """Compara o orçamento com um retrato congelado. rc=1 quando o total SOBE.
+
+    Teto absoluto não serve aqui: o total já encostou nos 6 de referência, então exigir
+    um número barraria o próximo commit que tocasse hook, sem que nada tivesse piorado.
+    O que importa é a DERIVA — o oitavo emissor entrando sem ninguém ver, que é o
+    defeito que originou o teto (cada autor dentro do seu, o conjunto sem dono).
+
+    Mesmo desenho do `--baseline` do contrato, e pelo mesmo motivo: comparar com o
+    retrato não trava a dívida já aceita, mas trava o acréscimo.
+
+    Retrato ilegível NÃO barra — gate que trava por infra é pior que gate nenhum.
+    """
+    try:
+        with open(caminho, encoding="utf-8") as fh:
+            antes = json.load(fh)
+        antes_tot = int(antes["total_linhas"])
+        por_script = {(e["plugin"], e["script"]): e["linhas"]
+                      for e in antes.get("emissores", [])}
+    except (OSError, ValueError, KeyError, TypeError) as exc:
+        print("\n  (retrato ilegível em %s: %s — nada a comparar)"
+              % (caminho, type(exc).__name__))
+        return 0
+    if atual["total_linhas"] <= antes_tot:
+        print("  ✓ não piorou vs o retrato (%d linha(s) lá)" % antes_tot)
+        return 0
+    print("\n  ❌ O FIM DE TURNO ENGORDOU: %d → %d linha(s)"
+          % (antes_tot, atual["total_linhas"]))
+    for e in atual["emissores"]:
+        velho = por_script.get((e["plugin"], e["script"]))
+        if velho is None:
+            print("     + %s/%s — emissor NOVO, %d linha(s)"
+                  % (e["plugin"], e["script"], e["linhas"]))
+        elif e["linhas"] > velho:
+            print("     ↑ %s/%s — %d → %d linha(s)"
+                  % (e["plugin"], e["script"], velho, e["linhas"]))
+    print("     → enxugue, ou aceite conscientemente e recongele o retrato:")
+    print("       python3 scripts/hook_contract.py --stop-budget --json > %s" % caminho)
+    return 1
+
+
 def main(argv=None):
     ap = argparse.ArgumentParser(prog="hook_contract.py", description=__doc__.split("\n")[0])
     ap.add_argument("--stop-budget", action="store_true",
@@ -504,6 +545,8 @@ def main(argv=None):
               % (b["total_linhas"], b["teto"]))
         if b["total_linhas"] > b["teto"]:
             print("  ⚠️  acima do teto — o fim de turno virou relatório, não resumo")
+        if args.baseline:
+            return _piorou(b, args.baseline)
         return 0
 
     res = run(os.path.abspath(args.root))

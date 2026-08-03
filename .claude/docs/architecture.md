@@ -344,9 +344,10 @@ ship             (1 evento, 1 hook)
 sovai            (1 evento, 1 hook)                                         ← novo
   PreToolUse[Agent]                  → pretooluse-sovai-motor.sh    (10s)
 
-visual           (3 eventos, 3 hooks)
+visual           (3 eventos, 4 hooks)
   SessionStart[*]                    → sessionstart-plan.sh         (10s)
   Stop[*]                            → stop-plan-status.sh          (15s)
+  Stop[*]                            → stop-anuncio-sem-acao.py     (20s)
   PreToolUse[ExitPlanMode]           → pre-exitplan-visualize.sh    (10s)
 ```
 
@@ -399,6 +400,17 @@ Observações de arquitetura:
   único jeito de saber se o `hooks.json` foi carregado — `claude plugin validate` passa mesmo
   com o arquivo no lugar errado. [relatado — regra registrada no `CLAUDE.md` do repo; não
   reexecutada nesta sessão]
+  ⚠️ **`N` conta EVENTOS, não scripts, e a linha os nomeia.** O `visual` mostra
+  `Hooks (3)  SessionStart, Stop, PreToolUse` tanto com um hook de `Stop` quanto com dois —
+  o número não distingue. Para provar que um hook NOVO subiu, compare o `hooks.json` dentro
+  de `~/.claude/plugins/cache/<marketplace>/<plugin>/<versão>/` com o do repositório.
+  [confirmado — 2026-08-02, ao publicar o segundo hook de `Stop` do `visual`]
+- ⚠️ **O que roda é uma CÓPIA em cache, chaveada por número de versão**, em
+  `~/.claude/plugins/cache/…/<versão>/` — nunca o diretório de trabalho, mesmo com o
+  marketplace apontando para um diretório local. Corrigir um arquivo **depois** do bump
+  deixa o cache congelado no estado intermediário, e `plugin update` não tem número novo
+  para buscar: o conserto exige outro bump. [confirmado — 2026-08-02, o `hooks.json` de
+  `visual 1.14.0` ficou com o registro anterior ao ajuste; resolvido em 1.14.1]
 
 ### 6.1 O gate de plano (project-doc) — decisão de arquitetura
 

@@ -941,6 +941,9 @@ python3 scripts/public_repo_check.py --staged
 # 4. commit — o release-gate roda A–H sozinho e sai 2 se algo violar
 
 # 5. hook novo? confirme que ele carregou (e lembre: só vale na PRÓXIMA sessão)
-claude plugin details <nome>@pedro-plugins     # → "Hooks (N)"
+claude plugin details <nome>@pedro-plugins     # → "Hooks (N)"  ⚠️ N conta EVENTOS, não scripts
+# dois hooks no mesmo evento não mudam o N — para provar um hook NOVO, compare o arquivo:
+diff ~/.claude/plugins/cache/pedro-plugins/<plugin>/<versão>/hooks/hooks.json \
+     plugins/<plugin>/hooks/hooks.json
 python3 plugins/bootstrap/lib/conformance.py   # → desvios de máquina, inclusive guarda mudo
 ```
