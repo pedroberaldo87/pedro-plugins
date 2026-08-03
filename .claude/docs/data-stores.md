@@ -1,6 +1,6 @@
 ---
 generated: 2026-08-03
-generated-commit: ce173fb
+generated-commit: 8cfc085
 project: pedro-plugins
 scope:
   - .gitignore
@@ -42,7 +42,7 @@ verified-by:
   - plugins/branches/lib/test_branch_state.py
   - plugins/project-doc/lib/test_journal.py
   - plugins/project-doc/lib/test_graph_map.py
-doc-sig: pedro-plugins/.gitignore@gen=3.8#a690c263
+doc-sig: pedro-plugins/.gitignore@gen=3.8#5d23fe89
 ---
 
 # Data Stores — onde o dado mora
