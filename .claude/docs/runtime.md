@@ -290,6 +290,18 @@ Empate se resolve **por natureza, nunca por contagem de votos** — quem escreve
 
   ⚠️ **O marco também decide se o resumo pode AFIRMAR, e desde 2026-08-02 ele só é repassado ao `brief` quando é antigo.** Marco recém-criado significa "não sei", nunca "a sessão não tocou nada": nenhum plano pode ser posterior a um marco que acabou de nascer, então repassá-lo faria o primeiro turno de toda sessão cair no caminho errado. `[confirmado — `stop-plan-status.sh`, a guarda `[ "$MARCO_NOVO" = "0" ]`]`
 
+  🔴 **A FORMA do resumo, canonizada em 2026-08-03 — o canal é TEXTO, não markdown.** `systemMessage` chega literal no terminal: `**` e crase viram ruído na tela, não destaque. Foi relatado com print, e valia para três emissores (o resumo do plano, a cobrança do tique e o aviso de push de branch). O que substitui cada um `[confirmado]`:
+
+  | o que dava destaque | o que dá agora |
+  |---|---|
+  | `**Título**` | posição + emoji do estado (`📍` afirma · `📋` relata · `✅` conclui · `🏁` encerra) |
+  | `**Feito:**` `**Agora:**` `**Falta:**` | `✅ Feito:` · `🔄 Agora:` · `⬜ Falta:` — o **mesmo** vocabulário do `MARK` da árvore |
+  | `` `comando` `` | o comando cru, sem crase |
+
+  ⚠️ **Duas linhas em branco abrem a mensagem, e elas são do CANAL, não do texto.** O harness prefixa `Stop says: ` na primeira linha: sem elas o cabeçalho grudava no prefixo, num nível diferente dos bullets. A primeira desce o cabeçalho, a segunda separa o bloco do texto do turno. Ficam no hook — `brief` chamado na mão não deve abrir em branco. **Não entram no orçamento**: `_linhas_visiveis` só conta linha com conteúdo, e o total segue em 6. `[confirmado — 49 checks em `test_plan_hooks.sh`]`
+
+  ⚠️ **A suíte deste resumo não testa por ÍNDICE.** Sete checks liam `L[1]`, `L[2]`, `L[3]` e quebraram **duas vezes no mesmo dia** sem nenhuma mudança de comportamento — só porque o layout ganhou emoji e uma linha em branco. Agora procuram o bullet pelo rótulo (`bullet(linhas, "Falta")`). Regra geral: **teste de artefato de leitura casa CONTEÚDO, nunca posição.**
+
   🔴 **QUAL plano o resumo mostra: a marca de sessão, desde 2026-08-03.** O hook passa `--sessao "$SESSION"` ao `brief`, e é isso que faz o resumo ser **desta** sessão. Antes a escolha era por data de escrita do arquivo, e `mtime` diz que **alguém** mexeu, nunca **quem** — num projeto com frentes paralelas (6 sessões abertas no mesmo repositório em 2026-08-03) a vizinha marcando um passo empurrava o plano dela para o topo do fim de turno de todo mundo. Relatado com print de produção duas vezes antes de virar código. Três estados `[confirmado — 48 checks em `test_plan_hooks.sh`, e medição pelo hook real com duas sessões]`:
 
   | a sessão… | o cabeçalho | qual plano |

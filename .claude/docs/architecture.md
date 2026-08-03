@@ -267,7 +267,7 @@ qa-loop          1.8.0  [qa-loop]                                        -
 ship             1.3.9  [ship]                                           HOOKS
 slides           1.3.2  [slides]                                         -
 sovai           1.11.2  [sovai]                                          HOOKS
-visual          1.15.0  [visual]                                         HOOKS
+visual          1.15.4  [visual]                                         HOOKS
 ```
 
 Duas linhas mudaram nesta rodada e as duas foram re-derivadas do mesmo laço acima:
