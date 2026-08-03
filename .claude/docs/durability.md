@@ -262,6 +262,14 @@ Cada bloco abaixo diz o mesmo em variações: existe no disco desta máquina, n�
 - Conteúdo (chaves de topo: `root`, `entries`, `scripts`, `findings`, `measured`) carrega **caminho absoluto da máquina** no campo `root` — que é exatamente o critério da seção 3 do `.gitignore`.
 - Regenerável pela varredura de contrato; a perda é do *baseline de comparação*, não do contrato em si.
 
+### 3.6a · Retrato do custo do fim de turno — `.claude/stop-budget.baseline.json`
+
+Nasceu em 2026-08-02. Irmão do §3.6, e a diferença de cobertura entre os dois é toda a graça. Ver `data-stores.md §A5a` para a anatomia.
+
+- 🟢 **Este é RASTREADO** — `git ls-files` o encontra. Ao contrário do §3.6, ele não carrega caminho absoluto de máquina (só `plugin`, `script`, `linhas`, `timeout`), então **viaja no repositório e está coberto pelo backup do git**.
+- **Consequência prática:** o gate de deriva do fim de turno funciona em qualquer clone; o gate de contrato (§3.6) não, porque o baseline dele mora só nesta máquina.
+- Regenerável por um comando (`--stop-budget --json`). O que a perda custa é a **decisão**: recongelar é o ato de aceitar uma piora, e um retrato regenerado do zero aceita silenciosamente o estado atual, seja ele qual for.
+
 ### 3.7 · Ledger do intent-guard — `<projeto>/.claude/intent/`
 
 - [confirmado] Duplamente invisível: `.gitignore:22` **e** `.git/info/exclude:18` (`.claude/intent/`). O segundo é escrito pelo próprio código: `ensure_exclude()` em `plugins/intent-guard/lib/ledger.py` resolve `git rev-parse --git-path info/exclude` e acrescenta a linha — ignore **local**, nunca tocando arquivo versionado.
@@ -408,6 +416,16 @@ Nasceu em 2026-08-02 com o gate que mantém o `/sovai` no motor Workflow. Ver `d
 - **Perder não perde trabalho, e isso é por desenho.** O conteúdo é interruptor (`ativo-<session_id>` é arquivo **vazio**; o que significa é existir) e contador (`bloqueios-<session_id>`). Sumindo o diretório, o gate volta a ser mudo e a próxima missão o recria.
 - **O único conteúdo com valor de leitura é `desistencias.log`** — uma linha por vez que o cap de 3 estourou. É diagnóstico ("o gate desistiu N vezes, vá ver por quê"), não dado de trabalho. Sem cobertura, e a perda custa a série histórica dessas desistências. **Mesma classe do `bypass.log`** do teto de prosa (§3.14): log de desistência existe justamente para desistir não ser silencioso, então perdê-lo devolve o silêncio.
 - ⚠️ **A exposição real aqui é a inversa da dos outros ativos: não é perder, é sobrar.** Missão interrompida antes da entrega (sessão morta, `/clear`, limite de sessão) deixa o `ativo-*` aceso, e **a sessão inteira segue sem despachar sub-agente** sem que nada explique. Não há poda por idade — o `scope-cop` ganhou `find … -mtime +1 -delete` no mesmo commit em que nasceu, e este não. `[confirmado — `pretooluse-sovai-motor.sh` não tem nenhuma chamada de poda]` Diagnóstico e conserto manual: `ls ~/.claude/sovai/` e `rm` do sinal órfão.
+- 🔴 **O aviso acima deixou de ser hipótese em 2026-08-02** `[confirmado]`: dos **três** `ativo-*` no disco, dois eram de sessões de **outros projetos ainda vivas** (transcript mexido há 2 e 10 minutos). Elas seguiam sem despachar sub-agente sem que nada explicasse. O sinal é por sessão, então o estrago não se espalha — mas também nada o recolhe.
+- ✅ **O que o cap cobria virou medição na mesma rodada** `[confirmado]`: com o sinal aceso, um Workflow de um agente completou e o `bloqueios-<sid>` não se moveu — o motor **não** passa pelo gate. O cap fica como rede contra mudança futura do runtime, não por dúvida sobre isto.
+
+### 3.15c · Log do gate do anúncio — `~/.claude/state/anuncio-acao/`
+
+Nasceu em 2026-08-02 com `plugins/visual/hooks/stop-anuncio-sem-acao.py`. Ver `data-stores.md §B11a` para a anatomia. **Ainda não existe no disco** — o hook só cria o diretório quando arma pela primeira vez.
+
+- **Sem cobertura**, mesma classe do `batidas.log` do juiz de forma (§3.14): fora do repo, fora de qualquer backup, e a perda custa a série histórica.
+- **O que a perda custa aqui é específico:** a detecção do gate é lexical e o teto disso é conhecido — promessa escrita fora dos padrões passa batido. O `batidas.log` é o **único** instrumento para medir se o léxico está largo ou estreito demais, e para auditar falso positivo depois do fato. Sem ele, ajustar o gate vira palpite.
+- ⚠️ **Diferente do §3.14, nenhum verificador o lê.** O `conformance.py` cobra o `forma-relato` em duas checagens (`check_teto_rodou`, `check_bypass_teto`); este log nasce sem par, então **hook mudo não é acusado por ninguém**. `[confirmado — `grep -c anuncio-acao plugins/bootstrap/lib/conformance.py` devolve 0]`
 
 ### 3.16 · Kill-switches e flags de modo
 

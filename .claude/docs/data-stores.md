@@ -360,9 +360,23 @@ Depósito **novo nesta rodada**, irmão do B8 e deliberadamente diferente dele: 
 - **Estado medido nesta rodada** [confirmado]:
 
   ```bash
-  ls -la ~/.claude/sovai/     # 1 arquivo, 0 bytes: ativo-3191409e-…  (a missão desta sessão)
-  du -sh ~/.claude/sovai      # 0B
+  du -sh ~/.claude/sovai      # 4,0K
+  ls -1 ~/.claude/sovai       # 4 arquivos
+  # ativo-816f95e2-…   ativo-a5a22a2f-…   ativo-dc5e6c3a-…   bloqueios-a5a22a2f-…
   ```
+
+  🔴 **O risco previsto acima se realizou, e está medido:** dos **três** sinais acesos, só um é desta sessão. Os outros dois pertencem a sessões de **outros projetos**, com transcript mexido há 2 e 10 minutos — ou seja, **vivas e sem poder despachar sub-agente**. O sinal é por sessão, então uma não contamina a outra: o estrago é local a cada uma. [confirmado — 2026-08-02, `find ~/.claude/projects -name '<sid>*.jsonl'` para cada sinal]
+
+- ✅ **A inferência que justificava o cap foi MEDIDA em 2026-08-02, e ela valia** [confirmado]: com `ativo-<sid>` aceso, um Workflow de um agente completou (11 chamadas de ferramenta, 117s) e o contador `bloqueios-<sid>` **não se moveu** — os agentes de `Workflow` **não** passam por `PreToolUse[Agent]`, então o gate não mata o próprio motor. O cap de 3 permanece assim mesmo: ele é o contrato anti-loop do repo (`patterns.md` §1.3) e cobre o runtime do Workflow mudar de caminho numa versão futura.
+
+### B11a · `${CLAUDE_CONFIG_DIR:-~/.claude}/state/anuncio-acao/` — o log do gate do anúncio
+
+- **Nasceu em 2026-08-02** com `plugins/visual/hooks/stop-anuncio-sem-acao.py`. **Ainda não existe no disco**: o hook só cria o diretório quando arma pela primeira vez. [confirmado — `ls` devolve ausente]
+- **Dois tipos de arquivo**, mesma família do `forma-relato` (B9) e do `prose-ceiling`:
+  - `batidas.log` — uma linha JSON por **passagem**, não só por bloqueio: `{ts, sessao (8 chars), motivo, trecho}`. Os motivos são `kill-switch`, `stop_hook_active`, `espera o usuario`, `sem plano aberto`, `desistiu` e `devolveu` — e só o último carrega o `trecho` do que o agente escreveu.
+  - `n-<sessao>-<sha1[:12] do cwd>` — contador anti-loop, teto `MAX_DEVOLUCOES = 2`. A chave usa digest do cwd, **não** `hash()` do Python: `hash()` de string é randomizado por processo, então a chave mudaria a cada turno e o cap nunca contaria.
+- **Por que o log é o ativo:** a detecção é lexical e o teto é conhecido — promessa escrita fora dos padrões passa batido. O `batidas.log` é o único jeito de medir se o léxico está largo ou estreito demais, e de auditar falso positivo depois do fato.
+- ⚠️ **Nenhum verificador o lê ainda.** Diferente do `forma-relato`, que o `conformance.py` cobra em duas checagens, este log nasce sem par: se o hook parar de rodar, nada acusa.
 
 ---
 
@@ -539,6 +553,17 @@ No topo do plano, ao lado de `phases`:
 - **Quem lê:** o check E do `.claude/hooks/release-gate.sh` (linhas 99-107), via `--baseline`, barrando só o que **piorou**. Costura confirmada nos dois lados. [confirmado]
 - ⚠️ **mtime de 28/jul.** O retrato não foi refeito depois da recriação do repo: o gate compara o presente contra uma medida de três dias atrás, e o baseline agora nem viaja mais para outra máquina reproduzir a comparação.
 - **Nenhum hook o reescreve sozinho, de propósito** — baseline que se auto-atualiza aceita silenciosamente qualquer regressão.
+
+### A5a · `.claude/stop-budget.baseline.json` — o retrato do CUSTO do fim de turno
+
+- **Nasceu em 2026-08-02**, irmão do A5 e com a mesma mecânica de retrato — o que muda é o que ele mede. O A5 mede a **forma** de cada hook (canal, cap, kill-switch); este mede **quanto o conjunto cospe** no `Stop`.
+- **Tipo:** JSON único, sobrescrito por `python3 scripts/hook_contract.py --stop-budget --json > …`. **908 bytes.**
+- **Três chaves, lidas do arquivo real:** `total_linhas` **6**, `teto` **6**, `emissores` **7** (cada um com `plugin`, `script`, `linhas`, `timeout`).
+- 🔴 **Diferente do A5, este é RASTREADO** — não carrega caminho absoluto de máquina, então viaja sem sujar o repositório público.
+- **Quem lê:** o check **E2** do `.claude/hooks/release-gate.sh`, dentro do mesmo `if` do check E (só quando o commit toca `plugins/*/hooks/`). Sai 1 quando o total **sobe**, nomeando quem subiu e quem é emissor novo. Costura confirmada nos dois lados. [confirmado]
+- ⚠️ **Barra a deriva, nunca o número.** O total está em **6 de um teto de 6** — um gate por número absoluto barraria o próximo commit que tocasse hook sem nada ter piorado. Retrato ilegível **não** barra (fail-open explícito, com 2 checks em `test_hook_contract.py`).
+- **Natureza: RECONSTRUÍVEL, com julgamento embutido** — igual ao A5. Regerar é um comando; o que não se regenera é a decisão de aceitar uma piora, que é o próprio ato de recongelar.
+- **Nenhum hook o reescreve sozinho**, pelo mesmo motivo do A5: baseline que se auto-atualiza aceita qualquer regressão em silêncio.
 
 ### A5b · tags `archive/<branch>-<data>` — a rede do `/branches`, e ela está rompida
 
