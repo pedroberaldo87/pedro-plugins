@@ -649,6 +649,70 @@ def main():
         finally:
             shutil.rmtree(dses, ignore_errors=True)
 
+        # Medido DUAS vezes em produção antes de virar código: num projeto com frentes
+        # paralelas (6 sessões abertas no mesmo repositório em 2026-08-03), a vizinha
+        # marcando um passo empurrava o plano DELA para o topo do fim de turno de todo
+        # mundo. `mtime` diz que alguém mexeu, nunca QUEM — só a marca sabe.
+        print("brief — cada sessão vê a frente que ELA marcou, não a da vizinha")
+        dpar = tempfile.mkdtemp(prefix="brief-paralelo-")
+        tmp_antigo = os.environ.get("TMPDIR")
+        os.environ["TMPDIR"] = dpar
+        try:
+            init_into(dpar, sample(id="2026-08-01-propostas", title="Propostas"))
+            init_into(dpar, sample(id="2026-08-02-videoreview", title="Video Review"))
+            import io
+            import contextlib
+            import time
+
+            def marca(sid, pid, node="F1.1"):
+                antigo = os.environ.get("CLAUDE_CODE_SESSION_ID")
+                os.environ["CLAUDE_CODE_SESSION_ID"] = sid
+                try:
+                    ps.cmd_state(Args(dir=dpar, plan=pid, node=node, value="doing"))
+                finally:
+                    if antigo is None:
+                        os.environ.pop("CLAUDE_CODE_SESSION_ID", None)
+                    else:
+                        os.environ["CLAUDE_CODE_SESSION_ID"] = antigo
+
+            def brief_de(sid, marco):
+                buf = io.StringIO()
+                with contextlib.redirect_stdout(buf):
+                    ps.cmd_brief(Args(dir=dpar, nudge=None, closed_since=marco,
+                                      mark_seen=None, sessao=sid))
+                return buf.getvalue()
+
+            marca("sessao-A", "2026-08-01-propostas")
+            marca("sessao-B", "2026-08-02-videoreview")   # a vizinha mexe DEPOIS
+
+            futuro = time.time() + 60      # marco posterior a tudo: ninguém "tocou"
+            a, b, c = (brief_de("sessao-A", futuro), brief_de("sessao-B", futuro),
+                       brief_de("sessao-C", futuro))
+            check("a sessão vê a frente que ela marcou, não a que mexeu por último",
+                  "Propostas" in a and "Video Review" not in a.split("⋯")[0])
+            check("a vizinha vê a dela", "Video Review" in b)
+            check("quem marcou AFIRMA, mesmo com marco posterior — a marca é autoria",
+                  "Onde estamos" in a)
+            check("quem não marcou nada não afirma", "Onde estamos" not in c)
+            check("e ainda assim recebe o resumo, sem sumir com o plano",
+                  "Plano aberto no projeto" in c)
+
+            # marca apontando pra plano encerrado não pode travar o resumo no passado
+            ps.cmd_close(Args(dir=dpar, plan="2026-08-01-propostas"))
+            depois = brief_de("sessao-A", futuro)
+            check("marca de plano já encerrado cai no caminho sem marca",
+                  "Onde estamos" not in depois)
+
+            sem_arg = brief_de(None, futuro)
+            check("chamada sem o id da sessão segue funcionando como antes",
+                  "Plano aberto no projeto" in sem_arg)
+        finally:
+            if tmp_antigo is None:
+                os.environ.pop("TMPDIR", None)
+            else:
+                os.environ["TMPDIR"] = tmp_antigo
+            shutil.rmtree(dpar, ignore_errors=True)
+
         ps.cmd_tick(Args(dir=d, plan="2026-07-27-brief", node="F1.1", evidencia="python3 t.py -> OK"))
         ps.cmd_tick(Args(dir=d, plan="2026-07-27-brief", node="F1.2", evidencia="commit a1b2c3d"))
         L = ps.brief_lines(ps.pick_plan(d, "2026-07-27-brief"))

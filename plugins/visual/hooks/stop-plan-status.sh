@@ -151,11 +151,16 @@ fi
 
 # O brief compõe TUDO — inclusive a cobrança — porque o teto de 3 bullets é do
 # pedido do usuário e precisa viver num lugar testável, não em concatenação aqui.
+# `--sessao` é o que faz o resumo ser DESTA sessão: quem marca um passo deixa a marca,
+# e o brief lê a dela em vez de adivinhar pelo arquivo mexido mais recentemente. Num
+# projeto com frentes paralelas — 6 sessões abertas no mesmo repositório em 2026-08-03 —
+# sem isto a sessão de uma frente recebia o progresso da frente da vizinha.
 if [ -n "$SINCE" ]; then
   BRIEF=$("$PY3" "$PLAN_STATE" --dir "$PLANS_DIR" brief --closed-since "$SINCE" \
-            --mark-seen "$SEEN" ${NUDGE:+--nudge "$NUDGE"} 2>/dev/null)
+            --mark-seen "$SEEN" --sessao "$SESSION" ${NUDGE:+--nudge "$NUDGE"} 2>/dev/null)
 else
-  BRIEF=$("$PY3" "$PLAN_STATE" --dir "$PLANS_DIR" brief ${NUDGE:+--nudge "$NUDGE"} 2>/dev/null)
+  BRIEF=$("$PY3" "$PLAN_STATE" --dir "$PLANS_DIR" brief --sessao "$SESSION" \
+            ${NUDGE:+--nudge "$NUDGE"} 2>/dev/null)
 fi
 
 # ── plano AUSENTE ────────────────────────────────────────────────────────────

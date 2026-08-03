@@ -163,8 +163,10 @@ echo "Stop — auto-cura do marco (plugin instalado no meio da sessão)"
 python3 "$PS" --dir "$PLANS" reopen p-teste >/dev/null 2>&1
 rm -f "$(mark_of h1)" "$(nudge_of h1)"
 out=$(run_st h1 "$T3" | jq -r '.systemMessage // empty' 2>/dev/null)
+# O resumo sai; o cabeçalho é que não afirma, porque esta sessão não marcou plano nenhum
+# e o hook passa o id dela ao brief. Ver a nota em plan_state.py:cmd_brief.
 check "sem marco, o resumo do plano ativo SAI mesmo assim" \
-      "$(grep -q -- 'Onde estamos' <<< "$out" && echo 1 || echo 0)"
+      "$(grep -q -- 'Plano aberto no projeto' <<< "$out" && echo 1 || echo 0)"
 check "e o hook CRIA o marco que faltava" "$([ -f "$(mark_of h1)" ] && echo 1 || echo 0)"
 check "no turno seguinte a cobrança já funciona" \
       "$([ "$(cobranca h1 "$T3")" = "1" ] && echo 1 || echo 0)"
@@ -177,11 +179,17 @@ run_ss r1 >/dev/null
 msg=$(run_st r1 "$T1" | jq -r '.systemMessage // empty' 2>/dev/null)
 # Sessão que ainda não marcou passo nenhum: o resumo sai, sem afirmar que ela está ali.
 check "com plano ativo, o resumo sai" "$(grep -q -- 'Plano aberto no projeto' <<< "$msg" && echo 1 || echo 0)"
-# E marcar um passo é o que devolve a afirmação — este é o par do check acima.
-python3 "$PS" --dir "$PLANS" tick F1.1 --evidencia "prova do teste" >/dev/null 2>&1
+# E marcar um passo é o que devolve a afirmação — este é o par do check acima. O
+# CLAUDE_CODE_SESSION_ID tem que ser o da sessão do hook: é ele que grava a marca de
+# autoria, e sem isso o tique é indistinguível do de uma sessão vizinha.
+CLAUDE_CODE_SESSION_ID=r1 python3 "$PS" --dir "$PLANS" tick F1.1 --evidencia "prova do teste" >/dev/null 2>&1
 msg_tocado=$(run_st r1 "$T1" | jq -r '.systemMessage // empty' 2>/dev/null)
 check "marcado um passo, o resumo AFIRMA onde estamos" \
       "$(grep -q -- 'Onde estamos' <<< "$msg_tocado" && echo 1 || echo 0)"
+# E a marca é de QUEM marcou: a sessão vizinha não herda a afirmação.
+msg_vizinha=$(run_st r9 "$T1" | jq -r '.systemMessage // empty' 2>/dev/null)
+check "a sessão vizinha NÃO herda a afirmação de quem marcou" \
+      "$(! grep -q -- 'Onde estamos' <<< "$msg_vizinha" && echo 1 || echo 0)"
 check "o resumo cabe em no máximo 3 bullets" "$([ "$(grep -c -- '^•' <<< "$msg")" -le 3 ] && echo 1 || echo 0)"
 check "o resumo diz o progresso" "$(grep -q -- 'Feito:' <<< "$msg" && echo 1 || echo 0)"
 check "o resumo diz onde estamos agora" "$(grep -q -- 'Agora:' <<< "$msg" && echo 1 || echo 0)"
