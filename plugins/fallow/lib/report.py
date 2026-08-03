@@ -14,10 +14,35 @@ Não escreve nada no projeto-alvo (só lê via fallow) e nada destrutivo.
 """
 import json
 import os
+import re
 import subprocess
 import sys
 import html as _html
 from datetime import datetime, timezone
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from regua_texto import erros_de_estilo as _erros_de_estilo  # noqa: E402
+
+# A régua de estilo (quality-goals.md, regime "informação rápida"): este relatório
+# é lido com pressa, então vale a mesma régua do gerador de página. As quatro
+# checagens moram em `_shared/regua_texto.py`; aqui só se DECLARA o perfil.
+PERFIL = "pagina"
+_TAG = re.compile(r"<[^>]+>")
+
+
+class ReportError(Exception):
+    pass
+
+
+def erros_de_estilo(texto, onde):
+    """A régua no perfil DESTE gerador — a definição mora em `regua_texto.py`.
+
+    Cobra o NÍVEL 0 (`prob_h`/`sol_h`), a linha que fica visível sem clique e
+    decide se vale abrir o achado. O nível 2 (`prob_t`/`sol_t`) carrega caminho de
+    arquivo, ciclo de import e nome de função: é citação, não redação. A marcação
+    sai antes de contar — o teto conta o que o olho lê, não a tag.
+    """
+    return _erros_de_estilo(_TAG.sub("", str(texto or "")), onde, PERFIL)
 
 
 def run_fallow(cmd, root):
@@ -76,7 +101,7 @@ def export_item(p, name, line, kind, rexp, ev):
                 "prob_h": f"O {label} <b>{esc(name)}</b> aparece como não-usado, mas <b>está em uso</b> — não é morto.",
                 "prob_t": f"Limitação do Fallow: ele não enxerga import dentro de <code>.svelte</code>/<code>.vue</code>. "
                           f"A auditoria achou uso real: {reason}.{pf}",
-                "sol_h": "<b>Não remover.</b> O código está certo.",
+                "sol_h": "<b>Não remover</b> — o código está certo.",
                 "sol_t": "Mantido na lista de propósito (transparência). Pra sumir daqui, suprimir com "
                          "<code>// fallow-ignore-next-line unused-export</code> — cosmético."}
     if v == "usado_interno":
@@ -84,7 +109,7 @@ def export_item(p, name, line, kind, rexp, ev):
                 "prob_h": f"O {label} <b>{esc(name)}</b> é usado só dentro do próprio arquivo — o <code>export</code> é redundante.",
                 "prob_t": f"A auditoria achou uso interno: {reason}.{pf} Apagar a função/tipo inteiro quebraria o "
                           "arquivo; só a palavra <code>export</code> sobra à toa.",
-                "sol_h": "Tirar só o <code>export</code> (o símbolo continua). Opcional, baixo valor.",
+                "sol_h": "Tirar só o <code>export</code>, que o símbolo continua — opcional, baixo valor.",
                 "sol_t": "Se for parte intencional da API pública (ex.: ponte de comandos do app), deixar como está."}
     if v == "dead_confirmado":
         return {"path": p, "badge": name, "conf": "confirmado",
@@ -149,13 +174,13 @@ def build_buckets(dead, dupes, health, audit=None):
         if v == "falso_positivo":
             dead_items.append({
                 "path": p, "badge": "🛑 não deletar", "conf": "fp",
-                "prob_h": "<b>Não é código morto nem bug do teu código.</b> É uma limitação do Fallow: "
-                          "este arquivo está em uso, mas acionado de fora do código.",
+                "prob_h": "<b>Não é código morto</b> — é limitação do Fallow: o arquivo está em uso, "
+                          "acionado de fora do código.",
                 "prob_t": "Limitação da análise estática — o Fallow lê só o grafo de imports (quem chama quem "
                           "no código) e <b>não enxerga</b> gatilhos externos: agendador do servidor (cron/systemd), "
                           "requisição HTTP (rota) ou import dinâmico. "
                           f"A auditoria confirmou o uso: {esc(reason)}." + (f" Prova: <code>{proof}</code>" if proof else ""),
-                "sol_h": "<b>Nada a fazer no código</b> — está correto. Só não deletar.",
+                "sol_h": "<b>Nada a fazer no código</b> — está correto, só não deletar.",
                 "sol_t": "Mantido na lista de propósito, pra dar transparência. Se quiser que suma daqui, dá pra "
                          "declarar o arquivo como ponto de entrada no <code>.fallowrc.json</code> — mas é cosmético, "
                          "não muda nada no app."})
@@ -283,6 +308,20 @@ def esc(s):
 
 
 def render_html(project_name, buckets, health, session, stamp, audit=None):
+    # O nível 0 de cada achado é redação DESTE programa, e é ele que decide se o
+    # achado vale abrir. Violação aqui é defeito deste arquivo: o relatório é
+    # RECUSADO com os motivos. Aviso no stderr deixava o achado torto chegar na
+    # tela do mesmo jeito, que é o único lugar onde ele importa.
+    errs = []
+    for b in buckets:
+        for it in b["items"]:
+            for campo in ("prob_h", "sol_h"):
+                errs.extend(erros_de_estilo(it.get(campo), "%s · %s: %s"
+                                            % (b["key"], it.get("path"), campo)))
+    if errs:
+        raise ReportError("relatório recusado pela régua de estilo:\n  - "
+                          + "\n  - ".join(errs))
+
     hscore = health.get("health_score", {})
     grade = hscore.get("grade", "?") if isinstance(hscore, dict) else "?"
     score = hscore.get("score", "?") if isinstance(hscore, dict) else hscore
@@ -551,8 +590,15 @@ def main():
     out_dir = resolve_visual_dir(root)
     os.makedirs(out_dir, exist_ok=True)
     out_path = os.path.join(out_dir, f"{stamp}-fallow-{name}.html")
+    # Renderiza ANTES de abrir o arquivo: `open(…, "w")` trunca na hora, então
+    # recusa da régua com o arquivo já aberto deixaria um HTML vazio no lugar.
+    try:
+        page = render_html(name, buckets, health, session, stamp, audit)
+    except ReportError as e:
+        print(f"⛔ {e}", file=sys.stderr)
+        sys.exit(2)
     with open(out_path, "w") as f:
-        f.write(render_html(name, buckets, health, session, stamp, audit))
+        f.write(page)
 
     summary = {b["title"]: len(b["items"]) for b in buckets}
     print(out_path)

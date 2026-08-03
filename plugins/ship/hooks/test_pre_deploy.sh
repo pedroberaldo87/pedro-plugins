@@ -391,6 +391,30 @@ case "$E:$ERR" in
          "exit 0 + additionalContext citando 'Comando fora do ./deploy.sh'" "exit $E — recebido: '${ERR:-<vazio>}'" ;;
 esac
 
+# --- a régua do canal de texto (perfil hook) -------------------------------
+# As notas saem num systemMessage, que é terminal e não markdown: `**` chega literal
+# e nota sem emoji some no meio da conversa. Quem cobra é a MESMA régua do gerador de
+# página (`lib/regua_texto.py`), pelo perfil `hook`. Saída vazia = passou.
+REGUA="$SCRIPT_DIR/../lib/regua_texto.py"
+regua() { printf '%s\n' "$1" | python3 "$REGUA" --perfil hook --onde "nota do gate de deploy" - 2>&1 || :; }
+NOTA=$(hook_note 'pm2 restart app' "$NORUNNER")
+if [ -f "$REGUA" ]; then
+  ok "a régua está vendorada no plugin (instalado, ele só enxerga a própria pasta)"
+else
+  bad "a régua está vendorada no plugin" "lib/regua_texto.py presente" "ausente"
+fi
+R_OUT=$(regua "$NOTA")
+[ -z "$R_OUT" ] && ok "a nota REAL do hook passa na régua" \
+  || bad "a nota REAL do hook passa na régua" "sem motivo de recusa" "$R_OUT"
+case "$(regua "$(printf '%s' "$NOTA" | sed 's/pre-deploy/**pre-deploy**/')")" in
+  *markdown*) ok "a mesma nota com markdown é RECUSADA" ;;
+  *) bad "a mesma nota com markdown é RECUSADA" "motivo citando markdown" "nada recusado" ;;
+esac
+case "$(regua "$(printf '%s' "$NOTA" | sed 's/^⚠️  //')")" in
+  *emoji*) ok "a mesma nota sem emoji no cabeçalho é RECUSADA" ;;
+  *) bad "a mesma nota sem emoji no cabeçalho é RECUSADA" "motivo citando emoji" "nada recusado" ;;
+esac
+
 # --- prova anti-tautologia -------------------------------------------------
 # Sabota UMA detecção numa cópia do hook e exige que a suíte REPROVE. Sem isto a
 # suíte pode estar afirmando nada (o precedente: teste de presença que passava com

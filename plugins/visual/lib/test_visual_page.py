@@ -354,6 +354,11 @@ PROSA_REAL = ("Das cinco decisões que vazaram na sessão de ontem, quatro nasce
               "não existiam quando o plano foi escrito. O que foi construído hoje resolve "
               "a decisão que o autor do plano JÁ SABIA que existia.")
 
+check("a régua vem de FORA — o módulo compartilhado, não uma cópia daqui",
+      V.erros_de_estilo.__module__ == "visual_page"
+      and V._erros_de_estilo.__module__ == "regua_texto", V._erros_de_estilo.__module__)
+check("este gerador DECLARA o perfil que usa", V.PERFIL == "pagina", V.PERFIL)
+
 e = V.erros_de_estilo(PROSA_REAL, "x")
 check("o textão real do relatório é REPROVADO", len(e) >= 2, e)
 check("reprova por tamanho", any("caracteres" in x for x in e), e)

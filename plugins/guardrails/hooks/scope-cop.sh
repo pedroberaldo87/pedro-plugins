@@ -396,7 +396,17 @@ if [ "$VERDICT" = "block" ] && [ "$MODE" = "warn" ]; then
   # Claude, mas o transcript filtra `hook_additional_context` da renderização —
   # sozinho ele deixaria o usuário no mesmo silêncio do modo "off". systemMessage
   # não é filtrado. Mesmo padrão do ship/hooks/pre-deploy-test-check.sh.
-  "$JQ" -n --arg r "Scope-cop (aviso, não bloqueio): essa edição parece desviar do escopo combinado. $REASON — confira se é intencional. Bloquear de novo: escreva 'deny' em $MODE_FILE." '{
+  # Cabeçalho com emoji e um bullet por ideia: o canal é terminal, não markdown, e
+  # parágrafo de 180 caracteres no meio da conversa é o que ensina a desligar o gate.
+  AVISO="🚧 Scope-cop (aviso, não bloqueio) — esta edição parece desviar do escopo combinado
+• ${REASON}
+• Confira se o desvio é intencional; nada foi bloqueado.
+• Bloquear de novo: escreva 'deny' em ${MODE_FILE}"
+  # A régua do canal (perfil `hook`, de quality-goals.md). Defeito de forma não cala um
+  # aviso: o motivo vai pro stderr e o texto sai assim mesmo. Régua ausente → silêncio.
+  REGUA="$(cd "$(dirname "$0")" && pwd)/../lib/regua_texto.py"
+  [ -f "$REGUA" ] && printf '%s\n' "$AVISO" | "$PY" "$REGUA" --perfil hook --onde "aviso do scope-cop" - || :
+  "$JQ" -n --arg r "$AVISO" '{
     systemMessage: $r,
     hookSpecificOutput: { hookEventName: "PreToolUse", additionalContext: $r }
   }'

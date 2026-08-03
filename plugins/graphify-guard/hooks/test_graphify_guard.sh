@@ -115,6 +115,25 @@ check "aviso avisa que o grafo está defasado" "$(has "$S_WARN" "Grafo defasado"
 check "deny avisa que o grafo está defasado" "$(has "$S_DENY" "Grafo defasado")" "sim"
 rm -f "$PROJ/novo.md"
 
+echo "── a régua do canal de texto (perfil hook), nos DOIS ramos ──"
+# Este hook não fala com o usuário (invariante 6: nada de systemMessage) — fala com o
+# MODELO, por additionalContext. O canal continua sendo texto puro: crase e `**` chegam
+# literais, e uma linha de 409 caracteres é o que ele cuspia antes de 2026-08-03. Quem
+# cobra é a MESMA régua do gerador de página, pelo perfil `hook`. Vazio = passou.
+REGUA="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/../lib/regua_texto.py"
+regua() { printf '%s\n' "$1" | python3 "$REGUA" --perfil hook --onde "$2" - 2>&1 || :; }
+check "a régua está vendorada no plugin (instalado, ele só enxerga a própria pasta)" \
+  "$(if [ -f "$REGUA" ]; then echo tem; else echo falta; fi)" "tem"
+check "o aviso REAL (additionalContext) passa na régua" "$(regua "$R_WARN" aviso)" ""
+check "o deny REAL passa na régua" "$(regua "$R_DENY" deny)" ""
+check "o mesmo aviso com markdown é RECUSADO" \
+  "$(regua "$(printf '%s' "$R_WARN" | sed 's/graphify --update/`graphify --update`/; s/Busca cega/**Busca cega**/')" aviso | grep -c markdown | tr -d ' ')" "1"
+check "o mesmo aviso sem emoji no cabeçalho é RECUSADO" \
+  "$(regua "$(printf '%s' "$R_WARN" | sed 's/^🕸️ //')" aviso | grep -c emoji | tr -d ' ')" "1"
+# O ramo stale acrescenta uma linha: o orçamento de 6 do canal tem que sobreviver a ela.
+check "com o grafo defasado o aviso continua passando na régua" "$(regua "$S_WARN" aviso)" ""
+check "com o grafo defasado o deny continua passando na régua" "$(regua "$S_DENY" deny)" ""
+
 echo "── contrato com o conformance.py: a marca default-warn não pode sumir ──"
 check "o fonte mantém '# conformance: default-warn'" \
   "$(grep -c '^# conformance: default-warn' "$HOOK")" "1"

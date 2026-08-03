@@ -142,13 +142,13 @@ python3 -c "import json;print(len(json.load(open('.claude-plugin/marketplace.jso
 .claude-plugin/marketplace.json   catálogo único — nome, source, version, tags, category
 plugins/<nome>/                   19 dirs, todos catalogados
 _shared/                          fonte-da-verdade do código compartilhado (3 arquivos)
-scripts/sync-shared.sh            o "build": vendora _shared/ → 6 destinos
+scripts/sync-shared.sh            o "build": vendora _shared/ → 10 destinos
 scripts/hook_contract.py          mede o contrato dos 34 registros de hook (§11)
 scripts/public_repo_check.py      cobra a regra de repo público (checagem H do gate)
 .claude/                          documentação + estado + gate LOCAL deste repo
   ├── CLAUDE.md                   índice de roteamento (marker project-doc:v2)
   ├── docs/                       architecture · patterns · data-stores · durability · runtime
-  ├── hooks/release-gate.sh       gate mecânico de commit deste monorepo (8 checks: A–H)
+  ├── hooks/release-gate.sh       gate mecânico de commit deste monorepo (10 checks: A–I)
   ├── hook-contract.baseline.json o retrato do contrato dos hooks  ← VERSIONADO
   ├── settings.json               registra o release-gate como PreToolUse(Bash)
   └── .project-doc/  plans/  ata/  intent/  visual/  qa-loop/  HANDOFF*.md
@@ -480,12 +480,22 @@ SPECS=(
   "plugins/project-doc/lib::collect_engine.py"
   "plugins/sovai/skills/sovai/references::r8-tiers.md"
   "plugins/qa-loop/skills/qa-loop/references::r8-tiers.md"
+  "plugins/visual/lib::regua_texto.py"
+  "plugins/branches/lib::regua_texto.py"
+  "plugins/fallow/lib::regua_texto.py"
+  "plugins/slides/lib::regua_texto.py"
+  # Os emissores de hook: o .sh chama a régua pela linha de comando, e o plugin
+  # instalado só enxerga a própria pasta — sem cópia aqui, a régua some em produção.
+  "plugins/guardrails/lib::regua_texto.py"
+  "plugins/project-doc/lib::regua_texto.py"
+  "plugins/ship/lib::regua_texto.py"
+  "plugins/graphify-guard/lib::regua_texto.py"
   "plugins/ship/hooks::green-cache.sh"
   "plugins/qa-loop/lib::green-cache.sh"
 )
 ```
 
-**6 cópias.** É um mapa explícito, não "todos os arquivos em todos os consumidores", porque
+**14 cópias.** É um mapa explícito, não "todos os arquivos em todos os consumidores", porque
 consumidores diferentes vendoram arquivos diferentes. `--check` não copia: roda `cmp -s` e sai
 1 com `DRIFT: …` se alguma cópia divergir. Verificado neste run:
 
@@ -1256,7 +1266,7 @@ teste: os dois gates e a leitura do arquivo de plano pela skill de handoff. Saí
 [confirmado — as três executadas nesta passada de `/doc-touch`]:
 
 ```
-$ bash    .claude/hooks/test_release_gate.sh              →  OK (17 checks)
+$ bash    .claude/hooks/test_release_gate.sh              →  OK (30 checks)
 $ bash    plugins/visual/hooks/test_exitplan_gate.sh      →  OK (12 checks)
 $ python3 plugins/handoff/lib/test_handoff_skill.py       →  OK (7 asserções `ok`)
 ```

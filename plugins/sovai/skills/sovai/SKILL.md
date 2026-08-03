@@ -58,14 +58,30 @@ O tier de cada etapa (modelo · effort · knob) e a semântica dos knobs são o 
 
 Abaixo, **onde cada knob entra NESTE motor** (decompõe→executa→revisa):
 
-| Knob | Modelo · effort | Onde no motor |
-|---|---|---|
-| `decompose_model` | Opus · `xhigh` | OPUS #1, **rodada 1** — quebra o plano inteiro em tarefas. |
-| `coordinate_model` | Opus · `high` | OPUS #1 nas **rodadas 2+** (só o delta) + OPUS #2 nas rodadas normais. |
-| `executor_model` | Opus · `high` | EXECUTORES — tarefa padrão (`complexity` ausente ou `'standard'`). |
-| `mechanical_model` | Opus · `medium` | EXECUTORES — tarefa marcada `complexity: 'mechanical'` (renomear, mover arquivo, 1 config, 1 valor — sem julgamento amplo). |
-| `diagnose_model` | Opus · `xhigh` | Tarefa reaparece em `missingTasks`/`gaps` por ≥ `churn_threshold` rodadas → diagnóstico de raiz antes de mandar o executor tentar de novo. |
-| `finalize_model` | Opus · `xhigh` | **Não consumido no caminho feliz** — a confirmação independente da obra é o `/qa-loop --headless` da etapa seguinte (que mantém o confirm-pass DELE). Só é consumido aqui pela **guarda**: sem `/qa-loop` na máquina, o motor roda um confirm-pass neste tier antes de declarar `built`. |
+| Knob | Onde no motor |
+|---|---|
+| `decompose_model` | OPUS #1, **rodada 1** — quebra o plano inteiro em tarefas. |
+| `coordinate_model` | OPUS #1 nas **rodadas 2+** (só o delta) + OPUS #2 nas rodadas normais. |
+| `executor_model` | EXECUTORES — tarefa padrão (`complexity` ausente ou `'standard'`). |
+| `mechanical_model` | EXECUTORES — tarefa marcada `complexity: 'mechanical'` (renomear, mover arquivo, 1 config, 1 valor — sem julgamento amplo). |
+| `diagnose_model` | Tarefa reaparece em `missingTasks`/`gaps` por ≥ `churn_threshold` rodadas → diagnóstico de raiz antes de mandar o executor tentar de novo. |
+| `finalize_model` | **Não consumido no caminho feliz** — a confirmação independente da obra é o `/qa-loop --headless` da etapa seguinte (que mantém o confirm-pass DELE). Só é consumido aqui pela **guarda**: sem `/qa-loop` na máquina, o motor roda um confirm-pass neste tier antes de declarar `built`. |
+
+### Como o tier chega ao motor (obrigatório, antes de disparar o Workflow)
+
+O valor do `effort` **não vive nesta skill**. Rode isto e passe o resultado dentro do
+`args` do Workflow, junto com os outros parâmetros:
+
+```bash
+python3 "<skill_dir>/references/r8_tiers.py" args
+# -> { "model": "opus", "tiers": { "decompose": {"effort": "high"}, ... } }
+```
+
+O script então lê `args.tiers.<knob>.effort` e nunca um literal. Se `args.tiers` chegar
+`undefined` o motor morre na primeira volta, e essa é a falha certa: um default carimbado
+no script seria mais uma cópia do valor, que é justamente o defeito que o contrato R8
+existe pra impedir. Trocar um tier é editar `_shared/r8-tiers.json` e rodar
+`scripts/sync-shared.sh` — nenhum `SKILL.md` muda.
 
 ### Knobs deste motor (a casca passa em `args`)
 
@@ -79,9 +95,9 @@ Abaixo, **onde cada knob entra NESTE motor** (decompõe→executa→revisa):
 Precedência: flag da invocação > default acima. A casca **sempre** materializa os quatro antes de disparar o Workflow — `maxRounds` ausente faz o `while` do motor não rodar nenhuma volta e devolver "pronto" sem ter construído nada.
 
 - **OPUS #1 — Decompositor.** NÃO planeja do zero. Pega o **plano que você deixou** e o quebra em tarefas de implementação, marcando para cada uma os **arquivos que toca**, se é **paralelizável**, de quais tarefas **depende**, e se é `complexity: 'mechanical'` (operação bem delimitada) ou `'standard'`. Cada tarefa carrega também o **`requisito`** que ela atende e o **`pronto`** que a declara feita — **os dois saem da spec, copiados; nunca redigidos aqui**. Executor não cumpre critério que não recebeu, e critério inventado pelo decompositor faz o revisor medir contra a régua errada. Item da spec que não traz os dois **não vira tarefa: vira Bloqueio** (`whyNeedsYou` = qual dos dois falta). Rodada 1 = `decompose_model` (plano inteiro); rodadas 2+ (re-decompõe só o delta do feedback do #2) = `coordinate_model`. Re-arquitetar é proibido (mesma regra do "não replanejar no headless"); buraco no plano que exija decisão de arquitetura vira **Bloqueio**, nunca invenção silenciosa.
-- **EXECUTORES (Opus 5) — Implementam as tarefas.** Tarefa padrão = `executor_model` (Opus `high`); `complexity: 'mechanical'` = `mechanical_model` (Opus `medium`). Independentes rodam **em paralelo**; dependentes, **em série** na ordem do #1. Duas tarefas paralelas que tocam o mesmo arquivo → `isolation: 'worktree'` (senão se atropelam). Tarefa única ou missão sequencial pura → o Workflow degenera pra um executor por vez, sem cerimônia (o fan-out é ganho só quando há independência real).
-- **OPUS #2 — Revisor de construção.** Julga a obra **contra a spec** — o plano que a casca passou em `planPath`/`planText`, e que o motor entrega ao #2 igual como entrega ao #1. A decomposição do #1 é **meio**, não fonte da verdade: revisar contra ela é circuito fechado, onde quem decompõe errado é aprovado errado. Cinco eixos: **spec** (a spec saiu, mesmo no que a decomposição não previu?) · **constituição** (o que saiu respeita as metas de qualidade autorais do projeto?) · **rastreio** (toda tarefa decomposta trouxe `requisito` e `pronto`?) · **completude** (toda tarefa decomposta saiu?) · **coesão** (as peças paralelas integram, sem se contradizer?). Desvio de spec vira gap de `kind: 'spec'` e **nasce em severidade ≥ floor**; se vier abaixo, o script o segura assim mesmo — senão sairia do filtro de severidade e passaria calado. **Eixo de rastreio:** tarefa decomposta sem `requisito` ou sem `pronto` **reprova** — vira gap de `kind: 'rastreio'`, que nasce em severidade ≥ floor e é segurado pelo script igual ao de spec. Tarefa sem requisito não tem contra o que ser medida, e sem `pronto` quem executa decide sozinho o que é "feito": nenhuma das duas passa calada. **Eixo de constituição:** o revisor **lê `.claude/docs/quality-goals.md` do projeto onde a missão está rodando** e sinaliza onde a implementação VIOLA o que está escrito lá. O arquivo é aberto na rodada, **nunca copiado para dentro desta skill** — a régua é a do projeto que instalou, e cópia em prosa defasa. Violação vira gap de `kind: 'constituicao'` pela rubrica de severidade normal, sem faixa própria. **Projeto sem esse arquivo: o eixo simplesmente não roda** e a revisão segue com os outros quatro — ausência de constituição não é gap. Continua **não** caçando bug sutil nem rodando a suíte — profundidade de correção é do `/qa-loop` (etapa seguinte). Roda em `coordinate_model`; quando os cinco eixos batem, declara `built=true` **direto** — quem re-checa do zero é o `/qa-loop --headless` que roda logo em seguida (Fase Gate + confirm-pass dele). **Guarda (armada no script, não só na prosa):** com `hasQaLoop=false` o motor roda um **confirm-pass dedicado** em `finalize_model` (Opus `xhigh`) antes de declarar `built` — sem `/qa-loop` adiante, fechar no veredito de `coordinate_model` seria declarar pronto sem nenhuma segunda checagem. Devolve **feedback estruturado pro #1**, que re-decompõe **só o delta** (o que faltou / precisa refazer) na volta seguinte. A seta de volta #2→#1 é o coração do motor.
-- **DIAGNÓSTICO — escalada de tarefa-presa.** Se a MESMA tarefa reaparece em `missingTasks`/`gaps` por ≥ `churn_threshold` rodadas seguidas (default 2, mesmo limiar do `/qa-loop`), o motor escala ANTES de mandar o executor tentar de novo: um diagnóstico dedicado em `diagnose_model` (Opus xhigh, R8 "diagnóstico após falhas repetidas") investiga a causa raiz (dependência não mapeada, arquivo errado, premissa furada) em vez de repetir o mesmo pedido esperando resultado diferente. O diagnóstico entra no `feedback` da próxima rodada do #1.
+- **EXECUTORES (Opus 5) — Implementam as tarefas.** Tarefa padrão = `executor_model`; `complexity: 'mechanical'` = `mechanical_model`. Independentes rodam **em paralelo**; dependentes, **em série** na ordem do #1. Duas tarefas paralelas que tocam o mesmo arquivo → `isolation: 'worktree'` (senão se atropelam). Tarefa única ou missão sequencial pura → o Workflow degenera pra um executor por vez, sem cerimônia (o fan-out é ganho só quando há independência real).
+- **OPUS #2 — Revisor de construção.** Julga a obra **contra a spec** — o plano que a casca passou em `planPath`/`planText`, e que o motor entrega ao #2 igual como entrega ao #1. A decomposição do #1 é **meio**, não fonte da verdade: revisar contra ela é circuito fechado, onde quem decompõe errado é aprovado errado. Cinco eixos: **spec** (a spec saiu, mesmo no que a decomposição não previu?) · **constituição** (o que saiu respeita as metas de qualidade autorais do projeto?) · **rastreio** (toda tarefa decomposta trouxe `requisito` e `pronto`?) · **completude** (toda tarefa decomposta saiu?) · **coesão** (as peças paralelas integram, sem se contradizer?). Desvio de spec vira gap de `kind: 'spec'` e **nasce em severidade ≥ floor**; se vier abaixo, o script o segura assim mesmo — senão sairia do filtro de severidade e passaria calado. **Eixo de rastreio:** tarefa decomposta sem `requisito` ou sem `pronto` **reprova** — vira gap de `kind: 'rastreio'`, que nasce em severidade ≥ floor e é segurado pelo script igual ao de spec. Tarefa sem requisito não tem contra o que ser medida, e sem `pronto` quem executa decide sozinho o que é "feito": nenhuma das duas passa calada. **Eixo de constituição:** o revisor **lê `.claude/docs/quality-goals.md` do projeto onde a missão está rodando** e sinaliza onde a implementação VIOLA o que está escrito lá. O arquivo é aberto na rodada, **nunca copiado para dentro desta skill** — a régua é a do projeto que instalou, e cópia em prosa defasa. Violação vira gap de `kind: 'constituicao'` pela rubrica de severidade normal, sem faixa própria. **Projeto sem esse arquivo: o eixo simplesmente não roda** e a revisão segue com os outros quatro — ausência de constituição não é gap. Continua **não** caçando bug sutil nem rodando a suíte — profundidade de correção é do `/qa-loop` (etapa seguinte). Roda em `coordinate_model`; quando os cinco eixos batem, declara `built=true` **direto** — quem re-checa do zero é o `/qa-loop --headless` que roda logo em seguida (Fase Gate + confirm-pass dele). **Guarda (armada no script, não só na prosa):** com `hasQaLoop=false` o motor roda um **confirm-pass dedicado** em `finalize_model` antes de declarar `built` — sem `/qa-loop` adiante, fechar no veredito de `coordinate_model` seria declarar pronto sem nenhuma segunda checagem. Devolve **feedback estruturado pro #1**, que re-decompõe **só o delta** (o que faltou / precisa refazer) na volta seguinte. A seta de volta #2→#1 é o coração do motor.
+- **DIAGNÓSTICO — escalada de tarefa-presa.** Se a MESMA tarefa reaparece em `missingTasks`/`gaps` por ≥ `churn_threshold` rodadas seguidas (default 2, mesmo limiar do `/qa-loop`), o motor escala ANTES de mandar o executor tentar de novo: um diagnóstico dedicado em `diagnose_model` (R8, "diagnóstico após falhas repetidas") investiga a causa raiz (dependência não mapeada, arquivo errado, premissa furada) em vez de repetir o mesmo pedido esperando resultado diferente. O diagnóstico entra no `feedback` da próxima rodada do #1.
 
 ### Fronteira com o `/qa-loop` (a spec é comum; o ângulo, não)
 
@@ -125,11 +141,12 @@ let built = false, r = 0
 let feedback = null   // do #2 pro #1 na volta seguinte (a seta de volta)
 const taskChurn = {}  // { task_id: nº de rodadas seguidas reaparecendo em missingTasks/gaps }
 
-// Tier por rodada (R8 — tabela única com /qa-loop): rodada 1 = decompose_model (xhigh,
-// planejamento inicial); rodadas 2+ = coordinate_model (high, coordenação rotineira).
-const tierFor = round => round === 1
-  ? { model: 'opus', effort: 'xhigh' }   // decompose_model
-  : { model: 'opus', effort: 'high' }    // coordinate_model
+// Tier por rodada (R8): rodada 1 = decompose_model (planejamento inicial); rodadas 2+
+// = coordinate_model (coordenação rotineira). Os valores chegam em args.tiers, servidos
+// de references/r8-tiers.json pela casca — nunca literais aqui.
+const T = args.tiers
+const tierFor = round => ({ model: args.model,
+  effort: round === 1 ? T.decompose.effort : T.coordinate.effort })
 
 while (!built && r < maxRounds) {
   r++; phase(`Rodada ${r}`)
@@ -150,12 +167,12 @@ while (!built && r < maxRounds) {
   if (decomp.blockers?.length) blockers.push(...decomp.blockers)
 
   // DIAGNÓSTICO de tarefa-presa — antes de tentar de novo, escala quem já reaparece
-  // ≥ churnThreshold rodadas seguidas pro diagnose_model (xhigh): causa raiz, não repetição.
+  // ≥ churnThreshold rodadas seguidas pro diagnose_model (medium): causa raiz, não repetição.
   const diagnoses = []
   for (const t of decomp.tasks) {
     if (taskChurn[t.id] >= churnThreshold) {
       const diag = await agent(diagnoseStuckTaskPrompt({ task: t, attempts: taskChurn[t.id] }),
-        { model: 'opus', effort: 'xhigh', phase: 'Diagnose' })   // diagnose_model (contrato R8)
+        { model: args.model, effort: T.diagnose.effort, phase: 'Diagnose' })   // diagnose_model
       diagnoses.push({ task_id: t.id, diagnosis: diag })
     }
   }
@@ -166,9 +183,8 @@ while (!built && r < maxRounds) {
   const todo = decomp.tasks.filter(t => !t.done)
   const par = todo.filter(t => t.parallelizable && !(t.dependsOn?.length))
   const seq = todo.filter(t => !t.parallelizable || (t.dependsOn?.length))
-  const execTier = t => t.complexity === 'mechanical'
-    ? { model: 'opus', effort: 'medium' }    // mechanical_model
-    : { model: 'opus', effort: 'high' }      // executor_model
+  const execTier = t => ({ model: args.model,
+    effort: t.complexity === 'mechanical' ? T.mechanical.effort : T.executor.effort })
   const builtPar = await parallel(par.map(t => () =>
     agent(execPrompt({ task: t }), {
       model: execTier(t).model, effort: execTier(t).effort, phase: 'Executar', schema: TASK_RESULT,
@@ -233,7 +249,7 @@ while (!built && r < maxRounds) {
   if (review.complete && review.cohesive && gaps.length === 0) {
     if (args.hasQaLoop === false) {
       const confirm = await agent(confirmBuildPrompt({ planPath: args.planPath, planText: args.planText, repoRoot: args.repoRoot, decomp, results }),
-        { model: 'opus', effort: 'xhigh', phase: 'Confirmar', schema: BUILD_REVIEW })   // finalize_model
+        { model: args.model, effort: T.finalize.effort, phase: 'Confirmar', schema: BUILD_REVIEW })   // finalize_model
       rounds[rounds.length - 1].confirm = confirm
       // Mesma guarda do revisor, e aqui a direção segura é mais dura ainda: este pass é a
       // ÚNICA segunda checagem que existe quando não há /qa-loop adiante. Ele não responder

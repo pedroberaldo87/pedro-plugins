@@ -38,6 +38,14 @@ import subprocess
 import sys
 import time
 
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from regua_texto import erros_de_estilo as _erros_de_estilo  # noqa: E402
+
+# A régua de estilo (quality-goals.md, regime "informação rápida"): esta página é
+# relatório, lido com pressa, então vale a mesma régua do gerador de página. As
+# quatro checagens moram em `_shared/regua_texto.py`; aqui só se DECLARA o perfil.
+PERFIL = "pagina"
+
 # Bases prováveis, na ordem em que se procura quando o remoto não diz qual é.
 BASE_FALLBACKS = ("main", "master", "trunk", "develop")
 PARADA_DIAS = 30   # a partir daqui uma branch conta como "parada"
@@ -352,7 +360,28 @@ document.addEventListener('DOMContentLoaded',upd);
 """
 
 
+def erros_de_estilo(v, onde):
+    """A régua no perfil DESTE gerador — a definição mora em `regua_texto.py`.
+
+    Fora do alcance de propósito: assunto de commit e nome de arquivo, que são
+    citação do git e não redação desta página.
+    """
+    return _erros_de_estilo(v, onde, PERFIL)
+
+
 def render_html(res, stamp):
+    # O `why` de cada branch é o único texto autoral que entra nesta página — o
+    # resto é nome de branch, assunto de commit e rótulo fixo. Quem o escreve é
+    # `classify`, então violação aqui é defeito DESTE arquivo: a página é RECUSADA
+    # com os motivos. Aviso no stderr deixava o relatório torto nascer assim mesmo,
+    # e ninguém lê stderr de um comando que terminou imprimindo um caminho.
+    errs = []
+    for b in res["branches"]:
+        errs.extend(erros_de_estilo(b["why"], "branch %s: why" % b["name"]))
+    if errs:
+        raise BranchError("relatório recusado pela régua de estilo:\n  - "
+                          + "\n  - ".join(errs))
+
     seguras = [b for b in res["branches"] if b["category"] in ("merged", "equivalent")]
     risco = [b for b in res["branches"] if b["category"] not in ("merged", "equivalent")]
     proj = os.path.basename(res["repo"])
@@ -428,9 +457,12 @@ def cmd_report(args):
     out = args.out or os.path.join(resolve_visual_dir(repo),
                                    "%s-branches-%s.html" % (time.strftime("%Y-%m-%d"),
                                                             os.path.basename(res["repo"])))
+    # Renderiza ANTES de abrir o arquivo: `open(…, "w")` trunca na hora, então
+    # recusa da régua com o arquivo já aberto deixaria um HTML vazio no lugar.
+    page = render_html(res, stamp)
     os.makedirs(os.path.dirname(os.path.abspath(out)), exist_ok=True)
     with open(out, "w", encoding="utf-8") as fh:
-        fh.write(render_html(res, stamp))
+        fh.write(page)
     print(out)
     return 0
 

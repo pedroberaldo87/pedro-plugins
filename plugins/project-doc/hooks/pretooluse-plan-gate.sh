@@ -15,6 +15,18 @@
 #
 #   C) tem doc e já foi lida -> exit 0, silêncio.
 #
+#   Antes de B/C, duas recusas sobre o ACORDO (plano "a constituição se cumpre",
+#   F3.2 e F5.3) — ter doc não é ter acordo, e era aqui que o gate calava:
+#
+#   D) doc existe mas a constituição do PROJETO não está fechada -> DENY.
+#   E) alguma etapa do acordo está em aberto -> DENY, nomeando qual
+#      (arquitetura / interface / jornadas). Vale para projeto novo também: é ele
+#      que tem TODAS as etapas em aberto.
+#
+#   D e E são RECUSA, não nudge: não têm cap (cap faria o gate calar, e o
+#   artefato nasceria sem régua do projeto). Ambas honram o MESMO escape verbal
+#   do caso A — quem autoriza explicitamente segue autorizando.
+#
 # EnterPlanMode é o momento certo (antes do plano existir); ExitPlanMode é a
 # rede — ela é comprovadamente hookável (visual e intent-guard já a usam) e
 # ainda dá tempo, porque o deny volta pro modelo antes do plano chegar ao usuário.
@@ -117,6 +129,81 @@ if [ -z "$LINE" ]; then
   jq -n --arg r "$MSG" \
     '{hookSpecificOutput:{hookEventName:"PreToolUse",permissionDecision:"deny",permissionDecisionReason:$r}}'
   exit 0
+fi
+
+# ============ CASO D/E — a doc existe, o ACORDO é que pode não existir ============
+# F3.2: a constituição do projeto (`quality-goals.md`) é a régua DESTE projeto —
+#   o que ele prioriza quando não dá pra ter tudo. Sem ela fechada, o caminho que
+#   produz artefato roda sem critério de forma nenhum. Até hoje o gate calava.
+# F5.3: as etapas do acordo (arquitetura → interface → jornadas). Cobradas SEMPRE,
+#   não só de quem já tem um dos documentos: enquanto a cobrança dependia de existir
+#   arquivo, projeto novo — os 5 autorais escritos e nenhum architecture-intent nem
+#   journeys — nunca era negado, que é exatamente o caso que o gate existe para pegar.
+#   Quem não quer o regime autoriza pelo escape verbal, que é decisão do usuário.
+# Marca de aprovação: a do contrato autoral (`references/authorial-kit.md`), não uma
+#   nova — `status: approved` no frontmatter e nenhum `[PENDENTE]` no corpo.
+# ---------------------------------------------------------------------------
+DOCS_DIR="$PROJ/.claude/docs"
+
+# acordado <arquivo> — documento autoral com o de acordo do usuário registrado.
+# `approved`, não `ready`: no contrato autoral `ready` é "escrito" (a própria skill
+# promove sozinha quando o último `[PENDENTE]` sai) e `approved` é "o dono deu o de
+# acordo", que nenhuma máquina escreve por conta própria. Gate de ACORDO cobra o segundo.
+acordado() {
+  [ -f "$1" ] || return 1
+  grep -qi '^status:[[:space:]]*approved' "$1" 2>/dev/null || return 1
+  ! grep -q '\[PENDENTE\]' "$1" 2>/dev/null
+}
+
+if [ ! -f "$ESCAPE" ]; then
+  # ---- D) constituição do projeto ----
+  if ! acordado "$DOCS_DIR/quality-goals.md"; then
+    if [ -f "$DOCS_DIR/quality-goals.md" ]; then
+      QG_WHY="está em aberto (falta status: approved, ou há [PENDENTE] no corpo)"
+    else
+      QG_WHY="não existe"
+    fi
+    # A mensagem sai no perfil "hook" da régua (_shared/regua_texto.py): cabeçalho com
+    # emoji, bullets de uma frase, sem markdown — o canal não renderiza crase nem `**`.
+    MSG="📐 Plano barrado: a constituição deste projeto não está acordada.
+• .claude/docs/quality-goals.md ${QG_WHY}
+• é ela que diz o que este sistema prioriza quando não dá pra ter tudo
+• sem ela o plano nasce sem régua, e o trade-off vira preferência sua
+• rode /start-doc quality-goals e feche o acordo com o usuário
+• recusa sem cap: o usuário libera com --sem-doc e revoga com --com-doc"
+    jq -n --arg r "$MSG" \
+      '{hookSpecificOutput:{hookEventName:"PreToolUse",permissionDecision:"deny",permissionDecisionReason:$r}}'
+    exit 0
+  fi
+
+  # ---- E) as etapas do acordo ----
+  # design.md (interface) só entra pra quem TEM tela — mesma regra do
+  # sessionstart-doc.sh. Sem a lib, a etapa de interface simplesmente não é
+  # cobrada; o resto do gate não pode morrer junto (patterns.md §5.3).
+  if ! . "$SCRIPT_DIR/lib-has-frontend.sh" 2>/dev/null; then
+    has_frontend() { return 1; }
+  fi
+  # `architecture-intent`, não `solution-strategy`: o documento da etapa 2 no contrato
+  # autoral é o desenho pretendido; a estratégia é da etapa 1, junto com os 5 universais.
+  ETAPAS="arquitetura:architecture-intent jornadas:journeys"
+  has_frontend "$PROJ" && ETAPAS="arquitetura:architecture-intent interface:design jornadas:journeys"
+
+  ABERTAS=""
+  for E in $ETAPAS; do
+    acordado "$DOCS_DIR/${E#*:}.md" || ABERTAS="${ABERTAS}${ABERTAS:+, }${E%%:*} (${E#*:}.md)"
+  done
+
+  if [ -n "$ABERTAS" ]; then
+    MSG="📐 Plano barrado: o acordo com o usuário tem etapa em aberto.
+• falta fechar: ${ABERTAS}
+• a ordem é constituição, arquitetura, interface, jornadas, e só então o plano
+• cada etapa é um documento autoral com status: approved e sem [PENDENTE]
+• plano sobre jornada não acordada implementa a jornada que VOCÊ imaginou
+• rode /start-doc; recusa sem cap, o usuário libera com --sem-doc"
+    jq -n --arg r "$MSG" \
+      '{hookSpecificOutput:{hookEventName:"PreToolUse",permissionDecision:"deny",permissionDecisionReason:$r}}'
+    exit 0
+  fi
 fi
 
 # ======================= CASO B/C — a doc existe =======================

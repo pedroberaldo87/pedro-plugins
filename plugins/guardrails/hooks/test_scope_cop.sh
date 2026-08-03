@@ -65,6 +65,22 @@ check "o aviso cita o motivo concreto do juiz" "$R" "sim"
 check "warn NÃO bloqueia a edição" \
   "$(printf '%s' "$OUT_WARN" | jq -r '.hookSpecificOutput.permissionDecision // "allow"' 2>/dev/null)" "allow"
 
+echo "── a régua do canal de texto (perfil hook) ──"
+# O systemMessage sai num terminal, não num renderizador de markdown: `**` chega
+# literal e parágrafo longo vira ruído — que é o que ensina a desligar o gate. Quem
+# cobra é a MESMA régua do gerador de página, pelo perfil `hook`.
+REGUA="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/../lib/regua_texto.py"
+# Saída vazia = passou; cada motivo recusado sai numa linha do stderr.
+regua() { printf '%s\n' "$1" | python3 "$REGUA" --perfil hook --onde "aviso do scope-cop" - 2>&1 || :; }
+M_WARN="$(printf '%s' "$OUT_WARN" | jq -r '.systemMessage // ""' 2>/dev/null)"
+check "a régua está vendorada no plugin (instalado, ele só enxerga a própria pasta)" \
+  "$(if [ -f "$REGUA" ]; then echo tem; else echo falta; fi)" "tem"
+check "o aviso REAL do hook passa na régua" "$(regua "$M_WARN")" ""
+check "o mesmo aviso com markdown é RECUSADO" \
+  "$(regua "$(printf '%s' "$M_WARN" | sed 's/Scope-cop/**Scope-cop**/')" | grep -c markdown | tr -d ' ')" "1"
+check "o mesmo aviso sem emoji no cabeçalho é RECUSADO" \
+  "$(regua "$(printf '%s' "$M_WARN" | sed 's/^🚧 //')" | grep -c emoji | tr -d ' ')" "1"
+
 echo "── modo deny: segue negando (nada de regressão) ──"
 OUT_DENY="$(run deny "deny-$$")"
 check "deny nega a edição" \

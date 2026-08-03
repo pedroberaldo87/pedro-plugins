@@ -146,6 +146,66 @@ check "plugin NAO tocado com description divergente nao trava o commit" \
   "$(printf '%s' "$out" | grep -q 'outro' && echo 0 || echo 1)"
 
 
+# ── I · gerador de página que não chama a régua de estilo ───────────────────
+# O detector mora em scripts/regua_call_check.py e se localiza pela própria pasta,
+# então basta copiá-lo pro repo descartável pra ele varrer o staged DE LÁ.
+echo "Check I — gerador de HTML sem a régua"
+mkdir -p "$R/scripts"
+cp "$HERE/../../scripts/regua_call_check.py" "$R/scripts/"
+DOCTYPE="<!DOC""TYPE html>"
+printf 'def pagina(t):\n    return "%s" + t\n' "$DOCTYPE" > "$R/plugins/exemplo/lib/gerador.py"
+git -C "$R" add -A >/dev/null
+out=$(gate_out "git commit -m x")
+check "gerador de mentira SEM a chamada e barrado" \
+  "$(printf '%s' "$out" | grep -q 'PÁGINA SEM RÉGUA' && echo 1 || echo 0)"
+check "a mensagem aponta o arquivo e o sinal" \
+  "$(printf '%s' "$out" | grep -q 'gerador.py' \
+     && printf '%s' "$out" | grep -q 'doctype' && echo 1 || echo 0)"
+
+printf 'from regua_texto import erros_de_estilo\n\ndef pagina(t):\n    assert not erros_de_estilo(t, "t", "pagina")\n    return "%s" + t\n' \
+  "$DOCTYPE" > "$R/plugins/exemplo/lib/gerador.py"
+git -C "$R" add -A >/dev/null
+out=$(gate_out "git commit -m x")
+check "o mesmo gerador COM a chamada passa" \
+  "$(printf '%s' "$out" | grep -q 'PÁGINA SEM RÉGUA' && echo 0 || echo 1)"
+
+# divida antiga nao trava trabalho alheio: o check so olha o que ESTE commit traz
+printf 'def velho(t):\n    return "%s" + t\n' "$DOCTYPE" > "$R/plugins/exemplo/lib/velho.py"
+out=$(gate_out "git commit -m x")
+check "gerador antigo FORA do commit nao trava" \
+  "$(printf '%s' "$out" | grep -q 'velho.py' && echo 0 || echo 1)"
+rm -f "$R/plugins/exemplo/lib/velho.py" "$R/plugins/exemplo/lib/gerador.py" "$R/scripts/regua_call_check.py"
+
+
+# ── D2 · a suíte de _shared/ roda no commit ─────────────────────────────────
+# O check D varre plugins/<nome>/lib/test_*.py e o F varre plugins/<nome>/hooks/test_*.sh.
+# _shared/test_*.py não casa com nenhum dos dois globs, então a suíte que DEFINE o
+# comportamento do código compartilhado dependia de alguém lembrar de rodá-la à mão.
+echo "Check D2 — a suíte de _shared/"
+mkdir -p "$R/_shared"
+printf 'import sys\nprint("a régua deixou passar")\nsys.exit(1)\n' > "$R/_shared/test_quebrado.py"
+git -C "$R" add -A >/dev/null
+out=$(gate_out "git commit -m x")
+check "suíte vermelha em _shared/ barra o commit" \
+  "$(printf '%s' "$out" | grep -q 'test_quebrado.py' && echo 1 || echo 0)"
+check "e a mensagem traz a saída real do teste" \
+  "$(printf '%s' "$out" | grep -q 'a régua deixou passar' && echo 1 || echo 0)"
+
+printf 'import sys\nsys.exit(0)\n' > "$R/_shared/test_quebrado.py"
+git -C "$R" add -A >/dev/null
+out=$(gate_out "git commit -m x")
+check "a mesma suíte verde não barra" \
+  "$(printf '%s' "$out" | grep -q 'test_quebrado.py' && echo 0 || echo 1)"
+
+# commit que NÃO toca _shared/ não paga o custo (mesma regra dos checks D, E e I)
+printf 'import sys\nsys.exit(1)\n' > "$R/_shared/test_quebrado.py"
+git -C "$R" add -A >/dev/null
+git -C "$R" commit -qm "suite vermelha ja no HEAD"
+printf 'x=3\n' >> "$R/plugins/exemplo/lib/mod.py"
+out=$(gate_out "git commit -m x")
+check "_shared/ intocado pelo commit não é varrido" \
+  "$(printf '%s' "$out" | grep -q 'test_quebrado.py' && echo 0 || echo 1)"
+
 echo
 if [ "$FAIL" -gt 0 ]; then echo "FALHOU: $FAIL de $((PASS+FAIL))"; exit 1; fi
 echo "OK ($PASS checks)"

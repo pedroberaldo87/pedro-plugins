@@ -54,6 +54,16 @@ case "$NFILES" in ''|*[!0-9]*) exit 0 ;; esac
 
 DOCLIST=$(printf '%s' "$PLAN" | jq -r '(.pending_docs // (.docs|keys)) | .[:5] | join(", ")' 2>/dev/null)
 
-MSG="📝 doc-touch: o trabalho recente tocou ${NFILES} arquivo(s) cobertos por ${NDOCS} doc(s) (${DOCLIST}). Rode /doc-touch pra atualizar a doc incrementalmente (sem re-mineração)."
+# Cabeçalho com emoji e um bullet por ideia: o canal é terminal puro, e uma linha
+# de 177 caracteres com a lista de docs no meio não se lê no fim de um turno.
+MSG="📝 doc-touch: ${NFILES} arquivo(s) tocados, cobertos por ${NDOCS} doc(s)
+• Docs afetadas: ${DOCLIST}
+• Rode /doc-touch pra atualizar a doc incrementalmente, sem re-mineração."
+
+# A régua do canal (perfil `hook`, de quality-goals.md). Defeito de forma não cala uma
+# sugestão: o motivo vai pro stderr e o texto sai assim mesmo. Régua ausente → silêncio.
+REGUA="$SCRIPT_DIR/../lib/regua_texto.py"
+[ -f "$REGUA" ] && printf '%s\n' "$MSG" | "$PY3" "$REGUA" --perfil hook --onde "sugestão de doc-touch" - || :
+
 jq -n --arg m "$MSG" '{systemMessage:$m}' 2>/dev/null
 exit 0

@@ -69,6 +69,14 @@ NOTES=""
 note() { NOTES="${NOTES:+$NOTES
 }$1"; }
 allow_with_notes() {
+  # A régua do canal (perfil `hook` de `lib/regua_texto.py`, vinda de quality-goals.md):
+  # uma nota por linha, cada uma abrindo com emoji, sem markdown — o canal é terminal.
+  # Defeito de forma não cala um aviso: o motivo vai pro stderr (debug log) e a nota sai
+  # assim mesmo. Régua ou python3 ausentes → silêncio, nunca queda.
+  REGUA="$(cd "$(dirname "$0")" && pwd)/../lib/regua_texto.py"
+  PY3=$(command -v python3 2>/dev/null)
+  [ -n "$NOTES" ] && [ -n "$PY3" ] && [ -f "$REGUA" ] && \
+    printf '%s\n' "$NOTES" | "$PY3" "$REGUA" --perfil hook --onde "nota do gate de deploy" - || :
   [ -n "$NOTES" ] && jq -n --arg m "$NOTES" \
     '{systemMessage:$m, hookSpecificOutput:{hookEventName:"PreToolUse", additionalContext:$m}}'
   exit 0

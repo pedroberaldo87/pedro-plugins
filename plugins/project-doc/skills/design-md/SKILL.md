@@ -15,6 +15,21 @@ Esta skill **embrulha o CLI oficial** (`@google/design.md`) — não reimplement
 - Validar um `DESIGN.md` (estrutura + contraste + refs).
 - Exportar os tokens pra Tailwind (v3/v4) ou DTCG (W3C Design Tokens).
 
+## Quando isto é a etapa de interface do `/start-doc`
+
+O `/start-doc` conduz a concepção em quatro etapas de acordo — autoral, arquitetura, **interface**,
+jornadas. A etapa de interface **é este arquivo**: ele entrevista, você escreve e valida
+`.claude/docs/design.md`. Não existe documento paralelo de interface; reaproveita-se este.
+
+Duas obrigações a mais quando o chamador é o `/start-doc`:
+
+- **Grave o de acordo no frontmatter**, junto dos tokens: `status: approved` e
+  `approved: {YYYY-MM-DD}`, só depois de o dono dizer que está satisfeito. Testado com o linter
+  oficial: os dois campos extras passam limpo (`errors: 0, warnings: 0`).
+- **Lint limpo não é aprovação.** O CLI diz que o arquivo é válido, não que o dono concordou com a
+  personalidade que está lá dentro. Apresente o arquivo inteiro, sabatine com `/grill-me`, corrija e
+  reapresente até ele aprovar.
+
 ## Quando NÃO usar
 - Gerar CSS/componentes finais de UI — DESIGN.md é a **fonte de tokens/diretrizes**, não o código da tela.
 - Editar `tokens.json`/Figma direto — use o `export` pra derivar desses, não o contrário aqui.

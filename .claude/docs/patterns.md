@@ -311,7 +311,7 @@ CMDPFX='([A-Za-z_][A-Za-z0-9_]*=[^[:space:];&|]*[[:space:]]+|(sudo|nohup|env|tim
 
   O comentário nomeia o contrapeso: *"senão a âncora deixa de existir e a menção volta a disparar (o contrapeso está na suíte: `echo sudo ./deploy.sh` e `git commit -m "sudo ./deploy.sh quebrou"` seguem 0)"* [confirmado — `test_pre_deploy.sh` nesta rodada: `100 ok, 0 falhas`].
 
-- 🔴 **E aqui está o limite da âncora: prefixo enumerado só cobre o que alguém lembrou de enumerar.** O `release-gate.sh` usava a mesma ideia (`(^|[;&|]|&&)[[:space:]]*git[[:space:]]+.*commit`) e **quatro formas legítimas passavam caladas** — `env FOO=1 git commit`, `(git commit …)`, `bash -c "git commit …"` e `VAR=x git commit` — enquanto `git log --grep commit` disparava à toa. O conserto trocou o casamento de forma por **parse**: o comando é quebrado em tokens (o split inclui `(`, `)`, `;`, `&`, `|`, `<`, `>`, aspas e crase) e o subcomando do git é lido pulando as opções globais e os valores delas (§5.2). **Quando o alvo é um comando de verdade, tokenize e leia o subcomando; regex de forma é para texto, não para linha de comando.** [confirmado — `.claude/hooks/test_release_gate.sh` → `OK (17 checks)`, com um caso por forma]
+- 🔴 **E aqui está o limite da âncora: prefixo enumerado só cobre o que alguém lembrou de enumerar.** O `release-gate.sh` usava a mesma ideia (`(^|[;&|]|&&)[[:space:]]*git[[:space:]]+.*commit`) e **quatro formas legítimas passavam caladas** — `env FOO=1 git commit`, `(git commit …)`, `bash -c "git commit …"` e `VAR=x git commit` — enquanto `git log --grep commit` disparava à toa. O conserto trocou o casamento de forma por **parse**: o comando é quebrado em tokens (o split inclui `(`, `)`, `;`, `&`, `|`, `<`, `>`, aspas e crase) e o subcomando do git é lido pulando as opções globais e os valores delas (§5.2). **Quando o alvo é um comando de verdade, tokenize e leia o subcomando; regex de forma é para texto, não para linha de comando.** [confirmado — `.claude/hooks/test_release_gate.sh` → `OK (30 checks)`, com um caso por forma]
 
 ### 1.9 Chamada interna de LLM tem que se auto-marcar
 
@@ -736,17 +736,20 @@ Hoje o comando é **quebrado em tokens** (o split inclui `(`, `)`, `;`, `&`, `|`
 
 ⚠️ **`--amend` é detectado, e ele muda o que o check C compara.** Como as aspas somem no split, a mensagem do commit vira token solto e um `--amend` escrito DENTRO dela passaria por flag; por isso só contam as opções **coladas ao subcomando** — o primeiro token que não é opção nem valor de opção encerra a varredura. Detectado o amend, o check C compara com **`HEAD~1:`** em vez de `HEAD:`, porque em amend o `HEAD` **é** o commit sendo reescrito e a comparação acusava `BUMP ESQUECIDO` de uma version que já estava dentro do próprio commit. Amend do commit raiz: `git show` falha e nada é acusado. [confirmado]
 
-**Suíte dedicada: `.claude/hooks/test_release_gate.sh` → `OK (17 checks)` nesta rodada** — ela exercita as quatro formas que passavam, o falso positivo do `git log --grep commit`, o `--amend` dentro da mensagem (*"é texto, não amend"*) e o fail-open fora do monorepo. ⚠️ **Ela mora em `.claude/hooks/`, fora dos globs dos checks D e F**, então nenhum commit a dispara automaticamente — mesma exceção das duas suítes de `scripts/`.
+**Suíte dedicada: `.claude/hooks/test_release_gate.sh` → `OK (30 checks)` nesta rodada** — ela exercita as quatro formas que passavam, o falso positivo do `git log --grep commit`, o `--amend` dentro da mensagem (*"é texto, não amend"*) e o fail-open fora do monorepo. ⚠️ **Ela mora em `.claude/hooks/`, fora dos globs dos checks D e F**, então nenhum commit a dispara automaticamente — mesma exceção das duas suítes de `scripts/`.
 
-**Os checks são OITO**, com as letras do próprio arquivo e nesta ordem de declaração: `A · B+C · D · E · G · H · F` [confirmado — li o arquivo inteiro nesta rodada]. A ordem de execução não importa: todos só acumulam em `VIOL`.
+**Os checks são DEZ**, com as letras do próprio arquivo e nesta ordem de declaração: `A · B+C · D · D2 · E · E2 · G · H · I · F` [confirmado — li o arquivo inteiro nesta rodada]. A ordem de execução não importa: todos só acumulam em `VIOL`.
 
 - **A · vendoring** — roda `scripts/sync-shared.sh --check`. Drift ⇒ `❌ VENDORING EM DRIFT`, mandando corrigir **na fonte** `_shared/<arquivo>`.
 - **B · espelho `plugin.json` ↔ `marketplace.json`** — divergiu ⇒ `❌ ESPELHO QUEBRADO`, com as duas versões impressas.
 - **C · bump esquecido** — compara com `git show HEAD:<manifesto>`, ou com `HEAD~1:` quando o gatilho detectou `--amend`. Iguais ⇒ `❌ BUMP ESQUECIDO — <nome> mudou mas version continua <v>`.
 - **D · testes Python** — roda `plugins/<nome>/lib/test_*.py` dos plugins tocados. Vermelho ⇒ `❌ TESTE VERMELHO` com as últimas 15 linhas.
+- **D2 · suíte de `_shared/`** — só quando o commit toca `_shared/`. Roda `_shared/test_*.py`, a suíte da FONTE do código vendorado. Nasceu de um buraco entre D e F: nenhum dos dois globs (`plugins/<nome>/lib/` e `plugins/<nome>/hooks/`) casa com `_shared/`, então a suíte que define o comportamento do código compartilhado dependia de alguém lembrar de rodá-la à mão.
 - **E · contrato dos hooks** — só quando o commit toca `plugins/*/hooks/`. Roda `python3 scripts/hook_contract.py --baseline .claude/hook-contract.baseline.json --fail-on high` e barra **o que piorou**. O comentário explica a escolha: *"Comparar com o baseline (e não exigir zero) é o que impede a regra de apodrecer"*.
+- **E2 · orçamento do fim de turno** — mesma condição do E (commit que toca `plugins/*/hooks/`) e outra régua: roda `python3 scripts/hook_contract.py --stop-budget --baseline .claude/stop-budget.baseline.json`. Não mede a FORMA do hook, mede **quanto o conjunto cospe no `Stop`** — e o que barra é a deriva contra o retrato, não um teto absoluto, porque o total já encostou nas 6 linhas de referência.
 - **G · gen defasado no marker do project-doc** — só quando o commit toca `plugins/project-doc/`. Lê `CURRENT_GEN` de `pattern_check.py` (hoje **"3.8"** [confirmado, li a constante]) e varre `plugins/project-doc/skills/` procurando `gen=X.Y` **dentro de comentário HTML**. Menção em prosa a um gen antigo **não** é violação — *"barrá-las ensinaria a ignorar o gate"*. Fail-open se `CURRENT_GEN` não resolver (`sys.exit(0)`).
 - **H · dado pessoal em commit de repo público** — roda `python3 scripts/public_repo_check.py --staged`. Só olha o que **este** commit traz: *"dívida antiga não trava ninguém, mas ocorrência nova é barrada na porta"*. O comentário registra por que virou código: *"Regra em prosa não pega (o CLAUDE.md pedia isso e 368 ocorrências entraram assim mesmo)"*.
+- **I · gerador de página fora da régua de estilo** — roda `python3 scripts/regua_call_check.py --staged`. Arquivo que monta HTML e **não** chama a régua de `_shared/regua_texto.py` é barrado. Mesma regra do H: só o que **este** commit traz, porque os geradores que já estavam fora não podem travar trabalho alheio.
 - **F · testes shell** — roda `plugins/<nome>/hooks/test_*.sh` dos plugins tocados.
 
 ⚠️ **D e F são por plugin TOCADO, não por repo.** Um commit que só mexe no `bootstrap` roda exatamente `plugins/bootstrap/lib/test_*.py` e `plugins/bootstrap/hooks/test_*.sh` e mais nada. **Plugin sem suíte não é plugin sem teste: é plugin cujos checks D e F estão desligados.**
@@ -886,7 +889,7 @@ Suites executadas nesta rodada, com o número que cada uma imprime [confirmado, 
 
 **As três suítes que nasceram na rodada de consertos**, todas verdes aqui [confirmado, executadas nesta passada]:
 
-- `.claude/hooks/test_release_gate.sh` — `OK (17 checks)` · o gatilho do gate de commit, uma forma de comando por check
+- `.claude/hooks/test_release_gate.sh` — `OK (30 checks)` · o gatilho do gate de commit, uma forma de comando por check
 - `plugins/visual/hooks/test_exitplan_gate.sh` — `OK (12 checks)` · o gate do `ExitPlanMode`, incluindo kill-switch e fail-open
 - `plugins/handoff/lib/test_handoff_skill.py` — `OK` (7 asserções `ok`) · cobra que a prosa da skill mande **copiar** `pronto` e `pendencia` do arquivo de plano, não redigi-los de novo
 
@@ -941,7 +944,7 @@ for t in plugins/*/hooks/test_*.sh;               do bash    "$t" || echo "RED: 
 
 ### Código compartilhado
 
-- ⚠️ **Editar `_shared/` sem rodar `scripts/sync-shared.sh`** deixa as 6 cópias vendoradas defasadas. Fix nasce em `_shared/`, nunca na cópia.
+- ⚠️ **Editar `_shared/` sem rodar `scripts/sync-shared.sh`** deixa as 14 cópias vendoradas defasadas. Fix nasce em `_shared/`, nunca na cópia.
 
 ### project-doc
 
@@ -975,7 +978,7 @@ bash    plugins/<nome>/hooks/test_*.sh
 python3 scripts/hook_contract.py --baseline .claude/hook-contract.baseline.json --fail-on high
 python3 scripts/public_repo_check.py --staged
 
-# 4. commit — o release-gate roda A–H sozinho e sai 2 se algo violar
+# 4. commit — o release-gate roda A–I sozinho e sai 2 se algo violar
 
 # 5. hook novo? confirme que ele carregou (e lembre: só vale na PRÓXIMA sessão)
 claude plugin details <nome>@pedro-plugins     # → "Hooks (N)"  ⚠️ N conta EVENTOS, não scripts
