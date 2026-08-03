@@ -339,6 +339,37 @@ exit 0
           hc._linhas_visiveis("{ isto nao fecha") == 1)
 
     print()
+    print("o orçamento do fim de turno barra a DERIVA, não o número de hoje")
+    import json as _json
+    import tempfile as _tf
+    atual = {"emissores": [{"plugin": "visual", "script": "a.sh", "linhas": 5, "timeout": 15},
+                           {"plugin": "novo", "script": "b.py", "linhas": 0, "timeout": 20}],
+             "total_linhas": 5, "teto": 6}
+
+    def retrato(total, emissores):
+        p = _tf.mktemp(suffix=".json")
+        with open(p, "w", encoding="utf-8") as fh:
+            _json.dump({"total_linhas": total, "emissores": emissores, "teto": 6}, fh)
+        return p
+
+    igual = retrato(5, [{"plugin": "visual", "script": "a.sh", "linhas": 5}])
+    check("total igual ao retrato passa", hc._piorou(atual, igual) == 0)
+    folgado = retrato(9, [{"plugin": "visual", "script": "a.sh", "linhas": 9}])
+    check("total menor que o retrato passa", hc._piorou(atual, folgado) == 0)
+    magro = retrato(3, [{"plugin": "visual", "script": "a.sh", "linhas": 3}])
+    check("total maior que o retrato barra", hc._piorou(atual, magro) == 1)
+    check("retrato ilegível NÃO barra — gate não trava por infra",
+          hc._piorou(atual, "/caminho/que/nao/existe.json") == 0)
+    with open(magro, "w", encoding="utf-8") as fh:
+        fh.write("{ isto nao fecha")
+    check("retrato corrompido NÃO barra", hc._piorou(atual, magro) == 0)
+    # o estado de hoje é 6 de um teto de 6: um gate por número absoluto barraria o
+    # próximo commit que tocasse hook sem nada ter piorado. Este não barra.
+    no_limite = retrato(6, [{"plugin": "visual", "script": "a.sh", "linhas": 6}])
+    check("estar NO teto não barra — só subir barra",
+          hc._piorou({"emissores": [], "total_linhas": 6}, no_limite) == 0)
+
+    print()
     print("kill-switch de hook Python é reconhecido")
     r = Repo()
     r.hook("guarda.py",

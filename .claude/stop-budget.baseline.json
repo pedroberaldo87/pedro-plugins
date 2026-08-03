@@ -1,0 +1,48 @@
+{
+  "emissores": [
+    {
+      "plugin": "bootstrap",
+      "script": "stop-prose-ceiling.py",
+      "linhas": 0,
+      "timeout": 10
+    },
+    {
+      "plugin": "bootstrap",
+      "script": "stop-forma-relato.py",
+      "linhas": 0,
+      "timeout": 30
+    },
+    {
+      "plugin": "handoff",
+      "script": "handoff-completeness-gate.sh",
+      "linhas": 0,
+      "timeout": 30
+    },
+    {
+      "plugin": "intent-guard",
+      "script": "delivery-audit.sh",
+      "linhas": 1,
+      "timeout": 60
+    },
+    {
+      "plugin": "project-doc",
+      "script": "stop-doc-touch.sh",
+      "linhas": 0,
+      "timeout": 15
+    },
+    {
+      "plugin": "visual",
+      "script": "stop-plan-status.sh",
+      "linhas": 5,
+      "timeout": 15
+    },
+    {
+      "plugin": "visual",
+      "script": "stop-anuncio-sem-acao.py",
+      "linhas": 0,
+      "timeout": 20
+    }
+  ],
+  "total_linhas": 6,
+  "teto": 6
+}

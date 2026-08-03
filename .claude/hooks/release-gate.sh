@@ -170,6 +170,19 @@ $(printf '%s' "$OUT" | sed -n '3,30p')
    → o contrato está em .claude/docs/patterns.md → \"Contrato dos hooks\""
     fi
   fi
+
+  # E2 · orçamento do fim de turno — mesma ideia, outra régua: o que ele mede não é
+  # a FORMA do hook, é quanto o conjunto cospe no Stop. Teto absoluto não serve, o
+  # total já encostou nos 6 de referência; o que barra é a DERIVA, que é o defeito
+  # que originou o teto (cada autor dentro do seu, o conjunto sem dono).
+  SB="$ROOT/.claude/stop-budget.baseline.json"
+  if [ -f "$HC" ] && [ -f "$SB" ]; then
+    if ! OUT=$(cd "$ROOT" && python3 "$HC" --stop-budget --baseline "$SB" 2>&1); then
+      VIOL="${VIOL}
+❌ FIM DE TURNO ENGORDOU — o Stop passou a cuspir mais que no retrato:
+$(printf '%s' "$OUT" | sed -n '/ENGORDOU/,$p')"
+    fi
+  fi
 fi
 
 # G · literal de gen defasado nos MARKERS das skills do project-doc.
