@@ -79,9 +79,9 @@ Este doc descreve **o que acontece em execução**. Estrutura do repo está em `
 
 ```
 SessionStart      8
-PreToolUse       11
+PreToolUse       13
 PostToolUse       7
-Stop              6
+Stop              8
 UserPromptSubmit  2
 ```
 
@@ -270,6 +270,9 @@ O segundo nasceu de um buraco medido: **7 commits em 2026-08-02 sem plano nenhum
 - **`init` recusa `status: "done"` com prova abaixo de `EVIDENCE_MIN`.** Quem escreve o JSON do `init` é o modelo, e sem isso "concluído" entrava à mão com `evidence` nula — o mesmo palpite que o `tick` recusa. O teto da prova é o mesmo dos dois lados, senão há dois. `[confirmado — `plan_state.py:erros_do_plano`]`
 - **Plano ilegível DIZ qual arquivo e qual erro.** `plan_state.py:le_plano` é a única porta de leitura e converte `OSError`/JSON inválido em `PlanError` com o caminho e a causa, em vez de traceback com rc=1. Quem LISTA (`list_plans`) segue engolindo: um arquivo torto não pode derrubar a listagem dos outros. `[confirmado]`
 - **`cmd_tick`** recusa tique de fase e recusa prova com menos de `EVIDENCE_MIN = 8` caracteres. `cmd_state` recusa o valor `done` — "done só via tick, que exige prova". `[confirmado]`
+- **A prova também tem teto de FORMA, desde 2026-08-03: texto corrido é recusado.** `cmd_tick` barra quando `len(ev) > BULLET_MAX` (140) **e** `prova_bullets(ev)` devolve menos de 2 pedaços — ou seja, um parágrafo num bloco só. A mensagem manda separar com ` · `, `; `, ` + ` ou quebra de linha, e diz o que continua isento: **saída crua de um comando passa inteira**, porque o teto vale só para o texto redigido. `[confirmado — `plan_state.py:cmd_tick`, linha 594]`
+- **`prova_bullets`** não inventa corte: quebra a prova **só** nos separadores que quem escreveu já usou (`\n`, ` · `, `; `, ` + `) e devolve os pedaços sem o marcador. Prova de um segmento só continua um bullet — quem barra a linha corrida longa é o `tick`, no momento de gravar, **não** o renderizador. `[confirmado — `plan_state.py:prova_bullets`]`
+- **A prova sai em bullets nas três superfícies.** `_detalhe` devolve `prova:` mais uma linha `· <pedaço>` por bullet quando há mais de um; a árvore de texto imprime essas linhas e `plan_state.py:_detalhe_html` as converte em `<ul class="pt-prova">` nas **duas** páginas (execução e valor), em vez de colapsar tudo num `<span>`. Um plano de trinta passos com um parágrafo colado a cada título não se lê — foi essa a queixa que abriu o assunto. `[confirmado — `_detalhe`, `_detalhe_html` e as duas chamadas no montador de HTML]`
 - **O validador passou a morder no `tick`, mas só pela tarefa ticada.** Até então ele só rodava no `init`, e por isso um `desc` de 356 chars sobreviveu num plano cujo teto é 140. Agora `cmd_tick` chama `erros_do_plano`, filtra com `plan_state.py:_erro_e_do_no` os erros que citam **aquele** nó e **só esses bloqueiam**; defeito em outra tarefa vira aviso no stderr (os 3 primeiros). É fail-open deliberado: bloquear precisa de evidência sobre o alvo, senão uma tarefa torta congelaria o plano inteiro. A tradução posição↔id é necessária porque `erros_do_plano` prefixa com `fase[i] passo[j]`, que são posições, não ids. `[confirmado]`
 - **`cmd_tick` fecha o requisito em RELATÓRIO, não em estado.** Quando a tarefa ticada era a última daquele `requisito`, o comando imprime o critério de aceite do documento e a ordem de conferir — mas o requisito **não ganha campo `status`**, pelo mesmo motivo pelo qual a fase não tem estado próprio: estado duplicado é estado que diverge. E o motor não verifica critério de aceite, ele **lembra**; quem confere é o usuário. `[confirmado]`
 - **`cmd_page`** grava a página no **mesmo caminho** por (plano, modo, vista): `plano-<id>-<modo>.html` na vista de execução e `plano-<id>-<modo>-valor.html` na de valor, no diretório do `/visual`. O usuário dá refresh na aba, em vez de acumular arquivos — e o sufixo da vista existe porque sem ele as duas árvores do mesmo plano gravariam no mesmo arquivo e a última apagaria a outra em silêncio. `[confirmado]`
@@ -327,7 +330,7 @@ O número **aparece sem ser pedido**, em quatro superfícies, todas lendo a mesm
 - no **cabeçalho da árvore de valor**, texto e HTML;
 - sob demanda, em `plan_state.py cobertura` (com `--json` pra consumo por programa e `--reqs` pra apontar outro documento). `[confirmado — leitura das quatro chamadas]`
 
-**Verificado:** `python3 plugins/visual/lib/test_plan_state.py` → **OK** (173 asserções `ok`, contra 135 antes da rodada de consertos) e `python3 plugins/visual/lib/test_cobertura.py` → **OK** (13), ambas nesta rodada. `[confirmado — `grep -c '^  ok'` sobre a saída de cada uma]`
+**Verificado:** `python3 plugins/visual/lib/test_plan_state.py` → **OK** (252 asserções `ok`, contra 173 na rodada anterior — a diferença é a prova em bullets, com o último check sendo "prova de um segmento continua span") e `python3 plugins/visual/lib/test_cobertura.py` → **OK** (13), ambas nesta rodada. `[confirmado — `grep -c '^  ok'` sobre a saída de cada uma]`
 
 ---
 
@@ -440,10 +443,11 @@ TOTAL 8
 
 ## 9 · ENCERRAMENTO — o que roda no `Stop`
 
-**Os 7 comandos, derivados mecanicamente** neste run:
+**Os 8 comandos, derivados mecanicamente** neste run:
 
 ```
 plugins/bootstrap/hooks/hooks.json    python3 "${CLAUDE_PLUGIN_ROOT}/hooks/stop-prose-ceiling.py"      10s
+plugins/bootstrap/hooks/hooks.json    python3 "${CLAUDE_PLUGIN_ROOT}/hooks/stop-regua-relato.py"       10s
 plugins/bootstrap/hooks/hooks.json    python3 "${CLAUDE_PLUGIN_ROOT}/hooks/stop-forma-relato.py"       30s
 plugins/handoff/hooks/hooks.json      ${CLAUDE_PLUGIN_ROOT}/hooks/handoff-completeness-gate.sh         30s
 plugins/intent-guard/hooks/hooks.json ${CLAUDE_PLUGIN_ROOT}/hooks/delivery-audit.sh                    60s
@@ -452,7 +456,9 @@ plugins/visual/hooks/hooks.json       ${CLAUDE_PLUGIN_ROOT}/hooks/stop-plan-stat
 plugins/visual/hooks/hooks.json       python3 "${CLAUDE_PLUGIN_ROOT}/hooks/stop-anuncio-sem-acao.py"   20s
 ```
 
-`intent-guard` não está ligado nesta máquina, então **6 rodam aqui**. `[confirmado]`
+`intent-guard` não está ligado nesta máquina, então **7 rodam aqui**. `[confirmado]`
+
+⚠️ **A ordem DENTRO do array do `bootstrap` é deliberada:** `stop-regua-relato.py` (mecânico, custo zero) vem **antes** de `stop-forma-relato.py` (que chama modelo). Barrar por forma dos bullets não deve custar uma chamada de LLM. `[confirmado — `plugins/bootstrap/hooks/hooks.json`]` · Que o harness respeite a ordem do array é `[inferido]`, como em todo lugar deste doc.
 
 ⚠️ **Hook Python registrado sem `python3` na frente depende do bit de execução sobreviver ao empacotamento**, e um `CLAUDE_PLUGIN_ROOT` com espaço no caminho o quebra em silêncio. Os três acima chamam o interpretador e citam o caminho entre aspas — é o padrão, não estilo. `[confirmado]`
 
@@ -533,7 +539,7 @@ Os três canais de bloqueio coexistem hoje e o script **não normaliza, só mede
 
 ### 10a · `--stop-budget` — o custo somado do fim de turno
 
-**Novo em 2026-08-02.** As 5 propriedades acima medem cada hook **isolado**; nenhuma mede o CONJUNTO. **Sete** hooks disputam o `Stop` neste marketplace, cada um respeitando o próprio teto, e o dono viu na tela `6/9 · 35s · ↓773 tokens` com quatro blocos de progresso de plano. Todo emissor estava dentro do que prometia — **o conjunto é que não tinha dono**.
+**Novo em 2026-08-02.** As 5 propriedades acima medem cada hook **isolado**; nenhuma mede o CONJUNTO. **Oito** hooks disputam o `Stop` neste marketplace, cada um respeitando o próprio teto, e o dono viu na tela `6/9 · 35s · ↓773 tokens` com quatro blocos de progresso de plano. Todo emissor estava dentro do que prometia — **o conjunto é que não tinha dono**.
 
 ```bash
 python3 scripts/hook_contract.py --stop-budget       # humano
@@ -545,6 +551,7 @@ Saída desta rodada `[confirmado]`:
 
 ```
 bootstrap     stop-prose-ceiling.py            0 linha(s)   timeout=10s
+bootstrap     stop-regua-relato.py             0 linha(s)   timeout=10s
 bootstrap     stop-forma-relato.py             0 linha(s)   timeout=30s
 handoff       handoff-completeness-gate.sh     0 linha(s)   timeout=30s
 intent-guard  delivery-audit.sh                1 linha(s)   timeout=60s
@@ -560,6 +567,8 @@ openai-codex             codex 1.0.6                 0 linha(s)   timeout=900s
 
 SOMADO ao que a máquina realmente paga: 6 linha(s)
 ```
+
+✅ **O emissor novo entrou sem custo de tela.** `stop-regua-relato.py` mede **0 linha** — ele só fala quando barra, e barrar sai por `exit 2` no stderr, fora do orçamento de `systemMessage`. O total continua **6 de 6**, e por isso o gate de deriva não acusou. `[confirmado — `--stop-budget` rodado nesta rodada]`
 
 ⚠️ **Plugin de OUTRO marketplace também emite no `Stop`, e até 2026-08-03 não aparecia aqui.** Quem paga o fim de turno é a máquina, não o repositório — instalar o `impeccable` (que registra `PostToolUse` + `Stop`) deixou o buraco visível. Eles entram no relatório e ficam **fora do total gateado**, de propósito: o retrato viaja no git, o que cada máquina instala não, e um total que os incluísse faria o mesmo commit passar numa máquina e barrar noutra. Dois detalhes que só apareceram medindo `[confirmado]`:
 

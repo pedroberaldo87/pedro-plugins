@@ -123,6 +123,26 @@ A régua fecha: `git ls-files -i -c --exclude-standard` → **0**. [confirmado]
 - **Perder o arquivo não perde trabalho** (a próxima sessão o regenera da máquina viva). **Perder as chaves manuais, sim** — `skills.permitidas` e `ferramentas_externas` não têm origem nenhuma além do próprio arquivo.
 - ⚠️ **Ele NÃO guarda versão de plugin, e é por isso que bump não o toca.** Cada entrada é `{"name": …, "enabled": …}` e nada mais — verificável com `grep -c '[0-9]\+\.[0-9]\+\.[0-9]\+' plugins/bootstrap/config/manifest.json`, que devolve **0** nesta rodada [confirmado]. Consequência prática, apurada em 2026-08-02: subir a versão de um plugin exige mexer em `plugin.json` e `marketplace.json`, **nunca** aqui. O que toca este arquivo é plugin **novo** (ou ligar/desligar um), e aí quem cobra é `conformance.py:check_catalogo` — **não** o release-gate —, então o commit passa e o desvio só aparece no próximo `bootstrap:setup`.
 
+### A7 · `_shared/r8-tiers.json` — o contrato de tier virou DADO
+
+- **Nasceu em 2026-08-03** (commit `5288bc5`). **JSON rastreado, 2.856 bytes.** [confirmado — `ls -la` + `git ls-files`]
+- **Por que é depósito e não código:** é a fonte da verdade dos valores de esforço que os motores do `/sovai` e do `/qa-loop` passam ao Workflow. Antes o número morava no texto das skills, e o próprio cabeçalho do módulo mede o estrago: *"trocar seis valores custou 45 substituições em dois SKILL.md, três saíram invertidas e duas sobreviveram a dois verificadores. A causa não era descuido — era o número morar em quinze lugares."* [confirmado, `_shared/r8_tiers.py`]
+- **Sete chaves de topo** (`_comment`, `revised`, `model`, `api_default_effort`, `tiers`, `regra_por_rodada`, `fundamento`). O `tiers` é o coração: um objeto por etapa (`decompose`, `coordinate`, `executor`, `mechanical`, `diagnose`, …), cada um com `effort`, `etapa`, `quando` e **`porque`** — o motivo escrito ao lado do valor, que é a parte que nenhum literal em SKILL.md carregava. [confirmado, `json.load` nesta rodada]
+- **Três consumos, todos lendo o mesmo arquivo** (`_shared/r8_tiers.py`): `args` monta o dicionário que a casca passa ao Workflow; `render` gera o `r8-tiers.md`; `check` falha se o markdown divergir do JSON **ou** se um `SKILL.md` voltar a carimbar um valor literal. Rodado nesta rodada: `OK: R8 servido de _shared/r8-tiers.json, sem cópia carimbada em SKILL.md`. [confirmado]
+- **Quem cobra:** o check **E3** do `.claude/hooks/release-gate.sh` (linhas 83-89), que roda `r8_tiers.py check` e barra o commit com a mensagem *"o valor vive em `_shared/r8-tiers.json` e chega ao motor por args; o SKILL.md cita o KNOB, nunca o número"*. Isenção explícita: `r8-ok: <motivo>` na linha. [confirmado nos dois lados]
+- ⚠️ **É vendorado, então tem as MESMAS armadilhas de `_shared/`:** `scripts/sync-shared.sh` copia o `.json` e o `.md` gerado para `plugins/sovai/skills/sovai/references/` e `plugins/qa-loop/skills/qa-loop/references/`. As três cópias batem hoje (`md5` idêntico nas três: `27f38d87…`). Editar a cópia em vez da fonte reintroduz exatamente o drift que o arquivo existe pra matar. [confirmado]
+- **Natureza: fonte versionada, coberta pelo git.** Perder o arquivo é perder um arquivo do repo — volta com `git checkout`. O que **não** volta por comando é o `porque` de cada tier, que é julgamento escrito, não valor derivável.
+
+### A8 · `.claude/limites-aceitos.md` — o registro do que a régua reprova e não vai ser consertado
+
+- **Nasceu em 2026-08-03** (commit `1e59b55`). **Markdown rastreado, 2.091 bytes.** [confirmado — `git ls-files .claude/limites-aceitos.md`]
+- **Por que existe, copiado do próprio arquivo:** *"Sem este arquivo o desacordo vira ou dívida esquecida ou conserto reflexo — os dois piores que a decisão registrada."*
+- **Cada item traz quatro coisas:** o que a régua reprova, a data e o plano em que foi decidido, o **motivo** de não consertar, e o **comando de reconferência** com a saída daquele dia colada. Sem o comando, o limite vira folclore — ninguém sabe medir se ainda vale.
+- **Dois itens hoje:** as **82 páginas** de `.claude/visual/` geradas antes da régua existir (ver a seção de (C) abaixo), e três geradores (`fallow/lib/report.py`, `slides/lib/md2deck.py`, `branches/lib/branch_state.py`) marcados em desacordo por **ausência de amostra no disco**, não por violação de forma.
+- **Cada item declara o que o REVOGA**, não só o que o justifica. Para as 82 páginas: *"uma página antiga voltar a ser lida para decidir alguma coisa. Aí ela é regenerada, não lida como está."*
+- **Natureza: julgamento escrito, coberto pelo git — e insubstituível dentro disso.** O número de violações é remedível por um comando; a **decisão de aceitá-las** não sai de lugar nenhum além deste arquivo. É a mesma classe do "julgamento embutido" dos baselines A5/A5a, com a diferença de que aqui o julgamento é o arquivo inteiro, não um metadado dele.
+- ⚠️ **Nenhum verificador o lê.** Diferente do A5, cujo baseline o release-gate compara, este arquivo é lido por humano. Um limite que deixou de valer não é acusado por ninguém — quem revoga é quem lembra.
+
 ### Sementes versionadas (o resto de (A) que é depósito)
 
 - `plugins/visual/skills/visual/config.default.json` — semente do `config.json` do `/visual`, que vive em (B2). O default sobe; a escolha do usuário, não.
@@ -476,7 +496,7 @@ O `scrub()` é um scorer em **quatro camadas**, cada span redigido sendo pulado 
 
 ### A4 · `<repo>/.claude/plans/*.plan.json` — os planos ticáveis
 
-- **13 planos, 132K** (115.686 bytes de JSON). Gitignorado por `.gitignore:18` (seção "REGISTRO DE TRABALHO"). [confirmado — `git check-ignore -v .claude/plans/` → `.gitignore:18`]
+- **18 planos, 192K** (163.576 bytes de JSON) nesta rodada — eram 13 quando o estado abaixo foi tabulado. Gitignorado por `.gitignore:18` (seção "REGISTRO DE TRABALHO"). [confirmado — `git check-ignore -v .claude/plans/` → `.gitignore:18`]
 - ⚠️ **A docstring do módulo ainda afirma o contrário**, e é a segunda contradição código-vs-gitignore deste doc: `plan_state.py` diz literal *"`<raiz-do-projeto>/.claude/plans/<id>.plan.json` — VERSIONADO no git de propósito: a dor é perda, e /tmp ou `${CLAUDE_PLUGIN_ROOT}` morrem no /clear e no bump"*. **A dor citada continua real; a cobertura que a resolvia não existe mais.** [confirmado nos dois arquivos]
 - **Estado hoje**, derivado dos arquivos: [confirmado]
 
@@ -532,6 +552,10 @@ No topo do plano, ao lado de `phases`:
 - **A trava nova: citação órfã não grava.** Quando há requisitos conhecidos, `validate()` recusa o `init` inteiro se alguma tarefa citar um id que não existe na lista. Não é aviso — é erro. O comentário traz a medida que originou a regra: *"7 de 154 itens de um plano real citaram artigo de lei sem ninguém nunca conferir se o artigo existia"*. `reqs` vazio desliga a checagem, porque projeto sem documento de requisitos é o caso comum, não defeito. [confirmado, `plan_state.py:validate`]
 - **Quatro recusas que protegem o depósito:**
   - `tick` exige `--evidencia` com ≥ `EVIDENCE_MIN = 8` chars: *"Sem isso, 'concluído' é palpite — foi assim que planos foram dados como prontos sem estar."* `done` só existe via `tick`; `cmd_state` recusa explicitamente `done`.
+  - 🔴 **A `evidence` mudou de natureza em 2026-08-03: passou a ter FORMA, não só tamanho mínimo.** `tick` recusa prova acima de `BULLET_MAX = 140` caracteres **num bloco só** — a condição exata é `len(ev) > BULLET_MAX and len(prova_bullets(ev)) < 2`. O motivo está na recusa: a prova aparece colada ao título do passo, onde a constituição manda bullet, e *"um plano de trinta itens vira trinta parágrafos"*. [confirmado, `plan_state.py:cmd_tick`]
+    - **O que passa inteiro: saída crua de comando.** `prova_bullets` quebra só onde quem escreveu já separou — `\n`, ` · `, `; ` ou ` + ` —, então um despejo de terminal com quebras de linha vira ≥ 2 bullets e nunca bate no teto. O teto vale para **o texto redigido pelo modelo**, que é onde o parágrafo nasce. É a mesma isenção que a régua dá à saída crua em qualquer artefato.
+    - ⚠️ **O `BULLET_MAX` vem de `regua_texto.py`, não é constante local** (`from regua_texto import BULLET_MAX`, e `DESC_MAX = BULLET_MAX`). O teto do `desc` e o teto da prova são **o mesmo número por construção** — mudar a régua compartilhada muda os dois de uma vez, e o `plan_state.py` importa a cópia vendorada em `plugins/visual/lib/`, que é uma das **9** que o `sync-shared.sh` mantém.
+    - **A prova já gravada não é reavaliada.** A recusa é do momento de gravar; os planos no disco com prova antiga em bloco único continuam válidos e nada os migra.
   - **`init` fecha a mesma porta pelo outro lado:** `status: "done"` escrito à mão com `evidence` abaixo de `EVIDENCE_MIN` recusa o arquivo. O teto da prova é o mesmo dos dois lados, senão há dois — quem escreve o JSON do `init` é o modelo, e por ali "concluído" entrava sem prova nenhuma. [confirmado, `plan_state.py:erros_do_plano`]
   - `tick` **também recusa tarefa com decisão em aberto** — e o que fecha a decisão é o REGISTRO: `decidido` com uma `escolha` preenchida. **Apagar a `pendencia` não é mais o caminho**, porque o `merge` preserva o campo que o `init` omite e a pergunta voltava, travando a tarefa pra sempre. A `pendencia` continua gravada de propósito: é dela que o `reabrir` vive. [confirmado, `plan_state.py:cmd_tick`]
   - `merge()` **trava a identidade**: título divergente do que está no arquivo aborta o `init` inteiro, e renomear exige `--rename <id> "<novo título>"`. Nó que sumiu do `init` novo é **mantido**, não apagado.
@@ -605,7 +629,21 @@ No topo do plano, ao lado de `phases`:
 
 ### Os outros de (C)
 
-- **`.claude/visual/` — 4,1M, 84 entradas** (`.gitignore:47`). As páginas HTML que o `/visual` gera. Descartável: são a apresentação, não a fonte.
+- **`.claude/visual/` — 5,2M, 100 entradas** (`.gitignore:47`). As páginas HTML que o `/visual` gera. Descartável: são a apresentação, não a fonte. [confirmado — `du -sh` + `ls | wc -l` nesta rodada]
+
+  🔴 **O inventário deixou de ser opaco: desde 2026-08-03 ele é AUDITÁVEL, e a auditoria reprova a maioria.** `python3 plugins/visual/lib/regua_audit.py paginas` abre cada página, descobre por qual gerador ela passou e diz qual regra da régua de texto cada uma quebra. Saída desta rodada: [confirmado]
+
+  ```
+  📊 100 páginas · 83 com violação
+      • duas-frases — duas frases no mesmo bullet: 1283
+      • teto-140 — teto de 140 caracteres: 1042
+      • conectivo — abre com conectivo de continuação: 16
+      • ❔ 9 páginas sem perfil de gerador — digitada à mão, fora do alcance
+  ```
+
+  - **As 82 do registro de limites e as 83 de agora não são a mesma medida.** `.claude/limites-aceitos.md` (A8) congelou **99 páginas · 82 com violação** no dia da decisão; a página nº 100 (`2026-08-03-status-consolidado.html`, de hoje 16:22) entrou **depois** e traz 2 violações. ⚠️ Isso contradiz a premissa escrita do limite aceito — *"a régua passa a valer para página nova"* — e é o tipo de deriva que só aparece rodando o comando, porque o arquivo de limites guarda a saída daquele dia, não a de hoje.
+  - **As 9 "sem perfil de gerador" são página digitada à mão.** Nenhum gerador as alcança, então consertá-las é editar HTML, não código — é por isso que elas entram no registro de limites em vez da fila de conserto.
+  - **A auditoria não guarda nada.** É medição derivada, calculada a cada execução sobre os arquivos do disco: some junto com as páginas e volta junto com elas.
 - **`.claude/qa-loop/telemetry.jsonl` — 3 linhas** (`.gitignore:46`). Uma linha por rodada de `/qa-loop`: `{ts, target, domain, severity_floor, max_rounds_config, rounds_run, corrections_per_round, …}`. É o insumo pra avaliar o número ideal de loops com o tempo — **insubstituível e minúsculo**, a pior combinação para ficar sem cópia.
 - **`.claude/HANDOFF.md`, `HANDOFF-guardrails.md`, `HANDOFF-project-doc.md`, `BRIEFING-review-loop-skill.md`** (`.gitignore:19-20`). São **fonte de mineração** — `journal.py:collect_handoffs` lê os bullets das seções de conhecimento (`HANDOFF_SECTIONS`: "Findings & Gotchas", "Gotchas", "Discussões e Decisões", "Detalhes Técnicos", "Contexto Extra") e os transforma em findings `handoff` — que são **154** no journal de hoje.
 
@@ -666,7 +704,7 @@ Efêmeras por definição. Nenhuma delas é entrada de nada — reconstroem-se s
 
 - **Nenhum banco, ORM, migration ou `docker-compose`.** O único lockfile do repo é `plugins/archify/skills/archify/package-lock.json`.
 - **`.claude-plugin/marketplace.json`** e os `plugin.json` — catálogo e metadado, escritos só por humano. Não são estado.
-- **`_shared/`** — código vendorado para 14 cópias. Fonte, não depósito.
+- **`_shared/`** — código vendorado. Fonte, não depósito — **com uma exceção desde 2026-08-03**: `r8-tiers.json` é dado, não código, e está no inventário como A7.
 - **`pi-plugins/`** (`.gitignore:71`) — cópia local defasada de `plugins/`, explicitamente **não é fonte**. Continua fora do grafo; as 106 chaves dela que sobrevivem no `manifest.json` do graphify são entradas mortas do índice.
 
 ---
@@ -689,6 +727,10 @@ Efêmeras por definição. Nenhuma delas é entrada de nada — reconstroem-se s
 **Reconstruível, com custo:**
 
 ```
+.claude/limites-aceitos.md            2,1K · rastreado — o NÚMERO se remede por comando,
+                                      a decisão de aceitar não sai de lugar nenhum
+_shared/r8-tiers.json                 2,9K · rastreado — o valor volta com o git,
+                                      o `porque` de cada tier é julgamento escrito
 .claude/.project-doc/ledger.json      re-minerar vira cold-start (CAP=1000 commits)
 .claude/hook-contract.baseline.json   1 comando — mas o JULGAMENTO das isenções não volta
 graphify-out/                         graphify update . --force (AST, sem LLM)
@@ -704,7 +746,7 @@ plugins/bootstrap/config/manifest.json  regenerado no SessionStart, MENOS as cha
 ~/.claude/state/prose-ceiling/  contadores + batidas + bypass do teto
 ~/.claude/state/intent-guard/   a marca `olhado`; apagar zera o "desde a última vez"
 /tmp/claude-*                   sentinelas por sessão
-.claude/visual/                 páginas HTML geradas
+.claude/visual/                 100 páginas HTML geradas (83 reprovam a régua hoje)
 ```
 
 **Com cobertura de terceiro:** só o cofre, no iCloud.
@@ -721,4 +763,7 @@ plugins/bootstrap/config/manifest.json  regenerado no SessionStart, MENOS as cha
 6. **Nada poda os contadores de B8 e B9**, e agora são **35** deles (15 + 20, contra 9 + 0). Os órfãos sem sufixo de B1 (`scope-cop.blockstreak`, `scope-cop.bypass`, de 2/jul) seguem fora do alcance da poda por causa do padrão com ponto.
 7. **Dois planos ativos ao mesmo tempo em A4** (`2026-07-31-fechar-a-regua-e-publicar` 10/11 e `2026-08-01-formato-de-plano-hierarquico` 0/20). `pick_plan` recusa adivinhar, então todo comando sem `--plan` explícito falha até um ser encerrado.
 8. **O `bypass.log` do B8 nunca existiu, e agora isso tem consequência em dois lugares.** Para o `check_bypass_teto`, ausência = conforme; para o `furos_da_regua`, ausência = `fontes` 1 em vez de 2 — a contagem de furos que o dono vê é hoje meia fonte, e o programa diz isso, mas só quem lê a linha inteira percebe.
+10. **A página nº 100 de `.claude/visual/` viola a régua, e o limite aceito (A8) diz que não deveria.** O registro congela 99 páginas · 82 violando e declara *"a régua passa a valer para página nova"*; `regua_audit.py paginas` mede hoje 100 · 83, com a página nova de 16:22 entre as reprovadas. Ou o gerador dela escapa da régua, ou o limite precisa ser reescrito — decidir qual.
+11. **Nenhum verificador lê o `.claude/limites-aceitos.md` (A8).** Limite que deixou de valer não é acusado por ninguém: o arquivo declara o que o revoga, e quem confere é a memória de quem lembrar de rodar o comando.
+
 9. **Os cinco campos novos de A4 não existem em nenhum dos 13 planos no disco.** O schema exige `requisito` e `pronto` só de tarefa nova; até o próximo `init`, a cobertura entre requisito e tarefa é 0 de 0 e nada no repositório exercita o caminho em dado real.
