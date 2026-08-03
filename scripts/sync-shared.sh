@@ -36,6 +36,7 @@ SPECS=(
   "plugins/slides/lib::regua_texto.py"
   # Os emissores de hook: o .sh chama a régua pela linha de comando, e o plugin
   # instalado só enxerga a própria pasta — sem cópia aqui, a régua some em produção.
+  "plugins/bootstrap/lib::regua_texto.py"
   "plugins/guardrails/lib::regua_texto.py"
   "plugins/project-doc/lib::regua_texto.py"
   "plugins/ship/lib::regua_texto.py"

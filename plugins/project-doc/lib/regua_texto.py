@@ -40,6 +40,10 @@ BULLET_MAX = 140       # o teto que o `plan_state.DESC_MAX` já cobra (máx real
 BULLETS_MAX = 6        # acima disso é prosa picada, ou são dois itens
 SLIDE_PALAVRAS = 20    # o `md2deck.STATEMENT_WORDS`: o que cabe sozinho num slide
 HOOK_LINHAS = 6        # o orçamento do fim de turno (`stop-plan-status.sh`)
+# Canal `additionalContext`: lido pelo modelo, não pela tela. Mais folga em ambos os
+# eixos porque ele carrega inventário — e inventário cortado esconde item.
+CONTEXTO_MAX = 200
+CONTEXTO_BULLETS = 20
 
 # Ponto/!/? seguido de espaço = segunda frase. Ignora "..." e decimal ("1.500 itens").
 _DUAS_FRASES = re.compile(r"(?<![.\d])[.!?](?=\s)(?!\s*$)")
@@ -75,6 +79,15 @@ PERFIS = {
     # Texto de hook: canal de terminal, sem markdown; o destaque vem do emoji e da
     # posição, que foi a troca feita quando `**` começou a aparecer literal na tela.
     "hook": Perfil("hook", BULLET_MAX, HOOK_LINHAS, None, True, True, False),
+    # Contexto de hook: o leitor é o MODELO, não a tela. Markdown aqui é legítimo
+    # (o modelo o interpreta) e cabeçalho com emoji não faz sentido — ninguém está
+    # olhando. O que continua valendo é o que a constituição pede de QUALQUER texto
+    # que orienta uma decisão: uma frase por bullet, sem prosa fatiada. O teto de
+    # bullets é maior porque este canal carrega inventário (lista de docs, de planos,
+    # de gotchas), e cortar inventário em 6 esconde item — o oposto do que ele existe
+    # pra fazer.
+    "contexto": Perfil("contexto", CONTEXTO_MAX, CONTEXTO_BULLETS, None,
+                       False, False, True),
 }
 
 
