@@ -218,6 +218,26 @@ Três lições, e a terceira é a que dói:
 
 **Régua que sai daqui: `ponytail:` que adia um conserto tem que nomear o SINTOMA que autoriza pagá-lo.** O comentário dizia "se o caso aparecer" sem dizer como o caso se pareceria — então ele apareceu duas vezes antes de alguém reconhecer. Escreva o gatilho observável: *"se o resumo mostrar a frente de outra sessão, pague isto"*.
 
+### 1.5a Canal de saída manda na FORMA — e `systemMessage` é texto puro
+
+**Novo em 2026-08-03**, relatado com print de produção. O `systemMessage`/`reason` de hook chega **literal** no terminal: `**negrito**` e `` `crase` `` não renderizam, viram ruído na tela. Três emissores escreviam markdown ali — o resumo de plano, a cobrança do tique e o aviso de push de branch —, e o dono leu `• **Feito:** 0 de 32 passos` na tela `[confirmado]`.
+
+O que substitui, sem perder o destaque:
+
+| markdown que não renderiza | o que dá o mesmo destaque |
+|---|---|
+| `**Título**` | posição (1ª linha) + emoji de estado |
+| `**Rótulo:**` no bullet | emoji + `Rótulo:` — `✅ Feito` · `🔄 Agora` · `⬜ Falta` |
+| `` `comando` `` | o comando cru |
+
+⚠️ **Reuse o vocabulário de emoji que o projeto já tem.** Os três acima são os mesmos do `MARK` da árvore de plano (`done ✅ · doing 🔄 · todo ⬜`), então quem lê a árvore já sabe ler o resumo. Emoji novo por bloco novo vira dialeto.
+
+⚠️ **A exceção que confirma:** o `handoff-completeness-gate.sh` mantém `**Ação:**` e companhia — mas ali os `**` são o que ele **procura dentro de um arquivo `.md`**, e markdown em arquivo markdown é markdown. A régua é do canal de saída, não do texto em si.
+
+⚠️ **Linha em branco de abertura é do CANAL.** O harness prefixa `Stop says: ` na primeira linha; sem duas linhas em branco na frente, o cabeçalho gruda no prefixo. Elas ficam no **hook**, nunca no gerador de texto — quem chama o gerador na mão não quer abertura vazia. Não custam orçamento: o medidor só conta linha com conteúdo.
+
+**Régua que sai daqui: teste de artefato de leitura casa CONTEÚDO, nunca POSIÇÃO.** Sete checks do resumo liam `L[1]`, `L[2]`, `L[3]`, e quebraram **duas vezes no mesmo dia** sem que comportamento nenhum tivesse mudado — só porque o layout ganhou emoji e uma linha em branco. Um helper que acha o bullet pelo rótulo (`bullet(linhas, "Falta")`) mata a classe inteira. `[confirmado — `test_plan_state.py`]`
+
 ### 1.6 PHASH: a chave dos sentinels precisa nascer da MESMA string
 
 **A armadilha mais cara do repo.** Sentinel em `/tmp` é chaveado por `(session_id × projeto)`, e o projeto entra como `cksum` da string da raiz:
