@@ -515,8 +515,12 @@ def main():
         L = ps.brief_lines(pl)
         check("no começo: cabeçalho + 3 bullets", len(L) == 4 and L[0].startswith("📍"))
         check("diz quanto já foi", "0 de 3 passos" in L[1])
-        check("diz onde estamos agora", L[2].startswith("• **Agora:** F1"))
-        check("diz o que falta", L[3].startswith("• **Falta:** 3 passos"))
+        check("diz onde estamos agora", L[2].startswith("• Agora: F1"))
+        check("diz o que falta", L[3].startswith("• Falta: 3 passos"))
+        # O canal do fim de turno é TEXTO no terminal: `**` e crase chegam literais e
+        # viram ruído. Medido em produção (2026-08-03), com o dono lendo `**Feito:**` na tela.
+        check("nenhuma linha do resumo emite markdown",
+              not any("**" in x or "`" in x for x in L))
         check("nunca passa de 3 bullets", len([x for x in L if x.startswith("•")]) <= 3)
 
         # O teto de 3 é POR PLANO — e até 2026-08-02 era só isso que existia, então
@@ -631,7 +635,7 @@ def main():
             check("relata a existência do plano em vez de situar quem lê nele",
                   "Plano aberto no projeto" in depois)
             check("o progresso continua saindo — o cabeçalho muda, o conteúdo não",
-                  "de 3 passos" in depois and "**Agora:**" in depois)
+                  "de 3 passos" in depois and "• Agora:" in depois)
             check("os outros planos seguem contados",
                   "mais 2 plano(s) aberto(s)" in depois)
 
@@ -732,14 +736,14 @@ def main():
 
         ps.cmd_tick(Args(dir=d, plan="2026-07-27-brief", node="F2.1", evidencia="prova final"))
         L = ps.brief_lines(ps.pick_plan(d, "2026-07-27-brief"))
-        check("tudo marcado -> mensagem INEQUÍVOCA de concluído", L[0].startswith("✅ **CONCLUÍDO"))
+        check("tudo marcado -> mensagem INEQUÍVOCA de concluído", L[0].startswith("✅ CONCLUÍDO"))
         check("o concluído diz o que prova", "com prova anexada" in L[1])
         check("o concluído manda encerrar", "close" in L[2])
         check("concluído também cabe em 3 bullets", len(L) == 3)
 
         ps.cmd_close(Args(dir=d, plan="2026-07-27-brief"))
         L = ps.brief_lines(ps.pick_plan(d, "2026-07-27-brief"))
-        check("encerrado completo -> 🏁 inequívoco", L[0].startswith("🏁 **PLANO ENCERRADO —"))
+        check("encerrado completo -> 🏁 inequívoco", L[0].startswith("🏁 PLANO ENCERRADO —"))
         check("encerrado aponta o arquivo de registro", ".plan.json" in L[2])
 
         inc = sample(id="2026-07-27-brief-inc")
