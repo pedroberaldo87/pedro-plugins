@@ -179,6 +179,10 @@ run_ss r1 >/dev/null
 msg=$(run_st r1 "$T1" | jq -r '.systemMessage // empty' 2>/dev/null)
 # Sessão que ainda não marcou passo nenhum: o resumo sai, sem afirmar que ela está ali.
 check "com plano ativo, o resumo sai" "$(grep -q -- 'Plano aberto no projeto' <<< "$msg" && echo 1 || echo 0)"
+# O harness prefixa "Stop says: " na PRIMEIRA linha. Sem uma linha em branco na
+# frente, o cabeçalho gruda no prefixo e fica num nível diferente dos bullets.
+check "a mensagem abre com linha em branco, pro prefixo do harness não colar" \
+      "$(run_st r1 "$T1" | jq -r '.systemMessage' | head -c 1 | grep -q . && echo 0 || echo 1)"
 # E marcar um passo é o que devolve a afirmação — este é o par do check acima. O
 # CLAUDE_CODE_SESSION_ID tem que ser o da sessão do hook: é ele que grava a marca de
 # autoria, e sem isso o tique é indistinguível do de uma sessão vizinha.
