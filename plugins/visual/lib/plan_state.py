@@ -37,6 +37,7 @@ Só stdlib (requisito do repo, não preferência).
 """
 
 import argparse
+import hashlib
 import html
 import json
 import os
@@ -144,6 +145,10 @@ def save(directory, plan):
         json.dump(plan, fh, ensure_ascii=False, indent=2)
         fh.write("\n")
     os.replace(tmp, path)
+    # Toda escrita de plano é uma sessão dizendo "estou NESTE". A marca fica aqui, e
+    # não em cada comando, porque `tick`, `state`, `init` e `close` passam todos por
+    # este ponto — pendurar em cada um deixaria o próximo comando novo de fora.
+    _marca_sessao(directory, plan["id"])
     return path
 
 
@@ -829,6 +834,55 @@ def _seen_ids(path):
 BRIEF_MAX_BLOCOS = 1
 
 
+def _sentinel_sessao(directory, sid):
+    """Onde fica a marca 'esta sessão está NESTE plano'.
+
+    Uma função só, usada por quem escreve (`tick`/`state`/`init`) e por quem lê
+    (`brief`) — chave calculada em dois lugares diverge, e sentinel que nunca casa é
+    pior que sentinel nenhum (a mesma armadilha do `cksum` sobre path canonicalizado
+    que já mordeu este repo).
+    """
+    if not sid:
+        return None
+    tmp = os.environ.get("TMPDIR") or "/tmp"
+    chave = hashlib.sha1(os.path.abspath(directory).encode("utf-8")).hexdigest()[:12]
+    try:
+        uid = os.getuid()
+    except AttributeError:
+        uid = 0
+    return os.path.join(tmp, "claude-plan-sessao-%d-%s-%s" % (uid, str(sid)[:36], chave))
+
+
+def _marca_sessao(directory, plan_id, sid=None):
+    """Registra que ESTA sessão mexeu neste plano. Falha em silêncio, de propósito.
+
+    O sinal nasce em quem MARCA porque só ele sabe de quem é a marcação: `mtime` do
+    arquivo diz que alguém mexeu, nunca quem. Num projeto com frentes paralelas — 6
+    sessões abertas no mesmo repositório em 2026-08-03 — a vizinha marcando um passo
+    empurrava o plano dela para o topo do fim de turno de todo mundo.
+    """
+    caminho = _sentinel_sessao(directory, sid or os.environ.get("CLAUDE_CODE_SESSION_ID"))
+    if not caminho:
+        return
+    try:
+        with open(caminho, "w", encoding="utf-8") as fh:
+            fh.write(plan_id + "\n")
+    except OSError:
+        pass          # marca é otimização de precisão; perdê-la degrada, não quebra
+
+
+def _plano_da_sessao(directory, sid):
+    """O plano que esta sessão marcou, ou None. Ilegível conta como None."""
+    caminho = _sentinel_sessao(directory, sid)
+    if not caminho:
+        return None
+    try:
+        with open(caminho, encoding="utf-8") as fh:
+            return fh.read().strip() or None
+    except OSError:
+        return None
+
+
 def _tocado_em(directory, plan_id):
     """Quando o arquivo do plano foi escrito pela última vez.
 
@@ -895,20 +949,39 @@ def cmd_brief(args):
     # "onde estamos" sobre a frente errada, e escondia a da sessão atrás do "e mais N".
     # Medido em 2026-08-02: sessão de Propostas recebia o brief de PRISMA.
     #
-    # ponytail: desempate por mtime, e o teto é conhecido — DUAS sessões no mesmo
-    # projeto ao mesmo tempo compartilham o diretório, então a vizinha marcando
-    # passos em outra frente rouba o topo do meu fim de turno. O conserto de verdade
-    # é registrar QUAL plano esta sessão marcou — estado novo por sessão, que só se
-    # paga se o caso aparecer.
+    # QUEM é o plano desta sessão, em duas fontes e nesta ordem:
+    #
+    #   1. a MARCA que a própria sessão deixou ao escrever um plano (`--sessao`).
+    #      É a única fonte que sabe DE QUEM foi a mexida. `mtime` diz que alguém
+    #      mexeu, nunca quem — e num projeto com frentes paralelas (6 sessões abertas
+    #      no mesmo repositório em 2026-08-03) a vizinha marcando um passo empurrava o
+    #      plano dela para o topo do fim de turno de todo mundo. Foi medido duas vezes
+    #      em produção antes de virar código.
+    #   2. sem marca, a data de escrita — melhor que a ordem alfabética que existia
+    #      antes, e honesta: nesse caso o cabeçalho RELATA em vez de afirmar.
     marco = None
     if args.closed_since is not None:
         try:
             marco = float(args.closed_since)
         except (TypeError, ValueError):
             marco = None
-    # Sem marco não dá pra julgar, e "não sei" nunca vira "não é desta sessão".
-    desta = marco is None or any(mt > marco for mt, _ in ativos)
-    ativos.sort(key=lambda par: par[0], reverse=True)
+    sid = getattr(args, "sessao", None)
+    meu = _plano_da_sessao(directory, sid)
+    ids = {p["id"] for _, p in ativos}
+    if meu not in ids:
+        meu = None                 # plano da marca já foi encerrado ou apagado
+    if meu:
+        # a marca é prova de autoria: afirma, e põe o plano certo no topo
+        desta = True
+        ativos.sort(key=lambda par: (par[1]["id"] != meu, -par[0]))
+    else:
+        # Com o id da sessão em mãos, a AUSÊNCIA de marca também é informação: esta
+        # sessão não escreveu plano nenhum, então não há nada que a ligue a estes —
+        # e afirmar "onde estamos" sobre a frente da vizinha é o defeito que este
+        # bloco existe pra impedir. O resumo sai inteiro; só o cabeçalho recua.
+        # Sem o id (chamada antiga), cai no marco, que é o que dá pra saber.
+        desta = False if sid else (marco is None or any(mt > marco for mt, _ in ativos))
+        ativos.sort(key=lambda par: par[0], reverse=True)
     ordenados = [brief_lines(plan, getattr(args, "nudge", None),
                              _requisitos_do_projeto(directory, plan), desta)
                  for _, plan in ativos]
@@ -1426,6 +1499,8 @@ def build_parser():
                    help="arquivo onde anotar os encerramentos já confirmados (não repete)")
     q.add_argument("--nudge", help="cobrança a incluir: ENTRA NO LUGAR do bullet 'Falta', "
                                    "nunca como 4º (o teto de 3 é do pedido)")
+    q.add_argument("--sessao", help="id da sessão: mostra o plano que ELA marcou, não o "
+                                    "que a sessão vizinha mexeu por último")
     q.set_defaults(func=cmd_brief)
 
     q = sub.add_parser("cobertura", help="o mapa entre requisito e tarefa, os dois lados")
