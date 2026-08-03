@@ -589,10 +589,10 @@ def main():
             with contextlib.redirect_stdout(buf):
                 ps.cmd_brief(Args(dir=dbr, nudge=None, closed_since=None, mark_seen=None))
             saida = buf.getvalue()
-            check("E2E: com 4 planos, o comando sai com 1 bloco só",
-                  saida.count("📍") == 1)
-            check("E2E: e a contagem dos outros 3 aparece",
-                  "mais 3 plano(s) aberto(s)" in saida)
+            check("E2E: sem sessão não afirma onde estamos",
+                  "Onde estamos" not in saida and "📍" not in saida)
+            check("E2E: conta os 4 em vez de despejar o da vizinha",
+                  "4 plano aberto" in saida)
             check("E2E: a saída inteira cabe em 6 linhas",
                   len([x for x in saida.strip().split("\n") if x.strip()]) <= 5)
         finally:
@@ -624,10 +624,10 @@ def main():
             with contextlib.redirect_stdout(buf):
                 ps.cmd_brief(Args(dir=dsel, nudge=None, closed_since=None, mark_seen=None))
             saida = buf.getvalue()
-            check("o bloco é o do plano tocado por último", "Video Review" in saida)
-            check("e não o do mais antigo por nome", "PRISMA" not in saida)
-            check("nem o de nome mais recente", "Propostas" not in saida)
-            check("os outros dois seguem contados", "mais 2 plano(s) aberto(s)" in saida)
+            check("sem marca, não despeja o progresso de nenhuma frente",
+                  "Video Review" not in saida and "PRISMA" not in saida)
+            check("e não afirma onde estamos", "Onde estamos" not in saida)
+            check("conta os 3 planos abertos", "3 plano aberto" in saida)
 
             # Plano ilegível vai pro fim da fila em vez de derrubar a listagem.
             with open(ps.plan_path(dsel, "2026-08-02-propostas"), "w", encoding="utf-8") as fh:
@@ -635,7 +635,8 @@ def main():
             buf = io.StringIO()
             with contextlib.redirect_stdout(buf):
                 ps.cmd_brief(Args(dir=dsel, nudge=None, closed_since=None, mark_seen=None))
-            check("arquivo torto não derruba a escolha", "Video Review" in buf.getvalue())
+            check("arquivo torto não derruba — a contagem dos legíveis sai",
+                  "plano aberto" in buf.getvalue())
         finally:
             shutil.rmtree(dsel, ignore_errors=True)
 
@@ -665,24 +666,23 @@ def main():
             depois = corre(base + 500)          # marco POSTERIOR a todos os planos
             check("não afirma estar na frente que a sessão não tocou",
                   "Onde estamos" not in depois)
-            check("relata a existência do plano em vez de situar quem lê nele",
-                  "Plano aberto no projeto" in depois)
-            check("o progresso continua saindo — o cabeçalho muda, o conteúdo não",
-                  "de 3 passos" in depois and "Agora:" in depois)
-            check("os outros planos seguem contados",
-                  "mais 2 plano(s) aberto(s)" in depois)
+            check("relata a existência dos planos em vez de situar quem lê neles",
+                  "plano aberto" in depois)
+            check("sem marca, não despeja o progresso de nenhuma frente",
+                  "Agora:" not in depois and "de 3 passos" not in depois)
+            check("conta os planos abertos", "3 plano aberto" in depois)
 
             com_cobranca = corre(base + 500, nudge="⚠️ Nada marcado nesta sessão.")
             check("a cobrança do tique sobrevive à troca de cabeçalho",
                   "Nada marcado nesta sessão" in com_cobranca)
 
-            antes = corre(base - 500)           # marco ANTERIOR: a sessão tocou os planos
-            check("com plano tocado na sessão, a afirmação volta",
-                  "Onde estamos" in antes)
+            antes = corre(base - 500)           # marco ANTERIOR: os planos foram tocados
+            check("sem sessão, nem com marco anterior afirma sobre a frente",
+                  "Onde estamos" not in antes and "plano aberto" in antes)
 
             sem_marco = corre(None)             # sem marco não dá pra julgar
-            check("sem marco da sessão, 'não sei' não vira 'não é desta sessão'",
-                  "Onde estamos" in sem_marco)
+            check("sem marco e sem sessão, não mostra progresso de nenhuma frente",
+                  "Onde estamos" not in sem_marco and "plano aberto" in sem_marco)
         finally:
             shutil.rmtree(dses, ignore_errors=True)
 
@@ -731,8 +731,8 @@ def main():
             check("quem marcou AFIRMA, mesmo com marco posterior — a marca é autoria",
                   "Onde estamos" in a)
             check("quem não marcou nada não afirma", "Onde estamos" not in c)
-            check("e ainda assim recebe o resumo, sem sumir com o plano",
-                  "Plano aberto no projeto" in c)
+            check("e não despeja o progresso da vizinha — só conta",
+                  "plano aberto" in c and "Video Review" not in c)
 
             # marca apontando pra plano encerrado não pode travar o resumo no passado
             ps.cmd_close(Args(dir=dpar, plan="2026-08-01-propostas"))
@@ -741,8 +741,8 @@ def main():
                   "Onde estamos" not in depois)
 
             sem_arg = brief_de(None, futuro)
-            check("chamada sem o id da sessão segue funcionando como antes",
-                  "Plano aberto no projeto" in sem_arg)
+            check("chamada sem o id da sessão relata, sem afirmar",
+                  "Plano aberto no projeto" in sem_arg and "Onde estamos" not in sem_arg)
         finally:
             if tmp_antigo is None:
                 os.environ.pop("TMPDIR", None)
