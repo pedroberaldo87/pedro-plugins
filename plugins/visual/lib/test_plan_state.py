@@ -51,6 +51,18 @@ def _levanta(fn):
         return True
 
 
+def bullet(linhas, rotulo):
+    """O bullet cujo rótulo casa, ou "" — busca por CONTEÚDO, nunca por índice.
+
+    Índice quebra a cada mudança de layout (linha em branco nova, emoji novo) sem que
+    nada de comportamento tenha mudado. Aconteceu duas vezes em 2026-08-03.
+    """
+    for ln in linhas:
+        if ("%s:" % rotulo) in ln:
+            return ln
+    return ""
+
+
 def sample(**over):
     plan = {
         "id": "2026-07-27-teste",
@@ -513,10 +525,14 @@ def main():
         init_into(d, b)
         pl = ps.pick_plan(d, "2026-07-27-brief")
         L = ps.brief_lines(pl)
-        check("no começo: cabeçalho + 3 bullets", len(L) == 4 and L[0].startswith("📍"))
-        check("diz quanto já foi", "0 de 3 passos" in L[1])
-        check("diz onde estamos agora", L[2].startswith("• Agora: F1"))
-        check("diz o que falta", L[3].startswith("• Falta: 3 passos"))
+        check("no começo: cabeçalho + 3 bullets",
+              len([x for x in L if x.startswith("•")]) == 3 and L[0].startswith("📍"))
+        check("diz quanto já foi", "0 de 3 passos" in bullet(L, "Feito"))
+        check("diz onde estamos agora", "F1" in bullet(L, "Agora"))
+        check("diz o que falta", "3 passos" in bullet(L, "Falta"))
+        check("os três rótulos entram com emoji — sem markdown, é o que dá contraste",
+              all(e in "".join(L) for e in ("✅ Feito", "🔄 Agora", "⬜ Falta")))
+        check("uma linha em branco separa o cabeçalho dos bullets", L[1] == "")
         # O canal do fim de turno é TEXTO no terminal: `**` e crase chegam literais e
         # viram ruído. Medido em produção (2026-08-03), com o dono lendo `**Feito:**` na tela.
         check("nenhuma linha do resumo emite markdown",
@@ -528,12 +544,12 @@ def main():
         # ativos renderam 16 linhas, num Stop que ja soma 6 hooks.
         print("brief — o teto vale para o CONJUNTO, não por plano")
         quatro = [ps.brief_lines(sample(id="p-%d" % i)) for i in range(4)]
-        check("sem teto global, 4 planos dariam 16 linhas",
-              sum(len(x) for x in quatro) == 16)
+        check("sem teto global, 4 planos dariam 20 linhas",
+              sum(len(x) for x in quatro) == 20)
         cortado = ps._cabe_no_teto(quatro)
         check("com o teto, sobra 1 bloco + a linha da contagem", len(cortado) == 2)
-        check("e o total cai de 16 para 5 linhas",
-              sum(len(x) for x in cortado) == 5)
+        check("e o total cai de 20 para 6 linhas",
+              sum(len(x) for x in cortado) == 6)
         check("o que foi cortado é CONTADO, não some em silêncio",
               "mais 3 plano(s) aberto(s)" in cortado[-1][0])
         check("a contagem diz como ver os outros",
@@ -635,7 +651,7 @@ def main():
             check("relata a existência do plano em vez de situar quem lê nele",
                   "Plano aberto no projeto" in depois)
             check("o progresso continua saindo — o cabeçalho muda, o conteúdo não",
-                  "de 3 passos" in depois and "• Agora:" in depois)
+                  "de 3 passos" in depois and "Agora:" in depois)
             check("os outros planos seguem contados",
                   "mais 2 plano(s) aberto(s)" in depois)
 
@@ -720,9 +736,10 @@ def main():
         ps.cmd_tick(Args(dir=d, plan="2026-07-27-brief", node="F1.1", evidencia="python3 t.py -> OK"))
         ps.cmd_tick(Args(dir=d, plan="2026-07-27-brief", node="F1.2", evidencia="commit a1b2c3d"))
         L = ps.brief_lines(ps.pick_plan(d, "2026-07-27-brief"))
-        check("fase fechada aparece pelo id", "(F1)" in L[1] and "1 fase" in L[1])
+        check("fase fechada aparece pelo id",
+              "(F1)" in bullet(L, "Feito") and "1 fase" in bullet(L, "Feito"))
         check("não repete em Falta a fase que já está em Agora",
-              "· fase" not in L[3] and "· fases" not in L[3])
+              "· fase" not in bullet(L, "Falta") and "· fases" not in bullet(L, "Falta"))
         tri = sample(id="2026-07-27-brief-tri")
         tri["phases"].append({"id": "F3", "title": "Terceira", "items": [
             {"id": "F3.1", "title": "t", "desc": "faz a terceira coisa"}]})
@@ -732,7 +749,7 @@ def main():
         ps.cmd_tick(Args(dir=d, plan="2026-07-27-brief-tri", node="F1.2", evidencia="prova F1.2 ok"))
         L3 = ps.brief_lines(ps.pick_plan(d, "2026-07-27-brief-tri"))
         check("com 1 fase além da atual, diz 'fase' no singular",
-              "· fase F3" in L3[3] and "· fases" not in L3[3])
+              "· fase F3" in bullet(L3, "Falta") and "· fases" not in bullet(L3, "Falta"))
 
         ps.cmd_tick(Args(dir=d, plan="2026-07-27-brief", node="F2.1", evidencia="prova final"))
         L = ps.brief_lines(ps.pick_plan(d, "2026-07-27-brief"))
@@ -780,7 +797,7 @@ def main():
         check("a cobrança entra no lugar do 'Falta'",
               "Nada marcado" in comn[-1] and not any("Falta:" in x for x in comn))
         check("'Feito' e 'Agora' sobrevivem à cobrança",
-              "Feito:" in comn[1] and "Agora:" in comn[2])
+              bullet(comn, "Feito") and bullet(comn, "Agora"))
 
         print("brief — o 🏁 sai UMA vez (achado da auditoria de 2026-07-27)")
         seen = os.path.join(d, "_seen.txt")
