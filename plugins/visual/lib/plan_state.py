@@ -1028,14 +1028,8 @@ def cmd_brief(args):
     #      no mesmo repositório em 2026-08-03) a vizinha marcando um passo empurrava o
     #      plano dela para o topo do fim de turno de todo mundo. Foi medido duas vezes
     #      em produção antes de virar código.
-    #   2. sem marca, a data de escrita — melhor que a ordem alfabética que existia
-    #      antes, e honesta: nesse caso o cabeçalho RELATA em vez de afirmar.
-    marco = None
-    if args.closed_since is not None:
-        try:
-            marco = float(args.closed_since)
-        except (TypeError, ValueError):
-            marco = None
+    #   2. sem marca, NENHUM plano é da sessão — mostrar o mais mexido é mostrar a
+    #      frente da vizinha, que é o defeito que este bloco existe pra impedir.
     sid = getattr(args, "sessao", None)
     meu = _plano_da_sessao(directory, sid)
     ids = {p["id"] for _, p in ativos}
@@ -1043,19 +1037,31 @@ def cmd_brief(args):
         meu = None                 # plano da marca já foi encerrado ou apagado
     if meu:
         # a marca é prova de autoria: afirma, e põe o plano certo no topo
-        desta = True
         ativos.sort(key=lambda par: (par[1]["id"] != meu, -par[0]))
+        ordenados = [brief_lines(plan, getattr(args, "nudge", None),
+                                 _requisitos_do_projeto(directory, plan), True)
+                     for _, plan in ativos]
     else:
-        # Com o id da sessão em mãos, a AUSÊNCIA de marca também é informação: esta
-        # sessão não escreveu plano nenhum, então não há nada que a ligue a estes —
-        # e afirmar "onde estamos" sobre a frente da vizinha é o defeito que este
-        # bloco existe pra impedir. O resumo sai inteiro; só o cabeçalho recua.
-        # Sem o id (chamada antiga), cai no marco, que é o que dá pra saber.
-        desta = False if sid else (marco is None or any(mt > marco for mt, _ in ativos))
-        ativos.sort(key=lambda par: par[0], reverse=True)
-    ordenados = [brief_lines(plan, getattr(args, "nudge", None),
-                             _requisitos_do_projeto(directory, plan), desta)
-                 for _, plan in ativos]
+        # Sessão sem marca: nada liga a sessão aos planos. Com UMA frente ativa,
+        # mostrá-la de forma neutra orienta sem arriscar ser a vizinha — não há
+        # alternativa. Com VÁRIAS, escolher uma seria a frente de outra sessão (o
+        # vazamento medido em 2026-08-03: sessão que só leu o projeto recebia o
+        # "43 de 56 passos" do Propostas que OUTRA sessão estava marcando), então
+        # só a contagem. A cobrança do tique sobrevive nos dois casos.
+        nudge = getattr(args, "nudge", None)
+        if len(ativos) == 1:
+            _, unico = ativos[0]
+            ordenados = [brief_lines(unico, nudge,
+                                     _requisitos_do_projeto(directory, unico), False)]
+        else:
+            n = len(ativos)
+            if nudge:
+                cobranca = nudge.strip().lstrip("• ").strip()
+                ordenados = [["📋 %d plano(s) aberto(s) neste projeto." % n,
+                              "• " + cobranca]]
+            else:
+                ordenados = [[("📋 %d plano aberto neste projeto — veja com "
+                               "plan_state.py open") % n]]
     encerrados = _cabe_no_teto(blocks, BRIEF_MAX_ENCERRADOS, SOBRA_ENCERRADOS)
     print("\n\n".join("\n".join(b) for b in _cabe_no_teto(ordenados) + encerrados))
     return 0
