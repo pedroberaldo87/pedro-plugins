@@ -788,21 +788,21 @@ def brief_lines(plan, nudge=None, reqs=None, desta_sessao=True):
     # frentes. Sem sinal de que a sessão encostou no plano, o cabeçalho relata a
     # existência dele em vez de situar quem lê dentro dele.
     lines = [("📍 Onde estamos — %s" if desta_sessao
-              else "📋 Plano aberto no projeto — %s") % s["title"]]
+              else "📋 Plano aberto no projeto — %s") % s["title"], ""]
     if pd:
-        lines.append("• Feito: %d de %d passos · %s %s fechada%s%s."
+        lines.append("• ✅ Feito: %d de %d passos · %s %s fechada%s%s."
                      % (done, total, _plural(pd, "fase"),
                         "(%s)" % ", ".join(s["phases_done"]), "" if pd == 1 else "s",
                         ", com prova em cada passo" if provado else ""))
     else:
-        lines.append("• Feito: %d de %d passos — nenhuma fase fechou ainda." % (done, total))
+        lines.append("• ✅ Feito: %d de %d passos — nenhuma fase fechou ainda." % (done, total))
     nx = s["next"]
     if nx:
-        lines.append("• Agora: %s · %s — %d de %d passos."
+        lines.append("• 🔄 Agora: %s · %s — %d de %d passos."
                      % (nx["id"], nx["title"], nx["done"], nx["total"]))
     falta = total - done
     resto = [p for p in s["pending_phases"] if not nx or p != nx["id"]]
-    lines.append("• Falta: %s%s."
+    lines.append("• ⬜ Falta: %s%s."
                  % (_plural(falta, "passo"),
                     (" · %s %s" % ("fase" if len(resto) == 1 else "fases", ", ".join(resto)))
                     if resto else ""))
@@ -810,7 +810,7 @@ def brief_lines(plan, nudge=None, reqs=None, desta_sessao=True):
         import cobertura
         m = cobertura.mapa(plan, reqs)
         if m["sem_requisito"] or m["inexistentes"]:
-            lines[-1] = ("• Cobertura: %s. Quem está sem requisito e qual requisito "
+            lines[-1] = ("• 🎯 Cobertura: %s. Quem está sem requisito e qual requisito "
                          "ficou sem tarefa: plan_state.py cobertura." % cobertura.resumo(m))
     if nudge:
         lines[-1] = "• " + nudge.strip().lstrip("• ").strip()
