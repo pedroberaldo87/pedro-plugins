@@ -206,5 +206,5 @@ fi
 # nível diferente dos bullets que vêm abaixo. Com ela, o prefixo fica sozinho e o
 # cabeçalho desce pro mesmo alinhamento dos três. Não entra no orçamento do Stop —
 # `_linhas_visiveis` só conta linha com conteúdo.
-jq -n --arg m "$BRIEF" '{systemMessage:("\n" + $m)}' 2>/dev/null
+jq -n --arg m "$BRIEF" '{systemMessage:("\n\n" + $m)}' 2>/dev/null
 exit 0
