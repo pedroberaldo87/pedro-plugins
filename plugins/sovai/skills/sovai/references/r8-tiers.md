@@ -18,7 +18,7 @@ literal. Cada skill descreve **onde** cada knob entra no motor dela; nenhuma des
 Isso não é purismo — é conserto de um defeito medido. Em 2026-08-03 trocar seis valores
 custou 45 substituições em dois arquivos: três saíram invertidas e duas sobreviveram a
 dois verificadores, porque o comentário que dizia de qual knob era o número estava longe
-demais do número. O check E3 do `release-gate.sh` agora barra literal de effort em
+demais do número. O check A2 do `release-gate.sh` agora barra literal de effort em
 `SKILL.md`; a isenção é `r8-ok:` na linha, com o motivo escrito.
 
 <!-- TABELA GERADA — r8_tiers.py render. Editar aqui não adianta. -->

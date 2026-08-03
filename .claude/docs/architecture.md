@@ -111,20 +111,23 @@ Comandos re-executados agora, na árvore de trabalho sobre `2587006`:
 ls -1d plugins/*/ | wc -l                            # 19
 ls -1 plugins/*/.claude-plugin/plugin.json | wc -l   # 19
 ls -1 plugins/*/skills/*/SKILL.md | wc -l            # 21
-ls -1 plugins/*/hooks/hooks.json | wc -l             # 10
-find plugins -path '*/lib/*.py' | wc -l              # 32
+ls -1 plugins/*/hooks/hooks.json | wc -l             # 11
+find plugins -path '*/lib/*.py' | wc -l              # 47
 python3 -c "import json;print(len(json.load(open('.claude-plugin/marketplace.json'))['plugins']))"   # 19
 ```
 
 - **19 diretórios de plugin · 19 manifestos · 19 entradas no catálogo · 21 skills ·
-  **11** plugins com hooks · 32 arquivos `.py` em `lib/`.** [confirmado — os seis comandos
-  re-rodados nesta passada de `/doc-touch`; **só o de `lib/` mudou**, de 31 para 32, com
-  `plugins/handoff/lib/test_handoff_skill.py`, a suíte que nasceu nesta rodada pra cobrar
-  que a skill de handoff LEIA os campos do arquivo de plano em vez de mandar reinventá-los.]
-- **34 registros de hook — 33 do tipo `command` + 1 do tipo `prompt`**, em **33 scripts
-  distintos** [confirmado — varredura própria dos 10 `plugins/*/hooks/hooks.json` neste run,
-  e `python3 scripts/hook_contract.py` imprime a mesma medida: *"Contrato dos hooks — 34
-  registros, 33 scripts distintos"*].
+  **11** plugins com hooks · 47 arquivos `.py` em `lib/`.** [confirmado — os seis comandos
+  re-rodados nesta passada de `/doc-touch`; **os dois que mudaram foram o de `hooks.json`,
+  de 10 para 11, e o de `lib/`, de 32 para 47**.]
+  ⚠️ **O salto de 15 arquivos em `lib/` é quase todo CÓPIA, não código novo**: **9** deles
+  são a mesma `regua_texto.py` vendorada, uma por plugin que emite texto (§7). Contar
+  `lib/*.py` mede o vendoring junto com o código — a medida de código próprio é
+  `find plugins -path '*/lib/*.py' ! -name regua_texto.py ! -name collect_engine.py`.
+- **38 registros de hook — 37 do tipo `command` + 1 do tipo `prompt`**, em **37 scripts
+  distintos** [confirmado — varredura própria dos 11 `plugins/*/hooks/hooks.json` neste run,
+  e `python3 scripts/hook_contract.py` imprime a mesma medida: *"Contrato dos hooks — 38
+  registros, 37 scripts distintos"*].
 - 21 skills em 19 plugins porque **`graphify-guard` não tem `skills/` nenhum** (é 100% hook —
   o glob `plugins/graphify-guard/skills/*/` não casa nada) e **`project-doc` tem quatro**
   (`design-md`, `doc-touch`, `project-doc`, `start-doc`).
@@ -141,10 +144,11 @@ python3 -c "import json;print(len(json.load(open('.claude-plugin/marketplace.jso
 ```
 .claude-plugin/marketplace.json   catálogo único — nome, source, version, tags, category
 plugins/<nome>/                   19 dirs, todos catalogados
-_shared/                          fonte-da-verdade do código compartilhado (3 arquivos)
-scripts/sync-shared.sh            o "build": vendora _shared/ → 10 destinos
-scripts/hook_contract.py          mede o contrato dos 34 registros de hook (§11)
+_shared/                          fonte-da-verdade do código compartilhado (6 arquivos)
+scripts/sync-shared.sh            o "build": vendora _shared/ → 19 cópias em 14 pastas
+scripts/hook_contract.py          mede o contrato dos 38 registros de hook (§11)
 scripts/public_repo_check.py      cobra a regra de repo público (checagem H do gate)
+scripts/regua_call_check.py       cobra que gerador de página chame a régua (checagem I)
 .claude/                          documentação + estado + gate LOCAL deste repo
   ├── CLAUDE.md                   índice de roteamento (marker project-doc:v2)
   ├── docs/                       architecture · patterns · data-stores · durability · runtime
@@ -250,30 +254,36 @@ Saída desta rodada (nome · versão · skills · tem hook):
 
 ```
 archify         2.11.0  [archify]                                        -
-bootstrap        1.9.0  [setup]                                          HOOKS
-branches         1.0.2  [branches]                                       HOOKS
-context-guard    1.3.3  [setup]                                          HOOKS
-fallow           1.0.7  [fallow]                                         -
-graphify-guard   1.1.4  [] (sem skills)                                  HOOKS
-grill-me         1.0.0  [grill-me]                                       -
-grill-with-docs  1.0.0  [grill-with-docs]                                -
-guardrails       1.5.2  [setup]                                          HOOKS
-handoff          1.8.5  [handoff]                                        HOOKS
+bootstrap       1.10.0  [setup]                                          HOOKS
+branches         1.3.0  [branches]                                       HOOKS
+context-guard    1.3.4  [setup]                                          HOOKS
+fallow           1.2.0  [fallow]                                         -
+graphify-guard   1.2.0  [] (sem skills)                                  HOOKS
+grill-me         1.1.0  [grill-me]                                       -
+grill-with-docs  1.1.0  [grill-with-docs]                                -
+guardrails       1.7.0  [setup]                                          HOOKS
+handoff          1.8.7  [handoff]                                        HOOKS
 improve          1.0.3  [improve]                                        -
 intent-guard     0.6.0  [intent-guard]                                   HOOKS
-principles       1.0.2  [principles]                                     -
-project-doc     3.18.4  [design-md, doc-touch, project-doc, start-doc]   HOOKS
-qa-loop          1.8.0  [qa-loop]                                        -
-ship             1.3.9  [ship]                                           HOOKS
-slides           1.3.2  [slides]                                         -
-sovai           1.11.2  [sovai]                                          HOOKS
-visual          1.15.4  [visual]                                         HOOKS
+principles       1.0.3  [principles]                                     -
+project-doc     3.21.0  [design-md, doc-touch, project-doc, start-doc]   HOOKS
+qa-loop          1.8.2  [qa-loop]                                        -
+ship             1.4.0  [ship]                                           HOOKS
+slides           1.5.0  [slides]                                         -
+sovai           1.11.3  [sovai]                                          HOOKS
+visual          1.19.1  [visual]                                         HOOKS
 ```
 
-Duas linhas mudaram nesta rodada e as duas foram re-derivadas do mesmo laço acima:
-`intent-guard` de `0.5.4` para `0.6.0` (a separação de `standing` no caderno, §8.5) e `visual`
-de `1.8.6` para `1.9.1` (o fio requisito↔tarefa, §8.7). [confirmado — o laço foi re-executado
-nesta passada e as outras 17 vieram idênticas]
+**Treze dos 19 plugins foram bumpados nos dois commits desta rodada** — `bootstrap`,
+`branches`, `fallow`, `graphify-guard`, `grill-me`, `grill-with-docs`, `guardrails`,
+`project-doc`, `qa-loop`, `ship`, `slides`, `sovai` e `visual` [confirmado —
+`git diff --name-only … -- 'plugins/*/.claude-plugin/plugin.json'` devolve 13 caminhos].
+Em **9** deles o bump não veio de código próprio: veio da cópia vendorada de
+`regua_texto.py`, a régua de forma que saiu do `visual_page.py` e virou `_shared/` (§7).
+
+⚠️ **Vendorar código compartilhado tem um custo de release que não é óbvio**: a cópia mora
+DENTRO do plugin, então mexer em `_shared/` não é uma publicação — são N. Cada consumidor
+precisa de bump próprio, senão o cliente segue com a régua velha.
 
 As 19 versões batem com o campo `version` da entrada correspondente em
 `.claude-plugin/marketplace.json` [confirmado — comparação mecânica das duas fontes rodada
@@ -292,11 +302,12 @@ Inventário gerado neste run lendo os 11 `plugins/*/hooks/hooks.json`
 (`evento[matcher] → script (timeout)`):
 
 ```
-bootstrap        (3 eventos, 4 hooks)
+bootstrap        (3 eventos, 5 hooks)
   SessionStart[*]                    → session-sync.sh              (sem timeout)
   PostToolUse[Bash]                  → post-plugin-command.sh       (sem timeout)
   Stop[*]                            → stop-prose-ceiling.py        (10s)
-  Stop[*]                            → stop-forma-relato.py         (30s)   ← novo
+  Stop[*]                            → stop-regua-relato.py         (10s)   ← novo
+  Stop[*]                            → stop-forma-relato.py         (30s)
 
 branches         (2 eventos, 2 hooks)
   SessionStart[*]                    → sessionstart-branches.sh     (15s)
@@ -310,11 +321,12 @@ graphify-guard   (2 eventos, 2 hooks)
   SessionStart[*]                    → sessionstart-graphify.sh     (10s)
   PreToolUse[Grep|Glob|Bash]         → pretooluse-graphify-guard.sh (10s)
 
-guardrails       (2 eventos, 4 hooks)
+guardrails       (2 eventos, 5 hooks)
   PostToolUse[Edit|Write]            → lint-and-typecheck.sh        (30s)
   PreToolUse[Agent]                  → hook type "prompt" (classificador LLM inline) (15s)
   PreToolUse[Edit|Write]             → scope-cop.sh                 (25s)
   PreToolUse[AskUserQuestion]        → askq-humanize.sh             (10s)
+  PreToolUse[Edit|Write]             → pretooluse-artefato-regua.py (10s)   ← novo
 
 handoff          (3 eventos, 3 hooks)
   SessionStart[*]                    → sessionstart-ata.sh          (10s)
@@ -353,17 +365,30 @@ visual           (3 eventos, 4 hooks)
 
 Observações de arquitetura:
 
-- **O `bootstrap` é o único plugin com dois hooks no MESMO evento**, e é deliberado: os dois
-  `Stop` dividem trabalho por custo. O mecânico (`stop-prose-ceiling.py`) roda em todo turno
-  e custa zero token; o caro (`stop-forma-relato.py`) chama um modelo e **só roda quando a
-  resposta é um relato**. O comentário de cabeçalho do segundo nomeia a divisão: *"aquele é
-  mecânico, roda em todo turno e custa zero token; este chama um modelo, então SO roda quando
-  a resposta e um RELATO"*. Detalhe em §10.2. [confirmado — `plugins/bootstrap/hooks/hooks.json`
-  tem os dois no array `Stop`, e os dois arquivos existem em `plugins/bootstrap/hooks/`]
+- **O `bootstrap` tem TRÊS hooks no mesmo evento `Stop`**, e a divisão é por eixo medido, não
+  por acaso: `stop-prose-ceiling.py` mede **volume** (quantas linhas de prosa),
+  `stop-regua-relato.py` mede **os bullets** (a régua de forma, §7.4) e `stop-forma-relato.py`
+  julga o que regex não alcança, chamando um modelo. Os dois primeiros custam zero token e
+  rodam em todo turno; o terceiro **só roda quando a resposta é um relato**. A divisão está
+  escrita no cabeçalho do do meio, literal: *"teto de prosa -> VOLUME (quantas linhas) / esta
+  regua -> os BULLETS"*. Detalhe em §10.2. [confirmado — `plugins/bootstrap/hooks/hooks.json`
+  tem os três no array `Stop`, e os três arquivos existem em `plugins/bootstrap/hooks/`]
 - `guardrails` é o único que usa `"type": "prompt"` (classificador LLM inline no `hooks.json`,
-  sem script) — os outros **34** são `"type": "command"`, num total de **35 registros**
+  sem script) — os outros **37** são `"type": "command"`, num total de **38 registros**
   [confirmado, varredura própria neste run; bate com `scripts/hook_contract.py`, que imprime
-  *"35 registros, 34 scripts distintos"*].
+  *"38 registros, 37 scripts distintos"*].
+- **A régua de forma é cobrada por uma PORTA e uma REDE, e nenhuma das duas alcança o que a
+  outra alcança.** A porta (`guardrails/hooks/pretooluse-artefato-regua.py`, PreToolUse
+  `Edit|Write`) nega **escrever** `.md`/`.html` com prosa corrida dentro de `.claude/visual/`
+  ou `.claude/reports/` — vê arquivo, nunca vê o terminal. A rede
+  (`bootstrap/hooks/stop-regua-relato.py`, Stop) mede o relato **digitado no terminal** — vê
+  o terminal, nunca vê arquivo. O cabeçalho da porta registra por que são duas e não uma:
+  *"os dois alcançam coisas diferentes e nenhum alcança as duas… ficar com um só deixaria
+  metade do requisito sem lastro"*. Alcance da porta é estreito de propósito: doc, código e
+  config ficam fora, *"a régua governa artefato de LEITURA, não todo texto do repositório"*.
+  Kill-switches: `ARTEFATO_REGUA=0` e `REGUA_RELATO=0`. [confirmado — leitura dos dois
+  cabeçalhos; `python3 plugins/guardrails/hooks/test_artefato_regua.py` → *"23 checks ok, 0
+  falhas"* neste run]
 - **Dois plugins gateiam o `Agent`, e eles não concorrem — respondem a perguntas opostas.**
   O do `guardrails` é o classificador LLM e existe pra **proteger** Agent Teams: ele nega
   sub-agente avulso **quando o prompt pede Agent Teams**, e libera explicitamente *"tarefa
@@ -393,7 +418,8 @@ Observações de arquitetura:
 - Kill-switches por env var, todos copiados literal dos arquivos: `PLAN_DOC_GATE`,
   `DOC_GUARD_GATE`, `ORGANISM_GATE`, `DOC_TOUCH_SUGGEST`, `VISUAL_GATE`, `PLAN_STATUS`,
   `PLAN_NUDGE`, `SHIP_GATE`, `LINT_GATE`, `ASKQ_GATE`, `SCOPE_COP_GATE`, `BRANCHES_GATE`,
-  `GRAPHIFY_GATE`, `GRAPHIFY_DENY`, `HANDOFF_GATE`, `PROSE_CEILING`, `FORMA_RELATO`.
+  `GRAPHIFY_GATE`, `GRAPHIFY_DENY`, `HANDOFF_GATE`, `PROSE_CEILING`, `FORMA_RELATO`,
+  `ARTEFATO_REGUA`, `REGUA_RELATO`.
   [confirmado — `grep -rhoE` sobre `plugins/`, `scripts/` e `_shared/` neste run, mais leitura
   direta dos dois `.py` do bootstrap, cujos nomes não aparecem em forma `${…}`]
 - Diagnóstico de hook: `claude plugin details <nome>@pedro-plugins` mostra `Hooks (N)`. É o
@@ -466,7 +492,15 @@ Suíte dedicada: `plugins/project-doc/hooks/test_plan_gate.sh`.
 
 ## 7. A engine compartilhada vendorada (`_shared/`)
 
-`_shared/` tem 3 arquivos-fonte. O porquê do vendoring, copiado do cabeçalho de
+`_shared/` tem seis arquivos-fonte [confirmado — `ls -1 _shared/` neste run, fora o
+`test_regua_texto.py` e o `__pycache__`]:
+
+```
+collect_engine.py   green-cache.sh   regua_texto.py
+r8-tiers.json       r8_tiers.py      r8-tiers.md  (gerado do json)
+```
+
+O porquê do vendoring, copiado do cabeçalho de
 `scripts/sync-shared.sh`: *"o Claude Code isola plugins na instalação — só `plugins/<nome>/`
 vai pro cache, sem variável cross-plugin. O código compartilhado é COPIADO antes do commit
 (o 'build' deste monorepo). Fonte-da-verdade = `_shared/`; as cópias nos plugins são
@@ -478,6 +512,13 @@ O mapa `SPECS` (destino::arquivo), copiado literal:
 SPECS=(
   "plugins/handoff/lib::collect_engine.py"
   "plugins/project-doc/lib::collect_engine.py"
+  # O contrato R8: os DADOS (.json) + o servidor (.py) + a vista humana (.md, gerada
+  # do json). A skill instalada só enxerga a própria pasta, então a casca lê o tier
+  # da cópia local e passa em args — nenhum SKILL.md carimba o valor.
+  "plugins/sovai/skills/sovai/references::r8-tiers.json"
+  "plugins/qa-loop/skills/qa-loop/references::r8-tiers.json"
+  "plugins/sovai/skills/sovai/references::r8_tiers.py"
+  "plugins/qa-loop/skills/qa-loop/references::r8_tiers.py"
   "plugins/sovai/skills/sovai/references::r8-tiers.md"
   "plugins/qa-loop/skills/qa-loop/references::r8-tiers.md"
   "plugins/visual/lib::regua_texto.py"
@@ -486,6 +527,7 @@ SPECS=(
   "plugins/slides/lib::regua_texto.py"
   # Os emissores de hook: o .sh chama a régua pela linha de comando, e o plugin
   # instalado só enxerga a própria pasta — sem cópia aqui, a régua some em produção.
+  "plugins/bootstrap/lib::regua_texto.py"
   "plugins/guardrails/lib::regua_texto.py"
   "plugins/project-doc/lib::regua_texto.py"
   "plugins/ship/lib::regua_texto.py"
@@ -495,7 +537,10 @@ SPECS=(
 )
 ```
 
-**14 cópias.** É um mapa explícito, não "todos os arquivos em todos os consumidores", porque
+**19 cópias, em 14 pastas de destino, de 6 arquivos-fonte** — a `regua_texto.py` sozinha
+responde por **9** delas [confirmado — `sed -n '/^SPECS=(/,/^)/p' scripts/sync-shared.sh |
+grep -c '::'` devolve `19`; o mesmo recorte com `| sed 's/.*"\(.*\)::.*/\1/' | sort -u | wc -l`
+devolve `14`]. É um mapa explícito, não "todos os arquivos em todos os consumidores", porque
 consumidores diferentes vendoram arquivos diferentes. `--check` não copia: roda `cmp -s` e sai
 1 com `DRIFT: …` se alguma cópia divergir. Verificado neste run:
 
@@ -551,37 +596,121 @@ Env vars, copiadas literal: `GREEN_SUITE_DIR` (default `$HOME/.claude/green-suit
 `GREEN_SUITE_TTL_SECS` (default `86400`). API: `green_tree_hash`, `green_cache_check`,
 `green_cache_mark`; scope é `"full"` ou `"app:<nome>"`, e `full` satisfaz qualquer consulta.
 
-### 7.3 `r8-tiers.md` — contrato de tier
+### 7.3 `r8-tiers.json` + `r8_tiers.py` — o contrato de tier virou DADO
 
-Tabela única de "que modelo/effort em cada etapa", compartilhada pelos dois motores
+Contrato único de "que modelo/effort em cada etapa", compartilhado pelos dois motores
 (`/sovai` decompõe→executa→revisa; `/qa-loop` revisa→planeja→conserta). **É tudo Opus** — o
-modelo saiu da equação e só o `effort` varia por etapa. Os 6 knobs, com os nomes copiados do
-arquivo: `decompose_model` (Opus `xhigh`), `coordinate_model` (Opus `high`), `executor_model`
-(Opus `high`), `mechanical_model` (Opus `medium`), `diagnose_model` (Opus `xhigh`),
-`finalize_model` (Opus `xhigh`). A justificativa está no próprio arquivo: os dois motores rodam
-com o humano fora do loop, e execução barata custa mais em retrabalho do que economiza em token.
+modelo saiu da equação e só o `effort` varia por etapa.
 
-Regra de tier por rodada: rodada 1 = `decompose_model`; rodadas 2+ = `coordinate_model` (só o
-delta). O cabeçalho carrega a trava de vendoring: *"FONTE DA VERDADE: `_shared/r8-tiers.md` —
-NÃO editar as cópias vendoradas."*
+⚠️ **Desde 2026-08-03 a fonte da verdade é o JSON, não o markdown.** O `r8-tiers.md` passou a
+ser **gerado** (`r8_tiers.py render`) e **nenhum SKILL.md carimba o valor** — a casca lê o JSON
+da cópia vendorada e passa em `args`, e o script usa `args.tiers.executor.effort` em vez de um
+literal. O defeito que originou a inversão está medido no cabeçalho do módulo, literal: *"trocar
+seis valores custou 45 substituições em dois SKILL.md, três saíram invertidas e duas
+sobreviveram a dois verificadores. A causa não era descuido — era o número morar em quinze
+lugares."*
+
+Os 6 tiers, lidos do JSON neste run [confirmado — `python3 -c` sobre `_shared/r8-tiers.json`,
+`revised: 2026-08-03`, `model: opus`, `api_default_effort: high`]:
+
+```
+decompose   high      coordinate  medium    executor   medium
+mechanical  low       diagnose    medium    finalize   medium
+```
+
+O fundamento, copiado do próprio JSON: *"O guia de migração manda varrer para baixo a partir do
+padrão da API, que é `high`"* e *"Effort não encurta resposta — mexer nele move raciocínio, não
+tamanho visível"*. Regra por rodada: rodada 1 usa `decompose`; rodadas 2+ usam `coordinate` e
+processam só o delta; **CONFIRM e DIAGNOSE são sempre agentes dedicados**, em qualquer rodada.
+
+Três verbos, todos lendo o mesmo JSON — `args` (o dicionário que a casca passa ao Workflow),
+`render` (a tabela markdown) e `check` (falha se o markdown divergir do JSON, ou se um SKILL.md
+voltar a carimbar um `effort` literal). O `check` é a **checagem A2 do release-gate**
+[confirmado — `python3 _shared/r8_tiers.py check` → *"OK: R8 servido de
+`_shared/r8-tiers.json`, sem cópia carimbada em SKILL.md"* neste run].
+
+⚠️ **A regex `LITERAL` exige `model:` na mesma linha do `effort:`**, e isso é desenho: sem essa
+âncora, o `effort: "low"` que o `/fallow` escreve no relatório dele — que não tem nada com o R8
+— seria barrado por um gate de outro assunto.
+
+### 7.4 `regua_texto.py` — a régua de forma, com perfil por artefato
+
+As quatro checagens de forma (≤ 140 caracteres por bullet, uma frase por bullet, sem conectivo
+de continuação abrindo, no máximo 6 bullets por bloco) **nasceram dentro do `visual_page.py` e
+valiam só para a página**. Saíram de lá em 2026-08-03 porque os outros geradores — plano,
+slide, texto de hook, relato do terminal — emitem texto que o mesmo humano lê com a mesma
+pressa, e cada um estava livre para inventar a própria forma.
+
+**Perfil, não régua única — e perfil não é exceção.** O cabeçalho é explícito: *"Não existe
+perfil frouxo: os quatro cobram as quatro checagens. O que o perfil declara é o que, NAQUELE
+artefato, não é redação."* Os cinco:
+
+```
+pagina     página, relatório, diagnóstico          140 / 6 bullets
+plano      a árvore desenhada pelo programa fica FORA da régua
+slide      ≤ 20 palavras por bullet, além do resto
+hook       sem markdown (o canal não renderiza); cabeçalho abre com emoji
+contexto   200 / 20 bullets — canal `additionalContext`, lido pelo modelo
+```
+
+Cada número tem procedência escrita no arquivo: `BULLET_MAX = 140` é *"o teto que o
+`plan_state.DESC_MAX` já cobra (máx real medido: 137)"*, `SLIDE_PALAVRAS = 20` é o
+`md2deck.STATEMENT_WORDS`, `HOOK_LINHAS = 6` é *"o orçamento do fim de turno
+(`stop-plan-status.sh`)"*. O perfil `contexto` é o mais folgado **por eixo declarado**: ele
+carrega inventário, e *"inventário cortado esconde item"*.
+
+O consumidor **declara o perfil e não redigita a régua**. O `visual_page.py` hoje tem uma
+constante só — `PERFIL = "pagina"` — e importa `erros_de_estilo`; os emissores de hook em Bash
+chamam pela linha de comando (`printf '%s' "$MSG" | python3 regua_texto.py --perfil hook -`).
+**Quatorze arquivos chamam a régua** neste run — 8 em Python (`import`) e 6 em Bash (a linha
+`REGUA="$SCRIPT_DIR/../lib/regua_texto.py"`) [confirmado — `grep -rln` por
+`import regua_texto|erros_de_estilo` e `grep -rn regua_texto --include='*.sh'` sobre
+`plugins/`, descontando as cópias vendoradas e os testes].
+
+**Duas redes cobram que ninguém escape:**
+
+- **`scripts/regua_call_check.py` (checagem I do release-gate)** — se um `.py` monta página, ele
+  tem que chamar o módulo. O sinal é mecânico, não julgamento: literal de `DOCTYPE`, `<html`,
+  `<div class=` ou uso de `template.html` de um lado; `import regua_texto` ou `erros_de_estilo`
+  do outro. Isenção exige motivo escrito na linha (`# regua-ok: <motivo>`). O gate só olha o que
+  ESTE commit traz — **gerador antigo fora da régua não trava ninguém, gerador tocado agora é
+  barrado na porta**. [confirmado — `python3 scripts/regua_call_check.py` → *"OK — todo gerador
+  de página chama a régua"*, `count: 0`]
+- **`plugins/visual/lib/regua_audit.py`** — audita o HTML que **já está no disco** em
+  `.claude/visual/`, que o validador do `visual_page.py` nunca alcança (ele só vê spec de página
+  que ainda vai nascer). Imprime `arquivo · regra · trecho`, porque *"tem prosa nessas páginas"
+  não é achado acionável enquanto ninguém diz QUAL página, QUAL regra e QUAL trecho*. A régua
+  **não é redigitada** ali: o texto extraído volta pro `erros_de_estilo`, e o cabeçalho nomeia o
+  motivo — *"uma segunda cópia da régua é exatamente o defeito que este módulo existe pra pegar:
+  ela divergiria da primeira e cada lado ficaria coerente sozinho"*. Limite declarado: bloco
+  `raw_html` não deixa marca no HTML renderizado, então não há como isentá-lo.
 
 ## 8. Módulos Python e dependências
 
-Inventário mecânico (`find plugins -path '*/lib/*.py'` → **31 arquivos**), agrupados:
+Inventário mecânico (`find plugins -path '*/lib/*.py'` → **47 arquivos**), agrupados. As
+**9 cópias de `regua_texto.py`** aparecem à parte porque são vendoring, não código do plugin
+(§7.4):
 
 ```
 plugins/project-doc/lib/   collect_engine.py (vendorado) · journal.py · pattern_check.py
                            organism.py · graph_map.py · doc_lint.py
-                           + test_{journal,pattern_check,organism,graph_map,doc_lint}.py
+                           + test_{journal,pattern_check,organism,graph_map,doc_lint,
+                                   start_doc_skill}.py
 plugins/handoff/lib/       collect_engine.py (vendorado) · extract_ata.py
+                           + test_handoff_skill.py
 plugins/intent-guard/lib/  ledger.py + test_ledger.py
-plugins/fallow/lib/        audit.py · report.py
-plugins/visual/lib/        plan_state.py · cobertura.py · visual_page.py
-                           + test_{plan_state,cobertura,visual_page}.py
+plugins/fallow/lib/        audit.py · report.py + test_report.py
+plugins/visual/lib/        plan_state.py · cobertura.py · visual_page.py · regua_audit.py
+                           + test_{plan_state,cobertura,visual_page,regua_audit}.py
 plugins/slides/lib/        md2deck.py + test_md2deck.py
 plugins/branches/lib/      branch_state.py + test_branch_state.py
 plugins/guardrails/lib/    askq_lint.py + test_askq_lint.py
 plugins/bootstrap/lib/     conformance.py + test_conformance.py
+plugins/qa-loop/lib/       test_qa_loop_skill.py          (+ green-cache.sh, vendorado)
+plugins/sovai/lib/         test_sovai_skill.py
+
+regua_texto.py (vendorado) em bootstrap · branches · fallow · graphify-guard · guardrails
+                           · project-doc · ship · slides · visual   ← 9 cópias idênticas
 ```
 
 **Grafo de import interno** (derivado de leitura dos imports não-stdlib — todos lazy, dentro de
@@ -595,7 +724,17 @@ journal.py       → collect_engine  (try/except ImportError → HAVE_ENGINE, de
 organism.py      → yaml (PyYAML)   (try/except ImportError → mini_yaml stdlib)
 plan_state.py    → cobertura       (import lazy em 5 pontos: _requisitos_do_projeto,
                                     cmd_cobertura, brief_lines, _render_valor, _html_valor)
+visual_page.py   → regua_texto     (import de TOPO, via sys.path.insert do próprio dir —
+plan_state.py    → regua_texto      a cópia vendorada mora ao lado; ver §7.4)
+branch_state.py  → regua_texto
+md2deck.py       → regua_texto
+regua_audit.py   → regua_texto
 ```
+
+⚠️ **A aresta pra `regua_texto` é a única que atravessa plugin**, e ela só funciona porque a
+cópia mora dentro de cada `lib/`. O `sys.path.insert(0, dirname(__file__))` no topo dos
+importadores existe por isso: **não há import cross-plugin no Claude Code**, e um
+`from _shared.regua_texto import …` quebraria em toda máquina que instalou o plugin.
 
 Os dois `try/except ImportError` são a mesma decisão de arquitetura: **stdlib-puro é requisito,
 não preferência**. `journal.py` redefine `anchor_of`/`finding_id` idênticos ao `collect_engine`
@@ -863,6 +1002,12 @@ páginas do `/visual` digitadas pelo modelo custavam **20-31 KB de HTML por pág
     `exit 2` **sem escrever a página**, com a lista inteira de erros de uma vez. As regras e a
     calibração estão em `patterns.md §2.7`; o princípio que as gerou, no doc autoral
     `quality-goals.md`. [confirmado — `test_visual_page.py`, 25 checks]
+    ⚠️ **Desde 2026-08-03 a régua não mora mais aqui** — ela é `_shared/regua_texto.py` (§7.4),
+    e o que sobrou neste módulo é a **declaração de perfil**: uma constante, `PERFIL = "pagina"`.
+    A função homônima local continua existindo, mas só delega. O motivo é o mesmo que criou o
+    módulo: enquanto a régua vivia dentro do gerador de página, plano, slide e texto de hook
+    ficavam livres para inventar a própria forma. [confirmado — `git diff` do commit `5288bc5`
+    sobre `visual_page.py`: as constantes e as regexes saíram, entrou o `from regua_texto import`]
   - **`_tri()` dobra o corpo do problema e DERIVA o rótulo do dobrador.** O problema fica
     visível; consequência e proposta nascem fechadas, em `<ul>`. O texto do `<summary>` é o
     primeiro bullet da consequência mais a contagem do resto — promoção de conteúdo, não campo
@@ -1010,9 +1155,9 @@ copiar [confirmado — `test_conformance.py`, 6 casos]:
 causa aqui, e o conserto preservou o comando anterior **inteiro** no forward — inclusive o
 cálculo de `COLUMNS`, que se perderia se o forward fosse remontado à mão.
 
-### 10.2 O contrato de forma (bootstrap v1.8.5) — regra, mecanismo e verificador
+### 10.2 O contrato de forma (bootstrap v1.10.0) — regra, mecanismo e verificador
 
-Três peças, cada uma cobrindo o buraco da anterior.
+Quatro peças, cada uma cobrindo o buraco da anterior — a (2b) nasceu em 2026-08-03.
 
 **(1) A regra — `output-styles/clean-style.md`.** Frontmatter copiado literal:
 
@@ -1063,7 +1208,24 @@ bloqueia com `exit 2`. Constantes copiadas literal: `TETO_PADRAO = 6`, `MAX_BLOQ
   fixo, quem usa `CLAUDE_CONFIG_DIR` teria o hook escrevendo num lugar e o verificador lendo
   noutro — *"e o relatorio dizia 'nenhuma resposta furou o teto' com o teto furado"*.
 
-**(3) O juiz de forma — `hooks/stop-forma-relato.py`** (Stop, 30s). **Novo nesta rodada.** É o
+**(2b) A régua nos BULLETS — `hooks/stop-regua-relato.py`** (Stop, 10s). **Nova nesta rodada.**
+Zero token, como o vizinho. O buraco que ela fecha está escrito no cabeçalho: *"o canal do CLI
+era o unico fora do alcance da regua… o relato que o modelo digita na resposta chegava ao dono
+sem passar por regua nenhuma"*.
+
+- **Divisão de trabalho declarada, pra não haver guarda em dobro**, literal do arquivo:
+  *"teto de prosa -> VOLUME (quantas linhas) / esta regua -> os BULLETS (as linhas que abrem
+  com •, - ou *)"*.
+- **O perfil é `pagina` por DERIVAÇÃO, não por escolha** — o `regua_texto.py` define esse perfil
+  como *«página, relatório, diagnóstico»*, e o relato de fim de turno é um relatório. O
+  comentário barra explicitamente o outro candidato: **não** é o perfil `hook`, porque aquele
+  proíbe `**` e crase por o canal do emissor de hook não renderizar markdown — e o canal do CLI
+  renderiza.
+- Bloco de código é PROVA e fica fora, como no vizinho. `MAX_BLOQUEIOS = 2` por resposta,
+  estado em `REGUA_RELATO_STATE` (default `<CLAUDE_DIR>/state/regua-relato`), kill-switch
+  `REGUA_RELATO=0`, fail-open em toda borda de infra.
+
+**(3) O juiz de forma — `hooks/stop-forma-relato.py`** (Stop, 30s). É o
 que regex não alcança: *"Nenhum padrao distingue '6 linhas densas' de '6 linhas vazias' — para
 isso precisa de um leitor."*
 
@@ -1172,8 +1334,12 @@ Cada uma é uma regra que sobreviveu a um defeito, com o arquivo e o símbolo on
   (*"carimbo pela metade e pior que carimbo velho"*) e `scope_staleness` devolve `unknown` em vez
   de `fresh` quando o git falha. A direção do fail depende de qual erro é mais caro.
 - **Guarda que não registra execução é indistinguível de guarda ausente.** Nasceu de uma medição
-  (§10.2) e hoje é padrão: `stop-prose-ceiling.py:batida` e `stop-forma-relato.py:batida` gravam
-  **toda** execução, e `check_teto_rodou` / `check_juiz_rodou` transformam a ausência em desvio.
+  (§10.2) e hoje é padrão: `stop-prose-ceiling.py:batida`, `stop-forma-relato.py:batida` e
+  `stop-regua-relato.py:batida` gravam **toda** execução, e `check_teto_rodou` /
+  `check_juiz_rodou` transformam a ausência em desvio.
+  ⚠️ **A régua dos bullets grava `batidas.log` e `bypass.log` como os vizinhos, mas ainda não tem
+  checagem no `conformance.py`** — se ela ficar muda, ninguém acusa. [confirmado — `CHECAGENS`
+  não lista nada de `regua-relato`; o hook escreve em `state/regua-relato/`]
   O corolário: teto conhecido (o hook desiste após 2 bloqueios) vira **número visível**
   (`bypass.log` → `check_bypass_teto`), nunca silêncio.
 - **Estado mutável mora em `~/.claude/…`, nunca dentro do plugin** — `${CLAUDE_PLUGIN_ROOT}` é
@@ -1185,8 +1351,18 @@ Cada uma é uma regra que sobreviveu a um defeito, com o arquivo e o símbolo on
   `stop-prose-ceiling.py` e `lib/conformance.py`. Quando os lados divergem, **cada um fica
   coerente sozinho e o conjunto mente** — que é a falha mais cara porque não aparece em teste
   isolado.
-- **Vendoring com fonte-da-verdade declarada e drift checável.** `_shared/` é a fonte; as 6
+- **Vendoring com fonte-da-verdade declarada e drift checável.** `_shared/` é a fonte; as 19
   cópias são derivadas; `sync-shared.sh --check` acusa divergência e o gate A do commit roda isso.
+- **Regra que vale para um artefato vale para todos os que o mesmo humano lê — então ela sai do
+  gerador.** A régua de forma nasceu dentro do `visual_page.py` e virou `_shared/regua_texto.py`
+  com **perfil por artefato** (§7.4). O corolário é o desenho: *"não existe perfil frouxo — o que
+  o perfil declara é o que, NAQUELE artefato, não é redação"*. Uma segunda cópia da régua seria o
+  defeito, não a solução: *"ela divergiria da primeira e cada lado ficaria coerente sozinho"*.
+- **Contrato que muda de valor vira DADO, não prosa.** O R8 morava carimbado em SKILL.md, e
+  trocar seis valores custou 45 substituições com três invertidas (§7.3). Hoje é
+  `_shared/r8-tiers.json`: a vista humana é **gerada**, a casca **passa em `args`**, e a checagem
+  A2 do commit barra quem voltar a carimbar. É a mesma regra do bullet acima, aplicada a número
+  em vez de forma.
 - **Stdlib-puro é requisito, não preferência.** Os dois `try/except ImportError` (`journal.py` →
   `collect_engine`, `organism.py` → PyYAML) existem porque a máquina do cliente pode não ter
   nada. O fallback de YAML **levanta erro** fora do subconjunto suportado em vez de produzir
@@ -1204,13 +1380,13 @@ Cada uma é uma regra que sobreviveu a um defeito, com o arquivo e o símbolo on
 ## 12. Divergências vivas
 
 - ⚠️ **O baseline do contrato de hooks está com a contagem velha.** O arquivo versionado
-  registra `entries: 31, scripts: 30` e 3 achados; a medição de hoje dá **34 registros / 33
+  registra `entries: 31, scripts: 30` e 3 achados; a medição de hoje dá **38 registros / 37
   scripts** com os mesmos 3 achados. O gate E passa porque ele compara **achados**, não
   contagem — mas o retrato numérico não descreve mais o repo. [confirmado — leitura do JSON +
   `python3 scripts/hook_contract.py --baseline .claude/hook-contract.baseline.json` neste run,
   que imprime *"Nenhum achado. Todos os hooks batem com o contrato."*]
 - ⚠️ **Um achado 🔴 ALTA aceito, não resolvido**: `ship/pre-deploy-test-check.sh` bloqueia com
-  `exit 2` e não tem teto de devoluções (`R1-cap-ausente`, linha 344 do relatório). Está no
+  `exit 2` e não tem teto de devoluções (`R1-cap-ausente`, linha 352 do relatório). Está no
   baseline, então não trava commit — mas continua sendo o único hook do repo que pode devolver
   para sempre.
 - ⚠️ **`pi-plugins/` no disco, untracked e gitignorado** (`.gitignore:71`). Não é fonte de nada;
@@ -1219,7 +1395,8 @@ Cada uma é uma regra que sobreviveu a um defeito, com o arquivo e o símbolo on
   `grill-me` e `grill-with-docs` carregam `author` no `marketplace.json`; a entrada do `archify`
   não. A procedência vivia em mensagem de commit, e a história foi recriada. [confirmado —
   leitura do catálogo]
-- ⚠️ **`stop-prose-ceiling.py` e `stop-forma-relato.py` têm o mesmo teto conhecido de carga**:
+- ⚠️ **Os três `Stop` do bootstrap têm o mesmo teto conhecido de carga** (`stop-prose-ceiling.py`,
+  `stop-regua-relato.py` e `stop-forma-relato.py`):
   como todo hook de plugin, só carregam no `SessionStart`, então sessão já aberta no momento da
   instalação fica descoberta até o próximo `/clear`. Está escrito no cabeçalho do primeiro e é
   o conserto que o `check_teto_rodou` sugere.
@@ -1257,8 +1434,19 @@ plugins/intent-guard/lib/test_ledger.py      :: test_ledger: OK
 Mais duas verificações rodadas aqui:
 
 ```
-$ bash plugins/bootstrap/hooks/test_bootstrap_hooks.sh   →  36 ok · 0 FAIL
+$ bash plugins/bootstrap/hooks/test_bootstrap_hooks.sh   →  52 ok · 0 FAIL
 $ bash scripts/sync-shared.sh --check                    →  OK: cópias vendored idênticas a _shared/
+```
+
+**As cinco suítes que nasceram com a régua de forma** (§7.4), executadas nesta passada
+[confirmado — saída literal de cada uma]:
+
+```
+$ python3 _shared/test_regua_texto.py                    →  71 passou · 0 falhou
+$ python3 scripts/test_regua_call_check.py               →  18 asserts ok ✓ (0 gerador fora da régua hoje)
+$ python3 plugins/visual/lib/test_regua_audit.py         →  OK
+$ python3 plugins/guardrails/hooks/test_artefato_regua.py →  23 checks ok, 0 falhas
+$ python3 _shared/r8_tiers.py check                      →  OK: R8 servido de _shared/r8-tiers.json
 ```
 
 **Três suítes nasceram na rodada de consertos**, e as três cobrem exatamente o que não tinha
@@ -1285,7 +1473,9 @@ gate está em `patterns.md` §5.2]
   juiz sem resposta"*, *"acusa juiz parado ha mais de 24h"* e *"nao cobra juiz de quem nao
   instalou o bootstrap"*. Esse último é a metade da régua que impede o verificador de acusar
   quem simplesmente não tem o plugin.
-- **`plugins/bootstrap/hooks/test_bootstrap_hooks.sh` — 36 checks**, com um bloco dedicado ao
+- **`plugins/bootstrap/hooks/test_bootstrap_hooks.sh` — 52 checks** [confirmado — execução
+  nesta passada; eram 36 antes do bloco novo `-- regua de estilo nos bullets do relato`, que
+  cobre o `stop-regua-relato.py` da §10.2 (2b)], com um bloco dedicado ao
   juiz (`-- juiz de forma do relato`). Ele tem uma proteção que merece registro, porque é a
   única defesa contra um teste verde falso: como o juiz é fail-open, **um juiz mudo aprovaria
   todos os casos e a suíte ficaria verde sem ter testado nada**. Por isso, além de
@@ -1298,8 +1488,8 @@ gate está em `patterns.md` §5.2]
 
 ```
 $ python3 scripts/hook_contract.py
-Contrato dos hooks — 34 registros, 33 scripts distintos
-  ship/pre-deploy-test-check.sh      🔴 ALTA   R1-cap-ausente   bloqueia (exit2) e não tem teto:344
+Contrato dos hooks — 38 registros, 37 scripts distintos
+  ship/pre-deploy-test-check.sh      🔴 ALTA   R1-cap-ausente   bloqueia (exit2) e não tem teto:352
   bootstrap/session-sync.sh          🟡 MÉDIA  R5-sem-failopen  usa jq sem guarda de ausência
   project-doc/sessionstart-doc.sh    🟡 MÉDIA  R5-sem-failopen  usa python3 sem guarda de ausência
 Total: 3 achado(s) — 1 alta · 2 média · 0 baixa
@@ -1308,7 +1498,9 @@ Total: 3 achado(s) — 1 alta · 2 média · 0 baixa
 O rodapé da própria ferramenta é a régua de como usar isso: *"Cada achado é ONDE OLHAR, não
 veredito. Confira no arquivo antes de consertar."*
 
-⚠️ **Os dois hooks novos do `bootstrap` não aparecem na lista de achados** — o
-`stop-forma-relato.py` tem kill-switch (`FORMA_RELATO`), cap (`MAX_BLOQUEIOS = 2`, chaveado por
-sessão + hash da mensagem) e fail-open em toda borda, que são exatamente as propriedades 2, 3 e
-5 que o scanner mede. [confirmado — a saída acima lista 3 achados e nenhum é dos dois `Stop`]
+⚠️ **Os dois registros novos desta rodada entraram sem produzir achado** —
+`stop-regua-relato.py` e `pretooluse-artefato-regua.py` têm kill-switch (`REGUA_RELATO`,
+`ARTEFATO_REGUA`), cap (`MAX_BLOQUEIOS = 2` no primeiro) e fail-open em toda borda, que são
+exatamente as propriedades 2, 3 e 5 que o scanner mede. **O total subiu de 36 para 38 e a lista
+de achados continua com os mesmos 3** [confirmado — a saída acima, re-executada nesta passada,
+contra a contagem dos `hooks.json` em `8c315ba`, que dá 36].

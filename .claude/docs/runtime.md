@@ -537,7 +537,7 @@ Ambos usam o helper `le_batidas(log)`, que devolve `(contagem por motivo, idade 
 
 Os três canais de bloqueio coexistem hoje e o script **não normaliza, só mede**: `exit 2` (intent-guard, visual), `permissionDecision:"deny"` (project-doc, guardrails) e `"decision":"block"` (handoff). Cap conta em duas formas — contador (`-ge` perto de um `exit 0`, dentro de `CAP_ESCAPE_WINDOW = 8` linhas) e sentinela (`[ -f "$SENTINEL" ]` e variantes). O cabeçalho é explícito sobre a direção do erro: detectar um cap que não existe é o erro caro, porque o script deixaria de acusar um gate que trava de verdade.
 
-### 10a · `--stop-budget` — o custo somado do fim de turno
+### 11a · `--stop-budget` — o custo somado do fim de turno
 
 **Novo em 2026-08-02.** As 5 propriedades acima medem cada hook **isolado**; nenhuma mede o CONJUNTO. **Oito** hooks disputam o `Stop` neste marketplace, cada um respeitando o próprio teto, e o dono viu na tela `6/9 · 35s · ↓773 tokens` com quatro blocos de progresso de plano. Todo emissor estava dentro do que prometia — **o conjunto é que não tinha dono**.
 
@@ -593,12 +593,13 @@ Uso: `--json` para a medida crua, `--fail-on high` para virar gate (exit 1), `--
 
 ## 12 · Guardrails: o que acontece a cada Edit/Write
 
-`plugins/guardrails/hooks/hooks.json` registra 4 hooks — 3 em `PreToolUse` e 1 em `PostToolUse`:
+`plugins/guardrails/hooks/hooks.json` registra 5 hooks — 4 em `PreToolUse` e 1 em `PostToolUse`:
 
 - **`PostToolUse` `Edit|Write` → `lint-and-typecheck.sh`** (30s). Kill-switch `LINT_GATE=0`; `jq` via PATH com fail-open. JS/TS: sobe a árvore procurando `node_modules/.bin/eslint` e depois `tsconfig.json`/`jsconfig.json` — buscas **independentes**, porque em monorepo as raízes podem diferir. O comentário registra a armadilha corrigida: capturar o exit code **antes** do pipe, porque `$(cmd | head)` reporta o status do `head` e o bloco de erro nunca disparava. Python: `ruff` + `mypy`, ambos opcionais. `[confirmado — cabeçalho e bloco JS/TS lidos; corpo Python não lido]`
 - **`PreToolUse` `Edit|Write` → `scope-cop.sh`** (25s). Kill-switch `SCOPE_COP_GATE=0` **antes de ler o stdin**. Decisão durável em `$CFG/guardrails/scope-cop.mode` com conjunto **fechado** `deny | warn | off` (vazio = default `deny`); grafia errada cai no default e vai pro log, porque errar a grafia entregaria o gate mais severo a quem pediu o mais brando. `CFG = ${CLAUDE_CONFIG_DIR:-$HOME/.claude}` — mesma regra do `conformance.py` e do `stop-prose-ceiling.py`, e o comentário explica: com `$HOME` cravado, o hook leria o modo numa pasta e o conformance varreria `**/*.mode` noutra. Circuit breaker `MAX_STREAK=3` **por sessão** (`scope-cop.blockstreak.<session_id>`), com poda de arquivos de sessões mortas com mais de 1 dia. Filtro barato antes de chamar modelo: só julga `*.html *.htm *.svelte *.css *.scss *.sass *.less *.tsx *.jsx *.vue *.astro`. `[confirmado — primeiras ~110 linhas lidas]`
 - **`PreToolUse` `Agent` → hook do tipo `prompt`** — é o único hook `type: "prompt"` deste marketplace: um classificador que **permite** o spawn quando o input tem `team_name` (é Agent Teams), **nega** quando não tem e o prompt exige Agent Teams/TeamCreate/waves/swarm, e **permite** na dúvida. `[confirmado — prompt lido literal no hooks.json]`
 - **`PreToolUse` `AskUserQuestion` → `askq-humanize.sh`** (10s). `[confirmado — registro; conteúdo não lido nesta rodada]`
+- **`PreToolUse` `Edit|Write` → `pretooluse-artefato-regua.py`** (10s) — **novo em 2026-08-03**, e é a PORTA da régua de forma. Bloco próprio no `hooks.json`, com o mesmo matcher do `scope-cop.sh`: são dois julgamentos diferentes sobre a mesma escrita. Detalhe no cenário 15. `[confirmado]`
 
 ---
 
@@ -621,6 +622,68 @@ No modo A a regra de ouro deixou de ser instrução e virou propriedade da const
 O guard de busca: kill-switch `GRAPHIFY_GATE=0` antes do stdin; `command -v jq` fail-open. Monta a lista de diretórios candidatos a partir do `cwd` mais o `.tool_input.path` (Grep/Glob) ou os tokens que existem como caminho no comando (Bash). Em `Bash`, só intercepta busca cega de texto/arquivo — a regex exige `grep|egrep|fgrep|rg|ripgrep|ag|ack|find` com fronteira de palavra, e tudo o mais (inclusive `graphify …`) passa. Havendo grafo, nega uma vez por sessão e redireciona pro `graphify query`. `[confirmado — primeiras ~45 linhas lidas]`
 
 O caso que o cabeçalho nomeia como coberto é o do monorepo-container: mesmo com o cwd num diretório sem grafo próprio, ele desce pelos tokens de caminho da busca até achar grafo em subprojeto. `[relatado — comentário do arquivo; não reproduzido]`
+
+---
+
+## 15 · A régua de forma recusa no ponto de uso — PORTA e REDE
+
+**Novo em 2026-08-03.** A régua de estilo (`_shared/regua_texto.py`, vendorada; as quatro checagens e os perfis estão em `patterns.md §2.7`) deixou de valer só para quem passa pelo gerador de página. Dois hooks a cobram nos dois canais por onde o texto escapava. `[confirmado]`
+
+**Por que DOIS, e não um** — o motivo está escrito na docstring da porta: *"a rede pega o relatório que eu DIGITO no terminal e nunca vê arquivo; esta porta pega o arquivo e nunca vê o terminal."* Nenhum dos dois alcança o alcance do outro. `[confirmado]`
+
+### 15a · A PORTA — `guardrails/hooks/pretooluse-artefato-regua.py`
+
+**Dispara quando:** `PreToolUse` com matcher `Edit|Write`, timeout 10. `[confirmado]`
+
+1. **Kill-switch primeiro** — `ARTEFATO_REGUA=0` sai 0 antes de ler o stdin.
+2. **Alcance deliberadamente estreito** — `alcanca()` exige extensão `.md`/`.html` **e** o caminho conter `/.claude/visual/` ou `/.claude/reports/`. Documentação, código e config ficam de fora: a régua governa artefato de **leitura**, não todo texto do repositório.
+3. **De onde vem o texto** — `content` (o `Write` manda o arquivo inteiro) ou `new_string` (o `Edit` manda só o pedaço novo).
+4. **Isenção da origem** — `.html` que contenha `visual_page.py` no corpo já passou pela régua no gerador; medir de novo seria cobrar duas vezes o mesmo texto.
+5. **O que conta como redação** — `linhas_de_redacao()` descarta o que está dentro de ``` (prova é literal por obrigação), o vazio, e toda linha que abre com `$ # | < ! >`, que é comando, título, tabela, markup ou citação. O marcador de bullet sai com `lstrip("-*• ")`.
+6. **A medida** — `erros_de_estilo(linhas, "o artefato", "pagina")`, perfil de página/relatório/diagnóstico.
+7. **Recusa** — `exit 2` com até 6 problemas no stderr, mais a instrução de quebrar em bullets de uma frase e de pôr saída crua dentro de bloco de código.
+
+**Fail-open em tudo que não é violação** — régua vendorada ausente, `exec_module` que levanta, JSON ilegível, caminho fora do alcance, texto vazio: sai 0 mudo. O comentário dá o motivo: *"gate de forma que derruba a escrita por causa da própria falha é pior que a prosa que ele evitaria."* `[confirmado — arquivo lido integralmente]`
+
+**Verificado:** `python3 plugins/guardrails/hooks/test_artefato_regua.py` → **23 checks ok · 0 falhas** neste run, o último sendo "a PORTA (escrita de arquivo) está no disco". `[confirmado]`
+
+### 15b · A REDE — `bootstrap/hooks/stop-regua-relato.py`
+
+**Dispara quando:** `Stop`, timeout 10, **antes** do `stop-forma-relato.py` no mesmo array — o mecânico vem antes do que chama modelo. `[confirmado]`
+
+**Divisão de trabalho com o vizinho, pra não haver guarda em dobro** (escrita na docstring): o `stop-prose-ceiling.py` mede **VOLUME** (quantas linhas de prosa); esta régua mede os **BULLETS** (as linhas que abrem com `•`, `-` ou `*` seguidos de espaço). `[confirmado]`
+
+1. Kill-switch `REGUA_RELATO=0`, e `stop_hook_active` sai calado.
+2. `ultima_msg_assistente()` lê o `.jsonl` de trás pra frente, pulando `isSidechain`.
+3. `bullets_do_texto()` remove os blocos ``` com regex, casa `^([•\-*])\s+(.*)$` e descarta o que sobrar só de traço ou barra de tabela. O espaço exigido depois do marcador é o que separa `- item` de `**Gate verde**: …`, que abre com `*` e não é lista.
+4. **A chamada é UMA, com a LISTA inteira:** `erros_de_estilo(itens, "relato", "pagina")`. Bullet a bullet, a quarta checagem — máximo 6 bullets por bloco — **nunca dispararia**, porque ela só arma quando o valor chega como lista (`lista = isinstance(v, (list, tuple))` no `regua_texto.py`); 20 bullets curtos passavam limpos. As outras três saem iguais nos dois modos, só o rótulo muda. `[confirmado — comentário do hook e o corpo de `erros_de_estilo`]`
+5. **Perfil `pagina`, por derivação e não por escolha** — o `regua_texto.py` define esse perfil como «página, relatório, diagnóstico», e o relato de fim de turno é um relatório. **Não** é o perfil `hook`, que proíbe `**` e crase porque o canal do emissor de hook não renderiza markdown — e o canal do CLI renderiza.
+6. **Rastro e anti-loop, no molde dos vizinhos** — `batida()` grava **toda** execução em `<estado>/batidas.log` (senão "não rodou" e "rodou e aprovou" são indistinguíveis); `MAX_BLOQUEIOS = 2` por resposta, chaveado por `sha1(session_id + texto)[:16]`, e o terceiro bloqueio vira linha em `bypass.log` em vez de travar a sessão. Estado em `REGUA_RELATO_STATE` ou `CLAUDE_DIR/state/regua-relato` — variável própria, pelo mesmo motivo do juiz de forma: dá pra isolar o teste sem mexer no `CLAUDE_CONFIG_DIR` real.
+
+**Fail-open em tudo que é infra** — régua ausente do vendoring (`ImportError`), payload ilegível, transcript que não abre: sai 0, com a batida registrando o motivo. `[confirmado — arquivo lido integralmente]`
+
+**Verificado:** `bash plugins/bootstrap/hooks/test_bootstrap_hooks.sh` → **52 ok · 0 FAIL** neste run (eram 36 antes), com a fatia nova cobrindo as quatro checagens uma a uma, o kill-switch, a isenção do bloco de prova, a linha em negrito que não é bullet e o bypass depois de 2 bloqueios. `[confirmado]`
+
+---
+
+## 16 · O tier do motor chega como DADO, não como número na skill
+
+**Dispara quando:** a casca de `/sovai` ou de `/qa-loop` vai disparar o Workflow do motor. `[confirmado — `plugins/sovai/skills/sovai/SKILL.md:70-84` e `plugins/qa-loop/skills/qa-loop/SKILL.md:93-108`]`
+
+**O drift que isto existe pra matar, medido em 2026-08-03:** trocar seis valores custou 45 substituições em dois `SKILL.md`, três saíram invertidas e duas sobreviveram a dois verificadores. A causa não era descuido — era o número morar em quinze lugares. `[relatado — docstring de `_shared/r8_tiers.py`]`
+
+**Os passos:**
+
+1. **A casca roda o script antes do Workflow** — `python3 "<skill_dir>/references/r8_tiers.py" args`.
+2. **O script lê o JSON e devolve só o que o motor decide** — `para_args()` monta `{model, tiers: {<knob>: {effort}}}` a partir de `r8-tiers.json`. Saída medida nesta rodada: `model: "opus"` e os seis knobs `decompose`, `coordinate`, `executor`, `mechanical`, `diagnose`, `finalize`. `[confirmado — `python3 _shared/r8_tiers.py args`]`
+3. **A casca passa isso dentro do `args` do Workflow**, junto com os outros parâmetros.
+4. **O script do motor lê `args.tiers.<knob>.effort`, nunca um literal** — no esqueleto, `const T = args.tiers` e `tierFor` escolhe entre `T.decompose.effort` e `T.coordinate.effort` conforme a rodada. `[confirmado — `SKILL.md` do `/sovai`, bloco `sovai-build-engine`]`
+
+⚠️ **`args.tiers` ausente MATA o motor na primeira volta, e isso é a falha certa.** Um default carimbado no script seria mais uma cópia do valor — exatamente o defeito que o contrato existe pra impedir. Contraste deliberado com o vizinho na mesma linha do código: `maxRounds` **tem** default dentro do motor (`args.maxRounds || 5`), porque ausente ele faria `r < undefined` ser falso e o motor devolveria "nada construído" **em silêncio**. Morrer alto é aceitável; passar calado, não. `[confirmado — as duas linhas convivem no mesmo bloco de `args`]`
+
+**Os outros dois usos do mesmo módulo**, ambos lendo o mesmo JSON: `render` gera a tabela de `r8-tiers.md` (ninguém a digita), e `check` falha se o markdown divergir do JSON **ou** se algum `SKILL.md` voltar a carimbar um `effort` literal ao lado de um `model:`. A regex isenta a menção legítima ao nome do knob e o `effort: "low"` do relatório do `/fallow`, que não tem nada com o R8. `[confirmado — `r8_tiers.py:LITERAL` e `python3 _shared/r8_tiers.py demo` → "demo ok"]`
+
+**Trocar um tier é editar `_shared/r8-tiers.json` e rodar `scripts/sync-shared.sh`** — nenhum `SKILL.md` muda. `[confirmado]`
 
 ---
 
