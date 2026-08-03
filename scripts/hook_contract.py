@@ -397,6 +397,64 @@ def _linhas_visiveis(out):
     return len([x for x in texto.split("\n") if x.strip()])
 
 
+def _emissores_de_terceiros():
+    """Hooks de `Stop` dos plugins INSTALADOS que não são deste repositório.
+
+    O medidor nasceu olhando só `plugins/*/hooks/hooks.json` daqui, e isso é um ponto
+    cego: quem paga o fim de turno é a máquina, não o repositório. Um plugin de outro
+    marketplace com hook de `Stop` verboso entra no mesmo orçamento e não aparecia.
+
+    Eles ficam FORA do total gateado, de propósito. O retrato viaja no git e o gate
+    barra deriva; se o total incluísse o que cada máquina instalou, o mesmo commit
+    passaria numa máquina e barraria noutra. Aqui é relatório, lá é contrato.
+
+    Mede pelo COMANDO registrado, não por caminho de script: hook de terceiro pode ser
+    um one-liner de shell chamando outro runtime (o `impeccable` chama `node`), e o
+    regex de `.sh|.py` do laço principal não o alcança.
+    """
+    raiz = os.path.expanduser(os.environ.get("CLAUDE_CONFIG_DIR", "~/.claude"))
+    base = os.path.join(raiz, "plugins", "cache")
+
+    # O cache guarda TODA versão já instalada, não só a viva — sem este filtro o
+    # `codex` aparecia duas vezes (1.0.3 e 1.0.6) e o relatório media código morto.
+    # Quem sabe qual está valendo é `installed_plugins.json`, e o índice vivo mora em
+    # `["plugins"]`, não na raiz: `{"version": 2, "plugins": {"<plug>@<mercado>": [...]}}`.
+    vivos = set()
+    try:
+        with open(os.path.join(raiz, "plugins", "installed_plugins.json"),
+                  encoding="utf-8") as fh:
+            idx = (json.load(fh) or {}).get("plugins") or {}
+        for chave, insts in idx.items():
+            plug, _, mercado = chave.partition("@")
+            for inst in insts if isinstance(insts, list) else []:
+                if inst.get("version"):
+                    vivos.add((mercado, plug, inst["version"]))
+    except (OSError, ValueError, AttributeError):
+        vivos = set()                     # sem o índice, não filtra — melhor a mais que a menos
+
+    fora = []
+    for f in sorted(glob.glob(os.path.join(base, "*", "*", "*", "hooks", "hooks.json"))):
+        partes = f.split(os.sep)
+        mercado, plug, versao = partes[-5], partes[-4], partes[-3]
+        if mercado == "pedro-plugins":
+            continue                      # esses já entram pelo repositório, medidos daqui
+        if vivos and (mercado, plug, versao) not in vivos:
+            continue                      # versão antiga no cache, não é o que roda
+        try:
+            with open(f, encoding="utf-8") as fh:
+                cfg = json.load(fh)
+        except (OSError, ValueError):
+            continue
+        for h in cfg.get("hooks", {}).get("Stop", []):
+            for hh in h.get("hooks", []):
+                cmd = hh.get("command", "")
+                if cmd:
+                    fora.append({"marketplace": mercado, "plugin": plug, "versao": versao,
+                                 "cmd": cmd, "raiz": os.path.dirname(os.path.dirname(f)),
+                                 "timeout": hh.get("timeout")})
+    return fora
+
+
 def stop_budget(root):
     """Quanto o fim de turno custa em linhas, emissor a emissor."""
     import shutil
@@ -421,6 +479,8 @@ def stop_budget(root):
                 if os.path.exists(caminho):
                     emissores.append((plug, m.group(1), caminho, hh.get("timeout")))
 
+    terceiros = _emissores_de_terceiros()
+    fora = []
     sandbox = tempfile.mkdtemp(prefix="stop-budget-")
     linhas_tot = 0
     saida = []
@@ -476,9 +536,28 @@ def stop_budget(root):
             n = _linhas_visiveis(out)
             linhas_tot += n
             saida.append({"plugin": plug, "script": nome, "linhas": n, "timeout": timeout})
+
+        # Os de fora do repositório: mesmo sandbox, mesmo payload, contagem separada.
+        # `CLAUDE_PLUGIN_ROOT` é o que o comando deles interpola, então tem que apontar
+        # pra raiz do plugin instalado — sem isso o hook não acha o próprio script e
+        # mede zero por motivo errado.
+        for t in terceiros:
+            env_t = dict(env, CLAUDE_PLUGIN_ROOT=t["raiz"])
+            try:
+                r = subprocess.run(["bash", "-c", t["cmd"]], input=payload,
+                                   capture_output=True, text=True, env=env_t,
+                                   cwd=projeto, timeout=20)
+                out = (r.stdout or "") + (r.stderr or "")
+                nota = None
+            except (subprocess.TimeoutExpired, OSError) as exc:
+                out, nota = "", "nao mediu: %s" % type(exc).__name__
+            fora.append({"marketplace": t["marketplace"], "plugin": t["plugin"],
+                         "versao": t["versao"], "linhas": _linhas_visiveis(out),
+                         "timeout": t["timeout"], "nota": nota})
     finally:
         shutil.rmtree(sandbox, ignore_errors=True)
-    return {"emissores": saida, "total_linhas": linhas_tot, "teto": STOP_TETO_LINHAS}
+    return {"emissores": saida, "total_linhas": linhas_tot, "teto": STOP_TETO_LINHAS,
+            "terceiros": fora, "total_terceiros": sum(x["linhas"] for x in fora)}
 
 
 def _piorou(atual, caminho):
@@ -545,6 +624,16 @@ def main(argv=None):
               % (b["total_linhas"], b["teto"]))
         if b["total_linhas"] > b["teto"]:
             print("  ⚠️  acima do teto — o fim de turno virou relatório, não resumo")
+        if b.get("terceiros"):
+            print("\n  Instalados nesta máquina, FORA do gate "
+                  "(o retrato viaja no git; o que cada máquina instala, não):")
+            for t in b["terceiros"]:
+                print("  %-13s %-34s %3d linha(s)   timeout=%ss%s"
+                      % (t["marketplace"], "%s %s" % (t["plugin"], t["versao"]),
+                         t["linhas"], t["timeout"],
+                         "  ⚠️ %s" % t["nota"] if t.get("nota") else ""))
+            print("\n  SOMADO ao que a máquina realmente paga: %d linha(s)"
+                  % (b["total_linhas"] + b["total_terceiros"]))
         if args.baseline:
             return _piorou(b, args.baseline)
         return 0

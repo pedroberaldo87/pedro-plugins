@@ -249,6 +249,17 @@
           "enabled": false
         }
       ]
+    },
+    {
+      "name": "impeccable",
+      "source": "https://github.com/pbakaus/impeccable.git",
+      "sourceType": "git",
+      "plugins": [
+        {
+          "name": "impeccable",
+          "enabled": true
+        }
+      ]
     }
   ],
   "skills": {
