@@ -24,9 +24,11 @@ scope:
   - plugins/visual/server/start.sh
   - plugins/visual/skills/visual/resolve-dir.sh
   - plugins/visual/skills/visual/SKILL.md
+  - plugins/visual/skills/visual/template.html
   - plugins/visual/hooks/pre-exitplan-visualize.sh
   - plugins/visual/hooks/sessionstart-plan.sh
   - plugins/visual/hooks/stop-plan-status.sh
+  - plugins/visual/hooks/stop-anuncio-sem-acao.py
   - plugins/visual/hooks/hooks.json
   - plugins/visual/lib/plan_state.py
   - plugins/visual/lib/cobertura.py
@@ -58,6 +60,8 @@ verified-by:
   - plugins/bootstrap/lib/test_conformance.py
   - plugins/project-doc/hooks/test_plan_gate.sh
   - plugins/visual/hooks/test_plan_hooks.sh
+  - plugins/visual/hooks/test_anuncio_sem_acao.py
+  - scripts/test_hook_contract.py
   - plugins/visual/hooks/test_exitplan_gate.sh
   - plugins/visual/lib/test_plan_state.py
   - plugins/visual/lib/test_cobertura.py
