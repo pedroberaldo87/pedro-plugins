@@ -1,5 +1,5 @@
 {
-  "_comment": "FONTE DA VERDADE do contrato R8. Nenhum SKILL.md pode repetir estes valores — quem precisa deles carrega este arquivo e passa em args. O r8-tiers.md é GERADO daqui por r8_tiers.py render. O check E3 do release-gate barra literal de effort em SKILL.md.",
+  "_comment": "FONTE DA VERDADE do contrato R8. Nenhum SKILL.md pode repetir estes valores — quem precisa deles carrega este arquivo e passa em args. O r8-tiers.md é GERADO daqui por r8_tiers.py render. O check A2 do release-gate barra literal de effort em SKILL.md.",
   "revised": "2026-08-03",
   "model": "opus",
   "api_default_effort": "high",

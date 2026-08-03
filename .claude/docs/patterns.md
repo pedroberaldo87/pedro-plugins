@@ -484,6 +484,22 @@ Três regras que caíram daí:
 
 **Régua durável: quando N unidades com teto próprio desembocam na mesma saída, o teto que importa é o da saída — e ele precisa de dono, de número e de um medidor que mostre a soma.**
 
+### 1.17 PORTA e REDE: dois hooks para a mesma regra, porque nenhum alcança os dois canais
+
+**Novo em 2026-08-03**, e não é redundância. A régua de forma (§2.7) passou a ser cobrada por **dois** hooks, e os cabeçalhos dos dois explicam por que um só deixaria metade descoberta [confirmado, citação literal de `pretooluse-artefato-regua.py`]:
+
+> A rede pega o relatório que eu DIGITO no terminal e nunca vê arquivo; esta porta pega o arquivo e nunca vê o terminal.
+
+- **PORTA — `plugins/guardrails/hooks/pretooluse-artefato-regua.py`** (`PreToolUse[Edit|Write]`). Nega escrever `.md`/`.html` dentro de `.claude/visual/` ou `.claude/reports/` quando o texto sai em prosa corrida. **Alcance deliberadamente estreito**: documentação, código e config ficam fora — *"a régua governa artefato de LEITURA, não todo texto do repositório"*. Kill-switch `ARTEFATO_REGUA=0`, impresso na própria mensagem de recusa. [confirmado — `test_artefato_regua.py` → `artefato-regua: 23 checks ok, 0 falhas`]
+- **REDE — `plugins/bootstrap/hooks/stop-regua-relato.py`** (`Stop`). Mede os bullets do relato digitado na resposta. **Divisão de trabalho escrita no arquivo, pra não haver guarda em dobro**: `stop-prose-ceiling.py` cobra o **VOLUME** (quantas linhas), esta régua cobra os **BULLETS** (as linhas que abrem com `•`, `-` ou `*`). Cap `MAX_BLOQUEIOS = 2`, kill-switch `REGUA_RELATO=0`, estado em variável própria `REGUA_RELATO_STATE` (§1.4).
+
+Duas decisões que valem copiar:
+
+- **O perfil sai por DERIVAÇÃO, não por escolha.** A rede usa `pagina` — e o comentário dá o raciocínio: o `regua_texto.py` define esse perfil como *"pagina, relatorio, diagnostico"*, e relato de fim de turno é relatório. **Não** é o perfil `hook`, porque aquele proíbe `**` e crase por causa de um canal que não renderiza markdown, e **o canal do CLI renderiza**. Escolher perfil pelo *nome do hook* teria pego o errado.
+- **Fora do alcance, em ambos: bloco de código.** Prova é literal por obrigação — `linhas_de_redacao()` na porta e a mesma exclusão na rede. Medir dentro de ``` reprovaria a saída crua que o artefato existe pra carregar.
+
+🔴 **Gotcha medido nesta sessão: hook que EXISTE mas não está no `hooks.json` nunca dispara — e nada acusa.** O `stop-regua-relato.py` nasceu como arquivo antes de entrar no array `Stop` do `plugins/bootstrap/hooks/hooks.json`; os dois entraram no mesmo commit (`1e59b55`) só porque alguém foi conferir. Não há erro, não há log, `claude plugin validate` passa, e `claude plugin details` mostra `Hooks (N)` **contando EVENTOS, não scripts** — um `Stop` novo no array já povoado não mexe no N. É a mesma família do §1.14 (elo que sai da cadeia sem sintoma), com um agravante: aqui o componente nunca chegou a entrar. **Hook novo se prova pelo `hooks.json`, nunca pela existência do arquivo.**
+
 ## 2 · Python
 
 ### 2.1 Stdlib puro, sem exceção observada
@@ -494,13 +510,14 @@ Não há `requirements.txt`, lockfile nem venv no repo. Duas varreduras neste ru
 grep -rhoE '^(import|from) +[a-zA-Z_][a-zA-Z0-9_]*' plugins/*/lib/*.py _shared/*.py | awk '{print $2}' | sort -u
 # argparse askq_lint branch_state cobertura collections contextlib datetime difflib doc_lint
 # fcntl glob graph_map hashlib html io journal json ledger math md2deck organism os pathlib
-# pattern_check plan_state random re shlex shutil string subprocess sys tempfile time visual_page
+# pattern_check plan_state random re regua_audit regua_texto report shlex shutil string
+# subprocess sys tempfile textwrap time visual_page
 
 grep -rhoE '^(import|from) +[a-zA-Z_][a-zA-Z0-9_]*' plugins/*/hooks/*.py | awk '{print $2}' | sort -u
-# hashlib json os pathlib re shutil subprocess sys time
+# hashlib importlib io json os pathlib re shutil subprocess sys tempfile time
 ```
 
-Tudo é stdlib ou módulo-irmão do próprio plugin (`askq_lint`, `branch_state`, `cobertura`, `doc_lint`, `graph_map`, `journal`, `ledger`, `md2deck`, `organism`, `pattern_check`, `plan_state`, `visual_page`). ⚠️ **`cobertura` entrou nesta rodada e o import dele é LOCAL, dentro da função** (`plan_state.py:_requisitos_do_projeto` e `cmd_cobertura` fazem `import cobertura` no corpo, não no topo) — os dois moram na mesma pasta, e o import no topo obrigaria quem só usa `tick` a carregar o módulo do fio. **Por quê:** o plugin é copiado pro cache sem passo de instalação — não existe onde rodar `pip install`. `doc_lint.py` carrega isso na docstring (*"Stdlib-puro."*), `conformance.py` repete no topo (*"Python 3 stdlib apenas — convencao do repo (patterns.md)"*), `askq_lint.py` explica a consequência (*"o plugin é copiado pro cache sem passo de instalação, não existe onde rodar pip install"*), e `visual_page.py`/`md2deck.py` fecham com *"stdlib only (requisito do repo)"* [confirmado, os cinco arquivos].
+Tudo é stdlib ou módulo-irmão do próprio plugin (`askq_lint`, `branch_state`, `cobertura`, `doc_lint`, `graph_map`, `journal`, `ledger`, `md2deck`, `organism`, `pattern_check`, `plan_state`, `regua_audit`, `regua_texto`, `report`, `visual_page`). ⚠️ **`importlib` nos hooks é consequência do vendoring, não sofisticação**: `pretooluse-artefato-regua.py` carrega a régua por caminho (`importlib.util.spec_from_file_location` sobre `../lib/regua_texto.py`) porque um hook não tem o `lib/` do próprio plugin no `sys.path` — e se a cópia não estiver lá, ele sai 0 mudo (§1.17). ⚠️ **`cobertura` entrou nesta rodada e o import dele é LOCAL, dentro da função** (`plan_state.py:_requisitos_do_projeto` e `cmd_cobertura` fazem `import cobertura` no corpo, não no topo) — os dois moram na mesma pasta, e o import no topo obrigaria quem só usa `tick` a carregar o módulo do fio. **Por quê:** o plugin é copiado pro cache sem passo de instalação — não existe onde rodar `pip install`. `doc_lint.py` carrega isso na docstring (*"Stdlib-puro."*), `conformance.py` repete no topo (*"Python 3 stdlib apenas — convencao do repo (patterns.md)"*), `askq_lint.py` explica a consequência (*"o plugin é copiado pro cache sem passo de instalação, não existe onde rodar pip install"*), e `visual_page.py`/`md2deck.py` fecham com *"stdlib only (requisito do repo)"* [confirmado, os cinco arquivos].
 
 ### 2.2 Fail-open também vale no Python: "não sei" ≠ "zero"
 
@@ -584,7 +601,7 @@ bloco `requisitos` no próprio plano  →  $PLAN_REQS  →  <raiz>/docs/PRD.md
 
 ### 2.7 Régua de forma: onde há teto mecânico a prosa não cresce
 
-**Nova nesta rodada** (`visual_page.py:erros_de_estilo`, 2026-08-02), e ela nasceu de uma comparação medida entre dois artefatos do mesmo autor [confirmado]:
+**Mora em `_shared/regua_texto.py` desde 2026-08-03** — nasceu dentro do `visual_page.py` em 2026-08-02 e saiu de lá porque os outros geradores (plano, slide, texto de hook) emitem texto que o mesmo humano lê com a mesma pressa, *"e cada um ficava livre para inventar a própria forma"* [confirmado, docstring literal]. Ela nasceu de uma comparação medida entre dois artefatos do mesmo autor [confirmado]:
 
 ```
 campos do PLANO (teto de 140 cobrado por plan_state desde sempre)
@@ -595,20 +612,59 @@ parágrafos das PÁGINAS HTML (nenhum teto)
 
 **Mesmo autor, mesma sessão, uma ordem de grandeza de diferença.** O que separa os dois não é cuidado — é a existência de um número cobrado por programa. É o mesmo achado do §5.1 (o bump que "todo mundo lembra" foi contornado 7 vezes) e do `stop-prose-ceiling.py` (*"premissa que nasce desligada não é premissa — é comentário"*), agora aplicado a texto.
 
-As quatro checagens, e por que nenhuma sozinha resolve [confirmado, `test_visual_page.py`]:
+As quatro checagens, e por que nenhuma sozinha resolve [confirmado, `_shared/test_regua_texto.py` → `71 passou · 0 falhou`]:
 
-- **≤ 140 caracteres por bullet.** O número **não** foi calibrado do zero: é o teto que `plan_state` já cobra no `desc`, com máximo real de 137. Reusar número provado em produção é mais barato que justificar um novo.
+- **≤ 140 caracteres por bullet** (`BULLET_MAX`). O número **não** foi calibrado do zero: é o teto que `plan_state` já cobra no `desc`, com máximo real de 137. Reusar número provado em produção é mais barato que justificar um novo.
 - **Uma frase por bullet** (`_DUAS_FRASES`, ponto seguido de espaço). O teto sozinho produz *enjambment*: a prosa de 600 caracteres vira 8 bullets de 75 que se leem em sequência, passa no teto e continua prosa.
 - **Sem conectivo de continuação abrindo bullet** (`_CONECTIVO`: `e`, `mas`, `que`, `porque`, `então`, `ou seja`, `além disso`). Pega o que as duas primeiras deixam passar.
-- **Máximo 6 bullets por bloco.** Acima disso é prosa picada, ou são dois itens.
+- **Máximo 6 bullets por bloco** (`BULLETS_MAX`). Acima disso é prosa picada, ou são dois itens.
 
 **A calibração foi feita contra o corpus, não no chute** [confirmado — medido sobre `ul.bullets` reais, n=145, mediana 117]: teto 120 reprovava 59%, teto 140 reprova 48%. Bullet autoral típico já cabe; o que reprova é a cauda.
 
-⚠️ **O escopo da régua é o REGIME, não o arquivo.** Ela vale para tudo que sai do gerador de página (regime "informação rápida"); `SKILL.md` e `.claude/docs/` são constituição, admitem nuance e **não** passam por ela. A fronteira é o pipeline — **não existe campo `regime` no spec**, de propósito: campo declarável viraria a saída de emergência universal.
+#### As quatro checagens são as mesmas; o PERFIL declara o que, naquele artefato, não é redação
 
-Duas isenções escritas no código, as duas por natureza do conteúdo: `evidencia.output` (saída crua é literal por obrigação — parafrasear a prova é o defeito original com outra roupa) e `raw_html` (a válvula de layout). Linha de árvore de plano também fica fora: é gerada por programa, não é redação.
+O contrato está na docstring, e ele fecha a saída de emergência óbvia [confirmado, citação literal]: *"Perfil não é exceção. Não existe perfil frouxo: os quatro cobram as quatro checagens."* Um nome desconhecido levanta `ValueError` em `perfil()` — *"nome errado não vira o perfil frouxo por engano"*.
+
+**Cinco perfis hoje** [confirmado — derivado com `python3 -c "…; print(r.PERFIS)"` sobre `_shared/regua_texto.py`]:
+
+| perfil | bullet | bullets | extra |
+|---|---|---|---|
+| `pagina` | 140 | 6 | página, relatório, diagnóstico — o de origem |
+| `plano` | 140 | 6 | a árvore desenhada pelo programa fica fora |
+| `slide` | 140 | 6 | ≤ 20 palavras por bullet (`md2deck.STATEMENT_WORDS`) |
+| `hook` | 140 | 6 | sem markdown; cabeçalho tem que abrir com emoji |
+| `contexto` | **200** | **20** | árvore fora; markdown permitido |
+
+⚠️ **O perfil `contexto` é o único cujos números sobem, e o motivo é o LEITOR.** Ele serve o canal `additionalContext`, que é *"lido pelo MODELO, não pela tela"* — então markdown é legítimo (o modelo o interpreta) e cabeçalho com emoji não faz sentido, *"ninguém está olhando"*. O teto de bullets é 20 porque **o canal carrega inventário** (lista de docs, de planos, de gotchas), e o comentário nomeia a consequência de aplicar o 6: *"cortar inventário em 6 esconde item — o oposto do que ele existe pra fazer"*. O que continua valendo é uma frase por bullet, sem prosa fatiada.
+
+**Régua durável: régua por artefato se declara por PERFIL, e perfil declara o que não é redação — nunca qual checagem cai.** Perfil que desliga checagem é exceção com outro nome, e exceção nomeada vira o caminho preferido.
+
+⚠️ **O escopo da régua é o REGIME, não o arquivo.** Ela vale para tudo que sai de gerador (regime "informação rápida"); `SKILL.md` e `.claude/docs/` são constituição, admitem nuance e **não** passam por ela. A fronteira é o pipeline — **não existe campo `regime` no spec**, de propósito: campo declarável viraria a saída de emergência universal.
+
+Duas isenções escritas no código, as duas por natureza do conteúdo e válidas em **todo** perfil: `evidencia.output` (saída crua é literal por obrigação — parafrasear a prova é o defeito original com outra roupa) e `raw_html` (a válvula de layout). Linha de árvore de plano fica fora nos perfis que declaram `arvore_fora`: é gerada por programa, não é redação.
+
+**Duas frentes cobram a régua hoje**, e nenhuma sozinha fecha: o check I do release-gate barra **gerador de HTML que não a chama** (§5.2), e os dois hooks do §1.17 pegam o texto já escrito — o arquivo na porta, o relato na rede.
 
 **Régua durável: teto de tamanho não mata prosa — mata a metade fácil. Quem quer bullet de verdade precisa cobrar também a ESTRUTURA da frase, senão o texto se refatora pra caber e volta igual.**
+
+### 2.7a A prova de um passo também sai em bullets — e o `tick` recusa o bloco corrido
+
+Aplicação da mesma régua no `plan_state.py`, novo em 2026-08-03. `prova_bullets()` quebra a prova **só onde quem a escreveu já separou** — `\n`, ` · `, `; ` ou ` + ` — e a docstring é explícita sobre o limite [confirmado, citação literal]: *"Não inventa corte … Prova de um segmento só continua um bullet."*
+
+Quem barra é o `tick`, no momento de gravar, não o renderizador [confirmado, `plan_state.py:cmd_tick`]:
+
+```python
+if len(ev) > BULLET_MAX and len(prova_bullets(ev)) < 2:
+    raise PlanError("⛔ tick recusado: a prova de %s tem %d caracteres num bloco só.…")
+```
+
+Três propriedades que fazem isso não virar atrito:
+
+- **A mensagem de recusa traz o exemplo pronto**, com os separadores aceitos e uma linha copiável (`--evidencia "$ pytest -q → 62 ok · sync-shared --check OK · a1b2c3d"`). <!-- lint:ignore a1b2c3d --> Gate que só diz "não" ensina a contornar.
+- **Saída crua de um comando passa inteira** — a isenção do §2.7 vale aqui: *"o teto só vale pro texto que VOCÊ redigiu"*.
+- **Quem separa é quem escreve, o programa só verifica.** Cortar sozinho num limite de caracteres partiria a prova no meio de um sha ou de um caminho.
+
+**Por que no `tick` e não no render:** é o mesmo desenho do §2.5 — a validação mora na **porta de escrita**, porque texto gravado torto é lido por todo consumidor dali em diante, e o renderizador não tem como consertá-lo sem inventar.
 
 ### 2.8 Colapso que não vira ocultação: derive tudo que fica visível
 
@@ -638,8 +694,14 @@ Claude Code isola plugins na instalação: só `plugins/<nome>/` vai pro cache, 
 SPECS=(
   "plugins/handoff/lib::collect_engine.py"
   "plugins/project-doc/lib::collect_engine.py"
+  "plugins/sovai/skills/sovai/references::r8-tiers.json"
+  "plugins/qa-loop/skills/qa-loop/references::r8-tiers.json"
+  "plugins/sovai/skills/sovai/references::r8_tiers.py"
+  "plugins/qa-loop/skills/qa-loop/references::r8_tiers.py"
   "plugins/sovai/skills/sovai/references::r8-tiers.md"
   "plugins/qa-loop/skills/qa-loop/references::r8-tiers.md"
+  "plugins/visual/lib::regua_texto.py"      # + branches, fallow, slides
+  "plugins/bootstrap/lib::regua_texto.py"   # + guardrails, project-doc, ship, graphify-guard
   "plugins/ship/hooks::green-cache.sh"
   "plugins/qa-loop/lib::green-cache.sh"
 )
@@ -647,10 +709,30 @@ SPECS=(
 
   O comentário justifica o mapa explícito: *"consumidores diferentes vendoram arquivos diferentes"*.
 
+- **São 19 cópias hoje**, de 4 arquivos-fonte [confirmado — `grep -cE '^  "plugins/.*::' scripts/sync-shared.sh` → 19; por arquivo: `regua_texto.py` **9**, `collect_engine.py` 2, `green-cache.sh` 2, e os três do contrato R8 (`.json` + `.py` + `.md`) 2 cada]. O `sync-shared.sh` imprime o número no fim: `OK: vendoring concluído (19 cópia(s)).`
+- ⚠️ **Régua de hook exige cópia mesmo quando quem chama é `.sh`.** Cinco dos nove destinos do `regua_texto.py` são plugins que só emitem texto de hook, e o comentário do próprio `SPECS` diz por quê: *"o .sh chama a régua pela linha de comando, e o plugin instalado só enxerga a própria pasta — sem cópia aqui, a régua some em produção"*. Vendorar só quem faz `import` deixaria o gate mudo exatamente nos plugins que mais falam com o dono.
 - **Comandos:** `bash scripts/sync-shared.sh` copia; `--check` não copia e sai 1 listando `DRIFT: <dest> difere de _shared/<arquivo>`. Fonte ausente é **exit 2**, distinto de drift.
 - **Estado neste run** [confirmado, executado]: `OK: cópias vendored idênticas a _shared/` (rc=0).
 
 **Regra:** fix de código compartilhado **nasce em `_shared/`**, nunca na cópia. Editar a cópia e commitar é pego pelo check A do release-gate — editar `_shared/` e esquecer o sync também.
+
+### 3.1 Contrato servido de uma fonte só: o número vira DADO, não texto de skill
+
+**Novo em 2026-08-03**, e é a segunda coisa que o vendoring carrega além de código. O contrato de tier dos motores (`/sovai` e `/qa-loop`) morava em prosa nos `SKILL.md`, e o cabeçalho do check A2 traz a medida do estrago [confirmado, citação literal do `release-gate.sh`]:
+
+> trocar seis tiers custou 45 substituições em dois SKILL.md, três saíram invertidas e duas passaram por dois verificadores — porque o número morava em quinze lugares.
+
+O desenho tem três peças, e a separação entre elas é o ponto:
+
+- **`_shared/r8-tiers.json`** — os DADOS. Fonte da verdade; um bloco por tier (`decompose`, `coordinate`, `executor`, `mechanical`, …) com `effort`, `etapa`, `quando` e `porque`.
+- **`_shared/r8_tiers.py`** — o SERVIDOR. `carrega()` lê o JSON, `para_args()` monta o que vai na linha de comando, `render()` gera a tabela.
+- **`_shared/r8-tiers.md`** — a VISTA HUMANA, **gerada** do JSON por `python3 _shared/r8_tiers.py check --fix`, entre marcadores. Editar o `.md` na mão é trabalho perdido: o `check` acusa a divergência e o `--fix` sobrescreve.
+
+**A regra que faz o desenho valer: nenhum `SKILL.md` pode carimbar o valor do effort.** A casca lê o tier da cópia local e passa em `args`; a prosa cita o **KNOB**, nunca o número. Quem cobra é `r8_tiers.py check`, varrendo **todo** `SKILL.md` de `plugins/` atrás de effort literal e de nível solto ao lado de um knob [confirmado — rodado nesta passada: `OK: R8 servido de _shared/r8-tiers.json, sem cópia carimbada em SKILL.md`, rc=0]. É o check A2 do release-gate (§5.2).
+
+**Isenção tem sintaxe e exige motivo escrito na linha:** `r8-ok: <motivo>`. Mesma família do `public-ok:` do check H — a linha isenta é pulada inteira, então o motivo é a única coisa que sobra pra auditar.
+
+**Régua durável: valor que dois documentos precisam repetir não pertence a documento nenhum — vira dado, com um servidor que o entrega e um check que barra a cópia.** Prosa não tem como divergir de si mesma em silêncio se ela nunca chegou a conter o número.
 
 ---
 
@@ -690,14 +772,9 @@ Consumidores declarados no próprio cabeçalho: *"Fase Gate do qa-loop (grava), 
 
 **Estado do catálogo neste run** [confirmado — derivado com `python3` sobre `.claude-plugin/marketplace.json` e sobre os 19 `plugin.json`]: **19** entradas em `plugins`, e o espelho do check B **fecha nas 19** — nenhuma diverge. Dos 19, apenas `grill-me` e `grill-with-docs` trazem chave `author`, e nas duas ela é **objeto**, a forma que o `validate` aceita.
 
-Duas versões subiram nesta rodada, e elas são exatamente os dois plugins tocados:
+Versões de hoje [confirmado — derivado dos 19 `plugin.json`; o espelho do check B fecha nas 19, nenhuma diverge]: `archify` 2.11.0 · `bootstrap` 1.10.0 · `branches` 1.3.0 · `context-guard` 1.3.4 · `fallow` 1.2.0 · `graphify-guard` 1.2.0 · `grill-me` 1.1.0 · `grill-with-docs` 1.1.0 · `guardrails` 1.7.0 · `handoff` 1.8.7 · `improve` 1.0.3 · `intent-guard` 0.6.0 · `principles` 1.0.3 · `project-doc` 3.21.0 · `qa-loop` 1.8.2 · `ship` 1.4.0 · `slides` 1.5.0 · `sovai` 1.11.3 · `visual` 1.19.1.
 
-```
-visual         1.8.6 → 1.9.1      (o fio requisito↔tarefa, a vista de valor, o motor de decisão)
-intent-guard   0.5.4 → 0.6.0      (a contagem de furos da régua de forma)
-```
-
-As demais seguem onde estavam: `archify` 2.11.0 · `bootstrap` 1.8.5 · `branches` 1.0.2 · `context-guard` 1.3.3 · `fallow` 1.0.7 · `graphify-guard` 1.1.4 · `grill-me` 1.0.0 · `grill-with-docs` 1.0.0 · `guardrails` 1.5.2 · `handoff` 1.8.5 · `improve` 1.0.3 · `principles` 1.0.2 · `project-doc` 3.18.4 · `qa-loop` 1.7.2 · `ship` 1.3.9 · `slides` 1.3.2 · `sovai` 1.8.2.
+⚠️ **Só `archify` (2.11.0) e `improve` (1.0.3) seguem na versão do commit-raiz `2587006`** — os outros 17 subiram [confirmado — `git diff 2587006 HEAD -- 'plugins/*/.claude-plugin/plugin.json'`]. Não é sinal de qualidade nem de abandono: são os dois plugins que ninguém tocou.
 
 🔴 **A regra 1 ("bump em TODA mudança") foi contornada 7 vezes nesta rodada, e o gate mecânico que a cobra não reclamou.** Derivado commit a commit: [confirmado]
 
@@ -748,10 +825,22 @@ Hoje o comando é **quebrado em tokens** (o split inclui `(`, `)`, `;`, `&`, `|`
 
 **Suíte dedicada: `.claude/hooks/test_release_gate.sh` → `OK (30 checks)` nesta rodada** — ela exercita as quatro formas que passavam, o falso positivo do `git log --grep commit`, o `--amend` dentro da mensagem (*"é texto, não amend"*) e o fail-open fora do monorepo. ⚠️ **Ela mora em `.claude/hooks/`, fora dos globs dos checks D e F**, então nenhum commit a dispara automaticamente — mesma exceção das duas suítes de `scripts/`.
 
-**Os checks são DEZ**, com as letras do próprio arquivo e nesta ordem de declaração: `A · B+C · D · D2 · E · E2 · G · H · I · F` [confirmado — li o arquivo inteiro nesta rodada]. A ordem de execução não importa: todos só acumulam em `VIOL`.
+**Os checks são DOZE** — eram dez; entraram o A2 e o B2 [confirmado, derivado nesta rodada]:
+
+```bash
+grep -oE '^[[:space:]]*# [A-Z][0-9+C]* · ' .claude/hooks/release-gate.sh | grep -oE '[A-Z][0-9+C]*'
+# A · A2 · B+C · C · B · B2 · D · D2 · E · E2 · G · H · I · F     (14 rótulos)
+# — "B+C" é o cabeçalho do bloco que contém C, B e B2, então os checks distintos são 12
+grep -oE '❌ [A-ZÁ-Ú ]+' .claude/hooks/release-gate.sh | sort -u | wc -l
+# → 11 mensagens de violação (D, D2 e F compartilham "❌ TESTE VERMELHO")
+```
+
+A ordem de execução não importa: todos só acumulam em `VIOL`.
 
 - **A · vendoring** — roda `scripts/sync-shared.sh --check`. Drift ⇒ `❌ VENDORING EM DRIFT`, mandando corrigir **na fonte** `_shared/<arquivo>`.
+- **A2 · contrato R8 servido de uma fonte só** — **novo em 2026-08-03**. Roda `python3 _shared/r8_tiers.py check`. Effort literal ou nível solto ao lado de um knob em qualquer `SKILL.md` ⇒ `❌ CONTRATO R8 FURADO`, com arquivo:linha e o texto do conserto: *"o valor vive em `_shared/r8-tiers.json` e chega ao motor por args; o SKILL.md cita o KNOB, nunca o número. Isenção: `r8-ok: <motivo>` na linha."* Fail-open declarado: se `_shared/r8_tiers.py` não existir, o bloco inteiro é pulado (§3.1).
 - **B · espelho `plugin.json` ↔ `marketplace.json`** — divergiu ⇒ `❌ ESPELHO QUEBRADO`, com as duas versões impressas.
+- **B2 · espelho da DESCRIPTION** — nasceu de erro medido em 2026-08-02 (commit `9f557ff`), e nunca esteve nesta lista: *"quatro descricoes foram reescritas SO no marketplace.json, e `claude plugin details` mostra a do plugin.json — a vitrine nova nunca chegaria a quem instala"*. ⇒ `❌ DESCRIPTION DIVERGENTE`, com o tamanho e os 60 primeiros chars de cada lado. **Só cobra o plugin TOCADO neste commit**, e o comentário diz por quê: *"6 dos 19 ja divergiam antes, e barrar divida antiga trava trabalho alheio (mesma regra do `public_repo_check --staged`)"*.
 - **C · bump esquecido** — compara com `git show HEAD:<manifesto>`, ou com `HEAD~1:` quando o gatilho detectou `--amend`. Iguais ⇒ `❌ BUMP ESQUECIDO — <nome> mudou mas version continua <v>`.
 - **D · testes Python** — roda `plugins/<nome>/lib/test_*.py` dos plugins tocados. Vermelho ⇒ `❌ TESTE VERMELHO` com as últimas 15 linhas.
 - **D2 · suíte de `_shared/`** — só quando o commit toca `_shared/`. Roda `_shared/test_*.py`, a suíte da FONTE do código vendorado. Nasceu de um buraco entre D e F: nenhum dos dois globs (`plugins/<nome>/lib/` e `plugins/<nome>/hooks/`) casa com `_shared/`, então a suíte que define o comportamento do código compartilhado dependia de alguém lembrar de rodá-la à mão.
@@ -785,7 +874,7 @@ Quem mede é `scripts/hook_contract.py`; quem cobra é o check E. As cinco propr
 
 O próprio script se declara falível [confirmado, citação literal]: *"⚠️ **Isto é grep sofisticado, não verdade.** O script diz ONDE OLHAR."* E a escolha de calibração tem direção declarada: *"Detectar um cap que não existe é o erro CARO … Detectar de menos só gera um falso alarme que a conferência derruba."*
 
-**Os kill-switches de hoje**, derivados mecanicamente (`grep -rhoE '\$\{[A-Z_]+_GATE:-[01]\}' plugins/*/hooks/*.sh | sort -u`) [confirmado]: `ASKQ_GATE`, `BRANCHES_GATE`, `DOC_AUTORAL_GATE`, `DOC_GUARD_GATE`, `GRAPHIFY_GATE`, `HANDOFF_GATE`, `LINT_GATE`, `ORGANISM_GATE`, `PLAN_DOC_GATE`, `SCOPE_COP_GATE`, `SHIP_GATE`, `VISUAL_GATE`. Os hooks Python usam a mesma ideia com outra grafia: `PROSE_CEILING=0` e `FORMA_RELATO=0`.
+**Os kill-switches de hoje**, derivados mecanicamente (`grep -rhoE '\$\{[A-Z_]+_GATE:-[01]\}' plugins/*/hooks/*.sh | sort -u`) [confirmado]: `ASKQ_GATE`, `BRANCHES_GATE`, `DOC_AUTORAL_GATE`, `DOC_GUARD_GATE`, `GRAPHIFY_GATE`, `HANDOFF_GATE`, `LINT_GATE`, `ORGANISM_GATE`, `PLAN_DOC_GATE`, `SCOPE_COP_GATE`, `SHIP_GATE`, `SOVAI_GATE`, `VISUAL_GATE` — **treze**. Os hooks Python usam a mesma ideia com outra grafia, e hoje são **quatro**: `PROSE_CEILING=0`, `FORMA_RELATO=0`, `REGUA_RELATO=0` e `ARTEFATO_REGUA=0` (§1.17).
 
 **O marcador que desarma um falso-positivo do medidor de colisão** [confirmado, costura verificada nos dois lados]: `conformance.py:check_hooks_duplicados` só conta como "disputante" o hook que **bloqueia**, e um script pode se declarar avisador com o comentário literal `# conformance: default-warn`. Hoje quem carrega a marca é `plugins/graphify-guard/hooks/pretooluse-graphify-guard.sh` (*"o caminho de deny existe, mas só com GRAPHIFY_DENY=1"*), e `plugins/graphify-guard/hooks/test_graphify_guard.sh` testa a presença dela [confirmado, os dois lados existem hoje].
 
@@ -793,7 +882,7 @@ O próprio script se declara falível [confirmado, citação literal]: *"⚠️ 
 
 ```
 python3 scripts/hook_contract.py --baseline .claude/hook-contract.baseline.json --fail-on high
-# Contrato dos hooks — 34 registros, 33 scripts distintos
+# Contrato dos hooks — 38 registros, 37 scripts distintos
 # Nenhum achado. Todos os hooks batem com o contrato.   (rc=0)
 ```
 
@@ -873,14 +962,19 @@ Não há runner nem CI: cada suite é um arquivo executável, stdlib/bash puro, 
 Contagem de arquivos neste run [confirmado, `ls … | wc -l`]:
 
 ```bash
-ls plugins/*/lib/test_*.py scripts/test_*.py | wc -l   # → 16   (era 15: entrou test_handoff_skill.py)
-ls plugins/*/hooks/test_*.sh                 | wc -l   # → 16   (era 15: entrou test_exitplan_gate.sh)
-ls .claude/hooks/test_*.sh                   | wc -l   # →  1   (novo: test_release_gate.sh)
+ls plugins/*/lib/test_*.py   | wc -l   # → 19   ← glob do check D
+ls plugins/*/hooks/test_*.sh | wc -l   # → 19   ← glob do check F
+ls scripts/test_*.py         | wc -l   # →  3
+ls plugins/*/hooks/test_*.py | wc -l   # →  2   (tipo NOVO: suíte .py de hook)
+ls _shared/test_*.py         | wc -l   # →  1   (novo: test_regua_texto.py) ← glob do check D2
+ls .claude/hooks/test_*.sh   | wc -l   # →  1   (test_release_gate.sh)
 ```
 
-**32 suítes pelos dois globs de sempre — eram 30 — e 33 contando a que mora em `.claude/hooks/`.**
+**38 suítes dentro dos dois globs do gate (D e F) — eram 32 — e 45 no total.**
 
-⚠️ As duas de `scripts/` (`test_hook_contract.py`, `test_public_repo_check.py`) ficam **fora** de `plugins/`, logo fora do check D do gate. **`.claude/hooks/test_release_gate.sh` está na mesma situação** — e é a suíte do próprio gate de commit, então o gate não roda o teste que o cobre.
+⚠️ **Suíte de hook em Python é um TIPO NOVO, e nenhum check do gate a roda** [confirmado — `plugins/guardrails/hooks/test_artefato_regua.py` e `plugins/visual/hooks/test_anuncio_sem_acao.py`]. O check D varre `plugins/<nome>/lib/test_*.py` e o F varre `plugins/<nome>/hooks/test_*.sh`; `hooks/test_*.py` não casa com nenhum dos dois. É exatamente o buraco que o check D2 fechou para `_shared/` — aqui ele continua aberto. As duas passam nesta rodada (`23 checks ok, 0 falhas` e `OK — 38 checks`), mas por execução manual.
+
+⚠️ As duas de `scripts/` (`test_hook_contract.py`, `test_public_repo_check.py`) ficam **fora** de `plugins/`, logo fora do check D do gate. **`.claude/hooks/test_release_gate.sh` está na mesma situação** — e é a suíte do próprio gate de commit, então o gate não roda o teste que o cobre. `_shared/test_regua_texto.py` é a exceção que tem cobertura: é o check D2 que a roda, e só quando o commit toca `_shared/`.
 
 Suites executadas nesta rodada, com o número que cada uma imprime [confirmado, todas verdes]:
 
@@ -930,6 +1024,8 @@ for t in plugins/*/hooks/test_*.sh;               do bash    "$t" || echo "RED: 
 ### Hooks & plugins
 
 - ⚠️ **Hook de plugin vai em `hooks/hooks.json` (subpasta), NUNCA na raiz.** Na raiz é ignorado em silêncio e `validate` passa mesmo assim — o `conformance.py:check_juiz_rodou` repete o aviso no texto do conserto [confirmado].
+- 🔴 **Hook que EXISTE mas não está no `hooks.json` nunca dispara, e nada acusa.** Medido nesta sessão com o `stop-regua-relato.py`. `validate` passa, não há log, e `claude plugin details` mostra `Hooks (N)` contando **eventos**, não scripts — script novo num evento já povoado não mexe no N. Prove pelo `hooks.json`, nunca pela existência do arquivo (§1.17).
+- ⚠️ **Suíte `hooks/test_*.py` não é rodada por check nenhum** — o D varre `lib/*.py` e o F varre `hooks/*.sh`. Duas suítes vivem nesse vão hoje (§6).
 - ⚠️ **Hook novo não entra na sessão em curso.** `stop-prose-ceiling.py` registra o teto no topo: *"como todo hook de plugin, so carrega no SessionStart, entao sessao ja aberta no momento da instalacao fica descoberta ate o proximo /clear"* [confirmado].
 - ⚠️ **`exit 0` + stderr é mudo em PreToolUse/PostToolUse.** Use JSON no stdout (§1.2).
 - ⚠️ **Estado global entre sessões é bug, não simplificação.** Já mordeu o context-guard e o scope-cop; os dois consertos são o mesmo (§1.5).
@@ -954,7 +1050,9 @@ for t in plugins/*/hooks/test_*.sh;               do bash    "$t" || echo "RED: 
 
 ### Código compartilhado
 
-- ⚠️ **Editar `_shared/` sem rodar `scripts/sync-shared.sh`** deixa as 14 cópias vendoradas defasadas. Fix nasce em `_shared/`, nunca na cópia.
+- ⚠️ **Editar `_shared/` sem rodar `scripts/sync-shared.sh`** deixa as **19** cópias vendoradas defasadas. Fix nasce em `_shared/`, nunca na cópia.
+- ⚠️ **Número que dois documentos repetem não pertence a documento nenhum** — vira JSON com servidor e check que barra a cópia. É o contrato R8 (§3.1), cobrado pelo check A2; isenção `r8-ok: <motivo>` na linha.
+- ⚠️ **Plugin que só emite texto de hook também precisa da cópia da régua** — o `.sh` chama `regua_texto.py` pela linha de comando, e o plugin instalado só enxerga a própria pasta (§3).
 
 ### project-doc
 
@@ -987,8 +1085,11 @@ python3 plugins/<nome>/lib/test_*.py
 bash    plugins/<nome>/hooks/test_*.sh
 python3 scripts/hook_contract.py --baseline .claude/hook-contract.baseline.json --fail-on high
 python3 scripts/public_repo_check.py --staged
+python3 _shared/r8_tiers.py check              # contrato R8 sem cópia carimbada (§3.1)
+python3 _shared/test_regua_texto.py            # a régua compartilhada (fora dos globs D/F)
+python3 plugins/<nome>/hooks/test_*.py         # se houver: nenhum check do gate roda essas
 
-# 4. commit — o release-gate roda A–I sozinho e sai 2 se algo violar
+# 4. commit — o release-gate roda os 12 checks sozinho e sai 2 se algo violar
 
 # 5. hook novo? confirme que ele carregou (e lembre: só vale na PRÓXIMA sessão)
 claude plugin details <nome>@pedro-plugins     # → "Hooks (N)"  ⚠️ N conta EVENTOS, não scripts

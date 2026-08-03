@@ -48,7 +48,7 @@ bash plugins/project-doc/hooks/test_plan_gate.sh
   → responder "o que a gente guarda?", avaliar impacto de perda, antes de apagar diretório de estado
 - **[durability.md](.claude/docs/durability.md)** — quem copia cada depósito, com que frequência, e o que **não** tem cobertura nenhuma; RPO/RTO e restauração testada
   → responder "o que entra no backup?", mexer em retenção, avaliar risco de perda
-- **[runtime.md](.claude/docs/runtime.md)** — 10 fluxos ponta-a-ponta (sync do bootstrap, roteamento de doc cross-tool, ponte do context-guard, live-sync do visual, geração de slides, gate de teste do ship, o arranque do SessionStart, a falha do gate de plano o ciclo de vida de um plano de implementação e a varredura de contrato dos hooks)
+- **[runtime.md](.claude/docs/runtime.md)** — 16 fluxos ponta-a-ponta (sync do bootstrap, roteamento de doc cross-tool, ponte do context-guard, live-sync do visual, geração de slides, gate de teste do ship, o arranque do SessionStart, a falha do gate de plano o ciclo de vida de um plano de implementação e a varredura de contrato dos hooks, a régua que recusa no ponto de uso e o tier do motor que chega como dado)
   → entender como as coisas acontecem de verdade, debugar fluxo cross-plugin, onboarding
 
 ## Knowledge Graph (graphify)

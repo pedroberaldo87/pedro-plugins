@@ -178,7 +178,7 @@ $ grep -rniE "crontab|systemd|launchd|launchctl|pg_dump|mysqldump|restic|borg|rs
 ### 2.1 · Código dos plugins — `plugins/**`
 
 - [confirmado] **225** arquivos rastreados sob `plugins/`, presentes no commit que o remote tem.
-- Inclui os hooks, as skills, as libs Python e a fonte compartilhada `_shared/` (**3** arquivos rastreados: `collect_engine.py`, `green-cache.sh`, `r8-tiers.md`).
+- Inclui os hooks, as skills, as libs Python e a fonte compartilhada `_shared/`, que passou de **3** para **7** arquivos rastreados nesta rodada: `collect_engine.py`, `green-cache.sh`, `r8-tiers.md`, mais `r8-tiers.json` (§2.5), `r8_tiers.py`, `regua_texto.py` e `test_regua_texto.py`. [confirmado, `git ls-files _shared`]
 - Cobertura real: perder a máquina e clonar de novo devolve o código dos plugins tal como está hoje.
 
 ### 2.2 · Catálogo do marketplace — `.claude-plugin/marketplace.json`
@@ -189,7 +189,7 @@ $ grep -rniE "crontab|systemd|launchd|launchctl|pg_dump|mysqldump|restic|borg|rs
 
 ### 2.3 · Documentação gerada — `.claude/docs/*.md` e `.claude/CLAUDE.md`
 
-- [confirmado] Sob `.claude/` há exatamente **9** arquivos rastreados:
+- [confirmado, nesta rodada] Sob `.claude/` há exatamente **13** arquivos rastreados — eram 9 na rodada anterior:
   ```bash
   $ git ls-files .claude
   .claude/CLAUDE.md
@@ -198,15 +198,38 @@ $ grep -rniE "crontab|systemd|launchd|launchctl|pg_dump|mysqldump|restic|borg|rs
   .claude/docs/data-stores.md
   .claude/docs/durability.md
   .claude/docs/patterns.md
+  .claude/docs/quality-goals.md
   .claude/docs/runtime.md
   .claude/hooks/release-gate.sh
+  .claude/hooks/test_release_gate.sh
+  .claude/limites-aceitos.md
   .claude/settings.json
+  .claude/stop-budget.baseline.json
   ```
+  Os quatro que entraram não são todos da mesma natureza: `quality-goals.md` e `stop-budget.baseline.json` já tinham bloco próprio aqui (§3.6a) ou no `data-stores.md`; `limites-aceitos.md` é o depósito novo do §2.6, e `test_release_gate.sh` é teste, não depósito.
 - Tudo o mais que o `.claude/` do repo carrega hoje está no §3 — a assimetria é o ponto do `.gitignore`, seção 1 (*registro de trabalho pertence a quem escreveu, não a quem instala*).
 
 ### 2.4 · O manifest do bootstrap — `plugins/bootstrap/config/manifest.json`
 
 - [confirmado] É o **único** artefato com push automático (§1.1) e o único caminho de recuperação da *lista de terceiros* numa máquina nova. `plugins/**` cobre o código; só o manifest cobre quais marketplaces de terceiros existiam e quais plugins estavam ligados.
+
+### 2.5 · Contrato de tier dos motores — `_shared/r8-tiers.json`
+
+Depósito **novo em 2026-08-03** (commit `5288bc5`). Ver `data-stores.md §A7` para a anatomia.
+
+- 🟢 **Coberto.** [confirmado] `git ls-files` encontra a fonte (`_shared/r8-tiers.json`, 2.856 bytes) **e** as duas cópias vendoradas (`plugins/{sovai,qa-loop}/skills/*/references/r8-tiers.json`). Nenhuma delas carrega caminho de máquina nem segredo — é valor de configuração, viaja limpo.
+- **Consequência de durabilidade: a cobertura melhorou por conta da mudança, não apesar dela.** O mesmo dado antes vivia disperso no texto de dois `SKILL.md` — versionado, mas sem lugar único de verdade, e o cabeçalho de `_shared/r8_tiers.py` mede o custo disso: *"trocar seis valores custou 45 substituições em dois SKILL.md, três saíram invertidas"*. Um valor em quinze lugares está tecnicamente coberto e praticamente irrecuperável, porque restaurar exige saber qual das cópias estava certa.
+- **O que a redundância é hoje, e por que ela é segura:** três cópias idênticas por construção (`md5` igual nas três nesta rodada), com um verificador que acusa divergência — `scripts/sync-shared.sh --check` para o vendoring e o check **E3** do release-gate (`r8_tiers.py check`) para o markdown gerado e para literal reaparecendo em `SKILL.md`. Rodado nesta sessão: `OK: R8 servido de _shared/r8-tiers.json, sem cópia carimbada em SKILL.md`. [confirmado]
+- ⚠️ **O que a cobertura do git NÃO devolve:** o campo `porque` de cada tier é julgamento escrito à mão. `git checkout` traz o arquivo de volta; um arquivo regenerado do zero traria os `effort` e não os motivos.
+
+### 2.6 · Registro de limites aceitos — `.claude/limites-aceitos.md`
+
+Depósito **novo em 2026-08-03** (commit `1e59b55`). Ver `data-stores.md §A8` para a anatomia.
+
+- 🟢 **Coberto.** [confirmado] Rastreado (2.091 bytes), e entra na lista de arquivos sob `.claude/` que estão no índice (§2.3).
+- **Por que ele merece cobertura e a saída que ele descreve não:** as 82 páginas de `.claude/visual/` que ele isenta são gitignoradas e regeneráveis (§3.19). O que não é regenerável é a **decisão de não consertá-las**, com o motivo e o comando de reconferência ao lado. Perder as páginas custa nada; perder este arquivo faz o mesmo desacordo voltar como dívida esquecida ou como conserto reflexo — o texto do próprio arquivo nomeia os dois.
+- **Mesma classe dos baselines A5/A5a (§3.6, §3.6a): julgamento embutido.** A diferença é o sentido — o baseline é um retrato regenerável com uma decisão implícita no ato de recongelar; aqui a decisão é o conteúdo inteiro, e nenhum comando a produz.
+- ⚠️ **Nenhum verificador o lê** [confirmado — nenhum hook nem script do repo o referencia]. O arquivo declara o que revoga cada limite, mas quem confere é humano. Um limite vencido continua no arquivo até alguém rodar o comando que ele mesmo prescreve — e a §3.19 abaixo já mostra um número que saiu do lugar.
 
 ---
 
@@ -248,6 +271,11 @@ Cada bloco abaixo diz o mesmo em variações: existe no disco desta máquina, n�
 - O que o formato protege sozinho: `save()` escreve em `<path>.tmp` e faz `os.replace()` — escrita atômica, então falha no meio não corrompe o plano. `merge()` recusa renomear um id existente sem `--rename`, mantém nós que não vieram no `init` novo e **recarrega do arquivo tudo o que o `init` omitiu** — um init que esquece não apaga histórico, pelo mesmo motivo que não apaga a prova. `cmd_tick()` exige `--evidencia` com pelo menos `EVIDENCE_MIN = 8` caracteres e recusa tarefa com decisão em aberto; `erros_do_plano()` fecha a mesma porta no `init`, recusando `status: "done"` com prova abaixo do mesmo teto. `cmd_reabrir()` desfaz uma decisão registrada em `decidido`, devolvendo-a a `pendencia` — reversibilidade por construção, não por backup.
 - 🔴 **A perda mais cara deste depósito não era o disco falhar: era o próprio programa apagar.** Até a rodada de consertos, `merge()` preservava uma lista fixa de campos no nó e apenas `created`/`status` no topo — então **o segundo `init` do mesmo plano apagava, calado, o bloco `requisitos`, o `closed_at` e o `detail` de toda fase**. Num projeto sem documento separado, o bloco `requisitos` é *o único lugar onde o que o sistema deve fazer está escrito* (parágrafo acima): perdê-lo não era só perder texto — desligava também o portão que recusa citação a requisito inexistente, porque sem fonte a checagem não roda. Os 13 planos no disco carregam **60 blocos `detail`** que estavam nessa exposição. Hoje a preservação vale para toda chave ausente, e apagar de propósito é declarar a chave **vazia**. [confirmado — `plan_state.py:merge`; os 60 derivados com `json.load` sobre os 13 arquivos nesta rodada]
 - **Leitura tem porta única que nomeia o estrago:** `le_plano()` converte arquivo ilegível ou JSON inválido em erro com o CAMINHO e a CAUSA, dizendo que o conserto é à mão *"porque é o registro do que já foi feito, e nada aqui o reescreve"* — em vez do traceback que não dizia sequer qual arquivo estava torto. `list_plans()` segue engolindo o arquivo quebrado de propósito: um byte errado não pode derrubar a listagem dos outros 12. [confirmado]
+- 🟡 **A `evidence` ganhou FORMA em 2026-08-03, e isso muda o que se perde junto com o arquivo.** `cmd_tick()` passou a recusar prova acima de `BULLET_MAX = 140` caracteres num bloco só — a condição é `len(ev) > BULLET_MAX and len(prova_bullets(ev)) < 2`, e `prova_bullets` quebra só onde quem escreveu já separou (`\n`, ` · `, `; `, ` + `). **Saída crua de comando passa inteira**, porque já vem quebrada; o teto morde o texto redigido pelo modelo. [confirmado, `plugins/visual/lib/plan_state.py:cmd_tick`]
+- **Consequência de durabilidade: a prova ficou mais densa e continua sem cópia.** A recusa empurra a `evidence` para saída de comando e sha em vez de parágrafo — mais verificável e menos reescrevível de memória. Um plano perdido antes custava uma narrativa que alguém poderia recontar; hoje custa o registro literal do comando que rodou e do que ele devolveu, que ninguém reconstitui de cabeça.
+- ⚠️ **O teto vem de fora do módulo** (`from regua_texto import BULLET_MAX`, e `DESC_MAX = BULLET_MAX`), da cópia vendorada em `plugins/visual/lib/` — uma das **9** que o `sync-shared.sh` mantém. Perder a cópia não perde plano, mas faz o `plan_state.py` parar de importar: a régua compartilhada virou dependência de execução do depósito, não só do renderizador. [confirmado]
+- **A prova já gravada não é reavaliada** — a recusa é do momento de gravar. Os planos no disco com prova antiga em bloco único seguem válidos e nada os migra.
+- [confirmado, medido nesta rodada] O depósito cresceu de 13 para **18** planos (**192K**, 163.576 bytes), e hoje há **um** plano ativo (`2026-08-03-a-constituicao-se-cumpre`) — o impasse dos dois ativos simultâneos deixou de ser o estado deste disco.
 - Nada disso é cobertura: protege contra o plano *virar outro*, não contra o arquivo sumir.
 - Coberto por teste [confirmado, rodado nesta sessão]: `python3 plugins/visual/lib/test_plan_state.py` → `OK` (173 asserções `ok`, contra 135 antes da rodada de consertos; a última impressa é `list_plans pula o corrompido`) e `python3 plugins/visual/lib/test_cobertura.py` → `OK` (13).
 
@@ -449,8 +477,12 @@ Nasceu em 2026-08-02 com `plugins/visual/hooks/stop-anuncio-sem-acao.py`. Ver `d
 
 ### 3.19 · Saída do `/visual` e do qa-loop no repo — `.claude/visual/`, `.claude/qa-loop/`
 
-- [confirmado] Ignorados por `.gitignore:47` e `.gitignore:46`, na seção *retrato desta máquina*. `.claude/visual/` tem **84** arquivos (**4,1M**); `.claude/qa-loop/` tem **4,0K**.
-- Regeneráveis: são HTML de apresentação e relatório, não fonte.
+- [confirmado] Ignorados por `.gitignore:47` e `.gitignore:46`, na seção *retrato desta máquina*. `.claude/visual/` tem **100** arquivos (**5,2M**) nesta rodada, contra 84 na anterior; `.claude/qa-loop/` tem **4,0K**.
+- **Cobertura: NENHUMA, e é a resposta certa.** `git check-ignore -v .claude/visual/` devolve `.gitignore:47` — o diretório mora na árvore de trabalho, parece protegido e está fora do índice. Não há push a dar, não há cópia em lugar nenhum, e nenhum backup o alcança. [confirmado]
+- **A perda continua barata, e agora dá pra dizer por quê com número.** São HTML de apresentação, não fonte: quem os produz é o `/visual` a partir do plano (§3.5) e do estado do disco, que são os depósitos que de fato importam. Perder as 100 páginas custa reapresentação, não conhecimento.
+- 🟡 **O que MUDOU nesta rodada não é a cobertura — é que a ausência dela passou a ter consequência mensurável.** Desde 2026-08-03 o diretório é auditável por `python3 plugins/visual/lib/regua_audit.py paginas`, que mede cada página contra a régua de texto. Saída desta sessão: **100 páginas · 83 com violação** (1283 duas-frases · 1042 teto-140 · 16 conectivo · 9 páginas sem perfil de gerador). [confirmado, rodado nesta sessão]
+- **A auditoria não é depósito** — é derivada a cada execução sobre os arquivos do disco. Não há o que envelhecer nem o que restaurar: some com as páginas e volta com elas.
+- ⚠️ **O que ENVELHECE é o número congelado no `.claude/limites-aceitos.md` (§2.6), e ele já envelheceu.** O registro guarda **99 páginas · 82 com violação** do dia da decisão; a medição de hoje dá 100 · 83, e a página nova (`2026-08-03-status-consolidado.html`, de hoje 16:22) está entre as reprovadas — contra a premissa escrita do próprio limite, *"a régua passa a valer para página nova"*. **Consequência de durabilidade específica:** o arquivo coberto pelo git guarda a saída de um comando cujo alvo **não** é coberto e muda sozinho. A cobertura protege o registro da decisão, nunca a validade dela. [confirmado — as duas medições comparadas nesta sessão]
 
 ---
 
@@ -460,6 +492,7 @@ Números por classe, todos derivados dos mecanismos acima. [inferido] onde não 
 
 - **Código dos plugins + catálogo + docs** — RPO = *desde o último push manual*. [confirmado] Não há automação que empurre esses arquivos; o único push automático leva um arquivo só (§1.1). RTO = tempo de um `git clone` [inferido, não exercitado nesta sessão].
 - **Manifest do bootstrap** — RPO ≤ 24h enquanto uma sessão for aberta dentro da janela do throttle (`THROTTLE_SECONDS` default `86400`) e o apply passar limpo. RPO = ∞ se o apply falhar em toda tentativa (o snapshot é pulado, por desenho).
+- **Contrato de tier e registro de limites (§2.5, §2.6)** — mesma classe acima: RPO = *desde o último push manual*, RTO = um `git clone`. Nenhum dos dois tem push automático; o `r8-tiers.json` tem, em compensação, dois verificadores que acusam divergência entre as cópias antes do commit.
 - **História anterior do repo (§3.1)** — RPO = ∞. Não há segunda cópia. RTO = irrecuperável se a máquina morrer.
 - **Journal, ledger, atas, planos, grafo, `~/.claude/**`** — RPO = ∞ para todos. Nenhum tem cópia.
 - **Cofre (§3.17)** — RPO = latência de sincronização do iCloud [inferido, não medido nesta sessão]. É o único com replicação real.
@@ -497,6 +530,8 @@ Ordenado por custo da perda, do pior para o mais barato:
 - 🟡 **Batidas do juiz de forma e do teto de prosa** — entrada de **dois** verificadores desde esta rodada (o conformance, que pergunta se o guarda está vivo, e o `furos_da_regua`, que conta furos pro dono); apagar faz um reportar "nunca executou" para hook que funciona e o outro perder o histórico de furos (§3.13, §3.14, §3.14-b, §3.15).
 - 🟡 **Preferências e kill-switches** (`config.json` do `/visual`, arquivos `mode`) — perder não custa dado, custa **inversão silenciosa de comportamento** (§3.11, §3.16).
 - 🟢 **Grafo do graphify, saída do `/visual`, baseline de hooks** — regeneráveis por comando (§3.3, §3.6, §3.19).
+  ⚠️ **Com uma ressalva desde 2026-08-03:** as 100 páginas de `.claude/visual/` seguem descartáveis, mas o que as isenta da régua (`.claude/limites-aceitos.md`, §2.6) é um arquivo **coberto** que guarda a medição de um alvo **não coberto** — e a medição já saiu do lugar (99·82 registrados contra 100·83 medidos hoje). Cobertura de git protege o registro da decisão, nunca a validade dela.
+- 🟢 **Contrato de tier e registro de limites** (`_shared/r8-tiers.json`, `.claude/limites-aceitos.md`) — rastreados e cobertos pelo remote (§2.5, §2.6). O valor volta com um `git checkout`; o **julgamento escrito ao lado dele** (o `porque` de cada tier, o motivo de aceitar cada limite) não sai de comando nenhum.
 - 🟢 **Green-cache e sentinelas de `/tmp`** — perda é não-evento; o próprio código já poda (§3.8, §3.18).
   ⚠️ **Com uma ressalva desde 2026-08-03:** a sentinela `claude-plan-sessao-*` guarda **conteúdo** (o id do plano daquela sessão), não um sim/não. Perdê-la não perde trabalho — o resumo de fim de turno apenas volta a **relatar** em vez de afirmar, e a marca renasce no próximo passo marcado. Degrada a precisão, nunca o dado. `[confirmado — `plan_state.py:_plano_da_sessao` devolve `None` em qualquer erro de leitura, e o `brief` trata `None` como "não sei"]`
 - 🔵 **Cofre no iCloud** — único com replicação de verdade, e por acidente de local, não por política (§3.17).

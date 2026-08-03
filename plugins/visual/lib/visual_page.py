@@ -482,7 +482,7 @@ OPT_ATTRS = ('role="radio" tabindex="0" aria-checked="false" onclick="selectOpt(
 
 CUSTOM_OPT = """      <div class="opt opt-custom" %s>
         <h3>Outra — eu especifico</h3>
-        <p>Nenhuma das duas serve? Escreve a sua aqui.</p>
+        <p>Nenhuma das duas serve — escreve a sua aqui.</p>
         <textarea class="opt-custom-input" placeholder="A minha alternativa é..."
                   onclick="event.stopPropagation()" onkeydown="event.stopPropagation()"></textarea>
       </div>""" % OPT_ATTRS
