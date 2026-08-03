@@ -86,6 +86,9 @@ KILL_PATTERNS = [
     re.compile(r'\$\{(\w+):-\w+\}"?\s*=\s*"?(off|0)'),   # ${X:-on} = off
     re.compile(r"MODE_FILE|_MODE\b"),
     re.compile(r'\[\s*-f\s+"\$\w+/off"'),
+    # Hook Python desliga por env var lida no código, e os quatro padrões acima só
+    # falam shell — todo guarda Python era acusado de não ter interruptor que tem.
+    re.compile(r'environ\.get\(\s*["\'](\w+)["\'][^)]*\)\s*==\s*["\'](0|off)["\']'),
 ]
 
 # Caminho absoluto de ferramenta: o defeito que DESLIGA o hook em silêncio fora
@@ -370,6 +373,30 @@ def report(res):
 STOP_TETO_LINHAS = 6
 
 
+def _linhas_visiveis(out):
+    """As linhas que o HUMANO lê, não as do envelope de dados.
+
+    Emissor de Stop imprime `{"systemMessage": "…"}` ou `{"reason": "…"}` — três linhas
+    de JSON com o texto inteiro dentro de um campo. Contar a saída crua media o
+    embrulho: um resumo de 5 linhas na tela era reportado como 3, e o teto estava
+    sendo comparado contra um número menor que o real. Quem escreve em stderr (os
+    hooks que saem 2) já emite texto puro, e cai no caminho de baixo.
+    """
+    texto = (out or "").strip()
+    if not texto:
+        return 0
+    try:
+        d = json.loads(texto)
+    except ValueError:
+        d = None
+    if isinstance(d, dict):
+        campos = [d.get(k) for k in ("systemMessage", "reason", "additionalContext")]
+        msg = "\n".join(c for c in campos if isinstance(c, str))
+        if msg.strip():
+            texto = msg
+    return len([x for x in texto.split("\n") if x.strip()])
+
+
 def stop_budget(root):
     """Quanto o fim de turno custa em linhas, emissor a emissor."""
     import shutil
@@ -406,8 +433,17 @@ def stop_budget(root):
         # cascata (raiz git → marcador → ~/Desktop). Sem marcador o sandbox não é
         # projeto, a cascata cai no Desktop, e o medidor passa a LER OS PLANOS
         # REAIS do dono — foi o que aconteceu na primeira versão disto.
-        open(os.path.join(sandbox, "CLAUDE.md"), "w").close()
-        planos = os.path.join(sandbox, ".claude", "plans")
+        # O HOME de mentira fica FORA do projeto, e não é detalhe: a busca por marcador
+        # em `resolve-dir.sh` PARA ao chegar no HOME. Com HOME == sandbox a cascata
+        # caía no fallback do Desktop, os 4 planos abaixo nunca eram lidos, e o que
+        # este medidor reportava era o aviso de plano AUSENTE — o cenário oposto ao
+        # "pior caso realista" que ele declara medir.
+        lar = os.path.join(sandbox, "lar")
+        os.makedirs(lar, exist_ok=True)
+        projeto = os.path.join(sandbox, "projeto")
+        os.makedirs(projeto, exist_ok=True)
+        open(os.path.join(projeto, "CLAUDE.md"), "w").close()
+        planos = os.path.join(projeto, ".claude", "plans")
         os.makedirs(planos, exist_ok=True)
         for i in range(4):
             with open(os.path.join(planos, "p%d.plan.json" % i), "w", encoding="utf-8") as fh:
@@ -417,26 +453,27 @@ def stop_budget(root):
                                {"id": "F1.%d" % j, "title": "passo %d" % j,
                                 "desc": "linha didática do passo %d" % j,
                                 "status": "todo"} for j in (1, 2, 3)]}]}, fh)
-        trans = os.path.join(sandbox, "t.jsonl")
+        trans = os.path.join(projeto, "t.jsonl")
         with open(trans, "w", encoding="utf-8") as fh:
             for i in range(5):
-                fh.write(json.dumps({"type": "assistant", "message": {"content": [
-                    {"type": "tool_use", "name": "Edit",
-                     "input": {"file_path": "/x/a%d.py" % i}}]}}) + "\n")
-        payload = json.dumps({"session_id": "budget-probe", "cwd": sandbox,
+                fh.write(json.dumps({"type": "assistant", "message": {
+                    "role": "assistant", "content": [
+                        {"type": "tool_use", "name": "Edit",
+                         "input": {"file_path": "/x/a%d.py" % i}}]}}) + "\n")
+        payload = json.dumps({"session_id": "budget-probe", "cwd": projeto,
                               "transcript_path": trans})
-        env = dict(os.environ, HOME=sandbox, CLAUDE_CONFIG_DIR=os.path.join(sandbox, ".claude"),
-                   CLAUDE_PROJECT_DIR=sandbox, TMPDIR=sandbox)
+        env = dict(os.environ, HOME=lar, CLAUDE_CONFIG_DIR=os.path.join(lar, ".claude"),
+                   CLAUDE_PROJECT_DIR=projeto, TMPDIR=sandbox)
         for plug, nome, caminho, timeout in emissores:
             runner = ["python3", caminho] if caminho.endswith(".py") else ["bash", caminho]
             try:
                 r = subprocess.run(runner, input=payload, capture_output=True,
-                                   text=True, env=env, cwd=sandbox, timeout=20)
+                                   text=True, env=env, cwd=projeto, timeout=20)
                 out = (r.stdout or "") + (r.stderr or "")
             except (subprocess.TimeoutExpired, OSError) as exc:
                 out = ""
                 nome = "%s (nao mediu: %s)" % (nome, type(exc).__name__)
-            n = len([x for x in out.split("\n") if x.strip()])
+            n = _linhas_visiveis(out)
             linhas_tot += n
             saida.append({"plugin": plug, "script": nome, "linhas": n, "timeout": timeout})
     finally:
