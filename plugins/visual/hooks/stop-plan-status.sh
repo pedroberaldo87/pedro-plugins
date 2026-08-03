@@ -201,5 +201,10 @@ if [ -z "$BRIEF" ]; then
   exit 0
 fi
 
-jq -n --arg m "$BRIEF" '{systemMessage:$m}' 2>/dev/null
+# A linha em branco na FRENTE é do canal, não do texto: o harness prefixa
+# "Stop says: " na primeira linha, e sem ela o cabeçalho fica grudado no prefixo, num
+# nível diferente dos bullets que vêm abaixo. Com ela, o prefixo fica sozinho e o
+# cabeçalho desce pro mesmo alinhamento dos três. Não entra no orçamento do Stop —
+# `_linhas_visiveis` só conta linha com conteúdo.
+jq -n --arg m "$BRIEF" '{systemMessage:("\n" + $m)}' 2>/dev/null
 exit 0
