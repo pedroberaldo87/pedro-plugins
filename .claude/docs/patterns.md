@@ -122,7 +122,17 @@ Regra de desenho por trás [confirmado, comentário em `posttooluse-doc-read.sh`
 
 **Quem emite deny sai com `exit 0`**: o veredito vem do JSON, não do exit code. Misturar os dois (JSON + `exit 2`) não aparece em nenhum hook lido aqui.
 
-**Hooks Python existem, e são dois** [confirmado — `find plugins -path '*/hooks/*' -type f -name '*.py'` devolve exatamente `stop-prose-ceiling.py` e `stop-forma-relato.py`]. Os dois são de `Stop`, os dois escrevem em stderr **só** no caminho que sai 2 — que num `Stop` é o canal que devolve o texto ao modelo. O uso está certo; o que quebra é a **auditoria** deles (§5.3).
+**Hooks Python existem, e hoje são CINCO** [confirmado — `find plugins -path '*/hooks/*' -type f -name '*.py' ! -name 'test_*'`]:
+
+```
+plugins/bootstrap/hooks/stop-forma-relato.py
+plugins/bootstrap/hooks/stop-prose-ceiling.py
+plugins/bootstrap/hooks/stop-regua-relato.py            ← novo em 2026-08-03
+plugins/guardrails/hooks/pretooluse-artefato-regua.py   ← novo em 2026-08-03
+plugins/visual/hooks/stop-anuncio-sem-acao.py
+```
+
+Quatro são de `Stop` e escrevem em stderr **só** no caminho que sai 2 — que num `Stop` é o canal que devolve o texto ao modelo. O quinto é `PreToolUse[Edit|Write]` e usa o canal estruturado (`permissionDecision:"deny"` no stdout), porque em `PreToolUse` stderr com `exit 0` é mudo. O uso está certo; o que quebra é a **auditoria** deles (§5.3).
 
 ### 1.3 Contrato anti-loop: o cap
 
