@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# Testes dos hooks do bootstrap: teto de prosa + preservação de chave no snapshot.
+# Testes dos hooks do bootstrap: teto de prosa, régua de estilo dos bullets do
+# relato, juiz de forma + preservação de chave no snapshot.
 # Tudo em diretório temporário — nunca toca na config real nem no repo.
 #
 #   bash plugins/bootstrap/hooks/test_bootstrap_hooks.sh
@@ -8,6 +9,7 @@ set -uo pipefail
 AQUI="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 HOOK="$AQUI/stop-prose-ceiling.py"
 JUIZ="$AQUI/stop-forma-relato.py"
+REGUA="$AQUI/stop-regua-relato.py"
 SNAPSHOT="$AQUI/lib/snapshot.sh"
 APPLY="$AQUI/lib/apply.sh"
 OK=0; FAIL=0
@@ -25,6 +27,8 @@ mkdir -p "$CLAUDE_CONFIG_DIR"
 unset PROSE_CEILING_MAX
 # desinstalação é opt-in: se quem roda o teste tiver a var ligada, o caso 2 mentiria
 unset BOOTSTRAP_UNINSTALL_UNMANAGED
+# kill-switch da régua ligado no ambiente faria todo caso de bloqueio "passar"
+unset REGUA_RELATO
 
 # monta um transcript com o texto dado e devolve o exit code do hook
 roda_hook() { # texto, session_id
@@ -179,6 +183,82 @@ else
 fi
 check "transcript inexistente e fail-open" 0 \
   "$(echo '{"transcript_path":"/nao/existe.jsonl","session_id":"s6"}' | python3 "$HOOK" >/dev/null 2>&1; echo $?)"
+
+# ---------------------------------------------------------------------------
+# A regua de estilo no relato digitado no terminal. Cobra os BULLETS (o VOLUME e
+# do teto de prosa, acima). Mecanica, sem modelo. Os casos casam CONTEUDO da
+# recusa — nunca posicao de linha, que muda no primeiro ajuste de texto.
+# ---------------------------------------------------------------------------
+echo "-- regua de estilo nos bullets do relato"
+
+roda_regua() { # texto, session_id  -> exit code; stderr em $TMP/regua.err
+  local t="$TMP/reg-$RANDOM.jsonl"
+  python3 -c '
+import json,sys
+open(sys.argv[1],"w").write(json.dumps({"type":"assistant","message":{"role":"assistant",
+    "content":[{"type":"text","text":sys.argv[2]}]}})+"\n")' "$t" "$1"
+  echo "{\"transcript_path\":\"$t\",\"session_id\":\"$2\"}" | \
+    REGUA_RELATO_STATE="$TMP/regua-$2" python3 "$REGUA" 2>"$TMP/regua.err" >/dev/null
+  echo $?
+}
+
+diz() { # rotulo, trecho esperado no motivo
+  if grep -qF "$2" "$TMP/regua.err"; then OK=$((OK+1)); echo "  ok   $1";
+  else FAIL=$((FAIL+1)); echo "  FAIL $1 — motivo nao menciona '$2'"; fi
+}
+
+LIMPO="Gate verde: a bateria inteira passou.
+
+- unit 981 verde, integracao 1427 sem falha
+- typecheck limpo no repo inteiro"
+check "bullets limpos passam" 0 "$(roda_regua "$LIMPO" r1)"
+
+DUAS_FRASES="Feito.
+
+- O cache foi invalidado. Depois o teste voltou a passar"
+check "bullet com duas frases barra" 2 "$(roda_regua "$DUAS_FRASES" r2)"
+diz "a recusa nomeia o paragrafo disfarcado" "duas frases no mesmo bullet"
+
+LONGO_BULLET="$(python3 -c 'print("Feito.\n\n- " + "palavra " * 30)')"
+check "bullet acima de 140 caracteres barra" 2 "$(roda_regua "$LONGO_BULLET" r3)"
+diz "a recusa cita o teto de caracteres" "o teto é 140"
+
+CONECTIVO="Feito.
+
+- porque o mapa de configuracao chegava vazio no primeiro turno"
+check "bullet que abre com conectivo barra" 2 "$(roda_regua "$CONECTIVO" r4)"
+diz "a recusa nomeia o conectivo de continuacao" "conectivo de continuação"
+
+# A quarta checagem da constituicao: sete bullets curtos e limpos, um a um, passam
+# em tudo — so a LISTA inteira revela que o bloco virou prosa picada.
+SETE_BULLETS="$(python3 -c 'print("Feito.\n\n" + "\n".join("- passo %d concluido" % i for i in range(7)))')"
+check "sete bullets curtos barram pelo teto de 6" 2 "$(roda_regua "$SETE_BULLETS" r11)"
+diz "a recusa cita o teto de bullets por bloco" "o teto é 6"
+
+# prova colada e literal por obrigacao: bullet DENTRO do bloco de codigo fica fora
+PROVA_BULLET="$(python3 -c '
+F="`"*3
+print("Gate verde.\n\n"+F+"\n- O cache foi invalidado. Depois o teste voltou a passar\n"+F)')"
+check "bullet dentro de bloco de PROVA nao e cobrado" 0 "$(roda_regua "$PROVA_BULLET" r5)"
+
+# `**negrito**` abre com `*` e NAO e lista — sem o espaco exigido viraria bullet
+NEGRITO="**Gate verde**: a bateria passou. O typecheck tambem esta limpo."
+check "linha em negrito nao e confundida com bullet" 0 "$(roda_regua "$NEGRITO" r6)"
+
+check "resposta sem bullet nenhum passa" 0 "$(roda_regua "Feito, gate verde." r7)"
+check "REGUA_RELATO=0 desliga" 0 "$(REGUA_RELATO=0 roda_regua "$DUAS_FRASES" r8)"
+
+# anti-loop: a regua desiste depois de 2 bloqueios, senao a sessao trava pra sempre
+roda_regua "$DUAS_FRASES" r9 >/dev/null
+roda_regua "$DUAS_FRASES" r9 >/dev/null
+check "3a tentativa da mesma resposta nao trava a sessao" 0 "$(roda_regua "$DUAS_FRASES" r9)"
+grep -qF '"bullets"' "$TMP/regua-r9/bypass.log" \
+  && { OK=$((OK+1)); echo "  ok   a desistencia fica registrada no bypass.log"; } \
+  || { FAIL=$((FAIL+1)); echo "  FAIL desistiu em silencio — sem bypass.log"; }
+
+check "transcript inexistente e fail-open na regua" 0 \
+  "$(echo '{"transcript_path":"/nao/existe.jsonl","session_id":"r10"}' | \
+     REGUA_RELATO_STATE="$TMP/regua-r10" python3 "$REGUA" >/dev/null 2>&1; echo $?)"
 
 # ---------------------------------------------------------------------------
 # Máquina de mentira: $HOME temporário + um `claude` falso no início do PATH.

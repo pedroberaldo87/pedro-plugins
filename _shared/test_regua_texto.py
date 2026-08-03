@@ -29,12 +29,25 @@ def check(label, cond, extra=""):
         print("  FAIL %s %s" % (label, extra))
 
 
-# ── os quatro perfis existem e nenhum é frouxo ─────────────────────────────
+# ── os cinco perfis existem e nenhum é frouxo ──────────────────────────────
 
 print("\n[perfis — declarados, e nenhum deles é a saída de emergência]")
 
-check("os quatro perfis estão declarados",
-      sorted(R.PERFIS) == ["hook", "pagina", "plano", "slide"], sorted(R.PERFIS))
+check("os cinco perfis estão declarados",
+      sorted(R.PERFIS) == ["contexto", "hook", "pagina", "plano", "slide"], sorted(R.PERFIS))
+
+# O perfil `contexto` cobre o canal additionalContext, cujo leitor é o MODELO.
+# Markdown e ausência de emoji são legítimos ali; prosa fatiada não é.
+check("contexto aceita markdown (o modelo o interpreta)",
+      not R.erros_de_estilo(["Leia o **CLAUDE.md** antes de explorar"], "x", "contexto"))
+check("contexto não exige emoji no cabeçalho",
+      not R.erros_de_estilo(["Documentacao project-doc disponivel"], "x", "contexto"))
+check("contexto recusa duas frases no mesmo bullet",
+      bool(R.erros_de_estilo(["Uma frase. E a segunda no mesmo bullet."], "x", "contexto")))
+check("contexto tem teto maior que o de página (carrega inventário)",
+      R.perfil("contexto").bullet_max > R.perfil("pagina").bullet_max)
+check("contexto cabe mais bullets que o canal de tela",
+      R.perfil("contexto").bullets_max > R.perfil("hook").bullets_max)
 
 # O textão real do relatório de 2026-08-01 (quality-goals.md, "Trade-off já decidido").
 PROSA_REAL = ("Das cinco decisões que vazaram na sessão de ontem, quatro nasceram no meio "
