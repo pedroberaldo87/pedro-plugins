@@ -328,6 +328,13 @@ Por que ninguém viu: **prosa que descreve mecanismo ausente não dá erro**. N�
 
 Dois guards podem coexistir no mesmo matcher respondendo a perguntas opostas — é o caso de `Agent` hoje (§6 do `architecture.md`). Coexistir não é conflito; **presumir** que o do vizinho cobre o seu caso é.
 
+**Sequela em 2026-08-02: o gate nasceu apoiado numa segunda afirmação não medida, e desta vez ela foi medida.** O hook declarava, no próprio cabeçalho, que era **INFERIDO** — não confirmado — que a tool `Workflow` não spawna os agentes dela por `PreToolUse[Agent]`. Se passasse, o gate mataria o motor que existe para proteger, numa missão longa com o dono ausente. Medição, com o sinal aceso: um Workflow de um agente **completou** (11 chamadas de ferramenta, 117s) e o contador `bloqueios-<sid>` **não se moveu**. `[confirmado]`
+
+Duas lições, e a segunda vale mais que a primeira:
+
+1. **Rotular INFERIDO no código funciona.** O comentário trazia o experimento escrito (*"com o sinal ligado, rode um Workflow de um agente só e veja se ele completa"*), então medir custou minutos em vez de arqueologia. Hipótese com o próprio teste ao lado é dívida que se paga; hipótese sem teste vira folclore.
+2. **A medição não removeu o cap, e não deveria.** O cap de 3 negações cobre o runtime do `Workflow` mudar de caminho numa versão futura — risco que a medição de hoje não elimina, só data. Medir uma inferência autoriza **parar de temê-la agora**, nunca desmontar a rede que existe para quando ela mudar.
+
 ### 1.12 Motor de agentes: quem revisa precisa de âncora FORA do que foi construído
 
 **Novo em 2026-08-02**, e vale para os dois motores do marketplace (`/sovai` e `/qa-loop`). O revisor de construção do `/sovai` julgava a obra contra a **decomposição do próprio orquestrador**, declarado literal na skill até esta rodada: *"Trata a decomposição do #1 como **contrato** e só checa se ele foi **cumprido**"* + *"**Não julga se a decomposição é fiel ao plano-macro**"*.

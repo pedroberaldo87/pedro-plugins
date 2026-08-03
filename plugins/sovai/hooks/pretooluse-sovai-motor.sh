@@ -24,21 +24,26 @@
 # FAIL-OPEN em toda borda de infra (sem jq, sem session_id, sem raiz de estado):
 # gate que trava a sessão por infra é pior que gate nenhum.
 #
-# ⚠️ O QUE AINDA NÃO FOI MEDIDO, e a rede que cobre isso.
+# ✅ MEDIDO em 2026-08-02 — o motor NÃO passa por aqui.
 # Se a tool `Workflow` spawnasse os agentes dela pelo mesmo caminho de
 # `PreToolUse(Agent)`, este gate mataria o próprio motor que ele existe pra
 # proteger — e mataria numa missão longa, com o dono ausente, que é o cenário
-# mais caro de todos. É INFERIDO que não passa (o script do motor abre agente
-# com `agent()`, do runtime do Workflow), NÃO confirmado: o hook nasceu nesta
-# sessão e hook novo só vale depois de reinstalar o plugin.
+# mais caro de todos. Era INFERIDO que não passa; hoje é CONFIRMADO:
 #
-# Por isso o cap, que é o contrato anti-loop do repo (patterns.md §1.3): depois
-# de MAX_BLOQUEIOS negações na mesma sessão o gate DESISTE e libera. Se a
-# inferência estiver errada, a missão degrada em vez de travar. Gate que trava
-# de verdade com o dono ausente é pior que gate nenhum.
+#   com `ativo-<sid>` aceso, um Workflow de um agente completou — 11 chamadas
+#   de ferramenta, 117s, e o contador `bloqueios-<sid>` NÃO se moveu (ficou na
+#   única negação, que foi uma chamada manual deste hook feita pra medir).
 #
-# Para confirmar e então poder apertar: com o sinal ligado, rode um Workflow de
-# um agente só e veja se ele completa. Completou → a inferência valia.
+# O cap FICA, e não por dúvida sobre isto: ele é o contrato anti-loop do repo
+# (patterns.md §1.3), e cobre o caso de o runtime do Workflow mudar de caminho
+# numa versão futura. Depois de MAX_BLOQUEIOS negações na mesma sessão o gate
+# DESISTE e libera — a missão degrada em vez de travar. Gate que trava de
+# verdade com o dono ausente é pior que gate nenhum.
+#
+# ⚠️ O QUE CONTINUA SEM REDE: sinal órfão. Não há poda por idade, e sessão que
+# morre sem apagar `ativo-<sid>` fica sem despachar sub-agente até o fim. Medido
+# na mesma rodada: 3 sinais acesos, 2 de sessões de OUTROS projetos ainda vivas.
+# O sinal é por sessão, então uma não contamina a outra — o estrago é local.
 
 # Kill-switch (contrato dos hooks deste repo): quando o gate atrapalha num
 # momento ruim, a saída não pode ser editar o script.
