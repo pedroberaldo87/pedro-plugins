@@ -461,6 +461,16 @@ Nasceu em 2026-08-02 com `plugins/visual/hooks/stop-anuncio-sem-acao.py`. Ver `d
 - Nomes de env var, copiados literalmente dos arquivos lidos: `PROSE_CEILING` (`=0` derruba o hook inteiro), `PROSE_CEILING_MAX` (só ajusta o número — `TETO_PADRAO = 6`; valor 0 ou lixo cai no padrão), `FORMA_RELATO` (`=0` kill-switch, `=interno` é o desligamento silencioso do subprocesso do próprio juiz), `FORMA_RELATO_MODEL`, `FORMA_RELATO_STATE`, `CLAUDE_CONFIG_DIR`, `GREEN_SUITE_DIR`, `GREEN_SUITE_TTL_SECS`, `PEDRO_PLUGINS_REPO`, `PEDRO_PLUGINS_FORCE_SYNC`, `PEDRO_PLUGINS_THROTTLE_SECONDS`, `PEDRO_PLUGINS_VERBOSE`, `PEDRO_PLUGINS_HOOK_RUNNING`, `PROJECT_DOC_COFRE_DIR`.
 - Sem cobertura, e o efeito da perda é inverter comportamento em silêncio — não perder dado. Mesma classe do §3.11.
 
+### 3.16b · Config do servidor de visão — `~/.claude/vision.json`
+
+Nasceu em 2026-08-03 com o plugin `vision` (commit `4a4b59d`, v0.1.0). Ver `data-stores.md §B12` para a anatomia.
+
+`[TODO: sem cobertura declarada]` — fora do repo, sem cópia, sem backup. Detalhe abaixo.
+
+- **Sem cobertura.** Fora do repo, sem cópia, e — diferente do `config.json` do `/visual` (§3.11) — **sem semente versionada**: `plugins/vision/vision_mcp.py` declara *"nunca um endpoint chutado"*. O arquivo é a única fonte do endpoint além das env vars `QWEN_BASE`/`QWEN_MODEL`/`QWEN_TIMEOUT`.
+- **O que se perde se sumir:** o endereço do servidor VL privado de quem instala. A tool `see_image` para e devolve *"servidor de visão não configurado… crie ~/.claude/vision.json"* — até alguém redigitar a config. É perda de **comportamento**, não de dado: o valor não é derivável do repo, mas vive na cabeça de quem administra o servidor.
+- **Mesma classe do §3.11 e do §3.16:** config de máquina cuja perda não apaga conhecimento acumulado — desliga uma capacidade até ser reconfigurada. A diferença para o §3.16: aqui a falha não é silenciosa — a tool acusa com instrução.
+
 ### 3.17 · Cofre de secrets — iCloud
 
 - [confirmado] `cofre_paths()` em `plugins/project-doc/lib/journal.py` resolve nesta ordem: `PROJECT_DOC_COFRE_DIR` (override explícito) → `~/Library/Mobile Documents/com~apple~CloudDocs/Cofre` → fallback local `<projeto>/.claude/secrets/_local_cofre`. O nome do arquivo é `<basename>-<8 hex do sha1 do path absoluto>.env`, para dois projetos homônimos não colidirem.
@@ -528,7 +538,7 @@ Ordenado por custo da perda, do pior para o mais barato:
 - 🔴 **Atas, planos ticáveis e ledger do intent-guard** — registro de decisão com prova anexada; append-only protege contra corrupção, não contra sumiço (§3.4, §3.5, §3.7). ⚠️ **Os planos subiram de classe nesta rodada:** com o bloco `requisitos` no topo do arquivo, num projeto sem PRD o `.plan.json` passou a ser também o único lugar onde o *pedido* está escrito, não só a execução (§3.5).
 - 🔴 **Os 20 vereditos de reprovação do juiz de forma** — texto livre descrevendo cada defeito, sem cópia e sem regenerador; era contagem na rodada anterior, virou corpus nesta (§3.13).
 - 🟡 **Batidas do juiz de forma e do teto de prosa** — entrada de **dois** verificadores desde esta rodada (o conformance, que pergunta se o guarda está vivo, e o `furos_da_regua`, que conta furos pro dono); apagar faz um reportar "nunca executou" para hook que funciona e o outro perder o histórico de furos (§3.13, §3.14, §3.14-b, §3.15).
-- 🟡 **Preferências e kill-switches** (`config.json` do `/visual`, arquivos `mode`) — perder não custa dado, custa **inversão silenciosa de comportamento** (§3.11, §3.16).
+- 🟡 **Preferências e kill-switches** (`config.json` do `/visual`, arquivos `mode`, `vision.json`) — perder não custa dado, custa **inversão silenciosa de comportamento**; o `vision.json`, em vez de inverter, para a tool com mensagem pedindo reconfig (§3.11, §3.16, §3.16b).
 - 🟢 **Grafo do graphify, saída do `/visual`, baseline de hooks** — regeneráveis por comando (§3.3, §3.6, §3.19).
   ⚠️ **Com uma ressalva desde 2026-08-03:** as 100 páginas de `.claude/visual/` seguem descartáveis, mas o que as isenta da régua (`.claude/limites-aceitos.md`, §2.6) é um arquivo **coberto** que guarda a medição de um alvo **não coberto** — e a medição já saiu do lugar (99·82 registrados contra 100·83 medidos hoje). Cobertura de git protege o registro da decisão, nunca a validade dela.
 - 🟢 **Contrato de tier e registro de limites** (`_shared/r8-tiers.json`, `.claude/limites-aceitos.md`) — rastreados e cobertos pelo remote (§2.5, §2.6). O valor volta com um `git checkout`; o **julgamento escrito ao lado dele** (o `porque` de cada tier, o motivo de aceitar cada limite) não sai de comando nenhum.

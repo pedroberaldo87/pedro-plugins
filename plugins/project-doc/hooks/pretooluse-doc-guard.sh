@@ -1,16 +1,17 @@
 #!/bin/bash
-# pretooluse-doc-guard.sh — safety net (RF8).
+# pretooluse-doc-guard.sh — gate (RF8).
 # When a blind search (Grep/Glob, Bash grep|rg|find|..., or a code-EXPLORING Task
 # subagent) is about to run in a project that has project-doc documentation, DENY
-# it once per (session × project) and redirect to .claude/docs/. The nudge lists
-# the actual docs and flags staleness. Mirrors graphify-guard; separate sentinel.
+# it and redirect to .claude/docs/. The deny lists the actual docs and flags
+# staleness. Mirrors graphify-guard; separate sentinel.
 # Fail-open: any error → exit 0 (action proceeds).
 #
 # PRIMARY decision: SENTINEL-FILE
 #   posttooluse-doc-read.sh writes /tmp/claude-doc-guard-${SESSION}-${PHASH} the
 #   moment Claude reads any file under .claude/docs/ or .claude/CLAUDE.md. The
 #   guard checks for that sentinel; if present → doc was consulted → pass.
-#   MAX_NUDGES is a safety cap only (not the primary decision).
+#   Sem sentinel, a busca é negada SEMPRE — não há porta de escape por contagem
+#   (MAX_NUDGES caiu em 2026-08-04: os agentes atravessavam depois de 3 avisos).
 #
 # MONOREPO: if the searched path is under apps/{app}/ and
 #   .claude/docs/apps/{app}.md exists, the nudge cites that specific doc.
@@ -144,27 +145,17 @@ if [ -f "$SENTINEL" ]; then
 fi
 
 # ---------------------------------------------------------------------------
-# MAX_NUDGES cap (loop-guard / safety valve — NOT the primary decision)
-# ---------------------------------------------------------------------------
-MAX_NUDGES=3
-COUNT_FILE="/tmp/claude-doc-guard-count-${SESSION}-${PHASH}"
-COUNT=0
-[ -f "$COUNT_FILE" ] && COUNT="$(cat "$COUNT_FILE" 2>/dev/null)"
-[ "$COUNT" -eq "$COUNT" ] 2>/dev/null || COUNT=0
-if [ "$COUNT" -ge "$MAX_NUDGES" ]; then
-  exit 0   # gave up after MAX_NUDGES — let it through
-fi
-echo $((COUNT + 1)) > "$COUNT_FILE"
-
-# ---------------------------------------------------------------------------
-# Build nudge message
+# Build deny message. Sem contador: enquanto o sentinel não existir (a doc não
+# foi lida), TODA busca cega é negada. A saída é ler a doc — o sentinel libera
+# na próxima tentativa. A porta de escape MAX_NUDGES caiu em 2026-08-04: depois
+# de 3 avisos os agentes atravessavam e exploravam sem nunca abrir a doc — a
+# disciplina que a constituição proíbe ("por derivação, não por disciplina").
 # ---------------------------------------------------------------------------
 LINE=$(bash "$SCRIPT_DIR/doc-detect.sh" --one "$PROJ" 2>/dev/null)
 [ -z "$LINE" ] && exit 0
 N=$(printf '%s' "$LINE" | cut -f3)
 STALE=$(printf '%s' "$LINE" | cut -f4)
 OOP=$(printf '%s' "$LINE" | cut -f5)
-NUDGE_NO=$((COUNT + 1))
 
 # List the real docs so the nudge is actionable (not just "read the index").
 DOCLIST=$(for f in "$PROJ/.claude/docs"/*.md; do [ -e "$f" ] && basename "$f"; done | paste -sd ', ' -)
@@ -208,7 +199,7 @@ else
   READ_TARGET="${CLAUDE_MD_PATH} e o doc relevante em .claude/docs/"
 fi
 
-MSG="📚 ${PROJ} tem documentação project-doc (${N} doc(s) em .claude/docs/).${DOCLIST}${APPMSG} Antes de busca cega ou de delegar exploração, leia ${READ_TARGET}.${STALEMSG}${OOPMSG} Use a ferramenta Read em qualquer arquivo de .claude/docs/ ou .claude/CLAUDE.md; isso registra um sentinel e esta ação será liberada automaticamente na próxima tentativa (aviso ${NUDGE_NO}/${MAX_NUDGES} — depois disso silencio)."
+MSG="📚 ${PROJ} tem documentação project-doc (${N} doc(s) em .claude/docs/).${DOCLIST}${APPMSG} Antes de busca cega ou de delegar exploração, leia ${READ_TARGET}.${STALEMSG}${OOPMSG} Use a ferramenta Read em qualquer arquivo de .claude/docs/ ou .claude/CLAUDE.md; isso registra um sentinel e esta ação será liberada automaticamente na próxima tentativa. A busca fica bloqueada até a doc ser lida."
 
 jq -n --arg r "$MSG" \
   '{hookSpecificOutput:{hookEventName:"PreToolUse",permissionDecision:"deny",permissionDecisionReason:$r}}'

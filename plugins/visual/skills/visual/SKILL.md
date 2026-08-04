@@ -345,7 +345,7 @@ Detect the content type from the last substantial message or plan file:
 |---|---|
 | **Plano / PRD / roadmap** | **Sempre** o arquivo do plano + `plan_state.py page` — ver a seção acima. Nunca desenhe um plano à mão. |
 | Plan (numbered items, exec summary) | Decision card + plan items as `<details>` + exec summary at bottom |
-| Diagnostic / bloqueios (problems, pendências, riscos) | Cada item em `.tri` — problema · consequência · proposta — com `.sev` no título; "funcionando" section below |
+| Diagnostic / bloqueios (problems, pendências, riscos) | Cada item em `.tri` — problema · consequência · proposta — com `.sev` no título; "funcionando" section below. **Exceção que manda:** item cuja pendência é uma **pergunta com escolha** que muda a ação de quem lê → `.decision-card`, não `.tri` (ver o teste discriminador em "Bloqueio / problema apontado"). |
 | Question with options | Decision card with selectable cards (A/B/C), recommendation highlighted |
 | Mixed / generic | Hero + sections + exec summary, following same hierarchy |
 
@@ -380,7 +380,7 @@ After writing, always run `open <path>` to show it.
 ## Hierarchy rules (non-negotiable)
 
 0. **Antes de tudo: de que se trata.** A faixa de identidade + o artefato + a prova vêm antes da decisão. O mecanismo do erro é vívido pra quem acabou de investigar e **inexistente** pra quem vai decidir — nunca abra por ele. A decisão continua dominante, logo abaixo, não no fim da página.
-1. **Top**: the decision the user must make. Max 1 main decision per HTML. Large, visually dominant. Every decision carries its own plain-language context line (`.decision-context`) — see "O pedido de aprovação tem que se explicar sozinho" below.
+1. **Top**: the decision the user must make. **Uma decisão DOMINANTE no topo** — a principal, grande e visível. "Max 1" é sobre a hierarquia (só uma no topo), **não** o total por página: sub-decisões adicionais têm os próprios cards abaixo (ver "Multiple sub-decisions"). Não reduza uma escolha a `.tri` por achar que há teto de decisões — o teto é de posição, não de quantidade. Every decision carries its own plain-language context line (`.decision-context`) — see "O pedido de aprovação tem que se explicar sozinho" below.
 2. **Middle**: context + justification. 3-5 bullets max. Link to concrete data (friction counts, real metrics, file paths) when available. This is section-level background — it does NOT replace the per-decision context line. Both exist: the `.decision-context` says what's at stake for THAT decision; the middle bullets give the broader why.
 3. **Bottom**: technical detail in `<details>` collapsed by default. User expands only if they want depth.
 4. **Reviewable items carry their verdict INLINE**: every item the user decides on (plan step, benchmark finding, proposed feature) is a `.feedback-item` with its keep/change/remove radios in the item's own header — NOT re-listed in a separate box at the bottom. See "Feedback channel" below. This is non-negotiable: the old "second table of approval" is a forbidden anti-pattern.
@@ -410,6 +410,16 @@ The user reads **only the HTML**. Never assume they read the CLI, the plan file,
 This mirrors the `perguntas-autocontidas` rule: every decision carries its premises and consequences **in its own body**. A bare label is rejected.
 
 ### Bloqueio / problema apontado → sempre `.tri` (problema · consequência · proposta)
+
+**Antes de escolher o componente, o teste discriminador:** se o item carrega uma
+**pergunta cuja resposta muda a próxima ação** de quem lê ("mantém as capas ou
+reverte?", "prova em tela ou descreve a falha?") → é **`.decision-card`**, com as
+opções autorais. Se o item **só informa** uma pendência ou um risco, sem resposta
+que mude o que fazer em seguida ("o total está em caixa preta", "a procedência é
+desconhecida") → é **`.tri`**. O teste é a existência da escolha, não a sua
+confiança nela: na dúvida, se há uma pergunta com resposta que altera a ação,
+vire decision-card — cair no tri por "não ter certeza" foi o defeito medido em
+2026-08-03 (3 pontos de decisão renderizados como tri no relatório do sovai).
 
 Quando a página aponta um **bloqueio, pendência, risco realizado ou problema** — bloco de bloqueios, seção de achados, relatório final de uma execução — cada item vem no componente **`.tri`**, com as três partes rotuladas, nesta ordem e sem pular nenhuma:
 

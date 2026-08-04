@@ -687,6 +687,29 @@ O caso que o cabeçalho nomeia como coberto é o do monorepo-container: mesmo co
 
 ---
 
+## 17 · A ponte de visão por MCP — see_image quando o modelo não tem olhos
+
+**Sem hooks — é MCP puro:** `plugins/vision/` contém apenas `vision_mcp.py`, `.mcp.json` e `.claude-plugin/plugin.json` (v0.1.0). O servidor entra no catálogo do Claude pelo `.mcp.json`: transporte `stdio`, `python3 ${CLAUDE_PLUGIN_ROOT}/vision_mcp.py`. `[confirmado — leitura dos três arquivos nesta rodada]`
+
+**Dispara quando:** o modelo em uso não tem visão — ler a imagem via `Read` devolve "Unsupported Image" — e o Claude precisa do conteúdo dela. A docstring registra o caso: *"Este server expõe UMA tool, `see_image`, que o Claude chama quando precisa entender uma imagem."* `[confirmado — `vision_mcp.py:1-7`]`
+
+**Passos:**
+
+1. **O Claude chama `see_image(caminho, pergunta)`** — só `path` é obrigatório; sem `question`, o servidor pergunta *"O que exatamente esta imagem mostra? Descreva em detalhe, transcrevendo o texto visível."* `[confirmado — `vision_mcp.py:61-91`]`
+2. **O servidor codifica e POSTa** — lê o arquivo, codifica em base64 e monta o payload no padrão OpenAI-compatible: `messages[0].content` com `image_url` (`data:<mime>;base64,…` — o mime por extensão: png/jpg/jpeg/gif/webp, default png) + a pergunta em texto, `max_tokens: 1024`. POST para `BASE.rstrip("/") + "/chat/completions"` com `timeout=TIMEOUT`. `[confirmado — `vision_mcp.py:48-120`]`
+3. **O servidor VL responde em texto** — a descrição sai de `choices[0].message.content` e volta como `{content: [{type: "text", text}], isError: false}`. `[confirmado — `vision_mcp.py:112-116`]`
+4. **O Claude usa a descrição** — o texto entra no contexto e ele segue a tarefa; é o contrato da tool. `[confirmado — docstring de `vision_mcp.py:2-7`]`
+
+**De onde vem o endpoint — o servidor de visão NÃO mora no plugin** (é infra privada de quem instala). Três fontes, nesta ordem: env `QWEN_BASE`/`QWEN_MODEL`/`QWEN_TIMEOUT` (default 180s) → `~/.claude/vision.json` com `{"base": …, "model": …}` → falha com mensagem pedindo a config, **nunca um endpoint chutado**. `[confirmado — `vision_mcp.py:9-45`]`
+
+**Falhas mapeadas** — todas devolvem `isError: true` com o texto prefixado `❌`: servidor não configurado, arquivo inexistente, leitura do arquivo falhou, `HTTPError` do servidor (com `e.read()[:200]`) e exceção genérica. `[confirmado — `vision_mcp.py:81-124`]`
+
+⚠️ **A tool só entra no catálogo do modelo em SESSÃO NOVA.** Adicionar/recarregar o MCP no meio da sessão conecta o servidor, mas `see_image` não aparece na lista do modelo — ele tenta `Read`, falha e desiste. Precisa de sessão nova. `[relatado — medição reportada nesta rodada, não reproduzida aqui]`
+
+**Verificado:** `vision_mcp.py` lido integralmente (165 linhas), `.mcp.json` e `plugin.json` conferidos, registro no `marketplace.json` (v0.1.0, categoria `productivity`) confirmado. `[confirmado]`
+
+---
+
 ## Pendências
 
 - **Ponteiros cross-tool inertes** (cenário 2): os 5 arquivos apontam pra um `CLAUDE.md` na raiz que não existe. `[confirmado]`
