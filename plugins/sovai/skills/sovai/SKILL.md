@@ -361,6 +361,8 @@ Por que HTML: o relatório é longo e completo, e o usuário vai **revisar item 
 
 **Mapeamento seção → componente** (instrua o /visual a montar a superfície de revisão):
 
+No spec, **`item_labels: ["✓ Manter", "✏️ Mudar", "✗ Remover"]`** — NUNCA "✓ Vira ação" (esse é do relatório do /qa-loop: lá cada achado vira ação no próximo plano).
+
 - **Bloqueios (precisam de você)** → **topo**, prioridade máxima. Default: `.callout` severidade alta (um bloqueio é "não consegui X porque faltou Y" — sem ramificação). **Só** vire `.decision-card` se houver escolha A/B **genuína** já clara — nunca fabrique duas opções pra preencher o card (regra anti-"chutar"). Os ⚠️ alertas de plano/arquitetura do qa-loop entram aqui (normalmente `.callout`; só decision-card se for binário de verdade).
 - **Feito** → cada item = `.feedback-item` com veredito inline + profundidade em `<details>`. O usuário revisa enquanto lê.
 - **Decisões tomadas** → cada decisão = `.feedback-item` (o usuário aprova ou marca pra rever) + razão em 1 linha.

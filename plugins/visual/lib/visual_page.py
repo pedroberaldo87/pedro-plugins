@@ -373,7 +373,7 @@ def _tri_parte(cls, icone, rotulo, bullets, indent):
             % (indent, cls, icone, rotulo, corpo))
 
 
-def _tri(t, indent="  ", sev=None):
+def _tri(t, indent="  ", sev=None, mostra_problema=True):
     """O problema fica VISÍVEL; consequência e proposta nascem fechadas.
 
     Por que assim (quality-goals.md): a régua antiga mandava as três partes ficarem
@@ -412,7 +412,8 @@ def _tri(t, indent="  ", sev=None):
 
     return [
         '%s<div class="%s">' % (indent, cls),
-        _tri_parte("p", "🔴", "O problema", prob, indent + "  "),
+        ] + ([_tri_parte("p", "🔴", "O problema", prob, indent + "  ")]
+             if mostra_problema else []) + [
         '%s  <details class="item-detail tri-fold">' % indent,
         '%s    <summary><span class="read-dot"></span>'
         '<span class="fold-lede">⚡ %s</span>'
@@ -426,7 +427,35 @@ def _tri(t, indent="  ", sev=None):
 
 
 def r_tri(blk, ctx):
-    return _tri(blk)
+    """Tri solto com veredito inline: aceitar/ajustar/recusar + comentário.
+
+    Um bloqueio sobre o qual se decide não é informação — é um item de decisão.
+    Mesmo contrato do `item` (radios fb-N + onFbChange + textarea), para o JS de
+    feedback e o copy funcionarem. O problema vira o título do feedback-head, e o
+    corpo do tri não o repete (`mostra_problema=False`).
+    """
+    ctx["n_items"] += 1
+    n = ctx["n_items"]
+    lk, lc, lr = ctx["item_labels"]
+    prob = bullets_de(blk.get("problema"))
+    titulo = re.sub(r"<[^>]+>", "", _rich(prob[0])) if prob else "Bloqueio"
+    sev = blk.get("sev")
+    sev_html = (' <span class="sev %s">%s</span>'
+                % (SEV[sev], _e(blk.get("sev_label") or sev))) if sev in SEV else ""
+    out = ['  <div class="feedback-item" data-num="%d" data-title="%s">'
+           % (n, _e(titulo)),
+           '    <div class="feedback-head">',
+           '      <span class="feedback-num">%d</span>' % n,
+           '      <span class="feedback-title">%s%s</span>' % (_rich(titulo), sev_html),
+           '      <div class="feedback-radios">']
+    for val, lbl in (("keep", lk), ("change", lc), ("remove", lr)):
+        out.append('        <label><input type="radio" name="fb-%d" value="%s" '
+                   'onchange="onFbChange(this)"> %s</label>' % (n, val, _e(lbl)))
+    out += ["      </div>", "    </div>"]
+    out += _tri(blk, indent="    ", sev=sev, mostra_problema=False)
+    out.append('    <textarea class="feedback-textarea" placeholder="O que mudar..."></textarea>')
+    out.append("  </div>")
+    return out
 
 
 def r_item(blk, ctx):
