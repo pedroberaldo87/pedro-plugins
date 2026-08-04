@@ -668,7 +668,7 @@ Três propriedades que fazem isso não virar atrito:
 
 ### 2.8 Colapso que não vira ocultação: derive tudo que fica visível
 
-Par do §2.7, mesma rodada. O corpo do problema passou a nascer dobrado, e a pergunta que isso abre é quem garante que dobrar não é esconder — sendo que **quem escreve o artefato é quem executou o trabalho** [confirmado, `visual_page.py:_tri`].
+Par do §2.7, mesma rodada. O corpo do problema passou a nascer dobrado, e a pergunta que isso abre é quem garante que dobrar não é esconder — sendo que **quem escreve o artefato é quem executou o trabalho** [confirmado, `visual_page.py:_tri`]. O `.tri` de DECISÃO estende o mesmo princípio sem furar a régua: `r_tri` emite feedback-item com veredito (radios + textarea) e o problema vira o título — o problema continua visível, nunca engolido pelo veredito [confirmado, `visual_page.py:r_tri`].
 
 O desenho recusado, e o motivo, ficam registrados porque a tentação volta: **gravidade decidindo o colapso** (item grave nasce aberto, o resto fechado) é o mesmo problema mudado de lugar — quem preenche a gravidade é a parte interessada, e o campo manipulável ganharia o poder novo de **fechar**. Regra final não tem ramo: nível 0 visível, resto fechado, para todo item.
 

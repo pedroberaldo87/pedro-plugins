@@ -641,8 +641,9 @@ caixa de fechamento — tudo do programa.
 
 Duas coisas continuam sendo escolha sua:
 
-- **Os rótulos visíveis**, via `item_labels`. Um plano → "✓ Manter / ✏️ Mudar / ✗
-  Remover"; achados ou features → "✓ Aprovar / ✏️ Ajustar / ✗ Negar". **Os valores de
+- **Os rótulos visíveis**, via `item_labels`. Um plano ou relatório de conclusão → "✓
+  Manter / ✏️ Mudar / ✗ Remover"; achados ou features → "✓ Aprovar / ✏️ Ajustar / ✗
+  Negar". **Os valores de
   máquina (`keep`/`change`/`remove`) nunca mudam** — o parser do clipboard e o live-sync
   dependem deles, e o programa não deixa você trocá-los.
 - **Se o item merece veredito.** Diagnóstico puramente informativo (nada a aprovar ou

@@ -89,7 +89,7 @@ Gerar um HTML **dark-theme self-contained** em `<projeto>/.claude/visual/YYYY-MM
 - Botões: **"Marcar só os seguros"** (só `confirmado` + deps — nunca `fp`/`verificar`), **"Limpar"**, **"Copiar seleção"** (+ live sync).
 - Abrir com `open`. O usuário marca o que quer eliminar e diz "ok"/"pronto" (live sync) ou cola a seleção.
 
-O formato pode variar com o volume — listas grandes (dezenas de itens) usam o relatório de lista com checkboxes; volumes pequenos podem reaproveitar a skill `visual`. Mas **gerar e abrir um HTML é obrigatório nos dois casos** — "pouco volume" nunca é motivo para pular o relatório e mostrar só no chat.
+O relatório de lista com checkboxes cobre **qualquer volume** (1 item ou dezenas) — **não** monte o relatório via spec da skill `visual` (o `report.py` é quem emite o HTML; rótulos de veredito do `/visual` não se aplicam a uma lista de limpeza). **Gerar e abrir o HTML é obrigatório em qualquer volume** — "pouco volume" nunca é motivo para pular o relatório e mostrar só no chat.
 
 ### 5. Limpar só o marcado (ordem de risco crescente)
 

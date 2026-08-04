@@ -260,7 +260,7 @@ archify         2.11.0  [archify]                                        -
 bootstrap       1.10.1  [setup]                                          HOOKS
 branches         1.3.0  [branches]                                       HOOKS
 context-guard    1.3.4  [setup]                                          HOOKS
-fallow           1.2.0  [fallow]                                         -
+fallow           1.2.1  [fallow]                                         -
 graphify-guard   1.2.0  [] (sem skills)                                  HOOKS
 grill-me         1.1.0  [grill-me]                                       -
 grill-with-docs  1.1.0  [grill-with-docs]                                -
@@ -273,9 +273,9 @@ project-doc     3.21.0  [design-md, doc-touch, project-doc, start-doc]   HOOKS
 qa-loop          1.8.3  [qa-loop]                                        -
 ship             1.4.0  [ship]                                           HOOKS
 slides           1.5.0  [slides]                                         -
-sovai           1.11.4  [sovai]                                          HOOKS
+sovai           1.11.5  [sovai]                                          HOOKS
 vision          0.1.0  [] (sem skills)                                   -
-visual          1.19.3  [visual]                                         HOOKS
+visual          1.19.5  [visual]                                         HOOKS
 ```
 
 **Esta rodada levou o catálogo de 19 para 20 plugins**: nasceu o `vision` (0.1.0) e bumpou
@@ -1018,6 +1018,12 @@ páginas do `/visual` digitadas pelo modelo custavam **20-31 KB de HTML por pág
     à parte, que seria onde amaciar um problema grave. `_placar()` acrescenta a contagem
     agregada no topo, sempre aberta. Medido na mesma página antes e depois: **89% → 46% de
     texto exposto de cara**. [confirmado — `test_visual_page.py`, 22 checks]
+  - **O `.tri` solto vira item de decisão quando há veredito** — `r_tri` emite o mesmo
+    contrato do `item` (radios `fb-N` + `onFbChange` + textarea + contador em `ctx`), com o
+    problema como título do feedback-head e o corpo do tri sem repeti-lo
+    (`_tri(..., mostra_problema=False)`). Um bloqueio sobre o qual se decide não é
+    informação, é item de decisão — mesmo desenho do `item`, com a profundidade do tri.
+    [confirmado — `visual_page.py:r_tri`]
   - **`_plural()` existe DUAS vezes** — `visual_page.py:90` e `plan_state.py:727`, mesma
     assinatura, 2 linhas cada [confirmado — `grep -rn '^def _plural' --include='*.py' plugins/`
     devolve exatamente esses dois neste run]. Não é descuido: importar `plan_state` inteiro por
