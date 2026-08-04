@@ -1,6 +1,6 @@
 ---
 generated: 2026-08-04
-generated-commit: a1e3e10
+generated-commit: 72e62c5
 project: pedro-plugins
 scope:
   - .claude/hooks/release-gate.sh
@@ -52,7 +52,7 @@ verified-by:
   - plugins/slides/lib/test_md2deck.py
   - scripts/sync-shared.sh
   - scripts/hook_contract.py
-doc-sig: pedro-plugins/release-gate.sh@gen=3.8#19c633fb
+doc-sig: pedro-plugins/release-gate.sh@gen=3.8#388f027b
 ---
 
 # Patterns & Gotchas
