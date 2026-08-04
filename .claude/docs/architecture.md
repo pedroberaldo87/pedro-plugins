@@ -108,18 +108,19 @@ na instalação. [confirmado — cabeçalho de `scripts/sync-shared.sh`]
 Comandos re-executados agora, na árvore de trabalho sobre `2587006`:
 
 ```bash
-ls -1d plugins/*/ | wc -l                            # 19
-ls -1 plugins/*/.claude-plugin/plugin.json | wc -l   # 19
+ls -1d plugins/*/ | wc -l                            # 20
+ls -1 plugins/*/.claude-plugin/plugin.json | wc -l   # 20
 ls -1 plugins/*/skills/*/SKILL.md | wc -l            # 21
 ls -1 plugins/*/hooks/hooks.json | wc -l             # 11
 find plugins -path '*/lib/*.py' | wc -l              # 47
-python3 -c "import json;print(len(json.load(open('.claude-plugin/marketplace.json'))['plugins']))"   # 19
+python3 -c "import json;print(len(json.load(open('.claude-plugin/marketplace.json'))['plugins']))"   # 20
 ```
 
-- **19 diretórios de plugin · 19 manifestos · 19 entradas no catálogo · 21 skills ·
+- **20 diretórios de plugin · 20 manifestos · 20 entradas no catálogo · 21 skills ·
   **11** plugins com hooks · 47 arquivos `.py` em `lib/`.** [confirmado — os seis comandos
-  re-rodados nesta passada de `/doc-touch`; **os dois que mudaram foram o de `hooks.json`,
-  de 10 para 11, e o de `lib/`, de 32 para 47**.]
+  re-rodados nesta passada de `/doc-touch`; **o que mudou foram o de diretórios, o de
+  manifestos e o de catálogo, de 19 para 20** — o `vision` entrou nos três —, e `skills`,
+  `hooks.json` e `lib/` ficaram em 21, 11 e 47.]
   ⚠️ **O salto de 15 arquivos em `lib/` é quase todo CÓPIA, não código novo**: **9** deles
   são a mesma `regua_texto.py` vendorada, uma por plugin que emite texto (§7). Contar
   `lib/*.py` mede o vendoring junto com o código — a medida de código próprio é
@@ -128,11 +129,12 @@ python3 -c "import json;print(len(json.load(open('.claude-plugin/marketplace.jso
   distintos** [confirmado — varredura própria dos 11 `plugins/*/hooks/hooks.json` neste run,
   e `python3 scripts/hook_contract.py` imprime a mesma medida: *"Contrato dos hooks — 38
   registros, 37 scripts distintos"*].
-- 21 skills em 19 plugins porque **`graphify-guard` não tem `skills/` nenhum** (é 100% hook —
-  o glob `plugins/graphify-guard/skills/*/` não casa nada) e **`project-doc` tem quatro**
-  (`design-md`, `doc-touch`, `project-doc`, `start-doc`).
+- 21 skills em 20 plugins porque **`graphify-guard` e `vision` não têm `skills/` nenhum**
+  (o primeiro é 100% hook, o segundo 100% MCP — o glob `plugins/<nome>/skills/*/` não casa
+  nada em nenhum dos dois) e **`project-doc` tem quatro** (`design-md`, `doc-touch`,
+  `project-doc`, `start-doc`).
 - Régua de fronteira: **quem manda é `marketplace.json`, não `ls plugins/`**. Diretório fora
-  do catálogo não é plugin distribuído. Hoje os dois lados batem — 19 × 19, e o
+  do catálogo não é plugin distribuído. Hoje os dois lados batem — 20 × 20, e o
   `conformance.py:check_catalogo` existe justamente pra acusar quando divergirem (§10.2).
 - Linguagens: Markdown (as skills), Bash (hooks), Python 3 **stdlib-only**, Node stdlib
   (um daemon, `plugins/visual/server/visual_server.mjs`), JS vendorado de terceiro
@@ -143,7 +145,7 @@ python3 -c "import json;print(len(json.load(open('.claude-plugin/marketplace.jso
 
 ```
 .claude-plugin/marketplace.json   catálogo único — nome, source, version, tags, category
-plugins/<nome>/                   19 dirs, todos catalogados
+plugins/<nome>/                   20 dirs, todos catalogados
 _shared/                          fonte-da-verdade do código compartilhado (6 arquivos)
 scripts/sync-shared.sh            o "build": vendora _shared/ → 19 cópias em 14 pastas
 scripts/hook_contract.py          mede o contrato dos 38 registros de hook (§11)
@@ -206,6 +208,7 @@ plugins/<nome>/
 ├── hooks/hooks.json              OBRIGATÓRIO estar em hooks/ — na raiz é ignorado em silêncio
 │   └── *.sh | *.py               os scripts, referenciados por ${CLAUDE_PLUGIN_ROOT}/hooks/…
 ├── lib/*.py                      motor Python stdlib
+├── .mcp.json                     MCP server stdio (só vision: vision_mcp.py na raiz, sem skills)
 ├── config/                       dados versionados (só bootstrap: manifest.json,
 │                                 settings-defaults.json, CLAUDE-global.md)
 ├── output-styles/*.md            output style distribuído pelo plugin (só bootstrap)
@@ -238,7 +241,7 @@ variável — `$CLAUDE_PROJECT_DIR` — porque não é um plugin [copiado litera
   { "type": "command", "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/release-gate.sh", "timeout": 60 } ] } ] } }
 ```
 
-## 5. Catálogo dos 19 plugins distribuídos
+## 5. Catálogo dos 20 plugins distribuídos
 
 Gerado neste run com:
 
@@ -254,7 +257,7 @@ Saída desta rodada (nome · versão · skills · tem hook):
 
 ```
 archify         2.11.0  [archify]                                        -
-bootstrap       1.10.0  [setup]                                          HOOKS
+bootstrap       1.10.1  [setup]                                          HOOKS
 branches         1.3.0  [branches]                                       HOOKS
 context-guard    1.3.4  [setup]                                          HOOKS
 fallow           1.2.0  [fallow]                                         -
@@ -267,27 +270,28 @@ improve          1.0.3  [improve]                                        -
 intent-guard     0.6.0  [intent-guard]                                   HOOKS
 principles       1.0.3  [principles]                                     -
 project-doc     3.21.0  [design-md, doc-touch, project-doc, start-doc]   HOOKS
-qa-loop          1.8.2  [qa-loop]                                        -
+qa-loop          1.8.3  [qa-loop]                                        -
 ship             1.4.0  [ship]                                           HOOKS
 slides           1.5.0  [slides]                                         -
-sovai           1.11.3  [sovai]                                          HOOKS
-visual          1.19.1  [visual]                                         HOOKS
+sovai           1.11.4  [sovai]                                          HOOKS
+vision          0.1.0  [] (sem skills)                                   -
+visual          1.19.3  [visual]                                         HOOKS
 ```
 
-**Treze dos 19 plugins foram bumpados nos dois commits desta rodada** — `bootstrap`,
-`branches`, `fallow`, `graphify-guard`, `grill-me`, `grill-with-docs`, `guardrails`,
-`project-doc`, `qa-loop`, `ship`, `slides`, `sovai` e `visual` [confirmado —
-`git diff --name-only … -- 'plugins/*/.claude-plugin/plugin.json'` devolve 13 caminhos].
-Em **9** deles o bump não veio de código próprio: veio da cópia vendorada de
-`regua_texto.py`, a régua de forma que saiu do `visual_page.py` e virou `_shared/` (§7).
+**Esta rodada levou o catálogo de 19 para 20 plugins**: nasceu o `vision` (0.1.0) e bumpou
+`bootstrap` (1.10.0 → 1.10.1) e `visual` (1.19.2 → 1.19.3) [confirmado — `git diff 19ef604
+--name-only -- 'plugins/*/.claude-plugin/plugin.json'` devolve os 3 caminhos]. A rodada que
+gerou este doc bumpou 13 dos 19 plugins de então, e em **9** deles o bump não veio de código
+próprio: veio da cópia vendorada de `regua_texto.py`, a régua de forma que saiu do
+`visual_page.py` e virou `_shared/` (§7).
 
 ⚠️ **Vendorar código compartilhado tem um custo de release que não é óbvio**: a cópia mora
 DENTRO do plugin, então mexer em `_shared/` não é uma publicação — são N. Cada consumidor
 precisa de bump próprio, senão o cliente segue com a régua velha.
 
-As 19 versões batem com o campo `version` da entrada correspondente em
+As 20 versões batem com o campo `version` da entrada correspondente em
 `.claude-plugin/marketplace.json` [confirmado — comparação mecânica das duas fontes rodada
-nesta sessão: `OK 19 entradas`, nenhum `MISMATCH`. É o mesmo par que o gate B+C do
+nesta sessão: `OK 20 entradas`, nenhum `MISMATCH`. É o mesmo par que o gate B+C do
 `release-gate.sh` checa].
 
 Terceiros vendorados como plugin próprio: `grill-me` e `grill-with-docs` declaram
@@ -1091,7 +1095,7 @@ Os marketplaces declarados, com quantos plugins cada um traz e quais nascem **de
 [derivado mecanicamente do arquivo neste run]:
 
 ```
-pedro-plugins             19 plugins   desligados: graphify-guard, intent-guard
+pedro-plugins             20 plugins   desligados: graphify-guard, intent-guard
 agent-browser              1
 claude-hud                 1
 claude-plugins-official   14 plugins   desligados: claude-md-management, explanatory-output-style,
@@ -1102,7 +1106,7 @@ ponytail                   1
 voltagent-subagents       10 plugins   TODOS desligados
 ```
 
-O próprio `pedro-plugins` é o **primeiro** item de `.marketplaces` e declara os 19 plugins um a
+O próprio `pedro-plugins` é o **primeiro** item de `.marketplaces` e declara os 20 plugins um a
 um — é isso que o `check_catalogo` compara contra o `marketplace.json` (§10.2).
 
 ### 10.1 Dependência externa de plugin — a terceira categoria do manifest

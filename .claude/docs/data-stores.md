@@ -398,6 +398,14 @@ Depósito **novo nesta rodada**, irmão do B8 e deliberadamente diferente dele: 
 - **Por que o log é o ativo:** a detecção é lexical e o teto é conhecido — promessa escrita fora dos padrões passa batido. O `batidas.log` é o único jeito de medir se o léxico está largo ou estreito demais, e de auditar falso positivo depois do fato.
 - ⚠️ **Nenhum verificador o lê ainda.** Diferente do `forma-relato`, que o `conformance.py` cobra em duas checagens, este log nasce sem par: se o hook parar de rodar, nada acusa.
 
+### B12 · `~/.claude/vision.json` — o endpoint do servidor de visão
+
+- **Nasceu em 2026-08-03** com o plugin `vision` (commit `4a4b59d`, v0.1.0). **112 bytes**, um arquivo único. [confirmado — `ls -la` + conteúdo lido]
+- **Escrito à mão por quem instala — o plugin só lê.** `plugins/vision/vision_mcp.py:26` fixa `CONFIG_PATH = os.path.expanduser("~/.claude/vision.json")`, e `_config()` o consulta como **segunda fonte**: as env vars `QWEN_BASE`/`QWEN_MODEL`/`QWEN_TIMEOUT` vêm primeiro; o arquivo preenche o que faltar; e sem os dois a tool falha com a mensagem *"servidor de visão não configurado… crie ~/.claude/vision.json"*. [confirmado no corpo]
+- ⚠️ **Caminho fixo, ignora `CLAUDE_CONFIG_DIR` por construção** — mesmo traço do `visual-state` (B2). `os.path.expanduser("~/.claude/…")` não consulta a env var, então numa máquina com `CLAUDE_CONFIG_DIR` setado o plugin leria uma pasta e o usuário escreveria noutra.
+- **Não é dado do marketplace — é infraestrutura privada de quem instala.** O cabeçalho do script é explícito: *"O ENDPOINT NÃO vive neste arquivo — ele é infraestrutura privada de quem instala"* e *"nunca um endpoint chutado"*. Chaves no disco hoje: `base` (endpoint do servidor VL privado), `model`, `timeout`.
+- **Natureza: config local, reconstruível à mão.** Perder o arquivo não perde conhecimento acumulado — perde o endereço do servidor, e o efeito é a tool `see_image` parar até alguém redigitar a config. Mesma classe do `config.json` do `/visual` (B2), com uma diferença: **não há semente versionada** — o default do `/visual` sobe no repo (`config.default.json`), o endpoint do servidor VL não sai de comando nenhum.
+
 ---
 
 ## (C) Dentro do repo, mas gitignorado — some se a máquina sumir
@@ -735,6 +743,7 @@ _shared/r8-tiers.json                 2,9K · rastreado — o valor volta com o 
 .claude/hook-contract.baseline.json   1 comando — mas o JULGAMENTO das isenções não volta
 graphify-out/                         graphify update . --force (AST, sem LLM)
 plugins/bootstrap/config/manifest.json  regenerado no SessionStart, MENOS as chaves manuais
+~/.claude/vision.json                  config do servidor VL — redigitar à mão, sem semente
 ```
 
 **Descartável por desenho:**

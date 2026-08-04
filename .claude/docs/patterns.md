@@ -681,6 +681,34 @@ O que sobra é derivação, não disciplina:
 
 **O que fica declaradamente fora do alcance:** omissão total de um item. Nenhum validador de página pega o que nunca entrou nela — colapso sempre foi o vetor secundário. Onde existe fonte estruturada (o registro do `/qa-loop`) dá pra cruzar contagem; onde não existe, o vetor está escrito no `quality-goals.md` em vez de fingido.
 
+### 2.8a O discriminador `.tri` vs `.decision-card`: a pergunta que muda a ação manda
+
+**Emenda no `plugins/visual/skills/visual/SKILL.md` (não commitada nesta rodada)** [confirmado — li o diff do working tree]: a tabela "What to render" mandava *"Diagnostic → cada item em `.tri`"* sem ressalva, e a regra *"Max 1 main decision"* foi lida como **teto total** — resultado medido: **3 pontos de decisão saíram como `.tri`** num relatório do sovai [relatado — texto da própria emenda]. O discriminador operacional que a emenda introduz:
+
+- Item carrega **pergunta cuja resposta muda a próxima ação** de quem lê ("mantém as capas ou reverte?", "prova em tela ou descreve a falha?") → **`.decision-card`**, com as opções autorais.
+- Item **só informa** uma pendência ou risco, sem resposta que mude o que fazer em seguida ("o total está em caixa preta", "a procedência é desconhecida") → **`.tri`**.
+- **O teste é a existência da escolha, não a confiança nela** — *"na dúvida, se há uma pergunta com resposta que altera a ação, vire decision-card — cair no tri por 'não ter certeza' foi o defeito medido"* [confirmado — citação literal da emenda].
+
+E a hierarquia 1 corrige a outra leitura: **"Max 1 main decision" é teto de POSIÇÃO, não de quantidade** — só uma decisão dominante no topo; sub-decisões adicionais têm os próprios cards abaixo [confirmado — emenda].
+
+**Régua durável: regra de render em tabela precisa da RESSALVA que diz quando a linha não vale — a tabela "Diagnostic → cada item em `.tri`" sem a exceção virou o caminho preferido do modelo, e teto lido como total rebaixou escolha a `.tri`.**
+
+### 2.9 Plugin que expõe MCP server: `.mcp.json` na raiz, endpoint fora do repo
+
+**Padrão novo com o `vision` (v0.1.0, commit `4a4b59d`)** [confirmado — li `plugins/vision/` por inteiro]: um plugin pode entregar **tools MCP ao Claude sem hooks e sem skill** — só o `.mcp.json` na **raiz** do plugin:
+
+```json
+{"mcpServers": {"vision": {"type": "stdio",
+  "command": "python3",
+  "args": ["${CLAUDE_PLUGIN_ROOT}/vision_mcp.py"]}}}
+```
+
+- **`${CLAUDE_PLUGIN_ROOT}` resolve pro cache do plugin instalado** — o mesmo placeholder que os hooks usam; nunca um caminho do repo.
+- **O server é stdlib puro** (`base64`, `json`, `os`, `sys`, `urllib`), coerente com o §2.1 — transporte MCP stdio = JSON-RPC 2.0 newline-delimited no stdin/stdout [confirmado — `vision_mcp.py:main`].
+- **O endpoint NÃO mora no arquivo** [confirmado — `vision_mcp.py:_config`, citação literal da docstring]: *"O ENDPOINT NÃO vive neste arquivo — ele é infraestrutura privada de quem instala."* Cascata: env `QWEN_BASE`/`QWEN_MODEL`/`QWEN_TIMEOUT` → `~/.claude/vision.json` (`{"base":…, "model":…}`) → **falha com mensagem clara pedindo a config — nunca um endpoint chutado**.
+
+**Régua durável: integração que depende de infra privada de quem instala deixa o endpoint como DADO de config (env ou `~/.claude/`), nunca literal no repo público — e a ausência vira mensagem que ensina a configurar, não fallback que inventa.**
+
 ---
 
 ## 3 · Vendoring de `_shared/` (o único "build")
@@ -770,11 +798,11 @@ Consumidores declarados no próprio cabeçalho: *"Fase Gate do qa-loop (grava), 
 4. **Rode as suites do plugin tocado** (§6) — os checks D e F do release-gate fazem isso no commit.
 5. **Plugin novo entra em TRÊS arquivos**: `plugin.json`, `marketplace.json` e `plugins/bootstrap/config/manifest.json`. Catálogo diz *o que existe pra instalar*; receita diz *o que a máquina instala*. Quem cobra é `conformance.py:check_catalogo` [confirmado, li a função], **não** o `release-gate.sh` — então o commit **passa** com a receita desatualizada e o desvio só aparece no próximo `bootstrap:setup`. A docstring nomeia o modo de falha: *"Plugin que entra no catalogo e nao entra na receita nunca chega em maquina nenhuma — e ninguem descobre, porque nada mais compara os dois lados."*
 
-**Estado do catálogo neste run** [confirmado — derivado com `python3` sobre `.claude-plugin/marketplace.json` e sobre os 19 `plugin.json`]: **19** entradas em `plugins`, e o espelho do check B **fecha nas 19** — nenhuma diverge. Dos 19, apenas `grill-me` e `grill-with-docs` trazem chave `author`, e nas duas ela é **objeto**, a forma que o `validate` aceita.
+**Estado do catálogo neste run** [confirmado — derivado com `python3` sobre `.claude-plugin/marketplace.json` e sobre os 20 `plugin.json`]: **20** entradas em `plugins`, e o espelho do check B **fecha nas 20** — nenhuma diverge. Dos 20, apenas `grill-me` e `grill-with-docs` trazem chave `author`, e nas duas ela é **objeto**, a forma que o `validate` aceita.
 
-Versões de hoje [confirmado — derivado dos 19 `plugin.json`; o espelho do check B fecha nas 19, nenhuma diverge]: `archify` 2.11.0 · `bootstrap` 1.10.0 · `branches` 1.3.0 · `context-guard` 1.3.4 · `fallow` 1.2.0 · `graphify-guard` 1.2.0 · `grill-me` 1.1.0 · `grill-with-docs` 1.1.0 · `guardrails` 1.7.0 · `handoff` 1.8.7 · `improve` 1.0.3 · `intent-guard` 0.6.0 · `principles` 1.0.3 · `project-doc` 3.21.0 · `qa-loop` 1.8.2 · `ship` 1.4.0 · `slides` 1.5.0 · `sovai` 1.11.3 · `visual` 1.19.1.
+Versões de hoje [confirmado — derivado dos 20 `plugin.json`; o espelho do check B fecha nas 20, nenhuma diverge]: `archify` 2.11.0 · `bootstrap` 1.10.1 · `branches` 1.3.0 · `context-guard` 1.3.4 · `fallow` 1.2.0 · `graphify-guard` 1.2.0 · `grill-me` 1.1.0 · `grill-with-docs` 1.1.0 · `guardrails` 1.7.0 · `handoff` 1.8.7 · `improve` 1.0.3 · `intent-guard` 0.6.0 · `principles` 1.0.3 · `project-doc` 3.21.0 · `qa-loop` 1.8.3 · `ship` 1.4.0 · `slides` 1.5.0 · `sovai` 1.11.4 · `vision` 0.1.0 · `visual` 1.19.3.
 
-⚠️ **Só `archify` (2.11.0) e `improve` (1.0.3) seguem na versão do commit-raiz `2587006`** — os outros 17 subiram [confirmado — `git diff 2587006 HEAD -- 'plugins/*/.claude-plugin/plugin.json'`]. Não é sinal de qualidade nem de abandono: são os dois plugins que ninguém tocou.
+⚠️ **Só `archify` (2.11.0) e `improve` (1.0.3) seguem na versão do commit-raiz `2587006`** — os outros 18 subiram [confirmado — `git diff 2587006 HEAD -- 'plugins/*/.claude-plugin/plugin.json'`]. Não é sinal de qualidade nem de abandono: são os dois plugins que ninguém tocou.
 
 🔴 **A regra 1 ("bump em TODA mudança") foi contornada 7 vezes nesta rodada, e o gate mecânico que a cobra não reclamou.** Derivado commit a commit: [confirmado]
 
@@ -1027,6 +1055,7 @@ for t in plugins/*/hooks/test_*.sh;               do bash    "$t" || echo "RED: 
 - 🔴 **Hook que EXISTE mas não está no `hooks.json` nunca dispara, e nada acusa.** Medido nesta sessão com o `stop-regua-relato.py`. `validate` passa, não há log, e `claude plugin details` mostra `Hooks (N)` contando **eventos**, não scripts — script novo num evento já povoado não mexe no N. Prove pelo `hooks.json`, nunca pela existência do arquivo (§1.17).
 - ⚠️ **Suíte `hooks/test_*.py` não é rodada por check nenhum** — o D varre `lib/*.py` e o F varre `hooks/*.sh`. Duas suítes vivem nesse vão hoje (§6).
 - ⚠️ **Hook novo não entra na sessão em curso.** `stop-prose-ceiling.py` registra o teto no topo: *"como todo hook de plugin, so carrega no SessionStart, entao sessao ja aberta no momento da instalacao fica descoberta ate o proximo /clear"* [confirmado].
+- ⚠️ **MCP tools só entram no catálogo em SESSÃO NOVA** [relatado — medição reportada nesta rodada, não reproduzida aqui]. Igual ao hook acima: o `vision` expõe `see_image` via `.mcp.json` (§2.9), mas adicionar/recarregar o MCP no meio da sessão conecta o servidor sem pôr a tool na lista do modelo — o Claude tenta `Read`, falha e desiste. Precisa de sessão nova.
 - ⚠️ **`exit 0` + stderr é mudo em PreToolUse/PostToolUse.** Use JSON no stdout (§1.2).
 - ⚠️ **Estado global entre sessões é bug, não simplificação.** Já mordeu o context-guard e o scope-cop; os dois consertos são o mesmo (§1.5).
 - ⚠️ **Nunca canonicalize path na chave de um sentinel** (§1.6).
