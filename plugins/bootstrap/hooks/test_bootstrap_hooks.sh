@@ -355,7 +355,7 @@ if command -v jq >/dev/null 2>&1; then
   SNAP2="$(na_maquina_falsa "$REPO3" "$SNAPSHOT" 2>/dev/null)"
   MKT='.marketplaces[] | select(.name=="pedro-plugins")'
   check "1a rodada reescreve" "changed" "$SNAP1"
-  check "pedro-plugins continua com 19 plugins" 19 "$(jq "[$MKT | .plugins[]] | length" "$MF3")"
+  check "pedro-plugins continua com 20 plugins" 20 "$(jq "[$MKT | .plugins[]] | length" "$MF3")"
   check "graphify-guard continua desligado" "false" \
     "$(jq -r "$MKT | .plugins[] | select(.name==\"graphify-guard\") | .enabled" "$MF3")"
   check "intent-guard continua desligado" "false" \

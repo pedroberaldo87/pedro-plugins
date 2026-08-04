@@ -82,6 +82,10 @@
         {
           "name": "visual",
           "enabled": true
+        },
+        {
+          "name": "vision",
+          "enabled": true
         }
       ]
     },
