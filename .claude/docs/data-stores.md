@@ -1,6 +1,6 @@
 ---
 generated: 2026-08-04
-generated-commit: a1e3e10
+generated-commit: cf642e4
 project: pedro-plugins
 scope:
   - .gitignore
