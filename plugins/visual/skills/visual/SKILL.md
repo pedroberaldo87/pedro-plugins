@@ -7,6 +7,52 @@ description: Use when the user invokes `/visual` (with or without flags like `-a
 
 Turn walls of CLI text into a scannable HTML surface. Dark theme, opens in browser.
 
+## Passo 0 — INEGOCIÁVEL: leia as lições, e faça o juiz ler a página
+
+Você **não é juiz confiável da clareza da própria página.** Isso foi medido, duas vezes na
+mesma sessão (2026-08-06): a primeira versão pediu decisão sobre quatro peças sem mostrar
+nenhuma delas — *"você só me pediu pra decidir coisa com base em bola de cristal"* —, e a
+segunda, escrita para consertar a primeira, empilhou referência sobre referência — *"uma
+coisa recursiva a outra, recursiva a outra, e num português filho da puta de
+incompreensível"*. Nas duas você tinha lido e concluído que estava claro.
+
+Daí as duas metades, e **as duas são obrigatórias**:
+
+**(a) ANTES de escrever o spec, leia o banco de lições:**
+
+```bash
+python3 ${CLAUDE_PLUGIN_ROOT}/lib/clareza.py licoes
+```
+
+São os erros que um leitor externo já reprovou nas suas páginas, cada um com a regra que
+o impede e o teste que você aplica sozinho. Os termos marcados como recusados o
+`visual_page.py build` **rejeita** — o resto é julgamento seu, e é onde você erra.
+
+**(b) DEPOIS de construir e ANTES do `open`, mande um juiz ler.** Um subagente **Haiku**
+(barato de propósito), com esta instrução: *você é uma criança de 5 anos esperta, não sabe
+nada de programação, nunca viu esta conversa, e só tem esta página.* Para **cada** decisão
+ele responde: o que estou sendo pedido para escolher · qual a diferença entre as opções ·
+**ENTENDI ou PERDIDO**, e qual palavra exata o perdeu.
+
+- Qualquer **PERDIDO** ⇒ a página **não abre**. Conserte e mande de volta ao mesmo juiz.
+- Termo técnico não explicado ali mesmo ⇒ PERDIDO, mesmo com o resto bom.
+- Escolha que exige saber algo que não está na própria página ⇒ PERDIDO.
+
+**(c) Aprovou? Registre o que ele ensinou**, para o erro não voltar na página seguinte:
+
+```bash
+python3 ${CLAUDE_PLUGIN_ROOT}/lib/clareza.py registrar --json licoes-novas.json
+```
+
+Peça ao juiz, junto do veredito, os **padrões** por trás dos erros (não os erros um a um):
+`{"licoes": [{"id": "...", "nome": "...", "erro": "...", "regra": "...", "teste": "...",
+"banido": ["..."]}]}`. Em `banido` entra **só o que é jargão seu ou palavra de dois
+sentidos** — termo que o dono usa no dia a dia vira regra de julgamento, não recusa
+automática, senão o gate começa a reprovar o vocabulário dele.
+
+Sem (a) o juiz reprova o mesmo erro toda vez. Sem (b) ninguém pega o erro que ainda não
+está no banco. Sem (c) o veredito morre no chat. Suíte: `python3 lib/test_clareza.py`.
+
 ## Mostrar, não descrever — a regra que manda em todas as outras
 
 A página **carrega a prova, não o relato da prova.** O usuário tem que ver na própria página as mesmas coisas que você olhou quando formou a conclusão. Dito do lado de quem decide:
@@ -816,13 +862,16 @@ Critical behavior when the hook blocks:
 
 ## Workflow when invoked
 
-1. Identify source content (last message, plan file, explicit content)
-2. Detect type (plan / diagnostic / question with options / generic)
-3. **Plano/PRD/roadmap → `plan_state.py`** (seção do plano). **Todo o resto → escreva o
+1. **`clareza.py licoes`** — os erros que já reprovaram antes (Passo 0a, inegociável)
+2. Identify source content (last message, plan file, explicit content)
+3. Detect type (plan / diagnostic / question with options / generic)
+4. **Plano/PRD/roadmap → `plan_state.py`** (seção do plano). **Todo o resto → escreva o
    spec JSON** e rode `python3 ${CLAUDE_PLUGIN_ROOT}/lib/visual_page.py build --spec <f>`
    — ele resolve o diretório, nomeia o arquivo pelo `slug` e imprime o caminho
-4. Recusou? A mensagem lista todos os erros de forma de uma vez. Conserte o spec, não o HTML
-5. Suba o daemon (`${CLAUDE_PLUGIN_ROOT}/server/start.sh`) e `open` o caminho impresso
-6. Tell the user in 1-2 lines: "Abri no browser: `<path>`"
+5. Recusou? A mensagem lista todos os erros de forma de uma vez. Conserte o spec, não o HTML
+6. **Juiz de clareza (Haiku) lê a página** (Passo 0b). Qualquer PERDIDO ⇒ conserte e repita
+7. Suba o daemon (`${CLAUDE_PLUGIN_ROOT}/server/start.sh`) e `open` o caminho impresso
+8. **`clareza.py registrar`** com os padrões que o juiz apontou (Passo 0c)
+9. Tell the user in 1-2 lines: "Abri no browser: `<path>`"
 
 Never render and then text-dump the same content in the CLI response. The whole point is: HTML replaces the textão, doesn't duplicate it.
