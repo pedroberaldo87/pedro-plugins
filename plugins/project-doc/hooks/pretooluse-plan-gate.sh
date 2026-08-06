@@ -18,7 +18,10 @@
 #   Antes de B/C, duas recusas sobre o ACORDO (plano "a constituição se cumpre",
 #   F3.2 e F5.3) — ter doc não é ter acordo, e era aqui que o gate calava:
 #
-#   D) doc existe mas a constituição do PROJETO não está fechada -> DENY.
+#   D) doc existe mas as METAS DE QUALIDADE do projeto não estão fechadas -> DENY.
+#      (o nome "constituição" é de `.claude/docs/constituicao.md`, contra o qual os
+#      revisores medem — dois arquivos com o mesmo nome de lei mandam o leitor
+#      abrir o errado, F1.3.)
 #   E) alguma etapa do acordo está em aberto -> DENY, nomeando qual
 #      (arquitetura / interface / jornadas). Vale para projeto novo também: é ele
 #      que tem TODAS as etapas em aberto.
@@ -141,7 +144,7 @@ if [ -z "$LINE" ]; then
 fi
 
 # ============ CASO D/E — a doc existe, o ACORDO é que pode não existir ============
-# F3.2: a constituição do projeto (`quality-goals.md`) é a régua DESTE projeto —
+# F3.2: as metas de qualidade (`quality-goals.md`) são a régua DESTE projeto —
 #   o que ele prioriza quando não dá pra ter tudo. Sem ela fechada, o caminho que
 #   produz artefato roda sem critério de forma nenhum. Até hoje o gate calava.
 # F5.3: as etapas do acordo (arquitetura → interface → jornadas). Cobradas SEMPRE,
@@ -151,33 +154,89 @@ fi
 #   Quem não quer o regime autoriza pelo escape verbal, que é decisão do usuário.
 # Marca de aprovação: a do contrato autoral (`references/authorial-kit.md`), não uma
 #   nova — `status: approved` no frontmatter e nenhum `[PENDENTE]` no corpo.
+# F2.2: e o `approved-sig:` gravado na aprovação tem que bater com o corpo de agora
+#   (`lib-doc-mark.sh`). Editar depois do de acordo reabre a etapa — o de acordo é
+#   sobre um TEXTO, não sobre um nome de arquivo.
 # ---------------------------------------------------------------------------
 DOCS_DIR="$PROJ/.claude/docs"
+
+# F2.2/S-2: `approved` diz que o dono deu o de acordo, não SOBRE QUAL TEXTO. Sem a
+# marca, editar o corpo depois da aprovação deixava a etapa fechada com um conteúdo
+# que ninguém aprovou. Helper ausente/ilegível é borda de INFRA: a marca deixa de ser
+# cobrada e o resto do gate segue (patterns.md §5.3) — nunca reabrir etapa às cegas.
+if ! . "$SCRIPT_DIR/lib-doc-mark.sh" 2>/dev/null; then
+  doc_marca()            { return 1; }
+  doc_marca_registrada() { return 1; }
+  # Sem o helper não dá pra separar frontmatter de corpo: o arquivo inteiro vira o
+  # corpo, que é o comportamento conservador de antes do F3.2 (cobra o marcador em
+  # qualquer linha) — na dúvida, cobra, nunca fecha etapa às cegas.
+  doc_corpo()            { cat "$1" 2>/dev/null; }
+fi
+
+# divergiu <arquivo> — o corpo de agora não é o que foi aprovado. Falso quando não há
+# marca gravada (documento aprovado antes de a marca existir) e quando não dá pra
+# calcular: os dois são "nada a afirmar", e afirmação sem prova aqui barra projeto sadio.
+divergiu() {
+  _REG=$(doc_marca_registrada "$1" 2>/dev/null)
+  [ -n "$_REG" ] || return 1
+  _AGORA=$(doc_marca "$1" 2>/dev/null)
+  [ -n "$_AGORA" ] || return 1
+  [ "$_REG" != "$_AGORA" ]
+}
 
 # acordado <arquivo> — documento autoral com o de acordo do usuário registrado.
 # `approved`, não `ready`: no contrato autoral `ready` é "escrito" (a própria skill
 # promove sozinha quando o último `[PENDENTE]` sai) e `approved` é "o dono deu o de
 # acordo", que nenhuma máquina escreve por conta própria. Gate de ACORDO cobra o segundo.
+# F3.2: o marcador de lacuna é cobrado no CORPO, não no arquivo inteiro. Corpo com
+# `[PENDENTE]` é etapa não escrita e segue reabrindo. No FRONTMATTER, o mesmo marcador
+# aparece dentro de `correcao-pendente:` — o registro de um ajuste achado DEPOIS do de
+# acordo — e ali ele não derruba a aprovação: a etapa continua valendo no texto que o
+# dono aprovou, e a correção sai contada no aviso, em vez de congelar todo plano até
+# uma nova aprovação.
 acordado() {
   [ -f "$1" ] || return 1
   grep -qi '^status:[[:space:]]*approved' "$1" 2>/dev/null || return 1
-  ! grep -q '\[PENDENTE\]' "$1" 2>/dev/null
+  doc_corpo "$1" | grep -q '\[PENDENTE\]' && return 1
+  ! divergiu "$1"
 }
 
+# correcoes_pendentes <arquivo> — quantas correções o documento declara em aberto.
+# Elas moram no frontmatter porque a marca do de acordo é do CORPO (lib-doc-mark.sh):
+# registrar a correção no corpo mudaria a marca e reabriria a etapa, que é justamente
+# o que o F3.2 tira do caminho.
+correcoes_pendentes() {
+  _N=$(grep -c '^correcao-pendente:[[:space:]]*[^[:space:]]' "$1" 2>/dev/null)
+  [ "$_N" -eq "$_N" ] 2>/dev/null || _N=0
+  printf '%s' "$_N"
+}
+
+# correcao_texto <arquivo> — a primeira correção declarada, para o aviso nomear o que é.
+correcao_texto() {
+  sed -n 's/^correcao-pendente:[[:space:]]*//p' "$1" 2>/dev/null | head -1
+}
+
+# Contagem de correções pendentes (F3.2). Fora do bloco porque o escape verbal pula a
+# apuração inteira, e o aviso lá embaixo lê estas duas variáveis de todo jeito.
+CORR_N=0
+CORR_LISTA=""
+
 if [ ! -f "$ESCAPE" ]; then
-  # ---- D) constituição do projeto ----
+  # ---- D) metas de qualidade do projeto ----
   if ! acordado "$DOCS_DIR/quality-goals.md"; then
-    if [ -f "$DOCS_DIR/quality-goals.md" ]; then
+    if divergiu "$DOCS_DIR/quality-goals.md"; then
+      QG_WHY="mudou depois do de acordo, e o texto de agora não é o aprovado"
+    elif [ -f "$DOCS_DIR/quality-goals.md" ]; then
       QG_WHY="está em aberto (falta status: approved, ou há [PENDENTE] no corpo)"
     else
       QG_WHY="não existe"
     fi
     # A mensagem sai no perfil "hook" da régua (_shared/regua_texto.py): cabeçalho com
     # emoji, bullets de uma frase, sem markdown — o canal não renderiza crase nem `**`.
-    MSG="📐 Plano barrado: a constituição deste projeto não está acordada.
+    MSG="📐 Plano barrado: as metas de qualidade deste projeto não estão acordadas.
 • .claude/docs/quality-goals.md ${QG_WHY}
-• é ela que diz o que este sistema prioriza quando não dá pra ter tudo
-• sem ela o plano nasce sem régua, e o trade-off vira preferência sua
+• são elas que dizem o que este sistema prioriza quando não dá pra ter tudo
+• sem elas o plano nasce sem régua, e o trade-off vira preferência sua
 • rode /start-doc quality-goals e feche o acordo com o usuário
 • recusa sem cap: o usuário libera com --sem-doc e revoga com --com-doc"
     hj_deny "$MSG"
@@ -198,24 +257,51 @@ if [ ! -f "$ESCAPE" ]; then
 
   ABERTAS=""
   for E in $ETAPAS; do
-    acordado "$DOCS_DIR/${E#*:}.md" || ABERTAS="${ABERTAS}${ABERTAS:+, }${E%%:*} (${E#*:}.md)"
+    acordado "$DOCS_DIR/${E#*:}.md" && continue
+    POR=""
+    divergiu "$DOCS_DIR/${E#*:}.md" && POR=" mudou depois do de acordo"
+    ABERTAS="${ABERTAS}${ABERTAS:+, }${E%%:*} (${E#*:}.md)${POR}"
   done
 
   if [ -n "$ABERTAS" ]; then
     MSG="📐 Plano barrado: o acordo com o usuário tem etapa em aberto.
 • falta fechar: ${ABERTAS}
-• a ordem é constituição, arquitetura, interface, jornadas, e só então o plano
-• cada etapa é um documento autoral com status: approved e sem [PENDENTE]
+• a ordem é metas de qualidade, arquitetura, interface, jornadas, e só então o plano
+• cada etapa é um documento aprovado, sem [PENDENTE], e com o corpo que a aprovação marcou
 • plano sobre jornada não acordada implementa a jornada que VOCÊ imaginou
 • rode /start-doc; recusa sem cap, o usuário libera com --sem-doc"
     hj_deny "$MSG"
     exit 0
   fi
+
+  # ---- F3.2) etapa fechada COM correção pendente — cobra, não trava ----
+  # Correção achada depois do de acordo não derruba a aprovação inteira: a etapa vale
+  # pelo texto aprovado e a pendência vira contagem visível. Sem isto, o único jeito de
+  # registrar um ajuste era reabrir a etapa, e o planejamento congelava até reaprovar.
+  for A in quality-goals $(for E in $ETAPAS; do printf '%s\n' "${E#*:}"; done); do
+    ADOC="$DOCS_DIR/${A}.md"
+    AN=$(correcoes_pendentes "$ADOC")
+    [ "$AN" -gt 0 ] 2>/dev/null || continue
+    CORR_N=$((CORR_N + AN))
+    CORR_LISTA="${CORR_LISTA}
+• ${A}.md: $(correcao_texto "$ADOC")"
+  done
 fi
 
 # ======================= CASO B/C — a doc existe =======================
 SENTINEL="${TMPD}/claude-doc-guard-${SESSION}-${PHASH}"
-[ -f "$SENTINEL" ] && exit 0        # CASO C: já foi lida nesta sessão
+if [ -f "$SENTINEL" ]; then         # CASO C: já foi lida nesta sessão
+  # F3.2: o plano segue, mas não em silêncio quando há correção pendente — ela fica
+  # cobrada em cada plano até ser fechada, que é o preço de não travar o planejamento.
+  if [ "$CORR_N" -gt 0 ] 2>/dev/null; then
+    CORR_TXT="${CORR_N} correções pendentes"
+    [ "$CORR_N" = 1 ] && CORR_TXT="1 correção pendente"
+    hj_msg_ctx PreToolUse "📐 O plano segue, com ${CORR_TXT} em etapa já acordada.${CORR_LISTA}
+• a etapa continua valendo pelo texto aprovado, e a correção fica cobrada até fechar
+• feche cada uma com /start-doc, que reescreve o trecho e regrava o de acordo"
+  fi
+  exit 0
+fi
 
 # CASO B: existe e não foi lida. Cap compartilhado com o doc-guard — o contrato
 # anti-loop do repo é absoluto (o gate degrada, nunca trava de verdade).

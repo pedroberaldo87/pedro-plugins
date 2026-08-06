@@ -545,11 +545,167 @@ def dirty_modules(root, since_date):
             "dirty": dirty_modules_from_changes(root, data or {}, changed)}
 
 
+# ===========================================================================
+# HERANÇA (S-12) — o que um aplicativo DENTRO de um organismo já recebe pronto.
+#
+# Aplicativo novo num organismo não começa do zero: a regra de ouro e os
+# documentos AUTORAIS da raiz já decidiram meta, restrição, fronteira e
+# vocabulário. O engine só resolve o que É herdado — quem apresenta item a item,
+# para MANTER ou MUDAR, é a skill /start-doc.
+#
+# "Escrito de propósito" tem definição estreita, e é ela que separa herança de
+# ruído: doc com `authored-by: human` no frontmatter (a trava do authorial-kit),
+# item que não é molde por preencher (`{...}`) nem lacuna aberta (`[PENDENTE]`).
+# Doc minerada NÃO é herança — descreve o que o código é, não o que foi decidido.
+#
+# Todo item sai com `fonte` = arquivo:linha da raiz, conferível por cite_ok.
+# ===========================================================================
+INHERITED_DOCS = (
+    ("quality-goals.md", "meta-de-qualidade"),
+    ("constraints.md", "restrição"),
+    ("context.md", "fronteira"),
+    ("solution-strategy.md", "decisão-estruturante"),
+    ("glossary.md", "termo"),
+    ("architecture-intent.md", "intenção-de-arquitetura"),
+    ("design.md", "regra-de-interface"),
+    ("journeys.md", "jornada"),
+)
+
+_ITEM_BULLET_RE = re.compile(r"^(?:[-*]|\d+\.)\s+(\S.*?)\s*$")
+_ITEM_HEADING_RE = re.compile(r"^#{3,6}\s+(\S.*?)\s*$")  # ### é item; ## é seção
+_AUTHORAL_RE = re.compile(r"^authored-by:\s*human\s*$", re.MULTILINE)
+_STATUS_RE = re.compile(r"^status:\s*(\S+)\s*$", re.MULTILINE)
+
+
+def _doc_items(abspath, rel, tipo):
+    """Extrai os itens de um doc autoral: (texto, fonte arquivo:linha, status).
+
+    Devolve [] se o doc não for autoral — herdar doc minerada seria herdar o
+    que o código É, não o que alguém DECIDIU."""
+    try:
+        with open(abspath, encoding="utf-8", errors="replace") as fh:
+            lines = fh.read().split("\n")
+    except OSError:
+        return []
+    # fronteira do frontmatter (--- ... ---); fora dele começa o corpo
+    body_start, fm = 0, ""
+    if lines and lines[0].strip() == "---":
+        for n in range(1, len(lines)):
+            if lines[n].strip() == "---":
+                fm = "\n".join(lines[1:n])
+                body_start = n + 1
+                break
+    if not _AUTHORAL_RE.search(fm):
+        return []
+    sm = _STATUS_RE.search(fm)
+    status = sm.group(1) if sm else None
+    out, in_fence = [], False
+    for n in range(body_start, len(lines)):
+        raw = lines[n]
+        if raw.lstrip().startswith("```"):
+            in_fence = not in_fence
+            continue
+        if in_fence or raw.lstrip().startswith(">"):
+            continue
+        m = _ITEM_BULLET_RE.match(raw) or _ITEM_HEADING_RE.match(raw)
+        if not m:
+            continue
+        texto = m.group(1)
+        if "[PENDENTE]" in texto or ("{" in texto and "}" in texto):
+            continue  # molde por preencher / lacuna aberta não foi decidido
+        out.append({
+            "id": "%s-%d" % (os.path.basename(rel).replace(".md", ""), len(out) + 1),
+            "tipo": tipo,
+            "texto": texto,
+            "fonte": "%s:%d" % (rel, n + 1),
+            "doc_status": status,
+        })
+    return out
+
+
+def _golden_rule_item(root, data):
+    """A regra de ouro do organismo, citada na linha do organism.yaml em que ela
+    aparece (num folded scalar, a 1ª linha de conteúdo — a que cite_ok confere)."""
+    regra = " ".join((data.get("golden_rule") or "").split())
+    if not regra:
+        return None
+    path = os.path.join(root, ORGANISM_FILE)
+    try:
+        with open(path, encoding="utf-8", errors="replace") as fh:
+            lines = fh.read().split("\n")
+    except OSError:
+        return None
+    for n, raw in enumerate(lines):
+        if not raw.startswith("golden_rule:"):
+            continue
+        lineno = n + 1
+        if raw.split(":", 1)[1].strip() in (">", "|", ">-", "|-", ">+", "|+"):
+            for k in range(n + 1, len(lines)):  # 1ª linha de conteúdo do bloco
+                if lines[k].strip():
+                    lineno = k + 1
+                    break
+        return {"id": "regra-de-ouro", "tipo": "regra-de-ouro", "texto": regra,
+                "fonte": "%s:%d" % (ORGANISM_FILE.replace(os.sep, "/"), lineno),
+                "doc_status": None}
+    return None
+
+
+def cite_ok(root, item):
+    """A fonte citada mostra mesmo o item? Confere que a linha existe e que ela e
+    o texto do item se contêm (o item é a linha sem o marcador de lista; numa
+    regra dobrada, a linha é um pedaço do texto)."""
+    m = re.match(r"^(.*?):(\d+)$", (item.get("fonte") or "").strip())
+    if not m:
+        return {"valid": False, "reason": "fonte não é arquivo:linha: %r" % item.get("fonte")}
+    fpath, lineno = m.group(1), int(m.group(2))
+    abspath = os.path.join(root, fpath)
+    if not os.path.isfile(abspath):
+        return {"valid": False, "reason": "arquivo não existe: %s" % fpath}
+    try:
+        with open(abspath, encoding="utf-8", errors="replace") as fh:
+            lines = fh.read().split("\n")
+    except OSError as e:
+        return {"valid": False, "reason": "não consegui ler: %s" % e}
+    if lineno < 1 or lineno > len(lines):
+        return {"valid": False, "reason": "linha %d fora de %s" % (lineno, fpath)}
+    line = lines[lineno - 1].strip()
+    texto = item.get("texto") or ""
+    if texto in line or (line and line in texto):
+        return {"valid": True, "reason": "ok: %s:%d mostra o item" % (fpath, lineno)}
+    return {"valid": False, "reason": "linha %d de %s não mostra o item" % (lineno, fpath)}
+
+
+def inherited(start_path):
+    """O que start_path herda do organismo em que está. Fora de organismo, ou na
+    própria raiz (que não herda de si), a lista sai vazia."""
+    root, data = find_organism(start_path)
+    if not root:
+        return {"organism": False, "itens": []}
+    rel = _relpath(root, start_path) or "."
+    modulo = None if rel in (".", "") or rel.startswith("..") else rel.split("/")[0]
+    itens = []
+    if modulo:
+        g = _golden_rule_item(root, data or {})
+        if g:
+            itens.append(g)
+        for nome, tipo in INHERITED_DOCS:
+            ap = os.path.join(root, ".claude", "docs", nome)
+            if os.path.isfile(ap):
+                itens.extend(_doc_items(ap, ".claude/docs/" + nome, tipo))
+    return {"organism": True, "root": root, "name": (data or {}).get("name"),
+            "modulo": modulo, "itens": itens}
+
+
 def main(argv):
     if len(argv) < 2:
-        print(json.dumps({"error": "uso: organism.py <match|marker|brief|census|dirty|verify-cite> ..."}))
+        print(json.dumps({"error": "uso: organism.py <match|marker|brief|census|dirty|inherited|verify-cite> ..."}))
         return 2
     cmd = argv[1]
+
+    if cmd == "inherited":
+        start = argv[2] if len(argv) > 2 else os.getcwd()
+        print(json.dumps(inherited(start), ensure_ascii=False))
+        return 0
 
     if cmd == "census":
         start = argv[2] if len(argv) > 2 else os.getcwd()

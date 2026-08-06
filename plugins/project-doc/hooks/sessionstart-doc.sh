@@ -50,6 +50,15 @@ if [ -z "$LINES" ]; then
     CWD="$PROJ"          # deixa o fluxo normal (abaixo) reportar a doc da raiz
   else
   # ---- a raiz também não tem doc: aí sim a ausência é real ----
+  # F7.4: aqui a oferta da metodologia é o PADRÃO, não uma sugestão que depende
+  # do humor da sessão. Ela só cala quando o usuário disse, com todas as letras,
+  # que não vamos segui-la NESTE projeto — e essa recusa vale para sempre, não
+  # para uma sessão, então mora em ~/.claude/ (dentro do plugin seria cache
+  # reescrito a cada bump) chaveada pela mesma raiz que o gate de plano usa.
+  # Fail-open: HOME ilegível ⇒ a recusa não é vista e a oferta sai de novo —
+  # insistir incomoda, travar a sessão não é opção.
+  RECUSA="${HOME}/.claude/project-doc/sem-metodologia-$(project_hash "$PROJ")"
+  [ -f "$RECUSA" ] && exit 0
   # design.md só entra na conta de quem TEM interface (F2.2) — backend puro, CLI
   # e este marketplace não devem ser cobrados por doc de design que não se aplica.
   AUTORAIS_DOCS="quality-goals constraints context solution-strategy glossary"
@@ -69,13 +78,14 @@ if [ -z "$LINES" ]; then
   [ -z "$NFILES" ] && NFILES=0
 
   if [ "$AUTORAL" -eq 0 ]; then
-    CTX="📐 ${PROJ} não tem documentação nenhuma — sem CLAUDE.md, sem .claude/docs/.\n\nOFEREÇA o \`/start-doc\`: ele entrevista o usuário sobre o que o sistema prioriza, o que é inegociável, onde ele termina, as decisões que explicam o formato e o vocabulário interno. Essa entrevista vem ANTES da mineração — é ela que guia tudo depois, inclusive a sua leitura do código."
+    CTX="📐 ${PROJ} não tem documentação nenhuma — sem CLAUDE.md, sem .claude/docs/.\n\nProjeto novo começa PELA concepção: OFEREÇA o \`/start-doc\`. Ele entrevista o usuário sobre o que o sistema prioriza, o que é inegociável, onde ele termina, as decisões que explicam o formato e o vocabulário interno. Essa entrevista vem ANTES da mineração — é ela que guia tudo depois, inclusive a sua leitura do código.\nSão cinco etapas de acordo, uma de cada vez: o autoral, a arquitetura, a interface (só se houver tela), as jornadas e a lista de funcionalidades. Cada etapa é apresentada numa página com o texto integral à vista, e o de acordo é colhido ALI — não no chat, e nunca sobre um resumo."
     if [ "$NFILES" -gt 0 ]; then
       CTX="${CTX}\nDepois dela, \`/project-doc\` minera o resto (${NFILES} arquivo(s) versionado(s) aqui)."
     else
       CTX="${CTX}\nO projeto ainda não tem código versionado — por ora só o autoral faz sentido; \`/project-doc\` fica pra quando houver o que minerar."
     fi
     CTX="${CTX}\n\n⚠️ O gate de plano BARRA planos neste projeto enquanto não houver doc. Escape só se o usuário disser explicitamente pra ignorar."
+    CTX="${CTX}\nSeguir sem a concepção NÃO é o padrão — só vale se o usuário disser que não vamos segui-la neste projeto. Quando ele disser isso (e só então), grave a recusa e pare de oferecer:\n  mkdir -p \"$(dirname "$RECUSA")\" && touch \"${RECUSA}\"\nPra voltar a oferecer, apague esse arquivo."
   else
     CTX="📐 ${PROJ} tem ${AUTORAL} de ${N_AUTORAIS} documentos autorais, mas nenhum índice CLAUDE.md.\nFalta: ${FALTAM}.\n\nOFEREÇA \`/start-doc\` pra fechar as lacunas e, se houver código, \`/project-doc\` em seguida.\n\n⚠️ O gate de plano BARRA planos aqui enquanto não houver índice."
   fi

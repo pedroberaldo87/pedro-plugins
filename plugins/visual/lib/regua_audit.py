@@ -77,10 +77,13 @@ PERFIS = {
                  "fora": FORA_COMUM},
     # quatro marcas porque a página do /visual mudou de forma: a faixa de
     # identidade é recente, e as páginas de junho só têm os blocos do template.
+    # `doc-integral` é o documento que a página traz por inteiro para que a
+    # aprovação de etapa tenha lastro. Medi-lo em bullets seria mandar cortá-lo —
+    # e é justamente a versão cortada que a trava da aprovação existe para recusar.
     "relatorio": {"nome": "página do /visual",
                   "marcas": ('class="ident-strip', 'class="decision-card',
                              'class="feedback-item', 'class="feedback-box'),
-                  "fora": FORA_COMUM},
+                  "fora": FORA_COMUM + ("doc-integral",)},
 }
 ORDEM_DETECCAO = ("plano", "slides", "fallow", "branches", "relatorio")
 

@@ -6,7 +6,7 @@
 set -euo pipefail
 HERE="$(cd "$(dirname "$0")" && pwd)"
 HOOK="$HERE/sessionstart-doc.sh"
-trap 'rm -rf "${MINERADO:-}" "${COMPLETO:-}" "${VAZIO:-}"; rm -f /tmp/claude-doc-autoral-nudge-*' EXIT
+trap 'rm -rf "${MINERADO:-}" "${COMPLETO:-}" "${VAZIO:-}" "${NOVO:-}" "${FAKEHOME:-}"; rm -f /tmp/claude-doc-autoral-nudge-*' EXIT
 
 mkin() { python3 -c 'import json,sys; print(json.dumps({"cwd":sys.argv[1],"session_id":sys.argv[2]}))' "$@"; }
 ctx() { python3 -c 'import json,sys; print(json.load(sys.stdin)["hookSpecificOutput"]["additionalContext"])'; }
@@ -109,4 +109,37 @@ rm -rf "$HOOKDIR"
 echo "8. sem lib-has-frontend: hook não emudece, só perde design: OK"
 
 rm -rf "$FRONTEND"
+
+# --- F7.4: a oferta da metodologia é o PADRÃO de projeto novo -----------------
+# Fixtures novas em vez de reusar o VAZIO: estes casos escrevem a recusa dentro
+# de um HOME de mentira, e sujar o HOME real da máquina que roda a suíte não é
+# opção. O HOME sobrescrito também mantém a subida do project_root intacta —
+# as fixtures moram em /tmp, fora dele.
+NOVO="$(mktemp -d /tmp/pd-ck-novo-XXXXXX)"
+git -C "$NOVO" init -q
+FAKEHOME="$(mktemp -d /tmp/pd-ck-home-XXXXXX)"
+RECUSA="$FAKEHOME/.claude/project-doc/sem-metodologia-$(printf '%s' "$NOVO" | cksum | cut -d' ' -f1)"
+
+# 9. projeto novo, nada recusado → a oferta sai por padrão, contando CINCO etapas
+#    e mandando colher o de acordo na página (F7.1), não no chat.
+OUT="$(mkin "$NOVO" sess-novo | HOME="$FAKEHOME" bash "$HOOK")"
+ctxq "$OUT" "/start-doc"
+ctxq "$OUT" "cinco etapas"
+ctxq "$OUT" "página"
+echo "9. projeto novo recebe a oferta por padrão (cinco etapas, de acordo na página): OK"
+
+# 10. recusa explícita gravada → cala, e cala em QUALQUER sessão (a recusa é do
+#     projeto, não da sessão: o usuário não repete a frase a cada /clear).
+mkdir -p "$(dirname "$RECUSA")"
+: > "$RECUSA"
+OUT="$(mkin "$NOVO" sess-novo-2 | HOME="$FAKEHOME" bash "$HOOK")"
+[ -z "$OUT" ]
+echo "10. recusa explícita cala a oferta, em sessão nova: OK"
+
+# 11. recusa apagada → a oferta volta (a recusa é reversível, não uma via só)
+rm -f "$RECUSA"
+OUT="$(mkin "$NOVO" sess-novo-3 | HOME="$FAKEHOME" bash "$HOOK")"
+ctxq "$OUT" "cinco etapas"
+echo "11. apagar a recusa devolve a oferta: OK"
+
 echo "test_sessionstart_doc: OK"

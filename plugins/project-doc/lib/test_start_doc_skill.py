@@ -27,12 +27,13 @@ GRILL_ME = os.path.join(RAIZ_PLUGINS, "grill-me", "skills", "grill-me", "SKILL.m
 GRILL_DOCS = os.path.join(RAIZ_PLUGINS, "grill-with-docs", "skills",
                           "grill-with-docs", "SKILL.md")
 
-# Os quatro documentos de etapa, na ordem em que as etapas fecham.
+# Os documentos de etapa, na ordem em que as etapas fecham.
 ETAPAS = [
     ("autoral", "quality-goals.md"),
     ("arquitetura", "architecture-intent.md"),
     ("interface", "design.md"),
     ("jornadas", "journeys.md"),
+    ("funcionalidades", "features.md"),
 ]
 
 FAILS = []
@@ -71,7 +72,7 @@ def main():
     skill = ler(SKILL)
     design = ler(DESIGN)
 
-    print("o kit define as quatro etapas, na ordem, com documento proprio")
+    print("o kit define as etapas de acordo, na ordem, com documento proprio")
     check("as quatro etapas aparecem na ordem autoral, arquitetura, interface, jornadas",
           em_ordem(kit, ["**Acordo autoral**", "**Acordo de arquitetura**",
                          "**Acordo de interface**", "**Acordo de jornadas**"]))
@@ -87,6 +88,23 @@ def main():
     check("os dois documentos novos trazem roteiro e molde",
           kit.count("**Roteiro:**") >= 7 and kit.count("**Molde:**") >= 6)
 
+    print("a entrevista termina produzindo a lista de funcionalidades, aprovada")
+    check("a etapa de funcionalidades entra na tabela, depois das quatro",
+          em_ordem(kit, ["**Acordo autoral**", "**Acordo de arquitetura**",
+                         "**Acordo de interface**", "**Acordo de jornadas**",
+                         "**Acordo de funcionalidades**"]))
+    check("a lista e derivada do que ja foi aprovado nas etapas anteriores",
+          "derivada do que já foi aprovado" in kit)
+    check("a etapa de funcionalidades tem roteiro e molde proprios",
+          kit.count("**Roteiro:**") >= 9 and kit.count("**Molde:**") >= 9)
+    check("a lista so fecha com o de acordo do dono, como as outras",
+          "A skill propõe, o dono decide" in kit
+          and "A skill propõe, o dono decide" in skill)
+    check("a skill aceita `features` como documento avulso",
+          "`features`" in skill)
+    check("a tabela de etapas da skill tem a linha de funcionalidades",
+          "**Funcionalidades**" in skill)
+
     print("o de acordo fica gravado DENTRO do documento")
     check("o frontmatter do contrato tem o campo approved:",
           "approved: {YYYY-MM-DD}" in kit)
@@ -98,6 +116,16 @@ def main():
           "Silêncio não é aprovação" in kit and "Silêncio não é aprovação" in skill)
     check("o design.md carrega o mesmo par por cima dos tokens",
           "`status:` / `approved:` entra **por cima** dos tokens" in kit)
+
+    print("etapa aprovada aceita correcao pendente sem reabrir (F3.2)")
+    check("o frontmatter do contrato tem o campo correcao-pendente:",
+          "correcao-pendente: {" in kit)
+    check("a correcao pendente vive no frontmatter, nunca no corpo",
+          "no frontmatter, nunca no corpo" in kit)
+    check("o kit diz que a correcao pendente nao reabre a etapa",
+          "não reabre a etapa" in kit)
+    check("a skill manda registrar a correcao em vez de reabrir a etapa",
+          "correcao-pendente:" in skill and "não reabra a etapa" in skill)
 
     print("a etapa so fecha depois de apresentar e REAPRESENTAR")
     check("o kit manda apresentar o documento inteiro, nao um resumo",
@@ -155,8 +183,8 @@ def main():
     else:
         for nome, caminho in (("grill-me", GRILL_ME), ("grill-with-docs", GRILL_DOCS)):
             texto = ler(caminho)
-            check("%s: sabe que e chamada pelas quatro etapas do /start-doc" % nome,
-                  "quatro etapas de acordo" in texto and "/start-doc" in texto)
+            check("%s: sabe que e chamada pelas cinco etapas do /start-doc" % nome,
+                  "cinco etapas de acordo" in texto and "/start-doc" in texto)
             check("%s: nega o papel de juiz e devolve a aprovacao ao dono" % nome,
                   "Você não é juiz" in texto and "Quem aprova é o dono" in texto)
 

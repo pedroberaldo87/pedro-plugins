@@ -53,6 +53,10 @@ N_PROMPT_SPEC="o motor passa a spec no prompt do revisor"
 N_FILTRO_SPEC="o script segura o gap de spec no filtro"
 N_KIND_SPEC="o schema declara o kind 'spec'"
 N_DECOMP_CAMPOS="a tarefa carrega requisito e pronto"
+N_LEI_MARCA="o motor congela a marca da lei na 1ª volta"
+N_LEI_AVISO="lei trocada no meio da missão vira aviso, nunca troca calada"
+N_CONCEP_KIND="o schema declara o kind 'concepcao'"
+N_CONCEP_AVISO="o script manda o gap de concepção pro relatório"
 
 REVISOR="$(secao "$ALVO" '- **OPUS #2 — Revisor de construção.**' '- **DIAGNÓSTICO')"
 SKEL="$(secao "$ALVO" '// args (da casca)' '**Schemas (JSON Schema')"
@@ -99,6 +103,30 @@ check "o #2 reprova tarefa sem os dois campos" \
   "$(tem "$REVISOR" 'sem `requisito` ou sem `pronto`')"
 check "o script segura o gap de rastreio no filtro" "$(tem "$SKEL" "g.kind === 'rastreio'")"
 
+echo "5 · a marca da lei é congelada no começo da missão"
+check "o schema BUILD_REVIEW devolve a marca da lei" "$(tem "$REVIEW" 'lawMark')"
+check "a marca é do corpo do arquivo lido na rodada" \
+  "$(tem "$REVIEW" 'cksum')"
+check "$N_LEI_MARCA" "$(tem "$SKEL" 'lawMark = review.lawMark')"
+check "$N_LEI_AVISO" "$(tem "$SKEL" 'a lei do projeto mudou durante a missão')"
+check "a marca fixada chega ao revisor das rodadas seguintes" \
+  "$(tem "$SKEL" 'lawMark })')"
+check "o #2 mede contra a marca fixada, não contra o texto novo" \
+  "$(tem "$REVISOR" 'marca da lei')"
+
+echo "6 · a execução avisa que a entrevista errou, sem mexer no documento"
+check "o #2 sinaliza a concepção contradita pelo que saiu" \
+  "$(tem "$REVISOR" 'a concepção está errada')"
+check "o aviso propõe reabrir a etapa" "$(tem "$REVISOR" 'reabrir a etapa')"
+check "o aviso indica a linha correcao-pendente, que quem grava é o dono" \
+  "$(tem "$REVISOR" 'correcao-pendente:')"
+check "o revisor nunca reescreve o documento aprovado" \
+  "$(tem "$REVISOR" 'nunca reescreve documento')"
+check "$N_CONCEP_KIND" "$(tem "$REVIEW" "'concepcao'")"
+check "o gap de concepção não segura a obra (não há o que consertar no código)" \
+  "$(tem "$REVIEW" 'não segura a obra')"
+check "$N_CONCEP_AVISO" "$(tem "$SKEL" "kind === 'concepcao')")"
+
 # Com argumento a suíte é só a verificação — é assim que a sabotagem a chama.
 if [ -n "$1" ]; then
   echo
@@ -107,7 +135,7 @@ if [ -n "$1" ]; then
   exit 1
 fi
 
-echo "5 · sabotagem: tirar a linha que carrega a afirmação deixa a suíte vermelha"
+echo "7 · sabotagem: tirar a linha que carrega a afirmação deixa a suíte vermelha"
 
 TMP="$(mktemp -d)"
 if [ -z "$TMP" ] || [ ! -d "$TMP" ]; then
@@ -135,6 +163,9 @@ sabota "spec no prompt"     'reviewBuildPrompt({ planPath: args.planPath' "$N_PR
 sabota "filtro do script"   'const holdsBuild ='                       "$N_FILTRO_SPEC"
 sabota "schema BUILD_REVIEW" '- `BUILD_REVIEW` —'                      "$N_KIND_SPEC"
 sabota "schema DECOMP"      '- `DECOMP` —'                             "$N_DECOMP_CAMPOS"
+sabota "pino da marca da lei" 'lawMark = review.lawMark'               "$N_LEI_MARCA"
+sabota "aviso da lei trocada" 'a lei do projeto mudou durante a missão' "$N_LEI_AVISO"
+sabota "aviso da concepção errada" "kind === 'concepcao'))"           "$N_CONCEP_AVISO"
 
 echo
 if [ "$FALHA" -eq 0 ]; then

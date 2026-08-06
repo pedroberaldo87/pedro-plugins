@@ -8,9 +8,9 @@
 > mapeia o **arc42**. Os documentos 1-4 e o glossário são consenso de mercado; a decisão de
 > **perguntar em vez de esqueletar** é nossa.
 
-## As quatro etapas de acordo
+## As cinco etapas de acordo
 
-A concepção não é uma entrevista só — são **quatro acordos**, nesta ordem, e cada um tem documento
+A concepção não é uma entrevista só — são **cinco acordos**, nesta ordem, e cada um tem documento
 próprio e aprovação própria. Etapa não aprovada não deixa a seguinte começar: arquitetura decidida
 sem as metas fechadas é palpite, e jornada desenhada sem a interface acordada é ficção.
 
@@ -20,6 +20,7 @@ sem as metas fechadas é palpite, e jornada desenhada sem a interface acordada �
 | 2 | **Acordo de arquitetura** | `architecture-intent.md` | sempre |
 | 3 | **Acordo de interface** | `design.md` (escrito pela skill `design-md`) | só projeto com interface |
 | 4 | **Acordo de jornadas** | `journeys.md` | sempre |
+| 5 | **Acordo de funcionalidades** | `features.md` | sempre — é a última, porque é **derivada do que já foi aprovado** nas quatro |
 
 **Os nomes de arquivo acima são o contrato.** Todos moram em `.claude/docs/`. Quem cobra lacuna lê
 daqui — inventar outro nome quebra a cobrança em silêncio.
@@ -65,6 +66,7 @@ project: {nome}
 authored-by: human               # TRAVA — o motor de mineração NUNCA reescreve este arquivo
 status: draft | ready | approved # draft = tem [PENDENTE] · ready = escrito · approved = o dono deu o de acordo
 approved: {YYYY-MM-DD}           # a data do de acordo explícito. Ausente ou [PENDENTE] = etapa aberta
+correcao-pendente: {o que falta} # 0 ou mais linhas. Ajuste achado DEPOIS do de acordo — não reabre a etapa
 scope: []                        # vazio de propósito: não é derivado de arquivo
 ---
 ```
@@ -77,8 +79,49 @@ scope: []                        # vazio de propósito: não é derivado de arqu
   `ready → approved` sem essa fala é falsificar o registro.
 - **`[PENDENTE]`** é o marcador de lacuna. Enquanto existir um, `status: draft` e o documento **não
   entra no índice** do CLAUDE.md — vira uma linha de cobrança no relatório. Some o último → entra.
+- **`correcao-pendente:` é o ajuste achado depois do de acordo**, e vive **no frontmatter, nunca no
+  corpo**. Uma linha por correção. Ela **não reabre a etapa**: o de acordo continua valendo sobre o
+  texto que o dono aprovou, e o gate de plano soma as correções abertas num aviso que não barra —
+  cobrança visível em vez de planejamento congelado. Escrever a correção no corpo faria o oposto: o
+  corpo é o que a marca do de acordo mede, e mexer nele reabre a etapa (`approved-sig`). A linha sai
+  quando o corpo for corrigido, reapresentado e **reaprovado** — aí o par `approved:`/`approved-sig:`
+  é regravado.
 - **Resposta do humano vai literal.** Não "melhore" a redação dele. Pode organizar em bullets e
   corrigir digitação; não pode trocar o julgamento por outro mais bonito.
+
+### O arquivo histórico — o canônico só guarda o que vale hoje
+
+Todo documento autoral tem um irmão: **`<nome>.historico.md`, na mesma pasta** (`quality-goals.md`
+→ `quality-goals.historico.md`). Ele **nasce na primeira reescrita**, não antes — arquivo vazio é
+ruído no `ls`.
+
+**Item reescrito não é apagado: é movido.** O canônico fica só com o que vale hoje; o texto anterior
+sai de lá e entra no histórico com os **três dados**, e nenhum é opcional:
+
+- **data** — quando a reescrita aconteceu (`YYYY-MM-DD`)
+- **contexto** — o que estava acontecendo que trouxe o assunto de volta
+- **decisão** — o que, decidido, mudou o item
+
+Sem os três a entrada não é escrita. Histórico sem o porquê é entulho, e entulho ninguém lê — a
+versão anterior sozinha já está no git; o que o git não guarda é a razão.
+
+**Quem escreve é o programa, não a mão:** `lib/historico.py` (`reescrever`, `listar`). Ele recusa,
+sem tocar em arquivo nenhum, o item que não está no documento e o item que aparece mais de uma vez
+(qual dos dois?). Mexer no histórico à mão desalinha o formato que o `listar` lê de volta.
+
+```bash
+python3 "${CLAUDE_PLUGIN_ROOT}/lib/historico.py" reescrever .claude/docs/quality-goals.md \
+  --antigo "1. **velocidade** — …" --novo "1. **integridade do dado** — …" \
+  --contexto "a entrevista de metas foi refeita depois do incidente de junho" \
+  --decisao  "perder dado passou a doer mais que atrasar entrega"
+```
+
+- **Entrada de histórico não se apaga nem se corrige** — corrigir é escrever a próxima. Igual a
+  decisão substituída em `decisions/`: muda de status, não some.
+- **O histórico é autoral também** (`authored-by: human` no frontmatter dele): a mineração pode
+  citá-lo, nunca reescrevê-lo.
+- **Ele não entra no índice do CLAUDE.md.** Quem lê o documento acha o irmão na mesma listagem;
+  quem lê o índice quer o que vale hoje.
 
 **Exceção de forma no `design.md`:** o frontmatter dele é o do formato `DESIGN.md` (tokens), não este.
 O par `status:` / `approved:` entra **por cima** dos tokens, e só ele — confirmado rodando o linter
@@ -115,6 +158,29 @@ não consegue apontar a frase, a etapa continua aberta.
   pessoal.
 - **Reaproveite o que já foi dito.** Se a resposta já apareceu nesta sessão, no `CLAUDE.md`, num
   handoff ou no journal, **não pergunte** — mostre o que achou e peça só a confirmação.
+
+### As decisões estruturais caras — só as que o projeto acendeu
+
+Há decisões que custam reescrita quando decididas tarde (quem escreve em cada pedaço do dado, como
+o formato do dado muda com gente usando, o que fazer quando o modelo devolve lixo). Elas **não** são
+um questionário fixo: perguntar as dez em todo projeto ensina o dono a responder no automático, e aí
+as que eram dele vêm no mesmo automático.
+
+Quem decide quais entram é o próprio projeto minerado:
+
+```bash
+python3 ${CLAUDE_PLUGIN_ROOT}/lib/decisoes_estruturais.py <raiz-do-projeto>
+```
+
+- **Três são incondicionais** — como isso sobe, como se volta atrás, como se descobre que quebrou.
+- **As outras sete têm gatilho**: guarda dado → as duas de dado; tem mais de um cliente → isolamento;
+  usa modelo → resposta não confiável e teto de custo; tem trabalho em fila → entrega; cobra →
+  cobrança repetida. **Pergunta sem sinal não é feita** — projeto sem banco, sem inteligência
+  artificial e sem multi-cliente recebe três, não dez.
+- **Cada gatilho vem com a pista** (arquivo e trecho). Leve a pista junto da pergunta, como manda a
+  regra acima — e lembre que ela alimenta a pergunta, nunca vira a resposta.
+- A resposta entra em `solution-strategy.md`, em **As decisões estruturantes**; sem resposta, fica
+  `[PENDENTE]` como qualquer outra.
 
 ---
 
@@ -482,6 +548,62 @@ CLI, entradas de menu, jobs agendados (jornada sem humano também é jornada).
 - **Onde quebra:** {o ponto de desistência, e o que acontece então}
 - **Toca as peças:** {peças do architecture-intent.md que essa jornada exercita}
 ```
+
+---
+
+## 9 · `features.md` — Funcionalidades · **etapa 5**
+
+- **Pergunta que responde:** o que este sistema faz, item a item?
+- **De onde a lista sai:** ela é **derivada do que já foi aprovado** nas quatro etapas anteriores —
+  cada jornada de `journeys.md` pede o que a faz acontecer, cada meta de `quality-goals.md` e cada
+  peça de `architecture-intent.md` podem exigir uma funcionalidade que nenhuma jornada nomeia. Por
+  isso ela é a **última** etapa: antes dos quatro acordos, lista de funcionalidade é palpite.
+- **A skill propõe, o dono decide.** A derivação é sua; o veredito de cada item é dele. Item que
+  você derivou e ele não confirmou **não é funcionalidade acordada** — é proposta na tela.
+- **Não confunda com `journeys.md`:** a jornada é o percurso da pessoa; a funcionalidade é a
+  capacidade que aquele percurso consome. Jornada sem fim declarado, aliás, já é lista de
+  funcionalidade disfarçada (ver documento 8).
+- **Conteúdo mínimo:** cada funcionalidade com o que faz em uma frase, a **origem** (qual jornada,
+  meta ou peça aprovada a pediu) e a **passagem literal** do documento aprovado que a motivou.
+- **Critério de pronto:** toda funcionalidade da lista aponta uma origem, e toda jornada aprovada
+  tem ao menos uma funcionalidade que a realiza.
+
+**Pistas a minerar antes de perguntar:** nenhuma no código — o insumo desta etapa são os **documentos
+já aprovados**. Releia `journeys.md`, `quality-goals.md` e `architecture-intent.md` com o `approved:`
+gravado; documento ainda aberto não serve de origem.
+
+**Roteiro:**
+1. Apresente a lista derivada inteira, cada item com a passagem que o motivou ao lado: "destas
+   funcionalidades, quais eu entendi errado?"
+2. "Tem funcionalidade que você quer e que não sai de nenhuma jornada aprovada?" (se sair daqui,
+   a origem é a fala dele — registre assim, não invente uma jornada)
+3. "Tem alguma nessa lista que você NÃO quer construir?" (vai para a seção do que ficou de fora)
+4. "Alguma jornada aprovada ficou sem nada que a realize?" (buraco entre as etapas, não item novo)
+
+**Molde:**
+
+```markdown
+{frontmatter}
+
+# Funcionalidades
+
+> O que este sistema faz, derivado das etapas já aprovadas. Nada entra aqui sem origem
+> apontável — funcionalidade sem origem é ideia que entrou pela janela.
+
+## As funcionalidades
+
+### F-{n} · {nome, na língua de quem usa}
+- **O que faz:** {uma frase}
+- **Origem:** {jornada de `journeys.md` · meta de `quality-goals.md` · peça de `architecture-intent.md` · decisão do dono}
+- **Passagem que a motivou:** "{o trecho literal do documento aprovado, ou da fala do dono}"
+
+## Deixado de fora de propósito
+- **{a funcionalidade}** — {por que não vai existir}
+```
+
+**O de acordo desta etapa** é o mesmo dos outros: `status: approved` + `approved:` no frontmatter do
+próprio `features.md`, depois de apresentar a lista inteira, sabatinar e reapresentar. Lista derivada
+não é lista acordada.
 
 ---
 

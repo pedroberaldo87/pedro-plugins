@@ -95,8 +95,16 @@ existe pra impedir. Trocar um tier é editar `_shared/r8-tiers.json` e rodar
 Precedência: flag da invocação > default acima. A casca **sempre** materializa os quatro antes de disparar o Workflow — `maxRounds` ausente faz o `while` do motor não rodar nenhuma volta e devolver "pronto" sem ter construído nada.
 
 - **OPUS #1 — Decompositor.** NÃO planeja do zero. Pega o **plano que você deixou** e o quebra em tarefas de implementação, marcando para cada uma os **arquivos que toca**, se é **paralelizável**, de quais tarefas **depende**, e se é `complexity: 'mechanical'` (operação bem delimitada) ou `'standard'`. Cada tarefa carrega também o **`requisito`** que ela atende e o **`pronto`** que a declara feita — **os dois saem da spec, copiados; nunca redigidos aqui**. Executor não cumpre critério que não recebeu, e critério inventado pelo decompositor faz o revisor medir contra a régua errada. Item da spec que não traz os dois **não vira tarefa: vira Bloqueio** (`whyNeedsYou` = qual dos dois falta). Rodada 1 = `decompose_model` (plano inteiro); rodadas 2+ (re-decompõe só o delta do feedback do #2) = `coordinate_model`. Re-arquitetar é proibido (mesma regra do "não replanejar no headless"); buraco no plano que exija decisão de arquitetura vira **Bloqueio**, nunca invenção silenciosa.
-- **EXECUTORES (Opus 5) — Implementam as tarefas.** Tarefa padrão = `executor_model`; `complexity: 'mechanical'` = `mechanical_model`. Independentes rodam **em paralelo**; dependentes, **em série** na ordem do #1. Duas tarefas paralelas que tocam o mesmo arquivo → `isolation: 'worktree'` (senão se atropelam). Tarefa única ou missão sequencial pura → o Workflow degenera pra um executor por vez, sem cerimônia (o fan-out é ganho só quando há independência real).
-- **OPUS #2 — Revisor de construção.** Julga a obra **contra a spec** — o plano que a casca passou em `planPath`/`planText`, e que o motor entrega ao #2 igual como entrega ao #1. A decomposição do #1 é **meio**, não fonte da verdade: revisar contra ela é circuito fechado, onde quem decompõe errado é aprovado errado. Cinco eixos: **spec** (a spec saiu, mesmo no que a decomposição não previu?) · **constituição** (o que saiu respeita as metas de qualidade autorais do projeto?) · **rastreio** (toda tarefa decomposta trouxe `requisito` e `pronto`?) · **completude** (toda tarefa decomposta saiu?) · **coesão** (as peças paralelas integram, sem se contradizer?). Desvio de spec vira gap de `kind: 'spec'` e **nasce em severidade ≥ floor**; se vier abaixo, o script o segura assim mesmo — senão sairia do filtro de severidade e passaria calado. **Eixo de rastreio:** tarefa decomposta sem `requisito` ou sem `pronto` **reprova** — vira gap de `kind: 'rastreio'`, que nasce em severidade ≥ floor e é segurado pelo script igual ao de spec. Tarefa sem requisito não tem contra o que ser medida, e sem `pronto` quem executa decide sozinho o que é "feito": nenhuma das duas passa calada. **Eixo de constituição:** o revisor **lê `.claude/docs/constituicao.md` e `.claude/docs/quality-goals.md` do projeto onde a missão está rodando** e sinaliza onde a implementação VIOLA o que está escrito lá. O arquivo é aberto na rodada, **nunca copiado para dentro desta skill** — a régua é a do projeto que instalou, e cópia em prosa defasa. Violação vira gap de `kind: 'constituicao'` pela rubrica de severidade normal, sem faixa própria. **Projeto sem esse arquivo: o eixo simplesmente não roda** e a revisão segue com os outros quatro — ausência de constituição não é gap. Continua **não** caçando bug sutil nem rodando a suíte — profundidade de correção é do `/qa-loop` (etapa seguinte). Roda em `coordinate_model`; quando os cinco eixos batem, declara `built=true` **direto** — quem re-checa do zero é o `/qa-loop --headless` que roda logo em seguida (Fase Gate + confirm-pass dele). **Guarda (armada no script, não só na prosa):** com `hasQaLoop=false` o motor roda um **confirm-pass dedicado** em `finalize_model` antes de declarar `built` — sem `/qa-loop` adiante, fechar no veredito de `coordinate_model` seria declarar pronto sem nenhuma segunda checagem. Devolve **feedback estruturado pro #1**, que re-decompõe **só o delta** (o que faltou / precisa refazer) na volta seguinte. A seta de volta #2→#1 é o coração do motor.
+- **EXECUTORES (Opus 5) — Implementam as tarefas.** Tarefa padrão = `executor_model`; `complexity: 'mechanical'` = `mechanical_model`. Independentes rodam **em paralelo**; dependentes, **em série** na ordem do #1. Tarefa única ou missão sequencial pura → o Workflow degenera pra um executor por vez, sem cerimônia (o fan-out é ganho só quando há independência real).
+
+⚠️ **`isolation: 'worktree'` é PROIBIDO neste motor.** A regra anterior mandava isolar em worktree duas tarefas paralelas que tocassem o mesmo arquivo, e ela **queimou uma execução inteira em 2026-08-06**: 72 agentes para 25 tarefas, 15 delas executadas **3 vezes cada**, 8 diagnósticos de tarefa-presa, e 49 worktrees com trabalho dentro que ninguém leu.
+
+O mecanismo da falha, e ele é estrutural, não um deslize: o executor termina dentro da cópia isolada, **e nada traz a cópia de volta**. O revisor (#2) confere no repositório de verdade, não encontra o trabalho, marca a tarefa como não-feita, e o decompositor (#1) manda refazer — para sempre, porque refazer também vai para uma cópia nova. O motor não tem como perceber: o sintoma que ele vê ("essa tarefa não sai do lugar") é indistinguível de executor incompetente, e por isso ele escala para o `diagnose_model` — gastando ainda mais.
+
+**Colisão de arquivo se resolve dividindo o LOTE, nunca dividindo o repositório.** Dentro de uma onda, quem colide vai em sub-lotes seriais; todo mundo escreve no mesmo repo, e o revisor enxerga tudo. É mais lento só no caso raro de colisão real, e é sempre correto.
+
+A regra geral que sobrou disto: **isolamento sem fusão declarada é dívida com cara de cuidado.** Se um dia este motor voltar a isolar, o passo que traz de volta nasce no mesmo commit — e o revisor precisa saber onde olhar.
+- **OPUS #2 — Revisor de construção.** Julga a obra **contra a spec** — o plano que a casca passou em `planPath`/`planText`, e que o motor entrega ao #2 igual como entrega ao #1. A decomposição do #1 é **meio**, não fonte da verdade: revisar contra ela é circuito fechado, onde quem decompõe errado é aprovado errado. Cinco eixos: **spec** (a spec saiu, mesmo no que a decomposição não previu?) · **constituição** (o que saiu respeita as metas de qualidade autorais do projeto?) · **rastreio** (toda tarefa decomposta trouxe `requisito` e `pronto`?) · **completude** (toda tarefa decomposta saiu?) · **coesão** (as peças paralelas integram, sem se contradizer?). Desvio de spec vira gap de `kind: 'spec'` e **nasce em severidade ≥ floor**; se vier abaixo, o script o segura assim mesmo — senão sairia do filtro de severidade e passaria calado. **Eixo de rastreio:** tarefa decomposta sem `requisito` ou sem `pronto` **reprova** — vira gap de `kind: 'rastreio'`, que nasce em severidade ≥ floor e é segurado pelo script igual ao de spec. Tarefa sem requisito não tem contra o que ser medida, e sem `pronto` quem executa decide sozinho o que é "feito": nenhuma das duas passa calada. **Eixo de constituição:** o revisor **lê `.claude/docs/constituicao.md` e `.claude/docs/quality-goals.md` do projeto onde a missão está rodando** e sinaliza onde a implementação VIOLA o que está escrito lá. O arquivo é aberto na rodada, **nunca copiado para dentro desta skill** — a régua é a do projeto que instalou, e cópia em prosa defasa. Violação vira gap de `kind: 'constituicao'` pela rubrica de severidade normal, sem faixa própria. **A marca da lei é congelada na primeira volta:** o revisor devolve em `lawMark` a marca do texto que leu (o `cksum` do corpo dos dois arquivos, mesma receita da aprovação), o motor fixa a da rodada 1 e passa ela de volta nas seguintes — o #2 mede contra a lei fixada, nunca contra o texto novo. Lei editada no meio da missão vira **aviso no relatório** (Bloqueio "precisa de você"), porque as rodadas anteriores foram medidas contra o texto antigo; o que não pode acontecer é a régua trocar calada e duas rodadas da mesma missão medirem contra textos diferentes. **Projeto sem esse arquivo: o eixo simplesmente não roda** e a revisão segue com os outros quatro — ausência de constituição não é gap. **Quando a concepção está errada, e não o código:** o mesmo eixo cobre o caso em que o que a execução descobriu contradiz um documento de concepção já aprovado (`status: approved`) — a entrevista errou, o código está certo. Vira gap de `kind: 'concepcao'`, e o revisor **nunca reescreve documento aprovado** — nem o corpo (mexer nele reabre a etapa pela marca do de acordo) nem o frontmatter. O gap sobe como **aviso no relatório** (Bloqueio "precisa de você") propondo **reabrir a etapa**: nomeia o documento, a passagem contradita e a linha `correcao-pendente: {o que precisa mudar}` que o dono grava no frontmatter e cobra até reapresentar e reaprovar. Propor é do motor, escrever é do dono. Continua **não** caçando bug sutil nem rodando a suíte — profundidade de correção é do `/qa-loop` (etapa seguinte). Roda em `coordinate_model`; quando os cinco eixos batem, declara `built=true` **direto** — quem re-checa do zero é o `/qa-loop --headless` que roda logo em seguida (Fase Gate + confirm-pass dele). **Guarda (armada no script, não só na prosa):** com `hasQaLoop=false` o motor roda um **confirm-pass dedicado** em `finalize_model` antes de declarar `built` — sem `/qa-loop` adiante, fechar no veredito de `coordinate_model` seria declarar pronto sem nenhuma segunda checagem. Devolve **feedback estruturado pro #1**, que re-decompõe **só o delta** (o que faltou / precisa refazer) na volta seguinte. A seta de volta #2→#1 é o coração do motor.
 - **DIAGNÓSTICO — escalada de tarefa-presa.** Se a MESMA tarefa reaparece em `missingTasks`/`gaps` por ≥ `churn_threshold` rodadas seguidas (default 2, mesmo limiar do `/qa-loop`), o motor escala ANTES de mandar o executor tentar de novo: um diagnóstico dedicado em `diagnose_model` (R8, "diagnóstico após falhas repetidas") investiga a causa raiz (dependência não mapeada, arquivo errado, premissa furada) em vez de repetir o mesmo pedido esperando resultado diferente. O diagnóstico entra no `feedback` da próxima rodada do #1.
 
 ### Fronteira com o `/qa-loop` (a spec é comum; o ângulo, não)
@@ -134,11 +142,13 @@ const floor = sevRank(args.severityFloor || 'P1')
 // false na 1ª volta — o motor devolveria "nada construído" em silêncio.
 const maxRounds = args.maxRounds || 5
 const churnThreshold = args.churnThreshold || 2
-// 'shared' = a tarefa colide em arquivo com OUTRA paralela do MESMO lote → isola em worktree
+// 'shared' = a tarefa colide em arquivo com OUTRA do MESMO lote → vai em sub-lote SERIAL.
+// NUNCA em worktree: o trabalho ficaria na cópia e o revisor confere no repo real (ver acima).
 const touchesShared = (t, lote) => lote.some(o => o.id !== t.id && o.files?.some(f => t.files?.includes(f)))
 const rounds = []; const blockers = []
 let built = false, r = 0
 let feedback = null   // do #2 pro #1 na volta seguinte (a seta de volta)
+let lawMark = null    // marca da lei do projeto, CONGELADA na rodada 1 (ver o pino abaixo)
 const taskChurn = {}  // { task_id: nº de rodadas seguidas reaparecendo em missingTasks/gaps }
 
 // Tier por rodada (R8): rodada 1 = decompose_model (planejamento inicial); rodadas 2+
@@ -185,10 +195,14 @@ while (!built && r < maxRounds) {
   const seq = todo.filter(t => !t.parallelizable || (t.dependsOn?.length))
   const execTier = t => ({ model: args.model,
     effort: t.complexity === 'mechanical' ? T.mechanical.effort : T.executor.effort })
-  const builtPar = await parallel(par.map(t => () =>
+  // quem NÃO colide vai junto; quem colide vai depois, um de cada vez, no MESMO repo
+  const livres = par.filter(t => !touchesShared(t, par))
+  const colidem = par.filter(t => touchesShared(t, par))
+  const builtPar = await parallel(livres.map(t => () =>
     agent(execPrompt({ task: t }), {
-      model: execTier(t).model, effort: execTier(t).effort, phase: 'Executar', schema: TASK_RESULT,
-      isolation: touchesShared(t, par) ? 'worktree' : undefined })))
+      model: execTier(t).model, effort: execTier(t).effort, phase: 'Executar', schema: TASK_RESULT })))
+  for (const t of colidem) builtPar.push(await agent(execPrompt({ task: t }),
+    { model: execTier(t).model, effort: execTier(t).effort, phase: 'Executar', schema: TASK_RESULT }))
   const builtSeq = []
   for (const t of seq) builtSeq.push(await agent(execPrompt({ task: t }),
     { model: execTier(t).model, effort: execTier(t).effort, phase: 'Executar', schema: TASK_RESULT }))
@@ -206,7 +220,9 @@ while (!built && r < maxRounds) {
   // uma cópia daqui) e é
   // fail-open: arquivo ausente = eixo não roda, e isso NÃO vira gap.
   // NÃO roda a suíte nem caça bug — isso é o /qa-loop depois.
-  const review = await agent(reviewBuildPrompt({ planPath: args.planPath, planText: args.planText, repoRoot: args.repoRoot, decomp, results, round: r }),
+  // `lawMark` vai junto: na rodada 1 é null (o #2 calcula e devolve); nas seguintes é a
+  // marca FIXADA, contra a qual ele mede — não contra o texto que estiver no disco agora.
+  const review = await agent(reviewBuildPrompt({ planPath: args.planPath, planText: args.planText, repoRoot: args.repoRoot, decomp, results, round: r, lawMark }),
     { model: tier.model, effort: tier.effort, phase: 'Revisar', schema: BUILD_REVIEW })
 
   // AGENTE MORTO NÃO PODE DERRUBAR O MOTOR. `agent()` devolve null quando o subagente
@@ -226,6 +242,29 @@ while (!built && r < maxRounds) {
     continue
   }
 
+  // MARCA DA LEI — congelada na 1ª volta. Sem o pino, cada rodada media contra o
+  // arquivo que estivesse no disco naquele instante: editar a constituição no meio da
+  // missão trocava a régua CALADA, e a rodada 1 e a 4 aprovavam coisas diferentes sem
+  // ninguém saber. O pino é do motor, não da memória do revisor.
+  if (review.lawMark) {
+    if (lawMark === null) lawMark = review.lawMark
+    else if (review.lawMark !== lawMark) {
+      // Não troca o pino: a missão segue medindo contra a lei fixada, e a mudança vira
+      // aviso no relatório pro dono julgar o que fazer com as rodadas já aprovadas.
+      blockers.push({ what: `a lei do projeto mudou durante a missão (marca ${lawMark} → ${review.lawMark}, rodada ${r})`,
+                      whyNeedsYou: 'as rodadas anteriores foram medidas contra o texto antigo — confira o que mudou antes de aceitar a obra' })
+    }
+  }
+
+  // A CONCEPÇÃO ERROU — a execução descobriu algo que contradiz um documento já
+  // aprovado. O motor NÃO reescreve documento do dono: o gap vira aviso no relatório
+  // propondo reabrir a etapa (a linha `correcao-pendente:` que ELE grava), e não volta
+  // pro #1 — não há o que o executor conserte no código.
+  for (const g of (review.gaps || []).filter(g => g.kind === 'concepcao')) {
+    blockers.push({ what: `a concepção está errada: ${g.problem}`,
+                    whyNeedsYou: 'reabra a etapa — grave `correcao-pendente:` no frontmatter do documento e reaprove; nenhum documento foi alterado aqui' })
+  }
+
   // Executor morto entra pela mesma porta: `results` já vem filtrado com `.filter(Boolean)`,
   // então a tarefa dele reaparece como faltante no próximo `missingTasks` e volta pro #1.
 
@@ -240,7 +279,9 @@ while (!built && r < maxRounds) {
   // >= floor, e se o revisor devolver abaixo o script os mantém no filtro. Sem isso um gap
   // de spec P2/P3 sairia da conta e passaria calado — o freio é do script, não da memória
   // do revisor.
-  const holdsBuild = g => g.kind === 'spec' || g.kind === 'rastreio' || sevRank(g.severity) >= floor
+  // gap de concepção sai do filtro por decisão: ele já virou aviso acima, e segurar a obra
+  // por ele empurraria o motor a "consertar" código que está certo.
+  const holdsBuild = g => g.kind !== 'concepcao' && (g.kind === 'spec' || g.kind === 'rastreio' || sevRank(g.severity) >= floor)
   const gaps = (review.gaps || []).filter(holdsBuild)
 
   // BUILT — no caminho feliz a confirmação independente é o /qa-loop --headless da etapa
@@ -249,7 +290,7 @@ while (!built && r < maxRounds) {
   // fechar no veredito barato da rodada — roda o confirm-pass dedicado em finalize_model.
   if (review.complete && review.cohesive && gaps.length === 0) {
     if (args.hasQaLoop === false) {
-      const confirm = await agent(confirmBuildPrompt({ planPath: args.planPath, planText: args.planText, repoRoot: args.repoRoot, decomp, results }),
+      const confirm = await agent(confirmBuildPrompt({ planPath: args.planPath, planText: args.planText, repoRoot: args.repoRoot, decomp, results, lawMark }),
         { model: args.model, effort: T.finalize.effort, phase: 'Confirmar', schema: BUILD_REVIEW })   // finalize_model
       rounds[rounds.length - 1].confirm = confirm
       // Mesma guarda do revisor, e aqui a direção segura é mais dura ainda: este pass é a
@@ -264,17 +305,18 @@ while (!built && r < maxRounds) {
       const confirmGaps = (confirm.gaps || []).filter(holdsBuild)
       if (!confirm.complete || !confirm.cohesive || confirmGaps.length) {
         // o confirm achou o que a rodada barata perdeu — processa, não ignora
-        feedback = { gaps: confirm.gaps, missing: confirm.missingTasks, diagnoses }
+        feedback = { gaps: confirm.gaps.filter(g => g.kind !== 'concepcao'), missing: confirm.missingTasks, diagnoses }
         continue
       }
     }
     built = true; break
   }
-  feedback = { gaps: review.gaps, missing: review.missingTasks, diagnoses }   // alimenta o DECOMPOR da próxima volta
+  // sem o gap de concepção: ele é aviso pro dono, não tarefa pro #1 re-decompor.
+  feedback = { gaps: review.gaps.filter(g => g.kind !== 'concepcao'), missing: review.missingTasks, diagnoses }   // alimenta o DECOMPOR da próxima volta
 }
 
 return {
-  rounds, built, blockers,
+  rounds, built, blockers, lawMark,   // lawMark = a lei contra a qual a missão INTEIRA foi medida
   stopReason: built ? 'build-complete' : 'max-rounds',
   telemetry: rounds.map(x => ({ round: x.r, tasks: x.results.length, gaps: x.review.gaps.length })),
 }
@@ -283,7 +325,7 @@ return {
 **Schemas (JSON Schema, resumidos):**
 - `DECOMP` — `{ tasks: [{ id, desc, requisito, pronto, files: [...], parallelizable: bool, dependsOn: [id...], done: bool, complexity?: 'standard'|'mechanical' }], blockers: [{ what, whyNeedsYou }] }`. **`requisito` e `pronto` são obrigatórios** — `requisito` = o item da spec que a tarefa atende, `pronto` = o critério de feito dele, **os dois copiados da spec, não redigidos pelo decompositor** (o executor não tem como cumprir o que não recebe, e critério inventado aqui vira régua falsa no #2). Item da spec sem um dos dois vira `blocker`, não tarefa. `complexity: 'mechanical'` = operação bem delimitada (renomear, mover arquivo, 1 config, 1 valor); ausente/`'standard'` = tarefa normal.
 - `TASK_RESULT` — `{ task_id, files_touched: [...], summary, done: bool, note }`.
-- `BUILD_REVIEW` — `{ complete: bool, cohesive: bool, gaps: [{ task_id, kind: 'spec'|'constituicao'|'rastreio'|'completude'|'coesao', severity: 'P0'|'P1'|'P2'|'P3', problem }], missingTasks: [id...] }`. `kind: 'rastreio'` = tarefa decomposta chegou **sem `requisito` ou sem `pronto`** — nasce em severidade **≥ `severityFloor`** e o script o segura no filtro mesmo se vier abaixo (mesmo tratamento do gap de spec), porque tarefa sem os dois campos não é medível por ninguém depois. `kind: 'spec'` = o que a spec pede não saiu (ou saiu diferente), **mesmo com a decomposição cumprida** — nasce em severidade **≥ `severityFloor`** (P1 por default) e o script o mantém no filtro mesmo se vier abaixo, senão o gap sai da conta e passa calado. `kind: 'constituicao'` = o que saiu viola a `.claude/docs/constituicao.md` ou o `.claude/docs/quality-goals.md` do projeto — severidade normal (o filtro de floor vale), e `problem` cita a passagem violada, porque a régua vive no arquivo lido na rodada, não aqui. Sem esse arquivo no projeto, este `kind` simplesmente não aparece. `task_id` de gap de spec ou de constituição pode ser `null`: o buraco que a decomposição não previu não tem tarefa a que pertencer.
+- `BUILD_REVIEW` — `{ complete: bool, cohesive: bool, gaps: [{ task_id, kind: 'spec'|'constituicao'|'concepcao'|'rastreio'|'completude'|'coesao', severity: 'P0'|'P1'|'P2'|'P3', problem }], missingTasks: [id...], lawMark: string|null }`. **`lawMark`** = a marca da lei que ESTA rodada leu — o `cksum` do corpo de `.claude/docs/constituicao.md` + `.claude/docs/quality-goals.md` (mesma receita da marca de aprovação; corpo, sem frontmatter). Projeto sem esses arquivos devolve `null` e o pino nunca arma. O motor congela a marca da rodada 1 e a devolve ao revisor nas seguintes; marca diferente da fixada **não** troca a régua — vira aviso no relatório (Bloqueio "precisa de você"). `kind: 'rastreio'` = tarefa decomposta chegou **sem `requisito` ou sem `pronto`** — nasce em severidade **≥ `severityFloor`** e o script o segura no filtro mesmo se vier abaixo (mesmo tratamento do gap de spec), porque tarefa sem os dois campos não é medível por ninguém depois. `kind: 'spec'` = o que a spec pede não saiu (ou saiu diferente), **mesmo com a decomposição cumprida** — nasce em severidade **≥ `severityFloor`** (P1 por default) e o script o mantém no filtro mesmo se vier abaixo, senão o gap sai da conta e passa calado. `kind: 'constituicao'` = o que saiu viola a `.claude/docs/constituicao.md` ou o `.claude/docs/quality-goals.md` do projeto — severidade normal (o filtro de floor vale), e `problem` cita a passagem violada, porque a régua vive no arquivo lido na rodada, não aqui. Sem esse arquivo no projeto, este `kind` simplesmente não aparece. `kind: 'concepcao'` = o que a execução descobriu contradiz um documento de concepção já aprovado — **não segura a obra** (o executor não tem o que consertar no código), sai do filtro e vira aviso no relatório propondo reabrir a etapa, com a linha `correcao-pendente:` sugerida em `problem`. `task_id` de gap de spec ou de constituição pode ser `null`: o buraco que a decomposição não previu não tem tarefa a que pertencer.
 
 O `stopReason`, os `blockers` e a telemetria entram no relatório final (`### Verificação` e `### Bloqueios`). Terminado o motor (`built` ou teto), segue direto pro **QA final** abaixo — que é onde defeito é caçado.
 

@@ -1273,6 +1273,42 @@ def main():
         check("a frase da recusa aponta o comando de quem não tem fonte",
               "cobertura" in frase)
 
+        # O cruzamento com as jornadas roda nas DUAS direções, e sem ninguém pedir:
+        # o `cobertura` acha o journeys.md pela mesma cascata que acha os requisitos.
+        print("cobertura cruza com as jornadas do projeto")
+        import io
+        import contextlib
+        raiz = tempfile.mkdtemp(prefix="plan-jornadas-")
+        try:
+            docs = os.path.join(raiz, ".claude", "docs")
+            plans = os.path.join(raiz, ".claude", "plans")
+            os.makedirs(docs)
+            os.makedirs(plans)
+            with open(os.path.join(docs, "journeys.md"), "w", encoding="utf-8") as fh:
+                fh.write("# Jornadas\n\n## Planejar o dia\n- **Ator:** quem toma\n\n"
+                         "## Revisar a semana\n- **Ator:** a mesma pessoa\n")
+            pj = sample(id="jor-1", phases=[{"id": "F1", "title": "x", "items": [
+                {"id": "F1.1", "title": "campo custo", "desc": "d",
+                 "pronto": "roda o teste", "requisito": "S-4.3"},
+                {"id": "F1.2", "title": "tela do corte", "desc": "d",
+                 "pronto": "roda o teste", "requisito": "S-4.8"}]}])
+            pj["requisitos"] = [
+                {"id": "S-4.3", "titulo": "Orçamento de energia", "ca": "dia estourado corta",
+                 "jornada": "Planejar o dia", "epico": "E4 — Planner"},
+                {"id": "S-4.8", "titulo": "Janela de medicação", "ca": "respeita horário",
+                 "epico": "E4 — Planner"}]
+            init_into(plans, pj, crus=True)
+            buf = io.StringIO()
+            with contextlib.redirect_stdout(buf):
+                ps.cmd_cobertura(Args(dir=plans, plan="jor-1", reqs=None, json=False))
+            saida = buf.getvalue()
+            check("a funcionalidade sem jornada de origem aparece",
+                  "1 funcionalidade sem jornada" in saida and "S-4.8" in saida)
+            check("e a jornada que nenhuma funcionalidade atende também",
+                  "1 jornada sem funcionalidade" in saida and "Revisar a semana" in saida)
+        finally:
+            shutil.rmtree(raiz, ignore_errors=True)
+
         print("arquivo corrompido não derruba a listagem")
         before = len(ps.list_plans(d))
         with open(os.path.join(d, "quebrado.plan.json"), "w") as fh:
