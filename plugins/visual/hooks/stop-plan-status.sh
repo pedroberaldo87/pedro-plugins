@@ -21,18 +21,26 @@
 # uma vez (ver "plano AUSENTE" no fim do arquivo).
 
 [ "${PLAN_STATUS:-1}" = "0" ] && exit 0
-command -v jq >/dev/null 2>&1 || exit 0
+# Leitor do payload: `jq` quando existe, `python3` (stdlib json) quando não.
+# Sem os dois o gate não julga — e aí ele AVISA, nunca sai calado (issue #5).
+# `${0%/*}` e não `dirname`: o probe roda antes de saber se há PATH utilizável.
+HJ_DIR="${0%/*}"; [ "$HJ_DIR" = "$0" ] && HJ_DIR="."
+# shellcheck source=/dev/null
+. "$HJ_DIR/hook-json.sh" 2>/dev/null
+type hj_campo >/dev/null 2>&1 || exit 0
+hj_leitor >/dev/null 2>&1 || { hj_avisa "stop-plan-status"; exit 0; }
 PY3=$(command -v python3 2>/dev/null)
+"$PY3" --version >/dev/null 2>&1 || exit 0
 [ -z "$PY3" ] && exit 0
 
 INPUT=$(cat 2>/dev/null)
 # Stop disparado por stop_hook já ativo → sai (anti-loop).
-ACTIVE=$(printf '%s' "$INPUT" | jq -r '.stop_hook_active // false' 2>/dev/null)
+ACTIVE=$(hj_campo "$INPUT" stop_hook_active)
 [ "$ACTIVE" = "true" ] && exit 0
 
-SESSION=$(printf '%s' "$INPUT" | jq -r '.session_id // "unknown"' 2>/dev/null)
-TRANSCRIPT=$(printf '%s' "$INPUT" | jq -r '.transcript_path // empty' 2>/dev/null)
-CWD=$(printf '%s' "$INPUT" | jq -r '.cwd // empty' 2>/dev/null)
+SESSION=$(hj_campo_ou "$INPUT" session_id unknown)
+TRANSCRIPT=$(hj_campo "$INPUT" transcript_path)
+CWD=$(hj_campo "$INPUT" cwd)
 [ -z "$CWD" ] && CWD="$PWD"
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
@@ -207,7 +215,7 @@ if [ -z "$BRIEF" ]; then
 • Trabalho desse tamanho sem plano não deixa rastro: o próximo Claude não sabe o que ficou pela metade.
 • Abra um com /visual (ele grava em .claude/plans/), ou siga sem — este aviso não volta nesta sessão."
   regua_hook "$AUSENTE" "aviso de plano ausente"
-  jq -n --arg m "$AUSENTE" '{systemMessage:$m}' 2>/dev/null
+  hj_msg "$AUSENTE"
   exit 0
 fi
 
@@ -217,5 +225,5 @@ fi
 # cabeçalho desce pro mesmo alinhamento dos três. Não entra no orçamento do Stop —
 # `_linhas_visiveis` só conta linha com conteúdo.
 regua_hook "$BRIEF" "resumo de fim de turno"
-jq -n --arg m "$BRIEF" '{systemMessage:("\n\n" + $m)}' 2>/dev/null
+hj_msg "$(printf '\n\n%s' "$BRIEF")"
 exit 0

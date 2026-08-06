@@ -628,7 +628,8 @@ def check_catalogo(rep, cfg):
 ELOS_STATUSLINE = (
     {"plugin": "context-guard", "papel": "escritor",
      "marca": "context-guard-writer",
-     "produz": "o percentual de contexto por sessao em /tmp/claude-context-pct-<session_id>",
+     "produz": "o percentual de contexto por sessao no temporario do sistema, "
+               "em claude-context-pct-<session_id>",
      "quem_consome": "o guarda do context-guard, que so dispara com esse arquivo na mao",
      "conserto": "rode `/context-guard:setup` — ele registra o wrapper e move o comando "
                  "atual pra CLAUDE_STATUSLINE_FORWARD, preservando o que ja renderizava"},
@@ -650,7 +651,7 @@ def check_statusline_meio_ligada(rep, cfg):
     porque quem sumiu foi o elo que grava dado pra outro consumir.
 
     Medido em 2026-08-02 nesta maquina: `context-guard` habilitado, writer fora do
-    comando, e o unico /tmp/claude-context-pct-* existente era um fixture de teste de
+    comando, e o unico claude-context-pct-* no temporario era um fixture de teste de
     tres dias antes. Nenhuma sessao real gravou, e nenhum check acusava.
     """
     settings = load_json(CLAUDE_DIR / "settings.json")

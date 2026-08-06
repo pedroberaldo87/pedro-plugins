@@ -97,7 +97,10 @@ echo "7. projeto com interface conta design.md (6): OK"
 #    design.md. É a isenção "uso local já degradado dispensa guarda no topo" de
 #    patterns.md §5.3 — um exit 0 no topo mataria trabalho que não depende da lib.
 HOOKDIR="$(mktemp -d /tmp/pd-ck-nolib-XXXXXX)"
-cp "$HERE/sessionstart-doc.sh" "$HERE/doc-detect.sh" "$HERE/lib-project-root.sh" "$HOOKDIR/" 2>/dev/null
+# `hook-json.sh` vai junto: é o leitor do payload (vendorado de _shared/), sem o qual
+# o hook não lê nem o `cwd` — dependência da mesma natureza do doc-detect.sh.
+cp "$HERE/sessionstart-doc.sh" "$HERE/doc-detect.sh" "$HERE/lib-project-root.sh" \
+   "$HERE/hook-json.sh" "$HOOKDIR/" 2>/dev/null
 # de propósito NÃO copia lib-has-frontend.sh
 OUT="$(mkin "$FRONTEND" sess-nolib | bash "$HOOKDIR/sessionstart-doc.sh")"
 ctxq "$OUT" "documentação project-doc"       # o heads-up sobrevive

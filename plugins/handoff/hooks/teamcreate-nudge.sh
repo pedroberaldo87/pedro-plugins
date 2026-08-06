@@ -4,6 +4,7 @@
 # HANDOFF.md, não o contexto vivo). Fail-open: SEMPRE allow; só injeta o lembrete.
 # Sem python3 não há o que rodar aqui — o corpo inteiro do hook é Python.
 command -v python3 >/dev/null 2>&1 || exit 0
+python3 --version >/dev/null 2>&1 || exit 0
 set -uo pipefail
 INPUT="$(cat 2>/dev/null || true)"
 python3 -c "$(cat <<'PY'

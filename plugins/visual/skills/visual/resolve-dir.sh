@@ -1,19 +1,25 @@
 #!/bin/bash
-# resolve-dir.sh — decide ONDE os HTMLs da skill /visual são salvos.
+# resolve-dir.sh — decide ONDE um artefato de skill é salvo, no projeto de quem usa.
+#
+# ⚠️ FONTE DA VERDADE: `_shared/resolve-dir.sh`. As cópias dentro dos plugins são
+# vendoradas por `scripts/sync-shared.sh` — editar a cópia deixa as outras defasadas.
 #
 # Cascata de 3 níveis (para no primeiro que bater):
-#   1. Raiz do repositório git  → <raiz-git>/.claude/visual
+#   1. Raiz do repositório git  → <raiz-git>/.claude/<subdir>
 #   2. Projeto reconhecido por marcador (package.json, CLAUDE.md, etc.),
-#      subindo a partir do cwd e parando ANTES de $HOME → <dir>/.claude/visual
-#   3. Fallback Desktop → ~/Desktop/claude-visual
+#      subindo a partir do cwd e parando ANTES de $HOME → <dir>/.claude/<subdir>
+#   3. Fallback Desktop → ~/Desktop/claude-<subdir>
 #
 # Uso:   resolve-dir.sh <cwd> [subdir]
 #        subdir default = "visual". Passe "plans" para o store de planos
-#        (mesma cascata, outro diretório) — ver lib/plan_state.py.
+#        (ver lib/plan_state.py) ou "archify" para os diagramas do /archify —
+#        mesma cascata, outro diretório. Cada família de artefato tem a própria
+#        pasta: misturar diagrama com relatório e plano é o que faz o usuário
+#        não achar o que gerou ontem.
 # Saída: caminho absoluto do diretório-alvo no stdout (já criado com mkdir -p).
 #
-# Single source of truth: o hook pre-exitplan-visualize.sh, a invocação manual
-# do /visual e o motor de plano chamam ESTE script, pra nunca divergirem.
+# Quem chama: o hook pre-exitplan-visualize.sh, a invocação manual do /visual, o
+# motor de plano e a skill /archify — todos por aqui, pra nunca divergirem.
 
 CWD="${1:-$PWD}"
 SUB="${2:-visual}"

@@ -28,16 +28,24 @@
 
 [ "${ASKQ_GATE:-1}" = "0" ] && exit 0
 
-JQ="$(command -v jq)"
 PY="$(command -v python3)"
-{ [ -z "$JQ" ] || [ -z "$PY" ]; } && exit 0
+"$PY" --version >/dev/null 2>&1 || exit 0
+[ -z "$PY" ] && exit 0
+# Leitor do payload: `jq` quando existe, `python3` (stdlib json) quando não.
+# Sem os dois o gate não julga — e aí ele AVISA, nunca sai calado (issue #5).
+# `${0%/*}` e não `dirname`: o probe roda antes de saber se há PATH utilizável.
+HJ_DIR="${0%/*}"; [ "$HJ_DIR" = "$0" ] && HJ_DIR="."
+# shellcheck source=/dev/null
+. "$HJ_DIR/hook-json.sh" 2>/dev/null
+type hj_campo >/dev/null 2>&1 || exit 0
+hj_leitor >/dev/null 2>&1 || { hj_avisa "askq-humanize"; exit 0; }
 
 PLUGIN_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)" || exit 0
 LINT="$PLUGIN_ROOT/lib/askq_lint.py"
 [ -r "$LINT" ] || exit 0
 
 INPUT="$(cat)"
-SESSION_ID="$(printf '%s' "$INPUT" | "$JQ" -r '.session_id // empty' 2>/dev/null)"
+SESSION_ID="$(hj_campo "$INPUT" session_id)"
 # Sem session_id não dá pra escopar o cap por sessão, e cap global vaza entre
 # sessões concorrentes (o bug do context-guard, v1.2.0). Melhor não frear.
 [ -n "$SESSION_ID" ] || exit 0
@@ -62,7 +70,7 @@ VIOL="$(printf '%s' "$INPUT" | "$PY" "$LINT" 2>/dev/null)"; RC=$?
 # dado real em vez de sobre suposição de formato.
 {
   printf '=== %s · session=%s · rc=%s\n' "$(date '+%Y-%m-%d %H:%M:%S')" "$SESSION_ID" "$RC"
-  printf '%s' "$INPUT" | "$JQ" -c '.tool_input' 2>/dev/null | cut -c1-4000
+  printf '%s' "$(hj_campo_json "$INPUT" tool_input)" | cut -c1-4000
   [ -n "$VIOL" ] && printf '%s\n' "$VIOL"
 } >> "$LOG_FILE" 2>/dev/null
 
@@ -100,6 +108,5 @@ Desligar este gate nesta sessão: ASKQ_GATE=0
 EOF
 )"
 
-"$JQ" -n --arg r "$MSG" \
-  '{hookSpecificOutput:{hookEventName:"PreToolUse",permissionDecision:"deny",permissionDecisionReason:$r}}'
+hj_deny "$MSG"
 exit 0

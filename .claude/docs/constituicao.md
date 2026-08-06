@@ -1,0 +1,208 @@
+---
+generated: 2026-08-05
+reviewed: 2026-08-06
+project: pedro-plugins
+authored-by: human
+status: ready
+scope:
+  - .claude/hooks/release-gate.sh
+  - scripts/hook_contract.py
+  - scripts/regua_call_check.py
+  - scripts/public_repo_check.py
+  - .github/workflows/portability.yml
+doc-sig: pedro-plugins/release-gate.sh@gen=3.8#2c86f1ea
+---
+
+# A constituição
+
+> As oito dimensões em que este marketplace é julgado, e **quem cobra cada uma**. Quando
+> houver conflito com qualquer outro documento, ganha este. `quality-goals.md` continua
+> mandando na *forma* do que se escreve; aqui está o que o sistema *tem que ser*.
+
+O produto deste repositório não é código: é **comportamento de agente instalado na máquina
+de um terceiro**. Isso muda o que significa "pronto". Um plugin que funciona aqui e morre
+calado lá não está pronto — está mentindo.
+
+## A cláusula que manda em todas
+
+**Artigo sem cobrador é dívida declarada, não regra.** Cada artigo abaixo diz quem o cobra.
+Onde está escrito *hoje não há quem cobre*, a frase é a admissão de que aquilo é intenção,
+e o gate correspondente é trabalho em aberto — nunca se cita esse artigo para reprovar
+alguém sem antes construir o cobrador.
+
+O motivo está registrado no próprio repositório: regra em prosa não pegou, e **368
+ocorrências do nome do dono entraram** enquanto a regra do repositório público era só um
+parágrafo (`.claude/CLAUDE.md`, Custom Rules). Prosa não cobra. Programa cobra.
+
+---
+
+## Artigo 1 · Arquitetura
+
+**O que exige** — Todo acoplamento entre plugins é declarado no catálogo, e degrada no
+ponto de uso. Plugin que só funciona porque outro está instalado, sem declarar isso, não
+entra no `marketplace.json`.
+
+**Como se cobra** — Hoje não há quem cobre. O catálogo não tem campo de dependência. O gate
+seria um `check_dependencias_plugin` em `plugins/bootstrap/lib/conformance.py`, irmão do
+`check_ferramentas_externas` que já cobra binário externo por `requerido_por` — e a
+cobrança de commit tem que morar no `release-gate.sh`, não só no `conformance.py`: o que só
+o segundo cobra passa no commit e só aparece no próximo `bootstrap:setup`.
+
+**Prova de que vale hoje** — As chaves de cada entrada do catálogo são `author`, `category`,
+`description`, `name`, `source`, `tags`, `version` — nenhuma de dependência. E há skill
+mandando rodar arquivo de outro plugin (`plugins/handoff/skills/handoff/SKILL.md:84`).
+
+---
+
+## Artigo 2 · Aplicabilidade
+
+**O que exige** — Nada que sirva só à máquina de quem escreveu entra como padrão. Default
+que toca o disco, o git ou as permissões de quem instala **nasce desligado**.
+
+**Como se cobra** — Hoje não há quem cobre. Existe `scripts/public_repo_check.py`
+(checagem H do gate de commit), mas ele pega **dado pessoal**, não **default pessoal**. O
+gate seria uma lista de padrões proibidos em `settings-defaults.json` e `manifest.json`:
+permissão automática para comando destrutivo, plugin ligado de fábrica com dependência
+externa não instalada, e caminho padrão apontando para uma pasta do autor.
+
+**Prova de que vale hoje** — `plugins/bootstrap/config/settings-defaults.json` continua
+ligando aprovação automática na máquina de quem instala: **121** permissões no `allow`
+(`python3 -c "import json;print(len(json.load(open('plugins/bootstrap/config/settings-defaults.json'))['permissions']['allow']))"`).
+O que saiu desse allow nesta rodada — `Bash(git push*)`, `Bash(ssh-add*)`, `Bash(supabase*)`
+e os prefixos de atribuição com curinga (`Bash(TOKEN=*)`, `Bash(SUPABASE_*)`), que reabriam
+qualquer comando — saiu por revisão manual, não por gate: nada impede a próxima entrada
+igual. `plugins/bootstrap/skills/setup/SKILL.md:88` hoje diz o que o setup de fato faz —
+"Isso **liga aprovação automática**" — e enumera família por família o que entra.
+
+---
+
+## Artigo 3 · Portabilidade
+
+**O que exige** — Nenhum comando executado pelo harness pode depender de bash, de `open`,
+de barra normal no caminho, ou de um `python3` que existe mas não executa. A régua vale nas
+**três camadas**: o `hooks.json`, o script `.sh`, e o comando escrito dentro de um
+`SKILL.md`.
+
+**Como se cobra** — Cobrado. `scripts/test_crlf.sh`, `test_python_probe.sh`,
+`test_paths_normalize.sh` e `test_bootstrap_aviso.sh` deixaram de ser só medidor: o check J
+do `release-gate.sh` roda `scripts/test_*.sh` quando o commit toca hook, script ou
+`.gitattributes` — o recorte existe porque o bloco leva ~100s e em todo commit seria
+proibitivo — e `.github/workflows/portability.yml` roda tudo no push, nos três sistemas
+operacionais.
+
+**Prova de que vale hoje** — `bash scripts/test_paths_normalize.sh` sai 0, e entre os casos
+verdes está "nenhum `hooks.json` depende de sintaxe exclusiva do bash": o `Bad substitution`
+de `${var//x/y}` sob o shell POSIX do Linux não tem mais onde acontecer. `test_crlf.sh` e
+`test_python_probe.sh` também saem 0.
+
+---
+
+## Artigo 4 · Rigor
+
+**O que exige** — Gate que não consegue medir tem que **dizer que não mediu**. Anistia de
+dívida tem data e âncora de conteúdo — nunca imunidade permanente por arquivo.
+
+**Como se cobra** — Cobrado de verdade, com dois furos abertos. `scripts/hook_contract.py`
+mede cinco propriedades de todo hook, e os checks E e E2 do `release-gate.sh` barram a
+deriva contra o retrato. Os furos: retrato ausente faz o bloco inteiro ser pulado em
+silêncio, e a chave da anistia não inclui a linha nem a citação, então um arquivo ganha
+imunidade permanente à regra.
+
+**Prova de que vale hoje** — Sem o retrato, o mesmo comando que hoje diz "nenhum achado"
+devolve `Total: 3 achado(s) — 1 alta`, e sai 1.
+
+---
+
+## Artigo 5 · Funcionalidade
+
+**O que exige** — Toda suíte rastreada roda em algum gate. Nenhum arquivo de teste fica
+órfão de cobrador.
+
+**Como se cobra** — Cobrado em duas camadas, com um furo de momento. No commit, os checks
+D, D2 e F do `release-gate.sh` cobrem `plugins/<n>/lib/*.py`, `_shared/*.py` e
+`plugins/<n>/hooks/*.sh` **do plugin tocado**, e o check J acrescentou
+`plugins/*/hooks/test_*.py` e `scripts/test_*.sh` — os `.py` dentro de `hooks/` não estão
+mais órfãos. No push, `.github/workflows/portability.yml` roda as **54** suítes rastreadas,
+nos três sistemas operacionais. Os dois lados têm asserção de quantidade: glob que deixa de
+casar arquivo reprova em vez de ficar verde sem rodar nada. O furo que sobra é de
+**momento**, não de cobertura: `scripts/test_*.py` e `.claude/hooks/test_release_gate.sh`
+só têm a esteira, então uma quebra neles passa o commit e só aparece no push.
+
+**Prova de que vale hoje** — A esteira fecha a conta: `git ls-files | grep -cE '(^|/)test_'`
+devolve **54**, e a soma dos sete globos de `portability.yml` também dá 54 (20 + 1 + 3 + 2 +
+21 + 6 + 1). O furo de momento também é verificável:
+`grep -c 'scripts/test_\*\.py\|\.claude/hooks/test_' .claude/hooks/release-gate.sh` devolve
+**0**. O vermelho antigo desta seção — o juiz de forma em
+`plugins/bootstrap/hooks/test_bootstrap_hooks.sh` — não existe mais: a suíte fecha
+`53 ok · 0 FAIL` e sai 0, numa máquina com `claude` no PATH.
+
+---
+
+## Artigo 6 · Estética
+
+**O que exige** — Todo texto que um humano lê passa pela régua de `_shared/regua_texto.py`
+antes de sair. Isso inclui a página gerada, o relatório, **e a mensagem que um hook emite**.
+
+**Como se cobra** — Cobrado só para gerador em Python, e por menção. A checagem I roda
+`scripts/regua_call_check.py --staged`, que filtra por extensão `.py` — então os hooks `.sh`
+que falam com humano ficam fora — e casa a *string* do nome da régua, o que faz um
+comentário isentar o arquivo. Fecha casando a chamada real fora de comentário e estendendo
+o alvo a todo hook que emite mensagem ao usuário.
+
+**Prova de que vale hoje** — O hook mais novo do repositório reprova na própria régua: a
+mensagem de dependência ausente tem 209 caracteres, e o teto do perfil de hook é 140.
+
+---
+
+## Artigo 7 · Clareza da instrução
+
+**O que exige** — Duas skills não reivindicam o mesmo gatilho sem declarar a precedência
+**nos dois lados**. Número afirmado em `SKILL.md` é derivável por um comando, ou não
+existe.
+
+**Como se cobra** — Hoje não há quem cobre. Existe `plugins/guardrails/lib/askq_lint.py`
+para a linguagem das perguntas, e a checagem G para o carimbo de geração defasado, mas nada
+olha gatilho cruzado nem número em prosa. O gate seria um `scripts/skill_lint.py` com dois
+testes: descrições cujas condições se sobrepõem sem citar a vizinha, e número seguido de
+substantivo contável sem o comando que o produz ao lado.
+
+**Prova de que vale hoje** — Duas skills do mesmo plugin casam na mesma condição ("projeto
+sem CLAUDE.md") com ordens opostas, e nenhuma cita a outra. Uma skill afirma "60 checks"
+onde a suíte devolve 139.
+
+---
+
+## Artigo 8 · Executabilidade por um agente
+
+**O que exige** — Todo comando dentro de um `SKILL.md` roda **como está escrito**, a partir
+da pasta do projeto de quem instalou. Sem placeholder para o agente adivinhar, sem caminho
+relativo à raiz deste repositório, sem variável que chega vazia.
+
+**Como se cobra** — Hoje não há quem cobre, e é o artigo com mais violações. O gate é o
+mais barato dos oito: varrer os blocos de comando das skills e reprovar três padrões —
+caminho `plugins/<x>/...` (que só existe neste repositório), placeholder entre sinais de
+menor e maior não definido no próprio arquivo, e a variável de raiz do plugin (que chega
+vazia quando o agente roda o comando por conta própria). Isenção ganha marca na linha, no
+molde do `public-ok`.
+
+**Prova de que vale hoje** — Numa sessão com os plugins instalados, a variável de raiz do
+plugin chega vazia ao terminal, e o comando de plano vira `python3 /lib/plan_state.py` —
+arquivo inexistente. Fora deste repositório, os caminhos `plugins/<x>/lib/...` citados nas
+skills não resolvem.
+
+---
+
+## O placar de hoje
+
+- **Com cobrador real:** Artigos 3, 4, 5 e 6 — o 5 e o 6 com furo nomeado acima (no 5 é de
+  momento: quatro suítes só têm a esteira do push, não o commit).
+- **Sem cobrador:** Artigos 1, 2, 7 e 8.
+
+Este placar é parte da lei, não nota de rodapé. Ele é o que impede a constituição de virar
+o parágrafo que não pegou.
+
+## Como um artigo muda
+
+Artigo novo ou emenda entra com as três partes preenchidas — o que exige, quem cobra, a
+prova — e a parte "quem cobra" cita o gate por nome. Emenda que não consegue nomear o
+cobrador entra com *hoje não há quem cobre* escrito, e vira dívida no placar acima.

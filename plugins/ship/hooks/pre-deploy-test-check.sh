@@ -17,11 +17,18 @@
 # num momento ruim, a saída não pode ser editar o script.
 [ "${SHIP_GATE:-1}" = "0" ] && exit 0
 
-command -v jq >/dev/null 2>&1 || exit 0
+# Leitor do payload: `jq` quando existe, `python3` (stdlib json) quando não.
+# Sem os dois o gate não julga — e aí ele AVISA, nunca sai calado (issue #5).
+# `${0%/*}` e não `dirname`: o probe roda antes de saber se há PATH utilizável.
+HJ_DIR="${0%/*}"; [ "$HJ_DIR" = "$0" ] && HJ_DIR="."
+# shellcheck source=/dev/null
+. "$HJ_DIR/hook-json.sh" 2>/dev/null
+type hj_campo >/dev/null 2>&1 || exit 0
+hj_leitor >/dev/null 2>&1 || { hj_avisa "pre-deploy-test-check"; exit 0; }
 
 INPUT=$(cat)
-COMMAND=$(echo "$INPUT" | jq -r '.tool_input.command // empty')
-CWD=$(echo "$INPUT" | jq -r '.cwd // empty')
+COMMAND=$(hj_campo "$INPUT" tool_input.command)
+CWD=$(hj_campo "$INPUT" cwd)
 
 if [ -z "$COMMAND" ]; then
   exit 0
@@ -74,11 +81,15 @@ allow_with_notes() {
   # Defeito de forma não cala um aviso: o motivo vai pro stderr (debug log) e a nota sai
   # assim mesmo. Régua ou python3 ausentes → silêncio, nunca queda.
   REGUA="$(cd "$(dirname "$0")" && pwd)/../lib/regua_texto.py"
+  # ⚠️ NÃO ponha probe de python3 com `|| exit 0` aqui: este `exit` mata o hook antes
+  # do `jq` abaixo, e o aviso "deploy permitido sem verificação" some justamente na
+  # máquina sem python3 — o oposto do que o probe quer. A guarda do python3 é o
+  # `[ -n "$PY3" ]` da linha seguinte, que degrada só a régua. (regressão de 2026-08-05)
   PY3=$(command -v python3 2>/dev/null)
+  [ -n "$PY3" ] && ! "$PY3" --version >/dev/null 2>&1 && PY3=""
   [ -n "$NOTES" ] && [ -n "$PY3" ] && [ -f "$REGUA" ] && \
     printf '%s\n' "$NOTES" | "$PY3" "$REGUA" --perfil hook --onde "nota do gate de deploy" - || :
-  [ -n "$NOTES" ] && jq -n --arg m "$NOTES" \
-    '{systemMessage:$m, hookSpecificOutput:{hookEventName:"PreToolUse", additionalContext:$m}}'
+  [ -n "$NOTES" ] && hj_msg_ctx PreToolUse "$NOTES"
   exit 0
 }
 
@@ -267,7 +278,7 @@ if [ -x "$GATE" ] && echo "$COMMAND" | grep -qE 'deploy\.sh'; then
   node_has_test_script() {
     [ -f "$1" ] || return 1
     local t
-    t=$(jq -r '.scripts.test // empty' "$1" 2>/dev/null)
+    t=$(hj_campo "$(cat "$1" 2>/dev/null)" scripts.test)
     [ -n "$t" ] && ! echo "$t" | grep -q 'no test specified'
   }
   app_has_tests() {
@@ -377,7 +388,7 @@ SEARCH_DIR="$CWD"
 while [ "$SEARCH_DIR" != "/" ]; do
   # package.json with a real test script
   if [ -f "$SEARCH_DIR/package.json" ]; then
-    HAS_TEST=$(jq -r '.scripts.test // empty' "$SEARCH_DIR/package.json" 2>/dev/null)
+    HAS_TEST=$(hj_campo "$(cat "$SEARCH_DIR/package.json" 2>/dev/null)" scripts.test)
     if [ -n "$HAS_TEST" ] && ! echo "$HAS_TEST" | grep -q 'no test specified'; then
       TEST_CMD="CI=true npm test"
       TEST_RUNNER="npm test"

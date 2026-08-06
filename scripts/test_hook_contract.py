@@ -448,6 +448,35 @@ exit 0
     r.close()
 
     print()
+    print("o retrato viaja no git: nada de caminho de máquina dentro")
+    r = Repo()
+    r.hook("calado.sh", "#!/bin/sh\nexit 0\n")
+    # A forma que os hooks.json usam hoje: normalização de barra por `tr`, e o
+    # script no rabo do comando. Sem reconhecê-la, TODO hook vira R0-script-ausente.
+    novo = ("CLAUDE_PLUGIN_ROOT=$(printf '%s' \"$CLAUDE_PLUGIN_ROOT\" | tr '\\\\' /); "
+            "export CLAUDE_PLUGIN_ROOT; \"$CLAUDE_PLUGIN_ROOT\"/hooks/calado.sh")
+    check("a forma de comando em uso hoje resolve pro script real",
+          hc.resolve_script(r.root, "fake", novo)
+          == os.path.join(r.root, "plugins", "fake", "hooks", "calado.sh"))
+    res = hc.run(r.root)
+    import json as _json
+    bruto = _json.dumps(res, ensure_ascii=False)
+    check("a saída não carrega a raiz de quem mediu", "root" not in res)
+    check("caminho de script sai relativo à raiz", r.root not in bruto)
+    r.close()
+
+    print()
+    print("retrato sem a raiz continua comparável")
+    r = Repo()
+    r.hook("bloqueia.sh", "#!/bin/sh\nexit 2\n")
+    retrato = os.path.join(r.root, "retrato.json")
+    with open(retrato, "w", encoding="utf-8") as fh:
+        _json.dump({k: v for k, v in hc.run(r.root).items() if k != "root"}, fh)
+    check("--baseline sem campo de raiz não reporta nada de novo",
+          hc.main(["--root", r.root, "--baseline", retrato, "--fail-on", "high"]) == 0)
+    r.close()
+
+    print()
     if FAILS:
         print("FALHOU: %d" % len(FAILS))
         for f in FAILS:

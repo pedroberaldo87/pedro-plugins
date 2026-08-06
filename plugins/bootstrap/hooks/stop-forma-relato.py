@@ -42,7 +42,10 @@ from pathlib import Path
 
 MIN_PROSA = 2
 MAX_BLOQUEIOS = 2
-TIMEOUT_S = 25
+# MEDIDO em 2026-08-05: `claude -p --model haiku` respondendo so "PASSA" levou 30s,
+# 33s e 48s — o custo e a partida do CLI, nao o texto. Teto de 25s ficava ABAIXO do
+# piso da ferramenta: o juiz estourava sempre e caia no fail-open, aprovando tudo.
+TIMEOUT_S = 90
 CLAUDE_DIR = Path(os.environ.get("CLAUDE_CONFIG_DIR", Path.home() / ".claude"))
 # estado com var propria: isolar o teste via CLAUDE_CONFIG_DIR tirava a credencial
 # do `claude -p` junto, e o juiz passava a aprovar tudo por fail-open.
@@ -190,7 +193,10 @@ def main():
         sair()
 
     passou, motivo = julga(texto)
-    batida("julgou", veredito=("passa" if passou else motivo), sid=sid)
+    # so e "julgou" quando o modelo respondeu: aprovacao por timeout, erro ou
+    # veredito ilegivel entra como "fail-open" — gate que nao mediu diz que nao mediu
+    julgou = (not passou) or motivo == "passa"
+    batida("julgou" if julgou else "fail-open", veredito=motivo, sid=sid)
     if passou:
         sair()
 

@@ -11,12 +11,30 @@
 [ "${GRAPHIFY_GATE:-1}" = "0" ] && exit 0
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-command -v jq >/dev/null 2>&1 || exit 0
+# Leitor do payload: `jq` quando existe, `python3` (stdlib json) quando não.
+# Sem os dois o gate não julga — e aí ele AVISA, nunca sai calado (issue #5).
+# `${0%/*}` e não `dirname`: o probe roda antes de saber se há PATH utilizável.
+HJ_DIR="${0%/*}"; [ "$HJ_DIR" = "$0" ] && HJ_DIR="."
+# shellcheck source=/dev/null
+. "$HJ_DIR/hook-json.sh" 2>/dev/null
+# Diretório temporário DO SISTEMA — perguntado, nunca assumido (ver lib-tmpdir.sh).
+# shellcheck source=/dev/null
+. "$HJ_DIR/lib-tmpdir.sh" 2>/dev/null
+TMPD=$(td_tmpdir 2>/dev/null || printf '%s' "${TMPDIR:-/tmp}")
+type hj_campo >/dev/null 2>&1 || exit 0
+hj_leitor >/dev/null 2>&1 || { hj_avisa "pretooluse-graphify-guard"; exit 0; }
+
+# Prova de EXECUÇÃO do python3 junto do jq, ANTES de qualquer escrita de estado: em
+# máquina sem python3 funcional (stub da Store que existe mas não roda, ou python3
+# ausente) o guard sai fail-open aqui, sem queimar o sentinel — se o probe ficasse
+# depois do touch, a sessão inteira ficava silenciada sem nudge nenhum.
+PY3=$(command -v python3 2>/dev/null)
+"$PY3" --version >/dev/null 2>&1 || exit 0
 
 INPUT=$(cat 2>/dev/null)
-TOOL=$(printf '%s' "$INPUT" | jq -r '.tool_name // empty' 2>/dev/null)
-SESSION=$(printf '%s' "$INPUT" | jq -r '.session_id // "unknown"' 2>/dev/null)
-CWD=$(printf '%s' "$INPUT" | jq -r '.cwd // empty' 2>/dev/null)
+TOOL=$(hj_campo "$INPUT" tool_name)
+SESSION=$(hj_campo_ou "$INPUT" session_id unknown)
+CWD=$(hj_campo "$INPUT" cwd)
 [ -z "$CWD" ] && CWD="$PWD"
 
 # Build the list of candidate dirs that this search might touch. Always include CWD; add the
@@ -24,14 +42,25 @@ CWD=$(printf '%s' "$INPUT" | jq -r '.cwd // empty' 2>/dev/null)
 CANDS="$CWD"
 case "$TOOL" in
   Grep|Glob)
-    P=$(printf '%s' "$INPUT" | jq -r '.tool_input.path // empty' 2>/dev/null)
+    P=$(hj_campo "$INPUT" tool_input.path)
     [ -n "$P" ] && CANDS="$CANDS
 $P"
     ;;
   Bash)
-    CMD=$(printf '%s' "$INPUT" | jq -r '.tool_input.command // empty' 2>/dev/null)
+    CMD=$(hj_campo "$INPUT" tool_input.command)
     # only intercept blind text/file search; everything else (incl. `graphify ...`) passes
-    printf '%s' "$CMD" | grep -Eq '(^|[^[:alnum:]_])(grep|egrep|fgrep|rg|ripgrep|ag|ack|find)([^[:alnum:]_]|$)' || exit 0
+    # Wrappers de comando inambíguos (sudo/time/xargs/env/nohup/command) disparam em
+    # posição de comando, tolerando tokens de opção entre o wrapper e a palavra de busca
+    # (xargs -I{} grep, sudo -u root grep) — trade-off aceito: falso-positivo raro quando
+    # um token não-opção real separa wrapper de grep (ex.: xargs kill grep).
+    # Posição de comando NÃO é só início de linha: crase, abre-chave de bloco e as palavras
+    # do/then também abrem comando, e antes da palavra de busca ainda cabem prefixo de
+    # variável (VAR=1 grep) e prefixo de caminho (/usr/bin/grep, ./bin/grep). Tudo isso
+    # ancora — o que continua NÃO ancorando é o espaço solto, que é o que mantém a prosa
+    # ("echo \"use grep\"") passando. Trade-off aceito: prosa com 'do'/'then' antes da
+    # palavra ("please do grep") vira falso-positivo. bash -c/sh -c segue passando (exige
+    # parsing de string). Regra espelhada em project-doc/hooks/pretooluse-doc-guard.sh.
+    printf '%s' "$CMD" | grep -Eq '(^|[;&|(){}`]|(^|[[:space:]])(do|then)[[:space:]])[[:space:]]*([A-Za-z_][A-Za-z0-9_]*=[^[:space:]]*[[:space:]]+)*((sudo|time|xargs|env|nohup|command)[[:space:]]+([^[:space:];|()]+[[:space:]]+)*)?((\.{0,2}/)[^[:space:]]*/)?(grep|egrep|fgrep|rg|ripgrep|ag|ack|find)([^[:alnum:]_]|$)' || exit 0
     # add command tokens that exist as paths, so `grep -r x subprojeto/` fires from the parent dir
     for tok in $CMD; do
       case "$tok" in -*) continue ;; esac
@@ -46,20 +75,20 @@ $cand"
 esac
 
 # Once-per-session: if we've already nudged, let everything through.
-SENTINEL="/tmp/claude-graphify-guard-${SESSION}"
+SENTINEL="${TMPD}/claude-graphify-guard-${SESSION}"
 [ -f "$SENTINEL" ] && exit 0
 
 # Poda: sessão morre e o sentinel fica. Mesma janela e mesma forma do irmão
 # (guardrails/hooks/scope-cop.sh). Restrita ao PRÓPRIO padrão de nome — nunca
-# glob amplo em /tmp. Gatilho: roda em toda busca interceptada até que um nudge seja
+# glob amplo no temporário. Gatilho: roda em toda busca interceptada até que um nudge seja
 # emitido — quem corta é o sentinel da linha acima, e ele só nasce quando o hook de
 # fato avisa. Num projeto sem grafo o nudge nunca acontece (o exit do PROJ vazio sai
 # sem queimar o sentinel), então aqui é a sessão inteira, uma passada por busca cega.
-# Custo medido em 2026-07-30: ~6ms por chamada com ~1500 entradas em /tmp — aceito.
-# A barra final em "/tmp/" é obrigatória: no macOS /tmp é symlink pra private/tmp e
+# Custo medido em 2026-07-30: ~6ms por chamada com ~1500 entradas no temporário — aceito.
+# A barra final no diretório é obrigatória: no macOS o temporário é symlink e
 # o find físico (-P, o default) não desce por um symlink dado como ponto de partida —
 # sem a barra ele casa zero arquivo e a poda vira no-op silencioso.
-find /tmp/ -maxdepth 1 -name 'claude-graphify-guard-*' -mtime +1 -delete 2>/dev/null
+find "$TMPD/" -maxdepth 1 -name 'claude-graphify-guard-*' -mtime +1 -delete 2>/dev/null
 
 # Nearest ancestor of a dir that owns a graph (cheap: stat while walking up).
 find_graph_up() {
@@ -134,7 +163,6 @@ ${COMANDOS}${STALE}
 # o aviso: o motivo vai pro stderr e o texto sai assim mesmo. Sem python3 ou sem a
 # régua vendorada → silêncio, nunca queda (mesmo fail-open do resto do arquivo).
 REGUA="$SCRIPT_DIR/../lib/regua_texto.py"
-PY3=$(command -v python3 2>/dev/null)
 regua_hook() { [ -n "$PY3" ] && [ -f "$REGUA" ] && printf '%s\n' "$1" | "$PY3" "$REGUA" --perfil hook --onde "$2" - || :; }
 
 # conformance: default-warn — o caminho de deny existe, mas só com GRAPHIFY_DENY=1
@@ -146,14 +174,12 @@ regua_hook() { [ -n "$PY3" ] && [ -f "$REGUA" ] && printf '%s\n' "$1" | "$PY3" "
 # Voltar a bloquear: GRAPHIFY_DENY=1.
 if [ "${GRAPHIFY_DENY:-0}" = "1" ]; then
   regua_hook "$MSG_DENY" "deny do graphify-guard"
-  jq -n --arg r "$MSG_DENY" \
-    '{hookSpecificOutput:{hookEventName:"PreToolUse",permissionDecision:"deny",permissionDecisionReason:$r}}'
+  hj_deny "$MSG_DENY"
 else
   # Sem systemMessage de propósito: este aviso é endereçado ao MODELO, que é quem roda o
   # `graphify query` — o usuário não tem o que fazer com ele, e um systemMessage por sessão
   # em todo projeto com grafo vira ruído recorrente (§5.3, propriedade 1).
   regua_hook "$MSG_WARN" "aviso do graphify-guard"
-  jq -n --arg r "$MSG_WARN" \
-    '{hookSpecificOutput:{hookEventName:"PreToolUse",additionalContext:$r}}'
+  hj_ctx PreToolUse "$MSG_WARN"
 fi
 exit 0

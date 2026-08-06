@@ -14,6 +14,7 @@
 [ "${BRANCHES_GATE:-1}" = "0" ] && exit 0
 command -v jq >/dev/null 2>&1 || exit 0
 PY3=$(command -v python3 2>/dev/null)
+"$PY3" --version >/dev/null 2>&1 || exit 0
 [ -z "$PY3" ] && exit 0
 
 INPUT=$(cat 2>/dev/null)

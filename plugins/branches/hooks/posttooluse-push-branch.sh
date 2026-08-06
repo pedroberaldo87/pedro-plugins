@@ -15,12 +15,20 @@
 #   fail-open  sem jq, sem python3, fora de repo, push que falhou → exit 0 calado
 
 [ "${BRANCHES_GATE:-1}" = "0" ] && exit 0
-command -v jq >/dev/null 2>&1 || exit 0
+# Leitor do payload: `jq` quando existe, `python3` (stdlib json) quando não.
+# Sem os dois o gate não julga — e aí ele AVISA, nunca sai calado (issue #5).
+# `${0%/*}` e não `dirname`: o probe roda antes de saber se há PATH utilizável.
+HJ_DIR="${0%/*}"; [ "$HJ_DIR" = "$0" ] && HJ_DIR="."
+# shellcheck source=/dev/null
+. "$HJ_DIR/hook-json.sh" 2>/dev/null
+type hj_campo >/dev/null 2>&1 || exit 0
+hj_leitor >/dev/null 2>&1 || { hj_avisa "posttooluse-push-branch"; exit 0; }
 PY3=$(command -v python3 2>/dev/null)
+"$PY3" --version >/dev/null 2>&1 || exit 0
 [ -z "$PY3" ] && exit 0
 
 INPUT=$(cat 2>/dev/null)
-CMD=$(printf '%s' "$INPUT" | jq -r '.tool_input.command // empty' 2>/dev/null)
+CMD=$(hj_campo "$INPUT" tool_input.command)
 printf '%s' "$CMD" | grep -qE '(^|[;&|]|&&)[[:space:]]*git[[:space:]]+.*\bpush\b' || exit 0
 
 # Push que falhou não fecha ciclo nenhum. O campo varia por versão do harness,
@@ -28,13 +36,11 @@ printf '%s' "$CMD" | grep -qE '(^|[;&|]|&&)[[:space:]]*git[[:space:]]+.*\bpush\b
 # ⚠️ NÃO usar `.a // .b // "true"` aqui: no jq o `//` devolve o lado direito
 # quando o esquerdo é null OU **false**, então success:false virava "true" e o
 # hook perguntava depois de um push que falhou. Comparação explícita.
-FALHOU=$(printf '%s' "$INPUT" | jq -r '
-  if (.tool_response.success == false) or (.tool_result.success == false)
-  then "sim" else "nao" end' 2>/dev/null)
-[ "$FALHOU" = "sim" ] && exit 0
+hj_eh_falso "$INPUT" tool_response.success && exit 0
+hj_eh_falso "$INPUT" tool_result.success && exit 0
 
-SESSION=$(printf '%s' "$INPUT" | jq -r '.session_id // "unknown"' 2>/dev/null)
-CWD=$(printf '%s' "$INPUT" | jq -r '.cwd // empty' 2>/dev/null)
+SESSION=$(hj_campo_ou "$INPUT" session_id unknown)
+CWD=$(hj_campo "$INPUT" cwd)
 [ -z "$CWD" ] && CWD="$PWD"
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
@@ -49,16 +55,25 @@ BRANCH=$(git -C "$ROOT" rev-parse --abbrev-ref HEAD 2>/dev/null)
 # Estado da branch atual, pela mesma medida do /branches.
 INFO=$("$PY3" "$BS" --repo "$ROOT" list --json 2>/dev/null) || exit 0
 [ -n "$INFO" ] || exit 0
-LINHA=$(printf '%s' "$INFO" | jq -r --arg b "$BRANCH" '
-  if .base == $b then empty
-  else (.branches[]? | select(.name == $b)
-        | "\(.category)\t\(.ahead)\t\(.behind)") end' 2>/dev/null)
+# A varredura é no `python3` que este hook já exige, não no `jq`: em máquina sem
+# `jq` o aviso de branch sumia inteiro (issue #5).
+LINHA=$(printf '%s' "$INFO" | "$PY3" -c 'import json,sys
+try:
+    d = json.loads(sys.stdin.read() or "{}")
+except Exception:
+    sys.exit(0)
+b = sys.argv[1]
+if d.get("base") != b:
+    for x in d.get("branches") or []:
+        if x.get("name") == b:
+            print("%s\t%s\t%s" % (x.get("category"), x.get("ahead"), x.get("behind")))
+            break' "$BRANCH" 2>/dev/null)
 # Vazio = estamos no tronco, ou a branch sumiu da listagem. Nos dois casos, cala.
 [ -n "$LINHA" ] || exit 0
 
 CAT=$(printf '%s' "$LINHA" | cut -f1)
 AHEAD=$(printf '%s' "$LINHA" | cut -f2)
-BASE=$(printf '%s' "$INFO" | jq -r '.base' 2>/dev/null)
+BASE=$(hj_campo "$INFO" base)
 
 # Branch cujo conteúdo JÁ está no tronco não precisa de pergunta — precisa de
 # faxina, e disso o /branches cuida. Aqui só interessa a que ainda tem trabalho.
@@ -85,5 +100,5 @@ MSG="🌿 Push feito em ${BRANCH} — ${AHEAD} commit(s) à frente de ${BASE}
 REGUA="$SCRIPT_DIR/../lib/regua_texto.py"
 [ -f "$REGUA" ] && printf '%s\n' "$MSG" | "$PY3" "$REGUA" --perfil hook --onde "push de branch" - || :
 
-jq -n --arg m "$MSG" '{systemMessage:$m}' 2>/dev/null
+hj_msg "$MSG"
 exit 0

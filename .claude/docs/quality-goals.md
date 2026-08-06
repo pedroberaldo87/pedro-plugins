@@ -5,6 +5,7 @@ project: pedro-plugins
 authored-by: human
 status: ready
 scope: []
+doc-sig: pedro-plugins/quality-goals@gen=3.8#d9d6f245
 ---
 
 # Metas de qualidade

@@ -1,6 +1,11 @@
 #!/usr/bin/env bash
 # test_hooks_capture.sh — roda os hooks com stdin JSON fake e confere o efeito.
 set -euo pipefail
+# O hook grava no temporário DO SISTEMA — a suíte pergunta pelo mesmo caminho
+# que ele, em vez de assumir /tmp.
+# shellcheck source=/dev/null
+. "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/lib-tmpdir.sh"
+TMPD=$(td_tmpdir)
 HERE="$(cd "$(dirname "$0")" && pwd)"
 export CLAUDE_PLUGIN_ROOT="$(dirname "$HERE")"
 REPO="$(mktemp -d /tmp/ig-cap-XXXXXX)"
@@ -9,7 +14,7 @@ git -C "$REPO" init -q
 MODE_BAK=""
 [ -f ~/.claude/intent-guard/mode ] && MODE_BAK="$(cat ~/.claude/intent-guard/mode)"
 restore() {
-  rm -rf "$REPO" /tmp/intent-guard-work-testsid
+  rm -rf "$REPO" "$TMPD"/intent-guard-work-testsid
   if [ -n "$MODE_BAK" ]; then echo "$MODE_BAK" > ~/.claude/intent-guard/mode; else rm -f ~/.claude/intent-guard/mode; fi
 }
 trap restore EXIT
@@ -37,7 +42,7 @@ echo 'não é json' | bash "$HERE/capture-prompt.sh" || true
 
 # 5. mark-work: toca a sentinela por sessão
 printf '%s' '{"session_id":"testsid","cwd":"'"$REPO"'"}' | bash "$HERE/mark-work.sh" || true
-[ -f /tmp/intent-guard-work-testsid ]
+[ -f "$TMPD"/intent-guard-work-testsid ]
 
 # 6. large prompt (~500KB): não perde via E2BIG
 LARGE_PROMPT=$(python3 -c 'print("x" * 500000)')

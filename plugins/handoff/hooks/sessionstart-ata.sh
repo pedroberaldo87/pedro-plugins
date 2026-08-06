@@ -1,14 +1,15 @@
 #!/usr/bin/env bash
 # SessionStart hook (rito ATA) — grava o caminho do transcript da sessão num
-# sentinel /tmp para a skill handoff (que NÃO recebe session_id, pois skill ≠ hook)
+# sentinel no temporário do sistema para a skill handoff (que NÃO recebe session_id, pois skill ≠ hook)
 # achar o .jsonl certo via extract_ata.py --auto.
 # Fail-open: qualquer erro → exit 0, nunca atrapalha o início da sessão.
 # Sem python3 não há o que rodar aqui — o corpo inteiro do hook é Python.
 command -v python3 >/dev/null 2>&1 || exit 0
+python3 --version >/dev/null 2>&1 || exit 0
 set -uo pipefail
 INPUT="$(cat 2>/dev/null || true)"
 python3 -c "$(cat <<'PY'
-import json, sys, os, hashlib
+import json, sys, os, hashlib, tempfile
 try:
     data = json.loads(sys.argv[1]) if len(sys.argv) > 1 and sys.argv[1].strip() else {}
 except Exception:
@@ -23,7 +24,9 @@ rec = {
     "source": data.get("source", ""),
 }
 try:
-    with open("/tmp/claude-ata-session-%s" % h, "w") as fh:
+    # Diretório temporário DO SISTEMA — perguntado, nunca assumido.
+    alvo = os.path.join(tempfile.gettempdir(), "claude-ata-session-%s" % h)
+    with open(alvo, "w") as fh:
         json.dump(rec, fh)
 except OSError:
     pass

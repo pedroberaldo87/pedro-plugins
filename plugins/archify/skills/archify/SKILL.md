@@ -72,9 +72,21 @@ When validation fails on label overlap, read the **Suggested fix** lines (coordi
 
 All five modes follow the same loop:
 
+0. **Resolva o destino ANTES de renderizar (obrigatório).** O diagrama pertence ao projeto
+   de quem pediu, numa pasta só dele — não ao lado de relatório, plano e página de decisão.
+   Não escolha o caminho à mão: rode o resolvedor e use o que ele imprimir.
+
+   ```bash
+   ARCHIFY_DIR=$(bash resolve-dir.sh "$PWD" archify)   # <raiz-do-projeto>/.claude/archify
+   ```
+
+   Ele já cria o diretório e segue a mesma cascata do `/visual`: raiz do repositório git →
+   pasta com marcador de projeto (subindo do cwd, parando antes de `$HOME`) → `~/Desktop/`
+   como último recurso. O nome do arquivo leva data e assunto: `AAAA-MM-DD-<assunto>.html`.
+
 1. **Read first**: the schema (`schemas/<type>.schema.json`) and the complete worked example (`examples/*.{architecture,workflow,sequence,dataflow,lifecycle}.json`) — copy its patterns instead of guessing field shapes.
 2. Write `<name>.<type>.json`.
-3. Render: `node bin/archify.mjs render <type> <input>.json <output>.html` (paths relative to this skill's folder).
+3. Render: `node bin/archify.mjs render <type> <input>.json "$ARCHIFY_DIR/AAAA-MM-DD-<assunto>.html"` — o JSON de entrada é relativo à pasta desta skill; a saída vai para o diretório do passo 0, nunca para dentro do plugin nem para a pasta do `/visual`.
 4. Validate the generated artifact: `node bin/archify.mjs validate <type> <input>.json --json`, explicitly add `--quality standard` for dense engineering diagrams or `--quality showcase` for polished delivery, or check an existing HTML file with `node bin/archify.mjs check <output>.html`. This catches malformed SVG output, non-finite SVG values, two-point diagonal arrows, arrows crossing the legend, and profile-aware relationship crossings.
 5. If either step fails, the error names the JSON path or the fix (thresholds, valid ranges, which knob to change). Fix the JSON and re-run; never edit the renderer.
 
@@ -341,6 +353,58 @@ Typography inherits JetBrains Mono from the SVG root. Sizes: 11–12px component
 4. Compute max(y + height) over all SVG elements: viewBox height must exceed it by ≥20px; same for x/width.
 5. Legend y is below every boundary's y + height.
 6. The `.toolbar`, `.diagram-nav`, `.overview-map`, `.semantic-lens`, `.route-probe`, `.intent-trace-status`, `<script>` blocks, and `:root` / `[data-theme]` CSS are untouched — they ARE the theme, Semantic Lens, Intent Trace, Route Probe, Node Finder, Semantic Radar, Presentation Stage, interaction, and export runtime.
+
+## Onde o arquivo mora, e como ele se chama
+
+Destino sempre pelo passo 0 (`resolve-dir.sh "$PWD" archify` → `<raiz>/.claude/archify/`).
+O **nome** depende de que tipo de diagrama é, e essa distinção é o que mantém a pasta
+navegável em vez de virar um monte:
+
+| Tipo | Nome | Por quê |
+|---|---|---|
+| **Documentação viva** — o organismo, um aplicativo, um fluxo nomeado | `organismo.html` · `app-<nome>.html` · `fluxo-<slug>.html` | Nome **estável**: a atualização SOBRESCREVE. Um diagrama por assunto, sempre o atual. |
+| **Avulso** — diagrama de uma conversa, de uma proposta, de um estudo | `AAAA-MM-DD-<assunto>.html` | Tem data porque é registro de um momento, e conviver com o de ontem é o ponto. |
+
+Nome com data para documentação viva acumula uma cópia por rodada e ninguém sabe qual é a
+boa. Nome estável para diagrama avulso apaga o de ontem. Escolha pelo tipo, não pelo gosto.
+
+## As três camadas da documentação viva
+
+Um diagrama do repositório inteiro raramente basta, e um por arquivo é ruído. São três
+camadas, e cada uma existe sob uma condição **verificável por comando** — não por
+julgamento de rodada:
+
+**1 · Organismo — sempre existe.** Um `architecture` do repositório inteiro:
+os componentes de primeiro nível e como se ligam. É o diagrama que `architecture.md`
+referencia. Arquivo: `organismo.html`.
+
+**2 · Aplicativo — quando há mais de um.** Existe um por aplicativo independente quando o
+repositório tem **dois ou mais**. O que conta como aplicativo independente:
+
+```bash
+# pastas com manifesto próprio, fora da raiz e fora de dependências
+find . -maxdepth 3 \( -name package.json -o -name pyproject.toml -o -name go.mod \
+       -o -name Cargo.toml \) -not -path '*/node_modules/*' -not -path './package.json' | wc -l
+```
+
+Um só resultado (ou nenhum) → esta camada não existe, e o organismo já conta a história.
+Arquivo: `app-<nome-da-pasta>.html`.
+
+**3 · Função principal — quando a doc já a nomeia.** Não invente o recorte: uma função
+principal é um **fluxo que a documentação do projeto já descreve** como fluxo ponta a
+ponta. Neste repositório, são os cabeçalhos de `.claude/docs/runtime.md`:
+
+```bash
+grep -c '^## ' .claude/docs/runtime.md      # quantos fluxos a doc nomeia
+```
+
+Cada um vira um `workflow` ou um `sequence` — `workflow` quando o fluxo é uma sequência de
+etapas com decisão, `sequence` quando o interessante é **quem chama quem** ao longo do
+tempo. Arquivo: `fluxo-<slug-do-titulo>.html`.
+
+Projeto sem documentação de fluxo: esta camada **não existe** até existir a doc. Diagrama
+de fluxo inventado por leitura de código é palpite desenhado, e palpite desenhado convence
+mais que palpite escrito — que é exatamente o perigo.
 
 ## Output
 

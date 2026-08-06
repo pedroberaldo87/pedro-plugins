@@ -28,12 +28,23 @@
 #   3. Ambiguidade resolve pro lado SEGURO: casou os dois ⇒ NÃO libera. Quem quer
 #      liberar mesmo assim usa `--sem-doc`, que é inequívoco por construção.
 
-command -v jq >/dev/null 2>&1 || exit 0
+# Leitor do payload: `jq` quando existe, `python3` (stdlib json) quando não.
+# Sem os dois o gate não julga — e aí ele AVISA, nunca sai calado (issue #5).
+# `${0%/*}` e não `dirname`: o probe roda antes de saber se há PATH utilizável.
+HJ_DIR="${0%/*}"; [ "$HJ_DIR" = "$0" ] && HJ_DIR="."
+# shellcheck source=/dev/null
+. "$HJ_DIR/hook-json.sh" 2>/dev/null
+# Diretório temporário DO SISTEMA — perguntado, nunca assumido (ver lib-tmpdir.sh).
+# shellcheck source=/dev/null
+. "$HJ_DIR/lib-tmpdir.sh" 2>/dev/null
+TMPD=$(td_tmpdir 2>/dev/null || printf '%s' "${TMPDIR:-/tmp}")
+type hj_campo >/dev/null 2>&1 || exit 0
+hj_leitor >/dev/null 2>&1 || { hj_avisa "userpromptsubmit-plan-escape"; exit 0; }
 
 INPUT=$(cat 2>/dev/null)
-PROMPT=$(printf '%s' "$INPUT" | jq -r '.prompt // empty' 2>/dev/null)
-SESSION=$(printf '%s' "$INPUT" | jq -r '.session_id // "unknown"' 2>/dev/null)
-CWD=$(printf '%s' "$INPUT" | jq -r '.cwd // empty' 2>/dev/null)
+PROMPT=$(hj_campo "$INPUT" prompt)
+SESSION=$(hj_campo_ou "$INPUT" session_id unknown)
+CWD=$(hj_campo "$INPUT" cwd)
 [ -z "$PROMPT" ] && exit 0
 [ -z "$CWD" ] && CWD="$PWD"
 
@@ -70,14 +81,13 @@ PROJ=$(project_root "$CWD") || exit 0
 [ -z "$PROJ" ] && exit 0
 
 PHASH=$(project_hash "$PROJ")
-ESCAPE="/tmp/claude-plan-gate-escape-${SESSION}-${PHASH}"
+ESCAPE="${TMPD}/claude-plan-gate-escape-${SESSION}-${PHASH}"
 
 if [ "$REVOKING" = "1" ]; then
   [ -f "$ESCAPE" ] || exit 0            # não estava liberado — nada a revogar, cala
   rm -f "$ESCAPE" 2>/dev/null
   CTX="🔒 Escape do gate de documentação REVOGADO para ${PROJ}. O gate volta a exigir documentação antes de qualquer plano."
-  jq -n --arg ctx "$CTX" \
-    '{hookSpecificOutput:{hookEventName:"UserPromptSubmit",additionalContext:$ctx}}'
+  hj_ctx UserPromptSubmit "$CTX"
   exit 0
 fi
 
@@ -88,6 +98,5 @@ printf '%s\n' "$PROJ" > "$ESCAPE" 2>/dev/null || exit 0
 
 CTX="🔓 Escape do gate de documentação ATIVADO para ${PROJ} nesta sessão — o usuário autorizou explicitamente planejar sem documentação. O gate de plano não vai mais barrar aqui. Ainda assim: registre no plano que ele foi feito SEM doc de referência, e ofereça \`/start-doc\` ao final. Se isto foi engano, o usuário revoga com \`--com-doc\`."
 
-jq -n --arg ctx "$CTX" \
-  '{hookSpecificOutput:{hookEventName:"UserPromptSubmit",additionalContext:$ctx}}'
+hj_ctx UserPromptSubmit "$CTX"
 exit 0

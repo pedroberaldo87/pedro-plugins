@@ -27,10 +27,18 @@
 # GRAPHIFY_GATE. Sai antes de ler o stdin — como o graphify-guard.
 [ "${SCOPE_COP_GATE:-1}" = "0" ] && exit 0
 
-JQ="$(command -v jq)"
 PY="$(command -v python3)"
-# Sem jq ou python3 no PATH não dá pra parsear nem julgar — fail-open (não bloqueia).
-{ [ -z "$JQ" ] || [ -z "$PY" ]; } && exit 0
+"$PY" --version >/dev/null 2>&1 || exit 0
+# Sem python3 no PATH não dá pra julgar — fail-open (não bloqueia).
+[ -z "$PY" ] && exit 0
+# Leitor do payload: `jq` quando existe, `python3` (stdlib json) quando não.
+# Sem os dois o gate não julga — e aí ele AVISA, nunca sai calado (issue #5).
+# `${0%/*}` e não `dirname`: o probe roda antes de saber se há PATH utilizável.
+HJ_DIR="${0%/*}"; [ "$HJ_DIR" = "$0" ] && HJ_DIR="."
+# shellcheck source=/dev/null
+. "$HJ_DIR/hook-json.sh" 2>/dev/null
+type hj_campo >/dev/null 2>&1 || exit 0
+hj_leitor >/dev/null 2>&1 || { hj_avisa "scope-cop"; exit 0; }
 # MESMA regra do lib/conformance.py:CLAUDE_DIR e do hooks/lib/apply-config.sh. Com
 # $HOME fixo aqui, quem seta CLAUDE_CONFIG_DIR teria o hook lendo o modo numa pasta
 # e o conformance varrendo **/*.mode noutra: o gate que o auditor acusa não seria o
@@ -68,7 +76,7 @@ INPUT="$(cat)"
 # de bug que já mordeu o context-guard (estado global entre sessões, v1.2.0).
 # Sem session_id (entrada estranha), cai no arquivo global de antes — pior que
 # por-sessão, melhor que não frear.
-SCOPE_SID="$(printf '%s' "$INPUT" | ${JQ:-jq} -r '.session_id // empty' 2>/dev/null)"
+SCOPE_SID="$(hj_campo "$INPUT" session_id)"
 if [ -n "$SCOPE_SID" ]; then
   STREAK_FILE="$HOOK_DIR/scope-cop.blockstreak.${SCOPE_SID}"
   BYPASS_FILE="$HOOK_DIR/scope-cop.bypass.${SCOPE_SID}"
@@ -96,7 +104,7 @@ esac
 [ "$MODE" = "warn" ] || MODE="deny"
 
 # --- campos do tool ---
-FILE_PATH="$(printf '%s' "$INPUT" | "$JQ" -r '.tool_input.file_path // empty')"
+FILE_PATH="$(hj_campo "$INPUT" tool_input.file_path)"
 [ -n "$FILE_PATH" ] || exit 0   # sem file_path → não é Edit/Write de arquivo
 
 # --- filtro barato: só julga arquivos de UI ---
@@ -140,9 +148,9 @@ log_line() {
 }
 
 # --- descrição da edição (o que muda) ---
-OLD="$(printf '%s' "$INPUT" | "$JQ" -r '.tool_input.old_string // empty' | cut -c1-1500)"
-NEW="$(printf '%s' "$INPUT" | "$JQ" -r '.tool_input.new_string // empty' | cut -c1-1500)"
-CONTENT="$(printf '%s' "$INPUT" | "$JQ" -r '.tool_input.content // empty' | cut -c1-1500)"
+OLD="$(printf '%s' "$(hj_campo "$INPUT" tool_input.old_string)" | cut -c1-1500)"
+NEW="$(printf '%s' "$(hj_campo "$INPUT" tool_input.new_string)" | cut -c1-1500)"
+CONTENT="$(printf '%s' "$(hj_campo "$INPUT" tool_input.content)" | cut -c1-1500)"
 if [ -n "$OLD" ] || [ -n "$NEW" ]; then
   FILE_CTX="$(head -c 3500 "$FILE_PATH" 2>/dev/null)"
   EDIT_DESC="[Edit em $FILE_PATH]
@@ -159,7 +167,7 @@ $CONTENT"
 fi
 
 # --- transcript: pedido literal + plano aprovado ---
-TRANSCRIPT="$(printf '%s' "$INPUT" | "$JQ" -r '.transcript_path // empty')"
+TRANSCRIPT="$(hj_campo "$INPUT" transcript_path)"
 USER_REQ=""
 PLAN=""
 if [ -n "$TRANSCRIPT" ] && [ -f "$TRANSCRIPT" ]; then
@@ -406,10 +414,7 @@ if [ "$VERDICT" = "block" ] && [ "$MODE" = "warn" ]; then
   # aviso: o motivo vai pro stderr e o texto sai assim mesmo. Régua ausente → silêncio.
   REGUA="$(cd "$(dirname "$0")" && pwd)/../lib/regua_texto.py"
   [ -f "$REGUA" ] && printf '%s\n' "$AVISO" | "$PY" "$REGUA" --perfil hook --onde "aviso do scope-cop" - || :
-  "$JQ" -n --arg r "$AVISO" '{
-    systemMessage: $r,
-    hookSpecificOutput: { hookEventName: "PreToolUse", additionalContext: $r }
-  }'
+  hj_msg_ctx PreToolUse "$AVISO"
   exit 0
 fi
 
@@ -419,13 +424,7 @@ if [ "$VERDICT" = "block" ]; then
   # permissionDecision "deny" = nega pra mim (Claude), NÃO pergunta ao usuário.
   # O reason me instrui a repensar e reimplementar — auto-correção.
   # shellcheck disable=SC2016  # as aspas simples são do programa jq; $REASON é interpolado via --arg, fora delas
-  "$JQ" -n --arg r "Scope-cop (auto-revisão): essa edição parece desviar do escopo combinado. $REASON — REPENSE a implementação e reescreva de um jeito coerente com o plano/pedido (não reenvie idêntico). Isto é revisão automática; NÃO envolve o usuário." '{
-    hookSpecificOutput: {
-      hookEventName: "PreToolUse",
-      permissionDecision: "deny",
-      permissionDecisionReason: $r
-    }
-  }'
+  hj_deny "Scope-cop (auto-revisão): essa edição parece desviar do escopo combinado. $REASON — REPENSE a implementação e reescreva de um jeito coerente com o plano/pedido (não reenvie idêntico). Isto é revisão automática; NÃO envolve o usuário."
   exit 0
 else
   echo 0 > "$STREAK_FILE"

@@ -28,6 +28,7 @@ import argparse
 import json
 import os
 import sys
+import tempfile
 import time
 
 # A camada de coleta é vendorada como sibling (collect_engine.py). Inserir o dir
@@ -59,7 +60,10 @@ def write_gate_sentinel(session_id, scope, manifest_path=None):
     if not session_id:
         return
     try:
-        with open("/tmp/claude-handoff-target-%s" % session_id, "w") as fh:
+        # Diretório temporário DO SISTEMA — perguntado, nunca assumido.
+        alvo = os.path.join(tempfile.gettempdir(),
+                            "claude-handoff-target-%s" % session_id)
+        with open(alvo, "w") as fh:
             json.dump({"project_root": scope.get("project_root"),
                        "handoff_path": scope.get("handoff_path"),
                        "manifest_path": manifest_path,

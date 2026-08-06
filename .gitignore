@@ -17,8 +17,14 @@
 .claude/ata/
 .claude/plans/
 .claude/HANDOFF*.md
+.claude/RETOMAR-*.md
 .claude/BRIEFING-*.md
 .claude/.project-doc/
+# ⚠️ DIVERGÊNCIA CONSCIENTE do padrão da skill: o project-doc versiona journal e
+# ledger por padrão (é o veículo do conhecimento entre máquinas). Aqui NÃO — a regra
+# do repositório público vence: "achado de mineração fica no disco e fora do git", e
+# ela existe porque foi por aí que nome de cliente vazou. O custo aceito: o journal
+# não viaja entre máquinas neste projeto.
 .claude/intent/
 docs/superpowers/
 
@@ -42,9 +48,11 @@ id_rsa*
 #     Sobe o gerador, nunca a saída.
 # ─────────────────────────────────────────────────────────────────────────────
 graphify-out/
-.claude/hook-contract.baseline.json
 .claude/qa-loop/
 .claude/visual/
+# Diagramas do /archify — mesma natureza da pasta acima: artefato de sessão, do
+# projeto de quem gerou, não produto deste marketplace.
+.claude/archify/
 .playwright-mcp/
 
 # ─────────────────────────────────────────────────────────────────────────────

@@ -56,6 +56,10 @@
           "enabled": false
         },
         {
+          "name": "lixeiro",
+          "enabled": true
+        },
+        {
           "name": "principles",
           "enabled": true
         },
@@ -80,11 +84,11 @@
           "enabled": true
         },
         {
-          "name": "visual",
+          "name": "vision",
           "enabled": true
         },
         {
-          "name": "vision",
+          "name": "visual",
           "enabled": true
         }
       ]

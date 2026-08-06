@@ -290,6 +290,22 @@ $(printf '%s' "$ROUT" | head -20)
   fi
 fi
 
+# K · número de contagem afirmado no README contra o repositório.
+# O README é a vitrine e afirma quantidade (quantos plugins, quantos ligados de fábrica,
+# quantos hooks pedem jq, quantos plugins registram hook e quantos registros dão). Nada
+# conferia isso: quando este check nasceu, as CINCO afirmações estavam defasadas de uma
+# vez (19→21, 17→19, 46→68, 10→12, 34→54), porque plugin novo entra e a prosa fica.
+# Escopo: só quando o commit mexe no README ou numa das fontes que alimentam esses números.
+RCT="$ROOT/scripts/readme_counts_check.py"
+if [ -f "$RCT" ] && printf '%s\n' "$FILES" | grep -qE '^(README\.md$|\.claude-plugin/marketplace\.json$|plugins/bootstrap/config/manifest\.json$|plugins/[^/]+/hooks/)'; then
+  if ! KOUT=$(cd "$ROOT" && python3 "$RCT" 2>&1); then
+    VIOL="${VIOL}
+❌ README DEFASADO — número afirmado na vitrine não bate com o repositório:
+$(printf '%s' "$KOUT" | head -30)
+   → régua: python3 scripts/readme_counts_check.py"
+  fi
+fi
+
 # F · suites shell dos plugins tocados (as .py já foram no gate D)
 for name in $(printf '%s\n' "$FILES" | sed -n 's#^plugins/\([^/]*\)/.*#\1#p' | sort -u); do
   for t in "$ROOT/plugins/$name/hooks/"test_*.sh; do
@@ -301,6 +317,40 @@ $(printf '%s' "$OUT" | tail -15)"
     fi
   done
 done
+
+# J · as suítes que nenhum glob de plugin casa: as de scripts/ e as .py dentro de hooks/.
+# Os checks D, D2 e F varrem plugins/<n>/lib/*.py, _shared/*.py e plugins/<n>/hooks/*.sh —
+# `grep -n 'scripts/test_' .claude/hooks/release-gate.sh` não devolvia nada, e as suítes de
+# portabilidade (Artigo 3 da constituição) tinham medidor sem cobrador no commit.
+# Mesmo gerador do .github/workflows/portability.yml, com a MESMA asserção de quantidade:
+# glob que deixou de casar arquivo não pode ficar verde sem rodar nada (Artigo 5).
+# Escopo: só quando o commit toca hook, script ou .gitattributes. Medido em 2026-08-06, o
+# bloco leva ~100s (80s são de scripts/test_bootstrap_aviso.sh) — em todo commit seria
+# proibitivo, e é exatamente esse o recorte que o Artigo 3 pede.
+if printf '%s\n' "$FILES" | grep -qE '^(scripts/|plugins/[^/]+/hooks/|\.claude/hooks/|\.gitattributes$)'; then
+  roda_suites() {
+    runner="$1"; shift
+    for pat in "$@"; do
+      n=0
+      for t in "$ROOT"/$pat; do
+        [ -f "$t" ] || continue
+        n=$((n + 1))
+        if ! OUT=$(cd "$ROOT" && "$runner" "$t" 2>&1); then
+          VIOL="${VIOL}
+❌ TESTE VERMELHO — ${t#$ROOT/}
+$(printf '%s' "$OUT" | tail -15)"
+        fi
+      done
+      [ "$n" -gt 0 ] && continue
+      VIOL="${VIOL}
+❌ GLOB VAZIO — nenhum arquivo casou em ${pat}
+   → suíte renomeada ou apagada deixaria o gate verde sem rodar nada.
+     Conserte o padrão no check J de .claude/hooks/release-gate.sh"
+    done
+  }
+  roda_suites python3 'plugins/*/hooks/test_*.py'
+  roda_suites bash    'scripts/test_*.sh'
+fi
 
 [ -n "$VIOL" ] || exit 0
 

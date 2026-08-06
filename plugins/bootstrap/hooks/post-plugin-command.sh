@@ -48,7 +48,15 @@ PAYLOAD="$(cat 2>/dev/null || echo "")"
 [ -z "$PAYLOAD" ] && exit 0
 
 # Extract command. Claude Code hook payload has tool_input.command for Bash tool.
-COMMAND="$(echo "$PAYLOAD" | jq -r '.tool_input.command // empty' 2>/dev/null || echo "")"
+# Leitor do payload: `jq` quando existe, `python3` (stdlib json) quando não.
+# Sem os dois o hook não lê o comando — e aí AVISA, nunca sai calado (issue #5).
+# `${0%/*}` e não `dirname`: o probe roda antes de saber se há PATH utilizável.
+HJ_DIR="${0%/*}"; [ "$HJ_DIR" = "$0" ] && HJ_DIR="."
+# shellcheck source=/dev/null
+. "$HJ_DIR/hook-json.sh" 2>/dev/null
+type hj_campo >/dev/null 2>&1 || exit 0
+hj_leitor >/dev/null 2>&1 || { hj_avisa "post-plugin-command"; exit 0; }
+COMMAND="$(hj_campo "$PAYLOAD" tool_input.command)"
 [ -z "$COMMAND" ] && exit 0
 
 # Match `claude plugin (install|uninstall|enable|disable|marketplace (add|remove|rm))`
