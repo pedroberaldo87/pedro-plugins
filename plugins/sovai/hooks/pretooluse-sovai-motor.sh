@@ -49,11 +49,18 @@
 # momento ruim, a saída não pode ser editar o script.
 [ "${SOVAI_GATE:-1}" = "0" ] && exit 0
 
-command -v jq >/dev/null 2>&1 || exit 0
+# Leitor do payload: `jq` quando existe, `python3` (stdlib json) quando não.
+# Sem os dois o gate não julga — e aí ele AVISA, nunca sai calado (issue #5).
+# `${0%/*}` e não `dirname`: o probe roda antes de saber se há PATH utilizável.
+HJ_DIR="${0%/*}"; [ "$HJ_DIR" = "$0" ] && HJ_DIR="."
+# shellcheck source=/dev/null
+. "$HJ_DIR/hook-json.sh" 2>/dev/null
+type hj_campo >/dev/null 2>&1 || exit 0
+hj_leitor >/dev/null 2>&1 || { hj_avisa "pretooluse-sovai-motor"; exit 0; }
 
 INPUT=$(cat 2>/dev/null)
-TOOL=$(printf '%s' "$INPUT" | jq -r '.tool_name // empty' 2>/dev/null)
-SESSION=$(printf '%s' "$INPUT" | jq -r '.session_id // empty' 2>/dev/null)
+TOOL=$(hj_campo "$INPUT" tool_name)
+SESSION=$(hj_campo "$INPUT" session_id)
 
 [ "$TOOL" = "Agent" ] || exit 0
 [ -n "$SESSION" ] || exit 0          # sem sessão não há sinal a consultar
@@ -92,6 +99,5 @@ o pipeline é fechado.
 
 Se este bloqueio estiver errado, o desligamento é SOVAI_GATE=0.'
 
-jq -n --arg r "$RAZAO" \
-  '{hookSpecificOutput:{hookEventName:"PreToolUse",permissionDecision:"deny",permissionDecisionReason:$r}}'
+hj_deny "$RAZAO"
 exit 0

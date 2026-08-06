@@ -52,6 +52,7 @@ doc_out_of_pattern() {
   [ -f "$PATTERN_CHECK_PY" ] || { echo 0; return; }
   local PY3
   PY3=$(command -v python3 2>/dev/null)
+  "$PY3" --version >/dev/null 2>&1 || { echo 0; return; }
   [ -z "$PY3" ] && { echo 0; return; }
   local JSON IN_PAT
   JSON=$("$PY3" "$PATTERN_CHECK_PY" --project-root "$PROJ" --json 2>/dev/null)
@@ -71,6 +72,7 @@ doc_out_of_pattern() {
 doc_staleness() {
   local PROJ="$1" PY3 OUT
   PY3=$(command -v python3 2>/dev/null)
+  "$PY3" --version >/dev/null 2>&1 || { echo unknown; return; }
   [ -z "$PY3" ] && { echo unknown; return; }
   [ -f "$PATTERN_CHECK_PY" ] || { echo unknown; return; }
   OUT=$("$PY3" "$PATTERN_CHECK_PY" --project-staleness "$PROJ" 2>/dev/null)

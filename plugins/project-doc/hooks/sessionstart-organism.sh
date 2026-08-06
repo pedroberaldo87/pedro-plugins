@@ -14,6 +14,7 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 ORGANISM_PY="$SCRIPT_DIR/../lib/organism.py"
 command -v jq >/dev/null 2>&1 || exit 0
 command -v python3 >/dev/null 2>&1 || exit 0
+python3 --version >/dev/null 2>&1 || exit 0
 [ -f "$ORGANISM_PY" ] || exit 0
 
 INPUT=$(cat 2>/dev/null)

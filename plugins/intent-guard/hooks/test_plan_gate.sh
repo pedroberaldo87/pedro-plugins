@@ -1,10 +1,15 @@
 #!/usr/bin/env bash
 # test_plan_gate.sh — juiz mockado por env var; testa allow/deny/cap.
 set -euo pipefail
+# O hook grava no temporário DO SISTEMA — a suíte pergunta pelo mesmo caminho
+# que ele, em vez de assumir /tmp.
+# shellcheck source=/dev/null
+. "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/lib-tmpdir.sh"
+TMPD=$(td_tmpdir)
 HERE="$(cd "$(dirname "$0")" && pwd)"
 export CLAUDE_PLUGIN_ROOT="$(dirname "$HERE")"
 REPO="$(mktemp -d /tmp/ig-pg-XXXXXX)"; git -C "$REPO" init -q
-trap 'rm -rf "$REPO" /tmp/intent-guard-plandeny-pgsid' EXIT
+trap 'rm -rf "$REPO" "$TMPD"/intent-guard-plandeny-pgsid' EXIT
 L="$CLAUDE_PLUGIN_ROOT/lib/ledger.py"
 printf 'export CSV com ;' | python3 "$L" record-raw --cwd "$REPO" --session pgsid --text-stdin
 
@@ -38,7 +43,7 @@ cat > "$HERE/mock_judge_miss2.sh" <<'EOF'
 cat >/dev/null; echo '{"classify":[],"missing":[{"id":"p-1","resumo":"x"}]}'
 EOF
 chmod +x "$HERE/mock_judge_miss2.sh"
-echo 2 > /tmp/intent-guard-plandeny-pgsid
+echo 2 > "$TMPD"/intent-guard-plandeny-pgsid
 mkin "$REPO" 'plano qualquer' | bash "$HERE/plan-gate.sh"   # exit 0 = passou
 
 # 4. sem pedidos vivos nem pendentes → nem chama juiz (judge inexistente não pode quebrar)
@@ -60,7 +65,7 @@ python3 "$L" record-raw --cwd "$REPO3" --session '' --text-stdin <<<'entrada sem
 NOID_JSON="$(python3 -c 'import json,sys; print(json.dumps({"cwd":sys.argv[1],"tool_name":"ExitPlanMode","tool_input":{"plan":sys.argv[2]}}))' "$REPO3" 'plano')"
 set +e; echo "$NOID_JSON" | bash "$HERE/plan-gate.sh"; RC=$?; set -e
 [ "$RC" = 0 ]   # deve passar (fail-open)
-[ ! -f /tmp/intent-guard-plandeny-nosid ]   # nunca cria file com nosid
+[ ! -f "$TMPD"/intent-guard-plandeny-nosid ]   # nunca cria file com nosid
 rm -rf "$REPO3" "$HERE"/mock_judge_miss3.sh
 
 echo "test_plan_gate: OK"

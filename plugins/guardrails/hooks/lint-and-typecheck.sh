@@ -19,12 +19,18 @@
 # sessão ficava presa e a única saída era editar este script.
 [ "${LINT_GATE:-1}" = "0" ] && exit 0
 
-JQ="$(command -v jq)"
-[ -z "$JQ" ] && exit 0   # no jq → fail-open, don't block the edit
+# Leitor do payload: `jq` quando existe, `python3` (stdlib json) quando não.
+# Sem os dois o gate não julga — e aí ele AVISA, nunca sai calado (issue #5).
+# `${0%/*}` e não `dirname`: o probe roda antes de saber se há PATH utilizável.
+HJ_DIR="${0%/*}"; [ "$HJ_DIR" = "$0" ] && HJ_DIR="."
+# shellcheck source=/dev/null
+. "$HJ_DIR/hook-json.sh" 2>/dev/null
+type hj_campo >/dev/null 2>&1 || exit 0
+hj_leitor >/dev/null 2>&1 || { hj_avisa "lint-and-typecheck"; exit 0; }
 
 INPUT=$(cat)
-FILE_PATH=$(echo "$INPUT" | "$JQ" -r '.tool_input.file_path // empty')
-SESSION_ID=$(echo "$INPUT" | "$JQ" -r '.session_id // empty')
+FILE_PATH=$(hj_campo "$INPUT" tool_input.file_path)
+SESSION_ID=$(hj_campo "$INPUT" session_id)
 
 if [ -z "$FILE_PATH" ]; then
   exit 0

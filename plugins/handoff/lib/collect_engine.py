@@ -27,6 +27,7 @@ import json
 import os
 import re
 import sys
+import tempfile
 
 HOME = os.path.expanduser("~")
 PROJECTS_DIR = os.path.join(HOME, ".claude", "projects")
@@ -315,7 +316,8 @@ def discover_transcript(cwd, session_id=None):
     # 2) legado: sentinel por-cwd do hook de discovery
     if cwd:
         h = hashlib.sha1(cwd.encode("utf-8")).hexdigest()[:12]
-        sentinel = f"/tmp/claude-ata-session-{h}"
+        # Diretório temporário DO SISTEMA — o mesmo que sessionstart-ata.sh usa.
+        sentinel = os.path.join(tempfile.gettempdir(), f"claude-ata-session-{h}")
         try:
             with open(sentinel) as fh:
                 data = json.load(fh)

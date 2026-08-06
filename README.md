@@ -2,7 +2,7 @@
 
 Marketplace público de plugins para [Claude Code](https://docs.claude.com/en/docs/claude-code). Monorepo — cada subdiretório em `plugins/` é um plugin independente (skills, hooks e automações), distribuído via `.claude-plugin/marketplace.json`.
 
-**19 plugins · Markdown + Shell + Python · sem build, sem package manager.**
+**21 plugins · Markdown + Shell + Python · sem build, sem package manager.**
 
 ---
 
@@ -52,7 +52,7 @@ claude plugin install bootstrap@pedro-plugins
 /bootstrap:setup
 ```
 
-Resultado esperado numa máquina zerada: **17 plugins ligados + 2 desligados de fábrica**
+Resultado esperado numa máquina zerada: **19 plugins ligados + 2 desligados de fábrica**
 (`graphify-guard` e `intent-guard`), mais os marketplaces de terceiros do manifest.
 
 > ⚠️ **Se aparecer `sync incompleto: N operações falharam`, rode `/bootstrap:setup` de novo.**
@@ -83,6 +83,8 @@ Um plugin depende de um binário que o marketplace **não** instala:
 | Plugin | Precisa de | Instalar |
 |---|---|---|
 | `graphify-guard` | `graphify` | `uv tool install graphifyy` (ou `pipx install graphifyy`) |
+| 33 hooks — `grep -rl '\bjq\b' plugins/*/hooks/*.sh \| grep -v -e /test_ $(ls _shared/*.sh \| sed -E 's#.*/#-e /#') \| wc -l` | `jq` (**opcional**) | Nada a fazer: os 29 hooks que decidem — `grep -rlE '(jq\|hj_campo\|hj_eh_falso)[^#]*(tool_input\.command\|session_id\|stop_hook_active)' plugins/*/hooks/*.sh \| grep -v -e /test_ $(ls _shared/*.sh \| sed -E 's#.*/#-e /#') \| wc -l` — leem o payload por `python3` quando falta `jq`, e sem os dois eles avisam em vez de sair calados. Quem quiser a saída formatada: `brew install jq` (macOS) · `choco install jq` (Windows) |
+| guards | Python 3 | macOS já traz · Windows: instale o real (o stub da Microsoft Store não executa) |
 
 Sem ele o guarda procura um `graphify-out/graph.json` que nada cria — fica instalado,
 calado e sem proteger. O verificador acusa isso na área `dependencia`, e só quando o
@@ -161,8 +163,9 @@ e intercepta cada mensagem sua). Ligar: `claude plugin enable <nome>@pedro-plugi
 
 ## Hooks automáticos
 
-10 plugins registram hooks que disparam sem slash command — 34 registros no total
-(derivado neste run: `python3 scripts/hook_contract.py`):
+12 plugins registram hooks que disparam sem slash command — 54 registros no total
+(derivado neste run: `python3 scripts/hook_contract.py`; conferido no commit por
+`python3 scripts/readme_counts_check.py`):
 
 | Plugin | Eventos | Papel |
 |---|---|---|
@@ -173,6 +176,7 @@ e intercepta cada mensagem sua). Ligar: `claude plugin enable <nome>@pedro-plugi
 | `guardrails` | PreToolUse×3 · PostToolUse | Lint/type-check + scope-cop de UI + gate de pergunta |
 | `handoff` | SessionStart · PreToolUse · Stop | Detecta retomada e salva continuidade |
 | `intent-guard` | UserPromptSubmit · PreToolUse · PostToolUse×2 · Stop | Caderno de pedidos + gate de entrega (desligado de fábrica) |
+| `lixeiro` | SessionStart×2 · PostToolUse · Stop · SessionEnd | Anota quem abriu processo e encerra o que a sessão esqueceu de pé |
 | `project-doc` | SessionStart×2 · UserPromptSubmit · PreToolUse×3 · PostToolUse · Stop | Guard doc-first + aviso de doc defasada + gate de plano |
 | `ship` | PreToolUse | Guarda o fluxo de deploy |
 | `sovai` | PreToolUse | Mantém a missão autônoma no motor Workflow — nega sub-agente enquanto ela dura |

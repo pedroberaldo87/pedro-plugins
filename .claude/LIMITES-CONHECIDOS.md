@@ -64,7 +64,8 @@ $ git grep -nliE '<nomes-de-cliente>|/Users/<conta-do-dono>' -- .claude/
 .claude/LIMITES-CONHECIDOS.md
 .claude/docs/data-stores.md
 .claude/docs/runtime.md
-.claude/hook-contract.baseline.json
+# (o .claude/hook-contract.baseline.json saía aqui; hoje não sai — o campo `root`,
+#  que gravava o caminho absoluto da máquina, foi removido e o arquivo voltou ao git)
 
 # 2º padrão: o nome do plugin que era feito sob medida para um cliente
 $ git grep -ciE '<nome-do-plugin-de-cliente>' -- .claude/ graphify-out/
@@ -77,9 +78,11 @@ commit `ff32947`). Do que restou:
 - **LIMITES-CONHECIDOS.md** é este arquivo. Ele casava nos dois greps porque os comandos
   colados acima traziam os termos literais — aqui eles estão mascarados, e não tem nada de
   terceiro nele.
-- **hook-contract.baseline.json** e **docs/data-stores.md** casam só pelo caminho
-  absoluto da máquina do dono (`/Users/<conta-do-dono>/…`), gravado como proveniência dos
-  hooks.
+- **docs/data-stores.md** casa só pelo caminho absoluto da máquina do dono
+  (`/Users/<conta-do-dono>/…`), citado como proveniência dos hooks.
+- **hook-contract.baseline.json** saiu desta lista: o campo `root`, que gravava esse
+  caminho, foi removido do arquivo, e com isso ele voltou a ser rastreado.
+  [confirmado: `grep -c '/Users/' .claude/hook-contract.baseline.json` → 0]
 - **docs/runtime.md** casa pelo caminho e por uma menção a um diretório de estado de
   outro workspace, dentro de uma nota de medição do plugin do codex.
 

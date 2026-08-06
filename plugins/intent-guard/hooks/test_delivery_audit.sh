@@ -4,13 +4,18 @@
 # acontece quando aparece commit novo. Antes o gatilho era "mexeu em arquivo",
 # o que fazia um agente caro rodar a cada turno.
 set -euo pipefail
+# O hook grava no temporário DO SISTEMA — a suíte pergunta pelo mesmo caminho
+# que ele, em vez de assumir /tmp.
+# shellcheck source=/dev/null
+. "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/lib-tmpdir.sh"
+TMPD=$(td_tmpdir)
 HERE="$(cd "$(dirname "$0")" && pwd)"
 export CLAUDE_PLUGIN_ROOT="$(dirname "$HERE")"
 L="$CLAUDE_PLUGIN_ROOT/lib/ledger.py"
 
 REPO_SPACE=""
 trap 'rm -rf "${REPO:-}" "${REPO2:-}" "${REPO3:-}" "${REPO4:-}" "$REPO_SPACE" "${BARE:-}";
-      rm -f /tmp/intent-guard-{work,stopdeny,seenhead}-{dasid,spacesid,pendsid,convsid,escsid} \
+      rm -f "$TMPD"/intent-guard-{work,stopdeny,seenhead}-{dasid,spacesid,pendsid,convsid,escsid} \
             "$HERE"/mock_classify_*.sh' EXIT
 
 commit_new() {  # commit_new <repo> <marca> — cria um commit novo de verdade
@@ -28,7 +33,7 @@ printf '%s' '{"ev":"classify","raw":"r-1","class":"pedido","resumo":"X","substit
 
 # 1. primeira passada da sessão → só registra o HEAD de partida, não cobra
 OUT="$(mkin | bash "$HERE/delivery-audit.sh")"; [ -z "$OUT" ]
-[ -f /tmp/intent-guard-seenhead-dasid ]
+[ -f "$TMPD"/intent-guard-seenhead-dasid ]
 
 # 2. NOVO GATILHO: sem commit novo não cobra, por mais que haja pedido vivo
 echo "rascunho" > "$REPO/rascunho.txt"
@@ -54,15 +59,15 @@ json.dump({"tree_hash": sys.argv[2], "generated_ts": 1, "verdicts": [
 EOF
 OUT="$(mkin | bash "$HERE/delivery-audit.sh")"; [ -z "$OUT" ]
 python3 "$L" state --cwd "$REPO" | grep -q 'baixado:auditor'
-[ "$(cat /tmp/intent-guard-seenhead-dasid)" = "$(git -C "$REPO" rev-parse HEAD)" ]
+[ "$(cat "$TMPD"/intent-guard-seenhead-dasid)" = "$(git -C "$REPO" rev-parse HEAD)" ]
 
 # 5. cap de stop-denies: pedido vivo novo + commit novo + contador em 2 → libera
 printf 'faz Y' | python3 "$L" record-raw --cwd "$REPO" --session dasid --text-stdin
 printf '%s' '{"ev":"classify","raw":"r-2","class":"pedido","resumo":"Y","substitui":null}' | python3 "$L" apply --cwd "$REPO"
 commit_new "$REPO" c2
-echo 2 > /tmp/intent-guard-stopdeny-dasid
+echo 2 > "$TMPD"/intent-guard-stopdeny-dasid
 OUT="$(mkin | bash "$HERE/delivery-audit.sh")"; [ -z "$OUT" ]
-rm -f /tmp/intent-guard-stopdeny-dasid
+rm -f "$TMPD"/intent-guard-stopdeny-dasid
 
 # 6. ESCADA DE CUSTO: pedido com receita mecânica é resolvido SEM agente
 REPO4="$(mktemp -d /tmp/ig-da4-XXXXXX)"; BARE="$(mktemp -d /tmp/ig-bare4-XXXXXX)"

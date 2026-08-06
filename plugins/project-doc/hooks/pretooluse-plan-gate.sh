@@ -40,12 +40,23 @@
 [ "${PLAN_DOC_GATE:-1}" = "0" ] && exit 0
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-command -v jq >/dev/null 2>&1 || exit 0
+# Leitor do payload: `jq` quando existe, `python3` (stdlib json) quando não.
+# Sem os dois o gate não julga — e aí ele AVISA, nunca sai calado (issue #5).
+# `${0%/*}` e não `dirname`: o probe roda antes de saber se há PATH utilizável.
+HJ_DIR="${0%/*}"; [ "$HJ_DIR" = "$0" ] && HJ_DIR="."
+# shellcheck source=/dev/null
+. "$HJ_DIR/hook-json.sh" 2>/dev/null
+# Diretório temporário DO SISTEMA — perguntado, nunca assumido (ver lib-tmpdir.sh).
+# shellcheck source=/dev/null
+. "$HJ_DIR/lib-tmpdir.sh" 2>/dev/null
+TMPD=$(td_tmpdir 2>/dev/null || printf '%s' "${TMPDIR:-/tmp}")
+type hj_campo >/dev/null 2>&1 || exit 0
+hj_leitor >/dev/null 2>&1 || { hj_avisa "pretooluse-plan-gate"; exit 0; }
 
 INPUT=$(cat 2>/dev/null)
-TOOL=$(printf '%s' "$INPUT" | jq -r '.tool_name // empty' 2>/dev/null)
-SESSION=$(printf '%s' "$INPUT" | jq -r '.session_id // "unknown"' 2>/dev/null)
-CWD=$(printf '%s' "$INPUT" | jq -r '.cwd // empty' 2>/dev/null)
+TOOL=$(hj_campo "$INPUT" tool_name)
+SESSION=$(hj_campo_ou "$INPUT" session_id unknown)
+CWD=$(hj_campo "$INPUT" cwd)
 [ -z "$CWD" ] && CWD="$PWD"
 
 case "$TOOL" in
@@ -69,7 +80,7 @@ PHASH=$(project_hash "$PROJ")
 # ESCAPE VERBAL (só vale pro caso A). Gravado pelo userpromptsubmit-plan-escape.sh
 # quando o usuário diz explicitamente pra ignorar. Por sessão x projeto.
 # ---------------------------------------------------------------------------
-ESCAPE="/tmp/claude-plan-gate-escape-${SESSION}-${PHASH}"
+ESCAPE="${TMPD}/claude-plan-gate-escape-${SESSION}-${PHASH}"
 
 # ---------------------------------------------------------------------------
 # FAIL-OPEN de infra (patterns.md: "só bloqueia com evidência concreta na mão").
@@ -97,15 +108,14 @@ if [ -z "$LINE" ]; then
   fi
 
   if [ -n "$HANDMD" ]; then
-    [ -f "/tmp/claude-doc-guard-${SESSION}-${PHASH}" ] && exit 0
-    CF="/tmp/claude-plan-gate-count-${SESSION}-${PHASH}"
+    [ -f "${TMPD}/claude-doc-guard-${SESSION}-${PHASH}" ] && exit 0
+    CF="${TMPD}/claude-plan-gate-count-${SESSION}-${PHASH}"
     C=0; [ -f "$CF" ] && C="$(cat "$CF" 2>/dev/null)"
     [ "$C" -eq "$C" ] 2>/dev/null || C=0
     [ "$C" -ge 3 ] && exit 0
     echo $((C + 1)) > "$CF"
     MSG="📐 ${PROJ} tem um CLAUDE.md escrito à mão (\`${HANDMD}\`), mas não a documentação estruturada (\`.claude/docs/\`). LEIA o ${HANDMD} antes de planejar — é a única documentação que existe aqui. Depois do plano, ofereça \`/start-doc\` (a intenção do sistema) e \`/project-doc\` (mineração do resto): o CLAUDE.md sozinho não cobre dado, durabilidade nem fluxo. Um Read nele libera este aviso (aviso $((C + 1))/3)."
-    jq -n --arg r "$MSG" \
-      '{hookSpecificOutput:{hookEventName:"PreToolUse",permissionDecision:"deny",permissionDecisionReason:$r}}'
+    hj_deny "$MSG"
     exit 0
   fi
 
@@ -126,8 +136,7 @@ if [ -z "$LINE" ]; then
     MSG="📐 ${PROJ} NÃO tem documentação nenhuma — sem CLAUDE.md, sem .claude/docs/. Antes de planejar, rode \`/start-doc\`: ele entrevista o usuário sobre o que o sistema prioriza, o que é inegociável, onde ele termina, as decisões que explicam o formato e o vocabulário interno. É essa entrevista que guia tudo que vem depois — inclusive este plano. Se houver código, depois dela rode \`/project-doc\` pra minerar o resto. ${ESC_HINT}"
   fi
 
-  jq -n --arg r "$MSG" \
-    '{hookSpecificOutput:{hookEventName:"PreToolUse",permissionDecision:"deny",permissionDecisionReason:$r}}'
+  hj_deny "$MSG"
   exit 0
 fi
 
@@ -171,8 +180,7 @@ if [ ! -f "$ESCAPE" ]; then
 • sem ela o plano nasce sem régua, e o trade-off vira preferência sua
 • rode /start-doc quality-goals e feche o acordo com o usuário
 • recusa sem cap: o usuário libera com --sem-doc e revoga com --com-doc"
-    jq -n --arg r "$MSG" \
-      '{hookSpecificOutput:{hookEventName:"PreToolUse",permissionDecision:"deny",permissionDecisionReason:$r}}'
+    hj_deny "$MSG"
     exit 0
   fi
 
@@ -200,20 +208,19 @@ if [ ! -f "$ESCAPE" ]; then
 • cada etapa é um documento autoral com status: approved e sem [PENDENTE]
 • plano sobre jornada não acordada implementa a jornada que VOCÊ imaginou
 • rode /start-doc; recusa sem cap, o usuário libera com --sem-doc"
-    jq -n --arg r "$MSG" \
-      '{hookSpecificOutput:{hookEventName:"PreToolUse",permissionDecision:"deny",permissionDecisionReason:$r}}'
+    hj_deny "$MSG"
     exit 0
   fi
 fi
 
 # ======================= CASO B/C — a doc existe =======================
-SENTINEL="/tmp/claude-doc-guard-${SESSION}-${PHASH}"
+SENTINEL="${TMPD}/claude-doc-guard-${SESSION}-${PHASH}"
 [ -f "$SENTINEL" ] && exit 0        # CASO C: já foi lida nesta sessão
 
 # CASO B: existe e não foi lida. Cap compartilhado com o doc-guard — o contrato
 # anti-loop do repo é absoluto (o gate degrada, nunca trava de verdade).
 MAX_NUDGES=3
-COUNT_FILE="/tmp/claude-plan-gate-count-${SESSION}-${PHASH}"
+COUNT_FILE="${TMPD}/claude-plan-gate-count-${SESSION}-${PHASH}"
 COUNT=0
 [ -f "$COUNT_FILE" ] && COUNT="$(cat "$COUNT_FILE" 2>/dev/null)"
 [ "$COUNT" -eq "$COUNT" ] 2>/dev/null || COUNT=0
@@ -247,6 +254,5 @@ fi
 NUDGE_NO=$((COUNT + 1))
 MSG="📐 Você está prestes a fazer um plano em ${PROJ}, que TEM documentação (${N} doc(s)) — e ela ainda não foi lida nesta sessão.${DOCLIST} Leia ${CLAUDE_MD_PATH} e o(s) doc(s) do assunto do plano ANTES de planejar: plano feito sem a doc repete decisão já tomada e ignora gotcha já conhecido.${STALEMSG} Um Read em qualquer arquivo de .claude/docs/ ou no CLAUDE.md libera automaticamente (aviso ${NUDGE_NO}/${MAX_NUDGES} — depois disso silencio)."
 
-jq -n --arg r "$MSG" \
-  '{hookSpecificOutput:{hookEventName:"PreToolUse",permissionDecision:"deny",permissionDecisionReason:$r}}'
+hj_deny "$MSG"
 exit 0

@@ -19,12 +19,19 @@
 # tool_input{plan}, hook_event_name.
 
 [ "${VISUAL_GATE:-1}" = "0" ] && exit 0
-command -v jq >/dev/null 2>&1 || exit 0
+# Leitor do payload: `jq` quando existe, `python3` (stdlib json) quando não.
+# Sem os dois o gate não julga — e aí ele AVISA, nunca sai calado (issue #5).
+# `${0%/*}` e não `dirname`: o probe roda antes de saber se há PATH utilizável.
+HJ_DIR="${0%/*}"; [ "$HJ_DIR" = "$0" ] && HJ_DIR="."
+# shellcheck source=/dev/null
+. "$HJ_DIR/hook-json.sh" 2>/dev/null
+type hj_campo >/dev/null 2>&1 || exit 0
+hj_leitor >/dev/null 2>&1 || { hj_avisa "pre-exitplan-visualize"; exit 0; }
 
 INPUT=$(cat)
-SESSION_ID=$(printf '%s' "$INPUT" | jq -r '.session_id // empty' 2>/dev/null)
-PLAN_CONTENT=$(printf '%s' "$INPUT" | jq -r '.tool_input.plan // empty' 2>/dev/null)
-CWD=$(printf '%s' "$INPUT" | jq -r '.cwd // empty' 2>/dev/null)
+SESSION_ID=$(hj_campo "$INPUT" session_id)
+PLAN_CONTENT=$(hj_campo "$INPUT" tool_input.plan)
+CWD=$(hj_campo "$INPUT" cwd)
 
 # Sem session_id não dá pra escopar o cap por sessão → não bloqueia (fail-open).
 [ -n "$SESSION_ID" ] || exit 0
@@ -55,7 +62,7 @@ bump()   { echo $((COUNT + 1)) > "$COUNT_FILE" 2>/dev/null; }
 PLANS_DIR=$(bash "$PLUGIN_ROOT/skills/visual/resolve-dir.sh" "$CWD" plans 2>/dev/null)
 PLAN_STATE="$PLUGIN_ROOT/lib/plan_state.py"
 HAS_PLAN_FILE=1   # 1 = não checável ou já existe → não cobra
-if [ -n "$PLANS_DIR" ] && [ -f "$PLAN_STATE" ] && command -v python3 >/dev/null 2>&1; then
+if [ -n "$PLANS_DIR" ] && [ -f "$PLAN_STATE" ] && command -v python3 >/dev/null 2>&1 && python3 --version >/dev/null 2>&1; then
   OPEN=$(python3 "$PLAN_STATE" --dir "$PLANS_DIR" open --json 2>/dev/null)
   case "$OPEN" in ''|'[]') HAS_PLAN_FILE=0 ;; esac
 fi

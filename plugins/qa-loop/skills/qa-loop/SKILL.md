@@ -363,7 +363,8 @@ caça-regressão nas mudanças + ângulos frescos sobre elas. Formato de cada fi
 rodadas 2+, as duas restritas ao delta):
 - **Plano** — "compare contra o PLANO: sinalize onde a implementação DIVERGE do planejado, mesmo que o código
   pareça bom".
-- **Constituição** — "**leia `.claude/docs/quality-goals.md` do projeto** (as metas de qualidade autorais) e
+- **Constituição** — "**leia `.claude/docs/constituicao.md` do projeto** (a lei: o que o sistema tem que ser)
+  **e `.claude/docs/quality-goals.md`** (as metas de qualidade autorais) e
   sinalize onde a implementação VIOLA o que está escrito lá". O arquivo é lido na rodada, **nunca copiado
   aqui** — a régua é a do projeto que instalou, não a desta skill. Sem esse arquivo, o eixo simplesmente
   **não roda** e o REVIEW segue só com o plano — ausência de constituição não é finding.
@@ -410,7 +411,7 @@ A skill **não é só review de código** — audita **fidelidade ao plano e à 
 rodada. Todo finding é roteado em **3 buckets** no PLAN:
 
 1. **Implementação** — código diverge do plano **ou viola a constituição do projeto**
-   (`.claude/docs/quality-goals.md`, quando o projeto tem uma), bug, ou regressão. → fila de conserto (EXEC,
+   (`.claude/docs/constituicao.md` e `.claude/docs/quality-goals.md`, quando o projeto os tem), bug, ou regressão. → fila de conserto (EXEC,
    com gate). Violar a constituição é divergência igual às outras: entra pela rubrica de severidade normal,
    sem faixa própria.
 2. **Plan-drift (R4)** — um "fix" otimizaria o código mas **afastaria o comportamento do que foi pedido/planejado**. → **restaura pro plano automaticamente** E o desvio sobe no bucket de alertas como **candidato a mudança-de-plano** pro usuário julgar. O plano vence a "melhoria", mesmo que o agente ache que faz sentido mudar. Drift é uma **classe de regressão** — não pausa.

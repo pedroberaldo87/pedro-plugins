@@ -130,6 +130,15 @@ check "aberta 'o que' vence a fechada"    0 "$(roda_dialogo "o que voce rodou?" 
 # junto, o juiz cai no fail-open e APROVA TUDO — os 3 casos "passavam" em 1,7s.
 # Por isso o estado sai por FORMA_RELATO_STATE e o CLAUDE_CONFIG_DIR do teste e
 # removido so nesta chamada.
+#
+# O vermelho antigo do caso "relato ruim reprova" NAO era sorteio de modelo: o
+# teto de tempo do juiz era 25s, abaixo do piso da propria ferramenta (30s, 33s e
+# 48s medidos), entao ele estourava sempre e caia no fail-open, aprovando tudo
+# (stop-forma-relato.py:44-48, hoje TIMEOUT_S = 90). Com o teto corrigido e
+# `claude` no PATH o caso saiu verde nas 2 rodadas medidas, entao ele sai por
+# `check` e reprova a suite como qualquer outro. O verde so vale junto com a
+# checagem deterministica logo abaixo: se o juiz nao respondeu (fail-open), a
+# aprovacao nao conta.
 # ---------------------------------------------------------------------------
 echo "-- juiz de forma do relato"
 
@@ -354,8 +363,11 @@ if command -v jq >/dev/null 2>&1; then
   SNAP1="$(na_maquina_falsa "$REPO3" "$SNAPSHOT" 2>/dev/null)"
   SNAP2="$(na_maquina_falsa "$REPO3" "$SNAPSHOT" 2>/dev/null)"
   MKT='.marketplaces[] | select(.name=="pedro-plugins")'
+  # o numero sai do proprio manifest de origem: plugin novo nao pode reprovar aqui
+  ESPERADO_PLUGINS="$(jq "[$MKT | .plugins[]] | length" "$AQUI/../config/manifest.json")"
   check "1a rodada reescreve" "changed" "$SNAP1"
-  check "pedro-plugins continua com 20 plugins" 20 "$(jq "[$MKT | .plugins[]] | length" "$MF3")"
+  check "pedro-plugins continua com $ESPERADO_PLUGINS plugins" "$ESPERADO_PLUGINS" \
+    "$(jq "[$MKT | .plugins[]] | length" "$MF3")"
   check "graphify-guard continua desligado" "false" \
     "$(jq -r "$MKT | .plugins[] | select(.name==\"graphify-guard\") | .enabled" "$MF3")"
   check "intent-guard continua desligado" "false" \
@@ -364,6 +376,51 @@ if command -v jq >/dev/null 2>&1; then
 else
   echo "  skip  round-trip (jq ausente)"
 fi
+
+# ---------------------------------------------------------------------------
+# O allow padrão é o que o setup LIGA na máquina de quem instala. O snapshot da
+# config regenera esse arquivo a partir da máquina de quem roda, então entrada
+# que age em serviço REMOTO (com o token já guardado) ou que casa por PREFIXO
+# (`source`, atribuicao de variável) volta calada no próximo re-snapshot. Este
+# caso é o cobrador dessa regressão — sem ele, nada segura a volta.
+# ---------------------------------------------------------------------------
+echo "-- allow padrao nao aprova o que age fora da maquina"
+
+allow_proibidas() { # -> entradas proibidas que estao no allow, separadas por espaco
+  python3 - "$AQUI/../config/settings-defaults.json" <<'PY'
+import json, re, sys
+allow = json.load(open(sys.argv[1]))["permissions"]["allow"]
+# a CLASSE que o SKILL.md:88 recusa, nao a lista das entradas ja removidas: uma
+# entrada nova da mesma familia (deploy.sh, curl, vercel) tem que reprovar igual.
+familia = "|".join([
+    # publica ou entrega o que esta nesta maquina
+    r"scp|rsync|sftp|ftp|rclone",
+    r"deploy[\w.-]*|publish[\w.-]*|release[\w.-]*|ship[\w.-]*",
+    r"vercel|netlify|heroku|fly|flyctl|railway|firebase|serverless|sls|wrangler",
+    r"kubectl|helm|terraform|ansible[\w-]*|pm2|eb",
+    # fala com servico remoto com o token ja guardado
+    r"gh|glab|npm|pnpm|yarn|psql|mysql|mongo[\w-]*|redis-cli|sqlcmd",
+    r"aws|az|gcloud|doctl|supabase|stripe|pscale|planetscale|turso|twine",
+    r"ssh|telnet|nc|ncat|socat",
+    # executa codigo baixado na hora
+    r"npx|pnpx|bunx|curl|wget",
+    # grava ou le credencial
+    r"ssh-add|ssh-keygen|security|keychain|gpg|pass|op|vault",
+])
+# aceita caminho antes do comando: ./deploy.sh e bin/deploy.sh sao o mesmo caso
+remoto = r"^Bash\(\s*(?:[^)\s]*/)?(?:" + familia + r")\b"
+# forma de duas palavras: o comando so sai da maquina no subcomando
+remoto_sub = r"^Bash\(\s*(git push|docker (push|login)|gem push|cargo publish|gcloud auth|aws configure)\b"
+# casa por PREFIXO: aprova qualquer comando escrito depois
+prefixo = (r"^Bash\(\s*(source|\.)[* ]"
+           r"|^Bash\(\s*[A-Za-z_][A-Za-z0-9_]*="
+           # curinga de nome de variavel: Bash(SUPABASE_*) aprova SUPABASE_X=1 <comando>
+           r"|^Bash\(\s*[A-Za-z_][A-Za-z0-9_]*_\*")
+print(" ".join(sorted(x for x in allow
+                      if re.search(remoto, x) or re.search(remoto_sub, x) or re.search(prefixo, x))))
+PY
+}
+check "nenhum comando remoto nem atribuicao de variavel no allow padrao" "" "$(allow_proibidas)"
 
 echo
 echo "$OK ok · $FAIL FAIL"

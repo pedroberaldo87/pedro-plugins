@@ -2,6 +2,11 @@
 # test_plan_gate.sh — suíte do gate de plano + do escape verbal.
 # Roda isolado em /tmp; não toca projeto nenhum. Uso: bash test_plan_gate.sh
 
+# Os hooks gravam no temporário DO SISTEMA — a suíte pergunta pelo mesmo caminho
+# que eles, em vez de assumir /tmp.
+# shellcheck source=/dev/null
+. "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/lib-tmpdir.sh"
+TMPD=$(td_tmpdir)
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 GATE="$SCRIPT_DIR/pretooluse-plan-gate.sh"
 ESC="$SCRIPT_DIR/userpromptsubmit-plan-escape.sh"
@@ -12,7 +17,7 @@ ok()   { PASS=$((PASS+1)); printf '  ✓ %s\n' "$1"; }
 bad()  { FAIL=$((FAIL+1)); printf '  ✗ %s\n     esperado: %s\n     obtido:   %s\n' "$1" "$2" "$3"; }
 
 TMP=$(mktemp -d)
-trap 'rm -rf "$TMP"; rm -f /tmp/claude-plan-gate-*-'"$SESSION"'-* /tmp/claude-doc-guard-'"$SESSION"'-*' EXIT
+trap 'rm -rf "$TMP"; rm -f "$TMPD"/claude-plan-gate-*-'"$SESSION"'-* "$TMPD"/claude-doc-guard-'"$SESSION"'-*' EXIT
 
 # --- fixtures -------------------------------------------------------------
 BARE="$TMP/projeto-sem-doc"        # git repo, zero documentação
@@ -101,13 +106,13 @@ case "$(reason "$OUT")" in *"não foi lida"*) ok "com doc não lida: manda ler" 
   *) bad "com doc não lida: manda ler" "'não foi lida'" "$(reason "$OUT" | head -c 60)" ;; esac
 
 # 6) tem doc E foi lida (sentinel do posttooluse-doc-read) -> passa mudo
-SENT="/tmp/claude-doc-guard-${SESSION}-$(phash "$DOCD")"; : > "$SENT"
+SENT="$TMPD/claude-doc-guard-${SESSION}-$(phash "$DOCD")"; : > "$SENT"
 OUT=$(gate EnterPlanMode "$DOCD")
 [ -z "$OUT" ] && ok "com doc lida: passa em silêncio" || bad "com doc lida: passa" "vazio" "$OUT"
 rm -f "$SENT"
 
 # 7) cap de 3 no caso 'doc não lida' (contrato anti-loop do repo)
-rm -f "/tmp/claude-plan-gate-count-${SESSION}-$(phash "$DOCD")"
+rm -f "$TMPD/claude-plan-gate-count-${SESSION}-$(phash "$DOCD")"
 R=""; for _ in 1 2 3 4; do R="$R$(decision "$(gate EnterPlanMode "$DOCD")")|"; done
 [ "$R" = "deny|deny|deny|allow|" ] && ok "com doc não lida: cap de 3 nudges, depois libera" \
                                    || bad "cap de 3 nudges" "deny|deny|deny|allow|" "$R"
@@ -122,7 +127,7 @@ OUT=$(gate EnterPlanMode "$HOME")
 
 echo "── Escape verbal ──"
 
-esc_file() { echo "/tmp/claude-plan-gate-escape-${SESSION}-$(phash "$BARE")"; }
+esc_file() { echo "$TMPD/claude-plan-gate-escape-${SESSION}-$(phash "$BARE")"; }
 
 # 10) frases imperativas liberam
 for P in "ignora a doc" "pula a documentação" "pode planejar sem doc" "dispensa a doc" "--sem-doc" "vai sem documentacao"; do
@@ -198,7 +203,7 @@ rm -f "$(esc_file)"
 HAND="$TMP/projeto-md-manual"
 mkdir -p "$HAND" && (cd "$HAND" && git init -q .)
 printf '# Meu projeto\nAnotações à mão.\n' > "$HAND/CLAUDE.md"
-rm -f "/tmp/claude-plan-gate-count-${SESSION}-$(phash "$HAND")"
+rm -f "$TMPD/claude-plan-gate-count-${SESSION}-$(phash "$HAND")"
 OUT=$(gate EnterPlanMode "$HAND")
 [ "$(decision "$OUT")" = "deny" ] && ok "CLAUDE.md manual: negado (manda ler)" || bad "CLAUDE.md manual negado" deny "$(decision "$OUT")"
 case "$(reason "$OUT")" in
@@ -221,7 +226,7 @@ chmod 644 "$FAKE/doc-detect.sh"
               || bad "fail-open com helper ilegível" "vazio" "$(printf '%s' "$OUT" | head -c 60)"
 
 # R8) Barra final no cwd não pode quebrar a chave do sentinel.
-SENT="/tmp/claude-doc-guard-${SESSION}-$(phash "$DOCD")"; : > "$SENT"
+SENT="$TMPD/claude-doc-guard-${SESSION}-$(phash "$DOCD")"; : > "$SENT"
 OUT=$(gate EnterPlanMode "$DOCD/")
 [ -z "$OUT" ] && ok "cwd com barra final: sentinel ainda casa" || bad "barra final casa" "vazio" "denied"
 rm -f "$SENT"
@@ -229,7 +234,7 @@ rm -f "$SENT"
 # R9) E2E REAL do sentinel: quem escreve é o posttooluse-doc-read.sh, por RECORTE DE
 #     STRING do file_path — não pelo helper. Se as duas derivações divergirem, o gate
 #     nunca libera. O teste antigo era tautológico (escrevia o sentinel com o helper).
-rm -f "/tmp/claude-doc-guard-${SESSION}-$(phash "$DOCD")" "/tmp/claude-plan-gate-count-${SESSION}-$(phash "$DOCD")"
+rm -f "$TMPD/claude-doc-guard-${SESSION}-$(phash "$DOCD")" "$TMPD/claude-plan-gate-count-${SESSION}-$(phash "$DOCD")"
 [ "$(decision "$(gate EnterPlanMode "$DOCD")")" = "deny" ] || bad "E2E setup: deveria negar antes do Read" deny allow
 printf '{"tool_name":"Read","session_id":"%s","cwd":"%s","tool_input":{"file_path":"%s"}}' \
   "$SESSION" "$DOCD" "$DOCD/.claude/docs/architecture.md" | bash "$SCRIPT_DIR/posttooluse-doc-read.sh" >/dev/null 2>&1
@@ -238,7 +243,7 @@ OUT=$(gate EnterPlanMode "$DOCD")
               || bad "E2E posttooluse->gate" "vazio (liberado)" "ainda nega — CHAVE DIVERGIU"
 
 # R10) E2E pela raiz: Read no CLAUDE.md da raiz também resolve.
-rm -f "/tmp/claude-doc-guard-${SESSION}-$(phash "$DOCD")" "/tmp/claude-plan-gate-count-${SESSION}-$(phash "$DOCD")"
+rm -f "$TMPD/claude-doc-guard-${SESSION}-$(phash "$DOCD")" "$TMPD/claude-plan-gate-count-${SESSION}-$(phash "$DOCD")"
 printf '{"tool_name":"Read","session_id":"%s","cwd":"%s","tool_input":{"file_path":"%s"}}' \
   "$SESSION" "$DOCD" "$DOCD/CLAUDE.md" | bash "$SCRIPT_DIR/posttooluse-doc-read.sh" >/dev/null 2>&1
 OUT=$(gate EnterPlanMode "$DOCD")
@@ -252,9 +257,9 @@ ACC="$TMP/projeto-acordo"
 mkdir -p "$ACC/.claude/docs" && (cd "$ACC" && git init -q . && git commit -q --allow-empty -m x 2>/dev/null)
 printf '<!-- project-doc:v2 gen=3.8 -->\n# Project Reference\n<!-- project-doc:v2:end -->\n' > "$ACC/CLAUDE.md"
 printf -- '---\ngenerated: 2026-07-26\nscope:\n  - x.py\n---\n# Arch\n' > "$ACC/.claude/docs/architecture.md"
-acc_reset() { rm -f "/tmp/claude-plan-gate-count-${SESSION}-$(phash "$ACC")" \
-                    "/tmp/claude-doc-guard-${SESSION}-$(phash "$ACC")" \
-                    "/tmp/claude-plan-gate-escape-${SESSION}-$(phash "$ACC")"; }
+acc_reset() { rm -f "$TMPD/claude-plan-gate-count-${SESSION}-$(phash "$ACC")" \
+                    "$TMPD/claude-doc-guard-${SESSION}-$(phash "$ACC")" \
+                    "$TMPD/claude-plan-gate-escape-${SESSION}-$(phash "$ACC")"; }
 acc_reset
 
 # A1) doc existe, constituição do projeto NÃO -> recusa nomeando o motivo (F3.2)
@@ -289,7 +294,7 @@ for d in quality-goals constraints context solution-strategy glossary; do
   aprovado "$ACC/.claude/docs/${d}.md" "$d"
 done
 acc_reset
-: > "/tmp/claude-doc-guard-${SESSION}-$(phash "$ACC")"
+: > "$TMPD/claude-doc-guard-${SESSION}-$(phash "$ACC")"
 OUT=$(gate EnterPlanMode "$ACC")
 [ "$(decision "$OUT")" = "deny" ] && ok "projeto novo sem architecture-intent: negado (S-4.1)" \
                                   || bad "projeto novo negado" deny "$(decision "$OUT")"
@@ -307,7 +312,7 @@ E=$(estilo_hook "$(reason "$OUT")")
 aprovado "$ACC/.claude/docs/architecture-intent.md" "Arquitetura pretendida"
 printf -- '---\nauthored-by: human\nstatus: draft\nscope: []\n---\n# Jornadas\n[PENDENTE]\n' > "$ACC/.claude/docs/journeys.md"
 acc_reset
-: > "/tmp/claude-doc-guard-${SESSION}-$(phash "$ACC")"
+: > "$TMPD/claude-doc-guard-${SESSION}-$(phash "$ACC")"
 OUT=$(gate EnterPlanMode "$ACC")
 [ "$(decision "$OUT")" = "deny" ] && ok "jornadas em aberto: plano negado (F5.3)" \
                                   || bad "jornadas em aberto: negado" deny "$(decision "$OUT")"
@@ -325,14 +330,14 @@ D=$(decision "$(gate ExitPlanMode "$ACC")")
 # A7) etapa pulada (documento nem existe) é igual a etapa em aberto
 rm -f "$ACC/.claude/docs/journeys.md"
 acc_reset
-: > "/tmp/claude-doc-guard-${SESSION}-$(phash "$ACC")"
+: > "$TMPD/claude-doc-guard-${SESSION}-$(phash "$ACC")"
 case "$(reason "$(gate EnterPlanMode "$ACC")")" in *"jornadas (journeys.md)"*) ok "etapa PULADA conta como em aberto" ;;
   *) bad "etapa pulada" "'jornadas (journeys.md)'" "não cobrou" ;; esac
 
 # A8) escape verbal libera também a recusa por etapa
 acc_reset
 escape "--sem-doc" "$ACC" >/dev/null
-: > "/tmp/claude-doc-guard-${SESSION}-$(phash "$ACC")"
+: > "$TMPD/claude-doc-guard-${SESSION}-$(phash "$ACC")"
 OUT=$(gate EnterPlanMode "$ACC")
 [ -z "$OUT" ] && ok "escape verbal libera a recusa por etapa" || bad "escape libera etapa" "vazio" "ainda nega"
 
@@ -341,7 +346,7 @@ OUT=$(gate EnterPlanMode "$ACC")
 #     grava `approved` e o gate cobrava `ready`, e nada fechava o acordo.
 acc_reset
 aprovado "$ACC/.claude/docs/journeys.md" Jornadas
-: > "/tmp/claude-doc-guard-${SESSION}-$(phash "$ACC")"
+: > "$TMPD/claude-doc-guard-${SESSION}-$(phash "$ACC")"
 OUT=$(gate EnterPlanMode "$ACC")
 [ -z "$OUT" ] && ok "os 7 documentos approved: passa em silêncio" || bad "7 approved passa" "vazio" "$(reason "$OUT" | head -c 90)"
 acc_reset

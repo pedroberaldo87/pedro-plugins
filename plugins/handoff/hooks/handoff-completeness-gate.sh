@@ -14,10 +14,11 @@
 [ "${HANDOFF_GATE:-1}" = "0" ] && exit 0
 
 command -v python3 >/dev/null 2>&1 || exit 0
+python3 --version >/dev/null 2>&1 || exit 0
 set -uo pipefail
 INPUT="$(cat 2>/dev/null || true)"
 python3 -c "$(cat <<'PY'
-import json, sys, os, glob, hashlib, re
+import json, sys, os, glob, hashlib, re, tempfile
 
 def ok():
     sys.exit(0)
@@ -32,13 +33,14 @@ session_id = data.get("session_id") or os.environ.get("CLAUDE_CODE_SESSION_ID") 
 
 # Localiza o handoff por SESSAO. Como o handoff agora "pertence ao projeto", ele
 # pode estar fora do cwd (monorepo aninhado, guarda-chuva). O extrator gravou um
-# bilhete /tmp/claude-handoff-target-<sid> com o caminho real + o projeto-raiz.
+# bilhete claude-handoff-target-<sid> (no temporário do sistema) com o caminho real + o projeto-raiz.
 # Casa-se com o manifest da MESMA sessao (exato), nao "o mais recente por mtime".
 prd_path = None
 manifest_path = None
 if session_id:
     try:
-        tgt = json.load(open("/tmp/claude-handoff-target-%s" % session_id))
+        tgt = json.load(open(os.path.join(tempfile.gettempdir(),
+                                          "claude-handoff-target-%s" % session_id)))
         hp = tgt.get("handoff_path")
         mp = tgt.get("manifest_path")
         # compat: bilhete de versao antiga sem manifest_path -> deriva do project_root
@@ -72,7 +74,7 @@ if prd_mtime < man_mtime - 1:
 # não re-disparar para um PRD já aprovado (chave = caminho + sessao + mtime do PRD,
 # pra dois modulos salvos no mesmo segundo nao compartilharem o flag)
 flagh = hashlib.sha1(("%s|%s|%d" % (prd_path, session_id, int(prd_mtime))).encode()).hexdigest()[:16]
-okflag = "/tmp/claude-ata-gate-ok-%s" % flagh
+okflag = os.path.join(tempfile.gettempdir(), "claude-ata-gate-ok-%s" % flagh)
 if os.path.exists(okflag):
     ok()
 try:

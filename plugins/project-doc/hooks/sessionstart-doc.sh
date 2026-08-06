@@ -5,7 +5,14 @@
 # Fail-open: any error → exit 0 with no output.
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-command -v jq >/dev/null 2>&1 || exit 0
+# Leitor do payload: `jq` quando existe, `python3` (stdlib json) quando não.
+# Sem os dois o gate não julga — e aí ele AVISA, nunca sai calado (issue #5).
+# `${0%/*}` e não `dirname`: o probe roda antes de saber se há PATH utilizável.
+HJ_DIR="${0%/*}"; [ "$HJ_DIR" = "$0" ] && HJ_DIR="."
+# shellcheck source=/dev/null
+. "$HJ_DIR/hook-json.sh" 2>/dev/null
+type hj_campo >/dev/null 2>&1 || exit 0
+hj_leitor >/dev/null 2>&1 || { hj_avisa "sessionstart-doc"; exit 0; }
 
 # A detecção de interface é opcional: se a lib sumir, o aviso de doc autoral apenas
 # deixa de contar design.md — o resto do hook (o heads-up da doc minerada) não depende
@@ -16,9 +23,9 @@ if ! . "$SCRIPT_DIR/lib-has-frontend.sh" 2>/dev/null; then
 fi
 
 INPUT=$(cat 2>/dev/null)
-CWD=$(printf '%s' "$INPUT" | jq -r '.cwd // empty' 2>/dev/null)
+CWD=$(hj_campo "$INPUT" cwd)
 [ -z "$CWD" ] && CWD="$PWD"
-SID=$(printf '%s' "$INPUT" | jq -r '.session_id // "unknown"' 2>/dev/null)
+SID=$(hj_campo_ou "$INPUT" session_id unknown)
 
 LINES=$(bash "$SCRIPT_DIR/doc-detect.sh" "$CWD" 2>/dev/null)
 
@@ -74,8 +81,7 @@ if [ -z "$LINES" ]; then
   fi
 
   CTX=$(printf '%b' "$CTX")
-  jq -n --arg ctx "$CTX" \
-    '{hookSpecificOutput:{hookEventName:"SessionStart",additionalContext:$ctx}}'
+  hj_ctx SessionStart "$CTX"
   exit 0
   fi
 fi
@@ -145,8 +151,8 @@ done <<< "$LINES"
 # UM organismo, não N projetos-ilha (o sessionstart-organism.sh já deu o banner).
 HEADER="📚 Este projeto tem documentação project-doc:"
 ORG_MARK=$(python3 "$SCRIPT_DIR/../lib/organism.py" marker "$CWD" 2>/dev/null)
-if [ -n "$ORG_MARK" ] && printf '%s' "$ORG_MARK" | jq -e '.organism == true' >/dev/null 2>&1; then
-  ORG_NAME=$(printf '%s' "$ORG_MARK" | jq -r '.name // "o organismo"')
+if [ -n "$ORG_MARK" ] && [ "$(hj_campo "$ORG_MARK" organism)" = "true" ]; then
+  ORG_NAME=$(hj_campo_ou "$ORG_MARK" name "o organismo")
   HEADER="📚 Docs por módulo do organismo ${ORG_NAME} (o todo vive em .claude/CLAUDE.md da raiz — NÃO trate como projetos isolados):"
 fi
 
@@ -154,6 +160,5 @@ CTX="${HEADER}\n${LIST}\nAntes de explorar com grep/Glob/Explore, LEIA o índice
 
 # expand \n escapes into real newlines, then JSON-encode safely via jq
 CTX=$(printf '%b' "$CTX")
-jq -n --arg ctx "$CTX" \
-  '{hookSpecificOutput:{hookEventName:"SessionStart",additionalContext:$ctx}}'
+hj_ctx SessionStart "$CTX"
 exit 0

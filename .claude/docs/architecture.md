@@ -257,25 +257,25 @@ Saída desta rodada (nome · versão · skills · tem hook):
 
 ```
 archify         2.11.0  [archify]                                        -
-bootstrap       1.10.1  [setup]                                          HOOKS
-branches         1.3.0  [branches]                                       HOOKS
-context-guard    1.3.4  [setup]                                          HOOKS
+bootstrap       1.11.0  [setup]                                          HOOKS
+branches         1.3.1  [branches]                                       HOOKS
+context-guard    1.3.5  [setup]                                          HOOKS
 fallow           1.2.1  [fallow]                                         -
-graphify-guard   1.2.0  [] (sem skills)                                  HOOKS
+graphify-guard   1.2.1  [] (sem skills)                                  HOOKS
 grill-me         1.1.0  [grill-me]                                       -
 grill-with-docs  1.1.0  [grill-with-docs]                                -
-guardrails       1.7.0  [setup]                                          HOOKS
-handoff          1.8.7  [handoff]                                        HOOKS
+guardrails       1.7.1  [setup]                                          HOOKS
+handoff          1.8.8  [handoff]                                        HOOKS
 improve          1.0.3  [improve]                                        -
-intent-guard     0.6.0  [intent-guard]                                   HOOKS
+intent-guard     0.6.1  [intent-guard]                                   HOOKS
 principles       1.0.3  [principles]                                     -
-project-doc     3.21.0  [design-md, doc-touch, project-doc, start-doc]   HOOKS
-qa-loop          1.8.3  [qa-loop]                                        -
-ship             1.4.0  [ship]                                           HOOKS
+project-doc     3.21.2  [design-md, doc-touch, project-doc, start-doc]   HOOKS
+qa-loop          1.8.4  [qa-loop]                                        -
+ship             1.4.1  [ship]                                           HOOKS
 slides           1.5.0  [slides]                                         -
-sovai           1.11.5  [sovai]                                          HOOKS
+sovai           1.11.6  [sovai]                                          HOOKS
 vision          0.1.0  [] (sem skills)                                   -
-visual          1.19.5  [visual]                                         HOOKS
+visual          1.19.6  [visual]                                         HOOKS
 ```
 
 **Esta rodada levou o catálogo de 19 para 20 plugins**: nasceu o `vision` (0.1.0) e bumpou

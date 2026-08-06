@@ -150,6 +150,14 @@ def resolve_script(root, plug, cmd):
     """`${CLAUDE_PLUGIN_ROOT}/hooks/x.sh` → `<root>/plugins/<plug>/hooks/x.sh`."""
     if not cmd:
         return None
+    # Forma nova: `CLAUDE_PLUGIN_ROOT=$(printf '%s' "$CLAUDE_PLUGIN_ROOT" | tr '\\' /)`
+    # normaliza backslash → barra sem `${x//y/z}` (que é bashismo e morre no shell
+    # POSIX do Linux). O script fica no rabo, após o ';', em três formas:
+    # "$CLAUDE_PLUGIN_ROOT"/hooks/x.sh · python3 "$…/hooks/x.py" · bash "$…/hooks/x.sh".
+    if re.search(r"tr\s+'\\\\'\s+/", cmd):
+        m = re.search(r'/hooks/([\w.-]+\.(?:sh|py))', cmd)
+        if m:
+            return os.path.join(root, "plugins", plug, "hooks", m.group(1))
     m = re.search(r"\$\{?CLAUDE_PLUGIN_ROOT\}?/(.+)$", cmd.strip())
     if not m:
         return None
@@ -327,9 +335,15 @@ def run(root):
             continue
         seen.add(k)
         uniq.append(f)
-    return {"root": root, "entries": len(entries), "scripts": len(
-        {e["script"] for e in measured if e.get("script")}), "findings": uniq,
-        "measured": measured}
+    n_scripts = len({e["script"] for e in measured if e.get("script")})
+    # O retrato viaja no git deste repositório PÚBLICO, então nada aqui pode
+    # carregar o caminho da máquina que mediu: a raiz não é emitida, e o caminho
+    # do script sai relativo a ela. Quem lê o retrato só usa `findings`, logo a
+    # ausência da raiz não quebra comparação nenhuma.
+    measured = [dict(e, script=os.path.relpath(e["script"], root))
+                if e.get("script") else e for e in measured]
+    return {"entries": len(entries), "scripts": n_scripts, "findings": uniq,
+            "measured": measured}
 
 
 # ── saída ────────────────────────────────────────────────────────────────────

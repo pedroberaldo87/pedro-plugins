@@ -70,7 +70,7 @@ Duas consequências que valem para tudo abaixo:
 - **`git log` não é mais fonte de história.** Qualquer medida do tipo "N commits neste arquivo" devolve 1 — a história antiga não é ancestral desta.
 - **O remote tem exatamente duas refs e nenhuma tag.** Tudo que era protegido por tag (A5b) hoje existe só neste clone. [confirmado — a saída acima é a resposta inteira do `ls-remote`]
 
-E a região (C) é grande: cinco conjuntos que já foram rastreados vivem hoje só no disco, mais um que entrou nela nesta rodada (`.claude/hook-contract.baseline.json`, `.gitignore:45`).
+E a região (C) é grande: cinco conjuntos que já foram rastreados vivem hoje só no disco. O `.claude/hook-contract.baseline.json` esteve nessa região e **voltou** — perdeu o campo `root` (o caminho absoluto da máquina que mediu), saiu do `.gitignore` e é rastreado. [confirmado: `git ls-files .claude/hook-contract.baseline.json` devolve o caminho, e `grep -c '/Users/'` no arquivo devolve 0]
 
 ---
 
@@ -95,8 +95,8 @@ As cinco seções e as linhas que decidem cada depósito deste doc:
                            docs/superpowers/
 2 · SEGREDO                scripts/public_repo_terms · .claude/secrets/ · .env · .env.*
                            *.pem · *.key · *.p12 · id_rsa* · .netrc
-3 · RETRATO DESTA MÁQUINA  graphify-out/ · .claude/hook-contract.baseline.json
-                           .claude/qa-loop/ · .claude/visual/ · .playwright-mcp/
+3 · RETRATO DESTA MÁQUINA  graphify-out/ · .claude/qa-loop/ · .claude/visual/
+                           .playwright-mcp/
 4 · LIXO DE FERRAMENTA     .DS_Store · __pycache__/ · *.bak · *.tmp · …
 5 · CÓPIA LOCAL DEFASADA   pi-plugins/
 ```
@@ -575,15 +575,15 @@ No topo do plano, ao lado de `phases`:
 
 ### A5 · `.claude/hook-contract.baseline.json` — o retrato do contrato dos hooks
 
-🔴 **Mudou de região nesta rodada: era rastreado, hoje é ignorado** (`.gitignore:45`, seção "RETRATO DESTA MÁQUINA"). [confirmado por `git check-ignore -v`]
+🔴 **Voltou a ser rastreado nesta rodada** — saiu da seção "RETRATO DESTA MÁQUINA" do `.gitignore` quando perdeu o campo que o prendia a uma máquina. [confirmado: `git ls-files .claude/hook-contract.baseline.json` devolve o caminho]
 
-- **Tipo:** JSON único, sobrescrito por `python3 scripts/hook_contract.py --json > …`. **38.035 bytes.**
-- **Cinco chaves de topo, lidas do arquivo real:** `root` (abspath da máquina que mediu), `entries` **31**, `scripts` **30**, `findings` **3**, `measured` **31**. ⚠️ **`entries` (31) > `scripts` (30) porque um mesmo script é registrado em mais de um evento** — contar entradas como "quantos hooks eu tenho" infla, do mesmo jeito que contar chaves do `manifest.json` como "quantos arquivos" (A3).
-- ⚠️ **O `root` gravado é o caminho absoluto desta máquina.** Era metadado de proveniência inútil quando o arquivo viajava; agora que ele não viaja mais, é coerente — e é justamente por carregar isso que ele saiu do índice.
+- **Tipo:** JSON único, sobrescrito por `python3 scripts/hook_contract.py --json > …`. **51.925 bytes.**
+- **Quatro chaves de topo, lidas do arquivo real:** `entries` **39**, `scripts` **38**, `findings` **3**, `measured` **39**. ⚠️ **`entries` (39) > `scripts` (38) porque um mesmo script é registrado em mais de um evento** — contar entradas como "quantos hooks eu tenho" infla, do mesmo jeito que contar chaves do `manifest.json` como "quantos arquivos" (A3).
+- ⚠️ **Não há mais chave `root`.** Ela gravava o caminho absoluto da máquina que mediu — metadado de proveniência que não serve a quem instala e que sujava um repositório público. Sem ela, o retrato viaja e outra máquina reproduz a comparação. [confirmado: `grep -c '/Users/'` no arquivo devolve 0]
 - **O que o script mede** (`scripts/hook_contract.py`, cabeçalho): as 5 propriedades que separam um gate saudável de um que trava ou se desliga sozinho — canal de saída, cap anti-loop escopado por sessão, kill-switch, binário fixo, fail-open. O aviso do próprio arquivo: *"Isto é grep sofisticado, não verdade."* Por isso a saída traz sempre a linha e o trecho que dispararam o achado.
 - **Natureza: RECONSTRUÍVEL, mas com JULGAMENTO embutido.** Regerar é um comando; o que **não** se regenera é quais achados foram aceitos — essa parte vive em prosa (`patterns.md`, "As isenções"). O JSON é o estado, o `patterns.md` é o porquê.
 - **Quem lê:** o check E do `.claude/hooks/release-gate.sh` (linhas 99-107), via `--baseline`, barrando só o que **piorou**. Costura confirmada nos dois lados. [confirmado]
-- ⚠️ **mtime de 28/jul.** O retrato não foi refeito depois da recriação do repo: o gate compara o presente contra uma medida de três dias atrás, e o baseline agora nem viaja mais para outra máquina reproduzir a comparação.
+- **mtime de 05/ago.** O retrato foi refeito nesta rodada: `--baseline … --fail-on high` fecha com "Nenhum achado" e sai 0, e é esse mesmo comando que a esteira `portability.yml` roda nos três sistemas.
 - **Nenhum hook o reescreve sozinho, de propósito** — baseline que se auto-atualiza aceita silenciosamente qualquer regressão.
 
 ### A5a · `.claude/stop-budget.baseline.json` — o retrato do CUSTO do fim de turno

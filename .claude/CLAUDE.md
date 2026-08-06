@@ -37,6 +37,9 @@ bash plugins/project-doc/hooks/test_plan_gate.sh
 
 ## Documentation Index
 
+- **[constituicao.md](.claude/docs/constituicao.md)** — *autoral, `authored-by: human`* — **a lei do projeto**: as 8 dimensões em que todo plugin é julgado (arquitetura, aplicabilidade, portabilidade, rigor, funcionalidade, estética, clareza da instrução, executabilidade por um agente), cada uma com **quem a cobra** e a prova do estado de hoje; artigo sem cobrador é dívida declarada, e o placar de quem cobra o quê é parte da lei
+  → **antes de mudar qualquer plugin, hook ou skill** — e antes de declarar uma frente pronta. Em conflito com qualquer outro doc, este ganha. Os motores de `/sovai` e `/qa-loop` abrem este arquivo no eixo *constituição*
+
 - **[quality-goals.md](.claude/docs/quality-goals.md)** — *autoral, `authored-by: human`* — a ordem de prioridade quando não dá para ter tudo (escaneabilidade > drill-down > completude > elegância), os dois regimes de documento, os três níveis de leitura, a régua de estilo que abole prosa em página gerada, e o mecanismo anti-ocultação do colapso
   → antes de escrever relatório, plano, página de aprovação ou qualquer artefato que um humano lê para decidir
 
@@ -50,6 +53,21 @@ bash plugins/project-doc/hooks/test_plan_gate.sh
   → responder "o que entra no backup?", mexer em retenção, avaliar risco de perda
 - **[runtime.md](.claude/docs/runtime.md)** — 17 fluxos ponta-a-ponta (sync do bootstrap, roteamento de doc cross-tool, ponte do context-guard, live-sync do visual, geração de slides, gate de teste do ship, o arranque do SessionStart, a falha do gate de plano o ciclo de vida de um plano de implementação e a varredura de contrato dos hooks, a régua que recusa no ponto de uso, o tier do motor que chega como dado e a ponte de visão por MCP)
   → entender como as coisas acontecem de verdade, debugar fluxo cross-plugin, onboarding
+
+## Diagramas (archify)
+
+Os diagramas de arquitetura moram em **`.claude/archify/`** (fora do git — artefato de
+sessão, como `.claude/visual/`), em três camadas com nome **estável**, uma por assunto:
+`organismo.html` (o repositório inteiro) · `app-<nome>.html` (um por aplicativo, só quando
+há dois ou mais) · `fluxo-<slug>.html` (um por fluxo que `runtime.md` nomeia — hoje
+`grep -c '^## ' .claude/docs/runtime.md` devolve 18). A régua de quando cada camada existe,
+e o resolvedor de destino, estão em `plugins/archify/skills/archify/SKILL.md`.
+
+**Eles se atualizam junto com a doc:** o passo 2b do `/doc-touch` re-renderiza o diagrama de
+toda camada cujo doc foi re-projetado — `architecture.md` puxa o organismo, `runtime.md`
+puxa os fluxos tocados. O JSON de entrada é derivado do **doc já curado**, nunca do código
+cru: desenhar direto do código reintroduz o palpite que a doc existe para evitar. `archify`
+ausente na máquina ⇒ avisa e segue; diagrama é camada a mais, nunca pré-requisito.
 
 ## Knowledge Graph (graphify)
 Grafo do marketplace em `graphify-out/` (**3791 nós, 4961 arestas, 376 comunidades / 30 nomeadas, 60 god nodes, 12 hyperedges no `graph.json` — 6 sobrevivem ao filtro do `graph_map.py`**, sobre **259 arquivos** — extração AST de 2026-07-31, `built_at_commit: 2587006`). ⚠️ **Estes números valem para aquele commit e só.** Todo modo que ESCREVE doc roda `graphify update --force` antes, então eles mudam a cada rodada — o que é utilizável é o par número + `built_at_commit`, nunca o número solto. ⚠️ **A queda de 6727 → 3791 nós não é código que sumiu** — é a história do repositório que foi recriada em 2026-07-31 (um commit órfão único, ver `architecture.md`), e com ela saíram do índice os arquivos destrackeados. ⚠️ **Os 60 god nodes são o TETO, não uma medição** — `graph_map.py:build_map` corta em `top_gods=60`; o número não sobe nem que o repo dobre. ⚠️ **Os 259 são `source_file` distinto nos nós**, contra 252 arquivos rastreados no git — contar o `manifest.json` é medir o índice, não o mapa (ver `data-stores.md`). **Antes de analisar arquitetura ou mexer em código compartilhado entre plugins, consulte o grafo** em vez de grep cego: `graphify query "<pergunta>"` (relações, blast radius), `graphify explain "<símbolo>"`, `graphify path "A" "B"`. É **mapa, não verdade** — aponta onde olhar; confirme no código real. Nesta extração **nenhuma aresta é INFERRED** — as 4961 são todas EXTRACTED por AST. Refresh: `graphify update . --force` (AST, sem LLM, ~segundos) — todo modo que ESCREVE doc roda isso antes. ⚠️ Nó de **documento** (`SKILL.md`, `*.md`) não é reextraído pelo `update` AST — só pela passada com LLM (`/graphify`); depois de mover um `.md` de lugar, a procedência dele no grafo pode apontar pro caminho velho.

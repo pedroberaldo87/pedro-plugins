@@ -1,12 +1,17 @@
 #!/usr/bin/env bash
 set -euo pipefail
+# O hook grava no temporário DO SISTEMA — a suíte pergunta pelo mesmo caminho
+# que ele, em vez de assumir /tmp.
+# shellcheck source=/dev/null
+. "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/lib-tmpdir.sh"
+TMPD=$(td_tmpdir)
 HERE="$(cd "$(dirname "$0")" && pwd)"
 export CLAUDE_PLUGIN_ROOT="$(dirname "$HERE")"
 REPO="$(mktemp -d /tmp/ig-ck-XXXXXX)"; git -C "$REPO" init -q
-trap 'rm -rf "$REPO"; rm -f /tmp/intent-guard-ckptblock-cksid-* /tmp/intent-guard-ckptcap-cksid' EXIT
+trap 'rm -rf "$REPO"; rm -f "$TMPD"/intent-guard-ckptblock-cksid-* "$TMPD"/intent-guard-ckptcap-cksid' EXIT
 # o cap por sessao (v0.5.0) e estado FORA do $REPO: sem limpar aqui ele sobrevive
 # entre execucoes e a suite reprova na segunda rodada por lixo, nao por defeito.
-rm -f /tmp/intent-guard-ckptcap-cksid
+rm -f "$TMPD"/intent-guard-ckptcap-cksid
 L="$CLAUDE_PLUGIN_ROOT/lib/ledger.py"
 
 # Create initial commit so git has history
@@ -73,7 +78,7 @@ echo "drift block 1 OK"
 # Antes so havia teto por TASK, entao cada task nova ganhava aviso limpo e a mesma
 # acusacao repetia pelo resto da sessao — no relato de 30/07 a acusacao era FALSA e
 # repetiu a cada task concluida. Guarda que repete acusacao falsa ensina a ignorar.
-rm -f /tmp/intent-guard-ckptcap-cksid /tmp/intent-guard-ckptblock-cksid-*
+rm -f "$TMPD"/intent-guard-ckptcap-cksid "$TMPD"/intent-guard-ckptblock-cksid-*
 for i in 1 2 3; do
   O="$(python3 -c 'import json,sys;print(json.dumps({"session_id":"cksid","cwd":"'"$REPO"'","tool_name":"TaskUpdate","tool_input":{"taskId":"cap'"$i"'","status":"completed"}}))' | bash "$HERE/task-checkpoint.sh")"
   if [ "$i" -le 2 ]; then
@@ -87,7 +92,7 @@ echo "cap por sessao OK (2 avisos, 3o silencioso)"
 
 # mesma sessão, taskId diferente "a/b", mesmo drift mock
 echo "yet another change" > "$REPO/test.txt"
-rm -f /tmp/intent-guard-ckptcap-cksid   # isola: este caso nao mede o teto
+rm -f "$TMPD"/intent-guard-ckptcap-cksid   # isola: este caso nao mede o teto
 OUT2="$(python3 -c 'import json;print(json.dumps({"session_id":"cksid","cwd":"'"$REPO"'","tool_name":"TaskUpdate","tool_input":{"taskId":"a/b","status":"completed"}}))' | bash "$HERE/task-checkpoint.sh")"
 echo "$OUT2" | grep -q '"decision"'  # segunda drift de "a/b" → block (sentinelas distintas, não colidem)
 echo "drift block 2 OK (sentinelas não colidiram)"

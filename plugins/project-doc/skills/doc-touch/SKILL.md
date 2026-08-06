@@ -34,6 +34,36 @@ Para cada doc do plano (sequencial se ≤3; subagentes paralelos se mais): o age
 - Obedece as **Regras de escrita assertiva** do SKILL grande (`skills/project-doc/SKILL.md` → Rules): nome/número/lista só por derivação mecânica no run; ponteiro = arquivo+símbolo; "ativa" exige evidência de wiring; costura citada existe nos dois lados.
 - Fato durável genuinamente NOVO que entrou na doc → anotar para o passo 4.
 
+### 2b · Diagramas das camadas atingidas (o `/archify` acompanha a doc)
+
+Texto e desenho descrevem a mesma coisa; deixar um se atualizar sem o outro é como o
+diagrama envelhece até virar mentira ilustrada. O gatilho é **o doc que foi re-projetado no
+passo 2**, não uma varredura nova — o escopo inverso já fez o trabalho:
+
+| Doc re-projetado | Diagrama a re-renderizar |
+|---|---|
+| `architecture.md` | `organismo.html` |
+| `runtime.md` | os `fluxo-<slug>.html` dos fluxos cujos títulos o diff tocou |
+| doc de um aplicativo (monorepo) | `app-<nome>.html` daquele aplicativo |
+
+Para cada um, o ciclo da skill `archify` (invoque-a com a Skill tool — as camadas, os nomes
+estáveis e o destino estão lá; não os redigite aqui):
+
+```bash
+ARCHIFY_DIR=$(bash <plugin archify>/skills/archify/resolve-dir.sh "$PWD" archify)
+node <plugin archify>/skills/archify/bin/archify.mjs render architecture <entrada>.json "$ARCHIFY_DIR/organismo.html"
+```
+
+**O JSON de entrada é derivado do doc que acabou de ser re-projetado**, não do código cru: o
+doc é a leitura já curada da arquitetura, e desenhar direto do código reintroduz o palpite
+que o doc existe para evitar.
+
+`archify` ausente (o plugin não está instalado) ⇒ **avise e siga**, mesmo padrão do
+`graphify` no passo 1. Diagrama é camada a mais sobre a doc, nunca pré-requisito dela.
+
+Nome estável significa **sobrescrever**: um assunto, um arquivo, sempre o atual. Não
+versione diagrama de documentação viva por data — ver a tabela de nomes na skill do archify.
+
 ### 3 · Gate doc-lint (determinístico, antes do re-stamp)
 ```bash
 python3 plugins/project-doc/lib/doc_lint.py --project-root "<root>" --docs <docs tocados> --json

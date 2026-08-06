@@ -415,6 +415,23 @@ case "$(regua "$(printf '%s' "$NOTA" | sed 's/^⚠️  //')")" in
   *) bad "a mesma nota sem emoji no cabeçalho é RECUSADA" "motivo citando emoji" "nada recusado" ;;
 esac
 
+# --- python3 quebrado NÃO cala o aviso (regressão de 2026-08-05) ------------
+# O probe de execução do python3 (issue 1 do Windows: o stub da Microsoft Store passa
+# em `command -v` e não executa) foi inserido DENTRO de allow_with_notes(), antes do
+# `jq` que emite a decisão — então na máquina que o probe queria proteger o hook saía
+# calado, e "deploy permitido sem verificação" não chegava a ninguém. O aviso é o
+# produto deste caminho: sem ele o gate está desligado e ninguém sabe.
+PYSTUB="$TMP/pystub"
+mkdir -p "$PYSTUB"
+printf '#!/bin/sh\nexit 9009\n' > "$PYSTUB/python3"
+chmod +x "$PYSTUB/python3"
+NOTA_STUB=$(PATH="$PYSTUB:$PATH" hook_note 'pm2 restart api' "$NORUNNER")
+case "$NOTA_STUB" in
+  *"sem verificação"*) ok "python3 que não executa · o aviso de deploy sem gate AINDA sai" ;;
+  *) bad "python3 que não executa · o aviso de deploy sem gate AINDA sai" \
+         "additionalContext citando 'sem verificação'" "'${NOTA_STUB:-<vazio>}'" ;;
+esac
+
 # --- prova anti-tautologia -------------------------------------------------
 # Sabota UMA detecção numa cópia do hook e exige que a suíte REPROVE. Sem isto a
 # suíte pode estar afirmando nada (o precedente: teste de presença que passava com

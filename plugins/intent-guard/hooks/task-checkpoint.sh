@@ -6,23 +6,38 @@
 set -uo pipefail
 MODE_FILE="$HOME/.claude/intent-guard/mode"
 [ -f "$MODE_FILE" ] && [ "$(tr -d '[:space:]' < "$MODE_FILE" 2>/dev/null)" = "off" ] && exit 0
-PY="$(command -v python3)"; JQ="$(command -v jq)"
-{ [ -z "$PY" ] || [ -z "$JQ" ]; } && exit 0
+PY="$(command -v python3)"
+"$PY" --version >/dev/null 2>&1 || exit 0
+[ -z "$PY" ] && exit 0
+# Leitor do payload: `jq` quando existe, `python3` (stdlib json) quando não.
+# Sem os dois o gate não julga — e aí ele AVISA, nunca sai calado (issue #5).
+# `${0%/*}` e não `dirname`: o probe roda antes de saber se há PATH utilizável.
+HJ_DIR="${0%/*}"; [ "$HJ_DIR" = "$0" ] && HJ_DIR="."
+# shellcheck source=/dev/null
+. "$HJ_DIR/hook-json.sh" 2>/dev/null
+# Diretório temporário DO SISTEMA — perguntado, nunca assumido (ver lib-tmpdir.sh).
+# shellcheck source=/dev/null
+. "$HJ_DIR/lib-tmpdir.sh" 2>/dev/null
+TMPD=$(td_tmpdir 2>/dev/null || printf '%s' "${TMPDIR:-/tmp}")
+type hj_campo >/dev/null 2>&1 || exit 0
+hj_leitor >/dev/null 2>&1 || { hj_avisa "task-checkpoint"; exit 0; }
 LEDGER="${CLAUDE_PLUGIN_ROOT}/lib/ledger.py"
 [ -f "$LEDGER" ] || exit 0
 
 INPUT="$(cat 2>/dev/null || true)"
-STATUS="$(printf '%s' "$INPUT" | "$JQ" -r '.tool_input.status // empty')"
+STATUS="$(hj_campo "$INPUT" tool_input.status)"
 [ "$STATUS" = "completed" ] || exit 0
-SID="$(printf '%s' "$INPUT" | "$JQ" -r '.session_id // empty')"
+SID="$(hj_campo "$INPUT" session_id)"
 # Correction A: sem session_id não dá pra escopar por sessão → não age (fail-open)
 [ -n "$SID" ] || exit 0
-CWD="$(printf '%s' "$INPUT" | "$JQ" -r '.cwd // empty')"; [ -n "$CWD" ] || CWD="$PWD"
-TASKID="$(printf '%s' "$INPUT" | "$JQ" -r '.tool_input.taskId // .tool_input.task_id // "?"')"
+CWD="$(hj_campo "$INPUT" cwd)"; [ -n "$CWD" ] || CWD="$PWD"
+TASKID="$(hj_campo "$INPUT" tool_input.taskId)"
+[ -n "$TASKID" ] || TASKID="$(hj_campo "$INPUT" tool_input.task_id)"
+[ -n "$TASKID" ] || TASKID="?"
 
 # hash em vez de tr — ids distintos não podem colidir na mesma sentinela
 TID_H="$(printf '%s' "$TASKID" | cksum | tr ' ' '_')"
-BLOCKF="/tmp/intent-guard-ckptblock-${SID}-${TID_H}"
+BLOCKF="${TMPD}/intent-guard-ckptblock-${SID}-${TID_H}"
 [ -f "$BLOCKF" ] && exit 0   # já bloqueou esta task 1x
 
 # Teto por SESSÃO, além do teto por task. Mesmo mecanismo e mesmo número do
@@ -34,7 +49,7 @@ BLOCKF="/tmp/intent-guard-ckptblock-${SID}-${TID_H}"
 # entregue e auditado, o veredito é que nunca foi transcrito) e repetiu a cada task
 # concluída pelo resto da sessão. Guarda que repete acusação falsa ensina a ignorar
 # guarda, e aí ele não serve nem quando está certo.
-CAPF="/tmp/intent-guard-ckptcap-${SID}"
+CAPF="${TMPD}/intent-guard-ckptcap-${SID}"
 CAPN=0; [ -f "$CAPF" ] && CAPN="$(tr -d '[:space:]' < "$CAPF" 2>/dev/null)"
 [ "$CAPN" -eq "$CAPN" ] 2>/dev/null || CAPN=0
 [ "$CAPN" -ge 2 ] && exit 0
@@ -42,8 +57,8 @@ CAPN=0; [ -f "$CAPF" ] && CAPN="$(tr -d '[:space:]' < "$CAPF" 2>/dev/null)"
 D="$("$PY" "$LEDGER" resolve-dir --cwd "$CWD" 2>/dev/null)" || exit 0
 [ -f "$D/off" ] && exit 0
 STATE="$("$PY" "$LEDGER" state --cwd "$CWD" --session "$SID" 2>/dev/null)" || exit 0
-LIVE="$(printf '%s' "$STATE" | "$JQ" -c '.live')"
-[ "$(printf '%s' "$LIVE" | "$JQ" 'length')" = "0" ] && exit 0
+LIVE="$(hj_campo_json "$STATE" live)"
+[ "$(hj_tamanho "$STATE" live)" = "0" ] && exit 0
 
 ROOT="$(git -C "$CWD" rev-parse --show-toplevel 2>/dev/null)" || exit 0
 WORK="$( { git -C "$ROOT" status --porcelain; git -C "$ROOT" diff --stat HEAD; } 2>/dev/null | head -c 4000)"
@@ -115,6 +130,12 @@ print(v, r)
 
 touch "$BLOCKF" 2>/dev/null
 echo $((CAPN + 1)) > "$CAPF" 2>/dev/null
-LIVELIST="$(printf '%s' "$LIVE" | "$JQ" -r '[.[] | "\(.id) \(.resumo)"] | join("; ")')"
-"$JQ" -n --arg r "intent-guard (checkpoint): a task ${TASKID} foi concluída mas o trabalho parece DERIVAR dos pedidos do usuário. ${REASON}. Pedidos vivos: ${LIVELIST}. Realinhe antes de seguir — ou, se o desvio é intencional/combinado, siga e explique na entrega." '{decision:"block", reason:$r}'
+# A lista sai do `python3` que este gate já exige, não do `jq`.
+LIVELIST="$(printf '%s' "$LIVE" | "$PY" -c 'import json,sys
+try:
+    vivos = json.loads(sys.stdin.read() or "[]")
+except Exception:
+    sys.exit(0)
+sys.stdout.write("; ".join("%s %s" % (v.get("id"), v.get("resumo")) for v in vivos))' 2>/dev/null)"
+hj_block "intent-guard (checkpoint): a task ${TASKID} foi concluída mas o trabalho parece DERIVAR dos pedidos do usuário. ${REASON}. Pedidos vivos: ${LIVELIST}. Realinhe antes de seguir — ou, se o desvio é intencional/combinado, siga e explique na entrega."
 exit 0

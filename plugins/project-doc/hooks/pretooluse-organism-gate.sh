@@ -13,7 +13,7 @@
 # - ANTI-LOOP INEGOCIÁVEL: no máximo 1 deny por (costura, sessão). 2º toque na
 #   mesma costura passa (degrada, loga) — é o que o gate morto não tinha.
 # - Só severidade=block dá deny. warn apenas loga (R12).
-# - Refutação: escreva /tmp/claude-organism-gate-<sess>/<id>.cite com "arquivo:linha";
+# - Refutação: escreva <temporário>/claude-organism-gate-<sess>/<id>.cite com "arquivo:linha";
 #   no próximo toque o hook valida por grep (organism.py verify-cite). Válida →
 #   silencia de vez; inválida → loga, mas o anti-loop já impede travar.
 # - Log jsonl de TODO disparo desde o dia 1 (sem métrica não se distingue
@@ -26,31 +26,49 @@
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 ORGANISM_PY="$SCRIPT_DIR/../lib/organism.py"
-command -v jq >/dev/null 2>&1 || exit 0
+# Leitor do payload: `jq` quando existe, `python3` (stdlib json) quando não.
+# Sem os dois o gate não julga — e aí ele AVISA, nunca sai calado (issue #5).
+# `${0%/*}` e não `dirname`: o probe roda antes de saber se há PATH utilizável.
+HJ_DIR="${0%/*}"; [ "$HJ_DIR" = "$0" ] && HJ_DIR="."
+# shellcheck source=/dev/null
+. "$HJ_DIR/hook-json.sh" 2>/dev/null
+# Diretório temporário DO SISTEMA — perguntado, nunca assumido (ver lib-tmpdir.sh).
+# shellcheck source=/dev/null
+. "$HJ_DIR/lib-tmpdir.sh" 2>/dev/null
+TMPD=$(td_tmpdir 2>/dev/null || printf '%s' "${TMPDIR:-/tmp}")
+type hj_campo >/dev/null 2>&1 || exit 0
+hj_leitor >/dev/null 2>&1 || { hj_avisa "pretooluse-organism-gate"; exit 0; }
 command -v python3 >/dev/null 2>&1 || exit 0
+python3 --version >/dev/null 2>&1 || exit 0
 [ -f "$ORGANISM_PY" ] || exit 0
 
 INPUT=$(cat 2>/dev/null)
-TOOL=$(printf '%s' "$INPUT" | jq -r '.tool_name // empty' 2>/dev/null)
+TOOL=$(hj_campo "$INPUT" tool_name)
 case "$TOOL" in Edit|Write|MultiEdit) : ;; *) exit 0 ;; esac
 
-SESSION=$(printf '%s' "$INPUT" | jq -r '.session_id // "unknown"' 2>/dev/null)
-CWD=$(printf '%s' "$INPUT" | jq -r '.cwd // empty' 2>/dev/null)
+SESSION=$(hj_campo_ou "$INPUT" session_id unknown)
+CWD=$(hj_campo "$INPUT" cwd)
 [ -z "$CWD" ] && CWD="$PWD"
-FP=$(printf '%s' "$INPUT" | jq -r '.tool_input.file_path // empty' 2>/dev/null)
+FP=$(hj_campo "$INPUT" tool_input.file_path)
 [ -z "$FP" ] && exit 0
 case "$FP" in /*) : ;; *) FP="$CWD/$FP" ;; esac
 
-# Never gate our own state writes (or /tmp scratch) — avoids self-trigger loops.
-case "$FP" in /tmp/*|*/claude-organism-gate/*) exit 0 ;; esac
+# Never gate our own state writes (or temp scratch) — avoids self-trigger loops.
+# Os DOIS caminhos do temporário: o lógico e o físico. No macOS o temporário é
+# symlink e a tool pode entregar a versão já resolvida — comparar só um lado
+# deixaria o rascunho passar pelo gate.
+TMPD_P=$(cd "$TMPD" 2>/dev/null && pwd -P)
+[ -n "$TMPD_P" ] || TMPD_P="$TMPD"
+case "$FP" in "$TMPD"/*|"$TMPD_P"/*|*/claude-organism-gate/*) exit 0 ;; esac
 
 # Ask the engine what this path touches. Fail-open on any glitch.
 MATCH=$(python3 "$ORGANISM_PY" match "$FP" 2>/dev/null)
 [ -z "$MATCH" ] && exit 0
-printf '%s' "$MATCH" | jq -e '.organism == true and (.hits | length > 0)' >/dev/null 2>&1 || exit 0
+[ "$(hj_campo "$MATCH" organism)" = "true" ] || exit 0
+[ "$(hj_tamanho "$MATCH" hits)" -gt 0 ] 2>/dev/null || exit 0
 
-ROOT=$(printf '%s' "$MATCH" | jq -r '.root')
-STATE_DIR="/tmp/claude-organism-gate-${SESSION}"
+ROOT=$(hj_campo "$MATCH" root)
+STATE_DIR="${TMPD}/claude-organism-gate-${SESSION}"
 # Se não der pra criar o state, NÃO bloqueia (senão o .denied nunca grava e todo
 # edit re-denia = loop infinito, o cenário que matou o gate anterior). Fail-open.
 mkdir -p "$STATE_DIR" 2>/dev/null || exit 0
@@ -65,13 +83,13 @@ log_line() { # id severidade outcome
 
 # Iterate hits. Accumulate deny reasons for block costuras not yet denied/resolved.
 DENY_MSG=""
-NHITS=$(printf '%s' "$MATCH" | jq -r '.hits | length')
+NHITS=$(hj_tamanho "$MATCH" hits)
 i=0
 while [ "$i" -lt "$NHITS" ]; do
-  ID=$(printf '%s' "$MATCH" | jq -r ".hits[$i].id")
-  SEV=$(printf '%s' "$MATCH" | jq -r ".hits[$i].severidade")
-  MSG=$(printf '%s' "$MATCH" | jq -r ".hits[$i].aresta_msg")
-  BLAST=$(printf '%s' "$MATCH" | jq -r ".hits[$i].blast_radius | join(\", \")")
+  ID=$(hj_campo "$MATCH" "hits.$i.id")
+  SEV=$(hj_campo "$MATCH" "hits.$i.severidade")
+  MSG=$(hj_campo "$MATCH" "hits.$i.aresta_msg")
+  BLAST=$(hj_lista "$MATCH" "hits.$i.blast_radius")
   i=$((i + 1))
 
   # Already resolved this session (endereçou ou refutou com citação válida)?
@@ -81,7 +99,7 @@ while [ "$i" -lt "$NHITS" ]; do
   if [ -f "$STATE_DIR/${ID}.cite" ]; then
     CITE=$(cat "$STATE_DIR/${ID}.cite" 2>/dev/null)
     VRES=$(python3 "$ORGANISM_PY" verify-cite "$ROOT" "$ID" "$CITE" 2>/dev/null)
-    if printf '%s' "$VRES" | jq -e '.valid == true' >/dev/null 2>&1; then
+    if [ "$(hj_campo "$VRES" valid)" = "true" ]; then
       touch "$STATE_DIR/${ID}.resolved" 2>/dev/null
       log_line "$ID" "$SEV" "refuted-valid"
       continue
@@ -122,6 +140,5 @@ Para prosseguir, escolha um:
         echo 'caminho/arquivo:linha' > ${STATE_DIR}/<costura_id>.cite
       (o hook valida que a linha contém um símbolo real da costura; citação falsa é rejeitada e logada)."
 
-jq -n --arg r "$REASON" \
-  '{hookSpecificOutput:{hookEventName:"PreToolUse",permissionDecision:"deny",permissionDecisionReason:$r}}'
+hj_deny "$REASON"
 exit 0

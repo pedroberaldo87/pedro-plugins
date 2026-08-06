@@ -1,0 +1,67 @@
+name: portability
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  checks:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install jq
+        shell: bash
+        run: |
+          if [ "$RUNNER_OS" = "Linux" ]; then sudo apt-get update && sudo apt-get install -y jq; fi
+          if [ "$RUNNER_OS" = "macOS" ]; then brew install jq; fi
+          if [ "$RUNNER_OS" = "Windows" ]; then choco install jq -y; fi
+      # Estado medido da suíte contra um ambiente equivalente a este runner
+      # (PATH sem `claude`, sem plugin instalado), rodando os mesmos globs de
+      # baixo, um arquivo por vez, para que nenhuma falha fique escondida pelo
+      # `set -e`. Quem repetir a medição roda o mesmo bloco e compara.
+      #
+      # Medido em 2026-08-06 sobre a árvore de trabalho, sem `claude` no PATH:
+      # 54 suítes (20 + 1 + 3 + 2 nos globs de Python, 21 + 6 + 1 nos de shell),
+      # todas verdes, bloco inteiro saindo 0 sob `set -e`.
+      #
+      # Ressalva de um caso: dentro de `test_bootstrap_hooks.sh`, o bloco do juiz
+      # de forma só abre quando existe `claude` no PATH — o runner nunca o vê,
+      # então lá ele imprime "skip". Numa máquina com `claude`, o caso "relato
+      # ruim reprova" sai por `check` e reprova a suíte como qualquer outro: o
+      # vermelho antigo tinha causa determinística (teto de 25s abaixo do piso da
+      # ferramenta, que jogava o juiz no fail-open), corrigida para 90s em
+      # `stop-forma-relato.py`. Motivo escrito no próprio teste.
+      #
+      # Commit parcial ainda faz a esteira nascer vermelha: os globs rodam o que
+      # foi COMMITADO, e suíte cujo conserto ficou na árvore reprova no runner.
+      - name: Release-gate checks (mesmos do hook de commit)
+        shell: bash
+        run: |
+          set -e
+          PY="$(command -v python3 || command -v python)"
+          bash scripts/sync-shared.sh --check
+          # Glob que não casa nada roda zero teste e fica verde — foi assim que a
+          # esteira "passou" sem executar suíte nenhuma. Cada padrão é contado, e
+          # padrão com zero arquivo reprova o passo.
+          roda() {
+            runner="$1"; shift
+            for pat in "$@"; do
+              n=0
+              for t in $pat; do
+                [ -f "$t" ] || continue
+                n=$((n + 1)); $runner "$t"
+              done
+              [ "$n" -gt 0 ] || { echo "::error::nenhum arquivo casou em $pat"; exit 1; }
+              echo "  $pat → $n suíte(s)"
+            done
+          }
+          roda "$PY" 'plugins/*/lib/test_*.py' '_shared/test_*.py' 'scripts/test_*.py' 'plugins/*/hooks/test_*.py'
+          roda bash 'plugins/*/hooks/test_*.sh' 'scripts/test_*.sh' '.claude/hooks/test_*.sh'
+          "$PY" scripts/hook_contract.py --baseline .claude/hook-contract.baseline.json --fail-on high
+          "$PY" scripts/public_repo_check.py

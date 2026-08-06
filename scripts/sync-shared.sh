@@ -41,8 +41,56 @@ SPECS=(
   "plugins/project-doc/lib::regua_texto.py"
   "plugins/ship/lib::regua_texto.py"
   "plugins/graphify-guard/lib::regua_texto.py"
+  # O resolvedor de diretório de artefato: cada skill que ESCREVE arquivo no projeto
+  # do usuário resolve o destino por aqui, com o próprio subdiretório. Vendorado
+  # porque o plugin instalado só enxerga a própria pasta.
+  "plugins/visual/skills/visual::resolve-dir.sh"
+  "plugins/archify/skills/archify::resolve-dir.sh"
   "plugins/ship/hooks::green-cache.sh"
   "plugins/qa-loop/lib::green-cache.sh"
+  # O leitor de JSON dos hooks: todo hook que DECIDE lendo o payload do evento
+  # sourceia a cópia da própria pasta (o plugin instalado não enxerga a de fora).
+  "plugins/bootstrap/hooks::hook-json.sh"
+  "plugins/branches/hooks::hook-json.sh"
+  "plugins/context-guard/hooks::hook-json.sh"
+  "plugins/graphify-guard/hooks::hook-json.sh"
+  "plugins/guardrails/hooks::hook-json.sh"
+  "plugins/intent-guard/hooks::hook-json.sh"
+  "plugins/lixeiro/hooks::hook-json.sh"
+  "plugins/project-doc/hooks::hook-json.sh"
+  "plugins/ship/hooks::hook-json.sh"
+  "plugins/sovai/hooks::hook-json.sh"
+  "plugins/visual/hooks::hook-json.sh"
+  # O resolvedor do diretório temporário: viaja com todo plugin que tem script
+  # gravando estado por-sessão fora do projeto. O plugin instalado só enxerga a
+  # própria pasta, então a cópia mora ao lado de quem a sourceia.
+  "plugins/branches/hooks::lib-tmpdir.sh"
+  "plugins/context-guard/hooks::lib-tmpdir.sh"
+  "plugins/graphify-guard/hooks::lib-tmpdir.sh"
+  "plugins/guardrails/hooks::lib-tmpdir.sh"
+  "plugins/handoff/hooks::lib-tmpdir.sh"
+  "plugins/intent-guard/hooks::lib-tmpdir.sh"
+  "plugins/project-doc/hooks::lib-tmpdir.sh"
+  "plugins/ship/hooks::lib-tmpdir.sh"
+  "plugins/sovai/hooks::lib-tmpdir.sh"
+  "plugins/visual/hooks::lib-tmpdir.sh"
+  # O green-cache do qa-loop mora em lib/, não em hooks/ — a cópia acompanha ele.
+  "plugins/qa-loop/lib::lib-tmpdir.sh"
+  # O aviso de dependência ausente: quem instala UM plugin sozinho também precisa
+  # saber que o gate dele ficou mudo, então o hook viaja com todo plugin que tem
+  # hooks — não só com o bootstrap. Um sentinel por sessão evita o aviso repetido.
+  "plugins/bootstrap/hooks::sessionstart-deps.sh"
+  "plugins/branches/hooks::sessionstart-deps.sh"
+  "plugins/context-guard/hooks::sessionstart-deps.sh"
+  "plugins/graphify-guard/hooks::sessionstart-deps.sh"
+  "plugins/guardrails/hooks::sessionstart-deps.sh"
+  "plugins/handoff/hooks::sessionstart-deps.sh"
+  "plugins/intent-guard/hooks::sessionstart-deps.sh"
+  "plugins/lixeiro/hooks::sessionstart-deps.sh"
+  "plugins/project-doc/hooks::sessionstart-deps.sh"
+  "plugins/ship/hooks::sessionstart-deps.sh"
+  "plugins/sovai/hooks::sessionstart-deps.sh"
+  "plugins/visual/hooks::sessionstart-deps.sh"
 )
 
 check_mode=0

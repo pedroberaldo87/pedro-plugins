@@ -12,13 +12,21 @@
 #
 # Fail-open: qualquer erro → exit 0, sem saída.
 
-command -v jq >/dev/null 2>&1 || exit 0
+# Leitor do payload: `jq` quando existe, `python3` (stdlib json) quando não.
+# Sem os dois o gate não julga — e aí ele AVISA, nunca sai calado (issue #5).
+# `${0%/*}` e não `dirname`: o probe roda antes de saber se há PATH utilizável.
+HJ_DIR="${0%/*}"; [ "$HJ_DIR" = "$0" ] && HJ_DIR="."
+# shellcheck source=/dev/null
+. "$HJ_DIR/hook-json.sh" 2>/dev/null
+type hj_campo >/dev/null 2>&1 || exit 0
+hj_leitor >/dev/null 2>&1 || { hj_avisa "sessionstart-plan"; exit 0; }
 PY3=$(command -v python3 2>/dev/null)
+"$PY3" --version >/dev/null 2>&1 || exit 0
 [ -z "$PY3" ] && exit 0
 
 INPUT=$(cat 2>/dev/null)
-SESSION=$(printf '%s' "$INPUT" | jq -r '.session_id // "unknown"' 2>/dev/null)
-CWD=$(printf '%s' "$INPUT" | jq -r '.cwd // empty' 2>/dev/null)
+SESSION=$(hj_campo_ou "$INPUT" session_id unknown)
+CWD=$(hj_campo "$INPUT" cwd)
 [ -z "$CWD" ] && CWD="$PWD"
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
@@ -37,10 +45,19 @@ SUMMARY=$("$PY3" "$PLAN_STATE" --dir "$PLANS_DIR" open --json 2>/dev/null)
 [ -z "$SUMMARY" ] && exit 0
 [ "$SUMMARY" = "[]" ] && exit 0
 
-LIST=$(printf '%s' "$SUMMARY" | jq -r '
-  .[] | "- **\(.title)** — \(.done)/\(.total) passos" +
-        (if .next then " · agora: \(.next.id) \(.next.title)" else "" end) +
-        "\n  arquivo: .claude/plans/\(.path)"' 2>/dev/null)
+# A lista sai do `python3` que este hook já exige, não do `jq`: com `jq`
+# obrigatório o plano aberto não ressuscitava na máquina sem ele (issue #5).
+LIST=$(printf '%s' "$SUMMARY" | "$PY3" -c 'import json,sys
+try:
+    planos = json.loads(sys.stdin.read() or "[]")
+except Exception:
+    sys.exit(0)
+for p in planos:
+    linha = "- **%s** — %s/%s passos" % (p.get("title"), p.get("done"), p.get("total"))
+    n = p.get("next")
+    if n:
+        linha += " · agora: %s %s" % (n.get("id"), n.get("title"))
+    print(linha + "\n  arquivo: .claude/plans/%s" % p.get("path"))' 2>/dev/null)
 [ -z "$LIST" ] && exit 0
 
 # A cobertura entra aqui porque este hook NÃO passa pelo `brief` — ele monta o
@@ -71,6 +88,5 @@ Terminou tudo? \`plan_state.py close\`. Página de acompanhamento: \`plan_state.
 EOF
 )
 
-jq -n --arg ctx "$CTX" \
-  '{hookSpecificOutput:{hookEventName:"SessionStart",additionalContext:$ctx}}' 2>/dev/null
+hj_ctx SessionStart "$CTX"
 exit 0

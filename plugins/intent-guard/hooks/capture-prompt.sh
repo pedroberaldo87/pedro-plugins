@@ -10,7 +10,8 @@ INPUT="$(cat 2>/dev/null || true)"
 [ -n "${INTENT_GUARD_INTERNAL:-}" ] && exit 0
 MODE_FILE="$HOME/.claude/intent-guard/mode"
 [ -f "$MODE_FILE" ] && [ "$(tr -d '[:space:]' < "$MODE_FILE" 2>/dev/null)" = "off" ] && exit 0
-PY="$(command -v python3)"; [ -z "$PY" ] && exit 0
+PY="$(command -v python3)"
+"$PY" --version >/dev/null 2>&1 || exit 0; [ -z "$PY" ] && exit 0
 LEDGER="${CLAUDE_PLUGIN_ROOT}/lib/ledger.py"
 [ -f "$LEDGER" ] || exit 0
 printf '%s' "$INPUT" | "$PY" -c '
