@@ -44,6 +44,7 @@ import sys
 import time
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from clareza import erros_de_clareza  # noqa: E402
 from regua_texto import (BULLET_MAX, BULLETS_MAX, _cru, bullets_de,  # noqa: E402,F401
                          erros_de_estilo as _erros_de_estilo)
 
@@ -130,6 +131,13 @@ def validate(spec):
     errs = []
     if not isinstance(spec, dict):
         return ["o spec tem que ser um objeto JSON"]
+
+    # O banco de clareza entra ANTES da régua de forma, porque ele responde uma
+    # pergunta que a forma não alcança: "esta página repete um erro que um leitor
+    # externo já reprovou?". O autor da página nunca é juiz confiável da clareza
+    # dela — medido duas vezes em 2026-08-06 —, então o veredito do juiz vira
+    # termo recusado aqui, e não lembrete que morre no chat. Ver clareza.py.
+    errs.extend(erros_de_clareza(spec))
 
     for f in ("title", "sections"):
         if not spec.get(f):
