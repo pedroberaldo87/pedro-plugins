@@ -17,8 +17,8 @@ Esta skill **embrulha o CLI oficial** (`@google/design.md`) — não reimplement
 
 ## Quando isto é a etapa de interface do `/start-doc`
 
-O `/start-doc` conduz a concepção em quatro etapas de acordo — autoral, arquitetura, **interface**,
-jornadas. A etapa de interface **é este arquivo**: ele entrevista, você escreve e valida
+O `/start-doc` conduz a concepção em cinco etapas de acordo — autoral, arquitetura, **interface**,
+jornadas, funcionalidades. A etapa de interface **é este arquivo**: ele entrevista, você escreve e valida
 `.claude/docs/design.md`. Não existe documento paralelo de interface; reaproveita-se este.
 
 Duas obrigações a mais quando o chamador é o `/start-doc`:

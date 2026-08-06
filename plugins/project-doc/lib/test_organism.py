@@ -276,13 +276,116 @@ def test_dirty_propagation():
     print("test_organism: dirty-modules + propagação por costura ✓")
 
 
+_ORG_COM_REGRA = """name: MEU-ORG
+modulos: [alpha]
+golden_rule: >
+  Isto é UM organismo, não N ilhas.
+  Toda ação considera os demais.
+costuras: []
+"""
+
+_QG = """---
+generated: 2026-08-06
+project: MEU-ORG
+authored-by: human
+status: approved
+approved: 2026-08-06
+---
+
+# Metas de qualidade
+
+> Ordem de prioridade quando não dá para ter tudo.
+
+## A ordem
+
+1. **integridade do dado** — nenhum registro se perde
+2. **disponibilidade** — o sistema fica no ar
+"""
+
+_CONSTRAINTS = """---
+generated: 2026-08-06
+project: MEU-ORG
+authored-by: human
+status: draft
+---
+
+# Restrições
+
+## Técnicas
+- **Python 3.11 travado** — a imagem base não sobe · **dura**
+- **{restrição}** — {por quê} · **{dura | datada}**
+- **auth** — [PENDENTE]
+"""
+
+_MINERADA = """---
+generated: 2026-08-06
+project: MEU-ORG
+scope: alpha/**
+doc-sig: X/a@gen=3.6#abcd1234
+---
+
+# Arquitetura
+
+- **isto é minerado** — não é herança
+"""
+
+
+def test_inherited():
+    """S-12: o app dentro do organismo herda o que foi escrito DE PROPÓSITO na
+    raiz, e cada item herdado sai com a fonte citada (arquivo:linha real)."""
+    with tempfile.TemporaryDirectory() as d:
+        root = os.path.join(d, "org")
+        _w(os.path.join(root, ".claude", "organism.yaml"), _ORG_COM_REGRA)
+        _w(os.path.join(root, ".claude", "docs", "quality-goals.md"), _QG)
+        _w(os.path.join(root, ".claude", "docs", "constraints.md"), _CONSTRAINTS)
+        _w(os.path.join(root, ".claude", "docs", "architecture.md"), _MINERADA)
+        alpha = os.path.join(root, "alpha")
+        os.makedirs(alpha)
+
+        got = organism.inherited(alpha)
+        assert got["organism"] is True, got
+        assert got["modulo"] == "alpha", got
+        itens = got["itens"]
+        assert itens, "nada herdado"
+
+        # a regra de ouro do organismo é herança
+        regra = [i for i in itens if i["tipo"] == "regra-de-ouro"]
+        assert len(regra) == 1, regra
+        assert "organismo" in regra[0]["texto"], regra
+
+        textos = [i["texto"] for i in itens]
+        assert any("integridade do dado" in t for t in textos), textos
+        assert any("Python 3.11 travado" in t for t in textos), textos
+        # doc minerada (sem authored-by: human) não é herança
+        assert not any("isto é minerado" in t for t in textos), textos
+        # molde não preenchido e lacuna aberta não são "escrito de propósito"
+        assert not any("{restrição}" in t for t in textos), textos
+        assert not any("PENDENTE" in t for t in textos), textos
+
+        # CRITÉRIO DE PRONTO: todo item traz a fonte citada, e a citação é real
+        for i in itens:
+            assert ":" in (i.get("fonte") or ""), "item sem fonte: %s" % i
+            ok = organism.cite_ok(root, i)
+            assert ok["valid"] is True, "fonte não confere: %s → %s" % (i, ok)
+
+        # o próprio organismo não herda de si: na raiz não há item
+        assert organism.inherited(root)["itens"] == [], organism.inherited(root)
+
+    # fora de organismo → nada (fail-open)
+    with tempfile.TemporaryDirectory() as empty:
+        assert organism.inherited(empty)["organism"] is False
+    print("test_organism: herança com fonte citada por item (S-12) ✓")
+
+
 def test_organism_engine():  # entrada pytest
     run()
     test_census()
     test_dirty_propagation()
+    test_inherited()
 
 
 if __name__ == "__main__":
     run()
     test_census()
     test_dirty_propagation()
+    test_inherited()

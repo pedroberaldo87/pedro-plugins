@@ -367,7 +367,10 @@ rodadas 2+, as duas restritas ao delta):
   **e `.claude/docs/quality-goals.md`** (as metas de qualidade autorais) e
   sinalize onde a implementação VIOLA o que está escrito lá". O arquivo é lido na rodada, **nunca copiado
   aqui** — a régua é a do projeto que instalou, não a desta skill. Sem esse arquivo, o eixo simplesmente
-  **não roda** e o REVIEW segue só com o plano — ausência de constituição não é finding.
+  **não roda** e o REVIEW segue só com o plano — ausência de constituição não é finding. **Quando o que
+  a implementação descobriu contradiz um documento de concepção já aprovado** (`status: approved`), o finding
+  sobe assim mesmo: a entrevista é que errou, não o código. O PLAN o roteia pro bucket 3 como proposta de
+  **reabrir a etapa** — nunca pra fila de conserto.
 
 **Regra dura:** se algum ângulo do checklist não foi coberto → `complete=false`, jamais "achou zero".
 
@@ -416,6 +419,7 @@ rodada. Todo finding é roteado em **3 buckets** no PLAN:
    sem faixa própria.
 2. **Plan-drift (R4)** — um "fix" otimizaria o código mas **afastaria o comportamento do que foi pedido/planejado**. → **restaura pro plano automaticamente** E o desvio sobe no bucket de alertas como **candidato a mudança-de-plano** pro usuário julgar. O plano vence a "melhoria", mesmo que o agente ache que faz sentido mudar. Drift é uma **classe de regressão** — não pausa.
 3. **Plano/arquitetura falho** — o **plano em si** é falho (decisão de arquitetura que gera problema crítico). → **bucket de ALERTA**. NUNCA consertado/implementado no loop. Sobe pro usuário no relatório: "apresento e julgamos". É insumo pro planejamento, não trabalho de QA.
+   - **Sub-caso — a concepção errou, não o plano:** o que a implementação descobriu contradiz um documento de concepção já aprovado (`status: approved`). O alerta vira **proposta de reabrir a etapa**: nomeia o documento, a passagem contradita e a linha `correcao-pendente: {o que precisa mudar}` que o **dono** grava no frontmatter. O loop **nunca edita o documento** — nem o corpo (mexer nele reabre a etapa pela marca do de acordo e congela o planejamento) nem o frontmatter. Propor é do loop; escrever e reaprovar é do dono.
 
 > A skill **enforça** o plano; não o **redesenha**. Só o bucket 1 vira edição. "QA é QA."
 
@@ -553,7 +557,7 @@ Estrutura do relatório (no topo → fundo):
     segue em **0**. O progresso começa em **0 de N** e só sobe no clique.
 
   O mapeamento (a partir do `return`):
-  1. **Importantes — recomendação** ← `planFlawAlerts` P0/P1 (decisões de arquitetura do plano: "apresento e julgamos").
+  1. **Importantes — recomendação** ← `planFlawAlerts` P0/P1 (decisões de arquitetura do plano: "apresento e julgamos") — **inclui a proposta de reabrir a etapa** quando a concepção errou, com o documento, a passagem e a linha `correcao-pendente:` sugerida.
   2. **Sugestões de melhoria** ← `plan-drift` (candidatos a mudança de plano) + refators propostos pelo loop.
   3. **Limitações atuais** (não quebram, mas importam) ← `acceptedLimits` propostos + churn hotspots.
   4. **Extras** (opcionais) ← P2/P3 documentados (picuinhas abaixo do floor, nice-to-have).

@@ -300,6 +300,34 @@ declare o bloco `requisitos` no plano e ganhe a recusa de volta.
 
 O número aparece sem ser pedido: na árvore, na tela, no início de sessão, no fim de turno.
 
+### A jornada de origem — a linha `Jornada:` e o casamento com o journeys.md
+
+Funcionalidade que não veio de nenhum caminho de pessoa é trabalho que ninguém pediu com
+outro nome. Quem liga uma à outra é **uma linha no requisito**, e o nome tem que ser
+**igual ao do título da jornada** no `journeys.md` (o `## <nome>` que a etapa 4 do
+`/start-doc` escreve). A comparação ignora caixa e espaço a mais; o resto é literal.
+
+No documento de requisitos, a linha vive ao lado do id, separada por ` · `:
+
+```markdown
+- **S-4.3 Orçamento de energia** · F1 · Jornada: Planejar o dia — custo 1-5 por tarefa.
+  CA: dia com orçamento estourado retorna proposta de corte com impacto explícito.
+```
+
+No bloco `requisitos` do próprio plano, é o campo `"jornada": "Planejar o dia"`, ao lado
+de `ca`, `ancora` e `epico`.
+
+Onde as jornadas são procuradas, nesta ordem: `$PLAN_JORNADAS` → `.claude/docs/journeys.md`
+→ `docs/journeys.md` → nenhuma. **Projeto sem journeys.md não é acusado**: sem documento
+não há com o que cruzar, e acusar todo mundo seria ruído, não cobrança.
+
+Com o documento, o cruzamento roda nas duas direções e aparece **sem ninguém pedir** —
+no `cobertura`, no fim de turno, na vista de valor e na página:
+
+- 🔴 **funcionalidade sem jornada** — não cita nenhuma, ou cita nome que o documento não tem
+- 🔴 **épico sem jornada** — nenhuma funcionalidade dele veio de caminho de pessoa
+- 🔵 **jornada sem funcionalidade** — caminho escrito que nada no plano atende
+
 ## Motor de decisão — quando a pendência aparece na execução
 
 | situação | o que fazer |

@@ -513,7 +513,8 @@ def _requisitos_do_plano(plan):
     for r in plan.get("requisitos") or []:
         if isinstance(r, dict) and str(r.get("id", "")).strip():
             out[r["id"].strip()] = {"titulo": r.get("titulo", ""), "ca": r.get("ca"),
-                                    "ancora": r.get("ancora"), "epico": r.get("epico")}
+                                    "ancora": r.get("ancora"), "jornada": r.get("jornada"),
+                                    "epico": r.get("epico")}
     return out
 
 
@@ -538,6 +539,25 @@ def _requisitos_do_projeto(directory, plan=None):
         if os.path.exists(p):
             return cobertura.le_requisitos(p)
     return {}
+
+
+def _jornadas_do_projeto(directory):
+    """Acha as jornadas do projeto. [] se não houver — e isso não é erro.
+
+    Cascata: $PLAN_JORNADAS → <raiz>/.claude/docs/journeys.md → <raiz>/docs/journeys.md
+    → []. É o documento que a etapa 4 do /start-doc escreve; sem ele não há caminho de
+    pessoa com o que cruzar, e o cruzamento fica quieto em vez de acusar todo mundo.
+    """
+    import cobertura
+    env = os.environ.get("PLAN_JORNADAS")
+    if env and os.path.exists(env):
+        return cobertura.le_jornadas(env)
+    raiz = os.path.dirname(os.path.dirname(os.path.abspath(directory)))
+    for cand in (".claude/docs/journeys.md", "docs/journeys.md"):
+        p = os.path.join(raiz, cand)
+        if os.path.exists(p):
+            return cobertura.le_jornadas(p)
+    return []
 
 
 def cmd_tick(args):
@@ -635,7 +655,7 @@ def cmd_cobertura(args):
     import cobertura
     reqs = (cobertura.le_requisitos(args.reqs) if args.reqs
             else _requisitos_do_projeto(directory, plan))
-    m = cobertura.mapa(plan, reqs)
+    m = cobertura.mapa(plan, reqs, _jornadas_do_projeto(directory))
     if args.json:
         print(json.dumps(m, ensure_ascii=False))
         return 0
@@ -644,6 +664,11 @@ def cmd_cobertura(args):
         print("   (nenhum documento de requisitos encontrado — veja PLAN_REQS)")
     for chave, rotulo in (("sem_requisito", "⚠️ tarefas sem requisito"),
                           ("orfaos", "🔴 requisitos sem tarefa"),
+                          ("sem_jornada", "🔴 funcionalidades sem jornada de origem"),
+                          ("epicos_sem_jornada", "🔴 épicos sem jornada de origem"),
+                          ("sem_ca", "🔴 requisitos sem critério de aceite"),
+                          ("jornadas_sem_funcionalidade",
+                           "🔵 jornadas que nenhuma funcionalidade atende"),
                           ("inexistentes", "⛔ citando requisito inexistente")):
         if m[chave]:
             print()

@@ -38,6 +38,7 @@ def main():
 
     review = secao(texto, "**REVIEW = 1 Opus Revisor", "**CONFIRM =")
     bucket1 = secao(texto, "## CONSTRAINT CENTRAL", "2. **Plan-drift")
+    bucket3 = secao(texto, "3. **Plano/arquitetura falho", "> A skill **enforça**")
 
     print("o prompt do REVIEW carrega as duas ancoras")
     check("o REVIEW existe na skill", bool(review))
@@ -53,6 +54,16 @@ def main():
     check("a constraint central existe", bool(bucket1))
     check("bucket 1 cita a constituicao alem do plano",
           "constituição" in bucket1 and "quality-goals.md" in bucket1)
+
+    print("a execucao avisa que a entrevista errou, sem mexer no documento")
+    check("o REVIEW manda subir o que contradiz a concepcao aprovada",
+          "concepção" in review and "reabrir a etapa" in review)
+    check("o bucket 3 existe", bool(bucket3))
+    check("o alerta propoe reabrir a etapa", "reabrir a etapa" in bucket3)
+    check("o alerta indica a linha correcao-pendente, gravada pelo dono",
+          "correcao-pendente:" in bucket3)
+    check("o loop nunca edita o documento de concepcao",
+          "nunca edita o documento" in bucket3)
 
     print("a regua do projeto nao foi copiada pra dentro da skill")
     # As quatro checagens de estilo vivem no quality-goals.md do projeto; se

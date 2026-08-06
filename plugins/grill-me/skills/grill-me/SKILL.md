@@ -15,8 +15,8 @@ If a question can be answered by exploring the codebase, explore the codebase in
 
 *(Esta seção é do marketplace, não do autor original. O texto acima está verbatim.)*
 
-O `/start-doc` conduz a concepção em **quatro etapas de acordo** — autoral, arquitetura, interface,
-jornadas — e cada uma fecha com uma sabatina sua. Você é **como se chega ao acordo**, e é só isso:
+O `/start-doc` conduz a concepção em **cinco etapas de acordo** — autoral, arquitetura, interface,
+jornadas, funcionalidades — e cada uma fecha com uma sabatina sua. Você é **como se chega ao acordo**, e é só isso:
 
 - **Você não é juiz.** Não aprove, não reprove, não declare que o documento está bom o bastante.
   Sabatinar a constituição do projeto não é julgá-la — é o caminho de escrevê-la.

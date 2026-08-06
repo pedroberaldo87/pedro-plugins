@@ -55,6 +55,7 @@ RESOLVE_DIR = os.path.normpath(os.path.join(HERE, "..", "skills", "visual", "res
 ESTADOS = ("rascunho", "gerado", "noar", "apresentado")
 SEV = {"high": "sev-high", "med": "sev-med", "low": "sev-low"}
 DEFAULT_ITEM_LABELS = ["✓ Manter", "✏️ Mudar", "✗ Remover"]
+APROVACAO_LABELS = ["✓ Aprovar", "✏️ Aprovar com ajuste", "✗ Reprovar"]
 CALLOUT_VARIANTS = ("info", "warn", "danger", "ok")
 
 # ── a régua de estilo (quality-goals.md, regime "informação rápida") ────────
@@ -177,8 +178,12 @@ def validate(spec):
             kinds.append(k)
             errs.extend(_validate_block(k, blk, where))
 
-    tem_pedido = "decision" in kinds or "item" in kinds
+    tem_pedido = "decision" in kinds or "item" in kinds or "aprovacao" in kinds
     tem_prova = any(
+        b.get("kind") == "aprovacao" and str(b.get("doc_integral") or "").strip()
+        for sec in (spec.get("sections") or []) if isinstance(sec, dict)
+        for b in (sec.get("blocks") or []) if isinstance(b, dict)
+    ) or any(
         b.get("kind") == "evidencia" and str(b.get("output") or "").strip()
         for sec in (spec.get("sections") or []) if isinstance(sec, dict)
         for b in (sec.get("blocks") or []) if isinstance(b, dict)
@@ -273,6 +278,26 @@ def _validate_block(k, blk, where):
                 if not isinstance(v, int) or isinstance(v, bool) or v < 0:
                     errs.append("%s: rodada %s.%s tem que ser inteiro >= 0 (veio %r)"
                                 % (where, r.get("label"), key, v))
+    elif k == "aprovacao":
+        # A aprovação de etapa é colhida COM o documento inteiro à vista. Aprovar
+        # resumo é aprovar o que não se leu — então texto integral ausente não é
+        # aviso: é recusa, e a página não chega a ser escrita.
+        doc = str(blk.get("doc_integral") or "")
+        if not doc.strip():
+            errs.append("%s: aprovacao sem 'doc_integral' — a aprovação não é colhida "
+                        "sobre resumo; cole o texto INTEGRAL do documento" % where)
+        if not str(blk.get("etapa") or "").strip():
+            errs.append("%s: aprovacao sem 'etapa' — o nome do que está sendo aprovado" % where)
+        errs.extend(erros_de_estilo(blk.get("etapa"), "%s: aprovacao.etapa" % where))
+        for ci, c in enumerate(blk.get("cards") or [], 1):
+            if not isinstance(c, dict) or not str(c.get("title") or "").strip():
+                errs.append("%s: card %d sem 'title'" % (where, ci))
+                continue
+            errs.extend(erros_de_estilo(c.get("title"), "%s: card %d title" % (where, ci)))
+            anc = str(c.get("ancora") or "")
+            if anc and anc not in doc:
+                errs.append("%s: card %d com 'ancora' que não existe no doc_integral — "
+                            "índice que aponta pro nada" % (where, ci))
     elif k == "callout":
         if blk.get("variant", "info") not in CALLOUT_VARIANTS:
             errs.append("%s: callout variant inválida %r (use %s)"
@@ -619,7 +644,53 @@ def r_raw_html(blk, ctx):
     return ["  " + str(blk.get("html") or "")]
 
 
+def r_aprovacao(blk, ctx):
+    """A aprovação de etapa, com o documento INTEIRO na página.
+
+    Mesmo contrato do `item` (rádios fb-N + onFbChange + textarea), porque é assim
+    que o veredito chega ao Claude pelo live-sync — só os rótulos mudam, os valores
+    de máquina não. O que este bloco acrescenta é o que o veredito precisa ter
+    debaixo dele: o texto integral, verbatim, e não o resumo dele.
+
+    Os cards ficam POR CIMA como índice: eles são a camada de leitura rápida, e a
+    âncora de cada um cai dentro do próprio documento — índice que não navega seria
+    decoração.
+    """
+    ctx["n_items"] += 1
+    n = ctx["n_items"]
+    etapa = blk.get("etapa")
+    out = ['  <div class="feedback-item" data-num="%d" data-title="%s">'
+           % (n, _e(re.sub(r"<[^>]+>", "", _rich(etapa)))),
+           '    <div class="feedback-head">',
+           '      <span class="feedback-num">%d</span>' % n,
+           '      <span class="feedback-title">%s</span>' % _rich(etapa),
+           '      <div class="feedback-radios">']
+    for val, lbl in zip(("keep", "change", "remove"), APROVACAO_LABELS):
+        out.append('        <label><input type="radio" name="fb-%d" value="%s" '
+                   'onchange="onFbChange(this)"> %s</label>' % (n, val, _e(lbl)))
+    out += ["      </div>", "    </div>"]
+
+    doc = _e(blk.get("doc_integral"))
+    cards = blk.get("cards") or []
+    if cards:
+        out.append('    <div class="meta-chips">')
+    for ci, c in enumerate(cards, 1):
+        aid = "aprov-%d-%d" % (n, ci)
+        anc = str(c.get("ancora") or "")
+        if anc:
+            doc = doc.replace(_e(anc), '<span id="%s">%s</span>' % (aid, _e(anc)), 1)
+        out.append('      <a class="chip" href="#%s">%s</a>' % (aid, _rich(c.get("title"))))
+    if cards:
+        out.append("    </div>")
+
+    out.append('    <pre class="aprov-doc">%s</pre>' % doc)
+    out.append('    <textarea class="feedback-textarea" placeholder="O que mudar..."></textarea>')
+    out.append("  </div>")
+    return out
+
+
 RENDERERS = {"text": r_text, "bullets": r_bullets, "evidencia": r_evidencia,
+             "aprovacao": r_aprovacao,
              "artefato": r_artefato, "callout": r_callout, "tri": r_tri, "item": r_item,
              "decision": r_decision, "chart": r_chart, "raw_html": r_raw_html}
 
@@ -721,6 +792,25 @@ def build_body(spec, tpl):
     return "\n".join(out) + "\n", ctx
 
 
+def _integral_presente(page, texto):
+    """O texto integral está NA PÁGINA — medido no texto renderizado, não na promessa.
+
+    Compara contra o conteúdo real do `<pre class="aprov-doc">` (tags fora, entidades
+    desfeitas, espaço normalizado), porque é isso que o humano tem diante dos olhos
+    na hora de aprovar. Truncar o documento continua reprovando: a comparação é de
+    conteúdo inteiro.
+    """
+    alvo = re.sub(r"\s+", " ", str(texto or "")).strip()
+    if not alvo:
+        return False
+    for m in re.finditer(r'<pre class="aprov-doc">(.*?)</pre>', page, flags=re.S):
+        corpo = re.sub(r"\s+", " ",
+                       html.unescape(re.sub(r"<[^>]+>", "", m.group(1)))).strip()
+        if alvo in corpo:
+            return True
+    return False
+
+
 def build_page(spec, tpl=None):
     errs = validate(spec)
     if errs:
@@ -742,6 +832,15 @@ def build_page(spec, tpl=None):
                   "<title>%s</title>" % _e(spec.get("doc_title") or
                                            re.sub(r"<[^>]+>", "", _rich(spec["title"]))),
                   page, count=1, flags=re.S)
+    # A última trava do critério: nenhuma aprovação sai numa página onde o texto
+    # integral não esteja de fato presente (válvula, corte de layout, o que for).
+    for sec in (spec.get("sections") or []):
+        for blk in (sec.get("blocks") or []):
+            if isinstance(blk, dict) and blk.get("kind") == "aprovacao" \
+                    and not _integral_presente(page, blk.get("doc_integral")):
+                raise SpecError("aprovação da etapa %r sem o texto integral presente na "
+                                "página — a aprovação não é gravada"
+                                % blk.get("etapa"))
     return page, ctx
 
 
@@ -830,6 +929,11 @@ BLOCOS (campo "kind"):
                            "tradeoff": "✔ … · ✘ a consequência",
                            "svg": "<svg viewBox='0 0 100 60'…>",   # opcional, ilustra
                            "recommended": true}, {…}]}    ← EXATAMENTE 2; a 3ª é automática
+  aprovacao  {"etapa": "o nome do que está sendo aprovado",
+              "doc_integral": "o texto INTEGRAL do documento, verbatim",  ← vazio é RECUSADO
+              "cards": [{"title": "o índice, 1 linha",
+                         "ancora": "trecho literal do doc_integral"}]}
+             o veredito sai nos mesmos valores keep|change|remove, com rótulos de aprovação
   chart      {"title": "…", "rounds": [{"label": "R1", "p0": 2, "p1": 5, "p2": 8, "p3": 3}]}
   raw_html   {"html": "<…>"}                              ← a válvula; use pouco
 
@@ -841,7 +945,8 @@ GARANTIDO PELO PROGRAMA (não escreva à mão, não precisa lembrar):
   os botões de tela cheia e janela nova na barra do artefato
 RECUSADO PELO PROGRAMA:
   decisão/veredito sem nenhuma prova na página · bloco de evidência vazio ·
-  decisão com 2 ou 4 opções · tri incompleto · prosa em qualquer campo de texto
+  decisão com 2 ou 4 opções · tri incompleto · prosa em qualquer campo de texto ·
+  aprovação sem o texto integral do documento presente na página
 """
 
 

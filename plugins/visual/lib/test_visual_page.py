@@ -552,5 +552,83 @@ check("na página montada, o botão e o handler coexistem",
       "artefatoTelaCheia(this)" in _pg and "function artefatoTelaCheia" in _pg)
 
 
+# ── a aprovação de etapa: o documento inteiro à vista ──────────────────────
+#
+# A aprovação não é colhida sobre um resumo. O texto integral vai PRA PÁGINA, e os
+# cards ficam por cima como índice. Sem o texto integral, não há aprovação a gravar.
+
+print("\n[aprovação — o veredito só é colhido com o documento inteiro na página]")
+
+DOC = ("Etapa 3 — o gate de release\n\n"
+       "O gate roda no commit e avalia staged mais tracked-modificados.\n"
+       "Quem não bumpa a versão não passa.\n"
+       "A prova é a saída crua do próprio gate.\n")
+
+APROV = {"kind": "aprovacao", "etapa": "Etapa 3 — o gate de release",
+         "doc_integral": DOC,
+         "cards": [{"title": "O que o gate cobra", "ancora": "Quem não bumpa a versão não passa."}]}
+
+check("aprovação com o texto integral é aceita",
+      V.validate(spec(sections=[{"blocks": [dict(APROV)]}])) == [],
+      V.validate(spec(sections=[{"blocks": [dict(APROV)]}])))
+
+for falta in ({}, {"doc_integral": ""}, {"doc_integral": "   \n  "}):
+    errs = V._validate_block("aprovacao", dict(APROV, **falta) if falta
+                             else {k: v for k, v in APROV.items() if k != "doc_integral"},
+                             "s1 b1")
+    check("aprovação sem o texto integral (%r) é RECUSADA" % (falta.get("doc_integral"),),
+          any("doc_integral" in x for x in errs), errs)
+
+errs = V._validate_block("aprovacao", dict(APROV, etapa=""), "s1 b1")
+check("aprovação sem 'etapa' é recusada", any("etapa" in x for x in errs), errs)
+
+errs = V._validate_block("aprovacao", dict(
+    APROV, cards=[{"title": "índice torto", "ancora": "linha que não existe no doc"}]), "s1 b1")
+check("card cujo índice aponta pro nada é recusado", any("ancora" in x for x in errs), errs)
+
+errs = V._validate_block("aprovacao", dict(APROV, cards=[{"ancora": "Quem não bumpa a versão não passa."}]),
+                         "s1 b1")
+check("card sem título é recusado", any("title" in x for x in errs), errs)
+
+errs = V._validate_block("aprovacao", dict(APROV, etapa="a" * 200), "s1 b1")
+check("a régua morde na etapa", any("caracteres" in x for x in errs), errs)
+check("o texto integral fica FORA da régua (é o documento, não bullet)",
+      V._validate_block("aprovacao", dict(APROV, doc_integral="x" * 900, cards=[]),
+                        "s1 b1") == [])
+
+_pg_ap, _ctx_ap = V.build_page(spec(sections=[{"blocks": [dict(APROV)]}]), T)
+check("o texto integral está na página, verbatim",
+      "A prova é a saída crua do próprio gate." in _pg_ap)
+check("a página carrega o documento INTEIRO, não um trecho",
+      V._integral_presente(_pg_ap, DOC), "texto integral ausente")
+check("o veredito é colhido na própria página (rádios + caixa de fechamento)",
+      'name="fb-1"' in _pg_ap and 'class="feedback-box"' in _pg_ap)
+check("os valores de máquina são os de sempre",
+      'value="keep"' in _pg_ap and 'value="change"' in _pg_ap and 'value="remove"' in _pg_ap)
+check("os rótulos falam de aprovação", "✓ Aprovar" in _pg_ap, V.APROVACAO_LABELS)
+check("o card fica POR CIMA do texto integral (é índice, não conteúdo)",
+      _pg_ap.index("O que o gate cobra") < _pg_ap.index("A prova é a saída crua"))
+check("o card navega pra âncora dentro do documento",
+      'href="#aprov-1-1"' in _pg_ap and 'id="aprov-1-1"' in _pg_ap, "âncora não ligada")
+check("aprovação conta como pedido COM prova (o doc é a prova)",
+      V.validate(spec(sections=[{"blocks": [dict(APROV), {"kind": "item", "title": "i"}]}])) == [])
+
+# o critério de pronto, no caminho que a skill usa de verdade
+with tempfile.TemporaryDirectory() as td:
+    sem = os.path.join(td, "sem-integral.json")
+    alvo = os.path.join(td, "aprovacao.html")
+    with open(sem, "w", encoding="utf-8") as fh:
+        json.dump(spec(sections=[{"blocks": [
+            {"kind": "aprovacao", "etapa": "Etapa 3", "doc_integral": ""}]}]), fh)
+    r = subprocess.run([sys.executable, os.path.join(HERE, "visual_page.py"),
+                        "build", "--spec", sem, "--out", alvo], capture_output=True, text=True)
+    check("sem texto integral: sai 2, explica, e NÃO escreve a página",
+          r.returncode == 2 and "doc_integral" in r.stderr and not os.path.exists(alvo),
+          (r.returncode, r.stderr))
+
+check("o schema publica o bloco de aprovação",
+      "aprovacao" in V.SCHEMA_DOC and "doc_integral" in V.SCHEMA_DOC)
+
+
 print("\n%d passou · %d falhou" % (PASS, FAIL))
 sys.exit(1 if FAIL else 0)

@@ -93,8 +93,8 @@ If any of the three is missing, skip the ADR. Use the format in [ADR-FORMAT.md](
 
 *(Esta seção é do marketplace, não do autor original. O texto acima está verbatim.)*
 
-O `/start-doc` conduz a concepção em **quatro etapas de acordo** — autoral, arquitetura, interface,
-jornadas — e cada uma fecha com uma sabatina. Você é a escolha certa quando já existe `CONTEXT.md` ou
+O `/start-doc` conduz a concepção em **cinco etapas de acordo** — autoral, arquitetura, interface,
+jornadas, funcionalidades — e cada uma fecha com uma sabatina. Você é a escolha certa quando já existe `CONTEXT.md` ou
 ADR para confrontar. Ainda assim, você é **como se chega ao acordo**, e é só isso:
 
 - **Você não é juiz.** Não aprove, não reprove, não declare que o documento está bom o bastante.

@@ -46,6 +46,17 @@ PLANO = """<!DOCTYPE html><html><body><div class="wrap">
 BRANCHES = ('<html><head><title>Branches · x</title></head><body>'
             "<p>bullet curto</p></body></html>")
 
+# A página que colhe aprovação de etapa: o documento inteiro embaixo dos cards.
+LONGO_DOC = ("o parágrafo do documento que a página traz por inteiro, corrido como "
+             "documento é, muito acima do teto de caracteres, porque é ele que dá "
+             "lastro ao veredito e cortá-lo seria o defeito")
+
+INTEGRAL = """<!DOCTYPE html><html><body><div class="wrap">
+<div class="ident-strip"><span class="ik">Projeto</span></div>
+<div class="aprovacao" data-num="1"><p class="aprovacao-q">Aprova esta etapa?</p></div>
+<div class="doc-integral" id="doc-integral"><p>%s</p></div>
+<p>%s</p></div></body></html>""" % (LONGO_DOC, LONGO)
+
 
 def escreve(d, nome, txt):
     p = os.path.join(d, nome)
@@ -123,6 +134,16 @@ def main():
           not any(v["regra"] == ra.R_BULLETS for v in r2["violacoes"]))
     check("texto fora da árvore continua na régua",
           any(v["regra"] == ra.R_TETO for v in r2["violacoes"]))
+
+    # O documento que a página traz por inteiro pra dar lastro à aprovação de etapa:
+    # é prosa por natureza, e cortá-lo é o defeito que a trava da aprovação recusa.
+    d3 = tempfile.mkdtemp(prefix="regua-audit-doc-")
+    p3 = escreve(d3, "2026-08-06-aprovacao.html", INTEGRAL)
+    r3 = ra.auditar(p3)
+    check("texto integral do documento fica fora da régua",
+          not any(LONGO_DOC[:40] in v["trecho"] for v in r3["violacoes"]))
+    check("texto fora do documento integral continua na régua",
+          any(v["regra"] == ra.R_TETO for v in r3["violacoes"]))
 
     # ── varredura + filtro por data ───────────────────────────────────────
     escreve(d, "mao.html", "<html><body><p>%s</p></body></html>" % LONGO)

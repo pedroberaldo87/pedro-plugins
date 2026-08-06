@@ -721,6 +721,63 @@ ul.pt-prova li::before { content: "·"; position: absolute; left: -11px; opacity
 .feedback-textarea:focus { border-color: var(--accent); }
 .feedback-item.state-change .feedback-textarea { display: block; }
 
+/* Aprovação de etapa — o card fica POR CIMA, como índice, e o documento inteiro
+   vem logo abaixo (.doc-integral). A trava não é de estilo: sem o texto integral
+   no DOM o veredito não é gravado (ver onAprovacaoChange). */
+.aprovacao {
+  padding: 20px 24px;
+  background: var(--card-hi);
+  border: 2px solid var(--accent);
+  border-radius: 16px;
+  margin: 22px 0;
+}
+.aprovacao.aprovacao-travada { border-color: var(--danger); }
+.aprovacao-head { display: flex; gap: 14px; align-items: center; flex-wrap: wrap; }
+.aprovacao-etapa { font-size: 16px; font-weight: 700; }
+.aprovacao-q { margin: 12px 0 14px; font-size: 15px; }
+.aprovacao-opts { display: flex; gap: 6px; flex-wrap: wrap; }
+.aprovacao-opts label {
+  cursor: pointer;
+  user-select: none;
+  padding: 6px 12px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--card-deep);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-dim);
+  transition: all 0.15s;
+}
+.aprovacao-opts label:hover { border-color: var(--border-strong); color: var(--text); }
+.aprovacao-opts input { display: none; }
+.aprovacao-opts label:has(input:checked) {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--bg);
+}
+.aprovacao-nota {
+  display: block;
+  width: 100%;
+  margin-top: 12px;
+  padding: 12px 14px;
+  background: var(--card-deep);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  color: var(--text);
+  font-family: inherit;
+  font-size: 14px;
+  line-height: 1.55;
+  resize: vertical;
+  min-height: 70px;
+  outline: none;
+}
+.aprovacao-nota:focus { border-color: var(--accent); }
+.aprovacao-lastro { margin-top: 10px; font-size: 12px; color: var(--text-dim); }
+.aprovacao-travada .aprovacao-lastro { color: var(--danger); font-weight: 700; }
+
+/* O documento na íntegra — sem colapso, sem coluna estreita demais pra ler. */
+.doc-integral p { margin: 0 0 14px; font-size: 15px; line-height: 1.7; }
+
 /* Severity tag (optional — for findings/benchmark items) */
 .sev {
   font-size: 11px;
@@ -1829,8 +1886,43 @@ function copyFeedback(btn) {
     .catch(function() { flashBtn(btn, 'Falha — copie manual', true); });
 }
 
+// A APROVAÇÃO DE ETAPA NÃO GRAVA SEM O TEXTO INTEGRAL NA PÁGINA.
+// O validador do visual_page.py já recusa a página que NASCE sem o documento; esta
+// é a segunda trava, para o texto que sai do DOM depois da página pronta. Aprovar
+// lendo só o card é assinar no escuro — sem o documento à vista, o veredito não
+// vira estado nem no localStorage nem no daemon.
+function docIntegralPresente() {
+  var el = document.getElementById('doc-integral');
+  return !!(el && el.textContent && el.textContent.replace(/\s+/g, '').length > 0);
+}
+
+function coletaAprovacoes() {
+  if (!docIntegralPresente()) return [];
+  return Array.prototype.map.call(document.querySelectorAll('.aprovacao'), function(card) {
+    var checked = card.querySelector('input[type=radio]:checked');
+    var ta = card.querySelector('.aprovacao-nota');
+    return {
+      etapa: card.dataset.etapa,
+      val: checked ? checked.value : '',
+      nota: ta ? ta.value : ''
+    };
+  });
+}
+
+function onAprovacaoChange(input) {
+  var card = input.closest('.aprovacao');
+  if (!docIntegralPresente()) {
+    input.checked = false;
+    if (card) card.classList.add('aprovacao-travada');
+    return;
+  }
+  if (card) card.classList.remove('aprovacao-travada');
+  saveState();
+}
+
 function buildStateSnapshot() {
   return {
+    aprovacoes: coletaAprovacoes(),
     decisions: getDecisionSelections(),
     decComments: (document.getElementById('dec-comments') || {}).value || '',
     feedback: Array.from(document.querySelectorAll('.feedback-item')).map(function(it) {
@@ -1953,6 +2045,18 @@ function restoreState() {
       var fg = document.getElementById('fb-general');
       if (fg) fg.value = state.fbGeneral;
     }
+    // O veredito de etapa só volta se o documento inteiro voltou com ele: a mesma
+    // trava da gravação, do lado da leitura.
+    if (state.aprovacoes && docIntegralPresente()) {
+      state.aprovacoes.forEach(function(a, i) {
+        var card = document.querySelectorAll('.aprovacao')[i];
+        if (!card) return;
+        var radio = a.val ? card.querySelector('input[value="' + a.val + '"]') : null;
+        if (radio) radio.checked = true;
+        var ta = card.querySelector('.aprovacao-nota');
+        if (ta && a.nota) ta.value = a.nota;
+      });
+    }
   } catch (e) {}
 }
 
@@ -1969,6 +2073,9 @@ document.addEventListener('DOMContentLoaded', function() {
   var decComments = document.getElementById('dec-comments');
   if (decComments) decComments.addEventListener('input', saveState);
   document.querySelectorAll('.feedback-textarea').forEach(function(ta) {
+    ta.addEventListener('input', saveState);
+  });
+  document.querySelectorAll('.aprovacao-nota').forEach(function(ta) {
     ta.addEventListener('input', saveState);
   });
   var fbGeneral = document.getElementById('fb-general');
