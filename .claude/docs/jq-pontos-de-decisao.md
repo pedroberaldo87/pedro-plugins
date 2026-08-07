@@ -19,8 +19,8 @@ scope:
 
 | medida | valor | comando |
 | --- | --- | --- |
-| hooks de produção em `plugins/*/hooks/` (fora `test_*` e as bibliotecas vendoradas) | **43** | `ls plugins/*/hooks/*.sh \| grep -vc -e /test_ $(ls _shared/*.sh \| sed -E 's#.*/#-e /#')` |
-| destes, os que leem o campo que DECIDE — classe B | **29** | ver classe B abaixo |
+| hooks de produção em `plugins/*/hooks/` (fora `test_*` e as bibliotecas vendoradas) | **44** | `ls plugins/*/hooks/*.sh \| grep -vc -e /test_ $(ls _shared/*.sh \| sed -E 's#.*/#-e /#')` |
+| destes, os que leem o campo que DECIDE — classe B | **30** | ver classe B abaixo |
 | destes, os que só formatam a saída / leem config — classe A | **4** | ver classe A abaixo |
 
 Toda biblioteca de `_shared/` fica fora dessa conta: a cópia em `plugins/*/hooks/` é vendoring
@@ -86,6 +86,7 @@ Dentro da classe B há ainda dois graus:
 | B1 | `plugins/project-doc/hooks/pretooluse-organism-gate.sh` | 42 | `session_id` | `permissionDecision:"deny"` |
 | B1 | `plugins/project-doc/hooks/pretooluse-plan-gate.sh` | 51 | `session_id` | `permissionDecision:"deny"` |
 | B1 | `plugins/ship/hooks/pre-deploy-test-check.sh` | 27 | `tool_input.command` | `exit 2` |
+| B1 | `plugins/sovai/hooks/pretooluse-espera-com-guarda.sh` | 47, 53 | `session_id`, `tool_input.command` | `permissionDecision:"deny"` |
 | B1 | `plugins/sovai/hooks/pretooluse-sovai-motor.sh` | 60 | `session_id` | `permissionDecision:"deny"` |
 | B1 | `plugins/visual/hooks/pre-exitplan-visualize.sh` | 29 | `session_id` | `exit 2` |
 

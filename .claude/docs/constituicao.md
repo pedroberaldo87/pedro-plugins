@@ -230,3 +230,56 @@ o parágrafo que não pegou.
 Artigo novo ou emenda entra com as três partes preenchidas — o que exige, quem cobra, a
 prova — e a parte "quem cobra" cita o gate por nome. Emenda que não consegue nomear o
 cobrador entra com *hoje não há quem cobre* escrito, e vira dívida no placar acima.
+
+---
+
+## Artigo 9 · Desacoplamento
+
+**O que exige** — Nenhum arquivo deste marketplace amarra **o nome** ou **a quantidade** de
+outro. Skill não cita plugin irmão por caminho; documento não crava quantos plugins,
+skills, hooks ou suítes existem. Onde a informação é necessária, o arquivo diz **o comando
+que a descobre** — nunca a resposta de hoje.
+
+Três formas proibidas, e o defeito de cada uma:
+
+- **Irmão por posição** (`${CLAUDE_PLUGIN_ROOT}/../<outro>/…`) — o cache do harness instala
+  cada plugin em pasta própria, com a versão no nome; `../<irmão>` não resolve na máquina
+  de quem instalou. Não é risco futuro: em 2026-08-07 havia quatro ocorrências e **duas já
+  estavam quebradas** (`qa-loop` apontando para o `sovai`, `start-doc` apontando para o
+  `visual`).
+- **Lista de nomes em prosa** — enumerar os plugins que existem, ou os que uma skill
+  conversa com, cria um retrato que só quem escreveu sabe atualizar. Plugin novo entra e a
+  lista fica errada em silêncio.
+- **Contagem cravada** — "os 21 plugins", "as 54 suítes". Envelhece sem avisar, e ninguém
+  revalida a frase ao acrescentar um arquivo. Foi o defeito que este documento carregou até
+  2026-08-07, dizendo **54** quando a medição devolvia **60** (ver Artigo 5).
+
+**O que substitui cada uma:**
+
+- irmão por posição → um **resolvedor** que acha o plugin instalado pelo nome dele, e
+  degrada com aviso quando ele não está na máquina;
+- lista em prosa → o **índice que já existe** (`.claude-plugin/marketplace.json` para o que
+  é distribuído, `hooks/hooks.json` para o que escuta evento);
+- contagem cravada → o **comando** que a produz, ao lado do número, quando o número ajudar
+  a ler.
+
+**Como se cobra** — `scripts/desacoplamento_check.py`, que varre os arquivos rastreados e
+reprova as três formas. Isenção legítima ganha `acopla-ok: <motivo>` na linha — o mesmo
+molde do `public-ok` do Artigo 2. Duas isenções nascem com o gate: o **próprio índice**
+(que existe para listar) e a **narrativa histórica** (contar que uma contagem estava errada
+não é cravar contagem).
+
+**Prova de que vale hoje** — ⚠️ Este artigo nasce com dívida medida, e ela é o número
+inicial do gate, não a meta:
+
+```
+$ python3 scripts/desacoplamento_check.py
+75 citações cruzadas de nome de plugin, em 14 skills
+ 4 caminhos de irmão por posição — 2 deles já quebrados no disco
+ 8 contagens cravadas em documento
+```
+
+O gate nasce com esse retrato como linha de base, do mesmo jeito que o contrato dos hooks
+(`.claude/hook-contract.baseline.json`): ele reprova o que **piora**, e a dívida existente é
+paga por passo de plano, não por bloqueio de commit. Gate que nasce reprovando tudo é gate
+desligado no primeiro dia.

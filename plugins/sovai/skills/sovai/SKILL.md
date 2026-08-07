@@ -93,6 +93,27 @@ O motivo é medido: o canal que levava esse valor até o script **falhava**, e `
 
 Ler de `args.tiers` em tempo de execução é a versão que este passo **substitui**: um canal a mais entre o valor e quem o usa, e cada canal a mais é um lugar a mais para o valor sumir em silêncio.
 
+### A compilação cara é paga UMA vez, pela casca (obrigatório, antes de disparar o Workflow)
+
+Projeto que compila em minutos cobra esse preço **de cada executor** quando ninguém compila antes: numa execução real, **dez minutos de compilação por tarefa** foi o que empurrou o agente para o segundo plano — e processo em segundo plano que morre não avisa. A compilação é paga **aqui, uma vez**, e o que os executores herdam é o **cache quente** no disco do repositório.
+
+`SOVAI_BUILD_CMD` = o comando de compilação do projeto, **o mesmo que o executor rodaria** (`npm run build`, `cargo build`, `go build ./...`, `make`); projeto que não compila deixa vazio e o passo não faz nada.
+
+```bash
+SOVAI_DIR="${CLAUDE_CONFIG_DIR:-$HOME/.claude}/sovai"
+mkdir -p "$SOVAI_DIR"
+BUILD_LOG="$SOVAI_DIR/build-$CLAUDE_CODE_SESSION_ID.log"
+# NUNCA limpe antes nem depois: `clean`, `rm -rf <dir de build>` e `--no-cache` aqui
+# devolvem o cache frio ao executor e a compilação cara volta a ser por tarefa.
+if [ -n "$SOVAI_BUILD_CMD" ] && ( cd "$SOVAI_REPO_ROOT" && sh -c "$SOVAI_BUILD_CMD" ) >"$BUILD_LOG" 2>&1
+then BUILD_WARM=true
+else BUILD_WARM=false
+fi
+echo "buildWarm=$BUILD_WARM"
+```
+
+O resultado vai no `args` do Workflow como **`buildWarm`**, e de lá para **todo** `execPrompt` — cache quente que ninguém avisa ao executor é cache que ele derruba com um `clean` de rotina. **Fail-open:** compilação que falha devolve `buildWarm=false` e a missão segue — o erro real chega ao executor pelo próprio build dele, e travar a missão por causa do aquecimento é pior que aquecimento nenhum. O log fica em `~/.claude/sovai/`, fora do repositório.
+
 ### Knobs deste motor (a casca passa em `args`)
 
 | Knob | Default | O que faz |
@@ -105,6 +126,7 @@ Ler de `args.tiers` em tempo de execução é a versão que este passo **substit
 | `sessionId` | — | `$CLAUDE_CODE_SESSION_ID`. É a chave da **reserva de arquivos**: a disputa que existe é entre motores da MESMA sessão, e reserva global recusaria toda sessão paralela nos arquivos dela. |
 | `motorId` | — | Identifica ESTE motor dentro da sessão (carimbo de arranque serve). Dois motores com o mesmo id se enxergariam como um só e a reserva nunca recusaria nada. |
 | `silenceLimitMin` | `12` | **Vigia por tempo.** Minutos de registro parado que fazem o vigia acender o sinal. Só derruba se **não houver trabalho vivo** — ver `F9.24` abaixo. |
+| `buildWarm` | `false` | **Cache de compilação já quente.** `true` = a casca compilou os alvos antes de disparar o motor (passo acima), e o valor chega a todo executor no `execPrompt` — é o que o proíbe de recompilar do zero. Ausente/`false` = ninguém aqueceu, e cada executor compila como antes. |
 | `tetoExecutorMin` | `20` | **Teto de um executor só.** Minutos que um executor tem para entregar; passou disso, ele devolve `espera: true` e a rodada fecha com quem voltou. É teto **por agente**, não da onda — o vigia acima olha o motor inteiro e não enxerga um agente ciclando dentro de uma onda viva. |
 
 Precedência: flag da invocação > default acima. A casca **sempre** materializa os quatro primeiros antes de disparar o Workflow — `maxRounds` ausente faz o `while` do motor não rodar nenhuma volta e devolver "pronto" sem ter construído nada.
@@ -155,6 +177,8 @@ Duas coisas diferentes foram confundidas, e a confusão fazia o motor planejar c
   - **Pode:** regerar o entregável a partir do dado real. É operação do produto.
   - **Não pode:** injetar valor inventado dentro do entregável para o critério fechar. Isso é bancada, e bancada não entra em coisa que vale.
 
+  **E o `pronto` que só fecha editando arquivo SOB TRANCA vira tarefa `protegido`.** Esta mesma skill proíbe o motor de reescrever documento de concepção aprovado (`status: approved` no frontmatter) — nem o corpo, nem o frontmatter. O decompositor lia o plano sem olhar isso e fabricava tarefa cujo `pronto` só se cumpre justamente ali: **a tranca mandava o executor a uma porta que ela mesma trancou**, e sobravam dois caminhos, os dois ruins — desobedecer (derrubando a marca do de acordo) ou voltar falhando rodada após rodada até virar churn e queimar o diagnóstico caro. A régua é de **disco, não de julgamento**: arquivo que a tarefa toca e que traz `status: approved` no frontmatter é arquivo sob tranca → a tarefa nasce com **`protegido`** = o caminho do arquivo + por que ele está trancado. Ela **continua entrando na fila** (diferente do `esperaDono`, que tira da fila), mas o entregável dela é uma **proposta**, e o critério do revisor **inverte**: `git diff` vazio naquele arquivo é o resultado **certo**.
+
   O caso que originou: um critério mandava o número aparecer no documento, o executor **obedeceu** e escreveu o número na mão. Quem errou não foi quem executou — foi o critério, e ninguém o julgou antes de soltar o executor. Critério ruim solto vira trabalho errado com todo mundo cumprindo o combinado. Rodada 1 = `decompose_model` (plano inteiro); rodadas 2+ (re-decompõe só o delta do feedback do #2) = `coordinate_model`. Re-arquitetar é proibido (mesma regra do "não replanejar no headless"); buraco no plano que exija decisão de arquitetura vira **Bloqueio**, nunca invenção silenciosa.
 - **EXECUTORES (Opus 5) — Implementam as tarefas.** Tarefa padrão = `executor_model`; `complexity: 'mechanical'` = `mechanical_model`. Independentes rodam **em paralelo**; dependentes, **em série** na ordem do #1. Tarefa única ou missão sequencial pura → o Workflow degenera pra um executor por vez, sem cerimônia (o fan-out é ganho só quando há independência real).
 
@@ -164,6 +188,9 @@ Duas coisas diferentes foram confundidas, e a confusão fazia o motor planejar c
 2. **FORMATAR O PROJETO INTEIRO É PROIBIDO.** Nada de `prettier --write .`, `ruff format .`, `black .`, `eslint --fix .` sem caminho, nem equivalente que varra a árvore. Formatador sem escopo **reformatou 18 arquivos de outros agentes** numa execução real e quase apagou trabalho paralelo. Formate **só os arquivos que esta tarefa tocou**, nomeados um a um.
 3. **SONDA DE DEPURAÇÃO NASCE FORA DO ALCANCE DA SUÍTE.** Precisou de script temporário para investigar? Ele vai para o diretório de rascunho da sessão, **nunca** com nome que a suíte colete (`test_*.py`, `*.spec.ts`, `*_test.go`). Sonda esquecida dentro do alvo da suíte derruba a suíte de todo mundo e some do radar — quem varre depois é o fiscal de bancada (`F8.3`).
 4. **PASSOU DO TETO, PARE E DEVOLVA `espera: true`.** O texto da tarefa traz `tetoMin` — os minutos que você tem. Marque a hora ao começar; chegou no teto sem ter fechado o `pronto`, **pare onde está**, deixe no disco o que já funciona e devolva `{ done: false, espera: true, note: <em que ponto parou e o que falta> }`. Isso **não** é falha: a tarefa volta pro decompositor na rodada seguinte com a sua nota. Ficar mais que o teto tentando terminar é o que segurou **21 agentes já entregues por 2 horas** numa execução real — a onda só fecha quando o último volta, e quem cicla nunca volta.
+5. **ARQUIVO SOB TRANCA: O ENTREGÁVEL É A PROPOSTA, NÃO A EDIÇÃO.** Tarefa que chega com `protegido` toca arquivo que este motor **não pode reescrever** (documento de concepção aprovado). **Não edite o arquivo** — nem o corpo, nem o frontmatter. Devolva `proposta: { arquivo, antes, depois }` com os **dois lados literais**: `antes` = o trecho que está no disco hoje, copiado caractere por caractere; `depois` = o texto que deve entrar no lugar, pronto pro dono colar. Descrição do que mudar **não serve** — quem aplica é o dono, e resumo obriga ele a reescrever do zero. Aqui `done: true` significa **proposta entregue**, e **`git diff` vazio naquele arquivo é o resultado CERTO**, não a falha.
+
+6. **CACHE QUENTE: NÃO RECOMPILE DO ZERO.** A tarefa chega com `buildWarm` — `true` significa que os alvos **já foram compilados** pela casca antes de o motor começar, e o cache está no disco do repositório. Compile **incremental**, e só o que a sua mudança exige: `clean`, `rm -rf` de diretório de build, `--no-cache` e recompilação do zero estão **proibidos** com `buildWarm: true`. Foram **dez minutos de compilação por tarefa** que empurraram o agente para o segundo plano numa execução real — e agente em segundo plano que morre não avisa ninguém.
 
 ⚠️ **`isolation: 'worktree'` é PROIBIDO neste motor.** A regra anterior mandava isolar em worktree duas tarefas paralelas que tocassem o mesmo arquivo, e ela **queimou uma execução inteira em 2026-08-06**: 72 agentes para 25 tarefas, 15 delas executadas **3 vezes cada**, 8 diagnósticos de tarefa-presa, e 49 worktrees com trabalho dentro que ninguém leu.
 
@@ -176,6 +203,8 @@ A regra geral que sobrou disto: **isolamento sem fusão declarada é dívida com
 **O revisor manda a sonda dele para fora do alvo da suíte, pela mesma regra do executor.** É a metade de instrução do problema que o fiscal varre depois — quem planta a sonda tem que saber onde ela pode nascer, senão o fiscal vira faxina permanente em vez de rede.
 
 **O juiz prova que leu a coisa inteira.** Todo veredito — do #2, do confirm-pass, do auditor — devolve a **âncora do fim**: a última linha não vazia do que ele julgou, literal. Sem ela o veredito é **recusado** e o papel roda de novo. Nasceu de um caso medido: um juiz aprovou uma página em 36 segundos tendo lido só por busca, e só admitiu quando confrontado. Leitura por amostragem é indistinguível de leitura inteira no texto do parecer — a âncora é a única diferença observável.
+
+**Tarefa sob tranca INVERTE o critério do revisor.** O motor entrega ao #2 a lista `protegidas` — os `task_id` das tarefas que tocam arquivo trancado. Nelas o que se julga é a **proposta**, não a obra: **`git diff` vazio no arquivo protegido é o resultado CERTO**, e o revisor só reprova quando falta `antes` ou `depois` literal. O contrário também vale — arquivo protegido que **aparece** no `git diff` é gap de `kind: 'spec'`: o executor furou a tranca e derrubou a marca do de acordo do dono. Sem esta inversão o #2 media a tarefa pela régua normal, via arquivo intocado, reprovava por não-feita e devolvia ao #1 exatamente a tarefa que ninguém tem permissão de fazer.
 
 - **AUDITOR — a segunda opinião antes de derrubar qualquer coisa.** Executor que declara impossível **não encerra nada sozinho**: bloqueio repetido na mesma tarefa convoca um auditor, e é ele que decide. Aconteceu de verdade — um executor declarou impossível o que ele conseguia fazer com a ferramenta que já tinha na mão.
 
@@ -238,6 +267,9 @@ const silenceLimitMs = (ARGS.silenceLimitMin || 12) * 60 * 1000
 // trabalho vivo não acorda o vigia, então um executor ciclando dentro dela é invisível
 // pros dois freios de cima.
 const tetoExecutorMin = ARGS.tetoExecutorMin || 20
+// CACHE QUENTE (F9.34) — a casca já pagou a compilação; `=== true` porque o valor ausente
+// tem que virar `false`, e não `undefined` chegando ao executor como se fosse aviso.
+const buildWarm = ARGS.buildWarm === true
 let ultimoSinalDeVida = ARGS.now      // carimbo passado pela casca (Date.now() não roda em script)
 let desligadoPor = null               // 'orcamento' | 'vigia' — vira stopReason
 const gastoAgora = () => budget.spent()
@@ -356,13 +388,15 @@ while (!built && r < maxRounds) {
   const colidem = par.filter(t => touchesShared(t, par))
   // `tetoMin` vai em TODO execPrompt: o teto tem que chegar a quem tem relógio. O script
   // não tem (ver o vigia), então teto que ficasse só aqui não seria teto de ninguém.
+  // `buildWarm` vai junto, pelo mesmo motivo: quem compila é o executor, e cache quente
+  // que não chega a ele é cache que ele derruba com um `clean` de rotina.
   const builtPar = await parallel(livres.map(t => () =>
-    agent(execPrompt({ task: t, tetoMin: tetoExecutorMin }), {
+    agent(execPrompt({ task: t, tetoMin: tetoExecutorMin, buildWarm }), {
       model: execTier(t).model, effort: execTier(t).effort, phase: 'Executar', schema: TASK_RESULT })))
-  for (const t of colidem) builtPar.push(await agent(execPrompt({ task: t, tetoMin: tetoExecutorMin }),
+  for (const t of colidem) builtPar.push(await agent(execPrompt({ task: t, tetoMin: tetoExecutorMin, buildWarm }),
     { model: execTier(t).model, effort: execTier(t).effort, phase: 'Executar', schema: TASK_RESULT }))
   const builtSeq = []
-  for (const t of seq) builtSeq.push(await agent(execPrompt({ task: t, tetoMin: tetoExecutorMin }),
+  for (const t of seq) builtSeq.push(await agent(execPrompt({ task: t, tetoMin: tetoExecutorMin, buildWarm }),
     { model: execTier(t).model, effort: execTier(t).effort, phase: 'Executar', schema: TASK_RESULT }))
   // Os DOIS lados filtram: `parallel()` devolve null pra thunk que falhou, e o executor
   // sequencial devolve null pelo mesmo motivo (agente morto). Filtrar só o paralelo deixava
@@ -381,6 +415,28 @@ while (!built && r < maxRounds) {
   const esperaIds = respostas.filter(x => x.espera).map(x => x.task_id)
   const results = respostas.filter(x => !x.espera)
 
+  // ── ARQUIVO SOB TRANCA: O ENTREGÁVEL É A PROPOSTA (F8.5) ────────────────────
+  // Esta skill proíbe reescrever documento aprovado, e o decompositor continuava
+  // fabricando tarefa cujo `pronto` só fecha editando um. A tranca mandava o agente a
+  // uma porta que ela mesma trancou. Tarefa `protegido` entrega PROPOSTA com antes e
+  // depois LITERAIS, e o critério inverte: arquivo intocado é o resultado CERTO.
+  const protegidas = new Set(decomp.tasks.filter(t => t.protegido).map(t => t.id))
+  for (const x of results.filter(x => protegidas.has(x.task_id))) {
+    if (!x.proposta?.antes || !x.proposta?.depois) {
+      // Sem os dois lados literais não há o que o dono aplique: descrição obriga ele a
+      // reescrever do zero. Não conta como entregue — e como vira blocker COM taskId, a
+      // tarefa nasce parada na volta seguinte em vez de ser tentada de novo contra a tranca.
+      x.done = false
+      blockers.push({ taskId: x.task_id,
+                      what: `a tarefa ${x.task_id} toca arquivo sob tranca e voltou sem proposta com antes e depois literais`,
+                      whyNeedsYou: 'sem o texto literal dos dois lados não há o que aplicar — o arquivo continua intocado, que é o certo' })
+    } else {
+      blockers.push({ taskId: x.task_id,
+                      what: `proposta para ${x.proposta.arquivo} (sob tranca): ${x.summary}`,
+                      whyNeedsYou: `nenhum arquivo foi alterado — git diff vazio aqui é o resultado CERTO; aplicar é seu, porque o de acordo é seu.\nANTES:\n${x.proposta.antes}\nDEPOIS:\n${x.proposta.depois}` })
+    }
+  }
+
   // REVISAR — Opus #2, no tier da rodada (coordinate_model). Contra a SPEC (o plano vai
   // junto, igual ao #1): spec + constituição + rastreio + completude + coesão. A decomposição
   // entra como meio, não como contrato. O eixo de rastreio reprova tarefa decomposta sem
@@ -391,7 +447,9 @@ while (!built && r < maxRounds) {
   // NÃO roda a suíte nem caça bug — isso é o /qa-loop depois.
   // `lawMark` vai junto: na rodada 1 é null (o #2 calcula e devolve); nas seguintes é a
   // marca FIXADA, contra a qual ele mede — não contra o texto que estiver no disco agora.
-  const review = await agent(reviewBuildPrompt({ planPath: ARGS.planPath, planText: ARGS.planText, repoRoot: ARGS.repoRoot, decomp, results, round: r, lawMark }),
+  // `protegidas` vai junto: nelas o critério do #2 é o INVERSO do normal — proposta com
+  // antes/depois literais aprova, e arquivo protegido aparecendo no git diff reprova.
+  const review = await agent(reviewBuildPrompt({ planPath: ARGS.planPath, planText: ARGS.planText, repoRoot: ARGS.repoRoot, decomp, results, round: r, lawMark, protegidas: [...protegidas] }),
     { model: tier.model, effort: tier.effort, phase: 'Revisar', schema: BUILD_REVIEW })
 
   // AGENTE MORTO NÃO PODE DERRUBAR O MOTOR. `agent()` devolve null quando o subagente
@@ -464,6 +522,27 @@ while (!built && r < maxRounds) {
     await agent(checkpointPrompt({ repoRoot: ARGS.repoRoot, round: r, results }),
       { model: ARGS.model, effort: T.mechanical.effort, phase: 'Salvar' })
     rounds[rounds.length - 1].checkpoint = true
+
+    // ── A DOC DA ONDA VERDE (F9.32) ───────────────────────────────────────────
+    // O checkpoint só gravava CÓDIGO. Quem executava a onda seguinte lia a doc da
+    // rodada anterior — e ela ainda descrevia o repo de antes. Por isso a onda verde
+    // fecha com a doc dos arquivos que ELA tocou re-projetada, e nesta ordem: commit
+    // primeiro (o trabalho no histórico não depende da doc dar certo), doc depois.
+    // Onda vermelha não chega aqui: doc de repo quebrado documenta a quebra.
+    const tocados = [...new Set(results.flatMap(x => x?.files_touched || []))]
+    if (tocados.length) {
+      await agent(docTouchPrompt({ repoRoot: ARGS.repoRoot, round: r, files: tocados }),
+        { model: ARGS.model, effort: T.mechanical.effort, phase: 'Doc' })
+      rounds[rounds.length - 1].doc = tocados
+    }
+
+    // ── O CAMINHÃO DO LIXO PASSA JUNTO DO CHECKPOINT (F9.38) ──────────────────
+    // A onda abre suíte, build e servidor, e nada disso morria: ficava de pé até
+    // alguém reclamar da máquina. Aqui a colheita é a SELETIVA do turno — efêmero
+    // ainda vivo morre, serviço em uso sobrevive —, senão a onda seguinte perderia
+    // o servidor que ela mesma ia usar.
+    await agent(colheitaPrompt({ repoRoot: ARGS.repoRoot, round: r }),
+      { model: ARGS.model, effort: T.mechanical.effort, phase: 'Lixo' })
   } else {
     // Onda vermelha: relata QUAL quebrou. "A suíte falhou" sem o nome manda a próxima
     // rodada procurar no escuro.
@@ -476,8 +555,18 @@ while (!built && r < maxRounds) {
   // a sessão seguinte não sabia o que já tinha saído e refazia — e uma auditoria inteira
   // foi gasta pra descobrir isso. Quem marca é o motor, com a prova do executor, porque
   // exigir que alguém marque à mão depois é a mesma promessa que já falhou.
+  //
+  // ── A CONTAGEM NÃO CONTA O MESMO PASSO DUAS VEZES (F9.35) ───────────────────
+  // Retomar a missão REGRAVA veredito: o runtime replica do cache o que já tinha sido
+  // entregue, e o mesmo `task_id` volta em mais de uma linha de `results` — junto com a
+  // devolução do decompositor, que não é passo e vem SEM `task_id`. Quem contava linha
+  // via cinco onde havia três, e o papel de marcação era disparado duas vezes pelo mesmo
+  // passo. A conta é por `task_id` DISTINTO, e linha sem `task_id` não entra.
+  const feitosDaOnda = [...new Map(results.filter(x => x?.done && x.task_id)
+    .map(x => [x.task_id, x])).values()]
+  rounds[rounds.length - 1].feitos = feitosDaOnda.map(x => x.task_id)
   if (ARGS.planPath?.endsWith('.plan.json')) {
-    for (const t of results.filter(x => x?.done && x.task_id)) {
+    for (const t of feitosDaOnda) {
       await agent(tickPlanPrompt({ planPath: ARGS.planPath, taskId: t.task_id,
                                    evidencia: `${t.summary} · ${(t.files_touched || []).join(' ')}` }),
         { model: ARGS.model, effort: T.mechanical.effort, phase: 'Marcar' })
@@ -570,22 +659,37 @@ const naoDeuTempo = rounds.length
 // não é `impedidos`) — é um ato SEU que o plano já declarava, e o dependente espera junto.
 const esperandoVoce = rounds.length ? (rounds[rounds.length - 1].esperandoVoce || []) : []
 
+// A ÚLTIMA passada do caminhão do lixo NÃO é aqui (F9.38): ela é o passo 3 da
+// Persistência, em bash. Aqui ela viraria mais um agente disparado DEPOIS do
+// disjuntor — e o desligamento por teto deixaria de ser desligamento. Lá ela roda
+// pelo mesmo motivo que o `rm` do sinal: aconteça o que acontecer com o motor.
+
+// PROGRESSO DA MISSÃO (F9.35) — passos DISTINTOS fechados, nunca linhas de resultado.
+// A mesma tarefa fecha em mais de uma onda quando a retomada regrava o veredito do cache;
+// somar linha inflava o número que o relatório mostra ao dono.
+const passosFeitos = [...new Set(rounds.flatMap(x => x.feitos || []))]
+
 return {
   rounds, built, blockers, lawMark,   // lawMark = a lei contra a qual a missão INTEIRA foi medida
+  progresso: { feitos: passosFeitos.length, passos: passosFeitos },   // por tarefa distinta
   impedidos,          // não sai com mais rodada — precisa de você
   naoDeuTempo,        // sairia com mais rodada; o teto é que chegou antes
   esperandoVoce,      // nem falha nem falta de tempo: espera um ato seu, declarado no plano
   gasto: gastoAgora() - gastoInicial,
   stopReason: desligadoPor || (built ? 'build-complete' : 'max-rounds'),
-  telemetry: rounds.map(x => ({ round: x.r, tasks: x.results.length,
+  // `tasks` conta TAREFA distinta da onda, não linha de `results` (F9.35): linha repetida
+  // pelo replay do cache e linha sem `task_id` (a da decomposição) não são passos.
+  telemetry: rounds.map(x => ({ round: x.r,
+                                tasks: new Set((x.results || []).filter(t => t?.task_id)
+                                                               .map(t => t.task_id)).size,
                                 gaps: x.review?.gaps.length ?? null,
                                 checkpoint: !!x.checkpoint })),
 }
 ```
 
 **Schemas (JSON Schema, resumidos):**
-- `DECOMP` — `{ tasks: [{ id, desc, requisito, pronto, files: [...], parallelizable: bool, dependsOn: [id...], done: bool, complexity?: 'standard'|'mechanical', esperaDono?: string }], blockers: [{ what, whyNeedsYou }] }`. **`requisito` e `pronto` são obrigatórios** — `requisito` = o item da spec que a tarefa atende, `pronto` = o critério de feito dele, **os dois copiados da spec, não redigidos pelo decompositor** (o executor não tem como cumprir o que não recebe, e critério inventado aqui vira régua falsa no #2). Item da spec sem um dos dois vira `blocker`, não tarefa. `complexity: 'mechanical'` = operação bem delimitada (renomear, mover arquivo, 1 config, 1 valor); ausente/`'standard'` = tarefa normal. **`esperaDono`** = a frase do ato que só o dono pode fazer, **copiada do `espera_dono` do passo no `.plan.json`** — nunca inventada aqui, e nunca deduzida do texto da tarefa. Tarefa com `esperaDono` **não entra na fila do motor** (nenhum executor é solto nela), e quem `dependsOn` dela também não: os dois saem em `esperandoVoce`, com o motivo. Passo sem o campo no plano é tarefa normal.
-- `TASK_RESULT` — `{ task_id, files_touched: [...], summary, done: bool, note, anchor, espera: bool }`. **`anchor`** = a última linha não vazia do que o executor leu para decidir que estava pronto — a prova de leitura inteira (ver "o juiz prova que leu"). **`espera`** = o executor bateu no `tetoMin` e parou por isso (regra 4 dele). O script tira essas do `results` — o revisor não recebe meia obra como obra — e as manda pro `missing` do #1 na volta seguinte; a rodada **fecha com quem voltou**. `espera: true` não é falha e não vira Bloqueio: sai em `naoDeuTempo`, com o teto no motivo.
+- `DECOMP` — `{ tasks: [{ id, desc, requisito, pronto, files: [...], parallelizable: bool, dependsOn: [id...], done: bool, complexity?: 'standard'|'mechanical', esperaDono?: string, protegido?: string }], blockers: [{ what, whyNeedsYou }] }`. **`requisito` e `pronto` são obrigatórios** — `requisito` = o item da spec que a tarefa atende, `pronto` = o critério de feito dele, **os dois copiados da spec, não redigidos pelo decompositor** (o executor não tem como cumprir o que não recebe, e critério inventado aqui vira régua falsa no #2). Item da spec sem um dos dois vira `blocker`, não tarefa. `complexity: 'mechanical'` = operação bem delimitada (renomear, mover arquivo, 1 config, 1 valor); ausente/`'standard'` = tarefa normal. **`esperaDono`** = a frase do ato que só o dono pode fazer, **copiada do `espera_dono` do passo no `.plan.json`** — nunca inventada aqui, e nunca deduzida do texto da tarefa. Tarefa com `esperaDono` **não entra na fila do motor** (nenhum executor é solto nela), e quem `dependsOn` dela também não: os dois saem em `esperandoVoce`, com o motivo. Passo sem o campo no plano é tarefa normal. **`protegido`** = o arquivo sob tranca que a tarefa toca (o que traz `status: approved` no frontmatter) e o motivo da tranca, marcado pelo decompositor **por leitura do disco**, nunca por achismo. Tarefa `protegido` **entra na fila** — o que muda é o entregável: proposta, não edição, e o revisor a mede pelo critério invertido.
+- `TASK_RESULT` — `{ task_id, files_touched: [...], summary, done: bool, note, anchor, espera: bool, proposta?: { arquivo, antes, depois } }`. **`proposta`** = o entregável da tarefa `protegido` (regra 5 do executor): `antes` e `depois` **literais**, o primeiro copiado do disco e o segundo pronto pra colar. O script cobra os dois — proposta sem um deles vira `done: false` e Bloqueio, porque descrição do que mudar deixa o trabalho todo pro dono. Com os dois, a proposta sai em **Bloqueios (precisam de você)** com o antes/depois inteiro, e `git diff` vazio no arquivo é o resultado certo. **`anchor`** = a última linha não vazia do que o executor leu para decidir que estava pronto — a prova de leitura inteira (ver "o juiz prova que leu"). **`espera`** = o executor bateu no `tetoMin` e parou por isso (regra 4 dele). O script tira essas do `results` — o revisor não recebe meia obra como obra — e as manda pro `missing` do #1 na volta seguinte; a rodada **fecha com quem voltou**. `espera: true` não é falha e não vira Bloqueio: sai em `naoDeuTempo`, com o teto no motivo.
 - `SUITE_RESULT` — `{ green: bool, failing: [nome...], placar, heartbeat, trabalhoVivo: bool }`. **`placar`** = a linha crua que a suíte imprimiu (`139 passou · 0 falhou`, `OK (56 checks)`, `17 ok / 0 falhas`), lida por `lib/andamento.py:placar` e comparada com a da onda anterior — dois placares iguais seguidos saem como `sem avanço`. **`trabalhoVivo`** separa demora de travamento: com ele `true`, o vigia **não** derruba, por mais silencioso que esteja o registro. **`heartbeat`** = o carimbo de tempo do último sinal de vida, que a casca reinjeta a cada rodada (o script não tem relógio próprio).
 - `blocker` de `kind: 'criterio'` — critério de aceite que só se cumpre injetando valor inventado dentro de entregável. Não vira tarefa: vira Bloqueio, e o `whyNeedsYou` diz qual passo da spec precisa reescrever o `pronto`.
 - `RESERVA` — `{ recusado: bool, arquivos: [caminho...] }`. O papel é **mecânico e só**: rodar `${CLAUDE_PLUGIN_ROOT}/hooks/reserva-de-arquivos.sh reservar <sessionId> <motorId> <arquivo>...` e devolver o veredito do JSON que saiu — `recusado: true` quando veio `permissionDecision: "deny"`, com `arquivos` = os caminhos em disputa que a recusa nomeou. Script mudo = `recusado: false` (reservou). Sem julgamento próprio: quem decide é o hook, o agente só transporta.
@@ -603,9 +707,22 @@ return {
   ```
 
   É este commit que faz motor interrompido no meio (vigia, disjuntor, sessão morta) deixar as ondas já fechadas **no histórico** em vez de soltas no disco — sem ele, quem chegar depois não tem como separar o que fechou verde do que ficou pela metade. Commit **local e só**: o push é uma vez, na persistência do fim. Árvore limpa faz o `commit` sair não-zero, e isso **não** é falha — o `|| true` é o fail-open, pela mesma regra do `tick`: perder a onda por causa do registro é pior que o registro faltando.
+- `docTouchPrompt` — **sem schema** (nada volta pro script). Papel **mecânico e só**: invocar a skill **`project-doc:doc-touch`** (Skill tool, `skill: "project-doc:doc-touch"`) com a lista `files` — os arquivos que ESTA onda tocou (a união dos `files_touched` dos `TASK_RESULT`) — para que a doc deles seja re-projetada antes de a onda seguinte começar. Sem isso, quem executa a rodada seguinte lê a doc do repo de antes e decide por um mapa vencido. Roda **depois** do `checkpointPrompt` e só na onda verde: commit primeiro, porque o trabalho no histórico não pode depender de a doc dar certo; doc de repo quebrado documentaria a quebra. Onda sem arquivo tocado não chama este papel. Quem decide touch-vs-FULL é o próprio touch (mesma regra da Persistência) — aqui ele escala e segue, sem perguntar. Falha do touch **não derruba a onda**: o commit já está feito, e perder a onda por causa da doc é pior que a doc faltando.
+- `colheitaPrompt` — **sem schema** (nada volta pro script). Papel **mecânico e só**: mandar o lixeiro colher o que ESTA sessão anotou ter aberto, rodando
+
+  ```bash
+  LIXEIRO="${CLAUDE_PLUGIN_ROOT}/../lixeiro/lib/lixeiro.py"
+  [ -f "$LIXEIRO" ] || LIXEIRO="$(ls -d "${CLAUDE_PLUGIN_ROOT}"/../../lixeiro/*/lib/lixeiro.py 2>/dev/null | sort -V | tail -1)"
+  if [ -n "$LIXEIRO" ] && [ -f "$LIXEIRO" ]; then
+    python3 "$LIXEIRO" colhe-turno --sessao "$CLAUDE_CODE_SESSION_ID" \
+      || echo "sovai: a colheita falhou em $LIXEIRO — segue sem colher"
+  fi
+  ```
+
+  **Duas linhas porque são dois layouts.** Rodando do repositório, o lixeiro é irmão direto (`../lixeiro/lib/`); instalado pelo marketplace, o cache guarda `<marketplace>/<plugin>/<versão>/`, então o irmão está **dois** níveis acima e atrás de um segmento de versão — daí o glob, e o `sort -V | tail -1` que escolhe a versão mais alta quando o cache tem várias. Sem isso o comando não resolve em máquina instalada e a colheita nunca acontece. As duas falhas ficam **separadas**: lixeiro não instalado (nenhum caminho existe) sai **calado**, que é a regra escrita; caminho resolvido e comando quebrado avisa em uma linha — fail-open igual, mas visível, senão o defeito some. Sempre `colhe-turno`, nunca `colhe-sessao`: o modo do turno é o **seletivo** — efêmero ainda vivo (suíte, build) morre, serviço com CPU parada desde a passada anterior morre, serviço em uso **sobrevive**. É isso que deixa a colheita rodar no meio da missão sem tirar da onda seguinte o servidor que ela ia usar. Só é candidato o processo cuja ABERTURA foi anotada — nome de programa nunca é critério, e é o motor do lixeiro que aplica as travas (ancestral, VM, contêiner), não este papel. No script ele roda **junto do `checkpointPrompt`**, em toda onda verde. A última passada não é papel de agente: é o **passo 4 da Persistência**, o mesmo comando em bash — porque a colheita por onda não alcança o motor que fechou vermelho, que o vigia derrubou ou que o disjuntor desligou, e agente disparado depois do disjuntor desfaria o desligamento. Lixeiro ausente na máquina (`lixeiro.py` não existe) **não é falha**: o papel devolve sem fazer nada e a missão segue — limpeza é camada a mais, nunca pré-requisito. Falha da colheita **não derruba a onda** nem a missão, pela mesma regra do `tick` e do `docTouch`.
 - `BUILD_REVIEW` — `{ complete: bool, cohesive: bool, gaps: [{ task_id, kind: 'spec'|'constituicao'|'concepcao'|'rastreio'|'completude'|'coesao', severity: 'P0'|'P1'|'P2'|'P3', problem }], missingTasks: [id...], lawMark: string|null }`. **`lawMark`** = a marca da lei que ESTA rodada leu — o `cksum` do corpo de `.claude/docs/constituicao.md` + `.claude/docs/quality-goals.md` (mesma receita da marca de aprovação; corpo, sem frontmatter). Projeto sem esses arquivos devolve `null` e o pino nunca arma. O motor congela a marca da rodada 1 e a devolve ao revisor nas seguintes; marca diferente da fixada **não** troca a régua — vira aviso no relatório (Bloqueio "precisa de você"). `kind: 'rastreio'` = tarefa decomposta chegou **sem `requisito` ou sem `pronto`** — nasce em severidade **≥ `severityFloor`** e o script o segura no filtro mesmo se vier abaixo (mesmo tratamento do gap de spec), porque tarefa sem os dois campos não é medível por ninguém depois. `kind: 'spec'` = o que a spec pede não saiu (ou saiu diferente), **mesmo com a decomposição cumprida** — nasce em severidade **≥ `severityFloor`** (P1 por default) e o script o mantém no filtro mesmo se vier abaixo, senão o gap sai da conta e passa calado. `kind: 'constituicao'` = o que saiu viola a `.claude/docs/constituicao.md` ou o `.claude/docs/quality-goals.md` do projeto — severidade normal (o filtro de floor vale), e `problem` cita a passagem violada, porque a régua vive no arquivo lido na rodada, não aqui. Sem esse arquivo no projeto, este `kind` simplesmente não aparece. `kind: 'concepcao'` = o que a execução descobriu contradiz um documento de concepção já aprovado — **não segura a obra** (o executor não tem o que consertar no código), sai do filtro e vira aviso no relatório propondo reabrir a etapa, com a linha `correcao-pendente:` sugerida em `problem`. `task_id` de gap de spec ou de constituição pode ser `null`: o buraco que a decomposição não previu não tem tarefa a que pertencer.
 
-O `stopReason`, o `gasto` (quanto a missão queimou — sem ele, "desliguei" não diz se foi caro ou barato), os `blockers` e a telemetria entram no relatório final (`### Verificação` e `### Bloqueios`); o `esperandoVoce` entra na seção `### Esperando você`, que é dele e de mais ninguém — despejá-lo em `### Bloqueios` é chamar de falha o que só espera a sua vez. Terminado o motor (`built` ou teto), segue direto pro **QA final** abaixo — que é onde defeito é caçado.
+O `stopReason`, o `gasto` (quanto a missão queimou — sem ele, "desliguei" não diz se foi caro ou barato), o `progresso` (**quantos passos DISTINTOS fecharam** — nunca linha de resultado somada: retomada regrava veredito do cache e a mesma tarefa volta em mais de uma linha, e a devolução do decompositor volta sem `task_id`), os `blockers` e a telemetria entram no relatório final (`### Verificação` e `### Bloqueios`); o `esperandoVoce` entra na seção `### Esperando você`, que é dele e de mais ninguém — despejá-lo em `### Bloqueios` é chamar de falha o que só espera a sua vez. Terminado o motor (`built` ou teto), segue direto pro **QA final** abaixo — que é onde defeito é caçado.
 
 ## QA final (antes do relatório)
 
@@ -647,6 +764,19 @@ Passada a QA e **ANTES** de montar o relatório, persista o trabalho. Esta é a 
 
    Deixar aceso faz a sessão inteira continuar sem poder despachar sub-agente **depois** de a missão acabar — o gate não sabe que você terminou, só sabe do arquivo.
 
+4. **Passa o caminhão do lixo (F9.38).** A missão abriu suíte, build e servidor a cada onda, e nada disso morre sozinho: fica de pé até alguém reclamar da máquina. Última passada, e é obrigatória:
+
+   ```bash
+   LIXEIRO="${CLAUDE_PLUGIN_ROOT}/../lixeiro/lib/lixeiro.py"
+   [ -f "$LIXEIRO" ] || LIXEIRO="$(ls -d "${CLAUDE_PLUGIN_ROOT}"/../../lixeiro/*/lib/lixeiro.py 2>/dev/null | sort -V | tail -1)"
+   if [ -n "$LIXEIRO" ] && [ -f "$LIXEIRO" ]; then
+     python3 "$LIXEIRO" colhe-turno --sessao "$CLAUDE_CODE_SESSION_ID" \
+       || echo "sovai: a colheita falhou em $LIXEIRO — segue sem colher"
+   fi
+   ```
+
+   É o **mesmo** `colheitaPrompt` que roda junto do checkpoint de cada onda verde — aqui em bash, e por isso mesmo: esta passada tem que acontecer **aconteça o que acontecer com o motor**. A colheita por onda só alcança onda verde; motor que fechou vermelho, que o vigia derrubou ou que o disjuntor desligou não colheria nada — e pôr mais um agente no fim do script depois do disjuntor faria o desligamento por teto deixar de ser desligamento. O lixeiro é **irmão** do sovai — direto no repositório, e atrás de um segmento de versão no cache do marketplace (`<marketplace>/<plugin>/<versão>/`), daí as duas tentativas e o `sort -V` da definição do papel. Lixeiro não instalado (nenhum dos dois caminhos existe) → **pula e segue calado**, e é o `if` que garante isso: limpeza é camada a mais, nunca pré-requisito. Caminho resolvido e comando quebrado → também segue, mas **avisa** na saída do passo, e a linha do aviso vira item de `### Feito` dizendo que a colheita não passou; sem essa separação, defeito da colheita e ausência do lixeiro ficam com a mesma cara. O que foi encerrado vira item de `### Feito`; falha da colheita **não** vira Bloqueio.
+
 O hash do commit + resultado do push entram na `### Verificação`; a doc regenerada é um item de `### Feito`.
 
 ## Relatório Final
@@ -673,6 +803,7 @@ Cinco seções. Monte este conteúdo PRIMEIRO; a forma de entrega (HTML ou markd
 - [taskId]: [motivo — direto do `esperandoVoce` do motor]
 
 ### Verificação
+- [passos fechados: `progresso.feitos` do motor — o número de tarefas DISTINTAS, nunca a soma das linhas de resultado]
 - [o que rodou, e o resultado — incluindo doc atualizada (doc-touch ou FULL, e qual dos dois), commit e push]
 
 ### QA (qa-loop)

@@ -168,9 +168,14 @@ def main():
         sys.exit(0)
 
     sid = payload.get("session_id", "")
+    # `stop_hook_active` NAO cala este gate. O campo e do EVENTO, nao deste hook: basta
+    # QUALQUER hook de Stop ter devolvido o turno (o `delivery-audit.sh` do intent-guard
+    # devolve) pra ele chegar `true` aqui — e ai este gate saia sem nem ler o texto.
+    # Foi o que aconteceu: uma sessao inteira sem julgar uma frase, calado pelo vizinho.
+    # O laco quem impede e o cap proprio, por (sessao, projeto), que ja existe abaixo —
+    # esse conta as devolucoes DESTE gate, que e o que a protecao anti-laco precisa.
     if payload.get("stop_hook_active"):
-        batida("stop_hook_active", sid)
-        sys.exit(0)
+        batida("stop_hook_active — julga assim mesmo", sid)
 
     texto = ultimo_texto(payload.get("transcript_path", ""))
     if not texto:

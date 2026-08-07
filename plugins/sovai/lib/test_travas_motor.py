@@ -20,6 +20,8 @@ import re
 import shutil
 import subprocess
 import sys
+import tempfile
+import textwrap
 
 SKILL_MD = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                         "..", "skills", "sovai", "SKILL.md")
@@ -81,6 +83,133 @@ def roda_a_fila(bloco, decomp_js, blockers_js="[]"):
         return json.loads(out.stdout.strip())
     except ValueError:
         return {"erro": "saida ilegivel: %s" % out.stdout.strip()[:200]}
+
+
+def bloco_da_tranca(js):
+    """O trecho do esqueleto que trata tarefa em arquivo sob tranca (F8.5) — do
+    `protegidas` ate o comeco da revisao. Recortado do proprio SKILL.md pelo mesmo
+    motivo dos outros: o teste roda o que esta escrito la, nao uma copia."""
+    i = js.find("const protegidas = new Set(")
+    j = js.find("// REVISAR — Opus #2")
+    if i < 0 or j < 0 or j < i:
+        return ""
+    return js[i:j]
+
+
+def roda_a_tranca(bloco, decomp_js, results_js):
+    """Executa o bloco da tranca com uma decomposicao e respostas de mentira, e devolve
+    o que saiu — os bloqueios e os resultados depois do tratamento."""
+    if not bloco:
+        return {"erro": "SEM-BLOCO"}
+    if not shutil.which("node"):
+        return {"erro": "SEM-NODE"}
+    prog = ("const blockers = []; const decomp = %s; const results = %s;\n%s\n"
+            "console.log(JSON.stringify({ blockers, results }))\n"
+            % (decomp_js, results_js, bloco))
+    out = subprocess.run(["node", "-e", prog], capture_output=True, text=True)
+    if out.returncode != 0:
+        return {"erro": out.stderr.strip()[:200]}
+    try:
+        return json.loads(out.stdout.strip())
+    except ValueError:
+        return {"erro": "saida ilegivel: %s" % out.stdout.strip()[:200]}
+
+
+def bloco_da_compilacao(texto):
+    """O bloco ```bash do passo que compila os alvos ANTES do motor (F9.34). Recortado
+    da secao dele, para que o teste rode o passo que a casca roda — nao uma copia."""
+    sec = texto.split("### A compilação cara é paga UMA vez")[-1].split("\n### ")[0]
+    blocos = re.findall(r"```bash\n(.*?)\n```", sec, re.S)
+    return blocos[0] if blocos else ""
+
+
+def roda_a_compilacao(bloco, raiz):
+    """Roda o passo da casca contra um projeto de mentira cujo compilador ANOTA se
+    compilou do zero (FULL) ou aproveitou o cache (INCR). Devolve o que saiu no
+    `buildWarm` e o registro do compilador depois da SEGUNDA compilacao — a do
+    executor, que roda o mesmo comando depois do passo da casca."""
+    if not bloco:
+        return {"erro": "SEM-BLOCO"}
+    compilador = os.path.join(raiz, "compilar.sh")
+    registro = os.path.join(raiz, "registro.txt")
+    with open(compilador, "w") as f:
+        f.write('#!/bin/sh\n'
+                'if [ -d "$PWD/.cache-de-build" ]; then echo INCR >> "$PWD/registro.txt"\n'
+                'else mkdir "$PWD/.cache-de-build"; echo FULL >> "$PWD/registro.txt"; fi\n')
+    os.chmod(compilador, 0o755)
+    amb = dict(os.environ)
+    amb.update({"CLAUDE_CONFIG_DIR": os.path.join(raiz, "config"),
+                "CLAUDE_CODE_SESSION_ID": "sessao-de-teste",
+                "SOVAI_REPO_ROOT": raiz,
+                "SOVAI_BUILD_CMD": "./compilar.sh"})
+    casca = subprocess.run(["sh", "-c", bloco], capture_output=True, text=True, env=amb)
+    if casca.returncode != 0:
+        return {"erro": casca.stderr.strip()[:200]}
+    # A compilacao do EXECUTOR: o mesmo comando, depois do passo da casca.
+    subprocess.run(["sh", "-c", "./compilar.sh"], cwd=raiz, capture_output=True, env=amb)
+    with open(registro) as f:
+        passadas = f.read().split()
+    return {"saida": casca.stdout.strip(), "passadas": passadas}
+
+
+def bloco_da_colheita(trecho):
+    """O bloco ```bash que manda colher, recortado do trecho que o recebe (o passo 4 da
+    Persistencia ou a definicao do papel). O teste roda O QUE ESTA ESCRITO la — comparar
+    a string com ela mesma trava o defeito em vez de pega-lo, que era o buraco antigo."""
+    blocos = re.findall(r"```bash\n(.*?)\n *```", trecho, re.S)
+    achados = [b for b in blocos if "colhe-turno" in b]
+    return textwrap.dedent(achados[0]) if achados else ""
+
+
+def planta_o_lixeiro(raiz, layout, quebra=False):
+    """Monta a arvore que o comando vai ter que resolver e devolve o CLAUDE_PLUGIN_ROOT.
+
+    `cache` = o layout REAL do marketplace instalado (`<marketplace>/<plugin>/<versao>/`,
+    verificado em ~/.claude/plugins/cache), com DUAS versoes do lixeiro para cobrar a
+    escolha da mais alta. `repo` = rodando do repositorio, onde o lixeiro e irmao direto.
+    `ausente` = maquina sem lixeiro."""
+    stub = ('import sys\n'
+            'sys.stderr.write("QUEBROU\\n")\n'
+            'sys.exit(1)\n' if quebra else
+            'import sys\n'
+            'print("COLHEU", __file__, " ".join(sys.argv[1:]))\n')
+
+    def poe(caminho):
+        os.makedirs(os.path.dirname(caminho), exist_ok=True)
+        with open(caminho, "w") as f:
+            f.write(stub)
+
+    if layout == "cache":
+        root = os.path.join(raiz, "pedro-plugins", "sovai", "1.13.0")
+        for v in ("1.9.0", "1.10.0", "1.8.2"):
+            poe(os.path.join(raiz, "pedro-plugins", "lixeiro", v, "lib", "lixeiro.py"))
+    elif layout == "repo":
+        root = os.path.join(raiz, "plugins", "sovai")
+        poe(os.path.join(raiz, "plugins", "lixeiro", "lib", "lixeiro.py"))
+    else:
+        root = os.path.join(raiz, "pedro-plugins", "sovai", "1.13.0")
+    os.makedirs(root, exist_ok=True)
+    return root
+
+
+def roda_a_colheita(bloco, layout, quebra=False):
+    """Executa o comando da skill contra a arvore plantada. Devolve o codigo de saida e
+    o que saiu — e o par que separa 'lixeiro nao instalado' (calado) de 'resolvi o
+    caminho e o comando quebrou' (visivel)."""
+    if not bloco:
+        return {"erro": "SEM-BLOCO"}
+    raiz = tempfile.mkdtemp(prefix="sovai-colheita-")
+    try:
+        root = planta_o_lixeiro(raiz, layout, quebra)
+        amb = dict(os.environ)
+        amb.update({"CLAUDE_PLUGIN_ROOT": root,
+                    "CLAUDE_CODE_SESSION_ID": "sessao-de-teste"})
+        out = subprocess.run(["bash", "-c", bloco], capture_output=True, text=True,
+                             env=amb)
+        return {"rc": out.returncode,
+                "saida": (out.stdout + out.stderr).strip()}
+    finally:
+        shutil.rmtree(raiz, ignore_errors=True)
 
 
 def roda_em_node(conv, entrada):
@@ -262,6 +391,62 @@ def main():
     check("bloqueio comum sai da fila mas NAO vira espera",
           so_blocker.get("fila") == [] and so_blocker.get("esperandoVoce") == [])
 
+    print("F8.5 — tarefa em arquivo sob tranca entrega proposta, e o criterio inverte")
+    check("o campo esta declarado no schema do decompositor",
+          "protegido?: string" in texto)
+    check("a regua da tranca e de DISCO, nao de julgamento",
+          "`status: approved` no frontmatter é arquivo sob tranca" in texto)
+    check("a tarefa protegida CONTINUA na fila (ao contrario da que espera o dono)",
+          "Tarefa `protegido` **entra na fila**" in texto)
+    check("o executor recebe a regra por escrito, no texto que ele le",
+          "ARQUIVO SOB TRANCA: O ENTREGÁVEL É A PROPOSTA, NÃO A EDIÇÃO" in texto)
+    check("o antes e o depois sao exigidos LITERAIS",
+          "`antes` = o trecho que está no disco hoje, copiado caractere por caractere"
+          in texto)
+    check("o campo entra no schema do executor",
+          "proposta?: { arquivo, antes, depois }" in texto)
+    check("o revisor recebe git diff vazio como o resultado CERTO",
+          "`git diff` vazio no arquivo protegido é o resultado CERTO" in texto)
+    check("furar a tranca REPROVA (a inversao vale pros dois lados)",
+          "arquivo protegido que **aparece** no `git diff` é gap de `kind: 'spec'`"
+          in texto)
+    # A CHAMADA no script: lista que o motor monta e nao entrega ao #2 e inversao que
+    # so existe na prosa — o revisor continuaria medindo pela regua normal.
+    check("o motor entrega a lista de protegidas ao revisor, no SCRIPT",
+          "protegidas: [...protegidas]" in js)
+    # A METADE DE EXECUCAO: o bloco roda de verdade, com uma tarefa protegida que voltou
+    # com proposta completa e outra que voltou so com resumo.
+    tranca = bloco_da_tranca(js)
+    decomp_t = ("{ tasks: [{ id: 'P1', protegido: 'docs/visao.md tem status: approved' },"
+                "{ id: 'P2', protegido: 'docs/visao.md tem status: approved' },"
+                "{ id: 'N1' }] }")
+    results_t = ("[{ task_id: 'P1', done: true, summary: 'ajustar a meta',"
+                 "   proposta: { arquivo: 'docs/visao.md', antes: 'LINHA VELHA', depois: 'LINHA NOVA' } },"
+                 " { task_id: 'P2', done: true, summary: 'trocar o titulo' },"
+                 " { task_id: 'N1', done: true, summary: 'codigo normal' }]")
+    saiu = roda_a_tranca(tranca, decomp_t, results_t)
+    check("o bloco da tranca foi encontrado e rodou", "erro" not in saiu)
+    feito = {x["task_id"]: x["done"] for x in saiu.get("results", [])}
+    check("proposta COMPLETA conta como entregue", feito.get("P1") is True)
+    check("proposta sem antes/depois NAO conta como entregue", feito.get("P2") is False)
+    check("tarefa normal passa intacta pelo bloco", feito.get("N1") is True)
+    blq = {b.get("taskId"): b for b in saiu.get("blockers", [])}
+    check("a proposta chega ao dono com o ANTES e o DEPOIS literais",
+          "LINHA VELHA" in blq.get("P1", {}).get("whyNeedsYou", "")
+          and "LINHA NOVA" in blq.get("P1", {}).get("whyNeedsYou", ""))
+    check("o bloqueio nomeia o arquivo sob tranca",
+          "docs/visao.md" in blq.get("P1", {}).get("what", ""))
+    check("git diff vazio sai como CERTO tambem pro dono",
+          "CERTO" in blq.get("P1", {}).get("whyNeedsYou", ""))
+    check("quem voltou sem os dois lados vira bloqueio, com o motivo",
+          "sem proposta com antes e depois literais" in blq.get("P2", {}).get("what", ""))
+    # O `taskId` no bloqueio e o que faz a tarefa nascer PARADA na volta seguinte
+    # (`parado` e semeado por `blockers.map(b => b.taskId)`): sem ele o motor jogaria o
+    # executor contra a mesma tranca de novo.
+    check("o bloqueio carrega o taskId, entao a tarefa nao e re-tentada contra a tranca",
+          sorted(blq) == ["P1", "P2"])
+    check("tarefa nao protegida nao vira bloqueio", "N1" not in blq)
+
     print("F9.23 — o vigia narra na tela principal")
     check("a narracao e REGUA, nao lista de eventos",
           "Toda mudança de estado vira uma linha" in texto)
@@ -281,7 +466,7 @@ def main():
     # de ARGS.now). Teto que ficasse so no script nao seria teto de ninguem — por isso o
     # que se cobra aqui e o `tetoMin` DENTRO de todo execPrompt, nao a constante solta.
     check("o teto chega a TODO executor pelo prompt",
-          len(re.findall(r"execPrompt\(\{ task: t, tetoMin: tetoExecutorMin \}", js)) == 3)
+          len(re.findall(r"execPrompt\(\{ task: t, tetoMin: tetoExecutorMin, buildWarm \}", js)) == 3)
     check("quem estourou o teto NAO conta como resultado",
           re.search(r"const results = respostas\.filter\(x => !x\.espera\)", js) is not None)
     check("a rodada fecha com quem voltou (o resto do laco usa `results`)",
@@ -308,6 +493,111 @@ def main():
                            ("objeto", '{ severityFloor: "P0" }')):
         check("com o parametro em %s, o campo chega" % forma,
               roda_em_node(conv, entrada) == "P0")
+
+    print("F9.38 — o caminhao do lixo passa no fim do motor, e junto do checkpoint")
+    # O criterio e "a chamada existe no CAMINHO, nao so na prosa": por isso tudo aqui
+    # e medido no esqueleto (`js`), e so a definicao do papel e cobrada no texto.
+    chamadas = [m.start() for m in re.finditer(r"await agent\(colheitaPrompt\(", js)]
+    check("o motor chama a colheita no script", len(chamadas) == 1)
+    # Ponto 1 (dentro do motor): no ramo da onda VERDE, junto do checkpoint. Recorte
+    # pelas fronteiras reais do ramo — do `checkpointPrompt` ao `} else {` que o fecha.
+    i = js.find("await agent(checkpointPrompt(")
+    j = js.find("  } else {", i) if i >= 0 else -1
+    ramo_verde = js[i:j] if i >= 0 and j > i else ""
+    check("a chamada esta JUNTO do checkpoint, no ramo da onda verde",
+          "await agent(colheitaPrompt(" in ramo_verde)
+    check("o papel roda com effort mecanico, como os outros papeis de registro",
+          re.search(r"colheitaPrompt\([^)]*\),\n\s*\{ model: ARGS\.model, effort: T\.mechanical\.effort", js) is not None)
+    # E o motor NAO dispara mais um agente depois do laco: agente disparado depois do
+    # disjuntor desfaria o desligamento por teto (e `test_motor_bancada.py` afere isso
+    # executando o esqueleto). Por isso a ultima passada e bash, na Persistencia.
+    fim = js.rfind("\nreturn {")
+    check("nenhuma colheita por agente depois do laco das ondas",
+          fim > 0 and chamadas and chamadas[-1] < js.index(ramo_verde) + len(ramo_verde))
+    # Ponto 2 (fim do motor, antes do relatorio): o passo 4 da Persistencia, em bash —
+    # o unico caminho que alcanca a missao que fechou vermelha, foi derrubada pelo vigia
+    # ou desligada pelo teto. Cobrado no passo, nao numa frase solta: o recorte vai do
+    # cabecalho da Persistencia ao da secao seguinte.
+    persist = texto.split("## Persistência")[-1].split("## Relatório Final")[0]
+    # O comando tem que RODAR como esta escrito. Aferir a string literal contra ela
+    # mesma nao prova nada: o comando antigo (`${CLAUDE_PLUGIN_ROOT}/../lixeiro/...`)
+    # passava nesse check e NAO resolvia em install real, porque o cache do marketplace
+    # guarda `<marketplace>/<plugin>/<versao>/` — falta um nivel E o segmento de versao.
+    # Por isso daqui pra baixo o bloco e EXECUTADO contra uma arvore de mentira.
+    bloco = bloco_da_colheita(persist)
+    check("a Persistencia manda colher num bloco EXECUTAVEL, nao em prosa",
+          "colhe-turno" in bloco)
+    check("nenhum placeholder sobrou no lugar do caminho do lixeiro",
+          "<plugin lixeiro>" not in texto)
+    check("a colheita vem DEPOIS do commit/push, ainda ANTES do relatorio",
+          bool(bloco) and persist.index("Commit + push") < persist.index(bloco.split("\n")[0]))
+    # Layout de INSTALL (`<marketplace>/<plugin>/<versao>/`): o caminho tem que resolver,
+    # e entre as versoes do cache tem que sair a mais ALTA (1.10.0 > 1.9.0 > 1.8.2).
+    r = roda_a_colheita(bloco, "cache")
+    check("no layout do cache do marketplace, o comando ACHA o lixeiro e roda",
+          r.get("rc") == 0 and "COLHEU" in r.get("saida", ""))
+    check("entre as versoes do cache, resolve a mais ALTA",
+          "/lixeiro/1.10.0/lib/lixeiro.py" in r.get("saida", ""))
+    check("o lixeiro recebe colhe-turno e a sessao desta missao",
+          "colhe-turno --sessao sessao-de-teste" in r.get("saida", ""))
+    # Layout de REPOSITORIO (irmao direto, sem segmento de versao): tem que resolver
+    # tambem, senao a skill so funciona instalada.
+    r_repo = roda_a_colheita(bloco, "repo")
+    check("rodando do repositorio, o irmao direto tambem resolve",
+          r_repo.get("rc") == 0 and "COLHEU" in r_repo.get("saida", ""))
+    # As duas falhas, separadas: ausencia sai calada (e a regra escrita), comando
+    # quebrado avisa. O `|| true` de antes achatava as duas na mesma cara.
+    r_sem = roda_a_colheita(bloco, "ausente")
+    check("lixeiro ausente nao derruba o passo", r_sem.get("rc") == 0)
+    check("lixeiro ausente segue CALADO, sem barulho no relatorio",
+          r_sem.get("saida") == "")
+    r_quebra = roda_a_colheita(bloco, "cache", quebra=True)
+    check("comando quebrado tambem nao derruba o passo", r_quebra.get("rc") == 0)
+    check("comando quebrado AVISA, citando o caminho que resolveu",
+          "/lixeiro/1.10.0/lib/lixeiro.py" in r_quebra.get("saida", ""))
+    # A definicao do papel: sem o comando real, o script chamaria um papel que nao sabe
+    # o que rodar — e o "manda colher" voltaria a ser prosa.
+    check("o papel esta definido, com o motor do lixeiro nomeado",
+          "`colheitaPrompt`" in texto and "lixeiro/lib/lixeiro.py" in texto)
+    papel = texto.split("- `colheitaPrompt`")[-1].split("- `BUILD_REVIEW`")[0]
+    check("o papel manda o MESMO comando executavel do passo 4",
+          bool(bloco) and bloco_da_colheita(papel) == bloco)
+    check("a colheita e a SELETIVA do turno, nunca a da sessao inteira",
+          "colhe-turno" in bloco and "colhe-sessao" not in bloco)
+    check("a regra do lixeiro esta escrita: so colhe o que foi ANOTADO",
+          "Só é candidato o processo cuja ABERTURA foi anotada" in texto)
+    check("lixeiro ausente na maquina nao derruba a missao", "não é falha" in papel)
+
+    print("F9.34 — a compilacao cara e paga uma vez, pela casca, antes do motor")
+    bloco_build = bloco_da_compilacao(texto)
+    check("o passo existe como bloco EXECUTAVEL na casca, nao em prosa",
+          "$SOVAI_BUILD_CMD" in bloco_build and "BUILD_WARM" in bloco_build)
+    # O passo so serve se vier ANTES do disparo: compilar depois do Workflow e pagar
+    # a compilacao duas vezes, uma delas por tarefa.
+    check("o passo vem antes do esqueleto do motor",
+          texto.index("### A compilação cara é paga UMA vez") < texto.index("### Esqueleto do motor"))
+    # A metade de EXECUCAO: o passo roda de verdade contra um projeto de mentira, e a
+    # segunda compilacao — a do executor — tem que aproveitar o cache. Se o passo
+    # limpasse (clean / rm -rf do diretorio de build), ela sairia FULL de novo.
+    raiz = tempfile.mkdtemp(prefix="sovai-build-")
+    try:
+        r = roda_a_compilacao(bloco_build, raiz)
+        check("a casca compila os alvos e declara o cache quente",
+              r.get("saida") == "buildWarm=true")
+        check("o EXECUTOR nao recompila do zero: a casca pagou FULL, ele pegou INCR",
+              r.get("passadas") == ["FULL", "INCR"])
+    finally:
+        shutil.rmtree(raiz, ignore_errors=True)
+    check("o passo proibe limpar o cache por escrito",
+          "NUNCA limpe antes nem depois" in bloco_build)
+    check("compilacao que falha nao trava a missao (fail-open)",
+          "BUILD_WARM=false" in bloco_build)
+    check("o estado fica fora do repositorio, na raiz de config do Claude",
+          'SOVAI_DIR="${CLAUDE_CONFIG_DIR:-$HOME/.claude}/sovai"' in bloco_build)
+    # E o aviso chega a QUEM COMPILA: valor que para no script nao impede `clean` nenhum.
+    check("o knob chega ao motor pelo args", "const buildWarm = ARGS.buildWarm === true" in js)
+    check("o executor recebe a regra por escrito, no texto que ele le",
+          "CACHE QUENTE: NÃO RECOMPILE DO ZERO" in texto and "`buildWarm`" in texto)
 
     print()
     if FAILS:

@@ -107,6 +107,16 @@ RESULTADOS = {
              "files_touched": ["d.py"], "anchor": "fim"},
 }
 
+# ── o replay de cache (F9.35) ────────────────────────────────────────────────
+# Retomar a missao REGRAVA veredito: o runtime devolve do cache o que ja tinha sido
+# entregue. Duas coisas voltam — a mesma tarefa outra vez, com o mesmo `task_id`, e a
+# devolucao do DECOMPOSITOR, que nao e passo nenhum e vem SEM `task_id`. As duas viram
+# linha em `results`, e quem contava linha via cinco onde havia tres.
+REPLAY_DECOMP_ID = "REPLAY-DECOMP"
+REPLAY_DECOMP_RESULT = {"done": True, "summary": "replay da decomposicao vinda do cache",
+                        "files_touched": [], "anchor": "fim",
+                        "tasks": [{"id": "F1.1"}, {"id": "F1.2"}]}
+
 HARNESS = r"""
 const { execSync } = require('child_process')
 const fs = require('fs')
@@ -118,11 +128,13 @@ const DECOMP={}, TASK_RESULT={}, BUILD_REVIEW={}, RESERVA={}, SUITE_RESULT={};
 const mk = n => (p => Object.assign({ __p: n }, p));
 const decomposePrompt=mk('decompose'), execPrompt=mk('exec'), reviewBuildPrompt=mk('review'),
       runSuitePrompt=mk('suite'), checkpointPrompt=mk('checkpoint'), tickPlanPrompt=mk('tick'),
+      docTouchPrompt=mk('docTouch'), colheitaPrompt=mk('colheita'),
       diagnoseStuckTaskPrompt=mk('diag'), reservaPrompt=mk('reserva'), confirmBuildPrompt=mk('confirm');
 `
 
 const chamadas = []
 const checkpoints = []
+const docs = []
 const agentes = []
 const phase = () => {}
 // O medidor de gasto da bancada: cada agente disparado queima `gastoPorChamada`. E o
@@ -188,6 +200,11 @@ async function agent(p, opts) {
                                heartbeat: CFG.heartbeat === null ? CFG.now : CFG.heartbeat,
                                trabalhoVivo: CFG.trabalhoVivo === true }
     case 'checkpoint': return salva(p)
+    // A doc da onda verde: aqui ela nao tem efeito no disco (quem re-projeta e uma
+    // skill, nao um comando), entao o que se registra e a CHAMADA — em que onda saiu e
+    // com quais arquivos. O lugar dela na fila fica gravado em `agentes`, que e como se
+    // afere que ela veio DEPOIS do commit.
+    case 'docTouch':  docs.push({ round: p.round, files: p.files }); return {}
     case 'tick':      return tica(p)
     default:          return {}
   }
@@ -197,7 +214,7 @@ const corpo = CORPO.replace(/^export const meta = \{[\s\S]*?\n\}\n/m, '')
 const motor = new Function('args', 'agent', 'phase', 'budget', 'parallel',
                            'return (async () => {' + PRELUDE + corpo + '})()')
 motor(CFG.args, agent, phase, budget, parallel).then(saida => {
-  fs.writeFileSync(CFG.out, JSON.stringify({ saida, chamadas, checkpoints, agentes }, null, 2))
+  fs.writeFileSync(CFG.out, JSON.stringify({ saida, chamadas, checkpoints, docs, agentes }, null, 2))
 }).catch(e => { console.error('MOTOR ESTOUROU: ' + (e && e.stack || e)); process.exit(3) })
 """
 
@@ -206,7 +223,7 @@ def roda_motor(tmp, texto, plan_dir, tick_cmd, plan_path, token_budget=None,
                gasto_por_chamada=0, max_rounds=2, review_complete=True,
                agora=1, heartbeat=None, trabalho_vivo=False,
                checkpoint_cmd="", escreve_no_disco=False,
-               suite_verde=True, suite_falhando=None):
+               suite_verde=True, suite_falhando=None, replay_cache=False):
     """Executa o esqueleto do SKILL.md com os agentes de mentira. Devolve
     {saida, chamadas, agentes} ou levanta AssertionError com o motivo."""
     corpo = os.path.join(tmp, "motor.js")
@@ -216,6 +233,20 @@ def roda_motor(tmp, texto, plan_dir, tick_cmd, plan_path, token_budget=None,
     with open(harness, "w", encoding="utf-8") as fh:
         fh.write(HARNESS)
     out = os.path.join(tmp, "saida.json")
+    tarefas = [{"id": i["id"], "desc": i["desc"], "requisito": i["requisito"],
+                "pronto": i["pronto"], "files": ["%s.txt" % i["id"]],
+                "parallelizable": True, "dependsOn": [], "done": False}
+               for i in PLANO["phases"][0]["items"]]
+    resultados = dict(RESULTADOS)
+    if replay_cache:
+        # O plantio: F1.1 e F1.2 voltam do cache uma segunda vez (mesmo `task_id`, mesmo
+        # veredito), e a devolucao do decompositor entra na fila como uma linha a mais,
+        # sem `task_id`. Nada disso e passo novo — e nenhuma das duas pode contar.
+        tarefas = tarefas + [dict(t) for t in tarefas if t["id"] in ("F1.1", "F1.2")] + [
+            {"id": REPLAY_DECOMP_ID, "desc": "linha da decomposicao repetida do cache",
+             "requisito": "S-43", "pronto": "nao e passo", "files": [],
+             "parallelizable": True, "dependsOn": [], "done": False}]
+        resultados[REPLAY_DECOMP_ID] = REPLAY_DECOMP_RESULT
     cfg = {
         "tickCmd": tick_cmd,
         "checkpointCmd": checkpoint_cmd,
@@ -231,11 +262,8 @@ def roda_motor(tmp, texto, plan_dir, tick_cmd, plan_path, token_budget=None,
         "trabalhoVivo": trabalho_vivo,
         "gastoPorChamada": gasto_por_chamada,
         "reviewComplete": review_complete,
-        "results": RESULTADOS,
-        "tasks": [{"id": i["id"], "desc": i["desc"], "requisito": i["requisito"],
-                   "pronto": i["pronto"], "files": ["%s.txt" % i["id"]],
-                   "parallelizable": True, "dependsOn": [], "done": False}
-                  for i in PLANO["phases"][0]["items"]],
+        "results": resultados,
+        "tasks": tarefas,
         "args": {"planPath": plan_path, "planText": "plano de bancada", "maxRounds": max_rounds,
                  "tokenBudget": token_budget,
                  "severityFloor": "P1", "repoRoot": tmp, "churnThreshold": 2,
@@ -547,6 +575,69 @@ def main():
           bool(quebra) and "rodada 1" in quebra[0]["what"])
     check("o Bloqueio manda consertar antes de seguir",
           bool(quebra) and "não vira ponto de salvamento" in (quebra[0].get("whyNeedsYou") or ""))
+
+    # ── F9.32 ────────────────────────────────────────────────────────────────────
+    # O checkpoint gravava so CODIGO. Quem executasse a onda seguinte leria a doc do
+    # repo de ANTES. Nos MESMOS dois cenarios acima (mesma missao, mesma interrupcao,
+    # so a cor da suite muda) se afere agora o par commit+doc: a onda verde produz os
+    # dois, nessa ordem; a vermelha nao produz nenhum.
+    print("F9.32 — onda verde fecha com commit E doc; onda vermelha, com nenhum dos dois")
+    check("a skill nomeia a skill que re-projeta a doc da onda",
+          "docTouchPrompt" in texto and "project-doc:doc-touch" in texto)
+
+    check("a onda verde re-projetou a doc, uma vez so",
+          [d["round"] for d in interrompido["docs"]] == [1])
+    # A doc pedida e a dos arquivos que ESTA onda tocou — doc do repo inteiro seria o
+    # FULL, e doc de arquivo que ninguem tocou e gasto puro.
+    tocados = sorted(interrompido["docs"][0]["files"]) if interrompido["docs"] else []
+    check("a doc pedida e a dos arquivos que a onda tocou",
+          tocados == ["a.py", "b.sh", "c.sh"])
+    check("arquivo de quem estourou o teto nao entra (nao e obra fechada)",
+          "d.py" not in tocados)
+    # A ORDEM e o ponto: commit primeiro, doc depois. Doc antes do commit deixaria o
+    # trabalho fora do historico se o touch estourasse.
+    ag = interrompido["agentes"]
+    check("o commit veio ANTES da doc, nao depois",
+          "checkpoint" in ag and "docTouch" in ag
+          and ag.index("checkpoint") < ag.index("docTouch"))
+
+    check("a onda vermelha nao re-projetou doc nenhuma", vermelha["docs"] == [])
+    check("na onda vermelha nao houve nem commit nem doc",
+          vermelha["checkpoints"] == [] and "docTouch" not in vermelha["agentes"])
+
+    # ── F9.35 ────────────────────────────────────────────────────────────────────
+    # A MESMA missao da primeira rodada, com UMA coisa plantada: o replay do cache.
+    # F1.1 e F1.2 voltam uma segunda vez com o mesmo veredito, e a devolucao do
+    # decompositor entra como mais uma linha de resultado, sem `task_id`. A contagem
+    # tem que enxergar TAREFA, nao linha.
+    print("F9.35 — com replay de cache plantado, a contagem devolve tarefas distintas")
+    replay = bancada(texto, tick_cmd, max_rounds=1, replay_cache=True)
+    if replay is None:
+        return 1
+    saida7 = replay["saida"]
+    linhas = saida7["rounds"][0]["results"] if saida7.get("rounds") else []
+    feitas_em_linha = [x for x in linhas if x.get("done")]
+    # O plantio so vale se o replay realmente aconteceu: sem esta afericao, a contagem
+    # certa poderia ser a de um cenario que nunca teve duplicata nenhuma.
+    check("o replay foi mesmo plantado: 5 linhas de resultado fechado para 2 tarefas",
+          len(feitas_em_linha) == 5)
+    check("a linha da decomposicao chegou mesmo em results, sem task_id",
+          any(not x.get("task_id") for x in feitas_em_linha))
+
+    prog = saida7.get("progresso") or {}
+    check("a contagem devolve o numero de tarefas distintas, nao de linhas",
+          prog.get("feitos") == 2)
+    check("a contagem nomeia quais passos fecharam, cada um uma vez",
+          sorted(prog.get("passos") or []) == ["F1.1", "F1.2"])
+    check("a linha da decomposicao nao entrou na contagem",
+          REPLAY_DECOMP_ID not in (prog.get("passos") or []))
+    # A telemetria conta a mesma coisa pela mesma regra: 3 tarefas distintas com
+    # resultado (F1.1, F1.2, F1.3), e nao as 6 linhas que o replay produziu.
+    check("a telemetria da onda conta tarefa distinta, nao linha",
+          saida7["telemetry"][0]["tasks"] == 3)
+    # E o efeito no disco: o passo repetido nao e marcado duas vezes.
+    check("nenhum passo foi marcado duas vezes",
+          sorted(c["taskId"] for c in replay["chamadas"]) == ["F1.1", "F1.2"])
 
     print()
     if FAILS:

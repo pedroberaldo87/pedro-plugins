@@ -91,6 +91,40 @@ else
 fi
 kill -9 "$ALHEIO" 2>/dev/null
 
+echo "── agente de bancada: o que ele abre entra no registro da sessão dona ──"
+# O agente que um workflow solta tem sessão PRÓPRIA, e o processo dele nasce
+# dentro do processo da sessão que o soltou. Aqui a suíte encena isso: o registro
+# da "dona" tem como dono um ancestral ESTRITO do harness que o hook enxerga
+# (a suíte confirmou acima que ele grava o pid de quem a lançou).
+mkdir -p "$TMP/lixeiro"
+rm -f "$TMP/lixeiro/sessao-"*.json
+AVO=$(ps -o ppid= -p "$PPID" 2>/dev/null | tr -d ' ')
+if [ -z "$AVO" ] || [ "$AVO" -le 1 ] 2>/dev/null; then
+  echo "  (pulado: sem avô na árvore desta suíte — nada a encenar)"
+else
+  printf '{"session_id":"dona","dono_pid":%s,"anotacoes":[]}' "$AVO" > "$TMP/lixeiro/sessao-dona.json"
+  ( cd "$PROJ" && exec "$PY3" -m http.server 0 >/dev/null 2>&1 ) &
+  BANCADA=$!
+  sleep 1.2
+  printf '{"session_id":"agente-de-bancada","cwd":"%s","tool_input":{"command":"python3 -m http.server 0"}}' "$PROJ" \
+    | bash "$SCRIPT_DIR/posttooluse-anota.sh" >/dev/null 2>&1
+  AG=$(jq -r '.anotacoes[0].agente // empty' "$TMP/lixeiro/sessao-dona.json" 2>/dev/null)
+  [ "$AG" = "agente-de-bancada" ] && ok "a anotação do agente aparece na sessão dona, com a origem" \
+    || bad "anotação do agente na sessão dona" "agente-de-bancada" "${AG:-nada no registro da dona}"
+  [ ! -f "$TMP/lixeiro/sessao-agente-de-bancada.json" ] \
+    && ok "nada ficou preso num registro que só o agente enxerga" \
+    || bad "registro só do agente" "não existe" "$(jq -c '.anotacoes' "$TMP/lixeiro/sessao-agente-de-bancada.json" 2>/dev/null)"
+  # A prova que importa: quem colhe é a DONA, sem nunca ter visto o comando.
+  printf '{"session_id":"dona"}' | bash "$SCRIPT_DIR/sessionend-colhe.sh" >/dev/null 2>&1
+  sleep 0.5
+  if kill -0 "$BANCADA" 2>/dev/null; then
+    bad "a sessão dona colhe o servidor que o agente subiu" "processo morto" "ainda vivo (pid $BANCADA)"
+    kill -9 "$BANCADA" 2>/dev/null
+  else
+    ok "a sessão dona colhe o servidor que o agente subiu"
+  fi
+fi
+
 echo "── órfão: sessão cujo dono não existe mais ──"
 mkdir -p "$TMP/lixeiro"
 cat > "$TMP/lixeiro/sessao-morta.json" <<EOF
