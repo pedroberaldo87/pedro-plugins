@@ -305,6 +305,13 @@ regera, deriva ou extrai. Sem isso, escrever à mão cumpre o critério.
 |---|---|
 | `o número de nós aparece no CLAUDE.md` | `` `graphify update --force` regera o índice e o número de nós no CLAUDE.md sai dele `` |
 
+**Critério que manda testar cita o comando e o que é vermelho.** "O teste passa" autoriza
+os cinco antipadrões de teste — o contrato deles está em
+**`references/antipadroes-de-teste.md`** (fonte: `_shared/antipadroes-de-teste.md` — não
+editar a cópia à mão; `scripts/sync-shared.sh --check` pega drift), o **mesmo** arquivo que
+o `/qa-loop` lê antes de revisar. Leia antes de escrever um `pronto` que mencione teste:
+quem escreve o critério erra antes de quem escreve o teste.
+
 Quem cobra: `lib/regua_pronto.py` (`erros_de_pronto`), também por linha de comando —
 `printf '%s' "$PRONTO" \| python3 lib/regua_pronto.py --onde F2.3 -` (exit 1 = é bancada).
 

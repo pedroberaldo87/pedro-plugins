@@ -27,29 +27,14 @@ The session is done when the frontier is empty: every branch of the design tree 
 
 *(Esta seção é do marketplace, não do autor original. O texto acima está verbatim.)*
 
-A rodada acima diz **o que** perguntar. Quem escolhe **por onde** é o usuário, e são dois canais:
+A rodada acima diz **o que** perguntar. Quem escolhe **por onde** é o usuário, e a régua dos dois
+canais (página de decisão em múltipla escolha como padrão, ferramenta nativa pergunta a pergunta
+como alternativa) está em **`regua-de-pergunta.md`**, ao lado deste arquivo — leia antes de abrir a
+rodada. A rodada aqui é a **fronteira**, e a recomendação que vira sugestão marcada na página é o
+`➡️` de cada pergunta.
 
-- **Padrão — a rodada inteira numa página, em múltipla escolha.** A rodada da fronteira vira uma
-  página de decisão: cada pergunta é um item, com as opções em rádio e **um campo livre embaixo**
-  para o que não cabe nas opções. A recomendação (`➡️`) entra marcada como sugestão, nunca como
-  resposta dada. É um canal só de ida e volta: o usuário responde a rodada inteira de uma vez,
-  em vez de gastar um turno por pergunta.
-  - **Como montar:** se a skill de apresentação visual estiver entre as suas skills disponíveis,
-    invoque-a **pelo nome** e peça uma página de decisão com um item por pergunta. Não monte
-    caminho de arquivo para dentro de outro plugin, e não rode programa de outro plugin: se a
-    skill não estiver disponível na máquina, o canal padrão simplesmente não existe ali — caia
-    no canal alternativo e siga.
-  - **Como colher:** a resposta volta pelo estado que o daemon dessa página grava em disco, em
-    `~/.claude/visual-state/latest.json`. Leia de lá; não peça ao usuário para copiar e colar.
-  - **Pergunta sem apoio não vale.** Toda opção mostra o conteúdo concreto de que ela fala — o
-    trecho literal, o número com procedência. O usuário não adivinha o seu contexto.
-
-- **Alternativa — uma por vez, na ferramenta nativa de pergunta.** Mesma fronteira, mesma ordem,
-  só que servida pergunta a pergunta no próprio CLI.
-
-**Quem escolhe é o usuário.** Na primeira rodada, ofereça os dois e use o que ele pedir; ele pode
-trocar de canal a qualquer momento, e a troca vale da rodada seguinte em diante. Sem escolha dita,
-use o padrão.
+A régua é contrato de todas as skills que perguntam ao dono: a fonte é `_shared/regua-de-pergunta.md`
+e a cópia local é derivada — não editar à mão; `scripts/sync-shared.sh` a regrava.
 
 ---
 

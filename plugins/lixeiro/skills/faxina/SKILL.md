@@ -81,6 +81,11 @@ que o usuário precisa ver — e acrescente, por família, o que aquilo é em li
 Depois pergunte com uma única `AskUserQuestion` cujas opções carreguem as famílias concretas
 no `preview`: a resposta é por família, não por processo.
 
+**Por onde a pergunta chega quem decide é o usuário** — a régua dos dois canais está em
+**`regua-de-pergunta.md`**, ao lado deste arquivo (fonte: `_shared/regua-de-pergunta.md`, cópia
+derivada; não editar à mão). Aqui o terminal é o canal oferecido primeiro, porque a lista já está
+colada nele; se o usuário pedir a página, vale a régua.
+
 **Os intocáveis aparecem na lista, marcados como tal, e sem opção de encerrar.** Máquina
 virtual, serviço de contêiner e os serviços do próprio programa são mostrados para o usuário
 saber que estão lá, nunca para serem encerrados por aqui.

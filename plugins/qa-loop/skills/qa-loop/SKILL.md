@@ -464,6 +464,17 @@ rodada. Todo finding é roteado em **3 buckets** no PLAN:
 - O **Opus Planejador é o ÁRBITRO ÚNICO** que aplica a rubrica. Não são N LLMs cada um carimbando — é um juiz,
   rubrica escrita, severidade comparável entre rodadas (e na telemetria).
 
+### Os cinco antipadrões de teste — contrato em `references/antipadroes-de-teste.md`
+
+Teste que não morde é **finding de implementação**, não observação de estilo — e o conserto
+é o teste, não o código. Os cinco jeitos de um teste passar sem servir pra nada (passa com
+e sem a mudança · espera texto que o código nunca escreve · só o caminho feliz · mede a
+coisa errada · segundo plano com espera pelo resultado), cada um com o caso real que o
+originou e como evitar, estão em **`references/antipadroes-de-teste.md`** (fonte:
+`_shared/antipadroes-de-teste.md` — não editar a cópia à mão; `scripts/sync-shared.sh
+--check` pega drift). **Leia o arquivo antes do sweep de review**: a mesma lista é citada
+pela régua do `pronto` do `/visual`, porque o critério erra antes do teste.
+
 ## Config em 3 camadas (R3) — `.claude/qa-loop.config.md` (VERSIONADO)
 
 Fora da pasta ignorada `.claude/qa-loop/`. Versionado de propósito — viaja com o projeto. Contém:
