@@ -189,7 +189,7 @@
       "source": "./plugins/lixeiro",
       "description": "Encerra os processos que a sessão abriu e esqueceu — servidor de desenvolvimento, suíte pendurada, compilação em modo observador. O critério é procedência, nunca nome de programa: um hook anota na origem o que abriu processo, e só o que foi anotado pode ser encerrado. Ao fim de cada turno morre a suíte que ficou pendurada e o servidor cuja CPU não subiu desde o turno anterior — o que está em uso sobrevive. Ao fim da sessão morre tudo que ela abriu, e na abertura seguinte o que sessões mortas deixaram de pé. Máquina virtual, serviço de contêiner e os serviços do próprio programa nunca recebem sinal, só aparecem no relatório. Traz também /faxina, o irmão manual, que mostra tudo que está de pé e encerra só o que você marcar.",
       "category": "dev-tools",
-      "version": "1.0.1",
+      "version": "1.1.0",
       "tags": [
         "processos",
         "memoria",
@@ -275,7 +275,7 @@
       "source": "./plugins/sovai",
       "description": "Autonomous run mode — executes a plan end to end with no pauses, checkpoints or confirmations. Skips blockers without silent workarounds, records every decision, runs a headless qa-loop pass and delivers a structured report. The engine is a deterministic Workflow (decompose → execute → review) and a PreToolUse hook enforces it: while the mission is armed every sub-agent spawn is denied. The reviewer judges the work against the SPEC, not against the orchestrator's own decomposition — reviewing against your own breakdown is a closed circuit where a wrong breakdown gets approved. Five axes: spec · the project's own quality goals · traceability (every task carries its requirement and its definition of done) · completeness · cohesion. A dead agent degrades the mission instead of killing the engine.",
       "category": "productivity",
-      "version": "1.13.0",
+      "version": "1.14.0",
       "tags": [
         "autonomy",
         "execution",
@@ -301,7 +301,7 @@
       "source": "./plugins/visual",
       "description": "CLI walls-of-text → interactive HTML dark-theme views. The page carries the EVIDENCE, not the account of it: real artifact embedded, raw output verbatim, provenance for every number — enforced by a pre-ExitPlanMode gate. Prose is REFUSED by the builder: every text field is checked (≤140 chars per bullet, one sentence each, no continuation connective, max 6 per block) and a violation aborts without writing the page. Each problem's body is born folded — the title stays visible, consequence and proposal open on click under a label derived from the content itself. Plans, diagnostics and decisions in the browser with live sync back to Claude.",
       "category": "productivity",
-      "version": "1.24.0",
+      "version": "1.25.0",
       "tags": [
         "visualization",
         "html",

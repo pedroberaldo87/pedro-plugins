@@ -159,8 +159,20 @@ def main():
                            env_extra={"ANUNCIO_ACAO": "0"})
         check("o interruptor desliga o gate", not bloqueou)
 
-        bloqueou, _ = roda(raiz, "Sigo para F2.", sessao="sha", stop_hook_active=True)
-        check("não rearma sobre um bloqueio já em curso", not bloqueou)
+        print()
+        print("O vizinho de evento não cala este gate")
+        # `stop_hook_active` é do EVENTO Stop, não deste hook: qualquer outro guarda do
+        # mesmo evento que devolva o turno (o delivery-audit do intent-guard devolve)
+        # faz o campo chegar `true` aqui. Enquanto isso era uma saída antecipada, este
+        # gate passava sessões inteiras sem ler uma frase sequer.
+        bloqueou, motivo = roda(raiz, "Fase 1 fechada. Sigo para F2.", sessao="sha",
+                                stop_hook_active=True)
+        check("com outro guarda já tendo falado, ainda devolve o anúncio", bloqueou)
+        check("e o que ele devolve é o texto que LEU", "Sigo para F2" in motivo)
+        # ler é julgar dos dois lados: sob a mesma bandeira, o turno que espera passa
+        bloqueou, _ = roda(raiz, "Sigo para F2. Aguardo sua ordem.", sessao="sha-espera",
+                           stop_hook_active=True)
+        check("sob a mesma bandeira, julga de verdade: o que espera passa", not bloqueou)
 
         print()
         print("O teto de devoluções")

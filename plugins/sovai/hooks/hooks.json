@@ -21,6 +21,16 @@
             "timeout": 10
           }
         ]
+      },
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "CLAUDE_PLUGIN_ROOT=$(printf '%s' \"$CLAUDE_PLUGIN_ROOT\" | tr '\\\\' /); export CLAUDE_PLUGIN_ROOT; sh \"$CLAUDE_PLUGIN_ROOT/hooks/pretooluse-espera-com-guarda.sh\"",
+            "timeout": 5
+          }
+        ]
       }
     ]
   }

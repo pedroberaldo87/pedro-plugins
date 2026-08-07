@@ -12,6 +12,7 @@ Roda isolada: o estado vai para um diretório temporário e nenhum processo real
 """
 
 import os
+import re
 import subprocess
 import sys
 import tempfile
@@ -68,15 +69,68 @@ for cmd in ["/opt/homebrew/bin/limactl hostagent --pidfile x",
             "claude bg-spare --bg-spare /tmp/cc-daemon-501/x.sock",
             "node ~/.claude/plugins/cache/pedro-plugins/visual/1.15.0/server/visual_server.mjs",
             "com.docker.backend"]:
-    if lixeiro.eh_intocavel(cmd) and lixeiro.classifica(cmd) is None:
+    if lixeiro.eh_intocavel(cmd) and lixeiro.classifica(cmd) == "intocavel":
         ok("intocável: %s" % cmd[:52])
     else:
-        bad("intocável: %s" % cmd[:52], "intocável e sem classe", lixeiro.classifica(cmd))
+        bad("intocável: %s" % cmd[:52], "intocável e classe 'intocavel'", lixeiro.classifica(cmd))
+
+# O guarda-costas protege o PROGRAMA claude, não o diretório de configuração dele.
+# O harness põe `~/.claude/…` na linha de TODO comando que lança (snapshot de shell,
+# arquivo de cwd); se o padrão casar nesse caminho, nada que a sessão abre é colhível.
+for cmd in ["/Users/quem-instalou/.local/bin/claude --resume abc --dangerously-skip-permissions",
+            "claude bg-spare --bg-spare /tmp/cc-daemon-501/x.sock",
+            "node ~/.claude/local/node_modules/.bin/claude"]:
+    if lixeiro.eh_intocavel(cmd):
+        ok("a sessão do próprio Claude segue protegida: %s" % cmd[:52])
+    else:
+        bad("a sessão do próprio Claude segue protegida", "intocável", cmd)
+
+HARNESS = ("/bin/zsh -c source /Users/quem-instalou/.claude/shell-snapshots/snapshot-zsh-17.sh "
+           "2>/dev/null || true && eval 'python -m pytest tests/ -q' < /dev/null "
+           "&& pwd -P >| /tmp/claude-4a6f-cwd")
+for cmd in [HARNESS,
+            "python3 .claude/servir.py 8765",
+            "node /proj/node_modules/.bin/vite --port 5199  # cwd /Users/quem-instalou/.claude/x"]:
+    if lixeiro.eh_intocavel(cmd):
+        bad("o processo lançado pelo harness não é intocável", "colhível", cmd[:70])
+    else:
+        ok("o caminho de configuração não blinda: %s" % cmd[:52])
+
+eq(lixeiro.classifica(HARNESS), "efemero", "a suíte lançada pelo harness volta a ser efêmera")
 
 # O caso que dá nome à regra: `node` sozinho não pode significar nada.
 eq(lixeiro.classifica("node"), None, "`node` puro não vira candidato a nada")
 eq(lixeiro.classifica("/Applications/Google Chrome.app/.../Google Chrome"), None,
    "o navegador não é candidato")
+
+print("── os três que subiam processo e não eram reconhecidos ──")
+# Até esta rodada, os três voltavam None de `classifica` — e o que não tem classe
+# nunca é anotado, logo nunca tem procedência e nunca aparece com dono. São, na
+# prática, as formas mais comuns de subir processo numa sessão.
+eq(lixeiro.classifica("docker compose up -d"), "intocavel",
+   "docker compose up é reconhecido (e segue sem receber sinal)")
+eq(lixeiro.classifica("ssh -L 8080:localhost:8080 -N deploy@srv"), "servico",
+   "túnel ssh com redirecionamento de porta é serviço")
+eq(lixeiro.classifica("node server.js"), "servico", "servidor por arquivo é serviço")
+eq(lixeiro.classifica("node /proj/api/index.mjs"), "servico", "…com caminho e .mjs também")
+
+# E o reconhecimento tem que chegar no registro: `anota` é o que o hook de
+# PostToolUse chama, e o que não é anotado não existe para o motor.
+SID_N = "sessao-reconhecimento"
+for cmd, classe in [("docker compose up -d", "intocavel"),
+                    ("ssh -L 8080:localhost:8080 -N deploy@srv", "servico"),
+                    ("node server.js", "servico")]:
+    eq(lixeiro.anota(SID_N, cmd, "/proj/x"), classe, "anotado com classe %s: %s" % (classe, cmd[:34]))
+eq(len(lixeiro.le_registro(SID_N)["anotacoes"]), 3, "os três ficaram gravados no registro da sessão")
+
+# O que NÃO pode acontecer junto: o docker anotado virar candidato a encerramento.
+_procs_dk = [proc(4242, "com.docker.backend compose up -d", idade=10)]
+eq(lixeiro.candidatos(SID_N, "sessao", procs=_procs_dk), [],
+   "docker anotado NUNCA vira candidato — classificar não é autorizar")
+
+# E o que já não era abridor continua não sendo.
+eq(lixeiro.classifica("ssh deploy@srv"), None, "ssh para trabalhar (sem túnel) não é abridor")
+eq(lixeiro.classifica("ssh -l deploy srv"), None, "o -l minúsculo do ssh não vira túnel")
 
 print("── leitura do tempo: idade e CPU ──")
 eq(lixeiro._seg_etime("02:44:38"), 9878, "idade em horas")
@@ -185,6 +239,35 @@ try:
 except OSError:
     pass
 
+print("── encerrar sobe até a raiz órfã: a árvore inteira cai ──")
+# Uma árvore de verdade, com raiz órfã: o lançador sai na hora e o bash de dentro
+# é adotado pelo init, com três filhos pendurados nele. Encerrar UMA FOLHA tem
+# que derrubar a raiz e os irmãos — matar só a folha deixa o pai de pé.
+lanc = subprocess.run(
+    ["bash", "-c",
+     "nohup bash -c 'sleep 300 & sleep 300 & sleep 300 & wait' >/dev/null 2>&1 & echo $!"],
+    capture_output=True, text=True)
+raiz_pid = int(lanc.stdout.strip() or 0)
+time.sleep(1.0)
+tabela = lixeiro.processos()
+folhas = [p["pid"] for p in tabela if p["ppid"] == raiz_pid]
+raiz_ppid = next((p["ppid"] for p in tabela if p["pid"] == raiz_pid), None)
+if len(folhas) == 3 and raiz_ppid == 1:
+    ok("a árvore subiu: raiz órfã %d (pai %d) com 3 filhos" % (raiz_pid, raiz_ppid))
+    eq(lixeiro.raiz_orfa(folhas[0], tabela), raiz_pid, "a folha aponta para a raiz órfã da árvore")
+    lixeiro.encerra(folhas[0], grace=2.0)
+    time.sleep(0.5)
+    sobrou = [p for p in [raiz_pid] + folhas if lixeiro.vivo(p)]
+    eq(sobrou, [], "encerrar a folha derrubou a árvore inteira — nada sobrou")
+else:
+    bad("a árvore de teste subiu", "raiz órfã (pai 1) com 3 filhos",
+        "raiz %d, pai %r, filhos %r" % (raiz_pid, raiz_ppid, folhas))
+for p in [raiz_pid] + folhas:
+    try:
+        os.kill(p, 9)
+    except OSError:
+        pass
+
 print("── fail-safe: sem leitura de processos, ninguém morre ──")
 eq(lixeiro.candidatos(SID, "sessao", procs=[]), [], "lista vazia de processos não gera candidato")
 
@@ -200,6 +283,259 @@ if isinstance(inv, list):
     ok("intocáveis aparecem no inventário como relatório: %d" % len(intocaveis))
 else:
     bad("inventário devolve lista", "list", type(inv))
+
+print("── varredura: o inventário acusa o que a anotação não viu ──")
+# A anotação pega no pulo — e o que ela deixa passar (comando que o harness não
+# viu, processo que trocou de linha de comando, servidor que soltou do pai) some
+# do inventário, porque só entrava quem tem classe. A varredura procura ESSES,
+# e a prova que ela exige é procedência minerada, nunca nome de programa.
+SID_V = "sessao-varredura"
+DONO_V = 7000
+lixeiro.grava_registro({"session_id": SID_V, "dono_pid": DONO_V, "anotacoes": [
+    {"cmd": "npm run dev", "cwd": "/proj/varredura", "classe": "servico",
+     "em": time.time() - 30, "cpu_ultimo_turno": None},
+]})
+procs_v = [
+    proc(DONO_V, "claude --resume abc", idade=9000, ppid=1),
+    # o que a anotação VIU
+    proc(7001, "node /proj/varredura/node_modules/.bin/vite --port 5199", idade=20, ppid=DONO_V),
+    # o que ela NÃO viu: longa vida, sem classe, nascido dentro da sessão
+    proc(7002, "/opt/homebrew/bin/servidorzinho --porta 9", idade=9000, ppid=DONO_V, rss=204800),
+    # ruído da máquina: longa vida, sem classe e sem procedência nenhuma
+    proc(7003, "/Applications/Navegador.app/Contents/MacOS/Navegador", idade=90000, ppid=1, rss=512000),
+]
+inv_v = {i["pid"]: i for i in lixeiro.inventario(idade_min=0, idade_suspeito=3600, procs=procs_v)}
+eq(inv_v.get(7002, {}).get("classe"), "suspeito",
+   "processo de longa vida sem anotação aparece como suspeito no inventário")
+eq(inv_v.get(7002, {}).get("procedencia"), "sem anotação — achado pela varredura",
+   "…e separado, na procedência, de quem tem dono conhecido")
+eq(bool(inv_v.get(7002, {}).get("pista")), True, "o suspeito diz por que foi apontado")
+eq(inv_v.get(7001, {}).get("classe"), "servico", "o que a anotação viu mantém a classe dele")
+eq(inv_v.get(7001, {}).get("procedencia"), "anotado", "…e continua com procedência anotada")
+eq(7003 in inv_v, False,
+   "sem linhagem de sessão nem pasta de projeto, não vira suspeito (nome nunca é critério)")
+eq(inv_v.get(DONO_V, {}).get("classe"), "intocavel",
+   "a própria sessão consta como intocável, nunca como suspeita")
+
+print("── órfão de família não prevista: aparece rotulado, em vez de sumir ──")
+# Processo velho cujo PAI SUMIU (adotado pelo init): não tem linhagem para
+# consultar e o programa é inventado — nenhuma classe casa. Antes ele era
+# descartado em silêncio. Agora entra pela procedência que sobra: o caminho do
+# projeto anotado está no próprio comando dele.
+procs_o = [
+    proc(DONO_V, "claude --resume abc", idade=9000, ppid=1),
+    # binário inventado, de nome que classe nenhuma conhece, com o pai perdido
+    proc(7004, "/proj/varredura/.venv/bin/rodadordejobs --fila 3", idade=9000, ppid=1, rss=204800),
+    # mesmo abandono, mas sem projeto anotado no comando: continua fora
+    proc(7005, "/opt/inventado/bin/coisadesconhecida --loop", idade=9000, ppid=1, rss=204800),
+]
+inv_o = {i["pid"]: i for i in lixeiro.inventario(idade_min=0, idade_suspeito=3600, procs=procs_o)}
+eq(inv_o.get(7004, {}).get("classe"), "sem classe conhecida",
+   "órfão que não casa classe nenhuma aparece rotulado 'sem classe conhecida'")
+eq(inv_o.get(7004, {}).get("pista"),
+   "o pai sumiu e o comando aponta para um projeto que a sessão tocou",
+   "…e diz por que foi apontado: o projeto anotado, nunca o nome do programa")
+eq(7005 in inv_o, False,
+   "órfão sem projeto anotado no comando continua fora (nome nunca é critério)")
+
+print("── rascunho de sessão que não existe mais: procedência sem anotação ──")
+# O servidor que subiu dentro do rascunho de uma sessão continua de pé depois que
+# ela morreu. Nenhuma anotação o explica (o harness não viu o comando), o nome do
+# programa não pode ser critério — mas a PASTA de trabalho dele carrega o id da
+# sessão dona, e sessão que não existe mais não tem mais a quem servir.
+SID_MORTA = "3f2a1b0c-1111-2222-3333-444455556666"
+SID_VIVA = "9e8d7c6b-1111-2222-3333-444455556666"
+RASCUNHO = "/private/tmp/claude-501/-Users-quem-instalou-proj/%s/scratchpad"
+CLAUDE_VIVO = 7100
+procs_r = [
+    proc(CLAUDE_VIVO, "/Users/quem-instalou/.local/bin/claude --resume abc", idade=9000, ppid=1),
+    # servidor no rascunho da sessão MORTA: pai perdido, nenhuma anotação
+    proc(7101, "python3 -m http.server 8000", idade=9000, ppid=1, rss=204800),
+    # mesmo caso, mas a sessão dona do rascunho está viva: NÃO é órfão
+    proc(7102, "python3 -m http.server 8001", idade=9000, ppid=CLAUDE_VIVO, rss=204800),
+    # programa que classe nenhuma conhece, no rascunho da sessão morta
+    proc(7103, "/opt/inventado/bin/coisadesconhecida --loop", idade=9000, ppid=1, rss=204800),
+]
+# A pasta de trabalho real vem do `lsof`; aqui ela é injetada no cache que
+# `cwd_de` consulta primeiro, para a suíte não depender de processo de verdade.
+lixeiro._CWD_CACHE[7101] = RASCUNHO % SID_MORTA
+lixeiro._CWD_CACHE[7102] = RASCUNHO % SID_VIVA
+lixeiro._CWD_CACHE[7103] = (RASCUNHO % SID_MORTA) + "/sonda"
+eq(lixeiro.sessao_do_rascunho(RASCUNHO % SID_MORTA), SID_MORTA,
+   "o id da sessão é lido do caminho do rascunho")
+eq(lixeiro.sessao_do_rascunho("/Users/quem-instalou/proj/scratchpad"), None,
+   "pasta chamada 'scratchpad' fora do rascunho do harness não vale como procedência")
+eq(lixeiro.orfao_de_rascunho(7101, procs_r), SID_MORTA,
+   "processo no rascunho de sessão inexistente é órfão daquela sessão")
+eq(lixeiro.orfao_de_rascunho(7102, procs_r), None,
+   "…e o do rascunho de sessão que ainda vive NÃO é órfão")
+inv_r = {i["pid"]: i for i in lixeiro.inventario(idade_min=0, idade_suspeito=3600, procs=procs_r)}
+eq(inv_r.get(7101, {}).get("procedencia"), "órfão — rascunho de sessão que não existe mais",
+   "o inventário declara a procedência do servidor da sessão morta")
+eq(inv_r.get(7102, {}).get("procedencia"), "sem dono conhecido",
+   "o servidor da sessão viva continua sem procedência (não é acusado por acaso)")
+eq(inv_r.get(7103, {}).get("pista"), "trabalha no rascunho de uma sessão que não existe mais",
+   "processo sem classe no rascunho morto aparece pela varredura, em vez de sumir")
+
+print("── o inventário pesa a ÁRVORE, não o processo sozinho ──")
+# Um lançador de 5 MB segurando 590 MB de filhos ficava no fim da lista, atrás de
+# qualquer processo gordo isolado — e o dono nunca via os 590 MB que fechá-lo
+# devolve. O peso que ordena passa a ser o da árvore inteira.
+LEVE = 8000        # o pai: 5 MB
+procs_a = [
+    proc(LEVE, "node /proj/arvore/node_modules/.bin/vite --port 5199", idade=9000, ppid=1, rss=5120),
+    proc(8001, "esbuild --serve", idade=9000, ppid=LEVE, rss=302080),      # 295 MB
+    proc(8002, "esbuild --serve", idade=9000, ppid=8001, rss=302080),      # 295 MB, neto
+    proc(8010, "python3 -m http.server 8000", idade=9000, ppid=1, rss=102400),  # 100 MB sozinho
+]
+inv_a = lixeiro.inventario(idade_min=0, idade_suspeito=3600, procs=procs_a)
+por_pid_a = {i["pid"]: i for i in inv_a}
+eq(por_pid_a.get(LEVE, {}).get("rss_mb"), 5, "o peso do processo sozinho continua aparecendo")
+eq(por_pid_a.get(LEVE, {}).get("arvore_mb"), 595,
+   "…e ao lado dele vem o peso da árvore (5 MB + 295 + 295, o neto incluído)")
+eq(por_pid_a.get(8010, {}).get("arvore_mb"), 100, "quem não tem filho pesa o que sempre pesou")
+ordem_a = [i["pid"] for i in inv_a]
+eq(ordem_a.index(LEVE) < ordem_a.index(8010), True,
+   "o pai leve com filhos pesados vem ANTES do processo gordo sozinho")
+
+print("── o registro não se apaga na mesma rodada em que foi escrito ──")
+# A anotação aponta para um projeto que não existe nesta máquina: ela não casa
+# processo nenhum. Antes, a limpeza do fim de turno a descartava já na primeira
+# rodada — o motor anotava e apagava a própria procedência de uma vez.
+SID_G = "sessao-graca"
+lixeiro.grava_registro({"session_id": SID_G, "dono_pid": meu_pid, "anotacoes": [
+    {"cmd": "npm run dev", "cwd": "/proj/que-nao-existe-em-lugar-nenhum",
+     "classe": "servico", "em": time.time(), "cpu_ultimo_turno": None},
+]})
+# Pelo caminho de verdade: é o que `stop-colhe-turno.sh` chama.
+lixeiro.main(["lixeiro.py", "colhe-turno", "--sessao", SID_G])
+eq(len(lixeiro.le_registro(SID_G)["anotacoes"]), 1,
+   "anotação que não casou nada SOBREVIVE à primeira rodada")
+lixeiro.main(["lixeiro.py", "colhe-turno", "--sessao", SID_G])
+eq(len(lixeiro.le_registro(SID_G)["anotacoes"]), 0,
+   "e some na rodada seguinte, quando a falta de processo se confirma")
+
+print("── a família: processos idênticos numa linha só ──")
+# Quinze trabalhadores do mesmo compilador são UMA decisão. O que o usuário
+# precisa ver é a contagem e a soma da memória, não quinze linhas iguais.
+IGUAL = "node /proj/node_modules/.bin/esbuild --service=0.21.5"
+ITENS = [{"pid": 900 + i, "cmd": IGUAL, "rss_mb": 40, "arvore_mb": 40,
+          "idade_min": 30 + i, "cpu_s": 1.0, "classe": "efemero",
+          "procedencia": "anotado"} for i in range(15)]
+ITENS.append({"pid": 800, "cmd": "node /proj/node_modules/.bin/vite --port 5199",
+              "rss_mb": 120, "arvore_mb": 300, "idade_min": 90, "cpu_s": 3.0,
+              "classe": "servico", "procedencia": "sem dono conhecido"})
+
+GRUPOS = lixeiro.agrupa(ITENS)
+eq(len(GRUPOS), 2, "16 processos viram 2 famílias")
+familia = [g for g in GRUPOS if g["cmd"] == IGUAL][0]
+eq(familia["n"], 15, "a família traz a CONTAGEM dos idênticos")
+eq(familia["rss_mb"], 600, "e a SOMA da memória própria (15 × 40 MB)")
+eq(familia["idade_min"], 44, "a idade da família é a do mais velho")
+eq(len(familia["pids"]), 15, "os pids ficam inteiros — é o que o encerra recebe")
+# Somar a árvore contaria o mesmo filho duas vezes quando um membro está dentro
+# do outro; a família fica com o pior caso real, não com a soma inflada.
+eq(familia["arvore_mb"], 40, "a árvore não soma dentro da família: fica o maior")
+solo = [g for g in GRUPOS if g["cmd"] != IGUAL][0]
+eq(solo["n"], 1, "processo sem irmão idêntico continua sozinho")
+eq([g["n"] for g in GRUPOS], [15, 1], "a família mais pesada vem primeiro")
+# Procedência diferente é decisão diferente: não se juntam nem com comando igual.
+eq(len(lixeiro.agrupa([
+    {"pid": 1, "cmd": IGUAL, "rss_mb": 10, "arvore_mb": 10, "idade_min": 5,
+     "cpu_s": 0.0, "classe": "efemero", "procedencia": "anotado"},
+    {"pid": 2, "cmd": IGUAL, "rss_mb": 10, "arvore_mb": 10, "idade_min": 5,
+     "cpu_s": 0.0, "classe": "efemero", "procedencia": "sem dono conhecido"}])), 2,
+   "mesmo comando com procedência diferente NÃO vira uma decisão só")
+
+TEXTO = lixeiro.resumo_terminal(ITENS)
+LINHAS = [ln for ln in TEXTO.splitlines() if ln.strip()]
+if len(LINHAS) < 20:
+    ok("o terminal cabe em %d linhas para 16 processos (sem página)" % len(LINHAS))
+else:
+    bad("o resumo cabe no terminal", "menos de 20 linhas", len(LINHAS))
+if "15×" in TEXTO and "600 MB" in TEXTO:
+    ok("a linha da família mostra contagem e soma: 15× / 600 MB")
+else:
+    bad("contagem e soma na linha da família", "15× e 600 MB", TEXTO[:200])
+if TEXTO.count(IGUAL) == 1:
+    ok("o comando idêntico aparece UMA vez, não quinze")
+else:
+    bad("comando idêntico numa linha só", 1, TEXTO.count(IGUAL))
+eq(lixeiro.resumo_terminal([]), "Nada de pé para faxinar.", "sem processo, diz isso e para")
+
+# E o caminho do produto: a skill chama `resumo` pela linha de comando. Sem esta
+# porta, a função acima não é invocada por caminho nenhum.
+_SAIDA = subprocess.run([sys.executable, os.path.join(AQUI, "lixeiro.py"), "resumo",
+                         "--idade-min", "999999999"],
+                        capture_output=True, text=True, timeout=60,
+                        env=dict(os.environ, CLAUDE_CONFIG_DIR=TMP))
+if _SAIDA.returncode == 0 and _SAIDA.stdout.strip():
+    ok("`lixeiro.py resumo` responde pela linha de comando (o que a skill chama)")
+else:
+    bad("`lixeiro.py resumo` responde", "rc 0 e texto", (_SAIDA.returncode, _SAIDA.stderr[:120]))
+
+print("── os rótulos da skill são os que o motor emite ──")
+# A skill /faxina ensina o usuário a ler `classe` e `procedencia` citando os
+# rótulos LITERAIS. Eles nascem escritos à mão em `inventario` e em `suspeitos`:
+# trocar um lá dentro deixava a skill mentindo em silêncio, porque nenhum teste
+# lia o SKILL.md. Aqui as duas listas se conferem, e nas DUAS direções — rótulo
+# emitido que a skill não cita reprova, e rótulo citado que ninguém emite também.
+SKILL = os.path.join(AQUI, "..", "skills", "faxina", "SKILL.md")
+_TXT = open(SKILL, encoding="utf-8").read()
+# A seção do contrato: do parágrafo da `classe` até o fim da lista de procedência.
+_ABRE, _FECHA = "A `classe` tem", "Essa faixa é o ponto"
+if _ABRE in _TXT and _FECHA in _TXT:
+    ok("a skill ainda traz a seção que explica classe e procedência")
+    _TRECHO = _TXT[_TXT.index(_ABRE):_TXT.index(_FECHA)]
+    # Nomes de CAMPO e de opção não são rótulo — o que se compara é o valor.
+    _META = {"classe", "procedencia", "pista", "--idade-suspeito"}
+    CITADOS = set(re.findall(r"`([^`\n]+)`", _TRECHO)) - _META
+
+    # Uma máquina plantada que produz os quatro caminhos de procedência e as
+    # cinco classes de uma vez. Nenhum processo de verdade participa.
+    SID_C = "sessao-contrato"
+    DONO_C = 7300
+    lixeiro.grava_registro({"session_id": SID_C, "dono_pid": DONO_C, "anotacoes": [
+        {"cmd": "python -m pytest tests/ -q", "cwd": "/proj/contrato",
+         "classe": "efemero", "em": time.time() - 30, "cpu_ultimo_turno": None},
+    ]})
+    procs_c = [
+        # a própria sessão: intocável, e nunca suspeita
+        proc(DONO_C, "/Users/quem-instalou/.local/bin/claude --resume xyz", idade=9000, ppid=1),
+        # o que a anotação viu: classe do comando + procedência anotada
+        proc(7301, "python -m pytest /proj/contrato/tests -q", idade=20, ppid=DONO_C),
+        # serviço vivo que anotação nenhuma explica
+        proc(7302, "node /proj/contrato/node_modules/.bin/vite --port 5199",
+             idade=9000, ppid=1, rss=204800),
+        # serviço no rascunho de uma sessão que não existe mais
+        proc(7303, "python3 -m http.server 8000", idade=9000, ppid=1, rss=204800),
+        # sem classe, nascido dentro da sessão morta: a faixa dos suspeitos
+        proc(7304, "/opt/homebrew/bin/servidorzinho --porta 9", idade=9000,
+             ppid=DONO_C, rss=204800),
+        # sem classe, pai sumido, projeto anotado no próprio comando
+        proc(7305, "/proj/contrato/.venv/bin/rodadordejobs --fila 3",
+             idade=9000, ppid=1, rss=204800),
+    ]
+    lixeiro._CWD_CACHE[7303] = RASCUNHO % SID_MORTA
+    inv_c = lixeiro.inventario(idade_min=0, idade_suspeito=3600, procs=procs_c)
+    EMITIDOS = {i["classe"] for i in inv_c} | {i["procedencia"] for i in inv_c}
+
+    # A plantação tem que exercitar o vocabulário inteiro; se ela parar de
+    # produzir um caminho, a comparação abaixo vira teatro.
+    eq(len(EMITIDOS), 9, "a máquina plantada produz as 5 classes e as 4 procedências")
+    orfas = EMITIDOS - CITADOS
+    mortas = CITADOS - EMITIDOS
+    if not orfas:
+        ok("todo rótulo que o motor emite está escrito na skill (%d)" % len(EMITIDOS))
+    else:
+        bad("rótulo emitido que a skill não ensina", "nenhum", sorted(orfas))
+    if not mortas:
+        ok("todo rótulo que a skill ensina o motor ainda emite (%d)" % len(CITADOS))
+    else:
+        bad("rótulo citado na skill que ninguém emite", "nenhum", sorted(mortas))
+else:
+    bad("a skill traz a seção de classe e procedência", "%r … %r" % (_ABRE, _FECHA),
+        "âncora não encontrada em %s" % SKILL)
 
 print("── prova anti-tautologia ──")
 # Sabota a trava de intocável e exige que a decisão MUDE. Sem isto, a suíte pode

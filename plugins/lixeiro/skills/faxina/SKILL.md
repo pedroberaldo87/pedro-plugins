@@ -14,21 +14,53 @@ escolhe. Um processo encerrado sem ele mandar é trabalho perdido que ninguém p
 
 ## O passo a passo
 
-### 1. Levante o que está de pé
+### 1. Levante o que está de pé — agrupado, no terminal
+
+```bash
+python3 "${CLAUDE_PLUGIN_ROOT}/lib/lixeiro.py" resumo --idade-min 300
+```
+
+Sai uma linha por **família** — processos idênticos (mesmo comando, mesma classe, mesma
+procedência) contam como uma decisão só, com a contagem (`15×`), a soma da memória própria,
+o peso da maior árvore, a idade do mais velho e a lista de pids. Numa máquina com centenas
+de processos, isso é a diferença entre vinte linhas e vinte telas.
+
+Precisa do dado cru (para montar página ou filtrar)? O mesmo inventário em JSON:
 
 ```bash
 python3 "${CLAUDE_PLUGIN_ROOT}/lib/lixeiro.py" inventario --idade-min 300
 ```
 
-Devolve um JSON por processo com `pid`, `cmd`, `rss_mb`, `idade_min`, `cpu_s`, `classe`
-(`efemero` · `servico` · `intocavel`) e `procedencia` (`anotado` ou `sem dono conhecido`).
-O `--idade-min` é em segundos e corta o ruído: processo recém-nascido não é lixo.
+Devolve um JSON por processo com `pid`, `cmd`, `rss_mb`, `arvore_mb`, `idade_min`, `cpu_s`,
+`classe` e `procedencia`. O `--idade-min` é em segundos e corta o ruído: processo
+recém-nascido não é lixo.
 
-Nada é encerrado por este comando. Ele só lê.
+A `classe` tem quatro valores. `efemero` e `servico` são o que o motor reconhece pelo
+comando; `intocavel` é máquina virtual, contêiner e serviço do próprio programa, que aparece
+só para o usuário saber que está lá. O quarto é `sem classe conhecida`: **o programa que
+ninguém reconhece**, que entra na lista dizendo que não se sabe o que é, em vez de sumir dela.
 
-### 2. Some, agrupe e traga o contexto de memória
+A `procedencia` diz de onde veio a informação, e o que interessa é a faixa nova:
 
-Antes de mostrar, junte o que o usuário precisa para decidir:
+- `anotado` — a sessão registrou a abertura dele. É a única faixa que o lixeiro automático colhe.
+- `órfão — rascunho de sessão que não existe mais` — tem classe, mas o dono morreu.
+- `sem dono conhecido` — tem classe e nenhuma anotação o explica.
+- `sem anotação — achado pela varredura` — **a faixa dos suspeitos**: processo de vida longa
+  que nenhuma anotação explica e que a varredura achou por prova minerada (linhagem, pasta de
+  trabalho, pai sumido ou rascunho morto), nunca por nome de programa. Vem com `classe`
+  `suspeito` ou `sem classe conhecida`, e com um campo a mais, `pista`, que é a frase de por
+  que ele foi parar na lista — mostre a pista junto, senão o usuário não tem como julgar.
+  Esses só entram acima de `--idade-suspeito` (1 h por padrão): suspeito novo é trabalho em curso.
+
+Essa faixa é o ponto da faxina. O lixeiro automático nunca a toca; se ela não for mostrada
+aqui, ninguém vê o que ficou de pé sem dono.
+
+Nada é encerrado por nenhum dos dois. Eles só leem.
+
+### 2. Traga o contexto de memória
+
+O agrupamento por família já veio pronto do passo 1. Falta o que o usuário precisa para
+decidir se vale a pena encerrar:
 
 ```bash
 # quanto a máquina ainda tem                       (macOS)
@@ -38,30 +70,36 @@ vm_stat | awk '/page size/{ps=$8} /Pages free/{f=$3} /Pages inactive/{i=$3} \
 free -m 2>/dev/null | awk '/Mem:/{printf "livre: %.1f GB\n", $7/1024}'
 ```
 
-Agrupe por projeto (a pasta que aparece no comando) — dois servidores do mesmo projeto em
-portas diferentes é o padrão mais comum, e ver isso junto muda a decisão.
+Se duas famílias forem do mesmo projeto (a pasta que aparece no comando), diga isso — dois
+servidores do mesmo projeto em portas diferentes é o padrão mais comum, e ver isso junto
+muda a decisão.
 
-### 3. Mostre no navegador e deixe o usuário marcar
+### 3. Mostre no terminal e deixe o usuário marcar
 
-Invoque a skill **`visual`** (Skill tool, `skill: "visual"`) e monte a página com um
-**item revisável por processo**, rótulos `["✓ Encerrar", "✏️ Deixar", "✗ Nunca mais"]`.
+**O terminal é o caminho padrão.** Cole a saída do passo 1 como ela saiu — ela já é a lista
+que o usuário precisa ver — e acrescente, por família, o que aquilo é em linguagem humana.
+Depois pergunte com uma única `AskUserQuestion` cujas opções carreguem as famílias concretas
+no `preview`: a resposta é por família, não por processo.
 
-Cada item traz, no corpo: o que o processo é em linguagem humana, há quanto tempo está de
-pé, quanta memória ocupa, de que pasta veio, e se alguém anotou tê-lo aberto. A saída crua
-do inventário vai num bloco de evidência — o usuário tem que ver a mesma lista que você viu.
-
-**Os intocáveis aparecem na página, marcados como tal, e sem controle de veredito.** Máquina
+**Os intocáveis aparecem na lista, marcados como tal, e sem opção de encerrar.** Máquina
 virtual, serviço de contêiner e os serviços do próprio programa são mostrados para o usuário
 saber que estão lá, nunca para serem encerrados por aqui.
 
-Sem a skill `visual` disponível: liste no terminal, agrupado por projeto, e pergunte com uma
-única `AskUserQuestion` cujas opções carreguem a lista concreta no `preview`.
+**A página é sob demanda.** Só monte HTML quando o usuário pedir para ver no navegador (ou
+quando ele quiser marcar processo a processo dentro de uma família grande). Aí sim invoque a
+skill **`visual`** (Skill tool, `skill: "visual"`), alimentada pelo JSON do `inventario`, com
+um **item revisável por família**, rótulos `["✓ Encerrar", "✏️ Deixar", "✗ Nunca mais"]`, e a
+saída crua do inventário num bloco de evidência. Com centenas de processos a página custa
+caro para dizer o que já coube em vinte linhas — por isso ela se pede, não se impõe.
 
 ### 4. Encerre só o que foi marcado
 
 ```bash
 python3 "${CLAUDE_PLUGIN_ROOT}/lib/lixeiro.py" encerra 41633 41835 75831
 ```
+
+Os pids saem na linha `pids:` de cada família. Família grande vem cortada em oito, com
+`… (+N)` — os que faltam estão no JSON do `inventario`, um objeto por processo.
 
 Pede para terminar, espera três segundos, e só então força. Devolve JSON do que morreu, e
 grava tudo em `~/.claude/lixeiro/colhido.jsonl` para auditoria. As travas continuam valendo
