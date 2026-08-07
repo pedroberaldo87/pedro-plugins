@@ -83,7 +83,7 @@ Um plugin depende de um binário que o marketplace **não** instala:
 | Plugin | Precisa de | Instalar |
 |---|---|---|
 | `graphify-guard` | `graphify` | `uv tool install graphifyy` (ou `pipx install graphifyy`) |
-| 33 hooks — `grep -rl '\bjq\b' plugins/*/hooks/*.sh \| grep -v -e /test_ $(ls _shared/*.sh \| sed -E 's#.*/#-e /#') \| wc -l` | `jq` (**opcional**) | Nada a fazer: os 30 hooks que decidem — `grep -rlE '(jq\|hj_campo\|hj_eh_falso)[^#]*(tool_input\.command\|session_id\|stop_hook_active)' plugins/*/hooks/*.sh \| grep -v -e /test_ $(ls _shared/*.sh \| sed -E 's#.*/#-e /#') \| wc -l` — leem o payload por `python3` quando falta `jq`, e sem os dois eles avisam em vez de sair calados. Quem quiser a saída formatada: `brew install jq` (macOS) · `choco install jq` (Windows) |
+| 33 hooks — `grep -rl '\bjq\b' plugins/*/hooks/*.sh \| grep -v -e /test_ $(ls _shared/*.sh \| sed -E 's#.*/#-e /#') \| wc -l` | `jq` (**opcional**) | Nada a fazer: os 31 hooks que decidem — `grep -rlE '(jq\|hj_campo\|hj_eh_falso)[^#]*(tool_input\.command\|session_id\|stop_hook_active)' plugins/*/hooks/*.sh \| grep -v -e /test_ $(ls _shared/*.sh \| sed -E 's#.*/#-e /#') \| wc -l` — leem o payload por `python3` quando falta `jq`, e sem os dois eles avisam em vez de sair calados. Quem quiser a saída formatada: `brew install jq` (macOS) · `choco install jq` (Windows) |
 | guards | Python 3 | macOS já traz · Windows: instale o real (o stub da Microsoft Store não executa) |
 
 Sem ele o guarda procura um `graphify-out/graph.json` que nada cria — fica instalado,
@@ -163,7 +163,7 @@ e intercepta cada mensagem sua). Ligar: `claude plugin enable <nome>@pedro-plugi
 
 ## Hooks automáticos
 
-12 plugins registram hooks que disparam sem slash command — 55 registros no total
+12 plugins registram hooks que disparam sem slash command — 57 registros no total
 (derivado neste run: `python3 scripts/hook_contract.py`; conferido no commit por
 `python3 scripts/readme_counts_check.py`):
 

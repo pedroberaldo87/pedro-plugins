@@ -38,8 +38,10 @@ HJ_DIR="${0%/*}"; [ "$HJ_DIR" = "$0" ] && HJ_DIR="."
 # Sem como IMPRIMIR não há o que narrar.
 type hj_msg >/dev/null 2>&1 || exit 0
 type td_tmpdir >/dev/null 2>&1 || exit 0
-# O motor da linha é python (stdlib); sem ele não há linha a montar.
-PY=$(hj_py) || exit 0
+# O motor da linha é python (stdlib); sem ele não há linha a montar. Mas sair
+# CALADO é o defeito que o hook-json existe para corrigir: quem não conseguiu
+# ler o evento avisa que não leu, em vez de parecer que nada estava rodando.
+PY=$(hj_py) || { hj_avisa "posttooluse-andamento"; exit 0; }
 
 RAIZ="${CLAUDE_PLUGIN_ROOT:-$(cd "$HJ_DIR/.." && pwd)}"
 

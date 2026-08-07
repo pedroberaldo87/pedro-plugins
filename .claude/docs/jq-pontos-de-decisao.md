@@ -19,8 +19,8 @@ scope:
 
 | medida | valor | comando |
 | --- | --- | --- |
-| hooks de produção em `plugins/*/hooks/` (fora `test_*` e as bibliotecas vendoradas) | **44** | `ls plugins/*/hooks/*.sh \| grep -vc -e /test_ $(ls _shared/*.sh \| sed -E 's#.*/#-e /#')` |
-| destes, os que leem o campo que DECIDE — classe B | **30** | ver classe B abaixo |
+| hooks de produção em `plugins/*/hooks/` (fora `test_*` e as bibliotecas vendoradas) | **46** | `ls plugins/*/hooks/*.sh \| grep -vc -e /test_ $(ls _shared/*.sh \| sed -E 's#.*/#-e /#')` |
+| destes, os que leem o campo que DECIDE — classe B | **31** | ver classe B abaixo |
 | destes, os que só formatam a saída / leem config — classe A | **4** | ver classe A abaixo |
 
 Toda biblioteca de `_shared/` fica fora dessa conta: a cópia em `plugins/*/hooks/` é vendoring
@@ -106,6 +106,7 @@ Dentro da classe B há ainda dois graus:
 | B2 | `plugins/lixeiro/hooks/stop-colhe-turno.sh` | 36, 37 | `stop_hook_active`, `session_id` | sem o `stop_hook_active` não há nem guarda de reentrância nem colheita |
 | B2 | `plugins/project-doc/hooks/posttooluse-doc-read.sh` | 17 | `session_id` | a leitura de doc não é registrada; o `doc-guard` segue cobrando |
 | B2 | `plugins/project-doc/hooks/sessionstart-doc.sh` | 25 | `session_id` | o briefing de doc não abre a sessão |
+| B2 | `plugins/sovai/hooks/posttooluse-andamento.sh` | 42, 47 | `session_id`, `tool_input.command` | a linha de andamento do motor nunca sai na barra |
 | B2 | `plugins/project-doc/hooks/stop-doc-touch.sh` | 19, 21 | `session_id`, `stop_hook_active` | a cobrança de doc defasada não sai |
 | B2 | `plugins/project-doc/hooks/userpromptsubmit-plan-escape.sh` | 39 | `session_id` | a escapatória do gate de plano não é registrada |
 | B2 | `plugins/visual/hooks/sessionstart-plan.sh` | 25 | `session_id` | o plano aberto não ressuscita depois do `/clear` |
