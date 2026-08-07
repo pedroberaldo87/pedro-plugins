@@ -155,6 +155,38 @@ check("funcao chamada por outro arquivo nao e acusada",
 os.remove(os.path.join(repo, solta))
 os.remove(os.path.join(repo, quem_chama))
 
+# ─── peça só CITADA em prosa (.md) continua sendo acusada ────────────────────
+citada = escreve(repo, os.path.join("plugins", "algum", "lib", "peca_citada.py"),
+                 "def peca_so_citada_em_prosa():\n    return 1\n")
+prosa = escreve(repo, os.path.join("plugins", "algum", "README.md"),
+                "A `peca_so_citada_em_prosa()` faz tal coisa.\n")
+codigo, saida = roda(repo, "--motivo", "sem-chamador")
+check("peca so citada em .md e acusada",
+      codigo == 1 and "peca_so_citada_em_prosa" in saida)
+os.remove(os.path.join(repo, prosa))
+
+# ─── peça referida SÓ pelo teste dela mesma continua sendo acusada ───────────
+so_teste = escreve(repo, os.path.join("plugins", "algum", "lib", "peca_testada.py"),
+                   "def peca_so_no_teste():\n    return 1\n")
+teste_dela = escreve(repo,
+                     os.path.join("plugins", "algum", "lib",
+                                  "test" + "_peca_testada.py"),
+                     "from peca_testada import peca_so_no_teste\n"
+                     "assert peca_so_no_teste() == 1\n")
+codigo, saida = roda(repo, "--motivo", "sem-chamador")
+check("peca referida so pelo proprio teste e acusada",
+      codigo == 1 and "peca_so_no_teste" in saida)
+
+# ─── mas um hook de produto chamando a peça basta pra ela não ser acusada ────
+hook = escreve(repo, os.path.join("plugins", "algum", "hooks", "gancho.sh"),
+               "python3 -c 'from peca_testada import peca_so_no_teste;"
+               " peca_so_no_teste()'\n")
+codigo, saida = roda(repo, "--motivo", "sem-chamador")
+check("peca chamada por hook de produto nao e acusada",
+      "peca_so_no_teste" not in saida)
+for rel in (citada, so_teste, teste_dela, hook):
+    os.remove(os.path.join(repo, rel))
+
 # ─── função antiga já commitada e intocada não é acusada ─────────────────────
 escreve(repo, os.path.join("plugins", "algum", "lib", "antigo.py"),
         "def funcao_antiga_sem_uso():\n    return 1\n")

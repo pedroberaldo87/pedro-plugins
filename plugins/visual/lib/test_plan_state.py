@@ -221,6 +221,26 @@ def main():
         check("a mensagem do requisito diz UM",
               any("requisito" in e and "um" in e.lower() for e in errs))
 
+        # S-14: a régua do `pronto` cobra NA GRAVAÇÃO, junto da régua de estilo —
+        # antes disso ela existia solta e nenhum plano passava por ela.
+        print("o pronto de bancada")
+        bancada = sample(phases=[{"id": "F1", "title": "x", "items": [
+            {"id": "F1.1", "title": "t", "desc": "d",
+             "pronto": "o número aparece no relatório.md"}]}])
+        raises("pronto que fecha com o valor dentro do entregável é recusado",
+               lambda: ps.validate(bancada), "de onde")
+        check("o erro cita a posição do passo",
+              any(e.startswith("fase[0] passo[0] pronto") for e in ps.erros_do_plano(bancada)))
+        observavel = sample(phases=[{"id": "F1", "title": "x", "items": [
+            {"id": "F1.1", "title": "t", "desc": "d",
+             "pronto": "o relatório.md é regerado a partir do banco"}]}])
+        check("pronto que diz de onde o valor vem passa",
+              ps.erros_do_plano(observavel) == [])
+        # No tique ele é AVISO: recusar marcaria como impossível de fechar uma tarefa
+        # antiga já executada, e o tique registra estado, não reescreve critério.
+        check("no tique o pronto de bancada é redação (avisa, não bloqueia)",
+              any("de onde" in e for e in ps._erros_de_redacao_do_no(bancada, "F1.1")))
+
         # A cobrança pega TODA tarefa que nasce agora — num plano novo, todas.
         # Deixar o plano novo passar faria o portão morder só a partir da SEGUNDA
         # gravação, que é o caso raro. O que fica de fora é só o que JÁ ESTÁ no

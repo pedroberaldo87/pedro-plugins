@@ -22,8 +22,13 @@
 #      (o nome "constituição" é de `.claude/docs/constituicao.md`, contra o qual os
 #      revisores medem — dois arquivos com o mesmo nome de lei mandam o leitor
 #      abrir o errado, F1.3.)
+#   D2) a CONSTITUIÇÃO do projeto existe mas não está acordada -> DENY nomeando-a
+#      (S-4). Ela é a lei contra a qual os revisores medem; em rascunho, o plano
+#      nasce medido por um texto que o dono nunca sancionou. Só é cobrada quando o
+#      arquivo existe — nenhuma skill gera constituição, exigi-la de todo projeto
+#      seria recusa sem saída.
 #   E) alguma etapa do acordo está em aberto -> DENY, nomeando qual
-#      (arquitetura / interface / jornadas). Vale para projeto novo também: é ele
+#      (arquitetura / interface / jornadas / funcionalidades). Vale para projeto novo também: é ele
 #      que tem TODAS as etapas em aberto.
 #
 #   D e E são RECUSA, não nudge: não têm cap (cap faria o gate calar, e o
@@ -147,7 +152,7 @@ fi
 # F3.2: as metas de qualidade (`quality-goals.md`) são a régua DESTE projeto —
 #   o que ele prioriza quando não dá pra ter tudo. Sem ela fechada, o caminho que
 #   produz artefato roda sem critério de forma nenhum. Até hoje o gate calava.
-# F5.3: as etapas do acordo (arquitetura → interface → jornadas). Cobradas SEMPRE,
+# F5.3: as etapas do acordo (arquitetura → interface → jornadas → funcionalidades). Cobradas SEMPRE,
 #   não só de quem já tem um dos documentos: enquanto a cobrança dependia de existir
 #   arquivo, projeto novo — os 5 autorais escritos e nenhum architecture-intent nem
 #   journeys — nunca era negado, que é exatamente o caso que o gate existe para pegar.
@@ -243,6 +248,30 @@ if [ ! -f "$ESCAPE" ]; then
     exit 0
   fi
 
+  # ---- D2) a lei do projeto (S-4) ----
+  # `.claude/docs/constituicao.md` é o documento contra o qual os revisores medem — em
+  # conflito com qualquer outro doc, ele ganha. Lei em rascunho é lei que ninguém acordou:
+  # o plano nasceria medido por um texto que o dono nunca sancionou.
+  # Cobrada SÓ quando o arquivo existe: nenhuma skill gera constituição (o /start-doc
+  # escreve os 5 autorais, e ela não está entre eles), então exigi-la de todo projeto
+  # seria uma recusa sem saída. Quem escreveu a lei, fecha o acordo sobre ela.
+  LEI="$DOCS_DIR/constituicao.md"
+  if [ -f "$LEI" ] && ! acordado "$LEI"; then
+    if divergiu "$LEI"; then
+      LEI_WHY="mudou depois do de acordo, e o texto de agora não é o aprovado"
+    else
+      LEI_WHY="está em rascunho (falta status: approved, ou há [PENDENTE] no corpo)"
+    fi
+    MSG="📐 Plano barrado: a constituição deste projeto não está acordada.
+• .claude/docs/constituicao.md ${LEI_WHY}
+• é a lei do projeto: em conflito com qualquer outro documento, ela ganha
+• plano medido por lei que o dono não sancionou vale o que vale o rascunho
+• feche o acordo sobre a constituição e volte a planejar
+• recusa sem cap: o usuário libera com --sem-doc e revoga com --com-doc"
+    hj_deny "$MSG"
+    exit 0
+  fi
+
   # ---- E) as etapas do acordo ----
   # design.md (interface) só entra pra quem TEM tela — mesma regra do
   # sessionstart-doc.sh. Sem a lib, a etapa de interface simplesmente não é
@@ -252,8 +281,11 @@ if [ ! -f "$ESCAPE" ]; then
   fi
   # `architecture-intent`, não `solution-strategy`: o documento da etapa 2 no contrato
   # autoral é o desenho pretendido; a estratégia é da etapa 1, junto com os 5 universais.
-  ETAPAS="arquitetura:architecture-intent jornadas:journeys"
-  has_frontend "$PROJ" && ETAPAS="arquitetura:architecture-intent interface:design jornadas:journeys"
+  # S-5: `funcionalidades` (features.md) é a etapa 5 — a lista que a entrevista propõe
+  # e o dono cura. Ela é DERIVADA das quatro anteriores, por isso entra por último, e
+  # é cobrada pela mesma régua de divergência por marca que as outras.
+  ETAPAS="arquitetura:architecture-intent jornadas:journeys funcionalidades:features"
+  has_frontend "$PROJ" && ETAPAS="arquitetura:architecture-intent interface:design jornadas:journeys funcionalidades:features"
 
   ABERTAS=""
   for E in $ETAPAS; do
@@ -266,7 +298,7 @@ if [ ! -f "$ESCAPE" ]; then
   if [ -n "$ABERTAS" ]; then
     MSG="📐 Plano barrado: o acordo com o usuário tem etapa em aberto.
 • falta fechar: ${ABERTAS}
-• a ordem é metas de qualidade, arquitetura, interface, jornadas, e só então o plano
+• a ordem é metas de qualidade, arquitetura, interface, jornadas, funcionalidades, e só então o plano
 • cada etapa é um documento aprovado, sem [PENDENTE], e com o corpo que a aprovação marcou
 • plano sobre jornada não acordada implementa a jornada que VOCÊ imaginou
 • rode /start-doc; recusa sem cap, o usuário libera com --sem-doc"

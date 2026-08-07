@@ -6,7 +6,7 @@ que mandam testar. Cópia vendorada defasada (ou um antipadrão que sumiu da
 fonte) é o defeito que esta suíte pega — e ela confere o texto nas DUAS cópias,
 não só na fonte.
 
-    python3 _shared/test_antipadroes_de_teste.py
+    python3 scripts/test_antipadroes_de_teste.py
 """
 
 import os
@@ -14,9 +14,10 @@ import sys
 
 AQUI = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(AQUI)
+SHARED = os.path.join(ROOT, "_shared")
 ARQ = "antipadroes-de-teste.md"
 
-FONTE = os.path.join(AQUI, ARQ)
+FONTE = os.path.join(SHARED, ARQ)
 COPIAS = [
     os.path.join(ROOT, "plugins/qa-loop/skills/qa-loop/references", ARQ),
     os.path.join(ROOT, "plugins/visual/skills/visual/references", ARQ),

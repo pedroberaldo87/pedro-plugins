@@ -14,9 +14,10 @@ O fiscal varre e acusa quatro coisas:
                marketplace é o que está rastreado, e o que não está nem rastreado
                nem ignorado é trabalho pela metade sem dono declarado.
   sem-chamador função nova (arquivo novo ou alterado desde o último commit) que
-               NENHUM lugar da árvore chama — nem o próprio arquivo dela. Código
-               bom que caminho nenhum invoca não cumpre critério nenhum: ele não
-               roda, então não prova nada.
+               nenhum caminho EXECUTÁVEL da árvore chama — nem o próprio arquivo
+               dela. Citação em prosa (.md, .txt) não conta como chamada, e o
+               teste da própria peça também não. Código bom que caminho nenhum
+               invoca não cumpre critério nenhum: ele não roda, então não prova nada.
   aviso-no-vazio arquivo mexido que avisa pelo canal de erro (`>&2`, `sys.stderr`)
                e cujos consumidores, TODOS eles, jogam esse canal fora com
                `2>/dev/null`. Aviso escrito onde ninguém lê é aviso que não existe.
@@ -126,18 +127,36 @@ def funcoes_novas(repo, nao_rastreados):
     return achadas
 
 
+def _teste_da_peca(onde, rel):
+    """True se `onde` é o arquivo de teste da própria peça `rel`."""
+    if not nome_de_suite(onde):
+        return False
+    caule = os.path.splitext(os.path.basename(rel))[0]
+    base = os.path.basename(onde)
+    return base in ("test_%s.py" % caule, "%s_test.py" % caule,
+                    "%s.spec.ts" % caule)
+
+
 def sem_chamador(repo, nao_rastreados):
-    """Função nova que nenhum arquivo da árvore chama — nem o dela própria."""
+    """Função nova que nenhum caminho EXECUTÁVEL da árvore chama.
+
+    Menção em prosa (.md, .txt) não é chamada, e o teste da própria peça não
+    conta como consumidor: um teste sozinho não liga a peça a caminho nenhum
+    que rode em produção.
+    """
     novas = funcoes_novas(repo, nao_rastreados)
     if not novas:
         return []
     texto = {rel: _le(os.path.join(repo, rel))
-             for rel in _arvore_de_texto(repo, nao_rastreados)}
+             for rel in _arvore_de_texto(repo, nao_rastreados)
+             if rel.endswith(EXTENSOES_DE_CHAMADA)}
     orfas = []
     for rel, nome, linha in novas:
         padrao = re.compile(r"\b%s\b" % re.escape(nome))
         chamada = False
         for onde, conteudo in texto.items():
+            if _teste_da_peca(onde, rel):
+                continue
             for n, fileira in enumerate(conteudo.splitlines(), 1):
                 if onde == rel and n == linha:
                     continue  # a própria linha do def não é chamada
