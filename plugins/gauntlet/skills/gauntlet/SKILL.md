@@ -42,6 +42,7 @@ Nada fica para ser resolvido durante a execução. Colha os nove, na conversa, e
 | 7 | `material` | o dono — o que pode ser gerado, o que não |
 | 8 | `orcamento` | o dono; sugira padrões |
 | 9 | `vetos` herdados | o dono, se houver |
+| — | `raiz` | onde a obra mora, se não for a própria missão — sem isso o artefato relativo não é achado |
 
 **Sem alvo, sonda e eixos não há gauntlet** — o juiz ficaria sem régua ou sem procedimento, e
 viraria revisor de conformidade, que sempre aprova. Quem recusa é o programa:
@@ -102,8 +103,9 @@ Enquanto ele está aceso, `hooks/pretooluse-gauntlet.sh` **nega** todo disparo d
 fora do motor — a proibição de julgar na mão vira mecânica. Fora do gauntlet ele é mudo.
 Desligamento: `GAUNTLET_GATE=0`.
 
-⚠️ **Quem apaga o sinal é a conferência verde, não você.** É decisão do dono, e o motivo é o
-mesmo da falha de origem: quem conduziu o trabalho não é bom juiz do próprio trabalho.
+⚠️ **Quem apaga o sinal é a conferência verde, não você** — e isso é uma linha de
+`lib/fecho_check.py`, não uma regra de conduta: passe o caminho do sinal em `--sinal` no
+comando de fecho, e ele o remove quando as conferências passam. Fecho vermelho não o toca.
 
 Há rede embaixo do esquecimento: o sinal expira por idade, e o guarda desiste depois de
 algumas negações na mesma sessão. Missão longa com o dono fora não pode travar por infra.
@@ -120,23 +122,26 @@ Os parâmetros que a casca compõe e passa em `args`:
 |---|---|
 | `missao` | o diretório em `.claude/gauntlet/` |
 | `rito` | o conteúdo de `rito.json`, já aprovado |
-| `sessionId` · `motorId` | a sessão, e este motor dentro dela |
+| `pluginRoot` | a raiz deste plugin, para o motor chamar a conferência |
 | `tetoRodadas` · `tetoGasto` · `tetoPecas` | do `orcamento` do rito |
-| `tiers` | o contrato de esforço por etapa, servido de um lugar só |
 
 **O que o motor garante, e que não depende da memória de ninguém:** o juiz é o `await`
 seguinte ao do construtor, sem desvio que o pule · veredito sem eixo ou sem os dois registros
 é recusado e o papel roda de novo · a decomposição não passa com peça órfã nem eixo sem dono ·
 o laço para por aprovação, por `marginal` do juiz, ou pelo orçamento.
 
-Os quatro briefings — reconhecimento, construtor, juiz e diretor — estão em
-`references/briefings.md`, com os pontos de injeção declarados no topo.
+Os quatro briefings — reconhecimento, construtor, juiz e diretor — são as funções `…Prompt`
+do próprio `motor.js`. Eles não são texto estático: injetam o congelado, os vetos, a sonda e
+os eixos da missão, e um arquivo separado interpolado à mão recriaria um canal frouxo entre
+o valor e quem o usa — canal que já falhou noutro motor deste marketplace.
 
 ## 4 · Quando o dono entra no meio
 
 A missão é autônoma; ele entra quando quer. Três coisas acontecem, e só três:
 
-1. **O laço pausa.**
+1. **O laço não tem como ser pausado em voo** — o que existe é parar o motor, e o que chega
+   à rodada seguinte é o caderno. Se a intervenção for urgente, pare a missão; se puder
+   esperar a volta, o caderno já a leva.
 2. **O veto é registrado por programa**, nunca por você redigindo a linha:
 
 ```bash
@@ -181,9 +186,10 @@ Arquivo de dono indefinido é arquivo que o interessado carimba. Por isso:
 |---|---|---|
 | `rito.json` | você, com o dono aprovando cada campo | `fecho_check.py rito` |
 | `recon/eixos.json` | o agente de reconhecimento; o dono aprova | `fecho_check.py rito` |
-| `decomposicao.json` | o decompositor | o motor, antes de soltar construtor |
+| `decomposicao.json` | o motor grava o que o decompositor devolveu | o motor, antes de soltar construtor |
 | `entrega.json` | o construtor — é **alegação**, não carimbo | `fecho_check.py fecho`, recomputando a marca de cada artefato contra o disco |
-| `veredito.json` | o juiz, e só ele | `fecho_check.py fecho` |
+| `veredito.json` | **o motor**, com o que o juiz devolveu | `fecho_check.py fecho` |
+| `rito-aprovado.marca` | `fecho_check.py rito`, quando a abertura passa | `fecho_check.py fecho` |
 | `vetos.jsonl` | `fecho_check.py veto` | `fecho_check.py fecho` |
 | `MAPA.md` | `fecho_check.py mapa` — derivado | — |
 

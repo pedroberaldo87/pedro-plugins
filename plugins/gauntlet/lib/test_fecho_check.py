@@ -37,8 +37,14 @@ def escreve(caminho, dado):
 
 
 def monta_missao(raiz, pecas=("hero",), com_veredito=True, aprovado=True):
-    """A missão saudável mínima. Cada teste a estraga de um jeito só."""
+    """A missão saudável mínima. Cada teste a estraga de um jeito só.
+
+    A OBRA nasce FORA do diretório da missão, como numa missão de verdade: obra dentro
+    da missão escondia que a base do caminho estava sendo adivinhada.
+    """
     m = os.path.join(raiz, "missao")
+    projeto = os.path.join(raiz, "projeto")
+    os.makedirs(projeto, exist_ok=True)
     escreve(os.path.join(m, "recon", "registros", "alvo-hero.png"), "PIXELS-DO-ALVO")
     escreve(os.path.join(m, "rito.json"), {
         "objetivo": "bater o alvo em acabamento",
@@ -52,6 +58,7 @@ def monta_missao(raiz, pecas=("hero",), com_veredito=True, aprovado=True):
         "liberado": ["a estetica"],
         "material": {"pode": ["textura"], "nao_pode": ["pessoa que nao existe"]},
         "orcamento": {"rodadas_por_peca": 3, "teto_de_pecas": 4},
+        "raiz": projeto,
     })
     escreve(os.path.join(m, "decomposicao.json"), {
         "pecas": [{"id": p, "eixos": ["ritmo da entrada"], "arquivos": ["src/%s.ts" % p]}
@@ -60,7 +67,7 @@ def monta_missao(raiz, pecas=("hero",), com_veredito=True, aprovado=True):
     viu = {}
     for p in pecas:
         r1 = os.path.join(m, "pecas", p, "r1")
-        obra = os.path.join(m, "obra-%s.txt" % p)
+        obra = os.path.join(projeto, "obra-%s.txt" % p)
         escreve(obra, "a obra de %s, versao 1" % p)
         escreve(os.path.join(r1, "nosso.png"), "PIXELS-NOSSOS-%s" % p)
         escreve(os.path.join(r1, "alvo.png"), "PIXELS-DO-ALVO")
@@ -73,6 +80,7 @@ def monta_missao(raiz, pecas=("hero",), com_veredito=True, aprovado=True):
         viu[p] = fc.marca(cam_e)
         if com_veredito:
             escreve(os.path.join(r1, "veredito.json"), {
+                "peca": p, "rodada": 1,
                 "status": "aprovado" if aprovado else "reprovado",
                 "eixo": "ritmo da entrada",
                 "gap": "" if aprovado else "a entrada do alvo respira mais",
@@ -81,6 +89,8 @@ def monta_missao(raiz, pecas=("hero",), com_veredito=True, aprovado=True):
                               "alvo": "pecas/%s/r1/alvo.png" % p},
             })
     escreve(os.path.join(m, "diretor.json"), {"status": "aprovado", "viu": viu})
+    # A missão passou pela abertura: a régua fica ancorada, e mudá-la depois é acusado.
+    escreve(os.path.join(m, "rito-aprovado.marca"), fc.marca(os.path.join(m, "rito.json")))
     return m
 
 
@@ -150,14 +160,14 @@ print()
 print("A OBRA EM MOVIMENTO — julgar o que já não existe")
 d = tmp()
 m = monta_missao(d)
-escreve(os.path.join(m, "obra-hero.txt"), "versao 2 — mexida DEPOIS de julgada")
+escreve(os.path.join(os.path.dirname(m), "projeto", "obra-hero.txt"), "versao 2")
 check("obra alterada depois do juízo é acusada",
       any("mudou depois de julgado" in f for f in fc.erros_do_fecho(m)))
 shutil.rmtree(d)
 
 d = tmp()
 m = monta_missao(d)
-os.remove(os.path.join(m, "obra-hero.txt"))
+os.remove(os.path.join(os.path.dirname(m), "projeto", "obra-hero.txt"))
 check("artefato que sumiu é acusado",
       any("sumiu" in f for f in fc.erros_do_fecho(m)))
 shutil.rmtree(d)
@@ -197,6 +207,7 @@ rito = json.load(open(os.path.join(m, "rito.json"), encoding="utf-8"))
 rito["eixos"].append({"nome": "consistencia tipografica", "gesto": "medir os dois",
                       "registro": "recon/registros/alvo-hero.png"})
 escreve(os.path.join(m, "rito.json"), rito)
+escreve(os.path.join(m, "rito-aprovado.marca"), fc.marca(os.path.join(m, "rito.json")))
 check("eixo que nenhuma peça possui é acusado",
       any("eixo sem dono" in f for f in fc.erros_do_fecho(m)))
 d2 = json.load(open(os.path.join(m, "decomposicao.json"), encoding="utf-8"))
@@ -308,6 +319,82 @@ escreve(sinal, "")
 check("segunda missão com uma de pé é recusada",
       any("já há uma missão de pé" in f for f in fc.erros_do_rito(m, sinal)))
 check("e sem o sinal aceso a mesma missão passa", fc.erros_do_rito(m, sinal + "-x") == [])
+shutil.rmtree(d)
+
+print()
+print("A RODADA TRANSPLANTADA — o caminho mais barato de fraude")
+d = tmp()
+m = monta_missao(d, pecas=("hero", "marcas"))
+import shutil as _sh
+_sh.rmtree(os.path.join(m, "pecas", "hero", "r1"))
+_sh.copytree(os.path.join(m, "pecas", "marcas", "r1"), os.path.join(m, "pecas", "hero", "r1"))
+check("rodada copiada de outra peça é acusada — a âncora vem junto, o nome não",
+      any("transplantado" in f for f in fc.erros_do_fecho(m)))
+shutil.rmtree(d)
+
+d = tmp()
+m = monta_missao(d)
+v = os.path.join(m, "pecas", "hero", "r1", "veredito.json")
+dado = json.load(open(v, encoding="utf-8")); dado["rodada"] = 7
+escreve(v, dado)
+check("veredito que diz ser de outra rodada é acusado",
+      any("diz ser da rodada" in f for f in fc.erros_do_fecho(m)))
+shutil.rmtree(d)
+
+print()
+print("A PEÇA QUE SAIU DA DECOMPOSIÇÃO — o reprovado que evaporaria por outra porta")
+d = tmp()
+m = monta_missao(d, pecas=("hero", "marcas"), aprovado=False)
+dec = json.load(open(os.path.join(m, "decomposicao.json"), encoding="utf-8"))
+dec["pecas"] = [p for p in dec["pecas"] if p["id"] != "hero"]
+escreve(os.path.join(m, "decomposicao.json"), dec)
+check("trabalho no disco que a decomposição não conhece mais é acusado",
+      any("não a conhece mais" in f for f in fc.erros_do_fecho(m)))
+shutil.rmtree(d)
+
+print()
+print("A RÉGUA — ela não pode mudar no meio da missão")
+d = tmp()
+m = monta_missao(d)
+rito = json.load(open(os.path.join(m, "rito.json"), encoding="utf-8"))
+rito["eixos"] = []
+escreve(os.path.join(m, "rito.json"), rito)
+check("tirar um eixo depois de julgado é acusado — a barra não se rebaixa calada",
+      any("a régua mudou" in f for f in fc.erros_do_fecho(m)))
+shutil.rmtree(d)
+
+d = tmp()
+m = monta_missao(d)
+os.remove(os.path.join(m, "rito-aprovado.marca"))
+check("missão que nunca passou pela abertura é acusada",
+      any("nunca passou pela abertura" in f for f in fc.erros_do_fecho(m)))
+shutil.rmtree(d)
+
+print()
+print("A OBRA MORA NO PROJETO, NÃO NA MISSÃO — a base do caminho é declarada")
+d = tmp()
+m = monta_missao(d)
+check("artefato relativo resolve contra a raiz do projeto, e a missão saudável fecha",
+      fc.erros_do_fecho(m) == [])
+rito = json.load(open(os.path.join(m, "rito.json"), encoding="utf-8"))
+rito["raiz"] = os.path.join(d, "lugar-errado")
+escreve(os.path.join(m, "rito.json"), rito)
+escreve(os.path.join(m, "rito-aprovado.marca"), fc.marca(os.path.join(m, "rito.json")))
+check("apontada para a raiz errada, a obra some — e é acusado",
+      any("sumiu" in f for f in fc.erros_do_fecho(m)))
+shutil.rmtree(d)
+
+print()
+print("O MAPA — parada declarada não é reprovação")
+d = tmp()
+m = monta_missao(d)
+v = os.path.join(m, "pecas", "hero", "r1", "veredito.json")
+dado = json.load(open(v, encoding="utf-8"))
+dado["status"] = "marginal"; dado["gap"] = "o que sobra e pouco"
+escreve(v, dado)
+mapa = fc.desenha_mapa(m)
+check("`marginal` sai como parada por ganho pequeno, não como reprovada",
+      "ganho pequeno" in mapa and "reprovada" not in mapa)
 shutil.rmtree(d)
 
 print()

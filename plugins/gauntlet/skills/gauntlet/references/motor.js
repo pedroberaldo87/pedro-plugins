@@ -352,6 +352,13 @@ const resultados = await parallel(decomp.pecas.map(peca => async () => {
       bloqueios.push({ peca: peca.id, o_que: `o juiz da rodada ${rodada} não respondeu — a obra ficou SEM julgamento` })
       return { peca: peca.id, status: 'juiz-mudo', historia }
     }
+
+    // O veredito vai para o disco AQUI, e não pelas mãos do juiz. Juiz que esquecesse
+    // de gravar produziria o estado exato que esta skill existe para tornar impossível:
+    // obra entregue, julgamento feito, e nada no disco que o prove.
+    await agent(gravaPrompt(`${MISSAO}/pecas/${peca.id}/r${rodada}/veredito.json`, veredito),
+      { model: MODEL, effort: T.mechanical.effort, phase: 'Julgar',
+        label: `grava:${peca.id}:r${rodada}` })
     if (veredito.status === 'reprovado' && veredito.eixo
         && !nomesDeEixo.has(veredito.eixo) && veredito.eixo_novo) {
       // O juiz pode ver o que o reconhecimento não viu, pagando o mesmo preço de prova.

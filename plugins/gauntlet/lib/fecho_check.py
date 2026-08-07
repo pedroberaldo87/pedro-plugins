@@ -192,17 +192,30 @@ def erros_do_rito(missao, sinal=None):
 # fecho — o fecho pode acontecer?
 # ─────────────────────────────────────────────────────────────────────────────
 
-def _erros_do_veredito(missao, peca, dir_rodada, nomes_de_eixo):
+def _erros_do_veredito(missao, peca, dir_rodada, nomes_de_eixo, raiz=None):
     """As checagens de UM veredito. Cada uma nasceu de uma falha documentada."""
     erros = []
     cam_v = os.path.join(dir_rodada, "veredito.json")
     rodada = os.path.basename(dir_rodada)
 
+    raiz = raiz or missao
     ver, erro = _le(cam_v)
     if erro:
         # A falha central: houve entrega e não houve julgamento nenhum.
         return ["%s %s: não há veredito — %s" % (peca, rodada, erro)]
 
+    # A rodada tem que ser a dela. Copiar r1/ inteiro de uma peça aprovada para outra
+    # traz a âncora junto e daria fecho verde com a peça jamais julgada.
+    esperada = int(rodada[1:]) if rodada[1:].isdigit() else None
+    if ver.get("peca") != peca:
+        erros.append(
+            "%s %s: este veredito é da peça `%s` — foi transplantado"
+            % (peca, rodada, ver.get("peca"))
+        )
+    if esperada is not None and ver.get("rodada") != esperada:
+        erros.append(
+            "%s %s: este veredito diz ser da rodada %s" % (peca, rodada, ver.get("rodada"))
+        )
     if ver.get("status") not in STATUS:
         erros.append(
             "%s %s: o veredito não diz %s" % (peca, rodada, " nem ".join(STATUS))
@@ -245,6 +258,10 @@ def _erros_do_veredito(missao, peca, dir_rodada, nomes_de_eixo):
                 "%s %s: o veredito julgou OUTRA entrega — é veredito requentado"
                 % (peca, rodada)
             )
+        if ent.get("peca") != peca:
+            erros.append(
+                "%s %s: este manifesto é da peça `%s`" % (peca, rodada, ent.get("peca"))
+            )
         artefatos = ent.get("artefatos") or []
         if not artefatos:
             erros.append("%s %s: o manifesto não lista artefato nenhum" % (peca, rodada))
@@ -253,7 +270,7 @@ def _erros_do_veredito(missao, peca, dir_rodada, nomes_de_eixo):
             if not arquivo or not esperado:
                 erros.append("%s %s: artefato sem caminho ou sem marca" % (peca, rodada))
                 continue
-            cam = arquivo if os.path.isabs(arquivo) else os.path.join(missao, arquivo)
+            cam = arquivo if os.path.isabs(arquivo) else os.path.join(raiz, arquivo)
             atual = marca(cam)
             if atual is None:
                 erros.append("%s %s: o artefato %s sumiu" % (peca, rodada, arquivo))
@@ -286,10 +303,28 @@ def erros_do_fecho(missao):
     nomes_de_eixo = {
         e.get("nome") for e in (rito.get("eixos") or []) if isinstance(e, dict)
     }
+    # Onde o artefato mora. O registro é da missão; a OBRA é do projeto, e adivinhar
+    # a base fazia todo artefato relativo virar "sumiu" numa missão de verdade.
+    raiz = rito.get("raiz") or missao
+    if not os.path.isabs(raiz):
+        raiz = os.path.join(missao, raiz)
+
+    # A régua não pode mudar no meio: tirar um eixo do rito depois de julgamentos
+    # feitos rebaixa a barra, e o fecho aprovaria sem nada acusar.
+    cam_ancora = os.path.join(missao, "rito-aprovado.marca")
+    if os.path.isfile(cam_ancora):
+        with open(cam_ancora, encoding="utf-8") as fh:
+            ancorada = fh.read().strip()
+        if ancorada and ancorada != marca(os.path.join(missao, "rito.json")):
+            erros.append(
+                "a régua mudou depois da abertura — o rito não é mais o que foi aprovado"
+            )
+    else:
+        erros.append("a missão nunca passou pela abertura: falta a âncora da régua")
 
     decomp, erro = _le(os.path.join(missao, "decomposicao.json"))
     if erro:
-        return ["a decomposição não está no disco — %s" % erro]
+        return erros + ["a decomposição não está no disco — %s" % erro]
     pecas = decomp.get("pecas") or []
     if not pecas:
         return ["a decomposição não tem peça nenhuma"]
@@ -303,12 +338,26 @@ def erros_do_fecho(missao):
             # É esta linha que pega "sete construtores, zero juízes".
             erros.append("%s: nenhuma rodada no disco" % nome)
             continue
-        erros.extend(_erros_do_veredito(missao, nome, ultima, nomes_de_eixo))
+        erros.extend(_erros_do_veredito(missao, nome, ultima, nomes_de_eixo, raiz))
         ver, _ = _le(os.path.join(ultima, "veredito.json"))
         if ver and ver.get("status") in ("aprovado", "marginal"):
             aprovadas[nome] = marca(os.path.join(ultima, "entrega.json"))
         else:
             erros.append("%s: a última rodada não fechou" % nome)
+
+    # Peça que sai da decomposição levaria o REPROVADO dela junto, em silêncio — é a
+    # falha da conversa atropelada reintroduzida por outra porta.
+    dir_pecas = os.path.join(missao, "pecas")
+    if os.path.isdir(dir_pecas):
+        conhecidas = {p.get("id") or p.get("nome") for p in pecas}
+        for nome in sorted(os.listdir(dir_pecas)):
+            if nome.startswith(".") or nome in conhecidas:
+                continue
+            if os.path.isdir(os.path.join(dir_pecas, nome)):
+                erros.append(
+                    "há trabalho de `%s` no disco, e a decomposição não a conhece mais"
+                    % nome
+                )
 
     # Todo eixo tem dono: o que não coube em peça é do diretor. Sem esta conta, o
     # defeito ENTRE peças é invisível a todos os juízes — medido: um aprovou letra a
@@ -384,6 +433,9 @@ def desenha_mapa(missao):
                 estado, gap = "**entregue, SEM JUÍZO**", "—"
             elif ver.get("status") == "aprovado":
                 estado, gap = "aprovada", "—"
+            elif ver.get("status") == "marginal":
+                estado = "parada por ganho pequeno"
+                gap = ver.get("gap", "—")
             else:
                 estado = "reprovada"
                 gap = "%s — %s" % (ver.get("eixo", "?"), ver.get("gap", "?"))
@@ -437,6 +489,10 @@ def grava_veto(missao, o_que, pecas):
             if ver and ver.get("status") in ("aprovado", "marginal"):
                 fechadas.append(peca)
 
+    # Veto sem peça não segura fecho nenhum. Veto global é legítimo, então isto avisa
+    # em vez de recusar — mas calar seria deixar o dono achar que trancou algo.
+    if not toca:
+        desconhecidas = desconhecidas or []
     with open(os.path.join(missao, "vetos.jsonl"), "a", encoding="utf-8") as fh:
         fh.write(json.dumps({"o_que": o_que, "toca": toca}, ensure_ascii=False) + "\n")
     return fechadas, desconhecidas
@@ -460,6 +516,8 @@ def main(argv=None):
         pecas = [x.strip() for x in (args.pecas or "").split(",") if x.strip()]
         fechadas, desconhecidas = grava_veto(args.missao, args.o_que, pecas)
         print("veto registrado: %s" % args.o_que)
+        if not pecas:
+            print("   ⚠️  sem peça nomeada — ele NÃO vai segurar o fecho de nada")
         if desconhecidas:
             print("   ⚠️  peça(s) que a decomposição não conhece: %s"
                   % " · ".join(desconhecidas))
@@ -489,9 +547,23 @@ def main(argv=None):
         furos = erros_do_fecho(args.missao)
     if not furos:
         if args.comando == "rito":
+            # A régua fica ancorada aqui, e quem a ancora é o programa. Sem isto,
+            # editar o rito no meio da missão rebaixa a barra e o fecho aprova.
+            with open(os.path.join(args.missao, "rito-aprovado.marca"), "w",
+                      encoding="utf-8") as fh:
+                fh.write(marca(os.path.join(args.missao, "rito.json")) or "")
             print("rito completo — a missão pode começar.")
-        else:
-            print("fecho liberado — todo pedaço julgado, com o par de registros.")
+            return 0
+        print("fecho liberado — todo pedaço julgado, com o par de registros.")
+        # Quem apaga o sinal é ESTE caminho, e só ele. Estava escrito em três lugares
+        # da skill e em nenhuma linha de código — que é o defeito que ela combate.
+        if args.sinal:
+            for cam in (args.sinal, args.sinal.replace("/ativo-", "/bloqueios-")):
+                try:
+                    os.remove(cam)
+                except OSError:
+                    pass
+            print("sinal apagado: %s" % args.sinal)
         return 0
 
     print("⛔ %s recusado — %d furo(s):" % (args.comando, len(furos)))
