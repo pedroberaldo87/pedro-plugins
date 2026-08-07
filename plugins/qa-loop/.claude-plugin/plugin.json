@@ -1,6 +1,6 @@
 {
   "name": "qa-loop",
-  "version": "1.10.0",
+  "version": "1.11.0",
   "description": "Review→fix loop that stops at diminishing returns, not at zero. Runs as a deterministic Workflow (Opus reviews → Opus plans/adjudicates → fixes; gate, churn and stop condition live in code). Anchored to the plan in 3 buckets — implementation / plan-drift / broken-plan — and to the project's own quality goals, read from .claude/docs/quality-goals.md at review time rather than copied into the skill. Regression gate per fix, accepted-limits, a human HTML report plus an agent-facing journal. Replaces qa, rev6 and iterate.",
   "author": {
     "name": "pedroberaldo87",

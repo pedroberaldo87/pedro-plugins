@@ -30,6 +30,18 @@ SPECS=(
   "plugins/qa-loop/skills/qa-loop/references::r8_tiers.py"
   "plugins/sovai/skills/sovai/references::r8-tiers.md"
   "plugins/qa-loop/skills/qa-loop/references::r8-tiers.md"
+  # Os cinco antipadrões de teste: a mesma lista serve quem REVISA o construído
+  # (/qa-loop) e quem escreve o critério de pronto no plano (/visual). Contrato
+  # único — nenhum dos dois SKILL.md repete o texto, os dois apontam pra cópia.
+  "plugins/qa-loop/skills/qa-loop/references::antipadroes-de-teste.md"
+  "plugins/visual/skills/visual/references::antipadroes-de-teste.md"
+  # A régua de POR ONDE a pergunta chega: nasceu dentro do /grill-me e vale pra toda
+  # skill que pergunta ao dono. Cada SKILL.md consumidor só aponta pra cópia local —
+  # o texto mora aqui. Quem cobra: _shared/test_regua_de_pergunta.py.
+  "plugins/grill-me/skills/grill-me::regua-de-pergunta.md"
+  "plugins/project-doc/skills/start-doc::regua-de-pergunta.md"
+  "plugins/handoff/skills/handoff::regua-de-pergunta.md"
+  "plugins/lixeiro/skills/faxina::regua-de-pergunta.md"
   "plugins/visual/lib::regua_texto.py"
   "plugins/branches/lib::regua_texto.py"
   "plugins/fallow/lib::regua_texto.py"

@@ -167,6 +167,8 @@ anterior aprovada.
 - Use `AskUserQuestion` quando as opções forem enumeráveis (ordenar atributos, dura vs datada);
   pergunta aberta em texto quando for narrativa (o trade-off já decidido, o porquê de uma decisão).
 - **Toda pergunta carrega a pista visível.** Sem insumo à vista, não pergunte — minere antes.
+- **Por onde a pergunta chega quem escolhe é o usuário** — régua em **`regua-de-pergunta.md`**, ao
+  lado deste arquivo (fonte: `_shared/regua-de-pergunta.md`, cópia derivada; não editar à mão).
 - "Não sei" e "depois" são respostas válidas ⇒ `[PENDENTE]`. Não insista.
 - Grave a resposta **literal**. Organizar em bullets e corrigir digitação é permitido; trocar o
   julgamento do humano por uma redação mais bonita, não.

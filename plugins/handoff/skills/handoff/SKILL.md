@@ -35,6 +35,10 @@ Decida **SALVAR** vs **RETOMAR** usando estes sinais, em ordem de confiança:
 
 **Sempre anuncie o modo detectado antes de agir**, ex: *"Contexto em 76% / sessão cheia → vou **salvar**"* ou *"Sessão limpa + HANDOFF.md de 8min atrás → vou **retomar**"*. Se for genuinamente ambíguo, mostre o estado detectado e pergunte qual modo o usuário quer.
 
+**Por onde a pergunta chega quem escolhe é o usuário** — a régua dos dois canais (página de decisão
+em múltipla escolha, ou a ferramenta nativa uma por vez) está em **`regua-de-pergunta.md`**, ao lado
+deste arquivo (fonte: `_shared/regua-de-pergunta.md`, cópia derivada; não editar à mão).
+
 ---
 
 ## Modo: SALVAR — Preservar a sessão

@@ -1,6 +1,6 @@
 {
   "name": "grill-me",
-  "version": "1.2.0",
+  "version": "1.3.0",
   "description": "Relentless design review that works the decision tree in rounds — it asks the whole frontier at once and finds facts itself instead of spending the owner's turn on them. Two question channels, the owner picks: a multiple-choice page with a free-text field (default), or one question at a time in the CLI. Also how each /start-doc stage of agreement is closed — as the path to the agreement, never its judge: the grilling never approves, the owner does, in the document's own frontmatter.",
   "author": {
     "name": "Matt Pocock",

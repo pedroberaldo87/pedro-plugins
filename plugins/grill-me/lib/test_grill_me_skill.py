@@ -20,6 +20,9 @@ import sys
 
 AQUI = os.path.dirname(os.path.abspath(__file__))
 SKILL = os.path.join(AQUI, "..", "skills", "grill-me", "SKILL.md")
+# A régua de por onde a pergunta chega saiu do SKILL.md e virou contrato de todas
+# as skills que perguntam ao dono: fonte em _shared/, cópia vendorada aqui do lado.
+REGUA = os.path.join(AQUI, "..", "skills", "grill-me", "regua-de-pergunta.md")
 
 FAILS = []
 
@@ -82,32 +85,40 @@ def main():
           "The _decisions_ are the user's" in skill)
 
     print("a pergunta chega por um de dois canais, e quem escolhe e o dono")
+    check("a copia vendorada da regua esta ao lado do SKILL.md",
+          os.path.isfile(REGUA))
+    regua = ler(REGUA) if os.path.isfile(REGUA) else ""
+    check("o SKILL.md aponta pra regua em vez de repetir o texto",
+          "regua-de-pergunta.md" in skill
+          and "_shared/regua-de-pergunta.md" in skill
+          and "**Alternativa — uma por vez, na ferramenta nativa de pergunta.**"
+          not in skill)
     check("o padrao e a rodada inteira numa pagina, em multipla escolha",
-          "**Padrão — a rodada inteira numa página, em múltipla escolha.**" in skill)
+          "**Padrão — a rodada inteira numa página, em múltipla escolha.**" in regua)
     check("a pagina traz opcoes em radio E campo livre",
-          "as opções em rádio" in skill and "campo livre" in skill)
+          "as opções em rádio" in regua and "campo livre" in regua)
     check("a recomendacao entra como sugestao, nao como resposta ja dada",
-          "nunca como resposta dada" in skill)
+          "nunca como resposta dada" in regua)
     check("a resposta volta pelo estado que o daemon grava em disco",
-          "~/.claude/visual-state/latest.json" in skill
-          and "não peça ao usuário para copiar e colar" in skill)
+          "~/.claude/visual-state/latest.json" in regua
+          and "não peça ao usuário para copiar e colar" in regua)
     check("a alternativa e uma por vez na ferramenta nativa",
-          "**Alternativa — uma por vez, na ferramenta nativa de pergunta.**" in skill)
+          "**Alternativa — uma por vez, na ferramenta nativa de pergunta.**" in regua)
     check("quem escolhe o canal e o dono, e sem escolha vale o padrao",
-          "**Quem escolhe é o usuário.**" in skill and "use o padrão" in skill)
+          "**Quem escolhe é o usuário.**" in regua and "use o padrão" in regua)
     check("os dois canais vem antes da adicao do /start-doc",
           em_ordem(skill, ["## Adição local — por onde a pergunta chega",
                            "## Adição local — quando o chamador é o `/start-doc`"]))
 
     print("o irmao e invocado por nome, nunca por caminho")
     check("nao ha irmao por posicao relativa",
-          "CLAUDE_PLUGIN_ROOT" not in cru)
+          "CLAUDE_PLUGIN_ROOT" not in cru and "CLAUDE_PLUGIN_ROOT" not in regua)
     check("nao ha caminho para dentro de outro plugin",
-          "plugins/" not in cru)
+          "plugins/" not in cru and "plugins/" not in regua)
     check("a skill de apresentacao e invocada pelo nome",
-          "invoque-a **pelo nome**" in skill)
+          "invoque-a **pelo nome**" in regua)
     check("skill ausente na maquina nao quebra a sabatina",
-          "caia no canal alternativo e siga" in skill)
+          "caia no canal alternativo e siga" in regua)
 
     print("a adicao local do marketplace sobreviveu ao texto novo")
     check("a sabatina sabe que e chamada pelas cinco etapas do /start-doc",
