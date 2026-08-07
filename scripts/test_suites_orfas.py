@@ -101,7 +101,13 @@ def main():
     print("o repositório de verdade, agora")
     fora, tests, pats = so.orfas(".")
     check("o repo real não tem órfã", fora == [])
-    check("e o cobrador enxerga os 7 globos de verdade", len(pats) == 7)
+    # Sem número cravado, pelo mesmo motivo que tirou o 54 do Artigo 5: este check
+    # já reprovou sozinho quando a esteira ganhou o 8º globo, medindo nada além da
+    # própria desatualização. Acrescentar globo é trabalho legítimo — o que o teste
+    # cobra é que ele EXISTA e case alguma coisa.
+    check("o cobrador lê os globos de verdade da esteira", len(pats) >= 2)
+    check("todo globo lido casa ao menos uma suíte",
+          all(any(so.fnmatch.fnmatch(t, p) for t in tests) for p in pats))
     check("a soma dos globos é o total rastreado (sem número escrito em lugar nenhum)",
           len(tests) > 0)
 
