@@ -269,8 +269,7 @@ Escrever **não fecha** a etapa. O ciclo é este, e ele repete até o dono estar
    não um resumo dele) e `cards` é o índice, cada um ancorado num trecho literal desse corpo.
 
    ```bash
-   # acopla-ok: espera o resolvedor por nome do F11.3, que nasce em _shared/ e ainda nao foi construido
-   python3 "${CLAUDE_PLUGIN_ROOT}/../visual/lib/visual_page.py" build --spec {spec.json}
+   python3 "${CLAUDE_PLUGIN_ROOT}/../visual/lib/visual_page.py" build --spec {spec.json}  # acopla-ok: espera o resolvedor por nome do F11.3
    ```
 
    - **Aprovação sem o texto integral na página o programa RECUSA** (sai 2, não escreve arquivo) —
