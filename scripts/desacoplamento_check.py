@@ -114,6 +114,11 @@ def varre(root="."):
     achados = []
 
     for rel in rastreados(root):
+        # O próprio retrato guarda o TRECHO de cada achado, então varrê-lo faz o gate
+        # acusar o retrato de conter o que ele retrata — e cada regravação acrescentaria
+        # uma camada nova. Termômetro não tem febre.
+        if rel == RETRATO:
+            continue
         base = os.path.basename(rel)
         eh_indice = base in INDICES or rel.startswith(DIRS_ISENTOS)
         dono = dono_do(rel)

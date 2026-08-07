@@ -1181,6 +1181,45 @@ def main():
         finally:
             shutil.rmtree(d8, ignore_errors=True)
 
+        # A preservação acima só alcança o bloco OMITIDO. O init que grava uma fase por
+        # vez traz o pedaço de requisitos daquela fase — e a lista inteira do arquivo
+        # era trocada pelo pedaço, sem nota nenhuma.
+        print("o init parcial funde os requisitos em vez de trocar a lista")
+        d9 = tempfile.mkdtemp(prefix="plan-reqs-")
+        try:
+            todos = [{"id": "S-1.%d" % n, "titulo": "Requisito %d" % n, "ca": "sai 0",
+                      "epico": "E1 — Base"} for n in range(1, 6)]
+            base = dict(sample(id="2026-08-01-parcial", phases=[
+                {"id": "F1", "title": "x", "items": [
+                    {"id": "F1.1", "title": "a", "desc": "d", "pronto": "sai 0",
+                     "requisito": "S-1.1"}]}]), requisitos=todos)
+            init_into(d9, base, crus=True)
+            pacote = dict(sample(id="2026-08-01-parcial", phases=[
+                {"id": "F2", "title": "y", "items": [
+                    {"id": "F2.1", "title": "b", "desc": "d", "pronto": "sai 0",
+                     "requisito": "S-1.2"},
+                    {"id": "F2.2", "title": "c", "desc": "d", "pronto": "sai 0",
+                     "requisito": "S-1.5"}]}]),
+                requisitos=[dict(r) for r in todos[:4]])
+            pacote["requisitos"][1]["titulo"] = "Requisito 2 revisto"
+            check("a fase que cita requisito só do arquivo é aceita",
+                  init_into(d9, pacote, crus=True) == 0)
+            salvo = load(d9, "2026-08-01-parcial")
+            check("os requisitos que não vieram no pacote continuam lá",
+                  [r["id"] for r in salvo["requisitos"]]
+                  == ["S-1.1", "S-1.2", "S-1.3", "S-1.4", "S-1.5"])
+            check("o texto que veio no pacote vence o do arquivo",
+                  {r["id"]: r["titulo"] for r in salvo["requisitos"]}["S-1.2"]
+                  == "Requisito 2 revisto")
+            orfa9 = dict(sample(id="2026-08-01-parcial", phases=[
+                {"id": "F3", "title": "z", "items": [
+                    {"id": "F3.1", "title": "d", "desc": "d", "pronto": "sai 0",
+                     "requisito": "S-9.9"}]}]), requisitos=[dict(r) for r in todos[:4]])
+            check("com a união, citação órfã de verdade continua recusada",
+                  _levanta(lambda: init_into(d9, orfa9, crus=True)))
+        finally:
+            shutil.rmtree(d9, ignore_errors=True)
+
         # A caixa de fechamento entrava olhando só o `mode`, e a vista de valor não
         # desenha fase nenhuma: sobrava a página com os botões e ZERO veredito, e o
         # "Aprovar tudo" devolvia uma aprovação que ninguém tinha dado.

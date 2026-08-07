@@ -121,6 +121,13 @@ O que entra nos commits: só os artefatos de doc — docs tocados, `findings.jso
 - **Ledger read-only.** Ver passo 4.
 - **Nunca re-projetar doc fora do plano.** O touch-plan é o contrato; doc não mapeado não é tocado (nem "aproveitando que estou aqui").
 - Secret: as mesmas regras do FULL (nomes SIM, valores NUNCA).
+- **Desacoplamento: as mesmas duas trocas do FULL** — contagem cravada sai e entra o **comando** que a
+  produz (`grep -c …`, `wc -l`, `python3 …`); lista de nomes de plugin sai e entra o **índice** que os
+  enumera (`.claude-plugin/marketplace.json`, `plugins/bootstrap/config/manifest.json`). <!-- acopla-ok: o manifest é citado como ÍNDICE a consultar, não como dependência executável --> A regra é
+  escrita uma vez só, na seção **"Desacoplamento — duas trocas obrigatórias em TODO doc escrito"** do
+  `SKILL.md` do `/project-doc`; leia lá antes de re-projetar. Quem cobra é
+  `python3 scripts/desacoplamento_check.py`; a isenção é `acopla-ok: <motivo>` na linha. O touch toca
+  poucos docs por rodada — é justamente onde a contagem velha sobrevive despercebida.
 
 ## Output Protocol
 

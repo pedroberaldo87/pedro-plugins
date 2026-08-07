@@ -45,5 +45,6 @@
  "irmao-por-posicao|plugins/qa-loop/skills/qa-loop/SKILL.md|sovai|RESERVA=\"${CLAUDE_PLUGIN_ROOT}/../sovai/hooks/reserva-de-arquivos.sh\"",
  "irmao-por-posicao|plugins/sovai/lib/test_travas_motor.py|lixeiro|# mesma nao prova nada: o comando antigo (`${CLAUDE_PLUGIN_ROOT}/../lixeiro/...`)",
  "irmao-por-posicao|plugins/sovai/skills/sovai/SKILL.md|lixeiro|LIXEIRO=\"${CLAUDE_PLUGIN_ROOT}/../lixeiro/lib/lixeiro.py\"",
- "irmao-por-posicao|plugins/sovai/skills/sovai/SKILL.md|lixeiro|LIXEIRO=\"${CLAUDE_PLUGIN_ROOT}/../lixeiro/lib/lixeiro.py\""
+ "irmao-por-posicao|plugins/sovai/skills/sovai/SKILL.md|lixeiro|LIXEIRO=\"${CLAUDE_PLUGIN_ROOT}/../lixeiro/lib/lixeiro.py\"",
+ "irmao-por-posicao|scripts/test_desacoplamento_check.py|beta|'Rode `\"${CLAUDE_PLUGIN_ROOT}/../beta/lib/coisa.py\"` para ver.\\n',"
 ]

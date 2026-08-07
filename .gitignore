@@ -16,6 +16,8 @@
 # ─────────────────────────────────────────────────────────────────────────────
 .claude/ata/
 .claude/plans/
+.claude/specs/
+.claude/vistoria/
 .claude/HANDOFF*.md
 .claude/RETOMAR-*.md
 .claude/BRIEFING-*.md
