@@ -33,13 +33,39 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PLAN_STATE="$SCRIPT_DIR/../lib/plan_state.py"
 [ -f "$PLAN_STATE" ] || exit 0
 
-PLANS_DIR=$(bash "$SCRIPT_DIR/../skills/visual/resolve-dir.sh" "$CWD" plans 2>/dev/null)
+# O `$?` do resolve-dir é o aviso: 3 = o diretório veio da RESERVA (~/Desktop),
+# não deste projeto. O stderr dele morre no 2>/dev/null desta mesma linha, então
+# sem ler o código o plano de fora entraria no contexto sem nenhuma ressalva.
+PLANS_DIR=$(bash "$SCRIPT_DIR/../skills/visual/resolve-dir.sh" "$CWD" plans 2>/dev/null); DE_RESERVA=$?
 [ -n "$PLANS_DIR" ] || exit 0
 
 # O marco tem que existir MESMO sem plano aberto: o usuário pode criar o plano no
 # meio da sessão, e sem marco o nudge do Stop não teria com o que comparar.
 PHASH=$(printf '%s' "$PLANS_DIR" | cksum | cut -d' ' -f1)
 touch "${TMPDIR:-/tmp}/claude-plan-mark-$(id -u)-${SESSION}-${PHASH}" 2>/dev/null
+
+# FILA DE ENTRADA — passo que ficou esperando o motor soltar o arquivo do plano.
+# Enquanto um motor roda, ele ESCREVE no .plan.json (marca o que fechou); editar o
+# mesmo arquivo por baixo dele é a corrida clássica, e a saída foi enfileirar em
+# .claude/plans/entrada/. Só que "incorporo depois" é promessa, e promessa não é
+# mecanismo: sessão que cai deixa o passo no disco e ninguém o lê. Aqui a promessa
+# vira comando, no único instante em que ela é segura.
+#
+# ⚠️ NÃO drena com motor vivo — nem desta sessão, nem de OUTRA. O sinal `ativo-<sid>`
+# do /sovai é o que denuncia isso, e ele é por sessão: basta UM aceso para adiar.
+# Drenar no meio de uma execução seria reintroduzir a corrida que a fila evita.
+ENTRADA="$PLANS_DIR/entrada"
+if [ -d "$ENTRADA" ] && [ -n "$(ls "$ENTRADA"/*.json 2>/dev/null)" ]; then
+  SOVAI_ESTADO="${CLAUDE_CONFIG_DIR:-$HOME/.claude}/sovai"
+  MOTOR_VIVO=$(ls "$SOVAI_ESTADO"/ativo-* 2>/dev/null | head -1)
+  ENTRADA_PY="$SCRIPT_DIR/../lib/plan_entrada.py"
+  if [ -n "$MOTOR_VIVO" ]; then
+    printf '📥 há passo(s) na fila de entrada do plano, e um motor está vivo — adiado.\n' >&2
+  elif [ -f "$ENTRADA_PY" ]; then
+    DRENO=$("$PY3" "$ENTRADA_PY" --dir "$PLANS_DIR" 2>&1)
+    printf '%s\n' "$DRENO" >&2
+  fi
+fi
 
 SUMMARY=$("$PY3" "$PLAN_STATE" --dir "$PLANS_DIR" open --json 2>/dev/null)
 [ -z "$SUMMARY" ] && exit 0
@@ -70,8 +96,15 @@ COB=$("$PY3" "$PLAN_STATE" --dir "$PLANS_DIR" cobertura 2>/dev/null | head -2)
 
 🔎 Cobertura requisito↔tarefa: ${COB}"
 
+# O aviso da reserva entra no MESMO texto que o modelo lê — canal que ninguém
+# descarta. Sem ele, "neste projeto" seria mentira: o plano veio do Desktop.
+RESERVA_AVISO=""
+[ "$DE_RESERVA" = "3" ] && RESERVA_AVISO="⚠️ Este plano NÃO veio deste projeto: '$CWD' não tem marcador de projeto, então ele saiu da RESERVA em $PLANS_DIR. Confirme com o usuário antes de tratá-lo como o plano daqui.
+
+"
+
 CTX=$(cat <<EOF
-📋 Há plano(s) de implementação ABERTO(S) neste projeto:
+${RESERVA_AVISO}📋 Há plano(s) de implementação ABERTO(S) neste projeto:
 
 ${LIST}
 

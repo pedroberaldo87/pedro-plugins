@@ -19,7 +19,7 @@ scope:
 
 | medida | valor | comando |
 | --- | --- | --- |
-| hooks de produção em `plugins/*/hooks/` (fora `test_*` e as bibliotecas vendoradas) | **42** | `ls plugins/*/hooks/*.sh \| grep -vc -e /test_ $(ls _shared/*.sh \| sed -E 's#.*/#-e /#')` |
+| hooks de produção em `plugins/*/hooks/` (fora `test_*` e as bibliotecas vendoradas) | **43** | `ls plugins/*/hooks/*.sh \| grep -vc -e /test_ $(ls _shared/*.sh \| sed -E 's#.*/#-e /#')` |
 | destes, os que leem o campo que DECIDE — classe B | **29** | ver classe B abaixo |
 | destes, os que só formatam a saída / leem config — classe A | **4** | ver classe A abaixo |
 

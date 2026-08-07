@@ -12,6 +12,9 @@ auditoria de 2026-07-22 mostrou serem 68% do drift:
      linha fala de commit) / WARN (pode ser finding_id do journal).
   3. ponteiro arquivo:N — arquivo inexistente ou N > nº de linhas → FAIL
      (ponteiro comprovadamente morto). Vivo → 1 WARN brando por doc.
+  3b. ponteiro para arquivo que existe SÓ no disco de quem escreveu (ausente do
+     tronco — não commitado) → FAIL. Sem isto a doc afirma sobre uma migration
+     que ninguém mais tem, e quem lê a doc destrava o deploy no escuro.
   4. contagem vs lista no próprio doc — "N itens" seguido de lista com M≠N → WARN.
 
 Escape hatch: `<!-- lint:ignore TOKEN -->` inline no doc, ou uma linha por
@@ -108,6 +111,39 @@ def _git_ls_files(root):
     if r.returncode != 0:
         return None
     return [ln for ln in r.stdout.splitlines() if ln.strip()]
+
+
+def _git_head_files(root):
+    """Arquivos que estão NO TRONCO (commitados em HEAD), do root e de cada git
+    root aninhado (com o prefixo do caminho). **None** quando o git não respondeu
+    ou o repo não tem commit — igual ao `_git_ls_files`, "não sei" não pode virar
+    acusação. Diferente do índice (`ls-files`): arquivo só staged, ou nem isso,
+    NÃO está no tronco — foi assim que uma migration não commitada virou
+    afirmação de doc e destravou um deploy."""
+    def _ls_tree(groot):
+        try:
+            r = subprocess.run(["git", "-C", groot, "ls-tree", "-r", "--name-only",
+                                "-z", "HEAD"], capture_output=True, text=True,
+                               timeout=30, errors="replace")
+        except Exception:
+            return None
+        if r.returncode != 0:
+            return None
+        return [x for x in r.stdout.split("\0") if x.strip()]
+
+    own = _ls_tree(root)
+    if own is None:
+        return None
+    head = set(own)
+    for groot in _nested_git_roots(root):
+        if os.path.abspath(groot) == os.path.abspath(root):
+            continue
+        nested = _ls_tree(groot)
+        if not nested:
+            continue
+        pref = os.path.relpath(groot, root)
+        head.update(os.path.join(pref, x) for x in nested)
+    return head
 
 
 def build_repo_index(root):
@@ -235,7 +271,7 @@ def _commit_batch_check(root, tokens):
 
 
 def lint_doc(root, doc_rel, env_read, defined, allow, all_files=None,
-             journal_ids=None):
+             journal_ids=None, head_files=None):
     """Findings de UM doc: [{check, severity, line, token, msg}]."""
     p = os.path.join(root, doc_rel)
     try:
@@ -347,6 +383,20 @@ def lint_doc(root, doc_rel, env_read, defined, allow, all_files=None,
                 })
                 continue
 
+            # --- check 3b: existe no disco, mas está fora do tronco ---
+            # O arquivo só existe na máquina de quem escreveu a doc: quem clona o
+            # repo não o tem. `head_files is None` = git mudo → não acusa.
+            if head_files is not None and not any(
+                    os.path.normpath(c) in head_files for c in existing):
+                findings.append({
+                    "check": "not-in-trunk", "severity": "FAIL",
+                    "line": fm_lines + i + 1, "token": "%s:%d" % (f, n),
+                    "msg": "`%s` existe no disco mas NÃO está no tronco "
+                           "(não commitado) — a doc afirma sobre arquivo que "
+                           "quem clona o repo não tem" % existing[0],
+                })
+                continue
+
             # Path parcial é AMBÍGUO quando vários arquivos casam o sufixo
             # (`auth.py`, `brain/docker-compose.yml`). Só é ponteiro morto se
             # NENHUM candidato existente comporta a linha N — senão a doc está
@@ -424,12 +474,13 @@ def lint(root, docs=None):
     env_read, defined, all_files = build_repo_index(root)
     allow = _load_allowlist(root)
     journal_ids = _journal_id_prefixes(root)
+    head_files = _git_head_files(root)
     doc_list = docs if docs else _enumerate_scoped_docs(root)
     results = []
     fails = warns = 0
     for doc_rel in doc_list:
         fnd = lint_doc(root, doc_rel, env_read, defined, allow, all_files,
-                       journal_ids)
+                       journal_ids, head_files)
         if fnd:
             results.append({"path": doc_rel, "findings": fnd})
             fails += sum(1 for f in fnd if f["severity"] == "FAIL")

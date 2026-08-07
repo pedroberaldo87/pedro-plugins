@@ -47,8 +47,12 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PLAN_STATE="$SCRIPT_DIR/../lib/plan_state.py"
 [ -f "$PLAN_STATE" ] || exit 0
 
-PLANS_DIR=$(bash "$SCRIPT_DIR/../skills/visual/resolve-dir.sh" "$CWD" plans 2>/dev/null)
+# `$?` = 3 → o diretório veio da RESERVA (~/Desktop), não deste projeto. O texto
+# do aviso morre no 2>/dev/null desta linha; o código de saída é o que sobrevive.
+PLANS_DIR=$(bash "$SCRIPT_DIR/../skills/visual/resolve-dir.sh" "$CWD" plans 2>/dev/null); DE_RESERVA=$?
 [ -d "$PLANS_DIR" ] || exit 0
+RESERVA_AVISO=""
+[ "$DE_RESERVA" = "3" ] && RESERVA_AVISO="⚠️ Este resumo é da RESERVA ($PLANS_DIR), não deste diretório — '$CWD' não tem marcador de projeto."
 
 # A régua do canal (perfil `hook` de `lib/regua_texto.py`, vinda de quality-goals.md):
 # sem markdown, cabeçalho com emoji, uma ideia por linha, 6 linhas de orçamento. São
@@ -224,6 +228,10 @@ fi
 # nível diferente dos bullets que vêm abaixo. Com ela, o prefixo fica sozinho e o
 # cabeçalho desce pro mesmo alinhamento dos três. Não entra no orçamento do Stop —
 # `_linhas_visiveis` só conta linha com conteúdo.
+# O aviso entra ANTES do resumo e dentro do mesmo texto: o systemMessage é o canal
+# que o usuário lê de verdade, e a origem do plano muda o que o resumo significa.
+[ -n "$RESERVA_AVISO" ] && BRIEF="${RESERVA_AVISO}
+${BRIEF}"
 regua_hook "$BRIEF" "resumo de fim de turno"
 hj_msg "$(printf '\n\n%s' "$BRIEF")"
 exit 0

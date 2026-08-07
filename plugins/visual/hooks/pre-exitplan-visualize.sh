@@ -39,8 +39,15 @@ SESSION_SHORT="${SESSION_ID:0:8}"
 [ -n "$CWD" ] || CWD="$PWD"
 
 PLUGIN_ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
-VISUAL_DIR=$(bash "$PLUGIN_ROOT/skills/visual/resolve-dir.sh" "$CWD" 2>/dev/null)
+# `$?` = 3 → destino veio da RESERVA (~/Desktop), não deste projeto. O texto do
+# aviso morre no 2>/dev/null; o código de saída é o canal que chega até aqui, e
+# daqui ele entra no stderr do gate, que é o que o modelo de fato lê.
+VISUAL_DIR=$(bash "$PLUGIN_ROOT/skills/visual/resolve-dir.sh" "$CWD" 2>/dev/null); DE_RESERVA=$?
 [ -n "$VISUAL_DIR" ] || exit 0
+RESERVA_AVISO=""
+[ "$DE_RESERVA" = "3" ] && RESERVA_AVISO="
+⚠️ '$CWD' não é projeto reconhecido: o HTML e o plano vão para a RESERVA $VISUAL_DIR, uma gaveta por pasta de origem — não para .claude/ de projeto nenhum.
+"
 mkdir -p "$VISUAL_DIR" 2>/dev/null
 
 # ── cap anti-loop ────────────────────────────────────────────────────────────
@@ -128,7 +135,7 @@ EVIDENCIA
     bump
     cat >&2 << PLANFILE
 ⛔ VISUAL GATE — o plano tem HTML, mas não existe como ARQUIVO.  (aviso $((COUNT + 1))/${MAX_NUDGES})
-
+${RESERVA_AVISO}
 Não há plano ativo em: $PLANS_DIR
 
 Sem o arquivo, o plano volta a viver só na conversa: o /handoff o reconstrói de
@@ -178,7 +185,7 @@ SUGGESTED_PATH="$VISUAL_DIR/${SUGGESTED_FILENAME}"
 
 cat >&2 << FEEDBACK
 📊 VISUAL GATE — plano desta sessão precisa virar HTML antes de ir pro CLI.  (aviso $((COUNT + 1))/${MAX_NUDGES})
-
+${RESERVA_AVISO}
 Session ID: $SESSION_ID (prefix: $SESSION_SHORT)
 
 CONTEÚDO DO PLANO (fonte de verdade — use ESTE conteúdo literal, NÃO leia arquivos .md de outras sessões):

@@ -50,6 +50,53 @@ PRD_SEM_CA = """\
 - **S-4.9 Exportar o dia** · F1 · Jornada: Planejar o dia — gera um resumo em texto.
 """
 
+# dois épicos escrevem o MESMO número — até aqui o segundo apagava o primeiro
+PRD_REPETIDO = """\
+## E4 — Planner determinístico (F1)
+
+- **S-4.3 Orçamento de energia** · F1 · Jornada: Planejar o dia — custo 1-5 por tarefa.
+  CA: dia com orçamento estourado retorna proposta de corte com impacto explícito.
+
+## E7 — Infra de cache (F2)
+
+- **S-4.3 Camada de cache** · F2 · Jornada: Planejar o dia — memória entre execuções.
+  CA: segunda execução reaproveita o resultado.
+"""
+
+# um requisito cita artigo que a lei tem, o outro cita um que ela não tem
+PRD_ARTIGOS = """\
+## E4 — Planner determinístico (F1)
+
+- **S-4.3 Orçamento de energia** · F1 · Art. 6 — custo 1-5 por tarefa.
+  CA: dia com orçamento estourado retorna proposta de corte.
+- **S-4.9 Exportar o dia** · F1 · Art. 42 — gera um resumo em texto.
+  CA: o resumo sai em texto puro.
+"""
+
+# três funcionalidades: uma nasce de artigo, uma não nasce de nada, e uma o dono
+# assume como escolha dele — esta última passa marcada, não acusada
+PRD_SEM_ARTIGO = """\
+## E4 — Planner determinístico (F1)
+
+- **S-4.3 Orçamento de energia** · F1 · Art. 6 — custo 1-5 por tarefa.
+  CA: dia com orçamento estourado retorna proposta de corte.
+- **S-4.9 Exportar o dia** · F1 — gera um resumo em texto.
+  CA: o resumo sai em texto puro.
+- **S-4.10 Atalho de teclado** · F1 — abre o dia com uma tecla.
+  Decisão: conforto meu, a lei não pede.
+  CA: a tecla abre o dia.
+"""
+
+LEI = """\
+# Constituição do projeto
+
+## Artigo 6 · Estética
+O corpo do artigo.
+
+## Artigo 7 · Clareza da instrução
+O corpo do artigo.
+"""
+
 JOURNEYS = """\
 # Jornadas
 
@@ -130,6 +177,71 @@ def main():
     check("o resumo acusa o requisito sem critério",
           "1 requisito sem critério" in cb.resumo(mc))
     check("requisito com critério não é acusado", "S-4.3" not in mc["sem_ca"])
+
+    # o número escrito duas vezes — some uma descrição, e isso tem que aparecer
+    pr = os.path.join(d, "PRD-repetido.md")
+    open(pr, "w").write(PRD_REPETIDO)
+    reqs_r = cb.le_requisitos(pr)
+    check("o número repetido fica marcado", reqs_r["S-4.3"]["repetido"] is True)
+    check("vale a PRIMEIRA descrição, não a segunda",
+          reqs_r["S-4.3"]["titulo"] == "Orçamento de energia")
+    plan_r = {"id": "p", "title": "t", "phases": [{"id": "F1", "title": "f", "items": [
+        {"id": "F1.1", "title": "a", "desc": "d", "requisito": "S-4.3"}]}]}
+    mr = cb.mapa(plan_r, reqs_r, jornadas)
+    check("1 requisito com número repetido", mr["repetidos"] == ["S-4.3"])
+    check("o resumo acusa o número repetido",
+          "1 requisito com número repetido" in cb.resumo(mr))
+    check("número escrito uma vez só não é acusado",
+          cb.mapa(plan, reqs, jornadas)["repetidos"] == []
+          and "repetido" not in cb.resumo(cb.mapa(plan, reqs, jornadas)))
+
+    # a citação de artigo conferida contra a lei do projeto
+    pa = os.path.join(d, "PRD-artigos.md")
+    open(pa, "w").write(PRD_ARTIGOS)
+    lei = os.path.join(d, "constituicao.md")
+    open(lei, "w").write(LEI)
+    reqs_a = cb.le_requisitos(pa)
+    artigos = cb.le_artigos(lei)
+    check("acha os 2 artigos da lei", artigos == ["6", "7"])
+    plan_a = {"id": "p", "title": "t", "phases": [{"id": "F1", "title": "f", "items": [
+        {"id": "F1.1", "title": "a", "desc": "d", "requisito": "S-4.3"},
+        {"id": "F1.2", "title": "b", "desc": "d", "requisito": "S-4.9"}]}]}
+    ma = cb.mapa(plan_a, reqs_a, jornadas, artigos)
+    check("1 requisito citando artigo que a lei não tem",
+          ma["artigos_inexistentes"] == [("S-4.9", "Art. 42")])
+    check("o resumo acusa o artigo inexistente",
+          "1 requisito citando artigo que a lei não tem" in cb.resumo(ma))
+    # sem a lei em mãos não há com o que cruzar — ninguém é acusado
+    ma0 = cb.mapa(plan_a, reqs_a, jornadas)
+    check("sem a lei, ninguém é acusado de citar artigo",
+          ma0["artigos_inexistentes"] == []
+          and "artigo" not in cb.resumo(ma0))
+    check("documento da lei ausente devolve []",
+          cb.le_artigos(os.path.join(d, "nao-existe.md")) == [])
+
+    # a funcionalidade que não nasce de artigo nenhum — e a saída declarada
+    psa = os.path.join(d, "PRD-sem-artigo.md")
+    open(psa, "w").write(PRD_SEM_ARTIGO)
+    reqs_sa = cb.le_requisitos(psa)
+    check("lê a decisão declarada",
+          (reqs_sa["S-4.10"]["decisao"] or "").startswith("conforto meu"))
+    check("quem não declarou fica com None", reqs_sa["S-4.9"]["decisao"] is None)
+    plan_sa = {"id": "p", "title": "t", "phases": [{"id": "F1", "title": "f", "items": [
+        {"id": "F1.1", "title": "a", "desc": "d", "requisito": "S-4.3"},
+        {"id": "F1.2", "title": "b", "desc": "d", "requisito": "S-4.9"},
+        {"id": "F1.3", "title": "c", "desc": "d", "requisito": "S-4.10"}]}]}
+    msa = cb.mapa(plan_sa, reqs_sa, jornadas, artigos)
+    check("1 funcionalidade sem artigo da lei", msa["sem_artigo"] == ["S-4.9"])
+    check("a declarada passa marcada, não acusada", msa["decididas"] == ["S-4.10"])
+    check("o resumo acusa a funcionalidade sem artigo",
+          "1 funcionalidade sem artigo da lei" in cb.resumo(msa))
+    check("e marca a declarada como decisão sua",
+          "1 funcionalidade por decisão declarada" in cb.resumo(msa))
+    # sem a lei em mãos não há com o que cruzar — ninguém é acusado nem marcado
+    msa0 = cb.mapa(plan_sa, reqs_sa, jornadas)
+    check("sem a lei, ninguém é acusado de nascer sem artigo",
+          msa0["sem_artigo"] == [] and msa0["decididas"] == []
+          and "sem artigo" not in cb.resumo(msa0))
 
     # sem documento de jornadas não há com o que cruzar — e [] não acusa ninguém
     m0 = cb.mapa(plan, reqs)

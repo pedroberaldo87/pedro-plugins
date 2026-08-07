@@ -122,15 +122,39 @@ devolve `Total: 3 achado(s) — 1 alta`, e sai 1.
 D, D2 e F do `release-gate.sh` cobrem `plugins/<n>/lib/*.py`, `_shared/*.py` e
 `plugins/<n>/hooks/*.sh` **do plugin tocado**, e o check J acrescentou
 `plugins/*/hooks/test_*.py` e `scripts/test_*.sh` — os `.py` dentro de `hooks/` não estão
-mais órfãos. No push, `.github/workflows/portability.yml` roda as **54** suítes rastreadas,
-nos três sistemas operacionais. Os dois lados têm asserção de quantidade: glob que deixa de
-casar arquivo reprova em vez de ficar verde sem rodar nada. O furo que sobra é de
+mais órfãos. No push, `.github/workflows/portability.yml` roda **todas** as suítes
+rastreadas, nos três sistemas operacionais. Os dois lados têm asserção de quantidade: glob
+que deixa de casar arquivo reprova em vez de ficar verde sem rodar nada, e
+`scripts/suites_orfas.py` reprova o inverso — suíte rastreada que globo nenhum alcança. O furo que sobra é de
 **momento**, não de cobertura: `scripts/test_*.py` e `.claude/hooks/test_release_gate.sh`
 só têm a esteira, então uma quebra neles passa o commit e só aparece no push.
 
-**Prova de que vale hoje** — A esteira fecha a conta: `git ls-files | grep -cE '(^|/)test_'`
-devolve **54**, e a soma dos sete globos de `portability.yml` também dá 54 (20 + 1 + 3 + 2 +
-21 + 6 + 1). O furo de momento também é verificável:
+**Prova de que vale hoje** — ⚠️ **Este artigo não crava quantas suítes existem, de
+propósito.** Até 2026-08-07 ele dizia "são 54, e a soma dos sete globos também dá 54" — e
+no dia em que isso foi revisto a contagem real era **60**, com o texto ainda em 54. Número
+escrito num documento envelhece em silêncio: ninguém revalida a frase quando acrescenta um
+teste. O que este artigo exige é a **igualdade entre os dois lados**, e quem a confere é
+`scripts/suites_orfas.py` — que lê a lista do git e os globos de `portability.yml` na hora,
+sem cópia nenhuma:
+
+```
+$ python3 scripts/suites_orfas.py
+suítes rastreadas: 60 · globos da esteira: 7
+  plugins/*/lib/test_*.py            → 24
+  _shared/test_*.py                  → 1
+  scripts/test_*.py                  → 3
+  plugins/*/hooks/test_*.py          → 2
+  plugins/*/hooks/test_*.sh          → 21
+  scripts/test_*.sh                  → 8
+  .claude/hooks/test_*.sh            → 1
+Nenhuma órfã: toda suíte rastreada casa algum globo da esteira.
+```
+
+Suíte rastreada que nenhum globo alcança sai como órfã e o comando devolve 1. O caminho
+inverso — globo que deixou de casar arquivo — já reprova dentro da própria esteira. Os dois
+juntos fecham a conta sem que exista um número escrito em lugar nenhum.
+
+O furo de momento continua verificável:
 `grep -c 'scripts/test_\*\.py\|\.claude/hooks/test_' .claude/hooks/release-gate.sh` devolve
 **0**. O vermelho antigo desta seção — o juiz de forma em
 `plugins/bootstrap/hooks/test_bootstrap_hooks.sh` — não existe mais: a suíte fecha

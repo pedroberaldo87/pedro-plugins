@@ -9,7 +9,9 @@ a régua fique NO PROJETO (arquivo lido na rodada), não copiada aqui dentro.
 
 import os
 import re
+import subprocess
 import sys
+import tempfile
 
 SKILL_MD = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                         "..", "skills", "qa-loop", "SKILL.md")
@@ -31,6 +33,34 @@ def secao(texto, inicio, fim):
         return ""
     j = texto.find(fim, i)
     return texto[i:j if j > 0 else len(texto)]
+
+
+def bloco_bash(secao_texto):
+    """O primeiro bloco ```bash de uma seção — o comando que a skill manda rodar."""
+    m = re.search(r"```bash\n(.*?)```", secao_texto, re.S)
+    return m.group(1) if m else ""
+
+
+def roda_trava(bloco, reserva_viva, alvos):
+    """Executa o bloco da skill num estado de mentira: um motor vivo registrado
+    em CLAUDE_CONFIG_DIR, e a lista `alvos` como o que a revisão ia ler."""
+    with tempfile.TemporaryDirectory() as tmp:
+        reservas = os.path.join(tmp, "sovai", "reservas")
+        os.makedirs(reservas)
+        with open(os.path.join(reservas, "sessao-de-teste__motor-vivo.files"),
+                  "w", encoding="utf-8") as fh:
+            fh.write("\n".join(reserva_viva) + "\n")
+        env = dict(os.environ)
+        env.update({
+            "CLAUDE_CONFIG_DIR": tmp,
+            "CLAUDE_PLUGIN_ROOT": os.path.abspath(
+                os.path.join(os.path.dirname(os.path.abspath(__file__)), "..")),
+            "CLAUDE_SESSION_ID": "sessao-de-teste",
+            "ARQUIVOS_DO_REVIEW": " ".join(alvos),
+        })
+        p = subprocess.run(["sh", "-c", bloco], env=env,
+                           capture_output=True, text=True)
+        return p.stdout
 
 
 def main():
@@ -64,6 +94,29 @@ def main():
           "correcao-pendente:" in bucket3)
     check("o loop nunca edita o documento de concepcao",
           "nunca edita o documento" in bucket3)
+
+    print("a revisao recusa rodar com um motor vivo em cima dos mesmos arquivos")
+    trava = secao(texto, "## CASCA — Passo 0.0", "## CASCA — Passo 0 ·")
+    check("o passo 0.0 existe, antes do passo 0", bool(trava))
+    check("ele explica por que revisar alvo em movimento e falso",
+          "acusação falsa" in trava)
+    check("manda PARAR e mostrar o motivo ao usuario",
+          "PARE a skill" in trava and "permissionDecisionReason" in trava)
+    check("libera a reserva no fim", "liberar" in trava)
+
+    bloco = bloco_bash(trava)
+    check("o passo 0.0 traz o comando que reserva pelo mecanismo do /sovai",
+          "reserva-de-arquivos.sh" in bloco and "reservar" in bloco)
+    # Não basta a prosa: o comando da skill é EXECUTADO contra um motor vivo
+    # plantado, e tem que voltar recusa — e passar quando a lista é disjunta.
+    saida_cruza = roda_trava(bloco, ["src/a.py", "src/b.py"],
+                             ["src/b.py", "src/c.py"])
+    check("lista que cruza com o motor vivo é recusada",
+          '"permissionDecision":"deny"' in saida_cruza)
+    check("a recusa nomeia o arquivo em disputa", "src/b.py" in saida_cruza)
+    saida_disjunta = roda_trava(bloco, ["src/a.py"], ["src/z.py"])
+    check("lista disjunta passa (o gate nao serializa a sessao)",
+          '"deny"' not in saida_disjunta)
 
     print("a regua do projeto nao foi copiada pra dentro da skill")
     # As quatro checagens de estilo vivem no quality-goals.md do projeto; se

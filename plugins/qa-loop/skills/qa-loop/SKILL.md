@@ -185,6 +185,37 @@ quando o churn escala (mesma função regredindo repetidamente). O que separa os
 
 ---
 
+## CASCA — Passo 0.0 · Trava de alvo em movimento (ANTES de ler uma linha de código)
+
+Revisar código que **outro motor da mesma sessão ainda está escrevendo** produz acusação falsa: o
+Revisor lê o arquivo no meio de um conserto, aponta o defeito que o outro já corrigiu, e o Executor
+"conserta" por cima do trabalho vivo. Por isso a revisão **reserva** os arquivos que vai ler, pelo mesmo
+mecanismo que o `/sovai` usa entre motores — e se a lista **cruza** com a de um motor vivo, ela **recusa**.
+
+**Rode isto antes do Passo 0**, com `ARQUIVOS_DO_REVIEW` = a lista de arquivos que esta revisão vai ler,
+**um por linha** (do alvo: `git diff --name-only <alvo>`), e `CLAUDE_SESSION_ID` = o id desta sessão:
+
+```bash
+RESERVA="${CLAUDE_PLUGIN_ROOT}/../sovai/hooks/reserva-de-arquivos.sh"
+[ -f "$RESERVA" ] && sh "$RESERVA" reservar "${CLAUDE_SESSION_ID}" qa-loop $ARQUIVOS_DO_REVIEW
+```
+
+- **Saiu `"permissionDecision":"deny"`** → **PARE a skill aqui**. Não leia arquivo, não dispare o
+  Workflow, não abra relatório. Mostre ao usuário o `permissionDecisionReason` **inteiro** — ele nomeia o
+  motor vivo e os arquivos que cruzaram, e é essa a explicação de por que a revisão recusou. Ofereça as
+  duas saídas que o próprio motivo dá: esperar o outro motor terminar, ou reduzir `<alvo>` a arquivos que
+  não encostem na lista dele.
+- **Saída muda** → reservado, segue pro Passo 0.
+- **Arquivo ausente** (`/sovai` não instalado) → não há motor com quem colidir; segue. Fail-open, como
+  todo gate deste repo.
+
+Ao terminar (Passo 8, inclusive em `gate-red` ou abandono), **libere** — reserva que não é liberada
+recusa a próxima revisão até expirar:
+
+```bash
+[ -f "$RESERVA" ] && sh "$RESERVA" liberar "${CLAUDE_SESSION_ID}" qa-loop
+```
+
 ## CASCA — Passo 0 · Classificar domínio + ler journal
 
 **Toda sessão roda AS DUAS fases** (ver "As duas fases"). A pergunta de domínio NÃO roteia a skill pra um

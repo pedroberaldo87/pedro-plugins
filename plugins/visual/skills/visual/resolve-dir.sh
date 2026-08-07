@@ -8,7 +8,18 @@
 #   1. Raiz do repositório git  → <raiz-git>/.claude/<subdir>
 #   2. Projeto reconhecido por marcador (package.json, CLAUDE.md, etc.),
 #      subindo a partir do cwd e parando ANTES de $HOME → <dir>/.claude/<subdir>
-#   3. Fallback Desktop → ~/Desktop/claude-<subdir>
+#   3. Reserva no Desktop → ~/Desktop/claude-<subdir>/<pasta>-<id-estável>
+#      A identidade da pasta de origem entra no caminho: sem ela TODA pasta sem
+#      marcador caía no MESMO pote e uma sessão via o plano de outro projeto como
+#      se fosse dela. O <id-estável> é o cksum do caminho de origem — a mesma
+#      pasta resolve sempre pro mesmo destino, sem data, sorteio nem contador.
+#      Quando a reserva é usada, o script sai com CÓDIGO 3 (o stdout continua
+#      sendo só o caminho, e o texto do aviso continua indo pro stderr).
+#      O código de saída é o canal que vale: TODO consumidor deste script chama
+#      com `2>/dev/null`, então avisar só no stderr é avisar no vazio. Quem lê o
+#      resultado precisa saber que ele não veio de projeto, e é o `$?` que conta.
+#      Nível 1 e nível 2 saem com 0. Consumidor que ignora o `$?` continua
+#      funcionando igual — o contrato do stdout não mudou.
 #
 # Uso:   resolve-dir.sh <cwd> [subdir]
 #        subdir default = "visual". Passe "plans" para o store de planos
@@ -17,6 +28,7 @@
 #        pasta: misturar diagrama com relatório e plano é o que faz o usuário
 #        não achar o que gerou ontem.
 # Saída: caminho absoluto do diretório-alvo no stdout (já criado com mkdir -p).
+#        Código de saída: 0 = veio de projeto · 3 = veio da RESERVA.
 #
 # Quem chama: o hook pre-exitplan-visualize.sh, a invocação manual do /visual, o
 # motor de plano e a skill /archify — todos por aqui, pra nunca divergirem.
@@ -31,7 +43,7 @@ resolve() {
     git_root=$(git -C "$CWD" rev-parse --show-toplevel 2>/dev/null)
     if [ -n "$git_root" ]; then
       printf '%s\n' "$git_root/.claude/$SUB"
-      return
+      return 0
     fi
   fi
 
@@ -42,15 +54,25 @@ resolve() {
        [ -e "$dir/pyproject.toml" ] || [ -e "$dir/Cargo.toml" ] || \
        [ -e "$dir/go.mod" ] || [ -d "$dir/graphify-out" ] || [ -d "$dir/.git" ]; then
       printf '%s\n' "$dir/.claude/$SUB"
-      return
+      return 0
     fi
     dir=$(dirname "$dir")
   done
 
-  # Nível 3 — fallback Desktop (comportamento legado)
-  printf '%s\n' "$DESKTOP"
+  # Nível 3 — reserva, uma gaveta POR PASTA DE ORIGEM
+  origem="${CWD%/}"; [ -z "$origem" ] && origem="/"
+  nome=$(basename "$origem" 2>/dev/null | tr -c '[:alnum:]._-' '-' | tr -s '-')
+  nome="${nome%-}"; [ -z "$nome" ] && nome="sem-nome"
+  id=$(printf '%s' "$origem" | cksum | cut -d' ' -f1)
+  printf '%s\n' "$DESKTOP/$nome-$id"
+  # O texto vai pro stderr; o SINAL vai no código de saída. Quem chama descarta o
+  # stderr (todos descartam), então é o 3 que carrega o aviso até o consumidor.
+  printf '⚠️  resolve-dir: "%s" não é (nem está dentro de) um projeto reconhecido — %s veio da RESERVA %s, não deste projeto.\n' \
+    "$origem" "$SUB" "$DESKTOP/$nome-$id" >&2
+  return 3
 }
 
-TARGET=$(resolve)
+TARGET=$(resolve); DE_RESERVA=$?
 mkdir -p "$TARGET" 2>/dev/null
 printf '%s\n' "$TARGET"
+exit "$DE_RESERVA"

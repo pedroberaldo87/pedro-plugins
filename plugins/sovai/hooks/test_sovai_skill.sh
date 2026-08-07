@@ -71,9 +71,9 @@ check "$N_JULGA_SPEC" "$(tem "$REVISOR" 'contra a spec')"
 check "a spec chega ao #2 pelo planPath/planText" "$(tem "$REVISOR" '`planPath`/`planText`')"
 check "a decomposição do #1 deixa de ser a fonte da verdade" \
   "$(tem "$REVISOR" 'não fonte da verdade')"
-check "$N_PROMPT_SPEC" "$(tem "$SKEL" 'reviewBuildPrompt({ planPath: args.planPath')"
+check "$N_PROMPT_SPEC" "$(tem "$SKEL" 'reviewBuildPrompt({ planPath: ARGS.planPath')"
 check "o confirm-pass também recebe a spec" \
-  "$(tem "$SKEL" 'confirmBuildPrompt({ planPath: args.planPath')"
+  "$(tem "$SKEL" 'confirmBuildPrompt({ planPath: ARGS.planPath')"
 
 echo "2 · o BUILD_REVIEW carrega o gap de spec"
 check "o schema BUILD_REVIEW existe" "$([ -n "$REVIEW" ] && echo 1 || echo 0)"
@@ -159,7 +159,7 @@ sabota() { # rótulo, agulha da linha a remover, nome do check que tem que repro
 }
 
 sabota "papel do #2"        '- **OPUS #2 — Revisor de construção.**'   "$N_JULGA_SPEC"
-sabota "spec no prompt"     'reviewBuildPrompt({ planPath: args.planPath' "$N_PROMPT_SPEC"
+sabota "spec no prompt"     'reviewBuildPrompt({ planPath: ARGS.planPath' "$N_PROMPT_SPEC"
 sabota "filtro do script"   'const holdsBuild ='                       "$N_FILTRO_SPEC"
 sabota "schema BUILD_REVIEW" '- `BUILD_REVIEW` —'                      "$N_KIND_SPEC"
 sabota "schema DECOMP"      '- `DECOMP` —'                             "$N_DECOMP_CAMPOS"

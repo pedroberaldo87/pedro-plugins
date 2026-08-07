@@ -288,6 +288,26 @@ sem uma apagar a outra.
 | `grupo` | não | a natureza do trabalho (Backend · Tela · Teste). Você infere; o dono não escreve |
 | `pendencia` | não | a decisão que falta. **Trava o tique** e vira ⛔ que sobe a árvore |
 
+### A régua do `pronto` — a origem do valor, não o caminho do arquivo
+
+Um critério mandava o número **aparecer no documento**. O executor obedeceu e escreveu o
+número na mão. Quem errou foi o **critério**, não quem executou — e ninguém o julgou antes
+de soltar o executor. Por isso a régua é sua, aqui, na hora de escrever o plano:
+
+- **PODE** — regerar o entregável a partir do dado real. É operação do produto.
+- **NÃO PODE** — injetar valor inventado dentro do entregável pra o critério fechar. Isso é bancada, e bancada não entra em coisa que vale.
+
+Critério que pede **presença** de algo dentro de um artefato editável à mão (`.md`, `.html`,
+relatório, página, planilha) só vale dizendo **de onde o valor vem** — o comando que gera,
+regera, deriva ou extrai. Sem isso, escrever à mão cumpre o critério.
+
+| ❌ bancada | ✅ origem declarada |
+|---|---|
+| `o número de nós aparece no CLAUDE.md` | `` `graphify update --force` regera o índice e o número de nós no CLAUDE.md sai dele `` |
+
+Quem cobra: `lib/regua_pronto.py` (`erros_de_pronto`), também por linha de comando —
+`printf '%s' "$PRONTO" \| python3 lib/regua_pronto.py --onde F2.3 -` (exit 1 = é bancada).
+
 ## O fio — três estados, e um quarto que é erro
 
 `plan_state.py cobertura` mostra os dois lados: requisito sem tarefa (pedido que ninguém

@@ -40,10 +40,11 @@
 # DESISTE e libera — a missão degrada em vez de travar. Gate que trava de
 # verdade com o dono ausente é pior que gate nenhum.
 #
-# ⚠️ O QUE CONTINUA SEM REDE: sinal órfão. Não há poda por idade, e sessão que
-# morre sem apagar `ativo-<sid>` fica sem despachar sub-agente até o fim. Medido
-# na mesma rodada: 3 sinais acesos, 2 de sessões de OUTROS projetos ainda vivas.
-# O sinal é por sessão, então uma não contamina a outra — o estrago é local.
+# SINAL ÓRFÃO — consertado em 2026-08-06 (era a dívida declarada aqui). Sessão
+# que morre sem apagar `ativo-<sid>` deixava o gate aceso até o fim; medidos 4
+# sinais de sessões mortas em ~/.claude/sovai. Agora o sinal expira por idade
+# (SOVAI_TTL_MIN, 12h) e é APAGADO na primeira consulta que o encontra velho.
+# O sinal continua sendo por sessão, então uma nunca contamina a outra.
 
 # Kill-switch (contrato dos hooks deste repo): quando o gate atrapalha num
 # momento ruim, a saída não pode ser editar o script.
@@ -72,6 +73,23 @@ SINAL="$ESTADO/ativo-$SESSION"
 
 [ -f "$SINAL" ] || exit 0
 
+# EXPIRAÇÃO — sinal velho não bloqueia, e some. Sessão que morre sem apagar o
+# `ativo-<sid>` deixava o gate aceso até o fim: medido em 2026-08-06, 4 sinais de
+# sessões mortas ainda em pé. Arquivo por sessão precisa de janela de expiração no
+# mesmo commit em que nasce (patterns.md §1.5) — este nasceu sem, e é a dívida.
+#
+# 12h porque a missão que este gate protege é longa por definição (o dono está
+# ausente); janela curta mataria o sinal no meio de uma execução legítima.
+SOVAI_TTL_MIN="${SOVAI_TTL_MIN:-720}"
+if [ -n "$(find "$SINAL" -mmin +"$SOVAI_TTL_MIN" 2>/dev/null)" ]; then
+  # Apaga em vez de só ignorar: sinal ignorado ressuscitaria a cada consulta, e o
+  # contador de bloqueios dele ficaria órfão junto.
+  rm -f "$SINAL" "$ESTADO/bloqueios-$SESSION" 2>/dev/null
+  printf '%s expirou apos %s min sem uso · sessao=%s\n' \
+    "$(date -u +%FT%TZ)" "$SOVAI_TTL_MIN" "$SESSION" >> "$ESTADO/expirados.log" 2>/dev/null
+  exit 0
+fi
+
 # Cap: o gate degrada, nunca trava. Contador por sessão, no mesmo diretório de
 # estado — e sanitizado, porque lixo no arquivo não pode virar erro de shell.
 MAX_BLOQUEIOS=3
@@ -96,6 +114,10 @@ lógica do script, não "lembrar a regra a cada volta".
 Dispare a tool Workflow com o script de decompõe→executa→revisa que está em
 skills/sovai/SKILL.md, seção "Execução". Agent Teams também não serve aqui:
 o pipeline é fechado.
+
+Era só um parecer de leitura de UM agente (ler uma página e opinar)? Então o
+caminho é um Workflow com um único agent() — não o motor de decompõe→executa→
+revisa, que é a coisa errada para um parecer.
 
 Se este bloqueio estiver errado, o desligamento é SOVAI_GATE=0.'
 

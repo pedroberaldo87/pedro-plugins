@@ -16,10 +16,20 @@ O sinal vem com a PISTA — arquivo e trecho —, porque a regra da entrevista
 (`authorial-kit.md`, "Como conduzir a entrevista") é perguntar sempre com o
 insumo à vista. Pista alimenta a pergunta; nunca vira a resposta.
 
+As quatro perguntas de SEGURANÇA seguem a regra oposta, e de propósito: elas são
+sempre feitas — quem acessa o quê, que dado de pessoa fica guardado, quanto pode
+cair, o que fica exposto. Segurança adiada não é economia de pergunta, é dívida.
+O que o projeto minerado decide não é SE elas entram, é com que DADO elas entram:
+achar a biblioteca de papel/permissão confirma a resposta "só o dono edita"; não
+achar nada disso a contradiz. Ausência de dado também é dado, e é o que muda a
+conversa de opinião para constatação.
+
 Uso:
-    from decisoes_estruturais import detectar, perguntas
+    from decisoes_estruturais import detectar, perguntas, pilares_seguranca
     sinais = detectar(raiz)          # {"persistencia": {"arquivo":…, "trecho":…}}
     for p in perguntas(sinais):      # só as que o projeto acendeu
+        ...
+    for p in pilares_seguranca(raiz):  # sempre as quatro, cada uma com o dado
         ...
 
     python3 decisoes_estruturais.py [raiz] [--json]
@@ -127,6 +137,76 @@ CATALOGO = [
 ]
 
 
+# ── os quatro pilares de segurança ─────────────────────────────────────────
+# Estes não têm gatilho: são sempre perguntados. O que o projeto decide é o
+# DADO que vai junto — o termo encontrado (confirma) ou a falta dele (contradiz).
+SINAIS_SEGURANCA = {
+    "controle-de-acesso": re.compile(
+        r"(?i)(\b(passport|next-?auth|auth0|clerk|keycloak|devise|pundit|"
+        r"cancancan|casbin|oauth2?|openid|jsonwebtoken|\bjwt\b|rbac|"
+        r"authoriz(e|ed|ation)|autoriza(cao|ção)|role[_-]?based|"
+        r"is[_-]?admin|current[_-]?user|require[sd]?[_-]?auth|login[_-]?required|"
+        r"row[_-]?level[_-]?security)\b)"),
+    "dado-de-pessoa": re.compile(
+        r"(?i)(\b(cpf|cnpj|\bssn\b|\bpii\b|lgpd|gdpr|dados?[_-]?pessoa\w*|"
+        r"personal[_-]?data|password[_-]?hash|senha|"
+        r"phone[_-]?number|telefone|date[_-]?of[_-]?birth|data[_-]?de[_-]?nascimento|"
+        r"endereco|endereço|address[_-]?line|card[_-]?number|credit[_-]?card|"
+        r"user[_-]?email|customer[_-]?email)\b)"),
+    "quanto-pode-cair": re.compile(
+        r"(?i)(\b(backup\w*|pg_?dump|mysqldump|health[_-]?check|healthcheck|"
+        r"uptime|\bsla\b|\brpo\b|\brto\b|point-?in-?time|"
+        r"disaster[_-]?recovery|failover|replicas?)\b|restart:)"),
+    "o-que-fica-exposto": re.compile(
+        r"(?i)(\bports?:|\bexpose\b|0\.0\.0\.0|\bcors\b|allow[_-]?origin|"
+        r"\bingress\b|api[_-]?gateway|app\.listen|public[_-]?read|"
+        r"publicly[_-]?accessible|\bpublic[_-]?bucket\b)"),
+}
+
+# O que dizer quando NÃO se acha nada — a ausência precisa ser nomeável em
+# linguagem de gente, senão ela não vira contradição na frente do dono.
+PROCURADO = {
+    "controle-de-acesso":
+        "nenhuma biblioteca de login nem noção de papel/permissão no código",
+    "dado-de-pessoa":
+        "nenhum campo com cara de dado de pessoa (documento, telefone, "
+        "endereço, senha) e nenhuma menção a lei de privacidade",
+    "quanto-pode-cair":
+        "nenhum backup, nenhuma checagem de saúde e nenhuma réplica",
+    "o-que-fica-exposto":
+        "nenhuma porta publicada, nenhum servidor escutando e nenhuma regra "
+        "de origem permitida",
+}
+
+Pilar = collections.namedtuple("Pilar", "id procura pergunta porque")
+
+PILARES = [
+    Pilar(
+        "quem-acessa-o-que", "controle-de-acesso",
+        "Quem pode fazer o quê aqui dentro — e o que impede alguém de fazer o "
+        "que não é dele?",
+        "Sem essa linha desenhada no começo, ela vira `if` espalhado por vinte "
+        "arquivos, e nenhum deles é a resposta."),
+    Pilar(
+        "dado-de-pessoa", "dado-de-pessoa",
+        "Que dado de pessoa este sistema guarda, e por quanto tempo ele fica?",
+        "Dado de pessoa que ninguém decidiu guardar é o que aparece no "
+        "vazamento — e apagar depois exige saber onde ele foi parar."),
+    Pilar(
+        "quanto-pode-cair", "quanto-pode-cair",
+        "Quanto tempo isso pode ficar fora do ar sem virar problema, e quanto "
+        "do que já foi salvo dá para perder?",
+        "As duas respostas decidem backup e réplica. Sem elas, a escolha é "
+        "feita por acidente, no dia em que o disco morre."),
+    Pilar(
+        "o-que-fica-exposto", "o-que-fica-exposto",
+        "O que deste sistema está aberto para qualquer um na internet — e o "
+        "que só deveria abrir de dentro?",
+        "Toda porta aberta é uma que alguém vai bater. A que ninguém sabe que "
+        "está aberta é a que ninguém está olhando."),
+]
+
+
 # ── a varredura ────────────────────────────────────────────────────────────
 
 def _arquivos(raiz):
@@ -152,13 +232,8 @@ def _arquivos(raiz):
                 return
 
 
-def detectar(raiz):
-    """Os sinais que o projeto acende, cada um com a PISTA que o levantou.
-
-    Devolve `{nome_do_sinal: {"arquivo": rel, "trecho": termo}}`. Sinal que não
-    acendeu simplesmente não está no dicionário — ausência aqui é ausência de
-    pergunta, e é assim que o projeto seco recebe só as três incondicionais.
-    """
+def _procurar(raiz, padroes):
+    """A primeira ocorrência de cada padrão, com arquivo e trecho."""
     achados = {}
     for caminho in _arquivos(raiz):
         rel = os.path.relpath(caminho, raiz)
@@ -170,15 +245,53 @@ def detectar(raiz):
         # O caminho entra na busca: `db/migrations/` é pista tanto quanto o
         # `CREATE TABLE` que mora lá dentro.
         alvo = rel + "\n" + conteudo
-        for nome, padrao in SINAIS.items():
+        for nome, padrao in padroes.items():
             if nome in achados:
                 continue
             m = padrao.search(alvo)
             if m:
                 achados[nome] = {"arquivo": rel, "trecho": m.group(0)}
-        if len(achados) == len(SINAIS):
+        if len(achados) == len(padroes):
             break
     return achados
+
+
+def detectar(raiz):
+    """Os sinais que o projeto acende, cada um com a PISTA que o levantou.
+
+    Devolve `{nome_do_sinal: {"arquivo": rel, "trecho": termo}}`. Sinal que não
+    acendeu simplesmente não está no dicionário — ausência aqui é ausência de
+    pergunta, e é assim que o projeto seco recebe só as três incondicionais.
+    """
+    return _procurar(raiz, SINAIS)
+
+
+def pilares_seguranca(raiz):
+    """As quatro perguntas de segurança, cada uma com o dado que a confere.
+
+    Sempre as quatro — o que o projeto decide é o DADO que vai junto, não se a
+    pergunta é feita. Cada uma volta com `dado`, e `dado["sentido"]` é:
+
+    - `"confirma"` — achou no projeto (`arquivo` + `trecho`) o que a resposta
+      esperada afirmaria;
+    - `"contradiz"` — não achou nada disso, e `dado["procurado"]` diz em
+      linguagem de gente o que foi procurado e não existe.
+
+    Ausência é o dado mais útil dos dois: é ela que transforma "claro que tem
+    controle de acesso" em uma divergência visível na hora da entrevista.
+    """
+    achados = _procurar(raiz, SINAIS_SEGURANCA)
+    saida = []
+    for p in PILARES:
+        achado = achados.get(p.procura)
+        if achado:
+            dado = {"sentido": "confirma", "arquivo": achado["arquivo"],
+                    "trecho": achado["trecho"]}
+        else:
+            dado = {"sentido": "contradiz", "procurado": PROCURADO[p.procura]}
+        saida.append({"id": p.id, "pergunta": p.pergunta, "porque": p.porque,
+                      "dado": dado})
+    return saida
 
 
 def perguntas(sinais):
@@ -207,6 +320,7 @@ def _main(argv):
         return 2
     sinais = detectar(raiz)
     lista = perguntas(sinais)
+    seguranca = pilares_seguranca(raiz)
     if como_json:
         print(json.dumps({
             "sinais": sinais,
@@ -214,6 +328,7 @@ def _main(argv):
                            "pergunta": d.pergunta, "porque": d.porque,
                            "pista": sinais.get(d.gatilho) if d.gatilho else None}
                           for d in lista],
+            "seguranca": seguranca,
         }, ensure_ascii=False, indent=2))
         return 0
     print("sinais: %s" % (", ".join(sorted(sinais)) or "nenhum"))
@@ -223,6 +338,17 @@ def _main(argv):
         print("- %s" % d.pergunta)
         if pista:
             print("  pista: %s (%s)" % (pista["arquivo"], pista["trecho"]))
+    print()
+    print("seguranca: as %d, sempre — cada uma com o dado que a confere"
+          % len(seguranca))
+    for p in seguranca:
+        dado = p["dado"]
+        print("- %s" % p["pergunta"])
+        if dado["sentido"] == "confirma":
+            print("  o projeto confirma: %s (%s)"
+                  % (dado["arquivo"], dado["trecho"]))
+        else:
+            print("  o projeto contradiz: %s" % dado["procurado"])
     return 0
 
 

@@ -146,6 +146,18 @@ Mais: versões pinadas (lockfile, `engines`), limites de recurso e serviços (co
 auth, onde o banco mora. Cada pista entra na pergunta **com a evidência** — o humano confirma ou
 corrige, não adivinha o seu contexto.
 
+E rode o motor das decisões caras, que na mesma saída entrega **as quatro perguntas de segurança**
+— quem acessa o quê, que dado de pessoa fica guardado, quanto pode cair, o que fica exposto:
+
+```bash
+python3 "${CLAUDE_PLUGIN_ROOT}/lib/decisoes_estruturais.py" <raiz-do-projeto>
+```
+
+As decisões caras são **condicionais** (só entram as que o projeto acendeu); as quatro de segurança
+são **sempre as quatro**, e cada uma vem com o dado do projeto que a **confirma** (arquivo e trecho)
+ou a **contradiz** (o que foi procurado e não existe). Ausência é dado: leve junto da pergunta.
+A régua está em `references/authorial-kit.md`, em *Como conduzir a entrevista*.
+
 ### 3 · Entrevistar — uma pergunta por vez, uma etapa por vez
 Siga o roteiro de `references/authorial-kit.md`. Dentro da etapa 1, **nesta ordem**: metas →
 restrições → contexto → estratégia → glossário. A ordem não é estética: as metas são o critério que
@@ -164,6 +176,43 @@ anterior aprovada.
 e vai para a tela com a **passagem literal** que o motivou ao lado. Isso não afrouxa a regra dura:
 **A skill propõe, o dono decide** — item que ele não confirmou é proposta, não funcionalidade
 acordada, e não entra no documento aprovado.
+
+#### A curadoria da etapa 5 — item a item, com a passagem ao lado
+
+A lista derivada **não vai para o documento antes de passar item a item pelo dono**. Ela vai para
+uma página do `/visual`, e lá cada funcionalidade é **um bloco `item`** — o componente de veredito
+já existe, não invente outro. O contrato está em `plugins/visual/lib/visual_page.py` (rode `python3
+"${CLAUDE_PLUGIN_ROOT}/../visual/lib/visual_page.py" schema` para vê-lo).
+
+- **Um bloco `item` por funcionalidade.** No `title`, o que ela faz em uma linha; no `detail`, a
+  **passagem literal** do documento aprovado que a motivou, com o arquivo de onde ela saiu — a
+  procedência fica visível na hora de decidir, não depois.
+- **Os três vereditos são os do spec, em valor de máquina: `keep`, `change`, `remove`.** O parser do
+  outro lado depende deles; valor novo não existe. O que dá para trocar é só o rótulo humano, por
+  `item_labels` — para esta etapa, `["✓ Manter", "✏️ Mudar", "✗ Remover"]`.
+- **`keep` entra em `features.md`.** `remove` vai para a seção "Deixado de fora de propósito", com o
+  motivo dele. `change` entra com o texto que **ele** escreveu no campo aberto do item, literal.
+- **Item sem veredito não grava.** Rádio em branco não é `keep`: a funcionalidade fica de fora do
+  documento e vira linha de cobrança no relatório do Passo 3. Silêncio nunca vira aprovação — nem
+  aqui, item a item, nem na etapa inteira.
+
+**O que ele mudou fica registrado.** Quando o `change` recai sobre um item que **já está gravado** em
+`features.md` (recuradoria, `/start-doc features`, `/start-doc review`), a troca não é edição no
+arquivo: é `lib/historico.py`, que move o texto anterior para `features.historico.md` com data,
+contexto e decisão.
+
+```bash
+python3 "${CLAUDE_PLUGIN_ROOT}/lib/historico.py" reescrever .claude/docs/features.md \
+  --antigo "### F-3 · {texto anterior, recortado único}" \
+  --novo   "### F-3 · {o texto que o dono escreveu}" \
+  --contexto "curadoria da lista de funcionalidades derivada das quatro etapas aprovadas" \
+  --decisao  "{a fala dele, literal, que mudou o item}"
+```
+
+Na primeira gravação o item ainda não existe no documento — proposta corrigida antes de nascer não
+tem o que arquivar, e o `historico.py` recusaria (item não encontrado). Aí grava direto; o histórico
+começa a valer da segunda rodada em diante. Não escreva no `.historico.md` à mão: o formato é o que
+o `listar` lê de volta.
 
 ### 4 · Escrever
 Um arquivo por documento em `.claude/docs/`, com o frontmatter do contrato (`authored-by: human`,
@@ -185,7 +234,18 @@ Escrever **não fecha** a etapa. O ciclo é este, e ele repete até o dono estar
    confrontar. É a sabatina que transforma texto escrito em acordo.
 3. **Corrija e REAPRESENTE.** Cada objeção volta pro documento e o documento volta pra tela. Não há
    teto de rodadas: quem fecha o loop é a fala do dono, não o seu cansaço.
-4. **Grave o de acordo** no frontmatter do próprio documento — `status: approved` e
+4. **Confira o que a etapa deixou sem dono** — antes de gravar. Rode, sem ninguém pedir:
+
+   ```bash
+   python3 "${CLAUDE_PLUGIN_ROOT}/lib/rastreio_etapas.py" .
+   ```
+
+   Ele lê `journeys.md` e `features.md` e devolve as duas listas: **funcionalidade sem origem** e
+   **jornada sem funcionalidade**. Ele **só conta — não escreve em documento nenhum**, e é por isso
+   que roda aqui: conferência que edita texto aprovado reabriria a etapa pela marca
+   (`approved-sig`). O que ele acusar entra no Passo 5 do relatório e vira pergunta ao dono; não
+   conserte sozinho, e não segure o de acordo por causa dele — a lista é cobrança visível, não gate.
+5. **Grave o de acordo** no frontmatter do próprio documento — `status: approved` e
    `approved: {data de hoje}` — só depois de ele dizer que está satisfeito.
 
 **A sabatina não julga o documento.** Ela não aprova, não reprova e não decide se ficou bom o
@@ -229,6 +289,7 @@ Depois, ofereça o próximo passo:
 **Passo 3/7:** Entrevista → {doc}: {respondido | PENDENTE} … (uma linha por documento)
 **Passo 4/7:** Escrito → {lista de arquivos com status draft|ready}
 **Passo 5/7:** De acordo → {etapa}: {aprovada em YYYY-MM-DD | ABERTA, {N} reapresentações} … (uma linha por etapa)
+             Sem dono → {N} funcionalidades sem origem · {M} jornadas sem funcionalidade (saída de `rastreio_etapas.py`)
 **Passo 6/7:** Decisões → `decisions/0001-{slug}.md` + {N} candidatas pendentes
 **Passo 7/7:** Índice → {N docs promovidos} · Pendências → {lista de [PENDENTE] por doc} · Correções pendentes → {N, com o doc de cada uma}
 ```

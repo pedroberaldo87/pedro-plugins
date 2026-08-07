@@ -10,8 +10,10 @@ O critério é literal: projeto sem banco, sem inteligência artificial e sem
 multi-cliente recebe TRÊS perguntas, não as dez do catálogo.
 """
 
+import json
 import os
 import shutil
+import subprocess
 import sys
 import tempfile
 
@@ -58,6 +60,14 @@ COM_TUDO["src/tenant.js"] = "const tenantId = req.headers['x-tenant-id'];\n"
 COM_TUDO["src/resumo.py"] = "from anthropic import Anthropic\n"
 COM_TUDO["worker/fila.py"] = "from celery import Celery\napp = Celery()\n"
 COM_TUDO["src/pagar.js"] = "import Stripe from 'stripe';\n"
+
+# Um projeto que responde "sim" às quatro de segurança — cada resposta tem, no
+# código, o dado que a confirma.
+COM_SEGURANCA = dict(SECO)
+COM_SEGURANCA["src/auth.js"] = "import jwt from 'jsonwebtoken';\n"
+COM_SEGURANCA["db/cliente.sql"] = "CREATE TABLE cliente (cpf text, telefone text);\n"
+COM_SEGURANCA["ops/backup.sh"] = "pg_dump frete > /var/dump.sql\n"
+COM_SEGURANCA["docker-compose.yml"] = "services:\n  web:\n    ports:\n      - 80:80\n"
 
 
 def main():
@@ -126,6 +136,86 @@ def main():
     print("     sinais: %r" % (sorted(sinais),))
     check("node_modules nao acende sinal nenhum", sinais == {})
 
+    print("as quatro de seguranca sao sempre as quatro, e sao perguntas de gente")
+    ids_seg = [p.id for p in de.PILARES]
+    check("sao quatro pilares", len(de.PILARES) == 4)
+    check("nenhum id repetido", len(set(ids_seg)) == len(ids_seg))
+    check("todo pilar procura um sinal que existe",
+          all(p.procura in de.SINAIS_SEGURANCA for p in de.PILARES))
+    check("todo pilar sabe nomear a ausencia do que procura",
+          all(p.procura in de.PROCURADO for p in de.PILARES))
+    check("toda pergunta e uma pergunta",
+          all(p.pergunta.strip().endswith("?") for p in de.PILARES))
+    check("nenhum pilar colide com o catalogo condicional",
+          not (set(ids_seg) & {d.id for d in de.CATALOGO}))
+
+    print("no projeto seco, as quatro vem com o dado que CONTRADIZ a resposta facil")
+    raiz = projeto(SECO)
+    try:
+        seg = de.pilares_seguranca(raiz)
+    finally:
+        shutil.rmtree(raiz, ignore_errors=True)
+    for p in seg:
+        print("     %s -> %r" % (p["id"], p["dado"]))
+    check("as quatro sao perguntadas mesmo sem sinal nenhum", len(seg) == 4)
+    check("cada uma das quatro tem dado", all(p.get("dado") for p in seg))
+    check("as quatro contradizem",
+          all(p["dado"]["sentido"] == "contradiz" for p in seg))
+    check("a ausencia e nomeada em linguagem de gente",
+          all(len(p["dado"].get("procurado", "")) > 20 for p in seg))
+
+    print("no projeto que tem as quatro coisas, o dado CONFIRMA, com arquivo e trecho")
+    raiz = projeto(COM_SEGURANCA)
+    try:
+        seg = de.pilares_seguranca(raiz)
+    finally:
+        shutil.rmtree(raiz, ignore_errors=True)
+    for p in seg:
+        print("     %s -> %r" % (p["id"], p["dado"]))
+    check("as quatro confirmam",
+          all(p["dado"]["sentido"] == "confirma" for p in seg))
+    check("cada confirmacao cita o arquivo do projeto",
+          all(p["dado"].get("arquivo") for p in seg))
+    check("cada confirmacao cita o trecho que a levantou",
+          all(p["dado"].get("trecho") for p in seg))
+    por_id = {p["id"]: p["dado"] for p in seg}
+    check("o dado de pessoa veio da tabela de cliente",
+          por_id["dado-de-pessoa"]["arquivo"].endswith("cliente.sql"))
+    check("o quanto pode cair veio do backup",
+          por_id["quanto-pode-cair"]["arquivo"].endswith("backup.sh"))
+
+    print("lixo de dependencia nao vira dado de seguranca")
+    ruido = dict(SECO)
+    ruido["node_modules/jsonwebtoken/index.js"] = "// jwt\n"
+    ruido["node_modules/cors/index.js"] = "// cors allow-origin\n"
+    raiz = projeto(ruido)
+    try:
+        seg = de.pilares_seguranca(raiz)
+    finally:
+        shutil.rmtree(raiz, ignore_errors=True)
+    check("node_modules nao confirma nada",
+          all(p["dado"]["sentido"] == "contradiz" for p in seg))
+
+    print("o comando que a skill roda IMPRIME as quatro, com o dado ao lado")
+    raiz = projeto(COM_SEGURANCA)
+    motor = os.path.join(AQUI, "decisoes_estruturais.py")
+    try:
+        texto = subprocess.run([sys.executable, motor, raiz],
+                               capture_output=True, text=True, check=True).stdout
+        bruto = subprocess.run([sys.executable, motor, raiz, "--json"],
+                               capture_output=True, text=True, check=True).stdout
+    finally:
+        shutil.rmtree(raiz, ignore_errors=True)
+    print("     ...%s" % texto[texto.find("seguranca:"):][:120].replace("\n", " | "))
+    check("a saida de texto tem as quatro perguntas",
+          all(p.pergunta in texto for p in de.PILARES))
+    check("a saida de texto cola o dado em cada uma",
+          texto.count("o projeto confirma:") + texto.count("o projeto contradiz:") == 4)
+    dados = json.loads(bruto)
+    check("o --json entrega os quatro pilares", len(dados.get("seguranca", [])) == 4)
+    check("cada pilar do --json vem com o dado",
+          all(p["dado"].get("sentido") for p in dados["seguranca"]))
+
     print("a entrada da entrevista aponta o motor")
     kit = open(os.path.join(AQUI, "..", "skills", "start-doc", "references",
                             "authorial-kit.md"), encoding="utf-8").read()
@@ -136,6 +226,22 @@ def main():
           "decisoes_estruturais.py" in trecho)
     check("a secao diz que pergunta sem sinal nao e feita",
           "sem sinal" in trecho)
+    check("o kit tem a secao das quatro de seguranca",
+          "As quatro de seguranca" in kit or "As quatro de segurança" in kit)
+    seg_doc = kit.split("As quatro de seguran", 1)[-1].split("\n---", 1)[0]
+    check("a secao de seguranca diz que a ausencia tambem e dado",
+          "contradiz" in seg_doc)
+    check("a secao de seguranca diz que essas nao tem gatilho",
+          "sem sinal" in seg_doc and "não vale" in seg_doc)
+
+    print("o passo de mineracao da skill roda o motor")
+    skill = open(os.path.join(AQUI, "..", "skills", "start-doc", "SKILL.md"),
+                 encoding="utf-8").read()
+    minerar = skill.split("### 2 · Minerar", 1)[-1].split("\n### 3", 1)[0]
+    check("o passo 2 invoca o motor",
+          "decisoes_estruturais.py" in minerar)
+    check("o passo 2 nomeia as quatro de seguranca",
+          "seguran" in minerar and "sempre as quatro" in minerar)
 
     print()
     if FAILS:

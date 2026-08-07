@@ -28,7 +28,7 @@
           },
           {
             "type": "command",
-            "command": "CLAUDE_PLUGIN_ROOT=$(printf '%s' \"$CLAUDE_PLUGIN_ROOT\" | tr '\\\\' /); export CLAUDE_PLUGIN_ROOT; python3 --version >/dev/null 2>&1 || exit 0; python3 \"$CLAUDE_PLUGIN_ROOT/hooks/stop-anuncio-sem-acao.py\"",
+            "command": "CLAUDE_PLUGIN_ROOT=$(printf '%s' \"$CLAUDE_PLUGIN_ROOT\" | tr '\\\\' /); export CLAUDE_PLUGIN_ROOT; . \"$CLAUDE_PLUGIN_ROOT/hooks/hook-json.sh\" 2>/dev/null; PY=$(hj_py 2>/dev/null) || exit 0; \"$PY\" \"$CLAUDE_PLUGIN_ROOT/hooks/stop-anuncio-sem-acao.py\"",
             "timeout": 20
           }
         ]

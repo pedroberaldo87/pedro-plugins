@@ -105,6 +105,33 @@ def main():
         check("ptr: sufixo único resolve", not any(t == "main.py:2" and s == "FAIL" for t, s in ps))
         check("ptr: 1 WARN brando por doc", sum(1 for _, s in ps if s == "WARN") == 1)
 
+        # --- check 3b: ponteiro para arquivo fora do tronco (não commitado) ---
+        # O caso real: a sessão criou a migration, documentou, e o deploy foi
+        # destravado com base numa doc que fala de arquivo que ninguém mais tem.
+        os.makedirs(os.path.join(td, "migrations"), exist_ok=True)
+        with open(os.path.join(td, "migrations", "0007_add_col.sql"), "w") as fh:
+            fh.write("ALTER TABLE user_data ADD COLUMN x int;\n" * 4)
+        doc7 = write_doc(td, "trunk.md", "\n".join([
+            "- a migration `migrations/0007_add_col.sql:2` já subiu",  # não commitada → FAIL
+            "- e o app em `app/main.py:2`",                            # commitado → não acusa
+        ]))
+        out = doc_lint.lint(td, [doc7])
+        f = flat(out, doc7)
+        nt = [(x["token"], x["severity"]) for x in f if x["check"] == "not-in-trunk"]
+        check("tronco: arquivo não commitado = FAIL",
+              ("migrations/0007_add_col.sql:2", "FAIL") in nt)
+        check("tronco: arquivo commitado não acusa",
+              not any(t.startswith("app/main.py") for t, _ in nt))
+        check("tronco: FAIL entra no veredito do lint", out["fails"] >= 1)
+        # e some assim que o arquivo entra no tronco
+        subprocess.run(["git", "-C", td, "add", "-A"], check=True)
+        subprocess.run(["git", "-C", td, "commit", "-qm", "mig", "--no-gpg-sign"],
+                       check=True, env={**os.environ, "GIT_COMMITTER_NAME": "t",
+                                        "GIT_COMMITTER_EMAIL": "t@t"})
+        out = doc_lint.lint(td, [doc7])
+        check("tronco: depois do commit, não acusa mais",
+              not any(x["check"] == "not-in-trunk" for x in flat(out, doc7)))
+
         # --- check 4: contagem vs lista ---
         doc4 = write_doc(td, "count.md", "\n".join([
             "**3 modos** — os modos:", "- a", "- b", "- c", "- d", "",

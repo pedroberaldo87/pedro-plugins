@@ -14,8 +14,15 @@ REQ_RE = re.compile(r"^- \*\*(S-[\d.]+)\s+([^*]+)\*\*(.*)$", re.M)
 EPICO_RE = re.compile(r"^## (E\d+[^\n]*)$", re.M)
 CA_RE = re.compile(r"\bCA:\s*(.+?)(?=\n\s*[-#]|\Z)", re.S)
 ART_RE = re.compile(r"\b(Art\.\s*\d+[-A-Z]*)")
+# o número dentro da citação — "Art. 6" e "Art. 6-A" viram "6" e "6-A"
+ART_NUM_RE = re.compile(r"(\d+[-A-Z]*)")
+# cada artigo da lei do projeto é um `## Artigo N · nome` no constituicao.md
+ARTIGO_H_RE = re.compile(r"^##\s*Artigo\s+(\d+[-A-Z]*)", re.M)
 # a jornada de origem, citada no requisito pelo nome que journeys.md dá a ela
 JORNADA_RE = re.compile(r"\bJornada:\s*([^·—\n]+)")
+# a saída explícita: funcionalidade que o dono assume como escolha dele, sem artigo
+# de lei por trás. Escrita como `Decisão: <motivo>`, ela passa marcada, não calada.
+DECISAO_RE = re.compile(r"\bDecisão:\s*([^·\n]+)")
 # cada jornada do journeys.md é um `## nome` — é o molde que a entrevista escreve
 JORNADA_H_RE = re.compile(r"^##\s+(.+?)\s*$", re.M)
 
@@ -29,11 +36,16 @@ def _texto(fonte):
 
 
 def le_requisitos(fonte):
-    """Devolve {id: {titulo, ca, ancora, jornada, epico}} a partir de um markdown de requisitos.
+    """Devolve {id: {titulo, ca, ancora, jornada, epico, repetido}} a partir de um markdown de requisitos.
 
     `fonte` é o caminho de um .md OU o texto direto. Formato ausente devolve {} —
     projeto sem documento de requisitos não é erro, é o caso comum (ver a regra
     'o requisito é obrigatório; o lugar dele é opcional' na spec §5.1).
+
+    Dois épicos que escrevem o mesmo número são um acidente comum de documento
+    grande, e até aqui o segundo apagava o primeiro sem que nada dissesse. Agora
+    fica valendo o PRIMEIRO — quem já foi lido e ligado a tarefa — e o número
+    ganha `repetido: True`, que `mapa` transforma em acusação.
     """
     txt = _texto(fonte)
     out = {}
@@ -47,15 +59,21 @@ def le_requisitos(fonte):
         ca = CA_RE.search(resto + corpo)
         art = ART_RE.search(resto[:200])
         jor = JORNADA_RE.search(resto)
+        dec = DECISAO_RE.search(resto + corpo)
         ep = None
         for pos, nome in epicos:
             if pos < m.start():
                 ep = nome
+        if rid in out:
+            out[rid]["repetido"] = True
+            continue
         out[rid] = {"titulo": titulo,
                     "ca": " ".join(ca.group(1).split()) if ca else None,
                     "ancora": art.group(1) if art else None,
                     "jornada": jor.group(1).strip() if jor else None,
-                    "epico": ep}
+                    "epico": ep,
+                    "decisao": " ".join(dec.group(1).split()) if dec else None,
+                    "repetido": False}
     return out
 
 
@@ -69,12 +87,29 @@ def le_jornadas(fonte):
     return [m.group(1).strip() for m in JORNADA_H_RE.finditer(_texto(fonte))]
 
 
+def le_artigos(fonte):
+    """Os números dos artigos da lei do projeto, na ordem em que aparecem.
+
+    `fonte` é o caminho do constituicao.md OU o texto direto. Documento ausente
+    devolve [], e [] não acusa ninguém: projeto sem lei escrita não é projeto que
+    cita artigo errado, é projeto que ainda não tem com o que conferir — a mesma
+    regra que `le_jornadas` segue para o journeys.md.
+    """
+    return [m.group(1) for m in ARTIGO_H_RE.finditer(_texto(fonte))]
+
+
+def _num_artigo(ancora):
+    """"Art. 6" vira "6". Citação sem número devolve None."""
+    m = ART_NUM_RE.search(ancora or "")
+    return m.group(1) if m else None
+
+
 def _chave(nome):
     """Nome de jornada comparado sem depender de espaço a mais nem de caixa."""
     return " ".join((nome or "").split()).casefold()
 
 
-def mapa(plan, reqs, jornadas=None):
+def mapa(plan, reqs, jornadas=None, artigos=None):
     """Os quatro estados do fio. Nenhum é silencioso — todos viram lista.
 
     `jornadas` é a lista de nomes que `le_jornadas` devolveu. Com ela o cruzamento
@@ -87,6 +122,11 @@ def mapa(plan, reqs, jornadas=None):
 
     `sem_ca` não depende de jornada nenhuma: requisito escrito sem critério de aceite
     é acusado sempre, porque sem critério não há como dizer se ele foi atendido.
+
+    `artigos` é a lista que `le_artigos` devolveu. Com ela a citação de artigo deixa
+    de ser só extraída e passa a ser conferida: requisito que aponta para artigo que
+    a lei não tem cai em `artigos_inexistentes`. Sem ela (None ou vazia) o balde fica
+    vazio — sem lei escrita não há com o que cruzar, e acusar seria ruído.
     """
     cobertas, sem_req, inexistentes, por_req = [], [], [], {}
     for ph in plan.get("phases", []):
@@ -123,9 +163,30 @@ def mapa(plan, reqs, jornadas=None):
     # requisito sem critério de aceite não é requisito: é intenção. Hoje ele fecha
     # sem que nem o lembrete de conferir apareça — daqui em diante ele é contado.
     sem_ca = sorted(r for r, d in reqs.items() if not d.get("ca"))
+    # número escrito duas vezes: só uma das descrições sobreviveu à leitura, e a
+    # tarefa que aponta para ele está atendendo a metade que ficou. Isso é contado.
+    repetidos = sorted(r for r, d in reqs.items() if d.get("repetido"))
+    # citar a lei sem que ninguém confira é o mesmo silêncio que este módulo combate:
+    # com a lei em mãos, o artigo que ela não tem vira acusação.
+    numeros = set(artigos or [])
+    artigos_inexistentes = sorted(
+        (r, d["ancora"]) for r, d in reqs.items()
+        if numeros and d.get("ancora") and _num_artigo(d["ancora"]) not in numeros)
+    # funcionalidade que não nasce de artigo nenhum é funcionalidade sem motivo escrito:
+    # ninguém sabe dizer por que ela existe. Ela passa a ser contada — salvo quando o
+    # dono a declara como escolha dele (`Decisão: <motivo>`), e aí ela passa MARCADA,
+    # em `decididas`, em vez de calada. Sem a lei em mãos os dois baldes ficam vazios,
+    # pela mesma regra dos outros cruzamentos: sem com o que cruzar, não há acusação.
+    sem_artigo = sorted(r for r, d in reqs.items()
+                        if numeros and not d.get("ancora") and not d.get("decisao"))
+    decididas = sorted(r for r, d in reqs.items()
+                       if numeros and not d.get("ancora") and d.get("decisao"))
     return {"cobertas": cobertas, "sem_requisito": sem_req, "orfaos": orfaos,
             "inexistentes": inexistentes, "por_req": por_req,
             "sem_jornada": sem_jornada, "sem_ca": sem_ca,
+            "repetidos": repetidos,
+            "sem_artigo": sem_artigo, "decididas": decididas,
+            "artigos_inexistentes": artigos_inexistentes,
             "jornadas_sem_funcionalidade": jornadas_sem_func,
             "epicos_sem_jornada": epicos_sem_jornada,
             "total": len(cobertas) + len(sem_req) + len(inexistentes)}
@@ -144,11 +205,22 @@ def resumo(m):
         partes.append("🔴 %s sem jornada" % _pl(len(m["sem_jornada"]), "funcionalidade"))
     if m.get("epicos_sem_jornada"):
         partes.append("🔴 %s sem jornada" % _pl(len(m["epicos_sem_jornada"]), "épico"))
+    if m.get("sem_artigo"):
+        partes.append("🔴 %s sem artigo da lei"
+                      % _pl(len(m["sem_artigo"]), "funcionalidade"))
+    if m.get("decididas"):
+        partes.append("⚪ %s por decisão declarada"
+                      % _pl(len(m["decididas"]), "funcionalidade"))
     if m.get("sem_ca"):
         partes.append("🔴 %s sem critério" % _pl(len(m["sem_ca"]), "requisito"))
     if m.get("jornadas_sem_funcionalidade"):
         partes.append("🔵 %s sem funcionalidade"
                       % _pl(len(m["jornadas_sem_funcionalidade"]), "jornada"))
+    if m.get("repetidos"):
+        partes.append("⛔ %s com número repetido" % _pl(len(m["repetidos"]), "requisito"))
+    if m.get("artigos_inexistentes"):
+        partes.append("⛔ %s citando artigo que a lei não tem"
+                      % _pl(len(m["artigos_inexistentes"]), "requisito"))
     if m["inexistentes"]:
         partes.append("⛔ %d citando requisito inexistente" % len(m["inexistentes"]))
     return " · ".join(partes)

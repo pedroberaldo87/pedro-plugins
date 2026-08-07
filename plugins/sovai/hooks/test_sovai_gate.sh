@@ -58,6 +58,8 @@ check "a razão manda rodar o Workflow" \
   "$(printf '%s' "$OUT" | grep -q 'Workflow' && echo 1 || echo 0)"
 check "a razão diz que Agent Teams também não serve" \
   "$(printf '%s' "$OUT" | grep -q 'Agent Teams' && echo 1 || echo 0)"
+check "a razão oferece a saída de UM agente só (parecer de leitura)" \
+  "$(printf '%s' "$OUT" | grep -q 'um único agent()' && echo 1 || echo 0)"
 check "a razão mostra o desligamento" \
   "$(printf '%s' "$OUT" | grep -q 'SOVAI_GATE=0' && echo 1 || echo 0)"
 check "quem nega sai com exit 0 (o veredito vem do JSON)" \
@@ -102,6 +104,24 @@ check "a desistência deixa rastro em log (não é silenciosa)" \
   "$([ -s "$ESTADO/desistencias.log" ] && echo 1 || echo 0)"
 check "o contador do cap é por sessão" \
   "$([ -f "$ESTADO/bloqueios-$CAPSID" ] && echo 1 || echo 0)"
+
+# 6bb · sinal órfão expira sozinho. Sessão que morre sem apagar `ativo-<sid>`
+# deixava a sessão seguinte sem despachar sub-agente ATÉ O FIM — foi assim que
+# 4 sinais de sessões mortas ficaram acesos em ~/.claude/sovai.
+VELHO="sessao-abandonada"
+: > "$ESTADO/ativo-$VELHO"
+touch -t 202001010000 "$ESTADO/ativo-$VELHO"
+OUT=$(payload Agent "$VELHO" | roda)
+check "sinal mais velho que o limite deixa de bloquear" \
+  "$([ "$(nega "$OUT")" = "0" ] && echo 1 || echo 0)" "saiu: $OUT"
+check "o sinal expirado é apagado, não só ignorado" \
+  "$([ ! -f "$ESTADO/ativo-$VELHO" ] && echo 1 || echo 0)"
+
+NOVO="sessao-recem-acesa"
+: > "$ESTADO/ativo-$NOVO"
+OUT=$(payload Agent "$NOVO" | roda)
+check "sinal recém-aceso continua bloqueando (a poda não come o vivo)" \
+  "$(nega "$OUT")" "saiu: $OUT"
 
 # 6c · lixo no contador não vira erro de shell
 printf 'não é número' > "$ESTADO/bloqueios-$CAPSID"

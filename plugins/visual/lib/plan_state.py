@@ -251,10 +251,20 @@ def erros_do_plano(plan, exigir=None):
             # As QUATRO checagens, não só o tamanho: `desc`, `pronto` e `pendencia`
             # são redação lida com pressa, e o teto sozinho deixava passar o parágrafo
             # de duas frases que cabe em 140 caracteres.
-            for campo in ("desc", "pronto", "pendencia"):
+            for campo in ("desc", "pronto", "pendencia", "espera_dono"):
                 v = str(it.get(campo, "")).strip()
                 if v:
                     errs.extend(erros_de_estilo(v, "%s %s" % (itag, campo)))
+            # ESPERA DO DONO (S-23). O campo não é bandeira: é a frase do ATO que
+            # só o dono pode fazer (aprovar, publicar, liberar acesso). `true`
+            # solto diria que espera sem dizer o quê, e aí quem lê o relatório não
+            # sabe o que fazer para destravar.
+            esp = it.get("espera_dono")
+            if esp is not None and not (isinstance(esp, str) and esp.strip()):
+                errs.append(
+                    "%s espera_dono: escreva O ATO que só você pode fazer\n"
+                    "     (ex: \"publicar o site\"), ou tire o campo. Bandeira sem\n"
+                    "     o ato diz que espera sem dizer o quê." % itag)
             for campo, teto in (("grupo", 40), ("requisito", 40)):
                 v = str(it.get(campo, "")).strip()
                 if v and len(v) > teto:
@@ -437,7 +447,8 @@ def merge(stored, incoming, renames=None):
             # registro histórico: um init que omite não pode apagar, pelo mesmo
             # motivo que não apaga a prova. Vale pra FASE também — é nela que mora o
             # `detail`, o único lugar do 🔧 Como / 💡 Por quê / 📁 Toca em.
-            for campo in ("requisito", "grupo", "pronto", "pendencia", "decidido", "detail"):
+            for campo in ("requisito", "grupo", "pronto", "pendencia", "espera_dono",
+                          "decidido", "detail"):
                 if campo not in node and old.get(campo) is not None:
                     node[campo] = old.get(campo)
 
@@ -484,6 +495,26 @@ def merge(stored, incoming, renames=None):
     return incoming, notes
 
 
+def _erros_de_redacao_do_no(plan, node_id):
+    """Só os erros de REDAÇÃO da tarefa — o teto de 140, a frase dupla, o conectivo.
+
+    Recalculados com o mesmo prefixo de posição de `erros_do_plano`, pra o `cmd_tick`
+    poder separá-los do resto por igualdade de string.
+    """
+    for pi, ph in enumerate(plan.get("phases", [])):
+        for ii, it in enumerate(ph.get("items", [])):
+            if it.get("id") != node_id:
+                continue
+            itag = "fase[%d] passo[%d]" % (pi, ii)
+            out = []
+            for campo in ("desc", "pronto", "pendencia", "espera_dono"):
+                v = str(it.get(campo, "")).strip()
+                if v:
+                    out.extend(erros_de_estilo(v, "%s %s" % (itag, campo)))
+            return out
+    return []
+
+
 def _erro_e_do_no(msg, plan, node_id):
     """A mensagem cita a tarefa `node_id`?
 
@@ -514,7 +545,7 @@ def _requisitos_do_plano(plan):
         if isinstance(r, dict) and str(r.get("id", "")).strip():
             out[r["id"].strip()] = {"titulo": r.get("titulo", ""), "ca": r.get("ca"),
                                     "ancora": r.get("ancora"), "jornada": r.get("jornada"),
-                                    "epico": r.get("epico")}
+                                    "epico": r.get("epico"), "decisao": r.get("decisao")}
     return out
 
 
@@ -560,6 +591,25 @@ def _jornadas_do_projeto(directory):
     return []
 
 
+def _artigos_do_projeto(directory):
+    """Acha os artigos da lei do projeto. [] se não houver — e isso não é erro.
+
+    Cascata: $PLAN_LEI → <raiz>/.claude/docs/constituicao.md → <raiz>/docs/constituicao.md
+    → []. Mesma forma da cascata das jornadas, pelo mesmo motivo: sem lei escrita não há
+    com o que conferir a citação, e o cruzamento fica quieto em vez de acusar todo mundo.
+    """
+    import cobertura
+    env = os.environ.get("PLAN_LEI")
+    if env and os.path.exists(env):
+        return cobertura.le_artigos(env)
+    raiz = os.path.dirname(os.path.dirname(os.path.abspath(directory)))
+    for cand in (".claude/docs/constituicao.md", "docs/constituicao.md"):
+        p = os.path.join(raiz, cand)
+        if os.path.exists(p):
+            return cobertura.le_artigos(p)
+    return []
+
+
 def cmd_tick(args):
     directory = args.dir or resolve_dir()
     plan = pick_plan(directory, args.plan)
@@ -579,6 +629,17 @@ def cmd_tick(args):
     # plano inteiro (fail-open: bloquear precisa de evidência sobre o alvo).
     erros = erros_do_plano(plan)
     do_alvo = [e for e in erros if _erro_e_do_no(e, plan, node_id)]
+    # …e desde 2026-08-06 a REDAÇÃO da própria tarefa saiu do bloqueio. Mudar o estado
+    # não é reescrever o texto: obrigar a cortar um `desc` de 356 chars pra ticar fez um
+    # executor mutilar descrição antiga só pra registrar trabalho que já estava feito.
+    # O aviso continua — o que caiu é a recusa. Defeito que impede a marcação em si (id
+    # torto, status fora do vocabulário, 'done' sem prova) segue recusando.
+    redacao = set(_erros_de_redacao_do_no(plan, node_id))
+    avisos_redacao = [e for e in do_alvo if e in redacao]
+    do_alvo = [e for e in do_alvo if e not in redacao]
+    for e in avisos_redacao:
+        print("⚠️  redação de %s fora da régua (não bloqueia o tique): %s"
+              % (node_id, e), file=sys.stderr)
     if do_alvo:
         raise PlanError("⛔ tick recusado: %s está fora do schema.\n  - %s"
                         % (node_id, "\n  - ".join(do_alvo)))
@@ -655,7 +716,8 @@ def cmd_cobertura(args):
     import cobertura
     reqs = (cobertura.le_requisitos(args.reqs) if args.reqs
             else _requisitos_do_projeto(directory, plan))
-    m = cobertura.mapa(plan, reqs, _jornadas_do_projeto(directory))
+    m = cobertura.mapa(plan, reqs, _jornadas_do_projeto(directory),
+                       _artigos_do_projeto(directory))
     if args.json:
         print(json.dumps(m, ensure_ascii=False))
         return 0
@@ -666,9 +728,15 @@ def cmd_cobertura(args):
                           ("orfaos", "🔴 requisitos sem tarefa"),
                           ("sem_jornada", "🔴 funcionalidades sem jornada de origem"),
                           ("epicos_sem_jornada", "🔴 épicos sem jornada de origem"),
+                          ("sem_artigo",
+                           "🔴 funcionalidades sem artigo da lei que as motive"),
+                          ("decididas",
+                           "⚪ funcionalidades sem artigo, declaradas como decisão sua"),
                           ("sem_ca", "🔴 requisitos sem critério de aceite"),
                           ("jornadas_sem_funcionalidade",
                            "🔵 jornadas que nenhuma funcionalidade atende"),
+                          ("artigos_inexistentes",
+                           "⛔ requisitos citando artigo que a lei não tem"),
                           ("inexistentes", "⛔ citando requisito inexistente")):
         if m[chave]:
             print()
@@ -1085,7 +1153,11 @@ def cmd_brief(args):
                 ordenados = [["📋 %d plano(s) aberto(s) neste projeto." % n,
                               "• " + cobranca]]
             else:
-                ordenados = [[("📋 %d plano aberto neste projeto — veja com "
+                # Plural fixo, não "plano(s)": este ramo só roda com n >= 2 (o caso de
+                # UM plano sai pelo `if` acima), então a forma singular era garantidamente
+                # errada — "8 plano aberto" foi o que apareceu na tela. Relatado com print
+                # de produção em 2026-08-06.
+                ordenados = [[("📋 %d planos abertos neste projeto — veja com "
                                "plan_state.py open") % n]]
     encerrados = _cabe_no_teto(blocks, BRIEF_MAX_ENCERRADOS, SOBRA_ENCERRADOS)
     print("\n\n".join("\n".join(b) for b in _cabe_no_teto(ordenados) + encerrados))
@@ -1150,6 +1222,9 @@ def _detalhe(it):
         if len(bs) > 1:
             return "prova:\n" + "\n".join("· " + b for b in bs), "pt-evidence"
         return "prova: " + ev, "pt-evidence"
+    esp = str(it.get("espera_dono", "")).strip()
+    if esp:
+        return "⏸️ espera você: " + esp, "pt-desc"
     pend = str(it.get("pendencia", "")).strip()
     if pend:
         return "⛔ falta decidir: " + pend, "pt-desc"
@@ -1173,9 +1248,14 @@ def render_text(plan, reqs=None, vista="execucao", compacto=False):
         out.append("%s %s · %s   (%d/%d)" % (MARK[phase_status(ph)], ph["id"], ph["title"], pd, pt))
         for it in ph["items"]:
             st = it.get("status", "todo")
-            out.append("     %s %s  %s" % (DOT[st], it["id"], it["title"]))
+            # Passo que espera um ato do dono não é "a fazer": ninguém vai pegá-lo
+            # enquanto o ato não acontecer. O bolinha diz isso na própria árvore.
+            ponto = "⏸" if (st != "done" and str(it.get("espera_dono", "")).strip()) else DOT[st]
+            out.append("     %s %s  %s" % (ponto, it["id"], it["title"]))
             if compacto:
-                # a pendência é a única coisa que sobrevive ao corte: ela é o "deu
+                if str(it.get("espera_dono", "")).strip() and st != "done":
+                    out.append("            ⏸️ espera você: %s" % it["espera_dono"])
+                # a pendência sobrevive ao corte junto com a espera acima: ela é o "deu
                 # problema", e esconder problema no modo curto seria o anti-padrão que
                 # o resto deste arquivo existe pra impedir
                 if it.get("pendencia"):

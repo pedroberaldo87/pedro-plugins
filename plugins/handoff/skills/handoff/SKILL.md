@@ -202,6 +202,18 @@ Lê o documento de handoff de uma sessão anterior e apresenta ao usuário pra c
 1. **Ache o handoff — o handoff pertence ao projeto, então onde procurar depende de onde você abriu:**
    - **cwd é uma fronteira de projeto** (tem `.git` — projeto avulso ou raiz de monorepo): procure `{cwd}/.claude/HANDOFF*.md`. Avulso → um `HANDOFF.md`. Monorepo → vários `HANDOFF-<módulo>.md`; liste-os (módulo · idade · 1ª linha do `## Resumo`) e use `git status`/`git diff --name-only` pra inferir qual módulo você mexia por último → esse é o palpite de topo.
    - **cwd é uma pasta guarda-chuva** (sem `.git` — ex: você abriu em `PROGRAMACAO`): os handoffs estão **dentro dos projetos aninhados**. Varra os projetos (dirs com `.git` até ~3 níveis, ignorando node_modules/.venv/etc.) por `.claude/HANDOFF*.md` recentes; use `git status`/`git diff` de cada um como pista do que você mexia; liste e proponha o mais provável. **Delegue essa varredura a Explore subagents Haiku em paralelo** — um agente por projeto candidato, todos numa só mensagem (os projetos são independentes; ver a regra "Exploração delegada" abaixo). Cada agente devolve: caminho do `HANDOFF*.md` achado, mtime, 1ª linha do `## Resumo`, e o `git status`/`git diff --name-only` daquele projeto. Você (titular) consolida e propõe o candidato mais provável.
+   - **O projeto tem worktrees** (`git worktree list` mostra mais de uma linha): o MESMO `HANDOFF-<módulo>.md` existe em cada worktree, com conteúdo diferente, e **ordenar por mtime escolhe o errado** — o arquivo mais novo pode ser o do worktree onde ninguém trabalha (um `git checkout` reescreve mtime, um handoff velho copiado junto com a branch chega "recente"). O handoff certo é **o do worktree onde o trabalho aconteceu**: quem manda é a data do último commit daquele worktree, e o desempate é ter mudança não-commitada. Rode e pegue a PRIMEIRA linha:
+     ```bash
+     git -C "<project_root>" worktree list --porcelain 2>/dev/null | sed -n 's/^worktree //p' | while read -r wt; do
+       for h in "$wt"/.claude/HANDOFF*.md; do
+         [ -f "$h" ] || continue
+         ts=$(git -C "$wt" log -1 --format=%ct 2>/dev/null); [ -n "$ts" ] || ts=0
+         sujo=$(git -C "$wt" status --porcelain 2>/dev/null | wc -l | tr -d ' ')
+         printf '%s\t%s\t%s\n' "$ts" "$sujo" "$h"
+       done
+     done | sort -rn -k1,1 -k2,2
+     ```
+     Cada linha é `<último commit em epoch> <arquivos sujos> <caminho>`. **Confirme com o usuário** mostrando o worktree vencedor e a data do commit que o elegeu — nunca só o nome do arquivo, que é igual nos dois.
    - O LOG verbatim fica em `{project_root}/.claude/ata/LOG-<sessão>.md` (índice em `INDEX.md`). O PRD referencia ids como `[d3]`; abra o LOG quando precisar do texto exato.
    - Se nada for encontrado, diga ao usuário e peça contexto.
    - **Sempre confirme o handoff escolhido antes de agir** (especialmente se houver mais de um candidato).
@@ -224,6 +236,22 @@ Lê o documento de handoff de uma sessão anterior e apresenta ao usuário pra c
    - Espere confirmação explícita antes de fazer qualquer coisa
 
 5. **Reconcilie com o código real ANTES de executar — depois trabalhe.** Antes de tocar em qualquer "Próximo Passo", rode git **no projeto-raiz do handoff que você retomou** (`Project:` no header dele, não o cwd): `git -C "<project_root>" log --oneline -10` + `git -C "<project_root>" status`, e leia os arquivos que o passo cita. O que já está no código → aplica a regra "NUNCA reimplemente" (Regras do RETOMAR, abaixo). Só então pegue de "Em Andamento" / "Próximos Passos".
+   - **⚠️ Toda armadilha declarada no handoff é CONFERIDA, não lida.** O `## Findings & Gotchas` é a lista de erros que já derrubaram o trabalho uma vez — e ler não impede repetir: o erro que derrubou o motor estava escrito lá, com o nome da falha, e a sessão seguinte esbarrou nele mesmo assim. Extraia a lista e trate cada item como uma **checagem a rodar contra o código real**:
+     ```bash
+     python3 - "<handoff_path>" <<'PY'
+     import re, sys
+     texto = open(sys.argv[1], encoding="utf-8").read()
+     m = re.search(r"^## Findings & Gotchas\n(.*?)(?=^## |\Z)", texto, re.S | re.M)
+     itens = [ln.strip() for ln in (m.group(1) if m else "").splitlines() if ln.strip()]
+     for i, it in enumerate(itens, 1):
+         alvos = re.findall(r"`([^`]+)`", it)
+         print("[armadilha %d] %s" % (i, it))
+         print("   conferir em: %s" % (", ".join(alvos) or "SEM ALVO CITADO — pergunte ao usuário onde conferir"))
+     if not itens:
+         print("nenhuma armadilha declarada")
+     PY
+     ```
+     Para cada `[armadilha N]`: abra o alvo citado e verifique **na sessão atual** se a condição que ela descreve vale hoje. Enquanto uma armadilha que toca o alvo de um passo não foi conferida, esse passo fica **bloqueado** — não execute a partir da leitura dela. Armadilha sem alvo citado não vira dispensa: pergunte ao usuário onde conferir. Relate ao usuário, junto do plano de execução, o veredito de cada armadilha (vale hoje / não vale mais / não deu pra conferir).
 
 ### Regras do RETOMAR
 - NUNCA comece a trabalhar antes do usuário confirmar

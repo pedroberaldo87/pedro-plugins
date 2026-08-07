@@ -206,6 +206,54 @@ out=$(gate_out "git commit -m x")
 check "_shared/ intocado pelo commit não é varrido" \
   "$(printf '%s' "$out" | grep -q 'test_quebrado.py' && echo 0 || echo 1)"
 
+
+# ── L · função nova que ninguém chama ───────────────────────────────────────
+# De quatro passos reprovados numa rodada, três tinham código bom que caminho nenhum
+# invocava. Peça que não roda não deixa suíte vermelha — sem este check, nada acusa.
+echo "Check L — peça escrita que ninguém chama"
+mkdir -p "$R/scripts"
+cp "$HERE/../../scripts/fiscal_de_bancada.py" "$R/scripts/"
+printf 'def peca_que_ninguem_invoca():\n    return 1\n' > "$R/plugins/exemplo/lib/peca.py"
+git -C "$R" add -A >/dev/null
+out=$(gate_out "git commit -m x")
+check "funcao nova sem chamador barra o commit" \
+  "$(printf '%s' "$out" | grep -q 'PEÇA SEM CHAMADOR' && echo 1 || echo 0)"
+check "a mensagem aponta o arquivo e a funcao" \
+  "$(printf '%s' "$out" | grep -q 'peca.py' \
+     && printf '%s' "$out" | grep -q 'peca_que_ninguem_invoca' && echo 1 || echo 0)"
+
+printf 'from peca import peca_que_ninguem_invoca\n\nprint(peca_que_ninguem_invoca())\n' \
+  > "$R/plugins/exemplo/lib/consumidor.py"
+git -C "$R" add -A >/dev/null
+out=$(gate_out "git commit -m x")
+check "a mesma peca LIGADA a um chamador passa" \
+  "$(printf '%s' "$out" | grep -q 'PEÇA SEM CHAMADOR' && echo 0 || echo 1)"
+rm -f "$R/plugins/exemplo/lib/peca.py" "$R/plugins/exemplo/lib/consumidor.py"
+
+
+# ── M · aviso escrito no canal que todo consumidor joga fora ────────────────
+# O defeito real: a recusa da reserva de arquivos saía pelo canal de erro, e os
+# caminhos que chamavam o script fechavam a chamada com `2>/dev/null`. O aviso
+# existia, tinha teste, e não chegava a ninguém — nada ficava vermelho por isso.
+echo "Check M — aviso no canal que ninguém lê"
+printf 'echo "a reserva recusou" >&2\n' > "$R/plugins/exemplo/lib/avisador.sh"
+printf 'bash plugins/exemplo/lib/avisador.sh 2>/dev/null\n' > "$R/plugins/exemplo/lib/chama.sh"
+git -C "$R" add -A >/dev/null
+out=$(gate_out "git commit -m x")
+check "aviso cujo unico consumidor descarta o canal barra o commit" \
+  "$(printf '%s' "$out" | grep -q 'AVISO NO VAZIO' && echo 1 || echo 0)"
+check "a mensagem aponta o arquivo que avisa no vazio" \
+  "$(printf '%s' "$out" | grep -q 'avisador.sh' && echo 1 || echo 0)"
+
+# basta UM consumidor que não descarta: o aviso volta a existir
+printf 'bash plugins/exemplo/lib/avisador.sh\n' >> "$R/plugins/exemplo/lib/chama.sh"
+git -C "$R" add -A >/dev/null
+out=$(gate_out "git commit -m x")
+check "o mesmo aviso com um consumidor que escuta passa" \
+  "$(printf '%s' "$out" | grep -q 'AVISO NO VAZIO' && echo 0 || echo 1)"
+rm -f "$R/plugins/exemplo/lib/avisador.sh" "$R/plugins/exemplo/lib/chama.sh" \
+      "$R/scripts/fiscal_de_bancada.py"
+
 echo
 if [ "$FAIL" -gt 0 ]; then echo "FALHOU: $FAIL de $((PASS+FAIL))"; exit 1; fi
 echo "OK ($PASS checks)"
