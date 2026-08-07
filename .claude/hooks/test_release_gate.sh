@@ -254,6 +254,41 @@ check "o mesmo aviso com um consumidor que escuta passa" \
 rm -f "$R/plugins/exemplo/lib/avisador.sh" "$R/plugins/exemplo/lib/chama.sh" \
       "$R/scripts/fiscal_de_bancada.py"
 
+
+# ── N · acoplamento NOVO entre plugins ──────────────────────────────────────
+# O cobrador não tem modo --staged: ele varre o repo inteiro e compara com o retrato.
+# É o retrato que separa a dívida antiga (passa) do acoplamento novo (barra) — sem ele,
+# o gate nasceria reprovando o repositório inteiro e alguém o desligaria na primeira hora.
+echo "Check N — acoplamento entre plugins"
+mkdir -p "$R/scripts" "$R/.claude" "$R/plugins/alfa/skills/alfa" "$R/plugins/beta/lib"
+cp "$HERE/../../scripts/desacoplamento_check.py" "$R/scripts/"
+printf 'print("beta")\n' > "$R/plugins/beta/lib/x.py"
+printf 'A divida antiga: rode plugins/beta/lib/x.py e veja.\n' \
+  > "$R/plugins/alfa/skills/alfa/SKILL.md"
+git -C "$R" add -A >/dev/null
+( cd "$R" && python3 scripts/desacoplamento_check.py --gravar-retrato >/dev/null )
+
+# mexer na linha JÁ retratada — reindentar e empurrá-la pra baixo — não é acoplamento novo
+printf 'Um paragrafo novo no topo.\n\n   A divida antiga:  rode plugins/beta/lib/x.py e veja.\n' \
+  > "$R/plugins/alfa/skills/alfa/SKILL.md"
+git -C "$R" add -A >/dev/null
+out=$(gate_out "git commit -m x")
+check "mexer na linha ja retratada, sem acoplamento novo, passa" \
+  "$(printf '%s' "$out" | grep -q 'ACOPLAMENTO NOVO' && echo 0 || echo 1)"
+
+# uma citação executável a MAIS, que o retrato não conhece
+printf 'Um paragrafo novo no topo.\n\n   A divida antiga:  rode plugins/beta/lib/x.py e veja.\nE agora rode tambem plugins/beta/lib/x.py de outro jeito.\n' \
+  > "$R/plugins/alfa/skills/alfa/SKILL.md"
+git -C "$R" add -A >/dev/null
+out=$(gate_out "git commit -m x")
+check "acoplamento novo entre plugins barra o commit" \
+  "$(printf '%s' "$out" | grep -q 'ACOPLAMENTO NOVO' && echo 1 || echo 0)"
+check "a mensagem aponta o arquivo e o irmao citado" \
+  "$(printf '%s' "$out" | grep -q 'plugins/alfa/skills/alfa/SKILL.md' \
+     && printf '%s' "$out" | grep -q 'dependencia-de-irmao' && echo 1 || echo 0)"
+rm -rf "$R/plugins/alfa" "$R/plugins/beta" "$R/scripts/desacoplamento_check.py" \
+       "$R/.claude"
+
 echo
 if [ "$FAIL" -gt 0 ]; then echo "FALHOU: $FAIL de $((PASS+FAIL))"; exit 1; fi
 echo "OK ($PASS checks)"

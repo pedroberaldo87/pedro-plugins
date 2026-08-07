@@ -387,6 +387,10 @@ def cmd_init(args):
     # conjunto é validar contra o que não vai ficar — foi assim que o init que apagava
     # a fonte era o mesmo que deixava de conferir as citações.
     fonte = incoming if stored is None or _requisitos_do_plano(incoming) else stored
+    if stored is not None and _requisitos_do_plano(incoming):
+        # o merge funde por id, então o que vai FICAR gravado é a união — validar
+        # contra o pedaço reprovaria a tarefa que cita requisito só do arquivo.
+        fonte = dict(incoming, requisitos=_funde_requisitos(stored, incoming)[0])
     validate(incoming, exigir=novos,
              reqs=_requisitos_do_projeto(directory, fonte))
 
@@ -481,6 +485,13 @@ def merge(stored, incoming, renames=None):
         for p in incoming["phases"]:
             p["items"].sort(key=lambda i: int(i["id"].split(".")[1]))
 
+    fundidos, mantidos = _funde_requisitos(stored, incoming)
+    if fundidos is not None:
+        if mantidos:
+            notes.append("%d requisito(s) do arquivo não vieram neste init e foram "
+                         "MANTIDOS: %s" % (len(mantidos), ", ".join(mantidos)))
+        incoming["requisitos"] = fundidos
+
     for key in ("created", "status"):
         incoming[key] = stored.get(key, incoming.get(key))
     # O topo do plano segue a MESMA regra dos nós: o que o init não trouxe vem do
@@ -526,6 +537,24 @@ def _erro_e_do_no(msg, plan, node_id):
             if it.get("id") == node_id:
                 return msg.startswith("fase[%d] passo[%d]" % (pi, ii))
     return False
+
+
+def _funde_requisitos(stored, incoming):
+    """União por id do bloco `requisitos`. Devolve (lista, ids mantidos) ou (None, []).
+
+    A preservação de chave AUSENTE só alcança o init que OMITE o bloco inteiro; o init
+    que traz um pedaço dele (a fase da vez com os 4 requisitos que ela cita) trocava a
+    lista inteira do arquivo pelo pedaço, e os outros 55 sumiam em silêncio. Aqui vale
+    a mesma regra dos nós: o que veio no init vence, o que só existe no arquivo FICA.
+    Declarar a lista VAZIA continua apagando de propósito, como na `pendencia`.
+    """
+    novos = [r for r in (incoming.get("requisitos") or []) if isinstance(r, dict)]
+    if not novos:
+        return None, []
+    vindos = {str(r.get("id", "")).strip() for r in novos}
+    mantidos = [r for r in (stored.get("requisitos") or [])
+                if isinstance(r, dict) and str(r.get("id", "")).strip() not in vindos]
+    return novos + mantidos, [str(r.get("id", "")).strip() for r in mantidos]
 
 
 def _requisitos_do_plano(plan):

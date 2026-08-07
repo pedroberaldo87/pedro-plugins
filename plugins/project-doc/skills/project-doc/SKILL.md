@@ -659,6 +659,15 @@ Destiladas da auditoria de 2026-07-22 (34 erros / 1.509 claims): 68% do drift er
 6. **Generalização ("sempre", "todo X") só com verificação mecânica**; senão qualifique ("nos casos verificados").
 7. **Costura citada existe nos DOIS lados hoje** — verifique o outro módulo; decomissionado = remover a menção (é evento cross-doc), nunca mantê-la.
 
+### Desacoplamento — duas trocas obrigatórias em TODO doc escrito (SEÇÃO CANÔNICA)
+
+Vale para `CLAUDE.md`, todo `.claude/docs/*.md` e todo ponteiro — no FULL, no incremental e no `/doc-touch`, que aponta para cá em vez de repetir a regra. Doc que crava o retrato de hoje envelhece em silêncio: ninguém revalida a frase ao acrescentar um arquivo.
+
+1. **Contagem cravada sai; entra o COMANDO que a produz.** Nunca escreva o número sozinho ("os N plugins", "as N suítes"). Escreva o comando ao lado — `grep -c '^## ' .claude/docs/runtime.md`, `ls plugins | wc -l`, `python3 scripts/<script>.py` — e o número só entra **colado ao comando que o devolveu**, nunca solto. Número com procedência não envelhece: quem lê refaz a medição. Sem comando à mão, use ordem de grandeza ("~20") ou escreva a lista.
+2. **Lista de nomes de plugin sai; entra o ÍNDICE que os enumera.** Nunca enumere em prosa quais plugins existem, nem com quais uma skill conversa — o retrato só quem escreveu sabe atualizar, e plugin novo o deixa errado sem avisar. Aponte o índice que já existe: `.claude-plugin/marketplace.json` para o que é distribuído, `plugins/bootstrap/config/manifest.json` <!-- acopla-ok: o manifest é citado como ÍNDICE a consultar, não como dependência executável --> para o que a máquina instala, `hooks/hooks.json` para o que escuta evento.
+
+**Quem cobra:** `python3 scripts/desacoplamento_check.py` — ele varre os arquivos rastreados e reprova as duas formas (mais o irmão por posição). **Isenção:** quando a contagem ou a lista é o próprio assunto da frase, escreva `acopla-ok: <motivo>` na linha, com o motivo explícito — mesmo molde do `public-ok`. A lei está em `.claude/docs/constituicao.md`, Artigo 9.
+
 ### Regras gerais
 
 - **NEVER include secret values** — só nomes de variável. Escreva `DB_PASSWORD`, nunca `DB_PASSWORD=hunter2`. **Defense-in-depth:** o **scrubber** do lib já é a 1ª barreira (move valores-secreto pro cofre na escrita do journal — ver Collect & Project / check #10); a projeção é a 2ª barreira — não reintroduza um valor que o scrubber pegaria.

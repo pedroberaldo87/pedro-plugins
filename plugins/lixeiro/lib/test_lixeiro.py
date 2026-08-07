@@ -77,7 +77,7 @@ for cmd in ["/opt/homebrew/bin/limactl hostagent --pidfile x",
 # O guarda-costas protege o PROGRAMA claude, não o diretório de configuração dele.
 # O harness põe `~/.claude/…` na linha de TODO comando que lança (snapshot de shell,
 # arquivo de cwd); se o padrão casar nesse caminho, nada que a sessão abre é colhível.
-for cmd in ["/Users/quem-instalou/.local/bin/claude --resume abc --dangerously-skip-permissions",
+for cmd in ["/Users/quem-instalou/.local/bin/claude --resume abc --dangerously-skip-permissions",  # public-ok: conta ficticia; o teste existe pra provar que o caminho ABSOLUTO do harness e reconhecido — trocar por ~ mata o caso
             "claude bg-spare --bg-spare /tmp/cc-daemon-501/x.sock",
             "node ~/.claude/local/node_modules/.bin/claude"]:
     if lixeiro.eh_intocavel(cmd):
@@ -85,12 +85,12 @@ for cmd in ["/Users/quem-instalou/.local/bin/claude --resume abc --dangerously-s
     else:
         bad("a sessão do próprio Claude segue protegida", "intocável", cmd)
 
-HARNESS = ("/bin/zsh -c source /Users/quem-instalou/.claude/shell-snapshots/snapshot-zsh-17.sh "
+HARNESS = ("/bin/zsh -c source /Users/quem-instalou/.claude/shell-snapshots/snapshot-zsh-17.sh "  # public-ok: conta ficticia; o teste existe pra provar que o caminho ABSOLUTO do harness e reconhecido — trocar por ~ mata o caso
            "2>/dev/null || true && eval 'python -m pytest tests/ -q' < /dev/null "
            "&& pwd -P >| /tmp/claude-4a6f-cwd")
 for cmd in [HARNESS,
             "python3 .claude/servir.py 8765",
-            "node /proj/node_modules/.bin/vite --port 5199  # cwd /Users/quem-instalou/.claude/x"]:
+            "node /proj/node_modules/.bin/vite --port 5199  # cwd /Users/quem-instalou/.claude/x"]:  # public-ok: conta ficticia; o teste existe pra provar que o caminho ABSOLUTO do harness e reconhecido — trocar por ~ mata o caso
     if lixeiro.eh_intocavel(cmd):
         bad("o processo lançado pelo harness não é intocável", "colhível", cmd[:70])
     else:
@@ -348,7 +348,7 @@ SID_VIVA = "9e8d7c6b-1111-2222-3333-444455556666"
 RASCUNHO = "/private/tmp/claude-501/-Users-quem-instalou-proj/%s/scratchpad"
 CLAUDE_VIVO = 7100
 procs_r = [
-    proc(CLAUDE_VIVO, "/Users/quem-instalou/.local/bin/claude --resume abc", idade=9000, ppid=1),
+    proc(CLAUDE_VIVO, "/Users/quem-instalou/.local/bin/claude --resume abc", idade=9000, ppid=1),  # public-ok: conta ficticia; o teste existe pra provar que o caminho ABSOLUTO do harness e reconhecido — trocar por ~ mata o caso
     # servidor no rascunho da sessão MORTA: pai perdido, nenhuma anotação
     proc(7101, "python3 -m http.server 8000", idade=9000, ppid=1, rss=204800),
     # mesmo caso, mas a sessão dona do rascunho está viva: NÃO é órfão
@@ -363,7 +363,7 @@ lixeiro._CWD_CACHE[7102] = RASCUNHO % SID_VIVA
 lixeiro._CWD_CACHE[7103] = (RASCUNHO % SID_MORTA) + "/sonda"
 eq(lixeiro.sessao_do_rascunho(RASCUNHO % SID_MORTA), SID_MORTA,
    "o id da sessão é lido do caminho do rascunho")
-eq(lixeiro.sessao_do_rascunho("/Users/quem-instalou/proj/scratchpad"), None,
+eq(lixeiro.sessao_do_rascunho("/Users/quem-instalou/proj/scratchpad"), None,  # public-ok: conta ficticia; o teste existe pra provar que o caminho ABSOLUTO do harness e reconhecido — trocar por ~ mata o caso
    "pasta chamada 'scratchpad' fora do rascunho do harness não vale como procedência")
 eq(lixeiro.orfao_de_rascunho(7101, procs_r), SID_MORTA,
    "processo no rascunho de sessão inexistente é órfão daquela sessão")
@@ -501,7 +501,7 @@ if _ABRE in _TXT and _FECHA in _TXT:
     ]})
     procs_c = [
         # a própria sessão: intocável, e nunca suspeita
-        proc(DONO_C, "/Users/quem-instalou/.local/bin/claude --resume xyz", idade=9000, ppid=1),
+        proc(DONO_C, "/Users/quem-instalou/.local/bin/claude --resume xyz", idade=9000, ppid=1),  # public-ok: conta ficticia; o teste existe pra provar que o caminho ABSOLUTO do harness e reconhecido — trocar por ~ mata o caso
         # o que a anotação viu: classe do comando + procedência anotada
         proc(7301, "python -m pytest /proj/contrato/tests -q", idade=20, ppid=DONO_C),
         # serviço vivo que anotação nenhuma explica

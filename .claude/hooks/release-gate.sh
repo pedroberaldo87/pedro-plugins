@@ -341,6 +341,24 @@ $(printf '%s' "$MOUT" | head -20)
   fi
 fi
 
+# N · acoplamento novo entre plugins (Artigo 9: nada amarra o NOME nem a QUANTIDADE).
+# Plugin que aponta para o irmão por posição (a raiz do plugin mais `/../<irmão>`) ou que manda
+# rodar arquivo de outro plugin quebra na máquina de quem instalou — o cache do harness
+# instala cada plugin em pasta própria. Contagem cravada em prosa envelhece sem avisar.
+# Diferente do H, este cobrador não tem --staged: ele varre todo arquivo rastreado e só sai 1
+# quando aparece achado FORA de .claude/desacoplamento.baseline.json — dívida antiga passa,
+# acoplamento novo reprova.
+# Escopo: só quando o commit traz um dos formatos que ele lê.
+DSC="$ROOT/scripts/desacoplamento_check.py"
+if [ -f "$DSC" ] && printf '%s\n' "$FILES" | grep -qE '\.(md|sh|py|json|yml)$'; then
+  if ! NOUT=$(cd "$ROOT" && python3 "$DSC" 2>&1); then
+    VIOL="${VIOL}
+❌ ACOPLAMENTO NOVO — o arquivo amarra o nome de outro plugin ou crava uma contagem:
+$(printf '%s' "$NOUT" | head -20)
+   → régua: python3 scripts/desacoplamento_check.py"
+  fi
+fi
+
 # F · suites shell dos plugins tocados (as .py já foram no gate D)
 for name in $(printf '%s\n' "$FILES" | sed -n 's#^plugins/\([^/]*\)/.*#\1#p' | sort -u); do
   for t in "$ROOT/plugins/$name/hooks/"test_*.sh; do
