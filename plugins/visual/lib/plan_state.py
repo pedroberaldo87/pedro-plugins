@@ -1156,7 +1156,14 @@ def _detalhe(it):
     return it.get("desc", "") or "", "pt-desc"
 
 
-def render_text(plan, reqs=None, vista="execucao"):
+def render_text(plan, reqs=None, vista="execucao", compacto=False):
+    """A árvore de execução em texto.
+
+    `compacto` existe para a pergunta "onde a gente está?", que se faz muitas vezes por
+    sessão: uma linha por passo, sem a prova nem a linha didática. A árvore inteira de um
+    plano de 37 passos passa de ~130 linhas para ~50, e cabe numa tela. A vista completa
+    continua sendo o padrão — quem quer a prova de um passo feito lê ela.
+    """
     if vista == "valor":
         return _render_valor(plan, reqs or {})
     done, total = plan_progress(plan)
@@ -1167,6 +1174,13 @@ def render_text(plan, reqs=None, vista="execucao"):
         for it in ph["items"]:
             st = it.get("status", "todo")
             out.append("     %s %s  %s" % (DOT[st], it["id"], it["title"]))
+            if compacto:
+                # a pendência é a única coisa que sobrevive ao corte: ela é o "deu
+                # problema", e esconder problema no modo curto seria o anti-padrão que
+                # o resto deste arquivo existe pra impedir
+                if it.get("pendencia"):
+                    out.append("            ⛔ %s" % it["pendencia"])
+                continue
             det = _detalhe(it)[0]
             # `prova:` multilinha chega com \n — cada bullet ganha a mesma sangria
             out += ["            %s" % ln for ln in det.split("\n")]
@@ -1469,7 +1483,8 @@ def cmd_render(args):
     plan = pick_plan(directory, args.plan)
     if args.format == "text":
         sys.stdout.write(render_text(plan, reqs=_requisitos_do_projeto(directory, plan),
-                                     vista=getattr(args, "vista", "execucao")))
+                                     vista=getattr(args, "vista", "execucao"),
+                                     compacto=getattr(args, "compacto", False)))
     else:
         sys.stdout.write(render_html(plan, args.mode,
                                      reqs=_requisitos_do_projeto(directory, plan),
@@ -1631,6 +1646,8 @@ def build_parser():
     q.add_argument("--mode", choices=("track", "approve"), default="track")
     q.add_argument("--format", choices=("html", "text"), default="html")
     q.add_argument("--vista", choices=("execucao", "valor"), default="execucao")
+    q.add_argument("--compacto", action="store_true",
+                   help="uma linha por passo, sem a prova — a vista de 'onde a gente está'")
     q.set_defaults(func=cmd_render)
 
     q = sub.add_parser("page", help="monta a PÁGINA inteira (template + árvore) e imprime o caminho")
