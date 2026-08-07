@@ -58,6 +58,8 @@ fi
 # Terceira camada: interpretador que EXISTE e NÃO executa (o stub da Microsoft Store,
 # que sai 9009). Com ele na frente do PATH, o comando do hooks.json tem que desistir
 # em silêncio — sair 0 e não falar nada — em vez de estourar na cara de quem instalou.
+# Colhe TODO comando que depende de python — pela forma crua (`python3` escrito no
+# comando) e pela forma nova (`hj_py`, a sonda de `hook-json.sh`) — e roda cada um.
 # Fail-open: sem python3 de verdade não dá pra extrair o comando, então o caso é pulado.
 if python3 --version >/dev/null 2>&1; then
   SPEC=$(python3 - <<'PY'
@@ -73,7 +75,7 @@ for caminho in sorted(glob.glob('plugins/*/hooks/hooks.json')):
     def colher(no):
         if isinstance(no, dict):
             cmd = no.get('command')
-            if isinstance(cmd, str) and 'python3' in cmd:
+            if isinstance(cmd, str) and ('python3' in cmd or 'hj_py' in cmd):
                 achado.append(cmd)
             for v in no.values():
                 colher(v)
@@ -82,25 +84,35 @@ for caminho in sorted(glob.glob('plugins/*/hooks/hooks.json')):
                 colher(v)
 
     colher(dados)
-    if achado:
-        print(os.path.dirname(os.path.dirname(caminho)))
-        print(achado[0])
-        break
+    raiz = os.path.dirname(os.path.dirname(caminho))
+    for cmd in achado:
+        # uma linha por alvo: raiz<TAB>comando (o comando não tem quebra de linha)
+        print('%s\t%s' % (raiz, cmd.replace('\n', ' ')))
 PY
   )
-  RAIZ=$(printf '%s\n' "$SPEC" | head -n 1)
-  CMD=$(printf '%s\n' "$SPEC" | tail -n 1)
-  if [ -n "$CMD" ]; then
-    FALSO=$(mktemp -d)
-    printf '#!/bin/sh\nexit 9009\n' > "$FALSO/python3"
-    chmod +x "$FALSO/python3"
+  ALVOS=0
+  FALSO=$(mktemp -d)
+  # o stub engana pelos dois nomes: existe no PATH e não executa
+  printf '#!/bin/sh\nexit 9009\n' > "$FALSO/python3"
+  cp "$FALSO/python3" "$FALSO/python"
+  chmod +x "$FALSO/python3" "$FALSO/python"
+  while IFS="$(printf '\t')" read -r RAIZ CMD; do
+    [ -n "$CMD" ] || continue
+    ALVOS=$((ALVOS + 1))
     SAIDA=$(PATH="$FALSO:$PATH" CLAUDE_PLUGIN_ROOT="$PWD/$RAIZ" sh -c "$CMD" </dev/null 2>&1)
     CODIGO=$?
-    rm -rf "$FALSO"
     if [ "$CODIGO" != "0" ] || [ -n "$SAIDA" ]; then
       echo "FAIL $RAIZ/hooks/hooks.json: com python3 falso (9009) saiu $CODIGO e disse: $SAIDA"
       FAIL=1
     fi
+  done <<EOF
+$SPEC
+EOF
+  rm -rf "$FALSO"
+  # se o radar não achou alvo nenhum, a régua virou decoração: isso é falha.
+  if [ "$ALVOS" = "0" ]; then
+    echo "FAIL scripts/test_python_probe.sh: nenhum comando de hooks.json depende de python — a terceira camada não checou nada"
+    FAIL=1
   fi
 fi
 

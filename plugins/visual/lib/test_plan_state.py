@@ -311,13 +311,27 @@ def main():
             plano["phases"][0]["items"][0]["desc"] = "a" * 356   # edição à mão
             json.dump(plano, open(arq, "w", encoding="utf-8"), ensure_ascii=False)
 
-            check("tique da tarefa DEFEITUOSA é recusado",
-                  _levanta(lambda: ps.cmd_tick(Args(dir=d3, node="F1.1",
-                                                    evidencia="rodei e passou"))))
+            # F9.6 — redação longa da PRÓPRIA tarefa não impede marcá-la feita.
+            # Antes disto o tique era recusado e o executor cortava a descrição
+            # antiga só pra conseguir registrar o que já tinha feito.
+            ps.cmd_tick(Args(dir=d3, node="F1.1", evidencia="rodei e passou"))
+            check("tique passa com descrição longa e antiga",
+                  load(d3, "2026-07-27-teste")["phases"][0]["items"][0]["status"] == "done")
+            check("a descrição longa continua intacta no arquivo",
+                  len(load(d3, "2026-07-27-teste")["phases"][0]["items"][0]["desc"]) == 356)
             ps.cmd_tick(Args(dir=d3, node="F1.2", evidencia="rodei e passou"))
             check("tique de OUTRA tarefa passa com o plano sujo",
                   load(d3, "2026-07-27-teste")["phases"][0]["items"][1]["status"] == "done")
             check("pendencia aberta recusa o tique",
+                  _levanta(lambda: ps.cmd_tick(Args(dir=d3, node="F1.3",
+                                                    evidencia="rodei e passou"))))
+            # O contrapeso do F9.6: só a REDAÇÃO deixou de bloquear. Defeito que
+            # impede a marcação em si continua recusando.
+            plano = json.load(open(arq, encoding="utf-8"))
+            plano["phases"][0]["items"][2]["status"] = "inventado"
+            plano["phases"][0]["items"][2].pop("pendencia")
+            json.dump(plano, open(arq, "w", encoding="utf-8"), ensure_ascii=False)
+            check("status fora do vocabulário continua recusando o tique",
                   _levanta(lambda: ps.cmd_tick(Args(dir=d3, node="F1.3",
                                                     evidencia="rodei e passou"))))
         finally:
@@ -537,6 +551,48 @@ def main():
         check("aprovação: quem vai aprovar vê o bloqueio",
               "⛔ falta decidir: A ou B?" in ps.render_html(pe, mode="approve"))
 
+        print("o passo que espera um ato do dono se declara (S-23)")
+        # A frase do ATO, não uma bandeira: `espera_dono: true` diria que espera sem
+        # dizer o quê, e quem lê o relatório não saberia o que fazer pra destravar.
+        raises("bandeira sem o ato é recusada",
+               lambda: ps.validate(sample(phases=[{"id": "F1", "title": "x", "items": [
+                   {"id": "F1.1", "title": "t", "desc": "d", "espera_dono": True}]}])),
+               "O ATO que só você pode fazer")
+        raises("espera_dono vazia é recusada",
+               lambda: ps.validate(sample(phases=[{"id": "F1", "title": "x", "items": [
+                   {"id": "F1.1", "title": "t", "desc": "d", "espera_dono": "  "}]}])),
+               "O ATO que só você pode fazer")
+        raises("espera_dono de parágrafo cai na mesma régua do resto",
+               lambda: ps.validate(sample(phases=[{"id": "F1", "title": "x", "items": [
+                   {"id": "F1.1", "title": "t", "desc": "d",
+                    "espera_dono": "a" * 200}]}])), "o teto é 140")
+        esp = sample(phases=[{"id": "F1", "title": "x", "items": [
+            {"id": "F1.1", "title": "publicar", "desc": "faz a coisa",
+             "espera_dono": "aprovar e publicar o site"}]}])
+        check("o ato declarado passa", ps.validate(esp) is not None)
+        tesp = ps.render_text(esp)
+        check("texto: a espera aparece", "⏸️ espera você: aprovar e publicar o site" in tesp)
+        check("texto: o bolinha para de dizer 'a fazer'", "⏸ F1.1" in tesp)
+        check("texto: a linha didática cede o lugar", "faz a coisa" not in tesp)
+        check("compacto: a espera sobrevive ao corte",
+              "⏸️ espera você: aprovar e publicar o site"
+              in ps.render_text(esp, compacto=True))
+        check("aprovação: quem aprova o plano vê a espera",
+              "espera você: aprovar e publicar o site"
+              in ps.render_html(esp, mode="approve"))
+        # Sem isto, um `init` que omite o campo desmarca o passo em silêncio — e o
+        # motor volta a soltar executor em cima do que só o dono destrava.
+        init_into(d, sample(id="2026-07-27-espera", phases=[
+            {"id": "F1", "title": "x", "items": [
+                {"id": "F1.1", "title": "publicar", "desc": "faz a coisa",
+                 "espera_dono": "aprovar e publicar o site"}]}]))
+        init_into(d, sample(id="2026-07-27-espera", phases=[
+            {"id": "F1", "title": "x", "items": [
+                {"id": "F1.1", "title": "publicar", "desc": "faz a coisa"}]}]))
+        check("init que omite o campo NÃO desmarca o passo",
+              load(d, "2026-07-27-espera")["phases"][0]["items"][0]
+              .get("espera_dono") == "aprovar e publicar o site")
+
         print("brief — 'onde nós estamos' em 1-3 bullets")
         b = sample(id="2026-07-27-brief")
         init_into(d, b)
@@ -592,7 +648,7 @@ def main():
             check("E2E: sem sessão não afirma onde estamos",
                   "Onde estamos" not in saida and "📍" not in saida)
             check("E2E: conta os 4 em vez de despejar o da vizinha",
-                  "4 plano aberto" in saida)
+                  "4 planos abertos" in saida)
             check("E2E: a saída inteira cabe em 6 linhas",
                   len([x for x in saida.strip().split("\n") if x.strip()]) <= 5)
         finally:
@@ -627,7 +683,11 @@ def main():
             check("sem marca, não despeja o progresso de nenhuma frente",
                   "Video Review" not in saida and "PRISMA" not in saida)
             check("e não afirma onde estamos", "Onde estamos" not in saida)
-            check("conta os 3 planos abertos", "3 plano aberto" in saida)
+            # Casa a frase INTEIRA, com a concordância: o check antigo procurava
+            # "3 plano aberto", que é a forma ERRADA — e por isso ele congelou o
+            # defeito no lugar em vez de acusá-lo. Relatado com print de produção.
+            check("conta os 3 planos abertos, no plural",
+                  "3 planos abertos neste projeto" in saida)
 
             # Plano ilegível vai pro fim da fila em vez de derrubar a listagem.
             with open(ps.plan_path(dsel, "2026-08-02-propostas"), "w", encoding="utf-8") as fh:
@@ -636,7 +696,7 @@ def main():
             with contextlib.redirect_stdout(buf):
                 ps.cmd_brief(Args(dir=dsel, nudge=None, closed_since=None, mark_seen=None))
             check("arquivo torto não derruba — a contagem dos legíveis sai",
-                  "plano aberto" in buf.getvalue())
+                  "planos abertos" in buf.getvalue())
         finally:
             shutil.rmtree(dsel, ignore_errors=True)
 
@@ -667,10 +727,10 @@ def main():
             check("não afirma estar na frente que a sessão não tocou",
                   "Onde estamos" not in depois)
             check("relata a existência dos planos em vez de situar quem lê neles",
-                  "plano aberto" in depois)
+                  "planos abertos" in depois)
             check("sem marca, não despeja o progresso de nenhuma frente",
                   "Agora:" not in depois and "de 3 passos" not in depois)
-            check("conta os planos abertos", "3 plano aberto" in depois)
+            check("conta os planos abertos, no plural", "3 planos abertos neste projeto" in depois)
 
             com_cobranca = corre(base + 500, nudge="⚠️ Nada marcado nesta sessão.")
             check("a cobrança do tique sobrevive à troca de cabeçalho",
@@ -678,11 +738,11 @@ def main():
 
             antes = corre(base - 500)           # marco ANTERIOR: os planos foram tocados
             check("sem sessão, nem com marco anterior afirma sobre a frente",
-                  "Onde estamos" not in antes and "plano aberto" in antes)
+                  "Onde estamos" not in antes and "planos abertos" in antes)
 
             sem_marco = corre(None)             # sem marco não dá pra julgar
             check("sem marco e sem sessão, não mostra progresso de nenhuma frente",
-                  "Onde estamos" not in sem_marco and "plano aberto" in sem_marco)
+                  "Onde estamos" not in sem_marco and "planos abertos" in sem_marco)
         finally:
             shutil.rmtree(dses, ignore_errors=True)
 
@@ -732,7 +792,7 @@ def main():
                   "Onde estamos" in a)
             check("quem não marcou nada não afirma", "Onde estamos" not in c)
             check("e não despeja o progresso da vizinha — só conta",
-                  "plano aberto" in c and "Video Review" not in c)
+                  "planos abertos" in c and "Video Review" not in c)
 
             # marca apontando pra plano encerrado não pode travar o resumo no passado
             ps.cmd_close(Args(dir=dpar, plan="2026-08-01-propostas"))
@@ -1308,6 +1368,83 @@ def main():
                   "1 jornada sem funcionalidade" in saida and "Revisar a semana" in saida)
         finally:
             shutil.rmtree(raiz, ignore_errors=True)
+
+        # A citação de artigo passa a ser CONFERIDA pelo caminho real do produto: o
+        # mesmo `cobertura` que o hook de SessionStart roda acha o constituicao.md pela
+        # cascata e cruza a âncora contra a lei — ninguém precisa pedir.
+        print("cobertura confere a citação de artigo contra a lei do projeto")
+        raiz2 = tempfile.mkdtemp(prefix="plan-lei-")
+        try:
+            docs2 = os.path.join(raiz2, ".claude", "docs")
+            plans2 = os.path.join(raiz2, ".claude", "plans")
+            os.makedirs(docs2)
+            os.makedirs(plans2)
+            with open(os.path.join(docs2, "constituicao.md"), "w", encoding="utf-8") as fh:
+                fh.write("# A lei\n\n## Artigo 6 · o custo é declarado\nO corpo.\n\n"
+                         "## Artigo 7 · a prova acompanha\nO corpo.\n")
+            pl = sample(id="lei-1", phases=[{"id": "F1", "title": "x", "items": [
+                {"id": "F1.1", "title": "campo custo", "desc": "d",
+                 "pronto": "roda o teste", "requisito": "S-4.3"},
+                {"id": "F1.2", "title": "exportar o dia", "desc": "d",
+                 "pronto": "roda o teste", "requisito": "S-4.9"}]}])
+            pl["requisitos"] = [
+                {"id": "S-4.3", "titulo": "Orçamento de energia", "ca": "dia estourado corta",
+                 "ancora": "Art. 6"},
+                {"id": "S-4.9", "titulo": "Exportar o dia", "ca": "gera resumo em texto",
+                 "ancora": "Art. 42"}]
+            init_into(plans2, pl, crus=True)
+            buf2 = io.StringIO()
+            with contextlib.redirect_stdout(buf2):
+                ps.cmd_cobertura(Args(dir=plans2, plan="lei-1", reqs=None, json=False))
+            saida2 = buf2.getvalue()
+            check("o resumo do comando real acusa a citação de artigo inexistente",
+                  "1 requisito citando artigo que a lei não tem" in saida2)
+            check("e nomeia quem citou e o artigo que não existe",
+                  "S-4.9" in saida2 and "Art. 42" in saida2)
+            check("quem cita artigo que a lei tem não é acusado",
+                  "S-4.3 → Art. 6" not in saida2)
+        finally:
+            shutil.rmtree(raiz2, ignore_errors=True)
+
+        # A funcionalidade que não nasce de artigo nenhum é acusada pelo caminho REAL
+        # do produto — o mesmo `cobertura` que acha o constituicao.md pela cascata —
+        # e a que o dono declarou como escolha dele passa marcada, não acusada.
+        print("cobertura acusa funcionalidade sem artigo da lei que a motive")
+        raiz3 = tempfile.mkdtemp(prefix="plan-sem-artigo-")
+        try:
+            docs3 = os.path.join(raiz3, ".claude", "docs")
+            plans3 = os.path.join(raiz3, ".claude", "plans")
+            os.makedirs(docs3)
+            os.makedirs(plans3)
+            with open(os.path.join(docs3, "constituicao.md"), "w", encoding="utf-8") as fh:
+                fh.write("# A lei\n\n## Artigo 6 · o custo é declarado\nO corpo.\n")
+            pl3 = sample(id="art-1", phases=[{"id": "F1", "title": "x", "items": [
+                {"id": "F1.1", "title": "campo custo", "desc": "d",
+                 "pronto": "roda o teste", "requisito": "S-4.3"},
+                {"id": "F1.2", "title": "exportar o dia", "desc": "d",
+                 "pronto": "roda o teste", "requisito": "S-4.9"},
+                {"id": "F1.3", "title": "atalho de teclado", "desc": "d",
+                 "pronto": "roda o teste", "requisito": "S-4.10"}]}])
+            pl3["requisitos"] = [
+                {"id": "S-4.3", "titulo": "Orçamento de energia", "ca": "dia estourado corta",
+                 "ancora": "Art. 6"},
+                {"id": "S-4.9", "titulo": "Exportar o dia", "ca": "gera resumo em texto"},
+                {"id": "S-4.10", "titulo": "Atalho de teclado", "ca": "a tecla abre o dia",
+                 "decisao": "conforto meu, a lei não pede"}]
+            init_into(plans3, pl3, crus=True)
+            buf3 = io.StringIO()
+            with contextlib.redirect_stdout(buf3):
+                ps.cmd_cobertura(Args(dir=plans3, plan="art-1", reqs=None, json=False))
+            saida3 = buf3.getvalue()
+            check("o resumo do comando real acusa a funcionalidade sem artigo",
+                  "1 funcionalidade sem artigo da lei" in saida3)
+            check("e nomeia quem nasceu sem artigo",
+                  "S-4.9" in saida3.split("sem artigo da lei que as motive")[-1])
+            check("a declarada como decisão sua passa marcada",
+                  "1 funcionalidade por decisão declarada" in saida3
+                  and "S-4.10" in saida3.split("declaradas como decisão sua")[-1])
+        finally:
+            shutil.rmtree(raiz3, ignore_errors=True)
 
         print("arquivo corrompido não derruba a listagem")
         before = len(ps.list_plans(d))

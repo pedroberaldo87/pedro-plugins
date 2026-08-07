@@ -306,6 +306,41 @@ $(printf '%s' "$KOUT" | head -30)
   fi
 fi
 
+# L · função nova que caminho nenhum do produto invoca.
+# Nasceu de defeito medido: de quatro passos reprovados numa rodada, TRÊS tinham código
+# bom — bem escrito, com teste próprio — que nenhum lugar da árvore chamava. Peça que não
+# roda não prova critério nenhum, e como ela nunca é executada, nenhuma suíte fica vermelha
+# por causa dela: sem este check o defeito só aparece na revisão humana.
+# Só o eixo sem-chamador entra aqui (--motivo): os motivos sonda e nao-declarado acusam
+# arquivo não rastreado, e trabalho em andamento de outra pessoa travaria este commit.
+# Escopo: só quando o commit traz .py — é onde o fiscal lê as funções (AST).
+FDB="$ROOT/scripts/fiscal_de_bancada.py"
+if [ -f "$FDB" ] && printf '%s\n' "$FILES" | grep -qE '\.py$'; then
+  if ! LOUT=$(cd "$ROOT" && python3 "$FDB" --motivo sem-chamador "$ROOT" 2>&1); then
+    VIOL="${VIOL}
+❌ PEÇA SEM CHAMADOR — função nova que nenhum arquivo da árvore invoca:
+$(printf '%s' "$LOUT" | head -20)
+   → ligue no caminho real (quem chama), ou apague.
+   → régua: python3 scripts/fiscal_de_bancada.py --motivo sem-chamador"
+  fi
+fi
+
+# M · aviso que só existe no canal que todo consumidor joga fora.
+# Nasceu do mesmo defeito medido que o L: a recusa da reserva de arquivos era escrita no
+# canal de erro, e TODO caminho que chamava o script fechava a chamada com `2>/dev/null`.
+# O aviso existia no código, tinha teste, e não chegava a ninguém — e como ele nunca é
+# lido, nada fica vermelho por causa dele. Aviso em canal descartado é aviso que não existe.
+# Escopo: só quando o commit traz .py ou .sh — é onde o fiscal procura a escrita no canal.
+if [ -f "$FDB" ] && printf '%s\n' "$FILES" | grep -qE '\.(py|sh|bash)$'; then
+  if ! MOUT=$(cd "$ROOT" && python3 "$FDB" --motivo aviso-no-vazio "$ROOT" 2>&1); then
+    VIOL="${VIOL}
+❌ AVISO NO VAZIO — aviso escrito no canal que todos os consumidores descartam:
+$(printf '%s' "$MOUT" | head -20)
+   → escreva o aviso no canal que quem chama LÊ, ou tire o 2>/dev/null de quem chama.
+   → régua: python3 scripts/fiscal_de_bancada.py --motivo aviso-no-vazio"
+  fi
+fi
+
 # F · suites shell dos plugins tocados (as .py já foram no gate D)
 for name in $(printf '%s\n' "$FILES" | sed -n 's#^plugins/\([^/]*\)/.*#\1#p' | sort -u); do
   for t in "$ROOT/plugins/$name/hooks/"test_*.sh; do

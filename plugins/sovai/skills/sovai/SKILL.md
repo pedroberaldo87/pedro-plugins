@@ -37,12 +37,17 @@ Antes de disparar o Workflow, acenda o sinal; ao entregar o relatório, apague. 
 SOVAI_DIR="${CLAUDE_CONFIG_DIR:-$HOME/.claude}/sovai"
 mkdir -p "$SOVAI_DIR"
 : > "$SOVAI_DIR/ativo-$CLAUDE_CODE_SESSION_ID"          # ao armar a missão
+SOVAI_MOTOR_ID="motor-$(date -u +%Y%m%dT%H%M%SZ)-$$"    # id DESTE motor na sessão
 rm -f "$SOVAI_DIR"/{ativo,bloqueios}-"$CLAUDE_CODE_SESSION_ID"   # ao entregar
 ```
+
+O `SOVAI_MOTOR_ID` vai no `args` do Workflow como `motorId` (junto com `sessionId` = `$CLAUDE_CODE_SESSION_ID`): é com ele que o motor **reserva os arquivos da onda antes de soltar executor** (`hooks/reserva-de-arquivos.sh reservar`, ver o esqueleto) e os **libera** ao entregar. Dois motores da mesma sessão com o mesmo id se enxergariam como um só, e a reserva nunca recusaria nada.
 
 Enquanto o sinal está aceso, `plugins/sovai/hooks/pretooluse-sovai-motor.sh` **nega** todo disparo de sub-agente e manda rodar o Workflow. Fora do sovai ele é mudo. Desligamento: `SOVAI_GATE=0`.
 
 ⚠️ **Esqueceu de apagar o sinal, a sessão inteira fica sem despachar sub-agente.** Apagar é parte da entrega, não faxina opcional.
+
+**A rede embaixo do esquecimento (desde 2026-08-06):** o sinal **expira por idade**. Passado `SOVAI_TTL_MIN` (default 720 min = 12h) sem ser apagado, a primeira consulta do gate o **remove** — junto com o contador de bloqueios dele — e registra a linha em `expirados.log`. Isso não te dispensa do `rm`: a janela é de 12h porque a missão que o gate protege é longa por definição, e encurtá-la mataria sinal de execução legítima em andamento.
 
 ### Por que o gate precisou nascer
 
@@ -77,11 +82,16 @@ python3 "<skill_dir>/references/r8_tiers.py" args
 # -> { "model": "opus", "tiers": { "decompose": {"effort": "high"}, ... } }
 ```
 
-O script então lê `args.tiers.<knob>.effort` e nunca um literal. Se `args.tiers` chegar
-`undefined` o motor morre na primeira volta, e essa é a falha certa: um default carimbado
-no script seria mais uma cópia do valor, que é justamente o defeito que o contrato R8
-existe pra impedir. Trocar um tier é editar `_shared/r8-tiers.json` e rodar
-`scripts/sync-shared.sh` — nenhum `SKILL.md` muda.
+⚠️ **O bloco de esforço vai ESCRITO DENTRO do texto do script, não lido de `args` em tempo de execução.** Gere a saída do comando acima como uma constante literal no topo do script que você passa ao `Workflow`:
+
+```javascript
+// gerado por references/r8_tiers.py args — não digite à mão, não leia de args.tiers
+const T = { decompose: {effort:'high'}, coordinate: {effort:'medium'}, /* … */ }
+```
+
+O motivo é medido: o canal que levava esse valor até o script **falhava**, e `args.tiers` chegava `undefined` — o que matava o motor na primeira volta. A régua continua a mesma (o valor **nasce** em `_shared/r8-tiers.json`, nunca é inventado aqui); o que muda é **quando** ele entra: na composição do script, não na execução dele. Trocar um tier segue sendo editar o JSON compartilhado e rodar `scripts/sync-shared.sh` — nenhum `SKILL.md` muda.
+
+Ler de `args.tiers` em tempo de execução é a versão que este passo **substitui**: um canal a mais entre o valor e quem o usa, e cada canal a mais é um lugar a mais para o valor sumir em silêncio.
 
 ### Knobs deste motor (a casca passa em `args`)
 
@@ -91,11 +101,69 @@ existe pra impedir. Trocar um tier é editar `_shared/r8-tiers.json` e rodar
 | `severityFloor` | `P1` | Gap abaixo do floor não segura a obra de pé (vira nota no relatório, não nova rodada). |
 | `churnThreshold` | `2` | Mesma tarefa reaparecendo N rodadas **seguidas** → escala pro `diagnose_model`. |
 | `hasQaLoop` | detectado | `false` liga o **confirm-pass** em `finalize_model` antes de declarar `built` (ver a guarda no #2). A casca detecta se a skill `qa-loop` está disponível e passa o booleano — nunca deixa `undefined`, senão a guarda nunca arma. |
+| `tokenBudget` | `null` | **Disjuntor por consumo.** Teto de tokens de saída da missão inteira. Estourou, o motor **se desliga** e relata quanto gastou. `null` = sem teto (o comportamento antigo). |
+| `sessionId` | — | `$CLAUDE_CODE_SESSION_ID`. É a chave da **reserva de arquivos**: a disputa que existe é entre motores da MESMA sessão, e reserva global recusaria toda sessão paralela nos arquivos dela. |
+| `motorId` | — | Identifica ESTE motor dentro da sessão (carimbo de arranque serve). Dois motores com o mesmo id se enxergariam como um só e a reserva nunca recusaria nada. |
+| `silenceLimitMin` | `12` | **Vigia por tempo.** Minutos de registro parado que fazem o vigia acender o sinal. Só derruba se **não houver trabalho vivo** — ver `F9.24` abaixo. |
+| `tetoExecutorMin` | `20` | **Teto de um executor só.** Minutos que um executor tem para entregar; passou disso, ele devolve `espera: true` e a rodada fecha com quem voltou. É teto **por agente**, não da onda — o vigia acima olha o motor inteiro e não enxerga um agente ciclando dentro de uma onda viva. |
 
-Precedência: flag da invocação > default acima. A casca **sempre** materializa os quatro antes de disparar o Workflow — `maxRounds` ausente faz o `while` do motor não rodar nenhuma volta e devolver "pronto" sem ter construído nada.
+Precedência: flag da invocação > default acima. A casca **sempre** materializa os quatro primeiros antes de disparar o Workflow — `maxRounds` ausente faz o `while` do motor não rodar nenhuma volta e devolver "pronto" sem ter construído nada.
 
-- **OPUS #1 — Decompositor.** NÃO planeja do zero. Pega o **plano que você deixou** e o quebra em tarefas de implementação, marcando para cada uma os **arquivos que toca**, se é **paralelizável**, de quais tarefas **depende**, e se é `complexity: 'mechanical'` (operação bem delimitada) ou `'standard'`. Cada tarefa carrega também o **`requisito`** que ela atende e o **`pronto`** que a declara feita — **os dois saem da spec, copiados; nunca redigidos aqui**. Executor não cumpre critério que não recebeu, e critério inventado pelo decompositor faz o revisor medir contra a régua errada. Item da spec que não traz os dois **não vira tarefa: vira Bloqueio** (`whyNeedsYou` = qual dos dois falta). Rodada 1 = `decompose_model` (plano inteiro); rodadas 2+ (re-decompõe só o delta do feedback do #2) = `coordinate_model`. Re-arquitetar é proibido (mesma regra do "não replanejar no headless"); buraco no plano que exija decisão de arquitetura vira **Bloqueio**, nunca invenção silenciosa.
+### Os dois freios que olham a EXECUÇÃO, não a obra
+
+`maxRounds` conta voltas e `severityFloor` mede gaps — nenhum dos dois enxerga a missão gastando três vezes o previsto nem parada há vinte minutos. Foi assim que uma execução em 2026-08-06 disparou **72 agentes para 25 tarefas** sem nada perceber.
+
+- **Disjuntor (de dentro).** O motor soma o que gastou a cada onda; passou de `tokenBudget`, para e relata. É a única trava que enxerga custo, e ela é do script — o `budget.remaining()` do runtime existe, mas quem decide parar é o motor, para o relatório saber dizer **onde** parou.
+- **Vigia (de fora).** Motor parado não se denuncia: quem trava não escreve "travei". Por isso o sinal de vida é o **registro** (o histórico de ondas), e quem o lê é um passo separado. Sem isso, "rodando" e "morto" são a mesma tela.
+
+### O que o vigia narra na tela principal
+
+O dono está fora do browser e olhando o terminal. **Toda mudança de estado vira uma linha; rodada sem mudança fica calada** — silêncio significa "nada mudou", e é isso que faz a narração não virar ruído. Isto é régua, não lista de eventos: evento novo que mude estado também fala, sem precisar entrar numa enumeração aqui.
+
+As linhas de ferramenta longa saem de `lib/andamento.py`, e o contrato dele é o seguinte:
+
+- **Relógio sempre.** Ver o agente em idle não diz **quando** ele parou. Toda linha de disparo abre com a hora local.
+- **Estimativa só por memória deste projeto.** `andamento.estimativa()` devolve a mediana das últimas 5 execuções **daquele mesmo comando, neste projeto**, e `None` quando ele nunca rodou aqui. Comando novo sai **sem número**.
+- **Nunca estime por média global nem por "complexidade".** Medido em 299 transcritos de agente deste repositório: `Bash` tem mediana **0,7s**, p90 **19,1s** e máximo **660,4s**. Com dispersão de quase mil vezes, número inferido é chute com cara de dado — e chute cria expectativa que ninguém sabe que foi chutada.
+- **Progresso vem do placar que a ferramenta imprime**, não de perguntar ao modelo como vai. `andamento.placar()` lê a saída crua nos três formatos medidos (`139 passou · 0 falhou` · `OK (56 checks)` · `17 ok / 0 falhas`, mais o do pytest), e `andamento.avanco()` compara com o anterior.
+- **Dois placares iguais seguidos = `sem avanço`.** Esse é o sinal de "está em círculos", e ele vale porque o outro candidato foi medido e **não pega nada**: 0 de 282 agentes repetiram o mesmo comando 4 vezes ou mais. Detector de repetição de comando seria decoração.
+
+A linha real, gerada pelo módulo:
+
+```
+21:40:22 · python3 …/test_plan_state.py · primeira vez aqui, sem estimativa
+21:40:22 · python3 …/test_plan_state.py · ~1min35s (das 3 vezes anteriores aqui)
+rodando ha 70s  · usual ~1min35s           · 62 passou · 12 falhou — sem avanco
+rodando ha 4min · passou do dobro do usual · 74 passou ·  0 falhou — avancou
+```
+
+Registrar a duração ao fim de cada ferramenta longa (`andamento.registrar(repoRoot, cmd, seg)`) é o que alimenta a estimativa da próxima vez. Suíte roda várias vezes na mesma missão — é dessa repetição que a memória vive.
+
+### A janela de tempo da sessão NÃO dá para observar
+
+Duas coisas diferentes foram confundidas, e a confusão fazia o motor planejar contra um número que não existe:
+
+- **O quanto de conversa já foi usado** — isso **dá** para ver, e é o que o `context-guard` mostra na barra de status.
+- **Quanto tempo falta na janela da sessão** — isso **não** dá para ver de dentro. Não há chamada que responda, e estimar pela hora do relógio é chute.
+
+**A estratégia de parada, então, não é temporal.** O motor para pelo que ele consegue medir: `maxRounds`, `tokenBudget`, o freio de severidade, e o vigia. Quem escrever passo que dependa de "quanto falta de sessão" está escrevendo contra um dado inexistente — e o sintoma é a missão morrer no meio sem checkpoint, que é exatamente o que `F9.14` cobre.
+
+- **OPUS #1 — Decompositor.** NÃO planeja do zero. Pega o **plano que você deixou** e o quebra em tarefas de implementação, marcando para cada uma os **arquivos que toca**, se é **paralelizável**, de quais tarefas **depende**, e se é `complexity: 'mechanical'` (operação bem delimitada) ou `'standard'`. Cada tarefa carrega também o **`requisito`** que ela atende e o **`pronto`** que a declara feita — **os dois saem da spec, copiados; nunca redigidos aqui**. Executor não cumpre critério que não recebeu, e critério inventado pelo decompositor faz o revisor medir contra a régua errada. Item da spec que não traz os dois **não vira tarefa: vira Bloqueio** (`whyNeedsYou` = qual dos dois falta). **Passo que espera um ato do dono chega declarado, e você só transporta:** o `espera_dono` do passo no `.plan.json` vira `esperaDono` na tarefa, **copiado literal**. Não é seu julgamento — não marque tarefa por achar que ela "depende do usuário", e não desmarque a que o plano marcou. É esse campo que tira a tarefa da fila (e, por dependência, quem depende dela): sem ele o motor solta executor num passo que não tem como funcionar, ele volta falhando, e a falha vira churn como se fosse executor incompetente.
+
+  **E o `pronto` é JULGADO antes de virar tarefa, não só copiado.** Critério que só se cumpre **fabricando valor dentro de um entregável** vira `blocker` de `kind: 'criterio'` — nunca tarefa. A régua, e ela é sobre a **origem do valor**, não sobre o caminho do arquivo:
+
+  - **Pode:** regerar o entregável a partir do dado real. É operação do produto.
+  - **Não pode:** injetar valor inventado dentro do entregável para o critério fechar. Isso é bancada, e bancada não entra em coisa que vale.
+
+  O caso que originou: um critério mandava o número aparecer no documento, o executor **obedeceu** e escreveu o número na mão. Quem errou não foi quem executou — foi o critério, e ninguém o julgou antes de soltar o executor. Critério ruim solto vira trabalho errado com todo mundo cumprindo o combinado. Rodada 1 = `decompose_model` (plano inteiro); rodadas 2+ (re-decompõe só o delta do feedback do #2) = `coordinate_model`. Re-arquitetar é proibido (mesma regra do "não replanejar no headless"); buraco no plano que exija decisão de arquitetura vira **Bloqueio**, nunca invenção silenciosa.
 - **EXECUTORES (Opus 5) — Implementam as tarefas.** Tarefa padrão = `executor_model`; `complexity: 'mechanical'` = `mechanical_model`. Independentes rodam **em paralelo**; dependentes, **em série** na ordem do #1. Tarefa única ou missão sequencial pura → o Workflow degenera pra um executor por vez, sem cerimônia (o fan-out é ganho só quando há independência real).
+
+**O texto que o executor recebe abre com três regras, e elas não são conselho — cada uma nasceu de trabalho perdido:**
+
+1. **CONFIRA NO DISCO ANTES DE IMPLEMENTAR.** O primeiro passo é abrir o arquivo do `pronto` e ver se ele já está cumprido. Agente que morre **depois** de escrever some do registro, e a tarefa dele volta como faltante — sem esta checagem, o trabalho é refeito por cima do que já estava lá. Já cumprido: devolve `done: true` com o `arquivo:linha` que prova, e não reescreve nada.
+2. **FORMATAR O PROJETO INTEIRO É PROIBIDO.** Nada de `prettier --write .`, `ruff format .`, `black .`, `eslint --fix .` sem caminho, nem equivalente que varra a árvore. Formatador sem escopo **reformatou 18 arquivos de outros agentes** numa execução real e quase apagou trabalho paralelo. Formate **só os arquivos que esta tarefa tocou**, nomeados um a um.
+3. **SONDA DE DEPURAÇÃO NASCE FORA DO ALCANCE DA SUÍTE.** Precisou de script temporário para investigar? Ele vai para o diretório de rascunho da sessão, **nunca** com nome que a suíte colete (`test_*.py`, `*.spec.ts`, `*_test.go`). Sonda esquecida dentro do alvo da suíte derruba a suíte de todo mundo e some do radar — quem varre depois é o fiscal de bancada (`F8.3`).
+4. **PASSOU DO TETO, PARE E DEVOLVA `espera: true`.** O texto da tarefa traz `tetoMin` — os minutos que você tem. Marque a hora ao começar; chegou no teto sem ter fechado o `pronto`, **pare onde está**, deixe no disco o que já funciona e devolva `{ done: false, espera: true, note: <em que ponto parou e o que falta> }`. Isso **não** é falha: a tarefa volta pro decompositor na rodada seguinte com a sua nota. Ficar mais que o teto tentando terminar é o que segurou **21 agentes já entregues por 2 horas** numa execução real — a onda só fecha quando o último volta, e quem cicla nunca volta.
 
 ⚠️ **`isolation: 'worktree'` é PROIBIDO neste motor.** A regra anterior mandava isolar em worktree duas tarefas paralelas que tocassem o mesmo arquivo, e ela **queimou uma execução inteira em 2026-08-06**: 72 agentes para 25 tarefas, 15 delas executadas **3 vezes cada**, 8 diagnósticos de tarefa-presa, e 49 worktrees com trabalho dentro que ninguém leu.
 
@@ -105,6 +173,16 @@ O mecanismo da falha, e ele é estrutural, não um deslize: o executor termina d
 
 A regra geral que sobrou disto: **isolamento sem fusão declarada é dívida com cara de cuidado.** Se um dia este motor voltar a isolar, o passo que traz de volta nasce no mesmo commit — e o revisor precisa saber onde olhar.
 - **OPUS #2 — Revisor de construção.** Julga a obra **contra a spec** — o plano que a casca passou em `planPath`/`planText`, e que o motor entrega ao #2 igual como entrega ao #1. A decomposição do #1 é **meio**, não fonte da verdade: revisar contra ela é circuito fechado, onde quem decompõe errado é aprovado errado. Cinco eixos: **spec** (a spec saiu, mesmo no que a decomposição não previu?) · **constituição** (o que saiu respeita as metas de qualidade autorais do projeto?) · **rastreio** (toda tarefa decomposta trouxe `requisito` e `pronto`?) · **completude** (toda tarefa decomposta saiu?) · **coesão** (as peças paralelas integram, sem se contradizer?). Desvio de spec vira gap de `kind: 'spec'` e **nasce em severidade ≥ floor**; se vier abaixo, o script o segura assim mesmo — senão sairia do filtro de severidade e passaria calado. **Eixo de rastreio:** tarefa decomposta sem `requisito` ou sem `pronto` **reprova** — vira gap de `kind: 'rastreio'`, que nasce em severidade ≥ floor e é segurado pelo script igual ao de spec. Tarefa sem requisito não tem contra o que ser medida, e sem `pronto` quem executa decide sozinho o que é "feito": nenhuma das duas passa calada. **Eixo de constituição:** o revisor **lê `.claude/docs/constituicao.md` e `.claude/docs/quality-goals.md` do projeto onde a missão está rodando** e sinaliza onde a implementação VIOLA o que está escrito lá. O arquivo é aberto na rodada, **nunca copiado para dentro desta skill** — a régua é a do projeto que instalou, e cópia em prosa defasa. Violação vira gap de `kind: 'constituicao'` pela rubrica de severidade normal, sem faixa própria. **A marca da lei é congelada na primeira volta:** o revisor devolve em `lawMark` a marca do texto que leu (o `cksum` do corpo dos dois arquivos, mesma receita da aprovação), o motor fixa a da rodada 1 e passa ela de volta nas seguintes — o #2 mede contra a lei fixada, nunca contra o texto novo. Lei editada no meio da missão vira **aviso no relatório** (Bloqueio "precisa de você"), porque as rodadas anteriores foram medidas contra o texto antigo; o que não pode acontecer é a régua trocar calada e duas rodadas da mesma missão medirem contra textos diferentes. **Projeto sem esse arquivo: o eixo simplesmente não roda** e a revisão segue com os outros quatro — ausência de constituição não é gap. **Quando a concepção está errada, e não o código:** o mesmo eixo cobre o caso em que o que a execução descobriu contradiz um documento de concepção já aprovado (`status: approved`) — a entrevista errou, o código está certo. Vira gap de `kind: 'concepcao'`, e o revisor **nunca reescreve documento aprovado** — nem o corpo (mexer nele reabre a etapa pela marca do de acordo) nem o frontmatter. O gap sobe como **aviso no relatório** (Bloqueio "precisa de você") propondo **reabrir a etapa**: nomeia o documento, a passagem contradita e a linha `correcao-pendente: {o que precisa mudar}` que o dono grava no frontmatter e cobra até reapresentar e reaprovar. Propor é do motor, escrever é do dono. Continua **não** caçando bug sutil nem rodando a suíte — profundidade de correção é do `/qa-loop` (etapa seguinte). Roda em `coordinate_model`; quando os cinco eixos batem, declara `built=true` **direto** — quem re-checa do zero é o `/qa-loop --headless` que roda logo em seguida (Fase Gate + confirm-pass dele). **Guarda (armada no script, não só na prosa):** com `hasQaLoop=false` o motor roda um **confirm-pass dedicado** em `finalize_model` antes de declarar `built` — sem `/qa-loop` adiante, fechar no veredito de `coordinate_model` seria declarar pronto sem nenhuma segunda checagem. Devolve **feedback estruturado pro #1**, que re-decompõe **só o delta** (o que faltou / precisa refazer) na volta seguinte. A seta de volta #2→#1 é o coração do motor.
+**O revisor manda a sonda dele para fora do alvo da suíte, pela mesma regra do executor.** É a metade de instrução do problema que o fiscal varre depois — quem planta a sonda tem que saber onde ela pode nascer, senão o fiscal vira faxina permanente em vez de rede.
+
+**O juiz prova que leu a coisa inteira.** Todo veredito — do #2, do confirm-pass, do auditor — devolve a **âncora do fim**: a última linha não vazia do que ele julgou, literal. Sem ela o veredito é **recusado** e o papel roda de novo. Nasceu de um caso medido: um juiz aprovou uma página em 36 segundos tendo lido só por busca, e só admitiu quando confrontado. Leitura por amostragem é indistinguível de leitura inteira no texto do parecer — a âncora é a única diferença observável.
+
+- **AUDITOR — a segunda opinião antes de derrubar qualquer coisa.** Executor que declara impossível **não encerra nada sozinho**: bloqueio repetido na mesma tarefa convoca um auditor, e é ele que decide. Aconteceu de verdade — um executor declarou impossível o que ele conseguia fazer com a ferramenta que já tinha na mão.
+
+  O auditor recebe a **lente invertida**: o ônus é dele provar que **não dá**, não do executor provar que dá. E recebe, junto, a **lista do que havia à mão** — as ferramentas disponíveis naquele contexto —, tendo que dizer **quais o executor nem tentou**. Foi essa pergunta que faltou no caso real: o diagnóstico dizia "exige navegador contra produção", o agente **tinha** navegador, e a causa verdadeira era outra (uma dependência não declarada: publicar exigia o aval do dono, e as jornadas de tela dependiam de estar publicado).
+
+  Dois desfechos, e os dois são do script: auditor que **derruba** a alegação devolve a tarefa ao loop com o que ele apontou; auditor que **confirma** encerra a tarefa como impedimento real, com o motivo escrito. Encerrar direto no "impossível" do executor é o que esta peça existe para impedir.
+
 - **DIAGNÓSTICO — escalada de tarefa-presa.** Se a MESMA tarefa reaparece em `missingTasks`/`gaps` por ≥ `churn_threshold` rodadas seguidas (default 2, mesmo limiar do `/qa-loop`), o motor escala ANTES de mandar o executor tentar de novo: um diagnóstico dedicado em `diagnose_model` (R8, "diagnóstico após falhas repetidas") investiga a causa raiz (dependência não mapeada, arquivo errado, premissa furada) em vez de repetir o mesmo pedido esperando resultado diferente. O diagnóstico entra no `feedback` da próxima rodada do #1.
 
 ### Fronteira com o `/qa-loop` (a spec é comum; o ângulo, não)
@@ -135,27 +213,44 @@ export const meta = {
 }
 
 // args (da casca): { planPath, planText, maxRounds, severityFloor, repoRoot,
-//                    churnThreshold, hasQaLoop }
+//                    churnThreshold, hasQaLoop, sessionId, motorId }
+// O parâmetro pode chegar TEXTO (JSON serializado) em vez de objeto — quando isso
+// aconteceu, todo campo lido dele virou undefined e o motor morreu na 1ª volta sem
+// dizer por quê. Converte ANTES de usar, e o resto do script só fala com ARGS.
+const ARGS = typeof args === 'string' ? JSON.parse(args) : args
 const sevRank = s => ({ P0:3, P1:2, P2:1, P3:0 }[s] ?? 0)
-const floor = sevRank(args.severityFloor || 'P1')
-// default DENTRO do motor: sem isso, args.maxRounds undefined faz `r < undefined` ser
+const floor = sevRank(ARGS.severityFloor || 'P1')
+// default DENTRO do motor: sem isso, ARGS.maxRounds undefined faz `r < undefined` ser
 // false na 1ª volta — o motor devolveria "nada construído" em silêncio.
-const maxRounds = args.maxRounds || 5
-const churnThreshold = args.churnThreshold || 2
+const maxRounds = ARGS.maxRounds || 5
+const churnThreshold = ARGS.churnThreshold || 2
 // 'shared' = a tarefa colide em arquivo com OUTRA do MESMO lote → vai em sub-lote SERIAL.
 // NUNCA em worktree: o trabalho ficaria na cópia e o revisor confere no repo real (ver acima).
 const touchesShared = (t, lote) => lote.some(o => o.id !== t.id && o.files?.some(f => t.files?.includes(f)))
 const rounds = []; const blockers = []
 let built = false, r = 0
+// DISJUNTOR e VIGIA — os dois freios que olham a EXECUÇÃO, não a obra. Sem eles o
+// motor gastou 3x o previsto numa execução real (72 agentes p/ 25 tarefas) sem nada
+// perceber, e ficou parado sem se denunciar: quem trava não escreve "travei".
+const tokenBudget = ARGS.tokenBudget || null
+const silenceLimitMs = (ARGS.silenceLimitMin || 12) * 60 * 1000
+// TETO POR EXECUTOR (F9.29) — o vigia acima olha o MOTOR; este olha UM agente. Onda com
+// trabalho vivo não acorda o vigia, então um executor ciclando dentro dela é invisível
+// pros dois freios de cima.
+const tetoExecutorMin = ARGS.tetoExecutorMin || 20
+let ultimoSinalDeVida = ARGS.now      // carimbo passado pela casca (Date.now() não roda em script)
+let desligadoPor = null               // 'orcamento' | 'vigia' — vira stopReason
+const gastoAgora = () => budget.spent()
+const gastoInicial = budget.spent()
 let feedback = null   // do #2 pro #1 na volta seguinte (a seta de volta)
 let lawMark = null    // marca da lei do projeto, CONGELADA na rodada 1 (ver o pino abaixo)
 const taskChurn = {}  // { task_id: nº de rodadas seguidas reaparecendo em missingTasks/gaps }
 
 // Tier por rodada (R8): rodada 1 = decompose_model (planejamento inicial); rodadas 2+
-// = coordinate_model (coordenação rotineira). Os valores chegam em args.tiers, servidos
+// = coordinate_model (coordenação rotineira). Os valores chegam em ARGS.tiers, servidos
 // de references/r8-tiers.json pela casca — nunca literais aqui.
-const T = args.tiers
-const tierFor = round => ({ model: args.model,
+const T = ARGS.tiers
+const tierFor = round => ({ model: ARGS.model,
   effort: round === 1 ? T.decompose.effort : T.coordinate.effort })
 
 while (!built && r < maxRounds) {
@@ -165,7 +260,7 @@ while (!built && r < maxRounds) {
   // DECOMPOR — Opus #1, no tier da rodada. r==1: decompõe o plano inteiro; r>1: só o
   // DELTA do feedback. NUNCA re-arquiteta; buraco que exige decisão de arquitetura
   // vira blocker (não vira tarefa).
-  const decomp = await agent(decomposePrompt({ planPath: args.planPath, planText: args.planText, round: r, feedback }),
+  const decomp = await agent(decomposePrompt({ planPath: ARGS.planPath, planText: ARGS.planText, round: r, feedback }),
     { model: tier.model, effort: tier.effort, phase: 'Decompor', schema: DECOMP })
   // Decompositor morto derruba a rodada inteira (não há tarefa a executar). Sai do laço em
   // vez de estourar — o que já foi construído nas rodadas anteriores continua valendo.
@@ -182,7 +277,7 @@ while (!built && r < maxRounds) {
   for (const t of decomp.tasks) {
     if (taskChurn[t.id] >= churnThreshold) {
       const diag = await agent(diagnoseStuckTaskPrompt({ task: t, attempts: taskChurn[t.id] }),
-        { model: args.model, effort: T.diagnose.effort, phase: 'Diagnose' })   // diagnose_model
+        { model: ARGS.model, effort: T.diagnose.effort, phase: 'Diagnose' })   // diagnose_model
       diagnoses.push({ task_id: t.id, diagnosis: diag })
     }
   }
@@ -190,27 +285,101 @@ while (!built && r < maxRounds) {
   // EXECUTAR — Opus 5 em todo tier (R8). executor_model (padrão) ou mechanical_model
   // (tarefa marcada complexity:'mechanical' — operação bem delimitada, sem julgamento
   // amplo). Só o effort varia; o modelo é sempre opus.
-  const todo = decomp.tasks.filter(t => !t.done)
+  // QUEM DEPENDE DE PASSO PARADO NASCE PARADO (F9.20). Sem isto o motor tentava a cada
+  // rodada o que não tinha como funcionar, falhava igual, e a tarefa entrava no churn como
+  // se fosse executor incompetente — gastando o diagnose_model caro pra redescobrir a
+  // dependência. Bloqueio se propaga por transitividade: quem depende de quem espera, espera.
+  const parado = new Set(blockers.map(b => b.taskId).filter(Boolean))
+  for (const t of decomp.tasks) if (t.esperaDono) parado.add(t.id)
+  let cresceu = true
+  while (cresceu) {
+    cresceu = false
+    for (const t of decomp.tasks) {
+      if (!parado.has(t.id) && (t.dependsOn || []).some(d => parado.has(d))) {
+        parado.add(t.id); cresceu = true
+      }
+    }
+  }
+  const todo = decomp.tasks.filter(t => !t.done && !parado.has(t.id))
+
+  // ESPERA APARECE COMO ESPERA, NÃO COMO FALHA (F8.4 · S-23). Sair da fila não basta:
+  // sem esta lista o passo que espera um ato SEU some do relatório — nem feito, nem
+  // faltando, nem bloqueado — e você não descobre que a missão parou esperando você.
+  // A cadeia é semeada SÓ pelo `esperaDono`: tarefa parada por `blocker` já sai em
+  // `impedidos`, e repeti-la aqui mandaria você agir duas vezes pelo mesmo motivo.
+  const esperaChain = new Map(decomp.tasks.filter(t => t.esperaDono)
+    .map(t => [t.id, `espera um ato seu: ${t.esperaDono}`]))
+  let herdou = true
+  while (herdou) {
+    herdou = false
+    for (const t of decomp.tasks) {
+      const de = (t.dependsOn || []).filter(d => esperaChain.has(d))
+      if (!esperaChain.has(t.id) && de.length) {
+        // quem depende espera JUNTO, e o motivo nomeia de quem: sem o nome, o recado
+        // vira "espera" sem dizer o que destrava.
+        esperaChain.set(t.id, `depende de ${de.join(' · ')}, que espera você`); herdou = true
+      }
+    }
+  }
+  const esperandoVoce = decomp.tasks.filter(t => !t.done && esperaChain.has(t.id))
+    .map(t => ({ taskId: t.id, motivo: esperaChain.get(t.id) }))
+
+  // ── RESERVA DE ARQUIVOS ENTRE MOTORES (F9.2) ────────────────────────────────
+  // Mais de um motor pode estar vivo na MESMA sessão, e dois motores escrevendo o
+  // MESMO arquivo é um apagando o trabalho do outro — com o dono ausente, ninguém
+  // vê acontecer. Por isso o motor REGISTRA a lista da onda ANTES de soltar
+  // executor, rodando `hooks/reserva-de-arquivos.sh reservar <sessão> <motor> <arquivos>`.
+  // Lista que CRUZA com a de um motor vivo volta RECUSADA, e aí esta onda não sai.
+  // Lista disjunta passa: o gate separa quem se encosta, não serializa a sessão.
+  // `touchesShared` acima resolve colisão DENTRO deste motor (sub-lote serial); isto
+  // aqui é a colisão com OUTRO motor, que nenhuma das duas ondas enxerga sozinha.
+  const arquivosDaOnda = [...new Set(todo.flatMap(t => t.files || []))]
+  if (arquivosDaOnda.length) {
+    const reserva = await agent(reservaPrompt({ verbo: 'reservar', sessionId: ARGS.sessionId,
+                                                motorId: ARGS.motorId, files: arquivosDaOnda }),
+      { model: ARGS.model, effort: T.mechanical.effort, phase: 'Executar', schema: RESERVA })
+    // Fail-open, mesma direção do hook: quem foi consultar e não voltou não recusa nada.
+    // Travar a missão por infra de gate é pior que gate nenhum.
+    if (reserva?.recusado) {
+      desligadoPor = 'reserva'
+      blockers.push({ what: `outro motor desta sessão já reservou: ${(reserva.arquivos || []).join(' · ')}`,
+                      whyNeedsYou: 'dois motores no mesmo arquivo é um apagando o trabalho do outro — espere o outro terminar (ele libera ao sair) ou recorte a missão para arquivos que não encostem nos dele' })
+      break
+    }
+  }
   const par = todo.filter(t => t.parallelizable && !(t.dependsOn?.length))
   const seq = todo.filter(t => !t.parallelizable || (t.dependsOn?.length))
-  const execTier = t => ({ model: args.model,
+  const execTier = t => ({ model: ARGS.model,
     effort: t.complexity === 'mechanical' ? T.mechanical.effort : T.executor.effort })
   // quem NÃO colide vai junto; quem colide vai depois, um de cada vez, no MESMO repo
   const livres = par.filter(t => !touchesShared(t, par))
   const colidem = par.filter(t => touchesShared(t, par))
+  // `tetoMin` vai em TODO execPrompt: o teto tem que chegar a quem tem relógio. O script
+  // não tem (ver o vigia), então teto que ficasse só aqui não seria teto de ninguém.
   const builtPar = await parallel(livres.map(t => () =>
-    agent(execPrompt({ task: t }), {
+    agent(execPrompt({ task: t, tetoMin: tetoExecutorMin }), {
       model: execTier(t).model, effort: execTier(t).effort, phase: 'Executar', schema: TASK_RESULT })))
-  for (const t of colidem) builtPar.push(await agent(execPrompt({ task: t }),
+  for (const t of colidem) builtPar.push(await agent(execPrompt({ task: t, tetoMin: tetoExecutorMin }),
     { model: execTier(t).model, effort: execTier(t).effort, phase: 'Executar', schema: TASK_RESULT }))
   const builtSeq = []
-  for (const t of seq) builtSeq.push(await agent(execPrompt({ task: t }),
+  for (const t of seq) builtSeq.push(await agent(execPrompt({ task: t, tetoMin: tetoExecutorMin }),
     { model: execTier(t).model, effort: execTier(t).effort, phase: 'Executar', schema: TASK_RESULT }))
   // Os DOIS lados filtram: `parallel()` devolve null pra thunk que falhou, e o executor
   // sequencial devolve null pelo mesmo motivo (agente morto). Filtrar só o paralelo deixava
   // um `null` entrar em `results` e virar `TypeError` no revisor — a tarefa some do relato
   // em vez de reaparecer em `missingTasks`, que é o caminho que a manda de volta pro #1.
-  const results = builtPar.filter(Boolean).concat(builtSeq.filter(Boolean))
+  const respostas = builtPar.filter(Boolean).concat(builtSeq.filter(Boolean))
+
+  // ── UM EXECUTOR LENTO NÃO SEGURA A RODADA (F9.29) ───────────────────────────
+  // Medido em 2026-08-06: 21 agentes já entregues esperaram 2 HORAS por um só que
+  // ciclava, e a rodada não fechou pra ninguém — a onda só termina quando o último
+  // volta. O teto está no texto do executor (regra 4); o que é do SCRIPT é o que
+  // fazer com quem estourou: `espera: true` NÃO é resultado. Sai de `results` (o
+  // revisor não recebe meia obra como obra), entra no `missing` do #1 na volta
+  // seguinte, e a rodada FECHA com quem voltou. Sem esta separação, o teto do
+  // executor seria só um jeito mais educado de perder o trabalho da onda.
+  const esperaIds = respostas.filter(x => x.espera).map(x => x.task_id)
+  const results = respostas.filter(x => !x.espera)
 
   // REVISAR — Opus #2, no tier da rodada (coordinate_model). Contra a SPEC (o plano vai
   // junto, igual ao #1): spec + constituição + rastreio + completude + coesão. A decomposição
@@ -222,7 +391,7 @@ while (!built && r < maxRounds) {
   // NÃO roda a suíte nem caça bug — isso é o /qa-loop depois.
   // `lawMark` vai junto: na rodada 1 é null (o #2 calcula e devolve); nas seguintes é a
   // marca FIXADA, contra a qual ele mede — não contra o texto que estiver no disco agora.
-  const review = await agent(reviewBuildPrompt({ planPath: args.planPath, planText: args.planText, repoRoot: args.repoRoot, decomp, results, round: r, lawMark }),
+  const review = await agent(reviewBuildPrompt({ planPath: ARGS.planPath, planText: ARGS.planText, repoRoot: ARGS.repoRoot, decomp, results, round: r, lawMark }),
     { model: tier.model, effort: tier.effort, phase: 'Revisar', schema: BUILD_REVIEW })
 
   // AGENTE MORTO NÃO PODE DERRUBAR O MOTOR. `agent()` devolve null quando o subagente
@@ -237,8 +406,8 @@ while (!built && r < maxRounds) {
   if (!review) {
     blockers.push({ what: `revisor da rodada ${r} não respondeu`,
                     whyNeedsYou: 'a obra desta rodada ficou SEM revisão — trate como não verificada' })
-    rounds.push({ r, decomp, results, review: null, diagnoses })
-    feedback = { gaps: [], missing: [], diagnoses }
+    rounds.push({ r, decomp, results, review: null, diagnoses, espera: esperaIds, esperandoVoce })
+    feedback = { gaps: [], missing: esperaIds, diagnoses }
     continue
   }
 
@@ -274,7 +443,74 @@ while (!built && r < maxRounds) {
   const stuck = new Set([...(review.missingTasks || []), ...(review.gaps || []).map(g => g.task_id)])
   for (const t of decomp.tasks) taskChurn[t.id] = stuck.has(t.id) ? (taskChurn[t.id] || 0) + 1 : 0
 
-  rounds.push({ r, decomp, results, review, diagnoses })
+  rounds.push({ r, decomp, results, review, diagnoses, espera: esperaIds, esperandoVoce })
+
+  // ── PONTO DE SALVAMENTO POR ONDA (F9.14/F9.15) ──────────────────────────────
+  // Até aqui o trabalho só era salvo no FIM: motor interrompido no meio deixava tudo
+  // solto no disco e a sessão seguinte não sabia o que já tinha saído. Agora cada onda
+  // que fecha VERDE vira ponto de salvamento — e onda VERMELHA não salva, senão o
+  // checkpoint viraria "salvei a quebra".
+  //
+  // A suíte roda ao FIM DE CADA ONDA, não no fim da missão. Rodando só no fim, a quebra
+  // chega com vinte tarefas empilhadas em cima dela e ninguém sabe qual a causou.
+  const suite = await agent(runSuitePrompt({ repoRoot: ARGS.repoRoot, round: r }),
+    { model: ARGS.model, effort: T.mechanical.effort, phase: 'Suíte', schema: SUITE_RESULT })
+  if (!suite) {
+    // Mesma porta das outras: quem não respondeu não aprovou. Sem veredito da suíte a
+    // onda NÃO vira checkpoint — a direção segura é não salvar.
+    blockers.push({ what: `a suíte da rodada ${r} não respondeu`,
+                    whyNeedsYou: 'esta onda ficou SEM checkpoint — o trabalho está no disco, não no histórico' })
+  } else if (suite.green) {
+    await agent(checkpointPrompt({ repoRoot: ARGS.repoRoot, round: r, results }),
+      { model: ARGS.model, effort: T.mechanical.effort, phase: 'Salvar' })
+    rounds[rounds.length - 1].checkpoint = true
+  } else {
+    // Onda vermelha: relata QUAL quebrou. "A suíte falhou" sem o nome manda a próxima
+    // rodada procurar no escuro.
+    blockers.push({ what: `a suíte quebrou na rodada ${r}: ${suite.failing?.join(' · ') || 'sem detalhe'}`,
+                    whyNeedsYou: 'onda vermelha não vira ponto de salvamento — conserte antes de seguir' })
+  }
+
+  // ── O MOTOR ESCREVE NO PLANO O QUE ACABOU DE FAZER (F9.10) ──────────────────
+  // Ele LIA o plano pra saber o que fazer e NUNCA escrevia de volta. Consequência medida:
+  // a sessão seguinte não sabia o que já tinha saído e refazia — e uma auditoria inteira
+  // foi gasta pra descobrir isso. Quem marca é o motor, com a prova do executor, porque
+  // exigir que alguém marque à mão depois é a mesma promessa que já falhou.
+  if (ARGS.planPath?.endsWith('.plan.json')) {
+    for (const t of results.filter(x => x?.done && x.task_id)) {
+      await agent(tickPlanPrompt({ planPath: ARGS.planPath, taskId: t.task_id,
+                                   evidencia: `${t.summary} · ${(t.files_touched || []).join(' ')}` }),
+        { model: ARGS.model, effort: T.mechanical.effort, phase: 'Marcar' })
+    }
+  }
+
+  // ── DISJUNTOR POR CONSUMO (F9.12) ───────────────────────────────────────────
+  // Conta o que ESTA missão gastou (spent() é do turno inteiro, então mede o delta) e
+  // desliga por conta própria. Quem para é o motor, não o runtime, pra o relatório poder
+  // dizer ONDE parou — "acabou o orçamento" sem a rodada não ajuda ninguém.
+  const gasto = gastoAgora() - gastoInicial
+  if (tokenBudget && gasto >= tokenBudget) {
+    desligadoPor = 'orcamento'
+    blockers.push({ what: `disjuntor: a missão gastou ${gasto} de ${tokenBudget} tokens e se desligou na rodada ${r}`,
+                    whyNeedsYou: 'o que faltou está nas tarefas abertas do plano — relance com teto maior se valer' })
+    break
+  }
+
+  // ── VIGIA POR TEMPO (F9.13 + F9.24) ─────────────────────────────────────────
+  // Registro mudo por tempo demais é travamento, e de DENTRO ninguém enxerga isso. O
+  // sinal de vida é a onda ter fechado; quem não fechou nada há silenceLimitMin está
+  // parado. MAS parada com trabalho vivo NÃO é travamento: agente rodando uma suíte de
+  // 11 minutos parece agente morto, e os dois calam igual. Por isso a condição é dupla.
+  const agora = ARGS.now + (rounds.length ? 0 : 0)   // a casca reinjeta o relógio por rodada
+  if (suite?.heartbeat) ultimoSinalDeVida = suite.heartbeat
+  const mudo = agora - ultimoSinalDeVida
+  if (mudo > silenceLimitMs && !suite?.trabalhoVivo) {
+    desligadoPor = 'vigia'
+    blockers.push({ what: `vigia: nada mudou no registro há ${Math.round(mudo / 60000)} min e não há trabalho vivo`,
+                    whyNeedsYou: 'travamento, não demora — o último estado salvo é o checkpoint da rodada anterior' })
+    break
+  }
+
   // desvio de spec e falta de requisito/pronto seguram a obra SEMPRE: nascem em severidade
   // >= floor, e se o revisor devolver abaixo o script os mantém no filtro. Sem isso um gap
   // de spec P2/P3 sairia da conta e passaria calado — o freio é do script, não da memória
@@ -289,9 +525,9 @@ while (!built && r < maxRounds) {
   // máquina (hasQaLoop=false) não existe segunda checagem lá na frente: o motor NÃO pode
   // fechar no veredito barato da rodada — roda o confirm-pass dedicado em finalize_model.
   if (review.complete && review.cohesive && gaps.length === 0) {
-    if (args.hasQaLoop === false) {
-      const confirm = await agent(confirmBuildPrompt({ planPath: args.planPath, planText: args.planText, repoRoot: args.repoRoot, decomp, results, lawMark }),
-        { model: args.model, effort: T.finalize.effort, phase: 'Confirmar', schema: BUILD_REVIEW })   // finalize_model
+    if (ARGS.hasQaLoop === false) {
+      const confirm = await agent(confirmBuildPrompt({ planPath: ARGS.planPath, planText: ARGS.planText, repoRoot: ARGS.repoRoot, decomp, results, lawMark }),
+        { model: ARGS.model, effort: T.finalize.effort, phase: 'Confirmar', schema: BUILD_REVIEW })   // finalize_model
       rounds[rounds.length - 1].confirm = confirm
       // Mesma guarda do revisor, e aqui a direção segura é mais dura ainda: este pass é a
       // ÚNICA segunda checagem que existe quando não há /qa-loop adiante. Ele não responder
@@ -312,22 +548,64 @@ while (!built && r < maxRounds) {
     built = true; break
   }
   // sem o gap de concepção: ele é aviso pro dono, não tarefa pro #1 re-decompor.
-  feedback = { gaps: review.gaps.filter(g => g.kind !== 'concepcao'), missing: review.missingTasks, diagnoses }   // alimenta o DECOMPOR da próxima volta
+  // quem parou no teto entra no `missing` mesmo que o revisor não o tenha listado: ele não
+  // falhou, só não coube na onda — e sem isto a tarefa sumiria do delta da próxima volta.
+  feedback = { gaps: review.gaps.filter(g => g.kind !== 'concepcao'),
+               missing: [...new Set([...(review.missingTasks || []), ...esperaIds])], diagnoses }   // alimenta o DECOMPOR da próxima volta
 }
+
+// O QUE FALTOU, SEPARADO POR MOTIVO (F9.19). Os dois chegavam misturados, e quem lê não
+// sabia se esperava mais uma rodada ou se tinha que agir. São perguntas diferentes:
+// impedimento não sai com mais tempo — falta de tempo sai.
+const impedidos = blockers.filter(b => b.whyNeedsYou).map(b => ({ ...b, motivo: b.what }))
+// quem parou no teto do executor é falta de tempo por definição — sai aqui, com o motivo,
+// e NUNCA em `impedidos`: mandar o dono agir sobre uma tarefa que só precisava de outra
+// volta é o mesmo erro que este par de listas existe pra desfazer.
+const naoDeuTempo = rounds.length
+  ? [...(rounds[rounds.length - 1].review?.missingTasks || []).map(id => ({ taskId: id })),
+     ...(rounds[rounds.length - 1].espera || []).map(id => ({ taskId: id, motivo: `passou do teto de ${tetoExecutorMin} min do executor` }))]
+  : []
+// ESPERA NÃO É FALHA (F8.4). Terceira lista, e não um pedaço das outras duas: não sai com
+// mais rodada (então não é `naoDeuTempo`) e não é impedimento descoberto no caminho (então
+// não é `impedidos`) — é um ato SEU que o plano já declarava, e o dependente espera junto.
+const esperandoVoce = rounds.length ? (rounds[rounds.length - 1].esperandoVoce || []) : []
 
 return {
   rounds, built, blockers, lawMark,   // lawMark = a lei contra a qual a missão INTEIRA foi medida
-  stopReason: built ? 'build-complete' : 'max-rounds',
-  telemetry: rounds.map(x => ({ round: x.r, tasks: x.results.length, gaps: x.review.gaps.length })),
+  impedidos,          // não sai com mais rodada — precisa de você
+  naoDeuTempo,        // sairia com mais rodada; o teto é que chegou antes
+  esperandoVoce,      // nem falha nem falta de tempo: espera um ato seu, declarado no plano
+  gasto: gastoAgora() - gastoInicial,
+  stopReason: desligadoPor || (built ? 'build-complete' : 'max-rounds'),
+  telemetry: rounds.map(x => ({ round: x.r, tasks: x.results.length,
+                                gaps: x.review?.gaps.length ?? null,
+                                checkpoint: !!x.checkpoint })),
 }
 ```
 
 **Schemas (JSON Schema, resumidos):**
-- `DECOMP` — `{ tasks: [{ id, desc, requisito, pronto, files: [...], parallelizable: bool, dependsOn: [id...], done: bool, complexity?: 'standard'|'mechanical' }], blockers: [{ what, whyNeedsYou }] }`. **`requisito` e `pronto` são obrigatórios** — `requisito` = o item da spec que a tarefa atende, `pronto` = o critério de feito dele, **os dois copiados da spec, não redigidos pelo decompositor** (o executor não tem como cumprir o que não recebe, e critério inventado aqui vira régua falsa no #2). Item da spec sem um dos dois vira `blocker`, não tarefa. `complexity: 'mechanical'` = operação bem delimitada (renomear, mover arquivo, 1 config, 1 valor); ausente/`'standard'` = tarefa normal.
-- `TASK_RESULT` — `{ task_id, files_touched: [...], summary, done: bool, note }`.
+- `DECOMP` — `{ tasks: [{ id, desc, requisito, pronto, files: [...], parallelizable: bool, dependsOn: [id...], done: bool, complexity?: 'standard'|'mechanical', esperaDono?: string }], blockers: [{ what, whyNeedsYou }] }`. **`requisito` e `pronto` são obrigatórios** — `requisito` = o item da spec que a tarefa atende, `pronto` = o critério de feito dele, **os dois copiados da spec, não redigidos pelo decompositor** (o executor não tem como cumprir o que não recebe, e critério inventado aqui vira régua falsa no #2). Item da spec sem um dos dois vira `blocker`, não tarefa. `complexity: 'mechanical'` = operação bem delimitada (renomear, mover arquivo, 1 config, 1 valor); ausente/`'standard'` = tarefa normal. **`esperaDono`** = a frase do ato que só o dono pode fazer, **copiada do `espera_dono` do passo no `.plan.json`** — nunca inventada aqui, e nunca deduzida do texto da tarefa. Tarefa com `esperaDono` **não entra na fila do motor** (nenhum executor é solto nela), e quem `dependsOn` dela também não: os dois saem em `esperandoVoce`, com o motivo. Passo sem o campo no plano é tarefa normal.
+- `TASK_RESULT` — `{ task_id, files_touched: [...], summary, done: bool, note, anchor, espera: bool }`. **`anchor`** = a última linha não vazia do que o executor leu para decidir que estava pronto — a prova de leitura inteira (ver "o juiz prova que leu"). **`espera`** = o executor bateu no `tetoMin` e parou por isso (regra 4 dele). O script tira essas do `results` — o revisor não recebe meia obra como obra — e as manda pro `missing` do #1 na volta seguinte; a rodada **fecha com quem voltou**. `espera: true` não é falha e não vira Bloqueio: sai em `naoDeuTempo`, com o teto no motivo.
+- `SUITE_RESULT` — `{ green: bool, failing: [nome...], placar, heartbeat, trabalhoVivo: bool }`. **`placar`** = a linha crua que a suíte imprimiu (`139 passou · 0 falhou`, `OK (56 checks)`, `17 ok / 0 falhas`), lida por `lib/andamento.py:placar` e comparada com a da onda anterior — dois placares iguais seguidos saem como `sem avanço`. **`trabalhoVivo`** separa demora de travamento: com ele `true`, o vigia **não** derruba, por mais silencioso que esteja o registro. **`heartbeat`** = o carimbo de tempo do último sinal de vida, que a casca reinjeta a cada rodada (o script não tem relógio próprio).
+- `blocker` de `kind: 'criterio'` — critério de aceite que só se cumpre injetando valor inventado dentro de entregável. Não vira tarefa: vira Bloqueio, e o `whyNeedsYou` diz qual passo da spec precisa reescrever o `pronto`.
+- `RESERVA` — `{ recusado: bool, arquivos: [caminho...] }`. O papel é **mecânico e só**: rodar `${CLAUDE_PLUGIN_ROOT}/hooks/reserva-de-arquivos.sh reservar <sessionId> <motorId> <arquivo>...` e devolver o veredito do JSON que saiu — `recusado: true` quando veio `permissionDecision: "deny"`, com `arquivos` = os caminhos em disputa que a recusa nomeou. Script mudo = `recusado: false` (reservou). Sem julgamento próprio: quem decide é o hook, o agente só transporta.
+- `tickPlanPrompt` — **sem schema** (nada volta pro script). Papel **mecânico e só**: gravar no plano o passo que acabou de sair, rodando
+
+  ```bash
+  python3 <plugin visual>/lib/plan_state.py --dir <raiz>/.claude/plans tick <plano> <taskId> --evidencia "<evidencia>"
+  ```
+
+  A prova é **a do executor** (`summary` + `files_touched` do `TASK_RESULT`), nunca redigida por quem marca: o `tick` recusa marcação sem prova, e prova inventada aqui seria o carimbo sem a obra. Recusa do `tick` (decisão em aberto, passo fora do schema) **não derruba a onda** — o trabalho já está no disco, e perder a onda por causa do registro é pior que o registro faltando. Plano que não é arquivo (`planPath` sem `.plan.json`) não é marcado por ninguém: o script nem chama este papel.
+- `checkpointPrompt` — **sem schema** (nada volta pro script). Papel **mecânico e só**: gravar no **histórico do git** o que a onda verde produziu, rodando
+
+  ```bash
+  git -C <raiz> add -A && git -C <raiz> commit -q -m "sovai: onda <r> verde" || true
+  ```
+
+  É este commit que faz motor interrompido no meio (vigia, disjuntor, sessão morta) deixar as ondas já fechadas **no histórico** em vez de soltas no disco — sem ele, quem chegar depois não tem como separar o que fechou verde do que ficou pela metade. Commit **local e só**: o push é uma vez, na persistência do fim. Árvore limpa faz o `commit` sair não-zero, e isso **não** é falha — o `|| true` é o fail-open, pela mesma regra do `tick`: perder a onda por causa do registro é pior que o registro faltando.
 - `BUILD_REVIEW` — `{ complete: bool, cohesive: bool, gaps: [{ task_id, kind: 'spec'|'constituicao'|'concepcao'|'rastreio'|'completude'|'coesao', severity: 'P0'|'P1'|'P2'|'P3', problem }], missingTasks: [id...], lawMark: string|null }`. **`lawMark`** = a marca da lei que ESTA rodada leu — o `cksum` do corpo de `.claude/docs/constituicao.md` + `.claude/docs/quality-goals.md` (mesma receita da marca de aprovação; corpo, sem frontmatter). Projeto sem esses arquivos devolve `null` e o pino nunca arma. O motor congela a marca da rodada 1 e a devolve ao revisor nas seguintes; marca diferente da fixada **não** troca a régua — vira aviso no relatório (Bloqueio "precisa de você"). `kind: 'rastreio'` = tarefa decomposta chegou **sem `requisito` ou sem `pronto`** — nasce em severidade **≥ `severityFloor`** e o script o segura no filtro mesmo se vier abaixo (mesmo tratamento do gap de spec), porque tarefa sem os dois campos não é medível por ninguém depois. `kind: 'spec'` = o que a spec pede não saiu (ou saiu diferente), **mesmo com a decomposição cumprida** — nasce em severidade **≥ `severityFloor`** (P1 por default) e o script o mantém no filtro mesmo se vier abaixo, senão o gap sai da conta e passa calado. `kind: 'constituicao'` = o que saiu viola a `.claude/docs/constituicao.md` ou o `.claude/docs/quality-goals.md` do projeto — severidade normal (o filtro de floor vale), e `problem` cita a passagem violada, porque a régua vive no arquivo lido na rodada, não aqui. Sem esse arquivo no projeto, este `kind` simplesmente não aparece. `kind: 'concepcao'` = o que a execução descobriu contradiz um documento de concepção já aprovado — **não segura a obra** (o executor não tem o que consertar no código), sai do filtro e vira aviso no relatório propondo reabrir a etapa, com a linha `correcao-pendente:` sugerida em `problem`. `task_id` de gap de spec ou de constituição pode ser `null`: o buraco que a decomposição não previu não tem tarefa a que pertencer.
 
-O `stopReason`, os `blockers` e a telemetria entram no relatório final (`### Verificação` e `### Bloqueios`). Terminado o motor (`built` ou teto), segue direto pro **QA final** abaixo — que é onde defeito é caçado.
+O `stopReason`, o `gasto` (quanto a missão queimou — sem ele, "desliguei" não diz se foi caro ou barato), os `blockers` e a telemetria entram no relatório final (`### Verificação` e `### Bloqueios`); o `esperandoVoce` entra na seção `### Esperando você`, que é dele e de mais ninguém — despejá-lo em `### Bloqueios` é chamar de falha o que só espera a sua vez. Terminado o motor (`built` ou teto), segue direto pro **QA final** abaixo — que é onde defeito é caçado.
 
 ## QA final (antes do relatório)
 
@@ -358,11 +636,14 @@ Passada a QA e **ANTES** de montar o relatório, persista o trabalho. Esta é a 
    - Árvore limpa (nada pra commitar) → pula e anota "nada a persistir".
    - Falha de push (sem remote, sem auth, rejeição) → **não force**; registra como `Bloqueio (precisa de você)` com o erro real e segue pro relatório (o commit local fica feito).
 
-3. **Apaga o sinal do sovai.** É o par do `mkdir` da seção _Execução_, e é obrigatório:
+3. **Apaga o sinal do sovai e LIBERA os arquivos reservados.** É o par do `mkdir` da seção _Execução_ e da reserva que o motor fez antes de executar, e é obrigatório:
 
    ```bash
    rm -f "${CLAUDE_CONFIG_DIR:-$HOME/.claude}/sovai"/{ativo,bloqueios}-"$CLAUDE_CODE_SESSION_ID"
+   bash "${CLAUDE_PLUGIN_ROOT}/hooks/reserva-de-arquivos.sh" liberar "$CLAUDE_CODE_SESSION_ID" "$SOVAI_MOTOR_ID"
    ```
+
+   Reserva não liberada recusaria o próximo motor da sessão nos mesmos arquivos — é o mesmo esquecimento do sinal, com outro nome. (Há rede embaixo: a reserva expira por idade, mesma janela de 12h do sinal.)
 
    Deixar aceso faz a sessão inteira continuar sem poder despachar sub-agente **depois** de a missão acabar — o gate não sabe que você terminou, só sabe do arquivo.
 
@@ -388,6 +669,9 @@ Cinco seções. Monte este conteúdo PRIMEIRO; a forma de entrega (HTML ou markd
 ### Bloqueios (precisam de você)
 - [item pulado]: [o que faltou]
 
+### Esperando você (não é falha)
+- [taskId]: [motivo — direto do `esperandoVoce` do motor]
+
 ### Verificação
 - [o que rodou, e o resultado — incluindo doc atualizada (doc-touch ou FULL, e qual dos dois), commit e push]
 
@@ -407,6 +691,7 @@ Por que HTML: o relatório é longo e completo, e o usuário vai **revisar item 
 No spec, **`item_labels: ["✓ Manter", "✏️ Mudar", "✗ Remover"]`** — NUNCA "✓ Vira ação" (esse é do relatório do /qa-loop: lá cada achado vira ação no próximo plano).
 
 - **Bloqueios (precisam de você)** → **topo**, prioridade máxima. Default: `.callout` severidade alta (um bloqueio é "não consegui X porque faltou Y" — sem ramificação). **Só** vire `.decision-card` se houver escolha A/B **genuína** já clara — nunca fabrique duas opções pra preencher o card (regra anti-"chutar"). Os ⚠️ alertas de plano/arquitetura do qa-loop entram aqui (normalmente `.callout`; só decision-card se for binário de verdade).
+- **Esperando você (não é falha)** → logo abaixo dos Bloqueios, `.callout` de severidade média — um por linha do `esperandoVoce`, com o `motivo` inteiro. Nunca misture com Bloqueios (lá é "não consegui"; aqui é "não tentei, porque é sua vez") nem com o que não deu tempo. Lista vazia: a seção não sai.
 - **Feito** → cada item = `.feedback-item` com veredito inline + profundidade em `<details>`. O usuário revisa enquanto lê.
 - **Decisões tomadas** → cada decisão = `.feedback-item` (o usuário aprova ou marca pra rever) + razão em 1 linha.
 - **Verificação** → `.callout` (ok/danger): o que rodou + resultado. Read-only.
@@ -426,6 +711,6 @@ Os títulos dos bloqueios são um **índice** (não o conteúdo) — segurança,
 
 ### Fallback (markdown)
 
-Se a Skill `visual` **não** estiver disponível, emita o **relatório markdown completo** (o bloco de conteúdo acima, com as 5 seções preenchidas) direto no CLI. É um fallback à altura: entrega 100% da mesma informação — só a apresentação degrada, não o conteúdo.
+Se a Skill `visual` **não** estiver disponível, emita o **relatório markdown completo** (o bloco de conteúdo acima, com as 6 seções preenchidas) direto no CLI. É um fallback à altura: entrega 100% da mesma informação — só a apresentação degrada, não o conteúdo.
 
 Detalhe técnico só se o usuário pedir depois.

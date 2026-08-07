@@ -127,27 +127,35 @@ def ultimo_texto(transcript):
 
 
 def planos_abertos(cwd):
-    """Os planos ativos com passo em aberto. Lista vazia desarma o gate."""
+    """Os planos ativos com passo em aberto. Lista vazia desarma o gate.
+
+    Devolve (planos, de_reserva). `de_reserva` sai do CODIGO DE SAIDA 3 do
+    resolve-dir.sh — o stderr dele e capturado e descartado aqui, entao o texto
+    do aviso nao chegaria a lugar nenhum; o `returncode` chega, e daqui ele vai
+    para o `reason` do bloqueio, que e o que o modelo le.
+    """
     if not PLAN_STATE.is_file() or not RESOLVE_DIR.is_file():
-        return []
+        return [], False
     try:
         r = subprocess.run(["bash", str(RESOLVE_DIR), cwd, "plans"],
                            capture_output=True, text=True, timeout=10)
         plans_dir = (r.stdout or "").strip()
+        de_reserva = r.returncode == 3
     except (subprocess.SubprocessError, OSError):
-        return []
+        return [], False
     if not plans_dir or not os.path.isdir(plans_dir):
-        return []
+        return [], de_reserva
     try:
         r = subprocess.run([sys.executable, str(PLAN_STATE), "--dir", plans_dir,
                             "open", "--json"], capture_output=True, text=True, timeout=10)
         abertos = json.loads((r.stdout or "").strip() or "[]")
     except (subprocess.SubprocessError, OSError, ValueError):
-        return []
+        return [], de_reserva
     if not isinstance(abertos, list):
-        return []
-    return [p for p in abertos
-            if isinstance(p, dict) and (p.get("total", 0) - p.get("done", 0)) > 0]
+        return [], de_reserva
+    return ([p for p in abertos
+             if isinstance(p, dict) and (p.get("total", 0) - p.get("done", 0)) > 0],
+            de_reserva)
 
 
 def main():
@@ -175,7 +183,7 @@ def main():
         batida("espera o usuario", sid)
         sys.exit(0)
 
-    abertos = planos_abertos(payload.get("cwd") or os.getcwd())
+    abertos, de_reserva = planos_abertos(payload.get("cwd") or os.getcwd())
     if not abertos:
         batida("sem plano aberto", sid)
         sys.exit(0)
@@ -205,6 +213,10 @@ def main():
     trecho = " ".join(cauda.split())[-160:]
     batida("devolveu", sid, trecho)
 
+    reserva = ("\n\n⚠️ Este plano veio da RESERVA, nao deste diretorio: \"%s\" nao tem "
+               "marcador de projeto. Confirme com o usuario que e o plano certo."
+               % (payload.get("cwd") or os.getcwd())) if de_reserva else ""
+
     print(json.dumps({"decision": "block", "reason": (
         "VOCÊ ANUNCIOU E NÃO EXECUTOU.\n\n"
         "O turno terminou prometendo continuar, e a ação não veio. Isso não é um "
@@ -212,11 +224,12 @@ def main():
         "anúncio da próxima etapa pararam ali (2 de 2), contra nenhum dos 42 que "
         "fecharam sem anúncio.\n\n"
         "O que você escreveu no fim: \"…%s\"\n"
-        "O plano \"%s\" tem %d passo(s) em aberto; o próximo é %s.\n\n"
+        "O plano \"%s\" tem %d passo(s) em aberto; o próximo é %s.%s\n\n"
         "Execute agora, neste mesmo turno. O relatório de fechamento sai SEM frase "
         "de transição — a primeira ação da etapa seguinte vai junto dele.\n"
         "Se você precisa de uma decisão do usuário, pergunte de forma explícita em "
-        "vez de anunciar." % (trecho, p.get("title", p.get("id", "")), falta, proxima)
+        "vez de anunciar." % (trecho, p.get("title", p.get("id", "")), falta, proxima,
+                              reserva)
     )}, ensure_ascii=False))
     sys.exit(0)
 

@@ -137,8 +137,21 @@ Escrever o documento **não fecha** a etapa. O ciclo é este, e ele repete:
    confrontar). É aqui que a coisa vira acordo de verdade.
 3. **Corrigir e REAPRESENTAR.** Toda objeção volta pro documento e o documento volta pra tela. Não
    há teto de rodadas: o que fecha o loop é a fala do dono, não o cansaço.
-4. **Gravar o de acordo** — `status: approved` + `approved: {data de hoje}` — só depois de ele dizer
+4. **Conferir o que ficou sem dono** — `lib/rastreio_etapas.py`, rodado no fechamento e só nele.
+5. **Gravar o de acordo** — `status: approved` + `approved: {data de hoje}` — só depois de ele dizer
    que está satisfeito.
+
+**A conferência de rastreio acontece no fechamento, nunca no meio da entrevista.** Duas pontas
+soltam sozinhas e nenhuma dói na hora: **funcionalidade sem origem** (item de `features.md` que não
+aponta a jornada, a meta ou a peça que o pediu) e **jornada sem funcionalidade** (jornada de
+`journeys.md` que nada realiza). Quem as conta é `lib/rastreio_etapas.py`, e ele **só conta — não
+escreve em documento nenhum**: conferência que edita texto aprovado reabriria a etapa pela marca
+(`approved-sig`), e é justamente o que o `correcao-pendente:` existe para evitar. A saída dele é
+cobrança visível no relatório, não um gate — o de acordo do dono continua sendo dele.
+
+```bash
+python3 "${CLAUDE_PLUGIN_ROOT}/lib/rastreio_etapas.py" .   # → JSON com as duas listas
+```
 
 **A sabatina não é juíza.** Ela não aprova, não reprova e não decide se o documento está bom: ela é o
 **caminho** até o acordo. Quem aprova é o dono, e a aprovação dele mora no frontmatter do próprio
@@ -181,6 +194,26 @@ python3 ${CLAUDE_PLUGIN_ROOT}/lib/decisoes_estruturais.py <raiz-do-projeto>
   regra acima — e lembre que ela alimenta a pergunta, nunca vira a resposta.
 - A resposta entra em `solution-strategy.md`, em **As decisões estruturantes**; sem resposta, fica
   `[PENDENTE]` como qualquer outra.
+
+### As quatro de segurança — essas são sempre feitas, e cada uma vem com o dado
+
+O mesmo comando imprime, embaixo, um bloco `seguranca:` com **quatro perguntas que não têm gatilho**:
+quem acessa o quê · que dado de pessoa fica guardado · quanto pode cair · o que fica exposto.
+Segurança adiada não é pergunta economizada, é dívida — por isso aqui a regra do "sem sinal não
+pergunta" **não vale**.
+
+O que o projeto minerado decide não é *se* a pergunta entra, é **com que dado ela entra**:
+
+- `o projeto confirma: <arquivo> (<trecho>)` — achou no código o que a resposta afirmaria.
+- `o projeto contradiz: <o que foi procurado e não existe>` — a ausência é o dado. Ela é a mais útil
+  das duas: é ela que transforma "claro que tem controle de acesso" em divergência **visível**, na
+  hora, com o dono na frente.
+
+**Leve o dado junto da pergunta, sempre — inclusive quando ele contradiz.** Se a resposta bater com o
+dado, escreva as duas coisas. Se divergir, não corrija o dono nem o dado: registre a divergência
+literal (ele conhece intenção que o código ainda não tem — ou o código conhece um vazamento que ele
+não sabia). As respostas entram em `solution-strategy.md`, em **As decisões estruturantes**; a de
+dado de pessoa entra **também** em `constraints.md`, em *Legais / regulatórias*.
 
 ---
 

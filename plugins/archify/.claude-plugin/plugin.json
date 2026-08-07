@@ -1,6 +1,6 @@
 {
   "name": "archify",
-  "version": "2.12.0",
+  "version": "2.12.1",
   "description": "Create professional architecture, workflow, sequence, data-flow, and lifecycle/state diagrams as explorable standalone HTML files with SVG graphics, dark/light themes, and export to PNG/JPEG/WebP/SVG/WebM. Accepts plain-language descriptions or pasted Mermaid code.",
   "author": {
     "name": "tt-a1i",

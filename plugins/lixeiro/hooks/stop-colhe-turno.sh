@@ -59,11 +59,18 @@ except Exception:
 if not mortos:
     sys.exit(0)
 mb = sum(m.get("rss_mb", 0) for m in mortos)
-alvo = mortos[0].get("cmd", "")[:60]
+# A passagem do caminhão é ANUNCIADA, não silenciosa: encerrar processo é ação com
+# efeito, e ação com efeito que ninguém vê é indistinguível de nada ter acontecido.
+# Sem markdown: `systemMessage` chega LITERAL no terminal (patterns §1.5a).
+print("🚚💨 Caminhão do lixo passando ♻️")
 if len(mortos) == 1:
-    print("🧹 Encerrei 1 processo aberto por esta sessão, liberando %d MB." % mb)
+    print("   Encerrei 1 processo aberto por esta sessão, liberando %d MB." % mb)
 else:
-    print("🧹 Encerrei %d processos que ficaram abertos, somando %d MB." % (len(mortos), mb))
+    print("   Encerrei %d processos que ficaram abertos, somando %d MB." % (len(mortos), mb))
+for m in mortos[:3]:
+    print("   · %s  (%d MB)" % (m.get("cmd", "")[:64], m.get("rss_mb", 0)))
+if len(mortos) > 3:
+    print("   · ⋯ e mais %d" % (len(mortos) - 3))
 ' 2>/dev/null)
 
 # O aviso do que NÃO é colhível — o lixo sem procedência, que só a faxina manual

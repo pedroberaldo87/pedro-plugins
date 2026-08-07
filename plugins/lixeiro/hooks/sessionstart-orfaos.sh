@@ -43,7 +43,8 @@ except Exception:
 if not mortos:
     sys.exit(0)
 mb = sum(m.get("rss_mb", 0) for m in mortos)
-print("🧹 Sessão anterior deixou %d processo(s) de pé — encerrei, %d MB de volta." % (len(mortos), mb))
+print("🚚💨 Caminhão do lixo passando ♻️")
+print("   Sessão anterior deixou %d processo(s) de pé — encerrei, %d MB de volta." % (len(mortos), mb))
 ' 2>/dev/null)
 
 [ -n "$MSG" ] && hj_msg "$MSG"

@@ -13,8 +13,12 @@ Os três defeitos que esta suíte impede:
 Os nomes de arquivo das etapas são contrato: quem cobra lacuna lê daqui.
 """
 
+import hashlib
+import json
 import os
+import subprocess
 import sys
+import tempfile
 
 AQUI = os.path.dirname(os.path.abspath(__file__))
 PLUGIN = os.path.join(AQUI, "..")
@@ -26,6 +30,67 @@ DESIGN = os.path.join(PLUGIN, "skills", "design-md", "SKILL.md")
 GRILL_ME = os.path.join(RAIZ_PLUGINS, "grill-me", "skills", "grill-me", "SKILL.md")
 GRILL_DOCS = os.path.join(RAIZ_PLUGINS, "grill-with-docs", "skills",
                           "grill-with-docs", "SKILL.md")
+VISUAL_PAGE = os.path.join(RAIZ_PLUGINS, "visual", "lib", "visual_page.py")
+HISTORICO = os.path.join(PLUGIN, "lib", "historico.py")
+RASTREIO = os.path.join(PLUGIN, "lib", "rastreio_etapas.py")
+
+# O projeto de bancada da conferência de fechamento (F4.3): duas pontas soltas de
+# propósito — a F-2 não aponta origem, e a jornada "Arquivar um plugin" não é
+# realizada por funcionalidade nenhuma.
+BANCADA_JOURNEYS = """---
+authored-by: human
+status: approved
+approved: 2026-01-02
+---
+
+# Jornadas
+
+## Publicar um plugin novo
+- **Ator:** o dono do marketplace
+- **Percurso:** escreve → valida → publica
+
+## Arquivar um plugin
+- **Ator:** o dono do marketplace
+- **Percurso:** decide → tira do catálogo
+"""
+
+BANCADA_FEATURES = """---
+authored-by: human
+status: ready
+approved:
+---
+
+# Funcionalidades
+
+## As funcionalidades
+
+### F-1 · Publicar o plugin
+- **O que faz:** manda o plugin para o catálogo
+- **Origem:** jornada "Publicar um plugin novo" de `journeys.md`
+- **Passagem que a motivou:** "escreve → valida → publica"
+
+### F-2 · Mandar e-mail de boas-vindas
+- **O que faz:** avisa quem instalou
+- **Passagem que a motivou:** "achei bonito"
+
+## Deixado de fora de propósito
+- **Assinatura paga** — não é deste sistema
+"""
+
+
+def _impressao(raiz):
+    """Assinatura de tudo que existe embaixo de `raiz` — caminho + conteúdo."""
+    marcas = []
+    for pasta, _dirs, arqs in os.walk(raiz):
+        for a in sorted(arqs):
+            caminho = os.path.join(pasta, a)
+            with open(caminho, "rb") as fh:
+                marcas.append("%s:%s" % (os.path.relpath(caminho, raiz),
+                                         hashlib.sha256(fh.read()).hexdigest()))
+    return "\n".join(sorted(marcas))
+
+# Os vereditos por item são valor de MÁQUINA — quem os lê é o parser do /visual.
+VEREDITOS = ("keep", "change", "remove")
 
 # Os documentos de etapa, na ordem em que as etapas fecham.
 ETAPAS = [
@@ -105,6 +170,31 @@ def main():
     check("a tabela de etapas da skill tem a linha de funcionalidades",
           "**Funcionalidades**" in skill)
 
+    print("cada funcionalidade e curada item a item, com a passagem ao lado (F4.2)")
+    check("a skill manda usar o bloco `item` do /visual, o componente que ja existe",
+          "**um bloco `item`**" in skill and "visual_page.py" in skill)
+    check("os tres vereditos sao os valores de maquina do spec",
+          all("`%s`" % v in skill for v in VEREDITOS))
+    check("o rotulo humano troca por item_labels, o valor de maquina nao",
+          "item_labels" in skill)
+    check("a passagem que motivou o item fica visivel junto do veredito",
+          "**passagem literal** do documento aprovado que a motivou" in skill)
+    check("item sem veredito NAO grava",
+          "Item sem veredito não grava" in skill)
+    check("radio em branco nao vale como manter",
+          "Rádio em branco não é `keep`" in skill)
+    check("o que ele mudou vai para o historico, pelo programa que ja existe",
+          "lib/historico.py" in skill and "features.historico.md" in skill)
+    if os.path.exists(VISUAL_PAGE):
+        spec = ler(VISUAL_PAGE)
+        check("os tres vereditos existem mesmo no /visual (contrato, nao invencao)",
+              all('"%s"' % v in spec for v in VEREDITOS))
+    else:
+        print("  --   plugin visual ausente (fora do repo) — 1 checagem pulada")
+    hist = ler(HISTORICO)
+    check("o historico.py expoe o reescrever que a skill manda chamar",
+          "def reescrever(" in hist)
+
     print("o de acordo fica gravado DENTRO do documento")
     check("o frontmatter do contrato tem o campo approved:",
           "approved: {YYYY-MM-DD}" in kit)
@@ -173,6 +263,46 @@ def main():
           "**Passo 5/7:** De acordo" in skill)
     check("etapa escrita e nao aprovada conta como lacuna no modo gaps",
           "Etapa escrita e não aprovada conta como lacuna" in skill)
+
+    print("fechar a etapa confere o que ficou sem dono (F4.3)")
+    check("existe o programa que conta as duas pontas soltas",
+          os.path.exists(RASTREIO))
+    check("a skill roda a conferencia no passo de fechamento, sem ninguem pedir",
+          "rastreio_etapas.py" in skill
+          and em_ordem(skill, ["### 5 · Apresentar, sabatinar e colher o de acordo",
+                               "rastreio_etapas.py", "**Grave o de acordo**"]))
+    check("a conferencia so conta — nao escreve em documento nenhum",
+          "só conta — não escreve em documento nenhum**" in skill
+          and "só conta — não escreve em documento nenhum**" in kit)
+    check("o kit poe a conferencia no fechamento, nunca no meio da entrevista",
+          "acontece no fechamento, nunca no meio da entrevista" in kit
+          and "lib/rastreio_etapas.py" in kit)
+    check("o relatorio traz a contagem do que ficou sem dono",
+          "Sem dono → {N} funcionalidades sem origem · {M} jornadas sem funcionalidade" in skill)
+
+    banca = tempfile.mkdtemp(prefix="start-doc-bancada-")
+    docs = os.path.join(banca, ".claude", "docs")
+    os.makedirs(docs)
+    with open(os.path.join(docs, "journeys.md"), "w", encoding="utf-8") as fh:
+        fh.write(BANCADA_JOURNEYS)
+    with open(os.path.join(docs, "features.md"), "w", encoding="utf-8") as fh:
+        fh.write(BANCADA_FEATURES)
+    antes = _impressao(banca)
+    proc = subprocess.run([sys.executable, RASTREIO, banca],
+                          capture_output=True, text=True)
+    check("a conferencia roda no projeto de bancada e devolve JSON",
+          proc.returncode == 0 and proc.stdout.strip().startswith("{"))
+    saida = json.loads(proc.stdout) if proc.stdout.strip().startswith("{") else {}
+    check("funcionalidade sem origem aparece na contagem",
+          saida.get("funcionalidades_sem_origem") == ["F-2 · Mandar e-mail de boas-vindas"])
+    check("jornada sem funcionalidade aparece na contagem",
+          saida.get("jornadas_sem_funcionalidade") == ["Arquivar um plugin"])
+    check("a funcionalidade com origem e a jornada realizada NAO sao acusadas",
+          saida.get("contagem", {}).get("funcionalidades") == 2
+          and saida.get("contagem", {}).get("jornadas") == 2
+          and saida.get("sem_dono") == 2)
+    check("a conferencia nao alterou nada no projeto de bancada",
+          _impressao(banca) == antes)
 
     print("as duas sabatinas sabem que nao sao juizas")
     if not (os.path.exists(GRILL_ME) and os.path.exists(GRILL_DOCS)):

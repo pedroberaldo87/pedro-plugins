@@ -155,7 +155,14 @@ def resolve_script(root, plug, cmd):
     # POSIX do Linux). O script fica no rabo, após o ';', em três formas:
     # "$CLAUDE_PLUGIN_ROOT"/hooks/x.sh · python3 "$…/hooks/x.py" · bash "$…/hooks/x.sh".
     if re.search(r"tr\s+'\\\\'\s+/", cmd):
-        m = re.search(r'/hooks/([\w.-]+\.(?:sh|py))', cmd)
+        # O que é SOURCEADO não é o hook — é biblioteca. Sem tirar o `source` da
+        # frente, o primeiro `/hooks/*.sh` do comando é sempre `hook-json.sh`, e o
+        # scanner passava a medir a BIBLIOTECA: cobrava cap e kill-switch dela por
+        # causa do `hj_deny` que ela oferece, quando quem decide bloquear é o hook
+        # que a chama — e esse tem o kill-switch dele. Falso-positivo confirmado em
+        # 2026-08-07, em 3 plugins de uma vez.
+        limpo = re.sub(r"(^|[;&|]|\s)(\.|source)\s+\"?[^\s;&|\"]+\"?", r"\1", cmd)
+        m = re.search(r'/hooks/([\w.-]+\.(?:sh|py))', limpo)
         if m:
             return os.path.join(root, "plugins", plug, "hooks", m.group(1))
     m = re.search(r"\$\{?CLAUDE_PLUGIN_ROOT\}?/(.+)$", cmd.strip())
