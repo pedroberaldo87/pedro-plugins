@@ -3,97 +3,6 @@
   "description": "Third-party Claude Code marketplaces and plugins the user uses. Auto-synced via bootstrap hooks. The pedro-plugins entry is manually maintained and preserved across snapshots.",
   "marketplaces": [
     {
-      "name": "pedro-plugins",
-      "source": "https://github.com/pedroberaldo87/pedro-plugins.git",
-      "sourceType": "git",
-      "plugins": [
-        {
-          "name": "archify",
-          "enabled": true
-        },
-        {
-          "name": "bootstrap",
-          "enabled": true
-        },
-        {
-          "name": "branches",
-          "enabled": true
-        },
-        {
-          "name": "context-guard",
-          "enabled": true
-        },
-        {
-          "name": "fallow",
-          "enabled": true
-        },
-        {
-          "name": "graphify-guard",
-          "enabled": false
-        },
-        {
-          "name": "grill-me",
-          "enabled": true
-        },
-        {
-          "name": "grill-with-docs",
-          "enabled": true
-        },
-        {
-          "name": "guardrails",
-          "enabled": true
-        },
-        {
-          "name": "handoff",
-          "enabled": true
-        },
-        {
-          "name": "improve",
-          "enabled": true
-        },
-        {
-          "name": "intent-guard",
-          "enabled": false
-        },
-        {
-          "name": "lixeiro",
-          "enabled": true
-        },
-        {
-          "name": "principles",
-          "enabled": true
-        },
-        {
-          "name": "project-doc",
-          "enabled": true
-        },
-        {
-          "name": "qa-loop",
-          "enabled": true
-        },
-        {
-          "name": "ship",
-          "enabled": true
-        },
-        {
-          "name": "slides",
-          "enabled": true
-        },
-        {
-          "name": "sovai",
-          "enabled": true
-        },
-        {
-          "name": "vision",
-          "enabled": true
-        },
-        {
-          "name": "visual",
-          "enabled": true
-        }
-      ]
-    },
-    {
       "name": "agent-browser",
       "source": "https://github.com/vercel-labs/agent-browser.git",
       "sourceType": "git",
@@ -179,6 +88,17 @@
       ]
     },
     {
+      "name": "impeccable",
+      "source": "https://github.com/pbakaus/impeccable.git",
+      "sourceType": "git",
+      "plugins": [
+        {
+          "name": "impeccable",
+          "enabled": true
+        }
+      ]
+    },
+    {
       "name": "obsidian-skills",
       "source": "https://github.com/kepano/obsidian-skills.git",
       "sourceType": "git",
@@ -196,6 +116,101 @@
       "plugins": [
         {
           "name": "codex",
+          "enabled": true
+        }
+      ]
+    },
+    {
+      "name": "pedro-plugins",
+      "source": "https://github.com/pedroberaldo87/pedro-plugins.git",
+      "sourceType": "git",
+      "plugins": [
+        {
+          "name": "archify",
+          "enabled": true
+        },
+        {
+          "name": "bootstrap",
+          "enabled": true
+        },
+        {
+          "name": "branches",
+          "enabled": true
+        },
+        {
+          "name": "context-guard",
+          "enabled": true
+        },
+        {
+          "name": "fallow",
+          "enabled": true
+        },
+        {
+          "name": "gauntlet",
+          "enabled": false
+        },
+        {
+          "name": "graphify-guard",
+          "enabled": false
+        },
+        {
+          "name": "grill-me",
+          "enabled": true
+        },
+        {
+          "name": "grill-with-docs",
+          "enabled": true
+        },
+        {
+          "name": "guardrails",
+          "enabled": true
+        },
+        {
+          "name": "handoff",
+          "enabled": true
+        },
+        {
+          "name": "improve",
+          "enabled": true
+        },
+        {
+          "name": "intent-guard",
+          "enabled": false
+        },
+        {
+          "name": "lixeiro",
+          "enabled": true
+        },
+        {
+          "name": "principles",
+          "enabled": true
+        },
+        {
+          "name": "project-doc",
+          "enabled": true
+        },
+        {
+          "name": "qa-loop",
+          "enabled": true
+        },
+        {
+          "name": "ship",
+          "enabled": true
+        },
+        {
+          "name": "slides",
+          "enabled": true
+        },
+        {
+          "name": "sovai",
+          "enabled": true
+        },
+        {
+          "name": "vision",
+          "enabled": true
+        },
+        {
+          "name": "visual",
           "enabled": true
         }
       ]
@@ -255,17 +270,6 @@
         {
           "name": "voltagent-research",
           "enabled": false
-        }
-      ]
-    },
-    {
-      "name": "impeccable",
-      "source": "https://github.com/pbakaus/impeccable.git",
-      "sourceType": "git",
-      "plugins": [
-        {
-          "name": "impeccable",
-          "enabled": true
         }
       ]
     }
