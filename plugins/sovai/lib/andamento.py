@@ -158,6 +158,35 @@ def _dur(segundos):
     return "%ds" % s if s < 90 else "%dmin%02ds" % (s // 60, s % 60)
 
 
+# O mesmo teto do vigia do motor (`silenceLimitMin`, 12 min): abaixo dele silencio
+# nao e nem demora nem travamento — e so uma ferramenta rodando.
+LIMITE_SILENCIO = 12 * 60
+
+
+def linha_silencio(mudo, trabalho_vivo, limite=LIMITE_SILENCIO):
+    """O silencio longo, dito na tela — e dito COM O NOME CERTO.
+
+    O vigia do motor ja separa demora de travamento (`mudo > silenceLimitMs &&
+    !trabalhoVivo`), mas so a metade travamento fala: ela vira Bloqueio no
+    relatorio. A demora legitima nao produz nada, entao a tela do dono ausente
+    fica igual nos dois casos — que e o defeito que esta funcao fecha.
+
+    - COM sinal de vida (ferramenta rodando ha tanto tempo quanto o silencio):
+      sai `rodando ha N minutos`, e nada e derrubado.
+    - SEM sinal de vida: sai a palavra travamento, porque ninguem estava
+      trabalhando durante aquele silencio.
+
+    Devolve None quando o silencio ainda nao passou do limite: narrar aqui seria
+    ruido, e ruido acaba ensinando o dono a ignorar a linha.
+    """
+    if mudo is None or mudo <= limite:
+        return None
+    minutos = int(round(mudo / 60.0))
+    if trabalho_vivo:
+        return "rodando ha %d min — trabalho vivo, nao e travamento" % minutos
+    return "travamento: nada mudou ha %d min e nao ha trabalho vivo" % minutos
+
+
 def linha_disparo(comando, projeto, agora=None):
     """A linha que o vigia narra AO DISPARAR: relogio sempre, estimativa se houver."""
     t = time.localtime(agora) if agora else time.localtime()

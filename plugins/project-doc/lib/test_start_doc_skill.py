@@ -31,6 +31,7 @@ GRILL_ME = os.path.join(RAIZ_PLUGINS, "grill-me", "skills", "grill-me", "SKILL.m
 GRILL_DOCS = os.path.join(RAIZ_PLUGINS, "grill-with-docs", "skills",
                           "grill-with-docs", "SKILL.md")
 VISUAL_PAGE = os.path.join(RAIZ_PLUGINS, "visual", "lib", "visual_page.py")
+TEMPLATE = os.path.join(RAIZ_PLUGINS, "visual", "skills", "visual", "template.html")
 HISTORICO = os.path.join(PLUGIN, "lib", "historico.py")
 RASTREIO = os.path.join(PLUGIN, "lib", "rastreio_etapas.py")
 
@@ -76,6 +77,23 @@ approved:
 ## Deixado de fora de propósito
 - **Assinatura paga** — não é deste sistema
 """
+
+
+def _spec_aprovacao(corpo):
+    """O spec que o passo 5 monta para colher o de acordo da etapa (F7.1)."""
+    return {
+        "slug": "aprovacao-jornadas",
+        "title": "Acordo de jornadas",
+        "subtitle": "o documento inteiro, para o de acordo",
+        "ident": {"projeto": "bancada", "artefato": "journeys.md", "estado": "gerado"},
+        "sections": [{"title": "A etapa", "blocks": [{
+            "kind": "aprovacao",
+            "etapa": "Etapa de jornadas",
+            "doc_integral": corpo,
+            "cards": [{"title": "Publicar um plugin novo",
+                       "ancora": "escreve → valida → publica"}],
+        }]}],
+    }
 
 
 def _impressao(raiz):
@@ -279,6 +297,53 @@ def main():
           and "lib/rastreio_etapas.py" in kit)
     check("o relatorio traz a contagem do que ficou sem dono",
           "Sem dono → {N} funcionalidades sem origem · {M} jornadas sem funcionalidade" in skill)
+
+    print("a aprovacao de etapa e colhida na PAGINA, com o documento a vista (F7.1)")
+    check("o passo 5 manda montar a pagina em vez de apresentar no chat",
+          "Monte a página do `/visual` com o documento inteiro embutido — não apresente o "
+          "texto no chat" in skill)
+    check("o veredito da etapa e lido do disco, nao do chat",
+          "~/.claude/visual-state/latest.json" in skill and "state.feedback" in skill)
+    if not (os.path.exists(VISUAL_PAGE) and os.path.exists(TEMPLATE)):
+        print("  --   plugin visual ausente (fora do repo) — 6 checagens puladas")
+    else:
+        saida = os.path.join(tempfile.mkdtemp(prefix="start-doc-aprov-"), "etapa.html")
+        proc = subprocess.run(
+            [sys.executable, VISUAL_PAGE, "build", "--spec", "-", "--out", saida],
+            input=json.dumps(_spec_aprovacao(BANCADA_JOURNEYS)),
+            capture_output=True, text=True)
+        html = open(saida, encoding="utf-8").read() if os.path.exists(saida) else ""
+        check("a pagina de aprovacao da etapa e montada pelo programa do /visual",
+              proc.returncode == 0 and html)
+        check("o documento INTEIRO vai embutido na pagina, verbatim",
+              all(linha in html for linha in
+                  ("## Publicar um plugin novo", "escreve → valida → publica",
+                   "## Arquivar um plugin", "decide → tira do catálogo")))
+        check("o veredito da etapa sai nos tres valores de maquina",
+              all('value="%s"' % v in html for v in VEREDITOS))
+        vazio = os.path.join(os.path.dirname(saida), "vazio.html")
+        spec_vazio = _spec_aprovacao("")
+        proc2 = subprocess.run(
+            [sys.executable, VISUAL_PAGE, "build", "--spec", "-", "--out", vazio],
+            input=json.dumps(spec_vazio), capture_output=True, text=True)
+        check("pagina de aprovacao SEM o documento e recusada, sem escrever arquivo",
+              proc2.returncode == 2 and not os.path.exists(vazio))
+
+        # O retorno: o que o browser posta em ~/.claude/visual-state/latest.json.
+        # A entrada da etapa é a de `title` igual ao nome dela.
+        estado = {"state": {"feedback": [
+            {"num": "1", "title": "Etapa de jornadas", "val": "change",
+             "touched": True, "note": "falta a jornada de arquivar"}]}}
+        etapa = [f for f in estado["state"]["feedback"]
+                 if f.get("title") == "Etapa de jornadas"][0]
+        check("o retorno do disco entrega o veredito e a nota da etapa",
+              etapa["val"] == "change" and etapa["note"] == "falta a jornada de arquivar")
+        modelo = ler(TEMPLATE)
+        check("os campos que a skill manda ler existem no que o browser posta",
+              all(c in modelo for c in ("title: it.dataset.title",
+                                        "val: checked ? checked.value",
+                                        "note: ta ? ta.value"))
+              and "feedback:" in modelo)
 
     banca = tempfile.mkdtemp(prefix="start-doc-bancada-")
     docs = os.path.join(banca, ".claude", "docs")

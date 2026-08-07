@@ -105,6 +105,31 @@ def main():
 
         print("duracao longa sai em minutos, nao em segundos crus")
         check("90s+ vira minutos", "min" in a.linha_andamento(cmd, proj, 200))
+
+        # A prova de que os DOIS casos de silencio longo sao distinguiveis. Um so
+        # numero muda entre eles — o sinal de vida — entao toda diferenca de texto
+        # abaixo e obra dele, e nao de outra condicao.
+        print("silencio longo: demora legitima e travamento nao saem iguais")
+        MUDO = 20 * 60
+        vivo = a.linha_silencio(MUDO, True)
+        travado = a.linha_silencio(MUDO, False)
+        check("COM sinal de vida a tela diz ha quanto tempo esta rodando",
+              vivo is not None and vivo.startswith("rodando ha 20 min"))
+        check("COM sinal de vida a linha nega o travamento com todas as letras",
+              vivo is not None and "nao e travamento" in vivo)
+        check("SEM sinal de vida a tela chama de travamento",
+              travado is not None and travado.startswith("travamento"))
+        check("SEM sinal de vida nao sai 'rodando ha'",
+              travado is not None and "rodando ha" not in travado)
+        check("as duas linhas sao textos diferentes", vivo != travado)
+        check("silencio curto nao narra nada nos dois casos",
+              a.linha_silencio(60, True) is None and a.linha_silencio(60, False) is None)
+        check("sem silencio medido (missao recem-armada) nao narra",
+              a.linha_silencio(None, False) is None)
+        check("o limite e o mesmo do vigia do motor: 12 min",
+              a.LIMITE_SILENCIO == 12 * 60
+              and a.linha_silencio(12 * 60, True) is None
+              and a.linha_silencio(12 * 60 + 1, True) is not None)
     finally:
         shutil.rmtree(tmp, ignore_errors=True)
 

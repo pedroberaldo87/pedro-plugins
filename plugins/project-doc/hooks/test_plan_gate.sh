@@ -34,6 +34,7 @@ aprovado() { printf -- '---\nauthored-by: human\nstatus: approved\napproved: 202
 aprovado "$DOCD/.claude/docs/quality-goals.md" Metas
 aprovado "$DOCD/.claude/docs/architecture-intent.md" "Arquitetura pretendida"
 aprovado "$DOCD/.claude/docs/journeys.md" Jornadas
+aprovado "$DOCD/.claude/docs/features.md" Funcionalidades
 
 AUTH="$TMP/projeto-so-autoral"     # start-doc começou, índice ainda não existe
 mkdir -p "$AUTH/.claude/docs" && (cd "$AUTH" && git init -q . && git commit -q --allow-empty -m x 2>/dev/null)
@@ -354,14 +355,73 @@ escape "--sem-doc" "$ACC" >/dev/null
 OUT=$(gate EnterPlanMode "$ACC")
 [ -z "$OUT" ] && ok "escape verbal libera a recusa por etapa" || bad "escape libera etapa" "vazio" "ainda nega"
 
+# A8b) S-5 — a QUINTA etapa: funcionalidades (features.md). Ela é derivada das quatro
+#      anteriores, e enquanto não está acordada o plano implementa a lista que o dono
+#      nunca curou. As quatro fechadas e só ela em aberto: o plano é NEGADO, nomeando-a.
+acc_reset
+aprovado "$ACC/.claude/docs/journeys.md" Jornadas
+printf -- '---\nauthored-by: human\nstatus: draft\nscope: []\n---\n# Funcionalidades\n[PENDENTE]\n' > "$ACC/.claude/docs/features.md"
+: > "$TMPD/claude-doc-guard-${SESSION}-$(phash "$ACC")"
+OUT=$(gate EnterPlanMode "$ACC")
+[ "$(decision "$OUT")" = "deny" ] && ok "funcionalidades em aberto: plano negado (S-5)" \
+                                  || bad "funcionalidades em aberto: negado" deny "$(decision "$OUT")"
+case "$(reason "$OUT")" in *"funcionalidades (features.md)"*) ok "funcionalidades em aberto: a mensagem nomeia a etapa" ;;
+  *) bad "mensagem nomeia a etapa" "'funcionalidades (features.md)'" "$(reason "$OUT" | head -c 90)" ;; esac
+case "$(reason "$OUT")" in *"jornadas (journeys.md)"*) bad "não cita etapa já fechada" "sem 'jornadas (journeys.md)'" "cobrou etapa fechada" ;;
+  *) ok "funcionalidades em aberto: a etapa já fechada não é cobrada" ;; esac
+E=$(estilo_hook "$(reason "$OUT")")
+[ -z "$E" ] && ok "recusa por funcionalidades: a mensagem passa na régua (perfil hook)" \
+            || bad "régua da mensagem de funcionalidades" "sem erros de estilo" "$E"
+
+# A8c) etapa 5 PULADA (o documento nem existe) é igual a etapa em aberto
+rm -f "$ACC/.claude/docs/features.md"
+acc_reset
+: > "$TMPD/claude-doc-guard-${SESSION}-$(phash "$ACC")"
+case "$(reason "$(gate EnterPlanMode "$ACC")")" in *"funcionalidades (features.md)"*) ok "features.md ausente conta como em aberto" ;;
+  *) bad "etapa 5 pulada" "'funcionalidades (features.md)'" "não cobrou" ;; esac
+
 # A9) OS 7 DOCUMENTOS FECHADOS COMO O /start-doc MANDA (status: approved + approved:)
 #     -> o gate cala. É o impasse que o contrato autoral e o gate tinham: o contrato
 #     grava `approved` e o gate cobrava `ready`, e nada fechava o acordo.
 acc_reset
 aprovado "$ACC/.claude/docs/journeys.md" Jornadas
+aprovado "$ACC/.claude/docs/features.md" Funcionalidades
 : > "$TMPD/claude-doc-guard-${SESSION}-$(phash "$ACC")"
 OUT=$(gate EnterPlanMode "$ACC")
 [ -z "$OUT" ] && ok "os 7 documentos approved: passa em silêncio" || bad "7 approved passa" "vazio" "$(reason "$OUT" | head -c 90)"
+acc_reset
+
+# A10) O CRITÉRIO DE PRONTO (S-4) — TODOS os outros documentos acordados e só a LEI em
+#      rascunho: o plano é negado, e a recusa nomeia a constituição. Ela é o documento
+#      contra o qual os revisores medem, e em conflito com qualquer outro doc ela ganha:
+#      plano medido por lei que o dono não sancionou vale o que vale o rascunho.
+printf -- '---\nauthored-by: human\nstatus: draft\nscope: []\n---\n# A constituição\n' > "$ACC/.claude/docs/constituicao.md"
+: > "$TMPD/claude-doc-guard-${SESSION}-$(phash "$ACC")"
+OUT=$(gate EnterPlanMode "$ACC")
+[ "$(decision "$OUT")" = "deny" ] && ok "só a lei em rascunho: plano NEGADO (S-4)" \
+                                  || bad "lei em rascunho nega o plano" deny "$(decision "$OUT")"
+case "$(reason "$OUT")" in *"constituicao.md"*) ok "lei em rascunho: a recusa nomeia o arquivo constituicao.md" ;;
+  *) bad "recusa nomeia constituicao.md" "'constituicao.md'" "$(reason "$OUT" | head -c 120)" ;; esac
+case "$(reason "$OUT")" in *[Cc]onstitui[çc]*) ok "lei em rascunho: a recusa chama a lei de constituição" ;;
+  *) bad "recusa chama de constituição" "'constituição'" "$(reason "$OUT" | head -c 120)" ;; esac
+E=$(estilo_hook "$(reason "$OUT")")
+[ -z "$E" ] && ok "recusa pela lei: a mensagem passa na régua (perfil hook)" \
+            || bad "régua da mensagem da lei" "sem erros de estilo" "$E"
+
+# A11) a lei acordada devolve o silêncio — a recusa é sobre o de acordo, não sobre existir.
+aprovado "$ACC/.claude/docs/constituicao.md" "A constituição"
+acc_reset
+: > "$TMPD/claude-doc-guard-${SESSION}-$(phash "$ACC")"
+OUT=$(gate EnterPlanMode "$ACC")
+[ -z "$OUT" ] && ok "lei acordada: volta a passar em silêncio" || bad "lei acordada passa" "vazio" "$(reason "$OUT" | head -c 90)"
+
+# A12) projeto SEM constituição não é barrado por ela: nenhuma skill gera esse documento,
+#      então cobrá-lo de quem não o tem seria recusa sem saída.
+rm -f "$ACC/.claude/docs/constituicao.md"
+acc_reset
+: > "$TMPD/claude-doc-guard-${SESSION}-$(phash "$ACC")"
+OUT=$(gate EnterPlanMode "$ACC")
+[ -z "$OUT" ] && ok "sem constituicao.md: o gate não inventa a cobrança" || bad "sem lei passa" "vazio" "$(reason "$OUT" | head -c 90)"
 acc_reset
 
 echo "── Marca do texto aprovado (F2.2 / S-2) ──"

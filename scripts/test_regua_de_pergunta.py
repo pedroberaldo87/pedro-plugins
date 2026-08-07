@@ -7,7 +7,7 @@ que sumiu da fonte, e SKILL.md que voltou a repetir o texto em vez de apontar.
 Confere também que a régua invoca a skill de página PELO NOME — caminho para
 dentro de outro plugin quebra o Artigo 9.
 
-    python3 _shared/test_regua_de_pergunta.py
+    python3 scripts/test_regua_de_pergunta.py
 """
 
 import os
@@ -15,9 +15,10 @@ import sys
 
 AQUI = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(AQUI)
+SHARED = os.path.join(ROOT, "_shared")
 ARQ = "regua-de-pergunta.md"
 
-FONTE = os.path.join(AQUI, ARQ)
+FONTE = os.path.join(SHARED, ARQ)
 # Os quatro destinos: as três skills que usam AskUserQuestion mais a grill-me,
 # que pergunta em rodadas sem usar a ferramenta.
 DESTINOS = [

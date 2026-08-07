@@ -36,7 +36,8 @@ acordada é ficção, e lista de funcionalidade antes dos quatro acordos é palp
 
 **Cada etapa fecha do mesmo jeito, e só desse jeito:** o documento é apresentado inteiro, sabatinado
 com `/grill-me`, corrigido e **reapresentado** quantas vezes for preciso, e o de acordo do dono é
-gravado no frontmatter do próprio documento (`status: approved` + `approved: {data}`). Etapa aberta
+gravado no frontmatter do próprio documento por `hooks/doc-aprovar.sh` (`status: approved` +
+`approved: {data}` + `approved-sig:`, a marca do corpo aprovado). Etapa aberta
 não deixa a próxima começar.
 
 O contrato completo — nomes de arquivo, frontmatter, roteiro e molde de cada documento — está em
@@ -133,6 +134,21 @@ versionado, `index.html`, framework de UI no `package.json`, ou `.swift`/`.kt`).
 pergunte sobre design — a pergunta sem pista visível é o mesmo erro que perguntar o que já está
 escrito.
 
+**E a PRIMEIRA coisa da abertura: este projeto está dentro de um organismo maior?** Se estiver, o
+que a raiz já decidiu vale aqui — perguntar de novo o que o dono já respondeu lá é o mesmo erro de
+perguntar o que já está escrito. Rode, antes de qualquer pergunta:
+
+```bash
+python3 "${CLAUDE_PLUGIN_ROOT}/lib/organism.py" inherited <raiz-do-projeto> --apresentar
+```
+
+A saída **já vem item a item, uma linha por item herdado, cada uma com a fonte** (`arquivo:linha`
+do documento da raiz que decidiu aquilo) — quem monta a lista é o programa, a partir do organismo
+real, nunca a sua memória. **Apresente essa saída literal** e percorra **um item por vez**: vale
+aqui, vale com ressalva, ou não se aplica? A resposta do dono item a item entra nos documentos desta
+etapa; o que ele confirmou herdado **não vira pergunta de novo**. Saída vazia (fora de organismo, ou
+na própria raiz) → siga direto, sem mencionar herança.
+
 ### 2 · Minerar as pistas (barato, sem LLM)
 Colha só o que serve de insumo para as perguntas:
 
@@ -198,6 +214,23 @@ já existe, não invente outro. O contrato está em `plugins/visual/lib/visual_p
   documento e vira linha de cobrança no relatório do Passo 3. Silêncio nunca vira aprovação — nem
   aqui, item a item, nem na etapa inteira.
 
+**Quem grava `features.md` é o programa, nunca você à mão.** Ele lê o retorno da página e é ele
+que RECUSA o item sem veredito, dizendo qual é pelo nome — no JSON, rádio em branco chega como
+`val: "keep"` com `touched: false`, e é exatamente esse par que a sua leitura a olho deixaria passar:
+
+```bash
+python3 "${CLAUDE_PLUGIN_ROOT}/lib/curadoria_features.py" \
+  --retorno  ~/.claude/visual-state/latest.json \
+  --saida    .claude/docs/features.md \
+  --proposta {spec.json da página}
+```
+
+Ele sai **2 sem escrever nada** enquanto houver item sem veredito — leve os que ele nomear de volta
+pro dono e rode de novo. Quando todos têm veredito: `keep` entra pelo título, `change` entra pelo
+texto que ele escreveu (literal), `remove` vai pra "Deixado de fora de propósito" com o motivo, e a
+**Origem** de cada item sai do `detail` do bloco `item` — por isso o `--proposta` é o mesmo
+spec.json que construiu a página. Frontmatter de um `features.md` que já existe é preservado.
+
 **O que ele mudou fica registrado.** Quando o `change` recai sobre um item que **já está gravado** em
 `features.md` (recuradoria, `/start-doc features`, `/start-doc review`), a troca não é edição no
 arquivo: é `lib/historico.py`, que move o texto anterior para `features.historico.md` com data,
@@ -230,8 +263,24 @@ voz alta no relatório, nunca finja que o CLI rodou.
 ### 5 · Apresentar, sabatinar e colher o de acordo — por etapa
 Escrever **não fecha** a etapa. O ciclo é este, e ele repete até o dono estar satisfeito:
 
-1. **Apresente o documento inteiro** — o texto real, não um resumo dele. Ele não adivinha o que você
-   escreveu, e resumo de documento é a forma mais barata de comprar aprovação que não existe.
+1. **Monte a página do `/visual` com o documento inteiro embutido — não apresente o texto no chat.**
+   É o mesmo caminho da curadoria da etapa 5, com **um bloco `aprovacao`** no spec: `etapa` é o nome
+   do que está sendo aprovado, `doc_integral` recebe o **corpo do arquivo verbatim** (o texto real,
+   não um resumo dele) e `cards` é o índice, cada um ancorado num trecho literal desse corpo.
+
+   ```bash
+   # acopla-ok: espera o resolvedor por nome do F11.3, que nasce em _shared/ e ainda nao foi construido
+   python3 "${CLAUDE_PLUGIN_ROOT}/../visual/lib/visual_page.py" build --spec {spec.json}
+   ```
+
+   - **Aprovação sem o texto integral na página o programa RECUSA** (sai 2, não escreve arquivo) —
+     resumo de documento é a forma mais barata de comprar aprovação que não existe.
+   - **O veredito volta pelo disco, não pelo chat.** Quando ele disser "ok"/"pronto"/"lido", leia
+     `~/.claude/visual-state/latest.json` e pegue em `state.feedback` a entrada cujo `title` é a
+     etapa: `val` vem nos valores de máquina `keep` | `change` | `remove` e `note` traz o que ele
+     escreveu. `keep` fecha a etapa; `change` e `remove` voltam pro passo 3.
+   - **Etapa sem veredito no disco continua aberta.** Rádio em branco não é `keep` aqui também, e
+     página que você montou mas ele não respondeu não aprova nada.
 2. **Sabatine** com `/grill-me` — ou `/grill-with-docs` quando já houver `CONTEXT.md` ou ADR para
    confrontar. É a sabatina que transforma texto escrito em acordo.
 3. **Corrija e REAPRESENTE.** Cada objeção volta pro documento e o documento volta pra tela. Não há
@@ -247,8 +296,17 @@ Escrever **não fecha** a etapa. O ciclo é este, e ele repete até o dono estar
    que roda aqui: conferência que edita texto aprovado reabriria a etapa pela marca
    (`approved-sig`). O que ele acusar entra no Passo 5 do relatório e vira pergunta ao dono; não
    conserte sozinho, e não segure o de acordo por causa dele — a lista é cobrança visível, não gate.
-5. **Grave o de acordo** no frontmatter do próprio documento — `status: approved` e
-   `approved: {data de hoje}` — só depois de ele dizer que está satisfeito.
+5. **Grave o de acordo** — só depois de ele dizer que está satisfeito — com o comando, nunca à mão:
+
+   ```bash
+   bash "${CLAUDE_PLUGIN_ROOT}/hooks/doc-aprovar.sh" .claude/docs/journeys.md
+   ```
+
+   Ele grava as três linhas de uma vez: `status: approved`, `approved: {data de hoje}` e
+   **`approved-sig:`, a marca do CORPO aprovado** (`doc_marca`, de `hooks/lib-doc-mark.sh`).
+   Aprovação digitada à mão nasce sem marca, e aí o de acordo volta a ser sobre um nome de
+   arquivo em vez de sobre um texto: qualquer edição posterior no corpo passaria despercebida.
+   O comando não toca o corpo — se tocasse, a marca mediria outro texto que ninguém aprovou.
 
 **A sabatina não julga o documento.** Ela não aprova, não reprova e não decide se ficou bom o
 bastante: ela é **como se chega** ao acordo. Quem aprova é o dono, e a aprovação mora no frontmatter

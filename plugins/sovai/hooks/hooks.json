@@ -29,6 +29,23 @@
             "type": "command",
             "command": "CLAUDE_PLUGIN_ROOT=$(printf '%s' \"$CLAUDE_PLUGIN_ROOT\" | tr '\\\\' /); export CLAUDE_PLUGIN_ROOT; sh \"$CLAUDE_PLUGIN_ROOT/hooks/pretooluse-espera-com-guarda.sh\"",
             "timeout": 5
+          },
+          {
+            "type": "command",
+            "command": "CLAUDE_PLUGIN_ROOT=$(printf '%s' \"$CLAUDE_PLUGIN_ROOT\" | tr '\\\\' /); export CLAUDE_PLUGIN_ROOT; sh \"$CLAUDE_PLUGIN_ROOT/hooks/posttooluse-andamento.sh\" marca",
+            "timeout": 5
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "CLAUDE_PLUGIN_ROOT=$(printf '%s' \"$CLAUDE_PLUGIN_ROOT\" | tr '\\\\' /); export CLAUDE_PLUGIN_ROOT; sh \"$CLAUDE_PLUGIN_ROOT/hooks/posttooluse-andamento.sh\"",
+            "timeout": 10
           }
         ]
       }

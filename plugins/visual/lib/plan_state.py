@@ -47,6 +47,7 @@ import sys
 import time
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from regua_pronto import erros_de_pronto  # noqa: E402
 from regua_texto import BULLET_MAX  # noqa: E402
 from regua_texto import erros_de_estilo as _erros_de_estilo  # noqa: E402
 
@@ -255,6 +256,11 @@ def erros_do_plano(plan, exigir=None):
                 v = str(it.get(campo, "")).strip()
                 if v:
                     errs.extend(erros_de_estilo(v, "%s %s" % (itag, campo)))
+            # S-14: o critério de aceite não pode fechar com o valor DENTRO do
+            # entregável sem dizer de onde ele vem — assim escrever à mão cumpre.
+            # A régua mora em `regua_pronto.py`; aqui ela RECUSA A GRAVAÇÃO, em
+            # vez de só acusar num plano que já está no disco.
+            errs.extend(erros_de_pronto(it.get("pronto"), "%s pronto" % itag))
             # ESPERA DO DONO (S-23). O campo não é bandeira: é a frase do ATO que
             # só o dono pode fazer (aprovar, publicar, liberar acesso). `true`
             # solto diria que espera sem dizer o quê, e aí quem lê o relatório não
@@ -522,6 +528,9 @@ def _erros_de_redacao_do_no(plan, node_id):
                 v = str(it.get(campo, "")).strip()
                 if v:
                     out.extend(erros_de_estilo(v, "%s %s" % (itag, campo)))
+            # O `pronto` de bancada é defeito de REDAÇÃO do critério: recusa gravar,
+            # mas não pode congelar o tique de uma tarefa antiga já executada.
+            out.extend(erros_de_pronto(it.get("pronto"), "%s pronto" % itag))
             return out
     return []
 

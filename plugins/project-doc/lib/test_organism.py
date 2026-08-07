@@ -377,11 +377,54 @@ def test_inherited():
     print("test_organism: herança com fonte citada por item (S-12) ✓")
 
 
+def test_apresentacao_item_a_item():
+    """S-12: a ABERTURA apresenta o herdado ITEM A ITEM, e a lista sai da entrada
+    REAL — uma linha por item, cada uma com o texto e a fonte que o organismo tem.
+    Não basta a skill mencionar: o programa é que escreve a lista."""
+    with tempfile.TemporaryDirectory() as d:
+        root = os.path.join(d, "org")
+        _w(os.path.join(root, ".claude", "organism.yaml"), _ORG_COM_REGRA)
+        _w(os.path.join(root, ".claude", "docs", "quality-goals.md"), _QG)
+        _w(os.path.join(root, ".claude", "docs", "constraints.md"), _CONSTRAINTS)
+        alpha = os.path.join(root, "alpha")
+        os.makedirs(alpha)
+
+        info = organism.inherited(alpha)
+        itens = info["itens"]
+        assert len(itens) >= 3, itens
+
+        texto = organism.render_inherited(info)
+        linhas = texto.split("\n")
+        # cabeçalho + 1 linha por item + a pergunta de conferência
+        numeradas = [ln for ln in linhas if ln[:1].isdigit()]
+        assert len(numeradas) == len(itens), (numeradas, itens)
+        for n, item in enumerate(itens, 1):
+            esperado = "%d. [%s] %s  <- %s" % (n, item["tipo"], item["texto"], item["fonte"])
+            assert esperado in linhas, "item %d não foi apresentado: %r\n%s" % (n, esperado, texto)
+        assert str(len(itens)) in linhas[0], linhas[0]
+        assert "UM A UM" in linhas[0], linhas[0]
+
+        # a lista veio da ENTRADA, não de texto fixo: item novo no doc → linha nova
+        _w(os.path.join(root, ".claude", "docs", "constraints.md"),
+           _CONSTRAINTS + "\n- Sem serviço pago no caminho crítico\n")
+        texto2 = organism.render_inherited(organism.inherited(alpha))
+        assert "Sem serviço pago no caminho crítico" in texto2, texto2
+        assert len([ln for ln in texto2.split("\n") if ln[:1].isdigit()]) == len(itens) + 1, texto2
+
+        # a raiz não herda de si → nada a apresentar
+        assert organism.render_inherited(organism.inherited(root)) == ""
+
+    with tempfile.TemporaryDirectory() as empty:  # fora de organismo
+        assert organism.render_inherited(organism.inherited(empty)) == ""
+    print("test_organism: abertura apresenta o herdado item a item (S-12) ✓")
+
+
 def test_organism_engine():  # entrada pytest
     run()
     test_census()
     test_dirty_propagation()
     test_inherited()
+    test_apresentacao_item_a_item()
 
 
 if __name__ == "__main__":
@@ -389,3 +432,4 @@ if __name__ == "__main__":
     test_census()
     test_dirty_propagation()
     test_inherited()
+    test_apresentacao_item_a_item()

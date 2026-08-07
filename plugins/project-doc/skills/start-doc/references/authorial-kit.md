@@ -66,6 +66,7 @@ project: {nome}
 authored-by: human               # TRAVA — o motor de mineração NUNCA reescreve este arquivo
 status: draft | ready | approved # draft = tem [PENDENTE] · ready = escrito · approved = o dono deu o de acordo
 approved: {YYYY-MM-DD}           # a data do de acordo explícito. Ausente ou [PENDENTE] = etapa aberta
+approved-sig: {marca do corpo}   # QUAL texto foi aprovado. Só `hooks/doc-aprovar.sh` escreve. Não bate com o corpo de hoje = etapa reaberta
 correcao-pendente: {o que falta} # 0 ou mais linhas. Ajuste achado DEPOIS do de acordo — não reabre a etapa
 scope: []                        # vazio de propósito: não é derivado de arquivo
 ---
@@ -77,6 +78,11 @@ scope: []                        # vazio de propósito: não é derivado de arqu
 - **`approved:` nenhuma máquina escreve sozinha.** Nem o FULL, nem esta skill por conta própria. Ela
   só grava a data quando o dono acabou de dizer, com todas as letras, que está satisfeito. Promover
   `ready → approved` sem essa fala é falsificar o registro.
+- **`approved-sig:` diz QUAL texto foi aprovado**, e é a razão de a aprovação ser um comando
+  (`hooks/doc-aprovar.sh`) e não três linhas digitadas: ele calcula a marca do **corpo** — o
+  frontmatter fica de fora, senão gravar a marca mudaria a marca — e a grava junto do `approved:`.
+  Quem cobra é o gate de plano, que recalcula: marca gravada diferente do corpo de hoje = alguém
+  editou depois do de acordo, e a etapa **reabre**. Sem `approved-sig:` não há o que recalcular.
 - **`[PENDENTE]`** é o marcador de lacuna. Enquanto existir um, `status: draft` e o documento **não
   entra no índice** do CLAUDE.md — vira uma linha de cobrança no relatório. Some o último → entra.
 - **`correcao-pendente:` é o ajuste achado depois do de acordo**, e vive **no frontmatter, nunca no

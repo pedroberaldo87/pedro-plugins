@@ -696,6 +696,22 @@ def inherited(start_path):
             "modulo": modulo, "itens": itens}
 
 
+def render_inherited(info):
+    """A apresentação item a item do herdado — UMA LINHA POR ITEM, cada uma com o
+    texto e a fonte. Quem escreve a lista é o programa, a partir da entrada real;
+    o agente só lê em voz alta e pergunta item a item. Fora de organismo (ou sem
+    nada herdado) devolve string vazia: não há o que apresentar."""
+    itens = (info or {}).get("itens") or []
+    if not info or not info.get("organism") or not itens:
+        return ""
+    linhas = ["HERDADO DO ORGANISMO %s — %d item(ns). Confira UM A UM antes da etapa 1:"
+              % (info.get("name") or "(sem nome)", len(itens))]
+    for n, item in enumerate(itens, 1):
+        linhas.append("%d. [%s] %s  <- %s" % (n, item.get("tipo"), item.get("texto"), item.get("fonte")))
+    linhas.append("Para CADA item acima: vale aqui, vale com ressalva, ou não se aplica?")
+    return "\n".join(linhas)
+
+
 def main(argv):
     if len(argv) < 2:
         print(json.dumps({"error": "uso: organism.py <match|marker|brief|census|dirty|inherited|verify-cite> ..."}))
@@ -703,8 +719,13 @@ def main(argv):
     cmd = argv[1]
 
     if cmd == "inherited":
-        start = argv[2] if len(argv) > 2 else os.getcwd()
-        print(json.dumps(inherited(start), ensure_ascii=False))
+        args = [a for a in argv[2:] if a != "--apresentar"]
+        start = args[0] if args else os.getcwd()
+        info = inherited(start)
+        if "--apresentar" in argv[2:]:
+            print(render_inherited(info))
+        else:
+            print(json.dumps(info, ensure_ascii=False))
         return 0
 
     if cmd == "census":

@@ -312,7 +312,9 @@ editar a cópia à mão; `scripts/sync-shared.sh --check` pega drift), o **mesmo
 o `/qa-loop` lê antes de revisar. Leia antes de escrever um `pronto` que mencione teste:
 quem escreve o critério erra antes de quem escreve o teste.
 
-Quem cobra: `lib/regua_pronto.py` (`erros_de_pronto`), também por linha de comando —
+Quem cobra: `lib/regua_pronto.py` (`erros_de_pronto`), chamado pela validação do plano
+(`plan_state.py erros_do_plano`) — o `pronto` de bancada **recusa a gravação**, junto da
+régua de estilo. Também por linha de comando, para conferir um critério antes de escrevê-lo:
 `printf '%s' "$PRONTO" \| python3 lib/regua_pronto.py --onde F2.3 -` (exit 1 = é bancada).
 
 ## O fio — três estados, e um quarto que é erro
