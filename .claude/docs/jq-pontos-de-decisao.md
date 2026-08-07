@@ -19,8 +19,8 @@ scope:
 
 | medida | valor | comando |
 | --- | --- | --- |
-| hooks de produção em `plugins/*/hooks/` (fora `test_*` e as bibliotecas vendoradas) | **46** | `ls plugins/*/hooks/*.sh \| grep -vc -e /test_ $(ls _shared/*.sh \| sed -E 's#.*/#-e /#')` |
-| destes, os que leem o campo que DECIDE — classe B | **31** | ver classe B abaixo |
+| hooks de produção em `plugins/*/hooks/` (fora `test_*` e as bibliotecas vendoradas) | **47** | `ls plugins/*/hooks/*.sh \| grep -vc -e /test_ $(ls _shared/*.sh \| sed -E 's#.*/#-e /#')` |
+| destes, os que leem o campo que DECIDE — classe B | **32** | ver classe B abaixo |
 | destes, os que só formatam a saída / leem config — classe A | **4** | ver classe A abaixo |
 
 Toda biblioteca de `_shared/` fica fora dessa conta: a cópia em `plugins/*/hooks/` é vendoring
@@ -75,6 +75,7 @@ Dentro da classe B há ainda dois graus:
 
 | classe | arquivo | linha(s) | campo | canal de bloqueio |
 | --- | --- | --- | --- | --- |
+| B1 | `plugins/gauntlet/hooks/pretooluse-gauntlet.sh` | 52 | `session_id` | `permissionDecision:"deny"` |
 | B1 | `plugins/graphify-guard/hooks/pretooluse-graphify-guard.sh` | 29, 43 | `session_id`, `tool_input.command` | `permissionDecision:"deny"` |
 | B1 | `plugins/guardrails/hooks/askq-humanize.sh` | 46 | `session_id` | `permissionDecision:"deny"` |
 | B1 | `plugins/guardrails/hooks/lint-and-typecheck.sh` | 31 | `session_id` | `exit 2` |
