@@ -55,7 +55,11 @@ def main():
           re.search(r"\bbreak\b", d) is not None)
 
     print("porta 2 — revisor morto NAO declara built")
-    r = bloco(texto, "if (!review) {", linhas=7)
+    # janela de 9: o bloco cresceu quando o auditor (F9.18) passou a devolver tarefas e
+    # o `feedback` ganhou `devolvidas`. O `continue` desceu para a 8ª linha, e a janela
+    # de 7 passou a cortá-lo — o teste acusava "a missão morre" sobre código que degrada
+    # certinho. Janela é medida de leitura, não contrato: quem cresce é o bloco.
+    r = bloco(texto, "if (!review) {", linhas=9)
     check("a guarda do revisor existe", bool(r))
     check("ela empurra um blocker", "blockers.push" in r)
     check("a direcao e `continue` — a missao degrada, nao morre",

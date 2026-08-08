@@ -42,6 +42,13 @@ SPECS=(
   "plugins/project-doc/skills/start-doc::regua-de-pergunta.md"
   "plugins/handoff/skills/handoff::regua-de-pergunta.md"
   "plugins/lixeiro/skills/faxina::regua-de-pergunta.md"
+  # Os padrões de disparo que vazam processo. Três consumidores — o cobrador do
+  # repositório (scripts/), a quinta lente do /check-skills e a investigação do
+  # /lixeiro — e eles JÁ divergiram no dia em que nasceram: um tinha `disown` na
+  # lista, outro não. Régua de segurança em três cópias vira três réguas.
+  "plugins/check-skills/lib::padroes_vazamento.py"
+  "plugins/lixeiro/lib::padroes_vazamento.py"
+  "scripts::padroes_vazamento.py"
   "plugins/visual/lib::regua_texto.py"
   "plugins/branches/lib::regua_texto.py"
   "plugins/fallow/lib::regua_texto.py"

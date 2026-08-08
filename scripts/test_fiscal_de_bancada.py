@@ -28,7 +28,7 @@ def check(nome, cond):
 
 def git(repo, *args):
     subprocess.run(["git", "-C", repo] + list(args), check=True,
-                   stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                   stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, stdin=subprocess.DEVNULL, start_new_session=True)
 
 
 def escreve(repo, rel, conteudo="# nada\n"):
@@ -49,7 +49,7 @@ def rotulo(saida, alvo):
 
 def roda(repo, *flags):
     p = subprocess.run([sys.executable, FISCAL] + list(flags) + [repo],
-                       stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+                       stdout=subprocess.PIPE, stderr=subprocess.STDOUT, stdin=subprocess.DEVNULL, start_new_session=True)
     return p.returncode, p.stdout.decode("utf-8", "replace")
 
 

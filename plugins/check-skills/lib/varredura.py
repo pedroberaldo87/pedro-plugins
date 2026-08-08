@@ -1,28 +1,35 @@
 #!/usr/bin/env python3
-"""O varredor de conflitos entre o que está INSTALADO na máquina — stdlib, sem framework.
+"""O varredor da saúde do que está INSTALADO na máquina — stdlib, sem framework.
 
 Existe porque a pergunta "meus plugins brigam com os dos outros?" não tem resposta em
-lugar nenhum: `claude plugin list` diz o que existe, e nada diz o que se ATROPELA. Os
-quatro atropelos que este programa mede, e cada um é de uma natureza diferente:
+lugar nenhum: `claude plugin list` diz o que existe, e nada diz o que se ATROPELA. As
+cinco lentes deste programa, e cada uma é de uma natureza diferente:
 
     nome        duas skills com o MESMO nome — quem digita não sabe qual responde
     evento      hooks de marketplaces diferentes no mesmo evento, e quem pode BARRAR
     gatilho     descrições que disputam o mesmo assunto — o modelo hesita na escolha
     versao      mais de uma versão da mesma coisa no cache (só a mais alta roda)
+    vazamento   processo que a skill abre e NÃO fecha — o código e o que está de pé
+
+A quinta nasceu de um caso medido em 2026-08-08: uma máquina acumulou **2125 processos
+`python3` órfãos**, e nenhuma ferramenta ligava aquilo a quem tinha aberto. Ela olha
+para os dois lados, porque um só perderia metade do caso — o código acusa o defeito
+antes de rodar, e a máquina mostra o que já vazou e de quem é.
 
 ⚠️ O QUE ELE NÃO FAZ, de propósito: julgar. Contradição de INSTRUÇÃO — uma skill que
 manda fazer o oposto da outra — não é detectável por varredura de texto, e chutar aqui
 produziria alarme que ninguém confere. Quem lê as descrições e julga é a skill que chama
 este programa; o programa entrega o material.
 
-    python3 conflitos.py            # relatório humano
-    python3 conflitos.py --json     # o mesmo, para outro programa consumir
+    python3 varredura.py            # relatório humano
+    python3 varredura.py --json     # o mesmo, para outro programa consumir
 """
 
 import argparse
 import json
 import os
 import re
+import subprocess
 import sys
 from collections import defaultdict
 
@@ -204,7 +211,108 @@ def varre(inst=None):
 
     return {"instalados": len(inst), "skills": len(sk), "hooks": len(hk),
             "nome_repetido": nomes, "evento_disputado": eventos,
-            "gatilho_disputado": gatilhos, "cache_inchado": versoes}
+            "gatilho_disputado": gatilhos, "cache_inchado": versoes,
+            "vazamento_codigo": vazamento_codigo(inst),
+            "vazamento_vivo": vazamento_vivo(inst)}
+
+
+# ── 5 · VAZAMENTO — processo que a skill abre e não fecha ──────────────────────
+# Duas metades, e nenhuma substitui a outra. O CÓDIGO acusa o defeito antes de ele
+# rodar; a MÁQUINA mostra o que já vazou e de quem é. Em 2026-08-08 um caso real
+# precisou das duas: 155 pontos de código defeituoso produziram 2125 órfãos, e nem o
+# código dizia quantos já estavam de pé, nem os processos diziam de onde vieram.
+
+# Python: disparo sem fechar a entrada, ou sem grupo próprio (o timeout mata o filho
+# e o NETO sobrevive). Node: `stdio: 'inherit'` entrega o terminal ao filho.
+# Shell: `&` sem `wait`, `nohup` e `disown` largam o processo de propósito.
+# Os padrões vêm da CÓPIA LOCAL de `_shared/padroes_vazamento.py`, vendorada por
+# `scripts/sync-shared.sh`. Três programas cobram este mesmo defeito, e no dia em que
+# nasceram já divergiam — um tinha `disown` na lista, outro não.
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from padroes_vazamento import ISENTO, NODE_OK, RISCO  # noqa: E402
+
+
+def vazamento_codigo(inst=None):
+    """[{marketplace, plugin, arquivo, linha, risco}] — o defeito ANTES de rodar."""
+    inst = instalados() if inst is None else inst
+    fora = []
+    for (market, plug), meta in sorted(inst.items()):
+        for base, _, nomes in os.walk(meta["dir"]):
+            if "node_modules" in base or "__pycache__" in base:
+                continue
+            for nome in sorted(nomes):
+                if not nome.endswith((".py", ".mjs", ".js", ".sh")):
+                    continue
+                cam = os.path.join(base, nome)
+                try:
+                    with open(cam, encoding="utf-8", errors="replace") as fh:
+                        txt = fh.read()
+                except OSError:
+                    continue
+                linhas = txt.splitlines()
+                # o rótulo CURTO é o desta lista; o humano é do relatório de causa
+                for padrao, risco, _humano in RISCO:
+                    for m in padrao.finditer(txt):
+                        ln = txt.count("\n", 0, m.start()) + 1
+                        volta = "\n".join(linhas[max(0, ln - 2):ln])
+                        if ISENTO.search(volta):
+                            continue
+                        # `stdio: ['ignore', 'inherit', 'inherit']` É o conserto — stdin
+                        # fechado, saída visível —, e a palavra `inherit` dentro do
+                        # arranjo casa o padrão do mesmo jeito. Sem esta linha a lente
+                        # acusaria justamente o código já corrigido, e lista que nunca
+                        # chega a zero é lista que ninguém mais abre.
+                        if NODE_OK.search(m.group(0)):
+                            continue
+                        fora.append({"marketplace": market, "plugin": plug,
+                                     "arquivo": os.path.relpath(cam, meta["dir"]),
+                                     "linha": ln, "risco": risco})
+    return fora
+
+
+def _ps():
+    """[(pid, ppid, minutos_de_cpu, comando)] — vazio quando não dá para ler."""
+    try:
+        r = subprocess.run(["ps", "-eo", "pid=,ppid=,time=,args="],
+                           stdin=subprocess.DEVNULL, capture_output=True, text=True,
+                           timeout=15, start_new_session=True)
+    except (OSError, subprocess.SubprocessError):
+        return []
+    fora = []
+    for linha in (r.stdout or "").splitlines():
+        campos = linha.split(None, 3)
+        if len(campos) < 4:
+            continue
+        try:
+            fora.append((int(campos[0]), int(campos[1]), campos[2], campos[3]))
+        except ValueError:
+            continue
+    return fora
+
+
+def vazamento_vivo(inst=None):
+    """[{plugin, pid, comando, motivo}] — o que está de pé AGORA por culpa de alguém.
+
+    A ligação processo→skill é por CAMINHO: o cache instala cada plugin em pasta
+    própria, e o comando do órfão carrega esse caminho. Sem isso o achado seria "há
+    processos estranhos na máquina", que não diz a ninguém o que fazer.
+
+    Só entra quem é ÓRFÃO (pai `1`): processo com pai vivo tem dono, e encerrá-lo
+    seria matar trabalho em curso. É a mesma trava do lixeiro — quem abriu, colhe.
+    """
+    inst = instalados() if inst is None else inst
+    porcaminho = {meta["dir"]: (m, p) for (m, p), meta in inst.items()}
+    fora = []
+    for pid, ppid, cpu, cmd in _ps():
+        if ppid != 1 or pid <= 1:
+            continue
+        dono = next(((m, p) for d, (m, p) in porcaminho.items() if d in cmd), None)
+        if dono is None:
+            continue
+        fora.append({"marketplace": dono[0], "plugin": dono[1], "pid": pid,
+                     "cpu": cpu, "comando": cmd[:160],
+                     "motivo": "o pai morreu e ele continuou"})
+    return fora
 
 
 def desenha(r):
@@ -252,6 +360,31 @@ def desenha(r):
         L.append("   %s/%s roda %s · %d parada(s): %s"
                  % (v["marketplace"], v["plugin"], v["roda"],
                     len(v["paradas"]), ", ".join(v["paradas"][:6])))
+    L.append("")
+
+    L.append("5 · VAZAMENTO — processo que a skill abre e não fecha")
+    vivo, cod = r.get("vazamento_vivo") or [], r.get("vazamento_codigo") or []
+    if not vivo:
+        L.append("   de pé agora: nenhum")
+    else:
+        L.append("   DE PÉ AGORA — %d processo(s) órfão(s):" % len(vivo))
+        porplug = defaultdict(list)
+        for x in vivo:
+            porplug[(x["marketplace"], x["plugin"])].append(x)
+        for (m, p), xs in sorted(porplug.items()):
+            L.append("      %s/%s — %d, ex. pid %s: %s"
+                     % (m, p, len(xs), xs[0]["pid"], xs[0]["comando"][:70]))
+    if not cod:
+        L.append("   no código: nenhum")
+    else:
+        L.append("   NO CÓDIGO — %d ponto(s) que podem vazar:" % len(cod))
+        porplug = defaultdict(list)
+        for x in cod:
+            porplug[(x["marketplace"], x["plugin"])].append(x)
+        for (m, p), xs in sorted(porplug.items(), key=lambda kv: -len(kv[1]))[:8]:
+            L.append("      %-34s %3d — ex. %s:%s (%s)"
+                     % ("%s/%s" % (m, p), len(xs), xs[0]["arquivo"], xs[0]["linha"],
+                        xs[0]["risco"]))
     L.append("")
     L.append("O que este programa NÃO mede: contradição de INSTRUÇÃO — uma skill que")
     L.append("manda o oposto da outra. Isso se lê nas descrições, e quem julga é humano.")

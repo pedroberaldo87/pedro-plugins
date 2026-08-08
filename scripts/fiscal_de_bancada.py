@@ -69,7 +69,7 @@ DESCARTA_AVISO = re.compile(r"2>\s*(?:/dev/null|&\s*-)")
 
 def _git(repo, *args):
     saida = subprocess.run(["git", "-C", repo] + list(args),
-                           stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+                           stdout=subprocess.PIPE, stderr=subprocess.PIPE, stdin=subprocess.DEVNULL, start_new_session=True)
     if saida.returncode != 0:
         return []
     return [linha for linha in saida.stdout.decode("utf-8", "replace").splitlines()

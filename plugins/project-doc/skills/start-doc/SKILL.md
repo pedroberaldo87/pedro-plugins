@@ -209,8 +209,10 @@ anterior aprovada.
 ciclo passo a passo a partir dos documentos **aprovados** (`architecture-intent.md`, `journeys.md`,
 `quality-goals.md`), cada passo com a passagem que o originou ao lado — `arquivo:linha` —, e a
 primeira pergunta é "deste ciclo, o que eu entendi errado?". O roteiro e o molde de `blueprint.md`
-estão em `references/authorial-kit.md`; o diagrama é do `archify`, e a ausência dele **degrada em
-voz alta no relatório**, nunca trava a etapa. **Só com essa etapa aprovada a 6 abre.**
+estão em `references/authorial-kit.md`; o diagrama é do `archify` e quem o desenha é
+`skills/start-doc/diagrama-blueprint.sh` (um por HTML: `organismo.html` e um `fluxo-<slug>.html` por
+fluxo nomeado). Ausente o `archify`, ele devolve a linha `DEGRADADO:` e código `3` — a ausência
+**degrada em voz alta no relatório**, nunca trava a etapa. **Só com essa etapa aprovada a 6 abre.**
 
 **A etapa 6 (funcionalidades) é a única em que você fala primeiro.** A lista de `features.md` é
 **derivada** dos documentos já aprovados — cada item nasce de uma jornada, de uma meta ou de uma peça,

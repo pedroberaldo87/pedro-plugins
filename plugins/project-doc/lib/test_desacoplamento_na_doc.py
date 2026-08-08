@@ -103,9 +103,9 @@ def main():
             fh.write("O repo tem 21 plugins hoje.\n")
         for a in (["init", "-q"], ["config", "user.email", "t@t"],
                   ["config", "user.name", "t"], ["add", "-A"], ["commit", "-qm", "x"]):
-            subprocess.run(["git", "-C", d] + a, capture_output=True, timeout=30)
+            subprocess.run(["git", "-C", d] + a, capture_output=True, timeout=30, stdin=subprocess.DEVNULL, start_new_session=True)
         saida = subprocess.run([sys.executable, COBRADOR, "--root", d, "--todos"],
-                               capture_output=True, text=True, timeout=60)
+                               capture_output=True, text=True, timeout=60, stdin=subprocess.DEVNULL, start_new_session=True)
         check("numero cravado num doc de `.claude/docs/` e acusado",
               saida.returncode == 1 and "contagem-cravada" in saida.stdout
               and "architecture.md" in saida.stdout)

@@ -128,6 +128,33 @@ ARQUITETURA = """\
 - **Disco do projeto** — guarda o plano · **escreve:** Guarda de estado · **lê:** todos
 """
 
+# três funcionalidades contra o desenho de funcionamento: uma aponta um passo do ciclo,
+# uma aponta um passo que o desenho não tem, e uma não aponta passo nenhum
+PRD_PASSOS = """\
+## E4 — Planner determinístico (F1)
+
+- **S-4.3 Orçamento de energia** · F1 · Passo: o sistema monta o dia — custo 1-5.
+  CA: dia com orçamento estourado retorna proposta de corte.
+- **S-4.9 Exportar o dia** · F1 · Passo: o sistema manda o dia por e-mail — resumo.
+  CA: o resumo sai em texto puro.
+- **S-4.10 Atalho de teclado** · F1 — abre o dia com uma tecla.
+  CA: a tecla abre o dia.
+"""
+
+# o desenho de funcionamento, no molde que a etapa 5 do /start-doc escreve: só o item
+# numerado sob "O ciclo, do começo ao fim" é passo, e a proveniência (`← arquivo:linha`)
+# não faz parte do texto do passo
+BLUEPRINT = """\
+# Como o sistema funciona
+
+## O ciclo, do começo ao fim
+1. o sistema monta o dia  ← journeys.md:4
+2. o sistema avisa quem tem medicação na janela  ← journeys.md:9
+
+## As peças que participam, e o que cada uma decide
+1. Motor de plano — decide a ordem  ← architecture-intent.md:6
+"""
+
 JOURNEYS = """\
 # Jornadas
 
@@ -312,6 +339,44 @@ def main():
           and "peça" not in cb.resumo(mp0))
     check("documento da arquitetura ausente devolve []",
           cb.le_pecas(os.path.join(d, "nao-existe.md")) == [])
+
+    # o cruzamento com o desenho de funcionamento, nas DUAS direções
+    ppa = os.path.join(d, "PRD-passos.md")
+    open(ppa, "w").write(PRD_PASSOS)
+    bp = os.path.join(d, "blueprint.md")
+    open(bp, "w").write(BLUEPRINT)
+    reqs_pa = cb.le_requisitos(ppa)
+    ciclo = cb.le_passos(bp)
+    check("acha os 2 passos do ciclo",
+          ciclo == ["o sistema monta o dia",
+                    "o sistema avisa quem tem medicação na janela"])
+    check("item numerado fora da seção do ciclo não vira passo",
+          not [p for p in ciclo if "Motor de plano" in p])
+    check("lê o passo do ciclo que o requisito atende",
+          reqs_pa["S-4.3"]["passo"] == "o sistema monta o dia")
+    check("requisito sem passo citado fica com None", reqs_pa["S-4.10"]["passo"] is None)
+    plan_pa = {"id": "p", "title": "t", "phases": [{"id": "F1", "title": "f", "items": [
+        {"id": "F1.1", "title": "a", "desc": "d", "requisito": "S-4.3"},
+        {"id": "F1.2", "title": "b", "desc": "d", "requisito": "S-4.9"},
+        {"id": "F1.3", "title": "c", "desc": "d", "requisito": "S-4.10"}]}]}
+    mpa = cb.mapa(plan_pa, reqs_pa, jornadas, artigos, pecas, ciclo)
+    check("2 funcionalidades sem passo do ciclo — a que não cita e a que cita um que não existe",
+          mpa["sem_passo"] == ["S-4.10", "S-4.9"])
+    check("1 passo do ciclo que nenhuma funcionalidade atende",
+          mpa["passos_sem_funcionalidade"]
+          == ["o sistema avisa quem tem medicação na janela"])
+    check("quem aponta passo que existe não é acusado", "S-4.3" not in mpa["sem_passo"])
+    rpa = cb.resumo(mpa)
+    check("o resumo acusa as duas direções do ciclo",
+          "2 funcionalidades sem passo do ciclo" in rpa
+          and "1 passo do ciclo sem funcionalidade" in rpa)
+    # sem o desenho em mãos não há com o que cruzar — ninguém é acusado
+    mpa0 = cb.mapa(plan_pa, reqs_pa, jornadas, artigos, pecas)
+    check("sem o desenho de funcionamento, ninguém é acusado de passo",
+          mpa0["sem_passo"] == [] and mpa0["passos_sem_funcionalidade"] == []
+          and "passo" not in cb.resumo(mpa0))
+    check("documento do desenho ausente devolve []",
+          cb.le_passos(os.path.join(d, "nao-existe.md")) == [])
 
     # sem documento de jornadas não há com o que cruzar — e [] não acusa ninguém
     m0 = cb.mapa(plan, reqs)

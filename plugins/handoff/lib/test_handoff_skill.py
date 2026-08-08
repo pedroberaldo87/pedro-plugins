@@ -62,7 +62,7 @@ def git(cwd, *args, quando=None):
     if quando is not None:
         env["GIT_AUTHOR_DATE"] = env["GIT_COMMITTER_DATE"] = "%d +0000" % quando
     subprocess.run(["git", "-C", cwd] + list(args), check=True, env=env,
-                   stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                   stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, stdin=subprocess.DEVNULL, start_new_session=True)
 
 
 def escreve(caminho, texto, mtime):
@@ -150,7 +150,7 @@ def main():
                       "w", encoding="utf-8") as fh:
                 json.dump(PLANO, fh, ensure_ascii=False)
             cmd = candidatos[0].replace("<project_root>", raiz)
-            proc = subprocess.run(["bash", "-c", cmd], capture_output=True, text=True)
+            proc = subprocess.run(["bash", "-c", cmd], capture_output=True, text=True, stdin=subprocess.DEVNULL, start_new_session=True)
             saida = proc.stdout
             check("o comando roda sem erro (%s)" % (proc.stderr.strip()[:80] or "ok"),
                   proc.returncode == 0)
@@ -184,7 +184,7 @@ def main():
                   os.path.getmtime(velho) > os.path.getmtime(novo))
 
             cmd = wcands[0].replace("<project_root>", parado)
-            proc = subprocess.run(["bash", "-c", cmd], capture_output=True, text=True)
+            proc = subprocess.run(["bash", "-c", cmd], capture_output=True, text=True, stdin=subprocess.DEVNULL, start_new_session=True)
             check("o comando roda sem erro (%s)" % (proc.stderr.strip()[:80] or "ok"),
                   proc.returncode == 0)
             linhas = [ln for ln in proc.stdout.splitlines() if ln.strip()]
@@ -195,7 +195,7 @@ def main():
                   len(linhas) > 1 and linhas[1].endswith("\t" + velho))
         finally:
             subprocess.run(["git", "-C", raiz, "worktree", "prune"],
-                           stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                           stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, stdin=subprocess.DEVNULL, start_new_session=True)
             shutil.rmtree(raiz, ignore_errors=True)
 
     print("a armadilha declarada no handoff é conferida, não só lida")
@@ -210,7 +210,7 @@ def main():
             with open(hpath, "w", encoding="utf-8") as fh:
                 fh.write(HANDOFF_COM_ARMADILHA)
             cmd = acands[0].replace("<handoff_path>", hpath)
-            proc = subprocess.run(["bash", "-c", cmd], capture_output=True, text=True)
+            proc = subprocess.run(["bash", "-c", cmd], capture_output=True, text=True, stdin=subprocess.DEVNULL, start_new_session=True)
             saida = proc.stdout
             check("o comando roda sem erro (%s)" % (proc.stderr.strip()[:80] or "ok"),
                   proc.returncode == 0)

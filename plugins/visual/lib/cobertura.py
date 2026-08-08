@@ -33,6 +33,10 @@ PECA_RE = re.compile(r"\bPeça:\s*([^·—\n]+)")
 SECAO_RE = re.compile(r"^##\s+(.+?)\s*$", re.M)
 # a peça em si: no molde do documento ela é um item de lista `- **{peça}** — {…}`
 PECA_ITEM_RE = re.compile(r"^-\s+\*\*(.+?)\*\*", re.M)
+# o passo do ciclo que o requisito atende, citado pelo texto que o blueprint.md dá a ele
+PASSO_RE = re.compile(r"\bPasso:\s*([^·—\n]+)")
+# o passo em si: no molde do blueprint ele é um item numerado da seção do ciclo
+PASSO_ITEM_RE = re.compile(r"^\s*\d+[.)]\s+(.+?)\s*$", re.M)
 
 
 def _texto(fonte):
@@ -68,6 +72,7 @@ def le_requisitos(fonte):
         art = ART_RE.search(resto[:200])
         jor = JORNADA_RE.search(resto)
         pec = PECA_RE.search(resto + corpo)
+        pas = PASSO_RE.search(resto + corpo)
         dec = DECISAO_RE.search(resto + corpo)
         ep = None
         for pos, nome in epicos:
@@ -81,6 +86,7 @@ def le_requisitos(fonte):
                     "ancora": art.group(1) if art else None,
                     "jornada": jor.group(1).strip() if jor else None,
                     "peca": pec.group(1).strip() if pec else None,
+                    "passo": pas.group(1).strip() if pas else None,
                     "epico": ep,
                     "decisao": " ".join(dec.group(1).split()) if dec else None,
                     "repetido": False}
@@ -132,6 +138,29 @@ def le_pecas(fonte):
     return out
 
 
+def le_passos(fonte):
+    """Os passos do ciclo do blueprint.md, na ordem em que aparecem.
+
+    Passo é um item numerado sob a seção `## O ciclo, do começo ao fim`, que é o molde
+    que a etapa 5 do `/start-doc` escreve. O corte é a seção, e não a forma do item,
+    pelo mesmo motivo de `le_pecas`: outras seções do desenho também numeram linha. A
+    proveniência (`← arquivo:linha`) fica de fora — ela diz de onde o passo veio, não o
+    que ele é. Documento ausente, ou sem essa seção, devolve []: projeto que ainda não
+    desenhou como funciona não é projeto que contradiz o desenho, é projeto sem com o
+    que cruzar — a mesma regra de `le_jornadas`, `le_artigos` e `le_pecas`.
+    """
+    txt = _texto(fonte)
+    secoes = [(m.start(), m.end(), m.group(1)) for m in SECAO_RE.finditer(txt)]
+    out = []
+    for i, (_, fim, nome) in enumerate(secoes):
+        if "ciclo" not in nome.casefold():
+            continue
+        prox = secoes[i + 1][0] if i + 1 < len(secoes) else len(txt)
+        for it in PASSO_ITEM_RE.finditer(txt[fim:prox]):
+            out.append(it.group(1).split("←")[0].strip())
+    return out
+
+
 def _num_artigo(ancora):
     """"Art. 6" vira "6". Citação sem número devolve None."""
     m = ART_NUM_RE.search(ancora or "")
@@ -143,7 +172,7 @@ def _chave(nome):
     return " ".join((nome or "").split()).casefold()
 
 
-def mapa(plan, reqs, jornadas=None, artigos=None, pecas=None):
+def mapa(plan, reqs, jornadas=None, artigos=None, pecas=None, passos=None):
     """Os quatro estados do fio. Nenhum é silencioso — todos viram lista.
 
     `jornadas` é a lista de nomes que `le_jornadas` devolveu. Com ela o cruzamento
@@ -168,6 +197,12 @@ def mapa(plan, reqs, jornadas=None, artigos=None, pecas=None):
     `pecas_inexistentes` — a contradição entre o plano e a arquitetura pretendida, que
     até aqui não aparecia em lugar nenhum. Sem ela os dois baldes ficam vazios, pela
     mesma regra dos outros cruzamentos.
+
+    `passos` é a lista que `le_passos` devolveu — o desenho de funcionamento. Com ela o
+    cruzamento corre nas DUAS direções, como o das jornadas: requisito que não aponta
+    passo nenhum do ciclo — ou que aponta um que o desenho não tem — cai em `sem_passo`;
+    passo do ciclo que nenhuma funcionalidade atende cai em `passos_sem_funcionalidade`.
+    Sem ela os dois baldes ficam vazios, pela mesma regra dos outros cruzamentos.
     """
     cobertas, sem_req, inexistentes, por_req = [], [], [], {}
     for ph in plan.get("phases", []):
@@ -230,6 +265,14 @@ def mapa(plan, reqs, jornadas=None, artigos=None, pecas=None):
     pecas_inexistentes = sorted(
         (r, d["peca"]) for r, d in reqs.items()
         if nomes_pecas and d.get("peca") and _chave(d["peca"]) not in nomes_pecas)
+    # o desenho de funcionamento entra pelas duas pontas, como as jornadas: quem não
+    # atende passo nenhum do ciclo, e passo do ciclo que ninguém atende.
+    nomes_passos = {_chave(p) for p in (passos or [])}
+    sem_passo = sorted(r for r, d in reqs.items()
+                       if nomes_passos and _chave(d.get("passo")) not in nomes_passos)
+    citados = {_chave(d.get("passo")) for d in reqs.values()}
+    passos_sem_func = [p for p in (passos or [])
+                       if reqs and _chave(p) not in citados]
     return {"cobertas": cobertas, "sem_requisito": sem_req, "orfaos": orfaos,
             "inexistentes": inexistentes, "por_req": por_req,
             "sem_jornada": sem_jornada, "sem_ca": sem_ca,
@@ -237,6 +280,7 @@ def mapa(plan, reqs, jornadas=None, artigos=None, pecas=None):
             "sem_artigo": sem_artigo, "decididas": decididas,
             "artigos_inexistentes": artigos_inexistentes,
             "sem_peca": sem_peca, "pecas_inexistentes": pecas_inexistentes,
+            "sem_passo": sem_passo, "passos_sem_funcionalidade": passos_sem_func,
             "jornadas_sem_funcionalidade": jornadas_sem_func,
             "epicos_sem_jornada": epicos_sem_jornada,
             "total": len(cobertas) + len(sem_req) + len(inexistentes)}
@@ -264,11 +308,17 @@ def resumo(m):
     if m.get("sem_peca"):
         partes.append("🔴 %s sem peça da arquitetura"
                       % _pl(len(m["sem_peca"]), "funcionalidade"))
+    if m.get("sem_passo"):
+        partes.append("🔴 %s sem passo do ciclo"
+                      % _pl(len(m["sem_passo"]), "funcionalidade"))
     if m.get("sem_ca"):
         partes.append("🔴 %s sem critério" % _pl(len(m["sem_ca"]), "requisito"))
     if m.get("jornadas_sem_funcionalidade"):
         partes.append("🔵 %s sem funcionalidade"
                       % _pl(len(m["jornadas_sem_funcionalidade"]), "jornada"))
+    if m.get("passos_sem_funcionalidade"):
+        partes.append("🔵 %s do ciclo sem funcionalidade"
+                      % _pl(len(m["passos_sem_funcionalidade"]), "passo"))
     if m.get("repetidos"):
         partes.append("⛔ %s com número repetido" % _pl(len(m["repetidos"]), "requisito"))
     if m.get("artigos_inexistentes"):

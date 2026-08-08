@@ -33,6 +33,9 @@ GRILL_DOCS = os.path.join(RAIZ_PLUGINS, "grill-with-docs", "skills",
                           "grill-with-docs", "SKILL.md")
 VISUAL_PAGE = os.path.join(RAIZ_PLUGINS, "visual", "lib", "visual_page.py")
 TEMPLATE = os.path.join(RAIZ_PLUGINS, "visual", "skills", "visual", "template.html")
+DIAGRAMA = os.path.join(PLUGIN, "skills", "start-doc", "diagrama-blueprint.sh")
+ENTRADA_EXEMPLO = os.path.join(RAIZ_PLUGINS, "archify", "skills", "archify",
+                               "examples", "incident-response.workflow.json")
 HISTORICO = os.path.join(PLUGIN, "lib", "historico.py")
 RASTREIO = os.path.join(PLUGIN, "lib", "rastreio_etapas.py")
 
@@ -156,6 +159,12 @@ def ler(caminho):
     quebraria só porque uma frase passou a caber em duas linhas.
     """
     return " ".join(open(caminho, encoding="utf-8").read().split())
+
+
+def _tem_node():
+    """O render do archify é Node — sem ele o caminho feliz não é checável."""
+    return subprocess.run(["bash", "-c", "command -v node"],
+                          capture_output=True, stdin=subprocess.DEVNULL, start_new_session=True).returncode == 0
 
 
 def tabela_etapas(caminho):
@@ -311,6 +320,52 @@ def main():
           and "`archify` ausente, DEGRADADO" in skill
           and "revisão 5b" in skill)
 
+    print("o diagrama da etapa 5 EXECUTA, e a ausencia degrada em voz alta (F12.4)")
+    check("o mecanismo existe no disco, ao lado da skill",
+          os.path.exists(DIAGRAMA))
+    check("o kit manda rodar o mecanismo, e nao so descreve o diagrama",
+          "diagrama-blueprint.sh" in kit and "DEGRADADO:" in kit)
+    check("o archify e achado pelo NOME, nunca por caminho relativo",
+          'resolve-plugin.sh" archify skills/archify/' in ler(DIAGRAMA))
+    # Caminho 1 — archify presente: o HTML nasce em .claude/archify/ pela régua
+    # de nome dele. Caminho 2 — archify ausente: sai a linha DEGRADADO e o
+    # código 3, e a etapa segue.
+    with tempfile.TemporaryDirectory() as tmp:
+        proj = os.path.join(tmp, "proj")
+        os.makedirs(proj)
+        open(os.path.join(proj, "CLAUDE.md"), "w").write("# marcador de projeto\n")
+        vazio = os.path.join(tmp, "sem-plugins")
+        os.makedirs(vazio)
+        ausente = subprocess.run(
+            ["bash", DIAGRAMA, proj, "workflow", ENTRADA_EXEMPLO, "organismo.html"],
+            capture_output=True, text=True,
+            env=dict(os.environ, CLAUDE_PLUGIN_ROOT=vazio, CLAUDE_CONFIG_DIR=vazio), stdin=subprocess.DEVNULL, start_new_session=True)
+        check("sem archify: codigo 3 e a linha DEGRADADO, sem travar",
+              ausente.returncode == 3 and "DEGRADADO:" in ausente.stdout)
+        check("sem archify: nada foi escrito em .claude/archify/",
+              not os.path.exists(os.path.join(proj, ".claude", "archify")))
+        fora_da_regua = subprocess.run(
+            ["bash", DIAGRAMA, proj, "workflow", ENTRADA_EXEMPLO, "blueprint.html"],
+            capture_output=True, text=True,
+            env=dict(os.environ, CLAUDE_PLUGIN_ROOT=PLUGIN), stdin=subprocess.DEVNULL, start_new_session=True)
+        check("nome fora da regua do archify e recusado",
+              fora_da_regua.returncode == 2)
+        if not (os.path.exists(ENTRADA_EXEMPLO) and _tem_node()):
+            # O archify é plugin IRMÃO: só o repositório tem os dois lado a
+            # lado, e o render dele é Node. Faltando um dos dois, o caminho
+            # feliz não é checável aqui.
+            print("  --   archify irmao ou node ausentes — 2 checagens puladas")
+        else:
+            presente = subprocess.run(
+                ["bash", DIAGRAMA, proj, "workflow", ENTRADA_EXEMPLO, "organismo.html"],
+                capture_output=True, text=True,
+                env=dict(os.environ, CLAUDE_PLUGIN_ROOT=PLUGIN), stdin=subprocess.DEVNULL, start_new_session=True)
+            esperado = os.path.join(proj, ".claude", "archify", "organismo.html")
+            check("com archify: o html nasce em .claude/archify/ pela regua de nome dele",
+                  presente.returncode == 0 and os.path.exists(esperado))
+            check("com archify: o caminho do html sai no stdout, pro relatorio citar",
+                  presente.stdout.strip() == esperado)
+
     print("cada funcionalidade e curada item a item, com a passagem ao lado (F4.2)")
     check("a skill manda usar o bloco `item` do /visual, o componente que ja existe",
           "**um bloco `item`**" in skill and "visual_page.py" in skill)
@@ -434,7 +489,7 @@ def main():
         proc = subprocess.run(
             [sys.executable, VISUAL_PAGE, "build", "--spec", "-", "--out", saida],
             input=json.dumps(_spec_aprovacao(BANCADA_JOURNEYS)),
-            capture_output=True, text=True)
+            capture_output=True, text=True, start_new_session=True)
         html = open(saida, encoding="utf-8").read() if os.path.exists(saida) else ""
         check("a pagina de aprovacao da etapa e montada pelo programa do /visual",
               proc.returncode == 0 and html)
@@ -448,7 +503,7 @@ def main():
         spec_vazio = _spec_aprovacao("")
         proc2 = subprocess.run(
             [sys.executable, VISUAL_PAGE, "build", "--spec", "-", "--out", vazio],
-            input=json.dumps(spec_vazio), capture_output=True, text=True)
+            input=json.dumps(spec_vazio), capture_output=True, text=True, start_new_session=True)
         check("pagina de aprovacao SEM o documento e recusada, sem escrever arquivo",
               proc2.returncode == 2 and not os.path.exists(vazio))
 
@@ -479,7 +534,7 @@ def main():
         fh.write(BANCADA_BLUEPRINT)
     antes = _impressao(banca)
     proc = subprocess.run([sys.executable, RASTREIO, banca],
-                          capture_output=True, text=True)
+                          capture_output=True, text=True, stdin=subprocess.DEVNULL, start_new_session=True)
     check("a conferencia roda no projeto de bancada e devolve JSON",
           proc.returncode == 0 and proc.stdout.strip().startswith("{"))
     saida = json.loads(proc.stdout) if proc.stdout.strip().startswith("{") else {}

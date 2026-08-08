@@ -51,11 +51,28 @@ SESSION=$(hj_campo "$INPUT" session_id)
 # herdar a marca da outra.
 [ -n "$SESSION" ] || exit 0
 MARCA="$(td_tmpdir)/sovai-andamento-$SESSION"
+# O mesmo disparo, gravado onde a BARRA consegue ler: ela é desenhada por outro
+# processo, que não enxerga o /tmp desta sessão. Existir = tem comando de pé;
+# o instante lá dentro é o que separa "rodando há 20 min" de travamento.
+TRABALHO="${CLAUDE_CONFIG_DIR:-$HOME/.claude}/sovai/trabalho-$SESSION"
 
 if [ "$1" = "marca" ]; then
   date +%s > "$MARCA" 2>/dev/null
+  # Três linhas: o instante, o COMANDO e o PROJETO. As duas últimas são o que
+  # deixa a barra chamar `estimativa()` — ela só responde por comando E projeto,
+  # e a barra é desenhada por outro processo, que não tem como saber nenhum dos
+  # dois. Quebra de linha vira espaço: o arquivo é lido por linha.
+  {
+    date +%s
+    hj_campo "$INPUT" tool_input.command | tr '\n' ' ' | sed 's/ *$//'
+    printf '\n%s\n' "$(hj_campo "$INPUT" cwd)"
+  } > "$TRABALHO" 2>/dev/null
   exit 0
 fi
+
+# O comando VOLTOU: não há mais trabalho de pé. Apagar antes de qualquer saída
+# antecipada — deixar o arquivo aí faria a barra dizer "rodando" para sempre.
+rm -f "$TRABALHO" 2>/dev/null
 
 # Estado mutável mora fora do plugin: ${CLAUDE_PLUGIN_ROOT} é cache reescrito a
 # cada bump de versão.
@@ -70,7 +87,7 @@ SINAL="${CLAUDE_CONFIG_DIR:-$HOME/.claude}/sovai/sinal-$SESSION"
 LINHA=$(printf '%s' "$INPUT" | "$PY" -c '
 import json, os, sys, time
 
-raiz, marca, sinal = sys.argv[1], sys.argv[2], sys.argv[3]
+raiz, marca, sinal, sessao = sys.argv[1], sys.argv[2], sys.argv[3], sys.argv[4]
 sys.path.insert(0, os.path.join(raiz, "lib"))
 import andamento
 
@@ -102,25 +119,20 @@ decorrido = time.time() - inicio
 if decorrido < 0:
     raise SystemExit
 
-anterior_arq = marca + "-placar"
-try:
-    with open(anterior_arq, encoding="utf-8") as fh:
-        anterior = json.load(fh)
-except (OSError, ValueError):
-    anterior = None
+# O PLACAR DA ONDA ANTERIOR (F9.27). Ele morava aqui no /tmp, e por isso só esta
+# tela o enxergava — a barra é desenhada por outro processo. Agora o registro é um
+# só, no estado da missão, e os dois leem dele.
+anterior = andamento.ultimo_placar(sessao)
 
 # A linha ANTES de registrar: a estimativa tem que vir das vezes anteriores,
 # não desta.
 linha = andamento.linha_andamento(comando, projeto, decorrido, saida, anterior)
 andamento.registrar(projeto, comando, decorrido)
 
-atual = andamento.placar(saida)
-if atual is not None:
-    try:
-        with open(anterior_arq, "w", encoding="utf-8") as fh:
-            json.dump(atual, fh)
-    except OSError:
-        pass
+# Comando que imprimiu placar é a suíte de uma onda fechando: o placar dela vira o
+# termo de comparação da onda seguinte, e chega à barra. Comando sem placar não é
+# fim de onda e não escreve nada.
+andamento.onda(sessao, saida)
 
 # O SILÊNCIO desde a última vez que o narrador falou. Trabalho vivo é o próprio
 # comando que acabou de rodar: se ELE ocupou o silêncio inteiro, a missão estava
@@ -140,7 +152,7 @@ except OSError:
     pass
 
 sys.stdout.write("\n".join(x for x in (linha, silencio) if x))
-' "$RAIZ" "$MARCA" "$SINAL" 2>/dev/null)
+' "$RAIZ" "$MARCA" "$SINAL" "$SESSION" 2>/dev/null)
 
 # A marca vale para UM comando: deixá-la de pé faria o próximo comando herdar
 # uma duração que não é dele.

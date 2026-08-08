@@ -41,7 +41,13 @@ SID=$(hj_campo "$INPUT" session_id)
 [ -n "$SID" ] || exit 0
 
 MORTOS="[]"
-if [ "${LIXEIRO_TURNO:-1}" != "0" ]; then
+if [ -n "${LIXEIRO_MORTOS_TESTE:-}" ]; then
+  # Só a bancada usa isto. Colher de verdade exige processo de verdade, e plantar um
+  # numa suíte é pior que não testar: ou ela mata algo que não era dela, ou o processo
+  # de mentira morre sozinho antes da asserção. A entrada é injetada, o resto do
+  # caminho — investigar, montar o anúncio, emitir — é o mesmo de produção.
+  MORTOS="$LIXEIRO_MORTOS_TESTE"
+elif [ "${LIXEIRO_TURNO:-1}" != "0" ]; then
   MORTOS=$("$PY3" "$MOTOR" colhe-turno --sessao "$SID" 2>/dev/null) || MORTOS="[]"
 fi
 [ -n "$MORTOS" ] || MORTOS="[]"
@@ -49,6 +55,51 @@ fi
 # A foto de CPU para o próximo turno comparar. Sem ela, todo serviço pareceria
 # ocioso na volta seguinte e seria derrubado no primeiro fim de turno.
 "$PY3" "$MOTOR" marca-cpu --sessao "$SID" >/dev/null 2>&1 || :
+
+# ── POR QUE SOBROU, e não só o que sobrou ────────────────────────────────────
+# Encerrar é metade. Enquanto o defeito que abriu aquilo continuar de pé, a colheita
+# volta a ser necessária no turno seguinte — e foi assim que uma máquina chegou a 2125
+# processos órfãos em 2026-08-08: cada turno limpava, o código seguia igual.
+#
+# Aqui o hook só INVESTIGA e ANUNCIA a causa. Propor conserto, julgar o alcance e
+# aplicar é o rito da `/faxina` (passos 6 e 7), e ele exige agente: hook não escreve
+# código no repositório de ninguém sem que o dono tenha pedido.
+CAUSA="${CLAUDE_PLUGIN_ROOT}/lib/causa.py"
+PORQUE=""
+if [ -f "$CAUSA" ] && [ "$MORTOS" != "[]" ] && [ "${LIXEIRO_CAUSA:-1}" != "0" ]; then
+  PORQUE=$(printf '%s' "$MORTOS" | CAUSA="$CAUSA" "$PY3" -c '
+import json, os, sys
+sys.path.insert(0, os.path.dirname(os.environ["CAUSA"]))
+import causa
+try:
+    mortos = json.load(sys.stdin)
+except Exception:
+    sys.exit(0)
+sobras = [{"pid": m.get("pid"), "comando": m.get("cmd") or m.get("comando") or ""}
+          for m in mortos]
+raiz = os.environ.get("CLAUDE_PROJECT_DIR") or os.getcwd()
+# Só o que a leitura do código EXPLICA entra no aviso. "Não sei de onde veio" é
+# resultado honesto na faxina, onde há um humano lendo — no fim do turno seria só
+# ruído a cada colheita.
+achados = [a for a in causa.investiga(sobras, [raiz])
+           if a.get("arquivo") and a.get("linha")]
+if not achados:
+    sys.exit(0)
+vistos, linhas = set(), []
+for a in achados:
+    chave = (a["arquivo"], a["linha"])
+    if chave in vistos:
+        continue
+    vistos.add(chave)
+    linhas.append("   %s:%s — %s" % (os.path.relpath(a["arquivo"], raiz), a["linha"],
+                                     a["motivo"]))
+print("🔧 e o motivo de terem sobrado:")
+print("\n".join(linhas[:3]))
+if len(linhas) > 3:
+    print("   · ⋯ e mais %d" % (len(linhas) - 3))
+print("   Rode /faxina para propor o conserto — ele passa por um juiz antes de valer.")
+' 2>/dev/null)
+fi
 
 MSG=$(printf '%s' "$MORTOS" | "$PY3" -c '
 import json, sys
@@ -97,6 +148,12 @@ if len(soltos) >= teto_n or mb >= teto_mb:
     : > "$AVISADO" 2>/dev/null || :
   fi
 fi
+
+# A causa vai JUNTO do anúncio da colheita, nunca numa mensagem própria: são a mesma
+# notícia ("encerrei isto, e foi isto que abriu"), e separá-las faria o dono ler duas
+# vezes o mesmo assunto. Sem colheita não há causa a contar.
+[ -n "$MSG" ] && [ -n "$PORQUE" ] && MSG="$MSG
+$PORQUE"
 
 [ -n "$MSG" ] && hj_msg "$MSG"
 exit 0

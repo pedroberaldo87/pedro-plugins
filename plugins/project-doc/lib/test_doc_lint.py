@@ -21,7 +21,7 @@ def check(name, cond):
 
 
 def make_repo(td):
-    subprocess.run(["git", "-C", td, "init", "-q"], check=True)
+    subprocess.run(["git", "-C", td, "init", "-q"], check=True, stdin=subprocess.DEVNULL, start_new_session=True)
     os.makedirs(os.path.join(td, ".claude", "docs"), exist_ok=True)
     os.makedirs(os.path.join(td, "app"), exist_ok=True)
     with open(os.path.join(td, "app", "main.py"), "w") as fh:
@@ -29,13 +29,13 @@ def make_repo(td):
                  "TABLE_NAME = 'user_data'\nMY_CONSTANT_X = 1\n" + "# pad\n" * 10)
     with open(os.path.join(td, "compose.yml"), "w") as fh:
         fh.write("services:\n  app:\n    environment:\n      - COMPOSE_VAR=${COMPOSE_VAR}\n")
-    subprocess.run(["git", "-C", td, "add", "-A"], check=True)
+    subprocess.run(["git", "-C", td, "add", "-A"], check=True, stdin=subprocess.DEVNULL, start_new_session=True)
     subprocess.run(["git", "-C", td, "commit", "-qm", "init",
                     "--author", "t <t@t>", "--no-gpg-sign"], check=True,
                    env={**os.environ, "GIT_COMMITTER_NAME": "t",
-                        "GIT_COMMITTER_EMAIL": "t@t"})
+                        "GIT_COMMITTER_EMAIL": "t@t"}, stdin=subprocess.DEVNULL, start_new_session=True)
     return subprocess.run(["git", "-C", td, "rev-parse", "HEAD"],
-                          capture_output=True, text=True).stdout.strip()
+                          capture_output=True, text=True, stdin=subprocess.DEVNULL, start_new_session=True).stdout.strip()
 
 
 def write_doc(td, name, body):
@@ -124,10 +124,10 @@ def main():
               not any(t.startswith("app/main.py") for t, _ in nt))
         check("tronco: FAIL entra no veredito do lint", out["fails"] >= 1)
         # e some assim que o arquivo entra no tronco
-        subprocess.run(["git", "-C", td, "add", "-A"], check=True)
+        subprocess.run(["git", "-C", td, "add", "-A"], check=True, stdin=subprocess.DEVNULL, start_new_session=True)
         subprocess.run(["git", "-C", td, "commit", "-qm", "mig", "--no-gpg-sign"],
                        check=True, env={**os.environ, "GIT_COMMITTER_NAME": "t",
-                                        "GIT_COMMITTER_EMAIL": "t@t"})
+                                        "GIT_COMMITTER_EMAIL": "t@t"}, stdin=subprocess.DEVNULL, start_new_session=True)
         out = doc_lint.lint(td, [doc7])
         check("tronco: depois do commit, não acusa mais",
               not any(x["check"] == "not-in-trunk" for x in flat(out, doc7)))
@@ -157,10 +157,10 @@ def main():
         os.makedirs(os.path.join(td, "deep", "app"), exist_ok=True)
         with open(os.path.join(td, "deep", "app", "main.py"), "w") as fh:
             fh.write("# pad\n" * 80)   # 81 linhas; o app/main.py da raiz tem ~16
-        subprocess.run(["git", "-C", td, "add", "-A"], check=True)
+        subprocess.run(["git", "-C", td, "add", "-A"], check=True, stdin=subprocess.DEVNULL, start_new_session=True)
         subprocess.run(["git", "-C", td, "commit", "-qm", "deep", "--no-gpg-sign"],
                        check=True, env={**os.environ, "GIT_COMMITTER_NAME": "t",
-                                        "GIT_COMMITTER_EMAIL": "t@t"})
+                                        "GIT_COMMITTER_EMAIL": "t@t"}, stdin=subprocess.DEVNULL, start_new_session=True)
         doc6 = write_doc(td, "amb.md", "- ver `app/main.py:70`")
         out = doc_lint.lint(td, [doc6])
         check("ponteiro ambíguo vivo no candidato certo não vira FAIL",

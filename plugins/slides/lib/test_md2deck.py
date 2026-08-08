@@ -246,7 +246,7 @@ print("\n[CLI]")
 
 src, out, pl, n = build_tmp()
 r = subprocess.run([sys.executable, os.path.join(HERE, "md2deck.py"), src, "--plan"],
-                   capture_output=True, text=True)
+                   capture_output=True, text=True, stdin=subprocess.DEVNULL, start_new_session=True)
 check("--plan devolve JSON com o componente de cada slide", r.returncode == 0
       and len(json.loads(r.stdout)) == N_HEADINGS, r.stderr[:200])
 check("--plan não escreve nada",
@@ -254,12 +254,12 @@ check("--plan não escreve nada",
 
 r = subprocess.run([sys.executable, os.path.join(HERE, "md2deck.py"), src,
                     "--out", os.path.join(os.path.dirname(src), "d.html")],
-                   capture_output=True, text=True)
+                   capture_output=True, text=True, stdin=subprocess.DEVNULL, start_new_session=True)
 check("build sai 0 e imprime o caminho", r.returncode == 0 and "d.html" in r.stdout,
       (r.returncode, r.stderr[:200]))
 
 r = subprocess.run([sys.executable, os.path.join(HERE, "md2deck.py"), src, "--tema", "xpto"],
-                   capture_output=True, text=True)
+                   capture_output=True, text=True, stdin=subprocess.DEVNULL, start_new_session=True)
 check("tema inválido sai 2", r.returncode == 2 and "xpto" in r.stderr)
 
 
@@ -290,7 +290,7 @@ check("o mesmo bullet cabe nos 140 caracteres — o teto de página não pegaria
 
 alvo = os.path.join(d, "longo.html")
 r = subprocess.run([sys.executable, os.path.join(HERE, "md2deck.py"), longo,
-                    "--out", alvo], capture_output=True, text=True)
+                    "--out", alvo], capture_output=True, text=True, stdin=subprocess.DEVNULL, start_new_session=True)
 check("o deck é RECUSADO — perfil de slide não ganha modo permissivo",
       r.returncode == 2, (r.returncode, r.stderr[:200]))
 check("e a recusa vem com o motivo medido", "palavras" in r.stderr, r.stderr[:300])
@@ -309,7 +309,7 @@ with open(prosa, "w", encoding="utf-8") as fh:
     fh.write(PROSA)
 alvo_prosa = os.path.join(d, "prosa.html")
 r = subprocess.run([sys.executable, os.path.join(HERE, "md2deck.py"), prosa,
-                    "--out", alvo_prosa], capture_output=True, text=True)
+                    "--out", alvo_prosa], capture_output=True, text=True, stdin=subprocess.DEVNULL, start_new_session=True)
 check("texto corrido de duas frases é recusado", r.returncode == 2 and "duas frases" in r.stderr,
       (r.returncode, r.stderr[:300]))
 check("e nenhum HTML sai da recusa por prosa", not os.path.exists(alvo_prosa))
@@ -324,7 +324,7 @@ check("o deck de exemplo, que respeita a régua, não gera desvio nenhum",
 print("\n[fidelidade — o check_fidelity.py REAL, sobre o deck compilado]")
 
 src, out, pl, n = build_tmp()
-r = subprocess.run([sys.executable, CHECK_FID, out, src], capture_output=True, text=True)
+r = subprocess.run([sys.executable, CHECK_FID, out, src], capture_output=True, text=True, stdin=subprocess.DEVNULL, start_new_session=True)
 check("deck compilado passa no check_fidelity sem nenhum trecho suspeito",
       r.returncode == 0, r.stdout[-600:])
 
@@ -337,7 +337,7 @@ with open(out, encoding="utf-8") as fh:
 sujo_path = out.replace(".html", "-sujo.html")
 with open(sujo_path, "w", encoding="utf-8") as fh:
     fh.write(sujo)
-r = subprocess.run([sys.executable, CHECK_FID, sujo_path, src], capture_output=True, text=True)
+r = subprocess.run([sys.executable, CHECK_FID, sujo_path, src], capture_output=True, text=True, stdin=subprocess.DEVNULL, start_new_session=True)
 check("o mesmo checker REPROVA prosa inventada (não passou por estar cego)",
       r.returncode == 1 and "inventada" in r.stdout, (r.returncode, r.stdout[-300:]))
 

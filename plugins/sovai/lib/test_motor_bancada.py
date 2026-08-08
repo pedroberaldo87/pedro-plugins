@@ -4,8 +4,9 @@
 Cinco coisas se medem aqui: o plano sai marcado (F9.10), o teto de gasto desliga o motor
 (F9.12), o vigia derruba a execucao com o registro mudo alem do limite e sem trabalho
 vivo (F9.13 + F9.24), a onda verde fica no historico quando o motor e interrompido no
-meio (F9.14), e a onda VERMELHA nao vira ponto de salvamento — nada e commitado e o
-motor relata pelo nome qual suite quebrou (F9.15).
+meio (F9.14), a onda VERMELHA nao vira ponto de salvamento — nada e commitado e o
+motor relata pelo nome qual suite quebrou (F9.15) —, e a concepcao errada vira aviso
+"precisa de voce" SEM segurar a obra (S-9).
 
 `test_travas_motor.py` cobra que a logica esta ESCRITA no esqueleto. Isso nao prova
 que ela funciona: o bloco pode citar `tickPlanPrompt` e nada acontecer no arquivo do
@@ -107,6 +108,12 @@ RESULTADOS = {
              "files_touched": ["d.py"], "anchor": "fim"},
 }
 
+# ── a alegacao de impossivel (F9.18) ────────────────────────────────────────
+# O que o executor diz quando desiste, e o que ele TINHA na mao quando disse. O caso real
+# e este: o diagnostico dizia "exige navegador", e o agente tinha navegador.
+ALEGACAO = "nao da: exige navegador contra producao"
+FERRAMENTAS_A_MAO = ["navegador", "terminal", "leitura de arquivo"]
+
 # ── o replay de cache (F9.35) ────────────────────────────────────────────────
 # Retomar a missao REGRAVA veredito: o runtime devolve do cache o que ja tinha sido
 # entregue. Duas coisas voltam — a mesma tarefa outra vez, com o mesmo `task_id`, e a
@@ -117,6 +124,15 @@ REPLAY_DECOMP_RESULT = {"done": True, "summary": "replay da decomposicao vinda d
                         "files_touched": [], "anchor": "fim",
                         "tasks": [{"id": "F1.1"}, {"id": "F1.2"}]}
 
+# ── a concepcao errada (S-9) ─────────────────────────────────────────────────
+# O gap que diz "a entrevista errou, o codigo esta certo". Ele tem DUAS promessas no
+# motor, e o par abaixo so serve se a UNICA diferenca entre os dois for o `kind` — e o
+# controle de `spec` existe pra provar que quem soltou a obra foi o kind, e nao o cenario.
+GAP_CONCEPCAO = {"task_id": "F1.1", "kind": "concepcao", "severity": "P0",
+                 "problem": "o documento aprovado promete cache local, e o que se descobriu "
+                            "e que a origem nao versiona nada"}
+GAP_SPEC = dict(GAP_CONCEPCAO, kind="spec")
+
 HARNESS = r"""
 const { execSync } = require('child_process')
 const fs = require('fs')
@@ -124,17 +140,23 @@ const CFG = JSON.parse(fs.readFileSync(process.argv[2], 'utf8'))
 const CORPO = fs.readFileSync(process.argv[3], 'utf8')
 
 const PRELUDE = `
-const DECOMP={}, TASK_RESULT={}, BUILD_REVIEW={}, RESERVA={}, REGUA={}, SUITE_RESULT={};
+const DECOMP={}, TASK_RESULT={}, BUILD_REVIEW={}, RESERVA={}, REGUA={}, SUITE_RESULT={}, AUDITOR={};
 const mk = n => (p => Object.assign({ __p: n }, p));
 const decomposePrompt=mk('decompose'), execPrompt=mk('exec'), reviewBuildPrompt=mk('review'),
       runSuitePrompt=mk('suite'), checkpointPrompt=mk('checkpoint'), tickPlanPrompt=mk('tick'),
       docTouchPrompt=mk('docTouch'), colheitaPrompt=mk('colheita'),
       diagnoseStuckTaskPrompt=mk('diag'), reservaPrompt=mk('reserva'), confirmBuildPrompt=mk('confirm'),
-      reguaPrompt=mk('regua');
+      reguaPrompt=mk('regua'), auditorPrompt=mk('auditor');
 `
 
 const chamadas = []
 const checkpoints = []
+// O juiz que nao prova que leu (F9.16). `vereditos` registra, na ordem, se a chamada veio
+// com o aviso de recusa — e com isso a bancada consegue perguntar se o papel foi RE-RODADO
+// e se ele soube por que voltou. `CFG.reviewSemAncora` escolhe o cenario: 'primeira' (a
+// primeira volta sem ancora, a segunda com) ou 'sempre' (juiz que nunca prova).
+const vereditos = []
+const auditorias = []
 const docs = []
 const agentes = []
 const phase = () => {}
@@ -187,9 +209,19 @@ async function agent(p, opts) {
         fs.writeFileSync(CFG.raiz + '/' + p.task.id + '.txt', 'obra de ' + p.task.id + '\n')
       }
       return CFG.results[p.task.id]
-    case 'review':    return { complete: CFG.reviewComplete !== false, cohesive: true,
-                               gaps: [], missingTasks: CFG.reviewComplete === false ? ['F1.3'] : [],
-                               lawMark: null }
+    // Os gaps vem do cenario. Com eles fixos em vazio (como era aqui), nenhuma regra do
+    // motor que julga gap era exercitada — nem a que vira aviso, nem a que segura a obra.
+    case 'review': {
+      vereditos.push(!!p.recusado)
+      const semAncora = CFG.reviewSemAncora === 'sempre' ||
+                        (CFG.reviewSemAncora === 'primeira' && !p.recusado)
+      const v = { complete: CFG.reviewComplete !== false, cohesive: true,
+                  gaps: CFG.gaps || [],
+                  missingTasks: CFG.reviewComplete === false ? ['F1.3'] : [],
+                  lawMark: null }
+      if (!semAncora) v.anchor = 'ultima linha do que julguei'
+      return v
+    }
     // O sinal de vida e o trabalho vivo vem do cenario: com `heartbeat` fixo em CFG.now
     // (como era aqui) o registro nunca fica mudo e o vigia nunca arma — a trava passaria
     // sem nunca ter sido exercitada, do mesmo jeito que o disjuntor com spent() zerado.
@@ -205,6 +237,14 @@ async function agent(p, opts) {
     // skill, nao um comando), entao o que se registra e a CHAMADA — em que onda saiu e
     // com quais arquivos. O lugar dela na fila fica gravado em `agentes`, que e como se
     // afere que ela veio DEPOIS do commit.
+    // O auditor da alegacao de impossivel (F9.18). O cenario escolhe o desfecho, e o que
+    // ele RECEBEU fica registrado: sem isso a bancada nao consegue perguntar se a lente
+    // invertida chegou com a lista do que havia a mao.
+    case 'auditor':
+      auditorias.push({ taskId: p.task && p.task.id, alegacao: p.alegacao,
+                        ferramentas: p.ferramentas, tentativas: p.tentativas })
+      return { derruba: CFG.auditorDerruba === true, motivo: CFG.auditorMotivo || '',
+               naoTentou: CFG.auditorNaoTentou || [], anchor: 'ultima linha do que auditei' }
     case 'docTouch':  docs.push({ round: p.round, files: p.files }); return {}
     case 'tick':      return tica(p)
     default:          return {}
@@ -215,7 +255,7 @@ const corpo = CORPO.replace(/^export const meta = \{[\s\S]*?\n\}\n/m, '')
 const motor = new Function('args', 'agent', 'phase', 'budget', 'parallel',
                            'return (async () => {' + PRELUDE + corpo + '})()')
 motor(CFG.args, agent, phase, budget, parallel).then(saida => {
-  fs.writeFileSync(CFG.out, JSON.stringify({ saida, chamadas, checkpoints, docs, agentes }, null, 2))
+  fs.writeFileSync(CFG.out, JSON.stringify({ saida, chamadas, checkpoints, docs, agentes, vereditos, auditorias }, null, 2))
 }).catch(e => { console.error('MOTOR ESTOUROU: ' + (e && e.stack || e)); process.exit(3) })
 """
 
@@ -224,7 +264,9 @@ def roda_motor(tmp, texto, plan_dir, tick_cmd, plan_path, token_budget=None,
                gasto_por_chamada=0, max_rounds=2, review_complete=True,
                agora=1, heartbeat=None, trabalho_vivo=False,
                checkpoint_cmd="", escreve_no_disco=False,
-               suite_verde=True, suite_falhando=None, replay_cache=False):
+               suite_verde=True, suite_falhando=None, replay_cache=False, gaps=None,
+               review_sem_ancora=None, alegacao_impossivel=None, auditor_derruba=False,
+               auditor_motivo="", auditor_nao_tentou=None):
     """Executa o esqueleto do SKILL.md com os agentes de mentira. Devolve
     {saida, chamadas, agentes} ou levanta AssertionError com o motivo."""
     corpo = os.path.join(tmp, "motor.js")
@@ -239,6 +281,11 @@ def roda_motor(tmp, texto, plan_dir, tick_cmd, plan_path, token_budget=None,
                 "parallelizable": True, "dependsOn": [], "done": False}
                for i in PLANO["phases"][0]["items"]]
     resultados = dict(RESULTADOS)
+    if alegacao_impossivel:
+        # F1.3 (o passo que nao sai) passa a voltar ALEGANDO impossivel, com a lista do
+        # que havia a mao — que e o insumo da lente invertida do auditor.
+        resultados["F1.3"] = dict(RESULTADOS["F1.3"], impossivel=alegacao_impossivel,
+                                  ferramentas=FERRAMENTAS_A_MAO)
     if replay_cache:
         # O plantio: F1.1 e F1.2 voltam do cache uma segunda vez (mesmo `task_id`, mesmo
         # veredito), e a devolucao do decompositor entra na fila como uma linha a mais,
@@ -263,6 +310,11 @@ def roda_motor(tmp, texto, plan_dir, tick_cmd, plan_path, token_budget=None,
         "trabalhoVivo": trabalho_vivo,
         "gastoPorChamada": gasto_por_chamada,
         "reviewComplete": review_complete,
+        "gaps": gaps or [],
+        "reviewSemAncora": review_sem_ancora,
+        "auditorDerruba": auditor_derruba,
+        "auditorMotivo": auditor_motivo,
+        "auditorNaoTentou": auditor_nao_tentou or [],
         "results": resultados,
         "tasks": tarefas,
         "args": {"planPath": plan_path, "planText": "plano de bancada", "maxRounds": max_rounds,
@@ -278,7 +330,7 @@ def roda_motor(tmp, texto, plan_dir, tick_cmd, plan_path, token_budget=None,
     with open(cfg_path, "w", encoding="utf-8") as fh:
         json.dump(cfg, fh)
     proc = subprocess.run(["node", harness, cfg_path, corpo],
-                          capture_output=True, text=True, cwd=tmp)
+                          capture_output=True, text=True, cwd=tmp, stdin=subprocess.DEVNULL, start_new_session=True)
     if proc.returncode != 0:
         raise AssertionError("o motor nao rodou: %s" % (proc.stderr.strip() or proc.stdout.strip()))
     with open(out, encoding="utf-8") as fh:
@@ -290,7 +342,7 @@ def cria_plano(plan_dir):
     with open(entrada, "w", encoding="utf-8") as fh:
         json.dump(PLANO, fh)
     proc = subprocess.run([sys.executable, PLAN_STATE, "--dir", plan_dir, "init", "--file", entrada],
-                          capture_output=True, text=True)
+                          capture_output=True, text=True, stdin=subprocess.DEVNULL, start_new_session=True)
     if proc.returncode != 0:
         raise AssertionError("o plano de bancada nao foi criado: %s" % proc.stderr.strip())
     return os.path.join(plan_dir, "%s.plan.json" % PLANO["id"])
@@ -325,7 +377,7 @@ def bancada_git(texto, tick_cmd, ck_cmd, **kw):
     try:
         def git(*args):
             return subprocess.run(["git", "-C", repo] + list(args),
-                                  capture_output=True, text=True)
+                                  capture_output=True, text=True, stdin=subprocess.DEVNULL, start_new_session=True)
         git("init", "-q")
         git("config", "user.email", "bancada@exemplo.invalido")
         git("config", "user.name", "bancada")
@@ -639,6 +691,139 @@ def main():
     # E o efeito no disco: o passo repetido nao e marcado duas vezes.
     check("nenhum passo foi marcado duas vezes",
           sorted(c["taskId"] for c in replay["chamadas"]) == ["F1.1", "F1.2"])
+
+    # ── S-9 ──────────────────────────────────────────────────────────────────────
+    # A concepcao errada: a execucao descobriu algo que contradiz documento ja aprovado.
+    # O motor promete duas coisas, e nenhuma era exercitada — o gap vira aviso "precisa
+    # de voce" no relatorio, e NAO segura a obra (segurar empurraria o executor a
+    # "consertar" codigo que esta certo).
+    print("S-9 — gap de spec com o mesmo texto SEGURA a obra (o controle)")
+    trava = bancada(texto, tick_cmd, max_rounds=2, gaps=[GAP_SPEC])
+    if trava is None:
+        return 1
+    check("com gap de spec, o motor nao declara a obra construida",
+          trava["saida"]["built"] is False)
+    check("com gap de spec, o executor recebe tarefa numa segunda volta",
+          trava["agentes"].count("decompose") == 2)
+
+    print("S-9 — o gap de concepcao vira aviso e NAO segura a obra")
+    # Mesmo gap, mesmo texto, mesmo cenario: so o `kind` muda.
+    conc = bancada(texto, tick_cmd, max_rounds=2, gaps=[GAP_CONCEPCAO])
+    if conc is None:
+        return 1
+    saida8 = conc["saida"]
+    aviso = [b for b in saida8["blockers"] if "a concepção está errada" in (b.get("what") or "")]
+    check("o gap de concepcao vira Bloqueio no relatorio", len(aviso) == 1)
+    check("o Bloqueio repete o que a execucao contradisse, com as palavras do revisor",
+          bool(aviso) and GAP_CONCEPCAO["problem"] in aviso[0]["what"])
+    check("o Bloqueio sai como 'precisa de voce' e propoe reabrir a etapa",
+          bool(aviso) and "correcao-pendente" in (aviso[0].get("whyNeedsYou") or "")
+          and "reabra a etapa" in (aviso[0].get("whyNeedsYou") or ""))
+    check("ele entra na lista de impedidos, que e a que pede acao do dono",
+          any("a concepção está errada" in (b.get("what") or "")
+              for b in saida8.get("impedidos") or []))
+    check("o motor declara a obra construida mesmo assim", saida8["built"] is True)
+    check("a onda nao foi segurada: uma volta so", len(saida8["rounds"]) == 1)
+    check("nenhum executor recebeu tarefa nova por causa dele",
+          conc["agentes"].count("decompose") == 1
+          and conc["agentes"].count("exec") == trava["agentes"].count("exec") / 2)
+
+    # ── F9.16 · S-24 ─────────────────────────────────────────────────────────────
+    # O juiz prova que leu a coisa inteira: veredito sem a ancora do fim e RECUSADO e o
+    # papel roda de novo. Dois cenarios, com o mesmo controle: com ancora (o caminho
+    # normal, uma chamada so) e sem ancora (recusa + re-rodada).
+    print("F9.16 — veredito COM a ancora passa de primeira (o controle)")
+    com_ancora = bancada(texto, tick_cmd, max_rounds=1)
+    if com_ancora is None:
+        return 1
+    check("com a ancora, o revisor e chamado uma vez so",
+          com_ancora["agentes"].count("review") == 1)
+    check("com a ancora, nenhuma chamada veio marcada como recusa",
+          com_ancora["vereditos"] == [False])
+    check("com a ancora, o motor fecha a obra", com_ancora["saida"]["built"] is True)
+
+    print("F9.16 — veredito SEM a ancora e recusado e o papel roda de novo")
+    sem_ancora = bancada(texto, tick_cmd, max_rounds=1, review_sem_ancora="primeira")
+    if sem_ancora is None:
+        return 1
+    check("sem a ancora, o revisor da MESMA rodada e chamado duas vezes",
+          sem_ancora["agentes"].count("review") == 2)
+    check("a segunda chamada diz ao juiz por que a primeira foi recusada",
+          sem_ancora["vereditos"] == [False, True])
+    check("o veredito que voltou com a ancora e o que vale",
+          sem_ancora["saida"]["built"] is True)
+
+    print("F9.16 — juiz que nunca prova que leu nao aprova nada")
+    nunca = bancada(texto, tick_cmd, max_rounds=1, review_sem_ancora="sempre")
+    if nunca is None:
+        return 1
+    check("o papel foi re-rodado uma vez e parou por ai (nao loopa)",
+          nunca["agentes"].count("review") == 2)
+    check("duas recusas seguidas nao viram aprovacao",
+          nunca["saida"]["built"] is False)
+    recusa = [b for b in nunca["saida"]["blockers"]
+              if "ncora do fim" in (b.get("what") or "")]
+    check("o relatorio diz que o veredito voltou sem a ancora", len(recusa) == 1)
+    check("a obra da rodada e tratada como NAO verificada",
+          bool(recusa) and "sem revisão" in (recusa[0].get("whyNeedsYou") or "").lower())
+
+    # ── F9.18 · S-26 ─────────────────────────────────────────────────────────────
+    # Executor que declara impossivel nao encerra nada sozinho. A alegacao repetida na
+    # mesma tarefa convoca o auditor, e os DOIS desfechos sao do script: derruba devolve
+    # a tarefa ao loop; confirma encerra como impedimento real, com o motivo escrito.
+    # O controle vem primeiro: alegacao de UMA rodada so nao convoca ninguem.
+    print("F9.18 — alegacao que nao se repetiu nao convoca auditor (o controle)")
+    uma_vez = bancada(texto, tick_cmd, max_rounds=1, alegacao_impossivel=ALEGACAO)
+    if uma_vez is None:
+        return 1
+    check("com uma rodada so, nenhum auditor foi convocado",
+          "auditor" not in uma_vez["agentes"])
+    check("e ninguem encerrou a tarefa como impedimento",
+          not [b for b in uma_vez["saida"]["blockers"] if b.get("kind") == "impedimento"])
+
+    print("F9.18 — auditor que DERRUBA a alegacao devolve a tarefa ao loop")
+    derruba = bancada(texto, tick_cmd, max_rounds=2, review_complete=False,
+                      alegacao_impossivel=ALEGACAO, auditor_derruba=True,
+                      auditor_motivo="a ferramenta estava na mao; a causa e outra",
+                      auditor_nao_tentou=["navegador"])
+    if derruba is None:
+        return 1
+    saida9 = derruba["saida"]
+    check("a alegacao repetida convocou o auditor, uma vez",
+          derruba["agentes"].count("auditor") == 1)
+    auditoria = derruba["auditorias"][0] if derruba["auditorias"] else {}
+    check("o auditor recebeu a alegacao do executor", auditoria.get("alegacao") == ALEGACAO)
+    check("o auditor recebeu a lista do que havia a mao",
+          auditoria.get("ferramentas") == FERRAMENTAS_A_MAO)
+    devolvidas = saida9["rounds"][-1].get("devolvidas") or []
+    check("a tarefa derrubada volta pro loop, com o que o auditor apontou",
+          [d["taskId"] for d in devolvidas] == ["F1.3"]
+          and "a causa e outra" in devolvidas[0]["motivo"])
+    check("o auditor que derruba nao encerra nada como impedimento",
+          not [b for b in saida9["blockers"] if b.get("kind") == "impedimento"])
+    check("e o dono nao e chamado por causa dela",
+          not [b for b in (saida9.get("impedidos") or []) if b.get("taskId") == "F1.3"])
+
+    print("F9.18 — auditor que CONFIRMA encerra como impedimento real, com o motivo")
+    confirma = bancada(texto, tick_cmd, max_rounds=2, review_complete=False,
+                       alegacao_impossivel=ALEGACAO, auditor_derruba=False,
+                       auditor_motivo="publicar depende do aval do dono, e a tela so existe publicada")
+    if confirma is None:
+        return 1
+    saida10 = confirma["saida"]
+    check("o mesmo cenario convocou o auditor, uma vez",
+          confirma["agentes"].count("auditor") == 1)
+    impedimento = [b for b in saida10["blockers"] if b.get("kind") == "impedimento"]
+    check("a tarefa e encerrada como impedimento real", len(impedimento) == 1)
+    check("o impedimento nomeia a tarefa e traz o motivo ESCRITO pelo auditor",
+          bool(impedimento) and impedimento[0]["taskId"] == "F1.3"
+          and "publicar depende do aval do dono" in impedimento[0]["what"])
+    check("o impedimento sai como 'precisa de voce', e nao como falta de tempo",
+          any(b.get("taskId") == "F1.3" for b in saida10.get("impedidos") or []))
+    check("a tarefa confirmada NAO volta pro loop",
+          not (saida10["rounds"][-1].get("devolvidas") or []))
+    check("e ela nao sai marcada no plano",
+          "F1.3" not in [c["taskId"] for c in confirma["chamadas"]])
 
     print()
     if FAILS:

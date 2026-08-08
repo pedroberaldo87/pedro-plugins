@@ -172,6 +172,57 @@ def avanco(anterior, atual):
     return "sem avanço"
 
 
+def onda(sessao, saida, dir_estado=None):
+    """O placar da suite de UMA ONDA, comparado com o da onda anterior.
+
+    O motor ja pedia o campo `placar` ao papel da suite e o DESCARTAVA: a
+    comparacao entre ondas — o unico sinal medido de "esta em circulos" — nao
+    chegava a tela nenhuma. Aqui o placar da onda fica no disco, por sessao (o
+    mesmo lugar do resto do estado da missao), e sai comparado.
+
+    Devolve None quando a saida nao tem placar: onda sem placar nao e onda nova,
+    e sobrescrever o registro com nada apagaria o termo de comparacao.
+    """
+    p = _como_placar(saida)
+    if p is None:
+        return None
+    base = dir_estado or ESTADO
+    caminho = os.path.join(base, "placar-%s" % sessao)
+    estado = avanco(ultimo_placar(sessao, base), p)
+    linha = "suíte: %s — %s" % (p["linha"], estado)
+    try:
+        os.makedirs(base, exist_ok=True)
+        with open(caminho, "w", encoding="utf-8") as fh:
+            json.dump({"placar": p, "linha": linha}, fh, ensure_ascii=False)
+    except OSError:
+        # Fail-open como o resto do modulo: sem registro a proxima onda volta a
+        # ser "primeiro placar", que e honesto.
+        pass
+    return linha
+
+
+def _registro_onda(sessao, dir_estado=None):
+    try:
+        with open(os.path.join(dir_estado or ESTADO, "placar-%s" % sessao),
+                  encoding="utf-8") as fh:
+            return json.load(fh)
+    except (OSError, ValueError):
+        return {}
+
+
+def ultimo_placar(sessao, dir_estado=None):
+    """O placar da onda anterior desta sessao, ou None na primeira."""
+    return _registro_onda(sessao, dir_estado).get("placar")
+
+
+def linha_placar(sessao, dir_estado=None):
+    """A linha da ultima onda, lida do disco — ou None quando nao houve onda.
+
+    E o que a BARRA le: ela e desenhada por um processo que nao viu a suite rodar.
+    """
+    return _registro_onda(sessao, dir_estado).get("linha") or None
+
+
 def _dur(segundos):
     s = int(round(segundos))
     return "%ds" % s if s < 90 else "%dmin%02ds" % (s // 60, s % 60)
@@ -250,6 +301,41 @@ def linha_andamento(comando, projeto, decorrido, saida_ate_agora="", anterior=No
     return " · ".join(partes)
 
 
+def _trabalho(base, sessao):
+    """O disparo que QUEM EXECUTA gravou: (instante, comando, projeto), ou None.
+
+    `trabalho-<sid>` e escrito quando um comando dispara e apagado quando ele
+    volta: existir ja quer dizer "tem comando rodando agora". Alem do instante,
+    quem grava passa o COMANDO e o PROJETO — sem esses dois a barra teria
+    relogio e nao teria estimativa, porque `estimativa()` so responde por comando
+    E projeto. Registro no formato antigo (so o carimbo) devolve comando vazio, e
+    ai a barra fica exatamente a que sempre foi.
+    """
+    try:
+        with open(os.path.join(base, "trabalho-%s" % sessao), encoding="utf-8") as fh:
+            linhas = fh.read().splitlines()
+        inicio = float(linhas[0].strip())
+    except (OSError, ValueError, IndexError):
+        return None
+    return (inicio,
+            linhas[1].strip() if len(linhas) > 1 else "",
+            linhas[2].strip() if len(linhas) > 2 else "")
+
+
+def _trabalho_vivo(base, sessao, agora, limite=LIMITE_SILENCIO):
+    """Havia ferramenta DE PE durante o silencio? — lido do disco, nada perguntado.
+
+    O instante do disparo e de onde sai a segunda metade da resposta — um comando
+    de pe ha 3 segundos NAO explica um silencio de 20 minutos; so o que ja passou
+    do mesmo teto ocupou o silencio inteiro. E a mesma regra que o gancho de
+    andamento aplica no cartao (`decorrido >= LIMITE_SILENCIO`).
+    """
+    t = _trabalho(base, sessao)
+    if t is None:
+        return False
+    return (agora - t[0]) >= limite
+
+
 def linha_motor(sessao, dir_estado=None, agora=None):
     """A linha do motor para a barra de status, ou None quando nao ha motor vivo.
 
@@ -281,6 +367,23 @@ def linha_motor(sessao, dir_estado=None, agora=None):
 
     partes = ["sovai · missão há %s" % _dur(max(idade, 0))]
 
+    # O RELOGIO E A ESTIMATIVA DA FERRAMENTA QUE ESTA DE PE. Os dois ja nasciam em
+    # `linha_disparo`, que sai por `systemMessage` e rola com a conversa: quem volta
+    # ao terminal depois de uma hora nao ve nenhuma. Aqui eles chegam a superficie
+    # que FICA. Nada e adivinhado — comando e projeto sao os que quem executa gravou
+    # no disparo; sem eles nao ha o que dizer e a barra segue igual.
+    t = _trabalho(base, sessao)
+    if t and t[1]:
+        decorrido = agora - t[0]
+        if decorrido >= 0:
+            corrido = "ferramenta há %s" % _dur(decorrido)
+            est = estimativa(t[2], t[1])
+            # Comando sem historico AQUI sai sem numero: a mesma regra do modulo
+            # inteiro — relogio sozinho e honesto, numero inventado nao.
+            if est is not None:
+                corrido += " · usual ~%s" % _dur(est)
+            partes.append(corrido)
+
     sinal = os.path.join(base, "sinal-%s" % sessao)
     mudo = None
     try:
@@ -290,9 +393,14 @@ def linha_motor(sessao, dir_estado=None, agora=None):
         mudo = None
     if mudo is not None and mudo >= 0:
         # A mesma palavra do gancho de andamento: acima do teto do vigia o silencio
-        # deixa de ser so um numero e passa a ter nome.
+        # deixa de ser so um numero e passa a ter nome. E o nome depende de haver
+        # trabalho vivo — sem essa distincao a barra chamava de SEM SINAL a suite
+        # de 20 minutos que estava rodando normalmente.
         if mudo > LIMITE_SILENCIO:
-            partes.append("SEM SINAL há %s" % _dur(mudo))
+            if _trabalho_vivo(base, sessao, agora):
+                partes.append("rodando há %d min" % int(round(mudo / 60.0)))
+            else:
+                partes.append("SEM SINAL há %s" % _dur(mudo))
         else:
             partes.append("último sinal há %s" % _dur(mudo))
 
@@ -303,5 +411,11 @@ def linha_motor(sessao, dir_estado=None, agora=None):
         n = 0
     if n > 0:
         partes.append("%d bloqueio%s" % (n, "s" if n > 1 else ""))
+
+    # O PLACAR DA ULTIMA ONDA, comparado com o da anterior (F9.27). Chega aqui pela
+    # mesma regra do resto: lido do disco, nunca perguntado a ninguem.
+    onda_linha = linha_placar(sessao, base)
+    if onda_linha:
+        partes.append(onda_linha)
 
     return " · ".join(partes)

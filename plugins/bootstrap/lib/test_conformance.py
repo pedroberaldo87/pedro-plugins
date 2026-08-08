@@ -38,7 +38,7 @@ def roda_conformance(config_dir, cfg_versionado):
     env = dict(os.environ, CLAUDE_CONFIG_DIR=str(config_dir),
                CLAUDE_PLUGIN_ROOT=str(cfg_versionado.parent))
     r = subprocess.run([sys.executable, str(CONFORMANCE), "--json"],
-                       capture_output=True, text=True, env=env)
+                       capture_output=True, text=True, env=env, stdin=subprocess.DEVNULL, start_new_session=True)
     try:
         return json.loads(r.stdout)
     except ValueError:
@@ -437,7 +437,7 @@ def roda_scope_cop(bindir, payload, home, config_dir, script=None):
     env = dict(os.environ, HOME=str(home), CLAUDE_CONFIG_DIR=str(config_dir),
                PATH=f"{bindir}:{os.environ['PATH']}")
     r = subprocess.run(["bash", str(script or SCOPE_COP)], input=payload,
-                       capture_output=True, text=True, env=env)
+                       capture_output=True, text=True, env=env, start_new_session=True)
     return r.stdout.strip(), r.returncode
 
 
@@ -589,7 +589,7 @@ def teste_escritor_e_leitor_concordam():
         env = dict(os.environ, CLAUDE_CONFIG_DIR=str(vivo), PROSE_CEILING_MAX="6")
         payload = json.dumps({"transcript_path": str(transcript), "session_id": "acordo"})
         saidas = [subprocess.run([sys.executable, str(HOOK)], input=payload,
-                                 capture_output=True, text=True, env=env).returncode
+                                 capture_output=True, text=True, env=env, start_new_session=True).returncode
                   for _ in range(3)]
         check("bloqueia 2x e desiste na 3a", saidas == [2, 2, 0], str(saidas))
         log = vivo / "state" / "prose-ceiling" / "bypass.log"

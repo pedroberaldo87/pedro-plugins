@@ -22,5 +22,6 @@ for (const [mode, input, output] of TARGETS) {
     path.join(skillRoot, `renderers/${mode}/render-${mode}.mjs`),
     path.join(skillRoot, 'examples', input),
     path.join(outputRoot, output),
-  ], { stdio: 'inherit' });
+    // stdin fechado, saída visível — ver a mesma troca em bin/archify.mjs.
+  ], { stdio: ['ignore', 'inherit', 'inherit'] });
 }

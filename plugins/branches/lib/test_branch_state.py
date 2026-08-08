@@ -46,7 +46,7 @@ class Repo(object):
 
     def g(self, *a):
         return subprocess.run(("git", "-C", self.path) + a,
-                              capture_output=True, text=True)
+                              capture_output=True, text=True, stdin=subprocess.DEVNULL, start_new_session=True)
 
     def commit(self, msg, fname, body):
         with open(os.path.join(self.path, fname), "w", encoding="utf-8") as fh:
@@ -320,7 +320,7 @@ def main():
                 shutil.move(os.path.join(rr.path, item), os.path.join(sub, item))
             shutil.rmtree(rr.path, ignore_errors=True)
             subprocess.run(("git", "-C", sub, "checkout", "-q", "-b", "feat/x"),
-                           capture_output=True)
+                           capture_output=True, stdin=subprocess.DEVNULL, start_new_session=True)
         achados = bs.scan(root)
         check("acha os 2 repositórios da pasta", len(achados) == 2)
         check("classifica cada um", all("branches" in a for a in achados))

@@ -29,7 +29,7 @@ def check(label, cond):
 
 
 def git(d, *a):
-    subprocess.run(["git", "-C", d] + list(a), capture_output=True, text=True, timeout=30)
+    subprocess.run(["git", "-C", d] + list(a), capture_output=True, text=True, timeout=30, stdin=subprocess.DEVNULL, start_new_session=True)
 
 
 def monta(d, arquivos):
@@ -133,11 +133,19 @@ def main():
     finally:
         shutil.rmtree(d, ignore_errors=True)
 
+    # A lei (decisão do dono em 2026-08-08) dá o perdão à "narrativa histórica" só FORA da
+    # pasta da documentação: é lá dentro que o número envelhece calado, e contar um defeito
+    # passado não pode virar passe para cravar contagem nova.
+    # O cobrador ainda não chegou lá: hoje ele restringe só a RAIZ FROUXA (`envelhec`,
+    # `estava errad`), e a narrativa DATADA continua isentando dentro da doc. O caso abaixo
+    # é verde porque retrata o cobrador de hoje — é dívida declarada contra a lei, não a
+    # lei. Quando o cobrador alcançar a lei, este caso passa a esperar `contagem-cravada`.
     d = tempfile.mkdtemp(prefix="desac-docnarr-")
     try:
         monta(d, {".claude/docs/architecture.md":
                   "Até 2026-08-07 este doc dizia 54 suítes.\n"})
-        check("na doc, a narrativa datada segue isentando", dc.varre(d) == [])
+        check("na doc, a narrativa datada ainda isenta — dívida do cobrador contra a lei",
+              dc.varre(d) == [])
     finally:
         shutil.rmtree(d, ignore_errors=True)
 
@@ -249,7 +257,7 @@ def main():
         monta(d, {"plugins/alfa/skills/alfa/SKILL.md":
                   "Abra plugins/beta/lib/x.py\nAbra plugins/beta/lib/x.py\n"})
         r = subprocess.run([sys.executable, dc.__file__, "--root", d, "--gravar-retrato"],
-                           capture_output=True, text=True, timeout=60)
+                           capture_output=True, text=True, timeout=60, stdin=subprocess.DEVNULL, start_new_session=True)
         with open(os.path.join(d, dc.RETRATO), encoding="utf-8") as fh:
             gravado = json.load(fh)
         check("o retrato gravado não repete chave", len(gravado) == len(set(gravado)))

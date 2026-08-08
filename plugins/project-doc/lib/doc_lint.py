@@ -105,7 +105,7 @@ def _git_ls_files(root):
     acusaria TODO token e TODO ponteiro. None faz os checks 1 e 3 se calarem."""
     try:
         r = subprocess.run(["git", "-C", root, "ls-files"], capture_output=True,
-                           text=True, timeout=30, errors="replace")
+                           text=True, timeout=30, errors="replace", stdin=subprocess.DEVNULL, start_new_session=True)
     except Exception:
         return None
     if r.returncode != 0:
@@ -124,7 +124,7 @@ def _git_head_files(root):
         try:
             r = subprocess.run(["git", "-C", groot, "ls-tree", "-r", "--name-only",
                                 "-z", "HEAD"], capture_output=True, text=True,
-                               timeout=30, errors="replace")
+                               timeout=30, errors="replace", stdin=subprocess.DEVNULL, start_new_session=True)
         except Exception:
             return None
         if r.returncode != 0:
@@ -252,7 +252,7 @@ def _commit_batch_check(root, tokens):
             inp = "".join(t + "^{commit}\n" for t in pending)
             out = subprocess.run(["git", "-C", groot, "cat-file", "--batch-check"],
                                  input=inp, capture_output=True, text=True,
-                                 timeout=20).stdout.splitlines()
+                                 timeout=20, start_new_session=True).stdout.splitlines()
         except Exception:
             continue
         # Só conta como consulta VÁLIDA se o git respondeu 1 linha por token.

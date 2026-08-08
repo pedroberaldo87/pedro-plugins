@@ -114,7 +114,7 @@ def resolve_dir(cwd=None):
     if not os.path.exists(script):
         raise PlanError("resolve-dir.sh não encontrado em %s — passe --dir" % script)
     out = subprocess.run(["bash", script, cwd or os.getcwd(), "plans"],
-                         capture_output=True, text=True)
+                         capture_output=True, text=True, stdin=subprocess.DEVNULL, start_new_session=True)
     target = (out.stdout or "").strip()
     if not target:
         raise PlanError("resolve-dir.sh não devolveu caminho — passe --dir")
@@ -631,7 +631,7 @@ def _requisitos_do_plano(plan):
         if isinstance(r, dict) and str(r.get("id", "")).strip():
             out[r["id"].strip()] = {"titulo": r.get("titulo", ""), "ca": r.get("ca"),
                                     "ancora": r.get("ancora"), "jornada": r.get("jornada"),
-                                    "peca": r.get("peca"),
+                                    "peca": r.get("peca"), "passo": r.get("passo"),
                                     "epico": r.get("epico"), "decisao": r.get("decisao")}
     return out
 
@@ -714,6 +714,26 @@ def _pecas_do_projeto(directory):
         p = os.path.join(raiz, cand)
         if os.path.exists(p):
             return cobertura.le_pecas(p)
+    return []
+
+
+def _passos_do_projeto(directory):
+    """Acha os passos do ciclo do desenho de funcionamento. [] se não houver.
+
+    Cascata: $PLAN_BLUEPRINT → <raiz>/.claude/docs/blueprint.md → <raiz>/docs/blueprint.md
+    → []. É o documento que a etapa 5 do /start-doc escreve (como o sistema funciona, do
+    começo ao fim); sem ele não há ciclo com o que cruzar, e o cruzamento fica quieto em
+    vez de acusar todo mundo.
+    """
+    import cobertura
+    env = os.environ.get("PLAN_BLUEPRINT")
+    if env and os.path.exists(env):
+        return cobertura.le_passos(env)
+    raiz = os.path.dirname(os.path.dirname(os.path.abspath(directory)))
+    for cand in (".claude/docs/blueprint.md", "docs/blueprint.md"):
+        p = os.path.join(raiz, cand)
+        if os.path.exists(p):
+            return cobertura.le_passos(p)
     return []
 
 
@@ -824,7 +844,8 @@ def cmd_cobertura(args):
     reqs = (cobertura.le_requisitos(args.reqs) if args.reqs
             else _requisitos_do_projeto(directory, plan))
     m = cobertura.mapa(plan, reqs, _jornadas_do_projeto(directory),
-                       _artigos_do_projeto(directory), _pecas_do_projeto(directory))
+                       _artigos_do_projeto(directory), _pecas_do_projeto(directory),
+                       _passos_do_projeto(directory))
     if args.json:
         print(json.dumps(m, ensure_ascii=False))
         return 0
@@ -841,9 +862,13 @@ def cmd_cobertura(args):
                            "⚪ funcionalidades sem artigo, declaradas como decisão sua"),
                           ("sem_peca",
                            "🔴 funcionalidades sem peça da arquitetura pretendida"),
+                          ("sem_passo",
+                           "🔴 funcionalidades sem passo do ciclo do desenho"),
                           ("sem_ca", "🔴 requisitos sem critério de aceite"),
                           ("jornadas_sem_funcionalidade",
                            "🔵 jornadas que nenhuma funcionalidade atende"),
+                          ("passos_sem_funcionalidade",
+                           "🔵 passos do ciclo que nenhuma funcionalidade atende"),
                           ("artigos_inexistentes",
                            "⛔ requisitos citando artigo que a lei não tem"),
                           ("pecas_inexistentes",
@@ -1792,7 +1817,7 @@ def cmd_page(args):
     out = args.out
     if not out:
         vis = subprocess.run(["bash", os.path.join(here, "..", "skills", "visual", "resolve-dir.sh"),
-                              os.getcwd(), "visual"], capture_output=True, text=True)
+                              os.getcwd(), "visual"], capture_output=True, text=True, stdin=subprocess.DEVNULL, start_new_session=True)
         vdir = (vis.stdout or "").strip()
         if not vdir:
             raise PlanError("não consegui resolver o diretório do /visual — passe --out")

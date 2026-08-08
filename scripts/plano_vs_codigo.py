@@ -41,6 +41,7 @@ import glob
 import json
 import os
 import re
+import signal
 import subprocess
 import sys
 
@@ -61,6 +62,22 @@ PERIGO = re.compile(
 )
 
 TIMEOUT = 30
+
+# A TRAVA DE REENTRÂNCIA, e ela existe por uma bomba de forks medida em 2026-08-08:
+# 2125 processos órfãos numa máquina, por RECURSÃO MÚTUA. O ciclo era este —
+#
+#   plano_vs_codigo roda o `pronto` de cada passo  →  o `pronto` do passo F11.7 é
+#   `python3 plugins/vistoria/lib/medidor.py --json | …`  →  o medidor roda os nove
+#   cobradores, e um deles é `scripts/plano_vs_codigo.py --json`  →  volta ao topo.
+#
+# Nenhum dos dois lados está errado sozinho: executar o critério é o trabalho deste
+# script, e consolidar os cobradores é o trabalho do medidor. O ciclo nasce do
+# encontro, então a trava também é dos dois lados — aqui a marca é ACESA, e quem for
+# chamado a vê no ambiente e se recusa a fechar a volta.
+#
+# Marca no AMBIENTE, e não numa variável do processo: o que se repete são processos
+# NETOS, criados por `sh -c`, e variável de módulo não atravessa `fork`.
+REENTRANCIA = "PLANO_VS_CODIGO_RODANDO"
 
 
 def _itens(no):
@@ -99,15 +116,50 @@ def cumprido_caminho(alvo, root):
 
 
 def cumprido_comando(cmd, root):
-    """True/False se deu para julgar; None quando o comando não é rodável."""
+    """True/False se deu para julgar; None quando o comando não é rodável.
+
+    O comando vem do campo `pronto` de um passo do plano — é texto de terceiro, e
+    a máquina tem 162 deles. Três cuidados, e cada um tapou um vazamento medido em
+    2026-08-08, quando esta função encheu a máquina de `python3` que não fechava:
+
+      stdin fechado          sem isso o filho HERDA o terminal; comando que lê a
+                             entrada fica pendurado para sempre, e nem o timeout o
+                             alcança — ele não estourou, está esperando.
+      sessão própria + killpg o timeout do subprocess mata só o `sh -c`. O python3
+                             que o shell abriu vira ÓRFÃO e continua rodando. Com o
+                             grupo próprio, o `killpg` do `except` derruba a árvore.
+      kill no cancelamento   `finally` com `poll() is None` cobre a interrupção do
+                             pai (Ctrl-C, workflow morto), que não passa pelo except
+                             do timeout e deixava o mesmo órfão por outra porta.
+    """
     if PERIGO.search(cmd):
         return None
+    # Já estamos dentro de uma execução destas: o comando que nos chamou saiu de um
+    # critério, e rodar mais um fecharia o ciclo. Devolve None — "não deu para julgar"
+    # é a resposta honesta, e é a mesma que o comando não-rodável recebe.
+    if os.environ.get(REENTRANCIA):
+        return None
+    filho = dict(os.environ, **{REENTRANCIA: "1"})
+    p = None
     try:
-        r = subprocess.run(cmd, shell=True, cwd=root, timeout=TIMEOUT,
-                           stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        p = subprocess.Popen(cmd, shell=True, cwd=root, env=filho,
+                             stdin=subprocess.DEVNULL,
+                             stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                             start_new_session=True)
+        p.wait(timeout=TIMEOUT)
+        return p.returncode == 0
     except Exception:
         return None
-    return r.returncode == 0
+    finally:
+        if p is not None and p.poll() is None:
+            try:
+                os.killpg(os.getpgid(p.pid), signal.SIGKILL)
+            except OSError:
+                p.kill()
+            try:
+                p.wait(timeout=5)
+            except Exception:
+                pass
 
 
 def cumprido_comandos(cmds, root):

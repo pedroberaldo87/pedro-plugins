@@ -57,11 +57,11 @@ def main():
     # A linha de comando: é por ela que um .sh ou um gate cobra a mesma régua.
     exe = os.path.join(AQUI, "regua_pronto.py")
     r = subprocess.run([sys.executable, exe, "--onde", "F2.3", "-"],
-                       input=BANCADA[0], capture_output=True, text=True)
+                       input=BANCADA[0], capture_output=True, text=True, start_new_session=True)
     check("CLI sai 1 no critério de bancada", r.returncode == 1)
     check("CLI diz o motivo no stderr", "entregável" in r.stderr)
     r = subprocess.run([sys.executable, exe, "--onde", "F2.3", "-"],
-                       input=OK[0], capture_output=True, text=True)
+                       input=OK[0], capture_output=True, text=True, start_new_session=True)
     check("CLI sai 0 e cala quando a origem está declarada",
           r.returncode == 0 and r.stderr == "")
 
