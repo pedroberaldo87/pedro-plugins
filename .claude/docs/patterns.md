@@ -81,7 +81,8 @@ Hook que erra **libera a ação**. Derivado mecanicamente neste run:
 
 ```bash
 grep -rli 'fail-open\|fail open' plugins/*/hooks/*.sh .claude/hooks/*.sh _shared/*.sh | wc -l
-# → 42 arquivos (era 41: entrou visual/hooks/test_exitplan_gate.sh, que testa o fail-open do gate)
+# → 60 arquivos nesta rodada (era 42; entraram os hooks dos plugins nascidos depois — check-skills,
+#   gauntlet, lixeiro, vistoria — e os do project-skills, que herdou os hooks das skills que mudaram de casa)
 ```
 
 Arquivos que **declaram** a regra no cabeçalho, entre eles [confirmado]:
@@ -115,7 +116,7 @@ Três canais, escolhidos por evento e por intenção:
   }
   ```
 
-- **`exit 2` + mensagem em stderr** — bloqueia de fato; o stderr volta pro modelo. Arquivos com `exit 2` neste run (`grep -rln 'exit 2' plugins/*/hooks/*.sh .claude/hooks/*.sh`): `.claude/hooks/release-gate.sh`, `plugins/guardrails/hooks/lint-and-typecheck.sh`, `plugins/intent-guard/hooks/plan-gate.sh`, `plugins/ship/hooks/pre-deploy-test-check.sh`, `plugins/visual/hooks/pre-exitplan-visualize.sh` (+ as suítes `intent-guard/hooks/test_plan_gate.sh`, `ship/hooks/test_pre_deploy.sh` e `visual/hooks/test_exitplan_gate.sh`) — **8 arquivos neste run**.
+- **`exit 2` + mensagem em stderr** — bloqueia de fato; o stderr volta pro modelo. Arquivos com `exit 2` neste run (`grep -rln 'exit 2' plugins/*/hooks/*.sh .claude/hooks/*.sh`): `.claude/hooks/release-gate.sh`, `plugins/guardrails/hooks/lint-and-typecheck.sh`, `plugins/intent-guard/hooks/plan-gate.sh`, `plugins/project-doc/hooks/doc-aprovar.sh`, `plugins/ship/hooks/pre-deploy-test-check.sh`, `plugins/visual/hooks/pre-exitplan-visualize.sh` (+ as suítes `intent-guard/hooks/test_plan_gate.sh`, `ship/hooks/test_pre_deploy.sh` e `visual/hooks/test_exitplan_gate.sh`) — **9 arquivos neste run**.
 - **JSON no stdout** — o canal estruturado:
 
 ```bash
@@ -851,11 +852,19 @@ Consumidores declarados no próprio cabeçalho: *"Fase Gate do qa-loop (grava), 
 4. **Rode as suites do plugin tocado** (§6) — os checks D e F do release-gate fazem isso no commit.
 5. **Plugin novo entra em TRÊS arquivos**: `plugin.json`, `marketplace.json` e `plugins/bootstrap/config/manifest.json`. Catálogo diz *o que existe pra instalar*; receita diz *o que a máquina instala*. Quem cobra é `conformance.py:check_catalogo` [confirmado, li a função], **não** o `release-gate.sh` — então o commit **passa** com a receita desatualizada e o desvio só aparece no próximo `bootstrap:setup`. A docstring nomeia o modo de falha: *"Plugin que entra no catalogo e nao entra na receita nunca chega em maquina nenhuma — e ninguem descobre, porque nada mais compara os dois lados."*
 
-**Estado do catálogo neste run** [confirmado — derivado com `python3` sobre `.claude-plugin/marketplace.json` e sobre os 20 `plugin.json`]: **20** entradas em `plugins`, e o espelho do check B **fecha nas 20** — nenhuma diverge. Dos 20, apenas `grill-me` e `grill-with-docs` trazem chave `author`, e nas duas ela é **objeto**, a forma que o `validate` aceita.
+**Estado do catálogo** — a contagem e a lista saem do índice, nunca de um número escrito aqui (§3.1). O espelho do check B fecha quando a segunda linha não imprime nada:
 
-Versões de hoje [confirmado — derivado dos 20 `plugin.json`; o espelho do check B fecha nas 20, nenhuma diverge]: `archify` 2.11.0 · `bootstrap` 1.10.1 · `branches` 1.3.0 · `context-guard` 1.3.4 · `fallow` 1.2.0 · `graphify-guard` 1.2.0 · `grill-me` 1.1.0 · `grill-with-docs` 1.1.0 · `guardrails` 1.7.0 · `handoff` 1.8.7 · `improve` 1.0.3 · `intent-guard` 0.6.0 · `principles` 1.0.3 · `project-doc` 3.21.0 · `qa-loop` 1.8.3 · `ship` 1.4.0 · `slides` 1.5.0 · `sovai` 1.11.4 · `vision` 0.1.0 · `visual` 1.19.3.
+```bash
+python3 -c "import json;print(len(json.load(open('.claude-plugin/marketplace.json'))['plugins']),'entradas')"
+python3 -c "
+import json,glob
+vs={json.load(open(f))['name']:json.load(open(f))['version'] for f in glob.glob('plugins/*/.claude-plugin/plugin.json')}
+print([(p['name'],p.get('version'),vs.get(p['name'])) for p in json.load(open('.claude-plugin/marketplace.json'))['plugins'] if p.get('version')!=vs.get(p['name'])])"
+```
 
-⚠️ **Só `archify` (2.11.0) e `improve` (1.0.3) seguem na versão do commit-raiz `2587006`** — os outros 18 subiram [confirmado — `git diff 2587006 HEAD -- 'plugins/*/.claude-plugin/plugin.json'`]. Não é sinal de qualidade nem de abandono: são os dois plugins que ninguém tocou.
+Nesta rodada: **24 entradas**, espelho fechado, nenhuma diverge. `grill-me` é o único que traz chave `author`, e ela é **objeto** — a forma que o `validate` aceita.
+
+⚠️ **"Qual plugin não mudou desde a raiz" deixou de ser pergunta respondível**, e a doc anterior a respondia errado. O commit-raiz `2587006` **não traz nenhum `plugins/*/.claude-plugin/plugin.json`** — `git ls-tree 2587006 -r --name-only -- 'plugins/*/.claude-plugin/plugin.json' | wc -l` devolve **0**. Então todo manifesto de hoje aparece como "adicionado" no diff contra a raiz, e ordenar por isso não separa plugin parado de plugin ativo. Para achar o parado, use a data do último commit que tocou cada manifesto, não o diff contra a raiz.
 
 🔴 **A regra 1 ("bump em TODA mudança") foi contornada 7 vezes nesta rodada, e o gate mecânico que a cobra não reclamou.** Derivado commit a commit: [confirmado]
 
@@ -912,17 +921,18 @@ Hoje o comando é **quebrado em tokens** (o split inclui `(`, `)`, `;`, `&`, `|`
 grep -cE '^# [A-Z0-9]+ · ' .claude/hooks/release-gate.sh
 ```
 
-Nesta rodada entraram **seis de uma vez** — `J`, `K`, `L`, `M`, `N` e `O` —, e é o maior
-salto que o gate já teve. Todos vêm da mesma frente: transformar em cobrador mecânico o que
-antes era artigo escrito na constituição [confirmado, derivado nesta rodada]:
+A rodada anterior trouxe **seis de uma vez** — `J`, `K`, `L`, `M`, `N` e `O` —, o maior
+salto que o gate já teve; depois dela entraram `P` e `Q`. Todos vêm da mesma frente:
+transformar em cobrador mecânico o que antes era artigo escrito na constituição
+[confirmado, derivado nesta rodada]:
 
 ```bash
 grep -oE '^[[:space:]]*# [A-Z][0-9+C]* · ' .claude/hooks/release-gate.sh | grep -oE '[A-Z][0-9+C]*'
-# A · A2 · B+C · C · B · B2 · D · D2 · E · E2 · G · H · I · K · L · M · N · P · O · F · J
-#                                                                            (21 rótulos)
-# — "B+C" é o cabeçalho do bloco que contém C, B e B2, então os checks distintos são 19
+# A · A2 · B+C · C · B · B2 · D · D2 · E · E2 · G · H · I · K · L · M · N · P · Q · O · F · J
+#                                                                                 (22 rótulos)
+# — "B+C" é o cabeçalho do bloco que contém C, B e B2, então os checks distintos são 20
 grep -oE '❌ [A-ZÁ-Ú ]+' .claude/hooks/release-gate.sh | sort -u | wc -l
-# → 18 mensagens de violação (D, D2, F e J compartilham "❌ TESTE VERMELHO")
+# → 19 mensagens de violação (D, D2, F e J compartilham "❌ TESTE VERMELHO")
 ```
 
 ⚠️ **As letras não seguem ordem alfabética no arquivo, e não são ordem de execução.** `O`
@@ -949,10 +959,13 @@ A ordem de execução não importa: todos só acumulam em `VIOL`.
 - **L · função nova que ninguém invoca** — roda `python3 scripts/fiscal_de_bancada.py --motivo sem-chamador`, só quando o commit traz `.py` (é onde ele lê AST) ⇒ `❌ PEÇA SEM CHAMADOR`. O defeito medido que o gerou: *"de quatro passos reprovados numa rodada, TRÊS tinham código bom — bem escrito, com teste próprio — que nenhum lugar da árvore chamava"*. **Peça que nunca roda não deixa suíte vermelha**, então sem este check o defeito só aparecia na revisão humana. Só o eixo `sem-chamador` entra; `sonda` e `nao-declarado` acusam arquivo não rastreado e travariam trabalho alheio.
 - **M · aviso escrito num canal que todo consumidor descarta** — mesmo cobrador do L, outro motivo (`--motivo aviso-no-vazio`), quando o commit traz `.py`/`.sh` ⇒ `❌ AVISO NO VAZIO`. Nasceu do irmão do defeito do L: a recusa era escrita em stderr e *"TODO caminho que chamava o script fechava a chamada com `2>/dev/null`"* — o aviso existia, tinha teste, e não chegava a ninguém.
 - **N · acoplamento novo entre plugins** — roda `python3 scripts/desacoplamento_check.py` quando o commit traz `.md`/`.sh`/`.py`/`.json`/`.yml` ⇒ `❌ ACOPLAMENTO NOVO`. É o Artigo 9 virando cobrador: plugin que aponta pro irmão **por posição** (`<raiz>/../<irmão>`) quebra na máquina de quem instalou, porque o cache do harness dá pasta própria a cada plugin; e contagem cravada em prosa envelhece sem avisar. ⚠️ **Diferente do H e do I, este NÃO tem `--staged`**: varre todo arquivo rastreado e só reprova achado que está **fora** de `.claude/desacoplamento.baseline.json` — dívida antiga passa, acoplamento novo não.
+- **Q · cópia de trabalho parada no disco** — **novo em 2026-08-08**. Roda `python3 scripts/worktree_orfao_check.py` ⇒ `❌ CÓPIA DE TRABALHO PARADA — quem busca arquivo pelo nome acha ela antes do original`. Nasceu de defeito medido: *"14 de 41 marcações do motor rodaram binário que não era o da árvore"* — os agentes procuraram o arquivo pelo NOME e o `find` alcançou as cópias em `.claude/worktrees/`; sete passaram por um validador 548 linhas mais velho, **sem as funções de recusa**. O comentário registra a causa de fundo: *"as cópias nasceram antes de a regra proibi-las — a regra proibiu criar novas e não varreu as velhas"*. ⚠️ **Segundo check SEM recorte por arquivo tocado, pelo mesmo motivo do O**: *"a cópia não aparece no diff de commit nenhum"*. Fail-open declarado: sem `scripts/worktree_orfao_check.py` o bloco inteiro é pulado.
 - **O · plano e código discordando** — roda `python3 scripts/plano_vs_codigo.py` e barra passo **aberto** cujo critério de pronto o disco já cumpre ⇒ `❌ PLANO ATRASADO`. ⚠️ **É o único check SEM recorte por arquivo tocado, e de propósito**: `.claude/plans/` é gitignorado, então plano nenhum aparece em `$FILES` — recortar por arquivo o deixaria calado para sempre. Custo medido: ~0,6s. O comentário registra que ele existia e ninguém o consultava: *"ele rodava e acusava sem que portão nenhum o consultasse"*.
 - **F · testes shell** — roda `plugins/<nome>/hooks/test_*.sh` dos plugins tocados.
 - **J · as suítes que nenhum glob de plugin casa** — as de `scripts/` e as `.py` dentro de `hooks/`. Nasceu de um buraco declarado: *"`grep -n 'scripts/test_' .claude/hooks/release-gate.sh` não devolvia nada, e as suítes de portabilidade tinham medidor sem cobrador no commit"*. Escopo: commit que toca `scripts/`, `plugins/*/hooks/`, `.claude/hooks/` ou `.gitattributes`. Custo medido em 2026-08-06: **~100s**, dos quais 80s são de `scripts/test_bootstrap_aviso.sh` — é o check mais caro do gate, e o recorte existe porque em todo commit seria proibitivo.
   - ⚠️ **Ele é o único que reprova por AUSÊNCIA de arquivo**: `❌ GLOB VAZIO` dispara quando um padrão deixa de casar qualquer coisa, *"suíte renomeada ou apagada deixaria o gate verde sem rodar nada"*. É a mesma asserção de quantidade de `.github/workflows/portability.yml`.
+
+⚠️ **Dois checks varrem o repo inteiro, e os dois pelo mesmo motivo**: o alvo deles não aparece em diff nenhum. O `O` porque `.claude/plans/` é gitignorado; o `Q` porque cópia de trabalho parada não é arquivo rastreado. Recortar por arquivo tocado deixaria os dois calados para sempre.
 
 ⚠️ **D e F são por plugin TOCADO, não por repo.** Um commit que só mexe no `bootstrap` roda exatamente `plugins/bootstrap/lib/test_*.py` e `plugins/bootstrap/hooks/test_*.sh` e mais nada. **Plugin sem suíte não é plugin sem teste: é plugin cujos checks D e F estão desligados.**
 

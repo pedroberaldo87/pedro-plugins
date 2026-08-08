@@ -156,7 +156,7 @@ python3 -c "import json;print(len(json.load(open('.claude-plugin/marketplace.jso
   `collect_engine.py`, `plan_state.py` e `resolve-*.sh` repetem o padrão (§7). Contar
   `lib/*.py` mede o vendoring junto com o código — a medida de código próprio é
   `find plugins -path '*/lib/*.py' ! -name regua_texto.py ! -name collect_engine.py ! -name padroes_vazamento.py`
-  (**81** neste run).
+  (**82** neste run).
 - **59 registros de hook — 58 do tipo `command` + 1 do tipo `prompt`**, em **45 scripts
   distintos** [confirmado — varredura própria dos 13 `plugins/*/hooks/hooks.json` neste run,
   e `python3 scripts/hook_contract.py` imprime a mesma medida: *"Contrato dos hooks — 59
@@ -1228,8 +1228,8 @@ claude-plugins-official   14 plugins   desligados: claude-md-management, explana
 impeccable                 1                                                       ← novo
 obsidian-skills            1
 openai-codex               1
-pedro-plugins             24 plugins   desligados: gauntlet, graphify-guard, intent-guard,  <!-- acopla-ok: saída derivada do próprio manifest, que é o ÍNDICE -->
-                                                   project-skills, vistoria
+pedro-plugins             24 plugins   desligados: gauntlet, graphify-guard  <!-- acopla-ok: saída derivada do próprio manifest, que é o ÍNDICE -->
+
 ponytail                   1
 voltagent-subagents       10 plugins   TODOS desligados
 ```
@@ -1238,12 +1238,9 @@ O `pedro-plugins` declara os **24** plugins um a um — é isso que o `check_cat
 contra o `marketplace.json` (§10.2), e nesta rodada os dois conjuntos batem exatamente (a
 diferença simétrica entre eles é vazia nos dois sentidos).
 
-⚠️ **A lista de desligados de fábrica dobrou: de dois para cinco.** `gauntlet`,
-`project-skills` e `vistoria` nascem desligados — são os três plugins mais novos, e a decisão
-de não ligá-los por padrão é o que separa "existe no catálogo" de "roda na máquina de quem
-instala". **Consequência prática:** um plugin desligado no manifest mas LIGADO na máquina é
-desvio que o `conformance.py` acusa — foi o que ele reportou neste run para `project-skills` e
-`vistoria` nesta máquina de desenvolvimento, que os usa.
+🔴 **A lista de desligados subiu para cinco e voltou para dois em 2026-08-08** (commit `4415b10`), e o vaivém é a lição: `project-skills`, `vistoria` e `intent-guard` voltaram a nascer ligados. **Desligar de fábrica é decisão sobre quem instala, e ela envelhece junto com o plugin.** O `project-skills` nasceu desligado quando era esqueleto vazio; depois **recebeu sete skills** de outros plugins e continuou desligado — quem instalasse não receberia nenhuma delas, e nada acusava. O `intent-guard` estava fora por um defeito que já tinha sido consertado. Ficam desligados só `gauntlet` e `graphify-guard`, que é o que separa "existe no catálogo" de "roda na máquina de quem instala".
+
+⚠️ **Plugin desligado no manifest e LIGADO na máquina é desvio que o `conformance.py` acusa** — era o caso desta máquina de desenvolvimento para `project-skills` e `vistoria` antes do religamento, e por isso o desvio aparecia aqui em vez de no cliente.
 
 ### 10.1 Dependência externa de plugin — a terceira categoria do manifest
 
