@@ -93,6 +93,24 @@ check("prosa e classificada como prosa", a[0]["forma"] == "prosa")
 check("prosa sozinha sai 0", rodar() == 0)
 limpa()
 
+# ─── a conjunção: critério com vários trechos entre crases ──────────────────
+# O falso-positivo que este bloco fecha: julgar pelo PRIMEIRO trecho acusava
+# divergência num critério cujas outras cláusulas ainda nem existem no disco.
+plano("conjuncao-so-a-primeira", [
+    passo("F1.9", "`test -f lib/pronto.py` sai 0; "
+                  "`test -f lib/ainda_nao.py` tambem")])
+a = P.varre(PLANS, FAKE_ROOT)
+check("conjuncao com uma clausula por cumprir NAO e divergente",
+      a[0]["veredito"] == "nao-verificavel")
+check("conjuncao incompleta sai 0", rodar() == 0)
+limpa()
+
+plano("conjuncao-inteira", [
+    passo("F1.10", "`test -f lib/pronto.py` sai 0; "
+                   "`test -d lib` tambem")])
+check("conjuncao com TODAS as clausulas cumpridas e acusada", rodar() == 1)
+limpa()
+
 # comando com efeito colateral não roda — e também não vira "coerente"
 plano("perigoso", [passo("F1.8", "`rm -rf lib` sai 0")])
 a = P.varre(PLANS, FAKE_ROOT)

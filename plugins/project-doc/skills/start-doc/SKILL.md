@@ -222,8 +222,9 @@ acordada, e não entra no documento aprovado.
 
 A lista derivada **não vai para o documento antes de passar item a item pelo dono**. Ela vai para
 uma página do `/visual`, e lá cada funcionalidade é **um bloco `item`** — o componente de veredito
-já existe, não invente outro. O contrato está em `plugins/visual/lib/visual_page.py` (rode `python3
-"${CLAUDE_PLUGIN_ROOT}/../visual/lib/visual_page.py" schema` para vê-lo).
+já existe, não invente outro. O contrato está no `visual_page.py` do plugin `visual`, achado pelo
+nome — `python3 "$(bash "${CLAUDE_PLUGIN_ROOT}/skills/start-doc/resolve-plugin.sh" visual lib/visual_page.py)" schema`
+imprime o schema.
 
 - **Um bloco `item` por funcionalidade.** No `title`, o que ela faz em uma linha; no `detail`, a
   **passagem literal** do documento aprovado que a motivou, com o arquivo de onde ela saiu — a
@@ -272,6 +273,40 @@ tem o que arquivar, e o `historico.py` recusaria (item não encontrado). Aí gra
 começa a valer da segunda rodada em diante. Não escreva no `.historico.md` à mão: o formato é o que
 o `listar` lê de volta.
 
+#### A revisão 5b — o esquema volta pra mesa assim que a lista fecha
+
+**Ela roda SEMPRE**, logo depois de `features.md` gravado, e não depende de você achar que mudou
+alguma coisa: curar a lista muda o entendimento — funcionalidade removida é caixa que sai do desenho,
+`change` reescrito é passo do ciclo que passou a fazer outra coisa. Rodar só "quando parece
+necessário" é o mesmo que não rodar: quem acabou de derivar a lista é a pior pessoa para julgar se o
+desenho dela ainda vale.
+
+1. **Reapresente `blueprint.md` inteiro** pelo mesmo caminho do Passo 5 — página do `/visual`, bloco
+   `aprovacao`, `doc_integral` com o corpo verbatim —, e junto dele a lista curada: quais itens
+   saíram como `remove`, quais entraram por `change`. A pergunta é "com esta lista, o que o desenho
+   passou a dizer errado?".
+2. **Nada mudou ⇒ a etapa fecha sem tocar o arquivo.** O veredito `keep` no disco encerra a 5b, e o
+   `approved:` que já estava lá continua valendo — reaprovar texto idêntico só trocaria a data.
+3. **Mudou ⇒ a troca passa pelo histórico, nunca por edição direta no corpo.** O trecho anterior é
+   texto que o dono aprovou; sobrescrever apaga o desenho em que ele bateu o martelo e ninguém
+   consegue mais dizer o que mudou nem por quê:
+
+   ```bash
+   python3 "${CLAUDE_PLUGIN_ROOT}/lib/historico.py" reescrever .claude/docs/blueprint.md \
+     --antigo "{o trecho aprovado, recortado único}" \
+     --novo   "{o trecho como ele ficou}" \
+     --contexto "revisão 5b do esquema, depois da curadoria de features.md" \
+     --decisao  "{o que na lista curada mudou o desenho — a fala dele, literal}"
+   ```
+
+   Ele grava a entrada em `blueprint.historico.md` (data, contexto e decisão) e **reabre a etapa
+   sozinho**: `status:` volta a `ready` e `approved:`/`approved-sig:` saem, porque as três linhas
+   falavam do texto que acabou de sair. O retorno traz `reabriu_aprovacao: true` — quando ele vier
+   `true`, a 5b só fecha com a reapresentação e um `doc-aprovar.sh` novo.
+4. **Grave o de acordo de novo** com `bash "${CLAUDE_PLUGIN_ROOT}/hooks/doc-aprovar.sh"
+   .claude/docs/blueprint.md`, e só então rode o `rastreio_etapas.py` do Passo 4 — a lista de passos
+   do desenho sem funcionalidade agora é sobre o desenho que sobreviveu à curadoria.
+
 ### 4 · Escrever
 Um arquivo por documento em `.claude/docs/`, com o frontmatter do contrato (`authored-by: human`,
 `status`, `reviewed`, `approved`) e o molde de `references/authorial-kit.md`. Nasce
@@ -292,7 +327,8 @@ Escrever **não fecha** a etapa. O ciclo é este, e ele repete até o dono estar
    não um resumo dele) e `cards` é o índice, cada um ancorado num trecho literal desse corpo.
 
    ```bash
-   python3 "${CLAUDE_PLUGIN_ROOT}/../visual/lib/visual_page.py" build --spec {spec.json}  # acopla-ok: espera o resolvedor por nome do F11.3
+   PAGINA="$(bash "${CLAUDE_PLUGIN_ROOT}/skills/start-doc/resolve-plugin.sh" visual lib/visual_page.py)"
+   [ -n "$PAGINA" ] && python3 "$PAGINA" build --spec {spec.json}
    ```
 
    - **Aprovação sem o texto integral na página o programa RECUSA** (sai 2, não escreve arquivo) —

@@ -7,6 +7,11 @@ tornam a mudança auditável — a **data**, o **contexto** (o que estava aconte
 a **decisão** que o mudou. Sem os três, a entrada não é escrita: histórico sem o
 porquê é entulho, e entulho ninguém lê.
 
+Corpo aprovado que muda por aqui **reabre a etapa**: `status: approved` cai para
+`ready` e `approved:`/`approved-sig:` saem, porque as três linhas falavam do texto
+que acabou de sair. O de acordo volta pelo `hooks/doc-aprovar.sh`, depois da
+reapresentação.
+
 Por que ao lado, e não num diretório de arquivo morto: o histórico é do documento,
 não do projeto. Quem abre `quality-goals.md` acha `quality-goals.historico.md` na
 mesma listagem — não precisa saber que existe uma convenção.
@@ -40,6 +45,8 @@ _INDENT = "    "          # bloco indentado: guarda o texto literal, cerca de c�
 _RESUMO_MAX = 70          # o resumo do cabeçalho é rótulo, não conteúdo
 
 _CABECALHO = re.compile(r"^##\s+(\d{4}-\d{2}-\d{2})\s+·\s+(.*)$")
+_APROVADO = re.compile(r"^status:\s*approved\s*$")
+_LINHA_DE_ACORDO = re.compile(r"^(approved|approved-sig):")
 _CONTEXTO = re.compile(r"^-\s+\*\*Contexto:\*\*\s+(.*)$")
 _DECISAO = re.compile(r"^-\s+\*\*Decisão:\*\*\s+(.*)$")
 
@@ -74,6 +81,36 @@ def _desindentar(linhas):
     while fora and not fora[-1].strip():
         fora.pop()
     return "\n".join(fora)
+
+
+def _reabrir_aprovacao(canonico):
+    """Mexeu no corpo aprovado ⇒ o de acordo do frontmatter deixa de valer.
+
+    Rebaixa `status: approved` para `ready` e apaga `approved:`/`approved-sig:` —
+    as três linhas falam do texto que saiu, e quem as deixa de pé faz o documento
+    alegar um acordo que o dono nunca deu sobre o texto que entrou. Ele volta a
+    valer por `hooks/doc-aprovar.sh`, depois da reapresentação.
+
+    Devolve (texto, reabriu). Documento sem frontmatter ou sem `approved` volta
+    intacto.
+    """
+    linhas = canonico.split("\n")
+    if not linhas or linhas[0].strip() != "---":
+        return canonico, False
+    try:
+        fim = linhas.index("---", 1)
+    except ValueError:
+        return canonico, False
+    if not any(_APROVADO.match(ln) for ln in linhas[1:fim]):
+        return canonico, False
+
+    novas = []
+    for ln in linhas[1:fim]:
+        if _APROVADO.match(ln):
+            novas.append("status: ready")
+        elif not _LINHA_DE_ACORDO.match(ln):
+            novas.append(ln)
+    return "\n".join(["---"] + novas + linhas[fim:]), True
 
 
 def _preambulo(doc_path):
@@ -152,13 +189,15 @@ def reescrever(doc_path, antigo, novo, contexto, decisao, data=None):
             fh.write(_preambulo(doc_path))
         fh.write(entrada_markdown(data, contexto, decisao, antigo, novo))
 
+    trocado, reabriu = _reabrir_aprovacao(canonico.replace(antigo, novo, 1))
     with open(doc_path, "w", encoding="utf-8") as fh:
-        fh.write(canonico.replace(antigo, novo, 1))
+        fh.write(trocado)
 
     return {
         "doc": doc_path,
         "historico": hist_path,
         "criou_historico": nasceu,
+        "reabriu_aprovacao": reabriu,
         "entrada": {
             "data": data,
             "contexto": contexto,

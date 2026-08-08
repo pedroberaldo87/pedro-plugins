@@ -248,3 +248,60 @@ def linha_andamento(comando, projeto, decorrido, saida_ate_agora="", anterior=No
     elif est is None and decorrido < 60:
         return None
     return " · ".join(partes)
+
+
+def linha_motor(sessao, dir_estado=None, agora=None):
+    """A linha do motor para a barra de status, ou None quando nao ha motor vivo.
+
+    POR QUE EXISTE. As linhas acima saem por `systemMessage`, que rola junto com a
+    conversa: quem chega na tela depois de uma hora nao ve nenhuma delas. A barra
+    de status e a unica superficie que fica, e ate aqui ela nao dizia se havia
+    missao rodando.
+
+    LE SO O QUE O MOTOR JA ESCREVE NO DISCO — nada de perguntar a ninguem:
+
+      ativo-<sid>  aceso quando a missao arma, apagado quando ela entrega. A idade
+                   dele e ha quanto tempo a missao esta de pe.
+      sinal-<sid>  o instante em que o narrador falou pela ultima vez (o gancho de
+                   andamento grava). A idade dele e o silencio.
+      bloqueios-<sid>  o contador de negacoes do gate, quando ele existe.
+
+    SEM `ativo-<sid>` DEVOLVE None, e e isso que faz a linha sumir quando nao ha
+    motor: quem chama nao imprime nada e a barra volta a ser exatamente o que o
+    renderizador desenha.
+    """
+    if not sessao:
+        return None
+    base = dir_estado or ESTADO
+    agora = time.time() if agora is None else agora
+    try:
+        idade = agora - os.path.getmtime(os.path.join(base, "ativo-%s" % sessao))
+    except OSError:
+        return None
+
+    partes = ["sovai · missão há %s" % _dur(max(idade, 0))]
+
+    sinal = os.path.join(base, "sinal-%s" % sessao)
+    mudo = None
+    try:
+        with open(sinal, encoding="utf-8") as fh:
+            mudo = agora - float(fh.read().strip())
+    except (OSError, ValueError):
+        mudo = None
+    if mudo is not None and mudo >= 0:
+        # A mesma palavra do gancho de andamento: acima do teto do vigia o silencio
+        # deixa de ser so um numero e passa a ter nome.
+        if mudo > LIMITE_SILENCIO:
+            partes.append("SEM SINAL há %s" % _dur(mudo))
+        else:
+            partes.append("último sinal há %s" % _dur(mudo))
+
+    try:
+        with open(os.path.join(base, "bloqueios-%s" % sessao), encoding="utf-8") as fh:
+            n = int((fh.read().strip() or "0").split()[0])
+    except (OSError, ValueError, IndexError):
+        n = 0
+    if n > 0:
+        partes.append("%d bloqueio%s" % (n, "s" if n > 1 else ""))
+
+    return " · ".join(partes)

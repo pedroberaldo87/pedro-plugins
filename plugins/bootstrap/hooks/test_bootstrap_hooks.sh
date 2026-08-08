@@ -422,6 +422,24 @@ PY
 }
 check "nenhum comando remoto nem atribuicao de variavel no allow padrao" "" "$(allow_proibidas)"
 
+# ---------------------------------------------------------------------------
+# A cadeia da statusLine é uma FILA, e a receita é o único lugar onde ela existe
+# escrita. Elo que sai da receita não dá erro em lugar nenhum: a barra continua
+# desenhando bonito e só o dado dele some — que é o defeito que
+# `conformance.py:check_statusline_meio_ligada` persegue na máquina, e este caso
+# persegue no repositório.
+# ---------------------------------------------------------------------------
+echo "-- a receita liga a cadeia inteira da statusLine"
+
+elos_faltando() { # -> os elos que a receita NAO cita
+  python3 - "$AQUI/../config/settings-defaults.json" <<'PY'
+import json, sys
+fwd = (json.load(open(sys.argv[1]))["env"] or {}).get("CLAUDE_STATUSLINE_FORWARD", "")
+print(" ".join(m for m in ("statusline-motor", "claude-hud") if m not in fwd))
+PY
+}
+check "a receita cita o narrador do motor e o renderizador" "" "$(elos_faltando)"
+
 echo
 echo "$OK ok · $FAIL FAIL"
 [ "$FAIL" -eq 0 ]

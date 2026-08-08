@@ -196,8 +196,8 @@ mecanismo que o `/sovai` usa entre motores — e se a lista **cruza** com a de u
 **um por linha** (do alvo: `git diff --name-only <alvo>`), e `CLAUDE_SESSION_ID` = o id desta sessão:
 
 ```bash
-RESERVA="${CLAUDE_PLUGIN_ROOT}/../sovai/hooks/reserva-de-arquivos.sh"
-[ -f "$RESERVA" ] && sh "$RESERVA" reservar "${CLAUDE_SESSION_ID}" qa-loop $ARQUIVOS_DO_REVIEW
+RESERVA="$(bash "${CLAUDE_PLUGIN_ROOT}/skills/qa-loop/resolve-plugin.sh" sovai hooks/reserva-de-arquivos.sh)"
+[ -n "$RESERVA" ] && sh "$RESERVA" reservar "${CLAUDE_SESSION_ID}" qa-loop $ARQUIVOS_DO_REVIEW
 ```
 
 - **Saiu `"permissionDecision":"deny"`** → **PARE a skill aqui**. Não leia arquivo, não dispare o
@@ -206,14 +206,15 @@ RESERVA="${CLAUDE_PLUGIN_ROOT}/../sovai/hooks/reserva-de-arquivos.sh"
   duas saídas que o próprio motivo dá: esperar o outro motor terminar, ou reduzir `<alvo>` a arquivos que
   não encostem na lista dele.
 - **Saída muda** → reservado, segue pro Passo 0.
-- **Arquivo ausente** (`/sovai` não instalado) → não há motor com quem colidir; segue. Fail-open, como
+- **Saída vazia do resolvedor** (`/sovai` não instalado nesta máquina) → não há motor com quem colidir; segue. Fail-open, como
   todo gate deste repo.
 
 Ao terminar (Passo 8, inclusive em `gate-red` ou abandono), **libere** — reserva que não é liberada
 recusa a próxima revisão até expirar:
 
 ```bash
-[ -f "$RESERVA" ] && sh "$RESERVA" liberar "${CLAUDE_SESSION_ID}" qa-loop
+RESERVA="$(bash "${CLAUDE_PLUGIN_ROOT}/skills/qa-loop/resolve-plugin.sh" sovai hooks/reserva-de-arquivos.sh)"
+[ -n "$RESERVA" ] && sh "$RESERVA" liberar "${CLAUDE_SESSION_ID}" qa-loop
 ```
 
 ## CASCA — Passo 0 · Classificar domínio + ler journal

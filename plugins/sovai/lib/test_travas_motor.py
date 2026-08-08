@@ -25,6 +25,10 @@ import textwrap
 
 SKILL_MD = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                         "..", "skills", "sovai", "SKILL.md")
+# A COPIA vendorada, nao a fonte em _shared/: e ela que viaja com o plugin instalado, e
+# e ela que o bloco da skill chama.
+RESOLVEDOR = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                          "..", "skills", "sovai", "resolve-plugin.sh")
 
 FAILS = []
 TOTAL = [0]
@@ -115,6 +119,55 @@ def roda_a_tranca(bloco, decomp_js, results_js):
         return {"erro": "saida ilegivel: %s" % out.stdout.strip()[:200]}
 
 
+def bloco_da_regua(js):
+    """O trecho do esqueleto que roda a regua do `pronto` sobre cada tarefa (F8.2) — da
+    chamada do papel ate o corte da lista. Recortado do proprio SKILL.md pelo mesmo
+    motivo dos outros: o teste roda o que esta escrito la, nao uma copia."""
+    i = js.find("const regua = await agent(reguaPrompt(")
+    fim = "decomp.tasks = decomp.tasks.filter(t => !bancada.has(t.id))"
+    j = js.find(fim)
+    if i < 0 or j < 0 or j < i:
+        return ""
+    return js[i:j + len(fim)]
+
+
+def roda_a_regua(bloco, decomp_js, regua_js):
+    """Executa o bloco da regua com uma decomposicao de mentira e o veredito que o papel
+    devolveria, e diz o que sobrou: as tarefas que seguem para o executor e os bloqueios."""
+    if not bloco:
+        return {"erro": "SEM-BLOCO"}
+    if not shutil.which("node"):
+        return {"erro": "SEM-NODE"}
+    prog = ("const blockers = []; const decomp = %s;\n"
+            "const ARGS = { repoRoot: '/raiz', model: 'opus' };\n"
+            "const T = { mechanical: { effort: 'low' } };\n"
+            "const REGUA = 'schema'; const reguaPrompt = x => JSON.stringify(x);\n"
+            "const agent = async () => (%s);\n"
+            "(async () => {\n%s\n"
+            "console.log(JSON.stringify({ blockers, fila: decomp.tasks.map(t => t.id) }))\n"
+            "})()\n" % (decomp_js, regua_js, bloco))
+    out = subprocess.run(["node", "-e", prog], capture_output=True, text=True)
+    if out.returncode != 0:
+        return {"erro": out.stderr.strip()[:200]}
+    try:
+        return json.loads(out.stdout.strip())
+    except ValueError:
+        return {"erro": "saida ilegivel: %s" % out.stdout.strip()[:200]}
+
+
+def veredito_da_regua_real(pronto, onde):
+    """O que o programa de verdade (`regua_pronto.py`, do plugin visual) diz do criterio.
+    Sem isto o teste provaria so o encanamento: o criterio de mentira usado no caso de
+    bancada tem que ser um que a regua REAL reprova, senao o cenario e faz-de-conta."""
+    prog = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                        "..", "..", "visual", "lib", "regua_pronto.py")
+    if not os.path.exists(prog):
+        return None
+    out = subprocess.run([sys.executable, prog, "--onde", onde, "-"],
+                         input=pronto, capture_output=True, text=True)
+    return out.returncode
+
+
 def bloco_da_compilacao(texto):
     """O bloco ```bash do passo que compila os alvos ANTES do motor (F9.34). Recortado
     da secao dele, para que o teste rode o passo que a casca roda — nao uma copia."""
@@ -167,7 +220,11 @@ def planta_o_lixeiro(raiz, layout, quebra=False):
     `cache` = o layout REAL do marketplace instalado (`<marketplace>/<plugin>/<versao>/`,
     verificado em ~/.claude/plugins/cache), com DUAS versoes do lixeiro para cobrar a
     escolha da mais alta. `repo` = rodando do repositorio, onde o lixeiro e irmao direto.
-    `ausente` = maquina sem lixeiro."""
+    `ausente` = maquina sem lixeiro.
+
+    A copia vendorada do `resolve-plugin.sh` entra na arvore junto: e ELA que o bloco
+    chama, e sem ela o teste provaria o resolvedor de mentira em vez do que viaja com o
+    plugin instalado."""
     stub = ('import sys\n'
             'sys.stderr.write("QUEBROU\\n")\n'
             'sys.exit(1)\n' if quebra else
@@ -189,6 +246,9 @@ def planta_o_lixeiro(raiz, layout, quebra=False):
     else:
         root = os.path.join(raiz, "pedro-plugins", "sovai", "1.13.0")
     os.makedirs(root, exist_ok=True)
+    destino = os.path.join(root, "skills", "sovai", "resolve-plugin.sh")
+    os.makedirs(os.path.dirname(destino), exist_ok=True)
+    shutil.copy(RESOLVEDOR, destino)
     return root
 
 
@@ -203,7 +263,11 @@ def roda_a_colheita(bloco, layout, quebra=False):
         root = planta_o_lixeiro(raiz, layout, quebra)
         amb = dict(os.environ)
         amb.update({"CLAUDE_PLUGIN_ROOT": root,
-                    "CLAUDE_CODE_SESSION_ID": "sessao-de-teste"})
+                    "CLAUDE_CODE_SESSION_ID": "sessao-de-teste",
+                    # A ultima tentativa do resolvedor varre o cache da MAQUINA. Sem
+                    # apontar o cache para a arvore de mentira, o caso `ausente` acharia
+                    # o lixeiro de verdade de quem roda o teste e provaria o contrario.
+                    "CLAUDE_CONFIG_DIR": os.path.join(raiz, "config")})
         out = subprocess.run(["bash", "-c", bloco], capture_output=True, text=True,
                              env=amb)
         return {"rc": out.returncode,
@@ -234,6 +298,46 @@ def main():
     check("a regua e sobre a ORIGEM do valor, nao o caminho do arquivo",
           "regerar o entregável a partir do dado real" in texto
           and "injetar valor inventado" in texto)
+    # O defeito: o julgamento so existia como instrucao ao #1. Instrucao em prosa nao
+    # recusa nada — o que se cobra aqui e o SCRIPT rodando a regua e emitindo o bloqueio.
+    check("o SCRIPT roda a regua, nao so a prosa", "reguaPrompt" in js)
+    check("a regua roda ANTES de soltar executor",
+          "reguaPrompt" in js and "agent(execPrompt" in js
+          and js.index("reguaPrompt") < js.index("agent(execPrompt"))
+    check("o julgamento e do programa, nao de quem le",
+          "regua_pronto.py" in texto and "`REGUA`" in texto)
+    check("o veredito chega por schema, nao por texto solto", "schema: REGUA" in js)
+
+    bloco = bloco_da_regua(js)
+    check("o bloco da regua foi encontrado no esqueleto", len(bloco) > 200)
+    ruim = ("o numero de agentes aparece no relatorio final em "
+            ".claude/visual/relatorio.html")
+    bom = ("a pagina e regerada a partir do plano em disco e abre sem erro "
+           "no navegador")
+    check("o criterio ruim do caso e reprovado pela regua REAL",
+          veredito_da_regua_real(ruim, "F1") == 1)
+    check("o criterio bom do caso passa na regua REAL",
+          veredito_da_regua_real(bom, "F2") == 0)
+
+    decomp = json.dumps({"tasks": [
+        {"id": "F1", "requisito": "S-14", "pronto": ruim, "files": ["a.py"]},
+        {"id": "F2", "requisito": "S-9", "pronto": bom, "files": ["b.py"]}]})
+    saiu = roda_a_regua(bloco, decomp,
+                        json.dumps({"reprovados": [
+                            {"task_id": "F1", "motivo": "F1: o critério fecha com o valor DENTRO do entregável"}]}))
+    check("a tarefa de criterio-bancada NAO chega ao executor",
+          saiu.get("fila") == ["F2"])
+    check("o bloqueio sai com kind 'criterio' e o taskId",
+          any(b.get("kind") == "criterio" and b.get("taskId") == "F1"
+              for b in saiu.get("blockers", [])))
+    check("o bloqueio diz que ninguem foi solto e o que reescrever",
+          any("nenhum executor foi solto" in b.get("whyNeedsYou", "")
+              and "S-14" in b.get("whyNeedsYou", "")
+              for b in saiu.get("blockers", [])))
+    # Fail-open, mesma direcao da reserva: gate mudo nao pode travar a missao inteira.
+    mudo = roda_a_regua(bloco, decomp, "null")
+    check("papel mudo nao recusa ninguem (fail-open)",
+          mudo.get("fila") == ["F1", "F2"] and mudo.get("blockers") == [])
 
     print("F9.1 — o esforco vai escrito DENTRO do texto do script")
     check("a skill manda gerar o bloco como constante literal",
@@ -528,10 +632,12 @@ def main():
     # cabecalho da Persistencia ao da secao seguinte.
     persist = texto.split("## Persistência")[-1].split("## Relatório Final")[0]
     # O comando tem que RODAR como esta escrito. Aferir a string literal contra ela
-    # mesma nao prova nada: o comando antigo (`${CLAUDE_PLUGIN_ROOT}/../lixeiro/...`)
-    # passava nesse check e NAO resolvia em install real, porque o cache do marketplace
-    # guarda `<marketplace>/<plugin>/<versao>/` — falta um nivel E o segmento de versao.
-    # Por isso daqui pra baixo o bloco e EXECUTADO contra uma arvore de mentira.
+    # mesma nao prova nada. `${CLAUDE_PLUGIN_ROOT}/../lixeiro/...`  # acopla-ok: narrativa
+    # era o comando antigo: passava nesse check e NAO resolvia em install real, porque o cache
+    # do marketplace guarda `<marketplace>/<plugin>/<versao>/` — falta um nivel E a versao.
+    # Por isso daqui pra baixo o bloco e EXECUTADO contra uma arvore de mentira, e quem
+    # resolve o caminho e a copia vendorada do `resolve-plugin.sh` (o irmao entra pelo
+    # NOME; posicao no disco nao e mais argumento de ninguem — Artigo 9).
     bloco = bloco_da_colheita(persist)
     check("a Persistencia manda colher num bloco EXECUTAVEL, nao em prosa",
           "colhe-turno" in bloco)
@@ -566,7 +672,10 @@ def main():
     # A definicao do papel: sem o comando real, o script chamaria um papel que nao sabe
     # o que rodar — e o "manda colher" voltaria a ser prosa.
     check("o papel esta definido, com o motor do lixeiro nomeado",
-          "`colheitaPrompt`" in texto and "lixeiro/lib/lixeiro.py" in texto)
+          "`colheitaPrompt`" in texto and "lixeiro lib/lixeiro.py" in texto)
+    # Artigo 9: o irmao entra pelo NOME, nunca pela posicao no disco.
+    check("nenhum caminho de irmao POR POSICAO sobrou na skill",
+          "/../lixeiro" not in texto)  # acopla-ok: e a AUSENCIA do caminho que se cobra
     papel = texto.split("- `colheitaPrompt`")[-1].split("- `BUILD_REVIEW`")[0]
     check("o papel manda o MESMO comando executavel do passo 4",
           bool(bloco) and bloco_da_colheita(papel) == bloco)

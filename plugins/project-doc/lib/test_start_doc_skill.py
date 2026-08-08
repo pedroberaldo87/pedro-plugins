@@ -287,6 +287,25 @@ def main():
           and "A etapa 5 (funcionalidades)" not in skill)
     check("a revisao 5b esta declarada como reapresentacao, nao como setima etapa",
           "A 5b é a 5 reapresentada, não uma sétima etapa" in skill)
+    print("a revisao 5b e CONDUZIDA, e a troca passa pelo historico (F12.3)")
+    check("a 5b tem roteiro proprio, logo depois da lista gravada",
+          "#### A revisão 5b — o esquema volta pra mesa assim que a lista fecha" in skill)
+    check("a 5b roda sempre, e nao 'quando parece necessario'",
+          "**Ela roda SEMPRE**" in skill
+          and 'Rodar só "quando parece' in skill)
+    check("nada mudou fecha a etapa sem tocar o arquivo",
+          "a etapa fecha sem tocar o arquivo" in skill)
+    check("mudou, a troca do texto aprovado passa pelo historico e nao por edicao direta",
+          "a troca passa pelo histórico, nunca por edição direta no corpo" in skill
+          and 'historico.py" reescrever .claude/docs/blueprint.md' in skill
+          and "blueprint.historico.md" in skill)
+    check("a skill sabe que o historico reabre a etapa e manda reaprovar",
+          "reabriu_aprovacao" in skill
+          and "doc-aprovar.sh" in skill.split("#### A revisão 5b")[1])
+    check("o programa REALMENTE reabre a etapa quando o corpo aprovado muda",
+          "def _reabrir_aprovacao(" in ler(HISTORICO)
+          and '"reabriu_aprovacao": reabriu' in ler(HISTORICO))
+
     check("o protocolo de saida imprime a etapa nova, com o estado do diagrama",
           "Esquema → `blueprint.md`" in skill
           and "`archify` ausente, DEGRADADO" in skill

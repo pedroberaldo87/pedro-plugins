@@ -11,6 +11,13 @@ O campo `pronto` tem três formas neste repositório, e só duas são julgáveis
 
   1. COMANDO — o texto abre com um trecho entre crases: "`bash x.sh` sai 0 …".
      Roda o comando na raiz do projeto; sair 0 quer dizer critério cumprido.
+     Critério com MAIS de um trecho entre crases é uma conjunção, e todos os
+     trechos são rodados: julgar pelo primeiro é o falso-positivo que acusava o
+     F11.9 (o `regua_call_check.py` já sai 0 hoje, e as outras duas cláusulas
+     falam de arquivos que ainda não existem). Quando há vários e nem todos
+     passam, o veredito é "não verificável" e não "coerente": um trecho entre
+     crases que não é comando (`OK`, um nome de arquivo) também sai != 0, e
+     carimbar de coerente o que não foi checado é o erro que este script evita.
   2. CAMINHO — o texto inteiro é um `arquivo` ou `arquivo:linha`. Confere a
      existência (e, com linha, que o arquivo tenha aquela linha).
   3. PROSA — qualquer outra coisa. NÃO dá para automatizar, e chamar de
@@ -43,6 +50,8 @@ PLANOS = os.path.join(ROOT, ".claude", "plans")
 
 # comando entre crases logo no começo do critério
 RE_COMANDO = re.compile(r"^\s*`([^`]+)`")
+# todos os trechos entre crases do critério (a conjunção inteira)
+RE_TRECHOS = re.compile(r"`([^`]+)`")
 # o critério INTEIRO é um caminho, com ou sem :linha
 RE_CAMINHO = re.compile(r"^\s*`?([\w./@-]+/[\w./@-]+\.\w+)(?::(\d+))?`?\s*$")
 # o que uma checagem não roda
@@ -73,9 +82,8 @@ def classifica(pronto):
     m = RE_CAMINHO.match(pronto)
     if m:
         return "caminho", (m.group(1), int(m.group(2)) if m.group(2) else None)
-    m = RE_COMANDO.match(pronto)
-    if m:
-        return "comando", m.group(1).strip()
+    if RE_COMANDO.match(pronto):
+        return "comando", [t.strip() for t in RE_TRECHOS.findall(pronto) if t.strip()]
     return "prosa", None
 
 
@@ -102,13 +110,26 @@ def cumprido_comando(cmd, root):
     return r.returncode == 0
 
 
+def cumprido_comandos(cmds, root):
+    """A conjunção: só cumprido quando TODO trecho entre crases sai 0."""
+    for cmd in cmds:
+        c = cumprido_comando(cmd, root)
+        if c is None:
+            return None
+        if not c:
+            # trecho único que falha é "ainda não entrou"; com vários trechos não
+            # dá para separar cláusula por cumprir de trecho que não era comando.
+            return False if len(cmds) == 1 else None
+    return True
+
+
 def avalia(item, root):
     """Devolve o veredito de um passo aberto: divergente, coerente ou opaco."""
     forma, alvo = classifica(item.get("pronto") or "")
     if forma == "caminho":
         cumprido = cumprido_caminho(alvo, root)
     elif forma == "comando":
-        cumprido = cumprido_comando(alvo, root)
+        cumprido = cumprido_comandos(alvo, root)
     else:
         cumprido = None
     if cumprido is None:

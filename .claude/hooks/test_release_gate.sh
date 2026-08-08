@@ -289,6 +289,41 @@ check "a mensagem aponta o arquivo e o irmao citado" \
 rm -rf "$R/plugins/alfa" "$R/plugins/beta" "$R/scripts/desacoplamento_check.py" \
        "$R/.claude"
 
+# ── O · plano e código discordando ──────────────────────────────────────────
+# O cobrador existia e nenhum portão o consultava. Aqui ele vale: um passo ABERTO
+# cujo critério de pronto o disco já cumpre barra o commit. E o critério de VÁRIAS
+# cláusulas — o falso-positivo do F11.9 — não pode ser julgado pela primeira.
+echo "Check O — plano atrasado contra o código"
+mkdir -p "$R/scripts" "$R/.claude/plans"
+cp "$HERE/../../scripts/plano_vs_codigo.py" "$R/scripts/"
+printf 'ja_existe = 1\n' > "$R/plugins/exemplo/lib/feito.py"
+plano() {
+  printf '{"id":"p","title":"p","phases":[{"id":"F1","title":"f","items":[{"id":"F1.1","title":"t","desc":"","pronto":%s,"status":"todo","evidence":null,"done_at":null}]}]}\n' \
+    "$(python3 -c 'import json,sys;print(json.dumps(sys.argv[1]))' "$1")" \
+    > "$R/.claude/plans/teste.plan.json"
+}
+
+plano '`test -f plugins/exemplo/lib/feito.py` sai 0'
+out=$(gate_out "git commit -m x")
+check "passo aberto com o critério já cumprido barra o commit" \
+  "$(printf '%s' "$out" | grep -q 'PLANO ATRASADO' && echo 1 || echo 0)"
+check "a mensagem nomeia o plano e o passo" \
+  "$(printf '%s' "$out" | grep -q 'teste.plan.json' \
+     && printf '%s' "$out" | grep -q 'F1.1' && echo 1 || echo 0)"
+
+plano '`test -f plugins/exemplo/lib/ainda_nao.py` sai 0'
+out=$(gate_out "git commit -m x")
+check "critério ainda por cumprir não barra" \
+  "$(printf '%s' "$out" | grep -q 'PLANO ATRASADO' && echo 0 || echo 1)"
+
+plano '`test -f plugins/exemplo/lib/feito.py` sai 0; `test -f plugins/exemplo/lib/ainda_nao.py` tambem'
+out=$(gate_out "git commit -m x")
+check "critério de duas cláusulas não é julgado pela primeira (o caso F11.9)" \
+  "$(printf '%s' "$out" | grep -q 'PLANO ATRASADO' && echo 0 || echo 1)"
+
+rm -rf "$R/.claude/plans" "$R/scripts/plano_vs_codigo.py" \
+       "$R/plugins/exemplo/lib/feito.py"
+
 echo
 if [ "$FAIL" -gt 0 ]; then echo "FALHOU: $FAIL de $((PASS+FAIL))"; exit 1; fi
 echo "OK ($PASS checks)"

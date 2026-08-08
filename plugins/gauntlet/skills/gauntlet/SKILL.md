@@ -123,6 +123,7 @@ Os parâmetros que a casca compõe e passa em `args`:
 | `missao` | o diretório em `.claude/gauntlet/` |
 | `rito` | o conteúdo de `rito.json`, já aprovado |
 | `pluginRoot` | a raiz deste plugin, para o motor chamar a conferência |
+| `sinal` | `$GDIR/ativo-$CLAUDE_CODE_SESSION_ID` — o motor o repassa à conferência, que é quem o apaga |
 | `tetoRodadas` · `tetoGasto` · `tetoPecas` | do `orcamento` do rito |
 
 **O que o motor garante, e que não depende da memória de ninguém:** o juiz é o `await`

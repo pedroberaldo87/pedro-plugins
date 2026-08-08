@@ -359,6 +359,25 @@ $(printf '%s' "$NOUT" | head -20)
   fi
 fi
 
+# O · plano e código discordando: passo ABERTO cujo critério de pronto já se cumpre.
+# Os quatro irmãos deste cobrador (H, I, L, M, N) já estavam aqui e este não — ele rodava
+# e acusava sem que portão nenhum o consultasse. Passo que fica "todo" depois de o trabalho
+# ter entrado no código faz a sessão seguinte refazer tudo do zero, e é o commit o momento
+# em que o código muda: é aqui que a discordância nasce.
+# SEM RECORTE por arquivo tocado, de propósito: `.claude/plans/` é ignorado pelo git
+# (registro de trabalho não é produto), então plano nenhum aparece em $FILES — recortar
+# por ele deixaria o check calado para sempre. Custo medido em 2026-08-07: ~0,6s.
+PVC="$ROOT/scripts/plano_vs_codigo.py"
+if [ -f "$PVC" ]; then
+  if ! OOUT=$(cd "$ROOT" && python3 "$PVC" 2>&1); then
+    VIOL="${VIOL}
+❌ PLANO ATRASADO — passo aberto cujo critério de pronto o disco já cumpre:
+$(printf '%s' "$OOUT" | head -20)
+   → tique o passo com a prova (plan_state.py tick), ou conserte o critério.
+   → régua: python3 scripts/plano_vs_codigo.py"
+  fi
+fi
+
 # F · suites shell dos plugins tocados (as .py já foram no gate D)
 for name in $(printf '%s\n' "$FILES" | sed -n 's#^plugins/\([^/]*\)/.*#\1#p' | sort -u); do
   for t in "$ROOT/plugins/$name/hooks/"test_*.sh; do
