@@ -1518,10 +1518,11 @@ def main():
             os.makedirs(plans4)
             with open(os.path.join(docs4, "architecture-intent.md"), "w",
                       encoding="utf-8") as fh:
-                fh.write("# Arquitetura pretendida\n\n## Peças\n\n"
-                         "### Motor de plano\nMonta o dia.\n\n"
-                         "### Guarda de estado\nOnde o estado mora.\n\n"
-                         "## Fronteiras\n\n### Ninguém chama o banco direto\nO corpo.\n")
+                fh.write("# Arquitetura pretendida\n\n## As peças\n"
+                         "- **Motor de plano** — monta o dia\n"
+                         "- **Guarda de estado** — onde o estado mora\n\n"
+                         "## As fronteiras — quem pode chamar quem\n"
+                         "- **PROIBIDO: Ninguém chama o banco direto** — quebra tudo\n")
             pl4 = sample(id="arq-1", phases=[{"id": "F1", "title": "x", "items": [
                 {"id": "F1.1", "title": "campo custo", "desc": "d",
                  "pronto": "roda o teste", "requisito": "S-4.3"},

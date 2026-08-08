@@ -110,23 +110,22 @@ PRD_PECAS = """\
   CA: a tecla abre o dia.
 """
 
-# o desenho da arquitetura pretendida: só o que está sob "Peças" é peça — fronteira
-# escrita no mesmo nível não vira peça
+# o desenho da arquitetura pretendida, no molde que a etapa 2 do /start-doc escreve:
+# só o item sob "As peças" é peça — fronteira e depósito de estado usam o MESMO item
+# de lista em negrito e não podem virar peça
 ARQUITETURA = """\
 # Arquitetura pretendida
 
-## Peças
+## As peças
+- **Motor de plano** — responsável por montar o dia · **serve à meta:** previsibilidade
+- **Guarda de estado** — responsável por onde o estado mora · **serve à meta:** durabilidade
 
-### Motor de plano
-Responsável por montar o dia.
+## As fronteiras — quem pode chamar quem
+- **Motor de plano → Guarda de estado** — pela porta de gravação
+- **PROIBIDO: Ninguém chama o banco direto** — quebraria a fronteira do estado
 
-### Guarda de estado
-Onde o estado mora.
-
-## Fronteiras
-
-### Ninguém chama o banco direto
-O corpo da fronteira.
+## Onde o estado mora
+- **Disco do projeto** — guarda o plano · **escreve:** Guarda de estado · **lê:** todos
 """
 
 JOURNEYS = """\
@@ -284,7 +283,9 @@ def main():
     pecas = cb.le_pecas(arq)
     check("acha as 2 peças do desenho", pecas == ["Motor de plano", "Guarda de estado"])
     check("fronteira escrita fora da seção de peças não vira peça",
-          "Ninguém chama o banco direto" not in pecas)
+          not [p for p in pecas if "banco direto" in p])
+    check("depósito de estado, escrito no mesmo formato, não vira peça",
+          "Disco do projeto" not in pecas)
     check("lê a peça que o requisito diz habitar",
           reqs_p["S-4.3"]["peca"] == "Motor de plano")
     check("requisito sem peça citada fica com None", reqs_p["S-4.10"]["peca"] is None)

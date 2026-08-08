@@ -57,8 +57,17 @@ CONTAGEM = re.compile(
 #  - a linha traz o comando que produz o número (número com procedência não envelhece)
 #  - a linha é narrativa de um defeito passado
 COM_COMANDO = re.compile(r"\$ |`(?:python3|bash|git|grep|ls|wc)\b|\bgrep -c|\bwc -l")
-NARRATIVA = re.compile(r"\b(dizia|estava errad|envelhec|at[ée] 20\d\d-|era \*\*|"
-                       r"quando a medi|virou|deixou de|antes de|foi o defeito)\b", re.I)
+NARRATIVA = re.compile(r"\b(?:dizia|at[ée] 20\d\d-|era \*\*|quando a medi|virou|"
+                       r"deixou de|antes de|foi o defeito)\b", re.I)
+# `estava errad` e `envelhec` são RAÍZES — a palavra real continua ("estava errada",
+# "envelhece"), então elas não podem levar `\b` no fim: o `\b` exigia não-letra logo
+# depois e as duas alternativas nunca casavam. Ficam em ramo próprio, sem fecho.
+#
+# ...e ficam separadas por um segundo motivo: elas são frouxas demais para valer DENTRO da
+# documentação. "Envelhece sem avisar" é a frase que a própria doc usa para FALAR de
+# contagem cravada; deixá-la isentar ali seria dar à doc um passe que basta escrever a
+# palavra para obter — e é justamente na doc que o número envelhece calado (S-58).
+NARRATIVA_RAIZ = re.compile(r"\b(?:estava errad|envelhec)", re.I)
 
 # Arquivos que EXISTEM para listar ou para descrever o repositório — isentos por natureza.
 # A documentação em `.claude/docs/` cita plugin pelo nome porque o trabalho dela é esse;
@@ -79,6 +88,17 @@ DOC = ".claude/docs/"
 
 def isento_de_contagem(rel):
     return rel.startswith(DIRS_ISENTOS) and not rel.startswith(DOC)
+
+
+def eh_narrativa(rel, linha):
+    """A linha conta um defeito passado — e por isso não crava contagem nova.
+
+    As raízes frouxas (`envelhec`, `estava errad`) valem em todo lugar MENOS na pasta da
+    documentação, onde elas são vocabulário corrente e não narrativa.
+    """
+    if NARRATIVA.search(linha):
+        return True
+    return bool(NARRATIVA_RAIZ.search(linha)) and not rel.startswith(DOC)
 
 # DEPENDÊNCIA EXECUTÁVEL: o nome do irmão aparece dentro de um caminho ou de uma invocação.
 # É isto que quebra quando o outro plugin não está na máquina — e só isto.
@@ -157,7 +177,7 @@ def varre(root="."):
 
             if rel.endswith(".md") and not isento_de_contagem(rel) \
                     and not COM_COMANDO.search(linha) \
-                    and not NARRATIVA.search(linha):
+                    and not eh_narrativa(rel, linha):
                 for c in CONTAGEM.finditer(linha):
                     achados.append({"forma": "contagem-cravada", "arquivo": rel, "linha": n,
                                     "alvo": "%s %s" % (c.group(1), c.group(2)),
@@ -196,9 +216,14 @@ def main():
 
     if a.gravar_retrato:
         os.makedirs(os.path.dirname(caminho), exist_ok=True)
+        # Duas linhas idênticas em arquivos diferentes dão chaves diferentes, mas a mesma
+        # linha repetida dentro do mesmo arquivo dá a MESMA chave — e o retrato é um
+        # conjunto de chaves, não um diário de ocorrências. Gravar a repetição só engorda
+        # o arquivo e faz a contagem impressa aqui divergir da que o gate compara.
+        conjunto = sorted(set(chave(x) for x in achados))
         with open(caminho, "w", encoding="utf-8") as fh:
-            json.dump(sorted(chave(x) for x in achados), fh, ensure_ascii=False, indent=1)
-        print("retrato gravado: %d achado(s) em %s" % (len(achados), RETRATO))
+            json.dump(conjunto, fh, ensure_ascii=False, indent=1)
+        print("retrato gravado: %d achado(s) em %s" % (len(conjunto), RETRATO))
         return 0
 
     conhecidos = set()
