@@ -301,6 +301,31 @@ Nomes de sentinel em uso, com o dono de cada um [confirmado]:
 - `/tmp/claude-plan-gate-escape-${SESSION}-${PHASH}` — escape verbal, escrito por `userpromptsubmit-plan-escape.sh`
 - `/tmp/claude-context-pct-${SID}` — escrito pelo `context-guard-writer.sh`
 
+### 1.6a A generalização do §1.6: regra que vale nos DOIS lados vira UMA função
+
+O caso do `cksum` é o mais caro, mas não é o único — a família é **toda regra que dois pontos
+do código precisam responder igual**. Quando a regra é copiada, os dois começam iguais e
+divergem no primeiro conserto, e a divergência é silenciosa porque nenhum dos dois está
+errado sozinho.
+
+O segundo caso medido, em 2026-08-08 [confirmado]: a regra *"pendência com decisão gravada
+não trava mais"* vivia em `plan_state.py:cmd_tick` (quem RECUSA o tique) e foi copiada para
+`_detalhe` (quem DESENHA a linha de baixo do item). O `tick` aprendeu a olhar o campo
+`decidido`; o renderizador continuou olhando só a `pendencia` — e a árvore passou a anunciar
+**⛔ falta decidir** em três passos que estavam destravados desde o dia anterior. **A árvore é
+o que o motor de execução contínua lê como fila**, então ele gastou o tier caro
+diagnosticando por que passos com resposta gravada "não saíam do lugar".
+
+Hoje a regra é `plan_state.py:pendencia_viva`, chamada pelos dois. A docstring dela carrega o
+porquê, e a suíte varre a fronteira inteira (`decidido` ausente, texto, lista, dicionário
+vazio, `escolha` nula, vazia, só espaço, preenchida) — **8 casos, porque o defeito estava
+justamente numa borda**: `str(None)` devolve a palavra `"None"`, que é texto não-vazio, então
+gravar "não escolhi" liberava o tique.
+
+**O sinal de que você está criando o defeito:** você acabou de escrever, num segundo lugar,
+uma condição que já existe no primeiro. Extraia antes de seguir — depois a divergência já
+aconteceu e ninguém a vê.
+
 ### 1.7 Regex de intenção: fronteira de palavra e o lado seguro
 
 `userpromptsubmit-plan-escape.sh` é o caso de referência [confirmado — três armadilhas listadas no cabeçalho e cobertas por R1/R2/R4 da suíte]:
@@ -594,6 +619,34 @@ As três propriedades que fazem o padrão fechar:
 - **Traduzir posição em identidade é parte do padrão, não detalhe.** `erros_do_plano` prefixa com `fase[i] passo[j]`, que são **posições**; `_erro_e_do_no()` existe só para casar essas posições com o `id` do nó ticado. Sem essa tradução não há como separar erro do alvo de erro alheio, e o gate volta a ser tudo-ou-nada.
 
 **Régua durável: gate que valida no caminho de escrita tardio precisa dizer de QUEM é o defeito antes de decidir se bloqueia.** Bloquear por defeito alheio é como um arquivo com 154 tarefas fica impossível de tocar por causa da 37ª.
+
+### 2.5a O gate de julgamento tem duas forças: o que RECUSA e o que AVISA
+
+Irmão do §2.5, na direção do *conteúdo* em vez da forma. O `visual_page.py` chama o
+`clareza.py` **duas vezes, com pesos diferentes** [confirmado — `visual_page.py`, o import de
+topo e o fim de `cmd_build`]:
+
+| chamada | quando | força | por quê |
+|---|---|---|---|
+| `erros_de_clareza(spec)` | dentro do `validate` | **recusa**, exit 2, não escreve | é lista de termos que um juiz externo JÁ reprovou — não há julgamento a fazer |
+| `revisao_do_spec(spec)` | depois de escrever, no stderr | **avisa** | são 5 padrões estruturais, e cada um tem exceção legítima |
+
+A régua que separa as duas: **recuse o que já foi julgado; avise o que ainda precisa de
+julgamento.** A `.evidencia` que fecha um capítulo dispara a conferência "prova sem o
+estrago" e está certa; recusá-la ensinaria a contornar o cobrador — e *"falso positivo ensina
+a contornar, e contornar desliga tudo"* (§5.2). Já um termo que reprovou com um leitor real
+não tem contexto que o salve.
+
+**E as duas rodam no BUILD, não num passo escrito na skill.** É a lição que gerou o padrão:
+em 2026-08-08 uma página reprovou nas três decisões do juiz de clareza, e **duas das quatro
+lições que a reprovaram já estavam no banco** — lidas no começo da rodada e não conferidas no
+fim. Regra em prosa não pega, inclusive quando a prosa é a instrução do próprio agente.
+
+⚠️ **O cobrador estreitou duas vezes na primeira hora de uso, e as duas por falso positivo:**
+a conferência de custo passou a medir **por página** em vez de por frase (dizer uma vez que o
+custo é dinheiro basta), e a de sinônimos passou a **isentar a abertura** (é lá que se
+apresenta "plugin, ou pacote, é a caixa que se instala"). Cobrador de julgamento nasce largo
+e é estreitado com caso real; nascer estreito é o que o torna ignorável.
 
 ### 2.6 O dado é obrigatório; o LUGAR dele é opcional (cascata de fontes)
 

@@ -663,6 +663,47 @@ _com_tudo = V.build_page(spec(sections=[{"blocks": [
 check("com decisão na página, a nota continua saindo uma vez só",
       _com_tudo.count('class="qualidade-box"') == 1)
 
+# ── o build cobra as 5 conferências sozinho (2026-08-08) ──────────────────────
+# Elas viviam como um passo escrito na SKILL.md, e a lição da própria rodada que
+# as criou é que regra em prosa não pega. Avisa, não recusa: são pontos a
+# conferir, e o julgamento continua sendo de quem escreve.
+with tempfile.TemporaryDirectory() as td:
+    _sujo = os.path.join(td, "sujo.json")
+    _alvo = os.path.join(td, "p.html")
+    with open(_sujo, "w", encoding="utf-8") as fh:
+        json.dump(spec(sections=[{"blocks": [
+            {"kind": "text", "text": "a leitura fica cara e nem sempre compensa"},
+            dict(EVID), {"kind": "text", "text": "o disco enche."}]}]), fh)
+    r = subprocess.run([sys.executable, os.path.join(HERE, "visual_page.py"),
+                        "build", "--spec", _sujo, "--out", _alvo],
+                       capture_output=True, text=True, stdin=subprocess.DEVNULL,
+                       start_new_session=True)
+    check("o build roda as 5 conferências sem ninguém pedir",
+          "custo-sem-unidade" in r.stderr, r.stderr[-200:])
+    check("elas AVISAM, não recusam — a página é escrita assim mesmo",
+          r.returncode == 0 and os.path.exists(_alvo), (r.returncode, _alvo))
+
+with tempfile.TemporaryDirectory() as td:
+    _limpo = os.path.join(td, "limpo.json")
+    with open(_limpo, "w", encoding="utf-8") as fh:
+        json.dump(spec(sections=[{"blocks": [
+            dict(EVID), {"kind": "text", "text": "Isso enche o disco todo mês."}]}]), fh)
+    r = subprocess.run([sys.executable, os.path.join(HERE, "visual_page.py"),
+                        "build", "--spec", _limpo, "--out", os.path.join(td, "p.html")],
+                       capture_output=True, text=True, stdin=subprocess.DEVNULL,
+                       start_new_session=True)
+    check("spec limpo não ganha aviso nenhum", "ponto(s) a conferir" not in r.stderr,
+          r.stderr[-200:])
+
+# Variável de cor que não existe não dá erro: dá texto sem cor, que passa por
+# escolha de design. Foi o que aconteceu com `--muted` (o nome certo é
+# `--text-mute`) em três lugares do bloco de nota, achado só na revisão.
+_css = tpl()
+_defin = set(re.findall(r'^\s*(--[a-z-]+):', _css, re.M))
+_usadas = set(re.findall(r'var\((--[a-z-]+)\)', _css))
+check("toda variável de cor usada está definida no template",
+      not (_usadas - _defin), sorted(_usadas - _defin))
+
 
 print("\n%d passou · %d falhou" % (PASS, FAIL))
 sys.exit(1 if FAIL else 0)

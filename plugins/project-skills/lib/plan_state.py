@@ -853,13 +853,7 @@ def cmd_tick(args):
         for e in erros[:3]:
             print("     %s" % e, file=sys.stderr)
 
-    # Quem resolve a pendência é a DECISÃO registrada, não a ausência do campo: o init
-    # que omite a `pendencia` não a apaga (o merge preserva o que o init não trouxe), e
-    # o autor do plano não tem que saber que existe um merge pra conseguir destravar.
-    # A pergunta continua no arquivo — é dela que o `reabrir` vive.
-    dec = it.get("decidido")
-    pend = "" if isinstance(dec, dict) and str(dec.get("escolha", "")).strip() \
-        else str(it.get("pendencia", "")).strip()
+    pend = pendencia_viva(it)
     if pend:
         raise PlanError(
             "⛔ tick recusado: %s tem decisão em aberto.\n   %s\n\n"
@@ -1391,6 +1385,30 @@ MARK = {"done": "✅", "doing": "🔄", "blocked": "⛔", "todo": "⬜"}
 DOT = {"done": "●", "doing": "◐", "blocked": "✕", "todo": "○"}
 
 
+def pendencia_viva(it):
+    """A pergunta que AINDA trava a tarefa — "" quando já foi respondida.
+
+    Quem resolve a pendência é a DECISÃO registrada, não a ausência do campo: o `init`
+    que omite a `pendencia` não a apaga (o `merge` preserva o que o init não trouxe), e
+    o autor do plano não tem que saber que existe um merge pra conseguir destravar. A
+    pergunta continua no arquivo de propósito — é dela que o `reabrir` vive.
+
+    É UMA função porque a regra vale nos dois lados e eles precisam concordar: quem
+    RECUSA o tique (`cmd_tick`) e quem DESENHA a linha de baixo do item (`_detalhe`).
+    Enquanto eram duas, a árvore anunciava "⛔ falta decidir" sobre passo já destravado
+    — e é essa árvore que o motor lê como fila, então ele gastava o tier caro
+    diagnosticando por que passos com `decidido` gravado "não saíam do lugar". Mesma
+    armadilha da chave de sentinel computada em dois lugares (`patterns.md` §1.6).
+    """
+    dec = it.get("decidido")
+    # `escolha` NULA não destrava, e a distinção não é preciosismo: `str(None)` devolve
+    # a palavra "None", que é texto não-vazio — então gravar "não escolhi" liberava o
+    # tique. O `or ""` é o que separa ausência de escolha de escolha vazia.
+    if isinstance(dec, dict) and str(dec.get("escolha") or "").strip():
+        return ""
+    return str(it.get("pendencia") or "").strip()
+
+
 def prova_bullets(ev):
     """A prova, quebrada nos separadores que quem a escreveu já usou.
 
@@ -1446,15 +1464,8 @@ def _detalhe(it):
     esp = str(it.get("espera_dono", "")).strip()
     if esp:
         return "⏸️ espera você: " + esp, "pt-desc"
-    # A MESMA regra do `cmd_tick`: quem resolve a pendência é a DECISÃO registrada, não a
-    # ausência do campo — a pergunta continua no arquivo, é dela que o `reabrir` vive.
-    # Enquanto esta linha olhava só a `pendencia`, ela anunciava "falta decidir" sobre passo
-    # já destravado, e é esta árvore que o motor lê como fila: ele gastou o tier caro
-    # diagnosticando por que passos com `decidido` gravado "não saíam do lugar".
-    dec = it.get("decidido")
-    decidido = isinstance(dec, dict) and str(dec.get("escolha", "")).strip()
-    pend = str(it.get("pendencia", "")).strip()
-    if pend and not decidido:
+    pend = pendencia_viva(it)
+    if pend:
         return "⛔ falta decidir: " + pend, "pt-desc"
     return it.get("desc", "") or "", "pt-desc"
 

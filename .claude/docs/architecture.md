@@ -815,8 +815,10 @@ plugins/handoff/lib/       collect_engine.py (vendorado) · extract_ata.py
                            + test_handoff_skill.py
 plugins/intent-guard/lib/  ledger.py + test_ledger.py
 plugins/fallow/lib/        audit.py · report.py + test_report.py
-plugins/visual/lib/        plan_state.py · cobertura.py · visual_page.py · regua_audit.py
-                           + test_{plan_state,cobertura,visual_page,regua_audit}.py
+plugins/visual/lib/        visual_page.py · clareza.py · regua_audit.py
+                           + test_{visual_page,clareza,regua_audit}.py
+plugins/project-skills/lib/ plan_state.py · cobertura.py · auditoria_plano.py ·
+                           plan_entrada.py · regua_pronto.py  (vieram do `visual` no F14.2)
 plugins/slides/lib/        md2deck.py + test_md2deck.py
 plugins/branches/lib/      branch_state.py + test_branch_state.py
 plugins/guardrails/lib/    askq_lint.py + test_askq_lint.py
@@ -841,6 +843,8 @@ plan_state.py    → cobertura       (import lazy em 5 pontos: _requisitos_do_pr
                                     cmd_cobertura, brief_lines, _render_valor, _html_valor)
 visual_page.py   → regua_texto     (import de TOPO, via sys.path.insert do próprio dir —
 plan_state.py    → regua_texto      a cópia vendorada mora ao lado; ver §7.4)
+visual_page.py   → clareza         (import de topo: erros_de_clareza RECUSA a página com
+                                    termo já reprovado; revisao_do_spec AVISA os 5 pontos)
 branch_state.py  → regua_texto
 md2deck.py       → regua_texto
 regua_audit.py   → regua_texto
