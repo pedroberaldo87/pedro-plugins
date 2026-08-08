@@ -1,6 +1,6 @@
 {
   "name": "vistoria",
-  "version": "0.3.1",
+  "version": "0.3.2",
   "description": "A ferramenta que revisa os arquivos de instrucao do proprio marketplace — skills, hooks e cobradores — procurando o defeito que so aparece quando duas pecas sao lidas juntas. Nasce como esqueleto registrado e desligado de fabrica: o catalogo e a receita do bootstrap ja o conhecem antes de qualquer lente existir, para que as pecas entrem uma a uma sem que nenhuma delas invente o registro no meio do caminho.",
   "author": {
     "name": "pedro-plugins"

@@ -710,6 +710,45 @@ O caso que o cabeçalho nomeia como coberto é o do monorepo-container: mesmo co
 
 ---
 
+## 18 · A colheita do fim de turno passa a dizer POR QUE sobrou
+
+**Gatilho:** evento `Stop`, hook `plugins/lixeiro/hooks/stop-colhe-turno.sh`. `[confirmado — o hook foi lido e exercitado nesta rodada]`
+
+Até 2026-08-08 o hook encerrava o que a sessão tinha aberto e parava aí. O efeito medido: a
+máquina limpava, o defeito ficava, e no turno seguinte tudo voltava — foi por esse ciclo que uma
+máquina chegou a **2125 processos órfãos**. Agora a colheita e a causa saem na **mesma** notícia.
+
+```
+MORTOS ← lixeiro.py colhe-turno --sessao <sid>
+  ↓ (só quando encerrou algo, e com LIXEIRO_CAUSA≠0)
+causa.py:investiga(sobras, [raiz])
+  ↓ liga o comando do processo ao ARQUIVO que o abriu, e lê o padrão de risco nele
+PORQUE = "🔧 e o motivo de terem sobrado: <arquivo>:<linha> — <motivo humano>"
+  ↓
+hj_msg "$MSG\n$PORQUE"        ← uma mensagem só; separar faria ler duas vezes o mesmo assunto
+```
+
+- **O hook INVESTIGA e ANUNCIA; ele não conserta.** Propor patch, medir alcance e aplicar é o rito
+  da `/faxina` (passos 6 e 7), e ele exige agente — hook não escreve código no repositório de
+  ninguém sem que o dono tenha pedido. `[confirmado — `stop-colhe-turno.sh`, comentário do bloco]`
+- **Só entra no aviso o que a leitura do código EXPLICA.** Sobra sem arquivo identificável aparece
+  na `/faxina` (onde há humano lendo), não aqui: no fim do turno seria ruído a cada colheita.
+- **Desligar a causa não desliga a colheita** (`LIXEIRO_CAUSA=0`) — são notícias diferentes, e quem
+  só quer menos texto continua precisando saber que processos morreram. `[confirmado — caso de bancada]`
+
+**O juiz que decide se o conserto é aplicado no ato é OUTRO agente, e a separação é o ponto:** o
+programa mede o alcance (`causa.py alcance` → quantos arquivos, quais de plugin de terceiro, quais
+rodam em hook, quais têm suíte), o agente julga com esse dígito à vista sem saber quem propôs, e
+`baixo` só é aplicado se a suíte do arquivo tocado ficar verde — vermelho desfaz e sobe para o
+`/visual`. `[confirmado — `causa.py:alcance`/`suite_verde` + a suíte `test_causa.py`]`
+
+```bash
+bash plugins/lixeiro/hooks/test_lixeiro_hooks.sh   # a colheita com causa tem 4 casos próprios
+python3 plugins/lixeiro/lib/test_causa.py
+```
+
+---
+
 ## Pendências
 
 - **Ponteiros cross-tool inertes** (cenário 2): os 5 arquivos apontam pra um `CLAUDE.md` na raiz que não existe. `[confirmado]`

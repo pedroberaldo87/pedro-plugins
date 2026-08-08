@@ -709,6 +709,56 @@ E a hierarquia 1 corrige a outra leitura: **"Max 1 main decision" é teto de POS
 
 **Régua durável: integração que depende de infra privada de quem instala deixa o endpoint como DADO de config (env ou `~/.claude/`), nunca literal no repo público — e a ausência vira mensagem que ensina a configurar, não fallback que inventa.**
 
+### 2.10 Disparar processo sem deixar filho para trás
+
+Nasceu do defeito mais caro medido até hoje: uma máquina acumulou **2125 processos `python3`
+órfãos** (todos com pai `1`) em 2026-08-08. A causa imediata foi um ciclo — `scripts/plano_vs_codigo.py`
+executa os comandos que aparecem entre crases nos campos `pronto` do plano, o `pronto` de um passo
+mandava rodar `plugins/vistoria/lib/medidor.py`, e o medidor consolida nove cobradores, **um deles
+sendo o próprio `plano_vs_codigo.py`**. Volta ao topo, sem fundo.
+
+**O ciclo só conseguiu multiplicar porque cada disparo individual já vazava.** Três defeitos, e cada
+um tapa uma porta diferente [confirmado — os três estão no `finally` de `plano_vs_codigo.py:cumprido_comando`]:
+
+```python
+p = subprocess.Popen(cmd, shell=True, cwd=root, env=filho,
+                     stdin=subprocess.DEVNULL,      # sem isto o filho HERDA o terminal
+                     stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                     start_new_session=True)        # sem isto o NETO sobrevive ao teto
+p.wait(timeout=TIMEOUT)
+...
+finally:
+    if p is not None and p.poll() is None:
+        os.killpg(os.getpgid(p.pid), signal.SIGKILL)   # cobre também o cancelamento do PAI
+```
+
+- **stdin herdado não estoura teto.** Comando que resolve perguntar algo — `git` pedindo credencial é
+  o caso real — fica esperando **para sempre**, e o `timeout` não o alcança: ele não estourou, está parado.
+- **`timeout` mata o filho, não o neto.** Quando o filho é um shell, o `python3` que ele abriu fica órfão.
+  Sem grupo de processos próprio não há como alcançá-lo.
+- **Cancelamento não passa pelo `except`.** Ctrl-C, workflow morto, sessão encerrada: nada disso é
+  `TimeoutExpired`. É o `finally` que fecha essa porta.
+
+**A trava do ciclo é dos DOIS lados, e ela mora no ambiente** — o que se repete são processos NETOS
+criados por `sh -c`, e variável de módulo não atravessa `fork`:
+
+```bash
+grep -n "PLANO_VS_CODIGO_RODANDO" scripts/plano_vs_codigo.py plugins/vistoria/lib/medidor.py
+```
+
+**Os padrões são servidos de uma fonte só** (`_shared/padroes_vazamento.py`, vendorado — §3.1), porque
+três programas cobram este mesmo defeito e **eles já divergiram no dia em que nasceram**: um tinha
+`disown` na lista, outro não. Quem consome:
+
+```bash
+grep -rln "padroes_vazamento" scripts plugins --include=*.py | grep -v test_
+```
+
+**Régua durável: todo disparo de processo fecha a entrada e nasce em grupo próprio, e quem tem teto
+mata o GRUPO no `finally` — não o filho. Programa que executa comando vindo de DADO (plano, config,
+texto de terceiro) acende marca de reentrância no ambiente, e quem ele pode chamar de volta a lê.**
+Quem cobra é o check **P** do gate (§5.2), com isenção `vaza-ok: <motivo>` na linha.
+
 ---
 
 ## 3 · Vendoring de `_shared/` (o único "build")
@@ -853,7 +903,13 @@ Hoje o comando é **quebrado em tokens** (o split inclui `(`, `)`, `;`, `&`, `|`
 
 **Suíte dedicada: `.claude/hooks/test_release_gate.sh` → `OK (30 checks)` nesta rodada** — ela exercita as quatro formas que passavam, o falso positivo do `git log --grep commit`, o `--amend` dentro da mensagem (*"é texto, não amend"*) e o fail-open fora do monorepo. ⚠️ **Ela mora em `.claude/hooks/`, fora dos globs dos checks D e F**, então nenhum commit a dispara automaticamente — mesma exceção das duas suítes de `scripts/`.
 
-**Os checks são DOZE** — eram dez; entraram o A2 e o B2 [confirmado, derivado nesta rodada]:
+**Quantos checks o gate tem hoje** — a contagem sai do próprio arquivo, nunca de um número escrito aqui:
+
+```bash
+grep -cE '^# [A-Z0-9]+ · ' .claude/hooks/release-gate.sh
+```
+
+O último a entrar foi o **P**, em 2026-08-08 [confirmado, derivado nesta rodada]:
 
 ```bash
 grep -oE '^[[:space:]]*# [A-Z][0-9+C]* · ' .claude/hooks/release-gate.sh | grep -oE '[A-Z][0-9+C]*'
@@ -877,6 +933,7 @@ A ordem de execução não importa: todos só acumulam em `VIOL`.
 - **G · gen defasado no marker do project-doc** — só quando o commit toca `plugins/project-doc/`. Lê `CURRENT_GEN` de `pattern_check.py` (hoje **"3.8"** [confirmado, li a constante]) e varre `plugins/project-doc/skills/` procurando `gen=X.Y` **dentro de comentário HTML**. Menção em prosa a um gen antigo **não** é violação — *"barrá-las ensinaria a ignorar o gate"*. Fail-open se `CURRENT_GEN` não resolver (`sys.exit(0)`).
 - **H · dado pessoal em commit de repo público** — roda `python3 scripts/public_repo_check.py --staged`. Só olha o que **este** commit traz: *"dívida antiga não trava ninguém, mas ocorrência nova é barrada na porta"*. O comentário registra por que virou código: *"Regra em prosa não pega (o CLAUDE.md pedia isso e 368 ocorrências entraram assim mesmo)"*.
 - **I · gerador de página fora da régua de estilo** — roda `python3 scripts/regua_call_check.py --staged`. Arquivo que monta HTML e **não** chama a régua de `_shared/regua_texto.py` é barrado. Mesma regra do H: só o que **este** commit traz, porque os geradores que já estavam fora não podem travar trabalho alheio.
+- **P · disparo de processo que pode deixar filho para trás** — **novo em 2026-08-08**, e nasceu de uma máquina com **2125 processos `python3` órfãos**. Só quando o commit traz `.py`. Roda `python3 scripts/vazamento_check.py` e barra o disparo sem `stdin=` (o filho herda o terminal e espera para sempre — o teto **não** o alcança, porque ele não estourou) ou sem `start_new_session=` (o teto mata o filho e o **neto** sobrevive). Cobre também o lado Node, por regex: `stdio: 'inherit'`. Isenção: `vaza-ok: <motivo>` na linha. Ver §2.10.
 - **F · testes shell** — roda `plugins/<nome>/hooks/test_*.sh` dos plugins tocados.
 
 ⚠️ **D e F são por plugin TOCADO, não por repo.** Um commit que só mexe no `bootstrap` roda exatamente `plugins/bootstrap/lib/test_*.py` e `plugins/bootstrap/hooks/test_*.sh` e mais nada. **Plugin sem suíte não é plugin sem teste: é plugin cujos checks D e F estão desligados.**
