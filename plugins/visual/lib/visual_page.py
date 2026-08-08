@@ -788,6 +788,11 @@ def build_body(spec, tpl):
         out.append(extract_block(tpl, "decisions-box"))
     if ctx["n_items"]:
         out.append(extract_block(tpl, "feedback-box"))
+    # A nota DESTA PÁGINA sai em toda página, com decisão ou sem — o leitor pode
+    # achar ruim uma página que não pede nada, e é justamente essa que ninguém
+    # reclamaria se a caixa dependesse de haver decisão. Fica por último de
+    # propósito: é sobre a página, não sobre o conteúdo, e não disputa a decisão.
+    out.append(extract_block(tpl, "qualidade-box"))
     out.append("</div>")
     return "\n".join(out) + "\n", ctx
 

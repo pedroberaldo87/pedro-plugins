@@ -497,6 +497,11 @@ check("o placar não nasce dentro de nenhum details",
 # a medida que originou tudo: quanto da página fica atrás de um clique
 corpo = pagina[pagina.index('<div class="wrap">'):]
 corpo = re.sub(r"<script.*?</script>", "", corpo, flags=re.S)
+# A nota desta página sai da conta pelo mesmo motivo do <script>: ela não é
+# conteúdo que o leitor veio ler, é o rodapé onde ele avalia a página. Contá-la
+# faria toda página parecer menos colapsada só porque o rodapé cresceu, e a régua
+# aqui mede a ocultação do CONTEÚDO.
+corpo = re.sub(r'<div class="qualidade-box">.*?</div>\s*(?=</div>|$)', "", corpo, flags=re.S)
 
 
 def _texto(s):
@@ -628,6 +633,35 @@ with tempfile.TemporaryDirectory() as td:
 
 check("o schema publica o bloco de aprovação",
       "aprovacao" in V.SCHEMA_DOC and "doc_integral" in V.SCHEMA_DOC)
+
+# ── A nota DESTA PÁGINA (2026-08-08) ───────────────────────────────────────────
+# Ela existe pra a próxima página sair melhor, e por isso sai em TODA página: o
+# leitor pode achar ruim justamente a que não pede nada, e essa é a que nunca
+# receberia nota se a caixa dependesse de haver decisão.
+_so_texto = V.build_page(spec(sections=[{"blocks": [{"kind": "text", "text": "nada a decidir"}]}]), T)[0]
+check("a nota sai mesmo na página sem decisão e sem item",
+      'class="qualidade-box"' in _so_texto)
+check("os três eixos saem, com os nomes que o dono escolheu",
+      all(('data-eixo="%s"' % e) in _so_texto
+          for e in ("clareza", "escaneabilidade", "detalhamento")))
+check("cada eixo tem os três votos e nenhum vem marcado",
+      _so_texto.count('class="qual-voto"') == 9 and "qual-voto escolhido" not in _so_texto)
+check("o campo livre existe, e é opcional",
+      'id="qual-livre"' in _so_texto)
+check("a nota viaja no live-sync, não só no botão de copiar",
+      "qualidade: getQualidade()" in _so_texto)
+check("a nota entra no que os botões copiam",
+      "Nota desta página" in _so_texto)
+check("a nota é a ÚLTIMA caixa — não disputa com a decisão",
+      _so_texto.rindex('class="qualidade-box"') >
+      max(_so_texto.rfind('class="decisions-box"'), _so_texto.rfind('class="feedback-box"')))
+
+_com_tudo = V.build_page(spec(sections=[{"blocks": [
+    {"kind": "evidencia", "src": "s", "output": "o"},
+    {"kind": "decision", "question": "q", "context": "c",
+     "options": [{"title": "a", "tradeoff": "t"}, {"title": "c", "tradeoff": "d"}]}]}]), T)[0]
+check("com decisão na página, a nota continua saindo uma vez só",
+      _com_tudo.count('class="qualidade-box"') == 1)
 
 
 print("\n%d passou · %d falhou" % (PASS, FAIL))
