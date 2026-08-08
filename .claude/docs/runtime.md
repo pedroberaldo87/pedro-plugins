@@ -347,7 +347,15 @@ O número **aparece sem ser pedido**, em quatro superfícies, todas lendo a mesm
 - no **cabeçalho da árvore de valor**, texto e HTML;
 - sob demanda, em `plan_state.py cobertura` (com `--json` pra consumo por programa e `--reqs` pra apontar outro documento). `[confirmado — leitura das quatro chamadas]`
 
-**Verificado:** `python3 plugins/project-skills/lib/test_plan_state.py` → **OK** (252 asserções `ok`, contra 173 na rodada anterior — a diferença é a prova em bullets, com o último check sendo "prova de um segmento continua span") e `python3 plugins/project-skills/lib/test_cobertura.py` → **OK** (13), ambas nesta rodada. `[confirmado — `grep -c '^  ok'` sobre a saída de cada uma]`
+### Quando quem marca é o MOTOR, e não uma pessoa
+
+O ciclo acima descreve o tique feito à mão. Na execução contínua quem marca é um agente do motor (`plugins/project-skills/skills/sprint/SKILL.md`), e três defeitos medidos em 2026-08-08 mudaram a forma desse papel. `[confirmado — leitura do SKILL.md e da bancada nesta rodada]`
+
+- **O marcador é achado pelo NOME, nunca pela posição.** O passo `F14.2` desta mesma missão moveu `plan_state.py` de `plugins/visual/` para `plugins/project-skills/`, e o script do motor continuou apontando o caminho velho: **os 47 agentes de marcação falharam no primeiro comando e gastaram 8,45M de tokens redescobrindo o rename, cada um por conta própria**. Hoje o caminho sai de `resolve-plugin.sh project-skills lib/plan_state.py` — `grep -c resolve-plugin plugins/project-skills/skills/sprint/SKILL.md` devolve **8**, e `grep -c 'plugins/visual/lib/plan_state'` devolve **0**. A regra vale para todo caminho que o motor usa **para si mesmo**.
+- **A onda inteira é marcada por UM agente, com N comandos em sequência** — não um agente por passo. A autópsia do run mediu a marcação em 7,1% do gasto, e o ganho de juntar em lote foi medido em 5%; o que decidiu não foi o número, foi que marcar é **operação já decidida**, sem julgamento a isolar. O critério ficou escrito: um agente por *tarefa de trabalho* é desenho, um agente por *operação já decidida* é desperdício.
+- **O silêncio da marcação virou bloqueio nomeado.** O papel devolve `TICK_RESULT` — `{ marcados: [{ task_id, ok, motivo }] }`, uma entrada por passo tentado. `agent()` nulo, lista vazia, ou passo que o script mandou marcar e **não aparece no veredito** ⇒ Bloqueio com o id do passo. Antes disso o `agent()` do tique era chamado sem schema e sem atribuição, e o retorno era descartado: um agente gastou 127.924 tokens, fez 3 comandos, voltou com texto vazio e **nunca executou o tique** — o passo entregue ficou gravado como não feito, sem que nada acusasse. `SUITE_RESULT` e `RESERVA` sempre tiveram schema; o tique era a exceção.
+
+**Verificado:** `python3 plugins/project-skills/lib/test_plan_state.py` → **OK** (295 asserções `ok`), `python3 plugins/project-skills/lib/test_cobertura.py` → **OK** (68), `python3 plugins/sovai/lib/test_motor_bancada.py` → **OK (121 checks)** — esta roda o motor de verdade em Node contra um plano temporário — e `python3 plugins/sovai/lib/test_travas_motor.py` → **OK (150 checks)**, todas nesta rodada. `[confirmado — saída de cada uma]`
 
 ---
 
@@ -400,12 +408,28 @@ plugins/project-doc/hooks/hooks.json      3  sessionstart-organism.sh, sessionst
 plugins/ship/hooks/hooks.json             1  + deps
 plugins/sovai/hooks/hooks.json            1  + deps
 plugins/visual/hooks/hooks.json           2  sessionstart-plan.sh (10s), + deps
-TOTAL 21 registros — mas só 10 SCRIPTS distintos
+TOTAL 22 registros — mas só 10 SCRIPTS distintos
 ```
 
-⚠️ **O arranque triplicou de registros e não triplicou de trabalho.** Doze dos 21 são o mesmo `sessionstart-deps.sh` (marcado `+ deps` acima), e ele é desenhado pra que **onze das doze execuções não façam nada**: a primeira a rodar cria um sentinel por sessão com `set -C` (o `noclobber` do shell, que é o cria-se-não-existe atômico) e as outras saem 0 caladas. O aviso sai **uma vez por sessão, não uma por plugin instalado**.
+⚠️ **O arranque triplicou de registros e não triplicou de trabalho.** Treze dos 22 são o mesmo `sessionstart-deps.sh` (marcado `+ deps` acima), e ele é desenhado pra que **doze das treze execuções não façam nada**: a primeira a rodar cria um sentinel por sessão com `set -C` (o `noclobber` do shell, que é o cria-se-não-existe atômico) e as outras saem 0 caladas. O aviso sai **uma vez por sessão, não uma por plugin instalado**.
 
-**Quantos rodam aqui: depende do que está ligado.** `graphify-guard`, `intent-guard`, `gauntlet`, `project-skills` e `vistoria` nascem `enabled: false` no manifest. `[confirmado]`
+**Quantos rodam aqui: depende do que está ligado**, e a lista sai do manifesto, não de prosa:
+
+```bash
+python3 -c "
+import json
+def anda(o):
+    if isinstance(o,dict):
+        if 'name' in o and 'enabled' in o: yield o['name'],o['enabled']
+        for v in o.values(): yield from anda(v)
+    elif isinstance(o,list):
+        for v in o: yield from anda(v)
+print([n for n,e in anda(json.load(open('plugins/bootstrap/config/manifest.json'))) if not e])"
+```
+
+🔴 **Três voltaram a nascer ligados em 2026-08-08, e os três eram furos diferentes** `[confirmado — commit `4415b10`]`. O `project-skills` estava desligado depois de **receber sete skills** que mudaram de plugin (`doc`, `doc-touch`, `plan`, `qa-loop`, `sprint`, `start`, `project-skills`): quem instalasse não receberia nenhuma delas. A `vistoria` estava no mesmo caso. O `intent-guard` estava fora desde que a catraca de entrega crescia sozinha — o defeito fechou, e o religamento foi conferido antes: `claude plugin details intent-guard@pedro-plugins` mostra `Hooks (5)`, e as cinco suítes dele passam (`test_ledger`, `test_delivery_audit`, `test_hooks_capture`, `test_plan_gate`, `test_task_checkpoint`). Dos plugins da casa, seguem `enabled: false` apenas `gauntlet` e `graphify-guard`.
+
+⚠️ **Hook novo só entra em sessão NOVA.** `/reload-plugins` recarrega o que já está registrado; não instala nem ativa hook. O `intent-guard` foi religado no registro numa sessão e os hooks dele só passaram a rodar no arranque seguinte.
 
 ### 7.0 · O aviso de dependência ausente — o hook que os doze compartilham
 
