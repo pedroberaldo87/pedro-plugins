@@ -47,6 +47,38 @@ log() { echo "[pedro-plugins/session-sync] $*" >&2; }
 info() { echo "[pedro-plugins/session-sync] $*"; }
 verbose() { [ -n "$VERBOSE" ] && info "$*"; }
 
+# ── O LIXO QUE AS INSTALAÇÕES DEIXARAM ────────────────────────────────────────
+# AQUI, e não no hook de comando: o `/plugin` é comando do PRÓPRIO Claude Code e
+# não passa pela ferramenta de shell, então nenhum PostToolUse acorda com ele — e é
+# justamente por ali que o cache mais incha. A abertura de sessão alcança qualquer
+# caminho de instalação.
+#
+# Antes de todo `exit 0` deste arquivo, porque eles são muitos e o aviso não depende
+# de nada do sync. Relógio PRÓPRIO (1×/dia): o throttle do sync mede outra coisa, e
+# pendurar o aviso nele faria a mensagem sumir junto com uma sincronização pulada.
+#
+# Ele AVISA e OFERECE; nunca apaga. Desligar: PEDRO_CACHE_AVISO=0.
+if [ "${PEDRO_CACHE_AVISO:-1}" != "0" ] && [ -f "$LIB_DIR/cache-parado.sh" ]; then
+  CP_MARCA="${CLAUDE_CONFIG_DIR:-$HOME/.claude}/plugins/.pedro-cache-aviso"
+  CP_AGORA="$(date +%s)"
+  CP_ANTES="$([ -f "$CP_MARCA" ] && cat "$CP_MARCA" 2>/dev/null || echo 0)"
+  if [ $((CP_AGORA - ${CP_ANTES:-0})) -ge "${PEDRO_CACHE_AVISO_SEGUNDOS:-86400}" ]; then
+    # shellcheck source=/dev/null
+    . "$LIB_DIR/cache-parado.sh" 2>/dev/null
+    if type cp_total >/dev/null 2>&1; then
+      CP_N="$(cp_total 2>/dev/null || echo 0)"
+      if [ "${CP_N:-0}" -gt 0 ] 2>/dev/null; then
+        CP_TOPO="$(cp_parados 2>/dev/null | sort -k3 -rn | head -3 \
+                   | awk '{printf "%s roda %s (%s paradas) · ", $1, $2, $3}')"
+        CP_MSG="🧹 ${CP_N} versão(ões) de plugin paradas no cache — só a mais alta roda. ${CP_TOPO}Peça \"limpa o cache\" e eu apago tudo que não é a mais alta, mostrando a lista antes."
+        command -v python3 >/dev/null 2>&1 && \
+          python3 -c 'import json,sys; print(json.dumps({"systemMessage": sys.argv[1]}))' "$CP_MSG"
+        echo "$CP_AGORA" > "$CP_MARCA" 2>/dev/null
+      fi
+    fi
+  fi
+fi
+
 # Acquire lock to prevent concurrent syncs from multiple Claude Code sessions.
 # Using mkdir for atomic semantics (POSIX-portable, no flock dependency).
 # Lock is auto-released on exit via trap. Stale locks (>5min old) are broken.
