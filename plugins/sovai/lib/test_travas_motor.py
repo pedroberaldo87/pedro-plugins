@@ -412,8 +412,13 @@ def main():
     # Sem o comando escrito, `tickPlanPrompt` e um papel sem acao: o marcador nao tem o
     # que rodar e o plano continua parado. O que roda o comando de verdade e o
     # test_motor_bancada.py; aqui se cobra que ele EXISTE na skill.
+    # O comando deixou de trazer o caminho cravado (F9.51): ele agora nasce de uma BUSCA
+    # pelo nome do plugin, numa linha, e roda na seguinte com a variavel. Cobrar
+    # `plan_state.py --dir` na mesma linha do `tick` reprovava justamente o conserto —
+    # e o `<plano>` que estava aqui nem era argumento que o programa aceita.
     check("a skill nomeia o comando que marca o plano",
-          "plan_state.py --dir" in texto and "tick <plano> <taskId> --evidencia" in texto)
+          "resolve-plugin.sh" in texto and "lib/plan_state.py" in texto
+          and "tick <taskId> --evidencia" in texto)
     check("a prova gravada e a do executor, nao redigida por quem marca",
           "nunca redigida por quem marca" in texto)
 
