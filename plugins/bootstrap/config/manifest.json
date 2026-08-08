@@ -175,7 +175,7 @@
         },
         {
           "name": "intent-guard",
-          "enabled": false
+          "enabled": true
         },
         {
           "name": "lixeiro",
@@ -191,7 +191,7 @@
         },
         {
           "name": "project-skills",
-          "enabled": false
+          "enabled": true
         },
         {
           "name": "qa-loop",
@@ -215,7 +215,7 @@
         },
         {
           "name": "vistoria",
-          "enabled": false
+          "enabled": true
         },
         {
           "name": "visual",
