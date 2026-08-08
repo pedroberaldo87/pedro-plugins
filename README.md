@@ -2,7 +2,7 @@
 
 Marketplace público de plugins para [Claude Code](https://docs.claude.com/en/docs/claude-code). Monorepo — cada subdiretório em `plugins/` é um plugin independente (skills, hooks e automações), distribuído via `.claude-plugin/marketplace.json`.
 
-**25 plugins · Markdown + Shell + Python · sem build, sem package manager.**
+**24 plugins · Markdown + Shell + Python · sem build, sem package manager.**
 
 ---
 
@@ -52,7 +52,7 @@ claude plugin install bootstrap@pedro-plugins
 /bootstrap:setup
 ```
 
-Resultado esperado numa máquina zerada: **20 plugins ligados + 5 desligados de fábrica**
+Resultado esperado numa máquina zerada: **19 plugins ligados + 5 desligados de fábrica**
 (`graphify-guard` e `intent-guard`), mais os marketplaces de terceiros do manifest.
 
 > ⚠️ **Se aparecer `sync incompleto: N operações falharam`, rode `/bootstrap:setup` de novo.**
@@ -123,8 +123,7 @@ e intercepta cada mensagem sua). Ligar: `claude plugin enable <nome>@pedro-plugi
 | Plugin | Trigger | O que faz |
 |---|---|---|
 | `qa-loop` | `/qa-loop <alvo>` | Loop de review→conserto que **para por retornos decrescentes**, não por zero. Motor roda como **Workflow determinístico** (Opus revisa → Opus planeja/adjudica → Sonnet conserta; gate/churn/parada em código). Ancora no plano (3 buckets: implementação / plan-drift / plano-falho) **e nas metas de qualidade do projeto**, lidas de `.claude/docs/quality-goals.md` na hora da revisão em vez de copiadas pra dentro da skill. Regression gate por conserto, accepted-limits, relatório **humano** (HTML) + journal **agêntico**. Substitui `qa`, `rev6` e `iterate`. |
-| `grill-me` | `/grill-me` | Entrevista implacável, uma pergunta por vez, sobre um plano/design até esgotar a árvore de decisões. *Por [Matt Pocock](https://github.com/mattpocock/skills).* |
-| `grill-with-docs` | `/grill-with-docs` | Igual ao `grill-me`, mas confronta contra o domain model existente (CONTEXT.md, ADRs) e atualiza as docs inline conforme as decisões cristalizam. *Por [Matt Pocock](https://github.com/mattpocock/skills).* |
+| `grill-me` | `/grill-me [com-docs]` | Entrevista implacável sobre um plano/design até esgotar a árvore de decisões. Sem argumento, sabatina o plano por ele mesmo; com `com-docs`, confronta contra o domain model existente (CONTEXT.md, ADRs) e atualiza as docs inline conforme as decisões cristalizam. *Por [Matt Pocock](https://github.com/mattpocock/skills).* |
 | `principles` | `/principles` | Carrega princípios de sistema do projeto (`PRINCIPIOS-SISTEMAS.md`), mapeia categorias relevantes ao contexto e gera um guia com WHY + HOW. Dois modos: planning e review. |
 
 ### Documentação & conhecimento

@@ -314,12 +314,51 @@ exit 0
           hc.main(["--root", r.root, "--json", "--fail-on", "high"]) == 1)
     r.close()
     r = Repo()
-    r.hook("limpo.sh", HDR + 'command -v jq >/dev/null 2>&1 || exit 0\njq -n "{}"\nexit 0\n',
+    r.hook("sessionstart-avisa-limpo.sh",
+           HDR + 'command -v jq >/dev/null 2>&1 || exit 0\njq -n "{}"\nexit 0\n',
            event="SessionStart", matcher="*")
     check("hook limpo não gera achado nenhum", hc.run(r.root)["findings"] == [])
     check("--fail-on high sai 0 sem ALTA",
           hc.main(["--root", r.root, "--json", "--fail-on", "high"]) == 0)
     r.close()
+
+    print()
+    print("R6 — o nome tem que dizer QUANDO roda e SE barra")
+    r = Repo()
+    r.hook("scope-cop.sh", HDR + "exit 0\n", event="PreToolUse")
+    check("nome sem evento nem verbo reprova",
+          "R6-nome-fora-do-molde" in r.rules("scope-cop.sh"))
+    r.close()
+
+    r = Repo()
+    r.hook("stop-avisa-doc.sh", HDR + "exit 0\n", event="PreToolUse")
+    check("prefixo de evento que não é o registrado reprova",
+          "R6-nome-evento-errado" in r.rules("stop-avisa-doc.sh"))
+    r.close()
+
+    r = Repo()
+    r.hook("pretooluse-avisa-plano.sh",
+           HDR + 'SESSION=$1\nF="/tmp/x-${SESSION}"\n[ -f "$F" ] && exit 0\n'
+                 '[ "${X:-1}" = "0" ] && exit 0\ntouch "$F"\nexit 2\n',
+           event="PreToolUse")
+    check("verbo de aviso em script que bloqueia reprova",
+          "R6-nome-verbo-errado" in r.rules("pretooluse-avisa-plano.sh"))
+    r.close()
+
+    r = Repo()
+    r.hook("posttooluse-barra-nada.sh", HDR + "exit 0\n", event="PostToolUse")
+    check("verbo de bloqueio em script que só avisa reprova",
+          "R6-nome-verbo-errado" in r.rules("posttooluse-barra-nada.sh"))
+    r.close()
+
+    r = Repo()
+    r.hook("posttooluse-anota-uso.sh", HDR + "exit 0\n", event="PostToolUse")
+    check("nome no molde passa", "R6" not in "".join(r.rules("posttooluse-anota-uso.sh")))
+    r.close()
+
+    check("script em dois eventos casa com um deles",
+          hc.judge_nome("posttooluse-anota-uso.sh",
+                        {"PreToolUse", "PostToolUse"}, False) is None)
 
     print()
     print("o medidor do fim de turno conta o TEXTO, não o embrulho de dados")

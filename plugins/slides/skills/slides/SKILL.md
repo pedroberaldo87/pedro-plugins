@@ -15,6 +15,11 @@ Gera uma apresentação HTML que abre no navegador e se apresenta em tela cheia.
 | "monta um deck pra me **explicar** X" / "me ensina Y em slides" / dar um tema ou material e pedir pra ENSINAR | **B · Explicador** | **autora a didática** — estrutura, nível do público, granular vs resumo, infográficos — com grounding. É o **Workflow B** abaixo. |
 | ambíguo (aponta um `.md` **e** pede pra "explicar/ensinar") | — | **pergunte** qual modo antes de montar. Não chute. |
 
+**Por onde a pergunta chega quem escolhe é o usuário** — a régua dos dois canais (página de
+decisão em múltipla escolha, ou a ferramenta nativa uma por vez) está em
+**`regua-de-pergunta.md`**, ao lado deste arquivo (fonte: `_shared/regua-de-pergunta.md`, cópia
+derivada; não editar à mão).
+
 Os dois compartilham a mesma engine/template/temas e o mesmo cuidado de não-regressão (no-JS, thumbnail WhatsApp, 4 cenários de verificação).
 
 ## A regra de ouro (modo A · transcrição): o texto é do autor

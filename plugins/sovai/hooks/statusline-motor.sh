@@ -20,7 +20,8 @@
 #
 #   sh statusline-motor.sh "node .../hud/dist/index.js"
 #
-# O ESTADO É LIDO DO DISCO (`~/.claude/sovai/`), nunca perguntado a ninguém: quem
+# O ESTADO É LIDO DO DISCO (`~/.claude/andamento/`, mais a pasta antiga
+# `~/.claude/sovai/` enquanto houver missão viva lá), nunca perguntado a ninguém: quem
 # renderiza a barra não tem acesso ao motor, e a barra é redesenhada a cada tecla.
 # Sem `ativo-<sid>` não há motor vivo, a linha não sai, e a barra fica exatamente
 # a que sempre foi.

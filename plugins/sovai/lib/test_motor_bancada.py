@@ -27,8 +27,8 @@ import sys
 import tempfile
 
 AQUI = os.path.dirname(os.path.abspath(__file__))
-SKILL_MD = os.path.join(AQUI, "..", "skills", "sovai", "SKILL.md")
-PLAN_STATE = os.path.join(AQUI, "..", "..", "visual", "lib", "plan_state.py")
+SKILL_MD = os.path.join(AQUI, "..", "..", "project-skills", "skills", "sprint", "SKILL.md")
+PLAN_STATE = os.path.join(AQUI, "..", "..", "project-skills", "lib", "plan_state.py")
 
 FAILS = []
 TOTAL = [0]
@@ -133,6 +133,15 @@ GAP_CONCEPCAO = {"task_id": "F1.1", "kind": "concepcao", "severity": "P0",
                             "e que a origem nao versiona nada"}
 GAP_SPEC = dict(GAP_CONCEPCAO, kind="spec")
 
+# ── a obra contradiz o desenho aprovado (S-104) ──────────────────────────────
+# A contradicao injetada: o esquema aprovado desenha uma coisa e a obra fez outra. Pelo
+# eixo de constituicao ela nasce como gap de `constituicao` e SEGURA a obra; se o errado
+# for o desenho, o mesmo texto entra como `concepcao` e vira aviso sem segurar nada.
+GAP_DESENHO = {"task_id": "F1.1", "kind": "constituicao", "severity": "P0",
+               "problem": "`.claude/docs/blueprint.md` (aprovado) desenha a leitura saindo "
+                          "do cache local, e a obra le a origem a cada chamada"}
+GAP_DESENHO_CONCEPCAO = dict(GAP_DESENHO, kind="concepcao")
+
 HARNESS = r"""
 const { execSync } = require('child_process')
 const fs = require('fs')
@@ -140,7 +149,7 @@ const CFG = JSON.parse(fs.readFileSync(process.argv[2], 'utf8'))
 const CORPO = fs.readFileSync(process.argv[3], 'utf8')
 
 const PRELUDE = `
-const DECOMP={}, TASK_RESULT={}, BUILD_REVIEW={}, RESERVA={}, REGUA={}, SUITE_RESULT={}, AUDITOR={};
+const DECOMP={}, TASK_RESULT={}, BUILD_REVIEW={}, RESERVA={}, REGUA={}, SUITE_RESULT={}, AUDITOR={}, DOC_TOUCH={};
 const mk = n => (p => Object.assign({ __p: n }, p));
 const decomposePrompt=mk('decompose'), execPrompt=mk('exec'), reviewBuildPrompt=mk('review'),
       runSuitePrompt=mk('suite'), checkpointPrompt=mk('checkpoint'), tickPlanPrompt=mk('tick'),
@@ -171,7 +180,7 @@ const parallel = fns => Promise.all(fns.map(f => f()))
 // verdade: os outros so devolvem o dado canonico da rodada.
 function tica(p) {
   let cmd = CFG.tickCmd
-  for (const [k, v] of Object.entries({ '<plugin visual>': CFG.pluginVisual, '<raiz>': CFG.raiz,
+  for (const [k, v] of Object.entries({ '<plugin project-skills>': CFG.pluginSkills, '<raiz>': CFG.raiz,
                                         '<plano>': CFG.planoId, '<taskId>': p.taskId,
                                         '<evidencia>': p.evidencia })) {
     cmd = cmd.split(k).join(v)
@@ -194,6 +203,22 @@ function salva(p) {
   checkpoints.push({ round: p.round, cmd })
   execSync(cmd, { stdio: 'pipe', shell: '/bin/sh' })
   return {}
+}
+
+// O papel que INVOCA SKILL, com efeito de verdade tambem — igual ao que roda comando.
+// No caso honesto a re-projecao acontece: o arquivo da doc daquela onda e ESCRITO, e o
+// papel devolve o caminho. Com CFG.docFalso o papel MENTE ter feito: devolve um caminho
+// que ninguem escreveu. Os dois passam pela mesma peneira, que e o disco — e e por isso
+// que a mentira volta como lista vazia, sem o motor precisar acreditar em ninguem.
+function documenta(p) {
+  const alegado = CFG.docFalso || ('.claude/docs/onda-' + p.round + '.md')
+  if (!CFG.docFalso) {
+    fs.mkdirSync(CFG.raiz + '/.claude/docs', { recursive: true })
+    fs.writeFileSync(CFG.raiz + '/' + alegado, 'doc re-projetada na onda ' + p.round + '\n')
+  }
+  const confirmados = [alegado].filter(f => fs.existsSync(CFG.raiz + '/' + f))
+  docs.push({ round: p.round, files: p.files, alegados: [alegado], docs: confirmados })
+  return { docs: confirmados }
 }
 
 async function agent(p, opts) {
@@ -233,10 +258,6 @@ async function agent(p, opts) {
                                heartbeat: CFG.heartbeat === null ? CFG.now : CFG.heartbeat,
                                trabalhoVivo: CFG.trabalhoVivo === true }
     case 'checkpoint': return salva(p)
-    // A doc da onda verde: aqui ela nao tem efeito no disco (quem re-projeta e uma
-    // skill, nao um comando), entao o que se registra e a CHAMADA — em que onda saiu e
-    // com quais arquivos. O lugar dela na fila fica gravado em `agentes`, que e como se
-    // afere que ela veio DEPOIS do commit.
     // O auditor da alegacao de impossivel (F9.18). O cenario escolhe o desfecho, e o que
     // ele RECEBEU fica registrado: sem isso a bancada nao consegue perguntar se a lente
     // invertida chegou com a lista do que havia a mao.
@@ -245,7 +266,7 @@ async function agent(p, opts) {
                         ferramentas: p.ferramentas, tentativas: p.tentativas })
       return { derruba: CFG.auditorDerruba === true, motivo: CFG.auditorMotivo || '',
                naoTentou: CFG.auditorNaoTentou || [], anchor: 'ultima linha do que auditei' }
-    case 'docTouch':  docs.push({ round: p.round, files: p.files }); return {}
+    case 'docTouch':  return documenta(p)
     case 'tick':      return tica(p)
     default:          return {}
   }
@@ -266,7 +287,7 @@ def roda_motor(tmp, texto, plan_dir, tick_cmd, plan_path, token_budget=None,
                checkpoint_cmd="", escreve_no_disco=False,
                suite_verde=True, suite_falhando=None, replay_cache=False, gaps=None,
                review_sem_ancora=None, alegacao_impossivel=None, auditor_derruba=False,
-               auditor_motivo="", auditor_nao_tentou=None):
+               auditor_motivo="", auditor_nao_tentou=None, doc_falso=None):
     """Executa o esqueleto do SKILL.md com os agentes de mentira. Devolve
     {saida, chamadas, agentes} ou levanta AssertionError com o motivo."""
     corpo = os.path.join(tmp, "motor.js")
@@ -299,9 +320,10 @@ def roda_motor(tmp, texto, plan_dir, tick_cmd, plan_path, token_budget=None,
         "tickCmd": tick_cmd,
         "checkpointCmd": checkpoint_cmd,
         "escreveNoDisco": escreve_no_disco,
+        "docFalso": doc_falso,
         "suiteVerde": suite_verde,
         "suiteFalhando": suite_falhando or [],
-        "pluginVisual": os.path.abspath(os.path.join(AQUI, "..", "..", "visual")),
+        "pluginSkills": os.path.abspath(os.path.join(AQUI, "..", "..", "project-skills")),
         "raiz": tmp,
         "planoId": PLANO["id"],
         "out": out,
@@ -658,6 +680,43 @@ def main():
     check("na onda vermelha nao houve nem commit nem doc",
           vermelha["checkpoints"] == [] and "docTouch" not in vermelha["agentes"])
 
+    # ── S-112 ────────────────────────────────────────────────────────────────────
+    # O papel que INVOCA SKILL nao devolvia nada: papel mudo, papel que invocou skill
+    # quebrada e papel que MENTE ter feito chegavam iguais ao motor. Agora ele devolve os
+    # caminhos que tocou, conferidos no disco — e a onda registra o que ele CONFIRMOU.
+    print("S-112 — o papel que invoca skill devolve os caminhos que tocou")
+    check("a doc devolvida pelo papel e a que o disco confirma",
+          bool(interrompido["docs"]) and interrompido["docs"][0]["docs"] ==
+          [".claude/docs/onda-1.md"])
+    check("a onda registra o que o papel confirmou, nao a lista que ele recebeu",
+          saida5["rounds"][0].get("doc") == [".claude/docs/onda-1.md"])
+    check("papel que confirmou a doc nao vira Bloqueio",
+          not [b for b in saida5["blockers"] if "doc da rodada" in (b.get("what") or "")])
+
+    # O papel que MENTE ter feito: mesma missao, mesma onda verde — a UNICA coisa que muda
+    # e o papel devolver um caminho que ninguem escreveu. O disco nao confirma, a lista
+    # volta vazia, e lista vazia e Bloqueio.
+    print("S-112 — papel que devolve caminho que o disco nao confirma vira Bloqueio")
+    mentiu = bancada_git(texto, tick_cmd, ck_cmd, max_rounds=1,
+                         doc_falso=".claude/docs/nunca-escrita.md")
+    if mentiu is None:
+        return 1
+    saida_m = mentiu["saida"]
+    check("o papel foi chamado e alegou ter re-projetado uma doc",
+          bool(mentiu["docs"]) and mentiu["docs"][0]["alegados"] ==
+          [".claude/docs/nunca-escrita.md"])
+    check("o caminho que o disco nao confirma nao entra na lista",
+          mentiu["docs"][0]["docs"] == [])
+    doc_bloq = [b for b in saida_m["blockers"] if "doc da rodada" in (b.get("what") or "")]
+    check("lista vazia vira Bloqueio, e nao silencio", len(doc_bloq) == 1)
+    check("o Bloqueio diz em que rodada a doc nao saiu",
+          bool(doc_bloq) and "rodada 1" in doc_bloq[0]["what"])
+    check("o Bloqueio diz por que isso custa caro na onda seguinte",
+          bool(doc_bloq) and "mapa vencido" in (doc_bloq[0].get("whyNeedsYou") or ""))
+    # A mentira NAO derruba a onda: o commit ja esta feito, mesma regra do tique.
+    check("a mentira do papel nao desfaz o ponto de salvamento da onda",
+          saida_m["rounds"][0].get("checkpoint") is True and mentiu["checkpoints"] != [])
+
     # ── F9.35 ────────────────────────────────────────────────────────────────────
     # A MESMA missao da primeira rodada, com UMA coisa plantada: o replay do cache.
     # F1.1 e F1.2 voltam uma segunda vez com o mesmo veredito, e a devolucao do
@@ -727,6 +786,29 @@ def main():
     check("nenhum executor recebeu tarefa nova por causa dele",
           conc["agentes"].count("decompose") == 1
           and conc["agentes"].count("exec") == trava["agentes"].count("exec") / 2)
+
+    # ── S-104 ────────────────────────────────────────────────────────────────────
+    # A obra contradiz o desenho aprovado. Injetada a contradicao, o gap tem que NASCER:
+    # pelo eixo de constituicao ele segura a obra e devolve tarefa; e quando quem errou
+    # foi o desenho, o mesmo texto vira aviso que nomeia o documento contradito.
+    print("S-104 — a obra que contradiz o desenho aprovado segura a obra")
+    desenho = bancada(texto, tick_cmd, max_rounds=2, gaps=[GAP_DESENHO])
+    if desenho is None:
+        return 1
+    check("com a obra contradizendo o desenho, o motor nao declara construida",
+          desenho["saida"]["built"] is False)
+    check("o executor recebe tarefa numa segunda volta",
+          desenho["agentes"].count("decompose") == 2)
+
+    print("S-104 — quando quem errou foi o desenho, o aviso nomeia o documento")
+    desenho_erra = bancada(texto, tick_cmd, max_rounds=2, gaps=[GAP_DESENHO_CONCEPCAO])
+    if desenho_erra is None:
+        return 1
+    aviso_des = [b for b in desenho_erra["saida"]["blockers"]
+                 if "a concepção está errada" in (b.get("what") or "")]
+    check("o aviso nomeia o documento contradito",
+          bool(aviso_des) and ".claude/docs/blueprint.md" in aviso_des[0]["what"])
+    check("e ele nao segura a obra", desenho_erra["saida"]["built"] is True)
 
     # ── F9.16 · S-24 ─────────────────────────────────────────────────────────────
     # O juiz prova que leu a coisa inteira: veredito sem a ancora do fim e RECUSADO e o

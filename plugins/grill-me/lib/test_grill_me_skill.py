@@ -23,6 +23,11 @@ SKILL = os.path.join(AQUI, "..", "skills", "grill-me", "SKILL.md")
 # A régua de por onde a pergunta chega saiu do SKILL.md e virou contrato de todas
 # as skills que perguntam ao dono: fonte em _shared/, cópia vendorada aqui do lado.
 REGUA = os.path.join(AQUI, "..", "skills", "grill-me", "regua-de-pergunta.md")
+# O modo com documento deixou de ser um plugin irmão e virou argumento desta
+# skill: os dois formatos que ele grava moram aqui do lado.
+CONTEXT_FORMAT = os.path.join(AQUI, "..", "skills", "grill-me", "CONTEXT-FORMAT.md")
+ADR_FORMAT = os.path.join(AQUI, "..", "skills", "grill-me", "ADR-FORMAT.md")
+IRMAO_EXTINTO = os.path.join(AQUI, "..", "..", "grill-with-docs")
 
 FAILS = []
 
@@ -120,6 +125,32 @@ def main():
     check("skill ausente na maquina nao quebra a sabatina",
           "caia no canal alternativo e siga" in regua)
 
+    print("jornada 1 — sabatina sem documento, que e o padrao")
+    check("sem argumento, a rodada de fronteira corre sozinha",
+          "Sem argumento" in skill and "A rodada de fronteira acima é tudo" in skill)
+    check("o padrao nao exige CONTEXT.md nem ADR",
+          "não procure `CONTEXT.md` nem ADR" in skill)
+
+    print("jornada 2 — sabatina com documento, que entra por argumento")
+    check("o modo com documento e invocado por argumento",
+          "`/grill-me com-docs`" in skill)
+    check("o modo com documento confronta o glossario existente",
+          "conflita com a linguagem já registrada em `CONTEXT.md`" in skill)
+    check("o modo com documento grava o termo resolvido na hora",
+          "atualize o `CONTEXT.md` ali mesmo" in skill)
+    check("o ADR so entra quando os tres criterios valem",
+          "Difícil de reverter" in skill and "trade-off real" in skill)
+    check("os dois formatos moram ao lado do SKILL.md",
+          os.path.isfile(CONTEXT_FORMAT) and os.path.isfile(ADR_FORMAT))
+    check("o SKILL.md aponta os dois formatos pelo nome do arquivo",
+          "CONTEXT-FORMAT.md" in skill and "ADR-FORMAT.md" in skill)
+
+    print("a sabatina e uma so — a regra central existe uma vez")
+    check("o plugin irmao nao existe mais",
+          not os.path.isdir(IRMAO_EXTINTO))
+    check("a negativa de juiz aparece uma unica vez",
+          skill.count("**Você não é juiz.**") == 1)
+
     print("a adicao local do marketplace sobreviveu ao texto novo")
     check("a sabatina sabe que e chamada pelas cinco etapas do /start-doc",
           "cinco etapas de acordo" in skill and "/start-doc" in skill)
@@ -130,8 +161,8 @@ def main():
           and "`status: approved`" in skill)
     check("objecao nao resolvida volta pro documento",
           "**Objeção não resolvida volta pro documento**" in skill)
-    check("as duas adicoes se declaram do marketplace, e nao do autor",
-          skill.count("Esta seção é do marketplace, não do autor original") == 2)
+    check("as tres adicoes se declaram do marketplace, e nao do autor",
+          skill.count("Esta seção é do marketplace, não do autor original") == 3)
 
     print()
     if FAILS:

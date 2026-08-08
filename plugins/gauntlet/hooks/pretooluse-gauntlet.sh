@@ -43,7 +43,7 @@ type hj_campo >/dev/null 2>&1 || exit 0
 type hj_deny >/dev/null 2>&1 || exit 0
 # Sem jq E sem python3 não há como ler o evento. Sair calado aqui é o defeito que o
 # leitor de evento existe para corrigir: o guarda tem que dizer que não julgou.
-if ! command -v jq >/dev/null 2>&1 && ! command -v python3 >/dev/null 2>&1; then
+if ! command -v jq >/dev/null 2>&1 && ! { command -v python3 >/dev/null 2>&1 && python3 --version >/dev/null 2>&1; }; then
   type hj_avisa >/dev/null 2>&1 && hj_avisa "pretooluse-gauntlet"
   exit 0
 fi
@@ -54,10 +54,17 @@ INPUT=$(cat 2>/dev/null)
 SESSION=$(hj_campo "$INPUT" session_id)
 [ -n "$SESSION" ] || exit 0
 
-RAIZ="${CLAUDE_CONFIG_DIR:-$HOME/.claude}/gauntlet"
+# A casa do sinal é a NEUTRA: é a mesma que a skill acende e a mesma que a barra de
+# status lê (`lib/andamento.py`). Pasta com nome de plugin deixava cada motor com um
+# sinal só dele, e a barra muda para todos menos um.
+RAIZ="${CLAUDE_CONFIG_DIR:-$HOME/.claude}/andamento"
 [ -d "$RAIZ" ] || exit 0
 SINAL="$RAIZ/ativo-$SESSION"
 [ -f "$SINAL" ] || exit 0
+
+# O sinal é compartilhado, então quem guarda é o NOME escrito nele: missão de outro
+# motor na mesma casa não pode ser negada com a mensagem deste aqui.
+[ "$(head -n 1 "$SINAL" 2>/dev/null)" = "gauntlet" ] || exit 0
 
 # O sinal expira por idade. A janela é larga de propósito: a missão que ele protege
 # é longa por definição, e encurtá-la mataria execução legítima em andamento.

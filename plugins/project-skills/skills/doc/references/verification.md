@@ -1,0 +1,262 @@
+# Verification — project-doc
+
+> Checklist de verificação pós-geração do `/project-doc` (26 checks + output format + auto-fix + quando rodar). Consultado on-demand pela skill no passo 13 e no modo `verify`. Fonte canônica; o `SKILL.md` referencia este arquivo.
+
+## Verification (Post-Generation Quality Check)
+
+After writing all files, run this verification checklist. Report results to the user with pass/fail per check.
+
+### Index-Level Checks
+
+**1. Structural Integrity**
+- v2 markers present: both `<!-- project-doc:v2 -->` and `<!-- project-doc:v2:end -->` exist
+- Content between markers is not empty
+- No duplicate markers (only one v2 start/end pair)
+- Manual content outside markers (if any) is preserved intact
+- No v1 markers remaining (if migration was performed)
+
+**2. Link Validity**
+- For every doc referenced in the Documentation Index, verify the file exists in `.claude/docs/`
+- Report any broken link as **FAIL — doc referenced but not found**
+
+**3. No Orphan Docs**
+- List all files in `.claude/docs/` (and subdirectories for monorepo)
+- Compare against docs referenced in the CLAUDE.md index
+- Report any doc file not in the index as **WARN — orphan doc**
+
+**4. Coverage Gaps**
+- Scan source files for content that should be documented but isn't covered by any doc
+- Example: docker-compose.yml exists but no infrastructure.md → **WARN — undocumented area**
+
+**5. Token Budget**
+- Count total lines in CLAUDE.md between v2 markers
+- PASS if ≤100, WARN if 101-150, FAIL if >150
+
+### Per-Doc Checks
+
+**6. File Path Accuracy**
+- For every file path mentioned in any doc (e.g., `dashboard/src/middleware.ts`, `scripts/deploy.sh`), verify the file actually exists using Glob
+- Report any referenced paths that don't exist as **FAIL — phantom path**
+
+**7. Port Consistency**
+- Cross-reference ports listed in infrastructure.md against docker-compose.yml (ports, EXPOSE), proxy configs (listen, proxy_pass)
+- Report any port in the doc not found in source files, or any port in source files missing from the doc
+
+**8. Env Var Coverage**
+- Compare env vars listed in env-vars.md against all vars in .env.example
+- Report any var in .env.example missing from the doc
+- Report any var in the doc not in .env.example (may be valid if from docker-compose environment)
+
+**9. Service Completeness**
+- Compare services listed in infrastructure.md against all services in docker-compose.yml
+- Report any service missing from the doc
+
+**10. Security — Scrubber + No Leaked Secrets**
+- O **scrubber** (lib) é a 1ª barreira na escrita do journal; este check é a 2ª, na doc final (defense-in-depth — repo privado NÃO é controle de secret).
+- Scan ALL generated files for secret-looking values, **em paridade com o gate 5 do Stitch e o `PROVIDER_RE` do `journal.py`** (fonte única): atribuição `(?i)(password|senha|passwd|pwd|secret|token|api[_-]?key|credential)\s*[:=]\s*<valor>` cujo `<valor>` seja **credencial-shaped** (≥16 chars de classe mista **ou** Shannon ≥3.5, como a Camada 4 do `journal.py` — **NÃO bare `\S+`**, pra não marcar prosa tipo `secret = barreira`), base64 longo, JWT (`eyJ…`), AWS `AKIA…`/`ASIA…`, **Google `AIza…` e `ya29.…`**, GitHub `gh[posu]_…`/`github_pat_…`, `sk-…`/`sk_live_`/`sk_test_`, Slack `xox…`, GitLab `glpat-…`, blocos PEM, connection strings com senha embutida.
+- Garanta que valores de .env NUNCA entram — só nomes. Onde havia um secret, a doc deve **referenciar o cofre** (`.claude/secrets/ops.env`), não o valor.
+- Confirme que `.claude/secrets/` está no `.gitignore` (o lib adiciona; verifique).
+- Qualquer vazamento potencial = **CRITICAL FAIL** — corrija antes de declarar pronto.
+
+**11. Deploy Flow Accuracy**
+- If deploy.md exists, verify the documented steps match the actual deploy script content
+- Check that flags documented (--dry-run, --sync-only, etc.) actually exist in the script
+
+**12. Section Relevance**
+- For each doc present, verify it has actual content (not just frontmatter + empty template)
+- For each doc absent, verify no detection source exists (e.g., if database.md is missing, confirm no DB images in docker-compose, no DB_* vars in .env)
+- Report false negatives (doc should exist but doesn't) and false positives (doc exists but shouldn't)
+
+**13. Staleness Detection**
+- For each doc, read the `generated` date from frontmatter
+- Compare against `git log --format=%aI -1 -- {source files}` for each doc's scope
+- Report per-doc staleness: **WARN — {doc}.md may be stale (generated {date}, sources changed {date})**
+
+### Monorepo-Specific Checks
+
+**14. App Completeness**
+- List all app directories in `apps/` or `packages/` that have a Dockerfile or package.json
+- Compare against apps documented in the CLAUDE.md index Apps section
+- Report any app present in filesystem but missing from the index
+- Report any app in the index that no longer exists in filesystem
+
+**15. App Content Accuracy (REQUIRED)**
+- For each app with docs in `.claude/docs/{app-name}/`, read the app's source files
+- Cross-reference deps listed in docs against actual requirements.txt/package.json
+- Flag any dep in the file but missing from the doc as **FAIL — undocumented dep**
+- Flag any dep documented but no longer in the source as **FAIL — phantom dep**
+- This check cannot be skipped or approximated. Read the files.
+
+### Git-Tracking Checks
+
+**16. Versioned Artifacts Are Tracked (CRITICAL — o conhecimento precisa viajar)**
+- Os artefatos cujo PROPÓSITO é viajar no git **não podem estar gitignored nem untracked**. Caso real: no `tools` o **journal caiu no `.gitignore`** — a doc gerava, mas o conhecimento não viajava entre máquinas/clones (quebra o RF Portabilidade **em silêncio**).
+- Para cada path abaixo, rode `git -C "<root>" check-ignore -q <path>` (ignorado se exit 0) **e** `git -C "<root>" ls-files --error-unmatch <path>` (tracked se exit 0):
+  - `.claude/CLAUDE.md` e todo `.claude/docs/*.md`
+  - **`.claude/.project-doc/findings.jsonl`** e **`.claude/.project-doc/ledger.json`** — o journal + ledger, o ÚNICO veículo do conhecimento entre máquinas
+  - **`graphify-out/graph.json`** (se o projeto tem grafo) — o grafo é documentação obrigatória (premissa do FULL/`--deep`); o passo 0.0 o gera/atualiza, mas só viaja entre máquinas se entrar no git. Caso real do furo: a skill regenerava o grafo e **não o stageava** — cada clone ficava sem mapa, em silêncio (mesma classe do journal no `tools`).
+  - os thin pointers gerados (`AGENTS.md`, `GEMINI.md`, `.cursorrules`)
+- **Ignorado** (`check-ignore` exit 0) → **CRITICAL FAIL — "{path} está no .gitignore; o conhecimento não vai viajar"**. Mostre a regra que casa (`git check-ignore -v <path>`) pro usuário removê-la.
+- **Não-ignorado mas untracked** (nunca commitado) → **WARN — "{path} existe mas não está no git ainda (git add)"**.
+- **Distinção que NÃO pode confundir:** `.claude/.project-doc/backups/`, `.claude/secrets/` e **`graphify-out/cache/` + `graphify-out/.graphify_*`** (máquina-específico / regenerável) **DEVEM** estar gitignored (efêmero / cofre / cache). O check é sobre os arquivos versionados-por-design (journal, ledger, docs, **`graph.json`**), **não** a pasta inteira — `graphify-out/graph.json` precisa viajar, mas `graphify-out/cache/` não.
+
+### Graph Coverage Check (v3.2)
+
+**17. Auditoria grafo × doc** (o grafo é premissa dos modos PESADOS — regra pesado/leve, v3.9; roda em qualquer modo que **gera/atualiza doc** — FULL/`--deep`/incremental/`--solo`; modos que NÃO tocam doc — `verify` standalone, `clean`, e o `--rebuild` que só re-projeta — → N/A, nada novo pra auditar)
+- O grafo é o **completeness-critic** do fim: cruza o que o grafo diz ser importante contra o que a doc cobriu (espelha o gate 7 do Stitch; aqui é o check final da Verification).
+- Rode `graph_map.py` (ou reuse a saída do passo 0.0) e, para cada item, procure cobertura no texto gerado (qualquer `.claude/docs/*.md` + índice), por `label` ou `source_file`:
+  - **god node** (fan-in alto) sem nenhuma menção → **WARN — função central não documentada: `{label}` ({source_file})**
+  - **comunidade nomeada** (não-generic) sem seção que a cubra → **WARN — módulo não documentado: `{label}`**
+  - **hyperedge ≥0.85** sem menção → **WARN — workflow não documentado: `{label}`** (candidato a nota de arquitetura)
+- WARN não bloqueia (o grafo pode ter ruído/defasagem) — alimenta o relatório e, opcionalmente, uma 2ª leva de agente pro gap. Em modo que não gera doc → check **N/A** (não falha). Nos modos pesados "sem grafo" não é um estado possível (o Passo 0 garante); nos leves o grafo pode estar stale — é só aviso, não falha.
+
+### Anti-Regression Check (v3.5.1)
+
+**18. Anti-regressão da projeção — não declare PASS sem isto.** Fecha o buraco onde o check #15 (só deps de app em monorepo) **não** cobre o catálogo de versões, e onde a Fase D (LLM) pode regredir fatos. Confirme, ANTES de cravar sucesso:
+- **Gate 9 reportado:** se houve `merge_rejected`, está no relatório (nenhum PASS silencioso com merge rejeitado).
+- **Versões batem com o manifesto real:** todo número de versão citado num doc (catálogo / `architecture.md` / índice) **== o `plugin.json`/`package.json` real** — NÃO a versão do backup. Divergência = **FAIL**.
+- **`generated` não regrediu:** a data do frontmatter de cada doc escrito é ≥ a data do backup (nunca uma doc "nova" datada mais velha que a anterior).
+- **Números de mapa não regrediram:** contagens citadas (ex: nós/comunidades do grafo) ≥ as do snapshot anterior, salvo refactor que de fato apagou código (justifique).
+- Qualquer regressão = **FAIL — corrija antes de declarar pronto** (foi o que vazou pro commit quando se cravou "12/12 PASS" sem conferir os fatos do catálogo).
+
+### Pattern Conformance Check (v3.6)
+
+**19. Conformidade com o Pattern Manifest — execute o script, não leia o marker.**
+```bash
+python3 "$(bash "${CLAUDE_PLUGIN_ROOT}/lib/resolve-plugin.sh" project-doc lib/pattern_check.py)" --project-root "<root>"
+```
+- `in_pattern==true` → **PASS**
+- `in_pattern==false` → **FAIL — <lista de violations>**. As violations mapeiam diretamente para: (a) marker v2 ausente, (b) frontmatter ausente em algum doc, (c) findings.jsonl ausente, (d) `doc-sig:` ausente no frontmatter de algum doc, (e) gen desatualizado. Corrija cada uma antes de declarar pronto — nunca declarar PASS com `in_pattern==false`.
+
+### Invocation Discourse Check (v3.8)
+
+**20. Discurso da invocação capturado (Tier 0)** — só aplica quando houve prosa direcionada na invocação; sem prosa → **N/A**.
+- **Echo-back reportado:** o relatório final tem a linha de discurso capturado (`Discurso capturado … → N fato(s) … · M direção(ões) …`) — ver SKILL.md, **Process passo 15** (e, no Full Mode protocol, o **Step 8/14**). Ausente com prosa presente → **FAIL — discurso capturado mas não reportado** (o humano não tem como saber que nada caiu).
+- **Fatos persistidos:** cada **fato** classificado aparece no journal — `python3 "$(bash "${CLAUDE_PLUGIN_ROOT}/lib/resolve-plugin.sh" project-doc lib/journal.py)" fold --project-root "<root>"` lista o `id`/`text` no `live[]` (ou está projetado em algum `.claude/docs/*.md`). Fato classificado que não está nem no journal nem na doc → **FAIL**.
+- **Direção não vazou pro journal:** ordem de processo ("foca no auth", "ignora a pasta Z") **não** deve virar finding `discovered` — se aparecer no journal, foi mal-classificada → **WARN — direção de processo persistida indevidamente**.
+- **Secret no discurso:** se o discurso continha algo credencial-shaped, confirme que o scrubber do `adopt` desviou (o `live[]` mostra o texto já limpo) — vazamento = **CRITICAL FAIL** (mesmo critério do check #10).
+
+### Organism Conformance Check (Caminho C) — condicional
+
+**21. Census mundo-aberto — só aplica quando há `.claude/organism.yaml`; senão → N/A.**
+```bash
+python3 "$(bash "${CLAUDE_PLUGIN_ROOT}/lib/resolve-plugin.sh" project-doc lib/pattern_check.py)" --project-root "<root>" --census
+```
+- **`orphan > 0`** → **WARN — doc órfã no repo** (reporta + oferece arquivar; nunca hard-fail
+  default). Liste os paths. Em `--strict` vira FAIL.
+- **`pending-migration > 0` após uma conformação** → **FAIL — módulo não conformado**: o run
+  deveria ter migrado `<m>/.claude/docs/` para `modules/{m}/` + router + arquivado. (Antes da 1ª
+  conformação, pending>0 é o estado esperado — reporta, não falha.)
+- **Colisão direta:** doc `pending-migration` de um módulo cujo `modules/{m}/` o run acabou de
+  escrever, mas o legado NÃO foi arquivado → **FAIL — dupla-verdade** (dois donos do mesmo fato).
+- **Ruído no census:** se aparecer path sob `worktrees/`/`_repos-antigos/`/`.next/`/`backups/` →
+  **FAIL — filtro CENSUS_PRUNE furado** (é load-bearing; um furo mostra doc velha como fresca).
+- **Router sem doc canônica:** router `{m}/.claude/CLAUDE.md` apontando pra `modules/{m}/`
+  inexistente → **FAIL — ponteiro quebrado** (bug do próprio run).
+
+**22. Scope-staleness ternário — condicional (docs com `scope:`+`generated:`).**
+```bash
+python3 "$(bash "${CLAUDE_PLUGIN_ROOT}/lib/resolve-plugin.sh" project-doc lib/pattern_check.py)" --project-root "<root>" --plan
+```
+- Canônico recém-gerado marcado **`stale`** → **WARN** (o run deveria ter deixado fresco; scope
+  ou generated inconsistente). `unknown` num canônico → **WARN — doc sem generated/scope**
+  (fail-loud: staleness indeterminado não é "fresco").
+
+**23. Doc-lint mecânico (v3.11) — claims da doc vs o repo real.**
+```bash
+python3 "$(bash "${CLAUDE_PLUGIN_ROOT}/lib/resolve-plugin.sh" project-doc lib/doc_lint.py)" --project-root "<root>" --json
+```
+- **`fails > 0` → FAIL** — cada um vem com token + evidência (o repo é o árbitro): env var citada
+  que nenhum código lê, hash de commit inexistente (checado em TODOS os git roots, incl.
+  repos-legado), ponteiro `arquivo:N` morto. **Auto-Fix obrigatório antes de PASS** (máx 2
+  iterações; a evidência do próprio lint diz o que corrigir). Falso-positivo legítimo (var
+  dinâmica f-string, config de infra externa) → `lint:ignore` inline ou `lint-allow.txt`, com
+  justificativa no relatório — nunca silenciado sem registro.
+- `warns` → reportar contagem no output (não bloqueia).
+
+**24. Cobertura ativo × durabilidade (gen 3.8) — CRITICAL. Condicional: só quando `data-stores.md` existe.**
+
+É o check que impede a repetição do caso que motivou a gen 3.8 — "o que exatamente é copiado nos
+nossos backups?" sem resposta na doc, e dois depósitos insubstituíveis sem backup nenhum.
+
+- **Todo depósito enumerado em `data-stores.md` tem bloco em `durability.md`.** Ativo sem bloco →
+  **FAIL** (não é warning: silêncio sobre durabilidade foi exatamente a falha original).
+- **Bloco "SEM COBERTURA" exige justificativa não-vazia.** "descartável, regenerável em minutos"
+  passa; vazio, `[TODO]` ou "ainda não configuramos" → **FAIL**. Ausência de cobertura tem que ser
+  decisão registrada, nunca esquecimento — a diferença entre as duas é esta linha.
+- **Enumerou BANCOS, não servidores?** Se um item de `## Bancos` descreve um servidor (porta,
+  container) sem nomear os bancos dentro dele → **FAIL** com a mensagem "inventário enumera servidor,
+  não depósito — foi essa confusão que fez o backup copiar 1 de 4 bancos".
+- **Insubstituível sem cobertura** → não é FAIL do doc (pode ser a verdade do projeto), mas **TEM que
+  aparecer no `## Resumo de exposição`** e ser reportado ao usuário em destaque. Doc que esconde isso
+  falha; sistema que tem isso é risco a comunicar, e o item entra no `## Resumo de exposição` do próprio durability.md.
+- `data-stores.md` ausente (projeto sem dado persistente, confirmado) → **N/A**.
+
+**25. Documentos autorais intocados (gen 3.8) — CRITICAL. Condicional: só quando existe algum.**
+
+- **Nenhum arquivo com `authored-by: human` no frontmatter foi sobrescrito** por este run. Compare
+  o `doc-sig`/hash do body antes e depois: mudou o corpo → **CRITICAL FAIL** (o motor invadiu
+  território do humano). Só `reviewed:` e `status: draft→ready` podem ter mudado.
+- **Nenhum doc `status: draft` entrou no índice** do CLAUDE.md — draft vira linha de cobrança no
+  relatório, não entrada de roteamento.
+- **Nenhum campo autoral foi preenchido por inferência.** Se um doc autoral ganhou texto neste run
+  sem ter havido pergunta ao humano → **CRITICAL FAIL**. É a violação que a gen 3.8 mais teme:
+  intenção fabricada por máquina passa por autoridade e ninguém desconfia.
+- Nenhum doc autoral existe (projeto que nunca rodou `/start-doc`) → **N/A**, e o relatório
+  **oferece** `/start-doc` em vez de falhar.
+
+**26. Procedência (gen 3.8) — condicional ao que o run produziu.**
+
+- **`verified-by`:** todo path listado **existe no disco**. Path morto → **FAIL** (apontar
+  verificador inexistente dá falsa segurança, que é pior que omitir a chave). Nenhum verificador
+  detectado no projeto → chave ausente, **N/A**.
+- **Rótulos:** afirmação forte (número, "sempre/todo", garantia, costura entre módulos) sem
+  `[confirmado]`/`[inferido]`/`[relatado]` é lida como confirmada. Amostre as afirmações fortes de
+  cada doc; encontrou não-confirmado passando por confirmado → **FAIL** com o trecho.
+- **`declarations/`:** só existe se o projeto tem verificador. Existir sem leitor → **WARN**
+  ("documento sem leitor é dívida"). Existir com `covered:false` e `justification` vazia → **FAIL**.
+
+### Verification Output Format
+
+```
+## /project-doc Verification Results
+
+✅ Structural integrity — v2 markers present, content valid
+✅ Link validity — 5/5 docs exist
+✅ No orphan docs — 0 orphans
+✅ Coverage — all detected areas documented
+✅ Token budget — 82 lines (target: 60-100)
+✅ File paths — 23/23 paths exist across all docs
+❌ Port consistency — port 8080 in docker-compose not in infrastructure.md
+✅ Env var coverage — 11/11 vars documented
+✅ Service completeness — 3/3 services documented
+✅ Security — no leaked secrets
+✅ Versioned artifacts tracked — journal + ledger + 5 docs + graphify-out/graph.json no git (backups/, secrets/, graphify-out/cache/ ignorados, como esperado)
+⚠️  Graph coverage — 18/20 god nodes documentados; "Bootstrap Sync Cycle" (hyperedge) sem nota de arquitetura
+✅ Deploy flow — 3/3 flags documented, steps match script
+✅ Section relevance — 5 docs, 0 false negatives
+⚠️  Staleness — database.md generated 2026-05-01, schema.prisma changed 2026-05-25
+
+Summary: 12 passed, 1 warning, 1 failed
+Token impact: 305 lines (v1) → 82 lines index + 5 docs on-demand (73% context reduction)
+```
+
+### Auto-Fix
+
+After verification, if simple auto-correctable issues are found:
+- Port in docker-compose but missing from infrastructure.md
+- Env var in .env.example but missing from env-vars.md
+- Service in docker-compose but missing from infrastructure.md
+- Orphan doc not referenced in index → add entry
+- Doc referenced in index but file missing → remove entry from index
+- File path referenced that moved (old path doesn't exist, similar file found nearby)
+
+**Action:** report to user with: "Encontrei N issues corrigíveis automaticamente. Quer que eu corrija?" If user confirms, apply fixes and re-run verification.
+
+Do NOT auto-fix without asking. Do NOT fix complex issues (wrong descriptions, outdated deploy flow, architectural changes) — those require re-running `/project-doc` or `/project-doc {doc-name}`.
+
+### When to Run Verification
+
+- **Automatically** after every `/project-doc` generation, update, or migration
+- **On demand** when user says "verifica o claude.md", "check project-doc", "valida a doc", or runs `/project-doc verify`
+- Verification can run standalone (without regenerating) — just read existing files and run checks against source files

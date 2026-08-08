@@ -192,6 +192,63 @@ def build_prospective(records, items):
     return {"open_tasks": open_tasks, "last_plan": last_plan}
 
 
+# As etapas de concepção do contrato autoral (/start-doc), na ordem em que fecham.
+# `régua` e `lei` não são etapas da entrevista, mas são o que MEDE tudo o que vem
+# depois — o handoff que não as carrega manda a sessão nova planejar sem critério.
+ETAPAS_CONCEPCAO = [("régua", "quality-goals.md"), ("lei", "constituicao.md"),
+                    ("arquitetura", "architecture-intent.md"), ("interface", "design.md"),
+                    ("jornadas", "journeys.md"), ("desenho", "blueprint.md"),
+                    ("funcionalidades", "features.md")]
+
+
+def _frontmatter_e_corpo(texto):
+    """(dict do frontmatter YAML raso, corpo) — o corpo é o que a marca cobre."""
+    fm = {}
+    corpo = texto
+    if texto.startswith("---"):
+        fim = texto.find("\n---", 3)
+        if fim >= 0:
+            for linha in texto[3:fim].splitlines():
+                if linha[:1] in (" ", "-", "") or ":" not in linha:
+                    continue
+                k, _, v = linha.partition(":")
+                fm[k.strip().lower()] = v.strip()
+            corpo = texto[fim + 4:]
+    return fm, corpo
+
+
+def estado_etapas(project_root):
+    """Estado das etapas de concepção LIDO DO DISCO (`{project_root}/.claude/docs`).
+
+    Mesma régua do gate de plano (`pretooluse-plan-gate.sh:acordado`): a etapa está
+    aprovada quando o frontmatter traz `status: approved` e o CORPO não tem
+    `[PENDENTE]` — escrita sem o de acordo do dono é etapa aberta, não etapa pronta.
+    Só lê; não julga se a etapa se aplica ao projeto (a ausente sai como ausente).
+    """
+    docs_dir = os.path.join(project_root or ".", ".claude", "docs")
+    etapas = []
+    for nome, arquivo in ETAPAS_CONCEPCAO:
+        caminho = os.path.join(docs_dir, arquivo)
+        item = {"etapa": nome, "arquivo": arquivo, "existe": os.path.isfile(caminho),
+                "status": None, "correcoes_pendentes": 0, "estado": "ausente"}
+        if item["existe"]:
+            try:
+                with open(caminho, encoding="utf-8") as fh:
+                    fm, corpo = _frontmatter_e_corpo(fh.read())
+            except OSError:
+                etapas.append(item)
+                continue
+            item["status"] = fm.get("status")
+            item["correcoes_pendentes"] = 1 if fm.get("correcao-pendente") else 0
+            aprovada = (item["status"] or "").lower() == "approved" and "[PENDENTE]" not in corpo
+            item["estado"] = "aprovada" if aprovada else "aberta"
+        etapas.append(item)
+    return {"docs_dir": docs_dir, "etapas": etapas,
+            "aprovadas": [e["etapa"] for e in etapas if e["estado"] == "aprovada"],
+            "abertas": [e["etapa"] for e in etapas if e["estado"] == "aberta"],
+            "ausentes": [e["etapa"] for e in etapas if e["estado"] == "ausente"]}
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--transcript", action="append", default=[], help="caminho .jsonl (repetível)")
@@ -263,6 +320,7 @@ def main():
 
     log_md, manifest = build(all_items, session_id)
     prospective = build_prospective(all_records, all_items)
+    concepcao = estado_etapas(scope.get("project_root"))
 
     os.makedirs(os.path.dirname(os.path.abspath(out_log)), exist_ok=True)
     os.makedirs(os.path.dirname(os.path.abspath(out_manifest)), exist_ok=True)
@@ -270,7 +328,8 @@ def main():
         fh.write(log_md + "\n")
     manifest_doc = {"session": session_id, "transcripts": transcripts,
                     "generated_unix": int(time.time()), "log_path": out_log,
-                    "scope": scope, "prospective": prospective, "items": manifest}
+                    "scope": scope, "prospective": prospective,
+                    "concepcao": concepcao, "items": manifest}
     with open(out_manifest, "w", encoding="utf-8") as fh:
         json.dump(manifest_doc, fh, ensure_ascii=False, indent=2)
 
@@ -282,6 +341,7 @@ def main():
         print(json.dumps({"session": session_id, **stats, "items_total": len(manifest),
                           "by_kind": by_kind, "gate_items": gate_items,
                           "scope": scope, "prospective": prospective,
+                          "concepcao": concepcao,
                           "log_path": out_log, "manifest_path": out_manifest},
                          ensure_ascii=False, indent=2))
     return 0

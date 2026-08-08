@@ -53,7 +53,7 @@ RESOLVE_DIR = os.path.normpath(os.path.join(HERE, "..", "skills", "visual", "res
 # fora da régua muda de gerador pra gerador.
 GERADORES = [
     ("plugins/visual/lib/visual_page.py", "relatorio"),
-    ("plugins/visual/lib/plan_state.py", "plano"),
+    ("plugins/project-skills/lib/plan_state.py", "plano"),  # acopla-ok: lista de geradores do próprio monorepo, lida pela régua
     ("plugins/fallow/lib/report.py", "fallow"),
     ("plugins/branches/lib/branch_state.py", "branches"),
     ("plugins/slides/lib/md2deck.py", "slides"),

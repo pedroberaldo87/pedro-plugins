@@ -26,8 +26,8 @@ check() {
 CFG="$(mktemp -d -t andamento-cfg)"
 TMP="$(mktemp -d -t andamento-tmp)"
 trap 'rm -rf "$CFG" "$TMP"' EXIT
-mkdir -p "$CFG/sovai"
-: > "$CFG/sovai/ativo-sess-teste"
+mkdir -p "$CFG/andamento"
+: > "$CFG/andamento/ativo-sess-teste"
 
 SAIDA_COM_PLACAR='rodando a suíte
 139 passou · 0 falhou'
@@ -76,9 +76,9 @@ check "a linha traz o julgamento de avanço" \
 # 2b · a duração medida foi REGISTRADA na memória do projeto (é a peça de
 #      andamento.py que estava sem chamador)
 check "a duração vai para a memória do projeto" \
-  "$(ls "$CFG"/sovai/duracoes-*.json >/dev/null 2>&1 && echo 1 || echo 0)"
+  "$(ls "$CFG"/andamento/duracoes-*.json >/dev/null 2>&1 && echo 1 || echo 0)"
 check "a memória guarda o comando que rodou" \
-  "$(grep -q 'suite.sh' "$CFG"/sovai/duracoes-*.json 2>/dev/null && echo 1 || echo 0)"
+  "$(grep -q 'suite.sh' "$CFG"/andamento/duracoes-*.json 2>/dev/null && echo 1 || echo 0)"
 
 # 2c · a marca é consumida — o próximo comando não herda a duração deste
 check "a marca é apagada depois de narrada" \
@@ -104,6 +104,16 @@ OUT=$(roda 'bash suite.sh' "$SAIDA_COM_PLACAR" "" sess-sem-missao)
 check "SEM sinal de missão ativa o narrador passa mudo" \
   "$([ -z "$OUT" ] && echo 1 || echo 0)" "saiu: $OUT"
 
+# A missão que já estava de pé quando a pasta de estado mudou de nome: o sinal
+# dela ficou na pasta antiga, e o narrador tem que continuar reconhecendo — senão
+# a troca de casa emudece missão viva.
+mkdir -p "$CFG/sovai"
+: > "$CFG/sovai/ativo-sess-legado"
+marca_ha 120 sess-legado
+OUT=$(roda 'bash suite.sh' "$SAIDA_COM_PLACAR" "" sess-legado)
+check "missão acesa na pasta ANTIGA continua sendo narrada" \
+  "$(printf '%s' "$OUT" | grep -q 'rodando há' && echo 1 || echo 0)" "saiu: $OUT"
+
 rm -f "$TMP/sovai-andamento-sess-teste"
 OUT=$(roda 'bash suite.sh' "$SAIDA_COM_PLACAR")
 check "SEM marca não há duração medida — passa mudo" \
@@ -117,7 +127,7 @@ check "SOVAI_ANDAMENTO=0 desliga o narrador" \
 # 4b · O CRITÉRIO DE F9.24: silêncio longo sai na tela, e os dois casos saem
 #      DIFERENTES. Só o sinal de vida muda entre os dois cenários abaixo — o
 #      arquivo de silêncio é o mesmo, com a mesma idade.
-sinal_ha() { python3 -c 'import time,sys; open(sys.argv[1],"w").write(str(time.time()-float(sys.argv[2])))' "$CFG/sovai/sinal-sess-teste" "$1"; }
+sinal_ha() { python3 -c 'import time,sys; open(sys.argv[1],"w").write(str(time.time()-float(sys.argv[2])))' "$CFG/andamento/sinal-sess-teste" "$1"; }
 
 # com sinal de vida: o comando ocupou os 20 min de silêncio (demora legítima)
 sinal_ha 1200
@@ -147,7 +157,7 @@ marca_ha 3
 OUT=$(roda 'echo tudo-quieto' 'oi')
 check "silêncio curto não narra nada" \
   "$([ -z "$(msg "$OUT")" ] && echo 1 || echo 0)" "saiu: $OUT"
-rm -f "$CFG/sovai/sinal-sess-teste"
+rm -f "$CFG/andamento/sinal-sess-teste"
 
 # 4c · O CRITÉRIO DE F9.23: a MESMA narração na barra de status, que é a única
 #      superfície que fica quando o dono volta ao terminal uma hora depois.
@@ -172,7 +182,7 @@ check "sem motor vivo a linha não sai — a barra fica idêntica ao hud" \
   "$([ "$OUT" = "$HUD_CRU" ] && echo 1 || echo 0)" "saiu: [$OUT] esperado: [$HUD_CRU]"
 
 # com motor vivo: a linha do motor sai ACIMA, e o hud continua byte a byte
-python3 -c 'import os,sys,time; p=sys.argv[1]; open(p,"w").close(); os.utime(p,(time.time()-600,time.time()-600))' "$CFG/sovai/ativo-sess-teste"
+python3 -c 'import os,sys,time; p=sys.argv[1]; open(p,"w").close(); os.utime(p,(time.time()-600,time.time()-600))' "$CFG/andamento/ativo-sess-teste"
 sinal_ha 70
 OUT=$(barra sess-teste)
 PRIMEIRA=$(printf '%s' "$OUT" | head -1)
@@ -190,9 +200,9 @@ check "o hud continua idêntico embaixo da linha do motor" \
 #          'rodando há N min' quando há comando de pé, e como travamento quando
 #          não há. O que muda entre os dois cenários é UM arquivo — o de trabalho
 #          vivo, que o hook escreve ao disparar e apaga ao voltar.
-trabalho_ha() { python3 -c 'import time,sys; open(sys.argv[1],"w").write(str(time.time()-float(sys.argv[2])))' "$CFG/sovai/trabalho-sess-teste" "$1"; }
+trabalho_ha() { python3 -c 'import time,sys; open(sys.argv[1],"w").write(str(time.time()-float(sys.argv[2])))' "$CFG/andamento/trabalho-sess-teste" "$1"; }
 
-rm -f "$CFG/sovai/trabalho-sess-teste"
+rm -f "$CFG/andamento/trabalho-sess-teste"
 sinal_ha 1200
 BARRA_TRAVADA=$(barra sess-teste | head -1)
 check "silêncio longo SEM trabalho vivo sai na barra como SEM SINAL" \
@@ -202,18 +212,18 @@ check "silêncio longo SEM trabalho vivo sai na barra como SEM SINAL" \
 rm -f "$TMP/sovai-andamento-sess-teste"
 CLAUDE_CONFIG_DIR="$CFG" TMPDIR="$TMP" sh "$HOOK" marca <<< "$(paylo 'bash suite-longa.sh' '')" >/dev/null 2>&1
 check "o disparo grava o trabalho vivo onde a BARRA lê (fora do /tmp da sessão)" \
-  "$([ -s "$CFG/sovai/trabalho-sess-teste" ] && echo 1 || echo 0)"
+  "$([ -s "$CFG/andamento/trabalho-sess-teste" ] && echo 1 || echo 0)"
 
 # 4c-ter · F9.26 — O RELÓGIO E A ESTIMATIVA CHEGAM À BARRA, alimentados por QUEM
 #           EXECUTA. A barra é desenhada por outro processo e não sabe qual comando
 #           está de pé nem em que projeto: quem sabe é o disparo, e é por isso que
 #           ele grava o comando e o projeto junto do instante.
 check "o disparo grava o COMANDO junto do instante" \
-  "$([ "$(sed -n 2p "$CFG/sovai/trabalho-sess-teste")" = 'bash suite-longa.sh' ] && echo 1 || echo 0)" \
-  "saiu: [$(sed -n 2p "$CFG/sovai/trabalho-sess-teste")]"
+  "$([ "$(sed -n 2p "$CFG/andamento/trabalho-sess-teste")" = 'bash suite-longa.sh' ] && echo 1 || echo 0)" \
+  "saiu: [$(sed -n 2p "$CFG/andamento/trabalho-sess-teste")]"
 check "o disparo grava o PROJETO, sem o qual não há estimativa" \
-  "$([ "$(sed -n 3p "$CFG/sovai/trabalho-sess-teste")" = '/projeto/exemplo' ] && echo 1 || echo 0)" \
-  "saiu: [$(sed -n 3p "$CFG/sovai/trabalho-sess-teste")]"
+  "$([ "$(sed -n 3p "$CFG/andamento/trabalho-sess-teste")" = '/projeto/exemplo' ] && echo 1 || echo 0)" \
+  "saiu: [$(sed -n 3p "$CFG/andamento/trabalho-sess-teste")]"
 
 BARRA_EST=$(barra sess-teste | head -1)
 check "a barra traz o tempo decorrido da ferramenta de pé" \
@@ -248,25 +258,25 @@ trabalho_ha 1200
 marca_ha 1200
 roda 'bash suite-longa.sh' "$SAIDA_COM_PLACAR" >/dev/null
 check "voltando o comando, o trabalho vivo é apagado" \
-  "$([ ! -f "$CFG/sovai/trabalho-sess-teste" ] && echo 1 || echo 0)"
+  "$([ ! -f "$CFG/andamento/trabalho-sess-teste" ] && echo 1 || echo 0)"
 sinal_ha 1200
 BARRA_DEPOIS=$(barra sess-teste | head -1)
 check "sem comando de pé a barra volta a chamar o silêncio de SEM SINAL" \
   "$(printf '%s' "$BARRA_DEPOIS" | grep -q 'SEM SINAL' && echo 1 || echo 0)" "saiu: [$BARRA_DEPOIS]"
-rm -f "$CFG/sovai/sinal-sess-teste" "$CFG/sovai/trabalho-sess-teste"
+rm -f "$CFG/andamento/sinal-sess-teste" "$CFG/andamento/trabalho-sess-teste"
 
 # apagar o sinal da missão (o `rm` da entrega) faz a linha sumir na hora
-rm -f "$CFG/sovai/ativo-sess-teste"
+rm -f "$CFG/andamento/ativo-sess-teste"
 OUT=$(barra sess-teste)
 check "apagado o sinal da missão, a linha some e a barra volta ao hud" \
   "$([ "$OUT" = "$HUD_CRU" ] && echo 1 || echo 0)" "saiu: [$OUT]"
 
-: > "$CFG/sovai/ativo-sess-teste"
+: > "$CFG/andamento/ativo-sess-teste"
 OUT=$(printf '{"session_id":"sess-teste"}' \
   | CLAUDE_CONFIG_DIR="$CFG" TMPDIR="$TMP" SOVAI_STATUSLINE=0 sh "$BARRA" "sh $HUD" 2>/dev/null)
 check "SOVAI_STATUSLINE=0 desliga a linha sem desligar a barra" \
   "$([ "$OUT" = "$HUD_CRU" ] && echo 1 || echo 0)" "saiu: [$OUT]"
-rm -f "$CFG/sovai/sinal-sess-teste"
+rm -f "$CFG/andamento/sinal-sess-teste"
 
 # 4d · anti-tautologia da barra: sabotar a ORDEM (linha depois do hud) tem que
 #      reprovar o teste do "acima".
@@ -289,7 +299,7 @@ linhas.pop()
 linhas.append('[ -n "$DEPOIS" ] && printf \'\\n%s\' "$DEPOIS"')
 open(destino, "w", encoding="utf-8").write("\n".join(linhas) + "\n")
 EOF
-: > "$CFG/sovai/ativo-sess-teste"
+: > "$CFG/andamento/ativo-sess-teste"
 OUT=$(printf '{"session_id":"sess-teste"}' \
   | CLAUDE_CONFIG_DIR="$CFG" TMPDIR="$TMP" \
     CLAUDE_PLUGIN_ROOT="$(cd "$(dirname "$BARRA")/.." && pwd)" \
@@ -300,8 +310,8 @@ check "barra sabotada (linha ABAIXO do hud) reprova o critério do 'acima'" \
 check "a sabotada ainda IMPRIME a linha — o que mudou foi só a ordem" \
   "$(printf '%s' "$OUT" | grep -q 'sovai · missão há' && echo 1 || echo 0)" \
   "a sabotagem apagou a linha em vez de movê-la — o teste acima passa por engano · saiu: [$OUT]"
-rm -f "$CFG/sovai/ativo-sess-teste"
-: > "$CFG/sovai/ativo-sess-teste"
+rm -f "$CFG/andamento/ativo-sess-teste"
+: > "$CFG/andamento/ativo-sess-teste"
 
 # 4e · quem prova que este elo está LIGADO no caminho do produto é a suíte do
 #      bootstrap, que é dona da receita da statusLine (`config/settings-defaults.json`)

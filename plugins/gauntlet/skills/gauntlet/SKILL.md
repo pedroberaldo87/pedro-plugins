@@ -94,10 +94,15 @@ o programa confere que os dois registros existem, nunca o gosto.
 Antes de disparar o motor, acenda; ao entregar, apague. É ele que faz o guarda existir:
 
 ```bash
-GDIR="${CLAUDE_CONFIG_DIR:-$HOME/.claude}/gauntlet"
+GDIR="${CLAUDE_CONFIG_DIR:-$HOME/.claude}/andamento"
 mkdir -p "$GDIR"
-: > "$GDIR/ativo-$CLAUDE_CODE_SESSION_ID"
+printf 'gauntlet\n' > "$GDIR/ativo-$CLAUDE_CODE_SESSION_ID"
 ```
+
+A casa do sinal é a **neutra** (`andamento/`), a mesma que os outros motores acendem, e o
+nome escrito dentro dele é o que sai na barra de status — `lib/andamento.py:linha_motor` lê
+esse nome. Sinal em pasta com nome de um plugin só fazia a barra ficar muda para todos os
+outros.
 
 Enquanto ele está aceso, `hooks/pretooluse-gauntlet.sh` **nega** todo disparo de sub-agente
 fora do motor — a proibição de julgar na mão vira mecânica. Fora do gauntlet ele é mudo.

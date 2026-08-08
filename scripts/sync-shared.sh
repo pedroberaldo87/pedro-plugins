@@ -24,24 +24,37 @@ SPECS=(
   # O contrato R8: os DADOS (.json) + o servidor (.py) + a vista humana (.md, gerada
   # do json). A skill instalada só enxerga a própria pasta, então a casca lê o tier
   # da cópia local e passa em args — nenhum SKILL.md carimba o valor.
-  "plugins/sovai/skills/sovai/references::r8-tiers.json"
-  "plugins/qa-loop/skills/qa-loop/references::r8-tiers.json"
-  "plugins/sovai/skills/sovai/references::r8_tiers.py"
-  "plugins/qa-loop/skills/qa-loop/references::r8_tiers.py"
-  "plugins/sovai/skills/sovai/references::r8-tiers.md"
-  "plugins/qa-loop/skills/qa-loop/references::r8-tiers.md"
+  "plugins/project-skills/skills/sprint/references::r8-tiers.json"
+  "plugins/project-skills/skills/qa-loop/references::r8-tiers.json"
+  "plugins/project-skills/skills/sprint/references::r8_tiers.py"
+  "plugins/project-skills/skills/qa-loop/references::r8_tiers.py"
+  "plugins/project-skills/skills/sprint/references::r8-tiers.md"
+  "plugins/project-skills/skills/qa-loop/references::r8-tiers.md"
   # Os cinco antipadrões de teste: a mesma lista serve quem REVISA o construído
   # (/qa-loop) e quem escreve o critério de pronto no plano (/visual). Contrato
   # único — nenhum dos dois SKILL.md repete o texto, os dois apontam pra cópia.
-  "plugins/qa-loop/skills/qa-loop/references::antipadroes-de-teste.md"
+  "plugins/project-skills/skills/qa-loop/references::antipadroes-de-teste.md"
   "plugins/visual/skills/visual/references::antipadroes-de-teste.md"
   # A régua de POR ONDE a pergunta chega: nasceu dentro do /grill-me e vale pra toda
   # skill que pergunta ao dono. Cada SKILL.md consumidor só aponta pra cópia local —
   # o texto mora aqui. Quem cobra: _shared/test_regua_de_pergunta.py.
   "plugins/grill-me/skills/grill-me::regua-de-pergunta.md"
-  "plugins/project-doc/skills/start-doc::regua-de-pergunta.md"
+  "plugins/project-skills/skills/start::regua-de-pergunta.md"
   "plugins/handoff/skills/handoff::regua-de-pergunta.md"
   "plugins/lixeiro/skills/faxina::regua-de-pergunta.md"
+  "plugins/visual/skills/visual::regua-de-pergunta.md"
+  "plugins/project-skills/skills/sprint::regua-de-pergunta.md"
+  "plugins/project-skills/skills/qa-loop::regua-de-pergunta.md"
+  "plugins/slides/skills/slides::regua-de-pergunta.md"
+  "plugins/improve/skills/improve::regua-de-pergunta.md"
+  # O contrato da família de skills de documentação: onde cada documento mora,
+  # qual frontmatter ele carrega e quem tem direito de escrevê-lo. Quatro
+  # consumidores — as duas que ESCREVEM documento e as duas que leem a lei que
+  # elas produzem. Quem cobra: scripts/test_contrato_familia.py.
+  "plugins/project-skills/skills/start::contrato-familia.md"
+  "plugins/project-skills/skills/doc::contrato-familia.md"
+  "plugins/project-skills/skills/sprint::contrato-familia.md"
+  "plugins/project-skills/skills/qa-loop::contrato-familia.md"
   # Os padrões de disparo que vazam processo. Três consumidores — o cobrador do
   # repositório (scripts/), a quinta lente do /check-skills e a investigação do
   # /lixeiro — e eles JÁ divergiram no dia em que nasceram: um tinha `disown` na
@@ -53,6 +66,7 @@ SPECS=(
   "plugins/branches/lib::regua_texto.py"
   "plugins/fallow/lib::regua_texto.py"
   "plugins/slides/lib::regua_texto.py"
+  "plugins/vistoria/lib::regua_texto.py"
   # Os emissores de hook: o .sh chama a régua pela linha de comando, e o plugin
   # instalado só enxerga a própria pasta — sem cópia aqui, a régua some em produção.
   "plugins/bootstrap/lib::regua_texto.py"
@@ -60,18 +74,23 @@ SPECS=(
   "plugins/project-doc/lib::regua_texto.py"
   "plugins/ship/lib::regua_texto.py"
   "plugins/graphify-guard/lib::regua_texto.py"
+  "plugins/project-skills/lib::regua_texto.py"
   # O resolvedor de diretório de artefato: cada skill que ESCREVE arquivo no projeto
   # do usuário resolve o destino por aqui, com o próprio subdiretório. Vendorado
   # porque o plugin instalado só enxerga a própria pasta.
   "plugins/visual/skills/visual::resolve-dir.sh"
   "plugins/archify/skills/archify::resolve-dir.sh"
+  # O programa do plano resolve o diretório dos planos pela mesma cascata, e a
+  # cópia mora ao lado dele em lib/ — o plugin instalado só enxerga a própria pasta.
+  "plugins/project-skills/lib::resolve-dir.sh"
   # O resolvedor de plugin IRMÃO por nome: quem precisa de um arquivo de outro plugin
   # pergunta por nome em vez de apontar `../<irmão>/`, que só resolve rodando do
   # repositório. A cópia mora ao lado da skill que a chama, porque o plugin instalado
   # só enxerga a própria pasta.
-  "plugins/sovai/skills/sovai::resolve-plugin.sh"
-  "plugins/qa-loop/skills/qa-loop::resolve-plugin.sh"
-  "plugins/project-doc/skills/start-doc::resolve-plugin.sh"
+  "plugins/project-skills/skills/sprint::resolve-plugin.sh"
+  "plugins/project-skills/skills/qa-loop::resolve-plugin.sh"
+  "plugins/project-skills/skills/start::resolve-plugin.sh"
+  "plugins/project-skills/lib::resolve-plugin.sh"
   "plugins/ship/hooks::green-cache.sh"
   "plugins/qa-loop/lib::green-cache.sh"
   # O leitor de JSON dos hooks: todo hook que DECIDE lendo o payload do evento
@@ -102,21 +121,25 @@ SPECS=(
   "plugins/visual/hooks::lib-tmpdir.sh"
   # O green-cache do qa-loop mora em lib/, não em hooks/ — a cópia acompanha ele.
   "plugins/qa-loop/lib::lib-tmpdir.sh"
-  # O aviso de dependência ausente: quem instala UM plugin sozinho também precisa
-  # saber que o gate dele ficou mudo, então o hook viaja com todo plugin que tem
-  # hooks — não só com o bootstrap. Um sentinel por sessão evita o aviso repetido.
+  # O aviso de dependência ausente: UMA cópia só, no bootstrap. Os outros doze
+  # plugins que avisam acham esta pelo NOME do plugin (resolve-plugin.sh), em vez
+  # de carregar treze cópias do mesmo script. Um sentinel por sessão evita o aviso
+  # repetido — quem chegar primeiro fala, os outros saem calados.
   "plugins/bootstrap/hooks::sessionstart-deps.sh"
-  "plugins/branches/hooks::sessionstart-deps.sh"
-  "plugins/context-guard/hooks::sessionstart-deps.sh"
-  "plugins/graphify-guard/hooks::sessionstart-deps.sh"
-  "plugins/guardrails/hooks::sessionstart-deps.sh"
-  "plugins/handoff/hooks::sessionstart-deps.sh"
-  "plugins/intent-guard/hooks::sessionstart-deps.sh"
-  "plugins/lixeiro/hooks::sessionstart-deps.sh"
-  "plugins/project-doc/hooks::sessionstart-deps.sh"
-  "plugins/ship/hooks::sessionstart-deps.sh"
-  "plugins/sovai/hooks::sessionstart-deps.sh"
-  "plugins/visual/hooks::sessionstart-deps.sh"
+  # E o resolvedor que os leva até ela: este sim viaja com cada um dos doze, porque
+  # o plugin instalado só enxerga a própria pasta.
+  "plugins/branches/hooks::resolve-plugin.sh"
+  "plugins/context-guard/hooks::resolve-plugin.sh"
+  "plugins/gauntlet/hooks::resolve-plugin.sh"
+  "plugins/graphify-guard/hooks::resolve-plugin.sh"
+  "plugins/guardrails/hooks::resolve-plugin.sh"
+  "plugins/handoff/hooks::resolve-plugin.sh"
+  "plugins/intent-guard/hooks::resolve-plugin.sh"
+  "plugins/lixeiro/hooks::resolve-plugin.sh"
+  "plugins/project-doc/hooks::resolve-plugin.sh"
+  "plugins/ship/hooks::resolve-plugin.sh"
+  "plugins/sovai/hooks::resolve-plugin.sh"
+  "plugins/visual/hooks::resolve-plugin.sh"
 )
 
 check_mode=0

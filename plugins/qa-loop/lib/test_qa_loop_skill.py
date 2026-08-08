@@ -14,7 +14,7 @@ import sys
 import tempfile
 
 SKILL_MD = os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                        "..", "skills", "qa-loop", "SKILL.md")
+                        "..", "..", "project-skills", "skills", "qa-loop", "SKILL.md")
 
 FAILS = []
 
@@ -54,7 +54,8 @@ def roda_trava(bloco, reserva_viva, alvos):
         env.update({
             "CLAUDE_CONFIG_DIR": tmp,
             "CLAUDE_PLUGIN_ROOT": os.path.abspath(
-                os.path.join(os.path.dirname(os.path.abspath(__file__)), "..")),
+                os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                             "..", "..", "project-skills")),
             "CLAUDE_SESSION_ID": "sessao-de-teste",
             "ARQUIVOS_DO_REVIEW": " ".join(alvos),
         })
@@ -73,12 +74,22 @@ def main():
     print("o prompt do REVIEW carrega as duas ancoras")
     check("o REVIEW existe na skill", bool(review))
     check("manda comparar contra o PLANO", "PLANO" in review and "DIVERGE" in review)
+    check("manda ler a lei no caminho que a concepcao produz",
+          ".claude/docs/constituicao.md" in review)
     check("manda ler `.claude/docs/quality-goals.md` do projeto",
           ".claude/docs/quality-goals.md" in review)
     check("a regua e lida do projeto, nao copiada na skill",
           "nunca copiado" in review or "nunca copiada" in review)
     check("fail-open: sem o arquivo o eixo nao roda e nao vira finding",
           "não roda" in review and "não é finding" in review)
+
+    print("o REVIEW mede a obra contra o desenho aprovado")
+    check("manda ler o esquema aprovado `.claude/docs/blueprint.md`",
+          ".claude/docs/blueprint.md" in review)
+    check("manda ler a lista de funcionalidades `.claude/docs/features.md`",
+          ".claude/docs/features.md" in review)
+    check("o desenho so entra quando esta aprovado",
+          "status: approved" in review)
 
     print("o bucket 1 aceita violacao de constituicao como conserto")
     check("a constraint central existe", bool(bucket1))

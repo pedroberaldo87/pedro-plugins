@@ -162,10 +162,6 @@
           "enabled": true
         },
         {
-          "name": "grill-with-docs",
-          "enabled": true
-        },
-        {
           "name": "guardrails",
           "enabled": true
         },

@@ -54,7 +54,14 @@ MARCA="$(td_tmpdir)/sovai-andamento-$SESSION"
 # O mesmo disparo, gravado onde a BARRA consegue ler: ela é desenhada por outro
 # processo, que não enxerga o /tmp desta sessão. Existir = tem comando de pé;
 # o instante lá dentro é o que separa "rodando há 20 min" de travamento.
-TRABALHO="${CLAUDE_CONFIG_DIR:-$HOME/.claude}/sovai/trabalho-$SESSION"
+# A casa do estado é NEUTRA: quatro plugins chamam o mesmo módulo, e a pasta com o
+# nome de um deles fazia o estado dos outros parecer emprestado. O que NASCE vai
+# pra `andamento/`; a pasta antiga só é LIDA, pra missão viva não perder o que já
+# tinha.
+ESTADO="${CLAUDE_CONFIG_DIR:-$HOME/.claude}/andamento"
+ESTADO_ANTIGO="${CLAUDE_CONFIG_DIR:-$HOME/.claude}/sovai"
+mkdir -p "$ESTADO" 2>/dev/null
+TRABALHO="$ESTADO/trabalho-$SESSION"
 
 if [ "$1" = "marca" ]; then
   date +%s > "$MARCA" 2>/dev/null
@@ -72,17 +79,23 @@ fi
 
 # O comando VOLTOU: não há mais trabalho de pé. Apagar antes de qualquer saída
 # antecipada — deixar o arquivo aí faria a barra dizer "rodando" para sempre.
-rm -f "$TRABALHO" 2>/dev/null
+# Nos DOIS caminhos: registro que ficou na pasta antiga faria a barra dizer
+# "rodando" para sempre.
+rm -f "$TRABALHO" "$ESTADO_ANTIGO/trabalho-$SESSION" 2>/dev/null
 
 # Estado mutável mora fora do plugin: ${CLAUDE_PLUGIN_ROOT} é cache reescrito a
-# cada bump de versão.
-[ -f "${CLAUDE_CONFIG_DIR:-$HOME/.claude}/sovai/ativo-$SESSION" ] || exit 0
+# cada bump de versão. Missão acesa na pasta antiga continua valendo.
+[ -f "$ESTADO/ativo-$SESSION" ] || [ -f "$ESTADO_ANTIGO/ativo-$SESSION" ] || exit 0
 [ -f "$MARCA" ] || exit 0
 
 # O sinal de vida da missão: o instante em que o narrador falou pela última vez.
 # É contra ele que se mede o silêncio, e é o silêncio que separa demora de
 # travamento. Mora fora do plugin, junto do resto do estado da missão.
-SINAL="${CLAUDE_CONFIG_DIR:-$HOME/.claude}/sovai/sinal-$SESSION"
+SINAL="$ESTADO/sinal-$SESSION"
+# Missão que já estava de pé quando a pasta mudou: o sinal dela veio da casa
+# antiga, e sem trazê-lo o silêncio acumulado seria zerado sem ter passado.
+[ -f "$SINAL" ] || [ ! -f "$ESTADO_ANTIGO/sinal-$SESSION" ] \
+  || cp "$ESTADO_ANTIGO/sinal-$SESSION" "$SINAL" 2>/dev/null
 
 LINHA=$(printf '%s' "$INPUT" | "$PY" -c '
 import json, os, sys, time

@@ -73,6 +73,11 @@ Onde `{repo}` é determinado pelo git remote (`git remote get-url origin`).
 - Gerar uma proposta nova: chame o endpoint de geração de proposta do program file. A resposta da API inclui um campo `github_issue` com `title` e `body` pré-formatados. Use `gh issue create` pra criar a issue a partir desses dados.
 - Deixar o usuário descrever o que quer melhorar manualmente
 
+**Por onde a pergunta chega quem escolhe é o usuário** — a régua dos dois canais (página de
+decisão em múltipla escolha, ou a ferramenta nativa uma por vez) está em
+**`regua-de-pergunta.md`**, ao lado deste arquivo (fonte: `_shared/regua-de-pergunta.md`, cópia
+derivada; não editar à mão).
+
 ### 4. Implementar a Mudança
 
 Leia o corpo da GitHub Issue selecionada. Issues seguem esta estrutura:

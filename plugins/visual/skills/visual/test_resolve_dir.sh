@@ -106,7 +106,7 @@ fi
 # modelo lê (`additionalContext`). É por este caminho que o aviso vale.
 echo "== o consumidor repassa o aviso (sessionstart-plan.sh) =="
 HOOK="$(cd "$(dirname "$0")/../../hooks" && pwd)/sessionstart-plan.sh"
-PLAN_STATE="$(cd "$(dirname "$0")/../../lib" && pwd)/plan_state.py"
+PLAN_STATE="$(cd "$(dirname "$0")/../../../project-skills/lib" && pwd)/plan_state.py"  # acopla-ok: teste roda no monorepo, não na máquina de quem instala
 if [ ! -f "$HOOK" ] || [ ! -f "$PLAN_STATE" ] || ! command -v python3 >/dev/null 2>&1; then
   falha "hook ou plan_state.py ausente" "$HOOK / $PLAN_STATE"
 else

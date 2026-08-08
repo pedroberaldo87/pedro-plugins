@@ -1,0 +1,13 @@
+{
+  "_comentario": "ARQUIVO DE MENTIRA CONGELADO — fixture da letra (c): um hook registrado, outro sem chamador nenhum. NAO CONSERTAR.",
+  "SessionStart": [
+    {
+      "hooks": [
+        {
+          "type": "command",
+          "command": "${CLAUDE_PLUGIN_ROOT}/hooks/registrado.sh"
+        }
+      ]
+    }
+  ]
+}

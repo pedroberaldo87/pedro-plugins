@@ -518,6 +518,21 @@ CK="$TMP/ct-kill"; mkdir -p "$CK/plugins/cache/mkt/a/1.0.0" "$CK/plugins/cache/m
 check "kill-switch desliga o aviso da sessao"     "0" "$(roda_sessao "$CK" 'PEDRO_CACHE_AVISO=0')"
 
 
+# ── O RELOGIO DA BARRA ────────────────────────────────────────────────────────
+# Quem redesenha a barra e o harness, e por padrao so em evento: com o trabalho
+# em segundo plano e ninguem digitando, a linha do motor congela no valor da
+# ultima tecla. A receita tem que pedir o redesenho por tempo.
+echo "-- a receita pede o redesenho por tempo"
+
+CONF="$TMP/ct-statusline"
+mkdir -p "$CONF/plugins/cache/pedro-plugins/context-guard/9.9.9/hooks"  # acopla-ok: fixture do caminho que o proprio apply-config.sh resolve
+: > "$CONF/plugins/cache/pedro-plugins/context-guard/9.9.9/hooks/context-guard-writer.sh"  # acopla-ok: fixture do caminho que o proprio apply-config.sh resolve
+env CLAUDE_CONFIG_DIR="$CONF" CLAUDE_PLUGIN_ROOT="$AQUI/.." \
+  bash "$AQUI/lib/apply-config.sh" >/dev/null 2>&1
+check "a statusLine nasce com refreshInterval" "10" \
+  "$(python3 -c "import json,sys; print((json.load(open(sys.argv[1])).get('statusLine') or {}).get('refreshInterval'))" \
+     "$CONF/settings.json" 2>/dev/null)"
+
 echo
 echo "$OK ok · $FAIL FAIL"
 [ "$FAIL" -eq 0 ]

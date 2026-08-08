@@ -72,7 +72,7 @@ Por que o extrator gera o LOG e não você: o seu julgamento não entra no LOG �
    python3 "<skill_dir>/../../lib/extract_ata.py" --auto --session "$CLAUDE_CODE_SESSION_ID" --cwd "$(pwd)"
    ```
    `<skill_dir>` é a "Base directory for this skill" injetada ao carregar a skill; o extrator vive em `lib/extract_ata.py` na raiz do plugin (dois níveis acima). O `--session "$CLAUDE_CODE_SESSION_ID"` identifica o transcript desta sessão de forma **determinística** (a env var é o nome do `.jsonl`), o que evita pegar a sessão errada quando há várias no mesmo cwd (monorepo). O `--auto` ainda **agrega os transcripts de teammates** se houver clã. **NÃO passe `--out-dir`** — o extrator deriva o destino do projeto-raiz que ele resolve.
-   A saída JSON traz `gate_items` (os IDs que o PRD DEVE referenciar), **`scope`** (`project_root`, `module`, `multi`, `modules`, **`handoff_path`** — onde gravar o PRD), **`prospective`** (`open_tasks` + `last_plan`), `log_path` e `manifest_path`.
+   A saída JSON traz `gate_items` (os IDs que o PRD DEVE referenciar), **`scope`** (`project_root`, `module`, `multi`, `modules`, **`handoff_path`** — onde gravar o PRD), **`prospective`** (`open_tasks` + `last_plan`), **`concepcao`** (o estado das etapas de concepção lido de `.claude/docs`), `log_path` e `manifest_path`.
 
 2. **Complemente com estado de código** — rode git **no projeto-raiz**, não no cwd: `git -C "<scope.project_root>" log` e `git -C "<scope.project_root>" diff --stat`. (No guarda-chuva o cwd nem é repositório; o `.git` que importa é o do projeto que o `scope` resolveu.)
 
@@ -85,7 +85,7 @@ Por que o extrator gera o LOG e não você: o seu julgamento não entra no LOG �
      - **Guardrail anti-sobrescrita:** se o `scope.handoff_path` já existe e foi escrito **< 5 min atrás** (ou é de uma frente claramente diferente do mesmo módulo) → suspeito (salvar dois handoffs seguidos não é o fluxo normal) → **confirme** antes de sobrescrever.
    - O PRD agrupa por tema o que está no LOG. Para CADA id em `gate_items`, referencia `[id]` no ponto onde aquela fala/decisão é tratada (o gate confirma que nada se perdeu). Findings e gotchas: ver a regra "verbatim" nas Regras do SALVAR.
    - **⚠️ ANTES de olhar o `last_plan`: existe arquivo de plano no disco?** Rode `ls <scope.project_root>/.claude/plans/*.plan.json 2>/dev/null`. **Se existir, ele MANDA e o `last_plan` é ignorado.** O `last_plan` é derivado do transcript: guarda só `txt[:1200]` do plano e adivinha a conclusão por `commits_after > 0 or edits_after >= 3` — 1 commit basta pra ele carimbar um plano de 10 fases como executado. O arquivo, ao contrário, tem o estado **passo a passo, com a prova de cada conclusão**. Com arquivo presente:
-     - Leia a árvore: `python3 <plugin visual>/lib/plan_state.py --dir <project_root>/.claude/plans render --format text` — ela dá o progresso e a prova de cada tique, mas é a vista de **execução**: `pronto`, `pendencia` e `requisito` NÃO aparecem nela. Esses três só existem no JSON, e são justamente os que você ia reescrever de cabeça. Leia-os do arquivo:
+     - Leia a árvore: `python3 <plugin project-skills>/lib/plan_state.py --dir <project_root>/.claude/plans render --format text` — ela dá o progresso e a prova de cada tique, mas é a vista de **execução**: `pronto`, `pendencia` e `requisito` NÃO aparecem nela. Esses três só existem no JSON, e são justamente os que você ia reescrever de cabeça. Leia-os do arquivo:
        ```bash
        python3 - "<project_root>/.claude/plans" <<'PY'
        import glob, json, os, sys
@@ -156,6 +156,15 @@ LOG (ata verbatim): {{project_root}}/.claude/ata/LOG-{{sessão}}.md
 
 ### 2. {{título do passo trivial}} (trivial)
 {{uma linha — passos triviais dispensam os 5 campos}}
+
+## Estado da Concepção
+<!-- COPIADO do campo `concepcao` do extrator (lido de .claude/docs) — não redija de cabeça,
+     não omita a seção. Uma linha por etapa, com o arquivo e o estado que veio no JSON. -->
+- **Aprovadas:** {{concepcao.aprovadas, com o arquivo de cada uma — ou "nenhuma"}}
+- **Etapas abertas:** {{concepcao.abertas — escritas e sem o de acordo do dono; a sessão nova não planeja em cima delas sem avisar}}
+- **Ausentes:** {{concepcao.ausentes — ou "nenhuma"}}
+- **Lei do projeto:** {{o estado de constituicao.md — em conflito com qualquer outro doc, ela ganha}}
+- **Desenho:** {{o estado de blueprint.md — o esquema de como o sistema funciona}}
 
 ## Findings & Gotchas
 {{VERBATIM — descobertas técnicas e armadilhas, transcritas literais (não parafraseadas). Cite o id quando vier de uma fala/decisão}}

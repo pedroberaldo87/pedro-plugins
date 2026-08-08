@@ -15,7 +15,7 @@
           },
           {
             "type": "command",
-            "command": "CLAUDE_PLUGIN_ROOT=$(printf '%s' \"$CLAUDE_PLUGIN_ROOT\" | tr '\\\\' /); export CLAUDE_PLUGIN_ROOT; \"$CLAUDE_PLUGIN_ROOT\"/hooks/sessionstart-deps.sh",
+            "command": "CLAUDE_PLUGIN_ROOT=$(printf '%s' \"$CLAUDE_PLUGIN_ROOT\" | tr '\\\\' /); export CLAUDE_PLUGIN_ROOT; AVISO=$(\"$CLAUDE_PLUGIN_ROOT\"/hooks/resolve-plugin.sh bootstrap hooks/sessionstart-deps.sh) && exec bash \"$AVISO\"; exit 0",
             "timeout": 5
           }
         ]

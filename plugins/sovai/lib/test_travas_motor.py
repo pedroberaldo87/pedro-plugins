@@ -24,11 +24,11 @@ import tempfile
 import textwrap
 
 SKILL_MD = os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                        "..", "skills", "sovai", "SKILL.md")
+                        "..", "..", "project-skills", "skills", "sprint", "SKILL.md")
 # A COPIA vendorada, nao a fonte em _shared/: e ela que viaja com o plugin instalado, e
 # e ela que o bloco da skill chama.
 RESOLVEDOR = os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                          "..", "skills", "sovai", "resolve-plugin.sh")
+                          "..", "..", "project-skills", "skills", "sprint", "resolve-plugin.sh")
 
 FAILS = []
 TOTAL = [0]
@@ -169,7 +169,7 @@ def veredito_da_regua_real(pronto, onde):
     Sem isto o teste provaria so o encanamento: o criterio de mentira usado no caso de
     bancada tem que ser um que a regua REAL reprova, senao o cenario e faz-de-conta."""
     prog = os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                        "..", "..", "visual", "lib", "regua_pronto.py")
+                        "..", "..", "project-skills", "lib", "regua_pronto.py")
     if not os.path.exists(prog):
         return None
     out = subprocess.run([sys.executable, prog, "--onde", onde, "-"],
@@ -255,7 +255,7 @@ def planta_o_lixeiro(raiz, layout, quebra=False):
     else:
         root = os.path.join(raiz, "pedro-plugins", "sovai", "1.13.0")
     os.makedirs(root, exist_ok=True)
-    destino = os.path.join(root, "skills", "sovai", "resolve-plugin.sh")
+    destino = os.path.join(root, "skills", "sprint", "resolve-plugin.sh")
     os.makedirs(os.path.dirname(destino), exist_ok=True)
     shutil.copy(RESOLVEDOR, destino)
     return root
@@ -378,7 +378,7 @@ def main():
           "reserva-de-arquivos.sh reservar" in texto)
     check("o veredito chega por schema, nao por texto solto",
           "RESERVA" in js and "`RESERVA`" in texto)
-    check("quem entrega LIBERA a reserva", "reserva-de-arquivos.sh\" liberar" in texto)
+    check("quem entrega LIBERA a reserva", "reserva-de-arquivos.sh)\" liberar" in texto)
     check("a sessao e o motor chegam ao script pelo args",
           "ARGS.sessionId" in js and "ARGS.motorId" in js)
 

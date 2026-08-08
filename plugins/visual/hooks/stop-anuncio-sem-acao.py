@@ -49,7 +49,20 @@ MAX_DEVOLUCOES = 2
 CAUDA_CHARS = 500
 
 AQUI = Path(__file__).resolve().parent
-PLAN_STATE = AQUI.parent / "lib" / "plan_state.py"
+
+
+def _plan_state():
+    """O programa do plano mora no plugin `project-skills`, e e achado pelo NOME —
+    caminho relativo para o vizinho nao vale no cache do harness. Ausente: ""."""
+    r = subprocess.run(["bash", str(AQUI / "resolve-plugin.sh"),
+                        "project-skills", "lib/plan_state.py"],
+                       capture_output=True, text=True, stdin=subprocess.DEVNULL,
+                       start_new_session=True,
+                       env=dict(os.environ, CLAUDE_PLUGIN_ROOT=str(AQUI.parent)))
+    return (r.stdout or "").strip()
+
+
+PLAN_STATE = _plan_state()
 RESOLVE_DIR = AQUI.parent / "skills" / "visual" / "resolve-dir.sh"
 CLAUDE_DIR = Path(os.environ.get("CLAUDE_CONFIG_DIR", Path.home() / ".claude"))
 ESTADO = Path(os.environ.get("ANUNCIO_ACAO_STATE", CLAUDE_DIR / "state" / "anuncio-acao"))
@@ -134,7 +147,7 @@ def planos_abertos(cwd):
     do aviso nao chegaria a lugar nenhum; o `returncode` chega, e daqui ele vai
     para o `reason` do bloqueio, que e o que o modelo le.
     """
-    if not PLAN_STATE.is_file() or not RESOLVE_DIR.is_file():
+    if not PLAN_STATE or not RESOLVE_DIR.is_file():
         return [], False
     try:
         r = subprocess.run(["bash", str(RESOLVE_DIR), cwd, "plans"],
@@ -146,7 +159,7 @@ def planos_abertos(cwd):
     if not plans_dir or not os.path.isdir(plans_dir):
         return [], de_reserva
     try:
-        r = subprocess.run([sys.executable, str(PLAN_STATE), "--dir", plans_dir,
+        r = subprocess.run([sys.executable, PLAN_STATE, "--dir", plans_dir,
                             "open", "--json"], capture_output=True, text=True, timeout=10, stdin=subprocess.DEVNULL, start_new_session=True)
         abertos = json.loads((r.stdout or "").strip() or "[]")
     except (subprocess.SubprocessError, OSError, ValueError):

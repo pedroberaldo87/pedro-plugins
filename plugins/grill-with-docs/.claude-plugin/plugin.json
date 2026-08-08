@@ -1,9 +1,0 @@
-{
-  "name": "grill-with-docs",
-  "version": "1.1.0",
-  "description": "Relentless design review that challenges plans against the project's domain model, sharpens terminology, and updates CONTEXT.md and ADRs inline as decisions crystallise. Also how a /start-doc stage of agreement is closed when there is already a CONTEXT.md or an ADR to confront — as the path to the agreement, never its judge: the grilling never approves, the owner does, in the document's own frontmatter.",
-  "author": {
-    "name": "Matt Pocock",
-    "homepage": "https://github.com/mattpocock/skills"
-  }
-}

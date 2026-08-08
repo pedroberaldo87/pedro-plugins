@@ -4,10 +4,11 @@
 # sem proteger nada e ninguém sabe (issue 5). Avisar fecha o furo.
 # Kill-switch: BOOTSTRAP_DEPS_GATE=0.
 #
-# ⚠️ Fonte da verdade: `_shared/sessionstart-deps.sh`. As cópias em
-# `plugins/*/hooks/` são vendoradas por `scripts/sync-shared.sh` — nunca edite a
-# cópia. O aviso viaja com TODO plugin que tem hook porque quem instala um plugin
-# sozinho também precisa saber que o gate dele está mudo.
+# ⚠️ Fonte da verdade: `_shared/sessionstart-deps.sh`, vendorada por
+# `scripts/sync-shared.sh` numa cópia só — `plugins/bootstrap/hooks/`. Os outros  (acopla-ok: prosa que descreve o vendoring, não caminho executado)
+# doze plugins que avisam NÃO carregam cópia: o hooks.json deles acha esta aqui
+# por NOME de plugin (`resolve-plugin.sh bootstrap hooks/sessionstart-deps.sh`).
+# O aviso continua saindo uma vez por sessão — o sentinel abaixo é o que garante.
 [ "${BOOTSTRAP_DEPS_GATE:-1}" = "0" ] && exit 0
 
 # O payload chega em stdin; ler antes de qualquer coisa evita ficar preso nele.

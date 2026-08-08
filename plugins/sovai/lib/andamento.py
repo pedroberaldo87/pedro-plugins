@@ -35,9 +35,31 @@ import os
 import re
 import time
 
-ESTADO = os.path.join(os.environ.get("CLAUDE_CONFIG_DIR",
-                                     os.path.join(os.path.expanduser("~"), ".claude")),
-                      "sovai")
+_CONFIG = os.environ.get("CLAUDE_CONFIG_DIR",
+                         os.path.join(os.path.expanduser("~"), ".claude"))
+
+# A CASA DO ESTADO E NEUTRA. Quatro plugins ja chamam este modulo; a pasta batizada
+# com o nome de um deles fazia o estado dos outros parecer emprestado. O que NASCE
+# vai pra ca.
+ESTADO = os.path.join(_CONFIG, "andamento")
+
+# A casa antiga continua sendo LIDA — missao que ja estava de pe quando a pasta
+# mudou nao pode perder a memoria dela. So leitura: nada novo e escrito aqui.
+ESTADO_LEGADO = os.path.join(_CONFIG, "sovai")
+
+
+def _ler(base, nome):
+    """O caminho de onde LER: a casa nova primeiro, a antiga quando ela nao tem.
+
+    Vale so pra casa padrao — quem passa `dir_estado` (bancada, ou motor com casa
+    propria) esta dizendo exatamente onde olhar, e ai nao ha legado que valha.
+    """
+    novo = os.path.join(base, nome)
+    if base != ESTADO or os.path.exists(novo):
+        return novo
+    antigo = os.path.join(ESTADO_LEGADO, nome)
+    return antigo if os.path.exists(antigo) else novo
+
 
 # Os TRES formatos que a amostra mostrou, em ordem de frequencia medida.
 # Cada um devolve (passou, falhou) — `falhou` e None quando o formato nao informa.
@@ -53,6 +75,11 @@ def _arquivo(projeto):
     """Um registro por projeto. A memoria de um projeto nunca estima a de outro."""
     seguro = re.sub(r"[^A-Za-z0-9_.-]", "-", projeto.strip("/"))[-120:] or "sem-projeto"
     return os.path.join(ESTADO, "duracoes-%s.json" % seguro)
+
+
+def _arquivo_lido(projeto):
+    """O mesmo registro, mas de onde ele PODE estar: casa nova ou a antiga."""
+    return _ler(ESTADO, os.path.basename(_arquivo(projeto)))
 
 
 def _chave(comando):
@@ -73,7 +100,9 @@ def registrar(projeto, comando, segundos):
     try:
         os.makedirs(ESTADO, exist_ok=True)
         try:
-            with open(caminho, encoding="utf-8") as fh:
+            # LE de onde estiver (casa antiga inclusive) e ESCREVE na casa nova:
+            # e assim que a memoria de uma missao viva atravessa a troca de pasta.
+            with open(_arquivo_lido(projeto), encoding="utf-8") as fh:
                 dados = json.load(fh)
         except (OSError, ValueError):
             dados = {}
@@ -99,7 +128,7 @@ def estimativa(projeto, comando):
     tem que saber imprimir a linha sem numero.
     """
     try:
-        with open(_arquivo(projeto), encoding="utf-8") as fh:
+        with open(_arquivo_lido(projeto), encoding="utf-8") as fh:
             v = json.load(fh).get(_chave(comando)) or []
     except (OSError, ValueError):
         return None
@@ -203,7 +232,7 @@ def onda(sessao, saida, dir_estado=None):
 
 def _registro_onda(sessao, dir_estado=None):
     try:
-        with open(os.path.join(dir_estado or ESTADO, "placar-%s" % sessao),
+        with open(_ler(dir_estado or ESTADO, "placar-%s" % sessao),
                   encoding="utf-8") as fh:
             return json.load(fh)
     except (OSError, ValueError):
@@ -273,7 +302,7 @@ def linha_disparo(comando, projeto, agora=None):
 
 def _historico(projeto, comando):
     try:
-        with open(_arquivo(projeto), encoding="utf-8") as fh:
+        with open(_arquivo_lido(projeto), encoding="utf-8") as fh:
             return json.load(fh).get(_chave(comando)) or []
     except (OSError, ValueError):
         return []
@@ -312,7 +341,7 @@ def _trabalho(base, sessao):
     ai a barra fica exatamente a que sempre foi.
     """
     try:
-        with open(os.path.join(base, "trabalho-%s" % sessao), encoding="utf-8") as fh:
+        with open(_ler(base, "trabalho-%s" % sessao), encoding="utf-8") as fh:
             linhas = fh.read().splitlines()
         inicio = float(linhas[0].strip())
     except (OSError, ValueError, IndexError):
@@ -336,6 +365,27 @@ def _trabalho_vivo(base, sessao, agora, limite=LIMITE_SILENCIO):
     return (agora - t[0]) >= limite
 
 
+# QUEM ACENDEU O SINAL DIZ O NOME NO PROPRIO SINAL. Era a unica coisa do modulo
+# presa a um plugin: a linha escrevia `sovai` fixo, e um workflow de outro motor
+# aparecia na barra com o nome de quem nao o disparou.
+MOTOR_PADRAO = "sovai"
+
+# Nome de motor e uma palavra so, comecando por letra. O sinal antigo e VAZIO, e
+# houve quem gravasse um carimbo dentro dele — nenhum dos dois e nome, e nos dois
+# casos a linha volta a ser a de sempre em vez de inventar um motor.
+_NOME_MOTOR = re.compile(r"^[A-Za-z][A-Za-z0-9_-]{1,30}$")
+
+
+def _motor(caminho_ativo):
+    """O nome do motor gravado no sinal, ou a execucao continua quando nao ha."""
+    try:
+        with open(caminho_ativo, encoding="utf-8") as fh:
+            nome = fh.readline().strip()
+    except OSError:
+        return MOTOR_PADRAO
+    return nome if _NOME_MOTOR.match(nome) else MOTOR_PADRAO
+
+
 def linha_motor(sessao, dir_estado=None, agora=None):
     """A linha do motor para a barra de status, ou None quando nao ha motor vivo.
 
@@ -347,7 +397,8 @@ def linha_motor(sessao, dir_estado=None, agora=None):
     LE SO O QUE O MOTOR JA ESCREVE NO DISCO — nada de perguntar a ninguem:
 
       ativo-<sid>  aceso quando a missao arma, apagado quando ela entrega. A idade
-                   dele e ha quanto tempo a missao esta de pe.
+                   dele e ha quanto tempo a missao esta de pe, e o que estiver
+                   escrito dentro dele e o NOME do motor que a acendeu.
       sinal-<sid>  o instante em que o narrador falou pela ultima vez (o gancho de
                    andamento grava). A idade dele e o silencio.
       bloqueios-<sid>  o contador de negacoes do gate, quando ele existe.
@@ -360,12 +411,13 @@ def linha_motor(sessao, dir_estado=None, agora=None):
         return None
     base = dir_estado or ESTADO
     agora = time.time() if agora is None else agora
+    ativo = _ler(base, "ativo-%s" % sessao)
     try:
-        idade = agora - os.path.getmtime(os.path.join(base, "ativo-%s" % sessao))
+        idade = agora - os.path.getmtime(ativo)
     except OSError:
         return None
 
-    partes = ["sovai · missão há %s" % _dur(max(idade, 0))]
+    partes = ["%s · missão há %s" % (_motor(ativo), _dur(max(idade, 0)))]
 
     # O RELOGIO E A ESTIMATIVA DA FERRAMENTA QUE ESTA DE PE. Os dois ja nasciam em
     # `linha_disparo`, que sai por `systemMessage` e rola com a conversa: quem volta
@@ -384,7 +436,7 @@ def linha_motor(sessao, dir_estado=None, agora=None):
                 corrido += " · usual ~%s" % _dur(est)
             partes.append(corrido)
 
-    sinal = os.path.join(base, "sinal-%s" % sessao)
+    sinal = _ler(base, "sinal-%s" % sessao)
     mudo = None
     try:
         with open(sinal, encoding="utf-8") as fh:
@@ -405,7 +457,7 @@ def linha_motor(sessao, dir_estado=None, agora=None):
             partes.append("último sinal há %s" % _dur(mudo))
 
     try:
-        with open(os.path.join(base, "bloqueios-%s" % sessao), encoding="utf-8") as fh:
+        with open(_ler(base, "bloqueios-%s" % sessao), encoding="utf-8") as fh:
             n = int((fh.read().strip() or "0").split()[0])
     except (OSError, ValueError, IndexError):
         n = 0

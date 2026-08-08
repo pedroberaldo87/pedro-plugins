@@ -217,7 +217,7 @@ def main():
           all(p["dado"].get("sentido") for p in dados["seguranca"]))
 
     print("a entrada da entrevista aponta o motor")
-    kit = open(os.path.join(AQUI, "..", "skills", "start-doc", "references",
+    kit = open(os.path.join(AQUI, "..", "..", "project-skills", "..", "project-skills", "skills", "start", "references",
                             "authorial-kit.md"), encoding="utf-8").read()
     corpo = kit.split("## Como conduzir a entrevista", 1)
     check("o kit tem a secao Como conduzir a entrevista", len(corpo) == 2)
@@ -235,7 +235,7 @@ def main():
           "sem sinal" in seg_doc and "não vale" in seg_doc)
 
     print("o passo de mineracao da skill roda o motor")
-    skill = open(os.path.join(AQUI, "..", "skills", "start-doc", "SKILL.md"),
+    skill = open(os.path.join(AQUI, "..", "..", "project-skills", "..", "project-skills", "skills", "start", "SKILL.md"),
                  encoding="utf-8").read()
     minerar = skill.split("### 2 · Minerar", 1)[-1].split("\n### 3", 1)[0]
     check("o passo 2 invoca o motor",

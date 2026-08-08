@@ -30,8 +30,10 @@ CWD=$(hj_campo "$INPUT" cwd)
 [ -z "$CWD" ] && CWD="$PWD"
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-PLAN_STATE="$SCRIPT_DIR/../lib/plan_state.py"
-[ -f "$PLAN_STATE" ] || exit 0
+# O programa do plano mora no plugin `project-skills` — achado pelo NOME, nunca
+# por caminho relativo, que o cache do harness quebra. Ausente = sai calado.
+PLAN_STATE=$(CLAUDE_PLUGIN_ROOT="$SCRIPT_DIR/.." bash "$SCRIPT_DIR/resolve-plugin.sh" project-skills lib/plan_state.py 2>/dev/null)
+[ -n "$PLAN_STATE" ] || exit 0
 
 # O `$?` do resolve-dir é o aviso: 3 = o diretório veio da RESERVA (~/Desktop),
 # não deste projeto. O stderr dele morre no 2>/dev/null desta mesma linha, então
@@ -58,7 +60,7 @@ ENTRADA="$PLANS_DIR/entrada"
 if [ -d "$ENTRADA" ] && [ -n "$(ls "$ENTRADA"/*.json 2>/dev/null)" ]; then
   SOVAI_ESTADO="${CLAUDE_CONFIG_DIR:-$HOME/.claude}/sovai"
   MOTOR_VIVO=$(ls "$SOVAI_ESTADO"/ativo-* 2>/dev/null | head -1)
-  ENTRADA_PY="$SCRIPT_DIR/../lib/plan_entrada.py"
+  ENTRADA_PY=$(CLAUDE_PLUGIN_ROOT="$SCRIPT_DIR/.." bash "$SCRIPT_DIR/resolve-plugin.sh" project-skills lib/plan_entrada.py 2>/dev/null)
   if [ -n "$MOTOR_VIVO" ]; then
     printf '📥 há passo(s) na fila de entrada do plano, e um motor está vivo — adiado.\n' >&2
   elif [ -f "$ENTRADA_PY" ]; then
@@ -111,11 +113,11 @@ ${LIST}
 Este arquivo é a fonte da verdade do plano — NÃO reconstrua o plano de memória e
 NÃO renomeie as fases. Antes de continuar o trabalho:
 
-  python3 \${CLAUDE_PLUGIN_ROOT}/lib/plan_state.py render --format text
+  python3 <plugin project-skills>/lib/plan_state.py render --format text
 
 Ao concluir um passo, marque com a prova junto (o tique é recusado sem ela):
 
-  python3 \${CLAUDE_PLUGIN_ROOT}/lib/plan_state.py tick F2.3 --evidencia "<comando · saída · sha>"
+  python3 <plugin project-skills>/lib/plan_state.py tick F2.3 --evidencia "<comando · saída · sha>"
 
 Terminou tudo? \`plan_state.py close\`. Página de acompanhamento: \`plan_state.py page --mode track\`.
 EOF

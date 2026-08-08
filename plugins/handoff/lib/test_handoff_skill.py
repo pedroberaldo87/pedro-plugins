@@ -231,6 +231,41 @@ def main():
     check("a prosa bloqueia o passo enquanto a armadilha não foi conferida",
           "bloquead" in asec.lower() and "não execute a partir da leitura" in asec)
 
+    print("o extrator lê o estado das etapas de concepção do disco")
+    sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+    from extract_ata import estado_etapas
+    raiz = tempfile.mkdtemp(prefix="handoff-concepcao-")
+    try:
+        docs = os.path.join(raiz, ".claude", "docs")
+        os.makedirs(docs)
+        escreve(os.path.join(docs, "constituicao.md"),
+                "---\nstatus: approved\n---\n\nA lei do projeto.\n", 1754000000)
+        escreve(os.path.join(docs, "blueprint.md"),
+                "---\nstatus: ready\n---\n\nO desenho.\n", 1754000000)
+        escreve(os.path.join(docs, "journeys.md"),
+                "---\nstatus: approved\n---\n\n## Jornada\n[PENDENTE]\n", 1754000000)
+        est = estado_etapas(raiz)
+        check("a lei aprovada aparece como aprovada", est["aprovadas"] == ["lei"])
+        check("o desenho escrito sem o de acordo é etapa aberta",
+              "desenho" in est["abertas"])
+        check("etapa com [PENDENTE] no corpo é etapa aberta, não aprovada",
+              "jornadas" in est["abertas"] and "jornadas" not in est["aprovadas"])
+        check("o que não existe no disco sai como ausente",
+              "funcionalidades" in est["ausentes"] and "régua" in est["ausentes"])
+        item = [e for e in est["etapas"] if e["etapa"] == "desenho"][0]
+        check("cada etapa nomeia o arquivo e o status lido",
+              item["arquivo"] == "blueprint.md" and item["status"] == "ready")
+    finally:
+        shutil.rmtree(raiz, ignore_errors=True)
+
+    print("o PRD nasce com a seção do estado da concepção")
+    check("o molde do HANDOFF.md tem a seção", "## Estado da Concepção" in texto)
+    sec_conc = texto[texto.find("## Estado da Concepção"):texto.find("## Findings & Gotchas")]
+    check("a seção manda COPIAR o que o extrator leu, não redigir de cabeça",
+          "concepcao" in sec_conc and "COPIADO" in sec_conc)
+    check("a seção nomeia etapa aberta, lei e desenho",
+          "abertas" in sec_conc and "constituicao.md" in sec_conc and "blueprint.md" in sec_conc)
+
     print()
     if FAILS:
         print("FALHOU: %d" % len(FAILS))

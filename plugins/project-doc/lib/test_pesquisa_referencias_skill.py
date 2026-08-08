@@ -20,9 +20,11 @@ import sys
 
 AQUI = os.path.dirname(os.path.abspath(__file__))
 PLUGIN = os.path.join(AQUI, "..")
+SKILLS = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..",
+                      "project-skills", "skills")
 
 PESQUISA = os.path.join(PLUGIN, "skills", "pesquisa-referencias", "SKILL.md")
-START = os.path.join(PLUGIN, "skills", "start-doc", "SKILL.md")
+START = os.path.join(SKILLS, "start", "SKILL.md")
 
 # As etapas do /start-doc que travam por falta de repertório — o documento de
 # cada uma é o contrato, e é por ele que o apontamento é cobrado.

@@ -1,6 +1,6 @@
 ---
 name: principles
-description: "Princípios de sistema contextuais para planejamento e review. Lê PRINCIPIOS-SISTEMAS.md, mapeia categorias relevantes ao contexto atual, e gera guia contextual com WHY + HOW. Dois modos — planning (gera seção pro plano) e review (audita implementação). Trigger em /principles, princípios de sistema, checa os princípios."
+description: "Princípios de sistema GENÉRICOS — os que valem em qualquer sistema — aplicados ao contexto atual. Lê PRINCIPIOS-SISTEMAS.md, mapeia categorias relevantes, e gera guia contextual com WHY + HOW. Dois modos — o padrão, que gera a seção de princípios antes de implementar, e review, que audita a implementação já escrita. Não decide o que ESTE sistema tem que ser: isso é da constituição do projeto. Trigger em /principles, princípios de sistema, checa os princípios."
 ---
 
 # Princípios de Sistema
@@ -112,6 +112,19 @@ Audita implementação contra princípios identificados no plano.
 - Referenciar arquivos e linhas concretas quando flaggear violações
 - Review mode é advisory — advisa, não bloqueia. Quem decide é o usuário
 - Se o veredicto tem ❌ em princípios críticos, recomendar resolver antes de ship
+
+## Fronteira com a constituição do projeto
+
+Duas coisas parecidas que não se substituem:
+
+- **Esta skill audita contra princípios GENÉRICOS** — os de `PRINCIPIOS-SISTEMAS.md`, que valem em
+  qualquer sistema e não conhecem este projeto. Saída dela é conselho.
+- **`.claude/docs/constituicao.md` manda no que ESTE sistema tem que ser** — os artigos que o dono
+  enunciou, cada um com quem cobra. Saída dela é lei, e quem a escreve é `/start-doc constituicao`.
+
+Em conflito, a constituição ganha. Esta skill nunca dá veredito sobre artigo da constituição e nunca
+escreve artigo novo: princípio genérico que contradiz um artigo vira contradição RELATADA ao dono —
+quem muda a lei é ele.
 
 ## Quando NÃO usar
 

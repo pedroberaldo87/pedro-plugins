@@ -1,0 +1,14 @@
+{
+  "medido_em": "main",
+  "como": "caracteres do campo description no frontmatter de cada SKILL.md",
+  "por_skill": {
+    "plugins/project-doc/skills/doc-touch/SKILL.md": 483,
+    "plugins/project-doc/skills/project-doc/SKILL.md": 576,
+    "plugins/project-doc/skills/start-doc/SKILL.md": 945,
+    "plugins/qa-loop/skills/qa-loop/SKILL.md": 1002,
+    "plugins/sovai/skills/sovai/SKILL.md": 695,
+    "plugins/grill-me/skills/grill-me/SKILL.md": 231,
+    "plugins/grill-with-docs/skills/grill-with-docs/SKILL.md": 278
+  },
+  "total_caracteres": 4210
+}

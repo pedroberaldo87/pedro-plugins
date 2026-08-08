@@ -150,6 +150,13 @@ def resolve_script(root, plug, cmd):
     """`${CLAUDE_PLUGIN_ROOT}/hooks/x.sh` → `<root>/plugins/<plug>/hooks/x.sh`."""
     if not cmd:
         return None
+    # Hook que mora em OUTRO plugin: `resolve-plugin.sh <nome> <caminho/dentro/dele>`.
+    # Sem esta forma, o inventário mediria o RESOLVEDOR — e o script de verdade
+    # apareceria uma vez por plugin que o chama, que é exatamente o que a cópia
+    # única veio matar. O aviso de dependência é o caso: treze registros, um script.
+    m = re.search(r"resolve-plugin\.sh\s+([\w.-]+)\s+([\w./-]+\.(?:sh|py))", cmd)
+    if m:
+        return os.path.join(root, "plugins", m.group(1), m.group(2))
     # Forma nova: `CLAUDE_PLUGIN_ROOT=$(printf '%s' "$CLAUDE_PLUGIN_ROOT" | tr '\\' /)`
     # normaliza backslash → barra sem `${x//y/z}` (que é bashismo e morre no shell
     # POSIX do Linux). O script fica no rabo, após o ';', em três formas:
@@ -313,6 +320,47 @@ def judge(entry, m):
     return f
 
 
+# ── R6 · o nome diz QUANDO roda e SE barra ───────────────────────────────────
+# `scope-cop.sh`, `mark-work.sh` e `delivery-audit.sh` são o mesmo problema: pra
+# saber quando cada um roda e se ele trava o agente era preciso abrir os três.
+# O molde é `<evento>-<verbo>-<assunto>.<ext>`: o prefixo é o evento em que ele
+# está registrado, e o verbo declara o poder — barra ou só avisa. O verbo não é
+# decorativo: aqui ele é conferido contra o canal MEDIDO no script, então um
+# `-avisa-` que sai com `exit 2` reprova igual a um nome fora do molde.
+VERBO_BARRA = ("barra", "exige", "trava", "recusa")
+VERBO_AVISA = ("avisa", "anota", "mede", "lembra", "resume", "sincroniza", "colhe", "abre")
+NOME_MOLDE = re.compile(r"^([a-z]+)-([a-z]+)-([a-z0-9-]+)\.(?:sh|py)$")
+
+
+def judge_nome(nome, eventos, bloqueia):
+    """Reprova nome de hook que não diz quando roda nem se barra.
+
+    `eventos` é o conjunto de eventos em que o script está registrado — um script
+    pode estar em dois (o andamento do sovai está em Pre e PostToolUse), e aí
+    basta o prefixo casar com UM deles.
+    """
+    esperados = sorted(e.lower() for e in eventos)
+    m = NOME_MOLDE.match(nome)
+    if not m:
+        return ("R6-nome-fora-do-molde",
+                "o nome não diz quando roda nem se barra — molde: "
+                "<evento>-<verbo>-<assunto> (evento: %s · verbo: %s)"
+                % ("|".join(esperados) or "?",
+                   "|".join(VERBO_BARRA if bloqueia else VERBO_AVISA)))
+    evento, verbo = m.group(1), m.group(2)
+    if evento not in esperados:
+        return ("R6-nome-evento-errado",
+                "o nome diz que roda em '%s', mas está registrado em %s"
+                % (evento, ", ".join(esperados) or "nenhum evento"))
+    certos = VERBO_BARRA if bloqueia else VERBO_AVISA
+    errados = VERBO_AVISA if bloqueia else VERBO_BARRA
+    if verbo in errados or verbo not in certos:
+        return ("R6-nome-verbo-errado",
+                "o verbo '%s' não bate com o que o script faz (%s) — use um de: %s"
+                % (verbo, "bloqueia" if bloqueia else "só avisa", "|".join(certos)))
+    return None
+
+
 def run(root):
     entries = discover(root)
     findings, measured = [], []
@@ -333,6 +381,25 @@ def run(root):
         m = measure(e["script"])
         measured.append(dict(e, measure=m))
         findings.extend(judge(e, m))
+
+    # R6 é do SCRIPT, não do registro: um script em dois eventos tem um nome só,
+    # e o prefixo dele basta casar com um deles. Por isso o julgamento do nome
+    # espera todos os registros terem sido varridos.
+    por_script = {}
+    for e in measured:
+        if not e.get("script") or not e.get("measure"):
+            continue
+        d = por_script.setdefault(e["script"], {"plugin": e["plugin"], "eventos": set(),
+                                                "bloqueia": False})
+        d["eventos"].add(e["event"])
+        d["bloqueia"] = d["bloqueia"] or bool(e["measure"]["blocking"])
+    for caminho, d in sorted(por_script.items()):
+        nome = os.path.basename(caminho)
+        veredito = judge_nome(nome, d["eventos"], d["bloqueia"])
+        if veredito:
+            findings.append(dict(rule=veredito[0], sev="high",
+                                 who="%s/%s" % (d["plugin"], nome),
+                                 line=0, msg=veredito[1], quote=""))
 
     # dedup: o mesmo script pode estar registrado em mais de um evento
     seen, uniq = set(), []

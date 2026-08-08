@@ -21,11 +21,13 @@ import tempfile
 
 AQUI = os.path.dirname(os.path.abspath(__file__))
 PLUGIN = os.path.join(AQUI, "..")
+SKILLS = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..",
+                      "project-skills", "skills")
 RAIZ = os.path.join(PLUGIN, "..", "..")
 COBRADOR = os.path.join(RAIZ, "scripts", "desacoplamento_check.py")
 
-FULL = os.path.join(PLUGIN, "skills", "project-doc", "SKILL.md")
-TOUCH = os.path.join(PLUGIN, "skills", "doc-touch", "SKILL.md")
+FULL = os.path.join(SKILLS, "doc", "SKILL.md")
+TOUCH = os.path.join(SKILLS, "doc-touch", "SKILL.md")
 
 # O título da seção é contrato: é por ele que o /doc-touch aponta.
 SECAO = "Desacoplamento — duas trocas obrigatórias em TODO doc escrito"

@@ -208,7 +208,7 @@ def test_cli():
 def test_contrato_no_authorial_kit():
     """O contrato do arquivo histórico é escrito onde os dois consumidores leem."""
     kit = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(historico.__file__))),
-                       "skills", "start-doc", "references", "authorial-kit.md")
+                       "..", "project-skills", "skills", "start", "references", "authorial-kit.md")
     texto = open(kit, encoding="utf-8").read()
     secao = texto.split("## Contrato de saída (vale para todos)")[1].split("\n## ")[0]
     for termo in ("historico.md", "contexto", "decisão", "historico.py"):

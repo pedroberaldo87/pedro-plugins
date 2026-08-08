@@ -1,6 +1,6 @@
 {
   "name": "gauntlet",
-  "version": "0.2.0",
+  "version": "0.2.3",
   "description": "Agents compete against a real-world benchmark you name, and nothing you built grades itself. The orchestrator breaks the goal into separately judgeable pieces, each piece gets its own builder and its own blind judge, and the judge only passes what beats the target — never what merely satisfies the brief. Born from a real failure: seven builders were launched promising a judge in every briefing, zero judges were launched, and nobody noticed, because a system with no trigger looks exactly like a system where everything was approved. Here the judge is a line of the engine right after delivery, every verdict is a file on disk with the pair of observations that proves it, and the close is refused by a program when any of that is missing. Works for a site, a game, an app screen, a report — anything you can build, iterate and judge with agents.",
   "author": {
     "name": "pedro-plugins"

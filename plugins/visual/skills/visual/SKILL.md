@@ -157,7 +157,7 @@ A causa não é falta de disciplina, é arquitetural: até aqui o plano só exis
 ### O ciclo, inteiro
 
 ```bash
-PS="${CLAUDE_PLUGIN_ROOT}/lib/plan_state.py"
+PS="<plugin project-skills>/lib/plan_state.py"
 
 # 1. na APRESENTAÇÃO do plano — grava o arquivo (uma vez) e monta a página
 python3 $PS init --file plano.json
@@ -304,6 +304,13 @@ regera, deriva ou extrai. Sem isso, escrever à mão cumpre o critério.
 | ❌ bancada | ✅ origem declarada |
 |---|---|
 | `o número de nós aparece no CLAUDE.md` | `` `graphify update --force` regera o índice e o número de nós no CLAUDE.md sai dele `` |
+| `o commit é feito, provado por um mock do git` | `` `git log -1 --format=%H` mostra o sha do commit no repositório de verdade `` |
+
+**Efeito fora do processo não se prova fingindo a chamada.** Quando o `pronto` promete algo
+que só acontece lá fora — commit, push, arquivo em outra máquina, skill invocada, processo
+filho — e a única prova oferecida é o dublê (mock, stub, fake, monkeypatch, simulação), o
+verde vem da bancada e o efeito nunca aconteceu. Diga o que **observa o efeito no mundo
+real**.
 
 **Critério que manda testar cita o comando e o que é vermelho.** "O teste passa" autoriza
 os cinco antipadrões de teste — o contrato deles está em
@@ -395,6 +402,11 @@ Com o documento, o cruzamento sai em duas listas próprias:
 | autônomo, conselho concorda | anote, prossiga, **relate depois** |
 | autônomo, conselho diverge | ver "Empate" |
 | autônomo, sem necessidade de conselho | decida e registre |
+
+**Por onde a pergunta chega quem escolhe é o usuário** — a régua dos dois canais (página de
+decisão em múltipla escolha, ou a ferramenta nativa uma por vez) está em
+**`regua-de-pergunta.md`**, ao lado deste arquivo (fonte: `_shared/regua-de-pergunta.md`, cópia
+derivada; não editar à mão).
 
 ### Régua de escalada — 3 perguntas, qualquer "sim" convoca
 

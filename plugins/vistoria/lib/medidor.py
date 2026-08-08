@@ -176,7 +176,7 @@ def _passos_abertos():
 
 
 def regua_pronto():
-    mod = _importa("plugins/visual/lib/regua_pronto.py", "regua_pronto")  # acopla-ok: auto-vistoria do proprio repo, roda da raiz e nao viaja
+    mod = _importa("plugins/project-skills/lib/regua_pronto.py", "regua_pronto")  # acopla-ok: auto-vistoria do proprio repo, roda da raiz e nao viaja
     achados = []
     for nome, pid, pronto in _passos_abertos():
         errs = mod.erros_de_pronto(pronto, pid)
