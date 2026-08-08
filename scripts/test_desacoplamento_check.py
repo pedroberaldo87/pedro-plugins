@@ -95,8 +95,38 @@ def main():
     d = tempfile.mkdtemp(prefix="desac-doc-")
     try:
         monta(d, {".claude/docs/architecture.md":
-                  "O beta vive em plugins/beta/ e o repo tem 21 plugins.\n"})
-        check("documentação que descreve o repo não é acusada", dc.varre(d) == [])
+                  "O beta vive em plugins/beta/ e faz o seu trabalho.\n"})
+        check("documentação que descreve o repo não é acusada por CITAR o nome",
+              dc.varre(d) == [])
+    finally:
+        shutil.rmtree(d, ignore_errors=True)
+
+    # A isenção da doc é de NOME, não de NÚMERO: é lá que a contagem envelhece calada.
+    d = tempfile.mkdtemp(prefix="desac-docnum-")
+    try:
+        monta(d, {".claude/docs/architecture.md": "O repo tem 21 plugins hoje.\n"})
+        a = dc.varre(d)
+        check("contagem cravada NA DOC é acusada", formas(a) == ["contagem-cravada"])
+        check("e nomeia a contagem que envelheceu",
+              any(x["alvo"] == "21 plugins" for x in a))
+    finally:
+        shutil.rmtree(d, ignore_errors=True)
+
+    d = tempfile.mkdtemp(prefix="desac-docmd-")
+    try:
+        monta(d, {".claude/docs/architecture.md":
+                  "São 21 plugins — `$ ls plugins | wc -l` diz quantos.\n"})
+        check("na doc, o número COM o comando que o produz segue legítimo",
+              dc.varre(d) == [])
+    finally:
+        shutil.rmtree(d, ignore_errors=True)
+
+    d = tempfile.mkdtemp(prefix="desac-outros-")
+    try:
+        monta(d, {"README.md": "O repo tem 21 plugins.\n",
+                  ".claude/plans/x.md": "O repo tem 21 plugins.\n"})
+        check("fora da pasta de doc, `.claude/` e o README seguem isentos da contagem",
+              dc.varre(d) == [])
     finally:
         shutil.rmtree(d, ignore_errors=True)
 

@@ -291,7 +291,7 @@
       "source": "./plugins/sovai",
       "description": "Autonomous run mode — executes a plan end to end with no pauses, checkpoints or confirmations. Skips blockers without silent workarounds, records every decision, runs a headless qa-loop pass and delivers a structured report. The engine is a deterministic Workflow (decompose → execute → review) and a PreToolUse hook enforces it: while the mission is armed every sub-agent spawn is denied. The reviewer judges the work against the SPEC, not against the orchestrator's own decomposition — reviewing against your own breakdown is a closed circuit where a wrong breakdown gets approved. Five axes: spec · the project's own quality goals · traceability (every task carries its requirement and its definition of done) · completeness · cohesion. A dead agent degrades the mission instead of killing the engine.",
       "category": "productivity",
-      "version": "1.16.0",
+      "version": "1.16.1",
       "tags": [
         "autonomy",
         "execution",
@@ -317,7 +317,7 @@
       "source": "./plugins/visual",
       "description": "CLI walls-of-text → interactive HTML dark-theme views. The page carries the EVIDENCE, not the account of it: real artifact embedded, raw output verbatim, provenance for every number — enforced by a pre-ExitPlanMode gate. Prose is REFUSED by the builder: every text field is checked (≤140 chars per bullet, one sentence each, no continuation connective, max 6 per block) and a violation aborts without writing the page. Each problem's body is born folded — the title stays visible, consequence and proposal open on click under a label derived from the content itself. Plans, diagnostics and decisions in the browser with live sync back to Claude. Regravar um plano nunca apaga em silêncio o que não veio no pacote: o init parcial FUNDE o bloco de requisitos por id — o requisito que só existe no arquivo fica, e o executor recebe a nota do que foi mantido.",
       "category": "productivity",
-      "version": "1.28.0",
+      "version": "1.29.0",
       "tags": [
         "visualization",
         "html",

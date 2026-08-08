@@ -284,8 +284,11 @@ if [ ! -f "$ESCAPE" ]; then
   # S-5: `funcionalidades` (features.md) é a etapa 5 — a lista que a entrevista propõe
   # e o dono cura. Ela é DERIVADA das quatro anteriores, por isso entra por último, e
   # é cobrada pela mesma régua de divergência por marca que as outras.
-  ETAPAS="arquitetura:architecture-intent jornadas:journeys funcionalidades:features"
-  has_frontend "$PROJ" && ETAPAS="arquitetura:architecture-intent interface:design jornadas:journeys funcionalidades:features"
+  # S-70: `esquema` (blueprint.md) é o desenho de como o sistema funciona. Ele entra
+  # ANTES de `funcionalidades` porque a lista é derivada dele, e é cobrado pela mesma
+  # régua de divergência por marca que as outras etapas.
+  ETAPAS="arquitetura:architecture-intent jornadas:journeys esquema:blueprint funcionalidades:features"
+  has_frontend "$PROJ" && ETAPAS="arquitetura:architecture-intent interface:design jornadas:journeys esquema:blueprint funcionalidades:features"
 
   ABERTAS=""
   for E in $ETAPAS; do
@@ -298,7 +301,7 @@ if [ ! -f "$ESCAPE" ]; then
   if [ -n "$ABERTAS" ]; then
     MSG="📐 Plano barrado: o acordo com o usuário tem etapa em aberto.
 • falta fechar: ${ABERTAS}
-• a ordem é metas de qualidade, arquitetura, interface, jornadas, funcionalidades, e só então o plano
+• a ordem é metas de qualidade, arquitetura, interface, jornadas, esquema, funcionalidades, e só então o plano
 • cada etapa é um documento aprovado, sem [PENDENTE], e com o corpo que a aprovação marcou
 • plano sobre jornada não acordada implementa a jornada que VOCÊ imaginou
 • rode /start-doc; recusa sem cap, o usuário libera com --sem-doc"

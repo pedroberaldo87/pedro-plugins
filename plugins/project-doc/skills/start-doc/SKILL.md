@@ -1,6 +1,6 @@
 ---
 name: start-doc
-description: "Conduz a concepção de um projeto em CINCO etapas de acordo, nesta ordem — autoral (metas de qualidade, restrições, contexto/fronteiras, estratégia, glossário), arquitetura (architecture-intent.md), interface (design.md, só para quem tem tela), jornadas (journeys.md) e funcionalidades (features.md, a lista derivada do que já foi aprovado nas quatro anteriores — a skill propõe, o dono decide). Cada etapa tem documento próprio, é apresentada e REAPRESENTADA até o dono estar satisfeito, e só fecha com a aprovação dele gravada no frontmatter do documento. É a entrevista, não a mineração: a skill pergunta e grava a resposta do humano, NUNCA inventa conteúdo. Terceira skill do plugin project-doc, ao lado do /project-doc (minera tudo) e do /doc-touch (incremental). Use quando o usuário diz \"/start-doc\", \"vamos conceber\", \"começando um projeto novo\", \"documenta a intenção\", \"quais são as metas do sistema\", \"esse projeto não tem doc nenhuma\". Dispare PROATIVAMENTE quando: o projeto não tem CLAUDE.md nem .claude/docs/; o projeto está nascendo (repositório novo, poucos commits); existe doc minerada mas os documentos autorais estão ausentes ou com lacunas; ou o gate de plano barrou um plano por falta de documentação. A entrevista vem SEMPRE antes da mineração — o porquê guia tudo que vem depois."
+description: "Conduz a concepção de um projeto em SEIS etapas de acordo, nesta ordem — autoral (metas de qualidade, restrições, contexto/fronteiras, estratégia, glossário), arquitetura (architecture-intent.md), interface (design.md, só para quem tem tela), jornadas (journeys.md), esquema de funcionamento (blueprint.md, o desenho de como o sistema funciona, com o diagrama do archify) e funcionalidades (features.md, a lista derivada do que já foi aprovado nas cinco anteriores — a skill propõe, o dono decide). Cada etapa tem documento próprio, é apresentada e REAPRESENTADA até o dono estar satisfeito, e só fecha com a aprovação dele gravada no frontmatter do documento. É a entrevista, não a mineração: a skill pergunta e grava a resposta do humano, NUNCA inventa conteúdo. Terceira skill do plugin project-doc, ao lado do /project-doc (minera tudo) e do /doc-touch (incremental). Use quando o usuário diz \"/start-doc\", \"vamos conceber\", \"começando um projeto novo\", \"documenta a intenção\", \"quais são as metas do sistema\", \"esse projeto não tem doc nenhuma\". Dispare PROATIVAMENTE quando: o projeto não tem CLAUDE.md nem .claude/docs/; o projeto está nascendo (repositório novo, poucos commits); existe doc minerada mas os documentos autorais estão ausentes ou com lacunas; ou o gate de plano barrou um plano por falta de documentação. A entrevista vem SEMPRE antes da mineração — o porquê guia tudo que vem depois."
 ---
 
 # start-doc — a documentação que só o humano tem
@@ -18,13 +18,14 @@ arquivo nenhum — está na cabeça de quem decidiu:
 - o vocabulário que **só a equipe** usa.
 
 Esta skill produz esses cinco — e mais o desenho da arquitetura, a personalidade da interface, as
-jornadas e a lista de funcionalidades derivada de tudo isso. Ela **entrevista**.
+jornadas, o esquema de como o sistema funciona e a lista de funcionalidades derivada de tudo isso.
+Ela **entrevista**.
 
-## As cinco etapas de acordo
+## As seis etapas de acordo
 
-Concepção não é uma entrevista só. São **cinco acordos, nesta ordem**, e a ordem é o próprio
+Concepção não é uma entrevista só. São **seis acordos, nesta ordem**, e a ordem é o próprio
 argumento: arquitetura decidida sem as metas fechadas é palpite, jornada desenhada sem a interface
-acordada é ficção, e lista de funcionalidade antes dos quatro acordos é palpite outra vez.
+acordada é ficção, e lista de funcionalidade antes dos cinco acordos é palpite outra vez.
 
 | # | Etapa | Documento em `.claude/docs/` | Quando |
 |---|---|---|---|
@@ -32,7 +33,18 @@ acordada é ficção, e lista de funcionalidade antes dos quatro acordos é palp
 | 2 | **Arquitetura** | `architecture-intent.md` | sempre |
 | 3 | **Interface** | `design.md` — escrito pela skill `design-md`, não por esta | só projeto com interface |
 | 4 | **Jornadas** | `journeys.md` | sempre |
-| 5 | **Funcionalidades** | `features.md` — derivada das quatro acima | sempre |
+| 5 | **Esquema** | `blueprint.md` + o diagrama do `archify` | sempre — antes de a lista ser derivada |
+| 6 | **Funcionalidades** | `features.md` — derivada das cinco acima | sempre |
+| 5b | **Revisão do esquema** | o mesmo `blueprint.md` | sempre, depois da 6 |
+
+**A etapa 6 não abre sem `blueprint.md` aprovado.** Antes de propor um único item de `features.md`,
+confira no disco que `.claude/docs/blueprint.md` existe e traz `status: approved` + `approved:` no
+frontmatter. Sem isso, **pare e conduza a etapa 5** — lista derivada de um entendimento em que
+ninguém bateu o martelo custa a curadoria inteira, item a item, e o erro só aparece no fim.
+
+**A 5b é a 5 reapresentada, não uma sétima etapa.** Depois que a lista foi curada, o `blueprint.md`
+volta pra mesa — funcionalidade removida é caixa que sai do desenho. Ela roda **sempre**, mesmo
+quando nada mudou.
 
 **Cada etapa fecha do mesmo jeito, e só desse jeito:** o documento é apresentado inteiro, sabatinado
 com `/grill-me`, corrigido e **reapresentado** quantas vezes for preciso, e o de acordo do dono é
@@ -47,7 +59,7 @@ O contrato completo — nomes de arquivo, frontmatter, roteiro e molde de cada d
 
 | Skill | O que faz | Quando |
 |---|---|---|
-| **`/start-doc`** | entrevista o humano e conduz as quatro etapas de acordo | concepção, e sempre que uma etapa tiver lacuna ou seguir sem aprovação |
+| **`/start-doc`** | entrevista o humano e conduz as seis etapas de acordo | concepção, e sempre que uma etapa tiver lacuna ou seguir sem aprovação |
 | **`/project-doc`** | minera tudo e re-projeta a doc inteira | mudança estrutural, drift amplo, doc nunca minerada |
 | **`/doc-touch`** | re-projeta só os docs que o diff tocou | entre FULLs, depois de um ciclo de código |
 
@@ -103,13 +115,17 @@ Pista nunca vira resposta.
 
 ## Modos
 
-- `/start-doc` — **concepção completa**: as cinco etapas, na ordem, uma de cada vez, cada uma
+- `/start-doc` — **concepção completa**: as seis etapas, na ordem, uma de cada vez, cada uma
   fechada com o de acordo do dono antes da seguinte. A etapa 3 (interface) só entra **se o projeto
   tiver interface** (ver `hooks/lib-has-frontend.sh` — não pergunte, verifique).
 - `/start-doc <doc>` — só um. Nomes válidos: `quality-goals`, `constraints`, `context`,
-  `solution-strategy`, `glossary`, `architecture-intent`, `journeys`, `features`, `design` (este
-  último só se houver interface). `features` exige as quatro etapas anteriores aprovadas — sem elas
-  não há de onde derivar.
+  `solution-strategy`, `glossary`, `architecture-intent`, `journeys`, `blueprint`, `features`,
+  `design` (este último só se houver interface). `features` exige as cinco etapas anteriores
+  aprovadas — sem elas não há de onde derivar.
+- `/start-doc blueprint` — **só a etapa 5**: o esquema de como o sistema funciona, em
+  `.claude/docs/blueprint.md`, com o diagrama do `archify`. Serve tanto para a primeira rodada
+  quanto para a revisão 5b, depois que a lista foi curada. Exige as etapas 1, 2 e 4 aprovadas — o
+  ciclo é montado das passagens delas, e desenhar sem elas é o palpite que a regra dura proíbe.
 - `/start-doc review` — **revisita**: lê os que já existem, mostra o que envelheceu (`reviewed:`
   antigo, `approved:` ausente, `[PENDENTE]` aberto, decisão citada que não existe mais) e pergunta só
   o que mudou. Nunca reescreve resposta do humano sem ele mandar.
@@ -189,13 +205,20 @@ anterior aprovada.
 - Grave a resposta **literal**. Organizar em bullets e corrigir digitação é permitido; trocar o
   julgamento do humano por uma redação mais bonita, não.
 
-**A etapa 5 (funcionalidades) é a única em que você fala primeiro.** A lista de `features.md` é
+**A etapa 5 (esquema) você abre com o ciclo montado, não com uma pergunta em branco.** Monte o
+ciclo passo a passo a partir dos documentos **aprovados** (`architecture-intent.md`, `journeys.md`,
+`quality-goals.md`), cada passo com a passagem que o originou ao lado — `arquivo:linha` —, e a
+primeira pergunta é "deste ciclo, o que eu entendi errado?". O roteiro e o molde de `blueprint.md`
+estão em `references/authorial-kit.md`; o diagrama é do `archify`, e a ausência dele **degrada em
+voz alta no relatório**, nunca trava a etapa. **Só com essa etapa aprovada a 6 abre.**
+
+**A etapa 6 (funcionalidades) é a única em que você fala primeiro.** A lista de `features.md` é
 **derivada** dos documentos já aprovados — cada item nasce de uma jornada, de uma meta ou de uma peça,
 e vai para a tela com a **passagem literal** que o motivou ao lado. Isso não afrouxa a regra dura:
 **A skill propõe, o dono decide** — item que ele não confirmou é proposta, não funcionalidade
 acordada, e não entra no documento aprovado.
 
-#### A curadoria da etapa 5 — item a item, com a passagem ao lado
+#### A curadoria da etapa 6 — item a item, com a passagem ao lado
 
 A lista derivada **não vai para o documento antes de passar item a item pelo dono**. Ela vai para
 uma página do `/visual`, e lá cada funcionalidade é **um bloco `item`** — o componente de veredito
@@ -240,7 +263,7 @@ contexto e decisão.
 python3 "${CLAUDE_PLUGIN_ROOT}/lib/historico.py" reescrever .claude/docs/features.md \
   --antigo "### F-3 · {texto anterior, recortado único}" \
   --novo   "### F-3 · {o texto que o dono escreveu}" \
-  --contexto "curadoria da lista de funcionalidades derivada das quatro etapas aprovadas" \
+  --contexto "curadoria da lista de funcionalidades derivada das cinco etapas aprovadas" \
   --decisao  "{a fala dele, literal, que mudou o item}"
 ```
 
@@ -264,7 +287,7 @@ voz alta no relatório, nunca finja que o CLI rodou.
 Escrever **não fecha** a etapa. O ciclo é este, e ele repete até o dono estar satisfeito:
 
 1. **Monte a página do `/visual` com o documento inteiro embutido — não apresente o texto no chat.**
-   É o mesmo caminho da curadoria da etapa 5, com **um bloco `aprovacao`** no spec: `etapa` é o nome
+   É o mesmo caminho da curadoria da etapa 6, com **um bloco `aprovacao`** no spec: `etapa` é o nome
    do que está sendo aprovado, `doc_integral` recebe o **corpo do arquivo verbatim** (o texto real,
    não um resumo dele) e `cards` é o índice, cada um ancorado num trecho literal desse corpo.
 
@@ -343,11 +366,12 @@ Depois, ofereça o próximo passo:
 ## Output Protocol
 
 ```
-**Passo 1/7:** Raiz → `/path` · docs de etapa existentes → {N de 8, ou N de 9 se houver interface} · minerada → {sim | não}
+**Passo 1/7:** Raiz → `/path` · docs de etapa existentes → {N dos que a tabela de etapas lista, contando `design.md` só se houver interface} · minerada → {sim | não}
 **Passo 2/7:** Pistas → {N integrações · M versões travadas · K commits}
 **Passo 3/7:** Entrevista → {doc}: {respondido | PENDENTE} … (uma linha por documento)
 **Passo 4/7:** Escrito → {lista de arquivos com status draft|ready}
 **Passo 5/7:** De acordo → {etapa}: {aprovada em YYYY-MM-DD | ABERTA, {N} reapresentações} … (uma linha por etapa)
+             Esquema → `blueprint.md`: {aprovado em YYYY-MM-DD | ABERTO} · diagrama → {caminho em `.claude/archify/` | `archify` ausente, DEGRADADO} · revisão 5b → {rodada | pendente}
              Sem dono → {N} funcionalidades sem origem · {M} jornadas sem funcionalidade (saída de `rastreio_etapas.py`)
 **Passo 6/7:** Decisões → `decisions/0001-{slug}.md` + {N} candidatas pendentes
 **Passo 7/7:** Índice → {N docs promovidos} · Pendências → {lista de [PENDENTE] por doc} · Correções pendentes → {N, com o doc de cada uma}
@@ -387,9 +411,11 @@ Ao final, sempre: **o que ficou pendente, que etapa segue aberta, e o que destra
 - **A sabatina não é juíza.** `/grill-me` e `/grill-with-docs` são o caminho até o acordo, não o
   veredito sobre ele — nem sobre a constituição do projeto, que é justamente o que elas ajudam a
   escrever.
-- **Não invente estrutura nova** — os nove documentos das cinco etapas, os moldes e o frontmatter
-  estão em `references/authorial-kit.md`. Se precisar de um décimo, é mudança de contrato, não
-  improviso.
+- **Não invente estrutura nova** — os documentos das seis etapas, os moldes e o frontmatter estão em
+  `references/authorial-kit.md`. Se precisar de mais um, é mudança de contrato, não improviso.
+- **A etapa 6 não abre sem `blueprint.md` aprovado.** Sem o desenho acordado, a lista de
+  funcionalidades sai de um entendimento em que ninguém bateu o martelo — e o erro só aparece
+  depois da curadoria inteira.
 - **Funcionalidade sem origem não entra.** Todo item de `features.md` aponta a jornada, a meta ou a
   peça aprovada que o pediu — ou a fala do dono, registrada como tal. Lista derivada de nada é a
   mesma ficção que a regra dura proíbe.

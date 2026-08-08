@@ -293,6 +293,24 @@ os.makedirs(p, exist_ok=True)
 escreve(os.path.join(p, "rito.json"), rito)
 check("sonda sem o comando que produz o registro é acusada",
       any("a sonda não declara `registrar`" in f for f in fc.erros_do_rito(p)))
+# Achado no piloto: peça que já é observável (um documento) não tem o que preparar, e
+# exigir comando ali faria o dono inventar um.
+rito = json.load(open(os.path.join(m, "rito.json"), encoding="utf-8"))
+rito["sonda"]["preparar"] = ""
+p4 = os.path.join(d, "preparar-vazio")
+os.makedirs(p4, exist_ok=True)
+escreve(os.path.join(p4, "rito.json"), rito)
+os.makedirs(os.path.join(p4, "recon", "registros"), exist_ok=True)
+escreve(os.path.join(p4, "recon", "registros", "alvo-hero.png"), "PIXELS")
+check("`preparar` vazio passa — documento já é observável",
+      not any("preparar" in f for f in fc.erros_do_rito(p4)))
+rito2 = json.load(open(os.path.join(m, "rito.json"), encoding="utf-8"))
+rito2["sonda"]["registrar"] = ""
+p5 = os.path.join(d, "registrar-vazio")
+os.makedirs(p5, exist_ok=True)
+escreve(os.path.join(p5, "rito.json"), rito2)
+check("mas `registrar` vazio é acusado — sem ele não há par",
+      any("não há par" in f for f in fc.erros_do_rito(p5)))
 rito = json.load(open(os.path.join(m, "rito.json"), encoding="utf-8"))
 rito["eixos"][0]["registro"] = "recon/registros/nao-existe.png"
 p = os.path.join(d, "eixo-sem-prova")

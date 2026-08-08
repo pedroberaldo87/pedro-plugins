@@ -25,6 +25,12 @@ JORNADA_RE = re.compile(r"\bJornada:\s*([^·—\n]+)")
 DECISAO_RE = re.compile(r"\bDecisão:\s*([^·\n]+)")
 # cada jornada do journeys.md é um `## nome` — é o molde que a entrevista escreve
 JORNADA_H_RE = re.compile(r"^##\s+(.+?)\s*$", re.M)
+# a peça da arquitetura pretendida que o requisito diz habitar, citada pelo nome que
+# o architecture-intent.md dá a ela
+PECA_RE = re.compile(r"\bPeça:\s*([^·—\n]+)")
+# os cabeçalhos do architecture-intent.md, com o nível, pra saber o que é peça e o
+# que é outra seção do documento
+CABECALHO_RE = re.compile(r"^(#{2,})\s+(.+?)\s*$", re.M)
 
 
 def _texto(fonte):
@@ -59,6 +65,7 @@ def le_requisitos(fonte):
         ca = CA_RE.search(resto + corpo)
         art = ART_RE.search(resto[:200])
         jor = JORNADA_RE.search(resto)
+        pec = PECA_RE.search(resto + corpo)
         dec = DECISAO_RE.search(resto + corpo)
         ep = None
         for pos, nome in epicos:
@@ -71,6 +78,7 @@ def le_requisitos(fonte):
                     "ca": " ".join(ca.group(1).split()) if ca else None,
                     "ancora": art.group(1) if art else None,
                     "jornada": jor.group(1).strip() if jor else None,
+                    "peca": pec.group(1).strip() if pec else None,
                     "epico": ep,
                     "decisao": " ".join(dec.group(1).split()) if dec else None,
                     "repetido": False}
@@ -98,6 +106,26 @@ def le_artigos(fonte):
     return [m.group(1) for m in ARTIGO_H_RE.finditer(_texto(fonte))]
 
 
+def le_pecas(fonte):
+    """Os nomes das peças do architecture-intent.md, na ordem em que aparecem.
+
+    Peça é um `### nome` sob a seção `## Peças` — o documento da arquitetura
+    pretendida também descreve fronteiras, onde o estado mora e o que ficou de fora,
+    e contar todo subtítulo faria fronteira virar peça. Documento ausente, ou sem
+    essa seção, devolve []: projeto que ainda não desenhou a arquitetura não é
+    projeto que a contradiz, é projeto sem com o que cruzar — a mesma regra que
+    `le_jornadas` e `le_artigos` seguem.
+    """
+    out, dentro = [], False
+    for m in CABECALHO_RE.finditer(_texto(fonte)):
+        nivel, nome = len(m.group(1)), m.group(2).strip()
+        if nivel == 2:
+            dentro = "peça" in nome.casefold()
+        elif nivel == 3 and dentro:
+            out.append(nome)
+    return out
+
+
 def _num_artigo(ancora):
     """"Art. 6" vira "6". Citação sem número devolve None."""
     m = ART_NUM_RE.search(ancora or "")
@@ -109,7 +137,7 @@ def _chave(nome):
     return " ".join((nome or "").split()).casefold()
 
 
-def mapa(plan, reqs, jornadas=None, artigos=None):
+def mapa(plan, reqs, jornadas=None, artigos=None, pecas=None):
     """Os quatro estados do fio. Nenhum é silencioso — todos viram lista.
 
     `jornadas` é a lista de nomes que `le_jornadas` devolveu. Com ela o cruzamento
@@ -127,6 +155,13 @@ def mapa(plan, reqs, jornadas=None, artigos=None):
     de ser só extraída e passa a ser conferida: requisito que aponta para artigo que
     a lei não tem cai em `artigos_inexistentes`. Sem ela (None ou vazia) o balde fica
     vazio — sem lei escrita não há com o que cruzar, e acusar seria ruído.
+
+    `pecas` é a lista que `le_pecas` devolveu. Com ela o plano deixa de nascer contra a
+    memória de quem o monta: requisito que não diz em que peça da arquitetura ele vive
+    cai em `sem_peca`, e requisito que cita uma peça que o desenho não tem cai em
+    `pecas_inexistentes` — a contradição entre o plano e a arquitetura pretendida, que
+    até aqui não aparecia em lugar nenhum. Sem ela os dois baldes ficam vazios, pela
+    mesma regra dos outros cruzamentos.
     """
     cobertas, sem_req, inexistentes, por_req = [], [], [], {}
     for ph in plan.get("phases", []):
@@ -181,12 +216,21 @@ def mapa(plan, reqs, jornadas=None, artigos=None):
                         if numeros and not d.get("ancora") and not d.get("decisao"))
     decididas = sorted(r for r, d in reqs.items()
                        if numeros and not d.get("ancora") and d.get("decisao"))
+    # o desenho da arquitetura pretendida entra no cruzamento pelas duas pontas: quem
+    # não diz em que peça vive, e quem diz uma que o desenho não tem.
+    nomes_pecas = {_chave(p) for p in (pecas or [])}
+    sem_peca = sorted(r for r, d in reqs.items()
+                      if nomes_pecas and not d.get("peca"))
+    pecas_inexistentes = sorted(
+        (r, d["peca"]) for r, d in reqs.items()
+        if nomes_pecas and d.get("peca") and _chave(d["peca"]) not in nomes_pecas)
     return {"cobertas": cobertas, "sem_requisito": sem_req, "orfaos": orfaos,
             "inexistentes": inexistentes, "por_req": por_req,
             "sem_jornada": sem_jornada, "sem_ca": sem_ca,
             "repetidos": repetidos,
             "sem_artigo": sem_artigo, "decididas": decididas,
             "artigos_inexistentes": artigos_inexistentes,
+            "sem_peca": sem_peca, "pecas_inexistentes": pecas_inexistentes,
             "jornadas_sem_funcionalidade": jornadas_sem_func,
             "epicos_sem_jornada": epicos_sem_jornada,
             "total": len(cobertas) + len(sem_req) + len(inexistentes)}
@@ -211,6 +255,9 @@ def resumo(m):
     if m.get("decididas"):
         partes.append("⚪ %s por decisão declarada"
                       % _pl(len(m["decididas"]), "funcionalidade"))
+    if m.get("sem_peca"):
+        partes.append("🔴 %s sem peça da arquitetura"
+                      % _pl(len(m["sem_peca"]), "funcionalidade"))
     if m.get("sem_ca"):
         partes.append("🔴 %s sem critério" % _pl(len(m["sem_ca"]), "requisito"))
     if m.get("jornadas_sem_funcionalidade"):
@@ -221,6 +268,9 @@ def resumo(m):
     if m.get("artigos_inexistentes"):
         partes.append("⛔ %s citando artigo que a lei não tem"
                       % _pl(len(m["artigos_inexistentes"]), "requisito"))
+    if m.get("pecas_inexistentes"):
+        partes.append("⛔ %s citando peça que a arquitetura não tem"
+                      % _pl(len(m["pecas_inexistentes"]), "requisito"))
     if m["inexistentes"]:
         partes.append("⛔ %d citando requisito inexistente" % len(m["inexistentes"]))
     return " · ".join(partes)

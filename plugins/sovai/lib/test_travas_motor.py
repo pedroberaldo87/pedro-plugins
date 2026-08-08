@@ -240,6 +240,14 @@ def main():
           "não leia de args.tiers" in texto or "não leia de `args.tiers`" in texto)
     check("a skill diz por que o canal em tempo de execucao caiu",
           "chegava `undefined`" in texto and "matava o motor na primeira volta" in texto)
+    # O defeito era o esqueleto fazer o contrario do que o texto manda: a trava cobra o
+    # SCRIPT, nao a prosa. Leitura em tempo de execucao nao pode sobrar em lugar nenhum.
+    check("o esqueleto NAO le o esforco dos parametros", "ARGS.tiers" not in js)
+    check("o esqueleto traz a constante literal com as seis etapas",
+          re.search(r"const T = \{[\s\S]{0,400}?decompose: \{effort:'high'\}", js) is not None
+          and all(e in js for e in ("coordinate: {effort:'medium'}", "executor: {effort:'medium'}",
+                                    "mechanical: {effort:'low'}", "diagnose: {effort:'medium'}",
+                                    "finalize: {effort:'medium'}")))
 
     print("F9.2 — o motor CHAMA a reserva antes de executar")
     # A peca existia e nenhum motor a chamava. O que se cobra aqui e a CHAMADA no

@@ -8,9 +8,9 @@
 > mapeia o **arc42**. Os documentos 1-4 e o glossário são consenso de mercado; a decisão de
 > **perguntar em vez de esqueletar** é nossa.
 
-## As cinco etapas de acordo
+## As seis etapas de acordo
 
-A concepção não é uma entrevista só — são **cinco acordos**, nesta ordem, e cada um tem documento
+A concepção não é uma entrevista só — são **seis acordos**, nesta ordem, e cada um tem documento
 próprio e aprovação própria. Etapa não aprovada não deixa a seguinte começar: arquitetura decidida
 sem as metas fechadas é palpite, e jornada desenhada sem a interface acordada é ficção.
 
@@ -20,7 +20,18 @@ sem as metas fechadas é palpite, e jornada desenhada sem a interface acordada �
 | 2 | **Acordo de arquitetura** | `architecture-intent.md` | sempre |
 | 3 | **Acordo de interface** | `design.md` (escrito pela skill `design-md`) | só projeto com interface |
 | 4 | **Acordo de jornadas** | `journeys.md` | sempre |
-| 5 | **Acordo de funcionalidades** | `features.md` | sempre — é a última, porque é **derivada do que já foi aprovado** nas quatro |
+| 5 | **Acordo do esquema** | `blueprint.md` + o diagrama do `archify` | sempre — antes de a lista ser derivada |
+| 6 | **Acordo de funcionalidades** | `features.md` | sempre — é a última, porque é **derivada do que já foi aprovado** nas cinco |
+| 5b | **Revisão do esquema** | o mesmo `blueprint.md` | sempre, depois da 6 |
+
+**A 5 vem antes da 6 porque a lista é derivada.** Derivar de um entendimento errado custa a
+curadoria inteira, item a item; o desenho é onde o erro de entendimento aparece barato.
+
+**A 5b não é uma sétima etapa — é a 5 reapresentada.** Curar a lista muda o entendimento:
+funcionalidade removida é caixa que sai do desenho. Ela roda **sempre**, mesmo quando nada mudou —
+e nesse caso o de acordo custa uma tela. Etapa que só roda "quando precisa" é etapa que ninguém
+dispara. O texto anterior vai para `blueprint.historico.md` por `lib/historico.py`, como em
+qualquer outra mudança de documento aprovado.
 
 **Os nomes de arquivo acima são o contrato.** Todos moram em `.claude/docs/`. Quem cobra lacuna lê
 daqui — inventar outro nome quebra a cobrança em silêncio.
@@ -590,7 +601,7 @@ CLI, entradas de menu, jobs agendados (jornada sem humano também é jornada).
 
 ---
 
-## 9 · `features.md` — Funcionalidades · **etapa 5**
+## 9 · `features.md` — Funcionalidades · **etapa 6**
 
 - **Pergunta que responde:** o que este sistema faz, item a item?
 - **De onde a lista sai:** ela é **derivada do que já foi aprovado** nas quatro etapas anteriores —
@@ -643,6 +654,70 @@ gravado; documento ainda aberto não serve de origem.
 **O de acordo desta etapa** é o mesmo dos outros: `status: approved` + `approved:` no frontmatter do
 próprio `features.md`, depois de apresentar a lista inteira, sabatinar e reapresentar. Lista derivada
 não é lista acordada.
+
+---
+
+## 10 · `blueprint.md` — Esquema de funcionamento · **etapa 5**
+
+- **Pergunta que responde:** como este sistema funciona, do começo ao fim?
+- **O nome é `blueprint.md`, e não `schema.md`.** *Schema* já significa outra coisa aqui — o
+  contrato de JSON do `/visual` e do `archify` —, e nome ambíguo em contrato é defeito que só
+  aparece depois.
+- **Ele é curto de propósito:** quem carrega o detalhe são as quatro etapas anteriores. Aqui só
+  entra o que amarra as peças em um ciclo.
+- **Toda linha aponta a passagem que a originou** — a mesma regra da etapa de funcionalidades.
+  Desenho derivado de nada é a ficção que a regra dura desta skill proíbe.
+- **A seção do que o desenho NÃO mostra é obrigatória.** Diagrama convence mais que texto, e um
+  recorte não declarado é lido como "o sistema não tem isso".
+- **Critério de pronto:** todo passo do ciclo aponta um documento aprovado, e o recorte deixado de
+  fora está escrito.
+
+**Pistas a minerar antes de perguntar:** nenhuma no código — na concepção não existe código. O
+insumo são os documentos com `approved:` gravado: `architecture-intent.md`, `journeys.md`,
+`quality-goals.md`.
+
+**Roteiro:**
+1. Apresente o ciclo inteiro, passo a passo, cada um com a passagem que o originou ao lado: "deste
+   ciclo, o que eu entendi errado?"
+2. "Qual peça decide o quê?" (a decisão é da peça; se duas decidem a mesma coisa, é fronteira mal
+   traçada — volte à etapa 2 em vez de desenhar por cima)
+3. "Onde você entra?" (ponto de entrada humano, com o que ele decide ali)
+4. "O que este desenho deixa de fora de propósito?" (recorte declarado, com o motivo)
+
+**Molde:**
+
+```markdown
+{frontmatter}
+
+# Como o sistema funciona
+
+## O ciclo, do começo ao fim
+1. {o que acontece}  ← {arquivo}:{linha} do documento aprovado que o diz
+
+## As peças que participam, e o que cada uma decide
+{peça} — {a decisão que é dela}  ← architecture-intent.md:{linha}
+
+## Onde o humano entra
+{o ponto de entrada} — {o que ele decide ali}  ← journeys.md:{linha}
+
+## O que este desenho NÃO mostra, de propósito
+{o recorte deixado de fora, com o motivo}
+```
+
+**O diagrama quem desenha é o `archify`,** e as regras dele valem sem emenda: `workflow` quando o
+assunto é o ciclo com decisões, `architecture` quando é peças e fronteiras; destino e nome pela
+régua dele (`<raiz>/.claude/archify/`, `organismo.html` para o sistema inteiro e
+`fluxo-<slug>.html` para cada fluxo que o `blueprint.md` **nomeia**). Nome estável: a revisão da 5b
+sobrescreve. **A entrada é o documento curado, nunca o código.**
+
+**`archify` ausente na máquina não bloqueia a etapa** — o `blueprint.md` sozinho fecha o acordo, e a
+página do `/visual` carrega o texto. Mas o relatório **diz em voz alta** que degradou: degradar em
+silêncio é o que faz mecanismo descrito e nunca executado nascer.
+
+**O de acordo desta etapa** é o mesmo dos outros: apresentar o corpo integral na página do
+`/visual` com o diagrama linkado por caminho, sabatinar, reapresentar, e `status: approved` +
+`approved:` gravados por `hooks/doc-aprovar.sh`. **Etapa 5 sem `approved:` trava a etapa 6** — sem
+isso a lista de funcionalidades sairia de um entendimento em que ninguém bateu o martelo.
 
 ---
 

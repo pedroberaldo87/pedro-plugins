@@ -67,7 +67,7 @@ M=$(msg "$OUT")
 check "a linha sai em systemMessage (o canal que o dono lê)" \
   "$([ -n "$M" ] && echo 1 || echo 0)" "saiu: $OUT"
 check "a linha traz o relógio do que já rodou" \
-  "$(printf '%s' "$M" | grep -q 'rodando ha' && echo 1 || echo 0)" "saiu: $M"
+  "$(printf '%s' "$M" | grep -q 'rodando há' && echo 1 || echo 0)" "saiu: $M"
 check "a linha traz o placar cru que a suíte imprimiu" \
   "$(printf '%s' "$M" | grep -q '139 passou · 0 falhou' && echo 1 || echo 0)" "saiu: $M"
 check "a linha traz o julgamento de avanço" \
@@ -84,12 +84,12 @@ check "a memória guarda o comando que rodou" \
 check "a marca é apagada depois de narrada" \
   "$([ ! -f "$TMP/sovai-andamento-sess-teste" ] && echo 1 || echo 0)"
 
-# 3 · segunda rodada com o MESMO placar: 'sem avanco' é o sinal que interessa
+# 3 · segunda rodada com o MESMO placar: 'sem avanço' é o sinal que interessa
 marca_ha 200
 OUT=$(roda 'bash suite.sh' "$SAIDA_COM_PLACAR")
 M=$(msg "$OUT")
-check "placar repetido é narrado como 'sem avanco'" \
-  "$(printf '%s' "$M" | grep -q 'sem avanco' && echo 1 || echo 0)" "saiu: $M"
+check "placar repetido é narrado como 'sem avanço'" \
+  "$(printf '%s' "$M" | grep -q 'sem avanço' && echo 1 || echo 0)" "saiu: $M"
 check "a segunda rodada já mostra a estimativa da memória" \
   "$(printf '%s' "$M" | grep -q 'usual ~' && echo 1 || echo 0)" "saiu: $M"
 
@@ -124,10 +124,10 @@ sinal_ha 1200
 marca_ha 1200
 OUT=$(roda 'bash suite-longa.sh' "$SAIDA_COM_PLACAR")
 M=$(msg "$OUT")
-check "demora legítima sai na tela como 'rodando ha N min'" \
-  "$(printf '%s' "$M" | grep -q 'rodando ha 20 min' && echo 1 || echo 0)" "saiu: $M"
+check "demora legítima sai na tela como 'rodando há N min'" \
+  "$(printf '%s' "$M" | grep -q 'rodando há 20 min' && echo 1 || echo 0)" "saiu: $M"
 check "demora legítima NÃO é chamada de travamento" \
-  "$(printf '%s' "$M" | grep -q 'nao e travamento' && echo 1 || echo 0)" "saiu: $M"
+  "$(printf '%s' "$M" | grep -q 'não é travamento' && echo 1 || echo 0)" "saiu: $M"
 
 # sem sinal de vida: mesmo silêncio de 20 min, mas nada estava rodando
 sinal_ha 1200
@@ -135,9 +135,9 @@ marca_ha 2
 OUT=$(roda 'echo oi' 'oi')
 M2=$(msg "$OUT")
 check "silêncio sem trabalho vivo sai na tela como travamento" \
-  "$(printf '%s' "$M2" | grep -q 'travamento: nada mudou ha 20 min' && echo 1 || echo 0)" "saiu: $M2"
-check "travamento NÃO sai como 'rodando ha N min'" \
-  "$(printf '%s' "$M2" | grep -q 'rodando ha 20 min' && echo 0 || echo 1)" "saiu: $M2"
+  "$(printf '%s' "$M2" | grep -q 'travamento: nada mudou há 20 min' && echo 1 || echo 0)" "saiu: $M2"
+check "travamento NÃO sai como 'rodando há N min'" \
+  "$(printf '%s' "$M2" | grep -q 'rodando há 20 min' && echo 0 || echo 1)" "saiu: $M2"
 check "as duas telas são diferentes" \
   "$([ "$M" != "$M2" ] && echo 1 || echo 0)" "iguais: $M"
 

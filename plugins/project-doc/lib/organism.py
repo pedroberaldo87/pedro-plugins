@@ -569,6 +569,7 @@ INHERITED_DOCS = (
     ("architecture-intent.md", "intenção-de-arquitetura"),
     ("design.md", "regra-de-interface"),
     ("journeys.md", "jornada"),
+    ("blueprint.md", "desenho-do-sistema"),
 )
 
 _ITEM_BULLET_RE = re.compile(r"^(?:[-*]|\d+\.)\s+(\S.*?)\s*$")
