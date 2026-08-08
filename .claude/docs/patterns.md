@@ -25,8 +25,19 @@ scope:
   - plugins/context-guard/hooks/context-guard-writer.sh
   - plugins/ship/hooks/pre-deploy-test-check.sh
   - plugins/visual/lib/visual_page.py
-  - plugins/visual/lib/plan_state.py
-  - plugins/visual/lib/cobertura.py
+  - plugins/project-skills/lib/plan_state.py
+  - plugins/project-skills/lib/cobertura.py
+  - _shared/regua-de-pergunta.md
+  - _shared/contrato-familia.md
+  - _shared/hook-json.sh
+  - _shared/resolve-plugin.sh
+  - _shared/sessionstart-deps.sh
+  - scripts/desacoplamento_check.py
+  - scripts/fiscal_de_bancada.py
+  - scripts/vazamento_check.py
+  - scripts/plano_vs_codigo.py
+  - scripts/readme_counts_check.py
+  - scripts/suites_orfas.py
   - plugins/visual/hooks/pre-exitplan-visualize.sh
   - plugins/handoff/skills/handoff/SKILL.md
   - plugins/slides/lib/md2deck.py
@@ -44,8 +55,8 @@ verified-by:
   - plugins/guardrails/hooks/test_setup_skill.sh
   - plugins/ship/hooks/test_pre_deploy.sh
   - plugins/visual/lib/test_visual_page.py
-  - plugins/visual/lib/test_plan_state.py
-  - plugins/visual/lib/test_cobertura.py
+  - plugins/project-skills/lib/test_plan_state.py
+  - plugins/project-skills/lib/test_cobertura.py
   - plugins/visual/hooks/test_exitplan_gate.sh
   - plugins/handoff/lib/test_handoff_skill.py
   - .claude/hooks/test_release_gate.sh
@@ -769,26 +780,18 @@ Claude Code isola plugins na instalação: só `plugins/<nome>/` vai pro cache, 
 - **Mapa explícito, não glob** — `scripts/sync-shared.sh:SPECS`, formato `destino::arquivo` [confirmado, copiado literal]:
 
 ```bash
-SPECS=(
-  "plugins/handoff/lib::collect_engine.py"
-  "plugins/project-doc/lib::collect_engine.py"
-  "plugins/sovai/skills/sovai/references::r8-tiers.json"
-  "plugins/qa-loop/skills/qa-loop/references::r8-tiers.json"
-  "plugins/sovai/skills/sovai/references::r8_tiers.py"
-  "plugins/qa-loop/skills/qa-loop/references::r8_tiers.py"
-  "plugins/sovai/skills/sovai/references::r8-tiers.md"
-  "plugins/qa-loop/skills/qa-loop/references::r8-tiers.md"
-  "plugins/visual/lib::regua_texto.py"      # + branches, fallow, slides
-  "plugins/bootstrap/lib::regua_texto.py"   # + guardrails, project-doc, ship, graphify-guard
-  "plugins/ship/hooks::green-cache.sh"
-  "plugins/qa-loop/lib::green-cache.sh"
-)
+sed -n '/^SPECS=(/,/^)/p' scripts/sync-shared.sh          # o mapa inteiro, sem cópia aqui
+sed -n '/^SPECS=(/,/^)/p' scripts/sync-shared.sh | grep -c '::'                    # 81
+sed -n '/^SPECS=(/,/^)/p' scripts/sync-shared.sh | grep '::' \
+  | sed 's/.*"\(.*\)::.*/\1/' | sort -u | wc -l                                    # 43
 ```
 
   O comentário justifica o mapa explícito: *"consumidores diferentes vendoram arquivos diferentes"*.
 
-- **São 19 cópias hoje**, de 4 arquivos-fonte [confirmado — `grep -cE '^  "plugins/.*::' scripts/sync-shared.sh` → 19; por arquivo: `regua_texto.py` **9**, `collect_engine.py` 2, `green-cache.sh` 2, e os três do contrato R8 (`.json` + `.py` + `.md`) 2 cada]. O `sync-shared.sh` imprime o número no fim: `OK: vendoring concluído (19 cópia(s)).`
-- ⚠️ **Régua de hook exige cópia mesmo quando quem chama é `.sh`.** Cinco dos nove destinos do `regua_texto.py` são plugins que só emitem texto de hook, e o comentário do próprio `SPECS` diz por quê: *"o .sh chama a régua pela linha de comando, e o plugin instalado só enxerga a própria pasta — sem cópia aqui, a régua some em produção"*. Vendorar só quem faz `import` deixaria o gate mudo exatamente nos plugins que mais falam com o dono.
+- **São 81 cópias hoje, em 43 pastas, de 15 arquivos-fonte** — contra 19 cópias de 4 fontes na passada anterior <!-- acopla-ok: os dois comandos que produzem os números estão no bloco acima; "19" é narrativa histórica --> [confirmado — os dois comandos acima neste run]. Os maiores contribuintes: `resolve-plugin.sh` 16, `regua_texto.py` 11, `hook-json.sh` 11, `lib-tmpdir.sh` 11, `regua-de-pergunta.md` 9. O `sync-shared.sh` imprime o total no fim: `OK: vendoring concluído (N cópia(s)).`
+- 🔴 **O vendoring deixou de carregar só PROGRAMA e passou a carregar INSTRUÇÃO.** Três das quinze fontes são markdown lido pelo modelo — `regua-de-pergunta.md` (9 cópias), `contrato-familia.md` (4) e `antipadroes-de-teste.md` (2). A consequência de release é a mesma do código, mas o modo de falhar é pior: uma cópia defasada de `.py` costuma quebrar um teste, enquanto uma cópia defasada de instrução **só faz o modelo se comportar diferente conforme o plugin de entrada**, sem nada ficar vermelho. Quem pega é o check A (`--check` com `cmp -s`), e ele é a única rede.
+- ⚠️ **Régua de hook exige cópia mesmo quando quem chama é `.sh`.** Boa parte dos destinos do `regua_texto.py` são plugins que só emitem texto de hook, e o comentário do próprio `SPECS` diz por quê: *"o .sh chama a régua pela linha de comando, e o plugin instalado só enxerga a própria pasta — sem cópia aqui, a régua some em produção"*. Vendorar só quem faz `import` deixaria o gate mudo exatamente nos plugins que mais falam com o dono.
+- ⚠️ **`sessionstart-deps.sh` é a exceção que confirma a regra: uma cópia só.** Ele mora em `plugins/bootstrap/hooks/` e os outros onze plugins o alcançam em runtime por `resolve-plugin.sh bootstrap hooks/sessionstart-deps.sh`. É a alternativa ao vendoring — funciona porque o `resolve-plugin.sh` acha o plugin irmão **pelo nome** no cache do harness, nunca por caminho relativo, e sai 0 calado se o irmão não estiver instalado. Custo: o `bootstrap` vira dependência silenciosa de doze plugins.
 - **Comandos:** `bash scripts/sync-shared.sh` copia; `--check` não copia e sai 1 listando `DRIFT: <dest> difere de _shared/<arquivo>`. Fonte ausente é **exit 2**, distinto de drift.
 - **Estado neste run** [confirmado, executado]: `OK: cópias vendored idênticas a _shared/` (rc=0).
 
@@ -901,7 +904,7 @@ Hoje o comando é **quebrado em tokens** (o split inclui `(`, `)`, `;`, `&`, `|`
 
 ⚠️ **`--amend` é detectado, e ele muda o que o check C compara.** Como as aspas somem no split, a mensagem do commit vira token solto e um `--amend` escrito DENTRO dela passaria por flag; por isso só contam as opções **coladas ao subcomando** — o primeiro token que não é opção nem valor de opção encerra a varredura. Detectado o amend, o check C compara com **`HEAD~1:`** em vez de `HEAD:`, porque em amend o `HEAD` **é** o commit sendo reescrito e a comparação acusava `BUMP ESQUECIDO` de uma version que já estava dentro do próprio commit. Amend do commit raiz: `git show` falha e nada é acusado. [confirmado]
 
-**Suíte dedicada: `.claude/hooks/test_release_gate.sh` → `OK (30 checks)` nesta rodada** — ela exercita as quatro formas que passavam, o falso positivo do `git log --grep commit`, o `--amend` dentro da mensagem (*"é texto, não amend"*) e o fail-open fora do monorepo. ⚠️ **Ela mora em `.claude/hooks/`, fora dos globs dos checks D e F**, então nenhum commit a dispara automaticamente — mesma exceção das duas suítes de `scripts/`.
+**Suíte dedicada: `.claude/hooks/test_release_gate.sh` → `OK (43 checks)` nesta rodada** — ela exercita as quatro formas que passavam, o falso positivo do `git log --grep commit`, o `--amend` dentro da mensagem (*"é texto, não amend"*) e o fail-open fora do monorepo. ⚠️ **Ela mora em `.claude/hooks/`, fora dos globs dos checks D e F**, então nenhum commit a dispara automaticamente — mesma exceção das duas suítes de `scripts/`.
 
 **Quantos checks o gate tem hoje** — a contagem sai do próprio arquivo, nunca de um número escrito aqui:
 
@@ -909,15 +912,23 @@ Hoje o comando é **quebrado em tokens** (o split inclui `(`, `)`, `;`, `&`, `|`
 grep -cE '^# [A-Z0-9]+ · ' .claude/hooks/release-gate.sh
 ```
 
-O último a entrar foi o **P**, em 2026-08-08 [confirmado, derivado nesta rodada]:
+Nesta rodada entraram **seis de uma vez** — `J`, `K`, `L`, `M`, `N` e `O` —, e é o maior
+salto que o gate já teve. Todos vêm da mesma frente: transformar em cobrador mecânico o que
+antes era artigo escrito na constituição [confirmado, derivado nesta rodada]:
 
 ```bash
 grep -oE '^[[:space:]]*# [A-Z][0-9+C]* · ' .claude/hooks/release-gate.sh | grep -oE '[A-Z][0-9+C]*'
-# A · A2 · B+C · C · B · B2 · D · D2 · E · E2 · G · H · I · F     (14 rótulos)
-# — "B+C" é o cabeçalho do bloco que contém C, B e B2, então os checks distintos são 12
+# A · A2 · B+C · C · B · B2 · D · D2 · E · E2 · G · H · I · K · L · M · N · P · O · F · J
+#                                                                            (21 rótulos)
+# — "B+C" é o cabeçalho do bloco que contém C, B e B2, então os checks distintos são 19
 grep -oE '❌ [A-ZÁ-Ú ]+' .claude/hooks/release-gate.sh | sort -u | wc -l
-# → 11 mensagens de violação (D, D2 e F compartilham "❌ TESTE VERMELHO")
+# → 18 mensagens de violação (D, D2, F e J compartilham "❌ TESTE VERMELHO")
 ```
+
+⚠️ **As letras não seguem ordem alfabética no arquivo, e não são ordem de execução.** `O`
+está registrado depois de `P`, `F` e `J` fecham o arquivo. A ordem em que aparecem é ordem
+de quando foram escritas, e o gate acumula tudo em `VIOL` antes de decidir — então ler a
+letra como "etapa N" leva a conclusão errada.
 
 A ordem de execução não importa: todos só acumulam em `VIOL`.
 
@@ -934,7 +945,14 @@ A ordem de execução não importa: todos só acumulam em `VIOL`.
 - **H · dado pessoal em commit de repo público** — roda `python3 scripts/public_repo_check.py --staged`. Só olha o que **este** commit traz: *"dívida antiga não trava ninguém, mas ocorrência nova é barrada na porta"*. O comentário registra por que virou código: *"Regra em prosa não pega (o CLAUDE.md pedia isso e 368 ocorrências entraram assim mesmo)"*.
 - **I · gerador de página fora da régua de estilo** — roda `python3 scripts/regua_call_check.py --staged`. Arquivo que monta HTML e **não** chama a régua de `_shared/regua_texto.py` é barrado. Mesma regra do H: só o que **este** commit traz, porque os geradores que já estavam fora não podem travar trabalho alheio.
 - **P · disparo de processo que pode deixar filho para trás** — **novo em 2026-08-08**, e nasceu de uma máquina com **2125 processos `python3` órfãos**. Só quando o commit traz `.py`. Roda `python3 scripts/vazamento_check.py` e barra o disparo sem `stdin=` (o filho herda o terminal e espera para sempre — o teto **não** o alcança, porque ele não estourou) ou sem `start_new_session=` (o teto mata o filho e o **neto** sobrevive). Cobre também o lado Node, por regex: `stdio: 'inherit'`. Isenção: `vaza-ok: <motivo>` na linha. Ver §2.10.
+- **K · número do README contra o repositório** — roda `python3 scripts/readme_counts_check.py` quando o commit toca o README ou uma das fontes que alimentam os números dele. Nasceu com as **cinco** afirmações da vitrine defasadas de uma vez (19→21, 17→19, 46→68, 10→12, 34→54) ⇒ `❌ README DEFASADO`. É a lei do desacoplamento aplicada ao único doc que quem instala lê primeiro: *"plugin novo entra e a prosa fica"*.
+- **L · função nova que ninguém invoca** — roda `python3 scripts/fiscal_de_bancada.py --motivo sem-chamador`, só quando o commit traz `.py` (é onde ele lê AST) ⇒ `❌ PEÇA SEM CHAMADOR`. O defeito medido que o gerou: *"de quatro passos reprovados numa rodada, TRÊS tinham código bom — bem escrito, com teste próprio — que nenhum lugar da árvore chamava"*. **Peça que nunca roda não deixa suíte vermelha**, então sem este check o defeito só aparecia na revisão humana. Só o eixo `sem-chamador` entra; `sonda` e `nao-declarado` acusam arquivo não rastreado e travariam trabalho alheio.
+- **M · aviso escrito num canal que todo consumidor descarta** — mesmo cobrador do L, outro motivo (`--motivo aviso-no-vazio`), quando o commit traz `.py`/`.sh` ⇒ `❌ AVISO NO VAZIO`. Nasceu do irmão do defeito do L: a recusa era escrita em stderr e *"TODO caminho que chamava o script fechava a chamada com `2>/dev/null`"* — o aviso existia, tinha teste, e não chegava a ninguém.
+- **N · acoplamento novo entre plugins** — roda `python3 scripts/desacoplamento_check.py` quando o commit traz `.md`/`.sh`/`.py`/`.json`/`.yml` ⇒ `❌ ACOPLAMENTO NOVO`. É o Artigo 9 virando cobrador: plugin que aponta pro irmão **por posição** (`<raiz>/../<irmão>`) quebra na máquina de quem instalou, porque o cache do harness dá pasta própria a cada plugin; e contagem cravada em prosa envelhece sem avisar. ⚠️ **Diferente do H e do I, este NÃO tem `--staged`**: varre todo arquivo rastreado e só reprova achado que está **fora** de `.claude/desacoplamento.baseline.json` — dívida antiga passa, acoplamento novo não.
+- **O · plano e código discordando** — roda `python3 scripts/plano_vs_codigo.py` e barra passo **aberto** cujo critério de pronto o disco já cumpre ⇒ `❌ PLANO ATRASADO`. ⚠️ **É o único check SEM recorte por arquivo tocado, e de propósito**: `.claude/plans/` é gitignorado, então plano nenhum aparece em `$FILES` — recortar por arquivo o deixaria calado para sempre. Custo medido: ~0,6s. O comentário registra que ele existia e ninguém o consultava: *"ele rodava e acusava sem que portão nenhum o consultasse"*.
 - **F · testes shell** — roda `plugins/<nome>/hooks/test_*.sh` dos plugins tocados.
+- **J · as suítes que nenhum glob de plugin casa** — as de `scripts/` e as `.py` dentro de `hooks/`. Nasceu de um buraco declarado: *"`grep -n 'scripts/test_' .claude/hooks/release-gate.sh` não devolvia nada, e as suítes de portabilidade tinham medidor sem cobrador no commit"*. Escopo: commit que toca `scripts/`, `plugins/*/hooks/`, `.claude/hooks/` ou `.gitattributes`. Custo medido em 2026-08-06: **~100s**, dos quais 80s são de `scripts/test_bootstrap_aviso.sh` — é o check mais caro do gate, e o recorte existe porque em todo commit seria proibitivo.
+  - ⚠️ **Ele é o único que reprova por AUSÊNCIA de arquivo**: `❌ GLOB VAZIO` dispara quando um padrão deixa de casar qualquer coisa, *"suíte renomeada ou apagada deixaria o gate verde sem rodar nada"*. É a mesma asserção de quantidade de `.github/workflows/portability.yml`.
 
 ⚠️ **D e F são por plugin TOCADO, não por repo.** Um commit que só mexe no `bootstrap` roda exatamente `plugins/bootstrap/lib/test_*.py` e `plugins/bootstrap/hooks/test_*.sh` e mais nada. **Plugin sem suíte não é plugin sem teste: é plugin cujos checks D e F estão desligados.**
 
@@ -947,19 +965,22 @@ Bloco de saída literal quando algo viola:
 Conserte e commite de novo. (Gate mecânico: .claude/hooks/release-gate.sh)
 ```
 
-### 5.3 Contrato dos hooks — as 5 propriedades
+### 5.3 Contrato dos hooks — as 6 propriedades
 
-Quem mede é `scripts/hook_contract.py`; quem cobra é o check E. As cinco propriedades, copiadas da docstring do medidor [confirmado]:
+Quem mede é `scripts/hook_contract.py`; quem cobra é o check E. As seis propriedades, copiadas da docstring do medidor [confirmado]:
 
 1. **canal de saída** — como o hook fala (bloqueia? informa? só loga?). Os três canais de bloqueio coexistem e **não** foram normalizados: `exit 2`, `permissionDecision:"deny"`, `decision:"block"` — *"Não normalizo: só meço."*
 2. **cap anti-loop** — quem bloqueia tem teto de devoluções, e a chave do teto é **por sessão** (`SESSION_SCOPED`).
 3. **kill-switch** — dá pra desligar sem editar o arquivo.
 4. **binário fixo** — caminho absoluto de ferramenta (`/opt/homebrew/bin/…`) é achado de gravidade **high**: some fora do Mac com Homebrew e o hook cai no fail-open em silêncio.
 5. **fail-open** — guarda a ausência das ferramentas que usa (`EXTERNAL_TOOLS = ("jq", "python3", "node", "graphify")`).
+6. **o NOME diz quando roda e se barra** — regra `R6`, nova nesta rodada. O molde é `<evento>-<verbo>-<assunto>.<sh|py>`: o prefixo é o evento em que o script está **registrado**, e o verbo declara o poder. Verbos que barram: `barra`, `exige`, `trava`, `recusa`. Verbos que só avisam: `avisa`, `anota`, `mede`, `lembra`, `resume`, `sincroniza`, `colhe`, `abre`. ⚠️ **O verbo não é decorativo: é conferido contra o canal MEDIDO no script**, então um `-avisa-` que sai com `exit 2` reprova igual a um nome fora do molde. Um script registrado em dois eventos passa se o prefixo casar com **um** deles. O defeito que a motivou está no comentário: *"`scope-cop.sh`, `mark-work.sh` e `delivery-audit.sh` são o mesmo problema: pra saber quando cada um roda e se ele trava o agente era preciso abrir os três"*.
+
+⚠️ **A R6 é a razão de o número de achados ter explodido — e a maioria é DÍVIDA DECLARADA, não regressão.** Sem baseline, o medidor devolve **47 achados (45 alta · 2 média)** neste run, quase todos `R6-*` em hooks que já existiam com o nome antigo. Como o check E só barra o que **piorou** contra `.claude/hook-contract.baseline.json`, o commit passa — a regra vale para hook novo, e os velhos entram quando forem renomeados.
 
 O próprio script se declara falível [confirmado, citação literal]: *"⚠️ **Isto é grep sofisticado, não verdade.** O script diz ONDE OLHAR."* E a escolha de calibração tem direção declarada: *"Detectar um cap que não existe é o erro CARO … Detectar de menos só gera um falso alarme que a conferência derruba."*
 
-**Os kill-switches de hoje**, derivados mecanicamente (`grep -rhoE '\$\{[A-Z_]+_GATE:-[01]\}' plugins/*/hooks/*.sh | sort -u`) [confirmado]: `ASKQ_GATE`, `BRANCHES_GATE`, `DOC_AUTORAL_GATE`, `DOC_GUARD_GATE`, `GRAPHIFY_GATE`, `HANDOFF_GATE`, `LINT_GATE`, `ORGANISM_GATE`, `PLAN_DOC_GATE`, `SCOPE_COP_GATE`, `SHIP_GATE`, `SOVAI_GATE`, `VISUAL_GATE` — **treze**. Os hooks Python usam a mesma ideia com outra grafia, e hoje são **quatro**: `PROSE_CEILING=0`, `FORMA_RELATO=0`, `REGUA_RELATO=0` e `ARTEFATO_REGUA=0` (§1.17).
+**Os kill-switches de hoje**, derivados mecanicamente (`grep -rhoE '\$\{[A-Z_]+_GATE:-[01]\}' plugins/*/hooks/*.sh | sort -u`) [confirmado]: `ASKQ_GATE`, `BOOTSTRAP_DEPS_GATE`, `BRANCHES_GATE`, `DOC_AUTORAL_GATE`, `DOC_GUARD_GATE`, `GAUNTLET_GATE`, `GRAPHIFY_GATE`, `HANDOFF_GATE`, `LINT_GATE`, `ORGANISM_GATE`, `PLAN_DOC_GATE`, `SCOPE_COP_GATE`, `SHIP_GATE`, `SOVAI_GATE`, `VISUAL_GATE` — **quinze**. Os dois novos são `GAUNTLET_GATE` (o gate de `Agent` do gauntlet) e `BOOTSTRAP_DEPS_GATE` (o `sessionstart-deps.sh` compartilhado). Os hooks Python usam a mesma ideia com outra grafia, e hoje são **quatro**: `PROSE_CEILING=0`, `FORMA_RELATO=0`, `REGUA_RELATO=0` e `ARTEFATO_REGUA=0` (§1.17).
 
 **O marcador que desarma um falso-positivo do medidor de colisão** [confirmado, costura verificada nos dois lados]: `conformance.py:check_hooks_duplicados` só conta como "disputante" o hook que **bloqueia**, e um script pode se declarar avisador com o comentário literal `# conformance: default-warn`. Hoje quem carrega a marca é `plugins/graphify-guard/hooks/pretooluse-graphify-guard.sh` (*"o caminho de deny existe, mas só com GRAPHIFY_DENY=1"*), e `plugins/graphify-guard/hooks/test_graphify_guard.sh` testa a presença dela [confirmado, os dois lados existem hoje].
 
@@ -967,11 +988,11 @@ O próprio script se declara falível [confirmado, citação literal]: *"⚠️ 
 
 ```
 python3 scripts/hook_contract.py --baseline .claude/hook-contract.baseline.json --fail-on high
-# Contrato dos hooks — 38 registros, 37 scripts distintos
+# Contrato dos hooks — 59 registros, 45 scripts distintos
 # Nenhum achado. Todos os hooks batem com o contrato.   (rc=0)
 ```
 
-Sem baseline há **3** achados vivos, todos já congelados no retrato: `R1-cap-ausente` em `ship/pre-deploy-test-check.sh`, e `R5-sem-failopen` em `bootstrap/session-sync.sh` (jq) e `project-doc/sessionstart-doc.sh` (python3) [confirmado, `--json` desta rodada].
+Sem baseline há **47** achados vivos (45 alta · 2 média), todos já congelados no retrato — contra 3 na passada anterior. O salto é da regra `R6` recém-nascida, que reprova o nome de quase todo hook antigo; os achados de gravidade que **não** são `R6` continuam sendo o `R1-cap-ausente` em `ship/pre-deploy-test-check.sh` e os dois `R5-sem-failopen` [confirmado, `--json` desta rodada].
 
 ### 5.4 O ponto cego atual: o medidor só entende SHELL
 
@@ -1072,8 +1093,8 @@ Suites executadas nesta rodada, com o número que cada uma imprime [confirmado, 
 - `plugins/guardrails/hooks/test_scope_cop.sh` — `15 passou · 0 falhou`
 - `plugins/ship/hooks/test_pre_deploy.sh` — `100 ok, 0 falhas`
 - `plugins/visual/lib/test_visual_page.py` — `68 passou · 0 falhou` (eram 60; entraram os casos do bloco de prova colapsável)
-- `plugins/visual/lib/test_plan_state.py` — `OK` (173 asserções `ok`; eram 135)
-- `plugins/visual/lib/test_cobertura.py` — `OK` (13 asserções `ok`)
+- `plugins/project-skills/lib/test_plan_state.py` — `OK` (173 asserções `ok`; eram 135)
+- `plugins/project-skills/lib/test_cobertura.py` — `OK` (13 asserções `ok`)
 - `plugins/slides/lib/test_md2deck.py` — `50 passou · 0 falhou`
 
 **As três suítes que nasceram na rodada de consertos**, todas verdes aqui [confirmado, executadas nesta passada]:

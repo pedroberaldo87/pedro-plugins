@@ -16,8 +16,14 @@ scope:
   - plugins/intent-guard/lib/ledger.py
   - _shared/green-cache.sh
   - plugins/visual/server/visual_server.mjs
-  - plugins/visual/lib/plan_state.py
-  - plugins/visual/lib/cobertura.py
+  - plugins/project-skills/lib/plan_state.py
+  - plugins/project-skills/lib/cobertura.py
+  - .claude/suite-congela.baseline.json
+  - .claude/fio-morto.baseline.json
+  - .claude/custo-gatilho.baseline.json
+  - .claude/desacoplamento.baseline.json
+  - plugins/sovai/lib/andamento.py
+  - plugins/sovai/hooks/posttooluse-andamento.sh
   - plugins/visual/lib/visual_page.py
   - plugins/visual/hooks/stop-plan-status.sh
   - plugins/handoff/skills/handoff/SKILL.md
@@ -34,8 +40,8 @@ scope:
   - plugins/bootstrap/lib/conformance.py
   - plugins/project-doc/hooks/stop-doc-touch.sh
 verified-by:
-  - plugins/visual/lib/test_plan_state.py
-  - plugins/visual/lib/test_cobertura.py
+  - plugins/project-skills/lib/test_plan_state.py
+  - plugins/project-skills/lib/test_cobertura.py
   - plugins/visual/lib/test_visual_page.py
   - plugins/handoff/lib/test_handoff_skill.py
   - plugins/intent-guard/lib/test_ledger.py
@@ -401,6 +407,18 @@ Depósito **novo nesta rodada**, irmão do B8 e deliberadamente diferente dele: 
 - **Por que o log é o ativo:** a detecção é lexical e o teto é conhecido — promessa escrita fora dos padrões passa batido. O `batidas.log` é o único jeito de medir se o léxico está largo ou estreito demais, e de auditar falso positivo depois do fato.
 - ⚠️ **Nenhum verificador o lê ainda.** Diferente do `forma-relato`, que o `conformance.py` cobra em duas checagens, este log nasce sem par: se o hook parar de rodar, nada acusa.
 
+### B13 · `${CLAUDE_CONFIG_DIR:-~/.claude}/andamento/` — 316K · a memória de quanto cada comando demora
+
+- **Nasceu nesta rodada** com `plugins/sovai/lib/andamento.py` + `plugins/sovai/hooks/posttooluse-andamento.sh` (runtime, fluxo 19).
+- ⚠️ **A pasta é NEUTRA, e isso é decisão, não descuido.** O comentário do módulo diz por quê: *"Quatro plugins já chamam este módulo; a pasta batizada com o nome de um deles fazia o estado dos outros parecer emprestado."* Ela **não** mora em `~/.claude/sovai/` (que é o B11, o interruptor da missão).
+- **Dois tipos de arquivo, com naturezas opostas** [confirmado — `ls` da pasta neste run]:
+  - **`duracoes-<caminho-do-projeto-com-hifens>.json`** — o ativo de verdade. Dicionário `comando → [duração, duração, …]`; nesta máquina são **1896 chaves em 308K**, sobre este repositório. É a memória que faz a estimativa existir: comando sem histórico aqui sai **sem** número, e é o acúmulo que muda isso.
+  - **`placar-<session_id>`** — efêmero, por sessão, ~117 bytes. Guarda o último placar lido da suíte (`{"placar": {...}, "linha": "..."}`) pra responder "andou ou não andou" no turno seguinte.
+- 🔴 **A duração é o único depósito deste repositório cujo VALOR cresce com o tempo e não é reconstruível.** Todo o resto do inventário ou é regenerável por comando (grafo, baselines) ou é registro de um evento passado (atas, journal). Aqui não: a mediana de uma suíte só existe porque aquela suíte rodou 40 vezes nesta máquina. Apagar o arquivo não quebra nada — o narrador volta a sair sem estimativa —, mas a memória recomeça do zero e leva semanas de uso para voltar.
+- ⚠️ **A chave é o comando LITERAL, aspas e quebras de linha inclusive** [confirmado — as chaves lidas do arquivo são o texto cru do Bash]. Consequência: a mesma suíte chamada com um espaço a mais é outro comando, e herda estimativa nenhuma.
+- **Chaveamento por projeto está no NOME do arquivo**, não numa chave interna — o caminho do projeto vira sufixo com barras trocadas por hífen. Dois projetos não se contaminam.
+- **Sem cobertura de backup**, como todo o bloco (B).
+
 ### B12 · `~/.claude/vision.json` — o endpoint do servidor de visão
 
 - **Nasceu em 2026-08-03** com o plugin `vision` (commit `4a4b59d`, v0.1.0). **112 bytes**, um arquivo único. [confirmado — `ls -la` + conteúdo lido]
@@ -556,7 +574,7 @@ No topo do plano, ao lado de `phases`:
   - **No topo do plano**, TODA chave que o `init` não trouxe, e não mais só `created` e `status`. O que morria na lista fixa era justamente o bloco `requisitos` — a fonte que as tarefas citam — e o `closed_at`. Perder `requisitos` no segundo `init` desligava, em silêncio, o portão que recusa citação para o nada: sem fonte, `reqs` fica vazio e a checagem não roda.
   - **Apagar de propósito continua possível e agora é uniforme: declare a chave VAZIA** (`"requisitos": []`), porque o merge só preenche o ausente. É a mesma regra que já valia para a `pendencia`.
 - **`cmd_reabrir` é o caminho de volta:** desfaz uma `decidido`, devolve o texto dela para `pendencia` e a tarefa para `todo`, zerando `evidence` e `done_at`. Existe porque *"toda decisão tomada na ausência do dono seja reversível por construção"* — sem ele, `decidido` seria fato consumado. [confirmado]
-- **Quem calcula em cima disso NÃO guarda nada:** `plugins/visual/lib/cobertura.py` é arquivo novo e **não é depósito** — lê os requisitos de um markdown (`le_requisitos`), cruza com o plano (`mapa`) e devolve a linha única (`resumo`). Zero escrita em disco. A vista "épico › requisito › grupo › tarefa" é **derivada, não armazenada**, pelo mesmo princípio que faz a fase não ter estado próprio. [confirmado — o arquivo tem 79 linhas e nenhuma abre arquivo para escrita]
+- **Quem calcula em cima disso NÃO guarda nada:** `plugins/project-skills/lib/cobertura.py` é arquivo novo e **não é depósito** — lê os requisitos de um markdown (`le_requisitos`), cruza com o plano (`mapa`) e devolve a linha única (`resumo`). Zero escrita em disco. A vista "épico › requisito › grupo › tarefa" é **derivada, não armazenada**, pelo mesmo princípio que faz a fase não ter estado próprio. [confirmado — o arquivo tem 79 linhas e nenhuma abre arquivo para escrita]
 - **Por que o arquivo existe:** antes disto o plano só vivia no transcript e todo consumidor o **re-derivava por LLM** — lossy: encurta, renomeia fase, chuta se já foi executado. O caso concreto está citado na docstring (`extract_ata.py`: `excerpt: txt[:1200]` e `likely_executed = commits_after > 0 or edits_after >= 3` — um plano de 10 fases + 1 commit virava "concluído").
 - **A correção é estrutural:** o modelo **autora uma vez** (`init`) e daí em diante só **marca** (`tick`). Quem desenha a árvore é o programa lendo o arquivo. Como o modelo nunca redigita um título, não há de onde a mudança de nome vir.
 - **As travas do schema, lidas de `validate()`:** `id` slug minúsculo; fase casa `F<n>`, passo casa `F<n>.<m>` com prefixo batendo com a fase; `desc` obrigatório e ≤ `DESC_MAX = 140` chars (*"é UMA linha, não um parágrafo"*); `status` ∈ `("todo","doing","blocked","done")`. Erros saem **todos de uma vez**, pra o autor não gastar N rodadas.
@@ -574,7 +592,7 @@ No topo do plano, ao lado de `phases`:
 - **Leitura tem porta única, e ela nomeia o estrago:** `plan_state.py:le_plano`. Arquivo que não abre ou não é JSON vira `PlanError` com o CAMINHO e a CAUSA (*"o arquivo existe e não é JSON válido. Conserte-o à mão — é o registro do que já foi feito, e nada aqui o reescreve"*), em vez de traceback. Quem LISTA (`list_plans`) segue engolindo o arquivo torto de propósito: um byte errado num plano não pode apagar os outros 12 da listagem. [confirmado, e a suíte fecha com a asserção `list_plans pula o corrompido`]
 - **Quem lê no fim do turno:** `plugins/visual/hooks/stop-plan-status.sh`, via `plan_state.py brief`. Canal `systemMessage` (informa, nunca bloqueia), desligável por `PLAN_STATUS=0` / `PLAN_NUDGE=0`. Costura confirmada nos dois lados. [confirmado] O resumo que ele mostra **parou de afirmar prova sem olhar a prova**: o trecho *"cada um com prova anexada"* era escrito por construção e hoje só entra depois de `plan_state.py:_com_prova` conferir a `evidence` de cada passo feito. [confirmado]
 - **Quem lê na hora de guardar a sessão:** a skill `handoff`. Ela passou a **ler os campos do arquivo em vez de pedir que sejam reinventados** — a árvore de `render --format text` é a vista de execução e não mostra `pronto`, `pendencia` nem `requisito`, que são justamente os três que a sessão seguinte ia redigir de cabeça. A `SKILL.md` traz o comando que os imprime e manda copiá-los **verbatim**: o `pronto` vira o "Critério de pronto" e a `pendencia` vira "Decisão em aberto", com o passo marcado como **bloqueado** — listar como executável um passo cuja `pendencia` trava o tique manda a próxima sessão bater na mesma parede sem saber qual é a pergunta. [confirmado — `plugins/handoff/skills/handoff/SKILL.md`, e a suíte `plugins/handoff/lib/test_handoff_skill.py` executa o comando prescrito e cobra a prosa]
-- **Natureza: registro de trabalho, insubstituível, sem cobertura.** Verde em `plugins/visual/lib/test_plan_state.py` nesta rodada.
+- **Natureza: registro de trabalho, insubstituível, sem cobertura.** Verde em `plugins/project-skills/lib/test_plan_state.py` nesta rodada.
 
 ### A5 · `.claude/hook-contract.baseline.json` — o retrato do contrato dos hooks
 
@@ -599,6 +617,24 @@ No topo do plano, ao lado de `phases`:
 - ⚠️ **Barra a deriva, nunca o número.** O total está em **6 de um teto de 6** — um gate por número absoluto barraria o próximo commit que tocasse hook sem nada ter piorado. Retrato ilegível **não** barra (fail-open explícito, com 2 checks em `test_hook_contract.py`).
 - **Natureza: RECONSTRUÍVEL, com julgamento embutido** — igual ao A5. Regerar é um comando; o que não se regenera é a decisão de aceitar uma piora, que é o próprio ato de recongelar.
 - **Nenhum hook o reescreve sozinho**, pelo mesmo motivo do A5: baseline que se auto-atualiza aceita qualquer regressão em silêncio.
+
+### A5d · Os quatro retratos NOVOS — a família de baselines virou seis
+
+Nesta rodada o repositório passou de dois retratos congelados (A5 e A5a) para **seis**, e todos seguem o mesmo contrato: JSON rastreado, regerado por comando, lido por um check do `release-gate.sh`, e **nunca reescrito por hook**. A lista vive no git, não aqui:
+
+```bash
+git ls-files '.claude/*.baseline.json'   # a família de hoje
+wc -c .claude/*.baseline.json            # o tamanho de cada um
+```
+
+Os quatro que entraram, com o que cada um congela [confirmado — leitura dos arquivos e do `release-gate.sh` neste run]:
+
+- **`.claude/desacoplamento.baseline.json`** — **95 entradas, 14K.** A dívida de acoplamento **já existente**: plugin que aponta pro irmão por posição, ou contagem cravada em prosa. Lido pelo check **N**, que reprova só o que aparece **fora** desta lista. É o único da família cujo cobrador não tem `--staged`: ele varre todo arquivo rastreado, e o baseline é o que impede a dívida antiga de travar trabalho novo.
+- **`.claude/suite-congela.baseline.json`** — **273 entradas, 30K.** O maior da família. Congela o estado das suítes para que uma que deixe de rodar não passe despercebida.
+- **`.claude/custo-gatilho.baseline.json`** — **550 bytes**, e é o único que não é lista: as chaves são `medido_em`, `como`, `por_skill` e `total_caracteres`. Congela **quanto texto de gatilho de skill entra no contexto** — o custo que toda sessão paga antes de a primeira palavra ser digitada. ⚠️ **`medido_em` e `como` estão dentro do dado de propósito**: número de custo sem a data e o método que o produziram não é comparável com o da próxima medição.
+- **`.claude/fio-morto.baseline.json`** — **1 entrada, 74 bytes.** O menor da família. Congela o fio morto conhecido; a lista de uma entrada é o que diz que a régua está limpa hoje, não que ela nunca achou nada.
+
+⚠️ **A natureza de todos é a mesma do A5, e ela é sutil: RECONSTRUÍVEL, com julgamento embutido.** Regerar qualquer um é um comando. O que **não** se regenera é a decisão de aceitar uma piora — e essa decisão *é* o ato de recongelar. Perder o arquivo não perde dado; perde o registro de que alguém olhou e disse "isto pode ficar".
 
 ### A5b · tags `archive/<branch>-<data>` — a rede do `/branches`, e ela está rompida
 

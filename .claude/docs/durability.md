@@ -5,8 +5,14 @@ project: pedro-plugins
 scope:
   - .gitignore
   - .git/info/exclude
-  - plugins/visual/lib/plan_state.py
-  - plugins/visual/lib/cobertura.py
+  - plugins/project-skills/lib/plan_state.py
+  - plugins/project-skills/lib/cobertura.py
+  - .claude/suite-congela.baseline.json
+  - .claude/fio-morto.baseline.json
+  - .claude/custo-gatilho.baseline.json
+  - .claude/desacoplamento.baseline.json
+  - plugins/sovai/lib/andamento.py
+  - plugins/sovai/hooks/posttooluse-andamento.sh
   - plugins/handoff/skills/handoff/SKILL.md
   - _shared/green-cache.sh
   - plugins/project-doc/lib/journal.py
@@ -29,8 +35,8 @@ verified-by:
   - plugins/bootstrap/lib/test_conformance.py
   - plugins/intent-guard/lib/test_ledger.py
   - plugins/project-doc/lib/test_journal.py
-  - plugins/visual/lib/test_plan_state.py
-  - plugins/visual/lib/test_cobertura.py
+  - plugins/project-skills/lib/test_plan_state.py
+  - plugins/project-skills/lib/test_cobertura.py
   - plugins/handoff/lib/test_handoff_skill.py
 doc-sig: pedro-plugins/.gitignore@gen=3.8#3cf03db6
 ---
@@ -265,21 +271,21 @@ Cada bloco abaixo diz o mesmo em variações: existe no disco desta máquina, n�
 ### 3.5 · Planos ticáveis — `.claude/plans/*.plan.json` e `~/.claude/plans/`
 
 - [confirmado] `.claude/plans/` ignorado por `.gitignore:18`. **13** arquivos no repo (**132K**, 115.686 bytes de JSON); `~/.claude/plans/` está em **2,3M**.
-- ⚠️ **Costura desalinhada, verificada nos dois lados** [confirmado, reconferido nesta rodada]: o docstring de `plugins/visual/lib/plan_state.py` diz que o plano mora em `<raiz>/.claude/plans/<id>.plan.json` e é "VERSIONADO no git de propósito: a dor é perda". `git check-ignore -v .claude/plans/` devolve `.gitignore:18`. O motivo escrito no `.gitignore` (registro de trabalho, com nome de cliente e caminho de máquina) venceu; o comentário do código ficou para trás.
+- ⚠️ **Costura desalinhada, verificada nos dois lados** [confirmado, reconferido nesta rodada]: o docstring de `plugins/project-skills/lib/plan_state.py` diz que o plano mora em `<raiz>/.claude/plans/<id>.plan.json` e é "VERSIONADO no git de propósito: a dor é perda". `git check-ignore -v .claude/plans/` devolve `.gitignore:18`. O motivo escrito no `.gitignore` (registro de trabalho, com nome de cliente e caminho de máquina) venceu; o comentário do código ficou para trás.
 - 🔴 **O que está sem cobertura AUMENTOU nesta rodada, e não em bytes.** O arquivo passou a guardar cinco campos novos por tarefa (`requisito`, `pronto`, `grupo`, `pendencia`, `decidido`) e um bloco `requisitos` no topo do plano. O bloco é a **fonte de requisitos** para projeto sem documento separado — *"o caso deste repositório, que não tem PRD"* [confirmado, docstring de `_requisitos_do_plano`]. Ou seja: num projeto assim, o `.plan.json` deixa de ser só o registro do que foi feito e passa a ser **o único lugar onde o que o sistema deve fazer está escrito**. Perdê-lo passou a perder também o pedido, não só a execução. E a dependência ficou mais forte nesta rodada: a skill `handoff` passa a **copiar verbatim** o `pronto` e a `pendencia` do arquivo para o documento de retomada, em vez de redigi-los de novo — sem o arquivo, a sessão seguinte volta a inventar o critério de pronto. [confirmado — `plugins/handoff/skills/handoff/SKILL.md` + `plugins/handoff/lib/test_handoff_skill.py`]
 - [confirmado, derivado nesta rodada] **Nenhum dos 13 planos no disco usa esses campos ainda** — as chaves de topo dos 13 são só `id`, `title`, `phases`, `created`, `status` e `closed_at`. A exposição descrita acima é do formato, não do conteúdo de hoje.
 - O que o formato protege sozinho: `save()` escreve em `<path>.tmp` e faz `os.replace()` — escrita atômica, então falha no meio não corrompe o plano. `merge()` recusa renomear um id existente sem `--rename`, mantém nós que não vieram no `init` novo e **recarrega do arquivo tudo o que o `init` omitiu** — um init que esquece não apaga histórico, pelo mesmo motivo que não apaga a prova. `cmd_tick()` exige `--evidencia` com pelo menos `EVIDENCE_MIN = 8` caracteres e recusa tarefa com decisão em aberto; `erros_do_plano()` fecha a mesma porta no `init`, recusando `status: "done"` com prova abaixo do mesmo teto. `cmd_reabrir()` desfaz uma decisão registrada em `decidido`, devolvendo-a a `pendencia` — reversibilidade por construção, não por backup.
 - 🔴 **A perda mais cara deste depósito não era o disco falhar: era o próprio programa apagar.** Até a rodada de consertos, `merge()` preservava uma lista fixa de campos no nó e apenas `created`/`status` no topo — então **o segundo `init` do mesmo plano apagava, calado, o bloco `requisitos`, o `closed_at` e o `detail` de toda fase**. Num projeto sem documento separado, o bloco `requisitos` é *o único lugar onde o que o sistema deve fazer está escrito* (parágrafo acima): perdê-lo não era só perder texto — desligava também o portão que recusa citação a requisito inexistente, porque sem fonte a checagem não roda. Os 13 planos no disco carregam **60 blocos `detail`** que estavam nessa exposição. Hoje a preservação vale para toda chave ausente, e apagar de propósito é declarar a chave **vazia**. [confirmado — `plan_state.py:merge`; os 60 derivados com `json.load` sobre os 13 arquivos nesta rodada]
 - **Leitura tem porta única que nomeia o estrago:** `le_plano()` converte arquivo ilegível ou JSON inválido em erro com o CAMINHO e a CAUSA, dizendo que o conserto é à mão *"porque é o registro do que já foi feito, e nada aqui o reescreve"* — em vez do traceback que não dizia sequer qual arquivo estava torto. `list_plans()` segue engolindo o arquivo quebrado de propósito: um byte errado não pode derrubar a listagem dos outros 12. [confirmado]
-- 🟡 **A `evidence` ganhou FORMA em 2026-08-03, e isso muda o que se perde junto com o arquivo.** `cmd_tick()` passou a recusar prova acima de `BULLET_MAX = 140` caracteres num bloco só — a condição é `len(ev) > BULLET_MAX and len(prova_bullets(ev)) < 2`, e `prova_bullets` quebra só onde quem escreveu já separou (`\n`, ` · `, `; `, ` + `). **Saída crua de comando passa inteira**, porque já vem quebrada; o teto morde o texto redigido pelo modelo. [confirmado, `plugins/visual/lib/plan_state.py:cmd_tick`]
+- 🟡 **A `evidence` ganhou FORMA em 2026-08-03, e isso muda o que se perde junto com o arquivo.** `cmd_tick()` passou a recusar prova acima de `BULLET_MAX = 140` caracteres num bloco só — a condição é `len(ev) > BULLET_MAX and len(prova_bullets(ev)) < 2`, e `prova_bullets` quebra só onde quem escreveu já separou (`\n`, ` · `, `; `, ` + `). **Saída crua de comando passa inteira**, porque já vem quebrada; o teto morde o texto redigido pelo modelo. [confirmado, `plugins/project-skills/lib/plan_state.py:cmd_tick`]
 - **Consequência de durabilidade: a prova ficou mais densa e continua sem cópia.** A recusa empurra a `evidence` para saída de comando e sha em vez de parágrafo — mais verificável e menos reescrevível de memória. Um plano perdido antes custava uma narrativa que alguém poderia recontar; hoje custa o registro literal do comando que rodou e do que ele devolveu, que ninguém reconstitui de cabeça.
 - ⚠️ **O teto vem de fora do módulo** (`from regua_texto import BULLET_MAX`, e `DESC_MAX = BULLET_MAX`), da cópia vendorada em `plugins/visual/lib/` — uma das **9** que o `sync-shared.sh` mantém. Perder a cópia não perde plano, mas faz o `plan_state.py` parar de importar: a régua compartilhada virou dependência de execução do depósito, não só do renderizador. [confirmado]
 - **A prova já gravada não é reavaliada** — a recusa é do momento de gravar. Os planos no disco com prova antiga em bloco único seguem válidos e nada os migra.
 - [confirmado, medido nesta rodada] O depósito cresceu de 13 para **18** planos (**192K**, 163.576 bytes), e hoje há **um** plano ativo (`2026-08-03-a-constituicao-se-cumpre`) — o impasse dos dois ativos simultâneos deixou de ser o estado deste disco.
 - Nada disso é cobertura: protege contra o plano *virar outro*, não contra o arquivo sumir.
-- Coberto por teste [confirmado, rodado nesta sessão]: `python3 plugins/visual/lib/test_plan_state.py` → `OK` (173 asserções `ok`, contra 135 antes da rodada de consertos; a última impressa é `list_plans pula o corrompido`) e `python3 plugins/visual/lib/test_cobertura.py` → `OK` (13).
+- Coberto por teste [confirmado, rodado nesta sessão]: `python3 plugins/project-skills/lib/test_plan_state.py` → `OK` (173 asserções `ok`, contra 135 antes da rodada de consertos; a última impressa é `list_plans pula o corrompido`) e `python3 plugins/project-skills/lib/test_cobertura.py` → `OK` (13).
 
-#### 3.5.1 · O calculador do fio — `plugins/visual/lib/cobertura.py`
+#### 3.5.1 · O calculador do fio — `plugins/project-skills/lib/cobertura.py`
 
 - [confirmado] **Arquivo novo desta rodada, e NÃO é depósito.** 79 linhas, três funções (`le_requisitos`, `mapa`, `resumo`), nenhuma escrita em disco. Lê um markdown de requisitos, cruza com o plano e devolve os quatro estados do fio (coberta · sem requisito · requisito órfão · citação inexistente).
 - **Consequência de durabilidade: nenhuma direta, e uma indireta que importa.** Perder o arquivo é perder código, que está no `plugins/**` coberto pelo remote (§2.1). Mas a saída dele — a cobertura entre requisito e tarefa — **é derivada em toda leitura, nunca armazenada**, então não há o que envelhecer nem o que restaurar: some junto com o plano e volta junto com ele.
@@ -297,6 +303,24 @@ Nasceu em 2026-08-02. Irmão do §3.6, e a diferença de cobertura entre os dois
 - 🟢 **Este é RASTREADO** — `git ls-files` o encontra. Ao contrário do §3.6, ele não carrega caminho absoluto de máquina (só `plugin`, `script`, `linhas`, `timeout`), então **viaja no repositório e está coberto pelo backup do git**.
 - **Consequência prática:** o gate de deriva do fim de turno funciona em qualquer clone; o gate de contrato (§3.6) não, porque o baseline dele mora só nesta máquina.
 - Regenerável por um comando (`--stop-budget --json`). O que a perda custa é a **decisão**: recongelar é o ato de aceitar uma piora, e um retrato regenerado do zero aceita silenciosamente o estado atual, seja ele qual for.
+
+### 3.6b · Os quatro retratos novos — `desacoplamento`, `suite-congela`, `custo-gatilho`, `fio-morto`
+
+Nasceram nesta rodada e levaram a família de baselines de dois para seis. Anatomia em `data-stores.md §A5d`. A lista viva sai de `git ls-files '.claude/*.baseline.json'`.
+
+- 🟢 **Todos RASTREADOS, logo COBERTOS pelo backup do git** — mesma situação do §3.6a e diferente do §3.6, que carrega caminho absoluto de máquina e por isso não viaja.
+- **Consequência prática:** os checks **N**, **J**, **K** e o do fio morto funcionam em qualquer clone; o check **E** (contrato dos hooks) continua sendo o único da família que depende de um baseline local.
+- **RPO/RTO:** o mesmo do repositório — perde-se o que não foi commitado, e restaurar é um `git checkout`.
+- ⚠️ **O que a perda custa é a DECISÃO, não o dado.** Regerar qualquer um é um comando; um retrato regenerado do zero aceita, em silêncio, o estado atual — inclusive a regressão que alguém tinha barrado ontem. Vale sobretudo para o `desacoplamento.baseline.json`, cujas 95 entradas são dívida que alguém leu e decidiu tolerar.
+
+### 3.20 · Memória de duração dos comandos — `~/.claude/andamento/`
+
+Nasceu nesta rodada. Anatomia em `data-stores.md §B13`.
+
+- 🔴 **SEM COBERTURA NENHUMA** — mora fora do repositório, em `${CLAUDE_CONFIG_DIR:-~/.claude}/andamento/`, como todo o bloco (B). Nenhum mecanismo o copia.
+- 🔴 **É o único ativo do inventário que NÃO é reconstruível nem por comando nem por um evento passado.** Grafo e baselines se regeneram; atas e journal registram algo que aconteceu e pode ser relido. Aqui o dado *é* a estatística acumulada: a mediana de uma suíte só existe porque ela rodou dezenas de vezes nesta máquina.
+- **RPO: total. RTO: semanas de uso.** Apagar não quebra funcionalidade — o narrador do fluxo 19 volta a sair só com o relógio, sem estimativa —, mas a memória recomeça do zero e só volta com o tempo.
+- **Nada acusa a perda.** Não há verificador que leia esta pasta; um `rm -rf` passaria despercebido até alguém notar que as estimativas sumiram. É lacuna declarada, não cobertura.
 
 ### 3.7 · Ledger do intent-guard — `<projeto>/.claude/intent/`
 
@@ -519,15 +543,17 @@ $ bash plugins/bootstrap/hooks/test_bootstrap_hooks.sh      # 36 ok · 0 FAIL
 $ python3 plugins/bootstrap/lib/test_conformance.py         # 59 ok · 0 FAIL
 $ python3 plugins/intent-guard/lib/test_ledger.py           # test_ledger: OK
 $ python3 plugins/project-doc/lib/test_journal.py           # TODOS OS 123 CHECKS PASSARAM
-$ python3 plugins/visual/lib/test_plan_state.py             # OK
-$ python3 plugins/visual/lib/test_cobertura.py              # OK
+$ python3 plugins/project-skills/lib/test_plan_state.py             # OK
+$ python3 plugins/project-skills/lib/test_cobertura.py              # OK
 ```
 
 O `test_ledger.py` ganhou nesta rodada o caso que prova a regra de leitura da marca do §3.14-b — e ele é do tipo que protege contra o pior modo de falha: com o diretório de estado vazio, `furos_da_regua()` tem que devolver `(0, 0, 0)`, e o comentário nomeia o defeito histórico que a asserção fecha — *"foi assim que o `bypass.log` ausente virou o elogio 'nenhuma resposta furou o teto' com o teto furado"*. Com as duas fontes semeadas, `fontes == 2` e o total é 3 (2 furos do teto + 1 reprovação do juiz; `passa` e `nao e relato` não contam). [confirmado, li os três casos]
 
 Esses testes provam **round-trip de estado** (o snapshot devolve o manifest inteiro e é idempotente; o fold do journal reconstrói o estado vivo; o ledger sobrevive a append concorrente) — não provam restauração a partir de cópia, porque cópia não existe.
 
-O caso mais próximo de restauração exercitado é o round-trip do manifest: `plugins/bootstrap/hooks/test_bootstrap_hooks.sh` roda o snapshot duas vezes e afirma `pedro-plugins continua com 19 plugins`, `graphify-guard continua desligado`, `intent-guard continua desligado`, `2a rodada e idempotente`. É a prova de que uma máquina nova reconstruída pelo manifest chega ao mesmo estado — para os **terceiros**, que é o que o manifest cobre.
+O caso mais próximo de restauração exercitado é o round-trip do manifest: `plugins/bootstrap/hooks/test_bootstrap_hooks.sh` roda o snapshot duas vezes e afirma `pedro-plugins continua com N plugins`, `graphify-guard continua desligado`, `intent-guard continua desligado`, `2a rodada e idempotente` — **70 ok · 0 FAIL** neste run. É a prova de que uma máquina nova reconstruída pelo manifest chega ao mesmo estado — para os **terceiros**, que é o que o manifest cobre.
+
+⚠️ **O `N` não está cravado no teste, e essa é a única razão de a asserção não ter apodrecido.** A suíte deriva o número do próprio manifest na hora (`jq "[…] | .plugins[] | length"`), então o catálogo pôde ir de 19 para 24 sem quebrar nada. Um teste que carimbasse `19` teria ficado vermelho no primeiro plugin novo — ou, pior, teria sido "consertado" trocando o número, que é a forma de a asserção deixar de medir o que dizia medir.
 
 ---
 

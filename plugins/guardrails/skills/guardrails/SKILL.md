@@ -149,6 +149,6 @@ Diga ao usuário, em linguagem clara:
 - `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1` está setada.
 - Um backup com timestamp do `settings.json` foi feito.
 - Rode `/reload-plugins` (ou reinicie o Claude Code) pra os hooks do plugin carregarem e os hooks-settings removidos pararem de disparar.
-- Check rápido de que estão vivos: `claude plugin details guardrails@pedro-plugins` deve mostrar **Hooks (2)**. Esse número conta TIPOS DE EVENTO (PostToolUse + PreToolUse), não hooks individuais — o plugin tem 3 hooks no total (1 PostToolUse + 2 PreToolUse), então **Hooks (2)** está correto e significa que carregaram. `Hooks (0)` indicaria problema (hooks.json não reconhecido).
+- Check rápido de que estão vivos: `claude plugin details guardrails@pedro-plugins` deve mostrar **Hooks (2)**. Esse número conta TIPOS DE EVENTO (PostToolUse + PreToolUse), não hooks individuais — o plugin tem 3 hooks no total (1 PostToolUse + 2 PreToolUse), então **Hooks (2)** está correto e significa que carregaram. `Hooks (0)` indicaria problema (hooks.json não reconhecido). <!-- acopla-ok: o texto EXPLICA que o número do diagnóstico conta eventos e não hooks; é a leitura da saída da ferramenta, não afirmação de quantidade -->
 
 **Não** delete os scripts antigos em `~/.claude/hooks/` automaticamente — deixe isso pro usuário.
