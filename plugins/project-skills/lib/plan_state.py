@@ -1446,8 +1446,15 @@ def _detalhe(it):
     esp = str(it.get("espera_dono", "")).strip()
     if esp:
         return "⏸️ espera você: " + esp, "pt-desc"
+    # A MESMA regra do `cmd_tick`: quem resolve a pendência é a DECISÃO registrada, não a
+    # ausência do campo — a pergunta continua no arquivo, é dela que o `reabrir` vive.
+    # Enquanto esta linha olhava só a `pendencia`, ela anunciava "falta decidir" sobre passo
+    # já destravado, e é esta árvore que o motor lê como fila: ele gastou o tier caro
+    # diagnosticando por que passos com `decidido` gravado "não saíam do lugar".
+    dec = it.get("decidido")
+    decidido = isinstance(dec, dict) and str(dec.get("escolha", "")).strip()
     pend = str(it.get("pendencia", "")).strip()
-    if pend:
+    if pend and not decidido:
         return "⛔ falta decidir: " + pend, "pt-desc"
     return it.get("desc", "") or "", "pt-desc"
 

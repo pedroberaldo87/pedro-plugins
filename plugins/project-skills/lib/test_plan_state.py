@@ -582,6 +582,28 @@ def main():
         check("aprovação: quem vai aprovar vê o bloqueio",
               "⛔ falta decidir: A ou B?" in ps.render_html(pe, mode="approve"))
 
+        print("a pendência JÁ DECIDIDA para de aparecer como bloqueio")
+        # Mesma regra do `cmd_tick`: quem resolve é a decisão registrada, não apagar o
+        # campo. Enquanto a árvore olhava só a `pendencia`, ela anunciava "falta decidir"
+        # sobre passo destravado — e é esta árvore que o motor lê como fila.
+        pd = sample(phases=[{"id": "F1", "title": "x", "items": [
+            {"id": "F1.1", "title": "decidir o formato", "desc": "faz a coisa",
+             "pendencia": "A ou B?",
+             "decidido": {"escolha": "ficou A", "quando": "2026-08-08"}}]}])
+        tpd = ps.render_text(pd)
+        check("texto: passo com decisão registrada não diz falta decidir",
+              "falta decidir" not in tpd)
+        check("texto: a linha didática volta ao lugar", "faz a coisa" in tpd)
+        check("html: passo com decisão registrada não diz falta decidir",
+              "falta decidir" not in ps.render_html(pd, mode="track"))
+        check("a pergunta continua no arquivo, para o reabrir",
+              pd["phases"][0]["items"][0]["pendencia"] == "A ou B?")
+        pv = sample(phases=[{"id": "F1", "title": "x", "items": [
+            {"id": "F1.1", "title": "decidir o formato", "desc": "faz a coisa",
+             "pendencia": "A ou B?", "decidido": {"escolha": "   "}}]}])
+        check("decisão com escolha vazia NÃO destrava",
+              "⛔ falta decidir: A ou B?" in ps.render_text(pv))
+
         print("o passo que espera um ato do dono se declara (S-23)")
         # A frase do ATO, não uma bandeira: `espera_dono: true` diria que espera sem
         # dizer o quê, e quem lê o relatório não saberia o que fazer pra destravar.
