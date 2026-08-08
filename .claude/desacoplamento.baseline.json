@@ -84,13 +84,6 @@
  "dependencia-de-irmao|plugins/project-doc/lib/test_pattern_check.py|graphify-guard|\"plugins/graphify-guard/hooks/test_graphify_guard.sh\",",
  "dependencia-de-irmao|plugins/project-doc/lib/test_pattern_check.py|guardrails|\"plugins/guardrails/hooks/test_setup_skill.sh\")",
  "dependencia-de-irmao|plugins/project-doc/lib/test_pattern_check.py|guardrails|suites = (\"plugins/guardrails/hooks/test_scope_cop.sh\",",
- "dependencia-de-irmao|plugins/project-doc/skills/start-doc/SKILL.md|visual|\"${CLAUDE_PLUGIN_ROOT}/../visual/lib/visual_page.py\" schema` para vê-lo).",
- "dependencia-de-irmao|plugins/project-doc/skills/start-doc/SKILL.md|visual|já existe, não invente outro. O contrato está em `plugins/visual/lib/visual_page.py` (rode `python3",
- "dependencia-de-irmao|plugins/qa-loop/skills/qa-loop/SKILL.md|sovai|RESERVA=\"${CLAUDE_PLUGIN_ROOT}/../sovai/hooks/reserva-de-arquivos.sh\"",
- "dependencia-de-irmao|plugins/sovai/lib/test_travas_motor.py|lixeiro|# mesma nao prova nada: o comando antigo (`${CLAUDE_PLUGIN_ROOT}/../lixeiro/...`)",
- "dependencia-de-irmao|plugins/sovai/skills/sovai/SKILL.md|lixeiro|**Duas linhas porque são dois layouts.** Rodando do repositório, o lixeiro é irmão direto (`../lixeiro/lib/`); instalado",
- "dependencia-de-irmao|plugins/sovai/skills/sovai/SKILL.md|lixeiro|LIXEIRO=\"${CLAUDE_PLUGIN_ROOT}/../lixeiro/lib/lixeiro.py\"",
- "dependencia-de-irmao|plugins/sovai/skills/sovai/SKILL.md|lixeiro|[ -f \"$LIXEIRO\" ] || LIXEIRO=\"$(ls -d \"${CLAUDE_PLUGIN_ROOT}\"/../../lixeiro/*/lib/lixeiro.py 2>/dev/null | sort -V | tai",
  "dependencia-de-irmao|plugins/sovai/skills/sovai/SKILL.md|visual|Se a Skill **`visual`** estiver entre as suas skills disponíveis, **invoque-a** (Skill tool, `skill: \"visual\"`) e render",
  "dependencia-de-irmao|plugins/visual/lib/plan_state.py|handoff|motivou o módulo está em plugins/handoff/lib/extract_ata.py:168,186 —",
  "dependencia-de-irmao|plugins/visual/lib/regua_audit.py|branches|(\"plugins/branches/lib/branch_state.py\", \"branches\"),",
@@ -100,9 +93,5 @@
  "dependencia-de-irmao|plugins/visual/lib/test_regua_audit.py|slides|parado = \"plugins/slides/lib/md2deck.py\"",
  "dependencia-de-irmao|plugins/visual/lib/test_regua_audit.py|slides|ra.mudancas(repo, \"plugins/slides/lib/md2deck.py\", \"2099-01-01\") == [])",
  "dependencia-de-irmao|plugins/visual/lib/test_regua_audit.py|slides|vs[\"plugins/slides/lib/md2deck.py\"][\"veredito\"] == \"sem mudança\")",
- "irmao-por-posicao|plugins/project-doc/skills/start-doc/SKILL.md|visual|\"${CLAUDE_PLUGIN_ROOT}/../visual/lib/visual_page.py\" schema` para vê-lo).",
- "irmao-por-posicao|plugins/qa-loop/skills/qa-loop/SKILL.md|sovai|RESERVA=\"${CLAUDE_PLUGIN_ROOT}/../sovai/hooks/reserva-de-arquivos.sh\"",
- "irmao-por-posicao|plugins/sovai/lib/test_travas_motor.py|lixeiro|# mesma nao prova nada: o comando antigo (`${CLAUDE_PLUGIN_ROOT}/../lixeiro/...`)",
- "irmao-por-posicao|plugins/sovai/skills/sovai/SKILL.md|lixeiro|LIXEIRO=\"${CLAUDE_PLUGIN_ROOT}/../lixeiro/lib/lixeiro.py\"",
  "irmao-por-posicao|scripts/test_desacoplamento_check.py|beta|'Rode `\"${CLAUDE_PLUGIN_ROOT}/../beta/lib/coisa.py\"` para ver.\\n',"
 ]

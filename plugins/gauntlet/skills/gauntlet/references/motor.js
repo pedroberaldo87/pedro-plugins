@@ -46,6 +46,9 @@ const TETO_RODADAS = ARGS.tetoRodadas || 4
 const TETO_GASTO = ARGS.tetoGasto || null
 const TETO_PECAS = ARGS.tetoPecas || 8
 const CHECK = `python3 "${ARGS.pluginRoot}/lib/fecho_check.py"`
+// O caminho do sinal desce do motor até o conferidor porque é ELE quem apaga, e só no
+// verde. Sem esta linha, `--sinal` nunca chegava e o sinal ficava aceso para sempre.
+const SINAL = ARGS.sinal ? ` --sinal "${ARGS.sinal}"` : ''
 
 const gastoInicial = budget.spent()
 const gasto = () => budget.spent() - gastoInicial
@@ -142,8 +145,14 @@ Os alvos: ${JSON.stringify(RITO.alvos)}
 A sonda:  ${JSON.stringify(RITO.sonda)}
 
 Execute a sonda NO ALVO — rode o comando de preparar, faça os gestos, e produza os
-registros com o comando de registrar. Grave-os em ${MISSAO}/recon/registros/ e cite o
-caminho de cada um no eixo que ele prova.
+registros com o comando de registrar. Grave-os em ${MISSAO}/recon/registros/ e cite, no
+eixo que cada um prova, o caminho RELATIVO À MISSÃO — "recon/registros/<arquivo>", e nada
+além dele.
+
+Caminho que começa em barra leva o nome da conta desta máquina para dentro de um arquivo
+do projeto, e o conferidor recusa a missão por isso. Comentário colado no caminho
+("recon/registros/x.txt (seção A)") faz o arquivo sumir para quem for procurá-lo: se
+precisar dizer qual trecho importa, diga no gesto, nunca no caminho.
 
 Eixo sem registro no disco não vale: ele é o que transforma "melhor" de adjetivo em
 comparação. E é contra estes eixos que TODAS as rodadas serão medidas, então erre por
@@ -402,7 +411,7 @@ if (fechadas.length === decomp.pecas.length) {
 const conferencia = await agent(`
 Papel MECÂNICO e só. Rode, e devolva a saída CRUA, sem interpretar:
 
-  ${CHECK} fecho "${MISSAO}"
+  ${CHECK} fecho "${MISSAO}"${SINAL}
   ${CHECK} mapa "${MISSAO}"
 
 Se o primeiro sair zero, a missão fechou e o sinal foi apagado por ele. Se sair um, NÃO

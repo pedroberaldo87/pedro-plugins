@@ -58,6 +58,13 @@ SPECS=(
   # porque o plugin instalado só enxerga a própria pasta.
   "plugins/visual/skills/visual::resolve-dir.sh"
   "plugins/archify/skills/archify::resolve-dir.sh"
+  # O resolvedor de plugin IRMÃO por nome: quem precisa de um arquivo de outro plugin
+  # pergunta por nome em vez de apontar `../<irmão>/`, que só resolve rodando do
+  # repositório. A cópia mora ao lado da skill que a chama, porque o plugin instalado
+  # só enxerga a própria pasta.
+  "plugins/sovai/skills/sovai::resolve-plugin.sh"
+  "plugins/qa-loop/skills/qa-loop::resolve-plugin.sh"
+  "plugins/project-doc/skills/start-doc::resolve-plugin.sh"
   "plugins/ship/hooks::green-cache.sh"
   "plugins/qa-loop/lib::green-cache.sh"
   # O leitor de JSON dos hooks: todo hook que DECIDE lendo o payload do evento

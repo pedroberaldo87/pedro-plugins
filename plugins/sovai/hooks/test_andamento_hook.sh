@@ -149,6 +149,95 @@ check "silêncio curto não narra nada" \
   "$([ -z "$(msg "$OUT")" ] && echo 1 || echo 0)" "saiu: $OUT"
 rm -f "$CFG/sovai/sinal-sess-teste"
 
+# 4c · O CRITÉRIO DE F9.23: a MESMA narração na barra de status, que é a única
+#      superfície que fica quando o dono volta ao terminal uma hora depois.
+BARRA="$(cd "$(dirname "$0")" && pwd)/statusline-motor.sh"
+HUD="$TMP/hud-falso.sh"
+cat > "$HUD" <<'EOF'
+#!/bin/sh
+cat > /dev/null
+printf '  projeto | main | 42%%'
+EOF
+chmod +x "$HUD"
+HUD_CRU=$(printf '' | sh "$HUD")
+
+barra() { # $1 = session_id
+  printf '{"session_id":"%s","workspace":{"current_dir":"/projeto/exemplo"}}' "$1" \
+    | CLAUDE_CONFIG_DIR="$CFG" TMPDIR="$TMP" sh "$BARRA" "sh $HUD" 2>/dev/null
+}
+
+# sem motor vivo (não há ativo-<sid>): a barra é EXATAMENTE a do renderizador
+OUT=$(barra sem-motor)
+check "sem motor vivo a linha não sai — a barra fica idêntica ao hud" \
+  "$([ "$OUT" = "$HUD_CRU" ] && echo 1 || echo 0)" "saiu: [$OUT] esperado: [$HUD_CRU]"
+
+# com motor vivo: a linha do motor sai ACIMA, e o hud continua byte a byte
+python3 -c 'import os,sys,time; p=sys.argv[1]; open(p,"w").close(); os.utime(p,(time.time()-600,time.time()-600))' "$CFG/sovai/ativo-sess-teste"
+sinal_ha 70
+OUT=$(barra sess-teste)
+PRIMEIRA=$(printf '%s' "$OUT" | head -1)
+RESTO=$(printf '%s' "$OUT" | tail -n +2)
+check "com motor vivo a PRIMEIRA linha é a do motor (acima do hud)" \
+  "$(printf '%s' "$PRIMEIRA" | grep -q '^sovai · missão há' && echo 1 || echo 0)" "saiu: [$PRIMEIRA]"
+check "a linha vem do estado em disco (a idade da missão)" \
+  "$(printf '%s' "$PRIMEIRA" | grep -q 'missão há 10min' && echo 1 || echo 0)" "saiu: [$PRIMEIRA]"
+check "a linha traz o silêncio lido do sinal em disco" \
+  "$(printf '%s' "$PRIMEIRA" | grep -q 'último sinal há 70s' && echo 1 || echo 0)" "saiu: [$PRIMEIRA]"
+check "o hud continua idêntico embaixo da linha do motor" \
+  "$([ "$RESTO" = "$HUD_CRU" ] && echo 1 || echo 0)" "saiu: [$RESTO] esperado: [$HUD_CRU]"
+
+# apagar o sinal da missão (o `rm` da entrega) faz a linha sumir na hora
+rm -f "$CFG/sovai/ativo-sess-teste"
+OUT=$(barra sess-teste)
+check "apagado o sinal da missão, a linha some e a barra volta ao hud" \
+  "$([ "$OUT" = "$HUD_CRU" ] && echo 1 || echo 0)" "saiu: [$OUT]"
+
+: > "$CFG/sovai/ativo-sess-teste"
+OUT=$(printf '{"session_id":"sess-teste"}' \
+  | CLAUDE_CONFIG_DIR="$CFG" TMPDIR="$TMP" SOVAI_STATUSLINE=0 sh "$BARRA" "sh $HUD" 2>/dev/null)
+check "SOVAI_STATUSLINE=0 desliga a linha sem desligar a barra" \
+  "$([ "$OUT" = "$HUD_CRU" ] && echo 1 || echo 0)" "saiu: [$OUT]"
+rm -f "$CFG/sovai/sinal-sess-teste"
+
+# 4d · anti-tautologia da barra: sabotar a ORDEM (linha depois do hud) tem que
+#      reprovar o teste do "acima".
+SAB_BARRA="$TMP/statusline-sabotada.sh"
+# O leitor de JSON viaja junto: sem ele ao lado, a cópia sabotada sairia muda por
+# falta de dependência e o teste abaixo passaria por engano.
+cp "$(dirname "$BARRA")/hook-json.sh" "$TMP/hook-json.sh"
+python3 - "$BARRA" "$SAB_BARRA" <<'EOF'
+import sys
+alvo, destino = sys.argv[1], sys.argv[2]
+texto = open(alvo, encoding="utf-8").read()
+antes = '''  [ -n "$LINHA" ] && printf '%s\\n' "$LINHA"'''
+assert antes in texto, "a linha que imprime o motor mudou de forma — atualize a sabotagem"
+texto = texto.replace(antes, '  DEPOIS="$LINHA"')
+# O `exit 0` FINAL mataria o rabo sabotado: só ele sai (os de dentro do `if` ficam,
+# senão o bloco vira `then` vazio e o script inteiro morre calado).
+linhas = texto.rstrip().splitlines()
+assert linhas[-1].strip() == "exit 0", "o fim do script mudou — atualize a sabotagem"
+linhas.pop()
+linhas.append('[ -n "$DEPOIS" ] && printf \'\\n%s\' "$DEPOIS"')
+open(destino, "w", encoding="utf-8").write("\n".join(linhas) + "\n")
+EOF
+: > "$CFG/sovai/ativo-sess-teste"
+OUT=$(printf '{"session_id":"sess-teste"}' \
+  | CLAUDE_CONFIG_DIR="$CFG" TMPDIR="$TMP" \
+    CLAUDE_PLUGIN_ROOT="$(cd "$(dirname "$BARRA")/.." && pwd)" \
+    sh "$SAB_BARRA" "sh $HUD" 2>/dev/null)
+check "barra sabotada (linha ABAIXO do hud) reprova o critério do 'acima'" \
+  "$(printf '%s' "$OUT" | head -1 | grep -q '^sovai · missão há' && echo 0 || echo 1)" \
+  "a sabotada ainda saiu por cima — o teste do 'acima' é tautológico · saiu: [$OUT]"
+check "a sabotada ainda IMPRIME a linha — o que mudou foi só a ordem" \
+  "$(printf '%s' "$OUT" | grep -q 'sovai · missão há' && echo 1 || echo 0)" \
+  "a sabotagem apagou a linha em vez de movê-la — o teste acima passa por engano · saiu: [$OUT]"
+rm -f "$CFG/sovai/ativo-sess-teste"
+: > "$CFG/sovai/ativo-sess-teste"
+
+# 4e · quem prova que este elo está LIGADO no caminho do produto é a suíte do
+#      bootstrap, que é dona da receita da statusLine (`config/settings-defaults.json`)
+#      — olhar o arquivo de outro plugin daqui seria o acoplamento que o Artigo 9 recusa.
+
 # 5 · o narrador está LIGADO no caminho do produto (hooks.json), não só no teste
 HJ="$(cd "$(dirname "$0")" && pwd)/hooks.json"
 check "hooks.json chama o narrador em PostToolUse(Bash)" \

@@ -318,6 +318,34 @@ os.makedirs(p, exist_ok=True)
 escreve(os.path.join(p, "rito.json"), rito)
 check("eixo cujo registro não está no disco é acusado",
       any("não está no disco" in f for f in fc.erros_do_rito(p)))
+# Aconteceu de verdade: o reconhecimento gravou o caminho ABSOLUTO, e com ele foi o nome
+# da conta da máquina para um arquivo do projeto. O arquivo existe — e é por isso que só
+# procurar no disco não acusava nada.
+rito = json.load(open(os.path.join(m, "rito.json"), encoding="utf-8"))
+rito["eixos"][0]["registro"] = os.path.join(m, "recon", "registros", "alvo-hero.png")
+p6 = os.path.join(d, "eixo-com-caminho-absoluto")
+os.makedirs(p6, exist_ok=True)
+escreve(os.path.join(p6, "rito.json"), rito)
+escreve(os.path.join(p6, "recon", "registros", "alvo-hero.png"), "PIXELS")
+check("eixo com registro em caminho absoluto é acusado, mesmo com o arquivo no disco",
+      any("é caminho absoluto" in f for f in fc.erros_do_rito(p6)))
+rito = json.load(open(os.path.join(m, "rito.json"), encoding="utf-8"))
+rito["eixos"][0]["registro"] = "../fora/alvo-hero.png"
+p7 = os.path.join(d, "eixo-fora-da-missao")
+os.makedirs(p7, exist_ok=True)
+escreve(os.path.join(p7, "rito.json"), rito)
+escreve(os.path.join(d, "fora", "alvo-hero.png"), "PIXELS")
+check("e o registro que sai da missão por `..` também é acusado",
+      any("aponta para fora da missão" in f for f in fc.erros_do_rito(p7)))
+# O contraditório: o caminho relativo bem-formado é ACHADO, senão a recusa acima seria
+# só severidade e não discriminação.
+rito = json.load(open(os.path.join(m, "rito.json"), encoding="utf-8"))
+p8 = os.path.join(d, "eixo-relativo")
+os.makedirs(p8, exist_ok=True)
+escreve(os.path.join(p8, "rito.json"), rito)
+escreve(os.path.join(p8, "recon", "registros", "alvo-hero.png"), "PIXELS")
+check("o registro relativo à missão é achado pelo conferidor",
+      not any("registro do eixo" in f for f in fc.erros_do_rito(p8)))
 rito = json.load(open(os.path.join(m, "rito.json"), encoding="utf-8"))
 del rito["sonda"]["teste_registro"]
 p2 = os.path.join(d, "sonda-nao-testada")
@@ -413,6 +441,30 @@ escreve(v, dado)
 mapa = fc.desenha_mapa(m)
 check("`marginal` sai como parada por ganho pequeno, não como reprovada",
       "ganho pequeno" in mapa and "reprovada" not in mapa)
+shutil.rmtree(d)
+
+print()
+print("O SINAL — só o fecho verde o apaga")
+d = tmp()
+m = monta_missao(d, aprovado=False)
+sinal = os.path.join(d, "ativo-sessao")
+escreve(sinal, "")
+escreve(os.path.join(d, "bloqueios-sessao"), "")
+saida = fc.main(["fecho", m, "--sinal", sinal])
+check("o fecho vermelho não toca o sinal", saida == 1 and os.path.isfile(sinal))
+check("e não toca o registro de bloqueios da sessão",
+      os.path.isfile(os.path.join(d, "bloqueios-sessao")))
+shutil.rmtree(d)
+
+d = tmp()
+m = monta_missao(d)
+sinal = os.path.join(d, "ativo-sessao")
+escreve(sinal, "")
+escreve(os.path.join(d, "bloqueios-sessao"), "")
+saida = fc.main(["fecho", m, "--sinal", sinal])
+check("o fecho verde apaga o sinal", saida == 0 and not os.path.exists(sinal))
+check("e apaga com ele os bloqueios da mesma sessão",
+      not os.path.exists(os.path.join(d, "bloqueios-sessao")))
 shutil.rmtree(d)
 
 print()

@@ -121,6 +121,47 @@ def test_duas_reescritas_acumulam():
     print("test_historico: entradas acumulam em ordem ✓")
 
 
+def test_corpo_aprovado_reabre_a_etapa():
+    """F12.3 — mexer no corpo aprovado derruba o de acordo, não o mantém de pé."""
+    d = tempfile.mkdtemp(prefix="pdtest_historico_aprov_")
+    doc = os.path.join(d, "blueprint.md")
+    corpo = ("---\ngenerated: 2026-08-01\nauthored-by: human\nstatus: approved\n"
+             "approved: 2026-08-05\napproved-sig: abc123\n---\n\n"
+             "# Como o sistema funciona\n\n"
+             "3. o coletor grava o lote no disco antes de responder\n")
+    with open(doc, "w", encoding="utf-8") as fh:
+        fh.write(corpo)
+
+    r = historico.reescrever(doc, "3. o coletor grava o lote no disco antes de responder",
+                             "3. o coletor responde e grava o lote depois",
+                             contexto="revisão 5b do esquema, depois da curadoria de features.md",
+                             decisao="a funcionalidade de lote síncrono saiu como remove",
+                             data="2026-08-07")
+    assert r["reabriu_aprovacao"] is True, "o retorno tem que avisar que reabriu: %s" % r
+
+    novo = open(doc, encoding="utf-8").read()
+    assert "status: ready" in novo and "status: approved" not in novo, novo
+    assert "approved: 2026-08-05" not in novo, "a data do de acordo velho sai:\n%s" % novo
+    assert "approved-sig:" not in novo, "a marca do corpo velho sai:\n%s" % novo
+    assert "authored-by: human" in novo, "o resto do frontmatter fica:\n%s" % novo
+    assert "3. o coletor responde e grava o lote depois" in novo, novo
+    assert historico.listar(doc)[0]["texto"].startswith("3. o coletor grava"), \
+        "o texto aprovado foi pro histórico, não sobrescrito"
+    print("test_historico: corpo aprovado reescrito reabre a etapa ✓")
+
+
+def test_doc_sem_aprovacao_nao_muda_frontmatter():
+    d = tempfile.mkdtemp(prefix="pdtest_historico_draft_")
+    doc = os.path.join(d, "features.md")
+    with open(doc, "w", encoding="utf-8") as fh:
+        fh.write("---\nauthored-by: human\nstatus: draft\n---\n\n- item velho\n")
+    r = historico.reescrever(doc, "- item velho", "- item novo",
+                             contexto="c", decisao="d", data="2026-08-07")
+    assert r["reabriu_aprovacao"] is False, "sem de acordo não há o que reabrir: %s" % r
+    assert "status: draft" in open(doc, encoding="utf-8").read()
+    print("test_historico: documento sem de acordo mantém o frontmatter ✓")
+
+
 def test_texto_com_bloco_de_codigo_volta_literal():
     d = tempfile.mkdtemp(prefix="pdtest_historico_fence_")
     doc = os.path.join(d, "solution-strategy.md")
@@ -181,6 +222,8 @@ def run():
     test_item_ambiguo_recusa()
     test_contexto_e_decisao_sao_obrigatorios()
     test_duas_reescritas_acumulam()
+    test_corpo_aprovado_reabre_a_etapa()
+    test_doc_sem_aprovacao_nao_muda_frontmatter()
     test_texto_com_bloco_de_codigo_volta_literal()
     test_cli()
     test_contrato_no_authorial_kit()

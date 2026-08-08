@@ -190,6 +190,10 @@
           "enabled": true
         },
         {
+          "name": "project-skills",
+          "enabled": false
+        },
+        {
           "name": "qa-loop",
           "enabled": true
         },
@@ -208,6 +212,10 @@
         {
           "name": "vision",
           "enabled": true
+        },
+        {
+          "name": "vistoria",
+          "enabled": false
         },
         {
           "name": "visual",

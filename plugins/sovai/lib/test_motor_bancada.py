@@ -124,12 +124,13 @@ const CFG = JSON.parse(fs.readFileSync(process.argv[2], 'utf8'))
 const CORPO = fs.readFileSync(process.argv[3], 'utf8')
 
 const PRELUDE = `
-const DECOMP={}, TASK_RESULT={}, BUILD_REVIEW={}, RESERVA={}, SUITE_RESULT={};
+const DECOMP={}, TASK_RESULT={}, BUILD_REVIEW={}, RESERVA={}, REGUA={}, SUITE_RESULT={};
 const mk = n => (p => Object.assign({ __p: n }, p));
 const decomposePrompt=mk('decompose'), execPrompt=mk('exec'), reviewBuildPrompt=mk('review'),
       runSuitePrompt=mk('suite'), checkpointPrompt=mk('checkpoint'), tickPlanPrompt=mk('tick'),
       docTouchPrompt=mk('docTouch'), colheitaPrompt=mk('colheita'),
-      diagnoseStuckTaskPrompt=mk('diag'), reservaPrompt=mk('reserva'), confirmBuildPrompt=mk('confirm');
+      diagnoseStuckTaskPrompt=mk('diag'), reservaPrompt=mk('reserva'), confirmBuildPrompt=mk('confirm'),
+      reguaPrompt=mk('regua');
 `
 
 const chamadas = []

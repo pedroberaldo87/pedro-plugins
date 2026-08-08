@@ -84,6 +84,13 @@ def _linhas(caminho):
     return fora
 
 
+def _dentro_da_missao(missao, relativo):
+    """O caminho relativo resolve para dentro do diretório da missão?"""
+    base = os.path.normpath(missao)
+    alvo = os.path.normpath(os.path.join(base, relativo))
+    return alvo == base or alvo.startswith(base + os.sep)
+
+
 def marca(caminho):
     """A marca de um arquivo: o conteúdo, não a data.
 
@@ -186,8 +193,22 @@ def erros_do_rito(missao, sinal=None):
                     erros.append(
                         "o eixo `%s` não declara `%s`" % (eixo.get("nome", i), campo)
                     )
+            # O registro do eixo é caminho DE DENTRO da missão. Absoluto já levou o nome
+            # da conta da máquina para um arquivo do projeto, e sair da missão por `..`
+            # tem o mesmo efeito — por isso os dois são recusados antes de procurar.
             reg = eixo.get("registro")
-            if reg and not os.path.isfile(os.path.join(missao, reg)):
+            if reg and os.path.isabs(reg):
+                erros.append(
+                    "o registro do eixo `%s` é caminho absoluto: %s — grave-o relativo "
+                    "à missão (recon/registros/…), senão ele leva o nome da conta junto"
+                    % (eixo.get("nome"), reg)
+                )
+            elif reg and not _dentro_da_missao(missao, reg):
+                erros.append(
+                    "o registro do eixo `%s` aponta para fora da missão: %s"
+                    % (eixo.get("nome"), reg)
+                )
+            elif reg and not os.path.isfile(os.path.join(missao, reg)):
                 erros.append(
                     "o registro do eixo `%s` não está no disco: %s" % (eixo.get("nome"), reg)
                 )

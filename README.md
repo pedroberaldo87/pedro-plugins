@@ -2,7 +2,7 @@
 
 Marketplace público de plugins para [Claude Code](https://docs.claude.com/en/docs/claude-code). Monorepo — cada subdiretório em `plugins/` é um plugin independente (skills, hooks e automações), distribuído via `.claude-plugin/marketplace.json`.
 
-**22 plugins · Markdown + Shell + Python · sem build, sem package manager.**
+**23 plugins · Markdown + Shell + Python · sem build, sem package manager.**
 
 ---
 
@@ -52,7 +52,7 @@ claude plugin install bootstrap@pedro-plugins
 /bootstrap:setup
 ```
 
-Resultado esperado numa máquina zerada: **19 plugins ligados + 3 desligados de fábrica**
+Resultado esperado numa máquina zerada: **19 plugins ligados + 4 desligados de fábrica**
 (`graphify-guard` e `intent-guard`), mais os marketplaces de terceiros do manifest.
 
 > ⚠️ **Se aparecer `sync incompleto: N operações falharam`, rode `/bootstrap:setup` de novo.**
