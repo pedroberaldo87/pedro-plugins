@@ -584,7 +584,18 @@ while (!built && r < maxRounds) {
   // churn de tarefa — conta rodadas SEGUIDAS, não acumuladas. Set por rodada: 2 gaps na
   // mesma tarefa contam 1, e quem NÃO reapareceu ZERA. Sem o zerar, uma tarefa resolvida
   // na rodada 3 ainda dispararia o diagnóstico caro na 5 por causa do placar antigo.
-  const stuck = new Set([...(review.missingTasks || []), ...(review.gaps || []).map(g => g.task_id)])
+  //
+  // ── QUEM NUNCA FOI TENTADO NÃO REINCIDE (F9.56) ─────────────────────────────
+  // O contador media "reapareceu como faltante", e faltante é o que o REVISOR não viu
+  // sair — o que inclui quem nunca entrou na fila. O passo com `esperaDono` sai de
+  // `todo` corretamente, mas volta em `missingTasks` na volta seguinte, reincide, e na
+  // segunda dispara o `diagnose_model` (o tier caro) perguntando "por que essa tarefa
+  // não sai do lugar?" sobre uma tarefa que o próprio motor decidiu não executar.
+  // Medido em 2026-08-08: 13 diagnósticos assim, 22,7M tokens — 59% do gasto do papel.
+  // A régua: o contador é de QUEM FALHOU, e quem nem foi tentado não falhou.
+  const naoTentado = new Set([...parado, ...esperaChain.keys()])
+  const stuck = new Set([...(review.missingTasks || []), ...(review.gaps || []).map(g => g.task_id)]
+                        .filter(id => id && !naoTentado.has(id)))
   for (const t of decomp.tasks) taskChurn[t.id] = stuck.has(t.id) ? (taskChurn[t.id] || 0) + 1 : 0
 
   rounds.push({ r, decomp, results, review, diagnoses, espera: esperaIds, esperandoVoce,
@@ -672,12 +683,48 @@ while (!built && r < maxRounds) {
   const feitosDaOnda = [...new Map(results.filter(x => x?.done && x.task_id)
     .map(x => [x.task_id, x])).values()]
   rounds[rounds.length - 1].feitos = feitosDaOnda.map(x => x.task_id)
-  if (ARGS.planPath?.endsWith('.plan.json')) {
+
+  // ── UM AGENTE PARA A ONDA, N COMANDOS EM SEQUÊNCIA (F9.53 + F9.54) ──────────
+  // Era um agente POR PASSO. Marcar não tem julgamento a isolar — o veredito já foi
+  // dado por quem executou, e quem marca só transporta a prova. É a única exceção à
+  // régua de um-agente-por-item, e a régua está escrita no contrato acima: a pergunta
+  // não é "quantos agentes rodaram" e sim "havia julgamento a isolar?".
+  //
+  // O que NÃO muda: N COMANDOS, um por passo, em sequência. Um julgamento em lote
+  // sobre N provas perderia as três coisas medidas em 2026-08-08 — o isolamento de
+  // falha (um tick morreu e os outros 45 seguiram), a recusa individual (um passo com
+  // decisão em aberto foi recusado e os demais passaram) e a fidelidade da prova.
+  //
+  // E o veredito VOLTA (F9.54): antes este `agent()` não tinha schema nem atribuição.
+  // Um agente morreu com texto vazio, nunca executou o tick, e o passo entregue ficou
+  // gravado como não feito — sem nada acusar. `suite` e `reserva` sempre tiveram schema
+  // e empurram blocker no nulo; só a marcação sumia calada.
+  if (ARGS.planPath?.endsWith('.plan.json') && feitosDaOnda.length) {
+    const tick = await agent(tickPlanPrompt({
+      planPath: ARGS.planPath,
+      passos: feitosDaOnda.map(t => ({
+        taskId: t.task_id,
+        evidencia: `${t.summary} · ${(t.files_touched || []).join(' ')}`,
+      })),
+    }), { model: ARGS.model, effort: T.mechanical.effort, phase: 'Marcar',
+          label: `marcar r${r} (${feitosDaOnda.length})`, schema: TICK_RESULT })
+
+    // Agente morto, lista vazia, ou passo que sumiu do veredito: os três são perda
+    // silenciosa, e a direção segura é a mesma — vira Bloqueio NOMEADO, com o id.
+    const vistos = new Map((tick?.marcados || []).map(m => [m.task_id, m]))
     for (const t of feitosDaOnda) {
-      await agent(tickPlanPrompt({ planPath: ARGS.planPath, taskId: t.task_id,
-                                   evidencia: `${t.summary} · ${(t.files_touched || []).join(' ')}` }),
-        { model: ARGS.model, effort: T.mechanical.effort, phase: 'Marcar' })
+      const v = vistos.get(t.task_id)
+      if (!v) {
+        blockers.push({ taskId: t.task_id,
+                        what: `o passo ${t.task_id} foi ENTREGUE mas não voltou no veredito da marcação`,
+                        whyNeedsYou: 'o trabalho está no disco e o plano diz que não — marque à mão com a prova do executor' })
+      } else if (!v.ok) {
+        blockers.push({ taskId: t.task_id,
+                        what: `a marcação de ${t.task_id} foi recusada: ${v.motivo || 'sem motivo'}`,
+                        whyNeedsYou: 'recusa por decisão em aberto é legítima — resolva a pendência do passo e marque' })
+      }
     }
+    rounds[rounds.length - 1].marcados = tick?.marcados || []
   }
 
   // ── DISJUNTOR POR CONSUMO (F9.12) ───────────────────────────────────────────
@@ -807,18 +854,33 @@ return {
 - `REGUA` — `{ reprovados: [{ task_id, motivo }] }`. O papel é **mecânico e só**: para cada `{ id, pronto }` recebido, rodar
 
   ```bash
-  printf '%s' "<pronto>" | python3 <plugin project-skills>/lib/regua_pronto.py --onde <id> -
+  printf '%s' "<pronto>" | python3 "$(bash "${CLAUDE_PLUGIN_ROOT}/lib/resolve-plugin.sh" project-skills lib/regua_pronto.py)" --onde <id> -
   ```
+
+  ⚠️ **O caminho é RESOLVIDO POR NOME, nunca escrito à mão** — mesmo molde do `RESERVA` acima. Em 2026-08-08 um passo da própria missão moveu `plan_state.py` de plugin, o motor continuou apontando o lugar velho, e os 47 agentes de marcação **falharam no primeiro comando e gastaram 8,45M redescobrindo o rename**, cada um por conta própria. Pior: 14 deles acharam uma cópia errada (worktree antigo, cache) e gravaram no plano com um validador 548 linhas mais velho. **Todo caminho que o motor usa para si mesmo se resolve por nome.**
 
   e devolver em `reprovados` os que saíram com **exit 1**, com `motivo` = a linha que o programa imprimiu. Exit 0 não aparece na lista. **Sem julgamento próprio**: quem decide é o programa — a régua é uma só, a mesma que o `plan_state.py` cobra na gravação do plano, e re-julgar aqui por leitura faria o motor e o plano recusarem coisas diferentes. Programa ausente na máquina ou comando quebrado = `reprovados: []` (fail-open, como a reserva).
 - `RESERVA` — `{ recusado: bool, arquivos: [caminho...] }`. O papel é **mecânico e só**: rodar `$(bash "${CLAUDE_PLUGIN_ROOT}/lib/resolve-plugin.sh" sovai hooks/reserva-de-arquivos.sh) reservar <sessionId> <motorId> <arquivo>...` e devolver o veredito do JSON que saiu — `recusado: true` quando veio `permissionDecision: "deny"`, com `arquivos` = os caminhos em disputa que a recusa nomeou. Script mudo = `recusado: false` (reservou). Sem julgamento próprio: quem decide é o hook, o agente só transporta.
-- `tickPlanPrompt` — **sem schema** (nada volta pro script). Papel **mecânico e só**: gravar no plano o passo que acabou de sair, rodando
+- `tickPlanPrompt` — **com schema `TICK_RESULT`**, e a lista inteira da onda num agente só. Papel **mecânico e só**: gravar no plano os passos que acabaram de sair, rodando **um comando por passo, em sequência**:
 
   ```bash
-  python3 <plugin project-skills>/lib/plan_state.py --dir <raiz>/.claude/plans tick <plano> <taskId> --evidencia "<evidencia>"
+  MARCADOR="$(bash "${CLAUDE_PLUGIN_ROOT}/lib/resolve-plugin.sh" project-skills lib/plan_state.py)"
+  cd <raiz> && python3 "$MARCADOR" --dir <raiz>/.claude/plans tick <taskId> --evidencia "<evidencia>"
   ```
 
-  A prova é **a do executor** (`summary` + `files_touched` do `TASK_RESULT`), nunca redigida por quem marca: o `tick` recusa marcação sem prova, e prova inventada aqui seria o carimbo sem a obra. Recusa do `tick` (decisão em aberto, passo fora do schema) **não derruba a onda** — o trabalho já está no disco, e perder a onda por causa do registro é pior que o registro faltando. Plano que não é arquivo (`planPath` sem `.plan.json`) não é marcado por ninguém: o script nem chama este papel.
+  **Um agente para a onda, não um por passo** — mas **N comandos em sequência**, nunca um julgamento em lote sobre N provas. A diferença é o que preserva as três coisas que o lote perderia, e as três foram medidas no run de 2026-08-08: o **isolamento de falha** (um `tick` morreu e os outros 45 seguiram), a **recusa individual** (um passo com decisão em aberto foi recusado pelo portão e os demais passaram), e a **fidelidade da prova** (ela é copiada do executor para dentro do comando, não redigida por quem marca).
+
+  ⚠️ **O caminho é RESOLVIDO POR NOME.** Ver a nota do `REGUA` acima: caminho cravado aqui custou 8,45M numa única missão, e fez 14 marcações rodarem binário de outra árvore.
+
+  ⚠️ **`cd <raiz>` antes do comando não é enfeite:** sem ele, a busca do agente por um arquivo com esse nome alcança as cópias em worktree e no cache do harness, que são versões antigas do mesmo programa — inclusive sem as funções de recusa.
+
+  **Falha de um passo NÃO interrompe os seguintes.** Recusa do `tick` (decisão em aberto, passo fora do schema) é resultado legítimo e entra no veredito daquele passo; o agente segue para o próximo. Perder a onda por causa do registro é pior que o registro faltando.
+
+  **O veredito de cada passo volta ao script, e o silêncio vira bloqueio.** Antes de 2026-08-08 este papel não tinha schema nem retorno guardado: um agente morreu com texto vazio, **nunca executou o tick**, e o passo entregue ficou gravado como não feito — sem que nada acusasse. Compare com `SUITE_RESULT` e `RESERVA`, que sempre tiveram schema e empurram blocker no nulo. Agora ele devolve `TICK_RESULT`, e o script trata: `agent()` nulo, lista vazia, ou passo entregue que não aparece no veredito ⇒ **Bloqueio nomeado**, com o id do passo.
+
+  A prova é **a do executor** (`summary` + `files_touched` do `TASK_RESULT`), nunca redigida por quem marca: o `tick` recusa marcação sem prova, e prova inventada aqui seria o carimbo sem a obra. Plano que não é arquivo (`planPath` sem `.plan.json`) não é marcado por ninguém: o script nem chama este papel.
+
+- `TICK_RESULT` — `{ marcados: [{ task_id, ok: bool, motivo }] }`. Uma entrada por passo que o agente tentou marcar, na ordem. `ok: false` carrega em `motivo` a linha que o `plan_state.py` imprimiu ao recusar — recusa legítima (decisão em aberto) e falha de comando chegam pelo mesmo campo, e quem separa é o script pela mensagem. **Passo que o script mandou marcar e não aparece na lista é tratado como perda silenciosa**, não como sucesso.
 - `checkpointPrompt` — **sem schema** (nada volta pro script). Papel **mecânico e só**: gravar no **histórico do git** o que a onda verde produziu, rodando
 
   ```bash

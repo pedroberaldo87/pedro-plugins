@@ -52,7 +52,7 @@ claude plugin install bootstrap@pedro-plugins
 /bootstrap:setup
 ```
 
-Resultado esperado numa máquina zerada: **19 plugins ligados + 5 desligados de fábrica**
+Resultado esperado numa máquina zerada: **22 plugins ligados + 2 desligados de fábrica**
 (`graphify-guard` e `intent-guard`), mais os marketplaces de terceiros do manifest.
 
 > ⚠️ **Se aparecer `sync incompleto: N operações falharam`, rode `/bootstrap:setup` de novo.**

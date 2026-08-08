@@ -57,7 +57,11 @@ def comando_de_tique(texto):
     """
     for bloco in re.findall(r"```bash\n(.*?)\n```", texto, re.S):
         for linha in bloco.splitlines():
-            if "plan_state.py" in linha and " tick " in linha:
+            # o caminho do marcador deixou de ser cravado e virou BUSCA (F9.51), então
+            # ele nasce numa linha e o `tick` roda na seguinte, com a variavel. Casa a
+            # linha do tique tanto pelo nome do programa quanto pela variavel que o
+            # resolveu — exigir os dois na mesma linha reprovava o conserto.
+            if " tick " in linha and ("plan_state.py" in linha or "$MARCADOR" in linha):
                 return linha.strip()
     return ""
 
@@ -149,7 +153,7 @@ const CFG = JSON.parse(fs.readFileSync(process.argv[2], 'utf8'))
 const CORPO = fs.readFileSync(process.argv[3], 'utf8')
 
 const PRELUDE = `
-const DECOMP={}, TASK_RESULT={}, BUILD_REVIEW={}, RESERVA={}, REGUA={}, SUITE_RESULT={}, AUDITOR={}, DOC_TOUCH={};
+const DECOMP={}, TASK_RESULT={}, BUILD_REVIEW={}, RESERVA={}, REGUA={}, SUITE_RESULT={}, AUDITOR={}, DOC_TOUCH={}, TICK_RESULT={};
 const mk = n => (p => Object.assign({ __p: n }, p));
 const decomposePrompt=mk('decompose'), execPrompt=mk('exec'), reviewBuildPrompt=mk('review'),
       runSuitePrompt=mk('suite'), checkpointPrompt=mk('checkpoint'), tickPlanPrompt=mk('tick'),
@@ -178,16 +182,33 @@ const parallel = fns => Promise.all(fns.map(f => f()))
 
 // O papel de marcacao roda o comando REAL da skill. E o unico agente com efeito de
 // verdade: os outros so devolvem o dado canonico da rodada.
+// F9.53: a marcacao virou UM agente para a onda, com N comandos em sequencia. O papel
+// recebe `passos: [{taskId, evidencia}]` — nao mais um passo por chamada. E F9.54: ele
+// devolve o veredito de CADA passo, porque antes o retorno era descartado e um agente
+// que morria calado deixava passo entregue gravado como nao feito.
 function tica(p) {
-  let cmd = CFG.tickCmd
-  for (const [k, v] of Object.entries({ '<plugin project-skills>': CFG.pluginSkills, '<raiz>': CFG.raiz,
-                                        '<plano>': CFG.planoId, '<taskId>': p.taskId,
-                                        '<evidencia>': p.evidencia })) {
-    cmd = cmd.split(k).join(v)
+  const passos = p.passos || (p.taskId ? [{ taskId: p.taskId, evidencia: p.evidencia }] : [])
+  const marcados = []
+  for (const passo of passos) {
+    let cmd = CFG.tickCmd
+    for (const [k, v] of Object.entries({ '<plugin project-skills>': CFG.pluginSkills, '<raiz>': CFG.raiz,
+                                          '$MARCADOR': CFG.pluginSkills + '/lib/plan_state.py',
+                                          '<plano>': CFG.planoId, '<taskId>': passo.taskId,
+                                          '<evidencia>': passo.evidencia })) {
+      cmd = cmd.split(k).join(v)
+    }
+    chamadas.push({ taskId: passo.taskId, evidencia: passo.evidencia, cmd })
+    // Falha de um passo NAO interrompe os seguintes: e o que preserva a recusa
+    // individual que o lote perderia. O motivo entra no veredito daquele passo.
+    try {
+      execSync(cmd, { stdio: 'pipe' })
+      marcados.push({ task_id: passo.taskId, ok: true, motivo: '' })
+    } catch (e) {
+      marcados.push({ task_id: passo.taskId, ok: false,
+                      motivo: String((e.stderr || e.stdout || e.message)).slice(0, 200) })
+    }
   }
-  chamadas.push({ taskId: p.taskId, evidencia: p.evidencia, cmd })
-  execSync(cmd, { stdio: 'pipe' })
-  return {}
+  return { marcados }
 }
 
 // O papel que salva a onda, com efeito de verdade tambem: roda o comando REAL da skill
@@ -286,6 +307,7 @@ def roda_motor(tmp, texto, plan_dir, tick_cmd, plan_path, token_budget=None,
                agora=1, heartbeat=None, trabalho_vivo=False,
                checkpoint_cmd="", escreve_no_disco=False,
                suite_verde=True, suite_falhando=None, replay_cache=False, gaps=None,
+               espera_dono=None,
                review_sem_ancora=None, alegacao_impossivel=None, auditor_derruba=False,
                auditor_motivo="", auditor_nao_tentou=None, doc_falso=None):
     """Executa o esqueleto do SKILL.md com os agentes de mentira. Devolve
@@ -302,6 +324,14 @@ def roda_motor(tmp, texto, plan_dir, tick_cmd, plan_path, token_budget=None,
                 "parallelizable": True, "dependsOn": [], "done": False}
                for i in PLANO["phases"][0]["items"]]
     resultados = dict(RESULTADOS)
+    if espera_dono:
+        # F9.56: F1.3 passa a ESPERAR o dono. Ele sai da fila corretamente, mas volta
+        # em `missingTasks` do revisor — e era ai que reincidia e virava diagnostico
+        # caro. O cenario existe pra provar que agora nao vira.
+        for tf in tarefas:
+            if tf["id"] == "F1.3":
+                tf["esperaDono"] = espera_dono
+        resultados.pop("F1.3", None)
     if alegacao_impossivel:
         # F1.3 (o passo que nao sai) passa a voltar ALEGANDO impossivel, com a lista do
         # que havia a mao — que e o insumo da lente invertida do auditor.
@@ -854,6 +884,51 @@ def main():
     # mesma tarefa convoca o auditor, e os DOIS desfechos sao do script: derruba devolve
     # a tarefa ao loop; confirma encerra como impedimento real, com o motivo escrito.
     # O controle vem primeiro: alegacao de UMA rodada so nao convoca ninguem.
+    print("F9.51 — o comando do tique resolve o marcador por NOME, nao por posicao")
+    # O caso que custou 8,45M em 2026-08-08: um passo da propria missao moveu
+    # `plan_state.py` de plugin, o motor seguiu apontando o lugar velho, e cada agente
+    # de marcacao redescobriu o rename sozinho. A prova de que nao volta e o comando
+    # nao trazer caminho de plugin escrito a mao.
+    # acopla-ok: os dois caminhos aparecem como o que o comando NAO pode conter — e a
+    # asserção da ausência; citar o nome é o único jeito de provar que ele sumiu
+    caminhos_cravados = ["plugins/visual/lib/plan_state.py",  # acopla-ok: asserção da AUSÊNCIA
+                         "plugins/project-skills/lib/plan_state.py"]  # acopla-ok: idem
+    check("o comando do tique nao crava caminho de plugin",
+          not any(c in tick_cmd for c in caminhos_cravados))
+    check("ele resolve o marcador por nome, ou por variavel que o resolveu",
+          "resolve-plugin.sh" in texto and ("$MARCADOR" in tick_cmd or "resolve-plugin" in tick_cmd))
+    check("e o comando roda a partir da RAIZ, pra busca nao alcancar copia de worktree",
+          "cd <raiz>" in tick_cmd or "cd ${ARGS.repoRoot}" in texto)
+
+    print("F9.53 + F9.54 — a marcacao da onda e UM agente, e o veredito volta")
+    uma_onda = bancada(texto, tick_cmd, max_rounds=1)
+    if uma_onda is None:
+        return 1
+    marcadores = [a for a in uma_onda["agentes"] if a == "tick"]
+    check("a onda com 2 passos entregues disparou UM agente de marcacao, nao dois",
+          len(marcadores) == 1)
+    saida53 = uma_onda["saida"]
+    marcados = (saida53.get("rounds") or [{}])[0].get("marcados") or []
+    check("o veredito voltou ao script, com uma entrada por passo",
+          len(marcados) == 2)
+    check("e cada entrada diz se aquele passo foi marcado",
+          all("ok" in m and "task_id" in m for m in marcados))
+    # A prova de que o veredito nao e decoracao: o passo marcado com sucesso NAO vira
+    # bloqueio, e o plano tem os dois `done`.
+    perdidos = [b for b in saida53["blockers"] if "nao voltou no veredito" in (b.get("what") or "")]
+    check("passo com veredito ok nao vira bloqueio de perda silenciosa", not perdidos)
+
+    print("F9.56 — quem espera o dono NAO entra na conta de reincidencia")
+    espera = bancada(texto, tick_cmd, max_rounds=3, review_complete=False,
+                     espera_dono="o dono precisa escolher a casa da skill")
+    if espera is None:
+        return 1
+    check("nenhum diagnostico foi disparado sobre o passo que espera",
+          "diagnose" not in espera["agentes"])
+    saida56 = espera["saida"]
+    check("e ele aparece como ESPERANDO VOCE, nao como falha",
+          any(e.get("taskId") == "F1.3" for e in (saida56.get("esperandoVoce") or [])))
+
     print("F9.18 — alegacao que nao se repetiu nao convoca auditor (o controle)")
     uma_vez = bancada(texto, tick_cmd, max_rounds=1, alegacao_impossivel=ALEGACAO)
     if uma_vez is None:

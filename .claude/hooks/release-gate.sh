@@ -376,6 +376,23 @@ $(printf '%s' "$POUT" | head -20)
   fi
 fi
 
+# Q · cópia de trabalho parada no disco, que vira caminho de execução silencioso.
+# Em 2026-08-08, 14 de 41 marcações do motor rodaram binário que não era o da árvore:
+# os agentes procuraram o arquivo pelo NOME e o `find` alcançou as cópias em
+# .claude/worktrees/. Sete passaram por um validador 548 linhas mais velho, SEM as
+# funções de recusa. As cópias nasceram antes de a regra proibi-las — a regra proibiu
+# criar novas e não varreu as velhas.
+# SEM RECORTE por arquivo tocado: a cópia não aparece no diff de commit nenhum.
+WOC="$ROOT/scripts/worktree_orfao_check.py"
+if [ -f "$WOC" ]; then
+  if ! QOUT=$(cd "$ROOT" && python3 "$WOC" 2>&1); then
+    VIOL="${VIOL}
+❌ CÓPIA DE TRABALHO PARADA — quem busca arquivo pelo nome acha ela antes do original:
+$(printf '%s' "$QOUT" | head -12)
+   → régua: python3 scripts/worktree_orfao_check.py"
+  fi
+fi
+
 # O · plano e código discordando: passo ABERTO cujo critério de pronto já se cumpre.
 # Os quatro irmãos deste cobrador (H, I, L, M, N) já estavam aqui e este não — ele rodava
 # e acusava sem que portão nenhum o consultasse. Passo que fica "todo" depois de o trabalho
