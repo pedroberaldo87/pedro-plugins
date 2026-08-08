@@ -1,0 +1,204 @@
+#!/usr/bin/env python3
+"""As três auditorias do plano, num programa só, na ordem — e a ordem é `if`.
+
+Precedência escrita em prosa é precedência que a rodada seguinte ignora: alguém lê
+"o nível 2 só depois do 1", acha o nível 1 ruidoso e vai direto medir cobertura de
+spec contra um plano que contradiz a lei do projeto. Aqui a ordem não é recomendação:
+com o nível 1 vermelho a função RETORNA, e a chave `nivel2` não existe na saída. Não
+há resultado de nível 2 para ler, então não há como lê-lo fora de hora.
+
+A entrada é o dicionário que `cobertura.mapa` devolve — não o caminho de arquivo
+nenhum. Quem lê documento é o cruzamento; este módulo só ordena o que ele apurou, e
+por isso não conhece a pasta de plugin vizinho nenhum.
+"""
+
+# Nível 1 — o plano contradiz a documentação canônica. Cada balde é um jeito de
+# contradizer: citar o que a lei/arquitetura/desenho não tem, ou não citar nada.
+NIVEL1 = [
+    ("artigos_inexistentes", "cita artigo que a lei não tem"),
+    ("pecas_inexistentes", "cita peça que a arquitetura não tem"),
+    ("inexistentes", "cita requisito que não existe"),
+    ("repetidos", "número de requisito escrito duas vezes"),
+    ("sem_artigo", "não nasce de artigo nenhum da lei"),
+    ("sem_jornada", "não nasce de caminho de pessoa nenhum"),
+    ("sem_peca", "não diz em que peça da arquitetura vive"),
+    ("sem_passo", "não atende passo nenhum do ciclo"),
+]
+
+# Nível 2 — a spec aprovada cabe inteira no plano. Aqui não há contradição: há
+# pedaço da spec que ninguém atende, e tarefa que não atende pedaço nenhum.
+NIVEL2 = [
+    ("orfaos", "requisito que nenhuma tarefa atende"),
+    ("sem_requisito", "tarefa que não atende requisito nenhum"),
+    ("sem_ca", "requisito sem critério de aceite"),
+    ("jornadas_sem_funcionalidade", "jornada que nenhuma funcionalidade atende"),
+    ("passos_sem_funcionalidade", "passo do ciclo que ninguém atende"),
+    ("epicos_sem_jornada", "épico sem caminho de pessoa nenhum"),
+]
+
+
+# Os três baldes do nível 1 — a mesma contradição tem três causas possíveis, e só uma
+# delas se conserta sozinha. O plano errado se reescreve; a doc vencida e a doc em
+# conflito são pergunta para o dono, porque mexer em documento canônico para calar um
+# achado é o jeito mais rápido de perder a lei do projeto.
+PLANO_ERRADO = "plano-errado"
+DOC_VENCIDA = "doc-vencida"
+DOC_EM_CONFLITO = "doc-em-conflito"
+
+# O que o dono é chamado a decidir em cada balde que para o laço.
+PERGUNTA = {
+    DOC_VENCIDA: "a doc não acompanhou o que já existe — quem muda é a doc ou o plano?",
+    DOC_EM_CONFLITO: "dois documentos canônicos discordam — qual deles vale?",
+}
+
+
+def _alvo(item):
+    return " ".join(str(p) for p in item) if isinstance(item, tuple) else str(item)
+
+
+def _achados(mapa, baldes):
+    """Uma linha por item acusado, com o nome do balde que o acusou."""
+    out = []
+    for chave, motivo in baldes:
+        for item in mapa.get(chave) or []:
+            out.append("%s — %s" % (_alvo(item), motivo))
+    return out
+
+
+def _nivel(mapa, baldes):
+    achados = _achados(mapa, baldes)
+    return {"achados": achados, "vermelho": bool(achados)}
+
+
+def _classifica(mapa):
+    """Cada achado de nível 1 num dos três baldes, com quem segue e quem para.
+
+    A causa não se deduz do achado: "cita artigo que a lei não tem" tanto pode ser
+    plano inventando artigo quanto lei atrasada. Quem já sabe a causa escreve em
+    `classificacao` (alvo → balde); o que ninguém classificou é plano errado, que é
+    a única causa que o laço tem autoridade para consertar sozinho.
+    """
+    dito = mapa.get("classificacao") or {}
+    baldes = {PLANO_ERRADO: [], DOC_VENCIDA: [], DOC_EM_CONFLITO: []}
+    perguntas = []
+    for chave, motivo in NIVEL1:
+        for item in mapa.get(chave) or []:
+            alvo = _alvo(item)
+            classe = dito.get(alvo, PLANO_ERRADO)
+            if classe not in baldes:
+                classe = PLANO_ERRADO
+            baldes[classe].append({"alvo": alvo, "motivo": motivo})
+            if classe in PERGUNTA:
+                perguntas.append("%s — %s: %s" % (alvo, motivo, PERGUNTA[classe]))
+    return {"baldes": baldes,
+            "conserta": [a["alvo"] for a in baldes[PLANO_ERRADO]],
+            "perguntas": perguntas,
+            "devolve_ao_dono": bool(perguntas)}
+
+
+def audita(mapa):
+    """Roda os níveis na ordem e para no primeiro vermelho.
+
+    O `nivel1` vem com os achados já repartidos em `baldes`: `conserta` é o que o laço
+    segue consertando, e `devolve_ao_dono` com `perguntas` é o que o para — doc vencida
+    e doc em conflito não se consertam por conta própria.
+
+    Devolve sempre `nivel1` e `parou_em`. `nivel2` só existe quando o nível 1 está
+    verde; `nivel3` só quando os dois estão. O nível 3 é julgamento de agente, então
+    o programa não o declara verde: ele sai `pendente`, para o agente preencher.
+    """
+    n1 = _nivel(mapa, NIVEL1)
+    n1.update(_classifica(mapa))
+    if n1["vermelho"]:
+        return {"nivel1": n1, "parou_em": 1}
+
+    n2 = _nivel(mapa, NIVEL2)
+    if n2["vermelho"]:
+        return {"nivel1": n1, "nivel2": n2, "parou_em": 2}
+
+    return {"nivel1": n1, "nivel2": n2,
+            "nivel3": {"pendente": True,
+                       "nota": "coerência do plano — julgamento de agente"},
+            "parou_em": 3}
+
+
+def _bloqueios(resultado, limites_aceitos):
+    """Achados de severidade real que limite aceito nenhum cobre.
+
+    Severidade real é nível 1 e nível 2 — o nível 3 é julgamento de agente e não
+    entra na conta. O limite aceito é escrito por alvo, e o alvo é o começo da
+    linha do achado, antes do travessão.
+    """
+    aceitos = set(limites_aceitos or ())
+    out = []
+    for nivel in ("nivel1", "nivel2"):
+        for achado in (resultado.get(nivel) or {}).get("achados") or []:
+            if achado.split(" — ")[0] in aceitos:
+                continue
+            out.append(achado)
+    return out
+
+
+def rodada(mapa, limites_aceitos=()):
+    """Uma rodada do laço: audita e já diz, em campo, se ela fechou.
+
+    `limpa` é conta feita sobre os achados desta rodada, não frase que alguém lê
+    e interpreta: sobrou bloqueio, ou há pergunta pendente ao dono, a rodada não
+    está limpa. Sem isso o laço não termina — alguém desiste em silêncio e o
+    resultado parece pronto.
+    """
+    r = audita(mapa)
+    r["limites_aceitos"] = list(limites_aceitos or ())
+    r["bloqueios"] = _bloqueios(r, limites_aceitos)
+    r["limpa"] = not r["bloqueios"] and not r["nivel1"]["devolve_ao_dono"]
+    return r
+
+
+# O veredito é campo que o auditor escreve. Se ele viesse no mapa, quem monta assinaria
+# a própria aprovação — então o que a montagem entrega é limpo destas chaves antes de
+# entrar na auditoria.
+VEREDITO = ("nivel1", "nivel2", "nivel3", "parou_em",
+            "bloqueios", "limpa", "limites_aceitos")
+
+
+def _so_o_apurado(mapa):
+    return {k: v for k, v in (mapa or {}).items() if k not in VEREDITO}
+
+
+def ciclo(monta, limites_aceitos=(), maximo=5):
+    """O laço como script: monta, audita na linha seguinte, para na rodada limpa.
+
+    `monta` é de fora — recebe a rodada anterior (`None` na primeira) e devolve o mapa.
+    Quem monta não audita: o mapa entra pelo `_so_o_apurado`, que apaga qualquer
+    veredito escrito nele, e a nota de aprovação sai do `rodada`, sempre. Entre a
+    montagem e a auditoria não há `if` nenhum — não é recomendação de ordem, é a linha
+    de baixo. A parada é a rodada limpa; `maximo` só impede o laço infinito, e estourá-lo
+    é não ter fechado.
+    """
+    rodadas = []
+    anterior = None
+    for _ in range(maximo):
+        mapa = _so_o_apurado(monta(anterior))
+        r = rodada(mapa, limites_aceitos)
+        rodadas.append(r)
+        if r["limpa"]:
+            break
+        anterior = r
+    fechou = bool(rodadas) and rodadas[-1]["limpa"]
+    return {"rodadas": rodadas,
+            "limpa": fechou,
+            "fechou_em": len(rodadas) if fechou else None}
+
+
+def laco(mapas, limites_aceitos=()):
+    """Roda uma rodada por mapa e para na primeira que fecha.
+
+    A decisão de rodar de novo sai dos achados da rodada anterior — a que acabou
+    de rodar. Acabaram os mapas sem rodada limpa, `fechou_em` é `None`: o laço
+    não fechou, e não há como declarar que fechou.
+
+    É o `ciclo` com a montagem já feita: a lista de mapas é o montador. Um laço só,
+    para que não exista um segundo caminho em que a auditoria fique de fora.
+    """
+    mapas = list(mapas)
+    return ciclo(lambda _: mapas.pop(0), limites_aceitos, maximo=len(mapas))

@@ -1,6 +1,6 @@
 {
   "name": "principles",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "description": "Contextual system design principles for planning and review. Reads PRINCIPIOS-SISTEMAS.md, maps relevant categories to the current context, generates a practical guide with WHY + HOW.",
   "author": {
     "name": "pedroberaldo87",

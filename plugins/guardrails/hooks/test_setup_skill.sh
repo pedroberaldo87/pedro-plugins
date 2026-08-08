@@ -12,7 +12,7 @@
 # RENOMEIA (nunca apaga) os arquivos de estado órfãos — e não pode encostar no
 # estado VIVO, que mora em ~/.claude/guardrails/.
 
-SKILL="$(cd "$(dirname "${BASH_SOURCE[0]}")/../skills/setup" && pwd)/SKILL.md"
+SKILL="$(cd "$(dirname "${BASH_SOURCE[0]}")/../skills/guardrails" && pwd)/SKILL.md"
 TMP="$(mktemp -d)"
 # Sem raiz temporária não há suíte: cada `rm -rf "$TMP/..."` daqui viraria um caminho
 # absoluto real (`/home`). Aborta antes de armar o trap e antes do primeiro rm.

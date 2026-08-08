@@ -19,13 +19,19 @@ SHARED = os.path.join(ROOT, "_shared")
 ARQ = "regua-de-pergunta.md"
 
 FONTE = os.path.join(SHARED, ARQ)
-# Os quatro destinos: as três skills que usam AskUserQuestion mais a grill-me,
-# que pergunta em rodadas sem usar a ferramenta.
+# Os nove destinos: toda skill em que a pergunta ao dono tem OPÇÕES — as que
+# usam AskUserQuestion, a grill-me (pergunta em rodadas sem usar a ferramenta) e
+# as que param no meio do fluxo pra o dono escolher entre alternativas.
 DESTINOS = [
     "plugins/grill-me/skills/grill-me",
     "plugins/project-doc/skills/start-doc",
     "plugins/handoff/skills/handoff",
     "plugins/lixeiro/skills/faxina",
+    "plugins/visual/skills/visual",
+    "plugins/sovai/skills/sovai",
+    "plugins/qa-loop/skills/qa-loop",
+    "plugins/slides/skills/slides",
+    "plugins/improve/skills/improve",
 ]
 
 # Cada cláusula da régua, como o dono a ditou.
@@ -73,7 +79,7 @@ for label, trecho in CLAUSULAS:
     check("fonte: %s" % label, trecho in src, "(faltou %r)" % trecho)
 check("a régua NÃO monta caminho pra dentro de outro plugin", "plugins/" not in src)
 
-print("\n== a régua nas quatro cópias vendoradas ==")
+print("\n== a régua nas nove cópias vendoradas ==")
 for d in DESTINOS:
     c = os.path.join(ROOT, d, ARQ)
     rel = os.path.join(d, ARQ)
@@ -85,7 +91,7 @@ for d in DESTINOS:
         check("%s: %s" % (rel, label), trecho in txt)
     check("%s idêntica à fonte" % rel, txt == src)
 
-print("\n== as quatro skills APONTAM em vez de repetir ==")
+print("\n== as nove skills APONTAM em vez de repetir ==")
 for d in DESTINOS:
     s = os.path.join(ROOT, d, "SKILL.md")
     rel = os.path.join(d, "SKILL.md")

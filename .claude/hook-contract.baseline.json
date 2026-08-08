@@ -1,14 +1,366 @@
 {
-  "entries": 39,
-  "scripts": 38,
+  "entries": 59,
+  "scripts": 45,
   "findings": [
+    {
+      "rule": "R6-nome-evento-errado",
+      "sev": "high",
+      "who": "bootstrap/post-plugin-command.sh",
+      "line": 0,
+      "msg": "o nome diz que roda em 'post', mas está registrado em posttooluse",
+      "quote": ""
+    },
+    {
+      "rule": "R6-nome-fora-do-molde",
+      "sev": "high",
+      "who": "bootstrap/session-sync.sh",
+      "line": 0,
+      "msg": "o nome não diz quando roda nem se barra — molde: <evento>-<verbo>-<assunto> (evento: sessionstart · verbo: avisa|anota|mede|lembra|resume|sincroniza|colhe|abre)",
+      "quote": ""
+    },
+    {
+      "rule": "R6-nome-fora-do-molde",
+      "sev": "high",
+      "who": "bootstrap/sessionstart-deps.sh",
+      "line": 0,
+      "msg": "o nome não diz quando roda nem se barra — molde: <evento>-<verbo>-<assunto> (evento: sessionstart · verbo: avisa|anota|mede|lembra|resume|sincroniza|colhe|abre)",
+      "quote": ""
+    },
+    {
+      "rule": "R6-nome-verbo-errado",
+      "sev": "high",
+      "who": "bootstrap/stop-forma-relato.py",
+      "line": 0,
+      "msg": "o verbo 'forma' não bate com o que o script faz (só avisa) — use um de: avisa|anota|mede|lembra|resume|sincroniza|colhe|abre",
+      "quote": ""
+    },
+    {
+      "rule": "R6-nome-verbo-errado",
+      "sev": "high",
+      "who": "bootstrap/stop-prose-ceiling.py",
+      "line": 0,
+      "msg": "o verbo 'prose' não bate com o que o script faz (só avisa) — use um de: avisa|anota|mede|lembra|resume|sincroniza|colhe|abre",
+      "quote": ""
+    },
+    {
+      "rule": "R6-nome-verbo-errado",
+      "sev": "high",
+      "who": "bootstrap/stop-regua-relato.py",
+      "line": 0,
+      "msg": "o verbo 'regua' não bate com o que o script faz (só avisa) — use um de: avisa|anota|mede|lembra|resume|sincroniza|colhe|abre",
+      "quote": ""
+    },
+    {
+      "rule": "R6-nome-verbo-errado",
+      "sev": "high",
+      "who": "branches/posttooluse-push-branch.sh",
+      "line": 0,
+      "msg": "o verbo 'push' não bate com o que o script faz (só avisa) — use um de: avisa|anota|mede|lembra|resume|sincroniza|colhe|abre",
+      "quote": ""
+    },
+    {
+      "rule": "R6-nome-fora-do-molde",
+      "sev": "high",
+      "who": "branches/sessionstart-branches.sh",
+      "line": 0,
+      "msg": "o nome não diz quando roda nem se barra — molde: <evento>-<verbo>-<assunto> (evento: sessionstart · verbo: avisa|anota|mede|lembra|resume|sincroniza|colhe|abre)",
+      "quote": ""
+    },
+    {
+      "rule": "R6-nome-evento-errado",
+      "sev": "high",
+      "who": "context-guard/context-guard-reset.sh",
+      "line": 0,
+      "msg": "o nome diz que roda em 'context', mas está registrado em sessionstart",
+      "quote": ""
+    },
+    {
+      "rule": "R6-nome-fora-do-molde",
+      "sev": "high",
+      "who": "context-guard/context-guard.sh",
+      "line": 0,
+      "msg": "o nome não diz quando roda nem se barra — molde: <evento>-<verbo>-<assunto> (evento: posttooluse · verbo: barra|exige|trava|recusa)",
+      "quote": ""
+    },
+    {
+      "rule": "R6-nome-fora-do-molde",
+      "sev": "high",
+      "who": "gauntlet/pretooluse-gauntlet.sh",
+      "line": 0,
+      "msg": "o nome não diz quando roda nem se barra — molde: <evento>-<verbo>-<assunto> (evento: pretooluse · verbo: avisa|anota|mede|lembra|resume|sincroniza|colhe|abre)",
+      "quote": ""
+    },
+    {
+      "rule": "R6-nome-verbo-errado",
+      "sev": "high",
+      "who": "graphify-guard/pretooluse-graphify-guard.sh",
+      "line": 0,
+      "msg": "o verbo 'graphify' não bate com o que o script faz (só avisa) — use um de: avisa|anota|mede|lembra|resume|sincroniza|colhe|abre",
+      "quote": ""
+    },
+    {
+      "rule": "R6-nome-fora-do-molde",
+      "sev": "high",
+      "who": "graphify-guard/sessionstart-graphify.sh",
+      "line": 0,
+      "msg": "o nome não diz quando roda nem se barra — molde: <evento>-<verbo>-<assunto> (evento: sessionstart · verbo: avisa|anota|mede|lembra|resume|sincroniza|colhe|abre)",
+      "quote": ""
+    },
+    {
+      "rule": "R6-nome-fora-do-molde",
+      "sev": "high",
+      "who": "guardrails/askq-humanize.sh",
+      "line": 0,
+      "msg": "o nome não diz quando roda nem se barra — molde: <evento>-<verbo>-<assunto> (evento: pretooluse · verbo: barra|exige|trava|recusa)",
+      "quote": ""
+    },
+    {
+      "rule": "R6-nome-evento-errado",
+      "sev": "high",
+      "who": "guardrails/lint-and-typecheck.sh",
+      "line": 0,
+      "msg": "o nome diz que roda em 'lint', mas está registrado em posttooluse",
+      "quote": ""
+    },
+    {
+      "rule": "R6-nome-verbo-errado",
+      "sev": "high",
+      "who": "guardrails/pretooluse-artefato-regua.py",
+      "line": 0,
+      "msg": "o verbo 'artefato' não bate com o que o script faz (só avisa) — use um de: avisa|anota|mede|lembra|resume|sincroniza|colhe|abre",
+      "quote": ""
+    },
+    {
+      "rule": "R6-nome-fora-do-molde",
+      "sev": "high",
+      "who": "guardrails/scope-cop.sh",
+      "line": 0,
+      "msg": "o nome não diz quando roda nem se barra — molde: <evento>-<verbo>-<assunto> (evento: pretooluse · verbo: avisa|anota|mede|lembra|resume|sincroniza|colhe|abre)",
+      "quote": ""
+    },
+    {
+      "rule": "R6-nome-evento-errado",
+      "sev": "high",
+      "who": "handoff/handoff-completeness-gate.sh",
+      "line": 0,
+      "msg": "o nome diz que roda em 'handoff', mas está registrado em stop",
+      "quote": ""
+    },
+    {
+      "rule": "R6-nome-fora-do-molde",
+      "sev": "high",
+      "who": "handoff/sessionstart-ata.sh",
+      "line": 0,
+      "msg": "o nome não diz quando roda nem se barra — molde: <evento>-<verbo>-<assunto> (evento: sessionstart · verbo: avisa|anota|mede|lembra|resume|sincroniza|colhe|abre)",
+      "quote": ""
+    },
+    {
+      "rule": "R6-nome-fora-do-molde",
+      "sev": "high",
+      "who": "handoff/teamcreate-nudge.sh",
+      "line": 0,
+      "msg": "o nome não diz quando roda nem se barra — molde: <evento>-<verbo>-<assunto> (evento: pretooluse · verbo: avisa|anota|mede|lembra|resume|sincroniza|colhe|abre)",
+      "quote": ""
+    },
+    {
+      "rule": "R6-nome-fora-do-molde",
+      "sev": "high",
+      "who": "intent-guard/capture-prompt.sh",
+      "line": 0,
+      "msg": "o nome não diz quando roda nem se barra — molde: <evento>-<verbo>-<assunto> (evento: userpromptsubmit · verbo: avisa|anota|mede|lembra|resume|sincroniza|colhe|abre)",
+      "quote": ""
+    },
+    {
+      "rule": "R6-nome-fora-do-molde",
+      "sev": "high",
+      "who": "intent-guard/delivery-audit.sh",
+      "line": 0,
+      "msg": "o nome não diz quando roda nem se barra — molde: <evento>-<verbo>-<assunto> (evento: stop · verbo: avisa|anota|mede|lembra|resume|sincroniza|colhe|abre)",
+      "quote": ""
+    },
+    {
+      "rule": "R6-nome-fora-do-molde",
+      "sev": "high",
+      "who": "intent-guard/mark-work.sh",
+      "line": 0,
+      "msg": "o nome não diz quando roda nem se barra — molde: <evento>-<verbo>-<assunto> (evento: posttooluse · verbo: avisa|anota|mede|lembra|resume|sincroniza|colhe|abre)",
+      "quote": ""
+    },
+    {
+      "rule": "R6-nome-fora-do-molde",
+      "sev": "high",
+      "who": "intent-guard/plan-gate.sh",
+      "line": 0,
+      "msg": "o nome não diz quando roda nem se barra — molde: <evento>-<verbo>-<assunto> (evento: pretooluse · verbo: barra|exige|trava|recusa)",
+      "quote": ""
+    },
+    {
+      "rule": "R6-nome-fora-do-molde",
+      "sev": "high",
+      "who": "intent-guard/task-checkpoint.sh",
+      "line": 0,
+      "msg": "o nome não diz quando roda nem se barra — molde: <evento>-<verbo>-<assunto> (evento: posttooluse · verbo: avisa|anota|mede|lembra|resume|sincroniza|colhe|abre)",
+      "quote": ""
+    },
+    {
+      "rule": "R6-nome-fora-do-molde",
+      "sev": "high",
+      "who": "lixeiro/posttooluse-anota.sh",
+      "line": 0,
+      "msg": "o nome não diz quando roda nem se barra — molde: <evento>-<verbo>-<assunto> (evento: posttooluse · verbo: avisa|anota|mede|lembra|resume|sincroniza|colhe|abre)",
+      "quote": ""
+    },
+    {
+      "rule": "R6-nome-fora-do-molde",
+      "sev": "high",
+      "who": "lixeiro/sessionend-colhe.sh",
+      "line": 0,
+      "msg": "o nome não diz quando roda nem se barra — molde: <evento>-<verbo>-<assunto> (evento: sessionend · verbo: avisa|anota|mede|lembra|resume|sincroniza|colhe|abre)",
+      "quote": ""
+    },
+    {
+      "rule": "R6-nome-fora-do-molde",
+      "sev": "high",
+      "who": "lixeiro/sessionstart-orfaos.sh",
+      "line": 0,
+      "msg": "o nome não diz quando roda nem se barra — molde: <evento>-<verbo>-<assunto> (evento: sessionstart · verbo: avisa|anota|mede|lembra|resume|sincroniza|colhe|abre)",
+      "quote": ""
+    },
+    {
+      "rule": "R6-nome-verbo-errado",
+      "sev": "high",
+      "who": "project-doc/posttooluse-doc-read.sh",
+      "line": 0,
+      "msg": "o verbo 'doc' não bate com o que o script faz (só avisa) — use um de: avisa|anota|mede|lembra|resume|sincroniza|colhe|abre",
+      "quote": ""
+    },
+    {
+      "rule": "R6-nome-verbo-errado",
+      "sev": "high",
+      "who": "project-doc/pretooluse-doc-guard.sh",
+      "line": 0,
+      "msg": "o verbo 'doc' não bate com o que o script faz (só avisa) — use um de: avisa|anota|mede|lembra|resume|sincroniza|colhe|abre",
+      "quote": ""
+    },
+    {
+      "rule": "R6-nome-verbo-errado",
+      "sev": "high",
+      "who": "project-doc/pretooluse-organism-gate.sh",
+      "line": 0,
+      "msg": "o verbo 'organism' não bate com o que o script faz (só avisa) — use um de: avisa|anota|mede|lembra|resume|sincroniza|colhe|abre",
+      "quote": ""
+    },
+    {
+      "rule": "R6-nome-verbo-errado",
+      "sev": "high",
+      "who": "project-doc/pretooluse-plan-gate.sh",
+      "line": 0,
+      "msg": "o verbo 'plan' não bate com o que o script faz (só avisa) — use um de: avisa|anota|mede|lembra|resume|sincroniza|colhe|abre",
+      "quote": ""
+    },
+    {
+      "rule": "R6-nome-fora-do-molde",
+      "sev": "high",
+      "who": "project-doc/sessionstart-doc.sh",
+      "line": 0,
+      "msg": "o nome não diz quando roda nem se barra — molde: <evento>-<verbo>-<assunto> (evento: sessionstart · verbo: avisa|anota|mede|lembra|resume|sincroniza|colhe|abre)",
+      "quote": ""
+    },
+    {
+      "rule": "R6-nome-fora-do-molde",
+      "sev": "high",
+      "who": "project-doc/sessionstart-organism.sh",
+      "line": 0,
+      "msg": "o nome não diz quando roda nem se barra — molde: <evento>-<verbo>-<assunto> (evento: sessionstart · verbo: avisa|anota|mede|lembra|resume|sincroniza|colhe|abre)",
+      "quote": ""
+    },
+    {
+      "rule": "R6-nome-verbo-errado",
+      "sev": "high",
+      "who": "project-doc/stop-doc-touch.sh",
+      "line": 0,
+      "msg": "o verbo 'doc' não bate com o que o script faz (só avisa) — use um de: avisa|anota|mede|lembra|resume|sincroniza|colhe|abre",
+      "quote": ""
+    },
+    {
+      "rule": "R6-nome-verbo-errado",
+      "sev": "high",
+      "who": "project-doc/userpromptsubmit-plan-escape.sh",
+      "line": 0,
+      "msg": "o verbo 'plan' não bate com o que o script faz (só avisa) — use um de: avisa|anota|mede|lembra|resume|sincroniza|colhe|abre",
+      "quote": ""
+    },
     {
       "rule": "R1-cap-ausente",
       "sev": "high",
       "who": "ship/pre-deploy-test-check.sh",
-      "line": 357,
+      "line": 363,
       "msg": "bloqueia (exit2) e não tem teto de devoluções",
       "quote": "exit 2"
+    },
+    {
+      "rule": "R6-nome-evento-errado",
+      "sev": "high",
+      "who": "ship/pre-deploy-test-check.sh",
+      "line": 0,
+      "msg": "o nome diz que roda em 'pre', mas está registrado em pretooluse",
+      "quote": ""
+    },
+    {
+      "rule": "R6-nome-fora-do-molde",
+      "sev": "high",
+      "who": "sovai/posttooluse-andamento.sh",
+      "line": 0,
+      "msg": "o nome não diz quando roda nem se barra — molde: <evento>-<verbo>-<assunto> (evento: posttooluse|pretooluse · verbo: avisa|anota|mede|lembra|resume|sincroniza|colhe|abre)",
+      "quote": ""
+    },
+    {
+      "rule": "R6-nome-verbo-errado",
+      "sev": "high",
+      "who": "sovai/pretooluse-espera-com-guarda.sh",
+      "line": 0,
+      "msg": "o verbo 'espera' não bate com o que o script faz (só avisa) — use um de: avisa|anota|mede|lembra|resume|sincroniza|colhe|abre",
+      "quote": ""
+    },
+    {
+      "rule": "R6-nome-verbo-errado",
+      "sev": "high",
+      "who": "sovai/pretooluse-sovai-motor.sh",
+      "line": 0,
+      "msg": "o verbo 'sovai' não bate com o que o script faz (só avisa) — use um de: avisa|anota|mede|lembra|resume|sincroniza|colhe|abre",
+      "quote": ""
+    },
+    {
+      "rule": "R6-nome-evento-errado",
+      "sev": "high",
+      "who": "visual/pre-exitplan-visualize.sh",
+      "line": 0,
+      "msg": "o nome diz que roda em 'pre', mas está registrado em pretooluse",
+      "quote": ""
+    },
+    {
+      "rule": "R6-nome-fora-do-molde",
+      "sev": "high",
+      "who": "visual/sessionstart-plan.sh",
+      "line": 0,
+      "msg": "o nome não diz quando roda nem se barra — molde: <evento>-<verbo>-<assunto> (evento: sessionstart · verbo: avisa|anota|mede|lembra|resume|sincroniza|colhe|abre)",
+      "quote": ""
+    },
+    {
+      "rule": "R6-nome-verbo-errado",
+      "sev": "high",
+      "who": "visual/stop-anuncio-sem-acao.py",
+      "line": 0,
+      "msg": "o verbo 'anuncio' não bate com o que o script faz (bloqueia) — use um de: barra|exige|trava|recusa",
+      "quote": ""
+    },
+    {
+      "rule": "R6-nome-verbo-errado",
+      "sev": "high",
+      "who": "visual/stop-plan-status.sh",
+      "line": 0,
+      "msg": "o verbo 'plan' não bate com o que o script faz (só avisa) — use um de: avisa|anota|mede|lembra|resume|sincroniza|colhe|abre",
+      "quote": ""
     },
     {
       "rule": "R5-sem-failopen",
@@ -37,9 +389,16 @@
       "command": "CLAUDE_PLUGIN_ROOT=$(printf '%s' \"$CLAUDE_PLUGIN_ROOT\" | tr '\\\\' /); export CLAUDE_PLUGIN_ROOT; \"$CLAUDE_PLUGIN_ROOT\"/hooks/session-sync.sh",
       "script": "plugins/bootstrap/hooks/session-sync.sh",
       "measure": {
-        "lines": 204,
+        "lines": 236,
         "blocking": {},
-        "informing": {},
+        "informing": {
+          "systemMessage": [
+            [
+              75,
+              "python3 -c 'import json,sys; print(json.dumps({\"systemMessage\": sys.argv[1]}))' \"$CP_MSG\""
+            ]
+          ]
+        },
         "cap": {
           "counter": [],
           "sentinel": [],
@@ -48,9 +407,12 @@
         "killswitch": [],
         "hardcoded_tools": [],
         "tools_used": [
-          "jq"
+          "jq",
+          "python3"
         ],
-        "tools_guarded": [],
+        "tools_guarded": [
+          "python3"
+        ],
         "tools_unguarded": [
           "jq"
         ]
@@ -65,16 +427,16 @@
       "command": "CLAUDE_PLUGIN_ROOT=$(printf '%s' \"$CLAUDE_PLUGIN_ROOT\" | tr '\\\\' /); export CLAUDE_PLUGIN_ROOT; \"$CLAUDE_PLUGIN_ROOT\"/hooks/sessionstart-deps.sh",
       "script": "plugins/bootstrap/hooks/sessionstart-deps.sh",
       "measure": {
-        "lines": 38,
+        "lines": 74,
         "blocking": {},
         "informing": {
           "additionalContext": [
             [
-              35,
+              71,
               "# hookSpecificOutput ele é ignorado. O additionalContext leva o mesmo texto ao modelo."
             ],
             [
-              36,
+              72,
               "printf '{\"systemMessage\":\"%s\",\"hookSpecificOutput\":{\"hookEventName\":\"SessionStart\",\"additionalContext\":\"%s\"}}'"
             ]
           ],
@@ -84,11 +446,11 @@
               "# sessionstart-deps.sh — avisa (systemMessage de topo, 1x/sessão) quando uma dependência"
             ],
             [
-              34,
+              70,
               "# `systemMessage` no TOPO é o canal que o harness mostra ao humano — dentro de"
             ],
             [
-              36,
+              72,
               "printf '{\"systemMessage\":\"%s\",\"hookSpecificOutput\":{\"hookEventName\":\"SessionStart\",\"additionalContext\":\"%s\"}}'"
             ]
           ]
@@ -100,11 +462,11 @@
         },
         "killswitch": [
           [
-            6,
+            12,
             "[ \"${BOOTSTRAP_DEPS_GATE:-1}\" = \"0\" ] && exit 0"
           ],
           [
-            6,
+            12,
             "[ \"${BOOTSTRAP_DEPS_GATE:-1}\" = \"0\" ] && exit 0"
           ]
         ],
@@ -129,9 +491,16 @@
       "command": "CLAUDE_PLUGIN_ROOT=$(printf '%s' \"$CLAUDE_PLUGIN_ROOT\" | tr '\\\\' /); export CLAUDE_PLUGIN_ROOT; \"$CLAUDE_PLUGIN_ROOT\"/hooks/post-plugin-command.sh",
       "script": "plugins/bootstrap/hooks/post-plugin-command.sh",
       "measure": {
-        "lines": 91,
+        "lines": 132,
         "blocking": {},
-        "informing": {},
+        "informing": {
+          "systemMessage": [
+            [
+              83,
+              "python3 -c 'import json,sys; print(json.dumps({\"systemMessage\": sys.argv[1]}))' \"$MSG\""
+            ]
+          ]
+        },
         "cap": {
           "counter": [],
           "sentinel": [],
@@ -139,8 +508,12 @@
         },
         "killswitch": [],
         "hardcoded_tools": [],
-        "tools_used": [],
-        "tools_guarded": [],
+        "tools_used": [
+          "python3"
+        ],
+        "tools_guarded": [
+          "python3"
+        ],
         "tools_unguarded": []
       }
     },
@@ -150,7 +523,7 @@
       "matcher": "*",
       "type": "command",
       "timeout": 10,
-      "command": "CLAUDE_PLUGIN_ROOT=$(printf '%s' \"$CLAUDE_PLUGIN_ROOT\" | tr '\\\\' /); export CLAUDE_PLUGIN_ROOT; python3 \"$CLAUDE_PLUGIN_ROOT/hooks/stop-prose-ceiling.py\"",
+      "command": "CLAUDE_PLUGIN_ROOT=$(printf '%s' \"$CLAUDE_PLUGIN_ROOT\" | tr '\\\\' /); export CLAUDE_PLUGIN_ROOT; . \"$CLAUDE_PLUGIN_ROOT/hooks/hook-json.sh\" 2>/dev/null; PY=$(hj_py 2>/dev/null) || exit 0; \"$PY\" \"$CLAUDE_PLUGIN_ROOT/hooks/stop-prose-ceiling.py\"",
       "script": "plugins/bootstrap/hooks/stop-prose-ceiling.py",
       "measure": {
         "lines": 257,
@@ -179,7 +552,7 @@
       "matcher": "*",
       "type": "command",
       "timeout": 10,
-      "command": "CLAUDE_PLUGIN_ROOT=$(printf '%s' \"$CLAUDE_PLUGIN_ROOT\" | tr '\\\\' /); export CLAUDE_PLUGIN_ROOT; python3 \"$CLAUDE_PLUGIN_ROOT/hooks/stop-regua-relato.py\"",
+      "command": "CLAUDE_PLUGIN_ROOT=$(printf '%s' \"$CLAUDE_PLUGIN_ROOT\" | tr '\\\\' /); export CLAUDE_PLUGIN_ROOT; . \"$CLAUDE_PLUGIN_ROOT/hooks/hook-json.sh\" 2>/dev/null; PY=$(hj_py 2>/dev/null) || exit 0; \"$PY\" \"$CLAUDE_PLUGIN_ROOT/hooks/stop-regua-relato.py\"",
       "script": "plugins/bootstrap/hooks/stop-regua-relato.py",
       "measure": {
         "lines": 185,
@@ -208,10 +581,10 @@
       "matcher": "*",
       "type": "command",
       "timeout": 30,
-      "command": "CLAUDE_PLUGIN_ROOT=$(printf '%s' \"$CLAUDE_PLUGIN_ROOT\" | tr '\\\\' /); export CLAUDE_PLUGIN_ROOT; python3 \"$CLAUDE_PLUGIN_ROOT/hooks/stop-forma-relato.py\"",
+      "command": "CLAUDE_PLUGIN_ROOT=$(printf '%s' \"$CLAUDE_PLUGIN_ROOT\" | tr '\\\\' /); export CLAUDE_PLUGIN_ROOT; . \"$CLAUDE_PLUGIN_ROOT/hooks/hook-json.sh\" 2>/dev/null; PY=$(hj_py 2>/dev/null) || exit 0; \"$PY\" \"$CLAUDE_PLUGIN_ROOT/hooks/stop-forma-relato.py\"",
       "script": "plugins/bootstrap/hooks/stop-forma-relato.py",
       "measure": {
-        "lines": 205,
+        "lines": 211,
         "blocking": {},
         "informing": {},
         "cap": {
@@ -278,6 +651,70 @@
     },
     {
       "plugin": "branches",
+      "event": "SessionStart",
+      "matcher": "*",
+      "type": "command",
+      "timeout": 5,
+      "command": "CLAUDE_PLUGIN_ROOT=$(printf '%s' \"$CLAUDE_PLUGIN_ROOT\" | tr '\\\\' /); export CLAUDE_PLUGIN_ROOT; AVISO=$(\"$CLAUDE_PLUGIN_ROOT\"/hooks/resolve-plugin.sh bootstrap hooks/sessionstart-deps.sh) && exec bash \"$AVISO\"; exit 0",
+      "script": "plugins/bootstrap/hooks/sessionstart-deps.sh",
+      "measure": {
+        "lines": 74,
+        "blocking": {},
+        "informing": {
+          "additionalContext": [
+            [
+              71,
+              "# hookSpecificOutput ele é ignorado. O additionalContext leva o mesmo texto ao modelo."
+            ],
+            [
+              72,
+              "printf '{\"systemMessage\":\"%s\",\"hookSpecificOutput\":{\"hookEventName\":\"SessionStart\",\"additionalContext\":\"%s\"}}'"
+            ]
+          ],
+          "systemMessage": [
+            [
+              2,
+              "# sessionstart-deps.sh — avisa (systemMessage de topo, 1x/sessão) quando uma dependência"
+            ],
+            [
+              70,
+              "# `systemMessage` no TOPO é o canal que o harness mostra ao humano — dentro de"
+            ],
+            [
+              72,
+              "printf '{\"systemMessage\":\"%s\",\"hookSpecificOutput\":{\"hookEventName\":\"SessionStart\",\"additionalContext\":\"%s\"}}'"
+            ]
+          ]
+        },
+        "cap": {
+          "counter": [],
+          "sentinel": [],
+          "session_scoped": false
+        },
+        "killswitch": [
+          [
+            12,
+            "[ \"${BOOTSTRAP_DEPS_GATE:-1}\" = \"0\" ] && exit 0"
+          ],
+          [
+            12,
+            "[ \"${BOOTSTRAP_DEPS_GATE:-1}\" = \"0\" ] && exit 0"
+          ]
+        ],
+        "hardcoded_tools": [],
+        "tools_used": [
+          "jq",
+          "python3"
+        ],
+        "tools_guarded": [
+          "jq",
+          "python3"
+        ],
+        "tools_unguarded": []
+      }
+    },
+    {
+      "plugin": "branches",
       "event": "PostToolUse",
       "matcher": "Bash",
       "type": "command",
@@ -285,17 +722,13 @@
       "command": "CLAUDE_PLUGIN_ROOT=$(printf '%s' \"$CLAUDE_PLUGIN_ROOT\" | tr '\\\\' /); export CLAUDE_PLUGIN_ROOT; \"$CLAUDE_PLUGIN_ROOT\"/hooks/posttooluse-push-branch.sh",
       "script": "plugins/branches/hooks/posttooluse-push-branch.sh",
       "measure": {
-        "lines": 90,
+        "lines": 104,
         "blocking": {},
         "informing": {
           "systemMessage": [
             [
               12,
               "#   canal      systemMessage — INFORMA, nunca bloqueia"
-            ],
-            [
-              89,
-              "jq -n --arg m \"$MSG\" '{systemMessage:$m}' 2>/dev/null"
             ]
           ]
         },
@@ -303,7 +736,7 @@
           "counter": [],
           "sentinel": [
             [
-              71,
+              85,
               "[ -f \"$SENTINEL\" ] && exit 0"
             ]
           ],
@@ -321,11 +754,9 @@
         ],
         "hardcoded_tools": [],
         "tools_used": [
-          "jq",
           "python3"
         ],
         "tools_guarded": [
-          "jq",
           "python3"
         ],
         "tools_unguarded": []
@@ -340,7 +771,7 @@
       "command": "CLAUDE_PLUGIN_ROOT=$(printf '%s' \"$CLAUDE_PLUGIN_ROOT\" | tr '\\\\' /); export CLAUDE_PLUGIN_ROOT; \"$CLAUDE_PLUGIN_ROOT\"/hooks/context-guard-reset.sh",
       "script": "plugins/context-guard/hooks/context-guard-reset.sh",
       "measure": {
-        "lines": 12,
+        "lines": 25,
         "blocking": {},
         "informing": {},
         "cap": {
@@ -350,11 +781,71 @@
         },
         "killswitch": [],
         "hardcoded_tools": [],
+        "tools_used": [],
+        "tools_guarded": [],
+        "tools_unguarded": []
+      }
+    },
+    {
+      "plugin": "context-guard",
+      "event": "SessionStart",
+      "matcher": "*",
+      "type": "command",
+      "timeout": 5,
+      "command": "CLAUDE_PLUGIN_ROOT=$(printf '%s' \"$CLAUDE_PLUGIN_ROOT\" | tr '\\\\' /); export CLAUDE_PLUGIN_ROOT; AVISO=$(\"$CLAUDE_PLUGIN_ROOT\"/hooks/resolve-plugin.sh bootstrap hooks/sessionstart-deps.sh) && exec bash \"$AVISO\"; exit 0",
+      "script": "plugins/bootstrap/hooks/sessionstart-deps.sh",
+      "measure": {
+        "lines": 74,
+        "blocking": {},
+        "informing": {
+          "additionalContext": [
+            [
+              71,
+              "# hookSpecificOutput ele é ignorado. O additionalContext leva o mesmo texto ao modelo."
+            ],
+            [
+              72,
+              "printf '{\"systemMessage\":\"%s\",\"hookSpecificOutput\":{\"hookEventName\":\"SessionStart\",\"additionalContext\":\"%s\"}}'"
+            ]
+          ],
+          "systemMessage": [
+            [
+              2,
+              "# sessionstart-deps.sh — avisa (systemMessage de topo, 1x/sessão) quando uma dependência"
+            ],
+            [
+              70,
+              "# `systemMessage` no TOPO é o canal que o harness mostra ao humano — dentro de"
+            ],
+            [
+              72,
+              "printf '{\"systemMessage\":\"%s\",\"hookSpecificOutput\":{\"hookEventName\":\"SessionStart\",\"additionalContext\":\"%s\"}}'"
+            ]
+          ]
+        },
+        "cap": {
+          "counter": [],
+          "sentinel": [],
+          "session_scoped": false
+        },
+        "killswitch": [
+          [
+            12,
+            "[ \"${BOOTSTRAP_DEPS_GATE:-1}\" = \"0\" ] && exit 0"
+          ],
+          [
+            12,
+            "[ \"${BOOTSTRAP_DEPS_GATE:-1}\" = \"0\" ] && exit 0"
+          ]
+        ],
+        "hardcoded_tools": [],
         "tools_used": [
-          "jq"
+          "jq",
+          "python3"
         ],
         "tools_guarded": [
-          "jq"
+          "jq",
+          "python3"
         ],
         "tools_unguarded": []
       }
@@ -368,11 +859,11 @@
       "command": "CLAUDE_PLUGIN_ROOT=$(printf '%s' \"$CLAUDE_PLUGIN_ROOT\" | tr '\\\\' /); export CLAUDE_PLUGIN_ROOT; \"$CLAUDE_PLUGIN_ROOT\"/hooks/context-guard.sh",
       "script": "plugins/context-guard/hooks/context-guard.sh",
       "measure": {
-        "lines": 45,
+        "lines": 56,
         "blocking": {
           "decisionBlock": [
             [
-              44,
+              55,
               "printf '{\"decision\":\"block\",\"reason\":\"⚠️ CONTEXTO EM %s%%. Rode o /handoff AGORA (skill handoff, modo SALVAR) "
             ]
           ]
@@ -382,7 +873,7 @@
           "counter": [],
           "sentinel": [
             [
-              26,
+              37,
               "[ -f \"$SENTINEL\" ] && exit 0"
             ]
           ],
@@ -390,20 +881,124 @@
         },
         "killswitch": [
           [
-            15,
+            26,
             "MODE_FILE=\"${HOME}/.claude/context-guard/mode\""
           ],
           [
-            16,
+            27,
             "[ -f \"$MODE_FILE\" ] && [ \"$(tr -d '[:space:]' < \"$MODE_FILE\" 2>/dev/null)\" = \"off\" ] && exit 0"
           ]
         ],
         "hardcoded_tools": [],
+        "tools_used": [],
+        "tools_guarded": [],
+        "tools_unguarded": []
+      }
+    },
+    {
+      "plugin": "gauntlet",
+      "event": "SessionStart",
+      "matcher": "*",
+      "type": "command",
+      "timeout": 5,
+      "command": "CLAUDE_PLUGIN_ROOT=$(printf '%s' \"$CLAUDE_PLUGIN_ROOT\" | tr '\\\\' /); export CLAUDE_PLUGIN_ROOT; AVISO=$(\"$CLAUDE_PLUGIN_ROOT\"/hooks/resolve-plugin.sh bootstrap hooks/sessionstart-deps.sh) && exec bash \"$AVISO\"; exit 0",
+      "script": "plugins/bootstrap/hooks/sessionstart-deps.sh",
+      "measure": {
+        "lines": 74,
+        "blocking": {},
+        "informing": {
+          "additionalContext": [
+            [
+              71,
+              "# hookSpecificOutput ele é ignorado. O additionalContext leva o mesmo texto ao modelo."
+            ],
+            [
+              72,
+              "printf '{\"systemMessage\":\"%s\",\"hookSpecificOutput\":{\"hookEventName\":\"SessionStart\",\"additionalContext\":\"%s\"}}'"
+            ]
+          ],
+          "systemMessage": [
+            [
+              2,
+              "# sessionstart-deps.sh — avisa (systemMessage de topo, 1x/sessão) quando uma dependência"
+            ],
+            [
+              70,
+              "# `systemMessage` no TOPO é o canal que o harness mostra ao humano — dentro de"
+            ],
+            [
+              72,
+              "printf '{\"systemMessage\":\"%s\",\"hookSpecificOutput\":{\"hookEventName\":\"SessionStart\",\"additionalContext\":\"%s\"}}'"
+            ]
+          ]
+        },
+        "cap": {
+          "counter": [],
+          "sentinel": [],
+          "session_scoped": false
+        },
+        "killswitch": [
+          [
+            12,
+            "[ \"${BOOTSTRAP_DEPS_GATE:-1}\" = \"0\" ] && exit 0"
+          ],
+          [
+            12,
+            "[ \"${BOOTSTRAP_DEPS_GATE:-1}\" = \"0\" ] && exit 0"
+          ]
+        ],
+        "hardcoded_tools": [],
         "tools_used": [
-          "jq"
+          "jq",
+          "python3"
         ],
         "tools_guarded": [
-          "jq"
+          "jq",
+          "python3"
+        ],
+        "tools_unguarded": []
+      }
+    },
+    {
+      "plugin": "gauntlet",
+      "event": "PreToolUse",
+      "matcher": "Agent",
+      "type": "command",
+      "timeout": 10,
+      "command": "CLAUDE_PLUGIN_ROOT=$(printf '%s' \"$CLAUDE_PLUGIN_ROOT\" | tr '\\\\' /); export CLAUDE_PLUGIN_ROOT; bash \"$CLAUDE_PLUGIN_ROOT/hooks/pretooluse-gauntlet.sh\"",
+      "script": "plugins/gauntlet/hooks/pretooluse-gauntlet.sh",
+      "measure": {
+        "lines": 98,
+        "blocking": {},
+        "informing": {},
+        "cap": {
+          "counter": [
+            [
+              78,
+              "if [ \"$N\" -ge \"$MAX\" ]; then"
+            ]
+          ],
+          "sentinel": [],
+          "session_scoped": true
+        },
+        "killswitch": [
+          [
+            37,
+            "[ \"${GAUNTLET_GATE:-1}\" = \"0\" ] && exit 0"
+          ],
+          [
+            37,
+            "[ \"${GAUNTLET_GATE:-1}\" = \"0\" ] && exit 0"
+          ]
+        ],
+        "hardcoded_tools": [],
+        "tools_used": [
+          "jq",
+          "python3"
+        ],
+        "tools_guarded": [
+          "jq",
+          "python3"
         ],
         "tools_unguarded": []
       }
@@ -445,6 +1040,70 @@
     },
     {
       "plugin": "graphify-guard",
+      "event": "SessionStart",
+      "matcher": "*",
+      "type": "command",
+      "timeout": 5,
+      "command": "CLAUDE_PLUGIN_ROOT=$(printf '%s' \"$CLAUDE_PLUGIN_ROOT\" | tr '\\\\' /); export CLAUDE_PLUGIN_ROOT; AVISO=$(\"$CLAUDE_PLUGIN_ROOT\"/hooks/resolve-plugin.sh bootstrap hooks/sessionstart-deps.sh) && exec bash \"$AVISO\"; exit 0",
+      "script": "plugins/bootstrap/hooks/sessionstart-deps.sh",
+      "measure": {
+        "lines": 74,
+        "blocking": {},
+        "informing": {
+          "additionalContext": [
+            [
+              71,
+              "# hookSpecificOutput ele é ignorado. O additionalContext leva o mesmo texto ao modelo."
+            ],
+            [
+              72,
+              "printf '{\"systemMessage\":\"%s\",\"hookSpecificOutput\":{\"hookEventName\":\"SessionStart\",\"additionalContext\":\"%s\"}}'"
+            ]
+          ],
+          "systemMessage": [
+            [
+              2,
+              "# sessionstart-deps.sh — avisa (systemMessage de topo, 1x/sessão) quando uma dependência"
+            ],
+            [
+              70,
+              "# `systemMessage` no TOPO é o canal que o harness mostra ao humano — dentro de"
+            ],
+            [
+              72,
+              "printf '{\"systemMessage\":\"%s\",\"hookSpecificOutput\":{\"hookEventName\":\"SessionStart\",\"additionalContext\":\"%s\"}}'"
+            ]
+          ]
+        },
+        "cap": {
+          "counter": [],
+          "sentinel": [],
+          "session_scoped": false
+        },
+        "killswitch": [
+          [
+            12,
+            "[ \"${BOOTSTRAP_DEPS_GATE:-1}\" = \"0\" ] && exit 0"
+          ],
+          [
+            12,
+            "[ \"${BOOTSTRAP_DEPS_GATE:-1}\" = \"0\" ] && exit 0"
+          ]
+        ],
+        "hardcoded_tools": [],
+        "tools_used": [
+          "jq",
+          "python3"
+        ],
+        "tools_guarded": [
+          "jq",
+          "python3"
+        ],
+        "tools_unguarded": []
+      }
+    },
+    {
+      "plugin": "graphify-guard",
       "event": "PreToolUse",
       "matcher": "Grep|Glob|Bash",
       "type": "command",
@@ -452,29 +1111,16 @@
       "command": "CLAUDE_PLUGIN_ROOT=$(printf '%s' \"$CLAUDE_PLUGIN_ROOT\" | tr '\\\\' /); export CLAUDE_PLUGIN_ROOT; \"$CLAUDE_PLUGIN_ROOT\"/hooks/pretooluse-graphify-guard.sh",
       "script": "plugins/graphify-guard/hooks/pretooluse-graphify-guard.sh",
       "measure": {
-        "lines": 176,
-        "blocking": {
-          "permissionDecision": [
-            [
-              167,
-              "'{hookSpecificOutput:{hookEventName:\"PreToolUse\",permissionDecision:\"deny\",permissionDecisionReason:$r}}'"
-            ]
-          ]
-        },
+        "lines": 185,
+        "blocking": {},
         "informing": {
-          "additionalContext": [
-            [
-              174,
-              "'{hookSpecificOutput:{hookEventName:\"PreToolUse\",additionalContext:$r}}'"
-            ]
-          ],
           "systemMessage": [
             [
-              169,
+              179,
               "# Sem systemMessage de propósito: este aviso é endereçado ao MODELO, que é quem roda o"
             ],
             [
-              170,
+              180,
               "# `graphify query` — o usuário não tem o que fazer com ele, e um systemMessage por sessão"
             ]
           ]
@@ -483,11 +1129,11 @@
           "counter": [],
           "sentinel": [
             [
-              68,
+              79,
               "[ -f \"$SENTINEL\" ] && exit 0"
             ],
             [
-              87,
+              98,
               "[ -f \"$d/graphify-out/graph.json\" ] && { printf '%s' \"$d\"; return 0; }"
             ]
           ],
@@ -501,6 +1147,68 @@
           [
             11,
             "[ \"${GRAPHIFY_GATE:-1}\" = \"0\" ] && exit 0"
+          ]
+        ],
+        "hardcoded_tools": [],
+        "tools_used": [
+          "python3"
+        ],
+        "tools_guarded": [
+          "python3"
+        ],
+        "tools_unguarded": []
+      }
+    },
+    {
+      "plugin": "guardrails",
+      "event": "SessionStart",
+      "matcher": "*",
+      "type": "command",
+      "timeout": 5,
+      "command": "CLAUDE_PLUGIN_ROOT=$(printf '%s' \"$CLAUDE_PLUGIN_ROOT\" | tr '\\\\' /); export CLAUDE_PLUGIN_ROOT; AVISO=$(\"$CLAUDE_PLUGIN_ROOT\"/hooks/resolve-plugin.sh bootstrap hooks/sessionstart-deps.sh) && exec bash \"$AVISO\"; exit 0",
+      "script": "plugins/bootstrap/hooks/sessionstart-deps.sh",
+      "measure": {
+        "lines": 74,
+        "blocking": {},
+        "informing": {
+          "additionalContext": [
+            [
+              71,
+              "# hookSpecificOutput ele é ignorado. O additionalContext leva o mesmo texto ao modelo."
+            ],
+            [
+              72,
+              "printf '{\"systemMessage\":\"%s\",\"hookSpecificOutput\":{\"hookEventName\":\"SessionStart\",\"additionalContext\":\"%s\"}}'"
+            ]
+          ],
+          "systemMessage": [
+            [
+              2,
+              "# sessionstart-deps.sh — avisa (systemMessage de topo, 1x/sessão) quando uma dependência"
+            ],
+            [
+              70,
+              "# `systemMessage` no TOPO é o canal que o harness mostra ao humano — dentro de"
+            ],
+            [
+              72,
+              "printf '{\"systemMessage\":\"%s\",\"hookSpecificOutput\":{\"hookEventName\":\"SessionStart\",\"additionalContext\":\"%s\"}}'"
+            ]
+          ]
+        },
+        "cap": {
+          "counter": [],
+          "sentinel": [],
+          "session_scoped": false
+        },
+        "killswitch": [
+          [
+            12,
+            "[ \"${BOOTSTRAP_DEPS_GATE:-1}\" = \"0\" ] && exit 0"
+          ],
+          [
+            12,
+            "[ \"${BOOTSTRAP_DEPS_GATE:-1}\" = \"0\" ] && exit 0"
           ]
         ],
         "hardcoded_tools": [],
@@ -524,15 +1232,15 @@
       "command": "CLAUDE_PLUGIN_ROOT=$(printf '%s' \"$CLAUDE_PLUGIN_ROOT\" | tr '\\\\' /); export CLAUDE_PLUGIN_ROOT; \"$CLAUDE_PLUGIN_ROOT\"/hooks/lint-and-typecheck.sh",
       "script": "plugins/guardrails/hooks/lint-and-typecheck.sh",
       "measure": {
-        "lines": 162,
+        "lines": 168,
         "blocking": {
           "exit2": [
             [
-              156,
+              162,
               "exit 2"
             ],
             [
-              159,
+              165,
               "exit 2"
             ]
           ]
@@ -541,13 +1249,13 @@
         "cap": {
           "counter": [
             [
-              149,
+              155,
               "if [ \"$COUNT\" -ge \"$MAX_NUDGES\" ]; then"
             ]
           ],
           "sentinel": [
             [
-              147,
+              153,
               "[ -f \"$COUNT_FILE\" ] && COUNT=\"$(tr -d '[:space:]' < \"$COUNT_FILE\" 2>/dev/null)\""
             ]
           ],
@@ -564,11 +1272,8 @@
           ]
         ],
         "hardcoded_tools": [],
-        "tools_used": [
-          "jq"
-        ],
+        "tools_used": [],
         "tools_guarded": [
-          "jq",
           "mypy",
           "ruff"
         ],
@@ -595,49 +1300,34 @@
       "command": "CLAUDE_PLUGIN_ROOT=$(printf '%s' \"$CLAUDE_PLUGIN_ROOT\" | tr '\\\\' /); export CLAUDE_PLUGIN_ROOT; \"$CLAUDE_PLUGIN_ROOT\"/hooks/scope-cop.sh",
       "script": "plugins/guardrails/hooks/scope-cop.sh",
       "measure": {
-        "lines": 435,
-        "blocking": {
-          "permissionDecision": [
-            [
-              426,
-              "permissionDecision: \"deny\","
-            ]
-          ]
-        },
+        "lines": 433,
+        "blocking": {},
         "informing": {
           "additionalContext": [
             [
-              395,
+              402,
               "# O par systemMessage + additionalContext porque o aviso interessa aos DOIS"
             ],
             [
-              396,
+              403,
               "# públicos, e cada um tem seu canal: additionalContext vira attachment pro"
-            ],
-            [
-              412,
-              "hookSpecificOutput: { hookEventName: \"PreToolUse\", additionalContext: $r }"
             ]
           ],
           "systemMessage": [
             [
-              395,
+              402,
               "# O par systemMessage + additionalContext porque o aviso interessa aos DOIS"
             ],
             [
-              398,
+              405,
               "# sozinho ele deixaria o usuário no mesmo silêncio do modo \"off\". systemMessage"
-            ],
-            [
-              411,
-              "systemMessage: $r,"
             ]
           ]
         },
         "cap": {
           "counter": [
             [
-              322,
+              329,
               "if [ \"$STREAK\" -ge \"$MAX_STREAK\" ]; then"
             ]
           ],
@@ -654,30 +1344,28 @@
             "[ \"${SCOPE_COP_GATE:-1}\" = \"0\" ] && exit 0"
           ],
           [
-            42,
+            49,
             "MODE_FILE=\"$HOOK_DIR/scope-cop.mode\""
           ],
           [
-            86,
+            93,
             "[ -f \"$MODE_FILE\" ] && MODE=\"$(tr -d '[:space:]' < \"$MODE_FILE\" 2>/dev/null)\""
           ],
           [
-            122,
+            129,
             "\"$(date '+%Y-%m-%d %H:%M:%S')\" \"$MODE\" \"$MODE_IGNORADO\" \"$MODE_FILE\" \"$FILE_PATH\" >> \"$LOG_FILE\""
           ],
           [
-            405,
+            412,
             "• Bloquear de novo: escreva 'deny' em ${MODE_FILE}\""
           ]
         ],
         "hardcoded_tools": [],
         "tools_used": [
-          "jq",
           "python3"
         ],
         "tools_guarded": [
           "claude",
-          "jq",
           "python3"
         ],
         "tools_unguarded": []
@@ -692,16 +1380,12 @@
       "command": "CLAUDE_PLUGIN_ROOT=$(printf '%s' \"$CLAUDE_PLUGIN_ROOT\" | tr '\\\\' /); export CLAUDE_PLUGIN_ROOT; \"$CLAUDE_PLUGIN_ROOT\"/hooks/askq-humanize.sh",
       "script": "plugins/guardrails/hooks/askq-humanize.sh",
       "measure": {
-        "lines": 106,
+        "lines": 112,
         "blocking": {
           "permissionDecision": [
             [
               15,
               "#   canal      permissionDecision:\"deny\" em JSON no stdout, com exit 0"
-            ],
-            [
-              105,
-              "'{hookSpecificOutput:{hookEventName:\"PreToolUse\",permissionDecision:\"deny\",permissionDecisionReason:$r}}'"
             ]
           ]
         },
@@ -709,13 +1393,13 @@
         "cap": {
           "counter": [
             [
-              80,
+              87,
               "[ \"$COUNT\" -ge \"$MAX_NUDGES\" ] && exit 0"
             ]
           ],
           "sentinel": [
             [
-              78,
+              85,
               "[ -f \"$COUNT_FILE\" ] && COUNT=\"$(tr -d '[:space:]' < \"$COUNT_FILE\" 2>/dev/null)\""
             ]
           ],
@@ -733,11 +1417,9 @@
         ],
         "hardcoded_tools": [],
         "tools_used": [
-          "jq",
           "python3"
         ],
         "tools_guarded": [
-          "jq",
           "python3"
         ],
         "tools_unguarded": []
@@ -749,7 +1431,7 @@
       "matcher": "Edit|Write",
       "type": "command",
       "timeout": 10,
-      "command": "CLAUDE_PLUGIN_ROOT=$(printf '%s' \"$CLAUDE_PLUGIN_ROOT\" | tr '\\\\' /); export CLAUDE_PLUGIN_ROOT; python3 \"$CLAUDE_PLUGIN_ROOT/hooks/pretooluse-artefato-regua.py\"",
+      "command": "CLAUDE_PLUGIN_ROOT=$(printf '%s' \"$CLAUDE_PLUGIN_ROOT\" | tr '\\\\' /); export CLAUDE_PLUGIN_ROOT; . \"$CLAUDE_PLUGIN_ROOT/hooks/hook-json.sh\" 2>/dev/null; PY=$(hj_py 2>/dev/null) || exit 0; \"$PY\" \"$CLAUDE_PLUGIN_ROOT/hooks/pretooluse-artefato-regua.py\"",
       "script": "plugins/guardrails/hooks/pretooluse-artefato-regua.py",
       "measure": {
         "lines": 108,
@@ -781,7 +1463,7 @@
       "command": "CLAUDE_PLUGIN_ROOT=$(printf '%s' \"$CLAUDE_PLUGIN_ROOT\" | tr '\\\\' /); export CLAUDE_PLUGIN_ROOT; \"$CLAUDE_PLUGIN_ROOT\"/hooks/sessionstart-ata.sh",
       "script": "plugins/handoff/hooks/sessionstart-ata.sh",
       "measure": {
-        "lines": 33,
+        "lines": 35,
         "blocking": {},
         "informing": {},
         "cap": {
@@ -802,6 +1484,70 @@
     },
     {
       "plugin": "handoff",
+      "event": "SessionStart",
+      "matcher": "*",
+      "type": "command",
+      "timeout": 5,
+      "command": "CLAUDE_PLUGIN_ROOT=$(printf '%s' \"$CLAUDE_PLUGIN_ROOT\" | tr '\\\\' /); export CLAUDE_PLUGIN_ROOT; AVISO=$(\"$CLAUDE_PLUGIN_ROOT\"/hooks/resolve-plugin.sh bootstrap hooks/sessionstart-deps.sh) && exec bash \"$AVISO\"; exit 0",
+      "script": "plugins/bootstrap/hooks/sessionstart-deps.sh",
+      "measure": {
+        "lines": 74,
+        "blocking": {},
+        "informing": {
+          "additionalContext": [
+            [
+              71,
+              "# hookSpecificOutput ele é ignorado. O additionalContext leva o mesmo texto ao modelo."
+            ],
+            [
+              72,
+              "printf '{\"systemMessage\":\"%s\",\"hookSpecificOutput\":{\"hookEventName\":\"SessionStart\",\"additionalContext\":\"%s\"}}'"
+            ]
+          ],
+          "systemMessage": [
+            [
+              2,
+              "# sessionstart-deps.sh — avisa (systemMessage de topo, 1x/sessão) quando uma dependência"
+            ],
+            [
+              70,
+              "# `systemMessage` no TOPO é o canal que o harness mostra ao humano — dentro de"
+            ],
+            [
+              72,
+              "printf '{\"systemMessage\":\"%s\",\"hookSpecificOutput\":{\"hookEventName\":\"SessionStart\",\"additionalContext\":\"%s\"}}'"
+            ]
+          ]
+        },
+        "cap": {
+          "counter": [],
+          "sentinel": [],
+          "session_scoped": false
+        },
+        "killswitch": [
+          [
+            12,
+            "[ \"${BOOTSTRAP_DEPS_GATE:-1}\" = \"0\" ] && exit 0"
+          ],
+          [
+            12,
+            "[ \"${BOOTSTRAP_DEPS_GATE:-1}\" = \"0\" ] && exit 0"
+          ]
+        ],
+        "hardcoded_tools": [],
+        "tools_used": [
+          "jq",
+          "python3"
+        ],
+        "tools_guarded": [
+          "jq",
+          "python3"
+        ],
+        "tools_unguarded": []
+      }
+    },
+    {
+      "plugin": "handoff",
       "event": "Stop",
       "matcher": "*",
       "type": "command",
@@ -809,11 +1555,11 @@
       "command": "CLAUDE_PLUGIN_ROOT=$(printf '%s' \"$CLAUDE_PLUGIN_ROOT\" | tr '\\\\' /); export CLAUDE_PLUGIN_ROOT; \"$CLAUDE_PLUGIN_ROOT\"/hooks/handoff-completeness-gate.sh",
       "script": "plugins/handoff/hooks/handoff-completeness-gate.sh",
       "measure": {
-        "lines": 145,
+        "lines": 146,
         "blocking": {
           "decisionBlock": [
             [
-              141,
+              142,
               "print(json.dumps({\"decision\": \"block\", \"reason\": \"\\n\".join(lines)}, ensure_ascii=False))"
             ]
           ]
@@ -881,6 +1627,70 @@
     },
     {
       "plugin": "intent-guard",
+      "event": "SessionStart",
+      "matcher": "*",
+      "type": "command",
+      "timeout": 5,
+      "command": "CLAUDE_PLUGIN_ROOT=$(printf '%s' \"$CLAUDE_PLUGIN_ROOT\" | tr '\\\\' /); export CLAUDE_PLUGIN_ROOT; AVISO=$(\"$CLAUDE_PLUGIN_ROOT\"/hooks/resolve-plugin.sh bootstrap hooks/sessionstart-deps.sh) && exec bash \"$AVISO\"; exit 0",
+      "script": "plugins/bootstrap/hooks/sessionstart-deps.sh",
+      "measure": {
+        "lines": 74,
+        "blocking": {},
+        "informing": {
+          "additionalContext": [
+            [
+              71,
+              "# hookSpecificOutput ele é ignorado. O additionalContext leva o mesmo texto ao modelo."
+            ],
+            [
+              72,
+              "printf '{\"systemMessage\":\"%s\",\"hookSpecificOutput\":{\"hookEventName\":\"SessionStart\",\"additionalContext\":\"%s\"}}'"
+            ]
+          ],
+          "systemMessage": [
+            [
+              2,
+              "# sessionstart-deps.sh — avisa (systemMessage de topo, 1x/sessão) quando uma dependência"
+            ],
+            [
+              70,
+              "# `systemMessage` no TOPO é o canal que o harness mostra ao humano — dentro de"
+            ],
+            [
+              72,
+              "printf '{\"systemMessage\":\"%s\",\"hookSpecificOutput\":{\"hookEventName\":\"SessionStart\",\"additionalContext\":\"%s\"}}'"
+            ]
+          ]
+        },
+        "cap": {
+          "counter": [],
+          "sentinel": [],
+          "session_scoped": false
+        },
+        "killswitch": [
+          [
+            12,
+            "[ \"${BOOTSTRAP_DEPS_GATE:-1}\" = \"0\" ] && exit 0"
+          ],
+          [
+            12,
+            "[ \"${BOOTSTRAP_DEPS_GATE:-1}\" = \"0\" ] && exit 0"
+          ]
+        ],
+        "hardcoded_tools": [],
+        "tools_used": [
+          "jq",
+          "python3"
+        ],
+        "tools_guarded": [
+          "jq",
+          "python3"
+        ],
+        "tools_unguarded": []
+      }
+    },
+    {
+      "plugin": "intent-guard",
       "event": "UserPromptSubmit",
       "matcher": "*",
       "type": "command",
@@ -925,11 +1735,11 @@
       "command": "CLAUDE_PLUGIN_ROOT=$(printf '%s' \"$CLAUDE_PLUGIN_ROOT\" | tr '\\\\' /); export CLAUDE_PLUGIN_ROOT; \"$CLAUDE_PLUGIN_ROOT\"/hooks/plan-gate.sh",
       "script": "plugins/intent-guard/hooks/plan-gate.sh",
       "measure": {
-        "lines": 87,
+        "lines": 111,
         "blocking": {
           "exit2": [
             [
-              87,
+              111,
               "exit 2"
             ]
           ]
@@ -938,17 +1748,17 @@
         "cap": {
           "counter": [
             [
-              82,
+              106,
               "if [ \"$N\" -ge 2 ]; then"
             ]
           ],
           "sentinel": [
             [
-              29,
+              41,
               "[ -f \"$D/off\" ] && exit 0"
             ],
             [
-              81,
+              105,
               "N=0; [ -f \"$DENYF\" ] && N=\"$(tr -d '[:space:]' < \"$DENYF\" 2>/dev/null)\"; [ \"$N\" -eq \"$N\" ] 2>/dev/null || N=0"
             ]
           ],
@@ -964,18 +1774,16 @@
             "[ -f \"$MODE_FILE\" ] && [ \"$(tr -d '[:space:]' < \"$MODE_FILE\" 2>/dev/null)\" = \"off\" ] && exit 0"
           ],
           [
-            29,
+            41,
             "[ -f \"$D/off\" ] && exit 0"
           ]
         ],
         "hardcoded_tools": [],
         "tools_used": [
-          "jq",
           "python3"
         ],
         "tools_guarded": [
           "claude",
-          "jq",
           "python3"
         ],
         "tools_unguarded": []
@@ -990,19 +1798,19 @@
       "command": "CLAUDE_PLUGIN_ROOT=$(printf '%s' \"$CLAUDE_PLUGIN_ROOT\" | tr '\\\\' /); export CLAUDE_PLUGIN_ROOT; \"$CLAUDE_PLUGIN_ROOT\"/hooks/task-checkpoint.sh",
       "script": "plugins/intent-guard/hooks/task-checkpoint.sh",
       "measure": {
-        "lines": 121,
+        "lines": 141,
         "blocking": {},
         "informing": {},
         "cap": {
           "counter": [
             [
-              41,
+              55,
               "[ \"$CAPN\" -ge 2 ] && exit 0"
             ]
           ],
           "sentinel": [
             [
-              44,
+              58,
               "[ -f \"$D/off\" ] && exit 0"
             ]
           ],
@@ -1018,18 +1826,16 @@
             "[ -f \"$MODE_FILE\" ] && [ \"$(tr -d '[:space:]' < \"$MODE_FILE\" 2>/dev/null)\" = \"off\" ] && exit 0"
           ],
           [
-            44,
+            58,
             "[ -f \"$D/off\" ] && exit 0"
           ]
         ],
         "hardcoded_tools": [],
         "tools_used": [
-          "jq",
           "python3"
         ],
         "tools_guarded": [
           "claude",
-          "jq",
           "python3"
         ],
         "tools_unguarded": []
@@ -1044,7 +1850,7 @@
       "command": "CLAUDE_PLUGIN_ROOT=$(printf '%s' \"$CLAUDE_PLUGIN_ROOT\" | tr '\\\\' /); export CLAUDE_PLUGIN_ROOT; \"$CLAUDE_PLUGIN_ROOT\"/hooks/mark-work.sh",
       "script": "plugins/intent-guard/hooks/mark-work.sh",
       "measure": {
-        "lines": 10,
+        "lines": 23,
         "blocking": {},
         "informing": {},
         "cap": {
@@ -1063,12 +1869,8 @@
           ]
         ],
         "hardcoded_tools": [],
-        "tools_used": [
-          "jq"
-        ],
-        "tools_guarded": [
-          "jq"
-        ],
+        "tools_used": [],
+        "tools_guarded": [],
         "tools_unguarded": []
       }
     },
@@ -1081,23 +1883,23 @@
       "command": "CLAUDE_PLUGIN_ROOT=$(printf '%s' \"$CLAUDE_PLUGIN_ROOT\" | tr '\\\\' /); export CLAUDE_PLUGIN_ROOT; \"$CLAUDE_PLUGIN_ROOT\"/hooks/delivery-audit.sh",
       "script": "plugins/intent-guard/hooks/delivery-audit.sh",
       "measure": {
-        "lines": 150,
+        "lines": 172,
         "blocking": {},
         "informing": {},
         "cap": {
           "counter": [
             [
-              123,
+              134,
               "[ \"$N\" -ge 2 ] && exit 0"
             ]
           ],
           "sentinel": [
             [
-              43,
+              55,
               "[ -f \"$D/off\" ] && exit 0"
             ],
             [
-              122,
+              133,
               "N=0; [ -f \"$DENYF\" ] && N=\"$(tr -d '[:space:]' < \"$DENYF\" 2>/dev/null)\"; [ \"$N\" -eq \"$N\" ] 2>/dev/null || N=0"
             ]
           ],
@@ -1113,8 +1915,245 @@
             "[ -f \"$MODE_FILE\" ] && [ \"$(tr -d '[:space:]' < \"$MODE_FILE\" 2>/dev/null)\" = \"off\" ] && exit 0"
           ],
           [
-            43,
+            55,
             "[ -f \"$D/off\" ] && exit 0"
+          ]
+        ],
+        "hardcoded_tools": [],
+        "tools_used": [
+          "python3"
+        ],
+        "tools_guarded": [
+          "claude",
+          "python3"
+        ],
+        "tools_unguarded": []
+      }
+    },
+    {
+      "plugin": "lixeiro",
+      "event": "PostToolUse",
+      "matcher": "Bash",
+      "type": "command",
+      "timeout": 10,
+      "command": "CLAUDE_PLUGIN_ROOT=$(printf '%s' \"$CLAUDE_PLUGIN_ROOT\" | tr '\\\\' /); export CLAUDE_PLUGIN_ROOT; \"$CLAUDE_PLUGIN_ROOT\"/hooks/posttooluse-anota.sh",
+      "script": "plugins/lixeiro/hooks/posttooluse-anota.sh",
+      "measure": {
+        "lines": 46,
+        "blocking": {},
+        "informing": {},
+        "cap": {
+          "counter": [],
+          "sentinel": [],
+          "session_scoped": false
+        },
+        "killswitch": [
+          [
+            15,
+            "[ \"${LIXEIRO:-1}\" = \"0\" ] && exit 0"
+          ],
+          [
+            15,
+            "[ \"${LIXEIRO:-1}\" = \"0\" ] && exit 0"
+          ]
+        ],
+        "hardcoded_tools": [],
+        "tools_used": [
+          "python3"
+        ],
+        "tools_guarded": [
+          "python3"
+        ],
+        "tools_unguarded": []
+      }
+    },
+    {
+      "plugin": "lixeiro",
+      "event": "Stop",
+      "matcher": "*",
+      "type": "command",
+      "timeout": 20,
+      "command": "CLAUDE_PLUGIN_ROOT=$(printf '%s' \"$CLAUDE_PLUGIN_ROOT\" | tr '\\\\' /); export CLAUDE_PLUGIN_ROOT; \"$CLAUDE_PLUGIN_ROOT\"/hooks/stop-colhe-turno.sh",
+      "script": "plugins/lixeiro/hooks/stop-colhe-turno.sh",
+      "measure": {
+        "lines": 159,
+        "blocking": {},
+        "informing": {
+          "systemMessage": [
+            [
+              17,
+              "#   canal      systemMessage — só quando algo foi encerrado ou o teto foi passado"
+            ],
+            [
+              115,
+              "# Sem markdown: `systemMessage` chega LITERAL no terminal (patterns §1.5a)."
+            ]
+          ]
+        },
+        "cap": {
+          "counter": [],
+          "sentinel": [],
+          "session_scoped": false
+        },
+        "killswitch": [
+          [
+            21,
+            "[ \"${LIXEIRO:-1}\" = \"0\" ] && exit 0"
+          ],
+          [
+            21,
+            "[ \"${LIXEIRO:-1}\" = \"0\" ] && exit 0"
+          ]
+        ],
+        "hardcoded_tools": [],
+        "tools_used": [
+          "python3"
+        ],
+        "tools_guarded": [
+          "python3"
+        ],
+        "tools_unguarded": []
+      }
+    },
+    {
+      "plugin": "lixeiro",
+      "event": "SessionEnd",
+      "matcher": "*",
+      "type": "command",
+      "timeout": 30,
+      "command": "CLAUDE_PLUGIN_ROOT=$(printf '%s' \"$CLAUDE_PLUGIN_ROOT\" | tr '\\\\' /); export CLAUDE_PLUGIN_ROOT; \"$CLAUDE_PLUGIN_ROOT\"/hooks/sessionend-colhe.sh",
+      "script": "plugins/lixeiro/hooks/sessionend-colhe.sh",
+      "measure": {
+        "lines": 41,
+        "blocking": {},
+        "informing": {},
+        "cap": {
+          "counter": [],
+          "sentinel": [],
+          "session_scoped": false
+        },
+        "killswitch": [
+          [
+            14,
+            "[ \"${LIXEIRO:-1}\" = \"0\" ] && exit 0"
+          ],
+          [
+            14,
+            "[ \"${LIXEIRO:-1}\" = \"0\" ] && exit 0"
+          ]
+        ],
+        "hardcoded_tools": [],
+        "tools_used": [
+          "python3"
+        ],
+        "tools_guarded": [
+          "python3"
+        ],
+        "tools_unguarded": []
+      }
+    },
+    {
+      "plugin": "lixeiro",
+      "event": "SessionStart",
+      "matcher": "*",
+      "type": "command",
+      "timeout": 20,
+      "command": "CLAUDE_PLUGIN_ROOT=$(printf '%s' \"$CLAUDE_PLUGIN_ROOT\" | tr '\\\\' /); export CLAUDE_PLUGIN_ROOT; \"$CLAUDE_PLUGIN_ROOT\"/hooks/sessionstart-orfaos.sh",
+      "script": "plugins/lixeiro/hooks/sessionstart-orfaos.sh",
+      "measure": {
+        "lines": 51,
+        "blocking": {},
+        "informing": {
+          "systemMessage": [
+            [
+              10,
+              "#   canal      systemMessage — só quando algo foi encerrado"
+            ]
+          ]
+        },
+        "cap": {
+          "counter": [],
+          "sentinel": [],
+          "session_scoped": false
+        },
+        "killswitch": [
+          [
+            14,
+            "[ \"${LIXEIRO:-1}\" = \"0\" ] && exit 0"
+          ],
+          [
+            15,
+            "[ \"${LIXEIRO_ORFAOS:-1}\" = \"0\" ] && exit 0"
+          ],
+          [
+            14,
+            "[ \"${LIXEIRO:-1}\" = \"0\" ] && exit 0"
+          ],
+          [
+            15,
+            "[ \"${LIXEIRO_ORFAOS:-1}\" = \"0\" ] && exit 0"
+          ]
+        ],
+        "hardcoded_tools": [],
+        "tools_used": [
+          "python3"
+        ],
+        "tools_guarded": [
+          "python3"
+        ],
+        "tools_unguarded": []
+      }
+    },
+    {
+      "plugin": "lixeiro",
+      "event": "SessionStart",
+      "matcher": "*",
+      "type": "command",
+      "timeout": 5,
+      "command": "CLAUDE_PLUGIN_ROOT=$(printf '%s' \"$CLAUDE_PLUGIN_ROOT\" | tr '\\\\' /); export CLAUDE_PLUGIN_ROOT; AVISO=$(\"$CLAUDE_PLUGIN_ROOT\"/hooks/resolve-plugin.sh bootstrap hooks/sessionstart-deps.sh) && exec bash \"$AVISO\"; exit 0",
+      "script": "plugins/bootstrap/hooks/sessionstart-deps.sh",
+      "measure": {
+        "lines": 74,
+        "blocking": {},
+        "informing": {
+          "additionalContext": [
+            [
+              71,
+              "# hookSpecificOutput ele é ignorado. O additionalContext leva o mesmo texto ao modelo."
+            ],
+            [
+              72,
+              "printf '{\"systemMessage\":\"%s\",\"hookSpecificOutput\":{\"hookEventName\":\"SessionStart\",\"additionalContext\":\"%s\"}}'"
+            ]
+          ],
+          "systemMessage": [
+            [
+              2,
+              "# sessionstart-deps.sh — avisa (systemMessage de topo, 1x/sessão) quando uma dependência"
+            ],
+            [
+              70,
+              "# `systemMessage` no TOPO é o canal que o harness mostra ao humano — dentro de"
+            ],
+            [
+              72,
+              "printf '{\"systemMessage\":\"%s\",\"hookSpecificOutput\":{\"hookEventName\":\"SessionStart\",\"additionalContext\":\"%s\"}}'"
+            ]
+          ]
+        },
+        "cap": {
+          "counter": [],
+          "sentinel": [],
+          "session_scoped": false
+        },
+        "killswitch": [
+          [
+            12,
+            "[ \"${BOOTSTRAP_DEPS_GATE:-1}\" = \"0\" ] && exit 0"
+          ],
+          [
+            12,
+            "[ \"${BOOTSTRAP_DEPS_GATE:-1}\" = \"0\" ] && exit 0"
           ]
         ],
         "hardcoded_tools": [],
@@ -1123,7 +2162,6 @@
           "python3"
         ],
         "tools_guarded": [
-          "claude",
           "jq",
           "python3"
         ],
@@ -1176,21 +2214,13 @@
       "command": "CLAUDE_PLUGIN_ROOT=$(printf '%s' \"$CLAUDE_PLUGIN_ROOT\" | tr '\\\\' /); export CLAUDE_PLUGIN_ROOT; \"$CLAUDE_PLUGIN_ROOT\"/hooks/sessionstart-doc.sh",
       "script": "plugins/project-doc/hooks/sessionstart-doc.sh",
       "measure": {
-        "lines": 159,
+        "lines": 174,
         "blocking": {},
         "informing": {
           "additionalContext": [
             [
-              78,
-              "'{hookSpecificOutput:{hookEventName:\"SessionStart\",additionalContext:$ctx}}'"
-            ],
-            [
-              114,
+              130,
               "#   canal      additionalContext (informa, não bloqueia)"
-            ],
-            [
-              158,
-              "'{hookSpecificOutput:{hookEventName:\"SessionStart\",additionalContext:$ctx}}'"
             ]
           ]
         },
@@ -1215,6 +2245,70 @@
     },
     {
       "plugin": "project-doc",
+      "event": "SessionStart",
+      "matcher": "*",
+      "type": "command",
+      "timeout": 5,
+      "command": "CLAUDE_PLUGIN_ROOT=$(printf '%s' \"$CLAUDE_PLUGIN_ROOT\" | tr '\\\\' /); export CLAUDE_PLUGIN_ROOT; AVISO=$(\"$CLAUDE_PLUGIN_ROOT\"/hooks/resolve-plugin.sh bootstrap hooks/sessionstart-deps.sh) && exec bash \"$AVISO\"; exit 0",
+      "script": "plugins/bootstrap/hooks/sessionstart-deps.sh",
+      "measure": {
+        "lines": 74,
+        "blocking": {},
+        "informing": {
+          "additionalContext": [
+            [
+              71,
+              "# hookSpecificOutput ele é ignorado. O additionalContext leva o mesmo texto ao modelo."
+            ],
+            [
+              72,
+              "printf '{\"systemMessage\":\"%s\",\"hookSpecificOutput\":{\"hookEventName\":\"SessionStart\",\"additionalContext\":\"%s\"}}'"
+            ]
+          ],
+          "systemMessage": [
+            [
+              2,
+              "# sessionstart-deps.sh — avisa (systemMessage de topo, 1x/sessão) quando uma dependência"
+            ],
+            [
+              70,
+              "# `systemMessage` no TOPO é o canal que o harness mostra ao humano — dentro de"
+            ],
+            [
+              72,
+              "printf '{\"systemMessage\":\"%s\",\"hookSpecificOutput\":{\"hookEventName\":\"SessionStart\",\"additionalContext\":\"%s\"}}'"
+            ]
+          ]
+        },
+        "cap": {
+          "counter": [],
+          "sentinel": [],
+          "session_scoped": false
+        },
+        "killswitch": [
+          [
+            12,
+            "[ \"${BOOTSTRAP_DEPS_GATE:-1}\" = \"0\" ] && exit 0"
+          ],
+          [
+            12,
+            "[ \"${BOOTSTRAP_DEPS_GATE:-1}\" = \"0\" ] && exit 0"
+          ]
+        ],
+        "hardcoded_tools": [],
+        "tools_used": [
+          "jq",
+          "python3"
+        ],
+        "tools_guarded": [
+          "jq",
+          "python3"
+        ],
+        "tools_unguarded": []
+      }
+    },
+    {
+      "plugin": "project-doc",
       "event": "PreToolUse",
       "matcher": "Grep|Glob|Bash|Agent",
       "type": "command",
@@ -1222,22 +2316,23 @@
       "command": "CLAUDE_PLUGIN_ROOT=$(printf '%s' \"$CLAUDE_PLUGIN_ROOT\" | tr '\\\\' /); export CLAUDE_PLUGIN_ROOT; \"$CLAUDE_PLUGIN_ROOT\"/hooks/pretooluse-doc-guard.sh",
       "script": "plugins/project-doc/hooks/pretooluse-doc-guard.sh",
       "measure": {
-        "lines": 256,
-        "blocking": {
-          "permissionDecision": [
-            [
-              255,
-              "'{hookSpecificOutput:{hookEventName:\"PreToolUse\",permissionDecision:\"deny\",permissionDecisionReason:$r}}'"
-            ]
-          ]
-        },
+        "lines": 266,
+        "blocking": {},
         "informing": {},
         "cap": {
           "counter": [],
           "sentinel": [
             [
-              94,
+              105,
               "{ [ -f \"$d/CLAUDE.md\" ] || [ -f \"$d/.claude/CLAUDE.md\" ]; } && { printf '%s' \"$d\"; return 0; }"
+            ],
+            [
+              191,
+              "[ -f \"${TMPD}/claude-doc-guard-${SESSION}-${PHASH}-doc-${DPHASH}\" ] && exit 0"
+            ],
+            [
+              198,
+              "[ -f \"${TMPD}/claude-doc-guard-${SESSION}-${PHASH}-doc-${DPHASH}\" ] && exit 0"
             ]
           ],
           "session_scoped": true
@@ -1253,12 +2348,8 @@
           ]
         ],
         "hardcoded_tools": [],
-        "tools_used": [
-          "jq"
-        ],
-        "tools_guarded": [
-          "jq"
-        ],
+        "tools_used": [],
+        "tools_guarded": [],
         "tools_unguarded": []
       }
     },
@@ -1271,29 +2362,22 @@
       "command": "CLAUDE_PLUGIN_ROOT=$(printf '%s' \"$CLAUDE_PLUGIN_ROOT\" | tr '\\\\' /); export CLAUDE_PLUGIN_ROOT; \"$CLAUDE_PLUGIN_ROOT\"/hooks/pretooluse-organism-gate.sh",
       "script": "plugins/project-doc/hooks/pretooluse-organism-gate.sh",
       "measure": {
-        "lines": 128,
-        "blocking": {
-          "permissionDecision": [
-            [
-              127,
-              "'{hookSpecificOutput:{hookEventName:\"PreToolUse\",permissionDecision:\"deny\",permissionDecisionReason:$r}}'"
-            ]
-          ]
-        },
+        "lines": 144,
+        "blocking": {},
         "informing": {},
         "cap": {
           "counter": [],
           "sentinel": [
             [
-              79,
+              96,
               "[ -f \"$STATE_DIR/${ID}.resolved\" ] && { log_line \"$ID\" \"$SEV\" \"resolved-skip\"; continue; }"
             ],
             [
-              82,
+              99,
               "if [ -f \"$STATE_DIR/${ID}.cite\" ]; then"
             ],
             [
-              101,
+              118,
               "if [ -f \"$STATE_DIR/${ID}.denied\" ]; then"
             ]
           ],
@@ -1311,11 +2395,9 @@
         ],
         "hardcoded_tools": [],
         "tools_used": [
-          "jq",
           "python3"
         ],
         "tools_guarded": [
-          "jq",
           "python3"
         ],
         "tools_unguarded": []
@@ -1330,58 +2412,35 @@
       "command": "CLAUDE_PLUGIN_ROOT=$(printf '%s' \"$CLAUDE_PLUGIN_ROOT\" | tr '\\\\' /); export CLAUDE_PLUGIN_ROOT; \"$CLAUDE_PLUGIN_ROOT\"/hooks/pretooluse-plan-gate.sh",
       "script": "plugins/project-doc/hooks/pretooluse-plan-gate.sh",
       "measure": {
-        "lines": 252,
-        "blocking": {
-          "permissionDecision": [
-            [
-              108,
-              "'{hookSpecificOutput:{hookEventName:\"PreToolUse\",permissionDecision:\"deny\",permissionDecisionReason:$r}}'"
-            ],
-            [
-              130,
-              "'{hookSpecificOutput:{hookEventName:\"PreToolUse\",permissionDecision:\"deny\",permissionDecisionReason:$r}}'"
-            ],
-            [
-              175,
-              "'{hookSpecificOutput:{hookEventName:\"PreToolUse\",permissionDecision:\"deny\",permissionDecisionReason:$r}}'"
-            ],
-            [
-              204,
-              "'{hookSpecificOutput:{hookEventName:\"PreToolUse\",permissionDecision:\"deny\",permissionDecisionReason:$r}}'"
-            ],
-            [
-              251,
-              "'{hookSpecificOutput:{hookEventName:\"PreToolUse\",permissionDecision:\"deny\",permissionDecisionReason:$r}}'"
-            ]
-          ]
-        },
+        "lines": 379,
+        "blocking": {},
         "informing": {},
         "cap": {
           "counter": [
             [
-              104,
+              123,
               "[ \"$C\" -ge 3 ] && exit 0"
             ],
             [
-              220,
+              348,
               "[ \"$COUNT\" -ge \"$MAX_NUDGES\" ] && exit 0"
             ]
           ],
           "sentinel": [
             [
-              95,
+              114,
               "if   [ -f \"$PROJ/CLAUDE.md\" ];          then HANDMD=\"$PROJ/CLAUDE.md\""
             ],
             [
-              96,
+              115,
               "elif [ -f \"$PROJ/.claude/CLAUDE.md\" ];  then HANDMD=\"$PROJ/.claude/CLAUDE.md\""
             ],
             [
-              211,
-              "[ -f \"$SENTINEL\" ] && exit 0        # CASO C: já foi lida nesta sessão"
+              119,
+              "[ -f \"${TMPD}/claude-doc-guard-${SESSION}-${PHASH}\" ] && exit 0"
             ],
             [
-              218,
+              346,
               "[ -f \"$COUNT_FILE\" ] && COUNT=\"$(cat \"$COUNT_FILE\" 2>/dev/null)\""
             ]
           ],
@@ -1389,21 +2448,17 @@
         },
         "killswitch": [
           [
-            40,
+            48,
             "[ \"${PLAN_DOC_GATE:-1}\" = \"0\" ] && exit 0"
           ],
           [
-            40,
+            48,
             "[ \"${PLAN_DOC_GATE:-1}\" = \"0\" ] && exit 0"
           ]
         ],
         "hardcoded_tools": [],
-        "tools_used": [
-          "jq"
-        ],
-        "tools_guarded": [
-          "jq"
-        ],
+        "tools_used": [],
+        "tools_guarded": [],
         "tools_unguarded": []
       }
     },
@@ -1416,20 +2471,9 @@
       "command": "CLAUDE_PLUGIN_ROOT=$(printf '%s' \"$CLAUDE_PLUGIN_ROOT\" | tr '\\\\' /); export CLAUDE_PLUGIN_ROOT; \"$CLAUDE_PLUGIN_ROOT\"/hooks/userpromptsubmit-plan-escape.sh",
       "script": "plugins/project-doc/hooks/userpromptsubmit-plan-escape.sh",
       "measure": {
-        "lines": 93,
+        "lines": 102,
         "blocking": {},
-        "informing": {
-          "additionalContext": [
-            [
-              80,
-              "'{hookSpecificOutput:{hookEventName:\"UserPromptSubmit\",additionalContext:$ctx}}'"
-            ],
-            [
-              92,
-              "'{hookSpecificOutput:{hookEventName:\"UserPromptSubmit\",additionalContext:$ctx}}'"
-            ]
-          ]
-        },
+        "informing": {},
         "cap": {
           "counter": [],
           "sentinel": [],
@@ -1437,12 +2481,8 @@
         },
         "killswitch": [],
         "hardcoded_tools": [],
-        "tools_used": [
-          "jq"
-        ],
-        "tools_guarded": [
-          "jq"
-        ],
+        "tools_used": [],
+        "tools_guarded": [],
         "tools_unguarded": []
       }
     },
@@ -1455,16 +2495,9 @@
       "command": "CLAUDE_PLUGIN_ROOT=$(printf '%s' \"$CLAUDE_PLUGIN_ROOT\" | tr '\\\\' /); export CLAUDE_PLUGIN_ROOT; \"$CLAUDE_PLUGIN_ROOT\"/hooks/posttooluse-doc-read.sh",
       "script": "plugins/project-doc/hooks/posttooluse-doc-read.sh",
       "measure": {
-        "lines": 69,
+        "lines": 79,
         "blocking": {},
-        "informing": {
-          "additionalContext": [
-            [
-              68,
-              "'{hookSpecificOutput:{hookEventName:\"PostToolUse\",additionalContext:$c}}' 2>/dev/null"
-            ]
-          ]
-        },
+        "informing": {},
         "cap": {
           "counter": [],
           "sentinel": [],
@@ -1473,11 +2506,9 @@
         "killswitch": [],
         "hardcoded_tools": [],
         "tools_used": [
-          "jq",
           "python3"
         ],
         "tools_guarded": [
-          "jq",
           "python3"
         ],
         "tools_unguarded": []
@@ -1492,21 +2523,14 @@
       "command": "CLAUDE_PLUGIN_ROOT=$(printf '%s' \"$CLAUDE_PLUGIN_ROOT\" | tr '\\\\' /); export CLAUDE_PLUGIN_ROOT; \"$CLAUDE_PLUGIN_ROOT\"/hooks/stop-doc-touch.sh",
       "script": "plugins/project-doc/hooks/stop-doc-touch.sh",
       "measure": {
-        "lines": 70,
+        "lines": 95,
         "blocking": {},
-        "informing": {
-          "systemMessage": [
-            [
-              69,
-              "jq -n --arg m \"$MSG\" '{systemMessage:$m}' 2>/dev/null"
-            ]
-          ]
-        },
+        "informing": {},
         "cap": {
           "counter": [],
           "sentinel": [
             [
-              33,
+              40,
               "[ -f \"$SENTINEL\" ] && exit 0"
             ]
           ],
@@ -1520,6 +2544,68 @@
           [
             8,
             "[ \"${DOC_TOUCH_SUGGEST:-1}\" = \"0\" ] && exit 0"
+          ]
+        ],
+        "hardcoded_tools": [],
+        "tools_used": [
+          "python3"
+        ],
+        "tools_guarded": [
+          "python3"
+        ],
+        "tools_unguarded": []
+      }
+    },
+    {
+      "plugin": "ship",
+      "event": "SessionStart",
+      "matcher": "*",
+      "type": "command",
+      "timeout": 5,
+      "command": "CLAUDE_PLUGIN_ROOT=$(printf '%s' \"$CLAUDE_PLUGIN_ROOT\" | tr '\\\\' /); export CLAUDE_PLUGIN_ROOT; AVISO=$(\"$CLAUDE_PLUGIN_ROOT\"/hooks/resolve-plugin.sh bootstrap hooks/sessionstart-deps.sh) && exec bash \"$AVISO\"; exit 0",
+      "script": "plugins/bootstrap/hooks/sessionstart-deps.sh",
+      "measure": {
+        "lines": 74,
+        "blocking": {},
+        "informing": {
+          "additionalContext": [
+            [
+              71,
+              "# hookSpecificOutput ele é ignorado. O additionalContext leva o mesmo texto ao modelo."
+            ],
+            [
+              72,
+              "printf '{\"systemMessage\":\"%s\",\"hookSpecificOutput\":{\"hookEventName\":\"SessionStart\",\"additionalContext\":\"%s\"}}'"
+            ]
+          ],
+          "systemMessage": [
+            [
+              2,
+              "# sessionstart-deps.sh — avisa (systemMessage de topo, 1x/sessão) quando uma dependência"
+            ],
+            [
+              70,
+              "# `systemMessage` no TOPO é o canal que o harness mostra ao humano — dentro de"
+            ],
+            [
+              72,
+              "printf '{\"systemMessage\":\"%s\",\"hookSpecificOutput\":{\"hookEventName\":\"SessionStart\",\"additionalContext\":\"%s\"}}'"
+            ]
+          ]
+        },
+        "cap": {
+          "counter": [],
+          "sentinel": [],
+          "session_scoped": false
+        },
+        "killswitch": [
+          [
+            12,
+            "[ \"${BOOTSTRAP_DEPS_GATE:-1}\" = \"0\" ] && exit 0"
+          ],
+          [
+            12,
+            "[ \"${BOOTSTRAP_DEPS_GATE:-1}\" = \"0\" ] && exit 0"
           ]
         ],
         "hardcoded_tools": [],
@@ -1543,15 +2629,15 @@
       "command": "CLAUDE_PLUGIN_ROOT=$(printf '%s' \"$CLAUDE_PLUGIN_ROOT\" | tr '\\\\' /); export CLAUDE_PLUGIN_ROOT; \"$CLAUDE_PLUGIN_ROOT\"/hooks/pre-deploy-test-check.sh",
       "script": "plugins/ship/hooks/pre-deploy-test-check.sh",
       "measure": {
-        "lines": 468,
+        "lines": 474,
         "blocking": {
           "exit2": [
             [
-              357,
+              363,
               "exit 2"
             ],
             [
-              463,
+              469,
               "exit 2"
             ]
           ]
@@ -1559,22 +2645,14 @@
         "informing": {
           "additionalContext": [
             [
-              63,
+              70,
               "# No exit 0 o canal é JSON no stdout: `additionalContext` entra no contexto do"
-            ],
-            [
-              86,
-              "'{systemMessage:$m, hookSpecificOutput:{hookEventName:\"PreToolUse\", additionalContext:$m}}'"
             ]
           ],
           "systemMessage": [
             [
-              64,
+              71,
               "# modelo (ao lado do tool result) e `systemMessage` aparece pro usuário. Os dois,"
-            ],
-            [
-              86,
-              "'{systemMessage:$m, hookSpecificOutput:{hookEventName:\"PreToolUse\", additionalContext:$m}}'"
             ]
           ]
         },
@@ -1595,16 +2673,78 @@
         ],
         "hardcoded_tools": [],
         "tools_used": [
-          "jq",
           "python3"
         ],
         "tools_guarded": [
           "cargo",
           "go",
-          "jq",
           "pytest",
           "python3",
           "uv"
+        ],
+        "tools_unguarded": []
+      }
+    },
+    {
+      "plugin": "sovai",
+      "event": "SessionStart",
+      "matcher": "*",
+      "type": "command",
+      "timeout": 5,
+      "command": "CLAUDE_PLUGIN_ROOT=$(printf '%s' \"$CLAUDE_PLUGIN_ROOT\" | tr '\\\\' /); export CLAUDE_PLUGIN_ROOT; AVISO=$(\"$CLAUDE_PLUGIN_ROOT\"/hooks/resolve-plugin.sh bootstrap hooks/sessionstart-deps.sh) && exec bash \"$AVISO\"; exit 0",
+      "script": "plugins/bootstrap/hooks/sessionstart-deps.sh",
+      "measure": {
+        "lines": 74,
+        "blocking": {},
+        "informing": {
+          "additionalContext": [
+            [
+              71,
+              "# hookSpecificOutput ele é ignorado. O additionalContext leva o mesmo texto ao modelo."
+            ],
+            [
+              72,
+              "printf '{\"systemMessage\":\"%s\",\"hookSpecificOutput\":{\"hookEventName\":\"SessionStart\",\"additionalContext\":\"%s\"}}'"
+            ]
+          ],
+          "systemMessage": [
+            [
+              2,
+              "# sessionstart-deps.sh — avisa (systemMessage de topo, 1x/sessão) quando uma dependência"
+            ],
+            [
+              70,
+              "# `systemMessage` no TOPO é o canal que o harness mostra ao humano — dentro de"
+            ],
+            [
+              72,
+              "printf '{\"systemMessage\":\"%s\",\"hookSpecificOutput\":{\"hookEventName\":\"SessionStart\",\"additionalContext\":\"%s\"}}'"
+            ]
+          ]
+        },
+        "cap": {
+          "counter": [],
+          "sentinel": [],
+          "session_scoped": false
+        },
+        "killswitch": [
+          [
+            12,
+            "[ \"${BOOTSTRAP_DEPS_GATE:-1}\" = \"0\" ] && exit 0"
+          ],
+          [
+            12,
+            "[ \"${BOOTSTRAP_DEPS_GATE:-1}\" = \"0\" ] && exit 0"
+          ]
+        ],
+        "hardcoded_tools": [],
+        "tools_used": [
+          "jq",
+          "python3"
+        ],
+        "tools_guarded": [
+          "jq",
+          "python3"
         ],
         "tools_unguarded": []
       }
@@ -1618,20 +2758,13 @@
       "command": "CLAUDE_PLUGIN_ROOT=$(printf '%s' \"$CLAUDE_PLUGIN_ROOT\" | tr '\\\\' /); export CLAUDE_PLUGIN_ROOT; bash \"$CLAUDE_PLUGIN_ROOT/hooks/pretooluse-sovai-motor.sh\"",
       "script": "plugins/sovai/hooks/pretooluse-sovai-motor.sh",
       "measure": {
-        "lines": 97,
-        "blocking": {
-          "permissionDecision": [
-            [
-              96,
-              "'{hookSpecificOutput:{hookEventName:\"PreToolUse\",permissionDecision:\"deny\",permissionDecisionReason:$r}}'"
-            ]
-          ]
-        },
+        "lines": 125,
+        "blocking": {},
         "informing": {},
         "cap": {
           "counter": [
             [
-              75,
+              100,
               "if [ \"$N\" -ge \"$MAX_BLOQUEIOS\" ]; then"
             ]
           ],
@@ -1640,21 +2773,130 @@
         },
         "killswitch": [
           [
-            50,
+            51,
             "[ \"${SOVAI_GATE:-1}\" = \"0\" ] && exit 0"
           ],
           [
-            50,
+            51,
             "[ \"${SOVAI_GATE:-1}\" = \"0\" ] && exit 0"
           ]
         ],
         "hardcoded_tools": [],
-        "tools_used": [
-          "jq"
+        "tools_used": [],
+        "tools_guarded": [],
+        "tools_unguarded": []
+      }
+    },
+    {
+      "plugin": "sovai",
+      "event": "PreToolUse",
+      "matcher": "Bash",
+      "type": "command",
+      "timeout": 5,
+      "command": "CLAUDE_PLUGIN_ROOT=$(printf '%s' \"$CLAUDE_PLUGIN_ROOT\" | tr '\\\\' /); export CLAUDE_PLUGIN_ROOT; sh \"$CLAUDE_PLUGIN_ROOT/hooks/pretooluse-espera-com-guarda.sh\"",
+      "script": "plugins/sovai/hooks/pretooluse-espera-com-guarda.sh",
+      "measure": {
+        "lines": 107,
+        "blocking": {},
+        "informing": {},
+        "cap": {
+          "counter": [],
+          "sentinel": [],
+          "session_scoped": false
+        },
+        "killswitch": [
+          [
+            29,
+            "[ \"${SOVAI_ESPERA:-1}\" = \"0\" ] && exit 0"
+          ],
+          [
+            29,
+            "[ \"${SOVAI_ESPERA:-1}\" = \"0\" ] && exit 0"
+          ]
         ],
-        "tools_guarded": [
-          "jq"
+        "hardcoded_tools": [],
+        "tools_used": [],
+        "tools_guarded": [],
+        "tools_unguarded": []
+      }
+    },
+    {
+      "plugin": "sovai",
+      "event": "PreToolUse",
+      "matcher": "Bash",
+      "type": "command",
+      "timeout": 5,
+      "command": "CLAUDE_PLUGIN_ROOT=$(printf '%s' \"$CLAUDE_PLUGIN_ROOT\" | tr '\\\\' /); export CLAUDE_PLUGIN_ROOT; sh \"$CLAUDE_PLUGIN_ROOT/hooks/posttooluse-andamento.sh\" marca",
+      "script": "plugins/sovai/hooks/posttooluse-andamento.sh",
+      "measure": {
+        "lines": 163,
+        "blocking": {},
+        "informing": {
+          "systemMessage": [
+            [
+              19,
+              "# ONDE A LINHA SAI: `systemMessage` — o canal que o dono LÊ. O `stderr` de hook"
+            ]
+          ]
+        },
+        "cap": {
+          "counter": [],
+          "sentinel": [],
+          "session_scoped": false
+        },
+        "killswitch": [
+          [
+            31,
+            "[ \"${SOVAI_ANDAMENTO:-1}\" = \"0\" ] && exit 0"
+          ],
+          [
+            31,
+            "[ \"${SOVAI_ANDAMENTO:-1}\" = \"0\" ] && exit 0"
+          ]
         ],
+        "hardcoded_tools": [],
+        "tools_used": [],
+        "tools_guarded": [],
+        "tools_unguarded": []
+      }
+    },
+    {
+      "plugin": "sovai",
+      "event": "PostToolUse",
+      "matcher": "Bash",
+      "type": "command",
+      "timeout": 10,
+      "command": "CLAUDE_PLUGIN_ROOT=$(printf '%s' \"$CLAUDE_PLUGIN_ROOT\" | tr '\\\\' /); export CLAUDE_PLUGIN_ROOT; sh \"$CLAUDE_PLUGIN_ROOT/hooks/posttooluse-andamento.sh\"",
+      "script": "plugins/sovai/hooks/posttooluse-andamento.sh",
+      "measure": {
+        "lines": 163,
+        "blocking": {},
+        "informing": {
+          "systemMessage": [
+            [
+              19,
+              "# ONDE A LINHA SAI: `systemMessage` — o canal que o dono LÊ. O `stderr` de hook"
+            ]
+          ]
+        },
+        "cap": {
+          "counter": [],
+          "sentinel": [],
+          "session_scoped": false
+        },
+        "killswitch": [
+          [
+            31,
+            "[ \"${SOVAI_ANDAMENTO:-1}\" = \"0\" ] && exit 0"
+          ],
+          [
+            31,
+            "[ \"${SOVAI_ANDAMENTO:-1}\" = \"0\" ] && exit 0"
+          ]
+        ],
+        "hardcoded_tools": [],
+        "tools_used": [],
+        "tools_guarded": [],
         "tools_unguarded": []
       }
     },
@@ -1667,13 +2909,59 @@
       "command": "CLAUDE_PLUGIN_ROOT=$(printf '%s' \"$CLAUDE_PLUGIN_ROOT\" | tr '\\\\' /); export CLAUDE_PLUGIN_ROOT; \"$CLAUDE_PLUGIN_ROOT\"/hooks/sessionstart-plan.sh",
       "script": "plugins/visual/hooks/sessionstart-plan.sh",
       "measure": {
-        "lines": 77,
+        "lines": 127,
+        "blocking": {},
+        "informing": {},
+        "cap": {
+          "counter": [],
+          "sentinel": [],
+          "session_scoped": false
+        },
+        "killswitch": [],
+        "hardcoded_tools": [],
+        "tools_used": [
+          "python3"
+        ],
+        "tools_guarded": [
+          "python3"
+        ],
+        "tools_unguarded": []
+      }
+    },
+    {
+      "plugin": "visual",
+      "event": "SessionStart",
+      "matcher": "*",
+      "type": "command",
+      "timeout": 5,
+      "command": "CLAUDE_PLUGIN_ROOT=$(printf '%s' \"$CLAUDE_PLUGIN_ROOT\" | tr '\\\\' /); export CLAUDE_PLUGIN_ROOT; AVISO=$(\"$CLAUDE_PLUGIN_ROOT\"/hooks/resolve-plugin.sh bootstrap hooks/sessionstart-deps.sh) && exec bash \"$AVISO\"; exit 0",
+      "script": "plugins/bootstrap/hooks/sessionstart-deps.sh",
+      "measure": {
+        "lines": 74,
         "blocking": {},
         "informing": {
           "additionalContext": [
             [
-              76,
-              "'{hookSpecificOutput:{hookEventName:\"SessionStart\",additionalContext:$ctx}}' 2>/dev/null"
+              71,
+              "# hookSpecificOutput ele é ignorado. O additionalContext leva o mesmo texto ao modelo."
+            ],
+            [
+              72,
+              "printf '{\"systemMessage\":\"%s\",\"hookSpecificOutput\":{\"hookEventName\":\"SessionStart\",\"additionalContext\":\"%s\"}}'"
+            ]
+          ],
+          "systemMessage": [
+            [
+              2,
+              "# sessionstart-deps.sh — avisa (systemMessage de topo, 1x/sessão) quando uma dependência"
+            ],
+            [
+              70,
+              "# `systemMessage` no TOPO é o canal que o harness mostra ao humano — dentro de"
+            ],
+            [
+              72,
+              "printf '{\"systemMessage\":\"%s\",\"hookSpecificOutput\":{\"hookEventName\":\"SessionStart\",\"additionalContext\":\"%s\"}}'"
             ]
           ]
         },
@@ -1682,7 +2970,16 @@
           "sentinel": [],
           "session_scoped": false
         },
-        "killswitch": [],
+        "killswitch": [
+          [
+            12,
+            "[ \"${BOOTSTRAP_DEPS_GATE:-1}\" = \"0\" ] && exit 0"
+          ],
+          [
+            12,
+            "[ \"${BOOTSTRAP_DEPS_GATE:-1}\" = \"0\" ] && exit 0"
+          ]
+        ],
         "hardcoded_tools": [],
         "tools_used": [
           "jq",
@@ -1704,7 +3001,7 @@
       "command": "CLAUDE_PLUGIN_ROOT=$(printf '%s' \"$CLAUDE_PLUGIN_ROOT\" | tr '\\\\' /); export CLAUDE_PLUGIN_ROOT; \"$CLAUDE_PLUGIN_ROOT\"/hooks/stop-plan-status.sh",
       "script": "plugins/visual/hooks/stop-plan-status.sh",
       "measure": {
-        "lines": 222,
+        "lines": 239,
         "blocking": {},
         "informing": {
           "systemMessage": [
@@ -1717,29 +3014,25 @@
               "#   canal      systemMessage (informa, não bloqueia — nunca emite decision:block)"
             ],
             [
-              184,
+              197,
               "# Canal próprio, mesma disciplina do resto do arquivo: systemMessage (não"
             ],
             [
-              211,
-              "jq -n --arg m \"$AUSENTE\" '{systemMessage:$m}' 2>/dev/null"
-            ],
-            [
-              221,
-              "jq -n --arg m \"$BRIEF\" '{systemMessage:(\"\\n\\n\" + $m)}' 2>/dev/null"
+              233,
+              "# O aviso entra ANTES do resumo e dentro do mesmo texto: o systemMessage é o canal"
             ]
           ]
         },
         "cap": {
           "counter": [
             [
-              204,
+              217,
               "[ \"$ARQS\" -ge \"$PISO\" ] || exit 0"
             ]
           ],
           "sentinel": [
             [
-              143,
+              156,
               "if [ \"${PLAN_NUDGE:-1}\" != \"0\" ] && [ \"$MARCO_NOVO\" = \"0\" ] && [ -f \"$MARK\" ] \\"
             ]
           ],
@@ -1751,7 +3044,7 @@
             "[ \"${PLAN_STATUS:-1}\" = \"0\" ] && exit 0"
           ],
           [
-            189,
+            202,
             "[ \"${PLAN_NUDGE:-1}\" = \"0\" ] && exit 0"
           ],
           [
@@ -1759,17 +3052,15 @@
             "[ \"${PLAN_STATUS:-1}\" = \"0\" ] && exit 0"
           ],
           [
-            189,
+            202,
             "[ \"${PLAN_NUDGE:-1}\" = \"0\" ] && exit 0"
           ]
         ],
         "hardcoded_tools": [],
         "tools_used": [
-          "jq",
           "python3"
         ],
         "tools_guarded": [
-          "jq",
           "python3"
         ],
         "tools_unguarded": []
@@ -1781,14 +3072,14 @@
       "matcher": "*",
       "type": "command",
       "timeout": 20,
-      "command": "CLAUDE_PLUGIN_ROOT=$(printf '%s' \"$CLAUDE_PLUGIN_ROOT\" | tr '\\\\' /); export CLAUDE_PLUGIN_ROOT; python3 \"$CLAUDE_PLUGIN_ROOT/hooks/stop-anuncio-sem-acao.py\"",
+      "command": "CLAUDE_PLUGIN_ROOT=$(printf '%s' \"$CLAUDE_PLUGIN_ROOT\" | tr '\\\\' /); export CLAUDE_PLUGIN_ROOT; . \"$CLAUDE_PLUGIN_ROOT/hooks/hook-json.sh\" 2>/dev/null; PY=$(hj_py 2>/dev/null) || exit 0; \"$PY\" \"$CLAUDE_PLUGIN_ROOT/hooks/stop-anuncio-sem-acao.py\"",
       "script": "plugins/visual/hooks/stop-anuncio-sem-acao.py",
       "measure": {
-        "lines": 225,
+        "lines": 256,
         "blocking": {
           "decisionBlock": [
             [
-              208,
+              238,
               "print(json.dumps({\"decision\": \"block\", \"reason\": ("
             ]
           ]
@@ -1801,7 +3092,7 @@
         },
         "killswitch": [
           [
-            154,
+            175,
             "if os.environ.get(\"ANUNCIO_ACAO\") == \"0\":"
           ]
         ],
@@ -1820,19 +3111,19 @@
       "command": "CLAUDE_PLUGIN_ROOT=$(printf '%s' \"$CLAUDE_PLUGIN_ROOT\" | tr '\\\\' /); export CLAUDE_PLUGIN_ROOT; \"$CLAUDE_PLUGIN_ROOT\"/hooks/pre-exitplan-visualize.sh",
       "script": "plugins/visual/hooks/pre-exitplan-visualize.sh",
       "measure": {
-        "lines": 219,
+        "lines": 235,
         "blocking": {
           "exit2": [
             [
-              116,
+              132,
               "exit 2"
             ],
             [
-              155,
+              171,
               "exit 2"
             ],
             [
-              219,
+              235,
               "exit 2"
             ]
           ]
@@ -1841,7 +3132,7 @@
         "cap": {
           "counter": [
             [
-              48,
+              62,
               "capped() — cap em função, escape em `capped && exit 0`"
             ]
           ],
@@ -1860,11 +3151,9 @@
         ],
         "hardcoded_tools": [],
         "tools_used": [
-          "jq",
           "python3"
         ],
         "tools_guarded": [
-          "jq",
           "python3"
         ],
         "tools_unguarded": []

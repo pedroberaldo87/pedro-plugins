@@ -19,10 +19,10 @@ import tempfile
 AQUI = os.path.dirname(os.path.abspath(__file__))
 FONTE = os.path.join(AQUI, "resolve-plugin.sh")
 RAIZ = os.path.dirname(AQUI)
-# Os tres consumidores declarados no `scripts/sync-shared.sh`.
-COPIAS = ("plugins/sovai/skills/sovai/resolve-plugin.sh",  # acopla-ok: o destino da cópia É o que este teste confere
-          "plugins/qa-loop/skills/qa-loop/resolve-plugin.sh",  # acopla-ok: idem
-          "plugins/project-doc/skills/start-doc/resolve-plugin.sh")  # acopla-ok: idem
+# Os consumidores declarados no `scripts/sync-shared.sh`.
+COPIAS = ("plugins/project-skills/skills/sprint/resolve-plugin.sh",  # acopla-ok: o destino da cópia É o que este teste confere
+          "plugins/project-skills/skills/qa-loop/resolve-plugin.sh",  # acopla-ok: idem
+          "plugins/project-skills/skills/start/resolve-plugin.sh")  # acopla-ok: idem
 
 FAILS = []
 TOTAL = [0]

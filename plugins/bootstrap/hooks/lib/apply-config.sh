@@ -88,8 +88,17 @@ if [ -n "$CG_RESOLVED" ]; then
   # Runtime-resolving command (glob) so it survives context-guard version bumps.
   # shellcheck disable=SC2016  # string literal de propósito: o $(...) é resolvido em runtime pelo Claude Code, não aqui
   SL_CMD='bash "$(ls -d ${CLAUDE_CONFIG_DIR:-$HOME/.claude}/plugins/cache/pedro-plugins/context-guard/*/hooks/context-guard-writer.sh 2>/dev/null | tail -1)"'
+  # O RELOGIO DA BARRA. A cadeia ja produz a linha do motor, mas quem redesenha a
+  # barra e o harness, e por padrao ele so redesenha em EVENTO (tecla, turno,
+  # troca de modelo): com o trabalho correndo em segundo plano e o dono sem
+  # digitar nada, a linha congela no valor da ultima tecla. `refreshInterval` e a
+  # unica alavanca que existe do nosso lado — o proprio schema do settings a
+  # descreve como "re-run the status line command every N seconds in addition to
+  # event-driven updates". 10s porque a duracao da linha e contada em segundos
+  # (`andamento.py:_dur`), entao a 10s ela muda visivelmente sem por a cadeia
+  # inteira (writer + python + renderizador) de pe a cada segundo.
   # shellcheck disable=SC2016  # $cmd é variável do jq (passada via --arg), não do shell
-  "$JQ" --arg cmd "$SL_CMD" '.statusLine = {type:"command", command:$cmd}' "$SETTINGS" > "$SETTINGS.tmp" \
+  "$JQ" --arg cmd "$SL_CMD" '.statusLine = {type:"command", command:$cmd, refreshInterval:10}' "$SETTINGS" > "$SETTINGS.tmp" \
     && mv "$SETTINGS.tmp" "$SETTINGS" \
     && echo "[bootstrap/config] ✓ statusLine resolvido (glob runtime do context-guard)"
 else

@@ -15,7 +15,7 @@
 #   bash plugins/sovai/hooks/test_sovai_skill.sh              # tudo
 #   bash plugins/sovai/hooks/test_sovai_skill.sh <SKILL.md>   # só as asserções
 
-SKILL_PADRAO="$(cd "$(dirname "${BASH_SOURCE[0]}")/../skills/sovai" && pwd)/SKILL.md"
+SKILL_PADRAO="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../project-skills/skills/sprint" && pwd)/SKILL.md"  # acopla-ok: teste roda no monorepo, não na máquina de quem instala
 ALVO="${1:-$SKILL_PADRAO}"
 
 if [ ! -f "$ALVO" ]; then
@@ -53,6 +53,7 @@ N_PROMPT_SPEC="o motor passa a spec no prompt do revisor"
 N_FILTRO_SPEC="o script segura o gap de spec no filtro"
 N_KIND_SPEC="o schema declara o kind 'spec'"
 N_DECOMP_CAMPOS="a tarefa carrega requisito e pronto"
+N_LEI_CAMINHO="o #2 lê a lei no caminho que a concepção produz"
 N_LEI_MARCA="o motor congela a marca da lei na 1ª volta"
 N_LEI_AVISO="lei trocada no meio da missão vira aviso, nunca troca calada"
 N_CONCEP_KIND="o schema declara o kind 'concepcao'"
@@ -84,6 +85,8 @@ check "o gap de spec nasce >= severityFloor" "$(tem "$REVIEW" 'severityFloor')"
 check "$N_FILTRO_SPEC" "$(tem "$SKEL" "g.kind === 'spec'")"
 
 echo "3 · a constituição do projeto é citada"
+check "$N_LEI_CAMINHO" \
+  "$(tem "$REVISOR" '.claude/docs/constituicao.md')"
 check "o #2 lê o quality-goals.md do projeto" \
   "$(tem "$REVISOR" '.claude/docs/quality-goals.md')"
 check "a régua nunca é copiada pra dentro da skill" \
@@ -92,6 +95,12 @@ check "projeto sem o arquivo não vira gap (fail-open)" \
   "$(tem "$REVISOR" 'ausência de constituição não é gap')"
 check "o schema declara o kind 'constituicao'" "$(tem "$REVIEW" "'constituicao'")"
 check "o motor manda ler o arquivo na rodada" "$(tem "$SKEL" 'quality-goals.md')"
+check "o #2 mede a obra contra o esquema aprovado" \
+  "$(tem "$REVISOR" '.claude/docs/blueprint.md')"
+check "o #2 mede a obra contra a lista de funcionalidades aprovada" \
+  "$(tem "$REVISOR" '.claude/docs/features.md')"
+check "o desenho só entra quando está aprovado" \
+  "$(tem "$REVISOR" 'status: approved')"
 
 echo "4 · o eixo requisito/pronto"
 check "o schema DECOMP existe" "$([ -n "$DECOMP" ] && echo 1 || echo 0)"

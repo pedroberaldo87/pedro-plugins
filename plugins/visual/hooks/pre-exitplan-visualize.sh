@@ -67,7 +67,9 @@ bump()   { echo $((COUNT + 1)) > "$COUNT_FILE" 2>/dev/null; }
 # rodar `init`, nada reclama — e o plano volta a viver só na conversa, que é o
 # modo de falha que o store veio fechar.
 PLANS_DIR=$(bash "$PLUGIN_ROOT/skills/visual/resolve-dir.sh" "$CWD" plans 2>/dev/null)
-PLAN_STATE="$PLUGIN_ROOT/lib/plan_state.py"
+# O programa do plano mora no plugin `project-skills` — achado pelo NOME, nunca por
+# caminho relativo, que o cache do harness quebra. Ausente = a cobrança não roda.
+PLAN_STATE=$(CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" bash "$PLUGIN_ROOT/hooks/resolve-plugin.sh" project-skills lib/plan_state.py 2>/dev/null)
 HAS_PLAN_FILE=1   # 1 = não checável ou já existe → não cobra
 if [ -n "$PLANS_DIR" ] && [ -f "$PLAN_STATE" ] && command -v python3 >/dev/null 2>&1 && python3 --version >/dev/null 2>&1; then
   OPEN=$(python3 "$PLAN_STATE" --dir "$PLANS_DIR" open --json 2>/dev/null)
@@ -156,9 +158,9 @@ Antes de chamar ExitPlanMode de novo:
          "pronto": "COMO se prova que este passo terminou",
          "requisito": "S-1.1"}]}]}
 
-  2. python3 \${CLAUDE_PLUGIN_ROOT}/lib/plan_state.py init --file <arquivo.json>
+  2. python3 <plugin project-skills>/lib/plan_state.py init --file <arquivo.json>
   3. Daí em diante NUNCA reescreva o plano — só marque:
-     python3 \${CLAUDE_PLUGIN_ROOT}/lib/plan_state.py tick F1.2 --evidencia "<prova>"
+     python3 <plugin project-skills>/lib/plan_state.py tick F1.2 --evidencia "<prova>"
 
 A árvore da página sai de 'plan_state.py page --mode approve' — não a escreva à
 mão, senão ela muda de aparência a cada rodada.
@@ -209,9 +211,9 @@ Passos obrigatórios ANTES de chamar ExitPlanMode de novo:
        "pronto": "COMO se prova que este passo terminou",
        "requisito": "S-1.1"}]}]}
 
-   python3 \${CLAUDE_PLUGIN_ROOT}/lib/plan_state.py init --file <plano.json>
+   python3 <plugin project-skills>/lib/plan_state.py init --file <plano.json>
 3. Monte a página a partir dele (não escreva a árvore à mão):
-   python3 \${CLAUDE_PLUGIN_ROOT}/lib/plan_state.py page --mode approve
+   python3 <plugin project-skills>/lib/plan_state.py page --mode approve
 4. Salve/abra em: $SUGGESTED_PATH
    (o filename DEVE conter "sess-${SESSION_SHORT}" — o hook reconhece por isso)
 5. SÓ DEPOIS chame ExitPlanMode de novo.

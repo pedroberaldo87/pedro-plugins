@@ -44,8 +44,10 @@ CWD=$(hj_campo "$INPUT" cwd)
 [ -z "$CWD" ] && CWD="$PWD"
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-PLAN_STATE="$SCRIPT_DIR/../lib/plan_state.py"
-[ -f "$PLAN_STATE" ] || exit 0
+# O programa do plano mora no plugin `project-skills` — achado pelo NOME, nunca
+# por caminho relativo, que o cache do harness quebra. Ausente = sai calado.
+PLAN_STATE=$(CLAUDE_PLUGIN_ROOT="$SCRIPT_DIR/.." bash "$SCRIPT_DIR/resolve-plugin.sh" project-skills lib/plan_state.py 2>/dev/null)
+[ -n "$PLAN_STATE" ] || exit 0
 
 # `$?` = 3 → o diretório veio da RESERVA (~/Desktop), não deste projeto. O texto
 # do aviso morre no 2>/dev/null desta linha; o código de saída é o que sobrevive.
@@ -165,7 +167,7 @@ if [ "${PLAN_NUDGE:-1}" != "0" ] && [ "$MARCO_NOVO" = "0" ] && [ -f "$MARK" ] \
       case "$FILES" in ''|*[!0-9]*) FILES=0 ;; esac
       if [ "$FILES" -ge "$PISO" ]; then
         touch "$SENTINEL" 2>/dev/null
-        NUDGE="⚠️ Nada marcado nesta sessão, e ela editou ${FILES} arquivos. Marque o que terminou com: tick <id> --evidencia — senão o próximo Claude herda um plano que mente."
+        NUDGE="⚠️ Nada marcado nesta sessão, que editou ${FILES} arquivos — marque o que terminou com tick <id> --evidencia, senão o plano herdado mente."
       fi
     fi
   fi

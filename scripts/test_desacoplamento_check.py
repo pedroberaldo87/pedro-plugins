@@ -133,18 +133,17 @@ def main():
     finally:
         shutil.rmtree(d, ignore_errors=True)
 
-    # A lei (decisão do dono em 2026-08-08) dá o perdão à "narrativa histórica" só FORA da
-    # pasta da documentação: é lá dentro que o número envelhece calado, e contar um defeito
-    # passado não pode virar passe para cravar contagem nova.
-    # O cobrador ainda não chegou lá: hoje ele restringe só a RAIZ FROUXA (`envelhec`,
-    # `estava errad`), e a narrativa DATADA continua isentando dentro da doc. O caso abaixo
-    # é verde porque retrata o cobrador de hoje — é dívida declarada contra a lei, não a
-    # lei. Quando o cobrador alcançar a lei, este caso passa a esperar `contagem-cravada`.
+    # O que a doc perde é a RAIZ FROUXA, não a narrativa inteira. A "narrativa histórica" é
+    # isenção escrita na lei (`constituicao.md`, Artigo 9, "Como se cobra": contar que uma
+    # contagem estava errada não é cravar contagem), e ela vale onde a frase de fato conta o
+    # passado — com a data e o número velho colados, como no caso abaixo. Dentro da pasta de
+    # doc some só o atalho: a palavra solta (`envelhec`, `estava errad`) não compra o passe,
+    # porque é vocabulário corrente ali (caso acima). O cobrador faz exatamente isto.
     d = tempfile.mkdtemp(prefix="desac-docnarr-")
     try:
         monta(d, {".claude/docs/architecture.md":
                   "Até 2026-08-07 este doc dizia 54 suítes.\n"})
-        check("na doc, a narrativa datada ainda isenta — dívida do cobrador contra a lei",
+        check("na doc, a narrativa datada isenta — é a isenção que o Artigo 9 escreve",
               dc.varre(d) == [])
     finally:
         shutil.rmtree(d, ignore_errors=True)

@@ -19,17 +19,19 @@ scope:
 
 | medida | valor | comando |
 | --- | --- | --- |
-| hooks de produção em `plugins/*/hooks/` (fora `test_*` e as bibliotecas vendoradas) | **47** | `ls plugins/*/hooks/*.sh \| grep -vc -e /test_ $(ls _shared/*.sh \| sed -E 's#.*/#-e /#')` |
+| hooks de produção em `plugins/*/hooks/` (fora `test_*` e as bibliotecas vendoradas) | **48** | `ls plugins/*/hooks/*.sh \| grep -vc -e /test_ $(ls _shared/*.sh \| sed -E 's#.*/#-e /#')` |
 | destes, os que leem o campo que DECIDE — classe B | **32** | ver classe B abaixo |
 | destes, os que só formatam a saída / leem config — classe A | **4** | ver classe A abaixo |
 
 Toda biblioteca de `_shared/` fica fora dessa conta: a cópia em `plugins/*/hooks/` é vendoring
 do mesmo arquivo, não um hook a mais. É por isso que o comando deriva os nomes a excluir de
 `_shared/` em vez de listá-los — vendorar uma biblioteca nova não obriga a re-medir o retrato.
-O aviso de dependência é o caso mais visível: `sessionstart-deps.sh` viaja com todo plugin que
-tem hooks, porque quem instala um plugin sozinho também precisa saber que o gate dele ficou
-mudo. A fonte é `_shared/sessionstart-deps.sh`, ele é classe A por natureza (o `jq` só monta a
-mensagem), e um sentinel por sessão garante um aviso, não um por plugin.
+O aviso de dependência é o caso mais visível: treze plugins o disparam na abertura da sessão,
+porque quem instala um plugin sozinho também precisa saber que o gate dele ficou mudo — mas o
+script existe UMA vez só, em `plugins/bootstrap/hooks/sessionstart-deps.sh`, e os outros doze
+o acham por NOME de plugin (`resolve-plugin.sh bootstrap hooks/sessionstart-deps.sh`) em vez
+de carregar cópia. A fonte é `_shared/sessionstart-deps.sh`, ele é classe A por natureza (o
+`jq` só monta a mensagem), e um sentinel por sessão garante um aviso, não um por plugin.
 
 O campo que DECIDE é um destes três: `tool_input.command`, `session_id`, `stop_hook_active`.
 

@@ -14,7 +14,7 @@
 set -uo pipefail
 HERE="$(cd "$(dirname "$0")" && pwd)"
 GATE="$HERE/pre-exitplan-visualize.sh"
-PS="$HERE/../lib/plan_state.py"
+PS="$HERE/../../project-skills/lib/plan_state.py"  # acopla-ok: teste roda no monorepo, não na máquina de quem instala
 PASS=0; FAIL=0
 
 ROOT=$(mktemp -d "${TMPDIR:-/tmp}/exitplan-gate-test.XXXXXX")

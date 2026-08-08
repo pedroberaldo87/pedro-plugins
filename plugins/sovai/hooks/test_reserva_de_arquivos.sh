@@ -132,11 +132,11 @@ check "id com ../ não escapa do diretório de reservas" \
 # exatamente esse o estado desta reserva até 2026-08-06: escrita, testada e órfã. Aqui se
 # cobra o par: a skill manda rodar ESTE script com ESTES verbos, e os verbos que ela manda
 # são os que o script atende de verdade.
-SKILL="$(cd "$(dirname "$0")/../skills/sovai" && pwd)/SKILL.md"
+SKILL="$(cd "$(dirname "$0")/../../project-skills/skills/sprint" && pwd)/SKILL.md"  # acopla-ok: teste roda no monorepo, não na máquina de quem instala
 check "a skill do motor manda RESERVAR antes de executar" \
   "$(grep -q 'reserva-de-arquivos.sh reservar' "$SKILL" && echo 1 || echo 0)"
 check "a skill do motor manda LIBERAR ao entregar" \
-  "$(grep -q 'reserva-de-arquivos.sh" liberar' "$SKILL" && echo 1 || echo 0)"
+  "$(grep -q 'reserva-de-arquivos.sh)" liberar' "$SKILL" && echo 1 || echo 0)"
 
 # O CENÁRIO DO CRITÉRIO, ponta a ponta: dois motores da mesma sessão, o segundo com uma
 # lista que cruza a do primeiro — rodando os verbos que a skill nomeia, nesta ordem.

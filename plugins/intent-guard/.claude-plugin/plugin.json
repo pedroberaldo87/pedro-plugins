@@ -1,6 +1,6 @@
 {
   "name": "intent-guard",
-  "version": "0.6.4",
+  "version": "0.6.5",
   "description": "EXPERIMENTAL — Guarda de intenção: caderno append-only dos pedidos verbatim do usuário + gates de plano, checkpoint e ENTREGA (auditoria independente por subagente de contexto virgem, prompt canônico, veredito CONFIRMADO/INFERIDO com evidência). v0.4.0: auditoria dispara no COMMIT (não a cada turno) e ganha escada de custo — pedido com receita mecânica (ex.: 'commit push' → compara hashes) é resolvido por CÓDIGO, sem agente; numa sessão real 4 de 7 pedidos eram isso, ~50k tokens cada. O juiz só ESCOLHE de um catálogo fechado, nunca escreve comando. v0.3.0: pedidos escopados por sessão (sessões paralelas dividiam a lista de vivos). v0.2.0: tree-hash ignora artefato de execução; juízes internos não poluem o caderno. Baixa automática é experimental. Kill-switch: ~/.claude/intent-guard/mode=off.",
   "author": {
     "name": "pedroberaldo87",

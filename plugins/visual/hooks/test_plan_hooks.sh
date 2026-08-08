@@ -12,7 +12,7 @@ set -uo pipefail
 HERE="$(cd "$(dirname "$0")" && pwd)"
 SS="$HERE/sessionstart-plan.sh"
 ST="$HERE/stop-plan-status.sh"
-PS="$HERE/../lib/plan_state.py"
+PS="$HERE/../../project-skills/lib/plan_state.py"  # acopla-ok: teste roda no monorepo, não na máquina de quem instala
 PASS=0; FAIL=0
 
 ROOT=$(mktemp -d "${TMPDIR:-/tmp}/plan-hooks-test.XXXXXX")

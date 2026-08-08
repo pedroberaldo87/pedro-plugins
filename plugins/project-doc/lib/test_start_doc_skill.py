@@ -7,7 +7,7 @@ Os três defeitos que esta suíte impede:
      existia na memória da conversa, e conversa não sobrevive ao /clear;
   2. arquitetura, interface e jornadas não eram etapa: viravam parágrafo solto
      dentro de outro documento, sem documento próprio nem aprovação própria;
-  3. a sabatina (grill-me / grill-with-docs) escorregava para juíza da
+  3. a sabatina (grill-me, com ou sem o argumento com-docs) escorregava para juíza da
      constituição — ela é COMO se chega nela, nunca quem a julga.
 
 Os nomes de arquivo das etapas são contrato: quem cobra lacuna lê daqui.
@@ -23,17 +23,18 @@ import tempfile
 
 AQUI = os.path.dirname(os.path.abspath(__file__))
 PLUGIN = os.path.join(AQUI, "..")
+SKILLS = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..",
+                      "project-skills", "skills")
 RAIZ_PLUGINS = os.path.join(PLUGIN, "..")
 
-KIT = os.path.join(PLUGIN, "skills", "start-doc", "references", "authorial-kit.md")
-SKILL = os.path.join(PLUGIN, "skills", "start-doc", "SKILL.md")
+KIT = os.path.join(SKILLS, "start", "references", "authorial-kit.md")
+SKILL = os.path.join(SKILLS, "start", "SKILL.md")
+SKILL_DOC = os.path.join(SKILLS, "doc", "SKILL.md")
 DESIGN = os.path.join(PLUGIN, "skills", "design-md", "SKILL.md")
 GRILL_ME = os.path.join(RAIZ_PLUGINS, "grill-me", "skills", "grill-me", "SKILL.md")
-GRILL_DOCS = os.path.join(RAIZ_PLUGINS, "grill-with-docs", "skills",
-                          "grill-with-docs", "SKILL.md")
 VISUAL_PAGE = os.path.join(RAIZ_PLUGINS, "visual", "lib", "visual_page.py")
 TEMPLATE = os.path.join(RAIZ_PLUGINS, "visual", "skills", "visual", "template.html")
-DIAGRAMA = os.path.join(PLUGIN, "skills", "start-doc", "diagrama-blueprint.sh")
+DIAGRAMA = os.path.join(SKILLS, "start", "diagrama-blueprint.sh")
 ENTRADA_EXEMPLO = os.path.join(RAIZ_PLUGINS, "archify", "skills", "archify",
                                "examples", "incident-response.workflow.json")
 HISTORICO = os.path.join(PLUGIN, "lib", "historico.py")
@@ -264,6 +265,22 @@ def main():
           etapas_kit.get("6") == ["features.md"])
     check("a revisao 5b reapresenta o MESMO documento da 5",
           etapas_kit.get("5b") == ["blueprint.md"])
+    print("a lei que os motores leem nasce na etapa autoral (F16.2)")
+    # Quatro leitores cobram `.claude/docs/constituicao.md` e nenhuma etapa a
+    # produzia: a lei era exigida de um arquivo que o rito nunca escrevia.
+    check("constituicao.md e documento da etapa 1 nas duas tabelas",
+          "constituicao.md" in etapas_skill.get("1", [])
+          and "constituicao.md" in etapas_kit.get("1", []))
+    check("o kit traz o molde da lei, com roteiro proprio",
+          "`constituicao.md` — A lei do projeto" in kit
+          and "# A lei deste projeto" in kit
+          and "## Artigo 1 ·" in kit)
+    check("o molde fixa o caminho de saida da lei nos dois arquivos",
+          ".claude/docs/constituicao.md" in kit
+          and ".claude/docs/constituicao.md" in skill)
+    check("a skill aceita `constituicao` como documento avulso",
+          "`constituicao`" in skill)
+
     check("o kit traz o molde do decimo documento, com roteiro proprio",
           "`blueprint.md` — Esquema de funcionamento" in kit
           and "# Como o sistema funciona" in kit
@@ -275,7 +292,7 @@ def main():
 
     print("a skill CONDUZ a etapa do esquema — nao so a lista na tabela (F12.2)")
     check("a skill se declara em seis etapas, e nao mais em cinco",
-          "SEIS etapas de acordo" in skill and "## As seis etapas de acordo" in skill
+          "seis etapas de acordo" in skill and "## As seis etapas de acordo" in skill
           and "**seis acordos, nesta ordem**" in skill)
     check("blueprint.md entra na chamada da skill, com o desenho e o diagrama",
           "blueprint.md" in skill and "esquema de funcionamento" in skill)
@@ -306,7 +323,7 @@ def main():
           "a etapa fecha sem tocar o arquivo" in skill)
     check("mudou, a troca do texto aprovado passa pelo historico e nao por edicao direta",
           "a troca passa pelo histórico, nunca por edição direta no corpo" in skill
-          and 'historico.py" reescrever .claude/docs/blueprint.md' in skill
+          and 'lib/historico.py)" reescrever .claude/docs/blueprint.md' in skill
           and "blueprint.historico.md" in skill)
     check("a skill sabe que o historico reabre a etapa e manda reaprovar",
           "reabriu_aprovacao" in skill
@@ -428,10 +445,10 @@ def main():
     print("a sabatina e o caminho de fechar CADA etapa, e nao e juiza")
     check("a regra de fechamento vale para toda etapa",
           "Cada etapa fecha do mesmo jeito" in skill)
-    check("o kit aponta grill-me e grill-with-docs como o caminho",
-          "/grill-me" in kit and "/grill-with-docs" in kit)
-    check("a skill aponta grill-me e grill-with-docs como o caminho",
-          "/grill-me" in skill and "/grill-with-docs" in skill)
+    check("o kit aponta a sabatina, nas duas jornadas, como o caminho",
+          "/grill-me" in kit and "/grill-me com-docs" in kit)
+    check("a skill aponta a sabatina, nas duas jornadas, como o caminho",
+          "/grill-me" in skill and "/grill-me com-docs" in skill)
     check("o kit nega o papel de juiz a sabatina",
           "A sabatina não é juíza" in kit)
     check("a skill nega o papel de juiz a sabatina",
@@ -553,19 +570,91 @@ def main():
     check("a conferencia nao alterou nada no projeto de bancada",
           _impressao(banca) == antes)
 
-    print("as duas sabatinas sabem que nao sao juizas")
-    if not (os.path.exists(GRILL_ME) and os.path.exists(GRILL_DOCS)):
+    print("o projeto sai da concepcao ligado: indice minimo e ponteiros na raiz")
+    kit = ler(KIT)
+    check("o molde do indice minimo e dos ponteiros mora no kit",
+          "start-doc:index" in kit and "start-doc:index:end" in kit
+          and "AGENTS.md" in kit and ".github/copilot-instructions.md" in kit)
+    check("o molde so admite documento aprovado no indice",
+          "Só entra documento com `status: approved`" in kit)
+    check("o fecho manda escrever o indice minimo em vez de deixar o projeto sem indice",
+          "índice mínimo" in skill and "ponteiros finos" in skill
+          and "não crie o índice" not in skill)
+    check("o fecho proibe o marker da doc minerada no indice provisorio",
+          "start-doc:index" in skill and "project-doc:v2" in skill
+          and "fora do padrão" in skill)
+    if not os.path.exists(SKILL_DOC):
+        print("  --   skill irma ausente (fora do repo) — 1 checagem pulada")
+    else:
+        check("o FULL substitui o bloco provisorio inteiro pelo indice dele",
+              "start-doc:index:end" in ler(SKILL_DOC))
+
+    # A prova mecânica: o índice derivado dos documentos APROVADOS da fixture não
+    # deixa o projeto "fora do padrão", e o índice do FULL o substitui.
+    sys.path.insert(0, AQUI)
+    import pattern_check
+    aprovados, rascunhos = [], []
+    for nome in sorted(os.listdir(docs)):
+        fm, _ = pattern_check._extract_frontmatter_and_body(
+            open(os.path.join(docs, nome), encoding="utf-8").read())
+        (aprovados if pattern_check._fm_field(fm, "status") == "approved"
+         else rascunhos).append(nome)
+    with open(os.path.join(docs, "design.md"), "w", encoding="utf-8") as fh:
+        fh.write("---\nauthored-by: human\nstatus: draft\n---\n\n# Design\n")
+    rascunhos.append("design.md")
+    linhas = ["- **[%s](.claude/docs/%s)** — %s → leia quando decidir sobre isso"
+              % (n, n, n[:-3]) for n in aprovados]
+    indice = ("# bancada\n\n<!-- start-doc:index -->\n"
+              "## Documentation Index\n" + "\n".join(linhas) +
+              "\n<!-- start-doc:index:end -->\n")
+    with open(os.path.join(banca, "CLAUDE.md"), "w", encoding="utf-8") as fh:
+        fh.write(indice)
+    for ponteiro in ("AGENTS.md", "GEMINI.md", ".cursorrules"):
+        with open(os.path.join(banca, ponteiro), "w", encoding="utf-8") as fh:
+            fh.write("Read `CLAUDE.md` at the project root for the project index.\n")
+    check("o indice minimo lista todo documento aprovado da fixture",
+          aprovados and all(("(.claude/docs/%s)" % n) in indice for n in aprovados))
+    check("documento nao aprovado da fixture fica de fora do indice",
+          rascunhos and not any(("(.claude/docs/%s)" % n) in indice for n in rascunhos))
+    check("os ponteiros de agente apontam o indice da raiz",
+          all("Read `CLAUDE.md`" in ler(os.path.join(banca, p))
+              for p in ("AGENTS.md", "GEMINI.md", ".cursorrules")))
+    antes_full = pattern_check.check_pattern(banca)
+    check("o indice provisorio NAO e acusado de fora do padrao (gen)",
+          not any(v.startswith("(e) gen desatualizado") for v in antes_full["violations"])
+          and antes_full["gen_found"] is None)
+
+    # O FULL roda: substitui o bloco provisório inteiro, carimba doc-sig e journal.
+    os.makedirs(os.path.join(banca, ".claude", ".project-doc"))
+    open(os.path.join(banca, ".claude", ".project-doc", "findings.jsonl"), "w").close()
+    for nome in sorted(os.listdir(docs)):
+        alvo = os.path.join(docs, nome)
+        corpo = open(alvo, encoding="utf-8").read()
+        with open(alvo, "w", encoding="utf-8") as fh:
+            fh.write(corpo.replace("---\n", "---\ndoc-sig: x\n", 1))
+    with open(os.path.join(banca, "CLAUDE.md"), "w", encoding="utf-8") as fh:
+        fh.write("# bancada\n\n<!-- project-doc:v2 gen=%s -->\n## Documentation Index\n"
+                 "<!-- project-doc:v2:end -->\n" % pattern_check.CURRENT_GEN)
+    depois = pattern_check.check_pattern(banca)
+    check("o indice do FULL substitui o provisorio, sem sobra do bloco antigo",
+          "start-doc:index" not in ler(os.path.join(banca, "CLAUDE.md")))
+    check("depois do FULL o projeto esta no padrao",
+          depois["in_pattern"] and depois["gen_found"] == pattern_check.CURRENT_GEN)
+
+    print("a sabatina, uma so e nas duas jornadas, sabe que nao e juiza")
+    if not os.path.exists(GRILL_ME):
         # Só o repositório tem os plugins irmãos lado a lado; o cache de um
         # plugin instalado tem apenas o project-doc. Contrato de irmão só é
         # checável onde os dois moram.
-        print("  --   plugins irmaos ausentes (fora do repo) — 4 checagens puladas")
+        print("  --   plugin irmao ausente (fora do repo) — 3 checagens puladas")
     else:
-        for nome, caminho in (("grill-me", GRILL_ME), ("grill-with-docs", GRILL_DOCS)):
-            texto = ler(caminho)
-            check("%s: sabe que e chamada pelas cinco etapas do /start-doc" % nome,
-                  "cinco etapas de acordo" in texto and "/start-doc" in texto)
-            check("%s: nega o papel de juiz e devolve a aprovacao ao dono" % nome,
-                  "Você não é juiz" in texto and "Quem aprova é o dono" in texto)
+        texto = ler(GRILL_ME)
+        check("grill-me: sabe que e chamada pelas cinco etapas do /start-doc",
+              "cinco etapas de acordo" in texto and "/start-doc" in texto)
+        check("grill-me: nega o papel de juiz e devolve a aprovacao ao dono",
+              "Você não é juiz" in texto and "Quem aprova é o dono" in texto)
+        check("grill-me: a jornada com documento entra por argumento",
+              "`/grill-me com-docs`" in texto)
 
     print()
     if FAILS:

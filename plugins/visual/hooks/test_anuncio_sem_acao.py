@@ -14,7 +14,7 @@ import tempfile
 
 AQUI = os.path.dirname(os.path.abspath(__file__))
 HOOK = os.path.join(AQUI, "stop-anuncio-sem-acao.py")
-PLAN_STATE = os.path.join(AQUI, os.pardir, "lib", "plan_state.py")
+PLAN_STATE = os.path.join(AQUI, os.pardir, os.pardir, "project-skills", "lib", "plan_state.py")
 
 FALHAS = []
 TOTAL = 0

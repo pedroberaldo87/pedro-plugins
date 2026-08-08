@@ -10,12 +10,26 @@ repositorio, mais o do pytest — nada de formato imaginado.
 """
 
 import os
+import re
 import shutil
+import subprocess
 import sys
 import tempfile
 import time
 
 FAILS = []
+
+
+def _blocos_do_sinal(skill_md):
+    """Os blocos ```bash da SKILL.md que mexem no sinal `ativo-<sid>`, em ordem.
+
+    O teste roda o que ESTA ESCRITO na skill, nao uma copia dele aqui: skill que
+    manda acender o sinal noutra casa quebra este teste, que e o ponto.
+    """
+    with open(skill_md, encoding="utf-8") as fh:
+        texto = fh.read()
+    return [b for b in re.findall(r"```bash\n(.*?)```", texto, re.S)
+            if "ativo-$CLAUDE_CODE_SESSION_ID" in b]
 
 
 def check(label, cond):
@@ -253,6 +267,112 @@ def main():
             fh.write(str(agora - 60))
         check("registro sem comando deixa a barra como era",
               "ferramenta há" not in (a.linha_motor("s1", base, agora) or ""))
+
+        # A PASTA DE ESTADO NAO PODE TER O NOME DE UM PLUGIN SO (F17.2). O modulo
+        # ja e chamado por quatro plugins; batizar a casa com o nome de um deles
+        # faz o estado dos outros parecer emprestado. Os dois lados sao testados:
+        # o que NASCE vai pra pasta neutra, e o que ja existia na pasta antiga
+        # continua sendo lido — missao viva no meio da troca nao perde memoria.
+        print("a casa do estado e neutra, e a antiga continua sendo lida")
+        neutra = os.path.join(tmp, "andamento")
+        antiga = os.path.join(tmp, "sovai")
+        a.ESTADO, a.ESTADO_LEGADO = neutra, antiga
+        proj_n, cmd_n = "/casa/projeto-mudanca", "bash suite-nova.sh"
+        a.registrar(proj_n, cmd_n, 20)
+        nome_n = os.path.basename(a._arquivo(proj_n))
+        check("o historico de duracao NASCE na pasta neutra",
+              os.path.exists(os.path.join(neutra, nome_n))
+              and not os.path.exists(os.path.join(antiga, nome_n)))
+
+        proj_v, cmd_v = "/casa/projeto-antigo", "bash suite-velha.sh"
+        os.makedirs(antiga, exist_ok=True)
+        with open(os.path.join(antiga, os.path.basename(a._arquivo(proj_v))),
+                  "w", encoding="utf-8") as fh:
+            fh.write('{"%s": [90.0]}' % a._chave(cmd_v))
+        check("historico que ficou na pasta antiga ainda estima",
+              a.estimativa(proj_v, cmd_v) == 90.0)
+
+        # O SINAL da missao viva: acesso na casa antiga, a barra tem que continuar
+        # enxergando — senao a troca de pasta apaga a missao que ja estava de pe.
+        with open(os.path.join(antiga, "ativo-s9"), "w", encoding="utf-8") as fh:
+            fh.write("1")
+        with open(os.path.join(antiga, "sinal-s9"), "w", encoding="utf-8") as fh:
+            fh.write(str(agora - 30))
+        check("sinal aceso na pasta antiga ainda desenha a linha do motor",
+              "último sinal há 30s" in (a.linha_motor("s9", None, agora) or ""))
+
+        # A LINHA NOMEIA QUEM A ACENDEU (F17.3). Ate aqui ela dizia `sovai` fixo,
+        # e era a unica funcao do modulo presa a um plugin. O nome vem do PROPRIO
+        # sinal — dois motores diferentes na MESMA sessao produzem duas linhas.
+        print("a linha da missão nomeia o motor que acendeu o sinal")
+        casa = os.path.join(tmp, "motores")
+        os.makedirs(casa)
+        aceso = os.path.join(casa, "ativo-sm")
+
+        with open(aceso, "w", encoding="utf-8") as fh:
+            fh.write("qa-loop\n")
+        primeiro = a.linha_motor("sm", casa, agora)
+        check("o primeiro motor aparece pelo nome dele",
+              (primeiro or "").startswith("qa-loop · missão há"))
+
+        with open(aceso, "w", encoding="utf-8") as fh:
+            fh.write("vistoria\n")
+        segundo = a.linha_motor("sm", casa, agora)
+        check("o segundo motor na mesma sessão aparece pelo nome dele",
+              (segundo or "").startswith("vistoria · missão há"))
+        check("as duas linhas da mesma sessão não se confundem",
+              primeiro != segundo and "qa-loop" not in (segundo or ""))
+
+        # Sinal aceso do jeito antigo (vazio, ou com carimbo que nao e nome) nao
+        # inventa motor: continua sendo a execucao continua, que e quem acendia.
+        open(aceso, "w").close()
+        check("sinal sem nome continua saindo como a execução contínua",
+              (a.linha_motor("sm", casa, agora) or "").startswith("sovai · missão há"))
+        with open(aceso, "w", encoding="utf-8") as fh:
+            fh.write("1")
+        check("carimbo no lugar do nome não vira nome de motor",
+              (a.linha_motor("sm", casa, agora) or "").startswith("sovai · missão há"))
+
+        # OS OUTROS MOTORES ACENDEM O MESMO SINAL (F17.4). O laço de qualidade e o
+        # de disputa disparavam workflow e nao acendiam nada: a barra ficava muda
+        # justamente nas missoes longas. Aqui o teste RODA o bloco que esta escrito
+        # na SKILL.md de cada um — se a casa do sinal mudar la, isto quebra aqui.
+        print("os outros motores acendem o mesmo sinal, e ele some quando apagam")
+        skills = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                              "..", "..")
+        for motor, skill_md in (
+                ("qa-loop", os.path.join(skills, "project-skills", "skills",
+                                         "qa-loop", "SKILL.md")),
+                ("gauntlet", os.path.join(skills, "gauntlet", "skills",
+                                          "gauntlet", "SKILL.md"))):
+            casa_motor = os.path.join(tmp, "casa-" + motor)
+            os.makedirs(casa_motor)
+            blocos = _blocos_do_sinal(skill_md)
+            check("%s: a SKILL.md tem o bloco que acende o sinal" % motor,
+                  bool(blocos))
+            env = dict(os.environ, CLAUDE_CONFIG_DIR=casa_motor,
+                       CLAUDE_CODE_SESSION_ID="s-" + motor)
+            subprocess.run(["bash", "-c", blocos[0]], env=env, check=True,
+                           stdin=subprocess.DEVNULL, start_new_session=True)
+
+            casa_sinal = os.path.join(casa_motor, "andamento")
+            linha = a.linha_motor("s-" + motor, casa_sinal)
+            check("%s: a linha da barra NASCE com o nome dele" % motor,
+                  (linha or "").startswith("%s · missão há" % motor))
+
+            # E SOME quando o sinal é apagado. No laço de qualidade quem apaga é o
+            # segundo bloco da própria skill (o `rm -f` da entrega) e é ele que roda
+            # aqui; na disputa quem apaga é a conferência verde, e essa remoção já
+            # tem caso próprio (`gauntlet/lib/test_fecho_check.py`, "o fecho verde
+            # apaga o sinal") — aqui vale o mesmo caminho, removido.
+            if len(blocos) > 1:
+                subprocess.run(["bash", "-c", "\n".join(blocos)], env=env,
+                               check=True, stdin=subprocess.DEVNULL,
+                               start_new_session=True)
+            else:
+                os.remove(os.path.join(casa_sinal, "ativo-s-" + motor))
+            check("%s: sem sinal a linha SOME da barra" % motor,
+                  a.linha_motor("s-" + motor, casa_sinal) is None)
     finally:
         shutil.rmtree(tmp, ignore_errors=True)
 
