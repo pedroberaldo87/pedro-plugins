@@ -59,7 +59,7 @@ verbose() { [ -n "$VERBOSE" ] && info "$*"; }
 #
 # Ele AVISA e OFERECE; nunca apaga. Desligar: PEDRO_CACHE_AVISO=0.
 if [ "${PEDRO_CACHE_AVISO:-1}" != "0" ] && [ -f "$LIB_DIR/cache-parado.sh" ]; then
-  CP_MARCA="${CLAUDE_CONFIG_DIR:-$HOME/.claude}/plugins/.pedro-cache-aviso"
+  CP_MARCA="${CLAUDE_CONFIG_DIR:-$HOME/.claude}/plugins/.pedro-plugins-cache-aviso"
   CP_AGORA="$(date +%s)"
   CP_ANTES="$([ -f "$CP_MARCA" ] && cat "$CP_MARCA" 2>/dev/null || echo 0)"
   if [ $((CP_AGORA - ${CP_ANTES:-0})) -ge "${PEDRO_CACHE_AVISO_SEGUNDOS:-86400}" ]; then
