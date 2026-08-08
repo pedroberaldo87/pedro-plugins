@@ -45,7 +45,12 @@ CAMPOS_DO_RITO = (
 TRIADE = ("alvos", "sonda", "eixos")
 # O que uma sonda precisa trazer para ser executável. `interagir` é opcional: peça
 # parada (um relatório) não tem gesto, e exigir um faria o dono inventar.
-CAMPOS_DA_SONDA = ("preparar", "registrar", "alvo")
+# `registrar` e `alvo` são o que produz os dois lados da comparação: sem eles não há
+# par, e sem par não há veredito. `preparar` tem que ser DECLARADO, mas pode ser vazio
+# — peça que já é observável (um documento, um arquivo) não tem o que preparar, e
+# exigir um comando aí faria o dono inventar um.
+CAMPOS_DA_SONDA = ("registrar", "alvo")
+CAMPOS_DECLARADOS_DA_SONDA = ("preparar", "registrar", "alvo")
 # Os três desfechos. `marginal` é a parada por retorno decrescente virando CAMPO: sem
 # ele, "o juiz declara que o ganho ficou pequeno demais" é prosa que o laço não lê.
 STATUS = ("aprovado", "reprovado", "marginal")
@@ -149,9 +154,12 @@ def erros_do_rito(missao, sinal=None):
 
     sonda = rito.get("sonda") or {}
     if isinstance(sonda, dict):
-        for campo in CAMPOS_DA_SONDA:
-            if not sonda.get(campo):
+        for campo in CAMPOS_DECLARADOS_DA_SONDA:
+            if campo not in sonda:
                 erros.append("a sonda não declara `%s`" % campo)
+        for campo in CAMPOS_DA_SONDA:
+            if campo in sonda and not sonda.get(campo):
+                erros.append("a sonda declara `%s` vazio, e sem ele não há par" % campo)
         # A sonda tem que ter RODADO uma vez, e o que prova isso é o registro que ela
         # deixou. Sem este campo, "a abertura testa cada sonda" seria frase que nada
         # cobra — e é assim que mecanismo descrito e nunca executado nasce.

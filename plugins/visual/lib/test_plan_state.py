@@ -1505,6 +1505,54 @@ def main():
         finally:
             shutil.rmtree(raiz3, ignore_errors=True)
 
+        # O desenho da arquitetura pretendida entra no cruzamento pelo caminho REAL do
+        # produto: o mesmo `cobertura` acha o architecture-intent.md pela cascata e
+        # cruza a peça citada — quem não aponta peça nenhuma e quem aponta uma que o
+        # desenho não tem saem em listas próprias.
+        print("cobertura confere a peça citada contra a arquitetura pretendida")
+        raiz4 = tempfile.mkdtemp(prefix="plan-pecas-")
+        try:
+            docs4 = os.path.join(raiz4, ".claude", "docs")
+            plans4 = os.path.join(raiz4, ".claude", "plans")
+            os.makedirs(docs4)
+            os.makedirs(plans4)
+            with open(os.path.join(docs4, "architecture-intent.md"), "w",
+                      encoding="utf-8") as fh:
+                fh.write("# Arquitetura pretendida\n\n## Peças\n\n"
+                         "### Motor de plano\nMonta o dia.\n\n"
+                         "### Guarda de estado\nOnde o estado mora.\n\n"
+                         "## Fronteiras\n\n### Ninguém chama o banco direto\nO corpo.\n")
+            pl4 = sample(id="arq-1", phases=[{"id": "F1", "title": "x", "items": [
+                {"id": "F1.1", "title": "campo custo", "desc": "d",
+                 "pronto": "roda o teste", "requisito": "S-4.3"},
+                {"id": "F1.2", "title": "exportar o dia", "desc": "d",
+                 "pronto": "roda o teste", "requisito": "S-4.9"},
+                {"id": "F1.3", "title": "atalho de teclado", "desc": "d",
+                 "pronto": "roda o teste", "requisito": "S-4.10"}]}])
+            pl4["requisitos"] = [
+                {"id": "S-4.3", "titulo": "Orçamento de energia", "ca": "dia estourado corta",
+                 "peca": "Motor de plano"},
+                {"id": "S-4.9", "titulo": "Exportar o dia", "ca": "gera resumo em texto",
+                 "peca": "Fila de e-mail"},
+                {"id": "S-4.10", "titulo": "Atalho de teclado", "ca": "a tecla abre o dia"}]
+            init_into(plans4, pl4, crus=True)
+            buf4 = io.StringIO()
+            with contextlib.redirect_stdout(buf4):
+                ps.cmd_cobertura(Args(dir=plans4, plan="arq-1", reqs=None, json=False))
+            saida4 = buf4.getvalue()
+            check("o resumo do comando real acusa a funcionalidade sem peça",
+                  "1 funcionalidade sem peça da arquitetura" in saida4)
+            check("e nomeia quem não apontou peça nenhuma",
+                  "S-4.10" in saida4.split("sem peça da arquitetura pretendida")[-1])
+            check("o mesmo resumo acusa a peça que a arquitetura não tem",
+                  "1 requisito citando peça que a arquitetura não tem" in saida4)
+            check("e nomeia quem citou e a peça que não existe",
+                  "S-4.9 → Fila de e-mail" in saida4)
+            check("quem cita peça que existe não é acusado",
+                  "S-4.3 → Motor de plano" not in saida4)
+        finally:
+            shutil.rmtree(raiz4, ignore_errors=True)
+
         print("arquivo corrompido não derruba a listagem")
         before = len(ps.list_plans(d))
         with open(os.path.join(d, "quebrado.plan.json"), "w") as fh:
@@ -1551,6 +1599,42 @@ def main():
               'ul class="pt-prova"' in html and html.count("<li>") == 3)
         check("prova de um segmento continua span",
               ps._detalhe_html("prova: x", "pt-evidence").startswith("<span"))
+
+        # S-81: o plano inteiro volta pro disco sem ser recusado pelo texto que já
+        # estava lá. O que a gravação REESCREVE continua sendo cobrado.
+        print("regravar o plano inteiro não recusa o texto que já estava no disco")
+        d15 = tempfile.mkdtemp(prefix="plan-herdado-")
+        try:
+            longo = "o gravador aceita " + "x" * 400
+            velho = {"id": "2026-07-27-teste", "title": "Plano de teste",
+                     "created": "2026-07-27", "status": "active",
+                     "phases": [{"id": "F1", "title": "Primeira fase", "items": [
+                         {"id": "F1.1", "title": "Passo um", "desc": "faz a coisa",
+                          "pronto": longo, "requisito": "S-1",
+                          "status": "todo", "evidence": None, "done_at": None}]}]}
+            with open(ps.plan_path(d15, velho["id"]), "w", encoding="utf-8") as fh:
+                json.dump(velho, fh)
+            erro = None
+            try:
+                init_into(d15, json.loads(json.dumps(velho)), crus=True)
+            except ps.PlanError as exc:
+                erro = str(exc)
+            check("o arquivo inteiro grava sem recusa de forma (%s)" % (erro or "ok"),
+                  erro is None)
+            check("o pronto longo chega inteiro ao disco",
+                  load(d15, "2026-07-27-teste")["phases"][0]["items"][0]["pronto"] == longo)
+            outro = json.loads(json.dumps(velho))
+            outro["phases"][0]["items"][0]["pronto"] = longo + " e mais um pedaço"
+            raises("texto que a gravação MUDA continua sendo cobrado",
+                   lambda: init_into(d15, outro, crus=True), "o teto é 140")
+            novo = json.loads(json.dumps(velho))
+            novo["phases"][0]["items"].append(
+                {"id": "F1.2", "title": "Passo dois", "desc": "faz outra coisa",
+                 "pronto": longo, "requisito": "S-1"})
+            raises("tarefa que nasce agora com texto longo é recusada",
+                   lambda: init_into(d15, novo, crus=True), "o teto é 140")
+        finally:
+            shutil.rmtree(d15, ignore_errors=True)
     finally:
         shutil.rmtree(d, ignore_errors=True)
 

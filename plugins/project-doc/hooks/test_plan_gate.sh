@@ -34,6 +34,7 @@ aprovado() { printf -- '---\nauthored-by: human\nstatus: approved\napproved: 202
 aprovado "$DOCD/.claude/docs/quality-goals.md" Metas
 aprovado "$DOCD/.claude/docs/architecture-intent.md" "Arquitetura pretendida"
 aprovado "$DOCD/.claude/docs/journeys.md" Jornadas
+aprovado "$DOCD/.claude/docs/blueprint.md" Esquema
 aprovado "$DOCD/.claude/docs/features.md" Funcionalidades
 
 AUTH="$TMP/projeto-so-autoral"     # start-doc começou, índice ainda não existe
@@ -380,15 +381,36 @@ acc_reset
 case "$(reason "$(gate EnterPlanMode "$ACC")")" in *"funcionalidades (features.md)"*) ok "features.md ausente conta como em aberto" ;;
   *) bad "etapa 5 pulada" "'funcionalidades (features.md)'" "não cobrou" ;; esac
 
-# A9) OS 7 DOCUMENTOS FECHADOS COMO O /start-doc MANDA (status: approved + approved:)
+# A8d) S-70 — a etapa do ESQUEMA (blueprint.md): o desenho de como o sistema funciona.
+#      As cinco primeiras etapas aprovadas e só o blueprint ausente: o plano é NEGADO,
+#      e a recusa nomeia a etapa. Sem isso a lista de funcionalidades seria derivada de
+#      um desenho que ninguém bateu o martelo.
+acc_reset
+aprovado "$ACC/.claude/docs/journeys.md" Jornadas
+aprovado "$ACC/.claude/docs/features.md" Funcionalidades
+rm -f "$ACC/.claude/docs/blueprint.md"
+: > "$TMPD/claude-doc-guard-${SESSION}-$(phash "$ACC")"
+OUT=$(gate EnterPlanMode "$ACC")
+[ "$(decision "$OUT")" = "deny" ] && ok "blueprint.md ausente: plano negado (S-70)" \
+                                  || bad "blueprint ausente: negado" deny "$(decision "$OUT")"
+case "$(reason "$OUT")" in *"esquema (blueprint.md)"*) ok "blueprint.md ausente: a mensagem nomeia a etapa" ;;
+  *) bad "mensagem nomeia a etapa" "'esquema (blueprint.md)'" "$(reason "$OUT" | head -c 90)" ;; esac
+case "$(reason "$OUT")" in *"funcionalidades (features.md)"*) bad "não cita etapa já fechada" "sem 'funcionalidades (features.md)'" "cobrou etapa fechada" ;;
+  *) ok "blueprint ausente: a etapa já fechada não é cobrada" ;; esac
+E=$(estilo_hook "$(reason "$OUT")")
+[ -z "$E" ] && ok "recusa por esquema: a mensagem passa na régua (perfil hook)" \
+            || bad "régua da mensagem de esquema" "sem erros de estilo" "$E"
+
+# A9) OS 8 DOCUMENTOS FECHADOS COMO O /start-doc MANDA (status: approved + approved:)
 #     -> o gate cala. É o impasse que o contrato autoral e o gate tinham: o contrato
 #     grava `approved` e o gate cobrava `ready`, e nada fechava o acordo.
 acc_reset
 aprovado "$ACC/.claude/docs/journeys.md" Jornadas
+aprovado "$ACC/.claude/docs/blueprint.md" Esquema
 aprovado "$ACC/.claude/docs/features.md" Funcionalidades
 : > "$TMPD/claude-doc-guard-${SESSION}-$(phash "$ACC")"
 OUT=$(gate EnterPlanMode "$ACC")
-[ -z "$OUT" ] && ok "os 7 documentos approved: passa em silêncio" || bad "7 approved passa" "vazio" "$(reason "$OUT" | head -c 90)"
+[ -z "$OUT" ] && ok "os 8 documentos approved: passa em silêncio" || bad "8 approved passa" "vazio" "$(reason "$OUT" | head -c 90)"
 acc_reset
 
 # A10) O CRITÉRIO DE PRONTO (S-4) — TODOS os outros documentos acordados e só a LEI em

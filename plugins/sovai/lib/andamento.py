@@ -134,23 +134,42 @@ def placar(saida):
     return None
 
 
+def _como_placar(x):
+    """Aceita o placar ja estruturado OU a saida crua de onde ele sai.
+
+    O chamador real guarda o placar da rodada anterior em disco e o relê; nem
+    sempre volta dicionario — volta o texto que a suite imprimiu. Assumir a
+    estrutura fazia `avanco()` estourar em cima do narrador, que e justamente o
+    componente que existe pra nao deixar o dono no escuro.
+    """
+    if isinstance(x, dict):
+        return x if "passou" in x else None
+    if isinstance(x, str):
+        return placar(x)
+    return None
+
+
 def avanco(anterior, atual):
     """Andou, nao andou, ou piorou — comparando dois placares.
 
     'nao andou' e o sinal que interessa: duas rodadas com o MESMO placar querem
     dizer que a suite parou de mudar, e e ai que vale olhar.
+
+    Os dois lados aceitam texto cru: ver `_como_placar`.
     """
+    anterior = _como_placar(anterior)
+    atual = _como_placar(atual)
     if atual is None:
         return "sem placar"
     if anterior is None:
         return "primeiro placar"
     if atual["passou"] > anterior["passou"]:
-        return "avancou"
+        return "avançou"
     if atual["passou"] < anterior["passou"]:
         return "regrediu"
     if (atual["falhou"] or 0) < (anterior["falhou"] or 0):
-        return "avancou"
-    return "sem avanco"
+        return "avançou"
+    return "sem avanço"
 
 
 def _dur(segundos):
@@ -183,8 +202,8 @@ def linha_silencio(mudo, trabalho_vivo, limite=LIMITE_SILENCIO):
         return None
     minutos = int(round(mudo / 60.0))
     if trabalho_vivo:
-        return "rodando ha %d min — trabalho vivo, nao e travamento" % minutos
-    return "travamento: nada mudou ha %d min e nao ha trabalho vivo" % minutos
+        return "rodando há %d min — trabalho vivo, não é travamento" % minutos
+    return "travamento: nada mudou há %d min e não há trabalho vivo" % minutos
 
 
 def linha_disparo(comando, projeto, agora=None):
@@ -217,7 +236,7 @@ def linha_andamento(comando, projeto, decorrido, saida_ate_agora="", anterior=No
     """
     p = placar(saida_ate_agora)
     est = estimativa(projeto, comando)
-    partes = ["rodando ha %s" % _dur(decorrido)]
+    partes = ["rodando há %s" % _dur(decorrido)]
     if est is not None:
         if decorrido > est * 2:
             partes.append("passou do dobro do usual (~%s)" % _dur(est))

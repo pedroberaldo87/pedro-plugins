@@ -97,6 +97,38 @@ O corpo do artigo.
 O corpo do artigo.
 """
 
+# três funcionalidades contra o desenho: uma vive numa peça que existe, uma cita uma
+# peça que o desenho não tem, e uma não diz onde vive
+PRD_PECAS = """\
+## E4 — Planner determinístico (F1)
+
+- **S-4.3 Orçamento de energia** · F1 · Peça: Motor de plano — custo 1-5 por tarefa.
+  CA: dia com orçamento estourado retorna proposta de corte.
+- **S-4.9 Exportar o dia** · F1 · Peça: Fila de e-mail — gera um resumo em texto.
+  CA: o resumo sai em texto puro.
+- **S-4.10 Atalho de teclado** · F1 — abre o dia com uma tecla.
+  CA: a tecla abre o dia.
+"""
+
+# o desenho da arquitetura pretendida: só o que está sob "Peças" é peça — fronteira
+# escrita no mesmo nível não vira peça
+ARQUITETURA = """\
+# Arquitetura pretendida
+
+## Peças
+
+### Motor de plano
+Responsável por montar o dia.
+
+### Guarda de estado
+Onde o estado mora.
+
+## Fronteiras
+
+### Ninguém chama o banco direto
+O corpo da fronteira.
+"""
+
 JOURNEYS = """\
 # Jornadas
 
@@ -242,6 +274,43 @@ def main():
     check("sem a lei, ninguém é acusado de nascer sem artigo",
           msa0["sem_artigo"] == [] and msa0["decididas"] == []
           and "sem artigo" not in cb.resumo(msa0))
+
+    # o cruzamento com as peças da arquitetura pretendida, nas duas pontas
+    pp = os.path.join(d, "PRD-pecas.md")
+    open(pp, "w").write(PRD_PECAS)
+    arq = os.path.join(d, "architecture-intent.md")
+    open(arq, "w").write(ARQUITETURA)
+    reqs_p = cb.le_requisitos(pp)
+    pecas = cb.le_pecas(arq)
+    check("acha as 2 peças do desenho", pecas == ["Motor de plano", "Guarda de estado"])
+    check("fronteira escrita fora da seção de peças não vira peça",
+          "Ninguém chama o banco direto" not in pecas)
+    check("lê a peça que o requisito diz habitar",
+          reqs_p["S-4.3"]["peca"] == "Motor de plano")
+    check("requisito sem peça citada fica com None", reqs_p["S-4.10"]["peca"] is None)
+    plan_p = {"id": "p", "title": "t", "phases": [{"id": "F1", "title": "f", "items": [
+        {"id": "F1.1", "title": "a", "desc": "d", "requisito": "S-4.3"},
+        {"id": "F1.2", "title": "b", "desc": "d", "requisito": "S-4.9"},
+        {"id": "F1.3", "title": "c", "desc": "d", "requisito": "S-4.10"}]}]}
+    mp = cb.mapa(plan_p, reqs_p, jornadas, artigos, pecas)
+    check("1 funcionalidade sem peça da arquitetura", mp["sem_peca"] == ["S-4.10"])
+    check("1 requisito citando peça que a arquitetura não tem",
+          mp["pecas_inexistentes"] == [("S-4.9", "Fila de e-mail")])
+    check("quem cita peça que existe não é acusado",
+          "S-4.3" not in mp["sem_peca"]
+          and "S-4.3" not in [r for r, _ in mp["pecas_inexistentes"]])
+    rp = cb.resumo(mp)
+    check("o resumo acusa a funcionalidade sem peça",
+          "1 funcionalidade sem peça da arquitetura" in rp)
+    check("o resumo acusa a peça inexistente",
+          "1 requisito citando peça que a arquitetura não tem" in rp)
+    # sem o desenho em mãos não há com o que cruzar — ninguém é acusado
+    mp0 = cb.mapa(plan_p, reqs_p, jornadas, artigos)
+    check("sem o desenho, ninguém é acusado de peça",
+          mp0["sem_peca"] == [] and mp0["pecas_inexistentes"] == []
+          and "peça" not in cb.resumo(mp0))
+    check("documento da arquitetura ausente devolve []",
+          cb.le_pecas(os.path.join(d, "nao-existe.md")) == [])
 
     # sem documento de jornadas não há com o que cruzar — e [] não acusa ninguém
     m0 = cb.mapa(plan, reqs)

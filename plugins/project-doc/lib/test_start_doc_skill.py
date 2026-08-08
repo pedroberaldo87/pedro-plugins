@@ -16,6 +16,7 @@ Os nomes de arquivo das etapas são contrato: quem cobra lacuna lê daqui.
 import hashlib
 import json
 import os
+import re
 import subprocess
 import sys
 import tempfile
@@ -76,6 +77,24 @@ approved:
 
 ## Deixado de fora de propósito
 - **Assinatura paga** — não é deste sistema
+"""
+
+# O desenho da bancada (F12.5): o primeiro passo é citado verbatim pela F-1, o
+# segundo é órfão — nenhuma funcionalidade o atende.
+BANCADA_BLUEPRINT = """---
+authored-by: human
+status: approved
+approved: 2026-01-03
+---
+
+# Como o sistema funciona
+
+## O ciclo, do começo ao fim
+1. escreve → valida → publica  ← journeys.md:12
+2. o catálogo devolve o plugin ao autor quando a validação falha  ← journeys.md:20
+
+## O que este desenho NÃO mostra, de propósito
+- a cobrança — não é deste sistema
 """
 
 
@@ -139,6 +158,32 @@ def ler(caminho):
     return " ".join(open(caminho, encoding="utf-8").read().split())
 
 
+def tabela_etapas(caminho):
+    """Mapa `nº da etapa` → documentos dela, lido da tabela de etapas do arquivo.
+
+    A tabela existe em dois lugares — o SKILL.md e o authorial-kit.md — e o que
+    tem que bater entre as duas não é a prosa da coluna do nome, é o CONTRATO:
+    que etapa existe, com que número, e qual documento é dela.
+    """
+    linhas = open(caminho, encoding="utf-8").read().splitlines()
+    dentro = False
+    mapa = {}
+    for linha in linhas:
+        crua = linha.strip()
+        if not dentro:
+            if crua.startswith("|") and "| Etapa |" in crua:
+                dentro = True
+            continue
+        if not crua.startswith("|"):
+            break
+        celulas = [c.strip() for c in crua.strip("|").split("|")]
+        chave = celulas[0].strip("* ")
+        if not chave or set(chave) <= set("- :"):
+            continue
+        mapa[chave] = sorted(set(re.findall(r"[A-Za-z0-9_.-]+\.md", " ".join(celulas[1:]))))
+    return mapa
+
+
 def em_ordem(texto, marcas):
     """As marcas aparecem no texto, e nesta ordem."""
     pos = -1
@@ -187,6 +232,65 @@ def main():
           "`features`" in skill)
     check("a tabela de etapas da skill tem a linha de funcionalidades",
           "**Funcionalidades**" in skill)
+
+    print("a tabela de etapas e a MESMA nos dois arquivos que a escrevem")
+    etapas_skill = tabela_etapas(SKILL)
+    etapas_kit = tabela_etapas(KIT)
+    check("as duas tabelas foram encontradas e nao estao vazias",
+          len(etapas_skill) >= 6 and len(etapas_kit) >= 6)
+    # Contrato: etapa que existe num arquivo e não no outro, ou documento que
+    # troca de etapa só de um lado, é divergência — e divergência aqui é a
+    # skill conduzindo uma sequência e o material de referência descrevendo
+    # outra.
+    check("nenhuma etapa existe so de um lado (%s vs %s)"
+          % (sorted(etapas_skill), sorted(etapas_kit)),
+          set(etapas_skill) == set(etapas_kit))
+    for num in sorted(set(etapas_skill) & set(etapas_kit)):
+        check("a etapa %s aponta os mesmos documentos nos dois (%s vs %s)"
+              % (num, etapas_skill[num], etapas_kit[num]),
+              etapas_skill[num] == etapas_kit[num])
+    check("a etapa 5 e o esquema, com documento proprio",
+          etapas_kit.get("5") == ["blueprint.md"])
+    check("a etapa 6 e a lista derivada, depois do esquema",
+          etapas_kit.get("6") == ["features.md"])
+    check("a revisao 5b reapresenta o MESMO documento da 5",
+          etapas_kit.get("5b") == ["blueprint.md"])
+    check("o kit traz o molde do decimo documento, com roteiro proprio",
+          "`blueprint.md` — Esquema de funcionamento" in kit
+          and "# Como o sistema funciona" in kit
+          and "O que este desenho NÃO mostra" in kit)
+    check("o esquema nao abre a etapa seguinte sem o de acordo gravado",
+          "Etapa 5 sem `approved:` trava a etapa 6" in kit)
+    check("archify ausente degrada em voz alta, sem travar a etapa",
+          "`archify` ausente na máquina não bloqueia a etapa" in kit)
+
+    print("a skill CONDUZ a etapa do esquema — nao so a lista na tabela (F12.2)")
+    check("a skill se declara em seis etapas, e nao mais em cinco",
+          "SEIS etapas de acordo" in skill and "## As seis etapas de acordo" in skill
+          and "**seis acordos, nesta ordem**" in skill)
+    check("blueprint.md entra na chamada da skill, com o desenho e o diagrama",
+          "blueprint.md" in skill and "esquema de funcionamento" in skill)
+    check("existe o modo `/start-doc blueprint`",
+          "`/start-doc blueprint` — **só a etapa 5**" in skill)
+    check("`blueprint` entra nos nomes de doc avulso aceitos",
+          re.search(r"`journeys`, `blueprint`, `features`", skill) is not None)
+    check("a trava da etapa 6 esta escrita, e diz o que conferir no disco",
+          skill.count("A etapa 6 não abre sem `blueprint.md` aprovado") >= 2
+          and "`.claude/docs/blueprint.md` existe e traz `status: approved`" in skill)
+    check("a trava manda PARAR e conduzir a etapa 5, nao seguir",
+          "pare e conduza a etapa 5" in skill)
+    check("o passo 3 abre a etapa do esquema com o ciclo montado",
+          "**A etapa 5 (esquema) você abre com o ciclo montado" in skill)
+    check("a lista derivada passou a ser a etapa 6 no roteiro e na curadoria",
+          "**A etapa 6 (funcionalidades) é a única em que você fala primeiro.**" in skill
+          and "A curadoria da etapa 6" in skill
+          and "A etapa 5 (funcionalidades)" not in skill)
+    check("a revisao 5b esta declarada como reapresentacao, nao como setima etapa",
+          "A 5b é a 5 reapresentada, não uma sétima etapa" in skill)
+    check("o protocolo de saida imprime a etapa nova, com o estado do diagrama",
+          "Esquema → `blueprint.md`" in skill
+          and "`archify` ausente, DEGRADADO" in skill
+          and "revisão 5b" in skill)
 
     print("cada funcionalidade e curada item a item, com a passagem ao lado (F4.2)")
     check("a skill manda usar o bloco `item` do /visual, o componente que ja existe",
@@ -352,6 +456,8 @@ def main():
         fh.write(BANCADA_JOURNEYS)
     with open(os.path.join(docs, "features.md"), "w", encoding="utf-8") as fh:
         fh.write(BANCADA_FEATURES)
+    with open(os.path.join(docs, "blueprint.md"), "w", encoding="utf-8") as fh:
+        fh.write(BANCADA_BLUEPRINT)
     antes = _impressao(banca)
     proc = subprocess.run([sys.executable, RASTREIO, banca],
                           capture_output=True, text=True)
@@ -362,10 +468,14 @@ def main():
           saida.get("funcionalidades_sem_origem") == ["F-2 · Mandar e-mail de boas-vindas"])
     check("jornada sem funcionalidade aparece na contagem",
           saida.get("jornadas_sem_funcionalidade") == ["Arquivar um plugin"])
-    check("a funcionalidade com origem e a jornada realizada NAO sao acusadas",
+    check("passo do desenho que ninguem atende sai nomeado na terceira lista",
+          saida.get("passos_sem_funcionalidade")
+          == ["o catálogo devolve o plugin ao autor quando a validação falha"])
+    check("a funcionalidade com origem, a jornada realizada e o passo atendido NAO sao acusados",
           saida.get("contagem", {}).get("funcionalidades") == 2
           and saida.get("contagem", {}).get("jornadas") == 2
-          and saida.get("sem_dono") == 2)
+          and saida.get("contagem", {}).get("passos") == 2
+          and saida.get("sem_dono") == 3)
     check("a conferencia nao alterou nada no projeto de bancada",
           _impressao(banca) == antes)
 

@@ -155,8 +155,8 @@ A linha real, gerada pelo módulo:
 ```
 21:40:22 · python3 …/test_plan_state.py · primeira vez aqui, sem estimativa
 21:40:22 · python3 …/test_plan_state.py · ~1min35s (das 3 vezes anteriores aqui)
-rodando ha 70s  · usual ~1min35s           · 62 passou · 12 falhou — sem avanco
-rodando ha 4min · passou do dobro do usual · 74 passou ·  0 falhou — avancou
+rodando há 70s  · usual ~1min35s           · 62 passou · 12 falhou — sem avanço
+rodando há 4min · passou do dobro do usual · 74 passou ·  0 falhou — avançou
 ```
 
 Registrar a duração ao fim de cada ferramenta longa (`andamento.registrar(repoRoot, cmd, seg)`) é o que alimenta a estimativa da próxima vez. Suíte roda várias vezes na mesma missão — é dessa repetição que a memória vive.
@@ -279,9 +279,13 @@ let lawMark = null    // marca da lei do projeto, CONGELADA na rodada 1 (ver o p
 const taskChurn = {}  // { task_id: nº de rodadas seguidas reaparecendo em missingTasks/gaps }
 
 // Tier por rodada (R8): rodada 1 = decompose_model (planejamento inicial); rodadas 2+
-// = coordinate_model (coordenação rotineira). Os valores chegam em ARGS.tiers, servidos
-// de references/r8-tiers.json pela casca — nunca literais aqui.
-const T = ARGS.tiers
+// = coordinate_model (coordenação rotineira). O bloco abaixo é ESCRITO no texto do
+// script na hora de compor a chamada — gerado pelo r8_tiers.py, nunca digitado à mão e
+// nunca lido dos parâmetros em tempo de execução: por ali o valor chegava indefinido e
+// matava o motor na 1ª volta. Trocar tier = editar `_shared/r8-tiers.json` e re-gerar.
+const T = { decompose: {effort:'high'}, coordinate: {effort:'medium'},
+            executor: {effort:'medium'}, mechanical: {effort:'low'},
+            diagnose: {effort:'medium'}, finalize: {effort:'medium'} }
 const tierFor = round => ({ model: ARGS.model,
   effort: round === 1 ? T.decompose.effort : T.coordinate.effort })
 

@@ -69,6 +69,17 @@ INDICES = ("marketplace.json", "manifest.json", "settings-defaults.json",
 # limite. Acusar um retrato de citar o que ele retrata é acusar o termômetro pela febre.
 DIRS_ISENTOS = (".claude/", "README.md", "scripts/")
 
+# ...mas a isenção é de NOME, não de NÚMERO. Descrever o repositório obriga a citar os
+# plugins pelo nome; não obriga a cravar quantos são. É justamente na doc que a contagem
+# envelhece em silêncio — a própria constituição carregou **54** enquanto a medição
+# devolvia **60**. Então a pasta da documentação sai da isenção da contagem cravada, e o
+# que entra no lugar do número é o comando que o produz (S-58).
+DOC = ".claude/docs/"
+
+
+def isento_de_contagem(rel):
+    return rel.startswith(DIRS_ISENTOS) and not rel.startswith(DOC)
+
 # DEPENDÊNCIA EXECUTÁVEL: o nome do irmão aparece dentro de um caminho ou de uma invocação.
 # É isto que quebra quando o outro plugin não está na máquina — e só isto.
 def _rx_dependencia(p):
@@ -144,7 +155,7 @@ def varre(root="."):
                     achados.append({"forma": "dependencia-de-irmao", "arquivo": rel, "linha": n,
                                     "alvo": p, "trecho": linha.strip()[:120]})
 
-            if rel.endswith(".md") and not rel.startswith(DIRS_ISENTOS) \
+            if rel.endswith(".md") and not isento_de_contagem(rel) \
                     and not COM_COMANDO.search(linha) \
                     and not NARRATIVA.search(linha):
                 for c in CONTAGEM.finditer(linha):

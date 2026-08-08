@@ -299,8 +299,14 @@ def erros_do_plano(plan, exigir=None):
     return errs
 
 
-def validate(plan, exigir=None, reqs=None):
+def validate(plan, exigir=None, reqs=None, isentos=None):
     errs = erros_do_plano(plan, exigir)
+    # `isentos` são as mensagens de REDAÇÃO de texto que esta gravação não muda —
+    # ver `_erros_herdados`. Sai da lista o defeito que já estava no disco; o que a
+    # gravação escreve de novo continua recusando.
+    if isentos:
+        herdados = set(isentos)
+        errs = [e for e in errs if e not in herdados]
     # Citação que aponta pro nada é o quarto estado do fio, e ele NÃO é aviso: é erro
     # que recusa gravar. Sem isto a citação apodrece em silêncio — foi assim que 7 de
     # 154 itens de um plano real citaram artigo de lei sem ninguém nunca conferir se o
@@ -398,7 +404,8 @@ def cmd_init(args):
         # contra o pedaço reprovaria a tarefa que cita requisito só do arquivo.
         fonte = dict(incoming, requisitos=_funde_requisitos(stored, incoming)[0])
     validate(incoming, exigir=novos,
-             reqs=_requisitos_do_projeto(directory, fonte))
+             reqs=_requisitos_do_projeto(directory, fonte),
+             isentos=_erros_herdados(stored, incoming))
 
     notes = []
     if stored is not None:
@@ -535,6 +542,47 @@ def _erros_de_redacao_do_no(plan, node_id):
     return []
 
 
+def _erros_herdados(stored, incoming):
+    """Os erros de REDAÇÃO do texto que esta gravação NÃO altera.
+
+    O plano no disco é anterior à régua, e recusar o arquivo inteiro por causa de
+    texto que já estava lá obriga a mandar o plano em pedaços — foi assim que o
+    `pronto` de duas tarefas chegou cortado em 400 caracteres ao disco. Campo cujo
+    texto vem IGUAL ao gravado não é reavaliado; campo que a gravação reescreve (ou
+    que nasce agora) continua sendo cobrado pela régua inteira.
+
+    As mensagens saem com o MESMO prefixo de posição de `erros_do_plano`, pra
+    `validate` poder descontá-las por igualdade de string.
+    """
+    if not isinstance(stored, dict):
+        return []
+    velhos = {}
+    for ph in stored.get("phases", []) or []:
+        if isinstance(ph, dict):
+            for it in ph.get("items", []) or []:
+                if isinstance(it, dict):
+                    velhos[it.get("id")] = it
+    out = []
+    for pi, ph in enumerate(incoming.get("phases", []) or []):
+        if not isinstance(ph, dict):
+            continue
+        for ii, it in enumerate(ph.get("items", []) or []):
+            if not isinstance(it, dict):
+                continue
+            old = velhos.get(it.get("id"))
+            if old is None:
+                continue
+            itag = "fase[%d] passo[%d]" % (pi, ii)
+            for campo in ("desc", "pronto", "pendencia", "espera_dono"):
+                v = str(it.get(campo, "") or "").strip()
+                if not v or v != str(old.get(campo, "") or "").strip():
+                    continue
+                out.extend(erros_de_estilo(v, "%s %s" % (itag, campo)))
+                if campo == "pronto":
+                    out.extend(erros_de_pronto(v, "%s pronto" % itag))
+    return out
+
+
 def _erro_e_do_no(msg, plan, node_id):
     """A mensagem cita a tarefa `node_id`?
 
@@ -583,6 +631,7 @@ def _requisitos_do_plano(plan):
         if isinstance(r, dict) and str(r.get("id", "")).strip():
             out[r["id"].strip()] = {"titulo": r.get("titulo", ""), "ca": r.get("ca"),
                                     "ancora": r.get("ancora"), "jornada": r.get("jornada"),
+                                    "peca": r.get("peca"),
                                     "epico": r.get("epico"), "decisao": r.get("decisao")}
     return out
 
@@ -645,6 +694,26 @@ def _artigos_do_projeto(directory):
         p = os.path.join(raiz, cand)
         if os.path.exists(p):
             return cobertura.le_artigos(p)
+    return []
+
+
+def _pecas_do_projeto(directory):
+    """Acha as peças da arquitetura pretendida. [] se não houver — e isso não é erro.
+
+    Cascata: $PLAN_ARQUITETURA → <raiz>/.claude/docs/architecture-intent.md →
+    <raiz>/docs/architecture-intent.md → []. É o documento que a etapa 2 do /start-doc
+    escreve (o que a arquitetura DEVE ser, não o que o código é); sem ele não há
+    desenho com o que cruzar, e o cruzamento fica quieto em vez de acusar todo mundo.
+    """
+    import cobertura
+    env = os.environ.get("PLAN_ARQUITETURA")
+    if env and os.path.exists(env):
+        return cobertura.le_pecas(env)
+    raiz = os.path.dirname(os.path.dirname(os.path.abspath(directory)))
+    for cand in (".claude/docs/architecture-intent.md", "docs/architecture-intent.md"):
+        p = os.path.join(raiz, cand)
+        if os.path.exists(p):
+            return cobertura.le_pecas(p)
     return []
 
 
@@ -755,7 +824,7 @@ def cmd_cobertura(args):
     reqs = (cobertura.le_requisitos(args.reqs) if args.reqs
             else _requisitos_do_projeto(directory, plan))
     m = cobertura.mapa(plan, reqs, _jornadas_do_projeto(directory),
-                       _artigos_do_projeto(directory))
+                       _artigos_do_projeto(directory), _pecas_do_projeto(directory))
     if args.json:
         print(json.dumps(m, ensure_ascii=False))
         return 0
@@ -770,11 +839,15 @@ def cmd_cobertura(args):
                            "🔴 funcionalidades sem artigo da lei que as motive"),
                           ("decididas",
                            "⚪ funcionalidades sem artigo, declaradas como decisão sua"),
+                          ("sem_peca",
+                           "🔴 funcionalidades sem peça da arquitetura pretendida"),
                           ("sem_ca", "🔴 requisitos sem critério de aceite"),
                           ("jornadas_sem_funcionalidade",
                            "🔵 jornadas que nenhuma funcionalidade atende"),
                           ("artigos_inexistentes",
                            "⛔ requisitos citando artigo que a lei não tem"),
+                          ("pecas_inexistentes",
+                           "⛔ requisitos citando peça que a arquitetura não tem"),
                           ("inexistentes", "⛔ citando requisito inexistente")):
         if m[chave]:
             print()

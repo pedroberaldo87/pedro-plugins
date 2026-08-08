@@ -330,6 +330,39 @@ doc-sig: X/a@gen=3.6#abcd1234
 """
 
 
+_BLUEPRINT = """---
+generated: 2026-08-06
+project: MEU-ORG
+authored-by: human
+status: approved
+approved: 2026-08-06
+---
+
+# Desenho do sistema
+
+- O pedido entra pela borda e só o worker toca o banco
+"""
+
+
+def test_blueprint_herda():
+    """S-67: o desenho do sistema (blueprint.md) é herança ao lado das jornadas, e
+    cada item sai com a fonte apontada linha a linha."""
+    with tempfile.TemporaryDirectory() as d:
+        root = os.path.join(d, "org")
+        _w(os.path.join(root, ".claude", "organism.yaml"), _ORG_COM_REGRA)
+        _w(os.path.join(root, ".claude", "docs", "blueprint.md"), _BLUEPRINT)
+        alpha = os.path.join(root, "alpha")
+        os.makedirs(alpha)
+
+        itens = organism.inherited(alpha)["itens"]
+        bp = [i for i in itens if i["tipo"] == "desenho-do-sistema"]
+        assert len(bp) == 1, itens
+        assert "só o worker toca o banco" in bp[0]["texto"], bp
+        assert bp[0]["fonte"].startswith(".claude/docs/blueprint.md:"), bp
+        assert organism.cite_ok(root, bp[0])["valid"] is True, bp
+    print("test_organism: blueprint.md entra na herança com fonte por linha (S-67) ✓")
+
+
 def test_inherited():
     """S-12: o app dentro do organismo herda o que foi escrito DE PROPÓSITO na
     raiz, e cada item herdado sai com a fonte citada (arquivo:linha real)."""
@@ -424,6 +457,7 @@ def test_organism_engine():  # entrada pytest
     test_census()
     test_dirty_propagation()
     test_inherited()
+    test_blueprint_herda()
     test_apresentacao_item_a_item()
 
 
@@ -432,4 +466,5 @@ if __name__ == "__main__":
     test_census()
     test_dirty_propagation()
     test_inherited()
+    test_blueprint_herda()
     test_apresentacao_item_a_item()

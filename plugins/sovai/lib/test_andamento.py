@@ -80,15 +80,30 @@ def main():
         p2 = a.placar("10 passou · 5 falhou")
         p3 = a.placar("14 passou · 1 falhou")
         p4 = a.placar("6 passou · 9 falhou")
-        check("placar identico duas vezes = sem avanco", a.avanco(p1, p2) == "sem avanco")
-        check("mais passando = avancou", a.avanco(p1, p3) == "avancou")
+        check("placar identico duas vezes = sem avanco", a.avanco(p1, p2) == "sem avanço")
+        check("mais passando = avancou", a.avanco(p1, p3) == "avançou")
         check("menos passando = regrediu", a.avanco(p1, p4) == "regrediu")
         check("so o numero de falhas caindo ja e avanco",
               a.avanco(a.placar("10 passou · 5 falhou"),
-                       a.placar("10 passou · 2 falhou")) == "avancou")
+                       a.placar("10 passou · 2 falhou")) == "avançou")
         check("sem placar nenhum nao inventa veredito", a.avanco(p1, None) == "sem placar")
         check("o primeiro placar nao e comparado com nada",
               a.avanco(None, p1) == "primeiro placar")
+
+        # O chamador real rele o placar da rodada anterior do disco, e nem sempre o
+        # que volta e dicionario: as vezes e a linha CRUA que a suite imprimiu.
+        # Assumir a estrutura estourava em cima do proprio narrador.
+        print("o placar anterior tambem pode chegar como TEXTO, e ai nao estoura")
+        check("anterior em texto: mesmo placar = sem avanco",
+              a.avanco("10 passou · 5 falhou", p2) == "sem avanço")
+        check("anterior em texto: placar melhor = avancou",
+              a.avanco("10 passou · 5 falhou", p3) == "avançou")
+        check("os DOIS lados em texto tambem valem",
+              a.avanco("10 passou · 5 falhou", "6 passou · 9 falhou") == "regrediu")
+        check("texto SEM placar nenhum no anterior = primeiro placar",
+              a.avanco("compilando...", p1) == "primeiro placar")
+        check("entrada que nao e placar nem texto nao derruba",
+              a.avanco(12345, p1) == "primeiro placar")
 
         print("a narracao do meio da execucao")
         check("cala quando nao ha nada a dizer",
@@ -99,9 +114,23 @@ def main():
               "passou do dobro" not in a.linha_andamento(cmd, proj, 30))
         linha = a.linha_andamento(cmd, proj, 30, "10 passou · 5 falhou", p1)
         check("o placar entra na linha com o veredito de avanco",
-              "10 passou · 5 falhou" in linha and "sem avanco" in linha)
+              "10 passou · 5 falhou" in linha and "sem avanço" in linha)
         check("a linha diz ha quanto tempo roda",
-              a.linha_andamento(cmd, proj, 30).startswith("rodando ha"))
+              a.linha_andamento(cmd, proj, 30).startswith("rodando há"))
+        check("a linha de andamento com o anterior em TEXTO devolve linha, nao erro",
+              "sem avanço" in a.linha_andamento(
+                  cmd, proj, 30, "10 passou · 5 falhou", "10 passou · 5 falhou"))
+
+        print("a narracao sai em portugues acentuado")
+        check("'rodando ha' sai com acento", "rodando há" in a.linha_andamento(cmd, proj, 30))
+        check("o veredito de avanco sai com cedilha",
+              "avanç" in a.linha_andamento(cmd, proj, 30, "10 passou · 5 falhou", p1))
+        check("a linha do silencio vivo sai acentuada",
+              a.linha_silencio(20 * 60, True) ==
+              "rodando há 20 min — trabalho vivo, não é travamento")
+        check("a linha do travamento sai acentuada",
+              a.linha_silencio(20 * 60, False) ==
+              "travamento: nada mudou há 20 min e não há trabalho vivo")
 
         print("duracao longa sai em minutos, nao em segundos crus")
         check("90s+ vira minutos", "min" in a.linha_andamento(cmd, proj, 200))
@@ -114,13 +143,13 @@ def main():
         vivo = a.linha_silencio(MUDO, True)
         travado = a.linha_silencio(MUDO, False)
         check("COM sinal de vida a tela diz ha quanto tempo esta rodando",
-              vivo is not None and vivo.startswith("rodando ha 20 min"))
+              vivo is not None and vivo.startswith("rodando há 20 min"))
         check("COM sinal de vida a linha nega o travamento com todas as letras",
-              vivo is not None and "nao e travamento" in vivo)
+              vivo is not None and "não é travamento" in vivo)
         check("SEM sinal de vida a tela chama de travamento",
               travado is not None and travado.startswith("travamento"))
         check("SEM sinal de vida nao sai 'rodando ha'",
-              travado is not None and "rodando ha" not in travado)
+              travado is not None and "rodando há" not in travado)
         check("as duas linhas sao textos diferentes", vivo != travado)
         check("silencio curto nao narra nada nos dois casos",
               a.linha_silencio(60, True) is None and a.linha_silencio(60, False) is None)

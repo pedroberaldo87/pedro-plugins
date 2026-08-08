@@ -14,10 +14,15 @@ aponta para ela em vez de repetir uma cópia que defasa.
 """
 
 import os
+import shutil
+import subprocess
 import sys
+import tempfile
 
 AQUI = os.path.dirname(os.path.abspath(__file__))
 PLUGIN = os.path.join(AQUI, "..")
+RAIZ = os.path.join(PLUGIN, "..", "..")
+COBRADOR = os.path.join(RAIZ, "scripts", "desacoplamento_check.py")
 
 FULL = os.path.join(PLUGIN, "skills", "project-doc", "SKILL.md")
 TOUCH = os.path.join(PLUGIN, "skills", "doc-touch", "SKILL.md")
@@ -87,6 +92,25 @@ def main():
           "`acopla-ok: <motivo>`" in full)
     check("a lei de origem e apontada, nao recontada",
           "constituicao.md" in full and "Artigo 9" in full)
+
+    print("o cobrador citado pela skill morde DENTRO da pasta de documentacao")
+    d = tempfile.mkdtemp(prefix="docdesac-")
+    try:
+        os.makedirs(os.path.join(d, ".claude", "docs"))
+        os.makedirs(os.path.join(d, "plugins", "alfa"))
+        with open(os.path.join(d, ".claude", "docs", "architecture.md"),
+                  "w", encoding="utf-8") as fh:
+            fh.write("O repo tem 21 plugins hoje.\n")
+        for a in (["init", "-q"], ["config", "user.email", "t@t"],
+                  ["config", "user.name", "t"], ["add", "-A"], ["commit", "-qm", "x"]):
+            subprocess.run(["git", "-C", d] + a, capture_output=True, timeout=30)
+        saida = subprocess.run([sys.executable, COBRADOR, "--root", d, "--todos"],
+                               capture_output=True, text=True, timeout=60)
+        check("numero cravado num doc de `.claude/docs/` e acusado",
+              saida.returncode == 1 and "contagem-cravada" in saida.stdout
+              and "architecture.md" in saida.stdout)
+    finally:
+        shutil.rmtree(d, ignore_errors=True)
 
     print("o /doc-touch aponta para a regra em vez de guardar uma copia")
     check("o touch traz o desacoplamento entre as invariantes",
