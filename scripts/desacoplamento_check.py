@@ -115,7 +115,7 @@ def _rx_dependencia(p):
 def rastreados(root):
     try:
         out = subprocess.run(["git", "-C", root, "ls-files"],
-                             capture_output=True, text=True, timeout=30)
+                             capture_output=True, text=True, timeout=30, stdin=subprocess.DEVNULL, start_new_session=True)
     except (OSError, subprocess.SubprocessError):
         return []
     if out.returncode != 0:

@@ -34,7 +34,7 @@ def rastreadas(root):
     """Os arquivos de teste que o git conhece. Sem git, devolve None (não acusa)."""
     try:
         out = subprocess.run(["git", "-C", root, "ls-files"],
-                             capture_output=True, text=True, timeout=30)
+                             capture_output=True, text=True, timeout=30, stdin=subprocess.DEVNULL, start_new_session=True)
     except (OSError, subprocess.SubprocessError):
         return None
     if out.returncode != 0:

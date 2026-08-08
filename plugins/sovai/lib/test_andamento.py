@@ -13,6 +13,7 @@ import os
 import shutil
 import sys
 import tempfile
+import time
 
 FAILS = []
 
@@ -159,6 +160,99 @@ def main():
               a.LIMITE_SILENCIO == 12 * 60
               and a.linha_silencio(12 * 60, True) is None
               and a.linha_silencio(12 * 60 + 1, True) is not None)
+
+        # A BARRA e a unica superficie que FICA. Ate aqui ela dizia SEM SINAL nos
+        # dois casos: a suite de 20 min rodando normalmente aparecia igualzinha ao
+        # travamento. Abaixo, so o arquivo de trabalho vivo muda entre os cenarios
+        # — o silencio e o mesmo, com a mesma idade.
+        print("a barra separa demora legitima de travamento")
+        base = os.path.join(tmp, "barra")
+        os.makedirs(base)
+        agora = time.time()
+        ativo = os.path.join(base, "ativo-s1")
+        open(ativo, "w").close()
+        os.utime(ativo, (agora - 3000, agora - 3000))
+        with open(os.path.join(base, "sinal-s1"), "w", encoding="utf-8") as fh:
+            fh.write(str(agora - 20 * 60))
+        trabalho = os.path.join(base, "trabalho-s1")
+
+        travado = a.linha_motor("s1", base, agora)
+        check("sem trabalho vivo a barra chama de SEM SINAL",
+              travado is not None and "SEM SINAL" in travado)
+
+        with open(trabalho, "w", encoding="utf-8") as fh:
+            fh.write(str(agora - 20 * 60))
+        vivo = a.linha_motor("s1", base, agora)
+        check("com trabalho vivo a barra diz ha quanto tempo esta rodando",
+              vivo is not None and "rodando há 20 min" in vivo)
+        check("com trabalho vivo a barra NAO diz SEM SINAL",
+              vivo is not None and "SEM SINAL" not in vivo)
+        check("as duas linhas da barra sao textos diferentes", vivo != travado)
+        check("a barra continua trazendo a idade da missao nos dois casos",
+              "missão há" in vivo and "missão há" in travado)
+
+        # Comando de pe ha 3 segundos nao explica silencio de 20 minutos.
+        with open(trabalho, "w", encoding="utf-8") as fh:
+            fh.write(str(agora - 3))
+        check("trabalho recente demais nao vira alibi do silencio longo",
+              "SEM SINAL" in (a.linha_motor("s1", base, agora) or ""))
+
+        # Silencio curto segue sendo so um numero, com ou sem trabalho vivo.
+        with open(os.path.join(base, "sinal-s1"), "w", encoding="utf-8") as fh:
+            fh.write(str(agora - 70))
+        with open(trabalho, "w", encoding="utf-8") as fh:
+            fh.write(str(agora - 60))
+        curto = a.linha_motor("s1", base, agora)
+        check("silencio curto na barra nao vira nem demora nem travamento",
+              "último sinal há 70s" in curto and "rodando há" not in curto)
+
+        # O RELOGIO E A ESTIMATIVA DA FERRAMENTA CHEGAM A BARRA (F9.26). Ate aqui
+        # `linha_disparo`/`estimativa` montavam os dois e nenhuma tela os recebia. A
+        # barra nao adivinha nada: le o comando e o projeto que QUEM EXECUTA gravou
+        # no `trabalho-<sid>`, e so por isso consegue chamar `estimativa()`.
+        with open(trabalho, "w", encoding="utf-8") as fh:
+            fh.write("%s\n%s\n%s\n" % (agora - 45, cmd, proj))
+        com_est = a.linha_motor("s1", base, agora)
+        check("a barra traz o tempo decorrido da ferramenta",
+              "ferramenta há 45s" in com_est)
+        check("a barra traz a estimativa quando ela existe",
+              "usual ~%s" % a._dur(a.estimativa(proj, cmd)) in com_est)
+
+        # Comando sem historico NESTE projeto sai sem numero — a mesma regra do
+        # modulo inteiro: relogio sozinho e honesto, numero inventado nao.
+        with open(trabalho, "w", encoding="utf-8") as fh:
+            fh.write("%s\n%s\n%s\n" % (agora - 45, "comando-que-nunca-rodou", proj))
+        sem_est = a.linha_motor("s1", base, agora)
+        check("comando sem historico chega a barra sem estimativa",
+              "ferramenta há 45s" in sem_est and "usual ~" not in sem_est)
+
+        # O PLACAR DA ONDA (F9.27). O motor pedia o campo `placar` do SUITE_RESULT e
+        # o descartava: nenhuma tela dizia se a suite andou de uma onda para a
+        # seguinte. Aqui ele e registrado por sessao, comparado com o da onda
+        # anterior por `avanco()`, e o veredito chega a barra e ao cartao.
+        print("o placar da suite, comparado entre ondas")
+        check("a primeira onda nao compara com nada",
+              "primeiro placar" in a.onda("s1", "139 passou · 0 falhou", base))
+        check("onda que repete o placar sai como sem avanco",
+              "sem avanço" in a.onda("s1", "139 passou · 0 falhou", base))
+        check("a linha crua da suite vai junto",
+              "139 passou · 0 falhou" in a.linha_placar("s1", base))
+        check("onda que melhora sai como avancou",
+              "avançou" in a.onda("s1", "141 passou · 0 falhou", base))
+        check("saida sem placar nao registra onda nenhuma",
+              a.onda("s1", "compilando...", base) is None
+              and "141 passou" in a.linha_placar("s1", base))
+        check("sessao sem onda nenhuma nao inventa linha",
+              a.linha_placar("s-sem-onda", base) is None)
+        check("o placar comparado aparece na BARRA",
+              "sem avanço" in (a.onda("s1", "141 passou · 0 falhou", base) or "")
+              and "sem avanço" in a.linha_motor("s1", base, agora))
+
+        # Registro no formato velho (so o carimbo) nao inventa relogio de ferramenta.
+        with open(trabalho, "w", encoding="utf-8") as fh:
+            fh.write(str(agora - 60))
+        check("registro sem comando deixa a barra como era",
+              "ferramenta há" not in (a.linha_motor("s1", base, agora) or ""))
     finally:
         shutil.rmtree(tmp, ignore_errors=True)
 

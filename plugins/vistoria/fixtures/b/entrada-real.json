@@ -1,0 +1,8 @@
+{
+  "_comentario": "ARQUIVO DE MENTIRA CONGELADO — fixture da letra (b): a entrada que o harness entrega de verdade. NAO CONSERTAR.",
+  "hook_event_name": "PostToolUse",
+  "tool_name": "Bash",
+  "tool_input": {
+    "command": "python3 plugins/exemplo/lib/test_exemplo.py"
+  }
+}

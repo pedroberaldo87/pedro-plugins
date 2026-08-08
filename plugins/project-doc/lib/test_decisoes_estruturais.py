@@ -201,9 +201,9 @@ def main():
     motor = os.path.join(AQUI, "decisoes_estruturais.py")
     try:
         texto = subprocess.run([sys.executable, motor, raiz],
-                               capture_output=True, text=True, check=True).stdout
+                               capture_output=True, text=True, check=True, stdin=subprocess.DEVNULL, start_new_session=True).stdout
         bruto = subprocess.run([sys.executable, motor, raiz, "--json"],
-                               capture_output=True, text=True, check=True).stdout
+                               capture_output=True, text=True, check=True, stdin=subprocess.DEVNULL, start_new_session=True).stdout
     finally:
         shutil.rmtree(raiz, ignore_errors=True)
     print("     ...%s" % texto[texto.find("seguranca:"):][:120].replace("\n", " | "))

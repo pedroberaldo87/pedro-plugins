@@ -720,9 +720,22 @@ régua dele (`<raiz>/.claude/archify/`, `organismo.html` para o sistema inteiro 
 `fluxo-<slug>.html` para cada fluxo que o `blueprint.md` **nomeia**). Nome estável: a revisão da 5b
 sobrescreve. **A entrada é o documento curado, nunca o código.**
 
+**Quem desenha é este comando, não a prosa acima** — rode um por diagrama, `organismo.html` para o
+sistema inteiro e um `fluxo-<slug>.html` para cada fluxo que o `blueprint.md` nomeia:
+
+```bash
+bash "${CLAUDE_PLUGIN_ROOT}/skills/start-doc/diagrama-blueprint.sh" \
+  "<raiz>" workflow <entrada>.json organismo.html
+```
+
+Ele acha o `archify` pelo **nome** (`resolve-plugin.sh`), nunca por caminho relativo, e recusa nome
+fora da régua. Saída: o caminho do HTML e código `0` quando desenhou; a linha `DEGRADADO:` e código
+`3` quando o plugin não está na máquina.
+
 **`archify` ausente na máquina não bloqueia a etapa** — o `blueprint.md` sozinho fecha o acordo, e a
-página do `/visual` carrega o texto. Mas o relatório **diz em voz alta** que degradou: degradar em
-silêncio é o que faz mecanismo descrito e nunca executado nascer.
+página do `/visual` carrega o texto. Mas o relatório **diz em voz alta** que degradou (a linha
+`DEGRADADO:` do comando vai inteira para o `Passo 5/7`): degradar em silêncio é o que faz mecanismo
+descrito e nunca executado nascer.
 
 **O de acordo desta etapa** é o mesmo dos outros: apresentar o corpo integral na página do
 `/visual` com o diagrama linkado por caminho, sabatinar, reapresentar, e `status: approved` +

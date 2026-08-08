@@ -14,17 +14,17 @@ import ledger  # noqa: E402
 
 def make_repo():
     d = tempfile.mkdtemp(prefix="ig-test-")
-    subprocess.run(["git", "init", "-q", d], check=True)
+    subprocess.run(["git", "init", "-q", d], check=True, stdin=subprocess.DEVNULL, start_new_session=True)
     open(os.path.join(d, "app.py"), "w").write("print(1)\n")
-    subprocess.run(["git", "-C", d, "add", "-A"], check=True)
+    subprocess.run(["git", "-C", d, "add", "-A"], check=True, stdin=subprocess.DEVNULL, start_new_session=True)
     subprocess.run(["git", "-C", d, "-c", "user.email=t@t", "-c", "user.name=t",
-                    "commit", "-qm", "init"], check=True)
+                    "commit", "-qm", "init"], check=True, stdin=subprocess.DEVNULL, start_new_session=True)
     return d
 
 
 def run(args, stdin=""):
     return subprocess.run([sys.executable, os.path.join(HERE, "ledger.py")] + args,
-                          input=stdin, capture_output=True, text=True)
+                          input=stdin, capture_output=True, text=True, start_new_session=True)
 
 
 def test_concurrent_record_raw():
@@ -44,7 +44,7 @@ def test_concurrent_record_raw():
                 p = subprocess.Popen([sys.executable, os.path.join(HERE, "ledger.py"),
                                       "record-raw", "--cwd", repo, "--session", "race",
                                       "--text-stdin"], stdin=f, stdout=subprocess.DEVNULL,
-                                     stderr=subprocess.DEVNULL)
+                                     stderr=subprocess.DEVNULL, start_new_session=True)
                 procs.append(p)
             for p in procs:
                 assert p.wait() == 0
@@ -80,7 +80,7 @@ def main():
         assert ".claude/intent/" in excl
         # git não enxerga o ledger
         st = subprocess.run(["git", "-C", repo, "status", "--porcelain"],
-                            capture_output=True, text=True).stdout
+                            capture_output=True, text=True, stdin=subprocess.DEVNULL, start_new_session=True).stdout
         assert ".claude/intent" not in st, st
 
         # texto vazio não grava
@@ -233,19 +233,19 @@ def main():
         wt_parent = tempfile.mkdtemp(prefix="ig-wt-parent-")
         wt_dir = os.path.join(wt_parent, "wt")
         subprocess.run(["git", "-C", repo, "worktree", "add", wt_dir, "-b", "wtbranch"],
-                       check=True, capture_output=True)
+                       check=True, capture_output=True, stdin=subprocess.DEVNULL, start_new_session=True)
         try:
             r = run(["record-raw", "--cwd", wt_dir, "--session", "wtsess", "--text-stdin"],
                     stdin="pedido gravado dentro do worktree")
             assert r.returncode == 0, r.stderr
             st_wt = subprocess.run(["git", "-C", wt_dir, "status", "--porcelain"],
-                                   capture_output=True, text=True).stdout
+                                   capture_output=True, text=True, stdin=subprocess.DEVNULL, start_new_session=True).stdout
             assert ".claude/intent" not in st_wt, st_wt
             h_wt = run(["tree-hash", "--cwd", wt_dir]).stdout.strip()
             assert len(h_wt) == 40 and all(c in "0123456789abcdef" for c in h_wt), h_wt
         finally:
             subprocess.run(["git", "-C", repo, "worktree", "remove", "--force", wt_dir],
-                           capture_output=True)
+                           capture_output=True, stdin=subprocess.DEVNULL, start_new_session=True)
             shutil.rmtree(wt_parent, ignore_errors=True)
 
         # status roda e menciona o descartado
@@ -342,9 +342,9 @@ def main():
         try:
             # espelho local faz as vezes de "origin" (sem rede no teste)
             bare = tempfile.mkdtemp(prefix="ig-bare-")
-            subprocess.run(["git", "init", "-q", "--bare", bare], check=True)
-            subprocess.run(["git", "-C", esc, "remote", "add", "origin", bare], check=True)
-            subprocess.run(["git", "-C", esc, "push", "-q", "-u", "origin", "HEAD"], check=True)
+            subprocess.run(["git", "init", "-q", "--bare", bare], check=True, stdin=subprocess.DEVNULL, start_new_session=True)
+            subprocess.run(["git", "-C", esc, "remote", "add", "origin", bare], check=True, stdin=subprocess.DEVNULL, start_new_session=True)
+            subprocess.run(["git", "-C", esc, "push", "-q", "-u", "origin", "HEAD"], check=True, stdin=subprocess.DEVNULL, start_new_session=True)
 
             run(["record-raw", "--cwd", esc, "--session", "s1", "--text-stdin"], stdin="commit push")
             run(["apply", "--cwd", esc],
@@ -360,9 +360,9 @@ def main():
 
             # commit local não publicado → a receita REPROVA (não é carimbo automático)
             open(os.path.join(esc, "novo.py"), "w").write("x=1\n")
-            subprocess.run(["git", "-C", esc, "add", "-A"], check=True)
+            subprocess.run(["git", "-C", esc, "add", "-A"], check=True, stdin=subprocess.DEVNULL, start_new_session=True)
             subprocess.run(["git", "-C", esc, "-c", "user.email=t@t", "-c", "user.name=t",
-                            "commit", "-qm", "local"], check=True)
+                            "commit", "-qm", "local"], check=True, stdin=subprocess.DEVNULL, start_new_session=True)
             run(["record-raw", "--cwd", esc, "--session", "s1", "--text-stdin"], stdin="sobe pro git")
             run(["apply", "--cwd", esc],
                 stdin='{"ev":"classify","raw":"r-2","class":"pedido","resumo":"sobe",'

@@ -359,6 +359,23 @@ $(printf '%s' "$NOUT" | head -20)
   fi
 fi
 
+# P · disparo de processo que pode deixar filho para trás.
+# Em 2026-08-08 uma máquina acumulou 2125 `python3` órfãos: 155 pontos do repositório
+# disparavam processo sem fechar stdin (o filho herda o terminal e espera para sempre) e
+# sem grupo próprio (o timeout mata o filho e o NETO sobrevive). Um ciclo entre dois
+# scripts transformou o vazamento em bomba de forks. O conserto foi mecânico e o risco de
+# regressão também é: basta alguém escrever `subprocess.run(...)` do jeito antigo.
+# Escopo: só quando o commit traz Python.
+VZC="$ROOT/scripts/vazamento_check.py"
+if [ -f "$VZC" ] && printf '%s\n' "$FILES" | grep -qE '\.py$'; then
+  if ! POUT=$(cd "$ROOT" && python3 "$VZC" 2>&1); then
+    VIOL="${VIOL}
+❌ VAZAMENTO DE PROCESSO — o disparo pode deixar filho rodando depois de terminar:
+$(printf '%s' "$POUT" | head -20)
+   → régua: python3 scripts/vazamento_check.py"
+  fi
+fi
+
 # O · plano e código discordando: passo ABERTO cujo critério de pronto já se cumpre.
 # Os quatro irmãos deste cobrador (H, I, L, M, N) já estavam aqui e este não — ele rodava
 # e acusava sem que portão nenhum o consultasse. Passo que fica "todo" depois de o trabalho

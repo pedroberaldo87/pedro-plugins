@@ -30,7 +30,7 @@ def check(label, cond):
 
 
 def git(d, *args):
-    subprocess.run(["git", "-C", d] + list(args), capture_output=True, text=True, timeout=30)
+    subprocess.run(["git", "-C", d] + list(args), capture_output=True, text=True, timeout=30, stdin=subprocess.DEVNULL, start_new_session=True)
 
 
 def monta(d, arquivos):

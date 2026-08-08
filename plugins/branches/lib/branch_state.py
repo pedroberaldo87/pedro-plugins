@@ -58,7 +58,7 @@ class BranchError(Exception):
 def git(repo, *args, **kw):
     """git, com saída limpa. `ok_fail` devolve None em vez de levantar."""
     out = subprocess.run(("git", "-C", repo) + args,
-                         capture_output=True, text=True)
+                         capture_output=True, text=True, stdin=subprocess.DEVNULL, start_new_session=True)
     if out.returncode != 0:
         if kw.get("ok_fail"):
             return None

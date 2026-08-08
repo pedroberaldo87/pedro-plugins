@@ -69,7 +69,7 @@ def escreve(d, nome, txt):
 def git(repo, *args):
     return subprocess.run(["git", "-C", repo, "-c", "user.email=t@t",
                            "-c", "user.name=t"] + list(args),
-                          capture_output=True, text=True)
+                          capture_output=True, text=True, stdin=subprocess.DEVNULL, start_new_session=True)
 
 
 def repo_de_mentira():
@@ -156,7 +156,7 @@ def main():
     # ── o comando de verdade, pelo caminho real ───────────────────────────
     exe = os.path.join(AQUI, "regua_audit.py")
     r = subprocess.run([sys.executable, exe, "paginas", "--dir", d],
-                       capture_output=True, text=True)
+                       capture_output=True, text=True, stdin=subprocess.DEVNULL, start_new_session=True)
     check("`paginas` sai 1 quando há violação", r.returncode == 1)
     check("a saída traz arquivo, regra e trecho",
           "2026-08-03-relatorio.html" in r.stdout and ra.R_TETO in r.stdout
@@ -169,11 +169,11 @@ def main():
     escreve(limpo, "ok.html", '<html><body><div class="ident-strip">a</div>'
                               "<p>bullet curto</p></body></html>")
     r = subprocess.run([sys.executable, exe, "paginas", "--dir", limpo],
-                       capture_output=True, text=True)
+                       capture_output=True, text=True, stdin=subprocess.DEVNULL, start_new_session=True)
     check("`paginas` sai 0 quando não há violação", r.returncode == 0)
 
     r = subprocess.run([sys.executable, exe, "paginas", "--dir", d, "--json"],
-                       capture_output=True, text=True)
+                       capture_output=True, text=True, stdin=subprocess.DEVNULL, start_new_session=True)
     check("--json devolve JSON parseável", r.stdout.lstrip().startswith("["))
 
     # ── veredito: cada mudança do dia vira conforme/em desacordo ──────────
@@ -189,7 +189,7 @@ def main():
           all(x["veredito"] != "conforme" or x["paginas"] for x in linhas))
 
     r = subprocess.run([sys.executable, exe, "veredito", "--dir", d,
-                        "--desde", "2026-08-03"], capture_output=True, text=True)
+                        "--desde", "2026-08-03"], capture_output=True, text=True, stdin=subprocess.DEVNULL, start_new_session=True)
     check("`veredito` imprime os cinco geradores",
           all(g in r.stdout for g, _ in ra.GERADORES))
     check("`veredito` imprime o rótulo e o motivo",
@@ -245,7 +245,7 @@ def main():
 
     r = subprocess.run([sys.executable, exe, "veredito", "--dir", limpo2,
                         "--desde", "2099-01-01", "--repo", repo],
-                       capture_output=True, text=True)
+                       capture_output=True, text=True, stdin=subprocess.DEVNULL, start_new_session=True)
     check("a saída mostra a mudança que ainda não é commit", "árvore ·" in r.stdout)
 
     print()

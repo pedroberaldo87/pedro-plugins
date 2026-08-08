@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
-"""Bancada do varredor de conflitos. Cada caso reproduz um atropelo real medido.
+"""Bancada do varredor das cinco lentes. Cada caso reproduz um atropelo real medido.
 
-    python3 test_conflitos.py     # verde = 0
+    python3 test_varredura.py     # verde = 0
 """
 
 import json
@@ -11,7 +11,7 @@ import sys
 import tempfile
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-import conflitos as C  # noqa: E402
+import varredura as C  # noqa: E402
 
 FALHAS = []
 TOTAL = [0]
@@ -143,6 +143,77 @@ def main():
     # ── 6 · CACHE AUSENTE NÃO ESTOURA ────────────────────────────────────────
     check("cache que não existe devolve vazio, sem exceção",
           C.instalados("/caminho/que/nao/existe") == {})
+
+    # ── 7 · VAZAMENTO NO CÓDIGO — a lente que nasceu dos 2125 órfãos ──────────
+    # Um plugin de mentira com um defeito de cada linguagem. O caso que dá sentido
+    # à lente é o ÚLTIMO: o disparo já consertado NÃO pode ser acusado, senão a
+    # lista de achados nunca chega a zero e ninguém mais olha para ela.
+    d = tempfile.mkdtemp(prefix="chk-vaza-")
+    try:
+        base = os.path.join(d, "market", "vazador", "1.0.0")
+        os.makedirs(os.path.join(base, "lib"), exist_ok=True)
+        os.makedirs(os.path.join(base, "skills", "s"), exist_ok=True)
+        open(os.path.join(base, "skills", "s", "SKILL.md"), "w").write(
+            "---\nname: s\ndescription: uma skill\n---\n")
+        open(os.path.join(base, "lib", "a.py"), "w").write(
+            "import subprocess\nsubprocess.run(['git', 'status'])\n")
+        open(os.path.join(base, "lib", "b.mjs"), "w").write(
+            "spawnSync('node', ['x.js'], { stdio: 'inherit' });\n")
+        open(os.path.join(base, "lib", "c.sh"), "w").write(
+            "#!/bin/sh\nnohup python3 servidor.py &\n")
+        inst = C.instalados(d)
+        v = C.vazamento_codigo(inst)
+        riscos = {x["risco"] for x in v}
+        check("acha o python que não fecha a entrada",
+              any("fechar a entrada" in x for x in riscos))
+        check("acha o python sem grupo próprio",
+              any("grupo próprio" in x for x in riscos))
+        check("acha o node que entrega o terminal",
+              any("node entrega o terminal" in x for x in riscos))
+        check("acha o shell que larga o processo",
+              any("larga o processo" in x for x in riscos))
+        check("todo achado diz de qual plugin é",
+              all(x["plugin"] == "vazador" for x in v))
+    finally:
+        shutil.rmtree(d, ignore_errors=True)
+
+    d = tempfile.mkdtemp(prefix="chk-vaza-ok-")
+    try:
+        base = os.path.join(d, "market", "cuidadoso", "1.0.0")
+        os.makedirs(os.path.join(base, "lib"), exist_ok=True)
+        open(os.path.join(base, "lib", "a.py"), "w").write(
+            "import subprocess\n"
+            "subprocess.run(['git', 'status'], stdin=subprocess.DEVNULL,\n"
+            "               start_new_session=True)\n")
+        open(os.path.join(base, "lib", "b.mjs"), "w").write(
+            "spawnSync('node', ['x.js'], { stdio: ['ignore','inherit','inherit'] });\n")
+        check("disparo já consertado NÃO é acusado",
+              C.vazamento_codigo(C.instalados(d)) == [])
+    finally:
+        shutil.rmtree(d, ignore_errors=True)
+
+    d = tempfile.mkdtemp(prefix="chk-vaza-isento-")
+    try:
+        base = os.path.join(d, "market", "isento", "1.0.0")
+        os.makedirs(os.path.join(base, "lib"), exist_ok=True)
+        open(os.path.join(base, "lib", "a.py"), "w").write(
+            "import subprocess\n"
+            "# vaza-ok: o comando é um literal que sempre termina\n"
+            "subprocess.run(['true'])\n")
+        check("a isenção escrita na linha de cima vale",
+              C.vazamento_codigo(C.instalados(d)) == [])
+    finally:
+        shutil.rmtree(d, ignore_errors=True)
+
+    # ── 8 · VAZAMENTO VIVO — a metade que olha a máquina, não o código ────────
+    # Sem processo plantado (plantar órfão numa bancada é pior que não testar), o
+    # que se afirma é o CONTRATO: cada achado carrega o dono, e nada entra sem ele.
+    vivos = C.vazamento_vivo()
+    check("a leitura dos processos vivos não estoura", isinstance(vivos, list))
+    check("todo processo vivo acusado tem plugin dono e pid",
+          all(x.get("plugin") and x.get("pid") for x in vivos))
+    check("cache vazio não acusa processo nenhum",
+          C.vazamento_vivo({}) == [])
 
     print("\n%d checagem(ns) · %d falha(s)" % (TOTAL[0], len(FALHAS)))
     for f in FALHAS:

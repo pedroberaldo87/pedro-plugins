@@ -222,7 +222,7 @@ eq("s2" in orfas, False, "sessão com dono vivo NÃO é órfã")
 print("── ponta a ponta: um processo de verdade ──")
 alvo = subprocess.Popen([sys.executable, "-c",
                          "import time,sys\nsys.argv=['x']\nwhile True: time.sleep(0.3)"],
-                        stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                        stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, stdin=subprocess.DEVNULL, start_new_session=True)
 time.sleep(0.4)
 if lixeiro.vivo(alvo.pid):
     ok("o processo de teste subiu (pid %d)" % alvo.pid)
@@ -246,7 +246,7 @@ print("── encerrar sobe até a raiz órfã: a árvore inteira cai ──")
 lanc = subprocess.run(
     ["bash", "-c",
      "nohup bash -c 'sleep 300 & sleep 300 & sleep 300 & wait' >/dev/null 2>&1 & echo $!"],
-    capture_output=True, text=True)
+    capture_output=True, text=True, stdin=subprocess.DEVNULL, start_new_session=True)
 raiz_pid = int(lanc.stdout.strip() or 0)
 time.sleep(1.0)
 tabela = lixeiro.processos()
@@ -468,7 +468,7 @@ eq(lixeiro.resumo_terminal([]), "Nada de pé para faxinar.", "sem processo, diz 
 _SAIDA = subprocess.run([sys.executable, os.path.join(AQUI, "lixeiro.py"), "resumo",
                          "--idade-min", "999999999"],
                         capture_output=True, text=True, timeout=60,
-                        env=dict(os.environ, CLAUDE_CONFIG_DIR=TMP))
+                        env=dict(os.environ, CLAUDE_CONFIG_DIR=TMP), stdin=subprocess.DEVNULL, start_new_session=True)
 if _SAIDA.returncode == 0 and _SAIDA.stdout.strip():
     ok("`lixeiro.py resumo` responde pela linha de comando (o que a skill chama)")
 else:

@@ -153,6 +153,41 @@ echo "── anti-loop do Stop ──"
 SAIDA=$(printf '{"session_id":"s1","stop_hook_active":true}' | bash "$SCRIPT_DIR/stop-colhe-turno.sh" 2>&1)
 [ -z "$SAIDA" ] && ok "Stop já ativo não reentra" || bad "anti-loop" "vazio" "$SAIDA"
 
+echo "── a causa do que sobrou ──"
+# O hook não só encerra: ele diz POR QUE aquilo sobrou. Sem isso a colheita limpa e o
+# defeito fica, então no turno seguinte tudo volta — foi assim que uma máquina chegou a
+# 2125 processos órfãos em 2026-08-08. Aqui a colheita é SIMULADA (`LIXEIRO_MORTOS_TESTE`),
+# porque plantar processo de verdade numa bancada é pior que não testar.
+CAUSA_DIR=$(mktemp -d)
+printf 'import subprocess\nsubprocess.run(["git","status"])\n' > "$CAUSA_DIR/vaza.py"
+MORTOS_JSON="[{\"pid\": 4242, \"rss_mb\": 12, \"cmd\": \"python3 $CAUSA_DIR/vaza.py\"}]"
+SAIDA=$(printf '{"session_id":"s-causa"}' \
+  | LIXEIRO_MORTOS_TESTE="$MORTOS_JSON" CLAUDE_PROJECT_DIR="$CAUSA_DIR" \
+    bash "$SCRIPT_DIR/stop-colhe-turno.sh" 2>&1)
+case "$SAIDA" in
+  *"motivo de terem sobrado"*) ok "a colheita vem com o motivo do que sobrou" ;;
+  *) bad "causa no anúncio" "o motivo junto" "$SAIDA" ;;
+esac
+case "$SAIDA" in
+  *"vaza.py:2"*) ok "a causa aponta arquivo e linha" ;;
+  *) bad "arquivo:linha da causa" "vaza.py:2" "$SAIDA" ;;
+esac
+case "$SAIDA" in
+  *"/faxina"*) ok "a causa diz o que fazer a seguir" ;;
+  *) bad "próximo passo" "aponta /faxina" "$SAIDA" ;;
+esac
+# Desligar a investigação não pode desligar a colheita: são notícias diferentes, e quem
+# só quer menos texto no terminal continua precisando saber que processos morreram.
+SAIDA=$(printf '{"session_id":"s-causa2"}' \
+  | LIXEIRO_CAUSA=0 LIXEIRO_MORTOS_TESTE="$MORTOS_JSON" CLAUDE_PROJECT_DIR="$CAUSA_DIR" \
+    bash "$SCRIPT_DIR/stop-colhe-turno.sh" 2>&1)
+case "$SAIDA" in
+  *"motivo de terem sobrado"*) bad "LIXEIRO_CAUSA=0" "sem a causa" "$SAIDA" ;;
+  *"Caminhão do lixo"*) ok "LIXEIRO_CAUSA=0 cala a causa e mantém a colheita" ;;
+  *) bad "LIXEIRO_CAUSA=0" "colheita ainda anunciada" "$SAIDA" ;;
+esac
+rm -rf "$CAUSA_DIR"
+
 echo ""
 printf 'lixeiro-hooks: %d ok, %d falhas\n' "$PASS" "$FAIL"
 [ "$FAIL" -eq 0 ] || exit 1

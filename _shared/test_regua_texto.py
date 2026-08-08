@@ -182,7 +182,7 @@ print("\n[cli — o hook é bash; sem esta entrada a régua seria redigitada em 
 def cli(texto, *args):
     """Roda a régua como um .sh roda. Devolve (rc, stderr)."""
     p = subprocess.run([sys.executable, os.path.join(AQUI, "regua_texto.py")] + list(args),
-                       input=texto, capture_output=True, text=True)
+                       input=texto, capture_output=True, text=True, start_new_session=True)
     return p.returncode, p.stderr
 
 

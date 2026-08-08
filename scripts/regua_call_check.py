@@ -60,7 +60,7 @@ def arquivos(staged, alvos):
     cmd = ["git", "diff", "--cached", "--name-only", "--diff-filter=ACMR"] if staged \
         else ["git", "ls-files"]
     try:
-        out = subprocess.run(cmd, cwd=ROOT, capture_output=True, text=True)
+        out = subprocess.run(cmd, cwd=ROOT, capture_output=True, text=True, stdin=subprocess.DEVNULL, start_new_session=True)
     except OSError:
         return []
     if out.returncode != 0:

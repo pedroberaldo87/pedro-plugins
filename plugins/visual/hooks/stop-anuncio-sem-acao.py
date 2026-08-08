@@ -138,7 +138,7 @@ def planos_abertos(cwd):
         return [], False
     try:
         r = subprocess.run(["bash", str(RESOLVE_DIR), cwd, "plans"],
-                           capture_output=True, text=True, timeout=10)
+                           capture_output=True, text=True, timeout=10, stdin=subprocess.DEVNULL, start_new_session=True)
         plans_dir = (r.stdout or "").strip()
         de_reserva = r.returncode == 3
     except (subprocess.SubprocessError, OSError):
@@ -147,7 +147,7 @@ def planos_abertos(cwd):
         return [], de_reserva
     try:
         r = subprocess.run([sys.executable, str(PLAN_STATE), "--dir", plans_dir,
-                            "open", "--json"], capture_output=True, text=True, timeout=10)
+                            "open", "--json"], capture_output=True, text=True, timeout=10, stdin=subprocess.DEVNULL, start_new_session=True)
         abertos = json.loads((r.stdout or "").strip() or "[]")
     except (subprocess.SubprocessError, OSError, ValueError):
         return [], de_reserva

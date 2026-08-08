@@ -1,9 +1,9 @@
 ---
-name: check-conflitos
-description: Confere se os plugins, skills e hooks instalados na máquina se atropelam — nome repetido, hooks de origens diferentes no mesmo evento, descrições que disputam o mesmo assunto, versões paradas no cache, e as contradições de instrução que nenhuma varredura pega. Use quando o usuário disser "/check-conflitos", "meus plugins brigam?", "tem conflito entre as skills?", "instalei um plugin novo, confere aí", "por que ele escolheu a skill errada?", "o fim de turno está travando". Dispare também DEPOIS de instalar ou atualizar plugin de terceiro, e antes de publicar skill nova — é aí que o atropelo nasce. A varredura mecânica é do programa; o julgamento das contradições é seu, e ele exige LER as descrições.
+name: check-skills
+description: Confere a saúde do que está instalado na máquina — nome de skill repetido, hooks de origens diferentes no mesmo evento, descrições que disputam o mesmo assunto, versões paradas no cache, processo que a skill abre e não fecha, e as contradições de instrução que nenhuma varredura pega. Use quando o usuário disser "/check-skills", "meus plugins brigam?", "tem conflito entre as skills?", "instalei um plugin novo, confere aí", "por que ele escolheu a skill errada?", "o fim de turno está travando", "a máquina está cheia de processo aberto". Dispare também DEPOIS de instalar ou atualizar plugin de terceiro, e antes de publicar skill nova — é aí que o atropelo nasce. A varredura mecânica é do programa; o julgamento das contradições é seu, e ele exige LER as descrições.
 ---
 
-# Skill: /check-conflitos
+# Skill: /check-skills
 
 Dois plugins nunca se apresentam um ao outro. Cada um foi escrito sozinho, e o que
 acontece quando eles convivem não está escrito em lugar nenhum — nem no `plugin list`,
@@ -11,10 +11,10 @@ que diz o que existe, nem no `plugin details`, que olha um de cada vez.
 
 Esta skill responde a pergunta que falta: **o que se atropela?**
 
-## As cinco naturezas de atropelo, e por que elas são diferentes
+## As seis naturezas de atropelo, e por que elas são diferentes
 
-Confundir as cinco é o erro que faz o relatório virar ruído. Cada uma tem sintoma
-próprio, e só as quatro primeiras dão para varrer.
+Confundir as seis é o erro que faz o relatório virar ruído. Cada uma tem sintoma
+próprio, e só as cinco primeiras dão para varrer.
 
 | # | Natureza | O sintoma que o usuário sente |
 |---|---|---|
@@ -22,16 +22,21 @@ próprio, e só as quatro primeiras dão para varrer.
 | 2 | **Evento disputado** | o fim de turno trava, e nada diz qual dos doze hooks travou |
 | 3 | **Gatilho disputado** | ele pede "revisa isso" e vem a skill errada |
 | 4 | **Cache inchado** | ele conserta um arquivo e o conserto não aparece |
-| 5 | **Instrução contraditória** | uma skill manda o oposto da outra, e as duas estão certas |
+| 5 | **Vazamento de processo** | a máquina fica lenta e cheia de processo que ninguém abriu |
+| 6 | **Instrução contraditória** | uma skill manda o oposto da outra, e as duas estão certas |
 
-**A quinta é a única que importa de verdade, e é a única que nenhum programa acha.**
-As quatro primeiras são forma; a quinta é conteúdo, e mora nas descrições.
+**A sexta é a única que nenhum programa acha.** As cinco primeiras são forma; a sexta é
+conteúdo, e mora nas descrições.
+
+**A quinta nasceu de um caso medido em 2026-08-08:** uma máquina acumulou **2125
+processos `python3` órfãos**, e nenhuma ferramenta ligava aquilo a quem os tinha aberto.
+O `plugin list` não vê processo, e o `ps` não vê skill.
 
 ## 1 · A varredura mecânica
 
 ```bash
-python3 "${CLAUDE_PLUGIN_ROOT}/lib/conflitos.py"          # relatório humano
-python3 "${CLAUDE_PLUGIN_ROOT}/lib/conflitos.py" --json   # para consumir
+python3 "${CLAUDE_PLUGIN_ROOT}/lib/varredura.py"          # relatório humano
+python3 "${CLAUDE_PLUGIN_ROOT}/lib/varredura.py" --json   # para consumir
 ```
 
 Ele lê `~/.claude/plugins/cache/`, e **só a versão mais alta de cada plugin** — que é a
@@ -48,10 +53,22 @@ O que cada balde devolve:
   A busca é por **palavra inteira**: sem isso `ui` casa dentro de *constrUI* e o
   relatório sai com dezenas de falsos positivos.
 - **`cache_inchado`** — versões paradas no disco, que confundem quem for ler o código.
+- **`vazamento_codigo`** — o defeito **antes de rodar**, no código de toda skill
+  instalada: `python3` disparado sem fechar a entrada (o filho herda o terminal e espera
+  para sempre) ou sem grupo próprio (o teto mata o filho e o **neto** sobrevive), `node`
+  com `stdio: 'inherit'`, `shell` com `nohup`/`disown`. Isenção: `vaza-ok: <motivo>` na
+  linha de cima.
+- **`vazamento_vivo`** — o que **já vazou**, ligado ao dono: processo órfão (pai `1`)
+  cujo comando carrega o caminho de instalação de um plugin. Processo com pai vivo NÃO
+  entra — tem dono, e encerrá-lo mataria trabalho em curso.
 
-Bancada: `python3 "${CLAUDE_PLUGIN_ROOT}/lib/test_conflitos.py"`.
+**As duas metades da quinta lente não se substituem.** No caso de 2026-08-08 o código
+tinha 155 pontos defeituosos *e* 2125 órfãos de pé: só o estático não diria que a
+máquina já estava cheia, e só o dinâmico não diria onde consertar.
 
-## 2 · A quinta natureza — a que você lê, porque nenhum programa lê
+Bancada: `python3 "${CLAUDE_PLUGIN_ROOT}/lib/test_varredura.py"`.
+
+## 2 · A sexta natureza — a que você lê, porque nenhum programa lê
 
 Contradição de instrução não tem forma detectável: as duas skills estão bem escritas,
 e o conflito só aparece quando as duas entram no mesmo prompt. **Leia as descrições**

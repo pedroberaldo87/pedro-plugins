@@ -1,0 +1,14 @@
+{
+  "_comentario": "ARQUIVO DE MENTIRA CONGELADO — fixture da letra (b): o gatilho nunca casa a entrada real. NAO CONSERTAR.",
+  "PostToolUse": [
+    {
+      "matcher": "Bash(pytest:*)",
+      "hooks": [
+        {
+          "type": "command",
+          "command": "echo 'a suite rodou'"
+        }
+      ]
+    }
+  ]
+}

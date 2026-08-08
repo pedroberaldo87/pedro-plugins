@@ -186,6 +186,75 @@ check "a linha traz o silêncio lido do sinal em disco" \
 check "o hud continua idêntico embaixo da linha do motor" \
   "$([ "$RESTO" = "$HUD_CRU" ] && echo 1 || echo 0)" "saiu: [$RESTO] esperado: [$HUD_CRU]"
 
+# 4c-bis · O CRITÉRIO DE F9.24 NA BARRA: o mesmo silêncio de 20 min sai como
+#          'rodando há N min' quando há comando de pé, e como travamento quando
+#          não há. O que muda entre os dois cenários é UM arquivo — o de trabalho
+#          vivo, que o hook escreve ao disparar e apaga ao voltar.
+trabalho_ha() { python3 -c 'import time,sys; open(sys.argv[1],"w").write(str(time.time()-float(sys.argv[2])))' "$CFG/sovai/trabalho-sess-teste" "$1"; }
+
+rm -f "$CFG/sovai/trabalho-sess-teste"
+sinal_ha 1200
+BARRA_TRAVADA=$(barra sess-teste | head -1)
+check "silêncio longo SEM trabalho vivo sai na barra como SEM SINAL" \
+  "$(printf '%s' "$BARRA_TRAVADA" | grep -q 'SEM SINAL' && echo 1 || echo 0)" "saiu: [$BARRA_TRAVADA]"
+
+# o hook DE VERDADE, em modo marca, é quem deixa o trabalho vivo em disco
+rm -f "$TMP/sovai-andamento-sess-teste"
+CLAUDE_CONFIG_DIR="$CFG" TMPDIR="$TMP" sh "$HOOK" marca <<< "$(paylo 'bash suite-longa.sh' '')" >/dev/null 2>&1
+check "o disparo grava o trabalho vivo onde a BARRA lê (fora do /tmp da sessão)" \
+  "$([ -s "$CFG/sovai/trabalho-sess-teste" ] && echo 1 || echo 0)"
+
+# 4c-ter · F9.26 — O RELÓGIO E A ESTIMATIVA CHEGAM À BARRA, alimentados por QUEM
+#           EXECUTA. A barra é desenhada por outro processo e não sabe qual comando
+#           está de pé nem em que projeto: quem sabe é o disparo, e é por isso que
+#           ele grava o comando e o projeto junto do instante.
+check "o disparo grava o COMANDO junto do instante" \
+  "$([ "$(sed -n 2p "$CFG/sovai/trabalho-sess-teste")" = 'bash suite-longa.sh' ] && echo 1 || echo 0)" \
+  "saiu: [$(sed -n 2p "$CFG/sovai/trabalho-sess-teste")]"
+check "o disparo grava o PROJETO, sem o qual não há estimativa" \
+  "$([ "$(sed -n 3p "$CFG/sovai/trabalho-sess-teste")" = '/projeto/exemplo' ] && echo 1 || echo 0)" \
+  "saiu: [$(sed -n 3p "$CFG/sovai/trabalho-sess-teste")]"
+
+BARRA_EST=$(barra sess-teste | head -1)
+check "a barra traz o tempo decorrido da ferramenta de pé" \
+  "$(printf '%s' "$BARRA_EST" | grep -q 'ferramenta há' && echo 1 || echo 0)" "saiu: [$BARRA_EST]"
+# este comando já rodou nesta suíte (seções acima), então a memória do projeto existe
+check "com histórico, a barra traz a estimativa ao lado do relógio" \
+  "$(printf '%s' "$BARRA_EST" | grep -q 'ferramenta há .*usual ~' && echo 1 || echo 0)" "saiu: [$BARRA_EST]"
+
+# comando que nunca rodou aqui chega SEM número: relógio sozinho é honesto.
+CLAUDE_CONFIG_DIR="$CFG" TMPDIR="$TMP" sh "$HOOK" marca <<< "$(paylo 'bash suite-inedita.sh' '')" >/dev/null 2>&1
+BARRA_NOVA=$(barra sess-teste | head -1)
+check "comando sem histórico neste projeto chega à barra sem número" \
+  "$(printf '%s' "$BARRA_NOVA" | grep -q 'usual ~' && echo 0 || echo 1)" "saiu: [$BARRA_NOVA]"
+
+trabalho_ha 1200
+BARRA_VIVA=$(barra sess-teste | head -1)
+check "demora legítima sai na barra como 'rodando há N min'" \
+  "$(printf '%s' "$BARRA_VIVA" | grep -q 'rodando há 20 min' && echo 1 || echo 0)" "saiu: [$BARRA_VIVA]"
+check "demora legítima NÃO sai na barra como SEM SINAL" \
+  "$(printf '%s' "$BARRA_VIVA" | grep -q 'SEM SINAL' && echo 0 || echo 1)" "saiu: [$BARRA_VIVA]"
+check "as duas barras são textos diferentes" \
+  "$([ "$BARRA_VIVA" != "$BARRA_TRAVADA" ] && echo 1 || echo 0)" "iguais: [$BARRA_VIVA]"
+
+# comando de pé há 3s não explica um silêncio de 20 min
+trabalho_ha 3
+BARRA_CURTA=$(barra sess-teste | head -1)
+check "trabalho recente demais não vira álibi do silêncio longo na barra" \
+  "$(printf '%s' "$BARRA_CURTA" | grep -q 'SEM SINAL' && echo 1 || echo 0)" "saiu: [$BARRA_CURTA]"
+
+# o comando VOLTOU: o hook apaga o trabalho vivo, e a barra deixa de dizer 'rodando'
+trabalho_ha 1200
+marca_ha 1200
+roda 'bash suite-longa.sh' "$SAIDA_COM_PLACAR" >/dev/null
+check "voltando o comando, o trabalho vivo é apagado" \
+  "$([ ! -f "$CFG/sovai/trabalho-sess-teste" ] && echo 1 || echo 0)"
+sinal_ha 1200
+BARRA_DEPOIS=$(barra sess-teste | head -1)
+check "sem comando de pé a barra volta a chamar o silêncio de SEM SINAL" \
+  "$(printf '%s' "$BARRA_DEPOIS" | grep -q 'SEM SINAL' && echo 1 || echo 0)" "saiu: [$BARRA_DEPOIS]"
+rm -f "$CFG/sovai/sinal-sess-teste" "$CFG/sovai/trabalho-sess-teste"
+
 # apagar o sinal da missão (o `rm` da entrega) faz a linha sumir na hora
 rm -f "$CFG/sovai/ativo-sess-teste"
 OUT=$(barra sess-teste)

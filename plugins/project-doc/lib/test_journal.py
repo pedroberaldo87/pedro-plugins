@@ -293,12 +293,12 @@ def test_orphan_commit():
     shutil.rmtree(T, ignore_errors=True)
     os.makedirs(os.path.join(T, ".claude", ".project-doc"))
     journal.state_dir = lambda pr: os.path.join(T, ".claude", ".project-doc")
-    subprocess.run(["git", "-C", T, "init", "-q"], check=True, capture_output=True)
-    subprocess.run(["git", "-C", T, "config", "user.email", "t@t"], check=True, capture_output=True)
-    subprocess.run(["git", "-C", T, "config", "user.name", "t"], check=True, capture_output=True)
+    subprocess.run(["git", "-C", T, "init", "-q"], check=True, capture_output=True, stdin=subprocess.DEVNULL, start_new_session=True)
+    subprocess.run(["git", "-C", T, "config", "user.email", "t@t"], check=True, capture_output=True, stdin=subprocess.DEVNULL, start_new_session=True)
+    subprocess.run(["git", "-C", T, "config", "user.name", "t"], check=True, capture_output=True, stdin=subprocess.DEVNULL, start_new_session=True)
     open(os.path.join(T, "a.py"), "w").write("x\n")
-    subprocess.run(["git", "-C", T, "add", "-A"], check=True, capture_output=True)
-    subprocess.run(["git", "-C", T, "commit", "-qm", "feat: real commit subject"], check=True, capture_output=True)
+    subprocess.run(["git", "-C", T, "add", "-A"], check=True, capture_output=True, stdin=subprocess.DEVNULL, start_new_session=True)
+    subprocess.run(["git", "-C", T, "commit", "-qm", "feat: real commit subject"], check=True, capture_output=True, stdin=subprocess.DEVNULL, start_new_session=True)
     # ledger com last_commit órfão (sha que não existe)
     journal.save_ledger(T, {"mined_sessions": {}, "last_commit": "deadbeefdeadbeefdeadbeefdeadbeefdeadbeef",
                             "distilled_hashes": {}})
@@ -373,7 +373,7 @@ def test_self_path_match():
 
 # ---------------------------------------------------------------------------
 def _git(T, *a):
-    subprocess.run(["git", "-C", T, *a], check=True, capture_output=True)
+    subprocess.run(["git", "-C", T, *a], check=True, capture_output=True, stdin=subprocess.DEVNULL, start_new_session=True)
 
 
 def test_journal_cycle():

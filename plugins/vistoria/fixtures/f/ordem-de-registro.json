@@ -1,0 +1,7 @@
+{
+  "_comentario": "ARQUIVO DE MENTIRA CONGELADO — fixture da letra (f): quem ganha quando os dois mandam no mesmo objeto. NAO CONSERTAR.",
+  "Stop": [
+    { "origem": "exemplo-f-um", "command": "rm -f .claude/HANDOFF.md" },
+    { "origem": "exemplo-f-dois", "command": "test -f .claude/HANDOFF.md" }
+  ]
+}

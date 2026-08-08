@@ -143,7 +143,7 @@ def julga(texto):
     try:
         r = subprocess.run([exe, "-p", "--model", modelo],
                            input=PROMPT % texto[:6000], env=ambiente,
-                           capture_output=True, text=True, timeout=TIMEOUT_S)
+                           capture_output=True, text=True, timeout=TIMEOUT_S, start_new_session=True)
     except (subprocess.TimeoutExpired, OSError) as e:
         return True, "juiz indisponivel: %s" % type(e).__name__
     saida = (r.stdout or "").strip()

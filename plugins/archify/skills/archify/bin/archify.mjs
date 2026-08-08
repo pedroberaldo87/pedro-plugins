@@ -43,7 +43,10 @@ function runNode(args, options = {}) {
   return spawnSync(process.execPath, args, {
     cwd: options.cwd || process.cwd(),
     encoding: 'utf8',
-    stdio: options.stdio || 'inherit',
+    // stdin FECHADO, saída herdada. `'inherit'` puro dava ao renderizador o terminal
+    // do dono: renderizador que resolvesse perguntar algo ficaria parado para sempre,
+    // sem estourar teto nenhum — era o vazamento que encheu uma máquina em 2026-08-08.
+    stdio: options.stdio || ['ignore', 'inherit', 'inherit'],
     env: options.env ? { ...process.env, ...options.env } : process.env,
   });
 }

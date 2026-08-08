@@ -161,6 +161,8 @@ rodando há 4min · passou do dobro do usual · 74 passou ·  0 falhou — avan�
 
 Registrar a duração ao fim de cada ferramenta longa (`andamento.registrar(repoRoot, cmd, seg)`) é o que alimenta a estimativa da próxima vez. Suíte roda várias vezes na mesma missão — é dessa repetição que a memória vive.
 
+**E o relógio e a estimativa também chegam à BARRA** (`hooks/statusline-motor.sh` → `lib/andamento.py:linha_motor`), que é a única superfície que fica: `systemMessage` rola com a conversa, e quem volta ao terminal uma hora depois não vê nenhuma das linhas acima. A barra é desenhada por outro processo e **não adivinha nada** — ela sai como `ferramenta há 70s · usual ~1min35s` porque **quem executa gravou o disparo**: o gancho de andamento em `marca` (PreToolUse de Bash, o mesmo que roda dentro de cada executor da onda) escreve em `~/.claude/sovai/trabalho-<sid>` o instante, o **comando** e o **projeto**, e apaga o arquivo quando o comando volta. Sem comando e projeto no disco não há como chamar `estimativa()`, e a barra volta a ter só a idade da missão. Comando sem histórico aqui sai **sem número**, pela mesma regra de sempre.
+
 ### A janela de tempo da sessão NÃO dá para observar
 
 Duas coisas diferentes foram confundidas, e a confusão fazia o motor planejar contra um número que não existe:
@@ -277,6 +279,7 @@ const gastoInicial = budget.spent()
 let feedback = null   // do #2 pro #1 na volta seguinte (a seta de volta)
 let lawMark = null    // marca da lei do projeto, CONGELADA na rodada 1 (ver o pino abaixo)
 const taskChurn = {}  // { task_id: nº de rodadas seguidas reaparecendo em missingTasks/gaps }
+const impossivelChurn = {}  // { task_id: nº de rodadas seguidas em que o executor alegou impossível }
 
 // Tier por rodada (R8): rodada 1 = decompose_model (planejamento inicial); rodadas 2+
 // = coordinate_model (coordenação rotineira). O bloco abaixo é ESCRITO no texto do
@@ -288,6 +291,23 @@ const T = { decompose: {effort:'high'}, coordinate: {effort:'medium'},
             diagnose: {effort:'medium'}, finalize: {effort:'medium'} }
 const tierFor = round => ({ model: ARGS.model,
   effort: round === 1 ? T.decompose.effort : T.coordinate.effort })
+
+// ── VEREDITO SEM A ÂNCORA DO FIM É RECUSADO (F9.16 · S-24) ──────────────────
+// A regra "o juiz prova que leu a coisa inteira" já estava na prosa e o campo já estava
+// no schema — e nada derrubava: parecer sem `anchor` entrava como parecer bom, e leitura
+// por amostragem seguia indistinguível de leitura inteira. Todo veredito passa por aqui:
+// sem a âncora ele é RECUSADO e o papel roda DE NOVO, agora sabendo por que voltou.
+// Duas recusas seguidas devolvem null — a mesma porta do juiz que não respondeu, porque
+// quem não prova que leu não aprovou nada.
+const julga = async (prompt, opts) => {
+  for (let tentativa = 1; tentativa <= 2; tentativa++) {
+    const v = await agent(tentativa === 1 ? prompt : { ...prompt,
+      recusado: 'o veredito anterior voltou SEM a âncora do fim e foi recusado — devolva em `anchor` a última linha não vazia do que você julgou, literal' }, opts)
+    if (!v) return null
+    if (v.anchor) return v
+  }
+  return null
+}
 
 while (!built && r < maxRounds) {
   r++; phase(`Rodada ${r}`)
@@ -440,6 +460,39 @@ while (!built && r < maxRounds) {
   const esperaIds = respostas.filter(x => x.espera).map(x => x.task_id)
   const results = respostas.filter(x => !x.espera)
 
+  // ── BLOQUEIO REPETIDO CONVOCA O AUDITOR (F9.18 · S-26) ──────────────────────
+  // Executor que declara impossível NÃO encerra nada sozinho — aconteceu de um executor
+  // declarar impossível o que ele conseguia fazer com a ferramenta que já tinha na mão.
+  // A alegação que SE REPETE na mesma tarefa (≥ churnThreshold rodadas seguidas) convoca
+  // o auditor, com a lente invertida: o ônus é dele provar que NÃO dá, e ele recebe a
+  // lista do que havia à mão pra dizer o que o executor nem tentou. Dois desfechos, e os
+  // dois são do script: derruba devolve a tarefa ao loop com o que ele apontou; confirma
+  // encerra como impedimento real, com o motivo escrito.
+  const devolvidasPeloAuditor = []
+  const alegam = new Set(results.filter(x => x.impossivel).map(x => x.task_id))
+  for (const t of todo) impossivelChurn[t.id] = alegam.has(t.id) ? (impossivelChurn[t.id] || 0) + 1 : 0
+  for (const x of results.filter(x => x.impossivel && impossivelChurn[x.task_id] >= churnThreshold)) {
+    const parecer = await julga(auditorPrompt({ task: decomp.tasks.find(t => t.id === x.task_id),
+                                                alegacao: x.impossivel, ferramentas: x.ferramentas || [],
+                                                onus: 'invertido — cabe a VOCÊ provar que não dá; o executor não precisa provar que dá',
+                                                cobra: 'diga em naoTentou quais das ferramentas acima o executor nem tentou',
+                                                tentativas: impossivelChurn[x.task_id] }),
+      { model: ARGS.model, effort: T.diagnose.effort, phase: 'Diagnose', schema: AUDITOR })   // diagnose_model
+    x.done = false
+    // Auditor mudo NÃO encerra nada: quem não respondeu não confirmou impedimento nenhum,
+    // e encerrar no silêncio dele seria voltar a encerrar no "impossível" do executor.
+    if (!parecer || parecer.derruba) {
+      impossivelChurn[x.task_id] = 0
+      devolvidasPeloAuditor.push({ taskId: x.task_id,
+        motivo: parecer ? `o auditor derrubou a alegação: ${parecer.motivo}` : 'o auditor não respondeu — a alegação não foi confirmada',
+        naoTentou: parecer?.naoTentou || [] })
+    } else {
+      blockers.push({ taskId: x.task_id, kind: 'impedimento',
+        what: `impedimento real em ${x.task_id}, confirmado pelo auditor: ${parecer.motivo}`,
+        whyNeedsYou: 'a alegação do executor foi auditada com a lente invertida e confirmada — não sai com mais uma rodada' })
+    }
+  }
+
   // ── ARQUIVO SOB TRANCA: O ENTREGÁVEL É A PROPOSTA (F8.5) ────────────────────
   // Esta skill proíbe reescrever documento aprovado, e o decompositor continuava
   // fabricando tarefa cujo `pronto` só fecha editando um. A tranca mandava o agente a
@@ -474,7 +527,7 @@ while (!built && r < maxRounds) {
   // marca FIXADA, contra a qual ele mede — não contra o texto que estiver no disco agora.
   // `protegidas` vai junto: nelas o critério do #2 é o INVERSO do normal — proposta com
   // antes/depois literais aprova, e arquivo protegido aparecendo no git diff reprova.
-  const review = await agent(reviewBuildPrompt({ planPath: ARGS.planPath, planText: ARGS.planText, repoRoot: ARGS.repoRoot, decomp, results, round: r, lawMark, protegidas: [...protegidas] }),
+  const review = await julga(reviewBuildPrompt({ planPath: ARGS.planPath, planText: ARGS.planText, repoRoot: ARGS.repoRoot, decomp, results, round: r, lawMark, protegidas: [...protegidas] }),
     { model: tier.model, effort: tier.effort, phase: 'Revisar', schema: BUILD_REVIEW })
 
   // AGENTE MORTO NÃO PODE DERRUBAR O MOTOR. `agent()` devolve null quando o subagente
@@ -487,10 +540,12 @@ while (!built && r < maxRounds) {
   // A direção segura é NÃO declarar built: revisor que não respondeu não aprovou nada.
   // Vira blocker e o loop segue — a missão degrada, não morre.
   if (!review) {
-    blockers.push({ what: `revisor da rodada ${r} não respondeu`,
+    blockers.push({ what: `revisor da rodada ${r} não respondeu, ou voltou duas vezes sem a âncora do fim`,
                     whyNeedsYou: 'a obra desta rodada ficou SEM revisão — trate como não verificada' })
-    rounds.push({ r, decomp, results, review: null, diagnoses, espera: esperaIds, esperandoVoce })
-    feedback = { gaps: [], missing: esperaIds, diagnoses }
+    rounds.push({ r, decomp, results, review: null, diagnoses, espera: esperaIds, esperandoVoce,
+                  devolvidas: devolvidasPeloAuditor })
+    feedback = { gaps: [], missing: [...esperaIds, ...devolvidasPeloAuditor.map(d => d.taskId)],
+                 diagnoses, devolvidas: devolvidasPeloAuditor }
     continue
   }
 
@@ -526,7 +581,8 @@ while (!built && r < maxRounds) {
   const stuck = new Set([...(review.missingTasks || []), ...(review.gaps || []).map(g => g.task_id)])
   for (const t of decomp.tasks) taskChurn[t.id] = stuck.has(t.id) ? (taskChurn[t.id] || 0) + 1 : 0
 
-  rounds.push({ r, decomp, results, review, diagnoses, espera: esperaIds, esperandoVoce })
+  rounds.push({ r, decomp, results, review, diagnoses, espera: esperaIds, esperandoVoce,
+                devolvidas: devolvidasPeloAuditor })
 
   // ── PONTO DE SALVAMENTO POR ONDA (F9.14/F9.15) ──────────────────────────────
   // Até aqui o trabalho só era salvo no FIM: motor interrompido no meio deixava tudo
@@ -544,6 +600,13 @@ while (!built && r < maxRounds) {
     blockers.push({ what: `a suíte da rodada ${r} não respondeu`,
                     whyNeedsYou: 'esta onda ficou SEM checkpoint — o trabalho está no disco, não no histórico' })
   } else if (suite.green) {
+    // O PLACAR DA SUÍTE NÃO SE PERDE (F9.27). O campo era pedido ao papel da suíte e
+    // descartado aqui — a comparação entre ondas, que é o único sinal medido de "está
+    // em círculos", não chegava a tela nenhuma. Quem compara é `lib/andamento.py:avanco`,
+    // pelo gancho de andamento (ele vê a saída crua da suíte), e o veredito sai no
+    // cartão da onda e na barra. Guardar no registro é o que deixa o relatório contar
+    // onda a onda o que a suíte fez.
+    rounds[rounds.length - 1].placar = suite.placar
     await agent(checkpointPrompt({ repoRoot: ARGS.repoRoot, round: r, results }),
       { model: ARGS.model, effort: T.mechanical.effort, phase: 'Salvar' })
     rounds[rounds.length - 1].checkpoint = true
@@ -640,7 +703,7 @@ while (!built && r < maxRounds) {
   // fechar no veredito barato da rodada — roda o confirm-pass dedicado em finalize_model.
   if (review.complete && review.cohesive && gaps.length === 0) {
     if (ARGS.hasQaLoop === false) {
-      const confirm = await agent(confirmBuildPrompt({ planPath: ARGS.planPath, planText: ARGS.planText, repoRoot: ARGS.repoRoot, decomp, results, lawMark }),
+      const confirm = await julga(confirmBuildPrompt({ planPath: ARGS.planPath, planText: ARGS.planText, repoRoot: ARGS.repoRoot, decomp, results, lawMark }),
         { model: ARGS.model, effort: T.finalize.effort, phase: 'Confirmar', schema: BUILD_REVIEW })   // finalize_model
       rounds[rounds.length - 1].confirm = confirm
       // Mesma guarda do revisor, e aqui a direção segura é mais dura ainda: este pass é a
@@ -648,7 +711,7 @@ while (!built && r < maxRounds) {
       // significa que ninguém confirmou nada — declarar `built` seria dar por pronto no
       // veredito de um agente que morreu.
       if (!confirm) {
-        blockers.push({ what: 'o confirm-pass não respondeu',
+        blockers.push({ what: 'o confirm-pass não respondeu, ou voltou duas vezes sem a âncora do fim',
                         whyNeedsYou: 'sem /qa-loop e sem confirm, NADA checou a obra — não considere entregue' })
         break
       }
@@ -664,8 +727,12 @@ while (!built && r < maxRounds) {
   // sem o gap de concepção: ele é aviso pro dono, não tarefa pro #1 re-decompor.
   // quem parou no teto entra no `missing` mesmo que o revisor não o tenha listado: ele não
   // falhou, só não coube na onda — e sem isto a tarefa sumiria do delta da próxima volta.
+  // a tarefa que o auditor DERRUBOU volta pro loop mesmo que o revisor não a tenha listado:
+  // o desfecho "derruba" é justamente devolvê-la, e sem isto ela sumiria do delta da volta.
   feedback = { gaps: review.gaps.filter(g => g.kind !== 'concepcao'),
-               missing: [...new Set([...(review.missingTasks || []), ...esperaIds])], diagnoses }   // alimenta o DECOMPOR da próxima volta
+               missing: [...new Set([...(review.missingTasks || []), ...esperaIds,
+                                     ...devolvidasPeloAuditor.map(d => d.taskId)])],
+               diagnoses, devolvidas: devolvidasPeloAuditor }   // alimenta o DECOMPOR da próxima volta
 }
 
 // O QUE FALTOU, SEPARADO POR MOTIVO (F9.19). Os dois chegavam misturados, e quem lê não
@@ -714,8 +781,9 @@ return {
 
 **Schemas (JSON Schema, resumidos):**
 - `DECOMP` — `{ tasks: [{ id, desc, requisito, pronto, files: [...], parallelizable: bool, dependsOn: [id...], done: bool, complexity?: 'standard'|'mechanical', esperaDono?: string, protegido?: string }], blockers: [{ what, whyNeedsYou }] }`. **`requisito` e `pronto` são obrigatórios** — `requisito` = o item da spec que a tarefa atende, `pronto` = o critério de feito dele, **os dois copiados da spec, não redigidos pelo decompositor** (o executor não tem como cumprir o que não recebe, e critério inventado aqui vira régua falsa no #2). Item da spec sem um dos dois vira `blocker`, não tarefa. `complexity: 'mechanical'` = operação bem delimitada (renomear, mover arquivo, 1 config, 1 valor); ausente/`'standard'` = tarefa normal. **`esperaDono`** = a frase do ato que só o dono pode fazer, **copiada do `espera_dono` do passo no `.plan.json`** — nunca inventada aqui, e nunca deduzida do texto da tarefa. Tarefa com `esperaDono` **não entra na fila do motor** (nenhum executor é solto nela), e quem `dependsOn` dela também não: os dois saem em `esperandoVoce`, com o motivo. Passo sem o campo no plano é tarefa normal. **`protegido`** = o arquivo sob tranca que a tarefa toca (o que traz `status: approved` no frontmatter) e o motivo da tranca, marcado pelo decompositor **por leitura do disco**, nunca por achismo. Tarefa `protegido` **entra na fila** — o que muda é o entregável: proposta, não edição, e o revisor a mede pelo critério invertido.
-- `TASK_RESULT` — `{ task_id, files_touched: [...], summary, done: bool, note, anchor, espera: bool, proposta?: { arquivo, antes, depois } }`. **`proposta`** = o entregável da tarefa `protegido` (regra 5 do executor): `antes` e `depois` **literais**, o primeiro copiado do disco e o segundo pronto pra colar. O script cobra os dois — proposta sem um deles vira `done: false` e Bloqueio, porque descrição do que mudar deixa o trabalho todo pro dono. Com os dois, a proposta sai em **Bloqueios (precisam de você)** com o antes/depois inteiro, e `git diff` vazio no arquivo é o resultado certo. **`anchor`** = a última linha não vazia do que o executor leu para decidir que estava pronto — a prova de leitura inteira (ver "o juiz prova que leu"). **`espera`** = o executor bateu no `tetoMin` e parou por isso (regra 4 dele). O script tira essas do `results` — o revisor não recebe meia obra como obra — e as manda pro `missing` do #1 na volta seguinte; a rodada **fecha com quem voltou**. `espera: true` não é falha e não vira Bloqueio: sai em `naoDeuTempo`, com o teto no motivo.
-- `SUITE_RESULT` — `{ green: bool, failing: [nome...], placar, heartbeat, trabalhoVivo: bool }`. **`placar`** = a linha crua que a suíte imprimiu (`139 passou · 0 falhou`, `OK (56 checks)`, `17 ok / 0 falhas`), lida por `lib/andamento.py:placar` e comparada com a da onda anterior — dois placares iguais seguidos saem como `sem avanço`. **`trabalhoVivo`** separa demora de travamento: com ele `true`, o vigia **não** derruba, por mais silencioso que esteja o registro. **`heartbeat`** = o carimbo de tempo do último sinal de vida, que a casca reinjeta a cada rodada (o script não tem relógio próprio).
+- `TASK_RESULT` — `{ task_id, files_touched: [...], summary, done: bool, note, anchor, espera: bool, impossivel?: string, ferramentas?: [...], proposta?: { arquivo, antes, depois } }`. **`impossivel`** = a alegação de que a tarefa não tem como sair, com o motivo; **`ferramentas`** = o que havia à mão no contexto dela. Alegar não encerra nada: repetida por `churnThreshold` rodadas seguidas na mesma tarefa, ela convoca o `AUDITOR`. **`proposta`** = o entregável da tarefa `protegido` (regra 5 do executor): `antes` e `depois` **literais**, o primeiro copiado do disco e o segundo pronto pra colar. O script cobra os dois — proposta sem um deles vira `done: false` e Bloqueio, porque descrição do que mudar deixa o trabalho todo pro dono. Com os dois, a proposta sai em **Bloqueios (precisam de você)** com o antes/depois inteiro, e `git diff` vazio no arquivo é o resultado certo. **`anchor`** = a última linha não vazia do que o executor leu para decidir que estava pronto — a prova de leitura inteira (ver "o juiz prova que leu"). **`espera`** = o executor bateu no `tetoMin` e parou por isso (regra 4 dele). O script tira essas do `results` — o revisor não recebe meia obra como obra — e as manda pro `missing` do #1 na volta seguinte; a rodada **fecha com quem voltou**. `espera: true` não é falha e não vira Bloqueio: sai em `naoDeuTempo`, com o teto no motivo.
+- `AUDITOR` — `{ derruba: bool, motivo, naoTentou: [...], anchor }`, devolvido por `auditorPrompt` (`diagnose_model`). A lente é **invertida**: o ônus é do auditor provar que **não dá**, e ele recebe `ferramentas` — o que havia à mão — para dizer em `naoTentou` o que o executor nem tentou. `derruba: true` **devolve a tarefa ao loop** (ela entra no `missing` do #1 na volta seguinte, com o que o auditor apontou); `derruba: false` **encerra como impedimento real** — Bloqueio de `kind: 'impedimento'` com o `motivo` escrito. Auditor mudo não encerra nada: a tarefa volta pro loop, porque quem não respondeu não confirmou impedimento. Como todo veredito, sem `anchor` ele é recusado e o papel roda de novo.
+- `SUITE_RESULT` — `{ green: bool, failing: [nome...], placar, heartbeat, trabalhoVivo: bool }`. **`placar`** = a linha crua que a suíte imprimiu (`139 passou · 0 falhou`, `OK (56 checks)`, `17 ok / 0 falhas`), lida por `lib/andamento.py:placar` e comparada com a da onda anterior por `lib/andamento.py:avanco` — dois placares iguais seguidos saem como `sem avanço`. O veredito aparece nas **duas** superfícies: no cartão que fecha a onda (`hooks/posttooluse-andamento.sh`, que vê a saída crua da suíte) e na **barra** (`hooks/statusline-motor.sh` → `linha_placar`), que é a que fica. O registro é um só, em `~/.claude/sovai/placar-<sid>` — o motor guarda o campo na onda (`rounds[].placar`) e não o descarta mais. **`trabalhoVivo`** separa demora de travamento: com ele `true`, o vigia **não** derruba, por mais silencioso que esteja o registro. **`heartbeat`** = o carimbo de tempo do último sinal de vida, que a casca reinjeta a cada rodada (o script não tem relógio próprio).
 - `blocker` de `kind: 'criterio'` — critério de aceite que só se cumpre injetando valor inventado dentro de entregável. Não vira tarefa: vira Bloqueio, e o `whyNeedsYou` diz qual passo da spec precisa reescrever o `pronto`. **Quem o emite é o SCRIPT**, logo depois da decomposição e antes de qualquer executor sair (ver o bloco da régua no esqueleto) — não é julgamento do #1.
 - `REGUA` — `{ reprovados: [{ task_id, motivo }] }`. O papel é **mecânico e só**: para cada `{ id, pronto }` recebido, rodar
 
@@ -751,7 +819,7 @@ return {
   ```
 
   **O lixeiro é procurado pelo NOME, nunca pela posição.** Quem resolve é o `resolve-plugin.sh` da própria pasta: rodando do repositório o lixeiro é irmão direto, e instalado pelo marketplace o cache guarda `<marketplace>/<plugin>/<versão>/` — dois níveis acima e atrás de um segmento de versão, com a versão mais alta escolhida quando o cache tem várias. Apontar a pasta vizinha na mão resolvia só o primeiro caso, e a colheita nunca acontecia em máquina instalada. Saída vazia = lixeiro fora desta máquina. As duas falhas ficam **separadas**: lixeiro não instalado (nenhum caminho existe) sai **calado**, que é a regra escrita; caminho resolvido e comando quebrado avisa em uma linha — fail-open igual, mas visível, senão o defeito some. Sempre `colhe-turno`, nunca `colhe-sessao`: o modo do turno é o **seletivo** — efêmero ainda vivo (suíte, build) morre, serviço com CPU parada desde a passada anterior morre, serviço em uso **sobrevive**. É isso que deixa a colheita rodar no meio da missão sem tirar da onda seguinte o servidor que ela ia usar. Só é candidato o processo cuja ABERTURA foi anotada — nome de programa nunca é critério, e é o motor do lixeiro que aplica as travas (ancestral, VM, contêiner), não este papel. No script ele roda **junto do `checkpointPrompt`**, em toda onda verde. A última passada não é papel de agente: é o **passo 4 da Persistência**, o mesmo comando em bash — porque a colheita por onda não alcança o motor que fechou vermelho, que o vigia derrubou ou que o disjuntor desligou, e agente disparado depois do disjuntor desfaria o desligamento. Lixeiro ausente na máquina (`lixeiro.py` não existe) **não é falha**: o papel devolve sem fazer nada e a missão segue — limpeza é camada a mais, nunca pré-requisito. Falha da colheita **não derruba a onda** nem a missão, pela mesma regra do `tick` e do `docTouch`.
-- `BUILD_REVIEW` — `{ complete: bool, cohesive: bool, gaps: [{ task_id, kind: 'spec'|'constituicao'|'concepcao'|'rastreio'|'completude'|'coesao', severity: 'P0'|'P1'|'P2'|'P3', problem }], missingTasks: [id...], lawMark: string|null }`. **`lawMark`** = a marca da lei que ESTA rodada leu — o `cksum` do corpo de `.claude/docs/constituicao.md` + `.claude/docs/quality-goals.md` (mesma receita da marca de aprovação; corpo, sem frontmatter). Projeto sem esses arquivos devolve `null` e o pino nunca arma. O motor congela a marca da rodada 1 e a devolve ao revisor nas seguintes; marca diferente da fixada **não** troca a régua — vira aviso no relatório (Bloqueio "precisa de você"). `kind: 'rastreio'` = tarefa decomposta chegou **sem `requisito` ou sem `pronto`** — nasce em severidade **≥ `severityFloor`** e o script o segura no filtro mesmo se vier abaixo (mesmo tratamento do gap de spec), porque tarefa sem os dois campos não é medível por ninguém depois. `kind: 'spec'` = o que a spec pede não saiu (ou saiu diferente), **mesmo com a decomposição cumprida** — nasce em severidade **≥ `severityFloor`** (P1 por default) e o script o mantém no filtro mesmo se vier abaixo, senão o gap sai da conta e passa calado. `kind: 'constituicao'` = o que saiu viola a `.claude/docs/constituicao.md` ou o `.claude/docs/quality-goals.md` do projeto — severidade normal (o filtro de floor vale), e `problem` cita a passagem violada, porque a régua vive no arquivo lido na rodada, não aqui. Sem esse arquivo no projeto, este `kind` simplesmente não aparece. `kind: 'concepcao'` = o que a execução descobriu contradiz um documento de concepção já aprovado — **não segura a obra** (o executor não tem o que consertar no código), sai do filtro e vira aviso no relatório propondo reabrir a etapa, com a linha `correcao-pendente:` sugerida em `problem`. `task_id` de gap de spec ou de constituição pode ser `null`: o buraco que a decomposição não previu não tem tarefa a que pertencer.
+- `BUILD_REVIEW` — `{ complete: bool, cohesive: bool, gaps: [{ task_id, kind: 'spec'|'constituicao'|'concepcao'|'rastreio'|'completude'|'coesao', severity: 'P0'|'P1'|'P2'|'P3', problem }], missingTasks: [id...], lawMark: string|null, anchor: string }`. **`anchor`** = a última linha não vazia do que o juiz julgou, literal — a prova de leitura inteira (ver "o juiz prova que leu"). **É o script que cobra**: veredito sem ela é RECUSADO, o papel roda de novo sabendo por quê, e duas recusas seguidas valem por juiz que não respondeu (não aprova nada). Vale para o revisor #2 e para o confirm-pass. **`lawMark`** = a marca da lei que ESTA rodada leu — o `cksum` do corpo de `.claude/docs/constituicao.md` + `.claude/docs/quality-goals.md` (mesma receita da marca de aprovação; corpo, sem frontmatter). Projeto sem esses arquivos devolve `null` e o pino nunca arma. O motor congela a marca da rodada 1 e a devolve ao revisor nas seguintes; marca diferente da fixada **não** troca a régua — vira aviso no relatório (Bloqueio "precisa de você"). `kind: 'rastreio'` = tarefa decomposta chegou **sem `requisito` ou sem `pronto`** — nasce em severidade **≥ `severityFloor`** e o script o segura no filtro mesmo se vier abaixo (mesmo tratamento do gap de spec), porque tarefa sem os dois campos não é medível por ninguém depois. `kind: 'spec'` = o que a spec pede não saiu (ou saiu diferente), **mesmo com a decomposição cumprida** — nasce em severidade **≥ `severityFloor`** (P1 por default) e o script o mantém no filtro mesmo se vier abaixo, senão o gap sai da conta e passa calado. `kind: 'constituicao'` = o que saiu viola a `.claude/docs/constituicao.md` ou o `.claude/docs/quality-goals.md` do projeto — severidade normal (o filtro de floor vale), e `problem` cita a passagem violada, porque a régua vive no arquivo lido na rodada, não aqui. Sem esse arquivo no projeto, este `kind` simplesmente não aparece. `kind: 'concepcao'` = o que a execução descobriu contradiz um documento de concepção já aprovado — **não segura a obra** (o executor não tem o que consertar no código), sai do filtro e vira aviso no relatório propondo reabrir a etapa, com a linha `correcao-pendente:` sugerida em `problem`. `task_id` de gap de spec ou de constituição pode ser `null`: o buraco que a decomposição não previu não tem tarefa a que pertencer.
 
 O `stopReason`, o `gasto` (quanto a missão queimou — sem ele, "desliguei" não diz se foi caro ou barato), o `progresso` (**quantos passos DISTINTOS fecharam** — nunca linha de resultado somada: retomada regrava veredito do cache e a mesma tarefa volta em mais de uma linha, e a devolução do decompositor volta sem `task_id`), os `blockers` e a telemetria entram no relatório final (`### Verificação` e `### Bloqueios`); o `esperandoVoce` entra na seção `### Esperando você`, que é dele e de mais ninguém — despejá-lo em `### Bloqueios` é chamar de falha o que só espera a sua vez. Terminado o motor (`built` ou teto), segue direto pro **QA final** abaixo — que é onde defeito é caçado.
 
