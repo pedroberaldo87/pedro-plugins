@@ -30,8 +30,8 @@ scope:
   - plugins/visual/hooks/stop-plan-status.sh
   - plugins/visual/hooks/stop-anuncio-sem-acao.py
   - plugins/visual/hooks/hooks.json
-  - plugins/visual/lib/plan_state.py
-  - plugins/visual/lib/cobertura.py
+  - plugins/project-skills/lib/plan_state.py
+  - plugins/project-skills/lib/cobertura.py
   - plugins/guardrails/hooks/lint-and-typecheck.sh
   - plugins/guardrails/hooks/scope-cop.sh
   - plugins/guardrails/hooks/hooks.json
@@ -48,6 +48,15 @@ scope:
   - plugins/graphify-guard/hooks/sessionstart-graphify.sh
   - plugins/graphify-guard/hooks/pretooluse-graphify-guard.sh
   - plugins/graphify-guard/hooks/hooks.json
+  - _shared/sessionstart-deps.sh
+  - plugins/bootstrap/hooks/sessionstart-deps.sh
+  - plugins/sovai/hooks/hooks.json
+  - plugins/sovai/hooks/posttooluse-andamento.sh
+  - plugins/sovai/lib/andamento.py
+  - plugins/gauntlet/hooks/hooks.json
+  - plugins/gauntlet/hooks/pretooluse-gauntlet.sh
+  - plugins/lixeiro/hooks/hooks.json
+  - .claude/stop-budget.baseline.json
   - plugins/slides/skills/slides/SKILL.md
   - plugins/slides/skills/slides/scripts/check_fidelity.py
   - AGENTS.md
@@ -63,9 +72,13 @@ verified-by:
   - plugins/visual/hooks/test_anuncio_sem_acao.py
   - scripts/test_hook_contract.py
   - plugins/visual/hooks/test_exitplan_gate.sh
-  - plugins/visual/lib/test_plan_state.py
-  - plugins/visual/lib/test_cobertura.py
+  - plugins/project-skills/lib/test_plan_state.py
+  - plugins/project-skills/lib/test_cobertura.py
   - plugins/ship/hooks/test_pre_deploy.sh
+  - plugins/sovai/lib/test_andamento.py
+  - plugins/sovai/hooks/test_andamento_hook.sh
+  - plugins/gauntlet/hooks/test_gauntlet_hooks.sh
+  - plugins/lixeiro/hooks/test_lixeiro_hooks.sh
 doc-sig: pedro-plugins/sessionstart-doc.sh@gen=3.8#3f8f68fe
 ---
 
@@ -78,14 +91,18 @@ Este doc descreve **o que acontece em execução**. Estrutura do repo está em `
 **Contagem de hooks (derivada mecanicamente neste run**, somando `len(b["hooks"])` sobre cada evento de todos os `plugins/*/hooks/hooks.json`):
 
 ```
-SessionStart      8
-PreToolUse       13
-PostToolUse       7
-Stop              8
+SessionStart     21     (12 deles são o MESMO sessionstart-deps.sh — ver fluxo 7.0)
+PreToolUse       17
+PostToolUse       9
+Stop              9
+SessionEnd        1
 UserPromptSubmit  2
+TOTAL            59 registros · 45 scripts distintos
 ```
 
-⚠️ Isso mede o que o repo **oferece**. O que **roda** é a interseção com `enabledPlugins` do `~/.claude/settings.json` — e nesta máquina `graphify-guard` e `intent-guard` **não estão ligados** (ausentes de `enabledPlugins`), o que bate com o manifest, que os traz `enabled: false`. `[confirmado — leitura de settings.json e jq no manifest nesta rodada]`
+⚠️ **Registro ≠ script ≠ execução, e os três números divergem de propósito.** Os 59 registros viram 45 scripts (um script pode estar em dois eventos — o `posttooluse-andamento.sh` do sovai está em `Pre` e `PostToolUse`), e os 45 viram muito menos execuções úteis: doze dos registros de `SessionStart` chamam o mesmo `sessionstart-deps.sh`, que fala **uma vez por sessão** e sai calado nas outras onze.
+
+⚠️ Isso mede o que o repo **oferece**. O que **roda** é a interseção com `enabledPlugins` do `~/.claude/settings.json` — e o manifest traz **cinco** desligados de fábrica: `gauntlet`, `graphify-guard`, `intent-guard`, `project-skills` e `vistoria`. `[confirmado — varredura dos hooks.json e leitura do manifest nesta rodada]`
 
 ---
 
@@ -138,7 +155,7 @@ desligadas em pedro-plugins .. graphify-guard, intent-guard
 
 > ⚠️ O ciclo roda `git pull --rebase --autostash` no repo-fonte **em toda abertura de sessão**. Trabalho não-commitado em `pedro-plugins` passa pelo autostash. `[inferido — não reproduzido neste run]`
 
-**Verificado:** `bash plugins/bootstrap/hooks/test_bootstrap_hooks.sh` → **36 ok · 0 FAIL** neste run, incluindo o round-trip do snapshot ("pedro-plugins continua com 19 plugins", "graphify-guard continua desligado", "2a rodada e idempotente"). `[confirmado]`
+**Verificado:** `bash plugins/bootstrap/hooks/test_bootstrap_hooks.sh` → **70 ok · 0 FAIL** neste run, incluindo o round-trip do snapshot ("pedro-plugins continua com N plugins", "graphify-guard continua desligado", "2a rodada e idempotente"). `[confirmado]`
 
 ---
 
@@ -321,7 +338,7 @@ Empate se resolve **por natureza, nunca por contagem de votos** — quem escreve
 
 ### O fio requisito↔tarefa — quatro estados, e onde cada um aparece
 
-`plugins/visual/lib/cobertura.py` cruza o documento de requisitos com as tarefas do plano e nomeia quatro situações, nenhuma silenciosa: **coberto**, **tarefa sem requisito** (trabalho que ninguém pediu), **requisito sem tarefa** (pedido que ninguém planejou) e **citação a requisito que não existe**. Os três primeiros são relatório; o quarto é erro que recusa gravar. `[confirmado — `cobertura.py:mapa` e `plan_state.py:validate`]`
+`plugins/project-skills/lib/cobertura.py` cruza o documento de requisitos com as tarefas do plano e nomeia quatro situações, nenhuma silenciosa: **coberto**, **tarefa sem requisito** (trabalho que ninguém pediu), **requisito sem tarefa** (pedido que ninguém planejou) e **citação a requisito que não existe**. Os três primeiros são relatório; o quarto é erro que recusa gravar. `[confirmado — `cobertura.py:mapa` e `plan_state.py:validate`]`
 
 O número **aparece sem ser pedido**, em quatro superfícies, todas lendo a mesma `cobertura.py:resumo` pra que um só programa calcule:
 
@@ -330,7 +347,7 @@ O número **aparece sem ser pedido**, em quatro superfícies, todas lendo a mesm
 - no **cabeçalho da árvore de valor**, texto e HTML;
 - sob demanda, em `plan_state.py cobertura` (com `--json` pra consumo por programa e `--reqs` pra apontar outro documento). `[confirmado — leitura das quatro chamadas]`
 
-**Verificado:** `python3 plugins/visual/lib/test_plan_state.py` → **OK** (252 asserções `ok`, contra 173 na rodada anterior — a diferença é a prova em bullets, com o último check sendo "prova de um segmento continua span") e `python3 plugins/visual/lib/test_cobertura.py` → **OK** (13), ambas nesta rodada. `[confirmado — `grep -c '^  ok'` sobre a saída de cada uma]`
+**Verificado:** `python3 plugins/project-skills/lib/test_plan_state.py` → **OK** (252 asserções `ok`, contra 173 na rodada anterior — a diferença é a prova em bullets, com o último check sendo "prova de um segmento continua span") e `python3 plugins/project-skills/lib/test_cobertura.py` → **OK** (13), ambas nesta rodada. `[confirmado — `grep -c '^  ok'` sobre a saída de cada uma]`
 
 ---
 
@@ -367,20 +384,40 @@ Teto conhecido, escrito no próprio comentário: flag **com valor** no lançador
 
 ## 7 · ARRANQUE — o que roda no SessionStart
 
-**Os 8 comandos, derivados mecanicamente** dos `plugins/*/hooks/hooks.json` neste run:
+**Os 21 comandos, derivados mecanicamente** dos `plugins/*/hooks/hooks.json` neste run:
 
 ```
-plugins/bootstrap/hooks/hooks.json        1  session-sync.sh              (sem timeout)
-plugins/branches/hooks/hooks.json         1  sessionstart-branches.sh
-plugins/context-guard/hooks/hooks.json    1  context-guard-reset.sh       (5s)
-plugins/graphify-guard/hooks/hooks.json   1  sessionstart-graphify.sh     (10s)
-plugins/handoff/hooks/hooks.json          1  sessionstart-ata.sh          (10s)
-plugins/project-doc/hooks/hooks.json      2  sessionstart-organism.sh, sessionstart-doc.sh  (10s cada)
-plugins/visual/hooks/hooks.json           1  sessionstart-plan.sh         (10s)
-TOTAL 8
+plugins/bootstrap/hooks/hooks.json        2  session-sync.sh (sem timeout), sessionstart-deps.sh (5s)
+plugins/branches/hooks/hooks.json         2  sessionstart-branches.sh (15s), + deps
+plugins/context-guard/hooks/hooks.json    2  context-guard-reset.sh (5s), + deps
+plugins/gauntlet/hooks/hooks.json         1  + deps
+plugins/graphify-guard/hooks/hooks.json   2  sessionstart-graphify.sh (10s), + deps
+plugins/guardrails/hooks/hooks.json       1  + deps
+plugins/handoff/hooks/hooks.json          2  sessionstart-ata.sh (10s), + deps
+plugins/intent-guard/hooks/hooks.json     1  + deps
+plugins/lixeiro/hooks/hooks.json          2  sessionstart-orfaos.sh (20s), + deps
+plugins/project-doc/hooks/hooks.json      3  sessionstart-organism.sh, sessionstart-doc.sh (10s cada), + deps
+plugins/ship/hooks/hooks.json             1  + deps
+plugins/sovai/hooks/hooks.json            1  + deps
+plugins/visual/hooks/hooks.json           2  sessionstart-plan.sh (10s), + deps
+TOTAL 21 registros — mas só 10 SCRIPTS distintos
 ```
 
-**Quantos rodam aqui: 7.** `graphify-guard` não está em `enabledPlugins` desta máquina — nem no manifest, que o traz `enabled: false`. `[confirmado]`
+⚠️ **O arranque triplicou de registros e não triplicou de trabalho.** Doze dos 21 são o mesmo `sessionstart-deps.sh` (marcado `+ deps` acima), e ele é desenhado pra que **onze das doze execuções não façam nada**: a primeira a rodar cria um sentinel por sessão com `set -C` (o `noclobber` do shell, que é o cria-se-não-existe atômico) e as outras saem 0 caladas. O aviso sai **uma vez por sessão, não uma por plugin instalado**.
+
+**Quantos rodam aqui: depende do que está ligado.** `graphify-guard`, `intent-guard`, `gauntlet`, `project-skills` e `vistoria` nascem `enabled: false` no manifest. `[confirmado]`
+
+### 7.0 · O aviso de dependência ausente — o hook que os doze compartilham
+
+`_shared/sessionstart-deps.sh` existe porque **fail-open mudo era indistinguível de "está protegendo"**: sem `jq` ou sem `python3`, o hook de plugin cai no `exit 0` de infra, o plugin segue `enabled`, e ninguém sabe que o guarda parou de guardar. O cabeçalho registra a lógica: *"O plugin segue 'enabled' e não protege nada — instale antes de confiar nos gates"*.
+
+Três decisões de implementação que só fazem sentido juntas:
+
+- **Ele não pode usar `jq` nem `python3`** — são exatamente o que pode faltar. Todo o parse do payload (recortar o `session_id`) é expansão de string do próprio shell, e o JSON de saída é montado à mão.
+- **`python3` só conta como presente se EXECUTA**: `command -v python3 && python3 --version`. O stub da Microsoft Store existe no PATH e não roda — `command -v` sozinho o daria como instalado.
+- **A chave do sentinel é sanitizada**: qualquer caractere fora de `[A-Za-z0-9._-]` no `session_id` descarta o valor e cai no `PPID`. Valor vindo do harness não vira caminho de arquivo sem passar por isso.
+
+⚠️ **Falhar em criar o sentinel é motivo para FALAR, não para calar** — se `/tmp` estiver somente-leitura, o hook avisa de novo em vez de assumir que já avisou. Kill-switch: `BOOTSTRAP_DEPS_GATE=0`. `[confirmado — leitura do arquivo]`
 
 ### Ordem
 
@@ -400,7 +437,9 @@ TOTAL 8
 7. **`visual/sessionstart-plan.sh`** — cenário 5. Injeta `additionalContext` com os planos abertos, o próximo passo, o caminho do arquivo e a linha de cobertura requisito↔tarefa; sem plano aberto sai calado, mas **o marco em `TMPDIR` é criado antes disso**. `[confirmado]`
 8. **`branches/sessionstart-branches.sh`** — registrado no `hooks.json` do plugin `branches`. `[confirmado — registro; conteúdo não lido nesta rodada]`
 
-**Quem pode bloquear no SessionStart:** nenhum dos 8. Os que falam usam `hookSpecificOutput.additionalContext`; os demais só escrevem em disco ou em stdout/stderr. `[confirmado — leitura dos 6 scripts desta fatia]`
+9. **`lixeiro/sessionstart-orfaos.sh`** — varre o que ficou de pé de sessões anteriores. Ver o fluxo 18. `[confirmado — registro no `hooks.json`]`
+
+**Quem pode bloquear no SessionStart:** nenhum dos 21 registros. Os que falam usam `hookSpecificOutput.additionalContext`, **com uma exceção de canal**: o `sessionstart-deps.sh` usa `systemMessage` no TOPO do JSON, porque o destinatário do aviso é o humano, não o modelo — dependência faltando é coisa que só quem está no teclado resolve. `[confirmado — leitura dos scripts desta fatia]`
 
 ---
 
@@ -454,9 +493,12 @@ plugins/intent-guard/hooks/hooks.json ${CLAUDE_PLUGIN_ROOT}/hooks/delivery-audit
 plugins/project-doc/hooks/hooks.json  ${CLAUDE_PLUGIN_ROOT}/hooks/stop-doc-touch.sh                    15s
 plugins/visual/hooks/hooks.json       ${CLAUDE_PLUGIN_ROOT}/hooks/stop-plan-status.sh                  15s
 plugins/visual/hooks/hooks.json       python3 "${CLAUDE_PLUGIN_ROOT}/hooks/stop-anuncio-sem-acao.py"   20s
+plugins/lixeiro/hooks/hooks.json      ${CLAUDE_PLUGIN_ROOT}/hooks/stop-colhe-turno.sh                  20s
 ```
 
-`intent-guard` não está ligado nesta máquina, então **7 rodam aqui**. `[confirmado]`
+Nove registros — `lixeiro/stop-colhe-turno.sh` entrou desde a passada anterior (fluxo 18). `intent-guard` não está ligado nesta máquina, então **8 rodam aqui**. `[confirmado]`
+
+⚠️ **O `Stop` é o único evento com ORÇAMENTO congelado, e o motivo é que ele é o mais caro em atenção humana.** `.claude/stop-budget.baseline.json` guarda, por emissor, quantas linhas ele cospe — e o total de referência é **6 linhas**, com `teto: 6`. Quem cobra é o check E2 do release-gate: um hook novo de `Stop` que fale demais reprova o commit. Hoje só dois emissores gastam linha (`visual/stop-plan-status.sh` com 5 e `intent-guard/delivery-audit.sh` com 1); os outros são mudos no caminho feliz. `[confirmado — leitura do baseline]`
 
 ⚠️ **A ordem DENTRO do array do `bootstrap` é deliberada:** `stop-regua-relato.py` (mecânico, custo zero) vem **antes** de `stop-forma-relato.py` (que chama modelo). Barrar por forma dos bullets não deve custar uma chamada de LLM. `[confirmado — `plugins/bootstrap/hooks/hooks.json`]` · Que o harness respeite a ordem do array é `[inferido]`, como em todo lugar deste doc.
 
@@ -662,13 +704,13 @@ O caso que o cabeçalho nomeia como coberto é o do monorepo-container: mesmo co
 
 **Fail-open em tudo que é infra** — régua ausente do vendoring (`ImportError`), payload ilegível, transcript que não abre: sai 0, com a batida registrando o motivo. `[confirmado — arquivo lido integralmente]`
 
-**Verificado:** `bash plugins/bootstrap/hooks/test_bootstrap_hooks.sh` → **52 ok · 0 FAIL** neste run (eram 36 antes), com a fatia nova cobrindo as quatro checagens uma a uma, o kill-switch, a isenção do bloco de prova, a linha em negrito que não é bullet e o bypass depois de 2 bloqueios. `[confirmado]`
+**Verificado:** `bash plugins/bootstrap/hooks/test_bootstrap_hooks.sh` → **70 ok · 0 FAIL** neste run (eram 52 antes), com a fatia nova cobrindo as quatro checagens uma a uma, o kill-switch, a isenção do bloco de prova, a linha em negrito que não é bullet e o bypass depois de 2 bloqueios. `[confirmado]`
 
 ---
 
 ## 16 · O tier do motor chega como DADO, não como número na skill
 
-**Dispara quando:** a casca de `/sovai` ou de `/qa-loop` vai disparar o Workflow do motor. `[confirmado — `plugins/sovai/skills/sovai/SKILL.md:70-84` e `plugins/qa-loop/skills/qa-loop/SKILL.md:93-108`]`
+**Dispara quando:** a casca de `/sprint` (ex-`/sovai`) ou de `/qa-loop` vai disparar o Workflow do motor. ⚠️ **As duas skills MUDARAM DE PLUGIN nesta rodada** — hoje moram em `plugins/project-skills/skills/sprint/SKILL.md` e `plugins/project-skills/skills/qa-loop/SKILL.md`, e os plugins `sovai` e `qa-loop` ficaram só com motor e hooks. `[confirmado — `grep -n 'r8_tiers' plugins/project-skills/skills/*/SKILL.md` neste run]`
 
 **O drift que isto existe pra matar, medido em 2026-08-03:** trocar seis valores custou 45 substituições em dois `SKILL.md`, três saíram invertidas e duas sobreviveram a dois verificadores. A causa não era descuido — era o número morar em quinze lugares. `[relatado — docstring de `_shared/r8_tiers.py`]`
 
@@ -677,9 +719,16 @@ O caso que o cabeçalho nomeia como coberto é o do monorepo-container: mesmo co
 1. **A casca roda o script antes do Workflow** — `python3 "<skill_dir>/references/r8_tiers.py" args`.
 2. **O script lê o JSON e devolve só o que o motor decide** — `para_args()` monta `{model, tiers: {<knob>: {effort}}}` a partir de `r8-tiers.json`. Saída medida nesta rodada: `model: "opus"` e os seis knobs `decompose`, `coordinate`, `executor`, `mechanical`, `diagnose`, `finalize`. `[confirmado — `python3 _shared/r8_tiers.py args`]`
 3. **A casca passa isso dentro do `args` do Workflow**, junto com os outros parâmetros.
-4. **O script do motor lê `args.tiers.<knob>.effort`, nunca um literal** — no esqueleto, `const T = args.tiers` e `tierFor` escolhe entre `T.decompose.effort` e `T.coordinate.effort` conforme a rodada. `[confirmado — `SKILL.md` do `/sovai`, bloco `sovai-build-engine`]`
+4. 🔴 **O passo 4 INVERTEU nesta rodada, e a inversão é o achado.** Antes o script do motor lia `args.tiers.<knob>.effort` em tempo de execução. Agora o bloco de esforço vai **escrito dentro do texto do script**, como constante literal no topo, gerada pela saída do comando do passo 1:
 
-⚠️ **`args.tiers` ausente MATA o motor na primeira volta, e isso é a falha certa.** Um default carimbado no script seria mais uma cópia do valor — exatamente o defeito que o contrato existe pra impedir. Contraste deliberado com o vizinho na mesma linha do código: `maxRounds` **tem** default dentro do motor (`args.maxRounds || 5`), porque ausente ele faria `r < undefined` ser falso e o motor devolveria "nada construído" **em silêncio**. Morrer alto é aceitável; passar calado, não. `[confirmado — as duas linhas convivem no mesmo bloco de `args`]`
+```javascript
+// gerado por references/r8_tiers.py args — não digite à mão, não leia de args.tiers
+const T = { decompose: {effort:'high'}, coordinate: {effort:'medium'}, /* … */ }
+```
+
+⚠️ **O motivo é medido, e contradiz o que este doc afirmava antes:** *"o canal que levava esse valor até o script FALHAVA, e `args.tiers` chegava `undefined` — o que matava o motor na primeira volta"*. A versão anterior tratava essa morte como "a falha certa"; na prática ela acontecia por defeito de canal, não por contrato violado, e o motor morria sem que ninguém tivesse mexido em tier nenhum.
+
+**A régua não mudou; o MOMENTO mudou.** O valor continua nascendo em `_shared/r8-tiers.json` e nunca é inventado na skill — o que mudou é que ele entra na **composição** do script, não na execução dele. Trocar um tier segue sendo editar o JSON compartilhado e rodar `scripts/sync-shared.sh`; nenhum `SKILL.md` muda. O princípio escrito na própria skill: *"cada canal a mais é um lugar a mais para o valor sumir em silêncio"*. `[confirmado — `plugins/project-skills/skills/sprint/SKILL.md`, seção R8]`
 
 **Os outros dois usos do mesmo módulo**, ambos lendo o mesmo JSON: `render` gera a tabela de `r8-tiers.md` (ninguém a digita), e `check` falha se o markdown divergir do JSON **ou** se algum `SKILL.md` voltar a carimbar um `effort` literal ao lado de um `model:`. A regex isenta a menção legítima ao nome do knob e o `effort: "low"` do relatório do `/fallow`, que não tem nada com o R8. `[confirmado — `r8_tiers.py:LITERAL` e `python3 _shared/r8_tiers.py demo` → "demo ok"]`
 
@@ -745,6 +794,32 @@ rodam em hook, quais têm suíte), o agente julga com esse dígito à vista sem 
 ```bash
 bash plugins/lixeiro/hooks/test_lixeiro_hooks.sh   # a colheita com causa tem 4 casos próprios
 python3 plugins/lixeiro/lib/test_causa.py
+```
+
+---
+
+## 19 · O narrador do comando longo — o dono ausente descobre se a missão anda
+
+**Dispara quando:** `PreToolUse[Bash]` e `PostToolUse[Bash]` do `sovai`, **o mesmo script nos dois** (`hooks/posttooluse-andamento.sh`), com o argumento `marca` na ida e sem argumento na volta. `[confirmado — `plugins/sovai/hooks/hooks.json`]`
+
+**O problema que ele resolve:** dentro de um Workflow o dono fica cego. O agente entra em `idle` e a tela não diz se ele está rodando uma suíte de 11 minutos ou travado — *"'Idle' não carrega hora nem progresso, então parada legítima e travamento se parecem"*.
+
+**Por que são dois momentos e um arquivo só:** `marca` grava o instante do disparo e sai calado; `narra` mede o decorrido **real** contra aquela marca, guarda na memória do projeto e imprime. ⚠️ **Sem a marca, a linha não sai** — o comentário fixa o critério: *"número de duração sem lastro é pior que silêncio"*.
+
+**As duas regras vieram de medição, não de intuição** (299 transcripts de agente de workflow deste projeto, 2026-08-06) `[confirmado — a tabela está na docstring de `plugins/sovai/lib/andamento.py`]`:
+
+- **Estimativa só pela memória do PRÓPRIO comando, neste projeto.** A dispersão de `Bash` é de quase mil vezes entre mediana (0,7s) e máximo (660,4s), então média global produziria *"número com cara de dado e sem lastro"*. Comando sem histórico aqui sai **sem** estimativa — só o relógio.
+- **Repetição de comando NÃO é sintoma de círculo.** Medido: 0 de 282 agentes repetiram o mesmo comando 4× ou mais; um detector baseado nisso não pegaria nada. O sinal que existe é o **placar que a própria suíte imprime** (540 ocorrências na amostra, em três formatos) — placar igual duas vezes seguidas é o que significa "não andou".
+
+**Onde a linha sai: `systemMessage`**, o canal que o dono lê. O `stderr` de hook é descartado por quem chama — é exatamente o defeito que o check M do release-gate persegue (`patterns.md` §5.2).
+
+**Escopo: só DENTRO de uma missão do `/sovai`**, pelo mesmo sinal `ativo-<session_id>` que os gates vizinhos consultam. Fora dela o dono está no teclado e vê a saída do próprio comando; narrar ali seria ruído.
+
+⚠️ **O estado mora numa pasta NEUTRA — `~/.claude/andamento/`, não `~/.claude/sovai/`** — e o comentário do módulo diz por quê: *"Quatro plugins já chamam este módulo; a pasta batizada com o nome de um deles fazia o estado dos outros parecer emprestado."* `[confirmado — `andamento.py:ESTADO`]`
+
+```bash
+python3 plugins/sovai/lib/test_andamento.py
+bash plugins/sovai/hooks/test_andamento_hook.sh
 ```
 
 ---

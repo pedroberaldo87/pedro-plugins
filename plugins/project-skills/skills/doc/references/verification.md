@@ -1,6 +1,6 @@
 # Verification — project-doc
 
-> Checklist de verificação pós-geração do `/project-doc` (26 checks + output format + auto-fix + quando rodar). Consultado on-demand pela skill no passo 13 e no modo `verify`. Fonte canônica; o `SKILL.md` referencia este arquivo.
+> Checklist de verificação pós-geração do `/project-doc` (26 checks + output format + auto-fix + quando rodar) <!-- acopla-ok: este arquivo É a fonte canônica que enumera os checks; contá-los aqui é listar, não cravar -->. Consultado on-demand pela skill no passo 13 e no modo `verify`. Fonte canônica; o `SKILL.md` referencia este arquivo.
 
 ## Verification (Post-Generation Quality Check)
 

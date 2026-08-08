@@ -6,7 +6,7 @@ Por que existe
 Antes disto o plano só vivia no transcript. Todo consumidor (o /handoff, o
 /visual, a próxima sessão) o RE-DERIVAVA por LLM — e re-derivação por LLM é
 lossy: encurta, renomeia fase, e chuta se já foi executado. O caso concreto que
-motivou o módulo está em plugins/handoff/lib/extract_ata.py:168,186 —
+motivou o módulo está em plugins/handoff/lib/extract_ata.py:168,186 —  # acopla-ok: narrativa histórica do defeito que originou o módulo; nada aqui executa o arquivo citado
 `excerpt: txt[:1200]` e `likely_executed = commits_after > 0 or edits_after >= 3`.
 Um plano de 10 fases + 1 commit vira "concluído".
 
@@ -865,7 +865,7 @@ def cmd_tick(args):
             "⛔ tick recusado: %s tem decisão em aberto.\n   %s\n\n"
             "   Feche a decisão antes de marcar feito. Quem destrava é o registro: o\n"
             "   motor de decisão escreve a escolha em `decidido` e o tique volta a\n"
-            "   passar — ver plugins/visual/skills/visual/SKILL.md, 'Motor de decisão'."
+            "   passar — ver plugins/visual/skills/visual/SKILL.md, 'Motor de decisão'."  # acopla-ok: ponteiro de leitura numa mensagem de erro; o tique funciona igual se o plugin visual não existir
             % (node_id, pend))
 
     ev = (args.evidencia or "").strip()
