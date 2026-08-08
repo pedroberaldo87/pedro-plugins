@@ -370,19 +370,22 @@ Depósito **novo nesta rodada**, irmão do B8 e deliberadamente diferente dele: 
 ### B11 · `${CLAUDE_CONFIG_DIR:-~/.claude}/sovai/` — 0B · o interruptor da missão autônoma
 
 - **Nasceu em 2026-08-02**, com o gate que mantém o `/sovai` no motor Workflow.
-- **Três arquivos, todos chaveados por sessão** [confirmado — `pretooluse-sovai-motor.sh`]:
+- **O diretório cresceu além do interruptor** — hoje ele guarda quatro naturezas, e só a primeira é o gate original [confirmado — `ls ~/.claude/sovai/` nesta rodada]:
   - `ativo-<session_id>` — **arquivo vazio; o que importa é existir.** Aceso pela casca da skill antes de disparar o Workflow, apagado na entrega. Enquanto existe, todo disparo de sub-agente naquela sessão é negado.
   - `bloqueios-<session_id>` — o contador do cap (3). Sanitizado na leitura: lixo no arquivo vira `0`, nunca erro de shell.
   - `desistencias.log` — append-only, uma linha por vez que o cap estourou. Existe porque *desistir em silêncio* é o defeito que o `bypass.log` do teto de prosa registrou primeiro.
+  - `sinal-<session_id>` e `placar-<session_id>` — o que o **vigia de andamento** escreve: o instante da última fala do narrador e o placar da suíte, que a barra de status lê para dizer *"rodando há N min"* e *"sem avanço"*.
+  - `duracoes-<projeto-com-barras-viradas>.json` — a **memória de quanto cada comando demora, por projeto**. É dela que sai a estimativa (*"~1min35s, das 3 vezes anteriores aqui"*); comando que nunca rodou ali sai **sem número**, nunca com média global.
+  - `reservas/<session_id>__<motor_id>.files` — a lista de arquivos que um motor reservou antes de soltar executor. Dois motores da mesma sessão no mesmo arquivo é um apagando o trabalho do outro. ⚠️ **Reserva não liberada recusa o motor seguinte**, e foi assim que uma rodada morreu antes de executar qualquer passo em 2026-08-08: o `liberar` falhou com `fork failed` e os 54 caminhos ficaram presos. Diagnóstico: `ls ~/.claude/sovai/reservas/`.
 - **Por sessão, nunca global** — mesma lição do `context-guard` e do `scope-cop` (§1.5 de `patterns.md`): marcador global faria uma sessão em sovai tirar de **todas** as outras o direito de despachar sub-agente.
 - **Perder o diretório não perde trabalho.** É interruptor, não registro: some o `ativo-*` e o gate volta a ser mudo. O único conteúdo com valor histórico é o `desistencias.log`, e ele é diagnóstico, não dado.
 - ⚠️ **O risco real é o oposto: o arquivo ficar aceso.** A casca apaga na entrega, mas missão interrompida no meio (sessão morta, `/clear`) deixa o sinal aceso e **a sessão inteira segue sem despachar sub-agente**, sem ninguém saber por quê. Não há poda por idade — diferente do `scope-cop`, que ganhou `find … -mtime +1 -delete` no mesmo commit em que nasceu. Diagnóstico: `ls ~/.claude/sovai/`.
-- **Estado medido nesta rodada** [confirmado]:
+- **Como medir o estado agora** — o número sai do comando, nunca de uma contagem escrita aqui:
 
   ```bash
-  du -sh ~/.claude/sovai      # 4,0K
-  ls -1 ~/.claude/sovai       # 4 arquivos
-  # ativo-816f95e2-…   ativo-a5a22a2f-…   ativo-dc5e6c3a-…   bloqueios-a5a22a2f-…
+  du -sh ~/.claude/sovai
+  ls -1 ~/.claude/sovai
+  ls -1 ~/.claude/sovai/reservas 2>/dev/null   # vazio é o normal; cheio trava o próximo motor
   ```
 
   🔴 **O risco previsto acima se realizou, e está medido:** dos **três** sinais acesos, só um é desta sessão. Os outros dois pertencem a sessões de **outros projetos**, com transcript mexido há 2 e 10 minutos — ou seja, **vivas e sem poder despachar sub-agente**. O sinal é por sessão, então uma não contamina a outra: o estrago é local a cada uma. [confirmado — 2026-08-02, `find ~/.claude/projects -name '<sid>*.jsonl'` para cada sinal]

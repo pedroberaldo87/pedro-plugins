@@ -45,7 +45,7 @@ def contagens_individuais():
     """Quantos achados CADA script sozinho reporta — a referência da comparação."""
     orfas = medidor._importa("scripts/suites_orfas.py", "suites_orfas_ref")
     fora, _t, _p = orfas.orfas(ROOT)
-    regua = medidor._importa("plugins/visual/lib/regua_pronto.py", "regua_pronto_ref")
+    regua = medidor._importa("plugins/visual/lib/regua_pronto.py", "regua_pronto_ref")  # acopla-ok: auto-vistoria do proprio repo, roda da raiz e nao viaja
     n_regua = sum(len(regua.erros_de_pronto(p, pid))
                   for _n, pid, p in medidor._passos_abertos())
     return {
@@ -59,7 +59,7 @@ def contagens_individuais():
         "plano-vs-codigo": len([a for a in roda_json("scripts/plano_vs_codigo.py", "--json")
                                 if a["veredito"] == "divergente"]),
         "regua-pronto": n_regua,
-        "conformance": len(roda_json("plugins/bootstrap/lib/conformance.py",
+        "conformance": len(roda_json("plugins/bootstrap/lib/conformance.py",  # acopla-ok: auto-vistoria do proprio repo, roda da raiz e nao viaja
                                      "--json")["desvios"]),
     }
 

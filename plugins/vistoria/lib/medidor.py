@@ -176,7 +176,7 @@ def _passos_abertos():
 
 
 def regua_pronto():
-    mod = _importa("plugins/visual/lib/regua_pronto.py", "regua_pronto")
+    mod = _importa("plugins/visual/lib/regua_pronto.py", "regua_pronto")  # acopla-ok: auto-vistoria do proprio repo, roda da raiz e nao viaja
     achados = []
     for nome, pid, pronto in _passos_abertos():
         errs = mod.erros_de_pronto(pronto, pid)
@@ -187,7 +187,7 @@ def regua_pronto():
 
 
 def conformance():
-    d = _json_de("plugins/bootstrap/lib/conformance.py", "--json")
+    d = _json_de("plugins/bootstrap/lib/conformance.py", "--json")  # acopla-ok: auto-vistoria do proprio repo, roda da raiz e nao viaja
     return [achado(cobrador="conformance", regra=f["area"], onde=f["area"],
                    o_que=f["o_que"], prova=f["evidencia"])
             for f in d["desvios"]]

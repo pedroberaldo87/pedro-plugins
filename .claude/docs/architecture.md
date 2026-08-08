@@ -241,7 +241,7 @@ variável — `$CLAUDE_PROJECT_DIR` — porque não é um plugin [copiado litera
   { "type": "command", "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/release-gate.sh", "timeout": 60 } ] } ] } }
 ```
 
-## 5. Catálogo dos 20 plugins distribuídos
+## 5. Catálogo dos plugins distribuídos
 
 Gerado neste run com:
 
@@ -256,34 +256,49 @@ for p in plugins/*/; do n=$(basename $p);
 Saída desta rodada (nome · versão · skills · tem hook):
 
 ```
-archify         2.11.0  [archify]                                        -
-bootstrap       1.11.0  [setup]                                          HOOKS
-branches         1.3.1  [branches]                                       HOOKS
-context-guard    1.3.5  [setup]                                          HOOKS
-fallow           1.2.1  [fallow]                                         -
-graphify-guard   1.2.1  [] (sem skills)                                  HOOKS
-grill-me         1.1.0  [grill-me]                                       -
-grill-with-docs  1.1.0  [grill-with-docs]                                -
-guardrails       1.7.1  [setup]                                          HOOKS
-handoff          1.8.8  [handoff]                                        HOOKS
-improve          1.0.3  [improve]                                        -
-intent-guard     0.6.1  [intent-guard]                                   HOOKS
-principles       1.0.3  [principles]                                     -
-project-doc     3.21.2  [design-md, doc-touch, project-doc, start-doc]   HOOKS
-qa-loop          1.8.4  [qa-loop]                                        -
-ship             1.4.1  [ship]                                           HOOKS
-slides           1.5.0  [slides]                                         -
-sovai           1.11.6  [sovai]                                          HOOKS
-vision          0.1.0  [] (sem skills)                                   -
-visual          1.19.6  [visual]                                         HOOKS
+archify          2.12.2  [archify]                                                 -
+bootstrap        1.13.5  [setup]                                                   HOOKS
+branches          1.3.3  [branches]                                                HOOKS
+check-skills      0.2.0  [check-skills]                                            -
+context-guard     1.3.7  [setup]                                                   HOOKS
+fallow            1.2.2  [fallow]                                                  -
+gauntlet          0.2.0  [gauntlet]                                                HOOKS
+graphify-guard    1.2.3  [] (sem skills)                                           HOOKS
+grill-me          1.3.0  [grill-me]                                                -
+grill-with-docs   1.1.0  [grill-with-docs]                                         -
+guardrails        1.7.4  [setup]                                                   HOOKS
+handoff          1.10.1  [handoff]                                                 HOOKS
+improve           1.0.3  [improve]                                                 -
+intent-guard      0.6.4  [intent-guard]                                            HOOKS
+lixeiro           1.3.0  [faxina]                                                  HOOKS
+principles        1.0.3  [principles]                                              -
+project-doc      3.31.3  [design-md, doc-touch, pesquisa-referencias,
+                          project-doc, start-doc]                                  HOOKS
+project-skills    0.1.0  [project-skills]                                          -
+qa-loop          1.11.2  [qa-loop]                                                 -
+ship              1.4.2  [ship]                                                    HOOKS
+slides            1.5.1  [slides]                                                  -
+sovai            1.19.1  [sovai]                                                   HOOKS
+vision            0.1.0  [] (sem skills)                                           -
+vistoria          0.3.1  [vistoria]                                                -
+visual           1.31.1  [status, visual]                                          HOOKS
 ```
 
-**Esta rodada levou o catálogo de 19 para 20 plugins**: nasceu o `vision` (0.1.0) e bumpou
-`bootstrap` (1.10.0 → 1.10.1) e `visual` (1.19.2 → 1.19.3) [confirmado — `git diff 19ef604
---name-only -- 'plugins/*/.claude-plugin/plugin.json'` devolve os 3 caminhos]. A rodada que
-gerou este doc bumpou 13 dos 19 plugins de então, e em **9** deles o bump não veio de código
-próprio: veio da cópia vendorada de `regua_texto.py`, a régua de forma que saiu do
-`visual_page.py` e virou `_shared/` (§7).
+**A rodada de 2026-08-08 renomeou um plugin e bumpou catorze.** O `check-conflitos` virou
+**`check-skills`** (0.1.0 → 0.2.0) quando ganhou a quinta lente — processo que a skill abre e
+não fecha, medido no código instalado **e** no que está de pé na máquina. Rename de plugin toca
+três arquivos (`plugin.json`, `marketplace.json`, `bootstrap/config/manifest.json`) e **deixa a
+versão velha instalada no cliente**: sem `claude plugin uninstall`, as duas skills coexistem e o
+próprio conferidor as acusa como nome disputado.
+
+Os outros treze bumps saíram de **um conserto que não era de nenhum plugin em particular**: 151
+disparos de processo migrados em 47 arquivos (§2.10 de `patterns.md`). É o mesmo custo de release
+que o vendoring já cobrava, por outra porta — regra transversal vira N publicações.
+
+```bash
+# quantos plugins o catálogo distribui hoje
+python3 -c "import json;print(len(json.load(open('.claude-plugin/marketplace.json'))['plugins']))"
+```
 
 ⚠️ **Vendorar código compartilhado tem um custo de release que não é óbvio**: a cópia mora
 DENTRO do plugin, então mexer em `_shared/` não é uma publicação — são N. Cada consumidor
