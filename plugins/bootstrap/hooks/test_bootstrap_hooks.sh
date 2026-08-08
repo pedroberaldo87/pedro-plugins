@@ -496,6 +496,28 @@ check "o .in_use sobreviveu a limpeza" "0" \
 check "nada a limpar depois da limpeza" "0" "$(conta_falso)"
 
 
+# O `/plugin` é comando do PRÓPRIO Claude Code: não passa pela ferramenta de shell,
+# então nenhum PostToolUse acorda com ele — e é por ali que o cache mais incha. Por
+# isso o aviso também mora na abertura de sessão, com relógio próprio de 1×/dia.
+SESSAO="$AQUI/session-sync.sh"
+CT="$TMP/ct-inchado"
+mkdir -p "$CT/plugins/cache/mkt/alfa/1.0.0" "$CT/plugins/cache/mkt/alfa/1.9.0" \
+         "$CT/plugins/cache/mkt/alfa/1.10.0"
+
+roda_sessao() { # config-dir, env extra
+  env $2 CLAUDE_CONFIG_DIR="$1" CLAUDE_PLUGIN_ROOT="$AQUI/.." \
+    bash "$SESSAO" 2>/dev/null | grep -c systemMessage | tr -d " "
+}
+check "a abertura de sessao avisa o cache parado" "1" "$(roda_sessao "$CT" '')"
+check "no mesmo dia ela cala (relogio proprio)"   "0" "$(roda_sessao "$CT" '')"
+
+CL="$TMP/ct-limpo"; mkdir -p "$CL/plugins/cache/mkt/solo/1.0.0"
+check "cache limpo nao inventa aviso na sessao"   "0" "$(roda_sessao "$CL" '')"
+
+CK="$TMP/ct-kill"; mkdir -p "$CK/plugins/cache/mkt/a/1.0.0" "$CK/plugins/cache/mkt/a/2.0.0"
+check "kill-switch desliga o aviso da sessao"     "0" "$(roda_sessao "$CK" 'PEDRO_CACHE_AVISO=0')"
+
+
 echo
 echo "$OK ok · $FAIL FAIL"
 [ "$FAIL" -eq 0 ]
