@@ -28,9 +28,11 @@ JORNADA_H_RE = re.compile(r"^##\s+(.+?)\s*$", re.M)
 # a peça da arquitetura pretendida que o requisito diz habitar, citada pelo nome que
 # o architecture-intent.md dá a ela
 PECA_RE = re.compile(r"\bPeça:\s*([^·—\n]+)")
-# os cabeçalhos do architecture-intent.md, com o nível, pra saber o que é peça e o
-# que é outra seção do documento
-CABECALHO_RE = re.compile(r"^(#{2,})\s+(.+?)\s*$", re.M)
+# as seções do architecture-intent.md, pra saber o que é a lista de peças e o que é
+# outra seção do documento (fronteiras, estado, o que ficou de fora)
+SECAO_RE = re.compile(r"^##\s+(.+?)\s*$", re.M)
+# a peça em si: no molde do documento ela é um item de lista `- **{peça}** — {…}`
+PECA_ITEM_RE = re.compile(r"^-\s+\*\*(.+?)\*\*", re.M)
 
 
 def _texto(fonte):
@@ -109,20 +111,24 @@ def le_artigos(fonte):
 def le_pecas(fonte):
     """Os nomes das peças do architecture-intent.md, na ordem em que aparecem.
 
-    Peça é um `### nome` sob a seção `## Peças` — o documento da arquitetura
-    pretendida também descreve fronteiras, onde o estado mora e o que ficou de fora,
-    e contar todo subtítulo faria fronteira virar peça. Documento ausente, ou sem
+    Peça é um item `- **{nome}** — {…}` sob a seção `## As peças`, que é o molde
+    que a etapa 2 do `/start-doc` escreve. O documento da arquitetura pretendida
+    também descreve fronteiras, onde o estado mora e o que ficou de fora, todos
+    escritos com o MESMO item de lista em negrito — por isso o corte é a seção, não
+    a forma do item: fora de `## As peças` nada vira peça. Documento ausente, ou sem
     essa seção, devolve []: projeto que ainda não desenhou a arquitetura não é
     projeto que a contradiz, é projeto sem com o que cruzar — a mesma regra que
     `le_jornadas` e `le_artigos` seguem.
     """
-    out, dentro = [], False
-    for m in CABECALHO_RE.finditer(_texto(fonte)):
-        nivel, nome = len(m.group(1)), m.group(2).strip()
-        if nivel == 2:
-            dentro = "peça" in nome.casefold()
-        elif nivel == 3 and dentro:
-            out.append(nome)
+    txt = _texto(fonte)
+    secoes = [(m.start(), m.end(), m.group(1)) for m in SECAO_RE.finditer(txt)]
+    out = []
+    for i, (_, fim, nome) in enumerate(secoes):
+        if "peça" not in nome.casefold():
+            continue
+        prox = secoes[i + 1][0] if i + 1 < len(secoes) else len(txt)
+        for it in PECA_ITEM_RE.finditer(txt[fim:prox]):
+            out.append(it.group(1).strip())
     return out
 
 

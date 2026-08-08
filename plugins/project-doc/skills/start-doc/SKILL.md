@@ -313,8 +313,9 @@ Escrever **não fecha** a etapa. O ciclo é este, e ele repete até o dono estar
    python3 "${CLAUDE_PLUGIN_ROOT}/lib/rastreio_etapas.py" .
    ```
 
-   Ele lê `journeys.md` e `features.md` e devolve as duas listas: **funcionalidade sem origem** e
-   **jornada sem funcionalidade**. Ele **só conta — não escreve em documento nenhum**, e é por isso
+   Ele lê `journeys.md`, `features.md` e `blueprint.md` e devolve as listas do que ficou sem dono: **funcionalidade
+   sem origem**, **jornada sem funcionalidade** e **passo do desenho sem funcionalidade** (passo do
+   ciclo de `blueprint.md` que nenhum item de `features.md` atende). Ele **só conta — não escreve em documento nenhum**, e é por isso
    que roda aqui: conferência que edita texto aprovado reabriria a etapa pela marca
    (`approved-sig`). O que ele acusar entra no Passo 5 do relatório e vira pergunta ao dono; não
    conserte sozinho, e não segure o de acordo por causa dele — a lista é cobrança visível, não gate.
@@ -372,7 +373,7 @@ Depois, ofereça o próximo passo:
 **Passo 4/7:** Escrito → {lista de arquivos com status draft|ready}
 **Passo 5/7:** De acordo → {etapa}: {aprovada em YYYY-MM-DD | ABERTA, {N} reapresentações} … (uma linha por etapa)
              Esquema → `blueprint.md`: {aprovado em YYYY-MM-DD | ABERTO} · diagrama → {caminho em `.claude/archify/` | `archify` ausente, DEGRADADO} · revisão 5b → {rodada | pendente}
-             Sem dono → {N} funcionalidades sem origem · {M} jornadas sem funcionalidade (saída de `rastreio_etapas.py`)
+             Sem dono → {N} funcionalidades sem origem · {M} jornadas sem funcionalidade · {K} passos do desenho sem funcionalidade (saída de `rastreio_etapas.py`)
 **Passo 6/7:** Decisões → `decisions/0001-{slug}.md` + {N} candidatas pendentes
 **Passo 7/7:** Índice → {N docs promovidos} · Pendências → {lista de [PENDENTE] por doc} · Correções pendentes → {N, com o doc de cada uma}
 ```

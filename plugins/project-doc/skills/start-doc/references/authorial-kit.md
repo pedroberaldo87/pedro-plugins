@@ -158,16 +158,17 @@ Escrever o documento **não fecha** a etapa. O ciclo é este, e ele repete:
 5. **Gravar o de acordo** — `status: approved` + `approved: {data de hoje}` — só depois de ele dizer
    que está satisfeito.
 
-**A conferência de rastreio acontece no fechamento, nunca no meio da entrevista.** Duas pontas
+**A conferência de rastreio acontece no fechamento, nunca no meio da entrevista.** Pontas
 soltam sozinhas e nenhuma dói na hora: **funcionalidade sem origem** (item de `features.md` que não
-aponta a jornada, a meta ou a peça que o pediu) e **jornada sem funcionalidade** (jornada de
-`journeys.md` que nada realiza). Quem as conta é `lib/rastreio_etapas.py`, e ele **só conta — não
+aponta a jornada, a meta ou a peça que o pediu), **jornada sem funcionalidade** (jornada de
+`journeys.md` que nada realiza) e **passo do desenho sem funcionalidade** (passo do ciclo de
+`blueprint.md` que nenhum item de `features.md` atende). Quem as conta é `lib/rastreio_etapas.py`, e ele **só conta — não
 escreve em documento nenhum**: conferência que edita texto aprovado reabriria a etapa pela marca
 (`approved-sig`), e é justamente o que o `correcao-pendente:` existe para evitar. A saída dele é
 cobrança visível no relatório, não um gate — o de acordo do dono continua sendo dele.
 
 ```bash
-python3 "${CLAUDE_PLUGIN_ROOT}/lib/rastreio_etapas.py" .   # → JSON com as duas listas
+python3 "${CLAUDE_PLUGIN_ROOT}/lib/rastreio_etapas.py" .   # → JSON com as listas do que ficou sem dono
 ```
 
 **A sabatina não é juíza.** Ela não aprova, não reprova e não decide se o documento está bom: ela é o
@@ -514,6 +515,15 @@ válido, não que o dono concordou com a personalidade que está lá dentro.
   quem), onde o estado mora, e o que foi deliberadamente deixado de fora.
 - **Critério de pronto:** toda peça nova proposta depois cai numa fronteira já descrita — ou o
   documento muda antes do código.
+- **O nome da peça é contrato, não enfeite.** O item `- **{peça}** —` sob `## As peças` é o que o
+  programa lê como peça. Só essa seção conta — fronteira e depósito de estado usam o mesmo item em
+  negrito e **não** são peça. **A citação não mora aqui:** nenhum molde deste kit tem uma linha
+  `Peça:`. Quem escreve essa linha é o documento de requisitos (o plano/PRD que o `/visual` lê), ao
+  lado do id e separada por ` · ` — `- **S-4.3 Título** · F1 · Peça: {nome} — corpo.`. É de lá que o
+  cruzamento (`lib/cobertura.py`) tira o nome e o compara com esta lista, e o que não casa sai em
+  **duas listas próprias**: requisito que não aponta peça nenhuma numa, requisito que aponta peça
+  que esta arquitetura não tem na outra. Renomear peça aqui quebra a citação de quem já apontava
+  para ela.
 
 **Pistas a minerar antes de perguntar:** layout de pastas, serviços no compose, imports que cruzam
 módulo, onde o banco mora, e o grafo do `graphify` se o projeto tiver um.

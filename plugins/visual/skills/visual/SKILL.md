@@ -357,6 +357,35 @@ no `cobertura`, no fim de turno, na vista de valor e na página:
 - 🔴 **épico sem jornada** — nenhuma funcionalidade dele veio de caminho de pessoa
 - 🔵 **jornada sem funcionalidade** — caminho escrito que nada no plano atende
 
+### A peça onde ela vive — a linha `Peça:` e o casamento com o architecture-intent.md
+
+Do mesmo jeito que a jornada diz de onde a funcionalidade veio, a **peça** diz onde ela
+vai morar. Sem essa linha o plano nasce contra a memória de quem o monta, e a contradição
+entre o plano e a arquitetura pretendida não aparece em lugar nenhum.
+
+O nome tem que ser **igual ao da peça** no `architecture-intent.md` — o item
+`- **{peça}** —` sob a seção `## As peças` que a etapa 2 do `/start-doc` escreve. Só
+aquela seção conta: fronteira e depósito de estado são escritos com o mesmo item em
+negrito e **não** são peça. A comparação ignora caixa e espaço a mais; o resto é literal.
+
+No documento de requisitos, a linha vive ao lado do id, separada por ` · `:
+
+```markdown
+- **S-4.3 Orçamento de energia** · F1 · Peça: Motor de plano — custo 1-5 por tarefa.
+  CA: dia com orçamento estourado retorna proposta de corte com impacto explícito.
+```
+
+No bloco `requisitos` do próprio plano, é o campo `"peca": "Motor de plano"`.
+
+Onde a arquitetura é procurada, nesta ordem: `$PLAN_ARQUITETURA` →
+`.claude/docs/architecture-intent.md` → `docs/architecture-intent.md` → nenhuma.
+**Projeto sem o documento não é acusado**, pela mesma regra das jornadas.
+
+Com o documento, o cruzamento sai em duas listas próprias:
+
+- 🔴 **funcionalidade sem peça da arquitetura** — não aponta peça nenhuma
+- ⛔ **requisito citando peça que a arquitetura não tem** — aponta uma que o desenho não tem
+
 ## Motor de decisão — quando a pendência aparece na execução
 
 | situação | o que fazer |

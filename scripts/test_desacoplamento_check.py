@@ -121,6 +121,26 @@ def main():
     finally:
         shutil.rmtree(d, ignore_errors=True)
 
+    # A raiz frouxa é vocabulário corrente da doc: "envelhece" é a palavra com que ela
+    # FALA de contagem cravada. Se ela isentasse ali, bastaria escrevê-la para o número
+    # cravado passar — passe que se obtém digitando.
+    d = tempfile.mkdtemp(prefix="desac-docraiz-")
+    try:
+        monta(d, {".claude/docs/architecture.md":
+                  "O repo tem 21 plugins, e esse número envelhece sem avisar.\n"})
+        check("na doc, a raiz frouxa NÃO isenta o número cravado",
+              formas(dc.varre(d)) == ["contagem-cravada"])
+    finally:
+        shutil.rmtree(d, ignore_errors=True)
+
+    d = tempfile.mkdtemp(prefix="desac-docnarr-")
+    try:
+        monta(d, {".claude/docs/architecture.md":
+                  "Até 2026-08-07 este doc dizia 54 suítes.\n"})
+        check("na doc, a narrativa datada segue isentando", dc.varre(d) == [])
+    finally:
+        shutil.rmtree(d, ignore_errors=True)
+
     d = tempfile.mkdtemp(prefix="desac-outros-")
     try:
         monta(d, {"README.md": "O repo tem 21 plugins.\n",
@@ -143,6 +163,34 @@ def main():
         monta(d, {"plugins/alfa/skills/alfa/SKILL.md":
                   "Até 2026-08-07 este artigo dizia 54 suítes, e estava errado.\n"})
         check("narrativa de defeito passado não é contagem cravada", dc.varre(d) == [])
+    finally:
+        shutil.rmtree(d, ignore_errors=True)
+
+    # `estava errad` e `envelhec` são raízes: a palavra real continua depois delas. Com o
+    # `\b` no fim, as duas alternativas nunca casavam, e a narrativa que elas existem para
+    # isentar entrava como dívida. As duas frases abaixo são texto real do repositório.
+    check("a raiz `envelhec` casa a palavra inteira",
+          bool(dc.NARRATIVA_RAIZ.search("Envelhece sem avisar")))
+    check("a raiz `estava errad` casa nos dois gêneros",
+          bool(dc.NARRATIVA_RAIZ.search("estava errada"))
+          and bool(dc.NARRATIVA_RAIZ.search("estava errado")))
+
+    d = tempfile.mkdtemp(prefix="desac-narr2-")
+    try:
+        monta(d, {"plugins/alfa/skills/alfa/SKILL.md":
+                  '- **Contagem cravada** — "os 21 plugins", "as 54 suítes". '
+                  "Envelhece sem avisar, e ninguém percebe.\n"
+                  "A constituição carregou 54 suítes e a medição mostrou que estava errada.\n"})
+        check("narrativa que só as raízes isentam não entra como dívida", dc.varre(d) == [])
+    finally:
+        shutil.rmtree(d, ignore_errors=True)
+
+    d = tempfile.mkdtemp(prefix="desac-saida-")
+    try:
+        monta(d, {"plugins/alfa/skills/alfa/SKILL.md":
+                  "`grep -c name .claude-plugin/marketplace.json` devolve 20 plugins.\n"
+                  "$ ls plugins | wc -l  →  20 plugins\n"})
+        check("saída crua de comando não entra como dívida", dc.varre(d) == [])
     finally:
         shutil.rmtree(d, ignore_errors=True)
 
@@ -191,6 +239,22 @@ def main():
         depois = [x for x in dc.varre(d) if dc.chave(x) not in conhecidos]
         check("empurrar as linhas NÃO cria achado falso (a chave ignora o número da linha)",
               len(depois) == len(novos))
+    finally:
+        shutil.rmtree(d, ignore_errors=True)
+
+    d = tempfile.mkdtemp(prefix="desac-dedup-")
+    try:
+        # A MESMA linha repetida no mesmo arquivo dá a MESMA chave: duas ocorrências, um
+        # item de retrato. Sem deduplicar, o arquivo engorda e o número impresso mente.
+        monta(d, {"plugins/alfa/skills/alfa/SKILL.md":
+                  "Abra plugins/beta/lib/x.py\nAbra plugins/beta/lib/x.py\n"})
+        r = subprocess.run([sys.executable, dc.__file__, "--root", d, "--gravar-retrato"],
+                           capture_output=True, text=True, timeout=60)
+        with open(os.path.join(d, dc.RETRATO), encoding="utf-8") as fh:
+            gravado = json.load(fh)
+        check("o retrato gravado não repete chave", len(gravado) == len(set(gravado)))
+        check("e a contagem impressa é a do retrato, não a das ocorrências",
+              "retrato gravado: %d achado(s)" % len(gravado) in r.stdout)
     finally:
         shutil.rmtree(d, ignore_errors=True)
 

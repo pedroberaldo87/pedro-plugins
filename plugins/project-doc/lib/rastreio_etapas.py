@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """rastreio_etapas.py — o que as etapas aprovadas deixaram sem dono.
 
-Três pontas soltas nascem sozinhas na concepção, e nenhuma delas dói na hora:
+As pontas soltas nascem sozinhas na concepção, e nenhuma delas dói na hora:
 
   1. **funcionalidade sem origem** — item de `features.md` que não aponta a jornada,
      a meta ou a peça aprovada que o pediu. É ideia que entrou pela janela;
@@ -10,8 +10,10 @@ Três pontas soltas nascem sozinhas na concepção, e nenhuma delas dói na hora
   3. **passo do desenho sem funcionalidade** — passo do ciclo de `blueprint.md` que
      nenhum item de `features.md` atende. É desenho acordado que ninguém constrói.
 
-Este programa só CONTA. Ele lê os três documentos, devolve as três listas em JSON e
-não escreve em lugar nenhum — quem fecha a etapa é o dono, e conferência que altera
+Este programa só CONTA. Ele lê `features.md`, `journeys.md` e `blueprint.md`, devolve
+a lista de funcionalidade sem origem, a de jornada sem funcionalidade e a de passo do
+desenho sem funcionalidade em JSON e não escreve em lugar nenhum — quem fecha a etapa
+é o dono, e conferência que altera
 documento aprovado reabriria a etapa pela marca (`approved-sig`).
 
 Os formatos que ele lê são os moldes do
@@ -134,7 +136,8 @@ def passos(texto):
 
 
 def conferir(docs_dir):
-    """As três listas do que ficou sem dono. Nada é escrito."""
+    """Funcionalidade sem origem, jornada sem funcionalidade e passo do desenho sem
+    funcionalidade — o que ficou sem dono. Nada é escrito."""
     fpath = os.path.join(docs_dir, FEATURES)
     jpath = os.path.join(docs_dir, JOURNEYS)
     bpath = os.path.join(docs_dir, BLUEPRINT)
