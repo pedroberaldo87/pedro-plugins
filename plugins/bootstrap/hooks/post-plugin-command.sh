@@ -38,10 +38,10 @@ GIT_SYNC_SH="$LIB_DIR/git-sync.sh"
 
 log() { echo "[pedro-plugins/post-tool] $*" >&2; }
 
-# Early exit: no source repo → nothing to commit
-if [ ! -d "$PEDRO_PLUGINS_REPO/.git" ]; then
-  exit 0
-fi
+# ⚠️ O exit por repo-fonte ausente NÃO vem mais aqui. Ele matava também o aviso de
+# cache parado — e o cache incha em QUALQUER máquina, tenha ela o repositório de
+# origem ou não. O exit desceu para logo antes do snapshot, que é o único trecho
+# que realmente precisa do repositório.
 
 # Read stdin (hook event JSON)
 PAYLOAD="$(cat 2>/dev/null || echo "")"
@@ -58,6 +58,39 @@ type hj_campo >/dev/null 2>&1 || exit 0
 hj_leitor >/dev/null 2>&1 || { hj_avisa "post-plugin-command"; exit 0; }
 COMMAND="$(hj_campo "$PAYLOAD" tool_input.command)"
 [ -z "$COMMAND" ] && exit 0
+
+# ── O LIXO QUE A INSTALAÇÃO ACABOU DE DEIXAR ──────────────────────────────────
+# ANTES dos exits abaixo, e com regex PRÓPRIO, por dois motivos medidos:
+#
+#   1. `update` não está no match do snapshot — e é justamente ele que mais incha o
+#      cache, porque não muda o manifest (só o número da versão).
+#   2. o snapshot sai cedo quando o manifest não mudou, e o cache incha do mesmo jeito.
+#
+# Ele AVISA e OFERECE; nunca apaga. Apagar arquivo não tem volta, e a lista tem que ser
+# vista antes. Desligar: PEDRO_CACHE_AVISO=0.
+if [ "${PEDRO_CACHE_AVISO:-1}" != "0" ] \
+   && echo "$COMMAND" | grep -qE 'claude[[:space:]]+plugin[s]?[[:space:]]+(install|i|update|upgrade|uninstall|remove)' \
+   && [ -f "$LIB_DIR/cache-parado.sh" ]; then
+  # shellcheck source=/dev/null
+  . "$LIB_DIR/cache-parado.sh" 2>/dev/null
+  if type cp_total >/dev/null 2>&1; then
+    PARADAS="$(cp_total 2>/dev/null || echo 0)"
+    if [ "${PARADAS:-0}" -gt 0 ] 2>/dev/null; then
+      TOPO="$(cp_parados 2>/dev/null | sort -k3 -rn | head -3 \
+              | awk '{printf "%s roda %s (%s paradas) · ", $1, $2, $3}')"
+      MSG="🧹 ${PARADAS} versão(ões) de plugin paradas no cache — só a mais alta roda. ${TOPO}Peça \"limpa o cache\" e eu apago tudo que não é a mais alta, mostrando a lista antes."
+      if command -v python3 >/dev/null 2>&1; then
+        python3 -c 'import json,sys; print(json.dumps({"systemMessage": sys.argv[1]}))' "$MSG"
+      fi
+    fi
+  fi
+fi
+
+# Daqui para baixo é o sync do manifest, e ele SÓ faz sentido com o repositório de
+# origem no disco. O aviso de cache acima não depende dele.
+if [ ! -d "$PEDRO_PLUGINS_REPO/.git" ]; then
+  exit 0
+fi
 
 # Match `claude plugin (install|uninstall|enable|disable|marketplace (add|remove|rm))`
 if ! echo "$COMMAND" | grep -qE 'claude[[:space:]]+plugin[s]?[[:space:]]+(install|i|uninstall|remove|enable|disable|marketplace[[:space:]]+(add|remove|rm))'; then

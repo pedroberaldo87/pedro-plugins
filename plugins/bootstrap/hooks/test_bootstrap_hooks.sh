@@ -440,6 +440,62 @@ PY
 }
 check "a receita cita o narrador do motor e o renderizador" "" "$(elos_faltando)"
 
+# ── O AVISO DE CACHE PARADO ───────────────────────────────────────────────────
+# O cache é chaveado por versão e o repositório exige bump em toda mudança: cada
+# instalação deixa a pasta anterior no disco, para sempre. Em 2026-08-08 isso fez
+# uma skill movida de plugin continuar respondendo pela versão velha — o repo estava
+# certo e a máquina rodava a errada, porque a errada era a mais alta do disco.
+echo
+echo "-- o aviso de cache parado"
+
+CACHE_LIB="$AQUI/lib/cache-parado.sh"
+POST="$AQUI/post-plugin-command.sh"
+
+# um cache de mentira: alfa com 3 versões (2 paradas), beta com 1 (nenhuma parada)
+FALSO="$TMP/cache-falso"
+mkdir -p "$FALSO/plugins/cache/mkt/alfa/1.0.0" \
+         "$FALSO/plugins/cache/mkt/alfa/1.9.0" \
+         "$FALSO/plugins/cache/mkt/alfa/1.10.0" \
+         "$FALSO/plugins/cache/mkt/beta/2.0.0"
+# `.in_use` não é versão: se entrasse na conta, seria apagado junto
+: > "$FALSO/plugins/cache/mkt/alfa/.in_use"
+
+conta_falso() { CLAUDE_CONFIG_DIR="$FALSO" bash -c ". \"$CACHE_LIB\"; cp_total"; }
+check "conta as paradas, e 1.10 e mais alta que 1.9" "2" "$(conta_falso)"
+
+lista_falso() { CLAUDE_CONFIG_DIR="$FALSO" bash -c ". \"$CACHE_LIB\"; cp_parados" | wc -l | tr -d " "; }
+check "plugin com uma versao so nao entra na lista" "1" "$(lista_falso)"
+
+roda_post() { # comando, env extra
+  printf '{"tool_input":{"command":"%s"}}' "$1" |
+    env $2 CLAUDE_CONFIG_DIR="$FALSO" CLAUDE_PLUGIN_ROOT="$AQUI/.." \
+    bash "$POST" 2>/dev/null | grep -c systemMessage | tr -d " "
+}
+check "update avisa — e update NAO estava no match antigo" "1" "$(roda_post 'claude plugin update x@y' '')"
+check "install avisa"                       "1" "$(roda_post 'claude plugin install x@y' '')"
+check "comando que nao e de plugin cala"    "0" "$(roda_post 'git status' '')"
+check "kill-switch desliga"                 "0" "$(roda_post 'claude plugin update x@y' 'PEDRO_CACHE_AVISO=0')"
+
+# o exit por repo-fonte ausente matava o aviso: o cache incha em QUALQUER máquina
+check "avisa mesmo sem o repositorio de origem no disco" "1" \
+  "$(roda_post 'claude plugin update x@y' 'PEDRO_PLUGINS_REPO=/nao/existe')"
+
+# cache limpo não inventa aviso
+LIMPO="$TMP/cache-limpo"; mkdir -p "$LIMPO/plugins/cache/mkt/solo/1.0.0"
+check "cache sem sobra nao avisa" "0" \
+  "$(printf '{"tool_input":{"command":"claude plugin update x@y"}}' |
+     CLAUDE_CONFIG_DIR="$LIMPO" CLAUDE_PLUGIN_ROOT="$AQUI/.." bash "$POST" 2>/dev/null |
+     grep -c systemMessage | tr -d ' ')"
+
+# APAGAR: só a mais alta sobrevive, e o `.in_use` não é tocado
+CLAUDE_CONFIG_DIR="$FALSO" bash -c ". \"$CACHE_LIB\"; cp_limpar" >/dev/null 2>&1
+check "depois de limpar, sobra so a versao mais alta" "1.10.0" \
+  "$(ls "$FALSO/plugins/cache/mkt/alfa" | grep -v '^\.' | tr '\n' ' ' | xargs)"
+check "o .in_use sobreviveu a limpeza" "0" \
+  "$([ -f "$FALSO/plugins/cache/mkt/alfa/.in_use" ] && echo 0 || echo 1)"
+check "nada a limpar depois da limpeza" "0" "$(conta_falso)"
+
+
 echo
 echo "$OK ok · $FAIL FAIL"
 [ "$FAIL" -eq 0 ]
