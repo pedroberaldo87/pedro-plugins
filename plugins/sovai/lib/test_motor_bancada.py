@@ -687,8 +687,20 @@ def main():
     # so a cor da suite muda) se afere agora o par commit+doc: a onda verde produz os
     # dois, nessa ordem; a vermelha nao produz nenhum.
     print("F9.32 — onda verde fecha com commit E doc; onda vermelha, com nenhum dos dois")
-    check("a skill nomeia a skill que re-projeta a doc da onda",
-          "docTouchPrompt" in texto and "project-doc:doc-touch" in texto)
+    # O check pedia o nome COMPLETO da skill escrito na instrução — e foi exatamente
+    # isso que quebrou: a skill mudou de plugin no F14.2, o nome ficou apontando pro
+    # antigo, e quatro ondas fecharam verdes sem produzir doc nenhuma. Um teste que
+    # exige o nome cravado é um teste que EXIGE o defeito. Agora ele cobra o contrário:
+    # que o nome seja descoberto, e que o nome morto não esteja em lugar nenhum.
+    check("a skill manda DESCOBRIR o nome da skill de doc, não o escreve à mão",
+          "docTouchPrompt" in texto and "resolve-skill.sh" in texto)
+    # A busca é pela INSTRUÇÃO de invocar, não pela palavra: a skill conta a história do
+    # defeito em prosa, e o nome morto aparece lá de propósito. O que não pode existir é
+    # um `skill: "<algo>"` mandando invocar um nome cravado.
+    import re as _re
+    cravados = _re.findall(r'skill:\s*"([a-z0-9-]+:[a-z0-9-]+)"', texto)
+    check("nenhuma invocação usa nome de skill cravado (achados: %s)" % (cravados or "-"),
+          not cravados)
 
     check("a onda verde re-projetou a doc, uma vez so",
           [d["round"] for d in interrompido["docs"]] == [1])

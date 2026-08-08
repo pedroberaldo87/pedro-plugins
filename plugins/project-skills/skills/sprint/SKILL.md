@@ -236,6 +236,25 @@ Revisão é poço sem fundo (mesma disciplina do review-loop: parada por retorno
 - **[primário]** #2 reporta `complete && cohesive` e **zero gap** acima do floor de severidade — gap de spec e de rastreio contam sempre, estejam onde estiverem na escala → obra de pé, segue pro QA.
 - **[trava]** atingiu `maxRounds` (safety-cap, **não** meta) → o que faltou vira **Bloqueio (precisa de você)** no relatório.
 
+### Nada que o motor usa para si mesmo é escrito à mão — nem caminho, nem nome de skill
+
+Duas formas do mesmo defeito, as duas medidas neste repositório, as duas silenciosas:
+
+- **Caminho de arquivo por posição.** O `F14.2` moveu `plan_state.py` de plugin e o script
+  seguiu apontando a pasta antiga: 47 agentes de marcação falharam no primeiro comando e
+  gastaram **8,45M de tokens** redescobrindo o rename, cada um por conta própria. Quem
+  resolve é `lib/resolve-plugin.sh <plugin> <caminho>`.
+- **Nome de skill com o plugin dentro.** Uma skill é invocada por `<plugin>:<skill>`, então
+  o nome completo é um ponteiro para o plugin. Sete skills mudaram de casa no mesmo `F14.2`,
+  e o motor continuou pedindo `project-doc:doc-touch` — que não existe mais. **Quatro ondas
+  fecharam verdes e nenhuma produziu documentação**, sem que nada acusasse: o agente recebe
+  um nome inválido e segue. Quem resolve é `lib/resolve-skill.sh <skill>`, que devolve
+  `<plugin>:<skill>` olhando **só a versão ativa** de cada plugin.
+
+A regra vale para os dois: **descubra em tempo de execução, nunca escreva o nome completo
+no script nem nesta skill.** Escrito à mão, ele fica certo até alguém mover a peça — e o dia
+em que ficar errado, ninguém vai saber.
+
 ### Esqueleto do motor (referência — o princípio, não código imutável)
 
 A casca dispara a tool `Workflow` com o script abaixo. Os três schemas (`DECOMP`, `TASK_RESULT`, `BUILD_REVIEW`) são o que torna os gates determinísticos: o script lê campos estruturados, não texto solto.
@@ -889,7 +908,7 @@ return {
 
   É este commit que faz motor interrompido no meio (vigia, disjuntor, sessão morta) deixar as ondas já fechadas **no histórico** em vez de soltas no disco — sem ele, quem chegar depois não tem como separar o que fechou verde do que ficou pela metade. Commit **local e só**: o push é uma vez, na persistência do fim. Árvore limpa faz o `commit` sair não-zero, e isso **não** é falha — o `|| true` é o fail-open, pela mesma regra do `tick`: perder a onda por causa do registro é pior que o registro faltando.
 - `DOC_TOUCH` — `{ docs: [caminho...] }`, devolvido por `docTouchPrompt`. **`docs`** = os caminhos que a re-projeção TOCOU, e **só os que o disco confirma** (o papel confere cada um antes de devolver — caminho que ele não achou não entra na lista). Enquanto este papel não devolvia nada, "a doc foi re-projetada" era só a chamada ter saído: papel mudo, papel que invocou skill quebrada e papel que **mente ter feito** chegavam iguais ao script. **Lista vazia é Bloqueio** — não derruba a onda (o commit já está feito, mesma regra do `tick`), mas sai no relatório dizendo que a doc daquela rodada não foi confirmada, porque quem executar a onda seguinte vai ler a doc do repo de antes. O que fica registrado em `rounds[].doc` é o que o papel confirmou, nunca a lista que ele recebeu.
-- `docTouchPrompt` — devolve `DOC_TOUCH`. Papel **mecânico e só**: invocar a skill **`project-doc:doc-touch`** (Skill tool, `skill: "project-doc:doc-touch"`) com a lista `files` — os arquivos que ESTA onda tocou (a união dos `files_touched` dos `TASK_RESULT`) — para que a doc deles seja re-projetada antes de a onda seguinte começar. Sem isso, quem executa a rodada seguinte lê a doc do repo de antes e decide por um mapa vencido. Roda **depois** do `checkpointPrompt` e só na onda verde: commit primeiro, porque o trabalho no histórico não pode depender de a doc dar certo; doc de repo quebrado documentaria a quebra. Onda sem arquivo tocado não chama este papel. Quem decide touch-vs-FULL é o próprio touch (mesma regra da Persistência) — aqui ele escala e segue, sem perguntar. Falha do touch **não derruba a onda**: o commit já está feito, e perder a onda por causa da doc é pior que a doc faltando. **Terminado o touch, devolva em `docs` os caminhos re-projetados** — cada um conferido no disco (`test -f`) antes de entrar na lista: caminho que você não achou fica de fora, mesmo que a skill diga ter escrito.
+- `docTouchPrompt` — devolve `DOC_TOUCH`. Papel **mecânico e só**: **descobrir o nome de invocação** com `bash <raiz do project-skills>/lib/resolve-skill.sh doc-touch` e invocar a skill com o nome que sair (Skill tool), com a lista `files` — os arquivos que ESTA onda tocou (a união dos `files_touched` dos `TASK_RESULT`) — para que a doc deles seja re-projetada antes de a onda seguinte começar. Sem isso, quem executa a rodada seguinte lê a doc do repo de antes e decide por um mapa vencido. Roda **depois** do `checkpointPrompt` e só na onda verde: commit primeiro, porque o trabalho no histórico não pode depender de a doc dar certo; doc de repo quebrado documentaria a quebra. Onda sem arquivo tocado não chama este papel. Quem decide touch-vs-FULL é o próprio touch (mesma regra da Persistência) — aqui ele escala e segue, sem perguntar. Falha do touch **não derruba a onda**: o commit já está feito, e perder a onda por causa da doc é pior que a doc faltando. **Terminado o touch, devolva em `docs` os caminhos re-projetados** — cada um conferido no disco (`test -f`) antes de entrar na lista: caminho que você não achou fica de fora, mesmo que a skill diga ter escrito.
 - `colheitaPrompt` — **sem schema** (nada volta pro script). Papel **mecânico e só**: mandar o lixeiro colher o que ESTA sessão anotou ter aberto, rodando
 
   ```bash
@@ -931,7 +950,13 @@ O relatório do `/qa-loop` (loops rodados, correções, regressões pegas, alert
 
 Passada a QA e **ANTES** de montar o relatório, persista o trabalho. Esta é a última etapa de execução; o relatório só descreve o que já está salvo.
 
-1. **Atualiza a doc.** Invoque a skill **`doc-touch`** (Skill tool, `skill: "project-doc:doc-touch"`) — **não** o `project-doc` FULL. Uma execução autônoma costuma mexer em arquivos, e a doc tem que refletir a realidade antes de você fechar; mas o caso comum é diff que cabe no `scope:` de 2-4 docs, e reminerar o repo inteiro pra isso é gasto puro. (Não "digite /doc-touch" — invoque a skill.)
+1. **Atualiza a doc.** Descubra o nome de invocação e use o que sair — **nunca escreva o prefixo à mão**:
+
+   ```bash
+   bash "${CLAUDE_PLUGIN_ROOT}/lib/resolve-skill.sh" doc-touch    # → <plugin>:doc-touch
+   ```
+
+   Invoque com a Skill tool usando exatamente esse nome — **não** a skill de documentação completa. Uma execução autônoma costuma mexer em arquivos, e a doc tem que refletir a realidade antes de você fechar; mas o caso comum é diff que cabe no `scope:` de 2-4 docs, e reminerar o repo inteiro pra isso é gasto puro. (Não "digite /doc-touch" — invoque a skill.)
 
    **Quem decide touch-vs-FULL é o próprio touch, não você.** O passo 1 dele calcula `last_full_age_days` (a data de `ledger.last_commit`, que só o FULL avança) e **escala pro FULL sozinho** se passou de 30 dias ou se o número não resolve. Aqui você está em modo autônomo: o touch escala **e segue**, sem perguntar. Não tente antecipar a decisão — a informação nasce lá, e mecanizar "isso é estrutural?" daqui é chutar.
 2. **Commit + push.** Stage do que esta sessão mudou, commit com mensagem no padrão do repo (`feat(...)`/`fix(...)`/`docs(...)`, 1 linha) e push pra **branch atual**.

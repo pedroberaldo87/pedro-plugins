@@ -1,6 +1,6 @@
 {
   "name": "sovai",
-  "version": "1.25.2",
+  "version": "1.25.3",
   "description": "Autonomous run mode — executes a plan end to end with no pauses, checkpoints or confirmations. Skips blockers without silent workarounds, records every decision, runs a headless qa-loop pass and delivers a structured report. The engine is a deterministic Workflow (decompose → execute → review) and a PreToolUse hook enforces it: while the mission is armed every sub-agent spawn is denied. The reviewer judges the work against the SPEC, not against the orchestrator's own decomposition — reviewing against your own breakdown is a closed circuit where a wrong breakdown gets approved. Five axes: spec · the project's own quality goals · traceability (every task carries its requirement and its definition of done) · completeness · cohesion. A dead agent degrades the mission instead of killing the engine.",
   "author": {
     "name": "pedroberaldo87",
