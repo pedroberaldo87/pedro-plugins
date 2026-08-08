@@ -1,6 +1,6 @@
 ---
-generated: 2026-08-04
-generated-commit: cf642e4
+generated: 2026-08-08
+generated-commit: 44ee7b9
 project: pedro-plugins
 scope:
   - plugins/project-doc/hooks/sessionstart-doc.sh
@@ -66,7 +66,7 @@ verified-by:
   - plugins/visual/lib/test_plan_state.py
   - plugins/visual/lib/test_cobertura.py
   - plugins/ship/hooks/test_pre_deploy.sh
-doc-sig: pedro-plugins/sessionstart-doc.sh@gen=3.8#a76b4e86
+doc-sig: pedro-plugins/sessionstart-doc.sh@gen=3.8#3f8f68fe
 ---
 
 # Runtime — fluxos ponta-a-ponta
