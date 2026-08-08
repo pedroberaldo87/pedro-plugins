@@ -360,6 +360,14 @@ Nasceu nesta rodada. Anatomia em `data-stores.md §B13`.
 - [confirmado] O default de fábrica é o contrário: `plugins/visual/skills/visual/config.default.json` traz `"auto_mode": true`. O arquivo versionado é a **semente**, não o valor vivo — o `SKILL.md` manda explicitamente ler o `config.json` e não presumir.
 - **Consequência de durabilidade:** perder `~/.claude/visual-state/config.json` não perde dado, mas **inverte comportamento** — a máquina volta a `auto_mode: true` na próxima semeadura. É a perda mais barata em bytes e a mais visível em uso.
 
+### 3.11a · Banco de lições de clareza — `~/.claude/visual-state/licoes-clareza.json`
+
+- [confirmado] **35 KB · 65 lições** nesta máquina. Escrito por `plugins/visual/lib/clareza.py` (`registrar`); lido por ele (`licoes`, `check`) e por `plugins/visual/lib/visual_page.py`, que **recusa a página** que traz um termo já reprovado.
+- 🔴 **É o único depósito de (B) que NÃO se regenera.** Todos os outros são cache, sessão ou preferência: apagados, voltam sozinhos ou custam um comando. Este é **conhecimento acumulado com custo de aquisição real** — cada lição nasceu de uma reprovação de um leitor externo sobre uma página específica, e a reprovação não acontece de novo se o arquivo sumir. As 5 de fábrica voltam (moram no código, em `clareza.py:SEMENTE`); **as outras 60, não**.
+- **Cobertura hoje: NENHUMA.** Ele mora em `~/.claude/`, fora de todo repositório, e nenhuma das rotinas da seção 2 o alcança. Perdê-lo é silencioso: o `carrega()` cai na semente sem erro, e a única pista é o contador do `licoes` voltar a 5.
+- **Consequência prática:** o mesmo defeito de escrita volta a passar, e volta a ser descoberto pelo mesmo caminho caro — uma página inteira escrita, reprovada por um leitor, e reescrita.
+- **Conserto barato, ainda não feito:** ele é um JSON pequeno e append-only por natureza; versioná-lo no repositório (ou copiá-lo junto do `config.json`) o levaria de "sem cobertura" a "coberto pelo git" sem nenhum mecanismo novo.
+
 ### 3.12 · Logs dos vigias de edição e de pergunta — `~/.claude/guardrails/`
 
 - [confirmado] **680K**. `plugins/guardrails/hooks/scope-cop.sh` define `HOOK_DIR="${CLAUDE_CONFIG_DIR:-$HOME/.claude}/guardrails"`, com `MODE_FILE="$HOOK_DIR/scope-cop.mode"` e `LOG_FILE="$HOOK_DIR/scope-cop.log"`; `plugins/guardrails/hooks/askq-humanize.sh` usa `HOOK_DIR="$HOME/.claude/guardrails"` e `LOG_FILE="$HOOK_DIR/askq.log"`.

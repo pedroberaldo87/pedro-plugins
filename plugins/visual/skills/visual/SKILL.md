@@ -107,21 +107,26 @@ concorrentes — a única exceção é o próprio bloco de abertura, onde aprese
 juntas ("plugin, ou pacote, é a caixa que se instala") é a forma certa. Depois dele,
 alternar entre sinônimos faz o leitor procurar uma diferença que não existe.
 
-### Antes do build: as 5 conferências mecânicas
-
-```bash
-python3 /Users/pedroberaldo/PROGRAMACAO/PEDRO/pedro-plugins/plugins/visual/lib/clareza.py revisar --spec pagina.json
-```
+### As 5 conferências mecânicas — o build as roda sozinho
 
 Ele **não julga clareza** — isso continua sendo do juiz externo. Ele procura os cinco
 defeitos que já reprovaram páginas e que dá para achar por programa: palavra da casa sem
 abrir · dois nomes para a mesma coisa · apoio em escolha que não está na página · custo
 sem dizer custa o quê · prova colada sem dizer o que ela estraga.
 
+**Você não precisa lembrar de chamá-lo**: o `visual_page.py build` o roda em toda página e
+imprime os pontos no stderr. Eles **avisam, não recusam** — a `.evidencia` que fecha um
+capítulo, por exemplo, é legítima, e o julgamento continua seu. Para conferir antes de
+gastar um build:
+
+```bash
+python3 ${CLAUDE_PLUGIN_ROOT}/lib/clareza.py revisar --spec pagina.json
+```
+
 Por que ele existe, se as lições já existem e o juiz já lê: em 2026-08-08 uma página
 reprovou nas três decisões, e **duas das quatro lições que a reprovaram já estavam no
-banco**. Ler 60 lições no começo não é conferir 60 lições no fim. Saída não-vazia é lista
-de pontos a conferir, não recusa: conserte o spec e rode de novo.
+banco**. Ler 60 lições no começo não é conferir 60 lições no fim. E por que o **build** o
+chama, em vez de um passo escrito aqui: pela mesma lição — regra em prosa não pega.
 
 ### Autoteste antes de abrir o browser
 
@@ -1026,11 +1031,12 @@ Critical behavior when the hook blocks:
 3. Detect type (plan / diagnostic / question with options / generic)
 4. **Plano/PRD/roadmap → `plan_state.py`** (seção do plano). **Todo o resto → escreva o
    spec JSON**, abrindo as palavras da casa antes da primeira pergunta
-5. **`clareza.py revisar --spec <f>`** — as 5 conferências mecânicas, com o spec pronto e
-   ANTES do build. Conserte o que ele apontar e rode de novo até sair limpo
-6. `python3 ${CLAUDE_PLUGIN_ROOT}/lib/visual_page.py build --spec <f>` — ele resolve o
-   diretório, nomeia o arquivo pelo `slug` e imprime o caminho
-7. Recusou? A mensagem lista todos os erros de forma de uma vez. Conserte o spec, não o HTML
+5. `python3 ${CLAUDE_PLUGIN_ROOT}/lib/visual_page.py build --spec <f>` — ele resolve o
+   diretório, nomeia o arquivo pelo `slug`, imprime o caminho e **roda as 5 conferências
+   sozinho**. Os pontos que ele apontar: conserte o spec e rode de novo
+6. Recusou? A mensagem lista todos os erros de forma de uma vez. Conserte o spec, não o HTML
+7. *(opcional)* `clareza.py revisar --spec <f>` antes do build, se quiser conferir sem
+   gastar uma geração
 8. **Juiz de clareza (Haiku) lê a página** (Passo 0b). Qualquer PERDIDO ⇒ conserte e repita
 9. Suba o daemon (`${CLAUDE_PLUGIN_ROOT}/server/start.sh`) e `open` o caminho impresso
 10. **`clareza.py registrar`** com os padrões que o juiz apontou (Passo 0c) — **inclusive

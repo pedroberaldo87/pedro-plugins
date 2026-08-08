@@ -604,6 +604,19 @@ def main():
         check("decisão com escolha vazia NÃO destrava",
               "⛔ falta decidir: A ou B?" in ps.render_text(pv))
 
+        print("a regra do destrave é UMA função, e os dois lados a chamam")
+        # Enquanto era código repetido no tick e no renderizador, a árvore anunciava
+        # bloqueio em passo já destravado. Estes casos varrem a fronteira inteira.
+        for dec, ainda_trava in [(None, True), ("sim", True), ([], True), ({}, True),
+                                 ({"escolha": None}, True), ({"escolha": ""}, True),
+                                 ({"escolha": "  "}, True), ({"escolha": "ficou A"}, False)]:
+            it = {"id": "F1.1", "title": "t", "desc": "d",
+                  "pendencia": "A ou B?", "decidido": dec}
+            check("decidido=%r %s o passo" % (dec, "trava" if ainda_trava else "libera"),
+                  bool(ps.pendencia_viva(it)) == ainda_trava)
+        check("sem pendência nenhuma, nada trava",
+              ps.pendencia_viva({"id": "F1.1", "title": "t", "desc": "d"}) == "")
+
         print("o passo que espera um ato do dono se declara (S-23)")
         # A frase do ATO, não uma bandeira: `espera_dono: true` diria que espera sem
         # dizer o quê, e quem lê o relatório não saberia o que fazer pra destravar.

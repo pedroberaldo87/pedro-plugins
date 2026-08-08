@@ -208,6 +208,12 @@ def t_prova_sem_estrago():
     limpo = _spec([{"kind": "evidencia", "src": "cmd", "output": "24 coisas"},
                    {"kind": "bullets", "items": ["Isso faz o disco encher todo mês."]}])
     check("prova seguida do estrago passa", "prova-sem-estrago" not in _ids(limpo))
+    # Prova no fim de um capítulo e a conclusão abrindo o próximo é escrita normal.
+    atravessa = {"title": "t", "ident": {"projeto": "p", "artefato": "a"}, "sections": [
+        {"blocks": [{"kind": "evidencia", "src": "c", "output": "24"}]},
+        {"blocks": [{"kind": "bullets", "items": ["Isso enche o disco."]}]}]}
+    check("o estrago pode abrir a SEÇÃO seguinte",
+          "prova-sem-estrago" not in _ids(atravessa))
 
 
 def t_revisar_nao_julga_clareza():

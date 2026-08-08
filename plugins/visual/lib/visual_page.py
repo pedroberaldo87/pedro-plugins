@@ -44,7 +44,7 @@ import sys
 import time
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from clareza import erros_de_clareza  # noqa: E402
+from clareza import erros_de_clareza, revisao_do_spec  # noqa: E402
 from regua_texto import (BULLET_MAX, BULLETS_MAX, _cru, bullets_de,  # noqa: E402,F401
                          erros_de_estilo as _erros_de_estilo)
 
@@ -873,6 +873,20 @@ def cmd_build(args):
     print(out)
     sys.stderr.write("✅ %d bytes · %d itens revisáveis · %d decisões\n"
                      % (len(page), ctx["n_items"], ctx["n_decisions"]))
+    # As 5 conferências saem AQUI, sem ninguém pedir, e não recusam a página.
+    # Elas viviam só como um passo escrito na SKILL.md — e a lição desta mesma
+    # rodada é que regra em prosa não pega: duas das quatro falhas que reprovaram
+    # a página de 2026-08-08 já estavam escritas no banco de lições. Não recusam
+    # porque são "pontos a conferir", não erro de forma: a `.evidencia` no fim de
+    # um capítulo, por exemplo, é legítima e cabe ao autor julgar.
+    pontos = revisao_do_spec(spec)
+    if pontos:
+        sys.stderr.write("\n⚠️  %d ponto(s) a conferir na página que acabou de sair:\n"
+                         % len(pontos))
+        for check, msg in pontos:
+            sys.stderr.write("   [%s] %s\n" % (check, msg))
+        sys.stderr.write("   → conserte o spec e rode de novo, ou siga se for "
+                         "julgamento seu.\n")
     return 0
 
 

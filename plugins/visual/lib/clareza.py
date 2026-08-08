@@ -299,14 +299,22 @@ def revisao_do_spec(spec):
             'espera. Primeira menção: %s' % primeira))
 
     # 5 · prova colada sem dizer o que ela estraga
-    for si, bi, bl in _blocos(spec):
+    #
+    # O estrago pode abrir a seção SEGUINTE — prova no fim de um capítulo e a
+    # conclusão no começo do próximo é escrita normal, não omissão. Por isso a
+    # busca atravessa a fronteira de seção em vez de parar nela.
+    todos = [b for _si, _bi, b in _blocos(spec)]
+    for pos, bl in enumerate(todos):
         if bl.get("kind") != "evidencia":
             continue
-        seguintes = (spec["sections"][si].get("blocks") or [])[bi + 1:]
-        proximo = next((b for b in seguintes
-                        if isinstance(b, dict) and b.get("kind") in
-                        ("bullets", "text", "tri", "callout")), None)
+        proximo = next((b for b in todos[pos + 1:]
+                        if b.get("kind") in ("bullets", "text", "tri", "callout")), None)
+        # Duas provas seguidas não se explicam entre si: o que vale é o primeiro
+        # bloco de texto DEPOIS delas, e ele é o mesmo para as duas.
         if proximo is None:
+            si = next(i for i, sec in enumerate(spec.get("sections") or [])
+                      if bl in (sec.get("blocks") or []))
+            bi = (spec["sections"][si]["blocks"]).index(bl)
             achados.append((
                 "prova-sem-estrago",
                 'seção %d bloco %d: a prova é colada e nada depois dela diz o que '
