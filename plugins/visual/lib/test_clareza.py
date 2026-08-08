@@ -123,10 +123,107 @@ def t_o_build_do_visual_usa_o_banco():
           any("sistema pai" in e for e in errs))
 
 
+"""As 5 conferências do `revisar` — o cobrador que nasceu em 2026-08-08.
+
+Cada teste tem os DOIS lados: o spec que o defeito reprova e o spec limpo que
+passa. Cobrador que só tem o lado vermelho vira cobrador que reprova tudo, e
+falso-positivo ensina a contornar.
+"""
+
+
+def _spec(blocos, **extra):
+    s = {"title": "t", "ident": {"projeto": "p", "artefato": "a"},
+         "sections": [{"title": "s", "blocks": blocos}]}
+    s.update(extra)
+    return s
+
+
+def _ids(spec):
+    return [c for c, _m in clareza.revisao_do_spec(spec)]
+
+
+def t_palavra_da_casa_sem_abrir():
+    sujo = _spec([{"kind": "decision", "question": "qual plugin?",
+                   "context": "c", "options": []}])
+    check("palavra da casa usada sem ser aberta é acusada",
+          "palavra-sem-abrir" in _ids(sujo))
+    limpo = _spec([{"kind": "bullets", "items": ["Plugin é a caixa que se instala."]},
+                   {"kind": "decision", "question": "qual plugin?",
+                    "context": "c", "options": []}])
+    check("definida antes da pergunta, passa", "palavra-sem-abrir" not in _ids(limpo))
+
+
+def t_dois_nomes_para_a_mesma_coisa():
+    sujo = _spec([{"kind": "bullets", "items": ["Plugin é a caixa que se instala.",
+                                                "Pacote é a caixa que se instala."]},
+                  {"kind": "decision", "question": "q", "context": "c", "options": []},
+                  {"kind": "text", "text": "o plugin novo entra no pacote velho"}])
+    check("duas palavras da mesma família depois da abertura é acusado",
+          "dois-nomes" in _ids(sujo))
+
+
+def t_a_abertura_pode_apresentar_as_duas():
+    # É exatamente ali que se diz "plugin é o pacote" — acusar o glossário mataria
+    # a única forma certa de apresentar a palavra.
+    limpo = _spec([{"kind": "bullets",
+                    "items": ["Plugin, ou pacote, é a caixa que se instala."]},
+                   {"kind": "decision", "question": "q sobre plugin",
+                    "context": "c", "options": []}])
+    check("apresentar as duas NA ABERTURA não é acusado",
+          "dois-nomes" not in _ids(limpo))
+
+
+def t_apoio_em_escolha_fora_da_pagina():
+    sujo = _spec([{"kind": "text", "text": "Como você já escolheu, seguimos assim."}])
+    check("apoio em escolha que não está na página é acusado",
+          "apoio-fora" in _ids(sujo))
+    limpo = _spec([{"kind": "text", "text": "Você escolheu o nome plano, escrito aqui."}])
+    check("escolha com o valor escrito na página passa",
+          "apoio-fora" not in _ids(limpo))
+
+
+def t_custo_sem_unidade():
+    sujo = _spec([{"kind": "text", "text": "a leitura é cara e nem sempre vale"}])
+    check("página que fala de custo sem dizer custa o quê é acusada",
+          "custo-sem-unidade" in _ids(sujo))
+    limpo = _spec([{"kind": "text", "text": "a leitura é cara: gasta dinheiro de verdade"}])
+    check("com a unidade em qualquer lugar da página, passa",
+          "custo-sem-unidade" not in _ids(limpo))
+
+
+def t_custo_medido_por_pagina_e_nao_por_frase():
+    # A régua é por PÁGINA: depois de dizer uma vez que o custo é dinheiro,
+    # repetir "a leitura cara" é economia de palavra, não omissão.
+    limpo = _spec([{"kind": "bullets", "items": ["Cada palavra lida custa dinheiro."]},
+                   {"kind": "text", "text": "a leitura cara não compensa"},
+                   {"kind": "text", "text": "o gasto foi alto"}])
+    check("uma unidade na página basta para as menções seguintes",
+          "custo-sem-unidade" not in _ids(limpo))
+
+
+def t_prova_sem_estrago():
+    sujo = _spec([{"kind": "evidencia", "src": "cmd", "output": "24 coisas"}])
+    check("prova colada sem nada depois dela é acusada",
+          "prova-sem-estrago" in _ids(sujo))
+    limpo = _spec([{"kind": "evidencia", "src": "cmd", "output": "24 coisas"},
+                   {"kind": "bullets", "items": ["Isso faz o disco encher todo mês."]}])
+    check("prova seguida do estrago passa", "prova-sem-estrago" not in _ids(limpo))
+
+
+def t_revisar_nao_julga_clareza():
+    # O `revisar` procura o que é mecânico; clareza continua sendo do juiz externo.
+    limpo = _spec([{"kind": "text", "text": "uma frase completamente obscura e ruim"}])
+    check("texto obscuro sem defeito mecânico não é acusado", _ids(limpo) == [])
+
+
 for t in (t_pega_termo_banido, t_acha_no_fundo_do_spec, t_isenta_prova_crua,
           t_nao_pega_pedaco_de_palavra, t_spec_limpo_passa,
           t_registrar_funde_sem_duplicar, t_banco_corrompido_nao_derruba,
-          t_semente_tem_as_licoes_de_fabrica, t_o_build_do_visual_usa_o_banco):
+          t_semente_tem_as_licoes_de_fabrica, t_o_build_do_visual_usa_o_banco,
+          t_palavra_da_casa_sem_abrir, t_dois_nomes_para_a_mesma_coisa,
+          t_a_abertura_pode_apresentar_as_duas, t_apoio_em_escolha_fora_da_pagina,
+          t_custo_sem_unidade, t_custo_medido_por_pagina_e_nao_por_frase,
+          t_prova_sem_estrago, t_revisar_nao_julga_clareza):
     t()
 
 falhas = [n for n, ok in OK if not ok]

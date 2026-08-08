@@ -863,6 +863,86 @@ ul.pt-prova li::before { content: "·"; position: absolute; left: -11px; opacity
 }
 .feedback-general textarea:focus { border-color: var(--accent); }
 
+/* NOTA DESTA PÁGINA — discreta de propósito: ela é sobre a página, não sobre o
+   conteúdo, e não pode competir com a decisão. Sem realce, sem barra fixa. */
+.qualidade-box {
+  margin-top: 40px;
+  padding: 22px 24px;
+  background: var(--card-deep);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  opacity: 0.86;
+}
+.qualidade-box:hover, .qualidade-box:focus-within { opacity: 1; }
+.qualidade-box h2 { font-size: 16px; margin-bottom: 6px; }
+.qual-intro {
+  font-size: 13px;
+  color: var(--muted);
+  margin-bottom: 18px;
+}
+.qual-linha {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 10px 0;
+  border-top: 1px solid var(--border);
+}
+.qual-nome { font-size: 14px; font-weight: 600; }
+.qual-nome em {
+  display: block;
+  font-size: 12px;
+  font-weight: 400;
+  font-style: normal;
+  color: var(--muted);
+  margin-top: 2px;
+}
+.qual-votos { display: flex; gap: 6px; flex-shrink: 0; }
+.qual-voto {
+  font-size: 18px;
+  line-height: 1;
+  padding: 7px 11px;
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  cursor: pointer;
+  filter: grayscale(1);
+  opacity: 0.55;
+  transition: opacity .12s, filter .12s, border-color .12s;
+}
+.qual-voto:hover { opacity: 0.85; filter: grayscale(0.3); }
+.qual-voto.escolhido {
+  opacity: 1;
+  filter: none;
+  border-color: var(--accent);
+  background: var(--card-hi);
+}
+.qual-detalhe {
+  margin-top: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.qual-detalhe label { font-size: 13px; color: var(--muted); }
+.qual-detalhe textarea {
+  width: 100%;
+  padding: 12px 14px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  color: var(--text);
+  font-family: inherit;
+  font-size: 14px;
+  line-height: 1.6;
+  resize: vertical;
+  min-height: 62px;
+  outline: none;
+}
+.qual-detalhe textarea:focus { border-color: var(--accent); }
+@media (prefers-reduced-motion: reduce) {
+  .qual-voto { transition: none; }
+}
+
 .sticky-actions {
   position: sticky;
   bottom: 20px;
@@ -1615,6 +1695,47 @@ $ for f in $(ls -t .claude/visual/*.html | head -3); do
     </div>
   </div>
 
+  <!-- NOTA DESTA PÁGINA — o feedback sobre a PÁGINA, não sobre o conteúdo dela.
+       Nasce neutra e é opcional de propósito: o valor está no 👎 que o leitor dá
+       quando algo irrita, nunca no 👍 de rotina. Caixa que exige voto vira atrito
+       em toda página, e atrito em toda página faz o voto virar clique automático. -->
+  <div class="qualidade-box">
+    <h2>📝 Como ficou esta página?</h2>
+    <p class="qual-intro">Opcional, e serve só pra próxima página sair melhor. Deixe em branco se estiver tudo bem.</p>
+
+    <div class="qual-linha" data-eixo="clareza">
+      <span class="qual-nome">Clareza <em>deu pra entender sem esforço?</em></span>
+      <div class="qual-votos">
+        <button type="button" class="qual-voto" data-voto="bom"   onclick="votarQual(this)" title="bom">👍</button>
+        <button type="button" class="qual-voto" data-voto="ok"    onclick="votarQual(this)" title="dá pro gasto">😐</button>
+        <button type="button" class="qual-voto" data-voto="ruim"  onclick="votarQual(this)" title="ruim">👎</button>
+      </div>
+    </div>
+
+    <div class="qual-linha" data-eixo="escaneabilidade">
+      <span class="qual-nome">Escaneabilidade <em>achou o que importa batendo o olho?</em></span>
+      <div class="qual-votos">
+        <button type="button" class="qual-voto" data-voto="bom"   onclick="votarQual(this)" title="bom">👍</button>
+        <button type="button" class="qual-voto" data-voto="ok"    onclick="votarQual(this)" title="dá pro gasto">😐</button>
+        <button type="button" class="qual-voto" data-voto="ruim"  onclick="votarQual(this)" title="ruim">👎</button>
+      </div>
+    </div>
+
+    <div class="qual-linha" data-eixo="detalhamento">
+      <span class="qual-nome">Detalhamento <em>tinha o suficiente pra decidir, sem sobra?</em></span>
+      <div class="qual-votos">
+        <button type="button" class="qual-voto" data-voto="bom"   onclick="votarQual(this)" title="bom">👍</button>
+        <button type="button" class="qual-voto" data-voto="ok"    onclick="votarQual(this)" title="dá pro gasto">😐</button>
+        <button type="button" class="qual-voto" data-voto="ruim"  onclick="votarQual(this)" title="ruim">👎</button>
+      </div>
+    </div>
+
+    <div class="qual-detalhe">
+      <label for="qual-livre">O que exatamente ficou ruim? (opcional, mas é o que mais ensina)</label>
+      <textarea id="qual-livre" placeholder="Ex: o bloco de prova da decisão 2 não dizia por que aquilo era problema..."></textarea>
+    </div>
+  </div>
+
 </div>
 
 <script>
@@ -1720,6 +1841,30 @@ function updateDecProgress(sel) {
 // differ only in the leading verdict and trailing action cue. Observations
 // made anywhere must survive to the clipboard regardless of which button was
 // pressed. Returns { lines: [...], hasChanges: bool }.
+// A nota desta página: 3 eixos, um voto cada, e nenhum obrigatório.
+// Clicar de novo no mesmo voto DESMARCA — voto dado por engano tem volta, senão
+// o leitor deixa de votar pra não errar.
+function votarQual(btn) {
+  var linha = btn.closest('.qual-linha');
+  var jaEra = btn.classList.contains('escolhido');
+  linha.querySelectorAll('.qual-voto').forEach(function(b) {
+    b.classList.remove('escolhido');
+  });
+  if (!jaEra) btn.classList.add('escolhido');
+  saveState();
+}
+
+function getQualidade() {
+  var out = { votos: {}, livre: '' };
+  document.querySelectorAll('.qual-linha').forEach(function(linha) {
+    var esc = linha.querySelector('.qual-voto.escolhido');
+    if (esc) out.votos[linha.dataset.eixo] = esc.dataset.voto;
+  });
+  var ta = document.getElementById('qual-livre');
+  out.livre = (ta && ta.value || '').trim();
+  return out;
+}
+
 function collectAllInput(untouchedAsKeep) {
   var lines = [];
   var hasChanges = false;
@@ -1776,6 +1921,23 @@ function collectAllInput(untouchedAsKeep) {
     if (gText) {
       lines.push('', '**Observação geral:**', gText);
     }
+    lines.push('');
+  }
+
+  // --- Nota desta página ---
+  // Entra em TODO botão de copiar, pelo mesmo motivo dos outros campos: nota que
+  // só sai por um botão específico some quando o leitor clica no outro.
+  var q = getQualidade();
+  var eixos = Object.keys(q.votos);
+  if (eixos.length > 0 || q.livre) {
+    var CARA = { bom: '👍 bom', ok: '😐 dá pro gasto', ruim: '👎 ruim' };
+    lines.push('📝 **Nota desta página:**', '');
+    ['clareza', 'escaneabilidade', 'detalhamento'].forEach(function(eixo) {
+      if (q.votos[eixo]) {
+        lines.push('- **' + eixo + '**: ' + (CARA[q.votos[eixo]] || q.votos[eixo]));
+      }
+    });
+    if (q.livre) lines.push('', '**O que ficou ruim:**', q.livre);
     lines.push('');
   }
 
@@ -1936,7 +2098,10 @@ function buildStateSnapshot() {
         note: ta ? ta.value : ''
       };
     }),
-    fbGeneral: (document.getElementById('fb-general') || {}).value || ''
+    fbGeneral: (document.getElementById('fb-general') || {}).value || '',
+    // A nota da página viaja junto: sem isto ela ficaria só no botão de copiar, e
+    // quem usa o live-sync (o caminho normal) nunca a entregaria.
+    qualidade: getQualidade()
   };
 }
 
@@ -2044,6 +2209,17 @@ function restoreState() {
     if (state.fbGeneral) {
       var fg = document.getElementById('fb-general');
       if (fg) fg.value = state.fbGeneral;
+    }
+    if (state.qualidade) {
+      var votos = state.qualidade.votos || {};
+      document.querySelectorAll('.qual-linha').forEach(function(linha) {
+        var v = votos[linha.dataset.eixo];
+        if (!v) return;
+        var b = linha.querySelector('.qual-voto[data-voto="' + v + '"]');
+        if (b) b.classList.add('escolhido');
+      });
+      var ql = document.getElementById('qual-livre');
+      if (ql && state.qualidade.livre) ql.value = state.qualidade.livre;
     }
     // O veredito de etapa só volta se o documento inteiro voltou com ele: a mesma
     // trava da gravação, do lado da leitura.

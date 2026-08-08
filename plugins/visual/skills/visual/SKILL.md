@@ -94,6 +94,35 @@ Se a versão corrigida não existe, **não monte uma** por find-and-replace, moc
 
 "Já foi apresentado ao cliente", "está no ar", "o cliente viu", "isso quebra em produção" — toda afirmação que cria urgência enquadra a decisão inteira. Cheque no disco **nesta sessão** antes de escrever, ou rotule INFERIDO. No caso que originou esta regra, a afirmação era falsa e era ela que criava a urgência.
 
+### A página abre abrindo as palavras (non-negotiable)
+
+Antes da primeira pergunta, um bloco de bullets diz o que significa **cada palavra da
+casa** que a página vai usar — plugin, skill, hook, agente, motor, passo. Não a palavra
+óbvia de programação: a palavra que parece português comum **para você** porque você a usa
+o dia todo. Foi assim que uma página reprovou nas três decisões em 2026-08-08: "pacote",
+"skill" e "ferramenta" conviviam sem definição, e o juiz respondeu PERDIDO nas três.
+
+**E uma palavra por coisa.** Escolhida a palavra, varra o spec inteiro e mate as
+concorrentes — a única exceção é o próprio bloco de abertura, onde apresentar as duas
+juntas ("plugin, ou pacote, é a caixa que se instala") é a forma certa. Depois dele,
+alternar entre sinônimos faz o leitor procurar uma diferença que não existe.
+
+### Antes do build: as 5 conferências mecânicas
+
+```bash
+python3 /Users/pedroberaldo/PROGRAMACAO/PEDRO/pedro-plugins/plugins/visual/lib/clareza.py revisar --spec pagina.json
+```
+
+Ele **não julga clareza** — isso continua sendo do juiz externo. Ele procura os cinco
+defeitos que já reprovaram páginas e que dá para achar por programa: palavra da casa sem
+abrir · dois nomes para a mesma coisa · apoio em escolha que não está na página · custo
+sem dizer custa o quê · prova colada sem dizer o que ela estraga.
+
+Por que ele existe, se as lições já existem e o juiz já lê: em 2026-08-08 uma página
+reprovou nas três decisões, e **duas das quatro lições que a reprovaram já estavam no
+banco**. Ler 60 lições no começo não é conferir 60 lições no fim. Saída não-vazia é lista
+de pontos a conferir, não recusa: conserte o spec e rode de novo.
+
 ### Autoteste antes de abrir o browser
 
 Releia como se nunca tivesse visto a conversa:
@@ -716,6 +745,38 @@ Claude SHOULD detect the `<!-- visual-decisions v1 -->` marker when parsing past
 
 Já implementado no template (não reescreva): aviso de `confirm()` quando ele copia com decisões faltando, e persistência em `localStorage` por arquivo (`claude-visual:<pathname>`), pra refresh ou fechada acidental não apagar o progresso.
 
+## A nota desta página — o que fazer quando ela chega
+
+Toda página sai com a caixa **"Como ficou esta página?"**: três eixos (clareza ·
+escaneabilidade · detalhamento), três caras cada (👍 bom · 😐 dá pro gasto · 👎 ruim), e um
+campo livre. O programa a emite sozinho — você não a escreve e não decide se ela entra.
+
+Ela é **opcional e nasce neutra**, de propósito: o valor está no 👎 que o dono dá quando
+algo irrita, nunca no 👍 de rotina. Caixa que exige voto vira atrito em toda página, e
+atrito em toda página faz o voto virar clique automático.
+
+Quando o estado chega (pelo botão de copiar ou pelo `latest.json`), o campo é `qualidade`:
+
+```json
+"qualidade": {"votos": {"clareza": "ruim", "escaneabilidade": "ok"}, "livre": ""}
+```
+
+O que você faz com ele, em ordem:
+
+- **Nenhum voto** — não pergunte nada. Silêncio é a resposta normal de página boa.
+- **Só 👍** — agradeça em meia linha e siga. Não vire isso em conversa.
+- **Qualquer 😐 ou 👎 COM o campo livre preenchido** — a lição já está pronta. Escreva-a no
+  formato do banco, **mostre ao dono antes de gravar**, e só então rode `clareza.py
+  registrar`. Regra dele, de 2026-08-08: mudança na skill e no banco passa por ele.
+- **Qualquer 😐 ou 👎 SEM o campo livre** — **pergunte**, e pergunte pelo eixo que ele
+  reprovou, não em geral: *"a clareza ficou ruim — foi alguma palavra que eu não expliquei,
+  ou a pergunta em si não deu pra entender?"*. Uma pergunta, com as duas hipóteses mais
+  prováveis daquele eixo. Voto sem detalhe que não vira pergunta é voto que morre.
+
+O eixo diz onde procurar: **clareza** → palavra sua, pergunta confusa · **escaneabilidade**
+→ ordem dos blocos, o que ficou dobrado, tamanho · **detalhamento** → faltou prova, ou
+sobrou texto que ninguém pediu.
+
 ## Live sync via `claude-visual-server`
 
 O copy/paste é o fallback. O caminho normal é o daemon: o usuário mexe no browser, o daemon escreve em disco, o Claude lê quando ele diz "ok" / "pronto" / "lido".
@@ -964,12 +1025,17 @@ Critical behavior when the hook blocks:
 2. Identify source content (last message, plan file, explicit content)
 3. Detect type (plan / diagnostic / question with options / generic)
 4. **Plano/PRD/roadmap → `plan_state.py`** (seção do plano). **Todo o resto → escreva o
-   spec JSON** e rode `python3 ${CLAUDE_PLUGIN_ROOT}/lib/visual_page.py build --spec <f>`
-   — ele resolve o diretório, nomeia o arquivo pelo `slug` e imprime o caminho
-5. Recusou? A mensagem lista todos os erros de forma de uma vez. Conserte o spec, não o HTML
-6. **Juiz de clareza (Haiku) lê a página** (Passo 0b). Qualquer PERDIDO ⇒ conserte e repita
-7. Suba o daemon (`${CLAUDE_PLUGIN_ROOT}/server/start.sh`) e `open` o caminho impresso
-8. **`clareza.py registrar`** com os padrões que o juiz apontou (Passo 0c)
-9. Tell the user in 1-2 lines: "Abri no browser: `<path>`"
+   spec JSON**, abrindo as palavras da casa antes da primeira pergunta
+5. **`clareza.py revisar --spec <f>`** — as 5 conferências mecânicas, com o spec pronto e
+   ANTES do build. Conserte o que ele apontar e rode de novo até sair limpo
+6. `python3 ${CLAUDE_PLUGIN_ROOT}/lib/visual_page.py build --spec <f>` — ele resolve o
+   diretório, nomeia o arquivo pelo `slug` e imprime o caminho
+7. Recusou? A mensagem lista todos os erros de forma de uma vez. Conserte o spec, não o HTML
+8. **Juiz de clareza (Haiku) lê a página** (Passo 0b). Qualquer PERDIDO ⇒ conserte e repita
+9. Suba o daemon (`${CLAUDE_PLUGIN_ROOT}/server/start.sh`) e `open` o caminho impresso
+10. **`clareza.py registrar`** com os padrões que o juiz apontou (Passo 0c) — **inclusive
+    quando a última rodada passou limpa**: o que ensina é a rodada que REPROVOU, e ela some
+    se você só registrar no fim
+11. Tell the user in 1-2 lines: "Abri no browser: `<path>`"
 
 Never render and then text-dump the same content in the CLI response. The whole point is: HTML replaces the textão, doesn't duplicate it.
