@@ -138,6 +138,10 @@
           "enabled": true
         },
         {
+          "name": "check-conflitos",
+          "enabled": true
+        },
+        {
           "name": "context-guard",
           "enabled": true
         },
