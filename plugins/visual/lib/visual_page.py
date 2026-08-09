@@ -892,7 +892,7 @@ def cmd_build(args):
     print(out)
     sys.stderr.write("✅ %d bytes · %d itens revisáveis · %d decisões\n"
                      % (len(page), ctx["n_items"], ctx["n_decisions"]))
-    # As 5 conferências saem AQUI, sem ninguém pedir, e não recusam a página.
+    # As 4 conferências saem AQUI, sem ninguém pedir, e não recusam a página.
     # Elas viviam só como um passo escrito na SKILL.md — e a lição desta mesma
     # rodada é que regra em prosa não pega: duas das quatro falhas que reprovaram
     # a página de 2026-08-08 já estavam escritas no banco de lições. Não recusam

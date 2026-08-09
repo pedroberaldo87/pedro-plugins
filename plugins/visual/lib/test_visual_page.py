@@ -694,7 +694,7 @@ _com_tudo = V.build_page(spec(sections=[{"blocks": [
 check("com decisão na página, a nota continua saindo uma vez só",
       _com_tudo.count('class="qualidade-box"') == 1)
 
-# ── o build cobra as 5 conferências sozinho (2026-08-08) ──────────────────────
+# ── o build cobra as 4 conferências sozinho (2026-08-08) ──────────────────────
 # Elas viviam como um passo escrito na SKILL.md, e a lição da própria rodada que
 # as criou é que regra em prosa não pega. Avisa, não recusa: são pontos a
 # conferir, e o julgamento continua sendo de quem escreve.
@@ -709,7 +709,7 @@ with tempfile.TemporaryDirectory() as td:
                         "build", "--spec", _sujo, "--out", _alvo],
                        capture_output=True, text=True, stdin=subprocess.DEVNULL,
                        start_new_session=True)
-    check("o build roda as 5 conferências sem ninguém pedir",
+    check("o build roda as 4 conferências sem ninguém pedir",
           "custo-sem-unidade" in r.stderr, r.stderr[-200:])
     check("elas AVISAM, não recusam — a página é escrita assim mesmo",
           r.returncode == 0 and os.path.exists(_alvo), (r.returncode, _alvo))
