@@ -111,6 +111,24 @@ def caso_conserto_funcionou():
         shutil.rmtree(casa, ignore_errors=True)
 
 
+def caso_conserto_sem_numero_dos_dois_lados():
+    print("\nO conserto mirou uma métrica que nenhum dos dois lados mediu")
+    casa = tempfile.mkdtemp()
+    try:
+        r1 = registro.gravar(medidor.medir_run(os.path.join(FIXTURES, "run-sao")),
+                             base=casa)
+        r2 = registro.gravar(
+            medidor.medir_run(os.path.join(FIXTURES, "run-fantasma")), base=casa,
+            consertos=[{"papel": "EXECUTOR", "metrica": "taxa_falha",
+                        "o_que": "teto de reentrega"}])
+        v = registro.comparar(r1, r2)["consertos"]
+        check("métrica sem número dos dois lados fica sem medida, não estoura",
+              [c["veredito"] for c in v] == ["sem_medida"]
+              and v[0]["numero"] == [None, None])
+    finally:
+        shutil.rmtree(casa, ignore_errors=True)
+
+
 def caso_conserto_mal_formado():
     print("\nConserto escrito errado é recusado, não gravado torto")
     for texto in ("EXECUTOR:turnos_por_agente", "EXECUTOR:inventada:x", "::x"):
@@ -205,6 +223,7 @@ def main():
     caso_fora_do_projeto()
     caso_duas_rodadas()
     caso_conserto_funcionou()
+    caso_conserto_sem_numero_dos_dois_lados()
     caso_conserto_mal_formado()
     caso_sem_historico()
     caso_linha_corrompida()

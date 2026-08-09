@@ -33,10 +33,18 @@ FRASES = [
      "nenhum arquivo do projeto muda durante a rodada"),
 ]
 
-# `>` só conta como redirecionamento depois de espaço — senão `<run>` nos exemplos
-# de uso reprovaria a skill inteira. Mesma régua da bancada do plugin.
+# A isenção é do TOKEN que a prosa da skill declara — `<run>`, o run pedido pelo
+# nome —, nunca do operador `>`. Isentar o operador (exigindo espaço antes dele)
+# deixava passar `<plugin visual>`, que o shell lê como par de redirecionamentos.
+DECLARADOS = ("<run>",)
+
+# Mesma régua da bancada do plugin (`lib/test_improve_workflow_skill.py:sujeira`).
 ESCRITA = ("git commit", "git add", "git checkout", "git stash",
-           "rm ", "mv ", "tee ", r"\s>>?\s*\S")
+           "rm ", "mv ", "tee ", r">>?\s*\S")
+
+# Qualquer `<…>` que sobre depois de tirar os declarados é placeholder mudo: no
+# bloco executável ele não é marcador inerte, é comando que o shell tenta rodar.
+PLACEHOLDER = r"<[^<>\n]+>"
 
 
 def checar(caminho):
@@ -58,12 +66,17 @@ def checar(caminho):
         achados.append("%s:1 — a skill não tem bloco de comando (a rodada perdeu o corpo)"
                        % caminho)
     for bloco in blocos:
-        for padrao in ESCRITA:
-            m = re.search(padrao, bloco)
+        # Some o token declarado sem mexer nas posições, para a linha continuar certa.
+        limpo = bloco
+        for token in DECLARADOS:
+            limpo = limpo.replace(token, "_" * len(token))
+        for padrao, queixa in ([(p, "escreve na árvore") for p in ESCRITA]
+                               + [(PLACEHOLDER, "nomeia por placeholder mudo")]):
+            m = re.search(padrao, limpo)
             if m:
                 linha = texto[:texto.index(bloco) + m.start()].count("\n") + 1
-                achados.append("%s:%d — bloco da rodada escreve na árvore: %r"
-                               % (caminho, linha, m.group(0)))
+                achados.append("%s:%d — bloco da rodada %s: %r"
+                               % (caminho, linha, queixa, m.group(0)))
     return achados
 
 

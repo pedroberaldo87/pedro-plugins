@@ -94,7 +94,14 @@ def montar(entrada, projeto=None):
             {"title": "A prova", "blocks": [
                 {"kind": "evidencia", "src": prova.get("src") or "medidor.py",
                  "output": prova["output"],
-                 "highlight": prova.get("highlight") or ""}]},
+                 "highlight": prova.get("highlight") or ""},
+                # Prova colada sem dizer o que ela estraga é o quinto defeito da
+                # régua do /visual (clareza.py) — e o estrago já está escrito no
+                # `defeito` de cada proposta, então ele sai daqui, não de campo novo.
+                {"kind": "text", "text": "O que estes números estragam:"}]
+                + [{"kind": "bullets", "problema": True,
+                    "items": [p["defeito"] for p in props[i:i + 6]]}
+                   for i in range(0, len(props), 6)]},
             {"title": "As propostas", "blocks": [item(p) for p in props]},
         ],
     }

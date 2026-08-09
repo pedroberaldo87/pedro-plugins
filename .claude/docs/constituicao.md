@@ -219,9 +219,11 @@ skills não resolvem.
 
 ## O placar de hoje
 
-- **Com cobrador real:** Artigos 3, 4, 5 e 6 — o 5 e o 6 com furo nomeado acima (no 5 é de
-  momento: quatro suítes só têm a esteira do push, não o commit).
-- **Sem cobrador:** Artigos 1, 2, 7 e 8.
+- **Com cobrador real:** Artigos 3, 4, 5, 6 e 7 — o 5, o 6 e o 7 com furo nomeado acima (no
+  5 é de momento: quatro suítes só têm a esteira do push, não o commit; no 7 o cobrador é a
+  varredura do check-skills, `plugins/check-skills/lib/varredura.py`, que pega gatilho
+  cruzado mas não número afirmado dentro de `SKILL.md`).
+- **Sem cobrador:** Artigos 1, 2 e 8.
 
 Este placar é parte da lei, não nota de rodapé. Ele é o que impede a constituição de virar
 o parágrafo que não pegou.

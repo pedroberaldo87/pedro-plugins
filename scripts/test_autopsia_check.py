@@ -43,8 +43,9 @@ def caso_trava_ausente_do_texto():
 
 def caso_rodada_toca_arquivo_do_projeto():
     texto = open(autopsia_check.SKILL_PADRAO, encoding="utf-8").read()
-    sujo = texto.replace("python3 plugins/improve-workflow/lib/sobras.py --json",
-                         "git add -A && python3 plugins/improve-workflow/lib/sobras.py --json")
+    alvo = 'python3 "${CLAUDE_PLUGIN_ROOT}/lib/sobras.py" --json'
+    sujo = texto.replace(alvo, "git add -A && " + alvo)
+    check("a injeção pegou no texto real", sujo != texto)
     p = escrever(sujo)
     achados = autopsia_check.checar(p)
     os.unlink(p)
@@ -52,10 +53,23 @@ def caso_rodada_toca_arquivo_do_projeto():
           any("escreve na árvore" in a for a in achados), repr(achados))
 
 
+def caso_placeholder_nao_declarado_reprova():
+    """Placeholder que a prosa não declara reprova; `<run>`, que ela declara, passa."""
+    texto = open(autopsia_check.SKILL_PADRAO, encoding="utf-8").read()
+    alvo = 'python3 "${CLAUDE_PLUGIN_ROOT}/lib/sobras.py" --json'
+    sujo = texto.replace(alvo, 'python3 "<plugin visual>/lib/visual_page.py"')
+    check("a injeção pegou no texto real", sujo != texto)
+    p = escrever(sujo)
+    achados = autopsia_check.checar(p)
+    os.unlink(p)
+    check("o placeholder mudo do irmão reprova", bool(achados), repr(achados))
+
+
 if __name__ == "__main__":
     print("bancada do cobrador da lei da autópsia")
     caso_skill_real_passa()
     caso_trava_ausente_do_texto()
     caso_rodada_toca_arquivo_do_projeto()
+    caso_placeholder_nao_declarado_reprova()
     print("\n%s" % ("tudo verde" if not FALHAS else "FALHOU: " + ", ".join(FALHAS)))
     sys.exit(1 if FALHAS else 0)

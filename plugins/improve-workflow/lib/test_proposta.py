@@ -83,10 +83,25 @@ def caso_recusa():
     check("entrada boa não tem erro", proposta.erros(entrada(2)) == [])
 
 
+def caso_prova_diz_o_que_estraga():
+    """A régua da própria casa (clareza.py) reprovava TODA página deste programa."""
+    sys.path.insert(0, os.path.dirname(VISUAL_PAGE))
+    try:
+        import clareza
+    except ImportError:
+        check("clareza.py ao lado (sem ele não há régua pra passar)", False)
+        return
+    for n in (1, 3):
+        achados = clareza.revisao_do_spec(proposta.montar(entrada(n), projeto="teste"))
+        check("%d proposta(s): a prova vem seguida do que ela estraga" % n,
+              not any(c == "prova-sem-estrago" for c, _m in achados))
+
+
 def main():
     print("proposta")
     caso_um_item_por_proposta()
     caso_recusa()
+    caso_prova_diz_o_que_estraga()
     print()
     if FALHAS:
         print("FALHOU · %d" % len(FALHAS))

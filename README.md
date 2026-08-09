@@ -53,7 +53,7 @@ claude plugin install bootstrap@pedro-plugins
 ```
 
 Resultado esperado numa máquina zerada: **19 plugins ligados + 3 desligados de fábrica**
-(`graphify-guard` e `intent-guard`), mais os marketplaces de terceiros do manifest.
+(`gauntlet`, `graphify-guard` e `improve-workflow`), mais os marketplaces de terceiros do manifest.
 
 > ⚠️ **Se aparecer `sync incompleto: N operações falharam`, rode `/bootstrap:setup` de novo.**
 > Medido numa instalação limpa: a primeira rodada deixou um marketplace de terceiro para trás
@@ -105,9 +105,9 @@ claude plugin details <nome>@pedro-plugins   # diagnóstico canônico (mostra Ho
 
 Plugins marcados com **⚙️** registram hooks que rodam **sozinhos** (sem slash command) — veja [Hooks automáticos](#hooks-automáticos). Os demais são invocados sob demanda via slash command / skill.
 
-Dois vêm **desligados de fábrica** na receita do `bootstrap` e você liga se quiser:
-`graphify-guard` (precisa de um binário externo, veja abaixo) e `intent-guard` (é experimental
-e intercepta cada mensagem sua). Ligar: `claude plugin enable <nome>@pedro-plugins`.
+Três vêm **desligados de fábrica** na receita do `bootstrap` e você liga se quiser:
+`gauntlet`, `graphify-guard` (precisa de um binário externo, veja abaixo) e `improve-workflow`.
+Ligar: `claude plugin enable <nome>@pedro-plugins`.
 
 ### Sessão & continuidade
 

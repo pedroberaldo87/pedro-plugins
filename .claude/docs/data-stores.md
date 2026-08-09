@@ -39,6 +39,9 @@ scope:
   - plugins/bootstrap/hooks/hooks.json
   - plugins/bootstrap/lib/conformance.py
   - plugins/project-skills/hooks/stop-doc-touch.sh
+  - plugins/improve-workflow/lib/registro.py
+  - plugins/improve-workflow/lib/medidor.py
+  - plugins/improve-workflow/lib/plano_saida.py
 verified-by:
   - plugins/project-skills/lib/test_plan_state.py
   - plugins/project-skills/lib/test_cobertura.py
@@ -48,6 +51,9 @@ verified-by:
   - plugins/branches/lib/test_branch_state.py
   - plugins/project-skills/lib/test_journal.py
   - plugins/project-skills/lib/test_graph_map.py
+  - plugins/improve-workflow/lib/test_registro.py
+  - plugins/improve-workflow/lib/test_medidor.py
+  - plugins/improve-workflow/lib/test_plano_saida.py
 doc-sig: pedro-plugins/.gitignore@gen=3.8#1b68ec8d
 ---
 
@@ -446,6 +452,34 @@ Depósito **novo nesta rodada**, irmão do B8 e deliberadamente diferente dele: 
 - **Chaveamento por projeto está no NOME do arquivo**, não numa chave interna — o caminho do projeto vira sufixo com barras trocadas por hífen. Dois projetos não se contaminam.
 - **Sem cobertura de backup**, como todo o bloco (B).
 
+### B14 · `${CLAUDE_CONFIG_DIR:-~/.claude}/improve-workflow/` — o histórico das autópsias, e o run que elas leem
+
+- **Nasceu em 2026-08-09** com o plugin `improve-workflow`. O caminho sai de `plugins/improve-workflow/lib/registro.py:caminho`, e ele **respeita a env var** (`CLAUDE_CONFIG_DIR` antes de `~/.claude`) — diferente do `visual-state` (B2) e do `vision.json` (B12), que fixam o `~`.
+- **Por que fora do projeto, e não dentro dele:** a docstring do módulo dá o motivo, e ele não é conveniência — *"NUNCA dentro do projeto: escrever no projeto quebraria a proibição que impede esta skill de mexer na árvore que ela audita"*. A skill investiga e propõe; escrever no repositório auditado é exatamente o que ela não pode fazer.
+- **Dois arquivos, e só um existe hoje:**
+  - `registro.jsonl` — **append-only, uma linha por run medido**, escrita por `registro.py:gravar` (invocada pelo passo `registro.py gravar` da `skills/improve-workflow/SKILL.md`). O que a linha guarda são **só números**: as chaves lidas do arquivo real são `run`, `quando`, `total`, `papeis`, `sinais` e `consertos` — nenhum trecho de transcript entra aqui. [confirmado — as chaves saíram do arquivo, não do código]
+
+    ```bash
+    wc -l < ~/.claude/improve-workflow/registro.jsonl
+    python3 -c "import json,os;p=os.path.expanduser('~/.claude/improve-workflow/registro.jsonl');\
+    [print(json.loads(l)['run'], json.loads(l)['quando'], [x['papel'] for x in json.loads(l)['papeis']]) for l in open(p)]"
+    ```
+  - `mode` — o kill-switch, mesmo desenho de todo automatismo da casa: `off` escrito ali cala o medidor (`medidor.py:desligado`). **Não existe no disco** (`ls ~/.claude/improve-workflow/mode` → ausente), e ausência quer dizer ligado. A chave mora aqui, e não no plugin, pelo motivo de sempre: `${CLAUDE_PLUGIN_ROOT}` é cache reescrito a cada bump, e chave lá dentro voltaria a ligar sozinha na atualização seguinte.
+- **Poda por contagem, não por idade:** `RETENCAO = 50` em `registro.py` — a gravação apaga o que passar das 50 rodadas mais novas (`registro.py:podar`). O comentário diz por quê: *"rodada de meio de ano não responde nenhuma pergunta e o arquivo cresce para sempre"*.
+- ⚠️ **A poda reescreve o arquivo sem atomicidade** — `open(caminho, "w")` direto, sem o `.tmp` + `os.replace` que o `plan_state.py:save` usa (A4). Interrupção no meio da reescrita trunca o histórico. O amortecedor existe do lado da leitura, não da escrita: `registro.py:ler` pula linha que não é JSON (*"histórico truncado vale mais que nenhum"*). [confirmado nos dois pontos]
+- **Para que serve guardar:** é o único lado "antes" da pergunta que a rodada seguinte faz — *o conserto que eu apliquei melhorou o número que ele mirava?*. `registro.py:anterior` devolve a última rodada que não é esta, e `registro.py:veredito` compara métrica a métrica (`melhorou` · `piorou` · `igual` · `sem_medida`). Sem o arquivo, a resposta volta a ser palpite de uma amostra só.
+- **A matéria-prima NÃO mora aqui — é o transcript do harness, e ele é só de leitura.** `medidor.py:_base_runs` aponta para `${CLAUDE_CONFIG_DIR:-~/.claude}/projects`, e `runs_conhecidos` varre `<projeto>/<sessão>/subagents/workflows/<runId>/`, onde ficam um `agent-<id>.jsonl` por agente e o `journal.jsonl` do motor. **Nenhum plugin deste repositório escreve nesse caminho** — quem o escreve é o harness. Volume e quantidade saem do comando:
+
+  ```bash
+  ls -d ~/.claude/projects/*/*/subagents/workflows/*/ | wc -l
+  du -sh ~/.claude/projects
+  ```
+
+  ⚠️ **É o maior depósito de (B) por ordens de grandeza, e é dele que a autópsia depende inteira.** Run apagado (rotação do harness, `/clear` de máquina limpa) não é remedível: o `registro.jsonl` guarda os números daquele run, nunca o transcript que os produziu.
+- **O papel de cada agente é DADO no transcript, não inferência** — e a costura existe nos dois lados: o motor escreve `PAPEL: <NOME>` como primeira linha de todo prompt (`plugins/project-skills/skills/sprint/SKILL.md`, seção *"TODO prompt do motor ABRE declarando o papel"*) e o medidor a lê em `medidor.py:_DECLARADO` (`re.compile(r"PAPEL:\s*([A-Z][A-Z0-9_]{2,})")`). Os marcadores por frase continuam no código como **resgate de run antigo**, não como caminho principal: enquanto o papel era adivinhado pela prosa, reescrever o texto do motor fazia a tabela inteira virar `DESCONHECIDO` sem nada acusar. [confirmado nos dois arquivos]
+- ⚠️ **O plugin nasce DESLIGADO de fábrica** — `{"name": "improve-workflow", "enabled": false}` em `plugins/bootstrap/config/manifest.json`. Numa instalação padrão a pasta nunca aparece; ela só existe em máquina que ligou o plugin à mão. Quem procurar o depósito para diagnosticar e não achar nada, ache primeiro a chave.
+- **Natureza: histórico acumulado, reconstruível enquanto o run sobreviver** — remedir os runs ainda no disco regenera as linhas; run já rotacionado, não. **Sem cobertura de backup**, como todo o bloco (B).
+
 ### B12 · `~/.claude/vision.json` — o endpoint do servidor de visão
 
 - **Nasceu em 2026-08-03** com o plugin `vision` (commit `4a4b59d`, v0.1.0). **112 bytes**, um arquivo único. [confirmado — `ls -la` + conteúdo lido]
@@ -618,6 +652,10 @@ No topo do plano, ao lado de `phases`:
   - Escrita é atômica: `save()` grava em `.tmp` e faz `os.replace`.
   - **`save()` NORMALIZA o registro antes de gravar, desde 2026-08-09:** toda tarefa que chegar sem o campo `status` recebe `"todo"` (`it.setdefault("status", "todo")`) — então **nenhum arquivo no disco tem tarefa sem status**, independentemente de quem montou o JSON. O comentário traz a medida que originou a regra: *"Tarefa sem `status` some das contagens: não é feita, não é pendente, e a soma por fora erra (medido em 2026-08-09 — duas tarefas gravadas sem o campo fizeram 218 virar 217)"*. A normalização mora aqui, e não em cada comando, **porque toda escrita passa por aqui** — é a mesma razão pela qual a marca de sessão (`_marca_sessao`) também é pendurada neste ponto. [confirmado, `plan_state.py:save`]
 - **Leitura tem porta única, e ela nomeia o estrago:** `plan_state.py:le_plano`. Arquivo que não abre ou não é JSON vira `PlanError` com o CAMINHO e a CAUSA (*"o arquivo existe e não é JSON válido. Conserte-o à mão — é o registro do que já foi feito, e nada aqui o reescreve"*), em vez de traceback. Quem LISTA (`list_plans`) segue engolindo o arquivo torto de propósito: um byte errado num plano não pode apagar os outros 12 da listagem. [confirmado, e a suíte fecha com a asserção `list_plans pula o corrompido`]
+- **Um segundo programa passou a ESCREVER aqui em 2026-08-09, e ele mora noutro plugin:** `plugins/improve-workflow/lib/plano_saida.py:escreve` grava `<dir>/<id>.plan.json` a partir do veredito que o dono deu na página de propostas (`keep` vira passo, `change` vira passo com o texto do dono, `remove` não vira nada). Três traços importam para o depósito: [confirmado no módulo]
+  - **Ele confere contra o schema antes de gravar, mas por caminho degradável.** `confere_com_plan_state` carrega `plan_state.py` por `importlib` a partir de `plugins/project-skills/lib/plan_state.py`; quando o arquivo não está na máquina, **o JSON sai igual** e o aviso vai só para o `stderr`. Ou seja: plano gravado por aqui nem sempre passou por `erros_do_plano`.
+  - **Item sem veredito recusa a gravação inteira** — rádio em branco chega no retorno como `val: "keep"` com `touched: false`, e *"gravar isso seria transformar silêncio em aprovação"*.
+  - ⚠️ **O destino padrão é derivado do `__file__` do módulo**, não do projeto: `ROOT = os.path.dirname(×3)` sobre `plugins/improve-workflow/lib/` e `SAIDA = <ROOT>/.claude/plans`. Dentro deste repositório isso dá a pasta certa; instalado, `${CLAUDE_PLUGIN_ROOT}` é o cache do plugin, e o padrão aponta para dentro dele. Quem chamar tem que passar `--dir`.
 - **Quem lê no fim do turno:** `plugins/project-skills/hooks/stop-plan-status.sh`, via `plan_state.py brief`. Canal `systemMessage` (informa, nunca bloqueia), desligável por `PLAN_STATUS=0` / `PLAN_NUDGE=0`. Costura confirmada nos dois lados. [confirmado] O resumo que ele mostra **parou de afirmar prova sem olhar a prova**: o trecho *"cada um com prova anexada"* era escrito por construção e hoje só entra depois de `plan_state.py:_com_prova` conferir a `evidence` de cada passo feito. [confirmado]
 - **Quem lê na hora de guardar a sessão:** a skill `handoff`. Ela passou a **ler os campos do arquivo em vez de pedir que sejam reinventados** — a árvore de `render --format text` é a vista de execução e não mostra `pronto`, `pendencia` nem `requisito`, que são justamente os três que a sessão seguinte ia redigir de cabeça. A `SKILL.md` traz o comando que os imprime e manda copiá-los **verbatim**: o `pronto` vira o "Critério de pronto" e a `pendencia` vira "Decisão em aberto", com o passo marcado como **bloqueado** — listar como executável um passo cuja `pendencia` trava o tique manda a próxima sessão bater na mesma parede sem saber qual é a pergunta. [confirmado — `plugins/handoff/skills/handoff/SKILL.md`, e a suíte `plugins/handoff/lib/test_handoff_skill.py` executa o comando prescrito e cobra a prosa]
 - **Natureza: registro de trabalho, insubstituível, sem cobertura.** Verde em `plugins/project-skills/lib/test_plan_state.py` nesta rodada.
@@ -815,6 +853,8 @@ _shared/r8-tiers.json                 2,9K · rastreado — o valor volta com o 
 graphify-out/                         graphify update . --force (AST, sem LLM)
 plugins/bootstrap/config/manifest.json  regenerado no SessionStart, MENOS as chaves manuais
 ~/.claude/vision.json                  config do servidor VL — redigitar à mão, sem semente
+~/.claude/improve-workflow/registro.jsonl  remedir os runs que ainda estiverem em
+                                       ~/.claude/projects; run já rotacionado não volta
 ```
 
 **Descartável por desenho:**
@@ -847,4 +887,5 @@ plugins/bootstrap/config/manifest.json  regenerado no SessionStart, MENOS as cha
 8. **O `bypass.log` do B8 nunca existiu, e agora isso tem consequência em dois lugares.** Para o `check_bypass_teto`, ausência = conforme; para o `furos_da_regua`, ausência = `fontes` 1 em vez de 2 — a contagem de furos que o dono vê é hoje meia fonte, e o programa diz isso, mas só quem lê a linha inteira percebe.
 9. **Os cinco campos novos de A4 não existem em nenhum dos 13 planos no disco.** O schema exige `requisito` e `pronto` só de tarefa nova; até o próximo `init`, a cobertura entre requisito e tarefa é 0 de 0 e nada no repositório exercita o caminho em dado real.
 10. **A página nº 100 de `.claude/visual/` viola a régua, e o limite aceito (A8) diz que não deveria.** O registro congela 99 páginas · 82 violando e declara *"a régua passa a valer para página nova"*; `regua_audit.py paginas` mede hoje 100 · 83, com a página nova de hoje 16:22 entre as reprovadas. Ou o gerador dela escapa da régua, ou o limite precisa ser reescrito — decidir qual.
-11. **Nenhum verificador lê o `.claude/limites-aceitos.md` (A8).** Limite que deixou de valer não é acusado por ninguém: o arquivo declara o que o revoga, e quem confere é quem lembrar de rodar o comando.
+11. **O segundo escritor de A4 não é chamado por ninguém.** `plugins/improve-workflow/lib/plano_saida.py` grava plano ticável, mas a `SKILL.md` do próprio plugin não o cita, e nenhum hook ou skill do repositório o invoca — `grep -rn 'plano_saida' plugins/ --include='*.md' --include='*.sh' --include='*.json'` só devolve o homônimo do `vistoria`. É escritor sem gatilho: ou a skill ganha o passo que fecha o laço página → plano, ou o módulo é caminho morto e nada acusa.
+12. **Nenhum verificador lê o `.claude/limites-aceitos.md` (A8).** Limite que deixou de valer não é acusado por ninguém: o arquivo declara o que o revoga, e quem confere é quem lembrar de rodar o comando.
