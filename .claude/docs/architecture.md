@@ -135,9 +135,9 @@ Comandos re-executados agora, na árvore de trabalho sobre `1f575e9`:
 ```bash
 ls -1d plugins/*/ | wc -l                            # 22
 ls -1 plugins/*/.claude-plugin/plugin.json | wc -l   # 22
-ls -1 plugins/*/skills/*/SKILL.md | wc -l            # 29
+ls -1 plugins/*/skills/*/SKILL.md | wc -l            # 30
 ls -1 plugins/*/hooks/hooks.json | wc -l             # 12
-find plugins -path '*/lib/*.py' | wc -l              # 99
+find plugins -path '*/lib/*.py' | wc -l              # 104
 python3 -c "import json;print(len(json.load(open('.claude-plugin/marketplace.json'))['plugins']))"   # 22
 ```
 
@@ -158,13 +158,13 @@ python3 -c "import json;print(len(json.load(open('.claude-plugin/marketplace.jso
   [confirmado — os seis comandos re-rodados nesta passada de `/doc-touch`.]
   ⚠️ **Os arquivos `.py` em `lib/` quase não se moveram (100 → 99) apesar de três plugins
   terem sumido** — porque nada foi apagado, só mudou de casa: `plugins/project-skills/lib/`
-  concentra hoje 42 dos 99 (`find plugins/project-skills -path '*/lib/*.py' | wc -l`).
+  concentra hoje 42 dos 104 (`find plugins/project-skills -path '*/lib/*.py' | wc -l`).
   ⚠️ **Boa parte desse total é CÓPIA, não código novo**:
   `regua_texto.py` sozinha responde por 10 deles, e `padroes_vazamento.py`,
   `collect_engine.py`, `plan_state.py` e `resolve-*.sh` repetem o padrão (§7). Contar
   `lib/*.py` mede o vendoring junto com o código — a medida de código próprio é
   `find plugins -path '*/lib/*.py' ! -name regua_texto.py ! -name collect_engine.py ! -name padroes_vazamento.py`
-  (**85** neste run).
+  (**90** neste run).
 - **Registros de hook e scripts distintos: quem mede é a ferramenta, não esta linha** —
   `python3 scripts/hook_contract.py | head -1` imprime *"Contrato dos hooks — 56 registros,
   43 scripts distintos"* neste run, e `python3 scripts/hook_contract.py --scripts | grep -c .`
@@ -174,9 +174,9 @@ python3 -c "import json;print(len(json.load(open('.claude-plugin/marketplace.jso
   `sessionstart-deps.sh`, nascido em `_shared/`, registrado em `SessionStart` por cada plugin
   que precisa avisar dependência externa faltando. E a queda de 59 → 56 nesta rodada **não
   removeu nada**: são os três registros de `ExitPlanMode` virando um só (§6).
-- 29 skills em 22 diretórios porque **três não têm `skills/` nenhum** — <!-- acopla-ok: leitura do bloco de comandos de §2, não afirmação independente -->
-  `graphify-guard` (100% hook), `vision` (100% MCP) e o **`improve-workflow`**, que ainda é
-  só `lib/` —, e porque a família concentra a maioria delas, que se listam sem escrever nome
+- 30 skills em 22 diretórios porque **dois não têm `skills/` nenhum** — <!-- acopla-ok: leitura do bloco de comandos de §2, não afirmação independente -->
+  `graphify-guard` (100% hook) e `vision` (100% MCP); o **`improve-workflow`**, que era o
+  terceiro, ganhou a skill `improve-workflow/` nesta rodada —, e porque a família concentra a maioria delas, que se listam sem escrever nome
   nenhum aqui:
 
   ```bash
@@ -330,11 +330,11 @@ grill-me           1.4.0  [grill-me]                                         -
 guardrails         1.7.7  [guardrails]                                       HOOKS
 handoff           1.11.1  [handoff]                                          HOOKS
 improve            1.1.1  [improve]                                          -
-improve-workflow   0.1.0  []                                                 -
+improve-workflow   0.8.0  [improve-workflow]                                 -
 intent-guard       0.7.0  [intent-guard]                                     HOOKS
 lixeiro            1.3.1  [faxina]                                           HOOKS
 principles         1.0.5  [principles]                                       -
-project-skills    0.18.0  [design-md, doc, doc-touch, monitorar,
+project-skills    0.18.1  [design-md, doc, doc-touch, monitorar,
                            pesquisa-referencias, plan, project-skills,
                            qa-loop, sprint, start]                           HOOKS
 ship               1.5.0  [ship]                                             HOOKS
@@ -356,8 +356,17 @@ agora o motor também mudou de endereço e os três diretórios deixaram de exis
   `organism`, `graph_map`, `doc_lint`, `historico`, `rastreio_etapas`, `collect_engine`,
   `curadoria_features`, `decisoes_estruturais`) e as duas skills que ainda tinha
   (`design-md`, `pesquisa-referencias`).
-- `improve-workflow` entrou no lugar deles no catálogo, com `lib/sobras.py` só, e
-  **desligado de fábrica** no manifest do bootstrap (§2).
+- `improve-workflow` entrou no lugar deles no catálogo — nasceu com `lib/sobras.py` só e
+  **desligado de fábrica** no manifest do bootstrap (§2); na rodada seguinte (0.8.0) ganhou
+  o medidor por papel (`lib/medidor.py`), o registro entre rodadas (`lib/registro.py`) e a
+  skill `improve-workflow`, e deixou de ser plugin sem `skills/`.
+  ⚠️ **Costura nova entre os dois plugins, e ela é de TEXTO:** o medidor só sabe quem foi
+  cada agente porque todo prompt do motor de `/sprint` abre com a linha `PAPEL: <NOME>`
+  (a tabela de nomes está em `plugins/project-skills/skills/sprint/SKILL.md`, e
+  `medidor.py:papel_do_prompt` é quem a lê). Reescrever a prosa de um prompt sem manter a
+  linha não quebra nada visivelmente — só faz aquele papel virar `DESCONHECIDO` na tabela.
+  Os marcadores por frase ("Você é o X") continuam no código apenas como resgate de run
+  antigo, gravado antes da declaração existir.
 
 Consequência mecânica: `project-skills` passou de plugin sem hooks para **o maior do repo**
 — 15 registros de hook no `hooks.json` dele, e 13 scripts distintos contra 6 do segundo
@@ -872,7 +881,7 @@ plugins/branches/lib/      branch_state.py + test_branch_state.py
 plugins/guardrails/lib/    askq_lint.py + test_askq_lint.py
 plugins/bootstrap/lib/     conformance.py + test_conformance.py
 plugins/gauntlet/lib/      fecho_check.py + test_fecho_check.py
-plugins/improve-workflow/lib/ sobras.py + test_sobras.py     ← o plugin inteiro é isto
+plugins/improve-workflow/lib/ sobras.py · medidor.py · registro.py + as suítes
 plugins/grill-me/lib/      test_grill_me_skill.py
 
 regua_texto.py (vendorado)  cópias idênticas — `find plugins -path '*/lib/*.py' -name regua_texto.py`
