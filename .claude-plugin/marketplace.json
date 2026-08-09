@@ -100,12 +100,12 @@
     {
       "name": "gauntlet",
       "source": "./plugins/gauntlet",
-      "description": "Agents compete against a real-world benchmark you name, and nothing you built grades itself. The orchestrator breaks the goal into separately judgeable pieces, each piece gets its own builder and its own blind judge, and the judge only passes what beats the target — never what merely satisfies the brief. Born from a real failure: seven builders were launched promising a judge in every briefing, zero judges were launched, and nobody noticed, because a system with no trigger looks exactly like a system where everything was approved. Here the judge is a line of the engine right after delivery, every verdict is a file on disk with the pair of observations that proves it, and the close is refused by a program when any of that is missing. Works for a site, a game, an app screen, a report — anything you can build, iterate and judge with agents.",
+      "description": "Agents compete against a real-world benchmark you name, and nothing you built grades itself. The goal is split into separately judgeable pieces by an agent, each piece gets its own builder and its own blind judge, and the judge only passes what beats the target — never what merely satisfies the brief. The whole contest runs as a VISIBLE, steerable agent team in the conversation: the owner watches every builder and judge, redirects them mid-flight, vetoes, and stops — nothing runs inside a black box. Born from a real failure: seven builders were launched promising a judge in every briefing, zero judges were launched, and nobody noticed. Here a PreToolUse gate refuses to dispatch any new agent while a delivery sits unjudged, every verdict is a file on disk with the pair of observations that proves it, and the close is refused by a program when any of that is missing. Optional project law: it guides the builders, and the judge fails real violations. Works for a site, a game, an app screen, a report — anything you can build, iterate and judge with agents.",
       "author": {
         "name": "pedro-plugins"
       },
       "category": "dev-tools",
-      "version": "0.2.4",
+      "version": "0.3.0",
       "tags": [
         "design-review",
         "planning",
@@ -311,7 +311,7 @@
       "source": "./plugins/visual",
       "description": "CLI walls-of-text → interactive HTML dark-theme views. The page carries the EVIDENCE, not the account of it: real artifact embedded, raw output verbatim, provenance for every number — enforced by a pre-ExitPlanMode gate. Prose is REFUSED by the builder: every text field is checked (≤140 chars per bullet, one sentence each, no continuation connective, max 6 per block) and a violation aborts without writing the page. Each problem's body is born folded — the title stays visible, consequence and proposal open on click under a label derived from the content itself. Plans, diagnostics and decisions in the browser with live sync back to Claude. Regravar um plano nunca apaga em silêncio o que não veio no pacote: o init parcial FUNDE o bloco de requisitos por id — o requisito que só existe no arquivo fica, e o executor recebe a nota do que foi mantido. O cruzamento também mede o plano contra a arquitetura pretendida: funcionalidade sem peça, e requisito citando peça que o architecture-intent.md não tem, saem em listas próprias — e o mesmo vale para o desenho de funcionamento: funcionalidade sem passo do ciclo, e passo do ciclo que nenhuma funcionalidade atende.",
       "category": "productivity",
-      "version": "1.40.1",
+      "version": "1.41.1",
       "tags": [
         "visualization",
         "html",

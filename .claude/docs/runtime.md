@@ -912,6 +912,34 @@ O fluxo, que nasceu na onda de 2026-08-08 (`F17.1` + `F17.6`):
 
 ---
 
+## 21 · A trava dupla do gauntlet — o juiz deixa de depender de quem despacha
+
+**Novo em 2026-08-09**, e é a troca de mecanismo que a v0.3.0 do `gauntlet` trouxe: o laço saiu de dentro de um `Workflow` fechado e passou a rodar como equipe de agentes visível na conversa. A garantia de que toda entrega ganha juiz mudou de lugar sem deixar de ser mecânica. `[confirmado]`
+
+**O que dispara.** `plugins/gauntlet/hooks/hooks.json` registra `PreToolUse[Agent]` → `pretooluse-gauntlet.sh` (10s). O caminho, na ordem em que o arquivo decide:
+
+```
+GAUNTLET_GATE=0 ............................. exit 0 (kill-switch, antes de tudo)
+hook-json.sh ausente / sem jq e sem python3 . exit 0 falando (hj_avisa)
+session_id ausente (linha 59) ............... exit 0
+andamento/ativo-<session_id> ausente ........ exit 0
+1ª linha do sinal != "gauntlet" ............. exit 0 (a casa é compartilhada)
+2ª linha ausente ou não é diretório ......... exit 0 (fail-open declarado)
+sinal mais velho que GAUNTLET_TTL_MIN ....... remove o sinal, exit 0
+bloqueios-<sid> >= GAUNTLET_MAX_BLOQUEIOS ... registra desistência, exit 0
+fecho_check.py pendentes <missão> == vazio .. exit 0 (equipe livre)
+prompt contém [gauntlet:juiz:<peça pendente>] exit 0 (o juiz passa)
+senão ....................................... deny, nomeando a peça e o marcador
+```
+
+**O sinal ganhou uma segunda linha.** A 1ª continua sendo o nome que a barra de status lê — `plugins/project-skills/lib/andamento.py:_motor` usa `readline()`, então enxerga só ela —, e a 2ª carrega o diretório da missão. É por ela que o guarda sabe onde procurar pendência, e sinal sem ela deixa o guarda mudo em vez de adivinhar. `[confirmado — leitura das duas funções]`
+
+**A pergunta é do disco.** `fecho_check.py pendentes` percorre a decomposição e devolve a peça cuja última rodada tem `entrega.json` e não tem `veredito.json` legível com status do vocabulário. É a foto da falha de origem ("sete construtores, zero juízes") tirada em voo, e não no fecho. `[confirmado — `python3 plugins/gauntlet/lib/test_fecho_check.py` → *"fecho_check: tudo verde"*, com os casos de `pecas_pendentes`]`
+
+**Verificado:** `bash plugins/gauntlet/hooks/test_gauntlet_hooks.sh` → *"trava dupla do gauntlet: tudo verde"*, cobrindo o construtor negado, o juiz da pendente que passa, o juiz de peça já julgada que não fura a fila, a equipe livre sem pendência, a desistência, a expiração, o kill-switch e as cinco bordas de fail-open. `[confirmado nesta rodada]`
+
+---
+
 ## Pendências
 
 - **Ponteiros cross-tool inertes** (cenário 2): os 5 arquivos apontam pra um `CLAUDE.md` na raiz que não existe. `[confirmado]`

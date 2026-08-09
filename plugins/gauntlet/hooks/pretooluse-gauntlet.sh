@@ -1,19 +1,24 @@
 #!/bin/bash
-# pretooluse-gauntlet.sh — enquanto o gauntlet está de pé, quem julga é o motor.
+# pretooluse-gauntlet.sh — a TRAVA DUPLA do juiz: entrega sem veredito trava o despacho.
 #
-# PreToolUse em Agent. Nega o disparo de sub-agente ENQUANTO houver missão armada,
-# e é mudo fora dela.
+# PreToolUse em Agent. Enquanto houver missão armada E alguma peça entregue sem juiz,
+# o único agente que pode nascer é o juiz de uma peça pendente. Fora disso, é mudo.
 #
 # Por que existe: a falha que motivou a skill inteira foi um orquestrador que leu
-# relatórios de sete construtores e aceitou todos, sem lançar juiz nenhum. A skill
-# proíbe isso por escrito — e proibição por escrito foi exatamente o que falhou nas
-# duas sessões reais. Este hook torna a proibição mecânica: com missão de pé, o
-# caminho de sub-agente avulso não existe.
+# relatórios de sete construtores e aceitou todos, sem lançar juiz nenhum. A primeira
+# versão desta trava resolvia negando TODO sub-agente e mandando o trabalho para um
+# motor fechado (a tool Workflow) — e o dono derrubou a caixa fechada (2026-08-09):
+# a disputa agora roda como equipe visível, despachada pela própria conversa. O que
+# esta versão preserva é o essencial: o esquecimento do juiz continua IMPOSSÍVEL,
+# não só proibido — quem responde é o disco (`fecho_check.py pendentes`), nunca a
+# memória de quem despacha.
 #
-# Duas saídas, e a diferença entre elas é um arquivo:
+# Três saídas, e a diferença entre elas é o disco:
 #
-#   A) sinal ausente  -> exit 0, mudo. Não há missão; sub-agente aqui não é assunto deste.
-#   B) sinal presente -> DENY, mandando passar pelo motor.
+#   A) sinal ausente            -> exit 0, mudo. Não há missão.
+#   B) missão sem pendência     -> exit 0. Qualquer agente pode nascer.
+#   C) entrega sem veredito     -> DENY a tudo que não seja o juiz dela.
+#      O juiz se apresenta pelo marcador `[gauntlet:juiz:<peça>]` no prompt.
 #
 # O sinal é por SESSÃO (`ativo-<session_id>`). Marcador global faria uma sessão em
 # gauntlet tirar de toda sessão paralela o direito de despachar sub-agente — é o
@@ -66,6 +71,13 @@ SINAL="$RAIZ/ativo-$SESSION"
 # motor na mesma casa não pode ser negada com a mensagem deste aqui.
 [ "$(head -n 1 "$SINAL" 2>/dev/null)" = "gauntlet" ] || exit 0
 
+# A segunda linha do sinal é o diretório da missão — é nele que a pendência mora.
+# A barra de status lê só a primeira linha (`andamento.py:_motor` usa readline),
+# então a segunda é canal livre. Sem ela, ou sem o diretório no disco, FAIL-OPEN:
+# guarda que trava por causa da própria infra é pior que guarda nenhum.
+MISSAO="$(sed -n 2p "$SINAL" 2>/dev/null)"
+[ -n "$MISSAO" ] && [ -d "$MISSAO" ] || exit 0
+
 # O sinal expira por idade. A janela é larga de propósito: a missão que ele protege
 # é longa por definição, e encurtá-la mataria execução legítima em andamento.
 TTL_MIN="${GAUNTLET_TTL_MIN:-720}"
@@ -76,6 +88,26 @@ if [ "$AGORA" -gt 0 ] && [ $(( (AGORA - NASCEU) / 60 )) -gt "$TTL_MIN" ]; then
   printf '%s expirou apos %s min\n' "$SINAL" "$TTL_MIN" >> "$RAIZ/expirados.log" 2>/dev/null
   exit 0
 fi
+
+# A pergunta é do DISCO, nunca da memória: qual peça está entregue e sem juiz?
+# Sem python que execute, ou com o conferente fora do lugar, FAIL-OPEN falando.
+LIB="$HJ_DIR/../lib/fecho_check.py"
+[ -f "$LIB" ] || exit 0
+PY=$(hj_py 2>/dev/null) || exit 0
+PENDENTES=$("$PY" "$LIB" pendentes "$MISSAO" 2>/dev/null)
+[ -n "$PENDENTES" ] || exit 0
+
+# Há pendência. O único agente com passagem é o juiz de uma peça pendente — ele se
+# apresenta pelo marcador no próprio prompt, que é a única coisa que o evento traz.
+PROMPT=$(hj_campo "$INPUT" tool_input.prompt)
+while IFS= read -r PECA; do
+  [ -n "$PECA" ] || continue
+  case "$PROMPT" in
+    *"[gauntlet:juiz:$PECA]"*) exit 0 ;;
+  esac
+done <<EOF_PECAS
+$PENDENTES
+EOF_PECAS
 
 CONTADOR="$RAIZ/bloqueios-$SESSION"
 N=$(cat "$CONTADOR" 2>/dev/null || echo 0)
@@ -89,17 +121,19 @@ fi
 
 printf '%s' $(( N + 1 )) > "$CONTADOR" 2>/dev/null
 
-hj_deny "⛔ Há uma missão do gauntlet de pé, e nela quem julga é o motor.
+LISTA=$(printf '%s' "$PENDENTES" | tr '\n' ' ')
+hj_deny "⛔ Trava dupla do gauntlet: há entrega SEM JUIZ, e nada mais nasce antes dele.
 
-Sub-agente avulso não entra: foi assim que sete construtores foram aceitos sem
-juiz nenhum, e a skill existe por causa disso. O laço — construtor, juiz, e o
-julgamento em disco — roda pela tool Workflow, com o motor de references/motor.js.
+Peça(s) entregue(s) esperando veredito: $LISTA
 
-Era só uma leitura, um parecer de UM agente? Então é um Workflow de um agente()
-só, não o motor inteiro.
+Foi assim que sete construtores foram aceitos sem juiz nenhum — a skill existe por
+causa disso. Despache AGORA o juiz da peça pendente, com o marcador no prompt:
 
-Terminou a missão? Quem apaga o sinal é a conferência verde:
-  python3 <plugin>/lib/fecho_check.py fecho <a missao>
+  [gauntlet:juiz:<peça>]
 
+O juiz nasce cego: sem lista de defeitos, forma juízo antes de ler o relatório do
+construtor, e o veredito é nulo sem os dois registros (o nosso e o do alvo).
+
+Conferir a pendência: python3 <plugin>/lib/fecho_check.py pendentes <a missão>
 Se este bloqueio estiver errado, o desligamento é GAUNTLET_GATE=0."
 exit 0

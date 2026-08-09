@@ -46,8 +46,13 @@ o orquestrador lê o relatório — e nada dispara o juiz. O estado default do s
 juízes", e ele parece normal em qualquer foto que se tire. **Não é falta de disciplina: é
 ausência de gatilho.**
 
-→ É por isso que, no motor, o juiz é o `await` seguinte ao do construtor. Não existe
-caminho da entrega ao fecho que o pule, porque quem lança não é quem orquestra.
+→ Foi por isso que a primeira versão rodava num motor fechado (a tool `Workflow`), onde o
+juiz era o `await` seguinte ao do construtor. **O dono derrubou a caixa fechada em
+2026-08-09** — ele quer ver a equipe, dirigir em voo e parar quando quiser — e o gatilho
+mudou de lugar sem deixar de ser mecânico: a trava de `hooks/pretooluse-gauntlet.sh`
+consulta o disco (`fecho_check.py pendentes`) antes de todo despacho, e enquanto houver
+entrega sem veredito só o juiz da peça pendente nasce. O esquecimento continua impossível;
+o que mudou é que agora ele é impossível À VISTA.
 
 ---
 

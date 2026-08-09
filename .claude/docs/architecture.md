@@ -327,7 +327,7 @@ branches           1.3.4  [branches]                                         HOO
 check-skills       0.7.0  [check-skills]                                     -
 context-guard      1.3.9  [context-guard]                                    HOOKS
 fallow             1.2.3  [fallow]                                           -
-gauntlet           0.2.3  [gauntlet]                                         HOOKS
+gauntlet           0.3.0  [gauntlet]                                         HOOKS
 graphify-guard     1.2.4  []                                                 HOOKS
 grill-me           1.4.0  [grill-me]                                         -
 guardrails         1.7.7  [guardrails]                                       HOOKS
@@ -556,14 +556,20 @@ Observações de arquitetura:
   falhas"* neste run]
 - **Três plugins gateiam o `Agent`, e eles não concorrem — respondem a perguntas diferentes.**
   Os dois primeiros estão descritos logo abaixo; o terceiro é o `gauntlet`
-  (`pretooluse-gauntlet.sh`), que **nega sub-agente enquanto houver missão de gauntlet
-  armada** e é mudo fora dela, pelo mesmo desenho do motor de execução contínua: sinal por sessão
-  (`ativo-<session_id>`), cap de negações, expiração por idade e fail-open em toda borda de
-  infra. O cabeçalho do arquivo registra o motivo, literal: *"a falha que motivou a skill
+  (`pretooluse-gauntlet.sh`), que na v0.3.0 deixou de negar sub-agente em bloco e passou a
+  negar **só enquanto houver entrega sem veredito** — e, mesmo então, só quem NÃO é o juiz
+  da peça pendente. A pergunta é do disco (`fecho_check.py pendentes`), nunca da memória de
+  quem despacha, e o crachá que abre a passagem é o marcador `[gauntlet:juiz:<peça>]` no
+  prompt do agente. O desenho de infra continua o mesmo do motor de execução contínua: sinal
+  por sessão (`ativo-<session_id>`), cap de negações, expiração por idade e fail-open em toda
+  borda. O cabeçalho do arquivo registra o motivo, literal: *"a falha que motivou a skill
   inteira foi um orquestrador que leu relatórios de sete construtores e aceitou todos, sem
-  lançar juiz nenhum… proibição por escrito foi exatamente o que falhou nas duas sessões
-  reais"*. **Os três leem sinais independentes**, então nada garante que só um esteja aceso
-  de cada vez — na prática, motor + `gauntlet` simultâneos negam pelo primeiro que responder.
+  lançar juiz nenhum"* — e registra também a mudança de 2026-08-09: *"o dono derrubou a caixa
+  fechada… o esquecimento do juiz continua IMPOSSÍVEL, não só proibido"*. **Os três leem
+  sinais independentes**, então nada garante que só um esteja aceso de cada vez — na prática,
+  motor + `gauntlet` simultâneos negam pelo primeiro que responder. [confirmado —
+  `bash plugins/gauntlet/hooks/test_gauntlet_hooks.sh` → *"trava dupla do gauntlet: tudo
+  verde"*, com o caso "o juiz da peça pendente passa" ao lado de "construtor novo é negado"]
   O do `guardrails` é o classificador LLM e existe pra **proteger** Agent Teams: ele nega
   sub-agente avulso **quando o prompt pede Agent Teams**, e libera explicitamente *"tarefa
   one-off sem team_name"*. O terceiro é o do `project-skills`

@@ -1,232 +1,180 @@
 ---
 name: gauntlet
-description: Use quando o usuário quiser que agentes disputem contra um produto real que ele nomeia — site, jogo, tela de aplicativo, relatório, qualquer coisa que se possa construir, iterar e julgar. Dispara em "/gauntlet", "roda o gauntlet", "quero bater o site X", "isso tem que ganhar do Y", "monta um laço de crítica contra um benchmark". O objetivo quebra em peças julgáveis, cada peça ganha um construtor e um juiz cego separado, e o juiz só aprova o que for MELHOR que o alvo — nunca o que apenas cumpre o pedido. Nada do que foi construído se julga sozinho, e quem orquestra também não julga. Cada veredito é um arquivo em disco com o par de observações que o prova, e o fecho é recusado por programa quando falta algum. Nasceu de uma falha real - sete construtores foram lançados prometendo um juiz em cada briefing, zero juízes foram lançados, e ninguém percebeu, porque um sistema sem gatilho é indistinguível de um sistema em que tudo foi aprovado.
+description: Use quando o usuário quiser que agentes disputem contra um produto real que ele nomeia — site, jogo, tela de aplicativo, relatório, qualquer coisa que se possa construir, iterar e julgar. Dispara em "/gauntlet", "roda o gauntlet", "quero bater o site X", "isso tem que ganhar do Y", "monta um laço de crítica contra um benchmark". O objetivo quebra em peças julgáveis, cada peça ganha um construtor e um juiz cego separado, e o juiz só aprova o que for MELHOR que o alvo — nunca o que apenas cumpre o pedido. A disputa roda como EQUIPE VISÍVEL na conversa - o dono vê cada agente, dirige em voo, veta e para; nada roda em caixa fechada. Nada do que foi construído se julga sozinho, e quem orquestra também não julga. Cada veredito é um arquivo em disco com o par de observações que o prova; uma trava de PreToolUse impede despacho novo enquanto houver entrega sem juiz; e o fecho é recusado por programa quando falta algum. Nasceu de uma falha real - sete construtores foram lançados prometendo um juiz em cada briefing, zero juízes foram lançados, e ninguém percebeu.
 ---
 
 # Skill: /gauntlet
 
-Agentes disputando contra um produto real, com quem constrói separado de quem julga.
+A essência, nas palavras do dono (2026-08-09):
 
-**A técnica é do Matt Shumer** (<https://somethingbig.ai/gauntlet-loop>), verbatim:
+> *"É você dar uma missão, dar um benchmark que a gente quer bater, decompor a tarefa em
+> pedaços, fazer um fanout de sub-agentes para cada um atacar esse pedaço, e colocar um ou
+> mais juízes que devem ficar incrivelmente impressionados no final do processo e concordar
+> que a gente ganhou do benchmark. Isso inclui esses juízes estarem presentes, serem de fato
+> os juízes do negócio e conseguirem enxergar e avaliar o que está sendo feito."*
+
+E o princípio herdado do Matt Shumer (<https://somethingbig.ai/gauntlet-loop>), verbatim:
 
 > *"give the agent a bar it can't talk its way around, let it split the work, and never let
 > the builder grade itself."*
 
-**O que esta skill acrescenta a ela**, e o motivo de cada um está em `references/porque.md`:
-o julgamento vive em arquivo, porque a conversa é atropelável · o fecho é recusado por
-programa, porque o estado sem juiz parece normal · existe um caderno de vetos, porque existe
-um dono, e a técnica original não tem dono.
+A disputa roda como **equipe de agentes visível na conversa** — decisão do dono, que
+derrubou o motor fechado (a tool `Workflow`) da versão anterior. O que não mudou: quem
+constrói não se julga, quem orquestra não julga, e todo julgamento vive em arquivo. Os
+motivos medidos de cada trava estão em `references/porque.md`.
 
-## O contrato
+## O contrato de quem orquestra (você)
 
-**Faz:** conduz a abertura até o rito estar completo · dispara o motor · registra os vetos do
-dono · fecha quando a conferência passa.
+**Faz:** conduz a abertura · despacha e nomeia os agentes · grava decomposição, vetos e
+placar · repassa ordens do dono em voo · fecha quando a conferência passa.
 
-**Não faz:** não julga. Quem orquestra está contaminado por ter escrito os briefings e
-escolhido as restrições — **nem como saída quando não dá para lançar o juiz**, que foi
-exatamente a saída silenciosa que produziu a falha de origem.
+**Não faz: não julga.** Você escreveu os briefings e escolheu as restrições — está
+contaminado. Nem como saída quando não dá para lançar o juiz: essa saída silenciosa foi a
+falha de origem. Quem cobra não é esta frase, é a trava de `hooks/pretooluse-gauntlet.sh`
+e o fecho de `lib/fecho_check.py`.
 
-## 1 · A abertura — e ela recusa começar incompleta
+## 1 · A abertura — enxuta, e ela recusa começar incompleta
 
-Nada fica para ser resolvido durante a execução. Colha os nove, na conversa, e grave em
-`.claude/gauntlet/<data>-<slug>/rito.json`:
+Colha na conversa e grave em `.claude/gauntlet/<data>-<slug>/rito.json`. **Cinco campos
+obrigatórios**, e mais nada — a ficha de 9 campos da versão anterior era ritual, e o dono
+mandou enxugar:
 
-| # | Campo | De onde vem |
-|---|---|---|
-| 1 | `objetivo` | o dono |
-| 2 | `tipo` | o dono |
-| 3 | `alvos` | o dono; você pode sugerir e ele aprova |
-| 4 | `sonda` | **você propõe pelo tipo**, ele aprova |
-| 5 | `eixos` | **você propõe pelo reconhecimento**, ele aprova a lista |
-| 6 | `congelado` / `liberado` | o dono |
-| 7 | `material` | o dono — o que pode ser gerado, o que não |
-| 8 | `orcamento` | o dono; sugira padrões |
-| 9 | `vetos` herdados | o dono, se houver |
-| — | `raiz` | onde a obra mora, se não for a própria missão — sem isso o artefato relativo não é achado |
+| Campo | De onde vem |
+|---|---|
+| `objetivo` | o dono |
+| `alvos` | o dono; você pode sugerir e ele aprova — URLs concretas, nunca adjetivos |
+| `sonda` | **você propõe pelo tipo de peça**, ele aprova; receitas em `references/sondas.md` |
+| `eixos` | o agente de reconhecimento propõe; o dono aprova a lista |
+| `orcamento` | o dono; sugira padrões (`rodadas_por_peca`, `teto_de_pecas`) |
 
-**Sem alvo, sonda e eixos não há gauntlet** — o juiz ficaria sem régua ou sem procedimento, e
-viraria revisor de conformidade, que sempre aprova. Quem recusa é o programa:
+Opcionais que entram quando existem: **`lei`** (ver o modo com lei, abaixo) · `vetos`
+herdados · `raiz` (onde a obra mora, se não for a própria missão).
+
+**Os dois modos, decididos na abertura com UMA pergunta:** há documento de regras do
+projeto (constituição, doc de marca, spec congelada)? **Com ele**, o caminho (ou a lista
+de artigos) entra no campo `lei`. **Sem ele**, a disputa é livre — só o alvo manda.
+O que a lei faz, nas palavras do dono: *"orienta pra evitar erros, e se fizerem cagada
+ele reprova"* — ela entra no briefing de todo construtor como orientação, e o juiz
+**reprova a peça que a viola de fato**, por mais bonita que esteja.
+
+**A sonda é testada antes de começar** (`teste_registro` no disco), e o reconhecimento
+executa a sonda **no alvo** antes de a obra existir, devolvendo os `eixos` — o que faz o
+alvo ser bom, item a item, cada um com o registro que o prova. Sem alvo, sonda e eixos o
+juiz vira revisor de conformidade, que sempre aprova. Quem recusa é o programa:
 
 ```bash
 python3 "${CLAUDE_PLUGIN_ROOT}/lib/fecho_check.py" rito "<a missão>" --sinal "<o sinal>"
 ```
 
-Ele também recusa abrir uma segunda missão com uma de pé.
-
-### A sonda — o que torna a skill genérica sem virar vaga
-
-A sonda é **como observar**, declarada por tipo de peça e testada antes de começar:
-
-```json
-"sonda": {
-  "preparar":  "o comando que põe a peça observável",
-  "registrar": "o comando que produz o registro",
-  "interagir": "os gestos que valem neste meio",
-  "alvo":      "como observar o alvo pelo MESMO procedimento",
-  "teste_registro": "o registro que a sonda produziu quando você a rodou"
-}
-```
-
-O último campo é o que faz "a sonda foi testada" ser fato e não promessa: o programa confere
-que o arquivo existe e não está vazio. As receitas por tipo estão em `references/sondas.md` —
-**tipo novo é sonda nova escrita na abertura, nunca emenda nesta skill.**
-
-### Os eixos — o que "melhor" quer dizer
-
-Um agente de contexto limpo executa a sonda **no alvo**, antes de a nossa obra existir, e
-devolve o que faz o alvo ser bom, item a item:
-
-```json
-"eixos": [ { "nome": "a qualidade nomeada",
-             "gesto": "qual gesto da sonda a expõe",
-             "registro": "o registro DO ALVO que a prova" } ]
-```
-
-Com isso, "melhor que o alvo" para de ser adjetivo: **para cada eixo, o par de registros — o
-nosso e o do alvo, produzidos pelo mesmo gesto — mostra o nosso ganhando.** Reprovar é nomear
-o eixo onde o alvo mais ganha, com o par colado.
-
-Qualidade que não cabe em medida não é proibida de julgar. O proibido é julgá-la sem âncora:
-o programa confere que os dois registros existem, nunca o gosto.
-
-## 2 · O sinal — e ele é a primeira coisa
-
-Antes de disparar o motor, acenda; ao entregar, apague. É ele que faz o guarda existir:
+## 2 · O sinal — duas linhas, e a segunda arma a trava
 
 ```bash
 GDIR="${CLAUDE_CONFIG_DIR:-$HOME/.claude}/andamento"
 mkdir -p "$GDIR"
-printf 'gauntlet\n' > "$GDIR/ativo-$CLAUDE_CODE_SESSION_ID"
+printf 'gauntlet\n%s\n' "<caminho absoluto da missão>" > "$GDIR/ativo-$CLAUDE_CODE_SESSION_ID"
 ```
 
-A casa do sinal é a **neutra** (`andamento/`), a mesma que os outros motores acendem, e o
-nome escrito dentro dele é o que sai na barra de status — `lib/andamento.py:linha_motor` lê
-esse nome. Sinal em pasta com nome de um plugin só fazia a barra ficar muda para todos os
-outros.
+A linha 1 é o nome que a barra de status lê; a **linha 2 é o diretório da missão — é por
+ela que a trava dupla sabe onde procurar pendência.** Sinal sem a linha 2 deixa a trava
+muda (fail-open declarado, não proteção imaginária).
 
-Enquanto ele está aceso, `hooks/pretooluse-gauntlet.sh` **nega** todo disparo de sub-agente
-fora do motor — a proibição de julgar na mão vira mecânica. Fora do gauntlet ele é mudo.
-Desligamento: `GAUNTLET_GATE=0`.
+⚠️ **Quem apaga o sinal é a conferência verde, não você** — passe `--sinal` no fecho.
+Há rede embaixo do esquecimento: o sinal expira por idade, e a trava desiste depois de
+algumas negações na mesma sessão. Desligamento de emergência: `GAUNTLET_GATE=0`.
 
-⚠️ **Quem apaga o sinal é a conferência verde, não você** — e isso é uma linha de
-`lib/fecho_check.py`, não uma regra de conduta: passe o caminho do sinal em `--sinal` no
-comando de fecho, e ele o remove quando as conferências passam. Fecho vermelho não o toca.
+## 3 · A equipe — visível, nomeada, dirigível
 
-Há rede embaixo do esquecimento: o sinal expira por idade, e o guarda desiste depois de
-algumas negações na mesma sessão. Missão longa com o dono fora não pode travar por infra.
+Todo agente da disputa nasce pela tool `Agent`, **com `name` e com o marcador no começo
+do prompt** — o marcador é o crachá que a trava lê:
 
-## 3 · O motor
+| Papel | `name` | Marcador no prompt |
+|---|---|---|
+| reconhecimento | `recon` | `[gauntlet:recon]` |
+| decompositor | `decompositor` | `[gauntlet:decompositor]` |
+| construtor da peça X | `construtor-X` | `[gauntlet:construtor:X]` |
+| juiz da peça X | `juiz-X` | `[gauntlet:juiz:X]` |
+| diretor | `diretor` | `[gauntlet:diretor]` |
 
-O laço inteiro vive em **`references/motor.js`** — leia o arquivo e passe-o à tool `Workflow`.
-Ele não está aqui de propósito: esqueleto dentro do arquivo de instrução é o grosso da maior
-skill deste marketplace, e ele não precisa ocupar o contexto de quem orquestra.
+Os briefings de cada papel estão em **`references/briefings.md`** — interpole os valores
+da missão (objetivo, alvo, sonda, eixos, lei, vetos) no despacho. O briefing do juiz é
+inegociável no que ele **não** recebe: lista de defeitos de ninguém.
 
-Os parâmetros que a casca compõe e passa em `args`:
+**O laço, na ordem em que os despachos acontecem:**
 
-| Parâmetro | O que é |
-|---|---|
-| `missao` | o diretório em `.claude/gauntlet/` |
-| `rito` | o conteúdo de `rito.json`, já aprovado |
-| `pluginRoot` | a raiz deste plugin, para o motor chamar a conferência |
-| `sinal` | `$GDIR/ativo-$CLAUDE_CODE_SESSION_ID` — o motor o repassa à conferência, que é quem o apaga |
-| `tetoRodadas` · `tetoGasto` · `tetoPecas` | do `orcamento` do rito |
+1. **Decomposição** — o decompositor quebra o objetivo em peças julgáveis separadamente
+   (quem decompõe é o agente, não o humano). Você grava `decomposicao.json` (peça → eixos
+   → arquivos; eixo que não coube em peça vai em `eixos_do_diretor`), **mostra a lista na
+   conversa e segue** — o dono veta quando quiser, sem a disputa esperar.
+2. **Fanout de construtores** — um por peça, em paralelo. Rodada 1 de peça exploratória:
+   três propostas de verdade, escolha pelo olho. Cada construtor grava a obra, os
+   registros da sonda e `pecas/<X>/r<N>/entrega.json` (caminho + marca de cada artefato —
+   é alegação; o fecho recomputa tudo).
+3. **Juiz, disparado pela entrega** — quando um construtor termina, o próximo despacho
+   daquela peça é o juiz dela. **Não é disciplina, é mecânica:** com entrega sem veredito
+   no disco, a trava de PreToolUse nega qualquer agente que não seja `[gauntlet:juiz:<a
+   peça pendente>]`. O juiz executa a sonda nos DOIS lados, forma juízo antes de ler o
+   relatório do construtor, e grava `veredito.json` — nulo sem o par de registros.
+4. **Reprovou** — o veredito nomeia UM gap, o maior, com o par de registros. O construtor
+   da rodada seguinte responde a esse defeito nomeado, sem explorar.
+5. **Para** por aprovação, por `marginal` (ganho pequeno declarado pelo juiz) ou pelo
+   `orcamento`. **Diretor** passa no conjunto quando as peças fecham — o defeito ENTRE
+   peças é invisível aos juízes de peça.
 
-**O que o motor garante, e que não depende da memória de ninguém:** o juiz é o `await`
-seguinte ao do construtor, sem desvio que o pule · veredito sem eixo ou sem os dois registros
-é recusado e o papel roda de novo · a decomposição não passa com peça órfã nem eixo sem dono ·
-o laço para por aprovação, por `marginal` do juiz, ou pelo orçamento.
+**O placar sai na conversa a cada rodada** — e é o programa que o desenha:
 
-Os quatro briefings — reconhecimento, construtor, juiz e diretor — são as funções `…Prompt`
-do próprio `motor.js`. Eles não são texto estático: injetam o congelado, os vetos, a sonda e
-os eixos da missão, e um arquivo separado interpolado à mão recriaria um canal frouxo entre
-o valor e quem o usa — canal que já falhou noutro motor deste marketplace.
+```bash
+python3 "${CLAUDE_PLUGIN_ROOT}/lib/fecho_check.py" mapa "<a missão>"
+```
 
-## 4 · Quando o dono entra no meio
+## 4 · A obra ao vivo — o dono e os juízes enxergam a mesma coisa
 
-A missão é autônoma; ele entra quando quer. Três coisas acontecem, e só três:
+Faz parte do mecanismo (palavras do dono): **quem julga precisa conseguir observar a
+obra, e o dono também.** O `preparar` da sonda põe a peça observável; quando a obra abre
+no browser (site, tela), **abra-a no browser do dono** assim que a primeira versão
+existir (`open <url>`), e ela evolui ali enquanto os construtores trabalham. Os juízes
+observam pela MESMA sonda — nunca pelo relatório de quem construiu. Peça que não abre em
+browser se observa pelo `registrar` da sonda, e o registro vai na conversa.
 
-1. **O laço não tem como ser pausado em voo** — o que existe é parar o motor, e o que chega
-   à rodada seguinte é o caderno. Se a intervenção for urgente, pare a missão; se puder
-   esperar a volta, o caderno já a leva.
-2. **O veto é registrado por programa**, nunca por você redigindo a linha:
+## 5 · O dono entra quando quiser — e a ordem chega em voo
+
+1. **Veto é registrado por programa**, nunca por você redigindo a linha:
 
 ```bash
 python3 "${CLAUDE_PLUGIN_ROOT}/lib/fecho_check.py" veto "<a missão>" \
   --o-que "<o que ele vetou>" --pecas "<as peças que isso toca>"
 ```
 
-3. **Se o veto tocar coisa já fechada, o programa avisa e você PERGUNTA** antes de reabrir.
-   Ele responde manter? A linha do veto ganha `"mantido": true`.
+2. **A ordem chega na hora a quem já trabalha:** repasse-a por `SendMessage` aos agentes
+   vivos que ela toca — decisão do dono; a rodada em curso pode ser invalidada, e isso é
+   preferível a assistir um erro conhecido terminar. E ela entra no briefing de todo
+   agente das rodadas seguintes, sempre.
+3. **Se o veto tocar peça já fechada, o programa avisa e você PERGUNTA** antes de
+   reabrir. Ele responde manter? A linha do veto ganha `"mantido": true`.
+4. **Parar a disputa** é parar de despachar e dizer onde ficou (`mapa`). O dono revoga a
+   própria lei: mostre a lei com a fala de origem citada literal, pergunte, registre.
 
-**Lei nova se escreve na hora**, e entra em todo briefing **da rodada seguinte** — agente já
-disparado não recebe atualização, e dizer que recebe seria descrever proteção inexistente.
-
-**O dono revoga a própria lei.** Aconteceu duas vezes na sessão de origem: mostre a lei com a
-fala que a originou citada literal, pergunte, e registre a revogação com o motivo.
-
-## 5 · O fecho
-
-```bash
-python3 "${CLAUDE_PLUGIN_ROOT}/lib/fecho_check.py" fecho "<a missão>"
-```
-
-Verde: ele apaga o sinal. Vermelho: ele imprime o que falta, e o mapa é o mesmo que ressuscita
-a missão depois de um `/clear`:
+## 6 · O fecho
 
 ```bash
-python3 "${CLAUDE_PLUGIN_ROOT}/lib/fecho_check.py" mapa "<a missão>"
+python3 "${CLAUDE_PLUGIN_ROOT}/lib/fecho_check.py" fecho "<a missão>" --sinal "<o sinal>"
 ```
 
-**O que a conferência olha está na suíte dela**, não escrito aqui — número cravado em prosa
-envelhece sozinho. Rode `python3 "${CLAUDE_PLUGIN_ROOT}/lib/test_fecho_check.py"` para ver
-cada caso com o nome da falha real que ele reproduz.
-
-O relatório final vai para uma página no browser quando a skill de apresentação visual estiver
-instalada; sem ela, sai em texto aqui — a informação é a mesma, só a forma degrada.
-
-## 6 · Quem escreve cada arquivo
-
-Arquivo de dono indefinido é arquivo que o interessado carimba. Por isso:
-
-| Arquivo | Quem escreve | Quem valida |
-|---|---|---|
-| `rito.json` | você, com o dono aprovando cada campo | `fecho_check.py rito` |
-| `recon/eixos.json` | o agente de reconhecimento; o dono aprova | `fecho_check.py rito` |
-| `decomposicao.json` | o motor grava o que o decompositor devolveu | o motor, antes de soltar construtor |
-| `entrega.json` | o construtor — é **alegação**, não carimbo | `fecho_check.py fecho`, recomputando a marca de cada artefato contra o disco |
-| `veredito.json` | **o motor**, com o que o juiz devolveu | `fecho_check.py fecho` |
-| `rito-aprovado.marca` | `fecho_check.py rito`, quando a abertura passa | `fecho_check.py fecho` |
-| `vetos.jsonl` | `fecho_check.py veto` | `fecho_check.py fecho` |
-| `MAPA.md` | `fecho_check.py mapa` — derivado | — |
-
-O construtor escrever a própria entrega não reabre o problema do interessado que se carimba:
-o manifesto só **aponta** para os arquivos, e nada nele é aceito sem recomputação.
-
-**A marca de um arquivo é o conteúdo, nunca a data.** Data não sobrevive a um `git checkout`,
-a um clone nem a uma cópia — e um julgamento legítimo passaria a ser recusado por uma operação
-de git que ninguém associaria a esta skill.
+Verde: ele apaga o sinal. Vermelho: imprime o que falta, e o `mapa` é o mesmo que
+ressuscita a missão depois de um `/clear`. **O que a conferência olha está na suíte
+dela** (`lib/test_fecho_check.py`), não escrito aqui — número cravado em prosa envelhece
+sozinho.
 
 ## 7 · Fronteiras e armadilhas
 
-**Não é o motor de execução autônoma deste marketplace.** Aquele amarra a execução de um plano
-já decidido; este produz trabalho criativo contra uma régua externa. Os dois laços são
-igualmente determinísticos — o que muda é a pergunta: lá é *"o combinado saiu?"*, e essa
-sempre dá sim. É a régua de conformidade, e é a causa da falha de origem.
-
-**Não automatize o julgamento estético.** Toda medida tentada nas duas sessões que originaram
-esta skill enganou pelo menos uma vez. Medida detecta regressão; não diz se está bom.
-
-**Relatório longo não é qualidade.** Os melhores relatórios daquelas sessões acompanhavam
-trabalho que um juiz teria reprovado — e responder "aceito" a um relatório bom *parece*
-julgar, quando é só avaliar a argumentação.
-
-**Uma ressalva de momento, declarada em vez de escondida:** o esquema de resposta do juiz
-valida a forma do veredito, não a existência dos arquivos que ele cita. Juiz que preenche
-caminho de registro inexistente passa na rodada, e só o fecho o pega.
-
-**Três propostas de verdade só valem na primeira rodada**, e só em peça marcada como
-exploratória. Nas rodadas de conserto o construtor responde a um defeito nomeado — explorar
-ali é desperdício.
-
-**Peça sem material que não existe:** asset que não existe não se inventa. Deixa-se um lugar
-honesto para ele, e aquele pedaço sai do julgamento.
+- **Não automatize o julgamento estético.** Toda medida tentada nas sessões de origem
+  enganou pelo menos uma vez. Medida detecta regressão; não diz se está bom.
+- **Relatório longo não é qualidade.** Responder "aceito" a um relatório bom *parece*
+  julgar, quando é só avaliar a argumentação — foi a causa (a) da falha de origem.
+- **Asset que não existe não se inventa.** Deixa-se um lugar honesto para ele, e aquele
+  pedaço sai do julgamento.
+- **Três propostas só na primeira rodada**, e só em peça exploratória. Rodada de conserto
+  responde a um defeito nomeado.
+- **Tipo novo de peça é sonda nova** escrita na abertura (`references/sondas.md`), nunca
+  emenda nesta skill.
+- **Não é o motor de execução autônoma deste marketplace.** Lá a pergunta é *"o combinado
+  saiu?"* — conformidade, que sempre dá sim. Aqui é *"isso ganha do alvo?"*.
