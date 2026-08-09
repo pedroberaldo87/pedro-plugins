@@ -501,6 +501,16 @@ Depósito **novo nesta rodada**, irmão do B8 e deliberadamente diferente dele: 
 - ⚠️ **Há um sinal órfão nesta pasta**, de quando o gauntlet ainda acendia em casa própria: `ativo-01dc346f-…` (0 bytes, 2026-08-07). A casa do sinal migrou para `andamento/` (B13) e este ficou. Não faz mal — o guarda lê a casa nova —, mas é resíduo. [confirmado — `ls -la ~/.claude/gauntlet/`]
 - **Natureza: repertório curado, insubstituível por comando.** Perder o arquivo não quebra nada (a abertura segue calada), mas perde a lista que o dono montou à mão. Zero backup, como todo (B).
 
+### B16 · `<projeto>/.claude/gauntlet/<data>-<slug>/` — a missão do gauntlet, e as duas âncoras dela
+
+- **Fora do git** (`.gitignore` linha 21: `.claude/gauntlet/`), e é isso que impede o `rito.json` de levar caminho absoluto da máquina para um repositório público.
+- **O que mora dentro**, e cada um tem dono declarado: `rito.json` (a ficha da missão, escrita com o dono aprovando campo a campo) · `decomposicao.json` (do agente decompositor) · `pecas/<id>/r<N>/entrega.json` (do construtor — é **alegação**, e o fecho recomputa a marca de cada artefato contra o disco) · `pecas/<id>/r<N>/veredito.json` (do juiz, e só dele) · `diretor.json` · `vetos.jsonl` (escrito pelo programa, nunca por quem orquestra) · `recon/registros/` (as observações do alvo) · `MAPA.md` (derivado, reescrito pelo `mapa`).
+- **Duas âncoras congelam a régua, e elas cobrem coisas diferentes** [confirmado — `fecho_check.py:ancora_leis` e o bloco da âncora em `erros_do_fecho`]:
+  - `rito-aprovado.marca` — o resumo do conteúdo do `rito.json` no momento em que a abertura passou. Tirar um eixo depois de julgamentos feitos rebaixaria a barra, e o fecho acusa.
+  - `lei-aprovada.marca` — **novo em 2026-08-09** — o resumo de cada documento de lei citado no campo `lei`. Existe porque a âncora do rito só alcança o que está **dentro** do `rito.json`, e a lei mora em documento de fora; sem ela, "reconfira a lei no fecho" era instrução em prosa, e lei alterada no meio da missão passava calada.
+- **A marca é o CONTEÚDO, nunca a data** (`fecho_check.py:marca`, sha256 truncado em 16). Data não sobrevive a clone, cópia nem `git checkout` — um julgamento legítimo passaria a ser recusado por uma operação de git que ninguém associaria a esta skill.
+- **Natureza: registro de trabalho, insubstituível e não rastreado.** Perder a pasta perde a disputa inteira — os vereditos, as observações e o que já tinha sido aprovado. Zero backup, e é a mesma classe do `.claude/visual/`: artefato de sessão que o repositório público não carrega.
+
 ---
 
 ## (C) Dentro do repo, mas gitignorado — some se a máquina sumir

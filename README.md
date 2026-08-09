@@ -52,8 +52,8 @@ claude plugin install bootstrap@pedro-plugins
 /bootstrap:setup
 ```
 
-Resultado esperado numa máquina zerada: **19 plugins ligados + 3 desligados de fábrica**
-(`gauntlet`, `graphify-guard` e `improve-workflow`), mais os marketplaces de terceiros do manifest.
+Resultado esperado numa máquina zerada: **21 plugins ligados + 1 desligado de fábrica**
+(`graphify-guard`), mais os marketplaces de terceiros do manifest.
 
 > ⚠️ **Se aparecer `sync incompleto: N operações falharam`, rode `/bootstrap:setup` de novo.**
 > Medido numa instalação limpa: a primeira rodada deixou um marketplace de terceiro para trás
@@ -83,7 +83,7 @@ Um plugin depende de um binário que o marketplace **não** instala:
 | Plugin | Precisa de | Instalar |
 |---|---|---|
 | `graphify-guard` | `graphify` | `uv tool install graphifyy` (ou `pipx install graphifyy`) |
-| 34 hooks — `grep -rl '\bjq\b' plugins/*/hooks/*.sh \| grep -v -e /test_ $(ls _shared/*.sh \| sed -E 's#.*/#-e /#') \| wc -l` | `jq` (**opcional**) | Nada a fazer: os 32 hooks que decidem — `grep -rlE '(jq\|hj_campo\|hj_eh_falso)[^#]*(tool_input\.command\|session_id\|stop_hook_active)' plugins/*/hooks/*.sh \| grep -v -e /test_ $(ls _shared/*.sh \| sed -E 's#.*/#-e /#') \| wc -l` — leem o payload por `python3` quando falta `jq`, e sem os dois eles avisam em vez de sair calados. Quem quiser a saída formatada: `brew install jq` (macOS) · `choco install jq` (Windows) |
+| 34 hooks — `grep -rl '\bjq\b' plugins/*/hooks/*.sh \| grep -v -e /test_ $(ls _shared/*.sh \| sed -E 's#.*/#-e /#') \| wc -l` | `jq` (**opcional**) | Nada a fazer: os 33 hooks que decidem — `grep -rlE '(jq\|hj_campo\|hj_eh_falso)[^#]*(tool_input\.command\|session_id\|stop_hook_active)' plugins/*/hooks/*.sh \| grep -v -e /test_ $(ls _shared/*.sh \| sed -E 's#.*/#-e /#') \| wc -l` — leem o payload por `python3` quando falta `jq`, e sem os dois eles avisam em vez de sair calados. Quem quiser a saída formatada: `brew install jq` (macOS) · `choco install jq` (Windows) |
 | guards | Python 3 | macOS já traz · Windows: instale o real (o stub da Microsoft Store não executa) |
 
 Sem ele o guarda procura um `graphify-out/graph.json` que nada cria — fica instalado,
@@ -105,8 +105,8 @@ claude plugin details <nome>@pedro-plugins   # diagnóstico canônico (mostra Ho
 
 Plugins marcados com **⚙️** registram hooks que rodam **sozinhos** (sem slash command) — veja [Hooks automáticos](#hooks-automáticos). Os demais são invocados sob demanda via slash command / skill.
 
-Três vêm **desligados de fábrica** na receita do `bootstrap` e você liga se quiser:
-`gauntlet`, `graphify-guard` (precisa de um binário externo, veja abaixo) e `improve-workflow`.
+Um vem **desligado de fábrica** na receita do `bootstrap` e você liga se quiser:
+`graphify-guard` (precisa de um binário externo, veja abaixo).
 Ligar: `claude plugin enable <nome>@pedro-plugins`.
 
 ### Sessão & continuidade
@@ -162,7 +162,7 @@ Ligar: `claude plugin enable <nome>@pedro-plugins`.
 
 ## Hooks automáticos
 
-12 plugins registram hooks que disparam sem slash command — 56 registros no total
+12 plugins registram hooks que disparam sem slash command — 57 registros no total
 (derivado neste run: `python3 scripts/hook_contract.py`; conferido no commit por
 `python3 scripts/readme_counts_check.py`):
 

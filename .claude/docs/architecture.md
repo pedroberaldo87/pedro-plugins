@@ -56,6 +56,7 @@ scope:
   - scripts/custo_gatilho.py
   - scripts/suites_orfas.py
   - scripts/readme_counts_check.py
+  - scripts/cadeia_check.py
 verified-by:
   - plugins/bootstrap/lib/test_conformance.py
   - plugins/bootstrap/hooks/test_bootstrap_hooks.sh
@@ -69,6 +70,7 @@ verified-by:
   - plugins/project-skills/lib/test_cobertura.py
   - plugins/project-skills/lib/test_regua_pronto.py
   - plugins/visual/lib/test_visual_page.py
+  - scripts/test_cadeia_check.py
   - scripts/test_desacoplamento_check.py
   - scripts/test_fiscal_de_bancada.py
   - scripts/test_vazamento_check.py
@@ -336,12 +338,12 @@ Saída desta rodada (nome · versão · skills · tem hook):
 
 ```
 archify           2.12.2  [archify]                                          -
-bootstrap         1.15.1  [bootstrap]                                        HOOKS
+bootstrap         1.16.0  [bootstrap]                                        HOOKS
 branches           1.3.4  [branches]                                         HOOKS
 check-skills       0.7.0  [check-skills]                                     -
 context-guard      1.3.9  [context-guard]                                    HOOKS
 fallow             1.2.3  [fallow]                                           -
-gauntlet           0.4.0  [gauntlet]                                         HOOKS
+gauntlet           0.4.2  [gauntlet]                                         HOOKS
 graphify-guard     1.2.4  []                                                 HOOKS
 grill-me           1.4.0  [grill-me]                                         -
 guardrails         1.7.7  [guardrails]                                       HOOKS
@@ -473,6 +475,8 @@ context-guard
   PostToolUse[*]                     → context-guard.sh             (5s)
 
 gauntlet                                       ← novo
+  SessionStart[*]                    → sessionstart-deps.sh (bootstrap, 5s)
+                                     → sessionstart-lembra-missao.sh (10s)
   PreToolUse[Agent]                  → pretooluse-gauntlet.sh       (10s)
 
 graphify-guard
@@ -1401,7 +1405,7 @@ claude-plugins-official   14 plugins   desligados: claude-md-management, explana
 impeccable                 1                                                       ← novo
 obsidian-skills            1
 openai-codex               1
-pedro-plugins             24 plugins   desligados: gauntlet, graphify-guard  <!-- acopla-ok: saída derivada do próprio manifest, que é o ÍNDICE -->
+pedro-plugins             24 plugins   desligados: graphify-guard  <!-- acopla-ok: saída derivada do próprio manifest, que é o ÍNDICE -->
 
 ponytail                   1
 voltagent-subagents       10 plugins   TODOS desligados
@@ -1411,7 +1415,9 @@ O `pedro-plugins` declara os **24** plugins um a um — é isso que o `check_cat
 contra o `marketplace.json` (§10.2), e nesta rodada os dois conjuntos batem exatamente (a
 diferença simétrica entre eles é vazia nos dois sentidos).
 
-🔴 **A lista de desligados subiu para cinco e voltou para dois em 2026-08-08** (commit `4415b10`), e o vaivém é a lição: `project-skills`, `vistoria` e `intent-guard` voltaram a nascer ligados. **Desligar de fábrica é decisão sobre quem instala, e ela envelhece junto com o plugin.** O `project-skills` nasceu desligado quando era esqueleto vazio; depois **recebeu sete skills** de outros plugins e continuou desligado — quem instalasse não receberia nenhuma delas, e nada acusava. O `intent-guard` estava fora por um defeito que já tinha sido consertado. Ficam desligados só `gauntlet` e `graphify-guard`, que é o que separa "existe no catálogo" de "roda na máquina de quem instala".
+🔴 **A lista de desligados subiu para cinco e voltou para dois em 2026-08-08** (commit `4415b10`), e o vaivém é a lição: `project-skills`, `vistoria` e `intent-guard` voltaram a nascer ligados. **Desligar de fábrica é decisão sobre quem instala, e ela envelhece junto com o plugin.** O `project-skills` nasceu desligado quando era esqueleto vazio; depois **recebeu sete skills** de outros plugins e continuou desligado — quem instalasse não receberia nenhuma delas, e nada acusava. O `intent-guard` estava fora por um defeito que já tinha sido consertado.
+
+**Em 2026-08-09 a mesma lição cobrou mais dois:** `gauntlet` e `improve-workflow` passaram a nascer ligados. O caso do `gauntlet` mostra o custo do envelhecimento — o dono ligou o plugin na própria máquina para usá-lo, e a receita continuou dizendo o contrário; a saída que o `conformance.py` oferecia era *"rode o sync do bootstrap"*, que o **desligaria de volta** no meio do trabalho. Fica desligado só o `graphify-guard`, e é ele que separa "existe no catálogo" de "roda na máquina de quem instala".
 
 ⚠️ **Plugin desligado no manifest e LIGADO na máquina é desvio que o `conformance.py` acusa** — era o caso desta máquina de desenvolvimento para `project-skills` e `vistoria` antes do religamento, e por isso o desvio aparecia aqui em vez de no cliente.
 

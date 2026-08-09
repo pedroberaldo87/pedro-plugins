@@ -1020,7 +1020,7 @@ if old is not None and old.get("version") == pver:
 
 ### 5.2 O gate mecânico de commit
 
-`.claude/hooks/release-gate.sh`, registrado em `.claude/settings.json` como `PreToolUse` com `matcher: "Bash"` e `timeout: 60`, apontando para `$CLAUDE_PROJECT_DIR/.claude/hooks/release-gate.sh` [confirmado — li o settings.json inteiro; é o **único** hook declarado lá]. <!-- lint:ignore CLAUDE_PROJECT_DIR -->
+`.claude/hooks/release-gate.sh`, registrado em `.claude/settings.json` como `PreToolUse` com `matcher: "Bash"` e `timeout: 60`, apontando para `$CLAUDE_PROJECT_DIR/.claude/hooks/release-gate.sh`. <!-- lint:ignore CLAUDE_PROJECT_DIR --> Desde 2026-08-09 ele **deixou de ser o único** hook do projeto: entrou um `SessionStart` → `sessionstart-avisa-cadeia.sh` (10s), que avisa quando o plugin instalado nesta máquina ficou atrás do repositório (§5.2b). Os dois lados da mesma pergunta — o gate barra o commit que rompe a cadeia de entrega, o aviso conta que a máquina já está rodando código velho. [confirmado — `python3 -c "…json.load…"` sobre o settings devolve `['PreToolUse', 'SessionStart']`]
 
 **Dependência invertida:** ao contrário dos hooks de plugin, que assumem `jq`, o release-gate **não usa `jq` uma vez sequer** — faz todo o parse com `python3 -c` [confirmado: `grep -c jq` → 0; `grep -c python3` → 9]. Sem `python3`, ele cai no fail-open de infra e não checa nada.
 
@@ -1110,6 +1110,8 @@ A ordem de execução não importa: todos só acumulam em `VIOL`.
 
   **Régua durável, e ela é a lição do J inteiro: glob de cobrador é a superfície mais fácil de furar sem sintoma.** Suíte que nenhum glob casa não fica vermelha, não fica verde — fica ausente, e ausência não tem cor. Quem mede isso de fora é `scripts/suites_orfas.py`; quando ele acusar uma órfã, o conserto é uma esteira nova aqui, não um lembrete.
 
+- **T · a cadeia de entrega rompida** — **novo em 2026-08-09**. Roda `python3 scripts/cadeia_check.py --repo` quando o commit toca `plugins/` ou o catálogo ⇒ `❌ CADEIA DE ENTREGA ROMPIDA`. Ele confere as fronteiras que fazem o código escrito virar comportamento na máquina de quem instala: **escrito** (`plugins/<nome>/`) → **publicado** (`.claude-plugin/marketplace.json`) → **mandado instalar** (a receita do `bootstrap`). Plugin que nasce em `plugins/` e não entra no catálogo não chega a máquina nenhuma, **e as skills dele somem junto** — por isso o recado conta quantas skills ficam de fora, com o nome delas: é assim que o defeito se apresenta a quem o vive ("desenvolvi e não aparece"). O elo publicado→receita também é cobrado pelo `conformance.py:check_catalogo`, mas só quando alguém roda o setup do `bootstrap`; aqui o commit já responde. ⚠️ **Só o lado REPOSITÓRIO entra no gate**: comparar com o que está instalado nesta máquina reprovaria o commit de quem apenas ainda não rodou o `update`, e isso é assunto de aviso de arranque (§5.2b), nunca de impedimento de commit. Suíte própria: `scripts/test_cadeia_check.py`.
+
 ⚠️ **Dois checks varrem o repo inteiro, e os dois pelo mesmo motivo**: o alvo deles não aparece em diff nenhum. O `O` porque `.claude/plans/` é gitignorado; o `Q` porque cópia de trabalho parada não é arquivo rastreado. Recortar por arquivo tocado deixaria os dois calados para sempre.
 
 ⚠️ **D e F são por plugin TOCADO, não por repo.** Um commit que só mexe no `bootstrap` roda exatamente `plugins/bootstrap/lib/test_*.py` e `plugins/bootstrap/hooks/test_*.sh` e mais nada. **Plugin sem suíte não é plugin sem teste: é plugin cujos checks D e F estão desligados.**
@@ -1122,6 +1124,32 @@ Bloco de saída literal quando algo viola:
 
 Conserte e commite de novo. (Gate mecânico: .claude/hooks/release-gate.sh)
 ```
+
+### 5.2b O outro lado da cadeia: a máquina que roda código velho
+
+**Novo em 2026-08-09**, e nasceu do defeito mais caro da rodada. O dono passou uma sessão
+inteira revisando, testando e aprovando a v0.4.0 do `gauntlet`; **o que rodava na máquina
+dele era a 0.3.2**, instalada dias antes, sem nenhum dos consertos. A descoberta foi por
+acaso, cavando o cache do cliente à mão [confirmado — o `installPath` do
+`installed_plugins.json` apontava para `…/gauntlet/0.3.2`, e `grep -c` naquele arquivo
+devolvia zero para os três símbolos novos].
+
+**A causa é estrutural, não descuido:** editar `plugins/<nome>/` não muda o que o harness
+carrega. Ele lê o cache em `~/.claude/plugins/`, e o cache só troca com
+`claude plugin update` **mais um reinício da sessão** — os dois passos, sempre (§7).
+
+Quem avisa é `.claude/hooks/sessionstart-avisa-cadeia.sh`, um `SessionStart` do **projeto**,
+não de plugin. O público explica a escolha: só quem tem o repositório na mão pode comparar
+as duas versões; para quem apenas instalou o marketplace, o `claude plugin update` normal
+já resolve. Ele fala uma vez por sessão (sentinel em `$TMPDIR`, chaveado por `session_id`),
+nunca bloqueia, e o recado vai aos **dois** públicos por `hj_msg_ctx` — ao dono, que decide
+atualizar, e ao modelo, que senão passa a sessão testando código que não é o que roda. A
+frase que fecha o aviso é a lição: *"teste no repositório vale como leitura de código, nunca
+como prova de comportamento"*. Kill-switch: `CADEIA_GATE=0`. Suíte:
+`.claude/hooks/test_sessionstart_avisa_cadeia.sh`.
+
+⚠️ **Ele avisa e não conserta, de propósito** — o cabeçalho registra: *"o estrago de um
+instalador automático errado é maior que o do aviso que ele evita"*.
 
 ### 5.3 Contrato dos hooks — as 6 propriedades
 
