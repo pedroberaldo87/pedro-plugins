@@ -26,7 +26,24 @@ try:
 except Exception:
     sys.exit(1)
 
-toks = [t for t in re.split(r"""[\s;&|()<>"'"'"'`]+""", cmd) if t]
+# O corpo de um heredoc nao e comando: um script Python colado num <<X cujo TEXTO
+# contem as palavras do gatilho bloqueava a edicao inteira — medido 3x em
+# 2026-08-09. O recorte tira o corpo (do <<MARCADOR ate a linha do marcador)
+# ANTES de tokenizar; o comando real em volta continua inteiro.
+def sem_heredoc(texto):
+    saida, resto = [], texto
+    while True:
+        m = re.search(r"<<-?\s*[\x27\"]?(\w+)[\x27\"]?", resto)
+        if not m:
+            saida.append(resto)
+            return "".join(saida)
+        saida.append(resto[:m.start()])
+        fim = re.search(r"^\s*%s\s*$" % re.escape(m.group(1)), resto[m.end():], re.M)
+        if not fim:
+            return "".join(saida)      # heredoc sem fim: o corpo vai ate o final
+        resto = resto[m.end() + fim.end():]
+
+toks = [t for t in re.split(r"""[\s;&|()<>"'"'"'`]+""", sem_heredoc(cmd)) if t]
 GLOBAL_VALOR = {"-c", "-C", "--git-dir", "--work-tree", "--namespace", "--exec-path"}
 COMMIT_VALOR = {"-m", "--message", "-F", "--file", "-C", "--reuse-message",
                 "-c", "--reedit-message", "--author", "--date", "-t",

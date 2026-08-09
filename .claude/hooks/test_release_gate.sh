@@ -325,5 +325,20 @@ rm -rf "$R/.claude/plans" "$R/scripts/plano_vs_codigo.py" \
        "$R/plugins/exemplo/lib/feito.py"
 
 echo
+echo "Heredoc — o corpo não é comando (fricção medida 3× em 2026-08-09)"
+# Um script Python colado num heredoc cujo TEXTO contém as palavras do gatilho
+# bloqueava a edição inteira. O corpo sai do recorte; o comando em volta continua.
+printf 'print("mudou de novo")\n' > "$R/plugins/exemplo/lib/mod.py"
+CMD_HEREDOC=$(printf '%s\n' 'python3 - <<CORPO' 's = "as palavras git commit dentro do corpo"' 'CORPO')
+rc=$(gate "$CMD_HEREDOC")
+[ "$rc" = "0" ] && { PASS=$((PASS+1)); echo "  ok   corpo de heredoc não dispara o gatilho"; } \
+  || { FAIL=$((FAIL+1)); echo "  FAIL corpo de heredoc disparou o gatilho (rc=$rc)"; }
+CMD_DEPOIS=$(printf '%s\n' 'python3 - <<CORPO' 'qualquer coisa' 'CORPO' 'git commit -m "de verdade"')
+rc=$(gate "$CMD_DEPOIS")
+[ "$rc" = "2" ] && { PASS=$((PASS+1)); echo "  ok   o comando real DEPOIS do heredoc continua disparando"; } \
+  || { FAIL=$((FAIL+1)); echo "  FAIL o comando depois do heredoc não disparou (rc=$rc)"; }
+git -C "$R" checkout -q -- plugins/exemplo/lib/mod.py 2>/dev/null || true
+
 if [ "$FAIL" -gt 0 ]; then echo "FALHOU: $FAIL de $((PASS+FAIL))"; exit 1; fi
 echo "OK ($PASS checks)"
+
