@@ -1,6 +1,6 @@
 ---
 generated: 2026-08-09
-generated-commit: 61c69b9
+generated-commit: 1c9d4c2
 project: pedro-plugins
 scope:
   - .claude-plugin/marketplace.json
@@ -84,7 +84,7 @@ verified-by:
   - plugins/branches/lib/test_branch_state.py
   - plugins/guardrails/lib/test_askq_lint.py
   - plugins/slides/lib/test_md2deck.py
-doc-sig: pedro-plugins/marketplace.json@gen=3.8#005ab033
+doc-sig: pedro-plugins/marketplace.json@gen=3.8#06ab75e4
 ---
 
 # Arquitetura — pedro-plugins
@@ -353,13 +353,13 @@ improve-workflow  0.16.15 [improve-workflow]                                 -
 intent-guard       0.7.1  [intent-guard]                                     HOOKS
 lixeiro            1.3.1  [faxina]                                           HOOKS
 principles         1.0.5  [principles]                                       -
-project-skills    0.19.9  [design-md, doc, doc-load, doc-touch, monitorar,
+project-skills    0.19.13 [design-md, doc, doc-load, doc-touch, monitorar,
                            pesquisa-referencias, plan, project-skills,
                            qa-loop, sprint, start]                           HOOKS
 ship               1.5.0  [ship]                                             HOOKS
 slides             1.6.0  [slides]                                           -
 vision             0.1.0  []                                                 -
-vistoria           0.8.3  [vistoria]                                         -
+vistoria           0.8.6  [vistoria]                                         -
 visual            1.41.1  [andamento, visual]                                HOOKS
 ```
 
@@ -932,7 +932,7 @@ As cópias de `regua_texto.py` aparecem à parte porque são vendoring, não có
 (§7.4):
 
 ```
-plugins/project-skills/lib/ 44 dos 112 — o motor de doc inteiro (journal.py · pattern_check.py ·
+plugins/project-skills/lib/ 44 dos 114 — o motor de doc inteiro (journal.py · pattern_check.py ·
                            organism.py · graph_map.py · doc_lint.py · historico.py ·
                            rastreio_etapas.py · curadoria_features.py ·
                            decisoes_estruturais.py · doc_load.py · collect_engine.py vendorado),
@@ -940,8 +940,8 @@ plugins/project-skills/lib/ 44 dos 112 — o motor de doc inteiro (journal.py ·
                            auditoria_plano.py · plan_entrada.py · regua_pronto.py),
                            andamento.py, green-cache.sh (vendorado) e os resolve-*.sh
                            + as suítes `test_*` correspondentes (`ls plugins/project-skills/lib/test_*`)
-plugins/vistoria/lib/      achado.py · fio_morto.py · medidor.py · pagina.py ·
-                           plano_saida.py · suite_congela.py + as suítes
+plugins/vistoria/lib/      achado.py · fio_morto.py · inventario.py · medidor.py ·
+                           pagina.py · plano_saida.py · suite_congela.py + as suítes
 plugins/visual/lib/        visual_page.py · clareza.py · regua_audit.py + as suítes
 plugins/lixeiro/lib/       causa.py · lixeiro.py · padroes_vazamento.py (vendorado) + suítes
 plugins/handoff/lib/       collect_engine.py (vendorado) · extract_ata.py
@@ -1163,11 +1163,17 @@ páginas do `/visual` digitadas pelo modelo custavam **20-31 KB de HTML por pág
   uma vez (`init`) e daí em diante só MARCA (`tick`, que **recusa sem prova**, `EVIDENCE_MIN = 8`).
   Quem desenha a árvore é o programa. `PlanError` (god node) é a exceção única de todos os
   verbos; `DESC_MAX = 140` é limite de schema *"porque a linha didática é o produto do arquivo"*.
-  O módulo tem **2005 linhas** e **11 subcomandos** — `init`, `tick`, `state`, `render`, `page`,
+  O módulo tem **2054 linhas** e **11 subcomandos** — `init`, `tick`, `state`, `render`, `page`,
   `brief`, `cobertura`, `reabrir`, `open`, `close`, `reopen` [confirmado — `wc -l` e
   `grep -c 'add_parser('` sobre `plugins/project-skills/lib/plan_state.py` neste run devolvem
-  `2005` e `11`]. Cresceu 600 linhas sem ganhar subcomando: o que entrou foi régua dentro dos
-  verbos que já existiam — ver `regua_pronto.py`, importado no topo do arquivo.
+  `2054` e `11`]. Cresceu 650 linhas sem ganhar subcomando: o que entrou foi régua dentro dos
+  verbos que já existiam — ver `regua_pronto.py`, importado no topo do arquivo. **Ele importa
+  DUAS funções de lá, e a diferença entre elas é de política:** `erros_de_pronto` julga a
+  redação do critério e é descontada pelo texto herdado (o `pronto` que já estava no disco não
+  é recobrado); `criterio_cortado` — crase sem fechar, reticências, frase que para num
+  conectivo — fica **fora** desse desconto de propósito, porque critério pela metade não diz o
+  que provar e precisa ser recusado toda vez. [confirmado — o `from regua_pronto import` no
+  topo, e as duas chamadas em `erros_do_plano` e `_erros_de_redacao_do_no`]
   - **O `merge` era a causa comum de quatro defeitos, e o conserto é uma regra só: o que o
     `init` não trouxe vem do arquivo.** A versão anterior preservava uma lista fixa de campos no
     nó e apenas `created` e `status` no topo do plano — então o segundo `init` apagava, calado, o
@@ -1409,13 +1415,13 @@ claude-plugins-official   14 plugins   desligados: claude-md-management, explana
 impeccable                 1                                                       ← novo
 obsidian-skills            1
 openai-codex               1
-pedro-plugins             24 plugins   desligados: graphify-guard  <!-- acopla-ok: saída derivada do próprio manifest, que é o ÍNDICE -->
+pedro-plugins             22 plugins   desligados: graphify-guard  <!-- acopla-ok: saída derivada do próprio manifest, que é o ÍNDICE -->
 
 ponytail                   1
 voltagent-subagents       10 plugins   TODOS desligados
 ```
 
-O `pedro-plugins` declara os **24** plugins um a um — é isso que o `check_catalogo` compara <!-- acopla-ok: o manifest é o índice, e o check_catalogo é quem cobra a divergência -->
+O `pedro-plugins` declara os **22** plugins um a um — é isso que o `check_catalogo` compara <!-- acopla-ok: o manifest é o índice, e o check_catalogo é quem cobra a divergência -->
 contra o `marketplace.json` (§10.2), e nesta rodada os dois conjuntos batem exatamente (a
 diferença simétrica entre eles é vazia nos dois sentidos).
 
