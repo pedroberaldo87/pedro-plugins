@@ -1,24 +1,6 @@
 {
   "emissores": [
     {
-      "plugin": "bootstrap",
-      "script": "stop-prose-ceiling.py",
-      "linhas": 0,
-      "timeout": 10
-    },
-    {
-      "plugin": "bootstrap",
-      "script": "stop-regua-relato.py",
-      "linhas": 0,
-      "timeout": 10
-    },
-    {
-      "plugin": "bootstrap",
-      "script": "stop-forma-relato.py",
-      "linhas": 0,
-      "timeout": 30
-    },
-    {
       "plugin": "handoff",
       "script": "handoff-completeness-gate.sh",
       "linhas": 0,

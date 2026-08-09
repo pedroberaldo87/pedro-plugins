@@ -132,21 +132,21 @@ def main():
         check("o placar entra na linha com o veredito de avanco",
               "10 passou · 5 falhou" in linha and "sem avanço" in linha)
         check("a linha diz ha quanto tempo roda",
-              a.linha_andamento(cmd, proj, 30).startswith("rodando há"))
+              a.linha_andamento(cmd, proj, 30).startswith("Rodando há"))
         check("a linha de andamento com o anterior em TEXTO devolve linha, nao erro",
               "sem avanço" in a.linha_andamento(
                   cmd, proj, 30, "10 passou · 5 falhou", "10 passou · 5 falhou"))
 
         print("a narracao sai em portugues acentuado")
-        check("'rodando ha' sai com acento", "rodando há" in a.linha_andamento(cmd, proj, 30))
+        check("'rodando ha' sai com acento", "Rodando há" in a.linha_andamento(cmd, proj, 30))
         check("o veredito de avanco sai com cedilha",
               "avanç" in a.linha_andamento(cmd, proj, 30, "10 passou · 5 falhou", p1))
         check("a linha do silencio vivo sai acentuada",
               a.linha_silencio(20 * 60, True) ==
-              "rodando há 20 min — trabalho vivo, não é travamento")
+              "Rodando há 20 min — trabalho vivo, não é travamento")
         check("a linha do travamento sai acentuada",
               a.linha_silencio(20 * 60, False) ==
-              "travamento: nada mudou há 20 min e não há trabalho vivo")
+              "Travamento: nada mudou há 20 min e não há trabalho vivo")
 
         print("duracao longa sai em minutos, nao em segundos crus")
         check("90s+ vira minutos", "min" in a.linha_andamento(cmd, proj, 200))
@@ -159,13 +159,13 @@ def main():
         vivo = a.linha_silencio(MUDO, True)
         travado = a.linha_silencio(MUDO, False)
         check("COM sinal de vida a tela diz ha quanto tempo esta rodando",
-              vivo is not None and vivo.startswith("rodando há 20 min"))
+              vivo is not None and vivo.startswith("Rodando há 20 min"))
         check("COM sinal de vida a linha nega o travamento com todas as letras",
               vivo is not None and "não é travamento" in vivo)
         check("SEM sinal de vida a tela chama de travamento",
-              travado is not None and travado.startswith("travamento"))
+              travado is not None and travado.startswith("Travamento"))
         check("SEM sinal de vida nao sai 'rodando ha'",
-              travado is not None and "rodando há" not in travado)
+              travado is not None and "Rodando há" not in travado)
         check("as duas linhas sao textos diferentes", vivo != travado)
         check("silencio curto nao narra nada nos dois casos",
               a.linha_silencio(60, True) is None and a.linha_silencio(60, False) is None)
@@ -199,12 +199,12 @@ def main():
             fh.write(str(agora - 20 * 60))
         vivo = a.linha_motor("s1", base, agora)
         check("com trabalho vivo a barra diz ha quanto tempo esta rodando",
-              vivo is not None and "rodando há 20 min" in vivo)
+              vivo is not None and "Rodando há 20 min" in vivo)
         check("com trabalho vivo a barra NAO diz SEM SINAL",
               vivo is not None and "SEM SINAL" not in vivo)
         check("as duas linhas da barra sao textos diferentes", vivo != travado)
         check("a barra continua trazendo a idade da missao nos dois casos",
-              "missão há" in vivo and "missão há" in travado)
+              "Missão há" in vivo and "Missão há" in travado)
 
         # Comando de pe ha 3 segundos nao explica silencio de 20 minutos.
         with open(trabalho, "w", encoding="utf-8") as fh:
@@ -219,7 +219,7 @@ def main():
             fh.write(str(agora - 60))
         curto = a.linha_motor("s1", base, agora)
         check("silencio curto na barra nao vira nem demora nem travamento",
-              "último sinal há 70s" in curto and "rodando há" not in curto)
+              "Último sinal há 70s" in curto and "Rodando há" not in curto)
 
         # O RELOGIO E A ESTIMATIVA DA FERRAMENTA CHEGAM A BARRA (F9.26). Ate aqui
         # `linha_disparo`/`estimativa` montavam os dois e nenhuma tela os recebia. A
@@ -229,7 +229,7 @@ def main():
             fh.write("%s\n%s\n%s\n" % (agora - 45, cmd, proj))
         com_est = a.linha_motor("s1", base, agora)
         check("a barra traz o tempo decorrido da ferramenta",
-              "ferramenta há 45s" in com_est)
+              "Ferramenta há 45s" in com_est)
         check("a barra traz a estimativa quando ela existe",
               "usual ~%s" % a._dur(a.estimativa(proj, cmd)) in com_est)
 
@@ -239,7 +239,7 @@ def main():
             fh.write("%s\n%s\n%s\n" % (agora - 45, "comando-que-nunca-rodou", proj))
         sem_est = a.linha_motor("s1", base, agora)
         check("comando sem historico chega a barra sem estimativa",
-              "ferramenta há 45s" in sem_est and "usual ~" not in sem_est)
+              "Ferramenta há 45s" in sem_est and "usual ~" not in sem_est)
 
         # O PLACAR DA ONDA (F9.27). O motor pedia o campo `placar` do SUITE_RESULT e
         # o descartava: nenhuma tela dizia se a suite andou de uma onda para a
@@ -267,7 +267,7 @@ def main():
         with open(trabalho, "w", encoding="utf-8") as fh:
             fh.write(str(agora - 60))
         check("registro sem comando deixa a barra como era",
-              "ferramenta há" not in (a.linha_motor("s1", base, agora) or ""))
+              "Ferramenta há" not in (a.linha_motor("s1", base, agora) or ""))
 
         # A PASTA DE ESTADO NAO PODE TER O NOME DE UM PLUGIN SO (F17.2). O modulo
         # ja e chamado por quatro plugins; batizar a casa com o nome de um deles
@@ -300,7 +300,7 @@ def main():
         with open(os.path.join(antiga, "sinal-s9"), "w", encoding="utf-8") as fh:
             fh.write(str(agora - 30))
         check("sinal aceso na pasta antiga ainda desenha a linha do motor",
-              "último sinal há 30s" in (a.linha_motor("s9", None, agora) or ""))
+              "Último sinal há 30s" in (a.linha_motor("s9", None, agora) or ""))
 
         # A LINHA NOMEIA QUEM A ACENDEU (F17.3). Ate aqui ela dizia `sovai` fixo,
         # e era a unica funcao do modulo presa a um plugin. O nome vem do PROPRIO
@@ -314,13 +314,13 @@ def main():
             fh.write("qa-loop\n")
         primeiro = a.linha_motor("sm", casa, agora)
         check("o primeiro motor aparece pelo nome dele",
-              (primeiro or "").startswith("🚀 qa-loop · missão há"))
+              (primeiro or "").startswith("🚀 Qa-loop · Missão há"))
 
         with open(aceso, "w", encoding="utf-8") as fh:
             fh.write("vistoria\n")
         segundo = a.linha_motor("sm", casa, agora)
         check("o segundo motor na mesma sessão aparece pelo nome dele",
-              (segundo or "").startswith("🚀 vistoria · missão há"))
+              (segundo or "").startswith("🚀 Vistoria · Missão há"))
         check("as duas linhas da mesma sessão não se confundem",
               primeiro != segundo and "qa-loop" not in (segundo or ""))
 
@@ -328,11 +328,11 @@ def main():
         # inventa motor: continua sendo a execucao continua, que e quem acendia.
         open(aceso, "w").close()
         check("sinal sem nome continua saindo como a execução contínua",
-              (a.linha_motor("sm", casa, agora) or "").startswith("🚀 %s · missão há" % a.MOTOR_PADRAO))
+              (a.linha_motor("sm", casa, agora) or "").startswith("🚀 %s · Missão há" % a.MOTOR_PADRAO.capitalize()))
         with open(aceso, "w", encoding="utf-8") as fh:
             fh.write("1")
         check("carimbo no lugar do nome não vira nome de motor",
-              (a.linha_motor("sm", casa, agora) or "").startswith("🚀 %s · missão há" % a.MOTOR_PADRAO))
+              (a.linha_motor("sm", casa, agora) or "").startswith("🚀 %s · Missão há" % a.MOTOR_PADRAO.capitalize()))
 
         # OS OUTROS MOTORES ACENDEM O MESMO SINAL (F17.4). O laço de qualidade e o
         # de disputa disparavam workflow e nao acendiam nada: a barra ficava muda
@@ -359,7 +359,7 @@ def main():
             casa_sinal = os.path.join(casa_motor, "andamento")
             linha = a.linha_motor("s-" + motor, casa_sinal)
             check("%s: a linha da barra NASCE com o nome dele" % motor,
-                  (linha or "").startswith("🚀 %s · missão há" % motor))
+                  (linha or "").startswith("🚀 %s · Missão há" % motor.capitalize()))
 
             # E SOME quando o sinal é apagado. No laço de qualidade quem apaga é o
             # segundo bloco da própria skill (o `rm -f` da entrega) e é ele que roda
@@ -402,7 +402,7 @@ def main():
                               capture_output=True, text=True,
                               stdin=subprocess.DEVNULL, start_new_session=True)
         check("com missão de pé imprime a sessão e o motor lidos do disco",
-              "s-mon" in vivo.stdout and "🚀 qa-loop · missão há" in vivo.stdout)
+              "s-mon" in vivo.stdout and "🚀 Qa-loop · Missão há" in vivo.stdout)
     finally:
         shutil.rmtree(tmp, ignore_errors=True)
 
@@ -448,14 +448,14 @@ def main():
                                        {"id": "F1.3", "status": "todo"}]}]}, fh)
         a.marca_onda("s-onda", "5", plano, tmp_onda)
         check("a onda e o progresso do plano viram uma linha só",
-              a.linha_onda("s-onda", tmp_onda) == "onda 5 · 2/3")
+              a.linha_onda("s-onda", tmp_onda) == "Onda 5 · 2/3")
         a.marca_onda("s-so-onda", "2", None, tmp_onda)
         check("sem plano a barra diz a onda e não inventa placar",
-              a.linha_onda("s-so-onda", tmp_onda) == "onda 2")
+              a.linha_onda("s-so-onda", tmp_onda) == "Onda 2")
         a.marca_onda("s-torto", "3", os.path.join(tmp_onda, "nao-existe.json"),
                      tmp_onda)
         check("plano ilegível tira o placar, nunca a onda",
-              a.linha_onda("s-torto", tmp_onda) == "onda 3")
+              a.linha_onda("s-torto", tmp_onda) == "Onda 3")
         check("sessão sem onda registrada não inventa linha",
               a.linha_onda("s-nada", tmp_onda) is None)
 
@@ -478,9 +478,9 @@ def main():
         os.utime(aceso, (agora - 4020, agora - 4020))
         linha = a.linha_motor("s-onda", tmp_onda, agora)
         check("a onda chega à BARRA, com o ícone e o separador do desenho",
-              "🌊 onda 5 · 2/3" in linha and "  │  " in linha)
+              "🌊 Onda 5 · 2/3" in linha and "  │  " in linha)
         check("missão de mais de uma hora sai em horas, não em minutos",
-              "missão há 1h07" in linha)
+              "Missão há 1h07" in linha)
     finally:
         shutil.rmtree(tmp_onda, ignore_errors=True)
 

@@ -91,10 +91,7 @@ del os.environ["ARTEFATO_REGUA"]
 print("o Edit é medido pelo pedaço novo")
 ok("new_string acima do teto é recusado", roda(art(LONGO, key="new_string"))[0] == 2)
 
-print("as duas camadas existem, e são arquivos distintos")
-rede = os.path.join(os.path.dirname(os.path.dirname(AQUI)),
-                    "bootstrap", "hooks", "stop-regua-relato.py")
-ok("a REDE (fim de turno) está no disco", os.path.exists(rede))
+print("a PORTA existe (a REDE de fim de turno foi removida a pedido do dono, 2026-08-09)")
 ok("a PORTA (escrita de arquivo) está no disco",
    os.path.exists(os.path.join(AQUI, "pretooluse-artefato-regua.py")))
 
@@ -104,4 +101,4 @@ if FAILS:
     for f in FAILS:
         print("  - %s" % f)
     sys.exit(1)
-print("artefato-regua: %d checks ok, 0 falhas" % (23 - len(FAILS)))
+print("artefato-regua: %d checks ok, 0 falhas" % (22 - len(FAILS)))

@@ -30,13 +30,6 @@ jobs:
       # 54 suítes (20 + 1 + 3 + 2 nos globs de Python, 21 + 6 + 1 nos de shell),
       # todas verdes, bloco inteiro saindo 0 sob `set -e`.
       #
-      # Ressalva de um caso: dentro de `test_bootstrap_hooks.sh`, o bloco do juiz
-      # de forma só abre quando existe `claude` no PATH — o runner nunca o vê,
-      # então lá ele imprime "skip". Numa máquina com `claude`, o caso "relato
-      # ruim reprova" sai por `check` e reprova a suíte como qualquer outro: o
-      # vermelho antigo tinha causa determinística (teto de 25s abaixo do piso da
-      # ferramenta, que jogava o juiz no fail-open), corrigida para 90s em
-      # `stop-forma-relato.py`. Motivo escrito no próprio teste.
       #
       # Commit parcial ainda faz a esteira nascer vermelha: os globs rodam o que
       # foi COMMITADO, e suíte cujo conserto ficou na árvore reprova no runner.

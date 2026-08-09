@@ -1,6 +1,6 @@
 {
-  "entries": 56,
-  "scripts": 43,
+  "entries": 54,
+  "scripts": 41,
   "findings": [
     {
       "rule": "R6-nome-evento-errado",
@@ -24,30 +24,6 @@
       "who": "bootstrap/sessionstart-deps.sh",
       "line": 0,
       "msg": "o nome não diz quando roda nem se barra — molde: <evento>-<verbo>-<assunto> (evento: sessionstart · verbo: avisa|anota|mede|lembra|resume|sincroniza|colhe|abre)",
-      "quote": ""
-    },
-    {
-      "rule": "R6-nome-verbo-errado",
-      "sev": "high",
-      "who": "bootstrap/stop-forma-relato.py",
-      "line": 0,
-      "msg": "o verbo 'forma' não bate com o que o script faz (só avisa) — use um de: avisa|anota|mede|lembra|resume|sincroniza|colhe|abre",
-      "quote": ""
-    },
-    {
-      "rule": "R6-nome-verbo-errado",
-      "sev": "high",
-      "who": "bootstrap/stop-prose-ceiling.py",
-      "line": 0,
-      "msg": "o verbo 'prose' não bate com o que o script faz (só avisa) — use um de: avisa|anota|mede|lembra|resume|sincroniza|colhe|abre",
-      "quote": ""
-    },
-    {
-      "rule": "R6-nome-verbo-errado",
-      "sev": "high",
-      "who": "bootstrap/stop-regua-relato.py",
-      "line": 0,
-      "msg": "o verbo 'regua' não bate com o que o script faz (só avisa) — use um de: avisa|anota|mede|lembra|resume|sincroniza|colhe|abre",
       "quote": ""
     },
     {
@@ -502,88 +478,6 @@
       }
     },
     {
-      "plugin": "bootstrap",
-      "event": "Stop",
-      "matcher": "*",
-      "type": "command",
-      "timeout": 10,
-      "command": "CLAUDE_PLUGIN_ROOT=$(printf '%s' \"$CLAUDE_PLUGIN_ROOT\" | tr '\\\\' /); export CLAUDE_PLUGIN_ROOT; . \"$CLAUDE_PLUGIN_ROOT/hooks/hook-json.sh\" 2>/dev/null; PY=$(hj_py 2>/dev/null) || exit 0; \"$PY\" \"$CLAUDE_PLUGIN_ROOT/hooks/stop-prose-ceiling.py\"",
-      "script": "plugins/bootstrap/hooks/stop-prose-ceiling.py",
-      "measure": {
-        "lines": 257,
-        "blocking": {},
-        "informing": {},
-        "cap": {
-          "counter": [],
-          "sentinel": [],
-          "session_scoped": false
-        },
-        "killswitch": [
-          [
-            160,
-            "if os.environ.get(\"PROSE_CEILING\") == \"0\":"
-          ]
-        ],
-        "hardcoded_tools": [],
-        "tools_used": [],
-        "tools_guarded": [],
-        "tools_unguarded": []
-      }
-    },
-    {
-      "plugin": "bootstrap",
-      "event": "Stop",
-      "matcher": "*",
-      "type": "command",
-      "timeout": 10,
-      "command": "CLAUDE_PLUGIN_ROOT=$(printf '%s' \"$CLAUDE_PLUGIN_ROOT\" | tr '\\\\' /); export CLAUDE_PLUGIN_ROOT; . \"$CLAUDE_PLUGIN_ROOT/hooks/hook-json.sh\" 2>/dev/null; PY=$(hj_py 2>/dev/null) || exit 0; \"$PY\" \"$CLAUDE_PLUGIN_ROOT/hooks/stop-regua-relato.py\"",
-      "script": "plugins/bootstrap/hooks/stop-regua-relato.py",
-      "measure": {
-        "lines": 185,
-        "blocking": {},
-        "informing": {},
-        "cap": {
-          "counter": [],
-          "sentinel": [],
-          "session_scoped": false
-        },
-        "killswitch": [
-          [
-            114,
-            "if os.environ.get(\"REGUA_RELATO\") == \"0\":"
-          ]
-        ],
-        "hardcoded_tools": [],
-        "tools_used": [],
-        "tools_guarded": [],
-        "tools_unguarded": []
-      }
-    },
-    {
-      "plugin": "bootstrap",
-      "event": "Stop",
-      "matcher": "*",
-      "type": "command",
-      "timeout": 30,
-      "command": "CLAUDE_PLUGIN_ROOT=$(printf '%s' \"$CLAUDE_PLUGIN_ROOT\" | tr '\\\\' /); export CLAUDE_PLUGIN_ROOT; . \"$CLAUDE_PLUGIN_ROOT/hooks/hook-json.sh\" 2>/dev/null; PY=$(hj_py 2>/dev/null) || exit 0; \"$PY\" \"$CLAUDE_PLUGIN_ROOT/hooks/stop-forma-relato.py\"",
-      "script": "plugins/bootstrap/hooks/stop-forma-relato.py",
-      "measure": {
-        "lines": 245,
-        "blocking": {},
-        "informing": {},
-        "cap": {
-          "counter": [],
-          "sentinel": [],
-          "session_scoped": false
-        },
-        "killswitch": [],
-        "hardcoded_tools": [],
-        "tools_used": [],
-        "tools_guarded": [],
-        "tools_unguarded": []
-      }
-    },
-    {
       "plugin": "branches",
       "event": "SessionStart",
       "matcher": "*",
@@ -945,6 +839,39 @@
     },
     {
       "plugin": "gauntlet",
+      "event": "SessionStart",
+      "matcher": "*",
+      "type": "command",
+      "timeout": 10,
+      "command": "CLAUDE_PLUGIN_ROOT=$(printf '%s' \"$CLAUDE_PLUGIN_ROOT\" | tr '\\\\' /); export CLAUDE_PLUGIN_ROOT; bash \"$CLAUDE_PLUGIN_ROOT/hooks/sessionstart-lembra-missao.sh\"",
+      "script": "plugins/gauntlet/hooks/sessionstart-lembra-missao.sh",
+      "measure": {
+        "lines": 69,
+        "blocking": {},
+        "informing": {},
+        "cap": {
+          "counter": [],
+          "sentinel": [],
+          "session_scoped": false
+        },
+        "killswitch": [
+          [
+            20,
+            "[ \"${GAUNTLET_GATE:-1}\" = \"0\" ] && exit 0"
+          ],
+          [
+            20,
+            "[ \"${GAUNTLET_GATE:-1}\" = \"0\" ] && exit 0"
+          ]
+        ],
+        "hardcoded_tools": [],
+        "tools_used": [],
+        "tools_guarded": [],
+        "tools_unguarded": []
+      }
+    },
+    {
+      "plugin": "gauntlet",
       "event": "PreToolUse",
       "matcher": "Agent",
       "type": "command",
@@ -952,13 +879,13 @@
       "command": "CLAUDE_PLUGIN_ROOT=$(printf '%s' \"$CLAUDE_PLUGIN_ROOT\" | tr '\\\\' /); export CLAUDE_PLUGIN_ROOT; bash \"$CLAUDE_PLUGIN_ROOT/hooks/pretooluse-gauntlet.sh\"",
       "script": "plugins/gauntlet/hooks/pretooluse-gauntlet.sh",
       "measure": {
-        "lines": 105,
+        "lines": 173,
         "blocking": {},
         "informing": {},
         "cap": {
           "counter": [
             [
-              85,
+              145,
               "if [ \"$N\" -ge \"$MAX\" ]; then"
             ]
           ],
@@ -967,11 +894,11 @@
         },
         "killswitch": [
           [
-            37,
+            42,
             "[ \"${GAUNTLET_GATE:-1}\" = \"0\" ] && exit 0"
           ],
           [
-            37,
+            42,
             "[ \"${GAUNTLET_GATE:-1}\" = \"0\" ] && exit 0"
           ]
         ],

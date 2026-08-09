@@ -67,7 +67,7 @@ M=$(msg "$OUT")
 check "a linha sai em systemMessage (o canal que o dono lê)" \
   "$([ -n "$M" ] && echo 1 || echo 0)" "saiu: $OUT"
 check "a linha traz o relógio do que já rodou" \
-  "$(printf '%s' "$M" | grep -q 'rodando há' && echo 1 || echo 0)" "saiu: $M"
+  "$(printf '%s' "$M" | grep -q 'Rodando há' && echo 1 || echo 0)" "saiu: $M"
 check "a linha traz o placar cru que a suíte imprimiu" \
   "$(printf '%s' "$M" | grep -q '139 passou · 0 falhou' && echo 1 || echo 0)" "saiu: $M"
 check "a linha traz o julgamento de avanço" \
@@ -112,7 +112,7 @@ mkdir -p "$CFG/sovai"
 marca_ha 120 sess-legado
 OUT=$(roda 'bash suite.sh' "$SAIDA_COM_PLACAR" "" sess-legado)
 check "missão acesa na pasta ANTIGA continua sendo narrada" \
-  "$(printf '%s' "$OUT" | grep -q 'rodando há' && echo 1 || echo 0)" "saiu: $OUT"
+  "$(printf '%s' "$OUT" | grep -q 'Rodando há' && echo 1 || echo 0)" "saiu: $OUT"
 
 rm -f "$TMP/sovai-andamento-sess-teste"
 OUT=$(roda 'bash suite.sh' "$SAIDA_COM_PLACAR")
@@ -134,8 +134,8 @@ sinal_ha 1200
 marca_ha 1200
 OUT=$(roda 'bash suite-longa.sh' "$SAIDA_COM_PLACAR")
 M=$(msg "$OUT")
-check "demora legítima sai na tela como 'rodando há N min'" \
-  "$(printf '%s' "$M" | grep -q 'rodando há 20 min' && echo 1 || echo 0)" "saiu: $M"
+check "demora legítima sai na tela como 'Rodando há N min'" \
+  "$(printf '%s' "$M" | grep -q 'Rodando há 20 min' && echo 1 || echo 0)" "saiu: $M"
 check "demora legítima NÃO é chamada de travamento" \
   "$(printf '%s' "$M" | grep -q 'não é travamento' && echo 1 || echo 0)" "saiu: $M"
 
@@ -145,9 +145,9 @@ marca_ha 2
 OUT=$(roda 'echo oi' 'oi')
 M2=$(msg "$OUT")
 check "silêncio sem trabalho vivo sai na tela como travamento" \
-  "$(printf '%s' "$M2" | grep -q 'travamento: nada mudou há 20 min' && echo 1 || echo 0)" "saiu: $M2"
-check "travamento NÃO sai como 'rodando há N min'" \
-  "$(printf '%s' "$M2" | grep -q 'rodando há 20 min' && echo 0 || echo 1)" "saiu: $M2"
+  "$(printf '%s' "$M2" | grep -q 'Travamento: nada mudou há 20 min' && echo 1 || echo 0)" "saiu: $M2"
+check "travamento NÃO sai como 'Rodando há N min'" \
+  "$(printf '%s' "$M2" | grep -q 'Rodando há 20 min' && echo 0 || echo 1)" "saiu: $M2"
 check "as duas telas são diferentes" \
   "$([ "$M" != "$M2" ] && echo 1 || echo 0)" "iguais: $M"
 
@@ -188,16 +188,16 @@ OUT=$(barra sess-teste)
 PRIMEIRA=$(printf '%s' "$OUT" | head -1)
 RESTO=$(printf '%s' "$OUT" | tail -n +2)
 check "com motor vivo a PRIMEIRA linha é a do motor (acima do hud)" \
-  "$(printf '%s' "$PRIMEIRA" | grep -q '^🚀 motor · missão há' && echo 1 || echo 0)" "saiu: [$PRIMEIRA]"
+  "$(printf '%s' "$PRIMEIRA" | grep -q '^🚀 Motor · Missão há' && echo 1 || echo 0)" "saiu: [$PRIMEIRA]"
 check "a linha vem do estado em disco (a idade da missão)" \
-  "$(printf '%s' "$PRIMEIRA" | grep -q 'missão há 10min' && echo 1 || echo 0)" "saiu: [$PRIMEIRA]"
+  "$(printf '%s' "$PRIMEIRA" | grep -q 'Missão há 10min' && echo 1 || echo 0)" "saiu: [$PRIMEIRA]"
 check "a linha traz o silêncio lido do sinal em disco" \
-  "$(printf '%s' "$PRIMEIRA" | grep -q 'último sinal há 70s' && echo 1 || echo 0)" "saiu: [$PRIMEIRA]"
+  "$(printf '%s' "$PRIMEIRA" | grep -q 'Último sinal há 70s' && echo 1 || echo 0)" "saiu: [$PRIMEIRA]"
 check "o hud continua idêntico embaixo da linha do motor" \
   "$([ "$RESTO" = "$HUD_CRU" ] && echo 1 || echo 0)" "saiu: [$RESTO] esperado: [$HUD_CRU]"
 
 # 4c-bis · O CRITÉRIO DE F9.24 NA BARRA: o mesmo silêncio de 20 min sai como
-#          'rodando há N min' quando há comando de pé, e como travamento quando
+#          'Rodando há N min' quando há comando de pé, e como travamento quando
 #          não há. O que muda entre os dois cenários é UM arquivo — o de trabalho
 #          vivo, que o hook escreve ao disparar e apaga ao voltar.
 trabalho_ha() { python3 -c 'import time,sys; open(sys.argv[1],"w").write(str(time.time()-float(sys.argv[2])))' "$CFG/andamento/trabalho-sess-teste" "$1"; }
@@ -227,10 +227,10 @@ check "o disparo grava o PROJETO, sem o qual não há estimativa" \
 
 BARRA_EST=$(barra sess-teste | head -1)
 check "a barra traz o tempo decorrido da ferramenta de pé" \
-  "$(printf '%s' "$BARRA_EST" | grep -q 'ferramenta há' && echo 1 || echo 0)" "saiu: [$BARRA_EST]"
+  "$(printf '%s' "$BARRA_EST" | grep -q 'Ferramenta há' && echo 1 || echo 0)" "saiu: [$BARRA_EST]"
 # este comando já rodou nesta suíte (seções acima), então a memória do projeto existe
 check "com histórico, a barra traz a estimativa ao lado do relógio" \
-  "$(printf '%s' "$BARRA_EST" | grep -q 'ferramenta há .*usual ~' && echo 1 || echo 0)" "saiu: [$BARRA_EST]"
+  "$(printf '%s' "$BARRA_EST" | grep -q 'Ferramenta há .*usual ~' && echo 1 || echo 0)" "saiu: [$BARRA_EST]"
 
 # comando que nunca rodou aqui chega SEM número: relógio sozinho é honesto.
 CLAUDE_CONFIG_DIR="$CFG" TMPDIR="$TMP" sh "$HOOK" marca <<< "$(paylo 'bash suite-inedita.sh' '')" >/dev/null 2>&1
@@ -240,8 +240,8 @@ check "comando sem histórico neste projeto chega à barra sem número" \
 
 trabalho_ha 1200
 BARRA_VIVA=$(barra sess-teste | head -1)
-check "demora legítima sai na barra como 'rodando há N min'" \
-  "$(printf '%s' "$BARRA_VIVA" | grep -q 'rodando há 20 min' && echo 1 || echo 0)" "saiu: [$BARRA_VIVA]"
+check "demora legítima sai na barra como 'Rodando há N min'" \
+  "$(printf '%s' "$BARRA_VIVA" | grep -q 'Rodando há 20 min' && echo 1 || echo 0)" "saiu: [$BARRA_VIVA]"
 check "demora legítima NÃO sai na barra como SEM SINAL" \
   "$(printf '%s' "$BARRA_VIVA" | grep -q 'SEM SINAL' && echo 0 || echo 1)" "saiu: [$BARRA_VIVA]"
 check "as duas barras são textos diferentes" \
@@ -307,10 +307,10 @@ OUT=$(printf '{"session_id":"sess-teste"}' \
     CLAUDE_PLUGIN_ROOT="$(cd "$(dirname "$BARRA")/.." && pwd)" \
     sh "$SAB_BARRA" "sh $HUD" 2>/dev/null)
 check "barra sabotada (linha ABAIXO do hud) reprova o critério do 'acima'" \
-  "$(printf '%s' "$OUT" | head -1 | grep -q '^🚀 motor · missão há' && echo 0 || echo 1)" \
+  "$(printf '%s' "$OUT" | head -1 | grep -q '^🚀 Motor · Missão há' && echo 0 || echo 1)" \
   "a sabotada ainda saiu por cima — o teste do 'acima' é tautológico · saiu: [$OUT]"
 check "a sabotada ainda IMPRIME a linha — o que mudou foi só a ordem" \
-  "$(printf '%s' "$OUT" | grep -q '🚀 motor · missão há' && echo 1 || echo 0)" \
+  "$(printf '%s' "$OUT" | grep -q '🚀 Motor · Missão há' && echo 1 || echo 0)" \
   "a sabotagem apagou a linha em vez de movê-la — o teste acima passa por engano · saiu: [$OUT]"
 rm -f "$CFG/andamento/ativo-sess-teste"
 : > "$CFG/andamento/ativo-sess-teste"

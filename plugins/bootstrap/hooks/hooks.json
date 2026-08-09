@@ -1,51 +1,30 @@
 {
-  "hooks": {
-    "SessionStart": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "CLAUDE_PLUGIN_ROOT=$(printf '%s' \"$CLAUDE_PLUGIN_ROOT\" | tr '\\\\' /); export CLAUDE_PLUGIN_ROOT; \"$CLAUDE_PLUGIN_ROOT\"/hooks/session-sync.sh"
-          },
-          {
-            "type": "command",
-            "command": "CLAUDE_PLUGIN_ROOT=$(printf '%s' \"$CLAUDE_PLUGIN_ROOT\" | tr '\\\\' /); export CLAUDE_PLUGIN_ROOT; \"$CLAUDE_PLUGIN_ROOT\"/hooks/sessionstart-deps.sh",
-            "timeout": 5
-          }
+    "hooks": {
+        "SessionStart": [
+            {
+                "hooks": [
+                    {
+                        "type": "command",
+                        "command": "CLAUDE_PLUGIN_ROOT=$(printf '%s' \"$CLAUDE_PLUGIN_ROOT\" | tr '\\\\' /); export CLAUDE_PLUGIN_ROOT; \"$CLAUDE_PLUGIN_ROOT\"/hooks/session-sync.sh"
+                    },
+                    {
+                        "type": "command",
+                        "command": "CLAUDE_PLUGIN_ROOT=$(printf '%s' \"$CLAUDE_PLUGIN_ROOT\" | tr '\\\\' /); export CLAUDE_PLUGIN_ROOT; \"$CLAUDE_PLUGIN_ROOT\"/hooks/sessionstart-deps.sh",
+                        "timeout": 5
+                    }
+                ]
+            }
+        ],
+        "PostToolUse": [
+            {
+                "matcher": "Bash",
+                "hooks": [
+                    {
+                        "type": "command",
+                        "command": "CLAUDE_PLUGIN_ROOT=$(printf '%s' \"$CLAUDE_PLUGIN_ROOT\" | tr '\\\\' /); export CLAUDE_PLUGIN_ROOT; \"$CLAUDE_PLUGIN_ROOT\"/hooks/post-plugin-command.sh"
+                    }
+                ]
+            }
         ]
-      }
-    ],
-    "PostToolUse": [
-      {
-        "matcher": "Bash",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "CLAUDE_PLUGIN_ROOT=$(printf '%s' \"$CLAUDE_PLUGIN_ROOT\" | tr '\\\\' /); export CLAUDE_PLUGIN_ROOT; \"$CLAUDE_PLUGIN_ROOT\"/hooks/post-plugin-command.sh"
-          }
-        ]
-      }
-    ],
-    "Stop": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "CLAUDE_PLUGIN_ROOT=$(printf '%s' \"$CLAUDE_PLUGIN_ROOT\" | tr '\\\\' /); export CLAUDE_PLUGIN_ROOT; . \"$CLAUDE_PLUGIN_ROOT/hooks/hook-json.sh\" 2>/dev/null; PY=$(hj_py 2>/dev/null) || exit 0; \"$PY\" \"$CLAUDE_PLUGIN_ROOT/hooks/stop-prose-ceiling.py\"",
-            "timeout": 10
-          },
-          {
-            "type": "command",
-            "command": "CLAUDE_PLUGIN_ROOT=$(printf '%s' \"$CLAUDE_PLUGIN_ROOT\" | tr '\\\\' /); export CLAUDE_PLUGIN_ROOT; . \"$CLAUDE_PLUGIN_ROOT/hooks/hook-json.sh\" 2>/dev/null; PY=$(hj_py 2>/dev/null) || exit 0; \"$PY\" \"$CLAUDE_PLUGIN_ROOT/hooks/stop-regua-relato.py\"",
-            "timeout": 10
-          },
-          {
-            "type": "command",
-            "command": "CLAUDE_PLUGIN_ROOT=$(printf '%s' \"$CLAUDE_PLUGIN_ROOT\" | tr '\\\\' /); export CLAUDE_PLUGIN_ROOT; . \"$CLAUDE_PLUGIN_ROOT/hooks/hook-json.sh\" 2>/dev/null; PY=$(hj_py 2>/dev/null) || exit 0; \"$PY\" \"$CLAUDE_PLUGIN_ROOT/hooks/stop-forma-relato.py\"",
-            "timeout": 30
-          }
-        ]
-      }
-    ]
-  }
+    }
 }

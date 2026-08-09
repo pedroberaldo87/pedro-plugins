@@ -17,7 +17,6 @@ from pathlib import Path
 AQUI = Path(__file__).resolve().parent
 BOOTSTRAP = AQUI.parent
 CONFORMANCE = AQUI / "conformance.py"
-HOOK = BOOTSTRAP / "hooks" / "stop-prose-ceiling.py"
 SCOPE_COP = BOOTSTRAP.parent / "guardrails" / "hooks" / "scope-cop.sh"
 
 ok = falhas = 0
@@ -75,19 +74,6 @@ def monta_mundo(raiz, *, plugin_ligado=True, style_setado=True, teto_duplicado=F
     if not style_setado:
         del settings["outputStyle"]
     (vivo / "settings.json").write_text(json.dumps(settings))
-    # maquina conforme tem o guarda de prosa RODANDO. Sem esta batida o mundo
-    # coerente seria acusado — e o check existe justamente porque guarda mudo
-    # passava por guarda ok.
-    bat = vivo / "state" / "prose-ceiling"
-    bat.mkdir(parents=True, exist_ok=True)
-    (bat / "batidas.log").write_text(
-        json.dumps({"ts": int(time.time()), "motivo": "aprovou", "linhas": 4, "teto": 6}) + "\n")
-    # o juiz de forma tem o mesmo acordo, e um modo de falha a mais: fail-open por
-    # falta de credencial. Maquina conforme tem batida de 'julgou' recente.
-    juiz = vivo / "state" / "forma-relato"
-    juiz.mkdir(parents=True, exist_ok=True)
-    (juiz / "batidas.log").write_text(
-        json.dumps({"ts": int(time.time()), "motivo": "julgou", "veredito": "passa"}) + "\n")
     return vivo, cfg
 
 
@@ -167,71 +153,6 @@ def teste_plugin_instalado_porem_desligado_pede_enable():
         check("instalado e ligado quando o manifest quer ligado e conforme",
               "plugins" not in areas(res),
               str([x["o_que"] for x in res["desvios"] if x["area"] == "plugins"]))
-
-
-def teste_guarda_de_prosa_mudo():
-    """O check nasceu de um caso real: uma resposta furou o teto e o disco so tinha
-    registro de BLOQUEIO, entao 'nao rodou' passava por 'rodou e aprovou'."""
-    with tempfile.TemporaryDirectory() as t:
-        vivo, cfg = monta_mundo(Path(t))
-        (vivo / "state" / "prose-ceiling" / "batidas.log").unlink()
-        res = roda_conformance(vivo, cfg)
-        d = [x for x in res["desvios"] if "nunca executou" in x["o_que"]]
-        check("acusa guarda instalado que nunca executou", bool(d), str(areas(res)))
-
-    with tempfile.TemporaryDirectory() as t:
-        vivo, cfg = monta_mundo(Path(t))
-        antigo = int(time.time()) - 60 * 60 * 30      # 30h atras
-        (vivo / "state" / "prose-ceiling" / "batidas.log").write_text(
-            json.dumps({"ts": antigo, "motivo": "aprovou", "linhas": 3, "teto": 6}) + "\n")
-        res = roda_conformance(vivo, cfg)
-        check("acusa guarda mudo ha mais de 24h",
-              any("mudo" in x["o_que"] for x in res["desvios"]), str(areas(res)))
-
-    with tempfile.TemporaryDirectory() as t:
-        vivo, cfg = monta_mundo(Path(t), plugin_ligado=False)
-        (vivo / "state" / "prose-ceiling" / "batidas.log").unlink()
-        res = roda_conformance(vivo, cfg)
-        check("nao cobra guarda de quem nao instalou o bootstrap",
-              not any("executou" in x["o_que"] for x in res["desvios"]), str(areas(res)))
-
-
-def teste_juiz_de_forma_mudo():
-    """Mesmo acordo do guarda de prosa, mais o modo de falha proprio do juiz: sem
-    credencial o `claude -p` sai com rc=1, o hook aprova tudo por fail-open, e nada
-    no disco distingue isso de 'nao havia o que reprovar'."""
-    with tempfile.TemporaryDirectory() as t:
-        vivo, cfg = monta_mundo(Path(t))
-        (vivo / "state" / "forma-relato" / "batidas.log").unlink()
-        res = roda_conformance(vivo, cfg)
-        d = [x for x in res["desvios"] if x["area"] == "juiz" and "nunca executou" in x["o_que"]]
-        check("acusa juiz que nunca executou", bool(d), str(areas(res)))
-
-    with tempfile.TemporaryDirectory() as t:
-        vivo, cfg = monta_mundo(Path(t))
-        agora = int(time.time())
-        (vivo / "state" / "forma-relato" / "batidas.log").write_text("".join(
-            json.dumps({"ts": agora, "motivo": "juiz sem resposta (rc=1)", "veredito": None}) + "\n"
-            for _ in range(3)))
-        res = roda_conformance(vivo, cfg)
-        d = [x for x in res["desvios"] if x["area"] == "juiz" and "mudo" in x["o_que"]]
-        check("acusa fail-open por juiz sem resposta", bool(d), str(areas(res)))
-
-    with tempfile.TemporaryDirectory() as t:
-        vivo, cfg = monta_mundo(Path(t))
-        antigo = int(time.time()) - 60 * 60 * 30      # 30h atras
-        (vivo / "state" / "forma-relato" / "batidas.log").write_text(
-            json.dumps({"ts": antigo, "motivo": "julgou", "veredito": "passa"}) + "\n")
-        res = roda_conformance(vivo, cfg)
-        check("acusa juiz parado ha mais de 24h",
-              any(x["area"] == "juiz" for x in res["desvios"]), str(areas(res)))
-
-    with tempfile.TemporaryDirectory() as t:
-        vivo, cfg = monta_mundo(Path(t), plugin_ligado=False)
-        (vivo / "state" / "forma-relato" / "batidas.log").unlink()
-        res = roda_conformance(vivo, cfg)
-        check("nao cobra juiz de quem nao instalou o bootstrap",
-              not any(x["area"] == "juiz" for x in res["desvios"]), str(areas(res)))
 
 
 def teste_output_style_nao_setado():
@@ -572,35 +493,6 @@ def teste_homonimo_fora_do_guardrails_nao_elege_vencedor():
               and not (vivo / "guardrails").exists(), conserto)
 
 
-def teste_escritor_e_leitor_concordam():
-    """O defeito real: hook escrevia em ~/.claude fixo e o conformance lia
-    CLAUDE_CONFIG_DIR — o relatorio dizia 'nenhuma resposta furou o teto'."""
-    with tempfile.TemporaryDirectory() as t:
-        raiz = Path(t)
-        vivo, cfg = monta_mundo(raiz)
-        transcript = raiz / "t.jsonl"
-        texto = "\n".join(f"linha {i}" for i in range(12))
-        transcript.write_text(json.dumps({
-            "type": "assistant",
-            "message": {"role": "assistant", "content": [{"type": "text", "text": texto}]},
-        }) + "\n")
-        # o teto de linhas e opt-in: sem PROSE_CEILING_MAX nada e barrado e nao
-        # haveria furo nenhum pro conformance ler
-        env = dict(os.environ, CLAUDE_CONFIG_DIR=str(vivo), PROSE_CEILING_MAX="6")
-        payload = json.dumps({"transcript_path": str(transcript), "session_id": "acordo"})
-        saidas = [subprocess.run([sys.executable, str(HOOK)], input=payload,
-                                 capture_output=True, text=True, env=env, start_new_session=True).returncode
-                  for _ in range(3)]
-        check("bloqueia 2x e desiste na 3a", saidas == [2, 2, 0], str(saidas))
-        log = vivo / "state" / "prose-ceiling" / "bypass.log"
-        check("o hook escreve o furo DENTRO de CLAUDE_CONFIG_DIR", log.is_file(),
-              f"nao achei {log}")
-        res = roda_conformance(vivo, cfg)
-        furo = [d for d in res["desvios"] if "furaram o teto" in d["o_que"]]
-        check("o conformance LE o furo que o hook escreveu", bool(furo),
-              str([d["o_que"] for d in res["desvios"]]))
-
-
 def teste_skill_declarada_e_nao_instalada_nao_e_desvio():
     """A lista de skills e RETRATO do dono do manifest, nao requisito. Numa maquina
     que nao e a dele, cobrar 'declarada mas nao instalada' seria uma acusacao por
@@ -827,7 +719,6 @@ if __name__ == "__main__":
     for fn in (teste_mundo_conforme, teste_plugin_religado_na_mao,
                teste_plugin_ausente_manda_instalar_e_nao_habilitar,
                teste_plugin_instalado_porem_desligado_pede_enable,
-               teste_guarda_de_prosa_mudo, teste_juiz_de_forma_mudo,
                teste_output_style_nao_setado, teste_teto_duplicado,
                teste_skill_nao_declarada,
                teste_redirecionamento_nao_vira_script_fantasma,
@@ -843,7 +734,6 @@ if __name__ == "__main__":
                teste_scope_cop_e_conformance_olham_a_mesma_pasta,
                teste_mode_homonimo_em_duas_pastas_e_acusado,
                teste_homonimo_fora_do_guardrails_nao_elege_vencedor,
-               teste_escritor_e_leitor_concordam,
                teste_dependencia_externa_de_plugin_ligado,
                teste_skill_declarada_e_nao_instalada_nao_e_desvio,
                teste_plugin_publicado_fora_da_receita,
