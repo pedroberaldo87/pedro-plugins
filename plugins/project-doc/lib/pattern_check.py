@@ -1001,6 +1001,68 @@ def project_staleness(project_dir):
 
 
 # ---------------------------------------------------------------------------
+# rodada — QUAL das duas rodadas de doc cabe, decidido pela MEDIDA do atraso.
+# Antes isto era prosa em três hooks mandando o dono escolher entre "incremental
+# e barato" e "mineração completa" — escolha que ninguém tem como fazer sem medir
+# a idade da doc. Aqui a idade é medida (generated-commit, senão generated:) e a
+# rodada sai junto com o número que a sustentou.
+# ---------------------------------------------------------------------------
+LIMITE_FULL_DIAS = 30
+
+
+def rodada(project_dir):
+    """Escolhe a rodada de doc pelo atraso medido.
+
+    Devolve (skill, dias, motivo) — `skill` é o NOME da skill (`doc` ou
+    `doc-touch`), nunca o nome de invocação: a skill já mudou de plugin uma vez,
+    e quem chama descobre o prefixo com `resolve-skill.sh`.
+    `dias` é a idade do doc MAIS ATRASADO do
+    projeto, ou None quando nada é mensurável — e aí a rodada é a completa,
+    porque não há incremento a fazer sobre o que nunca foi minerado.
+    """
+    project_dir = os.path.abspath(project_dir)
+    try:
+        docs = [os.path.join(project_dir, d)
+                for d in _enumerate_scoped_docs(project_dir)]
+    except Exception:
+        docs = []
+    git_root = _find_git_root(project_dir)
+    idades = []
+    for dp in docs:
+        try:
+            with open(dp, encoding="utf-8", errors="replace") as fh:
+                fm, _ = _extract_frontmatter_and_body(fh.read())
+        except OSError:
+            continue
+        idade = None
+        mc = _GEN_COMMIT_RE.search(fm)
+        if mc and git_root:
+            idade = _commit_age_days(git_root, mc.group(1))
+        if idade is None:
+            m = _GEN_DATE_RE.search(fm)
+            if m:
+                try:
+                    import datetime
+                    d = datetime.date(*[int(x) for x in m.group(1).split("-")])
+                    idade = max(0.0, (datetime.date.today() - d).days)
+                except ValueError:
+                    idade = None
+        if idade is not None:
+            idades.append(idade)
+    if not idades:
+        return ("doc", None,
+                "nenhuma doc com data mensurável — a rodada completa é a que minera do zero")
+    dias = int(max(idades))
+    if dias > LIMITE_FULL_DIAS:
+        return ("doc", dias,
+                "a doc mais atrasada tem %d dias, acima do teto de %d — drift antigo pede mineração completa"
+                % (dias, LIMITE_FULL_DIAS))
+    return ("doc-touch", dias,
+            "a doc mais atrasada tem %d dias, dentro do teto de %d — o incremental dá conta"
+            % (dias, LIMITE_FULL_DIAS))
+
+
+# ---------------------------------------------------------------------------
 # census — mundo-aberto + staleness. Delega a classificação ao organism.py e
 # anexa o staleness por doc canônico/pending. Base do gate de policiamento.
 # ---------------------------------------------------------------------------
@@ -1068,6 +1130,9 @@ def main():
                     help="dry-run da conformação de organismo (o que MIGRARIA/arquivaria; read-only)")
     ap.add_argument("--project-staleness", metavar="DIR", default=None,
                     help="imprime fresh|stale|unknown do projeto DIR (barato, p/ hooks) e sai")
+    ap.add_argument("--rodada", metavar="DIR", default=None,
+                    help="mede o atraso da doc de DIR e imprime 'comando<TAB>dias<TAB>motivo' "
+                         "(doc-touch ou project-doc) — a escolha que era prosa nos hooks")
     ap.add_argument("--touch-plan", action="store_true",
                     help="plano do modo incremental (doc-touch): diff da sessão → docs afetados (read-only)")
     ap.add_argument("--restamp", metavar="DOC", nargs="+", default=None,
@@ -1123,6 +1188,15 @@ def main():
                 print("  fora de escopo (candidatos a adicionar): %d" % len(out["unscoped_new"]))
             if out["dead_scope"]:
                 print("  scope morto (rename/deleção): %d entrada(s)" % len(out["dead_scope"]))
+        return 0
+
+    # --- modo --rodada: a escolha curta-vs-completa, medida em vez de perguntada ---
+    if args.rodada:
+        try:
+            cmd, dias, motivo = rodada(args.rodada)
+        except Exception:
+            cmd, dias, motivo = ("doc-touch", None, "atraso não medido")
+        print("%s\t%s\t%s" % (cmd, "" if dias is None else dias, motivo))
         return 0
 
     # --- modo --project-staleness: ternário barato pros hooks ---

@@ -393,6 +393,24 @@ $(printf '%s' "$QOUT" | head -12)
   fi
 fi
 
+# R · description que só serve a quem já sabe que a skill existe.
+# Apelido (`"/faxina"`, `"sovai"`) é achado por quem lembra do nome. Quem NÃO lembra que a
+# skill existe só é atendido se a description disser em que SITUAÇÃO DE TRABALHO ela entra
+# — o molde é a de `sprint`, `Use quando o usuário disser …`. Quantas skills do marketplace
+# ainda são só lista de gatilho se descobre com o próprio comando abaixo, nunca de memória:
+#   python3 plugins/check-skills/lib/varredura.py --situacao-repo .
+# Escopo: só quando o commit traz um SKILL.md.
+VAR="$ROOT/plugins/check-skills/lib/varredura.py"
+if [ -f "$VAR" ] && printf '%s\n' "$FILES" | grep -qE '/SKILL\.md$'; then
+  if ! ROUT2=$(cd "$ROOT" && python3 "$VAR" --situacao-repo "$ROOT" 2>&1); then
+    VIOL="${VIOL}
+❌ SKILL SEM SITUAÇÃO — a description não diz em que momento de trabalho a skill entra:
+$(printf '%s' "$ROUT2" | head -20)
+   → escreva uma frase de situação (molde: plugins/project-skills/skills/sprint/SKILL.md)
+   → régua: python3 plugins/check-skills/lib/varredura.py --situacao-repo ."
+  fi
+fi
+
 # O · plano e código discordando: passo ABERTO cujo critério de pronto já se cumpre.
 # Os quatro irmãos deste cobrador (H, I, L, M, N) já estavam aqui e este não — ele rodava
 # e acusava sem que portão nenhum o consultasse. Passo que fica "todo" depois de o trabalho
@@ -456,6 +474,11 @@ $(printf '%s' "$OUT" | tail -15)"
   }
   roda_suites python3 'plugins/*/hooks/test_*.py'
   roda_suites bash    'scripts/test_*.sh'
+  # `lib/test_*.sh` é o tipo que nenhum dos dois globs de plugin casava: o D varre
+  # `lib/test_*.py` e o F varre `hooks/test_*.sh`. Suíte shell dentro de `lib/` caía
+  # no vão entre eles — foi o que aconteceu com a do resolvedor de skill, que o
+  # `suites_orfas.py` acusou como órfã no dia em que nasceu.
+  roda_suites bash    'plugins/*/lib/test_*.sh'
 fi
 
 [ -n "$VIOL" ] || exit 0

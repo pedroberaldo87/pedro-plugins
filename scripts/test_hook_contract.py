@@ -516,6 +516,54 @@ exit 0
     r.close()
 
     print()
+    print("quem responde ao ExitPlanMode — antes e depois da fusão dos gates")
+    # ANTES: três plugins disputam o mesmo evento (o estado de hoje).
+    r = Repo()
+    r.hook("a.sh", HDR + "exit 0", matcher="ExitPlanMode", plugin="p1")
+    r.hook("b.sh", HDR + "exit 0", matcher="EnterPlanMode|ExitPlanMode", plugin="p2")
+    r.hook("c.sh", HDR + "exit 0", matcher="ExitPlanMode", plugin="p3")
+    r.hook("d.sh", HDR + "exit 0", matcher="Bash", plugin="p4")   # não é do evento
+    antes = hc.respondentes(r.root, "ExitPlanMode")
+    check("antes da fusão: os três respondem", len(antes) == 3)
+    check("a alternância EnterPlanMode|ExitPlanMode conta",
+          {e["plugin"] for e in antes} == {"p1", "p2", "p3"})
+    check("hook de outra ferramenta não entra na conta",
+          "p4" not in {e["plugin"] for e in antes})
+    r.close()
+
+    # DEPOIS: a fusão deixa um só registrado — os outros dois saem do evento.
+    r = Repo()
+    r.hook("fundido.sh", HDR + "exit 0", matcher="ExitPlanMode", plugin="p1")
+    r.hook("outro.sh", HDR + "exit 0", matcher="Edit|Write", plugin="p2")
+    r.hook("mais.sh", HDR + "exit 0", event="Stop", matcher="*", plugin="p3")
+    depois = hc.respondentes(r.root, "ExitPlanMode")
+    check("depois da fusão: só um responde", len(depois) == 1)
+    check("e é o gate fundido", depois and depois[0]["plugin"] == "p1")
+    r.close()
+
+    # O repo real, medido: hoje 3. Quem fizer a fusão (F14.5) troca este número
+    # para 1 — a linha abaixo é o cobrador de que a fusão de fato aconteceu.
+    REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    reais = hc.respondentes(REPO, "ExitPlanMode")
+    ESPERADO_HOJE = 3
+    check("o repo real tem %d respondente(s) ao ExitPlanMode (tem %d)"
+          % (ESPERADO_HOJE, len(reais)), len(reais) == ESPERADO_HOJE)
+    # Vivo = tem suíte que o exercita com o evento. Fundir com um mudo esconderia
+    # justamente o caso que a fusão precisa cobrir.
+    SUITES = {
+        "intent-guard": "plugins/intent-guard/hooks/test_plan_gate.sh",
+        "project-doc": "plugins/project-doc/hooks/test_plan_gate.sh",
+        "visual": "plugins/visual/hooks/test_exitplan_gate.sh",
+    }
+    for e in reais:
+        s = SUITES.get(e["plugin"])
+        vivo = False
+        if s and os.path.exists(os.path.join(REPO, s)):
+            with open(os.path.join(REPO, s), encoding="utf-8", errors="replace") as fh:
+                vivo = "ExitPlanMode" in fh.read()
+        check("%s tem suíte que o exercita com o evento" % e["plugin"], vivo)
+
+    print()
     if FAILS:
         print("FALHOU: %d" % len(FAILS))
         for f in FAILS:

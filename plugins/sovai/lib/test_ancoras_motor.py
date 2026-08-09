@@ -78,10 +78,13 @@ def main():
           "não considere entregue" in c)
 
     print("porta 4 — executor morto sai do relato pelos DOIS lados")
+    # Com a onda em blocos (F9.57), os dois lados desaguam na MESMA lista e a peneira e
+    # uma so — o que a porta cobra continua sendo que nenhum dos dois escape dela.
     check("paralelo e sequencial filtram, nao so o paralelo",
-          "builtPar.filter(Boolean).concat(builtSeq.filter(Boolean))" in texto)
+          "for (const t of colidem.concat(seq)) builtPar.push(" in texto
+          and "const doBloco = builtPar.filter(Boolean)" in texto)
     check("o arquivo registra por que filtrar so um lado quebrava",
-          "Filtrar só o paralelo" in texto)
+          "Filtra AQUI, dos dois lados" in texto)
 
     print("a regra geral das quatro continua declarada")
     check("falha de infra degrada, nunca fabrica aprovacao",

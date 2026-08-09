@@ -82,9 +82,11 @@ DOCLIST=$(printf '%s\n' "$RESUMO" | sed -n 3p)
 
 # Cabeçalho com emoji e um bullet por ideia: o canal é terminal puro, e uma linha
 # de 177 caracteres com a lista de docs no meio não se lê no fim de um turno.
+. "$SCRIPT_DIR/lib-rodada.sh" 2>/dev/null && rodada_doc "$PROJ"
 MSG="📝 doc-touch: ${NFILES} arquivo(s) tocados, cobertos por ${NDOCS} doc(s)
 • Docs afetadas: ${DOCLIST}
-• Rode /doc-touch pra atualizar a doc incrementalmente, sem re-mineração."
+• Rode /${RODADA_CMD:-doc-touch} pra atualizar a doc
+• ${RODADA_MOTIVO:-atraso não medido}"
 
 # A régua do canal (perfil `hook`, de quality-goals.md). Defeito de forma não cala uma
 # sugestão: o motivo vai pro stderr e o texto sai assim mesmo. Régua ausente → silêncio.

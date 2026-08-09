@@ -11,6 +11,7 @@ dentro de outro plugin quebra o Artigo 9.
 """
 
 import os
+import re
 import sys
 
 AQUI = os.path.dirname(os.path.abspath(__file__))
@@ -22,17 +23,26 @@ FONTE = os.path.join(SHARED, ARQ)
 # Os nove destinos: toda skill em que a pergunta ao dono tem OPÇÕES — as que
 # usam AskUserQuestion, a grill-me (pergunta em rodadas sem usar a ferramenta) e
 # as que param no meio do fluxo pra o dono escolher entre alternativas.
-DESTINOS = [
-    "plugins/grill-me/skills/grill-me",
-    "plugins/project-doc/skills/start-doc",
-    "plugins/handoff/skills/handoff",
-    "plugins/lixeiro/skills/faxina",
-    "plugins/visual/skills/visual",
-    "plugins/sovai/skills/sovai",
-    "plugins/qa-loop/skills/qa-loop",
-    "plugins/slides/skills/slides",
-    "plugins/improve/skills/improve",
-]
+def _destinos_do_vendoring(nome):
+    """Os destinos DECLARADOS em scripts/sync-shared.sh, lidos do arquivo.
+
+    A lista era escrita à mão, e o F14.2 a venceu: `start-doc`, `sovai` e `qa-loop`
+    mudaram de plugin, os caminhos velhos deixaram de existir, e a suíte ficou
+    vermelha por endereço em vez de por defeito. Quem sabe onde cada cópia mora é o
+    próprio vendoring — derivar dele faz o próximo rename chegar aqui sozinho.
+    """
+    sync = os.path.join(ROOT, "scripts", "sync-shared.sh")
+    with open(sync, encoding="utf-8") as fh:
+        bloco = re.search(r"^SPECS=\((.*?)^\)", fh.read(), re.S | re.M)
+    saida = []
+    for linha in (bloco.group(1) if bloco else "").splitlines():
+        achou = re.search(r'"([^"]+)::([^"]+)"', linha)
+        if achou and achou.group(2) == nome:
+            saida.append(achou.group(1))
+    return saida
+
+
+DESTINOS = _destinos_do_vendoring(ARQ)
 
 # Cada cláusula da régua, como o dono a ditou.
 CLAUSULAS = [

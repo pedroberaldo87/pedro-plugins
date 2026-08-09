@@ -76,6 +76,37 @@ def main():
     finally:
         shutil.rmtree(d, ignore_errors=True)
 
+    # A forma que quebrou o motor: o caminho escrito a partir da RAIZ do repositório, para
+    # um plugin que nem existe nesta cópia (o arquivo mudou de dono). A régua por nome não
+    # pegava, porque só conhece os irmãos que estão no disco aqui.
+    d = tempfile.mkdtemp(prefix="desac-raiz-")
+    try:
+        monta(d, {"plugins/alfa/skills/alfa/SKILL.md":
+                  "Rode python3 plugins/gama/lib/plan_state.py tick.\n"})
+        a = dc.varre(d)
+        check("caminho a partir da raiz para plugin que não existe aqui é acusado",
+              formas(a) == ["dependencia-de-irmao"])
+        check("e nomeia o plugin do caminho", any(x["alvo"] == "gama" for x in a))
+    finally:
+        shutil.rmtree(d, ignore_errors=True)
+
+    d = tempfile.mkdtemp(prefix="desac-raiz2-")
+    try:
+        monta(d, {"plugins/alfa/skills/alfa/SKILL.md": "Rode plugins/beta/lib/x.py\n"})
+        check("o irmão conhecido citado pela raiz entra UMA vez, não duas",
+              len(dc.varre(d)) == 1)
+    finally:
+        shutil.rmtree(d, ignore_errors=True)
+
+    d = tempfile.mkdtemp(prefix="desac-artef-")
+    try:
+        monta(d, {"plugins/alfa/skills/alfa/SKILL.md":
+                  "Rode python3 scripts/desacoplamento_check.py e leia "
+                  ".claude/plans/x.plan.json.\n"})
+        check("caminho de artefato do PROJETO não é travessia", dc.varre(d) == [])
+    finally:
+        shutil.rmtree(d, ignore_errors=True)
+
     d = tempfile.mkdtemp(prefix="desac-cont-")
     try:
         monta(d, {"plugins/alfa/skills/alfa/SKILL.md": "Este marketplace tem 21 plugins.\n"})

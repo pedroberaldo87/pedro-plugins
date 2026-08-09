@@ -1,6 +1,6 @@
 ---
 name: start
-description: Conduz a concepção de um projeto em seis etapas de acordo — metas de qualidade e restrições, arquitetura, interface, jornadas, esquema de funcionamento e a lista de funcionalidades —, cada uma num documento próprio, reapresentada até o dono aprovar e fechada com a aprovação dele gravada. É entrevista, não mineração; pergunta e grava a resposta do humano, nunca inventa conteúdo. Use em "/start-doc", "vamos conceber", "começando um projeto novo", "documenta a intenção", "esse projeto não tem doc nenhuma". Dispare também quando não há CLAUDE.md nem .claude/docs/, quando os documentos autorais estão vazios, ou quando o gate de plano barrou por falta de doc.
+description: Conduz a concepção de um projeto em seis etapas de acordo — metas de qualidade e restrições, arquitetura, interface, jornadas, esquema de funcionamento e a lista de funcionalidades —, cada uma num documento próprio, reapresentada até o dono aprovar e fechada com a aprovação dele gravada. É entrevista, não mineração; pergunta e grava a resposta do humano, nunca inventa conteúdo. Use em "/start", "projeto", "doc-start", "vamos conceber", "começando um projeto novo", "documenta a intenção", "esse projeto não tem doc nenhuma". Dispare também quando não há CLAUDE.md nem .claude/docs/, quando os documentos autorais estão vazios, ou quando o gate de plano barrou por falta de doc.
 ---
 
 # start-doc — a documentação que só o humano tem
@@ -146,6 +146,12 @@ Pista nunca vira resposta.
 Prosa livre junto da invocação é contexto e vale como resposta antecipada — se o humano já disse
 "o que importa aqui é não perder dado", **não pergunte a meta 1 de novo**: mostre o que entendeu e
 peça confirmação.
+
+**Quando o dono decide NÃO ter fundação, isso também é escrito.** Ele dispensou a concepção (é
+protótipo de uma tarde, é repo de terceiro, o que for): escreva `.claude/docs/dispensa.md` com o
+**motivo verbatim dele no frontmatter**, pelo molde `13 · A dispensa` do `references/authorial-kit.md`,
+e pare por aí. Decisão que fica só na conversa vira, no disco, a mesma coisa que esquecimento — e é
+por isso que o gate de plano trata o projeto sem dispensa registrada como projeto que só esqueceu.
 
 ## Fluxo
 

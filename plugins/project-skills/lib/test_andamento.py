@@ -373,6 +373,35 @@ def main():
                 os.remove(os.path.join(casa_sinal, "ativo-s-" + motor))
             check("%s: sem sinal a linha SOME da barra" % motor,
                   a.linha_motor("s-" + motor, casa_sinal) is None)
+
+        # O PEDIDO DE VER O ANDAMENTO (F17.6). Quem roda e o bloco escrito na
+        # SKILL.md de monitorar — se o comando de la mudar, isto quebra aqui.
+        print("o pedido de ver o andamento imprime o estado lido do DISCO")
+        raiz = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        with open(os.path.join(raiz, "skills", "monitorar", "SKILL.md"),
+                  encoding="utf-8") as fh:
+            blocos = re.findall(r"```bash\n(.*?)```", fh.read(), re.S)
+        check("a SKILL.md de monitorar tem o bloco do comando",
+              bool(blocos) and "andamento.py" in blocos[0])
+
+        casa_mon = os.path.join(tmp, "casa-monitorar")
+        env = dict(os.environ, CLAUDE_PLUGIN_ROOT=raiz,
+                   CLAUDE_CONFIG_DIR=casa_mon)
+        vazio = subprocess.run(["bash", "-c", blocos[0]], env=env,
+                               capture_output=True, text=True,
+                               stdin=subprocess.DEVNULL, start_new_session=True)
+        check("sem missão de pé o comando diz isso e sai bem",
+              vazio.returncode == 0 and "nenhuma missão de pé" in vazio.stdout)
+
+        os.makedirs(os.path.join(casa_mon, "andamento"))
+        with open(os.path.join(casa_mon, "andamento", "ativo-s-mon"),
+                  "w", encoding="utf-8") as fh:
+            fh.write("qa-loop\n")
+        vivo = subprocess.run(["bash", "-c", blocos[0]], env=env,
+                              capture_output=True, text=True,
+                              stdin=subprocess.DEVNULL, start_new_session=True)
+        check("com missão de pé imprime a sessão e o motor lidos do disco",
+              "s-mon" in vivo.stdout and "qa-loop · missão há" in vivo.stdout)
     finally:
         shutil.rmtree(tmp, ignore_errors=True)
 

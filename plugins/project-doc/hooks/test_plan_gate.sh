@@ -17,6 +17,18 @@ ok()   { PASS=$((PASS+1)); printf '  ✓ %s\n' "$1"; }
 bad()  { FAIL=$((FAIL+1)); printf '  ✗ %s\n     esperado: %s\n     obtido:   %s\n' "$1" "$2" "$3"; }
 
 TMP=$(mktemp -d)
+# Cache falso de plugin: o nome de invocação da rodada se DESCOBRE (resolve-skill.sh),
+# e a suíte não pode depender do que ESTA máquina tem instalado.
+FAKE_CACHE="$TMP/cfg/plugins/cache/mkt/project-skills/1.0.0"
+mkdir -p "$FAKE_CACHE/lib" "$FAKE_CACHE/skills/doc" "$FAKE_CACHE/skills/doc-touch"
+# ...e o IRMÃO de onde ela vem também se acha por NOME (Artigo 9), nunca por posição.
+RS_SRC=$(CLAUDE_PLUGIN_ROOT="$SCRIPT_DIR/.." "$SCRIPT_DIR/resolve-plugin.sh" \
+           project-skills lib/resolve-skill.sh) || {
+  printf 'SKIP: project-skills não está nesta máquina\n'; exit 0; }
+cp "$RS_SRC" "$FAKE_CACHE/lib/"
+: > "$FAKE_CACHE/skills/doc/SKILL.md"; : > "$FAKE_CACHE/skills/doc-touch/SKILL.md"
+unset CLAUDE_PLUGIN_ROOT
+export CLAUDE_CONFIG_DIR="$TMP/cfg"
 trap 'rm -rf "$TMP"; rm -f "$TMPD"/claude-plan-gate-*-'"$SESSION"'-* "$TMPD"/claude-doc-guard-'"$SESSION"'-*' EXIT
 
 # --- fixtures -------------------------------------------------------------
@@ -100,6 +112,33 @@ OUT=$(gate EnterPlanMode "$AUTH")
 [ "$(decision "$OUT")" = "deny" ] && ok "autoral parcial: ainda negado" || bad "autoral parcial: negado" deny "$(decision "$OUT")"
 case "$(reason "$OUT")" in *"1 de 5"*) ok "autoral parcial: reporta 1 de 5 documentos" ;;
   *) bad "autoral parcial: conta os autorais" "1 de 5" "$(reason "$OUT" | head -c 60)" ;; esac
+
+# 4b) S-105 — dispensa deliberada x ausência silenciosa. Um teste por lado, sobre o
+#     MESMO projeto sem documentação: o que muda é só o arquivo da dispensa.
+DISP="$TMP/projeto-dispensado"
+mkdir -p "$DISP/.claude/docs" && (cd "$DISP" && git init -q . && git commit -q --allow-empty -m x 2>/dev/null)
+
+# lado 1 — ausência: dispensa escrita SEM motivo não é dispensa, e o gate nomeia o arquivo
+printf -- '---\nauthored-by: human\n---\n# Dispensa\n' > "$DISP/.claude/docs/dispensa.md"
+OUT=$(gate EnterPlanMode "$DISP")
+[ "$(decision "$OUT")" = "deny" ] && ok "dispensa sem motivo: continua sendo ausência, negado" \
+                                  || bad "dispensa sem motivo negada" deny "$(decision "$OUT")"
+case "$(reason "$OUT")" in *"dispensa.md"*) ok "dispensa sem motivo: a mensagem nomeia o arquivo" ;;
+  *) bad "mensagem nomeia dispensa.md" "cita dispensa.md" "$(reason "$OUT" | head -c 80)" ;; esac
+# Artigo 6: o aviso da dispensa é texto de hook — teto BULLET_MAX=140 de `_shared/regua_texto.py`.
+# `awk` mede bytes, não caracteres: acento conta a mais, então a conta é conservadora.
+DLEN=$(awk -F'ESC_HINT="' '/\[ -f "\$DISPENSA" \] && ESC_HINT=/{sub(/"$/,"",$2); gsub(/\\/,"",$2); print length($2)}' "$GATE")
+[ "${DLEN:-999}" -le 140 ] && ok "aviso da dispensa cabe na régua ($DLEN ≤ 140)" \
+                           || bad "aviso da dispensa na régua" "≤140" "$DLEN"
+
+# lado 2 — dispensa: com `motivo:` no frontmatter o gate libera, e em silêncio
+printf -- '---\nauthored-by: human\nmotivo: protótipo descartável de uma tarde\n---\n# Dispensa\n' > "$DISP/.claude/docs/dispensa.md"
+OUT=$(gate EnterPlanMode "$DISP")
+[ -z "$OUT" ] && ok "dispensa com motivo: passa em silêncio" || bad "dispensa com motivo passa" "vazio" "$OUT"
+
+# e ela dura: nada de sentinel de sessão, o arquivo vale em sessão nova
+OUT=$(printf '{"tool_name":"EnterPlanMode","session_id":"outra-%s","cwd":"%s"}' "$$" "$DISP" | bash "$GATE" 2>/dev/null)
+[ -z "$OUT" ] && ok "dispensa com motivo: vale em outra sessão" || bad "dispensa entre sessões" "vazio" "$OUT"
 
 # 5) tem doc, não lida -> DENY mandando ler
 OUT=$(gate EnterPlanMode "$DOCD")
@@ -601,6 +640,48 @@ OUT=$(gate EnterPlanMode "$ACC")
 [ "$(decision "$OUT")" = "deny" ] && ok "[PENDENTE] no corpo do aprovado: ainda nega" \
                                   || bad "[PENDENTE] no corpo nega" deny "$(decision "$OUT")"
 acc_reset
+
+echo "── Doc defasada: a rodada é medida, não perguntada (S-144) ──"
+# Fixture stale: mesmo projeto do CASO B, com x.py commitado e depois mexido, e a
+# doc carimbada com data velha. O gate ainda não viu Read nenhum → nudge de leitura,
+# que é onde vive o aviso de defasagem.
+STL="$TMP/projeto-stale"
+cp -a "$DOCD" "$STL"; rm -rf "$STL/.git"
+(cd "$STL" && git init -q . && git config user.email t@e.dev && git config user.name T)
+printf 'x = 1\n' > "$STL/x.py"
+(cd "$STL" && git add -A >/dev/null 2>&1 && git commit -q -m x)
+stale_msg() { # <data-do-generated> → systemMessage/reason do gate
+  printf -- '---\ngenerated: %s\nscope:\n  - x.py\ndoc-sig: a/b@gen=3.8#deadbeef\n---\n# Arch\n' "$1" > "$STL/.claude/docs/architecture.md"
+  rm -f "$TMPD"/claude-plan-gate-count-"$SESSION"-"$(phash "$STL")"
+  gate EnterPlanMode "$STL" | jq -r '.hookSpecificOutput.permissionDecisionReason // empty' 2>/dev/null
+}
+M=$(stale_msg 2026-01-01)
+printf '%s' "$M" | grep -q 'DEFASADA' && ok "doc velha: o gate acusa a defasagem" \
+                                      || bad "gate acusa defasagem" DEFASADA "$M"
+printf '%s' "$M" | grep -q '/project-skills:doc ' && ok "doc velha: manda a rodada COMPLETA, com o plugin descoberto" \
+                                          || bad "rodada completa" /project-skills:doc "$M"
+printf '%s' "$M" | grep -qE 'tem [0-9]+ dias' && ok "doc velha: mostra o número que sustentou a escolha" \
+                                              || bad "número medido" "tem N dias" "$M"
+# A rodada é a skill, e a skill não existe no plugin que a suíte está testando:
+# nome escrito à mão (`/project-doc`) é pedido de skill inexistente.
+printf '%s' "$M" | grep -q '/project-doc' && bad "não escreve o nome morto" "sem /project-doc" "$M" \
+                                          || ok "doc velha: não escreve o nome de skill que não existe"
+# Sem resolvedor na máquina, o aviso ainda NOMEIA a rodada — só sem o prefixo.
+M=$(CLAUDE_CONFIG_DIR="$TMP/vazio" stale_msg 2026-01-01)
+printf '%s' "$M" | grep -qE '/doc ANTES de planejar' && ok "sem resolvedor: cai no nome cru da skill" \
+                                                    || bad "fail-open do resolvedor" "/doc ANTES" "$M"
+M=$(stale_msg "$(date +%Y-%m-%d)")
+printf '%s' "$M" | grep -q '/project-skills:doc-touch' && ok "doc de hoje: manda a rodada CURTA, com o plugin descoberto" \
+                                        || bad "rodada curta" /project-skills:doc-touch "$M"
+printf '%s' "$M" | grep -qE 'tem [0-9]+ dias' && ok "doc de hoje: mostra o número que sustentou a escolha" \
+                                              || bad "número medido" "tem N dias" "$M"
+
+# O aviso de defasagem é texto de canal de terminal: a régua do Artigo 6 o cobra.
+M=$(stale_msg 2026-01-01)
+AVISO=$(printf '%s' "$M" | sed -n '/A DOC ESTÁ DEFASADA/,$p')
+REGUA_TXT=$(printf '%s\n' "$AVISO" | python3 "$SCRIPT_DIR/../lib/regua_texto.py" --perfil hook --onde aviso - 2>&1)
+[ -z "$REGUA_TXT" ] && ok "o aviso de defasagem passa na régua do perfil hook" \
+                    || bad "aviso na régua" "sem motivo" "$REGUA_TXT"
 
 echo
 printf '%s\n' "── $PASS passou · $FAIL falhou ──"

@@ -882,6 +882,13 @@ def cmd_tick(args):
 
     it["status"] = "done"
     it["evidence"] = ev
+    # S-148: a espera do dono entra pelo gravador e agora SAI por ele, junto da prova
+    # de entrega. A saída é DECLARADA (`--sem-espera`) porque tique nem sempre é o ato
+    # do dono. E a remoção APAGA a chave em vez de esvaziá-la: `espera_dono: ""` seria
+    # mordido pela regra que recusa bandeira sem ato — a mesma que empurrou a remoção
+    # anterior pra edição do arquivo à mão.
+    if getattr(args, "sem_espera", False):
+        it.pop("espera_dono", None)
     it["done_at"] = time.strftime("%Y-%m-%dT%H:%M:%S")
     save(directory, plan)
 
@@ -1947,6 +1954,8 @@ def build_parser():
     q.add_argument("plan", nargs="?")
     q.add_argument("node")
     q.add_argument("--evidencia", "--evidence", dest="evidencia", default="")
+    q.add_argument("--sem-espera", dest="sem_espera", action="store_true",
+                   help="tira a espera do dono deste passo (o ato já aconteceu)")
     q.set_defaults(func=cmd_tick)
 
     q = sub.add_parser("state", help="muda o estado de um passo (todo/doing/blocked)")

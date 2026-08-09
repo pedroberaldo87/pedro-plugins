@@ -1,7 +1,7 @@
 {
   "name": "check-skills",
-  "version": "0.2.0",
-  "description": "Confere a saúde do que está instalado na máquina em cinco lentes: nome de skill repetido, hooks de origens diferentes no mesmo evento, descrições que disputam o mesmo assunto, versões paradas no cache, e processo que a skill abre e não fecha. A varredura é de programa; o julgamento das contradições de instrução exige ler as descrições lado a lado.",
+  "version": "0.6.2",
+  "description": "Confere a saúde do que está instalado na máquina em seis lentes: nome de skill repetido, hooks de origens diferentes no mesmo evento, descrições que disputam o mesmo assunto, versões paradas no cache, processo que a skill abre e não fecha, e citação de plugin irmão que não está instalado nesta máquina. A varredura é de programa; o julgamento das contradições de instrução exige ler as descrições lado a lado.",
   "author": { "name": "pedroberaldo87", "email": "tools@viustudio.com.br" },
   "homepage": "https://github.com/pedroberaldo87/pedro-plugins",
   "license": "GPL-3.0"

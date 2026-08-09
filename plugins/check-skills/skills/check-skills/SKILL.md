@@ -1,6 +1,6 @@
 ---
 name: check-skills
-description: Confere a saúde do que está instalado na máquina — nome de skill repetido, hooks de origens diferentes no mesmo evento, descrições que disputam o mesmo assunto, versões paradas no cache, processo que a skill abre e não fecha, e as contradições de instrução que nenhuma varredura pega. Use quando o usuário disser "/check-skills", "meus plugins brigam?", "tem conflito entre as skills?", "instalei um plugin novo, confere aí", "por que ele escolheu a skill errada?", "o fim de turno está travando", "a máquina está cheia de processo aberto". Dispare também DEPOIS de instalar ou atualizar plugin de terceiro, e antes de publicar skill nova — é aí que o atropelo nasce. A varredura mecânica é do programa; o julgamento das contradições é seu, e ele exige LER as descrições.
+description: Confere a saúde do que está instalado na máquina — nome de skill repetido, hooks de origens diferentes no mesmo evento, descrições que disputam o mesmo assunto, versões paradas no cache, processo que a skill abre e não fecha, citação de plugin irmão que não está instalado, e as contradições de instrução que nenhuma varredura pega. Use quando o usuário disser "/check-skills", "meus plugins brigam?", "tem conflito entre as skills?", "instalei um plugin novo, confere aí", "por que ele escolheu a skill errada?", "o fim de turno está travando", "a máquina está cheia de processo aberto". Dispare também DEPOIS de instalar ou atualizar plugin de terceiro, e antes de publicar skill nova — é aí que o atropelo nasce. A varredura mecânica é do programa; o julgamento das contradições é seu, e ele exige LER as descrições.
 ---
 
 # Skill: /check-skills
@@ -11,10 +11,10 @@ que diz o que existe, nem no `plugin details`, que olha um de cada vez.
 
 Esta skill responde a pergunta que falta: **o que se atropela?**
 
-## As seis naturezas de atropelo, e por que elas são diferentes
+## As sete naturezas de atropelo, e por que elas são diferentes
 
-Confundir as seis é o erro que faz o relatório virar ruído. Cada uma tem sintoma
-próprio, e só as cinco primeiras dão para varrer.
+Confundir as sete é o erro que faz o relatório virar ruído. Cada uma tem sintoma
+próprio, e só as seis primeiras dão para varrer.
 
 | # | Natureza | O sintoma que o usuário sente |
 |---|---|---|
@@ -23,9 +23,10 @@ próprio, e só as cinco primeiras dão para varrer.
 | 3 | **Gatilho disputado** | ele pede "revisa isso" e vem a skill errada |
 | 4 | **Cache inchado** | ele conserta um arquivo e o conserto não aparece |
 | 5 | **Vazamento de processo** | a máquina fica lenta e cheia de processo que ninguém abriu |
-| 6 | **Instrução contraditória** | uma skill manda o oposto da outra, e as duas estão certas |
+| 6 | **Irmão ausente** | ele instalou uma skill sozinha e parte dela não faz nada, sem erro |
+| 7 | **Instrução contraditória** | uma skill manda o oposto da outra, e as duas estão certas |
 
-**A sexta é a única que nenhum programa acha.** As cinco primeiras são forma; a sexta é
+**A sétima é a única que nenhum programa acha.** As seis primeiras são forma; a sétima é
 conteúdo, e mora nas descrições.
 
 **A quinta nasceu de um caso medido em 2026-08-08:** uma máquina acumulou **2125
@@ -58,9 +59,22 @@ O que cada balde devolve:
   para sempre) ou sem grupo próprio (o teto mata o filho e o **neto** sobrevive), `node`
   com `stdio: 'inherit'`, `shell` com `nohup`/`disown`. Isenção: `vaza-ok: <motivo>` na
   linha de cima.
+- **`irmao_ausente`** — a skill instalada cita um plugin **irmão** (`resolve-plugin.sh
+  <nome>`, `${CLAUDE_PLUGIN_ROOT}/../<nome>`, `plugins/<nome>/lib/…`) que **não está no
+  cache desta máquina**. O cobrador do repositório vê o texto; só aqui se sabe se resolve.
+  Quando não resolve nada estoura — o resolvedor devolve vazio e o hook sai calado —, então
+  o achado nomeia as duas pontas: quem depende do ausente e **que arquivo fica mudo**.
+  Bancada e `fixtures/` ficam de fora: elas citam plugin de mentira de propósito.
 - **`vazamento_vivo`** — o que **já vazou**, ligado ao dono: processo órfão (pai `1`)
   cujo comando carrega o caminho de instalação de um plugin. Processo com pai vivo NÃO
   entra — tem dono, e encerrá-lo mataria trabalho em curso.
+
+- **`nome_de_fabrica`** — a skill se chama como um **comando do próprio Claude Code**:
+  quem digita o nome recebe o harness, e a skill nunca é chamada. A lista de fábrica não
+  está escrita dentro do cobrador — mora em `lib/comandos-de-fabrica.txt`, com a fonte e
+  a data da extração; lista escrita a mão no código envelhece sem ninguém ver. Disputa já
+  **decidida** ganha `isento <nome>: <motivo>` no mesmo arquivo e sai no relatório com o
+  motivo colado; sem motivo escrito a isenção não conta, e o achado volta como descuido.
 
 **As duas metades da quinta lente não se substituem.** No caso de 2026-08-08 o código
 tinha 155 pontos defeituosos *e* 2125 órfãos de pé: só o estático não diria que a
@@ -68,7 +82,7 @@ máquina já estava cheia, e só o dinâmico não diria onde consertar.
 
 Bancada: `python3 "${CLAUDE_PLUGIN_ROOT}/lib/test_varredura.py"`.
 
-## 2 · A sexta natureza — a que você lê, porque nenhum programa lê
+## 2 · A sétima natureza — a que você lê, porque nenhum programa lê
 
 Contradição de instrução não tem forma detectável: as duas skills estão bem escritas,
 e o conflito só aparece quando as duas entram no mesmo prompt. **Leia as descrições**
@@ -131,6 +145,8 @@ Achado não é defeito. A saída é declarar, não necessariamente consertar.
 | evento disputado, dois ou mais barram | ler os dois e decidir a ordem; um pode virar aviso |
 | gatilho disputado | acrescentar à descrição o que ela **não** faz, e apontar a vizinha |
 | cache inchado | `claude plugin update`, e limpar o cache velho |
+| nome de fábrica, sem isenção | renomear a skill, ou declarar a isenção com o motivo escrito |
+| irmão ausente | instalar o irmão, ou o autor trocar a travessia por degradação declarada |
 | instrução contraditória | uma das duas ganha um kill-switch, ou some da máquina |
 
 ⚠️ **Não conserte plugin de terceiro editando o cache** — ele é reescrito no próximo

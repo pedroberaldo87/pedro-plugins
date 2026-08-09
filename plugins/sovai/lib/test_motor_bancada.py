@@ -172,6 +172,10 @@ const vereditos = []
 const auditorias = []
 const docs = []
 const agentes = []
+// F9.57: QUEM foi despachado, na ordem. `agentes` so guarda o papel ('exec'), e com ele
+// nao da pra perguntar se o bloco seguinte ao da falha chegou a sair — que e a unica
+// pergunta que separa "reagiu antes de a onda terminar" de "reagiu no fim dela".
+const executados = []
 const phase = () => {}
 // O medidor de gasto da bancada: cada agente disparado queima `gastoPorChamada`. E o
 // unico jeito de o disjuntor ser exercitado de verdade — com `spent()` fixo em zero
@@ -249,6 +253,7 @@ async function agent(p, opts) {
     case 'decompose': return { tasks: CFG.tasks, blockers: [] }
     case 'reserva':   return { recusado: false, arquivos: [] }
     case 'exec':
+      executados.push(p.task.id)
       // Executor que nao deixa nada no disco nao permite perguntar onde o trabalho foi
       // parar. Com CFG.escreveNoDisco ele escreve o arquivo da tarefa na raiz do repo.
       if (CFG.escreveNoDisco && CFG.results[p.task.id]?.done) {
@@ -297,7 +302,7 @@ const corpo = CORPO.replace(/^export const meta = \{[\s\S]*?\n\}\n/m, '')
 const motor = new Function('args', 'agent', 'phase', 'budget', 'parallel',
                            'return (async () => {' + PRELUDE + corpo + '})()')
 motor(CFG.args, agent, phase, budget, parallel).then(saida => {
-  fs.writeFileSync(CFG.out, JSON.stringify({ saida, chamadas, checkpoints, docs, agentes, vereditos, auditorias }, null, 2))
+  fs.writeFileSync(CFG.out, JSON.stringify({ saida, chamadas, checkpoints, docs, agentes, executados, vereditos, auditorias }, null, 2))
 }).catch(e => { console.error('MOTOR ESTOUROU: ' + (e && e.stack || e)); process.exit(3) })
 """
 
@@ -308,6 +313,7 @@ def roda_motor(tmp, texto, plan_dir, tick_cmd, plan_path, token_budget=None,
                checkpoint_cmd="", escreve_no_disco=False,
                suite_verde=True, suite_falhando=None, replay_cache=False, gaps=None,
                espera_dono=None,
+               bloco_max=None,
                review_sem_ancora=None, alegacao_impossivel=None, auditor_derruba=False,
                auditor_motivo="", auditor_nao_tentou=None, doc_falso=None):
     """Executa o esqueleto do SKILL.md com os agentes de mentira. Devolve
@@ -370,7 +376,7 @@ def roda_motor(tmp, texto, plan_dir, tick_cmd, plan_path, token_budget=None,
         "results": resultados,
         "tasks": tarefas,
         "args": {"planPath": plan_path, "planText": "plano de bancada", "maxRounds": max_rounds,
-                 "tokenBudget": token_budget,
+                 "tokenBudget": token_budget, "blocoMax": bloco_max,
                  "severityFloor": "P1", "repoRoot": tmp, "churnThreshold": 2,
                  "hasQaLoop": True, "sessionId": "sessao-bancada", "motorId": "motor-bancada",
                  "now": agora, "model": "opus",
@@ -765,7 +771,10 @@ def main():
     # decompositor entra como mais uma linha de resultado, sem `task_id`. A contagem
     # tem que enxergar TAREFA, nao linha.
     print("F9.35 — com replay de cache plantado, a contagem devolve tarefas distintas")
-    replay = bancada(texto, tick_cmd, max_rounds=1, replay_cache=True)
+    # `bloco_max` cobre a onda inteira de proposito: o retorno por bloco (F9.57) fecharia a
+    # onda no F1.3, e as linhas repetidas — que sao o plantio deste cenario — nunca sairiam.
+    # O que se mede aqui e a CONTAGEM, nao o corte da onda.
+    replay = bancada(texto, tick_cmd, max_rounds=1, replay_cache=True, bloco_max=99)
     if replay is None:
         return 1
     saida7 = replay["saida"]
@@ -940,6 +949,29 @@ def main():
     saida56 = espera["saida"]
     check("e ele aparece como ESPERANDO VOCE, nao como falha",
           any(e.get("taskId") == "F1.3" for e in (saida56.get("esperandoVoce") or [])))
+
+    print("F9.57 — o passo que falha cedo fecha a onda ANTES de ela terminar")
+    # F1.3 volta com `done: false` e ele e o TERCEIRO da fila. Com bloco de 1, o motor tem
+    # que reagir ali: F1.4 nao pode ter sido despachado nesta onda.
+    cedo = bancada(texto, tick_cmd, max_rounds=1, review_complete=False, bloco_max=1)
+    if cedo is None:
+        return 1
+    check("os blocos ate a falha sairam, na ordem",
+          cedo["executados"][:3] == ["F1.1", "F1.2", "F1.3"])
+    check("o bloco seguinte ao da falha NAO foi despachado",
+          "F1.4" not in cedo["executados"])
+    ronda57 = cedo["saida"]["rounds"][-1]
+    check("o que nao saiu fica registrado na onda, pelo nome",
+          (ronda57.get("naoDespachadas") or []) == ["F1.4"])
+    check("e ele nao entra na conta de reincidencia (ninguem o tentou)",
+          "diagnose" not in cedo["agentes"])
+    # O controle: o MESMO cenario, com o bloco cobrindo a onda inteira, despacha F1.4. Sem
+    # ele, "F1.4 nao saiu" poderia ser efeito do plano, e nao do retorno por bloco.
+    onda_inteira = bancada(texto, tick_cmd, max_rounds=1, review_complete=False)
+    if onda_inteira is None:
+        return 1
+    check("com a onda em um bloco so, o mesmo passo SAI (o controle)",
+          "F1.4" in onda_inteira["executados"])
 
     print("F9.18 — alegacao que nao se repetiu nao convoca auditor (o controle)")
     uma_vez = bancada(texto, tick_cmd, max_rounds=1, alegacao_impossivel=ALEGACAO)

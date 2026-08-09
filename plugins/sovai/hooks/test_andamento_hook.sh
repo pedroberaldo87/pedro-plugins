@@ -282,8 +282,10 @@ rm -f "$CFG/andamento/sinal-sess-teste"
 #      reprovar o teste do "acima".
 SAB_BARRA="$TMP/statusline-sabotada.sh"
 # O leitor de JSON viaja junto: sem ele ao lado, a cópia sabotada sairia muda por
-# falta de dependência e o teste abaixo passaria por engano.
+# falta de dependência e o teste abaixo passaria por engano. O mesmo vale para o
+# resolvedor de plugin por nome, que é quem acha o módulo do andamento.
 cp "$(dirname "$BARRA")/hook-json.sh" "$TMP/hook-json.sh"
+cp "$(dirname "$BARRA")/resolve-plugin.sh" "$TMP/resolve-plugin.sh"
 python3 - "$BARRA" "$SAB_BARRA" <<'EOF'
 import sys
 alvo, destino = sys.argv[1], sys.argv[2]

@@ -127,6 +127,7 @@ O resultado vai no `args` do Workflow como **`buildWarm`**, e de lá para **todo
 | `motorId` | — | Identifica ESTE motor dentro da sessão (carimbo de arranque serve). Dois motores com o mesmo id se enxergariam como um só e a reserva nunca recusaria nada. |
 | `silenceLimitMin` | `12` | **Vigia por tempo.** Minutos de registro parado que fazem o vigia acender o sinal. Só derruba se **não houver trabalho vivo** — ver `F9.24` abaixo. As DUAS metades falam na tela: o gancho de andamento (`hooks/posttooluse-andamento.sh` → `lib/andamento.py:linha_silencio`) narra o silêncio longo com trabalho vivo como **`rodando ha N min`** e o silêncio sem sinal de vida como **`travamento`**, no mesmo `systemMessage` do relógio. |
 | `buildWarm` | `false` | **Cache de compilação já quente.** `true` = a casca compilou os alvos antes de disparar o motor (passo acima), e o valor chega a todo executor no `execPrompt` — é o que o proíbe de recompilar do zero. Ausente/`false` = ninguém aqueceu, e cada executor compila como antes. |
+| `blocoMax` | `4` | **Tamanho do bloco de execução.** A onda sai em blocos desse tamanho, e o primeiro bloco que traz falha **fecha a onda ali**: o resto volta pro decompositor na volta seguinte, sem ser despachado. Bloco maior = menos idas ao #1 e mais trabalho perdido quando a premissa fura cedo. |
 | `tetoExecutorMin` | `20` | **Teto de um executor só.** Minutos que um executor tem para entregar; passou disso, ele devolve `espera: true` e a rodada fecha com quem voltou. É teto **por agente**, não da onda — o vigia acima olha o motor inteiro e não enxerga um agente ciclando dentro de uma onda viva. |
 
 Precedência: flag da invocação > default acima. A casca **sempre** materializa os quatro primeiros antes de disparar o Workflow — `maxRounds` ausente faz o `while` do motor não rodar nenhuma volta e devolver "pronto" sem ter construído nada.
@@ -229,6 +230,12 @@ Os dois loops leem a **mesma spec** e perguntam coisas **diferentes** — e isso
 - **O `/qa-loop` (etapa seguinte) garante que está CORRETO** — bug, regressão, lint/type/test, segurança, e fidelidade ao plano com **profundidade de correção** (os 3 buckets dele). Pergunta: _"o código construído tem defeito?"_.
 
 Resumo: **#2 = "está de pé, e é o que a spec pediu?" · qa-loop = "está certo?"**. O motor de implementação fecha quando a obra está de pé; o qa-loop entra **depois** pra procurar defeito. A spec é o eixo dos dois — o que muda é montagem aqui, defeito lá.
+
+### A volta ao #1 é por BLOCO, não por onda inteira
+
+O laço era **decompor tudo → executar tudo → revisar tudo**: numa onda de vinte tarefas, quem falhava na primeira só era notado depois que a vigésima voltasse — e as dezenove seguintes já tinham sido construídas em cima de uma premissa furada. Agora a onda sai em **blocos de `blocoMax`**, e o **primeiro bloco que traz falha** (`done: false` ou executor que não voltou) **fecha a onda ali**: os blocos seguintes **não são despachados**, entram no `missing` da volta seguinte, e o decompositor re-decompõe o delta já sabendo o que quebrou.
+
+Quem não foi despachado **não é tarefa presa**: entra na mesma isenção de churn do `esperaDono` (`F9.56`) — contador de reincidência é de quem falhou, e ninguém tentou essas.
 
 ### Freio do loop (não é "até o #2 ficar feliz")
 
@@ -448,30 +455,52 @@ while (!built && r < maxRounds) {
       break
     }
   }
-  const par = todo.filter(t => t.parallelizable && !(t.dependsOn?.length))
-  const seq = todo.filter(t => !t.parallelizable || (t.dependsOn?.length))
   const execTier = t => ({ model: ARGS.model,
     effort: t.complexity === 'mechanical' ? T.mechanical.effort : T.executor.effort })
-  // quem NÃO colide vai junto; quem colide vai depois, um de cada vez, no MESMO repo
-  const livres = par.filter(t => !touchesShared(t, par))
-  const colidem = par.filter(t => touchesShared(t, par))
-  // `tetoMin` vai em TODO execPrompt: o teto tem que chegar a quem tem relógio. O script
-  // não tem (ver o vigia), então teto que ficasse só aqui não seria teto de ninguém.
-  // `buildWarm` vai junto, pelo mesmo motivo: quem compila é o executor, e cache quente
-  // que não chega a ele é cache que ele derruba com um `clean` de rotina.
-  const builtPar = await parallel(livres.map(t => () =>
-    agent(execPrompt({ task: t, tetoMin: tetoExecutorMin, buildWarm }), {
-      model: execTier(t).model, effort: execTier(t).effort, phase: 'Executar', schema: TASK_RESULT })))
-  for (const t of colidem) builtPar.push(await agent(execPrompt({ task: t, tetoMin: tetoExecutorMin, buildWarm }),
-    { model: execTier(t).model, effort: execTier(t).effort, phase: 'Executar', schema: TASK_RESULT }))
-  const builtSeq = []
-  for (const t of seq) builtSeq.push(await agent(execPrompt({ task: t, tetoMin: tetoExecutorMin, buildWarm }),
-    { model: execTier(t).model, effort: execTier(t).effort, phase: 'Executar', schema: TASK_RESULT }))
-  // Os DOIS lados filtram: `parallel()` devolve null pra thunk que falhou, e o executor
-  // sequencial devolve null pelo mesmo motivo (agente morto). Filtrar só o paralelo deixava
-  // um `null` entrar em `results` e virar `TypeError` no revisor — a tarefa some do relato
-  // em vez de reaparecer em `missingTasks`, que é o caminho que a manda de volta pro #1.
-  const respostas = builtPar.filter(Boolean).concat(builtSeq.filter(Boolean))
+  // ── O RETORNO AO DECOMPOSITOR É POR BLOCO, NÃO POR ONDA INTEIRA (F9.57 · S-141) ──
+  // O laço era decompor-tudo → executar-tudo → revisar-tudo: quem falhava no primeiro
+  // executor só era notado depois que o último dos vinte voltasse. A onda segue saindo
+  // em blocos de `blocoMax`, e o PRIMEIRO bloco que traz falha (`done: false` ou
+  // `impossivel`) FECHA a onda ali: os blocos seguintes não são despachados, entram no
+  // `missing` da volta seguinte, e o decompositor re-decompõe o delta já sabendo o que
+  // quebrou. Falha cedo com onda longa era trabalho jogado em cima de premissa furada.
+  const blocoMax = ARGS.blocoMax || 4
+  const blocos = []
+  for (let i = 0; i < todo.length; i += blocoMax) blocos.push(todo.slice(i, i + blocoMax))
+  const respostas = []
+  const naoDespachadas = []
+  let blocoQueFalhou = null
+  for (const bloco of blocos) {
+    // bloco depois da falha não sai: é este `continue` que faz o motor reagir ANTES de a
+    // onda terminar. Eles voltam pro #1 como faltantes, não como fracasso de ninguém.
+    if (blocoQueFalhou) { naoDespachadas.push(...bloco.map(t => t.id)); continue }
+    const par = bloco.filter(t => t.parallelizable && !(t.dependsOn?.length))
+    const seq = bloco.filter(t => !t.parallelizable || (t.dependsOn?.length))
+    // quem NÃO colide vai junto; quem colide vai depois, um de cada vez, no MESMO repo
+    const livres = par.filter(t => !touchesShared(t, par))
+    const colidem = par.filter(t => touchesShared(t, par))
+    // `tetoMin` vai em TODO execPrompt: o teto tem que chegar a quem tem relógio. O script
+    // não tem (ver o vigia), então teto que ficasse só aqui não seria teto de ninguém.
+    // `buildWarm` vai junto, pelo mesmo motivo: quem compila é o executor, e cache quente
+    // que não chega a ele é cache que ele derruba com um `clean` de rotina.
+    const builtPar = await parallel(livres.map(t => () =>
+      agent(execPrompt({ task: t, tetoMin: tetoExecutorMin, buildWarm }), {
+        model: execTier(t).model, effort: execTier(t).effort, phase: 'Executar', schema: TASK_RESULT })))
+    for (const t of colidem.concat(seq)) builtPar.push(await agent(execPrompt({ task: t, tetoMin: tetoExecutorMin, buildWarm }),
+      { model: execTier(t).model, effort: execTier(t).effort, phase: 'Executar', schema: TASK_RESULT }))
+    // Filtra AQUI, dos dois lados: `parallel()` devolve null pra thunk que falhou, e o
+    // executor sequencial devolve null pelo mesmo motivo (agente morto). Um `null` em
+    // `results` vira `TypeError` no revisor — a tarefa some do relato em vez de reaparecer
+    // em `missingTasks`, que é o caminho que a manda de volta pro #1.
+    const doBloco = builtPar.filter(Boolean)
+    respostas.push(...doBloco)
+    // Agente morto conta como falha do bloco: ele não voltou, e seguir despachando em
+    // cima disso é o mesmo trabalho jogado fora que a falha declarada causa.
+    const falhou = doBloco.filter(x => x.done === false || x.impossivel)
+    if (falhou.length || doBloco.length < bloco.length) {
+      blocoQueFalhou = falhou.map(x => x.task_id)
+    }
+  }
 
   // ── UM EXECUTOR LENTO NÃO SEGURA A RODADA (F9.29) ───────────────────────────
   // Medido em 2026-08-06: 21 agentes já entregues esperaram 2 HORAS por um só que
@@ -568,9 +597,9 @@ while (!built && r < maxRounds) {
     blockers.push({ what: `revisor da rodada ${r} não respondeu, ou voltou duas vezes sem a âncora do fim`,
                     whyNeedsYou: 'a obra desta rodada ficou SEM revisão — trate como não verificada' })
     rounds.push({ r, decomp, results, review: null, diagnoses, espera: esperaIds, esperandoVoce,
-                  devolvidas: devolvidasPeloAuditor })
-    feedback = { gaps: [], missing: [...esperaIds, ...devolvidasPeloAuditor.map(d => d.taskId)],
-                 diagnoses, devolvidas: devolvidasPeloAuditor }
+                  devolvidas: devolvidasPeloAuditor, naoDespachadas })
+    feedback = { gaps: [], missing: [...esperaIds, ...naoDespachadas, ...devolvidasPeloAuditor.map(d => d.taskId)],
+                 diagnoses, devolvidas: devolvidasPeloAuditor, blocoQueFalhou }
     continue
   }
 
@@ -612,13 +641,15 @@ while (!built && r < maxRounds) {
   // não sai do lugar?" sobre uma tarefa que o próprio motor decidiu não executar.
   // Medido em 2026-08-08: 13 diagnósticos assim, 22,7M tokens — 59% do gasto do papel.
   // A régua: o contador é de QUEM FALHOU, e quem nem foi tentado não falhou.
-  const naoTentado = new Set([...parado, ...esperaChain.keys()])
+  // `naoDespachadas` entra pela mesma porta (F9.57): bloco que não saiu porque um anterior
+  // falhou não é tarefa presa — ninguém a tentou nesta volta.
+  const naoTentado = new Set([...parado, ...esperaChain.keys(), ...naoDespachadas])
   const stuck = new Set([...(review.missingTasks || []), ...(review.gaps || []).map(g => g.task_id)]
                         .filter(id => id && !naoTentado.has(id)))
   for (const t of decomp.tasks) taskChurn[t.id] = stuck.has(t.id) ? (taskChurn[t.id] || 0) + 1 : 0
 
   rounds.push({ r, decomp, results, review, diagnoses, espera: esperaIds, esperandoVoce,
-                devolvidas: devolvidasPeloAuditor })
+                devolvidas: devolvidasPeloAuditor, naoDespachadas })
 
   // ── PONTO DE SALVAMENTO POR ONDA (F9.14/F9.15) ──────────────────────────────
   // Até aqui o trabalho só era salvo no FIM: motor interrompido no meio deixava tudo
@@ -814,10 +845,13 @@ while (!built && r < maxRounds) {
   // falhou, só não coube na onda — e sem isto a tarefa sumiria do delta da próxima volta.
   // a tarefa que o auditor DERRUBOU volta pro loop mesmo que o revisor não a tenha listado:
   // o desfecho "derruba" é justamente devolvê-la, e sem isto ela sumiria do delta da volta.
+  // o bloco que não foi despachado entra no `missing` mesmo sem o revisor listá-lo: ele não
+  // falhou nem sumiu, foi o motor que fechou a onda cedo por causa da falha do bloco anterior.
   feedback = { gaps: review.gaps.filter(g => g.kind !== 'concepcao'),
                missing: [...new Set([...(review.missingTasks || []), ...esperaIds,
+                                     ...naoDespachadas,
                                      ...devolvidasPeloAuditor.map(d => d.taskId)])],
-               diagnoses, devolvidas: devolvidasPeloAuditor }   // alimenta o DECOMPOR da próxima volta
+               diagnoses, devolvidas: devolvidasPeloAuditor, blocoQueFalhou }   // alimenta o DECOMPOR da próxima volta
 }
 
 // O QUE FALTOU, SEPARADO POR MOTIVO (F9.19). Os dois chegavam misturados, e quem lê não

@@ -71,7 +71,12 @@ PY3=$(command -v python3 2>/dev/null)
 STALE=$("$PY3" "$PATTERN_CHECK_PY" --project-staleness "$PROJ" 2>/dev/null)
 MSG=""
 case "$STALE" in
-  stale)   MSG="⚠️ A doc que você acabou de ler ($(basename "$FP")) está DEFASADA: arquivo(s) do escopo dela mudaram desde a geração. Trate o conteúdo como HIPÓTESE — confirme no código antes de agir. Pra atualizar: **/doc-touch** (incremental e barato — o caso comum, quando a defasagem vem do trabalho recente) ou **/project-doc** (mineração completa — drift antigo/amplo, doc nunca minerada, ou último FULL há +30 dias)." ;;
+  stale)   . "$SCRIPT_DIR/lib-rodada.sh" 2>/dev/null && rodada_doc "$PROJ"
+           MSG="⚠️ A doc que você acabou de ler ($(basename "$FP")) está DEFASADA
+• Arquivo(s) do escopo dela mudaram desde a geração
+• Trate o conteúdo como HIPÓTESE e confirme no código antes de agir
+• Pra atualizar rode /${RODADA_CMD:-doc-touch}
+• ${RODADA_MOTIVO:-atraso não medido}" ;;
   unknown) MSG="⚠️ Staleness da doc que você leu ($(basename "$FP")) é INDETERMINADO (sem data/escopo). Não confie cegamente — confirme no código." ;;
 esac
 [ -z "$MSG" ] && exit 0
