@@ -1,6 +1,6 @@
 ---
 generated: 2026-08-09
-generated-commit: 9281550
+generated-commit: 8eddf46
 project: pedro-plugins
 scope:
   - .claude-plugin/marketplace.json
