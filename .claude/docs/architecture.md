@@ -202,7 +202,7 @@ python3 -c "import json;print(len(json.load(open('.claude-plugin/marketplace.jso
 .claude-plugin/marketplace.json   catálogo único — nome, source, version, tags, category
 plugins/<nome>/                   um dir por entrada do catálogo, sem sobra (§2)
 _shared/                          fonte-da-verdade do compartilhado (17 arquivos-fonte)
-scripts/sync-shared.sh            o "build": vendora _shared/ → 81 cópias em 43 pastas  <!-- acopla-ok: §7 traz o comando que produz os dois números -->
+scripts/sync-shared.sh            o "build": vendora _shared/ → 81 cópias em 41 pastas  <!-- acopla-ok: §7 traz o comando que produz os dois números -->
 scripts/hook_contract.py          mede o contrato dos registros de hook (§11)
 scripts/public_repo_check.py      cobra a regra de repo público (checagem H do gate)
 scripts/regua_call_check.py       cobra que gerador de página chame a régua (checagem I)
@@ -213,7 +213,10 @@ scripts/*.py                      os outros cobradores do gate — a lista está
   ├── CLAUDE.md                   índice de roteamento (marker project-doc:v2)
   ├── docs/                       architecture · patterns · data-stores · durability · runtime
   ├── hooks/release-gate.sh       gate mecânico de commit deste monorepo
-  │                               (checagens A–P — `grep -c '^# [A-Z] ·' .claude/hooks/release-gate.sh`)
+  │                               (uma letra por checagem, e as letras NÃO são contíguas nem
+  │                               estão em ordem no arquivo — a lista é
+  │                               `grep -o '^# [A-Z] ·' .claude/hooks/release-gate.sh`, que
+  │                               neste run devolve 17)
   ├── hook-contract.baseline.json o retrato do contrato dos hooks  ← VERSIONADO
   ├── *.baseline.json             os outros retratos congelados — `git ls-files '.claude/*.baseline.json'`
   ├── settings.json               registra o release-gate como PreToolUse(Bash)
@@ -330,7 +333,7 @@ grill-me           1.4.0  [grill-me]                                         -
 guardrails         1.7.7  [guardrails]                                       HOOKS
 handoff           1.11.1  [handoff]                                          HOOKS
 improve            1.1.2  [improve]                                          -
-improve-workflow  0.16.1  [improve-workflow]                                 -
+improve-workflow  0.16.12 [improve-workflow]                                 -
 intent-guard       0.7.0  [intent-guard]                                     HOOKS
 lixeiro            1.3.1  [faxina]                                           HOOKS
 principles         1.0.5  [principles]                                       -
@@ -377,6 +380,24 @@ agora o motor também mudou de endereço e os três diretórios deixaram de exis
   linha não quebra nada visivelmente — só faz aquele papel virar `DESCONHECIDO` na tabela.
   Os marcadores por frase ("Você é o X") continuam no código apenas como resgate de run
   antigo, gravado antes da declaração existir.
+  ⚠️ **A skill nasceu com comandos que só rodavam DENTRO deste repositório.** Todos eles
+  escreviam `python3 plugins/improve-workflow/lib/…` — caminho relativo à raiz do monorepo,
+  que na máquina de quem instala não existe (o cache do harness guarda
+  `<cache>/<marketplace>/<plugin>/<versão>/`). Passaram a `"${CLAUDE_PLUGIN_ROOT}/lib/…"`
+  (Artigo 8 — executabilidade por um agente). O passo que precisa do **irmão** `visual` não
+  pode nem isso: `${CLAUDE_PLUGIN_ROOT}/../visual/…` amarraria a POSIÇÃO do vizinho no disco <!-- acopla-ok: a forma proibida citada como exemplo do defeito, não como instrução -->
+  (Artigo 9), então o `improve-workflow` entrou no `SPECS` do `sync-shared.sh` como mais um
+  destino de `resolve-plugin.sh` — o arquivo mais vendorado do repo (§7) — e a cópia mora em
+  `plugins/improve-workflow/skills/improve-workflow/resolve-plugin.sh` e é exatamente o
+  caminho que a SKILL invoca [confirmado — os dois lados existem, e
+  `bash scripts/sync-shared.sh --check` nesta passada devolve
+  `OK: cópias vendored idênticas a _shared/`].
+  ⚠️ **A página de parecer sai com `--out` OBRIGATÓRIO**, para
+  `~/.claude/improve-workflow/parecer-<timestamp>.html`. Sem ele, o `visual_page.py` cai na
+  cascata de destino do `/visual` e a página nasceria em `.claude/visual/` do projeto
+  auditado — escrita na árvore que a própria lei da autópsia proíbe. Sem o `visual` na
+  máquina, o resolvedor sai calado e a rodada termina dizendo que não há superfície de
+  aprovação ali; as propostas ficam no `propostas.json`.
 
 Consequência mecânica: `project-skills` passou de plugin sem hooks para **o maior do repo**
 — 15 registros de hook no `hooks.json` dele, e 13 scripts distintos contra 6 do segundo
@@ -703,10 +724,18 @@ sed -n '/^SPECS=(/,/^)/p' scripts/sync-shared.sh | grep '::' \
   | sed 's/.*"\(.*\)::.*/\1/' | sort -u | wc -l                        # nº de pastas
 ```
 
-**81 cópias, em 43 pastas de destino, de 15 arquivos-fonte** — contra 19 cópias em 14 pastas <!-- acopla-ok: os dois comandos que produzem os números estão no bloco imediatamente acima; "19" é narrativa histórica -->
-na passada anterior [confirmado — os dois comandos acima neste run devolvem `81` e `43`].
+**81 cópias, em 41 pastas de destino, de 15 arquivos-fonte** — contra 19 cópias em 14 pastas <!-- acopla-ok: os dois comandos que produzem os números estão no bloco imediatamente acima; "19" é narrativa histórica -->
+na passada anterior [medido no commit `f31a020`: os dois comandos acima devolvem `81` e `41`].
 Os quatro maiores contribuintes, todos vendorados por consumidor:
-`resolve-plugin.sh` (16), `regua_texto.py` (11), `hook-json.sh` (11), `lib-tmpdir.sh` (11).
+`resolve-plugin.sh` (17), `regua_texto.py` (11), `hook-json.sh` (11), `lib-tmpdir.sh` (10).
+
+⚠️ **Esses quatro números e os dois de cima deixaram de ser promessa: viraram teste.**
+`scripts/test_doc_vendoring_counts.py` reparseia o `SPECS` do `sync-shared.sh` e cobra as
+frases literais deste parágrafo e da linha de `sync-shared.sh` em §3 — se um destino entrar
+no mapa e ninguém tocar aqui, a suíte reprova [confirmado —
+`python3 scripts/test_doc_vendoring_counts.py` nesta passada imprime `ok`]. Quem mais abre
+o arquivo real desta doc num teste se lê sem cravar lista aqui:
+`grep -rl 'architecture\.md' scripts plugins _shared .claude/hooks`.
 
 ⚠️ **A conta de release quadruplicou, e a razão é estrutural.** O que antes era "seis motores
 copiados para quem consome" virou "a infraestrutura de hook inteira copiada para todo plugin
@@ -1674,9 +1703,26 @@ $ bash    plugins/visual/hooks/test_exitplan_gate.sh      →  OK (12 checks)
 $ python3 plugins/handoff/lib/test_handoff_skill.py       →  OK (7 asserções `ok`)
 ```
 
+**As suítes da rodada de QA desta passada** — todas em `scripts/`, e todas cobrindo
+*cobradores*, não código de produto: a primeira mira esta doc (§7), a segunda o `README.md`
+e a terceira a lei da própria skill de autópsia. Saída literal [confirmado — as três
+executadas nesta passada de `/doc-touch`]:
+
+```
+$ python3 scripts/test_doc_vendoring_counts.py            →  ok
+$ python3 scripts/test_readme_counts_check.py             →  todos verdes
+$ python3 scripts/test_autopsia_check.py                  →  tudo verde
+```
+
+Elas TÊM cobrador de commit — o **check J** do `release-gate.sh` roda
+`scripts/test_*.py` e `scripts/test_*.sh` quando o commit toca `scripts/`, `hooks/` ou
+`.gitattributes`, e reprova também o **glob vazio** (suíte renomeada não pode deixar o gate
+verde sem rodar nada).
+
 ⚠️ **`.claude/hooks/test_release_gate.sh` fica FORA dos dois globs do check D/F** — ela mora em
 `.claude/hooks/`, não em `plugins/<nome>/`, então nenhum commit a dispara automaticamente.
-É a mesma exceção que já vale para as duas suítes de `scripts/`. [confirmado — a régua do
+Nem o check J a alcança: os globs dele são `scripts/test_*` e `plugins/*/hooks/test_*.py`,
+e ela não casa nenhum dos dois. [confirmado — a régua do
 gate está em `patterns.md` §5.2]
 
 ### 13.1 As duas suítes que cobrem o código novo desta rodada

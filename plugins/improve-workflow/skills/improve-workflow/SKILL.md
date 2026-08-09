@@ -23,8 +23,9 @@ Concretamente, dentro de uma rodada de autópsia estão PROIBIDOS:
 - redirecionar saída (`>`, `>>`, `tee`) para dentro da raiz do projeto;
 - apagar a sobra que a varredura acusou — ela é ACHADO, não tarefa.
 
-A ÚNICA escrita permitida é o registro acumulado em `~/.claude/improve-workflow/registro.jsonl`
-(`lib/registro.py`), que mora fora do projeto exatamente por causa desta lei.
+A ÚNICA pasta em que esta skill escreve é `~/.claude/improve-workflow/`, fora do projeto
+exatamente por causa desta lei: o registro acumulado em `registro.jsonl` (`lib/registro.py`)
+e a página de parecer do passo 7. Dentro do projeto, nada.
 
 Se o que você quer é aplicar um conserto proposto aqui: a proposta vira passo de plano
 e o conserto é feito por outra rodada, com outro dono. Não por esta skill.
@@ -36,8 +37,8 @@ Tudo abaixo é leitura. Rode a partir da raiz do projeto.
 **1 · Medir.** O programa faz a conta; você não estima nada.
 
 ```bash
-python3 plugins/improve-workflow/lib/medidor.py            # o run mais recente
-python3 plugins/improve-workflow/lib/medidor.py <run>      # um run nomeado
+python3 "${CLAUDE_PLUGIN_ROOT}/lib/medidor.py"            # o run mais recente
+python3 "${CLAUDE_PLUGIN_ROOT}/lib/medidor.py" <run>      # um run nomeado
 ```
 
 Sem run no disco ele diz isso e para — **avisando, e saindo ZERO**: num projeto
@@ -59,8 +60,8 @@ carregar o transcript inteiro é o gasto que esta skill existe para acusar.
 **3 · Varrer a sobra do run.** Reserva de arquivos que ficou presa, e só a DESTE run:
 
 ```bash
-python3 plugins/improve-workflow/lib/sobras.py --json          # o run mais recente
-python3 plugins/improve-workflow/lib/sobras.py --run <run> --json
+python3 "${CLAUDE_PLUGIN_ROOT}/lib/sobras.py" --json          # o run mais recente
+python3 "${CLAUDE_PLUGIN_ROOT}/lib/sobras.py" --run <run> --json
 ```
 
 Processo de pé, árvore de trabalho parada e higiene de máquina não são daqui —
@@ -73,7 +74,7 @@ entre a rodada anterior e esta — `PAPEL:metrica:o que foi feito`, e a métrica
 `turnos_por_agente`, `taxa_falha`, `turnos`, `agentes`:
 
 ```bash
-python3 plugins/improve-workflow/lib/registro.py gravar <run> \
+python3 "${CLAUDE_PLUGIN_ROOT}/lib/registro.py" gravar <run> \
   --conserto "EXECUTOR:turnos_por_agente:teto de 1 turno por executor"
 ```
 
@@ -115,9 +116,23 @@ ela chega pela superfície de aprovação do `/visual`, com **um item por propos
 um veredito por defeito, e não um "aprovado" único para a lista toda.
 
 ```bash
-python3 plugins/improve-workflow/lib/proposta.py propostas.json \
-  | python3 <plugin visual>/lib/visual_page.py build --spec -
+PAGINA="$(bash "${CLAUDE_PLUGIN_ROOT}/skills/improve-workflow/resolve-plugin.sh" visual lib/visual_page.py)"
+PARECER="${CLAUDE_CONFIG_DIR:-$HOME/.claude}/improve-workflow/parecer-$(date +%Y%m%d-%H%M%S).html"
+SPEC="$(python3 "${CLAUDE_PLUGIN_ROOT}/lib/proposta.py" propostas.json)" || exit 2
+if [ -z "$PAGINA" ]; then
+  echo "sem o visual nesta máquina: nada é apresentado — as propostas ficam no propostas.json"
+else
+  printf '%s' "$SPEC" | python3 "$PAGINA" build --spec - --out "$PARECER"
+fi
 ```
+
+O destino é OBRIGATÓRIO e fica fora do projeto: sem `--out`, a página cai na cascata do
+`/visual` e nasce em `.claude/visual/` do projeto auditado — escrita na árvore que esta
+rodada jurou não tocar. O caminho a mostrar para o dono é o que o programa imprime.
+
+O irmão entra pelo NOME, não pela posição no disco: **sem o `visual` na máquina** o
+resolvedor sai calado e a rodada termina dizendo que a superfície de aprovação não
+existe aqui — as propostas ficam no `propostas.json` e nada é apresentado no chat.
 
 O `propostas.json` está no cabeçalho do `proposta.py`; proposta sem o número que
 mira ou sem como conferir sai recusada ali, antes de virar item. Aqui a rodada
@@ -142,6 +157,6 @@ já aconteceu e não implementa nada. Se o pedido é "conserta isso", é da vizi
 
 ## O check
 
-`python3 plugins/improve-workflow/lib/test_improve_workflow_skill.py` roda a parte
+`python3 "${CLAUDE_PLUGIN_ROOT}/lib/test_improve_workflow_skill.py"` roda a parte
 executável da rodada sobre uma fixture e compara a árvore do projeto antes e depois:
 qualquer arquivo alterado reprova.

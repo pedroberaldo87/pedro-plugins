@@ -90,6 +90,7 @@ SPECS=(
   "plugins/project-skills/skills/sprint::resolve-plugin.sh"
   "plugins/project-skills/skills/qa-loop::resolve-plugin.sh"
   "plugins/project-skills/skills/start::resolve-plugin.sh"
+  "plugins/improve-workflow/skills/improve-workflow::resolve-plugin.sh"
   "plugins/project-skills/lib::resolve-plugin.sh"
   "plugins/ship/hooks::green-cache.sh"
   "plugins/project-skills/lib::green-cache.sh"

@@ -50,6 +50,18 @@ def _manifest_liga_desliga():
     raise LookupError("manifest.json não declara o marketplace pedro-plugins")
 
 
+def _manifest_desligados_nomes():
+    """Os NOMES desligados na receita do bootstrap — a contagem certa com nome errado
+    manda o instalador ligar o plugin errado, e o número sozinho não pega isso."""
+    caminho = os.path.join(ROOT, "plugins", "bootstrap", "config", "manifest.json")
+    with open(caminho, encoding="utf-8") as f:
+        dados = json.load(f)
+    for mk in dados.get("marketplaces", []):
+        if mk.get("name") == "pedro-plugins":
+            return sorted(p["name"] for p in mk.get("plugins", []) if not p.get("enabled"))
+    raise LookupError("manifest.json não declara o marketplace pedro-plugins")
+
+
 def _hooks_com_jq():
     """Mesma conta do comando publicado no README: hooks .sh que citam jq.
 
@@ -175,6 +187,57 @@ AFIRMACOES = [
 ]
 
 
+# As duas passagens que LISTAM os desligados pelo nome. O grupo 1 é o trecho onde
+# os nomes aparecem; dele saem os identificadores entre crases que existem no catálogo.
+NOMES_DESLIGADOS = [
+    {
+        "id": "desligados-nomes-setup",
+        "onde": "resultado do /bootstrap:setup",
+        "padrao": r"desligados de fábrica\*\*\s*\n\(([^)]*)\)",
+    },
+    {
+        "id": "desligados-nomes-plugins",
+        "onde": "abertura de 'Plugins'",
+        "padrao": r"desligados de fábrica\*\* na receita do `bootstrap`[^:]*:(.*?)Ligar:",
+    },
+]
+
+
+def _confere_nomes(texto, achados, nao_medidas):
+    try:
+        reais = _manifest_desligados_nomes()
+        with open(os.path.join(ROOT, ".claude-plugin", "marketplace.json"),
+                  encoding="utf-8") as f:
+            catalogo = {p["name"] for p in json.load(f)["plugins"]}
+    except Exception as e:                          # infra quebrada não derruba commit
+        nao_medidas.append("desligados-nomes — não medido (%s)" % e)
+        return
+
+    for af in NOMES_DESLIGADOS:
+        m = re.search(af["padrao"], texto, re.DOTALL)
+        if not m:
+            achados.append({
+                "id": af["id"], "onde": af["onde"], "linha": 0,
+                "afirmado": None, "real": reais,
+                "msg": "a passagem que lista os plugins desligados sumiu do README (ou "
+                       "foi reescrita): o padrão não casa mais.",
+                "conserto": "os nomes reais são: %s" % ", ".join(reais),
+            })
+            continue
+        afirmados = sorted(n for n in re.findall(r"`([a-z0-9-]+)`", m.group(1))
+                           if n in catalogo)
+        if afirmados != reais:
+            linha = texto[:m.start()].count("\n") + 1
+            achados.append({
+                "id": af["id"], "onde": af["onde"], "linha": linha,
+                "afirmado": afirmados, "real": reais,
+                "msg": "README lista %s como desligados, o manifest desliga %s"
+                       % (", ".join(afirmados) or "(nenhum)", ", ".join(reais)),
+                "conserto": "a receita é plugins/bootstrap/config/manifest.json"
+                            " (campo enabled)",
+            })
+
+
 def confere():
     """Devolve (achados, nao_medidas). Achado = afirmação divergente ou sumida."""
     achados, nao_medidas = [], []
@@ -217,6 +280,8 @@ def confere():
                 "trecho": linhas[linha - 1].strip()[:100],
             })
 
+    _confere_nomes(texto, achados, nao_medidas)
+
     return achados, nao_medidas
 
 
@@ -237,7 +302,7 @@ def main(argv=None):
 
     if not achados:
         print("README em dia — %d afirmação(ões) de contagem conferida(s)."
-              % (len(AFIRMACOES) - len(nao_medidas)))
+              % (len(AFIRMACOES) + len(NOMES_DESLIGADOS) - len(nao_medidas)))
         return 0
 
     print("README DEFASADO — %d afirmação(ões) de contagem divergem do repositório:"

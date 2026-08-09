@@ -132,6 +132,10 @@ def veredito(antes, depois):
             fora.append(dict(c, numero=[None, None], veredito="sem_medida"))
             continue
         a, d = v[c["metrica"]], n[c["metrica"]]
+        if a is None or d is None:
+            # lado sem medida (run sem journal não tem taxa_falha) não vira comparação
+            fora.append(dict(c, numero=[a, d], veredito="sem_medida"))
+            continue
         fora.append(dict(c, numero=[a, d],
                          veredito="melhorou" if d < a else
                                   "piorou" if d > a else "igual"))
