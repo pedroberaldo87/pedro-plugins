@@ -36,7 +36,7 @@ if body.startswith("---"):
 sig = hashlib.sha256(body.encode()).hexdigest()[:8]
 ```
 
-**Staleness detection:** compare the `sig` in the HTML comment against `sha256(canonical_doc_body)[:8]`. If they differ, the nested pointer is stale and should be regenerated (run `/project-doc --nested` again after the canonical doc was updated).
+**Staleness detection:** compare the `sig` in the HTML comment against `sha256(canonical_doc_body)[:8]`. If they differ, the nested pointer is stale and should be regenerated (run `/doc --nested` again after the canonical doc was updated).
 
 **Do not hand-edit** the generated files — the comment warns explicitly. They are derived; the canonical doc is the source of truth.
 

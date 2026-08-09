@@ -7,7 +7,7 @@ description: Conduz a concepção de um projeto em seis etapas de acordo — met
 
 ## O que é
 
-O `/project-doc` minera: lê arquivos, git log, transcripts e grafo, e escreve o que o código já sabe.
+O `/doc` minera: lê arquivos, git log, transcripts e grafo, e escreve o que o código já sabe.
 Existe uma classe de documentação que **nenhuma mineração produz**, porque a informação não está em
 arquivo nenhum — está na cabeça de quem decidiu:
 
@@ -65,11 +65,11 @@ documento autoral.
 
 | Skill | O que faz | Quando |
 |---|---|---|
-| **`/start-doc`** | entrevista o humano e conduz as seis etapas de acordo | concepção, e sempre que uma etapa tiver lacuna ou seguir sem aprovação |
-| **`/project-doc`** | minera tudo e re-projeta a doc inteira | mudança estrutural, drift amplo, doc nunca minerada |
+| **`/start`** | entrevista o humano e conduz as seis etapas de acordo | concepção, e sempre que uma etapa tiver lacuna ou seguir sem aprovação |
+| **`/doc`** | minera tudo e re-projeta a doc inteira | mudança estrutural, drift amplo, doc nunca minerada |
 | **`/doc-touch`** | re-projeta só os docs que o diff tocou | entre FULLs, depois de um ciclo de código |
 
-**A entrevista vem primeiro.** Num projeto sem documentação, `/start-doc` roda antes da mineração —
+**A entrevista vem primeiro.** Num projeto sem documentação, `/start` roda antes da mineração —
 mesmo num codebase grande e antigo. O motivo é que o resultado da entrevista **guia a sessão inteira**,
 não só o arquivo: sem saber o que o sistema prioriza, toda decisão posterior recomeça do zero.
 
@@ -109,7 +109,7 @@ Pista nunca vira resposta.
 
 ## Quando dispara
 
-**Explícito:** `/start-doc`, "vamos conceber", "documenta a intenção", "esse projeto não tem doc".
+**Explícito:** `/start`, "vamos conceber", "documenta a intenção", "esse projeto não tem doc".
 
 **Proativo (ofereça, não execute sem aval):**
 - Projeto sem `CLAUDE.md` e sem `.claude/docs/` — não importa o tamanho do codebase.
@@ -121,26 +121,26 @@ Pista nunca vira resposta.
 
 ## Modos
 
-- `/start-doc` — **concepção completa**: as seis etapas, na ordem, uma de cada vez, cada uma
+- `/start` — **concepção completa**: as seis etapas, na ordem, uma de cada vez, cada uma
   fechada com o de acordo do dono antes da seguinte. A etapa 3 (interface) só entra **se o projeto
   tiver interface** (ver `hooks/lib-has-frontend.sh` — não pergunte, verifique).
-- `/start-doc <doc>` — só um. Nomes válidos: `quality-goals`, `constraints`, `context`,
+- `/start <doc>` — só um. Nomes válidos: `quality-goals`, `constraints`, `context`,
   `solution-strategy`, `glossary`, `constituicao`, `architecture-intent`, `journeys`, `blueprint`,
   `features`, `design` (este último só se houver interface). `features` exige as cinco etapas
   anteriores aprovadas — sem elas não há de onde derivar.
-- `/start-doc constituicao` — **só a lei**, em `.claude/docs/constituicao.md`: os artigos em que
+- `/start constituicao` — **só a lei**, em `.claude/docs/constituicao.md`: os artigos em que
   toda peça do projeto é julgada, cada um com quem o cobra. É o arquivo que o revisor de construção,
   o `/qa-loop`, a auditoria e o gate de plano abrem — caminho ou nome diferente é lei que ninguém
   lê. Molde e roteiro em `references/authorial-kit.md`.
-- `/start-doc blueprint` — **só a etapa 5**: o esquema de como o sistema funciona, em
+- `/start blueprint` — **só a etapa 5**: o esquema de como o sistema funciona, em
   `.claude/docs/blueprint.md`, com o diagrama do `archify`. Serve tanto para a primeira rodada
   quanto para a revisão 5b, depois que a lista foi curada. Exige as etapas 1, 2 e 4 aprovadas — o
   ciclo é montado das passagens delas, e desenhar sem elas é o palpite que a regra dura proíbe.
-- `/start-doc review` — **revisita**: lê os que já existem, mostra o que envelheceu (`reviewed:`
+- `/start review` — **revisita**: lê os que já existem, mostra o que envelheceu (`reviewed:`
   antigo, `approved:` ausente, `[PENDENTE]` aberto, decisão citada que não existe mais) e pergunta só
   o que mudou. Nunca reescreve resposta do humano sem ele mandar.
-- `/start-doc gaps` — **read-only**: lista as lacunas e para. Não pergunta nada. É o que o
-  `/project-doc` chama no Tier 5 para saber o que cobrar. **Etapa escrita e não aprovada conta como
+- `/start gaps` — **read-only**: lista as lacunas e para. Não pergunta nada. É o que o
+  `/doc` chama no Tier 5 para saber o que cobrar. **Etapa escrita e não aprovada conta como
   lacuna** — `approved:` vazio é etapa aberta.
 
 Prosa livre junto da invocação é contexto e vale como resposta antecipada — se o humano já disse
@@ -171,7 +171,7 @@ que a raiz já decidiu vale aqui — perguntar de novo o que o dono já responde
 perguntar o que já está escrito. Rode, antes de qualquer pergunta:
 
 ```bash
-python3 "$(bash "${CLAUDE_PLUGIN_ROOT}/lib/resolve-plugin.sh" project-doc lib/organism.py)" inherited <raiz-do-projeto> --apresentar
+python3 "$(bash "${CLAUDE_PLUGIN_ROOT}/lib/resolve-plugin.sh" project-skills lib/organism.py)" inherited <raiz-do-projeto> --apresentar
 ```
 
 A saída **já vem item a item, uma linha por item herdado, cada uma com a fonte** (`arquivo:linha`
@@ -198,7 +198,7 @@ E rode o motor das decisões caras, que na mesma saída entrega **as quatro perg
 — quem acessa o quê, que dado de pessoa fica guardado, quanto pode cair, o que fica exposto:
 
 ```bash
-python3 "$(bash "${CLAUDE_PLUGIN_ROOT}/lib/resolve-plugin.sh" project-doc lib/decisoes_estruturais.py)" <raiz-do-projeto>
+python3 "$(bash "${CLAUDE_PLUGIN_ROOT}/lib/resolve-plugin.sh" project-skills lib/decisoes_estruturais.py)" <raiz-do-projeto>
 ```
 
 As decisões caras são **condicionais** (só entram as que o projeto acendeu); as quatro de segurança
@@ -263,7 +263,7 @@ que RECUSA o item sem veredito, dizendo qual é pelo nome — no JSON, rádio em
 `val: "keep"` com `touched: false`, e é exatamente esse par que a sua leitura a olho deixaria passar:
 
 ```bash
-python3 "$(bash "${CLAUDE_PLUGIN_ROOT}/lib/resolve-plugin.sh" project-doc lib/curadoria_features.py)" \
+python3 "$(bash "${CLAUDE_PLUGIN_ROOT}/lib/resolve-plugin.sh" project-skills lib/curadoria_features.py)" \
   --retorno  ~/.claude/visual-state/latest.json \
   --saida    .claude/docs/features.md \
   --proposta {spec.json da página}
@@ -276,12 +276,12 @@ texto que ele escreveu (literal), `remove` vai pra "Deixado de fora de propósit
 spec.json que construiu a página. Frontmatter de um `features.md` que já existe é preservado.
 
 **O que ele mudou fica registrado.** Quando o `change` recai sobre um item que **já está gravado** em
-`features.md` (recuradoria, `/start-doc features`, `/start-doc review`), a troca não é edição no
+`features.md` (recuradoria, `/start features`, `/start review`), a troca não é edição no
 arquivo: é `lib/historico.py`, que move o texto anterior para `features.historico.md` com data,
 contexto e decisão.
 
 ```bash
-python3 "$(bash "${CLAUDE_PLUGIN_ROOT}/lib/resolve-plugin.sh" project-doc lib/historico.py)" reescrever .claude/docs/features.md \
+python3 "$(bash "${CLAUDE_PLUGIN_ROOT}/lib/resolve-plugin.sh" project-skills lib/historico.py)" reescrever .claude/docs/features.md \
   --antigo "### F-3 · {texto anterior, recortado único}" \
   --novo   "### F-3 · {o texto que o dono escreveu}" \
   --contexto "curadoria da lista de funcionalidades derivada das cinco etapas aprovadas" \
@@ -312,7 +312,7 @@ desenho dela ainda vale.
    consegue mais dizer o que mudou nem por quê:
 
    ```bash
-   python3 "$(bash "${CLAUDE_PLUGIN_ROOT}/lib/resolve-plugin.sh" project-doc lib/historico.py)" reescrever .claude/docs/blueprint.md \
+   python3 "$(bash "${CLAUDE_PLUGIN_ROOT}/lib/resolve-plugin.sh" project-skills lib/historico.py)" reescrever .claude/docs/blueprint.md \
      --antigo "{o trecho aprovado, recortado único}" \
      --novo   "{o trecho como ele ficou}" \
      --contexto "revisão 5b do esquema, depois da curadoria de features.md" \
@@ -323,7 +323,7 @@ desenho dela ainda vale.
    sozinho**: `status:` volta a `ready` e `approved:`/`approved-sig:` saem, porque as três linhas
    falavam do texto que acabou de sair. O retorno traz `reabriu_aprovacao: true` — quando ele vier
    `true`, a 5b só fecha com a reapresentação e um `doc-aprovar.sh` novo.
-4. **Grave o de acordo de novo** com `bash "$(bash "${CLAUDE_PLUGIN_ROOT}/lib/resolve-plugin.sh" project-doc hooks/doc-aprovar.sh)"
+4. **Grave o de acordo de novo** com `bash "$(bash "${CLAUDE_PLUGIN_ROOT}/lib/resolve-plugin.sh" project-skills hooks/doc-aprovar.sh)"
    .claude/docs/blueprint.md`, e só então rode o `rastreio_etapas.py` do Passo 4 — a lista de passos
    do desenho sem funcionalidade agora é sobre o desenho que sobreviveu à curadoria.
 
@@ -366,7 +366,7 @@ Escrever **não fecha** a etapa. O ciclo é este, e ele repete até o dono estar
 4. **Confira o que a etapa deixou sem dono** — antes de gravar. Rode, sem ninguém pedir:
 
    ```bash
-   python3 "$(bash "${CLAUDE_PLUGIN_ROOT}/lib/resolve-plugin.sh" project-doc lib/rastreio_etapas.py)" .
+   python3 "$(bash "${CLAUDE_PLUGIN_ROOT}/lib/resolve-plugin.sh" project-skills lib/rastreio_etapas.py)" .
    ```
 
    Ele lê `journeys.md`, `features.md` e `blueprint.md` e devolve as listas do que ficou sem dono: **funcionalidade
@@ -378,7 +378,7 @@ Escrever **não fecha** a etapa. O ciclo é este, e ele repete até o dono estar
 5. **Grave o de acordo** — só depois de ele dizer que está satisfeito — com o comando, nunca à mão:
 
    ```bash
-   bash "$(bash "${CLAUDE_PLUGIN_ROOT}/lib/resolve-plugin.sh" project-doc hooks/doc-aprovar.sh)" .claude/docs/journeys.md
+   bash "$(bash "${CLAUDE_PLUGIN_ROOT}/lib/resolve-plugin.sh" project-skills hooks/doc-aprovar.sh)" .claude/docs/journeys.md
    ```
 
    Ele grava as três linhas de uma vez: `status: approved`, `approved: {data de hoje}` e
@@ -419,13 +419,13 @@ O índice é **provisório e derivado**: só entra documento com `status: approv
 corpo aprovado. Ele usa o marker próprio `<!-- start-doc:index -->` / `<!-- start-doc:index:end -->`
 e **nunca** os markers `project-doc:v2` — escrever `v2` à mão deixaria o projeto `in_pattern==false`
 na hora (o contrato exige também journal e `doc-sig`, que só a mineração produz) e todo hook do
-plugin passaria a acusar "fora do padrão". O `/project-doc` FULL **substitui o bloco inteiro** pelo
+plugin passaria a acusar "fora do padrão". O `/doc` FULL **substitui o bloco inteiro** pelo
 índice dele quando rodar.
 
 Depois, ofereça o próximo passo:
 
-- Projeto com código e sem doc minerada → "agora dá pra rodar `/project-doc` e minerar o resto."
-- Projeto nascendo → "quando tiver código, `/project-doc` documenta o como."
+- Projeto com código e sem doc minerada → "agora dá pra rodar `/doc` e minerar o resto."
+- Projeto nascendo → "quando tiver código, `/doc` documenta o como."
 
 ## Output Protocol
 
@@ -443,16 +443,16 @@ Depois, ofereça o próximo passo:
 
 Ao final, sempre: **o que ficou pendente, que etapa segue aberta, e o que destrava quando fechar.**
 
-## Convivência com o `/project-doc`
+## Convivência com o `/doc`
 
 - **O FULL nunca reescreve estes arquivos.** `authored-by: human` é a trava. Ele lê, cita, e cobra —
   não regenera, não sobrescreve, e não os inclui no fan-out por concern.
 - **A única escrita automática permitida** ao FULL é atualizar `reviewed:` e promover `draft → ready`
   quando o último `[PENDENTE]` sai. **`approved:` está fora do alcance dele** — só o dono aprova, e
   `ready → approved` sem a fala dele é registro falso.
-- **O Tier 5 do FULL chama `/start-doc gaps`** para saber o que perguntar. Uma fonte de perguntas,
+- **O Tier 5 do FULL chama `/start gaps`** para saber o que perguntar. Uma fonte de perguntas,
   dois pontos de entrada — o banco vive em `references/authorial-kit.md` e não é duplicado.
-- **Ordem num projeto virgem:** `/start-doc` (entrevista) → `/project-doc` (mineração). Nunca o
+- **Ordem num projeto virgem:** `/start` (entrevista) → `/doc` (mineração). Nunca o
   inverso: minerar primeiro produz um "como" sem "por quê", e o humano perde a chance de enquadrar.
 
 ## Rules

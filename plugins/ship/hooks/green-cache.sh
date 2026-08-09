@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # green-cache.sh — registro compartilhado de "suite de testes passou verde neste
 # estado exato da árvore". FONTE-DA-VERDADE em _shared/; cópias vendoradas via
-# scripts/sync-shared.sh (ship/hooks e qa-loop/lib). Feito pra ser SOURCED.
+# scripts/sync-shared.sh (ship/hooks e project-skills/lib). Feito pra ser SOURCED.
 #
 # Consumidores: Fase Gate do qa-loop (grava), ship §2.5 (consulta+grava),
 # hook pre-deploy-test-check.sh do ship (consulta+grava).

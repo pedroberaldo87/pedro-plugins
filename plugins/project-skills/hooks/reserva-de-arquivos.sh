@@ -23,7 +23,7 @@
 # é cache reescrito a cada bump de versão.
 #
 # A RESERVA EXPIRA POR IDADE, e o desenho é o mesmo que o sinal `ativo-<sid>`
-# ganhou em 2026-08-06 (SOVAI_TTL_MIN em pretooluse-sovai-motor.sh): expira,
+# ganhou em 2026-08-06 (SOVAI_TTL_MIN em pretooluse-motor-arma.sh): expira,
 # APAGA, e deixa linha em log. Motor que morre sem liberar deixaria uma reserva
 # órfã, e reserva órfã que não expira recusa todo motor seguinte PARA SEMPRE —
 # é o defeito do sinal com outro nome.

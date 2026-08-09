@@ -541,18 +541,19 @@ exit 0
     check("e é o gate fundido", depois and depois[0]["plugin"] == "p1")
     r.close()
 
-    # O repo real, medido: hoje 3. Quem fizer a fusão (F14.5) troca este número
-    # para 1 — a linha abaixo é o cobrador de que a fusão de fato aconteceu.
+    # O repo real, medido: a fusão do F14.5 aconteceu em 2026-08-09 — o portão
+    # único da família responde sozinho, e chama intent-guard e visual por nome
+    # (fail-open). Este número voltar a subir é regressão da fusão.
     REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     reais = hc.respondentes(REPO, "ExitPlanMode")
-    ESPERADO_HOJE = 3
+    ESPERADO_HOJE = 1
     check("o repo real tem %d respondente(s) ao ExitPlanMode (tem %d)"
           % (ESPERADO_HOJE, len(reais)), len(reais) == ESPERADO_HOJE)
     # Vivo = tem suíte que o exercita com o evento. Fundir com um mudo esconderia
     # justamente o caso que a fusão precisa cobrir.
     SUITES = {
         "intent-guard": "plugins/intent-guard/hooks/test_plan_gate.sh",
-        "project-doc": "plugins/project-doc/hooks/test_plan_gate.sh",
+        "project-skills": "plugins/project-skills/hooks/test_plan_gate.sh",
         "visual": "plugins/visual/hooks/test_exitplan_gate.sh",
     }
     for e in reais:

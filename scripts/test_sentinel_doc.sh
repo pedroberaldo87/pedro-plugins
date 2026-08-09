@@ -3,8 +3,8 @@
 # Trava: ler a doc do app A NÃO destrava busca cega no app B.
 # Red hoje: o sentinel é por-projeto — ler A libera busca em B.
 # Estrutura do monorepo real: docs em $PROJ/.claude/docs/apps/{app}.md.
-H="plugins/project-doc/hooks/pretooluse-doc-guard.sh"
-R="plugins/project-doc/hooks/posttooluse-doc-read.sh"
+H="plugins/project-skills/hooks/pretooluse-doc-guard.sh"
+R="plugins/project-skills/hooks/posttooluse-doc-read.sh"
 TMP=$(mktemp -d)
 trap 'rm -rf "$TMP"' EXIT
 mkdir -p "$TMP/.claude/docs/apps" "$TMP/apps/a" "$TMP/apps/b"

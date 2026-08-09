@@ -1,8 +1,8 @@
 # Log de decisões (ADR) + declarações executáveis — gen 3.8
 
 > Referência dos itens 4 e 6 do kit canônico. Consultada ao gerar `.claude/docs/decisions/`
-> e `.claude/docs/declarations/`. O `/start-doc` escreve o **primeiro** ADR (a partir da
-> entrevista de estratégia); o `/project-doc` **detecta candidatos** e nunca escreve a decisão.
+> e `.claude/docs/declarations/`. O `/start` escreve o **primeiro** ADR (a partir da
+> entrevista de estratégia); o `/doc` **detecta candidatos** e nunca escreve a decisão.
 
 ## 1 · `decisions/` — o log de decisões
 
@@ -55,7 +55,7 @@ status: proposto | aceito | substituído-por-NNNN | revogado
 - **`authored-by: human`** — vale a mesma trava dos autorais: o FULL não reescreve ADR.
 - **Consequências ruins obrigatórias.** ADR só com o lado bom é propaganda, não registro.
 
-### Detecção de candidatos (isto o `/project-doc` FAZ)
+### Detecção de candidatos (isto o `/doc` FAZ)
 
 A skill **não escreve a decisão** — ela aponta onde falta uma. Sinal: mudança estrutural no
 histórico do git **sem ADR correspondente** no mesmo intervalo.
@@ -68,7 +68,7 @@ O que conta como mudança estrutural (todos observáveis no diff, sem LLM):
 - deploy mudando de alvo (novo host, novo provedor, novo pipeline)
 
 Para cada candidato, reporte: **o commit, o que mudou, e a pergunta que um ADR responderia.**
-Nunca invente o contexto ou o motivo — quem sabe é o humano. Ofereça `/start-doc` para registrar.
+Nunca invente o contexto ou o motivo — quem sabe é o humano. Ofereça `/start` para registrar.
 
 **Critério de pronto:** toda decisão estruturante listada em `solution-strategy.md` tem ADR.
 

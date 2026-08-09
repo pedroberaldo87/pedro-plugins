@@ -179,7 +179,7 @@ echo "── dois gates no MESMO payload: o graphify não sabe se a busca vai ro
 # Texto que afirma "não foi barrada" / "os resultados abaixo" vira mentira exatamente aí.
 # Nada disso acopla o graphify ao project-doc: o hook não passa a consultar o vizinho,
 # só para de afirmar coisa que nenhum PreToolUse tem como saber.
-DOC_GUARD="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../project-doc/hooks" && pwd)/pretooluse-doc-guard.sh"
+DOC_GUARD="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../project-skills/hooks" && pwd)/pretooluse-doc-guard.sh"
 check "o doc-guard existe no disco (gate ausente sai calado — não confundir com gate mudo)" \
   "$(if [ -f "$DOC_GUARD" ]; then echo tem; else echo falta; fi)" "tem"
 DUPLO="$TMP/duplo"

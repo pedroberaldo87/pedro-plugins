@@ -28,7 +28,7 @@
       "source": "./plugins/bootstrap",
       "description": "Bootstraps a new machine to this versioned Claude Code setup. Two layers: (1) auto-syncs third-party marketplaces & plugins via hooks (manifest-driven convergence), and (2) applies the versioned global config — env vars, permissions, behavior flags, the global CLAUDE.md, and a machine-resolved statusLine. Replaces bootstrap-third-party. Run /bootstrap:setup once per new machine. Ships the 'Clean Style' output style (single prose ceiling, pasted evidence exempt) and a report-only conformance checker that diffs the live machine against the versioned contract.",
       "category": "productivity",
-      "version": "1.14.0",
+      "version": "1.15.0",
       "tags": [
         "sync",
         "bootstrap",
@@ -58,7 +58,7 @@
       "source": "./plugins/check-skills",
       "description": "Confere a saúde do que está instalado na máquina em seis lentes: nome de skill repetido, hooks de origens diferentes no mesmo evento, descrições que disputam o mesmo assunto, versões paradas no cache, processo que a skill abre e não fecha, e citação de plugin irmão que não está instalado nesta máquina. A varredura é de programa; o julgamento das contradições de instrução exige ler as descrições lado a lado.",
       "category": "productivity",
-      "version": "0.6.2",
+      "version": "0.7.0",
       "tags": [
         "sync",
         "bootstrap",
@@ -207,7 +207,7 @@
       "source": "./plugins/intent-guard",
       "description": "EXPERIMENTAL — Guarda de intenção: caderno append-only dos pedidos verbatim do usuário + gates de plano, checkpoint e ENTREGA (auditoria independente por subagente de contexto virgem, prompt canônico, veredito CONFIRMADO/INFERIDO com evidência). v0.4.0: auditoria dispara no COMMIT (não a cada turno) e ganha escada de custo — pedido com receita mecânica (ex.: 'commit push' → compara hashes) é resolvido por CÓDIGO, sem agente; numa sessão real 4 de 7 pedidos eram isso, ~50k tokens cada. O juiz só ESCOLHE de um catálogo fechado, nunca escreve comando. v0.3.0: pedidos escopados por sessão (sessões paralelas dividiam a lista de vivos). v0.2.0: tree-hash ignora artefato de execução; juízes internos não poluem o caderno. Baixa automática é experimental. Kill-switch: ~/.claude/intent-guard/mode=off.",
       "category": "dev-tools",
-      "version": "0.6.5",
+      "version": "0.7.0",
       "tags": [
         "intent",
         "audit",
@@ -243,28 +243,11 @@
       ]
     },
     {
-      "name": "project-doc",
-      "source": "./plugins/project-doc",
-      "description": "Generate a modular documentation system from ALL project evidence — the invocation discourse, files, handoffs, memory, graph, git log, and session transcripts — kept in a versioned append-only journal, projected into a lightweight CLAUDE.md routing table + .claude/docs/*.md per concern + thin pointers (AGENTS.md, GEMINI.md, .cursorrules). FOUR skills: /project-doc (mines everything), /doc-touch (incremental), /start-doc (interviews the human for the authorial docs no mining can produce — and never invents them), and /design-md (absorbed from the standalone design-md plugin: writes/validates/exports Google's DESIGN.md format via the official CLI). v3.31.0: the concepção gained one more stage — o desenho de funcionamento (.claude/docs/blueprint.md), the drawing of HOW the system works, conducted by /start-doc under the mode blueprint and written from a molde that lives in the authorial kit; the plan gate charges esquema:blueprint BEFORE funcionalidades, so features.md can no longer be derived on top of a stage nobody signed; lib/rastreio_etapas.py gained one more list — a step of the drawing that no feature serves comes out named, beside the two crossings it already did — and lib/organism.py carries blueprint.md in the inheritance table next to journeys.md, with the arquivo:linha source per item. v3.30.0: the plan gate now charges the FIFTH stage of the agreement — funcionalidades (.claude/docs/features.md), the feature list the interview proposes and the owner curates; derived from the four earlier stages, it is charged last, under the same divergence-by-mark rule, and an open (or missing) features.md REFUSES the plan naming the stage. v3.29.0: the plan gate now charges the project's LAW — a .claude/docs/constituicao.md that exists but is still a draft (or whose body changed after the agreement) REFUSES the plan naming the file, because the document reviewers measure against cannot itself be unsigned; absence is not charged (no skill generates a constitution, so demanding one would be a dead-end refusal). v3.27.0: /start-doc's opening now READS the inherited decisions instead of asking them again — step 1 runs lib/organism.py inherited <root> --apresentar, whose render_inherited writes ONE LINE PER inherited item (golden rule + authorial items of the parent organism, each with its arquivo:linha source) from the real organism.yaml, and the skill walks the owner item by item (applies / applies with a caveat / does not apply); test_organism.py proves the item-by-item rendering against a real fixture — a new item in the parent doc becomes a new line — not the mention in the skill. v3.26.0: the stage agreement is now collected ON THE PAGE, with the whole document in sight — /start-doc's step 5 stopped presenting the text in the chat and now builds a /visual page with an aprovacao block (etapa + doc_integral verbatim + anchored index cards), which the program REFUSES to write without the integral text, and reads the verdict back from disk (~/.claude/visual-state/latest.json, state.feedback: val in keep|change|remove plus the note); test_start_doc_skill.py proves the assembly and the parse of the return by behavior, not by the presence of a sentence. v3.25.0: the agreement now records WHICH TEXT was approved — /start-doc's step 5 stopped being three hand-typed frontmatter lines and became a command (hooks/doc-aprovar.sh) that computes the mark of the document's BODY (doc_marca, lib-doc-mark.sh) and writes approved-sig: alongside status: approved and approved:, which is exactly what the plan gate recalculates to reopen a stage whose body was edited after the fact; the authorial contract lists the field, and test_doc_mark.sh proves by behavior that the mark moves with the body and not with the frontmatter. v3.23.0: the skill that writes documentation now carries the decoupling rule itself — a canonical section orders two concrete swaps in every doc it projects (a hard-coded count goes out and the COMMAND that produces it comes in; a prose list of plugin names goes out and the INDEX that enumerates them comes in), naming the enforcer (python3 scripts/desacoplamento_check.py) and the acopla-ok exemption; /doc-touch points at that section instead of keeping a copy that would drift. v3.19.0: /start-doc becomes a concepção in FOUR stages of agreement, in order — authorial (quality goals, constraints, context, strategy, glossary), architecture (architecture-intent.md), interface (design.md, only where a UI is detected) and journeys (journeys.md). Each stage has its own document and its own approval: it is presented in full, grilled with /grill-me or /grill-with-docs, corrected and RE-PRESENTED until the owner is satisfied, and only closes once his approval is written into the document's own frontmatter (status: approved + approved:). The grilling is the path to the agreement, never its judge — it neither approves nor rejects. And the plan gate stopped settling for 'has docs' — a documented project whose own quality-goals.md is missing or still open is now REFUSED (no cap, it used to stay silent), and any open stage refuses the plan — architecture (architecture-intent.md), interface or journeys — including in a brand-new project that never opened one, which is exactly the case that used to slip through. v3.21.0: the gate and the authorial contract stopped disagreeing — the mark it demands is the contract's own status: approved ('ready' is 'written', 'approved' is 'the owner agreed'), the architecture stage is architecture-intent.md (not solution-strategy.md, which belongs to stage 1), and both refusal messages are written under the repo's hook style profile: emoji header, one-sentence bullets, no markdown in a channel that renders none. v3.17.0: the doc-touch stamp is now a verb (--restamp) that writes generated, generated-commit and doc-sig in one go, preserving the DOC-SET gen instead of the code's — a doc cannot cite the commit that contains it, so the ritual is two commits and the tool now owns it. v3.16.0: the staleness measure the HOOKS consume (project_staleness) now honors generated-commit instead of a day-granularity date window, and matches scope entries with _scope_match instead of raw string intersection — a /doc-touch followed by a same-day commit no longer reports freshly generated docs as stale, and a doc scoped by directory can finally go stale. v3.15.0: design.md becomes the 6th authorial doc, gated to projects with a detected frontend (lib-has-frontend.sh); sessionstart-doc.sh now also nudges when a mined project has zero authorial docs (not just when there's no doc at all). Gen 3.8 adds the data-asset axis (data-stores.md + durability.md: every store enumerated, every store's backup declared or explicitly justified), runtime.md end-to-end scenarios, verified-by provenance in frontmatter, and a project-root ADR log. A plan gate hook blocks planning in an undocumented project until /start-doc runs, with a verbal escape. Scrubber moves secrets to a vault, never to git. Supports delta/--deep/--rebuild, monorepo layouts, artifact cleanup, and ORGANISM support (de-silo) with an inverted blast-radius gate.",
-      "category": "productivity",
-      "version": "3.35.2",
-      "tags": [
-        "documentation",
-        "claude-md",
-        "monorepo",
-        "scaffolding",
-        "journal",
-        "transcripts",
-        "doc-lint",
-        "incremental"
-      ]
-    },
-    {
       "name": "project-skills",
       "source": "./plugins/project-skills",
       "description": "A casa das skills de projeto — documentacao, concepcao, plano, execucao e revisao moram sob um teto so, e conversam entre si por nome de plugin, nunca por caminho relativo para a pasta do vizinho.",
       "category": "productivity",
-      "version": "0.17.0",
+      "version": "0.18.0",
       "tags": [
         "project",
         "scaffolding",
@@ -272,26 +255,11 @@
       ]
     },
     {
-      "name": "qa-loop",
-      "source": "./plugins/qa-loop",
-      "description": "Review→fix loop that stops at diminishing returns, not at zero. Runs as a deterministic Workflow (Opus reviews → Opus plans/adjudicates → fixes; gate, churn and stop condition live in code). Anchored to the plan in 3 buckets — implementation / plan-drift / broken-plan — and to the project's own quality goals, read from .claude/docs/quality-goals.md at review time rather than copied into the skill. Regression gate per fix, accepted-limits, a human HTML report plus an agent-facing journal. Replaces qa, rev6 and iterate.",
-      "category": "dev-tools",
-      "version": "1.14.1",
-      "tags": [
-        "code-review",
-        "qa",
-        "loop",
-        "regression-gate",
-        "workflow",
-        "plan-fidelity"
-      ]
-    },
-    {
       "name": "ship",
       "source": "./plugins/ship",
       "description": "Production deploy flow: lint, type-check, commit, push, deploy in one disciplined sequence. Triggers on 'ship', 'manda', 'deploya tudo'.",
       "category": "dev-tools",
-      "version": "1.4.3",
+      "version": "1.5.0",
       "tags": [
         "deploy",
         "lint",
@@ -343,7 +311,7 @@
       "source": "./plugins/visual",
       "description": "CLI walls-of-text → interactive HTML dark-theme views. The page carries the EVIDENCE, not the account of it: real artifact embedded, raw output verbatim, provenance for every number — enforced by a pre-ExitPlanMode gate. Prose is REFUSED by the builder: every text field is checked (≤140 chars per bullet, one sentence each, no continuation connective, max 6 per block) and a violation aborts without writing the page. Each problem's body is born folded — the title stays visible, consequence and proposal open on click under a label derived from the content itself. Plans, diagnostics and decisions in the browser with live sync back to Claude. Regravar um plano nunca apaga em silêncio o que não veio no pacote: o init parcial FUNDE o bloco de requisitos por id — o requisito que só existe no arquivo fica, e o executor recebe a nota do que foi mantido. O cruzamento também mede o plano contra a arquitetura pretendida: funcionalidade sem peça, e requisito citando peça que o architecture-intent.md não tem, saem em listas próprias — e o mesmo vale para o desenho de funcionamento: funcionalidade sem passo do ciclo, e passo do ciclo que nenhuma funcionalidade atende.",
       "category": "productivity",
-      "version": "1.38.0",
+      "version": "1.39.0",
       "tags": [
         "visualization",
         "html",

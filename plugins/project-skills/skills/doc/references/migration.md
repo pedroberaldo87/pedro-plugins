@@ -1,6 +1,6 @@
 # Migration v1 → v2
 
-Referência do modo `migrate` do project-doc. Carregue este arquivo SÓ quando markers v1 forem detectados ou o usuário rodar `/project-doc migrate`.
+Referência do modo `migrate` do project-doc. Carregue este arquivo SÓ quando markers v1 forem detectados ou o usuário rodar `/doc migrate`.
 
 ## Steps
 
@@ -22,7 +22,7 @@ Referência do modo `migrate` do project-doc. Carregue este arquivo SÓ quando m
 6. Rewrite CLAUDE.md with v2 index format
 7. Preserve content that was outside v1 markers
 8. Generate thin pointer files
-9. **Do NOT re-scan the project during migration** — use the existing v1 content as-is. Migration is a structural reorganization, not a content refresh. User can run `/project-doc` (full) afterward for fresh content.
+9. **Do NOT re-scan the project during migration** — use the existing v1 content as-is. Migration is a structural reorganization, not a content refresh. User can run `/doc` (full) afterward for fresh content.
 10. Report migration results with before/after token comparison
 
 ## Monorepo v1 → v2 Migration

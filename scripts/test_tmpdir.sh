@@ -9,7 +9,7 @@
 # Rode da raiz do repositório: bash scripts/test_tmpdir.sh
 command -v jq >/dev/null 2>&1 || { echo "skip jq ausente"; exit 0; }
 
-DOC_READ="plugins/project-doc/hooks/posttooluse-doc-read.sh"
+DOC_READ="plugins/project-skills/hooks/posttooluse-doc-read.sh"
 CG_WRITER="plugins/context-guard/hooks/context-guard-writer.sh"
 CG_GUARD="plugins/context-guard/hooks/context-guard.sh"
 for f in "$DOC_READ" "$CG_WRITER" "$CG_GUARD"; do

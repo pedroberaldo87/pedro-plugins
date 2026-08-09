@@ -1,8 +1,8 @@
 # Artifact Cleanup
 
-Referência do modo `clean` do project-doc (e da detecção que roda em todo FULL). Carregue este arquivo quando rodar `/project-doc clean` ou ao reportar artefatos detectados no FULL.
+Referência do modo `clean` do project-doc (e da detecção que roda em todo FULL). Carregue este arquivo quando rodar `/doc clean` ou ao reportar artefatos detectados no FULL.
 
-Directory hygiene for stale test/scratch artifacts. **Detection runs on every full `/project-doc`** and is reported with the other results — but it NEVER deletes or moves anything on its own. Removal/archival only happens in `/project-doc clean`, and only after the user approves a clustered list. Same philosophy as Auto-Fix and the graphify suggestion: surface, then act on confirmation.
+Directory hygiene for stale test/scratch artifacts. **Detection runs on every full `/doc`** and is reported with the other results — but it NEVER deletes or moves anything on its own. Removal/archival only happens in `/doc clean`, and only after the user approves a clustered list. Same philosophy as Auto-Fix and the graphify suggestion: surface, then act on confirmation.
 
 ## Detection
 

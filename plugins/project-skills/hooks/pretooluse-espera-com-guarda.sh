@@ -43,7 +43,7 @@ TOOL=$(hj_campo "$INPUT" tool_name)
 # está na frente do terminal e um `tail -f app.log` dele é trabalho legítimo;
 # recusar isso obrigaria o desligamento global SOVAI_ESPERA=0, que apagaria
 # junto a proteção lá dentro. O sinal de missão ativa é o mesmo que o gate
-# vizinho do mesmo evento consulta (pretooluse-sovai-motor.sh).
+# vizinho do mesmo evento consulta (pretooluse-motor-arma.sh).
 SESSION=$(hj_campo "$INPUT" session_id)
 [ -n "$SESSION" ] || exit 0
 # Estado mutável mora fora do plugin: ${CLAUDE_PLUGIN_ROOT} é cache reescrito a

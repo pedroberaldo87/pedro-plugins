@@ -582,7 +582,7 @@ Quando o Workflow retorna, a casca executa a **Fase Gate** e SÓ ENTÃO produz o
 
 Antes de qualquer relatório, a casca roda os **checks objetivos do projeto** como portão binário:
 
-- **Cache verde (consulta → grava):** `source "$(bash "${CLAUDE_PLUGIN_ROOT}/lib/resolve-plugin.sh" qa-loop lib/green-cache.sh)"`. Antes de rodar a
+- **Cache verde (consulta → grava):** `source "$(bash "${CLAUDE_PLUGIN_ROOT}/lib/resolve-plugin.sh" project-skills lib/green-cache.sh)"`. Antes de rodar a
   fila, `green_cache_check <repo-root> full`: **HIT** → declara o gate verde via cache e **reporta** no
   relatório ("gate 100% via cache — tree `<hash>`, gravado por `<writer>` às `<ts>`") sem re-executar.
   **MISS** → roda a fila normal; ao fechar 100% verde, `green_cache_mark <repo-root> full qa-loop-gate`.

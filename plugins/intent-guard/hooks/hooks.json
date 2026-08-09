@@ -22,18 +22,6 @@
         ]
       }
     ],
-    "PreToolUse": [
-      {
-        "matcher": "ExitPlanMode",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "CLAUDE_PLUGIN_ROOT=$(printf '%s' \"$CLAUDE_PLUGIN_ROOT\" | tr '\\\\' /); export CLAUDE_PLUGIN_ROOT; \"$CLAUDE_PLUGIN_ROOT\"/hooks/plan-gate.sh",
-            "timeout": 60
-          }
-        ]
-      }
-    ],
     "PostToolUse": [
       {
         "matcher": "TaskUpdate",
