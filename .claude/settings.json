@@ -11,6 +11,17 @@
           }
         ]
       }
+    ],
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/sessionstart-avisa-cadeia.sh",
+            "timeout": 10
+          }
+        ]
+      }
     ]
   }
 }

@@ -440,6 +440,22 @@ def erros_do_fecho(missao):
             continue
         erros.extend(_erros_do_veredito(missao, nome, ultima, nomes_de_eixo, raiz,
                                         arsenal=bool(rito.get("arsenal"))))
+        # TODA rodada entregue tem juiz, não só a última. Medido em 2026-08-09: com
+        # r1 entregue e sem veredito e r2 entregue e julgada, o fecho dizia "todo
+        # pedaço julgado" — a falha de origem escapando pela porta da rodada
+        # intermediária. No laço normal isto nunca acusa nada: rodada que existe é
+        # rodada que o juiz reprovou, e reprovar é gravar veredito.
+        for anterior in _rodadas(dir_peca):
+            if anterior == ultima:
+                continue
+            if not os.path.isfile(os.path.join(anterior, "entrega.json")):
+                continue
+            ver_ant, erro_ant = _le(os.path.join(anterior, "veredito.json"))
+            if erro_ant or not isinstance(ver_ant, dict) or ver_ant.get("status") not in STATUS:
+                erros.append(
+                    "%s %s: houve entrega nesta rodada e nenhum juiz a julgou"
+                    % (nome, os.path.basename(anterior))
+                )
         ver, _ = _le(os.path.join(ultima, "veredito.json"))
         if ver and ver.get("status") in ("aprovado", "marginal"):
             aprovadas[nome] = marca(os.path.join(ultima, "entrega.json"))
@@ -565,12 +581,15 @@ def desenha_mapa(missao):
 # ─────────────────────────────────────────────────────────────────────────────
 
 def pecas_pendentes(missao):
-    """As peças cuja última rodada tem entrega e não tem veredito legível.
+    """As peças com ALGUMA rodada entregue e sem veredito legível.
 
     É a foto exata da falha central ("sete construtores, zero juízes") tirada EM VOO,
     não no fecho: o guarda de PreToolUse consulta esta lista antes de deixar um novo
     agente partir, e enquanto ela não estiver vazia só o juiz da peça pendente passa.
     Peça sem rodada nenhuma não entra: ainda não houve entrega para julgar.
+
+    Olha TODA rodada, não só a última: uma rodada seguinte gravada por cima apagava
+    a pendência da anterior, e a entrega sem juiz seguia viva sem ninguém acusar.
     """
     fora = []
     decomp, erro = _le(os.path.join(missao, "decomposicao.json"))
@@ -578,14 +597,13 @@ def pecas_pendentes(missao):
         return fora
     for peca in decomp.get("pecas") or []:
         nome = peca.get("id") or peca.get("nome")
-        ultima = _ultima_rodada(os.path.join(missao, "pecas", nome))
-        if ultima is None:
-            continue
-        if not os.path.isfile(os.path.join(ultima, "entrega.json")):
-            continue
-        ver, erro_v = _le(os.path.join(ultima, "veredito.json"))
-        if erro_v or not isinstance(ver, dict) or ver.get("status") not in STATUS:
-            fora.append(nome)
+        for rodada in _rodadas(os.path.join(missao, "pecas", nome)):
+            if not os.path.isfile(os.path.join(rodada, "entrega.json")):
+                continue
+            ver, erro_v = _le(os.path.join(rodada, "veredito.json"))
+            if erro_v or not isinstance(ver, dict) or ver.get("status") not in STATUS:
+                fora.append(nome)
+                break
     return fora
 
 

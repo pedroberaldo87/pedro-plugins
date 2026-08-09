@@ -197,11 +197,55 @@ limite aceito: a falha medida foi omissão (zero juízes lançados), nunca fraud
 validar o corpo do briefing custaria caro para proteger contra um defeito que não
 aconteceu. O que sobra de rede é o fecho, que recusa veredito sem o par de registros.
 
-**A desistência fala.** Depois do teto de negações a trava se desarma — decisão
-declarada: travar a missão longa com o dono fora custa mais que o defeito. O que era
-furo (revisão de 2026-08-09): ela se desarmava falando só com um log que ninguém abre.
-Hoje o desarme emite aviso na conversa, nomeando as entregas ainda sem veredito, e o
-fecho segue vermelho até os juízes existirem.
+**A desistência fala, e a paciência é de negações SEGUIDAS.** Depois do teto a trava
+se desarma — decisão declarada: travar a missão longa com o dono fora custa mais que o
+defeito. Dois furos vieram daí na revisão de 2026-08-09, e os dois estão consertados:
+
+```
+o teto de 3 era da SESSÃO INTEIRA, e nada zerava a conta. Medido:
+  sete peças entregues, zero juízes, e três esquecimentos em peças diferentes
+  [1o] NEGADO  [2o] NEGADO  [3o] NEGADO  →  [4o] PASSOU  [5o] PASSOU  [6o] PASSOU
+  pendentes depois disso: p1 p2 p3 p4 p5 p6 p7
+```
+
+É a falha de origem inteira, com o guarda desligado por cansaço. O teto de 3 tinha sido
+calibrado para a trava da v0.1, que negava TODO sub-agente; a trava de hoje só nega com
+pendência real, e o mesmo número virou frouxo. **Agora o juiz que nasce zera o contador**
+— três esquecimentos SEM nenhum juiz no meio ainda desarmam, que é o cenário que a
+válvula existe para atender. E o desarme, que falava só com um log que ninguém abre,
+hoje avisa na conversa nomeando as entregas sem veredito.
+
+---
+
+## A rodada intermediária — a entrega sem juiz que a rodada seguinte encobria
+
+Medido na mesma revisão. O conferente olhava só a ÚLTIMA rodada de cada peça:
+
+```
+r1  entregue, SEM veredito        ← ninguém julgou
+r2  entregue e aprovada
+fecho:  "fecho liberado — todo pedaço julgado, com o par de registros."
+```
+
+A frase era falsa, e a falha de origem passava pela porta de trás. Hoje **toda rodada
+com entrega tem que ter juiz**, no fecho e na lista que a trava consulta. No laço normal
+isto nunca acusa nada: rodada anterior é rodada que o juiz reprovou, e reprovar é gravar
+veredito.
+
+---
+
+## O código velho rodando enquanto se revisa o novo
+
+O dono passou uma sessão inteira revisando, testando e aprovando a v0.4.0. **O que
+rodava na máquina dele era a 0.3.2**, instalada dias antes — sem nenhum dos consertos.
+Editar o repositório não muda o que o harness carrega: ele lê o cache de
+`~/.claude/plugins/`, e o cache só troca com `claude plugin update` mais um reinício.
+
+→ Daí o aviso de arranque do repositório (`.claude/hooks/sessionstart-avisa-cadeia.sh`,
+apoiado em `scripts/cadeia_check.py`): quando a versão instalada fica atrás da escrita,
+o arranque diz as duas, e diz que teste no repositório vale como leitura de código e não
+como prova de comportamento. É a mesma lição de sempre — **o estado silencioso parece
+normal em qualquer foto que se tire**.
 
 ---
 

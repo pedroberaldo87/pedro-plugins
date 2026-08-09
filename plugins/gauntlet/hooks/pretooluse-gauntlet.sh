@@ -99,17 +99,25 @@ PENDENTES=$("$PY" "$LIB" pendentes "$MISSAO" 2>/dev/null)
 
 # Há pendência. O único agente com passagem é o juiz de uma peça pendente — ele se
 # apresenta pelo marcador no próprio prompt, que é a única coisa que o evento traz.
+CONTADOR="$RAIZ/bloqueios-$SESSION"
+
 PROMPT=$(hj_campo "$INPUT" tool_input.prompt)
 while IFS= read -r PECA; do
   [ -n "$PECA" ] || continue
   case "$PROMPT" in
-    *"[gauntlet:juiz:$PECA]"*) exit 0 ;;
+    # O JUIZ QUE NASCE REARMA A TRAVA. O contador é da SESSÃO, e sem esta linha ele
+    # só zerava no fecho verde: três esquecimentos espalhados por peças diferentes,
+    # ao longo de uma missão inteira, desligavam o guarda para o resto dela — medido
+    # em 2026-08-09 com sete peças entregues e zero juízes, que é a falha de origem
+    # com a proteção desligada. Zerando aqui, a paciência se gasta em NEGAÇÕES
+    # SEGUIDAS: três sem nenhum juiz no meio ainda desarmam, que é o cenário de
+    # missão longa com o dono fora que justifica a válvula.
+    *"[gauntlet:juiz:$PECA]"*) rm -f "$CONTADOR" 2>/dev/null; exit 0 ;;
   esac
 done <<EOF_PECAS
 $PENDENTES
 EOF_PECAS
 
-CONTADOR="$RAIZ/bloqueios-$SESSION"
 N=$(cat "$CONTADOR" 2>/dev/null || echo 0)
 case "$N" in ''|*[!0-9]*) N=0 ;; esac
 MAX="${GAUNTLET_MAX_BLOQUEIOS:-3}"

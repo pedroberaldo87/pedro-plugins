@@ -102,6 +102,25 @@ esac
   || bad "e a desistência fica registrada"
 
 echo
+echo "O JUIZ REARMA A TRAVA — a paciência se gasta em negações SEGUIDAS"
+rm -f "$RAIZ_T/andamento/bloqueios-$SID" "$RAIZ_T/andamento/desistencias.log"
+arma
+roda '"sem marcador"' >/dev/null
+roda '"sem marcador"' >/dev/null
+diz "duas negações acumuladas" "$(cat "$RAIZ_T/andamento/bloqueios-$SID" 2>/dev/null)" "2"
+roda '"[gauntlet:juiz:hero] julgue"' >/dev/null
+[ ! -f "$RAIZ_T/andamento/bloqueios-$SID" ] \
+  && ok "o juiz que nasce zera o contador" \
+  || bad "o juiz que nasce zera o contador (ficou: $(cat "$RAIZ_T/andamento/bloqueios-$SID"))"
+# É esta a diferença que o conserto faz: sem ela, a 3ª negação desarmava e a peça
+# seguia sem juiz para sempre — a falha de origem com o guarda desligado.
+SAIDA=$(roda '"sem marcador"')
+case "$SAIDA" in
+  *deny*) ok "e depois dele a trava volta a NEGAR, em vez de já desistir" ;;
+  *)      bad "e depois dele a trava volta a negar (veio: ${SAIDA:0:60})" ;;
+esac
+
+echo
 echo "O SINAL ÓRFÃO — sessão que morre sem apagar não acende a trava para sempre"
 rm -f "$RAIZ_T/andamento/bloqueios-$SID" "$RAIZ_T/andamento/desistencias.log"
 arma
@@ -151,6 +170,35 @@ diz "sinal sem o diretório da missão na 2ª linha não nega" "$SAIDA" ""
 printf 'gauntlet\n%s\n' "$RAIZ_T/missao-que-nao-existe" > "$RAIZ_T/andamento/ativo-$SID"
 SAIDA=$(roda '"sem marcador"')
 diz "sinal apontando missão que não está no disco não nega" "$SAIDA" ""
+
+echo
+echo "A MISSÃO ÓRFÃ — o que ficou pela metade volta a existir no arranque"
+ARRANQUE="$AQUI/sessionstart-lembra-missao.sh"
+arma
+# Uma peça reprovada e outra sem juiz: é a foto da sessão que foi atropelada.
+printf '{"peca":"marcas","status":"reprovado","eixo":"e","gap":"o alvo respira mais"}' \
+  > "$MISSAO/pecas/marcas/r1/veredito.json"
+printf '{"objetivo":"bater o alvo","alvos":["https://x.invalid"]}' > "$MISSAO/rito.json"
+SAIDA=$(printf '{"session_id":"%s"}' "$SID" | bash "$ARRANQUE" 2>&1)
+case "$SAIDA" in
+  *"miss"*"o de gauntlet ABERTA"*) ok "o arranque encontra a missão de pé" ;;
+  *) bad "o arranque encontra a missão (veio: ${SAIDA:0:70})" ;;
+esac
+case "$SAIDA" in
+  *hero*) ok "e nomeia a peça que espera juiz" ;;
+  *)      bad "e nomeia a peça que espera juiz" ;;
+esac
+case "$SAIDA" in
+  *"respira mais"*) ok "e traz o gap aberto, que era o que evaporava na conversa" ;;
+  *)                bad "e traz o gap aberto" ;;
+esac
+case "$SAIDA" in
+  *"n"*"o escolha por ele"*) ok "e deixa a decisão com o dono, sem retomar sozinho" ;;
+  *) bad "e deixa a decisão com o dono" ;;
+esac
+rm -f "$RAIZ_T/andamento/ativo-$SID"
+SAIDA=$(printf '{"session_id":"%s"}' "$SID" | bash "$ARRANQUE" 2>&1)
+diz "sem missão de pé, o arranque é mudo" "$SAIDA" ""
 
 rm -rf "$RAIZ_T"
 echo

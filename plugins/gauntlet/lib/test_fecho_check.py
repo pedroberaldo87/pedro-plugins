@@ -406,6 +406,48 @@ check("missão sem decomposição devolve lista vazia — fail-open do guarda",
 shutil.rmtree(d)
 
 print()
+print("A RODADA INTERMEDIÁRIA — a entrega sem juiz que a rodada seguinte encobria")
+d = tmp()
+m = monta_missao(d)
+# r1 fica entregue e SEM veredito; r2 nasce entregue e julgada, como se o construtor
+# tivesse seguido em frente. Medido em 2026-08-09: o fecho dizia "todo pedaço julgado".
+r1 = os.path.join(m, "pecas", "hero", "r1")
+r2 = os.path.join(m, "pecas", "hero", "r2")
+shutil.copytree(r1, r2)
+os.remove(os.path.join(r1, "veredito.json"))
+check("a rodada entregue e não julgada é acusada, mesmo com a seguinte aprovada",
+      any("nenhum juiz a julgou" in f for f in fc.erros_do_fecho(m)))
+check("e a trava enxerga a peça em voo, em vez de achar que está tudo julgado",
+      fc.pecas_pendentes(m) == ["hero"])
+shutil.rmtree(d)
+
+# O contraditório: no laço NORMAL toda rodada anterior foi reprovada, e reprovar é
+# gravar veredito — então este check não pode acusar a missão de várias rodadas.
+d = tmp()
+m = monta_missao(d)
+r1 = os.path.join(m, "pecas", "hero", "r1")
+r2 = os.path.join(m, "pecas", "hero", "r2")
+shutil.copytree(r1, r2)
+for cam, num in ((r1, 1), (r2, 2)):
+    ent = json.load(open(os.path.join(cam, "entrega.json"), encoding="utf-8"))
+    ent["rodada"] = num
+    escreve(os.path.join(cam, "entrega.json"), ent)
+    ver = json.load(open(os.path.join(cam, "veredito.json"), encoding="utf-8"))
+    ver["rodada"] = num
+    ver["entrega"] = fc.marca(os.path.join(cam, "entrega.json"))
+    ver["registros"] = {"nosso": "pecas/hero/r%d/nosso.png" % num,
+                        "alvo": "pecas/hero/r%d/alvo.png" % num}
+    if num == 1:
+        ver["status"] = "reprovado"
+        ver["gap"] = "a entrada do alvo respira mais"
+    escreve(os.path.join(cam, "veredito.json"), ver)
+escreve(os.path.join(m, "diretor.json"),
+        {"status": "aprovado", "viu": {"hero": fc.marca(os.path.join(r2, "entrega.json"))}})
+check("mas a rodada reprovada e depois consertada fecha normalmente",
+      fc.erros_do_fecho(m) == [])
+shutil.rmtree(d)
+
+print()
 print("A RODADA TRANSPLANTADA — o caminho mais barato de fraude")
 d = tmp()
 m = monta_missao(d, pecas=("hero", "marcas"))

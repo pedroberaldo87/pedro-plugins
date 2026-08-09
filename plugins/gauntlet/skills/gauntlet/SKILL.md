@@ -112,8 +112,13 @@ muda (fail-open declarado, não proteção imaginária).
 
 ⚠️ **Quem apaga o sinal é a conferência verde, não você** — passe `--sinal` no fecho.
 Há rede embaixo do esquecimento: o sinal expira por idade, e a trava desiste depois de
-algumas negações na mesma sessão — **avisando na conversa** que a disputa segue sem
-guarda. Desligamento de emergência: `GAUNTLET_GATE=0`.
+algumas negações **seguidas** — **avisando na conversa** que a disputa segue sem guarda.
+Um juiz que nasce zera essa conta: a paciência dela se gasta em esquecimento
+consecutivo, não ao longo da missão inteira. Desligamento: `GAUNTLET_GATE=0`.
+
+**A missão sobrevive ao fim da sessão.** No arranque seguinte, um hook lê o sinal,
+imprime o mapa e nomeia as entregas sem juiz — a metade que faltava do "todo veredito
+vive em arquivo". Ele não retoma nada sozinho: pergunte ao dono se retoma ou encerra.
 
 ## 3 · A equipe — visível, nomeada, dirigível
 

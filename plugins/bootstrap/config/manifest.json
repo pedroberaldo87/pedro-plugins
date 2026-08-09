@@ -151,7 +151,7 @@
         },
         {
           "name": "gauntlet",
-          "enabled": false
+          "enabled": true
         },
         {
           "name": "graphify-guard",
@@ -175,7 +175,7 @@
         },
         {
           "name": "improve-workflow",
-          "enabled": false
+          "enabled": true
         },
         {
           "name": "intent-guard",
