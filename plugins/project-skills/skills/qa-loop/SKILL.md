@@ -5,6 +5,20 @@ description: Use quando o usuário quer revisar código num loop que para por re
 
 # /qa-loop — Loop de review→conserto disciplinado
 
+## Antes de tudo — a régua e os princípios (o par obrigatório)
+
+Antes de revisar uma linha de código, rode o par, nesta ordem — é ele que substitui a antiga instrução em
+prosa "leia a constituição e o quality-goals do projeto":
+
+1. **A régua do projeto** — a skill `doc-load` (invoque pela Skill tool; fora dela:
+   `python3 "$(bash "<plugin project-skills>/lib/resolve-plugin.sh" project-skills lib/doc_load.py)" --project-root "$PWD"`).
+   Ela diz o que vale como régua HOJE — a lei com `ready`/`approved`, o acordo só com
+   `approved`, o minerado como mapa — e o que está ausente, sem fingir.
+2. **Os princípios genéricos** — a skill `principles` em modo `review`, quando instalada
+   na máquina. Ausente: siga sem ela, dizendo isso no relato.
+
+Em conflito, **a régua do projeto ganha** — princípio genérico não revoga a lei da casa.
+
 Revisa código num loop e **para quando não vale mais a pena** — não quando chega a zero.
 Ancora no **plano de implementação**: o código não pode "melhorar" e afastar do que foi combinado.
 
@@ -303,6 +317,7 @@ const floor = sevRank(args.severityFloor || 'P1')
 let acceptedLimits = args.acceptedLimits || []
 let invariants = args.invariants || []
 const churn = {}                 // { 'arquivo:função': nº de regressões }
+const causaCache = {}            // causa referendada por chave — a mesma raiz não paga duas investigações
 const causaDisputada = []        // o desfecho de cada escalada: causa referendada, ou a disputa com as duas versões
 // chave do churn = arquivo:função. Só o nome da função colidiria entre arquivos
 // (dois `validate()` em módulos diferentes) e escalaria o diagnóstico caro cedo demais.
@@ -374,7 +389,15 @@ while (!cleanRound && r < maxRounds && !churnEscalated) {
     if (res.suiteRegressed) {
       const k = churnKey(fix)
       regressions++; churn[k] = (churn[k] || 0) + 1
-      if (churn[k] >= churnThreshold) {
+      // por reincidência (churn) OU por GRAVIDADE (decisão do dono, 2026-08-09): fix P0
+      // que regrediu investiga a causa na PRIMEIRA queda — defeito grave não espera
+      // voltar para merecer investigação. O cache segura o custo: causa referendada
+      // nesta sessão não reabre, e a escalada seguinte a recebe pronta.
+      if (causaCache[k]) {
+        causaDisputada.push({ fn: k, ...causaCache[k], deCache: true })
+        churnEscalated = true; break
+      }
+      if (churn[k] >= churnThreshold || fix.severity === 'P0') {
         // DIAGNOSE — diagnose_model (Opus medium, R8 "diagnóstico após falhas repetidas").
         // Não é mais "refaz cirúrgico" — é a causa raiz do acoplamento que faz a mesma
         // função regredir de novo a cada tentativa.
@@ -395,9 +418,11 @@ while (!cleanRound && r < maxRounds && !churnEscalated) {
             { model: args.model, effort: T.diagnose.effort, phase: 'Diagnose', schema: DESAFIO, agentType: 'voltagent-qa-sec:architect-reviewer' })
           acordo = desafio ? desafio.procede === true : false   // desafiador mudo não referenda
         }
-        causaDisputada.push({ fn: k, causa: acordo ? causa : null,
+        const desfecho = { fn: k, causa: acordo ? causa : null,
           disputa: acordo ? null : { investigador: String(causa || 'sem resposta').slice(0, 300),
-                                     desafiador: String(desafio?.motivo || 'sem veredito').slice(0, 300) } })
+                                     desafiador: String(desafio?.motivo || 'sem veredito').slice(0, 300) } }
+        if (acordo) causaCache[k] = desfecho
+        causaDisputada.push(desfecho)
         churnEscalated = true; break
       }
       await revertAndMaybeRedo(fix, res, tier)   // reverte; refaz cirúrgico no tier DA RODADA
@@ -764,7 +789,9 @@ relatório. Os tetos das Camadas 4 e 5 **não são conselho ao modelo** — o mo
 ### Churn detector
 Por **FUNÇÃO** (não arquivo): conta edições + regressões auto-infligidas. ≥`churn_threshold` regressões na mesma
 função → **escala** (para de remendar; sinaliza "acoplamento alto: refatora pra detectores independentes OU aceita
-os limites"). É lógica do script do motor.
+os limites"). É lógica do script do motor. **E a gravidade também escala** (decisão do dono, 2026-08-09): fix P0
+que regrediu investiga a causa na PRIMEIRA queda, sem esperar reincidir — com o cache de causa por chave
+`arquivo:função`, para a mesma raiz não pagar duas investigações na mesma sessão.
 
 ### Accepted-limits (R6) — proposto, nunca enterrado sozinho
 Vivo, **ancorado ao alvo**. O loop **PROPÕE** (`plan.proposedLimits`); o Planejador adjudica se procede; mas só

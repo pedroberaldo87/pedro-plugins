@@ -121,7 +121,7 @@ def acha_plan_state():
     try:
         r = subprocess.run(["bash", RESOLVEDOR, "project-skills", "lib/plan_state.py"],
                            capture_output=True, text=True, env=env,
-                           stdin=subprocess.DEVNULL)
+                           stdin=subprocess.DEVNULL, start_new_session=True)
     except OSError:
         return ""
     return r.stdout.strip() if r.returncode == 0 else ""

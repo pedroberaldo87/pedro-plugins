@@ -5,6 +5,20 @@ description: Atualização INCREMENTAL da documentação project-doc — mapeia 
 
 # doc-touch — atualização incremental da doc
 
+## Antes de tudo — a régua e os princípios (o par obrigatório)
+
+Antes de re-projetar qualquer doc, rode o par, nesta ordem — é ele que substitui a antiga instrução em
+prosa "leia a constituição e o quality-goals do projeto":
+
+1. **A régua do projeto** — a skill `doc-load` (invoque pela Skill tool; fora dela:
+   `python3 "$(bash "<plugin project-skills>/lib/resolve-plugin.sh" project-skills lib/doc_load.py)" --project-root "$PWD"`).
+   Ela diz o que vale como régua HOJE — a lei com `ready`/`approved`, o acordo só com
+   `approved`, o minerado como mapa — e o que está ausente, sem fingir.
+2. **Os princípios genéricos** — a skill `principles`, quando instalada
+   na máquina. Ausente: siga sem ela, dizendo isso no relato.
+
+Em conflito, **a régua do projeto ganha** — princípio genérico não revoga a lei da casa.
+
 Irmã do `/doc` (mesmo plugin, mesma estrutura de doc, mesmos invariantes). O FULL minera tudo e re-projeta tudo; o **touch** atualiza só os docs cujo `scope:` intersecta o diff do trabalho recente. Mexeu → tocou a doc. O FULL vira evento raro.
 
 ## Fluxo (5 passos)

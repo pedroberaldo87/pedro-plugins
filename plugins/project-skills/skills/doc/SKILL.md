@@ -5,6 +5,20 @@ description: Gera o sistema modular de documentação de um projeto — CLAUDE.m
 
 # Project Doc v3 — Documentation System Generator
 
+## Antes de tudo — a régua e os princípios (o par obrigatório)
+
+Antes de minerar e projetar a documentação, rode o par, nesta ordem — é ele que substitui a antiga instrução em
+prosa "leia a constituição e o quality-goals do projeto":
+
+1. **A régua do projeto** — a skill `doc-load` (invoque pela Skill tool; fora dela:
+   `python3 "$(bash "<plugin project-skills>/lib/resolve-plugin.sh" project-skills lib/doc_load.py)" --project-root "$PWD"`).
+   Ela diz o que vale como régua HOJE — a lei com `ready`/`approved`, o acordo só com
+   `approved`, o minerado como mapa — e o que está ausente, sem fingir.
+2. **Os princípios genéricos** — a skill `principles`, quando instalada
+   na máquina. Ausente: siga sem ela, dizendo isso no relato.
+
+Em conflito, **a régua do projeto ganha** — princípio genérico não revoga a lei da casa.
+
 ## Overview
 
 Generates a **documentation system** for a project, not a single file.

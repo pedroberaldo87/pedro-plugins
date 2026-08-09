@@ -20,7 +20,8 @@ LIDO_SEM_PAR = dict(LIDO_OK, prova="a/SKILL.md:11: espere a suíte")
 
 def roda(lote):
     p = subprocess.run([sys.executable, os.path.join(AQUI, "achado.py"), "--validar"],
-                       input=json.dumps(lote), capture_output=True, text=True)
+                       input=json.dumps(lote), capture_output=True, text=True,
+                       start_new_session=True)
     return p.returncode, p.stderr
 
 
