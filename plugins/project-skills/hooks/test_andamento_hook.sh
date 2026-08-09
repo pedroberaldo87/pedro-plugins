@@ -188,7 +188,7 @@ OUT=$(barra sess-teste)
 PRIMEIRA=$(printf '%s' "$OUT" | head -1)
 RESTO=$(printf '%s' "$OUT" | tail -n +2)
 check "com motor vivo a PRIMEIRA linha é a do motor (acima do hud)" \
-  "$(printf '%s' "$PRIMEIRA" | grep -q '^sovai · missão há' && echo 1 || echo 0)" "saiu: [$PRIMEIRA]"
+  "$(printf '%s' "$PRIMEIRA" | grep -q '^🚀 motor · missão há' && echo 1 || echo 0)" "saiu: [$PRIMEIRA]"
 check "a linha vem do estado em disco (a idade da missão)" \
   "$(printf '%s' "$PRIMEIRA" | grep -q 'missão há 10min' && echo 1 || echo 0)" "saiu: [$PRIMEIRA]"
 check "a linha traz o silêncio lido do sinal em disco" \
@@ -307,10 +307,10 @@ OUT=$(printf '{"session_id":"sess-teste"}' \
     CLAUDE_PLUGIN_ROOT="$(cd "$(dirname "$BARRA")/.." && pwd)" \
     sh "$SAB_BARRA" "sh $HUD" 2>/dev/null)
 check "barra sabotada (linha ABAIXO do hud) reprova o critério do 'acima'" \
-  "$(printf '%s' "$OUT" | head -1 | grep -q '^sovai · missão há' && echo 0 || echo 1)" \
+  "$(printf '%s' "$OUT" | head -1 | grep -q '^🚀 motor · missão há' && echo 0 || echo 1)" \
   "a sabotada ainda saiu por cima — o teste do 'acima' é tautológico · saiu: [$OUT]"
 check "a sabotada ainda IMPRIME a linha — o que mudou foi só a ordem" \
-  "$(printf '%s' "$OUT" | grep -q 'sovai · missão há' && echo 1 || echo 0)" \
+  "$(printf '%s' "$OUT" | grep -q '🚀 motor · missão há' && echo 1 || echo 0)" \
   "a sabotagem apagou a linha em vez de movê-la — o teste acima passa por engano · saiu: [$OUT]"
 rm -f "$CFG/andamento/ativo-sess-teste"
 : > "$CFG/andamento/ativo-sess-teste"

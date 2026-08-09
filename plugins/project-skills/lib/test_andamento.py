@@ -9,6 +9,7 @@ Os placares testados sao os TRES formatos medidos em 299 transcripts reais deste
 repositorio, mais o do pytest — nada de formato imaginado.
 """
 
+import json
 import os
 import re
 import shutil
@@ -313,13 +314,13 @@ def main():
             fh.write("qa-loop\n")
         primeiro = a.linha_motor("sm", casa, agora)
         check("o primeiro motor aparece pelo nome dele",
-              (primeiro or "").startswith("qa-loop · missão há"))
+              (primeiro or "").startswith("🚀 qa-loop · missão há"))
 
         with open(aceso, "w", encoding="utf-8") as fh:
             fh.write("vistoria\n")
         segundo = a.linha_motor("sm", casa, agora)
         check("o segundo motor na mesma sessão aparece pelo nome dele",
-              (segundo or "").startswith("vistoria · missão há"))
+              (segundo or "").startswith("🚀 vistoria · missão há"))
         check("as duas linhas da mesma sessão não se confundem",
               primeiro != segundo and "qa-loop" not in (segundo or ""))
 
@@ -327,11 +328,11 @@ def main():
         # inventa motor: continua sendo a execucao continua, que e quem acendia.
         open(aceso, "w").close()
         check("sinal sem nome continua saindo como a execução contínua",
-              (a.linha_motor("sm", casa, agora) or "").startswith("sovai · missão há"))
+              (a.linha_motor("sm", casa, agora) or "").startswith("🚀 %s · missão há" % a.MOTOR_PADRAO))
         with open(aceso, "w", encoding="utf-8") as fh:
             fh.write("1")
         check("carimbo no lugar do nome não vira nome de motor",
-              (a.linha_motor("sm", casa, agora) or "").startswith("sovai · missão há"))
+              (a.linha_motor("sm", casa, agora) or "").startswith("🚀 %s · missão há" % a.MOTOR_PADRAO))
 
         # OS OUTROS MOTORES ACENDEM O MESMO SINAL (F17.4). O laço de qualidade e o
         # de disputa disparavam workflow e nao acendiam nada: a barra ficava muda
@@ -358,7 +359,7 @@ def main():
             casa_sinal = os.path.join(casa_motor, "andamento")
             linha = a.linha_motor("s-" + motor, casa_sinal)
             check("%s: a linha da barra NASCE com o nome dele" % motor,
-                  (linha or "").startswith("%s · missão há" % motor))
+                  (linha or "").startswith("🚀 %s · missão há" % motor))
 
             # E SOME quando o sinal é apagado. No laço de qualidade quem apaga é o
             # segundo bloco da própria skill (o `rm -f` da entrega) e é ele que roda
@@ -401,7 +402,7 @@ def main():
                               capture_output=True, text=True,
                               stdin=subprocess.DEVNULL, start_new_session=True)
         check("com missão de pé imprime a sessão e o motor lidos do disco",
-              "s-mon" in vivo.stdout and "qa-loop · missão há" in vivo.stdout)
+              "s-mon" in vivo.stdout and "🚀 qa-loop · missão há" in vivo.stdout)
     finally:
         shutil.rmtree(tmp, ignore_errors=True)
 
@@ -432,6 +433,56 @@ def main():
                                ).get("docs") == ["a.md", "b.md"])
     finally:
         shutil.rmtree(tmp_doc, ignore_errors=True)
+
+    # ── A ONDA EM CURSO E O PROGRESSO DO PLANO NA BARRA ─────────────────────────
+    # A barra dizia ha quanto tempo a missao estava de pe, nunca em que ponto ela
+    # estava: `missao ha 2h14` nao separa a primeira volta da decima.
+    print("a onda em curso e o progresso do plano")
+    tmp_onda = tempfile.mkdtemp()
+    try:
+        plano = os.path.join(tmp_onda, "p.plan.json")
+        with open(plano, "w", encoding="utf-8") as fh:
+            json.dump({"phases": [
+                {"id": "F1", "items": [{"id": "F1.1", "status": "done"},
+                                       {"id": "F1.2", "status": "done"},
+                                       {"id": "F1.3", "status": "todo"}]}]}, fh)
+        a.marca_onda("s-onda", "5", plano, tmp_onda)
+        check("a onda e o progresso do plano viram uma linha só",
+              a.linha_onda("s-onda", tmp_onda) == "onda 5 · 2/3")
+        a.marca_onda("s-so-onda", "2", None, tmp_onda)
+        check("sem plano a barra diz a onda e não inventa placar",
+              a.linha_onda("s-so-onda", tmp_onda) == "onda 2")
+        a.marca_onda("s-torto", "3", os.path.join(tmp_onda, "nao-existe.json"),
+                     tmp_onda)
+        check("plano ilegível tira o placar, nunca a onda",
+              a.linha_onda("s-torto", tmp_onda) == "onda 3")
+        check("sessão sem onda registrada não inventa linha",
+              a.linha_onda("s-nada", tmp_onda) is None)
+
+        # A DOC DA ONDA CHEGA A UMA TELA. O registro de S-111 existia e ninguem o
+        # lia — registro que nenhuma tela mostra nao prova nada a ninguem.
+        with open(os.path.join(tmp_onda, "ativo-s-doc"), "w",
+                  encoding="utf-8") as fh:
+            fh.write("sprint\n")
+        sem_doc = a.painel(tmp_onda)
+        a.doc_da_onda("s-doc", 2, ["a.md", "b.md"], tmp_onda)
+        com_doc = a.painel(tmp_onda)
+        check("a doc da onda aparece no painel de 'como vai?'",
+              any("📄 doc da onda: 2" in x for x in com_doc)
+              and not any("doc da onda" in x for x in sem_doc))
+
+        agora = time.time()
+        aceso = os.path.join(tmp_onda, "ativo-s-onda")
+        with open(aceso, "w", encoding="utf-8") as fh:
+            fh.write("sprint\n")
+        os.utime(aceso, (agora - 4020, agora - 4020))
+        linha = a.linha_motor("s-onda", tmp_onda, agora)
+        check("a onda chega à BARRA, com o ícone e o separador do desenho",
+              "🌊 onda 5 · 2/3" in linha and "  │  " in linha)
+        check("missão de mais de uma hora sai em horas, não em minutos",
+              "missão há 1h07" in linha)
+    finally:
+        shutil.rmtree(tmp_onda, ignore_errors=True)
 
     print()
     if FAILS:

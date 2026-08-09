@@ -1,6 +1,6 @@
 ---
 generated: 2026-08-09
-generated-commit: f45190d
+generated-commit: e6bb25b
 project: pedro-plugins
 scope:
   - plugins/project-skills/hooks/sessionstart-doc.sh
@@ -85,7 +85,7 @@ verified-by:
   - plugins/project-skills/hooks/test_andamento_hook.sh
   - plugins/gauntlet/hooks/test_gauntlet_hooks.sh
   - plugins/lixeiro/hooks/test_lixeiro_hooks.sh
-doc-sig: pedro-plugins/sessionstart-doc.sh@gen=3.8#60eb2f1a
+doc-sig: pedro-plugins/sessionstart-doc.sh@gen=3.8#b6e651a8
 ---
 
 # Runtime — fluxos ponta-a-ponta
@@ -900,7 +900,7 @@ python3 plugins/lixeiro/lib/test_causa.py
 
 **Escopo: só DENTRO de uma missão do motor de execução contínua**, pelo mesmo sinal `ativo-<session_id>` que os gates vizinhos consultam. Fora dela o dono está no teclado e vê a saída do próprio comando; narrar ali seria ruído.
 
-⚠️ **O estado NASCE numa pasta NEUTRA — `~/.claude/andamento/`** — e o comentário do módulo diz por quê: *"Quatro plugins já chamam este módulo; a pasta batizada com o nome de um deles fazia o estado dos outros parecer emprestado."* Quatro arquivos vivem lá, todos chaveados por sessão: `ativo-<sid>` (a missão está de pé), `sinal-<sid>` (quando o narrador falou pela última vez), `placar-<sid>` (o último placar impresso pela suíte) e `trabalho-<sid>` (o comando em curso, escrito no disparo e apagado na volta). ⚠️ **A pasta antiga com o nome do plugin extinto continua sendo LIDA como legado** — `andamento.py:ESTADO_LEGADO`, e o hook copia o sinal de lá na primeira passada —, **nunca escrita**: missão viva no momento da mudança não perde o que já tinha. `[confirmado — `andamento.py:ESTADO`/`ESTADO_LEGADO` e o bloco de cópia em `posttooluse-andamento.sh`]`
+⚠️ **O estado NASCE numa pasta NEUTRA — `~/.claude/andamento/`** — e o comentário do módulo diz por quê: *"Quatro plugins já chamam este módulo; a pasta batizada com o nome de um deles fazia o estado dos outros parecer emprestado."* Os arquivos de lá são todos chaveados por sessão (`ls ~/.claude/andamento/ | sed 's/-[^-]*$//' | sort -u` lista as naturezas de uma máquina viva): `ativo-<sid>` (a missão está de pé, e a 1ª linha dele é o **nome do motor** que a barra lê), `sinal-<sid>` (quando o narrador falou pela última vez), `placar-<sid>` (o último placar impresso pela suíte), `trabalho-<sid>` (o comando em curso, escrito no disparo e apagado na volta), `onda-<sid>` (a rodada em curso e o progresso do plano) e `doc-<sid>` (os caminhos de doc que a onda re-projetou). ⚠️ **A pasta antiga com o nome do plugin extinto continua sendo LIDA como legado** — `andamento.py:ESTADO_LEGADO`, e o hook copia o sinal de lá na primeira passada —, **nunca escrita**: missão viva no momento da mudança não perde o que já tinha. `[confirmado — `andamento.py:ESTADO`/`ESTADO_LEGADO` e o bloco de cópia em `posttooluse-andamento.sh`]`
 
 ```bash
 python3 plugins/project-skills/lib/test_andamento.py
@@ -935,6 +935,24 @@ O fluxo, que nasceu na onda de 2026-08-08 (`F17.1` + `F17.6`):
   (`plugins/project-skills/hooks/posttooluse-andamento.sh`) escreve o instante, o comando e o
   projeto quando o disparo sai, e apaga quando ele volta. Comando sem histórico neste projeto
   sai **sem estimativa** — a regra do §19 vale igual aqui.
+- **A linha da barra diz EM QUE PONTO a missão está, não só há quanto tempo ela existe**
+  (2026-08-09). `andamento.py:marca_onda` grava `onda-<sid>` com a rodada e — quando recebe o
+  caminho do plano — o par feitos/total contado **pelo programa**, lendo o arquivo; `linha_onda`
+  o devolve para `linha_motor`. Quem chama é o papel de marcação do motor, com um comando ao
+  fim da lista de `tick` (`andamento.py onda <sid> <rodada> <planPath>`, contrato em
+  `skills/sprint/SKILL.md`), porque a rodada só existe na memória do motor e o progresso só
+  existe no arquivo do plano — nenhum dos dois chega sozinho a um processo que desenha barra.
+  Falhar ali não derruba nada: a barra volta a ser a de antes.
+  `[confirmado — `python3 plugins/project-skills/lib/test_andamento.py`, que cobre plano ilegível, sessão sem onda e a linha renderizada]`
+- **O desenho da linha é ícone + separador vertical, e o motor se nomeia.** Cada pedaço abre com
+  o ícone que o identifica (`🚀` missão · `🌊` onda · `🔧` ferramenta · `💬`/`⏳`/`🔇` sinal ·
+  `⛔` bloqueio · `🧪` suíte) e os pedaços são separados por `│` em vez de ponto médio — a barra
+  é lida de relance, e achar o silêncio no meio de seis frases separadas por ponto exigia ler a
+  linha inteira. ⚠️ **O nome sai do PRÓPRIO sinal**: `skills/sprint/SKILL.md` passou a gravar
+  `sprint` dentro do `ativo-<sid>` em vez de acendê-lo vazio, e o rótulo de fallback
+  (`andamento.py:MOTOR_PADRAO`) deixou de ser o nome do plugin extinto — sinal vazio nomeava
+  `sovai` toda missão, meses depois de o plugin ter sido fundido. Missão de mais de uma hora sai
+  como `1h07`, não `67min00s`. `[confirmado — `linha_motor` renderizada nos três estados nesta rodada]`
 
 **Verificado:** `python3 plugins/project-skills/lib/test_andamento.py` → **OK**, e
 `ls plugins/project-skills/lib/andamento.py` confirma a casa nova. `[confirmado nesta rodada]`

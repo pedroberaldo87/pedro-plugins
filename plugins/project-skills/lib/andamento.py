@@ -257,6 +257,58 @@ def doc_da_onda(sessao, rodada, docs, dir_estado=None):
     return docs
 
 
+def marca_onda(sessao, rodada, plano=None, dir_estado=None):
+    """A rodada em curso e o progresso do plano, no disco (a barra so LE).
+
+    A barra dizia ha quanto tempo a missao estava de pe e como foi a ultima
+    suite, mas nao dizia EM QUE PONTO a missao esta: quem volta ao terminal via
+    `missao ha 2h14` sem saber se isso e a primeira volta ou a decima. A rodada
+    so existe na memoria do motor, e o progresso so existe no arquivo do plano —
+    nenhum dos dois chega a um processo que desenha barra.
+
+    O total sai do plano LIDO AQUI, uma vez por bloco, e nao do que o motor
+    contou: quem marca os passos e o marcador, e pedir a conta a quem nao marcou
+    e como o placar de suite que o motor descartava.
+    """
+    base = dir_estado or ESTADO
+    registro = {"rodada": rodada}
+    if plano:
+        try:
+            with open(plano, encoding="utf-8") as fh:
+                itens = [it for ph in json.load(fh).get("phases", [])
+                         for it in ph.get("items", [])]
+            registro["feitos"] = sum(1 for it in itens if it.get("status") == "done")
+            registro["total"] = len(itens)
+        except (OSError, ValueError, AttributeError, TypeError):
+            # Plano ilegivel = barra sem o placar do plano, nunca barra sem rodada.
+            pass
+    try:
+        os.makedirs(base, exist_ok=True)
+        with open(os.path.join(base, "onda-%s" % sessao), "w",
+                  encoding="utf-8") as fh:
+            json.dump(registro, fh, ensure_ascii=False)
+    except OSError:
+        pass   # fail-open, como o resto do modulo
+    return registro
+
+
+def linha_onda(sessao, dir_estado=None):
+    """`onda 5 · 216/223` — ou None quando nenhuma onda se registrou ainda."""
+    try:
+        with open(_ler(dir_estado or ESTADO, "onda-%s" % sessao),
+                  encoding="utf-8") as fh:
+            reg = json.load(fh)
+    except (OSError, ValueError):
+        return None
+    rodada = reg.get("rodada")
+    if rodada in (None, ""):
+        return None
+    partes = ["onda %s" % rodada]
+    if reg.get("total"):
+        partes.append("%s/%s" % (reg.get("feitos", 0), reg["total"]))
+    return " · ".join(partes)
+
+
 def ultima_doc(sessao, dir_estado=None):
     """O registro de doc da ultima onda desta sessao, ou {} quando nao houve."""
     try:
@@ -291,7 +343,13 @@ def linha_placar(sessao, dir_estado=None):
 
 def _dur(segundos):
     s = int(round(segundos))
-    return "%ds" % s if s < 90 else "%dmin%02ds" % (s // 60, s % 60)
+    if s < 90:
+        return "%ds" % s
+    # Missao longa e o caso comum desta barra, e `194min12s` obriga quem le a
+    # dividir de cabeca pra saber que sao tres horas.
+    if s < 3600:
+        return "%dmin%02ds" % (s // 60, s % 60)
+    return "%dh%02d" % (s // 3600, (s % 3600) // 60)
 
 
 # O mesmo teto do vigia do motor (`silenceLimitMin`, 12 min): abaixo dele silencio
@@ -405,7 +463,7 @@ def _trabalho_vivo(base, sessao, agora, limite=LIMITE_SILENCIO):
 # QUEM ACENDEU O SINAL DIZ O NOME NO PROPRIO SINAL. Era a unica coisa do modulo
 # presa a um plugin: a linha escrevia `sovai` fixo, e um workflow de outro motor
 # aparecia na barra com o nome de quem nao o disparou.
-MOTOR_PADRAO = "sovai"
+MOTOR_PADRAO = "motor"
 
 # Nome de motor e uma palavra so, comecando por letra. O sinal antigo e VAZIO, e
 # houve quem gravasse um carimbo dentro dele — nenhum dos dois e nome, e nos dois
@@ -454,7 +512,15 @@ def linha_motor(sessao, dir_estado=None, agora=None):
     except OSError:
         return None
 
-    partes = ["%s · missão há %s" % (_motor(ativo), _dur(max(idade, 0)))]
+    # O ICONE ABRE CADA PEDACO porque a barra e lida de relance, no meio de outra
+    # coisa: sem ele, achar o silencio no meio de seis frases separadas por ponto
+    # exige LER a linha inteira. O separador vertical corta o que o ponto medio
+    # nao cortava — ele tambem separa palavra dentro de cada pedaco.
+    partes = ["🚀 %s · missão há %s" % (_motor(ativo), _dur(max(idade, 0)))]
+
+    onda_atual = linha_onda(sessao, base)
+    if onda_atual:
+        partes.append("🌊 %s" % onda_atual)
 
     # O RELOGIO E A ESTIMATIVA DA FERRAMENTA QUE ESTA DE PE. Os dois ja nasciam em
     # `linha_disparo`, que sai por `systemMessage` e rola com a conversa: quem volta
@@ -465,7 +531,7 @@ def linha_motor(sessao, dir_estado=None, agora=None):
     if t and t[1]:
         decorrido = agora - t[0]
         if decorrido >= 0:
-            corrido = "ferramenta há %s" % _dur(decorrido)
+            corrido = "🔧 ferramenta há %s" % _dur(decorrido)
             est = estimativa(t[2], t[1])
             # Comando sem historico AQUI sai sem numero: a mesma regra do modulo
             # inteiro — relogio sozinho e honesto, numero inventado nao.
@@ -487,11 +553,11 @@ def linha_motor(sessao, dir_estado=None, agora=None):
         # de 20 minutos que estava rodando normalmente.
         if mudo > LIMITE_SILENCIO:
             if _trabalho_vivo(base, sessao, agora):
-                partes.append("rodando há %d min" % int(round(mudo / 60.0)))
+                partes.append("⏳ rodando há %d min" % int(round(mudo / 60.0)))
             else:
-                partes.append("SEM SINAL há %s" % _dur(mudo))
+                partes.append("🔇 SEM SINAL há %s" % _dur(mudo))
         else:
-            partes.append("último sinal há %s" % _dur(mudo))
+            partes.append("💬 último sinal há %s" % _dur(mudo))
 
     try:
         with open(_ler(base, "bloqueios-%s" % sessao), encoding="utf-8") as fh:
@@ -499,15 +565,15 @@ def linha_motor(sessao, dir_estado=None, agora=None):
     except (OSError, ValueError, IndexError):
         n = 0
     if n > 0:
-        partes.append("%d bloqueio%s" % (n, "s" if n > 1 else ""))
+        partes.append("⛔ %d bloqueio%s" % (n, "s" if n > 1 else ""))
 
     # O PLACAR DA ULTIMA ONDA, comparado com o da anterior (F9.27). Chega aqui pela
     # mesma regra do resto: lido do disco, nunca perguntado a ninguem.
     onda_linha = linha_placar(sessao, base)
     if onda_linha:
-        partes.append(onda_linha)
+        partes.append("🧪 %s" % onda_linha)
 
-    return " · ".join(partes)
+    return "  │  ".join(partes)
 
 
 def painel(dir_estado=None, agora=None):
@@ -532,8 +598,17 @@ def painel(dir_estado=None, agora=None):
     linhas = []
     for sessao in sessoes:
         linha = linha_motor(sessao, dir_estado, agora)
-        if linha:
-            linhas.append("%s · %s" % (sessao, linha))
+        if not linha:
+            continue
+        # A DOC DA ONDA SO CABE AQUI. Ela e o registro de S-111 — a prova de que a
+        # doc do commit saiu da onda —, e ate agora nada a LIA: o registro existia
+        # e nenhuma tela o mostrava, que e o mesmo defeito do placar de suite que o
+        # motor descartava. Na barra nao cabe (ela ja tem seis pedacos); aqui, na
+        # pergunta "como vai?", e exatamente o que se quer saber.
+        docs = (ultima_doc(sessao, dir_estado) or {}).get("docs") or []
+        if docs:
+            linha += "  │  📄 doc da onda: %d" % len(docs)
+        linhas.append("%s · %s" % (sessao, linha))
     return linhas
 
 
@@ -541,6 +616,13 @@ if __name__ == "__main__":
     import sys
 
     # `doc <sid> <rodada> <caminho...>` — o papel de doc registra o que confirmou.
+    # `onda <sid> <rodada> [plano.json]` — quem executa diz em que volta esta.
+    if len(sys.argv) > 3 and sys.argv[1] == "onda":
+        reg = marca_onda(sys.argv[2], sys.argv[3],
+                         sys.argv[4] if len(sys.argv) > 4 else None)
+        print("onda registrada: %s" % json.dumps(reg, ensure_ascii=False))
+        sys.exit(0)
+
     if len(sys.argv) > 3 and sys.argv[1] == "doc":
         gravados = doc_da_onda(sys.argv[2], sys.argv[3], sys.argv[4:])
         print("doc da onda registrada: %d caminho(s)" % len(gravados))
