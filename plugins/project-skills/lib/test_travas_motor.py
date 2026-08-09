@@ -86,7 +86,13 @@ def roda_a_fila(bloco, decomp_js, blockers_js="[]"):
         return {"erro": "SEM-BLOCO"}
     if not shutil.which("node"):
         return {"erro": "SEM-NODE"}
-    prog = ("const blockers = %s; const decomp = %s;\n%s\n"
+    # O prelude fornece o que o bloco referencia de fora dele — inclusive as pecas do
+    # PARA-ou-PULA (autopsia 2026-08-09): impressao de tarefa, contadores de escalada e
+    # a isencao de quem estourou o teto. Zerados = primeira rodada, nada e pulado.
+    prog = ("const blockers = %s; const decomp = %s;\n"
+            "const impressaoTarefa = {}; const taskChurn = {}; const impossivelChurn = {};\n"
+            "const estouraramTeto = new Set(); const feedback = null;\n"
+            "const log = () => {};\n%s\n"
             "console.log(JSON.stringify({ fila: todo.map(t => t.id), esperandoVoce }))\n"
             % (blockers_js, decomp_js, bloco))
     out = subprocess.run(["node", "-e", prog], capture_output=True, text=True, stdin=subprocess.DEVNULL, start_new_session=True)
@@ -440,7 +446,7 @@ def main():
     print("F9.13 + F9.24 — vigia por tempo, que separa demora de travamento")
     check("o limite de silencio existe", "silenceLimitMs" in js)
     check("a condicao e DUPLA: mudo E sem trabalho vivo",
-          "mudo > silenceLimitMs && !ultimaSuite?.trabalhoVivo" in js)
+          "mudo > silenceLimitMs && !ultimaSuiteMissao?.trabalhoVivo" in js)
     check("trabalho vivo esta no schema que a suite devolve", "trabalhoVivo" in texto)
     check("o vigia derruba parando o laco",
           re.search(r"desligadoPor = 'vigia'[\s\S]{0,400}?\bbreak\b", js) is not None)
@@ -453,7 +459,9 @@ def main():
     check("bloco vermelho NAO vira checkpoint: a suite decide ANTES do commit",
           js.index("a suíte quebrou no bloco") < js.index("await agent(checkpointPrompt("))
     check("a skill nomeia o comando que grava a onda no historico",
-          re.search(r"git -C <raiz> add -A && git -C <raiz> commit .*<r>", texto) is not None)
+          re.search(r"git -C <raiz> add -- \"\$f\".*git -C <raiz> commit .*<r>.* -- \$OK", texto) is not None)
+    check("o commit da onda nao varre a arvore (add -A engole outra sessao)",
+          "nunca `add -A`" in texto and "add -A &&" not in texto)
     check("o salvamento e local: o push e uma vez, no fim", "Commit **local e só**" in texto)
     check("a suite morta tambem nao salva (direcao segura)",
           "sem veredito" in js and "!suiteB || !suiteB.green" in js)
@@ -840,6 +848,23 @@ def main():
         check("sem a linha declarada, o mesmo texto vira DESCONHECIDO",
               all(medidor.papel_do_prompt(t.split("\n", 1)[1]) == "DESCONHECIDO"
                   for t in reescrito.values()))
+
+    print("autopsia 2026-08-09 — as cinco blindagens aprovadas estao no esqueleto")
+    check("a guarda catchall de saude roda na largada de toda rodada",
+          "saudePrompt" in js and "desligadoPor = 'porta-fechada'" in js)
+    check("o ledger da corrida existe e chega a quem julga",
+          "ledgerCorrida" in js and "ledger: trilho()" in js)
+    check("repetir sem mudanca de estado e pulado, declarado",
+          "impressaoTarefa" in js and "kind: 'pulada'" in js)
+    check("causa com escopo de repositorio para o motor no mesmo turno",
+          "paraPorCausaGlobal" in js and "desligadoPor = 'causa-global'" in js)
+    check("o detector de corrida em circulo arma so em rodada esteril",
+          "emCirculo" in js and "desligadoPor = 'corrida-em-circulo'" in js
+          and "blocosVerdes.length === 0 && fpRodada === fpRodadaAnterior" in js)
+    check("o papel que abre o motor e o ORQUESTRADOR, no nome",
+          "`ORQUESTRADOR`" in texto and "DECOMPOSITOR" not in texto)
+    check("a lista viva de antipadroes existe e nomeia quem pega cada um",
+          "## Antipadrões conhecidos" in texto and texto.count("Quem pega:") >= 5)
 
     print()
     if FAILS:

@@ -24,17 +24,23 @@ O JSON de entrada:
      "prova": {"src": "medidor.py run-exemplo", "output": "<a saída CRUA>"},
      "propostas": [
        {"defeito": "EXECUTOR gasta 4 turnos por agente",
+        "consequencia": ["cada tarefa paga 4x o custo de agente que deveria"],
         "proposta": ["teto de 1 turno por executor"],
         "mira": "EXECUTOR · turnos_por_agente 4.0",
         "confere": "registro.py compara turnos_por_agente do EXECUTOR",
         "sev": "high"}]}
+
+Cada proposta sai no template PROBLEMA · CONSEQUÊNCIA · PROPOSTA (o bloco trino do
+/visual): o defeito é o problema e vira o título sempre visível; consequência e
+proposta ficam atrás do clique, obrigatórias as três — regra do quality-goals.md do
+projeto, não escolha deste montador.
 """
 
 import json
 import os
 import sys
 
-CAMPOS = ("defeito", "proposta", "mira", "confere")
+CAMPOS = ("defeito", "consequencia", "proposta", "mira", "confere")
 
 ROTULOS = ["✓ Aprovar", "✏️ Ajustar", "✗ Descartar"]
 
@@ -60,17 +66,26 @@ def erros(entrada):
             fora.append("proposta %d não é objeto" % i)
             continue
         for c in CAMPOS:
-            if not (bullets(p.get(c)) if c == "proposta" else str(p.get(c) or "").strip()):
-                fora.append("proposta %d sem '%s' — proposta sem o número que ela mira "
-                            "e sem como conferir é opinião, não conserto" % (i, c))
+            if not (bullets(p.get(c)) if c in ("proposta", "consequencia")
+                    else str(p.get(c) or "").strip()):
+                fora.append("proposta %d sem '%s' — o template é problema · "
+                            "consequência · proposta, com o número que mira e como "
+                            "conferir; faltando parte, é opinião, não conserto" % (i, c))
     return fora
 
 
 def item(p):
-    """Uma proposta, um item — o veredito do dono mora NO item, um por defeito."""
+    """Uma proposta, um item — o veredito do dono mora NO item, um por defeito.
+
+    O corpo é o bloco trino do /visual (problema · consequência · proposta): o
+    defeito vira o título sempre visível, e as três partes moram no `tri`, que o
+    validador da página cobra por inteiro.
+    """
     blk = {"kind": "item", "title": p["defeito"],
-           "body": bullets(p["proposta"]) + ["🎯 mira: %s" % p["mira"],
-                                             "📐 confere: %s" % p["confere"]]}
+           "tri": {"problema": bullets(p["defeito"]),
+                   "consequencia": bullets(p["consequencia"]),
+                   "proposta": bullets(p["proposta"]) + ["🎯 mira: %s" % p["mira"],
+                                                         "📐 confere: %s" % p["confere"]]}}
     if p.get("sev"):
         blk["sev"] = p["sev"]
     return blk

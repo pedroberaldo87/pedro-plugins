@@ -189,6 +189,7 @@ PROPOSTAS = {
               "output": "EXECUTOR  2 agentes  8 turnos  4.0 turnos/agente"},
     "propostas": [
         {"defeito": "EXECUTOR gasta 4 turnos por agente — 8 minutos de espera",
+         "consequencia": ["cada tarefa espera 8 minutos por um agente que rende 1"],
          "proposta": ["teto de 1 turno por executor"],
          "mira": "EXECUTOR · turnos_por_agente 4.0",
          "confere": "registro.py compara turnos_por_agente na rodada seguinte",

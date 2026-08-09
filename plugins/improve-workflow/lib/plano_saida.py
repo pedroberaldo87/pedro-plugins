@@ -115,7 +115,11 @@ def criterios(proposta):
             if not isinstance(blk, dict) or blk.get("kind") != "item":
                 continue
             mira = confere = ""
-            for linha in (blk.get("body") or []):
+            # o proposta.py emite o template trino: mira e confere moram em
+            # tri.proposta; body fica como caminho legado de spec antigo.
+            tri = blk.get("tri") or {}
+            linhas = list(blk.get("body") or []) + list(tri.get("proposta") or [])
+            for linha in linhas:
                 if str(linha).startswith(MARCA_MIRA):
                     mira = str(linha)[len(MARCA_MIRA):].strip()
                 elif str(linha).startswith(MARCA_CONFERE):

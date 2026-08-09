@@ -35,6 +35,7 @@ def entrada(n):
                   "output": "EXECUTOR  2 agentes  8 turnos  4.0 turnos/agente"},
         "propostas": [
             {"defeito": "PAPEL%d gasta turno demais por agente" % i,
+             "consequencia": ["cada tarefa do papel %d paga turno que não rende" % i],
              "proposta": ["teto de 1 turno por agente no papel %d" % i],
              "mira": "PAPEL%d · turnos_por_agente 4.0" % i,
              "confere": "registro.py compara turnos_por_agente na rodada seguinte",
@@ -69,6 +70,15 @@ def caso_um_item_por_proposta():
                 continue
             check("%d proposta(s) ⇒ %d item(ns) na página" % (n, n),
                   html.count('class="feedback-item"') == n)
+            check("%d proposta(s) ⇒ %d bloco(s) trino (problema·consequência·proposta)" % (n, n),
+                  html.count('class="tri tri-') + html.count('class="tri"') == n)
+
+
+def caso_recusa_sem_consequencia():
+    sem = entrada(1)
+    del sem["propostas"][0]["consequencia"]
+    check("proposta sem consequência é recusada (template trino obrigatório)",
+          any("consequencia" in e for e in proposta.erros(sem)))
 
 
 def caso_recusa():
@@ -101,6 +111,7 @@ def main():
     print("proposta")
     caso_um_item_por_proposta()
     caso_recusa()
+    caso_recusa_sem_consequencia()
     caso_prova_diz_o_que_estraga()
     print()
     if FALHAS:

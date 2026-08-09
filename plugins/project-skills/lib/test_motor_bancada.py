@@ -153,9 +153,10 @@ const CFG = JSON.parse(fs.readFileSync(process.argv[2], 'utf8'))
 const CORPO = fs.readFileSync(process.argv[3], 'utf8')
 
 const PRELUDE = `
-const DECOMP={}, TASK_RESULT={}, BUILD_REVIEW={}, RESERVA={}, REGUA={}, SUITE_RESULT={}, AUDITOR={}, DOC_TOUCH={}, TICK_RESULT={}, DESAFIO={}, TAREFA_REVIEW={}, DOC_REVIEW={};
+const DECOMP={}, TASK_RESULT={}, BUILD_REVIEW={}, RESERVA={}, REGUA={}, SUITE_RESULT={}, AUDITOR={}, DOC_TOUCH={}, TICK_RESULT={}, DESAFIO={}, TAREFA_REVIEW={}, DOC_REVIEW={}, SAUDE={};
 const mk = n => (p => Object.assign({ __p: n }, p));
-const decomposePrompt=mk('decompose'), execPrompt=mk('exec'), reviewBuildPrompt=mk('review'),
+const orquestradorPrompt=mk('decompose'), saudePrompt=mk('saude'),
+      decomposePrompt=mk('decompose'), execPrompt=mk('exec'), reviewBuildPrompt=mk('review'),
       runSuitePrompt=mk('suite'), checkpointPrompt=mk('checkpoint'), tickPlanPrompt=mk('tick'),
       docTouchPrompt=mk('docTouch'), colheitaPrompt=mk('colheita'),
       diagnoseStuckTaskPrompt=mk('diag'), reservaPrompt=mk('reserva'), confirmBuildPrompt=mk('confirm'),
@@ -232,7 +233,13 @@ function tica(p) {
 function salva(p) {
   if (!CFG.checkpointCmd) return {}
   let cmd = CFG.checkpointCmd
-  for (const [k, v] of Object.entries({ '<raiz>': CFG.raiz, '<r>': String(p.round) })) {
+  // A lista de arquivos e a que o papel recebe: a uniao dos `files_touched` das tarefas
+  // aprovadas no bloco, mais o arquivo do plano que o tique acabou de marcar.
+  const alvos = [...new Set((p.results || []).flatMap(x => x?.files_touched || []))]
+  if (p.planPath?.endsWith('.plan.json')) alvos.push(p.planPath)
+  for (const [k, v] of Object.entries({ '<raiz>': CFG.raiz, '<r>': String(p.round),
+                                        '<b>': String(p.bloco ?? 1),
+                                        '<arquivo...>': alvos.join(' ') })) {
     cmd = cmd.split(k).join(v)
   }
   checkpoints.push({ round: p.round, cmd })
@@ -261,13 +268,22 @@ async function agent(p, opts) {
   gastoAcumulado += (CFG.gastoPorChamada || 0)
   switch (p.__p) {
     case 'decompose': return { tasks: CFG.tasks, blockers: [] }
+    // A guarda de saúde: aberta por padrão; CFG.portaFechada exercita a parada.
+    case 'saude':     return { fechada: CFG.portaFechada === true,
+                               motivo: CFG.portaFechada ? 'check determinístico reprovou' : '',
+                               saida: CFG.portaFechada ? 'gate: 2 achado(s) novo(s)' : '' }
     case 'reserva':   return { recusado: false, arquivos: [] }
     case 'exec':
       executados.push(p.task.id)
       // Executor que nao deixa nada no disco nao permite perguntar onde o trabalho foi
       // parar. Com CFG.escreveNoDisco ele escreve o arquivo da tarefa na raiz do repo.
+      // Ele escreve o que DECLARA em `files_touched` — e nada alem disso. E o que deixa
+      // medir o commit da onda contra a lista declarada (F9.60): arquivo no historico que
+      // ninguem declarou so pode ter vindo de uma varredura da arvore.
       if (CFG.escreveNoDisco && CFG.results[p.task.id]?.done) {
-        fs.writeFileSync(CFG.raiz + '/' + p.task.id + '.txt', 'obra de ' + p.task.id + '\n')
+        for (const f of CFG.results[p.task.id].files_touched || []) {
+          fs.writeFileSync(CFG.raiz + '/' + f, 'obra de ' + p.task.id + '\n')
+        }
       }
       return CFG.results[p.task.id]
     // Os gaps vem do cenario. Com eles fixos em vazio (como era aqui), nenhuma regra do
@@ -487,7 +503,7 @@ def bancada(texto, tick_cmd, **kw):
         shutil.rmtree(tmp, ignore_errors=True)
 
 
-def bancada_git(texto, tick_cmd, ck_cmd, **kw):
+def bancada_git(texto, tick_cmd, ck_cmd, sujeira_no_indice=None, **kw):
     """Uma rodada de bancada dentro de um repositorio git de verdade, com o papel de
     salvamento rodando o comando REAL da skill. Devolve o que rodou MAIS o que sobrou no
     repositorio depois (historico, arvore versionada, o que ficou solto) — que e o unico
@@ -505,6 +521,12 @@ def bancada_git(texto, tick_cmd, ck_cmd, **kw):
         plan_dir_g = os.path.join(repo, ".claude", "plans")
         os.makedirs(plan_dir_g)
         plan_path_g = cria_plano(plan_dir_g)
+        # Trabalho de OUTRA sessao, ja no indice antes de a onda comecar. O `commit` da
+        # onda nao pode carrega-lo: sem pathspec no commit, o indice inteiro entra.
+        if sujeira_no_indice:
+            with open(os.path.join(repo, sujeira_no_indice), "w") as fh:
+                fh.write("trabalho de outra sessao\n")
+            git("add", "--", sujeira_no_indice)
         try:
             rodada = roda_motor(repo, texto, plan_dir_g, tick_cmd, plan_path_g,
                                 checkpoint_cmd=ck_cmd, escreve_no_disco=True, **kw)
@@ -514,6 +536,12 @@ def bancada_git(texto, tick_cmd, ck_cmd, **kw):
         rodada["log"] = git("log", "--oneline").stdout
         rodada["versionados"] = git("ls-tree", "-r", "--name-only", "HEAD").stdout.split()
         rodada["solto"] = git("status", "--porcelain").stdout
+        rodada["commitado"] = git("show", "--stat", "--name-only", "--format=",
+                                  "HEAD").stdout.split()
+        if sujeira_no_indice:
+            rodada["indice"] = git("diff", "--cached", "--name-only").stdout.split()
+            with open(os.path.join(repo, sujeira_no_indice)) as fh:
+                rodada["sujeira"] = fh.read()
         return rodada
     finally:
         shutil.rmtree(repo, ignore_errors=True)
@@ -802,7 +830,8 @@ def main():
         return 1
 
     interrompido = bancada_git(texto, tick_cmd, ck_cmd, max_rounds=3, review_complete=False,
-                               agora=AGORA, heartbeat=MUDO_HA, trabalho_vivo=False)
+                               agora=AGORA, heartbeat=MUDO_HA, trabalho_vivo=False,
+                               sujeira_no_indice="alheio.txt")
     if interrompido is None:
         return 1
 
@@ -816,11 +845,28 @@ def main():
 
     check("o historico ganhou a onda, com o numero dela", "onda 1" in interrompido["log"])
     check("a obra dos executores esta NO HISTORICO",
-          "F1.1.txt" in interrompido["versionados"] and "F1.2.txt" in interrompido["versionados"])
+          "a.py" in interrompido["versionados"] and "b.sh" in interrompido["versionados"])
     check("o plano marcado tambem entrou no historico",
           any(v.endswith("%s.plan.json" % PLANO["id"]) for v in interrompido["versionados"]))
     check("nada da onda fechada ficou solto no disco",
-          "F1.1.txt" not in interrompido["solto"] and "F1.2.txt" not in interrompido["solto"])
+          "a.py" not in interrompido["solto"] and "b.sh" not in interrompido["solto"])
+    # F9.60 — o commit da onda e NOMEADO: `git show --stat` lista so o que o bloco tocou.
+    # Com `add -A` a arvore inteira entrava, e o arquivo de quem NAO foi aprovado (F1.4,
+    # que estourou o teto) vinha junto — trabalho de fora gravado como se fosse da onda.
+    check("o commit da onda lista so os arquivos que ela tocou",
+          sorted(interrompido["commitado"]) == sorted(
+              ["a.py", "b.sh", "c.sh", ".claude/plans/%s.plan.json" % PLANO["id"]]))
+    check("arquivo de fora da onda nao entra no commit (F1.4 estourou o teto)",
+          "d.py" not in interrompido["commitado"] and "d.py" in interrompido["solto"])
+    # F9.60 — o vazamento pelo INDICE: outra sessao stageou `alheio.txt` antes da onda.
+    # `git commit` sem pathspec grava o indice inteiro, e o alheio entrava no commit da
+    # onda mesmo com o `add` nomeado.
+    check("arquivo que outra sessao apenas stageou nao entra no commit da onda",
+          "alheio.txt" not in interrompido["commitado"])
+    check("o que era de fora segue staged, para a sessao dona dele",
+          "alheio.txt" in interrompido["indice"])
+    check("e segue intacto no disco",
+          interrompido["sujeira"] == "trabalho de outra sessao\n")
     # O que NAO fechou nao pode ser inventado no historico: F1.3 devolveu
     # `done: false` e o executor nem escreveu o arquivo dele.
     check("o que nao fechou nao aparece no historico",
@@ -846,7 +892,7 @@ def main():
     check("nenhum salvamento foi disparado na onda vermelha", vermelha["checkpoints"] == [])
     check("o historico NAO ganhou a onda vermelha", "onda 1" not in vermelha["log"])
     check("a obra da onda vermelha ficou solta, fora do historico",
-          "F1.1.txt" in vermelha["solto"] and "F1.1.txt" not in vermelha["versionados"])
+          "a.py" in vermelha["solto"] and "a.py" not in vermelha["versionados"])
 
     quebra = [b for b in saida6["blockers"] if "suíte quebrou" in (b.get("what") or "")]
     check("a onda vermelha vira Bloqueio, nao silencio", len(quebra) == 1)
@@ -1005,9 +1051,12 @@ def main():
               for b in saida8.get("impedidos") or []))
     check("o motor declara a obra construida mesmo assim", saida8["built"] is True)
     check("a onda nao foi segurada: uma volta so", len(saida8["rounds"]) == 1)
+    # A regua nova (autopsia 2026-08-09): tarefa ja entregue que volta identica e PULADA,
+    # entao a 2a rodada do controle nao re-executa tudo — a conta passa a ser "uma onda
+    # inteira de exec no cenario de concepcao", nao "metade do controle".
     check("nenhum executor recebeu tarefa nova por causa dele",
           conc["agentes"].count("decompose") == 1
-          and conc["agentes"].count("exec") == trava["agentes"].count("exec") / 2)
+          and conc["agentes"].count("exec") == len(RESULTADOS))
 
     # ── S-104 ────────────────────────────────────────────────────────────────────
     # A obra contradiz o desenho aprovado. Injetada a contradicao, o gap tem que NASCER:
