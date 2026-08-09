@@ -188,6 +188,37 @@ A resposta dele:
 
 ---
 
+## Os limites declarados da trava — o que ela barra, e o que ela não barra
+
+**A trava barra ESQUECIMENTO, não disfarce.** O crachá do juiz é auto-declarado: ela lê
+o marcador `[gauntlet:juiz:<peça>]` no texto do prompt, e qualquer prompt pode trazê-lo.
+Um briefing de construtor colado com o marcador errado fura a trava sem ninguém ver. É
+limite aceito: a falha medida foi omissão (zero juízes lançados), nunca fraude — e
+validar o corpo do briefing custaria caro para proteger contra um defeito que não
+aconteceu. O que sobra de rede é o fecho, que recusa veredito sem o par de registros.
+
+**A desistência fala.** Depois do teto de negações a trava se desarma — decisão
+declarada: travar a missão longa com o dono fora custa mais que o defeito. O que era
+furo (revisão de 2026-08-09): ela se desarmava falando só com um log que ninguém abre.
+Hoje o desarme emite aviso na conversa, nomeando as entregas ainda sem veredito, e o
+fecho segue vermelho até os juízes existirem.
+
+---
+
+## A régua do crescimento — recurso novo só entra com o cobrador junto
+
+Revisão de 2026-08-09: entre a v0.1 e a v0.3.2 entraram a lei, a régua vinda do
+doc-load e o arsenal — e **nenhum dos três chegou com conferência de programa junto**.
+"Reconfira a lei no fecho" e "a entrega declara o que usou" eram prosa, a mesma classe
+de furo que criou a skill (regra escrita em sete briefings, cumprida em zero).
+
+Os dois ganharam cobrador na mesma revisão (`lei-aprovada.marca` e `arsenal_usado`,
+ambos em `lib/fecho_check.py`). A régua que fica: **recurso novo nesta skill entra com
+o programa que o cobra, ou com a ausência do cobrador escrita aqui, com o motivo** —
+como fazem as duas seções acima.
+
+---
+
 ## O que a skill NÃO tem, e por quê
 
 **Métrica estética automática.** Toda medida tentada — saturação, pixels em cor forte,

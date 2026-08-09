@@ -94,7 +94,7 @@ Dentro da classe B há ainda dois graus:
 
 | classe | arquivo | linha(s) | campo | canal de bloqueio |
 | --- | --- | --- | --- | --- |
-| B1 | `plugins/gauntlet/hooks/pretooluse-gauntlet.sh` | 59, 102 | `session_id` · `tool_input.prompt` | `permissionDecision:"deny"` |
+| B1 | `plugins/gauntlet/hooks/pretooluse-gauntlet.sh` | 59, 102 | `session_id` · `tool_input.prompt` | `permissionDecision:"deny"` — e, desde a v0.4.0, `systemMessage` + `additionalContext` (`hj_msg_ctx`, linha 123) quando ele DESISTE de negar |
 | B1 | `plugins/graphify-guard/hooks/pretooluse-graphify-guard.sh` | 29, 43 | `session_id`, `tool_input.command` | `permissionDecision:"deny"` |
 | B1 | `plugins/guardrails/hooks/askq-humanize.sh` | 46 | `session_id` | `permissionDecision:"deny"` |
 | B1 | `plugins/guardrails/hooks/lint-and-typecheck.sh` | 31 | `session_id` | `exit 2` |

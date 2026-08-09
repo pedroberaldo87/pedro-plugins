@@ -59,10 +59,11 @@ python3 "$(bash "${CLAUDE_PLUGIN_ROOT}/hooks/resolve-plugin.sh" project-skills l
 ```
 
 Ela diz **quais documentos valem como RÉGUA hoje** (lei + acordos aprovados) e quais são
-só mapa. Com régua encontrada: os caminhos entram no campo `lei` do rito, e a saída de
-`--marca` entra em `lei_marca` — é o congelamento da lei; a âncora do rito só pega o que
-está DENTRO do `rito.json`, e a lei mora em documento de fora. No fecho, rode `--marca`
-de novo: divergiu, a lei mudou no meio da missão — mostre ao dono antes de fechar.
+só mapa. Com régua encontrada: os caminhos entram no campo `lei` do rito. **Quem congela
+e reconfere é o programa**: o `rito` verde ancora o conteúdo de cada documento de lei
+(`lei-aprovada.marca` — a âncora do rito só pega o que está DENTRO do `rito.json`, e a
+lei mora em documento de fora), e o fecho acusa sozinho a lei que mudou, entrou ou sumiu
+no meio da missão — mostre a acusação ao dono antes de fechar.
 Sem doc-load na máquina, ou sem documento aprovado no projeto, caia na pergunta: há
 documento de regras (constituição, doc de marca, spec congelada)? **Com ele**, o caminho
 entra em `lei`; **sem ele**, a disputa é livre — só o alvo manda.
@@ -80,8 +81,9 @@ bibliotecas, efeitos e fontes de referência dele, por seção (`## website`,
 com o tipo da missão: o que ele aceitar entra no campo `arsenal` do rito e vai no
 briefing de todo **construtor** ("estes recursos existem — use antes de reinventar") e do
 **recon** (as fontes de referência visual viram candidatas a alvo complementar). Recurso
-do arsenal pode virar dependência da obra; a **entrega declara qual usou**, e o dono veta
-se não quiser. **O juiz nunca recebe o arsenal** — é munição, não régua; cobrar "usou a
+do arsenal pode virar dependência da obra; a **entrega declara qual usou** no campo
+`arsenal_usado` (lista vazia = "não usei nada"), e o dono veta se não quiser — em missão
+com arsenal, entrega sem esse campo é recusada pelo fecho. **O juiz nunca recebe o arsenal** — é munição, não régua; cobrar "usou a
 biblioteca X" seria revisão de checklist, não julgamento contra o alvo. Arquivo ausente
 ou sem a seção do tipo: siga sem ele, calado. Quando o dono disser "adiciona X ao
 arsenal", acrescente a linha na seção certa do arquivo global — é dele, você só escreve
@@ -110,7 +112,8 @@ muda (fail-open declarado, não proteção imaginária).
 
 ⚠️ **Quem apaga o sinal é a conferência verde, não você** — passe `--sinal` no fecho.
 Há rede embaixo do esquecimento: o sinal expira por idade, e a trava desiste depois de
-algumas negações na mesma sessão. Desligamento de emergência: `GAUNTLET_GATE=0`.
+algumas negações na mesma sessão — **avisando na conversa** que a disputa segue sem
+guarda. Desligamento de emergência: `GAUNTLET_GATE=0`.
 
 ## 3 · A equipe — visível, nomeada, dirigível
 
