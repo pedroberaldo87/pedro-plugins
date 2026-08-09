@@ -45,7 +45,7 @@ def roda_trava(bloco, reserva_viva, alvos):
     """Executa o bloco da skill num estado de mentira: um motor vivo registrado
     em CLAUDE_CONFIG_DIR, e a lista `alvos` como o que a revisão ia ler."""
     with tempfile.TemporaryDirectory() as tmp:
-        reservas = os.path.join(tmp, "sovai", "reservas")
+        reservas = os.path.join(tmp, "andamento", "reservas")
         os.makedirs(reservas)
         with open(os.path.join(reservas, "sessao-de-teste__motor-vivo.files"),
                   "w", encoding="utf-8") as fh:
@@ -116,7 +116,7 @@ def main():
     check("libera a reserva no fim", "liberar" in trava)
 
     bloco = bloco_bash(trava)
-    check("o passo 0.0 traz o comando que reserva pelo mecanismo do /sovai",
+    check("o passo 0.0 traz o comando que reserva pelo mecanismo do /sprint",
           "reserva-de-arquivos.sh" in bloco and "reservar" in bloco)
     # Não basta a prosa: o comando da skill é EXECUTADO contra um motor vivo
     # plantado, e tem que voltar recusa — e passar quando a lista é disjunta.

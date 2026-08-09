@@ -2,7 +2,7 @@
 # pretooluse-espera-com-guarda.sh — espera por processo em segundo plano só
 # passa quando tem TETO e checagem de que o processo ainda vive.
 #
-# Por que existe: no /sovai o dono está ausente. Um comando que espera para
+# Por que existe: no /sprint o dono está ausente. Um comando que espera para
 # sempre (`while ! grep ... ; do sleep 5; done`, `until [ -s saida ]`, `tail -f`)
 # parece vivo enquanto o processo que ele espera já morreu — e morre calado.
 # A missão fica pendurada horas sem ninguém por perto pra ver. A regra 7 do
@@ -26,7 +26,7 @@
 # gate que trava a sessão por infra é pior que gate nenhum.
 
 # Kill-switch (contrato dos hooks deste repo).
-[ "${SOVAI_ESPERA:-1}" = "0" ] && exit 0
+[ "${SPRINT_ESPERA:-1}" = "0" ] && exit 0
 
 HJ_DIR="${0%/*}"; [ "$HJ_DIR" = "$0" ] && HJ_DIR="."
 # shellcheck source=/dev/null
@@ -39,16 +39,16 @@ INPUT=$(cat 2>/dev/null)
 TOOL=$(hj_campo "$INPUT" tool_name)
 [ "$TOOL" = "Bash" ] || exit 0
 
-# ESCOPO — este gate só vale DENTRO de uma missão do /sovai. Fora dela o dono
+# ESCOPO — este gate só vale DENTRO de uma missão do /sprint. Fora dela o dono
 # está na frente do terminal e um `tail -f app.log` dele é trabalho legítimo;
-# recusar isso obrigaria o desligamento global SOVAI_ESPERA=0, que apagaria
+# recusar isso obrigaria o desligamento global SPRINT_ESPERA=0, que apagaria
 # junto a proteção lá dentro. O sinal de missão ativa é o mesmo que o gate
 # vizinho do mesmo evento consulta (pretooluse-motor-arma.sh).
 SESSION=$(hj_campo "$INPUT" session_id)
 [ -n "$SESSION" ] || exit 0
 # Estado mutável mora fora do plugin: ${CLAUDE_PLUGIN_ROOT} é cache reescrito a
 # cada bump de versão.
-[ -f "${CLAUDE_CONFIG_DIR:-$HOME/.claude}/sovai/ativo-$SESSION" ] || exit 0
+[ -f "${CLAUDE_CONFIG_DIR:-$HOME/.claude}/andamento/ativo-$SESSION" ] || exit 0
 
 CMD=$(hj_campo "$INPUT" tool_input.command)
 [ -n "$CMD" ] || exit 0
@@ -103,5 +103,5 @@ escopo. Se a espera for mesmo necessária, ela precisa das DUAS guardas juntas:
     sleep 2
   done
 
-Se este bloqueio estiver errado, o desligamento é SOVAI_ESPERA=0."
+Se este bloqueio estiver errado, o desligamento é SPRINT_ESPERA=0."
 exit 0

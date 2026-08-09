@@ -30,8 +30,8 @@ paylo() {
 # missão ativa da sessão de teste. Nunca toca no ~/.claude real.
 CFG="$(mktemp -d -t espera-cfg)"
 trap 'rm -rf "$CFG"' EXIT
-mkdir -p "$CFG/sovai"
-: > "$CFG/sovai/ativo-sess-teste"
+mkdir -p "$CFG/andamento"
+: > "$CFG/andamento/ativo-sess-teste"
 
 # Here-string e não pipe: o hook sai antes de ler o stdin em vários caminhos
 # (kill-switch, tool que não é Bash), e aí o pipe quebra e o gerador do payload
@@ -48,7 +48,7 @@ except Exception: print(0); raise SystemExit
 print(1 if d.get("hookSpecificOutput",{}).get("permissionDecision")=="deny" else 0)' 2>/dev/null
 }
 
-echo "[gate de espera com guarda do sovai]"
+echo "[gate de espera com guarda do sprint]"
 
 # 1 · O CRITÉRIO, lado vermelho: espera sem teto E sem checagem de vida
 SEM_GUARDA='while ! grep -q OK /tmp/saida.txt; do sleep 5; done'
@@ -59,7 +59,7 @@ check "a recusa nomeia o TETO que falta" \
 check "a recusa nomeia a checagem de VIVO que falta" \
   "$(printf '%s' "$OUT" | grep -q 'VIVO' && echo 1 || echo 0)" "saiu: $OUT"
 check "a recusa mostra o desligamento" \
-  "$(printf '%s' "$OUT" | grep -q 'SOVAI_ESPERA=0' && echo 1 || echo 0)" "saiu: $OUT"
+  "$(printf '%s' "$OUT" | grep -q 'SPRINT_ESPERA=0' && echo 1 || echo 0)" "saiu: $OUT"
 
 OUT=$(roda Bash 'until [ -s /tmp/resultado.json ]; do sleep 2; done; cat /tmp/resultado.json')
 check "until esperando arquivo de saída é RECUSADO" "$(nega "$OUT")" "saiu: $OUT"
@@ -80,7 +80,7 @@ OUT=$(roda Bash 'while kill -0 "$PID" 2>/dev/null; do sleep 1; done')
 check "checagem de vida SEM teto ainda é recusada" "$(nega "$OUT")" "saiu: $OUT"
 
 # 4 · mudo fora do alvo — o gate não pode atrapalhar comando comum
-OUT=$(roda Bash 'python3 plugins/sovai/lib/x.py && echo pronto')
+OUT=$(roda Bash 'python3 plugins/sprint/lib/x.py && echo pronto')  # acopla-ok: payload fictício do teste, não dependência real
 check "comando sem espera nenhuma passa mudo" \
   "$([ -z "$OUT" ] && echo 1 || echo 0)" "saiu: $OUT"
 OUT=$(roda Bash 'sleep 3')
@@ -103,8 +103,8 @@ OUT=$(CLAUDE_CONFIG_DIR="$CFG" sh "$HOOK" <<< "$(paylo Bash 'tail -f /tmp/app.lo
 check "COM sinal, o MESMO tail -f é recusado" "$(nega "$OUT")" "saiu: $OUT"
 
 # 5 · kill-switch
-OUT=$(CLAUDE_CONFIG_DIR="$CFG" SOVAI_ESPERA=0 sh "$HOOK" <<< "$(paylo Bash "$SEM_GUARDA")" 2>/dev/null)
-check "SOVAI_ESPERA=0 desliga o gate" \
+OUT=$(CLAUDE_CONFIG_DIR="$CFG" SPRINT_ESPERA=0 sh "$HOOK" <<< "$(paylo Bash "$SEM_GUARDA")" 2>/dev/null)
+check "SPRINT_ESPERA=0 desliga o gate" \
   "$([ -z "$OUT" ] && echo 1 || echo 0)" "saiu: $OUT"
 
 # 6 · o gate está LIGADO no caminho do produto (hooks.json), não só no teste

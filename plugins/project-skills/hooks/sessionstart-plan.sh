@@ -54,12 +54,12 @@ touch "${TMPDIR:-/tmp}/claude-plan-mark-$(id -u)-${SESSION}-${PHASH}" 2>/dev/nul
 # vira comando, no único instante em que ela é segura.
 #
 # ⚠️ NÃO drena com motor vivo — nem desta sessão, nem de OUTRA. O sinal `ativo-<sid>`
-# do /sovai é o que denuncia isso, e ele é por sessão: basta UM aceso para adiar.
+# do /sprint é o que denuncia isso, e ele é por sessão: basta UM aceso para adiar.
 # Drenar no meio de uma execução seria reintroduzir a corrida que a fila evita.
 ENTRADA="$PLANS_DIR/entrada"
 if [ -d "$ENTRADA" ] && [ -n "$(ls "$ENTRADA"/*.json 2>/dev/null)" ]; then
-  SOVAI_ESTADO="${CLAUDE_CONFIG_DIR:-$HOME/.claude}/sovai"
-  MOTOR_VIVO=$(ls "$SOVAI_ESTADO"/ativo-* 2>/dev/null | head -1)
+  SPRINT_ESTADO="${CLAUDE_CONFIG_DIR:-$HOME/.claude}/andamento"
+  MOTOR_VIVO=$(ls "$SPRINT_ESTADO"/ativo-* 2>/dev/null | head -1)
   ENTRADA_PY=$(CLAUDE_PLUGIN_ROOT="$SCRIPT_DIR/.." bash "$SCRIPT_DIR/resolve-plugin.sh" project-skills lib/plan_entrada.py 2>/dev/null)
   if [ -n "$MOTOR_VIVO" ]; then
     printf '📥 há passo(s) na fila de entrada do plano, e um motor está vivo — adiado.\n' >&2

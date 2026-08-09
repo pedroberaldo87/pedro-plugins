@@ -70,7 +70,7 @@ Run PEDIDO pelo nome e inexistente é outra coisa: aí é uso errado, e sai 2. A
 turnos por agente, taxa de falha, cache_read, output — mais os seis sinais e, em
 cada linha, o **trecho a abrir** (`agent-<id>.jsonl:<linha>`).
 
-**Quem entra sozinho é só o passo 1.** O medidor roda ao fim de **toda** missão do `sovai`
+**Quem entra sozinho é só o passo 1.** O medidor roda ao fim de **toda** missão do `sprint`
 (passo 5 da Persistência dele), em bash e sem agente. Os passos 2–6 são leitura cara, feita
 por agente: eles só acontecem com **sinal aceso** na saída do medidor, ou porque o usuário
 pediu a autópsia. `sinais — 0 dos 6 acesos` e ninguém pedindo ⇒ a rodada termina no passo 1,
@@ -192,7 +192,7 @@ a palavra `off` dentro de `~/.claude/improve-workflow/mode` cala a autópsia; ap
 esse arquivo (ou escrever qualquer outra coisa nele) devolve a voz. Quem liga e desliga
 é o dono, na mão — esta skill não escreve a chave, porque não escreve nada.
 
-Com `off` ali, o medidor sai calado e com código zero — o fim de missão do `sovai`
+Com `off` ali, o medidor sai calado e com código zero — o fim de missão do `sprint`
 não imprime nada, e nenhum passo desta skill dispara sozinho.
 
 ## A fronteira

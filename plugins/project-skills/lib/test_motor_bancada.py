@@ -82,7 +82,7 @@ def comando_de_checkpoint(texto):
 
 # ── o plano de bancada ───────────────────────────────────────────────────────
 PLANO = {
-    "id": "2026-08-07-bancada-sovai",
+    "id": "2026-08-07-bancada-sprint",
     "title": "Plano de bancada do motor",
     "requisitos": [{"id": "S-18", "titulo": "O plano registra o que o motor fez",
                     "ca": "os passos saem marcados sem ninguem marcar a mao",
@@ -489,7 +489,7 @@ def bancada(texto, tick_cmd, **kw):
     o seu — dois cenarios no mesmo plano marcariam passo ja marcado e o `tick` recusaria,
     misturando falha de registro com o que o cenario quer medir. Devolve None se o motor
     nao rodou (e o motivo ja saiu como check reprovado)."""
-    tmp = tempfile.mkdtemp(prefix="sovai-bancada-")
+    tmp = tempfile.mkdtemp(prefix="sprint-bancada-")
     try:
         plan_dir = os.path.join(tmp, ".claude", "plans")
         os.makedirs(plan_dir)
@@ -509,7 +509,7 @@ def bancada_git(texto, tick_cmd, ck_cmd, sujeira_no_indice=None, **kw):
     repositorio depois (historico, arvore versionada, o que ficou solto) — que e o unico
     jeito de perguntar se a onda virou ponto de salvamento ou nao. None se o motor nao
     rodou (e o motivo ja saiu como check reprovado)."""
-    repo = tempfile.mkdtemp(prefix="sovai-bancada-git-")
+    repo = tempfile.mkdtemp(prefix="sprint-bancada-git-")
     try:
         def git(*args):
             return subprocess.run(["git", "-C", repo] + list(args),
@@ -677,7 +677,7 @@ def main():
     if not tick_cmd:
         return 1
 
-    tmp = tempfile.mkdtemp(prefix="sovai-bancada-")
+    tmp = tempfile.mkdtemp(prefix="sprint-bancada-")
     try:
         plan_dir = os.path.join(tmp, ".claude", "plans")
         os.makedirs(plan_dir)
@@ -710,7 +710,7 @@ def main():
         print("F9.10 — plano que nao e arquivo nao e marcado por ninguem")
         # Mesma rodada, com planPath de plano solto: o guarda do script tem que calar o
         # papel de marcacao inteiro (senao ele rodaria o tick contra um plano inexistente).
-        tmp2 = tempfile.mkdtemp(prefix="sovai-bancada-solto-")
+        tmp2 = tempfile.mkdtemp(prefix="sprint-bancada-solto-")
         try:
             os.makedirs(os.path.join(tmp2, ".claude", "plans"))
             rodada2 = roda_motor(tmp2, texto, plan_dir, tick_cmd,

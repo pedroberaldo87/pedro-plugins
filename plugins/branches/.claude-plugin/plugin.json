@@ -1,6 +1,6 @@
 {
   "name": "branches",
-  "version": "1.3.4",
+  "version": "1.3.5",
   "description": "Diz quais branches dá pra apagar e quais NÃO dá. O `git branch --merged` mente por omissão: squash-merge e rebase produzem sha novo, então a branch aparece como não-mergeada mesmo com o conteúdo inteiro no tronco — e é por isso que a pilha cresce até o deploy reclamar de 15 branches abertas. Classifica por CONTEÚDO (patch-id), mostra o que só existe em cada branch antes de você decidir, e apaga só o que você marcar — sempre com tag de resgate. Mais dois avisos: no push de branch que ainda não entrou no tronco, e no começo da sessão quando há branch parada há mais de um mês.",
   "author": {
     "name": "pedroberaldo87",

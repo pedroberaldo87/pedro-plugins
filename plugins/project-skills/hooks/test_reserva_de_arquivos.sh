@@ -35,10 +35,10 @@ nega() {
 }
 
 SID="sessao-de-teste-1"
-ESTADO="$TMP/sovai"
+ESTADO="$TMP/andamento"
 RESERVAS="$ESTADO/reservas"
 
-echo "[reserva de arquivos entre motores do sovai]"
+echo "[reserva de arquivos entre motores do sprint]"
 
 # 1 · o primeiro motor reserva em silêncio
 OUT=$(roda reservar "$SID" motor-a plugins/x/a.sh plugins/x/b.sh)
@@ -57,7 +57,7 @@ check "a recusa nomeia o arquivo em disputa" \
 check "a recusa nomeia o motor dono da reserva" \
   "$(printf '%s' "$OUT" | grep -q 'motor-a' && echo 1 || echo 0)" "saiu: $OUT"
 check "a recusa mostra o desligamento" \
-  "$(printf '%s' "$OUT" | grep -q 'SOVAI_RESERVA=0' && echo 1 || echo 0)"
+  "$(printf '%s' "$OUT" | grep -q 'SPRINT_RESERVA=0' && echo 1 || echo 0)"
 check "quem recusa não deixa reserva pela metade" \
   "$([ ! -f "$RESERVAS/${SID}__motor-b.files" ] && echo 1 || echo 0)"
 check "quem recusa sai com exit 0 (o veredito vem do JSON)" \
@@ -108,8 +108,8 @@ check "reserva de outra sessão não recusa esta" \
   "$([ -z "$OUT" ] && echo 1 || echo 0)" "saiu: $OUT"
 
 # 8 · kill-switch
-OUT=$(CLAUDE_CONFIG_DIR="$TMP" SOVAI_RESERVA=0 bash "$HOOK" reservar "$SID" motor-x plugins/x/viva.sh 2>/dev/null)
-check "SOVAI_RESERVA=0 cala a reserva" "$([ -z "$OUT" ] && echo 1 || echo 0)" "saiu: $OUT"
+OUT=$(CLAUDE_CONFIG_DIR="$TMP" SPRINT_RESERVA=0 bash "$HOOK" reservar "$SID" motor-x plugins/x/viva.sh 2>/dev/null)
+check "SPRINT_RESERVA=0 cala a reserva" "$([ -z "$OUT" ] && echo 1 || echo 0)" "saiu: $OUT"
 
 # 9 · fail-open nas bordas de infra
 OUT=$(roda reservar "$SID")

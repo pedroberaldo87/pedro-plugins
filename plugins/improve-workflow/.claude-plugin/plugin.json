@@ -1,6 +1,6 @@
 {
   "name": "improve-workflow",
-  "version": "0.16.16",
+  "version": "0.16.17",
   "description": "Workflow autopsy — reads the full transcript of a finished multi-agent run, measures cost and friction per role (agents, turns, tokens), flags suspect roles by counting instead of judging, and proposes fixes for the user to approve. It investigates and proposes, and is forbidden by design from implementing its own proposals. Early stage: today it ships the run-scoped leftovers sweeper (stale file reservations of that run only), the per-role measurer over a run transcript, and the skill that runs the round.",
   "author": {
     "name": "pedroberaldo87",

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""A SKILL.md do sovai tem que cobrar `requisito` e `pronto` em cada tarefa.
+"""A SKILL.md do sprint tem que cobrar `requisito` e `pronto` em cada tarefa.
 
 O defeito que isto impede: a decomposicao entregava tarefa sem dizer que requisito
 ela atende nem o que conta como feito. O executor cumpria o que quisesse e o revisor

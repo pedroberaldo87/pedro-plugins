@@ -411,7 +411,7 @@ def gatilho_morto(inst=None, sk=None):
 
 
 # ── 8 · SEM SITUAÇÃO — a descrição que só serve a quem já sabe que a skill existe ──
-# Apelido (`"/faxina"`, `"sovai"`) serve a quem lembra do nome. Quem NÃO lembra que a
+# Apelido (`"/faxina"`, `"sprint"`) serve a quem lembra do nome. Quem NÃO lembra que a
 # skill existe só é atendido se a descrição disser em que SITUAÇÃO DE TRABALHO ela entra
 # — o molde é a de `sprint`: `Use quando o usuário disser …`. A frase tem duas peças, e
 # nenhuma sozinha basta: um verbo de invocação (use, rode, dispare…) e o elo que amarra

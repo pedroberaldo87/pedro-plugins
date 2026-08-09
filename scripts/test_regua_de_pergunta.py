@@ -26,7 +26,7 @@ FONTE = os.path.join(SHARED, ARQ)
 def _destinos_do_vendoring(nome):
     """Os destinos DECLARADOS em scripts/sync-shared.sh, lidos do arquivo.
 
-    A lista era escrita à mão, e o F14.2 a venceu: `start-doc`, `sovai` e `qa-loop`
+    A lista era escrita à mão, e o F14.2 a venceu: `start-doc`, `sprint` e `qa-loop`
     mudaram de plugin, os caminhos velhos deixaram de existir, e a suíte ficou
     vermelha por endereço em vez de por defeito. Quem sabe onde cada cópia mora é o
     próprio vendoring — derivar dele faz o próximo rename chegar aqui sozinho.

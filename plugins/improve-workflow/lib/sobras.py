@@ -58,8 +58,8 @@ def reservas(sessao, dir_reservas=None, agora=None, ttl_min=None):
         return []
     if dir_reservas is None:
         base = os.environ.get("CLAUDE_CONFIG_DIR") or os.path.join(os.path.expanduser("~"), ".claude")
-        dir_reservas = os.path.join(base, "sovai", "reservas")
-    ttl_min = int(os.environ.get("SOVAI_RESERVA_TTL_MIN", 720)) if ttl_min is None else ttl_min
+        dir_reservas = os.path.join(base, "sprint", "reservas")
+    ttl_min = int(os.environ.get("SPRINT_RESERVA_TTL_MIN", 720)) if ttl_min is None else ttl_min
     agora = time.time() if agora is None else agora
     if not os.path.isdir(dir_reservas):
         return []

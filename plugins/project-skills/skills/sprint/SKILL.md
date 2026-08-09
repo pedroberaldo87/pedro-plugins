@@ -1,11 +1,11 @@
 ---
 name: sprint
-description: Modo de execução contínua — executa um plano ou tarefa multi-etapa do começo ao fim sem pausas, sem checkpoints e sem perguntas, decidindo o que precisar e anotando cada decisão para o relatório final. Use quando o usuário disser "sovai", "sova", "executa até o fim", "vai sem parar", "não me consulte", "eu não estarei disponível", "modo autônomo". Não dispare para tarefa curta que acaba num turno.
+description: Modo de execução contínua — executa um plano ou tarefa multi-etapa do começo ao fim sem pausas, sem checkpoints e sem perguntas, decidindo o que precisar e anotando cada decisão para o relatório final. Use quando o usuário disser "sprint", "sovai", "sova", "executa até o fim", "vai sem parar", "não me consulte", "eu não estarei disponível", "modo autônomo". Não dispare para tarefa curta que acaba num turno.
 ---
 
-# Sovai — Execução Contínua
+# Sprint — Execução Contínua
 
-O usuário vai ficar indisponível. Reconheça com uma linha (`modo sovai ativo, começando`) e comece. Daqui em diante, silêncio até o relatório final.
+O usuário vai ficar indisponível. Reconheça com uma linha (`modo sprint ativo, começando`) e comece. Daqui em diante, silêncio até o relatório final.
 
 ## Contrato
 
@@ -51,26 +51,26 @@ programa, e as quatro cópias dela em prosa divergiam.
 Antes de disparar o Workflow, acenda o sinal; ao entregar o relatório, apague. É ele que faz o gate existir:
 
 ```bash
-SOVAI_DIR="${CLAUDE_CONFIG_DIR:-$HOME/.claude}/sovai"
-mkdir -p "$SOVAI_DIR"
-printf 'sprint\n' > "$SOVAI_DIR/ativo-$CLAUDE_CODE_SESSION_ID"   # ao armar a missão
-SOVAI_MOTOR_ID="motor-$(date -u +%Y%m%dT%H%M%SZ)-$$"    # id DESTE motor na sessão
-rm -f "$SOVAI_DIR"/{ativo,bloqueios}-"$CLAUDE_CODE_SESSION_ID"   # ao entregar
+SPRINT_DIR="${CLAUDE_CONFIG_DIR:-$HOME/.claude}/andamento"
+mkdir -p "$SPRINT_DIR"
+printf 'sprint\n' > "$SPRINT_DIR/ativo-$CLAUDE_CODE_SESSION_ID"   # ao armar a missão
+SPRINT_MOTOR_ID="motor-$(date -u +%Y%m%dT%H%M%SZ)-$$"    # id DESTE motor na sessão
+rm -f "$SPRINT_DIR"/{ativo,bloqueios}-"$CLAUDE_CODE_SESSION_ID"   # ao entregar
 ```
 
-**O nome vai DENTRO do sinal** porque é ele que a barra de status lê para dizer quem acendeu (`lib/andamento.py:_motor`). Sinal vazio não é motor anônimo: cai no rótulo genérico, e foi assim que a barra chamou de `sovai` toda missão desta skill mesmo depois de o plugin `sovai` deixar de existir.
+**O nome vai DENTRO do sinal** porque é ele que a barra de status lê para dizer quem acendeu (`lib/andamento.py:_motor`). Sinal vazio não é motor anônimo: cai no rótulo genérico, e foi assim que a barra chamou de `sprint` toda missão desta skill mesmo depois de o plugin `sprint` deixar de existir.
 
-O `SOVAI_MOTOR_ID` vai no `args` do Workflow como `motorId` (junto com `sessionId` = `$CLAUDE_CODE_SESSION_ID`): é com ele que o motor **reserva os arquivos da onda antes de soltar executor** (`hooks/reserva-de-arquivos.sh reservar`, ver o esqueleto) e os **libera** ao entregar. Dois motores da mesma sessão com o mesmo id se enxergariam como um só, e a reserva nunca recusaria nada.
+O `SPRINT_MOTOR_ID` vai no `args` do Workflow como `motorId` (junto com `sessionId` = `$CLAUDE_CODE_SESSION_ID`): é com ele que o motor **reserva os arquivos da onda antes de soltar executor** (`hooks/reserva-de-arquivos.sh reservar`, ver o esqueleto) e os **libera** ao entregar. Dois motores da mesma sessão com o mesmo id se enxergariam como um só, e a reserva nunca recusaria nada.
 
-Enquanto o sinal está aceso, `hooks/pretooluse-motor-arma.sh` do plugin `sovai` **nega** todo disparo de sub-agente e manda rodar o Workflow. Fora do sovai ele é mudo. Desligamento: `SOVAI_GATE=0`.
+Enquanto o sinal está aceso, `hooks/pretooluse-motor-arma.sh` do plugin `sprint` **nega** todo disparo de sub-agente e manda rodar o Workflow. Fora do sprint ele é mudo. Desligamento: `SPRINT_GATE=0`.
 
 ⚠️ **Esqueceu de apagar o sinal, a sessão inteira fica sem despachar sub-agente.** Apagar é parte da entrega, não faxina opcional.
 
-**A rede embaixo do esquecimento (desde 2026-08-06):** o sinal **expira por idade**. Passado `SOVAI_TTL_MIN` (default 720 min = 12h) sem ser apagado, a primeira consulta do gate o **remove** — junto com o contador de bloqueios dele — e registra a linha em `expirados.log`. Isso não te dispensa do `rm`: a janela é de 12h porque a missão que o gate protege é longa por definição, e encurtá-la mataria sinal de execução legítima em andamento.
+**A rede embaixo do esquecimento (desde 2026-08-06):** o sinal **expira por idade**. Passado `SPRINT_TTL_MIN` (default 720 min = 12h) sem ser apagado, a primeira consulta do gate o **remove** — junto com o contador de bloqueios dele — e registra a linha em `expirados.log`. Isso não te dispensa do `rm`: a janela é de 12h porque a missão que o gate protege é longa por definição, e encurtá-la mataria sinal de execução legítima em andamento.
 
 ### Por que o gate precisou nascer
 
-A frase que ficou aqui de 2026-08-01 até 2026-08-02 dizia que *"o guard `PreToolUse(Agent)` acorda a cada disparo"*. **Não acordava.** O guard que existe é o do `guardrails`, e ele foi escrito para **proteger** Agent Teams — a regra 3 dele libera explicitamente *"tarefa one-off sem team_name"*, que é exatamente a forma pela qual o `/sovai` descambava. A skill se apoiava numa proteção inexistente, e ninguém tinha como saber: prosa descrevendo mecanismo ausente não dá erro.
+A frase que ficou aqui de 2026-08-01 até 2026-08-02 dizia que *"o guard `PreToolUse(Agent)` acorda a cada disparo"*. **Não acordava.** O guard que existe é o do `guardrails`, e ele foi escrito para **proteger** Agent Teams — a regra 3 dele libera explicitamente *"tarefa one-off sem team_name"*, que é exatamente a forma pela qual o `/sprint` descambava. A skill se apoiava numa proteção inexistente, e ninguém tinha como saber: prosa descrevendo mecanismo ausente não dá erro.
 
 **O gate degrada, não trava.** Depois de 3 negações na mesma sessão ele desiste, libera e grava a desistência em `desistencias.log`. O motivo é o cenário: missão longa, dono ausente. Se a inferência de que o Workflow não passa por aqui estiver errada, a missão continua manca em vez de morrer parada.
 
@@ -78,7 +78,7 @@ A frase que ficou aqui de 2026-08-01 até 2026-08-02 dizia que *"o guard `PreToo
 
 O tier de cada etapa (modelo · effort · knob) e a semântica dos knobs são o **contrato R8 compartilhado** com o `/qa-loop`, vendorado em **`references/r8-tiers.md`** (fonte: `_shared/r8-tiers.md` — não editar a cópia à mão; `scripts/sync-shared.sh --check` pega drift). A tabela completa (Etapa · Modelo · Effort · Knob + o que cada knob significa + a regra de tier por rodada) está lá.
 
-**É TUDO Opus 5** (contrato R8 desde 2026-07-26, vale pros dois motores): os seis knobs rodam `model: 'opus'` e só o **`effort`** varia por etapa. Aqui isso pesa dobrado — o `/sovai` roda com o usuário indisponível, sem checkpoint humano pra pegar execução rasa.
+**É TUDO Opus 5** (contrato R8 desde 2026-07-26, vale pros dois motores): os seis knobs rodam `model: 'opus'` e só o **`effort`** varia por etapa. Aqui isso pesa dobrado — o `/sprint` roda com o usuário indisponível, sem checkpoint humano pra pegar execução rasa.
 
 Abaixo, **onde cada knob entra NESTE motor** (decompõe→executa→revisa):
 
@@ -130,22 +130,22 @@ plano dizendo que não.
 
 Projeto que compila em minutos cobra esse preço **de cada executor** quando ninguém compila antes: numa execução real, **dez minutos de compilação por tarefa** foi o que empurrou o agente para o segundo plano — e processo em segundo plano que morre não avisa. A compilação é paga **aqui, uma vez**, e o que os executores herdam é o **cache quente** no disco do repositório.
 
-`SOVAI_BUILD_CMD` = o comando de compilação do projeto, **o mesmo que o executor rodaria** (`npm run build`, `cargo build`, `go build ./...`, `make`); projeto que não compila deixa vazio e o passo não faz nada.
+`SPRINT_BUILD_CMD` = o comando de compilação do projeto, **o mesmo que o executor rodaria** (`npm run build`, `cargo build`, `go build ./...`, `make`); projeto que não compila deixa vazio e o passo não faz nada.
 
 ```bash
-SOVAI_DIR="${CLAUDE_CONFIG_DIR:-$HOME/.claude}/sovai"
-mkdir -p "$SOVAI_DIR"
-BUILD_LOG="$SOVAI_DIR/build-$CLAUDE_CODE_SESSION_ID.log"
+SPRINT_DIR="${CLAUDE_CONFIG_DIR:-$HOME/.claude}/andamento"
+mkdir -p "$SPRINT_DIR"
+BUILD_LOG="$SPRINT_DIR/build-$CLAUDE_CODE_SESSION_ID.log"
 # NUNCA limpe antes nem depois: `clean`, `rm -rf <dir de build>` e `--no-cache` aqui
 # devolvem o cache frio ao executor e a compilação cara volta a ser por tarefa.
-if [ -n "$SOVAI_BUILD_CMD" ] && ( cd "$SOVAI_REPO_ROOT" && sh -c "$SOVAI_BUILD_CMD" ) >"$BUILD_LOG" 2>&1
+if [ -n "$SPRINT_BUILD_CMD" ] && ( cd "$SPRINT_REPO_ROOT" && sh -c "$SPRINT_BUILD_CMD" ) >"$BUILD_LOG" 2>&1
 then BUILD_WARM=true
 else BUILD_WARM=false
 fi
 echo "buildWarm=$BUILD_WARM"
 ```
 
-O resultado vai no `args` do Workflow como **`buildWarm`**, e de lá para **todo** `execPrompt` — cache quente que ninguém avisa ao executor é cache que ele derruba com um `clean` de rotina. **Fail-open:** compilação que falha devolve `buildWarm=false` e a missão segue — o erro real chega ao executor pelo próprio build dele, e travar a missão por causa do aquecimento é pior que aquecimento nenhum. O log fica em `~/.claude/sovai/`, fora do repositório.
+O resultado vai no `args` do Workflow como **`buildWarm`**, e de lá para **todo** `execPrompt` — cache quente que ninguém avisa ao executor é cache que ele derruba com um `clean` de rotina. **Fail-open:** compilação que falha devolve `buildWarm=false` e a missão segue — o erro real chega ao executor pelo próprio build dele, e travar a missão por causa do aquecimento é pior que aquecimento nenhum. O log fica em `~/.claude/andamento/`, fora do repositório.
 
 ### Knobs deste motor (a casca passa em `args`)
 
@@ -195,7 +195,7 @@ rodando há 4min · passou do dobro do usual · 74 passou ·  0 falhou — avan�
 
 Registrar a duração ao fim de cada ferramenta longa (`andamento.registrar(repoRoot, cmd, seg)`) é o que alimenta a estimativa da próxima vez. Suíte roda várias vezes na mesma missão — é dessa repetição que a memória vive.
 
-**E o relógio e a estimativa também chegam à BARRA** (`hooks/statusline-motor.sh` → `lib/andamento.py:linha_motor`), que é a única superfície que fica: `systemMessage` rola com a conversa, e quem volta ao terminal uma hora depois não vê nenhuma das linhas acima. A barra é desenhada por outro processo e **não adivinha nada** — ela sai como `ferramenta há 70s · usual ~1min35s` porque **quem executa gravou o disparo**: o gancho de andamento em `marca` (PreToolUse de Bash, o mesmo que roda dentro de cada executor da onda) escreve em `~/.claude/sovai/trabalho-<sid>` o instante, o **comando** e o **projeto**, e apaga o arquivo quando o comando volta. Sem comando e projeto no disco não há como chamar `estimativa()`, e a barra volta a ter só a idade da missão. Comando sem histórico aqui sai **sem número**, pela mesma regra de sempre.
+**E o relógio e a estimativa também chegam à BARRA** (`hooks/statusline-motor.sh` → `lib/andamento.py:linha_motor`), que é a única superfície que fica: `systemMessage` rola com a conversa, e quem volta ao terminal uma hora depois não vê nenhuma das linhas acima. A barra é desenhada por outro processo e **não adivinha nada** — ela sai como `ferramenta há 70s · usual ~1min35s` porque **quem executa gravou o disparo**: o gancho de andamento em `marca` (PreToolUse de Bash, o mesmo que roda dentro de cada executor da onda) escreve em `~/.claude/andamento/trabalho-<sid>` o instante, o **comando** e o **projeto**, e apaga o arquivo quando o comando volta. Sem comando e projeto no disco não há como chamar `estimativa()`, e a barra volta a ter só a idade da missão. Comando sem histórico aqui sai **sem número**, pela mesma regra de sempre.
 
 ### A janela de tempo da sessão NÃO dá para observar
 
@@ -359,7 +359,7 @@ determinísticos: o script lê campos estruturados, não texto solto.
 
 ```javascript
 export const meta = {
-  name: 'sovai-build-engine',
+  name: 'sprint-build-engine',
   description: 'Motor de implementação: tier por etapa (R8) — decompose/coordinate/executor/mechanical/diagnose/finalize',
   phases: [{ title: 'Decompor' }, { title: 'Diagnose' }, { title: 'Executar' },
            { title: 'Revisar' }, { title: 'Confirmar' }],
@@ -1330,7 +1330,7 @@ A declaração é a **primeira linha do corpo**, sozinha, antes de qualquer pros
 - `AUDITOR` — `{ derruba: bool, motivo, naoTentou: [...], anchor }`, devolvido por `auditorPrompt` (`diagnose_model`). A lente é **invertida**: o ônus é do auditor provar que **não dá**, e ele recebe `ferramentas` — o que havia à mão — para dizer em `naoTentou` o que o executor nem tentou. `derruba: true` **devolve a tarefa ao loop** (ela entra no `missing` do #1 na volta seguinte, com o que o auditor apontou); `derruba: false` **encerra como impedimento real** — Bloqueio de `kind: 'impedimento'` com o `motivo` escrito. Auditor mudo não encerra nada: a tarefa volta pro loop, porque quem não respondeu não confirmou impedimento. Como todo veredito, sem `anchor` ele é recusado e o papel roda de novo.
 - `SAUDE` — `{ fechada: bool, motivo, saida }`, devolvido por `saudePrompt` (`mechanical_model`), na largada de **toda** rodada. Papel **mecânico e só**: roda os checks determinísticos da casa a partir da raiz — os mesmos que o gate de commit consulta (`python3 scripts/desacoplamento_check.py` e vizinhos listados em `.claude/hooks/release-gate.sh`, quando existirem) — e devolve `fechada: true` com `motivo` (uma linha) e `saida` (a saída crua) quando **qualquer** um reprova o estado atual do repositório. É a guarda **catchall** da autópsia de 2026-08-09: a porta fechada de hoje era o commit; a de amanhã pode ser outra, e o que fecha o motor é o check reprovando, não o nome da doença. Fail-open nas duas pontas: projeto sem esses checks, check quebrado ou agente mudo ⇒ `fechada: false` — travar a corrida por infra de gate é pior que gate nenhum.
 - `DESAFIO` — `{ procede: bool, motivo, escopo?, anchor }`, devolvido por `desafioCausaPrompt` (`diagnose_model`). **`escopo`** = `'tarefa'` ou `'repositorio'`, declarado **pelo par em acordo** — o desafiador que referenda diz até onde a causa alcança, e `'repositorio'` significa que ela mata QUALQUER trabalho novo, não só esta tarefa. É esse rótulo (nunca inferência do motor) que dispara a parada no mesmo turno e a chave global do cache de causa. Ausente ⇒ `'tarefa'`. O desafiador recebe a tarefa e a **causa** que o investigador apontou, com a ordem de **derrubá-la**: `procede: false` carrega em `motivo` o fato que a causa não explica ou a concorrente mais simples — e esse motivo volta ao investigador na volta seguinte (`desafioAnterior`). `procede: true` referenda, e só então o diagnóstico entra no `feedback` (`desafiada: true`). Três voltas sem acordo viram Bloqueio `kind: 'causa-em-disputa'` com as duas versões; desafiador mudo **não referenda**. Como todo veredito, sem `anchor` é recusado e roda de novo.
-- `SUITE_RESULT` — `{ green: bool, failing: [nome...], placar, heartbeat, trabalhoVivo: bool }`. **`placar`** = a linha crua que a suíte imprimiu (`139 passou · 0 falhou`, `OK (56 checks)`, `17 ok / 0 falhas`), <!-- acopla-ok: exemplos do formato de placar reconhecido, não contagem deste repositório --> lida por `lib/andamento.py:placar` e comparada com a da onda anterior por `lib/andamento.py:avanco` — dois placares iguais seguidos saem como `sem avanço`. O veredito aparece nas **duas** superfícies: no cartão que fecha a onda (`hooks/posttooluse-andamento.sh`, que vê a saída crua da suíte) e na **barra** (`hooks/statusline-motor.sh` → `linha_placar`), que é a que fica. O registro é um só, em `~/.claude/sovai/placar-<sid>` — o motor guarda o campo na onda (`rounds[].placar`) e não o descarta mais. **`trabalhoVivo`** separa demora de travamento: com ele `true`, o vigia **não** derruba, por mais silencioso que esteja o registro. **`heartbeat`** = o carimbo de tempo do último sinal de vida, que a casca reinjeta a cada rodada (o script não tem relógio próprio).
+- `SUITE_RESULT` — `{ green: bool, failing: [nome...], placar, heartbeat, trabalhoVivo: bool }`. **`placar`** = a linha crua que a suíte imprimiu (`139 passou · 0 falhou`, `OK (56 checks)`, `17 ok / 0 falhas`), <!-- acopla-ok: exemplos do formato de placar reconhecido, não contagem deste repositório --> lida por `lib/andamento.py:placar` e comparada com a da onda anterior por `lib/andamento.py:avanco` — dois placares iguais seguidos saem como `sem avanço`. O veredito aparece nas **duas** superfícies: no cartão que fecha a onda (`hooks/posttooluse-andamento.sh`, que vê a saída crua da suíte) e na **barra** (`hooks/statusline-motor.sh` → `linha_placar`), que é a que fica. O registro é um só, em `~/.claude/andamento/placar-<sid>` — o motor guarda o campo na onda (`rounds[].placar`) e não o descarta mais. **`trabalhoVivo`** separa demora de travamento: com ele `true`, o vigia **não** derruba, por mais silencioso que esteja o registro. **`heartbeat`** = o carimbo de tempo do último sinal de vida, que a casca reinjeta a cada rodada (o script não tem relógio próprio).
 - `blocker` de `kind: 'criterio'` — critério de aceite que só se cumpre injetando valor inventado dentro de entregável. Não vira tarefa: vira Bloqueio, e o `whyNeedsYou` diz qual passo da spec precisa reescrever o `pronto`. **Quem o emite é o SCRIPT**, logo depois da decomposição e antes de qualquer executor sair (ver o bloco da régua no esqueleto) — não é julgamento do #1.
 - `REGUA` — `{ reprovados: [{ task_id, motivo }] }`. O papel é **mecânico e só**: para cada `{ id, pronto }` recebido, rodar
 
@@ -1374,7 +1374,7 @@ A declaração é a **primeira linha do corpo**, sozinha, antes de qualquer pros
 - `checkpointPrompt` — **sem schema** (nada volta pro script). Papel **mecânico e só**: gravar no **histórico do git** o que a onda verde produziu, rodando
 
   ```bash
-  OK=""; for f in <arquivo...>; do git -C <raiz> add -- "$f" && OK="$OK $f" || echo "sovai: o git recusou $f — fica fora do ponto de salvamento da onda <r>"; done; [ -n "$OK" ] && git -C <raiz> commit -q -m "sovai: onda <r> bloco <b> verde" -- $OK || true
+  OK=""; for f in <arquivo...>; do git -C <raiz> add -- "$f" && OK="$OK $f" || echo "sprint: o git recusou $f — fica fora do ponto de salvamento da onda <r>"; done; [ -n "$OK" ] && git -C <raiz> commit -q -m "sprint: onda <r> bloco <b> verde" -- $OK || true
   ```
 
   ⚠️ **O `commit` também é por caminho, não só o `add`.** `git commit` sem pathspec grava o
@@ -1414,7 +1414,7 @@ A declaração é a **primeira linha do corpo**, sozinha, antes de qualquer pros
   LIXEIRO="$(bash "${CLAUDE_PLUGIN_ROOT}/skills/sprint/resolve-plugin.sh" lixeiro lib/lixeiro.py)"
   if [ -n "$LIXEIRO" ]; then
     python3 "$LIXEIRO" colhe-turno --sessao "$CLAUDE_CODE_SESSION_ID" \
-      || echo "sovai: a colheita falhou em $LIXEIRO — segue sem colher"
+      || echo "sprint: a colheita falhou em $LIXEIRO — segue sem colher"
   fi
   ```
 
@@ -1485,11 +1485,11 @@ Passada a QA e **ANTES** de montar o relatório, persista o trabalho. Esta é a 
    - Árvore limpa (nada pra commitar) → pula e anota "nada a persistir".
    - Falha de push (sem remote, sem auth, rejeição) → **não force**; registra como `Bloqueio (precisa de você)` com o erro real e segue pro relatório (o commit local fica feito).
 
-3. **Apaga o sinal do sovai e LIBERA os arquivos reservados.** É o par do `mkdir` da seção _Execução_ e da reserva que o motor fez antes de executar, e é obrigatório:
+3. **Apaga o sinal do sprint e LIBERA os arquivos reservados.** É o par do `mkdir` da seção _Execução_ e da reserva que o motor fez antes de executar, e é obrigatório:
 
    ```bash
-   rm -f "${CLAUDE_CONFIG_DIR:-$HOME/.claude}/sovai"/{ativo,bloqueios}-"$CLAUDE_CODE_SESSION_ID"
-   bash "$(bash "${CLAUDE_PLUGIN_ROOT}/lib/resolve-plugin.sh" project-skills hooks/reserva-de-arquivos.sh)" liberar "$CLAUDE_CODE_SESSION_ID" "$SOVAI_MOTOR_ID"
+   rm -f "${CLAUDE_CONFIG_DIR:-$HOME/.claude}/andamento"/{ativo,bloqueios}-"$CLAUDE_CODE_SESSION_ID"
+   bash "$(bash "${CLAUDE_PLUGIN_ROOT}/lib/resolve-plugin.sh" project-skills hooks/reserva-de-arquivos.sh)" liberar "$CLAUDE_CODE_SESSION_ID" "$SPRINT_MOTOR_ID"
    ```
 
    Reserva não liberada recusaria o próximo motor da sessão nos mesmos arquivos — é o mesmo esquecimento do sinal, com outro nome. (Há rede embaixo: a reserva expira por idade, mesma janela de 12h do sinal.)
@@ -1502,7 +1502,7 @@ Passada a QA e **ANTES** de montar o relatório, persista o trabalho. Esta é a 
    LIXEIRO="$(bash "${CLAUDE_PLUGIN_ROOT}/skills/sprint/resolve-plugin.sh" lixeiro lib/lixeiro.py)"
    if [ -n "$LIXEIRO" ]; then
      python3 "$LIXEIRO" colhe-turno --sessao "$CLAUDE_CODE_SESSION_ID" \
-       || echo "sovai: a colheita falhou em $LIXEIRO — segue sem colher"
+       || echo "sprint: a colheita falhou em $LIXEIRO — segue sem colher"
    fi
    ```
 
@@ -1513,7 +1513,7 @@ Passada a QA e **ANTES** de montar o relatório, persista o trabalho. Esta é a 
    ```bash
    MEDIDOR="$(bash "${CLAUDE_PLUGIN_ROOT}/skills/sprint/resolve-plugin.sh" improve-workflow lib/medidor.py)"
    if [ -n "$MEDIDOR" ]; then
-     python3 "$MEDIDOR" || echo "sovai: a medição falhou em $MEDIDOR — segue sem medir"
+     python3 "$MEDIDOR" || echo "sprint: a medição falhou em $MEDIDOR — segue sem medir"
    fi
    ```
 
@@ -1532,7 +1532,7 @@ O relatório é a única coisa que o usuário lê desta sessão — e ele lê **
 Cinco seções fixas, mais a do custo quando houve medição. Monte este conteúdo PRIMEIRO; a forma de entrega (HTML ou markdown) vem depois.
 
 ```
-## Sovai — terminei
+## Sprint — terminei
 
 ### Feito
 - [só o que foi verificado]
@@ -1567,7 +1567,7 @@ drilldown fechado — mesma revelação progressiva das páginas do `/visual`. M
 
 ### Entrega via /visual (titular)
 
-Se a Skill **`visual`** estiver entre as suas skills disponíveis, **invoque-a** (Skill tool, `skill: "visual"`) e renderize o relatório como HTML. (Não "digite /visual" — invoque a skill.) `visual` é **dependência recomendada** do sovai; instale os dois juntos. <!-- acopla-ok: invocação por NOME de skill, que é o caminho portátil; o passo é condicional e degrada sem ela -->
+Se a Skill **`visual`** estiver entre as suas skills disponíveis, **invoque-a** (Skill tool, `skill: "visual"`) e renderize o relatório como HTML. (Não "digite /visual" — invoque a skill.) `visual` é **dependência recomendada** do sprint; instale os dois juntos. <!-- acopla-ok: invocação por NOME de skill, que é o caminho portátil; o passo é condicional e degrada sem ela -->
 
 Por que HTML: o relatório é longo e completo, e o usuário vai **revisar item a item e refatorar**. O `/visual` tem o componente exato pra isso — veredito inline (`.feedback-item`: ✓ Manter / ✏️ Mudar / ✗ Remover) que ele marca enquanto lê.
 
@@ -1589,7 +1589,7 @@ No spec, **`item_labels: ["✓ Manter", "✏️ Mudar", "✗ Remover"]`** — NU
 **CLI mínimo** (o /visual proíbe duplicar o conteúdo no CLI): emita só
 
 ```
-Sovai terminou. Relatório completo no browser: <path>
+Sprint terminou. Relatório completo no browser: <path>
 ⚠️ Bloqueios (precisam de você): <título 1> · <título 2>   ← só os títulos, se houver
 ```
 

@@ -20,7 +20,7 @@
 # é descartado por quem chama (é o defeito que a checagem M do release-gate
 # persegue), e um aviso que ninguém lê é um aviso que não existe.
 #
-# ESCOPO: só DENTRO de uma missão do /sovai (o mesmo sinal `ativo-<sid>` que os
+# ESCOPO: só DENTRO de uma missão do /sprint (o mesmo sinal `ativo-<sid>` que os
 # gates vizinhos consultam). Fora dela o dono está na frente do terminal e vê a
 # saída do próprio comando; narrar ali seria só ruído.
 #
@@ -28,7 +28,7 @@
 # nenhum.
 
 # Kill-switch (contrato dos hooks deste repo).
-[ "${SOVAI_ANDAMENTO:-1}" = "0" ] && exit 0
+[ "${SPRINT_ANDAMENTO:-1}" = "0" ] && exit 0
 
 HJ_DIR="${0%/*}"; [ "$HJ_DIR" = "$0" ] && HJ_DIR="."
 # shellcheck source=/dev/null
@@ -50,7 +50,7 @@ SESSION=$(hj_campo "$INPUT" session_id)
 # Estado por-sessão em /tmp é chaveado por session_id: sessão paralela não pode
 # herdar a marca da outra.
 [ -n "$SESSION" ] || exit 0
-MARCA="$(td_tmpdir)/sovai-andamento-$SESSION"
+MARCA="$(td_tmpdir)/sprint-andamento-$SESSION"
 # O mesmo disparo, gravado onde a BARRA consegue ler: ela é desenhada por outro
 # processo, que não enxerga o /tmp desta sessão. Existir = tem comando de pé;
 # o instante lá dentro é o que separa "rodando há 20 min" de travamento.
@@ -59,7 +59,7 @@ MARCA="$(td_tmpdir)/sovai-andamento-$SESSION"
 # pra `andamento/`; a pasta antiga só é LIDA, pra missão viva não perder o que já
 # tinha.
 ESTADO="${CLAUDE_CONFIG_DIR:-$HOME/.claude}/andamento"
-ESTADO_ANTIGO="${CLAUDE_CONFIG_DIR:-$HOME/.claude}/sovai"
+ESTADO_ANTIGO="${CLAUDE_CONFIG_DIR:-$HOME/.claude}/andamento"
 mkdir -p "$ESTADO" 2>/dev/null
 TRABALHO="$ESTADO/trabalho-$SESSION"
 

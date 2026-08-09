@@ -363,7 +363,7 @@ def judge_nome(nome, eventos, bloqueia):
     """Reprova nome de hook que não diz quando roda nem se barra.
 
     `eventos` é o conjunto de eventos em que o script está registrado — um script
-    pode estar em dois (o andamento do sovai está em Pre e PostToolUse), e aí
+    pode estar em dois (o andamento do sprint está em Pre e PostToolUse), e aí
     basta o prefixo casar com UM deles.
     """
     esperados = sorted(e.lower() for e in eventos)
