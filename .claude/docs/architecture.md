@@ -188,7 +188,10 @@ python3 -c "import json;print(len(json.load(open('.claude-plugin/marketplace.jso
   **preâmbulo** que as outras rodam antes de julgar qualquer coisa. Quem já a invoca se lê
   sem cravar lista aqui —
   `grep -rl 'doc-load' plugins/*/skills/*/SKILL.md | grep -v 'skills/doc-load/'` (devolve
-  **10** arquivos neste run, em três plugins).
+  **10** arquivos neste run, em **quatro** plugins — o `gauntlet` entrou na v0.3.1, e é o
+  primeiro consumidor de fora do trio que já a usava: a abertura dele resolve a lei do
+  modo com-lei pelo `doc_load.py`, e congela a saída de `--marca` no rito, porque a âncora
+  da régua do gauntlet só cobre o que está dentro do `rito.json` e a lei mora fora dele).
 
   ⚠️ **Consequência de instalação da fusão:** `sovai`, `qa-loop` e `project-doc` não existem
   mais como plugin. Quem os tinha instalados **não** perde a skill por `update` — o cliente
@@ -334,7 +337,7 @@ branches           1.3.4  [branches]                                         HOO
 check-skills       0.7.0  [check-skills]                                     -
 context-guard      1.3.9  [context-guard]                                    HOOKS
 fallow             1.2.3  [fallow]                                           -
-gauntlet           0.3.0  [gauntlet]                                         HOOKS
+gauntlet           0.3.2  [gauntlet]                                         HOOKS
 graphify-guard     1.2.4  []                                                 HOOKS
 grill-me           1.4.0  [grill-me]                                         -
 guardrails         1.7.7  [guardrails]                                       HOOKS
@@ -344,7 +347,7 @@ improve-workflow  0.16.15 [improve-workflow]                                 -
 intent-guard       0.7.1  [intent-guard]                                     HOOKS
 lixeiro            1.3.1  [faxina]                                           HOOKS
 principles         1.0.5  [principles]                                       -
-project-skills    0.19.7  [design-md, doc, doc-load, doc-touch, monitorar,
+project-skills    0.19.8  [design-md, doc, doc-load, doc-touch, monitorar,
                            pesquisa-referencias, plan, project-skills,
                            qa-loop, sprint, start]                           HOOKS
 ship               1.5.0  [ship]                                             HOOKS
