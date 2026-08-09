@@ -538,6 +538,16 @@ Nasceu em 2026-08-03 com o plugin `vision` (commit `4a4b59d`, v0.1.0). Ver `data
 - **O que se perde se sumir:** o endereço do servidor VL privado de quem instala. A tool `see_image` para e devolve *"servidor de visão não configurado… crie ~/.claude/vision.json"* — até alguém redigitar a config. É perda de **comportamento**, não de dado: o valor não é derivável do repo, mas vive na cabeça de quem administra o servidor.
 - **Mesma classe do §3.11 e do §3.16:** config de máquina cuja perda não apaga conhecimento acumulado — desliga uma capacidade até ser reconfigurada. A diferença para o §3.16: aqui a falha não é silenciosa — a tool acusa com instrução.
 
+### 3.16c · Arsenal do gauntlet — `~/.claude/gauntlet/arsenal.md`
+
+Nasceu em 2026-08-09 com o `gauntlet` v0.3.2. Ver `data-stores.md §B15` para a anatomia.
+
+`[TODO: sem cobertura declarada]` — fora do repo, sem cópia, sem backup. Detalhe abaixo.
+
+- **Sem cobertura, e sem semente versionada.** O repositório é público e a lista é gosto de quem instala — pôr o arsenal de alguém no marketplace seria distribuir o repertório de uma pessoa como se fosse padrão. Mesma classe do `vision.json` (§3.16b) nisso.
+- **O que se perde se sumir:** a lista curada à mão de bibliotecas, efeitos e fontes de referência. Nenhum comando a regenera — não é derivável do repo nem de histórico. A missão seguinte não quebra: a abertura segue calada e a disputa roda sem os recursos. É perda de **repertório**, silenciosa.
+- **Diferença para o §3.16b:** lá a falha acusa com instrução na tela; aqui nada avisa. Quem perder o arquivo só descobre quando notar que os construtores voltaram a escrever tudo do zero.
+
 ### 3.17 · Cofre de secrets — iCloud
 
 - [confirmado] `cofre_paths()` em `plugins/project-skills/lib/journal.py` resolve nesta ordem: `PROJECT_DOC_COFRE_DIR` (override explícito) → `~/Library/Mobile Documents/com~apple~CloudDocs/Cofre` → fallback local `<projeto>/.claude/secrets/_local_cofre`. O nome do arquivo é `<basename>-<8 hex do sha1 do path absoluto>.env`, para dois projetos homônimos não colidirem.

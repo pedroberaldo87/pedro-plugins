@@ -491,6 +491,15 @@ Depósito **novo nesta rodada**, irmão do B8 e deliberadamente diferente dele: 
 - **Não é dado do marketplace — é infraestrutura privada de quem instala.** O cabeçalho do script é explícito: *"O ENDPOINT NÃO vive neste arquivo — ele é infraestrutura privada de quem instala"* e *"nunca um endpoint chutado"*. Chaves no disco hoje: `base` (endpoint do servidor VL privado), `model`, `timeout`.
 - **Natureza: config local, reconstruível à mão.** Perder o arquivo não perde conhecimento acumulado — perde o endereço do servidor, e o efeito é a tool `see_image` parar até alguém redigitar a config. Mesma classe do `config.json` do `/visual` (B2), com uma diferença: **não há semente versionada** — o default do `/visual` sobe no repo (`config.default.json`), o endpoint do servidor VL não sai de comando nenhum.
 
+### B15 · `~/.claude/gauntlet/arsenal.md` — o repertório do dono, e o sinal órfão ao lado dele
+
+- **Nasceu em 2026-08-09** com o `gauntlet` v0.3.2. **757 bytes / 21 linhas**, um arquivo Markdown por seções (`## website`, `## moodboard / referência visual`). [confirmado — `wc -lc` nesta rodada]
+- **Escrito pelo dono, lido pela skill — e escrito por ela só a pedido.** O corpo do arquivo declara o contrato: *"Lista viva, editada por mim (o dono)"*. A skill acrescenta linha quando ele diz "adiciona X ao arsenal", nunca por conta própria.
+- **Somável por projeto.** A abertura lê este e, se existir, o `.claude/gauntlet/arsenal.md` do projeto da obra; o segundo soma ao primeiro, sem substituir.
+- ⚠️ **Caminho fixo, ignora `CLAUDE_CONFIG_DIR`** — mesmo traço do `visual-state` (B2) e do `vision.json` (B12). O **sinal** do mesmo plugin, que mora na pasta vizinha `andamento/` (B13), resolve por `${CLAUDE_CONFIG_DIR:-$HOME/.claude}`. Duas expressões diferentes no mesmo plugin: numa máquina com a env var setada, o arsenal seria lido de uma casa e o sinal escrito noutra.
+- ⚠️ **Há um sinal órfão nesta pasta**, de quando o gauntlet ainda acendia em casa própria: `ativo-01dc346f-…` (0 bytes, 2026-08-07). A casa do sinal migrou para `andamento/` (B13) e este ficou. Não faz mal — o guarda lê a casa nova —, mas é resíduo. [confirmado — `ls -la ~/.claude/gauntlet/`]
+- **Natureza: repertório curado, insubstituível por comando.** Perder o arquivo não quebra nada (a abertura segue calada), mas perde a lista que o dono montou à mão. Zero backup, como todo (B).
+
 ---
 
 ## (C) Dentro do repo, mas gitignorado — some se a máquina sumir
