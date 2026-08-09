@@ -252,6 +252,29 @@ def main():
         check("no tique o pronto de bancada é redação (avisa, não bloqueia)",
               any("de onde" in e for e in ps._erros_de_redacao_do_no(bancada, "F1.1")))
 
+        # S-94: o critério que chega PELA METADE. Cortado ele não diz o que provar,
+        # e o desconto do texto herdado não vale para ele — senão o `pronto` cortado
+        # entra uma vez e nunca mais é cobrado.
+        print("o criterio_cortado")
+        cortado = sample(phases=[{"id": "F1", "title": "x", "items": [
+            {"id": "F1.1", "title": "t", "desc": "d",
+             "pronto": "`pytest -q` passa e o arquivo existe com"}]}])
+        raises("criterio_cortado: pronto que para num conectivo é recusado",
+               lambda: ps.validate(cortado), "cortado")
+        crase = sample(phases=[{"id": "F1", "title": "x", "items": [
+            {"id": "F1.1", "title": "t", "desc": "d",
+             "pronto": "`pytest -q passa"}]}])
+        raises("criterio_cortado: pronto com crase sem fechar é recusado",
+               lambda: ps.validate(crase), "crase")
+        check("criterio_cortado: o pronto inteiro passa",
+              ps.erros_do_plano(sample(phases=[{"id": "F1", "title": "x", "items": [
+                  {"id": "F1.1", "title": "t", "desc": "d",
+                   "pronto": "`pytest -q` passa"}]}])) == [])
+        check("criterio_cortado NÃO é isento como texto herdado",
+              not any("cortado" in e for e in ps._erros_herdados(cortado, cortado)))
+        check("criterio_cortado no tique é redação (avisa, não bloqueia)",
+              any("cortado" in e for e in ps._erros_de_redacao_do_no(cortado, "F1.1")))
+
         # A cobrança pega TODA tarefa que nasce agora — num plano novo, todas.
         # Deixar o plano novo passar faria o portão morder só a partir da SEGUNDA
         # gravação, que é o caso raro. O que fica de fora é só o que JÁ ESTÁ no

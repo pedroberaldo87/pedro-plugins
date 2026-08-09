@@ -37,7 +37,8 @@ def secao(texto, inicio, fim):
 def main():
     texto = open(SKILL_MD, encoding="utf-8").read()
 
-    decompositor = secao(texto, "- **OPUS #1 — Decompositor.", "- **EXECUTORES")
+    # O papel #1 virou ORQUESTRADOR (autopsia 2026-08-09, decisao do dono).
+    decompositor = secao(texto, "- **OPUS #1 — Orquestrador.", "- **EXECUTORES")
     revisor = secao(texto, "- **OPUS #2 — Revisor de construção.", "- **DIAGNÓSTICO")
     schema_decomp = secao(texto, "- `DECOMP` —", "- `TASK_RESULT`")
     schema_review = secao(texto, "- `BUILD_REVIEW` —", "\n\nO `stopReason`")

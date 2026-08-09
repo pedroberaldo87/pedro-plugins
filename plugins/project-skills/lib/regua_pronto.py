@@ -86,6 +86,52 @@ def erros_de_pronto(v, onde):
             "do dado real" % onde]
 
 
+# O critério que chegou PELA METADE: crase aberta, reticências, ou uma frase que
+# para num conectivo. É a assinatura do texto cortado no meio — foi assim que o
+# `pronto` de duas tarefas chegou ao disco cortado em 400 caracteres.
+_PENDURADO = re.compile(
+    r"(,|\.\.\.|…|\b(e|ou|que|de|do|da|dos|das|com|em|no|na|nos|nas|para|pra)\b)$",
+    re.I)
+
+# Corte por LIMITE DE CARACTERE não respeita fim de frase: ele cai no meio de uma
+# palavra, e aí nenhum conectivo casa. Duas assinaturas que sobram: parêntese/aspa
+# que abriu e não fechou, e palavra terminada em letra que não termina palavra em
+# português (…caminh, …trabalh, …conj). O trecho entre crases sai antes: comando
+# de verdade tem parêntese solto dentro (regex, `rgba\(`).
+_CODIGO = re.compile(r"`[^`]*`")
+# ponytail: 4 letras cobrem o corte que escapa hoje; ampliar só com medição no disco
+_MEIO_DE_PALAVRA = re.compile(r"[A-Za-zÀ-ÿ][hjqv]$")
+
+
+def criterio_cortado(v, onde):
+    """O critério chegou cortado no meio? Lista vazia = passa.
+
+    Fica FORA de `erros_de_pronto` de propósito: o texto que já estava no disco é
+    isento da régua de REDAÇÃO na regravação, e um critério truncado precisa ser
+    recusado toda vez — pela metade ele não diz o que provar.
+    """
+    t = str(v or "").strip()
+    if not t:
+        return []
+    if t.count("`") % 2:
+        return ["%s: o critério tem crase sem fechar — chegou cortado no meio do "
+                "comando; escreva o critério inteiro" % onde]
+    if _PENDURADO.search(t):
+        return ["%s: o critério para no meio da frase (…%s) — chegou cortado; "
+                "escreva o critério inteiro" % (onde, t[-24:])]
+    fora = _CODIGO.sub(" ", t).rstrip()
+    if fora.count("(") != fora.count(")"):
+        return ["%s: o critério tem parêntese sem fechar (…%s) — chegou cortado; "
+                "escreva o critério inteiro" % (onde, t[-24:])]
+    if fora.count('"') % 2:
+        return ["%s: o critério tem aspa sem fechar (…%s) — chegou cortado; "
+                "escreva o critério inteiro" % (onde, t[-24:])]
+    if _MEIO_DE_PALAVRA.search(fora):
+        return ["%s: o critério acaba no meio de uma palavra (…%s) — chegou cortado "
+                "por limite de caractere; escreva o critério inteiro" % (onde, t[-24:])]
+    return []
+
+
 # ── linha de comando: como um .sh ou um gate cobra a MESMA régua ───────────
 
 _USO = "uso: regua_pronto.py [--onde ROTULO] -   (o texto do `pronto` na stdin)\n"
@@ -105,7 +151,8 @@ def _main(argv):
     if not tem_stdin:
         sys.stderr.write(_USO)
         return 2
-    errs = erros_de_pronto(sys.stdin.read(), onde)
+    texto = sys.stdin.read()
+    errs = criterio_cortado(texto, onde) + erros_de_pronto(texto, onde)
     for e in errs:
         sys.stderr.write("%s\n" % e)
     return 1 if errs else 0

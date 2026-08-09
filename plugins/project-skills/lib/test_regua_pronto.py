@@ -57,6 +57,29 @@ OK = [
 ]
 
 
+# Critérios reais de .claude/plans cortados em 140 caracteres — o corte por limite
+# cai no meio da palavra, e nenhum conectivo casa lá.
+CORTADO = [
+    "o gauntlet decide qual dos dois entrega, e o veredito diz porque nenhum dos "
+    "dois — com teste dos dois caminh",
+    "`python3 plugins/vistoria/lib/pagina.py` abre a página com a legenda "  # acopla-ok: fixture
+    "(a contagem por tipo",
+    'o relatório traz o campo "origem',
+]
+
+# O mesmo texto INTEIRO, e os casos que a régua nova não pode confundir com corte:
+# parêntese solto DENTRO de crase é comando de verdade.
+INTEIRO = [
+    "o gauntlet decide qual dos dois entrega, e o veredito diz porque nenhum dos "
+    "dois — com teste dos dois caminhos",
+    "`python3 plugins/vistoria/lib/pagina.py` abre a página com a legenda "  # acopla-ok: fixture
+    "(a contagem por tipo)",
+    'o relatório traz o campo "origem" preenchido',
+    "`grep -cE 'rgba\\(' template.html` não devolve halo colorido, e a suíte sai verde",
+    "o ciclo cita os decks, e um teste prova que mexer na origem marca o deck",
+]
+
+
 def main():
     print("regua_pronto")
 
@@ -76,6 +99,13 @@ def main():
 
     for t in OK:
         check("passa: %r" % t, rp.erros_de_pronto(t, "F2.3") == [])
+
+    # O corte por LIMITE DE CARACTERE: cai no meio da palavra, onde conectivo e
+    # reticências não casam. Textos reais de .claude/plans cortados em 140.
+    for t in CORTADO:
+        check("cortado: %r" % t[-34:], len(rp.criterio_cortado(t, "F9.61")) == 1)
+    for t in INTEIRO:
+        check("inteiro passa: %r" % t[-34:], rp.criterio_cortado(t, "F9.61") == [])
 
     # A linha de comando: é por ela que um .sh ou um gate cobra a mesma régua.
     exe = os.path.join(AQUI, "regua_pronto.py")
