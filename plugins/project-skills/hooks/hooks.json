@@ -9,6 +9,30 @@
             "timeout": 5
           }
         ]
+      },
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "CLAUDE_PLUGIN_ROOT=$(printf '%s' \"$CLAUDE_PLUGIN_ROOT\" | tr '\\\\' /); export CLAUDE_PLUGIN_ROOT; \"$CLAUDE_PLUGIN_ROOT\"/hooks/sessionstart-organism.sh",
+            "timeout": 10
+          },
+          {
+            "type": "command",
+            "command": "CLAUDE_PLUGIN_ROOT=$(printf '%s' \"$CLAUDE_PLUGIN_ROOT\" | tr '\\\\' /); export CLAUDE_PLUGIN_ROOT; \"$CLAUDE_PLUGIN_ROOT\"/hooks/sessionstart-doc.sh",
+            "timeout": 10
+          }
+        ]
+      },
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "CLAUDE_PLUGIN_ROOT=$(printf '%s' \"$CLAUDE_PLUGIN_ROOT\" | tr '\\\\' /); export CLAUDE_PLUGIN_ROOT; \"$CLAUDE_PLUGIN_ROOT\"/hooks/sessionstart-plan.sh",
+            "timeout": 10
+          }
+        ]
       }
     ],
     "PreToolUse": [
@@ -17,7 +41,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "CLAUDE_PLUGIN_ROOT=$(printf '%s' \"$CLAUDE_PLUGIN_ROOT\" | tr '\\\\' /); export CLAUDE_PLUGIN_ROOT; bash \"$CLAUDE_PLUGIN_ROOT/hooks/pretooluse-sovai-motor.sh\"",
+            "command": "CLAUDE_PLUGIN_ROOT=$(printf '%s' \"$CLAUDE_PLUGIN_ROOT\" | tr '\\\\' /); export CLAUDE_PLUGIN_ROOT; bash \"$CLAUDE_PLUGIN_ROOT/hooks/pretooluse-motor-arma.sh\"",
             "timeout": 10
           }
         ]
@@ -36,6 +60,36 @@
             "timeout": 5
           }
         ]
+      },
+      {
+        "matcher": "Grep|Glob|Bash|Agent",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "CLAUDE_PLUGIN_ROOT=$(printf '%s' \"$CLAUDE_PLUGIN_ROOT\" | tr '\\\\' /); export CLAUDE_PLUGIN_ROOT; \"$CLAUDE_PLUGIN_ROOT\"/hooks/pretooluse-doc-guard.sh",
+            "timeout": 10
+          }
+        ]
+      },
+      {
+        "matcher": "Edit|Write|MultiEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "CLAUDE_PLUGIN_ROOT=$(printf '%s' \"$CLAUDE_PLUGIN_ROOT\" | tr '\\\\' /); export CLAUDE_PLUGIN_ROOT; \"$CLAUDE_PLUGIN_ROOT\"/hooks/pretooluse-organism-gate.sh",
+            "timeout": 10
+          }
+        ]
+      },
+      {
+        "matcher": "EnterPlanMode|ExitPlanMode",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "CLAUDE_PLUGIN_ROOT=$(printf '%s' \"$CLAUDE_PLUGIN_ROOT\" | tr '\\\\' /); export CLAUDE_PLUGIN_ROOT; \"$CLAUDE_PLUGIN_ROOT\"/hooks/pretooluse-plan-gate.sh",
+            "timeout": 10
+          }
+        ]
       }
     ],
     "PostToolUse": [
@@ -46,6 +100,48 @@
             "type": "command",
             "command": "CLAUDE_PLUGIN_ROOT=$(printf '%s' \"$CLAUDE_PLUGIN_ROOT\" | tr '\\\\' /); export CLAUDE_PLUGIN_ROOT; sh \"$CLAUDE_PLUGIN_ROOT/hooks/posttooluse-andamento.sh\"",
             "timeout": 10
+          }
+        ]
+      },
+      {
+        "matcher": "Read",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "CLAUDE_PLUGIN_ROOT=$(printf '%s' \"$CLAUDE_PLUGIN_ROOT\" | tr '\\\\' /); export CLAUDE_PLUGIN_ROOT; \"$CLAUDE_PLUGIN_ROOT\"/hooks/posttooluse-doc-read.sh",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "CLAUDE_PLUGIN_ROOT=$(printf '%s' \"$CLAUDE_PLUGIN_ROOT\" | tr '\\\\' /); export CLAUDE_PLUGIN_ROOT; \"$CLAUDE_PLUGIN_ROOT\"/hooks/userpromptsubmit-plan-escape.sh",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "CLAUDE_PLUGIN_ROOT=$(printf '%s' \"$CLAUDE_PLUGIN_ROOT\" | tr '\\\\' /); export CLAUDE_PLUGIN_ROOT; \"$CLAUDE_PLUGIN_ROOT\"/hooks/stop-doc-touch.sh",
+            "timeout": 15
+          }
+        ]
+      },
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "CLAUDE_PLUGIN_ROOT=$(printf '%s' \"$CLAUDE_PLUGIN_ROOT\" | tr '\\\\' /); export CLAUDE_PLUGIN_ROOT; \"$CLAUDE_PLUGIN_ROOT\"/hooks/stop-plan-status.sh",
+            "timeout": 15
           }
         ]
       }

@@ -175,7 +175,7 @@ else
   printf '# Project Reference\n' > "$PROJ/CLAUDE.md"
   printf '# arquitetura\n' > "$PROJ/.claude/docs/architecture.md"
 
-  GUARD="plugins/project-doc/hooks/pretooluse-doc-guard.sh"
+  GUARD="plugins/project-skills/hooks/pretooluse-doc-guard.sh"
   paylod_bash() { printf '{"tool_name":"Bash","session_id":"%s","cwd":"%s","tool_input":{"command":"%s"}}' "$1" "$PROJ" "$2"; }
 
   # (a) DENY continua deny: busca cega num projeto com doc não lida.

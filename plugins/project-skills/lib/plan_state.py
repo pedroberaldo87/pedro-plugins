@@ -749,7 +749,7 @@ def _jornadas_do_projeto(directory):
     """Acha as jornadas do projeto. [] se não houver — e isso não é erro.
 
     Cascata: $PLAN_JORNADAS → <raiz>/.claude/docs/journeys.md → <raiz>/docs/journeys.md
-    → []. É o documento que a etapa 4 do /start-doc escreve; sem ele não há caminho de
+    → []. É o documento que a etapa 4 do /start escreve; sem ele não há caminho de
     pessoa com o que cruzar, e o cruzamento fica quieto em vez de acusar todo mundo.
     """
     import cobertura
@@ -787,7 +787,7 @@ def _pecas_do_projeto(directory):
     """Acha as peças da arquitetura pretendida. [] se não houver — e isso não é erro.
 
     Cascata: $PLAN_ARQUITETURA → <raiz>/.claude/docs/architecture-intent.md →
-    <raiz>/docs/architecture-intent.md → []. É o documento que a etapa 2 do /start-doc
+    <raiz>/docs/architecture-intent.md → []. É o documento que a etapa 2 do /start
     escreve (o que a arquitetura DEVE ser, não o que o código é); sem ele não há
     desenho com o que cruzar, e o cruzamento fica quieto em vez de acusar todo mundo.
     """
@@ -807,7 +807,7 @@ def _passos_do_projeto(directory):
     """Acha os passos do ciclo do desenho de funcionamento. [] se não houver.
 
     Cascata: $PLAN_BLUEPRINT → <raiz>/.claude/docs/blueprint.md → <raiz>/docs/blueprint.md
-    → []. É o documento que a etapa 5 do /start-doc escreve (como o sistema funciona, do
+    → []. É o documento que a etapa 5 do /start escreve (como o sistema funciona, do
     começo ao fim); sem ele não há ciclo com o que cruzar, e o cruzamento fica quieto em
     vez de acusar todo mundo.
     """

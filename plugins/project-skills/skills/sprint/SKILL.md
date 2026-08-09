@@ -43,7 +43,7 @@ rm -f "$SOVAI_DIR"/{ativo,bloqueios}-"$CLAUDE_CODE_SESSION_ID"   # ao entregar
 
 O `SOVAI_MOTOR_ID` vai no `args` do Workflow como `motorId` (junto com `sessionId` = `$CLAUDE_CODE_SESSION_ID`): é com ele que o motor **reserva os arquivos da onda antes de soltar executor** (`hooks/reserva-de-arquivos.sh reservar`, ver o esqueleto) e os **libera** ao entregar. Dois motores da mesma sessão com o mesmo id se enxergariam como um só, e a reserva nunca recusaria nada.
 
-Enquanto o sinal está aceso, `hooks/pretooluse-sovai-motor.sh` do plugin `sovai` **nega** todo disparo de sub-agente e manda rodar o Workflow. Fora do sovai ele é mudo. Desligamento: `SOVAI_GATE=0`.
+Enquanto o sinal está aceso, `hooks/pretooluse-motor-arma.sh` do plugin `sovai` **nega** todo disparo de sub-agente e manda rodar o Workflow. Fora do sovai ele é mudo. Desligamento: `SOVAI_GATE=0`.
 
 ⚠️ **Esqueceu de apagar o sinal, a sessão inteira fica sem despachar sub-agente.** Apagar é parte da entrega, não faxina opcional.
 

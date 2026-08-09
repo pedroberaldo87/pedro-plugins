@@ -4,4 +4,4 @@
 
 # Fixtures do redator de segredos: as chaves de exemplo SÃO o material de teste,
 # e são exemplos publicados (AWS docs) ou sequências óbvias, nunca credencial real.
-plugins/project-doc/lib/test_journal.py
+plugins/project-skills/lib/test_journal.py

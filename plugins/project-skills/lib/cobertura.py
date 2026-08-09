@@ -118,7 +118,7 @@ def le_pecas(fonte):
     """Os nomes das peças do architecture-intent.md, na ordem em que aparecem.
 
     Peça é um item `- **{nome}** — {…}` sob a seção `## As peças`, que é o molde
-    que a etapa 2 do `/start-doc` escreve. O documento da arquitetura pretendida
+    que a etapa 2 do `/start` escreve. O documento da arquitetura pretendida
     também descreve fronteiras, onde o estado mora e o que ficou de fora, todos
     escritos com o MESMO item de lista em negrito — por isso o corte é a seção, não
     a forma do item: fora de `## As peças` nada vira peça. Documento ausente, ou sem
@@ -142,7 +142,7 @@ def le_passos(fonte):
     """Os passos do ciclo do blueprint.md, na ordem em que aparecem.
 
     Passo é um item numerado sob a seção `## O ciclo, do começo ao fim`, que é o molde
-    que a etapa 5 do `/start-doc` escreve. O corte é a seção, e não a forma do item,
+    que a etapa 5 do `/start` escreve. O corte é a seção, e não a forma do item,
     pelo mesmo motivo de `le_pecas`: outras seções do desenho também numeram linha. A
     proveniência (`← arquivo:linha`) fica de fora — ela diz de onde o passo veio, não o
     que ele é. Documento ausente, ou sem essa seção, devolve []: projeto que ainda não

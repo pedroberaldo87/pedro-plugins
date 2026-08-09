@@ -110,7 +110,7 @@ PRD_PECAS = """\
   CA: a tecla abre o dia.
 """
 
-# o desenho da arquitetura pretendida, no molde que a etapa 2 do /start-doc escreve:
+# o desenho da arquitetura pretendida, no molde que a etapa 2 do /start escreve:
 # só o item sob "As peças" é peça — fronteira e depósito de estado usam o MESMO item
 # de lista em negrito e não podem virar peça
 ARQUITETURA = """\
@@ -141,7 +141,7 @@ PRD_PASSOS = """\
   CA: a tecla abre o dia.
 """
 
-# o desenho de funcionamento, no molde que a etapa 5 do /start-doc escreve: só o item
+# o desenho de funcionamento, no molde que a etapa 5 do /start escreve: só o item
 # numerado sob "O ciclo, do começo ao fim" é passo, e a proveniência (`← arquivo:linha`)
 # não faz parte do texto do passo
 BLUEPRINT = """\

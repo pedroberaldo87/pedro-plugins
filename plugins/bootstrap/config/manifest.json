@@ -190,15 +190,7 @@
           "enabled": true
         },
         {
-          "name": "project-doc",
-          "enabled": true
-        },
-        {
           "name": "project-skills",
-          "enabled": true
-        },
-        {
-          "name": "qa-loop",
           "enabled": true
         },
         {

@@ -226,13 +226,13 @@ fi
 if printf '%s\n' "$FILES" | grep -qE '^plugins/project-doc/'; then
   GOUT=$(cd "$ROOT" && python3 - <<'PY' 2>/dev/null
 import os, re, sys
-pc = "plugins/project-doc/lib/pattern_check.py"
+pc = "plugins/project-skills/lib/pattern_check.py"
 m = re.search(r'^CURRENT_GEN\s*=\s*"([\d.]+)"', open(pc, encoding="utf-8").read(), re.M) \
     if os.path.exists(pc) else None
 if not m:
     sys.exit(0)                      # fail-open: sem gen resolvível, não acusa
 gen, viol = m.group(1), []
-for base, _, arqs in os.walk("plugins/project-doc/skills"):
+for base, _, arqs in os.walk("plugins/project-skills/skills"):
     for a in arqs:
         p = os.path.join(base, a)
         try:
@@ -253,8 +253,8 @@ PY
     VIOL="${VIOL}
 ❌ GEN DEFASADO NO MARKER — a doc gerada nasceria fora do padrão:
 ${GOUT}
-   → alinhe o literal com CURRENT_GEN de plugins/project-doc/lib/pattern_check.py
-   → régua: grep -rn 'gen=[0-9]\+\.[0-9]\+' plugins/project-doc/skills/"
+   → alinhe o literal com CURRENT_GEN de plugins/project-skills/lib/pattern_check.py
+   → régua: grep -rn 'gen=[0-9]\+\.[0-9]\+' plugins/project-skills/skills/"
   fi
 fi
 

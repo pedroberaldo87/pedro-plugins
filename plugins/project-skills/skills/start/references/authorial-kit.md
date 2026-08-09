@@ -1,7 +1,7 @@
 # Authorial Kit — os documentos que nenhuma mineração produz
 
 > Banco de perguntas + moldes de saída dos documentos **autorais**. Fonte única, dois consumidores:
-> a skill **`/start-doc`** (que os cria e evolui por entrevista) e o **Tier 5 do `/project-doc`**
+> a skill **`/start`** (que os cria e evolui por entrevista) e o **Tier 5 do `/doc`**
 > (que cobra o que ficou em branco durante a mineração). Se um mudar, é aqui.
 >
 > Derivado do kit canônico de documentação de arquitetura (Grupo A + glossário), que por sua vez
@@ -47,7 +47,7 @@ autoriza com `--sem-doc`, que é decisão do usuário, não do agente.
 **A numeração das seções abaixo é catálogo de documento, não ordem de etapa.** Cada seção diz a que
 etapa pertence; a ordem em que as etapas fecham é a da tabela acima.
 
-- **`architecture-intent.md` não é `architecture.md`.** O segundo é minerado pelo `/project-doc` e
+- **`architecture-intent.md` não é `architecture.md`.** O segundo é minerado pelo `/doc` e
   descreve o que o código **é**; o primeiro é autoral e diz o que a arquitetura **deve ser**.
 - **`journeys.md` não é `runtime.md`.** O segundo é minerado e narra o fluxo que o código executa; o
   primeiro é autoral e narra o percurso que a **pessoa** faz.
@@ -83,7 +83,7 @@ scope: []                        # vazio de propósito: não é derivado de arqu
 ---
 ```
 
-- **`authored-by: human` é a trava.** O FULL do `/project-doc` lê estes arquivos e pode **citá-los**,
+- **`authored-by: human` é a trava.** O FULL do `/doc` lê estes arquivos e pode **citá-los**,
   mas não os regenera, não os sobrescreve e não os inclui no fan-out por concern. A única escrita
   automática permitida é o `reviewed:` e a promoção `draft → ready` quando o último `[PENDENTE]` sai.
 - **`approved:` nenhuma máquina escreve sozinha.** Nem o FULL, nem esta skill por conta própria. Ela
@@ -127,7 +127,7 @@ sem tocar em arquivo nenhum, o item que não está no documento e o item que apa
 (qual dos dois?). Mexer no histórico à mão desalinha o formato que o `listar` lê de volta.
 
 ```bash
-python3 "$(bash "${CLAUDE_PLUGIN_ROOT}/lib/resolve-plugin.sh" project-doc lib/historico.py)" reescrever .claude/docs/quality-goals.md \
+python3 "$(bash "${CLAUDE_PLUGIN_ROOT}/lib/resolve-plugin.sh" project-skills lib/historico.py)" reescrever .claude/docs/quality-goals.md \
   --antigo "1. **velocidade** — …" --novo "1. **integridade do dado** — …" \
   --contexto "a entrevista de metas foi refeita depois do incidente de junho" \
   --decisao  "perder dado passou a doer mais que atrasar entrega"
@@ -168,7 +168,7 @@ escreve em documento nenhum**: conferência que edita texto aprovado reabriria a
 cobrança visível no relatório, não um gate — o de acordo do dono continua sendo dele.
 
 ```bash
-python3 "$(bash "${CLAUDE_PLUGIN_ROOT}/lib/resolve-plugin.sh" project-doc lib/rastreio_etapas.py)" .   # → JSON com as listas do que ficou sem dono
+python3 "$(bash "${CLAUDE_PLUGIN_ROOT}/lib/resolve-plugin.sh" project-skills lib/rastreio_etapas.py)" .   # → JSON com as listas do que ficou sem dono
 ```
 
 **A sabatina não é juíza.** Ela não aprova, não reprova e não decide se o documento está bom: ela é o
@@ -200,7 +200,7 @@ as que eram dele vêm no mesmo automático.
 Quem decide quais entram é o próprio projeto minerado:
 
 ```bash
-python3 "$(bash "${CLAUDE_PLUGIN_ROOT}/lib/resolve-plugin.sh" project-doc lib/decisoes_estruturais.py)" <raiz-do-projeto>
+python3 "$(bash "${CLAUDE_PLUGIN_ROOT}/lib/resolve-plugin.sh" project-skills lib/decisoes_estruturais.py)" <raiz-do-projeto>
 ```
 
 - **Três são incondicionais** — como isso sobe, como se volta atrás, como se descobre que quebrou.
@@ -472,7 +472,7 @@ sem definição. Apresente a lista candidata; o humano define ou descarta.
 
 **Este documento NÃO é escrito por esta skill diretamente.** A spec completa do formato, o CLI de
 validação/export e o fallback sem `npx` já vivem na skill **`design-md`** — não duplique aqui. O papel
-do `/start-doc` é só a **entrevista** (a mesma disciplina dos outros 5: uma pergunta por vez, resposta
+do `/start` é só a **entrevista** (a mesma disciplina dos outros 5: uma pergunta por vez, resposta
 literal, `[PENDENTE]` é válido); depois de colher as respostas, **invoque a skill `design-md`** para
 escrever `.claude/docs/design.md` no formato correto e validar.
 
@@ -508,7 +508,7 @@ válido, não que o dono concordou com a personalidade que está lá dentro.
 - **Não confunda com a estratégia (documento 4):** a estratégia diz **quais decisões** mandam no
   formato; a arquitetura pretendida **desenha o resultado** — as peças, quem fala com quem, e onde o
   estado mora.
-- **Não confunda com `architecture.md`:** aquele é minerado pelo `/project-doc` e descreve o que o
+- **Não confunda com `architecture.md`:** aquele é minerado pelo `/doc` e descreve o que o
   código **é**. Este é autoral e diz o que a arquitetura **deve ser**. Coexistem; divergência entre
   os dois é achado, não erro de arquivo.
 - **Conteúdo mínimo:** as peças com a responsabilidade de cada uma, as fronteiras (quem pode chamar
@@ -808,7 +808,7 @@ já existe no repositório — para o artigo que o dono acabou de enunciar.
 
 Ao final da entrevista de **estratégia**, cada decisão estruturante vira candidata a registro em
 `.claude/docs/decisions/`. Escreva o **primeiro** (`0001-*.md`) com o que o humano acabou de dizer —
-os demais viram `[PENDENTE]` na lista. Formato em `references/adr.md` do `/project-doc`.
+os demais viram `[PENDENTE]` na lista. Formato em `references/adr.md` do `/doc`.
 
 Decisão substituída **não se apaga**: muda de status e aponta para a que a substituiu.
 
@@ -817,13 +817,13 @@ Decisão substituída **não se apaga**: muda de status e aponta para a que a su
 ## 12 · Índice mínimo e ponteiros — o fecho da etapa 7
 
 Entre a concepção e a primeira mineração o projeto ficava **sem índice na raiz**: os documentos
-existiam e nenhum agente sabia que existiam. O fecho do `/start-doc` escreve um índice **provisório**
+existiam e nenhum agente sabia que existiam. O fecho do `/start` escreve um índice **provisório**
 — derivado só do que o dono aprovou — e os ponteiros finos que mandam as outras ferramentas lerem o
 mesmo arquivo.
 
 **Ele não usa o marker `project-doc:v2`.** Esse marker é o contrato da doc minerada, e ele exige
 journal e `doc-sig`, que só a mineração produz — escrevê-lo à mão deixaria o projeto acusado de
-**fora do padrão** em todo hook. O índice provisório tem marker próprio, e o `/project-doc` FULL
+**fora do padrão** em todo hook. O índice provisório tem marker próprio, e o `/doc` FULL
 substitui o bloco inteiro pelo índice `v2` quando rodar.
 
 Molde de `CLAUDE.md` (raiz do projeto):
@@ -832,8 +832,8 @@ Molde de `CLAUDE.md` (raiz do projeto):
 # {nome do projeto}
 
 <!-- start-doc:index -->
-> Índice **provisório**, escrito pelo `/start-doc` a partir dos documentos que o dono aprovou.
-> Não é doc minerada: quando o `/project-doc` rodar, este bloco inteiro é substituído pelo índice dele.
+> Índice **provisório**, escrito pelo `/start` a partir dos documentos que o dono aprovou.
+> Não é doc minerada: quando o `/doc` rodar, este bloco inteiro é substituído pelo índice dele.
 
 ## Intenção do sistema
 {uma frase, tirada literal do `quality-goals.md` aprovado}
@@ -853,7 +853,7 @@ Regras do molde, todas checáveis no arquivo escrito:
 - **Nada de `gen=`, `doc-sig:` ou `<!-- project-doc:v2 -->`** no arquivo.
 - Os cinco **ponteiros finos** (`AGENTS.md`, `GEMINI.md`, `.cursorrules`, `.windsurfrules`,
   `.github/copilot-instructions.md`) saem **verbatim** dos *Thin Pointer Templates* de
-  `references/templates.md` do `/project-doc` — mesmo texto, uma fonte só. Arquivo que já existe com
+  `references/templates.md` do `/doc` — mesmo texto, uma fonte só. Arquivo que já existe com
   conteúdo próprio **não se toca**; ele vira linha de cobrança no relatório.
 
 ## 13 · `dispensa.md` — A dispensa da fundação · **fora das etapas**
@@ -889,5 +889,5 @@ Regras do molde, todas checáveis no arquivo escrito:
   não haverá etapas, e pedir de acordo a ela seria acordo sobre a ausência de acordo.
 - **Ela vai pro git e vale entre sessões** — o escape verbal `--sem-doc` é da sessão; este arquivo é
   do projeto, e é por ele que o próximo humano descobre por que aqui não há fundação.
-- **Voltar atrás é apagar o arquivo** e rodar `/start-doc`: enquanto ele existir com motivo, o gate
+- **Voltar atrás é apagar o arquivo** e rodar `/start`: enquanto ele existir com motivo, o gate
   não cobra etapa nenhuma.

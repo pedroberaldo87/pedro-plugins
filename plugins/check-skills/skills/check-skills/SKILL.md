@@ -98,7 +98,7 @@ superpowers/subagent-driven-development
   → o método dela É disparar sub-agentes
 
 pedro-plugins/sovai · SKILL.md:46
-  "o hook pretooluse-sovai-motor.sh NEGA todo disparo de sub-agente e manda rodar o Workflow"
+  "o hook pretooluse-motor-arma.sh NEGA todo disparo de sub-agente e manda rodar o Workflow"
   → com a missão de pé, o método da outra é mecanicamente impossível
 ```
 

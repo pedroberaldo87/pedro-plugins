@@ -1,5 +1,5 @@
 #!/bin/bash
-# diagrama-blueprint.sh — desenha o diagrama da etapa 5 do /start-doc pelo `archify`.
+# diagrama-blueprint.sh — desenha o diagrama da etapa 5 do /start pelo `archify`.
 #
 # A etapa 5 descrevia o diagrama em prosa e não executava nada: quem lia acreditava
 # que o desenho nascia, e ele nunca nascia. Este script é o mecanismo.

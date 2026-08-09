@@ -20,7 +20,7 @@ SRC="$ROOT/_shared"
 # handoff+project-doc; a tabela R8 vai pro references/ do sprint+qa-loop.
 SPECS=(
   "plugins/handoff/lib::collect_engine.py"
-  "plugins/project-doc/lib::collect_engine.py"
+  "plugins/project-skills/lib::collect_engine.py"
   # O contrato R8: os DADOS (.json) + o servidor (.py) + a vista humana (.md, gerada
   # do json). A skill instalada só enxerga a própria pasta, então a casca lê o tier
   # da cópia local e passa em args — nenhum SKILL.md carimba o valor.
@@ -71,7 +71,7 @@ SPECS=(
   # instalado só enxerga a própria pasta — sem cópia aqui, a régua some em produção.
   "plugins/bootstrap/lib::regua_texto.py"
   "plugins/guardrails/lib::regua_texto.py"
-  "plugins/project-doc/lib::regua_texto.py"
+  "plugins/project-skills/lib::regua_texto.py"
   "plugins/ship/lib::regua_texto.py"
   "plugins/graphify-guard/lib::regua_texto.py"
   "plugins/project-skills/lib::regua_texto.py"
@@ -92,7 +92,7 @@ SPECS=(
   "plugins/project-skills/skills/start::resolve-plugin.sh"
   "plugins/project-skills/lib::resolve-plugin.sh"
   "plugins/ship/hooks::green-cache.sh"
-  "plugins/qa-loop/lib::green-cache.sh"
+  "plugins/project-skills/lib::green-cache.sh"
   # O leitor de JSON dos hooks: todo hook que DECIDE lendo o payload do evento
   # sourceia a cópia da própria pasta (o plugin instalado não enxerga a de fora).
   "plugins/bootstrap/hooks::hook-json.sh"
@@ -102,7 +102,7 @@ SPECS=(
   "plugins/guardrails/hooks::hook-json.sh"
   "plugins/intent-guard/hooks::hook-json.sh"
   "plugins/lixeiro/hooks::hook-json.sh"
-  "plugins/project-doc/hooks::hook-json.sh"
+  "plugins/project-skills/hooks::hook-json.sh"
   "plugins/ship/hooks::hook-json.sh"
   "plugins/project-skills/hooks::hook-json.sh"
   "plugins/visual/hooks::hook-json.sh"
@@ -115,12 +115,11 @@ SPECS=(
   "plugins/guardrails/hooks::lib-tmpdir.sh"
   "plugins/handoff/hooks::lib-tmpdir.sh"
   "plugins/intent-guard/hooks::lib-tmpdir.sh"
-  "plugins/project-doc/hooks::lib-tmpdir.sh"
+  "plugins/project-skills/hooks::lib-tmpdir.sh"
   "plugins/ship/hooks::lib-tmpdir.sh"
   "plugins/project-skills/hooks::lib-tmpdir.sh"
   "plugins/visual/hooks::lib-tmpdir.sh"
   # O green-cache do qa-loop mora em lib/, não em hooks/ — a cópia acompanha ele.
-  "plugins/qa-loop/lib::lib-tmpdir.sh"
   # O aviso de dependência ausente: UMA cópia só, no bootstrap. Os outros doze
   # plugins que avisam acham esta pelo NOME do plugin (resolve-plugin.sh), em vez
   # de carregar treze cópias do mesmo script. Um sentinel por sessão evita o aviso
@@ -136,7 +135,7 @@ SPECS=(
   "plugins/handoff/hooks::resolve-plugin.sh"
   "plugins/intent-guard/hooks::resolve-plugin.sh"
   "plugins/lixeiro/hooks::resolve-plugin.sh"
-  "plugins/project-doc/hooks::resolve-plugin.sh"
+  "plugins/project-skills/hooks::resolve-plugin.sh"
   "plugins/ship/hooks::resolve-plugin.sh"
   "plugins/project-skills/hooks::resolve-plugin.sh"
   "plugins/visual/hooks::resolve-plugin.sh"

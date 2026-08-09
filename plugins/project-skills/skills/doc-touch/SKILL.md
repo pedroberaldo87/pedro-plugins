@@ -5,14 +5,14 @@ description: Atualização INCREMENTAL da documentação project-doc — mapeia 
 
 # doc-touch — atualização incremental da doc
 
-Irmã do `/project-doc` (mesmo plugin, mesma estrutura de doc, mesmos invariantes). O FULL minera tudo e re-projeta tudo; o **touch** atualiza só os docs cujo `scope:` intersecta o diff do trabalho recente. Mexeu → tocou a doc. O FULL vira evento raro.
+Irmã do `/doc` (mesmo plugin, mesma estrutura de doc, mesmos invariantes). O FULL minera tudo e re-projeta tudo; o **touch** atualiza só os docs cujo `scope:` intersecta o diff do trabalho recente. Mexeu → tocou a doc. O FULL vira evento raro.
 
 ## Fluxo (5 passos)
 
 ### 1 · Grafo fresco + plano determinístico
 ```bash
 graphify update "<root>" --force    # AST, ZERO LLM, segundos, idempotente. Ausente → cria; fresco → no-op.
-python3 "$(bash "${CLAUDE_PLUGIN_ROOT}/lib/resolve-plugin.sh" project-doc lib/pattern_check.py)" --project-root "<root>" --touch-plan --json
+python3 "$(bash "${CLAUDE_PLUGIN_ROOT}/lib/resolve-plugin.sh" project-skills lib/pattern_check.py)" --project-root "<root>" --touch-plan --json
 ```
 O touch **documenta** ⇒ é modo PESADO na regra do grafo (canônica: `skills/doc/SKILL.md` → Workflow Engine → Passo 0): doc nova nunca sai de grafo velho. Rode sem anunciar custo nem pedir confirmação — só informe o status. `graphify` não instalado ⇒ **avise e siga** (a re-projeção vem do diff, não do mapa; o touch não consome `graph_map`).
 Devolve `{changed, docs:{doc:{files, already_current}}, pending_docs, seam_review, unscoped_new, dead_scope, ledger_last_commit, last_full_age_days}`. O `changed` = working tree ∪ staged ∪ `ledger.last_commit..HEAD` (mesma janela do backward-delta do journal, **lida read-only**). ⚠️ `git diff` **não lista untracked** — arquivo novo só entra no `changed` depois do `git add`.
@@ -66,7 +66,7 @@ versione diagrama de documentação viva por data — ver a tabela de nomes na s
 
 ### 3 · Gate doc-lint (determinístico, antes do re-stamp)
 ```bash
-python3 "$(bash "${CLAUDE_PLUGIN_ROOT}/lib/resolve-plugin.sh" project-doc lib/doc_lint.py)" --project-root "<root>" --docs <docs tocados> --json
+python3 "$(bash "${CLAUDE_PLUGIN_ROOT}/lib/resolve-plugin.sh" project-skills lib/doc_lint.py)" --project-root "<root>" --docs <docs tocados> --json
 ```
 FAIL → corrigir com a evidência que o próprio lint dá e re-rodar (máx 2 iterações; persiste → reportar FAIL, não silenciar). Falso-positivo legítimo (var dinâmica, config externa) → `<!-- lint:ignore TOKEN -->` ou `.claude/.project-doc/lint-allow.txt`, com justificativa no report.
 
@@ -82,7 +82,7 @@ Report curto primeiro: docs tocados (com o quê) · `seam_review` (costuras toca
 **Por que dois commits, e por que não dá pra ser um:** o carimbo `generated-commit:` diz "esta doc vale pro estado do código no commit X". Quando código e doc entram no **mesmo** commit, X ainda não existe no momento de escrever o frontmatter — então o carimbo aponta pro commit anterior, a janela de staleness enxerga a mudança que a **própria doc acabou de descrever**, e o hook do SessionStart passa a gritar "⚠️ DEFASADA" sobre doc recém-nascida. **Um doc não consegue citar o commit que o contém.** Este repo pagou isso 3× (`16211ae`, `b9028c3`, `8d7a5a0`) antes de virar comando.
 
 ```bash
-PC="$(bash "${CLAUDE_PLUGIN_ROOT}/lib/resolve-plugin.sh" project-doc lib/pattern_check.py)"
+PC="$(bash "${CLAUDE_PLUGIN_ROOT}/lib/resolve-plugin.sh" project-skills lib/pattern_check.py)"
 
 # 1º commit — o CONTEÚDO (código, se houver, + os docs re-projetados + journal + grafo)
 git add <arquivos tocados> .claude/docs/<tocados> .claude/.project-doc/findings.jsonl graphify-out/
@@ -106,7 +106,7 @@ O que entra nos commits: só os artefatos de doc — docs tocados, `findings.jso
 
 - **Doc autoral é INTOCÁVEL.** Arquivo com `authored-by: human` no frontmatter (`quality-goals.md`,
   `constraints.md`, `context.md`, `solution-strategy.md`, `glossary.md`, `decisions/*.md` — território
-  do `/start-doc`) **nunca é re-projetado, nunca ganha `scope:`, nunca é re-stampado**. Se um aparecer
+  do `/start`) **nunca é re-projetado, nunca ganha `scope:`, nunca é re-stampado**. Se um aparecer
   no plano, **pule e reporte**. Hoje a proteção é indireta — o `scope: []` vazio o mantém fora do
   `touch-plan` —, mas o passo 5 manda corrigir `dead_scope` e adotar `unscoped_new` no `scope:` do doc
   certo: popular o scope de um autoral quebraria a trava **para sempre e em silêncio**. Antes de
@@ -125,7 +125,7 @@ O que entra nos commits: só os artefatos de doc — docs tocados, `findings.jso
   produz (`grep -c …`, `wc -l`, `python3 …`); lista de nomes de plugin sai e entra o **índice** que os
   enumera (`.claude-plugin/marketplace.json`, `plugins/bootstrap/config/manifest.json`). <!-- acopla-ok: o manifest é citado como ÍNDICE a consultar, não como dependência executável --> A regra é
   escrita uma vez só, na seção **"Desacoplamento — duas trocas obrigatórias em TODO doc escrito"** do
-  `SKILL.md` do `/project-doc`; leia lá antes de re-projetar. Quem cobra é
+  `SKILL.md` do `/doc`; leia lá antes de re-projetar. Quem cobra é
   `python3 scripts/desacoplamento_check.py`; a isenção é `acopla-ok: <motivo>` na linha. O touch toca
   poucos docs por rodada — é justamente onde a contagem velha sobrevive despercebida.
 
@@ -136,5 +136,5 @@ O que entra nos commits: só os artefatos de doc — docs tocados, `findings.jso
 **Touch 2/5:** re-projeção → {doc}: {seções atualizadas}
 **Touch 3/5:** doc-lint → {ok | X FAILs corrigidos | FAIL persistente: ...}
 **Touch 4/5:** journal ({adopts} adoções, {invs} invalidações) · ledger intocado
-**Touch 5/5:** conteúdo <hash1> + carimbo <hash2> ({M} doc(s) via --restamp) · staleness: por-doc {X} · agregado {Y} · último FULL há {N} dias{ — sugerir /project-doc se >30}
+**Touch 5/5:** conteúdo <hash1> + carimbo <hash2> ({M} doc(s) via --restamp) · staleness: por-doc {X} · agregado {Y} · último FULL há {N} dias{ — sugerir /doc se >30}
 ```

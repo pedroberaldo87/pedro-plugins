@@ -1,6 +1,6 @@
 # Verification — project-doc
 
-> Checklist de verificação pós-geração do `/project-doc` (26 checks + output format + auto-fix + quando rodar) <!-- acopla-ok: este arquivo É a fonte canônica que enumera os checks; contá-los aqui é listar, não cravar -->. Consultado on-demand pela skill no passo 13 e no modo `verify`. Fonte canônica; o `SKILL.md` referencia este arquivo.
+> Checklist de verificação pós-geração do `/doc` (26 checks + output format + auto-fix + quando rodar) <!-- acopla-ok: este arquivo É a fonte canônica que enumera os checks; contá-los aqui é listar, não cravar -->. Consultado on-demand pela skill no passo 13 e no modo `verify`. Fonte canônica; o `SKILL.md` referencia este arquivo.
 
 ## Verification (Post-Generation Quality Check)
 
@@ -123,7 +123,7 @@ After writing all files, run this verification checklist. Report results to the 
 
 **19. Conformidade com o Pattern Manifest — execute o script, não leia o marker.**
 ```bash
-python3 "$(bash "${CLAUDE_PLUGIN_ROOT}/lib/resolve-plugin.sh" project-doc lib/pattern_check.py)" --project-root "<root>"
+python3 "$(bash "${CLAUDE_PLUGIN_ROOT}/lib/resolve-plugin.sh" project-skills lib/pattern_check.py)" --project-root "<root>"
 ```
 - `in_pattern==true` → **PASS**
 - `in_pattern==false` → **FAIL — <lista de violations>**. As violations mapeiam diretamente para: (a) marker v2 ausente, (b) frontmatter ausente em algum doc, (c) findings.jsonl ausente, (d) `doc-sig:` ausente no frontmatter de algum doc, (e) gen desatualizado. Corrija cada uma antes de declarar pronto — nunca declarar PASS com `in_pattern==false`.
@@ -132,7 +132,7 @@ python3 "$(bash "${CLAUDE_PLUGIN_ROOT}/lib/resolve-plugin.sh" project-doc lib/pa
 
 **20. Discurso da invocação capturado (Tier 0)** — só aplica quando houve prosa direcionada na invocação; sem prosa → **N/A**.
 - **Echo-back reportado:** o relatório final tem a linha de discurso capturado (`Discurso capturado … → N fato(s) … · M direção(ões) …`) — ver SKILL.md, **Process passo 15** (e, no Full Mode protocol, o **Step 8/14**). Ausente com prosa presente → **FAIL — discurso capturado mas não reportado** (o humano não tem como saber que nada caiu).
-- **Fatos persistidos:** cada **fato** classificado aparece no journal — `python3 "$(bash "${CLAUDE_PLUGIN_ROOT}/lib/resolve-plugin.sh" project-doc lib/journal.py)" fold --project-root "<root>"` lista o `id`/`text` no `live[]` (ou está projetado em algum `.claude/docs/*.md`). Fato classificado que não está nem no journal nem na doc → **FAIL**.
+- **Fatos persistidos:** cada **fato** classificado aparece no journal — `python3 "$(bash "${CLAUDE_PLUGIN_ROOT}/lib/resolve-plugin.sh" project-skills lib/journal.py)" fold --project-root "<root>"` lista o `id`/`text` no `live[]` (ou está projetado em algum `.claude/docs/*.md`). Fato classificado que não está nem no journal nem na doc → **FAIL**.
 - **Direção não vazou pro journal:** ordem de processo ("foca no auth", "ignora a pasta Z") **não** deve virar finding `discovered` — se aparecer no journal, foi mal-classificada → **WARN — direção de processo persistida indevidamente**.
 - **Secret no discurso:** se o discurso continha algo credencial-shaped, confirme que o scrubber do `adopt` desviou (o `live[]` mostra o texto já limpo) — vazamento = **CRITICAL FAIL** (mesmo critério do check #10).
 
@@ -140,7 +140,7 @@ python3 "$(bash "${CLAUDE_PLUGIN_ROOT}/lib/resolve-plugin.sh" project-doc lib/pa
 
 **21. Census mundo-aberto — só aplica quando há `.claude/organism.yaml`; senão → N/A.**
 ```bash
-python3 "$(bash "${CLAUDE_PLUGIN_ROOT}/lib/resolve-plugin.sh" project-doc lib/pattern_check.py)" --project-root "<root>" --census
+python3 "$(bash "${CLAUDE_PLUGIN_ROOT}/lib/resolve-plugin.sh" project-skills lib/pattern_check.py)" --project-root "<root>" --census
 ```
 - **`orphan > 0`** → **WARN — doc órfã no repo** (reporta + oferece arquivar; nunca hard-fail
   default). Liste os paths. Em `--strict` vira FAIL.
@@ -156,7 +156,7 @@ python3 "$(bash "${CLAUDE_PLUGIN_ROOT}/lib/resolve-plugin.sh" project-doc lib/pa
 
 **22. Scope-staleness ternário — condicional (docs com `scope:`+`generated:`).**
 ```bash
-python3 "$(bash "${CLAUDE_PLUGIN_ROOT}/lib/resolve-plugin.sh" project-doc lib/pattern_check.py)" --project-root "<root>" --plan
+python3 "$(bash "${CLAUDE_PLUGIN_ROOT}/lib/resolve-plugin.sh" project-skills lib/pattern_check.py)" --project-root "<root>" --plan
 ```
 - Canônico recém-gerado marcado **`stale`** → **WARN** (o run deveria ter deixado fresco; scope
   ou generated inconsistente). `unknown` num canônico → **WARN — doc sem generated/scope**
@@ -164,7 +164,7 @@ python3 "$(bash "${CLAUDE_PLUGIN_ROOT}/lib/resolve-plugin.sh" project-doc lib/pa
 
 **23. Doc-lint mecânico (v3.11) — claims da doc vs o repo real.**
 ```bash
-python3 "$(bash "${CLAUDE_PLUGIN_ROOT}/lib/resolve-plugin.sh" project-doc lib/doc_lint.py)" --project-root "<root>" --json
+python3 "$(bash "${CLAUDE_PLUGIN_ROOT}/lib/resolve-plugin.sh" project-skills lib/doc_lint.py)" --project-root "<root>" --json
 ```
 - **`fails > 0` → FAIL** — cada um vem com token + evidência (o repo é o árbitro): env var citada
   que nenhum código lê, hash de commit inexistente (checado em TODOS os git roots, incl.
@@ -202,8 +202,8 @@ nossos backups?" sem resposta na doc, e dois depósitos insubstituíveis sem bac
 - **Nenhum campo autoral foi preenchido por inferência.** Se um doc autoral ganhou texto neste run
   sem ter havido pergunta ao humano → **CRITICAL FAIL**. É a violação que a gen 3.8 mais teme:
   intenção fabricada por máquina passa por autoridade e ninguém desconfia.
-- Nenhum doc autoral existe (projeto que nunca rodou `/start-doc`) → **N/A**, e o relatório
-  **oferece** `/start-doc` em vez de falhar.
+- Nenhum doc autoral existe (projeto que nunca rodou `/start`) → **N/A**, e o relatório
+  **oferece** `/start` em vez de falhar.
 
 **26. Procedência (gen 3.8) — condicional ao que o run produziu.**
 
@@ -219,7 +219,7 @@ nossos backups?" sem resposta na doc, e dois depósitos insubstituíveis sem bac
 ### Verification Output Format
 
 ```
-## /project-doc Verification Results
+## /doc Verification Results
 
 ✅ Structural integrity — v2 markers present, content valid
 ✅ Link validity — 5/5 docs exist
@@ -253,10 +253,10 @@ After verification, if simple auto-correctable issues are found:
 
 **Action:** report to user with: "Encontrei N issues corrigíveis automaticamente. Quer que eu corrija?" If user confirms, apply fixes and re-run verification.
 
-Do NOT auto-fix without asking. Do NOT fix complex issues (wrong descriptions, outdated deploy flow, architectural changes) — those require re-running `/project-doc` or `/project-doc {doc-name}`.
+Do NOT auto-fix without asking. Do NOT fix complex issues (wrong descriptions, outdated deploy flow, architectural changes) — those require re-running `/doc` or `/doc {doc-name}`.
 
 ### When to Run Verification
 
-- **Automatically** after every `/project-doc` generation, update, or migration
-- **On demand** when user says "verifica o claude.md", "check project-doc", "valida a doc", or runs `/project-doc verify`
+- **Automatically** after every `/doc` generation, update, or migration
+- **On demand** when user says "verifica o claude.md", "check project-doc", "valida a doc", or runs `/doc verify`
 - Verification can run standalone (without regenerating) — just read existing files and run checks against source files

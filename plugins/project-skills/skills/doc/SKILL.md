@@ -26,30 +26,30 @@ Sections are conditional — only generated if relevant content is detected. Sma
 
 ## When to Suggest Proactively
 
-- Project has no `.claude/CLAUDE.md` → "Esse projeto não tem CLAUDE.md. Quer que eu rode o /project-doc pra gerar?"
-- CLAUDE.md exists but major structural changes detected (new services, new deploy scripts, new database) → "O CLAUDE.md pode estar desatualizado. Quer que eu rode o /project-doc pra atualizar?"
-- CLAUDE.md has v1 format (monolithic block with `project-doc:start/end` markers) → "O CLAUDE.md está no formato v1 (monolítico). Quer migrar pro v2 (indexado)? Roda `/project-doc migrate`"
-- `.claude/docs/` exists but CLAUDE.md index is missing or doesn't reference it → "Tem docs em .claude/docs/ mas o CLAUDE.md não aponta pra eles. Quer que eu rode o /project-doc index?"
+- Project has no `.claude/CLAUDE.md` → "Esse projeto não tem CLAUDE.md. Quer que eu rode o /doc pra gerar?"
+- CLAUDE.md exists but major structural changes detected (new services, new deploy scripts, new database) → "O CLAUDE.md pode estar desatualizado. Quer que eu rode o /doc pra atualizar?"
+- CLAUDE.md has v1 format (monolithic block with `project-doc:start/end` markers) → "O CLAUDE.md está no formato v1 (monolítico). Quer migrar pro v2 (indexado)? Roda `/doc migrate`"
+- `.claude/docs/` exists but CLAUDE.md index is missing or doesn't reference it → "Tem docs em .claude/docs/ mas o CLAUDE.md não aponta pra eles. Quer que eu rode o /doc index?"
 - `graphify-out/graph.json` exists but is stale (source files changed after its mtime) → "O knowledge graph (graphify-out/) pode estar desatualizado. Quer que eu rode `/graphify <path> --update`?"
 - `graphify-out/graph.json` does NOT exist → **ALWAYS suggest creating one. Unconditional — no exceptions.** Do not assess triviality, coupling, file count, or whether it "would compensate"; that judgment is unreliable and is not the model's to make. Just offer; whether to run it is the user's call. → "Esse projeto se beneficiaria de um knowledge graph: mapeia relações e ajuda a localizar/debugar. Quer gerar um com `/graphify`?"
-- Volume of stale test artifacts detected (loose images in root, `.playwright-mcp/`, `test-results/`, many `.DS_Store`) → "Achei {N} artefatos de teste/temporários largados ({breakdown curto, ex: 45 prints soltos, .playwright-mcp/ com 78 arquivos, 129 .DS_Store}). Quer revisar e limpar com `/project-doc clean`?"
+- Volume of stale test artifacts detected (loose images in root, `.playwright-mcp/`, `test-results/`, many `.DS_Store`) → "Achei {N} artefatos de teste/temporários largados ({breakdown curto, ex: 45 prints soltos, .playwright-mcp/ com 78 arquivos, 129 .DS_Store}). Quer revisar e limpar com `/doc clean`?"
 
 ## Invocation Modes
 
 The skill accepts an optional argument to control scope:
 
-- `/project-doc` — **FULL**: scan everything, generate/update all docs + index + pointers
-- `/project-doc <doc-name>` — **INCREMENTAL**: regenerate only that doc. Valid names: `architecture`, `database`, `api`, `deploy`, `infrastructure`, `env-vars`, `auth`, `patterns`, `data-stores`, `durability`, `runtime`. For monorepos also: `{app-name}/api`, `{app-name}/database`, etc. **Os 5 docs autorais (`quality-goals`, `constraints`, `context`, `solution-strategy`, `glossary`) NÃO são nomes válidos aqui** — eles pertencem ao `/start-doc`; pedi-los ao FULL é erro de rota (responda apontando a skill certa).
-- `/project-doc index` — regenerate only the CLAUDE.md routing table (re-scan for new/removed docs)
-- `/project-doc pointers` — regenerate only the thin pointer files
-- `/project-doc migrate` — migrate v1 monolithic CLAUDE.md → v2 indexed format (see `references/migration.md`)
-- `/project-doc verify` — run verification only, no generation
-- `/project-doc touch` — **use a skill irmã `doc-touch`** (mesmo plugin): atualização INCREMENTAL dos docs afetados pelo diff recente, sem re-mineração. O touch consome `pattern_check --touch-plan`/`doc_lint` e NUNCA redefine invariantes desta skill.
-- `/project-doc clean` — detect, **cluster**, and offer cleanup/archival of stale test artifacts (see `references/artifact-cleanup.md`). Nothing is removed without confirmation. Runs standalone (no doc regeneration).
-- `/project-doc --deep` — **DEEP**: como o FULL, mas o tier 4 minera **TODAS** as sessões de transcript do projeto (cold-start / backfill do histórico de conversas), não só o delta. Pesado — rode pro primeiro mergulho completo.
-- `/project-doc --rebuild` — **REBUILD**: descarta a doc gerada e re-projeta do **journal inteiro** (`findings.jsonl`). Idempotente; não minera nada novo — só re-deriva a doc dos findings vivos.
-- `/project-doc --solo` — escape: força FULL/`--deep` a rodar **single-agent** (sem Workflow). É modo pesado — o grafo continua obrigatório (ver **Workflow Engine → Passo 0**). Debug / projeto pequeno.
-- `/project-doc --nested` — **NESTED (EXPERIMENTAL)**: monorepo only. Generates `apps/{app}/CLAUDE.md` as a **derived pointer** for each app that has a canonical doc in `.claude/docs/apps/{app}.md`. Serialized after t1d (runs only after a full FULL/`--deep` that already wrote the canonical docs). See `references/nested-pointers.md`.
+- `/doc` — **FULL**: scan everything, generate/update all docs + index + pointers
+- `/doc <doc-name>` — **INCREMENTAL**: regenerate only that doc. Valid names: `architecture`, `database`, `api`, `deploy`, `infrastructure`, `env-vars`, `auth`, `patterns`, `data-stores`, `durability`, `runtime`. For monorepos also: `{app-name}/api`, `{app-name}/database`, etc. **Os 5 docs autorais (`quality-goals`, `constraints`, `context`, `solution-strategy`, `glossary`) NÃO são nomes válidos aqui** — eles pertencem ao `/start`; pedi-los ao FULL é erro de rota (responda apontando a skill certa).
+- `/doc index` — regenerate only the CLAUDE.md routing table (re-scan for new/removed docs)
+- `/doc pointers` — regenerate only the thin pointer files
+- `/doc migrate` — migrate v1 monolithic CLAUDE.md → v2 indexed format (see `references/migration.md`)
+- `/doc verify` — run verification only, no generation
+- `/doc touch` — **use a skill irmã `doc-touch`** (mesmo plugin): atualização INCREMENTAL dos docs afetados pelo diff recente, sem re-mineração. O touch consome `pattern_check --touch-plan`/`doc_lint` e NUNCA redefine invariantes desta skill.
+- `/doc clean` — detect, **cluster**, and offer cleanup/archival of stale test artifacts (see `references/artifact-cleanup.md`). Nothing is removed without confirmation. Runs standalone (no doc regeneration).
+- `/doc --deep` — **DEEP**: como o FULL, mas o tier 4 minera **TODAS** as sessões de transcript do projeto (cold-start / backfill do histórico de conversas), não só o delta. Pesado — rode pro primeiro mergulho completo.
+- `/doc --rebuild` — **REBUILD**: descarta a doc gerada e re-projeta do **journal inteiro** (`findings.jsonl`). Idempotente; não minera nada novo — só re-deriva a doc dos findings vivos.
+- `/doc --solo` — escape: força FULL/`--deep` a rodar **single-agent** (sem Workflow). É modo pesado — o grafo continua obrigatório (ver **Workflow Engine → Passo 0**). Debug / projeto pequeno.
+- `/doc --nested` — **NESTED (EXPERIMENTAL)**: monorepo only. Generates `apps/{app}/CLAUDE.md` as a **derived pointer** for each app that has a canonical doc in `.claude/docs/apps/{app}.md`. Serialized after t1d (runs only after a full FULL/`--deep` that already wrote the canonical docs). See `references/nested-pointers.md`.
 
 **Grafo — regra pesado/leve (v3.9):** modos que DOCUMENTAM (FULL, `--deep`, incremental, `--solo`, `doc-touch`) garantem o grafo fresco (`graphify update --force`; ausente ⇒ erro que bloqueia); modos leves (`clean`, `verify`, `index`, `pointers`, `migrate`, `--rebuild`) só checam staleness (mtime, barato) e avisam — nunca rodam o update. Regra completa: ver **Workflow Engine → Passo 0** (seção canônica).
 
@@ -99,7 +99,7 @@ agente refuta com citação**. Componentes (todos já vivem no plugin — hooks 
   - **Lazy (Fase 3):** `organism.py dirty <root> <data>` = módulos sujos ∪ blast-radius das costuras; só
     esses entram no fan-out (`--deep` força todos). Propagação obrigatória — senão o lazy dá drift na costura.
 
-Ao rodar `/project-doc` num projeto com `organism.yaml`, **leia `references/organism.md`** (formato do
+Ao rodar `/doc` num projeto com `organism.yaml`, **leia `references/organism.md`** (formato do
 registro, regras de curadoria, **Conformação de organismo (Caminho C)**, o teto honesto de "mitigação,
 não solução"). Detecção: `python3 lib/organism.py marker <root>`. Modos read-only novos:
 `pattern_check.py --census <root>` (classifica) e `--plan <root>` (dry-run da conformação).
@@ -182,7 +182,7 @@ Report each step to the user as you execute. Don't skip steps or batch them sile
    - **Em QUALQUER ramo acima, a prosa livre que sobra além do flag/doc-name é o discurso direcionado (Tier 0)** — separada do flag (ver **Invocation Modes**), capturada no passo 6 (não muda o modo escolhido). Prosa sem nenhum flag reconhecido → FULL mode + brief.
 6. **Collect from the source cascade** (see **Sources** + **Collect & Project**). Tier 0 = capture the invocation discourse and `adopt` the durable facts; Tier 1 = scan files via the Detection Matrix below; tiers 2-4 = run the lib (`journal.py`); tier 5 = ask the human for critical gaps.
    - **Tier 0 vale em TODO modo que aceita prosa** (inclusive os single-agent): capturar → classificar → `adopt` fatos → echo-back, como na **casca passo 2** (Workflow Engine); nos single-agent não há `RUN.brief` — a direção orienta o agente único direto. Nunca descarte prosa só porque o modo é single-agent.
-   - **FULL / DEEP:** rode a **checagem ativa (passo 0.1)** e minere via **Workflow** (fan-out por concern) — ver **Workflow Engine**. A checagem **executa** `python3 "$(bash "${CLAUDE_PLUGIN_ROOT}/lib/resolve-plugin.sh" project-doc lib/pattern_check.py)" --project-root "<root>"` (não só lê o número do marker — roda o script): `in_pattern==false` => fora do padrão => reconstrói via Workflow `deep` + garimpo. `--solo` força single-agent.
+   - **FULL / DEEP:** rode a **checagem ativa (passo 0.1)** e minere via **Workflow** (fan-out por concern) — ver **Workflow Engine**. A checagem **executa** `python3 "$(bash "${CLAUDE_PLUGIN_ROOT}/lib/resolve-plugin.sh" project-skills lib/pattern_check.py)" --project-root "<root>"` (não só lê o número do marker — roda o script): `in_pattern==false` => fora do padrão => reconstrói via Workflow `deep` + garimpo. `--solo` força single-agent.
    - **FULL mode:** scan everything (tier 1) + `journal.py update` (tiers 2-4, delta)
    - **DEEP mode:** tier 1 + `journal.py deep` (minera TODAS as sessões — cold-start)
    - **REBUILD mode:** pula a mineração; `journal.py rebuild` re-projeta do journal existente
@@ -216,7 +216,7 @@ Report each step to the user as you execute. Don't skip steps or batch them sile
     - Verification results
     - **Commit + push:** `commitado {hash} + pushado` | `commitado, push pulado: {motivo}` | `nada a commitar`
     - Knowledge graph status + suggestion (see Knowledge Graph Integration section)
-    - Stale test artifacts detected: {N} ({breakdown}). Offer `/project-doc clean` (see `references/artifact-cleanup.md`) — detect & report only, never delete here
+    - Stale test artifacts detected: {N} ({breakdown}). Offer `/doc clean` (see `references/artifact-cleanup.md`) — detect & report only, never delete here
     - Ask: "Quer preencher os TODOs agora?"
 
 ## Sources — cascata de tiers (v3; Tier 0 desde v3.8)
@@ -233,7 +233,7 @@ v2 documentava só a partir de **arquivos**. v3 colhe de TODA a evidência do pr
 - **Tier 4 — Transcripts:** as sessões `.jsonl` de **todos os slugs sob o projeto** — direcionamentos, rejeições, decisões que nunca viraram arquivo. Custo alto. Colhido pelo lib via a engine compartilhada (`collect_engine.py`).
 - **Tier 5 — O humano (ATIVO desde a gen 3.8):** lacuna crítica sem fonte → **pergunte**, em vez de marcar `[TODO]` e seguir. Vive **nesta skill**. Duas classes de lacuna, com destinos diferentes:
   - **Operacional** (host SSH que não está em arquivo, RPO/RTO, quando a restauração foi testada) → pergunte na **casca**, direto, e escreva a resposta no doc do concern.
-  - **Autoral** (metas de qualidade, restrições, fronteiras, estratégia, glossário) → **não é seu**. Rode `/start-doc gaps` (read-only) para listar o que falta e **ofereça `/start-doc`**. Esses cinco documentos têm `authored-by: human` e o FULL **nunca os escreve** — ver **Documentos autorais** abaixo.
+  - **Autoral** (metas de qualidade, restrições, fronteiras, estratégia, glossário) → **não é seu**. Rode `/start gaps` (read-only) para listar o que falta e **ofereça `/start`**. Esses cinco documentos têm `authored-by: human` e o FULL **nunca os escreve** — ver **Documentos autorais** abaixo.
 
   **Onde perguntar:** na **casca**, nunca dentro do Workflow (ele roda em background e não pergunta no meio). Duas janelas: **(1) antes de disparar o fan-out**, quando a lacuna já é previsível — `durability.md` vai precisar de **RPO/RTO/última restauração testada**, e `runtime.md` precisa da **escolha dos 3-7 cenários** (minere os candidatos do grafo, apresente a lista e deixe o humano escolher ANTES do fan-out; o agente da Fase A não pode perguntar, então sem isso ele escolhe sozinho e o doc sai não-curado); **(2) depois do `STITCH_RESULT`**, quando os `todos[]` dos agentes revelaram a lacuna. Agrupe as perguntas em UMA rodada por janela; não pingue o humano concern a concern.
 
@@ -248,11 +248,11 @@ carry-forward) — vive em **`references/detection-matrix.md`**. **Leia esse arq
 (passo 6), ao particionar o fan-out por concern (casca passo 5) e ao escanear apps de monorepo. Regra do
 grafo (pesado/leve): ver **Workflow Engine → Passo 0**.
 
-## Documentos autorais — território do `/start-doc` (gen 3.8)
+## Documentos autorais — território do `/start` (gen 3.8)
 
 Cinco documentos **não são mineráveis** porque a informação não está em arquivo nenhum: as metas de
 qualidade, as restrições, o contexto/fronteiras, a estratégia e o glossário. Eles pertencem à skill
-irmã **`/start-doc`** (mesmo plugin), que os produz por **entrevista**.
+irmã **`/start`** (mesmo plugin), que os produz por **entrevista**.
 
 **A trava é o frontmatter `authored-by: human`.** Doc que a carrega:
 
@@ -270,7 +270,7 @@ de autoridade — pior que arquivo ausente, porque ninguém desconfia de um docu
 completo. Inferir uma meta de qualidade a partir do código é exatamente isso.
 
 O banco de perguntas, os moldes e os critérios de pronto vivem em
-`../start-doc/references/authorial-kit.md` — **fonte única**, consumida pelas duas skills. Não
+`../start/references/authorial-kit.md` — **fonte única**, consumida pelas duas skills. Não
 duplique aqui.
 
 ## Collect & Project (v3 — o motor)
@@ -282,7 +282,7 @@ A v3 separa **coleta** (mecânica, código) de **projeção** (julgamento, você
 Roda a parte mecânica — minera tiers 2-4, passa pelo **scrubber** (barreira de secret), dá append no journal append-only e devolve os findings **vivos**:
 
 ```bash
-python3 "$(bash "${CLAUDE_PLUGIN_ROOT}/lib/resolve-plugin.sh" project-doc lib/journal.py)" update  --project-root "<root>" [--session "$CLAUDE_CODE_SESSION_ID"]
+python3 "$(bash "${CLAUDE_PLUGIN_ROOT}/lib/resolve-plugin.sh" project-skills lib/journal.py)" update  --project-root "<root>" [--session "$CLAUDE_CODE_SESSION_ID"]
 # cold-start / backfill de TODAS as sessões:  python3 .../journal.py deep    --project-root "<root>"
 # re-derivar do journal sem minerar:          python3 .../journal.py rebuild --project-root "<root>"
 # só ler os findings vivos:                   python3 .../journal.py fold    --project-root "<root>"
@@ -316,8 +316,8 @@ A doc canônica é **derivada e descartável** (`--rebuild` re-cria do journal).
 
 | Modo | Motor | Por quê |
 |---|---|---|
-| **FULL** (`/project-doc`) e **`--deep`** | **Workflow** (fan-out) | mineram fontes novas + projetam tudo → é onde o medo de contexto bate |
-| incremental (`/project-doc <doc>`), `index`, `pointers`, `--rebuild`, `migrate`, `verify`, `clean` | **single-agent** (como antes) | não mineram / 1 concern só / re-projeção pura → nada a paralelizar |
+| **FULL** (`/doc`) e **`--deep`** | **Workflow** (fan-out) | mineram fontes novas + projetam tudo → é onde o medo de contexto bate |
+| incremental (`/doc <doc>`), `index`, `pointers`, `--rebuild`, `migrate`, `verify`, `clean` | **single-agent** (como antes) | não mineram / 1 concern só / re-projeção pura → nada a paralelizar |
 
 - `--rebuild` re-projeta do journal **sem minerar** → single-agent, sem backup, sem garimpo.
 - Flag de escape **`--solo`**: força FULL/--deep a rodar single-agent (debug/projeto pequeno). Sem `--solo`, FULL/--deep **disparam o Workflow direto** — não anuncie custo nem peça confirmação.
@@ -337,13 +337,13 @@ A doc canônica é **derivada e descartável** (`--rebuild` re-cria do journal).
 
 **Passo 0.0 (SÓ FULL/`--deep` — destila o mapa pro fan-out):** o grafo bruto tem milhares de nós — não engula inline. Só os modos com Workflow consomem o mapa, então só eles destilam:
 ```bash
-python3 "$(bash "${CLAUDE_PLUGIN_ROOT}/lib/resolve-plugin.sh" project-doc lib/graph_map.py)" --project-root "<root>"
+python3 "$(bash "${CLAUDE_PLUGIN_ROOT}/lib/resolve-plugin.sh" project-skills lib/graph_map.py)" --project-root "<root>"
 ```
 Devolve JSON: `{available, stats, files[], god_nodes[], communities[], generic_communities[], hyperedges[]}` (ver **Schemas / GRAPH_MAP**). Como o Passo 0 já garantiu o grafo, `available:false` aqui é anomalia (graphify falhou após o `update`) ⇒ **ERRO** — não há fan-out sem mapa. O mapa alimenta o particionamento (passo 5) e a leitura profunda (Fase A).
 
 
 
-Antes de minerar, **execute** `python3 "$(bash "${CLAUDE_PLUGIN_ROOT}/lib/resolve-plugin.sh" project-doc lib/pattern_check.py)" --project-root "<root>"` e **classifique a doc existente** com base no resultado (esta é a checagem ativa — roda no passo 0 da casca, **não é leitura manual do marker**):
+Antes de minerar, **execute** `python3 "$(bash "${CLAUDE_PLUGIN_ROOT}/lib/resolve-plugin.sh" project-skills lib/pattern_check.py)" --project-root "<root>"` e **classifique a doc existente** com base no resultado (esta é a checagem ativa — roda no passo 0 da casca, **não é leitura manual do marker**):
 
 - **Ausente** (sem `.claude/CLAUDE.md`) → CREATE: Workflow + `deep` (cold-start). Sem backup/garimpo (não há doc antiga).
 - **`in_pattern==false`** (script retorna fora do padrão) → **sequência full forçada**: backup + Workflow + **`deep`** + garimpo. O script detecta QUALQUER das condições abaixo como violação:
@@ -363,7 +363,7 @@ Espelha o qa-loop: o Workflow roda em background e **não pergunta nada no meio*
 **CASCA — passo 0 (antes de disparar):**
 1. Identify root/layout/type/PM + **grafo garantido + mapa (0.0)** + **checagem ativa (0.1)** → decide `update` vs `deep` e se força a sequência. **Separa o flag de modo da prosa** da invocação (ver **Invocation Modes**): o que sobra de prosa é o **discurso direcionado (Tier 0)**.
 2. **Captura do discurso (Tier 0, v3.8 — antes da coleta Python):** se houve prosa na invocação, **classifique** cada pedaço em **fato durável** vs **direção de processo** (mesmo julgamento da projeção). Para cada **fato**, **persista** com a porta que já existe:
-   `python3 "$(bash "${CLAUDE_PLUGIN_ROOT}/lib/resolve-plugin.sh" project-doc lib/journal.py)" adopt --project-root "<root>" --text "<fato>" --raw-kind user_directive`
+   `python3 "$(bash "${CLAUDE_PLUGIN_ROOT}/lib/resolve-plugin.sh" project-skills lib/journal.py)" adopt --project-root "<root>" --text "<fato>" --raw-kind user_directive`
    (`adopt` → `discovered` de 1ª classe; passa pelo MESMO scrubber de secret; idempotente por `finding_id` — re-rodar não duplica; ver `run_adopt`). `user_directive` é tratado como primário (`gate=True`) na projeção. **A direção de processo NÃO é persistida** — vai só pro `RUN.brief` (montado no passo 5). Persistir ANTES da coleta (passo 4) garante que os fatos entrem no `live[]` desta rodada. Guarde os contadores `{fatos_persistidos, direcoes}` pro echo-back.
 3. **Backup** (se há doc): garanta `.claude/.project-doc/backups/` no `.gitignore` (é **efêmero, não versiona** — ao contrário do journal/ledger, que SÃO versionados); então `cp` de `CLAUDE.md` + `.claude/docs/` → `.claude/.project-doc/backups/<UTC-ts>/` + `MANIFEST.json` (git_head, mode). Sem agente.
 4. Roda a **coleta Python 1×** (`journal.py update|deep`) → `{live[], stale_ids, ...}` (já inclui os fatos do Tier 0 adotados no passo 2). A mineração **nunca** entra no fan-out (é determinística e barata).
@@ -382,7 +382,7 @@ Espelha o qa-loop: o Workflow roda em background e **não pergunta nada no meio*
 **CASCA — passo final (depois do Workflow):**
 6. **Só a casca escreve no journal** (serializa o append-only): aplica as invalidações aprovadas + reintegra **com guarda de finding_id** (v3.4) — `curate` quando `relation==="curate_existing"` (finding existe, perdeu o tom), `adopt` **só** quando `relation==="new_discovered"` **e** o `finding_id` não está no `live[]` (nunca adopt cego — era o risco das duplicatas), `invalidate` quando a antiga contradiz o código.
 7. **Escreve os arquivos** — e **aplica o gate 11 aqui**: antes de cada `Write`, se o arquivo de destino já existe e tem `authored-by: human` no frontmatter, **pule** e registre em `authorial_skipped[]` (o JS do Stitch não tem filesystem; este é o único ponto do fluxo que tem). Feito isso, escreve o `body_md` **mergeado da Fase D que passou no gate anti-regressão** (gate 9) pros docs que ganharam nuance; merge **rejeitado** ⇒ escreve o `body_md` da **Fase A** daquele doc (preserva a correção, perde só a costura); os demais saem da Fase A. A prosa já está materializada aqui — o journal (passo 6) é registro fiel, não a fonte da escrita.
-7b. **Gate doc-lint (v3.11, determinístico — check #23):** após escrever os arquivos, `python3 "$(bash "${CLAUDE_PLUGIN_ROOT}/lib/resolve-plugin.sh" project-doc lib/doc_lint.py)" --project-root "<root>" --json`. `fails>0` → a casca corrige cada FAIL com a evidência que o próprio lint dá (o token + a verdade do repo) e re-roda — **máx 2 iterações**; persistiu → reporta FAIL no relatório (nunca silencia). Falso-positivo legítimo (var construída dinamicamente, config de infra externa) → `<!-- lint:ignore TOKEN -->` no doc ou `.claude/.project-doc/lint-allow.txt`, com justificativa.
+7b. **Gate doc-lint (v3.11, determinístico — check #23):** após escrever os arquivos, `python3 "$(bash "${CLAUDE_PLUGIN_ROOT}/lib/resolve-plugin.sh" project-skills lib/doc_lint.py)" --project-root "<root>" --json`. `fails>0` → a casca corrige cada FAIL com a evidência que o próprio lint dá (o token + a verdade do repo) e re-roda — **máx 2 iterações**; persistiu → reporta FAIL no relatório (nunca silencia). Falso-positivo legítimo (var construída dinamicamente, config de infra externa) → `<!-- lint:ignore TOKEN -->` no doc ou `.claude/.project-doc/lint-allow.txt`, com justificativa.
 8. **Re-projeta** (`journal.py rebuild`) pra reconciliar o estado vivo do journal — o `--rebuild` futuro parte daí. + **Verification** (inclui secret + frontmatter + anti-regressão, check #18) + relatório com telemetria (nº de agentes por fase, invalidações aplicadas vs propostas, nuances mergeadas vs dropadas, **merges rejeitados pelo gate 9**). **Nunca declarar PASS com `merge_rejected` não reportado.**
 
 ### O script do Workflow (molde — estilo qa-loop)
@@ -492,21 +492,21 @@ Fase B protege o que já está documentado.
 
 ## Pattern Manifest (v3.8)
 
-Contrato mínimo que define "doc no padrão". Verificado **mecanicamente** por `python3 "$(bash "${CLAUDE_PLUGIN_ROOT}/lib/resolve-plugin.sh" project-doc lib/pattern_check.py)" --project-root "<root>"` — **nunca por leitura manual**. O script retorna `{in_pattern, gen_found, gen_current, violations, docs}`.
+Contrato mínimo que define "doc no padrão". Verificado **mecanicamente** por `python3 "$(bash "${CLAUDE_PLUGIN_ROOT}/lib/resolve-plugin.sh" project-skills lib/pattern_check.py)" --project-root "<root>"` — **nunca por leitura manual**. O script retorna `{in_pattern, gen_found, gen_current, violations, docs}`.
 
 ### Invariantes per-gen (a-e)
 
 - **(a) markers v2 presentes** — `.claude/CLAUDE.md` contém `<!-- project-doc:v2 … -->` e `<!-- project-doc:v2:end -->`
 - **(b) frontmatter em todos os docs** — todo `.claude/docs/*.md` abre com `---\n` (frontmatter YAML)
 - **(c) journal existe** — `.claude/.project-doc/findings.jsonl` presente (doc nunca foi minerada sem journal = base não-confiável)
-- **(d) doc-sig no frontmatter** — todo `.claude/docs/*.md` tem linha `doc-sig: <sig>` no frontmatter. A sig é gerada por `python3 "$(bash "${CLAUDE_PLUGIN_ROOT}/lib/resolve-plugin.sh" project-doc lib/pattern_check.py)" --sig <docfile>` e deve corresponder ao conteúdo atual do arquivo
+- **(d) doc-sig no frontmatter** — todo `.claude/docs/*.md` tem linha `doc-sig: <sig>` no frontmatter. A sig é gerada por `python3 "$(bash "${CLAUDE_PLUGIN_ROOT}/lib/resolve-plugin.sh" project-skills lib/pattern_check.py)" --sig <docfile>` e deve corresponder ao conteúdo atual do arquivo
 - **(e) gen atual** — `gen_found == CURRENT_GEN` (atualmente `3.8`); gen ausente ou menor = motor mudou de padrão → reconstrói
 
 ### CONDITIONAL invariant — `--nested` pointers (t1d)
 
 This invariant is **conditional on whether `--nested` was used**. Detection: check if any `apps/*/CLAUDE.md` contains the marker `nested-pointer` in its first HTML comment.
 
-- **IF `--nested` was used** (any `apps/*/CLAUDE.md` exists with the `<!-- nested-pointer ... -->` marker): for every app that has a canonical doc in `.claude/docs/apps/{app}.md`, there MUST be an up-to-date `apps/{app}/CLAUDE.md` nested pointer whose `sig` matches `sha256(canonical_doc_body)[:8]`. A stale or missing nested pointer for any documented app = **WARN — nested pointer stale or missing for {app}** (run `/project-doc --nested` to regenerate).
+- **IF `--nested` was used** (any `apps/*/CLAUDE.md` exists with the `<!-- nested-pointer ... -->` marker): for every app that has a canonical doc in `.claude/docs/apps/{app}.md`, there MUST be an up-to-date `apps/{app}/CLAUDE.md` nested pointer whose `sig` matches `sha256(canonical_doc_body)[:8]`. A stale or missing nested pointer for any documented app = **WARN — nested pointer stale or missing for {app}** (run `/doc --nested` to regenerate).
 - **IF `--nested` was NOT used** (no `apps/*/CLAUDE.md` with the marker exists): do NOT require nested pointers. Their absence is NOT a violation. `in_pattern` must not be set to `false` due to missing nested pointers — this would silently force a deep rebuild on every project that never opted in.
 
 The `pattern_check.py` script MUST implement this conditional: presence of the marker in any `apps/*/CLAUDE.md` is the activation signal; without it, the check is skipped entirely.
@@ -569,12 +569,12 @@ Os moldes de saída — **CLAUDE.md Index Template** (Standard + Monorepo, com o
    - All content before `<!-- project-doc:v2 -->`
    - All content after `<!-- project-doc:v2:end -->`
    - The `## Custom Rules` section content (extracted before write, reinserted)
-4. **CLAUDE.md exists with the `start-doc:index` markers** (índice mínimo provisório do `/start-doc`): **substitua o bloco inteiro** — do `<!-- start-doc:index -->` ao `<!-- start-doc:index:end -->`, markers inclusive — pelo bloco `project-doc:v2`. Ele é provisório por contrato: a mineração é quem produz o índice definitivo, e deixar os dois lado a lado dá duas tabelas de roteamento no mesmo arquivo. Preserve tudo antes e depois do bloco.
+4. **CLAUDE.md exists with the `start-doc:index` markers** (índice mínimo provisório do `/start`): **substitua o bloco inteiro** — do `<!-- start-doc:index -->` ao `<!-- start-doc:index:end -->`, markers inclusive — pelo bloco `project-doc:v2`. Ele é provisório por contrato: a mineração é quem produz o índice definitivo, e deixar os dois lado a lado dá duas tabelas de roteamento no mesmo arquivo. Preserve tudo antes e depois do bloco.
 5. **CLAUDE.md exists with no markers:** Append the v2 block at the end
 
-**Marker de geração (`gen`) — desacoplado da `version` do plugin:** o marker de abertura grava o **`gen` do contrato de doc** que gerou o arquivo — `<!-- project-doc:v2 gen=3.8 -->`. O **`gen` corrente é `3.8`** — a release do **kit canônico**: três concerns minerados novos (`data-stores`, `durability`, `runtime`), a chave `verified-by` no frontmatter, os rótulos de procedência `[confirmado]`/`[inferido]`/`[relatado]` na prosa, os cinco documentos **autorais** com a trava `authored-by: human` (produzidos pela skill irmã `/start-doc`), o log de decisões promovido à raiz do projeto, e os gates 10 (cobertura ativo×durabilidade) e 11 (autoral intocado). **Doc `gen=3.7` é base não-confiável** porque lhe faltam gavetas inteiras — não porque o que ela diz esteja errado; por isso o re-run é global. O `3.7` foi a release da **conformação de organismo — Caminho C**: a árvore canônica única na raiz com `modules/{m}/`, o router fino de módulo com marker `project-doc:module-router`, o census mundo-aberto de 4 classes, o scope-staleness ternário e a fusão de journal. Docs de organismo `gen=3.6` viram não-conformantes → reconstrução via conformação; projeto avulso re-roda o FULL normal. O `3.6` foi a release do **Pattern Manifest + assinatura determinística**: invariantes (a-e) verificadas por `pattern_check.py`, a linha obrigatória `doc-sig:` no frontmatter, e a checagem ativa via script em vez de leitura manual do marker). A **checagem ativa (passo 0.1)** **executa** `python3 "$(bash "${CLAUDE_PLUGIN_ROOT}/lib/resolve-plugin.sh" project-doc lib/pattern_check.py)" --project-root "<root>"`: `in_pattern==false` é **fora do padrão** → reconstrói via Workflow `deep` + garimpo. **`gen` ≠ `version` do plugin (de propósito):** a `version` (`plugin.json`) é a chave de **propagação** e bumpa a CADA mudança; o `gen` é o gatilho de **reconstrução** e só bumpa quando a doc antiga precisa ser refeita. Ex.: a **Fase D / merge nativo (plugin `3.4.0`)** melhorou a captura de nuances mas **não** invalidou docs `gen=3.3` (que já liam o código via grafo). Só bumpe o `gen` aqui, em `CURRENT_GEN` do `pattern_check.py`, e nos dois Index Templates (em `references/templates.md`) quando a mudança tornar a doc antiga base não-confiável.
+**Marker de geração (`gen`) — desacoplado da `version` do plugin:** o marker de abertura grava o **`gen` do contrato de doc** que gerou o arquivo — `<!-- project-doc:v2 gen=3.8 -->`. O **`gen` corrente é `3.8`** — a release do **kit canônico**: três concerns minerados novos (`data-stores`, `durability`, `runtime`), a chave `verified-by` no frontmatter, os rótulos de procedência `[confirmado]`/`[inferido]`/`[relatado]` na prosa, os cinco documentos **autorais** com a trava `authored-by: human` (produzidos pela skill irmã `/start`), o log de decisões promovido à raiz do projeto, e os gates 10 (cobertura ativo×durabilidade) e 11 (autoral intocado). **Doc `gen=3.7` é base não-confiável** porque lhe faltam gavetas inteiras — não porque o que ela diz esteja errado; por isso o re-run é global. O `3.7` foi a release da **conformação de organismo — Caminho C**: a árvore canônica única na raiz com `modules/{m}/`, o router fino de módulo com marker `project-doc:module-router`, o census mundo-aberto de 4 classes, o scope-staleness ternário e a fusão de journal. Docs de organismo `gen=3.6` viram não-conformantes → reconstrução via conformação; projeto avulso re-roda o FULL normal. O `3.6` foi a release do **Pattern Manifest + assinatura determinística**: invariantes (a-e) verificadas por `pattern_check.py`, a linha obrigatória `doc-sig:` no frontmatter, e a checagem ativa via script em vez de leitura manual do marker). A **checagem ativa (passo 0.1)** **executa** `python3 "$(bash "${CLAUDE_PLUGIN_ROOT}/lib/resolve-plugin.sh" project-skills lib/pattern_check.py)" --project-root "<root>"`: `in_pattern==false` é **fora do padrão** → reconstrói via Workflow `deep` + garimpo. **`gen` ≠ `version` do plugin (de propósito):** a `version` (`plugin.json`) é a chave de **propagação** e bumpa a CADA mudança; o `gen` é o gatilho de **reconstrução** e só bumpa quando a doc antiga precisa ser refeita. Ex.: a **Fase D / merge nativo (plugin `3.4.0`)** melhorou a captura de nuances mas **não** invalidou docs `gen=3.3` (que já liam o código via grafo). Só bumpe o `gen` aqui, em `CURRENT_GEN` do `pattern_check.py`, e nos dois Index Templates (em `references/templates.md`) quando a mudança tornar a doc antiga base não-confiável.
 
-**Assinatura determinística (`doc-sig`):** cada `.claude/docs/*.md` tem no frontmatter a linha `doc-sig: <sig>`, onde a sig = `<project>/<scope_basename>@gen=<CURRENT_GEN>#<hash8>`. `hash8` = primeiros 8 hex do sha256 do body (conteúdo após o frontmatter). Gerada por `python3 "$(bash "${CLAUDE_PLUGIN_ROOT}/lib/resolve-plugin.sh" project-doc lib/pattern_check.py)" --sig <docfile>`. A sig muda quando o body muda (content-addressed), mas é estável pra o mesmo conteúdo — permite detectar regressão de conteúdo entre gerações. É invariante (d) do Pattern Manifest; sua ausência é violação.
+**Assinatura determinística (`doc-sig`):** cada `.claude/docs/*.md` tem no frontmatter a linha `doc-sig: <sig>`, onde a sig = `<project>/<scope_basename>@gen=<CURRENT_GEN>#<hash8>`. `hash8` = primeiros 8 hex do sha256 do body (conteúdo após o frontmatter). Gerada por `python3 "$(bash "${CLAUDE_PLUGIN_ROOT}/lib/resolve-plugin.sh" project-skills lib/pattern_check.py)" --sig <docfile>`. A sig muda quando o body muda (content-addressed), mas é estável pra o mesmo conteúdo — permite detectar regressão de conteúdo entre gerações. É invariante (d) do Pattern Manifest; sua ausência é violação.
 
 **CRITICAL:** When replacing, include the markers themselves in the new content. The markers are part of the block.
 
@@ -594,7 +594,7 @@ Os moldes de saída — **CLAUDE.md Index Template** (Standard + Monorepo, com o
 
 **Postura (v3.9):** grafo é documentação — **garantido nos modos pesados, staleness-check + aviso nos leves** (regra canônica: **Workflow Engine → Passo 0**). Dentro da execução não se oferece: modo pesado garante, modo leve avisa. A sugestão `/graphify` sobrevive só **fora da execução** ou pro **labeling LLM caro** (nomes bonitos de comunidade).
 
-When the project has (or will have) a graphify knowledge graph (`graphify-out/graph.json`), `/project-doc` integrates with it in four ways:
+When the project has (or will have) a graphify knowledge graph (`graphify-out/graph.json`), `/doc` integrates with it in four ways:
 
 1. **Garantir (modos pesados) + mapear (FULL/`--deep`)** — ver **Workflow Engine → Passo 0**. No FULL/`--deep`, o Passo 0.0 destila o mapa via `graph_map.py`; o mapa dirige a leitura profunda (Fase A) e a auditoria de completude (gate 7).
 
@@ -611,14 +611,14 @@ When the project has (or will have) a graphify knowledge graph (`graphify-out/gr
 
 ## Migration v1 → v2 → `references/migration.md`
 
-Disparada quando markers v1 são detectados ou o usuário roda `/project-doc migrate`. Reorganização
+Disparada quando markers v1 são detectados ou o usuário roda `/doc migrate`. Reorganização
 estrutural, não refresh de conteúdo (não re-escaneia o projeto). Modo migrate ativo → **leia
 `references/migration.md`** (passos, mapeamento seção→doc, variante monorepo).
 
 ## Artifact Cleanup → `references/artifact-cleanup.md`
 
 Higiene de artefatos de teste/scratch. A **detecção roda em todo FULL** e só reporta; remoção/arquivamento
-só em `/project-doc clean`, após aprovação da lista clusterizada. Modo clean ativo (ou ao reportar
+só em `/doc clean`, após aprovação da lista clusterizada. Modo clean ativo (ou ao reportar
 artefatos no FULL) → **leia `references/artifact-cleanup.md`** (detecção, classificação 🗑️/📦/🚩/✋,
 sensibilidade, arquivo, formato do report, protocolo de confirmação). As regras duras de segurança do
 cleanup continuam na seção **Rules** desta skill.

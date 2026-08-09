@@ -19,7 +19,7 @@ scope:
 
 | medida | valor | comando |
 | --- | --- | --- |
-| hooks de produção — o que algum `hooks/hooks.json` registra, resolvido pelo medidor oficial | **45** | `python3 scripts/hook_contract.py --scripts \| grep -c .` |
+| hooks de produção — o que algum `hooks/hooks.json` registra, resolvido pelo medidor oficial | **43** | `python3 scripts/hook_contract.py --scripts \| grep -c .` |
 | destes, os que leem o campo que DECIDE — classe B | **32** | ver classe B abaixo |
 | destes, os que só formatam a saída / leem config — classe A | **5** | ver classe A abaixo |
 
@@ -72,7 +72,7 @@ Dentro da classe B há ainda dois graus:
 | A | `plugins/bootstrap/hooks/sessionstart-deps.sh` | 19 | só confere se o `jq` existe para avisar da falta — a mensagem sai sem ele |
 | A | `plugins/branches/hooks/sessionstart-branches.sh` | 15, 21, 34, 44 | lê `.cwd` e serializa o `additionalContext` |
 | A | `plugins/graphify-guard/hooks/sessionstart-graphify.sh` | 8, 11, 38 | lê `.cwd` e serializa o `additionalContext` |
-| A | `plugins/project-doc/hooks/sessionstart-organism.sh` | 15, 21, 26, 28, 29, 30, 31, 33, 42 | lê `.cwd`, desmonta o brief do organismo e serializa a saída |
+| A | `plugins/project-skills/hooks/sessionstart-organism.sh` | 15, 21, 26, 28, 29, 30, 31, 33, 42 | lê `.cwd`, desmonta o brief do organismo e serializa a saída |
 
 ## Classe B1 — lê o campo que decide BLOQUEAR (o dano máximo do issue #5)
 
@@ -84,15 +84,15 @@ Dentro da classe B há ainda dois graus:
 | B1 | `plugins/guardrails/hooks/lint-and-typecheck.sh` | 31 | `session_id` | `exit 2` |
 | B1 | `plugins/guardrails/hooks/scope-cop.sh` | 77 | `session_id` | `permissionDecision: "deny"` |
 | B1 | `plugins/intent-guard/hooks/delivery-audit.sh` | 25 | `session_id` | `decision:"block"` |
-| B1 | `plugins/intent-guard/hooks/plan-gate.sh` | 24 | `session_id` | `exit 2` |
+| B1 | `plugins/intent-guard/hooks/plan-gate.sh` | 24 | `session_id` | `exit 2` — sem registro próprio: chamado pelo portão único da família |
 | B1 | `plugins/intent-guard/hooks/task-checkpoint.sh` | 24 | `session_id` | `decision:"block"` |
-| B1 | `plugins/project-doc/hooks/pretooluse-doc-guard.sh` | 34, 47 | `session_id`, `tool_input.command` | `permissionDecision:"deny"` |
-| B1 | `plugins/project-doc/hooks/pretooluse-organism-gate.sh` | 42 | `session_id` | `permissionDecision:"deny"` |
-| B1 | `plugins/project-doc/hooks/pretooluse-plan-gate.sh` | 51 | `session_id` | `permissionDecision:"deny"` |
+| B1 | `plugins/project-skills/hooks/pretooluse-doc-guard.sh` | 34, 47 | `session_id`, `tool_input.command` | `permissionDecision:"deny"` |
+| B1 | `plugins/project-skills/hooks/pretooluse-organism-gate.sh` | 42 | `session_id` | `permissionDecision:"deny"` |
+| B1 | `plugins/project-skills/hooks/pretooluse-plan-gate.sh` | 51 | `session_id` | `permissionDecision:"deny"` |
 | B1 | `plugins/ship/hooks/pre-deploy-test-check.sh` | 27 | `tool_input.command` | `exit 2` |
 | B1 | `plugins/project-skills/hooks/pretooluse-espera-com-guarda.sh` | 47, 53 | `session_id`, `tool_input.command` | `permissionDecision:"deny"` |
-| B1 | `plugins/project-skills/hooks/pretooluse-sovai-motor.sh` | 60 | `session_id` | `permissionDecision:"deny"` |
-| B1 | `plugins/visual/hooks/pre-exitplan-visualize.sh` | 29 | `session_id` | `exit 2` |
+| B1 | `plugins/project-skills/hooks/pretooluse-motor-arma.sh` | 60 | `session_id` | `permissionDecision:"deny"` |
+| B1 | `plugins/visual/hooks/pre-exitplan-visualize.sh` | 29 | `session_id` | `exit 2` — sem registro próprio: chamado pelo portão único da família |
 
 ## Classe B2 — lê o campo que decide REGISTRAR (o dano diferido do issue #5)
 
@@ -108,13 +108,13 @@ Dentro da classe B há ainda dois graus:
 | B2 | `plugins/lixeiro/hooks/sessionend-colhe.sh` | 28 | `session_id` | a colheita de fim de sessão não acontece |
 | B2 | `plugins/lixeiro/hooks/sessionstart-orfaos.sh` | 29 | `session_id` | órfãos de sessões passadas não são cobrados |
 | B2 | `plugins/lixeiro/hooks/stop-colhe-turno.sh` | 36, 37 | `stop_hook_active`, `session_id` | sem o `stop_hook_active` não há nem guarda de reentrância nem colheita |
-| B2 | `plugins/project-doc/hooks/posttooluse-doc-read.sh` | 17 | `session_id` | a leitura de doc não é registrada; o `doc-guard` segue cobrando |
-| B2 | `plugins/project-doc/hooks/sessionstart-doc.sh` | 25 | `session_id` | o briefing de doc não abre a sessão |
+| B2 | `plugins/project-skills/hooks/posttooluse-doc-read.sh` | 17 | `session_id` | a leitura de doc não é registrada; o `doc-guard` segue cobrando |
+| B2 | `plugins/project-skills/hooks/sessionstart-doc.sh` | 25 | `session_id` | o briefing de doc não abre a sessão |
 | B2 | `plugins/project-skills/hooks/posttooluse-andamento.sh` | 42, 47 | `session_id`, `tool_input.command` | a linha de andamento do motor nunca sai na barra |
-| B2 | `plugins/project-doc/hooks/stop-doc-touch.sh` | 19, 21 | `session_id`, `stop_hook_active` | a cobrança de doc defasada não sai |
-| B2 | `plugins/project-doc/hooks/userpromptsubmit-plan-escape.sh` | 39 | `session_id` | a escapatória do gate de plano não é registrada |
-| B2 | `plugins/visual/hooks/sessionstart-plan.sh` | 25 | `session_id` | o plano aberto não ressuscita depois do `/clear` |
-| B2 | `plugins/visual/hooks/stop-plan-status.sh` | 35, 38 | `stop_hook_active`, `session_id` | o status do plano não é cobrado no fim do turno |
+| B2 | `plugins/project-skills/hooks/stop-doc-touch.sh` | 19, 21 | `session_id`, `stop_hook_active` | a cobrança de doc defasada não sai |
+| B2 | `plugins/project-skills/hooks/userpromptsubmit-plan-escape.sh` | 39 | `session_id` | a escapatória do gate de plano não é registrada |
+| B2 | `plugins/project-skills/hooks/sessionstart-plan.sh` | 25 | `session_id` | o plano aberto não ressuscita depois do `/clear` |
+| B2 | `plugins/project-skills/hooks/stop-plan-status.sh` | 35, 38 | `stop_hook_active`, `session_id` | o status do plano não é cobrado no fim do turno |
 
 ---
 

@@ -10,7 +10,7 @@
 #       assim que o furo reabriu uma vez). O graphify-guard roda com GRAPHIFY_DENY=1
 #       porque em produção o ramo dele é aviso; o que se mede aqui é o ESCOPO, não o ramo.
 # E o núcleo: busca cega (`grep -r`, `find`) continua bloqueada.
-HOOKS="plugins/project-doc/hooks/pretooluse-doc-guard.sh
+HOOKS="plugins/project-skills/hooks/pretooluse-doc-guard.sh
 plugins/graphify-guard/hooks/pretooluse-graphify-guard.sh"
 S_BASE="scope-test-$$"
 # Regex e não texto fixo: a decisão é JSON, e desde o fallback sem `jq` ela é montada

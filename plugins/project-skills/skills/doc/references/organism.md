@@ -143,7 +143,7 @@ para o "não trate como ilha", que o hook já cobre.
 O problema que ISTO resolve é diferente do gate invertido (acima). O gate trata **atenção**
 em runtime (blast-radius numa edição). Esta seção trata **drift de documentação**: num
 organismo, cada módulo herdou da época de repo separado uma árvore `<módulo>/.claude/docs/`
-própria que o `/project-doc` da raiz **nunca tocava** → defasava até o fim dos tempos e, pior,
+própria que o `/doc` da raiz **nunca tocava** → defasava até o fim dos tempos e, pior,
 os hooks a surfaceavam como se fosse fresca (o agente "acha que está em 2025"). A raiz e o
 módulo viravam **dois donos do mesmo fato**, sem regra de precedência.
 
