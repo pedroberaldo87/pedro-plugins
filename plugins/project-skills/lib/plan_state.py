@@ -199,6 +199,15 @@ def pick_plan(directory, plan_id=None):
 
 def save(directory, plan):
     os.makedirs(directory, exist_ok=True)
+    # Tarefa sem `status` some das contagens: não é feita, não é pendente, e a soma
+    # por fora erra (medido em 2026-08-09 — duas tarefas gravadas sem o campo fizeram
+    # 218 virar 217). Toda escrita passa por aqui, então a normalização mora aqui: o
+    # campo ausente vira "todo" ANTES de ir ao disco, não importa quem esqueceu.
+    for ph in plan.get("phases", []) or []:
+        if isinstance(ph, dict):
+            for it in ph.get("items", []) or []:
+                if isinstance(it, dict):
+                    it.setdefault("status", "todo")
     path = plan_path(directory, plan["id"])
     tmp = path + ".tmp"
     with open(tmp, "w", encoding="utf-8") as fh:
@@ -1148,10 +1157,18 @@ def brief_lines(plan, nudge=None, reqs=None, desta_sessao=True):
     lines = [("📍 Onde estamos — %s" if desta_sessao
               else "📋 Plano aberto no projeto — %s") % s["title"], ""]
     if pd:
-        lines.append("• ✅ Feito: %d de %d passos · %s %s fechada%s%s."
-                     % (done, total, _plural(pd, "fase"),
-                        "(%s)" % ", ".join(s["phases_done"]), "" if pd == 1 else "s",
-                        ", com prova em cada passo" if provado else ""))
+        # Quem cede quando a linha estoura o teto é a ENUMERAÇÃO das fases, nunca o
+        # número — mesmo padrão do ponteiro da cobertura abaixo. Medido em 2026-08-09:
+        # com 14 fases fechadas a lista entre parênteses levou o bullet a 141+ chars e
+        # a régua do canal recusou o resumo INTEIRO — o dono ficou sem fim de turno.
+        cheia = ("• ✅ Feito: %d de %d passos · %s %s fechada%s%s."
+                 % (done, total, _plural(pd, "fase"),
+                    "(%s)" % ", ".join(s["phases_done"]), "" if pd == 1 else "s",
+                    ", com prova em cada passo" if provado else ""))
+        curta = ("• ✅ Feito: %d de %d passos · %s fechada%s%s."
+                 % (done, total, _plural(pd, "fase"), "" if pd == 1 else "s",
+                    ", com prova em cada passo" if provado else ""))
+        lines.append(cheia if len(cheia) <= BULLET_MAX else curta)
     else:
         lines.append("• ✅ Feito: %d de %d passos — nenhuma fase fechou ainda." % (done, total))
     nx = s["next"]

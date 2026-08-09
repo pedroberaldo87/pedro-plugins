@@ -2,7 +2,7 @@
   "env": {
     "CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": "1",
     "CLAUDE_CONTEXT_THRESHOLD": "80",
-    "CLAUDE_STATUSLINE_FORWARD": "HUD=\"node $(ls -d ${CLAUDE_CONFIG_DIR:-$HOME/.claude}/plugins/cache/claude-hud/claude-hud/*/ 2>/dev/null | tail -1)dist/index.js\"; BARRA_MOTOR=\"$(ls -d ${CLAUDE_CONFIG_DIR:-$HOME/.claude}/plugins/cache/pedro-plugins/sovai/*/ 2>/dev/null | sort -V | tail -1)hooks/statusline-motor.sh\"; if [ -f \"$BARRA_MOTOR\" ]; then sh \"$BARRA_MOTOR\" \"$HUD\"; else eval \"$HUD\"; fi"
+    "CLAUDE_STATUSLINE_FORWARD": "HUD=\"node $(ls -d ${CLAUDE_CONFIG_DIR:-$HOME/.claude}/plugins/cache/claude-hud/claude-hud/*/ 2>/dev/null | tail -1)dist/index.js\"; BARRA_MOTOR=\"$(ls -d ${CLAUDE_CONFIG_DIR:-$HOME/.claude}/plugins/cache/pedro-plugins/project-skills/*/ 2>/dev/null | sort -V | tail -1)hooks/statusline-motor.sh\"; if [ -f \"$BARRA_MOTOR\" ]; then sh \"$BARRA_MOTOR\" \"$HUD\"; else eval \"$HUD\"; fi"
   },
   "permissions": {
     "allow": [

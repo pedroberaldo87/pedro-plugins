@@ -12,10 +12,10 @@
 # afirmação, roda a verificação contra a cópia e EXIGE reprovação. Sem o
 # argumento não haveria como sabotar, e o teste provaria só que ele mesmo roda.
 #
-#   bash plugins/sovai/hooks/test_sovai_skill.sh              # tudo
-#   bash plugins/sovai/hooks/test_sovai_skill.sh <SKILL.md>   # só as asserções
+#   bash plugins/project-skills/hooks/test_sovai_skill.sh              # tudo
+#   bash plugins/project-skills/hooks/test_sovai_skill.sh <SKILL.md>   # só as asserções
 
-SKILL_PADRAO="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../project-skills/skills/sprint" && pwd)/SKILL.md"  # acopla-ok: teste roda no monorepo, não na máquina de quem instala
+SKILL_PADRAO="$(cd "$(dirname "${BASH_SOURCE[0]}")/../skills/sprint" && pwd)/SKILL.md"  # acopla-ok: teste roda no monorepo, não na máquina de quem instala
 ALVO="${1:-$SKILL_PADRAO}"
 
 if [ ! -f "$ALVO" ]; then

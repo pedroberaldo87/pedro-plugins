@@ -1,0 +1,10 @@
+{
+  "name": "improve-workflow",
+  "version": "0.1.0",
+  "description": "Workflow autopsy — reads the full transcript of a finished multi-agent run, measures cost and friction per role (agents, turns, tokens), flags suspect roles by counting instead of judging, and proposes fixes for the user to approve. It investigates and proposes, and is forbidden by design from implementing its own proposals. Early stage: today it ships the leftovers sweeper (orphan worktrees, stale file reservations, orphan processes); the measurer and the skill arrive next.",
+  "author": {
+    "name": "pedroberaldo87",
+    "email": "tools@viustudio.com.br"
+  },
+  "homepage": "https://github.com/pedroberaldo87/pedro-plugins"
+}

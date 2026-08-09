@@ -93,6 +93,20 @@ O motivo é medido: o canal que levava esse valor até o script **falhava**, e `
 
 Ler de `args.tiers` em tempo de execução é a versão que este passo **substitui**: um canal a mais entre o valor e quem o usa, e cada canal a mais é um lugar a mais para o valor sumir em silêncio.
 
+### Os ids do plano vão no `args` (obrigatório, antes de disparar o Workflow)
+
+A trava que impede o decompositor de forjar tarefa compara o id contra os ids REAIS. Ela
+não lê disco — o script não abre arquivo —, então a casca extrai a lista e a passa como
+**`planIds`**, ao lado dos outros parâmetros.
+
+O comando: leia o `.plan.json` e imprima a lista dos ids de todos os passos, em JSON.
+
+Sem `planIds` a trava sai de cena inteira, e o motor volta ao comportamento medido em
+2026-08-08: **oito ids inventados** pelo decompositor (o sufixo `-R`, de "revisada"),
+**seis tarefas executadas** com esses ids, e nenhuma delas marcável — a marcação recusou
+uma a uma com *"passo 'F21.5-R' não existe no plano"*, e o trabalho ficou no disco com o
+plano dizendo que não.
+
 ### A compilação cara é paga UMA vez, pela casca (obrigatório, antes de disparar o Workflow)
 
 Projeto que compila em minutos cobra esse preço **de cada executor** quando ninguém compila antes: numa execução real, **dez minutos de compilação por tarefa** foi o que empurrou o agente para o segundo plano — e processo em segundo plano que morre não avisa. A compilação é paga **aqui, uma vez**, e o que os executores herdam é o **cache quente** no disco do repositório.
@@ -222,6 +236,8 @@ as escreve.
 
 - **DIAGNÓSTICO — escalada de tarefa-presa.** Se a MESMA tarefa reaparece em `missingTasks`/`gaps` por ≥ `churn_threshold` rodadas seguidas (default 2, mesmo limiar do `/qa-loop`), o motor escala ANTES de mandar o executor tentar de novo: um diagnóstico dedicado em `diagnose_model` (R8, "diagnóstico após falhas repetidas") investiga a causa raiz (dependência não mapeada, arquivo errado, premissa furada) em vez de repetir o mesmo pedido esperando resultado diferente. O diagnóstico entra no `feedback` da próxima rodada do #1.
 
+  **A causa apontada não entra sem sobreviver ao desafio (2026-08-09).** Ao detectar o problema, o investigador **para e investiga a causa REAL** — nunca descreve o sintoma e manda consertar ali mesmo. A causa que ele apontar vai a um **desafiador** (`desafioCausaPrompt`, mesmo `diagnose_model`) com a lente invertida do auditor: o papel dele é **provar que a causa está errada** — apontar o fato que ela não explica, o caminho que ela ignora, a causa concorrente mais simples. Os dois **loopam**: o desafio da volta volta ao investigador na seguinte, até um referendar o outro. Acordo em até 3 voltas → o diagnóstico entra no `feedback` marcado `desafiada: true`. Três voltas sem acordo → **ninguém vence no cansaço**: vira Bloqueio `kind: 'causa-em-disputa'` com as duas versões escritas, porque conserto em cima de causa disputada é o conserto de sintoma com etiqueta nova. Desafiador mudo não referenda — a causa sem veredito NÃO passa como consenso. Nasceu de regressão medida em 2026-08-08: um conserto pontual, feito onde o defeito apareceu, reabriu o mesmo problema em outro arquivo — *"para de fazer remendo"*.
+
 ### Fronteira com o `/qa-loop` (a spec é comum; o ângulo, não)
 
 Os dois loops leem a **mesma spec** e perguntam coisas **diferentes** — e isso vai **escrito no prompt de cada papel** pra não duplicarem trabalho:
@@ -262,9 +278,40 @@ A regra vale para os dois: **descubra em tempo de execução, nunca escreva o no
 no script nem nesta skill.** Escrito à mão, ele fica certo até alguém mover a peça — e o dia
 em que ficar errado, ninguém vai saber.
 
-### Esqueleto do motor (referência — o princípio, não código imutável)
+### O motor do disparo é COPIADO daqui, não reescrito a partir daqui
 
-A casca dispara a tool `Workflow` com o script abaixo. Os três schemas (`DECOMP`, `TASK_RESULT`, `BUILD_REVIEW`) são o que torna os gates determinísticos: o script lê campos estruturados, não texto solto.
+🔴 **Esta seção já se chamou "referência — o princípio, não código imutável", e essa frase
+custou uma missão inteira.** Em 2026-08-08 a casca leu o esqueleto e escreveu um script
+"equivalente" à mão. O que aconteceu, medido comparando os dois arquivos:
+
+```bash
+# as peças que o esqueleto tinha e o script disparado NÃO tinha
+blocoMax · naoDespachadas · blocoQueFalhou      → 0 ocorrências no script
+```
+
+Eram as travas do `F9.57` — o retorno ao decompositor **por bloco**, que outro passo da
+mesma missão tinha acabado de implementar. Sem elas o motor voltava ao decompositor só ao
+fim da onda inteira, e o resultado foi: **as ondas 4 e 5 executaram zero tarefas**, 41
+tarefas reapareceram como faltantes em 3+ rodadas, e 604k tokens saíram sem trabalho.
+
+**A regra que substitui a frase antiga:** o script do `Workflow` é o bloco abaixo,
+**copiado inteiro**. O que a casca acrescenta são os `args` e a constante `T` dos tiers —
+nada mais. Precisa de comportamento diferente? Edite **aqui**, e o disparo seguinte já o
+carrega. Reescrever na hora do disparo é abrir uma segunda versão do motor que ninguém
+compara com esta, e a que roda é sempre a pior das duas.
+
+**Como conferir antes de disparar** — se alguma peça do esqueleto não estiver no script, o
+script não é este:
+
+```bash
+for peca in blocoMax naoDespachadas idsDoPlano congeladas esperaChain; do
+  printf '%-16s esqueleto=%s script=%s\n' "$peca" \
+    "$(grep -c "$peca" <SKILL.md>)" "$(grep -c "$peca" <script gerado>)"
+done
+```
+
+Os três schemas (`DECOMP`, `TASK_RESULT`, `BUILD_REVIEW`) são o que torna os gates
+determinísticos: o script lê campos estruturados, não texto solto.
 
 ```javascript
 export const meta = {
@@ -274,8 +321,11 @@ export const meta = {
            { title: 'Revisar' }, { title: 'Confirmar' }],
 }
 
-// args (da casca): { planPath, planText, maxRounds, severityFloor, repoRoot,
+// args (da casca): { planPath, planText, planIds, maxRounds, severityFloor, repoRoot,
 //                    churnThreshold, hasQaLoop, sessionId, motorId }
+// `planIds` = TODOS os ids que existem no arquivo do plano. Sem ele a trava de id
+// inventado nunca arma, e o decompositor volta a forjar tarefa que ninguem consegue
+// marcar. A casca o extrai antes de disparar (ver o passo na secao acima).
 // O parâmetro pode chegar TEXTO (JSON serializado) em vez de objeto — quando isso
 // aconteceu, todo campo lido dele virou undefined e o motor morreu na 1ª volta sem
 // dizer por quê. Converte ANTES de usar, e o resto do script só fala com ARGS.
@@ -358,6 +408,38 @@ while (!built && r < maxRounds) {
   }
   if (decomp.blockers?.length) blockers.push(...decomp.blockers)
 
+  // ── O ID DA TAREFA TEM QUE EXISTIR NO PLANO (F9.58) ─────────────────────────
+  // Medido em 2026-08-08: o decompositor inventou OITO ids que o plano não tem —
+  // `F21.5-R`, `F16.6-R`, `F11.1-R` e cia., o sufixo que ele criou para "a mesma
+  // tarefa, revisada". Seis delas foram EXECUTADAS e o trabalho ficou órfão: a
+  // marcação recusou uma a uma com "passo 'F21.5-R' não existe no plano", e o
+  // resultado é o pior dos dois mundos — o disco mudou e o plano diz que não.
+  //
+  // A regra é do SCRIPT porque o decompositor já foi instruído em prosa a copiar o
+  // id, e inventou assim mesmo. Aqui o id é conferido contra o arquivo: o que não
+  // existe não vira tarefa, vira Bloqueio nomeado, e ninguém é solto nele.
+  const idsDoPlano = new Set(ARGS.planIds || [])
+  if (idsDoPlano.size) {
+    const forjados = decomp.tasks.filter(t => !idsDoPlano.has(t.id))
+    for (const t of forjados) {
+      blockers.push({ taskId: t.id, kind: 'id-inexistente',
+        what: `o decompositor criou a tarefa ${t.id}, que não existe no plano`,
+        whyNeedsYou: `nenhum executor foi solto nela — se o trabalho é real, ele precisa de um passo no plano com id próprio` })
+    }
+    decomp.tasks = decomp.tasks.filter(t => idsDoPlano.has(t.id))
+  }
+
+  // ── QUEM ESPERA O DONO SAI DA DECOMPOSIÇÃO, NÃO SÓ DA FILA (F9.59) ──────────
+  // O `esperaDono` tirava a tarefa da FILA e a deixava na decomposição — então ela
+  // voltava a ser decomposta em toda rodada, entrava em `missingTasks` do revisor
+  // em toda rodada, e o dono a via cinco vezes no relatório. Medido em 2026-08-08:
+  // 41 tarefas listadas como faltantes em 3+ rodadas, e as 10 congeladas entre elas.
+  // Decompor custa o tier caro; decompor o que ninguém vai executar é gasto puro.
+  const congeladas = decomp.tasks.filter(t => t.esperaDono)
+  if (congeladas.length) {
+    log(`${congeladas.length} tarefa(s) esperam você e saíram da decomposição desta rodada`)
+  }
+
   // ── A RÉGUA DO `pronto` É COBRADA POR CÓDIGO, NÃO SÓ NA PROSA (F8.2 · S-14) ──
   // O julgamento do critério existia só como instrução ao #1, e instrução em prosa não
   // recusa nada: bastou o decompositor não julgar para o critério-armadilha chegar
@@ -381,12 +463,36 @@ while (!built && r < maxRounds) {
 
   // DIAGNÓSTICO de tarefa-presa — antes de tentar de novo, escala quem já reaparece
   // ≥ churnThreshold rodadas seguidas pro diagnose_model (medium): causa raiz, não repetição.
+  //
+  // ── A CAUSA APONTADA NÃO ENTRA SEM SOBREVIVER AO DESAFIO (autópsia 2026-08-09) ──
+  // Diagnóstico solto vira conserto de sintoma: a primeira explicação plausível entra no
+  // feedback, o executor conserta ONDE o defeito apareceu, e os outros pontos com a mesma
+  // causa ficam de pé — foi a regressão medida na sessão de 2026-08-08. Agora quem
+  // investiga PARA na causa, e um desafiador recebe a causa com a ordem de PROVAR QUE ELA
+  // ESTÁ ERRADA. Os dois trocam até concordarem (o desafio da volta anterior vai junto na
+  // seguinte); três voltas sem acordo não escolhem vencedor — viram Bloqueio "precisa de
+  // você" com as duas versões escritas, porque causa em disputa não é causa.
   const diagnoses = []
   for (const t of decomp.tasks) {
     if (taskChurn[t.id] >= churnThreshold) {
-      const diag = await agent(diagnoseStuckTaskPrompt({ task: t, attempts: taskChurn[t.id] }),
-        { model: ARGS.model, effort: T.diagnose.effort, phase: 'Diagnose' })   // diagnose_model
-      diagnoses.push({ task_id: t.id, diagnosis: diag })
+      let causa = null, desafio = null, acordo = false
+      for (let volta = 1; volta <= 3 && !acordo; volta++) {
+        causa = await agent(diagnoseStuckTaskPrompt({ task: t, attempts: taskChurn[t.id],
+            desafioAnterior: desafio?.motivo || null }),
+          { model: ARGS.model, effort: T.diagnose.effort, phase: 'Diagnose' })   // diagnose_model
+        if (!causa) break
+        desafio = await julga(desafioCausaPrompt({ task: t, causa }),
+          { model: ARGS.model, effort: T.diagnose.effort, phase: 'Diagnose', schema: DESAFIO })
+        // desafiador mudo não referenda: sem veredito, a causa NÃO entra como consenso
+        acordo = desafio ? desafio.procede === true : false
+      }
+      if (acordo) {
+        diagnoses.push({ task_id: t.id, diagnosis: causa, desafiada: true })
+      } else {
+        blockers.push({ taskId: t.id, kind: 'causa-em-disputa',
+          what: `a causa de ${t.id} não sobreviveu ao desafio: investigador diz "${String(causa || 'sem resposta').slice(0, 200)}" · desafiador diz "${String(desafio?.motivo || 'sem veredito').slice(0, 200)}"`,
+          whyNeedsYou: 'três voltas de investigação e desafio sem acordo — causa em disputa não vira conserto; decida qual versão vale ou aponte a terceira' })
+      }
     }
   }
 
@@ -431,6 +537,21 @@ while (!built && r < maxRounds) {
   }
   const esperandoVoce = decomp.tasks.filter(t => !t.done && esperaChain.has(t.id))
     .map(t => ({ taskId: t.id, motivo: esperaChain.get(t.id) }))
+
+  // ── ONDA ESTÉRIL ENCERRA A CORRIDA (autópsia 2026-08-09) ────────────────────
+  // Medido na corrida wf_5438d704: as ondas 4 e 5 decompuseram 40 e 30 tarefas e
+  // executaram ZERO — a fila inteira estava parada por blocker ou espera, e o motor
+  // seguiu pagando a decomposição (a parte cara) para não despachar ninguém. Onda que
+  // separa e não tem UM executável não melhora com mais rodada: ou o que trava é seu
+  // (esperandoVoce), ou é impedimento confirmado (impedidos) — os dois já estão no
+  // relatório. Rodar de novo é o mesmo resultado pelo mesmo preço.
+  if (decomp.tasks.length && !todo.length) {
+    desligadoPor = 'onda-esteril'
+    rounds.push({ r, decomp, results: [], review: null, esperandoVoce })
+    blockers.push({ what: `onda ${r} estéril: ${decomp.tasks.length} tarefa(s) separadas e nenhuma executável — tudo parado por blocker ou espera`,
+                    whyNeedsYou: 'mais rodada repete o mesmo vazio pelo mesmo preço — destrave o que espera você, ou recorte a missão' })
+    break
+  }
 
   // ── RESERVA DE ARQUIVOS ENTRE MOTORES (F9.2) ────────────────────────────────
   // Mais de um motor pode estar vivo na MESMA sessão, e dois motores escrevendo o
@@ -730,9 +851,33 @@ while (!built && r < maxRounds) {
   // devolução do decompositor, que não é passo e vem SEM `task_id`. Quem contava linha
   // via cinco onde havia três, e o papel de marcação era disparado duas vezes pelo mesmo
   // passo. A conta é por `task_id` DISTINTO, e linha sem `task_id` não entra.
-  const feitosDaOnda = [...new Map(results.filter(x => x?.done && x.task_id)
+  //
+  // ── A MARCAÇÃO EXIGE O DE ACORDO DO REVISOR E A ONDA VERDE (autópsia 2026-08-09) ──
+  // Medido na corrida wf_5438d704: 17 passos marcados em ondas VERMELHAS, 9 deles com o
+  // defeito já escrito pelo revisor DA MESMA onda. Quem executa diz "fiz"; quem confere
+  // é o revisor e a suíte — e a marcação só ouvia o primeiro. Duas travas, e as duas
+  // registram por nome o que seguraram, em vez de calar:
+  // 1) passo que o revisor apontou (gap ou missing) não é marcado nesta onda — ele volta
+  //    ao loop pelo feedback normal, e o trabalho fica no disco;
+  // 2) onda vermelha não marca NADA — marcar sem ponto de salvamento grava no plano um
+  //    trabalho que não entrou no histórico.
+  const reprovadosPeloRevisor = new Set(
+    [...(review.gaps || []).map(g => g.task_id), ...(review.missingTasks || [])].filter(Boolean))
+  const feitosDaOnda = [...new Map(results.filter(x => x?.done && x.task_id
+      && !reprovadosPeloRevisor.has(x.task_id))
     .map(x => [x.task_id, x])).values()]
   rounds[rounds.length - 1].feitos = feitosDaOnda.map(x => x.task_id)
+  const seguradosPeloRevisor = [...new Set(results.filter(x => x?.done && x.task_id
+      && reprovadosPeloRevisor.has(x.task_id)).map(x => x.task_id))]
+  if (seguradosPeloRevisor.length) {
+    rounds[rounds.length - 1].naoMarcados = { motivo: 'reprova do revisor', ids: seguradosPeloRevisor }
+    log(`não marcados por reprova do revisor: ${seguradosPeloRevisor.join(' · ')}`)
+  }
+  const ondaVerde = !!suite?.green
+  if (!ondaVerde && feitosDaOnda.length) {
+    rounds[rounds.length - 1].naoMarcados = { motivo: 'onda vermelha', ids: feitosDaOnda.map(x => x.task_id) }
+    log(`onda ${r} vermelha: ${feitosDaOnda.length} passo(s) entregues ficaram SEM marcação — o trabalho está no disco`)
+  }
 
   // ── UM AGENTE PARA A ONDA, N COMANDOS EM SEQUÊNCIA (F9.53 + F9.54) ──────────
   // Era um agente POR PASSO. Marcar não tem julgamento a isolar — o veredito já foi
@@ -749,7 +894,7 @@ while (!built && r < maxRounds) {
   // Um agente morreu com texto vazio, nunca executou o tick, e o passo entregue ficou
   // gravado como não feito — sem nada acusar. `suite` e `reserva` sempre tiveram schema
   // e empurram blocker no nulo; só a marcação sumia calada.
-  if (ARGS.planPath?.endsWith('.plan.json') && feitosDaOnda.length) {
+  if (ARGS.planPath?.endsWith('.plan.json') && feitosDaOnda.length && ondaVerde) {
     const tick = await agent(tickPlanPrompt({
       planPath: ARGS.planPath,
       passos: feitosDaOnda.map(t => ({
@@ -854,6 +999,39 @@ while (!built && r < maxRounds) {
                diagnoses, devolvidas: devolvidasPeloAuditor, blocoQueFalhou }   // alimenta o DECOMPOR da próxima volta
 }
 
+// ── A CONFERÊNCIA FINAL RODA MESMO NA PARADA (autópsia 2026-08-09) ────────────
+// O confirm só existia no caminho feliz sem /qa-loop, e o /qa-loop da etapa seguinte só
+// roda depois de built=true — parada por teto, vigia ou onda estéril deixava TUDO sem
+// segunda checagem. Foi assim que 17 passos ficaram marcados sem conferência válida na
+// corrida wf_5438d704. Agora quem para sem terminar confere o que as ondas entregaram,
+// e o relatório diz QUAL conferência rodou (`conferidoPor`).
+// Exceção única: parada por ORÇAMENTO não confere — o disjuntor é teto duro, e gastar
+// um agente a mais depois dele é o disjuntor deixando de ser disjuntor. O relatório
+// carrega o motivo em `conferidoPor`, então a ausência não passa calada.
+let conferidoPor = built ? (ARGS.hasQaLoop === false ? 'confirm-pass' : 'qa-loop da etapa seguinte') : 'nenhuma'
+const entregouAlgo = rounds.some(x => (x.feitos || []).length)
+if (!built && entregouAlgo && desligadoPor !== 'orcamento') {
+  const ultima = rounds[rounds.length - 1]
+  const confirmFinal = await julga(confirmBuildPrompt({ planPath: ARGS.planPath, planText: ARGS.planText,
+      repoRoot: ARGS.repoRoot, decomp: ultima.decomp,
+      results: rounds.flatMap(x => x.results || []).filter(Boolean), lawMark }),
+    { model: ARGS.model, effort: T.finalize.effort, phase: 'Confirmar', schema: BUILD_REVIEW })
+  rounds[rounds.length - 1].confirmFinal = confirmFinal
+  if (!confirmFinal) {
+    blockers.push({ what: 'a missão parou no meio e a conferência final não respondeu',
+                    whyNeedsYou: 'nada checou o que as ondas entregaram — trate os passos marcados como não conferidos' })
+  } else {
+    conferidoPor = 'confirm-na-parada'
+    // gap achado aqui não volta pro loop — a missão já parou. Vira aviso NOMEADO, para o
+    // conserto entrar como tarefa no plano em vez de morrer no relatório.
+    for (const g of (confirmFinal.gaps || [])) {
+      blockers.push({ taskId: g.task_id || undefined,
+        what: `a conferência final da parada achou defeito${g.task_id ? ` em ${g.task_id}` : ''}: ${g.problem}`,
+        whyNeedsYou: 'a missão já parou — este conserto vira tarefa no plano, não sai sozinho' })
+    }
+  }
+}
+
 // O QUE FALTOU, SEPARADO POR MOTIVO (F9.19). Os dois chegavam misturados, e quem lê não
 // sabia se esperava mais uma rodada ou se tinha que agir. São perguntas diferentes:
 // impedimento não sai com mais tempo — falta de tempo sai.
@@ -888,6 +1066,7 @@ return {
   esperandoVoce,      // nem falha nem falta de tempo: espera um ato seu, declarado no plano
   gasto: gastoAgora() - gastoInicial,
   stopReason: desligadoPor || (built ? 'build-complete' : 'max-rounds'),
+  conferidoPor,       // qual segunda checagem rodou: qa-loop adiante · confirm-pass · confirm-na-parada · nenhuma
   // `tasks` conta TAREFA distinta da onda, não linha de `results` (F9.35): linha repetida
   // pelo replay do cache e linha sem `task_id` (a da decomposição) não são passos.
   telemetry: rounds.map(x => ({ round: x.r,
@@ -902,6 +1081,7 @@ return {
 - `DECOMP` — `{ tasks: [{ id, desc, requisito, pronto, files: [...], parallelizable: bool, dependsOn: [id...], done: bool, complexity?: 'standard'|'mechanical', esperaDono?: string, protegido?: string }], blockers: [{ what, whyNeedsYou }] }`. **`requisito` e `pronto` são obrigatórios** — `requisito` = o item da spec que a tarefa atende, `pronto` = o critério de feito dele, **os dois copiados da spec, não redigidos pelo decompositor** (o executor não tem como cumprir o que não recebe, e critério inventado aqui vira régua falsa no #2). Item da spec sem um dos dois vira `blocker`, não tarefa. `complexity: 'mechanical'` = operação bem delimitada (renomear, mover arquivo, 1 config, 1 valor); ausente/`'standard'` = tarefa normal. **`esperaDono`** = a frase do ato que só o dono pode fazer, **copiada do `espera_dono` do passo no `.plan.json`** — nunca inventada aqui, e nunca deduzida do texto da tarefa. Tarefa com `esperaDono` **não entra na fila do motor** (nenhum executor é solto nela), e quem `dependsOn` dela também não: os dois saem em `esperandoVoce`, com o motivo. Passo sem o campo no plano é tarefa normal. **`protegido`** = o arquivo sob tranca que a tarefa toca (o que traz `status: approved` no frontmatter) e o motivo da tranca, marcado pelo decompositor **por leitura do disco**, nunca por achismo. Tarefa `protegido` **entra na fila** — o que muda é o entregável: proposta, não edição, e o revisor a mede pelo critério invertido.
 - `TASK_RESULT` — `{ task_id, files_touched: [...], summary, done: bool, note, anchor, espera: bool, impossivel?: string, ferramentas?: [...], proposta?: { arquivo, antes, depois } }`. **`impossivel`** = a alegação de que a tarefa não tem como sair, com o motivo; **`ferramentas`** = o que havia à mão no contexto dela. Alegar não encerra nada: repetida por `churnThreshold` rodadas seguidas na mesma tarefa, ela convoca o `AUDITOR`. **`proposta`** = o entregável da tarefa `protegido` (regra 5 do executor): `antes` e `depois` **literais**, o primeiro copiado do disco e o segundo pronto pra colar. O script cobra os dois — proposta sem um deles vira `done: false` e Bloqueio, porque descrição do que mudar deixa o trabalho todo pro dono. Com os dois, a proposta sai em **Bloqueios (precisam de você)** com o antes/depois inteiro, e `git diff` vazio no arquivo é o resultado certo. **`anchor`** = a última linha não vazia do que o executor leu para decidir que estava pronto — a prova de leitura inteira (ver "o juiz prova que leu"). **`espera`** = o executor bateu no `tetoMin` e parou por isso (regra 4 dele). O script tira essas do `results` — o revisor não recebe meia obra como obra — e as manda pro `missing` do #1 na volta seguinte; a rodada **fecha com quem voltou**. `espera: true` não é falha e não vira Bloqueio: sai em `naoDeuTempo`, com o teto no motivo.
 - `AUDITOR` — `{ derruba: bool, motivo, naoTentou: [...], anchor }`, devolvido por `auditorPrompt` (`diagnose_model`). A lente é **invertida**: o ônus é do auditor provar que **não dá**, e ele recebe `ferramentas` — o que havia à mão — para dizer em `naoTentou` o que o executor nem tentou. `derruba: true` **devolve a tarefa ao loop** (ela entra no `missing` do #1 na volta seguinte, com o que o auditor apontou); `derruba: false` **encerra como impedimento real** — Bloqueio de `kind: 'impedimento'` com o `motivo` escrito. Auditor mudo não encerra nada: a tarefa volta pro loop, porque quem não respondeu não confirmou impedimento. Como todo veredito, sem `anchor` ele é recusado e o papel roda de novo.
+- `DESAFIO` — `{ procede: bool, motivo, anchor }`, devolvido por `desafioCausaPrompt` (`diagnose_model`). O desafiador recebe a tarefa e a **causa** que o investigador apontou, com a ordem de **derrubá-la**: `procede: false` carrega em `motivo` o fato que a causa não explica ou a concorrente mais simples — e esse motivo volta ao investigador na volta seguinte (`desafioAnterior`). `procede: true` referenda, e só então o diagnóstico entra no `feedback` (`desafiada: true`). Três voltas sem acordo viram Bloqueio `kind: 'causa-em-disputa'` com as duas versões; desafiador mudo **não referenda**. Como todo veredito, sem `anchor` é recusado e roda de novo.
 - `SUITE_RESULT` — `{ green: bool, failing: [nome...], placar, heartbeat, trabalhoVivo: bool }`. **`placar`** = a linha crua que a suíte imprimiu (`139 passou · 0 falhou`, `OK (56 checks)`, `17 ok / 0 falhas`), <!-- acopla-ok: exemplos do formato de placar reconhecido, não contagem deste repositório --> lida por `lib/andamento.py:placar` e comparada com a da onda anterior por `lib/andamento.py:avanco` — dois placares iguais seguidos saem como `sem avanço`. O veredito aparece nas **duas** superfícies: no cartão que fecha a onda (`hooks/posttooluse-andamento.sh`, que vê a saída crua da suíte) e na **barra** (`hooks/statusline-motor.sh` → `linha_placar`), que é a que fica. O registro é um só, em `~/.claude/sovai/placar-<sid>` — o motor guarda o campo na onda (`rounds[].placar`) e não o descarta mais. **`trabalhoVivo`** separa demora de travamento: com ele `true`, o vigia **não** derruba, por mais silencioso que esteja o registro. **`heartbeat`** = o carimbo de tempo do último sinal de vida, que a casca reinjeta a cada rodada (o script não tem relógio próprio).
 - `blocker` de `kind: 'criterio'` — critério de aceite que só se cumpre injetando valor inventado dentro de entregável. Não vira tarefa: vira Bloqueio, e o `whyNeedsYou` diz qual passo da spec precisa reescrever o `pronto`. **Quem o emite é o SCRIPT**, logo depois da decomposição e antes de qualquer executor sair (ver o bloco da régua no esqueleto) — não é julgamento do #1.
 - `REGUA` — `{ reprovados: [{ task_id, motivo }] }`. O papel é **mecânico e só**: para cada `{ id, pronto }` recebido, rodar
@@ -913,7 +1093,7 @@ return {
   ⚠️ **O caminho é RESOLVIDO POR NOME, nunca escrito à mão** — mesmo molde do `RESERVA` acima. Em 2026-08-08 um passo da própria missão moveu `plan_state.py` de plugin, o motor continuou apontando o lugar velho, e os 47 agentes de marcação **falharam no primeiro comando e gastaram 8,45M redescobrindo o rename**, cada um por conta própria. Pior: 14 deles acharam uma cópia errada (worktree antigo, cache) e gravaram no plano com um validador 548 linhas mais velho. **Todo caminho que o motor usa para si mesmo se resolve por nome.**
 
   e devolver em `reprovados` os que saíram com **exit 1**, com `motivo` = a linha que o programa imprimiu. Exit 0 não aparece na lista. **Sem julgamento próprio**: quem decide é o programa — a régua é uma só, a mesma que o `plan_state.py` cobra na gravação do plano, e re-julgar aqui por leitura faria o motor e o plano recusarem coisas diferentes. Programa ausente na máquina ou comando quebrado = `reprovados: []` (fail-open, como a reserva).
-- `RESERVA` — `{ recusado: bool, arquivos: [caminho...] }`. O papel é **mecânico e só**: rodar `$(bash "${CLAUDE_PLUGIN_ROOT}/lib/resolve-plugin.sh" sovai hooks/reserva-de-arquivos.sh) reservar <sessionId> <motorId> <arquivo>...` e devolver o veredito do JSON que saiu — `recusado: true` quando veio `permissionDecision: "deny"`, com `arquivos` = os caminhos em disputa que a recusa nomeou. Script mudo = `recusado: false` (reservou). Sem julgamento próprio: quem decide é o hook, o agente só transporta.
+- `RESERVA` — `{ recusado: bool, arquivos: [caminho...] }`. O papel é **mecânico e só**: rodar `$(bash "${CLAUDE_PLUGIN_ROOT}/lib/resolve-plugin.sh" project-skills hooks/reserva-de-arquivos.sh) reservar <sessionId> <motorId> <arquivo>...` e devolver o veredito do JSON que saiu — `recusado: true` quando veio `permissionDecision: "deny"`, com `arquivos` = os caminhos em disputa que a recusa nomeou. Script mudo = `recusado: false` (reservou). Sem julgamento próprio: quem decide é o hook, o agente só transporta.
 - `tickPlanPrompt` — **com schema `TICK_RESULT`**, e a lista inteira da onda num agente só. Papel **mecânico e só**: gravar no plano os passos que acabaram de sair, rodando **um comando por passo, em sequência**:
 
   ```bash
@@ -1002,7 +1182,7 @@ Passada a QA e **ANTES** de montar o relatório, persista o trabalho. Esta é a 
 
    ```bash
    rm -f "${CLAUDE_CONFIG_DIR:-$HOME/.claude}/sovai"/{ativo,bloqueios}-"$CLAUDE_CODE_SESSION_ID"
-   bash "$(bash "${CLAUDE_PLUGIN_ROOT}/lib/resolve-plugin.sh" sovai hooks/reserva-de-arquivos.sh)" liberar "$CLAUDE_CODE_SESSION_ID" "$SOVAI_MOTOR_ID"
+   bash "$(bash "${CLAUDE_PLUGIN_ROOT}/lib/resolve-plugin.sh" project-skills hooks/reserva-de-arquivos.sh)" liberar "$CLAUDE_CODE_SESSION_ID" "$SOVAI_MOTOR_ID"
    ```
 
    Reserva não liberada recusaria o próximo motor da sessão nos mesmos arquivos — é o mesmo esquecimento do sinal, com outro nome. (Há rede embaixo: a reserva expira por idade, mesma janela de 12h do sinal.)

@@ -5,7 +5,7 @@
 # recalcular a regra aqui: recalcular à mão foi o que mascarou o bug de path na
 # 1ª rodada do plan-gate.
 #
-#   bash plugins/sovai/hooks/test_reserva_de_arquivos.sh
+#   bash plugins/project-skills/hooks/test_reserva_de_arquivos.sh
 
 HOOK="$(cd "$(dirname "$0")" && pwd)/reserva-de-arquivos.sh"
 TMP="$(mktemp -d)"

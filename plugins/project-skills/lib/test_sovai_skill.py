@@ -13,7 +13,7 @@ import os
 import sys
 
 SKILL_MD = os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                        "..", "..", "project-skills", "skills", "sprint", "SKILL.md")
+                        "..", "skills", "sprint", "SKILL.md")
 
 FAILS = []
 

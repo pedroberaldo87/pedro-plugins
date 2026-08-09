@@ -721,12 +721,33 @@ def main(argv=None):
     ap.add_argument("--stop-budget", action="store_true",
                     help="mede quantas linhas os emissores de Stop produzem juntos")
     ap.add_argument("--root", default=".")
+    ap.add_argument("--scripts", action="store_true",
+                    help="imprime o CAMINHO de cada script de hook registrado, um por linha")
     ap.add_argument("--responde", metavar="FERRAMENTA",
                     help="lista quem responde a essa ferramenta (ex.: ExitPlanMode)")
     ap.add_argument("--json", action="store_true")
     ap.add_argument("--fail-on", choices=("high", "med", "low"), help="exit 1 se houver achado nesse nível ou pior")
     ap.add_argument("--baseline", help="JSON de um retrato anterior: reporta só o que PIOROU")
     args = ap.parse_args(argv)
+
+    if args.scripts:
+        # A lista dos scripts que o harness REALMENTE carrega, por caminho.
+        # Existe porque "hook" não é todo `.sh` dentro de `hooks/`: biblioteca
+        # local (`lib-rodada.sh`, `lib-tmpdir.sh`) mora lá e não roda em evento
+        # nenhum. Comparar por NOME de arquivo também não serve — `lib-tmpdir.sh`
+        # está em sete plugins, e um registro num deles faria os outros seis
+        # passarem por registrados. Quem pergunta "quantos hooks existem?" chama
+        # isto, em vez de listar o diretório e adivinhar.
+        raiz = os.path.abspath(args.root)
+        res = run(raiz)
+        vistos = []
+        for e in res.get("measured", []):
+            sc = e.get("script")
+            if sc and sc not in vistos:
+                vistos.append(sc)
+        for sc in sorted(vistos):
+            print(sc)
+        return 0
 
     if args.stop_budget:
         b = stop_budget(os.path.abspath(args.root))

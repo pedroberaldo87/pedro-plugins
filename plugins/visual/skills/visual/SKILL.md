@@ -773,6 +773,12 @@ O que você faz com ele, em ordem:
 - **Qualquer 😐 ou 👎 COM o campo livre preenchido** — a lição já está pronta. Escreva-a no
   formato do banco, **mostre ao dono antes de gravar**, e só então rode `clareza.py
   registrar`. Regra dele, de 2026-08-08: mudança na skill e no banco passa por ele.
+
+  **E o "mostre" é PÁGINA, nunca texto no terminal (2026-08-09).** Toda proposta de
+  mudança nesta skill, no banco de lições ou em qualquer regra de escrita das páginas
+  nasce como página `/visual` — a lição candidata com o texto integral, e o antes/depois
+  quando muda instrução. O terminal fica só com o endereço do arquivo. Motivo medido: o
+  terminal rola, o texto sobe, e o dono aprova sem ver — ou não vê e a mudança morre.
 - **Qualquer 😐 ou 👎 SEM o campo livre** — **pergunte**, e pergunte pelo eixo que ele
   reprovou, não em geral: *"a clareza ficou ruim — foi alguma palavra que eu não expliquei,
   ou a pergunta em si não deu pra entender?"*. Uma pergunta, com as duas hipóteses mais

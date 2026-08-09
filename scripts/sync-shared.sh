@@ -17,7 +17,7 @@ SRC="$ROOT/_shared"
 # Cada spec é "destino::arquivo" — qual arquivo de _shared/ vai pra qual subpasta.
 # Mapa explícito (não "todos os FILES em todos os CONSUMERS") porque consumidores
 # diferentes vendoram arquivos diferentes: a engine de coleta vai pro lib/ do
-# handoff+project-doc; a tabela R8 vai pro references/ do sovai+qa-loop.
+# handoff+project-doc; a tabela R8 vai pro references/ do sprint+qa-loop.
 SPECS=(
   "plugins/handoff/lib::collect_engine.py"
   "plugins/project-doc/lib::collect_engine.py"
@@ -104,7 +104,7 @@ SPECS=(
   "plugins/lixeiro/hooks::hook-json.sh"
   "plugins/project-doc/hooks::hook-json.sh"
   "plugins/ship/hooks::hook-json.sh"
-  "plugins/sovai/hooks::hook-json.sh"
+  "plugins/project-skills/hooks::hook-json.sh"
   "plugins/visual/hooks::hook-json.sh"
   # O resolvedor do diretório temporário: viaja com todo plugin que tem script
   # gravando estado por-sessão fora do projeto. O plugin instalado só enxerga a
@@ -117,7 +117,7 @@ SPECS=(
   "plugins/intent-guard/hooks::lib-tmpdir.sh"
   "plugins/project-doc/hooks::lib-tmpdir.sh"
   "plugins/ship/hooks::lib-tmpdir.sh"
-  "plugins/sovai/hooks::lib-tmpdir.sh"
+  "plugins/project-skills/hooks::lib-tmpdir.sh"
   "plugins/visual/hooks::lib-tmpdir.sh"
   # O green-cache do qa-loop mora em lib/, não em hooks/ — a cópia acompanha ele.
   "plugins/qa-loop/lib::lib-tmpdir.sh"
@@ -138,7 +138,7 @@ SPECS=(
   "plugins/lixeiro/hooks::resolve-plugin.sh"
   "plugins/project-doc/hooks::resolve-plugin.sh"
   "plugins/ship/hooks::resolve-plugin.sh"
-  "plugins/sovai/hooks::resolve-plugin.sh"
+  "plugins/project-skills/hooks::resolve-plugin.sh"
   "plugins/visual/hooks::resolve-plugin.sh"
 )
 

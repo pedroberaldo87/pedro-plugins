@@ -28,7 +28,7 @@
       "source": "./plugins/bootstrap",
       "description": "Bootstraps a new machine to this versioned Claude Code setup. Two layers: (1) auto-syncs third-party marketplaces & plugins via hooks (manifest-driven convergence), and (2) applies the versioned global config — env vars, permissions, behavior flags, the global CLAUDE.md, and a machine-resolved statusLine. Replaces bootstrap-third-party. Run /bootstrap:setup once per new machine. Ships the 'Clean Style' output style (single prose ceiling, pasted evidence exempt) and a report-only conformance checker that diffs the live machine against the versioned contract.",
       "category": "productivity",
-      "version": "1.13.11",
+      "version": "1.14.0",
       "tags": [
         "sync",
         "bootstrap",
@@ -189,6 +189,20 @@
       ]
     },
     {
+      "name": "improve-workflow",
+      "source": "./plugins/improve-workflow",
+      "description": "Workflow autopsy — reads the full transcript of a finished multi-agent run, measures cost and friction per role (agents, turns, tokens), flags suspect roles by counting instead of judging, and proposes fixes for the user to approve.",
+      "category": "productivity",
+      "version": "0.1.0",
+      "tags": [
+        "workflow",
+        "autopsy",
+        "measurement",
+        "multi-agent",
+        "cost"
+      ]
+    },
+    {
       "name": "intent-guard",
       "source": "./plugins/intent-guard",
       "description": "EXPERIMENTAL — Guarda de intenção: caderno append-only dos pedidos verbatim do usuário + gates de plano, checkpoint e ENTREGA (auditoria independente por subagente de contexto virgem, prompt canônico, veredito CONFIRMADO/INFERIDO com evidência). v0.4.0: auditoria dispara no COMMIT (não a cada turno) e ganha escada de custo — pedido com receita mecânica (ex.: 'commit push' → compara hashes) é resolvido por CÓDIGO, sem agente; numa sessão real 4 de 7 pedidos eram isso, ~50k tokens cada. O juiz só ESCOLHE de um catálogo fechado, nunca escreve comando. v0.3.0: pedidos escopados por sessão (sessões paralelas dividiam a lista de vivos). v0.2.0: tree-hash ignora artefato de execução; juízes internos não poluem o caderno. Baixa automática é experimental. Kill-switch: ~/.claude/intent-guard/mode=off.",
@@ -248,9 +262,9 @@
     {
       "name": "project-skills",
       "source": "./plugins/project-skills",
-      "description": "A casa das skills de projeto — documentacao, concepcao, plano, execucao e revisao passam a morar sob um teto so, e conversam entre si por nome de plugin, nunca por caminho relativo para a pasta do vizinho. As skills mudam de casa uma a uma, e o indice da familia se descobre lendo a pasta skills/ do plugin, nunca de cor.",
+      "description": "A casa das skills de projeto — documentacao, concepcao, plano, execucao e revisao moram sob um teto so, e conversam entre si por nome de plugin, nunca por caminho relativo para a pasta do vizinho.",
       "category": "productivity",
-      "version": "0.15.4",
+      "version": "0.17.0",
       "tags": [
         "project",
         "scaffolding",
@@ -301,20 +315,6 @@
       ]
     },
     {
-      "name": "sovai",
-      "source": "./plugins/sovai",
-      "description": "Autonomous run mode — executes a plan end to end with no pauses, checkpoints or confirmations. Skips blockers without silent workarounds, records every decision, runs a headless qa-loop pass and delivers a structured report. The engine is a deterministic Workflow (decompose → execute → review) and a PreToolUse hook enforces it: while the mission is armed every sub-agent spawn is denied. The reviewer judges the work against the SPEC, not against the orchestrator's own decomposition — reviewing against your own breakdown is a closed circuit where a wrong breakdown gets approved. Five axes: spec · the project's own quality goals · traceability (every task carries its requirement and its definition of done) · completeness · cohesion. A dead agent degrades the mission instead of killing the engine.",
-      "category": "productivity",
-      "version": "1.26.0",
-      "tags": [
-        "autonomy",
-        "execution",
-        "plan",
-        "no-interruptions",
-        "sovai"
-      ]
-    },
-    {
       "name": "vision",
       "source": "./plugins/vision",
       "description": "Dá olhos ao Claude delegando a um servidor de visão (Qwen3.6 35B A3B VL, API OpenAI-compatible). Expõe a tool see_image para descrever imagens quando o modelo do Claude não as lê.",
@@ -343,7 +343,7 @@
       "source": "./plugins/visual",
       "description": "CLI walls-of-text → interactive HTML dark-theme views. The page carries the EVIDENCE, not the account of it: real artifact embedded, raw output verbatim, provenance for every number — enforced by a pre-ExitPlanMode gate. Prose is REFUSED by the builder: every text field is checked (≤140 chars per bullet, one sentence each, no continuation connective, max 6 per block) and a violation aborts without writing the page. Each problem's body is born folded — the title stays visible, consequence and proposal open on click under a label derived from the content itself. Plans, diagnostics and decisions in the browser with live sync back to Claude. Regravar um plano nunca apaga em silêncio o que não veio no pacote: o init parcial FUNDE o bloco de requisitos por id — o requisito que só existe no arquivo fica, e o executor recebe a nota do que foi mantido. O cruzamento também mede o plano contra a arquitetura pretendida: funcionalidade sem peça, e requisito citando peça que o architecture-intent.md não tem, saem em listas próprias — e o mesmo vale para o desenho de funcionamento: funcionalidade sem passo do ciclo, e passo do ciclo que nenhuma funcionalidade atende.",
       "category": "productivity",
-      "version": "1.37.3",
+      "version": "1.38.0",
       "tags": [
         "visualization",
         "html",

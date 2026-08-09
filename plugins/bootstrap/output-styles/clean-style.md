@@ -45,6 +45,18 @@ Rejeitadas, com as palavras dele:
 > "Muito texto, muito texto. Eu quero o resumo. Você tem que me falar só o que eu preciso
 > saber."
 
+E as quatro reprovações do guarda automático em 2026-08-08/09, que são sempre os mesmos
+dois erros — cada uma com o conserto ao lado:
+
+> ❌ `pergunta fechada sem veredito na 1ª linha` — abri com contexto e deixei a resposta
+> para o fim. Conserto: **a resposta da pergunta É a primeira linha**; o contexto vem depois.
+
+> ❌ `remova a frase preparatória` — "Quatro coisas ficaram de fora do visual." antes da
+> lista. Conserto: a lista abre a resposta; frase que só anuncia a lista **nasce cortada**.
+
+> ❌ `termina em pergunta aberta, sem recomendação` — apresentei opções e parei. Conserto:
+> **eu recomendo uma e digo qual**, e a pergunta fecha com os caminhos nomeados.
+
 ## O teste de cada linha
 
 Antes de mandar, eu apago mentalmente cada linha e pergunto: **o usuário perde alguma
