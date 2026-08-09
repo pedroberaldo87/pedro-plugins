@@ -22,7 +22,7 @@ scope:
   - .claude/fio-morto.baseline.json
   - .claude/custo-gatilho.baseline.json
   - .claude/desacoplamento.baseline.json
-  - plugins/sovai/lib/andamento.py
+  - plugins/project-skills/lib/andamento.py
   - plugins/sovai/hooks/posttooluse-andamento.sh
   - plugins/visual/lib/visual_page.py
   - plugins/visual/hooks/stop-plan-status.sh
@@ -412,7 +412,7 @@ Depósito **novo nesta rodada**, irmão do B8 e deliberadamente diferente dele: 
 
 ### B13 · `${CLAUDE_CONFIG_DIR:-~/.claude}/andamento/` — 316K · a memória de quanto cada comando demora
 
-- **Nasceu nesta rodada** com `plugins/sovai/lib/andamento.py` + `plugins/sovai/hooks/posttooluse-andamento.sh` (runtime, fluxo 19).
+- **Nasceu nesta rodada** com `plugins/project-skills/lib/andamento.py` + `plugins/sovai/hooks/posttooluse-andamento.sh` (runtime, fluxo 19).
 - ⚠️ **A pasta é NEUTRA, e isso é decisão, não descuido.** O comentário do módulo diz por quê: *"Quatro plugins já chamam este módulo; a pasta batizada com o nome de um deles fazia o estado dos outros parecer emprestado."* Ela **não** mora em `~/.claude/sovai/` (que é o B11, o interruptor da missão).
 - **Dois tipos de arquivo, com naturezas opostas** [confirmado — `ls` da pasta neste run]:
   - **`duracoes-<caminho-do-projeto-com-hifens>.json`** — o ativo de verdade. Dicionário `comando → [duração, duração, …]`; nesta máquina são **1896 chaves em 308K**, sobre este repositório. É a memória que faz a estimativa existir: comando sem histórico aqui sai **sem** número, e é o acúmulo que muda isso.

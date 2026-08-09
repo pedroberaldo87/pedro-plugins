@@ -52,7 +52,7 @@ scope:
   - plugins/bootstrap/hooks/sessionstart-deps.sh
   - plugins/sovai/hooks/hooks.json
   - plugins/sovai/hooks/posttooluse-andamento.sh
-  - plugins/sovai/lib/andamento.py
+  - plugins/project-skills/lib/andamento.py
   - plugins/gauntlet/hooks/hooks.json
   - plugins/gauntlet/hooks/pretooluse-gauntlet.sh
   - plugins/lixeiro/hooks/hooks.json
@@ -831,7 +831,7 @@ python3 plugins/lixeiro/lib/test_causa.py
 
 **Por que são dois momentos e um arquivo só:** `marca` grava o instante do disparo e sai calado; `narra` mede o decorrido **real** contra aquela marca, guarda na memória do projeto e imprime. ⚠️ **Sem a marca, a linha não sai** — o comentário fixa o critério: *"número de duração sem lastro é pior que silêncio"*.
 
-**As duas regras vieram de medição, não de intuição** (299 transcripts de agente de workflow deste projeto, 2026-08-06) `[confirmado — a tabela está na docstring de `plugins/sovai/lib/andamento.py`]`:
+**As duas regras vieram de medição, não de intuição** (299 transcripts de agente de workflow deste projeto, 2026-08-06) `[confirmado — a tabela está na docstring de `plugins/project-skills/lib/andamento.py`]`:
 
 - **Estimativa só pela memória do PRÓPRIO comando, neste projeto.** A dispersão de `Bash` é de quase mil vezes entre mediana (0,7s) e máximo (660,4s), então média global produziria *"número com cara de dado e sem lastro"*. Comando sem histórico aqui sai **sem** estimativa — só o relógio.
 - **Repetição de comando NÃO é sintoma de círculo.** Medido: 0 de 282 agentes repetiram o mesmo comando 4× ou mais; um detector baseado nisso não pegaria nada. O sinal que existe é o **placar que a própria suíte imprime** (540 ocorrências na amostra, em três formatos) — placar igual duas vezes seguidas é o que significa "não andou".
@@ -846,6 +846,35 @@ python3 plugins/lixeiro/lib/test_causa.py
 python3 plugins/sovai/lib/test_andamento.py
 bash plugins/sovai/hooks/test_andamento_hook.sh
 ```
+
+---
+
+## 20 · Perguntar "como vai?" — o andamento que não depende de estar olhando
+
+O vigia do motor já narrava o andamento em duas superfícies, e as duas **somem de quem não
+está lá**: o `systemMessage` rola junto com a conversa, e a barra de status só existe na
+sessão em que ela foi desenhada. Quem volta ao terminal uma hora depois não vê nenhuma das
+duas — e a pergunta "isso ainda está rodando?" não tinha resposta. `[confirmado — leitura da
+skill nesta rodada]`
+
+O fluxo, que nasceu na onda de 2026-08-08 (`F17.1` + `F17.6`):
+
+- **O módulo mudou de casa.** `andamento.py` saiu de `plugins/sovai/lib/` para
+  `plugins/project-skills/lib/` — ele mede workflow, e workflow não é do motor de execução
+  contínua. A suíte dele passa **sem o plugin do motor instalado**, que era o critério do
+  passo. ⚠️ Três documentos ainda apontavam a casa velha depois da mudança, e quem acusou foi
+  o `dead_scope` do próprio `touch-plan` — é para isso que ele existe.
+- **A pergunta virou comando.** A skill `project-skills:monitorar` lê o estado do disco
+  (`~/.claude/sovai/` — o sinal da missão, o carimbo da ferramenta em curso, o placar da
+  última onda) e imprime o andamento **agora**, sem perguntar nada a ninguém e sem depender
+  de nenhum vigia estar aceso.
+- **Nada disso adivinha.** Quem grava é quem executa: o gancho de andamento
+  (`plugins/sovai/hooks/posttooluse-andamento.sh`) escreve o instante, o comando e o projeto
+  quando o disparo sai, e apaga quando ele volta. Comando sem histórico neste projeto sai
+  **sem estimativa** — a regra do §19 vale igual aqui.
+
+**Verificado:** `python3 plugins/project-skills/lib/test_andamento.py` → **OK**, e
+`ls plugins/project-skills/lib/andamento.py` confirma a casa nova. `[confirmado nesta rodada]`
 
 ---
 
