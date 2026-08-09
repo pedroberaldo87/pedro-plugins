@@ -435,7 +435,7 @@ Depósito **novo nesta rodada**, irmão do B8 e deliberadamente diferente dele: 
   ```
 
   `_ler(base, nome)` procura na casa nova e só cai na antiga quando a nova não tem o arquivo — e **só para a casa padrão**: quem passa `dir_estado` (a bancada de teste, ou um motor com casa própria) está dizendo exatamente onde olhar, e aí não há legado que valha.
-- **Cinco tipos de arquivo, com naturezas diferentes** [confirmado — `ls ~/.claude/andamento/` neste run]:
+- **Seis tipos de arquivo, com naturezas diferentes** [confirmado — `ls ~/.claude/andamento/` neste run]:
   - **`duracoes-<caminho-do-projeto-com-hifens>.json`** — o ativo de verdade. Dicionário `comando → [duração, duração, …]`. É a memória que faz a estimativa existir: comando sem histórico aqui sai **sem** número, e é o acúmulo que muda isso. Tamanho e nº de chaves saem do comando, nunca de um número escrito aqui:
 
     ```bash
@@ -446,6 +446,9 @@ Depósito **novo nesta rodada**, irmão do B8 e deliberadamente diferente dele: 
   - **`sinal-<session_id>`** — o instante da última fala do narrador, que a barra de status lê pra dizer *"rodando há N min"* e *"sem avanço"*. O gancho **copia o do legado** na primeira passagem (`cp "$ESTADO_ANTIGO/sinal-$SESSION" "$SINAL"`), pra missão que já estava de pé não perder o relógio.
   - **`trabalho-<session_id>`** — o disparo que quem executa gravou: **três linhas**, o instante, o comando e o projeto. Existir já quer dizer *"tem comando rodando agora"* — por isso o gancho o apaga **antes de qualquer saída antecipada**, nas duas pastas: registro esquecido faz a barra dizer "rodando" para sempre. Os dois últimos campos existem porque `estimativa()` só responde por comando **E** projeto, e a barra é desenhada por outro processo, que não sabe nenhum dos dois. Formato antigo (só o carimbo) degrada pra relógio sem estimativa, não pra erro.
   - **`placar-<session_id>`** — efêmero, por sessão. Guarda o último placar lido da suíte (`{"placar": {...}, "linha": "..."}`) pra responder "andou ou não andou" no turno seguinte.
+  - **`doc-<session_id>` — NOVO nesta rodada: a PROVA de que a doc do commit saiu da onda.** JSON de três chaves — `{"round": <rodada>, "docs": [<caminho>, …], "quando": <epoch>}` —, escrito por `plugins/project-skills/lib/andamento.py:doc_da_onda` e lido por `andamento.py:ultima_doc`. **Quem grava é o papel de doc do motor**: a `SKILL.md` da `sprint` manda o `docTouchPrompt` rodar `python3 <raiz do project-skills>/lib/andamento.py doc <sessionId> <rodada> <caminho...>` depois do touch, com cada caminho conferido no disco antes de entrar na lista. Costura verificada nos dois lados. [confirmado — `grep -rn 'andamento.py doc' plugins/`]
+    - **Por que virou arquivo:** a lista confirmada pelo papel de doc só vivia na memória do motor (`rounds[].doc`), e *"terminada a missão, não sobrava como provar que a doc do commit seguinte saiu da onda e não de uma passada manual"* [confirmado, docstring].
+    - **Mesmo desenho do `placar-<sid>`:** mesma pasta, mesma chave por sessão, mesmo fail-open — `except OSError: pass`, porque *"o commit da rodada já está feito quando este papel roda"*. Lista vazia não escreve arquivo nenhum. **Nenhum `doc-*` existe no disco hoje** (`ls ~/.claude/andamento/`). [confirmado]
   - `bloqueios-<session_id>`, `desistencias.log` e `expirados.log` também nascem aqui quando o motor é o `gauntlet` — os mesmos três nomes que o motor do `sprint` escreve em `~/.claude/sovai/`.
 - 🔴 **A duração é o único depósito deste repositório cujo VALOR cresce com o tempo e não é reconstruível.** Todo o resto do inventário ou é regenerável por comando (grafo, baselines) ou é registro de um evento passado (atas, journal). Aqui não: a mediana de uma suíte só existe porque aquela suíte rodou 40 vezes nesta máquina. Apagar o arquivo não quebra nada — o narrador volta a sair sem estimativa —, mas a memória recomeça do zero e leva semanas de uso para voltar.
 - ⚠️ **A chave é o comando LITERAL, aspas e quebras de linha inclusive** [confirmado — as chaves lidas do arquivo são o texto cru do Bash]. Consequência: a mesma suíte chamada com um espaço a mais é outro comando, e herda estimativa nenhuma.
@@ -665,13 +668,29 @@ No topo do plano, ao lado de `phases`:
 
 🔴 **Voltou a ser rastreado nesta rodada** — saiu da seção "RETRATO DESTA MÁQUINA" do `.gitignore` quando perdeu o campo que o prendia a uma máquina. [confirmado: `git ls-files .claude/hook-contract.baseline.json` devolve o caminho]
 
-- **Tipo:** JSON único, sobrescrito por `python3 scripts/hook_contract.py --json > …`. **51.925 bytes.**
-- **Quatro chaves de topo, lidas do arquivo real:** `entries` **39**, `scripts` **38**, `findings` **3**, `measured` **39**. ⚠️ **`entries` (39) > `scripts` (38) porque um mesmo script é registrado em mais de um evento** — contar entradas como "quantos hooks eu tenho" infla, do mesmo jeito que contar chaves do `manifest.json` como "quantos arquivos" (A3).
+- **Tipo:** JSON único, sobrescrito por `python3 scripts/hook_contract.py --json > …`. Tamanho: `wc -c .claude/hook-contract.baseline.json`.
+- **Quatro chaves de topo, e elas não têm o mesmo tipo** — `entries` e `scripts` são números; `findings` e `measured` são listas. O comando que devolve os quatro: [confirmado]
+
+  ```bash
+  python3 -c "import json;d=json.load(open('.claude/hook-contract.baseline.json'));\
+  print({k:(len(v) if isinstance(v,list) else v) for k,v in d.items()})"
+  # {'entries': 56, 'scripts': 43, 'findings': 45, 'measured': 56}
+  ```
+
+  ⚠️ **`entries` > `scripts` porque um mesmo script é registrado em mais de um evento** — contar entradas como "quantos hooks eu tenho" infla, do mesmo jeito que contar chaves do `manifest.json` como "quantos arquivos" (A3).
+- ⚠️ **`findings` não é "o que está errado hoje" — é o que foi CONGELADO como aceito.** As 45 linhas são o retrato refeito em 2026-08-09, e a maioria esmagadora é da régua de nome de hook (`R6-nome-fora-do-molde`, `R6-nome-verbo-errado`, `R6-nome-evento-errado`), com uma `R1-cap-ausente` e duas `R5-sem-failopen`. Por sev, `high` domina. Os números saem do arquivo, nunca de uma contagem escrita aqui: [confirmado]
+
+  ```bash
+  python3 -c "import json,collections;d=json.load(open('.claude/hook-contract.baseline.json'));\
+  print(collections.Counter(f['rule'] for f in d['findings']), collections.Counter(f['sev'] for f in d['findings']))"
+  ```
+
+  É por isso que o gate segue verde com 45 achados dentro do baseline: `--baseline … --fail-on high` fecha com *"Nenhum achado. Todos os hooks batem com o contrato."* e sai 0 nesta rodada. [confirmado — comando rodado]
 - ⚠️ **Não há mais chave `root`.** Ela gravava o caminho absoluto da máquina que mediu — metadado de proveniência que não serve a quem instala e que sujava um repositório público. Sem ela, o retrato viaja e outra máquina reproduz a comparação. [confirmado: `grep -c '/Users/'` no arquivo devolve 0]
 - **O que o script mede** (`scripts/hook_contract.py`, cabeçalho): as 5 propriedades que separam um gate saudável de um que trava ou se desliga sozinho — canal de saída, cap anti-loop escopado por sessão, kill-switch, binário fixo, fail-open. O aviso do próprio arquivo: *"Isto é grep sofisticado, não verdade."* Por isso a saída traz sempre a linha e o trecho que dispararam o achado.
 - **Natureza: RECONSTRUÍVEL, mas com JULGAMENTO embutido.** Regerar é um comando; o que **não** se regenera é quais achados foram aceitos — essa parte vive em prosa (`patterns.md`, "As isenções"). O JSON é o estado, o `patterns.md` é o porquê.
 - **Quem lê:** o check E do `.claude/hooks/release-gate.sh` (linhas 99-107), via `--baseline`, barrando só o que **piorou**. Costura confirmada nos dois lados. [confirmado]
-- **mtime de 05/ago.** O retrato foi refeito nesta rodada: `--baseline … --fail-on high` fecha com "Nenhum achado" e sai 0, e é esse mesmo comando que a esteira `portability.yml` roda nos três sistemas.
+- **Refeito em 2026-08-09** (`git log -1 -- .claude/hook-contract.baseline.json` → `aa42385`), e é o mesmo `--baseline … --fail-on high` que a esteira `portability.yml` roda nos três sistemas.
 - **Nenhum hook o reescreve sozinho, de propósito** — baseline que se auto-atualiza aceita silenciosamente qualquer regressão.
 
 ### A5a · `.claude/stop-budget.baseline.json` — o retrato do CUSTO do fim de turno
@@ -878,7 +897,7 @@ plugins/bootstrap/config/manifest.json  regenerado no SessionStart, MENOS as cha
 
 ## Pendências
 
-1. **O baseline dos hooks (A5) é de 28/jul e agora é local.** O check E do release-gate compara o presente contra um retrato que não foi refeito depois da recriação do repo e que não viaja mais. Refazer ou aceitar explicitamente.
+1. ✅ **Resolvida: o baseline dos hooks (A5) foi refeito e voltou a viajar.** Ele é rastreado (perdeu a chave `root`, que prendia o retrato a uma máquina) e o congelamento é de 2026-08-09 (`aa42385`). O que sobra de decisão é o conteúdo dele: **45 achados congelados como aceitos**, quase todos da régua de nome de hook — enquanto estiverem no baseline, o check E não os cobra de ninguém.
 2. **As 6 tags `archive/*` apontam para história órfã e não existem no remote.** Decidir se são empurradas (dando ao remote novo a rede antiga) ou descartadas junto com a história velha. Hoje elas resgatam branch só neste clone.
 3. **Dois comentários de código afirmam versionamento que o `.gitignore` desmente** — `journal.py` ("versionado — é o veículo do conhecimento") e `plan_state.py` ("VERSIONADO no git de propósito"). Quem ler o código antes do `.gitignore` conclui que há backup onde não há.
 4. **`askq-humanize.sh` e `scope-cop.sh` resolvem a MESMA pasta por expressões diferentes.** Invisível aqui (`CLAUDE_CONFIG_DIR` unset), divergente em qualquer máquina que a sete.

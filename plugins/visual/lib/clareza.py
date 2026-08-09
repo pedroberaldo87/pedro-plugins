@@ -12,7 +12,7 @@ Nas duas o autor tinha lido a página e concluído que estava clara.
 
 O conserto tem duas metades, e **só as duas juntas funcionam**:
 
-  1. um juiz externo (um agente barato que lê como uma criança de 5 anos e diz o
+  1. um juiz externo (um agente barato que lê como quem nunca viu o projeto e diz o
      que é para decidir) — mas juiz sozinho só reprova depois de escrito; e
   2. ESTE banco, que guarda a ESSÊNCIA de cada reprovação e a devolve ANTES da
      escrita seguinte, como regra e — quando dá — como termo que o build recusa.
@@ -29,7 +29,7 @@ USO
 ---
     clareza.py licoes                     # ANTES de escrever o spec — obrigatório
     clareza.py check --spec pagina.json   # o que o build chama sozinho
-    clareza.py revisar --spec pagina.json # ANTES do build — as 5 conferências mecânicas
+    clareza.py revisar --spec pagina.json # ANTES do build — as 4 conferências mecânicas
     clareza.py registrar --json v.json    # grava o veredito novo do juiz
 
 POR QUE O `revisar` EXISTE, SE JÁ HÁ AS LIÇÕES E O JUIZ
@@ -41,9 +41,32 @@ fim — entre escrever o spec e chamar o build não havia nenhuma conferência, 
 "releia como se nunca tivesse visto", que é o julgamento já sabidamente falho.
 
 O `check` pega termo BANIDO (lista de palavras). O `revisar` pega o que não cabe
-numa lista de palavras: a palavra da casa usada sem abrir, dois nomes para a
-mesma coisa, apoio em escolha que não está na página, custo sem unidade, e prova
-colada sem dizer o que ela estraga. Nada disso julga clareza — isso é do juiz.
+numa lista de palavras: dois nomes para a mesma coisa, apoio em escolha que não
+está na página, custo sem unidade, e prova colada sem dizer o que ela estraga.
+Nada disso julga clareza — isso é do juiz.
+
+QUEM É O LEITOR QUE ESTA RÉGUA IMAGINA
+--------------------------------------
+Duas coisas ao mesmo tempo, e elas não se misturam:
+
+  REPERTÓRIO — um programador experiente que nunca viu ESTE projeto nem ESTA
+  conversa. Ele já sabe o vocabulário corrente da área: contexto, agente, barra
+  de status, plugin, hook. Não sabe nada do que foi construído aqui.
+
+  PACIÊNCIA — uma criança de 5 anos. Frase que precisa de duas leituras já
+  falhou. Sujeito, verbo, complemento, nessa ordem, uma ideia por frase. Nada de
+  frase truncada, de seta no lugar da palavra ("A → B → falha"), de ordem
+  invertida, de sigla, de período com três orações empilhadas.
+
+A régua anterior aplicava a criança aos DOIS, e o resultado era a página abrindo
+com uma lista definindo o óbvio antes de chegar à pergunta — definir trivialidade
+adia a decisão em vez de destravá-la. O que precisa de apresentação é outra
+coisa: metáfora e apelido, referência indireta ("o motor", "a régua"), e peça
+deste código cujo sentido é local. E o que falta nelas nunca é a definição de
+dicionário, é o CONTEXTO: onde entra, o que faz, para que serve.
+
+A prova crua fica fora da régua de PACIÊNCIA: saída de comando e trecho de código
+entram literais, porque humanizar prova é falsificá-la.
 """
 import argparse
 import json
@@ -98,13 +121,12 @@ SEMENTE = {
         },
         {
             "id": "jargao-sem-glosa",
-            "nome": "Solto um termo técnico sem dizer o que é ali mesmo",
-            "erro": "Uso a palavra da área achando que ela é comum porque é comum PARA MIM.",
-            "regra": "Termo técnico ganha meia linha de explicação na primeira vez, na mesma frase.",
-            "teste": "A palavra se explica sem sair da página? Se não, glose ou troque.",
-            "banido": ["herda", "herança", "instanciar", "vendorado", "idempotente",
-                       "fail-open", "gate", "hook", "spec", "schema", "frontmatter"],
-            "de": "2026-08-06 · juiz de clareza: 'a palavra herda é de programação e aparece sem explicação'"
+            "nome": "Cito uma peça deste código sem dizer onde ela entra",
+            "erro": "Nomeio o arquivo, o comando ou a etapa e trato o nome como se fosse a explicação.",
+            "regra": "Peça deste projeto entra com CONTEXTO na primeira menção: onde ela entra no fluxo, o que ela faz, para que existe. Vocabulário corrente da área não entra aqui — definir o óbvio adia a decisão.",
+            "teste": "Um programador que nunca viu este projeto sabe o que essa peça faz e por que ela importa para a escolha?",
+            "banido": [],
+            "de": "2026-08-09 · retorno do dono: 'o que falta definir é quando é metáfora, indicação indireta, ou elemento do código cuja definição é contextual — falta o contexto de onde entra, o que faz, o propósito'"
         },
         {
             "id": "escolha-sem-diferenca",
@@ -174,7 +196,7 @@ def erros_de_clareza(spec, banco=None):
     return errs
 
 
-# ── as 5 conferências mecânicas do `revisar` ────────────────────────────────
+# ── as 4 conferências mecânicas do `revisar` ────────────────────────────────
 #
 # FAMILIAS: cada grupo é um conjunto de palavras que a casa usa para a MESMA
 # coisa. Duas do mesmo grupo na mesma página fazem o leitor procurar a diferença
@@ -233,33 +255,32 @@ def _abertura_frases(spec):
     return saida
 
 
-def _antes_da_primeira_pergunta(spec):
-    return " ".join(_abertura_frases(spec)).lower()
-
-
 def _cita(texto, palavra):
     return re.search(r"(?<!\w)%s(?!\w)" % re.escape(palavra), texto, re.I)
 
 
 def revisao_do_spec(spec):
-    """As 5 conferências. Devolve lista de (id_da_conferencia, mensagem)."""
+    """As 4 conferências. Devolve lista de (id_da_conferencia, mensagem)."""
     achados = []
     visivel = _texto_visivel(spec)
     tudo = " ".join(t for _c, t in visivel).lower()
-    abertura = _antes_da_primeira_pergunta(spec)
 
-    # 1 · palavra da casa usada sem ser aberta antes da primeira pergunta
-    # 2 · duas palavras da MESMA família na mesma página
+    # 1 · duas palavras da MESMA família na mesma página
     #
-    # A abertura é ISENTA da conferência 2: é exatamente ali que se diz "pacote é a
-    # caixinha que se instala", e acusar o glossário de confundir mataria a única
-    # forma certa de apresentar a palavra. O que se acusa é usar as duas DEPOIS.
+    # A abertura é ISENTA: é exatamente ali que se diz "pacote é a caixinha que se
+    # instala", e acusar a apresentação de confundir mataria a única forma certa de
+    # introduzir a palavra. O que se acusa é usar as duas DEPOIS.
+    #
+    # Já NÃO se acusa mais a palavra da família usada sem definição prévia. Ela
+    # produzia um glossário de abertura definindo o vocabulário corrente de quem lê
+    # ("plugin", "agente", "hook"), e definição de trivialidade adia a decisão em vez
+    # de destravá-la. O que precisa de apresentação — metáfora, apelido, e peça deste
+    # código com sentido só local — não cabe em lista de palavras: é do juiz.
     depois = " ".join(t for _c, t in visivel).lower()
     for frag in _abertura_frases(spec):
         depois = depois.replace(frag.lower(), " ")
     for fam in FAMILIAS:
-        usadas = [p for p in fam if _cita(tudo, p)]
-        if not usadas:
+        if not any(_cita(tudo, p) for p in fam):
             continue
         fora = [p for p in fam if _cita(depois, p)]
         if len(fora) > 1:
@@ -267,12 +288,6 @@ def revisao_do_spec(spec):
                 "dois-nomes",
                 'depois da abertura a página chama a mesma coisa de %s — escolha '
                 'uma e varra as outras' % " e ".join('"%s"' % u for u in fora)))
-        for p in usadas:
-            if not _cita(abertura, p):
-                achados.append((
-                    "palavra-sem-abrir",
-                    'a palavra "%s" é da casa e não aparece definida antes da '
-                    'primeira pergunta' % p))
 
     # 3 · apoio em escolha que não está escrita na página
     for caminho, texto in visivel:
@@ -331,7 +346,7 @@ def cmd_revisar(args):
                          ensure_ascii=False, indent=2))
         return 0
     if not achados:
-        print("✅ as 5 conferências passaram — o spec pode ir para o build")
+        print("✅ as 4 conferências passaram — o spec pode ir para o build")
         return 0
     print("⚠️  %d ponto(s) a conferir ANTES do build:" % len(achados))
     for check, msg in achados:
@@ -403,7 +418,7 @@ def main(argv=None):
     sub.add_parser("licoes", help="imprime as lições — rode ANTES de escrever o spec")
     c = sub.add_parser("check", help="acusa termo já reprovado dentro de um spec")
     c.add_argument("--spec", required=True)
-    v = sub.add_parser("revisar", help="as 5 conferências mecânicas, ANTES do build")
+    v = sub.add_parser("revisar", help="as 4 conferências mecânicas, ANTES do build")
     v.add_argument("--spec", required=True)
     v.add_argument("--json", action="store_true")
     r = sub.add_parser("registrar", help="grava lições novas vindas do juiz de clareza")

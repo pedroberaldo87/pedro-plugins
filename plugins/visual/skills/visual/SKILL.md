@@ -29,14 +29,48 @@ o impede e o teste que você aplica sozinho. Os termos marcados como recusados o
 `visual_page.py build` **rejeita** — o resto é julgamento seu, e é onde você erra.
 
 **(b) DEPOIS de construir e ANTES do `open`, mande um juiz ler.** Um subagente **Haiku**
-(barato de propósito), com esta instrução: *você é uma criança de 5 anos esperta, não sabe
-nada de programação, nunca viu esta conversa, e só tem esta página.* Para **cada** decisão
-ele responde: o que estou sendo pedido para escolher · qual a diferença entre as opções ·
-**ENTENDI ou PERDIDO**, e qual palavra exata o perdeu.
+(barato de propósito), com esta instrução: *você é um programador experiente que nunca viu
+este projeto nem esta conversa, e só tem esta página. Você já sabe o vocabulário corrente
+da área; o que você não sabe é nada do que foi construído aqui. Leia com a paciência de
+uma criança de 5 anos: frase que você precisa reler duas vezes já falhou.* Para **cada**
+decisão ele responde: o que estou sendo pedido para escolher · qual a diferença entre as
+opções · **ENTENDI ou PERDIDO**, e qual trecho exato o perdeu.
 
-- Qualquer **PERDIDO** ⇒ a página **não abre**. Conserte e mande de volta ao mesmo juiz.
-- Termo técnico não explicado ali mesmo ⇒ PERDIDO, mesmo com o resto bom.
-- Escolha que exige saber algo que não está na própria página ⇒ PERDIDO.
+Qualquer **PERDIDO** ⇒ a página **não abre**. Conserte e mande de volta ao mesmo juiz.
+
+Ele julga **dois eixos**, e reprova em qualquer um dos dois.
+
+**Eixo 1 · o que a página deixou de contar.** A falta é sempre a mesma, o CONTEXTO, nunca
+a definição de dicionário:
+
+- **Metáfora, apelido ou nome batizado** usado como se explicasse a coisa.
+- **Referência indireta** — "o motor", "a régua", "aquela ponte", "o approach atual" — sem
+  dizer que coisa concreta é essa.
+- **Peça deste código** (arquivo, comando, campo, etapa) citada sem dizer **onde ela entra
+  no fluxo, o que ela faz e para que existe**. O nome dela não é a explicação dela.
+- **Escolha que exige saber algo que não está na própria página.**
+
+**Eixo 2 · como a página está escrita.** Aqui a criança de 5 anos manda por inteiro, e a
+régua é a frase simples: sujeito, verbo, complemento, nessa ordem, uma ideia por frase.
+
+- **Frase truncada** — sem sujeito, sem verbo, ou cortada no meio para caber.
+- **Texto que parece equação** — `A → B → falha`, `x = y`, seta, barra e sinal fazendo o
+  trabalho que a palavra devia fazer.
+- **Ordem invertida** — o predicado antes do sujeito, a oração encaixada no meio, a
+  condição pendurada no fim.
+- **Abreviação e sigla** que economizam letra e cobram releitura.
+- **Período longo demais** — duas ou mais orações empilhadas onde caberiam duas frases.
+
+**O que NÃO reprova**, e o juiz é instruído a deixar passar sem comentar: vocabulário
+corrente de programação e de agentes de IA. Contexto, agente, subagente, plugin, skill,
+hook, barra de status, commit, log — quem lê a página já usa essas palavras todo dia.
+Pedir definição delas foi o defeito da régua anterior, que aplicava a criança de 5 anos ao
+vocabulário também: a página passou a abrir com uma lista definindo o óbvio antes de
+chegar à pergunta. A criança continua valendo para a FORMA; ela nunca valeu para o
+repertório.
+
+**A prova crua é isenta do eixo 2.** Saída de comando, `arquivo:linha` e trecho de código
+entram literais — "humanizar" a prova é falsificá-la.
 
 **(b2) Terminada a leitura, o parecer do juiz vira PÁGINA PRÓPRIA — gere sem perguntar.**
 Não pergunte se o dono quer ver; não despeje o veredito no chat. Monte um spec com um item
@@ -101,25 +135,30 @@ Se a versão corrigida não existe, **não monte uma** por find-and-replace, moc
 
 "Já foi apresentado ao cliente", "está no ar", "o cliente viu", "isso quebra em produção" — toda afirmação que cria urgência enquadra a decisão inteira. Cheque no disco **nesta sessão** antes de escrever, ou rotule INFERIDO. No caso que originou esta regra, a afirmação era falsa e era ela que criava a urgência.
 
-### A página abre abrindo as palavras (non-negotiable)
+### A página apresenta o que é daqui, e só isso (non-negotiable)
 
-Antes da primeira pergunta, um bloco de bullets diz o que significa **cada palavra da
-casa** que a página vai usar — plugin, skill, hook, agente, motor, passo. Não a palavra
-óbvia de programação: a palavra que parece português comum **para você** porque você a usa
-o dia todo. Foi assim que uma página reprovou nas três decisões em 2026-08-08: "pacote",
-"skill" e "ferramenta" conviviam sem definição, e o juiz respondeu PERDIDO nas três.
+**Glossário de abertura está proibido.** Definir "plugin", "agente", "hook" ou "barra de
+status" antes da pergunta não ajuda ninguém: quem lê usa essas palavras todo dia, e a lista
+só empurra a decisão para baixo da dobra.
+
+O que precisa de apresentação é o que **só existe aqui**: metáfora, apelido batizado,
+referência indireta, e peça deste código. E a apresentação não é a definição — é o
+**contexto**, na primeira vez que a coisa aparece, na mesma frase ou logo abaixo dela:
+**onde ela entra no fluxo · o que ela faz · para que existe**. Dizer que o arquivo se chama
+`clareza.py` não apresenta o `clareza.py`; dizer que ele é o passo que roda antes de gerar a
+página e recusa termo já reprovado, sim.
 
 **E uma palavra por coisa.** Escolhida a palavra, varra o spec inteiro e mate as
-concorrentes — a única exceção é o próprio bloco de abertura, onde apresentar as duas
-juntas ("plugin, ou pacote, é a caixa que se instala") é a forma certa. Depois dele,
-alternar entre sinônimos faz o leitor procurar uma diferença que não existe.
+concorrentes — a única exceção é a primeira menção, onde apresentar as duas juntas
+("plugin, ou pacote, é a caixa que se instala") é a forma certa. Depois dela, alternar
+entre sinônimos faz o leitor procurar uma diferença que não existe.
 
-### As 5 conferências mecânicas — o build as roda sozinho
+### As 4 conferências mecânicas — o build as roda sozinho
 
-Ele **não julga clareza** — isso continua sendo do juiz externo. Ele procura os cinco
-defeitos que já reprovaram páginas e que dá para achar por programa: palavra da casa sem
-abrir · dois nomes para a mesma coisa · apoio em escolha que não está na página · custo
-sem dizer custa o quê · prova colada sem dizer o que ela estraga.
+Ele **não julga clareza** — isso continua sendo do juiz externo. Ele procura os quatro
+defeitos que já reprovaram páginas e que dá para achar por programa: dois nomes para a
+mesma coisa · apoio em escolha que não está na página · custo sem dizer custa o quê ·
+prova colada sem dizer o que ela estraga.
 
 **Você não precisa lembrar de chamá-lo**: o `visual_page.py build` o roda em toda página e
 imprime os pontos no stderr. Eles **avisam, não recusam** — a `.evidencia` que fecha um
@@ -1045,7 +1084,7 @@ Critical behavior when the hook blocks:
 4. **Plano/PRD/roadmap → `plan_state.py`** (seção do plano). **Todo o resto → escreva o
    spec JSON**, abrindo as palavras da casa antes da primeira pergunta
 5. `python3 ${CLAUDE_PLUGIN_ROOT}/lib/visual_page.py build --spec <f>` — ele resolve o
-   diretório, nomeia o arquivo pelo `slug`, imprime o caminho e **roda as 5 conferências
+   diretório, nomeia o arquivo pelo `slug`, imprime o caminho e **roda as 4 conferências
    sozinho**. Os pontos que ele apontar: conserte o spec e rode de novo
 6. Recusou? A mensagem lista todos os erros de forma de uma vez. Conserte o spec, não o HTML
 7. *(opcional)* `clareza.py revisar --spec <f>` antes do build, se quiser conferir sem

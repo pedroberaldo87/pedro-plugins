@@ -142,15 +142,15 @@ def _ids(spec):
     return [c for c, _m in clareza.revisao_do_spec(spec)]
 
 
-def t_palavra_da_casa_sem_abrir():
-    sujo = _spec([{"kind": "decision", "question": "qual plugin?",
-                   "context": "c", "options": []}])
-    check("palavra da casa usada sem ser aberta é acusada",
-          "palavra-sem-abrir" in _ids(sujo))
-    limpo = _spec([{"kind": "bullets", "items": ["Plugin é a caixa que se instala."]},
-                   {"kind": "decision", "question": "qual plugin?",
-                    "context": "c", "options": []}])
-    check("definida antes da pergunta, passa", "palavra-sem-abrir" not in _ids(limpo))
+def t_palavra_corrente_nao_precisa_de_glossario():
+    # A régua velha exigia definir "plugin" antes da pergunta, e o resultado era um
+    # glossário de trivialidades empurrando a decisão para baixo da dobra. O leitor
+    # que a régua imagina hoje é um programador que nunca viu ESTE projeto — ele já
+    # sabe o que é plugin. Nada a acusar aqui.
+    sem_glossario = _spec([{"kind": "decision", "question": "qual plugin?",
+                            "context": "c", "options": []}])
+    check("palavra corrente da área usada sem definição não é acusada",
+          _ids(sem_glossario) == [])
 
 
 def t_dois_nomes_para_a_mesma_coisa():
@@ -238,7 +238,7 @@ for t in (t_pega_termo_banido, t_acha_no_fundo_do_spec, t_isenta_prova_crua,
           t_nao_pega_pedaco_de_palavra, t_spec_limpo_passa,
           t_registrar_funde_sem_duplicar, t_banco_corrompido_nao_derruba,
           t_semente_tem_as_licoes_de_fabrica, t_o_build_do_visual_usa_o_banco,
-          t_palavra_da_casa_sem_abrir, t_dois_nomes_para_a_mesma_coisa,
+          t_palavra_corrente_nao_precisa_de_glossario, t_dois_nomes_para_a_mesma_coisa,
           t_a_abertura_pode_apresentar_as_duas, t_apoio_em_escolha_fora_da_pagina,
           t_custo_sem_unidade, t_custo_medido_por_pagina_e_nao_por_frase,
           t_prova_sem_estrago, t_a_receita_manda_gerar_a_pagina_do_parecer,

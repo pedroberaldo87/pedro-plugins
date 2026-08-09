@@ -634,7 +634,7 @@ topo e o fim de `cmd_build`]:
 | chamada | quando | força | por quê |
 |---|---|---|---|
 | `erros_de_clareza(spec)` | dentro do `validate` | **recusa**, exit 2, não escreve | é lista de termos que um juiz externo JÁ reprovou — não há julgamento a fazer |
-| `revisao_do_spec(spec)` | depois de escrever, no stderr | **avisa** | são 5 padrões estruturais, e cada um tem exceção legítima |
+| `revisao_do_spec(spec)` | depois de escrever, no stderr | **avisa** | são padrões estruturais, e cada um tem exceção legítima — quantos, o próprio código diz: `grep -c '^    # [0-9] · ' plugins/visual/lib/clareza.py` |
 
 A régua que separa as duas: **recuse o que já foi julgado; avise o que ainda precisa de
 julgamento.** A `.evidencia` que fecha um capítulo dispara a conferência "prova sem o
@@ -652,6 +652,34 @@ a conferência de custo passou a medir **por página** em vez de por frase (dize
 custo é dinheiro basta), e a de sinônimos passou a **isentar a abertura** (é lá que se
 apresenta "plugin, ou pacote, é a caixa que se instala"). Cobrador de julgamento nasce largo
 e é estreitado com caso real; nascer estreito é o que o torna ignorável.
+
+🔴 **O terceiro estreitamento apagou uma conferência inteira — e a lição é sobre QUEM é o
+leitor imaginado.** Em 2026-08-09 a conferência "palavra da casa usada sem ser aberta antes
+da primeira pergunta" saiu do `revisao_do_spec`, e o termo banido `jargao-sem-glosa` trocou
+de lista: `banido` virou `[]` e o teste virou uma pergunta. A numeração dos comentários no
+código guarda o buraco (`1 · … 3 · 4 · 5 ·`), então a conferência que sumiu é rastreável
+sem arqueologia. [confirmado — `clareza.py:revisao_do_spec` e `SEMENTE`, os dois lidos nesta
+rodada] O motivo está na docstring nova, e ele separa **duas réguas que estavam coladas numa
+só** [confirmado, citação literal]:
+
+- **REPERTÓRIO** — *"um programador experiente que nunca viu ESTE projeto nem ESTA conversa.
+  Ele já sabe o vocabulário corrente da área: contexto, agente, barra de status, plugin,
+  hook."*
+- **PACIÊNCIA** — *"uma criança de 5 anos. Frase que precisa de duas leituras já falhou."*
+
+Aplicar a criança aos dois fazia a página abrir com um glossário do óbvio: *"definir
+trivialidade adia a decisão em vez de destravá-la"*. O que continua precisando de
+apresentação mudou de natureza — metáfora, apelido, referência indireta (*"o motor"*, *"a
+régua"*) e peça deste código com sentido só local —, **e o que falta nelas não é definição de
+dicionário, é CONTEXTO**: onde entra, o que faz, para que serve. Por isso a régua saiu da
+lista de palavras e voltou para o juiz: lista fechada não sabe distinguir "hook" de "o
+motor".
+
+**Régua durável: cobrador de clareza precisa declarar o leitor em dois eixos separados —
+o que ele já SABE e a paciência que ele TEM.** Colar os dois num só faz o gate cobrar
+explicação de vocabulário corrente, que é ruído, e deixar passar o apelido da casa, que é o
+defeito real. Corolário do §2.5a: o eixo do repertório não cabe em lista fechada de termos —
+ele é julgamento, então é do juiz, não do `check`.
 
 🔴 **O veredito do juiz virou PÁGINA, e o `validate` impede que ela se misture com a página
 julgada.** Desde 2026-08-09 o `visual_page.py` reconhece a página de parecer pelo **slug**
@@ -1043,7 +1071,7 @@ A ordem de execução não importa: todos só acumulam em `VIOL`.
 - **R · description que só serve a quem já sabe que a skill existe** — **novo em 2026-08-08**, e nasceu do pedido de apelidos curtos. Roda `python3 plugins/check-skills/lib/varredura.py --situacao-repo .` quando o commit traz um `SKILL.md`. Apelido (`"/faxina"`, `"sovai"`) é achado por quem **lembra do nome**; quem não lembra que a skill existe só é atendido se a description disser em que **situação de trabalho** ela entra — o molde é o da `sprint` (*"Use quando o usuário disser…"*). O comentário do check registra a régua de desacoplamento na própria explicação: *"Quantas skills do marketplace ainda são só lista de gatilho se descobre com o próprio comando abaixo, nunca de memória"*.
 - **Q · cópia de trabalho parada no disco** — **novo em 2026-08-08**. Roda `python3 scripts/worktree_orfao_check.py` ⇒ `❌ CÓPIA DE TRABALHO PARADA — quem busca arquivo pelo nome acha ela antes do original`. Nasceu de defeito medido: *"14 de 41 marcações do motor rodaram binário que não era o da árvore"* — os agentes procuraram o arquivo pelo NOME e o `find` alcançou as cópias em `.claude/worktrees/`; sete passaram por um validador 548 linhas mais velho, **sem as funções de recusa**. O comentário registra a causa de fundo: *"as cópias nasceram antes de a regra proibi-las — a regra proibiu criar novas e não varreu as velhas"*. ⚠️ **Segundo check SEM recorte por arquivo tocado, pelo mesmo motivo do O**: *"a cópia não aparece no diff de commit nenhum"*. Fail-open declarado: sem `scripts/worktree_orfao_check.py` o bloco inteiro é pulado.
 - **O · plano e código discordando** — roda `python3 scripts/plano_vs_codigo.py` e barra passo **aberto** cujo critério de pronto o disco já cumpre ⇒ `❌ PLANO ATRASADO`. ⚠️ **É o único check SEM recorte por arquivo tocado, e de propósito**: `.claude/plans/` é gitignorado, então plano nenhum aparece em `$FILES` — recortar por arquivo o deixaria calado para sempre. Custo medido: ~0,6s. O comentário registra que ele existia e ninguém o consultava: *"ele rodava e acusava sem que portão nenhum o consultasse"*.
-- **S · a lei da autópsia virando cobrança** — **novo em 2026-08-09**. Roda `python3 scripts/autopsia_check.py`, e só quando o commit toca `plugins/improve-workflow/` ⇒ `❌ LEI DA AUTÓPSIA FURADA`. Ele mede **texto**, não código: as três frases fixas que a skill `improve-workflow` tem que continuar carregando (a trava de robustez — *"reprove toda proposta que troque robustez por economia"*; a ordem de derrubar — *"tente derrubar cada afirmação"*; a proibição — *"nenhum arquivo do projeto muda durante a rodada"*), e nenhum bloco executável do `SKILL.md` escrevendo na árvore (`git commit`/`git add`/`rm `/`mv `/`tee `/redirecionamento). O motivo está no cabeçalho do próprio script: *"prosa some numa reescrita e nada acusa — a rodada seguinte fica sem refutador e com licença para editar"*. É a régua de que **regra que só existe em prosa não é regra**, aplicada à skill que audita as outras. Fail-open declarado: sem `scripts/autopsia_check.py` o bloco inteiro é pulado. Suíte própria: `scripts/test_autopsia_check.py` (verde nesta rodada; `python3 scripts/autopsia_check.py` → rc=0).
+- **S · a lei da autópsia virando cobrança** — **novo em 2026-08-09**. Roda `python3 scripts/autopsia_check.py`, e só quando o commit toca `plugins/improve-workflow/` ⇒ `❌ LEI DA AUTÓPSIA FURADA`. Ele mede **texto**, não código: as três frases fixas que a skill `improve-workflow` tem que continuar carregando (a trava de robustez — *"reprove toda proposta que troque robustez por economia"*; a ordem de derrubar — *"tente derrubar cada afirmação"*; a proibição — *"nenhum arquivo do projeto muda durante a apura"*), e nenhum bloco executável do `SKILL.md` escrevendo na árvore (`git commit`/`git add`/`rm `/`mv `/`tee `/redirecionamento). O motivo está no cabeçalho do próprio script: *"prosa some numa reescrita e nada acusa — a rodada seguinte fica sem refutador e com licença para editar"*. ⚠️ **As três frases são o texto exato que o script exige, e a skill reescreve o vocabulário dela de vez em quando** — em 2026-08-09 a terceira trocou *"durante a rodada"* por *"durante a apura"*, e a doc que as citava passou a citar frase morta. O par vivo sai do próprio cobrador: `python3 -c "import sys;sys.path.insert(0,'scripts');import autopsia_check as a;print(a.FRASES)"`. É a régua de que **regra que só existe em prosa não é regra**, aplicada à skill que audita as outras. Fail-open declarado: sem `scripts/autopsia_check.py` o bloco inteiro é pulado. Suíte própria: `scripts/test_autopsia_check.py` (verde nesta rodada; `python3 scripts/autopsia_check.py` → rc=0).
 
   🔴 **O eixo de placeholder mudo entrou depois, e a lição é sobre a FORMA da isenção.** A primeira versão isentava o **operador**: `>` só contava como redirecionamento quando vinha depois de espaço (`\s>>?\s*\S`), para que `<run>` nos exemplos de uso não reprovasse a skill inteira. Afrouxar o operador abriu o buraco — `<plugin visual>` passava calado, e o shell lê aquilo como par de redirecionamentos, num bloco que quem copia vai executar. O conserto trocou o eixo: a isenção passou a ser do **token declarado** (`DECLARADOS = ("<run>",)`, apagado do bloco antes da varredura, preservando as posições para a linha do achado continuar certa), e o operador voltou a ser cobrado inteiro (`>>?\s*\S`). O que sobra de `<…>` vira o segundo achado, *"nomeia por placeholder mudo"*. **Régua durável: isenção de gate se escreve como lista fechada do que é legítimo, nunca como afrouxamento da regra** — afrouxar o operador isenta tudo que se parecer com o caso conhecido; nomear o token isenta só ele. É a mesma família do `public-ok:`, `r8-ok:` e `vaza-ok:`, que também isentam a **linha nomeada**, não o padrão.
 - **F · testes shell** — roda `plugins/<nome>/hooks/test_*.sh` dos plugins tocados.
