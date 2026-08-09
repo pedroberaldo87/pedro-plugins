@@ -97,7 +97,7 @@ superpowers/subagent-driven-development
   "Use when executing implementation plans with independent tasks in the current session"
   → o método dela É disparar sub-agentes
 
-pedro-plugins/sovai · SKILL.md:46
+pedro-plugins/sprint · SKILL.md:46
   "o hook pretooluse-motor-arma.sh NEGA todo disparo de sub-agente e manda rodar o Workflow"
   → com a missão de pé, o método da outra é mecanicamente impossível
 ```

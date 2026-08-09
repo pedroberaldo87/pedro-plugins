@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""As travas que a reescrita de 2026-08-06 instalou no motor do sovai.
+"""As travas que a reescrita de 2026-08-06 instalou no motor do sprint.
 
 Cada check aqui corresponde a um passo do plano `2026-08-06-a-metodologia-vira-mecanismo`
 e cobra a MECANICA, nao a boa intencao: a frase tem que estar no lugar que o motor le
@@ -208,8 +208,8 @@ def roda_a_compilacao(bloco, raiz):
     amb = dict(os.environ)
     amb.update({"CLAUDE_CONFIG_DIR": os.path.join(raiz, "config"),
                 "CLAUDE_CODE_SESSION_ID": "sessao-de-teste",
-                "SOVAI_REPO_ROOT": raiz,
-                "SOVAI_BUILD_CMD": "./compilar.sh"})
+                "SPRINT_REPO_ROOT": raiz,
+                "SPRINT_BUILD_CMD": "./compilar.sh"})
     casca = subprocess.run(["sh", "-c", bloco], capture_output=True, text=True, env=amb, stdin=subprocess.DEVNULL, start_new_session=True)
     if casca.returncode != 0:
         return {"erro": casca.stderr.strip()[:200]}
@@ -252,14 +252,14 @@ def planta_o_lixeiro(raiz, layout, quebra=False):
             f.write(stub)
 
     if layout == "cache":
-        root = os.path.join(raiz, "pedro-plugins", "sovai", "1.13.0")
+        root = os.path.join(raiz, "pedro-plugins", "sprint", "1.13.0")
         for v in ("1.9.0", "1.10.0", "1.8.2"):
             poe(os.path.join(raiz, "pedro-plugins", "lixeiro", v, "lib", "lixeiro.py"))
     elif layout == "repo":
-        root = os.path.join(raiz, "plugins", "sovai")
+        root = os.path.join(raiz, "plugins", "sprint")
         poe(os.path.join(raiz, "plugins", "lixeiro", "lib", "lixeiro.py"))
     else:
-        root = os.path.join(raiz, "pedro-plugins", "sovai", "1.13.0")
+        root = os.path.join(raiz, "pedro-plugins", "sprint", "1.13.0")
     os.makedirs(root, exist_ok=True)
     destino = os.path.join(root, "skills", "sprint", "resolve-plugin.sh")
     os.makedirs(os.path.dirname(destino), exist_ok=True)
@@ -273,7 +273,7 @@ def roda_a_colheita(bloco, layout, quebra=False):
     caminho e o comando quebrou' (visivel)."""
     if not bloco:
         return {"erro": "SEM-BLOCO"}
-    raiz = tempfile.mkdtemp(prefix="sovai-colheita-")
+    raiz = tempfile.mkdtemp(prefix="sprint-colheita-")
     try:
         root = planta_o_lixeiro(raiz, layout, quebra)
         amb = dict(os.environ)
@@ -767,7 +767,7 @@ def main():
     print("F9.34 — a compilacao cara e paga uma vez, pela casca, antes do motor")
     bloco_build = bloco_da_compilacao(texto)
     check("o passo existe como bloco EXECUTAVEL na casca, nao em prosa",
-          "$SOVAI_BUILD_CMD" in bloco_build and "BUILD_WARM" in bloco_build)
+          "$SPRINT_BUILD_CMD" in bloco_build and "BUILD_WARM" in bloco_build)
     # O passo so serve se vier ANTES do disparo: compilar depois do Workflow e pagar
     # a compilacao duas vezes, uma delas por tarefa.
     # O titulo da secao do esqueleto mudou em 2026-08-08 (de "Esqueleto do motor
@@ -779,7 +779,7 @@ def main():
     # A metade de EXECUCAO: o passo roda de verdade contra um projeto de mentira, e a
     # segunda compilacao — a do executor — tem que aproveitar o cache. Se o passo
     # limpasse (clean / rm -rf do diretorio de build), ela sairia FULL de novo.
-    raiz = tempfile.mkdtemp(prefix="sovai-build-")
+    raiz = tempfile.mkdtemp(prefix="sprint-build-")
     try:
         r = roda_a_compilacao(bloco_build, raiz)
         check("a casca compila os alvos e declara o cache quente",
@@ -793,7 +793,7 @@ def main():
     check("compilacao que falha nao trava a missao (fail-open)",
           "BUILD_WARM=false" in bloco_build)
     check("o estado fica fora do repositorio, na raiz de config do Claude",
-          'SOVAI_DIR="${CLAUDE_CONFIG_DIR:-$HOME/.claude}/sovai"' in bloco_build)
+          'SPRINT_DIR="${CLAUDE_CONFIG_DIR:-$HOME/.claude}/andamento"' in bloco_build)
     # E o aviso chega a QUEM COMPILA: valor que para no script nao impede `clean` nenhum.
     check("o knob chega ao motor pelo args", "const buildWarm = ARGS.buildWarm === true" in js)
     check("o executor recebe a regra por escrito, no texto que ele le",

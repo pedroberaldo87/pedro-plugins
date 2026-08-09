@@ -53,20 +53,20 @@ def resolve(layout, nome="lixeiro", rel="lib/lixeiro.py", pede=None):
     raiz = tempfile.mkdtemp(prefix="resolve-plugin-")
     try:
         if layout == "repo":
-            root = os.path.join(raiz, "plugins", "sovai")
+            root = os.path.join(raiz, "plugins", "sprint")
             poe(os.path.join(raiz, "plugins", nome, rel))
         elif layout == "cache":
-            root = os.path.join(raiz, "pedro-plugins", "sovai", "1.13.0")
+            root = os.path.join(raiz, "pedro-plugins", "sprint", "1.13.0")
             for v in ("1.9.0", "1.10.0", "1.8.2"):
                 poe(os.path.join(raiz, "pedro-plugins", nome, v, rel))
         elif layout == "outro-marketplace":
             # O irmao existe, mas veio de OUTRO marketplace: nem o irmao direto nem o
             # `../../` do proprio marketplace o alcancam — so a varredura do cache.
-            root = os.path.join(raiz, "pedro-plugins", "sovai", "1.13.0")
+            root = os.path.join(raiz, "pedro-plugins", "sprint", "1.13.0")
             poe(os.path.join(raiz, "config", "plugins", "cache",
                              "outro", nome, "2.0.0", rel))
         else:
-            root = os.path.join(raiz, "pedro-plugins", "sovai", "1.13.0")
+            root = os.path.join(raiz, "pedro-plugins", "sprint", "1.13.0")
         os.makedirs(root, exist_ok=True)
         amb = dict(os.environ)
         amb.update({"CLAUDE_PLUGIN_ROOT": root,

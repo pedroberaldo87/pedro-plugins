@@ -286,7 +286,7 @@ def main():
     d = tempfile.mkdtemp(prefix="confl-situ-")
     try:
         monta(d, {"mkt/alfa/1.0.0": {"skills": {
-            "molde": 'Modo de execução contínua. Use quando o usuário disser "sovai".',
+            "molde": 'Modo de execução contínua. Use quando o usuário disser "sprint".',
             "apelido": 'Gera princípios. Trigger em /apelido, princípios de sistema.',
             "instala": 'Setup de máquina nova. Rode 1× depois de instalar o plugin.'}}})
         r = C.varre(C.instalados(d))

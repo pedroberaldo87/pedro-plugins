@@ -1,5 +1,5 @@
 #!/bin/bash
-# test_motor_gate.sh — suíte do gate que mantém o /sovai no motor Workflow.
+# test_motor_gate.sh — suíte do gate que mantém o /sprint no motor Workflow.
 #
 # Roda o hook DE VERDADE, com o payload que o harness manda, e olha a decisão
 # que sai no stdout. Nada de recalcular a regra aqui: recalcular à mão foi
@@ -40,12 +40,12 @@ nega() {
 }
 
 SID="sessao-de-teste-1"
-ESTADO="$TMP/sovai"
+ESTADO="$TMP/andamento"
 mkdir -p "$ESTADO"
 
-echo "[gate do motor do sovai]"
+echo "[gate do motor do sprint]"
 
-# 1 · fora do sovai o gate é mudo — sub-agente aqui é assunto de outro guard
+# 1 · fora do sprint o gate é mudo — sub-agente aqui é assunto de outro guard
 OUT=$(payload Agent "$SID" | roda)
 check "sem o sinal, libera e não escreve nada" \
   "$([ -z "$OUT" ] && echo 1 || echo 0)" "saiu: $OUT"
@@ -61,7 +61,7 @@ check "a razão diz que Agent Teams também não serve" \
 check "a razão oferece a saída de UM agente só (parecer de leitura)" \
   "$(printf '%s' "$OUT" | grep -q 'um único agent()' && echo 1 || echo 0)"
 check "a razão mostra o desligamento" \
-  "$(printf '%s' "$OUT" | grep -q 'SOVAI_GATE=0' && echo 1 || echo 0)"
+  "$(printf '%s' "$OUT" | grep -q 'SPRINT_GATE=0' && echo 1 || echo 0)"
 check "quem nega sai com exit 0 (o veredito vem do JSON)" \
   "$(payload Agent "$SID" | roda >/dev/null; [ $? -eq 0 ] && echo 1 || echo 0)"
 
@@ -76,8 +76,8 @@ check "tool que não é Agent passa em silêncio" \
   "$([ -z "$OUT" ] && echo 1 || echo 0)" "saiu: $OUT"
 
 # 5 · kill-switch
-OUT=$(payload Agent "$SID" | CLAUDE_CONFIG_DIR="$TMP" SOVAI_GATE=0 bash "$HOOK" 2>/dev/null)
-check "SOVAI_GATE=0 cala o gate" "$([ -z "$OUT" ] && echo 1 || echo 0)" "saiu: $OUT"
+OUT=$(payload Agent "$SID" | CLAUDE_CONFIG_DIR="$TMP" SPRINT_GATE=0 bash "$HOOK" 2>/dev/null)
+check "SPRINT_GATE=0 cala o gate" "$([ -z "$OUT" ] && echo 1 || echo 0)" "saiu: $OUT"
 
 # 6 · fail-open nas bordas de infra
 OUT=$(printf '{"tool_name":"Agent"}' | roda)
@@ -107,7 +107,7 @@ check "o contador do cap é por sessão" \
 
 # 6bb · sinal órfão expira sozinho. Sessão que morre sem apagar `ativo-<sid>`
 # deixava a sessão seguinte sem despachar sub-agente ATÉ O FIM — foi assim que
-# 4 sinais de sessões mortas ficaram acesos em ~/.claude/sovai.
+# 4 sinais de sessões mortas ficaram acesos em ~/.claude/andamento.
 VELHO="sessao-abandonada"
 : > "$ESTADO/ativo-$VELHO"
 touch -t 202001010000 "$ESTADO/ativo-$VELHO"

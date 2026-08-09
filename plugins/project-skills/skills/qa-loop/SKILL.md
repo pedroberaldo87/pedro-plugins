@@ -89,7 +89,7 @@ Passo 8.0 (gate de saída) + na seção "Detecção de rede".
 
 **É TUDO Opus 5** (contrato R8 desde 2026-07-26): os seis knobs rodam `model: 'opus'` e o que dispara no
 tier certo pro PESO da decisão é o **`effort`**, e **o valor não mora aqui**: ele vem de
-`references/r8-tiers.json`, que a casca carrega e passa no `args` do Workflow. A semântica dos knobs é o **contrato R8 compartilhado** com o `/sovai`, vendorado em
+`references/r8-tiers.json`, que a casca carrega e passa no `args` do Workflow. A semântica dos knobs é o **contrato R8 compartilhado** com o `/sprint`, vendorado em
 **`references/r8-tiers.md`** (fonte: `_shared/r8-tiers.md` — não editar a cópia à mão;
 `scripts/sync-shared.sh --check` pega drift). Trocar o tier de uma etapa lá vale pros dois motores. A tabela
 completa (Etapa · Modelo · Effort · Knob + o que cada knob significa + a regra de tier por rodada) está no
@@ -135,7 +135,7 @@ Os **6 model-knobs** (`decompose_model`, `coordinate_model`, `executor_model`, `
 | `regression_gate` | `on` | Sempre on — é o coração. |
 | `triage_threshold` | `2` | Com ≥2 findings (ou qualquer alargamento de regra), o PLAN vira tabela formal; com 1, decisão inline. |
 | `churn_threshold` | `2` | ≥N regressões auto-infligidas na mesma função → escala pro `diagnose_model` (para de remendar). |
-| `headless` | `off` | Modo não-interativo (pro `/sovai`) — nunca pergunta, alertas de plano não viram fix. |
+| `headless` | `off` | Modo não-interativo (pro `/sprint`) — nunca pergunta, alertas de plano não viram fix. |
 
 Precedência (R3): **flag de invocação > `.claude/qa-loop.config.md` do projeto > default acima.**
 
@@ -204,7 +204,7 @@ quando o churn escala (mesma função regredindo repetidamente). O que separa os
 Revisar código que **outro motor da mesma sessão ainda está escrevendo** produz acusação falsa: o
 Revisor lê o arquivo no meio de um conserto, aponta o defeito que o outro já corrigiu, e o Executor
 "conserta" por cima do trabalho vivo. Por isso a revisão **reserva** os arquivos que vai ler, pelo mesmo
-mecanismo que o `/sovai` usa entre motores — e se a lista **cruza** com a de um motor vivo, ela **recusa**.
+mecanismo que o `/sprint` usa entre motores — e se a lista **cruza** com a de um motor vivo, ela **recusa**.
 
 **Rode isto antes do Passo 0**, com `ARQUIVOS_DO_REVIEW` = a lista de arquivos que esta revisão vai ler,
 **um por linha** (do alvo: `git diff --name-only <alvo>`), e `CLAUDE_SESSION_ID` = o id desta sessão:
@@ -220,7 +220,7 @@ RESERVA="$(bash "${CLAUDE_PLUGIN_ROOT}/skills/qa-loop/resolve-plugin.sh" project
   duas saídas que o próprio motivo dá: esperar o outro motor terminar, ou reduzir `<alvo>` a arquivos que
   não encostem na lista dele.
 - **Saída muda** → reservado, segue pro Passo 0.
-- **Saída vazia do resolvedor** (`/sovai` não instalado nesta máquina) → não há motor com quem colidir; segue. Fail-open, como
+- **Saída vazia do resolvedor** (`/sprint` não instalado nesta máquina) → não há motor com quem colidir; segue. Fail-open, como
   todo gate deste repo.
 
 Ao terminar (Passo 8, inclusive em `gate-red` ou abandono), **libere** — reserva que não é liberada
@@ -810,16 +810,16 @@ consertados automaticamente sem rede.
 
 ---
 
-## Modo headless (pro /sovai)
+## Modo headless (pro /sprint)
 
 Com `--headless`: o loop NUNCA pergunta nada (auto-classifica domínio como assintótico se ambíguo, usa os
 defaults, pula o veredito 0-10). **Alertas de plan-flaw continuam NÃO virando fix** — ficam no relatório pro
 usuário revisar depois. Headless ≠ licença pra re-planejar nem pra ratificar accepted-limit. O relatório da
-`/qa-loop` vira a seção final de QA do report do `/sovai`.
+`/qa-loop` vira a seção final de QA do report do `/sprint`.
 
 **A Fase Gate (absoluta) vale em headless também** — o gate vermelho não pergunta nada, mas entra no
 relatório como bloqueante (`stopReason='gate-red'`), virando item de "Bloqueios (precisam de você)" no
-report do `/sovai`. Conserto de fundamento (lint/type/unit/integração) está no mandato do headless; re-planejar
+report do `/sprint`. Conserto de fundamento (lint/type/unit/integração) está no mandato do headless; re-planejar
 um plan-flaw, não.
 
 ## Quando NÃO usar

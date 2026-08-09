@@ -46,7 +46,7 @@ def main():
     os.environ["CLAUDE_CONFIG_DIR"] = tmp
     sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
     import andamento as a
-    a.ESTADO = os.path.join(tmp, "sovai")
+    a.ESTADO = os.path.join(tmp, "sprint")
 
     try:
         print("o placar sai da saida CRUA, nos formatos que existem de verdade")
@@ -270,39 +270,18 @@ def main():
               "Ferramenta há" not in (a.linha_motor("s1", base, agora) or ""))
 
         # A PASTA DE ESTADO NAO PODE TER O NOME DE UM PLUGIN SO (F17.2). O modulo
-        # ja e chamado por quatro plugins; batizar a casa com o nome de um deles
-        # faz o estado dos outros parecer emprestado. Os dois lados sao testados:
-        # o que NASCE vai pra pasta neutra, e o que ja existia na pasta antiga
-        # continua sendo lido — missao viva no meio da troca nao perde memoria.
-        print("a casa do estado e neutra, e a antiga continua sendo lida")
+        # ja e chamado por quatro plugins; a casa e neutra e e uma so — a cascata
+        # de leitura da pasta antiga saiu junto com o rename de 2026-08-09.
+        print("a casa do estado e neutra")
         neutra = os.path.join(tmp, "andamento")
-        antiga = os.path.join(tmp, "sovai")
-        a.ESTADO, a.ESTADO_LEGADO = neutra, antiga
+        a.ESTADO = neutra
         proj_n, cmd_n = "/casa/projeto-mudanca", "bash suite-nova.sh"
         a.registrar(proj_n, cmd_n, 20)
         nome_n = os.path.basename(a._arquivo(proj_n))
         check("o historico de duracao NASCE na pasta neutra",
-              os.path.exists(os.path.join(neutra, nome_n))
-              and not os.path.exists(os.path.join(antiga, nome_n)))
+              os.path.exists(os.path.join(neutra, nome_n)))
 
-        proj_v, cmd_v = "/casa/projeto-antigo", "bash suite-velha.sh"
-        os.makedirs(antiga, exist_ok=True)
-        with open(os.path.join(antiga, os.path.basename(a._arquivo(proj_v))),
-                  "w", encoding="utf-8") as fh:
-            fh.write('{"%s": [90.0]}' % a._chave(cmd_v))
-        check("historico que ficou na pasta antiga ainda estima",
-              a.estimativa(proj_v, cmd_v) == 90.0)
-
-        # O SINAL da missao viva: acesso na casa antiga, a barra tem que continuar
-        # enxergando — senao a troca de pasta apaga a missao que ja estava de pe.
-        with open(os.path.join(antiga, "ativo-s9"), "w", encoding="utf-8") as fh:
-            fh.write("1")
-        with open(os.path.join(antiga, "sinal-s9"), "w", encoding="utf-8") as fh:
-            fh.write(str(agora - 30))
-        check("sinal aceso na pasta antiga ainda desenha a linha do motor",
-              "Último sinal há 30s" in (a.linha_motor("s9", None, agora) or ""))
-
-        # A LINHA NOMEIA QUEM A ACENDEU (F17.3). Ate aqui ela dizia `sovai` fixo,
+        # A LINHA NOMEIA QUEM A ACENDEU (F17.3). Ate aqui ela dizia `sprint` fixo,
         # e era a unica funcao do modulo presa a um plugin. O nome vem do PROPRIO
         # sinal — dois motores diferentes na MESMA sessao produzem duas linhas.
         print("a linha da missão nomeia o motor que acendeu o sinal")

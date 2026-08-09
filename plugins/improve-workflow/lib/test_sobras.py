@@ -77,7 +77,7 @@ def caso_varredura():
         base = os.path.join(d, "projects")
         meu = monta_run(base, "proj", "sessao-abc", "wf_meu")
         monta_run(base, "proj", "sessao-xyz", "wf_outro")
-        res = os.path.join(d, "sovai", "reservas")
+        res = os.path.join(d, "sprint", "reservas")
         os.makedirs(res)
         reserva(res, "sessao-abc__motor-1", VELHO)
         reserva(res, "sessao-xyz__motor-9", VELHO)
@@ -120,7 +120,7 @@ def caso_relatorio():
         limpo = monta_run(base, "proj", "sessao-abc", "wf_limpo")
         check("run sem sobra sai com 0", sobras.main(["--run", limpo]) == 0)
 
-        res = os.path.join(d, "sovai", "reservas")
+        res = os.path.join(d, "sprint", "reservas")
         os.makedirs(res)
         reserva(res, "sessao-abc__motor-1", VELHO)
         check("achou sobra ⇒ sai com 1", sobras.main(["--run", limpo, "--json"]) == 1)

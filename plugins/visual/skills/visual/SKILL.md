@@ -643,7 +643,7 @@ que mude o que fazer em seguida ("o total está em caixa preta", "a procedência
 desconhecida") → é **`.tri`**. O teste é a existência da escolha, não a sua
 confiança nela: na dúvida, se há uma pergunta com resposta que altera a ação,
 vire decision-card — cair no tri por "não ter certeza" foi o defeito medido em
-2026-08-03 (3 pontos de decisão renderizados como tri no relatório do sovai).
+2026-08-03 (3 pontos de decisão renderizados como tri no relatório do sprint).
 
 Quando a página aponta um **bloqueio, pendência, risco realizado ou problema** — bloco de bloqueios, seção de achados, relatório final de uma execução — cada item vem no componente **`.tri`**, com as três partes rotuladas, nesta ordem e sem pular nenhuma:
 
@@ -715,7 +715,7 @@ The ruler: **enough to decide, nothing more.** Concretely — question in one pl
 ### Afirmação, não narrativa — os quatro tells (2026-07-30)
 
 O "wall" acima descreve o defeito por **tamanho**, e por isso não pegou: a página do
-sovai num projeto real saiu com **3.646 palavras e 29 blocos acima de 200 caracteres**, sob esta
+sprint num projeto real saiu com **3.646 palavras e 29 blocos acima de 200 caracteres**, sob esta
 mesma seção. O vocabulário já estava humano ("bateria de testes", não "test suite"). O que
 ficou robótico foi a **arquitetura da frase** — narrativa de processo onde cabia afirmação.
 
@@ -734,7 +734,7 @@ Os quatro tells de que você escreveu narrativa. Cada um tem conserto mecânico:
 | Narrativa de processo em 1ª pessoa | "Sequenciei: primeiro… depois… e só então…" | vira `bullets` na ordem, sem os advérbios de tempo |
 | Oração explicativa entre travessões dentro de outra | "o conserto é uma linha — e não encosta na independência que faz a comparação valer (é ela que prova…) — mas você decidiu…" | duas afirmações separadas |
 
-Antes e depois, de um arquivo gerado (`2026-07-30-sovai-app-exemplo.html`, bloco de 480 chars):
+Antes e depois, de um arquivo gerado (`2026-07-30-sprint-app-exemplo.html`, bloco de 480 chars):
 
 ```
 ❌ (1) não rodei o loop de QA completo — troquei por uma revisão dedicada ao código

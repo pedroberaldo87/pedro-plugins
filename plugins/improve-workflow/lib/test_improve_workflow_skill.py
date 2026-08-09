@@ -322,15 +322,15 @@ def caso_sem_sinal_nao_dispara_agente():
     check("nenhum sinal aceso", "sinais — 0 dos 6 acesos" in r.stdout,
           r.stdout.splitlines()[-8:])
     # Os passos 2–6 são os que gastam agente. Sem sinal, o texto tem que barrar os dois
-    # lados: quem chama (sovai) e quem seria chamado (esta skill).
+    # lados: quem chama (sprint) e quem seria chamado (esta skill).
     texto = open(SKILL, encoding="utf-8").read()
     check("a skill diz que sem sinal para no passo 1",
           "agente nenhum é disparado" in texto)
-    sovai = os.path.join(RAIZ, "plugins", "project-skills", "skills", "sprint", "SKILL.md")
-    if os.path.exists(sovai):
-        t = open(sovai, encoding="utf-8").read()
-        check("o sovai roda o medidor ao fim de toda missão", "lib/medidor.py" in t)
-        check("o sovai não dispara agente sem sinal", "não dispare agente nenhum" in t)
+    sprint = os.path.join(RAIZ, "plugins", "project-skills", "skills", "sprint", "SKILL.md")
+    if os.path.exists(sprint):
+        t = open(sprint, encoding="utf-8").read()
+        check("o sprint roda o medidor ao fim de toda missão", "lib/medidor.py" in t)
+        check("o sprint não dispara agente sem sinal", "não dispare agente nenhum" in t)
 
 
 def caso_relato_de_falha_aceita_detalhe_nao_texto():

@@ -22,7 +22,7 @@ check() {
 PROJ="$TMP/proj"
 PLANS="$PROJ/.claude/plans"
 CFG="$TMP/cfg"
-mkdir -p "$PLANS/entrada" "$CFG/sovai" "$PROJ/.git"
+mkdir -p "$PLANS/entrada" "$CFG/andamento" "$PROJ/.git"
 
 python3 - "$PLANS" <<'PY'
 import json, os, sys
@@ -53,7 +53,7 @@ echo "[fila de entrada no arranque da sessão]"
 
 # A) motor vivo — de OUTRA sessão, que é o caso perigoso: drenar aqui corromperia
 #    o plano que aquele motor está marcando agora.
-: > "$CFG/sovai/ativo-outra-sessao"
+: > "$CFG/andamento/ativo-outra-sessao"
 OUT=$(roda)
 check "com motor vivo, avisa que adiou" \
   "$(printf '%s' "$OUT" | grep -q 'motor está vivo' && echo 1 || echo 0)" "saiu: $OUT"
@@ -63,7 +63,7 @@ check "com motor vivo, o plano NÃO foi tocado" \
   "$([ "$(ids)" = "F1.1" ] && echo 1 || echo 0)" "ids: $(ids)"
 
 # B) sem motor — agora é seguro
-rm -f "$CFG/sovai"/ativo-*
+rm -f "$CFG/andamento"/ativo-*
 OUT=$(roda)
 check "sem motor, incorpora o passo da fila" \
   "$(printf '%s' "$OUT" | grep -q 'F1.9' && echo 1 || echo 0)" "saiu: $OUT"

@@ -43,22 +43,11 @@ _CONFIG = os.environ.get("CLAUDE_CONFIG_DIR",
 # vai pra ca.
 ESTADO = os.path.join(_CONFIG, "andamento")
 
-# A casa antiga continua sendo LIDA — missao que ja estava de pe quando a pasta
-# mudou nao pode perder a memoria dela. So leitura: nada novo e escrito aqui.
-ESTADO_LEGADO = os.path.join(_CONFIG, "sovai")
-
-
+# A pasta antiga (com o nome do plugin extinto) foi aposentada no rename de
+# 2026-08-09: o estado mora aqui e so aqui. Quem tinha missao de pe migrou por mv.
 def _ler(base, nome):
-    """O caminho de onde LER: a casa nova primeiro, a antiga quando ela nao tem.
-
-    Vale so pra casa padrao — quem passa `dir_estado` (bancada, ou motor com casa
-    propria) esta dizendo exatamente onde olhar, e ai nao ha legado que valha.
-    """
-    novo = os.path.join(base, nome)
-    if base != ESTADO or os.path.exists(novo):
-        return novo
-    antigo = os.path.join(ESTADO_LEGADO, nome)
-    return antigo if os.path.exists(antigo) else novo
+    """O caminho do estado — uma casa so."""
+    return os.path.join(base, nome)
 
 
 # Os TRES formatos que a amostra mostrou, em ordem de frequencia medida.
@@ -78,7 +67,7 @@ def _arquivo(projeto):
 
 
 def _arquivo_lido(projeto):
-    """O mesmo registro, mas de onde ele PODE estar: casa nova ou a antiga."""
+    """O mesmo registro, pelo caminho de leitura padrao."""
     return _ler(ESTADO, os.path.basename(_arquivo(projeto)))
 
 
@@ -469,7 +458,7 @@ def _trabalho_vivo(base, sessao, agora, limite=LIMITE_SILENCIO):
 
 
 # QUEM ACENDEU O SINAL DIZ O NOME NO PROPRIO SINAL. Era a unica coisa do modulo
-# presa a um plugin: a linha escrevia `sovai` fixo, e um workflow de outro motor
+# presa a um plugin: a linha escrevia `sprint` fixo, e um workflow de outro motor
 # aparecia na barra com o nome de quem nao o disparou.
 MOTOR_PADRAO = "motor"
 
@@ -594,7 +583,7 @@ def painel(dir_estado=None, agora=None):
     Aqui a pergunta vira comando, e a resposta sai do MESMO estado que a barra le —
     `ativo-<sid>` e o que existe: sem ele nao ha missao, e nao ha o que imprimir.
     """
-    bases = [dir_estado] if dir_estado else [ESTADO, ESTADO_LEGADO]
+    bases = [dir_estado] if dir_estado else [ESTADO]
     sessoes = []
     for base in bases:
         try:

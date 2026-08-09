@@ -31,9 +31,9 @@ python3 "$(bash "${CLAUDE_PLUGIN_ROOT}/lib/resolve-plugin.sh" project-skills lib
 O touch **documenta** ⇒ é modo PESADO na regra do grafo (canônica: `skills/doc/SKILL.md` → Workflow Engine → Passo 0): doc nova nunca sai de grafo velho. Rode sem anunciar custo nem pedir confirmação — só informe o status. `graphify` não instalado ⇒ **avise e siga** (a re-projeção vem do diff, não do mapa; o touch não consome `graph_map`).
 Devolve `{changed, docs:{doc:{files, already_current}}, pending_docs, seam_review, unscoped_new, dead_scope, ledger_last_commit, last_full_age_days}`. O `changed` = working tree ∪ staged ∪ `ledger.last_commit..HEAD` (mesma janela do backward-delta do journal, **lida read-only**). ⚠️ `git diff` **não lista untracked** — arquivo novo só entra no `changed` depois do `git add`.
 
-**Escalada touch → FULL: decida AQUI, antes de re-projetar nada.** Quem chama o touch (o usuário, ou a `/sovai`) não tem como saber se o caso pede FULL — a informação nasce neste passo. Um sinal só, e ele é mecânico:
+**Escalada touch → FULL: decida AQUI, antes de re-projetar nada.** Quem chama o touch (o usuário, ou a `/sprint`) não tem como saber se o caso pede FULL — a informação nasce neste passo. Um sinal só, e ele é mecânico:
 
-- **`last_full_age_days > 30`** (ou `null` — ledger ausente/ilegível/SHA órfão, ou seja "não sei") ⇒ **escale pro FULL**. Em modo autônomo (`/sovai`, headless) escale **e siga**, sem perguntar: sugerir não serve pra quem não está lendo. Em modo interativo, diga o número e pergunte.
+- **`last_full_age_days > 30`** (ou `null` — ledger ausente/ilegível/SHA órfão, ou seja "não sei") ⇒ **escale pro FULL**. Em modo autônomo (`/sprint`, headless) escale **e siga**, sem perguntar: sugerir não serve pra quem não está lendo. Em modo interativo, diga o número e pergunte.
 - Caso contrário ⇒ **touch**, que é o caminho normal.
 
 O campo existe porque **o FULL é o único que avança `ledger.last_commit`** (o touch é read-only nele), então a data desse commit *é* a data do último FULL.

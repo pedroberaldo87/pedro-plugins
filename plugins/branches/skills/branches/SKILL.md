@@ -49,7 +49,7 @@ python3 $BS list --json               # pra processar
 open "$(python3 $BS report)"
 
 # 3. apagar SÓ o que o usuário marcou, por nome
-python3 $BS prune docs/readme feat/sovai-build-engine
+python3 $BS prune docs/readme feat/sprint-build-engine
 python3 $BS prune --dry-run <nomes>   # mostra o que faria
 ```
 

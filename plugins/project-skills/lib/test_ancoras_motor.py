@@ -2,7 +2,7 @@
 """As quatro portas de agente morto do motor tem que continuar no esqueleto.
 
 Por que este teste existe, e por que ele e uma REDE e nao uma checagem a mais:
-o esqueleto do motor mora todo num arquivo so, `skills/sovai/SKILL.md`, e o plano
+o esqueleto do motor mora todo num arquivo so, `skills/sprint/SKILL.md`, e o plano
 2026-08-06 tem DEZENOVE passos que reescrevem esse mesmo arquivo. Reescrita grande
 apaga o que ninguem esta olhando, e o que estava em risco aqui e justamente o que
 ja salvou missao em producao.

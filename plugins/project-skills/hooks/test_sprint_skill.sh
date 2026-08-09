@@ -1,5 +1,5 @@
 #!/bin/bash
-# test_sprint_skill.sh — suíte do CONTRATO do revisor #2 na SKILL.md do sovai.
+# test_sprint_skill.sh — suíte do CONTRATO do revisor #2 na SKILL.md do sprint.
 #
 # O defeito que isto impede: o #2 revisava contra a decomposição do #1, que é a
 # obra do próprio motor — circuito fechado, onde quem decompõe errado é aprovado

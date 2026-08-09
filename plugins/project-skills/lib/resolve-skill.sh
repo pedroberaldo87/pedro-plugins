@@ -9,7 +9,7 @@
 #
 # Medido em 2026-08-08: o motor de execução contínua pedia `project-doc:doc-touch` desde
 # que a skill mudou para `project-skills`. Quatro ondas fecharam verdes e NENHUMA
-# produziu documentação — `git log --grep 'sovai: onda'` mostra zero doc em três delas, e
+# produziu documentação — o `git log` das ondas daquele dia mostra zero doc em três delas, e
 # na quarta o único arquivo era um doc autoral que a skill nem pode tocar.
 #
 # É o irmão do `resolve-plugin.sh`, na outra direção: aquele acha o ARQUIVO dado o

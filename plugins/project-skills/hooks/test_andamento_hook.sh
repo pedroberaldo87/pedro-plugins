@@ -38,7 +38,7 @@ paylo() { # $1 = comando, $2 = saída crua, $3 = session_id
 }
 
 # marca com N segundos ATRÁS, para o decorrido ser controlado e conhecido.
-marca_ha() { python3 -c 'import time,sys; open(sys.argv[1],"w").write(str(time.time()-float(sys.argv[2])))' "$TMP/sovai-andamento-${2:-sess-teste}" "$1"; }
+marca_ha() { python3 -c 'import time,sys; open(sys.argv[1],"w").write(str(time.time()-float(sys.argv[2])))' "$TMP/sprint-andamento-${2:-sess-teste}" "$1"; }
 
 roda() { # $1 = comando, $2 = saída, $3 = script (sabotado, opcional), $4 = sid
   CLAUDE_CONFIG_DIR="$CFG" TMPDIR="$TMP" sh "${3:-$HOOK}" <<< "$(paylo "$1" "$2" "${4:-sess-teste}")" 2>/dev/null
@@ -51,14 +51,14 @@ except Exception: raise SystemExit
 sys.stdout.write(str(d.get("systemMessage") or ""))' 2>/dev/null
 }
 
-echo "[narrador de andamento do sovai]"
+echo "[narrador de andamento do sprint]"
 
 # 1 · modo marca (PreToolUse): grava o instante e sai calado
-rm -f "$TMP/sovai-andamento-sess-teste"
+rm -f "$TMP/sprint-andamento-sess-teste"
 OUT=$(CLAUDE_CONFIG_DIR="$CFG" TMPDIR="$TMP" sh "$HOOK" marca <<< "$(paylo 'npm test' '')" 2>/dev/null)
 check "modo marca não imprime nada" "$([ -z "$OUT" ] && echo 1 || echo 0)" "saiu: $OUT"
 check "modo marca grava o instante do disparo" \
-  "$([ -s "$TMP/sovai-andamento-sess-teste" ] && echo 1 || echo 0)"
+  "$([ -s "$TMP/sprint-andamento-sess-teste" ] && echo 1 || echo 0)"
 
 # 2 · O CRITÉRIO: a linha de andamento é IMPRESSA na tela principal
 marca_ha 120
@@ -82,7 +82,7 @@ check "a memória guarda o comando que rodou" \
 
 # 2c · a marca é consumida — o próximo comando não herda a duração deste
 check "a marca é apagada depois de narrada" \
-  "$([ ! -f "$TMP/sovai-andamento-sess-teste" ] && echo 1 || echo 0)"
+  "$([ ! -f "$TMP/sprint-andamento-sess-teste" ] && echo 1 || echo 0)"
 
 # 3 · segunda rodada com o MESMO placar: 'sem avanço' é o sinal que interessa
 marca_ha 200
@@ -104,24 +104,14 @@ OUT=$(roda 'bash suite.sh' "$SAIDA_COM_PLACAR" "" sess-sem-missao)
 check "SEM sinal de missão ativa o narrador passa mudo" \
   "$([ -z "$OUT" ] && echo 1 || echo 0)" "saiu: $OUT"
 
-# A missão que já estava de pé quando a pasta de estado mudou de nome: o sinal
-# dela ficou na pasta antiga, e o narrador tem que continuar reconhecendo — senão
-# a troca de casa emudece missão viva.
-mkdir -p "$CFG/sovai"
-: > "$CFG/sovai/ativo-sess-legado"
-marca_ha 120 sess-legado
-OUT=$(roda 'bash suite.sh' "$SAIDA_COM_PLACAR" "" sess-legado)
-check "missão acesa na pasta ANTIGA continua sendo narrada" \
-  "$(printf '%s' "$OUT" | grep -q 'Rodando há' && echo 1 || echo 0)" "saiu: $OUT"
-
-rm -f "$TMP/sovai-andamento-sess-teste"
+rm -f "$TMP/sprint-andamento-sess-teste"
 OUT=$(roda 'bash suite.sh' "$SAIDA_COM_PLACAR")
 check "SEM marca não há duração medida — passa mudo" \
   "$([ -z "$OUT" ] && echo 1 || echo 0)" "saiu: $OUT"
 
 marca_ha 120
-OUT=$(CLAUDE_CONFIG_DIR="$CFG" TMPDIR="$TMP" SOVAI_ANDAMENTO=0 sh "$HOOK" <<< "$(paylo 'bash suite.sh' "$SAIDA_COM_PLACAR")" 2>/dev/null)
-check "SOVAI_ANDAMENTO=0 desliga o narrador" \
+OUT=$(CLAUDE_CONFIG_DIR="$CFG" TMPDIR="$TMP" SPRINT_ANDAMENTO=0 sh "$HOOK" <<< "$(paylo 'bash suite.sh' "$SAIDA_COM_PLACAR")" 2>/dev/null)
+check "SPRINT_ANDAMENTO=0 desliga o narrador" \
   "$([ -z "$OUT" ] && echo 1 || echo 0)" "saiu: $OUT"
 
 # 4b · O CRITÉRIO DE F9.24: silêncio longo sai na tela, e os dois casos saem
@@ -209,7 +199,7 @@ check "silêncio longo SEM trabalho vivo sai na barra como SEM SINAL" \
   "$(printf '%s' "$BARRA_TRAVADA" | grep -q 'SEM SINAL' && echo 1 || echo 0)" "saiu: [$BARRA_TRAVADA]"
 
 # o hook DE VERDADE, em modo marca, é quem deixa o trabalho vivo em disco
-rm -f "$TMP/sovai-andamento-sess-teste"
+rm -f "$TMP/sprint-andamento-sess-teste"
 CLAUDE_CONFIG_DIR="$CFG" TMPDIR="$TMP" sh "$HOOK" marca <<< "$(paylo 'bash suite-longa.sh' '')" >/dev/null 2>&1
 check "o disparo grava o trabalho vivo onde a BARRA lê (fora do /tmp da sessão)" \
   "$([ -s "$CFG/andamento/trabalho-sess-teste" ] && echo 1 || echo 0)"
@@ -273,8 +263,8 @@ check "apagado o sinal da missão, a linha some e a barra volta ao hud" \
 
 : > "$CFG/andamento/ativo-sess-teste"
 OUT=$(printf '{"session_id":"sess-teste"}' \
-  | CLAUDE_CONFIG_DIR="$CFG" TMPDIR="$TMP" SOVAI_STATUSLINE=0 sh "$BARRA" "sh $HUD" 2>/dev/null)
-check "SOVAI_STATUSLINE=0 desliga a linha sem desligar a barra" \
+  | CLAUDE_CONFIG_DIR="$CFG" TMPDIR="$TMP" SPRINT_STATUSLINE=0 sh "$BARRA" "sh $HUD" 2>/dev/null)
+check "SPRINT_STATUSLINE=0 desliga a linha sem desligar a barra" \
   "$([ "$OUT" = "$HUD_CRU" ] && echo 1 || echo 0)" "saiu: [$OUT]"
 rm -f "$CFG/andamento/sinal-sess-teste"
 

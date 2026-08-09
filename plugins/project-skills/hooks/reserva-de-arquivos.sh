@@ -2,7 +2,7 @@
 # reserva-de-arquivos.sh — dois motores da mesma sessão param de disputar os
 # mesmos arquivos.
 #
-# Por que existe: no /sovai mais de um motor pode estar vivo ao mesmo tempo na
+# Por que existe: no /sprint mais de um motor pode estar vivo ao mesmo tempo na
 # mesma sessão. Sem nada no meio, os dois escrevem os MESMOS arquivos e um
 # apaga o trabalho do outro — o dono está ausente, então ninguém vê acontecer.
 #
@@ -18,12 +18,12 @@
 # `permissionDecision: deny` com o motivo quando recusa (exit 0 também — o
 # veredito vem do JSON, não do código de saída).
 #
-# Estado: um arquivo por (sessão, motor) em ${CLAUDE_CONFIG_DIR:-~/.claude}/sovai/
+# Estado: um arquivo por (sessão, motor) em ${CLAUDE_CONFIG_DIR:-~/.claude}/andamento/
 # reservas/, uma linha por caminho. NUNCA dentro do plugin: ${CLAUDE_PLUGIN_ROOT}
 # é cache reescrito a cada bump de versão.
 #
 # A RESERVA EXPIRA POR IDADE, e o desenho é o mesmo que o sinal `ativo-<sid>`
-# ganhou em 2026-08-06 (SOVAI_TTL_MIN em pretooluse-motor-arma.sh): expira,
+# ganhou em 2026-08-06 (SPRINT_TTL_MIN em pretooluse-motor-arma.sh): expira,
 # APAGA, e deixa linha em log. Motor que morre sem liberar deixaria uma reserva
 # órfã, e reserva órfã que não expira recusa todo motor seguinte PARA SEMPRE —
 # é o defeito do sinal com outro nome.
@@ -32,7 +32,7 @@
 # leitor de JSON): gate que trava a sessão por infra é pior que gate nenhum.
 
 # Kill-switch (contrato dos hooks deste repo).
-[ "${SOVAI_RESERVA:-1}" = "0" ] && exit 0
+[ "${SPRINT_RESERVA:-1}" = "0" ] && exit 0
 
 HJ_DIR="${0%/*}"; [ "$HJ_DIR" = "$0" ] && HJ_DIR="."
 # shellcheck source=/dev/null
@@ -49,7 +49,7 @@ shift 3
 # `..` num id viraria escrita fora do diretório de estado.
 limpa() { printf '%s' "$1" | tr -c 'A-Za-z0-9._-' '_'; }
 
-ESTADO="${CLAUDE_CONFIG_DIR:-$HOME/.claude}/sovai"
+ESTADO="${CLAUDE_CONFIG_DIR:-$HOME/.claude}/andamento"
 RESERVAS="$ESTADO/reservas"
 # A disputa que existe é DENTRO da sessão, e a reserva é por sessão pela mesma
 # razão que o sinal `ativo-<sid>`: marcador global foi o defeito que mordeu o
@@ -75,7 +75,7 @@ LISTA=$(printf '%s\n' "$@")
 
 # 12h, como o sinal: a missão que isto protege é longa por definição (o dono
 # está ausente), e janela curta liberaria arquivo no meio de uma escrita viva.
-SOVAI_RESERVA_TTL_MIN="${SOVAI_RESERVA_TTL_MIN:-720}"
+SPRINT_RESERVA_TTL_MIN="${SPRINT_RESERVA_TTL_MIN:-720}"
 
 CRUZOU=""
 DONO=""
@@ -85,9 +85,9 @@ for OUTRA in "$RESERVAS/${EU}__"*.files; do
 
   # Expiração — reserva velha não recusa, e some. Apaga em vez de só ignorar:
   # ignorada, ela ressuscitaria na consulta seguinte.
-  if [ -n "$(find "$OUTRA" -mmin +"$SOVAI_RESERVA_TTL_MIN" 2>/dev/null)" ]; then
+  if [ -n "$(find "$OUTRA" -mmin +"$SPRINT_RESERVA_TTL_MIN" 2>/dev/null)" ]; then
     printf '%s reserva expirou apos %s min · %s\n' \
-      "$(date -u +%FT%TZ)" "$SOVAI_RESERVA_TTL_MIN" "${OUTRA##*/}" \
+      "$(date -u +%FT%TZ)" "$SPRINT_RESERVA_TTL_MIN" "${OUTRA##*/}" \
       >> "$ESTADO/reservas-expiradas.log" 2>/dev/null
     rm -f "$OUTRA" 2>/dev/null
     continue
@@ -112,7 +112,7 @@ ninguém por perto pra ver. Espere o outro motor terminar (ele libera a reserva
 ao sair), ou recorte esta tarefa para uma lista de arquivos que não encoste na
 dele.
 
-Se este bloqueio estiver errado, o desligamento é SOVAI_RESERVA=0."
+Se este bloqueio estiver errado, o desligamento é SPRINT_RESERVA=0."
   exit 0
 fi
 

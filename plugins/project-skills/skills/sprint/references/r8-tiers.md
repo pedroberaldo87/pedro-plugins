@@ -3,9 +3,9 @@
      só cria drift que o check acusa. NÃO editar as cópias vendoradas
      (plugins/*/skills/*/references/) — edite o JSON aqui e rode scripts/sync-shared.sh. -->
 
-# Tier por etapa (R8) — contrato único dos motores `/sovai` e `/qa-loop`
+# Tier por etapa (R8) — contrato único dos motores `/sprint` e `/qa-loop`
 
-Os dois motores (decompõe→executa→revisa do `/sovai`; revisa→planeja→conserta do
+Os dois motores (decompõe→executa→revisa do `/sprint`; revisa→planeja→conserta do
 `/qa-loop`) usam **a mesma tabela de tier por etapa** e **os mesmos nomes de knob**.
 Trocar o tier de uma etapa aqui vale pros dois — é um contrato, não duas listas.
 
