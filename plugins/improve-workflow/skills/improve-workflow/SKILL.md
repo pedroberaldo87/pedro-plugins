@@ -138,6 +138,14 @@ esse número será conferido na rodada seguinte. A proposta não sai em prosa no
 ela chega pela superfície de aprovação do `/visual`, com **um item por proposta** —
 um veredito por defeito, e não um "aprovado" único para a lista toda.
 
+**O formato é PROBLEMA · CONSEQUÊNCIA · PROPOSTA, e não é escolha sua.** É o bloco
+trino do `/visual`: o defeito vira o título sempre visível, consequência e proposta
+ficam atrás do clique, e as três são obrigatórias — regra do `quality-goals.md`, não
+deste passo. Quem monta é o `proposta.py` do bloco abaixo, e é ele que RECUSA
+proposta sem as três partes. Inventar um jeito próprio de apresentar aqui já
+aconteceu (2026-08-09) e é o defeito que este parágrafo existe para impedir: o
+parecer sai pela página montada, sempre.
+
 ```bash
 PAGINA="$(bash "${CLAUDE_PLUGIN_ROOT}/skills/improve-workflow/resolve-plugin.sh" visual lib/visual_page.py)"
 PARECER="${CLAUDE_CONFIG_DIR:-$HOME/.claude}/improve-workflow/parecer-$(date +%Y%m%d-%H%M%S).html"

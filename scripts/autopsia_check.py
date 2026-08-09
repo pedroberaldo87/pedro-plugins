@@ -31,7 +31,17 @@ FRASES = [
     ("a ordem de derrubar", "tente derrubar cada afirmação"),
     ("a proibição de tocar o projeto",
      "nenhum arquivo do projeto muda durante a apura"),
+    # 2026-08-09: uma rodada entregou o parecer EM PROSA NO CHAT, num formato que
+    # ela mesma inventou, e o dono teve que reclamar. As duas metades da regra
+    # (o formato é o trino, e o canal é a página) viram cobrança aqui.
+    ("a proibição de entregar em prosa", "não sai em prosa no chat"),
+    ("o template trino", "problema · consequência · proposta"),
 ]
+
+# O montador é o ÚNICO caminho até a página: é ele que recusa proposta sem as três
+# partes. Bloco de comando que não passa por ele deixa o formato na mão de quem
+# escreve a rodada — que foi exatamente como o template sumiu na entrega de 21:08.
+MONTADOR = "proposta.py"
 
 # A isenção é do TOKEN que a prosa da skill declara — `<run>`, o run pedido pelo
 # nome —, nunca do operador `>`. Isentar o operador (exigindo espaço antes dele)
@@ -65,6 +75,10 @@ def checar(caminho):
     if not blocos:
         achados.append("%s:1 — a skill não tem bloco de comando (a rodada perdeu o corpo)"
                        % caminho)
+    elif not any(MONTADOR in b for b in blocos):
+        achados.append("%s:1 — nenhum bloco chama %s: sem o montador, o formato do "
+                       "parecer volta a ser escolha de quem redige a rodada"
+                       % (caminho, MONTADOR))
     for bloco in blocos:
         # Some o token declarado sem mexer nas posições, para a linha continuar certa.
         limpo = bloco
