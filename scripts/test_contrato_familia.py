@@ -20,10 +20,10 @@ FONTE = os.path.join(ROOT, "_shared", ARQ)
 # As quatro skills da família: as duas que ESCREVEM documento e as duas que
 # leem a lei que elas produzem.
 DESTINOS = [
-    "plugins/project-doc/skills/start-doc",
-    "plugins/project-doc/skills/project-doc",
-    "plugins/sovai/skills/sovai",
-    "plugins/qa-loop/skills/qa-loop",
+    "plugins/project-skills/skills/start",
+    "plugins/project-skills/skills/doc",
+    "plugins/project-skills/skills/sprint",
+    "plugins/project-skills/skills/qa-loop",
 ]
 
 # Cada cláusula do contrato, pelo que ela decide.

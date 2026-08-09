@@ -1,6 +1,6 @@
 ---
 name: principles
-description: "Princípios de sistema GENÉRICOS — os que valem em qualquer sistema — aplicados ao contexto atual. Lê PRINCIPIOS-SISTEMAS.md, mapeia categorias relevantes, e gera guia contextual com WHY + HOW. Dois modos — o padrão, que gera a seção de princípios antes de implementar, e review, que audita a implementação já escrita. Não decide o que ESTE sistema tem que ser: isso é da constituição do projeto. Trigger em /principles, princípios de sistema, checa os princípios."
+description: "Princípios de sistema GENÉRICOS — os que valem em qualquer sistema — aplicados ao contexto atual. Lê PRINCIPIOS-SISTEMAS.md, mapeia categorias relevantes, e gera guia contextual com WHY + HOW. Dois modos — o padrão, que gera a seção de princípios antes de implementar, e review, que audita a implementação já escrita. Não decide o que ESTE sistema tem que ser: isso é da constituição do projeto. Trigger em /principles, princípios de sistema, checa os princípios. Use quando o usuário vai implementar um sistema e quer os princípios genéricos aplicados ao contexto antes de codar, ou quando quer auditar uma implementação já escrita contra eles."
 ---
 
 # Princípios de Sistema

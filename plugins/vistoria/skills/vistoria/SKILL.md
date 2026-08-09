@@ -1,6 +1,6 @@
 ---
 name: vistoria
-description: Esqueleto em construcao da ferramenta que revisa os arquivos de instrucao do marketplace. Ainda nao faz nada — nenhuma lente, inventario ou pagina de achados existe aqui. Nao invoque; o conteudo entra nos passos seguintes, e ate la o plugin nasce desligado de fabrica.
+description: Esqueleto em construcao da ferramenta que revisa os arquivos de instrucao do marketplace. Ainda nao faz nada — nenhuma lente, inventario ou pagina de achados existe aqui. Use quando o usuario invocar esta ferramenta pelo nome — a resposta e dizer que ela ainda e esqueleto e que nenhuma lente existe. O conteudo entra nos passos seguintes, e ate la o plugin nasce desligado de fabrica.
 ---
 
 # Skill: vistoria (em construção)

@@ -97,11 +97,16 @@ SINAL="$ESTADO/sinal-$SESSION"
 [ -f "$SINAL" ] || [ ! -f "$ESTADO_ANTIGO/sinal-$SESSION" ] \
   || cp "$ESTADO_ANTIGO/sinal-$SESSION" "$SINAL" 2>/dev/null
 
+# O módulo mora no plugin das skills de projeto, achado pelo NOME dele — nunca pela
+# posição no disco. Ausente nesta máquina = sem linha, calado, como toda borda daqui.
+ANDAMENTO_PY=$(CLAUDE_PLUGIN_ROOT="$RAIZ" bash "$HJ_DIR/resolve-plugin.sh" project-skills lib/andamento.py 2>/dev/null)
+[ -n "$ANDAMENTO_PY" ] || exit 0
+
 LINHA=$(printf '%s' "$INPUT" | "$PY" -c '
 import json, os, sys, time
 
-raiz, marca, sinal, sessao = sys.argv[1], sys.argv[2], sys.argv[3], sys.argv[4]
-sys.path.insert(0, os.path.join(raiz, "lib"))
+modulo, marca, sinal, sessao = sys.argv[1], sys.argv[2], sys.argv[3], sys.argv[4]
+sys.path.insert(0, os.path.dirname(modulo))
 import andamento
 
 try:
@@ -165,7 +170,7 @@ except OSError:
     pass
 
 sys.stdout.write("\n".join(x for x in (linha, silencio) if x))
-' "$RAIZ" "$MARCA" "$SINAL" "$SESSION" 2>/dev/null)
+' "$ANDAMENTO_PY" "$MARCA" "$SINAL" "$SESSION" 2>/dev/null)
 
 # A marca vale para UM comando: deixá-la de pé faria o próximo comando herdar
 # uma duração que não é dele.

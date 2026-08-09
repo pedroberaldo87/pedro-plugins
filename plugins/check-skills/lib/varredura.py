@@ -3,13 +3,17 @@
 
 Existe porque a pergunta "meus plugins brigam com os dos outros?" não tem resposta em
 lugar nenhum: `claude plugin list` diz o que existe, e nada diz o que se ATROPELA. As
-cinco lentes deste programa, e cada uma é de uma natureza diferente:
+seis lentes deste programa, e cada uma é de uma natureza diferente:
 
     nome        duas skills com o MESMO nome — quem digita não sabe qual responde
     evento      hooks de marketplaces diferentes no mesmo evento, e quem pode BARRAR
     gatilho     descrições que disputam o mesmo assunto — o modelo hesita na escolha
     versao      mais de uma versão da mesma coisa no cache (só a mais alta roda)
     vazamento   processo que a skill abre e NÃO fecha — o código e o que está de pé
+    irmao       citação de plugin irmão que NÃO está instalado — e o que fica mudo
+    morto       gatilho `/nome` prometido na descrição sem skill instalada que atenda
+    fabrica     skill que se chama como um comando do próprio Claude Code — quem digita
+                o nome recebe o harness, e a lista de fábrica mora em arquivo declarado
 
 A quinta nasceu de um caso medido em 2026-08-08: uma máquina acumulou **2125 processos
 `python3` órfãos**, e nenhuma ferramenta ligava aquilo a quem tinha aberto. Ela olha
@@ -213,7 +217,11 @@ def varre(inst=None):
             "nome_repetido": nomes, "evento_disputado": eventos,
             "gatilho_disputado": gatilhos, "cache_inchado": versoes,
             "vazamento_codigo": vazamento_codigo(inst),
-            "vazamento_vivo": vazamento_vivo(inst)}
+            "vazamento_vivo": vazamento_vivo(inst),
+            "irmao_ausente": irmao_ausente(inst),
+            "gatilho_morto": gatilho_morto(inst, sk),
+            "sem_situacao": sem_situacao(sk),
+            "nome_de_fabrica": nome_de_fabrica(sk)}
 
 
 # ── 5 · VAZAMENTO — processo que a skill abre e não fecha ──────────────────────
@@ -315,6 +323,174 @@ def vazamento_vivo(inst=None):
     return fora
 
 
+# ── 6 · IRMÃO AUSENTE — a travessia que não resolve NESTA máquina ─────────────
+# O cobrador do repositório vê o TEXTO da citação e sabe que ela é acoplamento; só a
+# máquina de quem instalou sabe se o irmão citado está aqui. Quando não está, nada
+# estoura: `resolve-plugin.sh` devolve vazio e o hook sai calado — o usuário descobre
+# a dependência pelo que deixou de acontecer. Daí a lente nomear as duas coisas: QUEM
+# depende do ausente, e QUE arquivo do outro plugin ficou mudo.
+CITA_IRMAO = (
+    re.compile(r"resolve-plugin\.sh\s+([\w-]+)\s+(\S+)"),
+    re.compile(r"CLAUDE_PLUGIN_ROOT\}?/\.\./([\w-]+)/?(\S*)"),
+    re.compile(r"(?<![\w./-])plugins/([\w-]+)/((?:lib|hooks|skills)/\S*)"),
+)
+
+
+def irmao_ausente(inst=None):
+    """[{marketplace, plugin, arquivo, linha, ausente, mudo}] — citação que não resolve."""
+    inst = instalados() if inst is None else inst
+    presentes = {p for _, p in inst}
+    fora = []
+    for (market, plug), meta in sorted(inst.items()):
+        for base, _, nomes in os.walk(meta["dir"]):
+            # bancada e fixture citam plugin de MENTIRA de propósito — numa máquina real
+            # foram os 4 únicos achados desta lente, e lista que nunca chega a zero é
+            # lista que ninguém mais abre
+            if "node_modules" in base or "__pycache__" in base or "/fixtures" in base:
+                continue
+            for nome in sorted(nomes):
+                # o próprio resolvedor cita irmão nos exemplos de uso, e exemplo não é
+                # dependência — acusá-lo seria acusar a régua de encostar na peça
+                if nome == "resolve-plugin.sh" or nome.startswith("test_"):
+                    continue
+                if not nome.endswith((".md", ".sh", ".py", ".mjs", ".js", ".json")):
+                    continue
+                cam = os.path.join(base, nome)
+                try:
+                    with open(cam, encoding="utf-8", errors="replace") as fh:
+                        linhas = fh.read().splitlines()
+                except OSError:
+                    continue
+                for n, linha in enumerate(linhas, 1):
+                    vistos = set()
+                    for rx in CITA_IRMAO:
+                        for m in rx.finditer(linha):
+                            alvo = m.group(1)
+                            if alvo == plug or alvo in presentes or alvo in vistos:
+                                continue
+                            vistos.add(alvo)
+                            fora.append({
+                                "marketplace": market, "plugin": plug,
+                                "arquivo": os.path.relpath(cam, meta["dir"]),
+                                "linha": n, "ausente": alvo,
+                                "mudo": m.group(2).strip("\"'`,);") or "(o plugin inteiro)",
+                                "trecho": linha.strip()[:120]})
+    return fora
+
+
+# ── 7 · GATILHO MORTO — a barra que a descrição promete e ninguém atende ──────
+# Uma descrição que diz `Use quando o usuário diz "/project-doc"` ensina ao modelo um
+# comando que o rename apagou: quem digita o nome velho é atendido por uma skill que
+# não se chama mais assim, e quem digita o novo não acha gatilho nenhum. Entra QUALQUER
+# barra-nome, com aspas ou solta em prosa — `NÃO substitui o /project-doc FULL` ensina o
+# comando morto exatamente igual à forma citada, e enquanto a lente só olhava aspas essa
+# frase saía limpa. Fora ficam nome sem barra ("vira plano" é linguagem, não promessa de
+# comando) e caminho de arquivo, que a barra colada em letra ou em outra barra denuncia.
+CITA_COMANDO = re.compile(r"(?<![\w/.~-])(/[a-zA-Z][\w-]*)(?![\w/-])")
+
+
+def gatilho_morto(inst=None, sk=None):
+    """[{marketplace, plugin, skill, gatilho}] — barra prometida sem skill que atenda."""
+    inst = instalados() if inst is None else inst
+    sk = skills(inst) if sk is None else sk
+    # Barra-nome do próprio harness (`/clear`) É atendida — quem digita recebe o comando
+    # de fábrica. Sai da lente pela MESMA lista declarada que a lente 9 usa.
+    fab, _isentos = fabrica()
+    nomes = {n for _, _, n, _ in sk} | fab
+    fora, vistos = [], set()
+    for market, plug, nome, desc in sk:
+        for m in CITA_COMANDO.finditer(desc):
+            gat = m.group(1)
+            alvo = gat.lstrip("/").split("/")[0]
+            if not alvo or alvo in nomes or (plug, nome, gat) in vistos:
+                continue
+            vistos.add((plug, nome, gat))
+            fora.append({"marketplace": market, "plugin": plug, "skill": nome,
+                         "gatilho": gat})
+    return fora
+
+
+# ── 8 · SEM SITUAÇÃO — a descrição que só serve a quem já sabe que a skill existe ──
+# Apelido (`"/faxina"`, `"sovai"`) serve a quem lembra do nome. Quem NÃO lembra que a
+# skill existe só é atendido se a descrição disser em que SITUAÇÃO DE TRABALHO ela entra
+# — o molde é a de `sprint`: `Use quando o usuário disser …`. A frase tem duas peças, e
+# nenhuma sozinha basta: um verbo de invocação (use, rode, dispare…) e o elo que amarra
+# a situação (quando, depois de, sempre que…). Lista de apelido sem elo — `Trigger em
+# /principles` — passa direto por este teste de propósito: é nome, não situação.
+SITUACAO = re.compile(
+    r"\b(?:use|usar|rode|rodar|dispar\w+|acion\w+|chame|chamar|invoque|trigger)\b"
+    r"[^.;]{0,60}?"
+    r"\b(?:quando|when|sempre que|assim que|ao |após|apos|depois de|depois que|antes de|"
+    r"no (?:fim|começo|comeco|início|inicio) de|se o|se a|se você|se voce)",
+    re.I)
+
+
+def sem_situacao(sk):
+    """[{marketplace, plugin, skill}] — description sem uma situação de trabalho em frase."""
+    return [{"marketplace": m, "plugin": p, "skill": n}
+            for m, p, n, d in sk if not SITUACAO.search(d)]
+
+
+# ── 9 · NOME DE FÁBRICA — a skill que disputa o nome com o próprio Claude Code ──
+# Skill que se chama como comando do harness não avisa: quem digita o nome recebe o
+# comando de fábrica, e a skill nunca é chamada. A lista de fábrica NÃO mora aqui —
+# mora em `comandos-de-fabrica.txt`, com a fonte e a data escritas; lista dentro do
+# cobrador envelhece sem ninguém ver. Disputa decidida ganha `isento <nome>: <motivo>`
+# no mesmo arquivo, e isenção sem motivo escrito não conta — descuido com crachá.
+FABRICA = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                       "comandos-de-fabrica.txt")
+
+
+def fabrica(caminho=FABRICA):
+    """(set de nomes de fábrica, {nome isento: motivo}) lidos do arquivo declarado."""
+    nomes, isentos = set(), {}
+    try:
+        with open(caminho, encoding="utf-8") as fh:
+            linhas = fh.read().splitlines()
+    except OSError:
+        return nomes, isentos
+    for linha in linhas:
+        linha = linha.split("#", 1)[0].strip()
+        if not linha:
+            continue
+        m = re.match(r"isento\s+([\w-]+)\s*:\s*(\S.*)$", linha)
+        if m:
+            isentos[m.group(1)] = m.group(2).strip()
+        elif re.fullmatch(r"[\w-]+", linha):
+            nomes.add(linha)
+    return nomes, isentos
+
+
+def nome_de_fabrica(sk, fab=None):
+    """[{marketplace, plugin, skill, motivo}] — disputa com comando de fábrica.
+
+    `motivo` vem preenchido quando a disputa foi decidida e declarada; vazio é descuido.
+    """
+    nomes, isentos = fab if fab is not None else fabrica()
+    return [{"marketplace": m, "plugin": p, "skill": n,
+             "motivo": isentos.get(n, "")}
+            for m, p, n, _ in sk if n in nomes]
+
+
+def skills_do_repo(raiz):
+    """[(marketplace, plugin, nome, descricao)] lidas do REPOSITÓRIO, não do cache.
+
+    O cache pode estar numa versão anterior à do disco, e é o disco que o commit
+    publica — o cobrador do gate tem que olhar o que está sendo commitado.
+    """
+    fora = []
+    base_plugins = os.path.join(raiz, "plugins")
+    for plug in sorted(os.listdir(base_plugins)):
+        base = os.path.join(base_plugins, plug, "skills")
+        if not os.path.isdir(base):
+            continue
+        for nome in sorted(os.listdir(base)):
+            sk = os.path.join(base, nome, "SKILL.md")
+            if os.path.isfile(sk):
+                fora.append(("(repositório)", plug, nome, _descricao(sk)))
+    return fora
+
+
 def desenha(r):
     """O relatório humano. Saída de programa, não redigida por ninguém."""
     L = ["CONFLITOS ENTRE O QUE ESTÁ INSTALADO", ""]
@@ -386,6 +562,54 @@ def desenha(r):
                      % ("%s/%s" % (m, p), len(xs), xs[0]["arquivo"], xs[0]["linha"],
                         xs[0]["risco"]))
     L.append("")
+
+    L.append("6 · IRMÃO AUSENTE — a citação que não resolve nesta máquina")
+    irm = r.get("irmao_ausente") or []
+    if not irm:
+        L.append("   nenhum")
+    else:
+        porausente = defaultdict(list)
+        for x in irm:
+            porausente[x["ausente"]].append(x)
+        for alvo, xs in sorted(porausente.items()):
+            L.append("   %s não está instalado — %d citação(ões):" % (alvo, len(xs)))
+            for x in xs[:6]:
+                L.append("      %s/%s %s:%s fica mudo: %s"
+                         % (x["marketplace"], x["plugin"], x["arquivo"], x["linha"],
+                            x["mudo"]))
+    L.append("")
+
+    L.append("7 · GATILHO MORTO — a barra que a descrição promete e ninguém atende")
+    mortos = r.get("gatilho_morto") or []
+    if not mortos:
+        L.append("   nenhum")
+    for x in mortos:
+        L.append("   %s aparece em %s/%s /%s e não tem skill instalada"
+                 % (x["gatilho"], x["marketplace"], x["plugin"], x["skill"]))
+    L.append("")
+
+    L.append("8 · SEM SITUAÇÃO — a descrição não diz em que momento de trabalho entra")
+    sems = r.get("sem_situacao") or []
+    if not sems:
+        L.append("   nenhuma")
+    for x in sems:
+        L.append("   %s/%s /%s — só apelido, nenhuma frase de situação"
+                 % (x["marketplace"], x["plugin"], x["skill"]))
+    L.append("")
+
+    L.append("9 · NOME DE FÁBRICA — a skill disputa o nome com um comando do harness")
+    fab = r.get("nome_de_fabrica") or []
+    if not fab:
+        L.append("   nenhuma")
+    for x in fab:
+        if x["motivo"]:
+            L.append("   /%s — %s/%s: isenção declarada — %s"
+                     % (x["skill"], x["marketplace"], x["plugin"], x["motivo"][:90]))
+        else:
+            L.append("   /%s — %s/%s disputa com o comando de fábrica e NÃO tem isenção"
+                     % (x["skill"], x["marketplace"], x["plugin"]))
+    L.append("")
+
     L.append("O que este programa NÃO mede: contradição de INSTRUÇÃO — uma skill que")
     L.append("manda o oposto da outra. Isso se lê nas descrições, e quem julga é humano.")
     return "\n".join(L)
@@ -394,7 +618,16 @@ def desenha(r):
 def main(argv=None):
     p = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     p.add_argument("--json", action="store_true", help="devolve o achado em JSON")
+    p.add_argument("--situacao-repo", metavar="RAIZ",
+                   help="cobra as skills do REPOSITÓRIO: sai 1 se alguma description "
+                        "não declara situação de trabalho em frase")
     args = p.parse_args(argv)
+    if args.situacao_repo:
+        fora = sem_situacao(skills_do_repo(args.situacao_repo))
+        for x in fora:
+            print("plugins/%s/skills/%s/SKILL.md — a description não diz em que "
+                  "situação de trabalho a skill entra" % (x["plugin"], x["skill"]))
+        return 1 if fora else 0
     r = varre()
     if args.json:
         print(json.dumps(r, ensure_ascii=False, indent=1))

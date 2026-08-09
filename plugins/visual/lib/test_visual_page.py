@@ -704,6 +704,33 @@ _usadas = set(re.findall(r'var\((--[a-z-]+)\)', _css))
 check("toda variável de cor usada está definida no template",
       not (_usadas - _defin), sorted(_usadas - _defin))
 
+# Sombra colorida é o brilho que denuncia interface feita por máquina: elevação
+# se faz com preto translúcido, e "qual foi a escolha" se sinaliza com borda,
+# fundo e o ✓ — nunca com halo. Foco de teclado usa `outline`, que é anel, não
+# sombra. Eram 4 halos de accent + 1 do selo de sincronia.
+_halos = [ln.strip() for ln in _css.splitlines()
+          if "box-shadow" in ln and re.search(r'rgba\(\s*(?!0\s*,\s*0\s*,\s*0)', ln)]
+check("nenhum box-shadow do template usa cor (só elevação neutra)", not _halos, _halos)
+check("o card escolhido continua sinalizado sem halo (borda + fundo + ✓)",
+      re.search(r'\.opt\.selected\s*{[^}]*border-color: var\(--accent\)', _css)
+      and '.opt.selected::after' in _css)
+check("o foco por teclado continua visível (anel de outline)",
+      "outline: 2px solid var(--accent)" in _css)
+
+# Barra colorida grossa na lateral do card é o segundo tique mais reconhecível de
+# interface feita por máquina. O que a barra CARREGAVA (aviso, problema, sucesso,
+# severidade) passou pra moldura inteira de 1px na mesma cor — sai na captura do
+# mesmo jeito. Sobra `border-left` só como fio de 1px neutro: o trilho da árvore.
+_barras = [ln.strip() for ln in _css.splitlines()
+           if re.search(r'border-left(-color)?\s*:', ln)
+           and not re.search(r'border-left:\s*1px solid var\(--border(-strong)?\)', ln)]
+check("nenhuma borda lateral grossa ou colorida no template", not _barras, _barras)
+for _cls, _cor in [(".callout.warn", "--warn"), (".callout.danger", "--danger"),
+                   (".callout.ok", "--ok"), (".tri.tri-med", "--warn"),
+                   (".tri.tri-low", "--accent-2"), (".evidencia.vazio", "--danger")]:
+    check("%s continua legível por cor na captura (moldura na cor do estado)" % _cls,
+          re.search(re.escape(_cls) + r'\s*{[^}]*border-color: var\(%s\)' % _cor, _css))
+
 
 print("\n%d passou · %d falhou" % (PASS, FAIL))
 sys.exit(1 if FAIL else 0)

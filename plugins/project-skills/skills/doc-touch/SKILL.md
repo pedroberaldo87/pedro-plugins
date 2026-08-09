@@ -1,6 +1,6 @@
 ---
 name: doc-touch
-description: Atualização INCREMENTAL da documentação project-doc — mapeia o diff do trabalho recente pros docs afetados (via scope inverso) e re-projeta SÓ eles, sem re-mineração completa. Use quando o usuário diz "/doc-touch", "atualiza a doc do que eu mexi", "toca a doc", "atualiza a documentação disso que fizemos", ou após um ciclo de código quando a doc dos arquivos tocados precisa acompanhar. NÃO substitui o /project-doc FULL (mineração completa) — é o complemento frequente entre FULLs.
+description: Atualização INCREMENTAL da documentação project-doc — mapeia o diff do trabalho recente pros docs afetados (via scope inverso) e re-projeta SÓ eles, sem re-mineração completa. Use quando o usuário diz "/doc-touch", "atualiza a doc do que eu mexi", "toca a doc", "atualiza a documentação disso que fizemos", ou após um ciclo de código quando a doc dos arquivos tocados precisa acompanhar. NÃO substitui o /doc FULL (mineração completa) — é o complemento frequente entre FULLs.
 ---
 
 # doc-touch — atualização incremental da doc

@@ -855,3 +855,39 @@ Regras do molde, todas checáveis no arquivo escrito:
   `.github/copilot-instructions.md`) saem **verbatim** dos *Thin Pointer Templates* de
   `references/templates.md` do `/project-doc` — mesmo texto, uma fonte só. Arquivo que já existe com
   conteúdo próprio **não se toca**; ele vira linha de cobrança no relatório.
+
+## 13 · `dispensa.md` — A dispensa da fundação · **fora das etapas**
+
+Nem todo projeto quer a concepção, e isso é legítimo. O que não é legítimo é a decisão morar só na
+conversa: no disco, projeto que dispensou e projeto que esqueceu ficavam idênticos — nenhum
+documento, nenhum motivo, e o gate de plano negando os dois do mesmo jeito. A dispensa é **ato
+registrado**, e o registro é este arquivo.
+
+Molde de `.claude/docs/dispensa.md`:
+
+```markdown
+---
+generated: {YYYY-MM-DD}
+project: {nome}
+authored-by: human
+motivo: {por que este projeto vive sem a fundação — a frase do dono, verbatim}
+---
+
+# Dispensa da fundação
+
+{um parágrafo: o que se dispensou, o que fica valendo no lugar, e o que faria a dispensa acabar}
+```
+
+Regras do molde, todas checáveis no arquivo escrito:
+
+- **`motivo:` no frontmatter é o arquivo inteiro.** É o único campo que o gate de plano lê
+  (`hooks/pretooluse-plan-gate.sh`); vazio ou ausente, o projeto segue tratado como **ausência** e a
+  recusa continua — dispensa sem motivo escrito é ausência com um arquivo em cima.
+- **O motivo é do dono, verbatim.** Motivo redigido pelo agente é a ficção que a regra dura proíbe,
+  agora sobre a decisão de não documentar.
+- **Não tem `status:` nem `approved:`.** A dispensa não é etapa de acordo: ela é a declaração de que
+  não haverá etapas, e pedir de acordo a ela seria acordo sobre a ausência de acordo.
+- **Ela vai pro git e vale entre sessões** — o escape verbal `--sem-doc` é da sessão; este arquivo é
+  do projeto, e é por ele que o próximo humano descobre por que aqui não há fundação.
+- **Voltar atrás é apagar o arquivo** e rodar `/start-doc`: enquanto ele existir com motivo, o gate
+  não cobra etapa nenhuma.

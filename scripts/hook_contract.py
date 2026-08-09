@@ -146,6 +146,33 @@ def discover(root):
     return out
 
 
+def respondentes(root, ferramenta, evento="PreToolUse"):
+    """Quem responde a UMA ferramenta num evento — a medida da fusão de gates.
+
+    Três plugins disputam o `ExitPlanMode` hoje; depois da fusão tem que sobrar
+    um. Contar na mão é o que deixou a divergência passar, então a contagem
+    vira comando: `--responde ExitPlanMode`.
+
+    Matcher é a expressão do próprio hooks.json: `*` (ou vazio) pega tudo,
+    `EnterPlanMode|ExitPlanMode` pega as duas — a alternância é do formato, não
+    invento aqui.
+    """
+    achados = []
+    for e in discover(root):
+        if e.get("event") != evento:
+            continue
+        mt = (e.get("matcher") or "*").strip()
+        if mt in ("", "*"):
+            achados.append(e)
+            continue
+        try:
+            if re.fullmatch(mt, ferramenta):
+                achados.append(e)
+        except re.error:
+            continue
+    return achados
+
+
 def resolve_script(root, plug, cmd):
     """`${CLAUDE_PLUGIN_ROOT}/hooks/x.sh` → `<root>/plugins/<plug>/hooks/x.sh`."""
     if not cmd:
@@ -694,6 +721,8 @@ def main(argv=None):
     ap.add_argument("--stop-budget", action="store_true",
                     help="mede quantas linhas os emissores de Stop produzem juntos")
     ap.add_argument("--root", default=".")
+    ap.add_argument("--responde", metavar="FERRAMENTA",
+                    help="lista quem responde a essa ferramenta (ex.: ExitPlanMode)")
     ap.add_argument("--json", action="store_true")
     ap.add_argument("--fail-on", choices=("high", "med", "low"), help="exit 1 se houver achado nesse nível ou pior")
     ap.add_argument("--baseline", help="JSON de um retrato anterior: reporta só o que PIOROU")
@@ -724,6 +753,20 @@ def main(argv=None):
                   % (b["total_linhas"] + b["total_terceiros"]))
         if args.baseline:
             return _piorou(b, args.baseline)
+        return 0
+
+    if args.responde:
+        quem = respondentes(os.path.abspath(args.root), args.responde)
+        if args.json:
+            print(json.dumps([{"plugin": e["plugin"], "matcher": e["matcher"],
+                               "script": os.path.basename(e["script"] or "?")}
+                              for e in quem], ensure_ascii=False, indent=2))
+        else:
+            print("Quem responde a %s (evento PreToolUse)\n" % args.responde)
+            for e in quem:
+                print("  %-13s %-34s matcher=%s"
+                      % (e["plugin"], os.path.basename(e["script"] or "?"), e["matcher"]))
+            print("\n  TOTAL: %d" % len(quem))
         return 0
 
     res = run(os.path.abspath(args.root))

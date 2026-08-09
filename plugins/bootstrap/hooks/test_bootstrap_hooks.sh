@@ -368,10 +368,17 @@ if command -v jq >/dev/null 2>&1; then
   check "1a rodada reescreve" "changed" "$SNAP1"
   check "pedro-plugins continua com $ESPERADO_PLUGINS plugins" "$ESPERADO_PLUGINS" \
     "$(jq "[$MKT | .plugins[]] | length" "$MF3")"
-  check "graphify-guard continua desligado" "false" \
-    "$(jq -r "$MKT | .plugins[] | select(.name==\"graphify-guard\") | .enabled" "$MF3")"
-  check "intent-guard continua desligado" "false" \
-    "$(jq -r "$MKT | .plugins[] | select(.name==\"intent-guard\") | .enabled" "$MF3")"
+  # O que se afere é a PRESERVAÇÃO do estado, não um valor específico: o esperado sai
+  # do próprio manifest, do mesmo jeito que a contagem acima. Enquanto era "false"
+  # cravado, religar um plugin no manifest deixava esta suíte vermelha por decisão do
+  # dono — e teste que reprova decisão legítima ensina a ignorar teste.
+  for PLUGIN in graphify-guard intent-guard project-skills vistoria; do
+    ESPERADO_ON="$(jq -r "$MKT | .plugins[] | select(.name==\"$PLUGIN\") | .enabled" \
+      "$AQUI/../config/manifest.json")"
+    [ "$ESPERADO_ON" = "null" ] && continue
+    check "$PLUGIN preserva enabled=$ESPERADO_ON" "$ESPERADO_ON" \
+      "$(jq -r "$MKT | .plugins[] | select(.name==\"$PLUGIN\") | .enabled" "$MF3")"
+  done
   check "2a rodada e idempotente" "unchanged" "$SNAP2"
 else
   echo "  skip  round-trip (jq ausente)"

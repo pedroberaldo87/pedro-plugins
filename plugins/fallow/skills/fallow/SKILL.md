@@ -1,6 +1,6 @@
 ---
 name: fallow
-description: Roda o Fallow (analisador estático JS/TS — código morto, duplicação, complexidade) num projeto, classifica os achados por tipo e nível de confiança, e entrega um relatório interativo (HTML com checkboxes) onde o usuário escolhe o que limpar. Depois limpa só o marcado com rede de segurança (preview → aplica → build/test). Trigger em "/fallow", "roda o fallow", "varre código morto", "analisa o projeto com fallow", "o que dá pra limpar aqui".
+description: Roda o Fallow (analisador estático JS/TS — código morto, duplicação, complexidade) num projeto, classifica os achados por tipo e nível de confiança, e entrega um relatório interativo (HTML com checkboxes) onde o usuário escolhe o que limpar. Depois limpa só o marcado com rede de segurança (preview → aplica → build/test). Trigger em "/fallow", "roda o fallow", "varre código morto", "analisa o projeto com fallow", "o que dá pra limpar aqui". Use quando o projeto acumulou código que ninguém sabe se ainda roda e o usuário quer decidir o que apagar com rede de segurança.
 ---
 
 # /fallow — varredura e limpeza guiada

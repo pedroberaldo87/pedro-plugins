@@ -10,6 +10,7 @@ não só na fonte.
 """
 
 import os
+import re
 import sys
 
 AQUI = os.path.dirname(os.path.abspath(__file__))
@@ -18,14 +19,32 @@ SHARED = os.path.join(ROOT, "_shared")
 ARQ = "antipadroes-de-teste.md"
 
 FONTE = os.path.join(SHARED, ARQ)
-COPIAS = [
-    os.path.join(ROOT, "plugins/qa-loop/skills/qa-loop/references", ARQ),
-    os.path.join(ROOT, "plugins/visual/skills/visual/references", ARQ),
-]
-SKILLS = [
-    os.path.join(ROOT, "plugins/qa-loop/skills/qa-loop/SKILL.md"),
-    os.path.join(ROOT, "plugins/visual/skills/visual/SKILL.md"),
-]
+
+
+def _destinos_do_vendoring(nome):
+    """Os destinos DECLARADOS em scripts/sync-shared.sh, lidos do arquivo.
+
+    A lista era escrita à mão aqui, e o F14.2 a venceu: `qa-loop` mudou de plugin,
+    o caminho velho deixou de existir e a suíte passou a morrer em FileNotFoundError
+    — vermelha por endereço, não por defeito. Quem sabe onde cada cópia mora é o
+    próprio vendoring; derivar dele faz o próximo rename chegar aqui sozinho.
+    """
+    sync = os.path.join(ROOT, "scripts", "sync-shared.sh")
+    with open(sync, encoding="utf-8") as fh:
+        bloco = re.search(r"^SPECS=\((.*?)^\)", fh.read(), re.S | re.M)
+    saida = []
+    for linha in (bloco.group(1) if bloco else "").splitlines():
+        m = re.search(r'"([^"]+)::([^"]+)"', linha)
+        if m and m.group(2) == nome:
+            saida.append(m.group(1))
+    return saida
+
+
+DESTINOS = _destinos_do_vendoring(ARQ)
+COPIAS = [os.path.join(ROOT, d, ARQ) for d in DESTINOS]
+# A skill que consome a cópia é a pasta acima de `references/`, quando há uma.
+SKILLS = [os.path.join(ROOT, d[:-len("/references")] if d.endswith("/references") else d,
+                       "SKILL.md") for d in DESTINOS]
 
 # Os cinco, como o dono os ditou. Título do bloco + a prova concreta que o
 # acompanha — sem a prova o item vira slogan, e slogan não muda comportamento.

@@ -47,11 +47,15 @@ if [ -f "$HJ_DIR/hook-json.sh" ]; then
 fi
 
 if type hj_py >/dev/null 2>&1 && PY=$(hj_py 2>/dev/null); then
+  # O módulo mora no plugin das skills de projeto, achado pelo NOME dele — nunca
+  # pela posição no disco. Ausente = sem linha, e a barra segue intacta.
   RAIZ="${CLAUDE_PLUGIN_ROOT:-$(cd "$HJ_DIR/.." && pwd)}"
+  ANDAMENTO_PY=$(CLAUDE_PLUGIN_ROOT="$RAIZ" bash "$HJ_DIR/resolve-plugin.sh" project-skills lib/andamento.py 2>/dev/null)
+  [ -n "$ANDAMENTO_PY" ] || { [ -n "$*" ] && printf '%s' "$INPUT" | eval "$@"; exit 0; }
   LINHA=$(printf '%s' "$INPUT" | "$PY" -c '
 import json, os, sys
 
-sys.path.insert(0, os.path.join(sys.argv[1], "lib"))
+sys.path.insert(0, os.path.dirname(sys.argv[1]))
 import andamento
 
 try:
@@ -61,7 +65,7 @@ except ValueError:
 linha = andamento.linha_motor(evento.get("session_id") or "")
 if linha:
     sys.stdout.write(linha)
-' "$RAIZ" 2>/dev/null)
+' "$ANDAMENTO_PY" 2>/dev/null)
   [ -n "$LINHA" ] && printf '%s\n' "$LINHA"
 fi
 

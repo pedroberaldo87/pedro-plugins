@@ -1,6 +1,6 @@
 ---
 name: plan
-description: Monta o plano de implementacao a partir da spec ja aprovada, e antes de criar qualquer plano novo IMPRIME os planos que ainda estao abertos no projeto. Use quando o usuario diz "/spec-to-plan", "vira plano", "monta o plano da spec", "transforma a especificacao em plano", ou quando uma etapa de concepcao foi aprovada e o proximo passo e o plano ticavel. Nao use para retomar plano existente, isso e tique, nao montagem.
+description: Monta o plano de implementacao a partir da spec ja aprovada, e antes de criar qualquer plano novo IMPRIME os planos que ainda estao abertos no projeto. Use quando o usuario diz "/plan", "plano", "vira plano", "monta o plano da spec", "transforma a especificacao em plano", ou quando uma etapa de concepcao foi aprovada e o proximo passo e o plano ticavel. Nao use para retomar plano existente, isso e tique, nao montagem.
 ---
 
 # spec-to-plan — a spec aprovada vira plano ticável

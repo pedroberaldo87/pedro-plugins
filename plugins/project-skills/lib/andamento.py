@@ -471,3 +471,38 @@ def linha_motor(sessao, dir_estado=None, agora=None):
         partes.append(onda_linha)
 
     return " · ".join(partes)
+
+
+def painel(dir_estado=None, agora=None):
+    """O andamento AGORA de toda missao de pe, lido do disco — uma linha por sessao.
+
+    A barra de status so fala da sessao em que ela esta desenhada, e `systemMessage`
+    rola com a conversa: quem quer perguntar "e ai, como vai?" nao tinha onde olhar.
+    Aqui a pergunta vira comando, e a resposta sai do MESMO estado que a barra le —
+    `ativo-<sid>` e o que existe: sem ele nao ha missao, e nao ha o que imprimir.
+    """
+    bases = [dir_estado] if dir_estado else [ESTADO, ESTADO_LEGADO]
+    sessoes = []
+    for base in bases:
+        try:
+            nomes = sorted(os.listdir(base))
+        except OSError:
+            continue
+        for nome in nomes:
+            if nome.startswith("ativo-") and nome[6:] not in sessoes:
+                sessoes.append(nome[6:])
+
+    linhas = []
+    for sessao in sessoes:
+        linha = linha_motor(sessao, dir_estado, agora)
+        if linha:
+            linhas.append("%s · %s" % (sessao, linha))
+    return linhas
+
+
+if __name__ == "__main__":
+    import sys
+
+    saida = painel()
+    print("\n".join(saida) if saida else "nenhuma missão de pé")
+    sys.exit(0)

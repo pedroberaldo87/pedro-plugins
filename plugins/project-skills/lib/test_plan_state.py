@@ -659,6 +659,28 @@ def main():
               load(d, "2026-07-27-espera")["phases"][0]["items"][0]
               .get("espera_dono") == "aprovar e publicar o site")
 
+        # S-148: a espera sai pelo tique, junto da prova de entrega — e sai DECLARADA,
+        # um lado por caso. Antes disso a única saída era editar o arquivo à mão, porque
+        # `espera_dono: ""` é mordido pela regra de bandeira sem ato logo acima.
+        ps.cmd_tick(Args(dir=d, plan="2026-07-27-espera", node="F1.1",
+                         evidencia="python3 test_plan_state.py -> OK"))
+        check("tique sem a bandeira NÃO tira a espera do dono",
+              load(d, "2026-07-27-espera")["phases"][0]["items"][0]
+              .get("espera_dono") == "aprovar e publicar o site")
+        init_into(d, sample(id="2026-07-27-espera-sai", phases=[
+            {"id": "F1", "title": "x", "items": [
+                {"id": "F1.1", "title": "publicar", "desc": "faz a coisa",
+                 "espera_dono": "aprovar e publicar o site"}]}]))
+        ps.cmd_tick(Args(dir=d, plan="2026-07-27-espera-sai", node="F1.1",
+                         evidencia="python3 test_plan_state.py -> OK", sem_espera=True))
+        saiu = load(d, "2026-07-27-espera-sai")
+        check("tique com --sem-espera tira a espera: a chave some, não fica vazia",
+              "espera_dono" not in saiu["phases"][0]["items"][0])
+        check("e o plano sem a bandeira continua válido", ps.validate(saiu) is not None)
+        check("a bandeira existe na linha de comando",
+              ps.build_parser().parse_args(
+                  ["tick", "2026-07-27-espera-sai", "F1.1", "--sem-espera"]).sem_espera)
+
         print("brief — 'onde nós estamos' em 1-3 bullets")
         b = sample(id="2026-07-27-brief")
         init_into(d, b)

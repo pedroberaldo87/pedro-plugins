@@ -4,8 +4,11 @@
 # PreToolUse em EnterPlanMode|ExitPlanMode. Três saídas:
 #
 #   A) projeto SEM documentação nenhuma  -> DENY SEMPRE, manda rodar /start-doc.
-#      Único escape: o usuário VERBALIZAR que é pra ignorar — o
-#      userpromptsubmit-plan-escape.sh ouve a frase e grava o sentinel de escape.
+#      Dois escapes: o usuário VERBALIZAR que é pra ignorar — o
+#      userpromptsubmit-plan-escape.sh ouve a frase e grava o sentinel de escape —
+#      ou a DISPENSA REGISTRADA (S-105): `.claude/docs/dispensa.md` com `motivo:`
+#      no frontmatter. Ausência silenciosa e dispensa deliberada tinham a mesma
+#      cara; agora só a segunda tem arquivo, e só ela libera entre sessões.
 #      Decisão de projeto (2026-07-26): nega sempre, a não ser que o usuário
 #      verbalize que é para ignorar. Por isso NÃO há cap de nudges aqui.
 #
@@ -91,6 +94,20 @@ PHASH=$(project_hash "$PROJ")
 ESCAPE="${TMPD}/claude-plan-gate-escape-${SESSION}-${PHASH}"
 
 # ---------------------------------------------------------------------------
+# DISPENSA REGISTRADA (S-105). Dispensar a fundação é ATO, não ausência: quem
+# dispensa deixa `.claude/docs/dispensa.md` com `motivo:` no frontmatter. É
+# documento, não sentinel de sessão — dura entre sessões, vai pro git e o próximo
+# humano lê por que este projeto planeja sem concepção. Arquivo sem `motivo:`
+# preenchido NÃO é dispensa: segue tratado como ausência, e o gate diz isso.
+# ---------------------------------------------------------------------------
+DISPENSA="$PROJ/.claude/docs/dispensa.md"
+DISPENSA_MOTIVO=""
+[ -f "$DISPENSA" ] && DISPENSA_MOTIVO=$(sed -n 's/^motivo:[[:space:]]*//p' "$DISPENSA" 2>/dev/null | head -1)
+
+# liberado — o gate não cobra a fundação: escape verbal desta sessão OU dispensa registrada.
+liberado() { [ -f "$ESCAPE" ] || [ -n "$DISPENSA_MOTIVO" ]; }
+
+# ---------------------------------------------------------------------------
 # FAIL-OPEN de infra (patterns.md: "só bloqueia com evidência concreta na mão").
 # O helper ilegível/ausente NÃO é "projeto sem doc" — é o gate cego. Sem esta
 # guarda, um `chmod 000 doc-detect.sh` fazia um projeto TOTALMENTE documentado
@@ -128,7 +145,7 @@ if [ -z "$LINE" ]; then
   fi
 
   # ======================= CASO A — nenhuma documentação =======================
-  [ -f "$ESCAPE" ] && exit 0
+  liberado && exit 0
 
   # Autoral já começou? (start-doc rodou mas o índice ainda não existe)
   AUTORAL=0
@@ -136,7 +153,11 @@ if [ -z "$LINE" ]; then
     [ -f "$PROJ/.claude/docs/${f}.md" ] && AUTORAL=$((AUTORAL + 1))
   done
 
-  ESC_HINT="Este gate nega SEMPRE enquanto não houver doc. O escape é o usuário autorizar explicitamente — o token garantido é \`--sem-doc\` (frases como \"ignora a doc\" também valem, mas o token é inequívoco). Ele revoga com \`--com-doc\`."
+  # Dispensa escrita sem motivo é ausência com arquivo em cima: dizer só "não tem
+  # documentação nenhuma" mandaria o dono procurar um arquivo que está lá.
+  [ -f "$DISPENSA" ] && ESC_HINT="Existe .claude/docs/dispensa.md sem \`motivo:\` no frontmatter — sem motivo não é dispensa. Escreva o motivo ali, ou rode \`/start-doc\`. "
+
+  ESC_HINT="${ESC_HINT}Este gate nega SEMPRE enquanto não houver doc. O escape é o usuário autorizar explicitamente — o token garantido é \`--sem-doc\` (frases como \"ignora a doc\" também valem, mas o token é inequívoco). Ele revoga com \`--com-doc\`. Para dispensar de vez, e não só nesta sessão, registre \`.claude/docs/dispensa.md\` com \`motivo:\` no frontmatter — dispensa é ato registrado, e é o que separa este projeto de um que só esqueceu a documentação."
 
   if [ "$AUTORAL" -gt 0 ]; then
     MSG="📐 ${PROJ} tem ${AUTORAL} de 5 documentos autorais, mas ainda não tem índice CLAUDE.md nem doc minerada. Termine com \`/start-doc\` (ele cobra o que falta) e depois rode \`/project-doc\` — aí o plano pode ser feito em cima de algo. Plano sem documentação nasce no vácuo e o erro só aparece na implementação. ${ESC_HINT}"
@@ -226,7 +247,7 @@ correcao_texto() {
 CORR_N=0
 CORR_LISTA=""
 
-if [ ! -f "$ESCAPE" ]; then
+if ! liberado; then
   # ---- D) metas de qualidade do projeto ----
   if ! acordado "$DOCS_DIR/quality-goals.md"; then
     if divergiu "$DOCS_DIR/quality-goals.md"; then
@@ -357,10 +378,19 @@ DOCLIST=$(for f in "$PROJ/.claude/docs"/*.md; do [ -e "$f" ] && basename "$f"; d
 
 STALEMSG=""
 case "$STALE" in
-  stale)   STALEMSG=" ⚠️ A DOC ESTÁ DEFASADA: arquivo(s) do escopo mudaram desde a geração. Leia, mas trate como HIPÓTESE — e considere \`/doc-touch\` (incremental, barato) ANTES de planejar, senão o plano nasce em cima de fato velho." ;;
-  unknown) STALEMSG=" ⚠️ staleness indeterminado (doc sem data/escopo) — não confie cegamente." ;;
+  stale)   . "$SCRIPT_DIR/lib-rodada.sh" 2>/dev/null && rodada_doc "$PROJ"
+           STALEMSG="
+⚠️ A DOC ESTÁ DEFASADA: arquivo(s) do escopo mudaram desde a geração
+• Leia, mas trate como HIPÓTESE, senão o plano nasce em cima de fato velho
+• Rode /${RODADA_CMD:-doc-touch} ANTES de planejar
+• ${RODADA_MOTIVO:-atraso não medido}" ;;
+  unknown) STALEMSG="
+⚠️ Staleness indeterminado (doc sem data/escopo) — não confie cegamente" ;;
 esac
-[ "$OOP" = "1" ] && STALEMSG="${STALEMSG} ⚠️ a doc não segue o padrão atual do gerador — pode estar incompleta; \`/project-doc\` reconstrói."
+[ "$OOP" = "1" ] && { . "$SCRIPT_DIR/lib-rodada.sh" 2>/dev/null
+                      STALEMSG="${STALEMSG}
+⚠️ A doc não segue o padrão atual do gerador e pode estar incompleta
+• Rode /$(rodada_nome doc 2>/dev/null || echo doc) pra reconstruir do zero"; }
 
 if [ -f "${PROJ}/CLAUDE.md" ] && grep -q 'project-doc:v2' "${PROJ}/CLAUDE.md" 2>/dev/null; then
   CLAUDE_MD_PATH="${PROJ}/CLAUDE.md"
@@ -373,7 +403,7 @@ else
 fi
 
 NUDGE_NO=$((COUNT + 1))
-MSG="📐 Você está prestes a fazer um plano em ${PROJ}, que TEM documentação (${N} doc(s)) — e ela ainda não foi lida nesta sessão.${DOCLIST} Leia ${CLAUDE_MD_PATH} e o(s) doc(s) do assunto do plano ANTES de planejar: plano feito sem a doc repete decisão já tomada e ignora gotcha já conhecido.${STALEMSG} Um Read em qualquer arquivo de .claude/docs/ ou no CLAUDE.md libera automaticamente (aviso ${NUDGE_NO}/${MAX_NUDGES} — depois disso silencio)."
+MSG="📐 Você está prestes a fazer um plano em ${PROJ}, que TEM documentação (${N} doc(s)) — e ela ainda não foi lida nesta sessão.${DOCLIST} Leia ${CLAUDE_MD_PATH} e o(s) doc(s) do assunto do plano ANTES de planejar: plano feito sem a doc repete decisão já tomada e ignora gotcha já conhecido. Um Read em qualquer arquivo de .claude/docs/ ou no CLAUDE.md libera automaticamente (aviso ${NUDGE_NO}/${MAX_NUDGES} — depois disso silencio).${STALEMSG}"
 
 hj_deny "$MSG"
 exit 0

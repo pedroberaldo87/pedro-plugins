@@ -1,6 +1,6 @@
 ---
 name: doc
-description: Gera o sistema modular de documentação de um projeto — CLAUDE.md leve como tabela de rotas, um .claude/docs/*.md por assunto e ponteiros finos para outras ferramentas de IA — e detecta e limpa artefato de teste velho (print, saída de runner, temporário). Use ao entrar num projeto sem CLAUDE.md, depois de mudança estrutural grande, ou quando o usuário diz "/project-doc", "documenta o projeto", "atualiza o claude.md", "limpa os artefatos", "arquiva protótipos".
+description: Gera o sistema modular de documentação de um projeto — CLAUDE.md leve como tabela de rotas, um .claude/docs/*.md por assunto e ponteiros finos para outras ferramentas de IA — e detecta e limpa artefato de teste velho (print, saída de runner, temporário). Use ao entrar num projeto sem CLAUDE.md, depois de mudança estrutural grande, ou quando o usuário diz "/doc", "documenta o projeto", "atualiza o claude.md", "limpa os artefatos", "arquiva protótipos".
 ---
 
 # Project Doc v3 — Documentation System Generator

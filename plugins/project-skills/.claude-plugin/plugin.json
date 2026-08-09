@@ -1,7 +1,7 @@
 {
   "name": "project-skills",
-  "version": "0.10.0",
-  "description": "A casa das skills de projeto — documentacao, concepcao, plano, execucao e revisao passam a morar sob um teto so, e conversam entre si por nome de plugin, nunca por caminho relativo para a pasta do vizinho. Nasce vazio e desligado de fabrica: e o esqueleto que o catalogo ja conhece, para que as skills mudem de casa uma a uma sem que nenhuma delas invente o registro no meio da mudanca.",
+  "version": "0.15.4",
+  "description": "A casa das skills de projeto — documentacao, concepcao, plano, execucao e revisao passam a morar sob um teto so, e conversam entre si por nome de plugin, nunca por caminho relativo para a pasta do vizinho. As skills mudam de casa uma a uma, e o indice da familia se descobre lendo a pasta skills/ do plugin, nunca de cor.",
   "author": {
     "name": "pedro-plugins"
   }

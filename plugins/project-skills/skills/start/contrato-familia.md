@@ -37,6 +37,12 @@ demais por concern. Não têm `authored-by: human`; são regeneráveis por defin
 finos, e o irmão histórico `<nome>.historico.md`, que mora **na mesma pasta do canônico** e nasce
 na primeira reescrita (quem escreve nele é `lib/historico.py`, nunca a mão).
 
+**A dispensa — `dispensa.md`, o único documento que diz que os outros não virão.** Projeto que
+decide viver sem a fundação registra a decisão em `.claude/docs/dispensa.md`, com o **motivo no
+frontmatter** (`motivo:`). É o que separa a dispensa deliberada da ausência silenciosa: o gate de
+plano (`pretooluse-plan-gate.sh`) libera com ela e segue negando sem ela — e arquivo sem `motivo:`
+preenchido não vale, porque dispensa sem motivo escrito é ausência com um arquivo em cima.
+
 ## O frontmatter
 
 Todo documento **autoral** carrega:

@@ -1,6 +1,6 @@
 ---
 name: qa-loop
-description: Use quando o usuário quer revisar código num loop que para por retornos decrescentes, não por zero erros. Ancora no plano de implementação — cada finding vira implementação, plan-drift ou plano-falho, e só implementação é consertada, com regression gate por conserto. Duas fases, um review assintótico e um gate absoluto que exige lint, type, unit e integração verdes no repo inteiro. Substitui /qa, /rev6 e /iterate. Trigger em "/qa-loop", "/qa", "/rev6", "audita o plano", "tá 100%", "revisa isso", "loopa o review", "revisa até valer a pena".
+description: Use quando o usuário quer revisar código num loop que para por retornos decrescentes, não por zero erros. Ancora no plano de implementação — cada finding vira implementação, plan-drift ou plano-falho, e só implementação é consertada, com regression gate por conserto. Duas fases, um review assintótico e um gate absoluto que exige lint, type, unit e integração verdes no repo inteiro. Substitui as skills antigas qa, rev6 e iterate. Trigger em "/qa-loop", "qa", "audita o plano", "tá 100%", "revisa isso", "loopa o review", "revisa até valer a pena".
 ---
 
 # /qa-loop — Loop de review→conserto disciplinado

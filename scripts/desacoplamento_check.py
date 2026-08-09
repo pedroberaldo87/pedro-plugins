@@ -112,6 +112,15 @@ def _rx_dependencia(p):
         % (n, n, n, n))
 
 
+# O MESMO defeito escrito a partir da raiz do repositório: `plugins/<qualquer>/lib/…`.
+# A régua por NOME acima só pega irmão que existe nesta cópia — e foi justamente um nome
+# que deixou de existir no lugar citado (o arquivo mudou de plugin) que quebrou o motor.
+# Na máquina de quem instalou não existe pasta `plugins/`: o caminho não resolve, ponto.
+# Caminho de artefato do PROJETO (`scripts/…`, `.claude/…`) não começa por `plugins/` e
+# segue passando.
+RAIZ = re.compile(r"(?<![\w./-])plugins/([\w-]+)/(?:lib|hooks|skills)/")
+
+
 def rastreados(root):
     try:
         out = subprocess.run(["git", "-C", root, "ls-files"],
@@ -169,9 +178,12 @@ def varre(root="."):
                                 "alvo": m.group(1), "trecho": linha.strip()[:120]})
 
             if not eh_indice:
-                for p, rx in por_nome.items():
-                    if p == dono or not rx.search(linha):
-                        continue
+                alvos = [p for p, rx in por_nome.items() if p != dono and rx.search(linha)]
+                # mesma forma, mesmo achado: o caminho a partir da raiz que cita um irmão
+                # conhecido já entrou acima, e não pode entrar duas vezes.
+                alvos += [m.group(1) for m in RAIZ.finditer(linha)
+                          if m.group(1) != dono and m.group(1) not in alvos]
+                for p in alvos:
                     achados.append({"forma": "dependencia-de-irmao", "arquivo": rel, "linha": n,
                                     "alvo": p, "trecho": linha.strip()[:120]})
 

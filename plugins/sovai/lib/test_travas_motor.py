@@ -601,8 +601,12 @@ def main():
     # O teto so e teto se chegar em quem tem relogio: o script nao tem (o vigia le a hora
     # de ARGS.now). Teto que ficasse so no script nao seria teto de ninguem — por isso o
     # que se cobra aqui e o `tetoMin` DENTRO de todo execPrompt, nao a constante solta.
+    # O numero de pontos de disparo muda quando a onda vira bloco (F9.57) — cravar "sao 3"
+    # reprovava o conserto. O que e regra e que TODO disparo leve o teto: os dois lados da
+    # conta sao contados no proprio script.
     check("o teto chega a TODO executor pelo prompt",
-          len(re.findall(r"execPrompt\(\{ task: t, tetoMin: tetoExecutorMin, buildWarm \}", js)) == 3)
+          len(re.findall(r"execPrompt\(\{ task: t, tetoMin: tetoExecutorMin, buildWarm \}", js))
+          == js.count("execPrompt(") > 0)
     check("quem estourou o teto NAO conta como resultado",
           re.search(r"const results = respostas\.filter\(x => !x\.espera\)", js) is not None)
     check("a rodada fecha com quem voltou (o resto do laco usa `results`)",
@@ -614,6 +618,22 @@ def main():
     check("o executor recebe a regra por escrito, no texto que ele le",
           "PASSOU DO TETO, PARE E DEVOLVA `espera: true`" in texto)
     check("o campo entra no schema do executor", "**`espera`**" in texto)
+
+    print("F9.57 — o retorno ao decompositor e por bloco, nao por onda inteira")
+    check("o tamanho do bloco e knob, com default no script",
+          re.search(r"const blocoMax = ARGS\.blocoMax \|\| \d+", js) is not None)
+    check("a onda e fatiada em blocos antes de despachar", "blocos.push(todo.slice(" in js)
+    check("bloco depois da falha NAO e despachado",
+          "if (blocoQueFalhou)" in js and "naoDespachadas.push(" in js)
+    check("a falha e do bloco, e conta agente que nao voltou",
+          re.search(r"x\.done === false \|\| x\.impossivel", js) is not None
+          and "doBloco.length < bloco.length" in js)
+    check("o que nao foi despachado volta pro decompositor na volta seguinte",
+          js.count("...naoDespachadas") >= 2)
+    check("e nao entra na conta de reincidencia",
+          re.search(r"naoTentado = new Set\(\[.*naoDespachadas\]\)", js) is not None)
+    check("a regra esta escrita no texto que o dono le",
+          "A volta ao #1 é por BLOCO, não por onda inteira" in texto)
 
     print("F9.28 — o parametro pode chegar como texto, e o motor converte antes de usar")
     check("a conversao esta no SCRIPT, no topo",

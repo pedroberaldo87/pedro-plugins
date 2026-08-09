@@ -62,6 +62,6 @@ jobs:
             done
           }
           roda "$PY" 'plugins/*/lib/test_*.py' '_shared/test_*.py' 'scripts/test_*.py' 'plugins/*/hooks/test_*.py'
-          roda bash 'plugins/*/hooks/test_*.sh' 'scripts/test_*.sh' '.claude/hooks/test_*.sh' 'plugins/*/skills/*/test_*.sh'
+          roda bash 'plugins/*/hooks/test_*.sh' 'plugins/*/lib/test_*.sh' 'scripts/test_*.sh' '.claude/hooks/test_*.sh' 'plugins/*/skills/*/test_*.sh'
           "$PY" scripts/hook_contract.py --baseline .claude/hook-contract.baseline.json --fail-on high
           "$PY" scripts/public_repo_check.py
