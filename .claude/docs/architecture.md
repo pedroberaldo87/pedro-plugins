@@ -8,15 +8,15 @@ scope:
   - _shared/collect_engine.py
   - _shared/green-cache.sh
   - _shared/r8-tiers.md
-  - plugins/project-doc/lib/journal.py
-  - plugins/project-doc/lib/pattern_check.py
-  - plugins/project-doc/lib/organism.py
-  - plugins/project-doc/lib/graph_map.py
-  - plugins/project-doc/lib/doc_lint.py
-  - plugins/project-doc/hooks/hooks.json
-  - plugins/project-doc/hooks/pretooluse-plan-gate.sh
-  - plugins/project-doc/hooks/userpromptsubmit-plan-escape.sh
-  - plugins/project-doc/hooks/lib-project-root.sh
+  - plugins/project-skills/lib/journal.py
+  - plugins/project-skills/lib/pattern_check.py
+  - plugins/project-skills/lib/organism.py
+  - plugins/project-skills/lib/graph_map.py
+  - plugins/project-skills/lib/doc_lint.py
+  - plugins/project-skills/hooks/hooks.json
+  - plugins/project-skills/hooks/pretooluse-plan-gate.sh
+  - plugins/project-skills/hooks/userpromptsubmit-plan-escape.sh
+  - plugins/project-skills/hooks/lib-project-root.sh
   - plugins/intent-guard/lib/ledger.py
   - plugins/visual/server/visual_server.mjs
   - plugins/project-skills/lib/plan_state.py
@@ -43,7 +43,6 @@ scope:
   - _shared/hook-json.sh
   - _shared/regua-de-pergunta.md
   - _shared/contrato-familia.md
-  - plugins/sovai/hooks/hooks.json
   - plugins/gauntlet/hooks/hooks.json
   - plugins/lixeiro/hooks/hooks.json
   - plugins/project-skills/lib/regua_pronto.py
@@ -58,15 +57,13 @@ scope:
   - scripts/suites_orfas.py
   - scripts/readme_counts_check.py
 verified-by:
-  - scripts/sync-shared.sh
-  - scripts/hook_contract.py
   - plugins/bootstrap/lib/test_conformance.py
   - plugins/bootstrap/hooks/test_bootstrap_hooks.sh
-  - plugins/project-doc/lib/test_pattern_check.py
-  - plugins/project-doc/lib/test_journal.py
-  - plugins/project-doc/lib/test_organism.py
-  - plugins/project-doc/lib/test_graph_map.py
-  - plugins/project-doc/lib/test_doc_lint.py
+  - plugins/project-skills/lib/test_pattern_check.py
+  - plugins/project-skills/lib/test_journal.py
+  - plugins/project-skills/lib/test_organism.py
+  - plugins/project-skills/lib/test_graph_map.py
+  - plugins/project-skills/lib/test_doc_lint.py
   - plugins/intent-guard/lib/test_ledger.py
   - plugins/project-skills/lib/test_plan_state.py
   - plugins/project-skills/lib/test_cobertura.py
@@ -133,61 +130,66 @@ na instalação. [confirmado — cabeçalho de `scripts/sync-shared.sh`]
 
 ## 2. Números derivados mecanicamente neste run
 
-Comandos re-executados agora, na árvore de trabalho sobre `2587006`:
+Comandos re-executados agora, na árvore de trabalho sobre `1f575e9`:
 
 ```bash
-ls -1d plugins/*/ | wc -l                            # 25  ← um a mais que o catálogo
-ls -1 plugins/*/.claude-plugin/plugin.json | wc -l   # 24
+ls -1d plugins/*/ | wc -l                            # 22
+ls -1 plugins/*/.claude-plugin/plugin.json | wc -l   # 22
 ls -1 plugins/*/skills/*/SKILL.md | wc -l            # 29
-ls -1 plugins/*/hooks/hooks.json | wc -l             # 13
-find plugins -path '*/lib/*.py' | wc -l              # 100
-python3 -c "import json;print(len(json.load(open('.claude-plugin/marketplace.json'))['plugins']))"   # 24
+ls -1 plugins/*/hooks/hooks.json | wc -l             # 12
+find plugins -path '*/lib/*.py' | wc -l              # 99
+python3 -c "import json;print(len(json.load(open('.claude-plugin/marketplace.json'))['plugins']))"   # 22
 ```
 
-- 🔴 **25 diretórios contra 24 manifestos — e é a primeira vez que os dois lados divergem.**
-  `plugins/improve-workflow/` nasceu na onda de 2026-08-08 com código (`lib/sobras.py` e a
-  suíte dele) e **sem manifesto**: o passo que cria a casa (`F20.11`) não saiu na mesma
-  rodada. Pela régua de fronteira abaixo isso é legítimo — diretório fora do catálogo não é
-  plugin distribuído, e `conformance.py:check_catalogo` sai **conforme** porque catálogo e
-  receita continuam batendo entre si. O que ninguém cobra hoje é o terceiro par: **dirs × catálogo**.
-- **25 diretórios · 24 manifestos · 24 entradas no catálogo · 29 skills · <!-- acopla-ok: é a saída literal do bloco de comandos logo acima -->
-  **13** plugins com hooks · 97 arquivos `.py` em `lib/`.** [confirmado — os seis comandos <!-- acopla-ok: é a saída dos comandos logo acima, medida neste run; o comando é quem manda -->
-  re-rodados nesta passada de `/doc-touch`.]
-  **O que mudou desde a passada anterior:** entraram `project-skills`, `vistoria` e
-  `gauntlet` no catálogo (e `check-conflitos` já havia virado `check-skills`); **saiu
-  `grill-with-docs`**, que não tem mais diretório nem entrada. Os plugins com hooks foram de
-  11 para 13 — `gauntlet` e `sovai` passaram a registrar `hooks/hooks.json`.
-  ⚠️ **O salto de 47 → 97 arquivos em `lib/` é em boa parte CÓPIA, não código novo**:
-  `regua_texto.py` sozinha responde por 11 deles, e `padroes_vazamento.py`,
+- ✅ **A divergência dirs × catálogo fechou.** `plugins/improve-workflow/` nascera com código
+  (`lib/sobras.py` + suíte) e **sem manifesto**; nesta rodada ganhou `plugin.json` (0.1.0),
+  entrada no catálogo e linha em `plugins/bootstrap/config/manifest.json` **com
+  `enabled: false`** — entra distribuído mas desligado de fábrica, que já não é caso único; a
+  lista de quem está nessa condição se lê sem cravar nome nenhum aqui:
+
+  ```bash
+  python3 -c "import json;d=json.load(open('plugins/bootstrap/config/manifest.json'));import re;print([m.group(1) for m in re.finditer(r'\"name\": \"([^\"]+)\",\s*\"enabled\": false', json.dumps(d))])"
+  ```
+- **Três plugins deixaram de existir nesta rodada** — `sovai`, `qa-loop` e `project-doc`
+  foram FUNDIDOS no `project-skills` (hooks, `lib/` e skills; §5). Não é depreciação: os
+  diretórios sumiram do disco e as entradas do catálogo, na mesma passada em que
+  `improve-workflow` entrou. Saldo: 25 → 22 diretórios, 24 → 22 entradas de catálogo.
+- **Os seis números acima são a saída literal do bloco, medida neste run** <!-- acopla-ok: é a saída dos comandos logo acima; o comando é quem manda -->
+  [confirmado — os seis comandos re-rodados nesta passada de `/doc-touch`.]
+  ⚠️ **Os arquivos `.py` em `lib/` quase não se moveram (100 → 99) apesar de três plugins
+  terem sumido** — porque nada foi apagado, só mudou de casa: `plugins/project-skills/lib/`
+  concentra hoje 42 dos 99 (`find plugins/project-skills -path '*/lib/*.py' | wc -l`).
+  ⚠️ **Boa parte desse total é CÓPIA, não código novo**:
+  `regua_texto.py` sozinha responde por 10 deles, e `padroes_vazamento.py`,
   `collect_engine.py`, `plan_state.py` e `resolve-*.sh` repetem o padrão (§7). Contar
   `lib/*.py` mede o vendoring junto com o código — a medida de código próprio é
   `find plugins -path '*/lib/*.py' ! -name regua_texto.py ! -name collect_engine.py ! -name padroes_vazamento.py`
   (**85** neste run).
-- **59 registros de hook — 58 do tipo `command` + 1 do tipo `prompt`**, em **45 scripts
-  distintos** [confirmado — varredura própria dos 13 `plugins/*/hooks/hooks.json` neste run,
-  e `python3 scripts/hook_contract.py` imprime a mesma medida: *"Contrato dos hooks — 59
-  registros, 45 scripts distintos"*].
-  ⚠️ **O salto de 38 → 59 não é 21 comportamentos novos.** Doze desses registros são o
-  MESMO script vendorado — `sessionstart-deps.sh`, nascido em `_shared/`, registrado em
-  `SessionStart` por cada plugin que precisa avisar dependência externa faltando. Medir
-  registros mede a superfície de acoplamento ao harness, não a quantidade de coisas que
-  acontecem.
-- 29 skills em 25 diretórios porque **cinco não têm `skills/` nenhum** — <!-- acopla-ok: leitura do bloco de comandos de §2, não afirmação independente -->
-  `graphify-guard` (100% hook), `vision` (100% MCP), **`qa-loop` e `sovai`** (cujas skills
-  migraram para `project-skills`) e o **`improve-workflow`**, que ainda é só `lib/` —, e
-  porque a família concentra **oito**, que se listam sem escrever nome nenhum aqui:
+- **Registros de hook e scripts distintos: quem mede é a ferramenta, não esta linha** —
+  `python3 scripts/hook_contract.py | head -1` imprime *"Contrato dos hooks — 56 registros,
+  43 scripts distintos"* neste run, e `python3 scripts/hook_contract.py --scripts | grep -c .`
+  devolve o mesmo 43. Um único registro é do tipo `prompt` (o classificador do `guardrails`);
+  o resto é `command`.
+  ⚠️ **Registro não é comportamento.** Doze desses registros são o MESMO script vendorado —
+  `sessionstart-deps.sh`, nascido em `_shared/`, registrado em `SessionStart` por cada plugin
+  que precisa avisar dependência externa faltando. E a queda de 59 → 56 nesta rodada **não
+  removeu nada**: são os três registros de `ExitPlanMode` virando um só (§6).
+- 29 skills em 22 diretórios porque **três não têm `skills/` nenhum** — <!-- acopla-ok: leitura do bloco de comandos de §2, não afirmação independente -->
+  `graphify-guard` (100% hook), `vision` (100% MCP) e o **`improve-workflow`**, que ainda é
+  só `lib/` —, e porque a família concentra a maioria delas, que se listam sem escrever nome
+  nenhum aqui:
 
   ```bash
   ls -1 plugins/project-skills/skills/   # acopla-ok: é o COMANDO que descobre a lista, que é justamente o que o Artigo 9 manda escrever no lugar dela
   ```
 
-  A oitava é a `monitorar`, que nasceu na onda de 2026-08-08 (`F17.6`) quando o vigia de
-  andamento se emancipou do motor de execução contínua.
-  ⚠️ **Consequência de instalação:** `qa-loop` e `sovai` continuam distribuídos (o `lib/` e,
-  no caso do `sovai`, os hooks seguem lá), mas quem instala **só aqueles dois** não recebe
-  mais a skill — ela vem por `project-skills`.
+  ⚠️ **Consequência de instalação da fusão:** `sovai`, `qa-loop` e `project-doc` não existem
+  mais como plugin. Quem os tinha instalados **não** perde a skill por `update` — o cliente
+  não desinstala sozinho um plugin que saiu do catálogo; ele fica com a cópia velha em cache
+  até um `claude plugin uninstall` explícito, e aí duas skills com o mesmo nome coexistem.
+  É exatamente o conflito que o `check-skills` acusa.
 - Régua de fronteira: **quem manda é `marketplace.json`, não `ls plugins/`**. Diretório fora
-  do catálogo não é plugin distribuído. Hoje os dois lados batem — 24 × 24, e o
+  do catálogo não é plugin distribuído. Hoje os dois lados batem (22 × 22, o bloco acima), e o
   `conformance.py:check_catalogo` existe justamente pra acusar quando divergirem (§10.2).
 - Linguagens: Markdown (as skills), Bash (hooks), Python 3 **stdlib-only**, Node stdlib
   (um daemon, `plugins/visual/server/visual_server.mjs`), JS vendorado de terceiro
@@ -198,10 +200,10 @@ python3 -c "import json;print(len(json.load(open('.claude-plugin/marketplace.jso
 
 ```
 .claude-plugin/marketplace.json   catálogo único — nome, source, version, tags, category
-plugins/<nome>/                   24 dirs, todos catalogados
+plugins/<nome>/                   um dir por entrada do catálogo, sem sobra (§2)
 _shared/                          fonte-da-verdade do compartilhado (17 arquivos-fonte)
 scripts/sync-shared.sh            o "build": vendora _shared/ → 81 cópias em 43 pastas  <!-- acopla-ok: §7 traz o comando que produz os dois números -->
-scripts/hook_contract.py          mede o contrato dos 59 registros de hook (§11)
+scripts/hook_contract.py          mede o contrato dos registros de hook (§11)
 scripts/public_repo_check.py      cobra a regra de repo público (checagem H do gate)
 scripts/regua_call_check.py       cobra que gerador de página chame a régua (checagem I)
 scripts/*.py                      os outros cobradores do gate — a lista está em
@@ -216,6 +218,8 @@ scripts/*.py                      os outros cobradores do gate — a lista está
   ├── *.baseline.json             os outros retratos congelados — `git ls-files '.claude/*.baseline.json'`
   ├── settings.json               registra o release-gate como PreToolUse(Bash)
   └── .project-doc/  plans/  ata/  intent/  visual/  qa-loop/  HANDOFF*.md
+                                  (`.project-doc/` e `qa-loop/` guardam o nome dos plugins
+                                  extintos — é caminho de dado gravado, não plugin vivo)
                                   estado local da máquina — TODOS gitignorados (§3.1)
 graphify-out/                     knowledge graph — gitignorado inteiro, regenerável
 AGENTS.md · GEMINI.md · .cursorrules · .windsurfrules · .github/copilot-instructions.md
@@ -315,51 +319,58 @@ Saída desta rodada (nome · versão · skills · tem hook):
 
 ```
 archify           2.12.2  [archify]                                          -
-bootstrap        1.13.10  [bootstrap]                                        HOOKS
+bootstrap         1.15.0  [bootstrap]                                        HOOKS
 branches           1.3.4  [branches]                                         HOOKS
-check-skills       0.2.0  [check-skills]                                     -
+check-skills       0.7.0  [check-skills]                                     -
 context-guard      1.3.9  [context-guard]                                    HOOKS
-fallow             1.2.2  [fallow]                                           -
+fallow             1.2.3  [fallow]                                           -
 gauntlet           0.2.3  [gauntlet]                                         HOOKS
 graphify-guard     1.2.4  []                                                 HOOKS
 grill-me           1.4.0  [grill-me]                                         -
 guardrails         1.7.7  [guardrails]                                       HOOKS
 handoff           1.11.1  [handoff]                                          HOOKS
-improve            1.1.0  [improve]                                          -
-intent-guard       0.6.5  [intent-guard]                                     HOOKS
+improve            1.1.1  [improve]                                          -
+improve-workflow   0.1.0  []                                                 -
+intent-guard       0.7.0  [intent-guard]                                     HOOKS
 lixeiro            1.3.1  [faxina]                                           HOOKS
-principles         1.0.4  [principles]                                       -
-project-doc       3.33.3  [design-md, pesquisa-referencias]                  HOOKS
-project-skills     0.9.9  [doc, doc-touch, plan, project-skills,
-                           qa-loop, sprint, start]                           -
-qa-loop           1.14.1  []                                                 -
-ship               1.4.3  [ship]                                             HOOKS
+principles         1.0.5  [principles]                                       -
+project-skills    0.18.0  [design-md, doc, doc-touch, monitorar,
+                           pesquisa-referencias, plan, project-skills,
+                           qa-loop, sprint, start]                           HOOKS
+ship               1.5.0  [ship]                                             HOOKS
 slides             1.6.0  [slides]                                           -
-sovai             1.25.1  []                                                 HOOKS
 vision             0.1.0  []                                                 -
-vistoria           0.5.0  [vistoria]                                         -
-visual            1.36.1  [andamento, visual]                                HOOKS
+vistoria           0.5.1  [vistoria]                                         -
+visual            1.39.0  [andamento, visual]                                HOOKS
 ```
 
-**A rodada da branch `metodologia-vira-mecanismo` reorganizou onde as skills MORAM, e é a
-mudança estrutural mais consequente do catálogo até aqui.** Quatro plugins que eram
-"skill + motor" viraram só motor, e as skills foram para `project-skills`:
+**A rodada anterior moveu onde as skills MORAM; esta apagou as CASAS que tinham ficado
+vazias.** `sovai`, `qa-loop` e `project-doc` já haviam cedido as skills e viraram "só motor";
+agora o motor também mudou de endereço e os três diretórios deixaram de existir:
 
-- `project-doc` cedeu `project-doc`, `doc-touch` e `start-doc` — e agora tem duas
+- `sovai` levou os hooks do motor de execução contínua e as suítes deles para
+  `plugins/project-skills/{hooks,lib}/`.
+- `qa-loop` levou `green-cache.sh` (a cópia vendorada) e a suíte para
+  `plugins/project-skills/lib/`.
+- `project-doc` levou os hooks de doc, o motor inteiro de `lib/` (`pattern_check`, `journal`,
+  `organism`, `graph_map`, `doc_lint`, `historico`, `rastreio_etapas`, `collect_engine`,
+  `curadoria_features`, `decisoes_estruturais`) e as duas skills que ainda tinha
   (`design-md`, `pesquisa-referencias`).
-- `qa-loop` e `sovai` cederam a skill inteira e **ficaram sem `skills/`**.
-- `project-skills` passou de uma skill para **sete**, com nomes curtos de entrada
-  (`doc`, `plan`, `start`, `sprint`) ao lado dos herdados (`doc-touch`, `qa-loop`).
-- **`grill-with-docs` saiu do catálogo e do disco.**
+- `improve-workflow` entrou no lugar deles no catálogo, com `lib/sobras.py` só, e
+  **desligado de fábrica** no manifest do bootstrap (§2).
 
-⚠️ **O que isso quebra no cliente:** quem já tinha `project-doc`, `qa-loop` ou `sovai`
-instalados fica com a skill VELHA em cache até desinstalar — o `claude plugin update` só
-propaga o que o plugin ainda declara, então uma skill *removida* de um plugin não desaparece
-do cliente sozinha. O `check-skills` é justamente o que acusa o nome disputado quando as
-duas coexistem.
+Consequência mecânica: `project-skills` passou de plugin sem hooks para **o maior do repo**
+— 15 registros de hook no `hooks.json` dele, e 13 scripts distintos contra 6 do segundo
+colocado (`python3 scripts/hook_contract.py --scripts | awk -F/ '{print $2}' | sort | uniq -c | sort -rn`).
 
-Três renomeações de skill acompanharam: `bootstrap`, `context-guard` e `guardrails`
-trocaram `setup` pelo nome do próprio plugin, e o `visual` trocou `status` por `andamento`.
+⚠️ **O que isso quebra no cliente:** os três plugins extintos **não somem sozinhos**. O
+`claude plugin update` não desinstala o que saiu do catálogo, então quem os tinha continua
+com a skill velha em cache até rodar `claude plugin uninstall` — e enquanto isso duas skills
+disputam o mesmo nome. O `check-skills` é justamente o que acusa o nome disputado.
+
+Renomeações de arquivo desta rodada, todas dentro do `project-skills`:
+`pretooluse-sovai-motor.sh` → `pretooluse-motor-arma.sh`, `test_sovai_gate.sh` →
+`test_motor_gate.sh`, `test_sovai_skill.{sh,py}` → `test_sprint_skill.{sh,py}`.
 
 ```bash
 # quantos plugins o catálogo distribui hoje
@@ -370,7 +381,7 @@ python3 -c "import json;print(len(json.load(open('.claude-plugin/marketplace.jso
 DENTRO do plugin, então mexer em `_shared/` não é uma publicação — são N. Cada consumidor
 precisa de bump próprio, senão o cliente segue com a régua velha.
 
-As 24 versões batem com o campo `version` da entrada correspondente em
+Todas as versões acima batem com o campo `version` da entrada correspondente em
 `.claude-plugin/marketplace.json` [confirmado — comparação mecânica das duas fontes rodada
 nesta sessão, nenhum `MISMATCH`. É o mesmo par que o bloco de bump/espelho do
 `release-gate.sh` checa].
@@ -383,9 +394,9 @@ autoria própria]. `archify` é vendorado de terceiro
 [relatado — a atribuição vivia em mensagem de commit da história antiga, que não existe mais
 neste repo; o `marketplace.json` de hoje não carrega campo `author` nessa entrada].
 
-## 6. Os 13 plugins com hooks — evento por evento <!-- acopla-ok: título espelha `ls -1 plugins/*/hooks/hooks.json | wc -l`, citado em §2 -->
+## 6. Os 12 plugins com hooks — evento por evento <!-- acopla-ok: título espelha `ls -1 plugins/*/hooks/hooks.json | wc -l`, citado em §2 -->
 
-Inventário gerado neste run lendo os 13 `plugins/*/hooks/hooks.json`
+Inventário gerado neste run lendo os 12 `plugins/*/hooks/hooks.json`
 (`evento[matcher] → script (timeout)`). **Doze deles registram o mesmo
 `sessionstart-deps.sh` em `SessionStart[*]` (5s)** — é código vendorado de `_shared/`, e
 está omitido do listado abaixo pra não repetir doze vezes a mesma linha; o parágrafo logo
@@ -428,7 +439,6 @@ handoff
 
 intent-guard
   UserPromptSubmit[*]                → capture-prompt.sh            (10s)
-  PreToolUse[ExitPlanMode]           → plan-gate.sh                 (60s)
   PostToolUse[TaskUpdate]            → task-checkpoint.sh           (60s)
   PostToolUse[Edit|Write|MultiEdit|NotebookEdit] → mark-work.sh     (5s)
   Stop[*]                            → delivery-audit.sh            (60s)
@@ -439,30 +449,27 @@ lixeiro
   Stop[*]                            → stop-colhe-turno.sh          (20s)
   SessionEnd[*]                      → sessionend-colhe.sh          (30s)
 
-project-doc   ← o maior; ver §6.1
+project-skills   ← o maior do repo; ver §6.1
   SessionStart[*]                    → sessionstart-organism.sh     (10s)
   SessionStart[*]                    → sessionstart-doc.sh          (10s)
+  SessionStart[*]                    → sessionstart-plan.sh         (10s)  ← veio do visual
+  PreToolUse[Agent]                  → pretooluse-motor-arma.sh     (10s)  ← veio do sovai
+  PreToolUse[Bash]                   → pretooluse-espera-com-guarda.sh (5s)   ← veio do sovai
+  PreToolUse[Bash]                   → posttooluse-andamento.sh marca  (5s)   ← veio do sovai
   PreToolUse[Grep|Glob|Bash|Agent]   → pretooluse-doc-guard.sh      (10s)
   PreToolUse[Edit|Write|MultiEdit]   → pretooluse-organism-gate.sh  (10s)
-  PreToolUse[EnterPlanMode|ExitPlanMode] → pretooluse-plan-gate.sh  (10s)
-  UserPromptSubmit[*]                → userpromptsubmit-plan-escape.sh (10s)
+  PreToolUse[EnterPlanMode|ExitPlanMode] → pretooluse-plan-gate.sh  (10s)  ← portão único
+  PostToolUse[Bash]                  → posttooluse-andamento.sh     (10s)  ← veio do sovai
   PostToolUse[Read]                  → posttooluse-doc-read.sh      (10s)
+  UserPromptSubmit[*]                → userpromptsubmit-plan-escape.sh (10s)
   Stop[*]                            → stop-doc-touch.sh            (15s)
+  Stop[*]                            → stop-plan-status.sh          (15s)  ← veio do visual
 
 ship
   PreToolUse[Bash]                   → pre-deploy-test-check.sh     (120s)
 
-sovai
-  PreToolUse[Agent]                  → pretooluse-sovai-motor.sh    (10s)
-  PreToolUse[Bash]                   → pretooluse-espera-com-guarda.sh (5s) ← novo
-  PreToolUse[Bash]                   → posttooluse-andamento.sh marca   (5s) ← novo
-  PostToolUse[Bash]                  → posttooluse-andamento.sh     (10s)  ← novo
-
 visual
-  SessionStart[*]                    → sessionstart-plan.sh         (10s)
-  Stop[*]                            → stop-plan-status.sh          (15s)
   Stop[*]                            → stop-anuncio-sem-acao.py     (20s)
-  PreToolUse[ExitPlanMode]           → pre-exitplan-visualize.sh    (10s)
 ```
 
 Observações de arquitetura:
@@ -476,14 +483,13 @@ Observações de arquitetura:
   plugins**: sem ele, o aviso de dependência externa faltando simplesmente não sai, e nada
   reclama. É fail-open por desenho, e é o preço de não vendorar doze cópias de um script que
   muda junto.
-- **`sovai` registra o MESMO script em dois eventos opostos.** `posttooluse-andamento.sh`
+- **`project-skills` registra o MESMO script em dois eventos opostos.** `posttooluse-andamento.sh`
   roda em `PreToolUse[Bash]` com o argumento `marca` (anota que um comando vai começar) e em
   `PostToolUse[Bash]` sem argumento (fecha a anotação). O nome do arquivo só conta metade da
   história — e o `hook_contract.py` acusa isso como `R6-nome-fora-do-molde` (§11).
-- **`gauntlet` e `lixeiro` entraram no inventário desde a passada anterior.** O `gauntlet`
-  gateia `PreToolUse[Agent]`, o que faz **três** plugins disputarem esse mesmo evento
-  (`guardrails`, `sovai`, `gauntlet`) — ver a observação sobre `Agent` mais abaixo, que hoje
-  cobre dois e precisa ler o terceiro antes de virar afirmação.
+- **Três plugins ainda disputam `PreToolUse[Agent]`** — `guardrails`, `project-skills`
+  (`pretooluse-motor-arma.sh`, herdado do extinto `sovai`) e `gauntlet`. Ver a observação
+  sobre `Agent` mais abaixo.
 
 - **O `bootstrap` tem TRÊS hooks no mesmo evento `Stop`**, e a divisão é por eixo medido, não
   por acaso: `stop-prose-ceiling.py` mede **volume** (quantas linhas de prosa),
@@ -494,9 +500,8 @@ Observações de arquitetura:
   regua -> os BULLETS"*. Detalhe em §10.2. [confirmado — `plugins/bootstrap/hooks/hooks.json`
   tem os três no array `Stop`, e os três arquivos existem em `plugins/bootstrap/hooks/`]
 - `guardrails` é o único que usa `"type": "prompt"` (classificador LLM inline no `hooks.json`,
-  sem script) — os outros **58** são `"type": "command"`, num total de **59 registros**
-  [confirmado, varredura própria neste run; bate com `scripts/hook_contract.py`, que imprime
-  *"59 registros, 45 scripts distintos"*].
+  sem script) — todo o resto é `"type": "command"`; o total de registros e de scripts é o que
+  `python3 scripts/hook_contract.py | head -1` imprime (§2).
 - **A régua de forma é cobrada por uma PORTA e uma REDE, e nenhuma das duas alcança o que a
   outra alcança.** A porta (`guardrails/hooks/pretooluse-artefato-regua.py`, PreToolUse
   `Edit|Write`) nega **escrever** `.md`/`.html` com prosa corrida dentro de `.claude/visual/`
@@ -512,40 +517,53 @@ Observações de arquitetura:
 - **Três plugins gateiam o `Agent`, e eles não concorrem — respondem a perguntas diferentes.**
   Os dois primeiros estão descritos logo abaixo; o terceiro é o `gauntlet`
   (`pretooluse-gauntlet.sh`), que **nega sub-agente enquanto houver missão de gauntlet
-  armada** e é mudo fora dela, pelo mesmo desenho do `sovai`: sinal por sessão
+  armada** e é mudo fora dela, pelo mesmo desenho do motor de execução contínua: sinal por sessão
   (`ativo-<session_id>`), cap de negações, expiração por idade e fail-open em toda borda de
   infra. O cabeçalho do arquivo registra o motivo, literal: *"a falha que motivou a skill
   inteira foi um orquestrador que leu relatórios de sete construtores e aceitou todos, sem
   lançar juiz nenhum… proibição por escrito foi exatamente o que falhou nas duas sessões
   reais"*. **Os três leem sinais independentes**, então nada garante que só um esteja aceso
-  de cada vez — na prática, `sovai` + `gauntlet` simultâneos negam pelo primeiro que
-  responder.
+  de cada vez — na prática, motor + `gauntlet` simultâneos negam pelo primeiro que responder.
   O do `guardrails` é o classificador LLM e existe pra **proteger** Agent Teams: ele nega
   sub-agente avulso **quando o prompt pede Agent Teams**, e libera explicitamente *"tarefa
-  one-off sem team_name"*. O do `sovai` (`pretooluse-sovai-motor.sh`, novo em 2026-08-02) nega
-  **todo** disparo de sub-agente enquanto a missão estiver armada, porque ali o motor é a tool
-  `Workflow`. A distinção importa: a SKILL do sovai afirmava que o guard do `guardrails` a
-  protegia, e a regra 3 dele fazia o oposto — prosa descrevendo mecanismo ausente não dá erro.
-  O gate do sovai lê um sinal por sessão (`~/.claude/sovai/ativo-<session_id>`), tem cap de 3
-  negações e kill-switch `SOVAI_GATE=0`. [confirmado — `plugins/sovai/hooks/test_sovai_gate.sh`
-  → `OK (20 checks)` neste run]
+  one-off sem team_name"*. O terceiro é o do `project-skills`
+  (`hooks/pretooluse-motor-arma.sh` — o antigo `pretooluse-sovai-motor.sh`, que veio junto na
+  fusão), e nega **todo** disparo de sub-agente enquanto a missão de execução contínua estiver
+  armada, porque ali o motor é a tool `Workflow`. A distinção importa: a SKILL afirmava que o
+  guard do `guardrails` a protegia, e a regra 3 dele fazia o oposto — prosa descrevendo
+  mecanismo ausente não dá erro. ⚠️ **O nome do arquivo mudou, o do ESTADO não**: o sinal
+  segue em `~/.claude/sovai/ativo-<session_id>` (a atribuição `ESTADO=` no script), com cap de
+  3 negações e kill-switch `SOVAI_GATE=0` — renomear o caminho de estado invalidaria os sinais
+  de sessões vivas. [confirmado — `bash plugins/project-skills/hooks/test_motor_gate.sh`
+  → `OK (24 checks)` neste run — acopla-ok: é a saída literal do comando na mesma linha]
 - **O `AskUserQuestion` é gateável** (`guardrails/hooks/askq-humanize.sh`). O contrato de gate
   está escrito no cabeçalho do próprio arquivo, copiado literal: *canal* `permissionDecision:"deny"`
   em JSON no stdout com exit 0; *cap* 3 devoluções por sessão; *desligar* `ASKQ_GATE=0`;
   *fail-open* sem `jq`, sem `python3`, sem `session_id` ou sem o lint → exit 0 calado. O hook
   **não reescreve** a pergunta — devolve a lista do que faltou e o modelo reescreve. [confirmado
   — leitura do cabeçalho]
-- **Três plugins gateiam o `ExitPlanMode` simultaneamente**: `visual`
-  (`pre-exitplan-visualize.sh`), `intent-guard` (`plan-gate.sh`) e `project-doc`
-  (`pretooluse-plan-gate.sh`). É defesa em camadas deliberada, mas um plano passa por três
-  gates independentes. [confirmado — os três `hooks.json`]
+- **O `ExitPlanMode` tem UM respondente só, e os outros dois viraram peças chamadas por ele.**
+  Eram três registros independentes (`visual`, `intent-guard`, `project-doc`), cada um
+  devolvendo o próprio bloqueio — três recusas encadeadas pro mesmo plano, cada uma paga em
+  turno. Hoje quem se registra no evento é `project-skills/hooks/pretooluse-plan-gate.sh`, e
+  ele **chama** os outros dois **por nome de plugin** via `resolve-plugin.sh`, na ordem
+  pedido → doc → página, repassando o mesmo payload no stdin. Quem responder `deny` primeiro
+  fecha o portão. [confirmado — `python3 scripts/hook_contract.py --responde ExitPlanMode`
+  devolve `TOTAL: 1`, e o laço `for PECA in "intent-guard hooks/plan-gate.sh" "visual
+  hooks/pre-exitplan-visualize.sh"` está no corpo do gate]
+  ⚠️ **Fail-open é POR PEÇA, não pelo portão**: plugin ausente na máquina (ou script
+  ilegível) é `continue`, então cada guarda que existir roda e quem não existir simplesmente
+  não cobra — o portão nunca cai inteiro por causa de uma peça. Kill-switch da orquestração:
+  `PLAN_PORTAO_UNICO=0` (desliga só a chamada às peças; o gate de doc continua).
+  [confirmado — `bash plugins/project-skills/hooks/test_portao_unico.sh` → *"6 passou · 0
+  falhou"* neste run]
 - **Marcar-se como "só aviso" é declaração, não inferência.** O `conformance.py:check_hooks_duplicados`
   reconhece o comentário literal `# conformance: default-warn` no script, e hoje há **exatamente
   um** no repo: `plugins/graphify-guard/hooks/pretooluse-graphify-guard.sh`, com a justificativa
   colada na mesma linha — *"o caminho de deny existe, mas só com `GRAPHIFY_DENY=1`"*. A suíte
   `test_graphify_guard.sh` trava a marca com `grep -c`, pra ela não sumir num refactor.
   [confirmado — `grep -rn "conformance: default-warn"` neste run devolve o script + a linha do teste]
-- Kill-switches por env var, todos copiados literal dos arquivos: `PLAN_DOC_GATE`,
+- Kill-switches por env var, todos copiados literal dos arquivos: `PLAN_PORTAO_UNICO`, `PLAN_DOC_GATE`,
   `DOC_GUARD_GATE`, `ORGANISM_GATE`, `DOC_TOUCH_SUGGEST`, `VISUAL_GATE`, `PLAN_STATUS`,
   `PLAN_NUDGE`, `SHIP_GATE`, `LINT_GATE`, `ASKQ_GATE`, `SCOPE_COP_GATE`, `BRANCHES_GATE`,
   `GRAPHIFY_GATE`, `GRAPHIFY_DENY`, `HANDOFF_GATE`, `PROSE_CEILING`, `FORMA_RELATO`,
@@ -568,15 +586,20 @@ Observações de arquitetura:
   para buscar: o conserto exige outro bump. [confirmado — 2026-08-02, o `hooks.json` de
   `visual 1.14.0` ficou com o registro anterior ao ajuste; resolvido em 1.14.1]
 
-### 6.1 O gate de plano (project-doc) — decisão de arquitetura
+### 6.1 O gate de plano (project-skills) — decisão de arquitetura
 
-**Plano não nasce sem documentação.** Dois hooks e um helper compartilhado implementam isso.
+**Plano não nasce sem documentação.** Dois hooks e um helper compartilhado implementam isso —
+todos em `plugins/project-skills/hooks/`, desde a fusão que extinguiu o `project-doc`.
 
-**`pretooluse-plan-gate.sh`** (matcher `EnterPlanMode|ExitPlanMode`). Saídas, copiadas do
-cabeçalho e do corpo do arquivo:
+**`pretooluse-plan-gate.sh`** (matcher `EnterPlanMode|ExitPlanMode`) acumula DOIS papéis, e
+é importante não confundi-los: em `ExitPlanMode` ele é primeiro o **portão único** que chama
+as peças do `intent-guard` e do `visual` (bloco `PORTÃO ÚNICO DE ExitPlanMode`, antes de
+qualquer coisa própria); depois disso, e em `EnterPlanMode` desde a primeira linha, ele é o
+gate de doc descrito abaixo. Saídas do gate de doc, copiadas do cabeçalho e do corpo:
 
 - **A — projeto sem documentação nenhuma** (nem `CLAUDE.md`, nem `.claude/docs/`):
-  `permissionDecision: "deny"` **sempre**, sem cap, mandando rodar `/start-doc`. Comentário
+  `permissionDecision: "deny"` **sempre**, sem cap, mandando rodar `/start` (o nome curto que a
+  skill ganhou ao mudar para o `project-skills` — `grep -n '/start' …plan-gate.sh`). Comentário
   literal: *"Decisão de projeto (2026-07-26): nega sempre, a não ser que o usuário verbalize
   que é para ignorar. Por isso NÃO há cap de nudges aqui."*
 - **B — tem doc, mas não foi lida nesta sessão**: `deny` com cap (`MAX_NUDGES=3`), reusando o
@@ -585,7 +608,7 @@ cabeçalho e do corpo do arquivo:
 - **C — tem doc e já foi lida**: `exit 0`, silêncio.
 - **Quarto caminho: `CLAUDE.md` escrito à mão sem `.claude/docs/`** não cai no caso A (que
   negaria pra sempre com uma mensagem falsa) — vira caso B com cap próprio (`[ "$C" -ge 3 ]`)
-  e oferece `/start-doc` + `/project-doc` depois do plano.
+  e oferece `/start` + `/doc` depois do plano.
 
 **`userpromptsubmit-plan-escape.sh`** (UserPromptSubmit) é o **escape verbal**. Hook não lê a
 conversa, então quem ouve a frase é este, e ele grava o sentinel
@@ -618,7 +641,9 @@ ilegível → `exit 0`. Essa última guarda está comentada no arquivo como acha
 ela, um `chmod 000 doc-detect.sh` fazia um projeto **totalmente documentado** cair no caso A e
 ser negado sem cap.
 
-Suíte dedicada: `plugins/project-doc/hooks/test_plan_gate.sh`.
+Suítes dedicadas: `plugins/project-skills/hooks/test_plan_gate.sh` (o gate de doc) e
+`plugins/project-skills/hooks/test_portao_unico.sh` (a orquestração das peças) — a contagem
+de checks de cada uma é a última linha que ela imprime (§13).
 
 ## 7. A engine compartilhada vendorada (`_shared/`)
 
@@ -678,7 +703,8 @@ OK: cópias vendored idênticas a _shared/
 ```
 
 **`journal.py` NÃO é vendorado** — só `collect_engine.py` é. [confirmado — o `SPECS` acima e
-`find plugins -path '*/lib/*.py'`, que mostra `journal.py` apenas em `plugins/project-doc/lib/`]
+`find plugins -path '*/lib/*.py' -name journal.py`, que devolve uma linha só,
+`plugins/project-skills/lib/`]
 
 ### 7.1 `collect_engine.py` — a camada de coleta
 
@@ -727,7 +753,8 @@ Env vars, copiadas literal: `GREEN_SUITE_DIR` (default `$HOME/.claude/green-suit
 ### 7.3 `r8-tiers.json` + `r8_tiers.py` — o contrato de tier virou DADO
 
 Contrato único de "que modelo/effort em cada etapa", compartilhado pelos dois motores
-(`/sovai` decompõe→executa→revisa; `/qa-loop` revisa→planeja→conserta). **É tudo Opus** — o
+(`/sprint` decompõe→executa→revisa; `/qa-loop` revisa→planeja→conserta — as duas skills hoje
+moram em `plugins/project-skills/skills/`). **É tudo Opus** — o
 modelo saiu da equação e só o `effort` varia por etapa.
 
 ⚠️ **Desde 2026-08-03 a fonte da verdade é o JSON, não o markdown.** O `r8-tiers.md` passou a
@@ -815,33 +842,47 @@ chamam pela linha de comando (`printf '%s' "$MSG" | python3 regua_texto.py --per
 
 ## 8. Módulos Python e dependências
 
-Inventário mecânico (`find plugins -path '*/lib/*.py'` → **47 arquivos**), agrupados. As
-**9 cópias de `regua_texto.py`** aparecem à parte porque são vendoring, não código do plugin
+Inventário mecânico agrupado. A lista viva de cada `lib/` se lê sem cravar nome aqui —
+`for d in plugins/*/lib; do echo "== $d"; ls -1 "$d" | grep -v __pycache__; done` — e a
+contagem por plugin sai de
+`find plugins -path '*/lib/*.py' | awk -F/ '{print $2}' | sort | uniq -c | sort -rn`.
+As cópias de `regua_texto.py` aparecem à parte porque são vendoring, não código do plugin
 (§7.4):
 
 ```
-plugins/project-doc/lib/   collect_engine.py (vendorado) · journal.py · pattern_check.py
-                           organism.py · graph_map.py · doc_lint.py
-                           + test_{journal,pattern_check,organism,graph_map,doc_lint,
-                                   start_doc_skill}.py
+plugins/project-skills/lib/ 42 dos 99 — o motor de doc inteiro (journal.py · pattern_check.py ·
+                           organism.py · graph_map.py · doc_lint.py · historico.py ·
+                           rastreio_etapas.py · curadoria_features.py ·
+                           decisoes_estruturais.py · collect_engine.py vendorado),
+                           o ciclo de vida do plano (plan_state.py · cobertura.py ·
+                           auditoria_plano.py · plan_entrada.py · regua_pronto.py),
+                           andamento.py, green-cache.sh (vendorado) e os resolve-*.sh
+                           + as suítes `test_*` correspondentes (`ls plugins/project-skills/lib/test_*`)
+plugins/vistoria/lib/      achado.py · fio_morto.py · medidor.py · pagina.py ·
+                           plano_saida.py · suite_congela.py + as suítes
+plugins/visual/lib/        visual_page.py · clareza.py · regua_audit.py + as suítes
+plugins/lixeiro/lib/       causa.py · lixeiro.py · padroes_vazamento.py (vendorado) + suítes
 plugins/handoff/lib/       collect_engine.py (vendorado) · extract_ata.py
                            + test_handoff_skill.py
-plugins/intent-guard/lib/  ledger.py + test_ledger.py
+plugins/check-skills/lib/  varredura.py · padroes_vazamento.py (vendorado) + test_varredura.py
 plugins/fallow/lib/        audit.py · report.py + test_report.py
-plugins/visual/lib/        visual_page.py · clareza.py · regua_audit.py
-                           + test_{visual_page,clareza,regua_audit}.py
-plugins/project-skills/lib/ plan_state.py · cobertura.py · auditoria_plano.py ·
-                           plan_entrada.py · regua_pronto.py  (vieram do `visual` no F14.2)
 plugins/slides/lib/        md2deck.py + test_md2deck.py
+plugins/intent-guard/lib/  ledger.py + test_ledger.py
 plugins/branches/lib/      branch_state.py + test_branch_state.py
 plugins/guardrails/lib/    askq_lint.py + test_askq_lint.py
 plugins/bootstrap/lib/     conformance.py + test_conformance.py
-plugins/qa-loop/lib/       test_qa_loop_skill.py          (+ green-cache.sh, vendorado)
-plugins/sovai/lib/         test_sovai_skill.py
+plugins/gauntlet/lib/      fecho_check.py + test_fecho_check.py
+plugins/improve-workflow/lib/ sobras.py + test_sobras.py     ← o plugin inteiro é isto
+plugins/grill-me/lib/      test_grill_me_skill.py
 
-regua_texto.py (vendorado) em bootstrap · branches · fallow · graphify-guard · guardrails
-                           · project-doc · ship · slides · visual   ← 9 cópias idênticas
+regua_texto.py (vendorado)  cópias idênticas — `find plugins -path '*/lib/*.py' -name regua_texto.py`
 ```
+
+⚠️ **`plugins/project-skills/lib/` virou o maior `lib/` do repo por FUSÃO, não por
+crescimento** — `journal.py`, `pattern_check.py`, `organism.py`, `graph_map.py` e `doc_lint.py`
+vieram de `plugins/project-doc/lib/`, e `green-cache.sh` de `plugins/qa-loop/lib/`. Todo
+ponteiro `plugins/project-doc/lib/…` ou `plugins/qa-loop/lib/…` em documento anterior a esta
+rodada está morto.
 
 **Grafo de import interno** (derivado de leitura dos imports não-stdlib — todos lazy, dentro de
 função, exceto o do `doc_lint`):
@@ -1196,15 +1237,17 @@ executado sobre os docs nesta rodada]
 
 ## 9. O knowledge graph como mapa de arquitetura
 
-Medido neste run com `python3 plugins/project-doc/lib/graph_map.py --project-root .`:
+O módulo mudou de casa na fusão — o comando de hoje é
+`python3 plugins/project-skills/lib/graph_map.py --project-root .`. Saída dele nesta passada:
 
 ```
-stats: {'nodes': 3791, 'links': 4961, 'hyperedges_total': 12,
+stats: {'nodes': 6160, 'links': 8065, 'hyperedges_total': 12,
         'communities_named': 30, 'god_nodes': 60}
 files listados: 40      hyperedges que passam o filtro: 6
-source_file distintos nos nós: 259
-built_at_commit: 2587006652a46b1c53272ccf53f117be8d6c634f
 ```
+
+Contra a medição de 2026-08-08 (`nodes: 3791`, `links: 4961`, `source_file distintos: 259`,
+`built_at_commit: 2587006`), que é a que os outros docs citam.
 
 Como ler esses números:
 
@@ -1561,34 +1604,32 @@ Todas as suítes `plugins/*/lib/test_*.py` executadas nesta rodada, saída liter
 de cada uma:
 
 ```
-plugins/bootstrap/lib/test_conformance.py    :: 59 ok · 0 FAIL
-plugins/branches/lib/test_branch_state.py    :: OK
-plugins/guardrails/lib/test_askq_lint.py     :: ── 47 passou · 0 falhou ──
-plugins/intent-guard/lib/test_ledger.py      :: test_ledger: OK
-plugins/project-doc/lib/test_doc_lint.py     :: TODOS OS 35 CHECKS PASSARAM
-plugins/project-doc/lib/test_graph_map.py    :: TODOS OS 23 CHECKS PASSARAM
-plugins/project-doc/lib/test_journal.py      :: TODOS OS 123 CHECKS PASSARAM
-plugins/project-doc/lib/test_organism.py     :: test_organism: dirty-modules + propagação por costura ✓
-plugins/project-doc/lib/test_pattern_check.py:: TODOS OS 84 CHECKS PASSARAM
-plugins/slides/lib/test_md2deck.py           :: 50 passou · 0 falhou
-plugins/visual/lib/test_plan_state.py        :: OK
-plugins/visual/lib/test_visual_page.py       :: 60 passou · 0 falhou
+plugins/bootstrap/lib/test_conformance.py       :: 67 ok · 0 FAIL
+plugins/branches/lib/test_branch_state.py       :: OK
+plugins/guardrails/lib/test_askq_lint.py        :: ── 47 passou · 0 falhou ──
+plugins/intent-guard/lib/test_ledger.py         :: test_ledger: OK
+plugins/project-skills/lib/test_doc_lint.py     :: TODOS OS 39 CHECKS PASSARAM
+plugins/project-skills/lib/test_graph_map.py    :: TODOS OS 23 CHECKS PASSARAM
+plugins/project-skills/lib/test_journal.py      :: TODOS OS 123 CHECKS PASSARAM
+plugins/project-skills/lib/test_organism.py     :: test_organism: abertura apresenta o herdado item a item (S-12) ✓
+plugins/project-skills/lib/test_pattern_check.py:: TODOS OS 84 CHECKS PASSARAM
+plugins/project-skills/lib/test_plan_state.py   :: OK
+plugins/project-skills/lib/test_cobertura.py    :: OK
+plugins/slides/lib/test_md2deck.py              :: 60 passou · 0 falhou
+plugins/visual/lib/test_visual_page.py          :: 180 passou · 0 falhou
 ```
 
-⚠️ **Falta uma suíte nessa lista** e a ausência é de data, não de defeito: `plugins/visual/lib/test_cobertura.py`
-nasceu depois daquele run. Executada agora, junto com as duas que cobrem o resto do código novo
-desta rodada [confirmado — as três rodadas nesta passada de `/doc-touch`]:
+⚠️ **Cinco caminhos dessa lista mudaram sem que uma linha de teste mudasse** — as suítes de
+doc saíram de `plugins/project-doc/lib/` e as de plano de `plugins/visual/lib/` para
+`plugins/project-skills/lib/`. Quem tiver comando de teste decorado do run anterior recebe
+"No such file or directory", não falha de teste.
+
+As suítes de hook do portão de plano, que nasceram nesta rodada:
 
 ```
-plugins/visual/lib/test_cobertura.py         :: OK
-plugins/visual/lib/test_plan_state.py        :: OK
-plugins/intent-guard/lib/test_ledger.py      :: test_ledger: OK
-```
-
-Mais duas verificações rodadas aqui:
-
-```
-$ bash plugins/bootstrap/hooks/test_bootstrap_hooks.sh   →  52 ok · 0 FAIL
+$ bash plugins/project-skills/hooks/test_plan_gate.sh    →  ── 117 passou · 0 falhou ──
+$ bash plugins/project-skills/hooks/test_portao_unico.sh →  ── 6 passou · 0 falhou ──
+$ bash plugins/project-skills/hooks/test_motor_gate.sh   →  OK (24 checks)
 $ bash scripts/sync-shared.sh --check                    →  OK: cópias vendored idênticas a _shared/
 ```
 
@@ -1642,19 +1683,21 @@ gate está em `patterns.md` §5.2]
 
 ```
 $ python3 scripts/hook_contract.py
-Contrato dos hooks — 38 registros, 37 scripts distintos
-  ship/pre-deploy-test-check.sh      🔴 ALTA   R1-cap-ausente   bloqueia (exit2) e não tem teto:352
-  bootstrap/session-sync.sh          🟡 MÉDIA  R5-sem-failopen  usa jq sem guarda de ausência
-  project-doc/sessionstart-doc.sh    🟡 MÉDIA  R5-sem-failopen  usa python3 sem guarda de ausência
-Total: 3 achado(s) — 1 alta · 2 média · 0 baixa
+Contrato dos hooks — 56 registros, 43 scripts distintos
+  ship/pre-deploy-test-check.sh          🔴 ALTA   R1-cap-ausente    bloqueia (exit2) e não tem teto:363
+  bootstrap/session-sync.sh              🟡 MÉDIA  R5-sem-failopen   usa jq sem guarda de ausência
+  project-skills/sessionstart-doc.sh     🟡 MÉDIA  R5-sem-failopen   usa python3 sem guarda de ausência
+  … + 42 achados 🔴 R6-nome-* (o molde <evento>-<verbo>-<assunto>)
+Total: 45 achado(s) — 43 alta · 2 média · 0 baixa
 ```
 
 O rodapé da própria ferramenta é a régua de como usar isso: *"Cada achado é ONDE OLHAR, não
 veredito. Confira no arquivo antes de consertar."*
 
-⚠️ **Os dois registros novos desta rodada entraram sem produzir achado** —
-`stop-regua-relato.py` e `pretooluse-artefato-regua.py` têm kill-switch (`REGUA_RELATO`,
-`ARTEFATO_REGUA`), cap (`MAX_BLOQUEIOS = 2` no primeiro) e fail-open em toda borda, que são
-exatamente as propriedades 2, 3 e 5 que o scanner mede. **O total subiu de 36 para 38 e a lista
-de achados continua com os mesmos 3** [confirmado — a saída acima, re-executada nesta passada,
-contra a contagem dos `hooks.json` em `8c315ba`, que dá 36].
+⚠️ **Os 42 achados `R6-nome-*` são de RÉGUA NOVA, não de código novo.** O scanner passou a
+cobrar um molde de nome (`<evento>-<verbo>-<assunto>`, com lista fechada de verbos) e quase
+todo hook do repo é anterior a ele — inclusive os do `project-skills`, que só mudaram de
+diretório. Os dois achados 🟡 R5 são os mesmos de sempre; o único que mudou de rótulo é o
+`sessionstart-doc.sh`, que era `project-doc/`.
+⚠️ **A queda de 59 → 56 registros não removeu comportamento**: são os três `ExitPlanMode`
+virando um portão único que chama os outros dois (§6).

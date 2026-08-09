@@ -215,7 +215,12 @@ $(printf '%s' "$OUT" | sed -n '/ENGORDOU/,$p')"
   fi
 fi
 
-# G · literal de gen defasado nos MARKERS das skills do project-doc.
+# G · literal de gen defasado nos MARKERS das skills de documentação.
+#
+# A PORTA DE ENTRADA SEGUE O CÓDIGO (2026-08-09). O recorte era `^plugins/project-doc/`,
+# e a fusão do plugin no `project-skills` deixou o corpo do check apontando pra casa nova
+# com a porta ainda no nome morto: nenhum commit disparava o check, e ele passou a existir
+# sem cobrar nada. Gate mudo é pior que gate nenhum — quem move arquivo move o recorte.
 # A HARD RULE do bump de gen é um checklist de 5 passos feito à mão, e já falhou: depois
 # do bump 3.7→3.8 o nested-pointers.md continuou carimbando gen=3.7, e doc fora do padrão
 # faz todo hook do plugin gritar. A própria skill oferecia o grep como "régua mecânica" —
@@ -223,7 +228,7 @@ fi
 # Só olha gen= DENTRO de comentário HTML (é o que vai carimbado na doc gerada). Menção em
 # prosa a um gen antigo ("doc `gen=3.6` fica stale") é legítima e NÃO é violação — hoje há
 # 4 dessas no repo, e barrá-las ensinaria a ignorar o gate.
-if printf '%s\n' "$FILES" | grep -qE '^plugins/project-doc/'; then
+if printf '%s\n' "$FILES" | grep -qE '^plugins/project-skills/'; then
   GOUT=$(cd "$ROOT" && python3 - <<'PY' 2>/dev/null
 import os, re, sys
 pc = "plugins/project-skills/lib/pattern_check.py"

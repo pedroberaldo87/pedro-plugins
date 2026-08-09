@@ -12,10 +12,10 @@ scope:
   - .claude/custo-gatilho.baseline.json
   - .claude/desacoplamento.baseline.json
   - plugins/project-skills/lib/andamento.py
-  - plugins/sovai/hooks/posttooluse-andamento.sh
+  - plugins/project-skills/hooks/posttooluse-andamento.sh
   - plugins/handoff/skills/handoff/SKILL.md
   - _shared/green-cache.sh
-  - plugins/project-doc/lib/journal.py
+  - plugins/project-skills/lib/journal.py
   - plugins/bootstrap/hooks/hooks.json
   - plugins/bootstrap/hooks/session-sync.sh
   - plugins/bootstrap/hooks/lib/snapshot.sh
@@ -34,7 +34,7 @@ verified-by:
   - plugins/bootstrap/hooks/test_bootstrap_hooks.sh
   - plugins/bootstrap/lib/test_conformance.py
   - plugins/intent-guard/lib/test_ledger.py
-  - plugins/project-doc/lib/test_journal.py
+  - plugins/project-skills/lib/test_journal.py
   - plugins/project-skills/lib/test_plan_state.py
   - plugins/project-skills/lib/test_cobertura.py
   - plugins/handoff/lib/test_handoff_skill.py
@@ -189,8 +189,13 @@ $ grep -rniE "crontab|systemd|launchd|launchctl|pg_dump|mysqldump|restic|borg|rs
 
 ### 2.2 · Catálogo do marketplace — `.claude-plugin/marketplace.json`
 
-- [confirmado] Rastreado. É a fonte da verdade da distribuição: **19 entradas**. Nesta rodada quatro subiram — `sovai` **1.9.0 → 1.11.0**, `visual` **1.11.1 → 1.12.0**, `qa-loop` **1.7.2 → 1.8.0** e `bootstrap` **1.8.5 → 1.9.0** —, que são exatamente os plugins cujo estado mudou aqui. As demais seguem: `project-doc` 3.18.4, `intent-guard` 0.6.0, `guardrails` 1.5.2, `context-guard` 1.3.3.
-- [confirmado, derivado nesta rodada] O espelho `plugin.json` ↔ `marketplace.json` fecha nas **19** entradas — nenhuma diverge. É o check B do release-gate, e ele passa hoje.
+- [confirmado] Rastreado. **É o índice — a lista de quem está distribuído e em que versão não se copia para cá**, porque a cópia defasa e o arquivo não:
+
+  ```bash
+  python3 -c "import json;m=json.load(open('.claude-plugin/marketplace.json'));print(len(m['plugins']));[print(p['name'],p['version']) for p in m['plugins']]"
+  ```
+- 🔴 **Em 2026-08-09 o índice ENCOLHEU, e isso não é perda de cobertura — é fusão.** `sovai`, `qa-loop` e `project-doc` deixaram de existir como plugins e foram absorvidos pelo `project-skills` (commits `086351b` e `1f575e9`). Todo depósito que tinha um dos três como dono passou a ter o `project-skills`, e os caminhos de código andaram junto (`plugins/project-doc/lib/journal.py` → `plugins/project-skills/lib/journal.py`, e assim por diante). **Nenhum depósito mudou de lugar no disco por causa disso** — o que mudou foi quem o escreve. [confirmado — `ls plugins/` e o índice acima não têm mais nenhum dos três]
+- [confirmado] O espelho `plugin.json` ↔ `marketplace.json` fecha em todas as entradas — nenhuma diverge. É o check B do release-gate, e ele passa hoje.
 - Cobertura real: quem instala pelo marketplace só depende deste arquivo e do `plugins/**` — ambos no remote.
 
 ### 2.3 · Documentação gerada — `.claude/docs/*.md` e `.claude/CLAUDE.md`
@@ -223,7 +228,7 @@ $ grep -rniE "crontab|systemd|launchd|launchctl|pg_dump|mysqldump|restic|borg|rs
 
 Depósito **novo em 2026-08-03** (commit `5288bc5`). Ver `data-stores.md §A7` para a anatomia.
 
-- 🟢 **Coberto.** [confirmado] `git ls-files` encontra a fonte (`_shared/r8-tiers.json`, 2.856 bytes) **e** as duas cópias vendoradas (`plugins/{sovai,qa-loop}/skills/*/references/r8-tiers.json`). Nenhuma delas carrega caminho de máquina nem segredo — é valor de configuração, viaja limpo.
+- 🟢 **Coberto.** [confirmado] `git ls-files | grep r8-tiers` encontra a fonte (`_shared/r8-tiers.json`) **e** as cópias vendoradas, hoje dentro do `project-skills` (skills `sprint` e `qa-loop` — as duas herdeiras dos plugins fundidos em 2026-08-09). Nenhuma delas carrega caminho de máquina nem segredo — é valor de configuração, viaja limpo.
 - **Consequência de durabilidade: a cobertura melhorou por conta da mudança, não apesar dela.** O mesmo dado antes vivia disperso no texto de dois `SKILL.md` — versionado, mas sem lugar único de verdade, e o cabeçalho de `_shared/r8_tiers.py` mede o custo disso: *"trocar seis valores custou 45 substituições em dois SKILL.md, três saíram invertidas"*. Um valor em quinze lugares está tecnicamente coberto e praticamente irrecuperável, porque restaurar exige saber qual das cópias estava certa.
 - **O que a redundância é hoje, e por que ela é segura:** três cópias idênticas por construção (`md5` igual nas três nesta rodada), com um verificador que acusa divergência — `scripts/sync-shared.sh --check` para o vendoring e o check **E3** do release-gate (`r8_tiers.py check`) para o markdown gerado e para literal reaparecendo em `SKILL.md`. Rodado nesta sessão: `OK: R8 servido de _shared/r8-tiers.json, sem cópia carimbada em SKILL.md`. [confirmado]
 - ⚠️ **O que a cobertura do git NÃO devolve:** o campo `porque` de cada tier é julgamento escrito à mão. `git checkout` traz o arquivo de volta; um arquivo regenerado do zero traria os `effort` e não os motivos.
@@ -253,7 +258,7 @@ Cada bloco abaixo diz o mesmo em variações: existe no disco desta máquina, n�
 ### 3.2 · Journal do project-doc — `.claude/.project-doc/`
 
 - [confirmado] Ignorado por `.gitignore:21`. `du -sh` → **4,8M**; `findings.jsonl` com **1133** linhas; ao lado, `ledger.json`, `lint-allow.txt` e um diretório `backups/` (também local).
-- Natureza (de `plugins/project-doc/lib/journal.py`): append-only. `append_events()` só escreve linhas novas; `fold()` reconstrói o estado vivo por id, em ordem cronológica — `discovered` cria, `invalidated` mata sem apagar, `curated` sobrepõe o texto; `live_findings()` filtra o que sobrou vivo e aplica a curadoria.
+- Natureza (de `plugins/project-skills/lib/journal.py`): append-only. `append_events()` só escreve linhas novas; `fold()` reconstrói o estado vivo por id, em ordem cronológica — `discovered` cria, `invalidated` mata sem apagar, `curated` sobrepõe o texto; `live_findings()` filtra o que sobrou vivo e aplica a curadoria.
 - Isso corta pela raiz a perda *parcial* (nada é reescrito) e não faz nada contra a perda *total* do arquivo.
 - ⚠️ O docstring do módulo ainda descreve o journal como "versionado — é o veículo do conhecimento" (`state_dir()`); [confirmado] no `.gitignore` de hoje ele **não é**. A intenção do código e a regra do repo divergem, e a regra é que vale.
 - O scrubber (`scrub()`) existe justamente porque o journal *era* a barreira para o git: ele move valor-secreto para o cofre (§3.11) e preserva nome/host/porta. Com o journal fora do índice, o scrubber virou defesa em profundidade, não a única barreira.
@@ -281,6 +286,7 @@ Cada bloco abaixo diz o mesmo em variações: existe no disco desta máquina, n�
 - **Consequência de durabilidade: a prova ficou mais densa e continua sem cópia.** A recusa empurra a `evidence` para saída de comando e sha em vez de parágrafo — mais verificável e menos reescrevível de memória. Um plano perdido antes custava uma narrativa que alguém poderia recontar; hoje custa o registro literal do comando que rodou e do que ele devolveu, que ninguém reconstitui de cabeça.
 - ⚠️ **O teto vem de fora do módulo** (`from regua_texto import BULLET_MAX`, e `DESC_MAX = BULLET_MAX`), da cópia vendorada em `plugins/visual/lib/` — uma das **9** que o `sync-shared.sh` mantém. Perder a cópia não perde plano, mas faz o `plan_state.py` parar de importar: a régua compartilhada virou dependência de execução do depósito, não só do renderizador. [confirmado]
 - **A prova já gravada não é reavaliada** — a recusa é do momento de gravar. Os planos no disco com prova antiga em bloco único seguem válidos e nada os migra.
+- 🟢 **Uma classe de corrupção silenciosa fechou em 2026-08-09:** `save()` passou a escrever `status: "todo"` em toda tarefa que chegar sem o campo. Antes, tarefa sem `status` sumia das contagens — *"não é feita, não é pendente, e a soma por fora erra"*, medido no dia em que duas tarefas sem o campo fizeram **218 virar 217**. **Consequência de durabilidade:** o arquivo no disco deixou de poder guardar uma tarefa invisível, e a normalização mora no ponto por onde **toda** escrita passa, não em cada comando — quem gravar por um caminho novo herda a correção sem saber que ela existe. [confirmado, `plugins/project-skills/lib/plan_state.py:save`]
 - [confirmado, medido nesta rodada] O depósito cresceu de 13 para **18** planos (**192K**, 163.576 bytes), e hoje há **um** plano ativo (`2026-08-03-a-constituicao-se-cumpre`) — o impasse dos dois ativos simultâneos deixou de ser o estado deste disco.
 - Nada disso é cobertura: protege contra o plano *virar outro*, não contra o arquivo sumir.
 - Coberto por teste [confirmado, rodado nesta sessão]: `python3 plugins/project-skills/lib/test_plan_state.py` → `OK` (173 asserções `ok`, contra 135 antes da rodada de consertos; a última impressa é `list_plans pula o corrompido`) e `python3 plugins/project-skills/lib/test_cobertura.py` → `OK` (13).
@@ -292,9 +298,10 @@ Cada bloco abaixo diz o mesmo em variações: existe no disco desta máquina, n�
 
 ### 3.6 · Retrato do contrato dos hooks — `.claude/hook-contract.baseline.json`
 
-- [confirmado] Ignorado por `.gitignore:45`; `git ls-files --error-unmatch` confirma que não está no índice.
-- Conteúdo (chaves de topo: `root`, `entries`, `scripts`, `findings`, `measured`) carrega **caminho absoluto da máquina** no campo `root` — que é exatamente o critério da seção 3 do `.gitignore`.
-- Regenerável pela varredura de contrato; a perda é do *baseline de comparação*, não do contrato em si.
+- 🟢 **Voltou a ser RASTREADO, e este bloco estava desatualizado** [confirmado nesta rodada — `git ls-files .claude/hook-contract.baseline.json` devolve o caminho e `git check-ignore -v` não casa nada]. Ele saiu da seção *retrato desta máquina* do `.gitignore` quando **perdeu a chave `root`**, que gravava o caminho absoluto da máquina que mediu. Sem ela o retrato viaja, e outra máquina reproduz a comparação.
+- Chaves de topo hoje: `entries`, `scripts`, `findings`, `measured` — nenhum caminho de máquina (`grep -c '/Users/'` devolve 0). Ver `data-stores.md §A5`.
+- **Consequência de durabilidade:** o check E do release-gate deixou de depender de um baseline local. A família de seis retratos (§3.6a, §3.6b) está inteira coberta pelo git — o "único que não viaja" descrito aqui deixou de existir.
+- Regenerável pela varredura de contrato; o que a perda custa é o *julgamento* das isenções aceitas, que vive em prosa no `patterns.md`, não o contrato em si.
 
 ### 3.6a · Retrato do custo do fim de turno — `.claude/stop-budget.baseline.json`
 
@@ -308,18 +315,21 @@ Nasceu em 2026-08-02. Irmão do §3.6, e a diferença de cobertura entre os dois
 
 Nasceram nesta rodada e levaram a família de baselines de dois para seis. Anatomia em `data-stores.md §A5d`. A lista viva sai de `git ls-files '.claude/*.baseline.json'`.
 
-- 🟢 **Todos RASTREADOS, logo COBERTOS pelo backup do git** — mesma situação do §3.6a e diferente do §3.6, que carrega caminho absoluto de máquina e por isso não viaja.
-- **Consequência prática:** os checks **N**, **J**, **K** e o do fio morto funcionam em qualquer clone; o check **E** (contrato dos hooks) continua sendo o único da família que depende de um baseline local.
+- 🟢 **Todos RASTREADOS, logo COBERTOS pelo backup do git** — e desde que o §3.6 perdeu a chave `root` e voltou ao índice, **a família dos seis está inteira coberta**: não há mais o caso de um baseline que só existe nesta máquina.
+- **Consequência prática:** os checks que leem esses retratos — inclusive o **E**, do contrato dos hooks — funcionam em qualquer clone.
 - **RPO/RTO:** o mesmo do repositório — perde-se o que não foi commitado, e restaurar é um `git checkout`.
 - ⚠️ **O que a perda custa é a DECISÃO, não o dado.** Regerar qualquer um é um comando; um retrato regenerado do zero aceita, em silêncio, o estado atual — inclusive a regressão que alguém tinha barrado ontem. Vale sobretudo para o `desacoplamento.baseline.json`, cujas 95 entradas são dívida que alguém leu e decidiu tolerar.
 
-### 3.20 · Memória de duração dos comandos — `~/.claude/andamento/`
+### 3.20 · Memória de duração e estado da missão — `~/.claude/andamento/`
 
-Nasceu nesta rodada. Anatomia em `data-stores.md §B13`.
+Nasceu em 2026-08-08. Anatomia em `data-stores.md §B13`.
 
+- **Dono novo desde 2026-08-09:** o gancho que a escreve mudou de `plugins/sovai/hooks/posttooluse-andamento.sh` para **`plugins/project-skills/hooks/posttooluse-andamento.sh`**, junto com a fusão dos três plugins (§2.2). O módulo `plugins/project-skills/lib/andamento.py` já morava lá. **O depósito não se mexeu** — mudou o escritor, não o disco.
 - 🔴 **SEM COBERTURA NENHUMA** — mora fora do repositório, em `${CLAUDE_CONFIG_DIR:-~/.claude}/andamento/`, como todo o bloco (B). Nenhum mecanismo o copia.
-- 🔴 **É o único ativo do inventário que NÃO é reconstruível nem por comando nem por um evento passado.** Grafo e baselines se regeneram; atas e journal registram algo que aconteceu e pode ser relido. Aqui o dado *é* a estatística acumulada: a mediana de uma suíte só existe porque ela rodou dezenas de vezes nesta máquina.
-- **RPO: total. RTO: semanas de uso.** Apagar não quebra funcionalidade — o narrador do fluxo 19 volta a sair só com o relógio, sem estimativa —, mas a memória recomeça do zero e só volta com o tempo.
+- 🔴 **O `duracoes-*.json` é o único ativo do inventário que NÃO é reconstruível nem por comando nem por um evento passado.** Grafo e baselines se regeneram; atas e journal registram algo que aconteceu e pode ser relido. Aqui o dado *é* a estatística acumulada: a mediana de uma suíte só existe porque ela rodou dezenas de vezes nesta máquina.
+- **O que MAIS mora aqui desde 2026-08-09, e não é da mesma classe:** `ativo-*` (só o do motor `gauntlet`), `sinal-*`, `placar-*` e `trabalho-*` passaram a nascer nesta pasta em vez de `~/.claude/sovai/` (§3.15b). São **efêmeros por sessão**: perder não custa nada, e a próxima missão os recria. A pasta ficou, portanto, **mista** — um ativo insubstituível ao lado de quatro descartáveis, no mesmo `rm -rf`.
+- ⚠️ **A exposição herdada da mudança de casa é SOBRAR, não perder** (a mesma do §3.15b): `ativo-*` esquecido bloqueia sub-agente na sessão inteira e `trabalho-*` esquecido faz a barra dizer "rodando" para sempre. O gancho apaga o `trabalho-*` **nas duas pastas** antes de qualquer saída antecipada, justamente por isso; o `ativo-*` expira por idade (`GAUNTLET_TTL_MIN`, default 720 min) e a expiração vira linha em `expirados.log`. [confirmado — `plugins/project-skills/hooks/posttooluse-andamento.sh` e `plugins/gauntlet/hooks/pretooluse-gauntlet.sh`]
+- **RPO: total. RTO: semanas de uso** — para o `duracoes-*.json`. Apagar não quebra funcionalidade — o narrador do fluxo 19 volta a sair só com o relógio, sem estimativa —, mas a memória recomeça do zero e só volta com o tempo. Para os outros quatro, RTO é a próxima missão.
 - **Nada acusa a perda.** Não há verificador que leia esta pasta; um `rm -rf` passaria despercebido até alguém notar que as estimativas sumiram. É lacuna declarada, não cobertura.
 
 ### 3.7 · Ledger do intent-guard — `<projeto>/.claude/intent/`
@@ -330,16 +340,32 @@ Nasceu nesta rodada. Anatomia em `data-stores.md §B13`.
 - [confirmado] O plugin está **desligado** nesta máquina (`intent-guard@pedro-plugins: False` em `enabledPlugins`) — o ledger existente é histórico parado, não fluxo vivo.
 - Coberto por teste [confirmado, rodado nesta sessão]: `python3 plugins/intent-guard/lib/test_ledger.py` → `test_ledger: OK`.
 
+#### 3.7a · O fallback do caderno — `~/.claude/intent/<slug-do-cwd>/`
+
+`[TODO: sem cobertura declarada]` — o bloco existia no `data-stores.md §B6` e não tinha par aqui. Declarado agora.
+
+- **O que é:** o mesmo ledger do §3.7, para os `cwd` que **não** têm raiz de projeto. `ledger.py:intent_dir` só cai aqui quando `project_root(cwd)` devolve vazio; num repositório git o caderno vive em `<projeto>/.claude/intent/`. **Nada de pedro-plugins está aqui** — os slugs no disco são de outros caminhos. [confirmado — `ls ~/.claude/intent`]
+- 🔴 **Cobertura: NENHUMA, e é estruturalmente pior que a do §3.7.** O caderno do projeto ao menos mora dentro de uma árvore que alguém poderia versionar por decisão; este mora fora de qualquer repositório por construção — não há índice a que ele pudesse pertencer.
+- **RPO = ∞, RTO = irrecuperável.** Mesma natureza do §3.7: histórico de intenção, append-only, sem regenerador. Perder é perder.
+
+#### 3.7b · Handoffs e briefings no repo — `.claude/HANDOFF*.md`, `.claude/BRIEFING-*.md`
+
+`[TODO: sem cobertura declarada]` — citados no `data-stores.md` (região C) e sem par aqui até agora.
+
+- [confirmado] Ignorados por `.gitignore:22` e `:20`, na seção *registro de trabalho*. `git check-ignore -v .claude/HANDOFF.md` → `.gitignore:22`.
+- 🔴 **Sem cobertura**, e a perda não é só do texto: eles são **fonte de mineração** do journal (`journal.py:collect_handoffs` lê os bullets das seções de `HANDOFF_SECTIONS` e os transforma em findings do tipo `handoff`). Perder os arquivos **depois** da mineração preserva os findings já colhidos no §3.2; perder os dois é perder o conhecimento e a fonte de uma vez.
+- **Por que ficam fora do índice:** é a mesma regra que tira as atas — registro de sessão acumula nome de cliente e caminho de máquina sem ninguém revisar, e este repositório é público.
+
 ### 3.8 · Cache de suite verde — `~/.claude/green-suite/`
 
 - [confirmado] Fora do repo por desenho: `_shared/green-cache.sh` define `GREEN_SUITE_DIR="${GREEN_SUITE_DIR:-$HOME/.claude/green-suite}"` com o motivo no cabeçalho — *NUNCA dentro do plugin, o cache `${CLAUDE_PLUGIN_ROOT}` é reescrito a cada bump de versão*.
 - [confirmado] **35** arquivos, **140K** (eram 48 / 192K — a poda de 7 dias alcançou os mais velhos).
 - **Perder isto não custa nada.** A semântica é fail-open na direção segura: qualquer erro vira MISS e a suite roda. TTL por linha em `GREEN_SUITE_TTL_SECS` (default `86400`), e `green_cache_mark()` faz `find "$GREEN_SUITE_DIR" -type f -mtime +7 -delete` — o próprio código já poda. É o único depósito deste documento cuja perda é um não-evento.
-- Costura verificada nos dois lados [confirmado]: a fonte é `_shared/green-cache.sh`, as cópias vendoradas são `plugins/qa-loop/lib/green-cache.sh` e `plugins/ship/hooks/green-cache.sh`, e o consumidor concreto é `plugins/ship/hooks/pre-deploy-test-check.sh`.
+- Costura verificada nos dois lados [confirmado]: a fonte é `_shared/green-cache.sh`, as cópias vendoradas são `plugins/project-skills/lib/green-cache.sh` e `plugins/ship/hooks/green-cache.sh`, e o consumidor concreto é `plugins/ship/hooks/pre-deploy-test-check.sh`.
 
 ### 3.9 · Aprendizado cross-projeto do qa-loop — `~/.claude/qa-loop/journal/`
 
-- [confirmado] **76K**, **2** arquivos no diretório `journal/`. `plugins/qa-loop/skills/qa-loop/SKILL.md` nomeia `~/.claude/qa-loop/journal/telemetry.jsonl` ("sobrevive a reinstalar o plugin") e `~/.claude/qa-loop/journal/learnings.md` (cross-projeto, acumula).
+- [confirmado] **76K**, **2** arquivos no diretório `journal/`. `plugins/project-skills/skills/qa-loop/SKILL.md` nomeia `~/.claude/qa-loop/journal/telemetry.jsonl` ("sobrevive a reinstalar o plugin") e `~/.claude/qa-loop/journal/learnings.md` (cross-projeto, acumula).
 - Sobreviver a reinstalar o plugin não é sobreviver a perder a máquina. Este é o depósito cuja perda é irrecuperável por natureza: acumulado ao longo de rodadas, não regenerável.
 
 ### 3.10 · Estado do live-sync do `/visual` — `~/.claude/visual-state/`
@@ -362,9 +388,13 @@ Nasceu nesta rodada. Anatomia em `data-stores.md §B13`.
 
 ### 3.11a · Banco de lições de clareza — `~/.claude/visual-state/licoes-clareza.json`
 
-- [confirmado] **35 KB · 65 lições** nesta máquina. Escrito por `plugins/visual/lib/clareza.py` (`registrar`); lido por ele (`licoes`, `check`) e por `plugins/visual/lib/visual_page.py`, que **recusa a página** que traz um termo já reprovado.
-- 🔴 **É o único depósito de (B) que NÃO se regenera.** Todos os outros são cache, sessão ou preferência: apagados, voltam sozinhos ou custam um comando. Este é **conhecimento acumulado com custo de aquisição real** — cada lição nasceu de uma reprovação de um leitor externo sobre uma página específica, e a reprovação não acontece de novo se o arquivo sumir. As 5 de fábrica voltam (moram no código, em `clareza.py:SEMENTE`); **as outras 60, não**.
-- **Cobertura hoje: NENHUMA.** Ele mora em `~/.claude/`, fora de todo repositório, e nenhuma das rotinas da seção 2 o alcança. Perdê-lo é silencioso: o `carrega()` cai na semente sem erro, e a única pista é o contador do `licoes` voltar a 5.
+- **O banco de regras de escrita das páginas.** Escrito por `plugins/visual/lib/clareza.py` (`registrar`); lido por ele (`licoes`, `check`) e por `plugins/visual/lib/visual_page.py`, que **recusa a página** que traz um termo já reprovado. Caminho em `clareza.py:BANCO`, sobre `STATE_DIR = ${CLAUDE_CONFIG_DIR:-~/.claude}/visual-state`. Quantas regras existem agora — o número sai do comando, nunca daqui:
+
+  ```bash
+  python3 -c "import json,os;print(len(json.load(open(os.path.expanduser('~/.claude/visual-state/licoes-clareza.json')))['licoes']))"
+  ```
+- 🔴 **É o depósito de (B) que NÃO se regenera** (o outro é o `duracoes-*.json` do §3.20, e por motivo diferente). Cache, sessão e preferência voltam sozinhos ou custam um comando. Este é **conhecimento acumulado com custo de aquisição real** — cada regra nasceu de uma reprovação de um leitor externo sobre uma página específica, e a reprovação não acontece de novo se o arquivo sumir. **Só as de fábrica voltam** (moram no código, em `clareza.py:SEMENTE`); as aprendidas, não.
+- **Cobertura hoje: NENHUMA.** Ele mora em `~/.claude/`, fora de todo repositório, e nenhuma das rotinas da seção 2 o alcança. Perdê-lo é silencioso: o `carrega()` cai na semente sem erro, e a única pista é o contador do `licoes` voltar ao tamanho da `SEMENTE`.
 - **Consequência prática:** o mesmo defeito de escrita volta a passar, e volta a ser descoberto pelo mesmo caminho caro — uma página inteira escrita, reprovada por um leitor, e reescrita.
 - **Conserto barato, ainda não feito:** ele é um JSON pequeno e append-only por natureza; versioná-lo no repositório (ou copiá-lo junto do `config.json`) o levaria de "sem cobertura" a "coberto pelo git" sem nenhum mecanismo novo.
 
@@ -469,17 +499,20 @@ arquivo com um número. Escrito e lido por `plugins/intent-guard/lib/ledger.py:f
 - 🔴 **E agora são DOIS verificadores lendo os mesmos dois arquivos, com filtros diferentes** [confirmado, li os dois]. O `conformance.py` conta **execuções** (`julgou` vs `juiz sem resposta`, para saber se o guarda está vivo); o `ledger.py:furos_da_regua` conta **reprovações** (`motivo == "julgou" and veredito != "passa"`, para dizer ao dono quantas vezes a régua foi furada). Mesmo arquivo de 228 linhas, respostas de naturezas distintas — "o guarda está ativo" e "20 furos". Apagar `~/.claude/state/` hoje quebra as duas leituras de uma vez, e cada uma falha de um jeito: uma acusa hook morto, a outra some com o histórico de furos (§3.14-b).
 - Coberto por teste [confirmado, rodado nesta sessão]: `plugins/bootstrap/lib/test_conformance.py` traz `teste_juiz_de_forma_mudo()`, que semeia `state/forma-relato/batidas.log` num `CLAUDE_DIR` de mentira e afirma os dois desvios ("nunca executou" e "mudo"). Saída: `59 ok · 0 FAIL`.
 
-### 3.15b · Interruptor da missão autônoma — `~/.claude/sovai/`
+### 3.15b · Interruptor da missão, reserva de arquivos, e o legado — `~/.claude/sovai/`
 
-Nasceu em 2026-08-02 com o gate que mantém o `/sovai` no motor Workflow. Ver `data-stores.md §B11` para a anatomia.
+Nasceu em 2026-08-02 com o gate que mantém a missão autônoma no motor Workflow. Ver `data-stores.md §B11` para a anatomia.
+
+- **O plugin que batizou a pasta não existe mais, e a pasta continua com o nome dele.** `sovai` virou a skill `sprint` dentro do `project-skills` em 2026-08-09 (§2.2); quem escreve aqui hoje é `plugins/project-skills/hooks/pretooluse-motor-arma.sh` e `plugins/project-skills/hooks/reserva-de-arquivos.sh`. **A reserva mudou de casa no CÓDIGO e não no DISCO** — `plugins/sovai/hooks/reserva-de-arquivos.sh` → `plugins/project-skills/hooks/`, escrevendo o mesmo `~/.claude/sovai/reservas/`. [confirmado — `grep -n 'sovai' plugins/project-skills/hooks/reserva-de-arquivos.sh`]
+- 🟡 **A pasta virou MEIO legado, e isso é uma pegadinha de recuperação.** `duracoes-*`, `sinal-*`, `placar-*` e `trabalho-*` agora **nascem** em `~/.claude/andamento/` (§3.20) e daqui só são **lidos** (`andamento.py:_ler` procura na casa nova e cai na antiga só quando ela não tem). Consequência prática: as duas pastas guardam arquivos de nome idêntico, e **a de `sovai/` é a velha**. Quem restaurar "o estado da missão" copiando a pasta errada restaura dado vencido sem nenhum aviso. Nenhuma das duas tem cobertura, então a escolha é sempre entre duas cópias locais.
 
 - **Perder não perde trabalho, e isso é por desenho.** O conteúdo é interruptor (`ativo-<session_id>` é arquivo **vazio**; o que significa é existir) e contador (`bloqueios-<session_id>`). Sumindo o diretório, o gate volta a ser mudo e a próxima missão o recria.
 - **O único conteúdo com valor de leitura é `desistencias.log`** — uma linha por vez que o cap de 3 estourou. É diagnóstico ("o gate desistiu N vezes, vá ver por quê"), não dado de trabalho. Sem cobertura, e a perda custa a série histórica dessas desistências. **Mesma classe do `bypass.log`** do teto de prosa (§3.14): log de desistência existe justamente para desistir não ser silencioso, então perdê-lo devolve o silêncio.
-- ⚠️ **A exposição real aqui é a inversa da dos outros ativos: não é perder, é sobrar.** Missão interrompida antes da entrega (sessão morta, `/clear`, limite de sessão) deixa o `ativo-*` aceso, e **a sessão inteira segue sem despachar sub-agente** sem que nada explique. Não há poda por idade — o `scope-cop` ganhou `find … -mtime +1 -delete` no mesmo commit em que nasceu, e este não. `[confirmado — `pretooluse-sovai-motor.sh` não tem nenhuma chamada de poda]` Diagnóstico e conserto manual: `ls ~/.claude/sovai/` e `rm` do sinal órfão.
+- ⚠️ **A exposição real aqui é a inversa da dos outros ativos: não é perder, é sobrar.** Missão interrompida antes da entrega (sessão morta, `/clear`, limite de sessão) deixa o `ativo-*` aceso, e **a sessão inteira segue sem despachar sub-agente** sem que nada explique. ✅ **A poda por idade EXISTE hoje**, e é o conserto da dívida que este bloco declarava: `SOVAI_TTL_MIN` (default **720 min**) apaga o sinal velho e o `bloqueios-<sid>` órfão junto, registrando a linha em `expirados.log` — *"sinal ignorado ressuscitaria a cada consulta"*. A janela é larga de propósito: a missão que o gate protege é longa por definição. `[confirmado — `plugins/project-skills/hooks/pretooluse-motor-arma.sh`, o antigo `pretooluse-sovai-motor.sh`]` Diagnóstico e conserto manual continuam valendo dentro da janela: `ls ~/.claude/sovai/` e `rm` do sinal órfão.
 - 🔴 **O aviso acima deixou de ser hipótese em 2026-08-02** `[confirmado]`: dos **três** `ativo-*` no disco, dois eram de sessões de **outros projetos ainda vivas** (transcript mexido há 2 e 10 minutos). Elas seguiam sem despachar sub-agente sem que nada explicasse. O sinal é por sessão, então o estrago não se espalha — mas também nada o recolhe.
 - ✅ **O que o cap cobria virou medição na mesma rodada** `[confirmado]`: com o sinal aceso, um Workflow de um agente completou e o `bloqueios-<sid>` não se moveu — o motor **não** passa pelo gate. O cap fica como rede contra mudança futura do runtime, não por dúvida sobre isto.
 - 🔴 **A mesma classe de defeito reapareceu em 2026-08-08, por outro arquivo do diretório** `[confirmado]`: a `reservas/<sessão>__<motor>.files` de um motor morto ficou no disco, e o motor seguinte **recusou-se a executar qualquer passo** — os 54 caminhos que ele precisava tocar apareciam reservados por alguém que já não existia. Perder a pasta não custa nada; **sobrar custa a rodada inteira**. Diagnóstico: `ls ~/.claude/sovai/reservas/` — vazio é o normal.
-- **Duas naturezas novas entraram sem cobertura, e uma delas tem valor de série** `[confirmado — `ls ~/.claude/sovai/`]`: `sinal-*`/`placar-*` são efêmeros de barra (perder não custa nada), mas **`duracoes-<projeto>.json` é a memória de quanto cada comando demora naquele projeto** — é dela que sai a estimativa mostrada ao dono. Perdê-la não quebra nada: a estimativa volta a ser *"primeira vez aqui, sem estimativa"* e a série se reconstrói sozinha com o uso. Sem cobertura, e o custo é aceitável por isso.
+- **As duas naturezas que este bloco descrevia MUDARAM DE CASA em 2026-08-09** `[confirmado — `ls ~/.claude/sovai/ ~/.claude/andamento/`]`: `sinal-*`/`placar-*` (efêmeros de barra) e `duracoes-<projeto>.json` (a memória de quanto cada comando demora) **nascem agora em `~/.claude/andamento/`**, e a cobertura deles é descrita no §3.20. O que ficou aqui é a **cópia velha**, ainda lida pela cascata de legado. **Nenhuma das duas cópias tem cobertura** — a mudança de casa não melhorou nem piorou a durabilidade, só duplicou o lugar onde procurar.
 
 ### 3.15c · Log do gate do anúncio — `~/.claude/state/anuncio-acao/`
 
@@ -507,11 +540,11 @@ Nasceu em 2026-08-03 com o plugin `vision` (commit `4a4b59d`, v0.1.0). Ver `data
 
 ### 3.17 · Cofre de secrets — iCloud
 
-- [confirmado] `cofre_paths()` em `plugins/project-doc/lib/journal.py` resolve nesta ordem: `PROJECT_DOC_COFRE_DIR` (override explícito) → `~/Library/Mobile Documents/com~apple~CloudDocs/Cofre` → fallback local `<projeto>/.claude/secrets/_local_cofre`. O nome do arquivo é `<basename>-<8 hex do sha1 do path absoluto>.env`, para dois projetos homônimos não colidirem.
+- [confirmado] `cofre_paths()` em `plugins/project-skills/lib/journal.py` resolve nesta ordem: `PROJECT_DOC_COFRE_DIR` (override explícito) → `~/Library/Mobile Documents/com~apple~CloudDocs/Cofre` → fallback local `<projeto>/.claude/secrets/_local_cofre`. O nome do arquivo é `<basename>-<8 hex do sha1 do path absoluto>.env`, para dois projetos homônimos não colidirem.
 - [confirmado] O diretório do iCloud existe nesta máquina e tem **25** entradas.
 - **É o único depósito deste documento com cópia offsite que não é o GitHub** — e é offsite por acidente de local, não por política de backup. `stash_secrets()` chama `ensure_gitignore(project_root, ".claude/secrets/")` **antes** de escrever, justamente porque no caminho de fallback o cofre cai dentro do repo.
 - O símbolo `scrub()` é o que alimenta o cofre: scorer em camadas (PEM → connection string → JWT → prefixos de provider → par JSON → `chave=valor` → prosa perto de token de alta entropia → marcação `‹revisar?›` na dúvida). Política declarada no código: *nomes e contexto SIM, valores NÃO*.
-- Coberto por teste [confirmado, rodado nesta sessão]: `python3 plugins/project-doc/lib/test_journal.py` → `TODOS OS 123 CHECKS PASSARAM`.
+- Coberto por teste [confirmado, rodado nesta sessão]: `python3 plugins/project-skills/lib/test_journal.py` → `TODOS OS 123 CHECKS PASSARAM`.
 
 ### 3.18 · Estado por-sessão em `/tmp` e sentinelas de sync
 
@@ -550,7 +583,7 @@ Números por classe, todos derivados dos mecanismos acima. [inferido] onde não 
 $ bash plugins/bootstrap/hooks/test_bootstrap_hooks.sh      # 36 ok · 0 FAIL
 $ python3 plugins/bootstrap/lib/test_conformance.py         # 59 ok · 0 FAIL
 $ python3 plugins/intent-guard/lib/test_ledger.py           # test_ledger: OK
-$ python3 plugins/project-doc/lib/test_journal.py           # TODOS OS 123 CHECKS PASSARAM
+$ python3 plugins/project-skills/lib/test_journal.py           # TODOS OS 123 CHECKS PASSARAM
 $ python3 plugins/project-skills/lib/test_plan_state.py             # OK
 $ python3 plugins/project-skills/lib/test_cobertura.py              # OK
 ```
@@ -573,6 +606,7 @@ Ordenado por custo da perda, do pior para o mais barato:
 - 🔴 **Journal do project-doc** (4,8M, 1133 eventos) e **aprendizado cross-projeto do qa-loop** — conhecimento acumulado, não regenerável, zero cobertura (§3.2, §3.9).
 - 🔴 **Atas, planos ticáveis e ledger do intent-guard** — registro de decisão com prova anexada; append-only protege contra corrupção, não contra sumiço (§3.4, §3.5, §3.7). ⚠️ **Os planos subiram de classe nesta rodada:** com o bloco `requisitos` no topo do arquivo, num projeto sem PRD o `.plan.json` passou a ser também o único lugar onde o *pedido* está escrito, não só a execução (§3.5).
 - 🔴 **Os 20 vereditos de reprovação do juiz de forma** — texto livre descrevendo cada defeito, sem cópia e sem regenerador; era contagem na rodada anterior, virou corpus nesta (§3.13).
+- 🔴 **Os dois acumulados de `~/.claude/` que NENHUM comando refaz** — as durações por comando (§3.20) e as regras de escrita das páginas (§3.11a). Os dois só existem porque algo rodou ou foi reprovado dezenas de vezes nesta máquina; os dois moram fora de qualquer repositório; e nenhum verificador acusa a perda. Fora do índice não por decisão sobre eles, mas porque `~/.claude/` inteiro está fora.
 - 🟡 **Batidas do juiz de forma e do teto de prosa** — entrada de **dois** verificadores desde esta rodada (o conformance, que pergunta se o guarda está vivo, e o `furos_da_regua`, que conta furos pro dono); apagar faz um reportar "nunca executou" para hook que funciona e o outro perder o histórico de furos (§3.13, §3.14, §3.14-b, §3.15).
 - 🟡 **Preferências e kill-switches** (`config.json` do `/visual`, arquivos `mode`, `vision.json`) — perder não custa dado, custa **inversão silenciosa de comportamento**; o `vision.json`, em vez de inverter, para a tool com mensagem pedindo reconfig (§3.11, §3.16, §3.16b).
 - 🟢 **Grafo do graphify, saída do `/visual`, baseline de hooks** — regeneráveis por comando (§3.3, §3.6, §3.19).

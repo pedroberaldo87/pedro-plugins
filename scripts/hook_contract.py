@@ -587,12 +587,17 @@ def stop_budget(root):
         for h in cfg.get("hooks", {}).get("Stop", []):
             for hh in h.get("hooks", []):
                 cmd = hh.get("command", "")
-                m = re.search(r"([\w.-]+\.(?:sh|py))", cmd)
-                if not m:
-                    continue
-                caminho = os.path.join(root, "plugins", plug, "hooks", m.group(1))
-                if os.path.exists(caminho):
-                    emissores.append((plug, m.group(1), caminho, hh.get("timeout")))
+                # QUEM EMITE É O SCRIPT, NÃO A BIBLIOTECA (2026-08-09). Aqui havia um
+                # `re.search(r"([\w.-]+\.(?:sh|py))", cmd)` — o PRIMEIRO nome de arquivo
+                # do comando. Em todo emissor que faz `. hooks/hook-json.sh; "$PY" …`,
+                # o primeiro é a biblioteca: três emissores reais (`stop-prose-ceiling.py`,
+                # `stop-forma-relato.py`, `stop-anuncio-sem-acao.py`) apareciam como
+                # `hook-json.sh` com 0 linha, o orçamento saía SUBESTIMADO, e a comparação
+                # com o retrato congelado batia nome contra nome errado. `resolve_script`
+                # já resolvia isso 400 linhas acima — este bloco o reinventava pior.
+                caminho = resolve_script(root, plug, cmd)
+                if caminho and os.path.exists(caminho):
+                    emissores.append((plug, os.path.basename(caminho), caminho, hh.get("timeout")))
 
     terceiros = _emissores_de_terceiros()
     fora = []

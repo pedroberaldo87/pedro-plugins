@@ -11,8 +11,8 @@ scope:
   - graphify-out/manifest.json
   - graphify-out/.graphify_labels.json
   - graphify-out/GRAPH_REPORT.md
-  - plugins/project-doc/lib/journal.py
-  - plugins/project-doc/lib/graph_map.py
+  - plugins/project-skills/lib/journal.py
+  - plugins/project-skills/lib/graph_map.py
   - plugins/intent-guard/lib/ledger.py
   - _shared/green-cache.sh
   - plugins/visual/server/visual_server.mjs
@@ -23,9 +23,9 @@ scope:
   - .claude/custo-gatilho.baseline.json
   - .claude/desacoplamento.baseline.json
   - plugins/project-skills/lib/andamento.py
-  - plugins/sovai/hooks/posttooluse-andamento.sh
+  - plugins/project-skills/hooks/posttooluse-andamento.sh
   - plugins/visual/lib/visual_page.py
-  - plugins/visual/hooks/stop-plan-status.sh
+  - plugins/project-skills/hooks/stop-plan-status.sh
   - plugins/handoff/skills/handoff/SKILL.md
   - scripts/hook_contract.py
   - plugins/branches/lib/branch_state.py
@@ -38,7 +38,7 @@ scope:
   - plugins/bootstrap/hooks/stop-forma-relato.py
   - plugins/bootstrap/hooks/hooks.json
   - plugins/bootstrap/lib/conformance.py
-  - plugins/project-doc/hooks/stop-doc-touch.sh
+  - plugins/project-skills/hooks/stop-doc-touch.sh
 verified-by:
   - plugins/project-skills/lib/test_plan_state.py
   - plugins/project-skills/lib/test_cobertura.py
@@ -46,8 +46,8 @@ verified-by:
   - plugins/handoff/lib/test_handoff_skill.py
   - plugins/intent-guard/lib/test_ledger.py
   - plugins/branches/lib/test_branch_state.py
-  - plugins/project-doc/lib/test_journal.py
-  - plugins/project-doc/lib/test_graph_map.py
+  - plugins/project-skills/lib/test_journal.py
+  - plugins/project-skills/lib/test_graph_map.py
 doc-sig: pedro-plugins/.gitignore@gen=3.8#7c21f263
 ---
 
@@ -136,7 +136,7 @@ A régua fecha: `git ls-files -i -c --exclude-standard` → **0**. [confirmado]
 - **Sete chaves de topo** (`_comment`, `revised`, `model`, `api_default_effort`, `tiers`, `regra_por_rodada`, `fundamento`). O `tiers` é o coração: um objeto por etapa (`decompose`, `coordinate`, `executor`, `mechanical`, `diagnose`, …), cada um com `effort`, `etapa`, `quando` e **`porque`** — o motivo escrito ao lado do valor, que é a parte que nenhum literal em SKILL.md carregava. [confirmado, `json.load` nesta rodada]
 - **Três consumos, todos lendo o mesmo arquivo** (`_shared/r8_tiers.py`): `args` monta o dicionário que a casca passa ao Workflow; `render` gera o `r8-tiers.md`; `check` falha se o markdown divergir do JSON **ou** se um `SKILL.md` voltar a carimbar um valor literal. Rodado nesta rodada: `OK: R8 servido de _shared/r8-tiers.json, sem cópia carimbada em SKILL.md`. [confirmado]
 - **Quem cobra:** o check **E3** do `.claude/hooks/release-gate.sh` (linhas 83-89), que roda `r8_tiers.py check` e barra o commit com a mensagem *"o valor vive em `_shared/r8-tiers.json` e chega ao motor por args; o SKILL.md cita o KNOB, nunca o número"*. Isenção explícita: `r8-ok: <motivo>` na linha. [confirmado nos dois lados]
-- ⚠️ **É vendorado, então tem as MESMAS armadilhas de `_shared/`:** `scripts/sync-shared.sh` copia o `.json` e o `.md` gerado para `plugins/sovai/skills/sovai/references/` e `plugins/qa-loop/skills/qa-loop/references/`. As três cópias batem hoje (`md5` idêntico nas três: `27f38d87…`). Editar a cópia em vez da fonte reintroduz exatamente o drift que o arquivo existe pra matar. [confirmado]
+- ⚠️ **É vendorado, então tem as MESMAS armadilhas de `_shared/`:** `scripts/sync-shared.sh` copia o `.json` e o `.md` gerado para dentro do `project-skills` — as skills `sprint` (o antigo `/sovai`) e `qa-loop`, que se fundiram nele em 2026-08-09. A lista viva das cópias sai do índice, não daqui: `git ls-files | grep r8-tiers`. Editar a cópia em vez da fonte reintroduz exatamente o drift que o arquivo existe pra matar. [confirmado]
 - **Natureza: fonte versionada, coberta pelo git.** Perder o arquivo é perder um arquivo do repo — volta com `git checkout`. O que **não** volta por comando é o `porque` de cada tier, que é julgamento escrito, não valor derivável.
 
 ### A8 · `.claude/limites-aceitos.md` — o registro do que a régua reprova e não vai ser consertado
@@ -230,13 +230,19 @@ du -sh ~/.claude/state/*
 - **O `state` ganhou a nota da própria página em 2026-08-08**, e ela viaja pelo mesmo `POST /state`: `state.qualidade = {votos: {clareza|escaneabilidade|detalhamento: "bom"|"ok"|"ruim"}, livre: "<texto>"}`. É opcional e nasce vazia — nenhum voto é obrigatório, porque caixa que exige voto vira clique automático. **O daemon não tem lista de campos permitidos**, então o campo novo não exigiu mexer nele: ele grava o objeto `state` inteiro como veio. [confirmado — `visual_server.mjs` e o `saveState` do `template.html`]
 - **Hóspedes que não são do daemon, e são DOIS.** [confirmado]
   - `config.json` (173 bytes) — a preferência do `/visual` (`auto_mode` + os `auto_triggers`), escrita pela **skill**. Semente versionada em `plugins/visual/skills/visual/config.default.json`.
-  - `licoes-clareza.json` (**65 lições**) — o banco do juiz de clareza, escrito por `plugins/visual/lib/clareza.py` (`registrar`) e lido por ele (`licoes`, `check`) e pelo `visual_page.py` (que **recusa** a página com termo já reprovado). Os dois moram aqui pelo mesmo motivo: `${CLAUDE_PLUGIN_ROOT}` é cache reescrito a cada bump, e lição perdida no bump é o mesmo que lição nenhuma.
+  - `licoes-clareza.json` — o banco de regras de escrita das páginas, escrito por `plugins/visual/lib/clareza.py` (`registrar`) e lido por ele (`licoes`, `check`) e pelo `visual_page.py` (que **recusa** a página com termo já reprovado). O caminho sai de `clareza.py:BANCO`, sobre `STATE_DIR = ${CLAUDE_CONFIG_DIR:-~/.claude}/visual-state` — este hóspede **respeita** a env var, ao contrário do daemon que é dono da pasta. Quantas regras há agora:
+
+    ```bash
+    python3 -c "import json,os;print(len(json.load(open(os.path.expanduser('~/.claude/visual-state/licoes-clareza.json')))['licoes']))"
+    ```
+
+    As de fábrica moram no código (`clareza.py:SEMENTE`) e voltam sozinhas; as demais, não. Os dois hóspedes moram aqui pelo mesmo motivo: `${CLAUDE_PLUGIN_ROOT}` é cache reescrito a cada bump, e lição perdida no bump é o mesmo que lição nenhuma.
 - **Volume:** 1,8M, **394 entradas** (`ls ~/.claude/visual-state | wc -l`), incluindo um `.daemon.log` e arquivos de teste (`test-live-abc123.json`, `test-session-abc123.json`). **Não há prune.** [confirmado]
 - **Natureza: descartável**, com duas exceções de grau — `config.json` é preferência e `licoes-clareza.json` é **conhecimento acumulado que não se regenera** (cada lição custou uma reprovação real de um leitor). Nenhum dos dois deve entrar num eventual prune por idade.
 
 ### B3 · `~/.claude/green-suite/` — 140K · cache de "suite verde"
 
-- **Escrito por** `_shared/green-cache.sh` (fonte-da-verdade) e suas cópias vendoradas em `plugins/ship/hooks/` e `plugins/qa-loop/lib/`. Função `green_cache_mark`.
+- **Escrito por** `_shared/green-cache.sh` (fonte-da-verdade) e suas cópias vendoradas em `plugins/ship/hooks/` e `plugins/project-skills/lib/` (a cópia era do `qa-loop`, que se fundiu no `project-skills` em 2026-08-09). Função `green_cache_mark`.
 - **Diretório e TTL vêm de env com default, copiados literal:** [confirmado]
 
   ```bash
@@ -376,24 +382,25 @@ Depósito **novo nesta rodada**, irmão do B8 e deliberadamente diferente dele: 
 - **Natureza: descartável, com efeito visível.** Apagar não perde furo nenhum (o `total` continua exato); zera o `desde a última vez que você olhou`, e a próxima leitura mostra o histórico inteiro como novidade.
 - **Fail-open na escrita:** `except OSError: pass` — *"não poder marcar nunca derruba o status"*. A consequência é silenciosa e vale saber: num disco somente-leitura o `novos` fica permanentemente igual ao `total` e ninguém é avisado.
 
-### B11 · `${CLAUDE_CONFIG_DIR:-~/.claude}/sovai/` — 0B · o interruptor da missão autônoma
+### B11 · `${CLAUDE_CONFIG_DIR:-~/.claude}/sovai/` — o interruptor da missão, a reserva, e a casa que virou LEGADO
 
-- **Nasceu em 2026-08-02**, com o gate que mantém o `/sovai` no motor Workflow.
-- **O diretório cresceu além do interruptor** — hoje ele guarda quatro naturezas, e só a primeira é o gate original [confirmado — `ls ~/.claude/sovai/` nesta rodada]:
-  - `ativo-<session_id>` — **arquivo vazio; o que importa é existir.** Aceso pela casca da skill antes de disparar o Workflow, apagado na entrega. Enquanto existe, todo disparo de sub-agente naquela sessão é negado.
+- **Nasceu em 2026-08-02**, com o gate que mantém a missão autônoma no motor Workflow. **O plugin que a batizou não existe mais:** `sovai`, `qa-loop` e `project-doc` se fundiram no `project-skills` em 2026-08-09, e a skill de missão passou a se chamar `sprint`. **A pasta no disco continua com o nome antigo** — quem a escreve hoje mora em `plugins/project-skills/hooks/`. [confirmado — `plugins/` e `.claude-plugin/marketplace.json` não têm mais nenhum dos três]
+- 🔴 **Em 2026-08-09 a pasta se PARTIU em duas, e a fronteira não é limpa.** O que é memória de andamento (`duracoes-*`, `sinal-*`, `placar-*`, `trabalho-*`) **nasce agora em `~/.claude/andamento/`** (B13); daqui isso só é **lido**, como legado. O que continua nascendo aqui é o interruptor e a reserva. Consequência prática: os dois diretórios têm arquivos de nome idêntico, e o de `sovai/` é o velho.
+- **O que AINDA nasce aqui** [confirmado — `plugins/project-skills/hooks/pretooluse-motor-arma.sh` e `reserva-de-arquivos.sh`, os dois resolvem `${CLAUDE_CONFIG_DIR:-$HOME/.claude}/sovai`]:
+  - `ativo-<session_id>` — **o que importa é existir.** Aceso pela casca da skill antes de disparar o Workflow, apagado na entrega. Enquanto existe, todo disparo de sub-agente naquela sessão é negado — e é o mesmo sinal que `pretooluse-espera-com-guarda.sh` consulta pra saber se o dono está ausente. Expira por idade (`SOVAI_TTL_MIN`), e a expiração vira linha em `expirados.log`.
   - `bloqueios-<session_id>` — o contador do cap (3). Sanitizado na leitura: lixo no arquivo vira `0`, nunca erro de shell.
   - `desistencias.log` — append-only, uma linha por vez que o cap estourou. Existe porque *desistir em silêncio* é o defeito que o `bypass.log` do teto de prosa registrou primeiro.
-  - `sinal-<session_id>` e `placar-<session_id>` — o que o **vigia de andamento** escreve: o instante da última fala do narrador e o placar da suíte, que a barra de status lê para dizer *"rodando há N min"* e *"sem avanço"*.
-  - `duracoes-<projeto-com-barras-viradas>.json` — a **memória de quanto cada comando demora, por projeto**. É dela que sai a estimativa (*"~1min35s, das 3 vezes anteriores aqui"*); comando que nunca rodou ali sai **sem número**, nunca com média global.
-  - `reservas/<session_id>__<motor_id>.files` — a lista de arquivos que um motor reservou antes de soltar executor. Dois motores da mesma sessão no mesmo arquivo é um apagando o trabalho do outro. ⚠️ **Reserva não liberada recusa o motor seguinte**, e foi assim que uma rodada morreu antes de executar qualquer passo em 2026-08-08: o `liberar` falhou com `fork failed` e os 54 caminhos ficaram presos. Diagnóstico: `ls ~/.claude/sovai/reservas/`.
-- **Por sessão, nunca global** — mesma lição do `context-guard` e do `scope-cop` (§1.5 de `patterns.md`): marcador global faria uma sessão em sovai tirar de **todas** as outras o direito de despachar sub-agente.
+  - `reservas/<session_id>__<motor_id>.files` — a lista de arquivos que um motor reservou antes de soltar executor. **O escritor mudou de casa nesta rodada** (`plugins/sovai/hooks/reserva-de-arquivos.sh` → `plugins/project-skills/hooks/reserva-de-arquivos.sh`); **o depósito, não** — continua em `~/.claude/sovai/reservas/`. Dois motores da mesma sessão no mesmo arquivo é um apagando o trabalho do outro. ⚠️ **Reserva não liberada recusa o motor seguinte**, e foi assim que uma rodada morreu antes de executar qualquer passo em 2026-08-08: o `liberar` falhou com `fork failed` e os 54 caminhos ficaram presos. Diagnóstico: `ls ~/.claude/sovai/reservas/`.
+- ⚠️ **`ativo-<sid>` tem HOJE duas casas, e quem escreve decide qual** [confirmado — `grep -rn 'ativo-\$SESSION' plugins/*/hooks/*.sh`]: `pretooluse-motor-arma.sh` (project-skills) usa esta pasta; `pretooluse-gauntlet.sh` (gauntlet) usa `~/.claude/andamento/`, e distingue de quem é a missão pelo **nome do motor escrito dentro do arquivo**. `andamento.py:painel` varre as **duas** bases (`bases = [ESTADO, ESTADO_LEGADO]`) justamente por isso. Quem só olhar uma pasta conclui "nenhuma missão de pé" com uma missão de pé.
+- **O que só é LIDO daqui** — `duracoes-*.json`, `placar-*`, `sinal-*`, `trabalho-*`. A cascata está em `andamento.py:_ler`: procura na casa nova, cai na antiga quando ela não tem, e **nunca escreve** na antiga. O hook faz o mesmo com o `sinal-*`, copiando o legado pra casa nova na primeira passagem. Missão que já estava de pé quando a pasta mudou não perde a memória.
+- **Por sessão, nunca global** — mesma lição do `context-guard` e do `scope-cop` (§1.5 de `patterns.md`): marcador global faria uma sessão em missão tirar de **todas** as outras o direito de despachar sub-agente.
 - **Perder o diretório não perde trabalho.** É interruptor, não registro: some o `ativo-*` e o gate volta a ser mudo. O único conteúdo com valor histórico é o `desistencias.log`, e ele é diagnóstico, não dado.
 - ⚠️ **O risco real é o oposto: o arquivo ficar aceso.** A casca apaga na entrega, mas missão interrompida no meio (sessão morta, `/clear`) deixa o sinal aceso e **a sessão inteira segue sem despachar sub-agente**, sem ninguém saber por quê. Não há poda por idade — diferente do `scope-cop`, que ganhou `find … -mtime +1 -delete` no mesmo commit em que nasceu. Diagnóstico: `ls ~/.claude/sovai/`.
 - **Como medir o estado agora** — o número sai do comando, nunca de uma contagem escrita aqui:
 
   ```bash
-  du -sh ~/.claude/sovai
-  ls -1 ~/.claude/sovai
+  du -sh ~/.claude/sovai ~/.claude/andamento
+  ls -1 ~/.claude/sovai ~/.claude/andamento    # as DUAS: `ativo-*` pode estar em qualquer uma
   ls -1 ~/.claude/sovai/reservas 2>/dev/null   # vazio é o normal; cheio trava o próximo motor
   ```
 
@@ -410,13 +417,30 @@ Depósito **novo nesta rodada**, irmão do B8 e deliberadamente diferente dele: 
 - **Por que o log é o ativo:** a detecção é lexical e o teto é conhecido — promessa escrita fora dos padrões passa batido. O `batidas.log` é o único jeito de medir se o léxico está largo ou estreito demais, e de auditar falso positivo depois do fato.
 - ⚠️ **Nenhum verificador o lê ainda.** Diferente do `forma-relato`, que o `conformance.py` cobra em duas checagens, este log nasce sem par: se o hook parar de rodar, nada acusa.
 
-### B13 · `${CLAUDE_CONFIG_DIR:-~/.claude}/andamento/` — 316K · a memória de quanto cada comando demora
+### B13 · `${CLAUDE_CONFIG_DIR:-~/.claude}/andamento/` — a memória de quanto cada comando demora, e o estado vivo da missão
 
-- **Nasceu nesta rodada** com `plugins/project-skills/lib/andamento.py` + `plugins/sovai/hooks/posttooluse-andamento.sh` (runtime, fluxo 19).
-- ⚠️ **A pasta é NEUTRA, e isso é decisão, não descuido.** O comentário do módulo diz por quê: *"Quatro plugins já chamam este módulo; a pasta batizada com o nome de um deles fazia o estado dos outros parecer emprestado."* Ela **não** mora em `~/.claude/sovai/` (que é o B11, o interruptor da missão).
-- **Dois tipos de arquivo, com naturezas opostas** [confirmado — `ls` da pasta neste run]:
-  - **`duracoes-<caminho-do-projeto-com-hifens>.json`** — o ativo de verdade. Dicionário `comando → [duração, duração, …]`; nesta máquina são **1896 chaves em 308K**, sobre este repositório. É a memória que faz a estimativa existir: comando sem histórico aqui sai **sem** número, e é o acúmulo que muda isso.
-  - **`placar-<session_id>`** — efêmero, por sessão, ~117 bytes. Guarda o último placar lido da suíte (`{"placar": {...}, "linha": "..."}`) pra responder "andou ou não andou" no turno seguinte.
+- **Nasceu em 2026-08-08** com `plugins/project-skills/lib/andamento.py` + o gancho de andamento (runtime, fluxo 19). **O gancho mudou de casa em 2026-08-09**, junto com a fusão dos três plugins: `plugins/sovai/hooks/posttooluse-andamento.sh` → **`plugins/project-skills/hooks/posttooluse-andamento.sh`**. O depósito não se mexeu.
+- ⚠️ **A pasta é NEUTRA, e isso é decisão, não descuido.** O comentário do módulo diz por quê: *"Quatro plugins já chamam este módulo; a pasta batizada com o nome de um deles fazia o estado dos outros parecer emprestado."*
+- 🔴 **Em 2026-08-09 ela virou a casa de TUDO que nasce, e `~/.claude/sovai/` (B11) virou legado de leitura.** As duas constantes estão uma embaixo da outra no módulo, e é a segunda que carrega a regra [confirmado, `andamento.py`]:
+
+  ```python
+  ESTADO        = os.path.join(_CONFIG, "andamento")   # o que NASCE vai pra ca
+  ESTADO_LEGADO = os.path.join(_CONFIG, "sovai")       # So leitura: nada novo e escrito aqui
+  ```
+
+  `_ler(base, nome)` procura na casa nova e só cai na antiga quando a nova não tem o arquivo — e **só para a casa padrão**: quem passa `dir_estado` (a bancada de teste, ou um motor com casa própria) está dizendo exatamente onde olhar, e aí não há legado que valha.
+- **Cinco tipos de arquivo, com naturezas diferentes** [confirmado — `ls ~/.claude/andamento/` neste run]:
+  - **`duracoes-<caminho-do-projeto-com-hifens>.json`** — o ativo de verdade. Dicionário `comando → [duração, duração, …]`. É a memória que faz a estimativa existir: comando sem histórico aqui sai **sem** número, e é o acúmulo que muda isso. Tamanho e nº de chaves saem do comando, nunca de um número escrito aqui:
+
+    ```bash
+    ls -la ~/.claude/andamento/duracoes-*.json
+    python3 -c "import json,glob;print({f.split('duracoes-')[1][:40]: len(json.load(open(f))) for f in glob.glob('$HOME/.claude/andamento/duracoes-*.json')})"
+    ```
+  - **`ativo-<session_id>`** — o sinal da missão de pé. **Nasce aqui só quando o motor é o `gauntlet`** (`plugins/gauntlet/hooks/pretooluse-gauntlet.sh`); o motor do `sprint` ainda acende o dele em `~/.claude/sovai/` (B11). O arquivo **deixou de ser vazio**: a primeira linha traz o **nome do motor**, porque a casa é compartilhada e a negação de um motor não pode sair com a mensagem do outro.
+  - **`sinal-<session_id>`** — o instante da última fala do narrador, que a barra de status lê pra dizer *"rodando há N min"* e *"sem avanço"*. O gancho **copia o do legado** na primeira passagem (`cp "$ESTADO_ANTIGO/sinal-$SESSION" "$SINAL"`), pra missão que já estava de pé não perder o relógio.
+  - **`trabalho-<session_id>`** — o disparo que quem executa gravou: **três linhas**, o instante, o comando e o projeto. Existir já quer dizer *"tem comando rodando agora"* — por isso o gancho o apaga **antes de qualquer saída antecipada**, nas duas pastas: registro esquecido faz a barra dizer "rodando" para sempre. Os dois últimos campos existem porque `estimativa()` só responde por comando **E** projeto, e a barra é desenhada por outro processo, que não sabe nenhum dos dois. Formato antigo (só o carimbo) degrada pra relógio sem estimativa, não pra erro.
+  - **`placar-<session_id>`** — efêmero, por sessão. Guarda o último placar lido da suíte (`{"placar": {...}, "linha": "..."}`) pra responder "andou ou não andou" no turno seguinte.
+  - `bloqueios-<session_id>`, `desistencias.log` e `expirados.log` também nascem aqui quando o motor é o `gauntlet` — os mesmos três nomes que o motor do `sprint` escreve em `~/.claude/sovai/`.
 - 🔴 **A duração é o único depósito deste repositório cujo VALOR cresce com o tempo e não é reconstruível.** Todo o resto do inventário ou é regenerável por comando (grafo, baselines) ou é registro de um evento passado (atas, journal). Aqui não: a mediana de uma suíte só existe porque aquela suíte rodou 40 vezes nesta máquina. Apagar o arquivo não quebra nada — o narrador volta a sair sem estimativa —, mas a memória recomeça do zero e leva semanas de uso para voltar.
 - ⚠️ **A chave é o comando LITERAL, aspas e quebras de linha inclusive** [confirmado — as chaves lidas do arquivo são o texto cru do Bash]. Consequência: a mesma suíte chamada com um espaço a mais é outro comando, e herda estimativa nenhuma.
 - **Chaveamento por projeto está no NOME do arquivo**, não numa chave interna — o caminho do projeto vira sufixo com barras trocadas por hífen. Dois projetos não se contaminam.
@@ -447,7 +471,7 @@ Depósito **novo nesta rodada**, irmão do B8 e deliberadamente diferente dele: 
 - **Natureza: INSUBSTITUÍVEL, e sem cópia nenhuma.** Não existe regenerador. A matéria-prima (transcripts `.jsonl` das sessões) é local à máquina e não viaja — a mineração vive em `journal.py:collect_transcripts`, que lê `discover_all_transcripts(project_root)`. **Perder este disco perde os 1.133 eventos.** [confirmado]
 - ⚠️ **O código ainda afirma o contrário.** `journal.py`, no cabeçalho da seção de estado, diz literal: `# Estado: .claude/.project-doc/  (versionado — é o veículo do conhecimento)`. O `.gitignore:21` desmente. O comentário é de antes do destrack e não acompanhou. [confirmado nos dois arquivos]
 - **Quem escreve:** `journal.py:append_events()` — abre em modo `"a"` e escreve `json.dumps(e) + "\n"`. **Não existe caminho de reescrita nem truncamento no arquivo.** Chamadores: `run_update`, `run_invalidate`, `run_curate`, `run_adopt`, `run_fuse`.
-- **Quem lê:** `journal.py:read_events` → `journal.py:fold`; `plugins/project-doc/lib/doc_lint.py` (monta o caminho na linha 153); `plugins/project-doc/lib/pattern_check.py` (check `(c)`: falha se o journal não existir, linha 339). Costura confirmada nos dois lados. [confirmado]
+- **Quem lê:** `journal.py:read_events` → `journal.py:fold`; `plugins/project-skills/lib/doc_lint.py` (monta o caminho na linha 153); `plugins/project-skills/lib/pattern_check.py` (check `(c)`: falha se o journal não existir, linha 339). Costura confirmada nos dois lados. [confirmado]
 
 **Formato — três eventos, e o estado vivo é o *fold* deles em ordem de append** (evidência: `journal.py:fold`, corpo lido):
 
@@ -509,10 +533,10 @@ O `scrub()` é um scorer em **quatro camadas**, cada span redigido sendo pulado 
 - **`.graphify_labels.json`** — 10.227 bytes, **376 labels, dos quais 50 são nomeados** (o resto é o placeholder `Community NNN`, que `graph_map._is_named` descarta). [confirmado]
 - **`manifest.json`** — 73.403 bytes, **439 chaves**, das quais **106 são de `pi-plugins/`**, que não está no grafo. Contar o manifest é medir o índice, não o mapa: o grafo enxerga 259 arquivos-fonte distintos. [confirmado]
 - **`GRAPH_REPORT.md`** — 84.095 bytes, relatório humano gerado junto. O cabeçalho dele traz a contagem de corpus (`252 files · ~643.929 words`) e o `Built from commit: 25870066`.
-- **Como o project-doc consome:** `plugins/project-doc/lib/graph_map.py` destila o grafo num mapa compacto. O que ele muda em relação ao arquivo cru — e o que é **teto**, não medida: [confirmado, saída real do run]
+- **Como o `/doc` consome:** `plugins/project-skills/lib/graph_map.py` destila o grafo num mapa compacto. O que ele muda em relação ao arquivo cru — e o que é **teto**, não medida: [confirmado, saída real do run]
 
   ```bash
-  python3 plugins/project-doc/lib/graph_map.py --project-root .
+  python3 plugins/project-skills/lib/graph_map.py --project-root .
   # stats: nodes 3791 · links 4961 · hyperedges_total 12
   #        communities_named 30 · god_nodes 60
   # files listados: 40      hyperedges retidas: 6
@@ -592,8 +616,9 @@ No topo do plano, ao lado de `phases`:
   - `tick` **também recusa tarefa com decisão em aberto** — e o que fecha a decisão é o REGISTRO: `decidido` com uma `escolha` preenchida. **Apagar a `pendencia` não é mais o caminho**, porque o `merge` preserva o campo que o `init` omite e a pergunta voltava, travando a tarefa pra sempre. A `pendencia` continua gravada de propósito: é dela que o `reabrir` vive. [confirmado, `plan_state.py:cmd_tick`]
   - `merge()` **trava a identidade**: título divergente do que está no arquivo aborta o `init` inteiro, e renomear exige `--rename <id> "<novo título>"`. Nó que sumiu do `init` novo é **mantido**, não apagado.
   - Escrita é atômica: `save()` grava em `.tmp` e faz `os.replace`.
+  - **`save()` NORMALIZA o registro antes de gravar, desde 2026-08-09:** toda tarefa que chegar sem o campo `status` recebe `"todo"` (`it.setdefault("status", "todo")`) — então **nenhum arquivo no disco tem tarefa sem status**, independentemente de quem montou o JSON. O comentário traz a medida que originou a regra: *"Tarefa sem `status` some das contagens: não é feita, não é pendente, e a soma por fora erra (medido em 2026-08-09 — duas tarefas gravadas sem o campo fizeram 218 virar 217)"*. A normalização mora aqui, e não em cada comando, **porque toda escrita passa por aqui** — é a mesma razão pela qual a marca de sessão (`_marca_sessao`) também é pendurada neste ponto. [confirmado, `plan_state.py:save`]
 - **Leitura tem porta única, e ela nomeia o estrago:** `plan_state.py:le_plano`. Arquivo que não abre ou não é JSON vira `PlanError` com o CAMINHO e a CAUSA (*"o arquivo existe e não é JSON válido. Conserte-o à mão — é o registro do que já foi feito, e nada aqui o reescreve"*), em vez de traceback. Quem LISTA (`list_plans`) segue engolindo o arquivo torto de propósito: um byte errado num plano não pode apagar os outros 12 da listagem. [confirmado, e a suíte fecha com a asserção `list_plans pula o corrompido`]
-- **Quem lê no fim do turno:** `plugins/visual/hooks/stop-plan-status.sh`, via `plan_state.py brief`. Canal `systemMessage` (informa, nunca bloqueia), desligável por `PLAN_STATUS=0` / `PLAN_NUDGE=0`. Costura confirmada nos dois lados. [confirmado] O resumo que ele mostra **parou de afirmar prova sem olhar a prova**: o trecho *"cada um com prova anexada"* era escrito por construção e hoje só entra depois de `plan_state.py:_com_prova` conferir a `evidence` de cada passo feito. [confirmado]
+- **Quem lê no fim do turno:** `plugins/project-skills/hooks/stop-plan-status.sh`, via `plan_state.py brief`. Canal `systemMessage` (informa, nunca bloqueia), desligável por `PLAN_STATUS=0` / `PLAN_NUDGE=0`. Costura confirmada nos dois lados. [confirmado] O resumo que ele mostra **parou de afirmar prova sem olhar a prova**: o trecho *"cada um com prova anexada"* era escrito por construção e hoje só entra depois de `plan_state.py:_com_prova` conferir a `evidence` de cada passo feito. [confirmado]
 - **Quem lê na hora de guardar a sessão:** a skill `handoff`. Ela passou a **ler os campos do arquivo em vez de pedir que sejam reinventados** — a árvore de `render --format text` é a vista de execução e não mostra `pronto`, `pendencia` nem `requisito`, que são justamente os três que a sessão seguinte ia redigir de cabeça. A `SKILL.md` traz o comando que os imprime e manda copiá-los **verbatim**: o `pronto` vira o "Critério de pronto" e a `pendencia` vira "Decisão em aberto", com o passo marcado como **bloqueado** — listar como executável um passo cuja `pendencia` trava o tique manda a próxima sessão bater na mesma parede sem saber qual é a pergunta. [confirmado — `plugins/handoff/skills/handoff/SKILL.md`, e a suíte `plugins/handoff/lib/test_handoff_skill.py` executa o comando prescrito e cobra a prosa]
 - **Natureza: registro de trabalho, insubstituível, sem cobertura.** Verde em `plugins/project-skills/lib/test_plan_state.py` nesta rodada.
 
@@ -772,6 +797,10 @@ Efêmeras por definição. Nenhuma delas é entrada de nada — reconstroem-se s
 ~/.claude/plans/                      2,3M                  (do harness; encolhe sozinho)
 ~/.claude/intent/                     264K                  (fallback de outros projetos)
 ~/.claude/state/forma-relato/         104K ·  20 vereditos  (o texto do que a régua reprovou)
+~/.claude/andamento/duracoes-*.json                          (quanto cada comando demora;
+                                      não se regenera por comando nenhum — só por uso)
+~/.claude/visual-state/licoes-clareza.json                   (as regras de escrita das
+                                      páginas; só as de fábrica voltam, as aprendidas não)
 ```
 
 **Reconstruível, com custo:**
@@ -792,7 +821,9 @@ plugins/bootstrap/config/manifest.json  regenerado no SessionStart, MENOS as cha
 
 ```
 ~/.claude/green-suite/          cache puro, TTL 24h por linha, poda de 7 dias
-~/.claude/visual-state/         estado de UI (exceto config.json, que é preferência)
+~/.claude/visual-state/         estado de UI (exceto os dois hóspedes: config.json,
+                                que é preferência, e licoes-clareza.json, que não volta)
+~/.claude/sovai/                interruptor + reserva; o resto ali é legado de leitura
 ~/.claude/guardrails/           logs e contadores dos dois vigias
 ~/.claude/state/prose-ceiling/  contadores + batidas + bypass do teto
 ~/.claude/state/intent-guard/   a marca `olhado`; apagar zera o "desde a última vez"
