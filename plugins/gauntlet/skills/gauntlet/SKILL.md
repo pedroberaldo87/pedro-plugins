@@ -72,6 +72,21 @@ ele reprova"* — ela entra no briefing de todo construtor como orientação, e 
 **reprova a peça que a viola de fato**, por mais bonita que esteja, **citando a
 passagem violada**.
 
+**O arsenal — o repertório do dono entra como recurso de primeira classe.** Leia, se
+existirem, `~/.claude/gauntlet/arsenal.md` (global, do dono) e
+`.claude/gauntlet/arsenal.md` do projeto da obra (soma-se ao global). É a lista viva de
+bibliotecas, efeitos e fontes de referência dele, por seção (`## website`,
+`## moodboard / referência visual`, …). Na abertura, **ofereça ao dono** a seção que casa
+com o tipo da missão: o que ele aceitar entra no campo `arsenal` do rito e vai no
+briefing de todo **construtor** ("estes recursos existem — use antes de reinventar") e do
+**recon** (as fontes de referência visual viram candidatas a alvo complementar). Recurso
+do arsenal pode virar dependência da obra; a **entrega declara qual usou**, e o dono veta
+se não quiser. **O juiz nunca recebe o arsenal** — é munição, não régua; cobrar "usou a
+biblioteca X" seria revisão de checklist, não julgamento contra o alvo. Arquivo ausente
+ou sem a seção do tipo: siga sem ele, calado. Quando o dono disser "adiciona X ao
+arsenal", acrescente a linha na seção certa do arquivo global — é dele, você só escreve
+a pedido.
+
 **A sonda é testada antes de começar** (`teste_registro` no disco), e o reconhecimento
 executa a sonda **no alvo** antes de a obra existir, devolvendo os `eixos` — o que faz o
 alvo ser bom, item a item, cada um com o registro que o prova. Sem alvo, sonda e eixos o
