@@ -103,6 +103,7 @@ SPECS=(
   "plugins/graphify-guard/hooks::hook-json.sh"
   "plugins/guardrails/hooks::hook-json.sh"
   "plugins/intent-guard/hooks::hook-json.sh"
+  "plugins/handoff/hooks::hook-json.sh"
   "plugins/lixeiro/hooks::hook-json.sh"
   "plugins/project-skills/hooks::hook-json.sh"
   "plugins/ship/hooks::hook-json.sh"

@@ -41,6 +41,11 @@ bad()  { echo "FAIL $1"; FAIL=1; }
 # não serve, porque `lib-tmpdir.sh` existe em sete plugins e um registro num deles
 # faria os outros seis passarem por registrados.
 LISTA_PROD="$(python3 scripts/hook_contract.py --scripts 2>/dev/null | sort)"
+# A exclusão de biblioteca vendorada era CÓDIGO MORTO: $VENDORADOS nunca era atribuído,
+# e os dois grep -vE viravam regex vazia (achado do auditor de 2026-08-09). Derivado de
+# _shared/, como a prosa do doc sempre prometeu.
+VENDORADOS="$(ls _shared/*.sh 2>/dev/null | xargs -n1 basename | paste -sd'|' -)"
+[ -n "$VENDORADOS" ] || VENDORADOS="hook-json.sh"
 if [ -z "$LISTA_PROD" ]; then
   # Fail-open com aviso: sem o medidor não há como separar hook de biblioteca, e
   # medir errado é pior que não medir. O aviso impede que isso passe por "está tudo
@@ -51,11 +56,19 @@ fi
 
 # Classe B medida: linha que lê um dos três campos de decisão, fora de comentário,
 # seja pelo leitor novo (`hj_campo`…) ou pelo `jq` cru de antes.
-LISTA_B="$(grep -rn -e 'jq' -e 'JQ' -e 'hj_campo' -e 'hj_eh_falso' plugins/*/hooks/*.sh 2>/dev/null \
+LISTA_B="$( { grep -rn -e 'jq' -e 'JQ' -e 'hj_campo' -e 'hj_eh_falso' plugins/*/hooks/*.sh 2>/dev/null \
   | grep -v '/test_' | grep -vE "/($VENDORADOS):" \
   | grep -vE '^[^:]+:[0-9]+:[[:space:]]*#' \
   | grep -E '(jq|JQ|hj_campo|hj_campo_ou|hj_eh_falso)[^#]*(tool_input\.command|session_id|stop_hook_active)' \
-  | cut -d: -f1 | sort -u)"
+  | cut -d: -f1
+    # A TERCEIRA forma de leitura (emenda de 2026-08-09): Python embutido no .sh, fora
+    # da biblioteca comum — `data.get("session_id")` e afins. Sem esta linha o derivador
+    # era cego a ela, e o hook que lê assim ficava fora do inventário sem ninguém acusar.
+    # As QUATRO grafias medidas pelo auditor de 2026-08-09: com e sem default, aspas
+    # simples e duplas, e o acesso por colchete — `data.get("x")` sozinho deixou o
+    # sessionstart-ata.sh (que usa default) invisível na primeira medição.
+    grep -rlnE 'data(\.get\(|\[)["'"'"'](session_id|prompt|stop_hook_active|transcript_path|tool_input)' plugins/*/hooks/*.sh 2>/dev/null \
+  | grep -v '/test_' | grep -vE "/($VENDORADOS)$" ; } | sort -u)"
 # Classe A: o que sobrou citando `jq` — ali ele só formata a saída ou lê config.
 LISTA_A="$(comm -23 <(printf '%s\n' "$LISTA_PROD") <(printf '%s\n' "$LISTA_B") \
   | xargs grep -l '\bjq\b' 2>/dev/null | sort)"

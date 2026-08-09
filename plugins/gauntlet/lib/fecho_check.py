@@ -28,17 +28,16 @@ import json
 import os
 import sys
 
-# O rito da abertura. Sem estes, a missão não começa — é a decisão do dono de que
-# nada, absolutamente nada, fica para ser resolvido em tempo de execução.
+# O rito da abertura, ENXUTO por decisão do dono (2026-08-09): a versão de 9 campos
+# nasceu do ritual de uma sessão que falhou, e ele mandou reduzir ao essencial. O que
+# saiu (`tipo`, `congelado`, `liberado`, `material`) continua ACEITO como campo
+# opcional — só deixou de ser porta de entrada. A lei do projeto, quando existe, entra
+# no campo opcional `lei`: orienta quem constrói, e o juiz reprova a violação.
 CAMPOS_DO_RITO = (
     "objetivo",
-    "tipo",
     "alvos",
     "sonda",
     "eixos",
-    "congelado",
-    "liberado",
-    "material",
     "orcamento",
 )
 # A tríade de entrada: os três sem os quais o juiz não tem régua nem procedimento.
@@ -489,6 +488,35 @@ def desenha_mapa(missao):
 
 
 # ─────────────────────────────────────────────────────────────────────────────
+# pendentes — a pergunta da trava dupla: qual peça está entregue e sem juiz?
+# ─────────────────────────────────────────────────────────────────────────────
+
+def pecas_pendentes(missao):
+    """As peças cuja última rodada tem entrega e não tem veredito legível.
+
+    É a foto exata da falha central ("sete construtores, zero juízes") tirada EM VOO,
+    não no fecho: o guarda de PreToolUse consulta esta lista antes de deixar um novo
+    agente partir, e enquanto ela não estiver vazia só o juiz da peça pendente passa.
+    Peça sem rodada nenhuma não entra: ainda não houve entrega para julgar.
+    """
+    fora = []
+    decomp, erro = _le(os.path.join(missao, "decomposicao.json"))
+    if erro:
+        return fora
+    for peca in decomp.get("pecas") or []:
+        nome = peca.get("id") or peca.get("nome")
+        ultima = _ultima_rodada(os.path.join(missao, "pecas", nome))
+        if ultima is None:
+            continue
+        if not os.path.isfile(os.path.join(ultima, "entrega.json")):
+            continue
+        ver, erro_v = _le(os.path.join(ultima, "veredito.json"))
+        if erro_v or not isinstance(ver, dict) or ver.get("status") not in STATUS:
+            fora.append(nome)
+    return fora
+
+
+# ─────────────────────────────────────────────────────────────────────────────
 # veto — quem grava a linha do dono, e quem detecta o toque
 # ─────────────────────────────────────────────────────────────────────────────
 
@@ -531,7 +559,7 @@ def grava_veto(missao, o_que, pecas):
 
 def main(argv=None):
     p = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    p.add_argument("comando", choices=("rito", "fecho", "mapa", "veto"))
+    p.add_argument("comando", choices=("rito", "fecho", "mapa", "veto", "pendentes"))
     p.add_argument("missao", help="o diretório da missão em .claude/gauntlet/")
     p.add_argument("--o-que", help="o texto do veto, para o comando `veto`")
     p.add_argument("--pecas", help="as peças que o veto toca, separadas por vírgula")
@@ -557,6 +585,13 @@ def main(argv=None):
             print("   PERGUNTE ao dono antes de reabrir. Se ele mandar manter como está,")
             print("   acrescente `\"mantido\": true` na linha do veto.")
             return 3
+        return 0
+
+    if args.comando == "pendentes":
+        # Uma peça por linha, nada mais: é interface de programa (o guarda de
+        # PreToolUse), não de gente. Lista vazia = nenhum juiz devido agora.
+        for nome in pecas_pendentes(args.missao):
+            print(nome)
         return 0
 
     if args.comando == "mapa":

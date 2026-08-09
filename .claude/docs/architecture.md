@@ -202,7 +202,7 @@ python3 -c "import json;print(len(json.load(open('.claude-plugin/marketplace.jso
 .claude-plugin/marketplace.json   catálogo único — nome, source, version, tags, category
 plugins/<nome>/                   um dir por entrada do catálogo, sem sobra (§2)
 _shared/                          fonte-da-verdade do compartilhado (17 arquivos-fonte)
-scripts/sync-shared.sh            o "build": vendora _shared/ → 82 cópias em 41 pastas  <!-- acopla-ok: §7 traz o comando que produz os dois números -->
+scripts/sync-shared.sh            o "build": vendora _shared/ → 83 cópias em 41 pastas  <!-- acopla-ok: §7 traz o comando que produz os dois números -->
 scripts/hook_contract.py          mede o contrato dos registros de hook (§11)
 scripts/public_repo_check.py      cobra a regra de repo público (checagem H do gate)
 scripts/regua_call_check.py       cobra que gerador de página chame a régua (checagem I)
@@ -724,10 +724,10 @@ sed -n '/^SPECS=(/,/^)/p' scripts/sync-shared.sh | grep '::' \
   | sed 's/.*"\(.*\)::.*/\1/' | sort -u | wc -l                        # nº de pastas
 ```
 
-**82 cópias, em 41 pastas de destino, de 15 arquivos-fonte** — contra 19 cópias em 14 pastas <!-- acopla-ok: os dois comandos que produzem os números estão no bloco imediatamente acima; "19" é narrativa histórica -->
+**83 cópias, em 41 pastas de destino, de 15 arquivos-fonte** — contra 19 cópias em 14 pastas <!-- acopla-ok: os dois comandos que produzem os números estão no bloco imediatamente acima; "19" é narrativa histórica -->
 na passada anterior [medido no commit `f31a020`: os dois comandos acima devolvem `81` e `41`].
 Os quatro maiores contribuintes, todos vendorados por consumidor:
-`resolve-plugin.sh` (18), `regua_texto.py` (11), `hook-json.sh` (11), `lib-tmpdir.sh` (10).
+`resolve-plugin.sh` (18), `regua_texto.py` (11), `hook-json.sh` (12), `lib-tmpdir.sh` (10).
 
 ⚠️ **Esses quatro números e os dois de cima deixaram de ser promessa: viraram teste.**
 `scripts/test_doc_vendoring_counts.py` reparseia o `SPECS` do `sync-shared.sh` e cobra as

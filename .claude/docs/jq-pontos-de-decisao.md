@@ -20,7 +20,7 @@ scope:
 | medida | valor | comando |
 | --- | --- | --- |
 | hooks de produção — o que algum `hooks/hooks.json` registra, resolvido pelo medidor oficial | **43** | `python3 scripts/hook_contract.py --scripts \| grep -c .` |
-| destes, os que leem o campo que DECIDE — classe B | **32** | ver classe B abaixo |
+| os `.sh` de hooks que leem o campo que DECIDE — classe B | **35** | ver classe B abaixo — três deles pela forma do Python embutido; a conta inclui os chamados por outro hook, sem registro próprio |
 | destes, os que só formatam a saída / leem config — classe A | **5** | ver classe A abaixo |
 
 Toda biblioteca de `_shared/` fica fora dessa conta: a cópia em `plugins/*/hooks/` é vendoring
@@ -44,12 +44,28 @@ vazio derrubava o hook na linha seguinte). O efeito era o mesmo: numa máquina s
 **saía 0 antes de olhar o payload**, e para o harness isso é indistinguível de "o gate rodou e
 liberou" — sem mensagem, sem registro, sem segunda chance.
 
-Hoje os 29 leem pelo `_shared/hook-json.sh`, vendorado em cada pasta de hooks: ele usa `jq`
+Hoje os 32 da forma comum leem pelo `_shared/hook-json.sh`, vendorado em cada pasta de
+hooks; os dois do Python embutido tomam dele **só o aviso** (`hj_avisa`, quando o
+`python3` falta): ele usa `jq`
 quando existe e o `python3` (só stdlib) quando não, tanto para LER o campo quanto para EMITIR
 a decisão (`hj_deny`, `hj_block`, `hj_ctx`, `hj_msg`). Sem `jq` **e** sem `python3` não há como
 julgar — e aí o hook chama `hj_avisa`, que fala pelos dois canais em vez de sair calado. O
 `context-guard-writer.sh` é a exceção de canal, não de regra: o stdout dele é a statusLine do
 usuário, então o aviso dele sai só pelo stderr.
+
+Há uma **terceira forma de leitura, fora da biblioteca comum**: o Python embutido.
+Três hooks leem o payload com um bloco Python escrito dentro do próprio `.sh`, sem passar
+pelo `hook-json.sh` — `plugins/intent-guard/hooks/capture-prompt.sh` (lê `prompt` e
+`session_id`, e registra), `plugins/handoff/hooks/handoff-completeness-gate.sh` (lê
+`session_id`, com `os.environ` de rede, e **bloqueia** por `decision:"block"`) e
+`plugins/handoff/hooks/sessionstart-ata.sh` (lê `session_id` e `transcript_path`, e grava
+o sentinel que o `/handoff --auto` consome — a forma defensiva `data.get(campo, "")`,
+que foi justamente a que escapou da primeira medição). O estrago é o do issue #5 com
+outra roupa: sem `python3` eles saem 0 antes de olhar o payload, e — por estarem fora da
+biblioteca — não existe nem o `hj_avisa` para falar que o julgamento não aconteceu.
+Estão nas tabelas abaixo, marcados como *(Python embutido)*. Um quarto arquivo parecido
+(`plugins/handoff/hooks/teamcreate-nudge.sh`) **não lê o payload** — o corpo Python só
+imprime um lembrete fixo — e fica fora, pela regra do recorte abaixo.
 
 Isso é diferente da classe A, onde o `jq` monta a string de saída. Sem `jq` ali, o hook deixa
 de imprimir um aviso — perde-se informação, não se perde julgamento. Fail-open continua aceitável.
@@ -93,6 +109,7 @@ Dentro da classe B há ainda dois graus:
 | B1 | `plugins/project-skills/hooks/pretooluse-espera-com-guarda.sh` | 47, 53 | `session_id`, `tool_input.command` | `permissionDecision:"deny"` |
 | B1 | `plugins/project-skills/hooks/pretooluse-motor-arma.sh` | 60 | `session_id` | `permissionDecision:"deny"` |
 | B1 | `plugins/visual/hooks/pre-exitplan-visualize.sh` | 29 | `session_id` | `exit 2` — sem registro próprio: chamado pelo portão único da família |
+| B1 | `plugins/handoff/hooks/handoff-completeness-gate.sh` | 36 | `session_id` | `decision:"block"` — *(Python embutido; degrada pela env var quando o campo falta)* |
 
 ## Classe B2 — lê o campo que decide REGISTRAR (o dano diferido do issue #5)
 
@@ -114,9 +131,27 @@ Dentro da classe B há ainda dois graus:
 | B2 | `plugins/project-skills/hooks/stop-doc-touch.sh` | 19, 21 | `session_id`, `stop_hook_active` | a cobrança de doc defasada não sai |
 | B2 | `plugins/project-skills/hooks/userpromptsubmit-plan-escape.sh` | 39 | `session_id` | a escapatória do gate de plano não é registrada |
 | B2 | `plugins/project-skills/hooks/sessionstart-plan.sh` | 25 | `session_id` | o plano aberto não ressuscita depois do `/clear` |
+| B2 | `plugins/intent-guard/hooks/capture-prompt.sh` | 29, 31 | `prompt`, `session_id` | o pedido não entra no caderno; o `delivery-audit` fica sem base — *(Python embutido)* |
+| B2 | `plugins/handoff/hooks/sessionstart-ata.sh` | 21, 22 | `session_id`, `transcript_path` | o sentinel do transcript não é gravado; o `/handoff --auto` perde a descoberta — *(Python embutido)* |
 | B2 | `plugins/project-skills/hooks/stop-plan-status.sh` | 35, 38 | `stop_hook_active`, `session_id` | o status do plano não é cobrado no fim do turno |
 
 ---
+
+## O recorte — quem fica de fora, e por quê
+
+O inventário cobre **hook de produção em shell que lê o payload do evento**. Ficam fora,
+por critério e não por esquecimento:
+
+- **os hooks escritos em Python** (`ls plugins/*/hooks/*.py | grep -v test_` os lista) —
+  o corpo inteiro deles é Python, então "sem `jq`" não é uma pergunta que se aplica; quem
+  os mede é o contrato dos hooks (`scripts/hook_contract.py`);
+- **os `.sh` que não leem o payload** — hoje só `teamcreate-nudge.sh`: ele recebe o
+  payload e não o usa (o corpo só imprime um lembrete fixo). Sem leitura não há campo
+  que decida, e sem campo não há classe.
+
+Quem cobra este recorte é a própria suíte: hook de produção em shell que leia
+`session_id`, `tool_input` ou `stop_hook_active` e não esteja em nenhuma tabela deste
+documento reprova o `test_sem_jq.sh`.
 
 ## Como conferir
 

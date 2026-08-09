@@ -4,8 +4,12 @@
 # achar o .jsonl certo via extract_ata.py --auto.
 # Fail-open: qualquer erro → exit 0, nunca atrapalha o início da sessão.
 # Sem python3 não há o que rodar aqui — o corpo inteiro do hook é Python.
-command -v python3 >/dev/null 2>&1 || exit 0
-python3 --version >/dev/null 2>&1 || exit 0
+if ! command -v python3 >/dev/null 2>&1 || ! python3 --version >/dev/null 2>&1; then
+  # sem python3 o sentinel do transcript não é gravado e o /handoff --auto perde a
+  # descoberta — fala pelos dois canais em vez de calar (o leitor empresta só o aviso)
+  . "${0%/*}/hook-json.sh" 2>/dev/null && hj_avisa "handoff/sessionstart-ata"
+  exit 0
+fi
 set -uo pipefail
 INPUT="$(cat 2>/dev/null || true)"
 python3 -c "$(cat <<'PY'
