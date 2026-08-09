@@ -1,6 +1,6 @@
 ---
 generated: 2026-08-09
-generated-commit: a8b38b9
+generated-commit: 8d26583
 project: pedro-plugins
 scope:
   - .claude-plugin/marketplace.json
@@ -82,7 +82,7 @@ verified-by:
   - plugins/branches/lib/test_branch_state.py
   - plugins/guardrails/lib/test_askq_lint.py
   - plugins/slides/lib/test_md2deck.py
-doc-sig: pedro-plugins/marketplace.json@gen=3.8#d2a21177
+doc-sig: pedro-plugins/marketplace.json@gen=3.8#97e5324c
 ---
 
 # Arquitetura — pedro-plugins
