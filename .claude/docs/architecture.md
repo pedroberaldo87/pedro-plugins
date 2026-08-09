@@ -1,6 +1,6 @@
 ---
 generated: 2026-08-09
-generated-commit: 27b6fc3
+generated-commit: e6bb25b
 project: pedro-plugins
 scope:
   - .claude-plugin/marketplace.json
@@ -82,7 +82,7 @@ verified-by:
   - plugins/branches/lib/test_branch_state.py
   - plugins/guardrails/lib/test_askq_lint.py
   - plugins/slides/lib/test_md2deck.py
-doc-sig: pedro-plugins/marketplace.json@gen=3.8#8f5646bb
+doc-sig: pedro-plugins/marketplace.json@gen=3.8#6af39848
 ---
 
 # Arquitetura — pedro-plugins
@@ -351,7 +351,7 @@ improve-workflow  0.16.15 [improve-workflow]                                 -
 intent-guard       0.7.1  [intent-guard]                                     HOOKS
 lixeiro            1.3.1  [faxina]                                           HOOKS
 principles         1.0.5  [principles]                                       -
-project-skills    0.19.8  [design-md, doc, doc-load, doc-touch, monitorar,
+project-skills    0.19.9  [design-md, doc, doc-load, doc-touch, monitorar,
                            pesquisa-referencias, plan, project-skills,
                            qa-loop, sprint, start]                           HOOKS
 ship               1.5.0  [ship]                                             HOOKS

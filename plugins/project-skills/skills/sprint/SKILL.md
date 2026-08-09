@@ -53,10 +53,12 @@ Antes de disparar o Workflow, acenda o sinal; ao entregar o relatório, apague. 
 ```bash
 SOVAI_DIR="${CLAUDE_CONFIG_DIR:-$HOME/.claude}/sovai"
 mkdir -p "$SOVAI_DIR"
-: > "$SOVAI_DIR/ativo-$CLAUDE_CODE_SESSION_ID"          # ao armar a missão
+printf 'sprint\n' > "$SOVAI_DIR/ativo-$CLAUDE_CODE_SESSION_ID"   # ao armar a missão
 SOVAI_MOTOR_ID="motor-$(date -u +%Y%m%dT%H%M%SZ)-$$"    # id DESTE motor na sessão
 rm -f "$SOVAI_DIR"/{ativo,bloqueios}-"$CLAUDE_CODE_SESSION_ID"   # ao entregar
 ```
+
+**O nome vai DENTRO do sinal** porque é ele que a barra de status lê para dizer quem acendeu (`lib/andamento.py:_motor`). Sinal vazio não é motor anônimo: cai no rótulo genérico, e foi assim que a barra chamou de `sovai` toda missão desta skill mesmo depois de o plugin `sovai` deixar de existir.
 
 O `SOVAI_MOTOR_ID` vai no `args` do Workflow como `motorId` (junto com `sessionId` = `$CLAUDE_CODE_SESSION_ID`): é com ele que o motor **reserva os arquivos da onda antes de soltar executor** (`hooks/reserva-de-arquivos.sh reservar`, ver o esqueleto) e os **libera** ao entregar. Dois motores da mesma sessão com o mesmo id se enxergariam como um só, e a reserva nunca recusaria nada.
 
@@ -1223,6 +1225,15 @@ A declaração é a **primeira linha do corpo**, sozinha, antes de qualquer pros
   **O veredito de cada passo volta ao script, e o silêncio vira bloqueio.** Antes de 2026-08-08 este papel não tinha schema nem retorno guardado: um agente morreu com texto vazio, **nunca executou o tick**, e o passo entregue ficou gravado como não feito — sem que nada acusasse. Compare com `SUITE_RESULT` e `RESERVA`, que sempre tiveram schema e empurram blocker no nulo. Agora ele devolve `TICK_RESULT`, e o script trata: `agent()` nulo, lista vazia, ou passo entregue que não aparece no veredito ⇒ **Bloqueio nomeado**, com o id do passo.
 
   A prova é **a do executor** (`summary` + `files_touched` do `TASK_RESULT`), nunca redigida por quem marca: o `tick` recusa marcação sem prova, e prova inventada aqui seria o carimbo sem a obra. Plano que não é arquivo (`planPath` sem `.plan.json`) não é marcado por ninguém: o script nem chama este papel.
+
+  **Terminada a marcação, registre a volta no disco** — um comando a mais, no fim:
+
+  ```bash
+  ANDAMENTO="$(bash "${CLAUDE_PLUGIN_ROOT}/lib/resolve-plugin.sh" project-skills lib/andamento.py)"
+  python3 "$ANDAMENTO" onda <sessionId> <rodada> <planPath>
+  ```
+
+  É o que faz a **barra de status** dizer em que ponto a missão está (`lib/andamento.py:linha_onda` → `linha_motor`). A rodada só existe na memória do motor e o progresso só existe no arquivo do plano: sem este registro, quem volta ao terminal lê `missão há 2h14` sem saber se isso é a primeira volta ou a décima. **O total é contado pelo programa a partir do plano**, nunca pelo agente — quem marcou os passos acabou de gravá-los, e pedir a conta a quem marcou é o mesmo defeito do placar de suíte que o motor descartava. Falhar aqui **não** derruba nada: a barra volta a ser a de antes.
 
 - `TICK_RESULT` — `{ marcados: [{ task_id, ok: bool, motivo }] }`. Uma entrada por passo que o agente tentou marcar, na ordem. `ok: false` carrega em `motivo` a linha que o `plan_state.py` imprimiu ao recusar — recusa legítima (decisão em aberto) e falha de comando chegam pelo mesmo campo, e quem separa é o script pela mensagem. **Passo que o script mandou marcar e não aparece na lista é tratado como perda silenciosa**, não como sucesso.
 - `checkpointPrompt` — **sem schema** (nada volta pro script). Papel **mecânico e só**: gravar no **histórico do git** o que a onda verde produziu, rodando
