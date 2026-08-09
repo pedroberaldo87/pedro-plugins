@@ -5,6 +5,20 @@ description: Revisa os arquivos de instrucao deste marketplace — skills, hooks
 
 # Skill: vistoria
 
+## Antes de tudo — a régua e os princípios (o par obrigatório)
+
+Antes de vistoriar qualquer instrução, rode o par, nesta ordem — é ele que substitui a antiga instrução em
+prosa "leia a constituição e o quality-goals do projeto":
+
+1. **A régua do projeto** — a skill `doc-load` (invoque pela Skill tool; fora dela:
+   `python3 "$(bash "<plugin project-skills>/lib/resolve-plugin.sh" project-skills lib/doc_load.py)" --project-root "$PWD"`).
+   Ela diz o que vale como régua HOJE — a lei com `ready`/`approved`, o acordo só com
+   `approved`, o minerado como mapa — e o que está ausente, sem fingir.
+2. **Os princípios genéricos** — a skill `principles` em modo `review`, quando instalada
+   na máquina. Ausente: siga sem ela, dizendo isso no relato.
+
+Em conflito, **a régua do projeto ganha** — princípio genérico não revoga a lei da casa.
+
 A vistoria olha para o próprio marketplace e pergunta uma coisa só: **onde a instrução
 escrita já não corresponde ao programa que a cobra?** Ela não opina. Cada item que ela
 devolve carrega o trecho cru que o cobrador viu — sem esse trecho o item não sai fraco,

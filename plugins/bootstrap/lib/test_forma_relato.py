@@ -33,7 +33,7 @@ def _roda(tmp_path, linhas):
                    input=json.dumps({"session_id": "teste",
                                      "transcript_path": str(transcript),
                                      "stop_hook_active": False}),
-                   capture_output=True, text=True,
+                   capture_output=True, text=True, start_new_session=True,
                    env={"PATH": "/usr/bin:/bin", "FORMA_RELATO_STATE": str(estado)})
     log = estado / "batidas.log"
     return [json.loads(x)["motivo"] for x in log.read_text(encoding="utf-8").splitlines()]

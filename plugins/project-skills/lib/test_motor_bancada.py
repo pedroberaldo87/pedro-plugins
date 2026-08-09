@@ -153,13 +153,15 @@ const CFG = JSON.parse(fs.readFileSync(process.argv[2], 'utf8'))
 const CORPO = fs.readFileSync(process.argv[3], 'utf8')
 
 const PRELUDE = `
-const DECOMP={}, TASK_RESULT={}, BUILD_REVIEW={}, RESERVA={}, REGUA={}, SUITE_RESULT={}, AUDITOR={}, DOC_TOUCH={}, TICK_RESULT={}, DESAFIO={};
+const DECOMP={}, TASK_RESULT={}, BUILD_REVIEW={}, RESERVA={}, REGUA={}, SUITE_RESULT={}, AUDITOR={}, DOC_TOUCH={}, TICK_RESULT={}, DESAFIO={}, TAREFA_REVIEW={}, DOC_REVIEW={};
 const mk = n => (p => Object.assign({ __p: n }, p));
 const decomposePrompt=mk('decompose'), execPrompt=mk('exec'), reviewBuildPrompt=mk('review'),
       runSuitePrompt=mk('suite'), checkpointPrompt=mk('checkpoint'), tickPlanPrompt=mk('tick'),
       docTouchPrompt=mk('docTouch'), colheitaPrompt=mk('colheita'),
       diagnoseStuckTaskPrompt=mk('diag'), reservaPrompt=mk('reserva'), confirmBuildPrompt=mk('confirm'),
-      reguaPrompt=mk('regua'), auditorPrompt=mk('auditor'), desafioCausaPrompt=mk('desafio');
+      reguaPrompt=mk('regua'), auditorPrompt=mk('auditor'), desafioCausaPrompt=mk('desafio'),
+      revisorTarefaPrompt=mk('revTarefa'), revisorBlocoPrompt=mk('revBloco'),
+      revisaoDocPrompt=mk('revDoc');
 `
 
 const chamadas = []
@@ -323,6 +325,23 @@ async function agent(p, opts) {
       v.anchor = 'ultima linha do que confirmei'
       return v
     }
+    // O ciclo por bloco (decisao do dono, 2026-08-09): o revisor por tarefa e o do
+    // bloco aprovam por default — o cenario reprova por id (CFG.revTarefaReprova /
+    // CFG.revBlocoGaps) para exercitar a retencao no grao novo.
+    case 'revTarefa':
+      return { aprova: !(CFG.revTarefaReprova || []).includes(p.entrega && p.entrega.task_id),
+               gaps: (CFG.revTarefaReprova || []).includes(p.entrega && p.entrega.task_id)
+                     ? [{ kind: 'spec', severity: 'P1', problem: 'o pronto nao foi cumprido' }] : [],
+               anchor: 'ultima linha da entrega que revisei' }
+    case 'revBloco': {
+      const v = { complete: true, cohesive: true, gaps: CFG.revBlocoGaps || [],
+                  missingTasks: [], lawMark: null }
+      v.anchor = 'ultima linha do bloco que revisei'
+      return v
+    }
+    case 'revDoc':
+      return { ok: true, consertados: [], gaps: CFG.revDocGaps || [],
+               anchor: 'ultima linha da doc que reli' }
     default:          return {}
   }
 }
@@ -345,7 +364,8 @@ def roda_motor(tmp, texto, plan_dir, tick_cmd, plan_path, token_budget=None,
                bloco_max=None,
                review_sem_ancora=None, alegacao_impossivel=None, auditor_derruba=False,
                auditor_motivo="", auditor_nao_tentou=None, doc_falso=None,
-               confirm_gaps=None, espera_todos=False, desafio_referenda_na_volta=0):
+               confirm_gaps=None, espera_todos=False, desafio_referenda_na_volta=0,
+               rev_tarefa_reprova=None, rev_bloco_gaps=None, rev_doc_gaps=None):
     """Executa o esqueleto do SKILL.md com os agentes de mentira. Devolve
     {saida, chamadas, agentes} ou levanta AssertionError com o motivo."""
     corpo = os.path.join(tmp, "motor.js")
@@ -412,6 +432,9 @@ def roda_motor(tmp, texto, plan_dir, tick_cmd, plan_path, token_budget=None,
         "auditorDerruba": auditor_derruba,
         "auditorMotivo": auditor_motivo,
         "auditorNaoTentou": auditor_nao_tentou or [],
+        "revTarefaReprova": rev_tarefa_reprova or [],
+        "revBlocoGaps": rev_bloco_gaps or [],
+        "revDocGaps": rev_doc_gaps or [],
         "results": resultados,
         "tasks": tarefas,
         "args": {"planPath": plan_path, "planText": "plano de bancada", "maxRounds": max_rounds,
@@ -887,7 +910,7 @@ def main():
     check("a onda registra o que o papel confirmou, nao a lista que ele recebeu",
           saida5["rounds"][0].get("doc") == [".claude/docs/onda-1.md"])
     check("papel que confirmou a doc nao vira Bloqueio",
-          not [b for b in saida5["blockers"] if "doc da rodada" in (b.get("what") or "")])
+          not [b for b in saida5["blockers"] if "não foi confirmada no disco" in (b.get("what") or "")])
 
     # O papel que MENTE ter feito: mesma missao, mesma onda verde — a UNICA coisa que muda
     # e o papel devolver um caminho que ninguem escreveu. O disco nao confirma, a lista
@@ -903,7 +926,7 @@ def main():
           [".claude/docs/nunca-escrita.md"])
     check("o caminho que o disco nao confirma nao entra na lista",
           mentiu["docs"][0]["docs"] == [])
-    doc_bloq = [b for b in saida_m["blockers"] if "doc da rodada" in (b.get("what") or "")]
+    doc_bloq = [b for b in saida_m["blockers"] if "não foi confirmada no disco" in (b.get("what") or "")]
     check("lista vazia vira Bloqueio, e nao silencio", len(doc_bloq) == 1)
     check("o Bloqueio diz em que rodada a doc nao saiu",
           bool(doc_bloq) and "rodada 1" in doc_bloq[0]["what"])
@@ -1212,30 +1235,51 @@ def main():
           bool(emdisputa) and emdisputa[0].get("taskId") == "F1.3"
           and "causa em disputa" in (emdisputa[0].get("whyNeedsYou") or ""))
 
-    print("autopsia — passo que o revisor apontou NAO e marcado; o limpo da onda e")
+    print("ciclo por bloco — o revisor DO BLOCO retem a marcacao; a geral reabre com re-tick")
     GAP_NA_F11 = {"kind": "coesao", "severity": "P1", "task_id": "F1.1",
                   "problem": "a entrega da F1.1 quebrou o cobrador vizinho"}
-    segura = bancada(texto, tick_cmd, max_rounds=1, gaps=[GAP_NA_F11])
+    # 3a · reprova no BLOCO: F1.1 nao e marcada, e a retencao sai nomeada
+    segura = bancada(texto, tick_cmd, max_rounds=1, rev_bloco_gaps=[GAP_NA_F11])
     if segura is None:
         return 1
     marcadas = [c["taskId"] for c in segura["chamadas"]]
-    check("F1.1 (apontada pelo revisor) ficou FORA da marcacao", "F1.1" not in marcadas)
-    check("F1.2 (limpa) foi marcada na mesma onda", "F1.2" in marcadas)
+    check("F1.1 (reprovada pelo revisor do bloco) ficou FORA da marcacao", "F1.1" not in marcadas)
+    check("F1.2 (limpa) foi marcada no mesmo bloco", "F1.2" in marcadas)
     retido = segura["saida"]["rounds"][0].get("naoMarcados") or {}
     check("a retencao sai NOMEADA no registro da onda, com o motivo",
-          retido.get("motivo") == "reprova do revisor" and retido.get("ids") == ["F1.1"])
+          retido.get("motivo") == "reprova do revisor de tarefa ou de bloco"
+          and retido.get("ids") == ["F1.1"])
     check("a retencao e narrada, nao calada",
-          any("reprova do revisor" in n for n in segura.get("narrado") or []))
+          any("reprova nos blocos" in n for n in segura.get("narrado") or []))
+    # 3b · o revisor POR TAREFA tambem retem, antes mesmo do bloco
+    seg2 = bancada(texto, tick_cmd, max_rounds=1, rev_tarefa_reprova=["F1.1"])
+    if seg2 is None:
+        return 1
+    check("a reprova do revisor POR TAREFA tambem segura a marcacao",
+          "F1.1" not in [c["taskId"] for c in seg2["chamadas"]])
+    # 3c · gap da revisao GERAL sobre passo ja marcado NAO retem: vira RE-TICK
+    geral = bancada(texto, tick_cmd, max_rounds=1, gaps=[GAP_NA_F11])
+    if geral is None:
+        return 1
+    check("o passo ja marcado pelo bloco CONTINUA marcado (a geral chega depois)",
+          "F1.1" in [c["taskId"] for c in geral["chamadas"]])
+    check("o achado da geral vira RE-TICK do mesmo id, nunca id novo",
+          geral["saida"]["rounds"][0].get("reticks") == ["F1.1"])
+    check("o re-tick e narrado ao dono",
+          any("regrava a prova do mesmo id" in n for n in geral.get("narrado") or []))
 
-    print("autopsia — onda vermelha nao marca NADA no plano")
+    print("ciclo por bloco — suite vermelha no bloco nao marca NADA no plano")
     verm2 = bancada(texto, tick_cmd, max_rounds=1, review_complete=False,
                     suite_verde=False, suite_falhando=["test_x.py"])
     if verm2 is None:
         return 1
-    check("nenhum tick foi disparado na onda vermelha", verm2["chamadas"] == [])
-    retido2 = verm2["saida"]["rounds"][0].get("naoMarcados") or {}
-    check("os passos entregues da onda vermelha saem nomeados como nao marcados",
-          retido2.get("motivo") == "onda vermelha" and sorted(retido2.get("ids") or []) == ["F1.1", "F1.2"])
+    check("nenhum tick foi disparado com a suite vermelha", verm2["chamadas"] == [])
+    check("o bloco vermelho vira Bloqueio nomeando a suite que quebrou",
+          any("a suíte quebrou no bloco" in (b.get("what") or "")
+              and "test_x.py" in (b.get("what") or "")
+              for b in verm2["saida"]["blockers"]))
+    check("bloco vermelho nao vira checkpoint",
+          verm2["saida"]["rounds"][0].get("checkpoint") is not True)
 
     print("autopsia — quem para sem terminar roda a conferencia final")
     parada = bancada(texto, tick_cmd, max_rounds=1, review_complete=False,

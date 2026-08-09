@@ -29,6 +29,23 @@ Se um item não puder ser feito como pedido, **não invente workaround silencios
 
 A execução do plano **não roda solo no loop principal** — roda como **um Workflow determinístico** (a tool `Workflow`), mesmo padrão do `/qa-loop`: **motor = Workflow, casca = esta skill**. Três papéis, cada um no **tier certo pra etapa** (R8 — mesma tabela do `/qa-loop`, mesmos nomes de knob), e os freios (parada, paralelismo, fidelidade) são **lógica do script (JS)** — não "o Opus lembrar a regra a cada volta". É um **pipeline fechado**, por isso Workflow e não Agent Team.
 
+### O preâmbulo: a régua e os princípios (obrigatório, antes de QUALQUER etapa)
+
+Antes de armar a missão — e vale para especificar, planejar, implementar, testar e
+revisar — rode o par, nesta ordem:
+
+1. **`/doc-load`** (skill `doc-load`, deste plugin) — carrega a documentação canônica do
+   projeto e diz o que vale como RÉGUA hoje. A saída vai no `args` do Workflow como
+   `regua` (a lista de arquivos que valem) e `marcaRegua` (a marca que o motor congela
+   na primeira volta): `python3 "$(bash "<plugin project-skills>/lib/resolve-plugin.sh" project-skills lib/doc_load.py)" --project-root "$PWD" --json`
+2. **`/principles`** (skill `principles`, quando instalada) — os princípios genéricos
+   aplicados ao contexto da missão. Ausente na máquina: avise no relatório e siga.
+
+Em conflito, **a régua do projeto ganha** — princípio genérico não revoga a lei da casa.
+É este par que substitui a prosa antiga "leia a constituição e o quality-goals": a regra
+de quem vale (lei `ready`/`approved` · acordo só `approved` · minerado nunca) agora é
+programa, e as quatro cópias dela em prosa divergiam.
+
 ### O sinal que arma o gate (obrigatório, e é a PRIMEIRA coisa)
 
 Antes de disparar o Workflow, acenda o sinal; ao entregar o relatório, apague. É ele que faz o gate existir:
@@ -141,7 +158,7 @@ O resultado vai no `args` do Workflow como **`buildWarm`**, e de lá para **todo
 | `motorId` | — | Identifica ESTE motor dentro da sessão (carimbo de arranque serve). Dois motores com o mesmo id se enxergariam como um só e a reserva nunca recusaria nada. |
 | `silenceLimitMin` | `12` | **Vigia por tempo.** Minutos de registro parado que fazem o vigia acender o sinal. Só derruba se **não houver trabalho vivo** — ver `F9.24` abaixo. As DUAS metades falam na tela: o gancho de andamento (`hooks/posttooluse-andamento.sh` → `lib/andamento.py:linha_silencio`) narra o silêncio longo com trabalho vivo como **`rodando ha N min`** e o silêncio sem sinal de vida como **`travamento`**, no mesmo `systemMessage` do relógio. |
 | `buildWarm` | `false` | **Cache de compilação já quente.** `true` = a casca compilou os alvos antes de disparar o motor (passo acima), e o valor chega a todo executor no `execPrompt` — é o que o proíbe de recompilar do zero. Ausente/`false` = ninguém aqueceu, e cada executor compila como antes. |
-| `blocoMax` | `4` | **Tamanho do bloco de execução.** A onda sai em blocos desse tamanho, e o primeiro bloco que traz falha **fecha a onda ali**: o resto volta pro decompositor na volta seguinte, sem ser despachado. Bloco maior = menos idas ao #1 e mais trabalho perdido quando a premissa fura cedo. |
+| `blocoMax` | `4` | **O grão do ciclo curto.** A onda sai em blocos desse tamanho, e CADA bloco fecha o ciclo inteiro: revisor por tarefa → revisão do bloco → suíte → marcação → commit → doc → colheita (decisão do dono, 2026-08-09). O primeiro bloco que traz falha **fecha a onda ali**: o resto volta pro decompositor sem ser despachado. Bloco maior = menos ciclos e mais trabalho perdido quando a premissa fura cedo. |
 | `tetoExecutorMin` | `20` | **Teto de um executor só.** Minutos que um executor tem para entregar; passou disso, ele devolve `espera: true` e a rodada fecha com quem voltou. É teto **por agente**, não da onda — o vigia acima olha o motor inteiro e não enxerga um agente ciclando dentro de uma onda viva. |
 
 Precedência: flag da invocação > default acima. A casca **sempre** materializa os quatro primeiros antes de disparar o Workflow — `maxRounds` ausente faz o `while` do motor não rodar nenhuma volta e devolver "pronto" sem ter construído nada.
@@ -253,6 +270,22 @@ Os dois loops leem a **mesma spec** e perguntam coisas **diferentes** — e isso
 - **O `/qa-loop` (etapa seguinte) garante que está CORRETO** — bug, regressão, lint/type/test, segurança, e fidelidade ao plano com **profundidade de correção** (os 3 buckets dele). Pergunta: _"o código construído tem defeito?"_.
 
 Resumo: **#2 = "está de pé, e é o que a spec pediu?" · qa-loop = "está certo?"**. O motor de implementação fecha quando a obra está de pé; o qa-loop entra **depois** pra procurar defeito. A spec é o eixo dos dois — o que muda é montagem aqui, defeito lá.
+
+### O ciclo curto é por BLOCO; a onda é a passada geral
+
+Três grãos, cada um com a pergunta própria (decisão do dono, 2026-08-09):
+
+| Grão | Quem julga | A pergunta |
+|---|---|---|
+| **tarefa** | revisor por tarefa (`TAREFA_REVIEW`) | esta entrega cumpriu o `pronto` dela, com teste que morde e dentro da régua? |
+| **bloco** | revisão do bloco (`BUILD_REVIEW`) | as entregas juntas se sustentam — os mesmos eixos, mais coesão? Só o de acordo dela + suíte verde liberam marcação, commit e doc |
+| **onda** | revisão geral da obra + revisão geral da doc | o que está NO REPOSITÓRIO (escopo: os arquivos da onda) é o que a spec e a régua pedem? A doc inteira ainda descreve o repo de agora? |
+
+A revisão de cima **nunca herda** o veredito da de baixo — reabre os eixos no grão maior.
+Achado da revisão geral sobre passo **já marcado** vira conserto com **RE-TICK** do mesmo
+id (regrava a prova), nunca tarefa nova com id forjado. E o custo é conhecido: a suíte
+inteira custa ~147s medidos, pagos uma vez POR BLOCO — é o preço de nada entrar no
+histórico sem teste verde.
 
 ### A volta ao #1 é por BLOCO, não por onda inteira
 
@@ -370,6 +403,36 @@ let feedback = null   // do #2 pro #1 na volta seguinte (a seta de volta)
 let lawMark = null    // marca da lei do projeto, CONGELADA na rodada 1 (ver o pino abaixo)
 const taskChurn = {}  // { task_id: nº de rodadas seguidas reaparecendo em missingTasks/gaps }
 const impossivelChurn = {}  // { task_id: nº de rodadas seguidas em que o executor alegou impossível }
+const marcadosNaMissao = new Set()   // o que os blocos já gravaram no plano — a revisão geral usa pro re-tick
+
+// ── O CACHE DE CAUSA (decisão do dono, 2026-08-09) ────────────────────────────
+// A investigação de causa passou a disparar também por GRAVIDADE (achado P0/P1 na
+// primeira aparição), além da reincidência. Sem esta trava, um bloco com dois achados
+// graves por tarefa viraria dezenas de investigações no tier caro — várias sobre a
+// MESMA raiz. A chave é o conjunto de arquivos da tarefa: causa referendada não
+// reabre na mesma missão, e a camada de cima recebe a causa pronta.
+const causaCache = {}
+const chaveDeCausa = t => ((t?.files || []).join('|') || t?.id || '?')
+const investigaCausa = async (task, attempts) => {
+  const chave = chaveDeCausa(task)
+  if (causaCache[chave]) return { ...causaCache[chave], deCache: true }
+  let causa = null, desafio = null, acordo = false
+  for (let volta = 1; volta <= 3 && !acordo; volta++) {
+    causa = await agent(diagnoseStuckTaskPrompt({ task, attempts,
+        desafioAnterior: desafio?.motivo || null }),
+      { model: ARGS.model, effort: T.diagnose.effort, phase: 'Diagnose' })   // diagnose_model
+    if (!causa) break
+    desafio = await julga(desafioCausaPrompt({ task, causa }),
+      { model: ARGS.model, effort: T.diagnose.effort, phase: 'Diagnose', schema: DESAFIO })
+    // desafiador mudo não referenda: sem veredito, a causa NÃO entra como consenso
+    acordo = desafio ? desafio.procede === true : false
+  }
+  const out = acordo ? { causa, desafiada: true }
+                     : { causa: null, disputa: { investigador: String(causa || 'sem resposta').slice(0, 200),
+                                                 desafiador: String(desafio?.motivo || 'sem veredito').slice(0, 200) } }
+  if (acordo) causaCache[chave] = out
+  return out
+}
 
 // Tier por rodada (R8): rodada 1 = decompose_model (planejamento inicial); rodadas 2+
 // = coordinate_model (coordenação rotineira). O bloco abaixo é ESCRITO no texto do
@@ -484,22 +547,12 @@ while (!built && r < maxRounds) {
   const diagnoses = []
   for (const t of decomp.tasks) {
     if (taskChurn[t.id] >= churnThreshold) {
-      let causa = null, desafio = null, acordo = false
-      for (let volta = 1; volta <= 3 && !acordo; volta++) {
-        causa = await agent(diagnoseStuckTaskPrompt({ task: t, attempts: taskChurn[t.id],
-            desafioAnterior: desafio?.motivo || null }),
-          { model: ARGS.model, effort: T.diagnose.effort, phase: 'Diagnose' })   // diagnose_model
-        if (!causa) break
-        desafio = await julga(desafioCausaPrompt({ task: t, causa }),
-          { model: ARGS.model, effort: T.diagnose.effort, phase: 'Diagnose', schema: DESAFIO })
-        // desafiador mudo não referenda: sem veredito, a causa NÃO entra como consenso
-        acordo = desafio ? desafio.procede === true : false
-      }
-      if (acordo) {
-        diagnoses.push({ task_id: t.id, diagnosis: causa, desafiada: true })
+      const d = await investigaCausa(t, taskChurn[t.id])
+      if (d.causa) {
+        diagnoses.push({ task_id: t.id, diagnosis: d.causa, desafiada: true, deCache: !!d.deCache })
       } else {
         blockers.push({ taskId: t.id, kind: 'causa-em-disputa',
-          what: `a causa de ${t.id} não sobreviveu ao desafio: investigador diz "${String(causa || 'sem resposta').slice(0, 200)}" · desafiador diz "${String(desafio?.motivo || 'sem veredito').slice(0, 200)}"`,
+          what: `a causa de ${t.id} não sobreviveu ao desafio: investigador diz "${d.disputa?.investigador || 'sem resposta'}" · desafiador diz "${d.disputa?.desafiador || 'sem veredito'}"`,
           whyNeedsYou: 'três voltas de investigação e desafio sem acordo — causa em disputa não vira conserto; decida qual versão vale ou aponte a terceira' })
       }
     }
@@ -600,6 +653,9 @@ while (!built && r < maxRounds) {
   const respostas = []
   const naoDespachadas = []
   let blocoQueFalhou = null
+  // o estado do ciclo por bloco — consolidado no registro da onda, lá embaixo
+  let b = 0, ultimaSuite = null
+  const blocosVerdes = [], marcadosDaOnda = [], reprovadasNosBlocos = [], docsDaOnda = []
   for (const bloco of blocos) {
     // bloco depois da falha não sai: é este `continue` que faz o motor reagir ANTES de a
     // onda terminar. Eles voltam pro #1 como faltantes, não como fracasso de ninguém.
@@ -630,6 +686,118 @@ while (!built && r < maxRounds) {
     if (falhou.length || doBloco.length < bloco.length) {
       blocoQueFalhou = falhou.map(x => x.task_id)
     }
+
+    // ── O CICLO CURTO FECHA NO BLOCO (decisão do dono, 2026-08-09) ────────────
+    // Antes, revisão, suíte, marcação, commit, doc e colheita eram UMA vez por onda:
+    // o trabalho de doze tarefas ficava fora do histórico até a última voltar, e o
+    // defeito descoberto no fim já era fundação das tarefas seguintes — F11.15 foi
+    // devolvida TRÊS vezes pela revisão de onda antes desta mudança. Agora cada
+    // bloco fecha o ciclo inteiro, e a onda vira a passada GERAL (ver abaixo).
+    b++
+    const entregues = [...new Map(doBloco.filter(x => x?.done && !x.espera && x.task_id)
+      .map(x => [x.task_id, x])).values()]
+    if (!entregues.length) continue
+
+    // 1 · REVISOR POR TAREFA — fidelidade ao `pronto`, cobertura e qualidade, um
+    // agente por entrega, independente de quem executou. O escopo é UMA tarefa;
+    // defeito que só existe no par é do revisor do bloco, logo abaixo.
+    const porTarefa = await parallel(entregues.map(x => () =>
+      julga(revisorTarefaPrompt({ task: decomp.tasks.find(t => t.id === x.task_id),
+                                  entrega: x, round: r, bloco: b }),
+        { model: ARGS.model, effort: T.coordinate.effort, phase: 'Revisar',
+          label: `rev-tarefa:${x.task_id}`, schema: TAREFA_REVIEW })))
+    const reprovadasNaTarefa = new Set()
+    for (let i = 0; i < entregues.length; i++) {
+      const v = porTarefa[i]
+      // veredito mudo não aprova nem reprova: a tarefa segue pro revisor do bloco
+      // SEM o carimbo — degradar para um julgamento só é melhor que travar o bloco.
+      if (!v) continue
+      if (!v.aprova) {
+        reprovadasNaTarefa.add(entregues[i].task_id)
+        // achado GRAVE investiga a causa ANTES de voltar ao decompositor (decisão
+        // do dono: severidade também dispara, não só reincidência) — com o cache.
+        if ((v.gaps || []).some(g => sevRank(g.severity) >= floor)) {
+          const d = await investigaCausa(decomp.tasks.find(t => t.id === entregues[i].task_id), 1)
+          if (d.causa) diagnoses.push({ task_id: entregues[i].task_id, diagnosis: d.causa,
+                                        desafiada: true, deCache: !!d.deCache })
+          else if (d.disputa) blockers.push({ taskId: entregues[i].task_id, kind: 'causa-em-disputa',
+            what: `a causa do achado grave de ${entregues[i].task_id} não sobreviveu ao desafio: investigador diz "${d.disputa.investigador}" · desafiador diz "${d.disputa.desafiador}"`,
+            whyNeedsYou: 'causa em disputa não vira conserto — decida qual versão vale ou aponte a terceira' })
+        }
+      }
+    }
+    const aprovadasTarefa = entregues.filter(x => !reprovadasNaTarefa.has(x.task_id))
+    reprovadasNosBlocos.push(...reprovadasNaTarefa)
+    if (!aprovadasTarefa.length) { blocoQueFalhou = [...reprovadasNaTarefa]; continue }
+
+    // 2 · REVISÃO DO BLOCO — os MESMOS eixos, sobre as entregas JUNTAS, mais
+    // COESÃO. Não herda o veredito por tarefa: dois arquivos que se contradizem, ou
+    // a cobertura que uma tarefa achou que a outra faria, só existem no conjunto.
+    const revBloco = await julga(revisorBlocoPrompt({ planPath: ARGS.planPath, repoRoot: ARGS.repoRoot,
+        tasks: aprovadasTarefa.map(x => decomp.tasks.find(t => t.id === x.task_id)),
+        entregas: aprovadasTarefa, round: r, bloco: b, lawMark }),
+      { model: ARGS.model, effort: T.coordinate.effort, phase: 'Revisar',
+        label: `rev-bloco:r${r}b${b}`, schema: BUILD_REVIEW })
+    // revisor de bloco mudo não aprova NINGUÉM — as entregas voltam pro decompositor
+    const reprovadasNoBloco = new Set(revBloco
+      ? [...(revBloco.gaps || []).map(g => g.task_id), ...(revBloco.missingTasks || [])].filter(Boolean)
+      : aprovadasTarefa.map(x => x.task_id))
+    reprovadasNosBlocos.push(...[...reprovadasNoBloco].filter(id => !reprovadasNaTarefa.has(id)))
+    const aprovadas = aprovadasTarefa.filter(x => !reprovadasNoBloco.has(x.task_id))
+    if (!aprovadas.length) continue
+
+    // 3 · SUÍTE INTEIRA — 147s por bloco, medidos; é o que separa "preservado" de
+    // "gravei a quebra". Vermelha fecha a onda aqui, e nada deste bloco é marcado.
+    const suiteB = await agent(runSuitePrompt({ repoRoot: ARGS.repoRoot, round: r }),
+      { model: ARGS.model, effort: T.mechanical.effort, phase: 'Suíte', schema: SUITE_RESULT })
+    if (suiteB?.heartbeat) ultimoSinalDeVida = suiteB.heartbeat
+    ultimaSuite = suiteB
+    if (!suiteB || !suiteB.green) {
+      blockers.push({ what: `a suíte quebrou no bloco ${b} da rodada ${r}: ${suiteB?.failing?.join(' · ') || 'sem veredito'}`,
+                      whyNeedsYou: 'bloco vermelho não vira ponto de salvamento — o conserto volta pelo decompositor' })
+      blocoQueFalhou = aprovadas.map(x => x.task_id)
+      continue
+    }
+
+    // 4 · MARCAÇÃO + COMMIT + DOC + COLHEITA — a trava de 2026-08-09 (revisor de
+    // acordo + suíte verde) agora no grão do bloco, não da onda.
+    if (ARGS.planPath?.endsWith('.plan.json')) {
+      const tick = await agent(tickPlanPrompt({ planPath: ARGS.planPath,
+        passos: aprovadas.map(t => ({ taskId: t.task_id,
+          evidencia: `${t.summary} · ${(t.files_touched || []).join(' ')}` })) }),
+        { model: ARGS.model, effort: T.mechanical.effort, phase: 'Marcar',
+          label: `marcar r${r}b${b} (${aprovadas.length})`, schema: TICK_RESULT })
+      const vistos = new Map((tick?.marcados || []).map(m => [m.task_id, m]))
+      for (const t of aprovadas) {
+        const v = vistos.get(t.task_id)
+        if (!v) blockers.push({ taskId: t.task_id,
+          what: `o passo ${t.task_id} foi ENTREGUE mas não voltou no veredito da marcação`,
+          whyNeedsYou: 'o trabalho está no disco e o plano diz que não — marque à mão com a prova do executor' })
+        else if (!v.ok) blockers.push({ taskId: t.task_id,
+          what: `a marcação de ${t.task_id} foi recusada: ${v.motivo || 'sem motivo'}`,
+          whyNeedsYou: 'recusa por decisão em aberto é legítima — resolva a pendência do passo e marque' })
+        else marcadosNaMissao.add(t.task_id)
+      }
+      marcadosDaOnda.push(...(tick?.marcados || []))
+    }
+    await agent(checkpointPrompt({ repoRoot: ARGS.repoRoot, round: r, bloco: b, results: aprovadas }),
+      { model: ARGS.model, effort: T.mechanical.effort, phase: 'Salvar' })
+    blocosVerdes.push({ bloco: b, feitos: aprovadas.map(x => x.task_id), placar: suiteB.placar })
+    const tocadosB = [...new Set(aprovadas.flatMap(x => x?.files_touched || []))]
+    if (tocadosB.length) {
+      // TODOS os documentos afetados, a cada bloco — decisão do dono (2026-08-09),
+      // ciente do custo: doc grande pode ser reescrito mais de uma vez na onda, e o
+      // conflito disso é achado da revisão geral de doc, não deste passo.
+      const doc = await agent(docTouchPrompt({ repoRoot: ARGS.repoRoot, round: r, files: tocadosB, sessionId: ARGS.sessionId }),
+        { model: ARGS.model, effort: T.mechanical.effort, phase: 'Doc', schema: DOC_TOUCH })
+      docsDaOnda.push(...(doc?.docs || []))
+      if (!(doc?.docs || []).length) blockers.push({
+        what: `a doc do bloco ${b} da rodada ${r} não foi confirmada no disco`,
+        whyNeedsYou: 'o próximo bloco vai decidir por um mapa vencido — re-projete a doc destes arquivos' })
+    }
+    // colheita a cada bloco — decisão do dono: a máquina fica limpa o tempo todo
+    await agent(colheitaPrompt({ repoRoot: ARGS.repoRoot, round: r }),
+      { model: ARGS.model, effort: T.mechanical.effort, phase: 'Lixo' })
   }
 
   // ── UM EXECUTOR LENTO NÃO SEGURA A RODADA (F9.29) ───────────────────────────
@@ -698,20 +866,22 @@ while (!built && r < maxRounds) {
     }
   }
 
-  // REVISAR — Opus #2, no tier da rodada (coordinate_model). Contra a SPEC (o plano vai
-  // junto, igual ao #1): spec + constituição + rastreio + completude + coesão. A decomposição
-  // entra como meio, não como contrato. O eixo de rastreio reprova tarefa decomposta sem
-  // `requisito` ou sem `pronto` (gap kind:'rastreio'). O eixo de constituição manda LER
-  // `<repoRoot>/.claude/docs/constituicao.md` e o `quality-goals.md` na rodada (nunca
-  // uma cópia daqui) — e junto o desenho aprovado, `blueprint.md` e `features.md`, quando
-  // trazem `status: approved` — e é
-  // fail-open: arquivo ausente = eixo não roda, e isso NÃO vira gap.
+  // REVISÃO GERAL DA OBRA — Opus #2, no tier da rodada. Os blocos já revisaram por
+  // tarefa e por lote; aqui a pergunta muda de fonte: julga O QUE ESTÁ NO REPOSITÓRIO,
+  // no escopo dos arquivos desta onda — nunca o repo inteiro (outros trabalhos escrevem
+  // nele, e achado sobre trabalho alheio vira conserto que ninguém pediu). Eixos: spec +
+  // constituição (pelo doc-load: julga contra o que ele lista como régua, citando a
+  // passagem) + rastreio + completude + COESÃO DO CONJUNTO. A decomposição entra como
+  // meio, não como contrato — a régua de hoje é a que o doc-load lista (a lei:
+  // constituicao.md, quality-goals.md, constraints.md; o acordo aprovado: blueprint.md,
+  // features.md e irmãos). Fail-open: régua ausente = eixo não roda, e isso NÃO é gap.
   // NÃO roda a suíte nem caça bug — isso é o /qa-loop depois.
   // `lawMark` vai junto: na rodada 1 é null (o #2 calcula e devolve); nas seguintes é a
   // marca FIXADA, contra a qual ele mede — não contra o texto que estiver no disco agora.
   // `protegidas` vai junto: nelas o critério do #2 é o INVERSO do normal — proposta com
   // antes/depois literais aprova, e arquivo protegido aparecendo no git diff reprova.
-  const review = await julga(reviewBuildPrompt({ planPath: ARGS.planPath, planText: ARGS.planText, repoRoot: ARGS.repoRoot, decomp, results, round: r, lawMark, protegidas: [...protegidas] }),
+  const filesDaOnda = [...new Set(results.flatMap(x => x?.files_touched || []))]
+  const review = await julga(reviewBuildPrompt({ planPath: ARGS.planPath, planText: ARGS.planText, repoRoot: ARGS.repoRoot, decomp, results, round: r, lawMark, protegidas: [...protegidas], files: filesDaOnda }),
     { model: tier.model, effort: tier.effort, phase: 'Revisar', schema: BUILD_REVIEW })
 
   // AGENTE MORTO NÃO PODE DERRUBAR O MOTOR. `agent()` devolve null quando o subagente
@@ -744,6 +914,36 @@ while (!built && r < maxRounds) {
       // aviso no relatório pro dono julgar o que fazer com as rodadas já aprovadas.
       blockers.push({ what: `a lei do projeto mudou durante a missão (marca ${lawMark} → ${review.lawMark}, rodada ${r})`,
                       whyNeedsYou: 'as rodadas anteriores foram medidas contra o texto antigo — confira o que mudou antes de aceitar a obra' })
+    }
+  }
+
+  // ── ACHADO SOBRE PASSO JÁ MARCADO → RE-TICK, NUNCA ID NOVO (furo 1) ─────────
+  // O bloco marcou; a revisão geral achou defeito. Sem esta regra o plano diria
+  // "feito" com a revisão dizendo "defeituoso" — a contradição de 2026-08-09 por
+  // outra porta. O conserto volta ao loop e, quando fechar num bloco futuro, o tick
+  // REGRAVA a prova do MESMO id; id novo é recusado pela trava de id inexistente.
+  const reticks = [...new Set((review.gaps || []).map(g => g.task_id)
+    .filter(id => id && marcadosNaMissao.has(id)))]
+  if (reticks.length) log(`revisão geral reabriu passo já marcado: ${reticks.join(' · ')} — o conserto regrava a prova do mesmo id`)
+
+  // ── REVISÃO GERAL DA DOC (decisão do dono, 2026-08-09) ──────────────────────
+  // O doc-touch por bloco atualiza o delta; aqui os documentos afetados são relidos
+  // INTEIROS contra o estado de agora — inclusive o conflito de dois blocos que
+  // reescreveram o mesmo documento. O papel CONSERTA doc minerada na hora; doc
+  // autoral (a marca `authored-by: human`) ele nunca toca — vira aviso ao dono.
+  if (filesDaOnda.length) {
+    const revDoc = await julga(revisaoDocPrompt({ repoRoot: ARGS.repoRoot, files: filesDaOnda, round: r }),
+      { model: ARGS.model, effort: T.coordinate.effort, phase: 'Revisar',
+        label: `rev-doc:r${r}`, schema: DOC_REVIEW })
+    if (revDoc) {
+      rounds.length && (void 0)   // (registro entra no rounds.push desta rodada, abaixo)
+      for (const g of (revDoc.gaps || []).filter(g => g.autoral)) {
+        blockers.push({ what: `a doc AUTORAL contradiz o repositório: ${g.problem} (${g.arquivo})`,
+                        whyNeedsYou: 'documento seu — nenhum agente o corrige; atualize ou grave correcao-pendente: no frontmatter' })
+      }
+    } else {
+      blockers.push({ what: `a revisão geral da doc da rodada ${r} não respondeu`,
+                      whyNeedsYou: 'os documentos desta onda ficaram sem a releitura inteira — confira antes de confiar neles' })
     }
   }
 
@@ -781,159 +981,22 @@ while (!built && r < maxRounds) {
   rounds.push({ r, decomp, results, review, diagnoses, espera: esperaIds, esperandoVoce,
                 devolvidas: devolvidasPeloAuditor, naoDespachadas })
 
-  // ── PONTO DE SALVAMENTO POR ONDA (F9.14/F9.15) ──────────────────────────────
-  // Até aqui o trabalho só era salvo no FIM: motor interrompido no meio deixava tudo
-  // solto no disco e a sessão seguinte não sabia o que já tinha saído. Agora cada onda
-  // que fecha VERDE vira ponto de salvamento — e onda VERMELHA não salva, senão o
-  // checkpoint viraria "salvei a quebra".
-  //
-  // A suíte roda ao FIM DE CADA ONDA, não no fim da missão. Rodando só no fim, a quebra
-  // chega com vinte tarefas empilhadas em cima dela e ninguém sabe qual a causou.
-  const suite = await agent(runSuitePrompt({ repoRoot: ARGS.repoRoot, round: r }),
-    { model: ARGS.model, effort: T.mechanical.effort, phase: 'Suíte', schema: SUITE_RESULT })
-  if (!suite) {
-    // Mesma porta das outras: quem não respondeu não aprovou. Sem veredito da suíte a
-    // onda NÃO vira checkpoint — a direção segura é não salvar.
-    blockers.push({ what: `a suíte da rodada ${r} não respondeu`,
-                    whyNeedsYou: 'esta onda ficou SEM checkpoint — o trabalho está no disco, não no histórico' })
-  } else if (suite.green) {
-    // O PLACAR DA SUÍTE NÃO SE PERDE (F9.27). O campo era pedido ao papel da suíte e
-    // descartado aqui — a comparação entre ondas, que é o único sinal medido de "está
-    // em círculos", não chegava a tela nenhuma. Quem compara é `lib/andamento.py:avanco`,
-    // pelo gancho de andamento (ele vê a saída crua da suíte), e o veredito sai no
-    // cartão da onda e na barra. Guardar no registro é o que deixa o relatório contar
-    // onda a onda o que a suíte fez.
-    rounds[rounds.length - 1].placar = suite.placar
-    await agent(checkpointPrompt({ repoRoot: ARGS.repoRoot, round: r, results }),
-      { model: ARGS.model, effort: T.mechanical.effort, phase: 'Salvar' })
-    rounds[rounds.length - 1].checkpoint = true
-
-    // ── A DOC DA ONDA VERDE (F9.32) ───────────────────────────────────────────
-    // O checkpoint só gravava CÓDIGO. Quem executava a onda seguinte lia a doc da
-    // rodada anterior — e ela ainda descrevia o repo de antes. Por isso a onda verde
-    // fecha com a doc dos arquivos que ELA tocou re-projetada, e nesta ordem: commit
-    // primeiro (o trabalho no histórico não depende da doc dar certo), doc depois.
-    // Onda vermelha não chega aqui: doc de repo quebrado documenta a quebra.
-    const tocados = [...new Set(results.flatMap(x => x?.files_touched || []))]
-    if (tocados.length) {
-      // O PAPEL QUE INVOCA SKILL TAMBÉM DEIXA RASTRO (S-112). Ele não devolvia nada, e
-      // "a doc foi re-projetada" era só a chamada ter saído: papel mudo, papel que
-      // invocou skill quebrada e papel que MENTE ter feito eram a mesma coisa vista
-      // daqui. Agora ele devolve os caminhos que TOCOU — e só os que o disco confirma —,
-      // do mesmo jeito que o papel que roda comando deixa o commit no histórico.
-      // E A PROCEDÊNCIA DELA FICA NO DISCO (S-111): `rounds[].doc` só vivia na
-      // memória do Workflow, então, terminada a missão, não sobrava como provar que
-      // a doc do commit seguinte saiu DAQUI e não de uma passada manual. O papel
-      // grava a lista confirmada em `doc-<sid>`, ao lado do `placar-<sid>` — o
-      // script não escreve arquivo, quem tem mão é o papel.
-      const doc = await agent(docTouchPrompt({ repoRoot: ARGS.repoRoot, round: r, files: tocados, sessionId: ARGS.sessionId }),
-        { model: ARGS.model, effort: T.mechanical.effort, phase: 'Doc', schema: DOC_TOUCH })
-      const docsFeitos = doc?.docs || []
-      rounds[rounds.length - 1].doc = docsFeitos
-      if (!docsFeitos.length) {
-        // Lista vazia é a única resposta que não pode passar calada: quem executar a onda
-        // seguinte vai ler a doc do repo de antes. Não derruba a onda — o commit já está
-        // feito, mesma regra do `tick` —, vira Bloqueio.
-        blockers.push({ what: `a doc da rodada ${r} não foi confirmada no disco`,
-                        whyNeedsYou: 'a onda seguinte vai decidir por um mapa vencido — re-projete a doc dos arquivos desta onda antes de retomar' })
-      }
-    }
-
-    // ── O CAMINHÃO DO LIXO PASSA JUNTO DO CHECKPOINT (F9.38) ──────────────────
-    // A onda abre suíte, build e servidor, e nada disso morria: ficava de pé até
-    // alguém reclamar da máquina. Aqui a colheita é a SELETIVA do turno — efêmero
-    // ainda vivo morre, serviço em uso sobrevive —, senão a onda seguinte perderia
-    // o servidor que ela mesma ia usar.
-    await agent(colheitaPrompt({ repoRoot: ARGS.repoRoot, round: r }),
-      { model: ARGS.model, effort: T.mechanical.effort, phase: 'Lixo' })
-  } else {
-    // Onda vermelha: relata QUAL quebrou. "A suíte falhou" sem o nome manda a próxima
-    // rodada procurar no escuro.
-    blockers.push({ what: `a suíte quebrou na rodada ${r}: ${suite.failing?.join(' · ') || 'sem detalhe'}`,
-                    whyNeedsYou: 'onda vermelha não vira ponto de salvamento — conserte antes de seguir' })
-  }
-
-  // ── O MOTOR ESCREVE NO PLANO O QUE ACABOU DE FAZER (F9.10) ──────────────────
-  // Ele LIA o plano pra saber o que fazer e NUNCA escrevia de volta. Consequência medida:
-  // a sessão seguinte não sabia o que já tinha saído e refazia — e uma auditoria inteira
-  // foi gasta pra descobrir isso. Quem marca é o motor, com a prova do executor, porque
-  // exigir que alguém marque à mão depois é a mesma promessa que já falhou.
-  //
-  // ── A CONTAGEM NÃO CONTA O MESMO PASSO DUAS VEZES (F9.35) ───────────────────
-  // Retomar a missão REGRAVA veredito: o runtime replica do cache o que já tinha sido
-  // entregue, e o mesmo `task_id` volta em mais de uma linha de `results` — junto com a
-  // devolução do decompositor, que não é passo e vem SEM `task_id`. Quem contava linha
-  // via cinco onde havia três, e o papel de marcação era disparado duas vezes pelo mesmo
-  // passo. A conta é por `task_id` DISTINTO, e linha sem `task_id` não entra.
-  //
-  // ── A MARCAÇÃO EXIGE O DE ACORDO DO REVISOR E A ONDA VERDE (autópsia 2026-08-09) ──
-  // Medido na corrida wf_5438d704: 17 passos marcados em ondas VERMELHAS, 9 deles com o
-  // defeito já escrito pelo revisor DA MESMA onda. Quem executa diz "fiz"; quem confere
-  // é o revisor e a suíte — e a marcação só ouvia o primeiro. Duas travas, e as duas
-  // registram por nome o que seguraram, em vez de calar:
-  // 1) passo que o revisor apontou (gap ou missing) não é marcado nesta onda — ele volta
-  //    ao loop pelo feedback normal, e o trabalho fica no disco;
-  // 2) onda vermelha não marca NADA — marcar sem ponto de salvamento grava no plano um
-  //    trabalho que não entrou no histórico.
-  const reprovadosPeloRevisor = new Set(
-    [...(review.gaps || []).map(g => g.task_id), ...(review.missingTasks || [])].filter(Boolean))
-  const feitosDaOnda = [...new Map(results.filter(x => x?.done && x.task_id
-      && !reprovadosPeloRevisor.has(x.task_id))
-    .map(x => [x.task_id, x])).values()]
-  rounds[rounds.length - 1].feitos = feitosDaOnda.map(x => x.task_id)
-  const seguradosPeloRevisor = [...new Set(results.filter(x => x?.done && x.task_id
-      && reprovadosPeloRevisor.has(x.task_id)).map(x => x.task_id))]
-  if (seguradosPeloRevisor.length) {
-    rounds[rounds.length - 1].naoMarcados = { motivo: 'reprova do revisor', ids: seguradosPeloRevisor }
-    log(`não marcados por reprova do revisor: ${seguradosPeloRevisor.join(' · ')}`)
-  }
-  const ondaVerde = !!suite?.green
-  if (!ondaVerde && feitosDaOnda.length) {
-    rounds[rounds.length - 1].naoMarcados = { motivo: 'onda vermelha', ids: feitosDaOnda.map(x => x.task_id) }
-    log(`onda ${r} vermelha: ${feitosDaOnda.length} passo(s) entregues ficaram SEM marcação — o trabalho está no disco`)
-  }
-
-  // ── UM AGENTE PARA A ONDA, N COMANDOS EM SEQUÊNCIA (F9.53 + F9.54) ──────────
-  // Era um agente POR PASSO. Marcar não tem julgamento a isolar — o veredito já foi
-  // dado por quem executou, e quem marca só transporta a prova. É a única exceção à
-  // régua de um-agente-por-item, e a régua está escrita no contrato acima: a pergunta
-  // não é "quantos agentes rodaram" e sim "havia julgamento a isolar?".
-  //
-  // O que NÃO muda: N COMANDOS, um por passo, em sequência. Um julgamento em lote
-  // sobre N provas perderia as três coisas medidas em 2026-08-08 — o isolamento de
-  // falha (um tick morreu e os outros 45 seguiram), a recusa individual (um passo com
-  // decisão em aberto foi recusado e os demais passaram) e a fidelidade da prova.
-  //
-  // E o veredito VOLTA (F9.54): antes este `agent()` não tinha schema nem atribuição.
-  // Um agente morreu com texto vazio, nunca executou o tick, e o passo entregue ficou
-  // gravado como não feito — sem nada acusar. `suite` e `reserva` sempre tiveram schema
-  // e empurram blocker no nulo; só a marcação sumia calada.
-  if (ARGS.planPath?.endsWith('.plan.json') && feitosDaOnda.length && ondaVerde) {
-    const tick = await agent(tickPlanPrompt({
-      planPath: ARGS.planPath,
-      passos: feitosDaOnda.map(t => ({
-        taskId: t.task_id,
-        evidencia: `${t.summary} · ${(t.files_touched || []).join(' ')}`,
-      })),
-    }), { model: ARGS.model, effort: T.mechanical.effort, phase: 'Marcar',
-          label: `marcar r${r} (${feitosDaOnda.length})`, schema: TICK_RESULT })
-
-    // Agente morto, lista vazia, ou passo que sumiu do veredito: os três são perda
-    // silenciosa, e a direção segura é a mesma — vira Bloqueio NOMEADO, com o id.
-    const vistos = new Map((tick?.marcados || []).map(m => [m.task_id, m]))
-    for (const t of feitosDaOnda) {
-      const v = vistos.get(t.task_id)
-      if (!v) {
-        blockers.push({ taskId: t.task_id,
-                        what: `o passo ${t.task_id} foi ENTREGUE mas não voltou no veredito da marcação`,
-                        whyNeedsYou: 'o trabalho está no disco e o plano diz que não — marque à mão com a prova do executor' })
-      } else if (!v.ok) {
-        blockers.push({ taskId: t.task_id,
-                        what: `a marcação de ${t.task_id} foi recusada: ${v.motivo || 'sem motivo'}`,
-                        whyNeedsYou: 'recusa por decisão em aberto é legítima — resolva a pendência do passo e marque' })
-      }
-    }
-    rounds[rounds.length - 1].marcados = tick?.marcados || []
+  // ── O SALVAMENTO ACONTECEU POR BLOCO — a onda só CONSOLIDA o registro ───────
+  // Suíte, marcação, commit, doc e colheita rodaram dentro de cada bloco (o ciclo
+  // curto, acima). O que a onda grava aqui é o retrato: quantos blocos fecharam
+  // verdes, o que cada um marcou, e o último placar — é dele que `andamento.avanco`
+  // deriva o "sem avanço" entre ondas.
+  rounds[rounds.length - 1].placar = ultimaSuite?.placar
+  rounds[rounds.length - 1].checkpoint = blocosVerdes.length > 0
+  rounds[rounds.length - 1].blocos = blocosVerdes
+  rounds[rounds.length - 1].feitos = blocosVerdes.flatMap(x => x.feitos)
+  rounds[rounds.length - 1].marcados = marcadosDaOnda
+  rounds[rounds.length - 1].doc = docsDaOnda
+  rounds[rounds.length - 1].reticks = reticks
+  if (reprovadasNosBlocos.length) {
+    rounds[rounds.length - 1].naoMarcados = { motivo: 'reprova do revisor de tarefa ou de bloco',
+                                              ids: [...new Set(reprovadasNosBlocos)] }
+    log(`não marcados por reprova nos blocos: ${[...new Set(reprovadasNosBlocos)].join(' · ')}`)
   }
 
   // ── DISJUNTOR POR CONSUMO (F9.12) ───────────────────────────────────────────
@@ -954,9 +1017,9 @@ while (!built && r < maxRounds) {
   // parado. MAS parada com trabalho vivo NÃO é travamento: agente rodando uma suíte de
   // 11 minutos parece agente morto, e os dois calam igual. Por isso a condição é dupla.
   const agora = ARGS.now + (rounds.length ? 0 : 0)   // a casca reinjeta o relógio por rodada
-  if (suite?.heartbeat) ultimoSinalDeVida = suite.heartbeat
+  // o sinal de vida vem da ÚLTIMA suíte de bloco — foi ela que atualizou o relógio no ciclo
   const mudo = agora - ultimoSinalDeVida
-  if (mudo > silenceLimitMs && !suite?.trabalhoVivo) {
+  if (mudo > silenceLimitMs && !ultimaSuite?.trabalhoVivo) {
     desligadoPor = 'vigia'
     blockers.push({ what: `vigia: nada mudou no registro há ${Math.round(mudo / 60000)} min e não há trabalho vivo`,
                     whyNeedsYou: 'travamento, não demora — o último estado salvo é o checkpoint da rodada anterior' })
@@ -1008,8 +1071,9 @@ while (!built && r < maxRounds) {
   // falhou nem sumiu, foi o motor que fechou a onda cedo por causa da falha do bloco anterior.
   feedback = { gaps: review.gaps.filter(g => g.kind !== 'concepcao'),
                missing: [...new Set([...(review.missingTasks || []), ...esperaIds,
-                                     ...naoDespachadas,
+                                     ...naoDespachadas, ...reprovadasNosBlocos,
                                      ...devolvidasPeloAuditor.map(d => d.taskId)])],
+               reticks,   // conserto de passo já marcado REGRAVA a prova do mesmo id
                diagnoses, devolvidas: devolvidasPeloAuditor, blocoQueFalhou }   // alimenta o DECOMPOR da próxima volta
 }
 
@@ -1122,6 +1186,9 @@ return {
 A declaração é a **primeira linha do corpo**, sozinha, antes de qualquer prosa — o corpo do `execPrompt` acima mostra a forma. Quem cobra que a regra continue no texto é `lib/test_travas_motor.py` (bloco `S-123`), que reescreve a prosa em volta da linha e confere no `medidor.py` que a classificação fica de pé.
 
 **Schemas (JSON Schema, resumidos):**
+- `TAREFA_REVIEW` — `{ aprova: bool, gaps: [{kind, severity, problem}], anchor }`, devolvido por `revisorTarefaPrompt` (`coordinate_model`). O revisor POR TAREFA: abre o `pronto` da tarefa, o diff dos arquivos dela e julga três eixos — **fidelidade** (o critério foi cumprido de verdade, no disco?), **cobertura** (o teste morde? — os cinco antipadrões valem aqui) e **qualidade** (o que saiu respeita a régua que o `doc-load` do projeto lista). Independente de quem executou; escopo = UMA tarefa, nunca o par. Achado com severidade ≥ floor dispara a investigação de causa ANTES de a tarefa voltar ao decompositor (com o cache — a mesma raiz não paga duas investigações). Como todo veredito, sem `anchor` é recusado e roda de novo.
+- `revisorBlocoPrompt` — devolve `BUILD_REVIEW` (`coordinate_model`). A revisão FINAL do bloco: os MESMOS eixos do revisor por tarefa, sobre as entregas do bloco JUNTAS, mais **coesão** — dois arquivos que se contradizem, cobertura que uma tarefa achou que a outra faria. **Não herda o veredito por tarefa**: reabre os eixos sobre o conjunto. É o de acordo dele (junto com a suíte verde) que libera marcação, commit e doc do bloco.
+- `DOC_REVIEW` — `{ ok: bool, consertados: [caminho...], gaps: [{arquivo, problem, autoral: bool}], anchor }`, devolvido por `revisaoDocPrompt` (`coordinate_model`), uma vez por onda. A revisão GERAL da doc: relê INTEIROS os documentos afetados pelos arquivos da onda — não só o delta pendente — procurando contradição com o repositório de agora e conflito entre reescritas de blocos. Doc minerada errada ele CONSERTA na hora e devolve em `consertados` (cada caminho conferido no disco); doc AUTORAL (`authored-by: human`) ele NUNCA toca — vira gap com `autoral: true`, que o script transforma em aviso ao dono. Como todo veredito, sem `anchor` é recusado.
 - `DECOMP` — `{ tasks: [{ id, desc, requisito, pronto, files: [...], parallelizable: bool, dependsOn: [id...], done: bool, complexity?: 'standard'|'mechanical', esperaDono?: string, protegido?: string }], blockers: [{ what, whyNeedsYou }] }`. **`requisito` e `pronto` são obrigatórios** — `requisito` = o item da spec que a tarefa atende, `pronto` = o critério de feito dele, **os dois copiados da spec, não redigidos pelo decompositor** (o executor não tem como cumprir o que não recebe, e critério inventado aqui vira régua falsa no #2). Item da spec sem um dos dois vira `blocker`, não tarefa. `complexity: 'mechanical'` = operação bem delimitada (renomear, mover arquivo, 1 config, 1 valor); ausente/`'standard'` = tarefa normal. **`esperaDono`** = a frase do ato que só o dono pode fazer, **copiada do `espera_dono` do passo no `.plan.json`** — nunca inventada aqui, e nunca deduzida do texto da tarefa. Tarefa com `esperaDono` **não entra na fila do motor** (nenhum executor é solto nela), e quem `dependsOn` dela também não: os dois saem em `esperandoVoce`, com o motivo. Passo sem o campo no plano é tarefa normal. **`protegido`** = o arquivo sob tranca que a tarefa toca (o que traz `status: approved` no frontmatter) e o motivo da tranca, marcado pelo decompositor **por leitura do disco**, nunca por achismo. Tarefa `protegido` **entra na fila** — o que muda é o entregável: proposta, não edição, e o revisor a mede pelo critério invertido.
 - `TASK_RESULT` — `{ task_id, files_touched: [...], summary, done: bool, note, anchor, espera: bool, impossivel?: string, ferramentas?: [...], proposta?: { arquivo, antes, depois } }`. **`impossivel`** = a alegação de que a tarefa não tem como sair, com o motivo; **`ferramentas`** = o que havia à mão no contexto dela. Alegar não encerra nada: repetida por `churnThreshold` rodadas seguidas na mesma tarefa, ela convoca o `AUDITOR`. **`proposta`** = o entregável da tarefa `protegido` (regra 5 do executor): `antes` e `depois` **literais**, o primeiro copiado do disco e o segundo pronto pra colar. O script cobra os dois — proposta sem um deles vira `done: false` e Bloqueio, porque descrição do que mudar deixa o trabalho todo pro dono. Com os dois, a proposta sai em **Bloqueios (precisam de você)** com o antes/depois inteiro, e `git diff` vazio no arquivo é o resultado certo. **`anchor`** = a última linha não vazia do que o executor leu para decidir que estava pronto — a prova de leitura inteira (ver "o juiz prova que leu"). **`espera`** = o executor bateu no `tetoMin` e parou por isso (regra 4 dele). O script tira essas do `results` — o revisor não recebe meia obra como obra — e as manda pro `missing` do #1 na volta seguinte; a rodada **fecha com quem voltou**. `espera: true` não é falha e não vira Bloqueio: sai em `naoDeuTempo`, com o teto no motivo.
 - `AUDITOR` — `{ derruba: bool, motivo, naoTentou: [...], anchor }`, devolvido por `auditorPrompt` (`diagnose_model`). A lente é **invertida**: o ônus é do auditor provar que **não dá**, e ele recebe `ferramentas` — o que havia à mão — para dizer em `naoTentou` o que o executor nem tentou. `derruba: true` **devolve a tarefa ao loop** (ela entra no `missing` do #1 na volta seguinte, com o que o auditor apontou); `derruba: false` **encerra como impedimento real** — Bloqueio de `kind: 'impedimento'` com o `motivo` escrito. Auditor mudo não encerra nada: a tarefa volta pro loop, porque quem não respondeu não confirmou impedimento. Como todo veredito, sem `anchor` ele é recusado e o papel roda de novo.

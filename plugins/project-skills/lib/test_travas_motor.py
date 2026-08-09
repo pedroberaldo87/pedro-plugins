@@ -103,7 +103,7 @@ def bloco_da_tranca(js):
     `protegidas` ate o comeco da revisao. Recortado do proprio SKILL.md pelo mesmo
     motivo dos outros: o teste roda o que esta escrito la, nao uma copia."""
     i = js.find("const protegidas = new Set(")
-    j = js.find("// REVISAR — Opus #2")
+    j = js.find("// REVISÃO GERAL DA OBRA — Opus #2")
     if i < 0 or j < 0 or j < i:
         return ""
     return js[i:j]
@@ -440,24 +440,24 @@ def main():
     print("F9.13 + F9.24 — vigia por tempo, que separa demora de travamento")
     check("o limite de silencio existe", "silenceLimitMs" in js)
     check("a condicao e DUPLA: mudo E sem trabalho vivo",
-          "mudo > silenceLimitMs && !suite?.trabalhoVivo" in js)
+          "mudo > silenceLimitMs && !ultimaSuite?.trabalhoVivo" in js)
     check("trabalho vivo esta no schema que a suite devolve", "trabalhoVivo" in texto)
     check("o vigia derruba parando o laco",
           re.search(r"desligadoPor = 'vigia'[\s\S]{0,400}?\bbreak\b", js) is not None)
     check("o blocker distingue travamento de demora",
           "travamento, não demora" in js)
 
-    print("F9.14 + F9.15 — ponto de salvamento por onda, e onda vermelha nao salva")
-    check("a suite roda ao fim de CADA onda, dentro do laco", "runSuitePrompt" in js)
-    check("onda verde vira checkpoint", "suite.green" in js and "checkpointPrompt" in js)
-    check("onda vermelha NAO vira checkpoint",
-          js.index("checkpointPrompt") < js.index("a suíte quebrou na rodada"))
+    print("F9.14 + F9.15 — o ponto de salvamento e por BLOCO (decisao do dono, 2026-08-09)")
+    check("a suite roda ao fim de CADA bloco, dentro do laco", "runSuitePrompt" in js)
+    check("bloco verde vira checkpoint", "suiteB.green" in js and "checkpointPrompt" in js)
+    check("bloco vermelho NAO vira checkpoint: a suite decide ANTES do commit",
+          js.index("a suíte quebrou no bloco") < js.index("await agent(checkpointPrompt("))
     check("a skill nomeia o comando que grava a onda no historico",
           re.search(r"git -C <raiz> add -A && git -C <raiz> commit .*<r>", texto) is not None)
     check("o salvamento e local: o push e uma vez, no fim", "Commit **local e só**" in texto)
     check("a suite morta tambem nao salva (direcao segura)",
-          "a suíte da rodada ${r} não respondeu" in js)
-    check("o relato diz QUAL suite quebrou", "suite.failing?.join" in js)
+          "sem veredito" in js and "!suiteB || !suiteB.green" in js)
+    check("o relato diz QUAL suite quebrou", "suiteB?.failing?.join" in js)
 
     print("F9.16 — quem julga prova que leu a coisa inteira")
     check("o veredito exige a ancora do fim", "âncora do fim" in texto)
@@ -681,12 +681,13 @@ def main():
     # e medido no esqueleto (`js`), e so a definicao do papel e cobrada no texto.
     chamadas = [m.start() for m in re.finditer(r"await agent\(colheitaPrompt\(", js)]
     check("o motor chama a colheita no script", len(chamadas) == 1)
-    # Ponto 1 (dentro do motor): no ramo da onda VERDE, junto do checkpoint. Recorte
-    # pelas fronteiras reais do ramo — do `checkpointPrompt` ao `} else {` que o fecha.
+    # Ponto 1 (dentro do motor): no fecho do ciclo do BLOCO, depois do checkpoint —
+    # colheita a cada bloco e decisao do dono (2026-08-09). Recorte: do checkpoint ao
+    # fim do laco dos blocos.
     i = js.find("await agent(checkpointPrompt(")
-    j = js.find("  } else {", i) if i >= 0 else -1
+    j = js.find("// ── UM EXECUTOR LENTO", i) if i >= 0 else -1
     ramo_verde = js[i:j] if i >= 0 and j > i else ""
-    check("a chamada esta JUNTO do checkpoint, no ramo da onda verde",
+    check("a chamada esta no fecho do bloco verde, depois do checkpoint",
           "await agent(colheitaPrompt(" in ramo_verde)
     check("o papel roda com effort mecanico, como os outros papeis de registro",
           re.search(r"colheitaPrompt\([^)]*\),\n\s*\{ model: ARGS\.model, effort: T\.mechanical\.effort", js) is not None)
@@ -793,8 +794,10 @@ def main():
     print("autopsia 2026-08-09 — as travas novas estao ESCRITAS no esqueleto")
     # A execucao delas e provada na bancada (test_motor_bancada.py); aqui se cobra que a
     # logica nao suma do texto que o proximo disparo COPIA.
-    check("a marcacao exige o de acordo do revisor", "reprovadosPeloRevisor" in js)
-    check("a marcacao exige a onda verde", "ondaVerde" in js and "feitosDaOnda.length && ondaVerde" in js)
+    check("a marcacao exige o de acordo do revisor (agora no grao do bloco)",
+          "reprovadasNoBloco" in js and "reprovadasNaTarefa" in js)
+    check("a marcacao exige a suite verde do bloco",
+          js.index("!suiteB || !suiteB.green") < js.index("await agent(tickPlanPrompt("))
     check("a retencao sai nomeada, nunca calada", "naoMarcados" in js)
     check("a conferencia final roda na parada", "confirm-na-parada" in js and "conferidoPor" in js)
     check("a parada por orcamento NAO gasta a conferencia",

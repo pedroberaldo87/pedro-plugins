@@ -424,6 +424,7 @@ def main():
                                           "andamento.py"),
              "doc", "s-cli", "4", "a.md", "b.md"],
             env=dict(os.environ, CLAUDE_CONFIG_DIR=tmp_doc),
+            stdin=subprocess.DEVNULL, start_new_session=True,
             capture_output=True, text=True)
         check("a CLI que o papel de doc chama grava na casa do estado",
               cli.returncode == 0

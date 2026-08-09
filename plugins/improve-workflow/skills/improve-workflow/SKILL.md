@@ -5,6 +5,20 @@ description: Autópsia de um run multi-agente que já terminou — lê o transcr
 
 # Skill: improve-workflow — a autópsia investiga e propõe, e nunca conserta
 
+## Antes de tudo — a régua e os princípios (o par obrigatório)
+
+Antes de abrir a autópsia, rode o par, nesta ordem — é ele que substitui a antiga instrução em
+prosa "leia a constituição e o quality-goals do projeto":
+
+1. **A régua do projeto** — a skill `doc-load` (invoque pela Skill tool; fora dela:
+   `python3 "$(bash "<plugin project-skills>/lib/resolve-plugin.sh" project-skills lib/doc_load.py)" --project-root "$PWD"`).
+   Ela diz o que vale como régua HOJE — a lei com `ready`/`approved`, o acordo só com
+   `approved`, o minerado como mapa — e o que está ausente, sem fingir.
+2. **Os princípios genéricos** — a skill `principles` em modo `review`, quando instalada
+   na máquina. Ausente: siga sem ela, dizendo isso no relato.
+
+Em conflito, **a régua do projeto ganha** — princípio genérico não revoga a lei da casa.
+
 Quem escreve a sentença não executa a sentença. Uma autópsia que sai consertando
 perde a neutralidade na primeira rodada: ela passa a auditar código que ela mesma
 escreveu, e o defeito que ela plantou é o único que ela nunca vai acusar.

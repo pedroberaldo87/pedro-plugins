@@ -5,6 +5,20 @@ description: "Use quando o usuário quer criar, editar ou validar um design syst
 
 # design-md — Escrever, validar e exportar DESIGN.md
 
+## Antes de tudo — a régua e os princípios (o par obrigatório)
+
+Antes de escrever o DESIGN.md, rode o par, nesta ordem — é ele que substitui a antiga instrução em
+prosa "leia a constituição e o quality-goals do projeto":
+
+1. **A régua do projeto** — a skill `doc-load` (invoque pela Skill tool; fora dela:
+   `python3 "$(bash "<plugin project-skills>/lib/resolve-plugin.sh" project-skills lib/doc_load.py)" --project-root "$PWD"`).
+   Ela diz o que vale como régua HOJE — a lei com `ready`/`approved`, o acordo só com
+   `approved`, o minerado como mapa — e o que está ausente, sem fingir.
+2. **Os princípios genéricos** — a skill `principles`, quando instalada
+   na máquina. Ausente: siga sem ela, dizendo isso no relato.
+
+Em conflito, **a régua do projeto ganha** — princípio genérico não revoga a lei da casa.
+
 `DESIGN.md` é o formato aberto do Google pra representar um **design system em texto puro**: um arquivo auto-contido com **frontmatter YAML** (tokens de design — cores, tipografia, espaçamento, etc.) + um **corpo markdown** com as seções que explicam o racional. Os tokens são os valores normativos; a prosa dá o contexto de aplicação. É o mesmo arquivo que humano e agente leem e refinam entre sessões.
 
 Esta skill **embrulha o CLI oficial** (`@google/design.md`) — não reimplementa o linter. Escreve o arquivo pela spec, valida pelo CLI, exporta os tokens. A spec completa está vendorada em **`${CLAUDE_PLUGIN_ROOT}/skills/design-md/references/spec.md`** — leia antes de escrever ou de validar manualmente.
