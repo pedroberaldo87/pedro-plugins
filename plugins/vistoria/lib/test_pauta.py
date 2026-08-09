@@ -118,7 +118,8 @@ def cruza(fa, fb, raiz):
     """A lente cruzada rodando sobre duas FICHAS: o achado de X1/X2, ou None.
 
     Consome `manda`, `proibe`, `objetos` e `eventos` — nunca o texto dos pedaços. A
-    correspondência evento → pedaços sai do campo `eventos`; não há inventário aqui.
+    correspondência evento → pedaços sai do campo `eventos`; conferi-la contra o disco é
+    trabalho de `lib/inventario.py`, não desta função.
     """
     for objeto in fa["objetos"]:
         if objeto not in fb["objetos"]:

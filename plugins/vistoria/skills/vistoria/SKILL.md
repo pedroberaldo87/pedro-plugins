@@ -26,6 +26,20 @@ não sai.
 
 Rode sempre da raiz do repositório.
 
+## 0 · O inventário (o que existe antes de medir)
+
+```bash
+python3 plugins/vistoria/lib/inventario.py            # os pedaços e a tabela evento→hooks
+python3 plugins/vistoria/lib/inventario.py --json     # cru
+```
+
+Diz quantos pedaços de leitura existem por DUAS fontes — o catálogo (`marketplace.json`) e o
+disco (`plugins/*/`) — e a diferença entre elas, que é achado e não detalhe. Traz também
+quais hooks cada evento dispara, rotulados pela chave `ordem_entre_plugins: "nao-medida"`
+(na impressão do comando ela sai com espaços, `ordem entre plugins: nao-medida`): a ordem dentro
+de um `hooks.json` é medida, entre plugins NÃO. Não afirme quem bloqueia primeiro com base
+nessa tabela.
+
 ## 1 · Medir
 
 ```bash

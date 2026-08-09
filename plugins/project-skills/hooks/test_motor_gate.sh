@@ -51,7 +51,7 @@ check "sem o sinal, libera e não escreve nada" \
   "$([ -z "$OUT" ] && echo 1 || echo 0)" "saiu: $OUT"
 
 # 2 · com o sinal, nega
-: > "$ESTADO/ativo-$SID"
+printf 'sprint\n' > "$ESTADO/ativo-$SID"
 OUT=$(payload Agent "$SID" | roda)
 check "com o sinal, NEGA o disparo de sub-agente" "$(nega "$OUT")" "saiu: $OUT"
 check "a razão manda rodar o Workflow" \
@@ -64,6 +64,19 @@ check "a razão mostra o desligamento" \
   "$(printf '%s' "$OUT" | grep -q 'SPRINT_GATE=0' && echo 1 || echo 0)"
 check "quem nega sai com exit 0 (o veredito vem do JSON)" \
   "$(payload Agent "$SID" | roda >/dev/null; [ $? -eq 0 ] && echo 1 || echo 0)"
+
+# 2b · o sinal é COMPARTILHADO entre skills, e a linha 1 diz de quem ele é.
+# MEDIDO em 2026-08-09: `sprint`, `qa-loop` e `gauntlet` gravam o MESMO
+# `ativo-<sid>`. O gate só olhava se o arquivo existia, e por isso acender o
+# gauntlet o armava — proibindo o gauntlet de despachar os próprios juízes,
+# que é o mecanismo inteiro daquela skill.
+for OUTRA in gauntlet qa-loop; do
+  ALHEIA="sessao-da-$OUTRA"
+  printf '%s\n' "$OUTRA" > "$ESTADO/ativo-$ALHEIA"
+  OUT=$(payload Agent "$ALHEIA" | roda)
+  check "sinal de OUTRA skill ($OUTRA) não arma o gate do sprint" \
+    "$([ -z "$OUT" ] && echo 1 || echo 0)" "saiu: $OUT"
+done
 
 # 3 · o sinal é POR SESSÃO — o defeito que já mordeu context-guard e scope-cop
 OUT=$(payload Agent "outra-sessao" | roda)
@@ -92,7 +105,7 @@ check "sem jq no PATH, não bloqueia (fail-open)" \
 
 # 6b · o cap: o gate degrada em vez de travar a missão
 CAPSID="sessao-do-cap"
-: > "$ESTADO/ativo-$CAPSID"
+printf 'sprint\n' > "$ESTADO/ativo-$CAPSID"
 N_NEGOU=0
 for _ in 1 2 3 4 5; do
   OUT=$(payload Agent "$CAPSID" | roda)
@@ -109,7 +122,7 @@ check "o contador do cap é por sessão" \
 # deixava a sessão seguinte sem despachar sub-agente ATÉ O FIM — foi assim que
 # 4 sinais de sessões mortas ficaram acesos em ~/.claude/andamento.
 VELHO="sessao-abandonada"
-: > "$ESTADO/ativo-$VELHO"
+printf 'sprint\n' > "$ESTADO/ativo-$VELHO"
 touch -t 202001010000 "$ESTADO/ativo-$VELHO"
 OUT=$(payload Agent "$VELHO" | roda)
 check "sinal mais velho que o limite deixa de bloquear" \
@@ -118,7 +131,7 @@ check "o sinal expirado é apagado, não só ignorado" \
   "$([ ! -f "$ESTADO/ativo-$VELHO" ] && echo 1 || echo 0)"
 
 NOVO="sessao-recem-acesa"
-: > "$ESTADO/ativo-$NOVO"
+printf 'sprint\n' > "$ESTADO/ativo-$NOVO"
 OUT=$(payload Agent "$NOVO" | roda)
 check "sinal recém-aceso continua bloqueando (a poda não come o vivo)" \
   "$(nega "$OUT")" "saiu: $OUT"

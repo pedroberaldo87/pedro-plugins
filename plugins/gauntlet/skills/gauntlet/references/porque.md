@@ -263,6 +263,35 @@ como fazem as duas seções acima.
 
 ---
 
+## A percepção do dono é MEDÍVEL — e vira eixo, não só veto
+
+Medido em 2026-08-09. Dez referências foram abertas de uma vez no navegador do dono, e ele
+devolveu uma frase que parecia gosto: *"dragonfly, risk film, inspiring, izanami ficou muito
+pesado"*, e depois *"sobre izanami ficou pesado na maquina. o site também precisa performar"*.
+
+A sonda mediu os mesmos sites, pelo mesmo gesto, um de cada vez:
+
+```
+izanami-official.com     9,8 quadros por segundo   ·  quadro mediano  84,1ms
+dragonfly.xyz            7,1                       ·                 150,0ms
+verostudio.com          20,3                       ·                  50,0ms
+apple.com/airpods-pro   60,3                       ·                  16,7ms   com 14.287kB
+rocnation.com           60,3                       ·                  16,7ms   com    691kB
+controle (8 divs)       60,3                       ·                  16,7ms
+```
+
+Ele acertou os dois que travavam, de olho, sem ferramenta nenhuma. Duas lições:
+
+**A primeira:** quando o dono descreve uma sensação, procure a coluna que a mede antes de
+tratá-la como gosto. A frase dele virou um eixo com registro — e um alvo que ele "não gostou"
+virou **anti-alvo declarado no rito**, que é informação que nenhum veto sozinho carrega.
+
+**A segunda:** a sonda da missão anterior media só composição, e por isso a disputa inteira
+correu sem ninguém olhar o custo de rodar a obra. Não foi omissão do juiz: **o que a sonda não
+observa, o juiz não julga.** Eixo sem coluna na sonda é eixo que não existe.
+
+---
+
 ## O que a skill NÃO tem, e por quê
 
 **Métrica estética automática.** Toda medida tentada — saturação, pixels em cor forte,
