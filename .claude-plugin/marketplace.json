@@ -193,7 +193,7 @@
       "source": "./plugins/improve-workflow",
       "description": "Workflow autopsy — reads the full transcript of a finished multi-agent run, measures cost and friction per role (agents, turns, tokens), flags suspect roles by counting instead of judging, and proposes fixes for the user to approve. It investigates and proposes, and is forbidden by design from implementing its own proposals. Early stage: today it ships the run-scoped leftovers sweeper (stale file reservations of that run only), the per-role measurer over a run transcript, and the skill that runs the round.",
       "category": "productivity",
-      "version": "0.16.12",
+      "version": "0.16.14",
       "tags": [
         "workflow",
         "autopsy",
@@ -247,7 +247,7 @@
       "source": "./plugins/project-skills",
       "description": "A casa das skills de projeto — documentacao, concepcao, plano, execucao e revisao moram sob um teto so, e conversam entre si por nome de plugin, nunca por caminho relativo para a pasta do vizinho. Traz tambem o motor de execucao autonoma (/sprint): decompoe -> executa -> revisa em Workflow deterministico, com os hooks que o guardam — a reserva de arquivos entre motores, o guarda de espera, o narrador de andamento na statusline e o gate que nega sub-agente com a missao armada (herdados do antigo plugin sovai, fundido aqui em 2026-08-09). O indice da familia se descobre lendo a pasta skills/ do plugin, nunca de cor.",
       "category": "productivity",
-      "version": "0.19.3",
+      "version": "0.19.6",
       "tags": [
         "project",
         "scaffolding",
@@ -297,9 +297,9 @@
     {
       "name": "vistoria",
       "source": "./plugins/vistoria",
-      "description": "A ferramenta que revisa os arquivos de instrucao do proprio marketplace — skills, hooks e cobradores — procurando o defeito que so aparece quando duas pecas sao lidas juntas. Nasce como esqueleto registrado e desligado de fabrica: o catalogo e a receita do bootstrap ja o conhecem antes de qualquer lente existir, para que as pecas entrem uma a uma sem que nenhuma delas invente o registro no meio do caminho.",
+      "description": "A ferramenta que revisa os arquivos de instrucao do proprio marketplace — skills, hooks e cobradores. Roda os cobradores do repo num comando so, soma as lentes medidas (assert que congela frase morta, script de hook sem chamador) e devolve uma pagina de achados com a prova colada, onde o dono marca o que vira plano ticavel. Achado sem prova e recusado na porta.",
       "category": "productivity",
-      "version": "0.5.1",
+      "version": "0.8.2",
       "tags": [
         "review",
         "skills",
@@ -311,7 +311,7 @@
       "source": "./plugins/visual",
       "description": "CLI walls-of-text → interactive HTML dark-theme views. The page carries the EVIDENCE, not the account of it: real artifact embedded, raw output verbatim, provenance for every number — enforced by a pre-ExitPlanMode gate. Prose is REFUSED by the builder: every text field is checked (≤140 chars per bullet, one sentence each, no continuation connective, max 6 per block) and a violation aborts without writing the page. Each problem's body is born folded — the title stays visible, consequence and proposal open on click under a label derived from the content itself. Plans, diagnostics and decisions in the browser with live sync back to Claude. Regravar um plano nunca apaga em silêncio o que não veio no pacote: o init parcial FUNDE o bloco de requisitos por id — o requisito que só existe no arquivo fica, e o executor recebe a nota do que foi mantido. O cruzamento também mede o plano contra a arquitetura pretendida: funcionalidade sem peça, e requisito citando peça que o architecture-intent.md não tem, saem em listas próprias — e o mesmo vale para o desenho de funcionamento: funcionalidade sem passo do ciclo, e passo do ciclo que nenhuma funcionalidade atende.",
       "category": "productivity",
-      "version": "1.40.0",
+      "version": "1.40.1",
       "tags": [
         "visualization",
         "html",

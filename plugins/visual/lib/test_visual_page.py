@@ -773,6 +773,16 @@ check("as duas linhas da foto do layout antigo continuam no template", len(_foto
 check("cada linha da foto carrega a isenção declarada do conferidor de design",
       all("impeccable-disable-line border-accent-on-rounded --" in ln for ln in _foto), _foto)
 
+# Barra de progresso é a exceção legítima do conferidor: crescer de largura é
+# exatamente o que ela comunica, e a alternativa por `transform` esticaria o
+# texto dentro dela. Cada uma das três carrega a isenção com o motivo escrito —
+# se alguém tirar a isenção, ou a barra, este check cai junto.
+_barras_prog = [ln for ln in _css.splitlines() if "transition: width" in ln]
+check("as três barras de progresso continuam no template", len(_barras_prog) == 3,
+      _barras_prog)
+check("cada barra de progresso carrega a isenção declarada do conferidor de design",
+      all("impeccable-disable-line layout-transition --" in ln for ln in _barras_prog),
+      _barras_prog)
 
 print("\n%d passou · %d falhou" % (PASS, FAIL))
 sys.exit(1 if FAIL else 0)

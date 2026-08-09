@@ -132,7 +132,7 @@ O resultado vai no `args` do Workflow como **`buildWarm`**, e de lá para **todo
 
 | Knob | Default | O que faz |
 |---|---|---|
-| `maxRounds` | `5` | **Trava de incêndio, não meta.** Teto de voltas do #1↔#2; estourou, o que faltou vira Bloqueio. |
+| `maxRounds` | `12` | **Trava de incêndio, não meta.** Teto de voltas do #1↔#2; estourou, o que faltou vira Bloqueio. O dono recusou o teto baixo em 2026-08-09: missão de implementação é longa, e cortar a volta cedo devolve trabalho pela metade. |
 | `severityFloor` | `P1` | Gap abaixo do floor não segura a obra de pé (vira nota no relatório, não nova rodada). |
 | `churnThreshold` | `2` | Mesma tarefa reaparecendo N rodadas **seguidas** → escala pro `diagnose_model`. |
 | `hasQaLoop` | detectado | `false` liga o **confirm-pass** em `finalize_model` antes de declarar `built` (ver a guarda no #2). A casca detecta se a skill `qa-loop` está disponível e passa o booleano — nunca deixa `undefined`, senão a guarda nunca arma. |
@@ -343,7 +343,7 @@ const sevRank = s => ({ P0:3, P1:2, P2:1, P3:0 }[s] ?? 0)
 const floor = sevRank(ARGS.severityFloor || 'P1')
 // default DENTRO do motor: sem isso, ARGS.maxRounds undefined faz `r < undefined` ser
 // false na 1ª volta — o motor devolveria "nada construído" em silêncio.
-const maxRounds = ARGS.maxRounds || 5
+const maxRounds = ARGS.maxRounds || 12
 const churnThreshold = ARGS.churnThreshold || 2
 // 'shared' = a tarefa colide em arquivo com OUTRA do MESMO lote → vai em sub-lote SERIAL.
 // NUNCA em worktree: o trabalho ficaria na cópia e o revisor confere no repo real (ver acima).
@@ -821,7 +821,12 @@ while (!built && r < maxRounds) {
       // invocou skill quebrada e papel que MENTE ter feito eram a mesma coisa vista
       // daqui. Agora ele devolve os caminhos que TOCOU — e só os que o disco confirma —,
       // do mesmo jeito que o papel que roda comando deixa o commit no histórico.
-      const doc = await agent(docTouchPrompt({ repoRoot: ARGS.repoRoot, round: r, files: tocados }),
+      // E A PROCEDÊNCIA DELA FICA NO DISCO (S-111): `rounds[].doc` só vivia na
+      // memória do Workflow, então, terminada a missão, não sobrava como provar que
+      // a doc do commit seguinte saiu DAQUI e não de uma passada manual. O papel
+      // grava a lista confirmada em `doc-<sid>`, ao lado do `placar-<sid>` — o
+      // script não escreve arquivo, quem tem mão é o papel.
+      const doc = await agent(docTouchPrompt({ repoRoot: ARGS.repoRoot, round: r, files: tocados, sessionId: ARGS.sessionId }),
         { model: ARGS.model, effort: T.mechanical.effort, phase: 'Doc', schema: DOC_TOUCH })
       const docsFeitos = doc?.docs || []
       rounds[rounds.length - 1].doc = docsFeitos
@@ -1161,7 +1166,7 @@ A declaração é a **primeira linha do corpo**, sozinha, antes de qualquer pros
 
   É este commit que faz motor interrompido no meio (vigia, disjuntor, sessão morta) deixar as ondas já fechadas **no histórico** em vez de soltas no disco — sem ele, quem chegar depois não tem como separar o que fechou verde do que ficou pela metade. Commit **local e só**: o push é uma vez, na persistência do fim. Árvore limpa faz o `commit` sair não-zero, e isso **não** é falha — o `|| true` é o fail-open, pela mesma regra do `tick`: perder a onda por causa do registro é pior que o registro faltando.
 - `DOC_TOUCH` — `{ docs: [caminho...] }`, devolvido por `docTouchPrompt`. **`docs`** = os caminhos que a re-projeção TOCOU, e **só os que o disco confirma** (o papel confere cada um antes de devolver — caminho que ele não achou não entra na lista). Enquanto este papel não devolvia nada, "a doc foi re-projetada" era só a chamada ter saído: papel mudo, papel que invocou skill quebrada e papel que **mente ter feito** chegavam iguais ao script. **Lista vazia é Bloqueio** — não derruba a onda (o commit já está feito, mesma regra do `tick`), mas sai no relatório dizendo que a doc daquela rodada não foi confirmada, porque quem executar a onda seguinte vai ler a doc do repo de antes. O que fica registrado em `rounds[].doc` é o que o papel confirmou, nunca a lista que ele recebeu.
-- `docTouchPrompt` — devolve `DOC_TOUCH`. Papel **mecânico e só**: **descobrir o nome de invocação** com `bash <raiz do project-skills>/lib/resolve-skill.sh doc-touch` e invocar a skill com o nome que sair (Skill tool), com a lista `files` — os arquivos que ESTA onda tocou (a união dos `files_touched` dos `TASK_RESULT`) — para que a doc deles seja re-projetada antes de a onda seguinte começar. Sem isso, quem executa a rodada seguinte lê a doc do repo de antes e decide por um mapa vencido. Roda **depois** do `checkpointPrompt` e só na onda verde: commit primeiro, porque o trabalho no histórico não pode depender de a doc dar certo; doc de repo quebrado documentaria a quebra. Onda sem arquivo tocado não chama este papel. Quem decide touch-vs-FULL é o próprio touch (mesma regra da Persistência) — aqui ele escala e segue, sem perguntar. Falha do touch **não derruba a onda**: o commit já está feito, e perder a onda por causa da doc é pior que a doc faltando. **Terminado o touch, devolva em `docs` os caminhos re-projetados** — cada um conferido no disco (`test -f`) antes de entrar na lista: caminho que você não achou fica de fora, mesmo que a skill diga ter escrito.
+- `docTouchPrompt` — devolve `DOC_TOUCH`. Papel **mecânico e só**: **descobrir o nome de invocação** com `bash <raiz do project-skills>/lib/resolve-skill.sh doc-touch` e invocar a skill com o nome que sair (Skill tool), com a lista `files` — os arquivos que ESTA onda tocou (a união dos `files_touched` dos `TASK_RESULT`) — para que a doc deles seja re-projetada antes de a onda seguinte começar. Sem isso, quem executa a rodada seguinte lê a doc do repo de antes e decide por um mapa vencido. Roda **depois** do `checkpointPrompt` e só na onda verde: commit primeiro, porque o trabalho no histórico não pode depender de a doc dar certo; doc de repo quebrado documentaria a quebra. Onda sem arquivo tocado não chama este papel. Quem decide touch-vs-FULL é o próprio touch (mesma regra da Persistência) — aqui ele escala e segue, sem perguntar. Falha do touch **não derruba a onda**: o commit já está feito, e perder a onda por causa da doc é pior que a doc faltando. **Terminado o touch, devolva em `docs` os caminhos re-projetados** — cada um conferido no disco (`test -f`) antes de entrar na lista: caminho que você não achou fica de fora, mesmo que a skill diga ter escrito. **E grave essa mesma lista no disco** antes de devolver: `python3 <raiz do project-skills>/lib/andamento.py doc <sessionId> <rodada> <caminho...>`, que escreve `doc-<sid>` na casa do estado (`lib/andamento.py:doc_da_onda`) — ao lado do `placar-<sid>`, mesma chave por sessão e mesmo fail-open. Sem esse registro, `rounds[].doc` morre com o Workflow e ninguém consegue provar depois que a doc do commit seguinte saiu da onda em vez de uma passada manual. Falhar ao gravar **não** derruba a onda.
 - `colheitaPrompt` — **sem schema** (nada volta pro script). Papel **mecânico e só**: mandar o lixeiro colher o que ESTA sessão anotou ter aberto, rodando
 
   ```bash

@@ -65,3 +65,21 @@ def test_visual_de_turno_anterior_nao_conta(tmp_path):
               {"type": "user", "message": {"role": "user", "content": "e agora?"}},
               ASSISTENTE]
     assert _roda(tmp_path, linhas) == ["sem /visual no turno"]
+
+
+if __name__ == "__main__":
+    # O gate do repositorio roda `python3 <suite>`, nao pytest — sem este executor a
+    # suite saia 0 SEM RODAR NENHUM CASO (o antipadrao "passa com e sem a mudanca").
+    import tempfile
+    falhas = 0
+    casos = [v for k, v in sorted(globals().items()) if k.startswith("test_")]
+    for caso in casos:
+        with tempfile.TemporaryDirectory() as d:
+            try:
+                caso(Path(d))
+                print(f"  ok   {caso.__name__}")
+            except AssertionError as e:
+                falhas += 1
+                print(f"  FAIL {caso.__name__} — {e}")
+    print(f"\n{len(casos) - falhas} ok · {falhas} FAIL")
+    sys.exit(1 if falhas else 0)

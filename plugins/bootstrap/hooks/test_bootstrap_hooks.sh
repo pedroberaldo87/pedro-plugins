@@ -144,9 +144,14 @@ echo "-- juiz de forma do relato"
 
 roda_juiz() { # texto, session_id
   local t="$TMP/juiz-$RANDOM.jsonl"
+  # o juiz e do /visual (9281550): sem a marca da skill no turno ele nem julga —
+  # o transcript fake planta a chamada, senao todo caso vira "sem /visual no turno"
   python3 -c '
 import json,sys
-open(sys.argv[1],"w").write(json.dumps({"type":"assistant","message":{"role":"assistant",
+open(sys.argv[1],"w").write(
+  json.dumps({"type":"assistant","message":{"role":"assistant",
+    "content":[{"type":"tool_use","name":"Skill","input":{"skill":"visual"}}]}})+"\n"
+  +json.dumps({"type":"assistant","message":{"role":"assistant",
     "content":[{"type":"text","text":sys.argv[2]}]}})+"\n")' "$t" "$1"
   echo "{\"transcript_path\":\"$t\",\"session_id\":\"$2\"}" | \
     env -u CLAUDE_CONFIG_DIR FORMA_RELATO_STATE="$TMP/forma-$2" python3 "$JUIZ" >/dev/null 2>&1

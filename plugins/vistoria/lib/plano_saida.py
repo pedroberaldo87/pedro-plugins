@@ -10,15 +10,19 @@ O id do passo é posicional e estável (`F1.1`, `F1.2`, …): quem marcou primei
 fica sendo o primeiro para sempre, que é o que deixa o `tick` de uma sessão
 valer na seguinte.
 
+O destino NÃO é adivinhado: `--dir` é obrigatório. Um padrão calculado a partir da
+posição deste arquivo aponta para dentro do cache do plugin quando instalado — o
+plano do dono nasceria na pasta do autor da skill. Sem `--dir`, o programa recusa.
+
 DEGRADAÇÃO DECLARADA. A conferência do arquivo contra o schema é feita pelo
-`plan_state.py`, que vive no plugin `project-skills` — e ele pode não estar na
+`plan_state.py`, que vive no plugin `project-skills` e é achado pelo NOME
+(`resolve-plugin.sh`), nunca pela posição no disco — e ele pode não estar na
 máquina. Nesse caso o JSON sai do mesmo jeito (ele é gravado por este módulo,
 não por lá) e o aviso da conferência que não aconteceu vai para o `stderr`. Um
 plano gravado sem conferência é pior do que plano nenhum só se ninguém souber.
 
 Uso:
-    python3 plugins/vistoria/lib/plano_saida.py < marcados.json
-    python3 plugins/vistoria/lib/plano_saida.py --dir /caminho/dos/planos
+    python3 plugins/vistoria/lib/plano_saida.py --dir .claude/plans < marcados.json
 
 stdlib only (requisito do repo).
 """
@@ -28,6 +32,7 @@ import datetime
 import importlib.util
 import json
 import os
+import subprocess
 import sys
 
 AQUI = os.path.dirname(os.path.abspath(__file__))
@@ -36,9 +41,8 @@ sys.path.insert(0, AQUI)
 from achado import valida  # noqa: E402
 from regua_texto import erros_de_estilo  # noqa: E402
 
-ROOT = os.path.dirname(os.path.dirname(os.path.dirname(AQUI)))
-SAIDA = os.path.join(ROOT, ".claude", "plans")
-PLAN_STATE = os.path.join(ROOT, "plugins", "project-skills", "lib", "plan_state.py")
+PLUGIN = os.path.dirname(AQUI)
+RESOLVEDOR = os.path.join(AQUI, "resolve-plugin.sh")
 
 FASE = "F1"
 
@@ -110,21 +114,35 @@ def erros_do_texto(plano):
     return errs
 
 
-def confere_com_plan_state(plano, caminho=PLAN_STATE):
+def acha_plan_state():
+    """O `plan_state.py` do irmão pelo NOME — vazio quando não está na máquina."""
+    env = dict(os.environ)
+    env.setdefault("CLAUDE_PLUGIN_ROOT", PLUGIN)
+    try:
+        r = subprocess.run(["bash", RESOLVEDOR, "project-skills", "lib/plan_state.py"],
+                           capture_output=True, text=True, env=env,
+                           stdin=subprocess.DEVNULL)
+    except OSError:
+        return ""
+    return r.stdout.strip() if r.returncode == 0 else ""
+
+
+def confere_com_plan_state(plano, caminho=None):
     """Confere o plano contra o schema do `plan_state`, quando ele está na máquina.
 
     Devolve `(erros, aviso)`. `aviso` preenchido = a conferência NÃO aconteceu, e
     quem chamou tem que dizer isso em voz alta.
     """
-    if not os.path.isfile(caminho):
-        return [], AVISO_DEGRADACAO % caminho
+    caminho = acha_plan_state() if caminho is None else caminho
+    if not caminho or not os.path.isfile(caminho):
+        return [], AVISO_DEGRADACAO % (caminho or "não achado pelo nome")
     spec = importlib.util.spec_from_file_location("plan_state_da_vistoria", caminho)
     mod = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(mod)
     return mod.erros_do_plano(plano), ""
 
 
-def escreve(achados, saida=SAIDA, data=None):
+def escreve(achados, saida, data=None):
     """Grava o plano e devolve `(caminho, aviso)`. Aviso vazio = houve conferência."""
     plano = plano_de(achados, data)
     errs = erros_do_texto(plano)
@@ -143,7 +161,9 @@ def escreve(achados, saida=SAIDA, data=None):
 
 def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    ap.add_argument("--dir", default=SAIDA, help="onde gravar (padrão: .claude/plans)")
+    ap.add_argument("--dir", required=True,
+                    help="onde gravar (obrigatório: destino adivinhado cai no cache "
+                         "do plugin quando instalado)")
     ap.add_argument("--data", default=None, help="a data do plano (padrão: hoje)")
     args = ap.parse_args(argv)
     dados = json.load(sys.stdin)

@@ -13,15 +13,17 @@ stdlib only (requisito do repo).
 import json
 import os
 import re
+import shutil
 import subprocess
 import sys
+import tempfile
 
 AQUI = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, AQUI)
 
 import pagina  # noqa: E402
 
-ROOT = pagina.ROOT
+ROOT = os.path.dirname(os.path.dirname(os.path.dirname(AQUI)))
 
 falhas = []
 
@@ -52,15 +54,19 @@ def conta_checkbox(texto):
 def main():
     print("test_pagina")
 
+    # O destino é sempre um tempdir do teste: a página da rodada real do projeto não
+    # pode ser sobrescrita por suíte rodando.
+    tmp = tempfile.mkdtemp(prefix="vistoria-pagina-")
+
     # --- o caminho de verdade: JSON pelo stdin, caminho no stdout -----------------
-    saida = subprocess.run([sys.executable, os.path.join(AQUI, "pagina.py")],
+    saida = subprocess.run([sys.executable, os.path.join(AQUI, "pagina.py"),
+                            "--dir", tmp],
                            input=json.dumps(AMOSTRA), cwd=ROOT,
                            capture_output=True, text=True, start_new_session=True)
     caminho = saida.stdout.strip()
     checa("o comando sai 0", saida.returncode == 0, saida.stderr[-300:])
-    checa("imprime um caminho em .claude/vistoria/",
-          caminho.startswith(os.path.join(ROOT, ".claude", "vistoria") + os.sep)
-          and caminho.endswith(".html"), repr(caminho))
+    checa("imprime o caminho do HTML dentro do --dir pedido",
+          caminho.startswith(tmp + os.sep) and caminho.endswith(".html"), repr(caminho))
     checa("o arquivo existe no disco", os.path.isfile(caminho), repr(caminho))
 
     texto = open(caminho, encoding="utf-8").read() if os.path.isfile(caminho) else ""
@@ -73,6 +79,15 @@ def main():
           all(a["prova"].replace("&", "&amp;") in texto for a in AMOSTRA),
           "faltou: %r" % [a["prova"] for a in AMOSTRA if a["prova"] not in texto])
 
+    # --- e nasce fechada: nenhum <pre> fora de <details>, nenhum details aberto ----
+    checa("a prova nasce dentro de <details> fechado",
+          texto.count("<details><summary>") == 2 * len(AMOSTRA)
+          and "<details open" not in texto
+          and len(re.findall(r"<details><summary>[^<]*</summary><pre>", texto)) == len(AMOSTRA),
+          "details=%d pre-em-details=%d"
+          % (texto.count("<details><summary>"),
+             len(re.findall(r"<details><summary>[^<]*</summary><pre>", texto))))
+
     # --- agrupada por lente -------------------------------------------------------
     checa("uma seção por lente, com a contagem da lente",
           "hook-contract — 2 achado(s)" in texto and "desacoplamento — 1 achado(s)" in texto)
@@ -84,12 +99,14 @@ def main():
 
     # --- achado com marcação não vira HTML ----------------------------------------
     veneno = [um("x", "tag no texto", "<script>alerta()</script>")]
-    p2 = pagina.escreve(veneno)
+    p2 = pagina.escreve(veneno, os.path.join(tmp, "veneno"))
     t2 = open(p2, encoding="utf-8").read()
     checa("prova com tag é escapada, não injetada",
           "<script>alerta()" not in t2 and "&lt;script&gt;alerta()" in t2)
     checa("o caso de um achado só ainda tem um checkbox", conta_checkbox(t2) == 1,
           str(conta_checkbox(t2)))
+
+    shutil.rmtree(tmp, ignore_errors=True)
 
     print("\n%s" % ("FALHOU: " + ", ".join(falhas) if falhas else "tudo verde"))
     return 1 if falhas else 0
