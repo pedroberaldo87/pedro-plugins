@@ -46,17 +46,16 @@ def monta_missao(raiz, pecas=("hero",), com_veredito=True, aprovado=True):
     projeto = os.path.join(raiz, "projeto")
     os.makedirs(projeto, exist_ok=True)
     escreve(os.path.join(m, "recon", "registros", "alvo-hero.png"), "PIXELS-DO-ALVO")
+    # A ficha ENXUTA (decisão do dono, 2026-08-09): só o essencial é obrigatório.
+    # `lei` é opcional — o modo com constituição entra por ela.
     escreve(os.path.join(m, "rito.json"), {
         "objetivo": "bater o alvo em acabamento",
-        "tipo": "site",
         "alvos": ["https://exemplo.invalid"],
         "sonda": {"preparar": "servir", "registrar": "printar", "alvo": "abrir a url",
                   "teste_registro": "recon/registros/alvo-hero.png"},
         "eixos": [{"nome": "ritmo da entrada", "gesto": "rolar ate o fim",
                    "registro": "recon/registros/alvo-hero.png"}],
-        "congelado": ["a mensagem"],
-        "liberado": ["a estetica"],
-        "material": {"pode": ["textura"], "nao_pode": ["pessoa que nao existe"]},
+        "lei": ["a mensagem aprovada é intocável"],
         "orcamento": {"rodadas_por_peca": 3, "teto_de_pecas": 4},
         "raiz": projeto,
     })
@@ -365,6 +364,45 @@ escreve(sinal, "")
 check("segunda missão com uma de pé é recusada",
       any("já há uma missão de pé" in f for f in fc.erros_do_rito(m, sinal)))
 check("e sem o sinal aceso a mesma missão passa", fc.erros_do_rito(m, sinal + "-x") == [])
+# A ficha enxuta (decisão do dono, 2026-08-09): a fixture saudável já não traz `tipo`,
+# `congelado`, `liberado` nem `material` — o chão prova que sem eles a missão começa.
+# O que este caso acrescenta: `lei` também é opcional, e a disputa LIVRE passa sem ela.
+rito = json.load(open(os.path.join(m, "rito.json"), encoding="utf-8"))
+del rito["lei"]
+p9 = os.path.join(d, "disputa-livre")
+os.makedirs(p9, exist_ok=True)
+escreve(os.path.join(p9, "rito.json"), rito)
+escreve(os.path.join(p9, "recon", "registros", "alvo-hero.png"), "PIXELS-DO-ALVO")
+check("disputa livre — rito sem `lei` — passa a abertura",
+      fc.erros_do_rito(p9) == [])
+shutil.rmtree(d)
+
+print()
+print("PENDENTES — a foto da falha central tirada EM VOO, para a trava do guarda")
+d = tmp()
+m = monta_missao(d, pecas=("hero", "marcas"), com_veredito=False)
+check("entrega sem veredito entra na lista, peça a peça",
+      fc.pecas_pendentes(m) == ["hero", "marcas"])
+shutil.rmtree(d)
+
+d = tmp()
+m = monta_missao(d, pecas=("hero", "marcas"))
+check("peça julgada não é pendência", fc.pecas_pendentes(m) == [])
+v = os.path.join(m, "pecas", "hero", "r1", "veredito.json")
+dado = json.load(open(v, encoding="utf-8"))
+dado["status"] = "quase la"
+escreve(v, dado)
+check("veredito com status fora do vocabulário conta como SEM juiz",
+      fc.pecas_pendentes(m) == ["hero"])
+shutil.rmtree(d)
+
+d = tmp()
+m = monta_missao(d)
+shutil.rmtree(os.path.join(m, "pecas", "hero"))
+check("peça sem rodada nenhuma não é pendência — ainda não houve entrega",
+      fc.pecas_pendentes(m) == [])
+check("missão sem decomposição devolve lista vazia — fail-open do guarda",
+      fc.pecas_pendentes(os.path.join(d, "nao-existe")) == [])
 shutil.rmtree(d)
 
 print()

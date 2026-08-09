@@ -11,7 +11,12 @@ INPUT="$(cat 2>/dev/null || true)"
 MODE_FILE="$HOME/.claude/intent-guard/mode"
 [ -f "$MODE_FILE" ] && [ "$(tr -d '[:space:]' < "$MODE_FILE" 2>/dev/null)" = "off" ] && exit 0
 PY="$(command -v python3)"
-"$PY" --version >/dev/null 2>&1 || exit 0; [ -z "$PY" ] && exit 0
+if [ -z "$PY" ] || ! "$PY" --version >/dev/null 2>&1; then
+  # sem python3 o caderno fica sem o pedido — fala pelos dois canais em vez de calar
+  # (o corpo deste hook é Python embutido; o leitor hook-json.sh empresta só o aviso)
+  . "${0%/*}/hook-json.sh" 2>/dev/null && hj_avisa "intent-guard/capture-prompt"
+  exit 0
+fi
 LEDGER="${CLAUDE_PLUGIN_ROOT}/lib/ledger.py"
 [ -f "$LEDGER" ] || exit 0
 printf '%s' "$INPUT" | "$PY" -c '
