@@ -5,7 +5,7 @@
 # que sai no stdout. Nada de recalcular a regra aqui: recalcular à mão foi
 # exatamente o que mascarou o bug de path na 1ª rodada do plan-gate.
 #
-#   bash plugins/sovai/hooks/test_sovai_gate.sh
+#   bash plugins/project-skills/hooks/test_sovai_gate.sh
 
 HOOK="$(cd "$(dirname "$0")" && pwd)/pretooluse-sovai-motor.sh"
 TMP="$(mktemp -d)"

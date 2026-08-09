@@ -4,7 +4,7 @@
 # Roda o hook DE VERDADE, alimentando o payload de PreToolUse pelo stdin, e olha
 # a decisão que sai no stdout. Nada de recalcular a regra aqui.
 #
-#   bash plugins/sovai/hooks/test_espera_com_guarda.sh
+#   bash plugins/project-skills/hooks/test_espera_com_guarda.sh
 
 HOOK="$(cd "$(dirname "$0")" && pwd)/pretooluse-espera-com-guarda.sh"
 

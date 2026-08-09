@@ -30,6 +30,12 @@ def _destinos_do_vendoring(nome):
     próprio vendoring; derivar dele faz o próximo rename chegar aqui sozinho.
     """
     sync = os.path.join(ROOT, "scripts", "sync-shared.sh")
+    if not os.path.exists(sync):
+        # O vendoring é a fonte dos destinos: sem ele não há o que conferir, e a
+        # suíte tem que DIZER isso em vez de morrer em traceback — falha por
+        # infra ausente e falha por defeito não podem ter a mesma cara.
+        raise SystemExit("scripts/sync-shared.sh nao existe — sem ele nao ha "
+                         "destino declarado para conferir")
     with open(sync, encoding="utf-8") as fh:
         bloco = re.search(r"^SPECS=\((.*?)^\)", fh.read(), re.S | re.M)
     saida = []

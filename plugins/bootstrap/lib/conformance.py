@@ -633,14 +633,14 @@ ELOS_STATUSLINE = (
      "quem_consome": "o guarda do context-guard, que so dispara com esse arquivo na mao",
      "conserto": "rode `/context-guard:setup` — ele registra o wrapper e move o comando "
                  "atual pra CLAUDE_STATUSLINE_FORWARD, preservando o que ja renderizava"},
-    {"plugin": "sovai", "papel": "narrador",
+    {"plugin": "project-skills", "papel": "narrador",
      "marca": "statusline-motor",
      "produz": "a linha do motor ACIMA da barra — ha quanto tempo a missao roda e "
                "quando ela falou pela ultima vez, lidos do estado em disco",
      "quem_consome": "voce, na tela, quando volta ao terminal e o systemMessage "
                      "da narracao ja rolou pra fora",
      "conserto": "ponha CLAUDE_STATUSLINE_FORWARD apontando pro "
-                 "`hooks/statusline-motor.sh` do sovai, com o comando que desenha a "
+                 "`hooks/statusline-motor.sh` do project-skills, com o comando que desenha a "
                  "barra como ARGUMENTO dele (a receita em "
                  "`config/settings-defaults.json` ja vem assim)"},
     {"plugin": "claude-hud", "papel": "renderizador",

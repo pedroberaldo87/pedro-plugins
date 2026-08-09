@@ -196,7 +196,7 @@ mecanismo que o `/sovai` usa entre motores — e se a lista **cruza** com a de u
 **um por linha** (do alvo: `git diff --name-only <alvo>`), e `CLAUDE_SESSION_ID` = o id desta sessão:
 
 ```bash
-RESERVA="$(bash "${CLAUDE_PLUGIN_ROOT}/skills/qa-loop/resolve-plugin.sh" sovai hooks/reserva-de-arquivos.sh)"
+RESERVA="$(bash "${CLAUDE_PLUGIN_ROOT}/skills/qa-loop/resolve-plugin.sh" project-skills hooks/reserva-de-arquivos.sh)"
 [ -n "$RESERVA" ] && sh "$RESERVA" reservar "${CLAUDE_SESSION_ID}" qa-loop $ARQUIVOS_DO_REVIEW
 ```
 
@@ -213,7 +213,7 @@ Ao terminar (Passo 8, inclusive em `gate-red` ou abandono), **libere** — reser
 recusa a próxima revisão até expirar:
 
 ```bash
-RESERVA="$(bash "${CLAUDE_PLUGIN_ROOT}/skills/qa-loop/resolve-plugin.sh" sovai hooks/reserva-de-arquivos.sh)"
+RESERVA="$(bash "${CLAUDE_PLUGIN_ROOT}/skills/qa-loop/resolve-plugin.sh" project-skills hooks/reserva-de-arquivos.sh)"
 [ -n "$RESERVA" ] && sh "$RESERVA" liberar "${CLAUDE_SESSION_ID}" qa-loop
 ```
 
@@ -303,6 +303,7 @@ const floor = sevRank(args.severityFloor || 'P1')
 let acceptedLimits = args.acceptedLimits || []
 let invariants = args.invariants || []
 const churn = {}                 // { 'arquivo:função': nº de regressões }
+const causaDisputada = []        // o desfecho de cada escalada: causa referendada, ou a disputa com as duas versões
 // chave do churn = arquivo:função. Só o nome da função colidiria entre arquivos
 // (dois `validate()` em módulos diferentes) e escalaria o diagnóstico caro cedo demais.
 const churnKey = fix => `${fix.file || '?'}:${fix.fn || '?'}`
@@ -377,8 +378,26 @@ while (!cleanRound && r < maxRounds && !churnEscalated) {
         // DIAGNOSE — diagnose_model (Opus medium, R8 "diagnóstico após falhas repetidas").
         // Não é mais "refaz cirúrgico" — é a causa raiz do acoplamento que faz a mesma
         // função regredir de novo a cada tentativa.
-        await agent(diagnosePrompt({ fix, churnCount: churn[k], invariants }),
-          { model: args.model, effort: T.diagnose.effort, phase: 'Diagnose', agentType: 'voltagent-qa-sec:architect-reviewer' })   // diagnose_model
+        //
+        // ── A CAUSA NÃO ENTRA SEM SOBREVIVER AO DESAFIO (autópsia 2026-08-09) ──
+        // Mesmo mecanismo do motor de implementação (/sprint): quem investiga PARA na
+        // causa real; um desafiador a recebe com a ordem de PROVAR QUE ESTÁ ERRADA; os
+        // dois trocam (o desafio da volta anterior volta ao investigador) até concordarem.
+        // Três voltas sem acordo não escolhem vencedor — a disputa sobe no relatório com
+        // as duas versões, porque conserto sobre causa disputada é remendo com etiqueta.
+        let causa = null, desafio = null, acordo = false
+        for (let volta = 1; volta <= 3 && !acordo; volta++) {
+          causa = await agent(diagnosePrompt({ fix, churnCount: churn[k], invariants,
+              desafioAnterior: desafio?.motivo || null }),
+            { model: args.model, effort: T.diagnose.effort, phase: 'Diagnose', agentType: 'voltagent-qa-sec:architect-reviewer' })   // diagnose_model
+          if (!causa) break
+          desafio = await agent(desafioCausaPrompt({ fix, causa }),
+            { model: args.model, effort: T.diagnose.effort, phase: 'Diagnose', schema: DESAFIO, agentType: 'voltagent-qa-sec:architect-reviewer' })
+          acordo = desafio ? desafio.procede === true : false   // desafiador mudo não referenda
+        }
+        causaDisputada.push({ fn: k, causa: acordo ? causa : null,
+          disputa: acordo ? null : { investigador: String(causa || 'sem resposta').slice(0, 300),
+                                     desafiador: String(desafio?.motivo || 'sem veredito').slice(0, 300) } })
         churnEscalated = true; break
       }
       await revertAndMaybeRedo(fix, res, tier)   // reverte; refaz cirúrgico no tier DA RODADA
@@ -396,6 +415,7 @@ while (!cleanRound && r < maxRounds && !churnEscalated) {
 
 return {
   rounds, acceptedLimits, invariants, churn,
+  causaDisputada,   // escaladas de churn: causa referendada pelo desafiador, ou as duas versões em disputa
   planFlawAlerts: rounds.flatMap(x => x.alerts),
   telemetry: rounds.map(x => ({ round: x.r, corrections: x.corrections.length, regressions: x.regressions,
     findings_by_sev: tallyBySev(x.review.findings) })),
@@ -407,6 +427,7 @@ return {
 - `FINDINGS` — `{ complete: boolean, findings: [{ id, file, line, severity: 'P0'|'P1'|'P2'|'P3', dimension, problem, fix_direction }] }`. `complete=false` se algum ângulo não retornou → NUNCA conta como rodada limpa.
 - `PLAN` — `{ bucket1: [{ id, fn, severity, conflict_risk, order, fix_direction }], drift: [...], alerts: [...], proposedLimits: [...], invariants: [...] }`.
 - `EXEC_RESULT` — `{ fix_id, fn, files_touched: [...], test_name, suiteRegressed: boolean, newInvariant?, note }`.
+- `DESAFIO` — `{ procede: bool, motivo }`, devolvido por `desafioCausaPrompt` (`diagnose_model`). O desafiador recebe o fix escalado e a **causa** que o investigador apontou, com a ordem de **derrubá-la**: `procede: false` traz em `motivo` o fato que a causa não explica ou a concorrente mais simples — e volta ao investigador na próxima volta (`desafioAnterior`). `procede: true` referenda. Três voltas sem acordo → a disputa sai em `causaDisputada` com as duas versões, e o relatório a apresenta como decisão do dono; desafiador mudo **não referenda**.
 
 > Os `agentType: voltagent-*` nos spawns são otimização de persona — se o agent type não existir na
 > máquina, spawne sem `agentType` (o motor não depende deles).

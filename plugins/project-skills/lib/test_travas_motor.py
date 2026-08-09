@@ -24,11 +24,11 @@ import tempfile
 import textwrap
 
 SKILL_MD = os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                        "..", "..", "project-skills", "skills", "sprint", "SKILL.md")
+                        "..", "skills", "sprint", "SKILL.md")
 # A COPIA vendorada, nao a fonte em _shared/: e ela que viaja com o plugin instalado, e
 # e ela que o bloco da skill chama.
 RESOLVEDOR = os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                          "..", "..", "project-skills", "skills", "sprint", "resolve-plugin.sh")
+                          "..", "skills", "sprint", "resolve-plugin.sh")
 
 FAILS = []
 TOTAL = [0]
@@ -169,7 +169,7 @@ def veredito_da_regua_real(pronto, onde):
     Sem isto o teste provaria so o encanamento: o criterio de mentira usado no caso de
     bancada tem que ser um que a regua REAL reprova, senao o cenario e faz-de-conta."""
     prog = os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                        "..", "..", "project-skills", "lib", "regua_pronto.py")
+                        "regua_pronto.py")
     if not os.path.exists(prog):
         return None
     out = subprocess.run([sys.executable, prog, "--onde", onde, "-"],
@@ -635,6 +635,32 @@ def main():
     check("a regra esta escrita no texto que o dono le",
           "A volta ao #1 é por BLOCO, não por onda inteira" in texto)
 
+    print("F9.58 — o id inventado pelo decompositor nao vira tarefa")
+    # Medido em 2026-08-08: o decompositor criou OITO ids que o plano nao tem (o
+    # sufixo -R, de "revisada"). SEIS foram executadas, e a marcacao recusou uma a
+    # uma com "passo 'F21.5-R' nao existe no plano" — o disco mudou e o plano diz
+    # que nao. A instrucao em prosa ja mandava copiar o id; a trava e do SCRIPT.
+    check("o script recebe os ids reais do plano pela casca",
+          "ARGS.planIds" in js)
+    check("o que nao esta no plano sai da lista de tarefas",
+          "decomp.tasks = decomp.tasks.filter(t => idsDoPlano.has(t.id))" in js)
+    check("e vira Bloqueio NOMEADO, com o id forjado",
+          "kind: 'id-inexistente'" in js and "que nao existe no plano" in js.replace("ã","a").replace("é","e"))
+    check("sem planIds a trava nao arma, e isso e explicito",
+          "if (idsDoPlano.size)" in js)
+    check("a casca sabe que precisa passar planIds",
+          "planIds" in texto and "nunca arma" in texto)
+
+    print("F9.59 — quem espera o dono sai da DECOMPOSICAO, nao so da fila")
+    # O campo tirava a tarefa da FILA e a deixava na decomposicao: ela voltava a ser
+    # decomposta em toda rodada e reaparecia em missingTasks em todas. Medido na
+    # mesma rodada: 41 tarefas listadas como faltantes em 3+ voltas, as 10
+    # congeladas entre elas. Decompor custa o tier caro.
+    check("as congeladas sao separadas por nome proprio no script",
+          "const congeladas = decomp.tasks.filter(t => t.esperaDono)" in js)
+    check("e o dono ve quantas sairam, em vez de descobrir pelo silencio",
+          "saíram da decomposição desta rodada" in js or "sairam da decomposicao" in js)
+
     print("F9.28 — o parametro pode chegar como texto, e o motor converte antes de usar")
     check("a conversao esta no SCRIPT, no topo",
           re.search(r"typeof args === 'string' \? JSON\.parse\(args\) : args", js) is not None)
@@ -735,8 +761,12 @@ def main():
           "$SOVAI_BUILD_CMD" in bloco_build and "BUILD_WARM" in bloco_build)
     # O passo so serve se vier ANTES do disparo: compilar depois do Workflow e pagar
     # a compilacao duas vezes, uma delas por tarefa.
-    check("o passo vem antes do esqueleto do motor",
-          texto.index("### A compilação cara é paga UMA vez") < texto.index("### Esqueleto do motor"))
+    # O titulo da secao do esqueleto mudou em 2026-08-08 (de "Esqueleto do motor
+    # (referencia...)" para "O motor do disparo e COPIADO daqui"), e este check
+    # morria em ValueError por casar o titulo literal. O que importa e a ORDEM, e
+    # ela se ancora no bloco de codigo, que nao muda de nome.
+    check("o passo vem antes do script do motor",
+          texto.index("### A compilação cara é paga UMA vez") < texto.rindex("```javascript"))
     # A metade de EXECUCAO: o passo roda de verdade contra um projeto de mentira, e a
     # segunda compilacao — a do executor — tem que aproveitar o cache. Se o passo
     # limpasse (clean / rm -rf do diretorio de build), ela sairia FULL de novo.
@@ -759,6 +789,21 @@ def main():
     check("o knob chega ao motor pelo args", "const buildWarm = ARGS.buildWarm === true" in js)
     check("o executor recebe a regra por escrito, no texto que ele le",
           "CACHE QUENTE: NÃO RECOMPILE DO ZERO" in texto and "`buildWarm`" in texto)
+
+    print("autopsia 2026-08-09 — as travas novas estao ESCRITAS no esqueleto")
+    # A execucao delas e provada na bancada (test_motor_bancada.py); aqui se cobra que a
+    # logica nao suma do texto que o proximo disparo COPIA.
+    check("a marcacao exige o de acordo do revisor", "reprovadosPeloRevisor" in js)
+    check("a marcacao exige a onda verde", "ondaVerde" in js and "feitosDaOnda.length && ondaVerde" in js)
+    check("a retencao sai nomeada, nunca calada", "naoMarcados" in js)
+    check("a conferencia final roda na parada", "confirm-na-parada" in js and "conferidoPor" in js)
+    check("a parada por orcamento NAO gasta a conferencia",
+          "desligadoPor !== 'orcamento'" in js)
+    check("a onda esteril encerra a corrida", "onda-esteril" in js)
+    check("a causa investigada passa pelo desafiador", "desafioCausaPrompt" in js)
+    check("o desafio da volta anterior VOLTA ao investigador", "desafioAnterior" in js)
+    check("tres voltas sem acordo viram disputa, nao conserto", "causa-em-disputa" in js)
+    check("o contrato do DESAFIO esta documentado", "`DESAFIO`" in texto)
 
     print()
     if FAILS:

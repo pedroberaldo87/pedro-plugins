@@ -474,6 +474,10 @@ $(printf '%s' "$OUT" | tail -15)"
   }
   roda_suites python3 'plugins/*/hooks/test_*.py'
   roda_suites bash    'scripts/test_*.sh'
+  # As suítes python de `scripts/` não tinham cobrador NENHUM: o gate rodava só as
+  # `.sh` dali, e três delas ficaram vermelhas por dias sem nada acusar (medido na
+  # corrida de 2026-08-08 — as mesmas quatro conferências reprovadas nas cinco ondas).
+  roda_suites python3 'scripts/test_*.py'
   # `lib/test_*.sh` é o tipo que nenhum dos dois globs de plugin casava: o D varre
   # `lib/test_*.py` e o F varre `hooks/test_*.sh`. Suíte shell dentro de `lib/` caía
   # no vão entre eles — foi o que aconteceu com a do resolvedor de skill, que o

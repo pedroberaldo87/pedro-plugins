@@ -5,7 +5,7 @@
 # STDOUT — que é o canal que o harness lê e mostra ao dono. O que sai em stderr
 # é descartado de propósito aqui, exatamente como quem chama o hook descarta.
 #
-#   bash plugins/sovai/hooks/test_andamento_hook.sh
+#   bash plugins/project-skills/hooks/test_andamento_hook.sh
 
 HOOK="$(cd "$(dirname "$0")" && pwd)/posttooluse-andamento.sh"
 

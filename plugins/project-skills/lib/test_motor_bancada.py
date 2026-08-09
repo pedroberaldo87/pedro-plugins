@@ -27,8 +27,8 @@ import sys
 import tempfile
 
 AQUI = os.path.dirname(os.path.abspath(__file__))
-SKILL_MD = os.path.join(AQUI, "..", "..", "project-skills", "skills", "sprint", "SKILL.md")
-PLAN_STATE = os.path.join(AQUI, "..", "..", "project-skills", "lib", "plan_state.py")
+SKILL_MD = os.path.join(AQUI, "..", "skills", "sprint", "SKILL.md")
+PLAN_STATE = os.path.join(AQUI, "plan_state.py")
 
 FAILS = []
 TOTAL = [0]
@@ -153,13 +153,13 @@ const CFG = JSON.parse(fs.readFileSync(process.argv[2], 'utf8'))
 const CORPO = fs.readFileSync(process.argv[3], 'utf8')
 
 const PRELUDE = `
-const DECOMP={}, TASK_RESULT={}, BUILD_REVIEW={}, RESERVA={}, REGUA={}, SUITE_RESULT={}, AUDITOR={}, DOC_TOUCH={}, TICK_RESULT={};
+const DECOMP={}, TASK_RESULT={}, BUILD_REVIEW={}, RESERVA={}, REGUA={}, SUITE_RESULT={}, AUDITOR={}, DOC_TOUCH={}, TICK_RESULT={}, DESAFIO={};
 const mk = n => (p => Object.assign({ __p: n }, p));
 const decomposePrompt=mk('decompose'), execPrompt=mk('exec'), reviewBuildPrompt=mk('review'),
       runSuitePrompt=mk('suite'), checkpointPrompt=mk('checkpoint'), tickPlanPrompt=mk('tick'),
       docTouchPrompt=mk('docTouch'), colheitaPrompt=mk('colheita'),
       diagnoseStuckTaskPrompt=mk('diag'), reservaPrompt=mk('reserva'), confirmBuildPrompt=mk('confirm'),
-      reguaPrompt=mk('regua'), auditorPrompt=mk('auditor');
+      reguaPrompt=mk('regua'), auditorPrompt=mk('auditor'), desafioCausaPrompt=mk('desafio');
 `
 
 const chamadas = []
@@ -170,6 +170,8 @@ const checkpoints = []
 // primeira volta sem ancora, a segunda com) ou 'sempre' (juiz que nunca prova).
 const vereditos = []
 const auditorias = []
+const investigacoes = []
+const desafios = []
 const docs = []
 const agentes = []
 // F9.57: QUEM foi despachado, na ordem. `agentes` so guarda o papel ('exec'), e com ele
@@ -177,6 +179,12 @@ const agentes = []
 // pergunta que separa "reagiu antes de a onda terminar" de "reagiu no fim dela".
 const executados = []
 const phase = () => {}
+// `log` e API do runtime igual a `phase`, e a bancada nao a fornecia: o motor que a
+// usasse morria aqui com ReferenceError e a bancada acusava "o motor nao rodou" —
+// falha de AMBIENTE com a mesma cara de falha de logica. Ela guarda as linhas para
+// o teste poder afirmar o que o motor narrou.
+const narrado = []
+const log = m => { narrado.push(String(m)) }
 // O medidor de gasto da bancada: cada agente disparado queima `gastoPorChamada`. E o
 // unico jeito de o disjuntor ser exercitado de verdade — com `spent()` fixo em zero
 // (como era aqui), o teto nunca e alcancado e a trava passa sem nunca ter armado.
@@ -294,15 +302,36 @@ async function agent(p, opts) {
                naoTentou: CFG.auditorNaoTentou || [], anchor: 'ultima linha do que auditei' }
     case 'docTouch':  return documenta(p)
     case 'tick':      return tica(p)
+    // O investigador de tarefa-presa e o desafiador da causa (autopsia 2026-08-09).
+    // `desafios` registra o que cada um recebeu; o cenario escolhe em que volta o
+    // desafiador referenda (CFG.desafioReferendaNaVolta; 0 = nunca).
+    case 'diag':
+      investigacoes.push({ taskId: p.task && p.task.id, desafioAnterior: p.desafioAnterior })
+      return 'a causa apontada na volta ' + investigacoes.length
+    case 'desafio': {
+      desafios.push({ taskId: p.task && p.task.id, causa: p.causa })
+      const referenda = (CFG.desafioReferendaNaVolta || 0) === desafios.length
+      return { procede: referenda, motivo: referenda ? '' : 'a causa nao explica o fato X',
+               anchor: 'ultima linha da causa que desafiei' }
+    }
+    // A conferencia final da parada (autopsia 2026-08-09). Sem este caso o papel volta
+    // {} sem ancora, o julga recusa duas vezes, e a trava passaria pela bancada sempre
+    // no caminho do "nao respondeu" — exercitada pela metade.
+    case 'confirm': {
+      const v = { complete: !(CFG.confirmGaps || []).length, cohesive: true,
+                  gaps: CFG.confirmGaps || [], missingTasks: [] }
+      v.anchor = 'ultima linha do que confirmei'
+      return v
+    }
     default:          return {}
   }
 }
 
 const corpo = CORPO.replace(/^export const meta = \{[\s\S]*?\n\}\n/m, '')
-const motor = new Function('args', 'agent', 'phase', 'budget', 'parallel',
+const motor = new Function('args', 'agent', 'phase', 'log', 'budget', 'parallel',
                            'return (async () => {' + PRELUDE + corpo + '})()')
-motor(CFG.args, agent, phase, budget, parallel).then(saida => {
-  fs.writeFileSync(CFG.out, JSON.stringify({ saida, chamadas, checkpoints, docs, agentes, executados, vereditos, auditorias }, null, 2))
+motor(CFG.args, agent, phase, log, budget, parallel).then(saida => {
+  fs.writeFileSync(CFG.out, JSON.stringify({ saida, chamadas, checkpoints, docs, agentes, executados, vereditos, auditorias, narrado, investigacoes, desafios }, null, 2))
 }).catch(e => { console.error('MOTOR ESTOUROU: ' + (e && e.stack || e)); process.exit(3) })
 """
 
@@ -315,7 +344,8 @@ def roda_motor(tmp, texto, plan_dir, tick_cmd, plan_path, token_budget=None,
                espera_dono=None,
                bloco_max=None,
                review_sem_ancora=None, alegacao_impossivel=None, auditor_derruba=False,
-               auditor_motivo="", auditor_nao_tentou=None, doc_falso=None):
+               auditor_motivo="", auditor_nao_tentou=None, doc_falso=None,
+               confirm_gaps=None, espera_todos=False, desafio_referenda_na_volta=0):
     """Executa o esqueleto do SKILL.md com os agentes de mentira. Devolve
     {saida, chamadas, agentes} ou levanta AssertionError com o motivo."""
     corpo = os.path.join(tmp, "motor.js")
@@ -330,6 +360,13 @@ def roda_motor(tmp, texto, plan_dir, tick_cmd, plan_path, token_budget=None,
                 "parallelizable": True, "dependsOn": [], "done": False}
                for i in PLANO["phases"][0]["items"]]
     resultados = dict(RESULTADOS)
+    if espera_todos:
+        # Onda esteril (autopsia 2026-08-09): TODAS as tarefas esperam o dono, entao a
+        # fila executavel nasce vazia — que e exatamente o estado das ondas 4 e 5 da
+        # corrida real, onde o motor pagou a decomposicao para nao despachar ninguem.
+        for tf in tarefas:
+            tf["esperaDono"] = "decisao do dono pendente"
+        resultados = {}
     if espera_dono:
         # F9.56: F1.3 passa a ESPERAR o dono. Ele sai da fila corretamente, mas volta
         # em `missingTasks` do revisor — e era ai que reincidia e virava diagnostico
@@ -359,7 +396,7 @@ def roda_motor(tmp, texto, plan_dir, tick_cmd, plan_path, token_budget=None,
         "docFalso": doc_falso,
         "suiteVerde": suite_verde,
         "suiteFalhando": suite_falhando or [],
-        "pluginSkills": os.path.abspath(os.path.join(AQUI, "..", "..", "project-skills")),
+        "pluginSkills": os.path.abspath(os.path.join(AQUI, "..")),
         "raiz": tmp,
         "planoId": PLANO["id"],
         "out": out,
@@ -369,6 +406,8 @@ def roda_motor(tmp, texto, plan_dir, tick_cmd, plan_path, token_budget=None,
         "gastoPorChamada": gasto_por_chamada,
         "reviewComplete": review_complete,
         "gaps": gaps or [],
+        "confirmGaps": confirm_gaps or [],
+        "desafioReferendaNaVolta": desafio_referenda_na_volta,
         "reviewSemAncora": review_sem_ancora,
         "auditorDerruba": auditor_derruba,
         "auditorMotivo": auditor_motivo,
@@ -945,7 +984,7 @@ def main():
     if espera is None:
         return 1
     check("nenhum diagnostico foi disparado sobre o passo que espera",
-          "diagnose" not in espera["agentes"])
+          "diag" not in espera["agentes"])
     saida56 = espera["saida"]
     check("e ele aparece como ESPERANDO VOCE, nao como falha",
           any(e.get("taskId") == "F1.3" for e in (saida56.get("esperandoVoce") or [])))
@@ -964,7 +1003,7 @@ def main():
     check("o que nao saiu fica registrado na onda, pelo nome",
           (ronda57.get("naoDespachadas") or []) == ["F1.4"])
     check("e ele nao entra na conta de reincidencia (ninguem o tentou)",
-          "diagnose" not in cedo["agentes"])
+          "diag" not in cedo["agentes"])
     # O controle: o MESMO cenario, com o bloco cobrindo a onda inteira, despacha F1.4. Sem
     # ele, "F1.4 nao saiu" poderia ser efeito do plano, e nao do retorno por bloco.
     onda_inteira = bancada(texto, tick_cmd, max_rounds=1, review_complete=False)
@@ -1025,6 +1064,107 @@ def main():
           not (saida10["rounds"][-1].get("devolvidas") or []))
     check("e ela nao sai marcada no plano",
           "F1.3" not in [c["taskId"] for c in confirma["chamadas"]])
+
+    # ── autopsia 2026-08-09: as travas da marcacao e da parada ──────────────────
+    # Medido na corrida wf_5438d704: 17 passos marcados em ondas VERMELHAS, 9 com o
+    # defeito ja escrito pelo revisor da MESMA onda, e nenhuma conferencia final rodou
+    # porque o confirm so existia no caminho feliz sem /qa-loop. Os quatro cenarios
+    # abaixo mudam UMA coisa cada um sobre a mesma missao.
+    print("autopsia — a causa investigada so entra depois de sobreviver ao desafio")
+    # F1.3 reaparece como faltante em toda rodada (review_complete=False) e na 3a onda o
+    # churn chega ao limiar: o investigador roda, e o desafiador referenda so na 2a volta.
+    acordo = bancada(texto, tick_cmd, max_rounds=3, review_complete=False,
+                     desafio_referenda_na_volta=2)
+    if acordo is None:
+        return 1
+    check("investigador e desafiador loopam ate concordar (2 voltas cada)",
+          acordo["agentes"].count("diag") == 2 and acordo["agentes"].count("desafio") == 2)
+    check("o desafio da volta 1 VOLTA ao investigador na volta 2",
+          len(acordo["investigacoes"]) == 2
+          and acordo["investigacoes"][0].get("desafioAnterior") is None
+          and acordo["investigacoes"][1].get("desafioAnterior") == "a causa nao explica o fato X")
+    check("o desafiador recebeu a causa que julgou",
+          bool(acordo["desafios"]) and "causa apontada" in str(acordo["desafios"][0].get("causa")))
+    check("a causa referendada entra sem virar disputa",
+          not [b for b in acordo["saida"]["blockers"] if b.get("kind") == "causa-em-disputa"])
+
+    print("autopsia — tres voltas sem acordo viram disputa, nunca conserto")
+    disputa = bancada(texto, tick_cmd, max_rounds=3, review_complete=False,
+                      desafio_referenda_na_volta=0)
+    if disputa is None:
+        return 1
+    check("o loop parou em 3 voltas, sem vencedor no cansaco",
+          disputa["agentes"].count("diag") == 3 and disputa["agentes"].count("desafio") == 3)
+    emdisputa = [b for b in disputa["saida"]["blockers"] if b.get("kind") == "causa-em-disputa"]
+    check("a disputa vira Bloqueio com as DUAS versoes escritas",
+          len(emdisputa) == 1 and "investigador diz" in emdisputa[0]["what"]
+          and "desafiador diz" in emdisputa[0]["what"])
+    check("a disputa e 'precisa de voce', nomeando a tarefa",
+          bool(emdisputa) and emdisputa[0].get("taskId") == "F1.3"
+          and "causa em disputa" in (emdisputa[0].get("whyNeedsYou") or ""))
+
+    print("autopsia — passo que o revisor apontou NAO e marcado; o limpo da onda e")
+    GAP_NA_F11 = {"kind": "coesao", "severity": "P1", "task_id": "F1.1",
+                  "problem": "a entrega da F1.1 quebrou o cobrador vizinho"}
+    segura = bancada(texto, tick_cmd, max_rounds=1, gaps=[GAP_NA_F11])
+    if segura is None:
+        return 1
+    marcadas = [c["taskId"] for c in segura["chamadas"]]
+    check("F1.1 (apontada pelo revisor) ficou FORA da marcacao", "F1.1" not in marcadas)
+    check("F1.2 (limpa) foi marcada na mesma onda", "F1.2" in marcadas)
+    retido = segura["saida"]["rounds"][0].get("naoMarcados") or {}
+    check("a retencao sai NOMEADA no registro da onda, com o motivo",
+          retido.get("motivo") == "reprova do revisor" and retido.get("ids") == ["F1.1"])
+    check("a retencao e narrada, nao calada",
+          any("reprova do revisor" in n for n in segura.get("narrado") or []))
+
+    print("autopsia — onda vermelha nao marca NADA no plano")
+    verm2 = bancada(texto, tick_cmd, max_rounds=1, review_complete=False,
+                    suite_verde=False, suite_falhando=["test_x.py"])
+    if verm2 is None:
+        return 1
+    check("nenhum tick foi disparado na onda vermelha", verm2["chamadas"] == [])
+    retido2 = verm2["saida"]["rounds"][0].get("naoMarcados") or {}
+    check("os passos entregues da onda vermelha saem nomeados como nao marcados",
+          retido2.get("motivo") == "onda vermelha" and sorted(retido2.get("ids") or []) == ["F1.1", "F1.2"])
+
+    print("autopsia — quem para sem terminar roda a conferencia final")
+    parada = bancada(texto, tick_cmd, max_rounds=1, review_complete=False,
+                     confirm_gaps=[{"task_id": "F1.1", "kind": "spec", "severity": "P1",
+                                    "problem": "a conferencia da parada achou a metade que faltou"}])
+    if parada is None:
+        return 1
+    saidap = parada["saida"]
+    check("a missao parou sem built", saidap["built"] is False)
+    check("a conferencia final rodou na parada", parada["agentes"].count("confirm") == 1)
+    check("o relatorio diz QUAL conferencia rodou", saidap.get("conferidoPor") == "confirm-na-parada")
+    achado = [b for b in saidap["blockers"] if "conferência final da parada" in (b.get("what") or "")]
+    check("o gap da conferencia vira aviso NOMEADO, com a tarefa",
+          len(achado) == 1 and achado[0].get("taskId") == "F1.1")
+
+    print("autopsia — parada por ORCAMENTO nao gasta a conferencia, e diz isso")
+    teto = bancada(texto, tick_cmd, max_rounds=3, review_complete=False,
+                   token_budget=1000, gasto_por_chamada=400)
+    if teto is None:
+        return 1
+    check("o disjuntor parou e a conferencia NAO foi disparada",
+          teto["saida"]["stopReason"] == "orcamento" and teto["agentes"].count("confirm") == 0)
+    check("a ausencia nao passa calada: conferidoPor = nenhuma",
+          teto["saida"].get("conferidoPor") == "nenhuma")
+
+    print("autopsia — onda esteril encerra a corrida em vez de pagar decomposicao vazia")
+    esteril = bancada(texto, tick_cmd, max_rounds=3, review_complete=False, espera_todos=True)
+    if esteril is None:
+        return 1
+    saidae = esteril["saida"]
+    check("a corrida encerrou na primeira onda esteril",
+          saidae["stopReason"] == "onda-esteril" and len(saidae["rounds"]) == 1)
+    check("nenhum executor foi disparado", esteril["executados"] == [])
+    check("so UMA decomposicao foi paga", esteril["agentes"].count("decompose") == 1)
+    esterilb = [b for b in saidae["blockers"] if "estéril" in (b.get("what") or "")]
+    check("o encerramento vira Bloqueio dizendo quantas foram separadas sem sair",
+          len(esterilb) == 1
+          and re.search(r"[1-9]\d* tarefa\(s\) separadas", esterilb[0]["what"]))
 
     print()
     if FAILS:

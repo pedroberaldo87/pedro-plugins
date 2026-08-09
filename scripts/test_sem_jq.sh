@@ -26,13 +26,28 @@ ok()   { echo "ok   $1"; }
 bad()  { echo "FAIL $1"; FAIL=1; }
 
 # `git ls-files` não serve: hook novo ainda não staged também tem que ser medido.
-# Toda biblioteca de `_shared/` sai da conta: a cópia em `plugins/*/hooks/` é
-# vendoring de código compartilhado, não um hook de produção. A lista de nomes é
-# derivada de `_shared/` para que vendorar uma biblioteca nova não mude o retrato.
-VENDORADOS="$(ls _shared/*.sh 2>/dev/null | sed -E 's#.*/##; s#\.#\\.#g' | tr '\n' '|' | sed 's/|$//')"
-[ -n "$VENDORADOS" ] || VENDORADOS='hook-json\.sh'
-LISTA_PROD="$(ls plugins/*/hooks/*.sh 2>/dev/null | grep -v '/test_' \
-  | grep -vE "/($VENDORADOS)\$" | sort)"
+#
+# HOOK É O QUE ESTÁ REGISTRADO em algum `hooks/hooks.json` — não é todo `.sh` que
+# mora em `hooks/`. O filtro antigo tirava só as bibliotecas de `_shared/`, e por
+# isso toda biblioteca que nascia DENTRO de `hooks/` entrava na conta como se fosse
+# hook de produção: medido em 2026-08-08, `lib-rodada.sh` nasceu e a contagem foi de
+# 48 para 49 sem nenhum hook novo existir. O retrato ficava vencido e a suíte
+# vermelha, num documento autoral que ninguém pode reescrever automaticamente.
+#
+# O registro é a fonte da verdade porque é ele que o harness lê: `.sh` que nenhum
+# `hooks.json` cita não roda em evento nenhum, seja ele vendorado ou local.
+# Quem resolve o registro é o medidor oficial (`scripts/hook_contract.py`), que lê
+# cada `hooks.json` e devolve o CAMINHO de cada script — comparar por nome de arquivo
+# não serve, porque `lib-tmpdir.sh` existe em sete plugins e um registro num deles
+# faria os outros seis passarem por registrados.
+LISTA_PROD="$(python3 scripts/hook_contract.py --scripts 2>/dev/null | sort)"
+if [ -z "$LISTA_PROD" ]; then
+  # Fail-open com aviso: sem o medidor não há como separar hook de biblioteca, e
+  # medir errado é pior que não medir. O aviso impede que isso passe por "está tudo
+  # certo" — a régua da casa para gate mudo.
+  echo "AVISO: scripts/hook_contract.py --scripts não respondeu; o inventário não foi conferido" >&2
+  exit 0
+fi
 
 # Classe B medida: linha que lê um dos três campos de decisão, fora de comentário,
 # seja pelo leitor novo (`hj_campo`…) ou pelo `jq` cru de antes.
