@@ -381,6 +381,23 @@ $(printf '%s' "$NOUT" | head -20)
   fi
 fi
 
+# T · a cadeia de entrega: escrito → publicado → mandado instalar.
+# Plugin que nasce em plugins/ e não entra no marketplace.json não chega em máquina
+# nenhuma, e as skills dele somem junto — o autor jura que desenvolveu e nada aparece.
+# O `conformance.py:check_catalogo` cobra o elo publicado→receita, mas só quando alguém
+# roda o setup do bootstrap; aqui o commit já responde. Só o lado REPOSITÓRIO entra no
+# gate: comparar com o que está instalado nesta máquina reprovaria o commit de quem só
+# ainda não rodou o update, e isso é aviso de arranque, não impedimento de commit.
+CDC="$ROOT/scripts/cadeia_check.py"
+if [ -f "$CDC" ] && printf '%s\n' "$FILES" | grep -qE 'plugins/|\.claude-plugin/marketplace\.json'; then
+  if ! TOUT=$(cd "$ROOT" && python3 "$CDC" --repo 2>&1); then
+    VIOL="${VIOL}
+❌ CADEIA DE ENTREGA ROMPIDA — o que foi escrito não chega em quem instala:
+$(printf '%s' "$TOUT" | head -20)
+   → régua: python3 scripts/cadeia_check.py --repo"
+  fi
+fi
+
 # P · disparo de processo que pode deixar filho para trás.
 # Em 2026-08-08 uma máquina acumulou 2125 `python3` órfãos: 155 pontos do repositório
 # disparavam processo sem fechar stdin (o filho herda o terminal e espera para sempre) e

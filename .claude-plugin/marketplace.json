@@ -28,7 +28,7 @@
       "source": "./plugins/bootstrap",
       "description": "Bootstraps a new machine to this versioned Claude Code setup. Two layers: (1) auto-syncs third-party marketplaces & plugins via hooks (manifest-driven convergence), and (2) applies the versioned global config — env vars, permissions, behavior flags, the global CLAUDE.md, and a machine-resolved statusLine. Replaces bootstrap-third-party. Run /bootstrap:setup once per new machine. Ships the 'Clean Style' output style (single prose ceiling, pasted evidence exempt) and a report-only conformance checker that diffs the live machine against the versioned contract.",
       "category": "productivity",
-      "version": "1.15.1",
+      "version": "1.16.0",
       "tags": [
         "sync",
         "bootstrap",
@@ -105,7 +105,7 @@
         "name": "pedro-plugins"
       },
       "category": "dev-tools",
-      "version": "0.4.0",
+      "version": "0.4.2",
       "tags": [
         "design-review",
         "planning",
@@ -247,7 +247,7 @@
       "source": "./plugins/project-skills",
       "description": "A casa das skills de projeto — documentacao, concepcao, plano, execucao e revisao moram sob um teto so, e conversam entre si por nome de plugin, nunca por caminho relativo para a pasta do vizinho. Traz tambem o motor de execucao autonoma (/sprint): decompoe -> executa -> revisa em Workflow deterministico, com os hooks que o guardam — a reserva de arquivos entre motores, o guarda de espera, o narrador de andamento na statusline e o gate que nega sub-agente com a missao armada (herdados do antigo plugin sovai, fundido aqui em 2026-08-09). O indice da familia se descobre lendo a pasta skills/ do plugin, nunca de cor.",
       "category": "productivity",
-      "version": "0.19.9",
+      "version": "0.19.10",
       "tags": [
         "project",
         "scaffolding",
