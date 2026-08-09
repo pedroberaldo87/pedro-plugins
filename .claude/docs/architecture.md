@@ -604,8 +604,8 @@ Observações de arquitetura:
   armada, porque ali o motor é a tool `Workflow`. A distinção importa: a SKILL afirmava que o
   guard do `guardrails` a protegia, e a regra 3 dele fazia o oposto — prosa descrevendo
   mecanismo ausente não dá erro. ⚠️ **O nome do arquivo mudou, o do ESTADO não**: o sinal
-  segue em `~/.claude/sovai/ativo-<session_id>` (a atribuição `ESTADO=` no script), com cap de
-  3 negações e kill-switch `SOVAI_GATE=0` — renomear o caminho de estado invalidaria os sinais
+  segue em `~/.claude/andamento/ativo-<session_id>` (a atribuição `ESTADO=` no script), com cap de
+  3 negações e kill-switch `SPRINT_GATE=0` — renomear o caminho de estado invalidaria os sinais
   de sessões vivas. [confirmado — `bash plugins/project-skills/hooks/test_motor_gate.sh`
   → `OK (24 checks)` neste run — acopla-ok: é a saída literal do comando na mesma linha]
 - **O `AskUserQuestion` é gateável** (`guardrails/hooks/askq-humanize.sh`). O contrato de gate

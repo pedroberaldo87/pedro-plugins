@@ -38,7 +38,7 @@ bash plugins/project-doc/hooks/test_plan_gate.sh
 ## Documentation Index
 
 - **[constituicao.md](.claude/docs/constituicao.md)** — *autoral, `authored-by: human`* — **a lei do projeto**: as 8 dimensões em que todo plugin é julgado (arquitetura, aplicabilidade, portabilidade, rigor, funcionalidade, estética, clareza da instrução, executabilidade por um agente), cada uma com **quem a cobra** e a prova do estado de hoje; artigo sem cobrador é dívida declarada, e o placar de quem cobra o quê é parte da lei
-  → **antes de mudar qualquer plugin, hook ou skill** — e antes de declarar uma frente pronta. Em conflito com qualquer outro doc, este ganha. Os motores de `/sovai` e `/qa-loop` abrem este arquivo no eixo *constituição*
+  → **antes de mudar qualquer plugin, hook ou skill** — e antes de declarar uma frente pronta. Em conflito com qualquer outro doc, este ganha. Os motores de `/sprint` e `/qa-loop` abrem este arquivo no eixo *constituição*
 
 - **[quality-goals.md](.claude/docs/quality-goals.md)** — *autoral, `authored-by: human`* — a ordem de prioridade quando não dá para ter tudo (escaneabilidade > drill-down > completude > elegância), os dois regimes de documento, os três níveis de leitura, a régua de estilo que abole prosa em página gerada, e o mecanismo anti-ocultação do colapso
   → antes de escrever relatório, plano, página de aprovação ou qualquer artefato que um humano lê para decidir
