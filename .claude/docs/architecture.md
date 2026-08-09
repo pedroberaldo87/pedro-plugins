@@ -136,15 +136,21 @@ na instalação. [confirmado — cabeçalho de `scripts/sync-shared.sh`]
 Comandos re-executados agora, na árvore de trabalho sobre `2587006`:
 
 ```bash
-ls -1d plugins/*/ | wc -l                            # 24
+ls -1d plugins/*/ | wc -l                            # 25  ← um a mais que o catálogo
 ls -1 plugins/*/.claude-plugin/plugin.json | wc -l   # 24
-ls -1 plugins/*/skills/*/SKILL.md | wc -l            # 28
+ls -1 plugins/*/skills/*/SKILL.md | wc -l            # 29
 ls -1 plugins/*/hooks/hooks.json | wc -l             # 13
-find plugins -path '*/lib/*.py' | wc -l              # 97
+find plugins -path '*/lib/*.py' | wc -l              # 100
 python3 -c "import json;print(len(json.load(open('.claude-plugin/marketplace.json'))['plugins']))"   # 24
 ```
 
-- **24 diretórios de plugin · 24 manifestos · 24 entradas no catálogo · 28 skills · <!-- acopla-ok: é a saída literal do bloco de comandos logo acima -->
+- 🔴 **25 diretórios contra 24 manifestos — e é a primeira vez que os dois lados divergem.**
+  `plugins/improve-workflow/` nasceu na onda de 2026-08-08 com código (`lib/sobras.py` e a
+  suíte dele) e **sem manifesto**: o passo que cria a casa (`F20.11`) não saiu na mesma
+  rodada. Pela régua de fronteira abaixo isso é legítimo — diretório fora do catálogo não é
+  plugin distribuído, e `conformance.py:check_catalogo` sai **conforme** porque catálogo e
+  receita continuam batendo entre si. O que ninguém cobra hoje é o terceiro par: **dirs × catálogo**.
+- **25 diretórios · 24 manifestos · 24 entradas no catálogo · 29 skills · <!-- acopla-ok: é a saída literal do bloco de comandos logo acima -->
   **13** plugins com hooks · 97 arquivos `.py` em `lib/`.** [confirmado — os seis comandos <!-- acopla-ok: é a saída dos comandos logo acima, medida neste run; o comando é quem manda -->
   re-rodados nesta passada de `/doc-touch`.]
   **O que mudou desde a passada anterior:** entraram `project-skills`, `vistoria` e
@@ -156,7 +162,7 @@ python3 -c "import json;print(len(json.load(open('.claude-plugin/marketplace.jso
   `collect_engine.py`, `plan_state.py` e `resolve-*.sh` repetem o padrão (§7). Contar
   `lib/*.py` mede o vendoring junto com o código — a medida de código próprio é
   `find plugins -path '*/lib/*.py' ! -name regua_texto.py ! -name collect_engine.py ! -name padroes_vazamento.py`
-  (**82** neste run).
+  (**85** neste run).
 - **59 registros de hook — 58 do tipo `command` + 1 do tipo `prompt`**, em **45 scripts
   distintos** [confirmado — varredura própria dos 13 `plugins/*/hooks/hooks.json` neste run,
   e `python3 scripts/hook_contract.py` imprime a mesma medida: *"Contrato dos hooks — 59
@@ -166,10 +172,17 @@ python3 -c "import json;print(len(json.load(open('.claude-plugin/marketplace.jso
   `SessionStart` por cada plugin que precisa avisar dependência externa faltando. Medir
   registros mede a superfície de acoplamento ao harness, não a quantidade de coisas que
   acontecem.
-- 28 skills em 24 plugins porque **quatro plugins não têm `skills/` nenhum** — <!-- acopla-ok: leitura do bloco de comandos de §2, não afirmação independente -->
-  `graphify-guard` (100% hook), `vision` (100% MCP), e agora **`qa-loop` e `sovai`**, cujas
-  skills migraram para `project-skills` —, e porque **`project-skills` tem sete**
-  (`doc`, `doc-touch`, `plan`, `project-skills`, `qa-loop`, `sprint`, `start`).
+- 29 skills em 25 diretórios porque **cinco não têm `skills/` nenhum** — <!-- acopla-ok: leitura do bloco de comandos de §2, não afirmação independente -->
+  `graphify-guard` (100% hook), `vision` (100% MCP), **`qa-loop` e `sovai`** (cujas skills
+  migraram para `project-skills`) e o **`improve-workflow`**, que ainda é só `lib/` —, e
+  porque a família concentra **oito**, que se listam sem escrever nome nenhum aqui:
+
+  ```bash
+  ls -1 plugins/project-skills/skills/   # acopla-ok: é o COMANDO que descobre a lista, que é justamente o que o Artigo 9 manda escrever no lugar dela
+  ```
+
+  A oitava é a `monitorar`, que nasceu na onda de 2026-08-08 (`F17.6`) quando o vigia de
+  andamento se emancipou do motor de execução contínua.
   ⚠️ **Consequência de instalação:** `qa-loop` e `sovai` continuam distribuídos (o `lib/` e,
   no caso do `sovai`, os hooks seguem lá), mas quem instala **só aqueles dois** não recebe
   mais a skill — ela vem por `project-skills`.

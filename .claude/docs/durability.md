@@ -11,7 +11,7 @@ scope:
   - .claude/fio-morto.baseline.json
   - .claude/custo-gatilho.baseline.json
   - .claude/desacoplamento.baseline.json
-  - plugins/sovai/lib/andamento.py
+  - plugins/project-skills/lib/andamento.py
   - plugins/sovai/hooks/posttooluse-andamento.sh
   - plugins/handoff/skills/handoff/SKILL.md
   - _shared/green-cache.sh
