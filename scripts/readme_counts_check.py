@@ -150,7 +150,7 @@ AFIRMACOES = [
     {
         "id": "liga-desliga",
         "onde": "resultado do /bootstrap:setup",
-        "padrao": r"\*\*(\d+) plugins ligados \+ (\d+) desligados de fábrica\*\*",
+        "padrao": r"\*\*(\d+) plugins ligados \+ (\d+) desligados? de fábrica\*\*",
         "real": _manifest_liga_desliga,
         "conserto": "a receita é plugins/bootstrap/config/manifest.json (campo enabled)",
     },
@@ -193,12 +193,12 @@ NOMES_DESLIGADOS = [
     {
         "id": "desligados-nomes-setup",
         "onde": "resultado do /bootstrap:setup",
-        "padrao": r"desligados de fábrica\*\*\s*\n\(([^)]*)\)",
+        "padrao": r"desligados? de fábrica\*\*\s*\n\(([^)]*)\)",
     },
     {
         "id": "desligados-nomes-plugins",
         "onde": "abertura de 'Plugins'",
-        "padrao": r"desligados de fábrica\*\* na receita do `bootstrap`[^:]*:(.*?)Ligar:",
+        "padrao": r"desligados? de fábrica\*\* na receita do `bootstrap`[^:]*:(.*?)Ligar:",
     },
 ]
 

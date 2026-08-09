@@ -973,24 +973,31 @@ andamento/ativo-<session_id> ausente ........ exit 0
 1ª linha do sinal != "gauntlet" ............. exit 0 (a casa é compartilhada)
 2ª linha ausente ou não é diretório ......... exit 0 (fail-open declarado)
 sinal mais velho que GAUNTLET_TTL_MIN ....... remove o sinal, exit 0
-bloqueios-<sid> >= GAUNTLET_MAX_BLOQUEIOS ... registra E AVISA a desistência, exit 0
 fecho_check.py pendentes <missão> == vazio .. exit 0 (equipe livre)
-prompt contém [gauntlet:juiz:<peça pendente>] exit 0 (o juiz passa)
-senão ....................................... deny, nomeando a peça e o marcador
+prompt contém [gauntlet:juiz:<peça pendente>] APAGA bloqueios-<sid>, exit 0 (o juiz passa)
+bloqueios-<sid> >= GAUNTLET_MAX_BLOQUEIOS ... registra E AVISA a desistência, exit 0
+senão ....................................... incrementa o contador e deny
 ```
 
 **O sinal ganhou uma segunda linha.** A 1ª continua sendo o nome que a barra de status lê — `plugins/project-skills/lib/andamento.py:_motor` usa `readline()`, então enxerga só ela —, e a 2ª carrega o diretório da missão. É por ela que o guarda sabe onde procurar pendência, e sinal sem ela deixa o guarda mudo em vez de adivinhar. `[confirmado — leitura das duas funções]`
 
-**A pergunta é do disco.** `fecho_check.py pendentes` percorre a decomposição e devolve a peça cuja última rodada tem `entrega.json` e não tem `veredito.json` legível com status do vocabulário. É a foto da falha de origem ("sete construtores, zero juízes") tirada em voo, e não no fecho. `[confirmado — `python3 plugins/gauntlet/lib/test_fecho_check.py` → *"fecho_check: tudo verde"*, com os casos de `pecas_pendentes`]`
+**A pergunta é do disco.** `fecho_check.py pendentes` percorre a decomposição e devolve a peça com **alguma** rodada que tem `entrega.json` e não tem `veredito.json` legível com status do vocabulário. Era "a última rodada" até 2026-08-09, e o recorte abria uma porta: com `r1` entregue e sem juiz e `r2` entregue e aprovada, a pendência de `r1` sumia e **o fecho declarava "todo pedaço julgado"**. Hoje toda rodada entregue tem que ter juiz, aqui e no fecho; no laço normal isso nunca acusa nada, porque rodada anterior é rodada que o juiz reprovou, e reprovar é gravar veredito. É a foto da falha de origem ("sete construtores, zero juízes") tirada em voo, e não no fecho. `[confirmado — `python3 plugins/gauntlet/lib/test_fecho_check.py` → *"fecho_check: tudo verde"*, com os casos de `pecas_pendentes`]`
 
-**O desarme deixou de ser mudo (v0.4.0).** A trava desiste depois de `GAUNTLET_MAX_BLOQUEIOS` negações na mesma sessão — decisão declarada no cabeçalho do arquivo, porque travar missão longa com o dono fora custa mais que o defeito. O que era furo: ela desistia falando só com `andamento/desistencias.log`, que ninguém abre, e a disputa seguia sem guarda sem ninguém saber. Hoje o mesmo ponto emite `hj_msg_ctx` — o aviso vai ao dono e ao modelo, nomeando as entregas ainda sem veredito. A rede final não mudou: o fecho segue vermelho até os juízes existirem. `[confirmado — `bash plugins/gauntlet/hooks/test_gauntlet_hooks.sh` cobre "a desistência AVISA na conversa, não só no log" e "o aviso nomeia a entrega que segue sem veredito"]`
+**O desarme deixou de ser mudo (v0.4.0) e deixou de ser permanente (v0.4.1).** A trava desiste depois de `GAUNTLET_MAX_BLOQUEIOS` negações — decisão declarada no cabeçalho do arquivo, porque travar missão longa com o dono fora custa mais que o defeito. Dois furos vieram daí, e os dois estão fechados:
+
+- **Ela desistia calada.** Falava só com `andamento/desistencias.log`, que ninguém abre. Hoje o mesmo ponto emite `hj_msg_ctx`, nomeando as entregas ainda sem veredito.
+- **A conta era da SESSÃO INTEIRA e nada a zerava.** Três esquecimentos espalhados por peças diferentes desligavam o guarda pelo resto da missão. Medido com sete peças entregues e zero juízes — a falha de origem inteira, com a proteção desarmada por cansaço. O teto de 3 tinha sido calibrado para a trava da v0.1, que negava **todo** sub-agente; a trava de hoje só nega com pendência real, e o mesmo número virou frouxo. **Agora o juiz que passa apaga `bloqueios-<sid>`**, então a paciência se gasta em negações SEGUIDAS: três sem nenhum juiz no meio ainda desarmam, que é o cenário que a válvula existe para atender.
+
+`[confirmado — `bash plugins/gauntlet/hooks/test_gauntlet_hooks.sh` cobre "o juiz que nasce zera o contador", "e depois dele a trava volta a NEGAR, em vez de já desistir" e "a desistência AVISA na conversa, não só no log"]`
 
 **O fecho ganhou dois cobradores na v0.4.0**, e os dois nasceram de uma revisão que mediu a mesma classe de furo que criou a skill — regra escrita em prosa, cumprida por ninguém:
 
 - **A lei em documento.** `fecho_check.py:ancora_leis` grava `lei-aprovada.marca` quando o `rito` passa, e `erros_do_fecho` compara o conteúdo de cada documento de lei contra essa âncora. Lei que mudou, entrou ou sumiu no meio da missão vira furo nomeado, em vez de depender de quem orquestra lembrar de reconferir. A âncora do rito (`rito-aprovado.marca`) não cobria isso: ela congela o que está DENTRO do `rito.json`, e a lei mora em documento de fora.
 - **O arsenal.** Em missão cujo rito traz `arsenal`, a entrega tem que declarar `arsenal_usado` — lista vazia é resposta ("não usei nada"), campo ausente é silêncio e recusa o fecho. É o que dá ao dono a chance de vetar uma dependência que a obra adotou.
 
-**Verificado:** `bash plugins/gauntlet/hooks/test_gauntlet_hooks.sh` → *"trava dupla do gauntlet: tudo verde"*, cobrindo o construtor negado, o juiz da pendente que passa, o juiz de peça já julgada que não fura a fila, a equipe livre sem pendência, a desistência que avisa, a expiração, o kill-switch e as cinco bordas de fail-open; `python3 plugins/gauntlet/lib/test_fecho_check.py` → *"fecho_check: tudo verde"*, com os blocos "A LEI EM DOCUMENTO" (5 casos) e "O ARSENAL" (2 casos). `[confirmado nesta rodada]`
+**Verificado:** `bash plugins/gauntlet/hooks/test_gauntlet_hooks.sh` → *"trava dupla do gauntlet: tudo verde"*, cobrindo o construtor negado, o juiz da pendente que passa, o juiz de peça já julgada que não fura a fila, a equipe livre sem pendência, a desistência que avisa, o juiz que rearma a trava, a missão órfã no arranque, a expiração, o kill-switch e as cinco bordas de fail-open; `python3 plugins/gauntlet/lib/test_fecho_check.py` → *"fecho_check: tudo verde"*, com os blocos "A LEI EM DOCUMENTO" (5 casos), "O ARSENAL" (2 casos) e "A RODADA INTERMEDIÁRIA" (3 casos). `[confirmado nesta rodada]`
+
+**A missão sobrevive ao fim da sessão (v0.4.2).** O segundo hook de `SessionStart` do plugin (`sessionstart-lembra-missao.sh`, 10s) varre `andamento/ativo-*`, pega o primeiro sinal cujo nome de motor é `gauntlet` — dando a vez ao da própria sessão quando ele existe —, roda o `mapa` e imprime o estado com as entregas sem juiz nomeadas. Era a metade que faltava do "todo veredito vive em arquivo": o disco guardava e ninguém lia na volta, e o sinal expirava em 12h levando a missão junto, calado. ⚠️ **Ele não retoma nada** — o recado termina mandando perguntar ao dono se retoma ou encerra, porque motor que se reinicia sozinho no arranque é como se perde o controle de uma disputa que gasta agente. `[confirmado — a suíte cobre "o arranque encontra a missão de pé", "traz o gap aberto, que era o que evaporava na conversa" e "deixa a decisão com o dono, sem retomar sozinho"]`
 
 ---
 
@@ -1015,6 +1022,51 @@ Campos da saída: `regua`, `marca_regua`, `ausentes`, `dispensa`, `reabertos`, `
 **A marca é a MESMA do shell, e é aí que o mecanismo se prova.** `doc_load.py:cksum` reimplementa em Python o `cksum` POSIX do **corpo** (sem frontmatter) que `plugins/project-skills/hooks/lib-doc-mark.sh:doc_marca` produz — duas receitas para o mesmo número divergem em silêncio (`patterns.md` §1.6), então a suíte compara as duas sobre o mesmo arquivo. Conferido nesta rodada sobre `.claude/docs/constituicao.md`: `2396033228` pelos dois lados, e `--marca` devolveu `2396033228+2813587699` — a soma das duas leis, na mesma forma do `lawMark` que a missão do motor congela na primeira volta (fluxo 5). `[confirmado — os dois comandos rodados nesta rodada]`
 
 **Verificado:** `python3 plugins/project-skills/lib/test_doc_load.py` → **29 passou · 0 falhou** nesta rodada. `[confirmado — saída da suíte]`
+
+---
+
+## 23 · O arranque conta que esta máquina roda código velho
+
+**Novo em 2026-08-09**, e nasceu do defeito mais caro daquela rodada: o dono revisou,
+testou e aprovou a v0.4.0 do `gauntlet` durante uma sessão inteira **enquanto a máquina
+dele rodava a 0.3.2**. Editar `plugins/<nome>/` não muda o que o harness carrega — ele lê
+o cache de `~/.claude/plugins/`, e o cache só troca com `claude plugin update` mais um
+reinício. Nada no repositório dizia isso, e a descoberta foi por acaso. `[confirmado — o
+`installPath` do `installed_plugins.json` apontava para `…/gauntlet/0.3.2`]`
+
+**O que dispara.** `.claude/settings.json` registra `SessionStart` →
+`sessionstart-avisa-cadeia.sh` (10s). É hook do **projeto**, não de plugin, e o público
+explica: só quem tem o repositório na mão consegue comparar as duas versões.
+
+```
+CADEIA_GATE=0 ............................... exit 0 (kill-switch)
+sem scripts/cadeia_check.py no projeto ...... exit 0 (não é este repositório)
+sem python3 que EXECUTE ..................... exit 0
+sentinel $TMPDIR/cadeia-avisou-<sid> existe . exit 0 (uma vez por sessão)
+cadeia_check.py --maquina --quieto sem saída  exit 0 (está tudo em dia)
+senão ....................................... hj_msg_ctx com as duas versões
+```
+
+**Quem responde é `scripts/cadeia_check.py`**, e ele compara quatro estações: o que está
+escrito (`plugins/<nome>/.claude-plugin/plugin.json`), o que é publicado
+(`.claude-plugin/marketplace.json`), o que a receita manda instalar
+(`plugins/bootstrap/config/manifest.json`) e o que a máquina roda (o `installPath` do
+`installed_plugins.json` — o caminho do cache, porque é ele que aponta para os arquivos
+que o harness de fato carrega). O modo `--repo` é o check T do gate de commit (§5.2 de
+`patterns.md`); o `--maquina` é este aviso.
+
+⚠️ **Ele avisa e não conserta**, e o cabeçalho registra o motivo: *"o estrago de um
+instalador automático errado é maior que o do aviso que ele evita"*. O recado fecha com a
+regra que faltava — *"teste no repositório vale como leitura de código, nunca como prova
+de comportamento"* — e vai aos dois públicos, porque o modelo que não souber disso passa a
+sessão testando o que não roda.
+
+**Verificado:** `bash .claude/hooks/test_sessionstart_avisa_cadeia.sh` → *"aviso de cadeia:
+tudo verde"*, com o caso de origem (repositório em 0.4.0, máquina em 0.3.2), o silêncio da
+segunda chamada na mesma sessão, o aviso de novo numa sessão nova, o silêncio de quem está
+em dia, o fallback para stderr sem o leitor de JSON e o kill-switch;
+`python3 scripts/test_cadeia_check.py` → *"cadeia_check: tudo verde"*. `[confirmado nesta
+rodada]`
 
 ---
 

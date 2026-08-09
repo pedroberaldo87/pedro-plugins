@@ -549,6 +549,17 @@ Nasceu em 2026-08-09 com o `gauntlet` v0.3.2. Ver `data-stores.md §B15` para a 
 - **O que se perde se sumir:** a lista curada à mão de bibliotecas, efeitos e fontes de referência. Nenhum comando a regenera — não é derivável do repo nem de histórico. A missão seguinte não quebra: a abertura segue calada e a disputa roda sem os recursos. É perda de **repertório**, silenciosa.
 - **Diferença para o §3.16b:** lá a falha acusa com instrução na tela; aqui nada avisa. Quem perder o arquivo só descobre quando notar que os construtores voltaram a escrever tudo do zero.
 
+### 3.16d · Missão do gauntlet — `<projeto>/.claude/gauntlet/<data>-<slug>/`
+
+Nasceu em 2026-08-09 com o `gauntlet`. Ver `data-stores.md §B16` para a anatomia.
+
+`[TODO: sem cobertura declarada]` — dentro do projeto, fora do git, sem cópia. Detalhe abaixo.
+
+- **Fora do git por decisão, não por esquecimento.** A seção 1 do `.gitignore` exclui `.claude/gauntlet/` pela regra do repositório público: registro de trabalho não é produto. É a mesma classe do `.claude/visual/` (§3.14) e dos planos em `.claude/plans/`.
+- **O que se perde se sumir:** a disputa inteira — os vereditos com o par de observações que os prova, os registros do alvo colhidos pelo reconhecimento, o caderno de vetos do dono e as duas âncoras que congelam a régua. Nada disso é derivável: os registros são observações de um alvo externo num momento, e o alvo muda.
+- **A perda é silenciosa e some sozinha.** Some a pasta, some o sinal por idade (`GAUNTLET_TTL_MIN`, 12h), e nada acusa — só o arranque, e só enquanto o sinal existir (`runtime.md §21`). Uma missão longa interrompida e esquecida evapora sem deixar rastro em lugar nenhum.
+- **O que reduz o estrago hoje**, e é pouco: a obra em si mora no projeto (o campo `raiz` do rito) e essa parte está no git de quem construiu. O que não volta é o **julgamento** — a prova de que aquilo ganhou do alvo.
+
 ### 3.17 · Cofre de secrets — iCloud
 
 - [confirmado] `cofre_paths()` em `plugins/project-skills/lib/journal.py` resolve nesta ordem: `PROJECT_DOC_COFRE_DIR` (override explícito) → `~/Library/Mobile Documents/com~apple~CloudDocs/Cofre` → fallback local `<projeto>/.claude/secrets/_local_cofre`. O nome do arquivo é `<basename>-<8 hex do sha1 do path absoluto>.env`, para dois projetos homônimos não colidirem.
