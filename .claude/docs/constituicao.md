@@ -71,7 +71,7 @@ ligando aprovação automática na máquina de quem instala: **121** permissões
 O que saiu desse allow nesta rodada — `Bash(git push*)`, `Bash(ssh-add*)`, `Bash(supabase*)`
 e os prefixos de atribuição com curinga (`Bash(TOKEN=*)`, `Bash(SUPABASE_*)`), que reabriam
 qualquer comando — saiu por revisão manual, não por gate: nada impede a próxima entrada
-igual. `plugins/bootstrap/skills/setup/SKILL.md:88` hoje diz o que o setup de fato faz —
+igual. `plugins/bootstrap/skills/bootstrap/SKILL.md:88` hoje diz o que o setup de fato faz —
 "Isso **liga aprovação automática**" — e enumera família por família o que entra.
 
 ---
@@ -184,11 +184,12 @@ mensagem de dependência ausente tem 209 caracteres, e o teto do perfil de hook 
 **nos dois lados**. Número afirmado em `SKILL.md` é derivável por um comando, ou não
 existe.
 
-**Como se cobra** — Hoje não há quem cobre. Existe `plugins/guardrails/lib/askq_lint.py`
-para a linguagem das perguntas, e a checagem G para o carimbo de geração defasado, mas nada
-olha gatilho cruzado nem número em prosa. O gate seria um `scripts/skill_lint.py` com dois
-testes: descrições cujas condições se sobrepõem sem citar a vizinha, e número seguido de
-substantivo contável sem o comando que o produz ao lado.
+**Como se cobra** — Gatilho cruzado tem cobrador desde 2026-08: a varredura do
+check-skills (`plugins/check-skills/lib/varredura.py`), pelas lentes NOME REPETIDO,
+GATILHO DISPUTADO, GATILHO MORTO e SEM SITUAÇÃO. `plugins/guardrails/lib/askq_lint.py`
+segue cobrindo a linguagem das perguntas, e a checagem G o carimbo de geração defasado.
+Número em prosa é coberto só onde o padrão casa (`scripts/desacoplamento_check.py`); o
+teste dedicado a número dentro de `SKILL.md` continua dívida declarada.
 
 **Prova de que vale hoje** — Duas skills do mesmo plugin casam na mesma condição ("projeto
 sem CLAUDE.md") com ordens opostas, e nenhuma cita a outra. Uma skill afirma "60 checks"
