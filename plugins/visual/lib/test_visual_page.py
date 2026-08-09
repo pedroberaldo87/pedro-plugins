@@ -245,6 +245,37 @@ check("valor de máquina NÃO troca",
       'value="keep"' in page and 'value="change"' in page and 'value="remove"' in page)
 
 
+# ── a página do parecer (F25.2) ────────────────────────────────────────────
+
+print("\n[parecer — aprovável sozinho, item a item, sem item do trabalho]")
+
+_par = spec(slug="parecer-decisao-cache",
+            sections=[{"blocks": [dict(EVID),
+                                  {"kind": "item", "title": "a 1ª escolha perdeu o juiz"},
+                                  {"kind": "item", "title": "a 2ª escolha ele entendeu"}]}])
+check("spec do parecer é válido", V.validate(_par) == [], V.validate(_par))
+_pag, _ctx = V.build_page(_par, T)
+check("o parecer sai com rótulo de aprovação", "✓ Aprovar" in _pag and "✗ Reprovar" in _pag)
+check("rótulo de manter/mudar não aparece no parecer", "✓ Manter" not in _pag)
+check("cada apontamento tem veredito próprio",
+      _ctx["n_items"] == 2 and 'name="fb-1"' in _pag and 'name="fb-2"' in _pag)
+check("o rótulo do parecer manda mesmo se o spec pedir outro",
+      "✓ Aprovar" in V.build_page(dict(_par, item_labels=["✓ Manter", "a", "b"]), T)[0])
+
+for _intruso in ({"kind": "aprovacao", "etapa": "a spec", "doc_integral": "texto inteiro"},
+                 {"kind": "decision", "question": "qual cache?", "context": "o que está em jogo",
+                  "options": [{"title": "A", "tradeoff": "custa mais"},
+                              {"title": "B", "tradeoff": "custa menos"}]}):
+    _errs = V.validate(spec(slug="parecer-x",
+                         sections=[{"blocks": [dict(EVID), _intruso]}]))
+    check("item do trabalho (%s) é recusado no parecer" % _intruso["kind"],
+          any("página de parecer" in e for e in _errs), _errs)
+_errs = V.validate(spec(sections=[{"blocks": [dict(EVID),
+                                           {"kind": "aprovacao", "etapa": "a spec",
+                                            "doc_integral": "texto inteiro"}]}]))
+check("fora do parecer a aprovação continua passando", _errs == [], _errs)
+
+
 # ── o gráfico ──────────────────────────────────────────────────────────────
 
 print("\n[gráfico — aritmética de barra é do programa]")
@@ -730,6 +761,17 @@ for _cls, _cor in [(".callout.warn", "--warn"), (".callout.danger", "--danger"),
                    (".tri.tri-low", "--accent-2"), (".evidencia.vazio", "--danger")]:
     check("%s continua legível por cor na captura (moldura na cor do estado)" % _cls,
           re.search(re.escape(_cls) + r'\s*{[^}]*border-color: var\(%s\)' % _cor, _css))
+
+# A miniatura do `srcdoc` é a FOTO do layout antigo que a página cita como
+# passado: consertar a borda dela falsificaria a ilustração. O conferidor de
+# design lê o arquivo como texto e não distingue a interface da foto dela, então
+# cada linha da foto carrega a isenção com o motivo escrito — se alguém tirar a
+# isenção, ou a foto, este check cai junto.
+_foto = [ln for ln in _css.splitlines()
+         if "border-top:3px solid" in ln and "&lt;div" in ln]
+check("as duas linhas da foto do layout antigo continuam no template", len(_foto) == 2, _foto)
+check("cada linha da foto carrega a isenção declarada do conferidor de design",
+      all("impeccable-disable-line border-accent-on-rounded --" in ln for ln in _foto), _foto)
 
 
 print("\n%d passou · %d falhou" % (PASS, FAIL))

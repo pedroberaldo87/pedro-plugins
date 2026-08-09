@@ -1,6 +1,6 @@
 ---
 name: improve
-description: Implementador genérico de auto-melhoria pra qualquer app usando a metodologia de ML autoresearch. Lê o IMPROVEMENT_PROGRAM.md do app pra contexto, busca propostas de GitHub Issues (label 'autoresearch'), implementa as mudanças. Use com "improve", "melhoria", "rodada de improvement". Use quando há propostas de melhoria abertas no repositório do app e o usuário quer rodar a próxima rodada em cima delas.
+description: Implementador genérico de auto-melhoria pra qualquer app usando a metodologia de ML autoresearch. Lê o IMPROVEMENT_PROGRAM.md do app pra contexto, busca propostas de GitHub Issues (label 'autoresearch'), implementa as mudanças. Use com "improve", "melhoria", "rodada de improvement". Use quando há propostas de melhoria abertas no repositório do app e o usuário quer rodar a próxima rodada em cima delas. Ela IMPLEMENTA a melhoria que já virou proposta, e NÃO investiga run que já terminou nem mede o que cada papel custou — isso é da skill improve-workflow, a vizinha.
 ---
 
 # Improve — Implementador Genérico de Auto-Melhoria

@@ -38,6 +38,13 @@ ele responde: o que estou sendo pedido para escolher · qual a diferença entre 
 - Termo técnico não explicado ali mesmo ⇒ PERDIDO, mesmo com o resto bom.
 - Escolha que exige saber algo que não está na própria página ⇒ PERDIDO.
 
+**(b2) Terminada a leitura, o parecer do juiz vira PÁGINA PRÓPRIA — gere sem perguntar.**
+Não pergunte se o dono quer ver; não despeje o veredito no chat. Monte um spec com um item
+por decisão (o que foi pedido para escolher · a diferença entre as opções · ENTENDI ou
+PERDIDO · a palavra que perdeu) e rode `visual_page.py build --spec <f>` com `slug` próprio
+(`parecer-<slug-da-página>`), depois `open`. A página julgada e a página do parecer são
+duas: misturar as duas esconde a reprovação dentro do que ela reprovou.
+
 **(c) Aprovou? Registre o que ele ensinou**, para o erro não voltar na página seguinte:
 
 ```bash
@@ -1043,7 +1050,8 @@ Critical behavior when the hook blocks:
 6. Recusou? A mensagem lista todos os erros de forma de uma vez. Conserte o spec, não o HTML
 7. *(opcional)* `clareza.py revisar --spec <f>` antes do build, se quiser conferir sem
    gastar uma geração
-8. **Juiz de clareza (Haiku) lê a página** (Passo 0b). Qualquer PERDIDO ⇒ conserte e repita
+8. **Juiz de clareza (Haiku) lê a página** (Passo 0b). Qualquer PERDIDO ⇒ conserte e repita.
+   Ao fim da leitura, **gere a página do parecer sem perguntar** (Passo 0b2)
 9. Suba o daemon (`${CLAUDE_PLUGIN_ROOT}/server/start.sh`) e `open` o caminho impresso
 10. **`clareza.py registrar`** com os padrões que o juiz apontou (Passo 0c) — **inclusive
     quando a última rodada passou limpa**: o que ensina é a rodada que REPROVOU, e ela some

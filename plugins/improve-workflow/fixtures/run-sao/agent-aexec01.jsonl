@@ -1,0 +1,5 @@
+{"type": "user", "message": {"role": "user", "content": "Você é o EXECUTOR (Sonnet). Implemente a tarefa F1 do plano."}}
+{"type": "assistant", "requestId": "req_aexec01_0", "message": {"id": "msg_aexec01_0", "usage": {"input_tokens": 100, "cache_creation_input_tokens": 500, "cache_read_input_tokens": 2000, "output_tokens": 50}}}
+{"type": "assistant", "requestId": "req_aexec01_1", "message": {"id": "msg_aexec01_1", "usage": {"input_tokens": 10, "cache_creation_input_tokens": 100, "cache_read_input_tokens": 2500, "output_tokens": 80}}}
+{"type": "assistant", "requestId": "req_aexec01_2", "message": {"id": "msg_aexec01_2", "usage": {"input_tokens": 10, "cache_creation_input_tokens": 100, "cache_read_input_tokens": 3000, "output_tokens": 40}}}
+{"type": "assistant", "requestId": "req_aexec01_3", "message": {"id": "msg_aexec01_3", "usage": {"input_tokens": 10, "cache_creation_input_tokens": 100, "cache_read_input_tokens": 3500, "output_tokens": 40}}}

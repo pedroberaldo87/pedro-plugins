@@ -413,8 +413,22 @@ while (!cleanRound && r < maxRounds && !churnEscalated) {
   rounds.push({ r, review, plan, corrections, regressions, alerts: plan.alerts || [] })
 }
 
+// VOLTAS POR PROBLEMA (F25.4) — quantas rodadas cada achado levou até sumir. Sai do que já
+// está em `rounds`: da volta em que o problema apareceu até a última em que ainda aparecia.
+// O relatório dizia só "3 rodadas" — número da sessão, não do defeito; sem este
+// ninguém via QUAL problema custou as três, que é a leitura para a qual o laço existe.
+const voltasPorProblema = []
+const porId = {}
+for (const x of rounds)
+  for (const f of (x.review?.findings || [])) {
+    if (!porId[f.id]) voltasPorProblema.push(porId[f.id] =
+      { id: f.id, file: f.file, problem: f.problem, primeira: x.r, voltas: 0 })
+    porId[f.id].voltas = x.r - porId[f.id].primeira + 1
+  }
+
 return {
   rounds, acceptedLimits, invariants, churn,
+  voltasPorProblema,   // por achado: em que volta apareceu e quantas levou até a rodada limpa
   causaDisputada,   // escaladas de churn: causa referendada pelo desafiador, ou as duas versões em disputa
   planFlawAlerts: rounds.flatMap(x => x.alerts),
   telemetry: rounds.map(x => ({ round: x.r, corrections: x.corrections.length, regressions: x.regressions,
@@ -645,6 +659,11 @@ Estrutura do relatório (no topo → fundo):
   que é a única leitura pra qual este gráfico existe. Contagem em string é recusada pelo build (nada de coerção
   silenciosa). + **tabela por rodada** com as considerações **DENTRO da linha** (colapsável, o `detail` do item),
   NÃO um listão depois. Read-only.
+- **Voltas por problema (logo abaixo do gráfico, read-only):** uma linha por achado do
+  `voltasPorProblema` do `return` — o problema, o arquivo, em que volta apareceu e **quantas voltas
+  levou até a rodada limpa**. É a leitura que o total de rodadas esconde: três rodadas podem ser um
+  defeito teimoso ou três defeitos de uma volta cada, e as duas pedem ação diferente. O número sai do
+  motor pronto; não o recalcule lendo as rodadas.
 - **4 categorias de ACTIONABLE** — o que sobe pro usuário deixa de ser "alerta genérico" e vira 4 seções, cada
   achado um **`feedback-item` SELECIONÁVEL** (os valores internos `keep`/`change`/`remove` ficam, mas os labels
   viram **"✓ Vira ação" / "✏️ Ação c/ ajuste" / "✗ Descartar"** — o `/visual` autoriza relabelar). Cada item é

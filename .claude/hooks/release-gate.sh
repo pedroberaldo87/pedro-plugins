@@ -435,6 +435,21 @@ $(printf '%s' "$OOUT" | head -20)
   fi
 fi
 
+# S · a lei da autópsia (trava do refutador + proibição de tocar o projeto), que até
+# aqui só existia como prosa dentro do SKILL.md do improve-workflow. Texto some numa
+# reescrita e nada acusa: sem a trava a rodada perde o segundo par de olhos, e sem a
+# proibição a skill que audita passa a editar o que audita.
+# Escopo: só quando o commit toca o plugin da autópsia — no resto do tempo custa zero.
+APC="$ROOT/scripts/autopsia_check.py"
+if [ -f "$APC" ] && printf '%s\n' "$FILES" | grep -qE '^plugins/improve-workflow/'; then
+  if ! SOUT=$(cd "$ROOT" && python3 "$APC" 2>&1); then
+    VIOL="${VIOL}
+❌ LEI DA AUTÓPSIA FURADA — a trava sumiu do texto, ou a rodada passou a escrever:
+$(printf '%s' "$SOUT" | head -12)
+   → régua: python3 scripts/autopsia_check.py"
+  fi
+fi
+
 # F · suites shell dos plugins tocados (as .py já foram no gate D)
 for name in $(printf '%s\n' "$FILES" | sed -n 's#^plugins/\([^/]*\)/.*#\1#p' | sort -u); do
   for t in "$ROOT/plugins/$name/hooks/"test_*.sh; do

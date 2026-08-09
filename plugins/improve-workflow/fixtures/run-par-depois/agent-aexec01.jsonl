@@ -1,0 +1,2 @@
+{"type": "user", "message": {"role": "user", "content": "Você é o EXECUTOR (Sonnet). Implemente a tarefa do plano."}}
+{"type": "assistant", "requestId": "req_aexec01_0", "message": {"id": "msg_aexec01_0", "usage": {"input_tokens": 10, "cache_creation_input_tokens": 100, "cache_read_input_tokens": 1000, "output_tokens": 20}}}

@@ -1,0 +1,7 @@
+{"type": "user", "message": {"role": "user", "content": "Você é o EXECUTOR (Sonnet). Implemente ESTA tarefa."}}
+{"type": "assistant", "requestId": "req_aexec02_0", "message": {"id": "msg_aexec02_0", "usage": {"input_tokens": 100, "cache_creation_input_tokens": 500, "cache_read_input_tokens": 1000, "output_tokens": 2}}}
+{"type": "assistant", "requestId": "req_aexec02_0", "message": {"id": "msg_aexec02_0", "usage": {"input_tokens": 100, "cache_creation_input_tokens": 500, "cache_read_input_tokens": 1000, "output_tokens": 2}}}
+{"type": "assistant", "requestId": "req_aexec02_0", "message": {"id": "msg_aexec02_0", "usage": {"input_tokens": 100, "cache_creation_input_tokens": 500, "cache_read_input_tokens": 1000, "output_tokens": 50}}}
+{"type": "assistant", "requestId": "req_aexec02_1", "message": {"id": "msg_aexec02_1", "usage": {"input_tokens": 10, "cache_creation_input_tokens": 100, "cache_read_input_tokens": 2000, "output_tokens": 2}}}
+{"type": "assistant", "requestId": "req_aexec02_1", "message": {"id": "msg_aexec02_1", "usage": {"input_tokens": 10, "cache_creation_input_tokens": 100, "cache_read_input_tokens": 2000, "output_tokens": 2}}}
+{"type": "assistant", "requestId": "req_aexec02_1", "message": {"id": "msg_aexec02_1", "usage": {"input_tokens": 10, "cache_creation_input_tokens": 100, "cache_read_input_tokens": 2000, "output_tokens": 90}}}

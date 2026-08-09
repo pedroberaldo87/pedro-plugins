@@ -496,6 +496,115 @@ def bancada_git(texto, tick_cmd, ck_cmd, **kw):
         shutil.rmtree(repo, ignore_errors=True)
 
 
+# ── a bancada do motor de REVISAO (/qa-loop) ────────────────────────────────
+# O motor de implementacao acima tem o laco decompoe->executa->revisa. O de revisao tem
+# o dele — revisa->planeja->conserta->REVISA DE NOVO —, e ate 2026-08-09 ninguem o havia
+# EXECUTADO: a prosa dizia que a rodada 2+ reabre sobre os arquivos tocados, e nada
+# provava que reabria. Aqui o esqueleto do SKILL.md do /qa-loop roda em Node com os
+# agentes de mentira, e o que se afere e o que o revisor RECEBEU em cada volta.
+QA_SKILL_MD = os.path.join(AQUI, "..", "skills", "qa-loop", "SKILL.md")
+
+QA_HARNESS = r"""
+const fs = require('fs')
+const CFG = JSON.parse(fs.readFileSync(process.argv[2], 'utf8'))
+const CORPO = fs.readFileSync(process.argv[3], 'utf8')
+
+const PRELUDE = `
+const FINDINGS={}, PLAN={}, EXEC_RESULT={}, DESAFIO={};
+const mk = n => (p => Object.assign({ __p: n }, p));
+const reviewPrompt=mk('review'), planPrompt=mk('plan'), execPrompt=mk('exec'),
+      diagnosePrompt=mk('diag'), desafioCausaPrompt=mk('desafio');
+const isAccepted = (f, limites) => (limites || []).some(l => l.id === f.id);
+const tallyBySev = fs => fs.length;
+const revertAndMaybeRedo = async (fix) => { globalThis.__revertidos.push(fix.id) };
+`
+
+globalThis.__revertidos = []
+const revisoes = []   // o que o REVISOR recebeu em cada volta (round + escopo)
+const consertados = []
+const agentes = []
+const phase = () => {}
+const log = () => {}
+
+async function agent(p, opts) {
+  if (p.__p === 'review' && p.confirming) {
+    // A conferencia dedicada. Ela so acha algo na PRIMEIRA vez (CFG.confirm): repetir o
+    // mesmo achado em toda conferencia deixaria o laco girando ate o teto, e o que se
+    // quer medir e que UM achado dela reabre o laco.
+    agentes.push('confirm')
+    const primeira = agentes.filter(a => a === 'confirm').length === 1
+    return (primeira && CFG.confirm) || { complete: true, findings: [] }
+  }
+  agentes.push(p.__p)
+  const daVolta = CFG.rodadas[(p.round || 1) - 1] || { findings: [] }
+  switch (p.__p) {
+    case 'review':
+      revisoes.push({ round: p.round, scope: p.scope })
+      return { complete: true, findings: daVolta.findings }
+    case 'plan':
+      // Roteia pro conserto o que o REVISOR daquela volta devolveu — inclusive o que o
+      // motor concatenou da conferencia. Ler do cenario aqui esconderia esse caminho.
+      return { bucket1: (p.review.findings || []).map(f => ({ id: f.id, file: f.file, fn: f.fn })),
+               alerts: [], proposedLimits: [] }
+    case 'exec':
+      consertados.push(p.fix.id)
+      return { fix_id: p.fix.id, files_touched: [p.fix.file],
+               suiteRegressed: CFG.regride === p.fix.id, summary: 'consertei ' + p.fix.id }
+    default:
+      return {}
+  }
+}
+
+const corpo = CORPO.replace(/^export const meta = \{[\s\S]*?\n\}\n/m, '')
+const motor = new Function('args', 'agent', 'phase', 'log',
+                           'return (async () => {' + PRELUDE + corpo + '})()')
+motor(CFG.args, agent, phase, log).then(saida => {
+  fs.writeFileSync(CFG.out, JSON.stringify(
+    { saida, revisoes, consertados, agentes, revertidos: globalThis.__revertidos }, null, 2))
+}).catch(e => { console.error('MOTOR ESTOUROU: ' + (e && e.stack || e)); process.exit(3) })
+"""
+
+
+def bancada_qa(rodadas, max_rounds=6, confirm=None, regride=None):
+    """Executa o esqueleto do /qa-loop com os agentes de mentira. `rodadas` diz o que o
+    revisor acha em cada volta. Devolve {saida, revisoes, consertados, agentes} ou None
+    (e o motivo ja saiu como check reprovado)."""
+    tmp = tempfile.mkdtemp(prefix="qa-bancada-")
+    try:
+        corpo = os.path.join(tmp, "motor.js")
+        with open(corpo, "w", encoding="utf-8") as fh:
+            fh.write(esqueleto(open(QA_SKILL_MD, encoding="utf-8").read()))
+        harness = os.path.join(tmp, "harness.js")
+        with open(harness, "w", encoding="utf-8") as fh:
+            fh.write(QA_HARNESS)
+        out = os.path.join(tmp, "saida.json")
+        cfg = {
+            "out": out,
+            "rodadas": rodadas,
+            "confirm": confirm,
+            "regride": regride,
+            "args": {"target": "bancada", "severityFloor": "P1", "maxRounds": max_rounds,
+                     "churnThreshold": 2, "acceptedLimits": [], "invariants": [],
+                     "model": "opus",
+                     "tiers": {k: {"effort": "medium"} for k in
+                               ("decompose", "coordinate", "executor", "mechanical",
+                                "diagnose", "finalize")}},
+        }
+        cfg_path = os.path.join(tmp, "cfg.json")
+        with open(cfg_path, "w", encoding="utf-8") as fh:
+            json.dump(cfg, fh)
+        proc = subprocess.run(["node", harness, cfg_path, corpo], capture_output=True,
+                              text=True, cwd=tmp, stdin=subprocess.DEVNULL, start_new_session=True)
+        if proc.returncode != 0:
+            check("o motor de revisao rodou de ponta a ponta (%s)"
+                  % (proc.stderr.strip() or proc.stdout.strip()), False)
+            return None
+        with open(out, encoding="utf-8") as fh:
+            return json.load(fh)
+    finally:
+        shutil.rmtree(tmp, ignore_errors=True)
+
+
 def estado(plan_path):
     with open(plan_path, encoding="utf-8") as fh:
         plano = json.load(fh)
@@ -1165,6 +1274,76 @@ def main():
     check("o encerramento vira Bloqueio dizendo quantas foram separadas sem sair",
           len(esterilb) == 1
           and re.search(r"[1-9]\d* tarefa\(s\) separadas", esterilb[0]["what"]))
+
+    # ── F25.3: o laco da revisao fecha, e a bancada anda as tres voltas ─────────
+    print("F25.3 — feito o conserto, a revisao reabre sobre ele; o laco so fecha limpo")
+    voltas = bancada_qa([
+        # 1a volta: sweep completo acha o defeito grave e ele vai pro conserto.
+        {"findings": [{"id": "f1", "file": "a.py", "fn": "valida", "severity": "P0",
+                       "problem": "a entrada invalida passa"}]},
+        # 2a volta: a revisao reabre sobre o arquivo que o conserto tocou e acha o RESIDUO
+        # — o defeito que o proprio conserto deixou, e que uma rodada so nunca veria.
+        {"findings": [{"id": "f2", "file": "a.py", "fn": "valida", "severity": "P1",
+                       "problem": "o conserto deixou o caso vazio de fora"}]},
+        # 3a volta: nada mais aparece — e e so ai que o laco fecha.
+        {"findings": []},
+    ])
+    if voltas is None:
+        return 1
+    saidaq = voltas["saida"]
+    check("a 1a volta achou e consertou", voltas["consertados"][:1] == ["f1"]
+          and len(saidaq["rounds"][0]["corrections"]) == 1)
+    escopo2 = (voltas["revisoes"][1] or {}).get("scope") if len(voltas["revisoes"]) > 1 else None
+    check("a 2a volta reabriu SOBRE o que foi consertado, nao sobre o material inteiro",
+          isinstance(escopo2, dict) and escopo2.get("touchedFiles") == ["a.py"])
+    check("a 2a volta achou o residuo e consertou", voltas["consertados"] == ["f1", "f2"])
+    check("a 3a volta veio limpa e o laco fechou",
+          len(saidaq["rounds"]) == 3 and saidaq["stopReason"] == "no-severe-finding")
+    check("a rodada limpa passou pela conferencia dedicada antes de fechar",
+          voltas["agentes"].count("confirm") == 1)
+    check("nenhuma volta a mais foi paga depois da limpa",
+          voltas["agentes"].count("review") == 3)
+
+    print("F25.3 — a rodada que PARECE limpa nao fecha se a conferencia achar algo")
+    resto = bancada_qa([{"findings": []}, {"findings": []}],
+                       confirm={"complete": True,
+                                "findings": [{"id": "f9", "file": "b.py", "fn": "g",
+                                              "severity": "P0",
+                                              "problem": "o que a barata perdeu"}]})
+    if resto is None:
+        return 1
+    check("o achado da conferencia reabre o laco em vez de fechar",
+          len(resto["saida"]["rounds"]) > 1 and "f9" in resto["consertados"])
+
+    # ── F25.4: as duas receitas fecham o laco, e a saida conta as VOLTAS por problema ──
+    # O total de rodadas nao distingue um defeito teimoso de tres defeitos de uma volta
+    # cada, e sao acoes diferentes. Aqui se afere o numero POR PROBLEMA nos dois motores.
+    print("F25.4 — a saida da REVISAO conta as voltas de cada problema ate a rodada limpa")
+    teimoso = bancada_qa([
+        # o mesmo achado reaparece na 2a volta: o conserto da 1a nao resolveu.
+        {"findings": [{"id": "f1", "file": "a.py", "fn": "valida", "severity": "P0",
+                       "problem": "a entrada invalida passa"}]},
+        {"findings": [{"id": "f1", "file": "a.py", "fn": "valida", "severity": "P0",
+                       "problem": "a entrada invalida passa"},
+                      {"id": "f2", "file": "b.py", "fn": "g", "severity": "P1",
+                       "problem": "o outro caso"}]},
+        {"findings": []},
+    ])
+    if teimoso is None:
+        return 1
+    porid = {v["id"]: v for v in (teimoso["saida"].get("voltasPorProblema") or [])}
+    check("o problema que atravessou duas voltas sai com 2", porid.get("f1", {}).get("voltas") == 2)
+    check("o que nasceu na 2a volta e sumiu sai com 1", porid.get("f2", {}).get("voltas") == 1)
+    check("cada problema sai com a volta em que apareceu",
+          porid.get("f1", {}).get("primeira") == 1 and porid.get("f2", {}).get("primeira") == 2)
+
+    print("F25.4 — a saida da IMPLEMENTACAO conta as mesmas voltas, pelos gaps do revisor")
+    duasvoltas = bancada(texto, tick_cmd, max_rounds=2, gaps=[GAP_SPEC])
+    if duasvoltas is None:
+        return 1
+    vpp = duasvoltas["saida"].get("voltasPorProblema") or []
+    check("o gap que sobreviveu as duas rodadas sai contado como 2",
+          len(vpp) == 1 and vpp[0]["voltas"] == 2 and vpp[0]["kind"] == "spec")
 
     print()
     if FAILS:

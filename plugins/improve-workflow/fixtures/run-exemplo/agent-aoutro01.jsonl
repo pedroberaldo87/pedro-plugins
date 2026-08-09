@@ -1,0 +1,4 @@
+{"type": "user", "message": {"role": "user", "content": "Rode o comando que o passo pede e devolva a saída."}}
+{"type": "assistant", "requestId": "req_aoutro01_0", "message": {"id": "msg_aoutro01_0", "usage": {"input_tokens": 20, "cache_creation_input_tokens": 100, "cache_read_input_tokens": 300, "output_tokens": 2}}}
+{"type": "assistant", "requestId": "req_aoutro01_0", "message": {"id": "msg_aoutro01_0", "usage": {"input_tokens": 20, "cache_creation_input_tokens": 100, "cache_read_input_tokens": 300, "output_tokens": 2}}}
+{"type": "assistant", "requestId": "req_aoutro01_0", "message": {"id": "msg_aoutro01_0", "usage": {"input_tokens": 20, "cache_creation_input_tokens": 100, "cache_read_input_tokens": 300, "output_tokens": 10}}}
