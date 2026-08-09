@@ -23,7 +23,7 @@ sys.path.insert(0, AQUI)
 
 import plano_saida  # noqa: E402
 
-ROOT = plano_saida.ROOT
+ROOT = os.path.dirname(os.path.dirname(os.path.dirname(AQUI)))
 DATA = "2026-01-02"
 
 falhas = []
@@ -54,12 +54,12 @@ def roda(cmd, **kw):
                           stdin=subprocess.DEVNULL, start_new_session=True, **kw)
 
 
-def gera(destino):
+def gera(destino, env=None):
     return subprocess.run(
         [sys.executable, os.path.join(AQUI, "plano_saida.py"),
          "--dir", destino, "--data", DATA],
         input=json.dumps(AMOSTRA), cwd=ROOT, capture_output=True, text=True,
-        start_new_session=True)
+        start_new_session=True, env=env)
 
 
 def main():
@@ -121,11 +121,18 @@ def main():
               isinstance(lido, (dict, list)), repr(r2.stdout[-200:]))
 
         # --- DEGRADAÇÃO: sem o plan_state na máquina, o JSON sai e o aviso sai -----
-        escondido = plano_saida.PLAN_STATE + ".ausente-no-teste"
-        os.rename(plano_saida.PLAN_STATE, escondido)
+        # O irmão é achado pelo NOME, então esconder o arquivo do repo não basta:
+        # o resolvedor acharia a cópia instalada no cache. Quem some aqui são os
+        # DOIS lugares onde ele procura — a pasta irmã e o cache.
+        vazio = tempfile.mkdtemp(prefix="vistoria-sem-irmao-")
         try:
+            checa("com o irmão no lugar, o resolvedor acha o plan_state",
+                  os.path.isfile(plano_saida.acha_plan_state()))
+            env = dict(os.environ,
+                       CLAUDE_PLUGIN_ROOT=os.path.join(vazio, "vistoria"),
+                       CLAUDE_CONFIG_DIR=vazio)
             tmp2 = tempfile.mkdtemp(prefix="vistoria-plano-degradado-")
-            deg = gera(tmp2)
+            deg = gera(tmp2, env=env)
             c2 = deg.stdout.strip()
             checa("sem o visual, a geração ainda sai 0", deg.returncode == 0,
                   deg.stderr[-400:])
@@ -137,7 +144,7 @@ def main():
                   repr(deg.stderr[-200:]))
             shutil.rmtree(tmp2, ignore_errors=True)
         finally:
-            os.rename(escondido, plano_saida.PLAN_STATE)
+            shutil.rmtree(vazio, ignore_errors=True)
     finally:
         shutil.rmtree(tmp, ignore_errors=True)
 

@@ -361,7 +361,7 @@ h2 {
   height: 100%;
   background: linear-gradient(90deg, var(--ok), var(--accent));
   border-radius: 4px;
-  transition: width 0.3s;
+  transition: width 0.3s; /* impeccable-disable-line layout-transition -- barra de progresso: crescer de largura é o que ela comunica; a alternativa por transform estica o texto dentro dela */
 }
 .pt-phase { margin-bottom: 18px; }
 .pt-phase:last-child { margin-bottom: 0; }
@@ -644,7 +644,7 @@ ul.pt-prova li::before { content: "·"; position: absolute; left: -11px; opacity
   height: 100%;
   background: var(--accent);
   width: 0%;
-  transition: width 0.3s;
+  transition: width 0.3s; /* impeccable-disable-line layout-transition -- barra de progresso: crescer de largura é o que ela comunica; a alternativa por transform estica o texto dentro dela */
 }
 .fb-progress strong { color: var(--accent); font-weight: 800; }
 
@@ -1048,7 +1048,7 @@ ul.pt-prova li::before { content: "·"; position: absolute; left: -11px; opacity
   height: 100%;
   background: var(--accent);
   width: 0%;
-  transition: width 0.3s;
+  transition: width 0.3s; /* impeccable-disable-line layout-transition -- barra de progresso: crescer de largura é o que ela comunica; a alternativa por transform estica o texto dentro dela */
 }
 .dec-progress.incomplete .dec-progress-fill { background: var(--warn); }
 .dec-progress strong { color: var(--accent); font-weight: 800; }

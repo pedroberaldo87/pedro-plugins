@@ -116,7 +116,7 @@ Os **6 model-knobs** (`decompose_model`, `coordinate_model`, `executor_model`, `
 | Knob | Default | O que faz |
 |---|---|---|
 | `severity_floor` | `P1` | Conserta P0/P1; P2/P3 viram candidato a accepted-limit. **Load-bearing**: define "finding de severidade real". |
-| `max_rounds` | `6` | **TRAVA DE INCÊNDIO, NÃO META.** Quem decide a parada é o gate de severidade. **Clampado pela camada de rede** no motor: Camada 4 → 2, Camada 5 → 1 (rede fraca não ganha mais voltas de aposta cega). |
+| `max_rounds` | `12` | **TRAVA DE INCÊNDIO, NÃO META.** Quem decide a parada é o gate de severidade. **Clampado pela camada de rede** no motor: Camada 4 → 2, Camada 5 → 1 (rede fraca não ganha mais voltas de aposta cega). |
 | `domain` | `auto` | `auto` infere; `convergent` (tem comando pass/fail objetivo) ou `asymptotic`. |
 | `regression_gate` | `on` | Sempre on — é o coração. |
 | `triage_threshold` | `2` | Com ≥2 findings (ou qualquer alargamento de regra), o PLAN vira tabela formal; com 1, decisão inline. |
@@ -317,7 +317,7 @@ let touchedLastRound = [], openFindings = []   // delta pro REVIEW das rodadas 2
 // não regra pro modelo lembrar (Camada 4 = teto 2, Camada 5 = teto 1).
 const LAYER_CAP = { 4: 2, 5: 1 }
 const churnThreshold = args.churnThreshold || 2
-const maxRounds = Math.min(args.maxRounds || 6, LAYER_CAP[args.safetyLayer] ?? Infinity)
+const maxRounds = Math.min(args.maxRounds || 12, LAYER_CAP[args.safetyLayer] ?? Infinity)
 
 // Tier por rodada (R8): rodada 1 = decompose_model (sweep completo); rodadas 2+ =
 // coordinate_model (caça-regressão + delta). Os valores chegam em args.tiers, servidos

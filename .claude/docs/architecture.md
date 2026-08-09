@@ -202,7 +202,7 @@ python3 -c "import json;print(len(json.load(open('.claude-plugin/marketplace.jso
 .claude-plugin/marketplace.json   catálogo único — nome, source, version, tags, category
 plugins/<nome>/                   um dir por entrada do catálogo, sem sobra (§2)
 _shared/                          fonte-da-verdade do compartilhado (17 arquivos-fonte)
-scripts/sync-shared.sh            o "build": vendora _shared/ → 81 cópias em 41 pastas  <!-- acopla-ok: §7 traz o comando que produz os dois números -->
+scripts/sync-shared.sh            o "build": vendora _shared/ → 82 cópias em 41 pastas  <!-- acopla-ok: §7 traz o comando que produz os dois números -->
 scripts/hook_contract.py          mede o contrato dos registros de hook (§11)
 scripts/public_repo_check.py      cobra a regra de repo público (checagem H do gate)
 scripts/regua_call_check.py       cobra que gerador de página chame a régua (checagem I)
@@ -333,18 +333,18 @@ grill-me           1.4.0  [grill-me]                                         -
 guardrails         1.7.7  [guardrails]                                       HOOKS
 handoff           1.11.1  [handoff]                                          HOOKS
 improve            1.1.2  [improve]                                          -
-improve-workflow  0.16.12 [improve-workflow]                                 -
+improve-workflow  0.16.13 [improve-workflow]                                 -
 intent-guard       0.7.0  [intent-guard]                                     HOOKS
 lixeiro            1.3.1  [faxina]                                           HOOKS
 principles         1.0.5  [principles]                                       -
-project-skills    0.19.3  [design-md, doc, doc-touch, monitorar,
+project-skills    0.19.5  [design-md, doc, doc-touch, monitorar,
                            pesquisa-referencias, plan, project-skills,
                            qa-loop, sprint, start]                           HOOKS
 ship               1.5.0  [ship]                                             HOOKS
 slides             1.6.0  [slides]                                           -
 vision             0.1.0  []                                                 -
-vistoria           0.5.1  [vistoria]                                         -
-visual            1.40.0  [andamento, visual]                                HOOKS
+vistoria           0.7.0  [vistoria]                                         -
+visual            1.40.1  [andamento, visual]                                HOOKS
 ```
 
 **A rodada anterior moveu onde as skills MORAM; esta apagou as CASAS que tinham ficado
@@ -724,10 +724,10 @@ sed -n '/^SPECS=(/,/^)/p' scripts/sync-shared.sh | grep '::' \
   | sed 's/.*"\(.*\)::.*/\1/' | sort -u | wc -l                        # nº de pastas
 ```
 
-**81 cópias, em 41 pastas de destino, de 15 arquivos-fonte** — contra 19 cópias em 14 pastas <!-- acopla-ok: os dois comandos que produzem os números estão no bloco imediatamente acima; "19" é narrativa histórica -->
+**82 cópias, em 41 pastas de destino, de 15 arquivos-fonte** — contra 19 cópias em 14 pastas <!-- acopla-ok: os dois comandos que produzem os números estão no bloco imediatamente acima; "19" é narrativa histórica -->
 na passada anterior [medido no commit `f31a020`: os dois comandos acima devolvem `81` e `41`].
 Os quatro maiores contribuintes, todos vendorados por consumidor:
-`resolve-plugin.sh` (17), `regua_texto.py` (11), `hook-json.sh` (11), `lib-tmpdir.sh` (10).
+`resolve-plugin.sh` (18), `regua_texto.py` (11), `hook-json.sh` (11), `lib-tmpdir.sh` (10).
 
 ⚠️ **Esses quatro números e os dois de cima deixaram de ser promessa: viraram teste.**
 `scripts/test_doc_vendoring_counts.py` reparseia o `SPECS` do `sync-shared.sh` e cobra as

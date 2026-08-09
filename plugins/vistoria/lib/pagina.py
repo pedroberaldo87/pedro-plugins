@@ -9,8 +9,13 @@ viu — decidir sem a prova na frente é o que esta ferramenta não faz.
 `.claude/vistoria/` e nunca `/tmp`: o scope-cop já mordeu página escrita fora do
 projeto.
 
+O destino NÃO é adivinhado: `--dir` é obrigatório. Um padrão calculado a partir da
+posição deste arquivo aponta para dentro do cache do plugin quando instalado — a
+página do dono nasceria na pasta do autor da skill. Sem `--dir`, o programa recusa.
+
 Uso:
-    python3 plugins/vistoria/lib/medidor.py --json | python3 plugins/vistoria/lib/pagina.py
+    python3 plugins/vistoria/lib/medidor.py --json \
+        | python3 plugins/vistoria/lib/pagina.py --dir .claude/vistoria
 
 O texto autoral da página (título, linha de abertura, nome de cada seção) passa
 pela régua compartilhada, no perfil `pagina`. O que veio do cobrador — `onde`,
@@ -20,6 +25,7 @@ destruiria a prova, que é a razão de a página existir.
 stdlib only (requisito do repo).
 """
 
+import argparse
 import datetime
 import html
 import json
@@ -31,11 +37,12 @@ sys.path.insert(0, AQUI)
 
 from regua_texto import erros_de_estilo  # noqa: E402
 
-ROOT = os.path.dirname(os.path.dirname(os.path.dirname(AQUI)))
-SAIDA = os.path.join(ROOT, ".claude", "vistoria")
-
 TITULO = "Vistoria do marketplace"
-ABERTURA = "Marque o achado que vira passo do plano; a prova de cada um está colada abaixo dele."
+ABERTURA = "Marque o achado que vira passo do plano; a prova de cada um abre com um clique."
+# Os três níveis do `quality-goals.md`: a linha do achado fica visível, o corpo nasce
+# fechado, e a prova nasce fechada dentro do corpo. Sem exceção de tamanho.
+CORPO = "onde e qual regra"
+PROVA = "a prova crua"
 
 CSS = """
 body{background:#12141a;color:#e6e8ee;font:15px/1.55 -apple-system,Segoe UI,sans-serif;
@@ -51,6 +58,8 @@ margin:10px 0}
 .onde{color:#9aa2b1;font:12px/1.5 ui-monospace,SFMono-Regular,Menlo,monospace}
 .grav{font-size:11px;text-transform:uppercase;letter-spacing:.06em;margin-left:8px}
 .alta{color:#ff7b72}.media{color:#e3b341}.baixa{color:#7ee787}
+details{margin:8px 0 0 26px}
+summary{color:#8ab4ff;font-size:12px;cursor:pointer}
 pre{background:#0d0f14;border:1px solid #262a33;border-radius:6px;margin:10px 0 0;
 padding:10px;overflow-x:auto;font:12px/1.5 ui-monospace,SFMono-Regular,Menlo,monospace;
 color:#c9d1d9;white-space:pre-wrap}
@@ -63,7 +72,8 @@ def _e(v):
 
 def texto_autoral(lentes):
     """O que a página escreve por conta própria — e só isso entra na régua."""
-    return [TITULO, ABERTURA] + ["%s — %d achado(s)" % (n, len(a)) for n, a in lentes]
+    return [TITULO, ABERTURA, CORPO, PROVA] + \
+        ["%s — %d achado(s)" % (n, len(a)) for n, a in lentes]
 
 
 def erros_da_pagina(lentes):
@@ -96,17 +106,20 @@ def html_de(lentes, total):
             partes.append(
                 "<div class=\"achado\"><label>"
                 "<input type=\"checkbox\" name=\"achado\" value=\"%d\">"
-                "<span><strong>%s</strong><span class=\"grav %s\">%s</span><br>"
-                "<span class=\"onde\">%s · %s</span></span></label>"
-                "<pre>%s</pre></div>"
-                % (n, _e(a.get("o_que")), grav, grav, _e(a.get("onde")),
-                   _e(a.get("regra")), _e(a.get("prova"))))
+                "<span><strong>%s</strong><span class=\"grav %s\">%s</span></span>"
+                "</label>"
+                "<details><summary>%s</summary>"
+                "<div class=\"onde\">%s · %s</div>"
+                "<details><summary>%s</summary><pre>%s</pre></details>"
+                "</details></div>"
+                % (n, _e(a.get("o_que")), grav, grav, _e(CORPO), _e(a.get("onde")),
+                   _e(a.get("regra")), _e(PROVA), _e(a.get("prova"))))
     partes.append("</main></body></html>")
     assert n == total, "a página perdeu achado no caminho: %d de %d" % (n, total)
     return "".join(partes)
 
 
-def escreve(achados, saida=SAIDA):
+def escreve(achados, saida):
     lentes = por_lente(achados)
     errs = erros_da_pagina(lentes)
     if errs:
@@ -119,10 +132,15 @@ def escreve(achados, saida=SAIDA):
     return caminho
 
 
-def main():
+def main(argv=None):
+    ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    ap.add_argument("--dir", required=True,
+                    help="onde gravar (obrigatório: destino adivinhado cai no cache "
+                         "do plugin quando instalado)")
+    args = ap.parse_args(argv)
     dados = json.load(sys.stdin)
     achados = dados.get("achados", dados) if isinstance(dados, dict) else dados
-    print(escreve(achados))
+    print(escreve(achados, args.dir))
     return 0
 
 

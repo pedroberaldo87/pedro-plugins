@@ -82,9 +82,21 @@ def caso_rodada_nao_toca_a_arvore():
 
 def caso_texto_declara_a_proibicao():
     texto = open(SKILL, encoding="utf-8").read()
-    for frase in ("Nenhum arquivo do projeto muda durante a rodada",
+    # A lei não pode ser lida como proibição absoluta: ela mesma aponta o passo 8.
+    for absoluta in ("Nenhum arquivo do projeto muda durante a rodada",
+                     "Tudo abaixo é leitura"):
+        check("a lei não se lê como proibição absoluta: %r" % absoluta,
+              absoluta not in texto)
+    for frase in ("Nenhum arquivo do projeto muda durante a apuração",
+                  "só o passo 8 grava",
+                  "Os passos 1 a 7 são leitura",
                   "proibida de consertar",
-                  "registro.jsonl"):
+                  "registro.jsonl",
+                  # A exceção é declarada, e o único que escreve no projeto é o
+                  # programa do passo 8 — sem estas duas a etapa some da receita
+                  # e o `plano_saida.py` volta a ser órfão.
+                  "A ÚNICA EXCEÇÃO",
+                  "lib/plano_saida.py"):
         check("a skill diz: %r" % frase, frase in texto)
 
 

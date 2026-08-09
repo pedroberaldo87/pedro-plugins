@@ -230,6 +230,43 @@ def onda(sessao, saida, dir_estado=None):
     return linha
 
 
+def doc_da_onda(sessao, rodada, docs, dir_estado=None):
+    """Os caminhos de doc que a onda re-projetou, no disco (S-111).
+
+    A lista confirmada pelo papel de doc so vivia na memoria do motor
+    (`rounds[].doc`): terminada a missao, nao sobrava como provar que a doc do
+    commit seguinte saiu da onda e nao de uma passada manual. Mesmo diretorio,
+    mesma chave por sessao e mesma regra de fail-open do `placar-<sid>`.
+
+    Devolve a lista gravada (vazia quando nao havia nada a gravar).
+    """
+    docs = [c for c in (docs or []) if c]
+    if not docs:
+        return []
+    base = dir_estado or ESTADO
+    try:
+        os.makedirs(base, exist_ok=True)
+        with open(os.path.join(base, "doc-%s" % sessao), "w",
+                  encoding="utf-8") as fh:
+            json.dump({"round": rodada, "docs": docs, "quando": time.time()},
+                      fh, ensure_ascii=False)
+    except OSError:
+        # Fail-open: perder o registro nao pode derrubar a onda — o commit da
+        # rodada ja esta feito quando este papel roda.
+        pass
+    return docs
+
+
+def ultima_doc(sessao, dir_estado=None):
+    """O registro de doc da ultima onda desta sessao, ou {} quando nao houve."""
+    try:
+        with open(_ler(dir_estado or ESTADO, "doc-%s" % sessao),
+                  encoding="utf-8") as fh:
+            return json.load(fh)
+    except (OSError, ValueError):
+        return {}
+
+
 def _registro_onda(sessao, dir_estado=None):
     try:
         with open(_ler(dir_estado or ESTADO, "placar-%s" % sessao),
@@ -502,6 +539,12 @@ def painel(dir_estado=None, agora=None):
 
 if __name__ == "__main__":
     import sys
+
+    # `doc <sid> <rodada> <caminho...>` — o papel de doc registra o que confirmou.
+    if len(sys.argv) > 3 and sys.argv[1] == "doc":
+        gravados = doc_da_onda(sys.argv[2], sys.argv[3], sys.argv[4:])
+        print("doc da onda registrada: %d caminho(s)" % len(gravados))
+        sys.exit(0)
 
     saida = painel()
     print("\n".join(saida) if saida else "nenhuma missão de pé")

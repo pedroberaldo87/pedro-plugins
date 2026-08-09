@@ -405,6 +405,33 @@ def main():
     finally:
         shutil.rmtree(tmp, ignore_errors=True)
 
+    # ── A DOC DA ONDA VIRA REGISTRO EM DISCO (S-111) ────────────────────────────
+    tmp_doc = tempfile.mkdtemp()
+    try:
+        a.doc_da_onda("s-doc", 2, [".claude/docs/architecture.md"], tmp_doc)
+        reg = a.ultima_doc("s-doc", tmp_doc)
+        check("grava os caminhos confirmados por sessão",
+              reg.get("docs") == [".claude/docs/architecture.md"]
+              and str(reg.get("round")) == "2")
+        check("lista vazia não escreve nada",
+              a.doc_da_onda("s-vazia", 3, [], tmp_doc) == []
+              and not os.path.exists(os.path.join(tmp_doc, "doc-s-vazia")))
+        check("diretório impossível é fail-open, não exceção",
+              a.doc_da_onda("s-ro", 1, ["x.md"],
+                            os.path.join(tmp_doc, "doc-s-doc", "sub")) == ["x.md"])
+        cli = subprocess.run(
+            [sys.executable, os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                          "andamento.py"),
+             "doc", "s-cli", "4", "a.md", "b.md"],
+            env=dict(os.environ, CLAUDE_CONFIG_DIR=tmp_doc),
+            capture_output=True, text=True)
+        check("a CLI que o papel de doc chama grava na casa do estado",
+              cli.returncode == 0
+              and a.ultima_doc("s-cli", os.path.join(tmp_doc, "andamento")
+                               ).get("docs") == ["a.md", "b.md"])
+    finally:
+        shutil.rmtree(tmp_doc, ignore_errors=True)
+
     print()
     if FAILS:
         print("FALHOU: %d" % len(FAILS))

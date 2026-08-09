@@ -20,13 +20,20 @@ O `pronto` de cada passo é o `📐 confere:` que a própria proposta declarou �
 mora no `body` do bloco `item` do spec, não no retorno. Por isso o spec entra em
 `--proposta`, casado pelo título.
 
+O destino NÃO é adivinhado: `--dir` é obrigatório. Um padrão calculado a partir da
+posição deste arquivo aponta para dentro do cache do plugin quando instalado — o
+plano do dono nasceria na pasta do autor da skill. Sem `--dir`, o programa recusa.
+
 DEGRADAÇÃO DECLARADA. A conferência contra o schema é do `plan_state.py`, que vive
-no plugin `project-skills` e pode não estar na máquina. Sem ele o JSON sai igual
-(quem grava é este módulo) e o aviso vai pro `stderr`.
+no plugin `project-skills` e é achado pelo NOME (`resolve-plugin.sh`), nunca pela
+posição no disco. Sem ele o JSON sai igual (quem grava é este módulo) e o aviso vai
+pro `stderr`.
 
 Uso:
     python3 plano_saida.py --retorno ~/.claude/visual-state/latest.json \\
-        --proposta spec.json [--dir .claude/plans] [--run run-exemplo]
+        --proposta spec.json --dir .claude/plans [--run run-exemplo]
+
+`--proposta -` lê o spec do stdin (é assim que a skill passa o que já está na mão).
 
 Saída: 0 gravou · 2 recusou · 2 uso errado. stdlib only (requisito do repo).
 """
@@ -36,12 +43,12 @@ import datetime
 import importlib.util
 import json
 import os
+import subprocess
 import sys
 
 AQUI = os.path.dirname(os.path.abspath(__file__))
-ROOT = os.path.dirname(os.path.dirname(os.path.dirname(AQUI)))
-SAIDA = os.path.join(ROOT, ".claude", "plans")
-PLAN_STATE = os.path.join(ROOT, "plugins", "project-skills", "lib", "plan_state.py")
+PLUGIN = os.path.dirname(AQUI)
+RESOLVEDOR = os.path.join(PLUGIN, "skills", "improve-workflow", "resolve-plugin.sh")
 
 FASE = "F1"
 VEREDITOS = ("keep", "change", "remove")
@@ -54,8 +61,23 @@ AVISO_DEGRADACAO = (
 
 
 def carregar(caminho):
+    if caminho == "-":
+        return json.load(sys.stdin)
     with open(caminho, encoding="utf-8") as fh:
         return json.load(fh)
+
+
+def acha_plan_state():
+    """O `plan_state.py` do irmão pelo NOME — vazio quando não está na máquina."""
+    env = dict(os.environ)
+    env.setdefault("CLAUDE_PLUGIN_ROOT", PLUGIN)
+    try:
+        r = subprocess.run(["bash", RESOLVEDOR, "project-skills", "lib/plan_state.py"],
+                           capture_output=True, text=True, env=env,
+                           stdin=subprocess.DEVNULL)
+    except OSError:
+        return ""
+    return r.stdout.strip() if r.returncode == 0 else ""
 
 
 def extrair_retorno(dado):
@@ -135,20 +157,21 @@ def plano_de(itens, mapa, run, data=None):
     }
 
 
-def confere_com_plan_state(plano, caminho=PLAN_STATE):
+def confere_com_plan_state(plano, caminho=None):
     """Confere contra o schema do `plan_state`, quando ele está na máquina.
 
     Devolve `(erros, aviso)`. `aviso` preenchido = a conferência NÃO aconteceu.
     """
-    if not os.path.isfile(caminho):
-        return [], AVISO_DEGRADACAO % caminho
+    caminho = acha_plan_state() if caminho is None else caminho
+    if not caminho or not os.path.isfile(caminho):
+        return [], AVISO_DEGRADACAO % (caminho or "não achado pelo nome")
     spec = importlib.util.spec_from_file_location("plan_state_da_autopsia", caminho)
     mod = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(mod)
     return mod.erros_do_plano(plano), ""
 
 
-def escreve(itens, mapa, run, saida=SAIDA, data=None):
+def escreve(itens, mapa, run, saida, data=None):
     """Grava o plano e devolve `(caminho, aviso)`. Aviso vazio = houve conferência."""
     plano = plano_de(itens, mapa, run, data)
     do_schema, aviso = confere_com_plan_state(plano)
@@ -166,7 +189,9 @@ def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--retorno", required=True, help="JSON do retorno da página")
     ap.add_argument("--proposta", help="spec.json da página (dá o `confere` de cada item)")
-    ap.add_argument("--dir", default=SAIDA, help="onde gravar (padrão: .claude/plans)")
+    ap.add_argument("--dir", required=True,
+                    help="onde gravar (obrigatório: destino adivinhado cai no cache "
+                         "do plugin quando instalado)")
     ap.add_argument("--run", default="run", help="o run que a autópsia leu")
     ap.add_argument("--data", default=None, help="a data do plano (padrão: hoje)")
     args = ap.parse_args(argv)

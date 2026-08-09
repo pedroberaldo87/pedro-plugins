@@ -120,6 +120,20 @@ def caso_retorno_alheio():
         check("diz o motivo", "feedback" in r.stderr)
 
 
+def caso_dir_obrigatorio():
+    print("\n· sem --dir o programa recusa em vez de chutar o destino")
+    with tempfile.TemporaryDirectory() as tmp:
+        ret = os.path.join(tmp, "retorno.json")
+        with open(ret, "w", encoding="utf-8") as fh:
+            json.dump(retorno([item(1, "keep")]), fh)
+        exe = os.path.join(os.path.dirname(os.path.abspath(__file__)), "plano_saida.py")
+        r = subprocess.run([sys.executable, exe, "--retorno", ret],
+                           capture_output=True, text=True,
+                           stdin=subprocess.DEVNULL, start_new_session=True)
+        check("recusou", r.returncode == 2)
+        check("diz que falta o --dir", "--dir" in r.stderr)
+
+
 def caso_extrair():
     print("\n· o retorno chega em três formatos")
     itens = [item(1, "keep")]
@@ -135,6 +149,7 @@ def main():
     caso_sem_veredito()
     caso_tudo_descartado()
     caso_retorno_alheio()
+    caso_dir_obrigatorio()
     caso_extrair()
     print()
     if FALHAS:

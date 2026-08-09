@@ -11,9 +11,10 @@ escreveu, e o defeito que ela plantou é o único que ela nunca vai acusar.
 
 ## A PROIBIÇÃO (não é preferência, é a lei desta skill)
 
-**Nenhum arquivo do projeto muda durante a rodada.** Nem criado, nem editado, nem
-apagado, nem renomeado, nem movido. Isso vale para código, doc, plano, config e
-para o próprio texto desta skill.
+**Nenhum arquivo do projeto muda durante a apuração — só o passo 8 grava, e só o
+aprovado.** Nem criado, nem editado, nem apagado, nem renomeado, nem movido. Isso vale
+para código, doc, config e para o próprio texto desta skill; o plano do passo 8 é a
+única exceção, declarada logo abaixo.
 
 Concretamente, dentro de uma rodada de autópsia estão PROIBIDOS:
 
@@ -23,16 +24,24 @@ Concretamente, dentro de uma rodada de autópsia estão PROIBIDOS:
 - redirecionar saída (`>`, `>>`, `tee`) para dentro da raiz do projeto;
 - apagar a sobra que a varredura acusou — ela é ACHADO, não tarefa.
 
-A ÚNICA pasta em que esta skill escreve é `~/.claude/improve-workflow/`, fora do projeto
-exatamente por causa desta lei: o registro acumulado em `registro.jsonl` (`lib/registro.py`)
-e a página de parecer do passo 7. Dentro do projeto, nada.
+Durante a apuração (passos 1 a 7) a ÚNICA pasta em que esta skill escreve é
+`~/.claude/improve-workflow/`, fora do projeto exatamente por causa desta lei: o registro
+acumulado em `registro.jsonl` (`lib/registro.py`) e a página de parecer do passo 7.
+Dentro do projeto, nada.
+
+**A ÚNICA EXCEÇÃO, e ela tem hora marcada:** o passo 8 grava no projeto o plano com o
+que o dono APROVOU (`.claude/plans/`). Motivo: a proposta só vira trabalho se virar
+passo ticável, e o plano pertence ao projeto auditado, não ao lar de quem auditou. A
+exceção vale DEPOIS do veredito e só sobre ele — antes do dono julgar, nada é escrito,
+e o que ele descartou nunca é escrito.
 
 Se o que você quer é aplicar um conserto proposto aqui: a proposta vira passo de plano
 e o conserto é feito por outra rodada, com outro dono. Não por esta skill.
 
 ## A rodada
 
-Tudo abaixo é leitura. Rode a partir da raiz do projeto.
+Os passos 1 a 7 são leitura; só o passo 8 escreve, e só o que o dono aprovou. Rode a
+partir da raiz do projeto.
 
 **1 · Medir.** O programa faz a conta; você não estima nada.
 
@@ -135,8 +144,30 @@ resolvedor sai calado e a rodada termina dizendo que a superfície de aprovaçã
 existe aqui — as propostas ficam no `propostas.json` e nada é apresentado no chat.
 
 O `propostas.json` está no cabeçalho do `proposta.py`; proposta sem o número que
-mira ou sem como conferir sai recusada ali, antes de virar item. Aqui a rodada
-ACABA. O dono aprova o que quiser; nada é aplicado por esta skill.
+mira ou sem como conferir sai recusada ali, antes de virar item.
+
+**8 · Colher o veredito, e gravar SÓ o aprovado.** O julgamento volta pelo disco, em
+`~/.claude/visual-state/latest.json` (`state.feedback`), um veredito por item: `keep`
+vira passo com o título da proposta, `change` vira passo com o texto que o dono
+escreveu, `remove` não vira passo nenhum. Quem grava é o programa — a skill não
+escreve plano à mão:
+
+```bash
+RETORNO="${CLAUDE_CONFIG_DIR:-$HOME/.claude}/visual-state/latest.json"
+printf '%s' "$SPEC" | python3 "${CLAUDE_PLUGIN_ROOT}/lib/plano_saida.py" \
+  --retorno "$RETORNO" --proposta - --dir .claude/plans --run <run>
+```
+
+**Espere o dono julgar.** Rodar isto antes recusa a gravação inteira e diz o nome do
+item em branco: rádio não tocado chega no retorno como `keep`, e gravar isso seria
+transformar silêncio em aprovação. Descartou tudo, também não há plano.
+
+O `--dir` é obrigatório de propósito, e o programa RECUSA sem ele: destino adivinhado
+a partir da posição do programa cai dentro do cache do plugin na máquina de quem
+instalou — o plano do dono nasceria na pasta do autor da skill.
+
+Aqui a rodada ACABA. O plano fica ticável para outra rodada, com outro dono; esta
+skill não aplica nada do que gravou.
 
 ## A chave de desligar
 

@@ -30,7 +30,7 @@ FRASES = [
      "reprove toda proposta que troque robustez por economia"),
     ("a ordem de derrubar", "tente derrubar cada afirmação"),
     ("a proibição de tocar o projeto",
-     "nenhum arquivo do projeto muda durante a rodada"),
+     "nenhum arquivo do projeto muda durante a apura"),
 ]
 
 # A isenção é do TOKEN que a prosa da skill declara — `<run>`, o run pedido pelo
