@@ -130,14 +130,14 @@ na instalação. [confirmado — cabeçalho de `scripts/sync-shared.sh`]
 
 ## 2. Números derivados mecanicamente neste run
 
-Comandos re-executados agora, na árvore de trabalho sobre `1f575e9`:
+Comandos re-executados agora, na árvore de trabalho sobre `653e69d`:
 
 ```bash
 ls -1d plugins/*/ | wc -l                            # 22
 ls -1 plugins/*/.claude-plugin/plugin.json | wc -l   # 22
-ls -1 plugins/*/skills/*/SKILL.md | wc -l            # 30
+ls -1 plugins/*/skills/*/SKILL.md | wc -l            # 31
 ls -1 plugins/*/hooks/hooks.json | wc -l             # 12
-find plugins -path '*/lib/*.py' | wc -l              # 104
+find plugins -path '*/lib/*.py' | wc -l              # 112
 python3 -c "import json;print(len(json.load(open('.claude-plugin/marketplace.json'))['plugins']))"   # 22
 ```
 
@@ -158,13 +158,14 @@ python3 -c "import json;print(len(json.load(open('.claude-plugin/marketplace.jso
   [confirmado — os seis comandos re-rodados nesta passada de `/doc-touch`.]
   ⚠️ **Os arquivos `.py` em `lib/` quase não se moveram (100 → 99) apesar de três plugins
   terem sumido** — porque nada foi apagado, só mudou de casa: `plugins/project-skills/lib/`
-  concentra hoje 42 dos 104 (`find plugins/project-skills -path '*/lib/*.py' | wc -l`).
+  concentra hoje 44 dos 112 (`find plugins/project-skills -path '*/lib/*.py' | wc -l`
+  neste run). Os dois últimos a entrar são `doc_load.py` e a suíte dele (§8.10).
   ⚠️ **Boa parte desse total é CÓPIA, não código novo**:
   `regua_texto.py` sozinha responde por 10 deles, e `padroes_vazamento.py`,
   `collect_engine.py`, `plan_state.py` e `resolve-*.sh` repetem o padrão (§7). Contar
   `lib/*.py` mede o vendoring junto com o código — a medida de código próprio é
   `find plugins -path '*/lib/*.py' ! -name regua_texto.py ! -name collect_engine.py ! -name padroes_vazamento.py`
-  (**90** neste run).
+  (**98** neste run).
 - **Registros de hook e scripts distintos: quem mede é a ferramenta, não esta linha** —
   `python3 scripts/hook_contract.py | head -1` imprime *"Contrato dos hooks — 56 registros,
   43 scripts distintos"* neste run, e `python3 scripts/hook_contract.py --scripts | grep -c .`
@@ -174,7 +175,7 @@ python3 -c "import json;print(len(json.load(open('.claude-plugin/marketplace.jso
   `sessionstart-deps.sh`, nascido em `_shared/`, registrado em `SessionStart` por cada plugin
   que precisa avisar dependência externa faltando. E a queda de 59 → 56 nesta rodada **não
   removeu nada**: são os três registros de `ExitPlanMode` virando um só (§6).
-- 30 skills em 22 diretórios porque **dois não têm `skills/` nenhum** — <!-- acopla-ok: leitura do bloco de comandos de §2, não afirmação independente -->
+- 31 skills em 22 diretórios porque **dois não têm `skills/` nenhum** — <!-- acopla-ok: leitura do bloco de comandos de §2, não afirmação independente -->
   `graphify-guard` (100% hook) e `vision` (100% MCP); o **`improve-workflow`**, que era o
   terceiro, ganhou a skill `improve-workflow/` nesta rodada —, e porque a família concentra a maioria delas, que se listam sem escrever nome
   nenhum aqui:
@@ -182,6 +183,12 @@ python3 -c "import json;print(len(json.load(open('.claude-plugin/marketplace.jso
   ```bash
   ls -1 plugins/project-skills/skills/   # acopla-ok: é o COMANDO que descobre a lista, que é justamente o que o Artigo 9 manda escrever no lugar dela
   ```
+
+  A skill que entrou nesta rodada é `doc-load` (§8.10), e ela não é mais uma etapa: é o
+  **preâmbulo** que as outras rodam antes de julgar qualquer coisa. Quem já a invoca se lê
+  sem cravar lista aqui —
+  `grep -rl 'doc-load' plugins/*/skills/*/SKILL.md | grep -v 'skills/doc-load/'` (devolve
+  **10** arquivos neste run, em três plugins).
 
   ⚠️ **Consequência de instalação da fusão:** `sovai`, `qa-loop` e `project-doc` não existem
   mais como plugin. Quem os tinha instalados **não** perde a skill por `update` — o cliente
@@ -322,7 +329,7 @@ Saída desta rodada (nome · versão · skills · tem hook):
 
 ```
 archify           2.12.2  [archify]                                          -
-bootstrap         1.15.0  [bootstrap]                                        HOOKS
+bootstrap         1.15.1  [bootstrap]                                        HOOKS
 branches           1.3.4  [branches]                                         HOOKS
 check-skills       0.7.0  [check-skills]                                     -
 context-guard      1.3.9  [context-guard]                                    HOOKS
@@ -331,20 +338,20 @@ gauntlet           0.3.0  [gauntlet]                                         HOO
 graphify-guard     1.2.4  []                                                 HOOKS
 grill-me           1.4.0  [grill-me]                                         -
 guardrails         1.7.7  [guardrails]                                       HOOKS
-handoff           1.11.1  [handoff]                                          HOOKS
+handoff           1.11.2  [handoff]                                          HOOKS
 improve            1.1.2  [improve]                                          -
-improve-workflow  0.16.13 [improve-workflow]                                 -
-intent-guard       0.7.0  [intent-guard]                                     HOOKS
+improve-workflow  0.16.15 [improve-workflow]                                 -
+intent-guard       0.7.1  [intent-guard]                                     HOOKS
 lixeiro            1.3.1  [faxina]                                           HOOKS
 principles         1.0.5  [principles]                                       -
-project-skills    0.19.5  [design-md, doc, doc-touch, monitorar,
+project-skills    0.19.7  [design-md, doc, doc-load, doc-touch, monitorar,
                            pesquisa-referencias, plan, project-skills,
                            qa-loop, sprint, start]                           HOOKS
 ship               1.5.0  [ship]                                             HOOKS
 slides             1.6.0  [slides]                                           -
 vision             0.1.0  []                                                 -
-vistoria           0.7.0  [vistoria]                                         -
-visual            1.40.1  [andamento, visual]                                HOOKS
+vistoria           0.8.3  [vistoria]                                         -
+visual            1.41.1  [andamento, visual]                                HOOKS
 ```
 
 **A rodada anterior moveu onde as skills MORAM; esta apagou as CASAS que tinham ficado
@@ -745,7 +752,9 @@ o arquivo real desta doc num teste se lê sem cravar lista aqui:
 
 ⚠️ **A conta de release quadruplicou, e a razão é estrutural.** O que antes era "seis motores
 copiados para quem consome" virou "a infraestrutura de hook inteira copiada para todo plugin
-que tem hook". Uma correção em `hook-json.sh` é hoje **onze publicações**, não uma.
+que tem hook". Uma correção em `hook-json.sh` é hoje **doze publicações**, não uma — o
+`handoff` entrou na lista nesta rodada [confirmado —
+`find plugins -name hook-json.sh | wc -l` devolve `12` neste run].
 
 É um mapa explícito, não "todos os arquivos em todos os consumidores", porque consumidores
 diferentes vendoram arquivos diferentes. `--check` não copia: roda `cmp -s` e sai 1 com
@@ -904,10 +913,10 @@ As cópias de `regua_texto.py` aparecem à parte porque são vendoring, não có
 (§7.4):
 
 ```
-plugins/project-skills/lib/ 42 dos 99 — o motor de doc inteiro (journal.py · pattern_check.py ·
+plugins/project-skills/lib/ 44 dos 112 — o motor de doc inteiro (journal.py · pattern_check.py ·
                            organism.py · graph_map.py · doc_lint.py · historico.py ·
                            rastreio_etapas.py · curadoria_features.py ·
-                           decisoes_estruturais.py · collect_engine.py vendorado),
+                           decisoes_estruturais.py · doc_load.py · collect_engine.py vendorado),
                            o ciclo de vida do plano (plan_state.py · cobertura.py ·
                            auditoria_plano.py · plan_entrada.py · regua_pronto.py),
                            andamento.py, green-cache.sh (vendorado) e os resolve-*.sh
@@ -1290,6 +1299,44 @@ o frontmatter fora, porque o hash8 da `doc-sig` confundiria o check de commit.
 hash citado em doc antiga deixou de resolver. [inferido — o mecanismo foi lido, o lint não foi
 executado sobre os docs nesta rodada]
 
+### 8.10 `doc_load.py` — quais documentos valem como RÉGUA hoje
+
+Nasceu nesta rodada, em `plugins/project-skills/lib/doc_load.py`, com a skill
+`skills/doc-load/SKILL.md` e a suíte `lib/test_doc_load.py` (**29 checks** — `python3
+plugins/project-skills/lib/test_doc_load.py` → *"29 passou · 0 falhou"* nesta passada).
+
+Ele responde uma pergunta só, e responde por programa: **contra o que esta obra pode ser
+julgada?** Três naturezas, com exigências diferentes (constantes `LEI`, `ACORDO` e o
+minerado no topo do arquivo):
+
+- **Lei** — `constituicao.md`, `quality-goals.md`, `constraints.md`. Vale com `ready` **ou**
+  `approved`; só rascunho fica de fora. O comentário do arquivo diz por que não é mais
+  estrito: exigir `approved` aqui *"apagaria o eixo de constituição de todo projeto que ainda
+  não formalizou o de acordo"*.
+- **Acordo** — `context.md`, `solution-strategy.md`, `glossary.md`, `architecture-intent.md`,
+  `design.md`, `journeys.md`, `blueprint.md`, `features.md`. **Só** com `approved`, e o que
+  teve o corpo mexido depois do de acordo sai como **reaberto**.
+- **Mapa** — os minerados (`architecture.md`, `patterns.md`, `data-stores.md`,
+  `durability.md`, `runtime.md`). Serve para se situar; **nunca** para reprovar.
+
+Campos da saída: `regua`, `marca_regua`, `ausentes`, `dispensa`, `reabertos`,
+`correcoes_pendentes`. Ausência não é achado — projeto sem `constituicao.md` simplesmente
+não tem o eixo, e o programa não escreve nada em lugar nenhum: ele lê.
+
+⚠️ **A marca é a MESMA receita do shell, e isso é a decisão, não um detalhe.** É o `cksum`
+POSIX do CORPO (frontmatter fora), reimplementado em Python para rodar onde não há shell, e
+idêntico ao de `plugins/project-skills/hooks/lib-doc-mark.sh:doc_marca` — duas receitas
+dariam dois números para o mesmo texto e a comparação nunca fecharia. A paridade está na
+suíte, não na promessa.
+
+⚠️ **Quem consome isto é PREÂMBULO, não etapa.** O par `/doc-load` → `/principles` abre toda
+skill que especifica, planeja, implementa, testa ou revisa, e substitui a prosa *"leia a
+constituição e o quality-goals"* que estava copiada com quatro redações diferentes. Em
+conflito, **a régua do projeto ganha** — e a costura existe dos dois lados: a skill
+`principles` já declara de si mesma que *"não decide o que ESTE sistema tem que ser: isso é
+da constituição do projeto"*. Os arquivos que hoje abrem com o par se leem com
+`grep -rl 'doc-load' plugins/*/skills/*/SKILL.md | grep -v 'skills/doc-load/'` (§2).
+
 ## 9. O knowledge graph como mapa de arquitetura
 
 O módulo mudou de casa na fusão — o comando de hoje é
@@ -1631,6 +1678,11 @@ Cada uma é uma regra que sobreviveu a um defeito, com o arquivo e o símbolo on
   `askq-humanize.sh` (*"a regra… já existe em prosa no CLAUDE.md e não pegava"*), `visual_page.py`
   (*"a cópia do bloco colada na skill JÁ divergiu do template"*) e o `.gitignore` do repo
   (*"368 ocorrências do nome do dono entraram enquanto isto era só um parágrafo"*).
+  O caso desta rodada é `doc_load.py` (§8.10): a instrução *"leia a constituição e o
+  quality-goals do projeto"* estava copiada em prosa dentro de cada skill que julga alguma
+  coisa, com quatro redações diferentes, e virou **programa** invocado como preâmbulo. O
+  cabeçalho do arquivo nomeia o defeito que isso fecha: *"prosa copiada diverge no primeiro
+  conserto, e a divergência é silenciosa — nenhum dos lados está errado sozinho"*.
 - **O gate compara com um retrato, não exige zero.** O gate E do `release-gate.sh` usa
   `.claude/hook-contract.baseline.json` e só barra o que **PIOROU** — o comentário do arquivo
   explica: *"os achados que já existiam e foram aceitos não travam ninguém, mas hook novo que
@@ -1639,12 +1691,14 @@ Cada uma é uma regra que sobreviveu a um defeito, com o arquivo e o símbolo on
 
 ## 12. Divergências vivas
 
-- ⚠️ **O baseline do contrato de hooks está com a contagem velha.** O arquivo versionado
-  registra `entries: 31, scripts: 30` e 3 achados; a medição de hoje dá **38 registros / 37
-  scripts** com os mesmos 3 achados. O gate E passa porque ele compara **achados**, não
-  contagem — mas o retrato numérico não descreve mais o repo. [confirmado — leitura do JSON +
-  `python3 scripts/hook_contract.py --baseline .claude/hook-contract.baseline.json` neste run,
-  que imprime *"Nenhum achado. Todos os hooks batem com o contrato."*]
+- ✅ **O baseline do contrato de hooks deixou de estar defasado.** Ele registrava
+  `entries: 31, scripts: 30` enquanto o repo já media outra coisa; nesta rodada foi
+  regravado e hoje bate com a medição: **56 registros / 43 scripts / 45 achados**
+  [confirmado — `python3 -c "import json;d=json.load(open('.claude/hook-contract.baseline.json'));print(d['entries'],d['scripts'],len(d['findings']))"`
+  contra a primeira linha de `python3 scripts/hook_contract.py`, os dois neste run; e
+  `python3 scripts/hook_contract.py --baseline .claude/hook-contract.baseline.json` imprime
+  *"Nenhum achado. Todos os hooks batem com o contrato."*]. O gate E continua comparando
+  **achados**, não contagem — o que mudou é que o retrato numérico voltou a descrever o repo.
 - ⚠️ **Um achado 🔴 ALTA aceito, não resolvido**: `ship/pre-deploy-test-check.sh` bloqueia com
   `exit 2` e não tem teto de devoluções (`R1-cap-ausente`, linha 352 do relatório). Está no
   baseline, então não trava commit — mas continua sendo o único hook do repo que pode devolver
@@ -1672,6 +1726,7 @@ plugins/branches/lib/test_branch_state.py       :: OK
 plugins/guardrails/lib/test_askq_lint.py        :: ── 47 passou · 0 falhou ──
 plugins/intent-guard/lib/test_ledger.py         :: test_ledger: OK
 plugins/project-skills/lib/test_doc_lint.py     :: TODOS OS 39 CHECKS PASSARAM
+plugins/project-skills/lib/test_doc_load.py     :: 29 passou · 0 falhou
 plugins/project-skills/lib/test_graph_map.py    :: TODOS OS 23 CHECKS PASSARAM
 plugins/project-skills/lib/test_journal.py      :: TODOS OS 123 CHECKS PASSARAM
 plugins/project-skills/lib/test_organism.py     :: test_organism: abertura apresenta o herdado item a item (S-12) ✓
@@ -1712,7 +1767,7 @@ teste: os dois gates e a leitura do arquivo de plano pela skill de handoff. Saí
 [confirmado — as três executadas nesta passada de `/doc-touch`]:
 
 ```
-$ bash    .claude/hooks/test_release_gate.sh              →  OK (30 checks)
+$ bash    .claude/hooks/test_release_gate.sh              →  OK (45 checks)
 $ bash    plugins/visual/hooks/test_exitplan_gate.sh      →  OK (12 checks)
 $ python3 plugins/handoff/lib/test_handoff_skill.py       →  OK (7 asserções `ok`)
 ```
@@ -1732,6 +1787,16 @@ Elas TÊM cobrador de commit — o **check J** do `release-gate.sh` roda
 `scripts/test_*.py` e `scripts/test_*.sh` quando o commit toca `scripts/`, `hooks/` ou
 `.gitattributes`, e reprova também o **glob vazio** (suíte renomeada não pode deixar o gate
 verde sem rodar nada).
+
+⚠️ **Os checks que a suíte do release-gate ganhou nesta rodada cobrem um falso positivo do
+GATILHO, não de uma checagem.** (Quantos ela tem hoje sai do próprio comando:
+`bash .claude/hooks/test_release_gate.sh | tail -1`.) O gate lia o corpo de um heredoc como se fosse comando: texto
+colado dentro de um `<<EOF` que **mencionasse** as palavras do gatilho (`git commit`) disparava
+o gate e bloqueava a edição — aconteceu 3× em 2026-08-09. O conserto é
+`.claude/hooks/release-gate.sh:sem_heredoc`, que apaga o corpo do heredoc antes do
+`re.split` que tokeniza o comando; os dois casos novos da suíte são *"corpo de heredoc não
+dispara o gatilho"* e *"o comando real DEPOIS do heredoc continua disparando"* [confirmado —
+`bash .claude/hooks/test_release_gate.sh` → `OK (45 checks)` nesta passada].
 
 ⚠️ **`.claude/hooks/test_release_gate.sh` fica FORA dos dois globs do check D/F** — ela mora em
 `.claude/hooks/`, não em `plugins/<nome>/`, então nenhum commit a dispara automaticamente.
