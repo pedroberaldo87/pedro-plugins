@@ -1485,6 +1485,13 @@ isso precisa de um leitor."*
   fim de turno** — medido com o gatilho anterior (que era só o teste de relato): 463 julgamentos
   em 9 dias, ~25s cada, **US$ 19,26**, porque cada `claude -p` recarrega o `CLAUDE.md` global só
   pra devolver uma palavra.
+- **A segunda parte é medida no próprio texto.** `e_relato()` exige as duas coisas: pelo menos um
+  bloco de código (a prova colada) **E** `MIN_PROSA = 2` linhas de prosa fora dos blocos. O
+  comentário registra a calibração: *"um relato bom e CURTO — o exemplo canonico tem 2 linhas de
+  prosa e 4 de prova. Exigir 4 de prosa deixava passar exatamente os relatos que dao certo."*
+- **A suíte do gatilho é `lib/test_forma_relato.py`** (5 casos, `PATH` sem `claude` pra medir só
+  o gatilho): turno sem `/visual` não gasta modelo · skill, comando e página escrita chegam ao
+  juiz · `/visual` de turno anterior não vaza pro turno seguinte.
 - **O veredito é de uma linha só**, formato fechado no prompt: `PASSA` ou
   `REPROVA: <o defeito em ate 12 palavras, no imperativo>`. O prompt manda ser severo — *"na
   duvida entre PASSA e REPROVA, escolha REPROVA"* — e isenta a prova: *"Bloco de codigo e PROVA:
