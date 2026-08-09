@@ -1,12 +1,14 @@
 #!/bin/bash
-# Suíte do guarda do gauntlet — o que ele nega, o que ele deixa passar, e onde desiste.
+# Suíte da trava dupla do gauntlet — o que ela nega, o que deixa passar, onde desiste.
 #
-# A trava que ele implementa nasceu de uma falha medida: o orquestrador leu sete
-# relatórios de construtor e aceitou todos sem lançar juiz. Proibir por escrito foi o
-# que já falhou; aqui a proibição é o hook.
+# A trava nasceu de uma falha medida: o orquestrador leu sete relatórios de construtor
+# e aceitou todos sem lançar juiz. A primeira versão negava TODO sub-agente e mandava
+# o trabalho para a tool Workflow; o dono derrubou a caixa fechada (2026-08-09) e a
+# trava virou cirúrgica: só nega enquanto houver entrega sem veredito, e só nega quem
+# NÃO é o juiz da pendência.
 #
 #   bash plugins/gauntlet/hooks/test_gauntlet_hooks.sh
-
+#
 set -u
 AQUI="$(cd "$(dirname "$0")" && pwd)"
 HOOK="$AQUI/pretooluse-gauntlet.sh"
@@ -20,47 +22,80 @@ RAIZ_T=$(mktemp -d)
 export CLAUDE_CONFIG_DIR="$RAIZ_T"
 mkdir -p "$RAIZ_T/andamento"
 SID="sessao-de-teste"
-EVENTO='{"session_id":"'"$SID"'","tool_name":"Agent"}'
 
-roda() { printf '%s' "$EVENTO" | bash "$HOOK" 2>/dev/null; }
+# A missão de laboratório: uma peça `hero` entregue e SEM veredito — a foto exata
+# da falha central — e uma `marcas` já julgada, para provar que a trava discrimina.
+MISSAO="$RAIZ_T/missao"
+mkdir -p "$MISSAO/pecas/hero/r1" "$MISSAO/pecas/marcas/r1"
+printf '{"pecas":[{"id":"hero"},{"id":"marcas"}]}' > "$MISSAO/decomposicao.json"
+printf '{"peca":"hero","artefatos":[]}' > "$MISSAO/pecas/hero/r1/entrega.json"
+printf '{"peca":"marcas","artefatos":[]}' > "$MISSAO/pecas/marcas/r1/entrega.json"
+printf '{"peca":"marcas","status":"aprovado"}' > "$MISSAO/pecas/marcas/r1/veredito.json"
 
-echo "SEM MISSÃO — o guarda é mudo"
-SAIDA=$(roda)
+arma() { printf 'gauntlet\n%s\n' "$MISSAO" > "$RAIZ_T/andamento/ativo-$SID"; }
+evento() { printf '{"session_id":"%s","tool_name":"Agent","tool_input":{"prompt":%s}}' "$1" "$2"; }
+roda() { evento "$SID" "$1" | bash "$HOOK" 2>/dev/null; }
+
+echo "SEM MISSÃO — a trava é muda"
+SAIDA=$(roda '"qualquer agente"')
 diz "sem sinal, não diz nada" "$SAIDA" ""
 
 echo
-echo "COM MISSÃO DE PÉ — o caminho de sub-agente avulso não existe"
-printf 'gauntlet\n' > "$RAIZ_T/andamento/ativo-$SID"
-SAIDA=$(roda)
+echo "ENTREGA SEM JUIZ — nada nasce antes do juiz dela"
+arma
+SAIDA=$(roda '"[gauntlet:construtor:precos] construa a peça"')
 case "$SAIDA" in
-  *deny*) ok "com sinal aceso, o disparo é negado" ;;
-  *)      bad "com sinal aceso, o disparo é negado (veio: ${SAIDA:0:60})" ;;
+  *deny*) ok "construtor novo é negado enquanto hero espera juiz" ;;
+  *)      bad "construtor novo é negado (veio: ${SAIDA:0:60})" ;;
 esac
 case "$SAIDA" in
-  *Workflow*) ok "e a negação diz por onde o trabalho passa" ;;
-  *)          bad "e a negação diz por onde o trabalho passa" ;;
+  *hero*) ok "e a negação NOMEIA a peça pendente" ;;
+  *)      bad "e a negação nomeia a peça pendente" ;;
 esac
 case "$SAIDA" in
-  *fecho_check*) ok "e diz quem apaga o sinal — não é quem conduz" ;;
-  *)             bad "e diz quem apaga o sinal" ;;
+  *"[gauntlet:juiz:"*) ok "e ensina o marcador que abre a passagem" ;;
+  *)                   bad "e ensina o marcador que abre a passagem" ;;
+esac
+case "$SAIDA" in
+  *fecho_check*) ok "e diz onde conferir a pendência — no disco, não na memória" ;;
+  *)             bad "e diz onde conferir a pendência" ;;
+esac
+
+rm -f "$RAIZ_T/andamento/bloqueios-$SID"
+SAIDA=$(roda '"[gauntlet:juiz:hero] julgue a peça hero contra o alvo"')
+diz "o juiz da peça pendente passa" "$SAIDA" ""
+
+rm -f "$RAIZ_T/andamento/bloqueios-$SID"
+SAIDA=$(roda '"[gauntlet:juiz:marcas] julgue marcas"')
+case "$SAIDA" in
+  *deny*) ok "juiz de peça JÁ julgada não fura a fila da pendente" ;;
+  *)      bad "juiz de peça já julgada não fura a fila" ;;
 esac
 
 echo
-echo "A SAÍDA DE EMERGÊNCIA — guarda que trava com o dono fora custa mais que o defeito"
-for _ in 1 2 3; do roda >/dev/null; done
-SAIDA=$(roda)
-diz "depois do teto de negações, ele desiste e libera" "$SAIDA" ""
+echo "SEM PENDÊNCIA — a equipe é livre"
+printf '{"peca":"hero","status":"aprovado"}' > "$MISSAO/pecas/hero/r1/veredito.json"
+rm -f "$RAIZ_T/andamento/bloqueios-$SID"
+SAIDA=$(roda '"[gauntlet:construtor:precos] construa"')
+diz "com todo veredito no disco, qualquer agente nasce" "$SAIDA" ""
+rm -f "$MISSAO/pecas/hero/r1/veredito.json"
+
+echo
+echo "A SAÍDA DE EMERGÊNCIA — trava que trava com o dono fora custa mais que o defeito"
+rm -f "$RAIZ_T/andamento/bloqueios-$SID"
+for _ in 1 2 3; do roda '"sem marcador"' >/dev/null; done
+SAIDA=$(roda '"sem marcador"')
+diz "depois do teto de negações, ela desiste e libera" "$SAIDA" ""
 [ -s "$RAIZ_T/andamento/desistencias.log" ] \
   && ok "e a desistência fica registrada" \
   || bad "e a desistência fica registrada"
 
 echo
-echo "O SINAL ÓRFÃO — sessão que morre sem apagar não acende o guarda para sempre"
+echo "O SINAL ÓRFÃO — sessão que morre sem apagar não acende a trava para sempre"
 rm -f "$RAIZ_T/andamento/bloqueios-$SID" "$RAIZ_T/andamento/desistencias.log"
-printf 'gauntlet\n' > "$RAIZ_T/andamento/ativo-$SID"
-# Envelhece o sinal para além do prazo, sem esperar 12 horas.
+arma
 touch -t 202001010000 "$RAIZ_T/andamento/ativo-$SID" 2>/dev/null
-SAIDA=$(roda)
+SAIDA=$(roda '"sem marcador"')
 diz "sinal vencido não nega nada" "$SAIDA" ""
 [ ! -f "$RAIZ_T/andamento/ativo-$SID" ] \
   && ok "e o sinal vencido é removido" \
@@ -71,40 +106,45 @@ diz "sinal vencido não nega nada" "$SAIDA" ""
 
 echo
 echo "O DESLIGAMENTO — quem discorda tem por onde sair"
-printf 'gauntlet\n' > "$RAIZ_T/andamento/ativo-$SID"
+arma
 rm -f "$RAIZ_T/andamento/bloqueios-$SID"
-SAIDA=$(printf '%s' "$EVENTO" | GAUNTLET_GATE=0 bash "$HOOK" 2>/dev/null)
-diz "com GAUNTLET_GATE=0 ele não nega nada" "$SAIDA" ""
+SAIDA=$(evento "$SID" '"sem marcador"' | GAUNTLET_GATE=0 bash "$HOOK" 2>/dev/null)
+diz "com GAUNTLET_GATE=0 ela não nega nada" "$SAIDA" ""
 
 echo
 echo "O SINAL É POR SESSÃO — uma missão aqui não trava a sessão do vizinho"
 rm -f "$RAIZ_T/andamento/bloqueios-$SID"
-OUTRO='{"session_id":"outra-sessao","tool_name":"Agent"}'
-SAIDA=$(printf '%s' "$OUTRO" | bash "$HOOK" 2>/dev/null)
+SAIDA=$(evento "outra-sessao" '"sem marcador"' | bash "$HOOK" 2>/dev/null)
 diz "sessão sem missão passa, mesmo com a vizinha armada" "$SAIDA" ""
 
 echo
 echo "A CASA DO SINAL É COMPARTILHADA — quem guarda é o NOME escrito nele"
-printf 'qa-loop\n' > "$RAIZ_T/andamento/ativo-$SID"
+printf 'qa-loop\n%s\n' "$MISSAO" > "$RAIZ_T/andamento/ativo-$SID"
 rm -f "$RAIZ_T/andamento/bloqueios-$SID"
-SAIDA=$(printf '%s' "$EVENTO" | bash "$HOOK" 2>/dev/null)
-diz "missão de outro motor na mesma casa não é negada por este guarda" "$SAIDA" ""
-printf 'gauntlet\n' > "$RAIZ_T/andamento/ativo-$SID"
-rm -f "$RAIZ_T/andamento/bloqueios-$SID"
+SAIDA=$(roda '"sem marcador"')
+diz "missão de outro motor na mesma casa não é negada por esta trava" "$SAIDA" ""
 
 echo
-echo "FAIL-OPEN — guarda que trava por causa da própria infra é pior que guarda nenhum"
+echo "FAIL-OPEN — trava que trava por causa da própria infra é pior que trava nenhuma"
+arma
+rm -f "$RAIZ_T/andamento/bloqueios-$SID"
 SAIDA=$(printf '%s' '{"tool_name":"Agent"}' | bash "$HOOK" 2>/dev/null)
 diz "evento sem identificação de sessão não nega" "$SAIDA" ""
 SAIDA=$(printf '' | bash "$HOOK" 2>/dev/null)
 diz "evento vazio não nega" "$SAIDA" ""
-SAIDA=$(printf '%s' "$EVENTO" | CLAUDE_CONFIG_DIR="$RAIZ_T/nao-existe" bash "$HOOK" 2>/dev/null)
+SAIDA=$(evento "$SID" '"x"' | CLAUDE_CONFIG_DIR="$RAIZ_T/nao-existe" bash "$HOOK" 2>/dev/null)
 diz "sem a raiz de estado no disco, não nega" "$SAIDA" ""
+printf 'gauntlet\n' > "$RAIZ_T/andamento/ativo-$SID"
+SAIDA=$(roda '"sem marcador"')
+diz "sinal sem o diretório da missão na 2ª linha não nega" "$SAIDA" ""
+printf 'gauntlet\n%s\n' "$RAIZ_T/missao-que-nao-existe" > "$RAIZ_T/andamento/ativo-$SID"
+SAIDA=$(roda '"sem marcador"')
+diz "sinal apontando missão que não está no disco não nega" "$SAIDA" ""
 
 rm -rf "$RAIZ_T"
 echo
 if [ "$FALHAS" -gt 0 ]; then
-  echo "guarda do gauntlet: $FALHAS falha(s)"
+  echo "trava dupla do gauntlet: $FALHAS falha(s)"
   exit 1
 fi
-echo "guarda do gauntlet: tudo verde"
+echo "trava dupla do gauntlet: tudo verde"
