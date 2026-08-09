@@ -199,7 +199,14 @@ Duas coisas diferentes foram confundidas, e a confusão fazia o motor planejar c
   O caso que originou: um critério mandava o número aparecer no documento, o executor **obedeceu** e escreveu o número na mão. Quem errou não foi quem executou — foi o critério, e ninguém o julgou antes de soltar o executor. Critério ruim solto vira trabalho errado com todo mundo cumprindo o combinado. Rodada 1 = `decompose_model` (plano inteiro); rodadas 2+ (re-decompõe só o delta do feedback do #2) = `coordinate_model`. Re-arquitetar é proibido (mesma regra do "não replanejar no headless"); buraco no plano que exija decisão de arquitetura vira **Bloqueio**, nunca invenção silenciosa.
 - **EXECUTORES (Opus 5) — Implementam as tarefas.** Tarefa padrão = `executor_model`; `complexity: 'mechanical'` = `mechanical_model`. Independentes rodam **em paralelo**; dependentes, **em série** na ordem do #1. Tarefa única ou missão sequencial pura → o Workflow degenera pra um executor por vez, sem cerimônia (o fan-out é ganho só quando há independência real).
 
-**O texto que o executor recebe abre com três regras, e elas não são conselho — cada uma nasceu de trabalho perdido:**
+**O texto que o executor recebe abre assim, e a primeira linha é literal — `PAPEL: EXECUTOR` sozinha, antes de qualquer prosa (a regra vale para todo prompt do motor; a tabela `prompt → PAPEL` está na seção dos prompts):**
+
+```
+PAPEL: EXECUTOR
+Você é EXECUTOR. Implemente esta tarefa no repositório <raiz>.
+```
+
+**Depois da declaração vêm as regras, e elas não são conselho — cada uma nasceu de trabalho perdido:**
 
 1. **CONFIRA NO DISCO ANTES DE IMPLEMENTAR.** O primeiro passo é abrir o arquivo do `pronto` e ver se ele já está cumprido. Agente que morre **depois** de escrever some do registro, e a tarefa dele volta como faltante — sem esta checagem, o trabalho é refeito por cima do que já estava lá. Já cumprido: devolve `done: true` com o `arquivo:linha` que prova, e não reescreve nada.
 2. **FORMATAR O PROJETO INTEIRO É PROIBIDO.** Nada de `prettier --write .`, `ruff format .`, `black .`, `eslint --fix .` sem caminho, nem equivalente que varra a árvore. Formatador sem escopo **reformatou 18 arquivos de outros agentes** numa execução real e quase apagou trabalho paralelo. Formate **só os arquivos que esta tarefa tocou**, nomeados um a um.
@@ -252,6 +259,8 @@ Resumo: **#2 = "está de pé, e é o que a spec pediu?" · qa-loop = "está cert
 O laço era **decompor tudo → executar tudo → revisar tudo**: numa onda de vinte tarefas, quem falhava na primeira só era notado depois que a vigésima voltasse — e as dezenove seguintes já tinham sido construídas em cima de uma premissa furada. Agora a onda sai em **blocos de `blocoMax`**, e o **primeiro bloco que traz falha** (`done: false` ou executor que não voltou) **fecha a onda ali**: os blocos seguintes **não são despachados**, entram no `missing` da volta seguinte, e o decompositor re-decompõe o delta já sabendo o que quebrou.
 
 Quem não foi despachado **não é tarefa presa**: entra na mesma isenção de churn do `esperaDono` (`F9.56`) — contador de reincidência é de quem falhou, e ninguém tentou essas.
+
+**O laço é fechado, e é o MESMO das duas receitas.** Aqui (implementação) e no `/qa-loop` (revisão) vale a mesma regra: **feito o conserto, quem revisa reabre sobre ele** — o #2 julga de novo a obra depois de cada volta de execução, e o laço só fecha quando uma rodada vem **limpa** (`complete && cohesive` e zero gap acima do floor). Conserto que sai sem re-revisão declara pronto o que ninguém reconferiu, e é assim que o resíduo do próprio conserto — o caso que o fix deixou de fora — atravessa a missão inteira sem ninguém ver. O que cada laço reabre muda (lá é o delta dos arquivos tocados, aqui é a obra contra a spec); o fechamento por rodada limpa, não.
 
 ### Freio do loop (não é "até o #2 ficar feliz")
 
@@ -1058,8 +1067,24 @@ const esperandoVoce = rounds.length ? (rounds[rounds.length - 1].esperandoVoce |
 // somar linha inflava o número que o relatório mostra ao dono.
 const passosFeitos = [...new Set(rounds.flatMap(x => x.feitos || []))]
 
+// VOLTAS POR PROBLEMA (F25.4) — o mesmo cálculo do motor de revisão (`/qa-loop`), sobre os
+// gaps do #2: da volta em que o gap apareceu até a última em que ainda aparecia. É o laço
+// fechado ficando legível — sem isto o relatório dizia quantas rodadas a MISSÃO levou, e
+// nunca qual defeito foi reaberto volta após volta. Chave = tarefa + eixo do gap: o gap não
+// tem id próprio, e só o `task_id` juntaria dois problemas diferentes da mesma tarefa.
+const voltasPorProblema = []
+const porGap = {}
+for (const x of rounds)
+  for (const g of (x.review?.gaps || [])) {
+    const k = `${g.task_id || '-'}:${g.kind}`
+    if (!porGap[k]) voltasPorProblema.push(porGap[k] =
+      { taskId: g.task_id || null, kind: g.kind, problem: g.problem, primeira: x.r, voltas: 0 })
+    porGap[k].voltas = x.r - porGap[k].primeira + 1
+  }
+
 return {
   rounds, built, blockers, lawMark,   // lawMark = a lei contra a qual a missão INTEIRA foi medida
+  voltasPorProblema,   // por gap: em que volta apareceu e quantas levou até a rodada limpa
   progresso: { feitos: passosFeitos.length, passos: passosFeitos },   // por tarefa distinta
   impedidos,          // não sai com mais rodada — precisa de você
   naoDeuTempo,        // sairia com mais rodada; o teto é que chegou antes
@@ -1076,6 +1101,20 @@ return {
                                 checkpoint: !!x.checkpoint })),
 }
 ```
+
+**TODO prompt do motor ABRE declarando o papel, em uma linha sozinha: `PAPEL: <NOME>`.** É a primeira linha do texto que o agente recebe, e por isso a primeira linha do transcript dele — que é o único lugar onde a autópsia (`improve-workflow/lib/medidor.py`) consegue saber quem foi cada um dos agentes do run. Sem a declaração, o papel era **adivinhado pela frase** ("Você é o EXECUTOR…"): bastava reescrever a prosa do motor para 50 agentes virarem `DESCONHECIDO` na tabela, e a medição por papel deixar de existir sem nada acusar. O nome é fixo por prompt, em caixa alta e sem acento:
+
+| prompt | `PAPEL:` | prompt | `PAPEL:` |
+|---|---|---|---|
+| `decomposePrompt` | `DECOMPOSITOR` | `reguaPrompt` | `MECANICO` |
+| `execPrompt` | `EXECUTOR` | `reservaPrompt` | `MECANICO` |
+| `reviewBuildPrompt` | `REVISOR` | `checkpointPrompt` | `MECANICO` |
+| `confirmBuildPrompt` | `CONFIRMADOR` | `docTouchPrompt` | `MECANICO` |
+| `auditorPrompt` | `AUDITOR` | `colheitaPrompt` | `MECANICO` |
+| `diagnoseStuckTaskPrompt` | `DIAGNOSTICO` | `tickPlanPrompt` | `MARCAR` |
+| `desafioCausaPrompt` | `DESAFIADOR` | `runSuitePrompt` | `SUITE` |
+
+A declaração é a **primeira linha do corpo**, sozinha, antes de qualquer prosa — o corpo do `execPrompt` acima mostra a forma. Quem cobra que a regra continue no texto é `lib/test_travas_motor.py` (bloco `S-123`), que reescreve a prosa em volta da linha e confere no `medidor.py` que a classificação fica de pé.
 
 **Schemas (JSON Schema, resumidos):**
 - `DECOMP` — `{ tasks: [{ id, desc, requisito, pronto, files: [...], parallelizable: bool, dependsOn: [id...], done: bool, complexity?: 'standard'|'mechanical', esperaDono?: string, protegido?: string }], blockers: [{ what, whyNeedsYou }] }`. **`requisito` e `pronto` são obrigatórios** — `requisito` = o item da spec que a tarefa atende, `pronto` = o critério de feito dele, **os dois copiados da spec, não redigidos pelo decompositor** (o executor não tem como cumprir o que não recebe, e critério inventado aqui vira régua falsa no #2). Item da spec sem um dos dois vira `blocker`, não tarefa. `complexity: 'mechanical'` = operação bem delimitada (renomear, mover arquivo, 1 config, 1 valor); ausente/`'standard'` = tarefa normal. **`esperaDono`** = a frase do ato que só o dono pode fazer, **copiada do `espera_dono` do passo no `.plan.json`** — nunca inventada aqui, e nunca deduzida do texto da tarefa. Tarefa com `esperaDono` **não entra na fila do motor** (nenhum executor é solto nela), e quem `dependsOn` dela também não: os dois saem em `esperandoVoce`, com o motivo. Passo sem o campo no plano é tarefa normal. **`protegido`** = o arquivo sob tranca que a tarefa toca (o que traz `status: approved` no frontmatter) e o motivo da tranca, marcado pelo decompositor **por leitura do disco**, nunca por achismo. Tarefa `protegido` **entra na fila** — o que muda é o entregável: proposta, não edição, e o revisor a mede pelo critério invertido.
@@ -1201,6 +1240,19 @@ Passada a QA e **ANTES** de montar o relatório, persista o trabalho. Esta é a 
 
    É o **mesmo** `colheitaPrompt` que roda junto do checkpoint de cada onda verde — aqui em bash, e por isso mesmo: esta passada tem que acontecer **aconteça o que acontecer com o motor**. A colheita por onda só alcança onda verde; motor que fechou vermelho, que o vigia derrubou ou que o disjuntor desligou não colheria nada — e pôr mais um agente no fim do script depois do disjuntor faria o desligamento por teto deixar de ser desligamento. O lixeiro é achado pelo **nome**, pelo `resolve-plugin.sh` da própria pasta — direto no repositório, e atrás de um segmento de versão no cache do marketplace (`<marketplace>/<plugin>/<versão>/`), que é o layout que o apontamento por posição não alcançava. Lixeiro não instalado (o resolvedor devolve vazio) → **pula e segue calado**, e é o `if` que garante isso: limpeza é camada a mais, nunca pré-requisito. Caminho resolvido e comando quebrado → também segue, mas **avisa** na saída do passo, e a linha do aviso vira item de `### Feito` dizendo que a colheita não passou; sem essa separação, defeito da colheita e ausência do lixeiro ficam com a mesma cara. O que foi encerrado vira item de `### Feito`; falha da colheita **não** vira Bloqueio.
 
+5. **Mede a missão (F20.15).** O medidor da autópsia roda ao fim de **toda** missão, em bash, sem agente nenhum:
+
+   ```bash
+   MEDIDOR="$(bash "${CLAUDE_PLUGIN_ROOT}/skills/sprint/resolve-plugin.sh" improve-workflow lib/medidor.py)"
+   if [ -n "$MEDIDOR" ]; then
+     python3 "$MEDIDOR" || echo "sovai: a medição falhou em $MEDIDOR — segue sem medir"
+   fi
+   ```
+
+   A tabela por papel e a linha `sinais — N dos 6 acesos` vão inteiras para a seção `### Custo` do relatório final — medir é barato e o número só existe se for guardado na hora.
+
+   **`N` igual a zero ⇒ ACABOU AQUI.** Não invoque `improve-workflow`, não abra transcript, **não dispare agente nenhum**: os passos 2–6 da autópsia (ler o trecho, varrer sobra, refutar, propor) são leitura cara, e sem sinal aceso não há defeito endereçado a investigar. Com pelo menos um sinal aceso — ou se o usuário pediu a autópsia — aí sim invoque a skill `improve-workflow` a partir do passo 2, entregando a saída crua acima. Medidor ausente na máquina (resolvedor vazio) → pula calado, igual ao lixeiro.
+
 O hash do commit + resultado do push entram na `### Verificação`; a doc regenerada é um item de `### Feito`.
 
 ## Relatório Final
@@ -1209,7 +1261,7 @@ O relatório é a única coisa que o usuário lê desta sessão — e ele lê **
 
 ### Conteúdo (backbone — sempre o mesmo)
 
-Cinco seções. Monte este conteúdo PRIMEIRO; a forma de entrega (HTML ou markdown) vem depois.
+Cinco seções fixas, mais a do custo quando houve medição. Monte este conteúdo PRIMEIRO; a forma de entrega (HTML ou markdown) vem depois.
 
 ```
 ## Sovai — terminei
@@ -1232,8 +1284,18 @@ Cinco seções. Monte este conteúdo PRIMEIRO; a forma de entrega (HTML ou markd
 
 ### QA (qa-loop)
 - [loops rodados + critério de parada · correções aplicadas · regressões pegas na hora]
+- [uma linha por problema: o defeito, e quantas VOLTAS ele levou até a rodada limpa — do `voltasPorProblema` do motor e do mesmo campo do /qa-loop, os dois juntos]
 - [⚠️ alertas de plano/arquitetura que NÃO implementei — pra você julgar]
+
+### Custo (medidor da autópsia)
+- [uma linha: quanto a missão custou por papel no que pesou, mais `sinais — N dos 6 acesos`]
+- [drilldown fechado: a tabela crua do medidor inteira, e — só se N > 0 — o parecer da autópsia]
 ```
+
+São **seis** seções quando houve medição. `### Custo` sai sempre que o medidor rodou (passo 5
+acima), inclusive com zero sinal aceso: a visão geral é UMA linha, e a tabela crua mora num
+drilldown fechado — mesma revelação progressiva das páginas do `/visual`. Medidor pulado
+(ausente na máquina) ⇒ a seção não sai.
 
 ### Entrega via /visual (titular)
 
@@ -1251,6 +1313,7 @@ No spec, **`item_labels: ["✓ Manter", "✏️ Mudar", "✗ Remover"]`** — NU
 - **Decisões tomadas** → cada decisão = `.feedback-item` (o usuário aprova ou marca pra rever) + razão em 1 linha.
 - **Verificação** → `.callout` (ok/danger): o que rodou + resultado. Read-only.
 - **QA (qa-loop)** → `.callout`/seção: loops, correções, regressões, alertas. Read-only.
+- **Custo (medidor da autópsia)** → `.callout` com a linha de visão geral + `<details>` fechado com a tabela crua (e o parecer, se houve). Read-only. Nunca a tabela aberta no corpo: custo é contexto, não decisão a tomar.
 - `.exec` no fim + **caixa de fechamento**: no caso comum (feedback-items + callouts) só `feedback-box`; `decisions-box` só se houver decision-card de verdade. As caixas são **só fechamento** (progresso + observação + botões) — **nunca re-listam os itens** (anti-pattern "duas tabelas").
 
 **Retorno do feedback é assíncrono.** O usuário está fora e esta sessão termina quando o relatório sai — então **não** conte com live-sync ("ele diz ok e o Claude lê"). O HTML guarda os vereditos em `localStorage`; quando ele voltar (provável sessão nova), clica "Copiar feedback"/"Copiar escolhas" e cola pra dirigir o refactor. O daemon do /visual pode subir (é inócuo), mas o caminho confiável é copy/paste.

@@ -1,0 +1,4 @@
+{"type": "started", "agentId": "aexec01"}
+{"type": "result", "agentId": "aexec01", "result": {"task_id": "F1", "done": true}}
+{"type": "started", "agentId": "aexec02"}
+{"type": "result", "agentId": "aexec02", "result": {"task_id": "F2", "done": true}}

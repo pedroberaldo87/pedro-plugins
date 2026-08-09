@@ -805,6 +805,39 @@ def main():
     check("tres voltas sem acordo viram disputa, nao conserto", "causa-em-disputa" in js)
     check("o contrato do DESAFIO esta documentado", "`DESAFIO`" in texto)
 
+    print("S-123 — o prompt DECLARA o papel, e a prosa reescrita nao derruba a medicao")
+    check("a regra esta escrita no texto que o motor copia",
+          "PAPEL: <NOME>`.**" in texto)
+    check("o corpo do execPrompt ABRE com a linha, nao so a tabela",
+          "```\nPAPEL: EXECUTOR\n" in texto)
+    papeis = re.findall(r"\|\s*`(\w+Prompt)`\s*\|\s*`([A-Z]+)`\s*"
+                        r"\|\s*`(\w+Prompt)`\s*\|\s*`([A-Z]+)`\s*\|", texto)
+    tabela = {}
+    for a, pa, b, pb in papeis:
+        tabela[a] = pa
+        tabela[b] = pb
+    check("a tabela nomeia o papel dos 14 prompts do motor", len(tabela) == 14)
+    check("os prompts da tabela sao os que o esqueleto chama",
+          all(nome in js for nome in tabela))
+    # A metade de BANCADA: reescreve a prosa em volta da linha declarada e pergunta ao
+    # medidor da autopsia se a classificacao fica de pe. Sem isto, "o papel e declarado"
+    # era so uma frase na skill — e a prosa reescrita voltaria a apagar a medicao.
+    medidor_py = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                              "..", "..", "improve-workflow", "lib", "medidor.py")
+    check("o medidor da autopsia esta onde a skill diz", os.path.isfile(medidor_py))
+    if os.path.isfile(medidor_py):
+        sys.path.insert(0, os.path.dirname(os.path.abspath(medidor_py)))
+        import medidor
+        reescrito = {nome: "PAPEL: %s\nSubagente do motor. Prosa trocada de ponta a "
+                           "ponta: nenhuma frase diz quem voce e." % papel
+                     for nome, papel in tabela.items()}
+        check("com a prosa reescrita, a declaracao segura os 14 papeis",
+              all(medidor.papel_do_prompt(reescrito[nome]) == papel
+                  for nome, papel in tabela.items()))
+        check("sem a linha declarada, o mesmo texto vira DESCONHECIDO",
+              all(medidor.papel_do_prompt(t.split("\n", 1)[1]) == "DESCONHECIDO"
+                  for t in reescrito.values()))
+
     print()
     if FAILS:
         print("FALHOU: %d" % len(FAILS))

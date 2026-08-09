@@ -58,6 +58,12 @@ DEFAULT_ITEM_LABELS = ["✓ Manter", "✏️ Mudar", "✗ Remover"]
 APROVACAO_LABELS = ["✓ Aprovar", "✏️ Aprovar com ajuste", "✗ Reprovar"]
 CALLOUT_VARIANTS = ("info", "warn", "danger", "ok")
 
+
+def e_parecer(spec):
+    """A página do parecer do juiz de clareza — reconhecida pelo slug que a
+    receita manda usar (`parecer-<slug-da-página-julgada>`)."""
+    return str(spec.get("slug") or "").startswith("parecer-")
+
 # ── a régua de estilo (quality-goals.md, regime "informação rápida") ────────
 # Página gerada é lida com pressa: prosa é PROIBIDA, bullets são a forma. As quatro
 # checagens moram em `_shared/regua_texto.py` desde 2026-08-03, porque os outros
@@ -200,6 +206,16 @@ def validate(spec):
     labels = spec.get("item_labels") or DEFAULT_ITEM_LABELS
     if not (isinstance(labels, list) and len(labels) == 3):
         errs.append("item_labels tem que ser uma lista de 3 rótulos (keep/change/remove)")
+
+    # A página do parecer é aprovada por si só: cada apontamento do juiz é um item
+    # com veredito próprio, e nada do trabalho julgado entra junto. Aprovação ou
+    # decisão do trabalho na mesma página faria um veredito valer pelo outro.
+    if e_parecer(spec):
+        intrusos = sorted(set(k for k in kinds if k in ("aprovacao", "decision")))
+        if intrusos:
+            errs.append("página de parecer com bloco do trabalho julgado (%s) — o "
+                        "parecer é aprovado sozinho; leve o bloco pra página julgada"
+                        % ", ".join(intrusos))
     return errs
 
 
@@ -729,8 +745,11 @@ def _placar(spec):
 
 
 def build_body(spec, tpl):
+    # No parecer o veredito é de aprovação, e quem manda é o programa: rótulo de
+    # "manter/mudar" convidaria a editar o apontamento em vez de aprová-lo.
     ctx = {"n_items": 0, "n_decisions": 0,
-           "item_labels": spec.get("item_labels") or DEFAULT_ITEM_LABELS}
+           "item_labels": APROVACAO_LABELS if e_parecer(spec)
+           else (spec.get("item_labels") or DEFAULT_ITEM_LABELS)}
     ident = spec.get("ident") or {}
     out = ['<div class="wrap">', '  <div class="ident-strip">']
     for k, label in (("projeto", "Projeto"), ("artefato", "Artefato"), ("gerado_de", "Gerado de")):

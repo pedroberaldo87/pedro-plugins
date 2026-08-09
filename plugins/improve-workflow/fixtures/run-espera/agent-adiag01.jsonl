@@ -1,0 +1,2 @@
+{"type": "user", "message": {"role": "user", "content": "Você é o DIAGNOSTICO (Opus). Descubra por que o passo F9 não fechou."}}
+{"type": "assistant", "requestId": "req_adiag01_0", "message": {"id": "msg_adiag01_0", "usage": {"input_tokens": 30, "cache_creation_input_tokens": 200, "cache_read_input_tokens": 4000, "output_tokens": 70}}}

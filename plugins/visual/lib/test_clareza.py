@@ -216,6 +216,18 @@ def t_prova_sem_estrago():
           "prova-sem-estrago" not in _ids(atravessa))
 
 
+def t_a_receita_manda_gerar_a_pagina_do_parecer():
+    # O veredito do juiz não pode morrer no chat nem depender de o dono pedir.
+    skill = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                         "..", "skills", "visual", "SKILL.md")
+    with open(skill, encoding="utf-8") as f:
+        txt = f.read()
+    bloco = txt.split("**(b2)")[1].split("**(c)")[0] if "**(b2)" in txt else ""
+    check("a receita manda gerar a página do parecer sem perguntar",
+          bool(bloco) and "sem perguntar" in bloco
+          and "visual_page.py build" in bloco)
+
+
 def t_revisar_nao_julga_clareza():
     # O `revisar` procura o que é mecânico; clareza continua sendo do juiz externo.
     limpo = _spec([{"kind": "text", "text": "uma frase completamente obscura e ruim"}])
@@ -229,7 +241,8 @@ for t in (t_pega_termo_banido, t_acha_no_fundo_do_spec, t_isenta_prova_crua,
           t_palavra_da_casa_sem_abrir, t_dois_nomes_para_a_mesma_coisa,
           t_a_abertura_pode_apresentar_as_duas, t_apoio_em_escolha_fora_da_pagina,
           t_custo_sem_unidade, t_custo_medido_por_pagina_e_nao_por_frase,
-          t_prova_sem_estrago, t_revisar_nao_julga_clareza):
+          t_prova_sem_estrago, t_a_receita_manda_gerar_a_pagina_do_parecer,
+          t_revisar_nao_julga_clareza):
     t()
 
 falhas = [n for n, ok in OK if not ok]

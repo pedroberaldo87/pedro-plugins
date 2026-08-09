@@ -1,0 +1,4 @@
+{"type": "started", "agentId": "amarca01"}
+{"type": "result", "agentId": "amarca01", "result": null}
+{"type": "started", "agentId": "aexec01"}
+{"type": "result", "agentId": "aexec01", "result": {"task_id": "F1"}}

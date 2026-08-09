@@ -1,0 +1,4 @@
+{"type": "user", "message": {"role": "user", "content": "Papel MECÂNICO: grave no plano o veredito já dado. Não julgue."}}
+{"type": "assistant", "requestId": "req_amarca01_0", "message": {"id": "msg_amarca01_0", "usage": {"input_tokens": 50, "cache_creation_input_tokens": 200, "cache_read_input_tokens": 800, "output_tokens": 2}}}
+{"type": "assistant", "requestId": "req_amarca01_0", "message": {"id": "msg_amarca01_0", "usage": {"input_tokens": 50, "cache_creation_input_tokens": 200, "cache_read_input_tokens": 800, "output_tokens": 20}}}
+{"type": "assistant", "requestId": "req_amarca01_1", "message": {"id": "msg_amarca01_1", "usage": {"input_tokens": 5, "cache_creation_input_tokens": 50, "cache_read_input_tokens": 900, "output_tokens": 10}}}
