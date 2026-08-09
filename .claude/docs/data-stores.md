@@ -337,7 +337,7 @@ Depósito **novo nesta rodada**, irmão do B8 e deliberadamente diferente dele: 
   # do `claude -p` junto, e o juiz passava a aprovar tudo por fail-open.
   ESTADO = Path(os.environ.get("FORMA_RELATO_STATE", CLAUDE_DIR / "state" / "forma-relato"))
   ```
-- **O gatilho é medido no próprio texto:** é relato quando há pelo menos um bloco ` ``` ` **e** ≥ `MIN_PROSA = 2` linhas de prosa fora dos blocos. Resposta curta e conversa não chegam ao modelo — mandar cada turno custaria segundos em todos eles.
+- **O gatilho tem duas partes.** Primeiro `usou_visual()`: o turno precisa ter passado pelo `/visual` (skill, comando, ou escrita em `.claude/visual/`), senão sai na batida `sem /visual no turno` sem gastar modelo. Depois `e_relato()`: pelo menos um bloco ` ``` ` **e** ≥ `MIN_PROSA = 2` linhas de prosa fora dos blocos. A primeira parte entrou porque o juiz estava rodando em todo fim de turno — 463 julgamentos em 9 dias, ~25s e US$ 0,0416 cada.
 - **Dois tipos de arquivo, mesmo desenho do B8:**
   - `<sha1[:16]>` — contador anti-loop por resposta, `MAX_BLOQUEIOS = 2`, chave `sha1(session_id + texto)[:16]`. **20 no disco** (21 entradas menos o `batidas.log`) — eram **zero** na rodada anterior.
   - `batidas.log` — uma linha JSON por execução: `{ts, sessao, motivo, veredito}`. **104K de diretório, 228 linhas hoje** (eram 12).

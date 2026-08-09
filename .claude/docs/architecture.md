@@ -1478,12 +1478,13 @@ isso precisa de um leitor."*
 - **Julga só a FORMA, em quatro critérios** nomeados no docstring: `limpeza` (sobra frase que não
   carrega fato?), `clareza` (dá pra agir depois de ler uma vez?), `didatica` (linguagem humana ou
   jargão?), `escaneabilidade` (o olho acha o resultado sem ler tudo?).
-- **O gatilho é medido no próprio texto, e é estreito de propósito.** `e_relato()` exige as duas
-  coisas: pelo menos um bloco de código (a prova colada) **E** `MIN_PROSA = 2` linhas de prosa
-  fora dos blocos. O comentário registra a calibração: *"um relato bom e CURTO — o exemplo
-  canonico tem 2 linhas de prosa e 4 de prova. Exigir 4 de prosa deixava passar exatamente os
-  relatos que dao certo."* Resposta curta e conversa não chegam ao modelo — *"mandar cada uma
-  para um modelo custaria ~4,5s em cada uma delas"*.
+- **O gatilho tem duas partes, e a primeira é o dono do custo.** `usou_visual()` varre o turno
+  de trás pra frente até o pedido humano e só deixa passar quem chamou a skill `visual`, digitou
+  o comando ou escreveu em `.claude/visual/` (`MARCA_VISUAL`); qualquer outro fim de turno sai
+  na batida `sem /visual no turno`, antes de gastar modelo. **O juiz é do `/visual`, não de todo
+  fim de turno** — medido com o gatilho anterior (que era só o teste de relato): 463 julgamentos
+  em 9 dias, ~25s cada, **US$ 19,26**, porque cada `claude -p` recarrega o `CLAUDE.md` global só
+  pra devolver uma palavra.
 - **O veredito é de uma linha só**, formato fechado no prompt: `PASSA` ou
   `REPROVA: <o defeito em ate 12 palavras, no imperativo>`. O prompt manda ser severo — *"na
   duvida entre PASSA e REPROVA, escolha REPROVA"* — e isenta a prova: *"Bloco de codigo e PROVA:

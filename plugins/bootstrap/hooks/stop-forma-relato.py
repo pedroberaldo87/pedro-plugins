@@ -12,8 +12,12 @@ Julga quatro coisas, e so a FORMA:
   didatica        · explica em linguagem humana ou despeja jargao?
   escaneabilidade · o olho acha o resultado sem ler tudo?
 
-O QUE E RELATO (o gatilho, medido no proprio texto):
-  >= 2 linhas de prosa  E  pelo menos um bloco de codigo (a prova colada).
+QUANDO RODA (o gatilho, em duas partes):
+  1. o turno passou pelo /visual — chamou a skill, o comando, ou escreveu a pagina.
+     Sem isso nao julga nada: o juiz e do /visual, e nao de todo fim de turno.
+     Medido em 9 dias com o gatilho antigo (todo relato): 463 julgamentos, ~25s cada,
+     US$ 19,26 — cada `claude -p` recarrega o CLAUDE.md global so pra devolver 1 palavra.
+  2. e a resposta e um RELATO: >= 2 linhas de prosa E um bloco de codigo (a prova colada).
 Medido: um relato bom e CURTO — o exemplo canonico tem 2 linhas de prosa e 4 de
 prova. Exigir 4 de prosa deixava passar exatamente os relatos que dao certo.
 Resposta curta e conversa nao passam pelo juiz — sao a maioria dos turnos, e
@@ -42,6 +46,10 @@ from pathlib import Path
 
 MIN_PROSA = 2
 MAX_BLOQUEIOS = 2
+# o turno passou pelo /visual: chamou a skill, digitou o comando, ou escreveu a pagina
+MARCA_VISUAL = re.compile(r'"skill"\s*:\s*"(?:[\w-]+:)?visual"'
+                          r'|<command-name>/?visual\b'
+                          r'|[\w./-]*\.claude/visual/')
 # MEDIDO em 2026-08-05: `claude -p --model haiku` respondendo so "PASSA" levou 30s,
 # 33s e 48s — o custo e a partida do CLI, nao o texto. Teto de 25s ficava ABAIXO do
 # piso da ferramenta: o juiz estourava sempre e caia no fail-open, aprovando tudo.
@@ -122,6 +130,27 @@ def ultima_msg_assistente(transcript):
     return None
 
 
+def usou_visual(transcript):
+    """O juiz e do /visual: so julga o turno que rodou a skill ou escreveu a pagina."""
+    try:
+        linhas = Path(transcript).read_text(encoding="utf-8", errors="ignore").splitlines()
+    except OSError:
+        return False
+    for ln in reversed(linhas):
+        try:
+            d = json.loads(ln)
+        except ValueError:
+            continue
+        if d.get("isSidechain"):
+            continue
+        if MARCA_VISUAL.search(ln):
+            return True
+        msg = d.get("message") or {}
+        if msg.get("role") == "user" and isinstance(msg.get("content"), str):
+            return False   # chegou no pedido humano sem passar pelo /visual
+    return False
+
+
 def e_relato(texto):
     """Prosa suficiente E prova colada. Os dois, senao nao e relato."""
     if "```" not in texto:
@@ -175,7 +204,12 @@ def main():
         batida("stop_hook_active", sid=sid)
         sair()
 
-    texto = ultima_msg_assistente(payload.get("transcript_path", ""))
+    transcript = payload.get("transcript_path", "")
+    if not usou_visual(transcript):
+        batida("sem /visual no turno", sid=sid)
+        sair()
+
+    texto = ultima_msg_assistente(transcript)
     if not texto:
         batida("sem texto", sid=sid)
         sair()

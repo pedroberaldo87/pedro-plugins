@@ -407,7 +407,7 @@ Nasceu em 2026-08-08. Anatomia em `data-stores.md §B13`.
 
 ### 3.13 · Batidas do juiz de forma do relato — `~/.claude/state/forma-relato/`
 
-**Código novo desta rodada.** `plugins/bootstrap/hooks/stop-forma-relato.py` é um hook `Stop` que chama um modelo (`claude -p --model` com `FORMA_RELATO_MODEL`, default `haiku`) e só roda quando a resposta é um **relato** — definido no próprio arquivo como *pelo menos um bloco de código E ≥ `MIN_PROSA = 2` linhas de prosa*.
+**Código novo desta rodada.** `plugins/bootstrap/hooks/stop-forma-relato.py` é um hook `Stop` que chama um modelo (`claude -p --model` com `FORMA_RELATO_MODEL`, default `haiku`) e só roda quando o turno passou pelo **`/visual`** (`usou_visual()`) **e** a resposta é um **relato** (*pelo menos um bloco de código E ≥ `MIN_PROSA = 2` linhas de prosa*). Sem o `/visual` a batida é `sem /visual no turno` e nenhum modelo é chamado.
 
 - **Ativação confirmada** [confirmado]: está no array `Stop` de `plugins/bootstrap/hooks/hooks.json`, com `"timeout": 30`, ao lado do `stop-prose-ceiling.py`.
 - **O que ele escreve:** `batida()` acrescenta uma linha JSON por execução em `<CLAUDE_CONFIG_DIR>/state/forma-relato/batidas.log`; e um arquivo-contador por (sessão + hash da resposta) para o anti-loop de `MAX_BLOQUEIOS = 2`. O diretório sai de `ESTADO`, que aceita override por `FORMA_RELATO_STATE` — [confirmado no comentário do código] a var própria existe porque isolar o teste via `CLAUDE_CONFIG_DIR` tirava a credencial do `claude -p` junto e o juiz passava a aprovar tudo por fail-open.

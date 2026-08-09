@@ -1133,6 +1133,7 @@ As três só cobram de quem tem o `bootstrap` habilitado (`if not any(ref.starts
 As decisões que fazem o desenho fechar:
 
 - **O gatilho é medido no próprio texto, não configurado** — `e_relato()` exige *"prosa suficiente E prova colada"*: pelo menos um bloco ``` e `MIN_PROSA = 2` linhas de prosa fora dele. O comentário registra a calibração: *"Exigir 4 de prosa deixava passar exatamente os relatos que dao certo."*
+- **Mas medir no texto não é escopo: quem delimita é o turno.** O teste de relato dizia *como* julgar e nunca *quando*, então o juiz rodava em todo fim de turno — 463 chamadas em 9 dias por um veredito de uma palavra. `usou_visual()` fecha o escopo antes do modelo: só o turno que passou pelo `/visual` é julgado. **Gate que só sabe reconhecer o objeto certo gasta em tudo que se parece com ele.**
 - **O anti-loop vem ANTES do gasto** — o contador é consultado antes de `julga()`, com o comentário *"anti-loop antes de gastar o modelo"*.
 - **Fail-open em tudo que não for reprovação explícita** — `julga()` devolve `(True, motivo)` para `claude` ausente no PATH, timeout, `returncode != 0`, saída vazia e veredito ilegível.
 - **O modelo é barato e trocável** — `FORMA_RELATO_MODEL`, default `haiku`; `TIMEOUT_S = 25`; o prompt corta a entrada em `texto[:6000]`.
