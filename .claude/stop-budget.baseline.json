@@ -8,6 +8,12 @@
     },
     {
       "plugin": "bootstrap",
+      "script": "stop-regua-relato.py",
+      "linhas": 0,
+      "timeout": 10
+    },
+    {
+      "plugin": "bootstrap",
       "script": "stop-forma-relato.py",
       "linhas": 0,
       "timeout": 30
@@ -25,15 +31,21 @@
       "timeout": 60
     },
     {
-      "plugin": "project-doc",
+      "plugin": "lixeiro",
+      "script": "stop-colhe-turno.sh",
+      "linhas": 0,
+      "timeout": 20
+    },
+    {
+      "plugin": "project-skills",
       "script": "stop-doc-touch.sh",
       "linhas": 0,
       "timeout": 15
     },
     {
-      "plugin": "visual",
+      "plugin": "project-skills",
       "script": "stop-plan-status.sh",
-      "linhas": 5,
+      "linhas": 1,
       "timeout": 15
     },
     {
@@ -43,6 +55,33 @@
       "timeout": 20
     }
   ],
-  "total_linhas": 6,
-  "teto": 6
+  "total_linhas": 2,
+  "teto": 6,
+  "terceiros": [
+    {
+      "marketplace": "claude-plugins-official",
+      "plugin": "security-guidance",
+      "versao": "2.0.6",
+      "linhas": 0,
+      "timeout": null,
+      "nota": null
+    },
+    {
+      "marketplace": "impeccable",
+      "plugin": "impeccable",
+      "versao": "4.0.4",
+      "linhas": 0,
+      "timeout": 30,
+      "nota": null
+    },
+    {
+      "marketplace": "openai-codex",
+      "plugin": "codex",
+      "versao": "1.0.6",
+      "linhas": 0,
+      "timeout": 900,
+      "nota": null
+    }
+  ],
+  "total_terceiros": 0
 }

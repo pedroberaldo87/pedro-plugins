@@ -3,14 +3,14 @@ generated: 2026-08-08
 generated-commit: d083b96
 project: pedro-plugins
 scope:
-  - plugins/project-doc/hooks/sessionstart-doc.sh
-  - plugins/project-doc/hooks/sessionstart-organism.sh
-  - plugins/project-doc/hooks/pretooluse-plan-gate.sh
-  - plugins/project-doc/hooks/userpromptsubmit-plan-escape.sh
-  - plugins/project-doc/hooks/posttooluse-doc-read.sh
-  - plugins/project-doc/hooks/lib-project-root.sh
-  - plugins/project-doc/hooks/doc-detect.sh
-  - plugins/project-doc/hooks/hooks.json
+  - plugins/project-skills/hooks/sessionstart-doc.sh
+  - plugins/project-skills/hooks/sessionstart-organism.sh
+  - plugins/project-skills/hooks/pretooluse-plan-gate.sh
+  - plugins/project-skills/hooks/userpromptsubmit-plan-escape.sh
+  - plugins/project-skills/hooks/posttooluse-doc-read.sh
+  - plugins/project-skills/hooks/lib-project-root.sh
+  - plugins/project-skills/hooks/doc-detect.sh
+  - plugins/project-skills/hooks/hooks.json
   - plugins/bootstrap/hooks/session-sync.sh
   - plugins/bootstrap/hooks/lib/apply.sh
   - plugins/bootstrap/hooks/lib/snapshot.sh
@@ -26,8 +26,8 @@ scope:
   - plugins/visual/skills/visual/SKILL.md
   - plugins/visual/skills/visual/template.html
   - plugins/visual/hooks/pre-exitplan-visualize.sh
-  - plugins/visual/hooks/sessionstart-plan.sh
-  - plugins/visual/hooks/stop-plan-status.sh
+  - plugins/project-skills/hooks/sessionstart-plan.sh
+  - plugins/project-skills/hooks/stop-plan-status.sh
   - plugins/visual/hooks/stop-anuncio-sem-acao.py
   - plugins/visual/hooks/hooks.json
   - plugins/project-skills/lib/plan_state.py
@@ -50,8 +50,7 @@ scope:
   - plugins/graphify-guard/hooks/hooks.json
   - _shared/sessionstart-deps.sh
   - plugins/bootstrap/hooks/sessionstart-deps.sh
-  - plugins/sovai/hooks/hooks.json
-  - plugins/sovai/hooks/posttooluse-andamento.sh
+  - plugins/project-skills/hooks/posttooluse-andamento.sh
   - plugins/project-skills/lib/andamento.py
   - plugins/gauntlet/hooks/hooks.json
   - plugins/gauntlet/hooks/pretooluse-gauntlet.sh
@@ -67,7 +66,7 @@ scope:
 verified-by:
   - plugins/bootstrap/hooks/test_bootstrap_hooks.sh
   - plugins/bootstrap/lib/test_conformance.py
-  - plugins/project-doc/hooks/test_plan_gate.sh
+  - plugins/project-skills/hooks/test_plan_gate.sh
   - plugins/visual/hooks/test_plan_hooks.sh
   - plugins/visual/hooks/test_anuncio_sem_acao.py
   - scripts/test_hook_contract.py
@@ -75,8 +74,8 @@ verified-by:
   - plugins/project-skills/lib/test_plan_state.py
   - plugins/project-skills/lib/test_cobertura.py
   - plugins/ship/hooks/test_pre_deploy.sh
-  - plugins/sovai/lib/test_andamento.py
-  - plugins/sovai/hooks/test_andamento_hook.sh
+  - plugins/project-skills/lib/test_andamento.py
+  - plugins/project-skills/hooks/test_andamento_hook.sh
   - plugins/gauntlet/hooks/test_gauntlet_hooks.sh
   - plugins/lixeiro/hooks/test_lixeiro_hooks.sh
 doc-sig: pedro-plugins/sessionstart-doc.sh@gen=3.8#89ff79be
@@ -88,21 +87,24 @@ Este doc descreve **o que acontece em execução**. Estrutura do repo está em `
 
 **Rótulos:** `[confirmado]` = lido ou executado neste run · `[inferido]` = deduzido do código, não executado · `[relatado]` = veio de comentário/doc do próprio repo e não foi executado aqui.
 
-**Contagem de hooks (derivada mecanicamente neste run**, somando `len(b["hooks"])` sobre cada evento de todos os `plugins/*/hooks/hooks.json`):
+**Contagem de hooks — DERIVE, não copie.** O número muda a cada plugin tocado; o que vale é o comando, não o dígito de ontem:
 
+```bash
+python3 - <<'EOF'
+import json, glob, collections
+ev = collections.Counter(); scripts = set()
+for f in sorted(glob.glob('plugins/*/hooks/hooks.json')):
+    for e, bl in json.load(open(f))['hooks'].items():
+        for b in bl:
+            for h in b['hooks']:
+                ev[e] += 1; scripts.add(h.get('command', ''))
+print(dict(ev), 'TOTAL', sum(ev.values()), '·', len(scripts), 'comandos distintos')
+EOF
 ```
-SessionStart     21     (12 deles são o MESMO sessionstart-deps.sh — ver fluxo 7.0)
-PreToolUse       17
-PostToolUse       9
-Stop              9
-SessionEnd        1
-UserPromptSubmit  2
-TOTAL            59 registros · 45 scripts distintos
-```
 
-⚠️ **Registro ≠ script ≠ execução, e os três números divergem de propósito.** Os 59 registros viram 45 scripts (um script pode estar em dois eventos — o `posttooluse-andamento.sh` do sovai está em `Pre` e `PostToolUse`), e os 45 viram muito menos execuções úteis: doze dos registros de `SessionStart` chamam o mesmo `sessionstart-deps.sh`, que fala **uma vez por sessão** e sai calado nas outras onze.
+⚠️ **Registro ≠ script ≠ execução, e os três números divergem de propósito.** Um script pode estar em dois eventos (`project-skills/hooks/posttooluse-andamento.sh` está em `Pre` **e** `PostToolUse`), e os scripts viram muito menos execuções úteis: a maioria dos registros de `SessionStart` chama o mesmo `sessionstart-deps.sh`, que fala **uma vez por sessão** e sai calado nas outras — ver fluxo 7.0.
 
-⚠️ Isso mede o que o repo **oferece**. O que **roda** é a interseção com `enabledPlugins` do `~/.claude/settings.json` — e o manifest traz **cinco** desligados de fábrica: `gauntlet`, `graphify-guard`, `intent-guard`, `project-skills` e `vistoria`. `[confirmado — varredura dos hooks.json e leitura do manifest nesta rodada]`
+⚠️ Isso mede o que o repo **oferece**. O que **roda** é a interseção com `enabledPlugins` do `~/.claude/settings.json`, e quem desliga de fábrica é o manifest — a lista sai dele, nunca de prosa (o comando está no fluxo 7). `[confirmado — varredura dos hooks.json e leitura do manifest nesta rodada]`
 
 ---
 
@@ -213,11 +215,11 @@ O índice carrega o marker `<!-- project-doc:v2 gen=3.8 -->` na primeira linha. 
 
 ## 4 · Live-sync do /visual e o gate no ExitPlanMode
 
-**Dispara quando:** (a) o usuário invoca `/visual`, ou (b) o `PreToolUse` em `ExitPlanMode` de `plugins/visual/hooks/hooks.json` → `pre-exitplan-visualize.sh` (**timeout 10**) bloqueia um plano. `[confirmado]`
+**Dispara quando:** (a) o usuário invoca `/visual`, ou (b) o portão único de `ExitPlanMode` (fluxo 8) **chama** `plugins/visual/hooks/pre-exitplan-visualize.sh` e ele bloqueia um plano. ⚠️ **O `visual` deixou de se registrar nesse evento** — `plugins/visual/hooks/hooks.json` declara hoje apenas `Stop` e `SessionStart`, e o script do gate segue no disco como **peça chamada**, não como hook. Quem prova é `python3 scripts/hook_contract.py --responde ExitPlanMode`. `[confirmado]`
 
 **Passos:**
 
-1. **Resolução do diretório** — `plugins/visual/skills/visual/resolve-dir.sh` aplica uma cascata de 3: raiz git (`git rev-parse --show-toplevel`) → ancestral com marcador, parando antes de `$HOME` e de `/` → fallback `~/Desktop/claude-<sub>`. Os marcadores, copiados literal do script: `package.json`, `CLAUDE.md`, `pyproject.toml`, `Cargo.toml`, `go.mod`, `graphify-out/`, `.git`. O alvo é `<dir>/.claude/<sub>`, onde `<sub>` é o **2º argumento** (default `visual`; o motor de plano passa `plans`). O diretório é criado com `mkdir -p` antes de imprimir. Fonte única: hook, skill e `plan_state.py` chamam **este** script. `[confirmado]`
+1. **Resolução do diretório** — `plugins/visual/skills/visual/resolve-dir.sh` aplica uma cascata de 3: raiz git (`git rev-parse --show-toplevel`) → ancestral com marcador, parando antes de `$HOME` e de `/` → fallback `~/Desktop/claude-<sub>`. Os marcadores, copiados literal do script: `package.json`, `CLAUDE.md`, `pyproject.toml`, `Cargo.toml`, `go.mod`, `graphify-out/`, `.git`. O alvo é `<dir>/.claude/<sub>`, onde `<sub>` é o **2º argumento** (default `visual`; o motor de plano passa `plans`). O diretório é criado com `mkdir -p` antes de imprimir. **Fonte única: `_shared/resolve-dir.sh`**, vendorada — quem chama sempre chama uma cópia dela (a skill do `/visual` a sua; `plan_state.py:resolve_dir` a irmã em `plugins/project-skills/lib/resolve-dir.sh`, resolvida por `dirname(__file__)`). Editar a cópia em vez do original é o drift que `scripts/sync-shared.sh --check` acusa. `[confirmado — `diff` entre as cópias e leitura de `resolve_dir`]`
 2. **Token de sessão** — a página injeta `<script>window.VISUAL_SESSION = "<token>";</script>` logo depois de `<body>`; o servidor valida contra `SESSION_RE = /^[a-zA-Z0-9_-]{4,64}$/`. `[confirmado — `visual_server.mjs`; formato do token em `SKILL.md`, seção "Live sync via claude-visual-server"]`
 3. **Subir o daemon** — `${CLAUDE_PLUGIN_ROOT}/server/start.sh` pinga `http://127.0.0.1:$PORT/ping` com `curl -sf --max-time 1`; respondeu, sai. Senão exige `node` no PATH e sobe `nohup env CLAUDE_VISUAL_PORT="$PORT" node visual_server.mjs &` + `disown`, esperando até 8 × `sleep 0.25`. Porta: `CLAUDE_VISUAL_PORT`, default `7755`. `[confirmado]`
 4. **Daemon** — `plugins/visual/server/visual_server.mjs`, Node stdlib puro, escuta em `127.0.0.1`. Rotas: `GET /ping` → `{status,pid,port}`; `POST /state` com body `{session, docTitle?, state}`; `GET /state?session=<id>`. Corpo acima de `MAX_BODY_SIZE` (256 KB) → HTTP 413. `EADDRINUSE` → `process.exit(0)` silencioso. Auto-desligamento por ociosidade em `IDLE_TIMEOUT_MS` (30 min), checado a cada minuto. `[confirmado]`
@@ -242,9 +244,9 @@ O índice carrega o marker `<!-- project-doc:v2 gen=3.8 -->` na primeira linha. 
 - **Gate de arquivo de plano** — roda `plan_state.py --dir "$PLANS_DIR" open --json`; saída vazia ou `[]` → `HAS_PLAN_FILE=0` e `exit 2` mandando rodar `init`. Sem `python3` ou sem o script, `HAS_PLAN_FILE=1` (não cobra).
 - **Sem visual nenhum** → `exit 2` com o conteúdo literal de `.tool_input.plan` no stderr e o filename sugerido `<YYYY-MM-DD>-sess-<8char>-plan.html`.
 
-**Três gates disputam o `ExitPlanMode`** neste marketplace, cada um em seu `hooks.json`: `visual/hooks/pre-exitplan-visualize.sh`, `intent-guard/hooks/plan-gate.sh` e `project-doc/hooks/pretooluse-plan-gate.sh` (que também cobre `EnterPlanMode`). O registro dos três é `[confirmado]`; a ordem de execução entre plugins **não é determinável a partir deste repo**.
+🔴 **Este gate deixou de ser um dos três que disputavam o `ExitPlanMode`.** Hoje ele é a **segunda peça** do portão único descrito no fluxo 8: quem se registra no evento é `plugins/project-skills/hooks/pretooluse-plan-gate.sh`, e é ele que chama este script por nome de plugin, depois do gate de pedido. Consequência prática para quem debuga: **`VISUAL_GATE=0` continua calando esta peça**, mas o portão inteiro só se desliga com `PLAN_PORTAO_UNICO=0` — e um `pre-exitplan-visualize.sh` que nunca fala pode estar mudo por não ter sido chamado, não por não ter achado defeito. `[confirmado — leitura do laço `for PECA` no portão]`
 
-**Verificado:** `bash plugins/visual/hooks/test_plan_hooks.sh` → **OK (33 checks)** neste run, e a suíte nova do próprio gate, `bash plugins/visual/hooks/test_exitplan_gate.sh` → **OK (12 checks)** — ela fecha com kill-switch e fail-open (*"VISUAL_GATE=0 cala tudo"*, *"sem session_id, não bloqueia"*). `[confirmado]`
+**Verificado nesta rodada:** `bash plugins/visual/hooks/test_exitplan_gate.sh` → **OK (12 checks)** — fecha com kill-switch e fail-open (*"VISUAL_GATE=0 cala tudo"*, *"sem session_id, não bloqueia"*). A suíte que exercita os dois hooks de plano mudou de casa junto com eles: `bash plugins/project-skills/hooks/test_plan_hooks.sh`. `[confirmado — as duas rodadas]`
 
 ---
 
@@ -254,10 +256,10 @@ O índice carrega o marker `<!-- project-doc:v2 gen=3.8 -->` na primeira linha. 
 
 **A regra estrutural:** o Claude **autora** o plano uma vez (`init`) e daí em diante só **marca** (`tick`). Quem desenha a árvore é o programa, lendo o arquivo — por isso o título não deriva entre renders. `[confirmado]`
 
-**Duas portas cobram o plano, e desde 2026-08-02 elas cobrem casos opostos** `[confirmado — `plugins/visual/hooks/`]`:
+**Duas portas cobram o plano, e elas cobrem casos opostos.** ⚠️ **As duas mudaram de dono nesta rodada** — a família de projeto (`plugins/project-skills/hooks/`) passou a ser a casa dos dois lados `[confirmado — `ls` do diretório e o `hooks.json` do plugin]`:
 
-- **Antes do plano existir** — `PreToolUse[ExitPlanMode]` (`pre-exitplan-visualize.sh`) exige arquivo de plano + HTML com prova. Só arma **se você entrar em plan mode**.
-- **Depois do trabalho acontecer** — `Stop` (`stop-plan-status.sh:155-191`) cobra o plano **ausente**: sessão que editou ≥ `PISO` arquivos **distintos** e não tem nenhum plano ativo recebe o aviso uma vez, com sentinela própria (`claude-plan-missing-…`).
+- **Antes do plano existir** — `PreToolUse[ExitPlanMode]`, hoje via o portão único (`pretooluse-plan-gate.sh`), que chama `visual/hooks/pre-exitplan-visualize.sh` e exige arquivo de plano + HTML com prova. Só arma **se você entrar em plan mode**.
+- **Depois do trabalho acontecer** — `Stop` (`plugins/project-skills/hooks/stop-plan-status.sh`, no bloco da cobrança de plano ausente) cobra o plano **ausente**: sessão que editou ≥ `PISO` arquivos **distintos** e não tem nenhum plano ativo recebe o aviso uma vez, com sentinela própria (`claude-plan-missing-…`).
 
 O segundo nasceu de um buraco medido: **7 commits em 2026-08-02 sem plano nenhum, e nada acusou** — porque o gate antigo só dispara em plan mode, e trabalho feito direto nunca passa por lá.
 
@@ -272,7 +274,7 @@ O segundo nasceu de um buraco medido: **7 commits em 2026-08-02 sem plano nenhum
 ### Os quatro símbolos de maior fan-in
 
 - **`PlanError`** — a exceção única do módulo. `main()` a captura, escreve a mensagem no stderr e devolve **2**; qualquer outra exceção sobe como traceback. Todo caminho de recusa do módulo passa por ela: JSON inválido, plano inexistente, `resolve-dir.sh` ausente ou mudo, `template.html` não encontrado, tique de fase, tique sem prova, `state … done`, renomear sem `--rename`. É o motivo de um hook conseguir tratar "plano recusado" por exit code, sem parsear texto. `[confirmado]`
-- **`resolve_dir(cwd=None)`** — delega ao `skills/visual/resolve-dir.sh` com o 2º argumento `plans`, **em vez de reimplementar a cascata em Python**. Se o script sumir ou não devolver caminho, levanta `PlanError` mandando passar `--dir`. É essa delegação que garante que `/visual` e o store de planos nunca resolvam projetos diferentes. `[confirmado]`
+- **`resolve_dir(cwd=None)`** — delega ao `resolve-dir.sh` irmão (`os.path.dirname(__file__)`, hoje `plugins/project-skills/lib/`) com o 2º argumento `plans`, **em vez de reimplementar a cascata em Python**. Se o script sumir ou não devolver caminho, levanta `PlanError` mandando passar `--dir`. É essa delegação que garante que `/visual` e o store de planos nunca resolvam projetos diferentes — **enquanto as cópias vendoradas de `_shared/resolve-dir.sh` estiverem em dia**, o que `bash scripts/sync-shared.sh --check` responde. `[confirmado]`
 - **`pick_plan(directory, plan_id=None)`** — resolve *qual* plano. Com id, abre `<id>.plan.json` ou levanta `PlanError`. Sem id, exige exatamente **um** plano com `status == "active"`: zero levanta `nenhum plano ativo`, dois ou mais levanta `há N planos ativos (…) — diga qual`. Adivinhar aqui é como o plano se perde, e o código recusa adivinhar. Chamado por `tick`, `state`, `render`, `page`, `close` e `reopen`. `[confirmado]`
 - **`plan_progress(plan)`** — percorre `iter_items` e devolve `(feitos, total)` contando `status == "done"`. É a métrica única: alimenta o texto do `tick`, o `close` (que decide entre `done` e `abandoned`), o `summary`, os bullets do `brief`, a barra `.pt-fill` do HTML e os chips da página. Fase **não tem estado próprio** — `phase_status` também é derivada dos passos, porque estado duplicado é estado que diverge. `[confirmado]`
 
@@ -305,6 +307,8 @@ A regra de quem decide é do modelo, não do programa: mora em `plugins/visual/s
 Empate se resolve **por natureza, nunca por contagem de votos** — quem escreveu o plano não vota. Divergência sobre **fato** vira medição: roda e cola a saída (`por: "medicao"`, saída crua no campo `prova`). Divergência sobre **mérito** vai ao usuário no modo interativo e, no autônomo, segue a opção **mais reversível** (`por: "mais-reversivel"`), com a decisão obrigatoriamente no topo do relatório final. O registro vai no campo `decidido` da tarefa e guarda a pergunta original, pra que `plan_state.py reabrir` consiga restaurá-la. `[confirmado]`
 
 ### Os dois hooks que costuram o plano à sessão
+
+⚠️ **Os dois MUDARAM DE PLUGIN nesta rodada:** `sessionstart-plan.sh` e `stop-plan-status.sh` saíram do `visual` e passaram a morar — e a se registrar — em `plugins/project-skills/hooks/`. Junto com eles mudou o resolvedor que chamam: hoje é `"$SCRIPT_DIR/../lib/resolve-dir.sh"`, a cópia da própria família, e não mais o script dentro da skill do `/visual`. Quem cita o caminho velho está citando um arquivo que o hook não abre mais. `[confirmado — `grep -n resolve-dir` nos dois scripts e o `hooks.json` do `project-skills`]`
 
 - **`sessionstart-plan.sh`** (SessionStart, timeout 10) — cria o marco `${TMPDIR:-/tmp}/claude-plan-mark-$(id -u)-${SESSION}-${PHASH}` **mesmo sem plano aberto**, e injeta `additionalContext` listando os planos abertos com `done/total`, o próximo passo e o caminho do arquivo. Desde esta rodada ele acrescenta uma linha `🔎 Cobertura requisito↔tarefa:` com as **duas primeiras linhas** de `plan_state.py --dir "$PLANS_DIR" cobertura` — o resumo e o aviso de "nenhum documento de requisitos encontrado". O comentário do arquivo dá o motivo de o número entrar aqui e não pelo `brief`: este hook monta o texto a partir do `open --json` e não passa pelo `brief`, e sem isso o número apareceria só no fim do turno, *"e não no começo da sessão, que é justamente quando o Claude novo decide o que fazer"*. Saída vazia (2+ planos ativos, nenhum plano) não acrescenta nada — fail-open como o resto do hook. `[confirmado — leitura do script nesta rodada]`
 - **`stop-plan-status.sh`** (Stop, timeout 15) — emite `systemMessage` com os bullets de `plan_state.py brief`, nunca `decision:block`. Desliga com `PLAN_STATUS=0`; só a cobrança do tique desliga com `PLAN_NUDGE=0`. A cobrança entra 1× por (sessão, projeto), e **só** quando há marco antigo, nenhum `*.plan.json` foi tocado desde ele e o transcript mostra 3+ chamadas de `Edit|Write|MultiEdit|NotebookEdit`. Se o marco não existe, o hook **cria** o marco e não cobra naquele turno — o comentário registra a regra geral: hook que depende de outro hook ter rodado é frágil, então crie o pré-requisito você mesmo. `[confirmado]`
@@ -350,13 +354,35 @@ O número **aparece sem ser pedido**, em quatro superfícies, todas lendo a mesm
 
 ### Quando quem marca é o MOTOR, e não uma pessoa
 
-O ciclo acima descreve o tique feito à mão. Na execução contínua quem marca é um agente do motor (`plugins/project-skills/skills/sprint/SKILL.md`), e três defeitos medidos em 2026-08-08 mudaram a forma desse papel. `[confirmado — leitura do SKILL.md e da bancada nesta rodada]`
+O ciclo acima descreve o tique feito à mão. Na execução contínua quem marca é um agente do motor (`plugins/project-skills/skills/sprint/SKILL.md`, o maior bloco ```javascript), e defeitos medidos em duas autópsias seguidas mudaram a forma desse papel. `[confirmado — leitura do SKILL.md e das duas bancadas nesta rodada]`
 
-- **O marcador é achado pelo NOME, nunca pela posição.** O passo `F14.2` desta mesma missão moveu `plan_state.py` de `plugins/visual/` para `plugins/project-skills/`, e o script do motor continuou apontando o caminho velho: **os 47 agentes de marcação falharam no primeiro comando e gastaram 8,45M de tokens redescobrindo o rename, cada um por conta própria**. Hoje o caminho sai de `resolve-plugin.sh project-skills lib/plan_state.py` — `grep -c resolve-plugin plugins/project-skills/skills/sprint/SKILL.md` devolve **8**, e `grep -c 'plugins/visual/lib/plan_state'` devolve **0**. A regra vale para todo caminho que o motor usa **para si mesmo**.
+**Nesta rodada (2026-08-09) o marcar deixou de ser um ato solo — a palavra de quem executou não basta mais.** Duas travas, e as duas **nomeiam o que seguraram** em vez de calar:
+
+- **O de acordo do revisor.** Passo que apareceu em `review.gaps` ou em `review.missingTasks` **não é marcado naquela onda** — ele volta ao laço pelo feedback normal e o trabalho fica no disco. Os ids segurados saem em `rounds[].naoMarcados = { motivo: 'reprova do revisor', ids }` e o `log()` os narra.
+- **A onda verde.** `suite.green` falso ⇒ **nada é marcado**, e os entregues saem em `rounds[].naoMarcados = { motivo: 'onda vermelha', ids }`. O motivo escrito no código: marcar sem ponto de salvamento grava no plano um trabalho que não entrou no histórico. Medida que originou as duas: **17 passos marcados em ondas vermelhas, 9 deles com o defeito já escrito pelo revisor da mesma onda.**
+
+**A conferência final passou a rodar também na PARADA.** Antes, `confirm-pass` só existia no caminho feliz sem `/qa-loop`, e o `/qa-loop` da etapa seguinte só roda depois de `built=true` — quem parava por teto, por vigia ou por onda estéril entregava sem segunda checagem nenhuma. Hoje o relatório carrega **`conferidoPor`** com quatro valores possíveis: `qa-loop da etapa seguinte` · `confirm-pass` · `confirm-na-parada` · `nenhuma`. Gap achado na parada **não volta ao laço** (a missão já parou): vira aviso nomeado, para o conserto entrar como tarefa no plano. ⚠️ **Exceção única: parada por ORÇAMENTO não gasta a conferência** — o disjuntor é teto duro, e gastar um agente depois dele é o disjuntor deixando de ser disjuntor. A ausência não passa calada porque `conferidoPor` diz o que rodou. `[confirmado — o bloco `if (!built && entregouAlgo && desligadoPor !== 'orcamento')`]`
+
+**Onda estéril ENCERRA a corrida.** Onda que decompõe e não tem **uma** tarefa executável sai com `stopReason: onda-esteril` e um Bloqueio dizendo quantas foram separadas sem sair. Medido: duas ondas seguidas separaram 40 e 30 tarefas e executaram zero, com a fila inteira parada por bloqueio ou espera — e o motor seguiu pagando a decomposição, que é a parte cara. O que trava já está no relatório (`esperandoVoce`, `impedidos`); rodar de novo é o mesmo resultado pelo mesmo preço.
+
+**O diagnóstico de tarefa-presa virou LAÇO, não parecer único.** Quem investiga para na **causa** (nunca descreve o sintoma e manda consertar ali). A causa vai a um **desafiador** (`desafioCausaPrompt`, schema `DESAFIO = { procede, motivo, anchor }`, mesmo `diagnose_model`) com a lente invertida: o papel dele é **provar que a causa está errada**. Os dois iteram — o desafio da volta anterior volta ao investigador em `desafioAnterior` — até um referendar o outro; acordo entra no `feedback` marcado `desafiada: true`. **Desafiador mudo não referenda**, e três voltas sem acordo não escolhem vencedor: viram Bloqueio `kind: 'causa-em-disputa'` com as duas versões escritas. Nasceu de regressão medida: um conserto pontual, feito onde o defeito apareceu, reabriu o mesmo problema em outro arquivo. `[confirmado — o laço `for (let volta = 1; volta <= 3 && !acordo; volta++)`]`
+
+**As três lições da autópsia anterior (2026-08-08) continuam valendo:**
+
+- **O marcador é achado pelo NOME, nunca pela posição.** O passo `F14.2` desta mesma missão moveu `plan_state.py` de `plugins/visual/` para `plugins/project-skills/`, e o script do motor continuou apontando o caminho velho: **os 47 agentes de marcação falharam no primeiro comando e gastaram 8,45M de tokens redescobrindo o rename, cada um por conta própria**. Hoje o caminho sai de `resolve-plugin.sh project-skills lib/plan_state.py`. A régua é comparativa, e são dois comandos: `grep -c resolve-plugin plugins/project-skills/skills/sprint/SKILL.md` tem que ser > 0, e `grep -c 'plugins/visual/lib/plan_state' plugins/project-skills/skills/sprint/SKILL.md` tem que ser **0**. `[confirmado — os dois rodados nesta rodada]` A regra vale para todo caminho que o motor usa **para si mesmo**.
 - **A onda inteira é marcada por UM agente, com N comandos em sequência** — não um agente por passo. A autópsia do run mediu a marcação em 7,1% do gasto, e o ganho de juntar em lote foi medido em 5%; o que decidiu não foi o número, foi que marcar é **operação já decidida**, sem julgamento a isolar. O critério ficou escrito: um agente por *tarefa de trabalho* é desenho, um agente por *operação já decidida* é desperdício.
 - **O silêncio da marcação virou bloqueio nomeado.** O papel devolve `TICK_RESULT` — `{ marcados: [{ task_id, ok, motivo }] }`, uma entrada por passo tentado. `agent()` nulo, lista vazia, ou passo que o script mandou marcar e **não aparece no veredito** ⇒ Bloqueio com o id do passo. Antes disso o `agent()` do tique era chamado sem schema e sem atribuição, e o retorno era descartado: um agente gastou 127.924 tokens, fez 3 comandos, voltou com texto vazio e **nunca executou o tique** — o passo entregue ficou gravado como não feito, sem que nada acusasse. `SUITE_RESULT` e `RESERVA` sempre tiveram schema; o tique era a exceção.
 
-**Verificado:** `python3 plugins/project-skills/lib/test_plan_state.py` → **OK** (309 asserções `ok`), `python3 plugins/project-skills/lib/test_cobertura.py` → **OK** (68), `python3 plugins/sovai/lib/test_motor_bancada.py` → **OK (121 checks)** — esta roda o motor de verdade em Node contra um plano temporário — e `python3 plugins/sovai/lib/test_travas_motor.py` → **OK (150 checks)**, todas nesta rodada. `[confirmado — saída de cada uma]`
+**Verificado nesta rodada** — todas na casa nova, `plugins/project-skills/lib/`; o número de checks está na saída de cada uma, não aqui:
+
+```bash
+python3 plugins/project-skills/lib/test_plan_state.py     # o arquivo de plano
+python3 plugins/project-skills/lib/test_cobertura.py      # o fio requisito↔tarefa
+python3 plugins/project-skills/lib/test_motor_bancada.py  # roda o motor de verdade em Node
+python3 plugins/project-skills/lib/test_travas_motor.py   # as travas acima, uma a uma
+```
+
+`[confirmado — as quatro saíram `OK` nesta rodada; a última fecha com *"tres voltas sem acordo viram disputa, nao conserto"*]`
 
 ---
 
@@ -393,26 +419,21 @@ Teto conhecido, escrito no próprio comentário: flag **com valor** no lançador
 
 ## 7 · ARRANQUE — o que roda no SessionStart
 
-**Os 21 comandos, derivados mecanicamente** dos `plugins/*/hooks/hooks.json` neste run:
+**Quem responde ao `SessionStart` — DERIVE, não copie.** Plugin nasce e morre; a lista sai do disco:
 
-```
-plugins/bootstrap/hooks/hooks.json        2  session-sync.sh (sem timeout), sessionstart-deps.sh (5s)
-plugins/branches/hooks/hooks.json         2  sessionstart-branches.sh (15s), + deps
-plugins/context-guard/hooks/hooks.json    2  context-guard-reset.sh (5s), + deps
-plugins/gauntlet/hooks/hooks.json         1  + deps
-plugins/graphify-guard/hooks/hooks.json   2  sessionstart-graphify.sh (10s), + deps
-plugins/guardrails/hooks/hooks.json       1  + deps
-plugins/handoff/hooks/hooks.json          2  sessionstart-ata.sh (10s), + deps
-plugins/intent-guard/hooks/hooks.json     1  + deps
-plugins/lixeiro/hooks/hooks.json          2  sessionstart-orfaos.sh (20s), + deps
-plugins/project-doc/hooks/hooks.json      3  sessionstart-organism.sh, sessionstart-doc.sh (10s cada), + deps
-plugins/ship/hooks/hooks.json             1  + deps
-plugins/sovai/hooks/hooks.json            1  + deps
-plugins/visual/hooks/hooks.json           2  sessionstart-plan.sh (10s), + deps
-TOTAL 22 registros — mas só 10 SCRIPTS distintos
+```bash
+python3 - <<'EOF'
+import json, glob
+for f in sorted(glob.glob('plugins/*/hooks/hooks.json')):
+    for b in json.load(open(f))['hooks'].get('SessionStart', []):
+        for h in b['hooks']:
+            print(f.split('/')[1].ljust(16), h['command'][-60:], h.get('timeout'))
+EOF
 ```
 
-⚠️ **O arranque triplicou de registros e não triplicou de trabalho.** Treze dos 22 são o mesmo `sessionstart-deps.sh` (marcado `+ deps` acima), e ele é desenhado pra que **doze das treze execuções não façam nada**: a primeira a rodar cria um sentinel por sessão com `set -C` (o `noclobber` do shell, que é o cria-se-não-existe atômico) e as outras saem 0 caladas. O aviso sai **uma vez por sessão, não uma por plugin instalado**.
+⚠️ **Os únicos com script PRÓPRIO no arranque, nesta rodada:** `bootstrap` (`session-sync.sh`, sem timeout), `branches`, `context-guard`, `graphify-guard`, `handoff`, `lixeiro`, `visual` (só o deps) e `project-skills`, que sozinho traz **três** — `sessionstart-organism.sh`, `sessionstart-doc.sh` e `sessionstart-plan.sh`. ⚠️ **O terceiro chegou nesta rodada**, vindo do `visual`. `[confirmado — saída do comando acima]`
+
+⚠️ **O arranque tem muitos registros e pouco trabalho.** A maioria é o mesmo `sessionstart-deps.sh`, e ele é desenhado pra que **só a primeira execução faça algo**: ela cria um sentinel por sessão com `set -C` (o `noclobber` do shell, que é o cria-se-não-existe atômico) e as outras saem 0 caladas. O aviso sai **uma vez por sessão, não uma por plugin instalado**.
 
 **Quantos rodam aqui: depende do que está ligado**, e a lista sai do manifesto, não de prosa:
 
@@ -428,7 +449,7 @@ def anda(o):
 print([n for n,e in anda(json.load(open('plugins/bootstrap/config/manifest.json'))) if not e])"
 ```
 
-🔴 **Três voltaram a nascer ligados em 2026-08-08, e os três eram furos diferentes** `[confirmado — commit `4415b10`]`. O `project-skills` estava desligado depois de **receber sete skills** que mudaram de plugin (`doc`, `doc-touch`, `plan`, `qa-loop`, `sprint`, `start`, `project-skills`): quem instalasse não receberia nenhuma delas. A `vistoria` estava no mesmo caso. O `intent-guard` estava fora desde que a catraca de entrega crescia sozinha — o defeito fechou, e o religamento foi conferido antes: `claude plugin details intent-guard@pedro-plugins` mostra `Hooks (5)`, e as cinco suítes dele passam (`test_ledger`, `test_delivery_audit`, `test_hooks_capture`, `test_plan_gate`, `test_task_checkpoint`). Dos plugins da casa, seguem `enabled: false` apenas `gauntlet` e `graphify-guard`.
+🔴 **Três voltaram a nascer ligados em 2026-08-08, e os três eram furos diferentes** `[confirmado — commit `4415b10`]`. O `project-skills` estava desligado depois de **receber sete skills** que mudaram de plugin (`doc`, `doc-touch`, `plan`, `qa-loop`, `sprint`, `start`, `project-skills`): quem instalasse não receberia nenhuma delas. A `vistoria` estava no mesmo caso. O `intent-guard` estava fora desde que a catraca de entrega crescia sozinha — o defeito fechou, e o religamento foi conferido antes: `claude plugin details intent-guard@pedro-plugins` mostra `Hooks (5)`, e as cinco suítes dele passam (`test_ledger`, `test_delivery_audit`, `test_hooks_capture`, `test_plan_gate`, `test_task_checkpoint`). ⚠️ **Quais da casa seguem `enabled: false` sai do comando acima cruzado com o índice da distribuição** (`.claude-plugin/marketplace.json`) — a lista em prosa envelhece a cada plugin que nasce ou morre.
 
 ⚠️ **Hook novo só entra em sessão NOVA.** `/reload-plugins` recarrega o que já está registrado; não instala nem ativa hook. O `intent-guard` foi religado no registro numa sessão e os hooks dele só passaram a rodar no arranque seguinte.
 
@@ -446,7 +467,7 @@ Três decisões de implementação que só fazem sentido juntas:
 
 ### Ordem
 
-> A ordem de disparo **entre** plugins não é determinável a partir deste repositório: nenhum `hooks.json` declara prioridade e o harness não está aqui. O único ordenamento que o código fixa é **interno ao `project-doc`**: em `plugins/project-doc/hooks/hooks.json` o array `SessionStart[0].hooks` lista `sessionstart-organism.sh` **antes** de `sessionstart-doc.sh`, e o segundo depende disso — ele só reenquadra o texto para "módulos de um organismo" porque, no comentário literal, "o `sessionstart-organism.sh` já deu o banner". `[confirmado]` · Que o harness respeite a ordem do array é `[inferido]`.
+> A ordem de disparo **entre** plugins não é determinável a partir deste repositório: nenhum `hooks.json` declara prioridade e o harness não está aqui. O único ordenamento que o código fixa é **interno ao `project-skills`**: em `plugins/project-skills/hooks/hooks.json` o bloco de índice 1 do array `SessionStart` lista `sessionstart-organism.sh` **antes** de `sessionstart-doc.sh`, e o segundo depende disso — ele só reenquadra o texto para "módulos de um organismo" porque, no comentário literal, "o `sessionstart-organism.sh` já deu o banner". `[confirmado]` · Que o harness respeite a ordem do array é `[inferido]`.
 
 ### O que cada um injeta
 
@@ -454,29 +475,52 @@ Três decisões de implementação que só fazem sentido juntas:
 2. **`context-guard/context-guard-reset.sh`** — não injeta nada; apaga os dois arquivos `/tmp` da própria sessão e faz prune de órfãos com mais de 1 dia. `[confirmado]`
 3. **`graphify-guard/sessionstart-graphify.sh`** — roda `graphify-detect.sh` e, havendo grafo, injeta `additionalContext` com cada projeto e sua frescura (`atualizado, build <data>` ou `⚠️ defasado: N arquivo(s) mudaram desde <data>`), mandando usar `graphify query` antes de grep/Explore. Grafo defasado acrescenta a ordem de oferecer `graphify --update`. Sem grafo, sai calado. **Não roda nesta máquina** (plugin desligado). `[confirmado — código lido; inatividade confirmada por `enabledPlugins`]`
 4. **`handoff/sessionstart-ata.sh`** — não injeta contexto. Grava `/tmp/claude-ata-session-<sha1(cwd)[:12]>` com `{session_id, transcript_path, cwd, source}`, porque a skill `handoff` não recebe `session_id` (skill ≠ hook) e o `extract_ata.py --auto` precisa do sentinel pra achar o `.jsonl` certo. O hash tem que ser idêntico ao de `extract_ata.py`. `[confirmado]`
-5. **`project-doc/sessionstart-organism.sh`** — exige `jq`, `python3` e `../lib/organism.py`. Roda `organism.py brief <cwd>`; com `.organism == true`, injeta o banner 🧬 com nome, número e nomes dos módulos, a `golden_rule` e as costuras (`• <id> (<severidade>): modA ↔ modB`). Fora de um organismo, sai calado. `[confirmado]`
-6. **`project-doc/sessionstart-doc.sh`** — três saídas, todas via `additionalContext`:
+5. **`project-skills/sessionstart-organism.sh`** — exige `jq`, `python3` e `../lib/organism.py`. Roda `organism.py brief <cwd>`; com `.organism == true`, injeta o banner 🧬 com nome, número e nomes dos módulos, a `golden_rule` e as costuras (`• <id> (<severidade>): modA ↔ modB`). Fora de um organismo, sai calado. `[confirmado]`
+6. **`project-skills/sessionstart-doc.sh`** — três saídas, todas via `additionalContext`:
    - **projeto documentado** → lista `CLAUDE.md` + nº de docs, com flag `⚠️ DEFASADA` (staleness `stale`) ou `⚠️ staleness indeterminado` (`unknown`) e `⚠️ fora do padrao atual (gen)` quando `pattern_check` reporta `in_pattern=false`;
    - **documentado mas sem nenhum autoral** → nudge `/start-doc gaps`, 1× por (sessão, projeto) via `${TMPDIR:-/tmp}/claude-doc-autoral-nudge-$(id -u)-${SID}-${PHASH}`, desligável com `DOC_AUTORAL_GATE=0`;
    - **sem doc nenhuma** → oferta do `/start-doc` mais o aviso de que o gate de plano vai barrar. Antes de afirmar ausência, o hook **reconsulta a raiz** com `doc-detect.sh --one "$PROJ"`, porque o modo descida não enxerga doc que vive acima do cwd. Os autorais cobrados são `quality-goals constraints context solution-strategy glossary`, mais `design` só quando `has_frontend` retorna verdadeiro. `[confirmado]`
-7. **`visual/sessionstart-plan.sh`** — cenário 5. Injeta `additionalContext` com os planos abertos, o próximo passo, o caminho do arquivo e a linha de cobertura requisito↔tarefa; sem plano aberto sai calado, mas **o marco em `TMPDIR` é criado antes disso**. `[confirmado]`
+7. **`project-skills/sessionstart-plan.sh`** (⚠️ **saiu do `visual` nesta rodada**) — cenário 5. Injeta `additionalContext` com os planos abertos, o próximo passo, o caminho do arquivo e a linha de cobertura requisito↔tarefa; sem plano aberto sai calado, mas **o marco em `TMPDIR` é criado antes disso**. `[confirmado]`
 8. **`branches/sessionstart-branches.sh`** — registrado no `hooks.json` do plugin `branches`. `[confirmado — registro; conteúdo não lido nesta rodada]`
 
 9. **`lixeiro/sessionstart-orfaos.sh`** — varre o que ficou de pé de sessões anteriores. Ver o fluxo 18. `[confirmado — registro no `hooks.json`]`
 
-**Quem pode bloquear no SessionStart:** nenhum dos 21 registros. Os que falam usam `hookSpecificOutput.additionalContext`, **com uma exceção de canal**: o `sessionstart-deps.sh` usa `systemMessage` no TOPO do JSON, porque o destinatário do aviso é o humano, não o modelo — dependência faltando é coisa que só quem está no teclado resolve. `[confirmado — leitura dos scripts desta fatia]`
+**Quem pode bloquear no SessionStart:** nenhum registro, em nenhum plugin. Os que falam usam `hookSpecificOutput.additionalContext`, **com uma exceção de canal**: o `sessionstart-deps.sh` usa `systemMessage` no TOPO do JSON, porque o destinatário do aviso é o humano, não o modelo — dependência faltando é coisa que só quem está no teclado resolve. `[confirmado — leitura dos scripts desta fatia]`
 
 ---
 
-## 8 · FALHA — o gate de plano nega por falta de documentação
+## 8 · O PORTÃO ÚNICO DE `ExitPlanMode` — e a recusa por falta de documentação
 
-**Dispara quando:** `PreToolUse` com matcher `EnterPlanMode|ExitPlanMode` → `plugins/project-doc/hooks/pretooluse-plan-gate.sh`, timeout 10. `[confirmado]`
+**Dispara quando:** `PreToolUse` com matcher `EnterPlanMode|ExitPlanMode` → `plugins/project-skills/hooks/pretooluse-plan-gate.sh`, timeout 10. `[confirmado]`
+
+### 8.0 · Um evento, um respondente
+
+🔴 **Até esta rodada, TRÊS hooks respondiam ao mesmo `ExitPlanMode`, cada um em seu `hooks.json` e cada um com o próprio bloqueio** — três devoluções encadeadas para o mesmo plano, cada uma paga em um turno, e a ordem entre elas indeterminável. Hoje **só um se registra**, e a prova é mecânica:
+
+```bash
+python3 scripts/hook_contract.py --responde ExitPlanMode      # TOTAL: 1
+```
+
+O respondente é o gate da família de projeto. Ele **orquestra** os outros dois, que deixaram de se registrar e passaram a ser peças chamadas por **nome de plugin** (via `hooks/resolve-plugin.sh`), na ordem **pedido → página**: `intent-guard hooks/plan-gate.sh`, depois `visual hooks/pre-exitplan-visualize.sh`. `[confirmado — o laço `for PECA` em `pretooluse-plan-gate.sh`]`
+
+Como a recusa de uma peça vira a recusa do portão:
+
+- **`exit 2` da peça** → o portão imprime a saída dela no stderr e sai **2**. O motivo chega ao modelo palavra por palavra; nada é reescrito.
+- **`permissionDecision…deny` ou `"decision"…block` no stdout** → o portão **repassa o JSON inteiro** e sai 0, porque nesse canal é o JSON que carrega a negativa.
+- **Peça ausente na máquina** → `continue`. Fail-open **por peça**: quem não estiver instalado simplesmente não cobra, e o portão segue com as demais. Instalar menos plugins nunca derruba o planejamento.
+- **Kill-switch da orquestração** — `PLAN_PORTAO_UNICO=0` pula o laço inteiro e deixa só o gate de documentação. Cada peça mantém o próprio interruptor (`VISUAL_GATE=0`, e o do `intent-guard`), então há dois níveis de desligamento e eles não se substituem.
+
+⚠️ **A orquestração só vale para `ExitPlanMode`.** O `EnterPlanMode` continua chegando direto ao gate de documentação — é o momento certo, antes de o plano existir; o `ExitPlanMode` é a rede. `[confirmado — a guarda `[ "$TOOL" = "ExitPlanMode" ]`]`
+
+**Verificado:** `bash plugins/project-skills/hooks/test_portao_unico.sh` → **6 passou · 0 falhou** nesta rodada, cobrindo os dois canais de bloqueio, o fail-open por peça ausente e o kill-switch. `[confirmado — saída da suíte]`
+
+### 8.1 · A recusa por falta de documentação
 
 **Portas antes de qualquer julgamento:** `PLAN_DOC_GATE=0` desliga; `command -v jq` fail-open; `project_root` não achou raiz → `exit 0`; **`doc-detect.sh` ilegível → `exit 0`** — helper ausente não é "projeto sem doc", é o gate cego (o comentário registra que um `chmod 000` fazia projeto documentado cair no caso A e ser negado sem cap). `[confirmado]`
 
 **Os quatro desfechos:**
 
-- **CLAUDE.md escrito à mão, sem `.claude/docs/`** → `deny` com cap de 3, mandando ler o arquivo que existe e oferecendo `/start-doc` + `/project-doc` depois do plano. Repo alheio é o caso comum.
+- **CLAUDE.md escrito à mão, sem `.claude/docs/`** → `deny` com cap de 3, mandando ler o arquivo que existe e oferecendo `/start` + `/doc` depois do plano (os nomes que a mensagem do hook realmente imprime). Repo alheio é o caso comum.
 - **CASO A · nenhuma documentação** → `deny` **sempre**, sem cap. A mensagem muda conforme já haja autorais (`N de 5 documentos autorais`) ou nenhum.
 - **CASO B · tem doc, não foi lida nesta sessão** → `deny` com cap `MAX_NUDGES=3`, listando os `.md` de `.claude/docs/` e acrescentando o aviso de staleness quando o caso.
 - **CASO C · tem doc e já foi lida** → `exit 0`, silêncio.
@@ -501,29 +545,21 @@ Três decisões de implementação que só fazem sentido juntas:
 
 **A regra dura, escrita no cabeçalho: NUNCA canonicalize** — nada de `git rev-parse`, `realpath` ou `pwd -P`. `git rev-parse --show-toplevel` devolve `/private/var/…` enquanto o `posttooluse-doc-read.sh` recorta a string do `file_path` e obtém `/var/…`; no macOS isso dá `cksum` diferente e o sentinel de leitura nunca resolveria o gate. A única normalização permitida é remover a barra final, e pelo mesmo motivo. `[confirmado]`
 
-**Verificado:** `bash plugins/project-doc/hooks/test_plan_gate.sh` → **49 passou · 0 falhou** neste run, com o último check sendo "E2E: Read no CLAUDE.md da raiz também libera". `[confirmado]`
+**Verificado:** `bash plugins/project-skills/hooks/test_plan_gate.sh` → **117 passou · 0 falhou** nesta rodada. `[confirmado — saída da suíte]`
 
 ---
 
 ## 9 · ENCERRAMENTO — o que roda no `Stop`
 
-**Os 8 comandos, derivados mecanicamente** neste run:
+**Quem emite no `Stop` — o inventário sai do medidor, não desta página:**
 
-```
-plugins/bootstrap/hooks/hooks.json    python3 "${CLAUDE_PLUGIN_ROOT}/hooks/stop-prose-ceiling.py"      10s
-plugins/bootstrap/hooks/hooks.json    python3 "${CLAUDE_PLUGIN_ROOT}/hooks/stop-regua-relato.py"       10s
-plugins/bootstrap/hooks/hooks.json    python3 "${CLAUDE_PLUGIN_ROOT}/hooks/stop-forma-relato.py"       30s
-plugins/handoff/hooks/hooks.json      ${CLAUDE_PLUGIN_ROOT}/hooks/handoff-completeness-gate.sh         30s
-plugins/intent-guard/hooks/hooks.json ${CLAUDE_PLUGIN_ROOT}/hooks/delivery-audit.sh                    60s
-plugins/project-doc/hooks/hooks.json  ${CLAUDE_PLUGIN_ROOT}/hooks/stop-doc-touch.sh                    15s
-plugins/visual/hooks/hooks.json       ${CLAUDE_PLUGIN_ROOT}/hooks/stop-plan-status.sh                  15s
-plugins/visual/hooks/hooks.json       python3 "${CLAUDE_PLUGIN_ROOT}/hooks/stop-anuncio-sem-acao.py"   20s
-plugins/lixeiro/hooks/hooks.json      ${CLAUDE_PLUGIN_ROOT}/hooks/stop-colhe-turno.sh                  20s
+```bash
+python3 scripts/hook_contract.py --stop-budget
 ```
 
-Nove registros — `lixeiro/stop-colhe-turno.sh` entrou desde a passada anterior (fluxo 18). `intent-guard` não está ligado nesta máquina, então **8 rodam aqui**. `[confirmado]`
+Ele lista plugin, script, quantas linhas de tela o emissor produz e o `timeout`, e é a mesma varredura que o gate de deriva usa (§11a). ⚠️ **Dois emissores trocaram de dono nesta rodada:** `stop-doc-touch.sh` e `stop-plan-status.sh` respondem hoje por `plugins/project-skills/hooks/`, e o segundo veio do `visual` — que no `Stop` ficou só com `stop-anuncio-sem-acao.py`. `[confirmado — saída do medidor e o `hooks.json` dos dois plugins]`
 
-⚠️ **O `Stop` é o único evento com ORÇAMENTO congelado, e o motivo é que ele é o mais caro em atenção humana.** `.claude/stop-budget.baseline.json` guarda, por emissor, quantas linhas ele cospe — e o total de referência é **6 linhas**, com `teto: 6`. Quem cobra é o check E2 do release-gate: um hook novo de `Stop` que fale demais reprova o commit. Hoje só dois emissores gastam linha (`visual/stop-plan-status.sh` com 5 e `intent-guard/delivery-audit.sh` com 1); os outros são mudos no caminho feliz. `[confirmado — leitura do baseline]`
+⚠️ **O `Stop` é o único evento com ORÇAMENTO congelado, e o motivo é que ele é o mais caro em atenção humana.** `.claude/stop-budget.baseline.json` guarda, por emissor, quantas linhas ele cospe — e o total de referência é **6 linhas**, com `teto: 6`. Quem cobra é o check E2 do release-gate: um hook novo de `Stop` que fale demais reprova o commit. **Quais emissores gastam linha, e quantas, sai do `--stop-budget`** — os demais são mudos no caminho feliz. `[confirmado — leitura do baseline e a rodada do medidor]`
 
 ⚠️ **A ordem DENTRO do array do `bootstrap` é deliberada:** `stop-regua-relato.py` (mecânico, custo zero) vem **antes** de `stop-forma-relato.py` (que chama modelo). Barrar por forma dos bullets não deve custar uma chamada de LLM. `[confirmado — `plugins/bootstrap/hooks/hooks.json`]` · Que o harness respeite a ordem do array é `[inferido]`, como em todo lugar deste doc.
 
@@ -602,11 +638,11 @@ Ambos usam o helper `le_batidas(log)`, que devolve `(contagem por motivo, idade 
 5. fail-open       — guarda a ausência das ferramentas que usa?
 ```
 
-Os três canais de bloqueio coexistem hoje e o script **não normaliza, só mede**: `exit 2` (intent-guard, visual), `permissionDecision:"deny"` (project-doc, guardrails) e `"decision":"block"` (handoff). Cap conta em duas formas — contador (`-ge` perto de um `exit 0`, dentro de `CAP_ESCAPE_WINDOW = 8` linhas) e sentinela (`[ -f "$SENTINEL" ]` e variantes). O cabeçalho é explícito sobre a direção do erro: detectar um cap que não existe é o erro caro, porque o script deixaria de acusar um gate que trava de verdade.
+Os três canais de bloqueio coexistem hoje e o script **não normaliza, só mede**: `exit 2` (intent-guard, visual), `permissionDecision:"deny"` (project-skills, guardrails) e `"decision":"block"` (handoff). Cap conta em duas formas — contador (`-ge` perto de um `exit 0`, dentro de `CAP_ESCAPE_WINDOW = 8` linhas) e sentinela (`[ -f "$SENTINEL" ]` e variantes). O cabeçalho é explícito sobre a direção do erro: detectar um cap que não existe é o erro caro, porque o script deixaria de acusar um gate que trava de verdade.
 
 ### 11a · `--stop-budget` — o custo somado do fim de turno
 
-**Novo em 2026-08-02.** As 5 propriedades acima medem cada hook **isolado**; nenhuma mede o CONJUNTO. **Oito** hooks disputam o `Stop` neste marketplace, cada um respeitando o próprio teto, e o dono viu na tela `6/9 · 35s · ↓773 tokens` com quatro blocos de progresso de plano. Todo emissor estava dentro do que prometia — **o conjunto é que não tinha dono**.
+**Novo em 2026-08-02.** As 5 propriedades acima medem cada hook **isolado**; nenhuma mede o CONJUNTO. Vários hooks disputam o `Stop` neste marketplace (quantos, o próprio comando abaixo diz), cada um respeitando o próprio teto, e o dono viu na tela `6/9 · 35s · ↓773 tokens` com quatro blocos de progresso de plano. Todo emissor estava dentro do que prometia — **o conjunto é que não tinha dono**.
 
 ```bash
 python3 scripts/hook_contract.py --stop-budget       # humano
@@ -614,28 +650,11 @@ python3 scripts/hook_contract.py --stop-budget --json
 python3 scripts/hook_contract.py --stop-budget --baseline .claude/stop-budget.baseline.json
 ```
 
-Saída desta rodada `[confirmado]`:
+A saída traz uma linha por emissor (plugin · script · linhas · timeout), o `TOTAL` contra o teto de referência, e — em bloco separado — os plugins de **outros** marketplaces instalados na máquina. **Rode; não copie o número daqui.** `[confirmado — rodado nesta rodada]`
 
-```
-bootstrap     stop-prose-ceiling.py            0 linha(s)   timeout=10s
-bootstrap     stop-regua-relato.py             0 linha(s)   timeout=10s
-bootstrap     stop-forma-relato.py             0 linha(s)   timeout=30s
-handoff       handoff-completeness-gate.sh     0 linha(s)   timeout=30s
-intent-guard  delivery-audit.sh                1 linha(s)   timeout=60s
-project-doc   stop-doc-touch.sh                0 linha(s)   timeout=15s
-visual        stop-plan-status.sh              5 linha(s)   timeout=15s
-visual        stop-anuncio-sem-acao.py         0 linha(s)   timeout=20s
-TOTAL: 6 linha(s) · teto de referência: 6
+⚠️ **O total desta rodada CAIU, e a queda é informação, não folga.** O maior gastador do fim de turno era `stop-plan-status.sh`; ele mudou de plugin (do `visual` para o `project-skills`) e passou a medir bem menos linha na bancada do medidor. **Total que encolhe sem ninguém ter enxugado texto é sinal de emissor que deixou de falar** — o medidor roda cada emissor num sandbox povoado, e um hook que mudou de casa pode estar calando por não achar o que lê. Confira contra `.claude/stop-budget.baseline.json` antes de recongelar: o gate só barra a SUBIDA, então uma queda por defeito passa limpa por ele. `[inferido — a queda foi medida nesta rodada; que a causa seja a mudança de casa NÃO foi reproduzida, e é a primeira hipótese a testar]`
 
-Instalados nesta máquina, FORA do gate:
-claude-plugins-official  security-guidance 2.0.6     0 linha(s)
-impeccable               impeccable 4.0.4            0 linha(s)   timeout=30s
-openai-codex             codex 1.0.6                 0 linha(s)   timeout=900s
-
-SOMADO ao que a máquina realmente paga: 6 linha(s)
-```
-
-✅ **O emissor novo entrou sem custo de tela.** `stop-regua-relato.py` mede **0 linha** — ele só fala quando barra, e barrar sai por `exit 2` no stderr, fora do orçamento de `systemMessage`. O total continua **6 de 6**, e por isso o gate de deriva não acusou. `[confirmado — `--stop-budget` rodado nesta rodada]`
+✅ **Emissor que só fala quando barra mede 0 linha** — `stop-regua-relato.py` é o caso: barrar sai por `exit 2` no stderr, fora do orçamento de `systemMessage`. `[confirmado — `--stop-budget` rodado nesta rodada]`
 
 ⚠️ **Plugin de OUTRO marketplace também emite no `Stop`, e até 2026-08-03 não aparecia aqui.** Quem paga o fim de turno é a máquina, não o repositório — instalar o `impeccable` (que registra `PostToolUse` + `Stop`) deixou o buraco visível. Eles entram no relatório e ficam **fora do total gateado**, de propósito: o retrato viaja no git, o que cada máquina instala não, e um total que os incluísse faria o mesmo commit passar numa máquina e barrar noutra. Dois detalhes que só apareceram medindo `[confirmado]`:
 
@@ -735,7 +754,7 @@ O caso que o cabeçalho nomeia como coberto é o do monorepo-container: mesmo co
 
 ## 16 · O tier do motor chega como DADO, não como número na skill
 
-**Dispara quando:** a casca de `/sprint` (ex-`/sovai`) ou de `/qa-loop` vai disparar o Workflow do motor. ⚠️ **As duas skills MUDARAM DE PLUGIN nesta rodada** — hoje moram em `plugins/project-skills/skills/sprint/SKILL.md` e `plugins/project-skills/skills/qa-loop/SKILL.md`, e os plugins `sovai` e `qa-loop` ficaram só com motor e hooks. `[confirmado — `grep -n 'r8_tiers' plugins/project-skills/skills/*/SKILL.md` neste run]`
+**Dispara quando:** a casca de `/sprint` (ex-`/sovai`) ou de `/qa-loop` vai disparar o Workflow do motor. ⚠️ **As duas skills moram hoje em `plugins/project-skills/skills/sprint/SKILL.md` e `plugins/project-skills/skills/qa-loop/SKILL.md`, e os plugins que as hospedavam foram EXTINTOS** — quem quiser conferir se um nome de plugin ainda existe consulta o índice da distribuição (`.claude-plugin/marketplace.json`), nunca uma lista escrita em doc. `[confirmado — `grep -n 'r8_tiers' plugins/project-skills/skills/*/SKILL.md` neste run e o índice lido]`
 
 **O drift que isto existe pra matar, medido em 2026-08-03:** trocar seis valores custou 45 substituições em dois `SKILL.md`, três saíram invertidas e duas sobreviveram a dois verificadores. A causa não era descuido — era o número morar em quinze lugares. `[relatado — docstring de `_shared/r8_tiers.py`]`
 
@@ -825,7 +844,7 @@ python3 plugins/lixeiro/lib/test_causa.py
 
 ## 19 · O narrador do comando longo — o dono ausente descobre se a missão anda
 
-**Dispara quando:** `PreToolUse[Bash]` e `PostToolUse[Bash]` do `sovai`, **o mesmo script nos dois** (`hooks/posttooluse-andamento.sh`), com o argumento `marca` na ida e sem argumento na volta. `[confirmado — `plugins/sovai/hooks/hooks.json`]`
+**Dispara quando:** `PreToolUse[Bash]` e `PostToolUse[Bash]` do `project-skills`, **o mesmo script nos dois** (`hooks/posttooluse-andamento.sh`), com o argumento `marca` na ida e sem argumento na volta. ⚠️ **O plugin que hospedava o vigia foi extinto nesta rodada** — hook e módulo estão na família de projeto. `[confirmado — `plugins/project-skills/hooks/hooks.json`]`
 
 **O problema que ele resolve:** dentro de um Workflow o dono fica cego. O agente entra em `idle` e a tela não diz se ele está rodando uma suíte de 11 minutos ou travado — *"'Idle' não carrega hora nem progresso, então parada legítima e travamento se parecem"*.
 
@@ -838,13 +857,13 @@ python3 plugins/lixeiro/lib/test_causa.py
 
 **Onde a linha sai: `systemMessage`**, o canal que o dono lê. O `stderr` de hook é descartado por quem chama — é exatamente o defeito que o check M do release-gate persegue (`patterns.md` §5.2).
 
-**Escopo: só DENTRO de uma missão do `/sovai`**, pelo mesmo sinal `ativo-<session_id>` que os gates vizinhos consultam. Fora dela o dono está no teclado e vê a saída do próprio comando; narrar ali seria ruído.
+**Escopo: só DENTRO de uma missão do motor de execução contínua**, pelo mesmo sinal `ativo-<session_id>` que os gates vizinhos consultam. Fora dela o dono está no teclado e vê a saída do próprio comando; narrar ali seria ruído.
 
-⚠️ **O estado mora numa pasta NEUTRA — `~/.claude/andamento/`, não `~/.claude/sovai/`** — e o comentário do módulo diz por quê: *"Quatro plugins já chamam este módulo; a pasta batizada com o nome de um deles fazia o estado dos outros parecer emprestado."* `[confirmado — `andamento.py:ESTADO`]`
+⚠️ **O estado NASCE numa pasta NEUTRA — `~/.claude/andamento/`** — e o comentário do módulo diz por quê: *"Quatro plugins já chamam este módulo; a pasta batizada com o nome de um deles fazia o estado dos outros parecer emprestado."* Quatro arquivos vivem lá, todos chaveados por sessão: `ativo-<sid>` (a missão está de pé), `sinal-<sid>` (quando o narrador falou pela última vez), `placar-<sid>` (o último placar impresso pela suíte) e `trabalho-<sid>` (o comando em curso, escrito no disparo e apagado na volta). ⚠️ **A pasta antiga com o nome do plugin extinto continua sendo LIDA como legado** — `andamento.py:ESTADO_LEGADO`, e o hook copia o sinal de lá na primeira passada —, **nunca escrita**: missão viva no momento da mudança não perde o que já tinha. `[confirmado — `andamento.py:ESTADO`/`ESTADO_LEGADO` e o bloco de cópia em `posttooluse-andamento.sh`]`
 
 ```bash
-python3 plugins/sovai/lib/test_andamento.py
-bash plugins/sovai/hooks/test_andamento_hook.sh
+python3 plugins/project-skills/lib/test_andamento.py
+bash plugins/project-skills/hooks/test_andamento_hook.sh
 ```
 
 ---
@@ -864,14 +883,17 @@ O fluxo, que nasceu na onda de 2026-08-08 (`F17.1` + `F17.6`):
   contínua. A suíte dele passa **sem o plugin do motor instalado**, que era o critério do
   passo. ⚠️ Três documentos ainda apontavam a casa velha depois da mudança, e quem acusou foi
   o `dead_scope` do próprio `touch-plan` — é para isso que ele existe.
-- **A pergunta virou comando.** A skill `project-skills:monitorar` lê o estado do disco
-  (`~/.claude/sovai/` — o sinal da missão, o carimbo da ferramenta em curso, o placar da
-  última onda) e imprime o andamento **agora**, sem perguntar nada a ninguém e sem depender
-  de nenhum vigia estar aceso.
+- **A pergunta virou comando.** A skill `project-skills:monitorar` lê o estado do disco — o
+  sinal da missão, o carimbo da ferramenta em curso, o placar da última onda — e imprime o
+  andamento **agora**, sem perguntar nada a ninguém e sem depender de nenhum vigia estar
+  aceso. ⚠️ **A casa desse estado mudou nesta rodada:** ele nasce em `~/.claude/andamento/`
+  e a pasta com o nome do plugin extinto entrou como **legado somente-leitura** — `todas()`
+  varre as duas bases, e é isso que faz uma missão que já estava de pé continuar visível.
+  `[confirmado — `andamento.py`, a lista `bases` em `todas()`]`
 - **Nada disso adivinha.** Quem grava é quem executa: o gancho de andamento
-  (`plugins/sovai/hooks/posttooluse-andamento.sh`) escreve o instante, o comando e o projeto
-  quando o disparo sai, e apaga quando ele volta. Comando sem histórico neste projeto sai
-  **sem estimativa** — a regra do §19 vale igual aqui.
+  (`plugins/project-skills/hooks/posttooluse-andamento.sh`) escreve o instante, o comando e o
+  projeto quando o disparo sai, e apaga quando ele volta. Comando sem histórico neste projeto
+  sai **sem estimativa** — a regra do §19 vale igual aqui.
 
 **Verificado:** `python3 plugins/project-skills/lib/test_andamento.py` → **OK**, e
 `ls plugins/project-skills/lib/andamento.py` confirma a casa nova. `[confirmado nesta rodada]`
@@ -883,5 +905,6 @@ O fluxo, que nasceu na onda de 2026-08-08 (`F17.1` + `F17.6`):
 - **Ponteiros cross-tool inertes** (cenário 2): os 5 arquivos apontam pra um `CLAUDE.md` na raiz que não existe. `[confirmado]`
 - **Ponte do context-guard desligada nesta máquina** (cenário 3): env vars presentes, `context-guard-writer.sh` fora do `statusLine.command`. `[confirmado]`
 - **Juiz de forma sem nenhum julgamento registrado** (cenário 9b): 12 batidas, todas `sem texto`. O hook executa; o texto do assistente não está chegando a ele nas execuções registradas. Causa não investigada nesta rodada. `[confirmado — o fato; a causa é lacuna aberta]`
-- **Ordem entre plugins no mesmo evento**: não determinável a partir deste repositório. Só a ordem **interna** ao array de um `hooks.json` é fixada aqui, e mesmo assim depender dela é `[inferido]`.
-- **Conteúdo não lido nesta rodada**, citado só pelo registro: `plugins/branches/hooks/sessionstart-branches.sh`, `plugins/handoff/hooks/handoff-completeness-gate.sh`, `plugins/intent-guard/hooks/delivery-audit.sh`, `plugins/project-doc/hooks/stop-doc-touch.sh`, `plugins/guardrails/hooks/askq-humanize.sh`, `plugins/bootstrap/hooks/post-plugin-command.sh` e `plugins/bootstrap/hooks/lib/apply-config.sh`.
+- **Queda do orçamento de `Stop`** (cenário 11a): o total medido caiu depois de dois emissores mudarem de plugin, sem que ninguém tenha enxugado texto. O gate só barra a subida, então isso passou limpo. `[inferido — causa não reproduzida]`
+- **Ordem entre plugins no mesmo evento**: segue não determinável a partir deste repositório — **exceto no `ExitPlanMode`, que deixou de ser disputa**: um único hook se registra e chama os outros em ordem escrita no código (cenário 8.0). Fora dele, só a ordem **interna** ao array de um `hooks.json` é fixada aqui, e mesmo assim depender dela é `[inferido]`.
+- **Conteúdo não lido nesta rodada**, citado só pelo registro: `plugins/branches/hooks/sessionstart-branches.sh`, `plugins/handoff/hooks/handoff-completeness-gate.sh`, `plugins/intent-guard/hooks/delivery-audit.sh`, `plugins/project-skills/hooks/stop-doc-touch.sh`, `plugins/guardrails/hooks/askq-humanize.sh`, `plugins/bootstrap/hooks/post-plugin-command.sh` e `plugins/bootstrap/hooks/lib/apply-config.sh`.

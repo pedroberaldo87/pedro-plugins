@@ -1,6 +1,6 @@
 ---
 name: bootstrap
-description: Setup de máquina nova em um passo — instala, a partir do manifest, os marketplaces de terceiros e os plugins do próprio marketplace pedro-plugins (dois deles desligados de fábrica), depois aplica a config global versionada (env vars, permissões, flags, CLAUDE.md global, output style, statusLine resolvido pra máquina) e confere a conformidade. Rode 1× por máquina depois de instalar o plugin bootstrap. Não gerencia secrets.
+description: Setup de máquina nova em um passo — instala, a partir do manifest, os marketplaces de terceiros e os plugins do próprio marketplace pedro-plugins (alguns desligados de fábrica — quem diz quais é o `enabled: false` do `config/manifest.json`), depois aplica a config global versionada (env vars, permissões, flags, CLAUDE.md global, output style, statusLine resolvido pra máquina) e confere a conformidade. Rode 1× por máquina depois de instalar o plugin bootstrap. Não gerencia secrets.
 ---
 
 # Bootstrap Setup
