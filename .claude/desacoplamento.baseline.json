@@ -39,7 +39,6 @@
  "dependencia-de-irmao|plugins/lixeiro/skills/faxina/SKILL.md|visual|skill **`visual`** (Skill tool, `skill: \"visual\"`), alimentada pelo JSON do `inventario`, com",
  "dependencia-de-irmao|plugins/project-skills/PRD-project-doc-v3.md|handoff|**`_shared/`** (source-only, **não** é plugin instalável) nasce de `plugins/handoff/lib/extract_ata.py` — que já tem o *",
  "dependencia-de-irmao|plugins/project-skills/hooks/test_entrada_no_arranque.sh|visual|# bash plugins/visual/hooks/test_entrada_no_arranque.sh",
- "dependencia-de-irmao|plugins/project-skills/hooks/test_espera_com_guarda.sh|sovai|OUT=$(roda Bash 'python3 plugins/sovai/lib/x.py && echo pronto')",
  "dependencia-de-irmao|plugins/project-skills/lib/collect_engine.py|handoff|Extraída de plugins/handoff/lib/extract_ata.py (que tinha o schema do .jsonl",
  "dependencia-de-irmao|plugins/project-skills/lib/test_pattern_check.py|graphify-guard|\"plugins/graphify-guard/hooks/test_graphify_guard.sh\",",
  "dependencia-de-irmao|plugins/project-skills/lib/test_pattern_check.py|guardrails|\"plugins/guardrails/hooks/test_setup_skill.sh\")",

@@ -162,7 +162,7 @@ Ligar: `claude plugin enable <nome>@pedro-plugins`.
 
 ## Hooks automáticos
 
-12 plugins registram hooks que disparam sem slash command — 57 registros no total
+12 plugins registram hooks que disparam sem slash command — 54 registros no total
 (derivado neste run: `python3 scripts/hook_contract.py`; conferido no commit por
 `python3 scripts/readme_counts_check.py`):
 

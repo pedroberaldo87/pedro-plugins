@@ -2208,11 +2208,11 @@
         "killswitch": [
           [
             51,
-            "[ \"${SOVAI_GATE:-1}\" = \"0\" ] && exit 0"
+            "[ \"${SPRINT_GATE:-1}\" = \"0\" ] && exit 0"
           ],
           [
             51,
-            "[ \"${SOVAI_GATE:-1}\" = \"0\" ] && exit 0"
+            "[ \"${SPRINT_GATE:-1}\" = \"0\" ] && exit 0"
           ]
         ],
         "hardcoded_tools": [],
@@ -2241,11 +2241,11 @@
         "killswitch": [
           [
             29,
-            "[ \"${SOVAI_ESPERA:-1}\" = \"0\" ] && exit 0"
+            "[ \"${SPRINT_ESPERA:-1}\" = \"0\" ] && exit 0"
           ],
           [
             29,
-            "[ \"${SOVAI_ESPERA:-1}\" = \"0\" ] && exit 0"
+            "[ \"${SPRINT_ESPERA:-1}\" = \"0\" ] && exit 0"
           ]
         ],
         "hardcoded_tools": [],
@@ -2281,11 +2281,11 @@
         "killswitch": [
           [
             31,
-            "[ \"${SOVAI_ANDAMENTO:-1}\" = \"0\" ] && exit 0"
+            "[ \"${SPRINT_ANDAMENTO:-1}\" = \"0\" ] && exit 0"
           ],
           [
             31,
-            "[ \"${SOVAI_ANDAMENTO:-1}\" = \"0\" ] && exit 0"
+            "[ \"${SPRINT_ANDAMENTO:-1}\" = \"0\" ] && exit 0"
           ]
         ],
         "hardcoded_tools": [],
@@ -2480,11 +2480,11 @@
         "killswitch": [
           [
             31,
-            "[ \"${SOVAI_ANDAMENTO:-1}\" = \"0\" ] && exit 0"
+            "[ \"${SPRINT_ANDAMENTO:-1}\" = \"0\" ] && exit 0"
           ],
           [
             31,
-            "[ \"${SOVAI_ANDAMENTO:-1}\" = \"0\" ] && exit 0"
+            "[ \"${SPRINT_ANDAMENTO:-1}\" = \"0\" ] && exit 0"
           ]
         ],
         "hardcoded_tools": [],
