@@ -89,6 +89,27 @@ if [ "$AGORA" -gt 0 ] && [ $(( (AGORA - NASCEU) / 60 )) -gt "$TTL_MIN" ]; then
   exit 0
 fi
 
+# RÉGUA, NUNCA RECEITA — a trava do briefing contaminado. Nasceu de uma missão real
+# (2026-08-09): o orquestrador interpolou números do alvo como meta, um construtor
+# reproduziu a moldura e a pílula do alvo, e um juiz cobrou bater a constante física
+# dele. A regra em prosa já existia e não segurou; o que segura é isto: briefing de
+# construtor ou de juiz SEM a linha canônica (que vive nos esqueletos de
+# references/briefings.md) não parte. Independe de haver pendência de juiz.
+PROMPT=$(hj_campo "$INPUT" tool_input.prompt)
+case "$PROMPT" in
+  *"[gauntlet:construtor:"*|*"[gauntlet:juiz:"*)
+    case "$PROMPT" in
+      *"NUNCA RECEITA"*) : ;;
+      *)
+        hj_deny "⛔ Briefing sem a régua anti-cópia: todo despacho de construtor e de juiz carrega a linha 'RÉGUA, NUNCA RECEITA' (o parágrafo canônico está nos esqueletos de references/briefings.md da skill gauntlet).
+
+Sem ela, o número medido no alvo vira meta e o construtor copia — foi a contaminação medida que criou esta trava. Reescreva o briefing com o parágrafo e despache de novo.
+
+Se este bloqueio estiver errado, o desligamento é GAUNTLET_GATE=0."
+        exit 0 ;;
+    esac ;;
+esac
+
 # A pergunta é do DISCO, nunca da memória: qual peça está entregue e sem juiz?
 # Sem python que execute, ou com o conferente fora do lugar, FAIL-OPEN falando.
 LIB="$HJ_DIR/../lib/fecho_check.py"
@@ -101,7 +122,6 @@ PENDENTES=$("$PY" "$LIB" pendentes "$MISSAO" 2>/dev/null)
 # apresenta pelo marcador no próprio prompt, que é a única coisa que o evento traz.
 CONTADOR="$RAIZ/bloqueios-$SESSION"
 
-PROMPT=$(hj_campo "$INPUT" tool_input.prompt)
 while IFS= read -r PECA; do
   [ -n "$PECA" ] || continue
   case "$PROMPT" in

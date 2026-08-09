@@ -26,6 +26,7 @@ import argparse
 import hashlib
 import json
 import os
+import re
 import sys
 
 # O rito da abertura, ENXUTO por decisão do dono (2026-08-09): a versão de 9 campos
@@ -53,6 +54,11 @@ CAMPOS_DECLARADOS_DA_SONDA = ("preparar", "registrar", "alvo")
 # Os três desfechos. `marginal` é a parada por retorno decrescente virando CAMPO: sem
 # ele, "o juiz declara que o ganho ficou pequeno demais" é prosa que o laço não lê.
 STATUS = ("aprovado", "reprovado", "marginal")
+# O cheiro de receita num NOME de eixo: medida concreta onde devia haver qualidade.
+# Nasceu de uma missão real (2026-08-09): o eixo "moldura de 32px" virou moldura de
+# 32px na obra. O número do alvo tem casa própria — o campo `numero`, como prova do
+# nível — e nome com medida é o vetor da cópia, então o rito o recusa.
+MEDIDA_NO_NOME = re.compile(r"\d+([.,]\d+)?\s*(%|(px|ms|fps|em|rem|vh|vw|s)\b)")
 
 
 def _le(caminho):
@@ -230,6 +236,15 @@ def erros_do_rito(missao, sinal=None):
                     erros.append(
                         "o eixo `%s` não declara `%s`" % (eixo.get("nome", i), campo)
                     )
+            # RÉGUA, NUNCA RECEITA: nome de eixo com medida é o vetor da cópia — o
+            # briefing interpola o nome, e "moldura de 32px" vira moldura de 32px.
+            nome_eixo = eixo.get("nome") or ""
+            if MEDIDA_NO_NOME.search(nome_eixo):
+                erros.append(
+                    "o eixo `%s` traz MEDIDA no nome — nome nomeia qualidade; o "
+                    "número do alvo vai em `numero`, como prova de nível, nunca "
+                    "como receita" % nome_eixo
+                )
             # O registro do eixo é caminho DE DENTRO da missão. Absoluto já levou o nome
             # da conta da máquina para um arquivo do projeto, e sair da missão por `..`
             # tem o mesmo efeito — por isso os dois são recusados antes de procurar.
