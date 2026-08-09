@@ -106,6 +106,25 @@ check("missão saudável fecha", fc.erros_do_fecho(m) == [])
 shutil.rmtree(d)
 
 print()
+print("RÉGUA, NUNCA RECEITA — eixo com medida no nome é o vetor da cópia")
+d = tmp()
+m = monta_missao(d)
+rito = json.load(open(os.path.join(m, "rito.json")))
+rito["eixos"].append({"nome": "a página mora numa moldura de 32px",
+                      "gesto": "printar o topo",
+                      "registro": "recon/registros/alvo-hero.png"})
+escreve(os.path.join(m, "rito.json"), rito)
+furos = fc.erros_do_rito(m)
+check("o rito recusa o eixo com medida no nome",
+      any("MEDIDA no nome" in f for f in furos))
+rito["eixos"][-1]["nome"] = "a página inteira mora dentro de uma moldura"
+rito["eixos"][-1]["numero"] = "moldura de 32px medida no alvo"
+escreve(os.path.join(m, "rito.json"), rito)
+check("o mesmo número no campo `numero` passa — lá ele é prova de nível",
+      fc.erros_do_rito(m) == [])
+shutil.rmtree(d)
+
+print()
 print("A FALHA CENTRAL — sete peças entregues, zero juízes")
 d = tmp()
 sete = ("hero", "marcas", "contato", "precos", "rodape", "menu", "prova")

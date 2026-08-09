@@ -1,6 +1,6 @@
 ---
 name: gauntlet
-description: Use quando o usuário quiser que agentes disputem contra um produto real que ele nomeia — site, jogo, tela de aplicativo, relatório, qualquer coisa que se possa construir, iterar e julgar. Dispara em "/gauntlet", "roda o gauntlet", "quero bater o site X", "isso tem que ganhar do Y", "monta um laço de crítica contra um benchmark". O objetivo quebra em peças julgáveis, cada peça ganha um construtor e um juiz cego separado, e o juiz só aprova o que for MELHOR que o alvo — nunca o que apenas cumpre o pedido. A disputa roda como EQUIPE VISÍVEL na conversa - o dono vê cada agente, dirige em voo, veta e para; nada roda em caixa fechada. Nada do que foi construído se julga sozinho, e quem orquestra também não julga. Cada veredito é um arquivo em disco com o par de observações que o prova; uma trava de PreToolUse impede despacho novo enquanto houver entrega sem juiz; e o fecho é recusado por programa quando falta algum. Nasceu de uma falha real - sete construtores foram lançados prometendo um juiz em cada briefing, zero juízes foram lançados, e ninguém percebeu.
+description: Use quando o usuário quiser que agentes disputem contra um produto real que ele nomeia — site, jogo, tela de aplicativo, relatório, qualquer coisa que se possa construir, iterar e julgar. Dispara em "/gauntlet", "roda o gauntlet", "quero bater o site X", "isso tem que ganhar do Y", "monta um laço de crítica contra um benchmark". Quando o usuário chega sem alvos ou sem direção registrada, a abertura conduz uma descoberta curta com ele — intenção, moodboard, benchmarks — em vez de recusar e devolver o problema. O objetivo quebra em peças julgáveis, cada peça ganha um construtor e um juiz cego separado, e o juiz só aprova o que for MELHOR que o alvo — nunca o que apenas cumpre o pedido. A disputa roda como EQUIPE VISÍVEL na conversa - o dono vê cada agente, dirige em voo, veta e para; nada roda em caixa fechada. Nada do que foi construído se julga sozinho, e quem orquestra também não julga. Cada veredito é um arquivo em disco com o par de observações que o prova; uma trava de PreToolUse impede despacho novo enquanto houver entrega sem juiz; e o fecho é recusado por programa quando falta algum. Nasceu de uma falha real - sete construtores foram lançados prometendo um juiz em cada briefing, zero juízes foram lançados, e ninguém percebeu.
 ---
 
 # Skill: /gauntlet
@@ -48,7 +48,54 @@ mandou enxugar:
 | `orcamento` | o dono; sugira padrões (`rodadas_por_peca`, `teto_de_pecas`) |
 
 Opcionais que entram quando existem: **`lei`** (ver o modo com lei, abaixo) · `vetos`
-herdados · `raiz` (onde a obra mora, se não for a própria missão).
+herdados · `raiz` (onde a obra mora, se não for a própria missão) · **`intencao`**
+(produzida pela descoberta, abaixo).
+
+**A descoberta — quando o dono chega sem os insumos, a abertura os produz COM ele.**
+A abertura recusa começar incompleta, mas recusar não é devolver o problema para o dono
+resolver sozinho. Se ele não tem alvos concretos, ou a obra é estética (site, tela,
+jogo) e não há direção registrada em lugar nenhum — doc-load vazio, arsenal sem a seção
+do tipo, nada dito na conversa —, conduza este rito curto antes de gravar o `rito.json`:
+
+1. **Intenção** — pergunte o que a obra é, para quem, e que sensação deve causar em quem
+   a encontra. Poucas perguntas, e as respostas dele entram **verbatim** no campo
+   `intencao` do rito — é dali que os briefings citam, nunca da sua paráfrase.
+2. **Moodboard** — peça referências que ele admira; complete com candidatas suas (a
+   seção de referência visual do arsenal e busca na web pelo tipo de obra). Candidata se
+   apresenta ABERTA no browser dele (`open <url>`), nunca descrita por adjetivo — ele
+   aprova olhando, não imaginando. As aprovadas são direcionamento de estética e vibe,
+   pela regra de sempre: vibe se transporta, forma não.
+3. **Benchmarks** — das aprovadas, e do que mais ele nomear, pergunte: *"quem a gente
+   quer BATER?"* O que ele apontar como régua vira `alvos` e passa pela sonda; o resto é
+   referência visual e vai para a seção de moodboard do arsenal do projeto (escreva a
+   pedido dele — o arquivo é dele). A diferença importa: alvo é julgado eixo a eixo;
+   referência só orienta o gosto.
+
+Dono que já chega com tudo pula a descoberta inteira — ela existe para a missão que
+nasceria manca, não como ritual de toda abertura. E projeto sem doc nenhuma merece, ao
+fim da missão, a oferta da concepção completa (`/start` do project-skills, se
+instalado): a descoberta serve a ESTA missão, não substitui documentação.
+
+**O ALVO É RÉGUA DE NÍVEL — NUNCA RECEITA.** A fonte da skill diz isso com todas as
+letras: *"not to copy his voice, but to make the critic ask whether every paragraph in
+your piece is at least as clear"* — e a barra *"does not need to be realistically
+reachable"*, o que só faz sentido para um nível, jamais para um desenho. O que se
+transporta do alvo é o **quão bom** ele é em cada qualidade; o que NUNCA se transporta é
+o valor, a medida, o layout, o componente, a paleta, a curva. Moodboard e referência
+visual são direcionamento de **estética e vibe** — não são página a reproduzir. Uma peça
+que fica PARECIDA com o alvo é defeito, não vitória (dono, 2026-08-09: *"NÃO é pra
+copiar a porra da página que eu falei que gostei, a não ser que eu diga explicitamente
+isso"*). A exceção é essa: cópia só com ordem explícita do dono, registrada no rito —
+**explícita é a palavra**: escrita por ele, não deduzida de um elogio. O eixo carrega o
+número do alvo como **prova do nível**, e o juiz pergunta "o nosso é tão bom ou melhor
+NESTA qualidade?" — nunca "o nosso bate o número do alvo?".
+
+**E APROVAÇÃO ANTERIOR NÃO CANONIZA RECEITA.** O que um juiz ou o dono aprovou numa
+rodada ou sessão passada é obra aceita — não vira moodboard, não vira "padrão da casa",
+não entra em briefing como coisa a reproduzir. Foi assim que a contaminação real
+aconteceu: um orquestrador de sessão anterior decidiu que o aprovado "passou a ser
+referência", e o construtor seguinte copiou. Do aprovado, como do alvo, transporta-se o
+nível e a vibe; a forma de cada peça nasce na peça.
 
 **Os dois modos, decididos na abertura — e quem responde primeiro é programa.** Antes de
 perguntar ao dono, tente a skill `doc-load` do projeto onde a missão roda:
@@ -66,7 +113,8 @@ lei mora em documento de fora), e o fecho acusa sozinho a lei que mudou, entrou 
 no meio da missão — mostre a acusação ao dono antes de fechar.
 Sem doc-load na máquina, ou sem documento aprovado no projeto, caia na pergunta: há
 documento de regras (constituição, doc de marca, spec congelada)? **Com ele**, o caminho
-entra em `lei`; **sem ele**, a disputa é livre — só o alvo manda.
+entra em `lei`; **sem ele**, a disputa é livre — só o alvo manda (e se nem alvo há, a descoberta acima
+o produz primeiro).
 
 O que a lei faz, nas palavras do dono: *"orienta pra evitar erros, e se fizerem cagada
 ele reprova"* — ela entra no briefing de todo construtor como orientação, e o juiz
@@ -81,6 +129,9 @@ bibliotecas, efeitos e fontes de referência dele, por seção (`## website`,
 com o tipo da missão: o que ele aceitar entra no campo `arsenal` do rito e vai no
 briefing de todo **construtor** ("estes recursos existem — use antes de reinventar") e do
 **recon** (as fontes de referência visual viram candidatas a alvo complementar). Recurso
+do arsenal entra pela MESMA regra do alvo: biblioteca se USA como ferramenta; fonte de
+referência visual se COLHE por estética e vibe — reproduzir a página, o componente ou o
+asset de um item do arsenal é a mesma reprovação da cópia do alvo. Recurso
 do arsenal pode virar dependência da obra; a **entrega declara qual usou** no campo
 `arsenal_usado` (lista vazia = "não usei nada"), e o dono veta se não quiser — em missão
 com arsenal, entrega sem esse campo é recusada pelo fecho. **O juiz nunca recebe o arsenal** — é munição, não régua; cobrar "usou a
@@ -204,12 +255,23 @@ sozinho.
 
 ## 7 · Fronteiras e armadilhas
 
+- **Copiar o alvo é a armadilha número um, e ela mordeu de verdade.** Numa missão real
+  (2026-08-09), o eixo descritivo "moldura de 32px" virou moldura de 32px na obra, a
+  pílula do alvo virou pílula com as mesmas proporções, e um juiz chegou a cobrar que o
+  nosso peso de rolagem BATESSE a constante física do alvo. O mecanismo do erro: quem
+  orquestra interpola o número do eixo no briefing como meta, e o construtor obedece. O
+  número do eixo é prova do NÍVEL do alvo; o briefing transporta a qualidade nomeada,
+  nunca o número como alvo a atingir. Reveja cada briefing por isso antes de despachar.
 - **Não automatize o julgamento estético.** Toda medida tentada nas sessões de origem
   enganou pelo menos uma vez. Medida detecta regressão; não diz se está bom.
 - **Relatório longo não é qualidade.** Responder "aceito" a um relatório bom *parece*
   julgar, quando é só avaliar a argumentação — foi a causa (a) da falha de origem.
-- **Asset que não existe não se inventa.** Deixa-se um lugar honesto para ele, e aquele
-  pedaço sai do julgamento.
+- **Criar asset é permitido; falsificar não.** Imagem simbólica, objeto, textura e
+  representação se CRIAM à vontade (o critério é a pretensão: símbolo, sim; coisa que
+  se passe por foto/registro do que não aconteceu, não). O que não se fabrica é o asset
+  REAL que falta — pessoa, logotipo, foto de lugar: para esse, lugar honesto, e aquele
+  pedaço sai do julgamento. A regra "asset não se inventa" sem essa distinção foi
+  invenção de agente, corrigida pelo dono (2026-08-09).
 - **Três propostas só na primeira rodada**, e só em peça exploratória. Rodada de conserto
   responde a um defeito nomeado.
 - **Tipo novo de peça é sonda nova** escrita na abertura (`references/sondas.md`), nunca

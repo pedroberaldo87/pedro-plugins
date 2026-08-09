@@ -43,7 +43,7 @@ diz "sem sinal, não diz nada" "$SAIDA" ""
 echo
 echo "ENTREGA SEM JUIZ — nada nasce antes do juiz dela"
 arma
-SAIDA=$(roda '"[gauntlet:construtor:precos] construa a peça"')
+SAIDA=$(roda '"[gauntlet:construtor:precos] RÉGUA, NUNCA RECEITA — nível e vibe, nunca forma. construa a peça"')
 case "$SAIDA" in
   *deny*) ok "construtor novo é negado enquanto hero espera juiz" ;;
   *)      bad "construtor novo é negado (veio: ${SAIDA:0:60})" ;;
@@ -62,11 +62,11 @@ case "$SAIDA" in
 esac
 
 rm -f "$RAIZ_T/andamento/bloqueios-$SID"
-SAIDA=$(roda '"[gauntlet:juiz:hero] julgue a peça hero contra o alvo"')
+SAIDA=$(roda '"[gauntlet:juiz:hero] RÉGUA, NUNCA RECEITA — nível e vibe, nunca forma. julgue a peça hero contra o alvo"')
 diz "o juiz da peça pendente passa" "$SAIDA" ""
 
 rm -f "$RAIZ_T/andamento/bloqueios-$SID"
-SAIDA=$(roda '"[gauntlet:juiz:marcas] julgue marcas"')
+SAIDA=$(roda '"[gauntlet:juiz:marcas] RÉGUA, NUNCA RECEITA — nível e vibe, nunca forma. julgue marcas"')
 case "$SAIDA" in
   *deny*) ok "juiz de peça JÁ julgada não fura a fila da pendente" ;;
   *)      bad "juiz de peça já julgada não fura a fila" ;;
@@ -76,8 +76,34 @@ echo
 echo "SEM PENDÊNCIA — a equipe é livre"
 printf '{"peca":"hero","status":"aprovado"}' > "$MISSAO/pecas/hero/r1/veredito.json"
 rm -f "$RAIZ_T/andamento/bloqueios-$SID"
-SAIDA=$(roda '"[gauntlet:construtor:precos] construa"')
+SAIDA=$(roda '"[gauntlet:construtor:precos] RÉGUA, NUNCA RECEITA — nível e vibe, nunca forma. construa"')
 diz "com todo veredito no disco, qualquer agente nasce" "$SAIDA" ""
+rm -f "$MISSAO/pecas/hero/r1/veredito.json"
+
+
+echo
+echo "RÉGUA, NUNCA RECEITA — briefing de construtor/juiz sem a linha não parte"
+printf '{"peca":"hero","status":"aprovado"}' > "$MISSAO/pecas/hero/r1/veredito.json"
+arma
+rm -f "$RAIZ_T/andamento/bloqueios-$SID"
+SAIDA=$(roda '"[gauntlet:construtor:precos] construa a peça copiando capricho"')
+case "$SAIDA" in
+  *deny*) ok "construtor sem a linha é negado, mesmo sem pendência de juiz" ;;
+  *)      bad "construtor sem a linha é negado (veio: ${SAIDA:0:60})" ;;
+esac
+case "$SAIDA" in
+  *"NUNCA RECEITA"*) ok "e a negação ensina a linha que falta" ;;
+  *)                 bad "e a negação ensina a linha que falta" ;;
+esac
+SAIDA=$(roda '"[gauntlet:juiz:hero] julgue sem a régua no briefing"')
+case "$SAIDA" in
+  *deny*) ok "juiz sem a linha também é negado" ;;
+  *)      bad "juiz sem a linha também é negado" ;;
+esac
+SAIDA=$(roda '"[gauntlet:construtor:precos] RÉGUA, NUNCA RECEITA — nível e vibe. construa"')
+diz "construtor com a linha passa" "$SAIDA" ""
+SAIDA=$(roda '"[gauntlet:recon] meça o alvo"')
+diz "recon não precisa da linha — ele mede o alvo, não constrói" "$SAIDA" ""
 rm -f "$MISSAO/pecas/hero/r1/veredito.json"
 
 echo
@@ -108,7 +134,7 @@ arma
 roda '"sem marcador"' >/dev/null
 roda '"sem marcador"' >/dev/null
 diz "duas negações acumuladas" "$(cat "$RAIZ_T/andamento/bloqueios-$SID" 2>/dev/null)" "2"
-roda '"[gauntlet:juiz:hero] julgue"' >/dev/null
+roda '"[gauntlet:juiz:hero] RÉGUA, NUNCA RECEITA — nível e vibe, nunca forma. julgue"' >/dev/null
 [ ! -f "$RAIZ_T/andamento/bloqueios-$SID" ] \
   && ok "o juiz que nasce zera o contador" \
   || bad "o juiz que nasce zera o contador (ficou: $(cat "$RAIZ_T/andamento/bloqueios-$SID"))"

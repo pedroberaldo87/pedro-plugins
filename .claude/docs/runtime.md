@@ -384,7 +384,7 @@ marcação → commit (checkpointPrompt) → doc-touch dos arquivos do bloco →
 
 As duas travas acima (de acordo do revisor + verde) passaram a valer **no grão do bloco**: bloco vermelho não vira ponto de salvamento, e as entregas voltam pelo decompositor. O `docTouchPrompt` roda **a cada bloco**, sobre TODOS os documentos afetados pelos arquivos daquele bloco — o comentário do código declara o custo aceito: documento grande pode ser reescrito mais de uma vez na mesma onda, e o conflito disso é achado da revisão geral de doc, não deste passo. `[confirmado — o laço `for` dos blocos, passos 1 a 4]`
 
-⚠️ **A mensagem do commit ainda não diz qual bloco fechou.** O script passa `bloco: b` ao `checkpointPrompt`, mas a especificação do papel manda commitar `"sovai: onda <r> verde"` — dois blocos da mesma onda produzem duas mensagens idênticas, e quem lê o histórico depois não separa um do outro. `[confirmado — a chamada e a linha `git commit -q -m` da especificação do papel]`
+**O ponto de salvamento diz QUAL bloco fechou e grava só o que ele tocou.** A mensagem é `"sovai: onda <r> bloco <b> verde"` — sem o bloco, dois salvamentos da mesma onda escreveriam a mesma linha e quem lê o histórico depois não os separaria. ⚠️ **E os arquivos são NOMEADOS: `git add -- <arquivo...>`, nunca `add -A`.** A lista é a união dos `files_touched` das tarefas que o bloco aprovou, mais o `planPath` quando ele é `.plan.json` (os passos que o `tick` acabou de marcar são obra desta onda). **O `commit` leva a MESMA lista de caminhos que o `add`** — `commit` sem pathspec grava o índice inteiro, e arquivo que outra sessão apenas stageou entrava no commit da onda mesmo com o `add` nomeado; agora ele segue staged e intacto para quem é dono dele. O `add` é um caminho de cada vez, para que caminho recusado (fora do repositório, ou que não existe mais) saia numa linha nomeando o arquivo em vez de derrubar o salvamento inteiro. Varrer a árvore engoliria trabalho de outra sessão aberta no mesmo repositório e o gravaria como se fosse da onda — inclusive o arquivo de uma tarefa REPROVADA no mesmo bloco. Arquivo que o executor não declarou fica de fora; se ele mexeu sem declarar, o defeito é do `TASK_RESULT`. `[confirmado — a linha `git -C <raiz> add -- <arquivo...>` da especificação do papel, o `planPath` passado na chamada, e os checks de `git show --stat` em `test_motor_bancada.py` — o que lista só os arquivos da onda, o que mantém fora o arquivo da tarefa reprovada, e o que mantém fora o que outra sessão apenas stageou]`
 
 **O fim da onda é a passada GERAL, e ela tem duas metades.** A revisão geral da obra (`reviewBuildPrompt`) julga o que está NO REPOSITÓRIO com escopo na união dos `files_touched` da onda (`filesDaOnda`) — **nunca o repo inteiro**, porque achado sobre trabalho alheio vira conserto que ninguém pediu. Depois vem a revisão geral da doc (`revisaoDocPrompt`, schema `DOC_REVIEW`), que relê **inteiros** os documentos afetados contra o estado de agora, inclusive o conflito de dois blocos que reescreveram o mesmo arquivo: doc minerada errada ele conserta na hora (`consertados`), doc **autoral** (`authored-by: human`) ele nunca toca — vira gap `autoral: true` que o script transforma em aviso ao dono.
 
@@ -423,7 +423,7 @@ python3 plugins/project-skills/lib/test_motor_bancada.py  # roda o motor de verd
 python3 plugins/project-skills/lib/test_travas_motor.py   # as travas acima, uma a uma
 ```
 
-`[confirmado — as quatro saíram `OK` nesta rodada; a última fecha com *"tres voltas sem acordo viram disputa, nao conserto"*]`
+`[confirmado — as quatro saíram `OK` nesta rodada; a última fecha com *"sem a linha declarada, o mesmo texto vira DESCONHECIDO"*]`
 
 ---
 
@@ -973,11 +973,23 @@ andamento/ativo-<session_id> ausente ........ exit 0
 1ª linha do sinal != "gauntlet" ............. exit 0 (a casa é compartilhada)
 2ª linha ausente ou não é diretório ......... exit 0 (fail-open declarado)
 sinal mais velho que GAUNTLET_TTL_MIN ....... remove o sinal, exit 0
+prompt de construtor/juiz SEM "NUNCA RECEITA" deny (a trava do briefing, v0.5.0)
 fecho_check.py pendentes <missão> == vazio .. exit 0 (equipe livre)
 prompt contém [gauntlet:juiz:<peça pendente>] APAGA bloqueios-<sid>, exit 0 (o juiz passa)
 bloqueios-<sid> >= GAUNTLET_MAX_BLOQUEIOS ... registra E AVISA a desistência, exit 0
 senão ....................................... incrementa o contador e deny
 ```
+
+**A trava do briefing contaminado (v0.5.0).** O degrau novo é o único que nega **sem
+depender de pendência**: prompt com o crachá `[gauntlet:construtor:…]` ou
+`[gauntlet:juiz:…]` que não carregue a linha `RÉGUA, NUNCA RECEITA` não parte. Ele nasceu
+de uma missão real em que a regra existia só em prosa e não segurou — o orquestrador
+interpolou o número medido no alvo como meta, um construtor reproduziu a moldura e a
+pílula do alvo, e um juiz chegou a cobrar que a física da rolagem batesse a constante do
+alvo. A negação ensina a linha que falta, em vez de só recusar. `[confirmado — `bash
+plugins/gauntlet/hooks/test_gauntlet_hooks.sh` → bloco "RÉGUA, NUNCA RECEITA", com
+"construtor sem a linha é negado, mesmo sem pendência de juiz", "juiz sem a linha também
+é negado", "construtor com a linha passa" e "recon não precisa da linha"]`
 
 **O sinal ganhou uma segunda linha.** A 1ª continua sendo o nome que a barra de status lê — `plugins/project-skills/lib/andamento.py:_motor` usa `readline()`, então enxerga só ela —, e a 2ª carrega o diretório da missão. É por ela que o guarda sabe onde procurar pendência, e sinal sem ela deixa o guarda mudo em vez de adivinhar. `[confirmado — leitura das duas funções]`
 
@@ -994,6 +1006,16 @@ senão ....................................... incrementa o contador e deny
 
 - **A lei em documento.** `fecho_check.py:ancora_leis` grava `lei-aprovada.marca` quando o `rito` passa, e `erros_do_fecho` compara o conteúdo de cada documento de lei contra essa âncora. Lei que mudou, entrou ou sumiu no meio da missão vira furo nomeado, em vez de depender de quem orquestra lembrar de reconferir. A âncora do rito (`rito-aprovado.marca`) não cobria isso: ela congela o que está DENTRO do `rito.json`, e a lei mora em documento de fora.
 - **O arsenal.** Em missão cujo rito traz `arsenal`, a entrega tem que declarar `arsenal_usado` — lista vazia é resposta ("não usei nada"), campo ausente é silêncio e recusa o fecho. É o que dá ao dono a chance de vetar uma dependência que a obra adotou.
+
+**A abertura passou a recusar eixo-receita (v0.5.0).** `erros_do_rito` casa
+`MEDIDA_NO_NOME` contra o nome de cada eixo e recusa o que traz medida ali — `px`, `ms`,
+`fps`, `em`, `rem`, `vh`, `vw`, `%` ou `s` colados a um número. O nome do eixo é o que o
+briefing interpola, então nome com medida é o vetor pelo qual o número do alvo vira meta:
+numa missão real o eixo descritivo "moldura de 32px" virou moldura de 32px na obra. O
+mesmo número continua aceito no campo `numero`, que é onde ele prova o NÍVEL do alvo.
+`[confirmado — `python3 plugins/gauntlet/lib/test_fecho_check.py` → bloco "RÉGUA, NUNCA
+RECEITA", com "o rito recusa o eixo com medida no nome" e "o mesmo número no campo
+`numero` passa"]`
 
 **Verificado:** `bash plugins/gauntlet/hooks/test_gauntlet_hooks.sh` → *"trava dupla do gauntlet: tudo verde"*, cobrindo o construtor negado, o juiz da pendente que passa, o juiz de peça já julgada que não fura a fila, a equipe livre sem pendência, a desistência que avisa, o juiz que rearma a trava, a missão órfã no arranque, a expiração, o kill-switch e as cinco bordas de fail-open; `python3 plugins/gauntlet/lib/test_fecho_check.py` → *"fecho_check: tudo verde"*, com os blocos "A LEI EM DOCUMENTO" (5 casos), "O ARSENAL" (2 casos) e "A RODADA INTERMEDIÁRIA" (3 casos). `[confirmado nesta rodada]`
 

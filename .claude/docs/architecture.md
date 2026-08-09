@@ -343,7 +343,7 @@ branches           1.3.4  [branches]                                         HOO
 check-skills       0.7.0  [check-skills]                                     -
 context-guard      1.3.9  [context-guard]                                    HOOKS
 fallow             1.2.3  [fallow]                                           -
-gauntlet           0.4.2  [gauntlet]                                         HOOKS
+gauntlet           0.5.1  [gauntlet]                                         HOOKS
 graphify-guard     1.2.4  []                                                 HOOKS
 grill-me           1.4.0  [grill-me]                                         -
 guardrails         1.7.7  [guardrails]                                       HOOKS
@@ -587,7 +587,11 @@ Observações de arquitetura:
   está declarado desde a v0.4.0** (`references/porque.md` → "Os limites declarados da
   trava"): o crachá é auto-declarado, então ele barra esquecimento e não disfarce — e o
   desarme por excesso de negações, que antes falava só com um log, hoje **avisa na conversa**
-  nomeando as entregas ainda sem veredito. **Os três leem
+  nomeando as entregas ainda sem veredito. **Na v0.5.0 ele ganhou uma segunda pergunta, e
+  ela não depende de pendência nenhuma:** despacho de construtor ou de juiz cujo prompt não
+  carregue a linha `RÉGUA, NUNCA RECEITA` é negado, porque a regra anti-cópia existia só em
+  prosa e não segurou — numa missão real o número medido no alvo virou meta e a obra saiu
+  parecida com ele. **Os três leem
   sinais independentes**, então nada garante que só um esteja aceso de cada vez — na prática,
   motor + `gauntlet` simultâneos negam pelo primeiro que responder. [confirmado —
   `bash plugins/gauntlet/hooks/test_gauntlet_hooks.sh` → *"trava dupla do gauntlet: tudo
