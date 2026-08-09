@@ -85,7 +85,18 @@ echo "A SAÍDA DE EMERGÊNCIA — trava que trava com o dono fora custa mais que
 rm -f "$RAIZ_T/andamento/bloqueios-$SID"
 for _ in 1 2 3; do roda '"sem marcador"' >/dev/null; done
 SAIDA=$(roda '"sem marcador"')
-diz "depois do teto de negações, ela desiste e libera" "$SAIDA" ""
+case "$SAIDA" in
+  *deny*) bad "depois do teto de negações, ela desiste e libera (ainda nega)" ;;
+  *)      ok "depois do teto de negações, ela desiste e libera" ;;
+esac
+case "$SAIDA" in
+  *systemMessage*DESISTIU*) ok "e a desistência AVISA na conversa, não só no log" ;;
+  *)                        bad "e a desistência avisa na conversa (veio: ${SAIDA:0:60})" ;;
+esac
+case "$SAIDA" in
+  *hero*) ok "e o aviso nomeia a entrega que segue sem veredito" ;;
+  *)      bad "e o aviso nomeia a entrega que segue sem veredito" ;;
+esac
 [ -s "$RAIZ_T/andamento/desistencias.log" ] \
   && ok "e a desistência fica registrada" \
   || bad "e a desistência fica registrada"

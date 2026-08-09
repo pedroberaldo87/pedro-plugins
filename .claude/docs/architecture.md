@@ -190,8 +190,12 @@ python3 -c "import json;print(len(json.load(open('.claude-plugin/marketplace.jso
   `grep -rl 'doc-load' plugins/*/skills/*/SKILL.md | grep -v 'skills/doc-load/'` (devolve
   **10** arquivos neste run, em **quatro** plugins — o `gauntlet` entrou na v0.3.1, e é o
   primeiro consumidor de fora do trio que já a usava: a abertura dele resolve a lei do
-  modo com-lei pelo `doc_load.py`, e congela a saída de `--marca` no rito, porque a âncora
-  da régua do gauntlet só cobre o que está dentro do `rito.json` e a lei mora fora dele).
+  modo com-lei pelo `doc_load.py`. **Na v0.4.0 o congelamento dessa lei saiu da prosa e
+  virou programa:** o `rito` verde grava `lei-aprovada.marca` (o conteúdo de cada documento
+  de lei, por `fecho_check.py:ancora_leis`) e o fecho acusa sozinho a lei que mudou, entrou
+  ou sumiu no meio da missão — a âncora do rito só cobre o que está dentro do `rito.json`, e
+  a lei mora fora dele. [confirmado — `python3 plugins/gauntlet/lib/test_fecho_check.py` →
+  *"fecho_check: tudo verde"*, com os cinco casos de "A LEI EM DOCUMENTO"]).
 
   ⚠️ **Consequência de instalação da fusão:** `sovai`, `qa-loop` e `project-doc` não existem
   mais como plugin. Quem os tinha instalados **não** perde a skill por `update` — o cliente
@@ -337,7 +341,7 @@ branches           1.3.4  [branches]                                         HOO
 check-skills       0.7.0  [check-skills]                                     -
 context-guard      1.3.9  [context-guard]                                    HOOKS
 fallow             1.2.3  [fallow]                                           -
-gauntlet           0.3.2  [gauntlet]                                         HOOKS
+gauntlet           0.4.0  [gauntlet]                                         HOOKS
 graphify-guard     1.2.4  []                                                 HOOKS
 grill-me           1.4.0  [grill-me]                                         -
 guardrails         1.7.7  [guardrails]                                       HOOKS
@@ -575,7 +579,11 @@ Observações de arquitetura:
   borda. O cabeçalho do arquivo registra o motivo, literal: *"a falha que motivou a skill
   inteira foi um orquestrador que leu relatórios de sete construtores e aceitou todos, sem
   lançar juiz nenhum"* — e registra também a mudança de 2026-08-09: *"o dono derrubou a caixa
-  fechada… o esquecimento do juiz continua IMPOSSÍVEL, não só proibido"*. **Os três leem
+  fechada… o esquecimento do juiz continua IMPOSSÍVEL, não só proibido"*. **O limite dele
+  está declarado desde a v0.4.0** (`references/porque.md` → "Os limites declarados da
+  trava"): o crachá é auto-declarado, então ele barra esquecimento e não disfarce — e o
+  desarme por excesso de negações, que antes falava só com um log, hoje **avisa na conversa**
+  nomeando as entregas ainda sem veredito. **Os três leem
   sinais independentes**, então nada garante que só um esteja aceso de cada vez — na prática,
   motor + `gauntlet` simultâneos negam pelo primeiro que responder. [confirmado —
   `bash plugins/gauntlet/hooks/test_gauntlet_hooks.sh` → *"trava dupla do gauntlet: tudo

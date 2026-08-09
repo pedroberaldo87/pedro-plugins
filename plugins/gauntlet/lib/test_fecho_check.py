@@ -226,7 +226,7 @@ check("e não inventa peça que a decomposição não conhece",
       fc.grava_veto(m, "outro", ["nao-existe"])[1] == ["nao-existe"])
 check("veto sobre peça fechada, sem retrabalho, recusa o fecho",
       any("não foi retrabalhado" in f for f in fc.erros_do_fecho(m)))
-vetos = [json.loads(l) for l in open(os.path.join(m, "vetos.jsonl"), encoding="utf-8")]
+vetos = [json.loads(ln) for ln in open(os.path.join(m, "vetos.jsonl"), encoding="utf-8")]
 vetos[0]["mantido"] = True
 escreve(os.path.join(m, "vetos.jsonl"),
         "\n".join(json.dumps(v, ensure_ascii=False) for v in vetos) + "\n")
@@ -409,9 +409,9 @@ print()
 print("A RODADA TRANSPLANTADA — o caminho mais barato de fraude")
 d = tmp()
 m = monta_missao(d, pecas=("hero", "marcas"))
-import shutil as _sh
-_sh.rmtree(os.path.join(m, "pecas", "hero", "r1"))
-_sh.copytree(os.path.join(m, "pecas", "marcas", "r1"), os.path.join(m, "pecas", "hero", "r1"))
+shutil.rmtree(os.path.join(m, "pecas", "hero", "r1"))
+shutil.copytree(os.path.join(m, "pecas", "marcas", "r1"),
+                os.path.join(m, "pecas", "hero", "r1"))
 check("rodada copiada de outra peça é acusada — a âncora vem junto, o nome não",
       any("transplantado" in f for f in fc.erros_do_fecho(m)))
 shutil.rmtree(d)
@@ -419,7 +419,8 @@ shutil.rmtree(d)
 d = tmp()
 m = monta_missao(d)
 v = os.path.join(m, "pecas", "hero", "r1", "veredito.json")
-dado = json.load(open(v, encoding="utf-8")); dado["rodada"] = 7
+dado = json.load(open(v, encoding="utf-8"))
+dado["rodada"] = 7
 escreve(v, dado)
 check("veredito que diz ser de outra rodada é acusado",
       any("diz ser da rodada" in f for f in fc.erros_do_fecho(m)))
@@ -455,6 +456,58 @@ check("missão que nunca passou pela abertura é acusada",
 shutil.rmtree(d)
 
 print()
+print("A LEI EM DOCUMENTO — ela mora fora do rito, e a âncora do rito não a cobre")
+d = tmp()
+m = monta_missao(d)
+lei_doc = os.path.join(os.path.dirname(m), "projeto", "constituicao.md")
+escreve(lei_doc, "Art. 1 — a mensagem aprovada é intocável.")
+rito = json.load(open(os.path.join(m, "rito.json"), encoding="utf-8"))
+rito["lei"] = ["constituicao.md"]
+escreve(os.path.join(m, "rito.json"), rito)
+escreve(os.path.join(m, "rito-aprovado.marca"), fc.marca(os.path.join(m, "rito.json")))
+check("lei em documento sem âncora é acusada — o `rito` é quem ancora",
+      any("nunca foi ancorada" in f for f in fc.erros_do_fecho(m)))
+fc.ancora_leis(m)
+check("ancorada e intocada, a missão fecha", fc.erros_do_fecho(m) == [])
+escreve(lei_doc, "Art. 1 — a mensagem pode mudar.")
+check("lei que mudou durante a missão é acusada — mostre ao dono antes de fechar",
+      any("mudou durante a missão" in f for f in fc.erros_do_fecho(m)))
+os.remove(lei_doc)
+check("lei que sumiu do disco é acusada",
+      any("sumiu do disco depois da abertura" in f for f in fc.erros_do_fecho(m)))
+shutil.rmtree(d)
+
+d = tmp()
+m = monta_missao(d)
+check("lei em texto verbatim não exige âncora — o rito-aprovado.marca já a congela",
+      fc.erros_do_fecho(m) == [])
+shutil.rmtree(d)
+
+print()
+print("O ARSENAL — a entrega declara o que usou, ou o dono não tem o que vetar")
+d = tmp()
+m = monta_missao(d)
+rito = json.load(open(os.path.join(m, "rito.json"), encoding="utf-8"))
+rito["arsenal"] = ["## website\n- biblioteca-de-efeitos"]
+escreve(os.path.join(m, "rito.json"), rito)
+escreve(os.path.join(m, "rito-aprovado.marca"), fc.marca(os.path.join(m, "rito.json")))
+check("missão com arsenal e entrega calada sobre o que usou é acusada",
+      any("não declara `arsenal_usado`" in f for f in fc.erros_do_fecho(m)))
+e = os.path.join(m, "pecas", "hero", "r1", "entrega.json")
+dado = json.load(open(e, encoding="utf-8"))
+dado["arsenal_usado"] = []
+escreve(e, dado)
+v = os.path.join(m, "pecas", "hero", "r1", "veredito.json")
+ver = json.load(open(v, encoding="utf-8"))
+ver["entrega"] = fc.marca(e)
+escreve(v, ver)
+escreve(os.path.join(m, "diretor.json"),
+        {"status": "aprovado", "viu": {"hero": fc.marca(e)}})
+check("lista vazia é resposta — `não usei nada` fecha",
+      fc.erros_do_fecho(m) == [])
+shutil.rmtree(d)
+
+print()
 print("A OBRA MORA NO PROJETO, NÃO NA MISSÃO — a base do caminho é declarada")
 d = tmp()
 m = monta_missao(d)
@@ -474,7 +527,8 @@ d = tmp()
 m = monta_missao(d)
 v = os.path.join(m, "pecas", "hero", "r1", "veredito.json")
 dado = json.load(open(v, encoding="utf-8"))
-dado["status"] = "marginal"; dado["gap"] = "o que sobra e pouco"
+dado["status"] = "marginal"
+dado["gap"] = "o que sobra e pouco"
 escreve(v, dado)
 mapa = fc.desenha_mapa(m)
 check("`marginal` sai como parada por ganho pequeno, não como reprovada",

@@ -108,6 +108,44 @@ def marca(caminho):
     return h.hexdigest()[:16]
 
 
+def _leis_em_arquivo(rito, missao):
+    """As entradas de `lei` que são ARQUIVO no disco: (entrada, caminho resolvido).
+
+    A lei aceita dois formatos — o texto verbatim, que mora dentro do rito.json e a
+    âncora da régua já congela, e o caminho de um documento de fora. O documento é o
+    que a âncora do rito NÃO cobre, e é dele que esta lista cuida.
+    """
+    lei = rito.get("lei") or []
+    if isinstance(lei, str):
+        lei = [lei]
+    raiz = rito.get("raiz") or missao
+    if not os.path.isabs(raiz):
+        raiz = os.path.join(missao, raiz)
+    fora = []
+    for entrada in lei:
+        if not isinstance(entrada, str) or not entrada:
+            continue
+        cam = entrada if os.path.isabs(entrada) else os.path.join(raiz, entrada)
+        if os.path.isfile(cam):
+            fora.append((entrada, cam))
+    return fora
+
+
+def ancora_leis(missao):
+    """Congela o conteúdo dos documentos de lei no momento da abertura.
+
+    "Reconfira a lei no fecho" era instrução de prosa — a classe de furo que criou a
+    skill. Com a âncora gravada aqui, quem reconfere é `erros_do_fecho`, nunca a
+    memória de quem orquestra.
+    """
+    rito, erro = _le(os.path.join(missao, "rito.json"))
+    if erro:
+        return
+    marcas = {entrada: marca(cam) for entrada, cam in _leis_em_arquivo(rito, missao)}
+    with open(os.path.join(missao, "lei-aprovada.marca"), "w", encoding="utf-8") as fh:
+        json.dump(marcas, fh, ensure_ascii=False, indent=1)
+
+
 def _rodadas(dir_peca):
     """As rodadas de uma peça, em ordem. Nome `r<N>`; o resto é ignorado."""
     if not os.path.isdir(dir_peca):
@@ -220,7 +258,8 @@ def erros_do_rito(missao, sinal=None):
 # fecho — o fecho pode acontecer?
 # ─────────────────────────────────────────────────────────────────────────────
 
-def _erros_do_veredito(missao, peca, dir_rodada, nomes_de_eixo, raiz=None):
+def _erros_do_veredito(missao, peca, dir_rodada, nomes_de_eixo, raiz=None,
+                       arsenal=False):
     """As checagens de UM veredito. Cada uma nasceu de uma falha documentada."""
     erros = []
     cam_v = os.path.join(dir_rodada, "veredito.json")
@@ -290,6 +329,14 @@ def _erros_do_veredito(missao, peca, dir_rodada, nomes_de_eixo, raiz=None):
             erros.append(
                 "%s %s: este manifesto é da peça `%s`" % (peca, rodada, ent.get("peca"))
             )
+        # O arsenal é oferta do dono; a ENTREGA diz o que dele foi usado, e é essa
+        # declaração que dá ao dono a chance de vetar a dependência. Lista vazia é
+        # resposta ("não usei nada"); campo ausente é silêncio, e silêncio não vale.
+        if arsenal and "arsenal_usado" not in ent:
+            erros.append(
+                "%s %s: a missão tem arsenal e a entrega não declara `arsenal_usado`"
+                % (peca, rodada)
+            )
         artefatos = ent.get("artefatos") or []
         if not artefatos:
             erros.append("%s %s: o manifesto não lista artefato nenhum" % (peca, rodada))
@@ -350,6 +397,31 @@ def erros_do_fecho(missao):
     else:
         erros.append("a missão nunca passou pela abertura: falta a âncora da régua")
 
+    # A lei em documento mora FORA do rito, e a âncora da régua não a cobre. Sem esta
+    # conta, "reconfira a lei no fecho" dependia da memória de quem orquestra — e o
+    # dono aprovaria obra julgada contra regra que já não vale.
+    leis = _leis_em_arquivo(rito, missao)
+    gravadas, erro_lei = _le(os.path.join(missao, "lei-aprovada.marca"))
+    if leis and erro_lei:
+        erros.append(
+            "a lei em documento nunca foi ancorada — rode o `rito` de novo para ancorar"
+        )
+    elif not erro_lei:
+        atuais = dict(leis)
+        for entrada, cam in leis:
+            if entrada not in gravadas:
+                erros.append(
+                    "a lei `%s` entrou depois da abertura — reancore com o dono" % entrada
+                )
+            elif marca(cam) != gravadas[entrada]:
+                erros.append(
+                    "a lei `%s` mudou durante a missão — mostre ao dono antes de fechar"
+                    % entrada
+                )
+        for entrada in gravadas:
+            if entrada not in atuais:
+                erros.append("a lei `%s` sumiu do disco depois da abertura" % entrada)
+
     decomp, erro = _le(os.path.join(missao, "decomposicao.json"))
     if erro:
         return erros + ["a decomposição não está no disco — %s" % erro]
@@ -366,7 +438,8 @@ def erros_do_fecho(missao):
             # É esta linha que pega "sete construtores, zero juízes".
             erros.append("%s: nenhuma rodada no disco" % nome)
             continue
-        erros.extend(_erros_do_veredito(missao, nome, ultima, nomes_de_eixo, raiz))
+        erros.extend(_erros_do_veredito(missao, nome, ultima, nomes_de_eixo, raiz,
+                                        arsenal=bool(rito.get("arsenal"))))
         ver, _ = _le(os.path.join(ultima, "veredito.json"))
         if ver and ver.get("status") in ("aprovado", "marginal"):
             aprovadas[nome] = marca(os.path.join(ultima, "entrega.json"))
@@ -616,6 +689,9 @@ def main(argv=None):
             with open(os.path.join(args.missao, "rito-aprovado.marca"), "w",
                       encoding="utf-8") as fh:
                 fh.write(marca(os.path.join(args.missao, "rito.json")) or "")
+            # A lei em documento ganha âncora própria: a do rito só congela o que
+            # está DENTRO do rito.json, e a lei mora fora.
+            ancora_leis(args.missao)
             print("rito completo — a missão pode começar.")
             return 0
         print("fecho liberado — todo pedaço julgado, com o par de registros.")

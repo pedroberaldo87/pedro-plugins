@@ -116,6 +116,12 @@ MAX="${GAUNTLET_MAX_BLOQUEIOS:-3}"
 
 if [ "$N" -ge "$MAX" ]; then
   printf '%s desistiu apos %s negacoes\n' "$SESSION" "$N" >> "$RAIZ/desistencias.log" 2>/dev/null
+  # A desistência falava só com um log que ninguém abre, e o dono não ficava sabendo
+  # que a disputa passou a rodar sem guarda. O aviso vai aos dois públicos (dono e
+  # modelo); a rede final segue de pé — o fecho continua vermelho sem os vereditos.
+  LISTA=$(printf '%s' "$PENDENTES" | tr '\n' ' ')
+  type hj_msg_ctx >/dev/null 2>&1 && hj_msg_ctx "PreToolUse" \
+    "⚠️ A trava do gauntlet DESISTIU após $N negações: a sessão segue SEM o guarda do juiz. Entrega(s) ainda sem veredito: ${LISTA} — o fecho continuará vermelho até os juízes existirem."
   exit 0
 fi
 

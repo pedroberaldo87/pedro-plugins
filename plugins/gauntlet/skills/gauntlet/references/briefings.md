@@ -63,7 +63,9 @@ Eixos desta peça: {eixos da peça, com o registro do alvo de cada um}
 {Vetos vivos do dono: {vetos.jsonl, verbatim} — voltar com isso é reprovação certa.}
 
 {Se há arsenal no rito: RECURSOS DE PRIMEIRA CLASSE, escolhidos pelo dono — use antes
-de reinventar, e declare na entrega qual usou: {arsenal, verbatim}}
+de reinventar, e declare na entrega qual usou, no campo `arsenal_usado` do
+entrega.json (lista; vazia = "não usei nada" — sem o campo, o fecho recusa):
+{arsenal, verbatim}}
 
 {Rodada 1 exploratória: Faça TRÊS propostas diferentes de verdade — não três variações
 da mesma —, monte lado a lado, OLHE, e escolha com o olho. Registre por que descartou

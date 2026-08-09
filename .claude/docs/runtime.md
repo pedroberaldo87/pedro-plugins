@@ -955,7 +955,7 @@ andamento/ativo-<session_id> ausente ........ exit 0
 1ª linha do sinal != "gauntlet" ............. exit 0 (a casa é compartilhada)
 2ª linha ausente ou não é diretório ......... exit 0 (fail-open declarado)
 sinal mais velho que GAUNTLET_TTL_MIN ....... remove o sinal, exit 0
-bloqueios-<sid> >= GAUNTLET_MAX_BLOQUEIOS ... registra desistência, exit 0
+bloqueios-<sid> >= GAUNTLET_MAX_BLOQUEIOS ... registra E AVISA a desistência, exit 0
 fecho_check.py pendentes <missão> == vazio .. exit 0 (equipe livre)
 prompt contém [gauntlet:juiz:<peça pendente>] exit 0 (o juiz passa)
 senão ....................................... deny, nomeando a peça e o marcador
@@ -965,7 +965,14 @@ senão ....................................... deny, nomeando a peça e o marcad
 
 **A pergunta é do disco.** `fecho_check.py pendentes` percorre a decomposição e devolve a peça cuja última rodada tem `entrega.json` e não tem `veredito.json` legível com status do vocabulário. É a foto da falha de origem ("sete construtores, zero juízes") tirada em voo, e não no fecho. `[confirmado — `python3 plugins/gauntlet/lib/test_fecho_check.py` → *"fecho_check: tudo verde"*, com os casos de `pecas_pendentes`]`
 
-**Verificado:** `bash plugins/gauntlet/hooks/test_gauntlet_hooks.sh` → *"trava dupla do gauntlet: tudo verde"*, cobrindo o construtor negado, o juiz da pendente que passa, o juiz de peça já julgada que não fura a fila, a equipe livre sem pendência, a desistência, a expiração, o kill-switch e as cinco bordas de fail-open. `[confirmado nesta rodada]`
+**O desarme deixou de ser mudo (v0.4.0).** A trava desiste depois de `GAUNTLET_MAX_BLOQUEIOS` negações na mesma sessão — decisão declarada no cabeçalho do arquivo, porque travar missão longa com o dono fora custa mais que o defeito. O que era furo: ela desistia falando só com `andamento/desistencias.log`, que ninguém abre, e a disputa seguia sem guarda sem ninguém saber. Hoje o mesmo ponto emite `hj_msg_ctx` — o aviso vai ao dono e ao modelo, nomeando as entregas ainda sem veredito. A rede final não mudou: o fecho segue vermelho até os juízes existirem. `[confirmado — `bash plugins/gauntlet/hooks/test_gauntlet_hooks.sh` cobre "a desistência AVISA na conversa, não só no log" e "o aviso nomeia a entrega que segue sem veredito"]`
+
+**O fecho ganhou dois cobradores na v0.4.0**, e os dois nasceram de uma revisão que mediu a mesma classe de furo que criou a skill — regra escrita em prosa, cumprida por ninguém:
+
+- **A lei em documento.** `fecho_check.py:ancora_leis` grava `lei-aprovada.marca` quando o `rito` passa, e `erros_do_fecho` compara o conteúdo de cada documento de lei contra essa âncora. Lei que mudou, entrou ou sumiu no meio da missão vira furo nomeado, em vez de depender de quem orquestra lembrar de reconferir. A âncora do rito (`rito-aprovado.marca`) não cobria isso: ela congela o que está DENTRO do `rito.json`, e a lei mora em documento de fora.
+- **O arsenal.** Em missão cujo rito traz `arsenal`, a entrega tem que declarar `arsenal_usado` — lista vazia é resposta ("não usei nada"), campo ausente é silêncio e recusa o fecho. É o que dá ao dono a chance de vetar uma dependência que a obra adotou.
+
+**Verificado:** `bash plugins/gauntlet/hooks/test_gauntlet_hooks.sh` → *"trava dupla do gauntlet: tudo verde"*, cobrindo o construtor negado, o juiz da pendente que passa, o juiz de peça já julgada que não fura a fila, a equipe livre sem pendência, a desistência que avisa, a expiração, o kill-switch e as cinco bordas de fail-open; `python3 plugins/gauntlet/lib/test_fecho_check.py` → *"fecho_check: tudo verde"*, com os blocos "A LEI EM DOCUMENTO" (5 casos) e "O ARSENAL" (2 casos). `[confirmado nesta rodada]`
 
 ---
 
