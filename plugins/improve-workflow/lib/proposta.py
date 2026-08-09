@@ -8,10 +8,11 @@ então aqui a regra é uma só: **um item por proposta**, nunca um item com a li
 toda dentro.
 
 Este programa não escreve HTML. Ele monta o SPEC do /visual e imprime; quem monta a
-página é o plugin vizinho, pelo cano:
+página é o plugin vizinho, achado por NOME (nunca por caminho até a pasta dele —
+o cache do harness dá pasta própria a cada plugin), pelo cano:
 
-    python3 proposta.py propostas.json \
-      | python3 <…>/visual/lib/visual_page.py build --spec -
+    VP="$(<resolvedor de plugin por nome> visual lib/visual_page.py)"
+    python3 proposta.py propostas.json | python3 "$VP" build --spec -
 
 Cada proposta carrega o número que ela mira e como esse número será conferido na
 rodada seguinte — proposta sem isso é opinião, e sai recusada aqui em vez de virar

@@ -329,19 +329,19 @@ graphify-guard     1.2.4  []                                                 HOO
 grill-me           1.4.0  [grill-me]                                         -
 guardrails         1.7.7  [guardrails]                                       HOOKS
 handoff           1.11.1  [handoff]                                          HOOKS
-improve            1.1.1  [improve]                                          -
-improve-workflow   0.8.0  [improve-workflow]                                 -
+improve            1.1.2  [improve]                                          -
+improve-workflow  0.16.1  [improve-workflow]                                 -
 intent-guard       0.7.0  [intent-guard]                                     HOOKS
 lixeiro            1.3.1  [faxina]                                           HOOKS
 principles         1.0.5  [principles]                                       -
-project-skills    0.18.1  [design-md, doc, doc-touch, monitorar,
+project-skills    0.19.3  [design-md, doc, doc-touch, monitorar,
                            pesquisa-referencias, plan, project-skills,
                            qa-loop, sprint, start]                           HOOKS
 ship               1.5.0  [ship]                                             HOOKS
 slides             1.6.0  [slides]                                           -
 vision             0.1.0  []                                                 -
 vistoria           0.5.1  [vistoria]                                         -
-visual            1.39.0  [andamento, visual]                                HOOKS
+visual            1.40.0  [andamento, visual]                                HOOKS
 ```
 
 **A rodada anterior moveu onde as skills MORAM; esta apagou as CASAS que tinham ficado
@@ -359,7 +359,17 @@ agora o motor também mudou de endereço e os três diretórios deixaram de exis
 - `improve-workflow` entrou no lugar deles no catálogo — nasceu com `lib/sobras.py` só e
   **desligado de fábrica** no manifest do bootstrap (§2); na rodada seguinte (0.8.0) ganhou
   o medidor por papel (`lib/medidor.py`), o registro entre rodadas (`lib/registro.py`) e a
-  skill `improve-workflow`, e deixou de ser plugin sem `skills/`.
+  skill `improve-workflow`, e deixou de ser plugin sem `skills/`. Na 0.16.x fechou a
+  ponta de SAÍDA da rodada: `lib/proposta.py` monta o **spec do `/visual`** com um item
+  por proposta (nunca a lista toda num item só — a superfície de aprovação dá veredito
+  por item), e `lib/plano_saida.py` lê o veredito de volta do disco
+  (`~/.claude/visual-state/latest.json` → `state.feedback`) e converte só o aprovado em
+  passo de plano ticável (`keep` vira passo, `change` vira passo com o texto do dono,
+  `remove` não vira nada; item **sem veredito recusa a gravação inteira**, porque rádio
+  intocado chega como `keep` e gravar isso transformaria silêncio em aprovação).
+  ⚠️ **Nenhum dos dois escreve HTML nem confere schema de plano**: o primeiro sai por
+  cano para `plugins/visual/lib/visual_page.py build --spec -`, o segundo declara a
+  degradação quando `plan_state.py` (no `project-skills`) não está na máquina.
   ⚠️ **Costura nova entre os dois plugins, e ela é de TEXTO:** o medidor só sabe quem foi
   cada agente porque todo prompt do motor de `/sprint` abre com a linha `PAPEL: <NOME>`
   (a tabela de nomes está em `plugins/project-skills/skills/sprint/SKILL.md`, e
@@ -881,7 +891,8 @@ plugins/branches/lib/      branch_state.py + test_branch_state.py
 plugins/guardrails/lib/    askq_lint.py + test_askq_lint.py
 plugins/bootstrap/lib/     conformance.py + test_conformance.py
 plugins/gauntlet/lib/      fecho_check.py + test_fecho_check.py
-plugins/improve-workflow/lib/ sobras.py · medidor.py · registro.py + as suítes
+plugins/improve-workflow/lib/ sobras.py · medidor.py · registro.py · proposta.py ·
+                           plano_saida.py + as suítes
 plugins/grill-me/lib/      test_grill_me_skill.py
 
 regua_texto.py (vendorado)  cópias idênticas — `find plugins -path '*/lib/*.py' -name regua_texto.py`
