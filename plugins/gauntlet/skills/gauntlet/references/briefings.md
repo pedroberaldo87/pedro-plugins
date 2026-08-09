@@ -62,6 +62,9 @@ Eixos desta peça: {eixos da peça, com o registro do alvo de cada um}
 {lei, verbatim ou o caminho do documento}}
 {Vetos vivos do dono: {vetos.jsonl, verbatim} — voltar com isso é reprovação certa.}
 
+{Se há arsenal no rito: RECURSOS DE PRIMEIRA CLASSE, escolhidos pelo dono — use antes
+de reinventar, e declare na entrega qual usou: {arsenal, verbatim}}
+
 {Rodada 1 exploratória: Faça TRÊS propostas diferentes de verdade — não três variações
 da mesma —, monte lado a lado, OLHE, e escolha com o olho. Registre por que descartou
 cada uma, com o motivo visto na tela: o descarte é o argumento.}
