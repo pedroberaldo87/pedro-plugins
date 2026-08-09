@@ -15,10 +15,13 @@ Ler os textos inteiros derrubaria o passo: são dezenas de milhares de palavras 
 alguns milhares de fichas. O teto dessa soma é declarado por programa em
 `lib/test_pauta.py`, e a suíte reprova a ficha que estourar.
 
-**A correspondência evento → pedaços sai do campo `eventos` da ficha**, e de mais nada. Não
-existe inventário de hooks aqui, e esta pauta não constrói um: o passo do inventário está
-congelado por decisão do dono. Onde a ordem entre dois registros importa, ela é lida do
-arquivo de ordem de registro citado pela própria ficha.
+**A correspondência evento → pedaços sai do campo `eventos` da ficha** — e, quando ela
+precisa ser conferida contra o disco, de `lib/inventario.py` (`tabela_de_hooks`), que lê os
+`hooks.json` de verdade. O que segue congelado por decisão do dono é o **leitor por agente**:
+esta pauta não lê o texto dos pedaços. Onde a ordem entre dois registros importa, ela vale
+DENTRO de um mesmo `hooks.json` (ordem de registro); entre plugins diferentes o inventário
+sai rotulado `ordem_entre_plugins: "nao-medida"`, e afirmar quem bloqueia primeiro a partir
+dele é achado inválido.
 
 **Regra de forma.** Igual à do leitor: nenhuma pergunta usa verbo aberto (*avalie*,
 *considere*, *analise*, *reflita*, *julgue*, *opine*), e toda pergunta exige o **par** de

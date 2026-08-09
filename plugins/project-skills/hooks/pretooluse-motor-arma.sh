@@ -73,6 +73,23 @@ SINAL="$ESTADO/ativo-$SESSION"
 
 [ -f "$SINAL" ] || exit 0
 
+# DE QUEM É O SINAL — a primeira linha diz, e sem esta conferência o gate
+# sequestra missão de outra skill.
+#
+# MEDIDO em 2026-08-09: três skills do marketplace gravam o MESMO arquivo
+# `ativo-<sid>` neste diretório, cada uma com o seu nome na linha 1 —
+# `sprint`, `qa-loop` e `gauntlet`. Este gate só olhava se o arquivo existia.
+# Resultado real: acender o sinal do gauntlet armava o gate do sprint, e o
+# gauntlet ficava proibido de despachar os próprios juízes — que é o mecanismo
+# inteiro dele, e uma skill que existe justamente porque juiz esquecido já
+# custou uma sessão de 14 horas.
+#
+# O sinal é compartilhado de propósito (a barra de status lê a linha 1 de
+# qualquer um deles), então a correção não é mudar o nome do arquivo: é o
+# leitor conferir a quem ele pertence antes de agir.
+DONO=$(head -n 1 "$SINAL" 2>/dev/null)
+[ "$DONO" = "sprint" ] || exit 0
+
 # EXPIRAÇÃO — sinal velho não bloqueia, e some. Sessão que morre sem apagar o
 # `ativo-<sid>` deixava o gate aceso até o fim: medido em 2026-08-06, 4 sinais de
 # sessões mortas ainda em pé. Arquivo por sessão precisa de janela de expiração no

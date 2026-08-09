@@ -34,7 +34,56 @@ não promessa — o programa confere que o arquivo existe e não está vazio.
 }
 ```
 
+### O PESO DE RODAR é metade da observação — e a captura sozinha não o vê
+
+Uma página se julga por duas coisas ao mesmo tempo: como ela **fica** e quanto custa **rodá-la**.
+O print só mostra a primeira, e é por isso que uma sonda de site que devolve só imagem aprova
+o que trava a máquina de quem abre. Meça sempre os dois, pelo mesmo gesto, nos dois lados:
+
+```
+quadros por segundo   rolando uma distância FIXA num tempo FIXO (ex.: 2400px em 3s),
+                      com o quadro mediano, o pior quadro e quantos passaram de 32ms
+LCP + o elemento      não basta o número: guarde QUEM é o maior elemento pintado.
+                      "LCP 2,3s numa <img>" e "LCP 2,3s no <h1>" são defeitos diferentes
+CLS                   deslocamento de layout acumulado, ignorando o que veio de clique
+tarefa mais longa     a maior longtask — é ela que engasga o dedo do usuário
+kB e pedidos da rede  somando o que ATRAVESSOU o fio, não o tamanho descomprimido
+nós de DOM            o tamanho da árvore que o navegador reflui a cada quadro
+```
+
+E ofereça um modo com o freio puxado (CPU 4× + rede lenta, por CDP:
+`Emulation.setCPUThrottlingRate` e `Network.emulateNetworkConditions`). Sem ele, máquina de
+desenvolvimento aprova qualquer coisa: página local não tem rede nem concorrência de CPU.
+
+**Rode um CONTROLE antes de acreditar em quadro baixo.** Uma página estática de meia dúzia de
+blocos tem que dar ~60 quadros por segundo na mesma sonda. Se der, o número baixo do alvo é
+real; se não der, o defeito é da ferramenta — e a regra da casa é que a ferramenta é culpada
+até prova em contrário.
+
+**Peso em bytes não é o que trava.** Medido numa missão real: a Apple carregou 14.287kB e
+3.749 nós de DOM rodando a 60,3 quadros por segundo, enquanto um site de 721kB rodava a 9,8.
+O que trava é trabalho por quadro, não tamanho de download — e um eixo que confunde os dois
+manda o construtor emagrecer a página errada.
+
 ### As armadilhas deste meio — todas custaram tempo real
+
+**A página de bloqueio devolve número com cara de site.** O alvo pode recusar o robô e servir
+um desafio ou um 403 — e a sonda registra os quadros e os bytes DAQUELA página, não do site.
+Medido: `partizan.com` devolveu "NinjaFirewall 403 Forbidden" e a tabela quase ganhou uma linha
+de 60 quadros por segundo e 6kB. Número de página de erro contaminando comparação é pior que
+número nenhum: a sonda tem que **falhar alto** e não gravar nada.
+
+```js
+const status = resposta?.status() ?? 0
+const titulo = await pagina.title()
+if (status >= 400 || /403|forbidden|access denied|attention required|just a moment|firewall/i.test(titulo)) {
+  console.error(`SONDA INVÁLIDA: ${url} respondeu ${status} — "${titulo}"`)
+  process.exit(3)
+}
+```
+
+**Medir dois sites ao mesmo tempo estraga os quadros dos dois.** A CPU é a mesma. A pesagem de
+uma lista de alvos é sequencial, um de cada vez, ou a comparação mede concorrência.
 
 **O navegador é compartilhado.** Com vários agentes, a aba troca de dono no meio da leitura e
 o número volta de outra página — aconteceu em três frentes numa rodada. A defesa é uma guarda
