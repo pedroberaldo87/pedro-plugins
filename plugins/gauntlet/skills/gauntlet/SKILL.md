@@ -50,12 +50,27 @@ mandou enxugar:
 Opcionais que entram quando existem: **`lei`** (ver o modo com lei, abaixo) · `vetos`
 herdados · `raiz` (onde a obra mora, se não for a própria missão).
 
-**Os dois modos, decididos na abertura com UMA pergunta:** há documento de regras do
-projeto (constituição, doc de marca, spec congelada)? **Com ele**, o caminho (ou a lista
-de artigos) entra no campo `lei`. **Sem ele**, a disputa é livre — só o alvo manda.
+**Os dois modos, decididos na abertura — e quem responde primeiro é programa.** Antes de
+perguntar ao dono, tente a skill `doc-load` do projeto onde a missão roda:
+
+```bash
+python3 "$(bash "${CLAUDE_PLUGIN_ROOT}/hooks/resolve-plugin.sh" project-skills lib/doc_load.py)" \
+  --project-root "<raiz do projeto da obra>" --json
+```
+
+Ela diz **quais documentos valem como RÉGUA hoje** (lei + acordos aprovados) e quais são
+só mapa. Com régua encontrada: os caminhos entram no campo `lei` do rito, e a saída de
+`--marca` entra em `lei_marca` — é o congelamento da lei; a âncora do rito só pega o que
+está DENTRO do `rito.json`, e a lei mora em documento de fora. No fecho, rode `--marca`
+de novo: divergiu, a lei mudou no meio da missão — mostre ao dono antes de fechar.
+Sem doc-load na máquina, ou sem documento aprovado no projeto, caia na pergunta: há
+documento de regras (constituição, doc de marca, spec congelada)? **Com ele**, o caminho
+entra em `lei`; **sem ele**, a disputa é livre — só o alvo manda.
+
 O que a lei faz, nas palavras do dono: *"orienta pra evitar erros, e se fizerem cagada
 ele reprova"* — ela entra no briefing de todo construtor como orientação, e o juiz
-**reprova a peça que a viola de fato**, por mais bonita que esteja.
+**reprova a peça que a viola de fato**, por mais bonita que esteja, **citando a
+passagem violada**.
 
 **A sonda é testada antes de começar** (`teste_registro` no disco), e o reconhecimento
 executa a sonda **no alvo** antes de a obra existir, devolvendo os `eixos` — o que faz o
