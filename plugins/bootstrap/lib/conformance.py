@@ -407,115 +407,6 @@ def check_gates_enganosos(rep, cfg):
         rep.conforme("gate", "nenhum gate em estado meio-ligado nem .mode duplicado")
 
 
-def le_batidas(log):
-    """(contagem por motivo, idade da ultima em horas, resumo legivel)."""
-    motivos = {}
-    ultima = 0
-    for x in log.read_text(encoding="utf-8").splitlines():
-        if not x.strip():
-            continue
-        try:
-            d = json.loads(x)
-        except ValueError:
-            continue
-        motivos[d.get("motivo", "?")] = motivos.get(d.get("motivo", "?"), 0) + 1
-        ultima = max(ultima, int(d.get("ts") or 0))
-    idade_h = (time.time() - ultima) / 3600 if ultima else 999
-    return motivos, idade_h, " · ".join("%s %d" % (k, v) for k, v in sorted(motivos.items()))
-
-
-def check_teto_rodou(rep, cfg):
-    """Guarda instalado que nao EXECUTA e pior que guarda desligado: parece protegido.
-
-    Medido em 2026-07-31: uma resposta de 9 linhas passou as 09:21 e o primeiro
-    registro de bloqueio no disco era das 09:36. Como so existia log de BLOQUEIO,
-    'nao rodou' e 'rodou e aprovou' eram indistinguiveis, e esta checagem chegou a
-    carimbar "nenhuma resposta furou o teto" com o guarda mudo. O hook agora grava
-    uma batida por execucao; aqui a ausencia dela vira desvio, nao elogio.
-    """
-    # so cobra de quem instalou o hook: numa maquina sem o bootstrap ligado nao ha
-    # guarda pra rodar, e acusar ali seria desvio inventado.
-    settings = load_json(CLAUDE_DIR / "settings.json")
-    if not any(ref.startswith("bootstrap@") and lig
-               for ref, lig in (settings.get("enabledPlugins", {}) or {}).items()):
-        return
-    batidas = CLAUDE_DIR / "state" / "prose-ceiling" / "batidas.log"
-    if not batidas.is_file():
-        rep.desvio("teto", "o guarda de prosa nunca executou",
-                   f"{batidas} nao existe",
-                   "hook de plugin so carrega no SessionStart — /clear e conferir de novo.\n"
-                   "     Regua:  python3 plugins/bootstrap/hooks/stop-prose-ceiling.py < payload")
-        return
-    motivos, idade_h, resumo = le_batidas(batidas)
-    if idade_h > 24:
-        rep.desvio("teto", "o guarda de prosa esta mudo ha %d h" % idade_h,
-                   f"{batidas}\n  {resumo}",
-                   "ultima execucao ha mais de um dia — confira se o hook ainda carrega")
-    else:
-        rep.conforme("teto", "guarda de prosa ativo (%s)" % resumo)
-
-
-def check_juiz_rodou(rep, cfg):
-    """O juiz de forma e fail-open por desenho: sem esta checagem, 'nao esta barrando'
-    e 'nao esta rodando' voltam a ser indistinguiveis — o defeito original do teto.
-
-    Tem um modo de falha a mais que o guarda mecanico: ele chama `claude -p`, e sem
-    credencial o comando sai com rc=1 e o hook aprova tudo em silencio. Medido: com
-    um CLAUDE_CONFIG_DIR sem login, os 3 casos de teste "passavam" em 1,7s. O sintoma
-    fica na batida como 'juiz sem resposta', e e isso que se cobra aqui.
-    """
-    settings = load_json(CLAUDE_DIR / "settings.json")
-    if not any(ref.startswith("bootstrap@") and lig
-               for ref, lig in (settings.get("enabledPlugins", {}) or {}).items()):
-        return
-    batidas = CLAUDE_DIR / "state" / "forma-relato" / "batidas.log"
-    if not batidas.is_file():
-        rep.desvio("juiz", "o juiz de forma nunca executou",
-                   f"{batidas} nao existe",
-                   "confira se stop-forma-relato.py esta no array Stop de\n"
-                   "     plugins/bootstrap/hooks/hooks.json — hook fora dele e ignorado\n"
-                   "     em silencio, e `claude plugin validate` passa mesmo assim.")
-        return
-    motivos, idade_h, resumo = le_batidas(batidas)
-    mudo = sum(v for k, v in motivos.items() if k.startswith("juiz sem resposta"))
-    julgou = motivos.get("julgou", 0)
-    if mudo > julgou:
-        rep.desvio("juiz", "o juiz esta mudo: %d execucao(oes) sem resposta do modelo" % mudo,
-                   f"{batidas}\n  {resumo}",
-                   "fail-open aprovou tudo nessas vezes. Causa comum e credencial:\n"
-                   "     `claude -p` sai com rc=1 e 'Not logged in'. Teste:  claude -p --model haiku ok")
-    elif idade_h > 24:
-        rep.desvio("juiz", "o juiz de forma esta mudo ha %d h" % idade_h,
-                   f"{batidas}\n  {resumo}",
-                   "ultima execucao ha mais de um dia — confira se o hook ainda carrega")
-    else:
-        rep.conforme("juiz", "juiz de forma ativo (%s)" % resumo)
-
-
-def check_bypass_teto(rep, cfg):
-    """O hook de prosa desiste apos 2 bloqueios (senao trava a sessao). Isso e um teto
-    conhecido — o que nao pode e ser silencioso. Aqui ele vira numero visivel."""
-    log = CLAUDE_DIR / "state" / "prose-ceiling" / "bypass.log"
-    if not log.is_file():
-        rep.conforme("bypass", "nenhuma resposta furou o teto de prosa")
-        return
-    linhas = [x for x in log.read_text(encoding="utf-8").splitlines() if x.strip()]
-    if not linhas:
-        rep.conforme("teto", "nenhuma resposta furou o teto de prosa")
-        return
-    amostra = []
-    for x in linhas[-3:]:
-        try:
-            d = json.loads(x)
-            amostra.append(f"  {d.get('linhas_prosa')} linhas · {d.get('trecho','')[:70]}")
-        except ValueError:
-            continue
-    rep.desvio("teto", f"{len(linhas)} resposta(s) furaram o teto de prosa",
-               f"{log}\n" + "\n".join(amostra),
-               "o hook desiste apos 2 bloqueios pra nao travar a sessao.\n"
-               f"     Zere depois de olhar:  rm {log}")
-
-
 def check_ferramentas_externas(rep, cfg):
     """Plugin habilitado cuja dependencia EXTERNA nao esta na maquina.
 
@@ -704,7 +595,7 @@ def check_statusline_meio_ligada(rep, cfg):
 
 CHECAGENS = [check_plugins, check_claude_md, check_teto_unico,
              check_output_style, check_skills, check_hooks_duplicados,
-             check_gates_enganosos, check_teto_rodou, check_juiz_rodou, check_bypass_teto,
+             check_gates_enganosos,
              check_ferramentas_externas, check_catalogo, check_statusline_meio_ligada]
 
 

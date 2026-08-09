@@ -153,6 +153,14 @@ def placar(saida):
         # asterisco duplo; prosa sobre ela quase sempre tem.
         if "`" in linha or "**" in linha:
             continue
+        # Linha comprida ou com aspas tambem NAO e placar: e prosa de agente que
+        # cita um numero no meio. Medido em 2026-08-09 — a barra mostrou
+        # "suíte: '0) já estavam cobertos no disco. Motor (…SKILL.md:204)…" porque
+        # uma frase de relatorio casou no regex. Placar real e curto e seco
+        # ("139 passou · 0 falhou", "OK (56 checks)"): nenhum passa de 80
+        # caracteres nem carrega aspas.
+        if len(linha.strip()) > 80 or '"' in linha:
+            continue
         for rx in PLACARES:
             m = rx.search(linha)
             if m:
@@ -218,7 +226,7 @@ def onda(sessao, saida, dir_estado=None):
     base = dir_estado or ESTADO
     caminho = os.path.join(base, "placar-%s" % sessao)
     estado = avanco(ultimo_placar(sessao, base), p)
-    linha = "suíte: %s — %s" % (p["linha"], estado)
+    linha = "Suíte: %s — %s" % (p["linha"], estado)
     try:
         os.makedirs(base, exist_ok=True)
         with open(caminho, "w", encoding="utf-8") as fh:
@@ -303,7 +311,7 @@ def linha_onda(sessao, dir_estado=None):
     rodada = reg.get("rodada")
     if rodada in (None, ""):
         return None
-    partes = ["onda %s" % rodada]
+    partes = ["Onda %s" % rodada]
     if reg.get("total"):
         partes.append("%s/%s" % (reg.get("feitos", 0), reg["total"]))
     return " · ".join(partes)
@@ -377,8 +385,8 @@ def linha_silencio(mudo, trabalho_vivo, limite=LIMITE_SILENCIO):
         return None
     minutos = int(round(mudo / 60.0))
     if trabalho_vivo:
-        return "rodando há %d min — trabalho vivo, não é travamento" % minutos
-    return "travamento: nada mudou há %d min e não há trabalho vivo" % minutos
+        return "Rodando há %d min — trabalho vivo, não é travamento" % minutos
+    return "Travamento: nada mudou há %d min e não há trabalho vivo" % minutos
 
 
 def linha_disparo(comando, projeto, agora=None):
@@ -411,7 +419,7 @@ def linha_andamento(comando, projeto, decorrido, saida_ate_agora="", anterior=No
     """
     p = placar(saida_ate_agora)
     est = estimativa(projeto, comando)
-    partes = ["rodando há %s" % _dur(decorrido)]
+    partes = ["Rodando há %s" % _dur(decorrido)]
     if est is not None:
         if decorrido > est * 2:
             partes.append("passou do dobro do usual (~%s)" % _dur(est))
@@ -516,7 +524,9 @@ def linha_motor(sessao, dir_estado=None, agora=None):
     # coisa: sem ele, achar o silencio no meio de seis frases separadas por ponto
     # exige LER a linha inteira. O separador vertical corta o que o ponto medio
     # nao cortava — ele tambem separa palavra dentro de cada pedaco.
-    partes = ["🚀 %s · missão há %s" % (_motor(ativo), _dur(max(idade, 0)))]
+    # Primeira palavra de cada pedaço em maiúscula — pedido do dono (2026-08-09):
+    # a barra é lida de relance, e o pedaço que abre minúsculo some no meio da linha.
+    partes = ["🚀 %s · Missão há %s" % (_motor(ativo).capitalize(), _dur(max(idade, 0)))]
 
     onda_atual = linha_onda(sessao, base)
     if onda_atual:
@@ -531,7 +541,7 @@ def linha_motor(sessao, dir_estado=None, agora=None):
     if t and t[1]:
         decorrido = agora - t[0]
         if decorrido >= 0:
-            corrido = "🔧 ferramenta há %s" % _dur(decorrido)
+            corrido = "🔧 Ferramenta há %s" % _dur(decorrido)
             est = estimativa(t[2], t[1])
             # Comando sem historico AQUI sai sem numero: a mesma regra do modulo
             # inteiro — relogio sozinho e honesto, numero inventado nao.
@@ -553,11 +563,11 @@ def linha_motor(sessao, dir_estado=None, agora=None):
         # de 20 minutos que estava rodando normalmente.
         if mudo > LIMITE_SILENCIO:
             if _trabalho_vivo(base, sessao, agora):
-                partes.append("⏳ rodando há %d min" % int(round(mudo / 60.0)))
+                partes.append("⏳ Rodando há %d min" % int(round(mudo / 60.0)))
             else:
                 partes.append("🔇 SEM SINAL há %s" % _dur(mudo))
         else:
-            partes.append("💬 último sinal há %s" % _dur(mudo))
+            partes.append("💬 Último sinal há %s" % _dur(mudo))
 
     try:
         with open(_ler(base, "bloqueios-%s" % sessao), encoding="utf-8") as fh:

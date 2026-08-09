@@ -9,7 +9,7 @@ Você está trazendo uma máquina pro baseline de Claude Code deste marketplace.
 
 1. **Sync de plugins** (automático, via hooks) — `config/manifest.json` é a fonte da verdade dos marketplaces de terceiros **e** dos plugins do próprio `pedro-plugins` (dois deles, `graphify-guard` e `intent-guard`, declarados desligados); os hooks SessionStart/PostToolUse convergem o estado local pra ele (pull → apply → snapshot → push). Você não dispara isso à mão; roda sozinho.
 2. **Camada de config** (sob demanda — esta skill) — aplica a config global versionada que um plugin não consegue carregar sozinho: env vars, permissões, flags de comportamento, o `CLAUDE.md` global, o `outputStyle` e um `statusLine` resolvido pros paths DESTA máquina.
-3. **Contrato de forma** (passivo) — o plugin distribui o output style **Clean Style** (`output-styles/clean-style.md`) e o Stop hook `stop-prose-ceiling.py`. Os dois nascem ligados: o style por `force-for-plugin: true`, o hook por estar em `hooks/hooks.json`.
+3. **Contrato de forma** (passivo) — o plugin distribui o output style **Clean Style** (`output-styles/clean-style.md`), ligado por `force-for-plugin: true`. (Os hooks de Stop que julgavam a última resposta foram removidos a pedido do dono em 2026-08-09 — a forma é contrato do output style, não de gate.)
 
 Este setup roda a camada de config (e cutuca o sync de plugins uma vez pra máquina ficar 100% provisionada). É **idempotente** e **nunca toca em `settings.local.json`** (que pode guardar secrets).
 
