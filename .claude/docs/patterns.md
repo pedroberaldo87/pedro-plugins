@@ -97,6 +97,8 @@ Arquivos que **declaram** a regra no cabeçalho, entre eles [confirmado]:
 - `doc-detect.sh:doc_staleness` → o ternário é `fresh|stale|unknown`, e a borda de erro cai em **`unknown`** (fail-LOUD). Fingir "fresco" é o único resultado proibido.
 - `pretooluse-plan-gate.sh` → o fail-open cobre **só** a borda de infra (sem `jq`, sem raiz resolvível, `doc-detect.sh` ilegível). Determinar que *não há documentação* é evidência concreta ⇒ nega. A guarda `[ -r "$SCRIPT_DIR/doc-detect.sh" ] || exit 0` existe porque um `chmod 000` no helper fazia projeto documentado cair no caso "sem doc" — regressão coberta pelo caso R7 de `test_plan_gate.sh` [confirmado, suíte verde nesta rodada: 49 passou · 0 falhou].
 
+⚠️ **Fail-open MUDO é o único proibido — e isso vale também para o hook que lê o payload com Python próprio, sem `jq` e sem a biblioteca comum.** Em 2026-08-09 três hooks que fazem a leitura assim (`plugins/intent-guard/hooks/capture-prompt.sh`, `plugins/handoff/hooks/handoff-completeness-gate.sh`, `plugins/handoff/hooks/sessionstart-ata.sh`) saíam calados quando faltava `python3`; hoje os três chamam `hj_avisa` do `hook-json.sh` antes de liberar — o que obrigou a vendorar a biblioteca também em `plugins/handoff/hooks/` [confirmado, `sed -n '/^SPECS=(/,/^)/p' scripts/sync-shared.sh | grep 'hook-json.sh'` traz a linha do handoff; `bash scripts/sync-shared.sh --check` → `OK: cópias vendored idênticas a _shared/`]. **Ter leitor próprio dispensa a biblioteca para LER, nunca para AVISAR** — quem cobra é `bash scripts/test_sem_jq.sh` (*"todo hook da classe B avisa quando não há leitor nenhum"*, verde nesta rodada).
+
 ### 1.2 Protocolo de saída de hook
 
 Três canais, escolhidos por evento e por intenção:
@@ -330,6 +332,19 @@ gravar "não escolhi" liberava o tique.
 **O sinal de que você está criando o defeito:** você acabou de escrever, num segundo lugar,
 uma condição que já existe no primeiro. Extraia antes de seguir — depois a divergência já
 aconteceu e ninguém a vê.
+
+⚠️ **Quando os dois lados falam LINGUAGENS diferentes, "uma função" é impossível — e aí a
+costura é um teste que roda os DOIS programas.** É o caso da marca de documento, nascido em
+2026-08-09: a receita (`cksum` POSIX do CORPO do arquivo, sem o frontmatter) vive em
+`plugins/project-skills/hooks/lib-doc-mark.sh:doc_marca`, que é shell chamado por hook, e
+precisou ser reimplementada em Python em `plugins/project-skills/lib/doc_load.py:cksum`,
+que é o programa que decide o que vale como régua. Copiar a receita é exatamente o defeito
+desta seção — o que impede a divergência é a asserção que calcula a marca pelos dois
+caminhos e exige o mesmo número [confirmado, `plugins/project-skills/lib/test_doc_load.py`
+roda `sh -c '. …/lib-doc-mark.sh && doc_marca …'` e compara com a saída do módulo Python;
+`python3 plugins/project-skills/lib/test_doc_load.py` → `29 passou · 0 falhou` nesta rodada].
+**Régua durável: reimplementação cross-linguagem só é legítima com o teste de identidade
+junto** — sem ele, o que existe são duas receitas que ninguém sabe se ainda concordam.
 
 ### 1.7 Regex de intenção: fronteira de palavra e o lado seguro
 
@@ -921,6 +936,14 @@ O desenho tem três peças, e a separação entre elas é o ponto:
 
 **Régua durável: valor que dois documentos precisam repetir não pertence a documento nenhum — vira dado, com um servidor que o entrega e um check que barra a cópia.** Prosa não tem como divergir de si mesma em silêncio se ela nunca chegou a conter o número.
 
+✅ **A terceira forma da mesma régua: quando o que se repete é uma ORDEM, e não um número, a fonte única é uma SKILL — não um arquivo vendorado.** Em 2026-08-09 a instrução copiada *"leia a constituição e o quality-goals do projeto"* saiu das skills de etapa e virou um preâmbulo que invoca o par `doc-load` → `principles`. A diferença em relação ao vendoring de instrução (§3, terceiro alerta) é que a cópia deixa de existir: `plugins/project-skills/lib/doc_load.py` **lê a doc do projeto no momento da chamada** e devolve o que vale como régua HOJE — lei (`ready` ou `approved`), acordo (só `approved`, e REABERTO se o corpo mudou depois do de acordo) e minerado (nunca é régua, só mapa) —, com os ausentes declarados em vez de fingidos. Quem carrega o preâmbulo se conta pelo comando, nunca por uma lista escrita aqui:
+
+```bash
+grep -rl 'doc-load' plugins/*/skills/*/SKILL.md          # quem invoca o par
+```
+
+A prosa que sobrou nas skills é só a que **não** dá para servir: a ordem de precedência (*"em conflito, a régua do projeto ganha — princípio genérico não revoga a lei da casa"*) e o caminho de ausência (`principles` não instalado ⇒ segue sem ele, dizendo isso no relato) [confirmado, citação literal de `plugins/project-skills/skills/plan/SKILL.md`]. **Régua durável: instrução que manda LER algo não se copia — copia-se o convite a um programa que lê.** O texto copiado envelhece junto com o documento que ele mandava abrir; o programa não.
+
 ---
 
 ## 4 · Green-cache (`_shared/green-cache.sh`)
@@ -1019,6 +1042,10 @@ Untracked **não** entra, e o comentário diz por quê: *"sem `git add` ele não
 Hoje o comando é **quebrado em tokens** (o split inclui `(`, `)`, `;`, `&`, `|`, `<`, `>`, aspas e crase — é isso que recupera as quatro formas) e o **subcomando do git é lido de verdade**: para cada token `git` (ou `…/git`), o parser pula as opções globais e os valores delas (`-c`, `-C`, `--git-dir`, `--work-tree`, `--namespace`, `--exec-path`) e só age se o token seguinte for literalmente `commit`. [confirmado — li o bloco inteiro nesta rodada]
 
 ⚠️ **`--amend` é detectado, e ele muda o que o check C compara.** Como as aspas somem no split, a mensagem do commit vira token solto e um `--amend` escrito DENTRO dela passaria por flag; por isso só contam as opções **coladas ao subcomando** — o primeiro token que não é opção nem valor de opção encerra a varredura. Detectado o amend, o check C compara com **`HEAD~1:`** em vez de `HEAD:`, porque em amend o `HEAD` **é** o commit sendo reescrito e a comparação acusava `BUMP ESQUECIDO` de uma version que já estava dentro do próprio commit. Amend do commit raiz: `git show` falha e nada é acusado. [confirmado]
+
+🔴 **O corpo de um heredoc não é comando — e ler como se fosse bloqueava a edição de quem só estava COLANDO texto.** Em 2026-08-09 o gate disparou três vezes sobre `python3 - <<CORPO … CORPO`, porque o texto dentro do heredoc continha as palavras do gatilho: o split não distingue comando de dado, então uma string escrita num script era tokenizada como se alguém fosse commitar. O conserto é um recorte ANTES da tokenização — `sem_heredoc()` em `.claude/hooks/release-gate.sh` acha `<<-? MARCADOR` (com ou sem aspas), remove tudo até a linha do marcador e devolve o resto; heredoc sem fechamento leva o corpo até o final do texto, e o comando real em volta continua inteiro [confirmado — `grep -n 'sem_heredoc' .claude/hooks/release-gate.sh` → definição na linha 33, chamada dentro do `re.split` na 46]. Dois casos novos em `test_release_gate.sh` fecham as duas pontas: o corpo não dispara, e um `git commit` escrito DEPOIS do marcador de fechamento continua disparando [confirmado, executado nesta rodada: `bash .claude/hooks/test_release_gate.sh` → `OK (45 checks)`].
+
+**Régua durável: gate que lê a linha de comando precisa saber onde o comando termina e o DADO começa.** É o outro lado da régua do §5.1 — lá o gate ficava cego por casar forma de menos; aqui ele ficava cego pelo contrário, casando texto que nunca seria executado. Os dois erros têm o mesmo efeito prático: *"falso positivo ensina a contornar, e contornar desliga tudo"*.
 
 **Suíte dedicada: `.claude/hooks/test_release_gate.sh`, verde nesta rodada** (ela imprime `OK (N checks)`; o N sai da execução, não daqui) — ela exercita as quatro formas que passavam, o falso positivo do `git log --grep commit`, o `--amend` dentro da mensagem (*"é texto, não amend"*) e o fail-open fora do monorepo. ⚠️ **Ela mora em `.claude/hooks/`, fora dos globs dos checks D e F**, então nenhum commit a dispara automaticamente — mesma exceção das duas suítes de `scripts/`.
 
@@ -1232,7 +1259,7 @@ for t in plugins/*/hooks/test_*.sh plugins/*/lib/test_*.sh scripts/test_*.sh .cl
   bash "$t" || echo "RED: $t"; done
 ```
 
-**Cinco disciplinas de teste que este repo cobra**, todas com o sítio que as prova:
+**As disciplinas de teste que este repo cobra**, todas com o sítio que as prova:
 
 - **Teste E2E não-tautológico.** R9/R10 de `test_plan_gate.sh` escrevem o sentinel **rodando o hook escritor de verdade**, nunca recalculando a chave à mão — *"Recalcular a chave à mão aqui foi exatamente o que mascarou o bug de path na 1ª rodada."*
 - **Par escritor↔leitor precisa de um teste que rode OS DOIS programas.** `test_conformance.py` roda o hook com `CLAUDE_CONFIG_DIR` num `mktemp`, exige que o log nasça **dentro** dele e só então roda o `conformance.py` [confirmado — a suíte tem função dedicada ao juiz, `teste_juiz_de_forma_mudo`, com os quatro casos: nunca executou · fail-open por juiz sem resposta · parado há mais de 24h · não cobra de quem não instalou o bootstrap].
@@ -1240,6 +1267,7 @@ for t in plugins/*/hooks/test_*.sh plugins/*/lib/test_*.sh scripts/test_*.sh .cl
 - **Verde por fail-open não conta como verde.** `test_bootstrap_hooks.sh` não aceita o exit code do juiz sem conferir o motivo no log: `grep -q '"motivo": "julgou"'` — *"fail-open por juiz mudo aprova tudo: so vale como verde se ele REALMENTE julgou"* [confirmado, citação literal].
 - **Teste de hook de detecção precisa distinguir os dois `exit 0`.** No gate do ship, "não detectou deploy" e "detectou e a suíte passou" são ambos 0; a suíte resolve com um fixture cujo alvo de teste falha de propósito, e aí o exit code responde uma pergunta só.
 - **Prosa que dá ordem operacional pode ser testada — e ela também apodrece.** `plugins/handoff/lib/test_handoff_skill.py` trata a `SKILL.md` do handoff como código: extrai os blocos ```` ```bash ```` do markdown (com `textwrap.dedent`, *"o bloco como quem copia recebe"*), **executa** o comando prescrito contra um plano de fixture e confere que ele imprime `pronto` e `pendencia` de verdade; depois lê a prosa e cobra que ela mande **copiar** esses campos, não redigi-los. É o mesmo princípio do `visual_page.py` (*"prosa apodrece"*) aplicado a instrução que o modelo vai seguir. [confirmado — docstring e execução]
+- **Suíte que DERIVA o inventário só enxerga as grafias que conhece — e a exclusão que ninguém atribui é regex vazia.** `scripts/test_sem_jq.sh` classifica cada hook em classe A (jq só formata) ou B (jq decide) varrendo o texto dos `.sh`. Dois furos medidos em 2026-08-09, e ambos passavam por verde: (1) `$VENDORADOS` era usado em dois `grep -vE "/($VENDORADOS):"` **sem nunca ter sido atribuído** — a exclusão de biblioteca vendorada que a prosa prometia era um filtro que casava tudo; hoje ela é derivada de `ls _shared/*.sh`. (2) A varredura conhecia duas formas de ler o payload (o `jq` cru e o `hj_campo` do `hook-json.sh`) e era **cega à terceira**, Python embutido dentro do `.sh` — e reconhecer só `data.get("x")` ainda deixava invisível quem escreve com default, com aspas simples ou com colchete, de modo que as quatro grafias tiveram que entrar juntas. **Régua durável: derivador que classifica por FORMA de escrita mede o que ele sabe procurar, não o que existe** — quando a medição casa com o esperado, confira se o filtro está mesmo filtrando antes de comemorar. [confirmado, executado nesta rodada: `bash scripts/test_sem_jq.sh` → `verde`, com `hooks de produção: 43 · classe B: 35 · classe A: 5`]
 
 ---
 

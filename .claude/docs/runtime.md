@@ -32,6 +32,10 @@ scope:
   - plugins/visual/hooks/hooks.json
   - plugins/project-skills/lib/plan_state.py
   - plugins/project-skills/lib/cobertura.py
+  - plugins/project-skills/lib/doc_load.py
+  - plugins/project-skills/hooks/lib-doc-mark.sh
+  - plugins/project-skills/skills/doc-load/SKILL.md
+  - plugins/project-skills/skills/sprint/SKILL.md
   - plugins/guardrails/hooks/lint-and-typecheck.sh
   - plugins/guardrails/hooks/scope-cop.sh
   - plugins/guardrails/hooks/hooks.json
@@ -73,6 +77,9 @@ verified-by:
   - plugins/visual/hooks/test_exitplan_gate.sh
   - plugins/project-skills/lib/test_plan_state.py
   - plugins/project-skills/lib/test_cobertura.py
+  - plugins/project-skills/lib/test_doc_load.py
+  - plugins/project-skills/lib/test_travas_motor.py
+  - plugins/project-skills/lib/test_motor_bancada.py
   - plugins/ship/hooks/test_pre_deploy.sh
   - plugins/project-skills/lib/test_andamento.py
   - plugins/project-skills/hooks/test_andamento_hook.sh
@@ -362,6 +369,28 @@ O ciclo acima descreve o tique feito à mão. Na execução contínua quem marca
 
 - **O de acordo do revisor.** Passo que apareceu em `review.gaps` ou em `review.missingTasks` **não é marcado naquela onda** — ele volta ao laço pelo feedback normal e o trabalho fica no disco. Os ids segurados saem em `rounds[].naoMarcados = { motivo: 'reprova do revisor', ids }` e o `log()` os narra.
 - **A onda verde.** `suite.green` falso ⇒ **nada é marcado**, e os entregues saem em `rounds[].naoMarcados = { motivo: 'onda vermelha', ids }`. O motivo escrito no código: marcar sem ponto de salvamento grava no plano um trabalho que não entrou no histórico. Medida que originou as duas: **17 passos marcados em ondas vermelhas, 9 deles com o defeito já escrito pelo revisor da mesma onda.**
+
+**Ainda em 2026-08-09, o ciclo curto passou a fechar POR BLOCO, e a onda virou a PASSADA GERAL** (decisão do dono). Dentro do laço de blocos de `plugins/project-skills/skills/sprint/SKILL.md`, na ordem em que o script decide:
+
+```
+revisor POR TAREFA   revisorTarefaPrompt · schema TAREFA_REVIEW · um agente por entrega
+  ↓                  fidelidade ao `pronto` · cobertura · qualidade — escopo de UMA tarefa
+revisão DO BLOCO     revisorBlocoPrompt · schema BUILD_REVIEW · os MESMOS eixos sobre as
+  ↓                  entregas juntas + COESÃO, sem herdar o veredito por tarefa
+suíte inteira        SUITE_RESULT — vermelha ⇒ nada deste bloco é marcado
+  ↓
+marcação → commit (checkpointPrompt) → doc-touch dos arquivos do bloco → colheita
+```
+
+As duas travas acima (de acordo do revisor + verde) passaram a valer **no grão do bloco**: bloco vermelho não vira ponto de salvamento, e as entregas voltam pelo decompositor. O `docTouchPrompt` roda **a cada bloco**, sobre TODOS os documentos afetados pelos arquivos daquele bloco — o comentário do código declara o custo aceito: documento grande pode ser reescrito mais de uma vez na mesma onda, e o conflito disso é achado da revisão geral de doc, não deste passo. `[confirmado — o laço `for` dos blocos, passos 1 a 4]`
+
+⚠️ **A mensagem do commit ainda não diz qual bloco fechou.** O script passa `bloco: b` ao `checkpointPrompt`, mas a especificação do papel manda commitar `"sovai: onda <r> verde"` — dois blocos da mesma onda produzem duas mensagens idênticas, e quem lê o histórico depois não separa um do outro. `[confirmado — a chamada e a linha `git commit -q -m` da especificação do papel]`
+
+**O fim da onda é a passada GERAL, e ela tem duas metades.** A revisão geral da obra (`reviewBuildPrompt`) julga o que está NO REPOSITÓRIO com escopo na união dos `files_touched` da onda (`filesDaOnda`) — **nunca o repo inteiro**, porque achado sobre trabalho alheio vira conserto que ninguém pediu. Depois vem a revisão geral da doc (`revisaoDocPrompt`, schema `DOC_REVIEW`), que relê **inteiros** os documentos afetados contra o estado de agora, inclusive o conflito de dois blocos que reescreveram o mesmo arquivo: doc minerada errada ele conserta na hora (`consertados`), doc **autoral** (`authored-by: human`) ele nunca toca — vira gap `autoral: true` que o script transforma em aviso ao dono.
+
+**Achado da revisão geral sobre passo JÁ MARCADO vira RE-TICK do mesmo id, nunca id novo** (`rounds[].reticks`). Sem essa regra o plano diria "feito" enquanto a revisão diz "defeituoso" — a mesma contradição que as duas travas fecharam, por outra porta. O conserto volta ao laço e, quando fechar num bloco futuro, o tique **regrava a prova do mesmo id**; id novo seria recusado pela trava de id inexistente. `[confirmado — o bloco `const reticks` e o `log()` que os narra]`
+
+**O desafiador de causa passou a disparar também por GRAVIDADE.** Antes só a reincidência convocava a investigação; agora achado com severidade ≥ floor **na primeira aparição** já manda investigar a causa antes de a tarefa voltar ao decompositor. A trava que paga essa conta é o **`causaCache`**: causa referendada não reabre na mesma missão, e a resposta reusada volta marcada `deCache: true`. A chave muda com o motor — os arquivos da tarefa no `sprint`, `arquivo:função` no `qa-loop` (o mesmo par que o `churn` usa, porque só o nome da função colidiria entre arquivos). `[confirmado — `causaCache` nos dois `SKILL.md` e o `if ((v.gaps || []).some(g => sevRank(g.severity) >= floor))`]`
 
 **A conferência final passou a rodar também na PARADA.** Antes, `confirm-pass` só existia no caminho feliz sem `/qa-loop`, e o `/qa-loop` da etapa seguinte só roda depois de `built=true` — quem parava por teto, por vigia ou por onda estéril entregava sem segunda checagem nenhuma. Hoje o relatório carrega **`conferidoPor`** com quatro valores possíveis: `qa-loop da etapa seguinte` · `confirm-pass` · `confirm-na-parada` · `nenhuma`. Gap achado na parada **não volta ao laço** (a missão já parou): vira aviso nomeado, para o conserto entrar como tarefa no plano. ⚠️ **Exceção única: parada por ORÇAMENTO não gasta a conferência** — o disjuntor é teto duro, e gastar um agente depois dele é o disjuntor deixando de ser disjuntor. A ausência não passa calada porque `conferidoPor` diz o que rodou. `[confirmado — o bloco `if (!built && entregouAlgo && desligadoPor !== 'orcamento')`]`
 
@@ -937,6 +966,30 @@ senão ....................................... deny, nomeando a peça e o marcad
 **A pergunta é do disco.** `fecho_check.py pendentes` percorre a decomposição e devolve a peça cuja última rodada tem `entrega.json` e não tem `veredito.json` legível com status do vocabulário. É a foto da falha de origem ("sete construtores, zero juízes") tirada em voo, e não no fecho. `[confirmado — `python3 plugins/gauntlet/lib/test_fecho_check.py` → *"fecho_check: tudo verde"*, com os casos de `pecas_pendentes`]`
 
 **Verificado:** `bash plugins/gauntlet/hooks/test_gauntlet_hooks.sh` → *"trava dupla do gauntlet: tudo verde"*, cobrindo o construtor negado, o juiz da pendente que passa, o juiz de peça já julgada que não fura a fila, a equipe livre sem pendência, a desistência, a expiração, o kill-switch e as cinco bordas de fail-open. `[confirmado nesta rodada]`
+
+---
+
+## 22 · A régua do projeto chega por COMANDO — o preâmbulo `doc-load` → `principles`
+
+**Novo em 2026-08-09.** Toda skill que julga alguma coisa precisava da mesma resposta — *quais documentos deste projeto valem como régua hoje, e quais são só mapa* — e essa resposta estava **copiada em prosa** dentro de cada uma, com redações diferentes. Agora ela é programa, e roda como preâmbulo: `doc-load` primeiro (a régua deste projeto), `principles` depois (os princípios genéricos). Em conflito, a régua do projeto ganha. `[confirmado — leitura da skill e do preâmbulo]`
+
+**Quem tem o preâmbulo sai do grep, não desta página:**
+
+```bash
+grep -rln 'doc-load' plugins/*/skills/*/SKILL.md    # 11 arquivos neste run, incluindo o próprio doc-load
+```
+
+**O que o programa responde.** `plugins/project-skills/lib/doc_load.py` (`--json` para consumo por programa, `--marca` para só o número) classifica cada documento canônico e diz o que vale como régua:
+
+- **lei** — `constituicao.md`, `quality-goals.md`, `constraints.md`: valem com `ready` **ou** `approved`. A lei não passa pelo rito de aprovação porque não é etapa de concepção.
+- **acordo** — `context.md`, `solution-strategy.md`, `glossary.md`, `architecture-intent.md`, `design.md`, `journeys.md`, `blueprint.md`, `features.md`: **só** com `approved`, e **REABRE** quando o corpo mudou depois do de acordo (a marca gravada não bate com o texto de hoje — ninguém aprovou o que está lá).
+- **minerado** — este arquivo entre eles: serve para se situar, **nunca** para reprovar.
+
+Campos da saída: `regua`, `marca_regua`, `ausentes`, `dispensa`, `reabertos`, `correcoes_pendentes`. **Ausência é dita em voz alta e não é achado** — projeto sem `constituicao.md` não tem o eixo de constituição, e isso não viola nada; `dispensa.md` sem `motivo:` escrito não vale.
+
+**A marca é a MESMA do shell, e é aí que o mecanismo se prova.** `doc_load.py:cksum` reimplementa em Python o `cksum` POSIX do **corpo** (sem frontmatter) que `plugins/project-skills/hooks/lib-doc-mark.sh:doc_marca` produz — duas receitas para o mesmo número divergem em silêncio (`patterns.md` §1.6), então a suíte compara as duas sobre o mesmo arquivo. Conferido nesta rodada sobre `.claude/docs/constituicao.md`: `2396033228` pelos dois lados, e `--marca` devolveu `2396033228+2813587699` — a soma das duas leis, na mesma forma do `lawMark` que a missão do motor congela na primeira volta (fluxo 5). `[confirmado — os dois comandos rodados nesta rodada]`
+
+**Verificado:** `python3 plugins/project-skills/lib/test_doc_load.py` → **29 passou · 0 falhou** nesta rodada. `[confirmado — saída da suíte]`
 
 ---
 
