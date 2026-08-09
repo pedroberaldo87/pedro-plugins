@@ -65,11 +65,36 @@ def caso_placeholder_nao_declarado_reprova():
     check("o placeholder mudo do irmão reprova", bool(achados), repr(achados))
 
 
+def caso_parecer_sem_o_montador_reprova():
+    """O caso de 2026-08-09: a rodada entregou o parecer num formato próprio.
+
+    As duas metades da regra são cobradas — a frase que proíbe a prosa no chat e o
+    bloco que passa pelo montador, que é quem recusa proposta sem as três partes.
+    """
+    texto = open(autopsia_check.SKILL_PADRAO, encoding="utf-8").read()
+    sem_montador = texto.replace(autopsia_check.MONTADOR, "inventado.py")
+    check("a injeção pegou no texto real", sem_montador != texto)
+    p = escrever(sem_montador)
+    achados = autopsia_check.checar(p)
+    os.unlink(p)
+    check("skill que larga o montador reprova",
+          any("montador" in a for a in achados), repr(achados))
+
+    sem_frase = texto.replace("não sai em prosa no chat", "vai como couber")
+    check("a segunda injeção pegou", sem_frase != texto)
+    p = escrever(sem_frase)
+    achados = autopsia_check.checar(p)
+    os.unlink(p)
+    check("skill que libera prosa no chat reprova",
+          any("prosa" in a for a in achados), repr(achados))
+
+
 if __name__ == "__main__":
     print("bancada do cobrador da lei da autópsia")
     caso_skill_real_passa()
     caso_trava_ausente_do_texto()
     caso_rodada_toca_arquivo_do_projeto()
     caso_placeholder_nao_declarado_reprova()
+    caso_parecer_sem_o_montador_reprova()
     print("\n%s" % ("tudo verde" if not FALHAS else "FALHOU: " + ", ".join(FALHAS)))
     sys.exit(1 if FALHAS else 0)
