@@ -367,7 +367,7 @@ EXTERNAL_RE="(doc|docs|documenta[çc][ãa]o|documentacao)[[:space:]]+(do|da|dos|
 ### 1.8 Prelúdio, portabilidade e exit code
 
 - **`set` varia por TIPO de script, de propósito** [confirmado]. Build usa `set -euo pipefail` (`scripts/sync-shared.sh`); gate usa `set -uo pipefail` sem o `-e` (`.claude/hooks/release-gate.sh`); e `plugins/guardrails/hooks/scope-cop.sh` **não declara `set` nenhum** (`grep -c '^set ' plugins/guardrails/hooks/scope-cop.sh` → 0). Motivo: com `-e`, um hook-trava abortaria no meio de uma checagem e viraria bloqueio acidental — o oposto do fail-open.
-- **Binário se resolve por `command -v`, nunca por caminho absoluto** [confirmado, `scope-cop.sh`]: `JQ="$(command -v jq)"`, `PY="$(command -v python3)"`, `CLAUDE_BIN="$(command -v claude 2>/dev/null)"`, com o comentário *"Sem path hardcoded de app específico — isso amarrava o hook a uma máquina/app."* No Python o equivalente é `shutil.which("claude")` em `stop-forma-relato.py:julga`.
+- **Binário se resolve por `command -v`, nunca por caminho absoluto** [confirmado, `scope-cop.sh`]: `JQ="$(command -v jq)"`, `PY="$(command -v python3)"`, `CLAUDE_BIN="$(command -v claude 2>/dev/null)"`, com o comentário *"Sem path hardcoded de app específico — isso amarrava o hook a uma máquina/app."* No Python o equivalente é `shutil.which`, hoje em `conformance.py:check_ferramentas_externas`. ⚠️ **`command -v` sozinho responde a pergunta errada** — ver §1.8a, primeiro item.
 - **`.cwd` ausente não pode apagar o gate** [confirmado, `pre-deploy-test-check.sh`]: era `[ -z "$CWD" ] && exit 0`, hoje é `[ -z "$CWD" ] && CWD="$PWD"`, com a justificativa *"falha VISÍVEL (bloqueio com mensagem) … é estritamente melhor que gate invisível"*.
 - **Âncora de posição-de-comando na detecção**, e prefixo **enumerado**, nunca "qualquer palavra antes" [confirmado, `pre-deploy-test-check.sh:CMDPFX`]:
 
@@ -378,6 +378,48 @@ CMDPFX='([A-Za-z_][A-Za-z0-9_]*=[^[:space:];&|]*[[:space:]]+|(sudo|nohup|env|tim
   O comentário nomeia o contrapeso: *"senão a âncora deixa de existir e a menção volta a disparar (o contrapeso está na suíte: `echo sudo ./deploy.sh` e `git commit -m "sudo ./deploy.sh quebrou"` seguem 0)"* [confirmado — `test_pre_deploy.sh` nesta rodada: `pre-deploy-test-check: 105 ok, 0 falhas`].
 
 - 🔴 **E aqui está o limite da âncora: prefixo enumerado só cobre o que alguém lembrou de enumerar.** O `release-gate.sh` usava a mesma ideia (`(^|[;&|]|&&)[[:space:]]*git[[:space:]]+.*commit`) e **quatro formas legítimas passavam caladas** — `env FOO=1 git commit`, `(git commit …)`, `bash -c "git commit …"` e `VAR=x git commit` — enquanto `git log --grep commit` disparava à toa. O conserto trocou o casamento de forma por **parse**: o comando é quebrado em tokens (o split inclui `(`, `)`, `;`, `&`, `|`, `<`, `>`, aspas e crase) e o subcomando do git é lido pulando as opções globais e os valores delas (§5.2). **Quando o alvo é um comando de verdade, tokenize e leia o subcomando; regex de forma é para texto, não para linha de comando.** [confirmado — `bash .claude/hooks/test_release_gate.sh` → `OK (45 checks)` nesta rodada, com um caso por forma]
+
+### 1.8a Os quatro defeitos que só aparecem no OUTRO sistema
+
+Todos foram achados de uma vez em 2026-08-10, com a esteira vermelha em Linux e Windows e
+verde no macOS. O padrão comum: **o comando não falha — ele responde outra coisa**, e o
+script segue com um valor plausível e errado.
+
+- 🔴 **`command -v` mede presença; o que importa é execução** [confirmado, issue #1]. O
+  Windows instala um `python3` de mentira, da loja da Microsoft, que responde uma
+  propaganda em vez de rodar. O arquivo existe, `command -v` aprova, o guard passa e o hook
+  só quebra na chamada real. O resolvedor certo tenta rodar: `hj_py` (`_shared/hook-json.sh`)
+  percorre `python3` e `python` e só aceita quem responde a `--version`; o equivalente para
+  o interpretador é `test_conformance.py:bash_posix`. Medida de hoje: `grep`ando os hooks de
+  produção, **nenhum** decide por presença — 16 usam o resolvedor.
+
+- 🔴 **`stat -f` não falha no GNU: ele imprime e SÓ ENTÃO sai com erro** [confirmado,
+  `graphify-detect.sh`]. O encadeamento `stat -f … || stat -c …` somava as duas saídas, a
+  data virava texto de duas linhas, o TSV quebrava no meio e `cut -f3` devolvia `stale`
+  colado com a linha seguinte — o alerta de grafo defasado sumia em **todo** Linux. A regra
+  que sobra: **encadear com `||` só é seguro quando o lado que falha não escreve no stdout**;
+  quando escreve, ordene GNU primeiro e **valide o formato do resultado** antes de aceitá-lo.
+
+- 🔴 **O Windows codifica a saída em cp1252, e `→` não existe lá** [confirmado,
+  `conformance.py`]. O programa morria de `UnicodeEncodeError` antes de escrever o JSON, e
+  quem o chamava recebia stdout vazio — o teste acusava "não devolveu JSON" sem dizer por
+  quê. Todo Python que imprime não-ASCII e é lido por outro processo reconfigura os canais
+  para UTF-8 na entrada do `main()`. Reproduz-se em qualquer máquina com
+  `PYTHONIOENCODING=cp1252`.
+
+- 🔴 **No Linux cada argumento isolado tem teto de 128 KB** (`MAX_ARG_STRLEN`), enquanto o
+  macOS aceita ~1 MB [confirmado, `intent-guard/hooks/test_hooks_capture.sh`]. O caso que
+  existia para provar que "prompt grande não se perde" mandava 500 KB por `argv` e morria de
+  `Argument list too long` — só no Linux. Conteúdo grande vai por **stdin**; `printf` é
+  embutido no shell e não passa por essa porta.
+
+- 🔴 **`chmod(0o755)` não cria bit de execução no Windows** [confirmado, mesma revisão]. Uma
+  fixture que montava um juiz falso no PATH ficava invisível para o hook, o hook fazia o que
+  devia (sem juiz não há veredito: fail-open) e o teste lia isso como "o hook não bloqueou"
+  — **reprovando hook certo por fixture quebrada**. O conserto é a fixture se medir antes de
+  cobrar: `test_conformance.py:juiz_falso_visivel` pergunta ao mesmo shell se o juiz é
+  enxergado, e o caso **pula declarando** quando não é. Mesma família do `bash_posix`: gate
+  que não consegue medir diz que não mediu, nunca reprova por omissão.
 
 ### 1.9 Chamada interna de LLM tem que se auto-marcar
 
@@ -1075,7 +1117,9 @@ if old is not None and old.get("version") == pver:
 
 `.claude/hooks/release-gate.sh`, registrado em `.claude/settings.json` como `PreToolUse` com `matcher: "Bash"` e `timeout: 60`, apontando para `$CLAUDE_PROJECT_DIR/.claude/hooks/release-gate.sh`. <!-- lint:ignore CLAUDE_PROJECT_DIR --> Desde 2026-08-09 ele **deixou de ser o único** hook do projeto: entrou um `SessionStart` → `sessionstart-avisa-cadeia.sh` (10s), que avisa quando o plugin instalado nesta máquina ficou atrás do repositório (§5.2b). Os dois lados da mesma pergunta — o gate barra o commit que rompe a cadeia de entrega, o aviso conta que a máquina já está rodando código velho. [confirmado — `python3 -c "…json.load…"` sobre o settings devolve `['PreToolUse', 'SessionStart']`]
 
-**Dependência invertida:** ao contrário dos hooks de plugin, que assumem `jq`, o release-gate **não usa `jq` uma vez sequer** — faz todo o parse com `python3 -c` [confirmado nesta rodada: `grep -c jq .claude/hooks/release-gate.sh` → **1**, e a única ocorrência é um comentário que fala *sobre* jq, não uma chamada — `grep -n jq` mostra a linha inteira; `grep -c python3` → **38**]. Sem `python3`, ele cai no fail-open de infra e não checa nada.
+**Dependência invertida:** ao contrário dos hooks de plugin, que preferem `jq` quando ele existe, o release-gate **não usa `jq` uma vez sequer** — faz todo o parse com `python3 -c` [confirmado nesta rodada: `grep -c jq .claude/hooks/release-gate.sh` → **1**, e a única ocorrência é um comentário que fala *sobre* jq, não uma chamada — `grep -n jq` mostra a linha inteira; `grep -c python3` → **38**]. Sem `python3`, ele cai no fail-open de infra e não checa nada.
+
+**Desde 2026-08-10 o caminho de INSTALAÇÃO segue a mesma inversão, e por um motivo medido:** o `jq` não acompanha o Windows nem o macOS de fábrica, e era ele que fazia o primeiro comando do marketplace morrer — `apply.sh` saía 255 e `apply-config.sh` saía 1, deixando a máquina sem configuração nenhuma. As 13 chamadas de `apply.sh`, `apply-config.sh` e `session-sync.sh` viraram `plugins/bootstrap/lib/cfgjson.py`, **um subcomando por programa `jq` que existia** — não uma imitação genérica de `jq`, que seria superfície nova para manter. A escolha entre os dois caminhos foi feita uma vez, no desenho: **um caminho só**, porque dois códigos para a mesma conta divergem com o tempo (a regra do fallback que precisa estar à altura do titular). Quem prova a equivalência é `lib/test_cfgjson.py`, que roda cada subcomando **contra o `jq` de verdade executando o programa original** onde há `jq` na máquina, e contra o valor esperado onde não há — inclusive nas três pegadinhas que separam os dois: `//` tratando `false` como ausente, `unique` que também ordena, e `del` quando o campo é nulo. O `jq` sobrevive só em `snapshot.sh`, que roda apenas com `HAS_SOURCE=1` (existe `~/pedro-plugins/.git`) — fluxo de quem clona o repositório, nunca de quem instala.
 
 **Como decide o que olhar** [confirmado, copiado literal]:
 

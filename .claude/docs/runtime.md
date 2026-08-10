@@ -13,11 +13,11 @@ scope:
   - plugins/project-skills/hooks/hooks.json
   - plugins/bootstrap/hooks/session-sync.sh
   - plugins/bootstrap/hooks/lib/apply.sh
+  - plugins/bootstrap/hooks/lib/apply-config.sh
+  - plugins/bootstrap/lib/cfgjson.py
   - plugins/bootstrap/hooks/lib/snapshot.sh
   - plugins/bootstrap/hooks/lib/git-sync.sh
   - plugins/bootstrap/hooks/hooks.json
-  - plugins/bootstrap/hooks/stop-prose-ceiling.py
-  - plugins/bootstrap/hooks/stop-forma-relato.py
   - plugins/bootstrap/lib/conformance.py
   - plugins/bootstrap/config/manifest.json
   - plugins/visual/server/visual_server.mjs
@@ -609,7 +609,7 @@ Ele lista plugin, script, quantas linhas de tela o emissor produz e o `timeout`,
 
 ⚠️ **O `Stop` é o único evento com ORÇAMENTO congelado, e o motivo é que ele é o mais caro em atenção humana.** `.claude/stop-budget.baseline.json` guarda, por emissor, quantas linhas ele cospe — e o total de referência é **6 linhas**, com `teto: 6`. Quem cobra é o check E2 do release-gate: um hook novo de `Stop` que fale demais reprova o commit. **Quais emissores gastam linha, e quantas, sai do `--stop-budget`** — os demais são mudos no caminho feliz. `[confirmado — leitura do baseline e a rodada do medidor]`
 
-⚠️ **A ordem DENTRO do array do `bootstrap` é deliberada:** `stop-regua-relato.py` (mecânico, custo zero) vem **antes** de `stop-forma-relato.py` (que chama modelo). Barrar por forma dos bullets não deve custar uma chamada de LLM. `[confirmado — `plugins/bootstrap/hooks/hooks.json`]` · Que o harness respeite a ordem do array é `[inferido]`, como em todo lugar deste doc.
+🔴 **O `bootstrap` não tem mais array de `Stop`** — a ordem que este parágrafo descrevia (o mecânico antes do que chama modelo) morreu junto com os três hooks apagados no `251d6ac`. Hoje o plugin registra `SessionStart×2` e `PostToolUse×1`, e nada no `Stop` [confirmado nesta rodada — o `hooks.json` do bootstrap devolve `{'SessionStart': 2, 'PostToolUse': 1}`]. O orçamento congelado do evento `Stop` (parágrafo acima) segue valendo para os emissores dos OUTROS plugins.
 
 ⚠️ **Hook Python registrado sem `python3` na frente depende do bit de execução sobreviver ao empacotamento**, e um `CLAUDE_PLUGIN_ROOT` com espaço no caminho o quebra em silêncio. Os três acima chamam o interpretador e citam o caminho entre aspas — é o padrão, não estilo. `[confirmado]`
 
