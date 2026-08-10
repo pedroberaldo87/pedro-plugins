@@ -178,8 +178,17 @@ if [ "$HAS_SOURCE" -eq 1 ]; then
 fi
 
 # 3b. Update marketplace cache (so apply can read fresh manifest)
-# Use jq on known_marketplaces.json instead of grep (word-boundary safe)
-if [ -f "$KNOWN_MARKETPLACES" ] && jq -e '."pedro-plugins"' "$KNOWN_MARKETPLACES" >/dev/null 2>&1; then
+# Le a chave por programa, nao por grep (grep casaria "pedro-plugins-antigo").
+# Era o ultimo jq do caminho de instalacao; agora e o mesmo cfgjson do apply.
+_CFGJSON="$(cd "$(dirname "$0")/../lib" 2>/dev/null && pwd)/cfgjson.py"
+# shellcheck source=/dev/null
+. "$(dirname "$0")/hook-json.sh" 2>/dev/null || true
+_PY=""
+if type hj_py >/dev/null 2>&1; then
+  _PY="$(hj_py 2>/dev/null)" || _PY=""
+fi
+if [ -f "$KNOWN_MARKETPLACES" ] && [ -n "$_PY" ] && [ -f "$_CFGJSON" ] \
+   && "$_PY" "$_CFGJSON" tem-chave "$KNOWN_MARKETPLACES" "pedro-plugins" >/dev/null 2>&1; then
   if [ "$HAS_SOURCE" -eq 0 ]; then
     # Only bother updating cache if we rely on it (no source repo)
     claude plugin marketplace update pedro-plugins >/dev/null 2>&1 || verbose "marketplace update failed"
