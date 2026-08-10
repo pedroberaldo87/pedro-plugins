@@ -364,6 +364,33 @@ EXTERNAL_RE="(doc|docs|documenta[çc][ãa]o|documentacao)[[:space:]]+(do|da|dos|
 
 **E a lição sobre allowlist: ela precisa de teste que prove que é ELA que libera.** Maiúscula no meio da palavra é ao mesmo tempo o sinal mais forte de identificador e a grafia normal de nome próprio; `askq_lint.py` resolve com `_MEIO_MAIUSCULO` + a allowlist `NOMES_PROPRIOS` (comparação em minúsculas), consumidas por `camel_suspeitas()`. O comentário registra o caso real: *"Sem esta lista, 'o commit já está no GitHub' é barrado (foi o que aconteceu na PRIMEIRA pergunta real, 2026-07-30)."* [confirmado — `test_askq_lint.py` verde nesta rodada: 47 passou · 0 falhou].
 
+### 1.7a A mesma expressão em outro CAMPO é outra expressão — reuso exige reconferir o vocabulário
+
+Medido em 2026-08-10, no `gauntlet` 0.10.0 → 0.10.1. `MEDIDA_NO_NOME`
+(`plugins/gauntlet/lib/fecho_check.py`) nasceu para recusar medida em **nome de eixo** —
+texto curto, nomeado, vocabulário de CSS — e a v0.10.0 a reusou, verbatim, sobre a **prosa
+livre** do veredito (`gap` e `frase` do juiz e do diretor). Errou nos dois sentidos ao
+mesmo tempo:
+
+```
+"1 em cada 3 cartões repete o mesmo gesto"   → RECUSADO como medida   (em = português, não unidade)
+"a nossa pesa 4 MB, metade do alvo"          → passou batido          (lista parava em kB)
+```
+
+O primeiro é o mais caro, e é o que o §1.7 já ensina com outra roupa (*"falso-positivo que
+treinaria o usuário a desligar o gate no primeiro dia"*): aqui ele travava o fecho da missão
+até alguém reescrever a frase de um juiz que estava certo. O segundo é a doença voltando uma
+ordem de grandeza acima — peso e tempo eram justamente o material da régua de 18 medidas que
+a versão existia para banir. O conserto separa as duas classes de unidade: letra ambígua
+(`em`, `s`) só vale **colada** no dígito, unidade inequívoca vale com ou sem espaço, e a
+lista alcança `MB`, `GB`, `min` [confirmado — `python3 plugins/gauntlet/lib/test_fecho_check.py`
+→ *"tudo verde"*, com os três casos novos do bloco *"O NÚMERO SÓ ENTRA PELA MÃO DO DONO"*].
+
+**Régua durável: quando um padrão migra de campo, o intuito viaja e o VOCABULÁRIO não.
+Identificador não tem preposição; prosa em português tem — e `em`, `s`, `a`, `há` são
+palavras antes de serem unidades. Reuso de regex pede o mesmo par de testes do §1.7: um que
+prove que ela pega o que deve, e um que prove que ela NÃO pega o legítimo do novo campo.**
+
 ### 1.8 Prelúdio, portabilidade e exit code
 
 - **`set` varia por TIPO de script, de propósito** [confirmado]. Build usa `set -euo pipefail` (`scripts/sync-shared.sh`); gate usa `set -uo pipefail` sem o `-e` (`.claude/hooks/release-gate.sh`); e `plugins/guardrails/hooks/scope-cop.sh` **não declara `set` nenhum** (`grep -c '^set ' plugins/guardrails/hooks/scope-cop.sh` → 0). Motivo: com `-e`, um hook-trava abortaria no meio de uma checagem e viraria bloqueio acidental — o oposto do fail-open.
