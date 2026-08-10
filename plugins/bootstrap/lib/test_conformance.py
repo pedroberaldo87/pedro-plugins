@@ -11,7 +11,6 @@ import os
 import subprocess
 import sys
 import tempfile
-import time
 from pathlib import Path
 
 AQUI = Path(__file__).resolve().parent

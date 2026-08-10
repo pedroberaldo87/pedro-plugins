@@ -43,6 +43,19 @@ def check(nome, cond, detalhe=""):
 motor = open(MOTOR, encoding="utf-8").read()
 skill = open(SKILL, encoding="utf-8").read()
 
+# O esqueleto ```javascript do SKILL.md é o MESMO laço do motor.js, e o SKILL.md manda
+# editar OS DOIS ("quem pega divergência é lib/test_motor_js.py"). Só que não pegava: as
+# checagens D e E rodavam sobre o motor.js e mais nada, e o esqueleto ficou para trás —
+# medido em 2026-08-09, 15 chamadas de agente sem `label` e nenhum passo de suíte na
+# largada. Agora D e E2 rodam sobre os DOIS textos. Ficam de fora E1 (marca da lei) e E3
+# (proxy de critério), que moram em corpo de PROMPT: o esqueleto não traz prompt nenhum,
+# por desenho, e os dois nunca foram cópia linha a linha um do outro.
+_bloco = re.search(r"\n```javascript\n(.*?\n)```\n", skill, re.S)
+check("o esqueleto ```javascript existe no SKILL.md", _bloco is not None)
+esqueleto = _bloco.group(1) if _bloco else ""
+BASE_ESQ = skill[:_bloco.start(1)].count("\n") if _bloco else 0
+FONTES = [("motor.js", motor, 0), ("esqueleto do SKILL.md", esqueleto, BASE_ESQ)]
+
 # A · as peças do esqueleto — a MESMA lista da conferência escrita no SKILL.md.
 PECAS = ["blocoMax", "naoDespachadas", "idsDoPlano", "congeladas", "esperaChain",
          "saudePrompt", "ledgerCorrida", "impressaoTarefa", "emCirculo",
@@ -106,13 +119,72 @@ check("a marca da lei sai de comando literal (leiMarcaInstr + cksum)",
       and "corpo (sem frontmatter) dos arquivos de lei" not in motor)
 # E2 · A suíte roda na largada e o vermelho pré-existente fecha a porta — três
 # rodadas morreram em cima de um teste que já estava quebrado antes da missão.
-check("a suíte roda na largada e vermelho pré-existente é porta fechada",
-      "suite:largada" in motor and "vermelha antes da missão" in motor)
+for fonte, texto, _base in FONTES:
+    check("a suíte roda na largada e vermelho pré-existente é porta fechada (%s)" % fonte,
+          "suite:largada" in texto and "vermelha antes da missão" in texto)
+# E2b · A porta fechada não oferece saída que o programa não tem: o motor não lê
+# flag de isenção nem lista de teste ignorado, então mandar o dono "isentar" é
+# despachá-lo atrás de um botão inexistente. A mensagem só nomeia o que existe.
+for fonte, texto, _base in FONTES:
+    check("a porta fechada não oferece isenção inexistente (%s)" % fonte,
+          "isente" not in texto and "isentar" not in texto)
+# E2c · A suíte de BLOCO diz qual bloco. O esqueleto chamava `runSuitePrompt` sem
+# `bloco`, e assinatura divergente é exatamente o que o dono lê como fonte do laço.
+for fonte, texto, _base in FONTES:
+    check("a suíte de bloco passa `bloco: b` (%s)" % fonte,
+          "round: r, bloco: b })" in texto)
 # E3 · O `pronto` é literal: executor que não alcança o critério devolve
 # `impossivel`, nunca um proxy — um passo fechou com a medição original jamais
 # feita porque o executor documentou a troca e a auto-concedeu.
 check("proxy de critério é proibido no executor e reprovado no revisor",
       "PROXY É PROIBIDO" in motor and "critério REESCRITO" in motor)
+
+# F · A BARRA DE STATUS ANDA COM A MISSÃO, E APAGA QUANDO ELA ACABA.
+#
+# Dois defeitos que o dono viu na tela em 2026-08-09. (1) O sinal ficava aceso
+# depois do fim: o `rm` era passo da CASCA, que só roda no caminho feliz — motor
+# que para por teto, vigia, disjuntor ou onda estéril deixava a barra mentindo, e
+# havia CINCO sinais órfãos vivos, o mais velho de 75 horas. (2) A barra andava só
+# por onda: numa onda de três blocos ela ficava quinze minutos no mesmo texto.
+# O DESPACHO é código do laço, então vale para as DUAS fontes; o corpo do prompt
+# (o `andamento.py`, a barra por bloco) só existe no motor.js, por desenho — o
+# esqueleto não traz prompt nenhum.
+for fonte, texto, _base in FONTES:
+    check("o motor apaga o próprio sinal ao sair, em todo caminho que é dele (%s, ver F3)" % fonte,
+          "encerraPrompt({" in texto and "encerra:barra" in texto)
+check("a barra anda por BLOCO, não só por onda",
+      "--bloco ${bloco}" in motor and "--etapa" in motor)
+
+# F2 · O ENCERRAMENTO SOLTA O PAR INTEIRO: sinal da barra E reserva de arquivos.
+# `andamento.py encerra` não toca `~/.claude/andamento/reservas/<sid>__<motor>.files`
+# (outro diretório, outro prefixo), e `expira_sinais` também não. Nos caminhos sem
+# casca (teto, vigia, disjuntor, onda estéril, porta fechada) a reserva ficava de pé
+# até o TTL de 12h, barrando outro motor da mesma sessão nos mesmos arquivos.
+_corpo_encerra = motor.split("const encerraPrompt")[1].split("const colheitaPrompt")[0]
+# A chamada do sinal tem que estar DENTRO do corpo do encerramento: `andamento.py`
+# aparece em cinco outros pontos do motor.js, então procurar no arquivo inteiro
+# deixava a checagem verde mesmo com a linha do encerramento apagada.
+check("o encerramento chama o andamento.py",
+      "andamento.py" in _corpo_encerra and "encerra ${sessionId}" in _corpo_encerra,
+      "encerraPrompt não chama `andamento.py encerra <sid>` — o sinal fica aceso")
+check("o encerramento libera também a reserva de arquivos",
+      "reserva-de-arquivos.sh" in _corpo_encerra and "liberar" in _corpo_encerra
+      and "${motorId}" in _corpo_encerra,
+      "encerraPrompt só apaga o sinal — a reserva fica de pé até o TTL")
+# F3 · MOTOR RECUSADO PELA RESERVA NÃO APAGA O ESTADO DA SESSÃO.
+# `andamento.py encerra <sid>` apaga por SESSÃO (ativo-/onda-/placar-/sinal-/…), não
+# por motor. O motor B que a reserva recusou nunca reservou nada e nunca acendeu nada:
+# se ele encerrasse ao sair, apagaria o sinal do motor A, que continua trabalhando, e a
+# barra de A sumiria da tela (pretooluse-motor-arma.sh desarma sem o sinal).
+for fonte, texto, _base in FONTES:
+    _pre_encerra = texto.split("await agent(encerraPrompt(")[0][-500:]
+    check("motor recusado pela reserva sai sem encerrar o estado da sessão (%s)" % fonte,
+          "desligadoPor !== 'reserva'" in _pre_encerra,
+          "o dispatch de encerra:barra é incondicional — apaga a barra do outro motor da sessão")
+
+    check("a chamada do encerramento passa o motorId (%s)" % fonte,
+          "encerraPrompt({ sessionId: ARGS.sessionId" in texto
+          and "motorId: ARGS.motorId" in texto.split("encerraPrompt({")[-1].split("})")[0])
 
 # D · TODO agente sai com rótulo próprio na tela de andamento.
 #
@@ -120,18 +192,47 @@ check("proxy de critério é proibido no executor e reprovado no revisor",
 # prompt do motor abre com `PAPEL: X` (a regra da autópsia), sete papéis apareciam como
 # "PAPEL: DIAGNOSTICO Repositório: /Users/…" cortado, indistinguíveis entre si. O dono
 # perdia a governança justamente onde ela importa: qual tarefa está em diagnóstico, em
-# que volta do desafio, qual rodada está decompondo. Régua: `label:` mora na mesma linha
-# do `phase:` ou na de baixo — é o formato que as 20 chamadas usam hoje.
-linhas = motor.splitlines()
-sem_rotulo = [
-    "%d: %s" % (i + 1, linha.strip()[:70])
-    for i, linha in enumerate(linhas)
-    if "phase: '" in linha
-    and "label:" not in linha
-    and "label:" not in (linhas[i + 1] if i + 1 < len(linhas) else "")
+# que volta do desafio, qual rodada está decompondo.
+#
+# A varredura ancora na CHAMADA (`agent(` / `julga(`) e exige `label:` dentro dos
+# parênteses dela. A âncora velha era a linha com `phase: '` — só aspa simples, e só o
+# par de linhas em volta: derrubar o rótulo do executor escrevendo `phase: "Executar"`
+# saía verde, e chamada sem `phase:` nenhum era invisível.
+def _chamadas_sem_label(texto):
+    achados = []
+    for m in re.finditer(r"\b(?:agent|julga)\(", texto):
+        ini_linha = texto.rfind("\n", 0, m.start()) + 1
+        if texto[ini_linha:m.start()].lstrip().startswith(("//", "*")):
+            continue  # menção em comentário não é chamada
+        i, prof = m.end(), 1
+        while i < len(texto) and prof:
+            prof += (texto[i] == "(") - (texto[i] == ")")
+            i += 1
+        if "label:" not in texto[m.start():i]:
+            achados.append("%d: %s" % (texto[:m.start()].count("\n") + 1,
+                                       texto[ini_linha:m.start() + 60].strip()[:70]))
+    return achados
+
+
+# o arnês da própria varredura — os dois disfarces que passavam pela âncora velha.
+_ARNES = [
+    ("chamada em aspa dupla sem label",
+     'const x = await agent(p({ a: 1 }),\n  { model: m, phase: "Executar", schema: S })\n', 1),
+    ("chamada com `phase:` vindo de variável, sem label",
+     "const x = await agent(p({ a: 1 }),\n  { model: m, phase: fase, schema: S })\n", 1),
+    ("chamada com label continua verde",
+     "const x = await julga(p({ a: 1 }),\n  { model: m, phase: fase, label: `x:1`, schema: S })\n", 0),
 ]
-check("toda chamada de agente tem label próprio", not sem_rotulo,
-      "sem rótulo → %s" % " | ".join(sem_rotulo))
+for _nome, _trecho, _esperado in _ARNES:
+    _got = _chamadas_sem_label(_trecho)
+    check("o arnês da varredura pega: %s" % _nome, len(_got) == _esperado,
+          "achados: %s" % _got)
+
+for fonte, texto, base in FONTES:
+    sem_rotulo = ["%d: %s" % (base + int(a.split(":", 1)[0]), a.split(":", 1)[1].strip())
+                  for a in _chamadas_sem_label(texto)]
+    check("toda chamada de agente tem label próprio (%s)" % fonte, not sem_rotulo,
+          "sem rótulo → %s" % " | ".join(sem_rotulo))
 
 # sintaxe: o arquivo tem que ser JavaScript válido (quando node existe na máquina).
 if shutil.which("node"):

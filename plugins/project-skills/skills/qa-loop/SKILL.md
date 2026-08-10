@@ -285,12 +285,32 @@ mkdir -p "$ADIR"
 printf 'qa-loop\n' > "$ADIR/ativo-$CLAUDE_CODE_SESSION_ID"     # ao disparar o Workflow
 ```
 
-Ao entregar o relatório (Passo 8), apague — sinal esquecido deixa a barra mentindo missão de
-pé pelo resto da sessão:
+**E o motor ANDA na barra, rodada a rodada.** A barra parada em `Onda 2` por quinze minutos
+não diz se avançou ou travou — então cada rodada do motor registra onde está, e o comando é
+um só (falhar nele não derruba nada):
 
 ```bash
-rm -f "$ADIR/ativo-$CLAUDE_CODE_SESSION_ID"
+AND="$(bash "${CLAUDE_PLUGIN_ROOT}/lib/resolve-plugin.sh" project-skills lib/andamento.py)"
+python3 "$AND" onda "$CLAUDE_CODE_SESSION_ID" <rodada> --etapa "revisando" || true
 ```
+
+As etapas deste motor, na ordem: `revisando` · `planejando` · `consertando` · `confirmando` ·
+`gate`. O `--bloco N` existe para quem trabalha em blocos (o motor do `/sprint`); aqui a
+rodada basta.
+
+Ao entregar o relatório (Passo 8), **encerre** — e é `encerra`, não `rm`, porque o estado da
+missão é mais que o sinal (onda, placar, doc e trabalho em curso ficavam para trás e
+reapareciam na barra de quem reusasse o id):
+
+```bash
+python3 "$(bash "${CLAUDE_PLUGIN_ROOT}/lib/resolve-plugin.sh" project-skills lib/andamento.py)" encerra "$CLAUDE_CODE_SESSION_ID" qa-loop
+```
+
+⚠️ **Encerre também quando NÃO houve relatório** — gate vermelho, motor que não respondeu,
+abandono, alvo em movimento no Passo 0.0. Sinal esquecido deixa a barra mentindo missão de pé
+pelo resto da sessão, e a rede embaixo (a varredura da barra, `andamento.py:expira_sinais`)
+só age depois de **12 horas**. Medido em 2026-08-09: cinco sinais órfãos vivos ao mesmo
+tempo, o mais velho de 75 horas.
 
 A casa é a **neutra** (`andamento/`), a mesma que os outros motores acendem: é o único jeito
 de a barra falar de qualquer motor em vez de um só.

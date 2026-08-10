@@ -15,6 +15,8 @@ import tempfile
 
 SKILL_MD = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                         "..", "skills", "qa-loop", "SKILL.md")
+SPRINT_MD = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                         "..", "skills", "sprint", "SKILL.md")
 
 FAILS = []
 
@@ -39,6 +41,24 @@ def bloco_bash(secao_texto):
     """O primeiro bloco ```bash de uma seção — o comando que a skill manda rodar."""
     m = re.search(r"```bash\n(.*?)```", secao_texto, re.S)
     return m.group(1) if m else ""
+
+
+def orfas(bloco, preenchidos):
+    """Os nomes que o bloco USA e não nascem nele — o que quebra quando o agente
+    roda o bloco sozinho, porque cada ```bash é uma chamada de ferramenta à parte."""
+    posto = set(re.findall(
+        r"(?:^|\bthen\b|\belse\b|\bdo\b|;|&&|\|\|)\s*(?:export\s+)?([A-Z_][A-Z0-9_]*)=",
+        bloco, re.M))
+    posto |= set(re.findall(r"\bfor\s+([A-Z_][A-Z0-9_]*)\s+in\b", bloco))
+    usado = set(re.findall(r"\$\{?([A-Z_][A-Z0-9_]*)\}?", bloco))
+    return sorted(u for u in usado - posto - preenchidos
+                  if not u.startswith("CLAUDE")
+                  and u not in ("HOME", "PWD", "PATH", "TMPDIR", "USER"))
+
+
+def placeholders(bloco, slots_ok):
+    """Os `<…>` de um bloco bash que o agente teria que adivinhar."""
+    return [p for p in re.findall(r"<[^<>\n]{1,40}>", bloco) if p not in slots_ok]
 
 
 def roda_trava(bloco, reserva_viva, alvos):
@@ -128,6 +148,38 @@ def main():
     saida_disjunta = roda_trava(bloco, ["src/a.py"], ["src/z.py"])
     check("lista disjunta passa (o gate nao serializa a sessao)",
           '"deny"' not in saida_disjunta)
+
+    print("nenhum bloco bash depende de variavel nascida em outro bloco")
+    # Cada ```bash é um comando solto que o agente roda por si: variável posta
+    # num bloco NÃO chega no seguinte. `python3 "$AND" encerra` virava
+    # `python3 "" encerra` (rc=1) porque AND só existia no bloco de cima.
+    # Só entra na lista o nome que a prosa manda o agente preencher.
+    # A mesma regra vale pra SKILL.md do /sprint: `SPRINT_MOTOR_ID` nascia no bloco
+    # da armação e era usado no bloco do passo 3, onde chegava VAZIO — a reserva de
+    # arquivos nunca era liberada, e `liberar <sid> ''` sai 0 e mudo.
+    PREENCHIDOS = {"ARQUIVOS_DO_REVIEW", "SPRINT_BUILD_CMD", "SPRINT_REPO_ROOT"}
+    for skill, fonte in (("qa-loop", texto), ("sprint", open(SPRINT_MD, encoding="utf-8").read())):
+        for bloco in re.findall(r"```bash\n(.*?)```", fonte, re.S):
+            fora = orfas(bloco, PREENCHIDOS)
+            check("%s · bloco '%s' nao usa variavel de fora: %s"
+                  % (skill, bloco.strip().splitlines()[0][:48], fora or "nenhuma"),
+                  not fora)
+    check("um bloco que usa variavel de fora REPROVA (teste negativo)",
+          orfas('echo "$VEM_DE_OUTRO_BLOCO"', PREENCHIDOS) == ["VEM_DE_OUTRO_BLOCO"])
+
+    print("nenhum bloco bash manda o agente adivinhar um caminho")
+    # `AND="$(bash "<plugin project-skills>/lib/resolve-plugin.sh" ...)"` procura um
+    # arquivo com esse nome literal: AND sai vazio e a linha seguinte falha calada.
+    # Só ficam de fora os dois slots que a prosa manda preencher: <rodada> (número da
+    # volta) e <skill_dir>, que o harness injeta ao carregar a skill.
+    SLOTS_OK = {"<rodada>", "<skill_dir>"}
+    for bloco in re.findall(r"```bash\n(.*?)```", texto, re.S):
+        check("bloco '%s' nao tem placeholder a adivinhar"
+              % bloco.strip().splitlines()[0][:48],
+              not placeholders(bloco, SLOTS_OK))
+    check("um bloco com placeholder REPROVA (teste negativo)",
+          placeholders('X="$(bash "<plugin project-skills>/lib/x.sh")"', SLOTS_OK)
+          == ["<plugin project-skills>"])
 
     print("a regua do projeto nao foi copiada pra dentro da skill")
     # As quatro checagens de estilo vivem no quality-goals.md do projeto; se

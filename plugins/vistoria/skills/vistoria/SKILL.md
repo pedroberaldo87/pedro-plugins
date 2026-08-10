@@ -44,12 +44,15 @@ nessa tabela.
 
 ```bash
 python3 plugins/vistoria/lib/medidor.py            # resumo por cobrador
-python3 plugins/vistoria/lib/medidor.py --json     # a lista de achados
+python3 plugins/vistoria/lib/medidor.py --json     # {achados, _descartes}
 ```
 
 Um comando roda os cobradores que já existem no repo e transforma as saídas diferentes
 deles na MESMA coisa: uma lista de achados. Cobrador que quebra sai do JSON e aparece no
 resumo como *não medido* — medição incompleta não derruba a rodada, mas também não some.
+
+Cobrador que acusou sem trecho próprio não vira achado: o item sai do lote e entra em
+`_descartes`, que a página lista no rodapé. Prova que repete a acusação não é prova.
 
 ## 2 · As lentes medidas
 

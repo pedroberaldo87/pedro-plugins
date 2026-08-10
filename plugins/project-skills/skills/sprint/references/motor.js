@@ -161,7 +161,13 @@ python3 scripts/desacoplamento_check.py). Rode cada um, capturando a saída.
 Qualquer um que saia com código != 0 sobre o estado ATUAL do repositório ⇒ \`fechada: true\`,
 com \`motivo\` (uma linha) e \`saida\` (a saída crua, até 40 linhas).
 Check ausente, quebrado por infra, ou que reprova algo que NÃO é do repositório ⇒ \`fechada: false\`.
-Fail-open: na dúvida, \`fechada: false\`. Não conserte nada, não edite arquivo nenhum.`
+Fail-open: na dúvida, \`fechada: false\`. Não conserte nada, não edite arquivo nenhum.
+
+ANTES DE TUDO, marque na BARRA que esta rodada começou — um comando, e falhar nele não
+derruba nada:
+
+  ANDAMENTO="$(bash "${RESOLVE}" project-skills lib/andamento.py)"
+  python3 "$ANDAMENTO" onda ${ARGS.sessionId} ${round} ${ARGS.planPath || ''} --etapa "separando o trabalho" || true`
 
 const reguaPrompt = ({ repoRoot, criterios }) => `PAPEL: MECANICO
 Papel mecânico e SÓ, sem julgamento próprio. Para cada par abaixo, rode:
@@ -387,7 +393,7 @@ ignora, ou a causa concorrente mais simples. Vá ao disco conferir.
 
 \`anchor\` = a última linha não vazia do que você leu, literal.`
 
-const runSuitePrompt = ({ repoRoot, round }) => `PAPEL: SUITE
+const runSuitePrompt = ({ repoRoot, round, bloco }) => `PAPEL: SUITE
 Rodada ${round}. Papel mecânico e SÓ. cd ${repoRoot} e rode a suíte do repositório —
 a que o projeto declara (CLAUDE.md, Makefile, package.json); sem declaração, a LISTA
 sai deste comando, IGUAL em toda rodada da missão:
@@ -403,7 +409,14 @@ Rode TODOS, some os resultados, e devolva:
 - \`failing\` = os caminhos que falharam.
 - \`placar\` = uma linha crua no formato "N passou · M falhou".
 - \`trabalhoVivo\` = true se há processo de build/servidor ainda rodando na máquina.
-Não conserte nada. Suíte que não existe não é falha.`
+Não conserte nada. Suíte que não existe não é falha.
+
+ANTES de rodar a suíte, marque o BLOCO na barra — é o passo que faz a barra andar
+DENTRO da onda, e não só a cada onda nova (pedido do dono, 2026-08-09: uma onda de
+três blocos deixava a barra parada quinze minutos no mesmo texto):
+
+  ANDAMENTO="$(bash "${RESOLVE}" project-skills lib/andamento.py)"
+  python3 "$ANDAMENTO" onda ${ARGS.sessionId} ${round} ${ARGS.planPath || ''} --bloco ${bloco} --etapa "suíte" || true`
 
 const tickPlanPrompt = ({ planPath, passos }) => `PAPEL: MARCAR
 Papel mecânico e SÓ: gravar no plano os passos que acabaram de sair.
@@ -459,6 +472,30 @@ ${J(files)}
    Falhar aqui não derruba a onda.
 
 Raiz: ${repoRoot}. Quem decide touch-vs-FULL é o próprio touch — ele escala e segue, sem perguntar.`
+
+// ── O MOTOR APAGA O PRÓPRIO SINAL AO SAIR (pedido do dono, 2026-08-09) ───────
+// O `rm` do sinal era passo da CASCA, em prosa — e a casca só o roda no caminho
+// feliz. Motor que para por teto, por vigia, por disjuntor ou por onda estéril
+// deixava a barra dizendo "missão de pé" pelo resto da sessão. Medido no mesmo
+// dia: CINCO sinais órfãos vivos, o mais velho de 75 horas.
+// É o ÚLTIMO papel do motor, e é um comando só — de propósito. A objeção que vale
+// para a colheita ("agente disparado depois do disjuntor desfaz o desligamento")
+// não vale aqui: apagar o sinal é instantâneo e é justamente o que o desligamento
+// precisa para não deixar rastro.
+// A reserva de arquivos é a OUTRA metade do par: ela mora em outro diretório
+// (`andamento/reservas/<sid>__<motor>.files`), e nem `encerra` nem `expira_sinais`
+// a tocam. Sem esta segunda linha ela fica de pé até o TTL de 12h, barrando outro
+// motor da mesma sessão nos mesmos arquivos.
+const encerraPrompt = ({ sessionId, motorId, motivo }) => `PAPEL: MECANICO
+Papel mecânico e SÓ: a missão acabou (${motivo}) — apague o sinal dela na barra de status
+e solte a reserva de arquivos desta missão.
+
+  ANDAMENTO="$(bash "${RESOLVE}" project-skills lib/andamento.py)"
+  python3 "$ANDAMENTO" encerra ${sessionId} sprint || echo "sprint: não consegui apagar o sinal — apague à mão"
+  bash "$(bash "${RESOLVE}" project-skills hooks/reserva-de-arquivos.sh)" liberar ${sessionId} ${motorId} \\
+    || echo "sprint: não consegui soltar a reserva — ela expira sozinha em 12h"
+
+Nada mais. Não conserte, não commite, não edite arquivo nenhum.`
 
 const colheitaPrompt = ({ repoRoot, round }) => `PAPEL: MECANICO
 Papel mecânico e SÓ (onda ${round}, raiz ${repoRoot}). Rode:
@@ -588,14 +625,14 @@ while (!built && r < maxRounds) {
   // com a lista colada, nunca descoberta no meio da onda. Fail-open: agente mudo
   // não fecha nada — o gate real continua sendo a suíte do bloco.
   if (r === 1) {
-    const base = await agent(runSuitePrompt({ repoRoot: ARGS.repoRoot, round: r }),
+    const base = await agent(runSuitePrompt({ repoRoot: ARGS.repoRoot, round: r, bloco: 0 }),
       { model: ARGS.model, effort: T.mechanical.effort, phase: 'Decompor',
         label: 'suite:largada', schema: SUITE_RESULT })
     if (base?.heartbeat) ultimoSinalDeVida = base.heartbeat
     if (base && base.green === false) {
       desligadoPor = 'porta-fechada'
       blockers.push({ what: `a suíte do repositório JÁ está vermelha antes da missão: ${(base.failing || []).join(' · ') || base.placar || 'sem lista'}`,
-                      whyNeedsYou: 'o vermelho é pré-existente, não desta obra — conserte (ou isente) e relance; nenhum bloco fecha verde em cima de suíte que já nasceu vermelha' })
+                      whyNeedsYou: 'o vermelho é pré-existente, não desta obra — conserte esses testes e relance o /sprint; o motor não tem lista de teste ignorado, e nenhum bloco fecha verde em cima de suíte que já nasceu vermelha' })
       break
     }
   }
@@ -821,7 +858,7 @@ while (!built && r < maxRounds) {
     if (!aprovadas.length) continue
 
     // 3 · SUÍTE INTEIRA — vermelha fecha a onda aqui, e nada deste bloco é marcado.
-    const suiteB = await agent(runSuitePrompt({ repoRoot: ARGS.repoRoot, round: r }),
+    const suiteB = await agent(runSuitePrompt({ repoRoot: ARGS.repoRoot, round: r, bloco: b }),
       { model: ARGS.model, effort: T.mechanical.effort, phase: 'Suíte', label: `suite:r${r}b${b}`, schema: SUITE_RESULT })
     if (suiteB?.heartbeat) ultimoSinalDeVida = suiteB.heartbeat
     ultimaSuite = suiteB; ultimaSuiteMissao = suiteB
@@ -1110,6 +1147,21 @@ for (const x of rounds)
       { taskId: g.task_id || null, kind: g.kind, problem: g.problem, primeira: x.r, voltas: 0 })
     porGap[k].voltas = x.r - porGap[k].primeira + 1
   }
+
+// ── ÚLTIMO ATO: apagar o sinal da barra ─────────────────────────────────────
+// Vem DEPOIS de tudo e ANTES do return, então alcança TODO caminho de saída —
+// obra pronta, teto, vigia, disjuntor, onda estéril, causa global. A casca
+// continua apagando também (cinto e suspensório); e a barra varre o que passar
+// dos dois (`andamento.py:expira_sinais`).
+//
+// UMA EXCEÇÃO, e só uma: o motor que a RESERVA recusou. `andamento.py encerra` apaga
+// por SESSÃO, não por motor — quem sai por `reserva` nunca reservou nem acendeu nada,
+// e encerrar aqui apagaria o sinal do OUTRO motor da mesma sessão, que segue vivo (a
+// barra dele sumiria: `pretooluse-motor-arma.sh` desarma sem o sinal).
+if (desligadoPor !== 'reserva')
+  await agent(encerraPrompt({ sessionId: ARGS.sessionId, motorId: ARGS.motorId,
+                              motivo: desligadoPor || (built ? 'obra de pé' : 'teto de rodadas') }),
+    { model: ARGS.model, effort: T.mechanical.effort, phase: 'Limpeza', label: 'encerra:barra' })
 
 return {
   rounds, built, blockers, lawMark,

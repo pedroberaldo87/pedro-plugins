@@ -45,9 +45,74 @@ ESTADO = os.path.join(_CONFIG, "andamento")
 
 # A pasta antiga (com o nome do plugin extinto) foi aposentada no rename de
 # 2026-08-09: o estado mora aqui e so aqui. Quem tinha missao de pe migrou por mv.
+
+# TETO DE IDADE DO SINAL, EM MINUTOS. O mesmo numero que o gate do motor usa
+# (SPRINT_TTL_MIN, 12h) — a missao que este sinal protege e longa por definicao,
+# e encurtar mataria execucao legitima em andamento.
+TTL_SINAL_MIN = int(os.environ.get("SPRINT_TTL_MIN", "720") or 720)
+
+
 def _ler(base, nome):
     """O caminho do estado — uma casa so."""
     return os.path.join(base, nome)
+
+
+def expira_sinais(base=None, agora=None, ttl_min=None):
+    """Apaga o sinal de missao que passou do teto de idade, e o estado junto.
+
+    POR QUE ISTO MORA AQUI, E NAO SO NO GATE. O gate do motor ja expirava o sinal
+    velho — mas so QUANDO ALGUEM CONSULTAVA, e quem consulta e a sessao que
+    acendeu. Sessao que morre nunca mais pergunta, entao o sinal dela nunca
+    expirava: medido em 2026-08-09, CINCO sinais orfaos vivos ao mesmo tempo, o
+    mais velho de 75 horas, todos dizendo "Missao ha 75h" na barra de quem
+    abrisse aquele projeto.
+
+    Quem varre agora e a BARRA, porque ela e o unico processo que roda com
+    frequencia garantida em toda sessao viva — inclusive nas que nao tem motor
+    nenhum. Varrer no desenho da barra e o que alcanca o sinal de uma sessao
+    morta, que e justamente o caso que o gate nao alcanca.
+
+    Fail-open em tudo: pasta ausente, arquivo que sumiu no meio, permissao
+    negada — nada disso derruba a barra, que e so texto.
+    """
+    base = base or ESTADO
+    agora = time.time() if agora is None else agora
+    limite = (TTL_SINAL_MIN if ttl_min is None else ttl_min) * 60
+    apagados = []
+    try:
+        nomes = os.listdir(base)
+    except OSError:
+        return apagados
+    for nome in nomes:
+        if not nome.startswith("ativo-"):
+            continue
+        sessao = nome[len("ativo-"):]
+        caminho = os.path.join(base, nome)
+        try:
+            if agora - os.path.getmtime(caminho) <= limite:
+                continue
+        except OSError:
+            continue
+        # O sinal e o dono do estado da missao: some com ele e some o resto, senao
+        # a onda velha de uma sessao morta reaparece na barra da proxima que reusar
+        # o mesmo id.
+        for prefixo in ("ativo-", "bloqueios-", "onda-", "placar-", "doc-",
+                        "sinal-", "trabalho-", "motorid-"):
+            try:
+                os.remove(os.path.join(base, prefixo + sessao))
+            except OSError:
+                pass
+        apagados.append(sessao)
+    if apagados:
+        try:
+            with open(os.path.join(base, "expirados.log"), "a", encoding="utf-8") as fh:
+                for s in apagados:
+                    fh.write("%s\tbarra\t%dmin\t%s\n"
+                             % (time.strftime("%FT%TZ", time.gmtime(agora)),
+                                TTL_SINAL_MIN if ttl_min is None else ttl_min, s))
+        except OSError:
+            pass
+    return apagados
 
 
 # Os TRES formatos que a amostra mostrou, em ordem de frequencia medida.
@@ -254,7 +319,7 @@ def doc_da_onda(sessao, rodada, docs, dir_estado=None):
     return docs
 
 
-def marca_onda(sessao, rodada, plano=None, dir_estado=None):
+def marca_onda(sessao, rodada, plano=None, dir_estado=None, etapa=None, bloco=None):
     """A rodada em curso e o progresso do plano, no disco (a barra so LE).
 
     A barra dizia ha quanto tempo a missao estava de pe e como foi a ultima
@@ -269,6 +334,15 @@ def marca_onda(sessao, rodada, plano=None, dir_estado=None):
     """
     base = dir_estado or ESTADO
     registro = {"rodada": rodada}
+    # BLOCO E ETAPA — o pedido do dono em 2026-08-09: "as ondas, os blocos e assim
+    # por diante. Tudo." A barra dizia so a rodada, e a rodada e longa: numa onda de
+    # tres blocos, quem olha ve `Onda 2` parado por quinze minutos e nao sabe se
+    # avancou. Os dois sao OPCIONAIS — quem so tem rodada continua registrando so
+    # ela, e a linha sai igual a de antes.
+    if bloco not in (None, ""):
+        registro["bloco"] = bloco
+    if etapa not in (None, ""):
+        registro["etapa"] = etapa
     if plano:
         try:
             with open(plano, encoding="utf-8") as fh:
@@ -300,7 +374,12 @@ def linha_onda(sessao, dir_estado=None):
     rodada = reg.get("rodada")
     if rodada in (None, ""):
         return None
-    partes = ["Onda %s" % rodada]
+    ponto = "Onda %s" % rodada
+    if reg.get("bloco") not in (None, ""):
+        ponto += " bloco %s" % reg["bloco"]
+    partes = [ponto]
+    if reg.get("etapa"):
+        partes.append(str(reg["etapa"]))
     if reg.get("total"):
         partes.append("%s/%s" % (reg.get("feitos", 0), reg["total"]))
     return " · ".join(partes)
@@ -503,6 +582,10 @@ def linha_motor(sessao, dir_estado=None, agora=None):
         return None
     base = dir_estado or ESTADO
     agora = time.time() if agora is None else agora
+    # A VARREDURA DO PODRE ACONTECE AQUI porque a barra e o unico processo que roda
+    # com frequencia garantida — e o sinal orfao e justamente o da sessao que morreu
+    # e nunca mais consulta gate nenhum (ver `expira_sinais`).
+    expira_sinais(base, agora)
     ativo = _ler(base, "ativo-%s" % sessao)
     try:
         idade = agora - os.path.getmtime(ativo)
@@ -617,9 +700,48 @@ if __name__ == "__main__":
     # `doc <sid> <rodada> <caminho...>` — o papel de doc registra o que confirmou.
     # `onda <sid> <rodada> [plano.json]` — quem executa diz em que volta esta.
     if len(sys.argv) > 3 and sys.argv[1] == "onda":
-        reg = marca_onda(sys.argv[2], sys.argv[3],
-                         sys.argv[4] if len(sys.argv) > 4 else None)
+        # onda <sessao> <rodada> [plano] [--bloco N] [--etapa "texto"]
+        resto = sys.argv[4:]
+        plano = resto[0] if resto and not resto[0].startswith("--") else None
+        def _flag(nome):
+            return resto[resto.index(nome) + 1] if nome in resto[:-1] else None
+        reg = marca_onda(sys.argv[2], sys.argv[3], plano,
+                         etapa=_flag("--etapa"), bloco=_flag("--bloco"))
         print("onda registrada: %s" % json.dumps(reg, ensure_ascii=False))
+        sys.exit(0)
+
+    if len(sys.argv) > 2 and sys.argv[1] == "encerra":
+        # encerra <sessao> [dono] — apaga o sinal E o estado da missao. É o par do
+        # `printf 'motor' > ativo-<sid>` que a acende, e existe como COMANDO
+        # porque o esquecimento dele deixa a barra mentindo missão de pé pelo
+        # resto da sessão (medido: cinco sinais órfãos, o mais velho de 75h).
+        #
+        # O `dono` é o MESMO gesto do gate `pretooluse-motor-arma.sh` (`DONO=$(head
+        # -n 1 "$SINAL"); [ "$DONO" = "sprint" ] || exit 0`): sprint, qa-loop e
+        # gauntlet gravam o MESMO `ativo-<sid>`, cada um com o próprio nome na
+        # linha 1. Sem conferir, o motor que termina apaga a missão do vizinho, que
+        # segue viva. Dono divergente sai 0 e mudo — o chamador é `|| echo`.
+        alvo = sys.argv[2]
+        dono = sys.argv[3] if len(sys.argv) > 3 else None
+        if dono:
+            try:
+                with open(os.path.join(ESTADO, "ativo-" + alvo),
+                          encoding="utf-8") as fh:
+                    aceso = fh.readline().strip()
+            except OSError:
+                aceso = None
+            if aceso and aceso != dono:
+                print("sinal é de outro motor (%s) — nada apagado" % aceso)
+                sys.exit(0)
+        sumiram = []
+        for prefixo in ("ativo-", "bloqueios-", "onda-", "placar-", "doc-",
+                        "sinal-", "trabalho-", "motorid-"):
+            try:
+                os.remove(os.path.join(ESTADO, prefixo + alvo))
+                sumiram.append(prefixo.rstrip("-"))
+            except OSError:
+                pass
+        print("missão encerrada na barra: %s" % (", ".join(sumiram) or "nada aceso"))
         sys.exit(0)
 
     if len(sys.argv) > 3 and sys.argv[1] == "doc":

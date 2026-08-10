@@ -156,6 +156,8 @@ def roda_a_regua(bloco, decomp_js, regua_js):
     prog = ("const blockers = []; const decomp = %s;\n"
             "const ARGS = { repoRoot: '/raiz', model: 'opus' };\n"
             "const T = { mechanical: { effort: 'low' } };\n"
+            # o trecho mora DENTRO do laco da rodada, e o rotulo do papel cita `r`
+            "const r = 1;\n"
             "const REGUA = 'schema'; const reguaPrompt = x => JSON.stringify(x);\n"
             "const agent = async () => (%s);\n"
             "(async () => {\n%s\n"

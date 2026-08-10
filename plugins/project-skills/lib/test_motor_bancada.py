@@ -158,7 +158,7 @@ const mk = n => (p => Object.assign({ __p: n }, p));
 const orquestradorPrompt=mk('decompose'), saudePrompt=mk('saude'),
       decomposePrompt=mk('decompose'), execPrompt=mk('exec'), reviewBuildPrompt=mk('review'),
       runSuitePrompt=mk('suite'), checkpointPrompt=mk('checkpoint'), tickPlanPrompt=mk('tick'),
-      docTouchPrompt=mk('docTouch'), colheitaPrompt=mk('colheita'),
+      docTouchPrompt=mk('docTouch'), colheitaPrompt=mk('colheita'), encerraPrompt=mk('encerra'),
       diagnoseStuckTaskPrompt=mk('diag'), reservaPrompt=mk('reserva'), confirmBuildPrompt=mk('confirm'),
       reguaPrompt=mk('regua'), auditorPrompt=mk('auditor'), desafioCausaPrompt=mk('desafio'),
       revisorTarefaPrompt=mk('revTarefa'), revisorBlocoPrompt=mk('revBloco'),
@@ -272,7 +272,11 @@ async function agent(p, opts) {
     case 'saude':     return { fechada: CFG.portaFechada === true,
                                motivo: CFG.portaFechada ? 'check determinístico reprovou' : '',
                                saida: CFG.portaFechada ? 'gate: 2 achado(s) novo(s)' : '' }
-    case 'reserva':   return { recusado: false, arquivos: [] }
+    // A recusa da reserva vem do cenario. Com ela fixa em `false` (como era aqui) o
+    // caminho de saida por `reserva` nunca acontecia na bancada — e ele e o UNICO que
+    // sai sem apagar o sinal da sessao, porque o outro motor segue vivo.
+    case 'reserva':   return { recusado: CFG.reservaRecusada === true,
+                               arquivos: CFG.reservaRecusada ? ['F1.1.txt'] : [] }
     case 'exec':
       executados.push(p.task.id)
       // Executor que nao deixa nada no disco nao permite perguntar onde o trabalho foi
@@ -305,7 +309,16 @@ async function agent(p, opts) {
     // A COR da suite vem do cenario. Com ela fixa em verde (como era aqui) a onda
     // vermelha nunca acontece, e a metade do F9.15 que RECUSA o salvamento passaria sem
     // nunca ter sido exercitada — mesmo vicio do spent() zerado e do heartbeat fresco.
-    case 'suite':     return { green: CFG.suiteVerde !== false, failing: CFG.suiteFalhando || [],
+    // A suite da LARGADA (`bloco: 0`, uma vez na rodada 1) mede o repositorio ANTES da
+    // missao, e nos cenarios daqui ele comeca verde: o vermelho e da onda. Sem separar
+    // as duas, `suiteVerde: false` fecharia a porta na largada e nenhuma onda sairia —
+    // o cenario da onda vermelha nunca aconteceria. Quem quiser a largada VERMELHA
+    // (a porta fechada antes de qualquer executor) pede por `largadaFalhando`: sem
+    // ela o comportamento e o de sempre — largada verde.
+    case 'suite':     return { green: p.bloco === 0 ? !(CFG.largadaFalhando || []).length
+                                                    : CFG.suiteVerde !== false,
+                               failing: p.bloco === 0 ? CFG.largadaFalhando || []
+                                                      : CFG.suiteFalhando || [],
                                placar: '4 ok',
                                heartbeat: CFG.heartbeat === null ? CFG.now : CFG.heartbeat,
                                trabalhoVivo: CFG.trabalhoVivo === true }
@@ -375,7 +388,9 @@ def roda_motor(tmp, texto, plan_dir, tick_cmd, plan_path, token_budget=None,
                gasto_por_chamada=0, max_rounds=2, review_complete=True,
                agora=1, heartbeat=None, trabalho_vivo=False,
                checkpoint_cmd="", escreve_no_disco=False,
-               suite_verde=True, suite_falhando=None, replay_cache=False, gaps=None,
+               suite_verde=True, suite_falhando=None, largada_falhando=None,
+               reserva_recusada=False,
+               replay_cache=False, gaps=None,
                espera_dono=None,
                bloco_max=None,
                review_sem_ancora=None, alegacao_impossivel=None, auditor_derruba=False,
@@ -432,6 +447,8 @@ def roda_motor(tmp, texto, plan_dir, tick_cmd, plan_path, token_budget=None,
         "docFalso": doc_falso,
         "suiteVerde": suite_verde,
         "suiteFalhando": suite_falhando or [],
+        "largadaFalhando": largada_falhando or [],
+        "reservaRecusada": reserva_recusada,
         "pluginSkills": os.path.abspath(os.path.join(AQUI, "..")),
         "raiz": tmp,
         "planoId": PLANO["id"],
@@ -748,9 +765,13 @@ def main():
     check("ele relata o quanto gastou, em numero", saida3["gasto"] >= 1000)
     disjuntor = [b for b in saida3["blockers"] if "disjuntor" in (b.get("what") or "")]
     check("o desligamento vira Bloqueio, nao silencio", len(disjuntor) == 1)
+    # O numero do Bloqueio e o gasto NO INSTANTE em que o disjuntor abriu; o total
+    # devolvido carrega ainda o `encerra:barra`, o unico papel que roda depois dele
+    # (apagar o sinal da barra e soltar a reserva alcanca TODO caminho de saida).
+    m_gasto = re.search(r"gastou (\d+) de 1000 tokens.*rodada 1",
+                        disjuntor[0]["what"]) if disjuntor else None
     check("o Bloqueio diz o gasto, o teto e a rodada",
-          bool(disjuntor) and re.search(r"gastou %d de 1000 tokens.*rodada 1" % saida3["gasto"],
-                                        disjuntor[0]["what"]))
+          bool(m_gasto) and 1000 <= int(m_gasto.group(1)) <= saida3["gasto"])
     check("ele nao declara obra construida ao se desligar", saida3["built"] is False)
     # A prova de que o desligamento e EFETIVO: nenhum agente foi disparado depois dele.
     # Trava que grava o motivo e seguisse gastando seria relatorio, nao disjuntor.
@@ -1329,6 +1350,53 @@ def main():
               for b in verm2["saida"]["blockers"]))
     check("bloco vermelho nao vira checkpoint",
           verm2["saida"]["rounds"][0].get("checkpoint") is not True)
+
+    print("largada vermelha — o motor para na PORTA, antes de despachar executor")
+    # Ate aqui a suite da largada era verde por construcao no arnes, entao o ramo de
+    # porta-fechada do motor nunca rodava na bancada: apagar o `break` deixava a suite
+    # verde. Aqui a cor da largada vem do cenario, e o que se afere e o desfecho.
+    porta = bancada(texto, tick_cmd, max_rounds=2,
+                    largada_falhando=["test_plan_state.py", "test_andamento.py"])
+    if porta is None:
+        return 1
+    fechada = [b for b in porta["saida"]["blockers"]
+               if "vermelha antes da missão" in (b.get("what") or "")]
+    check("a largada vermelha vira Bloqueio, nao silencio", len(fechada) == 1)
+    check("o Bloqueio traz a lista dos testes que ja estavam vermelhos",
+          bool(fechada) and "test_plan_state.py" in fechada[0]["what"]
+          and "test_andamento.py" in fechada[0]["what"])
+    check("o motor se desligou pela porta fechada",
+          porta["saida"]["stopReason"] == "porta-fechada")
+    check("NENHUM executor foi despachado com a porta fechada",
+          porta["executados"] == [] and porta["agentes"].count("exec") == 0)
+    check("a largada vermelha nao decompoe o plano nem marca passo",
+          porta["agentes"].count("decompose") == 0 and porta["chamadas"] == [])
+    # O caminho de parada tambem e caminho de saida do motor: o sinal da barra tem que
+    # ser apagado aqui, senao ele fica aceso mentindo depois que a missao morreu. Ate
+    # aqui ninguem afirmava isso na bancada — o unico cobrador do despacho era procurar
+    # a string `encerra:barra` no arquivo, que passa com a chamada embrulhada em
+    # QUALQUER condicao.
+    check("a porta fechada ainda apaga o sinal da barra ao sair",
+          porta["agentes"].count("encerra") == 1)
+
+    print("reserva recusada — o motor sai SEM apagar o sinal da sessao do outro motor")
+    # A excecao unica: `andamento.py encerra <sid>` apaga por SESSAO, e quem a reserva
+    # recusou nunca acendeu nada. Encerrar aqui apagaria a barra do motor que segue
+    # trabalhando. Sem este cenario, a condicao que protege o outro motor nao tem
+    # cobrador nenhum — apagar o `if` deixa a bancada inteira verde.
+    recusado = bancada(texto, tick_cmd, max_rounds=2, reserva_recusada=True)
+    if recusado is None:
+        return 1
+    check("o motor se desligou pela reserva",
+          recusado["saida"]["stopReason"] == "reserva")
+    check("a recusa vira Bloqueio nomeando os arquivos que o outro motor reservou",
+          any("outro motor desta sessão já reservou" in (b.get("what") or "")
+              and "F1.1.txt" in (b.get("what") or "")
+              for b in recusado["saida"]["blockers"]))
+    check("NENHUM executor foi despachado com a reserva recusada",
+          recusado["executados"] == [] and recusado["agentes"].count("exec") == 0)
+    check("o motor recusado pela reserva NAO encerra o estado da sessao",
+          recusado["agentes"].count("encerra") == 0)
 
     print("autopsia — quem para sem terminar roda a conferencia final")
     parada = bancada(texto, tick_cmd, max_rounds=1, review_complete=False,
