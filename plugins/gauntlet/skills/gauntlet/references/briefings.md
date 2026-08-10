@@ -12,6 +12,19 @@ Regra que vale para TODOS: os vetos vivos do dono (`vetos.jsonl`) e a lei (campo
 rito, quando existe) entram verbatim em todo briefing de toda rodada. Agente que volta com
 o que o dono já matou é o defeito medido que originou a lista de vetos.
 
+**Toda entrega é ARQUIVO no disco, nunca texto de retorno.** Medido em 2026-08-09: dois
+agentes desta skill terminaram o trabalho, produziram tudo o que foi pedido — um deles 40
+capturas com 40 medições ao lado — e avisaram três vezes que estavam livres **sem que
+nenhuma linha do retorno deles chegasse a quem os despachou**. O trabalho existia no disco
+e a leitura dele se perdeu no caminho. Não é falha de um agente: é o canal.
+
+Por isso todo papel abaixo grava a sua entrega em caminho fixo dentro da missão
+(`recon/eixos.json`, `decomposicao.json`, `pecas/<X>/r<N>/entrega.json`,
+`pecas/<X>/r<N>/veredito.json`, `diretor.json`), e o texto de retorno é no máximo uma
+linha dizendo que gravou. Quem despacha confere o ARQUIVO, nunca a resposta. É a mesma
+lição que já vale para os vereditos — *todo julgamento vive em arquivo* —, agora estendida
+a tudo que a equipe produz, e pelo mesmo motivo: o que vive só na conversa evapora.
+
 Segunda regra que vale para TODOS, e para quem interpola os briefings antes de todos: **o
 alvo é régua de NÍVEL, nunca receita.** O número medido no alvo entra no briefing como
 prova de quão bom ele é naquela qualidade — nunca como valor a atingir ou a reproduzir.
@@ -52,6 +65,13 @@ qualidade que você não observou.
 O eixo nomeia uma QUALIDADE e o número prova o NÍVEL dela no alvo — o eixo não é uma
 especificação a reproduzir. Escreva cada nome como qualidade julgável ("a primeira tela
 guarda silêncio antes de falar"), nunca como receita ("moldura de 32px").
+
+GRAVE a sua entrega em `recon/eixos.json`, no formato
+{"eixos": [{nome, gesto, registro, alvo, numero}], "alvos_que_recusaram_a_sonda": [],
+"o_que_eu_nao_consegui_observar": "..."}. O campo `registro` é UM caminho e nada mais —
+prosa, par de arquivos ou dois caminhos numa string fazem a conferência da abertura
+recusar o eixo. Arquivo extra vai em `registros_extra`, que é lista.
+Responda depois com uma linha só dizendo quantos eixos ficaram.
 ```
 
 ## O decompositor
