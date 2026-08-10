@@ -141,13 +141,23 @@ ou sem a seção do tipo: siga sem ele, calado. Quando o dono disser "adiciona X
 arsenal", acrescente a linha na seção certa do arquivo global — é dele, você só escreve
 a pedido.
 
-**A oferta do diretor criativo sai aqui, no mesmo fôlego do arsenal.** Se a missão é
-estética (site, tela, jogo — qualquer obra que se julga pelo olho), ofereça o papel ao
-dono com o trade-off numa linha: um agente a mais por rodada, que tende a economizar
-reprovação, porque o palpite chega antes do veredito. A resposta dele grava no rito o
-campo `criativo: true/false` — e é ESSE campo que decide o despacho dali em diante,
-nunca a memória da conversa: é ele que sobrevive ao `/clear` e ressuscita com a missão.
-O papel, as cercas e o briefing estão na seção da equipe e em `references/briefings.md`.
+**A oferta do diretor criativo PARA o turno — ela não passa de raspão.** Se a missão é
+estética (site, tela, jogo — qualquer obra que se julga pelo olho), o papel é oferecido
+por `AskUserQuestion`, **antes de qualquer despacho**, e você **espera a resposta**.
+Nada de convidar de passagem no meio de um parágrafo de abertura, e nada de "enquanto eu
+decomponho, se quiser eu chamo": **o diretor criativo é de nascença ou não é** — ele
+existe para dirigir o gosto DESDE a primeira proposta, e chamado depois só assiste ao
+que já nasceu torto. Ordem do dono, 2026-08-09: *"o ideal seria oferecer o diretor
+criativo como uma pausa na skill (…) em vez de simplesmente jogar ali correndo (…) ele
+tem que ser de nascença senão fudeu"*.
+
+A pergunta traz o trade-off nas duas opções, para ele escolher olhando: **com** — um
+agente a mais por rodada, que tende a economizar reprovação porque o palpite chega antes
+do veredito; **sem** — mais barato por rodada, e a direção só se corrige quando um juiz
+reprova. A resposta grava no rito o campo `criativo: true/false`, e é ESSE campo que
+decide o despacho dali em diante, nunca a memória da conversa: é ele que sobrevive ao
+`/clear` e ressuscita com a missão. O papel, as cercas e o briefing estão na seção da
+equipe e em `references/briefings.md`.
 
 **A sonda é testada antes de começar** (`teste_registro` no disco), e o reconhecimento
 executa a sonda **no alvo** antes de a obra existir, devolvendo os `eixos` — o que faz o
@@ -220,8 +230,11 @@ inegociável no que ele **não** recebe: lista de defeitos de ninguém.
    peças é invisível aos juízes de peça.
 
 **O diretor criativo — o palpite que chega ANTES do veredito (opcional).** Papel de gosto
-puro. A oferta sai na abertura e a resposta do dono vive no rito (`criativo:
-true/false`); quem manda despachar é o campo, nunca a memória da conversa. Com `true`,
+puro. A oferta sai na abertura, parando o turno (`AskUserQuestion`), e a resposta do dono
+vive no rito (`criativo: true/false`); quem manda despachar é o campo, nunca a memória
+da conversa. **`false` é definitivo para a missão** — não se reoferece a cada rodada, e
+não se convida no meio: quem entra depois do primeiro veredito não dirige gosto nenhum,
+só assiste. Com `true`,
 ele nasce junto do fanout, olha a obra pela MESMA sonda de todos e grava palpites de
 direção em `criativo/palpites-r<N>.md`; você os repassa por `SendMessage` aos
 construtores vivos das peças que eles tocam. O valor dele é econômico: corrigir a
