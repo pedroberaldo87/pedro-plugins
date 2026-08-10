@@ -57,8 +57,15 @@ class BranchError(Exception):
 
 def git(repo, *args, **kw):
     """git, com saída limpa. `ok_fail` devolve None em vez de levantar."""
-    out = subprocess.run(("git", "-C", repo) + args,
-                         capture_output=True, text=True, stdin=subprocess.DEVNULL, start_new_session=True)
+    # `encoding` EXPLÍCITO: com `text=True` sozinho o Python decodifica pela
+    # codificação do sistema, que no Windows é cp1252 — e a saída do git é UTF-8.
+    # Todo acento virava lixo: a esteira acusou por um assunto de commit com "só",
+    # que o relatório do /branches mostraria mojibake para quem decide o que apagar.
+    # `replace` porque assunto de commit alheio não é dado confiável: melhor um
+    # caractere trocado do que a leitura inteira estourando.
+    out = subprocess.run(("git", "-C", repo) + args, capture_output=True, text=True,
+                         encoding="utf-8", errors="replace",
+                         stdin=subprocess.DEVNULL, start_new_session=True)
     if out.returncode != 0:
         if kw.get("ok_fail"):
             return None
