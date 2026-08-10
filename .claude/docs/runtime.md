@@ -83,10 +83,11 @@ verified-by:
   - plugins/ship/hooks/test_pre_deploy.sh
   - plugins/project-skills/lib/test_andamento.py
   - plugins/project-skills/hooks/test_andamento_hook.sh
+  - plugins/project-skills/skills/sprint/references/motor.js
+  - plugins/project-skills/lib/test_motor_js.py
   - plugins/gauntlet/hooks/test_gauntlet_hooks.sh
   - plugins/lixeiro/hooks/test_lixeiro_hooks.sh
-doc-sig: pedro-plugins/sessionstart-doc.sh@gen=3.8#2890548a
----
+doc-sig: pedro-plugins/sessionstart-doc.sh@gen=3.8#2890548a---
 
 # Runtime — fluxos ponta-a-ponta
 
@@ -608,6 +609,8 @@ Ele lista plugin, script, quantas linhas de tela o emissor produz e o `timeout`,
 
 ### 9a · O teto de prosa — `stop-prose-ceiling.py`
 
+🔴 **REMOVIDO em 2026-08-09, a pedido do dono.** Os três hooks de `Stop` do `bootstrap` (`stop-prose-ceiling.py`, `stop-forma-relato.py`, `stop-regua-relato.py`) saíram do disco e o array `Stop` do `hooks.json` deixou de existir [confirmado — `git show 251d6ac --stat` e `python3 -c "import json; print(list(json.load(open('plugins/bootstrap/hooks/hooks.json'))['hooks']))"` → `['SessionStart', 'PostToolUse']`]. O que segue é HISTÓRICO: descreve o que existiu, não o que roda. O estado em disco que eles escreviam continua lá e ninguém mais o lê.
+
 Mecânico, roda em todo turno, custo zero de token. **Nasce ligado:** `TETO_PADRAO = 6`, e `PROSE_CEILING_MAX` só **ajusta** o número (`0` ou lixo cai no padrão). O único desligamento é `PROSE_CEILING=0`, que derruba o hook inteiro e é visível. O comentário registra por quê: em 2026-07-30 o teto virou opt-in, a variável nunca foi definida e a primeira resposta seguinte já estourou — "premissa que nasce desligada não é premissa, é comentário". `[confirmado]`
 
 Conta linhas de prosa da última mensagem do assistente **descontando** blocos ``` (que são prova e não têm teto) e linhas de tabela/regra. Quatro problemas podem se acumular:
@@ -622,6 +625,8 @@ Conta linhas de prosa da última mensagem do assistente **descontando** blocos `
 **Rastro:** `batida()` grava **toda** execução, não só as que barram, em `CLAUDE_DIR/state/prose-ceiling/batidas.log`. `CLAUDE_DIR = Path(os.environ.get("CLAUDE_CONFIG_DIR", Path.home() / ".claude"))` — mesma regra do `conformance.py:CLAUDE_DIR` e do `scope-cop.sh`. Sem isso, "não rodou" e "rodou e aprovou" eram indistinguíveis. `[confirmado]`
 
 ### 9b · O juiz de forma do relato — `stop-forma-relato.py` (novo nesta rodada)
+
+🔴 **REMOVIDO em 2026-08-09, a pedido do dono.** Os três hooks de `Stop` do `bootstrap` (`stop-prose-ceiling.py`, `stop-forma-relato.py`, `stop-regua-relato.py`) saíram do disco e o array `Stop` do `hooks.json` deixou de existir [confirmado — `git show 251d6ac --stat` e `python3 -c "import json; print(list(json.load(open('plugins/bootstrap/hooks/hooks.json'))['hooks']))"` → `['SessionStart', 'PostToolUse']`]. O que segue é HISTÓRICO: descreve o que existiu, não o que roda. O estado em disco que eles escreviam continua lá e ninguém mais o lê.
 
 Vizinho deliberadamente diferente do teto: **chama um modelo**, então só roda quando a resposta é um **relato**. Nenhum padrão distingue "6 linhas densas" de "6 linhas vazias" — para isso precisa de um leitor. `[confirmado — docstring]`
 
@@ -776,6 +781,8 @@ O caso que o cabeçalho nomeia como coberto é o do monorepo-container: mesmo co
 
 ### 15b · A REDE — `bootstrap/hooks/stop-regua-relato.py`
 
+🔴 **REMOVIDO em 2026-08-09, a pedido do dono.** Os três hooks de `Stop` do `bootstrap` (`stop-prose-ceiling.py`, `stop-forma-relato.py`, `stop-regua-relato.py`) saíram do disco e o array `Stop` do `hooks.json` deixou de existir [confirmado — `git show 251d6ac --stat` e `python3 -c "import json; print(list(json.load(open('plugins/bootstrap/hooks/hooks.json'))['hooks']))"` → `['SessionStart', 'PostToolUse']`]. O que segue é HISTÓRICO: descreve o que existiu, não o que roda. O estado em disco que eles escreviam continua lá e ninguém mais o lê.
+
 **Dispara quando:** `Stop`, timeout 10, **antes** do `stop-forma-relato.py` no mesmo array — o mecânico vem antes do que chama modelo. `[confirmado]`
 
 **Divisão de trabalho com o vizinho, pra não haver guarda em dobro** (escrita na docstring): o `stop-prose-ceiling.py` mede **VOLUME** (quantas linhas de prosa); esta régua mede os **BULLETS** (as linhas que abrem com `•`, `-` ou `*` seguidos de espaço). `[confirmado]`
@@ -801,19 +808,13 @@ O caso que o cabeçalho nomeia como coberto é o do monorepo-container: mesmo co
 
 **Os passos:**
 
-1. **A casca roda o script antes do Workflow** — `python3 "<skill_dir>/references/r8_tiers.py" args`.
-2. **O script lê o JSON e devolve só o que o motor decide** — `para_args()` monta `{model, tiers: {<knob>: {effort}}}` a partir de `r8-tiers.json`. Saída medida nesta rodada: `model: "opus"` e os seis knobs `decompose`, `coordinate`, `executor`, `mechanical`, `diagnose`, `finalize`. `[confirmado — `python3 _shared/r8_tiers.py args`]`
-3. **A casca passa isso dentro do `args` do Workflow**, junto com os outros parâmetros.
-4. 🔴 **O passo 4 INVERTEU nesta rodada, e a inversão é o achado.** Antes o script do motor lia `args.tiers.<knob>.effort` em tempo de execução. Agora o bloco de esforço vai **escrito dentro do texto do script**, como constante literal no topo, gerada pela saída do comando do passo 1:
+1. **O script existe e é lido do disco** — `python3 "<skill_dir>/references/r8_tiers.py" args` monta `{model, tiers: {<knob>: {effort}}}` a partir de `r8-tiers.json`. Saída medida nesta rodada: `model: "opus"` e os seis knobs `decompose`, `coordinate`, `executor`, `mechanical`, `diagnose`, `finalize`. `[confirmado — `python3 _shared/r8_tiers.py args`]`
+2. 🔴 **O passo em que o valor entra mudou DUAS vezes, e a segunda é de 2026-08-09.** Primeiro ele saiu de `args.tiers` lido em tempo de execução e virou constante literal escrita no texto do script. Agora ele nem é transportado: a constante já está **gravada no arquivo do motor**, `plugins/project-skills/skills/sprint/references/motor.js`, e a casca só passa o caminho.
+3. **Quem impede a constante de envelhecer é teste, não lembrança** — `plugins/project-skills/lib/test_motor_js.py` lê `r8-tiers.json` e compara knob a knob com o que está escrito no `motor.js`; espelho defasado reprova a suíte do plugin. `[confirmado — `python3 plugins/project-skills/lib/test_motor_js.py` → "test_motor_js: 49 checagens verdes"]`
 
-```javascript
-// gerado por references/r8_tiers.py args — não digite à mão, não leia de args.tiers
-const T = { decompose: {effort:'high'}, coordinate: {effort:'medium'}, /* … */ }
-```
+⚠️ **O motivo da primeira inversão é medido, e contradiz o que este doc afirmava antes:** *"o canal que levava esse valor até o script FALHAVA, e `args.tiers` chegava `undefined` — o que matava o motor na primeira volta"*. A versão anterior tratava essa morte como "a falha certa"; na prática ela acontecia por defeito de canal, não por contrato violado, e o motor morria sem que ninguém tivesse mexido em tier nenhum.
 
-⚠️ **O motivo é medido, e contradiz o que este doc afirmava antes:** *"o canal que levava esse valor até o script FALHAVA, e `args.tiers` chegava `undefined` — o que matava o motor na primeira volta"*. A versão anterior tratava essa morte como "a falha certa"; na prática ela acontecia por defeito de canal, não por contrato violado, e o motor morria sem que ninguém tivesse mexido em tier nenhum.
-
-**A régua não mudou; o MOMENTO mudou.** O valor continua nascendo em `_shared/r8-tiers.json` e nunca é inventado na skill — o que mudou é que ele entra na **composição** do script, não na execução dele. Trocar um tier segue sendo editar o JSON compartilhado e rodar `scripts/sync-shared.sh`; nenhum `SKILL.md` muda. O princípio escrito na própria skill: *"cada canal a mais é um lugar a mais para o valor sumir em silêncio"*. `[confirmado — `plugins/project-skills/skills/sprint/SKILL.md`, seção R8]`
+**A régua não mudou; o MOMENTO mudou duas vezes.** O valor continua nascendo em `_shared/r8-tiers.json` e nunca é inventado na skill. Trocar um tier é editar o JSON compartilhado, rodar `scripts/sync-shared.sh` e espelhar a constante no `motor.js` — o teste reprova se o espelho ficar para trás. `[confirmado — `plugins/project-skills/skills/sprint/SKILL.md`, seção R8]`
 
 **Os outros dois usos do mesmo módulo**, ambos lendo o mesmo JSON: `render` gera a tabela de `r8-tiers.md` (ninguém a digita), e `check` falha se o markdown divergir do JSON **ou** se algum `SKILL.md` voltar a carimbar um `effort` literal ao lado de um `model:`. A regex isenta a menção legítima ao nome do knob e o `effort: "low"` do relatório do `/fallow`, que não tem nada com o R8. `[confirmado — `r8_tiers.py:LITERAL` e `python3 _shared/r8_tiers.py demo` → "demo ok"]`
 

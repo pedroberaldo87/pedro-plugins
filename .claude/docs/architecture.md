@@ -34,8 +34,6 @@ scope:
   - plugins/guardrails/hooks/askq-humanize.sh
   - plugins/bootstrap/config/manifest.json
   - plugins/bootstrap/hooks/hooks.json
-  - plugins/bootstrap/hooks/stop-prose-ceiling.py
-  - plugins/bootstrap/hooks/stop-forma-relato.py
   - plugins/bootstrap/lib/conformance.py
   - plugins/bootstrap/output-styles/clean-style.md
   - _shared/sessionstart-deps.sh
@@ -69,6 +67,7 @@ verified-by:
   - plugins/project-skills/lib/test_plan_state.py
   - plugins/project-skills/lib/test_cobertura.py
   - plugins/project-skills/lib/test_regua_pronto.py
+  - plugins/project-skills/skills/sprint/references/motor.js
   - plugins/visual/lib/test_visual_page.py
   - scripts/test_cadeia_check.py
   - scripts/test_desacoplamento_check.py
@@ -84,8 +83,7 @@ verified-by:
   - plugins/branches/lib/test_branch_state.py
   - plugins/guardrails/lib/test_askq_lint.py
   - plugins/slides/lib/test_md2deck.py
-doc-sig: pedro-plugins/marketplace.json@gen=3.8#b3ff1b39
----
+doc-sig: pedro-plugins/marketplace.json@gen=3.8#b3ff1b39---
 
 # Arquitetura — pedro-plugins
 
@@ -391,9 +389,12 @@ agora o motor também mudou de endereço e os três diretórios deixaram de exis
   degradação quando `plan_state.py` (no `project-skills`) não está na máquina.
   ⚠️ **Costura nova entre os dois plugins, e ela é de TEXTO:** o medidor só sabe quem foi
   cada agente porque todo prompt do motor de `/sprint` abre com a linha `PAPEL: <NOME>`
-  (a tabela de nomes está em `plugins/project-skills/skills/sprint/SKILL.md`, e
+  (a tabela de nomes está em `plugins/project-skills/skills/sprint/SKILL.md`, os prompts
+  que a cumprem estão em `skills/sprint/references/motor.js`, e
   `medidor.py:papel_do_prompt` é quem a lê). Reescrever a prosa de um prompt sem manter a
   linha não quebra nada visivelmente — só faz aquele papel virar `DESCONHECIDO` na tabela.
+  Desde 2026-08-09 quem cobra os dois lados é `plugins/project-skills/lib/test_motor_js.py`,
+  que casa cada `<nome>Prompt` do `motor.js` com o papel que a tabela do `SKILL.md` declara.
   Os marcadores por frase ("Você é o X") continuam no código apenas como resgate de run
   antigo, gravado antes da declaração existir.
   ⚠️ **A skill nasceu com comandos que só rodavam DENTRO deste repositório.** Todos eles
@@ -462,9 +463,6 @@ depois explica o que ele faz:
 bootstrap
   SessionStart[*]                    → session-sync.sh              (sem timeout)
   PostToolUse[Bash]                  → post-plugin-command.sh       (sem timeout)
-  Stop[*]                            → stop-prose-ceiling.py        (10s)
-  Stop[*]                            → stop-regua-relato.py         (10s)
-  Stop[*]                            → stop-forma-relato.py         (30s)
 
 branches
   SessionStart[*]                    → sessionstart-branches.sh     (15s)
@@ -550,8 +548,8 @@ Observações de arquitetura:
   sobre `Agent` mais abaixo.
 
 - **O `bootstrap` tem TRÊS hooks no mesmo evento `Stop`**, e a divisão é por eixo medido, não
-  por acaso: `stop-prose-ceiling.py` mede **volume** (quantas linhas de prosa),
-  `stop-regua-relato.py` mede **os bullets** (a régua de forma, §7.4) e `stop-forma-relato.py`
+  por acaso: `stop-prose-ceiling.py` media **volume** (quantas linhas de prosa),
+  `stop-regua-relato.py` media **os bullets** (a régua de forma, §7.4) e `stop-forma-relato.py`
   julga o que regex não alcança, chamando um modelo. Os dois primeiros custam zero token e
   rodam em todo turno; o terceiro **só roda quando a resposta é um relato**. A divisão está
   escrita no cabeçalho do do meio, literal: *"teto de prosa -> VOLUME (quantas linhas) / esta
@@ -1489,6 +1487,8 @@ causa aqui, e o conserto preservou o comando anterior **inteiro** no forward —
 cálculo de `COLUMNS`, que se perderia se o forward fosse remontado à mão.
 
 ### 10.2 O contrato de forma (bootstrap v1.10.0) — regra, mecanismo e verificador
+
+🔴 **Os DOIS mecanismos desta seção foram REMOVIDOS em 2026-08-09, a pedido do dono.** A regra (1), o output style `clean-style.md`, continua no ar e é hoje o contrato de forma inteiro. Os hooks (2) e (3), mais o `stop-regua-relato.py`, saíram do disco junto com o array `Stop` do `hooks.json` do bootstrap, e os checks que os cobravam saíram do `conformance.py` [confirmado — `git show 251d6ac --stat` mostra os quatro arquivos deletados; `grep -c 'check_teto_rodou\|check_juiz_rodou' plugins/bootstrap/lib/conformance.py` → 0]. O que segue descreve o que existiu: leia como histórico do raciocínio, não como inventário do que roda.
 
 Quatro peças, cada uma cobrindo o buraco da anterior — a (2b) nasceu em 2026-08-03.
 

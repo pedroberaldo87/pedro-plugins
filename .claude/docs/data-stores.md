@@ -34,8 +34,6 @@ scope:
   - plugins/context-guard/hooks/context-guard.sh
   - plugins/context-guard/hooks/context-guard-reset.sh
   - plugins/context-guard/hooks/context-guard-writer.sh
-  - plugins/bootstrap/hooks/stop-prose-ceiling.py
-  - plugins/bootstrap/hooks/stop-forma-relato.py
   - plugins/bootstrap/hooks/hooks.json
   - plugins/bootstrap/lib/conformance.py
   - plugins/project-skills/hooks/stop-doc-touch.sh
@@ -299,6 +297,8 @@ return os.path.join(os.path.expanduser("~/.claude/intent"), slug)
 
 ### B8 · `${CLAUDE_CONFIG_DIR:-~/.claude}/state/prose-ceiling/` — o orçamento do teto de prosa
 
+🔴 **REMOVIDO em 2026-08-09, a pedido do dono.** Os três hooks de `Stop` do `bootstrap` (`stop-prose-ceiling.py`, `stop-forma-relato.py`, `stop-regua-relato.py`) saíram do disco e o array `Stop` do `hooks.json` deixou de existir [confirmado — `git show 251d6ac --stat` e `python3 -c "import json; print(list(json.load(open('plugins/bootstrap/hooks/hooks.json'))['hooks']))"` → `['SessionStart', 'PostToolUse']`]. O que segue é HISTÓRICO: descreve o que existiu, não o que roda. O estado em disco que eles escreviam continua lá e ninguém mais o lê.
+
 - **Escrito por** `plugins/bootstrap/hooks/stop-prose-ceiling.py`, hook de `Stop`. O caminho é resolvido por env, com a mesma linha do leitor: [confirmado nos dois arquivos]
 
   ```python
@@ -326,6 +326,8 @@ return os.path.join(os.path.expanduser("~/.claude/intent"), slug)
 - **Regra nova nesta rodada, e ela muda o que entra no log:** pergunta fechada do usuário passou a exigir **veredito na 1ª linha** da resposta. O hook lê a última fala do usuário, casa `PERGUNTA_FECHADA` na cauda (200 chars) e exclui as abertas via `PERGUNTA_ABERTA`; se a primeira linha não casar `ABRE_COM_VEREDITO`, o problema `"pergunta fechada sem veredito na 1a linha"` entra na lista e a resposta é barrada. [confirmado no código]
 
 ### B9 · `${CLAUDE_CONFIG_DIR:-~/.claude}/state/forma-relato/` — o juiz de forma do relato
+
+🔴 **REMOVIDO em 2026-08-09, a pedido do dono.** Os três hooks de `Stop` do `bootstrap` (`stop-prose-ceiling.py`, `stop-forma-relato.py`, `stop-regua-relato.py`) saíram do disco e o array `Stop` do `hooks.json` deixou de existir [confirmado — `git show 251d6ac --stat` e `python3 -c "import json; print(list(json.load(open('plugins/bootstrap/hooks/hooks.json'))['hooks']))"` → `['SessionStart', 'PostToolUse']`]. O que segue é HISTÓRICO: descreve o que existiu, não o que roda. O estado em disco que eles escreviam continua lá e ninguém mais o lê.
 
 Depósito **novo nesta rodada**, irmão do B8 e deliberadamente diferente dele: o teto de prosa é mecânico, roda todo turno e custa zero token; **este chama um modelo**, então só roda quando a resposta é um RELATO.
 

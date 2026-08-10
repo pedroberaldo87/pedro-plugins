@@ -20,8 +20,6 @@ scope:
   - plugins/bootstrap/hooks/session-sync.sh
   - plugins/bootstrap/hooks/lib/snapshot.sh
   - plugins/bootstrap/hooks/lib/git-sync.sh
-  - plugins/bootstrap/hooks/stop-prose-ceiling.py
-  - plugins/bootstrap/hooks/stop-forma-relato.py
   - plugins/bootstrap/lib/conformance.py
   - plugins/intent-guard/lib/ledger.py
   - plugins/context-guard/hooks/context-guard-reset.sh
@@ -408,6 +406,8 @@ Nasceu em 2026-08-08. Anatomia em `data-stores.md §B13`.
 
 ### 3.13 · Batidas do juiz de forma do relato — `~/.claude/state/forma-relato/`
 
+🔴 **REMOVIDO em 2026-08-09, a pedido do dono.** Os três hooks de `Stop` do `bootstrap` (`stop-prose-ceiling.py`, `stop-forma-relato.py`, `stop-regua-relato.py`) saíram do disco e o array `Stop` do `hooks.json` deixou de existir [confirmado — `git show 251d6ac --stat` e `python3 -c "import json; print(list(json.load(open('plugins/bootstrap/hooks/hooks.json'))['hooks']))"` → `['SessionStart', 'PostToolUse']`]. O que segue é HISTÓRICO: descreve o que existiu, não o que roda. O estado em disco que eles escreviam continua lá e ninguém mais o lê.
+
 **Código novo desta rodada.** `plugins/bootstrap/hooks/stop-forma-relato.py` é um hook `Stop` que chama um modelo (`claude -p --model` com `FORMA_RELATO_MODEL`, default `haiku`) e só roda quando o turno passou pelo **`/visual`** (`usou_visual()`) **e** a resposta é um **relato** (*pelo menos um bloco de código E ≥ `MIN_PROSA = 2` linhas de prosa*). Sem o `/visual` a batida é `sem /visual no turno` e nenhum modelo é chamado.
 
 - **Ativação confirmada** [confirmado]: está no array `Stop` de `plugins/bootstrap/hooks/hooks.json`, com `"timeout": 30`, ao lado do `stop-prose-ceiling.py`.
@@ -437,6 +437,8 @@ Nasceu em 2026-08-08. Anatomia em `data-stores.md §B13`.
   O quarto caso existe porque os outros três verdes não valem se o juiz estiver mudo.
 
 ### 3.14 · Contadores e furos do teto de prosa — `~/.claude/state/prose-ceiling/`
+
+🔴 **REMOVIDO em 2026-08-09, a pedido do dono.** Os três hooks de `Stop` do `bootstrap` (`stop-prose-ceiling.py`, `stop-forma-relato.py`, `stop-regua-relato.py`) saíram do disco e o array `Stop` do `hooks.json` deixou de existir [confirmado — `git show 251d6ac --stat` e `python3 -c "import json; print(list(json.load(open('plugins/bootstrap/hooks/hooks.json'))['hooks']))"` → `['SessionStart', 'PostToolUse']`]. O que segue é HISTÓRICO: descreve o que existiu, não o que roda. O estado em disco que eles escreviam continua lá e ninguém mais o lê.
 
 `plugins/bootstrap/hooks/stop-prose-ceiling.py` é o vizinho mecânico: roda em todo turno, custa zero token, e nesta rodada ganhou **a regra do veredito na primeira linha**.
 
@@ -485,6 +487,8 @@ arquivo com um número. Escrito e lido por `plugins/intent-guard/lib/ledger.py:f
   sem cópia, e ali a perda é real — o texto dos vereditos de reprovação não se regenera.
 
 ### 3.15 · Quem lê esses logs — `check_juiz_rodou` e `check_teto_rodou` no conformance
+
+🔴 **REMOVIDO em 2026-08-09, a pedido do dono.** Os três hooks de `Stop` do `bootstrap` (`stop-prose-ceiling.py`, `stop-forma-relato.py`, `stop-regua-relato.py`) saíram do disco e o array `Stop` do `hooks.json` deixou de existir [confirmado — `git show 251d6ac --stat` e `python3 -c "import json; print(list(json.load(open('plugins/bootstrap/hooks/hooks.json'))['hooks']))"` → `['SessionStart', 'PostToolUse']`]. O que segue é HISTÓRICO: descreve o que existiu, não o que roda. O estado em disco que eles escreviam continua lá e ninguém mais o lê.
 
 **Código novo desta rodada.** `plugins/bootstrap/lib/conformance.py` ganhou `check_juiz_rodou`, registrado ao lado de `check_teto_rodou` e `check_bypass_teto` na lista de checagens do módulo.
 
