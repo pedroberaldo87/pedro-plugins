@@ -18,8 +18,6 @@ scope:
   - plugins/project-skills/lib/pattern_check.py
   - plugins/guardrails/lib/askq_lint.py
   - plugins/guardrails/hooks/scope-cop.sh
-  - plugins/bootstrap/hooks/stop-prose-ceiling.py
-  - plugins/bootstrap/hooks/stop-forma-relato.py
   - plugins/bootstrap/hooks/hooks.json
   - plugins/bootstrap/lib/conformance.py
   - plugins/context-guard/hooks/context-guard-writer.sh
@@ -56,12 +54,13 @@ verified-by:
   - plugins/visual/lib/test_visual_page.py
   - plugins/project-skills/lib/test_plan_state.py
   - plugins/project-skills/lib/test_cobertura.py
+  - plugins/project-skills/skills/sprint/references/motor.js
+  - plugins/project-skills/lib/test_motor_js.py
   - plugins/visual/hooks/test_exitplan_gate.sh
   - plugins/handoff/lib/test_handoff_skill.py
   - .claude/hooks/test_release_gate.sh
   - plugins/slides/lib/test_md2deck.py
-doc-sig: pedro-plugins/release-gate.sh@gen=3.8#8fdd5c73
----
+doc-sig: pedro-plugins/release-gate.sh@gen=3.8#8fdd5c73---
 
 # Patterns & Gotchas
 
@@ -472,7 +471,7 @@ agent_count 12 · agents_done 8 · agents_error 4
 
 **8 de 12 agentes tinham entregue, e o motor devolveu falha total.** O trabalho existia em disco; o que se perdeu foi o relato dele.
 
-As quatro portas, e a direção segura de cada uma [confirmado — o `SKILL.md` do motor, esqueleto]:
+As quatro portas, e a direção segura de cada uma [confirmado — o esqueleto do `SKILL.md` do motor e o executável `plugins/project-skills/skills/sprint/references/motor.js`, que desde 2026-08-09 carregam as mesmas quatro guardas]:
 
 - **decompositor morto** → `break`. Sem decomposição não há o que executar; o que as rodadas anteriores construíram continua valendo.
 - **revisor morto** → `continue` com blocker. A direção segura é **não** declarar `built`: revisor que não respondeu não aprovou nada.
@@ -480,6 +479,40 @@ As quatro portas, e a direção segura de cada uma [confirmado — o `SKILL.md` 
 - **executor morto** → `.filter(Boolean)` **nos dois lados** (paralelo e sequencial). Filtrar só o paralelo deixava `null` entrar em `results` e estourar no revisor — e a tarefa **sumia do relato** em vez de reaparecer em `missingTasks`, que é o caminho que a manda de volta pro decompositor.
 
 **Régua durável: em motor de agentes, toda chamada que pode devolver `null` precisa de porta declarada — e a porta nunca é "declara pronto". Falha de infra tem que degradar a missão, nunca fabricar aprovação.**
+
+### 1.13b Instrução em prosa que vira código a cada disparo envelhece em rascunho
+
+O esqueleto do motor de `/sprint` sempre viveu no `SKILL.md` e era **copiado** no disparo. O que
+não vivia lá eram os prompts dos papéis e os schemas de resposta: eles estavam descritos em
+prosa — tabela de papéis, campos obrigatórios, o que cada schema recusa — e quem disparava os
+**traduzia em JavaScript na hora**. Medido em 2026-08-09, comparando o esqueleto com o script
+realmente disparado:
+
+```
+esqueleto no SKILL.md : 947 linhas
+script disparado      : 1016 linhas
+  580 copiadas do esqueleto
+  436 traduzidas da prosa: 18 construtores de prompt + 14 schemas
+```
+
+O defeito não é o custo da tradução — é onde ela pousa. O resultado foi guardado no diretório
+de rascunho da sessão, sobreviveu ao rename do plugin (`sovai` → `sprint`) e **rodou depois
+dele com o `meta.name` morto na tela**. A varredura do rename cobria `plugins/`, `scripts/` e o
+`README.md`; rascunho de sessão não é território de varredura, e cópia velha roda igual — só
+carrega o texto errado.
+
+**A correção foi mudar o que é copiado:** o executável virou
+`plugins/project-skills/skills/sprint/references/motor.js`, arquivo do plugin, e o disparo passa
+o **caminho** dele ao `Workflow` em vez de montar texto. Duas consequências que valem além deste
+caso:
+
+- **O que é arquivo do plugin entra em toda varredura** — rename, `grep`, gate de commit, release.
+- **A prosa que sobrou vira contrato conferível.** `plugins/project-skills/lib/test_motor_js.py`
+  casa o `motor.js` com as três fontes que o definem: as peças nomeadas do esqueleto, a tabela
+  `prompt → PAPEL` e a constante de esforço contra `_shared/r8-tiers.json`
+  [confirmado — `python3 plugins/project-skills/lib/test_motor_js.py` → `test_motor_js: 49 checagens verdes`].
+
+**Régua durável: instrução que alguém traduz em código a cada uso é código sem endereço. Ou ela vira arquivo versionado, ou a cópia de ontem volta amanhã sem nada acusar.**
 
 ### 1.14 Componente que produz dado para OUTRO consumir sai de cena sem sintoma
 
@@ -553,6 +586,8 @@ Três regras que caíram daí:
 **Régua durável: quando N unidades com teto próprio desembocam na mesma saída, o teto que importa é o da saída — e ele precisa de dono, de número e de um medidor que mostre a soma.**
 
 ### 1.17 PORTA e REDE: dois hooks para a mesma regra, porque nenhum alcança os dois canais
+
+🔴 **REMOVIDO em 2026-08-09, a pedido do dono** — os hooks de `Stop` do `bootstrap` saíram do disco e o array `Stop` do `hooks.json` deixou de existir [confirmado — `git show 251d6ac --stat`]. A lição de padrão abaixo continua valendo; o mecanismo que a ilustrava, não roda mais.
 
 **Novo em 2026-08-03**, e não é redundância. A régua de forma (§2.7) passou a ser cobrada por **dois** hooks, e os cabeçalhos dos dois explicam por que um só deixaria metade descoberta [confirmado, citação literal de `pretooluse-artefato-regua.py`]:
 
@@ -1249,6 +1284,8 @@ Wiring [confirmado — li `plugins/bootstrap/hooks/hooks.json`]: os dois hooks e
 Ativação também confirmada no disco: `~/.claude/state/forma-relato/batidas.log` e `~/.claude/state/prose-ceiling/batidas.log` existem e têm escrita recente nesta máquina [confirmado].
 
 ### 5.6 A regra nova do teto de prosa: pergunta fechada exige veredito na 1ª linha
+
+🔴 **REMOVIDO em 2026-08-09, a pedido do dono** — os hooks de `Stop` do `bootstrap` saíram do disco e o array `Stop` do `hooks.json` deixou de existir [confirmado — `git show 251d6ac --stat`]. A lição de padrão abaixo continua valendo; o mecanismo que a ilustrava, não roda mais.
 
 `stop-prose-ceiling.py` cobra quatro coisas hoje [confirmado, li `main()`]: teto de linhas (`TETO_PADRAO = 6`, ajustável por `PROSE_CEILING_MAX`, **nunca desligável** por ela), retórica no meio (`RETORICA`), menu de opções no fim, e — **novo nesta rodada** — veredito na primeira linha quando a última pergunta do usuário foi fechada.
 
