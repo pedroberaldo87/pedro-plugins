@@ -448,6 +448,24 @@ def roda_scope_cop(bindir, payload, home, config_dir, script=None, com_erro=Fals
     return r.stdout.strip(), r.returncode
 
 
+def trace_scope_cop(bindir, payload, home, config_dir):
+    """As ultimas linhas do `bash -x` do hook — o ponto EXATO em que ele desistiu.
+
+    Existe porque o Windows reprovava com "saida=" e mais nada: rc 0 e stdout vazio
+    sao o contrato do fail-open, entao a mensagem de falha nao distinguia oito
+    saidas diferentes. Sai so no caminho de falha, e cortado: o trace inteiro traz
+    o payload e afogaria o log da esteira."""
+    b = bash_posix()
+    if b is None:
+        return "(sem bash)"
+    env = dict(os.environ, HOME=str(home), CLAUDE_CONFIG_DIR=str(config_dir),
+               PATH=f"{bindir}{os.pathsep}{os.environ['PATH']}")
+    r = subprocess.run([b, "-x", str(SCOPE_COP)], input=payload, capture_output=True,
+                       text=True, env=env, start_new_session=True)
+    linhas = [ln for ln in r.stderr.strip().splitlines() if ln.strip()]
+    return " ⏎ ".join(ln[:120] for ln in linhas[-12:]) or "(trace vazio)"
+
+
 def teste_hook_ausente_nao_se_disfarca_de_hook_calado():
     """F-DELTA-4: 'gate desligado' e 'gate que nem rodou' precisam ser
     distinguiveis. O SCOPE_COP e montado por caminho relativo pra dentro de
@@ -526,6 +544,12 @@ def teste_scope_cop_e_conformance_olham_a_mesma_pasta():
         # distingue "leu o payload e nao julgou" de "nem leu o payload".
         log = vivo / "guardrails" / "scope-cop.log"
         rastro = log.read_text(encoding="utf-8", errors="replace").strip()[-300:] if log.exists() else "(log nao existe)"
+        # Saida vazia + rc 0 + log inexistente = o hook desistiu ANTES de julgar, e
+        # ha oito pontos de saida assim (por desenho, fail-open). Qual deles foi so
+        # o proprio bash sabe dizer: com `-x` o trace nomeia a LINHA, e sem isso cada
+        # hipotese custa uma rodada de esteira. So roda quando ja falhou.
+        if decisao != "deny":
+            rastro += " | trace=" + trace_scope_cop(bindir, payload, isca, vivo)
         check("com 'deny' em CLAUDE_CONFIG_DIR o hook bloqueia", decisao == "deny",
               f"saida={saida[:160]} rc={rc} stderr={erro[:200]} log={rastro}")
         check("o hook escreve o log DENTRO de CLAUDE_CONFIG_DIR",
