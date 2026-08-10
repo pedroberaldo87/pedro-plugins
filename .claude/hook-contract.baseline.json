@@ -5,338 +5,338 @@
     {
       "rule": "R6-nome-evento-errado",
       "sev": "high",
-      "who": "bootstrap/post-plugin-command.sh",
-      "line": 0,
-      "msg": "o nome diz que roda em 'post', mas está registrado em posttooluse",
-      "quote": ""
+      "who": "plugins/bootstrap/hooks/hooks.json",
+      "line": 24,
+      "msg": "post-plugin-command.sh: o nome diz que roda em 'post', mas está registrado em posttooluse",
+      "quote": "\"command\": \"CLAUDE_PLUGIN_ROOT=$(printf '%s' \\\"$CLAUDE_PLUGIN_ROOT\\\" | tr '\\\\\\\\' /); export CLAUDE_PLUGIN_ROOT; \\\"$CLAUDE_PLUGIN_ROOT\\\"/hooks/post-plugin-command.sh\""
     },
     {
       "rule": "R6-nome-fora-do-molde",
       "sev": "high",
-      "who": "bootstrap/session-sync.sh",
-      "line": 0,
-      "msg": "o nome não diz quando roda nem se barra — molde: <evento>-<verbo>-<assunto> (evento: sessionstart · verbo: avisa|anota|mede|lembra|resume|sincroniza|colhe|abre)",
-      "quote": ""
+      "who": "plugins/bootstrap/hooks/hooks.json",
+      "line": 8,
+      "msg": "session-sync.sh: o nome não diz quando roda nem se barra — molde: <evento>-<verbo>-<assunto> (evento: sessionstart · verbo: avisa|anota|mede|lembra|resume|sincroniza|colhe|abre)",
+      "quote": "\"command\": \"CLAUDE_PLUGIN_ROOT=$(printf '%s' \\\"$CLAUDE_PLUGIN_ROOT\\\" | tr '\\\\\\\\' /); export CLAUDE_PLUGIN_ROOT; \\\"$CLAUDE_PLUGIN_ROOT\\\"/hooks/session-sync.sh\""
     },
     {
       "rule": "R6-nome-fora-do-molde",
       "sev": "high",
-      "who": "bootstrap/sessionstart-deps.sh",
-      "line": 0,
-      "msg": "o nome não diz quando roda nem se barra — molde: <evento>-<verbo>-<assunto> (evento: sessionstart · verbo: avisa|anota|mede|lembra|resume|sincroniza|colhe|abre)",
-      "quote": ""
+      "who": "plugins/bootstrap/hooks/hooks.json",
+      "line": 12,
+      "msg": "sessionstart-deps.sh: o nome não diz quando roda nem se barra — molde: <evento>-<verbo>-<assunto> (evento: sessionstart · verbo: avisa|anota|mede|lembra|resume|sincroniza|colhe|abre)",
+      "quote": "\"command\": \"CLAUDE_PLUGIN_ROOT=$(printf '%s' \\\"$CLAUDE_PLUGIN_ROOT\\\" | tr '\\\\\\\\' /); export CLAUDE_PLUGIN_ROOT; \\\"$CLAUDE_PLUGIN_ROOT\\\"/hooks/sessionstart-deps.sh\","
+    },
+    {
+      "rule": "R6-nome-fora-do-molde",
+      "sev": "high",
+      "who": "plugins/branches/hooks/hooks.json",
+      "line": 9,
+      "msg": "sessionstart-branches.sh: o nome não diz quando roda nem se barra — molde: <evento>-<verbo>-<assunto> (evento: sessionstart · verbo: avisa|anota|mede|lembra|resume|sincroniza|colhe|abre)",
+      "quote": "\"command\": \"CLAUDE_PLUGIN_ROOT=$(printf '%s' \\\"$CLAUDE_PLUGIN_ROOT\\\" | tr '\\\\\\\\' /); export CLAUDE_PLUGIN_ROOT; \\\"$CLAUDE_PLUGIN_ROOT\\\"/hooks/sessionstart-branches.sh\","
     },
     {
       "rule": "R6-nome-verbo-errado",
       "sev": "high",
-      "who": "branches/posttooluse-push-branch.sh",
-      "line": 0,
-      "msg": "o verbo 'push' não bate com o que o script faz (só avisa) — use um de: avisa|anota|mede|lembra|resume|sincroniza|colhe|abre",
-      "quote": ""
-    },
-    {
-      "rule": "R6-nome-fora-do-molde",
-      "sev": "high",
-      "who": "branches/sessionstart-branches.sh",
-      "line": 0,
-      "msg": "o nome não diz quando roda nem se barra — molde: <evento>-<verbo>-<assunto> (evento: sessionstart · verbo: avisa|anota|mede|lembra|resume|sincroniza|colhe|abre)",
-      "quote": ""
+      "who": "plugins/branches/hooks/hooks.json",
+      "line": 26,
+      "msg": "posttooluse-push-branch.sh: o verbo 'push' não bate com o que o script faz (só avisa) — use um de: avisa|anota|mede|lembra|resume|sincroniza|colhe|abre",
+      "quote": "\"command\": \"CLAUDE_PLUGIN_ROOT=$(printf '%s' \\\"$CLAUDE_PLUGIN_ROOT\\\" | tr '\\\\\\\\' /); export CLAUDE_PLUGIN_ROOT; \\\"$CLAUDE_PLUGIN_ROOT\\\"/hooks/posttooluse-push-branch.sh\","
     },
     {
       "rule": "R6-nome-evento-errado",
       "sev": "high",
-      "who": "context-guard/context-guard-reset.sh",
-      "line": 0,
-      "msg": "o nome diz que roda em 'context', mas está registrado em sessionstart",
-      "quote": ""
+      "who": "plugins/context-guard/hooks/hooks.json",
+      "line": 8,
+      "msg": "context-guard-reset.sh: o nome diz que roda em 'context', mas está registrado em sessionstart",
+      "quote": "\"command\": \"CLAUDE_PLUGIN_ROOT=$(printf '%s' \\\"$CLAUDE_PLUGIN_ROOT\\\" | tr '\\\\\\\\' /); export CLAUDE_PLUGIN_ROOT; \\\"$CLAUDE_PLUGIN_ROOT\\\"/hooks/context-guard-reset.sh\","
     },
     {
       "rule": "R6-nome-fora-do-molde",
       "sev": "high",
-      "who": "context-guard/context-guard.sh",
-      "line": 0,
-      "msg": "o nome não diz quando roda nem se barra — molde: <evento>-<verbo>-<assunto> (evento: posttooluse · verbo: barra|exige|trava|recusa)",
-      "quote": ""
+      "who": "plugins/context-guard/hooks/hooks.json",
+      "line": 24,
+      "msg": "context-guard.sh: o nome não diz quando roda nem se barra — molde: <evento>-<verbo>-<assunto> (evento: posttooluse · verbo: barra|exige|trava|recusa)",
+      "quote": "\"command\": \"CLAUDE_PLUGIN_ROOT=$(printf '%s' \\\"$CLAUDE_PLUGIN_ROOT\\\" | tr '\\\\\\\\' /); export CLAUDE_PLUGIN_ROOT; \\\"$CLAUDE_PLUGIN_ROOT\\\"/hooks/context-guard.sh\","
     },
     {
       "rule": "R6-nome-fora-do-molde",
       "sev": "high",
-      "who": "gauntlet/pretooluse-gauntlet.sh",
-      "line": 0,
-      "msg": "o nome não diz quando roda nem se barra — molde: <evento>-<verbo>-<assunto> (evento: pretooluse · verbo: avisa|anota|mede|lembra|resume|sincroniza|colhe|abre)",
-      "quote": ""
+      "who": "plugins/gauntlet/hooks/hooks.json",
+      "line": 25,
+      "msg": "pretooluse-gauntlet.sh: o nome não diz quando roda nem se barra — molde: <evento>-<verbo>-<assunto> (evento: pretooluse · verbo: avisa|anota|mede|lembra|resume|sincroniza|colhe|abre)",
+      "quote": "\"command\": \"CLAUDE_PLUGIN_ROOT=$(printf '%s' \\\"$CLAUDE_PLUGIN_ROOT\\\" | tr '\\\\\\\\' /); export CLAUDE_PLUGIN_ROOT; bash \\\"$CLAUDE_PLUGIN_ROOT/hooks/pretooluse-gauntlet.sh\\\"\","
+    },
+    {
+      "rule": "R6-nome-fora-do-molde",
+      "sev": "high",
+      "who": "plugins/graphify-guard/hooks/hooks.json",
+      "line": 8,
+      "msg": "sessionstart-graphify.sh: o nome não diz quando roda nem se barra — molde: <evento>-<verbo>-<assunto> (evento: sessionstart · verbo: avisa|anota|mede|lembra|resume|sincroniza|colhe|abre)",
+      "quote": "\"command\": \"CLAUDE_PLUGIN_ROOT=$(printf '%s' \\\"$CLAUDE_PLUGIN_ROOT\\\" | tr '\\\\\\\\' /); export CLAUDE_PLUGIN_ROOT; \\\"$CLAUDE_PLUGIN_ROOT\\\"/hooks/sessionstart-graphify.sh\","
     },
     {
       "rule": "R6-nome-verbo-errado",
       "sev": "high",
-      "who": "graphify-guard/pretooluse-graphify-guard.sh",
-      "line": 0,
-      "msg": "o verbo 'graphify' não bate com o que o script faz (só avisa) — use um de: avisa|anota|mede|lembra|resume|sincroniza|colhe|abre",
-      "quote": ""
-    },
-    {
-      "rule": "R6-nome-fora-do-molde",
-      "sev": "high",
-      "who": "graphify-guard/sessionstart-graphify.sh",
-      "line": 0,
-      "msg": "o nome não diz quando roda nem se barra — molde: <evento>-<verbo>-<assunto> (evento: sessionstart · verbo: avisa|anota|mede|lembra|resume|sincroniza|colhe|abre)",
-      "quote": ""
-    },
-    {
-      "rule": "R6-nome-fora-do-molde",
-      "sev": "high",
-      "who": "guardrails/askq-humanize.sh",
-      "line": 0,
-      "msg": "o nome não diz quando roda nem se barra — molde: <evento>-<verbo>-<assunto> (evento: pretooluse · verbo: barra|exige|trava|recusa)",
-      "quote": ""
+      "who": "plugins/graphify-guard/hooks/hooks.json",
+      "line": 25,
+      "msg": "pretooluse-graphify-guard.sh: o verbo 'graphify' não bate com o que o script faz (só avisa) — use um de: avisa|anota|mede|lembra|resume|sincroniza|colhe|abre",
+      "quote": "\"command\": \"CLAUDE_PLUGIN_ROOT=$(printf '%s' \\\"$CLAUDE_PLUGIN_ROOT\\\" | tr '\\\\\\\\' /); export CLAUDE_PLUGIN_ROOT; \\\"$CLAUDE_PLUGIN_ROOT\\\"/hooks/pretooluse-graphify-guard.sh\","
     },
     {
       "rule": "R6-nome-evento-errado",
       "sev": "high",
-      "who": "guardrails/lint-and-typecheck.sh",
-      "line": 0,
-      "msg": "o nome diz que roda em 'lint', mas está registrado em posttooluse",
-      "quote": ""
-    },
-    {
-      "rule": "R6-nome-verbo-errado",
-      "sev": "high",
-      "who": "guardrails/pretooluse-artefato-regua.py",
-      "line": 0,
-      "msg": "o verbo 'artefato' não bate com o que o script faz (só avisa) — use um de: avisa|anota|mede|lembra|resume|sincroniza|colhe|abre",
-      "quote": ""
+      "who": "plugins/guardrails/hooks/hooks.json",
+      "line": 20,
+      "msg": "lint-and-typecheck.sh: o nome diz que roda em 'lint', mas está registrado em posttooluse",
+      "quote": "\"command\": \"CLAUDE_PLUGIN_ROOT=$(printf '%s' \\\"$CLAUDE_PLUGIN_ROOT\\\" | tr '\\\\\\\\' /); export CLAUDE_PLUGIN_ROOT; \\\"$CLAUDE_PLUGIN_ROOT\\\"/hooks/lint-and-typecheck.sh\","
     },
     {
       "rule": "R6-nome-fora-do-molde",
       "sev": "high",
-      "who": "guardrails/scope-cop.sh",
-      "line": 0,
-      "msg": "o nome não diz quando roda nem se barra — molde: <evento>-<verbo>-<assunto> (evento: pretooluse · verbo: avisa|anota|mede|lembra|resume|sincroniza|colhe|abre)",
-      "quote": ""
+      "who": "plugins/guardrails/hooks/hooks.json",
+      "line": 52,
+      "msg": "askq-humanize.sh: o nome não diz quando roda nem se barra — molde: <evento>-<verbo>-<assunto> (evento: pretooluse · verbo: barra|exige|trava|recusa)",
+      "quote": "\"command\": \"CLAUDE_PLUGIN_ROOT=$(printf '%s' \\\"$CLAUDE_PLUGIN_ROOT\\\" | tr '\\\\\\\\' /); export CLAUDE_PLUGIN_ROOT; \\\"$CLAUDE_PLUGIN_ROOT\\\"/hooks/askq-humanize.sh\","
+    },
+    {
+      "rule": "R6-nome-fora-do-molde",
+      "sev": "high",
+      "who": "plugins/guardrails/hooks/hooks.json",
+      "line": 42,
+      "msg": "scope-cop.sh: o nome não diz quando roda nem se barra — molde: <evento>-<verbo>-<assunto> (evento: pretooluse · verbo: avisa|anota|mede|lembra|resume|sincroniza|colhe|abre)",
+      "quote": "\"command\": \"CLAUDE_PLUGIN_ROOT=$(printf '%s' \\\"$CLAUDE_PLUGIN_ROOT\\\" | tr '\\\\\\\\' /); export CLAUDE_PLUGIN_ROOT; \\\"$CLAUDE_PLUGIN_ROOT\\\"/hooks/scope-cop.sh\","
+    },
+    {
+      "rule": "R6-nome-verbo-errado",
+      "sev": "high",
+      "who": "plugins/guardrails/hooks/hooks.json",
+      "line": 62,
+      "msg": "pretooluse-artefato-regua.py: o verbo 'artefato' não bate com o que o script faz (só avisa) — use um de: avisa|anota|mede|lembra|resume|sincroniza|colhe|abre",
+      "quote": "\"command\": \"CLAUDE_PLUGIN_ROOT=$(printf '%s' \\\"$CLAUDE_PLUGIN_ROOT\\\" | tr '\\\\\\\\' /); export CLAUDE_PLUGIN_ROOT; . \\\"$CLAUDE_PLUGIN_ROOT/hooks/hook-json.sh\\\" 2>/dev/null; PY=$(hj_py 2>/dev/null) || exit 0; \\\"$PY\\\" \\\"$CLAUDE_PLUGIN_ROOT/hooks/pretooluse-artefato-regua.py\\\"\","
     },
     {
       "rule": "R6-nome-evento-errado",
       "sev": "high",
-      "who": "handoff/handoff-completeness-gate.sh",
-      "line": 0,
-      "msg": "o nome diz que roda em 'handoff', mas está registrado em stop",
-      "quote": ""
+      "who": "plugins/handoff/hooks/hooks.json",
+      "line": 24,
+      "msg": "handoff-completeness-gate.sh: o nome diz que roda em 'handoff', mas está registrado em stop",
+      "quote": "\"command\": \"CLAUDE_PLUGIN_ROOT=$(printf '%s' \\\"$CLAUDE_PLUGIN_ROOT\\\" | tr '\\\\\\\\' /); export CLAUDE_PLUGIN_ROOT; \\\"$CLAUDE_PLUGIN_ROOT\\\"/hooks/handoff-completeness-gate.sh\","
     },
     {
       "rule": "R6-nome-fora-do-molde",
       "sev": "high",
-      "who": "handoff/sessionstart-ata.sh",
-      "line": 0,
-      "msg": "o nome não diz quando roda nem se barra — molde: <evento>-<verbo>-<assunto> (evento: sessionstart · verbo: avisa|anota|mede|lembra|resume|sincroniza|colhe|abre)",
-      "quote": ""
+      "who": "plugins/handoff/hooks/hooks.json",
+      "line": 8,
+      "msg": "sessionstart-ata.sh: o nome não diz quando roda nem se barra — molde: <evento>-<verbo>-<assunto> (evento: sessionstart · verbo: avisa|anota|mede|lembra|resume|sincroniza|colhe|abre)",
+      "quote": "\"command\": \"CLAUDE_PLUGIN_ROOT=$(printf '%s' \\\"$CLAUDE_PLUGIN_ROOT\\\" | tr '\\\\\\\\' /); export CLAUDE_PLUGIN_ROOT; \\\"$CLAUDE_PLUGIN_ROOT\\\"/hooks/sessionstart-ata.sh\","
     },
     {
       "rule": "R6-nome-fora-do-molde",
       "sev": "high",
-      "who": "handoff/teamcreate-nudge.sh",
-      "line": 0,
-      "msg": "o nome não diz quando roda nem se barra — molde: <evento>-<verbo>-<assunto> (evento: pretooluse · verbo: avisa|anota|mede|lembra|resume|sincroniza|colhe|abre)",
-      "quote": ""
+      "who": "plugins/handoff/hooks/hooks.json",
+      "line": 36,
+      "msg": "teamcreate-nudge.sh: o nome não diz quando roda nem se barra — molde: <evento>-<verbo>-<assunto> (evento: pretooluse · verbo: avisa|anota|mede|lembra|resume|sincroniza|colhe|abre)",
+      "quote": "\"command\": \"CLAUDE_PLUGIN_ROOT=$(printf '%s' \\\"$CLAUDE_PLUGIN_ROOT\\\" | tr '\\\\\\\\' /); export CLAUDE_PLUGIN_ROOT; \\\"$CLAUDE_PLUGIN_ROOT\\\"/hooks/teamcreate-nudge.sh\","
     },
     {
       "rule": "R6-nome-fora-do-molde",
       "sev": "high",
-      "who": "intent-guard/capture-prompt.sh",
-      "line": 0,
-      "msg": "o nome não diz quando roda nem se barra — molde: <evento>-<verbo>-<assunto> (evento: userpromptsubmit · verbo: avisa|anota|mede|lembra|resume|sincroniza|colhe|abre)",
-      "quote": ""
+      "who": "plugins/intent-guard/hooks/hooks.json",
+      "line": 19,
+      "msg": "capture-prompt.sh: o nome não diz quando roda nem se barra — molde: <evento>-<verbo>-<assunto> (evento: userpromptsubmit · verbo: avisa|anota|mede|lembra|resume|sincroniza|colhe|abre)",
+      "quote": "\"command\": \"CLAUDE_PLUGIN_ROOT=$(printf '%s' \\\"$CLAUDE_PLUGIN_ROOT\\\" | tr '\\\\\\\\' /); export CLAUDE_PLUGIN_ROOT; \\\"$CLAUDE_PLUGIN_ROOT\\\"/hooks/capture-prompt.sh\","
     },
     {
       "rule": "R6-nome-fora-do-molde",
       "sev": "high",
-      "who": "intent-guard/delivery-audit.sh",
-      "line": 0,
-      "msg": "o nome não diz quando roda nem se barra — molde: <evento>-<verbo>-<assunto> (evento: stop · verbo: avisa|anota|mede|lembra|resume|sincroniza|colhe|abre)",
-      "quote": ""
+      "who": "plugins/intent-guard/hooks/hooks.json",
+      "line": 52,
+      "msg": "delivery-audit.sh: o nome não diz quando roda nem se barra — molde: <evento>-<verbo>-<assunto> (evento: stop · verbo: avisa|anota|mede|lembra|resume|sincroniza|colhe|abre)",
+      "quote": "\"command\": \"CLAUDE_PLUGIN_ROOT=$(printf '%s' \\\"$CLAUDE_PLUGIN_ROOT\\\" | tr '\\\\\\\\' /); export CLAUDE_PLUGIN_ROOT; \\\"$CLAUDE_PLUGIN_ROOT\\\"/hooks/delivery-audit.sh\","
     },
     {
       "rule": "R6-nome-fora-do-molde",
       "sev": "high",
-      "who": "intent-guard/mark-work.sh",
-      "line": 0,
-      "msg": "o nome não diz quando roda nem se barra — molde: <evento>-<verbo>-<assunto> (evento: posttooluse · verbo: avisa|anota|mede|lembra|resume|sincroniza|colhe|abre)",
-      "quote": ""
+      "who": "plugins/intent-guard/hooks/hooks.json",
+      "line": 41,
+      "msg": "mark-work.sh: o nome não diz quando roda nem se barra — molde: <evento>-<verbo>-<assunto> (evento: posttooluse · verbo: avisa|anota|mede|lembra|resume|sincroniza|colhe|abre)",
+      "quote": "\"command\": \"CLAUDE_PLUGIN_ROOT=$(printf '%s' \\\"$CLAUDE_PLUGIN_ROOT\\\" | tr '\\\\\\\\' /); export CLAUDE_PLUGIN_ROOT; \\\"$CLAUDE_PLUGIN_ROOT\\\"/hooks/mark-work.sh\","
     },
     {
       "rule": "R6-nome-fora-do-molde",
       "sev": "high",
-      "who": "intent-guard/task-checkpoint.sh",
-      "line": 0,
-      "msg": "o nome não diz quando roda nem se barra — molde: <evento>-<verbo>-<assunto> (evento: posttooluse · verbo: avisa|anota|mede|lembra|resume|sincroniza|colhe|abre)",
-      "quote": ""
+      "who": "plugins/intent-guard/hooks/hooks.json",
+      "line": 31,
+      "msg": "task-checkpoint.sh: o nome não diz quando roda nem se barra — molde: <evento>-<verbo>-<assunto> (evento: posttooluse · verbo: avisa|anota|mede|lembra|resume|sincroniza|colhe|abre)",
+      "quote": "\"command\": \"CLAUDE_PLUGIN_ROOT=$(printf '%s' \\\"$CLAUDE_PLUGIN_ROOT\\\" | tr '\\\\\\\\' /); export CLAUDE_PLUGIN_ROOT; \\\"$CLAUDE_PLUGIN_ROOT\\\"/hooks/task-checkpoint.sh\","
     },
     {
       "rule": "R6-nome-fora-do-molde",
       "sev": "high",
-      "who": "lixeiro/posttooluse-anota.sh",
-      "line": 0,
-      "msg": "o nome não diz quando roda nem se barra — molde: <evento>-<verbo>-<assunto> (evento: posttooluse · verbo: avisa|anota|mede|lembra|resume|sincroniza|colhe|abre)",
-      "quote": ""
+      "who": "plugins/lixeiro/hooks/hooks.json",
+      "line": 9,
+      "msg": "posttooluse-anota.sh: o nome não diz quando roda nem se barra — molde: <evento>-<verbo>-<assunto> (evento: posttooluse · verbo: avisa|anota|mede|lembra|resume|sincroniza|colhe|abre)",
+      "quote": "\"command\": \"CLAUDE_PLUGIN_ROOT=$(printf '%s' \\\"$CLAUDE_PLUGIN_ROOT\\\" | tr '\\\\\\\\' /); export CLAUDE_PLUGIN_ROOT; \\\"$CLAUDE_PLUGIN_ROOT\\\"/hooks/posttooluse-anota.sh\","
     },
     {
       "rule": "R6-nome-fora-do-molde",
       "sev": "high",
-      "who": "lixeiro/sessionend-colhe.sh",
-      "line": 0,
-      "msg": "o nome não diz quando roda nem se barra — molde: <evento>-<verbo>-<assunto> (evento: sessionend · verbo: avisa|anota|mede|lembra|resume|sincroniza|colhe|abre)",
-      "quote": ""
+      "who": "plugins/lixeiro/hooks/hooks.json",
+      "line": 31,
+      "msg": "sessionend-colhe.sh: o nome não diz quando roda nem se barra — molde: <evento>-<verbo>-<assunto> (evento: sessionend · verbo: avisa|anota|mede|lembra|resume|sincroniza|colhe|abre)",
+      "quote": "\"command\": \"CLAUDE_PLUGIN_ROOT=$(printf '%s' \\\"$CLAUDE_PLUGIN_ROOT\\\" | tr '\\\\\\\\' /); export CLAUDE_PLUGIN_ROOT; \\\"$CLAUDE_PLUGIN_ROOT\\\"/hooks/sessionend-colhe.sh\","
     },
     {
       "rule": "R6-nome-fora-do-molde",
       "sev": "high",
-      "who": "lixeiro/sessionstart-orfaos.sh",
-      "line": 0,
-      "msg": "o nome não diz quando roda nem se barra — molde: <evento>-<verbo>-<assunto> (evento: sessionstart · verbo: avisa|anota|mede|lembra|resume|sincroniza|colhe|abre)",
-      "quote": ""
+      "who": "plugins/lixeiro/hooks/hooks.json",
+      "line": 42,
+      "msg": "sessionstart-orfaos.sh: o nome não diz quando roda nem se barra — molde: <evento>-<verbo>-<assunto> (evento: sessionstart · verbo: avisa|anota|mede|lembra|resume|sincroniza|colhe|abre)",
+      "quote": "\"command\": \"CLAUDE_PLUGIN_ROOT=$(printf '%s' \\\"$CLAUDE_PLUGIN_ROOT\\\" | tr '\\\\\\\\' /); export CLAUDE_PLUGIN_ROOT; \\\"$CLAUDE_PLUGIN_ROOT\\\"/hooks/sessionstart-orfaos.sh\","
     },
     {
       "rule": "R6-nome-fora-do-molde",
       "sev": "high",
-      "who": "project-skills/posttooluse-andamento.sh",
-      "line": 0,
-      "msg": "o nome não diz quando roda nem se barra — molde: <evento>-<verbo>-<assunto> (evento: posttooluse|pretooluse · verbo: avisa|anota|mede|lembra|resume|sincroniza|colhe|abre)",
-      "quote": ""
+      "who": "plugins/project-skills/hooks/hooks.json",
+      "line": 59,
+      "msg": "posttooluse-andamento.sh: o nome não diz quando roda nem se barra — molde: <evento>-<verbo>-<assunto> (evento: posttooluse|pretooluse · verbo: avisa|anota|mede|lembra|resume|sincroniza|colhe|abre)",
+      "quote": "\"command\": \"CLAUDE_PLUGIN_ROOT=$(printf '%s' \\\"$CLAUDE_PLUGIN_ROOT\\\" | tr '\\\\\\\\' /); export CLAUDE_PLUGIN_ROOT; sh \\\"$CLAUDE_PLUGIN_ROOT/hooks/posttooluse-andamento.sh\\\" marca\","
+    },
+    {
+      "rule": "R6-nome-fora-do-molde",
+      "sev": "high",
+      "who": "plugins/project-skills/hooks/hooks.json",
+      "line": 22,
+      "msg": "sessionstart-doc.sh: o nome não diz quando roda nem se barra — molde: <evento>-<verbo>-<assunto> (evento: sessionstart · verbo: avisa|anota|mede|lembra|resume|sincroniza|colhe|abre)",
+      "quote": "\"command\": \"CLAUDE_PLUGIN_ROOT=$(printf '%s' \\\"$CLAUDE_PLUGIN_ROOT\\\" | tr '\\\\\\\\' /); export CLAUDE_PLUGIN_ROOT; \\\"$CLAUDE_PLUGIN_ROOT\\\"/hooks/sessionstart-doc.sh\","
+    },
+    {
+      "rule": "R6-nome-fora-do-molde",
+      "sev": "high",
+      "who": "plugins/project-skills/hooks/hooks.json",
+      "line": 17,
+      "msg": "sessionstart-organism.sh: o nome não diz quando roda nem se barra — molde: <evento>-<verbo>-<assunto> (evento: sessionstart · verbo: avisa|anota|mede|lembra|resume|sincroniza|colhe|abre)",
+      "quote": "\"command\": \"CLAUDE_PLUGIN_ROOT=$(printf '%s' \\\"$CLAUDE_PLUGIN_ROOT\\\" | tr '\\\\\\\\' /); export CLAUDE_PLUGIN_ROOT; \\\"$CLAUDE_PLUGIN_ROOT\\\"/hooks/sessionstart-organism.sh\","
+    },
+    {
+      "rule": "R6-nome-fora-do-molde",
+      "sev": "high",
+      "who": "plugins/project-skills/hooks/hooks.json",
+      "line": 32,
+      "msg": "sessionstart-plan.sh: o nome não diz quando roda nem se barra — molde: <evento>-<verbo>-<assunto> (evento: sessionstart · verbo: avisa|anota|mede|lembra|resume|sincroniza|colhe|abre)",
+      "quote": "\"command\": \"CLAUDE_PLUGIN_ROOT=$(printf '%s' \\\"$CLAUDE_PLUGIN_ROOT\\\" | tr '\\\\\\\\' /); export CLAUDE_PLUGIN_ROOT; \\\"$CLAUDE_PLUGIN_ROOT\\\"/hooks/sessionstart-plan.sh\","
     },
     {
       "rule": "R6-nome-verbo-errado",
       "sev": "high",
-      "who": "project-skills/posttooluse-doc-read.sh",
-      "line": 0,
-      "msg": "o verbo 'doc' não bate com o que o script faz (só avisa) — use um de: avisa|anota|mede|lembra|resume|sincroniza|colhe|abre",
-      "quote": ""
+      "who": "plugins/project-skills/hooks/hooks.json",
+      "line": 111,
+      "msg": "posttooluse-doc-read.sh: o verbo 'doc' não bate com o que o script faz (só avisa) — use um de: avisa|anota|mede|lembra|resume|sincroniza|colhe|abre",
+      "quote": "\"command\": \"CLAUDE_PLUGIN_ROOT=$(printf '%s' \\\"$CLAUDE_PLUGIN_ROOT\\\" | tr '\\\\\\\\' /); export CLAUDE_PLUGIN_ROOT; \\\"$CLAUDE_PLUGIN_ROOT\\\"/hooks/posttooluse-doc-read.sh\","
     },
     {
       "rule": "R6-nome-verbo-errado",
       "sev": "high",
-      "who": "project-skills/pretooluse-doc-guard.sh",
-      "line": 0,
-      "msg": "o verbo 'doc' não bate com o que o script faz (só avisa) — use um de: avisa|anota|mede|lembra|resume|sincroniza|colhe|abre",
-      "quote": ""
+      "who": "plugins/project-skills/hooks/hooks.json",
+      "line": 69,
+      "msg": "pretooluse-doc-guard.sh: o verbo 'doc' não bate com o que o script faz (só avisa) — use um de: avisa|anota|mede|lembra|resume|sincroniza|colhe|abre",
+      "quote": "\"command\": \"CLAUDE_PLUGIN_ROOT=$(printf '%s' \\\"$CLAUDE_PLUGIN_ROOT\\\" | tr '\\\\\\\\' /); export CLAUDE_PLUGIN_ROOT; \\\"$CLAUDE_PLUGIN_ROOT\\\"/hooks/pretooluse-doc-guard.sh\","
     },
     {
       "rule": "R6-nome-verbo-errado",
       "sev": "high",
-      "who": "project-skills/pretooluse-espera-com-guarda.sh",
-      "line": 0,
-      "msg": "o verbo 'espera' não bate com o que o script faz (só avisa) — use um de: avisa|anota|mede|lembra|resume|sincroniza|colhe|abre",
-      "quote": ""
+      "who": "plugins/project-skills/hooks/hooks.json",
+      "line": 54,
+      "msg": "pretooluse-espera-com-guarda.sh: o verbo 'espera' não bate com o que o script faz (só avisa) — use um de: avisa|anota|mede|lembra|resume|sincroniza|colhe|abre",
+      "quote": "\"command\": \"CLAUDE_PLUGIN_ROOT=$(printf '%s' \\\"$CLAUDE_PLUGIN_ROOT\\\" | tr '\\\\\\\\' /); export CLAUDE_PLUGIN_ROOT; sh \\\"$CLAUDE_PLUGIN_ROOT/hooks/pretooluse-espera-com-guarda.sh\\\"\","
     },
     {
       "rule": "R6-nome-verbo-errado",
       "sev": "high",
-      "who": "project-skills/pretooluse-motor-arma.sh",
-      "line": 0,
-      "msg": "o verbo 'motor' não bate com o que o script faz (só avisa) — use um de: avisa|anota|mede|lembra|resume|sincroniza|colhe|abre",
-      "quote": ""
+      "who": "plugins/project-skills/hooks/hooks.json",
+      "line": 44,
+      "msg": "pretooluse-motor-arma.sh: o verbo 'motor' não bate com o que o script faz (só avisa) — use um de: avisa|anota|mede|lembra|resume|sincroniza|colhe|abre",
+      "quote": "\"command\": \"CLAUDE_PLUGIN_ROOT=$(printf '%s' \\\"$CLAUDE_PLUGIN_ROOT\\\" | tr '\\\\\\\\' /); export CLAUDE_PLUGIN_ROOT; bash \\\"$CLAUDE_PLUGIN_ROOT/hooks/pretooluse-motor-arma.sh\\\"\","
     },
     {
       "rule": "R6-nome-verbo-errado",
       "sev": "high",
-      "who": "project-skills/pretooluse-organism-gate.sh",
-      "line": 0,
-      "msg": "o verbo 'organism' não bate com o que o script faz (só avisa) — use um de: avisa|anota|mede|lembra|resume|sincroniza|colhe|abre",
-      "quote": ""
+      "who": "plugins/project-skills/hooks/hooks.json",
+      "line": 79,
+      "msg": "pretooluse-organism-gate.sh: o verbo 'organism' não bate com o que o script faz (só avisa) — use um de: avisa|anota|mede|lembra|resume|sincroniza|colhe|abre",
+      "quote": "\"command\": \"CLAUDE_PLUGIN_ROOT=$(printf '%s' \\\"$CLAUDE_PLUGIN_ROOT\\\" | tr '\\\\\\\\' /); export CLAUDE_PLUGIN_ROOT; \\\"$CLAUDE_PLUGIN_ROOT\\\"/hooks/pretooluse-organism-gate.sh\","
     },
     {
       "rule": "R6-nome-verbo-errado",
       "sev": "high",
-      "who": "project-skills/pretooluse-plan-gate.sh",
-      "line": 0,
-      "msg": "o verbo 'plan' não bate com o que o script faz (só avisa) — use um de: avisa|anota|mede|lembra|resume|sincroniza|colhe|abre",
-      "quote": ""
-    },
-    {
-      "rule": "R6-nome-fora-do-molde",
-      "sev": "high",
-      "who": "project-skills/sessionstart-doc.sh",
-      "line": 0,
-      "msg": "o nome não diz quando roda nem se barra — molde: <evento>-<verbo>-<assunto> (evento: sessionstart · verbo: avisa|anota|mede|lembra|resume|sincroniza|colhe|abre)",
-      "quote": ""
-    },
-    {
-      "rule": "R6-nome-fora-do-molde",
-      "sev": "high",
-      "who": "project-skills/sessionstart-organism.sh",
-      "line": 0,
-      "msg": "o nome não diz quando roda nem se barra — molde: <evento>-<verbo>-<assunto> (evento: sessionstart · verbo: avisa|anota|mede|lembra|resume|sincroniza|colhe|abre)",
-      "quote": ""
-    },
-    {
-      "rule": "R6-nome-fora-do-molde",
-      "sev": "high",
-      "who": "project-skills/sessionstart-plan.sh",
-      "line": 0,
-      "msg": "o nome não diz quando roda nem se barra — molde: <evento>-<verbo>-<assunto> (evento: sessionstart · verbo: avisa|anota|mede|lembra|resume|sincroniza|colhe|abre)",
-      "quote": ""
+      "who": "plugins/project-skills/hooks/hooks.json",
+      "line": 89,
+      "msg": "pretooluse-plan-gate.sh: o verbo 'plan' não bate com o que o script faz (só avisa) — use um de: avisa|anota|mede|lembra|resume|sincroniza|colhe|abre",
+      "quote": "\"command\": \"CLAUDE_PLUGIN_ROOT=$(printf '%s' \\\"$CLAUDE_PLUGIN_ROOT\\\" | tr '\\\\\\\\' /); export CLAUDE_PLUGIN_ROOT; \\\"$CLAUDE_PLUGIN_ROOT\\\"/hooks/pretooluse-plan-gate.sh\","
     },
     {
       "rule": "R6-nome-verbo-errado",
       "sev": "high",
-      "who": "project-skills/stop-doc-touch.sh",
-      "line": 0,
-      "msg": "o verbo 'doc' não bate com o que o script faz (só avisa) — use um de: avisa|anota|mede|lembra|resume|sincroniza|colhe|abre",
-      "quote": ""
+      "who": "plugins/project-skills/hooks/hooks.json",
+      "line": 133,
+      "msg": "stop-doc-touch.sh: o verbo 'doc' não bate com o que o script faz (só avisa) — use um de: avisa|anota|mede|lembra|resume|sincroniza|colhe|abre",
+      "quote": "\"command\": \"CLAUDE_PLUGIN_ROOT=$(printf '%s' \\\"$CLAUDE_PLUGIN_ROOT\\\" | tr '\\\\\\\\' /); export CLAUDE_PLUGIN_ROOT; \\\"$CLAUDE_PLUGIN_ROOT\\\"/hooks/stop-doc-touch.sh\","
     },
     {
       "rule": "R6-nome-verbo-errado",
       "sev": "high",
-      "who": "project-skills/stop-plan-status.sh",
-      "line": 0,
-      "msg": "o verbo 'plan' não bate com o que o script faz (só avisa) — use um de: avisa|anota|mede|lembra|resume|sincroniza|colhe|abre",
-      "quote": ""
+      "who": "plugins/project-skills/hooks/hooks.json",
+      "line": 143,
+      "msg": "stop-plan-status.sh: o verbo 'plan' não bate com o que o script faz (só avisa) — use um de: avisa|anota|mede|lembra|resume|sincroniza|colhe|abre",
+      "quote": "\"command\": \"CLAUDE_PLUGIN_ROOT=$(printf '%s' \\\"$CLAUDE_PLUGIN_ROOT\\\" | tr '\\\\\\\\' /); export CLAUDE_PLUGIN_ROOT; \\\"$CLAUDE_PLUGIN_ROOT\\\"/hooks/stop-plan-status.sh\","
     },
     {
       "rule": "R6-nome-verbo-errado",
       "sev": "high",
-      "who": "project-skills/userpromptsubmit-plan-escape.sh",
-      "line": 0,
-      "msg": "o verbo 'plan' não bate com o que o script faz (só avisa) — use um de: avisa|anota|mede|lembra|resume|sincroniza|colhe|abre",
-      "quote": ""
+      "who": "plugins/project-skills/hooks/hooks.json",
+      "line": 122,
+      "msg": "userpromptsubmit-plan-escape.sh: o verbo 'plan' não bate com o que o script faz (só avisa) — use um de: avisa|anota|mede|lembra|resume|sincroniza|colhe|abre",
+      "quote": "\"command\": \"CLAUDE_PLUGIN_ROOT=$(printf '%s' \\\"$CLAUDE_PLUGIN_ROOT\\\" | tr '\\\\\\\\' /); export CLAUDE_PLUGIN_ROOT; \\\"$CLAUDE_PLUGIN_ROOT\\\"/hooks/userpromptsubmit-plan-escape.sh\","
+    },
+    {
+      "rule": "R6-nome-evento-errado",
+      "sev": "high",
+      "who": "plugins/ship/hooks/hooks.json",
+      "line": 20,
+      "msg": "pre-deploy-test-check.sh: o nome diz que roda em 'pre', mas está registrado em pretooluse",
+      "quote": "\"command\": \"CLAUDE_PLUGIN_ROOT=$(printf '%s' \\\"$CLAUDE_PLUGIN_ROOT\\\" | tr '\\\\\\\\' /); export CLAUDE_PLUGIN_ROOT; \\\"$CLAUDE_PLUGIN_ROOT\\\"/hooks/pre-deploy-test-check.sh\","
     },
     {
       "rule": "R1-cap-ausente",
       "sev": "high",
-      "who": "ship/pre-deploy-test-check.sh",
+      "who": "plugins/ship/hooks/pre-deploy-test-check.sh",
       "line": 363,
       "msg": "bloqueia (exit2) e não tem teto de devoluções",
       "quote": "exit 2"
     },
     {
-      "rule": "R6-nome-evento-errado",
-      "sev": "high",
-      "who": "ship/pre-deploy-test-check.sh",
-      "line": 0,
-      "msg": "o nome diz que roda em 'pre', mas está registrado em pretooluse",
-      "quote": ""
-    },
-    {
       "rule": "R6-nome-verbo-errado",
       "sev": "high",
-      "who": "visual/stop-anuncio-sem-acao.py",
-      "line": 0,
-      "msg": "o verbo 'anuncio' não bate com o que o script faz (bloqueia) — use um de: barra|exige|trava|recusa",
-      "quote": ""
+      "who": "plugins/visual/hooks/hooks.json",
+      "line": 8,
+      "msg": "stop-anuncio-sem-acao.py: o verbo 'anuncio' não bate com o que o script faz (bloqueia) — use um de: barra|exige|trava|recusa",
+      "quote": "\"command\": \"CLAUDE_PLUGIN_ROOT=$(printf '%s' \\\"$CLAUDE_PLUGIN_ROOT\\\" | tr '\\\\\\\\' /); export CLAUDE_PLUGIN_ROOT; . \\\"$CLAUDE_PLUGIN_ROOT/hooks/hook-json.sh\\\" 2>/dev/null; PY=$(hj_py 2>/dev/null) || exit 0; \\\"$PY\\\" \\\"$CLAUDE_PLUGIN_ROOT/hooks/stop-anuncio-sem-acao.py\\\"\","
     },
     {
       "rule": "R5-sem-failopen",
       "sev": "med",
-      "who": "bootstrap/session-sync.sh",
-      "line": 0,
+      "who": "plugins/bootstrap/hooks/session-sync.sh",
+      "line": 182,
       "msg": "usa jq sem guarda de ausência (command -v … || exit 0)",
-      "quote": ""
+      "quote": "if [ -f \"$KNOWN_MARKETPLACES\" ] && jq -e '.\"pedro-plugins\"' \"$KNOWN_MARKETPLACES\" >/dev/null 2>&1; then"
     },
     {
       "rule": "R5-sem-failopen",
       "sev": "med",
-      "who": "project-skills/sessionstart-doc.sh",
-      "line": 0,
+      "who": "plugins/project-skills/hooks/sessionstart-doc.sh",
+      "line": 163,
       "msg": "usa python3 sem guarda de ausência (command -v … || exit 0)",
-      "quote": ""
+      "quote": "ORG_MARK=$(python3 \"$SCRIPT_DIR/../lib/organism.py\" marker \"$CWD\" 2>/dev/null)"
     }
   ],
   "measured": [
@@ -846,7 +846,7 @@
       "command": "CLAUDE_PLUGIN_ROOT=$(printf '%s' \"$CLAUDE_PLUGIN_ROOT\" | tr '\\\\' /); export CLAUDE_PLUGIN_ROOT; bash \"$CLAUDE_PLUGIN_ROOT/hooks/sessionstart-lembra-missao.sh\"",
       "script": "plugins/gauntlet/hooks/sessionstart-lembra-missao.sh",
       "measure": {
-        "lines": 69,
+        "lines": 76,
         "blocking": {},
         "informing": {},
         "cap": {
@@ -865,8 +865,14 @@
           ]
         ],
         "hardcoded_tools": [],
-        "tools_used": [],
-        "tools_guarded": [],
+        "tools_used": [
+          "jq",
+          "python3"
+        ],
+        "tools_guarded": [
+          "jq",
+          "python3"
+        ],
         "tools_unguarded": []
       }
     },
@@ -2192,13 +2198,13 @@
       "command": "CLAUDE_PLUGIN_ROOT=$(printf '%s' \"$CLAUDE_PLUGIN_ROOT\" | tr '\\\\' /); export CLAUDE_PLUGIN_ROOT; bash \"$CLAUDE_PLUGIN_ROOT/hooks/pretooluse-motor-arma.sh\"",
       "script": "plugins/project-skills/hooks/pretooluse-motor-arma.sh",
       "measure": {
-        "lines": 125,
+        "lines": 142,
         "blocking": {},
         "informing": {},
         "cap": {
           "counter": [
             [
-              100,
+              117,
               "if [ \"$N\" -ge \"$MAX_BLOQUEIOS\" ]; then"
             ]
           ],

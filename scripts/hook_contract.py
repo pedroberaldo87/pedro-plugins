@@ -141,9 +141,33 @@ def discover(root):
                         "timeout": h.get("timeout"),
                         "command": cmd,
                         "script": resolve_script(root, plug, cmd),
+                        "hooks_json": hj,
                     }
                     out.append(entry)
     return out
+
+
+def cita_registro(root, hooks_json, alvo):
+    """O par arquivo:linha + linha literal do REGISTRO do hook no hooks.json.
+
+    Existe porque 41 dos 42 achados saíam com quote vazio e line 0 (decisão do
+    dono, 2026-08-09): a vistoria exige citação real — achado sem par de
+    citações é recusado na porta —, e o tradutor dela repetia o msg como
+    "prova". A prova de um veredito sobre NOME/registro é a linha do registro.
+    """
+    rel = os.path.relpath(hooks_json, root) if hooks_json else "?"
+    # o alvo pode chegar como a linha de comando inteira do hooks.json — o basename
+    # dela arrasta aspas e barras de escape, e aí a busca nunca casa com o texto cru.
+    nome = os.path.basename(alvo or "").strip("\\\"'")
+    if hooks_json and nome and os.path.exists(hooks_json):
+        try:
+            with open(hooks_json, encoding="utf-8") as fh:
+                for i, ln in enumerate(fh, 1):
+                    if nome in ln:
+                        return rel, i, ln.strip()
+        except OSError:
+            pass
+    return rel, 0, ""
 
 
 def respondentes(root, ferramenta, evento="PreToolUse"):
@@ -240,7 +264,7 @@ def measure(path):
         if not re.search(r"-ge|-gt|-f\s", body):
             continue
         if re.search(r"^\s*%s\s*&&\s*(exit|return)\s+0" % re.escape(fn), src, re.M):
-            ln = next((i + 1 for i, l in enumerate(lines) if re.match(r"\s*%s\s*\(\)" % re.escape(fn), l)), 0)
+            ln = next((i + 1 for i, linha in enumerate(lines) if re.match(r"\s*%s\s*\(\)" % re.escape(fn), linha)), 0)
             cap_counter.append((ln, ("%s() — cap em função, escape em `%s && exit 0`" % (fn, fn))[:110]))
     cap_lines = cap_counter + cap_sentinel
     # o cap só vale se a chave dele for por sessão — estado global vaza entre
@@ -304,10 +328,15 @@ def measure(path):
 
 # ── as regras ────────────────────────────────────────────────────────────────
 
-def judge(entry, m):
-    """Achados. Cada um carrega a linha que o disparou — pra conferir rápido."""
+def judge(entry, m, root="."):
+    """Achados. Cada um carrega a linha que o disparou — pra conferir rápido.
+
+    `who` é o caminho REAL do script relativo à raiz (decisão do dono,
+    2026-08-09): o apelido "plugin/basename" não resolvia como caminho em
+    nenhum dos 42 achados, e a vistoria — que monta `onde` como who:line —
+    apontava para arquivo inexistente."""
     f = []
-    who = "%s/%s" % (entry["plugin"], os.path.basename(entry["script"]))
+    who = os.path.relpath(entry["script"], root)
     blocks = m["blocking"]
 
     if blocks:
@@ -341,9 +370,20 @@ def judge(entry, m):
                       quote=quote))
 
     for tool in m["tools_unguarded"]:
-        f.append(dict(rule="R5-sem-failopen", sev="med", who=who, line=0,
+        # a citação é a primeira linha que USA a ferramenta — line 0 e quote vazio
+        # eram o que fazia a vistoria repetir o msg como "prova" (2026-08-09).
+        ln, quote = 0, ""
+        try:
+            with open(entry["script"], encoding="utf-8", errors="replace") as fh:
+                for i, linha in enumerate(fh, 1):
+                    if re.search(r"\b%s\b" % re.escape(tool), linha) and not linha.lstrip().startswith("#"):
+                        ln, quote = i, linha.strip()[:110]
+                        break
+        except OSError:
+            pass
+        f.append(dict(rule="R5-sem-failopen", sev="med", who=who, line=ln,
                       msg="usa %s sem guarda de ausência (command -v … || exit 0)" % tool,
-                      quote=""))
+                      quote=quote))
     return f
 
 
@@ -393,21 +433,22 @@ def run(root):
     findings, measured = [], []
     for e in entries:
         if e.get("error"):
-            findings.append(dict(rule="R0-config", sev="high", who=e["plugin"],
-                                 line=0, msg=e["error"], quote=""))
+            rel = os.path.relpath(e["hooks_json"], root) if e.get("hooks_json") else e["plugin"]
+            findings.append(dict(rule="R0-config", sev="high", who=rel,
+                                 line=0, msg=e["error"], quote=e["error"]))
             continue
         if e["type"] != "command":
             measured.append(dict(e, measure=None, note="hook do tipo '%s' — sem script pra medir" % e["type"]))
             continue
         if not e["script"] or not os.path.exists(e["script"]):
-            findings.append(dict(rule="R0-script-ausente", sev="high",
-                                 who="%s/%s" % (e["plugin"], os.path.basename(e["command"] or "?")),
-                                 line=0, msg="hooks.json aponta pra script que não existe: %s" % e["command"],
-                                 quote=""))
+            rel, ln, quote = cita_registro(root, e.get("hooks_json"), e.get("command"))
+            findings.append(dict(rule="R0-script-ausente", sev="high", who=rel, line=ln,
+                                 msg="hooks.json aponta pra script que não existe: %s" % e["command"],
+                                 quote=quote))
             continue
         m = measure(e["script"])
         measured.append(dict(e, measure=m))
-        findings.extend(judge(e, m))
+        findings.extend(judge(e, m, root))
 
     # R6 é do SCRIPT, não do registro: um script em dois eventos tem um nome só,
     # e o prefixo dele basta casar com um deles. Por isso o julgamento do nome
@@ -417,16 +458,28 @@ def run(root):
         if not e.get("script") or not e.get("measure"):
             continue
         d = por_script.setdefault(e["script"], {"plugin": e["plugin"], "eventos": set(),
-                                                "bloqueia": False})
+                                                "bloqueia": False,
+                                                "hooks_json": e.get("hooks_json"),
+                                                "command": e.get("command")})
         d["eventos"].add(e["event"])
         d["bloqueia"] = d["bloqueia"] or bool(e["measure"]["blocking"])
     for caminho, d in sorted(por_script.items()):
         nome = os.path.basename(caminho)
         veredito = judge_nome(nome, d["eventos"], d["bloqueia"])
         if veredito:
-            findings.append(dict(rule=veredito[0], sev="high",
-                                 who="%s/%s" % (d["plugin"], nome),
-                                 line=0, msg=veredito[1], quote=""))
+            # A prova de um veredito sobre o NOME é a linha do REGISTRO: quem diz
+            # em que evento o script roda é o hooks.json, não o corpo do script.
+            rel, ln, quote = cita_registro(root, d["hooks_json"], nome)
+            findings.append(dict(rule=veredito[0], sev="high", who=rel, line=ln,
+                                 msg="%s: %s" % (nome, veredito[1]), quote=quote))
+
+    # `hooks_json` é caminho ABSOLUTO (o `cita_registro` precisa abrir o arquivo) e
+    # não pode sobreviver na saída: ela é comparada entre máquinas, e a raiz de quem
+    # mediu vazando é o que o check "a saída não carrega a raiz" pega. Sai só AQUI,
+    # depois do laço de R6 — apagá-lo antes deixava o veredito de nome sem registro
+    # a citar, e o achado voltava a sair com `who` "?" e linha 0.
+    for e in measured:
+        e.pop("hooks_json", None)
 
     # dedup: o mesmo script pode estar registrado em mais de um evento
     seen, uniq = set(), []
