@@ -53,24 +53,34 @@ Cobertura, neste documento, significa uma coisa só: **está rastreado pelo git 
 
 [confirmado, rodado nesta sessão] O repo foi recriado como **um commit órfão**, sem ancestral comum com a história anterior. A história antiga continua no disco desta máquina, alcançável por refs locais — e **só por elas**.
 
+⚠️ **O quadro deste parágrafo mudou em 2026-08-10, e para melhor** — o trabalho que vivia só
+na branch foi publicado, então o remote deixou de reter um commit só. O corte órfão continua
+verdadeiro (a história ANTERIOR a `2587006` segue fora do remote); o que caiu foi o segundo
+risco, o de "quase tudo só existe nesta máquina".
+
 ```bash
 $ git log --format='%H %cI %s' | head -1
-2587006652a46b1c53272ccf53f117be8d6c634f 2026-07-31T18:45:43-03:00 pedro-plugins: marketplace de plugins para Claude Code
+196a7ca48e2a1adb1e6b6c1144ea03e398891843 2026-08-10T12:12:43-03:00 feat(bootstrap): 1.17.0 — instalar deixa de exigir jq…
 
 $ git rev-list --count HEAD          # alcançável do HEAD/remote
-1
+216
 $ git rev-list --count --all         # alcançável de QUALQUER ref local
-396
-$ git rev-list --count --all --not 2587006652a46b1c53272ccf53f117be8d6c634f
-395
+515
 
 $ git ls-remote --heads origin
-2587006652a46b1c53272ccf53f117be8d6c634f	refs/heads/main
+196a7ca…  refs/heads/main
+196a7ca…  refs/heads/metodologia-vira-mecanismo
+435cfa8…  refs/heads/publicar
 $ git ls-remote --tags origin
 (nenhuma saída)
 ```
 
-- [confirmado] O remote tem **uma** branch (`main`) e **zero** tags.
+- [confirmado] O remote tem **três** branches e **zero** tags. As 216 do `HEAD` estão
+  offsite; as 299 restantes (515 − 216) seguem só nesta máquina, e continuam sendo a
+  história anterior ao corte mais o que nunca foi empurrado.
+- ⚠️ **A tag de resgate `archive/main-orfa-2026-08-10`, criada nesta rodada antes de
+  reapontar a `main` local, é LOCAL** — `git ls-remote --tags` segue vazio. Rede de
+  segurança que mora na mesma máquina do risco não é backup.
 - [confirmado] `git merge-base HEAD archive/docs/readme-20260728` devolve **vazio** — não há ancestral comum entre a história nova e a antiga.
 - [confirmado] A história antiga vive em `refs/heads/main` (local, `f1ba311`, **291** commits, o mais antigo `d743f10` de `2026-04-07T23:51:34-03:00`) e nas **6** tags `archive/*`, todas com o objeto presente localmente (`git cat-file -e` OK nas seis).
 - [confirmado] O working tree atual está limpo e a branch de trabalho é `publicar`, apontando para o mesmo commit do remote:
@@ -99,9 +109,9 @@ origin	git@github.com:pedroberaldo87/pedro-plugins.git (push)
 - **Para onde:** GitHub, `pedroberaldo87/pedro-plugins`, via SSH.
 - **Offsite:** sim — o remote está fora da máquina de trabalho.
 - **Frequência:** a cada push. Não há agendamento (§1.2).
-- **Retenção:** [confirmado] hoje o remote retém **1** commit. A frase "histórico completo do git" deixou de valer nesta rodada — ver §0.
-- **Tamanho:** [confirmado, HEAD = `2587006`] `du -sh .git` → **39M**; `git ls-files | wc -l` → **252** arquivos rastreados.
-  ⚠️ **Os 39M são majoritariamente objetos que o remote não tem.** O `.git` grande não é sinal de cobertura — é sinal do oposto: história local guardada e não empurrada.
+- **Retenção:** [confirmado] hoje o remote retém **216** commits (eram 1 até 2026-08-10, quando a branch de trabalho foi publicada na `main`). Ainda não é "histórico completo do git": a história anterior ao commit órfão continua fora — ver §0.
+- **Tamanho:** [confirmado, HEAD = `196a7ca`] `du -sh .git` → **44M**; `git ls-files | wc -l` → **567** arquivos rastreados.
+  ⚠️ **Boa parte dos 44M ainda é objeto que o remote não tem** (515 commits locais contra 216 offsite), mas a distância caiu muito com a publicação de 2026-08-10.
 - [confirmado] `git ls-files -i -c --exclude-standard | wc -l` → **0**: nenhum arquivo ignorado ficou rastreado por engano. Essa é a régua escrita no cabeçalho do próprio `.gitignore`.
 
 Distribuição do que está rastreado hoje (derivado mecanicamente no run):

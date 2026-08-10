@@ -342,30 +342,28 @@ for p in plugins/*/; do n=$(basename $p);
 Saída desta rodada (nome · versão · skills · tem hook):
 
 ```
-archify           2.12.2  [archify]                                          -
-bootstrap         1.16.1  [bootstrap]                                        HOOKS
-branches           1.3.5  [branches]                                         HOOKS
-check-skills       0.7.1  [check-skills]                                     -
-context-guard      1.3.9  [context-guard]                                    HOOKS
-fallow             1.2.3  [fallow]                                           -
-gauntlet           0.9.2  [gauntlet]                                         HOOKS
-graphify-guard     1.2.4  []                                                 HOOKS
-grill-me           1.4.0  [grill-me]                                         -
-guardrails         1.7.8  [guardrails]                                       HOOKS
-handoff           1.11.2  [handoff]                                          HOOKS
-improve            1.1.2  [improve]                                          -
-improve-workflow  0.16.18 [improve-workflow]                                 -
-intent-guard       0.7.1  [intent-guard]                                     HOOKS
-lixeiro            1.3.1  [faxina]                                           HOOKS
-principles         1.0.5  [principles]                                       -
-project-skills     0.21.14 [design-md, doc, doc-load, doc-touch, monitorar,
-                           pesquisa-referencias, plan, project-skills,
-                           qa-loop, sprint, start]                           HOOKS
-ship               1.5.0  [ship]                                             HOOKS
-slides             1.6.0  [slides]                                           -
-vision             0.1.0  []                                                 -
-vistoria          0.11.0  [vistoria]                                         -
-visual            1.41.3  [andamento, visual]                                HOOKS
+archify           2.12.2  [archify]                  -
+bootstrap         1.17.0  [bootstrap]                HOOKS
+branches           1.3.5  [branches]                 HOOKS
+check-skills       0.7.1  [check-skills]             -
+context-guard      1.3.9  [context-guard]            HOOKS
+fallow             1.2.3  [fallow]                   -
+gauntlet           0.9.2  [gauntlet]                 HOOKS
+graphify-guard     1.2.5  []                         HOOKS
+grill-me           1.4.0  [grill-me]                 -
+guardrails         1.7.8  [guardrails]               HOOKS
+handoff           1.11.2  [handoff]                  HOOKS
+improve-workflow  0.16.18  [improve-workflow]        -
+improve            1.1.2  [improve]                  -
+intent-guard       0.7.2  [intent-guard]             HOOKS
+lixeiro            1.3.1  [faxina]                   HOOKS
+principles         1.0.5  [principles]               -
+project-skills    0.21.18  [design-md,doc,doc-load,doc-touch,monitorar,pesquisa-referencias,plan,project-skills,qa-loop,sprint,start]  HOOKS
+ship               1.5.0  [ship]                     HOOKS
+slides             1.6.0  [slides]                   -
+vision             0.1.0  []                         -
+vistoria          0.11.0  [vistoria]                 -
+visual            1.41.3  [andamento,visual]         HOOKS
 ```
 
 **A rodada anterior moveu onde as skills MORAM; esta apagou as CASAS que tinham ficado
@@ -554,29 +552,32 @@ Observações de arquitetura:
   (`pretooluse-motor-arma.sh`, herdado do extinto `sovai`) e `gauntlet`. Ver a observação
   sobre `Agent` mais abaixo.
 
-- **O `bootstrap` tem TRÊS hooks no mesmo evento `Stop`**, e a divisão é por eixo medido, não
-  por acaso: `stop-prose-ceiling.py` media **volume** (quantas linhas de prosa),
-  `stop-regua-relato.py` media **os bullets** (a régua de forma, §7.4) e `stop-forma-relato.py`
-  julga o que regex não alcança, chamando um modelo. Os dois primeiros custam zero token e
-  rodam em todo turno; o terceiro **só roda quando a resposta é um relato**. A divisão está
-  escrita no cabeçalho do do meio, literal: *"teto de prosa -> VOLUME (quantas linhas) / esta
-  regua -> os BULLETS"*. Detalhe em §10.2. [confirmado — `plugins/bootstrap/hooks/hooks.json`
-  tem os três no array `Stop`, e os três arquivos existem em `plugins/bootstrap/hooks/`]
+- 🔴 **O `bootstrap` NÃO mede mais a forma do relato — os três hooks de `Stop` saíram em
+  2026-08-09, a pedido do dono** (`251d6ac`, que apaga `stop-prose-ceiling.py`,
+  `stop-regua-relato.py` e `stop-forma-relato.py` junto com o
+  `.claude/stop-budget.baseline.json`). A divisão que existia era por eixo — volume de prosa,
+  bullets, e um juiz que chamava modelo quando a resposta era um relato. **Quem quiser
+  entender por que ela foi assim é no histórico que olha, não aqui.** Hoje o plugin registra
+  `SessionStart×2` e `PostToolUse×1`, e nada mais [confirmado nesta rodada — o `hooks.json`
+  devolve `{'SessionStart': 2, 'PostToolUse': 1}` e `plugins/bootstrap/hooks/` não tem
+  nenhum `.py`]. A régua de forma sobrevive **só** como a PORTA descrita no item abaixo; a
+  REDE do terminal deixou de existir, e é escolha declarada, não esquecimento.
 - `guardrails` é o único que usa `"type": "prompt"` (classificador LLM inline no `hooks.json`,
   sem script) — todo o resto é `"type": "command"`; o total de registros e de scripts é o que
   `python3 scripts/hook_contract.py | head -1` imprime (§2).
-- **A régua de forma é cobrada por uma PORTA e uma REDE, e nenhuma das duas alcança o que a
-  outra alcança.** A porta (`guardrails/hooks/pretooluse-artefato-regua.py`, PreToolUse
-  `Edit|Write`) nega **escrever** `.md`/`.html` com prosa corrida dentro de `.claude/visual/`
-  ou `.claude/reports/` — vê arquivo, nunca vê o terminal. A rede
-  (`bootstrap/hooks/stop-regua-relato.py`, Stop) mede o relato **digitado no terminal** — vê
-  o terminal, nunca vê arquivo. O cabeçalho da porta registra por que são duas e não uma:
-  *"os dois alcançam coisas diferentes e nenhum alcança as duas… ficar com um só deixaria
-  metade do requisito sem lastro"*. Alcance da porta é estreito de propósito: doc, código e
-  config ficam fora, *"a régua governa artefato de LEITURA, não todo texto do repositório"*.
-  Kill-switches: `ARTEFATO_REGUA=0` e `REGUA_RELATO=0`. [confirmado — leitura dos dois
-  cabeçalhos; `python3 plugins/guardrails/hooks/test_artefato_regua.py` → *"23 checks ok, 0
-  falhas"* neste run]
+- **A régua de forma era cobrada por uma PORTA e uma REDE; hoje só a PORTA existe.** A porta
+  (`guardrails/hooks/pretooluse-artefato-regua.py`, PreToolUse `Edit|Write`) nega **escrever**
+  `.md`/`.html` com prosa corrida dentro de `.claude/visual/` ou `.claude/reports/` — vê
+  arquivo, nunca vê o terminal. O cabeçalho dela registra por que eram duas: *"os dois
+  alcançam coisas diferentes e nenhum alcança as duas… ficar com um só deixaria metade do
+  requisito sem lastro"* — e essa metade é exatamente a que ficou sem lastro quando a rede
+  (`stop-regua-relato.py`) saiu no `251d6ac`. **O relato digitado no terminal não é medido
+  por mecanismo nenhum hoje**; a régua dele vive no output style, cobrada por leitura. Alcance
+  da porta é estreito de propósito: doc, código e config ficam fora, *"a régua governa
+  artefato de LEITURA, não todo texto do repositório"*. Kill-switch: `ARTEFATO_REGUA=0`
+  (o `REGUA_RELATO=0` virou variável órfã — desliga um hook que não existe). [confirmado —
+  o arquivo da porta existe; `python3 plugins/guardrails/hooks/test_artefato_regua.py` → *"22
+  checks ok, 0 falhas"* neste run]
 - **Três plugins gateiam o `Agent`, e eles não concorrem — respondem a perguntas diferentes.**
   Os dois primeiros estão descritos logo abaixo; o terceiro é o `gauntlet`
   (`pretooluse-gauntlet.sh`), que na v0.3.0 deixou de negar sub-agente em bloco e passou a
@@ -1842,7 +1843,7 @@ $ bash scripts/sync-shared.sh --check                    →  OK: cópias vendor
 $ python3 _shared/test_regua_texto.py                    →  71 passou · 0 falhou
 $ python3 scripts/test_regua_call_check.py               →  18 asserts ok ✓ (0 gerador fora da régua hoje)
 $ python3 plugins/visual/lib/test_regua_audit.py         →  OK
-$ python3 plugins/guardrails/hooks/test_artefato_regua.py →  23 checks ok, 0 falhas
+$ python3 plugins/guardrails/hooks/test_artefato_regua.py →  22 checks ok, 0 falhas
 $ python3 _shared/r8_tiers.py check                      →  OK: R8 servido de _shared/r8-tiers.json
 ```
 

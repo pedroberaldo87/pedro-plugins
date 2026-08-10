@@ -582,25 +582,25 @@ O `scrub()` é um scorer em **quatro camadas**, cada span redigido sendo pulado 
 ### A3 · `graphify-out/` — 75M · o knowledge graph desta máquina
 
 - **Gitignorado desde sempre nesta história** (`.gitignore:44`, seção "RETRATO DESTA MÁQUINA — regenerável, e carimba caminho absoluto e hostname. Sobe o gerador, nunca a saída").
-- **`graph.json`** — 3.107.545 bytes. Chaves de topo: `built_at_commit`, `directed`, `graph`, `hyperedges`, `links`, `multigraph`, `nodes`. Medido nesta rodada: [confirmado]
+- **`graph.json`** — 5.541.587 bytes. Chaves de topo: `built_at_commit`, `directed`, `graph`, `hyperedges`, `links`, `multigraph`, `nodes`. Medido nesta rodada: [confirmado]
 
   ```
-  nodes 3791 · links 4961 · hyperedges 12
-  source_file distinto: 259        communities: 376
-  built_at_commit: 2587006652a46b1c53272ccf53f117be8d6c634f   (== HEAD)
-  relações: contains 3078 · calls 1193 · rationale_for 260 · imports 162
-            defines 133 · references 61 · method 28 · imports_from 21
+  nodes 6692 · links 8852 · hyperedges 12
+  source_file distinto: 552        communities: 677
+  built_at_commit: 196a7ca48e2a1adb1e6b6c1144ea03e398891843   (== HEAD)
+  relações: contains 4789 · calls 2454 · rationale_for 787 · defines 517
+            imports 162 · references 60 · method 35 · imports_from 21
   ```
 
   ⚠️ **Estes números valem para este commit e só.** Todo modo que escreve doc roda `graphify update --force` antes; o que é utilizável é o par número + `built_at_commit`, nunca o número solto.
-- **`.graphify_labels.json`** — 10.227 bytes, **376 labels, dos quais 50 são nomeados** (o resto é o placeholder `Community NNN`, que `graph_map._is_named` descarta). [confirmado]
-- **`manifest.json`** — 73.403 bytes, **439 chaves**, das quais **106 são de `pi-plugins/`**, que não está no grafo. Contar o manifest é medir o índice, não o mapa: o grafo enxerga 259 arquivos-fonte distintos. [confirmado]
-- **`GRAPH_REPORT.md`** — 84.095 bytes, relatório humano gerado junto. O cabeçalho dele traz a contagem de corpus (`252 files · ~643.929 words`) e o `Built from commit: 25870066`.
+- **`.graphify_labels.json`** — 18.047 bytes, **677 labels, dos quais 50 são nomeados** (o resto é o placeholder `Community NNN`, que `graph_map._is_named` descarta). ⚠️ O número de labels acompanha as comunidades (677), mas os **nomeados continuam 50** — a passada AST não nomeia comunidade nova; quem nomeia é a passada com LLM. [confirmado]
+- **`manifest.json`** — 120.515 bytes, **727 chaves**, entre elas as de `pi-plugins/`, que não está no grafo. Contar o manifest é medir o índice, não o mapa: o grafo enxerga 552 arquivos-fonte distintos, contra 567 rastreados pelo git. [confirmado]
+- **`GRAPH_REPORT.md`** — 142.148 bytes, relatório humano gerado junto. É a fonte oficial da taxa de extração: nesta rodada ele declara `99% EXTRACTED · 1% INFERRED`, **62 arestas inferidas** com confiança média 0.81 — a extração de 31/07 não tinha nenhuma, então aresta hoje pode ser palpite do extrator, e não leitura de AST.
 - **Como o `/doc` consome:** `plugins/project-skills/lib/graph_map.py` destila o grafo num mapa compacto. O que ele muda em relação ao arquivo cru — e o que é **teto**, não medida: [confirmado, saída real do run]
 
   ```bash
   python3 plugins/project-skills/lib/graph_map.py --project-root .
-  # stats: nodes 3791 · links 4961 · hyperedges_total 12
+  # stats: nodes 6692 · links 8852 · hyperedges_total 12
   #        communities_named 30 · god_nodes 60
   # files listados: 40      hyperedges retidas: 6
   # comunidade genérica descartada: "Plugin Manifest Metadata" (18 comunidades)
@@ -609,7 +609,7 @@ O `scrub()` é um scorer em **quatro camadas**, cada span redigido sendo pulado 
   - **`god_nodes: 60` é o corte `top_gods=60`, não uma contagem** — não sobe nem que o repo dobre.
   - **`communities_named: 30` ≠ os 50 labels nomeados** do arquivo: o mapa deduplica por nome e joga fora quem aparece em ≥ `GENERIC_COMMUNITY_MIN = 4` comunidades (metadado repetido, não módulo).
   - **`hyperedges: 6` de 12** — o filtro é `confidence_score >= 0.85`.
-  - **Fan-in semântico exclui `STRUCTURAL_RELATIONS = {"contains", "defines", "method"}`**; `contains` sozinho é 3078 das 4961 arestas, e sem a exclusão o ranking viraria "quem tem mais símbolos", não "quem importa".
+  - **Fan-in semântico exclui `STRUCTURAL_RELATIONS = {"contains", "defines", "method"}`**; `contains` sozinho é 4789 das 8852 arestas, e sem a exclusão o ranking viraria "quem tem mais símbolos", não "quem importa".
   - Degrada gracioso: sem grafo, `run()` devolve `{"available": false}` e o exit code continua 0 — ausência de grafo não é erro.
 - **Natureza: RECONSTRUÍVEL por comando** (`graphify update . --force`, AST, sem LLM). É o depósito mais pesado do repo (75M com os snapshots datados de junho e julho) e o mais barato de perder.
 
