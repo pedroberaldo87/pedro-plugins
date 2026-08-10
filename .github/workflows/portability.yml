@@ -45,25 +45,12 @@ jobs:
         shell: bash
         run: |
           set -e
-          # NO WINDOWS, `bash` DO PATH É O WSL — e o runner não tem distro instalada.
-          # Toda suíte que dispara `subprocess.run(["bash", ...])` recebia
-          # "Windows Subsystem for Linux has no installed distributions." em UTF-16,
-          # o que chega ao Python como stdout VAZIO e estoura três camadas acima.
-          # O Python é filho DESTE bash, então herda este PATH: pôr o diretório do
-          # Git Bash na frente aqui resolve, e não depende do GITHUB_PATH ganhar do
-          # System32 (não ganhou). `/usr/bin` é onde o Git Bash mora no MinGW.
-          if [ "$RUNNER_OS" = "Windows" ]; then
-            export PATH="/usr/bin:$PATH"
-          fi
           PY="$(command -v python3 || command -v python)"
-          # A CONFERÊNCIA É PARTE DO CONSERTO. Sem ela o ajuste acima falha em
-          # SILÊNCIO: o passo segue, a suíte quebra vinte linhas depois com "stdout
-          # vazio", e a causa some. Foi assim que a primeira tentativa passou batido.
-          if [ "$RUNNER_OS" = "Windows" ]; then
-            eco="$("$PY" -c "import subprocess;print(subprocess.run(['bash','-c','echo VIVO'],capture_output=True,text=True).stdout.strip())")"
-            echo "o bash que o Python resolve responde: '$eco'"
-            [ "$eco" = "VIVO" ] || { echo "::error::o bash que o Python resolve ainda e o WSL"; exit 1; }
-          fi
+          # O BASH DO WINDOWS NÃO SE CONSERTA AQUI — quem precisa dele procura um
+          # que RODE (`test_conformance.py:bash_posix`) e pula declarando quando não
+          # há. Três tentativas de arrumar pelo PATH do runner falharam, e a
+          # conferência que eu tinha posto aqui virou obstáculo: barrava o job pelo
+          # que o teste já sabe tratar.
           bash scripts/sync-shared.sh --check
           # Glob que não casa nada roda zero teste e fica verde — foi assim que a
           # esteira "passou" sem executar suíte nenhuma. Cada padrão é contado, e
