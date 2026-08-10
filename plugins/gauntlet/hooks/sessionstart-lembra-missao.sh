@@ -25,6 +25,13 @@ HJ_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=/dev/null
 . "$HJ_DIR/hook-json.sh" 2>/dev/null || exit 0
 type hj_campo >/dev/null 2>&1 || exit 0
+# Sem jq E sem python3 não há como ler o evento, e sair calado aqui apagaria a missão
+# do arranque sem ninguém saber — que é exatamente a falha de memória que este hook
+# existe para corrigir. A regra da casa é FALAR.
+if ! command -v jq >/dev/null 2>&1 && ! { command -v python3 >/dev/null 2>&1 && python3 --version >/dev/null 2>&1; }; then
+  type hj_avisa >/dev/null 2>&1 && hj_avisa "sessionstart-lembra-missao"
+  exit 0
+fi
 
 SESSION=$(hj_campo "$ENTRADA" session_id 2>/dev/null)
 RAIZ="${CLAUDE_CONFIG_DIR:-$HOME/.claude}/andamento"

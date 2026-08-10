@@ -17,18 +17,26 @@ scope:
 
 ## O retrato medido
 
-| medida | valor | comando |
-| --- | --- | --- |
-| hooks de produção — o que algum `hooks/hooks.json` registra, resolvido pelo medidor oficial | **43** | `python3 scripts/hook_contract.py --scripts \| grep -c .` |
-| os `.sh` de hooks que leem o campo que DECIDE — classe B | **35** | ver classe B abaixo — três deles pela forma do Python embutido; a conta inclui os chamados por outro hook, sem registro próprio |
-| destes, os que só formatam a saída / leem config — classe A | **5** | ver classe A abaixo |
+⚠️ **Aqui não mora número nenhum, e é de propósito.** A versão anterior desta tabela
+congelava três contagens, e elas venciam sozinhas: bastava um hook nascer para o retrato
+ficar errado e a suíte vermelha — num documento autoral, que nenhum mecanismo pode
+reescrever. O que vale é o comando; ele é a medida de hoje, sempre. Quem imprime os três
+números na tela é a própria `bash scripts/test_sem_jq.sh`, no começo da saída.
+
+| medida | como medir |
+| --- | --- |
+| hooks de produção — o que algum `hooks/hooks.json` registra, resolvido pelo medidor oficial | `python3 scripts/hook_contract.py --scripts \| grep -c .` |
+| os `.sh` de hooks que leem o campo que DECIDE — classe B | a soma das linhas `B1` + `B2` da tabela abaixo; três deles decidem pela forma do Python embutido, e a conta inclui os chamados por outro hook, sem registro próprio |
+| destes, os que só formatam a saída / leem config — classe A | as linhas `A` da tabela abaixo |
 
 Toda biblioteca de `_shared/` fica fora dessa conta: a cópia em `plugins/*/hooks/` é vendoring
 do mesmo arquivo, não um hook a mais. É por isso que o comando deriva os nomes a excluir de
 `_shared/` em vez de listá-los — vendorar uma biblioteca nova não obriga a re-medir o retrato.
-O aviso de dependência é o caso mais visível: treze plugins o disparam na abertura da sessão,
+O aviso de dependência é o caso mais visível: os plugins que
+`grep -l 'sessionstart-deps.sh' plugins/*/hooks/hooks.json | wc -l` conta o disparam na
+abertura da sessão,
 porque quem instala um plugin sozinho também precisa saber que o gate dele ficou mudo — mas o
-script existe UMA vez só, em `plugins/bootstrap/hooks/sessionstart-deps.sh`, e os outros doze
+script existe UMA vez só, em `plugins/bootstrap/hooks/sessionstart-deps.sh`, e os demais
 o acham por NOME de plugin (`resolve-plugin.sh bootstrap hooks/sessionstart-deps.sh`) em vez
 de carregar cópia. A fonte é `_shared/sessionstart-deps.sh`, ele é classe A por natureza (o
 `jq` só monta a mensagem), e um sentinel por sessão garante um aviso, não um por plugin.
@@ -115,6 +123,7 @@ Dentro da classe B há ainda dois graus:
 
 | classe | arquivo | linha(s) | campo | o que se perde sem `jq` |
 | --- | --- | --- | --- | --- |
+| B2 | `plugins/gauntlet/hooks/sessionstart-lembra-missao.sh` | 36 | `session_id` | a missão aberta no disco não é lembrada no arranque, e o sinal expira calado em 12h |
 | B2 | `plugins/bootstrap/hooks/post-plugin-command.sh` | 57 | `tool_input.command` | mutação de plugin não é detectada; o snapshot/commit nunca roda |
 | B2 | `plugins/branches/hooks/posttooluse-push-branch.sh` | 28, 39 | `tool_input.command`, `session_id` | push não é notado; o aviso de branch some |
 | B2 | `plugins/context-guard/hooks/context-guard.sh` | 26 | `session_id` | o guard de contexto não abre |

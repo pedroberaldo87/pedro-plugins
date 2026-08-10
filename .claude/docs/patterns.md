@@ -96,7 +96,9 @@ Arquivos que **declaram** a regra no cabeçalho, entre eles [confirmado]:
 
 ⚠️ **Fail-open MUDO é o único proibido — e isso vale também para o hook que lê o payload com Python próprio, sem `jq` e sem a biblioteca comum.** Em 2026-08-09 três hooks que fazem a leitura assim (`plugins/intent-guard/hooks/capture-prompt.sh`, `plugins/handoff/hooks/handoff-completeness-gate.sh`, `plugins/handoff/hooks/sessionstart-ata.sh`) saíam calados quando faltava `python3`; hoje os três chamam `hj_avisa` do `hook-json.sh` antes de liberar — o que obrigou a vendorar a biblioteca também em `plugins/handoff/hooks/` [confirmado, `sed -n '/^SPECS=(/,/^)/p' scripts/sync-shared.sh | grep 'hook-json.sh'` traz a linha do handoff; `bash scripts/sync-shared.sh --check` → `OK: cópias vendored idênticas a _shared/`]. **Ter leitor próprio dispensa a biblioteca para LER, nunca para AVISAR** — quem cobra é `bash scripts/test_sem_jq.sh` (*"todo hook da classe B avisa quando não há leitor nenhum"*).
 
-🔴 **E esse cobrador está VERMELHO nesta rodada, com um hook novo dentro** [confirmado — `bash scripts/test_sem_jq.sh` → `vermelho`, com `hooks de produção: 41 · classe B: 36 · classe A: 5`]. Os dois achados: `FAIL classe B divergiu` (a lista da prosa não bate com a medida) e `FAIL classe B sem canal de aviso (sairia calado): plugins/gauntlet/hooks/sessionstart-lembra-missao.sh` — hook que decide pelo payload e sai mudo quando não há leitor, exatamente o que o parágrafo acima proíbe. **A suíte fez o trabalho dela: o hook novo nasceu fora da regra e ela acusou.** O que falta é o conserto, não o cobrador.
+🔴 **Esse cobrador ficou VERMELHO em 2026-08-09 e o conserto rendeu duas lições de naturezas diferentes.** A primeira era defeito de código: `FAIL classe B sem canal de aviso (sairia calado): plugins/gauntlet/hooks/sessionstart-lembra-missao.sh` — hook que decide pelo payload e saía mudo quando não há leitor, exatamente o que o parágrafo acima proíbe. Consertado com a guarda de `jq`/`python3` + `hj_avisa` que o vizinho `pretooluse-gauntlet.sh` já tinha. **A suíte fez o trabalho dela: o hook novo nasceu fora da regra e ela acusou.**
+
+✅ **A segunda não tinha conserto de código, e virou uma régua: número medido não mora em doc AUTORAL.** Os outros três `FAIL` só diziam que `.claude/docs/jq-pontos-de-decisao.md` congelava três contagens que a medida de hoje desmentia. O doc tem `authored-by: human`, e o invariante do `/doc-touch` proíbe re-projetá-lo — então o cobrador exigia a mão de um humano para um dado que a máquina mede em milissegundos, e ficava vermelho a cada hook que nascia. O próprio comentário da suíte já nomeava a dor: *"o retrato ficava vencido e a suíte vermelha, num documento autoral que ninguém pode reescrever automaticamente"*. A saída foi a regra de desacoplamento da casa aplicada ao par inteiro — **o doc passou a carregar o COMANDO em vez do número, e a suíte passou a IMPRIMIR o retrato em vez de cobrá-lo** [confirmado — `bash scripts/test_sem_jq.sh` → `retrato de agora — produção: 41 · classe B: 36 · classe A: 5` seguido de `verde`]. **Régua durável: cobrar de um humano a atualização de um número que um comando deriva é fabricar vermelho recorrente.** O que continua cobrado é a LISTA, e por um motivo que se checa: cada linha dela diz o que se perde sem `jq`, e isso nenhum comando deriva — hook novo na classe B ainda reprova até ganhar a sua linha, que é conteúdo faltando, não número vencido.
 
 ### 1.2 Protocolo de saída de hook
 
@@ -206,7 +208,7 @@ Locais de estado em uso, entre eles [confirmado, `grep -rhoE` sobre hooks e libs
 - `CLAUDE_DIR/state/anuncio-acao/` — `stop-anuncio-sem-acao.py:ESTADO`, com **variável própria** `ANUNCIO_ACAO_STATE` [confirmado, li a linha]
 - `CLAUDE_DIR/state/intent-guard/olhado` — `ledger.py:furos_da_regua`. Um plugin lendo o estado que **outro** plugin escrevia (`state/prose-ceiling/bypass.log` e `state/forma-relato/batidas.log`), e por isso ele copia a expressão de raiz literalmente igual à dos escritores. ⚠️ **Não confundir com `$HOME/.claude/intent-guard/mode`**, que é outro diretório, de outro dono: um é kill-switch, o outro é marca de leitura.
 
-🔴 **E este par virou o exemplo mais limpo do §1.14 ao contrário: o ESCRITOR foi removido e o LEITOR ficou.** Os dois logs que `furos_da_regua` abre eram escritos pelos hooks de `Stop` do `bootstrap`, que saíram do disco em 2026-08-09; a função continua no repositório, apontando para caminhos que ninguém mais alimenta [confirmado — `grep -rn 'furos_da_regua' plugins/*/lib/*.py` → `plugins/intent-guard/lib/ledger.py:471`; nenhum arquivo do repositório escreve mais em `bypass.log` ou `batidas.log`]. **O que a salva de mentir é uma decisão de desenho, não sorte**: o `except OSError: continue` traz o comentário *"log ausente ≠ zero furo — quem conta as fontes é `fontes`"*, então o leitor devolve "não sei" em vez de "zero furo". **Régua durável: leitor que trata ausência de fonte como zero vira mentira no dia em que o escritor morre — e o escritor morre sem avisar o leitor.**
+🔴 **E este par virou o exemplo mais limpo do §1.14 ao contrário: o ESCRITOR foi removido e o LEITOR ficou.** Os dois logs que `furos_da_regua` abre eram escritos pelos hooks de `Stop` do `bootstrap`, que saíram do disco em 2026-08-09; a função continua no repositório, apontando para caminhos que ninguém mais alimenta [confirmado — `grep -rn 'furos_da_regua' plugins/*/lib/*.py` só devolve `plugins/intent-guard/lib/ledger.py:furos_da_regua` e o consumidor dela no mesmo arquivo; nenhum arquivo do repositório escreve mais em `bypass.log` ou `batidas.log`]. **O que a salva de mentir é uma decisão de desenho, não sorte**: o `except OSError: continue` traz o comentário *"log ausente ≠ zero furo — quem conta as fontes é `fontes`"*, então o leitor devolve "não sei" em vez de "zero furo". **Régua durável: leitor que trata ausência de fonte como zero vira mentira no dia em que o escritor morre — e o escritor morre sem avisar o leitor.**
 
 **Por que um juiz que chama binário autenticado tem variável de estado separada** [relatado — o comentário literal vivia em `stop-forma-relato.py`, hoje removido]: *"estado com var propria: isolar o teste via CLAUDE_CONFIG_DIR tirava a credencial do `claude -p` junto, e o juiz passava a aprovar tudo por fail-open."* Régua durável: **hook que chama binário autenticado não pode ter o isolamento do teste amarrado ao mesmo diretório da credencial.**
 
@@ -926,6 +928,14 @@ mata o GRUPO no `finally` — não o filho. Programa que executa comando vindo d
 texto de terceiro) acende marca de reentrância no ambiente, e quem ele pode chamar de volta a lê.**
 Quem cobra é o check **P** do gate (§5.2), com isenção `vaza-ok: <motivo>` na linha.
 
+⚠️ **O check não distingue produção de SUÍTE, e é isso que o torna útil.** Em 2026-08-09 ele
+barrou o repositório inteiro por causa de uma linha de teste: `test_motor_js.py` disparava
+`subprocess.run(["node", "--check", MOTOR])` sem `stdin=` nem `start_new_session=`, e o conserto
+foi acrescentar os dois [confirmado — `git show 3dd62a5 -- plugins/project-skills/lib/test_motor_js.py`].
+Duas coisas caem daí: a régua vale para `subprocess.run` igual a `Popen` (quem tem teto tem filho),
+e **suíte que dispara processo é produção do ponto de vista da máquina** — o `node` esquecido por um
+teste ocupa a mesma memória que o esquecido por um hook.
+
 ---
 
 ## 3 · Vendoring de `_shared/` (o único "build")
@@ -1064,7 +1074,7 @@ if old is not None and old.get("version") == pver:
 
 `.claude/hooks/release-gate.sh`, registrado em `.claude/settings.json` como `PreToolUse` com `matcher: "Bash"` e `timeout: 60`, apontando para `$CLAUDE_PROJECT_DIR/.claude/hooks/release-gate.sh`. <!-- lint:ignore CLAUDE_PROJECT_DIR --> Desde 2026-08-09 ele **deixou de ser o único** hook do projeto: entrou um `SessionStart` → `sessionstart-avisa-cadeia.sh` (10s), que avisa quando o plugin instalado nesta máquina ficou atrás do repositório (§5.2b). Os dois lados da mesma pergunta — o gate barra o commit que rompe a cadeia de entrega, o aviso conta que a máquina já está rodando código velho. [confirmado — `python3 -c "…json.load…"` sobre o settings devolve `['PreToolUse', 'SessionStart']`]
 
-**Dependência invertida:** ao contrário dos hooks de plugin, que assumem `jq`, o release-gate **não usa `jq` uma vez sequer** — faz todo o parse com `python3 -c` [confirmado nesta rodada: `grep -c jq .claude/hooks/release-gate.sh` → **1**, e a única ocorrência é um comentário que fala *sobre* jq (linha 317), não uma chamada; `grep -c python3` → **38**]. Sem `python3`, ele cai no fail-open de infra e não checa nada.
+**Dependência invertida:** ao contrário dos hooks de plugin, que assumem `jq`, o release-gate **não usa `jq` uma vez sequer** — faz todo o parse com `python3 -c` [confirmado nesta rodada: `grep -c jq .claude/hooks/release-gate.sh` → **1**, e a única ocorrência é um comentário que fala *sobre* jq, não uma chamada — `grep -n jq` mostra a linha inteira; `grep -c python3` → **38**]. Sem `python3`, ele cai no fail-open de infra e não checa nada.
 
 **Como decide o que olhar** [confirmado, copiado literal]:
 
@@ -1225,33 +1235,33 @@ python3 scripts/hook_contract.py --scripts | grep -c .    # os scripts de produ�
 
 Sem baseline os achados vivos são quase todos `R6` — a regra de nome recém-nascida, que reprova o nome de quase todo hook antigo —, e estão todos congelados no retrato. Os de gravidade que **não** são `R6` continuam sendo o `R1-cap-ausente` em `ship/pre-deploy-test-check.sh` e os dois `R5-sem-failopen` [confirmado, `--json` desta rodada]. ⚠️ **Renome de hook mexe no retrato**: `pretooluse-sovai-motor.sh` virou `pretooluse-motor-arma.sh` nesta rodada, e é o nome — não o conteúdo — que a `R6` julga.
 
-### 5.4 O ponto cego atual: o medidor só entende SHELL
+### 5.4 O ponto cego atual: o medidor enxerga o Python pela metade
 
-🔴 **Os dois hooks Python de `Stop` são medidos como se não tivessem nada** [confirmado — `python3 scripts/hook_contract.py --json` desta rodada]:
+🔴 **O que ele deixa passar hoje é o CAP.** Os dois hooks Python vivos (§1.2) são medidos assim [confirmado — `python3 scripts/hook_contract.py --json` desta rodada, campo `measured`]:
 
-```json
-{"plugin":"bootstrap","event":"Stop","command":"python3 \"${CLAUDE_PLUGIN_ROOT}/hooks/stop-prose-ceiling.py\"",
- "measure":{"lines":257,"blocking":{},"informing":{},"cap":{"counter":[],"sentinel":[],"session_scoped":false},
-            "killswitch":[],"tools_used":[],"tools_unguarded":[]}}
+```
+plugins/guardrails/hooks/pretooluse-artefato-regua.py
+  blocking: []              informing: []
+  cap: counter 0 · sentinel 0 · session_scoped False
+  killswitch: 'if os.environ.get("ARTEFATO_REGUA") == "0":'
+
+plugins/visual/hooks/stop-anuncio-sem-acao.py
+  blocking: ['decisionBlock']   informing: []
+  cap: counter 0 · sentinel 0 · session_scoped False
+  killswitch: 'if os.environ.get("ANUNCIO_ACAO") == "0":'
 ```
 
-O `resolve_script` **acha** o arquivo (o regex aceita o comando com o interpretador na frente), mas todos os padrões de `measure` são shell-shaped — `BLOCK_PATTERNS` procura `^\s*exit\s+2`, `CAP_COUNTER` procura `-ge …]`, `KILL_PATTERNS` procura `${X:-1}" = "0` [confirmado, li as constantes]. Os dois hooks bloqueiam (`sys.exit(2)` via `sair(msg, 2)`), têm cap (`MAX_BLOQUEIOS = 2`) e têm kill-switch — e **nada disso é visto**. Consequência: um hook `.py` novo que bloqueie sem teto passaria pelo check E sem um achado sequer. É medição ausente, não conformidade.
+O `resolve_script` **acha** o arquivo (o regex aceita o comando com o interpretador na frente) e os padrões de kill-switch e de bloqueio já reconhecem grafia Python — mas os de cap continuam shell-shaped, `CAP_COUNTER` procurando `-ge …]` [confirmado, li as constantes]. **Consequência: um hook `.py` que bloqueie sem teto passa pelo check E sem um achado de cap sequer** — é exatamente o que o retrato mostra para o hook de `Stop` do `visual`, que bloqueia por `decisionBlock` com `cap.counter` zerado. É medição ausente, não conformidade.
 
-**O contrapeso que existe hoje é o `conformance.py`, e ele mede EXECUÇÃO, não código** — três checagens em cadeia [confirmado, li as três]:
+🔴 **E o contrapeso que existia aqui foi embora inteiro.** Até 2026-08-09 o `conformance.py` cobria o vão medindo **execução** em vez de código, com três checagens em cadeia (`check_teto_rodou`, `check_juiz_rodou`, `check_bypass_teto`) que liam os `batidas.log`/`bypass.log` dos hooks de `Stop` do `bootstrap`. Com os hooks removidos, as três saíram junto — `grep -oE '^def check_[a-z_]+' plugins/bootstrap/lib/conformance.py` devolve hoje dez checagens e nenhuma delas [confirmado, rodado nesta passada]. **O ponto cego do medidor ficou sem rede.**
 
-- `check_teto_rodou` — lê `CLAUDE_DIR/state/prose-ceiling/batidas.log`. Ausente ⇒ desvio *"o guarda de prosa nunca executou"*; mais de 24h sem batida ⇒ desvio *"está mudo há N h"*. A docstring nomeia o defeito que motivou: *"Como so existia log de BLOQUEIO, 'nao rodou' e 'rodou e aprovou' eram indistinguiveis, e esta checagem chegou a carimbar 'nenhuma resposta furou o teto' com o guarda mudo."*
-- `check_juiz_rodou` — **novo nesta rodada**, lê `CLAUDE_DIR/state/forma-relato/batidas.log`. Além do "nunca executou" e do "mudo há N h", ele tem um terceiro caso que é próprio do juiz: se as batidas com motivo `juiz sem resposta` superarem as `julgou`, vira desvio — *"fail-open aprovou tudo nessas vezes. Causa comum e credencial: `claude -p` sai com rc=1 e 'Not logged in'."* O conserto sugerido aponta pro `hooks.json`, não pro código: *"confira se stop-forma-relato.py esta no array Stop … hook fora dele e ignorado em silencio, e `claude plugin validate` passa mesmo assim."*
-- `check_bypass_teto` — lê `bypass.log` e transforma "o hook desistiu" em número visível.
-
-As três só cobram de quem tem o `bootstrap` habilitado (`if not any(ref.startswith("bootstrap@") and lig …): return`) — *"numa maquina sem o bootstrap ligado nao ha guarda pra rodar, e acusar ali seria desvio inventado"* [confirmado].
-
-**Régua durável: guarda instalado que não EXECUTA é pior que guarda desligado — parece protegido.** Por isso `batida()` registra **toda** execução, não só as que barram [confirmado, docstring de `stop-prose-ceiling.py:batida`].
-
-⚠️ **Limite conhecido do `check_juiz_rodou`, medido nesta rodada** [confirmado — contei os motivos do `~/.claude/state/forma-relato/batidas.log` da máquina]: as **12** batidas existentes têm todas o motivo `sem texto`; `julgou` = 0 e `juiz sem resposta` = 0. Com `mudo (0) > julgou (0)` falso e a última batida recente, a checagem carimba **`juiz de forma ativo`** — um juiz que nunca chegou a julgar em produção passa como conforme. O log de prosa da mesma máquina mostra o padrão análogo (`aprovou` 7 · `sem texto do assistente` 43, `bypass.log` inexistente). O sintoma é real e o caminho de investigação é `ultima_msg_assistente` devolvendo `None` no `Stop` real; a suíte, que monta transcript sintético, julga normalmente.
+**Régua durável, e ela é o que sobra de tudo isso: guarda instalado que não EXECUTA é pior que guarda desligado — parece protegido.** Por isso o padrão certo é registrar **toda** execução, não só as que barram: sem log de aprovação, "não rodou" e "rodou e aprovou" são indistinguíveis, e foi assim que uma checagem chegou a carimbar *"nenhuma resposta furou o teto"* com o guarda mudo [relatado — docstring do `check_teto_rodou` removido].
 
 ### 5.5 O juiz de forma: quando vale chamar modelo dentro de um hook
 
-`plugins/bootstrap/hooks/stop-forma-relato.py` é o primeiro hook do repo que **paga token por turno**, e a docstring dele é o critério de quando isso se justifica [confirmado, citação literal]:
+🔴 **REMOVIDO em 2026-08-09, a pedido do dono** — `plugins/bootstrap/hooks/stop-forma-relato.py` saiu do disco junto com os outros hooks de `Stop` do `bootstrap`, e o `hooks.json` do plugin hoje registra só `SessionStart` e `PostToolUse` [confirmado — `python3 -c "import json;print(list(json.load(open('plugins/bootstrap/hooks/hooks.json'))['hooks']))"` → `['SessionStart', 'PostToolUse']`]. **O critério abaixo continua sendo a régua de quando um hook pode pagar token; o hook que a ilustrava, não roda mais.**
+
+Ele foi o primeiro hook do repo que **pagava token por turno**, e a docstring dele é o critério de quando isso se justifica [relatado, citação literal do arquivo removido]:
 
 > Divisao de trabalho com o stop-prose-ceiling.py, que e vizinho e deliberadamente diferente: aquele e mecanico, roda em todo turno e custa zero token; este chama um modelo, entao SO roda quando a resposta e um RELATO. Nenhum padrao distingue "6 linhas densas" de "6 linhas vazias" — para isso precisa de um leitor.
 
@@ -1264,7 +1274,7 @@ As decisões que fazem o desenho fechar:
 - **O modelo é barato e trocável** — `FORMA_RELATO_MODEL`, default `haiku`; `TIMEOUT_S = 25`; o prompt corta a entrada em `texto[:6000]`.
 - **O contrato de resposta é de uma linha só** — `PASSA` ou `REPROVA: <defeito em até 12 palavras>`, e o parser lê **só a primeira linha**.
 
-Wiring [confirmado — li `plugins/bootstrap/hooks/hooks.json`]: os dois hooks estão no mesmo array `Stop`, na ordem prosa → juiz, com `timeout` 10 e 30:
+O wiring era o par no mesmo array `Stop`, na ordem prosa → juiz, com `timeout` 10 e 30 [relatado — o array não existe mais no `hooks.json` do `bootstrap`]:
 
 ```json
 "Stop": [{"hooks": [
@@ -1273,7 +1283,7 @@ Wiring [confirmado — li `plugins/bootstrap/hooks/hooks.json`]: os dois hooks e
 ]}]
 ```
 
-Ativação também confirmada no disco: `~/.claude/state/forma-relato/batidas.log` e `~/.claude/state/prose-ceiling/batidas.log` existem e têm escrita recente nesta máquina [confirmado].
+⚠️ **A lição de ordem sobrevive à remoção: o mecânico vem antes do que paga token.** O gate barato é quem tem a chance de encerrar o turno sem que o caro chegue a rodar — inverter a ordem faria o repo pagar modelo para reprovar o que um `wc -l` já reprovava.
 
 ### 5.6 A regra nova do teto de prosa: pergunta fechada exige veredito na 1ª linha
 
@@ -1339,7 +1349,7 @@ for t in plugins/*/hooks/test_*.sh plugins/*/lib/test_*.sh scripts/test_*.sh .cl
 - **Verde por fail-open não conta como verde.** `test_bootstrap_hooks.sh` não aceita o exit code do juiz sem conferir o motivo no log: `grep -q '"motivo": "julgou"'` — *"fail-open por juiz mudo aprova tudo: so vale como verde se ele REALMENTE julgou"* [confirmado, citação literal].
 - **Teste de hook de detecção precisa distinguir os dois `exit 0`.** No gate do ship, "não detectou deploy" e "detectou e a suíte passou" são ambos 0; a suíte resolve com um fixture cujo alvo de teste falha de propósito, e aí o exit code responde uma pergunta só.
 - **Prosa que dá ordem operacional pode ser testada — e ela também apodrece.** `plugins/handoff/lib/test_handoff_skill.py` trata a `SKILL.md` do handoff como código: extrai os blocos ```` ```bash ```` do markdown (com `textwrap.dedent`, *"o bloco como quem copia recebe"*), **executa** o comando prescrito contra um plano de fixture e confere que ele imprime `pronto` e `pendencia` de verdade; depois lê a prosa e cobra que ela mande **copiar** esses campos, não redigi-los. É o mesmo princípio do `visual_page.py` (*"prosa apodrece"*) aplicado a instrução que o modelo vai seguir. [confirmado — docstring e execução]
-- **Suíte que DERIVA o inventário só enxerga as grafias que conhece — e a exclusão que ninguém atribui é regex vazia.** `scripts/test_sem_jq.sh` classifica cada hook em classe A (jq só formata) ou B (jq decide) varrendo o texto dos `.sh`. Dois furos medidos em 2026-08-09, e ambos passavam por verde: (1) `$VENDORADOS` era usado em dois `grep -vE "/($VENDORADOS):"` **sem nunca ter sido atribuído** — a exclusão de biblioteca vendorada que a prosa prometia era um filtro que casava tudo; hoje ela é derivada de `ls _shared/*.sh`. (2) A varredura conhecia duas formas de ler o payload (o `jq` cru e o `hj_campo` do `hook-json.sh`) e era **cega à terceira**, Python embutido dentro do `.sh` — e reconhecer só `data.get("x")` ainda deixava invisível quem escreve com default, com aspas simples ou com colchete, de modo que as quatro grafias tiveram que entrar juntas. **Régua durável: derivador que classifica por FORMA de escrita mede o que ele sabe procurar, não o que existe** — quando a medição casa com o esperado, confira se o filtro está mesmo filtrando antes de comemorar. [confirmado, executado nesta rodada: `bash scripts/test_sem_jq.sh` → `verde`, com `hooks de produção: 43 · classe B: 35 · classe A: 5`]
+- **Suíte que DERIVA o inventário só enxerga as grafias que conhece — e a exclusão que ninguém atribui é regex vazia.** `scripts/test_sem_jq.sh` classifica cada hook em classe A (jq só formata) ou B (jq decide) varrendo o texto dos `.sh`. Dois furos medidos em 2026-08-09, e ambos passavam por verde: (1) `$VENDORADOS` era usado em dois `grep -vE "/($VENDORADOS):"` **sem nunca ter sido atribuído** — a exclusão de biblioteca vendorada que a prosa prometia era um filtro que casava tudo; hoje ela é derivada de `ls _shared/*.sh`. (2) A varredura conhecia duas formas de ler o payload (o `jq` cru e o `hj_campo` do `hook-json.sh`) e era **cega à terceira**, Python embutido dentro do `.sh` — e reconhecer só `data.get("x")` ainda deixava invisível quem escreve com default, com aspas simples ou com colchete, de modo que as quatro grafias tiveram que entrar juntas. **Régua durável: derivador que classifica por FORMA de escrita mede o que ele sabe procurar, não o que existe** — quando a medição casa com o esperado, confira se o filtro está mesmo filtrando antes de comemorar. **E há um terceiro furo, de outra família: o derivador cobrava do doc um número que ele mesmo sabia medir.** Três dos quatro `FAIL` da rodada de 2026-08-09 eram só o retrato congelado num doc autoral tendo vencido — reprovação que nenhum código conserta, só a mão de um humano. Hoje o doc traz o comando e a suíte imprime a medida (§1.1). [confirmado, executado nesta rodada: `bash scripts/test_sem_jq.sh` → `retrato de agora — produção: 41 · classe B: 36 · classe A: 5` e `verde`]
 
 ---
 
@@ -1347,7 +1357,7 @@ for t in plugins/*/hooks/test_*.sh plugins/*/lib/test_*.sh scripts/test_*.sh .cl
 
 ### Hooks & plugins
 
-- ⚠️ **Hook de plugin vai em `hooks/hooks.json` (subpasta), NUNCA na raiz.** Na raiz é ignorado em silêncio e `validate` passa mesmo assim — o `conformance.py:check_juiz_rodou` repete o aviso no texto do conserto [confirmado].
+- ⚠️ **Hook de plugin vai em `hooks/hooks.json` (subpasta), NUNCA na raiz.** Na raiz é ignorado em silêncio e `validate` passa mesmo assim. ⚠️ **O ponteiro que a doc trazia aqui morreu**: o texto de conserto que repetia o aviso vivia no `conformance.py:check_juiz_rodou`, checagem removida em 2026-08-09 (§5.4). Hoje quem prova o wiring é o `hooks.json` e a suíte `scripts/test_paths_normalize.sh`.
 - 🔴 **Hook que EXISTE mas não está no `hooks.json` nunca dispara, e nada acusa.** Medido nesta sessão com o `stop-regua-relato.py`. `validate` passa, não há log, e `claude plugin details` mostra `Hooks (N)` contando **eventos**, não scripts — script novo num evento já povoado não mexe no N. Prove pelo `hooks.json`, nunca pela existência do arquivo (§1.17).
 - ✅ **`hooks/test_*.py`, `lib/test_*.sh` e `scripts/test_*.py` já têm cobrador** — as três eram vãos entre os globs D e F e hoje são esteiras do check J (§5.2). A única suíte ainda descoberta é `.claude/hooks/test_release_gate.sh`.
 - 🔴 **`hooks.json` que aponta para script inexistente NÃO é pego pelo `claude plugin validate`.** Quem pega é `scripts/test_paths_normalize.sh` (o passo 7 da suíte: para cada `hooks.json`, resolve `/hooks/<nome>.<sh|py>` contra `plugins/<plugin>/hooks/` e reprova o que não existe). Aconteceu em 2026-08-09: mover `sessionstart-plan.sh` do `visual` para o `project-skills` deixou o comando órfão no `hooks.json` do `visual`. **`validate` verde não é prova de que o hook roda** — o comando é uma string, e string que aponta pra nada falha em silêncio na máquina de quem instalou.
