@@ -27,10 +27,6 @@
 # GRAPHIFY_GATE. Sai antes de ler o stdin — como o graphify-guard.
 [ "${SCOPE_COP_GATE:-1}" = "0" ] && exit 0
 
-PY="$(command -v python3)"
-"$PY" --version >/dev/null 2>&1 || exit 0
-# Sem python3 no PATH não dá pra julgar — fail-open (não bloqueia).
-[ -z "$PY" ] && exit 0
 # Leitor do payload: `jq` quando existe, `python3` (stdlib json) quando não.
 # Sem os dois o gate não julga — e aí ele AVISA, nunca sai calado (issue #5).
 # `${0%/*}` e não `dirname`: o probe roda antes de saber se há PATH utilizável.
@@ -39,6 +35,13 @@ HJ_DIR="${0%/*}"; [ "$HJ_DIR" = "$0" ] && HJ_DIR="."
 . "$HJ_DIR/hook-json.sh" 2>/dev/null
 type hj_campo >/dev/null 2>&1 || exit 0
 hj_leitor >/dev/null 2>&1 || { hj_avisa "scope-cop"; exit 0; }
+# O INTERPRETADOR SAI DO HELPER, NÃO DE `command -v python3`. No Windows não
+# existe `python3` — só `python` — então o `command -v python3` cravado devolvia
+# vazio e o gate desistia (fail-open) em TODA máquina Windows: um guarda instalado
+# e morto, que a esteira de portabilidade acusou como "o hook não bloqueia".
+# `hj_py` tenta os dois nomes E confere que o binário RESPONDE (o stub da Store
+# existe e não roda), que é a mesma checagem que estava aqui em duas linhas.
+PY="$(hj_py)" || exit 0
 # MESMA regra do lib/conformance.py:CLAUDE_DIR e do hooks/lib/apply-config.sh. Com
 # $HOME fixo aqui, quem seta CLAUDE_CONFIG_DIR teria o hook lendo o modo numa pasta
 # e o conformance varrendo **/*.mode noutra: o gate que o auditor acusa não seria o
