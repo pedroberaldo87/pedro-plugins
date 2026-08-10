@@ -412,7 +412,8 @@ def juiz_falso_visivel(bindir):
         return False
     env = dict(os.environ, PATH=f"{bindir}{os.pathsep}{os.environ['PATH']}")
     r = subprocess.run([b, "-c", "command -v claude"], capture_output=True,
-                       text=True, env=env, stdin=subprocess.DEVNULL)
+                       text=True, env=env, stdin=subprocess.DEVNULL,
+                       start_new_session=True)
     return r.returncode == 0 and r.stdout.strip() != ""
 
 

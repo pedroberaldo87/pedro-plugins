@@ -34,11 +34,16 @@ não promessa — o programa confere que o arquivo existe e não está vazio.
 }
 ```
 
-### O PESO DE RODAR é metade da observação — e a captura sozinha não o vê
+### O bloco de desempenho SÓ existe se o dono forneceu `metricas` neste desafio
 
-Uma página se julga por duas coisas ao mesmo tempo: como ela **fica** e quanto custa **rodá-la**.
-O print só mostra a primeira, e é por isso que uma sonda de site que devolve só imagem aprova
-o que trava a máquina de quem abre. Meça sempre os dois, pelo mesmo gesto, nos dois lados:
+**Por padrão a sonda não mede nada** — o stdout dela mostra o que interessa ao olho:
+arquivo produzido, título da página, scrollY, altura, viewport. Medido em 2026-08-10:
+a sonda imprimia fps, kB e LCP em toda rodada, e as tabelas mostradas ao dono eram cópia
+desse stdout — o desafio subjetivo virou régua de 18 medidas sem ninguém decidir isso.
+Número no stdout é empurrão para quem orquestra pensar e relatar em número.
+
+O bloco abaixo entra **apenas** quando o rito traz `metricas` fornecidas pelo dono para
+este desafio, e mede só o que elas nomeiam — pelo mesmo gesto, nos dois lados:
 
 ```
 quadros por segundo   rolando uma distância FIXA num tempo FIXO (ex.: 2400px em 3s),

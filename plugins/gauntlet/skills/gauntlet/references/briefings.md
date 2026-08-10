@@ -16,10 +16,13 @@ uma: `porque.md`):
    que gravou — quem despacha confere o disco, nunca a resposta.
 4. **Se travou, grave o que andou e diga o que travou** — "estou livre" com o disco
    vazio é silêncio disfarçado de trabalho.
-5. **O alvo é régua de NÍVEL, nunca receita** — número medido prova quão bom ele é;
-   copiar valor, medida, layout, componente, paleta ou curva reprova, salvo ordem
+5. **O alvo é DESAFIADO, nunca receita nem tabela** — ele é a percepção do público que
+   a obra tem que bater, e a pergunta contra ele é subjetiva: "a nossa é mais foda?".
+   Copiar valor, medida, layout, componente, paleta ou curva reprova, salvo ordem
    explícita do dono no rito. Vale igual para moodboard, arsenal e o já aprovado:
-   nível e vibe se transportam, forma não.
+   nível e vibe se transportam, forma não. **Número só entra em julgamento se o dono
+   forneceu `metricas` neste desafio** — sem elas, nenhum papel colhe, interpola ou
+   relata medida.
 
 ---
 
@@ -45,12 +48,15 @@ Devolva os EIXOS: o que faz este alvo ser bom, item a item. Para cada eixo:
 Eixo sem registro no disco será recusado pelo programa da abertura. Não invente
 qualidade que você não observou.
 
-O eixo nomeia uma QUALIDADE e o número prova o NÍVEL dela no alvo — o eixo não é uma
-especificação a reproduzir. Escreva cada nome como qualidade julgável ("a primeira tela
-guarda silêncio antes de falar"), nunca como receita ("moldura de 32px").
+O eixo nomeia uma QUALIDADE e diz ONDE prestar atenção ao olhar — a prova é o print,
+nunca uma medida, e o eixo não é uma especificação a reproduzir. NÃO COLHA NÚMERO:
+o alvo é percepção a bater, não fonte de especificação — medida só existe nesta missão
+se o dono a forneceu em `metricas`, e aí ela chega a você pelo briefing, não sai de
+você. Escreva cada nome como qualidade julgável ("a primeira tela guarda silêncio
+antes de falar"), nunca como receita ("moldura de 32px").
 
 GRAVE a sua entrega em `recon/eixos.json`, no formato
-{"eixos": [{nome, gesto, registro, alvo, numero}], "alvos_que_recusaram_a_sonda": [],
+{"eixos": [{nome, gesto, registro, alvo}], "alvos_que_recusaram_a_sonda": [],
 "o_que_eu_nao_consegui_observar": "..."}. O campo `registro` é UM caminho e nada mais —
 prosa, par de arquivos ou dois caminhos numa string fazem a conferência da abertura
 recusar o eixo. Arquivo extra vai em `registros_extra`, que é lista.
@@ -91,6 +97,12 @@ Eixos desta peça: {eixos da peça, com o registro do alvo de cada um}
 
 {Se há intenção no rito: A INTENÇÃO DO DONO, nas palavras dele — o que a obra é, para
 quem, que sensação deve causar: {intencao, verbatim}. Isso orienta o gosto; não é spec.}
+{Se há moodboard no rito: O MOODBOARD — referências de ESTILO do dono, positivas e
+negativas, por aspecto: {moodboard}. É vibe, nunca forma; o desafiado ({alvos}) é outra
+coisa — percepção a bater, não estilo a seguir.}
+{Se há metricas no rito: MÉTRICAS FORNECIDAS PELO DONO para este desafio, verbatim:
+{metricas}. São as ÚNICAS medidas que existem nesta missão — fora delas, nenhum número
+entra no seu trabalho nem na sua entrega.}
 
 {Se há arsenal no rito: RECURSOS DE PRIMEIRA CLASSE, escolhidos pelo dono — use antes
 de reinventar, e declare na entrega qual usou, no campo `arsenal_usado` do
@@ -171,7 +183,9 @@ lado do ALVO INTEIRO — a obra inteira, não só a sua peça — e forme o juí
 é mais forte ANTES de conferir os rótulos: olhe as duas capturas como um estranho que
 não sabe qual é de quem, decida, e só então pergunte qual era a nossa. Os eixos desta
 peça dizem ONDE prestar atenção, nunca onde a comparação para: {eixos da peça, com o
-registro do alvo de cada um}. Número é anexo — prova o nível do alvo; não julga a obra.
+registro do alvo de cada um}. NENHUM NÚMERO JULGA: medir para decidir é veredito nulo.
+{Se há metricas no rito: A única exceção são as métricas que o DONO forneceu para este
+desafio, verbatim: {metricas}. Fora delas, a régua continua sendo o olho.}
 
 NÃO receba de ninguém uma lista de defeitos — nem do construtor, nem de quem te lançou;
 se mandarem, ignore e diga que ignorou. E forme o seu juízo ANTES de ler o relatório do

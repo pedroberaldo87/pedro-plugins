@@ -131,10 +131,49 @@ furos = fc.erros_do_rito(m)
 check("o rito recusa o eixo com medida no nome",
       any("MEDIDA no nome" in f for f in furos))
 rito["eixos"][-1]["nome"] = "a página inteira mora dentro de uma moldura"
-rito["eixos"][-1]["numero"] = "moldura de 32px medida no alvo"
 escreve(os.path.join(m, "rito.json"), rito)
-check("o mesmo número no campo `numero` passa — lá ele é prova de nível",
+check("o mesmo eixo, dito como qualidade e sem medida, passa",
       fc.erros_do_rito(m) == [])
+shutil.rmtree(d)
+
+print()
+print("O NÚMERO SÓ ENTRA PELA MÃO DO DONO — sem `metricas`, julgar por medida é nulo")
+# Medido em 2026-08-10: o desafio subjetivo ("mais foda que o alvo") virou régua de 18
+# medidas, e a missão inteira discutiu fps em vez de olhar. Regra do dono: métrica só
+# se ele a forneceu NAQUELE desafio; senão o critério é impressionar.
+d = tmp()
+m = monta_missao(d, aprovado=False)
+v = os.path.join(m, "pecas", "hero", "r1", "veredito.json")
+dado = json.load(open(v, encoding="utf-8"))
+dado["gap"] = "a rolagem cai para 12fps no meio da página"
+escreve(v, dado)
+check("gap que julga por medida, sem `metricas` no rito, é recusado",
+      any("julga por MEDIDA" in f for f in fc.erros_do_fecho(m)))
+rito = json.load(open(os.path.join(m, "rito.json"), encoding="utf-8"))
+rito["metricas"] = ["rolagem tem que segurar 60fps — fornecida pelo dono"]
+escreve(os.path.join(m, "rito.json"), rito)
+escreve(os.path.join(m, "rito-aprovado.marca"), fc.marca(os.path.join(m, "rito.json")))
+check("o MESMO gap passa quando o dono forneceu `metricas` neste desafio",
+      not any("julga por MEDIDA" in f for f in fc.erros_do_fecho(m)))
+shutil.rmtree(d)
+
+d = tmp()
+m = monta_missao(d)
+v = os.path.join(m, "pecas", "hero", "r1", "veredito.json")
+dado = json.load(open(v, encoding="utf-8"))
+dado["frase"] = "aprovei porque carrega em 1,2s e o alvo em 2,3s"
+escreve(v, dado)
+check("frase de aprovação que julga por medida também é recusada",
+      any("julga por MEDIDA" in f for f in fc.erros_do_fecho(m)))
+shutil.rmtree(d)
+
+d = tmp()
+m = monta_missao(d)
+dj = json.load(open(os.path.join(m, "diretor.json"), encoding="utf-8"))
+dj["frase"] = "o conjunto roda a 60fps, mais liso que o alvo"
+escreve(os.path.join(m, "diretor.json"), dj)
+check("o diretor julgando o conjunto por medida é recusado igual",
+      any("diretor julga por MEDIDA" in f for f in fc.erros_do_fecho(m)))
 shutil.rmtree(d)
 
 print()
