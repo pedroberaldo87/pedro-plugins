@@ -12,14 +12,20 @@ Estado vivo = fold dos eventos. Stdlib only. Consumido pelos hooks shell via CLI
 """
 import argparse
 import contextlib
+
+# CANAIS DE TEXTO EM UTF-8, SEMPRE. No Windows eles nascem na codificação do sistema
+# (cp1252) e o payload do evento — que chega por stdin — é UTF-8: sem isto, todo
+# acento do pedido do usuário chega corrompido ao gate, e emoji derruba a escrita.
+for _canal in (sys.stdin, sys.stdout, sys.stderr):
+    if hasattr(_canal, "reconfigure"):
+        try:
+            _canal.reconfigure(encoding="utf-8")
+        except Exception:
+            pass
 try:
     import fcntl                       # POSIX
-except ImportError:                    # Windows não tem fcntl
+except ImportError:                    # Windows não tem fcntl (ver `locked`)
     fcntl = None
-    try:
-        import msvcrt
-    except ImportError:
-        msvcrt = None
 import json
 import os
 import re
@@ -116,39 +122,29 @@ def locked(d):
 
     `fcntl` é POSIX e NÃO EXISTE no Windows: o `import` no topo derrubava o módulo
     inteiro lá com ModuleNotFoundError, e com ele todo comando do intent-guard —
-    o hook não travava, ele nem carregava. No Windows a trava é `msvcrt.locking`,
-    que bloqueia por faixa de bytes do arquivo aberto (aqui, o primeiro byte do
-    arquivo de trava, que existe só para isso).
+    o hook não travava, ele nem carregava.
 
-    Sem NENHUM dos dois a região segue destravada, e isso é escolha declarada: o
-    ledger é por projeto e a concorrência é entre hooks da mesma máquina, então o
-    risco é id duplicado num caso raro — perder o comando inteiro por falta de
-    trava seria pior que o caso raro.
+    ⚠️ **Sem `fcntl`, a região segue DESTRAVADA — e isso é escolha, não esquecimento.**
+    A primeira tentativa foi traduzir a trava para `msvcrt.locking`, e ela PENDUROU o
+    job do Windows na esteira (de 50 s para mais de 10 min): `LK_LOCK` espera pelo
+    bloqueio, e sobre o primeiro byte de um arquivo de trava recém-criado — vazio — o
+    comportamento não é o mesmo do `flock`. Trava que pendura é pior que trava
+    nenhuma: ela transforma disputa rara em missão parada.
+
+    O que se perde sem ela: dois hooks concorrentes da MESMA máquina podem gerar o
+    mesmo `r-N`/`p-N`. O ledger é por projeto e essa disputa é rara; id duplicado é
+    incômodo visível, missão pendurada é dano.
     """
     os.makedirs(d, exist_ok=True)
+    if fcntl is None:                  # Windows: segue sem trava (ver o docstring)
+        yield
+        return
     with open(os.path.join(d, "ledger.lock"), "a+", encoding="utf-8") as lf:
-        travou = False                 # local, não `msvcrt = None`: rebind de nome
-        if fcntl is not None:          # de módulo dentro da função vira UnboundLocalError
-            fcntl.flock(lf.fileno(), fcntl.LOCK_EX)
-            travou = True
-        elif msvcrt is not None:
-            lf.seek(0)
-            try:
-                msvcrt.locking(lf.fileno(), msvcrt.LK_LOCK, 1)
-                travou = True
-            except OSError:
-                pass                   # trava indisponível: segue sem ela
+        fcntl.flock(lf.fileno(), fcntl.LOCK_EX)
         try:
             yield
         finally:
-            if travou and fcntl is not None:
-                fcntl.flock(lf.fileno(), fcntl.LOCK_UN)
-            elif travou:
-                lf.seek(0)
-                try:
-                    msvcrt.locking(lf.fileno(), msvcrt.LK_UNLCK, 1)
-                except OSError:
-                    pass
+            fcntl.flock(lf.fileno(), fcntl.LOCK_UN)
 
 
 def append(d, ev):

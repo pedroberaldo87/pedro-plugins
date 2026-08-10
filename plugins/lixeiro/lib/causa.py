@@ -24,6 +24,16 @@ import os
 import subprocess
 import sys
 
+# CANAIS DE TEXTO EM UTF-8, SEMPRE. No Windows eles nascem na codificação do sistema
+# (cp1252) e o payload do evento — que chega por stdin — é UTF-8: sem isto, todo
+# acento do pedido do usuário chega corrompido ao gate, e emoji derruba a escrita.
+for _canal in (sys.stdin, sys.stdout, sys.stderr):
+    if hasattr(_canal, "reconfigure"):
+        try:
+            _canal.reconfigure(encoding="utf-8")
+        except Exception:
+            pass
+
 # Os padrões vêm da CÓPIA LOCAL de `_shared/padroes_vazamento.py`, nunca de outro
 # plugin: o lixeiro roda em máquina onde o /check-skills pode não estar instalado, e
 # limpeza que depende de outro plugin para funcionar não é limpeza — é acoplamento.

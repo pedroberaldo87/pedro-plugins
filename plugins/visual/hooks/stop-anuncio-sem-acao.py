@@ -43,6 +43,16 @@ import sys
 import time
 from pathlib import Path
 
+# CANAIS DE TEXTO EM UTF-8, SEMPRE. No Windows eles nascem na codificação do sistema
+# (cp1252) e o payload do evento — que chega por stdin — é UTF-8: sem isto, todo
+# acento do pedido do usuário chega corrompido ao gate, e emoji derruba a escrita.
+for _canal in (sys.stdin, sys.stdout, sys.stderr):
+    if hasattr(_canal, "reconfigure"):
+        try:
+            _canal.reconfigure(encoding="utf-8")
+        except Exception:
+            pass
+
 MAX_DEVOLUCOES = 2
 # So o fim do texto interessa: o anuncio e a ultima coisa que o agente escreve, e
 # varrer o relato inteiro faria qualquer mencao a trabalho futuro armar o gate.
