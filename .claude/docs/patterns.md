@@ -1,6 +1,6 @@
 ---
 generated: 2026-08-09
-generated-commit: a1a3e3a
+generated-commit: 262b082
 project: pedro-plugins
 scope:
   - .claude/hooks/release-gate.sh
@@ -60,7 +60,7 @@ verified-by:
   - plugins/handoff/lib/test_handoff_skill.py
   - .claude/hooks/test_release_gate.sh
   - plugins/slides/lib/test_md2deck.py
-doc-sig: pedro-plugins/release-gate.sh@gen=3.8#dc4ba449
+doc-sig: pedro-plugins/release-gate.sh@gen=3.8#13c811d3
 
 # Patterns & Gotchas
 
