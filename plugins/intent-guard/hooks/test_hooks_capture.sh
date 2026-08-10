@@ -19,7 +19,15 @@ restore() {
 }
 trap restore EXIT
 
-mkjson() { python3 -c 'import json,sys; print(json.dumps({"session_id":sys.argv[1],"cwd":sys.argv[2],"prompt":sys.argv[3]}))' "$@"; }
+# O PROMPT VAI POR STDIN, NÃO POR ARGUMENTO. No Linux cada argumento isolado tem
+# teto de 128 KB (MAX_ARG_STRLEN) — metade do que o caso 6 aqui embaixo manda de
+# propósito. Era o próprio teste que provava "prompt grande não se perde"
+# morrendo de Argument list too long, e só no Linux: o macOS aceita ~1 MB e a
+# esteira ficava verde aqui e vermelha lá. O `printf` é embutido no bash, então
+# não passa pela mesma porta.
+mkjson() {
+  printf '%s' "$3" | python3 -c 'import json,sys; print(json.dumps({"session_id":sys.argv[1],"cwd":sys.argv[2],"prompt":sys.stdin.read()}))' "$1" "$2"
+}
 
 # 1. prompt vira raw verbatim
 mkjson testsid "$REPO" 'adiciona export CSV; não mexe no layout' | bash "$HERE/capture-prompt.sh" || true
