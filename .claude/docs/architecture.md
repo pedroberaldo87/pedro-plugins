@@ -1,7 +1,7 @@
 ---
-doc-sig: pedro-plugins/marketplace.json@gen=3.8#18557cd6
+doc-sig: pedro-plugins/marketplace.json@gen=3.8#8215b4be
 generated: 2026-08-09
-generated-commit: 262b082
+generated-commit: ddf0039
 project: pedro-plugins
 scope:
   - .claude-plugin/marketplace.json
