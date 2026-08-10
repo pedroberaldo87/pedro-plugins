@@ -303,12 +303,12 @@ async function agent(p, opts) {
       if (!semAncora) v.anchor = 'ultima linha do que julguei'
       return v
     }
-    // O sinal de vida e o trabalho vivo vem do cenario: com `heartbeat` fixo em CFG.now
-    // (como era aqui) o registro nunca fica mudo e o vigia nunca arma — a trava passaria
-    // sem nunca ter sido exercitada, do mesmo jeito que o disjuntor com spent() zerado.
+    // O trabalho vivo vem do cenario: fixo em `false` (como era aqui) a metade que
+    // separa demora de travamento nunca seria exercitada, do mesmo jeito que o
+    // disjuntor com spent() zerado.
     // A COR da suite vem do cenario. Com ela fixa em verde (como era aqui) a onda
     // vermelha nunca acontece, e a metade do F9.15 que RECUSA o salvamento passaria sem
-    // nunca ter sido exercitada — mesmo vicio do spent() zerado e do heartbeat fresco.
+    // nunca ter sido exercitada — mesmo vicio do spent() zerado.
     // A suite da LARGADA (`bloco: 0`, uma vez na rodada 1) mede o repositorio ANTES da
     // missao, e nos cenarios daqui ele comeca verde: o vermelho e da onda. Sem separar
     // as duas, `suiteVerde: false` fecharia a porta na largada e nenhuma onda sairia —
@@ -320,7 +320,6 @@ async function agent(p, opts) {
                                failing: p.bloco === 0 ? CFG.largadaFalhando || []
                                                       : CFG.suiteFalhando || [],
                                placar: '4 ok',
-                               heartbeat: CFG.heartbeat === null ? CFG.now : CFG.heartbeat,
                                trabalhoVivo: CFG.trabalhoVivo === true }
     case 'checkpoint': return salva(p)
     // O auditor da alegacao de impossivel (F9.18). O cenario escolhe o desfecho, e o que
@@ -386,13 +385,13 @@ motor(CFG.args, agent, phase, log, budget, parallel).then(saida => {
 
 def roda_motor(tmp, texto, plan_dir, tick_cmd, plan_path, token_budget=None,
                gasto_por_chamada=0, max_rounds=2, review_complete=True,
-               agora=1, heartbeat=None, trabalho_vivo=False,
+               trabalho_vivo=False, rodadas_mudas_max=None,
                checkpoint_cmd="", escreve_no_disco=False,
                suite_verde=True, suite_falhando=None, largada_falhando=None,
                reserva_recusada=False,
                replay_cache=False, gaps=None,
                espera_dono=None,
-               bloco_max=None,
+               bloco_max=None, leva_max=None,
                review_sem_ancora=None, alegacao_impossivel=None, auditor_derruba=False,
                auditor_motivo="", auditor_nao_tentou=None, doc_falso=None,
                confirm_gaps=None, espera_todos=False, desafio_referenda_na_volta=0,
@@ -453,8 +452,6 @@ def roda_motor(tmp, texto, plan_dir, tick_cmd, plan_path, token_budget=None,
         "raiz": tmp,
         "planoId": PLANO["id"],
         "out": out,
-        "now": agora,
-        "heartbeat": heartbeat,
         "trabalhoVivo": trabalho_vivo,
         "gastoPorChamada": gasto_por_chamada,
         "reviewComplete": review_complete,
@@ -472,9 +469,10 @@ def roda_motor(tmp, texto, plan_dir, tick_cmd, plan_path, token_budget=None,
         "tasks": tarefas,
         "args": {"planPath": plan_path, "planText": "plano de bancada", "maxRounds": max_rounds,
                  "tokenBudget": token_budget, "blocoMax": bloco_max,
+                 "rodadasMudasMax": rodadas_mudas_max, "levaMax": leva_max,
                  "severityFloor": "P1", "repoRoot": tmp, "churnThreshold": 2,
                  "hasQaLoop": True, "sessionId": "sessao-bancada", "motorId": "motor-bancada",
-                 "now": agora, "model": "opus",
+                 "model": "opus",
                  "tiers": {k: {"effort": "medium"} for k in
                            ("decompose", "coordinate", "executor", "mechanical",
                             "diagnose", "finalize")}},
@@ -781,41 +779,40 @@ def main():
           len(est["agentes"]) < len(solto["agentes"]))
 
     # ── F9.13 + F9.24 ────────────────────────────────────────────────────────────
-    # O relogio da bancada. `AGORA` e o carimbo que a casca injeta; `MUDO_HA` poe o
-    # ultimo sinal de vida 20 min atras, alem do limite de 12 min do vigia. Os tres
-    # cenarios abaixo mudam UMA coisa cada um em cima da mesma missao — assim a
-    # diferenca de desfecho so pode ser obra da condicao que mudou.
-    AGORA = 10 ** 9
-    MUDO_HA = AGORA - 20 * 60 * 1000
-
-    print("F9.13 — com o registro fresco, o vigia nao encosta no motor (o controle)")
+    # O vigia media TEMPO ate 2026-08-10, e a hora vinha do agente da suite — que numa
+    # corrida real devolveu `1`, a conta deu 56 anos de silencio e a missao morreu no
+    # minuto seguinte a uma suite verde de 374 testes. Agora ele mede AVANCO: rodada que
+    # nao fecha bloco verde nem marca passo e uma rodada muda. Os tres cenarios abaixo
+    # mudam UMA coisa cada um em cima da mesma missao — assim a diferenca de desfecho so
+    # pode ser obra da condicao que mudou. `rodadasMudasMax=1` derruba na primeira muda;
+    # o controle roda com o default (3), que a onda 1 verde ja adia para alem do teto de
+    # voltas — e por isso quem para o controle e a trava de voltas, nao o vigia.
+    print("F9.13 — com a onda avancando, o vigia nao encosta no motor (o controle)")
     fresco = bancada(texto, tick_cmd, max_rounds=3, review_complete=False,
-                     agora=AGORA, heartbeat=AGORA, trabalho_vivo=False)
+                     trabalho_vivo=False)
     if fresco is None:
         return 1
-    check("registro fresco: o motor gasta as 3 voltas inteiras",
+    check("onda que fecha bloco verde: o motor gasta as 3 voltas inteiras",
           len(fresco["saida"]["rounds"]) == 3)
-    check("registro fresco: quem parou foi a trava de voltas",
+    check("onda que fecha bloco verde: quem parou foi a trava de voltas",
           fresco["saida"]["stopReason"] == "max-rounds")
 
-    print("F9.24 — mudo, mas COM trabalho vivo, o vigia nao derruba (demora nao e travamento)")
-    # A metade que separa demora de travamento: mesmo silencio do cenario seguinte,
+    print("F9.24 — muda, mas COM trabalho vivo, o vigia nao derruba (demora nao e travamento)")
+    # A metade que separa demora de travamento: mesma onda esteril do cenario seguinte,
     # so que a suite diz que ha trabalho rodando. Sem esta metade, o vigia mataria
     # agente no meio de uma suite longa — que foi o motivo de a condicao ser dupla.
     vivo = bancada(texto, tick_cmd, max_rounds=3, review_complete=False,
-                   agora=AGORA, heartbeat=MUDO_HA, trabalho_vivo=True)
+                   rodadas_mudas_max=1, suite_verde=False, trabalho_vivo=True)
     if vivo is None:
         return 1
-    check("com trabalho vivo, o motor gasta as 3 voltas inteiras",
-          len(vivo["saida"]["rounds"]) == 3)
     check("com trabalho vivo, o vigia nao acende o sinal",
-          vivo["saida"]["stopReason"] == "max-rounds")
+          vivo["saida"]["stopReason"] != "vigia")
     check("com trabalho vivo, nenhum Bloqueio do vigia e escrito",
           not any("vigia" in (b.get("what") or "") for b in vivo["saida"]["blockers"]))
 
-    print("F9.13 — mudo alem do limite E sem trabalho vivo: o vigia derruba a execucao")
+    print("F9.13 — rodada muda alem do limite E sem trabalho vivo: o vigia derruba")
     travado = bancada(texto, tick_cmd, max_rounds=3, review_complete=False,
-                      agora=AGORA, heartbeat=MUDO_HA, trabalho_vivo=False)
+                      rodadas_mudas_max=1, suite_verde=False, trabalho_vivo=False)
     if travado is None:
         return 1
     saida4 = travado["saida"]
@@ -823,8 +820,8 @@ def main():
     check("o motivo da parada e o vigia", saida4["stopReason"] == "vigia")
     vig = [b for b in saida4["blockers"] if "vigia" in (b.get("what") or "")]
     check("a derrubada vira Bloqueio, nao silencio", len(vig) == 1)
-    check("o Bloqueio diz ha quantos minutos o registro esta mudo",
-          bool(vig) and "há 20 min" in vig[0]["what"])
+    check("o Bloqueio diz quantas rodadas passaram sem nada sair",
+          bool(vig) and "1 rodada fechou sem nenhum bloco verde" in vig[0]["what"])
     check("o Bloqueio chama a coisa pelo nome: travamento, nao demora",
           bool(vig) and "travamento, não demora" in (vig[0].get("whyNeedsYou") or ""))
     check("ele nao declara obra construida ao ser derrubado", saida4["built"] is False)
@@ -832,7 +829,7 @@ def main():
     # gravasse o motivo e deixasse o motor seguir seria relatorio, nao freio.
     check("nenhum decompositor foi disparado numa segunda volta",
           travado["agentes"].count("decompose") == 1)
-    check("o vigia cortou agente: menos agentes que a rodada de registro fresco",
+    check("o vigia cortou agente: menos agentes que a rodada que avancou",
           len(travado["agentes"]) < len(fresco["agentes"]))
 
     # ── F9.14 ────────────────────────────────────────────────────────────────────
@@ -850,15 +847,17 @@ def main():
         check("git esta na maquina (sem ele o historico nao existe)", False)
         return 1
 
+    # A interrupcao vem do DISJUNTOR: a onda 1 fecha verde (e por isso o vigia por
+    # avanco nao a derrubaria), e o teto de gasto corta a missao logo depois dela.
     interrompido = bancada_git(texto, tick_cmd, ck_cmd, max_rounds=3, review_complete=False,
-                               agora=AGORA, heartbeat=MUDO_HA, trabalho_vivo=False,
+                               token_budget=1, gasto_por_chamada=1,
                                sujeira_no_indice="alheio.txt")
     if interrompido is None:
         return 1
 
     saida5 = interrompido["saida"]
     check("o motor foi mesmo interrompido no meio",
-          saida5["stopReason"] == "vigia" and len(saida5["rounds"]) < 3)
+          saida5["stopReason"] == "orcamento" and len(saida5["rounds"]) < 3)
     check("a onda que fechou verde virou ponto de salvamento",
           saida5["rounds"][0].get("checkpoint") is True)
     check("o salvamento aconteceu na onda 1, uma vez so",
@@ -899,7 +898,7 @@ def main():
     # desfecho abaixo e obra da recusa de salvar onda vermelha, e nao de outra trava.
     print("F9.15 — onda com suite vermelha nao vira ponto de salvamento")
     vermelha = bancada_git(texto, tick_cmd, ck_cmd, max_rounds=3, review_complete=False,
-                           agora=AGORA, heartbeat=MUDO_HA, trabalho_vivo=False,
+                           token_budget=1, gasto_por_chamada=1,
                            suite_verde=False,
                            suite_falhando=["test_plan_state.py", "test_andamento.py"])
     if vermelha is None:
@@ -1213,6 +1212,43 @@ def main():
         return 1
     check("com a onda em um bloco so, o mesmo passo SAI (o controle)",
           "F1.4" in onda_inteira["executados"])
+
+    print("F9.61 — o teto da LEVA adia o resto, e o adiado nao vira falha nem some")
+    # Sem teto de leva, uma falha no segundo bloco cancelava a leva inteira: numa corrida
+    # real, 45 de 53 tarefas foram decompostas pelo papel mais caro do motor para nunca
+    # serem despachadas, e 30 voltaram PULADAS por "estado repetido" sem uma tentativa.
+    # Aqui a leva e cortada em 2 numa fila de 4: F1.3 e F1.4 ficam para a rodada seguinte.
+    leva = bancada(texto, tick_cmd, max_rounds=1, review_complete=False, leva_max=2)
+    if leva is None:
+        return 1
+    ronda61 = leva["saida"]["rounds"][-1]
+    check("so a leva da vez foi despachada", leva["executados"] == ["F1.1", "F1.2"])
+    check("o adiado fica registrado na onda, pelo nome, separado do que falhou",
+          sorted(ronda61.get("adiadas") or []) == ["F1.3", "F1.4"]
+          and (ronda61.get("naoDespachadas") or []) == [])
+    check("o adiado NAO vira Bloqueio (nem 'pulada', nem falha de ninguem)",
+          not [b for b in leva["saida"]["blockers"]
+               if b.get("taskId") in ("F1.3", "F1.4")])
+    check("e ele nao entra na conta de reincidencia (ninguem o tentou)",
+          "diag" not in leva["agentes"])
+    # O controle: a MESMA missao sem teto despacha os quatro. Sem ele, "F1.3 nao saiu"
+    # poderia ser efeito do plano, e nao do corte da leva.
+    check("sem teto de leva, a mesma missao despacha os quatro (o controle)",
+          "F1.3" in onda_inteira["executados"] and "F1.4" in onda_inteira["executados"])
+
+    print("F9.61 — revisor generoso NAO fecha a obra com fila adiada")
+    # `built` e fato do programa antes de ser juizo do revisor: aqui o revisor devolve
+    # `complete: true` (o default da bancada) numa rodada em que o teto de leva adiou
+    # F1.3 e F1.4 — o motor tem que seguir para a rodada seguinte e despachar a fila,
+    # nunca declarar pronto por cima de tarefa que ninguem viu.
+    generoso = bancada(texto, tick_cmd, max_rounds=2, leva_max=2)
+    if generoso is None:
+        return 1
+    check("a rodada 1 com fila adiada NAO declarou built",
+          (generoso["saida"]["rounds"][0].get("adiadas") or []) == ["F1.3", "F1.4"]
+          and len(generoso["saida"]["rounds"]) == 2)
+    check("a fila adiada foi despachada na rodada 2",
+          "F1.3" in generoso["executados"] and "F1.4" in generoso["executados"])
 
     print("F9.18 — alegacao que nao se repetiu nao convoca auditor (o controle)")
     uma_vez = bancada(texto, tick_cmd, max_rounds=1, alegacao_impossivel=ALEGACAO)

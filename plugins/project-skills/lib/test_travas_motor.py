@@ -92,6 +92,7 @@ def roda_a_fila(bloco, decomp_js, blockers_js="[]"):
     prog = ("const blockers = %s; const decomp = %s;\n"
             "const impressaoTarefa = {}; const taskChurn = {}; const impossivelChurn = {};\n"
             "const estouraramTeto = new Set(); const feedback = null;\n"
+            "const ARGS = {};\n"   # o teto de leva (levaMax) le daqui; vazio = default
             "const log = () => {};\n%s\n"
             "console.log(JSON.stringify({ fila: todo.map(t => t.id), esperandoVoce }))\n"
             % (blockers_js, decomp_js, bloco))
@@ -445,10 +446,25 @@ def main():
     check("o gasto entra no relatorio final, nao so no bloqueio",
           "o `gasto` (quanto a missão queimou" in texto)
 
-    print("F9.13 + F9.24 — vigia por tempo, que separa demora de travamento")
-    check("o limite de silencio existe", "silenceLimitMs" in js)
+    print("F9.13 + F9.24 — vigia por AVANCO, que separa demora de travamento")
+    # O vigia media TEMPO ate 2026-08-10 e o script nao tem relogio: a hora vinha do
+    # agente da suite, que devolveu `heartbeat: 1` numa corrida real, a conta deu 56 anos
+    # de silencio e matou a missao no minuto seguinte a uma suite verde de 374 testes.
+    # Por isso o que se cobra aqui e que NENHUM campo de hora vindo de agente sobreviva.
+    check("o limite e de RODADAS MUDAS, com default no script",
+          re.search(r"const rodadasMudasMax = ARGS\.rodadasMudasMax \|\| \d+", js) is not None)
+    # o nome pode aparecer em COMENTARIO (a autopsia que o aposentou esta escrita la);
+    # o que nao pode e o motor LER o campo de volta do agente.
+    check("nenhum carimbo de hora vem de agente", ".heartbeat" not in js)
+    # o que zera e o BLOCO VERDE e so ele: `marcadosDaOnda` guarda tambem o passo que o
+    # plano RECUSOU marcar, e recusa nao e avanco — zerar por ela seria o vigia cego de
+    # novo, so que por outra porta.
+    check("bloco verde ZERA a conta, e a marcacao recusada nao",
+          "rodadasMudas = blocosVerdes.length ? 0 : rodadasMudas + 1" in js)
     check("a condicao e DUPLA: mudo E sem trabalho vivo",
-          "mudo > silenceLimitMs && !ultimaSuiteMissao?.trabalhoVivo" in js)
+          "rodadasMudas >= rodadasMudasMax && trabalhoVivoEm < r" in js)
+    check("o trabalho vivo vale so na rodada em que foi VISTO",
+          "if (suiteB?.trabalhoVivo) trabalhoVivoEm = r" in js)
     check("trabalho vivo esta no schema que a suite devolve", "trabalhoVivo" in texto)
     check("o vigia derruba parando o laco",
           re.search(r"desligadoPor = 'vigia'[\s\S]{0,400}?\bbreak\b", js) is not None)
@@ -639,9 +655,38 @@ def main():
           re.search(r"x\.done === false \|\| x\.impossivel", js) is not None
           and "doBloco.length < bloco.length" in js)
     check("o que nao foi despachado volta pro decompositor na volta seguinte",
-          js.count("...naoDespachadas") >= 2)
+          js.count("...naoTentadasNaRodada") >= 2)
     check("e nao entra na conta de reincidencia",
-          re.search(r"naoTentado = new Set\(\[.*naoDespachadas\]\)", js) is not None)
+          re.search(r"naoTentado = new Set\(\[.*naoTentadasNaRodada\]\)", js) is not None)
+    # F9.60 — E TAMBEM NAO E PULADO POR "ESTADO REPETIDO". Medido em 2026-08-10: 30
+    # tarefas que ninguem despachou voltaram com a impressao identica (ninguem as tocou),
+    # caíram na regra de pular, e cada uma virou um bloqueio mandando o dono "mudar o que
+    # a tarefa recebe" — sobre tarefa que nunca foi tentada uma vez.
+    check("quem nao foi despachado tambem nao e PULADO por estado repetido",
+          "const naoTentadoAntes = new Set(feedback?.naoDespachadas || [])" in js
+          and "|| naoTentadoAntes.has(t.id)" in js)
+    check("a identidade de nao-despachado chega a volta seguinte pelo feedback",
+          js.count("naoDespachadas: naoTentadasNaRodada") >= 2)
+    # F9.61 — A LEVA TAMBEM TEM TETO. Sem ele, uma leva de 53 tarefas perdeu 45 numa
+    # falha do segundo bloco: decompostas pelo papel mais caro do motor para nunca serem
+    # despachadas. O que passa do teto e FILA da rodada seguinte, nao falha de ninguem.
+    check("o tamanho da leva e knob, com default no script",
+          re.search(r"const levaMax = ARGS\.levaMax \|\| \d+", js) is not None)
+    # DEPOIS da regra de pular, de proposito: antes dela, a frente da fila ja entregue
+    # (que o decompositor devolve de novo) ocuparia as vagas da leva toda rodada e a
+    # fila adiada nunca andaria — livelock medido na bancada, F9.61. A impressao de quem
+    # foi adiado esta protegida pela isencao `naoTentadoAntes`.
+    check("o corte vem DEPOIS da regra de pular (senao a fila adiada nunca anda)",
+          js.index("const levaMax = ARGS.levaMax") > js.index("PARA OU PULA"))
+    check("o adiado volta como nao-tentado, nunca como falha",
+          "const naoTentadasNaRodada = [...naoDespachadas, ...adiadas.map(t => t.id)]" in js)
+    # a fila adiada nao pode ser lida como onda vazia: a rodada em que as 12 da vez foram
+    # todas puladas encerraria a corrida por "onda esteril" com dezenas ainda na fila —
+    # o mesmo abandono em silencio que o teto de leva veio consertar.
+    check("onda com fila adiada NAO conta como esteril",
+          "if (decomp.tasks.length && !todo.length && !adiadas.length) {" in js)
+    check("o adiado aparece no registro da onda, separado do que falhou",
+          "adiadas: adiadas.map(t => t.id) })" in js)
     check("a regra esta escrita no texto que o dono le",
           "A volta ao #1 é por BLOCO, não por onda inteira" in texto)
 

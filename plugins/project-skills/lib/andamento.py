@@ -479,16 +479,19 @@ def _dur(segundos):
     return "%dh%02d" % (s // 3600, (s % 3600) // 60)
 
 
-# O mesmo teto do vigia do motor (`silenceLimitMin`, 12 min): abaixo dele silencio
-# nao e nem demora nem travamento — e so uma ferramenta rodando.
+# 12 minutos de silencio: abaixo disso nao e nem demora nem travamento — e so uma
+# ferramenta rodando. Este teto e SO desta narracao: o vigia do motor deixou de medir
+# tempo em 2026-08-10 (o script nao tem relogio — o carimbo vinha de agente e alucinou)
+# e passou a contar rodadas sem bloco verde (`rodadasMudasMax`). Quem tem relogio de
+# verdade e este modulo, e e por isso que a metade em minutos mora aqui.
 LIMITE_SILENCIO = 12 * 60
 
 
 def linha_silencio(mudo, trabalho_vivo, limite=LIMITE_SILENCIO):
     """O silencio longo, dito na tela — e dito COM O NOME CERTO.
 
-    O vigia do motor ja separa demora de travamento (`mudo > silenceLimitMs &&
-    !trabalhoVivo`), mas so a metade travamento fala: ela vira Bloqueio no
+    O vigia do motor ja separa demora de travamento (rodadas sem bloco verde E sem
+    trabalho vivo), mas so a metade travamento fala: ela vira Bloqueio no
     relatorio. A demora legitima nao produz nada, entao a tela do dono ausente
     fica igual nos dois casos — que e o defeito que esta funcao fecha.
 

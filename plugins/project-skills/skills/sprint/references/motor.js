@@ -79,9 +79,13 @@ const DESAFIO = { type:'object', required:['procede','motivo','anchor'], propert
   procede:{type:'boolean'}, motivo:{type:'string'},
   escopo:{type:'string',enum:['tarefa','repositorio']}, anchor:{type:'string'} } }
 
+// Todo campo daqui tem linha correspondente no `runSuitePrompt`. `heartbeat` saiu em
+// 2026-08-10: era um número sem descrição no prompt, o agente preencheu com `1` (o valor
+// mais barato) e o vigia leu 56 anos de silêncio. Campo em schema que o prompt não
+// descreve é convite a valor inventado — vale para todos os schemas deste motor.
 const SUITE_RESULT = { type:'object', required:['green','failing'], properties:{
   green:{type:'boolean'}, failing:{type:'array',items:{type:'string'}}, placar:{type:'string'},
-  heartbeat:{type:'number'}, trabalhoVivo:{type:'boolean'} } }
+  trabalhoVivo:{type:'boolean'} } }
 
 const REGUA = { type:'object', required:['reprovados'], properties:{
   reprovados:{type:'array',items:{type:'object',required:['task_id','motivo'],properties:{
@@ -518,11 +522,11 @@ const touchesShared = (t, lote) => lote.some(o => o.id !== t.id && o.files?.some
 const rounds = []; const blockers = []
 let built = false, r = 0
 const tokenBudget = ARGS.tokenBudget || null
-const silenceLimitMs = (ARGS.silenceLimitMin || 12) * 60 * 1000
+const rodadasMudasMax = ARGS.rodadasMudasMax || 3
 const tetoExecutorMin = ARGS.tetoExecutorMin || 20
 const buildWarm = ARGS.buildWarm === true
-let ultimoSinalDeVida = ARGS.now
-let ultimaSuiteMissao = null
+let rodadasMudas = 0
+let trabalhoVivoEm = 0
 let desligadoPor = null
 const gastoAgora = () => budget.spent()
 const gastoInicial = budget.spent()
@@ -628,7 +632,6 @@ while (!built && r < maxRounds) {
     const base = await agent(runSuitePrompt({ repoRoot: ARGS.repoRoot, round: r, bloco: 0 }),
       { model: ARGS.model, effort: T.mechanical.effort, phase: 'Decompor',
         label: 'suite:largada', schema: SUITE_RESULT })
-    if (base?.heartbeat) ultimoSinalDeVida = base.heartbeat
     if (base && base.green === false) {
       desligadoPor = 'porta-fechada'
       blockers.push({ what: `a suíte do repositório JÁ está vermelha antes da missão: ${(base.failing || []).join(' · ') || base.placar || 'sem lista'}`,
@@ -717,10 +720,15 @@ while (!built && r < maxRounds) {
     (feedback?.gaps || []).filter(g => g.task_id === t.id).map(g => g.problem).sort()])
   const puladas = []
   const fpNova = {}
+  // Quem o motor NÃO despachou na rodada anterior volta com a impressão idêntica — mesmo
+  // `pronto`, mesmos arquivos, zero gaps, porque ninguém a tocou. Sem esta isenção, 30
+  // tarefas foram PULADAS por "estado repetido" sem nunca terem sido tentadas uma vez, e
+  // cada uma virou um bloqueio mandando o dono "mudar o que a tarefa recebe" (2026-08-10).
+  const naoTentadoAntes = new Set(feedback?.naoDespachadas || [])
   for (const t of [...todo]) {
     const fp = fpDe(t)
     if ((taskChurn[t.id] || 0) > 0 || (impossivelChurn[t.id] || 0) > 0 ||
-        estouraramTeto.has(t.id)) {
+        estouraramTeto.has(t.id) || naoTentadoAntes.has(t.id)) {
       fpNova[t.id] = fp
       continue
     }
@@ -734,6 +742,20 @@ while (!built && r < maxRounds) {
   }
   Object.assign(impressaoTarefa, fpNova)
   if (puladas.length) log(`puladas por estado repetido: ${puladas.join(' · ')}`)
+
+  // ── A LEVA TAMBÉM TEM TETO, NÃO SÓ O BLOCO (autópsia 2026-08-10) ────────────
+  // `blocoMax` limitava o bloco e nada limitava a LEVA: numa corrida real ela teve 53
+  // tarefas, o segundo bloco falhou, e a regra de falhar cedo cancelou 45 de uma vez —
+  // decompostas pelo papel mais caro do motor para nunca serem despachadas. Falhar cedo
+  // é certo em leva curta; em leva de 53 é desastre. O que passa do teto NÃO é falha:
+  // é a fila da rodada seguinte. O corte vem DEPOIS do "para ou pula" de propósito:
+  // antes dele, a frente da fila que já foi entregue (e que o decompositor devolveu de
+  // novo) ocuparia as vagas da leva toda rodada, e a fila adiada nunca andaria — as
+  // puladas têm que sair ANTES de contar as vagas. A impressão de quem foi adiado está
+  // protegida pela isenção `naoTentadoAntes` acima, então o adiado não é pulado na volta.
+  const levaMax = ARGS.levaMax || 12
+  const adiadas = todo.length > levaMax ? todo.splice(levaMax) : []
+  if (adiadas.length) log(`leva cortada em ${levaMax}: ${adiadas.length} tarefa(s) ficam para a rodada seguinte`)
 
   // ESPERA APARECE COMO ESPERA, NÃO COMO FALHA (F8.4 · S-23).
   const esperaChain = new Map(decomp.tasks.filter(t => t.esperaDono)
@@ -752,7 +774,11 @@ while (!built && r < maxRounds) {
     .map(t => ({ taskId: t.id, motivo: esperaChain.get(t.id) }))
 
   // ── ONDA ESTÉRIL ENCERRA A CORRIDA (autópsia 2026-08-09) ────────────────────
-  if (decomp.tasks.length && !todo.length) {
+  // `adiadas` na conta: a leva cortada pelo teto NÃO é onda vazia. Sem esta metade, uma
+  // rodada em que as 12 da vez foram todas puladas encerraria a corrida dizendo "nenhuma
+  // executável" com dezenas de tarefas ainda na fila, que é o mesmo abandono em silêncio
+  // que o teto de leva veio consertar.
+  if (decomp.tasks.length && !todo.length && !adiadas.length) {
     desligadoPor = 'onda-esteril'
     rounds.push({ r, decomp, results: [], review: null, esperandoVoce })
     blockers.push({ what: `onda ${r} estéril: ${decomp.tasks.length} tarefa(s) separadas e nenhuma executável — tudo parado por blocker ou espera`,
@@ -860,8 +886,11 @@ while (!built && r < maxRounds) {
     // 3 · SUÍTE INTEIRA — vermelha fecha a onda aqui, e nada deste bloco é marcado.
     const suiteB = await agent(runSuitePrompt({ repoRoot: ARGS.repoRoot, round: r, bloco: b }),
       { model: ARGS.model, effort: T.mechanical.effort, phase: 'Suíte', label: `suite:r${r}b${b}`, schema: SUITE_RESULT })
-    if (suiteB?.heartbeat) ultimoSinalDeVida = suiteB.heartbeat
-    ultimaSuite = suiteB; ultimaSuiteMissao = suiteB
+    // trabalho vivo protege a rodada em que foi VISTO, e só ela: guardar a última suíte
+    // qualquer fazia a suíte VERMELHA que fecha o bloco apagar o `trabalhoVivo` da verde
+    // anterior, e guardar a última que declarou vivo o deixaria valendo para sempre.
+    if (suiteB?.trabalhoVivo) trabalhoVivoEm = r
+    ultimaSuite = suiteB
     if (!suiteB || !suiteB.green) {
       blockers.push({ what: `a suíte quebrou no bloco ${b} da rodada ${r}: ${suiteB?.failing?.join(' · ') || 'sem veredito'}`,
                       whyNeedsYou: 'bloco vermelho não vira ponto de salvamento — o conserto volta pelo orquestrador' })
@@ -909,6 +938,14 @@ while (!built && r < maxRounds) {
       { model: ARGS.model, effort: T.mechanical.effort, phase: 'Limpeza', label: `limpeza r${r}b${b}` })
   }
 
+  // A CONTA DO VIGIA FECHA AQUI, com os blocos da onda já sabidos — e não lá embaixo,
+  // porque os caminhos que fazem `continue` no meio pulariam a contagem justo nas rodadas
+  // que não produziram nada (revisor mudo, por exemplo). O que zera é o BLOCO VERDE, não
+  // a marcação: `marcadosDaOnda` guarda também o passo que o plano RECUSOU marcar, e
+  // recusa não é avanço. Marcação só acontece depois de suíte verde, então todo passo
+  // marcado de verdade já tem um bloco verde a lhe corresponder aqui.
+  rodadasMudas = blocosVerdes.length ? 0 : rodadasMudas + 1
+
   if (desligadoPor === 'causa-global') {
     rounds.push({ r, decomp, results: respostas.filter(x => !x.espera), review: null,
                   diagnoses, checkpoint: blocosVerdes.length > 0, blocos: blocosVerdes,
@@ -918,6 +955,10 @@ while (!built && r < maxRounds) {
   }
 
   // ── UM EXECUTOR LENTO NÃO SEGURA A RODADA (F9.29) ───────────────────────────
+  // NÃO TENTADO = o que o bloco cancelado engoliu + o que o teto de leva adiou. A volta
+  // precisa distinguir isto de "tentado e falhou": é a identidade que se perdia na fusão
+  // com o resto do `missing`, e sem ela a regra de pular condenava quem nunca saiu.
+  const naoTentadasNaRodada = [...naoDespachadas, ...adiadas.map(t => t.id)]
   const esperaIds = respostas.filter(x => x.espera).map(x => x.task_id)
   for (const id of esperaIds) estouraramTeto.add(id)
   const results = respostas.filter(x => !x.espera)
@@ -972,8 +1013,10 @@ while (!built && r < maxRounds) {
     blockers.push({ what: `revisor da rodada ${r} não respondeu, ou voltou duas vezes sem a âncora do fim`,
                     whyNeedsYou: 'a obra desta rodada ficou SEM revisão — trate como não verificada' })
     rounds.push({ r, decomp, results, review: null, diagnoses, espera: esperaIds, esperandoVoce,
-                  devolvidas: devolvidasPeloAuditor, naoDespachadas })
-    feedback = { gaps: [], missing: [...esperaIds, ...naoDespachadas, ...devolvidasPeloAuditor.map(d => d.taskId)],
+                  devolvidas: devolvidasPeloAuditor, naoDespachadas,
+                  adiadas: adiadas.map(t => t.id) })
+    feedback = { gaps: [], missing: [...esperaIds, ...naoTentadasNaRodada, ...devolvidasPeloAuditor.map(d => d.taskId)],
+                 naoDespachadas: naoTentadasNaRodada,
                  diagnoses, devolvidas: devolvidasPeloAuditor, blocoQueFalhou }
     continue
   }
@@ -1015,7 +1058,7 @@ while (!built && r < maxRounds) {
   }
 
   // ── QUEM NUNCA FOI TENTADO NÃO REINCIDE (F9.56) ─────────────────────────────
-  const naoTentado = new Set([...parado, ...esperaChain.keys(), ...naoDespachadas])
+  const naoTentado = new Set([...parado, ...esperaChain.keys(), ...naoTentadasNaRodada])
   const stuck = new Set([...(review.missingTasks || []), ...(review.gaps || []).map(g => g.task_id)]
                         .filter(id => id && !naoTentado.has(id)))
   for (const t of decomp.tasks) taskChurn[t.id] = stuck.has(t.id) ? (taskChurn[t.id] || 0) + 1 : 0
@@ -1030,7 +1073,8 @@ while (!built && r < maxRounds) {
   fpRodadaAnterior = blocosVerdes.length === 0 ? fpRodada : null
 
   rounds.push({ r, decomp, results, review, diagnoses, espera: esperaIds, esperandoVoce,
-                devolvidas: devolvidasPeloAuditor, naoDespachadas })
+                devolvidas: devolvidasPeloAuditor, naoDespachadas,
+                adiadas: adiadas.map(t => t.id) })   // fila da rodada seguinte, não falha
 
   // ── O SALVAMENTO ACONTECEU POR BLOCO — a onda só CONSOLIDA o registro ───────
   rounds[rounds.length - 1].placar = ultimaSuite?.placar
@@ -1062,12 +1106,18 @@ while (!built && r < maxRounds) {
     break
   }
 
-  // ── VIGIA POR TEMPO (F9.13 + F9.24) ─────────────────────────────────────────
-  const agora = ARGS.now + (rounds.length ? 0 : 0)
-  const mudo = agora - ultimoSinalDeVida
-  if (mudo > silenceLimitMs && !ultimaSuiteMissao?.trabalhoVivo) {
+  // ── VIGIA POR AVANÇO (F9.13 + F9.24) ────────────────────────────────────────
+  // O vigia media TEMPO e o script não tem relógio: `Date.now()` lança em script de
+  // Workflow, então a hora vinha do agente da suíte, que numa corrida real devolveu
+  // `heartbeat: 1` — a conta deu 56 anos de silêncio e matou a missão no minuto seguinte
+  // a uma suíte verde de 374 testes, com 10 das 12 rodadas por usar (autópsia 2026-08-10).
+  // Sinal de vida agora é AVANÇO, que o motor mede sozinho: rodada que fecha bloco
+  // verde zera a conta (a linha que conta fica logo depois do laço de blocos). A metade
+  // que fala em minutos é do gancho de andamento (`lib/andamento.py:linha_silencio`),
+  // que roda em Python e TEM relógio.
+  if (rodadasMudas >= rodadasMudasMax && trabalhoVivoEm < r) {
     desligadoPor = 'vigia'
-    blockers.push({ what: `vigia: nada mudou no registro há ${Math.round(mudo / 60000)} min e não há trabalho vivo`,
+    blockers.push({ what: `vigia: ${rodadasMudas} ${rodadasMudas === 1 ? 'rodada fechou' : 'rodadas seguidas fecharam'} sem nenhum bloco verde e sem nenhum passo marcado, e não há trabalho vivo na máquina`,
                     whyNeedsYou: 'travamento, não demora — o último estado salvo é o checkpoint da rodada anterior' })
     break
   }
@@ -1075,7 +1125,11 @@ while (!built && r < maxRounds) {
   const holdsBuild = g => g.kind !== 'concepcao' && (g.kind === 'spec' || g.kind === 'rastreio' || sevRank(g.severity) >= floor)
   const gaps = (review.gaps || []).filter(holdsBuild)
 
-  if (review.complete && review.cohesive && gaps.length === 0) {
+  // `built` é FATO do programa antes de ser juízo do revisor: rodada com tarefa não
+  // tentada (bloco cancelado ou fila adiada pelo teto de leva) não declara obra pronta
+  // nem que o revisor a declare — ele julga o que viu, e o que não foi despachado ele
+  // não viu. Sem esta guarda, um "complete" generoso encerraria a missão com a fila cheia.
+  if (!naoTentadasNaRodada.length && review.complete && review.cohesive && gaps.length === 0) {
     if (ARGS.hasQaLoop === false) {
       const confirm = await julga(confirmBuildPrompt({ planPath: ARGS.planPath, planText: ARGS.planText, repoRoot: ARGS.repoRoot, decomp, results, lawMark }),
         { model: ARGS.model, effort: T.finalize.effort, phase: 'Confirmar',
@@ -1088,7 +1142,8 @@ while (!built && r < maxRounds) {
       }
       const confirmGaps = (confirm.gaps || []).filter(holdsBuild)
       if (!confirm.complete || !confirm.cohesive || confirmGaps.length) {
-        feedback = { gaps: confirm.gaps.filter(g => g.kind !== 'concepcao'), missing: confirm.missingTasks, diagnoses }
+        feedback = { gaps: confirm.gaps.filter(g => g.kind !== 'concepcao'), missing: confirm.missingTasks,
+                     naoDespachadas: naoTentadasNaRodada, diagnoses }
         continue
       }
     }
@@ -1096,8 +1151,9 @@ while (!built && r < maxRounds) {
   }
   feedback = { gaps: review.gaps.filter(g => g.kind !== 'concepcao'),
                missing: [...new Set([...(review.missingTasks || []), ...esperaIds,
-                                     ...naoDespachadas, ...reprovadasNosBlocos,
+                                     ...naoTentadasNaRodada, ...reprovadasNosBlocos,
                                      ...devolvidasPeloAuditor.map(d => d.taskId)])],
+               naoDespachadas: naoTentadasNaRodada,
                reticks,
                diagnoses, devolvidas: devolvidasPeloAuditor, blocoQueFalhou }
 }
