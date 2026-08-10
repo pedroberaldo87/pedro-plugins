@@ -238,6 +238,46 @@ def _confere_nomes(texto, achados, nao_medidas):
             })
 
 
+def _confere_plugins_citados(texto, achados):
+    """Todo plugin que o README manda instalar, ou lista em tabela, EXISTE?
+
+    POR QUE EXISTE (2026-08-10). O cobrador media CONTAGEM — "22 plugins", "54
+    registros" — e por isso não viu o defeito mais caro que o README pode ter:
+    mandar instalar um plugin que não existe. `qa-loop`, `project-doc` e `sovai`
+    viraram skills do `project-skills` na fusão de 2026-08-09, e o README seguiu
+    dizendo `claude plugin install qa-loop@pedro-plugins` — quem seguisse a
+    instrução recebia erro. O número continuou certo o tempo todo: eram 22
+    plugins mesmo. Contagem certa com nome morto é o pior dos dois mundos.
+
+    Duas fontes no README, as duas conferidas contra o catálogo:
+      - `<nome>@pedro-plugins` — o que ele manda INSTALAR;
+      - a primeira célula de linha de tabela — o que ele LISTA.
+    O sufixo `:<skill>` é recortado: `project-skills:design-md` é skill, e o que
+    tem que existir é o plugin antes dos dois-pontos.
+    """
+    with open(os.path.join(ROOT, ".claude-plugin", "marketplace.json"),
+              encoding="utf-8") as f:
+        catalogo = {p["name"] for p in json.load(f)["plugins"]}
+    vistos = {}
+    for m in re.finditer(r"`?([a-z0-9:_-]+)@pedro-plugins`?", texto):
+        vistos.setdefault(m.group(1).split(":")[0], texto[:m.start()].count("\n") + 1)
+    for m in re.finditer(r"^\| `([a-z0-9:_-]+)`[^|]*\|", texto, re.M):
+        vistos.setdefault(m.group(1).split(":")[0], texto[:m.start()].count("\n") + 1)
+
+    for nome, linha in sorted(vistos.items()):
+        if nome in catalogo:
+            continue
+        achados.append({
+            "id": "plugin-inexistente", "onde": ".claude-plugin/marketplace.json",
+            "linha": linha, "afirmado": nome, "real": sorted(catalogo),
+            "msg": "o README cita o plugin `%s`, que NÃO está no catálogo. Quem "
+                   "seguir a instrução recebe erro no install." % nome,
+            "conserto": "aponte o plugin que absorveu esse nome (a fusão de "
+                        "2026-08-09 levou qa-loop, project-doc e sovai para "
+                        "project-skills), ou tire a linha.",
+        })
+
+
 def confere():
     """Devolve (achados, nao_medidas). Achado = afirmação divergente ou sumida."""
     achados, nao_medidas = [], []
@@ -248,6 +288,7 @@ def confere():
         return achados, ["README.md ilegível (%s)" % e]
 
     linhas = texto.splitlines()
+    _confere_plugins_citados(texto, achados)
 
     for af in AFIRMACOES:
         try:

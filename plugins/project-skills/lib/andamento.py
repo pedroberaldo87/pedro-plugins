@@ -51,13 +51,60 @@ ESTADO = os.path.join(_CONFIG, "andamento")
 # e encurtar mataria execucao legitima em andamento.
 TTL_SINAL_MIN = int(os.environ.get("SPRINT_TTL_MIN", "720") or 720)
 
+# TETO DO SINAL MUDO. O teto de IDADE acima e a trava de incendio: 12h e muito
+# tempo para a barra anunciar missao que ja acabou, e o dono viu justamente isso
+# — "SEM SINAL ha 6h02" com a missao morta. Este segundo teto olha VIDA, nao
+# idade: sinal que nao fala ha mais que isto E sem ferramenta de pe e orfao,
+# aos 2h em vez de 12h. Os dois convivem, e o mais curto ganha.
+#
+# Por que 120 min e nao menos: quem alimenta o `sinal-<sid>` e o gancho de
+# andamento, que roda no PostToolUse de Bash — ou seja, ele fala a cada comando
+# que a missao dispara. Missao viva calada por duas horas inteiras, sem NENHUM
+# comando e sem ferramenta de pe, e um caso que nao se viu; e mesmo esse so
+# perde a linha da barra, nunca trabalho.
+TTL_MUDO_MIN = int(os.environ.get("SPRINT_MUDO_MIN", "120") or 120)
+
 
 def _ler(base, nome):
     """O caminho do estado — uma casa so."""
     return os.path.join(base, nome)
 
 
-def expira_sinais(base=None, agora=None, ttl_min=None):
+def _orfao(base, sessao, caminho, agora, limite_idade, limite_mudo):
+    """Este sinal esta orfao? Devolve o MOTIVO, ou None quando a missao esta viva.
+
+    DOIS criterios, e o mais curto ganha:
+
+    - IDADE — o sinal existe ha mais que `limite_idade`. E a trava de incendio,
+      12h por padrao, e pega qualquer coisa.
+    - MUDO — o narrador nao fala ha mais que `limite_mudo` E nao ha ferramenta de
+      pe. Este olha VIDA, nao idade, e e o que resolve o caso que o dono viu:
+      "SEM SINAL ha 6h02" com a missao ja terminada, faltando ainda seis horas
+      para a trava de incendio agir.
+
+    O criterio MUDO exige as DUAS pontas — narrador calado *e* nada rodando —
+    porque cada uma sozinha mente: uma suite de 20 minutos cala o narrador sem a
+    missao estar morta, e um `trabalho-` esquecido finge ferramenta de pe para
+    sempre. Sem o `sinal-<sid>` no disco nao ha o que julgar por vida: a missao
+    nunca narrou nada, e so a idade decide.
+    """
+    try:
+        idade = agora - os.path.getmtime(caminho)
+    except OSError:
+        return None
+    if idade > limite_idade:
+        return "idade"
+    sinal = _ler(base, "sinal-%s" % sessao)
+    try:
+        mudo = agora - os.path.getmtime(sinal)
+    except OSError:
+        return None   # nunca narrou: so a idade decide, e ela ja disse que nao
+    if mudo > limite_mudo and not _trabalho_vivo(base, sessao, agora):
+        return "mudo"
+    return None
+
+
+def expira_sinais(base=None, agora=None, ttl_min=None, mudo_min=None):
     """Apaga o sinal de missao que passou do teto de idade, e o estado junto.
 
     POR QUE ISTO MORA AQUI, E NAO SO NO GATE. O gate do motor ja expirava o sinal
@@ -78,6 +125,7 @@ def expira_sinais(base=None, agora=None, ttl_min=None):
     base = base or ESTADO
     agora = time.time() if agora is None else agora
     limite = (TTL_SINAL_MIN if ttl_min is None else ttl_min) * 60
+    limite_mudo = (TTL_MUDO_MIN if mudo_min is None else mudo_min) * 60
     apagados = []
     try:
         nomes = os.listdir(base)
@@ -87,11 +135,8 @@ def expira_sinais(base=None, agora=None, ttl_min=None):
         if not nome.startswith("ativo-"):
             continue
         sessao = nome[len("ativo-"):]
-        caminho = os.path.join(base, nome)
-        try:
-            if agora - os.path.getmtime(caminho) <= limite:
-                continue
-        except OSError:
+        motivo = _orfao(base, sessao, os.path.join(base, nome), agora, limite, limite_mudo)
+        if not motivo:
             continue
         # O sinal e o dono do estado da missao: some com ele e some o resto, senao
         # a onda velha de uma sessao morta reaparece na barra da proxima que reusar
@@ -102,17 +147,23 @@ def expira_sinais(base=None, agora=None, ttl_min=None):
                 os.remove(os.path.join(base, prefixo + sessao))
             except OSError:
                 pass
-        apagados.append(sessao)
+        apagados.append((sessao, motivo))
     if apagados:
+        # O MOTIVO vai no registro: "idade" e a trava de incendio de 12h, "mudo" e
+        # o vigia de vida. Sem ele, quem le o log nao sabe qual dos dois agiu — e e
+        # justamente isso que diz se o teto do mudo esta calibrado ou matando missao.
         try:
             with open(os.path.join(base, "expirados.log"), "a", encoding="utf-8") as fh:
-                for s in apagados:
-                    fh.write("%s\tbarra\t%dmin\t%s\n"
-                             % (time.strftime("%FT%TZ", time.gmtime(agora)),
-                                TTL_SINAL_MIN if ttl_min is None else ttl_min, s))
+                for sessao, motivo in apagados:
+                    fh.write("%s\tbarra\t%s\t%dmin\t%s\n"
+                             % (time.strftime("%FT%TZ", time.gmtime(agora)), motivo,
+                                (TTL_MUDO_MIN if mudo_min is None else mudo_min)
+                                if motivo == "mudo"
+                                else (TTL_SINAL_MIN if ttl_min is None else ttl_min),
+                                sessao))
         except OSError:
             pass
-    return apagados
+    return [s for s, _ in apagados]
 
 
 # Os TRES formatos que a amostra mostrou, em ordem de frequencia medida.

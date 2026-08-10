@@ -181,6 +181,22 @@ ela que a trava dupla sabe onde procurar pendência.** Sinal sem a linha 2 deixa
 muda (fail-open declarado, não proteção imaginária).
 
 ⚠️ **Quem apaga o sinal é a conferência verde, não você** — passe `--sinal` no fecho.
+
+⚠️ **E a disputa que NÃO chega ao fecho também tem que apagar.** Parada por ordem do dono,
+abandonada, ou com o fecho recusado por furo: o sinal ficava aceso até a expiração, e a
+barra anunciava *"Missão há 10h25"* de uma disputa que ninguém ia retomar (medido em
+2026-08-10, na tela do dono). O caminho é o subcomando que **não julga nada**:
+
+```bash
+python3 "${CLAUDE_PLUGIN_ROOT}/lib/fecho_check.py" encerra "<a missão>" --sinal "<o sinal>"
+```
+
+**Encerrar não é aprovar** — ele apaga o sinal e diz isso em voz alta, sem dar veredito
+nenhum sobre as peças. Use ao parar por ordem do dono e ao abandonar; o fecho verde
+continua sendo o único que APROVA. E o apagamento leva o estado inteiro da sessão (onda,
+placar, doc, trabalho e o resto), não só o sinal: estado sem dono reaparece na barra de
+quem reusar o mesmo id. Cobrado por `lib/test_fecho_check.py`.
+
 Há rede embaixo do esquecimento: o sinal expira por idade, e a trava desiste depois de
 algumas negações **seguidas** — **avisando na conversa** que a disputa segue sem guarda.
 Um juiz que nasce zera essa conta: a paciência dela se gasta em esquecimento

@@ -354,8 +354,12 @@ def monta_scope_cop(raiz):
 def roda_scope_cop(bindir, payload, home, config_dir, script=None):
     """Devolve (stdout, returncode) — o rc importa porque hook AUSENTE tambem
     sai calado (bash 127) e sem ele o 'tem que calar' fica verde por acidente."""
+    # O SEPARADOR DE PATH É DO SISTEMA, NÃO ':' CRAVADO. No Windows ele é ';', e
+    # com dois-pontos o PATH inteiro vira uma entrada só de lixo — todo binário
+    # some, inclusive o que este teste acabou de montar em `bindir`. Foi metade da
+    # esteira vermelha de 2026-08-10 (a outra metade é o `bash` do WSL, abaixo).
     env = dict(os.environ, HOME=str(home), CLAUDE_CONFIG_DIR=str(config_dir),
-               PATH=f"{bindir}:{os.environ['PATH']}")
+               PATH=f"{bindir}{os.pathsep}{os.environ['PATH']}")
     r = subprocess.run(["bash", str(script or SCOPE_COP)], input=payload,
                        capture_output=True, text=True, env=env, start_new_session=True)
     return r.stdout.strip(), r.returncode
