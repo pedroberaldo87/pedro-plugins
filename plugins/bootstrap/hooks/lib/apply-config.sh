@@ -20,7 +20,20 @@
 
 set -uo pipefail
 
-JQ="$(command -v jq)"; [ -z "$JQ" ] && { echo "[bootstrap/config] jq required — install it first"; exit 1; }
+# O PYTHON, NAO O JQ. O jq nao vem no Windows nem no macOS de fabrica, e era
+# aqui que a instalacao morria: sem ele este script saia 1 e a maquina ficava
+# sem config nenhuma. O Python ja e dependencia dura de todo o resto, e o
+# `lib/cfgjson.py` faz as mesmas contas (com teste que compara com o jq).
+# O resolvedor testa EXECUCAO, nao presenca: no Windows existe um `python3` de
+# mentira, da loja da Microsoft, que responde uma propaganda em vez de rodar.
+PY=""
+for _c in python3 python; do
+  _p="$(command -v "$_c" 2>/dev/null)" || _p=""
+  [ -n "$_p" ] && "$_p" --version >/dev/null 2>&1 && { PY="$_p"; break; }
+done
+[ -z "$PY" ] && { echo "[bootstrap/config] python3 required — install it first"; exit 1; }
+CFGJSON="$(cd "$(dirname "$0")/../../lib" 2>/dev/null && pwd)/cfgjson.py"
+[ -f "$CFGJSON" ] || { echo "[bootstrap/config] lib/cfgjson.py nao encontrado"; exit 1; }
 
 # Locate the plugin's config dir
 if [ -n "${CLAUDE_PLUGIN_ROOT:-}" ] && [ -d "$CLAUDE_PLUGIN_ROOT/config" ]; then
@@ -41,35 +54,21 @@ SETTINGS="$CLAUDE_DIR/settings.json"
 mkdir -p "$CLAUDE_DIR"
 
 [ -f "$DEFAULTS" ] || { echo "[bootstrap/config] settings-defaults.json não encontrado em $CFG_DIR"; exit 1; }
-"$JQ" empty "$DEFAULTS" 2>/dev/null || { echo "[bootstrap/config] settings-defaults.json inválido"; exit 1; }
+"$PY" "$CFGJSON" valida "$DEFAULTS" 2>/dev/null || { echo "[bootstrap/config] settings-defaults.json inválido"; exit 1; }
 
 # --- 1. Merge settings-defaults into settings.json ---
 CURRENT="{}"
 if [ -f "$SETTINGS" ]; then
-  "$JQ" empty "$SETTINGS" 2>/dev/null || { echo "[bootstrap/config] settings.json local inválido — abortando (não sobrescrevo)"; exit 1; }
+  "$PY" "$CFGJSON" valida "$SETTINGS" 2>/dev/null || { echo "[bootstrap/config] settings.json local inválido — abortando (não sobrescrevo)"; exit 1; }
   CURRENT="$(cat "$SETTINGS")"
   cp "$SETTINGS" "$SETTINGS.bak.$(date +%Y%m%d%H%M%S)"
 fi
 
-# shellcheck disable=SC2016,SC2015  # aspas simples = programa jq ($cur/$def/$d são vars do jq); o "A && mv || {cleanup}" é o cleanup intencional no erro do mv
-echo "$CURRENT" | "$JQ" --slurpfile d "$DEFAULTS" '
-  . as $cur
-  | ($d[0]) as $def
-  | .env = (($cur.env // {}) * ($def.env // {}))
-  | .permissions = ($cur.permissions // {})
-  | .permissions.allow = (((($cur.permissions.allow) // []) + (($def.permissions.allow) // [])) | unique)
-  | .permissions.deny  = (((($cur.permissions.deny)  // []) + (($def.permissions.deny)  // [])) | unique)
-  | .permissions.defaultMode = ($cur.permissions.defaultMode // $def.permissions.defaultMode)
-  | .language = ($def.language // $cur.language)
-  | .theme = ($def.theme // $cur.theme)
-  | .autoCompactEnabled = (if ($def.autoCompactEnabled != null) then $def.autoCompactEnabled else $cur.autoCompactEnabled end)
-  | .outputStyle = ($def.outputStyle // $cur.outputStyle)
-  | .permissions |= (if .defaultMode == null then del(.defaultMode) else . end)
-  | (if .language == null then del(.language) else . end)
-  | (if .theme == null then del(.theme) else . end)
-  | (if .autoCompactEnabled == null then del(.autoCompactEnabled) else . end)
-  | (if .outputStyle == null then del(.outputStyle) else . end)
-' > "$SETTINGS.tmp" && mv "$SETTINGS.tmp" "$SETTINGS" || { rm -f "$SETTINGS.tmp"; echo "[bootstrap/config] merge falhou — settings.json intacto"; exit 1; }
+printf '%s' "$CURRENT" > "$SETTINGS.cur" \
+  && "$PY" "$CFGJSON" merge-settings "$SETTINGS.cur" "$DEFAULTS" > "$SETTINGS.tmp" \
+  && mv "$SETTINGS.tmp" "$SETTINGS" \
+  && rm -f "$SETTINGS.cur" \
+  || { rm -f "$SETTINGS.tmp" "$SETTINGS.cur"; echo "[bootstrap/config] merge falhou — settings.json intacto"; exit 1; }
 echo "[bootstrap/config] ✓ settings.json: env + permissions (union) + flags aplicados"
 
 # --- 2. Resolve statusLine to the context-guard writer on THIS machine ---
@@ -97,8 +96,7 @@ if [ -n "$CG_RESOLVED" ]; then
   # event-driven updates". 10s porque a duracao da linha e contada em segundos
   # (`andamento.py:_dur`), entao a 10s ela muda visivelmente sem por a cadeia
   # inteira (writer + python + renderizador) de pe a cada segundo.
-  # shellcheck disable=SC2016  # $cmd é variável do jq (passada via --arg), não do shell
-  "$JQ" --arg cmd "$SL_CMD" '.statusLine = {type:"command", command:$cmd, refreshInterval:10}' "$SETTINGS" > "$SETTINGS.tmp" \
+  "$PY" "$CFGJSON" statusline "$SETTINGS" "$SL_CMD" > "$SETTINGS.tmp" \
     && mv "$SETTINGS.tmp" "$SETTINGS" \
     && echo "[bootstrap/config] ✓ statusLine resolvido (glob runtime do context-guard)"
 else

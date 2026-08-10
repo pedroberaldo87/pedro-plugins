@@ -315,12 +315,10 @@
         "comando": "jq",
         "pacote": "jq",
         "instalar": "brew install jq (macOS) · choco install jq (Windows) · apt install jq (Linux)",
-        "alternativa": "nenhuma para o /bootstrap:setup — os hooks de decisao leem o payload por python3, mas apply.sh, apply-config.sh e snapshot.sh param sem jq",
+        "alternativa": "nao e mais preciso para instalar nem usar: o caminho de instalacao (apply.sh, apply-config.sh, session-sync.sh) roda sobre lib/cfgjson.py, em python",
         "licenca": "MIT",
-        "requerido_por": [
-          "bootstrap"
-        ],
-        "porque": "o /bootstrap:setup aplica settings.json e sincroniza plugins por jq; sem ele o apply sai 255 e a maquina fica sem config nenhuma — no Windows o jq nao vem de fabrica, entao a instalacao morre no primeiro comando"
+        "requerido_por": [],
+        "porque": "so o snapshot.sh ainda usa jq, e ele so roda em maquina que CLONOU o repositorio (HAS_SOURCE exige ~/pedro-plugins/.git) para gravar o estado da maquina de volta no manifest. Quem instala pelo marketplace nunca passa por ele — por isso requerido_por esta vazio: acusar toda maquina sem jq seria alarme falso"
       }
     ]
   }

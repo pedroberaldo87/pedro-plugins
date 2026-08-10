@@ -94,6 +94,17 @@ Um plugin depende de um binário que o marketplace **não** instala:
 | 35 hooks — `grep -rl '\bjq\b' plugins/*/hooks/*.sh \| grep -v -e /test_ $(ls _shared/*.sh \| sed -E 's#.*/#-e /#') \| wc -l` | `jq` (**opcional**) | Nada a fazer: os 33 hooks que decidem — `grep -rlE '(jq\|hj_campo\|hj_eh_falso)[^#]*(tool_input\.command\|session_id\|stop_hook_active)' plugins/*/hooks/*.sh \| grep -v -e /test_ $(ls _shared/*.sh \| sed -E 's#.*/#-e /#') \| wc -l` — leem o payload por `python3` quando falta `jq`, e sem os dois eles avisam em vez de sair calados. Quem quiser a saída formatada: `brew install jq` (macOS) · `choco install jq` (Windows) |
 | guards | Python 3 | macOS já traz · Windows: instale o real (o stub da Microsoft Store não executa) |
 
+**Instalar não precisa de `jq`.** O `/bootstrap:setup` roda inteiro sobre Python — as
+leituras e o merge de configuração vivem em `plugins/bootstrap/lib/cfgjson.py`, e o teste
+ao lado compara cada saída com a do `jq` de verdade para as duas não divergirem. O único
+lugar que ainda usa `jq` é o `snapshot.sh`, e ele só roda em máquina que **clonou** o
+repositório (grava o estado da máquina de volta no manifesto); quem instala pelo
+marketplace nunca passa por ele.
+
+**Windows:** instale o Python do site oficial, não o da Microsoft Store. O sistema traz um
+`python3` de mentira que responde uma propaganda em vez de rodar, e por isso o marketplace
+testa se o Python **executa**, em vez de só existir no caminho.
+
 Sem ele o guarda procura um `graphify-out/graph.json` que nada cria — fica instalado,
 calado e sem proteger. O verificador acusa isso na área `dependencia`, e só quando o
 plugin que precisa está ligado. Se você não usa grafo, o caminho é desligar o

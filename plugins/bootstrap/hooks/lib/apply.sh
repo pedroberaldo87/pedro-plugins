@@ -29,7 +29,7 @@
 # Exit codes:
 #   0 — success, zero individual failures
 #   N — N individual operations failed (capped at 200)
-#   255 — fatal error (manifest missing, jq missing, etc)
+#   255 — fatal error (manifest missing, python3 missing, etc)
 #
 # IMPORTANT: callers MUST check exit code before trusting post-apply state.
 # A non-zero exit means the current local state diverges from the manifest's
@@ -50,7 +50,18 @@ log() { echo "[pedro-plugins/apply] $*" >&2; }
 info() { echo "[pedro-plugins/apply] $*"; }
 
 # Required tools
-command -v jq >/dev/null 2>&1 || { log "error: jq not found"; exit 255; }
+# O PYTHON, NAO O JQ — o jq nao vem no Windows nem no macOS de fabrica, e era
+# aqui que a instalacao parava (exit 255) antes de instalar plugin nenhum. O
+# resolvedor testa EXECUCAO: no Windows ha um `python3` de mentira, da loja da
+# Microsoft, que responde propaganda em vez de rodar.
+PY=""
+for _c in python3 python; do
+  _p="$(command -v "$_c" 2>/dev/null)" || _p=""
+  [ -n "$_p" ] && "$_p" --version >/dev/null 2>&1 && { PY="$_p"; break; }
+done
+[ -z "$PY" ] && { log "error: python3 not found"; exit 255; }
+CFGJSON="$(cd "$(dirname "$0")/../../lib" 2>/dev/null && pwd)/cfgjson.py"
+[ -f "$CFGJSON" ] || { log "error: lib/cfgjson.py not found"; exit 255; }
 command -v claude >/dev/null 2>&1 || { log "error: claude CLI not found"; exit 255; }
 
 # Locate manifest — walk through candidates, pick first that exists
@@ -83,7 +94,7 @@ if [ -z "$MANIFEST" ]; then
 fi
 
 # Validate manifest
-if ! jq empty "$MANIFEST" 2>/dev/null; then
+if ! "$PY" "$CFGJSON" valida "$MANIFEST" 2>/dev/null; then
   log "error: manifest is not valid JSON: $MANIFEST"
   exit 255
 fi
@@ -132,10 +143,10 @@ run_claude() {
 
 # -------- Step 1: Add missing marketplaces --------
 # Get list of marketplaces in manifest
-MANIFEST_MKTS="$(jq -r '.marketplaces[] | .name + "|" + .source' "$MANIFEST")"
+MANIFEST_MKTS="$("$PY" "$CFGJSON" mkts "$MANIFEST")"
 
 # Get list of already-known marketplaces
-KNOWN_MKT_NAMES="$(jq -r 'keys[]' "$KNOWN_MARKETPLACES")"
+KNOWN_MKT_NAMES="$("$PY" "$CFGJSON" chaves "$KNOWN_MARKETPLACES")"
 
 while IFS='|' read -r mkt_name mkt_source; do
   [ -z "$mkt_name" ] && continue
@@ -147,7 +158,7 @@ while IFS='|' read -r mkt_name mkt_source; do
 done <<< "$MANIFEST_MKTS"
 
 # Refresh known marketplaces view after adds
-KNOWN_MKT_NAMES="$(jq -r 'keys[]' "$KNOWN_MARKETPLACES" 2>/dev/null || echo "")"
+KNOWN_MKT_NAMES="$("$PY" "$CFGJSON" chaves "$KNOWN_MARKETPLACES" 2>/dev/null || echo "")"
 
 # -------- Step 2 & 3 & 4: Compute plugin deltas --------
 # Parse current installed state (dedup across scopes) via claude plugin list
@@ -161,15 +172,10 @@ CURRENT_STATE="$(claude plugin list 2>/dev/null | awk '
 ' | sort -u)"
 
 # Build manifest plugin list: "plugin@marketplace\tenabled"
-MANIFEST_PLUGINS="$(jq -r '
-  .marketplaces[]
-  | .name as $mkt
-  | .plugins[]
-  | .name + "@" + $mkt + "\t" + (.enabled | tostring)
-' "$MANIFEST")"
+MANIFEST_PLUGINS="$("$PY" "$CFGJSON" plugins "$MANIFEST")"
 
 # Build set of managed marketplaces (for scoping uninstalls)
-MANAGED_MKTS="$(jq -r '.marketplaces[].name' "$MANIFEST")"
+MANAGED_MKTS="$("$PY" "$CFGJSON" mkt-names "$MANIFEST")"
 
 # -------- Step 2: Install missing plugins --------
 while IFS=$'\t' read -r plugin_ref want_enabled; do
