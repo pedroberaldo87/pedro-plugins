@@ -12,7 +12,14 @@ Estado vivo = fold dos eventos. Stdlib only. Consumido pelos hooks shell via CLI
 """
 import argparse
 import contextlib
-import fcntl
+try:
+    import fcntl                       # POSIX
+except ImportError:                    # Windows não tem fcntl
+    fcntl = None
+    try:
+        import msvcrt
+    except ImportError:
+        msvcrt = None
 import json
 import os
 import re
@@ -104,15 +111,44 @@ def load(d):
 
 @contextlib.contextmanager
 def locked(d):
-    """Exclusive lock (fcntl.flock) pra load+append atômico — evita r-N/p-N
-    duplicados quando hooks concorrentes chamam record-raw/apply."""
+    """Trava exclusiva pra load+append atômico — evita r-N/p-N duplicados quando
+    hooks concorrentes chamam record-raw/apply.
+
+    `fcntl` é POSIX e NÃO EXISTE no Windows: o `import` no topo derrubava o módulo
+    inteiro lá com ModuleNotFoundError, e com ele todo comando do intent-guard —
+    o hook não travava, ele nem carregava. No Windows a trava é `msvcrt.locking`,
+    que bloqueia por faixa de bytes do arquivo aberto (aqui, o primeiro byte do
+    arquivo de trava, que existe só para isso).
+
+    Sem NENHUM dos dois a região segue destravada, e isso é escolha declarada: o
+    ledger é por projeto e a concorrência é entre hooks da mesma máquina, então o
+    risco é id duplicado num caso raro — perder o comando inteiro por falta de
+    trava seria pior que o caso raro.
+    """
     os.makedirs(d, exist_ok=True)
-    with open(os.path.join(d, "ledger.lock"), "a+") as lf:
-        fcntl.flock(lf.fileno(), fcntl.LOCK_EX)
+    with open(os.path.join(d, "ledger.lock"), "a+", encoding="utf-8") as lf:
+        travou = False                 # local, não `msvcrt = None`: rebind de nome
+        if fcntl is not None:          # de módulo dentro da função vira UnboundLocalError
+            fcntl.flock(lf.fileno(), fcntl.LOCK_EX)
+            travou = True
+        elif msvcrt is not None:
+            lf.seek(0)
+            try:
+                msvcrt.locking(lf.fileno(), msvcrt.LK_LOCK, 1)
+                travou = True
+            except OSError:
+                pass                   # trava indisponível: segue sem ela
         try:
             yield
         finally:
-            fcntl.flock(lf.fileno(), fcntl.LOCK_UN)
+            if travou and fcntl is not None:
+                fcntl.flock(lf.fileno(), fcntl.LOCK_UN)
+            elif travou:
+                lf.seek(0)
+                try:
+                    msvcrt.locking(lf.fileno(), msvcrt.LK_UNLCK, 1)
+                except OSError:
+                    pass
 
 
 def append(d, ev):
