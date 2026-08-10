@@ -73,8 +73,8 @@ def monta_missao(raiz, pecas=("hero",), com_veredito=True, aprovado=True):
         # A entrega é ALEGAÇÃO do construtor: caminho + marca de cada artefato.
         escreve(os.path.join(r1, "entrega.json"), {
             "peca": p, "rodada": 1, "resumo": "a primeira passada",
-            # "Each sub-agent utterly wowed": o construtor também declara, em frase
-            # de gente, o que na entrega o orgulha — e o fecho recusa sem isso.
+            # O orgulho é aspiração de briefing, nunca contrato — a fixture o traz
+            # porque o construtor saudável o escreve, não porque o fecho o exija.
             "orgulho": "a entrada respira antes de falar, coisa que o alvo não faz",
             "artefatos": [{"caminho": "obra-%s.txt" % p, "marca": fc.marca(obra)}],
         })
@@ -399,7 +399,9 @@ check("diretor impressionado sem a frase de gente é recusado",
 shutil.rmtree(d)
 
 print()
-print("O ORGULHO DO CONSTRUTOR — prosa de briefing virou cobrança de fecho")
+print("O ORGULHO DO CONSTRUTOR — aspiração de briefing, nunca papelada de fecho")
+# Régua do original: "never let the builder grade itself" — a autoavaliação do
+# construtor não é contrato, e entrega sem o campo NÃO é recusada.
 d = tmp()
 m = monta_missao(d)
 e = os.path.join(m, "pecas", "hero", "r1", "entrega.json")
@@ -413,8 +415,8 @@ escreve(v, ver)
 escreve(os.path.join(m, "diretor.json"),
         {"status": "aprovado", "impressionado": True, "frase": "uma mão só",
          "viu": {"hero": fc.marca(e)}})
-check("entrega sem `orgulho` é recusada — o construtor também tem que se impressionar",
-      any("não declara `orgulho`" in f for f in fc.erros_do_fecho(m)))
+check("entrega sem `orgulho` fecha normalmente — quem julga é o crítico, nunca o autor",
+      fc.erros_do_fecho(m) == [])
 shutil.rmtree(d)
 
 d = tmp()
