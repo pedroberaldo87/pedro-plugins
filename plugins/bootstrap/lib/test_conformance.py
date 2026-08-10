@@ -82,7 +82,8 @@ def roda_conformance(config_dir, cfg_versionado):
     env = dict(os.environ, CLAUDE_CONFIG_DIR=str(config_dir),
                CLAUDE_PLUGIN_ROOT=str(cfg_versionado.parent))
     r = subprocess.run([sys.executable, str(CONFORMANCE), "--json"],
-                       capture_output=True, text=True, env=env, stdin=subprocess.DEVNULL, start_new_session=True)
+                       capture_output=True, text=True, encoding="utf-8", env=env,
+                       stdin=subprocess.DEVNULL, start_new_session=True)
     try:
         return json.loads(r.stdout)
     except ValueError:
@@ -397,6 +398,24 @@ def monta_scope_cop(raiz):
     return str(binario), payload
 
 
+def juiz_falso_visivel(bindir):
+    """O juiz falso e um arquivo `claude` com shebang, marcado 755 pelo Python.
+
+    NO WINDOWS ESSE chmod NAO CRIA BIT DE EXECUCAO — o sistema nao tem esse bit,
+    e o `command -v claude` de dentro do hook nao acha nada. O hook entao faz o
+    que deve (sem juiz, nao ha veredito: fail-open, nao bloqueia) e o teste lia
+    isso como "o hook nao bloqueou", reprovando hook CERTO por fixture quebrada.
+    Aqui a fixture se mede: pergunta ao mesmo bash que o hook usa se o juiz e
+    enxergado. Falso => o caso pula declarando, em vez de reprovar."""
+    b = bash_posix()
+    if b is None:
+        return False
+    env = dict(os.environ, PATH=f"{bindir}{os.pathsep}{os.environ['PATH']}")
+    r = subprocess.run([b, "-c", "command -v claude"], capture_output=True,
+                       text=True, env=env, stdin=subprocess.DEVNULL)
+    return r.returncode == 0 and r.stdout.strip() != ""
+
+
 def roda_scope_cop(bindir, payload, home, config_dir, script=None):
     """Devolve (stdout, returncode) — o rc importa porque hook AUSENTE tambem
     sai calado (bash 127) e sem ele o 'tem que calar' fica verde por acidente."""
@@ -471,6 +490,12 @@ def teste_scope_cop_e_conformance_olham_a_mesma_pasta():
               str([d["o_que"] for d in res["desvios"]]))
 
         # B) invertido: 'deny' onde o auditor le → bloqueia, e o rastro nasce la.
+        # Este e o unico caso que precisa do JUIZ, e so ele pula quando a fixture
+        # nao e enxergada (Windows): o caso A acima segue medindo, porque hook
+        # calado com rc 0 nao depende de haver juiz.
+        if not juiz_falso_visivel(bindir):
+            print("  skip o ramo 'deny' (o juiz falso nao e executavel nesta maquina)")
+            return
         (vivo / "guardrails" / "scope-cop.mode").write_text("deny")
         (isca / ".claude" / "guardrails" / "scope-cop.mode").write_text("off")
         saida, _ = roda_scope_cop(bindir, payload, isca, vivo)

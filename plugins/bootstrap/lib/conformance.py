@@ -599,6 +599,15 @@ CHECAGENS = [check_plugins, check_claude_md, check_teto_unico,
 
 
 def main():
+    # O console do Windows codifica a saida em cp1252, e a seta `→` do conserto
+    # nao existe nessa tabela: o programa morria de UnicodeEncodeError ANTES de
+    # escrever o JSON, e quem chamava recebia stdout vazio. Sai sempre em UTF-8.
+    for canal in (sys.stdout, sys.stderr):
+        try:
+            canal.reconfigure(encoding="utf-8")
+        except (AttributeError, ValueError):
+            pass  # canal exotico (pipe ja embrulhado, py antigo) — segue como esta
+
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--json", action="store_true", help="saida estruturada")
     ap.add_argument("--quiet", action="store_true", help="so o resumo")

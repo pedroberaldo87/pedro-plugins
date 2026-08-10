@@ -23,8 +23,21 @@ freshness_line() {
   local GJSON="$PROJ/graphify-out/graph.json"
   [ -f "$GJSON" ] || return 1
   local DATE N STATE
-  DATE=$(stat -f "%Sm" -t "%Y-%m-%d" "$GJSON" 2>/dev/null \
-    || stat -c "%y" "$GJSON" 2>/dev/null | cut -d' ' -f1)
+  # O GNU `stat -f` NÃO falha calado: entende -f como "informação do sistema de
+  # arquivos", imprime uma linha no stdout e SÓ ENTÃO sai 1. Encadeado com `||`,
+  # as duas saídas se somavam, a data virava texto de duas linhas e quebrava o
+  # TSV — `cut -f3` devolvia "stale" colado com a segunda linha e o alerta de
+  # grafo defasado sumia em todo Linux. Por isso a ordem é GNU primeiro, e o
+  # resultado só é aceito se tiver a cara de uma data.
+  DATE=$(stat -c "%y" "$GJSON" 2>/dev/null | cut -d' ' -f1)
+  case "$DATE" in
+    [0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]) ;;
+    *) DATE=$(stat -f "%Sm" -t "%Y-%m-%d" "$GJSON" 2>/dev/null | head -1) ;;
+  esac
+  case "$DATE" in
+    [0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]) ;;
+    *) DATE="?" ;;
+  esac
   # count source files newer than the graph (capped at 200 for speed)
   N=$(find "$PROJ" \( "${PRUNE[@]}" \) -prune -o -type f \( "${SRC_EXT[@]}" \) \
         -newer "$GJSON" -print 2>/dev/null | head -200 | wc -l | tr -d ' ')
