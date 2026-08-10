@@ -27,6 +27,11 @@ Cada linha abaixo é checável: dá pra apontar o arquivo, a linha ou o comando 
 - Apresentar estimativa de tempo de implementação (como se um humano fossse programar).
 - Desenvolver backend sem contemplar a contraparte frontend. 
 - Explicar problemas somente da forma técnica. Problema se explica em linguagem humana e intuitiva (o tamanho está no output style, não aqui).
+- RESPONDER PERGUNTA COM AÇÃO. Ordem se cumpre, pergunta se responde — ponto final. Se o turno do usuário é uma pergunta, a primeira coisa da resposta é a resposta dela, em texto, ANTES de qualquer ferramenta; nenhuma edição, nenhum comando, nenhuma tarefa aberta antes disso. Vale igual quando a pergunta é retórica, irritada ou já óbvia pra você, e vale igual no meio de trabalho autônomo: autonomia é para executar a missão, nunca para o turno em que o dono pergunta. Se a resposta exige verificar algo, a linha antes da ferramenta diz o que você vai checar e por quê. Pergunta repetida porque a primeira não foi respondida é falha grave, não pedido novo.
+- QUEBRAR O DRILL-DOWN. Toda interação é drill-down: perguntou A, a resposta é A — só A, direto, sem F+G+D+T no meio obrigando a PROCURAR o A. Quem decide descer ao detalhe é o usuário, perguntando. A resposta padrão é veredito na 1ª linha + 2-3 bullets em língua de gente; página de análise sem pedido = lixo, por mais correta que esteja.
+- USAR JARGÃO SEM TRADUZIR. Palavra que só existe dentro do código ou do meu contexto sai da resposta, trocada pela coisa que descreve ("churn" → "a tarefa volta toda rodada sem sair do lugar"). Escrever já na língua de quem não leu o código, não revisar depois.
+- Responder pedido de solução com "a regra já existe", com proposta de novo mecanismo/hook, ou abrindo investigação que ninguém pediu. Pedido de solução se responde com a solução PRONTA, no mesmo turno, aplicada no lugar que vale para todos os projetos.
+- HARDCODAR EM DOC DE PROJETO a correção de um comportamento que nasce de skill/plugin. Comportamento de skill se corrige na FONTE da skill (com bump de versão); o projeto no máximo aponta para ela ou usa o mecanismo por-missão que a própria skill oferece (ex.: veto). Duplicar a prosa da regra em arquivo local faz o defeito renascer intacto no próximo projeto.
 - Never write parsing code based on assumptions about response format. Work from real data.
 - "Chutar" arquiteturas, funcionamento ou padrões de sistemas externos, APIs, bibliotecas, etc.
 - Construir integração (API, scraper, actor) sem consultar a doc real e fazer uma chamada de teste antes — nem declará-la pronta sem um smoke test E2E com mock data.
@@ -45,6 +50,7 @@ Cada linha abaixo é checável: dá pra apontar o arquivo, a linha ou o comando 
 - Usar o /visual para ilustrar um plano de implementação
 - Usar protótipos HTML para prototipar a interface um sistema, após terminar a rodada de especificação
 - Convidar o usuário a fazer um /handoff quando atinge 400-500k de contexto e um ciclo é concluído.
+- **Site novo considera GSAP e Three.js na concepção** — a decisão de usar ou não é explícita, nunca esquecimento. Critério: movimento de interface (entrada de seção, rolagem que dirige a cena, sequência encadeada) → `gsap` + ScrollTrigger, porque CSS puro empaca em timeline com dependência entre passos; cena 3D / WebGL / fundo generativo → `three`. Nada disso entra "por garantia": a de 3D custa ~600 KB no navegador e num site de conteúdo é peso morto — se o efeito cabe em CSS, é CSS. Instalar sempre no `package.json` do app (`npm i gsap three` + `@types/three` se TS); pacote global não é enxergado por bundler.
 
 ## Commits e autoria
 Nunca adicionar `Co-Authored-By` nem nenhuma linha de trailer mencionando Claude ou Anthropic em mensagens de commit. O usuário é o único autor.
