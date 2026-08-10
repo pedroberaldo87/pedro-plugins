@@ -504,7 +504,7 @@ caso:
 - **A prosa que sobrou vira contrato conferível.** `plugins/project-skills/lib/test_motor_js.py`
   casa o `motor.js` com as três fontes que o definem: as peças nomeadas do esqueleto, a tabela
   `prompt → PAPEL` e a constante de esforço contra `_shared/r8-tiers.json`
-  [confirmado — `python3 plugins/project-skills/lib/test_motor_js.py` → `test_motor_js: 49 checagens verdes`].
+  [confirmado — `python3 plugins/project-skills/lib/test_motor_js.py` → `test_motor_js: 53 checagens verdes`].
 
 **Régua durável: instrução que alguém traduz em código a cada uso é código sem endereço. Ou ela vira arquivo versionado, ou a cópia de ontem volta amanhã sem nada acusar.**
 

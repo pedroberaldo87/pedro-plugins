@@ -43,6 +43,9 @@ ABERTURA = "Marque o achado que vira passo do plano; a prova de cada um abre com
 # fechado, e a prova nasce fechada dentro do corpo. Sem exceção de tamanho.
 CORPO = "onde e qual regra"
 PROVA = "a prova crua"
+# O que o cobrador viu e NÃO pôde provar sai no rodapé em vez de sumir: lote que
+# encolhe em silêncio é decisão tomada sobre uma lista incompleta.
+DESCARTES = "descartado por falta de prova"
 
 CSS = """
 body{background:#12141a;color:#e6e8ee;font:15px/1.55 -apple-system,Segoe UI,sans-serif;
@@ -72,7 +75,7 @@ def _e(v):
 
 def texto_autoral(lentes):
     """O que a página escreve por conta própria — e só isso entra na régua."""
-    return [TITULO, ABERTURA, CORPO, PROVA] + \
+    return [TITULO, ABERTURA, CORPO, PROVA, DESCARTES] + \
         ["%s — %d achado(s)" % (n, len(a)) for n, a in lentes]
 
 
@@ -92,7 +95,14 @@ def por_lente(achados):
     return sorted(grupos.items(), key=lambda kv: (-len(kv[1]), kv[0]))
 
 
-def html_de(lentes, total):
+def _linha_descarte(d):
+    """O descarte cru, sem formato inventado: dicionário vira campo a campo."""
+    if isinstance(d, dict):
+        return " · ".join("%s: %s" % (k, v) for k, v in d.items())
+    return str(d)
+
+
+def html_de(lentes, total, descartes=None):
     partes = ["<!DOCTYPE html><html lang=\"pt-BR\"><head><meta charset=\"utf-8\">",
               "<title>%s</title><style>%s</style></head><body><main>" % (_e(TITULO), CSS),
               "<h1>%s</h1>" % _e(TITULO),
@@ -114,21 +124,44 @@ def html_de(lentes, total):
                 "</details></div>"
                 % (n, _e(a.get("o_que")), grav, grav, _e(CORPO), _e(a.get("onde")),
                    _e(a.get("regra")), _e(PROVA), _e(a.get("prova"))))
+    if descartes:
+        partes.append("<h2>%s — %d achado(s)</h2><ul class=\"descartes\">%s</ul>"
+                      % (_e(DESCARTES), len(descartes),
+                         "".join("<li>%s</li>" % _e(_linha_descarte(d))
+                                 for d in descartes)))
     partes.append("</main></body></html>")
     assert n == total, "a página perdeu achado no caminho: %d de %d" % (n, total)
     return "".join(partes)
 
 
-def escreve(achados, saida):
+def _caminho_livre(saida, rodada):
+    """Nome que distingue rodadas do mesmo dia: a rodada se nomeia, e o que já
+    está no disco nunca é sobrescrito — a página do piloto foi comida assim."""
+    base = "vistoria-%s" % datetime.date.today().isoformat()
+    if rodada:
+        base += "-" + rodada
+    caminho = os.path.join(saida, base + ".html")
+    n = 1
+    while os.path.exists(caminho):
+        n += 1
+        caminho = os.path.join(saida, "%s-%d.html" % (base, n))
+    if n > 1:
+        # Artigo 4 · Rigor: renomear em silêncio esconde que já havia página do dia.
+        sys.stderr.write("aviso: já existe página com o nome %s.html neste dir; "
+                         "esta rodada saiu como %s\n"
+                         % (base, os.path.basename(caminho)))
+    return caminho
+
+
+def escreve(achados, saida, rodada=None, descartes=None):
     lentes = por_lente(achados)
     errs = erros_da_pagina(lentes)
     if errs:
         raise ValueError("o texto da página não passa na régua: " + "; ".join(errs))
     os.makedirs(saida, exist_ok=True)
-    caminho = os.path.join(saida, "vistoria-%s.html"
-                           % datetime.date.today().isoformat())
+    caminho = _caminho_livre(saida, rodada)
     with open(caminho, "w", encoding="utf-8") as fh:
-        fh.write(html_de(lentes, len(achados)))
+        fh.write(html_de(lentes, len(achados), descartes))
     return caminho
 
 
@@ -137,10 +170,14 @@ def main(argv=None):
     ap.add_argument("--dir", required=True,
                     help="onde gravar (obrigatório: destino adivinhado cai no cache "
                          "do plugin quando instalado)")
+    ap.add_argument("--rodada", default=None,
+                    help="apelido desta rodada, que entra no nome do arquivo "
+                         "(sem ele, rodada repetida do mesmo dia ganha sufixo -2, -3…)")
     args = ap.parse_args(argv)
     dados = json.load(sys.stdin)
     achados = dados.get("achados", dados) if isinstance(dados, dict) else dados
-    print(escreve(achados, args.dir))
+    descartes = dados.get("_descartes") if isinstance(dados, dict) else None
+    print(escreve(achados, args.dir, args.rodada, descartes))
     return 0
 
 

@@ -95,6 +95,44 @@ check("o checkpoint commita como 'sprint: onda'", "sprint: onda" in motor)
 # nada de caminho cravado de máquina — o repo do dono não é este marketplace.
 check("sem caminho absoluto de máquina", "/Users/" not in motor)
 
+# E · As três travas da autópsia de 2026-08-09 (corrida wf_cd3fe221) — cada uma
+# nasceu de um defeito medido, e regra só em prosa foi como os três entraram.
+#
+# E1 · A marca da lei é COMANDO literal, nunca receita interpretável: a receita em
+# prosa ("cksum do corpo") rendeu QUATRO marcas do mesmo disco na mesma corrida e
+# dois avisos falsos de "a lei mudou".
+check("a marca da lei sai de comando literal (leiMarcaInstr + cksum)",
+      "leiMarcaInstr" in motor and "| cksum" in motor
+      and "corpo (sem frontmatter) dos arquivos de lei" not in motor)
+# E2 · A suíte roda na largada e o vermelho pré-existente fecha a porta — três
+# rodadas morreram em cima de um teste que já estava quebrado antes da missão.
+check("a suíte roda na largada e vermelho pré-existente é porta fechada",
+      "suite:largada" in motor and "vermelha antes da missão" in motor)
+# E3 · O `pronto` é literal: executor que não alcança o critério devolve
+# `impossivel`, nunca um proxy — um passo fechou com a medição original jamais
+# feita porque o executor documentou a troca e a auto-concedeu.
+check("proxy de critério é proibido no executor e reprovado no revisor",
+      "PROXY É PROIBIDO" in motor and "critério REESCRITO" in motor)
+
+# D · TODO agente sai com rótulo próprio na tela de andamento.
+#
+# Sem `label`, a tela de progresso nomeia o agente pelo COMEÇO do prompt — e como todo
+# prompt do motor abre com `PAPEL: X` (a regra da autópsia), sete papéis apareciam como
+# "PAPEL: DIAGNOSTICO Repositório: /Users/…" cortado, indistinguíveis entre si. O dono
+# perdia a governança justamente onde ela importa: qual tarefa está em diagnóstico, em
+# que volta do desafio, qual rodada está decompondo. Régua: `label:` mora na mesma linha
+# do `phase:` ou na de baixo — é o formato que as 20 chamadas usam hoje.
+linhas = motor.splitlines()
+sem_rotulo = [
+    "%d: %s" % (i + 1, linha.strip()[:70])
+    for i, linha in enumerate(linhas)
+    if "phase: '" in linha
+    and "label:" not in linha
+    and "label:" not in (linhas[i + 1] if i + 1 < len(linhas) else "")
+]
+check("toda chamada de agente tem label próprio", not sem_rotulo,
+      "sem rótulo → %s" % " | ".join(sem_rotulo))
+
 # sintaxe: o arquivo tem que ser JavaScript válido (quando node existe na máquina).
 if shutil.which("node"):
     r = subprocess.run(["node", "--check", MOTOR], capture_output=True, text=True,
