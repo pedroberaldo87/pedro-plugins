@@ -391,5 +391,6 @@ origens, na íntegra:
 - **O diretor exigindo impressão no conjunto (0.9.x).** Com cada peça exigindo juiz
   boquiaberto, a última porta da barra fatiada era o conjunto fechar "no nível do alvo" —
   a pergunta de conformidade. O diretor agora declara `impressionado` e a frase, cobrados
-  por `fecho_check.py`, e o orgulho do construtor virou campo recusável da entrega pela
-  mesma razão: "each sub-agent utterly wowed" é CADA subagente, não um.
+  por `fecho_check.py`. O orgulho do construtor chegou a virar campo recusável e VOLTOU
+  a ser aspiração de briefing — régua do original: "never let the builder grade
+  itself"; a autoavaliação do autor não é contrato, e quem cobra qualidade é o crítico.

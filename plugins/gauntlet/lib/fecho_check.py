@@ -443,16 +443,6 @@ def _erros_do_veredito(missao, peca, dir_rodada, nomes_de_eixo, raiz=None,
                 "%s %s: a missão tem arsenal e a entrega não declara `arsenal_usado`"
                 % (peca, rodada)
             )
-        # "Each sub-agent utterly wowed" vale para quem CONSTRÓI também: a entrega
-        # declara, em frase de gente, o que nela orgulha o construtor diante do alvo.
-        # Sem cobrador isto era prosa de briefing — a classe de regra que morre.
-        orgulho = ent.get("orgulho")
-        if not orgulho or not isinstance(orgulho, str):
-            erros.append(
-                "%s %s: a entrega não declara `orgulho` — o construtor diz, em uma "
-                "frase, o que nesta entrega o orgulha diante do alvo; se nada orgulha, "
-                "não terminou" % (peca, rodada)
-            )
         artefatos = ent.get("artefatos") or []
         if not artefatos:
             erros.append("%s %s: o manifesto não lista artefato nenhum" % (peca, rodada))
