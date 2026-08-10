@@ -8,6 +8,7 @@ Sem framework: assert + __main__, convencao do repo (patterns.md).
 """
 import json
 import os
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -19,6 +20,51 @@ CONFORMANCE = AQUI / "conformance.py"
 SCOPE_COP = BOOTSTRAP.parent / "guardrails" / "hooks" / "scope-cop.sh"
 
 ok = falhas = 0
+_BASH = None
+
+
+def bash_posix():
+    """O caminho de um bash que RODA — não o primeiro que o PATH oferecer.
+
+    No Windows o `bash` do PATH é o do WSL (`System32\\bash.exe`), e em máquina
+    sem distro instalada ele responde `Windows Subsystem for Linux has no
+    installed distributions.` em UTF-16 — o que chega ao Python como stdout
+    VAZIO. O teste então reprovava com "o hook não bloqueou", que é a conclusão
+    errada sobre o hook certo: quem não rodou foi o interpretador.
+
+    Três tentativas de consertar isso pelo PATH do runner falharam (GITHUB_PATH
+    não venceu o System32; `export PATH=/usr/bin:$PATH` também não). A decisão
+    que sobrou é a honesta: **quem precisa do bash procura um que funcione**, e
+    o critério é ele responder — não estar no PATH. Ordem: o do PATH, se
+    responder; senão os lugares onde o Git Bash mora no Windows.
+
+    Devolve `None` quando não há nenhum. Quem chama PULA o caso e diz isso em
+    voz alta — hook shell sem shell não é falha do hook.
+    """
+    global _BASH
+    if _BASH is not None:
+        return _BASH or None
+    candidatos = [shutil.which("bash")]
+    if os.name == "nt":
+        # Barra NORMAL de propósito: o Windows aceita as duas, e a invertida em
+        # literal Python é campo minado (`\b` de `\bin` vira backspace).
+        candidatos += ["C:/Program Files/Git/bin/bash.exe",
+                       "C:/Program Files/Git/usr/bin/bash.exe",
+                       "C:/Program Files (x86)/Git/bin/bash.exe"]
+    for c in candidatos:
+        if not c or not os.path.exists(c):
+            continue
+        try:
+            r = subprocess.run([c, "-c", "echo VIVO"], capture_output=True,
+                               text=True, timeout=20, stdin=subprocess.DEVNULL,
+                               start_new_session=True)
+        except (OSError, subprocess.SubprocessError):
+            continue
+        if r.stdout.strip() == "VIVO":
+            _BASH = c
+            return c
+    _BASH = ""
+    return None
 
 
 def check(nome, cond, detalhe=""):
@@ -360,7 +406,7 @@ def roda_scope_cop(bindir, payload, home, config_dir, script=None):
     # esteira vermelha de 2026-08-10 (a outra metade é o `bash` do WSL, abaixo).
     env = dict(os.environ, HOME=str(home), CLAUDE_CONFIG_DIR=str(config_dir),
                PATH=f"{bindir}{os.pathsep}{os.environ['PATH']}")
-    r = subprocess.run(["bash", str(script or SCOPE_COP)], input=payload,
+    r = subprocess.run([bash_posix(), str(script or SCOPE_COP)], input=payload,
                        capture_output=True, text=True, env=env, start_new_session=True)
     return r.stdout.strip(), r.returncode
 
@@ -371,6 +417,13 @@ def teste_hook_ausente_nao_se_disfarca_de_hook_calado():
     OUTRO plugin — se o arquivo sumir de lugar, o bash sai 127 com stdout
     vazio e o caso 'o hook tem que calar' fica VERDE por acidente. Silencio so
     prova obediencia junto com returncode 0."""
+    # SEM BASH QUE RODE, ESTE CASO NÃO MEDE NADA — e dizer isso é mais honesto
+    # que reprovar o hook. No Windows sem Git Bash o `bash` do PATH é o do WSL,
+    # que responde em UTF-16 e chega como stdout vazio: o teste concluía "o hook
+    # não bloqueou" sobre um hook que nunca chegou a rodar.
+    if bash_posix() is None:
+        print("  skip %s (nenhum bash funcional nesta máquina)" % "hook ausente x hook desligado")
+        return
     with tempfile.TemporaryDirectory() as t:
         raiz = Path(t)
         bindir, payload = monta_scope_cop(raiz)
@@ -387,6 +440,11 @@ def teste_scope_cop_e_conformance_olham_a_mesma_pasta():
     ~/.claude fixo enquanto o check_gates_enganosos varre **/*.mode sob
     CLAUDE_CONFIG_DIR. Com a env var setada, o gate que o auditor acusa nao e
     o gate que o hook obedece — e cada lado fica coerente sozinho."""
+    # Mesma guarda do caso acima: sem bash que rode, o hook não chega a ser
+    # exercitado e "não bloqueou" seria conclusão errada sobre hook certo.
+    if bash_posix() is None:
+        print("  skip scope-cop x conformance (nenhum bash funcional nesta máquina)")
+        return
     with tempfile.TemporaryDirectory() as t:
         raiz = Path(t)
         vivo, cfg = monta_mundo(raiz)
