@@ -161,9 +161,10 @@ O resultado vai no `args` do Workflow como **`buildWarm`**, e de lá para **todo
 | `tokenBudget` | `null` | **Disjuntor por consumo.** Teto de tokens de saída da missão inteira. Estourou, o motor **se desliga** e relata quanto gastou. `null` = sem teto (o comportamento antigo). |
 | `sessionId` | — | `$CLAUDE_CODE_SESSION_ID`. É a chave da **reserva de arquivos**: a disputa que existe é entre motores da MESMA sessão, e reserva global recusaria toda sessão paralela nos arquivos dela. |
 | `motorId` | — | Identifica ESTE motor dentro da sessão (carimbo de arranque serve). Dois motores com o mesmo id se enxergariam como um só e a reserva nunca recusaria nada. |
-| `silenceLimitMin` | `12` | **Vigia por tempo.** Minutos de registro parado que fazem o vigia acender o sinal. Só derruba se **não houver trabalho vivo** — ver `F9.24` abaixo. As DUAS metades falam na tela: o gancho de andamento (`hooks/posttooluse-andamento.sh` → `lib/andamento.py:linha_silencio`) narra o silêncio longo com trabalho vivo como **`rodando ha N min`** e o silêncio sem sinal de vida como **`travamento`**, no mesmo `systemMessage` do relógio. |
+| `rodadasMudasMax` | `3` | **Vigia por avanço.** Rodadas seguidas sem nenhum bloco verde e sem nenhum passo marcado que fazem o vigia derrubar a missão. Só derruba se **não houver trabalho vivo na rodada** — ver `F9.24` abaixo. O vigia media MINUTOS até 2026-08-10, e o script não tem relógio: a hora vinha do agente da suíte, que devolveu `1` e fez a conta dar 56 anos de silêncio (autópsia abaixo). Quem continua falando em minutos na tela é o gancho de andamento (`hooks/posttooluse-andamento.sh` → `lib/andamento.py:linha_silencio`), que roda em Python e tem relógio de verdade: silêncio longo com trabalho vivo sai como **`rodando ha N min`**, silêncio sem sinal de vida como **`travamento`**. |
 | `buildWarm` | `false` | **Cache de compilação já quente.** `true` = a casca compilou os alvos antes de disparar o motor (passo acima), e o valor chega a todo executor no `execPrompt` — é o que o proíbe de recompilar do zero. Ausente/`false` = ninguém aqueceu, e cada executor compila como antes. |
-| `blocoMax` | `4` | **O grão do ciclo curto.** A onda sai em blocos desse tamanho, e CADA bloco fecha o ciclo inteiro: revisor por tarefa → revisão do bloco → suíte → marcação → commit → doc → colheita (decisão do dono, 2026-08-09). O primeiro bloco que traz falha **fecha a onda ali**: o resto volta pro orquestrador sem ser despachado. Bloco maior = menos ciclos e mais trabalho perdido quando a premissa fura cedo. |
+| `blocoMax` | `4` | **O grão do ciclo curto.** A onda sai em blocos desse tamanho, e CADA bloco fecha o ciclo inteiro: revisor por tarefa → revisão do bloco → suíte → marcação → commit → doc → colheita (decisão do dono, 2026-08-09). O primeiro bloco que traz falha **fecha a onda ali**: o resto volta pro orquestrador sem ser despachado. Bloco maior = menos ciclos e mais trabalho perdido quando a premissa fura cedo. **O tamanho que mede o dano de falhar cedo é o da LEVA, não o do bloco** — ver `levaMax` abaixo. |
+| `levaMax` | `12` | **Teto da leva.** Quantas tarefas o motor despacha numa rodada. O que passa disso **não é falha**: fica na fila da rodada seguinte, e o corte acontece antes da regra de pular. Sem este teto, uma leva de 53 tarefas perdeu 45 numa falha do segundo bloco (2026-08-10) — todas decompostas pelo papel mais caro do motor para nunca serem despachadas. |
 | `tetoExecutorMin` | `20` | **Teto de um executor só.** Minutos que um executor tem para entregar; passou disso, ele devolve `espera: true` e a rodada fecha com quem voltou. É teto **por agente**, não da onda — o vigia acima olha o motor inteiro e não enxerga um agente ciclando dentro de uma onda viva. |
 
 Precedência: flag da invocação > default acima. A casca **sempre** materializa os quatro primeiros antes de disparar o Workflow — `maxRounds` ausente faz o `while` do motor não rodar nenhuma volta e devolver "pronto" sem ter construído nada.
@@ -420,7 +421,7 @@ let built = false, r = 0
 // motor gastou 3x o previsto numa execução real (72 agentes p/ 25 tarefas) sem nada
 // perceber, e ficou parado sem se denunciar: quem trava não escreve "travei".
 const tokenBudget = ARGS.tokenBudget || null
-const silenceLimitMs = (ARGS.silenceLimitMin || 12) * 60 * 1000
+const rodadasMudasMax = ARGS.rodadasMudasMax || 3
 // TETO POR EXECUTOR (F9.29) — o vigia acima olha o MOTOR; este olha UM agente. Onda com
 // trabalho vivo não acorda o vigia, então um executor ciclando dentro dela é invisível
 // pros dois freios de cima.
@@ -428,8 +429,8 @@ const tetoExecutorMin = ARGS.tetoExecutorMin || 20
 // CACHE QUENTE (F9.34) — a casca já pagou a compilação; `=== true` porque o valor ausente
 // tem que virar `false`, e não `undefined` chegando ao executor como se fosse aviso.
 const buildWarm = ARGS.buildWarm === true
-let ultimoSinalDeVida = ARGS.now      // carimbo passado pela casca (Date.now() não roda em script)
-let ultimaSuiteMissao = null          // a última suíte da MISSÃO: rodada sem suíte não apaga o trabalho-vivo
+let rodadasMudas = 0                  // rodadas seguidas sem bloco verde e sem passo marcado
+let trabalhoVivoEm = 0                // rodada da última suíte que DECLAROU trabalho vivo
 let desligadoPor = null               // 'orcamento' | 'vigia' — vira stopReason
 const gastoAgora = () => budget.spent()
 const gastoInicial = budget.spent()
@@ -561,7 +562,6 @@ while (!built && r < maxRounds) {
     const base = await agent(runSuitePrompt({ repoRoot: ARGS.repoRoot, round: r, bloco: 0 }),
       { model: ARGS.model, effort: T.mechanical.effort, phase: 'Decompor',
         label: 'suite:largada', schema: SUITE_RESULT })
-    if (base?.heartbeat) ultimoSinalDeVida = base.heartbeat
     if (base && base.green === false) {
       desligadoPor = 'porta-fechada'
       blockers.push({ what: `a suíte do repositório JÁ está vermelha antes da missão: ${(base.failing || []).join(' · ') || base.placar || 'sem lista'}`,
@@ -698,6 +698,9 @@ while (!built && r < maxRounds) {
     (feedback?.gaps || []).filter(g => g.task_id === t.id).map(g => g.problem).sort()])
   const puladas = []
   const fpNova = {}   // a comparação é contra a RODADA anterior, nunca dentro da mesma
+  // quem o motor NÃO despachou volta com impressão idêntica — ninguém a tocou. Sem esta
+  // isenção, 30 tarefas foram puladas por "estado repetido" sem uma tentativa (2026-08-10).
+  const naoTentadoAntes = new Set(feedback?.naoDespachadas || [])
   for (const t of [...todo]) {
     const fp = fpDe(t)
     // quem está numa ESCALADA declarada (alegação repetida a caminho do auditor,
@@ -705,7 +708,7 @@ while (!built && r < maxRounds) {
     // de estado, e pular aqui mataria o caminho que o motor mesmo abriu. Quem parou
     // no TETO também não: "não deu tempo" sai com mais rodada por definição.
     if ((taskChurn[t.id] || 0) > 0 || (impossivelChurn[t.id] || 0) > 0 ||
-        estouraramTeto.has(t.id)) {
+        estouraramTeto.has(t.id) || naoTentadoAntes.has(t.id)) {
       fpNova[t.id] = fp
       continue
     }
@@ -719,6 +722,18 @@ while (!built && r < maxRounds) {
   }
   Object.assign(impressaoTarefa, fpNova)
   if (puladas.length) log(`puladas por estado repetido: ${puladas.join(' · ')}`)
+
+  // ── A LEVA TAMBÉM TEM TETO, NÃO SÓ O BLOCO (autópsia 2026-08-10) ────────────
+  // Numa corrida real a leva teve 53 tarefas, o segundo bloco falhou, e a regra de
+  // falhar cedo cancelou 45 de uma vez — decompostas pelo papel mais caro do motor
+  // para nunca serem despachadas. O que passa do teto NÃO é falha: é a fila da rodada
+  // seguinte. O corte vem DEPOIS do "para ou pula" de propósito: antes dele, a frente
+  // da fila já entregue (que o decompositor devolveu de novo) ocuparia as vagas da
+  // leva toda rodada e a fila adiada nunca andaria. A impressão de quem foi adiado
+  // está protegida pela isenção `naoTentadoAntes` acima.
+  const levaMax = ARGS.levaMax || 12
+  const adiadas = todo.length > levaMax ? todo.splice(levaMax) : []
+  if (adiadas.length) log(`leva cortada em ${levaMax}: ${adiadas.length} tarefa(s) ficam para a rodada seguinte`)
 
   // ESPERA APARECE COMO ESPERA, NÃO COMO FALHA (F8.4 · S-23). Sair da fila não basta:
   // sem esta lista o passo que espera um ato SEU some do relatório — nem feito, nem
@@ -748,8 +763,10 @@ while (!built && r < maxRounds) {
   // seguiu pagando a decomposição (a parte cara) para não despachar ninguém. Onda que
   // separa e não tem UM executável não melhora com mais rodada: ou o que trava é seu
   // (esperandoVoce), ou é impedimento confirmado (impedidos) — os dois já estão no
-  // relatório. Rodar de novo é o mesmo resultado pelo mesmo preço.
-  if (decomp.tasks.length && !todo.length) {
+  // relatório. Rodar de novo é o mesmo resultado pelo mesmo preço. MAS a leva cortada
+  // pelo teto (`adiadas`) não é onda vazia: sem essa metade, uma rodada em que as 12 da
+  // vez foram todas puladas encerraria a corrida com dezenas de tarefas ainda na fila.
+  if (decomp.tasks.length && !todo.length && !adiadas.length) {
     desligadoPor = 'onda-esteril'
     rounds.push({ r, decomp, results: [], review: null, esperandoVoce })
     blockers.push({ what: `onda ${r} estéril: ${decomp.tasks.length} tarefa(s) separadas e nenhuma executável — tudo parado por blocker ou espera`,
@@ -900,8 +917,10 @@ while (!built && r < maxRounds) {
     // "gravei a quebra". Vermelha fecha a onda aqui, e nada deste bloco é marcado.
     const suiteB = await agent(runSuitePrompt({ repoRoot: ARGS.repoRoot, round: r, bloco: b }),
       { model: ARGS.model, effort: T.mechanical.effort, phase: 'Suíte', label: `suite:r${r}b${b}`, schema: SUITE_RESULT })
-    if (suiteB?.heartbeat) ultimoSinalDeVida = suiteB.heartbeat
-    ultimaSuite = suiteB; ultimaSuiteMissao = suiteB
+    // trabalho vivo protege a rodada em que foi VISTO, e só ela: guardar a última suíte
+    // qualquer fazia a VERMELHA que fecha o bloco apagar o `trabalhoVivo` da verde anterior.
+    if (suiteB?.trabalhoVivo) trabalhoVivoEm = r
+    ultimaSuite = suiteB
     if (!suiteB || !suiteB.green) {
       blockers.push({ what: `a suíte quebrou no bloco ${b} da rodada ${r}: ${suiteB?.failing?.join(' · ') || 'sem veredito'}`,
                       whyNeedsYou: 'bloco vermelho não vira ponto de salvamento — o conserto volta pelo orquestrador' })
@@ -962,6 +981,13 @@ while (!built && r < maxRounds) {
   // revisor não recebe meia obra como obra), entra no `missing` do #1 na volta
   // seguinte, e a rodada FECHA com quem voltou. Sem esta separação, o teto do
   // executor seria só um jeito mais educado de perder o trabalho da onda.
+  // A CONTA DO VIGIA FECHA AQUI, com os blocos da onda já sabidos — lá embaixo os
+  // caminhos que fazem `continue` no meio pulariam a contagem justo nas rodadas que
+  // não produziram nada (revisor mudo, por exemplo).
+  // o que zera e o BLOCO VERDE, nao a marcacao: `marcadosDaOnda` guarda tambem o passo
+  // que o plano RECUSOU marcar, e recusa nao e avanco.
+  rodadasMudas = blocosVerdes.length ? 0 : rodadasMudas + 1
+
   // a parada por causa global registra a rodada antes de sair: os blocos que já
   // fecharam verdes ficam no retrato, e o relatório sabe ONDE a corrida parou.
   if (desligadoPor === 'causa-global') {
@@ -972,6 +998,10 @@ while (!built && r < maxRounds) {
     break
   }
 
+  // NÃO TENTADO = o que o bloco cancelado engoliu + o que o teto de leva adiou. É a
+  // identidade que se perdia na fusão com o resto do `missing`, e sem ela a regra de
+  // pular condenava quem nunca saiu.
+  const naoTentadasNaRodada = [...naoDespachadas, ...adiadas.map(t => t.id)]
   const esperaIds = respostas.filter(x => x.espera).map(x => x.task_id)
   for (const id of esperaIds) estouraramTeto.add(id)
   const results = respostas.filter(x => !x.espera)
@@ -1063,8 +1093,10 @@ while (!built && r < maxRounds) {
     blockers.push({ what: `revisor da rodada ${r} não respondeu, ou voltou duas vezes sem a âncora do fim`,
                     whyNeedsYou: 'a obra desta rodada ficou SEM revisão — trate como não verificada' })
     rounds.push({ r, decomp, results, review: null, diagnoses, espera: esperaIds, esperandoVoce,
-                  devolvidas: devolvidasPeloAuditor, naoDespachadas })
-    feedback = { gaps: [], missing: [...esperaIds, ...naoDespachadas, ...devolvidasPeloAuditor.map(d => d.taskId)],
+                  devolvidas: devolvidasPeloAuditor, naoDespachadas,
+                  adiadas: adiadas.map(t => t.id) })
+    feedback = { gaps: [], missing: [...esperaIds, ...naoTentadasNaRodada, ...devolvidasPeloAuditor.map(d => d.taskId)],
+                 naoDespachadas: naoTentadasNaRodada,
                  diagnoses, devolvidas: devolvidasPeloAuditor, blocoQueFalhou }
     continue
   }
@@ -1139,7 +1171,7 @@ while (!built && r < maxRounds) {
   // A régua: o contador é de QUEM FALHOU, e quem nem foi tentado não falhou.
   // `naoDespachadas` entra pela mesma porta (F9.57): bloco que não saiu porque um anterior
   // falhou não é tarefa presa — ninguém a tentou nesta volta.
-  const naoTentado = new Set([...parado, ...esperaChain.keys(), ...naoDespachadas])
+  const naoTentado = new Set([...parado, ...esperaChain.keys(), ...naoTentadasNaRodada])
   const stuck = new Set([...(review.missingTasks || []), ...(review.gaps || []).map(g => g.task_id)]
                         .filter(id => id && !naoTentado.has(id)))
   for (const t of decomp.tasks) taskChurn[t.id] = stuck.has(t.id) ? (taskChurn[t.id] || 0) + 1 : 0
@@ -1161,7 +1193,8 @@ while (!built && r < maxRounds) {
   fpRodadaAnterior = blocosVerdes.length === 0 ? fpRodada : null
 
   rounds.push({ r, decomp, results, review, diagnoses, espera: esperaIds, esperandoVoce,
-                devolvidas: devolvidasPeloAuditor, naoDespachadas })
+                devolvidas: devolvidasPeloAuditor, naoDespachadas,
+                adiadas: adiadas.map(t => t.id) })   // fila da rodada seguinte, não falha
 
   // ── O SALVAMENTO ACONTECEU POR BLOCO — a onda só CONSOLIDA o registro ───────
   // Suíte, marcação, commit, doc e colheita rodaram dentro de cada bloco (o ciclo
@@ -1202,17 +1235,20 @@ while (!built && r < maxRounds) {
     break
   }
 
-  // ── VIGIA POR TEMPO (F9.13 + F9.24) ─────────────────────────────────────────
-  // Registro mudo por tempo demais é travamento, e de DENTRO ninguém enxerga isso. O
-  // sinal de vida é a onda ter fechado; quem não fechou nada há silenceLimitMin está
-  // parado. MAS parada com trabalho vivo NÃO é travamento: agente rodando uma suíte de
-  // 11 minutos parece agente morto, e os dois calam igual. Por isso a condição é dupla.
-  const agora = ARGS.now + (rounds.length ? 0 : 0)   // a casca reinjeta o relógio por rodada
-  // o sinal de vida vem da ÚLTIMA suíte de bloco — foi ela que atualizou o relógio no ciclo
-  const mudo = agora - ultimoSinalDeVida
-  if (mudo > silenceLimitMs && !ultimaSuiteMissao?.trabalhoVivo) {
+  // ── VIGIA POR AVANÇO (F9.13 + F9.24) ────────────────────────────────────────
+  // Onda que não produz nada rodada após rodada é travamento, e de DENTRO ninguém
+  // enxerga isso. O vigia media TEMPO até 2026-08-10 e o script NÃO tem relógio
+  // (`Date.now()` lança em script de Workflow): a hora vinha do agente da suíte, que
+  // devolveu `heartbeat: 1` numa corrida real, a conta deu 56 anos de silêncio e a
+  // missão morreu no minuto seguinte a uma suíte verde de 374 testes, com 10 das 12
+  // rodadas por usar. Agora o sinal de vida é AVANÇO, medido pelo próprio motor: bloco
+  // verde ou passo marcado zera a conta (a linha fica logo depois do laço de blocos).
+  // MAS parada com trabalho vivo NÃO é travamento: agente rodando uma suíte de 11
+  // minutos parece agente morto, e os dois calam igual. Por isso a condição é dupla —
+  // e o trabalho vivo só protege a rodada em que foi VISTO.
+  if (rodadasMudas >= rodadasMudasMax && trabalhoVivoEm < r) {
     desligadoPor = 'vigia'
-    blockers.push({ what: `vigia: nada mudou no registro há ${Math.round(mudo / 60000)} min e não há trabalho vivo`,
+    blockers.push({ what: `vigia: ${rodadasMudas} ${rodadasMudas === 1 ? 'rodada fechou' : 'rodadas seguidas fecharam'} sem nenhum bloco verde e sem nenhum passo marcado, e não há trabalho vivo na máquina`,
                     whyNeedsYou: 'travamento, não demora — o último estado salvo é o checkpoint da rodada anterior' })
     break
   }
@@ -1230,7 +1266,10 @@ while (!built && r < maxRounds) {
   // seguinte (Fase Gate + confirm-pass DELE), então aqui declara direto. SEM qa-loop na
   // máquina (hasQaLoop=false) não existe segunda checagem lá na frente: o motor NÃO pode
   // fechar no veredito barato da rodada — roda o confirm-pass dedicado em finalize_model.
-  if (review.complete && review.cohesive && gaps.length === 0) {
+  // E `built` é FATO do programa antes de ser juízo do revisor: rodada com tarefa não
+  // tentada (bloco cancelado ou fila adiada pelo teto de leva) não declara obra pronta
+  // nem que o revisor a declare — o que não foi despachado ele não viu.
+  if (!naoTentadasNaRodada.length && review.complete && review.cohesive && gaps.length === 0) {
     if (ARGS.hasQaLoop === false) {
       const confirm = await julga(confirmBuildPrompt({ planPath: ARGS.planPath, planText: ARGS.planText, repoRoot: ARGS.repoRoot, decomp, results, lawMark }),
         { model: ARGS.model, effort: T.finalize.effort, phase: 'Confirmar',
@@ -1248,7 +1287,8 @@ while (!built && r < maxRounds) {
       const confirmGaps = (confirm.gaps || []).filter(holdsBuild)
       if (!confirm.complete || !confirm.cohesive || confirmGaps.length) {
         // o confirm achou o que a rodada barata perdeu — processa, não ignora
-        feedback = { gaps: confirm.gaps.filter(g => g.kind !== 'concepcao'), missing: confirm.missingTasks, diagnoses }
+        feedback = { gaps: confirm.gaps.filter(g => g.kind !== 'concepcao'), missing: confirm.missingTasks,
+                     naoDespachadas: naoTentadasNaRodada, diagnoses }
         continue
       }
     }
@@ -1263,8 +1303,9 @@ while (!built && r < maxRounds) {
   // falhou nem sumiu, foi o motor que fechou a onda cedo por causa da falha do bloco anterior.
   feedback = { gaps: review.gaps.filter(g => g.kind !== 'concepcao'),
                missing: [...new Set([...(review.missingTasks || []), ...esperaIds,
-                                     ...naoDespachadas, ...reprovadasNosBlocos,
+                                     ...naoTentadasNaRodada, ...reprovadasNosBlocos,
                                      ...devolvidasPeloAuditor.map(d => d.taskId)])],
+               naoDespachadas: naoTentadasNaRodada,   // a volta precisa distinguir de "tentou e falhou"
                reticks,   // conserto de passo já marcado REGRAVA a prova do mesmo id
                diagnoses, devolvidas: devolvidasPeloAuditor, blocoQueFalhou }   // alimenta o DECOMPOR da próxima volta
 }
@@ -1436,7 +1477,7 @@ chamadas sem rótulo com a instrução já escrita.
 - `AUDITOR` — `{ derruba: bool, motivo, naoTentou: [...], anchor }`, devolvido por `auditorPrompt` (`diagnose_model`). A lente é **invertida**: o ônus é do auditor provar que **não dá**, e ele recebe `ferramentas` — o que havia à mão — para dizer em `naoTentou` o que o executor nem tentou. `derruba: true` **devolve a tarefa ao loop** (ela entra no `missing` do #1 na volta seguinte, com o que o auditor apontou); `derruba: false` **encerra como impedimento real** — Bloqueio de `kind: 'impedimento'` com o `motivo` escrito. Auditor mudo não encerra nada: a tarefa volta pro loop, porque quem não respondeu não confirmou impedimento. Como todo veredito, sem `anchor` ele é recusado e o papel roda de novo.
 - `SAUDE` — `{ fechada: bool, motivo, saida }`, devolvido por `saudePrompt` (`mechanical_model`), na largada de **toda** rodada. Papel **mecânico e só**: roda os checks determinísticos da casa a partir da raiz — os mesmos que o gate de commit consulta (`python3 scripts/desacoplamento_check.py` e vizinhos listados em `.claude/hooks/release-gate.sh`, quando existirem) — e devolve `fechada: true` com `motivo` (uma linha) e `saida` (a saída crua) quando **qualquer** um reprova o estado atual do repositório. É a guarda **catchall** da autópsia de 2026-08-09: a porta fechada de hoje era o commit; a de amanhã pode ser outra, e o que fecha o motor é o check reprovando, não o nome da doença. Fail-open nas duas pontas: projeto sem esses checks, check quebrado ou agente mudo ⇒ `fechada: false` — travar a corrida por infra de gate é pior que gate nenhum.
 - `DESAFIO` — `{ procede: bool, motivo, escopo?, anchor }`, devolvido por `desafioCausaPrompt` (`diagnose_model`). **`escopo`** = `'tarefa'` ou `'repositorio'`, declarado **pelo par em acordo** — o desafiador que referenda diz até onde a causa alcança, e `'repositorio'` significa que ela mata QUALQUER trabalho novo, não só esta tarefa. É esse rótulo (nunca inferência do motor) que dispara a parada no mesmo turno e a chave global do cache de causa. Ausente ⇒ `'tarefa'`. O desafiador recebe a tarefa e a **causa** que o investigador apontou, com a ordem de **derrubá-la**: `procede: false` carrega em `motivo` o fato que a causa não explica ou a concorrente mais simples — e esse motivo volta ao investigador na volta seguinte (`desafioAnterior`). `procede: true` referenda, e só então o diagnóstico entra no `feedback` (`desafiada: true`). Três voltas sem acordo viram Bloqueio `kind: 'causa-em-disputa'` com as duas versões; desafiador mudo **não referenda**. Como todo veredito, sem `anchor` é recusado e roda de novo.
-- `SUITE_RESULT` — `{ green: bool, failing: [nome...], placar, heartbeat, trabalhoVivo: bool }`. **`placar`** = a linha crua que a suíte imprimiu (`139 passou · 0 falhou`, `OK (56 checks)`, `17 ok / 0 falhas`), <!-- acopla-ok: exemplos do formato de placar reconhecido, não contagem deste repositório --> lida por `lib/andamento.py:placar` e comparada com a da onda anterior por `lib/andamento.py:avanco` — dois placares iguais seguidos saem como `sem avanço`. O veredito aparece nas **duas** superfícies: no cartão que fecha a onda (`hooks/posttooluse-andamento.sh`, que vê a saída crua da suíte) e na **barra** (`hooks/statusline-motor.sh` → `linha_placar`), que é a que fica. O registro é um só, em `~/.claude/andamento/placar-<sid>` — o motor guarda o campo na onda (`rounds[].placar`) e não o descarta mais. **`trabalhoVivo`** separa demora de travamento: com ele `true`, o vigia **não** derruba, por mais silencioso que esteja o registro. **`heartbeat`** = o carimbo de tempo do último sinal de vida, que a casca reinjeta a cada rodada (o script não tem relógio próprio).
+- `SUITE_RESULT` — `{ green: bool, failing: [nome...], placar, trabalhoVivo: bool }`. **`placar`** = a linha crua que a suíte imprimiu (`139 passou · 0 falhou`, `OK (56 checks)`, `17 ok / 0 falhas`), <!-- acopla-ok: exemplos do formato de placar reconhecido, não contagem deste repositório --> lida por `lib/andamento.py:placar` e comparada com a da onda anterior por `lib/andamento.py:avanco` — dois placares iguais seguidos saem como `sem avanço`. O veredito aparece nas **duas** superfícies: no cartão que fecha a onda (`hooks/posttooluse-andamento.sh`, que vê a saída crua da suíte) e na **barra** (`hooks/statusline-motor.sh` → `linha_placar`), que é a que fica. O registro é um só, em `~/.claude/andamento/placar-<sid>` — o motor guarda o campo na onda (`rounds[].placar`) e não o descarta mais. **`trabalhoVivo`** separa demora de travamento: com ele `true`, o vigia **não** derruba naquela rodada, por mais parada que ela pareça. **Todo campo deste schema tem linha correspondente no corpo do `runSuitePrompt`** — `heartbeat` saiu em 2026-08-10 justamente por não ter: era um número sem descrição, o agente preencheu com `1`, e o vigia leu 56 anos de silêncio. Campo em schema que o prompt não descreve é convite a valor inventado, e a regra vale para todos os schemas do motor.
 - `blocker` de `kind: 'criterio'` — critério de aceite que só se cumpre injetando valor inventado dentro de entregável. Não vira tarefa: vira Bloqueio, e o `whyNeedsYou` diz qual passo da spec precisa reescrever o `pronto`. **Quem o emite é o SCRIPT**, logo depois da decomposição e antes de qualquer executor sair (ver o bloco da régua no esqueleto) — não é julgamento do #1.
 - `REGUA` — `{ reprovados: [{ task_id, motivo }] }`. O papel é **mecânico e só**: para cada `{ id, pronto }` recebido, rodar
 

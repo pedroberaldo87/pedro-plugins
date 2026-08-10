@@ -55,11 +55,12 @@ def main():
           re.search(r"\bbreak\b", d) is not None)
 
     print("porta 2 — revisor morto NAO declara built")
-    # janela de 9: o bloco cresceu quando o auditor (F9.18) passou a devolver tarefas e
-    # o `feedback` ganhou `devolvidas`. O `continue` desceu para a 8ª linha, e a janela
-    # de 7 passou a cortá-lo — o teste acusava "a missão morre" sobre código que degrada
-    # certinho. Janela é medida de leitura, não contrato: quem cresce é o bloco.
-    r = bloco(texto, "if (!review) {", linhas=9)
+    # janela de 11: o bloco cresceu duas vezes — quando o auditor (F9.18) passou a
+    # devolver tarefas, e quando o registro da onda e o `feedback` ganharam a fila adiada
+    # pelo teto de leva (2026-08-10). A cada vez o `continue` desceu uma linha e a janela
+    # antiga passou a cortá-lo, com o teste acusando "a missão morre" sobre código que
+    # degrada certinho. Janela é medida de leitura, não contrato: quem cresce é o bloco.
+    r = bloco(texto, "if (!review) {", linhas=11)
     check("a guarda do revisor existe", bool(r))
     check("ela empurra um blocker", "blockers.push" in r)
     check("a direcao e `continue` — a missao degrada, nao morre",
