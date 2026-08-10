@@ -291,8 +291,10 @@ def caso_escolha_do_run():
         base = _base_falsa(tmp, ["wf_velho", "wf_meio", "wf_novo"])
         check("com vários, o padrão é o mais recente",
               os.path.basename(medidor.resolver_run(base=base)[0]) == "wf_novo")
+        # basename, não endswith("/..."): no Windows o separador é "\\" e a
+        # comparação nunca casava — o mesmo defeito de barra da linha de cima.
         check("o nome do run escolhe o run, não o mais recente",
-              medidor.resolver_run("wf_velho", base=base)[0].endswith("/wf_velho"))
+              os.path.basename(medidor.resolver_run("wf_velho", base=base)[0]) == "wf_velho")
         check("nome que não existe vira erro, não um palpite",
               medidor.resolver_run("wf_nao_existe", base=base) == (
                   None, "run não encontrado: wf_nao_existe"))
