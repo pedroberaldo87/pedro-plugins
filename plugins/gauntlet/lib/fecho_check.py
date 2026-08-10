@@ -51,8 +51,10 @@ TRIADE = ("alvos", "sonda", "eixos")
 # exigir um comando aí faria o dono inventar um.
 CAMPOS_DA_SONDA = ("registrar", "alvo")
 CAMPOS_DECLARADOS_DA_SONDA = ("preparar", "registrar", "alvo")
-# Os três desfechos. `marginal` é a parada por retorno decrescente virando CAMPO: sem
-# ele, "o juiz declara que o ganho ficou pequeno demais" é prosa que o laço não lê.
+# Os três desfechos. `marginal` é RELATO de ganho pequeno, nunca porta de saída: ele
+# só fecha peça com o orçamento esgotado. Medido em 2026-08-09: duas peças fecharam na
+# rodada 1 de 4 por "retorno decrescente" e a obra ficou feia com 45% do orçamento
+# intacto — a fonte da skill manda o contrário ("if it doesn't look AAA, keep going").
 STATUS = ("aprovado", "reprovado", "marginal")
 # O cheiro de receita num NOME de eixo: medida concreta onde devia haver qualidade.
 # Nasceu de uma missão real (2026-08-09): o eixo "moldura de 32px" virou moldura de
@@ -319,6 +321,61 @@ def _erros_do_veredito(missao, peca, dir_rodada, nomes_de_eixo, raiz=None,
     if erro:
         # A falha central: houve entrega e não houve julgamento nenhum.
         return ["%s %s: não há veredito — %s" % (peca, rodada, erro)]
+    if not isinstance(ver, dict):
+        return ["%s %s: o veredito não é um bloco de campos — grave um objeto JSON"
+                % (peca, rodada)]
+
+    # Dado malformado recusa com MENSAGEM, nunca com estouro. Medido em 2026-08-10:
+    # três vereditos reais gravaram lista ou bloco onde o programa esperava texto, e a
+    # resposta foi exceção sem uma linha útil — o juiz não tinha como saber o que
+    # corrigir. O campo malformado é anulado para o resto das checagens seguir.
+    malformados = []
+    for campo in ("peca", "status", "eixo", "gap", "entrega"):
+        valor = ver.get(campo)
+        if valor is not None and not isinstance(valor, str):
+            malformados.append(campo)
+            ver[campo] = None
+    regs_cru = ver.get("registros")
+    if regs_cru is not None and not isinstance(regs_cru, dict):
+        malformados.append("registros")
+        ver["registros"] = {}
+    elif isinstance(regs_cru, dict):
+        for lado in ("nosso", "alvo"):
+            valor = regs_cru.get(lado)
+            if valor is not None and not isinstance(valor, str):
+                malformados.append("registros.%s" % lado)
+                regs_cru[lado] = None
+    for campo in malformados:
+        erros.append(
+            "%s %s: o campo `%s` do veredito não é texto — grave texto simples, "
+            "não lista nem bloco" % (peca, rodada, campo)
+        )
+
+    # A pergunta que fecha peça é de GENTE: o juiz declara se ficou boquiaberto.
+    # Sem este campo, "melhor que o alvo" volta a ser comparação de grandezas — onze
+    # vereditos honestos aprovaram uma obra vergonhosa numa noite real.
+    if "impressionado" not in ver:
+        erros.append(
+            "%s %s: o veredito não declara `impressionado` — o juiz diz se ficou "
+            "boquiaberto (true/false); sem isso não há julgamento de gosto"
+            % (peca, rodada)
+        )
+    elif not isinstance(ver.get("impressionado"), bool):
+        erros.append(
+            "%s %s: `impressionado` é true ou false, nada mais" % (peca, rodada)
+        )
+    if ver.get("status") == "aprovado":
+        if ver.get("impressionado") is not True:
+            erros.append(
+                "%s %s: aprovou sem estar boquiaberto — aprovar É a declaração de "
+                "impressão; ganho pequeno é `marginal`, e a peça segue" % (peca, rodada)
+            )
+        frase = ver.get("frase")
+        if not frase or not isinstance(frase, str):
+            erros.append(
+                "%s %s: falta a `frase` — em palavras de gente, o que na obra te "
+                "impressionou diante do alvo inteiro" % (peca, rodada)
+            )
 
     # A rodada tem que ser a dela. Copiar r1/ inteiro de uma peça aprovada para outra
     # traz a âncora junto e daria fecho verde com a peça jamais julgada.
@@ -506,8 +563,26 @@ def erros_do_fecho(missao):
                     % (nome, os.path.basename(anterior))
                 )
         ver, _ = _le(os.path.join(ultima, "veredito.json"))
-        if ver and ver.get("status") in ("aprovado", "marginal"):
+        status = ver.get("status") if isinstance(ver, dict) else None
+        if status == "aprovado":
             aprovadas[nome] = marca(os.path.join(ultima, "entrega.json"))
+        elif status == "marginal":
+            # `marginal` é relato, não saída. Fechar peça por retorno decrescente com
+            # orçamento sobrando é a rendição medida em 2026-08-09: o que fecha peça é
+            # juiz boquiaberto, orçamento esgotado, ou o dono mandando parar (e parar
+            # é `encerra`, não fecho verde). Ganho pequeno manda propor caminho NOVO.
+            orc = rito.get("orcamento") if isinstance(rito.get("orcamento"), dict) else {}
+            rpp = orc.get("rodadas_por_peca")
+            usadas = len(_rodadas(dir_peca))
+            if isinstance(rpp, int) and usadas < rpp:
+                erros.append(
+                    "%s: parou por ganho pequeno com %d rodada(s) sobrando — "
+                    "`marginal` não fecha peça: o construtor seguinte propõe um "
+                    "caminho NOVO, até o juiz ficar boquiaberto ou o orçamento acabar"
+                    % (nome, rpp - usadas)
+                )
+            else:
+                aprovadas[nome] = marca(os.path.join(ultima, "entrega.json"))
         else:
             erros.append("%s: a última rodada não fechou" % nome)
 
@@ -600,7 +675,7 @@ def desenha_mapa(missao):
             elif ver.get("status") == "aprovado":
                 estado, gap = "aprovada", "—"
             elif ver.get("status") == "marginal":
-                estado = "parada por ganho pequeno"
+                estado = "ganho pequeno declarado — segue aberta até impressionar"
                 gap = ver.get("gap", "—")
             else:
                 estado = "reprovada"

@@ -81,6 +81,10 @@ def monta_missao(raiz, pecas=("hero",), com_veredito=True, aprovado=True):
             escreve(os.path.join(r1, "veredito.json"), {
                 "peca": p, "rodada": 1,
                 "status": "aprovado" if aprovado else "reprovado",
+                # Aprovar É a declaração de impressão: o juiz diz que ficou
+                # boquiaberto e o diz em frase de gente, ou o fecho recusa.
+                "impressionado": bool(aprovado),
+                "frase": "a nossa entrada respira melhor que a do alvo" if aprovado else "",
                 "eixo": "ritmo da entrada",
                 "gap": "" if aprovado else "a entrada do alvo respira mais",
                 "entrega": fc.marca(cam_e),
@@ -254,15 +258,27 @@ check("o dono dizendo `mantém` fecha o assunto",
 shutil.rmtree(d)
 
 print()
-print("A PARADA POR RETORNO DECRESCENTE — ela tem que ser CAMPO, não prosa")
+print("A RENDIÇÃO — `marginal` é relato, e não fecha peça com rodada sobrando")
 d = tmp()
 m = monta_missao(d)
 v = os.path.join(m, "pecas", "hero", "r1", "veredito.json")
 dado = json.load(open(v, encoding="utf-8"))
 dado["status"] = "marginal"
+dado["impressionado"] = False
 dado["gap"] = "o que sobra e ganho pequeno demais"
 escreve(v, dado)
-check("`marginal` fecha a peça — é parada declarada, não falha",
+# A fixture dá 3 rodadas por peça e só 1 foi usada: fechar aqui é a rendição medida
+# em 2026-08-09 (duas peças fechadas na rodada 1 de 4, com 45% do orçamento intacto).
+furos = fc.erros_do_fecho(m)
+check("`marginal` com rodada sobrando é recusado nomeando a peça",
+      any("hero" in f and "não fecha peça" in f for f in furos))
+check("e a recusa manda propor caminho NOVO",
+      any("caminho NOVO" in f for f in furos))
+rito = json.load(open(os.path.join(m, "rito.json"), encoding="utf-8"))
+rito["orcamento"]["rodadas_por_peca"] = 1
+escreve(os.path.join(m, "rito.json"), rito)
+escreve(os.path.join(m, "rito-aprovado.marca"), fc.marca(os.path.join(m, "rito.json")))
+check("com o orçamento esgotado, o mesmo `marginal` fecha — é a única saída dele",
       fc.erros_do_fecho(m) == [])
 dado["gap"] = ""
 escreve(v, dado)
@@ -273,6 +289,78 @@ dado["gap"] = "x"
 escreve(v, dado)
 check("status fora do vocabulário é acusado",
       any("não diz aprovado" in f for f in fc.erros_do_fecho(m)))
+shutil.rmtree(d)
+
+print()
+print("O JUIZ BOQUIABERTO — aprovar É a declaração de impressão")
+d = tmp()
+m = monta_missao(d)
+v = os.path.join(m, "pecas", "hero", "r1", "veredito.json")
+dado = json.load(open(v, encoding="utf-8"))
+del dado["impressionado"]
+escreve(v, dado)
+check("veredito sem `impressionado` é recusado com mensagem que o nomeia",
+      any("não declara `impressionado`" in f for f in fc.erros_do_fecho(m)))
+dado["impressionado"] = False
+escreve(v, dado)
+check("aprovado com `impressionado: false` é contradição acusada",
+      any("aprovou sem estar boquiaberto" in f for f in fc.erros_do_fecho(m)))
+dado["impressionado"] = True
+del dado["frase"]
+escreve(v, dado)
+check("aprovado sem a frase de gente é recusado",
+      any("falta a `frase`" in f for f in fc.erros_do_fecho(m)))
+dado["frase"] = "a nossa entrada respira melhor que a do alvo"
+dado["impressionado"] = "sim"
+escreve(v, dado)
+check("`impressionado` que não é true/false é acusado",
+      any("true ou false" in f for f in fc.erros_do_fecho(m)))
+shutil.rmtree(d)
+
+print()
+print("DADO MALFORMADO — recusa com mensagem, nunca com estouro")
+# Os três payloads reais que estouravam TypeError na missão de 2026-08-09:
+# registros.nosso como lista, eixo como bloco, gap como bloco.
+d = tmp()
+m = monta_missao(d)
+v = os.path.join(m, "pecas", "hero", "r1", "veredito.json")
+dado = json.load(open(v, encoding="utf-8"))
+dado["registros"]["nosso"] = ["pecas/hero/r1/nosso.png", "pecas/hero/r1/outro.png"]
+escreve(v, dado)
+try:
+    furos = fc.erros_do_fecho(m)
+    check("registros.nosso como LISTA recusa com mensagem",
+          any("registros.nosso" in f and "não é texto" in f for f in furos))
+except TypeError:
+    check("registros.nosso como LISTA recusa com mensagem", False)
+shutil.rmtree(d)
+
+d = tmp()
+m = monta_missao(d)
+v = os.path.join(m, "pecas", "hero", "r1", "veredito.json")
+dado = json.load(open(v, encoding="utf-8"))
+dado["status"] = "reprovado"
+dado["impressionado"] = False
+dado["eixo"] = {"nome": "ritmo da entrada"}
+dado["gap"] = {"texto": "a entrada do alvo respira mais"}
+escreve(v, dado)
+try:
+    furos = fc.erros_do_fecho(m)
+    check("eixo como BLOCO recusa com mensagem",
+          any("`eixo` do veredito não é texto" in f for f in furos))
+    check("gap como BLOCO recusa com mensagem",
+          any("`gap` do veredito não é texto" in f for f in furos))
+except TypeError:
+    check("eixo como BLOCO recusa com mensagem", False)
+    check("gap como BLOCO recusa com mensagem", False)
+shutil.rmtree(d)
+
+d = tmp()
+m = monta_missao(d)
+v = os.path.join(m, "pecas", "hero", "r1", "veredito.json")
+escreve(v, ["nao", "sou", "um", "bloco"])
+check("veredito que não é bloco nenhum recusa com mensagem",
+      any("não é um bloco de campos" in f for f in fc.erros_do_fecho(m)))
 shutil.rmtree(d)
 
 print()

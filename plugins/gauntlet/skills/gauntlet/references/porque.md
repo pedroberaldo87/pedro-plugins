@@ -306,3 +306,71 @@ most important part"* — não com mais juízes.
 propostas × N rodadas × dois a três juízes × laço sem fim — é teatro de processo: ninguém
 paga, e o orquestrador volta a cortar exatamente o pedaço que a skill existe para proteger.
 **Skill cara demais reproduz a causa (d) dentro de si mesma.**
+
+---
+
+## A noite em que onze vereditos honestos aprovaram uma obra vergonhosa (2026-08-09)
+
+A falha que motivou a versão 0.9.0. Uma missão real rodou a noite inteira em autonomia:
+5 peças, 11 rodadas, 11 vereditos, 20 agentes, 417 capturas — e nenhuma reprovação em
+aberto no fim. O veredito do dono ao ver o resultado, verbatim: *"Se você me perguntasse,
+eu diria que o seu juiz DESISTIU em algum momento de fazer as coisas, e não que alguém
+olhou e achou bom. porque tá simplesmente vergonhoso esse trabalho."*
+
+O que o disco mostrou, e o que cada achado virou:
+
+- **A rendição.** Duas peças fecharam na PRIMEIRA rodada de quatro por `marginal` — a
+  disputa parou com 45% do orçamento intacto, e a skill autorizava por escrito ("para por
+  aprovação, por marginal ou pelo orçamento"). Virou a regra nova: `marginal` é relato,
+  nunca saída — fecha peça só juiz boquiaberto, dono, ou orçamento esgotado, e quem
+  recusa é `fecho_check.py`.
+- **A barra fatiada.** O reconhecimento devolveu 15 eixos, a decomposição os distribuiu
+  2 a 4 por peça, e nenhuma peça jamais enfrentou o alvo inteiro — cada juiz só via o seu
+  recorte. Virou: o trabalho se decompõe, a barra não; todo juiz confronta a obra inteira
+  com o alvo inteiro, e os eixos são lente de atenção.
+- **A medição no lugar do olho.** A pergunta operante era "é melhor naquela qualidade?",
+  que se responde comparando grandezas; a da fonte é "don't stop until utterly wowed",
+  que se responde olhando. Virou: o veredito declara `impressionado` (true/false) e uma
+  `frase` de gente, e aprovar sem impressão é recusado por programa.
+- **O falso "estou livre".** Dois agentes anunciaram disponibilidade com o disco vazio,
+  sem dizer que travaram. Virou regra comum de todos os briefings: se travou, grave o que
+  andou e diga o que travou.
+- **O estouro sem mensagem.** Três vereditos gravaram lista ou bloco onde o programa
+  esperava texto, e a resposta era exceção sem linha útil. Virou recusa nomeando o campo.
+
+E o espírito, medido na fonte: o prompt original do Claude-of-Duty tem 149 palavras, das
+quais 13 são ambição ("utterly perfect", "utterly wowed", "really harsh critic") e ZERO
+são procedimento — nenhum arquivo, nenhum campo, nenhuma prova. A skill tinha 9.413
+palavras com 288 termos de procedimento e 2 de ambição. O mecanismo de prova, funcionando
+como projetado, premiou o mensurável e expulsou o estético — número é citável e sobrevive
+ao fecho; "olhei e está feio" não era auditável. A correção de 0.9.0 tornou o olhar
+auditável (o campo `impressionado` + a frase) em vez de acrescentar mais prosa.
+
+## As histórias que saíram do corpo da skill no enxugamento (0.9.0)
+
+O corpo passou a carregar só o procedimento; cada regra continua lá, em uma linha. As
+origens, na íntegra:
+
+- **Copiar o alvo mordeu de verdade.** Numa missão real, o eixo descritivo "moldura de
+  32px" virou moldura de 32px na obra, a pílula do alvo virou pílula com as mesmas
+  proporções, e um juiz chegou a cobrar que o peso de rolagem BATESSE a constante física
+  do alvo. O mecanismo: quem orquestra interpola o número do eixo no briefing como meta,
+  e o construtor obedece. Dono, verbatim: *"NÃO é pra copiar a porra da página que eu
+  falei que gostei, a não ser que eu diga explicitamente isso."* Hoje quem recusa medida
+  em nome de eixo é o `rito`, e a linha `RÉGUA, NUNCA RECEITA` é exigida pela trava em
+  todo briefing de construtor e juiz.
+- **Aprovação anterior não canoniza receita.** Um orquestrador de sessão anterior decidiu
+  que o aprovado "passou a ser referência", e o construtor seguinte copiou. Do aprovado,
+  como do alvo, transporta-se nível e vibe; a forma de cada peça nasce na peça.
+- **A oferta do diretor criativo para o turno.** A primeira versão oferecia o papel de
+  passagem, no meio de um parágrafo, e o dono passaria batido: *"o ideal seria oferecer o
+  diretor criativo como uma pausa na skill (…) ele tem que ser de nascença senão fudeu."*
+  Por isso a oferta é `AskUserQuestion` antes de qualquer despacho, e `false` vale a
+  missão inteira.
+- **O placar sai como página, nunca como texto no terminal.** Ordem do dono: *"esses
+  relatos de parada a cada etapa devem ser sempre apresentados com /visual"* — o terminal
+  rola, o texto sobe, e o insumo da decisão se perde no scrollback.
+- **Criar asset é permitido; falsificar não.** Símbolo, textura e representação se criam
+  à vontade; o que não se fabrica é o que se passaria por foto ou registro do que não
+  aconteceu. Asset real que falta (pessoa, logotipo, lugar) ganha lugar honesto e sai do
+  julgamento. A regra sem essa distinção era invenção de agente, corrigida pelo dono.

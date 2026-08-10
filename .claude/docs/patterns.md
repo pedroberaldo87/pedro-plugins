@@ -1325,6 +1325,14 @@ Não há runner nem CI: cada suite é um arquivo executável, stdlib/bash puro, 
 - 🔴 **Separador de `PATH` é `os.pathsep`, nunca `:` cravado.** No Windows é `;`, e com dois-pontos o `PATH` inteiro vira uma entrada só de lixo — todo binário some, inclusive o que o teste acabou de montar. Estava em `plugins/bootstrap/lib/test_conformance.py:358`.
 - 🔴 **Matriz sem `fail-fast: false` mente sobre portabilidade.** O padrão cancela os outros sistemas quando um falha, e o log deles sai como `The operation was canceled` — indistinguível de falha real. O Windows quebrou, macOS e Linux apareceram vermelhos por cancelamento, e a leitura de fora foi "os três estão falhando". Uma esteira que existe para dizer **em quais sistemas** o problema está não pode cancelar os outros dois.
 
+⚠️ **E os três primeiros escondiam mais três** — cada rodada de conserto revelava o defeito seguinte, todos do mesmo padrão: *o teste passava na máquina de quem escreveu por causa de algo que só existe lá*.
+
+- **`git commit` sem `GIT_AUTHOR_*` sai 128 em runner limpo.** O `~/.gitconfig` global preenchia a outra ponta na máquina do dono. `test_doc_lint.py` tinha TRÊS chamadas em três formas; consertar uma por vez fez a esteira quebrar duas vezes seguidas no mesmo arquivo, com a segunda ocorrência vinte linhas abaixo da primeira. Viraram uma receita só (`git_commit`).
+- **Teste que mede regra usando artefato IGNORADO pelo git.** `test_docguard_scope.sh` media o escopo dos dois gêmeos com o `graphify-out/` do próprio repositório — que está no `.gitignore`. Sem ele o hook sai calado (o comportamento CERTO dele) e os 17 casos de "busca cega tem que bloquear" reprovavam com `0 denies`, sem nada dizer que a causa era artefato ausente. O teste passou a montar o projeto de mentira com os dois pré-requisitos.
+- **Nome de projeto VAZIO quebra a página do plano.** `plan_state.py:cmd_page` deriva o nome do diretório dois níveis acima de `.claude/plans`; com o plano a menos de dois níveis da raiz, `basename('/')` é `''`, o `visual` recusa o spec e a página não nasce. Um plano em `/tmp/<algo>` quebrava no **Linux** e passava no **macOS** — lá `/tmp` é atalho para `/private/tmp` e sobra um nível. Este é defeito de PRODUTO, não de teste, e foi a esteira que o encontrou.
+
+**A decisão que fechou o caso do `bash` no Windows: quem precisa dele PROCURA um que rode.** Três tentativas de arrumar pelo PATH do runner falharam (`GITHUB_PATH` não venceu o `System32`; `export PATH=/usr/bin:$PATH` também não). O critério de um bash servir passou a ser **ele responder**, não estar no PATH — `test_conformance.py:bash_posix` testa o candidato com um `echo` e, sem nenhum que responda, os casos que exercitam hook shell **pulam em voz alta** (49 ok em vez de 57). Hook shell sem shell não é falha do hook, e fingir que é foi o que manteve a esteira vermelha.
+
 **Onde cada família de suíte mora, e quem a roda no commit** — a contagem sai do `ls`, nunca de um número escrito aqui:
 
 ```bash
