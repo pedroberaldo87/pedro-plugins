@@ -39,10 +39,28 @@ jobs:
       # que o `shell: bash` destes steps já usa (C:\Program Files\Git\bin\bash.EXE),
       # então a esteira passa a medir um ambiente coerente consigo mesma em vez de
       # cair no WSL pela porta dos fundos. Nos outros dois sistemas é no-op.
+      # O caminho é DESCOBERTO, não cravado: este step já roda com o Git Bash
+      # (é o que o `shell: bash` do GitHub usa no Windows), então `command -v bash`
+      # aqui dentro aponta para ele. Cravar `C:\Program Files\Git\bin` não pegou —
+      # barra invertida dentro de aspas no bash é armadilha, e o caminho ainda
+      # mudaria de lugar na próxima imagem do runner.
       - name: Git Bash na frente do WSL (Windows)
         if: runner.os == 'Windows'
         shell: bash
-        run: echo "C:\Program Files\Git\bin" >> "$GITHUB_PATH"
+        run: |
+          BASH_DIR="$(dirname "$(command -v bash)")"
+          echo "usando: $BASH_DIR"
+          cygpath -w "$BASH_DIR" >> "$GITHUB_PATH"
+      - name: Confere que `bash` não é mais o WSL (Windows)
+        if: runner.os == 'Windows'
+        shell: bash
+        run: |
+          # Sem esta conferência o conserto acima falha em SILÊNCIO: o step fica
+          # verde, a suíte quebra vinte linhas depois com "stdout vazio", e a
+          # causa some. Foi assim que a primeira tentativa passou despercebida.
+          saida="$(python -c "import subprocess;print(subprocess.run(['bash','-c','echo VIVO'],capture_output=True,text=True).stdout.strip())")"
+          echo "python vê bash dizendo: '$saida'"
+          [ "$saida" = "VIVO" ] || { echo "::error::o \`bash\` que o Python resolve ainda não é o Git Bash"; exit 1; }
       # Estado medido da suíte contra um ambiente equivalente a este runner
       # (PATH sem `claude`, sem plugin instalado), rodando os mesmos globs de
       # baixo, um arquivo por vez, para que nenhuma falha fique escondida pelo
