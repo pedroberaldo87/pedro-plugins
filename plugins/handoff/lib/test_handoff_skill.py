@@ -22,6 +22,46 @@ SKILL_MD = os.path.join(os.path.dirname(os.path.abspath(__file__)),
 
 FAILS = []
 
+BASH = None
+_BASH = None
+
+
+def bash_posix():
+    """O caminho de um bash que RODA — não o primeiro que o PATH oferecer.
+
+    Mesma régua de `bootstrap/lib/test_conformance.py:bash_posix`, e pelo mesmo
+    motivo medido: no Windows o `bash` do PATH é o do WSL (`System32\\bash.exe`),
+    que em máquina sem distro responde em UTF-16 e chega ao Python como stdout
+    VAZIO — os checks abaixo reprovavam a SKILL por causa do interpretador. Sem
+    nenhum bash que responda, o caso PULA declarando: comando shell sem shell não
+    é falha da skill.
+    """
+    global _BASH
+    if _BASH is not None:
+        return _BASH or None
+    candidatos = [shutil.which("bash")]
+    if os.name == "nt":
+        # Barra normal de propósito: o Windows aceita as duas, e a invertida em
+        # literal Python é campo minado (`\b` de `\bin` vira backspace).
+        candidatos += ["C:/Program Files/Git/bin/bash.exe",
+                       "C:/Program Files/Git/usr/bin/bash.exe",
+                       "C:/Program Files (x86)/Git/bin/bash.exe"]
+    for c in candidatos:
+        if not c or not os.path.exists(c):
+            continue
+        try:
+            r = subprocess.run([c, "-c", "echo VIVO"], capture_output=True, text=True,
+                               timeout=20, stdin=subprocess.DEVNULL, start_new_session=True)
+        except (OSError, subprocess.SubprocessError):
+            continue
+        if r.stdout.strip() == "VIVO":
+            _BASH = c
+            return c
+    _BASH = ""
+    return None
+
+
+
 
 def check(label, cond):
     if cond:
@@ -138,10 +178,18 @@ def main():
     texto = open(SKILL_MD, encoding="utf-8").read()
     secao = secao_do_plano(texto)
 
+    # Os três casos abaixo EXECUTAM o comando que a skill prescreve. Sem um bash
+    # que responda, o que falha é o interpretador — e reprovar a skill por isso é
+    # a conclusão errada. Pula declarando, como o test_conformance faz.
+    global BASH
+    BASH = bash_posix()
+    if BASH is None:
+        print("  skip os comandos prescritos (nenhum bash funcional nesta máquina)")
+
     print("o comando prescrito mostra os campos que a árvore esconde")
     candidatos = [b for b in blocos_bash(secao) if "pronto" in b]
     check("a skill prescreve um comando que lê `pronto` do arquivo", len(candidatos) == 1)
-    if candidatos:
+    if candidatos and BASH:
         raiz = tempfile.mkdtemp(prefix="handoff-skill-")
         try:
             plans = os.path.join(raiz, ".claude", "plans")
@@ -150,7 +198,7 @@ def main():
                       "w", encoding="utf-8") as fh:
                 json.dump(PLANO, fh, ensure_ascii=False)
             cmd = candidatos[0].replace("<project_root>", raiz)
-            proc = subprocess.run(["bash", "-c", cmd], capture_output=True, text=True, stdin=subprocess.DEVNULL, start_new_session=True)
+            proc = subprocess.run([BASH, "-c", cmd], capture_output=True, text=True, stdin=subprocess.DEVNULL, start_new_session=True)
             saida = proc.stdout
             check("o comando roda sem erro (%s)" % (proc.stderr.strip()[:80] or "ok"),
                   proc.returncode == 0)
@@ -184,7 +232,7 @@ def main():
                   os.path.getmtime(velho) > os.path.getmtime(novo))
 
             cmd = wcands[0].replace("<project_root>", parado)
-            proc = subprocess.run(["bash", "-c", cmd], capture_output=True, text=True, stdin=subprocess.DEVNULL, start_new_session=True)
+            proc = subprocess.run([BASH, "-c", cmd], capture_output=True, text=True, stdin=subprocess.DEVNULL, start_new_session=True)
             check("o comando roda sem erro (%s)" % (proc.stderr.strip()[:80] or "ok"),
                   proc.returncode == 0)
             linhas = [ln for ln in proc.stdout.splitlines() if ln.strip()]
@@ -203,14 +251,14 @@ def main():
     acands = [b for b in blocos_bash(asec) if "Findings & Gotchas" in b]
     check("a skill prescreve um comando que extrai as armadilhas do handoff",
           len(acands) == 1)
-    if acands:
+    if acands and BASH:
         raiz = tempfile.mkdtemp(prefix="handoff-armadilha-")
         try:
             hpath = os.path.join(raiz, "HANDOFF.md")
             with open(hpath, "w", encoding="utf-8") as fh:
                 fh.write(HANDOFF_COM_ARMADILHA)
             cmd = acands[0].replace("<handoff_path>", hpath)
-            proc = subprocess.run(["bash", "-c", cmd], capture_output=True, text=True, stdin=subprocess.DEVNULL, start_new_session=True)
+            proc = subprocess.run([BASH, "-c", cmd], capture_output=True, text=True, stdin=subprocess.DEVNULL, start_new_session=True)
             saida = proc.stdout
             check("o comando roda sem erro (%s)" % (proc.stderr.strip()[:80] or "ok"),
                   proc.returncode == 0)
