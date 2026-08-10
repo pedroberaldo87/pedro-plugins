@@ -93,24 +93,16 @@ Abaixo, **onde cada knob entra NESTE motor** (decompõe→executa→revisa):
 
 ### Como o tier chega ao motor (obrigatório, antes de disparar o Workflow)
 
-O valor do `effort` **não vive nesta skill**. Rode isto e passe o resultado dentro do
-`args` do Workflow, junto com os outros parâmetros:
+O valor do `effort` **não vive nesta skill** — e desde 2026-08-09 você também **não o
+transporta**: a constante `T` já está escrita em `references/motor.js`, o arquivo que o
+disparo passa ao `Workflow` (ver _O motor do disparo_). Quem cobra que ela continue igual
+a `_shared/r8-tiers.json` é `lib/test_motor_js.py`, que roda na suíte do plugin.
 
-```bash
-python3 "<skill_dir>/references/r8_tiers.py" args
-# -> { "model": "opus", "tiers": { "decompose": {"effort": "high"}, ... } }
-```
-
-⚠️ **O bloco de esforço vai ESCRITO DENTRO do texto do script, não lido de `args` em tempo de execução.** Gere a saída do comando acima como uma constante literal no topo do script que você passa ao `Workflow`:
-
-```javascript
-// gerado por references/r8_tiers.py args — não digite à mão, não leia de args.tiers
-const T = { decompose: {effort:'high'}, coordinate: {effort:'medium'}, /* … */ }
-```
-
-O motivo é medido: o canal que levava esse valor até o script **falhava**, e `args.tiers` chegava `undefined` — o que matava o motor na primeira volta. A régua continua a mesma (o valor **nasce** em `_shared/r8-tiers.json`, nunca é inventado aqui); o que muda é **quando** ele entra: na composição do script, não na execução dele. Trocar um tier segue sendo editar o JSON compartilhado e rodar `scripts/sync-shared.sh` — nenhum `SKILL.md` muda.
-
-Ler de `args.tiers` em tempo de execução é a versão que este passo **substitui**: um canal a mais entre o valor e quem o usa, e cada canal a mais é um lugar a mais para o valor sumir em silêncio.
+O motivo de ser constante escrita — **não leia de `args.tiers`** em tempo de execução —
+é medido: o canal que levava esse valor até o script **falhava** — `args.tiers`
+chegava `undefined`, e isso matava o motor na primeira volta. Trocar um tier é editar
+`_shared/r8-tiers.json`, rodar `scripts/sync-shared.sh`, espelhar a constante no
+`motor.js` — e o teste reprova se o espelho ficar para trás.
 
 ### Os ids do plano vão no `args` (obrigatório, antes de disparar o Workflow)
 
@@ -338,19 +330,36 @@ mesma missão tinha acabado de implementar. Sem elas o motor voltava ao orquestr
 fim da onda inteira, e o resultado foi: **as ondas 4 e 5 executaram zero tarefas**, 41
 tarefas reapareceram como faltantes em 3+ rodadas, e 604k tokens saíram sem trabalho.
 
-**A regra que substitui a frase antiga:** o script do `Workflow` é o bloco abaixo,
-**copiado inteiro**. O que a casca acrescenta são os `args` e a constante `T` dos tiers —
-nada mais. Precisa de comportamento diferente? Edite **aqui**, e o disparo seguinte já o
-carrega. Reescrever na hora do disparo é abrir uma segunda versão do motor que ninguém
-compara com esta, e a que roda é sempre a pior das duas.
+**A regra desde 2026-08-09: o script NÃO é montado no disparo — ele é um ARQUIVO do
+plugin.** Os prompts dos papéis e os schemas só existiam em prosa aqui, a casca os
+traduzia em 436 linhas de código a cada disparo, e uma dessas traduções foi guardada em
+rascunho e rodou DEPOIS do rename do plugin com o nome morto (`meta.name` velho na tela),
+sem nada acusar. O executável agora é **`references/motor.js`**, resolvido por nome e
+passado direto ao `Workflow`:
 
-**Como conferir antes de disparar** — se alguma peça do esqueleto não estiver no script, o
-script não é este:
+```bash
+MOTOR="$(bash "$(dirname "<skill_dir>")/../../lib/resolve-plugin.sh" project-skills skills/sprint/references/motor.js)"
+# Workflow({ scriptPath: MOTOR, args: {...} })
+```
+
+Nunca copie o `motor.js` para rascunho, nunca o redigite, nunca "melhore" na hora. A casca
+só monta os `args` — e passa também **`resolvePlugin`**, **`resolveSkill`** e
+**`resolveSprintPlugin`** (os caminhos absolutos dos três resolvedores, descobertos por
+`resolve-plugin.sh`), porque instalado numa máquina de terceiro o repositório da missão
+não é este marketplace e o motor não tem como adivinhar onde o plugin mora.
+
+O esqueleto abaixo continua sendo a FONTE documentada do laço — quem muda comportamento
+edita os DOIS (o esqueleto aqui e o `motor.js`), e quem pega divergência é
+`lib/test_motor_js.py`: as peças nomeadas, a tabela `prompt → PAPEL` e a constante `T`
+contra `r8-tiers.json`, tudo conferido na suíte do plugin.
+
+**Como conferir antes de disparar** — se alguma peça do esqueleto não estiver no motor.js,
+o arquivo não é o desta versão:
 
 ```bash
 for peca in blocoMax naoDespachadas idsDoPlano congeladas esperaChain saudePrompt ledgerCorrida impressaoTarefa emCirculo paraPorCausaGlobal; do
-  printf '%-16s esqueleto=%s script=%s\n' "$peca" \
-    "$(grep -c "$peca" <SKILL.md>)" "$(grep -c "$peca" <script gerado>)"
+  printf '%-16s esqueleto=%s motor.js=%s\n' "$peca" \
+    "$(grep -c "$peca" <SKILL.md>)" "$(grep -c "$peca" <references/motor.js>)"
 done
 ```
 
