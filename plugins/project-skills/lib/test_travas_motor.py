@@ -23,6 +23,15 @@ import sys
 import tempfile
 import textwrap
 
+# O bash que RESPONDE, não o do PATH: no Windows o do PATH é o do WSL, que sem
+# distro fala UTF-16 e chega como stdout vazio — a suíte reprovaria o comando
+# certo por causa do interpretador. Módulo compartilhado (_shared/bash_posix.py).
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from bash_posix import bash_posix  # noqa: E402
+
+BASH = bash_posix() or "bash"
+
+
 SKILL_MD = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                         "..", "skills", "sprint", "SKILL.md")
 # A COPIA vendorada, nao a fonte em _shared/: e ela que viaja com o plugin instalado, e
@@ -286,7 +295,7 @@ def roda_a_colheita(bloco, layout, quebra=False):
                     # apontar o cache para a arvore de mentira, o caso `ausente` acharia
                     # o lixeiro de verdade de quem roda o teste e provaria o contrario.
                     "CLAUDE_CONFIG_DIR": os.path.join(raiz, "config")})
-        out = subprocess.run(["bash", "-c", bloco], capture_output=True, text=True, encoding="utf-8", errors="replace",
+        out = subprocess.run([BASH, "-c", bloco], capture_output=True, text=True, encoding="utf-8", errors="replace",
                              env=amb, stdin=subprocess.DEVNULL, start_new_session=True)
         return {"rc": out.returncode,
                 "saida": (out.stdout + out.stderr).strip()}

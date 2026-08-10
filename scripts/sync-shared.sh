@@ -19,6 +19,16 @@ SRC="$ROOT/_shared"
 # diferentes vendoram arquivos diferentes: a engine de coleta vai pro lib/ do
 # handoff+project-doc; a tabela R8 vai pro references/ do sprint+qa-loop.
 SPECS=(
+  # O bash que RESPONDE (não o que está no PATH): no Windows o `bash` do PATH é o
+  # do WSL, que sem distro fala UTF-16 e chega ao Python como stdout vazio — as
+  # suítes reprovavam skill e hook por causa do interpretador. Estava duplicado
+  # em duas suítes com o mesmo comentário reescrito; a terceira cópia seria a
+  # hora de divergir em silêncio (patterns.md §1.6a).
+  "plugins/bootstrap/lib::bash_posix.py"
+  "plugins/handoff/lib::bash_posix.py"
+  "plugins/improve-workflow/lib::bash_posix.py"
+  "plugins/project-skills/lib::bash_posix.py"
+  "plugins/vistoria/lib::bash_posix.py"
   "plugins/handoff/lib::collect_engine.py"
   "plugins/project-skills/lib::collect_engine.py"
   # O contrato R8: os DADOS (.json) + o servidor (.py) + a vista humana (.md, gerada

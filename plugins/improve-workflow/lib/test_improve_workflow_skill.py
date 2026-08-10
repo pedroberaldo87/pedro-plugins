@@ -20,6 +20,15 @@ import subprocess
 import sys
 import tempfile
 
+# O bash que RESPONDE, não o do PATH: no Windows o do PATH é o do WSL, que sem
+# distro fala UTF-16 e chega como stdout vazio — a suíte reprovaria o comando
+# certo por causa do interpretador. Módulo compartilhado (_shared/bash_posix.py).
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from bash_posix import bash_posix  # noqa: E402
+
+BASH = bash_posix() or "bash"
+
+
 AQUI = os.path.dirname(os.path.abspath(__file__))
 PLUGIN = os.path.dirname(AQUI)
 RAIZ = os.path.dirname(os.path.dirname(PLUGIN))
@@ -173,7 +182,7 @@ def caso_a_receita_roda_fora_do_repositorio():
     env = dict(os.environ, CLAUDE_PLUGIN_ROOT=PLUGIN,
                CLAUDE_CONFIG_DIR=tempfile.mkdtemp(prefix="autopsia-lar-"))
     for linha in linhas:
-        r = subprocess.run(["bash", "-c", linha], cwd=alheio, env=env,
+        r = subprocess.run([BASH, "-c", linha], cwd=alheio, env=env,
                            capture_output=True, text=True, encoding="utf-8", errors="replace",
                            stdin=subprocess.DEVNULL, start_new_session=True)
         # 0 e 1 são os códigos do próprio programa (medir / achei sobra); 2 do
@@ -234,7 +243,7 @@ def caso_a_pagina_do_passo_7_nasce_fora_do_projeto():
 
     lar = tempfile.mkdtemp(prefix="autopsia-passo7-lar-")
     antes, antes_aqui = foto(alheio), foto()
-    r = subprocess.run(["bash", "-c", blocos[0]], cwd=alheio,
+    r = subprocess.run([BASH, "-c", blocos[0]], cwd=alheio,
                        env=dict(os.environ, CLAUDE_PLUGIN_ROOT=PLUGIN,
                                 CLAUDE_CONFIG_DIR=lar, HOME=lar),
                        capture_output=True, text=True, encoding="utf-8", errors="replace",
@@ -294,7 +303,7 @@ def caso_sem_o_irmao_a_rodada_pula_declarado():
     def rodar_bloco(propostas):
         with open(os.path.join(alheio, "propostas.json"), "w", encoding="utf-8") as f:
             json.dump(propostas, f)
-        return subprocess.run(["bash", "-c", blocos[0]], cwd=alheio, env=env,
+        return subprocess.run([BASH, "-c", blocos[0]], cwd=alheio, env=env,
                               capture_output=True, text=True, encoding="utf-8", errors="replace",
                               stdin=subprocess.DEVNULL, start_new_session=True)
 
@@ -399,7 +408,7 @@ def caso_irmao_se_resolve_por_nome_nao_por_placeholder():
 
     if os.path.isfile(resolvedor):
         alheio = tempfile.mkdtemp(prefix="autopsia-irmao-")
-        r = subprocess.run(["bash", resolvedor, "visual", "lib/visual_page.py"],
+        r = subprocess.run([BASH, resolvedor, "visual", "lib/visual_page.py"],
                            cwd=alheio, env=dict(os.environ, CLAUDE_PLUGIN_ROOT=PLUGIN),
                            capture_output=True, text=True, encoding="utf-8", errors="replace",
                            stdin=subprocess.DEVNULL, start_new_session=True)
