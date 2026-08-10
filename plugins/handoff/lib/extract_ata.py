@@ -63,7 +63,9 @@ def write_gate_sentinel(session_id, scope, manifest_path=None):
         # Diretório temporário DO SISTEMA — perguntado, nunca assumido.
         alvo = os.path.join(tempfile.gettempdir(),
                             "claude-handoff-target-%s" % session_id)
-        with open(alvo, "w") as fh:
+        # encoding explícito: nome de pasta com acento é comum, e sem ele a
+        # gravação usa a codificação do sistema (cp1252 no Windows) e estoura.
+        with open(alvo, "w", encoding="utf-8") as fh:
             json.dump({"project_root": scope.get("project_root"),
                        "handoff_path": scope.get("handoff_path"),
                        "manifest_path": manifest_path,

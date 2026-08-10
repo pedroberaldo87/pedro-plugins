@@ -597,7 +597,10 @@ def main():
     except ReportError as e:
         print(f"⛔ {e}", file=sys.stderr)
         sys.exit(2)
-    with open(out_path, "w") as f:
+    # `encoding` EXPLÍCITO, como o irmão `branches/lib/branch_state.py` já fazia: sem
+    # ele o Python grava na codificação do sistema, que no Windows é cp1252, e a
+    # página tem emoji — o relatório inteiro morria com UnicodeEncodeError na escrita.
+    with open(out_path, "w", encoding="utf-8") as f:
         f.write(page)
 
     summary = {b["title"]: len(b["items"]) for b in buckets}
