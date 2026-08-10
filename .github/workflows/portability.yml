@@ -29,38 +29,6 @@ jobs:
           if [ "$RUNNER_OS" = "macOS" ]; then brew install jq; fi
           if [ "$RUNNER_OS" = "Windows" ]; then choco install jq -y; fi
 
-      # NO WINDOWS, `bash` DO PATH É O WSL — e o runner não tem distro instalada.
-      # Toda suíte que dispara `subprocess.run(["bash", ...])` recebia isto no
-      # lugar da saída, em UTF-16, o que chega ao Python como stdout vazio:
-      #
-      #   Windows Subsystem for Linux has no installed distributions.
-      #
-      # O passo abaixo põe o Git Bash na frente do PATH — o MESMO interpretador
-      # que o `shell: bash` destes steps já usa (C:\Program Files\Git\bin\bash.EXE),
-      # então a esteira passa a medir um ambiente coerente consigo mesma em vez de
-      # cair no WSL pela porta dos fundos. Nos outros dois sistemas é no-op.
-      # O caminho é DESCOBERTO, não cravado: este step já roda com o Git Bash
-      # (é o que o `shell: bash` do GitHub usa no Windows), então `command -v bash`
-      # aqui dentro aponta para ele. Cravar `C:\Program Files\Git\bin` não pegou —
-      # barra invertida dentro de aspas no bash é armadilha, e o caminho ainda
-      # mudaria de lugar na próxima imagem do runner.
-      - name: Git Bash na frente do WSL (Windows)
-        if: runner.os == 'Windows'
-        shell: bash
-        run: |
-          BASH_DIR="$(dirname "$(command -v bash)")"
-          echo "usando: $BASH_DIR"
-          cygpath -w "$BASH_DIR" >> "$GITHUB_PATH"
-      - name: Confere que `bash` não é mais o WSL (Windows)
-        if: runner.os == 'Windows'
-        shell: bash
-        run: |
-          # Sem esta conferência o conserto acima falha em SILÊNCIO: o step fica
-          # verde, a suíte quebra vinte linhas depois com "stdout vazio", e a
-          # causa some. Foi assim que a primeira tentativa passou despercebida.
-          saida="$(python -c "import subprocess;print(subprocess.run(['bash','-c','echo VIVO'],capture_output=True,text=True).stdout.strip())")"
-          echo "python vê bash dizendo: '$saida'"
-          [ "$saida" = "VIVO" ] || { echo "::error::o \`bash\` que o Python resolve ainda não é o Git Bash"; exit 1; }
       # Estado medido da suíte contra um ambiente equivalente a este runner
       # (PATH sem `claude`, sem plugin instalado), rodando os mesmos globs de
       # baixo, um arquivo por vez, para que nenhuma falha fique escondida pelo
@@ -77,7 +45,25 @@ jobs:
         shell: bash
         run: |
           set -e
+          # NO WINDOWS, `bash` DO PATH É O WSL — e o runner não tem distro instalada.
+          # Toda suíte que dispara `subprocess.run(["bash", ...])` recebia
+          # "Windows Subsystem for Linux has no installed distributions." em UTF-16,
+          # o que chega ao Python como stdout VAZIO e estoura três camadas acima.
+          # O Python é filho DESTE bash, então herda este PATH: pôr o diretório do
+          # Git Bash na frente aqui resolve, e não depende do GITHUB_PATH ganhar do
+          # System32 (não ganhou). `/usr/bin` é onde o Git Bash mora no MinGW.
+          if [ "$RUNNER_OS" = "Windows" ]; then
+            export PATH="/usr/bin:$PATH"
+          fi
           PY="$(command -v python3 || command -v python)"
+          # A CONFERÊNCIA É PARTE DO CONSERTO. Sem ela o ajuste acima falha em
+          # SILÊNCIO: o passo segue, a suíte quebra vinte linhas depois com "stdout
+          # vazio", e a causa some. Foi assim que a primeira tentativa passou batido.
+          if [ "$RUNNER_OS" = "Windows" ]; then
+            eco="$("$PY" -c "import subprocess;print(subprocess.run(['bash','-c','echo VIVO'],capture_output=True,text=True).stdout.strip())")"
+            echo "o bash que o Python resolve responde: '$eco'"
+            [ "$eco" = "VIVO" ] || { echo "::error::o bash que o Python resolve ainda e o WSL"; exit 1; }
+          fi
           bash scripts/sync-shared.sh --check
           # Glob que não casa nada roda zero teste e fica verde — foi assim que a
           # esteira "passou" sem executar suíte nenhuma. Cada padrão é contado, e
