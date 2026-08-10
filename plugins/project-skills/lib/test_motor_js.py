@@ -97,7 +97,8 @@ check("sem caminho absoluto de máquina", "/Users/" not in motor)
 
 # sintaxe: o arquivo tem que ser JavaScript válido (quando node existe na máquina).
 if shutil.which("node"):
-    r = subprocess.run(["node", "--check", MOTOR], capture_output=True, text=True)
+    r = subprocess.run(["node", "--check", MOTOR], capture_output=True, text=True,
+                       stdin=subprocess.DEVNULL, start_new_session=True)
     check("node --check passa", r.returncode == 0, r.stderr.strip()[:120])
 else:
     print("  skip node --check (node ausente)")
