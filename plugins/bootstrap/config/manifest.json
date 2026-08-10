@@ -310,6 +310,17 @@
           "graphify-guard"
         ],
         "porque": "o graphify-guard procura graphify-out/graph.json e redireciona busca cega pro grafo; sem o binario ninguem cria esse diretorio e o guarda vira decorativo"
+      },
+      {
+        "comando": "jq",
+        "pacote": "jq",
+        "instalar": "brew install jq (macOS) · choco install jq (Windows) · apt install jq (Linux)",
+        "alternativa": "nenhuma para o /bootstrap:setup — os hooks de decisao leem o payload por python3, mas apply.sh, apply-config.sh e snapshot.sh param sem jq",
+        "licenca": "MIT",
+        "requerido_por": [
+          "bootstrap"
+        ],
+        "porque": "o /bootstrap:setup aplica settings.json e sincroniza plugins por jq; sem ele o apply sai 255 e a maquina fica sem config nenhuma — no Windows o jq nao vem de fabrica, entao a instalacao morre no primeiro comando"
       }
     ]
   }
