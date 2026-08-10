@@ -28,7 +28,7 @@
       "source": "./plugins/bootstrap",
       "description": "Bootstraps a new machine to this versioned Claude Code setup. Two layers: (1) auto-syncs third-party marketplaces & plugins via hooks (manifest-driven convergence), and (2) applies the versioned global config — env vars, permissions, behavior flags, the global CLAUDE.md, and a machine-resolved statusLine. Replaces bootstrap-third-party. Run /bootstrap:setup once per new machine. Ships the 'Clean Style' output style (single prose ceiling, pasted evidence exempt) and a report-only conformance checker that diffs the live machine against the versioned contract.",
       "category": "productivity",
-      "version": "1.16.2",
+      "version": "1.16.3",
       "tags": [
         "sync",
         "bootstrap",
@@ -118,7 +118,7 @@
       "source": "./plugins/graphify-guard",
       "description": "Ensures graphify knowledge graphs get consulted when relevant. SessionStart heads-up when a project has a graph; PreToolUse net redirects blind grep/glob/find to `graphify query` once per session. Detects stale graphs and offers `graphify --update`. Defense in depth, fail-open, monorepo-aware.",
       "category": "productivity",
-      "version": "1.2.4",
+      "version": "1.2.5",
       "tags": [
         "graphify",
         "knowledge-graph",
