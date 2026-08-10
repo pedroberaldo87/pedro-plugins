@@ -49,7 +49,8 @@ mandou enxugar:
 
 Opcionais que entram quando existem: **`lei`** (ver o modo com lei, abaixo) · `vetos`
 herdados · `raiz` (onde a obra mora, se não for a própria missão) · **`intencao`**
-(produzida pela descoberta, abaixo).
+(produzida pela descoberta, abaixo) · **`criativo`** (a oferta do diretor criativo,
+abaixo).
 
 **A descoberta — quando o dono chega sem os insumos, a abertura os produz COM ele.**
 A abertura recusa começar incompleta, mas recusar não é devolver o problema para o dono
@@ -140,6 +141,14 @@ ou sem a seção do tipo: siga sem ele, calado. Quando o dono disser "adiciona X
 arsenal", acrescente a linha na seção certa do arquivo global — é dele, você só escreve
 a pedido.
 
+**A oferta do diretor criativo sai aqui, no mesmo fôlego do arsenal.** Se a missão é
+estética (site, tela, jogo — qualquer obra que se julga pelo olho), ofereça o papel ao
+dono com o trade-off numa linha: um agente a mais por rodada, que tende a economizar
+reprovação, porque o palpite chega antes do veredito. A resposta dele grava no rito o
+campo `criativo: true/false` — e é ESSE campo que decide o despacho dali em diante,
+nunca a memória da conversa: é ele que sobrevive ao `/clear` e ressuscita com a missão.
+O papel, as cercas e o briefing estão na seção da equipe e em `references/briefings.md`.
+
 **A sonda é testada antes de começar** (`teste_registro` no disco), e o reconhecimento
 executa a sonda **no alvo** antes de a obra existir, devolvendo os `eixos` — o que faz o
 alvo ser bom, item a item, cada um com o registro que o prova. Sem alvo, sonda e eixos o
@@ -183,6 +192,7 @@ do prompt** — o marcador é o crachá que a trava lê:
 | construtor da peça X | `construtor-X` | `[gauntlet:construtor:X]` |
 | juiz da peça X | `juiz-X` | `[gauntlet:juiz:X]` |
 | diretor | `diretor` | `[gauntlet:diretor]` |
+| diretor criativo (opcional) | `criativo` | `[gauntlet:criativo]` |
 
 Os briefings de cada papel estão em **`references/briefings.md`** — interpole os valores
 da missão (objetivo, alvo, sonda, eixos, lei, vetos) no despacho. O briefing do juiz é
@@ -208,6 +218,21 @@ inegociável no que ele **não** recebe: lista de defeitos de ninguém.
 5. **Para** por aprovação, por `marginal` (ganho pequeno declarado pelo juiz) ou pelo
    `orcamento`. **Diretor** passa no conjunto quando as peças fecham — o defeito ENTRE
    peças é invisível aos juízes de peça.
+
+**O diretor criativo — o palpite que chega ANTES do veredito (opcional).** Papel de gosto
+puro. A oferta sai na abertura e a resposta do dono vive no rito (`criativo:
+true/false`); quem manda despachar é o campo, nunca a memória da conversa. Com `true`,
+ele nasce junto do fanout, olha a obra pela MESMA sonda de todos e grava palpites de
+direção em `criativo/palpites-r<N>.md`; você os repassa por `SendMessage` aos
+construtores vivos das peças que eles tocam. O valor dele é econômico: corrigir a
+direção durante a rodada custa menos que uma reprovação e a rodada inteira que ela
+dispara. Três limites que o mantêm dentro do mecanismo: **palpite é vibe e direção,
+nunca receita** (a mesma régua do alvo — medida, cor ou componente ditados por ele
+contaminam igual); **ele não julga** — nenhum aprovado/reprovado, o gate continua sendo
+o juiz; e **ele nunca fala com juiz nenhum** — palpite que chega a um juiz é a lista de
+defeitos que o briefing do juiz proíbe receber. No despacho, os papéis de gosto
+(construtor, juiz, diretor, criativo) merecem o modelo mais forte em estética disponível
+(campo `model` da tool `Agent`); recon e decompositor rodam bem um tier abaixo.
 
 **O placar sai a cada rodada — e sai como PÁGINA, nunca como texto no terminal.** Ordem do
 dono, 2026-08-09, verbatim: *"atualiza a skill gauntlet. esses relatos de parada a cada etapa
