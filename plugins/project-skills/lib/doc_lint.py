@@ -105,7 +105,7 @@ def _git_ls_files(root):
     acusaria TODO token e TODO ponteiro. None faz os checks 1 e 3 se calarem."""
     try:
         r = subprocess.run(["git", "-C", root, "ls-files"], capture_output=True,
-                           text=True, encoding="utf-8", errors="replace", timeout=30, errors="replace", stdin=subprocess.DEVNULL, start_new_session=True)
+                           text=True, encoding="utf-8", errors="replace", timeout=30, stdin=subprocess.DEVNULL, start_new_session=True)
     except Exception:
         return None
     if r.returncode != 0:
@@ -124,7 +124,7 @@ def _git_head_files(root):
         try:
             r = subprocess.run(["git", "-C", groot, "ls-tree", "-r", "--name-only",
                                 "-z", "HEAD"], capture_output=True, text=True, encoding="utf-8", errors="replace",
-                               timeout=30, errors="replace", stdin=subprocess.DEVNULL, start_new_session=True)
+                               timeout=30, stdin=subprocess.DEVNULL, start_new_session=True)
         except Exception:
             return None
         if r.returncode != 0:
