@@ -978,6 +978,16 @@ Duas coisas caem daí: a régua vale para `subprocess.run` igual a `Popen` (quem
 e **suíte que dispara processo é produção do ponto de vista da máquina** — o `node` esquecido por um
 teste ocupa a mesma memória que o esquecido por um hook.
 
+⚠️ **E o check varre o repositório INTEIRO, não o que está staged — então dívida alheia barra o
+commit de qualquer um.** Aconteceu de novo em 2026-08-10: três disparos das suítes do `bootstrap`
+(duas em `lib/test_cfgjson.py`, uma em `lib/test_conformance.py`) tinham `stdin=subprocess.DEVNULL`
+e **não** tinham `start_new_session=True`, e barraram um commit que só tocava o `gauntlet`. O
+conserto foi o argumento que faltava nas três, com bump do `bootstrap` para 1.17.1 por consequência
+[confirmado — `python3 scripts/vazamento_check.py` → *"nenhum disparo de processo pode deixar filho
+para trás"*, contra 3 achados antes]. **A metade fácil é a que se esquece**: `stdin=` é a que se
+lembra porque o sintoma é visível (o processo trava esperando o terminal), enquanto `start_new_session=`
+só falha quando alguém aplica um teto — e aí o neto sobrevive em silêncio.
+
 ---
 
 ## 3 · Vendoring de `_shared/` (o único "build")
