@@ -56,11 +56,13 @@ CAMPOS_DECLARADOS_DA_SONDA = ("preparar", "registrar", "alvo")
 # rodada 1 de 4 por "retorno decrescente" e a obra ficou feia com 45% do orçamento
 # intacto — a fonte da skill manda o contrário ("if it doesn't look AAA, keep going").
 STATUS = ("aprovado", "reprovado", "marginal")
-# O cheiro de receita num NOME de eixo: medida concreta onde devia haver qualidade.
-# Nasceu de uma missão real (2026-08-09): o eixo "moldura de 32px" virou moldura de
-# 32px na obra. O número do alvo tem casa própria — o campo `numero`, como prova do
-# nível — e nome com medida é o vetor da cópia, então o rito o recusa.
-MEDIDA_NO_NOME = re.compile(r"\d+([.,]\d+)?\s*(%|(px|ms|fps|em|rem|vh|vw|s)\b)")
+# O cheiro de medida onde devia haver qualidade. Nasceu de uma missão real
+# (2026-08-09): o eixo "moldura de 32px" virou moldura de 32px na obra. Em 2026-08-10
+# a mesma doença apareceu rio acima — o desafio subjetivo do dono ("mais foda que o
+# alvo") virou régua de 18 medidas — e a regra fechou: número só existe na missão se o
+# dono o forneceu no campo `metricas` do rito. Sem ele, a mesma expressão recusa
+# medida em nome de eixo (no rito) e julgamento por medida (no gap/frase do veredito).
+MEDIDA_NO_NOME = re.compile(r"\d+([.,]\d+)?\s*(%|(px|ms|fps|em|rem|vh|vw|s|kB|KB)\b)")
 
 
 def _le(caminho):
@@ -277,9 +279,9 @@ def erros_do_rito(missao, sinal=None):
             nome_eixo = eixo.get("nome") or ""
             if MEDIDA_NO_NOME.search(nome_eixo):
                 erros.append(
-                    "o eixo `%s` traz MEDIDA no nome — nome nomeia qualidade; o "
-                    "número do alvo vai em `numero`, como prova de nível, nunca "
-                    "como receita" % nome_eixo
+                    "o eixo `%s` traz MEDIDA no nome — nome nomeia qualidade e o "
+                    "print a prova; número só existe na missão se o dono o forneceu "
+                    "em `metricas`" % nome_eixo
                 )
             # O registro do eixo é caminho DE DENTRO da missão. Absoluto já levou o nome
             # da conta da máquina para um arquivo do projeto, e sair da missão por `..`
@@ -310,7 +312,7 @@ def erros_do_rito(missao, sinal=None):
 # ─────────────────────────────────────────────────────────────────────────────
 
 def _erros_do_veredito(missao, peca, dir_rodada, nomes_de_eixo, raiz=None,
-                       arsenal=False):
+                       arsenal=False, metricas=False):
     """As checagens de UM veredito. Cada uma nasceu de uma falha documentada."""
     erros = []
     cam_v = os.path.join(dir_rodada, "veredito.json")
@@ -460,6 +462,20 @@ def _erros_do_veredito(missao, peca, dir_rodada, nomes_de_eixo, raiz=None,
                     "%s %s: %s mudou depois de julgado" % (peca, rodada, arquivo)
                 )
 
+    # NENHUM NÚMERO JULGA, salvo métrica que o DONO forneceu no rito. Medido em
+    # 2026-08-10: o desafio subjetivo virou régua de 18 medidas e a missão inteira
+    # discutiu fps em vez de olhar. Julgamento é do olho; medida em gap ou frase sem
+    # `metricas` no rito é o juiz medindo no lugar de olhar — e o fecho recusa.
+    if not metricas:
+        for campo in ("gap", "frase"):
+            valor = ver.get(campo)
+            if isinstance(valor, str) and MEDIDA_NO_NOME.search(valor):
+                erros.append(
+                    "%s %s: o campo `%s` julga por MEDIDA (`%s`) e o dono não "
+                    "forneceu `metricas` neste desafio — o critério é impressionar, "
+                    "e a régua é o olho" % (peca, rodada, campo, valor)
+                )
+
     # O gap nomeia um eixo que existe. Eixo novo é permitido — o juiz pode ver o que o
     # reconhecimento não viu —, mas paga o mesmo preço de prova.
     if ver.get("status") in ("reprovado", "marginal"):
@@ -545,7 +561,8 @@ def erros_do_fecho(missao):
             erros.append("%s: nenhuma rodada no disco" % nome)
             continue
         erros.extend(_erros_do_veredito(missao, nome, ultima, nomes_de_eixo, raiz,
-                                        arsenal=bool(rito.get("arsenal"))))
+                                        arsenal=bool(rito.get("arsenal")),
+                                        metricas=bool(rito.get("metricas"))))
         # TODA rodada entregue tem juiz, não só a última. Medido em 2026-08-09: com
         # r1 entregue e sem veredito e r2 entregue e julgada, o fecho dizia "todo
         # pedaço julgado" — a falha de origem escapando pela porta da rodada
@@ -631,6 +648,15 @@ def erros_do_fecho(missao):
                 "falta a `frase` do diretor — em palavras de gente, o que no conjunto "
                 "o impressionou diante do alvo inteiro"
             )
+        # A mesma régua anti-medida do juiz de peça, no conjunto.
+        if not rito.get("metricas"):
+            for campo in ("gap", "frase"):
+                valor = diretor.get(campo)
+                if isinstance(valor, str) and MEDIDA_NO_NOME.search(valor):
+                    erros.append(
+                        "o `%s` do diretor julga por MEDIDA e o dono não forneceu "
+                        "`metricas` neste desafio — o critério é impressionar" % campo
+                    )
         # Sem relógio: o diretor diz QUAL entrega de cada peça ele viu, e o programa
         # compara com a vigente. Data seria frágil — não sobrevive a clone nem a cópia.
         viu = diretor.get("viu") or {}

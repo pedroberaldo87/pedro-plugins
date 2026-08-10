@@ -280,15 +280,56 @@ rocnation.com           60,3                       ·                  16,7ms   
 controle (8 divs)       60,3                       ·                  16,7ms
 ```
 
-Ele acertou os dois que travavam, de olho, sem ferramenta nenhuma. Duas lições:
+Ele acertou os dois que travavam, de olho, sem ferramenta nenhuma. A lição que ficou:
+um alvo que ele "não gostou" vira **anti-alvo declarado no rito**, que é informação que
+nenhum veto sozinho carrega.
 
-**A primeira:** quando o dono descreve uma sensação, procure a coluna que a mede antes de
-tratá-la como gosto. A frase dele virou um eixo com registro — e um alvo que ele "não gostou"
-virou **anti-alvo declarado no rito**, que é informação que nenhum veto sozinho carrega.
+⚠️ **A outra lição desta seção foi REVOGADA no dia seguinte.** "Quando o dono descreve
+uma sensação, procure a coluna que a mede" foi exatamente o mecanismo que, em
+2026-08-10, converteu "ficou pesado na máquina" em gate de CPU e tabela de fps — a
+seção seguinte conta. A regra vigente é a inversa: sensação do dono vira direção de
+trabalho e volta a ele como TELA; medida só existe na missão se ele a forneceu em
+`metricas`.
 
-**A segunda:** a sonda da missão anterior media só composição, e por isso a disputa inteira
-correu sem ninguém olhar o custo de rodar a obra. Não foi omissão do juiz: **o que a sonda não
-observa, o juiz não julga.** Eixo sem coluna na sonda é eixo que não existe.
+---
+
+## O desafio subjetivo que virou régua de 18 medidas (2026-08-10)
+
+O dono pediu um desafio subjetivo — *"vamos fazer um site MAIS FODA que a Apple", com
+toda subjetividade que isso carrega* — e o processo devolveu um rito com 18 medidas
+numéricas, pranchas com tabela de fps, e um gate de CPU deduzido de "ficou pesado na
+máquina". Era a repetição de um erro que ele já tinha corrigido na véspera (*"vc
+analisar o tempo de não sei o que em ms tá fora de questão. não é a abordagem do
+gauntlet"*) — a correção morava num handoff de sessão, o handoff foi arquivado numa
+limpeza, e o erro voltou inteiro à tarde.
+
+A definição canônica que ele ditou, e que o §1 da skill carrega:
+
+> 1) Uma coisa é moodboard, que é o caminho para direcionar ESTILO (referências
+> positivas e negativas de vários aspectos que compõe o que faremos)
+> 2) Outra coisa são os sites que são os "desafiados" (…). Eles são referência sobre a
+> percepção do público em termos de qualidade, relevância, etc.
+> - Os benchmarks NÃO são literais (numéricos etc)
+> - Também NÃO são referências a serem seguidas ou copiadas.
+> - NÃO devem ser usados como régua tipo "a apple faz 30fps, vamos fazer mais fps que a apple"
+
+E o fecho da regra: *"Só vamos trabalhar com uma métrica específica se ela for
+fornecida naquele desafio específico. Senão é esse critério de 'Impressionar' mesmo."*
+
+O que cada achado virou:
+
+- **O contrato do recon pedia `numero` por eixo** — e uma lista de medidas em disco é
+  uma régua pedindo para ser usada, por mais que o briefing do juiz mande ignorá-la.
+  O campo saiu do contrato; o eixo é `nome + gesto + registro` — onde olhar, e o print
+  que prova.
+- **A trava anti-medida morava só no juiz, o último elo.** A contaminação nascia rio
+  acima (recon colhia, orquestrador relatava em tabela) e chegava ao juiz já feita.
+  Agora a mesma regra vale em cada elo: recon não colhe, briefing não interpola, sonda
+  não imprime, e `fecho_check.py` recusa veredito (de peça e de diretor) cujo gap ou
+  frase julgue por medida sem `metricas` do dono no rito.
+- **Correção de método dada em voo morria em documento de sessão.** A regra: correção
+  de método do dono vira mudança na FONTE da skill (com bump) na hora, com o verbatim —
+  o projeto no máximo aponta para ela. Foi assim que esta seção nasceu.
 
 ---
 

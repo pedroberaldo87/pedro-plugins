@@ -24,17 +24,31 @@ ordens do dono em voo, fecha — **e não julga**: escreveu os briefings, está 
 
 ## 1 · A abertura
 
+**Duas referências, dois papéis — nunca misture.** Definição do dono, canônica:
+`moodboard` dirige ESTILO (referências positivas e negativas, por aspecto do que se vai
+fazer); `alvos` são os DESAFIADOS — referência da PERCEPÇÃO do público sobre qualidade e
+relevância, e a pergunta contra eles é uma só e subjetiva: *"a nossa é mais foda?"*. O
+desafiado nunca é literal (numérico), nunca é referência a seguir ou copiar, e nunca vira
+régua tipo "ele faz 30fps, façamos mais". O gauntlet é *"vamos fazer um site MAIS FODA
+que a Apple"* — **com toda a subjetividade que isso carrega**; é por isso que o prompt
+original é curtinho.
+
 Grave `.claude/gauntlet/<data>-<slug>/rito.json` com **cinco campos**: `objetivo` (do
-dono) · `alvos` (dele — URLs concretas, você sugere e ele aprova) · `sonda` (você propõe
-pelo tipo de peça, receitas em `references/sondas.md`; testada antes, `teste_registro` no
-disco) · `eixos` (o recon propõe, ele aprova) · `orcamento` (`rodadas_por_peca`,
-`teto_de_pecas`). Opcionais: `lei` · `vetos` · `raiz` · `intencao` · `criativo`.
+dono) · `alvos` (os desafiados — URLs concretas, você sugere e ele aprova) · `sonda`
+(você propõe pelo tipo de peça, receitas em `references/sondas.md`; testada antes,
+`teste_registro` no disco) · `eixos` (o recon propõe, ele aprova) · `orcamento`
+(`rodadas_por_peca`, `teto_de_pecas`). Opcionais: `lei` · `vetos` · `raiz` · `intencao`
+· `criativo` · `moodboard` (as referências de estilo, positivas e negativas, por
+aspecto) · `metricas` (SÓ o que o dono fornecer NESTE desafio, verbatim — é a única
+porta por onde número entra em julgamento; sem o campo, o critério é impressionar, e o
+fecho recusa veredito que julgue por medida).
 
 **Descoberta** — dono sem alvos ou sem direção registrada: conduza antes do rito.
 (1) **intenção** — o que é a obra, para quem, que sensação; respostas dele verbatim em
 `intencao`; (2) **moodboard** — referências dele mais candidatas suas, cada uma ABERTA no
-browser, nunca por adjetivo; o aprovado é vibe, não forma; (3) **benchmarks** — *"quem a
-gente quer BATER?"*: régua vira `alvos`, o resto vai ao arsenal. Com tudo pronto, pula-se.
+browser, nunca por adjetivo; o aprovado é vibe, não forma, e vai em `moodboard`;
+(3) **desafiados** — *"quem a gente quer BATER?"*: esses viram `alvos`, o resto vai ao
+arsenal. Com tudo pronto, pula-se.
 
 **Lei** — antes de perguntar, rode a doc-load do projeto da obra
 (`resolve-plugin.sh project-skills lib/doc_load.py`); documento-régua entra em `lei`, e
@@ -106,9 +120,10 @@ Verde apaga o sinal; vermelho imprime o que falta. O que ele confere mora na su�
 
 ## 6 · As armadilhas — cada uma já mordeu de verdade
 
-- **Copiar o alvo.** Régua, nunca receita: número de eixo prova nível; forma não se transporta — nem do alvo, nem do moodboard, nem do já aprovado.
+- **Copiar o alvo.** O desafiado é percepção a bater, nunca fonte de especificação: eixo diz ONDE olhar e o print prova; forma não se transporta — nem do alvo, nem do moodboard, nem do já aprovado.
 - **Fatiar a barra junto com o trabalho.** Peça recorta trabalho; a comparação é sempre obra inteira contra alvo inteiro.
-- **Medir no lugar de olhar.** Medida detecta regressão, não diz se está bom; o juiz decide com o olho, às cegas.
+- **Medir no lugar de olhar.** Medida serve a diagnóstico e regressão, nunca a julgamento; o juiz decide com o olho, às cegas — número só julga se o dono forneceu `metricas` neste desafio.
+- **Converter sensação do dono em meta numérica.** "Ficou pesado" não vira gate de fps nem tabela — vira direção de trabalho e volta a ele como TELA, nunca como número; relatar a missão ao dono em métrica é a mesma armadilha, do lado de quem orquestra.
 - **Julgar o relatório em vez da obra.** Argumentação convence sem qualidade; o juízo se forma antes de ler qualquer relatório.
 - **Fechar por cansaço.** Ganho pequeno não fecha peça — fecha juiz boquiaberto, ordem do dono ou orçamento; o programa recusa o resto.
 - **Falsificar asset.** Símbolo se cria; o que se passaria por registro do que não aconteceu, nunca — asset real que falta sai do julgamento.

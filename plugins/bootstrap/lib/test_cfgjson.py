@@ -36,7 +36,8 @@ def check(nome, ok, detalhe=""):
 def roda(*args, entrada=None):
     r = subprocess.run([sys.executable, CFG] + list(args), capture_output=True,
                        text=True, encoding="utf-8", input=entrada,
-                       stdin=None if entrada is not None else subprocess.DEVNULL)
+                       stdin=None if entrada is not None else subprocess.DEVNULL,
+                       start_new_session=True)
     return r.stdout, r.returncode
 
 
@@ -45,7 +46,7 @@ def roda_jq(programa, *args, arquivo=None, cru=False):
     if arquivo:
         cmd.append(arquivo)
     r = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8",
-                       stdin=subprocess.DEVNULL)
+                       stdin=subprocess.DEVNULL, start_new_session=True)
     return r.stdout, r.returncode
 
 
