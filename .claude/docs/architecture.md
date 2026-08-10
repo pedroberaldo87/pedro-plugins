@@ -591,9 +591,16 @@ Observações de arquitetura:
   ela não depende de pendência nenhuma:** despacho de construtor ou de juiz cujo prompt não
   carregue a linha `RÉGUA, NUNCA RECEITA` é negado, porque a regra anti-cópia existia só em
   prosa e não segurou — numa missão real o número medido no alvo virou meta e a obra saiu
-  parecida com ele. **Os três leem
-  sinais independentes**, então nada garante que só um esteja aceso de cada vez — na prática,
-  motor + `gauntlet` simultâneos negam pelo primeiro que responder. [confirmado —
+  parecida com ele. ⚠️ **CORRIGIDO EM 2026-08-09 — esta doc afirmava que "os três leem sinais
+  independentes", e era falso: o motor e o `gauntlet` leem o MESMO arquivo.** Os dois montam
+  o caminho igual, `${CLAUDE_CONFIG_DIR:-$HOME/.claude}/andamento/ativo-<session_id>`
+  (`pretooluse-motor-arma.sh:71` e `pretooluse-gauntlet.sh:65`), e o que distingue um do
+  outro é a **primeira linha do conteúdo** — `sprint`, `qa-loop` ou `gauntlet`. O gate do
+  motor não a lia, então acender a missão do `gauntlet` o armava e proibia o `gauntlet` de
+  despachar os próprios juízes. Hoje ele confere o dono antes de negar (`DONO=$(head -n 1
+  "$SINAL")`), e a suíte cobre o caso com um check por skill vizinha. A frase antiga
+  descrevia isolamento que o código não tinha — **nome de arquivo por sessão isola sessão de
+  sessão, nunca skill de skill.** [confirmado —
   `bash plugins/gauntlet/hooks/test_gauntlet_hooks.sh` → *"trava dupla do gauntlet: tudo
   verde"*, com o caso "o juiz da peça pendente passa" ao lado de "construtor novo é negado"]
   O do `guardrails` é o classificador LLM e existe pra **proteger** Agent Teams: ele nega
@@ -607,7 +614,7 @@ Observações de arquitetura:
   segue em `~/.claude/andamento/ativo-<session_id>` (a atribuição `ESTADO=` no script), com cap de
   3 negações e kill-switch `SPRINT_GATE=0` — renomear o caminho de estado invalidaria os sinais
   de sessões vivas. [confirmado — `bash plugins/project-skills/hooks/test_motor_gate.sh`
-  → `OK (24 checks)` neste run — acopla-ok: é a saída literal do comando na mesma linha]
+  → `OK (26 checks)` neste run — acopla-ok: é a saída literal do comando na mesma linha]
 - **O `AskUserQuestion` é gateável** (`guardrails/hooks/askq-humanize.sh`). O contrato de gate
   está escrito no cabeçalho do próprio arquivo, copiado literal: *canal* `permissionDecision:"deny"`
   em JSON no stdout com exit 0; *cap* 3 devoluções por sessão; *desligar* `ASKQ_GATE=0`;

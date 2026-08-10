@@ -432,6 +432,17 @@ Duas lições, e a segunda vale mais que a primeira:
 1. **Rotular INFERIDO no código funciona.** O comentário trazia o experimento escrito (*"com o sinal ligado, rode um Workflow de um agente só e veja se ele completa"*), então medir custou minutos em vez de arqueologia. Hipótese com o próprio teste ao lado é dívida que se paga; hipótese sem teste vira folclore.
 2. **A medição não removeu o cap, e não deveria.** O cap de 3 negações cobre o runtime do `Workflow` mudar de caminho numa versão futura — risco que a medição de hoje não elimina, só data. Medir uma inferência autoriza **parar de temê-la agora**, nunca desmontar a rede que existe para quando ela mudar.
 
+**Terceira sequela, 2026-08-09: o gate sequestrava missão de outra skill, porque o sinal é compartilhado e ele não conferia de quem era.** Três skills do marketplace gravam o **mesmo arquivo** `~/.claude/andamento/ativo-<sid>`, cada uma com o próprio nome na primeira linha — quem escreve o quê se confere nos `SKILL.md` delas (`grep -rn 'ativo-\$' plugins/*/skills/*/SKILL.md`). O gate do motor lia só a existência do arquivo:
+
+```bash
+SINAL="$ESTADO/ativo-$SESSION"
+[ -f "$SINAL" ] || exit 0          # ← nada olhava a linha 1
+```
+
+O efeito medido: acender o sinal do `gauntlet` armava o gate do `sprint`, e o `gauntlet` ficava proibido de despachar os próprios juízes — que é o mecanismo inteiro dele, numa skill que existe justamente porque juiz esquecido já custou uma sessão de 14 horas. A correção é o leitor conferir o dono antes de agir (`DONO=$(head -n 1 "$SINAL")`, `[ "$DONO" = "sprint" ] || exit 0`), e não renomear o arquivo: o compartilhamento é de propósito, porque a barra de status lê a linha 1 de qualquer um deles. `[confirmado — dois checks novos em test_motor_gate.sh, um por skill vizinha, e a suíte inteira verde: 26 checks]`
+
+**A régua durável: arquivo de estado compartilhado entre plugins precisa de DONO declarado no conteúdo, e de leitor que o confira.** Nome de arquivo por sessão isola sessão de sessão — não isola skill de skill. A suíte do gate escondia o defeito porque criava o sinal vazio (`: > "$ESTADO/ativo-$SID"`), e sinal vazio nunca é o que o produto grava: **teste que fabrica o estado de um jeito que a produção não fabrica é teste que não vê a colisão.**
+
 ### 1.12 Motor de agentes: quem revisa precisa de âncora FORA do que foi construído
 
 **Novo em 2026-08-02**, e vale para os dois motores do marketplace — hoje as skills `sprint` e `qa-loop`, ambas do `project-skills`. O revisor de construção do motor de execução contínua julgava a obra contra a **decomposição do próprio orquestrador**, declarado literal na skill até esta rodada: *"Trata a decomposição do #1 como **contrato** e só checa se ele foi **cumprido**"* + *"**Não julga se a decomposição é fiel ao plano-macro**"*.
