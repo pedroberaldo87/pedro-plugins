@@ -429,9 +429,12 @@ def juiz_falso_visivel(bindir):
     return r.returncode == 0 and '"verdict"' in r.stdout
 
 
-def roda_scope_cop(bindir, payload, home, config_dir, script=None):
+def roda_scope_cop(bindir, payload, home, config_dir, script=None, com_erro=False):
     """Devolve (stdout, returncode) — o rc importa porque hook AUSENTE tambem
-    sai calado (bash 127) e sem ele o 'tem que calar' fica verde por acidente."""
+    sai calado (bash 127) e sem ele o 'tem que calar' fica verde por acidente.
+    `com_erro=True` devolve (stdout, rc, stderr): quando o hook sai calado, o
+    MOTIVO nao esta no stdout — e sem ele a falha vira adivinhacao a 4 min por
+    tentativa em runner que ninguem consegue abrir."""
     # O SEPARADOR DE PATH É DO SISTEMA, NÃO ':' CRAVADO. No Windows ele é ';', e
     # com dois-pontos o PATH inteiro vira uma entrada só de lixo — todo binário
     # some, inclusive o que este teste acabou de montar em `bindir`. Foi metade da
@@ -440,6 +443,8 @@ def roda_scope_cop(bindir, payload, home, config_dir, script=None):
                PATH=f"{bindir}{os.pathsep}{os.environ['PATH']}")
     r = subprocess.run([bash_posix(), str(script or SCOPE_COP)], input=payload,
                        capture_output=True, text=True, env=env, start_new_session=True)
+    if com_erro:
+        return r.stdout.strip(), r.returncode, r.stderr.strip()
     return r.stdout.strip(), r.returncode
 
 
@@ -511,13 +516,18 @@ def teste_scope_cop_e_conformance_olham_a_mesma_pasta():
             return
         (vivo / "guardrails" / "scope-cop.mode").write_text("deny")
         (isca / ".claude" / "guardrails" / "scope-cop.mode").write_text("off")
-        saida, _ = roda_scope_cop(bindir, payload, isca, vivo)
+        saida, rc, erro = roda_scope_cop(bindir, payload, isca, vivo, com_erro=True)
         try:
             decisao = json.loads(saida).get("hookSpecificOutput", {}).get("permissionDecision", "")
         except ValueError:
             decisao = ""
+        # O hook desiste calado em varios pontos (fail-open por desenho), e o rastro
+        # de CADA um e o proprio log dele. Sem colar o log aqui, "saida=" vazio nao
+        # distingue "leu o payload e nao julgou" de "nem leu o payload".
+        log = vivo / "guardrails" / "scope-cop.log"
+        rastro = log.read_text(encoding="utf-8", errors="replace").strip()[-300:] if log.exists() else "(log nao existe)"
         check("com 'deny' em CLAUDE_CONFIG_DIR o hook bloqueia", decisao == "deny",
-              f"saida={saida[:160]}")
+              f"saida={saida[:160]} rc={rc} stderr={erro[:200]} log={rastro}")
         check("o hook escreve o log DENTRO de CLAUDE_CONFIG_DIR",
               (vivo / "guardrails" / "scope-cop.log").is_file(),
               "log nao nasceu no config dir")
