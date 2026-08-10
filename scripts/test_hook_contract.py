@@ -64,7 +64,11 @@ class Repo(object):
         res = hc.run(self.root)
         fs = res["findings"]
         if script:
-            fs = [f for f in fs if f["who"].endswith(script)]
+            # `who` aponta pra ONDE A PROVA ESTÁ, e desde 2026-08-09 a prova de um
+            # veredito sobre o NOME é a linha do REGISTRO no hooks.json — quem diz
+            # em que evento o script roda é ele, não o corpo do script. Por isso o
+            # nome do script é procurado também no `msg`, que passou a trazê-lo.
+            fs = [f for f in fs if f["who"].endswith(script) or script in f["msg"]]
         return {f["rule"] for f in fs}
 
     def close(self):
@@ -502,6 +506,27 @@ exit 0
     bruto = _json.dumps(res, ensure_ascii=False)
     check("a saída não carrega a raiz de quem mediu", "root" not in res)
     check("caminho de script sai relativo à raiz", r.root not in bruto)
+
+    # ── TODO ACHADO SAI COM O PAR DE CITAÇÕES (decisão do dono, 2026-08-09) ──
+    # A vistoria recusa na porta achado sem par (arquivo:linha + trecho literal),
+    # e o tradutor dela repetia o `msg` como "prova" para tapar o buraco. Medido
+    # antes do conserto no repo real: 41 dos 42 achados saíam com `quote` vazio e
+    # `line` 0, e os 42 `who` não resolviam como caminho. O conserto foi na FONTE,
+    # e é aqui que ele para de regredir.
+    r.close()
+    r = Repo()
+    r.hook("scope-cop.sh", HDR + "exit 0\n", event="PreToolUse")          # R6
+    r.hook("sessionstart-avisa-jq.sh", HDR + 'jq -n "{}"\nexit 0\n',
+           event="SessionStart", matcher="*")                            # R5
+    fs = hc.run(r.root)["findings"]
+    check("o repro gera achado de R5 e de R6",
+          {f["rule"][:2] for f in fs} >= {"R5", "R6"})
+    check("nenhum achado sai sem trecho literal", all(f["quote"] for f in fs))
+    check("nenhum achado sai com linha 0", all(f["line"] for f in fs))
+    check("todo `who` resolve como arquivo de verdade",
+          all(os.path.exists(os.path.join(r.root, f["who"])) for f in fs))
+    check("o trecho é prova, não eco da mensagem",
+          all(f["quote"] != f["msg"] for f in fs))
     r.close()
 
     print()
