@@ -1926,8 +1926,17 @@ def cmd_page(args):
                   "📅 %s" % time.strftime("%Y-%m-%d")],
         "chip_primary": True,
         "ident": {
-            # directory é <raiz>/.claude/plans — dois níveis acima é o nome do projeto
-            "projeto": os.path.basename(os.path.abspath(os.path.join(directory, "..", ".."))),
+            # directory é <raiz>/.claude/plans — dois níveis acima é o nome do projeto.
+            # ⚠️ E ele pode sair VAZIO: quando o diretório está a menos de dois níveis
+            # da raiz do sistema, `basename('/')` é `''`, o `visual` recusa o spec
+            # ("ident.projeto e ident.artefato são obrigatórios") e a página do plano
+            # não nasce. Medido em 2026-08-10: no Linux um plano em `/tmp/<algo>`
+            # quebrava, e no macOS o MESMO caminho passava — lá `/tmp` é atalho para
+            # `/private/tmp`, então sobrava um nível e o nome não vinha vazio. O
+            # fallback nomeia o que existe, em vez de deixar a página morrer.
+            "projeto": (os.path.basename(os.path.abspath(os.path.join(directory, "..", "..")))
+                        or os.path.basename(os.path.abspath(directory))
+                        or "projeto sem nome"),
             "artefato": titulo,
             "gerado_de": "plan_state.py page --mode %s" % args.mode,
             "estado": "gerado",
