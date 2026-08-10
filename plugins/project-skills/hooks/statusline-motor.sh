@@ -37,7 +37,8 @@ fi
 
 INPUT=$(cat 2>/dev/null)
 
-HJ_DIR="${0%/*}"; [ "$HJ_DIR" = "$0" ] && HJ_DIR="."
+HJ_SELF="$(printf '%s' "$0" | tr '\\' /)"   # \ -> / : no Windows $0 vem com barra invertida
+HJ_DIR="${HJ_SELF%/*}"; [ "$HJ_DIR" = "$HJ_SELF" ] && HJ_DIR="."
 # O `[ -f ]` antes do source não é zelo: em `sh` POSIX, dar source num arquivo que
 # não existe ABORTA o script — e abortar aqui apagaria a barra inteira do dono por
 # causa de um leitor de JSON ausente.

@@ -16,7 +16,7 @@
 if ! command -v python3 >/dev/null 2>&1 || ! python3 --version >/dev/null 2>&1; then
   # sem python3 o gate não julga NADA — fala pelos dois canais em vez de calar
   # (o corpo é Python embutido; o leitor hook-json.sh empresta só o aviso)
-  . "${0%/*}/hook-json.sh" 2>/dev/null && hj_avisa "handoff/completeness-gate"
+  . "$(printf '%s' "${0%/*}" | tr '\\' /)/hook-json.sh" 2>/dev/null && hj_avisa "handoff/completeness-gate"
   exit 0
 fi
 set -uo pipefail

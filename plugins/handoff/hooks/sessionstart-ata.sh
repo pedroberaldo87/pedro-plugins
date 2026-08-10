@@ -7,7 +7,7 @@
 if ! command -v python3 >/dev/null 2>&1 || ! python3 --version >/dev/null 2>&1; then
   # sem python3 o sentinel do transcript não é gravado e o /handoff --auto perde a
   # descoberta — fala pelos dois canais em vez de calar (o leitor empresta só o aviso)
-  . "${0%/*}/hook-json.sh" 2>/dev/null && hj_avisa "handoff/sessionstart-ata"
+  . "$(printf '%s' "${0%/*}" | tr '\\' /)/hook-json.sh" 2>/dev/null && hj_avisa "handoff/sessionstart-ata"
   exit 0
 fi
 set -uo pipefail

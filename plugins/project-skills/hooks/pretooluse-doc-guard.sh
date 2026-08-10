@@ -26,7 +26,8 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 # Leitor do payload: `jq` quando existe, `python3` (stdlib json) quando não.
 # Sem os dois o gate não julga — e aí ele AVISA, nunca sai calado (issue #5).
 # `${0%/*}` e não `dirname`: o probe roda antes de saber se há PATH utilizável.
-HJ_DIR="${0%/*}"; [ "$HJ_DIR" = "$0" ] && HJ_DIR="."
+HJ_SELF="$(printf '%s' "$0" | tr '\\' /)"   # \ -> / : no Windows $0 vem com barra invertida
+HJ_DIR="${HJ_SELF%/*}"; [ "$HJ_DIR" = "$HJ_SELF" ] && HJ_DIR="."
 # shellcheck source=/dev/null
 . "$HJ_DIR/hook-json.sh" 2>/dev/null
 # Diretório temporário DO SISTEMA — perguntado, nunca assumido (ver lib-tmpdir.sh).

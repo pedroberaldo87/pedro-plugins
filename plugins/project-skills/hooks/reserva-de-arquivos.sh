@@ -34,7 +34,8 @@
 # Kill-switch (contrato dos hooks deste repo).
 [ "${SPRINT_RESERVA:-1}" = "0" ] && exit 0
 
-HJ_DIR="${0%/*}"; [ "$HJ_DIR" = "$0" ] && HJ_DIR="."
+HJ_SELF="$(printf '%s' "$0" | tr '\\' /)"   # \ -> / : no Windows $0 vem com barra invertida
+HJ_DIR="${HJ_SELF%/*}"; [ "$HJ_DIR" = "$HJ_SELF" ] && HJ_DIR="."
 # shellcheck source=/dev/null
 . "$HJ_DIR/hook-json.sh" 2>/dev/null
 # Sem como EMITIR a recusa não há recusa a fazer — libera.
