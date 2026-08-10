@@ -348,7 +348,7 @@ branches           1.3.5  [branches]                 HOOKS
 check-skills       0.7.1  [check-skills]             -
 context-guard      1.3.9  [context-guard]            HOOKS
 fallow             1.2.3  [fallow]                   -
-gauntlet          0.10.0  [gauntlet]                 HOOKS
+gauntlet          0.10.1  [gauntlet]                 HOOKS
 graphify-guard     1.2.5  []                         HOOKS
 grill-me           1.4.0  [grill-me]                 -
 guardrails         1.7.8  [guardrails]               HOOKS
@@ -666,6 +666,20 @@ Observações de arquitetura:
   cobra é a mesma que já recusava medida em nome de eixo (`MEDIDA_NO_NOME`), agora usada nos
   dois pontos. **Régua durável: trava no último elo chega tarde — quando a contaminação
   alcança quem julga, ela já passou pelo rito, pelos briefings e pelas pranchas do dono.**
+  ⚠️ **Reusar a expressão nos dois pontos custou uma correção na 0.10.1, e o motivo é de
+  natureza, não de descuido: ela foi escrita para NOME DE EIXO — texto curto e nomeado — e
+  passou a rodar sobre PROSA de veredito.** Em prosa, `em` e `s` soltos são português, não
+  unidade: *"1 em cada 3 cartões repete o mesmo gesto"* é juízo de olho legítimo e era
+  recusado como julgamento por medida, travando o fecho até alguém reescrever a frase do
+  juiz. E a lista de unidades, herdada do domínio CSS, parava em `kB` — *"a nossa pesa 4 MB"*
+  e *"carrega em 2 min"* passavam batidos, que é exatamente o material de que a régua de 18
+  medidas era feita. Hoje letra ambígua só vale colada no dígito (`32em`, `3s`) e a lista
+  alcança `MB`, `GB` e `min` [confirmado — `python3 plugins/gauntlet/lib/test_fecho_check.py`
+  → *"tudo verde"*, com os casos *"gap de olho com 'N em ...' NÃO é confundido com medida"*,
+  *"julgamento por peso em MB é pego"* e *"julgamento por tempo em minutos é pego igual"*].
+  **Régua durável: expressão calibrada para identificador reusada em texto livre erra dos
+  dois lados — reprova o legítimo e deixa passar o que devia pegar. Reuso de padrão exige
+  reconferir o VOCABULÁRIO do novo campo, não só o intuito.**
   O do `guardrails` é o classificador LLM e existe pra **proteger** Agent Teams: ele nega
   sub-agente avulso **quando o prompt pede Agent Teams**, e libera explicitamente *"tarefa
   one-off sem team_name"*. O terceiro é o do `project-skills`
