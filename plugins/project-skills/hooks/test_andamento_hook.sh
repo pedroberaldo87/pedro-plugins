@@ -23,8 +23,12 @@ check() {
 
 # Raiz de config e temporário falsos: a suíte nunca toca no ~/.claude real nem
 # no /tmp da máquina.
-CFG="$(mktemp -d -t andamento-cfg)"
-TMP="$(mktemp -d -t andamento-tmp)"
+# `mktemp -d -t <nome>` é BSD: o GNU (Linux) exige os XXXXXX e, sem eles, SAI VAZIO
+# em vez de falhar alto — as duas variáveis viravam string vazia, o teste rodava
+# contra `/` e 27 dos 46 checks reprovavam por isso na esteira. A forma abaixo é a
+# mesma de `test_branch_hooks.sh` e vale nos dois.
+CFG="$(mktemp -d "${TMPDIR:-/tmp}/andamento-cfg.XXXXXX")"
+TMP="$(mktemp -d "${TMPDIR:-/tmp}/andamento-tmp.XXXXXX")"
 trap 'rm -rf "$CFG" "$TMP"' EXIT
 mkdir -p "$CFG/andamento"
 : > "$CFG/andamento/ativo-sess-teste"
@@ -328,7 +332,7 @@ else: print(0)' "$HJ" 2>/dev/null)"
 
 # 6 · anti-tautologia: mandar a linha para o canal descartado (stderr) tem que
 #     fazer o teste #2 reprovar. É a checagem M do release-gate em miniatura.
-SAB="$(mktemp -t andamento-sabotado)"
+SAB="$(mktemp "${TMPDIR:-/tmp}/andamento-sabotado.XXXXXX")"
 trap 'rm -f "$SAB"; rm -rf "$CFG" "$TMP"' EXIT
 sed 's/^hj_msg "⏱ \$LINHA"$/printf "%s\\n" "$LINHA" >\&2/' "$HOOK" > "$SAB"
 marca_ha 120
