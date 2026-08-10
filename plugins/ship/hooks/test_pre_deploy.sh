@@ -29,27 +29,30 @@ TMP=$(mktemp -d)
 export GREEN_SUITE_DIR="$TMP/green-suite"
 trap 'rm -rf "$TMP"' EXIT
 
+# A identidade vai na PROPRIA chamada (`git -c`): o runner da esteira nao tem
+# `user.email` global, e sem ela o commit inicial destes repos de mentira falha
+# em silencio (o `2>/dev/null` engole), deixando fixture sem historico.
 # --- fixtures -------------------------------------------------------------
 PROBE="$TMP/probe"                      # projeto sem gate por-app; `make test` falha
 mkdir -p "$PROBE"
-(cd "$PROBE" && git init -q . && git commit -q --allow-empty -m x 2>/dev/null)
+(cd "$PROBE" && git init -q . && git -c user.email=ship@exemplo.invalido -c user.name=bancada commit -q --allow-empty -m x 2>/dev/null)
 printf 'test:\n\t@exit 1\n' > "$PROBE/Makefile"
 
 MODE1="$TMP/mode1"                      # projeto COM gate por-app, e nenhum app com teste
 mkdir -p "$MODE1/scripts"
-(cd "$MODE1" && git init -q . && git commit -q --allow-empty -m x 2>/dev/null)
+(cd "$MODE1" && git init -q . && git -c user.email=ship@exemplo.invalido -c user.name=bancada commit -q --allow-empty -m x 2>/dev/null)
 printf '#!/bin/bash\nexit 0\n' > "$MODE1/scripts/run_app_tests.sh"
 chmod +x "$MODE1/scripts/run_app_tests.sh"
 
 MONO="$TMP/mono"                        # monorepo: gate por-app em tools/, 2 apps COM teste
 mkdir -p "$MONO/tools/scripts" "$MONO/tools/tests/crm" "$MONO/tools/tests/web"
-(cd "$MONO" && git init -q . && git commit -q --allow-empty -m x 2>/dev/null)
+(cd "$MONO" && git init -q . && git -c user.email=ship@exemplo.invalido -c user.name=bancada commit -q --allow-empty -m x 2>/dev/null)
 printf '#!/bin/bash\nexit 0\n' > "$MONO/tools/scripts/run_app_tests.sh"
 chmod +x "$MONO/tools/scripts/run_app_tests.sh"
 
 MONO_RED="$TMP/mono-red"                # idem, mas o gate por-app REPROVA: o caminho vermelho
 mkdir -p "$MONO_RED/tools/scripts" "$MONO_RED/tools/tests/crm"
-(cd "$MONO_RED" && git init -q . && git commit -q --allow-empty -m x 2>/dev/null)
+(cd "$MONO_RED" && git init -q . && git -c user.email=ship@exemplo.invalido -c user.name=bancada commit -q --allow-empty -m x 2>/dev/null)
 printf '#!/bin/bash\nexit 1\n' > "$MONO_RED/tools/scripts/run_app_tests.sh"
 chmod +x "$MONO_RED/tools/scripts/run_app_tests.sh"
 
@@ -60,12 +63,12 @@ chmod +x "$MONO_RED/tools/scripts/run_app_tests.sh"
 # true` (o hook bloqueando TODO deploy de Modo 2 com a suite verde) passar com 73 ok.
 GREEN="$TMP/green"
 mkdir -p "$GREEN"
-(cd "$GREEN" && git init -q . && git commit -q --allow-empty -m x 2>/dev/null)
+(cd "$GREEN" && git init -q . && git -c user.email=ship@exemplo.invalido -c user.name=bancada commit -q --allow-empty -m x 2>/dev/null)
 printf 'test:\n\t@exit 0\n' > "$GREEN/Makefile"
 
 NORUNNER="$TMP/norunner"                # nenhum test runner: o caminho do aviso sem gate
 mkdir -p "$NORUNNER"
-(cd "$NORUNNER" && git init -q . && git commit -q --allow-empty -m x 2>/dev/null)
+(cd "$NORUNNER" && git init -q . && git -c user.email=ship@exemplo.invalido -c user.name=bancada commit -q --allow-empty -m x 2>/dev/null)
 
 hook() { # hook <command> [cwd] -> imprime o exit code do hook
   local cmd="$1" cwd="${2:-$PROBE}"

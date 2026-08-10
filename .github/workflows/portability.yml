@@ -7,6 +7,16 @@ on:
 jobs:
   checks:
     runs-on: ${{ matrix.os }}
+    # O console do Windows de fábrica é cp1252, e `print("── …")` de uma SUÍTE
+    # morre lá com UnicodeEncodeError antes de testar coisa alguma — foi o que
+    # derrubava o job do Windows no primeiro arquivo do glob (`test_cfgjson.py`),
+    # escondendo as outras 78 suítes com o mesmo texto. Isto muda SÓ os três
+    # canais de texto; o encoding de ARQUIVO fica como o sistema manda, que é
+    # justamente o que uma esteira de portabilidade não pode mascarar (`PYTHONUTF8`
+    # mexeria nos dois). Os PROGRAMAS que precisam disso já se viram sozinhos —
+    # `cfgjson.py` e `conformance.py` chamam `reconfigure(encoding="utf-8")`.
+    env:
+      PYTHONIOENCODING: utf-8
     strategy:
       # SEM fail-fast: o padrão CANCELA os outros sistemas quando um falha, e o
       # log deles sai como "The operation was canceled" — indistinguível de
