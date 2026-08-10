@@ -123,7 +123,7 @@ def carrega_allow():
 def arquivos(staged):
     cmd = ["git", "diff", "--cached", "--name-only", "--diff-filter=ACMR"] if staged \
         else ["git", "ls-files"]
-    out = subprocess.run(cmd, cwd=ROOT, capture_output=True, text=True, stdin=subprocess.DEVNULL, start_new_session=True)
+    out = subprocess.run(cmd, cwd=ROOT, capture_output=True, text=True, encoding="utf-8", errors="replace", stdin=subprocess.DEVNULL, start_new_session=True)
     return [p for p in out.stdout.splitlines() if p]
 
 

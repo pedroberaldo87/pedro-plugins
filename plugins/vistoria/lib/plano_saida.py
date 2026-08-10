@@ -120,7 +120,7 @@ def acha_plan_state():
     env.setdefault("CLAUDE_PLUGIN_ROOT", PLUGIN)
     try:
         r = subprocess.run(["bash", RESOLVEDOR, "project-skills", "lib/plan_state.py"],
-                           capture_output=True, text=True, env=env,
+                           capture_output=True, text=True, encoding="utf-8", errors="replace", env=env,
                            stdin=subprocess.DEVNULL, start_new_session=True)
     except OSError:
         return ""

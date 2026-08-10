@@ -550,7 +550,7 @@ def extract_anchors(text):
 def git(project_root, *args):
     try:
         r = subprocess.run(["git", "-C", project_root, *args],
-                           capture_output=True, text=True, timeout=30, stdin=subprocess.DEVNULL, start_new_session=True)
+                           capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=30, stdin=subprocess.DEVNULL, start_new_session=True)
         return r.stdout if r.returncode == 0 else ""
     except Exception:
         return ""

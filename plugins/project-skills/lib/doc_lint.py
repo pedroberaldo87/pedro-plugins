@@ -105,7 +105,7 @@ def _git_ls_files(root):
     acusaria TODO token e TODO ponteiro. None faz os checks 1 e 3 se calarem."""
     try:
         r = subprocess.run(["git", "-C", root, "ls-files"], capture_output=True,
-                           text=True, timeout=30, errors="replace", stdin=subprocess.DEVNULL, start_new_session=True)
+                           text=True, encoding="utf-8", errors="replace", timeout=30, errors="replace", stdin=subprocess.DEVNULL, start_new_session=True)
     except Exception:
         return None
     if r.returncode != 0:
@@ -123,7 +123,7 @@ def _git_head_files(root):
     def _ls_tree(groot):
         try:
             r = subprocess.run(["git", "-C", groot, "ls-tree", "-r", "--name-only",
-                                "-z", "HEAD"], capture_output=True, text=True,
+                                "-z", "HEAD"], capture_output=True, text=True, encoding="utf-8", errors="replace",
                                timeout=30, errors="replace", stdin=subprocess.DEVNULL, start_new_session=True)
         except Exception:
             return None
@@ -251,7 +251,7 @@ def _commit_batch_check(root, tokens):
         try:
             inp = "".join(t + "^{commit}\n" for t in pending)
             out = subprocess.run(["git", "-C", groot, "cat-file", "--batch-check"],
-                                 input=inp, capture_output=True, text=True,
+                                 input=inp, capture_output=True, text=True, encoding="utf-8", errors="replace",
                                  timeout=20, start_new_session=True).stdout.splitlines()
         except Exception:
             continue

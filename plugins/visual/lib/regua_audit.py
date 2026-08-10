@@ -287,7 +287,7 @@ def varrer(diretorio, desde=None):
 
 
 def dir_padrao():
-    r = subprocess.run(["bash", RESOLVE_DIR, os.getcwd()], capture_output=True, text=True, stdin=subprocess.DEVNULL, start_new_session=True)
+    r = subprocess.run(["bash", RESOLVE_DIR, os.getcwd()], capture_output=True, text=True, encoding="utf-8", errors="replace", stdin=subprocess.DEVNULL, start_new_session=True)
     return (r.stdout or "").strip() or os.path.join(REPO, ".claude", "visual")
 
 
@@ -341,7 +341,7 @@ def imprime_paginas(res, todos=False):
 # ── veredito F4.1: as mudanças do dia nos cinco geradores ──────────────────
 
 def _git(repo, *args):
-    r = subprocess.run(["git", "-C", repo] + list(args), capture_output=True, text=True, stdin=subprocess.DEVNULL, start_new_session=True)
+    r = subprocess.run(["git", "-C", repo] + list(args), capture_output=True, text=True, encoding="utf-8", errors="replace", stdin=subprocess.DEVNULL, start_new_session=True)
     return (r.stdout or "") if r.returncode == 0 else ""
 
 

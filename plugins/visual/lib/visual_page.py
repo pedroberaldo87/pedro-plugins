@@ -871,7 +871,7 @@ def build_page(spec, tpl=None):
 def default_out(spec):
     slug = spec.get("slug") or re.sub(r"[^a-z0-9]+", "-",
                                       str(spec["title"]).lower()).strip("-")[:48] or "visual"
-    r = subprocess.run(["bash", RESOLVE_DIR, os.getcwd()], capture_output=True, text=True, stdin=subprocess.DEVNULL, start_new_session=True)
+    r = subprocess.run(["bash", RESOLVE_DIR, os.getcwd()], capture_output=True, text=True, encoding="utf-8", errors="replace", stdin=subprocess.DEVNULL, start_new_session=True)
     d = (r.stdout or "").strip()
     if not d:
         raise SpecError("não consegui resolver o diretório do /visual — passe --out")

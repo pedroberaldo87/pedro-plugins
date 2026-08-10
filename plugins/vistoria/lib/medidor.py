@@ -60,7 +60,7 @@ def _json_de(*args):
         p = subprocess.Popen([sys.executable] + [os.path.join(ROOT, args[0])] + list(args[1:]),
                              cwd=ROOT, stdin=subprocess.DEVNULL,
                              stdout=subprocess.PIPE, stderr=subprocess.PIPE,
-                             text=True, start_new_session=True)
+                             text=True, encoding="utf-8", errors="replace", start_new_session=True)
         out, _ = p.communicate(timeout=TIMEOUT)
         return json.loads(out)
     finally:

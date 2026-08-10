@@ -112,7 +112,7 @@ def resolve_dir(cwd=None):
     if not os.path.exists(script):
         raise PlanError("resolve-dir.sh não encontrado em %s — passe --dir" % script)
     out = subprocess.run(["bash", script, cwd or os.getcwd(), "plans"],
-                         capture_output=True, text=True, stdin=subprocess.DEVNULL, start_new_session=True)
+                         capture_output=True, text=True, encoding="utf-8", errors="replace", stdin=subprocess.DEVNULL, start_new_session=True)
     target = (out.stdout or "").strip()
     if not target:
         raise PlanError("resolve-dir.sh não devolveu caminho — passe --dir")
@@ -130,7 +130,7 @@ def visual_page_path():
     script = os.path.join(
         os.path.dirname(os.path.abspath(__file__)), "resolve-plugin.sh")
     out = subprocess.run(["bash", script, "visual", "lib/visual_page.py"],
-                         capture_output=True, text=True, stdin=subprocess.DEVNULL,
+                         capture_output=True, text=True, encoding="utf-8", errors="replace", stdin=subprocess.DEVNULL,
                          start_new_session=True)
     achado = (out.stdout or "").strip()
     if achado:
@@ -1949,7 +1949,7 @@ def cmd_page(args):
         vis = subprocess.run(
             ["bash", os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                   "resolve-dir.sh"), os.getcwd(), "visual"],
-            capture_output=True, text=True, stdin=subprocess.DEVNULL, start_new_session=True)
+            capture_output=True, text=True, encoding="utf-8", errors="replace", stdin=subprocess.DEVNULL, start_new_session=True)
         vdir = (vis.stdout or "").strip()
         if not vdir:
             raise PlanError("não consegui resolver o diretório do /visual — passe --out")
@@ -1961,7 +1961,7 @@ def cmd_page(args):
 
     r = subprocess.run([sys.executable, montador, "build", "--spec", "-", "--out", out],
                        input=json.dumps(spec, ensure_ascii=False), capture_output=True,
-                       text=True, start_new_session=True)
+                       text=True, encoding="utf-8", errors="replace", start_new_session=True)
     if r.returncode != 0:
         raise PlanError("o `visual` recusou a página:\n%s" % (r.stderr or "").strip())
     print(out)

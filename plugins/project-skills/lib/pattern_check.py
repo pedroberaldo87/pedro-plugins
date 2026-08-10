@@ -196,7 +196,7 @@ def restamp(project_root, docs, today=None):
     import subprocess
     try:
         r = subprocess.run(["git", "-C", project_root, "rev-parse", "--short", "HEAD"],
-                           capture_output=True, text=True, timeout=10, stdin=subprocess.DEVNULL, start_new_session=True)
+                           capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=10, stdin=subprocess.DEVNULL, start_new_session=True)
         head = r.stdout.strip() if r.returncode == 0 else ""
     except Exception:
         head = ""
@@ -540,7 +540,7 @@ def _git_diff_names(root, range_or_sha, subtree, added_only=False, cached=False,
     args.append("--")
     args.append(subtree if subtree else ".")
     try:
-        r = subprocess.run(args, capture_output=True, text=True, timeout=20, stdin=subprocess.DEVNULL, start_new_session=True)
+        r = subprocess.run(args, capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=20, stdin=subprocess.DEVNULL, start_new_session=True)
     except Exception:
         return None
     if r.returncode != 0:
@@ -570,7 +570,7 @@ def _git_log_since(root, date, subtree, added_only=False):
     args.append("--")
     args.append(subtree if subtree else ".")
     try:
-        r = subprocess.run(args, capture_output=True, text=True, timeout=20, stdin=subprocess.DEVNULL, start_new_session=True)
+        r = subprocess.run(args, capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=20, stdin=subprocess.DEVNULL, start_new_session=True)
     except Exception:
         return None  # git ausente/erro → unknown, não fresco
     # returncode≠0 (dubious ownership, revisão inválida, repo corrompido) devolve
@@ -893,7 +893,7 @@ def _commit_age_days(root, sha):
     import time
     try:
         r = subprocess.run(["git", "-C", root, "log", "-1", "--format=%ct", sha],
-                           capture_output=True, text=True, timeout=10, stdin=subprocess.DEVNULL, start_new_session=True)
+                           capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=10, stdin=subprocess.DEVNULL, start_new_session=True)
         if r.returncode != 0 or not r.stdout.strip():
             return None
         return max(0.0, (time.time() - int(r.stdout.strip())) / 86400.0)

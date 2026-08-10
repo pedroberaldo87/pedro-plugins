@@ -47,7 +47,7 @@ EXTERNAL_GLOBS = ["docker-compose.yml", "docker-compose.prod.yml", "docker-compo
 
 def run(cmd):
     try:
-        return subprocess.run(cmd, cwd=ROOT, capture_output=True, text=True, timeout=180, stdin=subprocess.DEVNULL, start_new_session=True).stdout
+        return subprocess.run(cmd, cwd=ROOT, capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=180, stdin=subprocess.DEVNULL, start_new_session=True).stdout
     except Exception:
         return ""
 

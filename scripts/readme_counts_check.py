@@ -130,7 +130,7 @@ def _registros_de_hook():
     """Total de registros, medido pelo mesmo script que o README cita."""
     hc = os.path.join(ROOT, "scripts", "hook_contract.py")
     saida = subprocess.run([sys.executable, hc, "--json"], cwd=ROOT,
-                           capture_output=True, text=True, check=True, stdin=subprocess.DEVNULL, start_new_session=True).stdout
+                           capture_output=True, text=True, encoding="utf-8", errors="replace", check=True, stdin=subprocess.DEVNULL, start_new_session=True).stdout
     return json.loads(saida)["entries"]
 
 

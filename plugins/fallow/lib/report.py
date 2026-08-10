@@ -50,7 +50,7 @@ def run_fallow(cmd, root):
     try:
         p = subprocess.run(
             ["npx", "-y", "fallow", cmd, "-r", root, "--format", "json"],
-            capture_output=True, text=True, timeout=300,
+            capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=300,
             stdin=subprocess.DEVNULL, start_new_session=True)
         # fallow sai 1 quando acha findings; a saída JSON ainda é válida.
         return json.loads(p.stdout) if p.stdout.strip() else {}
@@ -64,7 +64,7 @@ def run_audit_engine(root):
     here = os.path.dirname(os.path.abspath(__file__))
     try:
         p = subprocess.run(["python3", os.path.join(here, "audit.py"), root, "--json"],
-                           capture_output=True, text=True, timeout=600, stdin=subprocess.DEVNULL, start_new_session=True)
+                           capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=600, stdin=subprocess.DEVNULL, start_new_session=True)
         return json.loads(p.stdout) if p.stdout.strip() else {}
     except (subprocess.TimeoutExpired, json.JSONDecodeError) as e:
         print(f"[audit] falhou: {e}", file=sys.stderr)
@@ -553,7 +553,7 @@ def resolve_visual_dir(root):
     # Nível 1 — raiz do repositório git
     try:
         r = subprocess.run(["git", "-C", root, "rev-parse", "--show-toplevel"],
-                           capture_output=True, text=True, timeout=10, stdin=subprocess.DEVNULL, start_new_session=True)
+                           capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=10, stdin=subprocess.DEVNULL, start_new_session=True)
         top = r.stdout.strip()
         if top:
             return os.path.join(top, ".claude", "visual")

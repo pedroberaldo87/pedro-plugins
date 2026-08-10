@@ -56,7 +56,7 @@ def _plan_state():
     caminho relativo para o vizinho nao vale no cache do harness. Ausente: ""."""
     r = subprocess.run(["bash", str(AQUI / "resolve-plugin.sh"),
                         "project-skills", "lib/plan_state.py"],
-                       capture_output=True, text=True, stdin=subprocess.DEVNULL,
+                       capture_output=True, text=True, encoding="utf-8", errors="replace", stdin=subprocess.DEVNULL,
                        start_new_session=True,
                        env=dict(os.environ, CLAUDE_PLUGIN_ROOT=str(AQUI.parent)))
     return (r.stdout or "").strip()
@@ -151,7 +151,7 @@ def planos_abertos(cwd):
         return [], False
     try:
         r = subprocess.run(["bash", str(RESOLVE_DIR), cwd, "plans"],
-                           capture_output=True, text=True, timeout=10, stdin=subprocess.DEVNULL, start_new_session=True)
+                           capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=10, stdin=subprocess.DEVNULL, start_new_session=True)
         plans_dir = (r.stdout or "").strip()
         de_reserva = r.returncode == 3
     except (subprocess.SubprocessError, OSError):
@@ -160,7 +160,7 @@ def planos_abertos(cwd):
         return [], de_reserva
     try:
         r = subprocess.run([sys.executable, PLAN_STATE, "--dir", plans_dir,
-                            "open", "--json"], capture_output=True, text=True, timeout=10, stdin=subprocess.DEVNULL, start_new_session=True)
+                            "open", "--json"], capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=10, stdin=subprocess.DEVNULL, start_new_session=True)
         abertos = json.loads((r.stdout or "").strip() or "[]")
     except (subprocess.SubprocessError, OSError, ValueError):
         return [], de_reserva

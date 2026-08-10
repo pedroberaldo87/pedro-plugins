@@ -138,7 +138,7 @@ def processos():
     try:
         out = subprocess.run(
             ["ps", "-eo", "pid=,ppid=,etime=,time=,rss=,args="],
-            capture_output=True, text=True, timeout=10,
+            capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=10,
             stdin=subprocess.DEVNULL, start_new_session=True)
     except (OSError, subprocess.SubprocessError):
         return []
@@ -176,7 +176,7 @@ def vivo(pid):
         return False
     try:
         out = subprocess.run(["ps", "-o", "stat=", "-p", str(pid)],
-                             capture_output=True, text=True, timeout=5, stdin=subprocess.DEVNULL, start_new_session=True)
+                             capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=5, stdin=subprocess.DEVNULL, start_new_session=True)
         estado = out.stdout.strip()
         if estado.startswith("Z"):
             return False
@@ -356,7 +356,7 @@ def cwd_de(pid):
     val = None
     try:
         out = subprocess.run(["lsof", "-a", "-p", str(pid), "-d", "cwd", "-Fn"],
-                             capture_output=True, text=True, timeout=5, stdin=subprocess.DEVNULL, start_new_session=True)
+                             capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=5, stdin=subprocess.DEVNULL, start_new_session=True)
         for linha in out.stdout.splitlines():
             if linha.startswith("n/"):
                 val = linha[1:]
@@ -722,7 +722,7 @@ def _sem_terminal(pid):
     proteger o processo, nunca acusá-lo."""
     try:
         out = subprocess.run(["ps", "-o", "tty=", "-p", str(pid)],
-                             capture_output=True, text=True, timeout=5, stdin=subprocess.DEVNULL, start_new_session=True)
+                             capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=5, stdin=subprocess.DEVNULL, start_new_session=True)
     except (OSError, subprocess.SubprocessError):
         return False
     tty = out.stdout.strip()
