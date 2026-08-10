@@ -139,7 +139,7 @@ ls -1d plugins/*/ | wc -l                            # 22
 ls -1 plugins/*/.claude-plugin/plugin.json | wc -l   # 22
 ls -1 plugins/*/skills/*/SKILL.md | wc -l            # 31
 ls -1 plugins/*/hooks/hooks.json | wc -l             # 12
-find plugins -path '*/lib/*.py' | wc -l              # 112
+find plugins -path '*/lib/*.py' | wc -l              # 114
 python3 -c "import json;print(len(json.load(open('.claude-plugin/marketplace.json'))['plugins']))"   # 22
 ```
 
@@ -160,23 +160,28 @@ python3 -c "import json;print(len(json.load(open('.claude-plugin/marketplace.jso
   [confirmado — os seis comandos re-rodados nesta passada de `/doc-touch`.]
   ⚠️ **Os arquivos `.py` em `lib/` quase não se moveram (100 → 99) apesar de três plugins
   terem sumido** — porque nada foi apagado, só mudou de casa: `plugins/project-skills/lib/`
-  concentra hoje 44 dos 112 (`find plugins/project-skills -path '*/lib/*.py' | wc -l`
-  neste run). Os dois últimos a entrar são `doc_load.py` e a suíte dele (§8.10).
+  concentra hoje 45 dos 114 (`find plugins/project-skills -path '*/lib/*.py' | wc -l`
+  neste run). Os três últimos a entrar são `plugins/vistoria/lib/inventario.py` e a suíte
+  dele, e `plugins/project-skills/lib/test_motor_js.py` — o cobrador que casa cada
+  `<nome>Prompt` do motor de `/sprint` com o papel declarado no `SKILL.md` (§5).
   ⚠️ **Boa parte desse total é CÓPIA, não código novo**:
   `regua_texto.py` sozinha responde por 10 deles, e `padroes_vazamento.py`,
   `collect_engine.py`, `plan_state.py` e `resolve-*.sh` repetem o padrão (§7). Contar
   `lib/*.py` mede o vendoring junto com o código — a medida de código próprio é
   `find plugins -path '*/lib/*.py' ! -name regua_texto.py ! -name collect_engine.py ! -name padroes_vazamento.py`
-  (**98** neste run).
+  (**100** neste run).
 - **Registros de hook e scripts distintos: quem mede é a ferramenta, não esta linha** —
-  `python3 scripts/hook_contract.py | head -1` imprime *"Contrato dos hooks — 56 registros,
-  43 scripts distintos"* neste run, e `python3 scripts/hook_contract.py --scripts | grep -c .`
-  devolve o mesmo 43. Um único registro é do tipo `prompt` (o classificador do `guardrails`);
+  `python3 scripts/hook_contract.py | head -1` imprime *"Contrato dos hooks — 54 registros,
+  41 scripts distintos"* neste run, e `python3 scripts/hook_contract.py --scripts | grep -c .`
+  devolve o mesmo 41. Um único registro é do tipo `prompt` (o classificador do `guardrails`);
   o resto é `command`.
   ⚠️ **Registro não é comportamento.** Doze desses registros são o MESMO script vendorado —
   `sessionstart-deps.sh`, nascido em `_shared/`, registrado em `SessionStart` por cada plugin
-  que precisa avisar dependência externa faltando. E a queda de 59 → 56 nesta rodada **não
-  removeu nada**: são os três registros de `ExitPlanMode` virando um só (§6).
+  que precisa avisar dependência externa faltando (`grep -l 'sessionstart-deps'
+  plugins/*/hooks/hooks.json | wc -l` devolve **12** neste run, e `--scripts` conta o script
+  **uma vez só**). E o total já caiu sem nada ser removido — os três registros de
+  `ExitPlanMode` viraram um só (§6). Por isso a linha que vale é a saída do comando, nunca o
+  número copiado dela.
 - 31 skills em 22 diretórios porque **dois não têm `skills/` nenhum** — <!-- acopla-ok: leitura do bloco de comandos de §2, não afirmação independente -->
   `graphify-guard` (100% hook) e `vision` (100% MCP); o **`improve-workflow`**, que era o
   terceiro, ganhou a skill `improve-workflow/` nesta rodada —, e porque a família concentra a maioria delas, que se listam sem escrever nome
@@ -232,7 +237,7 @@ scripts/*.py                      os outros cobradores do gate — a lista está
   │                               (uma letra por checagem, e as letras NÃO são contíguas nem
   │                               estão em ordem no arquivo — a lista é
   │                               `grep -o '^# [A-Z] ·' .claude/hooks/release-gate.sh`, que
-  │                               neste run devolve 17)
+  │                               neste run devolve 18)
   ├── hook-contract.baseline.json o retrato do contrato dos hooks  ← VERSIONADO
   ├── *.baseline.json             os outros retratos congelados — `git ls-files '.claude/*.baseline.json'`
   ├── settings.json               registra o release-gate como PreToolUse(Bash)
@@ -338,29 +343,29 @@ Saída desta rodada (nome · versão · skills · tem hook):
 
 ```
 archify           2.12.2  [archify]                                          -
-bootstrap         1.16.0  [bootstrap]                                        HOOKS
-branches           1.3.4  [branches]                                         HOOKS
-check-skills       0.7.0  [check-skills]                                     -
+bootstrap         1.16.1  [bootstrap]                                        HOOKS
+branches           1.3.5  [branches]                                         HOOKS
+check-skills       0.7.1  [check-skills]                                     -
 context-guard      1.3.9  [context-guard]                                    HOOKS
 fallow             1.2.3  [fallow]                                           -
-gauntlet           0.5.1  [gauntlet]                                         HOOKS
+gauntlet           0.8.2  [gauntlet]                                         HOOKS
 graphify-guard     1.2.4  []                                                 HOOKS
 grill-me           1.4.0  [grill-me]                                         -
-guardrails         1.7.7  [guardrails]                                       HOOKS
+guardrails         1.7.8  [guardrails]                                       HOOKS
 handoff           1.11.2  [handoff]                                          HOOKS
 improve            1.1.2  [improve]                                          -
-improve-workflow  0.16.15 [improve-workflow]                                 -
+improve-workflow  0.16.18 [improve-workflow]                                 -
 intent-guard       0.7.1  [intent-guard]                                     HOOKS
 lixeiro            1.3.1  [faxina]                                           HOOKS
 principles         1.0.5  [principles]                                       -
-project-skills    0.19.13 [design-md, doc, doc-load, doc-touch, monitorar,
+project-skills     0.21.1 [design-md, doc, doc-load, doc-touch, monitorar,
                            pesquisa-referencias, plan, project-skills,
                            qa-loop, sprint, start]                           HOOKS
 ship               1.5.0  [ship]                                             HOOKS
 slides             1.6.0  [slides]                                           -
 vision             0.1.0  []                                                 -
-vistoria           0.8.6  [vistoria]                                         -
-visual            1.41.1  [andamento, visual]                                HOOKS
+vistoria           0.8.9  [vistoria]                                         -
+visual            1.41.2  [andamento, visual]                                HOOKS
 ```
 
 **A rodada anterior moveu onde as skills MORAM; esta apagou as CASAS que tinham ficado
@@ -419,7 +424,7 @@ agora o motor também mudou de endereço e os três diretórios deixaram de exis
   aprovação ali; as propostas ficam no `propostas.json`.
 
 Consequência mecânica: `project-skills` passou de plugin sem hooks para **o maior do repo**
-— 15 registros de hook no `hooks.json` dele, e 13 scripts distintos contra 6 do segundo
+— 15 registros de hook no `hooks.json` dele, e 13 scripts distintos contra 4 do segundo
 colocado (`python3 scripts/hook_contract.py --scripts | awk -F/ '{print $2}' | sort | uniq -c | sort -rn`).
 
 ⚠️ **O que isso quebra no cliente:** os três plugins extintos **não somem sozinhos**. O
@@ -603,6 +608,23 @@ Observações de arquitetura:
   sessão, nunca skill de skill.** [confirmado —
   `bash plugins/gauntlet/hooks/test_gauntlet_hooks.sh` → *"trava dupla do gauntlet: tudo
   verde"*, com o caso "o juiz da peça pendente passa" ao lado de "construtor novo é negado"]
+  ⚠️ **Na v0.8.1 a equipe ganhou um sexto papel — o diretor `criativo`, opcional — e ele
+  mora fora do alcance da régua anti-cópia.** A tabela de crachás do
+  `plugins/gauntlet/skills/gauntlet/SKILL.md:200-205` lista seis marcadores (`recon`,
+  `decompositor`, `construtor:X`, `juiz:X`, `diretor`, `criativo`); o `case` do hook que exige
+  a linha `RÉGUA, NUNCA RECEITA` casa **dois** deles, `construtor:` e `juiz:`
+  (`pretooluse-gauntlet.sh:100`). O despacho do diretor criativo parte sem essa conferência,
+  e a proibição de ditar medida, cor ou componente existe só na prosa do briefing dele
+  (`references/briefings.md`, seção "O diretor criativo") — que é exatamente a forma de
+  defeito que fez a trava nascer. A trava de pendência, essa, o alcança: enquanto houver
+  entrega sem veredito, só o crachá do juiz da peça pendente abre a passagem, e o `criativo`
+  é negado como qualquer outro agente. [confirmado — leitura do `case` no script e da tabela
+  na skill]
+  ⚠️ **Quem decide se ele nasce é campo no disco, e nenhum programa o lê.** A abertura grava
+  `criativo: true/false` no `rito.json` da missão — é o que sobrevive ao `/clear` e ressuscita
+  com ela —, mas `fecho_check.py:erros_do_rito` só cobra os cinco campos obrigatórios do rito;
+  `criativo` não aparece em nenhum `.py` do plugin (`grep -n 'criativo' plugins/gauntlet/lib/*.py`
+  devolve vazio neste run). É contrato de skill, não de motor: rito sem o campo entra verde.
   O do `guardrails` é o classificador LLM e existe pra **proteger** Agent Teams: ele nega
   sub-agente avulso **quando o prompt pede Agent Teams**, e libera explicitamente *"tarefa
   one-off sem team_name"*. O terceiro é o do `project-skills`
@@ -1729,7 +1751,7 @@ Cada uma é uma regra que sobreviveu a um defeito, com o arquivo e o símbolo on
 
 - ✅ **O baseline do contrato de hooks deixou de estar defasado.** Ele registrava
   `entries: 31, scripts: 30` enquanto o repo já media outra coisa; nesta rodada foi
-  regravado e hoje bate com a medição: **56 registros / 43 scripts / 45 achados**
+  regravado e hoje bate com a medição: **54 registros / 41 scripts / 42 achados**
   [confirmado — `python3 -c "import json;d=json.load(open('.claude/hook-contract.baseline.json'));print(d['entries'],d['scripts'],len(d['findings']))"`
   contra a primeira linha de `python3 scripts/hook_contract.py`, os dois neste run; e
   `python3 scripts/hook_contract.py --baseline .claude/hook-contract.baseline.json` imprime
@@ -1864,21 +1886,29 @@ gate está em `patterns.md` §5.2]
 
 ```
 $ python3 scripts/hook_contract.py
-Contrato dos hooks — 56 registros, 43 scripts distintos
-  ship/pre-deploy-test-check.sh          🔴 ALTA   R1-cap-ausente    bloqueia (exit2) e não tem teto:363
-  bootstrap/session-sync.sh              🟡 MÉDIA  R5-sem-failopen   usa jq sem guarda de ausência
-  project-skills/sessionstart-doc.sh     🟡 MÉDIA  R5-sem-failopen   usa python3 sem guarda de ausência
-  … + 42 achados 🔴 R6-nome-* (o molde <evento>-<verbo>-<assunto>)
-Total: 45 achado(s) — 43 alta · 2 média · 0 baixa
+Contrato dos hooks — 54 registros, 41 scripts distintos
+
+bootstrap/post-plugin-command.sh
+  🔴 ALTA  R6-nome-evento-errado o nome diz que roda em 'post', mas está registrado em posttooluse
+
+bootstrap/session-sync.sh
+  🔴 ALTA  R6-nome-fora-do-molde o nome não diz quando roda nem se barra — molde: <evento>-<verbo>-<assunto>
+  🟡 MÉDIA  R5-sem-failopen    usa jq sem guarda de ausência (command -v … || exit 0)
+  … + os demais achados 🔴 R6-nome-* (39 no total), mais o 🔴 R1 do `ship` e o segundo 🟡 R5
+Total: 42 achado(s) — 40 alta · 2 média · 0 baixa
 ```
+
+⚠️ **O relatório agrupa por SCRIPT, não uma linha por achado** — o mesmo arquivo pode
+aparecer com um 🔴 e um 🟡 embaixo do próprio cabeçalho.
 
 O rodapé da própria ferramenta é a régua de como usar isso: *"Cada achado é ONDE OLHAR, não
 veredito. Confira no arquivo antes de consertar."*
 
-⚠️ **Os 42 achados `R6-nome-*` são de RÉGUA NOVA, não de código novo.** O scanner passou a
+⚠️ **Os 39 achados `R6-nome-*` são de RÉGUA NOVA, não de código novo.** O scanner passou a
 cobrar um molde de nome (`<evento>-<verbo>-<assunto>`, com lista fechada de verbos) e quase
 todo hook do repo é anterior a ele — inclusive os do `project-skills`, que só mudaram de
 diretório. Os dois achados 🟡 R5 são os mesmos de sempre; o único que mudou de rótulo é o
 `sessionstart-doc.sh`, que era `project-doc/`.
-⚠️ **A queda de 59 → 56 registros não removeu comportamento**: são os três `ExitPlanMode`
-virando um portão único que chama os outros dois (§6).
+⚠️ **A queda de registros ao longo das últimas rodadas não removeu comportamento**: são os
+três `ExitPlanMode` virando um portão único que chama os outros dois (§6). O total corrente é
+o que a primeira linha do comando imprime — nunca um número copiado dela.

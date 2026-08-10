@@ -87,15 +87,16 @@ Arquivos que **declaram** a regra no cabeçalho, entre eles [confirmado]:
 - `plugins/project-skills/hooks/posttooluse-doc-read.sh` — *"Fail-open: any error → exit 0. Never blocks."*
 - `plugins/ship/hooks/pre-deploy-test-check.sh` — `command -v jq >/dev/null 2>&1 || exit 0`, com o comentário *"(marketplace convention)"*
 - `_shared/green-cache.sh` — *"Fail-open na direção SEGURA: qualquer erro → MISS → a suite roda."*
-- `plugins/bootstrap/hooks/stop-forma-relato.py` — *"FAIL-OPEN em tudo que nao for reprovacao explicita … Guarda que trava a sessao por infra e pior que guarda nenhum."*
 
 **A direção segura muda por gate** [confirmado]:
 
 - `green-cache.sh` → o lado seguro é **MISS** (roda a suite de novo), nunca HIT.
 - `doc-detect.sh:doc_staleness` → o ternário é `fresh|stale|unknown`, e a borda de erro cai em **`unknown`** (fail-LOUD). Fingir "fresco" é o único resultado proibido.
-- `pretooluse-plan-gate.sh` → o fail-open cobre **só** a borda de infra (sem `jq`, sem raiz resolvível, `doc-detect.sh` ilegível). Determinar que *não há documentação* é evidência concreta ⇒ nega. A guarda `[ -r "$SCRIPT_DIR/doc-detect.sh" ] || exit 0` existe porque um `chmod 000` no helper fazia projeto documentado cair no caso "sem doc" — regressão coberta pelo caso R7 de `test_plan_gate.sh` [confirmado, suíte verde nesta rodada: 49 passou · 0 falhou].
+- `pretooluse-plan-gate.sh` → o fail-open cobre **só** a borda de infra (sem `jq`, sem raiz resolvível, `doc-detect.sh` ilegível). Determinar que *não há documentação* é evidência concreta ⇒ nega. A guarda `[ -r "$SCRIPT_DIR/doc-detect.sh" ] || exit 0` existe porque um `chmod 000` no helper fazia projeto documentado cair no caso "sem doc" — regressão coberta pelo caso R7 de `test_plan_gate.sh` [confirmado, suíte verde nesta rodada: `bash plugins/project-skills/hooks/test_plan_gate.sh` → `117 passou · 0 falhou`].
 
-⚠️ **Fail-open MUDO é o único proibido — e isso vale também para o hook que lê o payload com Python próprio, sem `jq` e sem a biblioteca comum.** Em 2026-08-09 três hooks que fazem a leitura assim (`plugins/intent-guard/hooks/capture-prompt.sh`, `plugins/handoff/hooks/handoff-completeness-gate.sh`, `plugins/handoff/hooks/sessionstart-ata.sh`) saíam calados quando faltava `python3`; hoje os três chamam `hj_avisa` do `hook-json.sh` antes de liberar — o que obrigou a vendorar a biblioteca também em `plugins/handoff/hooks/` [confirmado, `sed -n '/^SPECS=(/,/^)/p' scripts/sync-shared.sh | grep 'hook-json.sh'` traz a linha do handoff; `bash scripts/sync-shared.sh --check` → `OK: cópias vendored idênticas a _shared/`]. **Ter leitor próprio dispensa a biblioteca para LER, nunca para AVISAR** — quem cobra é `bash scripts/test_sem_jq.sh` (*"todo hook da classe B avisa quando não há leitor nenhum"*, verde nesta rodada).
+⚠️ **Fail-open MUDO é o único proibido — e isso vale também para o hook que lê o payload com Python próprio, sem `jq` e sem a biblioteca comum.** Em 2026-08-09 três hooks que fazem a leitura assim (`plugins/intent-guard/hooks/capture-prompt.sh`, `plugins/handoff/hooks/handoff-completeness-gate.sh`, `plugins/handoff/hooks/sessionstart-ata.sh`) saíam calados quando faltava `python3`; hoje os três chamam `hj_avisa` do `hook-json.sh` antes de liberar — o que obrigou a vendorar a biblioteca também em `plugins/handoff/hooks/` [confirmado, `sed -n '/^SPECS=(/,/^)/p' scripts/sync-shared.sh | grep 'hook-json.sh'` traz a linha do handoff; `bash scripts/sync-shared.sh --check` → `OK: cópias vendored idênticas a _shared/`]. **Ter leitor próprio dispensa a biblioteca para LER, nunca para AVISAR** — quem cobra é `bash scripts/test_sem_jq.sh` (*"todo hook da classe B avisa quando não há leitor nenhum"*).
+
+🔴 **E esse cobrador está VERMELHO nesta rodada, com um hook novo dentro** [confirmado — `bash scripts/test_sem_jq.sh` → `vermelho`, com `hooks de produção: 41 · classe B: 36 · classe A: 5`]. Os dois achados: `FAIL classe B divergiu` (a lista da prosa não bate com a medida) e `FAIL classe B sem canal de aviso (sairia calado): plugins/gauntlet/hooks/sessionstart-lembra-missao.sh` — hook que decide pelo payload e sai mudo quando não há leitor, exatamente o que o parágrafo acima proíbe. **A suíte fez o trabalho dela: o hook novo nasceu fora da regra e ela acusou.** O que falta é o conserto, não o cobrador.
 
 ### 1.2 Protocolo de saída de hook
 
@@ -135,17 +136,14 @@ Regra de desenho por trás [confirmado, comentário em `posttooluse-doc-read.sh`
 
 **Quem emite deny sai com `exit 0`**: o veredito vem do JSON, não do exit code. Misturar os dois (JSON + `exit 2`) não aparece em nenhum hook lido aqui.
 
-**Hooks Python existem, e hoje são CINCO** [confirmado — `find plugins -path '*/hooks/*' -type f -name '*.py' ! -name 'test_*'`]:
+**Hooks Python existem, e a lista sai do comando, nunca de um número escrito aqui** [confirmado — `find plugins -path '*/hooks/*' -type f -name '*.py' ! -name 'test_*'` devolve **dois** nesta rodada]:
 
 ```
-plugins/bootstrap/hooks/stop-forma-relato.py
-plugins/bootstrap/hooks/stop-prose-ceiling.py
-plugins/bootstrap/hooks/stop-regua-relato.py            ← novo em 2026-08-03
-plugins/guardrails/hooks/pretooluse-artefato-regua.py   ← novo em 2026-08-03
+plugins/guardrails/hooks/pretooluse-artefato-regua.py
 plugins/visual/hooks/stop-anuncio-sem-acao.py
 ```
 
-Quatro são de `Stop` e escrevem em stderr **só** no caminho que sai 2 — que num `Stop` é o canal que devolve o texto ao modelo. O quinto é `PreToolUse[Edit|Write]` e usa o canal estruturado (`permissionDecision:"deny"` no stdout), porque em `PreToolUse` stderr com `exit 0` é mudo. O uso está certo; o que quebra é a **auditoria** deles (§5.3).
+🔴 **Eram cinco até 2026-08-09; os três de `Stop` do `bootstrap` saíram do disco a pedido do dono** (§1.17, §5.6), e com eles saiu a maior parte do que esta seção media. Dos dois que sobraram, o de `Stop` escreve em stderr **só** no caminho que sai 2 — que num `Stop` é o canal que devolve o texto ao modelo; o de `PreToolUse[Edit|Write]` usa o canal estruturado (`permissionDecision:"deny"` no stdout), porque em `PreToolUse` stderr com `exit 0` é mudo. O uso está certo; o que quebra é a **auditoria** deles (§5.3).
 
 ### 1.3 Contrato anti-loop: o cap
 
@@ -160,7 +158,7 @@ COUNT=0; [ -f "$COUNT_FILE" ] && COUNT="$(cat "$COUNT_FILE" 2>/dev/null)"
 echo $((COUNT + 1)) > "$COUNT_FILE"
 ```
 
-Nos hooks Python o cap é o mesmo desenho com outra grafia — um arquivo-contador por `sha1(session_id + texto)` [confirmado, os dois arquivos]:
+Nos hooks Python o cap é o mesmo desenho com outra grafia — um arquivo-contador por `sha1(session_id + texto)`. 🔴 **Os dois arquivos que carregavam este trecho literal saíram do disco em 2026-08-09** (§1.2), então o bloco abaixo é **histórico**, não ponteiro; o que sobrevive dele é o desenho, e o parente vivo mais próximo é `plugins/visual/hooks/stop-anuncio-sem-acao.py`, que chaveia o estado por `sha1` do `cwd` em `ANUNCIO_ACAO_STATE` [confirmado, li a linha]:
 
 ```python
 MAX_BLOQUEIOS = 2
@@ -172,7 +170,7 @@ if n >= MAX_BLOQUEIOS: ...   # desiste
 
 O `stop-prose-ceiling.py` explica por que o hash é do texto **inteiro** e não de um prefixo [confirmado, comentário literal]: *"com texto[:200] duas respostas diferentes que comecam igual dividiam o mesmo orcamento — e o output style manda a 1a linha ser estavel, entao a colisao era o caso comum, nao a excecao."*
 
-**Desistir não pode ser silencioso.** Quando o teto de prosa desiste, ele grava uma linha em `bypass.log`; o `conformance.py:check_bypass_teto` transforma isso em número visível. Sidecar do mesmo raciocínio no juiz de forma: cada execução vira uma linha em `batidas.log` (§5.4).
+**Desistir não pode ser silencioso.** Quando o teto de prosa desistia, ele gravava uma linha em `bypass.log`, e o `conformance.py:check_bypass_teto` transformava isso em número visível. 🔴 **As três checagens que liam esses logs foram removidas junto com os hooks** — `grep -oE '^def check_[a-z_]+' plugins/bootstrap/lib/conformance.py` não devolve mais `check_teto_rodou`, `check_juiz_rodou` nem `check_bypass_teto` [confirmado, rodado nesta passada]. A régua continua de pé (§5.4); o par escritor↔leitor que a provava, não.
 
 **Exceção deliberada** [confirmado]: o CASO A do `pretooluse-plan-gate.sh` (projeto com zero documentação) **nega sempre, sem cap** — decisão registrada no cabeçalho do arquivo. O único escape é verbal, via `userpromptsubmit-plan-escape.sh`, e a suíte cobre com o caso `sem doc: nega nas 5 tentativas (sem cap de nudges)`.
 
