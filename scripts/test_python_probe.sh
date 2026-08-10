@@ -4,8 +4,15 @@
 # (python3 --version) — o stub da Microsoft Store engana só-presença.
 # Red hoje: os guards usam só command -v.
 FAIL=0
+# A varredura olha o CÓDIGO, não o comentário: `grep -rl` acusava arquivo que só
+# CITA `command -v python3` em prosa para explicar por que deixou de usá-lo — foi
+# o que reprovou o conserto do scope-cop/askq-humanize em 2026-08-10. E `hj_py`
+# (a sonda de `_shared/hook-json.sh`) VALE como teste de execução: ela tenta
+# python3 E python e confere que o binário responde, que é mais do que a linha
+# escrita à mão faz. A terceira camada, lá embaixo, já a reconhecia.
 for f in $(grep -rl 'command -v python3' plugins/*/hooks/*.sh 2>/dev/null); do
-  if ! grep -qE -- '--version >/dev/null 2>&1' "$f"; then
+  grep -vE '^[[:space:]]*#' "$f" | grep -q 'command -v python3' || continue
+  if ! grep -qE -- '--version >/dev/null 2>&1' "$f" && ! grep -q 'hj_py' "$f"; then
     echo "FAIL $f: só command -v, sem teste de execução"; FAIL=1
   fi
 done
