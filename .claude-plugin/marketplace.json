@@ -105,7 +105,7 @@
         "name": "pedro-plugins"
       },
       "category": "dev-tools",
-      "version": "0.8.2",
+      "version": "0.8.3",
       "tags": [
         "design-review",
         "planning",
@@ -299,7 +299,7 @@
       "source": "./plugins/vistoria",
       "description": "A ferramenta que revisa os arquivos de instrucao do proprio marketplace — skills, hooks e cobradores. Roda os cobradores do repo num comando so, soma as lentes medidas (assert que congela frase morta, script de hook sem chamador) e devolve uma pagina de achados com a prova colada, onde o dono marca o que vira plano ticavel. Achado sem prova e recusado na porta.",
       "category": "productivity",
-      "version": "0.8.9",
+      "version": "0.9.0",
       "tags": [
         "review",
         "skills",

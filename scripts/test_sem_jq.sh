@@ -78,16 +78,16 @@ N_PROD=$(conta "$LISTA_PROD"); N_B=$(conta "$LISTA_B"); N_A=$(conta "$LISTA_A")
 
 [ -f "$DOC" ] || { bad "$DOC não existe — o inventário do requisito W-2 sumiu"; exit 1; }
 
-# --- 1) os números do retrato batem com a medição de agora ------------------
-declara() { grep -oE "\*\*$1\*\*" "$DOC" >/dev/null 2>&1 && echo 1 || echo 0; }
-for par in "$N_PROD:hooks de produção" "$N_B:classe B" "$N_A:classe A"; do
-  ESPERADO="${par%%:*}"; NOME="${par#*:}"
-  if [ "$(declara "$ESPERADO")" != "1" ]; then
-    bad "o retrato do doc não declara **$ESPERADO** ($NOME) — re-medir o inventário"
-  else
-    ok "$NOME: $ESPERADO"
-  fi
-done
+# --- 1) o retrato é IMPRESSO, não cobrado -----------------------------------
+# Até 2026-08-09 esta seção grepava os três números dentro do doc e reprovava quando
+# não achava. Era a peça mais frágil da suíte, e o motivo é estrutural: o número vive
+# num documento AUTORAL, que nenhum mecanismo pode reescrever, e vence sozinho toda vez
+# que um hook nasce — o conserto exigia a mão de um humano para um dado que a máquina
+# mede em milissegundos. Trocado pela regra de desacoplamento da casa: o doc carrega o
+# COMANDO, e quem imprime o número é quem sabe medir. O que continua cobrado abaixo é o
+# que tem conteúdo humano dentro — a LISTA, porque cada linha dela diz o que se perde
+# sem `jq`, e isso nenhum comando deriva.
+echo "retrato de agora — produção: $N_PROD · classe B: $N_B · classe A: $N_A"
 
 # --- 2) o inventário lista exatamente os arquivos medidos -------------------
 tabela() { grep -E "^\| $1 \| \`plugins/" "$DOC" | sed -E 's/^\| [AB12]+ \| `([^`]+)`.*/\1/' | sort -u; }
