@@ -1,4 +1,7 @@
 ---
+doc-sig: pedro-plugins/architecture@gen=3.8#a65a9fed
+---
+---
 generated: 2026-08-09
 generated-commit: 19a7ad7
 project: pedro-plugins
