@@ -69,8 +69,13 @@ impresso, verbatim. Nada novo além do retrato: nada a acrescentar.
 
 ```bash
 python3 plugins/vistoria/lib/medidor.py --json \
-  | python3 plugins/vistoria/lib/pagina.py --dir .claude/vistoria
+  | python3 plugins/vistoria/lib/pagina.py --dir .claude/vistoria --rodada <apelido-da-rodada>
 ```
+
+O `--rodada` é o apelido desta rodada e entra no nome do arquivo: sem ele, a segunda rodada
+do mesmo dia sai como `-2` e um aviso no stderr diz que colidiu. Achado que você descartou
+por falta de prova vai em `_descartes` no JSON — a página lista cada um no rodapé, para o
+lote não encolher em silêncio.
 
 Sai o caminho de um HTML em `.claude/vistoria/` — nunca em `/tmp`. O `--dir` é obrigatório:
 destino adivinhado cai no cache do plugin quando ele está instalado. Um checkbox por achado,

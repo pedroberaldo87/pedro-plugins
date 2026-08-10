@@ -100,9 +100,10 @@ O arquivo é organizado por **motivo**, não por ferramenta, e o cabeçalho dele
 As cinco seções e as linhas que decidem cada depósito deste doc:
 
 ```
-1 · REGISTRO DE TRABALHO   .claude/ata/ · .claude/plans/ · .claude/HANDOFF*.md
-                           .claude/BRIEFING-*.md · .claude/.project-doc/ · .claude/intent/
-                           docs/superpowers/
+1 · REGISTRO DE TRABALHO   .claude/ata/ · .claude/plans/ · .claude/specs/
+                           .claude/vistoria/ · .claude/gauntlet/ · .claude/HANDOFF*.md
+                           .claude/RETOMAR-*.md · .claude/BRIEFING-*.md
+                           .claude/.project-doc/ · .claude/intent/ · docs/superpowers/
 2 · SEGREDO                scripts/public_repo_terms · .claude/secrets/ · .env · .env.*
                            *.pem · *.key · *.p12 · id_rsa* · .netrc
 3 · RETRATO DESTA MÁQUINA  graphify-out/ · .claude/qa-loop/ · .claude/visual/
@@ -611,7 +612,7 @@ O `scrub()` é um scorer em **quatro camadas**, cada span redigido sendo pulado 
 
 ### A4 · `<repo>/.claude/plans/*.plan.json` — os planos ticáveis
 
-- **24 planos, 636K** (558.858 bytes de JSON) nesta rodada — eram 13 quando o estado abaixo foi tabulado, e 18 na rodada passada. Gitignorado por `.gitignore:18` (seção "REGISTRO DE TRABALHO"). [confirmado — `git check-ignore -v .claude/plans/` → `.gitignore:18`]
+- **25 planos, 644K** (566.589 bytes de JSON) nesta rodada — eram 13 quando o estado abaixo foi tabulado, e 18 na rodada passada. Gitignorado por `.gitignore:18` (seção "REGISTRO DE TRABALHO"). [confirmado — `git check-ignore -v .claude/plans/` → `.gitignore:18`]
 - ⚠️ **A docstring do módulo ainda afirma o contrário**, e é a segunda contradição código-vs-gitignore deste doc: `plan_state.py` diz literal *"`<raiz-do-projeto>/.claude/plans/<id>.plan.json` — VERSIONADO no git de propósito: a dor é perda, e /tmp ou `${CLAUDE_PLUGIN_ROOT}` morrem no /clear e no bump"*. **A dor citada continua real; a cobertura que a resolvia não existe mais.** [confirmado nos dois arquivos]
 - **Estado hoje**, derivado dos arquivos: [confirmado]
 
@@ -654,9 +655,9 @@ No topo do plano, ao lado de `phases`:
 ```
 
 - **Por que o bloco existe no próprio plano:** o requisito é obrigatório, mas o *lugar* dele é opcional. Projeto com documento de requisitos aponta pra lá; projeto sem documento — *"o caso deste repositório, que não tem PRD"* — declara aqui. Sem essa porta, todo projeto sem PRD voltaria a ter tarefa que não rastreia pra nada. [confirmado, docstring de `_requisitos_do_plano`]
-- **Os campos deixaram de ser schema no papel: hoje são o dado no disco.** Os planos no disco são **24**, e neles **330 tarefas** trazem `requisito` e `pronto` (as duas juntas, sempre — é o par que `exigir` cobra), **11 arquivos** carregam o bloco `requisitos` no topo e **31 tarefas** têm `decidido`. Continuam em **zero** o `grupo` e a `pendencia` — o campo que RECUSA o tique nunca foi exercitado em dado real, e é a única parte do schema que segue sem prova de uso. As chaves de topo presentes são `id`, `title`, `phases`, `created`, `status`, `closed_at` e `requisitos`. **A exigência só morde tarefa que nasce agora**, e é por isso que a virada aparece por acúmulo: os arquivos anteriores ao schema seguem sem os campos e ninguém os migra. [confirmado — derivado com `json.load` sobre os 24 arquivos nesta rodada]
+- **Os campos deixaram de ser schema no papel: hoje são o dado no disco.** Os planos no disco são **24**, e neles **330 tarefas** trazem `requisito` e `pronto` (as duas juntas, sempre — é o par que `exigir` cobra), **11 arquivos** carregam o bloco `requisitos` no topo e **31 tarefas** têm `decidido`. Continuam em **zero** o `grupo` e a `pendencia` — o campo que RECUSA o tique nunca foi exercitado em dado real, e é a única parte do schema que segue sem prova de uso. As chaves de topo presentes são `id`, `title`, `phases`, `created`, `status`, `closed_at` e `requisitos`. **A exigência só morde tarefa que nasce agora**, e é por isso que a virada aparece por acúmulo: os arquivos anteriores ao schema seguem sem os campos e ninguém os migra. [confirmado — derivado com `json.load` sobre os 25 arquivos nesta rodada]
 - **O que protege o registro histórico:** `merge()` recarrega do arquivo o que o `init` novo omitiu, pelo mesmo motivo que não apaga a prova. **A regra passou a ser uma só e a valer para o plano inteiro** [confirmado, `plan_state.py:merge`]:
-  - **No nó**, os cinco campos da tarefa **mais o `detail`** — que mora na FASE e é o único lugar do 🔧 Como / 💡 Por quê / 📁 Toca em. Ele estava fora da lista antiga e era apagado no `init` seguinte; **os 24 planos no disco carregam 119 blocos `detail`** hoje. [confirmado — derivado com `json.load` sobre os 24 arquivos nesta rodada]
+  - **No nó**, os cinco campos da tarefa **mais o `detail`** — que mora na FASE e é o único lugar do 🔧 Como / 💡 Por quê / 📁 Toca em. Ele estava fora da lista antiga e era apagado no `init` seguinte; **os 25 planos no disco carregam 119 blocos `detail`** hoje. [confirmado — derivado com `json.load` sobre os 25 arquivos nesta rodada]
   - **No topo do plano**, TODA chave que o `init` não trouxe, e não mais só `created` e `status`. O que morria na lista fixa era justamente o bloco `requisitos` — a fonte que as tarefas citam — e o `closed_at`. Perder `requisitos` no segundo `init` desligava, em silêncio, o portão que recusa citação para o nada: sem fonte, `reqs` fica vazio e a checagem não roda.
   - **Apagar de propósito continua possível e agora é uniforme: declare a chave VAZIA** (`"requisitos": []`), porque o merge só preenche o ausente. É a mesma regra que já valia para a `pendencia`.
 - **`cmd_reabrir` é o caminho de volta:** desfaz uma `decidido`, devolve o texto dela para `pendencia` e a tarefa para `todo`, zerando `evidence` e `done_at`. Existe porque *"toda decisão tomada na ausência do dono seja reversível por construção"* — sem ele, `decidido` seria fato consumado. [confirmado]
@@ -799,6 +800,7 @@ Os quatro que entraram, com o que cada um congela [confirmado — leitura dos ar
   - **As 82 do registro de limites e as 83 de agora não são a mesma medida.** `.claude/limites-aceitos.md` (A8) congelou **99 páginas · 82 com violação** no dia da decisão; a página nº 100 (`2026-08-03-status-consolidado.html`, de hoje 16:22) entrou **depois** e traz 2 violações. ⚠️ Isso contradiz a premissa escrita do limite aceito — *"a régua passa a valer para página nova"* — e é o tipo de deriva que só aparece rodando o comando, porque o arquivo de limites guarda a saída daquele dia, não a de hoje.
   - **As 9 "sem perfil de gerador" são página digitada à mão.** Nenhum gerador as alcança, então consertá-las é editar HTML, não código — é por isso que elas entram no registro de limites em vez da fila de conserto.
   - **A auditoria não guarda nada.** É medição derivada, calculada a cada execução sobre os arquivos do disco: some junto com as páginas e volta junto com elas.
+- **`.claude/vistoria/piloto-leitor-2026-08-09.json` — 3,2K** (`.gitignore:20`). **O único arquivo de `.claude/vistoria/` que nenhum comando refaz.** É a rodada-piloto de leitura por agente sobre três pedaços (duas fixtures e o plugin `graphify-guard`), e o próprio arquivo declara, no campo `_piloto`, que ela **não liga** o leitor por agente no caminho padrão da skill — que segue congelado (`skills/vistoria/SKILL.md:119`). Julgamento escrito à mão, na mesma classe dos vereditos do gauntlet (B16). A página irmã (`vistoria-2026-08-09-piloto-leitor.html`) sai dele pela `pagina.py --rodada` e essa, sim, volta. [confirmado — campo `_piloto` do JSON]
 - **`.claude/qa-loop/telemetry.jsonl` — 3 linhas** (`.gitignore:46`). Uma linha por rodada de `/qa-loop`: `{ts, target, domain, severity_floor, max_rounds_config, rounds_run, corrections_per_round, …}`. É o insumo pra avaliar o número ideal de loops com o tempo — **insubstituível e minúsculo**, a pior combinação para ficar sem cópia.
 - **`.claude/HANDOFF.md`, `HANDOFF-guardrails.md`, `HANDOFF-project-doc.md`, `BRIEFING-review-loop-skill.md`** (`.gitignore:19-20`). São **fonte de mineração** — `journal.py:collect_handoffs` lê os bullets das seções de conhecimento (`HANDOFF_SECTIONS`: "Findings & Gotchas", "Gotchas", "Discussões e Decisões", "Detalhes Técnicos", "Contexto Extra") e os transforma em findings `handoff` — que são **154** no journal de hoje.
 
@@ -857,6 +859,7 @@ Efêmeras por definição. Nenhuma delas é entrada de nada — reconstroem-se s
 
 ## Fora do inventário — verificado e não guarda dado
 
+- **`.claude/vistoria/` — 108K, 5 arquivos** (`.gitignore:20`, seção *registro de trabalho*). A saída da `/vistoria`: as páginas `vistoria-<data>[-<rodada>].html` e o JSON de achados que as alimenta (`medidor.py --json | pagina.py --dir .claude/vistoria`, `SKILL.md:71-72`). **Elas se regeneram rodando o medidor de novo** — são retrato do repositório de hoje, não conhecimento. ⚠️ **Rodar de novo não apaga o que está aqui:** `pagina.py:_caminho_livre` nunca sobrescreve — sem `--rodada`, a segunda rodada do mesmo dia sai como `vistoria-<data>-2.html` com aviso no stderr, então o diretório CRESCE a cada rodada e a limpeza é manual. Foi uma sobrescrita assim que comeu a página do piloto. ⚠️ **Um dos cinco é exceção e está no inventário**, em *Os outros de (C)*: `piloto-leitor-2026-08-09.json`. [confirmado — `du -sh` + `ls | wc -l` + `git check-ignore -v` nesta rodada]
 - **Nenhum banco, ORM, migration ou `docker-compose`.** O único lockfile do repo é `plugins/archify/skills/archify/package-lock.json`.
 - **`.claude-plugin/marketplace.json`** e os `plugin.json` — catálogo e metadado, escritos só por humano. Não são estado.
 - **`_shared/`** — código vendorado. Fonte, não depósito — **com uma exceção desde 2026-08-03**: `r8-tiers.json` é dado, não código, e está no inventário como A7.
@@ -872,8 +875,10 @@ Efêmeras por definição. Nenhuma delas é entrada de nada — reconstroem-se s
 .claude/.project-doc/findings.jsonl   3,3M · 1133 eventos   (journal do conhecimento)
 .claude/intent/ledger.jsonl           429K ·  622 eventos   (caderno de pedidos)
 .claude/ata/                          1,9M ·   32 arquivos  (logs de sessão)
-.claude/plans/*.plan.json             636K ·   24 planos    (o que foi feito, com prova)
+.claude/plans/*.plan.json             644K ·   25 planos    (o que foi feito, com prova)
 .claude/qa-loop/telemetry.jsonl        3 linhas             (calibração do /qa-loop)
+.claude/vistoria/piloto-leitor-*.json 3,2K                  (a rodada-piloto do leitor por
+                                      agente; julgamento escrito, sem comando que o refaça)
 ~/.claude/plans/                      1,1M                  (do harness; encolhe sozinho)
 ~/.claude/intent/                     264K                  (fallback de outros projetos)
 ~/.claude/state/forma-relato/         104K ·  20 vereditos  (o texto do que a régua reprovou)
@@ -911,6 +916,7 @@ plugins/bootstrap/config/manifest.json  regenerado no SessionStart, MENOS as cha
 ~/.claude/state/intent-guard/   a marca `olhado`; apagar zera o "desde a última vez"
 /tmp/claude-*                   sentinelas por sessão
 .claude/visual/                 100 páginas HTML geradas (83 reprovam a régua hoje)
+.claude/vistoria/vistoria-*     3 páginas + JSON de achados; voltam com o medidor
 ```
 
 **Com cobertura de terceiro:** só o cofre, no iCloud.
@@ -925,9 +931,9 @@ plugins/bootstrap/config/manifest.json  regenerado no SessionStart, MENOS as cha
 4. **`askq-humanize.sh` e `scope-cop.sh` resolvem a MESMA pasta por expressões diferentes.** Invisível aqui (`CLAUDE_CONFIG_DIR` unset), divergente em qualquer máquina que a sete.
 5. ✅ **Resolvida: o juiz de forma (B9) passou a julgar** — 50 `julgou`, 30 `passa`, 20 reprovas, contra 12 batidas `sem texto` e zero julgamentos na rodada anterior. O furo do `check_juiz_rodou` (aprovar um log que nunca julgou) continua existindo no código; deixou de ser o estado deste disco.
 6. **Nada poda os contadores de B8 e B9**, e agora são **35** deles (15 + 20, contra 9 + 0). Os órfãos sem sufixo de B1 (`scope-cop.blockstreak`, `scope-cop.bypass`, de 2/jul) seguem fora do alcance da poda por causa do padrão com ponto.
-7. ✅ **Resolvida: o impasse dos dois ativos em A4 acabou.** Os dois planos que o disputavam (`2026-07-31-fechar-a-regua-e-publicar` e `2026-08-01-formato-de-plano-hierarquico`) estão `done`, e hoje há **um** `status: "active"` (`2026-08-06-a-metodologia-vira-mecanismo`) — comando sem `--plan` volta a resolver sozinho. ⚠️ **Mas quatro planos estão abertos SEM status nenhum** (`2026-08-05-constituicao-e-onda-0`, `2026-08-05-portabilidade-windows`, `2026-08-06-doc-em-apresentacao`, `2026-08-06-os-quatro-issues-que-sobraram`): `pick_plan` só enxerga `status == "active"`, então esses quatro são invisíveis para a resolução automática e o impasse volta no dia em que um segundo for marcado ativo. [confirmado — `plan_state.py:pick_plan` e `json.load` sobre os 24 arquivos]
+7. 🔴 **Reaberta: o impasse dos dois ativos em A4 voltou.** Os dois planos que o disputavam antes (`2026-07-31-fechar-a-regua-e-publicar` e `2026-08-01-formato-de-plano-hierarquico`) estão `done`, mas hoje há **dois** `status: "active"` — `2026-08-06-a-metodologia-vira-mecanismo` e `autopsia-2026-08-09` —, então comando sem `--plan` volta a PARAR: `pick_plan` recusa com *"há 2 planos ativos — diga qual"* em vez de adivinhar (`plan_state.py:194-196`). ⚠️ **Mas quatro planos estão abertos SEM status nenhum** (`2026-08-05-constituicao-e-onda-0`, `2026-08-05-portabilidade-windows`, `2026-08-06-doc-em-apresentacao`, `2026-08-06-os-quatro-issues-que-sobraram`): `pick_plan` só enxerga `status == "active"`, então esses quatro são invisíveis para a resolução automática — e não foram eles que reabriram o impasse, foi o plano da autópsia nascer `active` ao lado do que já estava. [confirmado — `plan_state.py:pick_plan` e `json.load` sobre os 25 arquivos]
 8. **O `bypass.log` do B8 nunca existiu, e agora isso tem consequência em dois lugares.** Para o `check_bypass_teto`, ausência = conforme; para o `furos_da_regua`, ausência = `fontes` 1 em vez de 2 — a contagem de furos que o dono vê é hoje meia fonte, e o programa diz isso, mas só quem lê a linha inteira percebe.
-9. ✅ **Resolvida em parte: três dos cinco campos novos de A4 já vivem em dado real.** Sobre os 24 planos, `requisito` e `pronto` aparecem em 330 tarefas e `decidido` em 31 — a cobertura entre requisito e tarefa deixou de ser 0 de 0. **Seguem em zero o `grupo` e a `pendencia`**, e a segunda é a que importa: é ela que recusa o tique, e esse caminho nunca rodou fora de teste.
+9. ✅ **Resolvida em parte: três dos cinco campos novos de A4 já vivem em dado real.** Sobre os 25 planos, `requisito` e `pronto` aparecem em 330 tarefas e `decidido` em 31 — a cobertura entre requisito e tarefa deixou de ser 0 de 0. **Seguem em zero o `grupo` e a `pendencia`**, e a segunda é a que importa: é ela que recusa o tique, e esse caminho nunca rodou fora de teste.
 10. **A página nº 100 de `.claude/visual/` viola a régua, e o limite aceito (A8) diz que não deveria.** O registro congela 99 páginas · 82 violando e declara *"a régua passa a valer para página nova"*; `regua_audit.py paginas` mede hoje 100 · 83, com a página nova de hoje 16:22 entre as reprovadas. Ou o gerador dela escapa da régua, ou o limite precisa ser reescrito — decidir qual.
 11. ✅ **Resolvida: o segundo escritor de A4 ganhou gatilho.** `plugins/improve-workflow/lib/plano_saida.py` agora é invocado pelo passo 8 da `SKILL.md` do próprio plugin, que colhe o veredito do dono em `~/.claude/visual-state/latest.json` e grava só o aprovado — `grep -rn 'plano_saida' plugins/ --include='*.md' --include='*.sh' --include='*.json'` devolve duas linhas, a do `improve-workflow` e a do homônimo do `vistoria`. O laço página → plano fechou. **O destino deixou de ser adivinhado:** `--dir` é obrigatório e o programa recusa sem ele, porque padrão calculado da posição do arquivo cai dentro do cache do plugin na máquina de quem instala — o plano do dono nasceria na pasta do autor da skill.
 12. **Nenhum verificador lê o `.claude/limites-aceitos.md` (A8).** Limite que deixou de valer não é acusado por ninguém: o arquivo declara o que o revoga, e quem confere é quem lembrar de rodar o comando.

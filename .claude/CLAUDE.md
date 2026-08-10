@@ -4,7 +4,7 @@
 # Project Reference
 
 ## Visão Geral
-Marketplace **público** de 19 plugins do Claude Code (skills em Markdown, hooks em Bash, motores em Python stdlib), distribuído por git e catalogado em `.claude-plugin/marketplace.json`. Não é aplicação: é biblioteca de comportamento. Sem build, sem lockfile, sem CI — o único passo de "compilação" é o vendoring de `_shared/`. O `marketplace.json` é a fonte da verdade da distribuição, não `ls plugins/`.
+Marketplace **público** de 22 plugins do Claude Code (skills em Markdown, hooks em Bash, motores em Python stdlib), distribuído por git e catalogado em `.claude-plugin/marketplace.json`. Não é aplicação: é biblioteca de comportamento. Sem build, sem lockfile, sem CI — o único passo de "compilação" é o vendoring de `_shared/`. O `marketplace.json` é a fonte da verdade da distribuição, não `ls plugins/`.
 **Tipo:** lib · **Stack:** Markdown + Bash + Python 3 stdlib (+ Node stdlib no daemon do visual) · **PM:** nenhum
 
 ## Quick Commands
@@ -43,7 +43,7 @@ bash plugins/project-doc/hooks/test_plan_gate.sh
 - **[quality-goals.md](.claude/docs/quality-goals.md)** — *autoral, `authored-by: human`* — a ordem de prioridade quando não dá para ter tudo (escaneabilidade > drill-down > completude > elegância), os dois regimes de documento, os três níveis de leitura, a régua de estilo que abole prosa em página gerada, e o mecanismo anti-ocultação do colapso
   → antes de escrever relatório, plano, página de aprovação ou qualquer artefato que um humano lê para decidir
 
-- **[architecture.md](.claude/docs/architecture.md)** — estrutura do repo, anatomia de plugin, catálogo dos 19 plugins distribuídos com versões, os 11 plugins com hooks evento a evento, a engine vendorada (`_shared/` → 14 cópias), decisões de arquitetura, terceiros do bootstrap
+- **[architecture.md](.claude/docs/architecture.md)** — estrutura do repo, anatomia de plugin, catálogo dos 22 plugins distribuídos com versões, os 11 plugins com hooks evento a evento, a engine vendorada (`_shared/` → 14 cópias), decisões de arquitetura, terceiros do bootstrap
   → entender o projeto, adicionar plugin, mexer em hooks, onboarding de máquina nova
 - **[patterns.md](.claude/docs/patterns.md)** — convenções de shell (fail-open, protocolo de saída de hook) e Python (stdlib only), vendoring, green-cache, regras de release + os 10 checks do gate de commit, testing, e a lista completa de gotchas com arquivo:símbolo
   → criar plugin, publicar mudança, escrever hook, evitar as armadilhas de release
@@ -51,7 +51,7 @@ bash plugins/project-doc/hooks/test_plan_gate.sh
   → responder "o que a gente guarda?", avaliar impacto de perda, antes de apagar diretório de estado
 - **[durability.md](.claude/docs/durability.md)** — quem copia cada depósito, com que frequência, e o que **não** tem cobertura nenhuma; RPO/RTO e restauração testada
   → responder "o que entra no backup?", mexer em retenção, avaliar risco de perda
-- **[runtime.md](.claude/docs/runtime.md)** — 17 fluxos ponta-a-ponta (sync do bootstrap, roteamento de doc cross-tool, ponte do context-guard, live-sync do visual, geração de slides, gate de teste do ship, o arranque do SessionStart, a falha do gate de plano o ciclo de vida de um plano de implementação e a varredura de contrato dos hooks, a régua que recusa no ponto de uso, o tier do motor que chega como dado e a ponte de visão por MCP)
+- **[runtime.md](.claude/docs/runtime.md)** — 23 fluxos ponta-a-ponta (sync do bootstrap, roteamento de doc cross-tool, ponte do context-guard, live-sync do visual, geração de slides, gate de teste do ship, o arranque do SessionStart, a falha do gate de plano o ciclo de vida de um plano de implementação e a varredura de contrato dos hooks, a régua que recusa no ponto de uso, o tier do motor que chega como dado e a ponte de visão por MCP)
   → entender como as coisas acontecem de verdade, debugar fluxo cross-plugin, onboarding
 
 ## Diagramas (archify)
@@ -60,7 +60,7 @@ Os diagramas de arquitetura moram em **`.claude/archify/`** (fora do git — art
 sessão, como `.claude/visual/`), em três camadas com nome **estável**, uma por assunto:
 `organismo.html` (o repositório inteiro) · `app-<nome>.html` (um por aplicativo, só quando
 há dois ou mais) · `fluxo-<slug>.html` (um por fluxo que `runtime.md` nomeia — hoje
-`grep -c '^## ' .claude/docs/runtime.md` devolve 18). A régua de quando cada camada existe,
+`grep -c '^## ' .claude/docs/runtime.md` devolve 24 (23 fluxos + Pendências)). A régua de quando cada camada existe,
 e o resolvedor de destino, estão em `plugins/archify/skills/archify/SKILL.md`.
 
 **Eles se atualizam junto com a doc:** o passo 2b do `/doc-touch` re-renderiza o diagrama de

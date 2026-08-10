@@ -348,7 +348,7 @@ branches           1.3.5  [branches]                                         HOO
 check-skills       0.7.1  [check-skills]                                     -
 context-guard      1.3.9  [context-guard]                                    HOOKS
 fallow             1.2.3  [fallow]                                           -
-gauntlet           0.8.2  [gauntlet]                                         HOOKS
+gauntlet           0.8.3  [gauntlet]                                         HOOKS
 graphify-guard     1.2.4  []                                                 HOOKS
 grill-me           1.4.0  [grill-me]                                         -
 guardrails         1.7.8  [guardrails]                                       HOOKS
@@ -358,13 +358,13 @@ improve-workflow  0.16.18 [improve-workflow]                                 -
 intent-guard       0.7.1  [intent-guard]                                     HOOKS
 lixeiro            1.3.1  [faxina]                                           HOOKS
 principles         1.0.5  [principles]                                       -
-project-skills     0.21.1 [design-md, doc, doc-load, doc-touch, monitorar,
+project-skills     0.21.2 [design-md, doc, doc-load, doc-touch, monitorar,
                            pesquisa-referencias, plan, project-skills,
                            qa-loop, sprint, start]                           HOOKS
 ship               1.5.0  [ship]                                             HOOKS
 slides             1.6.0  [slides]                                           -
 vision             0.1.0  []                                                 -
-vistoria           0.8.9  [vistoria]                                         -
+vistoria          0.10.0  [vistoria]                                         -
 visual            1.41.2  [andamento, visual]                                HOOKS
 ```
 

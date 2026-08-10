@@ -106,6 +106,35 @@ def main():
     checa("o caso de um achado só ainda tem um checkbox", conta_checkbox(t2) == 1,
           str(conta_checkbox(t2)))
 
+    # --- duas rodadas no mesmo dia deixam DOIS arquivos ---------------------------
+    # A página do piloto foi sobrescrita pela vistoria seguinte porque o nome só
+    # tinha a data. Duas escritas seguidas têm que sobreviver as duas.
+    doisdir = os.path.join(tmp, "duas")
+    p_a = pagina.escreve(AMOSTRA, doisdir)
+    p_b = pagina.escreve(AMOSTRA, doisdir)
+    checa("duas escritas seguidas deixam dois arquivos",
+          p_a != p_b and os.path.isfile(p_a) and os.path.isfile(p_b)
+          and len(os.listdir(doisdir)) == 2, "%r %r" % (p_a, p_b))
+    p_c = pagina.escreve(AMOSTRA, doisdir, "piloto-leitor")
+    checa("a rodada nomeada aparece no nome do arquivo",
+          os.path.basename(p_c).endswith("-piloto-leitor.html"), os.path.basename(p_c))
+
+    # --- o descarte aparece no rodapé --------------------------------------------
+    # `_descartes` era lido por ninguém: o que o cobrador não conseguiu provar sumia
+    # da página, e o lote encolhia sem que o dono soubesse.
+    dsc = [{"o_que": "afirmação sem par de citações", "motivo": "prova sem arquivo:linha"}]
+    saida3 = subprocess.run([sys.executable, os.path.join(AQUI, "pagina.py"),
+                             "--dir", os.path.join(tmp, "dsc")],
+                            input=json.dumps({"achados": AMOSTRA, "_descartes": dsc}),
+                            cwd=ROOT, capture_output=True, text=True,
+                            start_new_session=True)
+    t3 = open(saida3.stdout.strip(), encoding="utf-8").read() if saida3.returncode == 0 else ""
+    checa("o descarte do JSON sai listado no rodapé da página",
+          "descartado por falta de prova — 1 achado(s)" in t3
+          and "prova sem arquivo:linha" in t3, saida3.stderr[-300:])
+    checa("sem descarte, nenhum rodapé de descarte na página",
+          "descartado por falta de prova" not in texto)
+
     shutil.rmtree(tmp, ignore_errors=True)
 
     print("\n%s" % ("FALHOU: " + ", ".join(falhas) if falhas else "tudo verde"))

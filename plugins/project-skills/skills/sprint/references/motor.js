@@ -17,7 +17,7 @@ export const meta = {
   description: 'Motor de implementação: tier por etapa (R8) — decompose/coordinate/executor/mechanical/diagnose/finalize',
   phases: [{ title: 'Decompor' }, { title: 'Diagnose' }, { title: 'Executar' },
            { title: 'Revisar' }, { title: 'Suíte' }, { title: 'Marcar' },
-           { title: 'Salvar' }, { title: 'Doc' }, { title: 'Lixo' }, { title: 'Confirmar' }],
+           { title: 'Salvar' }, { title: 'Doc' }, { title: 'Limpeza' }, { title: 'Confirmar' }],
 }
 
 // O parâmetro pode chegar TEXTO (JSON serializado) em vez de objeto — quando isso
@@ -106,6 +106,22 @@ const REGUA_DO_PROJETO = (ARGS.regua && ARGS.regua.length)
   ? `A RÉGUA DESTE PROJETO (o doc-load listou estes arquivos como lei — abra e leia cada um; não confie neste resumo):\n${ARGS.regua.map(r => `- ${r}`).join('\n')}\nDocumento minerado vale como MAPA, nunca como régua. Documento de acordo só vale com status: approved.`
   : `A RÉGUA DO PROJETO: leia .claude/docs/constituicao.md e .claude/docs/quality-goals.md do repositório da missão QUANDO EXISTIREM — ausência não é achado, e sem esses arquivos o eixo de constituição simplesmente não roda.`
 
+// ── A MARCA DA LEI É COMANDO, NUNCA RECEITA EM PROSA (medido 2026-08-09) ──────
+// A instrução era "o cksum do corpo (sem frontmatter) dos arquivos concatenados",
+// e quatro revisores da MESMA corrida calcularam quatro marcas do MESMO disco
+// (com/sem frontmatter, concatenado/somado, com/sem o tamanho) — o motor registrou
+// "a lei mudou durante a missão" DUAS vezes sem a lei ter mudado. O comando sai
+// escrito no prompt, montado da régua que o doc-load listou; a marca é a saída
+// literal dele, e receita que o modelo interpreta deixou de existir.
+const LEI_CMD = (ARGS.regua && ARGS.regua.length)
+  ? `cd ${RAIZ} && cat ${ARGS.regua.join(' ')} | cksum`
+  : null
+const leiMarcaInstr = lawMark => !LEI_CMD
+  ? 'Projeto sem régua declarada: devolva `lawMark` null.'
+  : lawMark
+    ? `MARCA DA LEI FIXADA NA RODADA 1: ${lawMark} — meça contra ELA, não contra o texto de agora. Devolva em \`lawMark\` a SAÍDA LITERAL (uma linha) de: ${LEI_CMD}`
+    : `Devolva em \`lawMark\` a SAÍDA LITERAL (uma linha) de: ${LEI_CMD} — rode EXATAMENTE este comando; não invente outra receita, não tire frontmatter, não some por arquivo.`
+
 const orquestradorPrompt = ({ planPath, planText, round, feedback, ledger }) => `PAPEL: ORQUESTRADOR
 Você é o ORQUESTRADOR do motor de implementação. Repositório: ${RAIZ}
 
@@ -175,6 +191,7 @@ REGRAS — cada uma nasceu de trabalho perdido:
 4. PASSOU DO TETO, PARE E DEVOLVA \`espera: true\`. Marque a hora ao começar; chegou no teto sem fechar o \`pronto\`, pare onde está, deixe no disco o que já funciona e devolva \`{done:false, espera:true, note:<em que ponto parou e o que falta>}\`. Isso NÃO é falha.
 5. ARQUIVO SOB TRANCA: O ENTREGÁVEL É A PROPOSTA. Tarefa com \`protegido\` ⇒ NÃO edite o arquivo (nem corpo, nem frontmatter). Devolva \`proposta: {arquivo, antes, depois}\` com os dois lados LITERAIS. \`git diff\` vazio ali é o resultado CERTO.
 6. CACHE QUENTE: NÃO RECOMPILE DO ZERO se \`buildWarm\` for true.
+7. O \`pronto\` É LITERAL — PROXY É PROIBIDO. Se o critério não pode ser cumprido COMO ESCRITO (pré-condição ausente, medição que não existe, decisão congelada do dono), NÃO invente um substituto "equivalente" nem troque o número medido por outro: devolva \`impossivel\` com o motivo. Documentar a troca honestamente não a autoriza — trocar critério é decisão do dono, e o caminho dela é o auditor, nunca a sua caneta.
 
 REGRAS DA CASA do repositório da missão: leia o CLAUDE.md da raiz e obedeça — bump de
 versão quando o projeto exigir, estado mutável fora de cache, o estilo que já existe.
@@ -208,7 +225,7 @@ ${J(ledger)}
 ${REGUA_DO_PROJETO}
 
 Abra o \`pronto\` da tarefa, o \`git diff\` dos arquivos dela, e julgue TRÊS eixos:
-1. FIDELIDADE — o critério foi cumprido de verdade, no disco? Rode a verificação que o \`pronto\` nomeia; não acredite no relato.
+1. FIDELIDADE — o critério foi cumprido de verdade, no disco? Rode a verificação que o \`pronto\` nomeia; não acredite no relato. O critério que vale é o LITERAL do plano: entrega que cumpre um critério REESCRITO (proxy, número trocado, medição substituída por outra "equivalente") REPROVA como kind 'spec' ≥ P1 — por mais honesta que a troca esteja documentada no código. Trocar critério é do dono; o executor que não consegue cumprir o literal devolve \`impossivel\`, nunca um substituto.
 2. COBERTURA — o teste morde? Reprove os cinco antipadrões: teste que só afirma o que o código acabou de escrever · teste sem assert real · teste que passa com a função esvaziada · fixture que já contém a resposta · teste que não roda (nome fora do padrão de coleta).
 3. QUALIDADE — o que saiu respeita a régua acima. Cite a passagem violada.
 
@@ -232,7 +249,7 @@ LEDGER DA CORRIDA:
 ${J(ledger)}
 
 ${REGUA_DO_PROJETO}
-${lawMark ? `MARCA DA LEI FIXADA NA RODADA 1: ${lawMark} — meça contra ELA, não contra o texto de agora.` : 'Calcule e devolva em `lawMark` o `cksum` do corpo (sem frontmatter) dos arquivos de lei do projeto concatenados; sem arquivos de lei, devolva null.'}
+${leiMarcaInstr(lawMark)}
 
 NÃO herda o veredito do revisor por tarefa: reabra os MESMOS eixos sobre o conjunto —
 spec · constituição · rastreio (toda tarefa trouxe \`requisito\` e \`pronto\`?) · completude · COESÃO
@@ -265,7 +282,7 @@ LEDGER DA CORRIDA:
 ${J(ledger)}
 
 ${REGUA_DO_PROJETO}
-${lawMark ? `MARCA DA LEI FIXADA NA RODADA 1: ${lawMark} — meça contra ELA. Devolva em \`lawMark\` a marca que você calculou agora.` : 'Calcule e devolva em `lawMark` o `cksum` do corpo (sem frontmatter) dos arquivos de lei do projeto concatenados; sem arquivos de lei, devolva null.'}
+${leiMarcaInstr(lawMark)}
 
 CINCO EIXOS:
 - spec — a spec saiu, mesmo no que a decomposição não previu? (kind: 'spec', nasce ≥ P1)
@@ -312,7 +329,7 @@ RESULTADOS:
 ${J(results)}
 
 ${REGUA_DO_PROJETO}
-${lawMark ? `MARCA DA LEI DA MISSÃO: ${lawMark}` : ''}
+${leiMarcaInstr(lawMark)}
 
 Mesmos cinco eixos do revisor (spec · constituição · rastreio · completude · coesão), medidos
 contra o que está NO DISCO. Rode a verificação que cada \`pronto\` nomeia.
@@ -372,8 +389,14 @@ ignora, ou a causa concorrente mais simples. Vá ao disco conferir.
 
 const runSuitePrompt = ({ repoRoot, round }) => `PAPEL: SUITE
 Rodada ${round}. Papel mecânico e SÓ. cd ${repoRoot} e rode a suíte do repositório —
-a que o projeto declara (CLAUDE.md, Makefile, package.json); sem declaração, os
-test_*.py e test_*.sh que existirem nos diretórios do trabalho desta missão.
+a que o projeto declara (CLAUDE.md, Makefile, package.json); sem declaração, a LISTA
+sai deste comando, IGUAL em toda rodada da missão:
+
+  find ${repoRoot} -path '*/node_modules' -prune -o -path '*/.git' -prune -o \\( -name 'test_*.py' -o -name 'test_*.sh' \\) -print | sort
+
+"Os diretórios do trabalho desta missão" NÃO é critério: foi assim que a rodada 1 de uma
+corrida real rodou 43 testes, a rodada 2 rodou 120, e um vermelho PRÉ-EXISTENTE do repo
+apareceu no meio da onda como se fosse desta missão — matando o bloco.
 
 Rode TODOS, some os resultados, e devolva:
 - \`green\` = true só se NENHUM saiu com código != 0.
@@ -498,10 +521,12 @@ const investigaCausa = async (task, attempts) => {
   for (let volta = 1; volta <= 3 && !acordo; volta++) {
     causa = await agent(diagnoseStuckTaskPrompt({ task, attempts,
         desafioAnterior: desafio?.motivo || null }),
-      { model: ARGS.model, effort: T.diagnose.effort, phase: 'Diagnose' })
+      { model: ARGS.model, effort: T.diagnose.effort, phase: 'Diagnose',
+        label: `causa:${task?.id || '?'} v${volta}` })
     if (!causa) break
     desafio = await julga(desafioCausaPrompt({ task, causa }),
-      { model: ARGS.model, effort: T.diagnose.effort, phase: 'Diagnose', schema: DESAFIO })
+      { model: ARGS.model, effort: T.diagnose.effort, phase: 'Diagnose',
+        label: `desafia:${task?.id || '?'} v${volta}`, schema: DESAFIO })
     // desafiador mudo não referenda: sem veredito, a causa NÃO entra como consenso
     acordo = desafio ? desafio.procede === true : false
   }
@@ -529,7 +554,10 @@ const tierFor = round => ({ model: ARGS.model,
 const RECUSA = '\n\n⚠️ RECUSADO: o veredito anterior voltou SEM a âncora do fim e foi recusado — devolva em `anchor` a última linha não vazia do que você julgou, literal.'
 const julga = async (prompt, opts) => {
   for (let tentativa = 1; tentativa <= 2; tentativa++) {
-    const v = await agent(tentativa === 1 ? prompt : prompt + RECUSA, opts)
+    // o rótulo da 2ª volta diz POR QUE ela existe: sem isso a tela mostra o mesmo
+    // nome duas vezes e a recusa por âncora fica indistinguível de trabalho repetido.
+    const v = await agent(tentativa === 1 ? prompt : prompt + RECUSA,
+      tentativa === 1 ? opts : { ...opts, label: `${opts?.label || 'juiz'} ↻ sem âncora` })
     if (!v) return null
     if (v.anchor) return v
   }
@@ -542,7 +570,8 @@ while (!built && r < maxRounds) {
 
   // ── GUARDA CATCHALL DE SAÚDE (autópsia 2026-08-09, decisão do dono) ─────────
   const saude = await agent(saudePrompt({ repoRoot: ARGS.repoRoot, round: r }),
-    { model: ARGS.model, effort: T.mechanical.effort, phase: 'Decompor', schema: SAUDE })
+    { model: ARGS.model, effort: T.mechanical.effort, phase: 'Decompor',
+      label: `saude:r${r}`, schema: SAUDE })
   if (saude?.fechada) {
     desligadoPor = 'porta-fechada'
     blockers.push({ what: `a porta do repositório está fechada: ${saude.motivo}`,
@@ -550,10 +579,32 @@ while (!built && r < maxRounds) {
     break
   }
 
+  // ── SUÍTE NA LARGADA: vermelho PRÉ-EXISTENTE aparece na PORTA (2026-08-09) ──
+  // Medido: a rodada 1 de uma corrida real fechou verde (43 testes, o recorte que
+  // o agente escolheu), a rodada 2 rodou o conjunto inteiro (120) e quebrou num
+  // teste que JÁ estava vermelho ANTES da missão — três rodadas morreram em cima
+  // de um defeito que não era desta obra. A suíte que os blocos vão cobrar roda
+  // UMA vez aqui, ANTES de qualquer executor: vermelha na largada é porta fechada
+  // com a lista colada, nunca descoberta no meio da onda. Fail-open: agente mudo
+  // não fecha nada — o gate real continua sendo a suíte do bloco.
+  if (r === 1) {
+    const base = await agent(runSuitePrompt({ repoRoot: ARGS.repoRoot, round: r }),
+      { model: ARGS.model, effort: T.mechanical.effort, phase: 'Decompor',
+        label: 'suite:largada', schema: SUITE_RESULT })
+    if (base?.heartbeat) ultimoSinalDeVida = base.heartbeat
+    if (base && base.green === false) {
+      desligadoPor = 'porta-fechada'
+      blockers.push({ what: `a suíte do repositório JÁ está vermelha antes da missão: ${(base.failing || []).join(' · ') || base.placar || 'sem lista'}`,
+                      whyNeedsYou: 'o vermelho é pré-existente, não desta obra — conserte (ou isente) e relance; nenhum bloco fecha verde em cima de suíte que já nasceu vermelha' })
+      break
+    }
+  }
+
   // ORQUESTRAR — rodada 1 decompõe o plano inteiro; rodadas 2+ só o delta.
   const decomp = await agent(orquestradorPrompt({ planPath: ARGS.planPath, planText: ARGS.planText, round: r, feedback,
                                                   ledger: trilho() }),
-    { model: tier.model, effort: tier.effort, phase: 'Decompor', schema: DECOMP })
+    { model: tier.model, effort: tier.effort, phase: 'Decompor',
+      label: r === 1 ? 'orquestrar:r1 (plano inteiro)' : `orquestrar:r${r} (delta)`, schema: DECOMP })
   if (!decomp) {
     blockers.push({ what: `orquestrador da rodada ${r} não respondeu`,
                     whyNeedsYou: 'sem decomposição não há o que executar nesta volta' })
@@ -582,7 +633,8 @@ while (!built && r < maxRounds) {
   // ── A RÉGUA DO `pronto` É COBRADA POR CÓDIGO, NÃO SÓ NA PROSA (F8.2 · S-14) ──
   const regua = await agent(reguaPrompt({ repoRoot: ARGS.repoRoot,
                                           criterios: decomp.tasks.map(t => ({ id: t.id, pronto: t.pronto })) }),
-    { model: ARGS.model, effort: T.mechanical.effort, phase: 'Decompor', schema: REGUA })
+    { model: ARGS.model, effort: T.mechanical.effort, phase: 'Decompor',
+      label: `regua:r${r} (${decomp.tasks.length} criterios)`, schema: REGUA })
   const bancada = new Map((regua?.reprovados || []).map(x => [x.task_id, x.motivo]))
   for (const t of decomp.tasks.filter(t => bancada.has(t.id))) {
     blockers.push({ taskId: t.id, kind: 'criterio',
@@ -676,7 +728,8 @@ while (!built && r < maxRounds) {
   if (arquivosDaOnda.length) {
     const reserva = await agent(reservaPrompt({ verbo: 'reservar', sessionId: ARGS.sessionId,
                                                 motorId: ARGS.motorId, files: arquivosDaOnda }),
-      { model: ARGS.model, effort: T.mechanical.effort, phase: 'Executar', schema: RESERVA })
+      { model: ARGS.model, effort: T.mechanical.effort, phase: 'Executar',
+        label: `reserva:r${r} (${arquivosDaOnda.length} arquivos)`, schema: RESERVA })
     if (reserva?.recusado) {
       desligadoPor = 'reserva'
       blockers.push({ what: `outro motor desta sessão já reservou: ${(reserva.arquivos || []).join(' · ')}`,
@@ -816,7 +869,7 @@ while (!built && r < maxRounds) {
         whyNeedsYou: 'o próximo bloco vai decidir por um mapa vencido — re-projete a doc destes arquivos' })
     }
     await agent(colheitaPrompt({ repoRoot: ARGS.repoRoot, round: r }),
-      { model: ARGS.model, effort: T.mechanical.effort, phase: 'Lixo', label: `lixo r${r}b${b}` })
+      { model: ARGS.model, effort: T.mechanical.effort, phase: 'Limpeza', label: `limpeza r${r}b${b}` })
   }
 
   if (desligadoPor === 'causa-global') {
@@ -988,7 +1041,8 @@ while (!built && r < maxRounds) {
   if (review.complete && review.cohesive && gaps.length === 0) {
     if (ARGS.hasQaLoop === false) {
       const confirm = await julga(confirmBuildPrompt({ planPath: ARGS.planPath, planText: ARGS.planText, repoRoot: ARGS.repoRoot, decomp, results, lawMark }),
-        { model: ARGS.model, effort: T.finalize.effort, phase: 'Confirmar', schema: BUILD_REVIEW })
+        { model: ARGS.model, effort: T.finalize.effort, phase: 'Confirmar',
+          label: `confirmar:r${r}`, schema: BUILD_REVIEW })
       rounds[rounds.length - 1].confirm = confirm
       if (!confirm) {
         blockers.push({ what: 'o confirm-pass não respondeu, ou voltou duas vezes sem a âncora do fim',
