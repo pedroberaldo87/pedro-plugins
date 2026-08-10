@@ -91,4 +91,32 @@ for HJ in plugins/*/hooks/hooks.json; do
 done
 [ "$MISSANY" = "0" ] && echo "ok   todo script referenciado nos hooks.json existe"
 
+# 8) O IRMÃO ESQUECIDO DO ITEM 1: o `$0` do próprio hook. O `hooks.json` normaliza
+#    CLAUDE_PLUGIN_ROOT, mas quem procura o `hook-json.sh` ao lado de si usa `$0` —
+#    e no Windows ele chega com barra invertida, onde `${0%/*}` NÃO CORTA NADA. O
+#    resultado medido na esteira de 2026-08-10 (`bash -x` do scope-cop no runner):
+#      + HJ_DIR='D:\a\...\hooks\scope-cop.sh'   ← não cortou
+#      + HJ_DIR=.                                 ← caiu no fallback
+#      + . ./hook-json.sh ; type hj_campo ; exit 0 ← saiu calado, sem ler o evento
+#    Eram 33 hooks assim: todos instalados e MORTOS no Windows, calados por desenho.
+for SH in sh dash bash zsh; do
+  command -v "$SH" >/dev/null 2>&1 || { echo "ok   $SH ausente nesta máquina — pulado"; continue; }
+  OUT=$("$SH" -c 'HJ_SELF="$(printf "%s" "$0" | tr "\\\\" /)"; HJ_DIR="${HJ_SELF%/*}"; [ "$HJ_DIR" = "$HJ_SELF" ] && HJ_DIR="."; printf "%s" "$HJ_DIR"' \
+        'D:\a\repo\plugins\guardrails\hooks\scope-cop.sh' 2>&1)
+  check "$OUT" 'D:/a/repo/plugins/guardrails/hooks' "$SH · \$0 com barra invertida vira diretório de verdade"
+  OUT=$("$SH" -c 'HJ_SELF="$(printf "%s" "$0" | tr "\\\\" /)"; HJ_DIR="${HJ_SELF%/*}"; [ "$HJ_DIR" = "$HJ_SELF" ] && HJ_DIR="."; printf "%s" "$HJ_DIR"' \
+        '/u/x/hooks/scope-cop.sh' 2>&1)
+  check "$OUT" '/u/x/hooks' "$SH · \$0 POSIX intocado (no-op)"
+done
+
+# 8b) e nenhum hook pode voltar a derivar o diretório do `$0` sem normalizar a barra.
+CRUZERO=$(grep -rln 'HJ_DIR="${0%/\*}"' plugins/*/hooks/*.sh .claude/hooks/*.sh 2>/dev/null)
+if [ -n "$CRUZERO" ]; then
+  FAIL=1
+  echo "FAIL hook deriva o diretório de \$0 sem normalizar a barra (morre no Windows):"
+  echo "$CRUZERO" | sed 's/^/     /'
+else
+  echo "ok   nenhum hook corta \$0 sem normalizar a barra invertida"
+fi
+
 exit $FAIL

@@ -14,7 +14,7 @@ PY="$(command -v python3)"
 if [ -z "$PY" ] || ! "$PY" --version >/dev/null 2>&1; then
   # sem python3 o caderno fica sem o pedido — fala pelos dois canais em vez de calar
   # (o corpo deste hook é Python embutido; o leitor hook-json.sh empresta só o aviso)
-  . "${0%/*}/hook-json.sh" 2>/dev/null && hj_avisa "intent-guard/capture-prompt"
+  . "$(printf '%s' "${0%/*}" | tr '\\' /)/hook-json.sh" 2>/dev/null && hj_avisa "intent-guard/capture-prompt"
   exit 0
 fi
 LEDGER="${CLAUDE_PLUGIN_ROOT}/lib/ledger.py"
