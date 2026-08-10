@@ -176,6 +176,28 @@ check("o diretor julgando o conjunto por medida é recusado igual",
       any("diretor julga por MEDIDA" in f for f in fc.erros_do_fecho(m)))
 shutil.rmtree(d)
 
+# O contraditório da PROSA: "em" e "s" soltos são português, não unidade. A primeira
+# versão do check reprovava "1 em cada 3 cartões" como se fosse medida — juízo de olho
+# legítimo travando o fecho. E a lista de unidades parava em kB: o mesmo julgamento por
+# peso passava batido uma ordem de grandeza acima.
+d = tmp()
+m = monta_missao(d, aprovado=False)
+v = os.path.join(m, "pecas", "hero", "r1", "veredito.json")
+dado = json.load(open(v, encoding="utf-8"))
+dado["gap"] = "1 em cada 3 cartões repete o mesmo gesto, e o olho cansa"
+escreve(v, dado)
+check("gap de olho com 'N em ...' NÃO é confundido com medida",
+      not any("julga por MEDIDA" in f for f in fc.erros_do_fecho(m)))
+dado["gap"] = "a nossa pesa 4 MB e demora, o alvo é mais leve"
+escreve(v, dado)
+check("julgamento por peso em MB é pego — a doença não volta uma ordem acima",
+      any("julga por MEDIDA" in f for f in fc.erros_do_fecho(m)))
+dado["gap"] = "carrega em 2 min enquanto o alvo abre na hora"
+escreve(v, dado)
+check("julgamento por tempo em minutos é pego igual",
+      any("julga por MEDIDA" in f for f in fc.erros_do_fecho(m)))
+shutil.rmtree(d)
+
 print()
 print("A FALHA CENTRAL — sete peças entregues, zero juízes")
 d = tmp()

@@ -62,7 +62,12 @@ STATUS = ("aprovado", "reprovado", "marginal")
 # alvo") virou régua de 18 medidas — e a regra fechou: número só existe na missão se o
 # dono o forneceu no campo `metricas` do rito. Sem ele, a mesma expressão recusa
 # medida em nome de eixo (no rito) e julgamento por medida (no gap/frase do veredito).
-MEDIDA_NO_NOME = re.compile(r"\d+([.,]\d+)?\s*(%|(px|ms|fps|em|rem|vh|vw|s|kB|KB)\b)")
+# Rodando sobre PROSA, "em" e "s" soltos são português ("1 em cada 3 cartões"), não
+# unidade — então letra ambígua só vale COLADA no dígito ("32em", "3s"), e unidade
+# inequívoca (px, fps, MB…) vale com ou sem espaço.
+MEDIDA_NO_NOME = re.compile(
+    r"\d+([.,]\d+)?(\s*(%|px|ms|fps|rem|vh|vw|kB|KB|MB|GB|min)\b|(em|s)\b)"
+)
 
 
 def _le(caminho):
