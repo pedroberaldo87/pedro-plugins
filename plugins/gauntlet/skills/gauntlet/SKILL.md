@@ -63,9 +63,9 @@ printf 'gauntlet\n%s\n' "<caminho absoluto da missão>" > "$GDIR/ativo-$CLAUDE_C
 ```
 
 A linha 2 é onde a trava procura pendência. Quem apaga é o fecho verde (`--sinal`) ou o
-`encerra`; ele expira sozinho por idade, e a trava desiste AVISANDO após negações
-seguidas. Kill-switch: `GAUNTLET_GATE=0`. A missão sobrevive ao `/clear`: o hook de
-arranque imprime o mapa e pergunta ao dono se retoma.
+`encerra`; ele expira por idade, e a trava desiste AVISANDO após negações seguidas.
+Kill-switch: `GAUNTLET_GATE=0`. A missão sobrevive ao `/clear`: o hook de arranque
+imprime o mapa e pergunta ao dono se retoma.
 
 ## 3 · A equipe e o laço
 
