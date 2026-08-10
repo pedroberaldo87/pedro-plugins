@@ -608,7 +608,7 @@ Observações de arquitetura:
   sessão, nunca skill de skill.** [confirmado —
   `bash plugins/gauntlet/hooks/test_gauntlet_hooks.sh` → *"trava dupla do gauntlet: tudo
   verde"*, com o caso "o juiz da peça pendente passa" ao lado de "construtor novo é negado"]
-  ⚠️ **Na v0.8.1 a equipe ganhou um sexto papel — o diretor `criativo`, opcional — e ele
+  ⚠️ **Na v0.8.x a equipe ganhou um sexto papel — o diretor `criativo`, opcional — e ele
   mora fora do alcance da régua anti-cópia.** A tabela de crachás do
   `plugins/gauntlet/skills/gauntlet/SKILL.md` (a tabela papel · nome · marcador) lista seis
   marcadores (`recon`, `decompositor`, `construtor:X`, `juiz:X`, `diretor`, `criativo`); o
@@ -626,6 +626,9 @@ Observações de arquitetura:
   com ela —, mas `fecho_check.py:erros_do_rito` só cobra os cinco campos obrigatórios do rito;
   `criativo` não aparece em nenhum `.py` do plugin (`grep -n 'criativo' plugins/gauntlet/lib/*.py`
   devolve vazio neste run). É contrato de skill, não de motor: rito sem o campo entra verde.
+  O que o SKILL.md fixa é *quando* o campo nasce — a oferta **para o turno** por
+  `AskUserQuestion`, antes de qualquer despacho, e `false` vale para a missão inteira: o papel
+  é de nascença, porque quem chega depois do primeiro veredito não dirige gosto, só assiste.
   O do `guardrails` é o classificador LLM e existe pra **proteger** Agent Teams: ele nega
   sub-agente avulso **quando o prompt pede Agent Teams**, e libera explicitamente *"tarefa
   one-off sem team_name"*. O terceiro é o do `project-skills`
@@ -962,7 +965,7 @@ As cópias de `regua_texto.py` aparecem à parte porque são vendoring, não có
 (§7.4):
 
 ```
-plugins/project-skills/lib/ 44 dos 114 — o motor de doc inteiro (journal.py · pattern_check.py ·
+plugins/project-skills/lib/ 45 dos 114 — o motor de doc inteiro (journal.py · pattern_check.py ·
                            organism.py · graph_map.py · doc_lint.py · historico.py ·
                            rastreio_etapas.py · curadoria_features.py ·
                            decisoes_estruturais.py · doc_load.py · collect_engine.py vendorado),

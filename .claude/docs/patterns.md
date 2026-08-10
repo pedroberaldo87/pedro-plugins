@@ -393,7 +393,7 @@ Gate que invoca modelo dispara os hooks do próprio marketplace de novo, agora c
 
 Padrão de `delivery-audit.sh`, generalizável a todo gate que pergunta agora e lê a resposta depois: o hook cola no prompt do auditor a lista de pedidos vivos **daquele instante** e grava essa lista num arquivo irmão `<artefato>.escopo`, porque o JSON de resposta só existe turnos depois. As três propriedades [relatado — comentários do arquivo, lido por grep nesta rodada]: **grava quem sabe, no instante em que sabe**; **o nome deriva do artefato**, não de sessão nem de timestamp; **ausência é estado legítimo e tem que ser o conservador** (artefato sem sidecar cai no comportamento antigo, que cobra tudo).
 
-O mesmo raciocínio aparece nos dois hooks Python de `Stop` como `batidas.log` — o gate registra o que sabe no instante em que sabe, e o `conformance.py` lê depois (§5.4).
+O mesmo raciocínio aparecia nos hooks Python de `Stop` como `batidas.log` — o gate registrava o que sabia no instante em que sabia, e o `conformance.py` lia depois. 🔴 **Os dois lados desse par foram removidos em 2026-08-09** (§5.4); o padrão fica, o exemplo não roda mais.
 
 ---
 
@@ -538,7 +538,7 @@ Três regras que caíram daí:
 
 Par do §1.14, do outro lado: lá o elo sumia sem sintoma, aqui o conteúdo fica visível mas **inalcançável**. Mesmo desenho de conserto — a garantia é do programa, não da lembrança de quem escreve.
 
-O `.artefato` embute o artefato real num quadro pequeno, e pequeno é a escolha certa: em tamanho natural ele quebra a leitura do documento e empurra a decisão pra fora da tela. O que faltava não era tamanho, era **saída** — não havia como olhar de perto sem sair da página. Desde 2026-08-02 `r_artefato()` emite dois botões, e eles não são redundantes [confirmado — `visual_page.py`, `test_visual_page.py` com 11 checks]:
+O `.artefato` embute o artefato real num quadro pequeno, e pequeno é a escolha certa: em tamanho natural ele quebra a leitura do documento e empurra a decisão pra fora da tela. O que faltava não era tamanho, era **saída** — não havia como olhar de perto sem sair da página. Desde 2026-08-02 `r_artefato()` emite dois botões, e eles não são redundantes [confirmado — `visual_page.py`; `python3 plugins/visual/lib/test_visual_page.py` → `192 passou · 0 falhou` nesta rodada]:
 
 - **tela cheia** — ler agora **sem perder o lugar** no documento (`Esc` volta).
 - **nova janela** — deixar aberto e **comparar** com o resto.
@@ -762,7 +762,7 @@ bloco `requisitos` no próprio plano  →  $PLAN_REQS  →  <raiz>/docs/PRD.md
 - **O mais específico vem primeiro**, e a docstring diz por quê: *"quem o declarou no plano quis aquele conjunto, não o do projeto inteiro"*.
 - **O fim da cascata é `{}`, e `{}` não é erro.** *"Projeto sem documento de requisitos não é erro, é o caso comum"* — dicionário vazio **desliga** a checagem de citação órfã em vez de reprovar tudo. É a mesma escolha do §2.2: "não sei" ≠ "zero".
 - **A checagem que o dicionário liga é dura.** Com requisitos conhecidos, tarefa que cita um id inexistente **recusa a gravação inteira** — não é aviso. O comentário traz a medida: *"7 de 154 itens de um plano real citaram artigo de lei sem ninguém nunca conferir se o artigo existia"*.
-- **Quem calcula não guarda.** `cobertura.py` (79 linhas, arquivo novo) lê, cruza e devolve; a vista "épico › requisito › grupo › tarefa" é **derivada em toda leitura**, nunca gravada — mesmo princípio de `phase_status`, que deriva o estado da fase dos passos porque *"estado duplicado é estado que diverge"*.
+- **Quem calcula não guarda.** `cobertura.py` (o tamanho sai de `wc -l < plugins/project-skills/lib/cobertura.py`, hoje **332** — nasceu com 79) lê, cruza e devolve; a vista "épico › requisito › grupo › tarefa" é **derivada em toda leitura**, nunca gravada — mesmo princípio de `phase_status`, que deriva o estado da fase dos passos porque *"estado duplicado é estado que diverge"*.
 
 **Régua durável: quando um campo passa a ser obrigatório, a fonte que o valida precisa de cascata com fundo vazio — senão a regra nova vira bloqueio para todo projeto que ainda não tem a estrutura que ela pressupõe.**
 
