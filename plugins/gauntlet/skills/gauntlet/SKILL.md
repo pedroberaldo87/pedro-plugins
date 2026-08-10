@@ -81,8 +81,9 @@ diretor → [gauntlet:diretor]            criativo (opcional) → [gauntlet:cria
    que não seja o juiz dela. Aprovar É declarar impressão (`impressionado` + `frase`).
 4. **Reprovou** → o construtor seguinte responde ao gap. **Ganho pequeno (`marginal`)** →
    proibido refinar: caminho novo; o fecho recusa peça marginal com rodada sobrando.
-5. **Fecha peça**: juiz boquiaberto · dono mandando parar (`encerra`) · orçamento esgotado.
-   No fim o **diretor** julga o conjunto — o defeito ENTRE peças não mora em peça nenhuma.
+5. **Fecha peça**: juiz boquiaberto · ordem do dono · orçamento esgotado (parar a missão
+   inteira é o `encerra`). No fim o **diretor** julga o conjunto — e também só aprova
+   boquiaberto: `impressionado` + frase, cobrados pelo fecho.
 
 O placar de cada rodada é `fecho_check.py mapa "<a missão>"` virando página `/visual` —
 relato de parada nunca é textão no terminal. A obra abre no browser do dono desde a primeira
@@ -109,7 +110,7 @@ Verde apaga o sinal; vermelho imprime o que falta. O que ele confere mora na su�
 - **Fatiar a barra junto com o trabalho.** Peça recorta trabalho; a comparação é sempre obra inteira contra alvo inteiro.
 - **Medir no lugar de olhar.** Medida detecta regressão, não diz se está bom; o juiz decide com o olho, às cegas.
 - **Julgar o relatório em vez da obra.** Argumentação convence sem qualidade; o juízo se forma antes de ler qualquer relatório.
-- **Fechar por cansaço.** Ganho pequeno não fecha peça — fecha juiz boquiaberto, dono ou orçamento; o programa recusa o resto.
+- **Fechar por cansaço.** Ganho pequeno não fecha peça — fecha juiz boquiaberto, ordem do dono ou orçamento; o programa recusa o resto.
 - **Falsificar asset.** Símbolo se cria; o que se passaria por registro do que não aconteceu, nunca — asset real que falta sai do julgamento.
 
 Tipo novo de peça é sonda nova em `references/sondas.md`, nunca emenda nesta skill.

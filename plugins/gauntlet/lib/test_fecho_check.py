@@ -73,6 +73,9 @@ def monta_missao(raiz, pecas=("hero",), com_veredito=True, aprovado=True):
         # A entrega é ALEGAÇÃO do construtor: caminho + marca de cada artefato.
         escreve(os.path.join(r1, "entrega.json"), {
             "peca": p, "rodada": 1, "resumo": "a primeira passada",
+            # "Each sub-agent utterly wowed": o construtor também declara, em frase
+            # de gente, o que na entrega o orgulha — e o fecho recusa sem isso.
+            "orgulho": "a entrada respira antes de falar, coisa que o alvo não faz",
             "artefatos": [{"caminho": "obra-%s.txt" % p, "marca": fc.marca(obra)}],
         })
         cam_e = os.path.join(r1, "entrega.json")
@@ -91,7 +94,13 @@ def monta_missao(raiz, pecas=("hero",), com_veredito=True, aprovado=True):
                 "registros": {"nosso": "pecas/%s/r1/nosso.png" % p,
                               "alvo": "pecas/%s/r1/alvo.png" % p},
             })
-    escreve(os.path.join(m, "diretor.json"), {"status": "aprovado", "viu": viu})
+    escreve(os.path.join(m, "diretor.json"), {
+        "status": "aprovado",
+        # A barra do juiz de peça, no conjunto: o diretor também declara impressão.
+        "impressionado": True,
+        "frase": "o conjunto tem uma mão só, e ela é mais firme que a do alvo",
+        "viu": viu,
+    })
     # A missão passou pela abertura: a régua fica ancorada, e mudá-la depois é acusado.
     escreve(os.path.join(m, "rito-aprovado.marca"), fc.marca(os.path.join(m, "rito.json")))
     return m
@@ -372,10 +381,47 @@ check("sem o diretor o fecho é recusado",
       any("não passou pelo conjunto" in f for f in fc.erros_do_fecho(m)))
 shutil.rmtree(d)
 
+# "Each sub-agent utterly wowed" vale no CONJUNTO: diretor aprovando morno é a barra
+# fatiada voltando pela última porta — cada peça boquiaberta e a missão fechando "no
+# nível". A mesma exigência do juiz de peça, agora nele.
+d = tmp()
+m = monta_missao(d)
+dj = json.load(open(os.path.join(m, "diretor.json"), encoding="utf-8"))
+del dj["impressionado"]
+escreve(os.path.join(m, "diretor.json"), dj)
+check("diretor que aprova sem declarar impressão é recusado",
+      any("diretor aprovou o conjunto sem declarar" in f for f in fc.erros_do_fecho(m)))
+dj["impressionado"] = True
+del dj["frase"]
+escreve(os.path.join(m, "diretor.json"), dj)
+check("diretor impressionado sem a frase de gente é recusado",
+      any("falta a `frase` do diretor" in f for f in fc.erros_do_fecho(m)))
+shutil.rmtree(d)
+
+print()
+print("O ORGULHO DO CONSTRUTOR — prosa de briefing virou cobrança de fecho")
+d = tmp()
+m = monta_missao(d)
+e = os.path.join(m, "pecas", "hero", "r1", "entrega.json")
+ent = json.load(open(e, encoding="utf-8"))
+del ent["orgulho"]
+escreve(e, ent)
+v = os.path.join(m, "pecas", "hero", "r1", "veredito.json")
+ver = json.load(open(v, encoding="utf-8"))
+ver["entrega"] = fc.marca(e)
+escreve(v, ver)
+escreve(os.path.join(m, "diretor.json"),
+        {"status": "aprovado", "impressionado": True, "frase": "uma mão só",
+         "viu": {"hero": fc.marca(e)}})
+check("entrega sem `orgulho` é recusada — o construtor também tem que se impressionar",
+      any("não declara `orgulho`" in f for f in fc.erros_do_fecho(m)))
+shutil.rmtree(d)
+
 d = tmp()
 m = monta_missao(d)
 escreve(os.path.join(m, "diretor.json"),
-        {"status": "aprovado", "viu": {"hero": "0000000000000000"}})
+        {"status": "aprovado", "impressionado": True, "frase": "uma mão só",
+         "viu": {"hero": "0000000000000000"}})
 check("diretor que olhou versão superada é acusado — sem relógio nenhum",
       any("versão superada" in f for f in fc.erros_do_fecho(m)))
 shutil.rmtree(d)
@@ -549,7 +595,8 @@ for cam, num in ((r1, 1), (r2, 2)):
         ver["gap"] = "a entrada do alvo respira mais"
     escreve(os.path.join(cam, "veredito.json"), ver)
 escreve(os.path.join(m, "diretor.json"),
-        {"status": "aprovado", "viu": {"hero": fc.marca(os.path.join(r2, "entrega.json"))}})
+        {"status": "aprovado", "impressionado": True, "frase": "uma mão só",
+         "viu": {"hero": fc.marca(os.path.join(r2, "entrega.json"))}})
 check("mas a rodada reprovada e depois consertada fecha normalmente",
       fc.erros_do_fecho(m) == [])
 shutil.rmtree(d)
@@ -651,7 +698,8 @@ ver = json.load(open(v, encoding="utf-8"))
 ver["entrega"] = fc.marca(e)
 escreve(v, ver)
 escreve(os.path.join(m, "diretor.json"),
-        {"status": "aprovado", "viu": {"hero": fc.marca(e)}})
+        {"status": "aprovado", "impressionado": True, "frase": "uma mão só",
+         "viu": {"hero": fc.marca(e)}})
 check("lista vazia é resposta — `não usei nada` fecha",
       fc.erros_do_fecho(m) == [])
 shutil.rmtree(d)
