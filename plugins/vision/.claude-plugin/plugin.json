@@ -1,6 +1,6 @@
 {
   "name": "vision",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Dá olhos ao Claude delegando a um servidor de visão (Qwen3.6 35B A3B VL, API OpenAI-compatible). Expõe a tool see_image: quando o Claude precisa entender uma imagem que não lê, ele chama see_image(caminho, pergunta) e o servidor devolve a descrição em texto. O endpoint do servidor de visão é configurado por QWEN_BASE/QWEN_MODEL ou ~/.claude/vision.json — quem instala aponta para o próprio backend.",
   "author": {
     "name": "pedro-plugins"

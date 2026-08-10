@@ -25,6 +25,16 @@ quando ha `jq` na maquina; sem ele, confere o valor esperado direto.
 import json
 import sys
 
+# CANAIS DE TEXTO EM UTF-8, SEMPRE. No Windows eles nascem na codificação do sistema
+# (cp1252) e o JSON que entra por stdin é UTF-8 — o `main()` já reconfigurava a SAÍDA
+# por este motivo; a ENTRADA ficou de fora, e é por ela que o settings do usuário passa.
+for _canal in (sys.stdin, sys.stdout, sys.stderr):
+    if hasattr(_canal, "reconfigure"):
+        try:
+            _canal.reconfigure(encoding="utf-8")
+        except Exception:
+            pass
+
 
 def _carrega(caminho):
     if caminho == "-":

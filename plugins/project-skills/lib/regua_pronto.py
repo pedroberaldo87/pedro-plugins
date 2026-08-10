@@ -27,6 +27,16 @@ Exit 1 = o critério é bancada (veredito, não crash). stdlib only (requisito d
 import re
 import sys
 
+# CANAIS DE TEXTO EM UTF-8, SEMPRE. No Windows eles nascem na codificação do sistema
+# (cp1252) e o payload do evento — que chega por stdin — é UTF-8: sem isto, todo
+# acento do pedido do usuário chega corrompido ao gate, e emoji derruba a escrita.
+for _canal in (sys.stdin, sys.stdout, sys.stderr):
+    if hasattr(_canal, "reconfigure"):
+        try:
+            _canal.reconfigure(encoding="utf-8")
+        except Exception:
+            pass
+
 # Artefato que um humano lê e que um executor consegue EDITAR à mão — é aí que a
 # injeção de valor cabe. Tela, banco e processo ficam de fora: não se digita neles.
 _ENTREGAVEL = re.compile(

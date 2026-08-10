@@ -25,6 +25,16 @@ import json
 import re
 import sys
 
+# CANAIS DE TEXTO EM UTF-8, SEMPRE. No Windows eles nascem na codificação do sistema
+# (cp1252) e o payload do evento — que chega por stdin — é UTF-8: sem isto, todo
+# acento do pedido do usuário chega corrompido ao gate, e emoji derruba a escrita.
+for _canal in (sys.stdin, sys.stdout, sys.stderr):
+    if hasattr(_canal, "reconfigure"):
+        try:
+            _canal.reconfigure(encoding="utf-8")
+        except Exception:
+            pass
+
 # ── Calibragem ───────────────────────────────────────────────────────────────
 # Números escolhidos pra forçar frase de verdade, não pra punir concisão.
 # Se der falso-positivo demais na prática, é AQUI que se afrouxa — um lugar só.

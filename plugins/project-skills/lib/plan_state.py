@@ -46,6 +46,16 @@ import subprocess
 import sys
 import time
 
+# CANAIS DE TEXTO EM UTF-8, SEMPRE. No Windows eles nascem na codificação do sistema
+# (cp1252) e o payload do evento — que chega por stdin — é UTF-8: sem isto, todo
+# acento do pedido do usuário chega corrompido ao gate, e emoji derruba a escrita.
+for _canal in (sys.stdin, sys.stdout, sys.stderr):
+    if hasattr(_canal, "reconfigure"):
+        try:
+            _canal.reconfigure(encoding="utf-8")
+        except Exception:
+            pass
+
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from regua_pronto import criterio_cortado, erros_de_pronto  # noqa: E402
 from regua_texto import BULLET_MAX  # noqa: E402
