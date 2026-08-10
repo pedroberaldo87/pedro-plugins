@@ -185,7 +185,7 @@ O diretório do plugin (`${CLAUDE_PLUGIN_ROOT}`) é **cache reescrito a cada bum
 ```python
 # plugins/bootstrap/lib/conformance.py
 CLAUDE_DIR = Path(os.environ.get("CLAUDE_CONFIG_DIR", HOME / ".claude"))
-# plugins/bootstrap/hooks/stop-prose-ceiling.py  (e stop-forma-relato.py, idêntico)
+# plugins/visual/hooks/stop-anuncio-sem-acao.py
 CLAUDE_DIR = Path(os.environ.get("CLAUDE_CONFIG_DIR", Path.home() / ".claude"))
 ```
 
@@ -203,13 +203,14 @@ Locais de estado em uso, entre eles [confirmado, `grep -rhoE` sobre hooks e libs
 - `$HOME/.claude/intent-guard/mode` — kill-switch do intent-guard
 - `$HOME/.claude/context-guard/mode` — kill-switch do context-guard
 - `$HOME/.claude/plugins/` — `session-sync.sh` (`.pedro-plugins-last-sync`, `.pedro-plugins-sync.lock`, `known_marketplaces.json`)
-- `CLAUDE_DIR/state/prose-ceiling/` — `stop-prose-ceiling.py:ESTADO` (contador por resposta + `batidas.log` + `bypass.log`)
-- `CLAUDE_DIR/state/forma-relato/` — `stop-forma-relato.py:ESTADO`, com **variável própria** `FORMA_RELATO_STATE`
-- `CLAUDE_DIR/state/intent-guard/olhado` — `ledger.py:furos_da_regua`, **novo nesta rodada**. Um plugin lendo o estado que **outro** plugin escreve (`state/prose-ceiling/` e `state/forma-relato/`), e por isso ele copia a expressão de raiz literalmente igual à dos dois escritores. ⚠️ **Não confundir com `$HOME/.claude/intent-guard/mode`**, que é outro diretório, de outro dono: um é kill-switch, o outro é marca de leitura.
+- `CLAUDE_DIR/state/anuncio-acao/` — `stop-anuncio-sem-acao.py:ESTADO`, com **variável própria** `ANUNCIO_ACAO_STATE` [confirmado, li a linha]
+- `CLAUDE_DIR/state/intent-guard/olhado` — `ledger.py:furos_da_regua`. Um plugin lendo o estado que **outro** plugin escrevia (`state/prose-ceiling/bypass.log` e `state/forma-relato/batidas.log`), e por isso ele copia a expressão de raiz literalmente igual à dos escritores. ⚠️ **Não confundir com `$HOME/.claude/intent-guard/mode`**, que é outro diretório, de outro dono: um é kill-switch, o outro é marca de leitura.
 
-**Por que o juiz tem variável de estado separada** [confirmado, comentário literal em `stop-forma-relato.py`]: *"estado com var propria: isolar o teste via CLAUDE_CONFIG_DIR tirava a credencial do `claude -p` junto, e o juiz passava a aprovar tudo por fail-open."* Régua durável: **hook que chama binário autenticado não pode ter o isolamento do teste amarrado ao mesmo diretório da credencial.** A suíte confirma que o cuidado é real — `test_bootstrap_hooks.sh` roda o juiz com `env -u CLAUDE_CONFIG_DIR FORMA_RELATO_STATE="$TMP/forma-$2"`.
+🔴 **E este par virou o exemplo mais limpo do §1.14 ao contrário: o ESCRITOR foi removido e o LEITOR ficou.** Os dois logs que `furos_da_regua` abre eram escritos pelos hooks de `Stop` do `bootstrap`, que saíram do disco em 2026-08-09; a função continua no repositório, apontando para caminhos que ninguém mais alimenta [confirmado — `grep -rn 'furos_da_regua' plugins/*/lib/*.py` → `plugins/intent-guard/lib/ledger.py:471`; nenhum arquivo do repositório escreve mais em `bypass.log` ou `batidas.log`]. **O que a salva de mentir é uma decisão de desenho, não sorte**: o `except OSError: continue` traz o comentário *"log ausente ≠ zero furo — quem conta as fontes é `fontes`"*, então o leitor devolve "não sei" em vez de "zero furo". **Régua durável: leitor que trata ausência de fonte como zero vira mentira no dia em que o escritor morre — e o escritor morre sem avisar o leitor.**
 
-**Kill-switch = interruptor de uma linha, e ele nunca nasce ligado por padrão.** No shell é env var `<NOME>_GATE=0` (§5.3); nos hooks Python é `PROSE_CEILING=0` e `FORMA_RELATO=0` [confirmado, copiados dos dois arquivos]. Nenhuma dessas variáveis aparece em `plugins/bootstrap/config/settings-defaults.json` [confirmado, li o `env` do arquivo], então **os dois guardas nascem ligados** — que é a premissa que o `stop-prose-ceiling.py` registra no histórico:
+**Por que um juiz que chama binário autenticado tem variável de estado separada** [relatado — o comentário literal vivia em `stop-forma-relato.py`, hoje removido]: *"estado com var propria: isolar o teste via CLAUDE_CONFIG_DIR tirava a credencial do `claude -p` junto, e o juiz passava a aprovar tudo por fail-open."* Régua durável: **hook que chama binário autenticado não pode ter o isolamento do teste amarrado ao mesmo diretório da credencial.**
+
+**Kill-switch = interruptor de uma linha, e ele nunca nasce ligado por padrão.** No shell é env var `<NOME>_GATE=0` (§5.3); no único hook Python que ainda o traz é `ARTEFATO_REGUA=0`. Ele não aparece em `plugins/bootstrap/config/settings-defaults.json` [confirmado, li o `env` do arquivo, que hoje traz só `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS`, `CLAUDE_CONTEXT_THRESHOLD` e `CLAUDE_STATUSLINE_FORWARD`], então **o guarda nasce ligado** — que é a premissa que o teto de prosa registrava no histórico:
 
 > Historico, para nao reincidir: em 2026-07-30 este teto foi transformado em opt-in sob o argumento "e preferencia do dono, nao regra universal". A variavel nunca foi definida, entao o guarda ficou inerte e a primeira resposta seguinte ja estourou. Premissa que nasce desligada nao e premissa — e comentario.
 
@@ -372,13 +373,13 @@ EXTERNAL_RE="(doc|docs|documenta[çc][ãa]o|documentacao)[[:space:]]+(do|da|dos|
 CMDPFX='([A-Za-z_][A-Za-z0-9_]*=[^[:space:];&|]*[[:space:]]+|(sudo|nohup|env|time|exec|command)([[:space:]]+-[^[:space:];&|]+)*[[:space:]]+)*'
 ```
 
-  O comentário nomeia o contrapeso: *"senão a âncora deixa de existir e a menção volta a disparar (o contrapeso está na suíte: `echo sudo ./deploy.sh` e `git commit -m "sudo ./deploy.sh quebrou"` seguem 0)"* [confirmado — `test_pre_deploy.sh` nesta rodada: `100 ok, 0 falhas`].
+  O comentário nomeia o contrapeso: *"senão a âncora deixa de existir e a menção volta a disparar (o contrapeso está na suíte: `echo sudo ./deploy.sh` e `git commit -m "sudo ./deploy.sh quebrou"` seguem 0)"* [confirmado — `test_pre_deploy.sh` nesta rodada: `pre-deploy-test-check: 105 ok, 0 falhas`].
 
-- 🔴 **E aqui está o limite da âncora: prefixo enumerado só cobre o que alguém lembrou de enumerar.** O `release-gate.sh` usava a mesma ideia (`(^|[;&|]|&&)[[:space:]]*git[[:space:]]+.*commit`) e **quatro formas legítimas passavam caladas** — `env FOO=1 git commit`, `(git commit …)`, `bash -c "git commit …"` e `VAR=x git commit` — enquanto `git log --grep commit` disparava à toa. O conserto trocou o casamento de forma por **parse**: o comando é quebrado em tokens (o split inclui `(`, `)`, `;`, `&`, `|`, `<`, `>`, aspas e crase) e o subcomando do git é lido pulando as opções globais e os valores delas (§5.2). **Quando o alvo é um comando de verdade, tokenize e leia o subcomando; regex de forma é para texto, não para linha de comando.** [confirmado — `.claude/hooks/test_release_gate.sh` → `OK (30 checks)`, com um caso por forma]
+- 🔴 **E aqui está o limite da âncora: prefixo enumerado só cobre o que alguém lembrou de enumerar.** O `release-gate.sh` usava a mesma ideia (`(^|[;&|]|&&)[[:space:]]*git[[:space:]]+.*commit`) e **quatro formas legítimas passavam caladas** — `env FOO=1 git commit`, `(git commit …)`, `bash -c "git commit …"` e `VAR=x git commit` — enquanto `git log --grep commit` disparava à toa. O conserto trocou o casamento de forma por **parse**: o comando é quebrado em tokens (o split inclui `(`, `)`, `;`, `&`, `|`, `<`, `>`, aspas e crase) e o subcomando do git é lido pulando as opções globais e os valores delas (§5.2). **Quando o alvo é um comando de verdade, tokenize e leia o subcomando; regex de forma é para texto, não para linha de comando.** [confirmado — `bash .claude/hooks/test_release_gate.sh` → `OK (45 checks)` nesta rodada, com um caso por forma]
 
 ### 1.9 Chamada interna de LLM tem que se auto-marcar
 
-Gate que invoca modelo dispara os hooks do próprio marketplace de novo, agora com o prompt do juiz. Duas marcas coexistem hoje, com a mesma forma [confirmado]:
+Gate que invoca modelo dispara os hooks do próprio marketplace de novo, agora com o prompt do juiz. A marca viva hoje é a do intent-guard [confirmado, li o arquivo]:
 
 ```bash
 # plugins/intent-guard/hooks/capture-prompt.sh
@@ -386,13 +387,7 @@ Gate que invoca modelo dispara os hooks do próprio marketplace de novo, agora c
 # quem chama exporta antes: plan-gate.sh, task-checkpoint.sh, delivery-audit.sh
 ```
 
-```python
-# plugins/bootstrap/hooks/stop-forma-relato.py:julga
-ambiente = dict(os.environ, FORMA_RELATO="interno")
-r = subprocess.run([exe, "-p", "--model", modelo], input=PROMPT % texto[:6000], env=ambiente, ...)
-```
-
-O juiz de forma acrescenta uma distinção que vale copiar [confirmado, comentário literal]: *"'interno' e desligamento silencioso, '0' e o kill-switch do dono"* — o subprocesso do próprio juiz sai **sem nem registrar batida**, para não poluir a auditoria com execuções que ele mesmo causou.
+🔴 **A segunda marca saiu do disco com o juiz de forma em 2026-08-09** (§1.2), e a distinção que ela carregava vale guardar mesmo sem o código [relatado — comentário literal do arquivo removido]: *"'interno' e desligamento silencioso, '0' e o kill-switch do dono"* — a marca de reentrância e o kill-switch do dono compartilhavam a variável, com valores distintos, e o subprocesso do próprio juiz saía **sem nem registrar batida**, para não poluir a auditoria com execuções que ele mesmo causou.
 
 ### 1.10 Sidecar: quem SABE grava ao lado
 

@@ -610,10 +610,11 @@ Observações de arquitetura:
   verde"*, com o caso "o juiz da peça pendente passa" ao lado de "construtor novo é negado"]
   ⚠️ **Na v0.8.1 a equipe ganhou um sexto papel — o diretor `criativo`, opcional — e ele
   mora fora do alcance da régua anti-cópia.** A tabela de crachás do
-  `plugins/gauntlet/skills/gauntlet/SKILL.md:200-205` lista seis marcadores (`recon`,
-  `decompositor`, `construtor:X`, `juiz:X`, `diretor`, `criativo`); o `case` do hook que exige
-  a linha `RÉGUA, NUNCA RECEITA` casa **dois** deles, `construtor:` e `juiz:`
-  (`pretooluse-gauntlet.sh:100`). O despacho do diretor criativo parte sem essa conferência,
+  `plugins/gauntlet/skills/gauntlet/SKILL.md` (a tabela papel · nome · marcador) lista seis
+  marcadores (`recon`, `decompositor`, `construtor:X`, `juiz:X`, `diretor`, `criativo`); o
+  `case` do bloco `RÉGUA, NUNCA RECEITA` em `plugins/gauntlet/hooks/pretooluse-gauntlet.sh`
+  casa **dois** deles, `construtor:` e `juiz:`. O despacho do diretor criativo parte sem essa
+  conferência,
   e a proibição de ditar medida, cor ou componente existe só na prosa do briefing dele
   (`references/briefings.md`, seção "O diretor criativo") — que é exatamente a forma de
   defeito que fez a trava nascer. A trava de pendência, essa, o alcança: enquanto houver
