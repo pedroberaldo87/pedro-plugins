@@ -235,12 +235,17 @@ def main():
             proc = subprocess.run([BASH, "-c", cmd], capture_output=True, text=True, stdin=subprocess.DEVNULL, start_new_session=True)
             check("o comando roda sem erro (%s)" % (proc.stderr.strip()[:80] or "ok"),
                   proc.returncode == 0)
-            linhas = [ln for ln in proc.stdout.splitlines() if ln.strip()]
+            # BARRA NORMALIZADA DOS DOIS LADOS: o `git worktree list` devolve o
+            # caminho com '/' também no Windows, e o `os.path.join` do Python devolve
+            # com '\\' — a comparação nunca casava lá, e o teste acusava a ORDEM do
+            # comando quando o que divergia era o separador.
+            barra = lambda x: x.replace("\\", "/")
+            linhas = [barra(ln) for ln in proc.stdout.splitlines() if ln.strip()]
             check("lista os dois handoffs de mesmo nome", len(linhas) == 2)
             check("o escolhido (1ª linha) é o do worktree onde o trabalho aconteceu",
-                  bool(linhas) and linhas[0].endswith("\t" + novo))
+                  bool(linhas) and linhas[0].endswith("\t" + barra(novo)))
             check("o do worktree parado fica atrás",
-                  len(linhas) > 1 and linhas[1].endswith("\t" + velho))
+                  len(linhas) > 1 and linhas[1].endswith("\t" + barra(velho)))
         finally:
             subprocess.run(["git", "-C", raiz, "worktree", "prune"],
                            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, stdin=subprocess.DEVNULL, start_new_session=True)
