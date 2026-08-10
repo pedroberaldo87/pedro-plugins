@@ -1,6 +1,6 @@
 ---
 generated: 2026-08-09
-generated-commit: 19a7ad7
+generated-commit: 0aac0a3
 project: pedro-plugins
 scope:
   - plugins/project-skills/hooks/sessionstart-doc.sh
@@ -87,7 +87,7 @@ verified-by:
   - plugins/project-skills/lib/test_motor_js.py
   - plugins/gauntlet/hooks/test_gauntlet_hooks.sh
   - plugins/lixeiro/hooks/test_lixeiro_hooks.sh
-doc-sig: pedro-plugins/sessionstart-doc.sh@gen=3.8#2890548a---
+doc-sig: pedro-plugins/sessionstart-doc.sh@gen=3.8#29c9c765
 
 # Runtime — fluxos ponta-a-ponta
 
@@ -113,7 +113,6 @@ EOF
 ⚠️ **Registro ≠ script ≠ execução, e os três números divergem de propósito.** Um script pode estar em dois eventos (`project-skills/hooks/posttooluse-andamento.sh` está em `Pre` **e** `PostToolUse`), e os scripts viram muito menos execuções úteis: a maioria dos registros de `SessionStart` chama o mesmo `sessionstart-deps.sh`, que fala **uma vez por sessão** e sai calado nas outras — ver fluxo 7.0.
 
 ⚠️ Isso mede o que o repo **oferece**. O que **roda** é a interseção com `enabledPlugins` do `~/.claude/settings.json`, e quem desliga de fábrica é o manifest — a lista sai dele, nunca de prosa (o comando está no fluxo 7). `[confirmado — varredura dos hooks.json e leitura do manifest nesta rodada]`
-
 ---
 
 ## 1 · Ciclo de sync do bootstrap (pull → apply → snapshot → commit/push)

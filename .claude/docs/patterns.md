@@ -1,6 +1,6 @@
 ---
 generated: 2026-08-09
-generated-commit: 19a7ad7
+generated-commit: 0aac0a3
 project: pedro-plugins
 scope:
   - .claude/hooks/release-gate.sh
@@ -60,13 +60,12 @@ verified-by:
   - plugins/handoff/lib/test_handoff_skill.py
   - .claude/hooks/test_release_gate.sh
   - plugins/slides/lib/test_md2deck.py
-doc-sig: pedro-plugins/release-gate.sh@gen=3.8#8fdd5c73---
+doc-sig: pedro-plugins/release-gate.sh@gen=3.8#b1a08ee9
 
 # Patterns & Gotchas
 
 Convenções deste marketplace. Tudo aqui é regra lida no código desta rodada, não estilo sugerido.
 Rótulos: **[confirmado]** = li o arquivo ou rodei o comando nesta rodada · **[inferido]** = deduzido, não testado · **[relatado]** = veio de comentário/registro no próprio código.
-
 ---
 
 ## 1 · Shell (hooks)
