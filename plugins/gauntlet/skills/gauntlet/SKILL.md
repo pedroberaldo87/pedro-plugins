@@ -209,11 +209,25 @@ inegociável no que ele **não** recebe: lista de defeitos de ninguém.
    `orcamento`. **Diretor** passa no conjunto quando as peças fecham — o defeito ENTRE
    peças é invisível aos juízes de peça.
 
-**O placar sai na conversa a cada rodada** — e é o programa que o desenha:
+**O placar sai a cada rodada — e sai como PÁGINA, nunca como texto no terminal.** Ordem do
+dono, 2026-08-09, verbatim: *"atualiza a skill gauntlet. esses relatos de parada a cada etapa
+devem ser sempre apresentados com /visual"*. Quem desenha o conteúdo é o programa; quem o
+apresenta é a skill `visual`:
 
 ```bash
-python3 "${CLAUDE_PLUGIN_ROOT}/lib/fecho_check.py" mapa "<a missão>"
+python3 "${CLAUDE_PLUGIN_ROOT}/lib/fecho_check.py" mapa "<a missão>"   # a matéria-prima
 ```
+
+A saída dele vira o spec da página (`kind: "evidencia"` com o mapa literal, mais um `item` por
+peça quando houver veredito a mostrar), e a página abre no browser do dono. **Todo relato de
+parada é assim** — a rodada que fecha, a peça que o juiz reprovou, o gap nomeado, a disputa
+que você para por ordem dele e o fecho. O motivo é o mesmo que fez o dono cortar a auditoria
+numérica na mesma sessão: **o terminal rola, o texto sobe, e o insumo da decisão se perde no
+scrollback.** Placar em texto corrido é o formato que ele já recusou.
+
+Duas exceções, e só elas: **uma linha** dizendo o que você vai fazer em seguida continua na
+conversa (a página é para o relato, não para o aviso), e a pergunta que precisa de resposta
+imediata dele continua sendo pergunta — com a página aberta ao lado, nunca no lugar dela.
 
 ## 4 · A obra ao vivo — o dono e os juízes enxergam a mesma coisa
 
@@ -239,7 +253,8 @@ python3 "${CLAUDE_PLUGIN_ROOT}/lib/fecho_check.py" veto "<a missão>" \
    agente das rodadas seguintes, sempre.
 3. **Se o veto tocar peça já fechada, o programa avisa e você PERGUNTA** antes de
    reabrir. Ele responde manter? A linha do veto ganha `"mantido": true`.
-4. **Parar a disputa** é parar de despachar e dizer onde ficou (`mapa`). O dono revoga a
+4. **Parar a disputa** é parar de despachar e mostrar onde ficou — o `mapa` vira PÁGINA
+   (`/visual`), como todo relato de parada desta skill. O dono revoga a
    própria lei: mostre a lei com a fala de origem citada literal, pergunte, registre.
 
 ## 6 · O fecho
