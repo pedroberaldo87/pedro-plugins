@@ -348,7 +348,7 @@ branches           1.3.5  [branches]                                         HOO
 check-skills       0.7.1  [check-skills]                                     -
 context-guard      1.3.9  [context-guard]                                    HOOKS
 fallow             1.2.3  [fallow]                                           -
-gauntlet           0.8.3  [gauntlet]                                         HOOKS
+gauntlet           0.9.0  [gauntlet]                                         HOOKS
 graphify-guard     1.2.4  []                                                 HOOKS
 grill-me           1.4.0  [grill-me]                                         -
 guardrails         1.7.8  [guardrails]                                       HOOKS
@@ -629,6 +629,16 @@ Observações de arquitetura:
   O que o SKILL.md fixa é *quando* o campo nasce — a oferta **para o turno** por
   `AskUserQuestion`, antes de qualquer despacho, e `false` vale para a missão inteira: o papel
   é de nascença, porque quem chega depois do primeiro veredito não dirige gosto, só assiste.
+  ⚠️ **Na v0.9.0 a parada trocou de sinal, e agora é o MOTOR que a cobra.** O veredito passou
+  a exigir `impressionado` (true/false) e a `frase` de gente; aprovar sem `impressionado: true`
+  é recusado, `marginal` deixou de fechar peça com rodada sobrando no `orcamento`
+  (`fecho_check.py:erros_do_fecho` nomeia a peça e manda propor caminho novo), e campo
+  malformado (lista/objeto onde se espera texto) recusa com mensagem em vez de estourar
+  [confirmado — `python3 plugins/gauntlet/lib/test_fecho_check.py` → *"tudo verde"*, com os
+  casos "marginal com rodada sobrando é recusado" e "aprovou sem estar boquiaberto"]. A
+  SKILL.md encolheu junto (`wc -l` → 115, contra 349 na v0.8.x): a ambição abriu o arquivo, a
+  história migrou para `references/porque.md`, e a lista das seis armadilhas virou uma linha
+  dura cada.
   O do `guardrails` é o classificador LLM e existe pra **proteger** Agent Teams: ele nega
   sub-agente avulso **quando o prompt pede Agent Teams**, e libera explicitamente *"tarefa
   one-off sem team_name"*. O terceiro é o do `project-skills`
