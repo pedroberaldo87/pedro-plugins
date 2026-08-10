@@ -343,12 +343,12 @@ Saída desta rodada (nome · versão · skills · tem hook):
 
 ```
 archify           2.12.2  [archify]                  -
-bootstrap         1.17.0  [bootstrap]                HOOKS
+bootstrap         1.17.1  [bootstrap]                HOOKS
 branches           1.3.5  [branches]                 HOOKS
 check-skills       0.7.1  [check-skills]             -
 context-guard      1.3.9  [context-guard]            HOOKS
 fallow             1.2.3  [fallow]                   -
-gauntlet           0.9.2  [gauntlet]                 HOOKS
+gauntlet          0.10.0  [gauntlet]                 HOOKS
 graphify-guard     1.2.5  []                         HOOKS
 grill-me           1.4.0  [grill-me]                 -
 guardrails         1.7.8  [guardrails]               HOOKS
@@ -652,6 +652,20 @@ Observações de arquitetura:
   `grep -c 'não declara .orgulho' plugins/gauntlet/lib/fecho_check.py` → 0, e o caso da suíte
   virou *"entrega sem `orgulho` fecha normalmente"*]. **Régua durável: campo obrigatório sem
   leitor é papelada, e autoavaliação do autor não substitui crítico.**
+  ⚠️ **Na v0.10.0 o número deixou de ser cidadão do rito e virou opt-in do dono.** A skill
+  nasceu para uma disputa subjetiva (*"mais foda que o alvo"*) e vinha convertendo isso em
+  régua medida — o contrato do reconhecimento em `references/briefings.md` **pedia** um campo
+  `numero` por eixo, e a receita de sonda mandava colher quadros, bytes e tempo em toda
+  rodada. O campo saiu do contrato (o eixo é `nome + gesto + registro`, e a prova é o print),
+  e entrou no rito o campo opcional `metricas` — a única porta por onde medida entra em
+  julgamento. **A trava deixou de morar só no juiz, que era o último elo**: sem `metricas` no
+  rito, `fecho_check.py:_erros_do_veredito` recusa veredito cujo `gap` ou `frase` traga medida,
+  e a mesma conta roda no `diretor.json` [confirmado —
+  `grep -c 'julga por MEDIDA' plugins/gauntlet/lib/fecho_check.py` → 2, e a suíte tem o
+  contraditório *"o MESMO gap passa quando o dono forneceu `metricas`"*]. A expressão que
+  cobra é a mesma que já recusava medida em nome de eixo (`MEDIDA_NO_NOME`), agora usada nos
+  dois pontos. **Régua durável: trava no último elo chega tarde — quando a contaminação
+  alcança quem julga, ela já passou pelo rito, pelos briefings e pelas pranchas do dono.**
   O do `guardrails` é o classificador LLM e existe pra **proteger** Agent Teams: ele nega
   sub-agente avulso **quando o prompt pede Agent Teams**, e libera explicitamente *"tarefa
   one-off sem team_name"*. O terceiro é o do `project-skills`
