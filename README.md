@@ -207,7 +207,7 @@ não mudaram.
 
 | Plugin | Trigger | O que faz |
 |---|---|---|
-| `bootstrap` ⚙️ | `/bootstrap:setup` · automático no SessionStart + Stop | Prepara uma máquina nova: auto-sincroniza marketplaces e plugins via hooks **e** aplica a config global versionada (env, permissões, flags, `CLAUDE.md` global, output style, statusLine resolvido por máquina). Traz também o **Clean Style** (resultado na primeira linha, teto de prosa, prova colada sem teto) e um **verificador de conformidade** que compara a máquina viva contra o contrato versionado sem escrever nada. A qualidade do relato tem duas camadas no fim do turno: uma **mecânica** (conta linhas de prosa, exige veredito na 1ª linha quando a pergunta foi fechada — custo zero, roda sempre) e um **juiz** que chama modelo e só acorda quando a resposta é um relato com prova colada. Os dois são fail-open e têm desligamento visível (`PROSE_CEILING=0`, `FORMA_RELATO=0`). Rode `/bootstrap:setup` uma vez por máquina. |
+| `bootstrap` ⚙️ | `/bootstrap:setup` · automático no SessionStart + PostToolUse | Prepara uma máquina nova: auto-sincroniza marketplaces e plugins via hooks **e** aplica a config global versionada (env, permissões, flags, `CLAUDE.md` global, output style, statusLine resolvido por máquina). Traz também o **Clean Style** (resultado na primeira linha, teto de prosa, prova colada sem teto) e um **verificador de conformidade** que compara a máquina viva contra o contrato versionado sem escrever nada. Rode `/bootstrap:setup` uma vez por máquina. |
 
 ---
 
@@ -219,7 +219,7 @@ não mudaram.
 
 | Plugin | Eventos | Papel |
 |---|---|---|
-| `bootstrap` | SessionStart×2 · PostToolUse | Auto-sync de marketplaces e plugins, mais os dois guardas de forma do relato |
+| `bootstrap` | SessionStart×2 · PostToolUse | Auto-sync de marketplaces e plugins, e o aviso depois de um comando de plugin |
 | `branches` | SessionStart×2 · PostToolUse | Aviso de branch parada, silencioso quando não há |
 | `context-guard` | SessionStart×2 · PostToolUse | Vigia o quanto da conversa já foi usado e sugere o handoff |
 | `gauntlet` | SessionStart×2 · PreToolUse | Nega despacho novo enquanto houver entrega sem juiz, e reencontra a disputa no arranque |
