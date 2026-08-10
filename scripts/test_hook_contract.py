@@ -529,6 +529,39 @@ exit 0
           all(f["quote"] != f["msg"] for f in fs))
     r.close()
 
+    # A linha citada tem que CASAR a regra que gerou o achado: o R5 nasce de uso
+    # em posição de comando, então citar a linha que só MENCIONA a ferramenta
+    # (echo, prosa) manda o dono para o lugar errado.
+    print("o trecho do R5 é a linha que INVOCA a ferramenta, não a que a menciona")
+    r = Repo()
+    r.hook("avisa-jq.sh", HDR + 'echo "este hook precisa de jq instalado"\njq -n "{}"\nexit 0\n',
+           event="SessionStart", matcher="*")
+    fs = [f for f in hc.run(r.root)["findings"] if f["rule"] == "R5-sem-failopen"]
+    check("o repro gera o R5", len(fs) == 1)
+    check("a linha citada é a da invocação", fs and fs[0]["line"] == 3)
+    check("o trecho citado é o comando, não o aviso",
+          fs and fs[0]["quote"].startswith("jq -n"))
+    r.close()
+
+    # O mesmo par de citações vale pro hooks.json que nem abre: era o único
+    # achado que saía com `who` sendo o NOME NU do plugin (não resolve como
+    # caminho), linha 0 e o texto do parser repetido como "prova".
+    r = Repo()
+    r.hook("ok.sh", HDR + "exit 0\n", plugin="bom")
+    hd = os.path.join(r.root, "plugins", "quebrado", "hooks")
+    os.makedirs(hd)
+    with open(os.path.join(hd, "hooks.json"), "w", encoding="utf-8") as fh:
+        fh.write('{\n  "hooks": {\n    "PreToolUse": [,]\n  }\n}\n')
+    fs = [f for f in hc.run(r.root)["findings"] if f["rule"] == "R0-config"]
+    check("hooks.json ilegível vira um achado", len(fs) == 1)
+    check("o `who` do hooks.json ilegível resolve como arquivo de verdade",
+          all(os.path.exists(os.path.join(r.root, f["who"])) for f in fs))
+    check("o hooks.json ilegível aponta a linha real do estrago",
+          all(f["line"] == 3 for f in fs))
+    check("o trecho do hooks.json ilegível é a linha do arquivo, não o eco do msg",
+          all(f["quote"] == '"PreToolUse": [,]' for f in fs))
+    r.close()
+
     print()
     print("retrato sem a raiz continua comparável")
     r = Repo()

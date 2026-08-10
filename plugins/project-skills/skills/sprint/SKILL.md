@@ -55,7 +55,8 @@ SPRINT_DIR="${CLAUDE_CONFIG_DIR:-$HOME/.claude}/andamento"
 mkdir -p "$SPRINT_DIR"
 printf 'sprint\n' > "$SPRINT_DIR/ativo-$CLAUDE_CODE_SESSION_ID"   # ao armar a missão
 SPRINT_MOTOR_ID="motor-$(date -u +%Y%m%dT%H%M%SZ)-$$"    # id DESTE motor na sessão
-rm -f "$SPRINT_DIR"/{ativo,bloqueios}-"$CLAUDE_CODE_SESSION_ID"   # ao entregar
+# ao entregar, a receita do passo 3 (apaga o CONJUNTO do estado, não só o sinal):
+python3 "$(bash "${CLAUDE_PLUGIN_ROOT}/lib/resolve-plugin.sh" project-skills lib/andamento.py)" encerra "$CLAUDE_CODE_SESSION_ID" sprint
 ```
 
 **O nome vai DENTRO do sinal** porque é ele que a barra de status lê para dizer quem acendeu (`lib/andamento.py:_motor`). Sinal vazio não é motor anônimo: cai no rótulo genérico, e foi assim que a barra chamou de `sprint` toda missão desta skill mesmo depois de o plugin `sprint` deixar de existir.
@@ -76,7 +77,7 @@ duas coisas que o motor sabe julgar. A única exceção é destravar **porta fec
 próprio motor apontou, porque sem ela nenhuma onda sai — e aí o conserto é commitado na
 hora, por caminho nomeado, antes do relançamento.
 
-**A rede embaixo do esquecimento (desde 2026-08-06):** o sinal **expira por idade**. Passado `SPRINT_TTL_MIN` (default 720 min = 12h) sem ser apagado, a primeira consulta do gate o **remove** — junto com o contador de bloqueios dele — e registra a linha em `expirados.log`. Isso não te dispensa do `rm`: a janela é de 12h porque a missão que o gate protege é longa por definição, e encurtá-la mataria sinal de execução legítima em andamento.
+**A rede embaixo do esquecimento (desde 2026-08-06):** o sinal **expira por idade**. Passado `SPRINT_TTL_MIN` (default 720 min = 12h) sem ser apagado, a primeira consulta do gate o **remove** — junto com o contador de bloqueios dele — e registra a linha em `expirados.log`. Isso não te dispensa do `encerra`: a janela é de 12h porque a missão que o gate protege é longa por definição, e encurtá-la mataria sinal de execução legítima em andamento.
 
 ### Por que o gate precisou nascer
 
@@ -132,7 +133,7 @@ plano dizendo que não.
 
 Projeto que compila em minutos cobra esse preço **de cada executor** quando ninguém compila antes: numa execução real, **dez minutos de compilação por tarefa** foi o que empurrou o agente para o segundo plano — e processo em segundo plano que morre não avisa. A compilação é paga **aqui, uma vez**, e o que os executores herdam é o **cache quente** no disco do repositório.
 
-`SPRINT_BUILD_CMD` = o comando de compilação do projeto, **o mesmo que o executor rodaria** (`npm run build`, `cargo build`, `go build ./...`, `make`); projeto que não compila deixa vazio e o passo não faz nada.
+`SPRINT_REPO_ROOT` = a raiz do repositório e `SPRINT_BUILD_CMD` = o comando de compilação do projeto, **o mesmo que o executor rodaria** (`npm run build`, `cargo build`, `go build ./...`, `make`); projeto que não compila deixa vazio e o passo não faz nada.
 
 ```bash
 SPRINT_DIR="${CLAUDE_CONFIG_DIR:-$HOME/.claude}/andamento"
@@ -481,10 +482,12 @@ const investigaCausa = async (task, attempts) => {
   for (let volta = 1; volta <= 3 && !acordo; volta++) {
     causa = await agent(diagnoseStuckTaskPrompt({ task, attempts,
         desafioAnterior: desafio?.motivo || null }),
-      { model: ARGS.model, effort: T.diagnose.effort, phase: 'Diagnose' })   // diagnose_model
+      { model: ARGS.model, effort: T.diagnose.effort, phase: 'Diagnose',
+        label: `causa:${task?.id || '?'} v${volta}` })   // diagnose_model
     if (!causa) break
     desafio = await julga(desafioCausaPrompt({ task, causa }),
-      { model: ARGS.model, effort: T.diagnose.effort, phase: 'Diagnose', schema: DESAFIO })
+      { model: ARGS.model, effort: T.diagnose.effort, phase: 'Diagnose',
+        label: `desafia:${task?.id || '?'} v${volta}`, schema: DESAFIO })
     // desafiador mudo não referenda: sem veredito, a causa NÃO entra como consenso
     acordo = desafio ? desafio.procede === true : false
   }
@@ -520,8 +523,11 @@ const tierFor = round => ({ model: ARGS.model,
 // quem não prova que leu não aprovou nada.
 const julga = async (prompt, opts) => {
   for (let tentativa = 1; tentativa <= 2; tentativa++) {
+    // o rótulo da 2ª volta diz POR QUE ela existe: sem isso a tela mostra o mesmo
+    // nome duas vezes e a recusa por âncora fica indistinguível de trabalho repetido.
     const v = await agent(tentativa === 1 ? prompt : { ...prompt,
-      recusado: 'o veredito anterior voltou SEM a âncora do fim e foi recusado — devolva em `anchor` a última linha não vazia do que você julgou, literal' }, opts)
+      recusado: 'o veredito anterior voltou SEM a âncora do fim e foi recusado — devolva em `anchor` a última linha não vazia do que você julgou, literal' },
+      tentativa === 1 ? opts : { ...opts, label: `${opts?.label || 'juiz'} ↻ sem âncora` })
     if (!v) return null
     if (v.anchor) return v
   }
@@ -538,12 +544,30 @@ while (!built && r < maxRounds) {
   // rodam UMA vez; porta fechada — qualquer porta — vira parada na hora, com a
   // saída crua colada. Fail-open: check quebrado ou agente mudo não fecha nada.
   const saude = await agent(saudePrompt({ repoRoot: ARGS.repoRoot, round: r }),
-    { model: ARGS.model, effort: T.mechanical.effort, phase: 'Decompor', schema: SAUDE })
+    { model: ARGS.model, effort: T.mechanical.effort, phase: 'Decompor',
+      label: `saude:r${r}`, schema: SAUDE })
   if (saude?.fechada) {
     desligadoPor = 'porta-fechada'
     blockers.push({ what: `a porta do repositório está fechada: ${saude.motivo}`,
                     whyNeedsYou: `nenhuma onda sai com a porta fechada — todo trabalho novo morreria nela. Prova:\n${saude.saida || '(sem saída)'}` })
     break
+  }
+
+  // ── SUÍTE NA LARGADA: vermelho PRÉ-EXISTENTE aparece na PORTA (2026-08-09) ──
+  // A suíte que os blocos vão cobrar roda UMA vez aqui, ANTES de qualquer executor:
+  // vermelha na largada é porta fechada com a lista colada, nunca descoberta no meio
+  // da onda. Fail-open: agente mudo não fecha nada.
+  if (r === 1) {
+    const base = await agent(runSuitePrompt({ repoRoot: ARGS.repoRoot, round: r, bloco: 0 }),
+      { model: ARGS.model, effort: T.mechanical.effort, phase: 'Decompor',
+        label: 'suite:largada', schema: SUITE_RESULT })
+    if (base?.heartbeat) ultimoSinalDeVida = base.heartbeat
+    if (base && base.green === false) {
+      desligadoPor = 'porta-fechada'
+      blockers.push({ what: `a suíte do repositório JÁ está vermelha antes da missão: ${(base.failing || []).join(' · ') || base.placar || 'sem lista'}`,
+                      whyNeedsYou: 'o vermelho é pré-existente, não desta obra — conserte esses testes e relance o /sprint; o motor não tem lista de teste ignorado, e nenhum bloco fecha verde em cima de suíte que já nasceu vermelha' })
+      break
+    }
   }
 
   // ORQUESTRAR — Opus #1, no tier da rodada. r==1: decompõe o plano inteiro; r>1: só o
@@ -552,7 +576,8 @@ while (!built && r < maxRounds) {
   // foi julgado, consertado e confirmado — e vigia os antipadrões conhecidos.
   const decomp = await agent(orquestradorPrompt({ planPath: ARGS.planPath, planText: ARGS.planText, round: r, feedback,
                                                   ledger: trilho() }),
-    { model: tier.model, effort: tier.effort, phase: 'Decompor', schema: DECOMP })
+    { model: tier.model, effort: tier.effort, phase: 'Decompor',
+      label: r === 1 ? 'orquestrar:r1 (plano inteiro)' : `orquestrar:r${r} (delta)`, schema: DECOMP })
   // Orquestrador morto derruba a rodada inteira (não há tarefa a executar). Sai do laço em
   // vez de estourar — o que já foi construído nas rodadas anteriores continua valendo.
   if (!decomp) {
@@ -606,7 +631,8 @@ while (!built && r < maxRounds) {
   // por infra de gate é pior que gate nenhum, e o gate real do critério é o revisor.
   const regua = await agent(reguaPrompt({ repoRoot: ARGS.repoRoot,
                                           criterios: decomp.tasks.map(t => ({ id: t.id, pronto: t.pronto })) }),
-    { model: ARGS.model, effort: T.mechanical.effort, phase: 'Decompor', schema: REGUA })
+    { model: ARGS.model, effort: T.mechanical.effort, phase: 'Decompor',
+      label: `regua:r${r} (${decomp.tasks.length} criterios)`, schema: REGUA })
   const bancada = new Map((regua?.reprovados || []).map(x => [x.task_id, x.motivo]))
   for (const t of decomp.tasks.filter(t => bancada.has(t.id))) {
     blockers.push({ taskId: t.id, kind: 'criterio',
@@ -744,7 +770,8 @@ while (!built && r < maxRounds) {
   if (arquivosDaOnda.length) {
     const reserva = await agent(reservaPrompt({ verbo: 'reservar', sessionId: ARGS.sessionId,
                                                 motorId: ARGS.motorId, files: arquivosDaOnda }),
-      { model: ARGS.model, effort: T.mechanical.effort, phase: 'Executar', schema: RESERVA })
+      { model: ARGS.model, effort: T.mechanical.effort, phase: 'Executar',
+        label: `reserva:r${r} (${arquivosDaOnda.length} arquivos)`, schema: RESERVA })
     // Fail-open, mesma direção do hook: quem foi consultar e não voltou não recusa nada.
     // Travar a missão por infra de gate é pior que gate nenhum.
     if (reserva?.recusado) {
@@ -787,9 +814,9 @@ while (!built && r < maxRounds) {
     // que não chega a ele é cache que ele derruba com um `clean` de rotina.
     const builtPar = await parallel(livres.map(t => () =>
       agent(execPrompt({ task: t, tetoMin: tetoExecutorMin, buildWarm }), {
-        model: execTier(t).model, effort: execTier(t).effort, phase: 'Executar', schema: TASK_RESULT })))
+        model: execTier(t).model, effort: execTier(t).effort, phase: 'Executar', label: `exec:${t.id}`, schema: TASK_RESULT })))
     for (const t of colidem.concat(seq)) builtPar.push(await agent(execPrompt({ task: t, tetoMin: tetoExecutorMin, buildWarm }),
-      { model: execTier(t).model, effort: execTier(t).effort, phase: 'Executar', schema: TASK_RESULT }))
+      { model: execTier(t).model, effort: execTier(t).effort, phase: 'Executar', label: `exec:${t.id}`, schema: TASK_RESULT }))
     // Filtra AQUI, dos dois lados: `parallel()` devolve null pra thunk que falhou, e o
     // executor sequencial devolve null pelo mesmo motivo (agente morto). Um `null` em
     // `results` vira `TypeError` no revisor — a tarefa some do relato em vez de reaparecer
@@ -871,8 +898,8 @@ while (!built && r < maxRounds) {
 
     // 3 · SUÍTE INTEIRA — 147s por bloco, medidos; é o que separa "preservado" de
     // "gravei a quebra". Vermelha fecha a onda aqui, e nada deste bloco é marcado.
-    const suiteB = await agent(runSuitePrompt({ repoRoot: ARGS.repoRoot, round: r }),
-      { model: ARGS.model, effort: T.mechanical.effort, phase: 'Suíte', schema: SUITE_RESULT })
+    const suiteB = await agent(runSuitePrompt({ repoRoot: ARGS.repoRoot, round: r, bloco: b }),
+      { model: ARGS.model, effort: T.mechanical.effort, phase: 'Suíte', label: `suite:r${r}b${b}`, schema: SUITE_RESULT })
     if (suiteB?.heartbeat) ultimoSinalDeVida = suiteB.heartbeat
     ultimaSuite = suiteB; ultimaSuiteMissao = suiteB
     if (!suiteB || !suiteB.green) {
@@ -908,7 +935,7 @@ while (!built && r < maxRounds) {
       marcadosDaOnda.push(...(tick?.marcados || []))
     }
     await agent(checkpointPrompt({ repoRoot: ARGS.repoRoot, round: r, bloco: b, results: aprovadas, planPath: ARGS.planPath }),
-      { model: ARGS.model, effort: T.mechanical.effort, phase: 'Salvar' })
+      { model: ARGS.model, effort: T.mechanical.effort, phase: 'Salvar', label: `commit r${r}b${b}` })
     blocosVerdes.push({ bloco: b, feitos: aprovadas.map(x => x.task_id), placar: suiteB.placar })
     const tocadosB = [...new Set(aprovadas.flatMap(x => x?.files_touched || []))]
     if (tocadosB.length) {
@@ -916,7 +943,7 @@ while (!built && r < maxRounds) {
       // ciente do custo: doc grande pode ser reescrito mais de uma vez na onda, e o
       // conflito disso é achado da revisão geral de doc, não deste passo.
       const doc = await agent(docTouchPrompt({ repoRoot: ARGS.repoRoot, round: r, files: tocadosB, sessionId: ARGS.sessionId }),
-        { model: ARGS.model, effort: T.mechanical.effort, phase: 'Doc', schema: DOC_TOUCH })
+        { model: ARGS.model, effort: T.mechanical.effort, phase: 'Doc', label: `doc r${r}b${b}`, schema: DOC_TOUCH })
       docsDaOnda.push(...(doc?.docs || []))
       if (!(doc?.docs || []).length) blockers.push({
         what: `a doc do bloco ${b} da rodada ${r} não foi confirmada no disco`,
@@ -967,7 +994,7 @@ while (!built && r < maxRounds) {
                                                 onus: 'invertido — cabe a VOCÊ provar que não dá; o executor não precisa provar que dá',
                                                 cobra: 'diga em naoTentou quais das ferramentas acima o executor nem tentou',
                                                 tentativas: impossivelChurn[x.task_id] }),
-      { model: ARGS.model, effort: T.diagnose.effort, phase: 'Diagnose', schema: AUDITOR })   // diagnose_model
+      { model: ARGS.model, effort: T.diagnose.effort, phase: 'Diagnose', label: `auditor:${x.task_id}`, schema: AUDITOR })   // diagnose_model
     x.done = false
     // Auditor mudo NÃO encerra nada: quem não respondeu não confirmou impedimento nenhum,
     // e encerrar no silêncio dele seria voltar a encerrar no "impossível" do executor.
@@ -1021,7 +1048,7 @@ while (!built && r < maxRounds) {
   // antes/depois literais aprova, e arquivo protegido aparecendo no git diff reprova.
   const filesDaOnda = [...new Set(results.flatMap(x => x?.files_touched || []))]
   const review = await julga(reviewBuildPrompt({ planPath: ARGS.planPath, planText: ARGS.planText, repoRoot: ARGS.repoRoot, decomp, results, round: r, lawMark, protegidas: [...protegidas], files: filesDaOnda, ledger: trilho() }),
-    { model: tier.model, effort: tier.effort, phase: 'Revisar', schema: BUILD_REVIEW })
+    { model: tier.model, effort: tier.effort, phase: 'Revisar', label: `rev-geral:r${r}`, schema: BUILD_REVIEW })
 
   // AGENTE MORTO NÃO PODE DERRUBAR O MOTOR. `agent()` devolve null quando o subagente
   // morre por erro terminal (limite de sessão, erro de API depois dos retries) ou quando o
@@ -1206,7 +1233,8 @@ while (!built && r < maxRounds) {
   if (review.complete && review.cohesive && gaps.length === 0) {
     if (ARGS.hasQaLoop === false) {
       const confirm = await julga(confirmBuildPrompt({ planPath: ARGS.planPath, planText: ARGS.planText, repoRoot: ARGS.repoRoot, decomp, results, lawMark }),
-        { model: ARGS.model, effort: T.finalize.effort, phase: 'Confirmar', schema: BUILD_REVIEW })   // finalize_model
+        { model: ARGS.model, effort: T.finalize.effort, phase: 'Confirmar',
+          label: `confirmar:r${r}`, schema: BUILD_REVIEW })   // finalize_model
       rounds[rounds.length - 1].confirm = confirm
       // Mesma guarda do revisor, e aqui a direção segura é mais dura ainda: este pass é a
       // ÚNICA segunda checagem que existe quando não há /qa-loop adiante. Ele não responder
@@ -1257,7 +1285,7 @@ if (!built && entregouAlgo && desligadoPor !== 'orcamento') {
   const confirmFinal = await julga(confirmBuildPrompt({ planPath: ARGS.planPath, planText: ARGS.planText,
       repoRoot: ARGS.repoRoot, decomp: ultima.decomp,
       results: rounds.flatMap(x => x.results || []).filter(Boolean), lawMark }),
-    { model: ARGS.model, effort: T.finalize.effort, phase: 'Confirmar', schema: BUILD_REVIEW })
+    { model: ARGS.model, effort: T.finalize.effort, phase: 'Confirmar', label: 'confirm-na-parada', schema: BUILD_REVIEW })
   rounds[rounds.length - 1].confirmFinal = confirmFinal
   if (!confirmFinal) {
     blockers.push({ what: 'a missão parou no meio e a conferência final não respondeu',
@@ -1314,6 +1342,21 @@ for (const x of rounds)
       { taskId: g.task_id || null, kind: g.kind, problem: g.problem, primeira: x.r, voltas: 0 })
     porGap[k].voltas = x.r - porGap[k].primeira + 1
   }
+
+// ── ÚLTIMO ATO: apagar o sinal da barra e soltar a reserva de arquivos ───────
+// Vem DEPOIS de tudo e ANTES do return, então alcança TODO caminho de saída — obra
+// pronta, teto, vigia, disjuntor, onda estéril, causa global. A casca continua
+// apagando também (cinto e suspensório); e a barra varre o que passar dos dois
+// (`andamento.py:expira_sinais`).
+//
+// UMA EXCEÇÃO, e só uma: o motor que a RESERVA recusou. `andamento.py encerra` apaga
+// por SESSÃO, não por motor — quem sai por `reserva` nunca reservou nem acendeu nada,
+// e encerrar aqui apagaria o sinal do OUTRO motor da mesma sessão, que segue vivo (a
+// barra dele sumiria: `pretooluse-motor-arma.sh` desarma sem o sinal).
+if (desligadoPor !== 'reserva')
+  await agent(encerraPrompt({ sessionId: ARGS.sessionId, motorId: ARGS.motorId,
+                              motivo: desligadoPor || (built ? 'obra de pé' : 'teto de rodadas') }),
+    { model: ARGS.model, effort: T.mechanical.effort, phase: 'Limpeza', label: 'encerra:barra' })
 
 return {
   rounds, built, blockers, lawMark,   // lawMark = a lei contra a qual a missão INTEIRA foi medida
@@ -1551,13 +1594,31 @@ Passada a QA e **ANTES** de montar o relatório, persista o trabalho. Esta é a 
 3. **Apaga o sinal do sprint e LIBERA os arquivos reservados.** É o par do `mkdir` da seção _Execução_ e da reserva que o motor fez antes de executar, e é obrigatório:
 
    ```bash
-   rm -f "${CLAUDE_CONFIG_DIR:-$HOME/.claude}/andamento"/{ativo,bloqueios}-"$CLAUDE_CODE_SESSION_ID"
-   bash "$(bash "${CLAUDE_PLUGIN_ROOT}/lib/resolve-plugin.sh" project-skills hooks/reserva-de-arquivos.sh)" liberar "$CLAUDE_CODE_SESSION_ID" "$SPRINT_MOTOR_ID"
+   python3 "$(bash "${CLAUDE_PLUGIN_ROOT}/lib/resolve-plugin.sh" project-skills lib/andamento.py)" encerra "$CLAUDE_CODE_SESSION_ID" sprint
+   # O id do motor nasceu em OUTRO bloco e não chega aqui — cada ```bash é uma chamada
+   # à parte. Ele está gravado no NOME de cada reserva desta sessão, e é de lá que sai.
+   for RESERVA in "${CLAUDE_CONFIG_DIR:-$HOME/.claude}/andamento/reservas/$CLAUDE_CODE_SESSION_ID"__*.files; do
+     [ -f "$RESERVA" ] || continue   # glob sem casar vem literal
+     MOTOR="${RESERVA##*__}"
+     bash "$(bash "${CLAUDE_PLUGIN_ROOT}/lib/resolve-plugin.sh" project-skills hooks/reserva-de-arquivos.sh)" liberar "$CLAUDE_CODE_SESSION_ID" "${MOTOR%.files}"
+   done
    ```
 
    Reserva não liberada recusaria o próximo motor da sessão nos mesmos arquivos — é o mesmo esquecimento do sinal, com outro nome. (Há rede embaixo: a reserva expira por idade, mesma janela de 12h do sinal.)
 
    Deixar aceso faz a sessão inteira continuar sem poder despachar sub-agente **depois** de a missão acabar — o gate não sabe que você terminou, só sabe do arquivo.
+
+   ⚠️ **`encerra` no lugar do `rm` de antes, porque o estado da missão é mais que o sinal.** Onda, placar, doc e trabalho em curso morriam com a sessão e reapareciam na barra de quem reusasse o id. O comando apaga o conjunto, numa receita só — e é a mesma que o motor chama.
+
+   **São TRÊS camadas, e as três existem porque cada uma falha sozinha:**
+
+   | quem apaga | quando | o que ele não alcança |
+   |---|---|---|
+   | o **motor** (`encerra:barra`, último papel antes do `return`) | todo caminho de saída: obra pronta, teto, vigia, disjuntor, onda estéril, causa global | o motor que morreu de vez (erro terminal, sessão derrubada) |
+   | a **casca** (este passo) | o caminho feliz, junto do resto da persistência | o turno interrompido antes de chegar aqui |
+   | a **barra** (`andamento.py:expira_sinais`, no desenho) | qualquer sinal que passe de 12h, inclusive de sessão MORTA | nada — é a última rede |
+
+   A terceira nasceu porque as duas primeiras não alcançam a sessão que morreu: o gate do motor já expirava sinal velho, mas **só quando alguém consultava**, e quem consulta é a sessão que acendeu. Medido em 2026-08-09: **cinco sinais órfãos vivos ao mesmo tempo, o mais velho de 75 horas**, todos anunciando "missão de pé" na barra. Quem varre agora é quem desenha a barra — o único processo que roda com frequência garantida em toda sessão viva.
 
 4. **Passa o caminhão do lixo (F9.38).** A missão abriu suíte, build e servidor a cada onda, e nada disso morre sozinho: fica de pé até alguém reclamar da máquina. Última passada, e é obrigatória:
 

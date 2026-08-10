@@ -127,8 +127,13 @@ def discover(root):
             with open(hj, encoding="utf-8") as fh:
                 cfg = json.load(fh)
         except (OSError, ValueError) as exc:
+            # `hooks_json` e a linha do estrago viajam junto: sem eles o achado
+            # saía com `who` sendo o nome nu do plugin e linha 0. O
+            # JSONDecodeError já sabe em que linha o arquivo quebrou.
             out.append({"plugin": plug, "event": "?", "matcher": "?", "script": None,
-                        "error": "hooks.json ilegível: %s" % exc})
+                        "error": "hooks.json ilegível: %s" % exc,
+                        "hooks_json": hj,
+                        "error_line": getattr(exc, "lineno", 0) or 0})
             continue
         for event, groups in (cfg.get("hooks") or {}).items():
             for grp in groups:
@@ -145,6 +150,20 @@ def discover(root):
                     }
                     out.append(entry)
     return out
+
+
+def linha_de(caminho, n):
+    """A n-ésima linha literal de um arquivo — a prova de um achado posicional."""
+    if not caminho or n < 1:
+        return ""
+    try:
+        with open(caminho, encoding="utf-8", errors="replace") as fh:
+            for i, ln in enumerate(fh, 1):
+                if i == n:
+                    return ln.strip()
+    except OSError:
+        pass
+    return ""
 
 
 def cita_registro(root, hooks_json, alvo):
@@ -299,15 +318,22 @@ def measure(path):
     # código sem comentário — `graphify` citado em comentário não é uso
     code = "\n".join(COMMENT.sub("", ln) for ln in lines)
     used = set()
+    # onde cada ferramenta é INVOCADA — a citação do R5 sai daqui, e não de uma
+    # busca solta pelo nome: linha que só menciona a ferramenta (echo, prosa)
+    # não prova o achado e manda o dono pro lugar errado.
+    where = {}
     for t in EXTERNAL_TOOLS:
         for m in re.finditer(CMD_POS + re.escape(t) + NOT_SUFFIXED, code, re.M):
-            line = code[code.rfind("\n", 0, m.start()) + 1:]
+            ini = code.rfind("\n", 0, m.start()) + 1
+            line = code[ini:]
             line = line[:line.find("\n") if "\n" in line else len(line)]
-            col = m.start() - (code.rfind("\n", 0, m.start()) + 1)
+            col = m.start() - ini
             # dentro de string (nº ímpar de aspas antes) não é invocação
             if line[:col].count('"') % 2 or line[:col].count("'") % 2:
                 continue
             used.add(t)
+            n = code.count("\n", 0, m.start()) + 1
+            where[t] = (n, lines[n - 1].strip()[:110])
             break
         # invocação via variável resolvida por command -v conta como uso guardado
         if t in guarded:
@@ -321,6 +347,7 @@ def measure(path):
         "killswitch": kill,
         "hardcoded_tools": hard,
         "tools_used": sorted(used),
+        "tools_where": where,
         "tools_guarded": sorted(guarded),
         "tools_unguarded": sorted(used - guarded),
     }
@@ -370,17 +397,11 @@ def judge(entry, m, root="."):
                       quote=quote))
 
     for tool in m["tools_unguarded"]:
-        # a citação é a primeira linha que USA a ferramenta — line 0 e quote vazio
-        # eram o que fazia a vistoria repetir o msg como "prova" (2026-08-09).
-        ln, quote = 0, ""
-        try:
-            with open(entry["script"], encoding="utf-8", errors="replace") as fh:
-                for i, linha in enumerate(fh, 1):
-                    if re.search(r"\b%s\b" % re.escape(tool), linha) and not linha.lstrip().startswith("#"):
-                        ln, quote = i, linha.strip()[:110]
-                        break
-        except OSError:
-            pass
+        # a citação é a linha que INVOCA a ferramenta — a MESMA que o medidor
+        # contou como uso. Buscar o nome solto citava `echo "precisa de jq"`, que
+        # não prova o achado; line 0 e quote vazio faziam a vistoria repetir o
+        # msg como "prova" (2026-08-09).
+        ln, quote = m.get("tools_where", {}).get(tool, (0, ""))
         f.append(dict(rule="R5-sem-failopen", sev="med", who=who, line=ln,
                       msg="usa %s sem guarda de ausência (command -v … || exit 0)" % tool,
                       quote=quote))
@@ -434,8 +455,10 @@ def run(root):
     for e in entries:
         if e.get("error"):
             rel = os.path.relpath(e["hooks_json"], root) if e.get("hooks_json") else e["plugin"]
+            ln = e.get("error_line") or 0
             findings.append(dict(rule="R0-config", sev="high", who=rel,
-                                 line=0, msg=e["error"], quote=e["error"]))
+                                 line=ln, msg=e["error"],
+                                 quote=linha_de(e.get("hooks_json"), ln)))
             continue
         if e["type"] != "command":
             measured.append(dict(e, measure=None, note="hook do tipo '%s' — sem script pra medir" % e["type"]))

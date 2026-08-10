@@ -72,6 +72,18 @@ def main():
     check("o script segura o gap de rastreio no filtro (nao so a prosa)",
           "g.kind === 'rastreio'" in texto)
 
+    # A armacao ensinava `rm -f {ativo,bloqueios}-$sid`, que alcanca 2 dos 8 prefixos
+    # de estado — onda-, placar-, doc-, sinal-, trabalho- ficavam pra tras.
+    armacao = secao(texto, "### O sinal que arma o gate", "### Por que o gate precisou nascer")
+    print("a armacao do sinal ensina a MESMA receita de encerramento do passo 3")
+    check("a secao de armacao existe", bool(armacao))
+    check("a armacao nao ensina mais `rm -f` do sinal",
+          "rm -f" not in armacao)
+    check("a armacao manda `encerra <sid> sprint`",
+          'encerra "$CLAUDE_CODE_SESSION_ID" sprint' in armacao)
+    check("a prosa da expiracao cobra o `encerra`, nao o `rm`",
+          "não te dispensa do `encerra`" in armacao)
+
     print()
     if FAILS:
         print("FALHOU: %d" % len(FAILS))

@@ -9,7 +9,7 @@ validador — não vira item fraco na lista.
 
 Uso:
     python3 plugins/vistoria/lib/medidor.py            # resumo por cobrador
-    python3 plugins/vistoria/lib/medidor.py --json     # a lista de achados
+    python3 plugins/vistoria/lib/medidor.py --json     # {achados, _descartes}
 
 Cobrador que quebra não derruba a medição (fail-open, como o resto do repo):
 ele sai do JSON e aparece no resumo como "não medido".
@@ -25,7 +25,7 @@ import subprocess
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from achado import achado  # noqa: E402
+from achado import AchadoInvalido, achado  # noqa: E402
 
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(
     os.path.dirname(os.path.abspath(__file__)))))
@@ -75,6 +75,31 @@ def _json_de(*args):
                 pass
 
 
+# O que o cobrador viu e NÃO conseguiu provar. Sai do lote e vai para o rodapé da
+# página: lote que encolhe em silêncio é decisão tomada sobre uma lista incompleta.
+DESCARTES = []
+
+
+def _talvez(**kw):
+    """Achado só com trecho próprio. Sem prova, vira descarte e devolve None.
+
+    Antes daqui o tradutor caía na mensagem do cobrador quando o trecho vinha
+    vazio (`prova=quote or msg`) — o achado saía repetindo a própria acusação, e
+    prova que ecoa a acusação não é prova.
+    """
+    try:
+        return achado(**kw)
+    except AchadoInvalido as e:
+        DESCARTES.append({"cobrador": kw.get("cobrador"), "onde": kw.get("onde"),
+                          "o_que": kw.get("o_que"), "motivo": str(e)})
+        return None
+
+
+def _com_prova(itens):
+    """O lote sem os que viraram descarte."""
+    return [a for a in itens if a is not None]
+
+
 def _importa(rel, nome):
     """Importa um módulo do repo pelo caminho — cobrador que não tem --json."""
     spec = importlib.util.spec_from_file_location(nome, os.path.join(ROOT, rel))
@@ -85,11 +110,12 @@ def _importa(rel, nome):
 
 def hook_contract():
     d = _json_de("scripts/hook_contract.py", "--json")
-    return [achado(cobrador="hook-contract", regra=f["rule"],
-                   gravidade={"high": "alta", "med": "media"}.get(f["sev"], "baixa"),
-                   onde="%s:%s" % (f["who"], f["line"]),
-                   o_que=f["msg"], prova=f["quote"] or f["msg"])
-            for f in d["findings"]]
+    return _com_prova(
+        _talvez(cobrador="hook-contract", regra=f["rule"],
+                gravidade={"high": "alta", "med": "media"}.get(f["sev"], "baixa"),
+                onde="%s:%s" % (f["who"], f["line"]),
+                o_que=f["msg"], prova=f["quote"])
+        for f in d["findings"])
 
 
 def desacoplamento():
@@ -120,10 +146,11 @@ def regua_call():
 
 def readme_counts():
     d = _json_de("scripts/readme_counts_check.py", "--json")
-    return [achado(cobrador="readme-counts", regra=f["id"],
-                   onde="%s:%s" % (f["onde"], f["linha"]),
-                   o_que=f["msg"], prova=f.get("trecho") or f["msg"])
-            for f in d["achados"]]
+    return _com_prova(
+        _talvez(cobrador="readme-counts", regra=f["id"],
+                onde="%s:%s" % (f["onde"], f["linha"]),
+                o_que=f["msg"], prova=f.get("trecho"))
+        for f in d["achados"])
 
 
 def suites_orfas():
@@ -209,6 +236,7 @@ COBRADORES = (
 def mede(quais=None):
     """Roda os cobradores e devolve (achados, falhas) — falha é cobrador não medido."""
     achados, falhas = [], {}
+    del DESCARTES[:]
     for nome, fn in COBRADORES:
         if quais and nome not in quais:
             continue
@@ -227,7 +255,9 @@ def main(argv=None):
     achados, falhas = mede(quais or None)
 
     if quer_json:
-        print(json.dumps(achados, ensure_ascii=False, indent=1))
+        # Envelope, não lista crua: é por `_descartes` que a página monta o rodapé.
+        print(json.dumps({"achados": achados, "_descartes": DESCARTES},
+                         ensure_ascii=False, indent=1))
         return 0
 
     por_cobrador = {}
@@ -240,6 +270,9 @@ def main(argv=None):
             print("  %-16s → não medido (%s)" % (nome, falhas[nome]))
         else:
             print("  %-16s → %d" % (nome, por_cobrador.get(nome, 0)))
+    if DESCARTES:
+        print("  %d descartado(s) por falta de prova (vão no rodapé da página)"
+              % len(DESCARTES))
     return 0
 
 

@@ -105,8 +105,15 @@ fi
 # payload que o harness manda, e se confere que a ressalva chegou no texto que o
 # modelo lê (`additionalContext`). É por este caminho que o aviso vale.
 echo "== o consumidor repassa o aviso (sessionstart-plan.sh) =="
-HOOK="$(cd "$(dirname "$0")/../../hooks" && pwd)/sessionstart-plan.sh"
-PLAN_STATE="$(cd "$(dirname "$0")/../../../project-skills/lib" && pwd)/plan_state.py"  # acopla-ok: teste roda no monorepo, não na máquina de quem instala
+# O HOOK É PROCURADO POR NOME, NUNCA PELA POSIÇÃO. Ele morava em
+# plugins/visual/hooks/ e mudou para project-skills na fusão da família (1f575e9);
+# o caminho relativo daqui ficou apontando a pasta velha e este bloco passou a
+# reprovar em SILÊNCIO — a suíte inteira do repositório ficou vermelha por isso,
+# e o vermelho só apareceu quando o motor do /sprint enumerou os testes por
+# comando. É o mesmo defeito que o F14.2 já tinha cobrado uma vez.
+_REPO="$(cd "$(dirname "$0")/../../../.." && pwd)"
+HOOK="$(find "$_REPO/plugins" -name sessionstart-plan.sh -type f 2>/dev/null | head -1)"
+PLAN_STATE="$(find "$_REPO/plugins" -path '*/lib/plan_state.py' -type f 2>/dev/null | head -1)"  # acopla-ok: teste roda no monorepo, não na máquina de quem instala
 if [ ! -f "$HOOK" ] || [ ! -f "$PLAN_STATE" ] || ! command -v python3 >/dev/null 2>&1; then
   falha "hook ou plan_state.py ausente" "$HOOK / $PLAN_STATE"
 else

@@ -413,6 +413,60 @@ def main():
     finally:
         shutil.rmtree(tmp_doc, ignore_errors=True)
 
+    # ── O `encerra` SÓ APAGA O SINAL DE QUEM É DONO DELE ────────────────────────
+    # `ativo-<sid>` é compartilhado de propósito: sprint, qa-loop e gauntlet gravam
+    # o MESMO arquivo, cada um com o próprio nome na linha 1 — é assim que o gate
+    # `pretooluse-motor-arma.sh` decide se age (`DONO=$(head -n 1 …)`). O `encerra`
+    # apagava sem ler nada, então o sprint terminando derrubava a barra e o estado
+    # da missão do gauntlet que seguia viva na mesma sessão.
+    print("o encerra confere de quem é o sinal antes de apagar")
+    tmp_dono = tempfile.mkdtemp()
+    try:
+        andamento_py = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                    "andamento.py")
+        casa = os.path.join(tmp_dono, "andamento")
+        os.makedirs(casa)
+
+        def _acende(sid, dono):
+            for prefixo in ("ativo-", "onda-"):
+                with open(os.path.join(casa, prefixo + sid), "w",
+                          encoding="utf-8") as fh:
+                    fh.write(dono + "\n")
+
+        def _encerra(*args):
+            return subprocess.run(
+                [sys.executable, andamento_py, "encerra", *args],
+                env=dict(os.environ, CLAUDE_CONFIG_DIR=tmp_dono),
+                stdin=subprocess.DEVNULL, start_new_session=True,
+                capture_output=True, text=True)
+
+        _acende("s-dono", "gauntlet")
+        alheio = _encerra("s-dono", "sprint")
+        check("dono divergente sai 0 (fail-open: o comando é chamado com || echo)",
+              alheio.returncode == 0)
+        check("e NÃO apaga o sinal do outro motor",
+              os.path.exists(os.path.join(casa, "ativo-s-dono"))
+              and os.path.exists(os.path.join(casa, "onda-s-dono")))
+
+        # A vizinha é do MESMO dono e fica de pé: o `encerra` apaga por SESSÃO, e
+        # apagar por dono derrubaria a barra de toda sessão do mesmo motor.
+        _acende("s-vizinha", "gauntlet")
+        proprio = _encerra("s-dono", "gauntlet")
+        check("o dono certo apaga o sinal e o estado da missão",
+              proprio.returncode == 0
+              and not [x for x in os.listdir(casa) if "s-dono" in x])
+        check("e NÃO encosta na outra sessão do mesmo motor",
+              sorted(x for x in os.listdir(casa) if "s-vizinha" in x)
+              == ["ativo-s-vizinha", "onda-s-vizinha"])
+
+        _acende("s-legado", "sprint")
+        legado = _encerra("s-legado")
+        check("sem nome de dono o comando segue apagando (chamador antigo)",
+              legado.returncode == 0
+              and not [x for x in os.listdir(casa) if "s-legado" in x])
+    finally:
+        shutil.rmtree(tmp_dono, ignore_errors=True)
+
     # ── A ONDA EM CURSO E O PROGRESSO DO PLANO NA BARRA ─────────────────────────
     # A barra dizia ha quanto tempo a missao estava de pe, nunca em que ponto ela
     # estava: `missao ha 2h14` nao separa a primeira volta da decima.
@@ -462,6 +516,58 @@ def main():
               "Missão há 1h07" in linha)
     finally:
         shutil.rmtree(tmp_onda, ignore_errors=True)
+
+    # ── O SINAL DA SESSÃO MORTA É VARRIDO POR QUEM DESENHA A BARRA ──────────
+    # O gate do motor já expirava sinal velho, mas só quando ALGUÉM CONSULTAVA —
+    # e quem consulta é a sessão que acendeu. Sessão morta nunca mais pergunta,
+    # então o sinal dela nunca expirava: medido em 2026-08-09, CINCO sinais órfãos
+    # vivos ao mesmo tempo, o mais velho de 75 horas, todos dizendo "Missão há 75h"
+    # na barra. A barra é o único processo que roda com frequência garantida em
+    # toda sessão viva — por isso a varredura é dela.
+    tmp_exp = tempfile.mkdtemp()
+    try:
+        morta, viva = "sessao-morta", "sessao-viva"
+        for s in (morta, viva):
+            for p in ("ativo-", "onda-", "placar-", "doc-"):
+                with open(os.path.join(tmp_exp, p + s), "w", encoding="utf-8") as fh:
+                    fh.write("motor\n")
+        antigo = time.time() - 75 * 3600
+        for p in ("ativo-", "onda-", "placar-", "doc-"):
+            os.utime(os.path.join(tmp_exp, p + morta), (antigo, antigo))
+
+        check("a sessão VIVA continua desenhando a linha",
+              a.linha_motor(viva, tmp_exp) is not None)
+        check("a sessão MORTA some da barra", a.linha_motor(morta, tmp_exp) is None)
+        check("o sinal da sessão morta foi APAGADO do disco",
+              not os.path.exists(os.path.join(tmp_exp, "ativo-" + morta)))
+        check("o estado da sessão morta vai junto (onda, placar, doc)",
+              not [x for x in os.listdir(tmp_exp) if morta in x])
+        check("nada da sessão viva foi tocado",
+              len([x for x in os.listdir(tmp_exp) if viva in x]) == 4)
+        check("a expiração fica registrada, não some calada",
+              "morta" in open(os.path.join(tmp_exp, "expirados.log"),
+                              encoding="utf-8").read())
+    finally:
+        shutil.rmtree(tmp_exp, ignore_errors=True)
+
+    # ── A BARRA ACOMPANHA O BLOCO, NÃO SÓ A ONDA ────────────────────────────
+    # Pedido do dono, 2026-08-09: "as ondas, os blocos e assim por diante. Tudo."
+    # Uma onda de três blocos leva quinze minutos, e a barra ficava parada em
+    # `Onda 2` o tempo todo — quem olha não sabe se avançou ou travou.
+    tmp_blc = tempfile.mkdtemp()
+    try:
+        with open(os.path.join(tmp_blc, "ativo-s-bloco"), "w", encoding="utf-8") as fh:
+            fh.write("sprint\n")
+        a.marca_onda("s-bloco", 2, None, tmp_blc)
+        check("sem bloco, a linha continua exatamente a de antes",
+              a.linha_onda("s-bloco", tmp_blc) == "Onda 2")
+        a.marca_onda("s-bloco", 2, None, tmp_blc, etapa="executando", bloco=3)
+        check("com bloco e etapa, os dois aparecem na linha",
+              a.linha_onda("s-bloco", tmp_blc) == "Onda 2 bloco 3 · executando")
+        check("e chegam à BARRA junto do resto",
+              "🌊 Onda 2 bloco 3 · executando" in a.linha_motor("s-bloco", tmp_blc))
+    finally:
+        shutil.rmtree(tmp_blc, ignore_errors=True)
 
     print()
     if FAILS:

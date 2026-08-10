@@ -14,8 +14,10 @@ então leva minutos. stdlib only (requisito do repo).
 
 import json
 import os
+import shutil
 import subprocess
 import sys
+import tempfile
 
 AQUI = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, AQUI)
@@ -89,6 +91,43 @@ def main():
           erros_de_achado(achado(cobrador="x", regra="r", onde="a.py:1",
                                  o_que="algo", prova="exit 2")) == [])
 
+    # --- o eco de prova, e o cano até o rodapé -----------------------------------
+    # `prova=f["quote"] or f["msg"]` fantasiava a prova: sem trecho próprio, o achado
+    # saía repetindo a mensagem do cobrador. Agora ele sai do lote e vira descarte —
+    # e o `--json` tem que ENTREGAR esse descarte, senão o rodapé que a página sabe
+    # desenhar nunca recebe nada.
+    orig = medidor._json_de
+    medidor._json_de = lambda *a: {"findings": [
+        {"rule": "R0-config", "sev": "high", "who": "x/hooks.json", "line": 3,
+         "msg": "hooks.json ilegível", "quote": ""}]}
+    try:
+        so_eco = medidor.hook_contract()
+    finally:
+        medidor._json_de = orig
+    checa("achado sem trecho próprio não vira achado", so_eco == [], repr(so_eco))
+    checa("achado sem trecho próprio sai no descarte",
+          any(d.get("onde") == "x/hooks.json:3" for d in medidor.DESCARTES),
+          repr(medidor.DESCARTES))
+
+    esboco = (
+        "import sys; sys.path.insert(0, %r); import medidor;"
+        "medidor._json_de = lambda *a: {'findings': [{'rule': 'R0-config',"
+        "'sev': 'high', 'who': 'x/hooks.json', 'line': 3,"
+        "'msg': 'hooks.json ilegivel', 'quote': ''}]};"
+        "medidor.main(['hook-contract', '--json'])" % AQUI)
+    tmp = tempfile.mkdtemp(prefix="vistoria-medidor-")
+    p1 = subprocess.run([sys.executable, "-c", esboco], cwd=ROOT,
+                        capture_output=True, text=True, stdin=subprocess.DEVNULL,
+                        start_new_session=True)
+    p2 = subprocess.run([sys.executable, os.path.join(AQUI, "pagina.py"),
+                         "--dir", tmp], input=p1.stdout, cwd=ROOT,
+                        capture_output=True, text=True, start_new_session=True)
+    pag = open(p2.stdout.strip(), encoding="utf-8").read() if p2.returncode == 0 else ""
+    checa("medidor→página: o descartado aparece no rodapé",
+          "descartado por falta de prova" in pag and "x/hooks.json:3" in pag,
+          (p1.stdout[:200] + " | " + p2.stderr[-300:]))
+    shutil.rmtree(tmp, ignore_errors=True)
+
     # --- a medição ----------------------------------------------------------------
     achados, falhas_cob = medidor.mede()
     checa("nenhum cobrador ficou sem medir", not falhas_cob, repr(falhas_cob))
@@ -111,9 +150,13 @@ def main():
                             "suites-orfas", "hook-contract", "--json"],
                            cwd=ROOT, capture_output=True, text=True, stdin=subprocess.DEVNULL, start_new_session=True)
     d = json.loads(saida.stdout)
+    checa("--json sai no envelope que a página lê",
+          isinstance(d, dict) and "achados" in d and "_descartes" in d,
+          repr(d)[:200])
+    lote = d["achados"] if isinstance(d, dict) else d
     checa("--json com filtro devolve só os cobradores pedidos",
-          {a["cobrador"] for a in d} <= {"suites-orfas", "hook-contract"},
-          repr({a["cobrador"] for a in d}))
+          {a["cobrador"] for a in lote} <= {"suites-orfas", "hook-contract"},
+          repr({a["cobrador"] for a in lote}))
 
     print("\n%s" % ("FALHOU: " + ", ".join(falhas) if falhas else "tudo verde"))
     return 1 if falhas else 0
