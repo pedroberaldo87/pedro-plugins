@@ -13,6 +13,24 @@
 HOOKS="plugins/project-skills/hooks/pretooluse-doc-guard.sh
 plugins/graphify-guard/hooks/pretooluse-graphify-guard.sh"
 S_BASE="scope-test-$$"
+# O GRAFO É DO TESTE, NUNCA O DO REPOSITÓRIO. O gêmeo `graphify-guard` só age onde
+# acha `graphify-out/graph.json` subindo a partir do `cwd` — e `graphify-out/` está
+# no .gitignore (linha 53). Na máquina de quem escreveu ele existe, então a bateria
+# passava; no runner limpo ele não existe, o hook saía calado, e os 17 casos de
+# "busca cega tem que bloquear" reprovavam com `0 denies` — sem que nada dissesse
+# que a causa era um artefato ausente. O teste monta o seu, e mede o ESCOPO da regra
+# em vez de medir o que estava no disco de quem rodou.
+SCOPE_CWD="$(mktemp -d)"
+# CADA GÊMEO TEM O SEU PRÉ-REQUISITO, e o projeto de mentira traz os dois:
+#   graphify-guard → graphify-out/graph.json  (subindo a partir do cwd)
+#   doc-guard      → .claude/docs/ + CLAUDE.md (a doc que ele manda ler)
+# Sem eles o hook sai CALADO — que é o comportamento certo dele, e o errado para
+# uma bateria que mede ESCOPO de regra.
+mkdir -p "$SCOPE_CWD/graphify-out" "$SCOPE_CWD/.claude/docs"
+printf '{"nodes":[],"edges":[]}' > "$SCOPE_CWD/graphify-out/graph.json"
+printf '# Projeto de mentira\n' > "$SCOPE_CWD/CLAUDE.md"
+printf '# Projeto de mentira\n' > "$SCOPE_CWD/.claude/CLAUDE.md"
+printf '# arquitetura de mentira\n' > "$SCOPE_CWD/.claude/docs/architecture.md"
 # Regex e não texto fixo: a decisão é JSON, e desde o fallback sem `jq` ela é montada
 # COMPACTA (`"permissionDecision":"deny"`). Casar o espaço do `jq -n` media formatação,
 # não decisão.
@@ -21,12 +39,12 @@ PY="$(command -v python3 || command -v python)"
 
 # O graphify-guard avisa uma vez por sessão e queima um sentinel em /tmp; sem sessão
 # nova por chamada, o 2º caso da bateria sairia calado e a suíte ficaria verde à toa.
-trap 'rm -f "/tmp/claude-graphify-guard-${S_BASE}-"* 2>/dev/null' EXIT
+trap 'rm -f "/tmp/claude-graphify-guard-${S_BASE}-"* 2>/dev/null; rm -rf "$SCOPE_CWD" 2>/dev/null' EXIT
 
 deny_count() { # $1=hook  $2=comando
   S="${S_BASE}-${RANDOM}${RANDOM}"
   rm -f "/tmp/claude-graphify-guard-$S" 2>/dev/null
-  "$PY" -c "import json,sys;print(json.dumps({'tool_name':'Bash','session_id':'$S','cwd':'$PWD','tool_input':{'command':sys.argv[1]}}))" \
+  "$PY" -c "import json,sys;print(json.dumps({'tool_name':'Bash','session_id':'$S','cwd':'$SCOPE_CWD','tool_input':{'command':sys.argv[1]}}))" \
     "$2" | GRAPHIFY_DENY=1 bash "$1" 2>/dev/null | grep -cE "$DENY"
 }
 
