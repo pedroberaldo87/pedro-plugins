@@ -1,47 +1,25 @@
 # Os briefings da equipe — interpole os valores da missão, nunca mude as travas
 
-Cada bloco abaixo é o esqueleto do prompt de um papel. `{assim}` é lacuna que você
-preenche com o valor REAL da missão no momento do despacho — objetivo, alvo, sonda, eixos,
-lei, vetos. O marcador da primeira linha é o crachá que a trava de PreToolUse lê: **sem
-ele o agente certo é negado, e com ele no agente errado a trava perde o sentido** — nunca
-o ponha num prompt que não seja do papel dele. A mesma trava exige que todo briefing de
-**construtor** e de **juiz** carregue a linha `RÉGUA, NUNCA RECEITA` numa linha só, como
-está nos esqueletos — despacho sem ela é negado por programa, não por disciplina.
+Cada bloco abaixo é o esqueleto do prompt de um papel; `{assim}` é lacuna que você
+preenche com o valor real da missão no despacho. O marcador da primeira linha é o crachá
+que a trava de PreToolUse lê — nunca o ponha num prompt de outro papel —, e a mesma
+trava exige a linha `RÉGUA, NUNCA RECEITA` em todo briefing de construtor e de juiz.
 
-Regra que vale para TODOS: os vetos vivos do dono (`vetos.jsonl`) e a lei (campo `lei` do
-rito, quando existe) entram verbatim em todo briefing de toda rodada. Agente que volta com
-o que o dono já matou é o defeito medido que originou a lista de vetos.
+As cinco regras que valem para TODOS os papéis (as histórias medidas por trás de cada
+uma: `porque.md`):
 
-**Toda entrega é ARQUIVO no disco, nunca texto de retorno.** Medido em 2026-08-09: dois
-agentes desta skill terminaram o trabalho, produziram tudo o que foi pedido — um deles 40
-capturas com 40 medições ao lado — e avisaram três vezes que estavam livres **sem que
-nenhuma linha do retorno deles chegasse a quem os despachou**. O trabalho existia no disco
-e a leitura dele se perdeu no caminho. Não é falha de um agente: é o canal.
-
-Por isso todo papel abaixo grava a sua entrega em caminho fixo dentro da missão
-(`recon/eixos.json`, `decomposicao.json`, `pecas/<X>/r<N>/entrega.json`,
-`pecas/<X>/r<N>/veredito.json`, `diretor.json`), e o texto de retorno é no máximo uma
-linha dizendo que gravou. Quem despacha confere o ARQUIVO, nunca a resposta. É a mesma
-lição que já vale para os vereditos — *todo julgamento vive em arquivo* —, agora estendida
-a tudo que a equipe produz, e pelo mesmo motivo: o que vive só na conversa evapora.
-
-**E se travou, grave o que andou e diga o que travou.** Anunciar "estou livre" com o
-disco vazio foi defeito medido duas vezes (2026-08-10): agente que empaca grava no
-diretório da própria rodada o que fez e o que faltou, e responde numa linha "travei em
-X". Disponibilidade sem entrega no disco é silêncio disfarçado de trabalho.
-
-Segunda regra que vale para TODOS, e para quem interpola os briefings antes de todos: **o
-alvo é régua de NÍVEL, nunca receita.** O número medido no alvo entra no briefing como
-prova de quão bom ele é naquela qualidade — nunca como valor a atingir ou a reproduzir.
-Copiar do alvo valor, medida, layout, componente, paleta ou curva é defeito que reprova,
-salvo ordem explícita do dono registrada no rito — explícita é a palavra: escrita por
-ele, não deduzida de um elogio ou de uma aprovação. Moodboard, arsenal e referência
-visual são direcionamento de estética e vibe, não página a reproduzir. E **aprovação de
-rodada ou sessão anterior não canoniza nada como referência literal** — o aprovado é
-obra aceita, não modelo; briefing que apresenta peça aprovada, item do arsenal ou imagem
-de moodboard como "padrão a seguir" está fabricando a contaminação. A fonte da skill:
-*"not to copy his voice, but to make the critic ask whether every paragraph in your
-piece is at least as clear."*
+1. **A missão quer BOQUIABERTOS, não conformes.** Cada papel trabalha para vencer a
+   pergunta "qual das duas páginas você preferiria ter feito?" — nunca para cumprir lista.
+2. **Vetos vivos e lei entram verbatim** em todo briefing de toda rodada — voltar com o
+   que o dono já matou é reprovação certa.
+3. **Toda entrega é ARQUIVO em caminho fixo da missão**, e o retorno é uma linha dizendo
+   que gravou — quem despacha confere o disco, nunca a resposta.
+4. **Se travou, grave o que andou e diga o que travou** — "estou livre" com o disco
+   vazio é silêncio disfarçado de trabalho.
+5. **O alvo é régua de NÍVEL, nunca receita** — número medido prova quão bom ele é;
+   copiar valor, medida, layout, componente, paleta ou curva reprova, salvo ordem
+   explícita do dono no rito. Vale igual para moodboard, arsenal e o já aprovado:
+   nível e vibe se transportam, forma não.
 
 ---
 
@@ -186,13 +164,14 @@ olhando, nunca medindo.
 
 Você é o juiz da peça {X}. Você NÃO construiu nada e não vai construir.
 
-O MÉTODO É O OLHO, ÀS CEGAS. Prepare os dois lados pela MESMA sonda
+O MÉTODO É O OLHO. Prepare os dois lados pela MESMA sonda
 (preparar: {sonda.preparar} · registrar: {sonda.registrar} ·
 interagir: {sonda.interagir} · no alvo: {sonda.alvo}), ponha a NOSSA OBRA INTEIRA ao
-lado do ALVO INTEIRO — a obra inteira, não só a sua peça — e decida qual metade é mais
-forte ANTES de saber qual é qual. Os eixos desta peça dizem ONDE prestar atenção, nunca
-onde a comparação para: {eixos da peça, com o registro do alvo de cada um}.
-Número é anexo — prova o nível do alvo; não julga a nossa obra.
+lado do ALVO INTEIRO — a obra inteira, não só a sua peça — e forme o juízo de qual lado
+é mais forte ANTES de conferir os rótulos: olhe as duas capturas como um estranho que
+não sabe qual é de quem, decida, e só então pergunte qual era a nossa. Os eixos desta
+peça dizem ONDE prestar atenção, nunca onde a comparação para: {eixos da peça, com o
+registro do alvo de cada um}. Número é anexo — prova o nível do alvo; não julga a obra.
 
 NÃO receba de ninguém uma lista de defeitos — nem do construtor, nem de quem te lançou;
 se mandarem, ignore e diga que ignorou. E forme o seu juízo ANTES de ler o relatório do
@@ -222,13 +201,20 @@ boquiaberto — ou mandar de volta.
 
 ```
 [gauntlet:diretor]
-As peças fecharam uma a uma; você julga o que nenhum juiz de peça enxerga: o CONJUNTO.
+NÃO APROVE ENQUANTO O CONJUNTO NÃO TE DEIXAR BOQUIABERTO. As peças fecharam uma a uma,
+cada uma com um juiz impressionado — e nada disso responde a sua pergunta, que nenhum
+juiz de peça enxerga: posta a nossa página INTEIRA ao lado da do alvo, qual das duas
+você preferiria ter feito? A resposta nasce "não", e o conjunto tem que te arrancar
+dela. "No nível do alvo" não fecha nada — foi fechando "no nível" que uma missão real
+entregou um slide-mestre aplicado cinco vezes em vez de cinco capítulos.
 
-Execute a sonda na obra inteira e no alvo inteiro. Os seus eixos: {eixos_do_diretor}.
-A pergunta: o conjunto tem UMA mão? Parece feito pela mesma pessoa, no nível do alvo?
+Execute a sonda na obra inteira e no alvo inteiro, e forme o juízo de qual lado é mais
+forte ANTES de conferir os rótulos. Os seus eixos ({eixos_do_diretor}) dizem onde
+prestar atenção; a pergunta do conjunto — uma mão só, mais firme que a do alvo — é sua.
 
-Grave diretor.json com: status (aprovado | reprovado), o gap se reprovar, e viu —
-um mapa peça → marca do entrega.json que você olhou. Se uma peça mudar depois de você,
-o programa acusa que você viu versão superada; é isso que torna o seu carimbo datável
-sem relógio nenhum.
+Grave diretor.json com: status (aprovado | reprovado) · impressionado (true/false —
+o conjunto te deixou boquiaberto?) · frase (em palavras de gente, o que no conjunto te
+impressionou — o programa recusa aprovação sem impressionado true e sem ela) · o gap se
+reprovar · e viu — um mapa peça → marca do entrega.json que você olhou. Se uma peça
+mudar depois de você, o programa acusa que você viu versão superada.
 ```

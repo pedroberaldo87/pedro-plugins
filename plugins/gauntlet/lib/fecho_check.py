@@ -443,6 +443,16 @@ def _erros_do_veredito(missao, peca, dir_rodada, nomes_de_eixo, raiz=None,
                 "%s %s: a missão tem arsenal e a entrega não declara `arsenal_usado`"
                 % (peca, rodada)
             )
+        # "Each sub-agent utterly wowed" vale para quem CONSTRÓI também: a entrega
+        # declara, em frase de gente, o que nela orgulha o construtor diante do alvo.
+        # Sem cobrador isto era prosa de briefing — a classe de regra que morre.
+        orgulho = ent.get("orgulho")
+        if not orgulho or not isinstance(orgulho, str):
+            erros.append(
+                "%s %s: a entrega não declara `orgulho` — o construtor diz, em uma "
+                "frase, o que nesta entrega o orgulha diante do alvo; se nada orgulha, "
+                "não terminou" % (peca, rodada)
+            )
         artefatos = ent.get("artefatos") or []
         if not artefatos:
             erros.append("%s %s: o manifesto não lista artefato nenhum" % (peca, rodada))
@@ -617,6 +627,20 @@ def erros_do_fecho(missao):
     else:
         if diretor.get("status") != "aprovado":
             erros.append("o diretor não aprovou o conjunto")
+        # A mesma barra do juiz de peça, no CONJUNTO. Sem isto a barra fatiada voltava
+        # pela última porta: cada peça exigia juiz boquiaberto e a missão fechava com o
+        # conjunto apenas "no nível" — e foi no conjunto que a falha real morava ("um
+        # slide-mestre aplicado cinco vezes em vez de cinco capítulos").
+        elif diretor.get("impressionado") is not True:
+            erros.append(
+                "o diretor aprovou o conjunto sem declarar `impressionado: true` — "
+                "aprovar É a declaração de impressão, no conjunto como na peça"
+            )
+        elif not diretor.get("frase") or not isinstance(diretor.get("frase"), str):
+            erros.append(
+                "falta a `frase` do diretor — em palavras de gente, o que no conjunto "
+                "o impressionou diante do alvo inteiro"
+            )
         # Sem relógio: o diretor diz QUAL entrega de cada peça ele viu, e o programa
         # compara com a vigente. Data seria frágil — não sobrevive a clone nem a cópia.
         viu = diretor.get("viu") or {}

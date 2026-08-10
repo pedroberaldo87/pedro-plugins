@@ -374,3 +374,22 @@ origens, na íntegra:
   à vontade; o que não se fabrica é o que se passaria por foto ou registro do que não
   aconteceu. Asset real que falta (pessoa, logotipo, lugar) ganha lugar honesto e sai do
   julgamento. A regra sem essa distinção era invenção de agente, corrigida pelo dono.
+
+## As histórias das regras comuns dos briefings (movidas no enxugamento de 0.9.x)
+
+- **Toda entrega é arquivo, nunca texto de retorno.** Medido em 2026-08-09: dois agentes
+  terminaram o trabalho — um deles com 40 capturas e 40 medições ao lado —, avisaram três
+  vezes que estavam livres, e nenhuma linha do retorno deles chegou a quem os despachou.
+  O trabalho existia no disco e a leitura se perdeu no caminho: não é falha de agente, é
+  o canal. Por isso cada papel grava em caminho fixo (`recon/eixos.json`,
+  `decomposicao.json`, `pecas/<X>/r<N>/entrega.json`, `veredito.json`, `diretor.json`) e
+  quem despacha confere o arquivo.
+- **A fonte da régua anti-cópia**, verbatim: *"not to copy his voice, but to make the
+  critic ask whether every paragraph in your piece is at least as clear."* E a ordem do
+  dono que a selou: cópia só com ordem explícita dele, escrita — nunca deduzida de um
+  elogio ou de uma aprovação anterior.
+- **O diretor exigindo impressão no conjunto (0.9.x).** Com cada peça exigindo juiz
+  boquiaberto, a última porta da barra fatiada era o conjunto fechar "no nível do alvo" —
+  a pergunta de conformidade. O diretor agora declara `impressionado` e a frase, cobrados
+  por `fecho_check.py`, e o orgulho do construtor virou campo recusável da entrega pela
+  mesma razão: "each sub-agent utterly wowed" é CADA subagente, não um.
