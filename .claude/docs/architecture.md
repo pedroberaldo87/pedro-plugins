@@ -1,7 +1,5 @@
 ---
-doc-sig: pedro-plugins/architecture@gen=3.8#a65a9fed
----
----
+doc-sig: pedro-plugins/architecture@gen=3.8#fb1e6e34
 generated: 2026-08-09
 generated-commit: 19a7ad7
 project: pedro-plugins
@@ -86,7 +84,8 @@ verified-by:
   - plugins/branches/lib/test_branch_state.py
   - plugins/guardrails/lib/test_askq_lint.py
   - plugins/slides/lib/test_md2deck.py
-doc-sig: pedro-plugins/marketplace.json@gen=3.8#b3ff1b39---
+doc-sig: pedro-plugins/marketplace.json@gen=3.8#b3ff1b39
+---
 
 # Arquitetura — pedro-plugins
 
