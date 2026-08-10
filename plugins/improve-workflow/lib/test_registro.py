@@ -193,12 +193,12 @@ def caso_cli():
     try:
         um = subprocess.run([sys.executable, os.path.join(AQUI, "registro.py"),
                              "gravar", RUN_ANTES],
-                            capture_output=True, text=True, env=env,
+                            capture_output=True, text=True, encoding="utf-8", errors="replace", env=env,
                             stdin=subprocess.DEVNULL, start_new_session=True)
         dois = subprocess.run([sys.executable, os.path.join(AQUI, "registro.py"),
                                "gravar", RUN_DEPOIS,
                                "--conserto", "EXECUTOR:turnos_por_agente:teto de 1 turno"],
-                              capture_output=True, text=True, env=env,
+                              capture_output=True, text=True, encoding="utf-8", errors="replace", env=env,
                               stdin=subprocess.DEVNULL, start_new_session=True)
         check("as duas rodadas saem com sucesso",
               um.returncode == 0 and dois.returncode == 0)
@@ -211,7 +211,7 @@ def caso_cli():
         check("a segunda rodada acusa o par invertido",
               [x["papel"] for x in s["contra_a_anterior"]["par_invertido"]] == ["EXECUTOR"])
         lido = subprocess.run([sys.executable, os.path.join(AQUI, "registro.py"), "ler"],
-                              capture_output=True, text=True, env=env,
+                              capture_output=True, text=True, encoding="utf-8", errors="replace", env=env,
                               stdin=subprocess.DEVNULL, start_new_session=True)
         check("`ler` devolve as duas rodadas gravadas",
               [r["run"] for r in json.loads(lido.stdout)] == ["run-par-antes", "run-par-depois"])

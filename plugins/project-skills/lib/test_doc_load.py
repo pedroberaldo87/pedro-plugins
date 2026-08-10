@@ -98,7 +98,7 @@ alvo = os.path.join(raiz, ".claude", "docs", "constituicao.md")
 py = dl.cksum(alvo)
 shell = subprocess.run(
     ["sh", "-c", f". {AQUI}/../hooks/lib-doc-mark.sh && doc_marca '{alvo}'"],
-    capture_output=True, text=True, stdin=subprocess.DEVNULL, start_new_session=True)
+    capture_output=True, text=True, encoding="utf-8", errors="replace", stdin=subprocess.DEVNULL, start_new_session=True)
 check("a marca do programa bate com a do lib-doc-mark.sh",
       shell.returncode == 0 and shell.stdout.strip() == str(py),
       f"shell={shell.stdout.strip()!r} python={py}")
@@ -186,22 +186,22 @@ check("dispensa SEM motivo aparece com motivo nulo", e["dispensa"]["motivo"] is 
 # ── o comando de linha ────────────────────────────────────────────────────────
 r = projeto({"constituicao.md": DOC_LEI_READY})
 p = subprocess.run([sys.executable, os.path.join(AQUI, "doc_load.py"), "--project-root", r],
-                   capture_output=True, text=True, stdin=subprocess.DEVNULL, start_new_session=True)
+                   capture_output=True, text=True, encoding="utf-8", errors="replace", stdin=subprocess.DEVNULL, start_new_session=True)
 check("o comando sai 0 e diz o que vale como régua",
       p.returncode == 0 and "VALE COMO RÉGUA" in p.stdout and "constituicao.md" in p.stdout,
       p.stdout[:200])
 
 p = subprocess.run([sys.executable, os.path.join(AQUI, "doc_load.py"), "--project-root", r, "--json"],
-                   capture_output=True, text=True, stdin=subprocess.DEVNULL, start_new_session=True)
+                   capture_output=True, text=True, encoding="utf-8", errors="replace", stdin=subprocess.DEVNULL, start_new_session=True)
 check("--json devolve JSON válido com a régua dentro",
       p.returncode == 0 and json.loads(p.stdout)["regua"] == [".claude/docs/constituicao.md"])
 
 p = subprocess.run([sys.executable, os.path.join(AQUI, "doc_load.py"), "--project-root", r, "--marca"],
-                   capture_output=True, text=True, stdin=subprocess.DEVNULL, start_new_session=True)
+                   capture_output=True, text=True, encoding="utf-8", errors="replace", stdin=subprocess.DEVNULL, start_new_session=True)
 check("--marca imprime só o número", p.returncode == 0 and p.stdout.strip().isdigit(), p.stdout[:80])
 
 p = subprocess.run([sys.executable, os.path.join(AQUI, "doc_load.py"), "--project-root", "/nao/existe"],
-                   capture_output=True, text=True, stdin=subprocess.DEVNULL, start_new_session=True)
+                   capture_output=True, text=True, encoding="utf-8", errors="replace", stdin=subprocess.DEVNULL, start_new_session=True)
 check("raiz inexistente reprova em voz alta, não em silêncio",
       p.returncode == 2 and "não é um diretório" in p.stderr, f"rc={p.returncode} {p.stderr[:80]}")
 

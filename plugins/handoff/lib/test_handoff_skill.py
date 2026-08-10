@@ -50,7 +50,7 @@ def bash_posix():
         if not c or not os.path.exists(c):
             continue
         try:
-            r = subprocess.run([c, "-c", "echo VIVO"], capture_output=True, text=True,
+            r = subprocess.run([c, "-c", "echo VIVO"], capture_output=True, text=True, encoding="utf-8", errors="replace",
                                timeout=20, stdin=subprocess.DEVNULL, start_new_session=True)
         except (OSError, subprocess.SubprocessError):
             continue
@@ -198,7 +198,7 @@ def main():
                       "w", encoding="utf-8") as fh:
                 json.dump(PLANO, fh, ensure_ascii=False)
             cmd = candidatos[0].replace("<project_root>", raiz)
-            proc = subprocess.run([BASH, "-c", cmd], capture_output=True, text=True, stdin=subprocess.DEVNULL, start_new_session=True)
+            proc = subprocess.run([BASH, "-c", cmd], capture_output=True, text=True, encoding="utf-8", errors="replace", stdin=subprocess.DEVNULL, start_new_session=True)
             saida = proc.stdout
             check("o comando roda sem erro (%s)" % (proc.stderr.strip()[:80] or "ok"),
                   proc.returncode == 0)
@@ -232,7 +232,7 @@ def main():
                   os.path.getmtime(velho) > os.path.getmtime(novo))
 
             cmd = wcands[0].replace("<project_root>", parado)
-            proc = subprocess.run([BASH, "-c", cmd], capture_output=True, text=True, stdin=subprocess.DEVNULL, start_new_session=True)
+            proc = subprocess.run([BASH, "-c", cmd], capture_output=True, text=True, encoding="utf-8", errors="replace", stdin=subprocess.DEVNULL, start_new_session=True)
             check("o comando roda sem erro (%s)" % (proc.stderr.strip()[:80] or "ok"),
                   proc.returncode == 0)
             # BARRA NORMALIZADA DOS DOIS LADOS: o `git worktree list` devolve o
@@ -263,7 +263,7 @@ def main():
             with open(hpath, "w", encoding="utf-8") as fh:
                 fh.write(HANDOFF_COM_ARMADILHA)
             cmd = acands[0].replace("<handoff_path>", hpath)
-            proc = subprocess.run([BASH, "-c", cmd], capture_output=True, text=True, stdin=subprocess.DEVNULL, start_new_session=True)
+            proc = subprocess.run([BASH, "-c", cmd], capture_output=True, text=True, encoding="utf-8", errors="replace", stdin=subprocess.DEVNULL, start_new_session=True)
             saida = proc.stdout
             check("o comando roda sem erro (%s)" % (proc.stderr.strip()[:80] or "ok"),
                   proc.returncode == 0)

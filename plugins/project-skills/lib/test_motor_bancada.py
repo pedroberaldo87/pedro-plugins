@@ -481,7 +481,7 @@ def roda_motor(tmp, texto, plan_dir, tick_cmd, plan_path, token_budget=None,
     with open(cfg_path, "w", encoding="utf-8") as fh:
         json.dump(cfg, fh)
     proc = subprocess.run(["node", harness, cfg_path, corpo],
-                          capture_output=True, text=True, cwd=tmp, stdin=subprocess.DEVNULL, start_new_session=True)
+                          capture_output=True, text=True, encoding="utf-8", errors="replace", cwd=tmp, stdin=subprocess.DEVNULL, start_new_session=True)
     if proc.returncode != 0:
         raise AssertionError("o motor nao rodou: %s" % (proc.stderr.strip() or proc.stdout.strip()))
     with open(out, encoding="utf-8") as fh:
@@ -493,7 +493,7 @@ def cria_plano(plan_dir):
     with open(entrada, "w", encoding="utf-8") as fh:
         json.dump(PLANO, fh)
     proc = subprocess.run([sys.executable, PLAN_STATE, "--dir", plan_dir, "init", "--file", entrada],
-                          capture_output=True, text=True, stdin=subprocess.DEVNULL, start_new_session=True)
+                          capture_output=True, text=True, encoding="utf-8", errors="replace", stdin=subprocess.DEVNULL, start_new_session=True)
     if proc.returncode != 0:
         raise AssertionError("o plano de bancada nao foi criado: %s" % proc.stderr.strip())
     return os.path.join(plan_dir, "%s.plan.json" % PLANO["id"])
@@ -528,7 +528,7 @@ def bancada_git(texto, tick_cmd, ck_cmd, sujeira_no_indice=None, **kw):
     try:
         def git(*args):
             return subprocess.run(["git", "-C", repo] + list(args),
-                                  capture_output=True, text=True, stdin=subprocess.DEVNULL, start_new_session=True)
+                                  capture_output=True, text=True, encoding="utf-8", errors="replace", stdin=subprocess.DEVNULL, start_new_session=True)
         git("init", "-q")
         git("config", "user.email", "bancada@exemplo.invalido")
         git("config", "user.name", "bancada")
@@ -660,7 +660,7 @@ def bancada_qa(rodadas, max_rounds=6, confirm=None, regride=None):
         with open(cfg_path, "w", encoding="utf-8") as fh:
             json.dump(cfg, fh)
         proc = subprocess.run(["node", harness, cfg_path, corpo], capture_output=True,
-                              text=True, cwd=tmp, stdin=subprocess.DEVNULL, start_new_session=True)
+                              text=True, encoding="utf-8", errors="replace", cwd=tmp, stdin=subprocess.DEVNULL, start_new_session=True)
         if proc.returncode != 0:
             check("o motor de revisao rodou de ponta a ponta (%s)"
                   % (proc.stderr.strip() or proc.stdout.strip()), False)

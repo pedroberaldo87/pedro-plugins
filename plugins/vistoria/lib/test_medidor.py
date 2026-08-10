@@ -39,7 +39,7 @@ def checa(nome, cond, detalhe=""):
 
 def roda_json(*args):
     saida = subprocess.run([sys.executable, os.path.join(ROOT, args[0])] + list(args[1:]),
-                           cwd=ROOT, capture_output=True, text=True, stdin=subprocess.DEVNULL, start_new_session=True)
+                           cwd=ROOT, capture_output=True, text=True, encoding="utf-8", errors="replace", stdin=subprocess.DEVNULL, start_new_session=True)
     return json.loads(saida.stdout)
 
 
@@ -117,11 +117,11 @@ def main():
         "medidor.main(['hook-contract', '--json'])" % AQUI)
     tmp = tempfile.mkdtemp(prefix="vistoria-medidor-")
     p1 = subprocess.run([sys.executable, "-c", esboco], cwd=ROOT,
-                        capture_output=True, text=True, stdin=subprocess.DEVNULL,
+                        capture_output=True, text=True, encoding="utf-8", errors="replace", stdin=subprocess.DEVNULL,
                         start_new_session=True)
     p2 = subprocess.run([sys.executable, os.path.join(AQUI, "pagina.py"),
                          "--dir", tmp], input=p1.stdout, cwd=ROOT,
-                        capture_output=True, text=True, start_new_session=True)
+                        capture_output=True, text=True, encoding="utf-8", errors="replace", start_new_session=True)
     pag = open(p2.stdout.strip(), encoding="utf-8").read() if p2.returncode == 0 else ""
     checa("medidor→página: o descartado aparece no rodapé",
           "descartado por falta de prova" in pag and "x/hooks.json:3" in pag,
@@ -148,7 +148,7 @@ def main():
     # --- a saída de linha de comando ---------------------------------------------
     saida = subprocess.run([sys.executable, os.path.join(AQUI, "medidor.py"),
                             "suites-orfas", "hook-contract", "--json"],
-                           cwd=ROOT, capture_output=True, text=True, stdin=subprocess.DEVNULL, start_new_session=True)
+                           cwd=ROOT, capture_output=True, text=True, encoding="utf-8", errors="replace", stdin=subprocess.DEVNULL, start_new_session=True)
     d = json.loads(saida.stdout)
     checa("--json sai no envelope que a página lê",
           isinstance(d, dict) and "achados" in d and "_descartes" in d,

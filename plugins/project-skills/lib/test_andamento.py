@@ -368,7 +368,7 @@ def main():
         env = dict(os.environ, CLAUDE_PLUGIN_ROOT=raiz,
                    CLAUDE_CONFIG_DIR=casa_mon)
         vazio = subprocess.run(["bash", "-c", blocos[0]], env=env,
-                               capture_output=True, text=True,
+                               capture_output=True, text=True, encoding="utf-8", errors="replace",
                                stdin=subprocess.DEVNULL, start_new_session=True)
         check("sem missão de pé o comando diz isso e sai bem",
               vazio.returncode == 0 and "nenhuma missão de pé" in vazio.stdout)
@@ -378,7 +378,7 @@ def main():
                   "w", encoding="utf-8") as fh:
             fh.write("qa-loop\n")
         vivo = subprocess.run(["bash", "-c", blocos[0]], env=env,
-                              capture_output=True, text=True,
+                              capture_output=True, text=True, encoding="utf-8", errors="replace",
                               stdin=subprocess.DEVNULL, start_new_session=True)
         check("com missão de pé imprime a sessão e o motor lidos do disco",
               "s-mon" in vivo.stdout and "🚀 Qa-loop · Missão há" in vivo.stdout)
@@ -405,7 +405,7 @@ def main():
              "doc", "s-cli", "4", "a.md", "b.md"],
             env=dict(os.environ, CLAUDE_CONFIG_DIR=tmp_doc),
             stdin=subprocess.DEVNULL, start_new_session=True,
-            capture_output=True, text=True)
+            capture_output=True, text=True, encoding="utf-8", errors="replace")
         check("a CLI que o papel de doc chama grava na casa do estado",
               cli.returncode == 0
               and a.ultima_doc("s-cli", os.path.join(tmp_doc, "andamento")
@@ -438,7 +438,7 @@ def main():
                 [sys.executable, andamento_py, "encerra", *args],
                 env=dict(os.environ, CLAUDE_CONFIG_DIR=tmp_dono),
                 stdin=subprocess.DEVNULL, start_new_session=True,
-                capture_output=True, text=True)
+                capture_output=True, text=True, encoding="utf-8", errors="replace")
 
         _acende("s-dono", "gauntlet")
         alheio = _encerra("s-dono", "sprint")

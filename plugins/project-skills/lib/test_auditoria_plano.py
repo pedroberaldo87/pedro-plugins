@@ -59,7 +59,7 @@ def _saida(mapa, semente):
     env = dict(os.environ, PYTHONHASHSEED=semente)
     p = subprocess.run([sys.executable, "-c", SONDA % AQUI],
                        input=json.dumps(mapa), env=env,
-                       capture_output=True, text=True, start_new_session=True)
+                       capture_output=True, text=True, encoding="utf-8", errors="replace", start_new_session=True)
     return p.stdout
 
 

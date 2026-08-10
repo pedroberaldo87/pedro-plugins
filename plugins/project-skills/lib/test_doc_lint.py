@@ -51,7 +51,7 @@ def make_repo(td):
     subprocess.run(["git", "-C", td, "add", "-A"], check=True, stdin=subprocess.DEVNULL, start_new_session=True)
     git_commit(td, "init")
     return subprocess.run(["git", "-C", td, "rev-parse", "HEAD"],
-                          capture_output=True, text=True, stdin=subprocess.DEVNULL, start_new_session=True).stdout.strip()
+                          capture_output=True, text=True, encoding="utf-8", errors="replace", stdin=subprocess.DEVNULL, start_new_session=True).stdout.strip()
 
 
 def write_doc(td, name, body):

@@ -36,7 +36,7 @@ def checa(nome, cond, detalhe=""):
 
 def roda(*args):
     return subprocess.run([sys.executable, os.path.join(AQUI, "fio_morto.py")] + list(args),
-                          capture_output=True, text=True, stdin=subprocess.DEVNULL,
+                          capture_output=True, text=True, encoding="utf-8", errors="replace", stdin=subprocess.DEVNULL,
                           start_new_session=True)
 
 

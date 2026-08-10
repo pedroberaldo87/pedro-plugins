@@ -62,7 +62,7 @@ def main():
     saida = subprocess.run([sys.executable, os.path.join(AQUI, "pagina.py"),
                             "--dir", tmp],
                            input=json.dumps(AMOSTRA), cwd=ROOT,
-                           capture_output=True, text=True, start_new_session=True)
+                           capture_output=True, text=True, encoding="utf-8", errors="replace", start_new_session=True)
     caminho = saida.stdout.strip()
     checa("o comando sai 0", saida.returncode == 0, saida.stderr[-300:])
     checa("imprime o caminho do HTML dentro do --dir pedido",
@@ -126,7 +126,7 @@ def main():
     saida3 = subprocess.run([sys.executable, os.path.join(AQUI, "pagina.py"),
                              "--dir", os.path.join(tmp, "dsc")],
                             input=json.dumps({"achados": AMOSTRA, "_descartes": dsc}),
-                            cwd=ROOT, capture_output=True, text=True,
+                            cwd=ROOT, capture_output=True, text=True, encoding="utf-8", errors="replace",
                             start_new_session=True)
     t3 = open(saida3.stdout.strip(), encoding="utf-8").read() if saida3.returncode == 0 else ""
     checa("o descarte do JSON sai listado no rodapé da página",

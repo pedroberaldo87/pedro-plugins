@@ -77,7 +77,7 @@ def roda(raiz, texto, sessao="s1", stop_hook_active=False, env_extra=None):
     env.pop("ANUNCIO_ACAO", None)
     env.update(env_extra or {})
     r = subprocess.run([sys.executable, HOOK], input=payload, capture_output=True,
-                       text=True, env=env, cwd=raiz, timeout=30, start_new_session=True)
+                       text=True, encoding="utf-8", errors="replace", env=env, cwd=raiz, timeout=30, start_new_session=True)
     saida = (r.stdout or "").strip()
     if not saida:
         return False, ""
@@ -215,14 +215,14 @@ def main():
         print()
         print("Fail-open — infra quebrada nunca prende a sessão")
         r = subprocess.run([sys.executable, HOOK], input="isto nao e json",
-                           capture_output=True, text=True, timeout=20, start_new_session=True)
+                           capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=20, start_new_session=True)
         check("payload ilegível sai calado e com sucesso",
               r.returncode == 0 and not (r.stdout or "").strip())
 
         trans_sumido = json.dumps({"session_id": "x", "cwd": raiz,
                                    "transcript_path": os.path.join(raiz, "nao-existe")})
         r = subprocess.run([sys.executable, HOOK], input=trans_sumido,
-                           capture_output=True, text=True, timeout=20, start_new_session=True)
+                           capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=20, start_new_session=True)
         check("transcript ausente sai calado", r.returncode == 0
               and not (r.stdout or "").strip())
     finally:

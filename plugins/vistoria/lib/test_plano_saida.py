@@ -50,7 +50,7 @@ AMOSTRA = [
 
 
 def roda(cmd, **kw):
-    return subprocess.run(cmd, cwd=ROOT, capture_output=True, text=True,
+    return subprocess.run(cmd, cwd=ROOT, capture_output=True, text=True, encoding="utf-8", errors="replace",
                           stdin=subprocess.DEVNULL, start_new_session=True, **kw)
 
 
@@ -58,7 +58,7 @@ def gera(destino, env=None):
     return subprocess.run(
         [sys.executable, os.path.join(AQUI, "plano_saida.py"),
          "--dir", destino, "--data", DATA],
-        input=json.dumps(AMOSTRA), cwd=ROOT, capture_output=True, text=True,
+        input=json.dumps(AMOSTRA), cwd=ROOT, capture_output=True, text=True, encoding="utf-8", errors="replace",
         start_new_session=True, env=env)
 
 

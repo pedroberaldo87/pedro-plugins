@@ -355,7 +355,7 @@ def main():
         os.makedirs(vazio)
         ausente = subprocess.run(
             ["bash", DIAGRAMA, proj, "workflow", ENTRADA_EXEMPLO, "organismo.html"],
-            capture_output=True, text=True,
+            capture_output=True, text=True, encoding="utf-8", errors="replace",
             env=dict(os.environ, CLAUDE_PLUGIN_ROOT=vazio, CLAUDE_CONFIG_DIR=vazio), stdin=subprocess.DEVNULL, start_new_session=True)
         check("sem archify: codigo 3 e a linha DEGRADADO, sem travar",
               ausente.returncode == 3 and "DEGRADADO:" in ausente.stdout)
@@ -363,7 +363,7 @@ def main():
               not os.path.exists(os.path.join(proj, ".claude", "archify")))
         fora_da_regua = subprocess.run(
             ["bash", DIAGRAMA, proj, "workflow", ENTRADA_EXEMPLO, "blueprint.html"],
-            capture_output=True, text=True,
+            capture_output=True, text=True, encoding="utf-8", errors="replace",
             env=dict(os.environ, CLAUDE_PLUGIN_ROOT=PLUGIN), stdin=subprocess.DEVNULL, start_new_session=True)
         check("nome fora da regua do archify e recusado",
               fora_da_regua.returncode == 2)
@@ -375,7 +375,7 @@ def main():
         else:
             presente = subprocess.run(
                 ["bash", DIAGRAMA, proj, "workflow", ENTRADA_EXEMPLO, "organismo.html"],
-                capture_output=True, text=True,
+                capture_output=True, text=True, encoding="utf-8", errors="replace",
                 env=dict(os.environ, CLAUDE_PLUGIN_ROOT=PLUGIN), stdin=subprocess.DEVNULL, start_new_session=True)
             esperado = os.path.join(proj, ".claude", "archify", "organismo.html")
             check("com archify: o html nasce em .claude/archify/ pela regua de nome dele",
@@ -506,7 +506,7 @@ def main():
         proc = subprocess.run(
             [sys.executable, VISUAL_PAGE, "build", "--spec", "-", "--out", saida],
             input=json.dumps(_spec_aprovacao(BANCADA_JOURNEYS)),
-            capture_output=True, text=True, start_new_session=True)
+            capture_output=True, text=True, encoding="utf-8", errors="replace", start_new_session=True)
         html = open(saida, encoding="utf-8").read() if os.path.exists(saida) else ""
         check("a pagina de aprovacao da etapa e montada pelo programa do /visual",
               proc.returncode == 0 and html)
@@ -520,7 +520,7 @@ def main():
         spec_vazio = _spec_aprovacao("")
         proc2 = subprocess.run(
             [sys.executable, VISUAL_PAGE, "build", "--spec", "-", "--out", vazio],
-            input=json.dumps(spec_vazio), capture_output=True, text=True, start_new_session=True)
+            input=json.dumps(spec_vazio), capture_output=True, text=True, encoding="utf-8", errors="replace", start_new_session=True)
         check("pagina de aprovacao SEM o documento e recusada, sem escrever arquivo",
               proc2.returncode == 2 and not os.path.exists(vazio))
 
@@ -551,7 +551,7 @@ def main():
         fh.write(BANCADA_BLUEPRINT)
     antes = _impressao(banca)
     proc = subprocess.run([sys.executable, RASTREIO, banca],
-                          capture_output=True, text=True, stdin=subprocess.DEVNULL, start_new_session=True)
+                          capture_output=True, text=True, encoding="utf-8", errors="replace", stdin=subprocess.DEVNULL, start_new_session=True)
     check("a conferencia roda no projeto de bancada e devolve JSON",
           proc.returncode == 0 and proc.stdout.strip().startswith("{"))
     saida = json.loads(proc.stdout) if proc.stdout.strip().startswith("{") else {}

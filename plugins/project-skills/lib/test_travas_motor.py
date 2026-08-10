@@ -96,7 +96,7 @@ def roda_a_fila(bloco, decomp_js, blockers_js="[]"):
             "const log = () => {};\n%s\n"
             "console.log(JSON.stringify({ fila: todo.map(t => t.id), esperandoVoce }))\n"
             % (blockers_js, decomp_js, bloco))
-    out = subprocess.run(["node", "-e", prog], capture_output=True, text=True, stdin=subprocess.DEVNULL, start_new_session=True)
+    out = subprocess.run(["node", "-e", prog], capture_output=True, text=True, encoding="utf-8", errors="replace", stdin=subprocess.DEVNULL, start_new_session=True)
     if out.returncode != 0:
         return {"erro": out.stderr.strip()[:200]}
     try:
@@ -126,7 +126,7 @@ def roda_a_tranca(bloco, decomp_js, results_js):
     prog = ("const blockers = []; const decomp = %s; const results = %s;\n%s\n"
             "console.log(JSON.stringify({ blockers, results }))\n"
             % (decomp_js, results_js, bloco))
-    out = subprocess.run(["node", "-e", prog], capture_output=True, text=True, stdin=subprocess.DEVNULL, start_new_session=True)
+    out = subprocess.run(["node", "-e", prog], capture_output=True, text=True, encoding="utf-8", errors="replace", stdin=subprocess.DEVNULL, start_new_session=True)
     if out.returncode != 0:
         return {"erro": out.stderr.strip()[:200]}
     try:
@@ -164,7 +164,7 @@ def roda_a_regua(bloco, decomp_js, regua_js):
             "(async () => {\n%s\n"
             "console.log(JSON.stringify({ blockers, fila: decomp.tasks.map(t => t.id) }))\n"
             "})()\n" % (decomp_js, regua_js, bloco))
-    out = subprocess.run(["node", "-e", prog], capture_output=True, text=True, stdin=subprocess.DEVNULL, start_new_session=True)
+    out = subprocess.run(["node", "-e", prog], capture_output=True, text=True, encoding="utf-8", errors="replace", stdin=subprocess.DEVNULL, start_new_session=True)
     if out.returncode != 0:
         return {"erro": out.stderr.strip()[:200]}
     try:
@@ -182,7 +182,7 @@ def veredito_da_regua_real(pronto, onde):
     if not os.path.exists(prog):
         return None
     out = subprocess.run([sys.executable, prog, "--onde", onde, "-"],
-                         input=pronto, capture_output=True, text=True, start_new_session=True)
+                         input=pronto, capture_output=True, text=True, encoding="utf-8", errors="replace", start_new_session=True)
     return out.returncode
 
 
@@ -213,7 +213,7 @@ def roda_a_compilacao(bloco, raiz):
                 "CLAUDE_CODE_SESSION_ID": "sessao-de-teste",
                 "SPRINT_REPO_ROOT": raiz,
                 "SPRINT_BUILD_CMD": "./compilar.sh"})
-    casca = subprocess.run(["sh", "-c", bloco], capture_output=True, text=True, env=amb, stdin=subprocess.DEVNULL, start_new_session=True)
+    casca = subprocess.run(["sh", "-c", bloco], capture_output=True, text=True, encoding="utf-8", errors="replace", env=amb, stdin=subprocess.DEVNULL, start_new_session=True)
     if casca.returncode != 0:
         return {"erro": casca.stderr.strip()[:200]}
     # A compilacao do EXECUTOR: o mesmo comando, depois do passo da casca.
@@ -286,7 +286,7 @@ def roda_a_colheita(bloco, layout, quebra=False):
                     # apontar o cache para a arvore de mentira, o caso `ausente` acharia
                     # o lixeiro de verdade de quem roda o teste e provaria o contrario.
                     "CLAUDE_CONFIG_DIR": os.path.join(raiz, "config")})
-        out = subprocess.run(["bash", "-c", bloco], capture_output=True, text=True,
+        out = subprocess.run(["bash", "-c", bloco], capture_output=True, text=True, encoding="utf-8", errors="replace",
                              env=amb, stdin=subprocess.DEVNULL, start_new_session=True)
         return {"rc": out.returncode,
                 "saida": (out.stdout + out.stderr).strip()}
@@ -302,7 +302,7 @@ def roda_em_node(conv, entrada):
     if not shutil.which("node"):
         return "SEM-NODE"
     prog = "const args = %s;\n%s\nconsole.log(ARGS.severityFloor)\n" % (entrada, conv)
-    out = subprocess.run(["node", "-e", prog], capture_output=True, text=True, stdin=subprocess.DEVNULL, start_new_session=True)
+    out = subprocess.run(["node", "-e", prog], capture_output=True, text=True, encoding="utf-8", errors="replace", stdin=subprocess.DEVNULL, start_new_session=True)
     return out.stdout.strip() if out.returncode == 0 else "ERRO: %s" % out.stderr.strip()
 
 

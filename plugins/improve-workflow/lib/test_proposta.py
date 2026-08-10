@@ -48,7 +48,7 @@ def pagina(spec, tmp):
     caminho = os.path.join(tmp, "p.html")
     r = subprocess.run([sys.executable, VISUAL_PAGE, "build", "--spec", "-",
                         "--out", caminho],
-                       input=json.dumps(spec), capture_output=True, text=True,
+                       input=json.dumps(spec), capture_output=True, text=True, encoding="utf-8", errors="replace",
                        start_new_session=True)
     if r.returncode != 0:
         return None, r.stderr

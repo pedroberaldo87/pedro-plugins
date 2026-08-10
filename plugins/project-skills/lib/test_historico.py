@@ -183,14 +183,14 @@ def test_cli():
          "--antigo", ITEM, "--novo", NOVO,
          "--contexto", "refeita a entrevista", "--decisao", "integridade subiu",
          "--data", "2026-08-06"],
-        capture_output=True, text=True, stdin=subprocess.DEVNULL, start_new_session=True)
+        capture_output=True, text=True, encoding="utf-8", errors="replace", stdin=subprocess.DEVNULL, start_new_session=True)
     assert p.returncode == 0, "CLI reescrever devia sair 0: %s %s" % (p.returncode, p.stderr)
     out = json.loads(p.stdout)
     assert out["entrada"]["data"] == "2026-08-06", out
 
     p = subprocess.run(
         [sys.executable, os.path.join(lib, "historico.py"), "listar", doc],
-        capture_output=True, text=True, stdin=subprocess.DEVNULL, start_new_session=True)
+        capture_output=True, text=True, encoding="utf-8", errors="replace", stdin=subprocess.DEVNULL, start_new_session=True)
     assert p.returncode == 0, p.stderr
     entradas = json.loads(p.stdout)["entradas"]
     assert len(entradas) == 1 and entradas[0]["decisao"] == "integridade subiu", entradas
@@ -199,7 +199,7 @@ def test_cli():
     p = subprocess.run(
         [sys.executable, os.path.join(lib, "historico.py"), "reescrever", doc,
          "--antigo", "nada disso", "--novo", "x", "--contexto", "c", "--decisao", "d"],
-        capture_output=True, text=True, stdin=subprocess.DEVNULL, start_new_session=True)
+        capture_output=True, text=True, encoding="utf-8", errors="replace", stdin=subprocess.DEVNULL, start_new_session=True)
     assert p.returncode != 0, "erro tem que sair !=0"
     assert "error" in json.loads(p.stdout), p.stdout
     print("test_historico: CLI reescrever/listar ✓")

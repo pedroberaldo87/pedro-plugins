@@ -57,7 +57,7 @@ def bash_posix():
             continue
         try:
             r = subprocess.run([c, "-c", "echo VIVO"], capture_output=True,
-                               text=True, timeout=20, stdin=subprocess.DEVNULL,
+                               text=True, encoding="utf-8", errors="replace", timeout=20, stdin=subprocess.DEVNULL,
                                start_new_session=True)
         except (OSError, subprocess.SubprocessError):
             continue
@@ -425,7 +425,7 @@ def juiz_falso_visivel(bindir):
         return False
     alvo = shlex.quote(os.path.join(bindir, "claude"))
     r = subprocess.run([b, "-c", f"{alvo} -p x 2>/dev/null"], capture_output=True,
-                       text=True, stdin=subprocess.DEVNULL, start_new_session=True)
+                       text=True, encoding="utf-8", errors="replace", stdin=subprocess.DEVNULL, start_new_session=True)
     return r.returncode == 0 and '"verdict"' in r.stdout
 
 
@@ -442,7 +442,7 @@ def roda_scope_cop(bindir, payload, home, config_dir, script=None, com_erro=Fals
     env = dict(os.environ, HOME=str(home), CLAUDE_CONFIG_DIR=str(config_dir),
                PATH=f"{bindir}{os.pathsep}{os.environ['PATH']}")
     r = subprocess.run([bash_posix(), str(script or SCOPE_COP)], input=payload,
-                       capture_output=True, text=True, env=env, start_new_session=True)
+                       capture_output=True, text=True, encoding="utf-8", errors="replace", env=env, start_new_session=True)
     if com_erro:
         return r.stdout.strip(), r.returncode, r.stderr.strip()
     return r.stdout.strip(), r.returncode
@@ -461,7 +461,7 @@ def trace_scope_cop(bindir, payload, home, config_dir):
     env = dict(os.environ, HOME=str(home), CLAUDE_CONFIG_DIR=str(config_dir),
                PATH=f"{bindir}{os.pathsep}{os.environ['PATH']}")
     r = subprocess.run([b, "-x", str(SCOPE_COP)], input=payload, capture_output=True,
-                       text=True, env=env, start_new_session=True)
+                       text=True, encoding="utf-8", errors="replace", env=env, start_new_session=True)
     linhas = [ln for ln in r.stderr.strip().splitlines() if ln.strip()]
     return " ⏎ ".join(ln[:120] for ln in linhas[-12:]) or "(trace vazio)"
 
