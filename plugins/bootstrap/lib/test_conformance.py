@@ -8,6 +8,7 @@ Sem framework: assert + __main__, convencao do repo (patterns.md).
 """
 import json
 import os
+import shlex
 import shutil
 import subprocess
 import sys
@@ -405,16 +406,27 @@ def juiz_falso_visivel(bindir):
     e o `command -v claude` de dentro do hook nao acha nada. O hook entao faz o
     que deve (sem juiz, nao ha veredito: fail-open, nao bloqueia) e o teste lia
     isso como "o hook nao bloqueou", reprovando hook CERTO por fixture quebrada.
-    Aqui a fixture se mede: pergunta ao mesmo bash que o hook usa se o juiz e
-    enxergado. Falso => o caso pula declarando, em vez de reprovar."""
+    Aqui a fixture se mede: pergunta ao mesmo bash que o hook usa se o juiz
+    RODA. Falso => o caso pula declarando, em vez de reprovar.
+
+    ⚠️ A pergunta era `command -v claude`, e ela mede a coisa ERRADA: o bash do
+    Git para Windows ACHA o arquivo (o `-x` dele olha extensao e conteudo, nao o
+    bit que o sistema nao tem) e devolve o caminho, entao a guarda dizia "da pra
+    medir" — e na hora de EXECUTAR o mesmo arquivo o hook ficava sem veredito,
+    reprovando os dois checks do ramo `deny` em toda esteira. Achar nao e rodar:
+    o que decide agora e a SAIDA do juiz falso, que ele so produz executando.
+
+    ⚠️ E o juiz falso e chamado pelo CAMINHO ABSOLUTO, nunca pelo nome. Pelo nome,
+    a maquina de quem desenvolve — que TEM o `claude` de verdade no PATH — cairia
+    no CLI real: uma chamada cara, lenta e nao-deterministica dentro da guarda que
+    existe justamente para nao depender dele (medido: a suite travou em 2 min)."""
     b = bash_posix()
     if b is None:
         return False
-    env = dict(os.environ, PATH=f"{bindir}{os.pathsep}{os.environ['PATH']}")
-    r = subprocess.run([b, "-c", "command -v claude"], capture_output=True,
-                       text=True, env=env, stdin=subprocess.DEVNULL,
-                       start_new_session=True)
-    return r.returncode == 0 and r.stdout.strip() != ""
+    alvo = shlex.quote(os.path.join(bindir, "claude"))
+    r = subprocess.run([b, "-c", f"{alvo} -p x 2>/dev/null"], capture_output=True,
+                       text=True, stdin=subprocess.DEVNULL, start_new_session=True)
+    return r.returncode == 0 and '"verdict"' in r.stdout
 
 
 def roda_scope_cop(bindir, payload, home, config_dir, script=None):

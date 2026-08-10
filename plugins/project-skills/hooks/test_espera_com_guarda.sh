@@ -28,7 +28,8 @@ paylo() {
 
 # O gate só vale DENTRO de uma missão: raiz de config falsa, com o sinal de
 # missão ativa da sessão de teste. Nunca toca no ~/.claude real.
-CFG="$(mktemp -d -t espera-cfg)"
+# forma portável (o `-t <nome>` do BSD sai VAZIO no GNU, ver test_andamento_hook.sh)
+CFG="$(mktemp -d "${TMPDIR:-/tmp}/espera-cfg.XXXXXX")"
 trap 'rm -rf "$CFG"' EXIT
 mkdir -p "$CFG/andamento"
 : > "$CFG/andamento/ativo-sess-teste"
@@ -118,7 +119,7 @@ for g in d["hooks"]["PreToolUse"]:
 else: print(0)' "$HJ" 2>/dev/null)"
 
 # 7 · anti-tautologia: sabotar a regra tem que fazer a suíte reprovar
-SAB="$(mktemp -t espera-sabotada)"
+SAB="$(mktemp "${TMPDIR:-/tmp}/espera-sabotada.XXXXXX")"
 trap 'rm -f "$SAB"; rm -rf "$CFG"' EXIT
 sed 's/^\[ "\$EH_ESPERA" = "1" \] || exit 0$/[ "$EH_ESPERA" = "1" ] || exit 0; exit 0/' "$HOOK" > "$SAB"
 OUT=$(roda Bash "$SEM_GUARDA" "$SAB")
