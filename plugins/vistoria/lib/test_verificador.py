@@ -80,7 +80,7 @@ def verifica(a, raiz, entrada=None):
         for arquivo, _n, _t in citadas:
             if arquivo.endswith(".sh"):
                 saida = subprocess.run(["bash", os.path.join(raiz, arquivo), entrada],
-                                       capture_output=True, text=True,
+                                       capture_output=True, text=True, encoding="utf-8", errors="replace",
                                        stdin=subprocess.DEVNULL, start_new_session=True)
                 if saida.returncode == 0:
                     return "derrubado", "o programa citado não recusa: %s saiu 0" % arquivo

@@ -43,13 +43,13 @@ def check(nome, cond, detalhe=""):
 def foto(raiz=RAIZ):
     """O estado da árvore de um projeto, em uma string."""
     return subprocess.run(["git", "-C", raiz, "status", "--porcelain", "-uall"],
-                          capture_output=True, text=True,
+                          capture_output=True, text=True, encoding="utf-8", errors="replace",
                           stdin=subprocess.DEVNULL, start_new_session=True).stdout
 
 
 def rodar(*args, **kw):
     return subprocess.run([sys.executable] + list(args), cwd=RAIZ,
-                          capture_output=True, text=True,
+                          capture_output=True, text=True, encoding="utf-8", errors="replace",
                           stdin=subprocess.DEVNULL, start_new_session=True, **kw)
 
 
@@ -174,7 +174,7 @@ def caso_a_receita_roda_fora_do_repositorio():
                CLAUDE_CONFIG_DIR=tempfile.mkdtemp(prefix="autopsia-lar-"))
     for linha in linhas:
         r = subprocess.run(["bash", "-c", linha], cwd=alheio, env=env,
-                           capture_output=True, text=True,
+                           capture_output=True, text=True, encoding="utf-8", errors="replace",
                            stdin=subprocess.DEVNULL, start_new_session=True)
         # 0 e 1 são os códigos do próprio programa (medir / achei sobra); 2 do
         # python é o arquivo que não existe — é ele que esta prova caça.
@@ -221,15 +221,15 @@ def caso_a_pagina_do_passo_7_nasce_fora_do_projeto():
     for cmd in (["git", "init", "-q"], ["git", "config", "user.email", "b@b"],
                 ["git", "config", "user.name", "b"],
                 ["git", "commit", "-q", "--allow-empty", "-m", "raiz"]):
-        subprocess.run(cmd, cwd=alheio, capture_output=True, text=True,
+        subprocess.run(cmd, cwd=alheio, capture_output=True, text=True, encoding="utf-8", errors="replace",
                        stdin=subprocess.DEVNULL, start_new_session=True)
     with open(os.path.join(alheio, "propostas.json"), "w", encoding="utf-8") as f:
         json.dump(PROPOSTAS, f)
     subprocess.run(["git", "-C", alheio, "add", "propostas.json"],
-                   capture_output=True, text=True, stdin=subprocess.DEVNULL,
+                   capture_output=True, text=True, encoding="utf-8", errors="replace", stdin=subprocess.DEVNULL,
                    start_new_session=True)
     subprocess.run(["git", "-C", alheio, "commit", "-q", "-m", "propostas"],
-                   capture_output=True, text=True, stdin=subprocess.DEVNULL,
+                   capture_output=True, text=True, encoding="utf-8", errors="replace", stdin=subprocess.DEVNULL,
                    start_new_session=True)
 
     lar = tempfile.mkdtemp(prefix="autopsia-passo7-lar-")
@@ -237,7 +237,7 @@ def caso_a_pagina_do_passo_7_nasce_fora_do_projeto():
     r = subprocess.run(["bash", "-c", blocos[0]], cwd=alheio,
                        env=dict(os.environ, CLAUDE_PLUGIN_ROOT=PLUGIN,
                                 CLAUDE_CONFIG_DIR=lar, HOME=lar),
-                       capture_output=True, text=True,
+                       capture_output=True, text=True, encoding="utf-8", errors="replace",
                        stdin=subprocess.DEVNULL, start_new_session=True)
     check("o passo 7 roda de ponta a ponta", r.returncode == 0,
           "saiu %d\n%s" % (r.returncode, r.stderr[-400:]))
@@ -295,7 +295,7 @@ def caso_sem_o_irmao_a_rodada_pula_declarado():
         with open(os.path.join(alheio, "propostas.json"), "w", encoding="utf-8") as f:
             json.dump(propostas, f)
         return subprocess.run(["bash", "-c", blocos[0]], cwd=alheio, env=env,
-                              capture_output=True, text=True,
+                              capture_output=True, text=True, encoding="utf-8", errors="replace",
                               stdin=subprocess.DEVNULL, start_new_session=True)
 
     boa = rodar_bloco(PROPOSTAS)
@@ -401,7 +401,7 @@ def caso_irmao_se_resolve_por_nome_nao_por_placeholder():
         alheio = tempfile.mkdtemp(prefix="autopsia-irmao-")
         r = subprocess.run(["bash", resolvedor, "visual", "lib/visual_page.py"],
                            cwd=alheio, env=dict(os.environ, CLAUDE_PLUGIN_ROOT=PLUGIN),
-                           capture_output=True, text=True,
+                           capture_output=True, text=True, encoding="utf-8", errors="replace",
                            stdin=subprocess.DEVNULL, start_new_session=True)
         check("o resolvedor acha o visual de outro cwd",
               r.returncode == 0 and os.path.isfile(r.stdout.strip()),

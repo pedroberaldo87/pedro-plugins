@@ -29,7 +29,7 @@ def check(label, cond):
 
 
 def git(d, *a):
-    subprocess.run(["git", "-C", d] + list(a), capture_output=True, text=True, timeout=30, stdin=subprocess.DEVNULL, start_new_session=True)
+    subprocess.run(["git", "-C", d] + list(a), capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=30, stdin=subprocess.DEVNULL, start_new_session=True)
 
 
 def monta(d, arquivos):
@@ -287,7 +287,7 @@ def main():
         monta(d, {"plugins/alfa/skills/alfa/SKILL.md":
                   "Abra plugins/beta/lib/x.py\nAbra plugins/beta/lib/x.py\n"})
         r = subprocess.run([sys.executable, dc.__file__, "--root", d, "--gravar-retrato"],
-                           capture_output=True, text=True, timeout=60, stdin=subprocess.DEVNULL, start_new_session=True)
+                           capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=60, stdin=subprocess.DEVNULL, start_new_session=True)
         with open(os.path.join(d, dc.RETRATO), encoding="utf-8") as fh:
             gravado = json.load(fh)
         check("o retrato gravado não repete chave", len(gravado) == len(set(gravado)))

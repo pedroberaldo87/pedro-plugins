@@ -80,7 +80,7 @@ def roda_trava(bloco, reserva_viva, alvos):
             "ARQUIVOS_DO_REVIEW": " ".join(alvos),
         })
         p = subprocess.run(["sh", "-c", bloco], env=env,
-                           capture_output=True, text=True, stdin=subprocess.DEVNULL, start_new_session=True)
+                           capture_output=True, text=True, encoding="utf-8", errors="replace", stdin=subprocess.DEVNULL, start_new_session=True)
         return p.stdout
 
 

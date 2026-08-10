@@ -59,7 +59,7 @@ with tempfile.TemporaryDirectory() as d:
         with open(f, "w", encoding="utf-8") as fh:
             json.dump(plano, fh, ensure_ascii=False)
         return subprocess.run([sys.executable, PLAN_STATE, "--dir", d, "init", "--file", f],
-                              stdin=subprocess.DEVNULL, capture_output=True, text=True,
+                              stdin=subprocess.DEVNULL, capture_output=True, text=True, encoding="utf-8", errors="replace",
                               start_new_session=True)
 
     primeiro = roda(PLANO)

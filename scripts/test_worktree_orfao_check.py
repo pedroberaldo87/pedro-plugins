@@ -26,7 +26,7 @@ def check(nome, cond):
 
 def git(repo, *args):
     return subprocess.run(["git", "-C", repo] + list(args), stdin=subprocess.DEVNULL,
-                          capture_output=True, text=True, start_new_session=True)
+                          capture_output=True, text=True, encoding="utf-8", errors="replace", start_new_session=True)
 
 
 def repo_com_worktree(com_codigo, sujo):

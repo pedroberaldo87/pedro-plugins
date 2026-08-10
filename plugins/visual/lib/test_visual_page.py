@@ -343,7 +343,7 @@ with tempfile.TemporaryDirectory() as td:
             dict(EVID), dict(DEC2), {"kind": "item", "title": "i"}]}]), fh)
     r = subprocess.run([sys.executable, os.path.join(HERE, "visual_page.py"),
                         "build", "--spec", sp, "--out", out],
-                       capture_output=True, text=True, stdin=subprocess.DEVNULL, start_new_session=True)
+                       capture_output=True, text=True, encoding="utf-8", errors="replace", stdin=subprocess.DEVNULL, start_new_session=True)
     check("build sai 0 e imprime o caminho", r.returncode == 0 and out in r.stdout,
           (r.returncode, r.stdout, r.stderr))
     check("o arquivo saiu com a página inteira",
@@ -356,7 +356,7 @@ with tempfile.TemporaryDirectory() as td:
                    "sections": [{"blocks": [{"kind": "item", "title": "i"}]}]}, fh)
     r = subprocess.run([sys.executable, os.path.join(HERE, "visual_page.py"),
                         "build", "--spec", bad, "--out", os.path.join(td, "x.html")],
-                       capture_output=True, text=True, stdin=subprocess.DEVNULL, start_new_session=True)
+                       capture_output=True, text=True, encoding="utf-8", errors="replace", stdin=subprocess.DEVNULL, start_new_session=True)
     check("spec inválido sai 2 e explica no stderr",
           r.returncode == 2 and "prova" in r.stderr, (r.returncode, r.stderr))
     check("spec inválido NÃO escreve arquivo", not os.path.exists(os.path.join(td, "x.html")))
@@ -365,12 +365,12 @@ with tempfile.TemporaryDirectory() as td:
         fh.write("{isso não é json")
     r = subprocess.run([sys.executable, os.path.join(HERE, "visual_page.py"),
                         "build", "--spec", os.path.join(td, "notjson")],
-                       capture_output=True, text=True, stdin=subprocess.DEVNULL, start_new_session=True)
+                       capture_output=True, text=True, encoding="utf-8", errors="replace", stdin=subprocess.DEVNULL, start_new_session=True)
     check("JSON quebrado sai 2 com a linha do erro",
           r.returncode == 2 and "JSON inválido" in r.stderr, r.stderr)
 
 r = subprocess.run([sys.executable, os.path.join(HERE, "visual_page.py"), "schema"],
-                   capture_output=True, text=True, stdin=subprocess.DEVNULL, start_new_session=True)
+                   capture_output=True, text=True, encoding="utf-8", errors="replace", stdin=subprocess.DEVNULL, start_new_session=True)
 check("schema imprime o contrato", r.returncode == 0 and "evidencia" in r.stdout
       and "RECUSADO PELO PROGRAMA" in r.stdout)
 
@@ -657,7 +657,7 @@ with tempfile.TemporaryDirectory() as td:
         json.dump(spec(sections=[{"blocks": [
             {"kind": "aprovacao", "etapa": "Etapa 3", "doc_integral": ""}]}]), fh)
     r = subprocess.run([sys.executable, os.path.join(HERE, "visual_page.py"),
-                        "build", "--spec", sem, "--out", alvo], capture_output=True, text=True, stdin=subprocess.DEVNULL, start_new_session=True)
+                        "build", "--spec", sem, "--out", alvo], capture_output=True, text=True, encoding="utf-8", errors="replace", stdin=subprocess.DEVNULL, start_new_session=True)
     check("sem texto integral: sai 2, explica, e NÃO escreve a página",
           r.returncode == 2 and "doc_integral" in r.stderr and not os.path.exists(alvo),
           (r.returncode, r.stderr))
@@ -707,7 +707,7 @@ with tempfile.TemporaryDirectory() as td:
             dict(EVID), {"kind": "text", "text": "o disco enche."}]}]), fh)
     r = subprocess.run([sys.executable, os.path.join(HERE, "visual_page.py"),
                         "build", "--spec", _sujo, "--out", _alvo],
-                       capture_output=True, text=True, stdin=subprocess.DEVNULL,
+                       capture_output=True, text=True, encoding="utf-8", errors="replace", stdin=subprocess.DEVNULL,
                        start_new_session=True)
     check("o build roda as 4 conferências sem ninguém pedir",
           "custo-sem-unidade" in r.stderr, r.stderr[-200:])
@@ -721,7 +721,7 @@ with tempfile.TemporaryDirectory() as td:
             dict(EVID), {"kind": "text", "text": "Isso enche o disco todo mês."}]}]), fh)
     r = subprocess.run([sys.executable, os.path.join(HERE, "visual_page.py"),
                         "build", "--spec", _limpo, "--out", os.path.join(td, "p.html")],
-                       capture_output=True, text=True, stdin=subprocess.DEVNULL,
+                       capture_output=True, text=True, encoding="utf-8", errors="replace", stdin=subprocess.DEVNULL,
                        start_new_session=True)
     check("spec limpo não ganha aviso nenhum", "ponto(s) a conferir" not in r.stderr,
           r.stderr[-200:])

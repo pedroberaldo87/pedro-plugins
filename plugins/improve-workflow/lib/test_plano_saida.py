@@ -66,7 +66,7 @@ def roda(dados, tmp, proposta=True):
             json.dump(spec(), fh)
         argv += ["--proposta", sp]
     exe = os.path.join(os.path.dirname(os.path.abspath(__file__)), "plano_saida.py")
-    return subprocess.run([sys.executable, exe] + argv, capture_output=True, text=True,
+    return subprocess.run([sys.executable, exe] + argv, capture_output=True, text=True, encoding="utf-8", errors="replace",
                           stdin=subprocess.DEVNULL, start_new_session=True)
 
 
@@ -128,7 +128,7 @@ def caso_dir_obrigatorio():
             json.dump(retorno([item(1, "keep")]), fh)
         exe = os.path.join(os.path.dirname(os.path.abspath(__file__)), "plano_saida.py")
         r = subprocess.run([sys.executable, exe, "--retorno", ret],
-                           capture_output=True, text=True,
+                           capture_output=True, text=True, encoding="utf-8", errors="replace",
                            stdin=subprocess.DEVNULL, start_new_session=True)
         check("recusou", r.returncode == 2)
         check("diz que falta o --dir", "--dir" in r.stderr)

@@ -24,7 +24,7 @@ def make_repo():
 
 def run(args, stdin=""):
     return subprocess.run([sys.executable, os.path.join(HERE, "ledger.py")] + args,
-                          input=stdin, capture_output=True, text=True, start_new_session=True)
+                          input=stdin, capture_output=True, text=True, encoding="utf-8", errors="replace", start_new_session=True)
 
 
 def test_concurrent_record_raw():
@@ -80,7 +80,7 @@ def main():
         assert ".claude/intent/" in excl
         # git não enxerga o ledger
         st = subprocess.run(["git", "-C", repo, "status", "--porcelain"],
-                            capture_output=True, text=True, stdin=subprocess.DEVNULL, start_new_session=True).stdout
+                            capture_output=True, text=True, encoding="utf-8", errors="replace", stdin=subprocess.DEVNULL, start_new_session=True).stdout
         assert ".claude/intent" not in st, st
 
         # texto vazio não grava
@@ -239,7 +239,7 @@ def main():
                     stdin="pedido gravado dentro do worktree")
             assert r.returncode == 0, r.stderr
             st_wt = subprocess.run(["git", "-C", wt_dir, "status", "--porcelain"],
-                                   capture_output=True, text=True, stdin=subprocess.DEVNULL, start_new_session=True).stdout
+                                   capture_output=True, text=True, encoding="utf-8", errors="replace", stdin=subprocess.DEVNULL, start_new_session=True).stdout
             assert ".claude/intent" not in st_wt, st_wt
             h_wt = run(["tree-hash", "--cwd", wt_dir]).stdout.strip()
             assert len(h_wt) == 40 and all(c in "0123456789abcdef" for c in h_wt), h_wt

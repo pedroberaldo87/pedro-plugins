@@ -232,7 +232,7 @@ def _git(root, *args, date=None):
     if date:
         env["GIT_AUTHOR_DATE"] = env["GIT_COMMITTER_DATE"] = date + "T12:00:00"
     subprocess.run(["git", "-C", root, *args], env=env,
-                   capture_output=True, text=True, check=False, stdin=subprocess.DEVNULL, start_new_session=True)
+                   capture_output=True, text=True, encoding="utf-8", errors="replace", check=False, stdin=subprocess.DEVNULL, start_new_session=True)
 
 
 def _doc_with(scope, generated):
@@ -315,7 +315,7 @@ def test_touch_and_generated_commit():
         _git(root, "add", "-A")
         _git(root, "commit", "-qm", "hoje")
         head = subprocess.run(["git", "-C", root, "rev-parse", "HEAD"],
-                              capture_output=True, text=True, stdin=subprocess.DEVNULL, start_new_session=True).stdout.strip()
+                              capture_output=True, text=True, encoding="utf-8", errors="replace", stdin=subprocess.DEVNULL, start_new_session=True).stdout.strip()
         import datetime
         today = datetime.date.today().isoformat()
 
@@ -449,7 +449,7 @@ def test_project_staleness_honra_generated_commit():
 
     def head(root):
         return subprocess.run(["git", "-C", root, "rev-parse", "HEAD"],
-                              capture_output=True, text=True, stdin=subprocess.DEVNULL, start_new_session=True).stdout.strip()
+                              capture_output=True, text=True, encoding="utf-8", errors="replace", stdin=subprocess.DEVNULL, start_new_session=True).stdout.strip()
 
     with tempfile.TemporaryDirectory() as d:
         root = os.path.join(d, "repo")
@@ -569,7 +569,7 @@ def test_restamp():
         _git(root, "add", "-A")
         _git(root, "commit", "-qm", "codigo + doc no MESMO commit", date="2026-07-20")
         head = subprocess.run(["git", "-C", root, "rev-parse", "--short", "HEAD"],
-                              capture_output=True, text=True, stdin=subprocess.DEVNULL, start_new_session=True).stdout.strip()
+                              capture_output=True, text=True, encoding="utf-8", errors="replace", stdin=subprocess.DEVNULL, start_new_session=True).stdout.strip()
 
         # o cenário do defeito: a doc foi escrita NESTE commit e aponta pra antes dele
         check("antes do restamp: doc se acusa de defasada sobre o próprio commit",

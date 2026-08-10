@@ -46,7 +46,7 @@ class Repo(object):
 
     def g(self, *a):
         return subprocess.run(("git", "-C", self.path) + a,
-                              capture_output=True, text=True, stdin=subprocess.DEVNULL, start_new_session=True)
+                              capture_output=True, text=True, encoding="utf-8", errors="replace", stdin=subprocess.DEVNULL, start_new_session=True)
 
     def commit(self, msg, fname, body):
         with open(os.path.join(self.path, fname), "w", encoding="utf-8") as fh:

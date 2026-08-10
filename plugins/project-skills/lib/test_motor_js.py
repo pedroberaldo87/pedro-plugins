@@ -236,7 +236,7 @@ for fonte, texto, base in FONTES:
 
 # sintaxe: o arquivo tem que ser JavaScript válido (quando node existe na máquina).
 if shutil.which("node"):
-    r = subprocess.run(["node", "--check", MOTOR], capture_output=True, text=True,
+    r = subprocess.run(["node", "--check", MOTOR], capture_output=True, text=True, encoding="utf-8", errors="replace",
                        stdin=subprocess.DEVNULL, start_new_session=True)
     check("node --check passa", r.returncode == 0, r.stderr.strip()[:120])
 else:

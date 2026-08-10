@@ -72,7 +72,7 @@ def resolve(layout, nome="lixeiro", rel="lib/lixeiro.py", pede=None):
         amb.update({"CLAUDE_PLUGIN_ROOT": root,
                     "CLAUDE_CONFIG_DIR": os.path.join(raiz, "config")})
         out = subprocess.run(["bash", FONTE, p_nome, p_rel],
-                             capture_output=True, text=True, env=amb, stdin=subprocess.DEVNULL, start_new_session=True)
+                             capture_output=True, text=True, encoding="utf-8", errors="replace", env=amb, stdin=subprocess.DEVNULL, start_new_session=True)
         saida = out.stdout.strip()
         return out.returncode, saida, bool(saida) and os.path.isfile(saida)
     finally:
