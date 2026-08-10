@@ -8,6 +8,13 @@ jobs:
   checks:
     runs-on: ${{ matrix.os }}
     strategy:
+      # SEM fail-fast: o padrão CANCELA os outros sistemas quando um falha, e o
+      # log deles sai como "The operation was canceled" — indistinguível de
+      # falha real para quem lê. Em 2026-08-10 o Windows quebrou, macOS e Linux
+      # apareceram vermelhos por cancelamento, e a leitura de fora foi "os três
+      # sistemas estão falhando". Uma esteira de PORTABILIDADE tem que dizer em
+      # QUAIS sistemas o problema existe — é a única pergunta que ela responde.
+      fail-fast: false
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
     steps:
@@ -21,6 +28,21 @@ jobs:
           if [ "$RUNNER_OS" = "Linux" ]; then sudo apt-get update && sudo apt-get install -y jq; fi
           if [ "$RUNNER_OS" = "macOS" ]; then brew install jq; fi
           if [ "$RUNNER_OS" = "Windows" ]; then choco install jq -y; fi
+
+      # NO WINDOWS, `bash` DO PATH É O WSL — e o runner não tem distro instalada.
+      # Toda suíte que dispara `subprocess.run(["bash", ...])` recebia isto no
+      # lugar da saída, em UTF-16, o que chega ao Python como stdout vazio:
+      #
+      #   Windows Subsystem for Linux has no installed distributions.
+      #
+      # O passo abaixo põe o Git Bash na frente do PATH — o MESMO interpretador
+      # que o `shell: bash` destes steps já usa (C:\Program Files\Git\bin\bash.EXE),
+      # então a esteira passa a medir um ambiente coerente consigo mesma em vez de
+      # cair no WSL pela porta dos fundos. Nos outros dois sistemas é no-op.
+      - name: Git Bash na frente do WSL (Windows)
+        if: runner.os == 'Windows'
+        shell: bash
+        run: echo "C:\Program Files\Git\bin" >> "$GITHUB_PATH"
       # Estado medido da suíte contra um ambiente equivalente a este runner
       # (PATH sem `claude`, sem plugin instalado), rodando os mesmos globs de
       # baixo, um arquivo por vez, para que nenhuma falha fique escondida pelo

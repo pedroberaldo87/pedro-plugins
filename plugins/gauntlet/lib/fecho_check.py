@@ -173,6 +173,40 @@ def _ultima_rodada(dir_peca):
 # rito — o rito está completo?
 # ─────────────────────────────────────────────────────────────────────────────
 
+
+# ── APAGAR O SINAL É UMA RECEITA SÓ, E ELA LEVA O ESTADO INTEIRO ──────────────
+# Duas coisas que faltavam, medidas em 2026-08-10 com a barra do dono na tela.
+#
+# (1) O apagamento levava só `ativo-` e `bloqueios-`; `onda-`, `placar-`, `sinal-`,
+#     `trabalho-`, `doc-` e `motorid-` ficavam para trás, e a onda velha de uma
+#     missão morta reaparecia na barra de quem reusasse o mesmo id de sessão. É a
+#     mesma lista que `project-skills/lib/andamento.py:encerra` usa — as duas casas
+#     escrevem o mesmo estado, então apagam o mesmo conjunto.
+#
+# (2) Só o fecho VERDE apagava. Disputa parada pelo dono, abandonada, ou cujo fecho
+#     foi recusado por furo ficava com o sinal aceso até a expiração — e a barra
+#     anunciando "Missão há 10h25" de uma disputa que ninguém ia retomar. Por isso
+#     nasce o subcomando `encerra`: ele NÃO julga nada, só apaga. Encerrar não é
+#     aprovar, e confundir os dois foi o que deixou o sinal preso ao caminho feliz.
+_PREFIXOS_DO_ESTADO = ("ativo-", "bloqueios-", "onda-", "placar-", "doc-",
+                       "sinal-", "trabalho-", "motorid-")
+
+
+def apaga_sinal(sinal):
+    """Apaga o sinal e todo o estado da mesma sessão. Devolve o que sumiu."""
+    pasta, nome = os.path.dirname(sinal), os.path.basename(sinal)
+    sessao = nome[len("ativo-"):] if nome.startswith("ativo-") else nome
+    sumiram = []
+    for prefixo in _PREFIXOS_DO_ESTADO:
+        try:
+            os.remove(os.path.join(pasta, prefixo + sessao))
+            sumiram.append(prefixo.rstrip("-"))
+        except OSError:
+            pass
+    print("sinal apagado: %s (%s)" % (sinal, ", ".join(sumiram) or "nada aceso"))
+    return sumiram
+
+
 def erros_do_rito(missao, sinal=None):
     """Devolve a lista de furos do rito. Lista vazia = a missão pode começar.
 
@@ -665,12 +699,25 @@ def grava_veto(missao, o_que, pecas):
 
 def main(argv=None):
     p = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    p.add_argument("comando", choices=("rito", "fecho", "mapa", "veto", "pendentes"))
+    p.add_argument("comando", choices=("rito", "fecho", "mapa", "veto", "pendentes", "encerra"))
     p.add_argument("missao", help="o diretório da missão em .claude/gauntlet/")
     p.add_argument("--o-que", help="o texto do veto, para o comando `veto`")
     p.add_argument("--pecas", help="as peças que o veto toca, separadas por vírgula")
     p.add_argument("--sinal", help="o arquivo que marca uma missão de pé, para o `rito`")
     args = p.parse_args(argv)
+
+    # ENCERRAR NÃO É APROVAR. Vem ANTES de tudo e não julga nada: a disputa parada
+    # pelo dono, abandonada, ou cujo fecho foi recusado por furo, tem que poder
+    # apagar o sinal — senão a barra anuncia "missão de pé" de algo que ninguém vai
+    # retomar. Foi o que aconteceu: o apagamento vivia só no caminho do fecho VERDE.
+    if args.comando == "encerra":
+        if not args.sinal:
+            print("⛔ encerra sem --sinal — diga qual arquivo apagar")
+            return 2
+        apaga_sinal(args.sinal)
+        print("missão encerrada na barra. O veredito do fecho NÃO foi dado — "
+              "encerrar não é aprovar.")
+        return 0
 
     if args.comando == "veto":
         if not args.o_que:
@@ -731,12 +778,7 @@ def main(argv=None):
         # Quem apaga o sinal é ESTE caminho, e só ele. Estava escrito em três lugares
         # da skill e em nenhuma linha de código — que é o defeito que ela combate.
         if args.sinal:
-            for cam in (args.sinal, args.sinal.replace("/ativo-", "/bloqueios-")):
-                try:
-                    os.remove(cam)
-                except OSError:
-                    pass
-            print("sinal apagado: %s" % args.sinal)
+            apaga_sinal(args.sinal)
         return 0
 
     print("⛔ %s recusado — %d furo(s):" % (args.comando, len(furos)))

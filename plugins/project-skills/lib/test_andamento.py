@@ -550,6 +550,54 @@ def main():
     finally:
         shutil.rmtree(tmp_exp, ignore_errors=True)
 
+    # ── O VIGIA OLHA VIDA, NÃO SÓ IDADE ─────────────────────────────────────
+    # A trava de incêndio (12h) é lenta demais para o que o dono viu na tela:
+    # "SEM SINAL há 6h02" com a missão já terminada, e ainda seis horas até ela
+    # agir. O segundo critério mata em 2h — mas exige as DUAS pontas (narrador
+    # calado E nada de pé), porque cada uma sozinha mente: suíte de 20 min cala
+    # o narrador sem a missão morrer, e `trabalho-` esquecido finge vida eterna.
+    tmp_vig = tempfile.mkdtemp()
+    try:
+        agora = time.time()
+
+        def cria(sid, idade_h, mudo_min=None, trabalho_min=None):
+            p = os.path.join(tmp_vig, "ativo-" + sid)
+            with open(p, "w", encoding="utf-8") as fh:
+                fh.write("gauntlet\n")
+            t = agora - idade_h * 3600
+            os.utime(p, (t, t))
+            if mudo_min is not None:
+                s = os.path.join(tmp_vig, "sinal-" + sid)
+                with open(s, "w", encoding="utf-8") as fh:
+                    fh.write("x")
+                ts = agora - mudo_min * 60
+                os.utime(s, (ts, ts))
+            if trabalho_min is not None:
+                with open(os.path.join(tmp_vig, "trabalho-" + sid), "w",
+                          encoding="utf-8") as fh:
+                    fh.write("%d\npytest\nproj\n" % int(agora - trabalho_min * 60))
+
+        cria("viva-narrando", 2, mudo_min=1)                       # fala agora
+        cria("morta-muda", 10, mudo_min=360)                       # 6h calada, nada de pé
+        cria("suite-longa", 3, mudo_min=180, trabalho_min=175)     # calada, MAS rodando
+        cria("velha", 80, mudo_min=1)                              # fala, mas 80h de idade
+        cria("nunca-narrou", 3)                                    # sem sinal-: só a idade
+        mortos = set(a.expira_sinais(tmp_vig, agora))
+
+        check("a missão calada há 6h morre pelo vigia, sem esperar as 12h",
+              "morta-muda" in mortos)
+        check("a suíte longa SOBREVIVE — está calada, mas tem ferramenta de pé",
+              "suite-longa" not in mortos)
+        check("quem está narrando agora sobrevive", "viva-narrando" not in mortos)
+        check("a trava de incêndio de 12h continua valendo", "velha" in mortos)
+        check("sem `sinal-` no disco, só a idade decide — e ela não estourou",
+              "nunca-narrou" not in mortos)
+        log = open(os.path.join(tmp_vig, "expirados.log"), encoding="utf-8").read()
+        check("o registro diz QUAL critério agiu (mudo × idade)",
+              "\tmudo\t" in log and "\tidade\t" in log)
+    finally:
+        shutil.rmtree(tmp_vig, ignore_errors=True)
+
     # ── A BARRA ACOMPANHA O BLOCO, NÃO SÓ A ONDA ────────────────────────────
     # Pedido do dono, 2026-08-09: "as ondas, os blocos e assim por diante. Tudo."
     # Uma onda de três blocos leva quinze minutos, e a barra ficava parada em

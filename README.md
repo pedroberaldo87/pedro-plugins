@@ -35,10 +35,15 @@ claude plugin marketplace add https://github.com/pedroberaldo87/pedro-plugins.gi
 
 # 2. Instalar os plugins desejados
 claude plugin install visual@pedro-plugins
-claude plugin install qa-loop@pedro-plugins
+claude plugin install project-skills@pedro-plugins
 claude plugin install handoff@pedro-plugins
 # ...
 ```
+
+> ⚠️ **`qa-loop`, `project-doc` e `sovai` não são mais plugins** — viraram skills do
+> `project-skills` na fusão de 2026-08-09. Instalar por esses nomes falha; o que você quer
+> é `project-skills@pedro-plugins`, e os comandos (`/qa-loop`, `/doc`, `/sprint`) seguem
+> iguais depois de instalado.
 
 ### Restaurar o setup inteiro (máquina nova)
 
@@ -116,22 +121,28 @@ Ligar: `claude plugin enable <nome>@pedro-plugins`.
 | `handoff` ⚙️ | `/handoff` · override `/handoff salvar\|retomar` | Continuidade de sessão em um comando: detecta o estado e roteia — contexto cheio → salva um documento de transferência; sessão recém-limpa → retoma de onde parou. Workspace-aware: o handoff pertence ao projeto que a sessão tocou (resolve a fronteira `.git`), funciona em projeto único, monorepo (`HANDOFF-<módulo>.md`) ou pasta guarda-chuva. |
 | `context-guard` ⚙️ | automático (PostToolUse) · setup `/context-guard:setup` | Auto-interrompe o workflow quando o context window passa de um threshold configurável (default 80%) e sugere `/handoff`. Agnóstico de statusLine — encaminha para qualquer comando existente via `CLAUDE_STATUSLINE_FORWARD`. **Use junto com `handoff`.** |
 | `intent-guard` ⚙️ | automático (UserPromptSubmit + Stop + PreToolUse) | Caderno append-only dos pedidos **verbatim** do usuário. Classifica cada mensagem (pedido / correção / restrição / conversa) e mantém a lista de pedidos vivos. No fim do turno, bloqueia declarar entrega sem auditoria independente: despacha um auditor que julga cada pedido e grava veredito com prova. O gate carimba num sidecar `.escopo` **quais** pedidos ele perguntou — sem isso, mensagem nova chegando no meio fazia o veredito nascer impossível de aprovar. |
-| `sprint` ⚙️ | `/sprint` · PreToolUse | Modo autônomo — executa um plano até o fim sem pausas, checkpoints ou confirmações. Pula bloqueios (sem workaround silencioso), registra cada decisão, roda um passe final headless de `qa-loop` e entrega relatório estruturado. O motor é um **Workflow determinístico** (decompõe → executa → revisa), e isso é **cobrado por hook**: enquanto a missão está armada, todo disparo de sub-agente é negado e mandado de volta pro Workflow. O gate degrada em vez de travar — desiste depois de 3 negações e grava a desistência, porque missão longa com o dono ausente não pode morrer parada. **O revisor julga contra a SPEC, nunca contra a decomposição do próprio motor** — revisar contra o que você mesmo quebrou é circuito fechado, onde quem decompõe errado é aprovado errado. Cinco eixos: spec · as metas de qualidade do projeto (lidas de `.claude/docs/quality-goals.md`, nunca copiadas) · rastreio (toda tarefa carrega seu requisito e seu critério de pronto) · completude · coesão. Agente que morre degrada a missão em vez de derrubar o motor. |
+| `project-skills` ⚙️ | `/sprint` · PreToolUse | **Modo autônomo** (skill `/sprint`) — executa um plano até o fim sem pausas, checkpoints ou confirmações. Pula bloqueios (sem contorno silencioso), registra cada decisão e entrega relatório estruturado. O motor é um **Workflow determinístico** (decompõe → executa → revisa), e isso é **cobrado por hook**: enquanto a missão está armada, todo disparo de sub-agente é negado e mandado de volta para o Workflow. O gate degrada em vez de travar — desiste depois de 3 negações e grava a desistência, porque missão longa com o dono ausente não pode morrer parada. A barra de status diz onde a missão está (onda, bloco, etapa) e **apaga sozinha quando ela acaba**, por três caminhos independentes. |
 
 ### Planejamento & review
 
 | Plugin | Trigger | O que faz |
 |---|---|---|
-| `qa-loop` | `/qa-loop <alvo>` | Loop de review→conserto que **para por retornos decrescentes**, não por zero. Motor roda como **Workflow determinístico** (Opus revisa → Opus planeja/adjudica → Sonnet conserta; gate/churn/parada em código). Ancora no plano (3 buckets: implementação / plan-drift / plano-falho) **e nas metas de qualidade do projeto**, lidas de `.claude/docs/quality-goals.md` na hora da revisão em vez de copiadas pra dentro da skill. Regression gate por conserto, accepted-limits, relatório **humano** (HTML) + journal **agêntico**. Substitui `qa`, `rev6` e `iterate`. |
+| `project-skills` ⚙️ | `/doc` · `/start` · `/plan` · `/sprint` · `/qa-loop` · `/doc-touch` · `/doc-load` | **A casa das skills de projeto** — documentação, concepção, plano, execução e revisão sob um teto só, conversando entre si por nome de plugin, nunca por caminho para a pasta do vizinho. Absorveu `project-doc`, `qa-loop` e `sovai` na fusão de 2026-08-09; os comandos não mudaram. Traz os dois motores em **Workflow determinístico** — `/sprint` (decompõe → executa → revisa, com reserva de arquivos entre motores e narrador de andamento na barra de status) e `/qa-loop` (revisa → planeja → conserta, com gate de regressão a cada conserto e parada por retornos decrescentes, não por zero). Os dois julgam contra a **spec e a lei do projeto**, lidas do `.claude/docs/` na hora — nunca copiadas para dentro da skill. |
 | `grill-me` | `/grill-me [com-docs]` | Entrevista implacável sobre um plano/design até esgotar a árvore de decisões. Sem argumento, sabatina o plano por ele mesmo; com `com-docs`, confronta contra o domain model existente (CONTEXT.md, ADRs) e atualiza as docs inline conforme as decisões cristalizam. *Por [Matt Pocock](https://github.com/mattpocock/skills).* |
-| `principles` | `/principles` | Carrega princípios de sistema do projeto (`PRINCIPIOS-SISTEMAS.md`), mapeia categorias relevantes ao contexto e gera um guia com WHY + HOW. Dois modos: planning e review. |
+| `principles` | `/principles [review]` | Carrega princípios de sistema genéricos (`PRINCIPIOS-SISTEMAS.md`), mapeia as categorias relevantes ao contexto e gera um guia com o porquê e o como. Dois modos: antes de implementar, e auditando o que já foi escrito. Nunca decide o que ESTE sistema tem que ser — isso é da constituição do projeto. |
+| `gauntlet` ⚙️ | `/gauntlet` | Agentes disputam contra um produto real que você nomeia, e **nada do que foi construído se julga sozinho**: cada peça ganha um construtor e um juiz cego separado, e o juiz só aprova o que for MELHOR que o alvo — nunca o que apenas cumpre o pedido. Roda como **equipe visível** na conversa: você vê cada agente, dirige em voo, veta e para. Cada veredito é arquivo em disco com o par de observações que o prova; uma trava de PreToolUse impede despacho novo enquanto houver entrega sem juiz, e o fecho é recusado por programa quando falta algum. Nasceu de uma falha real — sete construtores lançados prometendo um juiz em cada briefing, zero juízes lançados, ninguém percebeu. |
+| `improve-workflow` | `/improve-workflow` | **Autópsia de uma corrida multi-agente que já terminou.** Lê o transcript inteiro, mede o que cada PAPEL custou (agentes, turnos, tokens, taxa de falha), acende sinais de defeito por contagem em vez de julgamento, e entrega um parecer para você aprovar item a item. Ela **investiga e propõe, e é proibida por desenho de consertar o que achou**. |
+| `improve` | `/improve` | Rodadas de melhoria iterativa lendo o `IMPROVEMENT_PROGRAM.md` do app + issues do GitHub com a etiqueta `autoresearch`. Genérico — funciona com qualquer app que siga a metodologia. |
 
 ### Documentação & conhecimento
 
 | Plugin | Trigger | O que faz |
 |---|---|---|
-| `project-doc` ⚙️ | `/project-doc` · SessionStart + PreToolUse | Gera um sistema de documentação a partir de **toda** a evidência do projeto (arquivos, handoffs, memória, grafo, git log, transcripts) num journal versionado append-only, projetado em índice `CLAUDE.md` + `.claude/docs/*.md` + ponteiros finos. Scrubber move segredos pra um vault (nunca pro git). Suporta delta/`--deep`/`--rebuild`, monorepo, guard hook doc-first e limpeza de artefatos. |
-| `graphify-guard` ⚙️ | automático (SessionStart + PreToolUse) | Garante que os knowledge graphs do `graphify` sejam consultados quando relevante. Aviso no SessionStart quando há grafo; rede no PreToolUse redireciona grep/glob/find cego pra `graphify query` uma vez por sessão. Detecta grafo defasado e oferece `graphify --update`. Defense-in-depth, fail-open, monorepo-aware. |
+| `project-skills` ⚙️ | `/doc` · `/doc-touch` · `/doc-load` · `/start` | A documentação sai de **toda** a evidência do projeto (arquivos, handoffs, memória, grafo, git log, transcripts) num journal versionado append-only, projetada em índice `CLAUDE.md` + `.claude/docs/*.md`. `/doc` é a rodada completa; `/doc-touch` re-projeta só os documentos que o diff tocou; `/doc-load` diz o que vale como **régua** hoje (a lei, o acordo aprovado, o mapa minerado — cada um com o motivo). `/start` conduz a concepção em seis etapas de acordo, e é entrevista, não mineração: pergunta e grava a resposta do humano. Um scrubber move segredos para um cofre, nunca para o git. |
+| `vistoria` | `/vistoria` | Revisa os **arquivos de instrução do próprio marketplace** — skills, hooks e cobradores — e devolve uma página de achados com a prova colada, onde você marca o que vira plano ticável. Roda os cobradores que já existem num comando só e soma as lentes medidas (afirmação de teste que congelou frase morta, script de hook que ninguém registra). **Achado sem prova é recusado na porta.** |
+| `check-skills` | `/check-skills` | Confere a saúde do que está instalado na máquina em seis lentes: nome de skill repetido, hooks de origens diferentes no mesmo evento, descrições que disputam o mesmo assunto, versões paradas no cache, processo que a skill abre e não fecha, e citação de plugin irmão que não está instalado aqui. A varredura é de programa; o julgamento das contradições exige ler as descrições lado a lado. |
+| `graphify-guard` ⚙️ | automático (SessionStart + PreToolUse) | Garante que os knowledge graphs do `graphify` sejam consultados quando relevante. Aviso no SessionStart quando há grafo; rede no PreToolUse redireciona busca cega para `graphify query` uma vez por sessão. Detecta grafo defasado e oferece atualizar. Defesa em profundidade, fail-open, ciente de monorepo. |
+| `vision` | tool `see_image` | Dá olhos ao Claude delegando a um servidor de visão (API compatível com OpenAI). Quando ele precisa entender uma imagem que não lê, chama `see_image(caminho, pergunta)` e o servidor devolve a descrição em texto. O endpoint é configurado por `QWEN_BASE`/`QWEN_MODEL` ou `~/.claude/vision.json` — quem instala aponta para o próprio backend. |
 
 ### Dev, deploy & limpeza
 
@@ -142,7 +153,7 @@ Ligar: `claude plugin enable <nome>@pedro-plugins`.
 | `fallow` | `/fallow` | Roda o Fallow (analisador estático JS/TS — código morto, duplicação, complexidade), classifica achados por tipo e confiança, audita o relatório pra pegar falsos-positivos (cron, rotas HTTP, imports dinâmicos) e entrega um relatório interativo onde você escolhe o que limpar. Limpeza com rede de segurança (preview + build/test). |
 | `branches` ⚙️ | `/branches` · SessionStart | Relatório de branches paradas com prova: quantas, quais já estão contidas na base, e o que dá pra apagar. Antes de apagar, cria uma tag `archive/<branch>-<data>` como rede de resgate. Aviso silencioso no SessionStart quando não há branch parada. |
 | `improve` | `/improve` | Implementa rodadas de melhoria iterativa lendo o `IMPROVEMENT_PROGRAM.md` do app + issues do GitHub com label `autoresearch`. Genérico — funciona com qualquer app que siga a metodologia. |
-| `project-doc:design-md` | `/design-md` | Assistente de autoria pro formato `DESIGN.md` do Google (design-system-as-markdown — tokens em YAML + seções em markdown). Escreve seguindo a spec, valida de verdade pelo CLI oficial `@google/design.md` via `npx`, com fallback manual pela spec quando o `npx` não está disponível. Exporta tokens pra Tailwind/DTCG. **Skill do `project-doc`, não plugin separado** — vem junto com ele. |
+| `project-skills:design-md` | `/design-md` | Assistente de autoria pro formato `DESIGN.md` do Google (design-system-as-markdown — tokens em YAML + seções em markdown). Escreve seguindo a spec, valida de verdade pelo CLI oficial `@google/design.md` via `npx`, com fallback manual pela spec quando o `npx` não está disponível. Exporta tokens pra Tailwind/DTCG. **Skill do `project-skills`, não plugin separado** — vem junto com ele. |
 
 ### Apresentação visual
 
@@ -168,18 +179,18 @@ Ligar: `claude plugin enable <nome>@pedro-plugins`.
 
 | Plugin | Eventos | Papel |
 |---|---|---|
-| `bootstrap` | SessionStart · PostToolUse · Stop×2 | Auto-sync de marketplaces/plugins + os dois guardas de forma do relato |
-| `branches` | SessionStart · PostToolUse | Aviso de branch parada, silencioso quando não há |
-| `context-guard` | SessionStart · PostToolUse | Vigia o context window, sugere handoff |
-| `graphify-guard` | SessionStart · PreToolUse | Redireciona busca cega pro knowledge graph |
-| `guardrails` | PreToolUse×3 · PostToolUse | Lint/type-check + scope-cop de UI + gate de pergunta |
-| `handoff` | SessionStart · PreToolUse · Stop | Detecta retomada e salva continuidade |
-| `intent-guard` | UserPromptSubmit · PreToolUse · PostToolUse×2 · Stop | Caderno de pedidos + gate de entrega (desligado de fábrica) |
+| `bootstrap` | SessionStart×2 · PostToolUse | Auto-sync de marketplaces e plugins, mais os dois guardas de forma do relato |
+| `branches` | SessionStart×2 · PostToolUse | Aviso de branch parada, silencioso quando não há |
+| `context-guard` | SessionStart×2 · PostToolUse | Vigia o quanto da conversa já foi usado e sugere o handoff |
+| `gauntlet` | SessionStart×2 · PreToolUse | Nega despacho novo enquanto houver entrega sem juiz, e reencontra a disputa no arranque |
+| `graphify-guard` | SessionStart×2 · PreToolUse | Redireciona busca cega para o knowledge graph |
+| `guardrails` | SessionStart · PreToolUse×4 · PostToolUse | Lint e type-check pós-edição, scope-cop de UI, e o gate de pergunta sem apoio |
+| `handoff` | SessionStart×2 · PreToolUse · Stop | Detecta retomada e salva a continuidade da sessão |
+| `intent-guard` | SessionStart · UserPromptSubmit · PostToolUse×2 · Stop | Caderno de pedidos verbatim e gate de entrega (desligado de fábrica) |
 | `lixeiro` | SessionStart×2 · PostToolUse · Stop · SessionEnd | Anota quem abriu processo e encerra o que a sessão esqueceu de pé |
-| `project-doc` | SessionStart×2 · UserPromptSubmit · PreToolUse×3 · PostToolUse · Stop | Guard doc-first + aviso de doc defasada + gate de plano |
-| `ship` | PreToolUse | Guarda o fluxo de deploy |
-| `sprint` | PreToolUse | Mantém a missão autônoma no motor Workflow — nega sub-agente enquanto ela dura |
-| `visual` | SessionStart · PreToolUse · Stop | Intercepta ExitPlanMode e ressuscita o plano aberto |
+| `project-skills` | SessionStart×4 · UserPromptSubmit · PreToolUse×6 · PostToolUse×2 · Stop×2 | Guarda doc-first, aviso de doc defasada, gate de plano, e o motor autônomo na barra de status |
+| `ship` | SessionStart · PreToolUse | Guarda o fluxo de deploy |
+| `visual` | SessionStart · Stop | Intercepta a saída do modo de plano e ressuscita o plano aberto |
 
 > ⚠️ **Hook de plugin vai em `hooks/hooks.json` (subpasta), nunca `hooks.json` na raiz.** Na raiz o Claude Code ignora silenciosamente — `claude plugin details` mostra `Hooks (0)` e nada dispara. `claude plugin validate` passa mesmo assim. Diagnóstico canônico = `claude plugin details <plugin>@pedro-plugins`.
 

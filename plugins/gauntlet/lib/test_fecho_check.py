@@ -634,6 +634,41 @@ check("a marca muda quando o CONTEÚDO muda", fc.marca(a) != antes)
 check("arquivo que não existe não tem marca", fc.marca(os.path.join(d, "x")) is None)
 shutil.rmtree(d)
 
+# ── ENCERRAR NÃO É APROVAR, E LEVA O ESTADO INTEIRO ──────────────────────────
+# Dois defeitos medidos em 2026-08-10, com a barra do dono na tela mostrando
+# "Gauntlet · Missão há 10h25" de uma disputa que ninguém ia retomar:
+#
+# (1) o apagamento vivia SÓ no caminho do fecho verde — disputa parada pelo dono,
+#     abandonada, ou com fecho recusado por furo ficava com o sinal aceso até a
+#     expiração de 12h;
+# (2) ele levava só `ativo-` e `bloqueios-`, deixando os outros seis para trás —
+#     e a onda velha reaparecia na barra de quem reusasse o mesmo id de sessão.
+print()
+print("encerrar não é aprovar")
+d = tempfile.mkdtemp()
+SID = "sessao-x"
+PREFIXOS = ("ativo-", "bloqueios-", "onda-", "placar-", "doc-", "sinal-",
+            "trabalho-", "motorid-")
+for pre in PREFIXOS:
+    escreve(os.path.join(d, pre + SID), "gauntlet\n")
+sinal = os.path.join(d, "ativo-" + SID)
+
+check("o encerra apaga o ESTADO INTEIRO, não só o sinal",
+      sorted(fc.apaga_sinal(sinal)) == sorted(p.rstrip("-") for p in PREFIXOS))
+check("nada da sessão sobra no disco",
+      not [x for x in os.listdir(d) if SID in x])
+
+# o caminho de linha de comando, que é por onde a skill chama
+for pre in PREFIXOS:
+    escreve(os.path.join(d, pre + SID), "gauntlet\n")
+rc = fc.main(["encerra", os.path.join(d, "missao-que-nao-existe"), "--sinal", sinal])
+check("o `encerra` sai 0 SEM exigir fecho verde nem missão válida", rc == 0)
+check("e o disco fica limpo por esse caminho também",
+      not [x for x in os.listdir(d) if SID in x])
+check("`encerra` sem --sinal é recusado, não apaga às cegas",
+      fc.main(["encerra", d]) == 2)
+shutil.rmtree(d)
+
 print()
 if FAILS:
     print("fecho_check: %d falha(s)" % len(FAILS))

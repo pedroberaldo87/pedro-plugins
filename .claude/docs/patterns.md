@@ -1319,6 +1319,12 @@ A origem é caso real, registrada no comentário: *"a resposta trouxe a varredur
 
 Não há runner nem CI: cada suite é um arquivo executável, stdlib/bash puro, que sai 0 quando verde.
 
+⚠️ **Há UMA esteira, e ela é de portabilidade** — `.github/workflows/portability.yml`, nos três sistemas, a cada push. A `constituicao.md` (Artigo 3) se apoia nela para declarar o rigor cobrado; então esteira vermelha não é chateação de CI, é a lei sem cobrador. **Ela ficou vermelha por dias em 2026-08-10**, e as três causas valem como padrão para qualquer suíte que rode no Windows:
+
+- 🔴 **`bash` no Windows é o WSL, não o Git Bash.** `subprocess.run(["bash", …])` resolve `System32\bash.exe`, e o runner não tem distro instalada: a resposta é `Windows Subsystem for Linux has no installed distributions.` em UTF-16, o que chega ao Python como **stdout vazio** — e o `json.loads` estoura três camadas acima, num teste que não tem nada a ver com o defeito. O conserto ficou no workflow (o Git Bash entra na frente do `PATH`, e é o mesmo interpretador que o `shell: bash` dos steps já usa), não nos dez arquivos que chamam `bash`: o binário é do AMBIENTE, e mascarar isso em cada chamador espalharia a mesma decisão por dez lugares.
+- 🔴 **Separador de `PATH` é `os.pathsep`, nunca `:` cravado.** No Windows é `;`, e com dois-pontos o `PATH` inteiro vira uma entrada só de lixo — todo binário some, inclusive o que o teste acabou de montar. Estava em `plugins/bootstrap/lib/test_conformance.py:358`.
+- 🔴 **Matriz sem `fail-fast: false` mente sobre portabilidade.** O padrão cancela os outros sistemas quando um falha, e o log deles sai como `The operation was canceled` — indistinguível de falha real. O Windows quebrou, macOS e Linux apareceram vermelhos por cancelamento, e a leitura de fora foi "os três estão falhando". Uma esteira que existe para dizer **em quais sistemas** o problema está não pode cancelar os outros dois.
+
 **Onde cada família de suíte mora, e quem a roda no commit** — a contagem sai do `ls`, nunca de um número escrito aqui:
 
 ```bash

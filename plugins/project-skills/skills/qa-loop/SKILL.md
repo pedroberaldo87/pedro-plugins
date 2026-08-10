@@ -319,9 +319,36 @@ de a barra falar de qualquer motor em vez de um só.
 
 ## WORKFLOW — o motor (loop de rodadas)
 
-A casca dispara a tool `Workflow` com o script abaixo. **Esqueleto de referência — o princípio, não código
-imutável.** Os três schemas (`FINDINGS`, `PLAN`, `EXEC_RESULT`) são o que torna os gates determinísticos: o
-script lê campos estruturados, não texto solto.
+### O motor é COPIADO daqui, não reescrito a partir daqui
+
+🔴 **Esta seção já se chamou "esqueleto de referência — o princípio, não código imutável",
+e essa frase custou o mesmo defeito duas vezes.** O motor do `/sprint` virou arquivo do
+plugin em 2026-08-09 justamente por isso; o deste ficou sendo montado pela casca a cada
+disparo, e a assimetria cobrou em 2026-08-10: o passo que **apaga o sinal da barra** virou
+código lá (`encerra:barra`) e ficou em **prosa** aqui — *"ao entregar o relatório,
+encerre"*. Prosa não pega. O sinal do qa-loop ficou aceso **9h26 depois do fim**, a barra
+anunciando missão de pé, e quem viu foi o dono, não um cobrador.
+
+**O executável é `references/motor.js`**, resolvido por nome e passado direto ao `Workflow`:
+
+```bash
+MOTOR="$(bash "${CLAUDE_PLUGIN_ROOT}/lib/resolve-plugin.sh" project-skills skills/qa-loop/references/motor.js)"
+# Workflow({ scriptPath: MOTOR, args: {...} })
+```
+
+Nunca copie o `motor.js` para rascunho, nunca o redigite, nunca "melhore" na hora. A casca
+só monta os `args` — e passa **`resolvePlugin`** (o caminho absoluto do resolvedor,
+descoberto por `resolve-plugin.sh`) e **`sessionId`**, porque é dele que saem o registro da
+barra e o encerramento. Sem `sessionId` os dois papéis simplesmente não rodam, e o sinal
+volta a depender de alguém lembrar.
+
+Quem cobra que o arquivo não regrida é **`lib/test_qa_loop_motor.py`**: o encerramento tem
+que vir antes do `return` (para alcançar teto e churn, não só a rodada limpa), cada etapa
+tem que registrar onde está, e toda chamada de agente tem que levar `label`.
+
+O bloco abaixo é a **fonte documentada** do laço — quem muda comportamento edita os DOIS.
+Os três schemas (`FINDINGS`, `PLAN`, `EXEC_RESULT`) são o que torna os gates determinísticos:
+o script lê campos estruturados, não texto solto.
 
 ```javascript
 export const meta = {
