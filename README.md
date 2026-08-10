@@ -152,7 +152,6 @@ Ligar: `claude plugin enable <nome>@pedro-plugins`.
 | `guardrails` ⚙️ | automático (PostToolUse + PreToolUse) · setup `/guardrails:setup` | Guardrails globais de edição como hooks: lint & type-check pós-edição (JS/TS/Python), um scope-cop LLM que bloqueia edições de UI fora do plano aprovado e um guard de uso indevido de Agent Teams. Portável entre máquinas — substitui hooks hand-rolled no `~/.claude/settings.json`. Rode `/guardrails:setup` uma vez por máquina. |
 | `fallow` | `/fallow` | Roda o Fallow (analisador estático JS/TS — código morto, duplicação, complexidade), classifica achados por tipo e confiança, audita o relatório pra pegar falsos-positivos (cron, rotas HTTP, imports dinâmicos) e entrega um relatório interativo onde você escolhe o que limpar. Limpeza com rede de segurança (preview + build/test). |
 | `branches` ⚙️ | `/branches` · SessionStart | Relatório de branches paradas com prova: quantas, quais já estão contidas na base, e o que dá pra apagar. Antes de apagar, cria uma tag `archive/<branch>-<data>` como rede de resgate. Aviso silencioso no SessionStart quando não há branch parada. |
-| `improve` | `/improve` | Implementa rodadas de melhoria iterativa lendo o `IMPROVEMENT_PROGRAM.md` do app + issues do GitHub com label `autoresearch`. Genérico — funciona com qualquer app que siga a metodologia. |
 | `project-skills:design-md` | `/design-md` | Assistente de autoria pro formato `DESIGN.md` do Google (design-system-as-markdown — tokens em YAML + seções em markdown). Escreve seguindo a spec, valida de verdade pelo CLI oficial `@google/design.md` via `npx`, com fallback manual pela spec quando o `npx` não está disponível. Exporta tokens pra Tailwind/DTCG. **Skill do `project-skills`, não plugin separado** — vem junto com ele. |
 
 ### Apresentação visual
@@ -186,7 +185,7 @@ Ligar: `claude plugin enable <nome>@pedro-plugins`.
 | `graphify-guard` | SessionStart×2 · PreToolUse | Redireciona busca cega para o knowledge graph |
 | `guardrails` | SessionStart · PreToolUse×4 · PostToolUse | Lint e type-check pós-edição, scope-cop de UI, e o gate de pergunta sem apoio |
 | `handoff` | SessionStart×2 · PreToolUse · Stop | Detecta retomada e salva a continuidade da sessão |
-| `intent-guard` | SessionStart · UserPromptSubmit · PostToolUse×2 · Stop | Caderno de pedidos verbatim e gate de entrega (desligado de fábrica) |
+| `intent-guard` | SessionStart · UserPromptSubmit · PostToolUse×2 · Stop | Caderno de pedidos verbatim e gate de entrega |
 | `lixeiro` | SessionStart×2 · PostToolUse · Stop · SessionEnd | Anota quem abriu processo e encerra o que a sessão esqueceu de pé |
 | `project-skills` | SessionStart×4 · UserPromptSubmit · PreToolUse×6 · PostToolUse×2 · Stop×2 | Guarda doc-first, aviso de doc defasada, gate de plano, e o motor autônomo na barra de status |
 | `ship` | SessionStart · PreToolUse | Guarda o fluxo de deploy |
@@ -214,7 +213,7 @@ O catálogo vive em `.claude-plugin/marketplace.json` na raiz — cada plugin te
 
 ### Código compartilhado entre plugins
 
-Código realmente comum (ex.: `collect_engine.py` — leitura de transcripts, resolução de project-root, `collect()` de itens crus) mora em `_shared/` na raiz e é **vendorado** pra `lib/` de cada consumidor (`handoff`, `project-doc`) via `scripts/sync-shared.sh` — copiado, **não importado em runtime**, porque o Claude Code isola cada plugin no cache. `_shared/` é a fonte-da-verdade: edite lá e rode `scripts/sync-shared.sh` (o `--check` pega drift entre a fonte e as cópias).
+Código realmente comum mora em `_shared/` na raiz e é **vendorado** pra dentro de cada consumidor via `scripts/sync-shared.sh` — copiado, **não importado em runtime**, porque o Claude Code isola cada plugin no cache. São 12 arquivos compartilhados hoje, espalhados em 60 cópias: `collect_engine.py` (leitura de transcripts, resolução de project-root) vive em `handoff` e `project-skills`; `hook-json.sh` (leitura do payload do hook sem depender de `jq`) em 12 plugins; `regua_texto.py` (a régua que recusa prosa) em 10. `_shared/` é a fonte-da-verdade: edite lá e rode `scripts/sync-shared.sh` (o `--check` pega drift entre a fonte e as cópias).
 
 ---
 
