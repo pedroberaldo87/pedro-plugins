@@ -25,6 +25,15 @@ sys.path.insert(0, AQUI)
 
 from achado import achado, erros_de_achado  # noqa: E402
 
+# O bash que RESPONDE, não o do PATH: no Windows o do PATH é o do WSL, que sem
+# distro fala UTF-16 e chega como stdout vazio — a suíte reprovaria o comando
+# certo por causa do interpretador. Módulo compartilhado (_shared/bash_posix.py).
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from bash_posix import bash_posix  # noqa: E402
+
+BASH = bash_posix() or "bash"
+
+
 PLUGIN = os.path.dirname(AQUI)
 PAUTA = os.path.join(PLUGIN, "skills", "vistoria", "references", "pauta-verificador.md")
 
@@ -79,7 +88,7 @@ def verifica(a, raiz, entrada=None):
     if entrada is not None:
         for arquivo, _n, _t in citadas:
             if arquivo.endswith(".sh"):
-                saida = subprocess.run(["bash", os.path.join(raiz, arquivo), entrada],
+                saida = subprocess.run([BASH, os.path.join(raiz, arquivo), entrada],
                                        capture_output=True, text=True, encoding="utf-8", errors="replace",
                                        stdin=subprocess.DEVNULL, start_new_session=True)
                 if saida.returncode == 0:

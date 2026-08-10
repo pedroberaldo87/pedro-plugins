@@ -28,7 +28,7 @@
       "source": "./plugins/bootstrap",
       "description": "Bootstraps a new machine to this versioned Claude Code setup. Two layers: (1) auto-syncs third-party marketplaces & plugins via hooks (manifest-driven convergence), and (2) applies the versioned global config — env vars, permissions, behavior flags, the global CLAUDE.md, and a machine-resolved statusLine. Replaces bootstrap-third-party. Run /bootstrap:setup once per new machine. Ships the 'Clean Style' output style (single prose ceiling, pasted evidence exempt) and a report-only conformance checker that diffs the live machine against the versioned contract.",
       "category": "productivity",
-      "version": "1.17.6",
+      "version": "1.17.7",
       "tags": [
         "sync",
         "bootstrap",
@@ -167,7 +167,7 @@
       "source": "./plugins/handoff",
       "description": "Session continuity in a single command — /handoff detects the session state and routes: full context → saves a complete knowledge-transfer document; freshly cleared session → resumes from it. Workspace-aware: the handoff belongs to the project the session touched (resolves the .git boundary of the edited files), so it works for a standalone project, a monorepo (one HANDOFF-<module>.md per module), or an umbrella folder with nested projects — no more clobbering between parallel sessions on the same root. Optional [salvar|retomar] argument forces the mode.",
       "category": "productivity",
-      "version": "1.11.8",
+      "version": "1.11.9",
       "tags": [
         "session",
         "continuity",
@@ -193,7 +193,7 @@
       "source": "./plugins/improve-workflow",
       "description": "Workflow autopsy — reads the full transcript of a finished multi-agent run, measures cost and friction per role (agents, turns, tokens), flags suspect roles by counting instead of judging, and proposes fixes for the user to approve. It investigates and proposes, and is forbidden by design from implementing its own proposals. Early stage: today it ships the run-scoped leftovers sweeper (stale file reservations of that run only), the per-role measurer over a run transcript, and the skill that runs the round.",
       "category": "productivity",
-      "version": "0.16.20",
+      "version": "0.16.21",
       "tags": [
         "workflow",
         "autopsy",
@@ -247,7 +247,7 @@
       "source": "./plugins/project-skills",
       "description": "A casa das skills de projeto — documentacao, concepcao, plano, execucao e revisao moram sob um teto so, e conversam entre si por nome de plugin, nunca por caminho relativo para a pasta do vizinho. Traz tambem o motor de execucao autonoma (/sprint): decompoe -> executa -> revisa em Workflow deterministico, com os hooks que o guardam — a reserva de arquivos entre motores, o guarda de espera, o narrador de andamento na statusline e o gate que nega sub-agente com a missao armada (o apelido \"sovai\" segue evocando a skill sprint). O indice da familia se descobre lendo a pasta skills/ do plugin, nunca de cor.",
       "category": "productivity",
-      "version": "0.22.5",
+      "version": "0.22.6",
       "tags": [
         "project",
         "scaffolding",
@@ -299,7 +299,7 @@
       "source": "./plugins/vistoria",
       "description": "A ferramenta que revisa os arquivos de instrucao do proprio marketplace — skills, hooks e cobradores. Roda os cobradores do repo num comando so, soma as lentes medidas (assert que congela frase morta, script de hook sem chamador) e devolve uma pagina de achados com a prova colada, onde o dono marca o que vira plano ticavel. Achado sem prova e recusado na porta.",
       "category": "productivity",
-      "version": "0.11.2",
+      "version": "0.11.3",
       "tags": [
         "review",
         "skills",

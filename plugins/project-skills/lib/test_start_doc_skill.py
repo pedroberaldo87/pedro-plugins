@@ -21,6 +21,15 @@ import subprocess
 import sys
 import tempfile
 
+# O bash que RESPONDE, não o do PATH: no Windows o do PATH é o do WSL, que sem
+# distro fala UTF-16 e chega como stdout vazio — a suíte reprovaria o comando
+# certo por causa do interpretador. Módulo compartilhado (_shared/bash_posix.py).
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from bash_posix import bash_posix  # noqa: E402
+
+BASH = bash_posix() or "bash"
+
+
 AQUI = os.path.dirname(os.path.abspath(__file__))
 PLUGIN = os.path.join(AQUI, "..")
 SKILLS = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..",
@@ -164,7 +173,7 @@ def ler(caminho):
 
 def _tem_node():
     """O render do archify é Node — sem ele o caminho feliz não é checável."""
-    return subprocess.run(["bash", "-c", "command -v node"],
+    return subprocess.run([BASH, "-c", "command -v node"],
                           capture_output=True, stdin=subprocess.DEVNULL, start_new_session=True).returncode == 0
 
 

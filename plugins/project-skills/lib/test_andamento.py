@@ -18,6 +18,15 @@ import sys
 import tempfile
 import time
 
+# O bash que RESPONDE, não o do PATH: no Windows o do PATH é o do WSL, que sem
+# distro fala UTF-16 e chega como stdout vazio — a suíte reprovaria o comando
+# certo por causa do interpretador. Módulo compartilhado (_shared/bash_posix.py).
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from bash_posix import bash_posix  # noqa: E402
+
+BASH = bash_posix() or "bash"
+
+
 FAILS = []
 
 
@@ -332,7 +341,7 @@ def main():
                   bool(blocos))
             env = dict(os.environ, CLAUDE_CONFIG_DIR=casa_motor,
                        CLAUDE_CODE_SESSION_ID="s-" + motor)
-            subprocess.run(["bash", "-c", blocos[0]], env=env, check=True,
+            subprocess.run([BASH, "-c", blocos[0]], env=env, check=True,
                            stdin=subprocess.DEVNULL, start_new_session=True)
 
             casa_sinal = os.path.join(casa_motor, "andamento")
@@ -346,7 +355,7 @@ def main():
             # tem caso próprio (`gauntlet/lib/test_fecho_check.py`, "o fecho verde
             # apaga o sinal") — aqui vale o mesmo caminho, removido.
             if len(blocos) > 1:
-                subprocess.run(["bash", "-c", "\n".join(blocos)], env=env,
+                subprocess.run([BASH, "-c", "\n".join(blocos)], env=env,
                                check=True, stdin=subprocess.DEVNULL,
                                start_new_session=True)
             else:
@@ -367,7 +376,7 @@ def main():
         casa_mon = os.path.join(tmp, "casa-monitorar")
         env = dict(os.environ, CLAUDE_PLUGIN_ROOT=raiz,
                    CLAUDE_CONFIG_DIR=casa_mon)
-        vazio = subprocess.run(["bash", "-c", blocos[0]], env=env,
+        vazio = subprocess.run([BASH, "-c", blocos[0]], env=env,
                                capture_output=True, text=True, encoding="utf-8", errors="replace",
                                stdin=subprocess.DEVNULL, start_new_session=True)
         check("sem missão de pé o comando diz isso e sai bem",
@@ -377,7 +386,7 @@ def main():
         with open(os.path.join(casa_mon, "andamento", "ativo-s-mon"),
                   "w", encoding="utf-8") as fh:
             fh.write("qa-loop\n")
-        vivo = subprocess.run(["bash", "-c", blocos[0]], env=env,
+        vivo = subprocess.run([BASH, "-c", blocos[0]], env=env,
                               capture_output=True, text=True, encoding="utf-8", errors="replace",
                               stdin=subprocess.DEVNULL, start_new_session=True)
         check("com missão de pé imprime a sessão e o motor lidos do disco",

@@ -21,51 +21,13 @@ CONFORMANCE = AQUI / "conformance.py"
 SCOPE_COP = BOOTSTRAP.parent / "guardrails" / "hooks" / "scope-cop.sh"
 
 ok = falhas = 0
-_BASH = None
 
-
-def bash_posix():
-    """O caminho de um bash que RODA — não o primeiro que o PATH oferecer.
-
-    No Windows o `bash` do PATH é o do WSL (`System32\\bash.exe`), e em máquina
-    sem distro instalada ele responde `Windows Subsystem for Linux has no
-    installed distributions.` em UTF-16 — o que chega ao Python como stdout
-    VAZIO. O teste então reprovava com "o hook não bloqueou", que é a conclusão
-    errada sobre o hook certo: quem não rodou foi o interpretador.
-
-    Três tentativas de consertar isso pelo PATH do runner falharam (GITHUB_PATH
-    não venceu o System32; `export PATH=/usr/bin:$PATH` também não). A decisão
-    que sobrou é a honesta: **quem precisa do bash procura um que funcione**, e
-    o critério é ele responder — não estar no PATH. Ordem: o do PATH, se
-    responder; senão os lugares onde o Git Bash mora no Windows.
-
-    Devolve `None` quando não há nenhum. Quem chama PULA o caso e diz isso em
-    voz alta — hook shell sem shell não é falha do hook.
-    """
-    global _BASH
-    if _BASH is not None:
-        return _BASH or None
-    candidatos = [shutil.which("bash")]
-    if os.name == "nt":
-        # Barra NORMAL de propósito: o Windows aceita as duas, e a invertida em
-        # literal Python é campo minado (`\b` de `\bin` vira backspace).
-        candidatos += ["C:/Program Files/Git/bin/bash.exe",
-                       "C:/Program Files/Git/usr/bin/bash.exe",
-                       "C:/Program Files (x86)/Git/bin/bash.exe"]
-    for c in candidatos:
-        if not c or not os.path.exists(c):
-            continue
-        try:
-            r = subprocess.run([c, "-c", "echo VIVO"], capture_output=True,
-                               text=True, encoding="utf-8", errors="replace", timeout=20, stdin=subprocess.DEVNULL,
-                               start_new_session=True)
-        except (OSError, subprocess.SubprocessError):
-            continue
-        if r.stdout.strip() == "VIVO":
-            _BASH = c
-            return c
-    _BASH = ""
-    return None
+# O bash que RESPONDE, não o do PATH: no Windows o do PATH é o do WSL, que sem
+# distro fala UTF-16 e chega ao Python como stdout VAZIO — o teste concluía "o
+# hook não bloqueou" sobre um hook que nunca chegou a rodar. Estava escrito aqui
+# e reescrito no handoff; agora mora em _shared/bash_posix.py, vendorado.
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from bash_posix import bash_posix  # noqa: E402
 
 
 def check(nome, cond, detalhe=""):

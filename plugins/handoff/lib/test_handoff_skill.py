@@ -22,45 +22,11 @@ SKILL_MD = os.path.join(os.path.dirname(os.path.abspath(__file__)),
 
 FAILS = []
 
+# O bash que RESPONDE, não o do PATH (ver _shared/bash_posix.py).
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from bash_posix import bash_posix  # noqa: E402
+
 BASH = None
-_BASH = None
-
-
-def bash_posix():
-    """O caminho de um bash que RODA — não o primeiro que o PATH oferecer.
-
-    Mesma régua de `bootstrap/lib/test_conformance.py:bash_posix`, e pelo mesmo
-    motivo medido: no Windows o `bash` do PATH é o do WSL (`System32\\bash.exe`),
-    que em máquina sem distro responde em UTF-16 e chega ao Python como stdout
-    VAZIO — os checks abaixo reprovavam a SKILL por causa do interpretador. Sem
-    nenhum bash que responda, o caso PULA declarando: comando shell sem shell não
-    é falha da skill.
-    """
-    global _BASH
-    if _BASH is not None:
-        return _BASH or None
-    candidatos = [shutil.which("bash")]
-    if os.name == "nt":
-        # Barra normal de propósito: o Windows aceita as duas, e a invertida em
-        # literal Python é campo minado (`\b` de `\bin` vira backspace).
-        candidatos += ["C:/Program Files/Git/bin/bash.exe",
-                       "C:/Program Files/Git/usr/bin/bash.exe",
-                       "C:/Program Files (x86)/Git/bin/bash.exe"]
-    for c in candidatos:
-        if not c or not os.path.exists(c):
-            continue
-        try:
-            r = subprocess.run([c, "-c", "echo VIVO"], capture_output=True, text=True, encoding="utf-8", errors="replace",
-                               timeout=20, stdin=subprocess.DEVNULL, start_new_session=True)
-        except (OSError, subprocess.SubprocessError):
-            continue
-        if r.stdout.strip() == "VIVO":
-            _BASH = c
-            return c
-    _BASH = ""
-    return None
-
-
 
 
 def check(label, cond):
