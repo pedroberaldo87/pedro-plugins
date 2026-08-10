@@ -724,7 +724,7 @@ def stop_budget(root):
             runner = ["python3", caminho] if caminho.endswith(".py") else ["bash", caminho]
             try:
                 r = subprocess.run(runner, input=payload, capture_output=True,
-                                   text=True, env=env, cwd=projeto, timeout=20, start_new_session=True)
+                                   text=True, encoding="utf-8", errors="replace", env=env, cwd=projeto, timeout=20, start_new_session=True)
                 out = (r.stdout or "") + (r.stderr or "")
             except (subprocess.TimeoutExpired, OSError) as exc:
                 out = ""
@@ -741,7 +741,7 @@ def stop_budget(root):
             env_t = dict(env, CLAUDE_PLUGIN_ROOT=t["raiz"])
             try:
                 r = subprocess.run(["bash", "-c", t["cmd"]], input=payload,
-                                   capture_output=True, text=True, env=env_t,
+                                   capture_output=True, text=True, encoding="utf-8", errors="replace", env=env_t,
                                    cwd=projeto, timeout=20, start_new_session=True)
                 out = (r.stdout or "") + (r.stderr or "")
                 nota = None

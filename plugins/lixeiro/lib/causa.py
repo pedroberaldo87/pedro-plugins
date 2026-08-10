@@ -164,7 +164,7 @@ def suite_verde(arquivo):
         return (False, False, "nenhuma suíte cobre %s" % os.path.basename(arquivo))
     try:
         r = subprocess.run([sys.executable, s], stdin=subprocess.DEVNULL,
-                           capture_output=True, text=True, timeout=180,
+                           capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=180,
                            start_new_session=True, cwd=os.path.dirname(s) or None)
     except (OSError, subprocess.SubprocessError) as e:
         return (True, False, "a suíte não rodou: %s" % e)

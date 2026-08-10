@@ -124,7 +124,7 @@ RAIZ = re.compile(r"(?<![\w./-])plugins/([\w-]+)/(?:lib|hooks|skills)/")
 def rastreados(root):
     try:
         out = subprocess.run(["git", "-C", root, "ls-files"],
-                             capture_output=True, text=True, timeout=30, stdin=subprocess.DEVNULL, start_new_session=True)
+                             capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=30, stdin=subprocess.DEVNULL, start_new_session=True)
     except (OSError, subprocess.SubprocessError):
         return []
     if out.returncode != 0:

@@ -1,6 +1,6 @@
 {
   "name": "vistoria",
-  "version": "0.11.0",
+  "version": "0.11.1",
   "description": "A ferramenta que revisa os arquivos de instrucao do proprio marketplace — skills, hooks e cobradores. Roda os cobradores do repo num comando so, soma as lentes medidas (assert que congela frase morta, script de hook sem chamador) e devolve uma pagina de achados com a prova colada, onde o dono marca o que vira plano ticavel. Achado sem prova e recusado na porta.",
   "author": {
     "name": "pedro-plugins"

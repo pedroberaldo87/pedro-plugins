@@ -40,7 +40,7 @@ ONDE = os.path.join(".claude", "worktrees")
 def _git(*args, cwd=None):
     try:
         r = subprocess.run(["git", "-C", cwd or RAIZ] + list(args),
-                           stdin=subprocess.DEVNULL, capture_output=True, text=True,
+                           stdin=subprocess.DEVNULL, capture_output=True, text=True, encoding="utf-8", errors="replace",
                            timeout=30, start_new_session=True)
     except (OSError, subprocess.SubprocessError):
         return ""

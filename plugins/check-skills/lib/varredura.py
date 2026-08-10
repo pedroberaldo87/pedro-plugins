@@ -282,7 +282,7 @@ def _ps():
     """[(pid, ppid, minutos_de_cpu, comando)] — vazio quando não dá para ler."""
     try:
         r = subprocess.run(["ps", "-eo", "pid=,ppid=,time=,args="],
-                           stdin=subprocess.DEVNULL, capture_output=True, text=True,
+                           stdin=subprocess.DEVNULL, capture_output=True, text=True, encoding="utf-8", errors="replace",
                            timeout=15, start_new_session=True)
     except (OSError, subprocess.SubprocessError):
         return []

@@ -319,7 +319,7 @@ def discover_transcript(cwd, session_id=None):
         # Diretório temporário DO SISTEMA — o mesmo que sessionstart-ata.sh usa.
         sentinel = os.path.join(tempfile.gettempdir(), f"claude-ata-session-{h}")
         try:
-            with open(sentinel) as fh:
+            with open(sentinel, encoding="utf-8") as fh:
                 data = json.load(fh)
             tp = data.get("transcript_path")
             if tp and os.path.exists(tp):
@@ -432,7 +432,7 @@ def find_team_transcripts(lead_session_id, cwd):
     for cfg_path in glob.glob(os.path.join(TEAMS_DIR, "session-*", "config.json")):
         cfg = {}
         try:
-            with open(cfg_path) as fh:
+            with open(cfg_path, encoding="utf-8") as fh:
                 cfg = json.load(fh)
         except (OSError, json.JSONDecodeError):
             continue

@@ -526,7 +526,7 @@ def _git_changed_since(root, date):
         out = subprocess.run(
             ["git", "-C", root, "log", "--since=%s 00:00:00" % date,
              "--name-only", "--pretty=format:"],
-            capture_output=True, text=True, timeout=30, stdin=subprocess.DEVNULL, start_new_session=True).stdout
+            capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=30, stdin=subprocess.DEVNULL, start_new_session=True).stdout
     except Exception:
         return None
     return sorted({ln.strip() for ln in out.splitlines() if ln.strip()})

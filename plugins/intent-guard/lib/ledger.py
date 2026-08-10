@@ -29,7 +29,7 @@ CLASSES = ("pedido", "correcao", "restricao", "conversa")
 def project_root(cwd):
     try:
         r = subprocess.run(["git", "-C", cwd, "rev-parse", "--show-toplevel"],
-                           capture_output=True, text=True, timeout=5, stdin=subprocess.DEVNULL, start_new_session=True)
+                           capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=5, stdin=subprocess.DEVNULL, start_new_session=True)
         if r.returncode == 0 and r.stdout.strip():
             return r.stdout.strip()
     except Exception:
@@ -65,7 +65,7 @@ def ensure_exclude(cwd):
         return
     try:
         r = subprocess.run(["git", "-C", root, "rev-parse", "--git-path", "info/exclude"],
-                           capture_output=True, text=True, timeout=5, stdin=subprocess.DEVNULL, start_new_session=True)
+                           capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=5, stdin=subprocess.DEVNULL, start_new_session=True)
         if r.returncode != 0 or not r.stdout.strip():
             return
         p = r.stdout.strip()
@@ -210,7 +210,7 @@ def tree_hash(cwd):
         return ""
     try:
         r = subprocess.run(["git", "-C", root, "rev-parse", "--git-dir"],
-                           capture_output=True, text=True, timeout=5, stdin=subprocess.DEVNULL, start_new_session=True)
+                           capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=5, stdin=subprocess.DEVNULL, start_new_session=True)
         if r.returncode != 0:
             return ""
     except Exception:
@@ -226,7 +226,7 @@ def tree_hash(cwd):
         subprocess.run(["git", "-C", root, "add", "-A", "--", "."] + excludes,
                        env=env, capture_output=True, timeout=60, stdin=subprocess.DEVNULL, start_new_session=True)
         r = subprocess.run(["git", "-C", root, "write-tree"],
-                           env=env, capture_output=True, text=True, timeout=15, stdin=subprocess.DEVNULL, start_new_session=True)
+                           env=env, capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=15, stdin=subprocess.DEVNULL, start_new_session=True)
         return r.stdout.strip() if r.returncode == 0 else ""
     except Exception:
         return ""
@@ -263,7 +263,7 @@ def _arquivos_mexidos(cwd, hash_antigo):
             return None
         r = subprocess.run(["git", "-C", root, "diff", "--name-only",
                             hash_antigo, atual],
-                           capture_output=True, text=True, timeout=10, stdin=subprocess.DEVNULL, start_new_session=True)
+                           capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=10, stdin=subprocess.DEVNULL, start_new_session=True)
         if r.returncode != 0:
             return None
         return {ln.strip() for ln in r.stdout.splitlines() if ln.strip()}
@@ -395,25 +395,25 @@ def recipe_git_synced(cwd):
         return None, "não é projeto git"
     try:
         br = subprocess.run(["git", "-C", root, "rev-parse", "--abbrev-ref", "HEAD"],
-                            capture_output=True, text=True, timeout=10, stdin=subprocess.DEVNULL, start_new_session=True)
+                            capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=10, stdin=subprocess.DEVNULL, start_new_session=True)
         if br.returncode != 0:
             return None, "sem branch"
         branch = br.stdout.strip()
         up = subprocess.run(["git", "-C", root, "rev-parse", "--abbrev-ref",
                              "%s@{upstream}" % branch],
-                            capture_output=True, text=True, timeout=10, stdin=subprocess.DEVNULL, start_new_session=True)
+                            capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=10, stdin=subprocess.DEVNULL, start_new_session=True)
         if up.returncode != 0 or not up.stdout.strip():
             return None, "branch sem upstream"
         upstream = up.stdout.strip()
         subprocess.run(["git", "-C", root, "fetch", "-q", "origin", branch],
                        capture_output=True, timeout=60, stdin=subprocess.DEVNULL, start_new_session=True)
         h = subprocess.run(["git", "-C", root, "rev-parse", "HEAD"],
-                           capture_output=True, text=True, timeout=10, stdin=subprocess.DEVNULL, start_new_session=True).stdout.strip()
+                           capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=10, stdin=subprocess.DEVNULL, start_new_session=True).stdout.strip()
         r = subprocess.run(["git", "-C", root, "rev-parse", upstream],
-                           capture_output=True, text=True, timeout=10, stdin=subprocess.DEVNULL, start_new_session=True).stdout.strip()
+                           capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=10, stdin=subprocess.DEVNULL, start_new_session=True).stdout.strip()
         dirty = subprocess.run(["git", "-C", root, "status", "--porcelain",
                                 "--untracked-files=no"],
-                               capture_output=True, text=True, timeout=30, stdin=subprocess.DEVNULL, start_new_session=True).stdout.strip()
+                               capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=30, stdin=subprocess.DEVNULL, start_new_session=True).stdout.strip()
     except Exception as e:
         return None, "erro de git: %s" % e
     if not h or not r:
