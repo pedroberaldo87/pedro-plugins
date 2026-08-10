@@ -55,8 +55,15 @@ arsenal. Com tudo pronto, pula-se.
 o programa ancora e reconfere sozinho. Sem lei, só o alvo manda.
 
 **Arsenal** — `~/.claude/gauntlet/arsenal.md` + o do projeto; ofereça a seção do tipo
-da missão. O aceito entra no rito e nos briefings de construtor e recon; biblioteca se
-USA, referência visual é vibe; o juiz nunca o recebe; a entrega declara `arsenal_usado`.
+da missão. O aceito entra no rito e nos briefings de construtor e recon; o juiz nunca o
+recebe; a entrega declara `arsenal_usado`. **Três naturezas, e a terceira é a que morde:**
+biblioteca se USA · referência visual é vibe · **gerador PRODUZ asset que entra na obra**
+— e aí a armadilha "falsificar asset" deixa de ser hipótese. Recurso generativo no rito
+⇒ o briefing do construtor leva junto o que ele pode criar (símbolo, textura, fundo, cena
+autoral) e o que não pode gerar nunca (o que se passaria por registro do que não
+aconteceu: foto de cliente, de equipe, de lugar, de prêmio, rosto ou marca de terceiro).
+O que falta de verdade ganha lugar honesto e sai do julgamento. `arsenal_usado` nomeia o
+modelo, não só a ferramenta — é o que dá ao dono o que vetar depois.
 
 **Diretor criativo** — missão estética: ofereça por `AskUserQuestion` ANTES de qualquer
 despacho e espere. `criativo: true/false` no rito decide dali em diante; `false` vale a

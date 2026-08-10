@@ -109,6 +109,16 @@ de reinventar, e declare na entrega qual usou, no campo `arsenal_usado` do
 entrega.json (lista; vazia = "não usei nada" — sem o campo, o fecho recusa):
 {arsenal, verbatim}}
 
+{Se o arsenal traz gerador de asset: VOCÊ PODE GERAR ASSET, E EXISTE UMA LINHA.
+Gerar é criar o que a obra apresenta COMO criação — símbolo, ícone, textura, fundo,
+forma, ilustração, cena autoral. O que não se gera nunca é o que se passaria por
+REGISTRO do que não aconteceu: foto de cliente, de equipe, de escritório, de prêmio,
+de caso, de produto que não existe — nem rosto ou marca de terceiro, nem para
+"preencher". Asset real que falta ganha lugar honesto na composição e SAI do
+julgamento; ele não vira imagem sintética com cara de documento. No `arsenal_usado`
+diga o MODELO que gerou cada coisa, não só a ferramenta. Custo é real e o laço é
+longo: estime antes de gerar em lote, e deixe vídeo para quando a peça parar de mudar.}
+
 {Rodada 1 exploratória: Faça TRÊS propostas diferentes de verdade — não três variações
 da mesma —, monte lado a lado, OLHE, e escolha com o olho. Registre por que descartou
 cada uma, com o motivo visto na tela: o descarte é o argumento.}
