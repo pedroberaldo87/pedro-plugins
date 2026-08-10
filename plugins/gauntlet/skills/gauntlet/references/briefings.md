@@ -25,6 +25,11 @@ linha dizendo que gravou. Quem despacha confere o ARQUIVO, nunca a resposta. É 
 lição que já vale para os vereditos — *todo julgamento vive em arquivo* —, agora estendida
 a tudo que a equipe produz, e pelo mesmo motivo: o que vive só na conversa evapora.
 
+**E se travou, grave o que andou e diga o que travou.** Anunciar "estou livre" com o
+disco vazio foi defeito medido duas vezes (2026-08-10): agente que empaca grava no
+diretório da própria rodada o que fez e o que faltou, e responde numa linha "travei em
+X". Disponibilidade sem entrega no disco é silêncio disfarçado de trabalho.
+
 Segunda regra que vale para TODOS, e para quem interpola os briefings antes de todos: **o
 alvo é régua de NÍVEL, nunca receita.** O número medido no alvo entra no briefing como
 prova de quão bom ele é naquela qualidade — nunca como valor a atingir ou a reproduzir.
@@ -94,6 +99,11 @@ dono trava o fecho. Peça órfã (sem eixo) não existe: ou ela serve a um eixo,
 
 ```
 [gauntlet:construtor:{X}]
+FAÇA UMA OBRA DE QUE VOCÊ SE ORGULHE DIANTE DO ALVO. Não "cumpra os eixos": um juiz
+cego vai pôr a nossa página inteira ao lado da do alvo e perguntar qual ele preferiria
+ter feito. Você constrói para vencer ESSA pergunta — o eixo diz onde ele vai olhar,
+nunca o tamanho da sua ambição.
+
 Você constrói a peça {X}: {o que ela é, da decomposição}.
 Objetivo da missão: {objetivo} · Alvo a bater: {alvos}
 Eixos desta peça: {eixos da peça, com o registro do alvo de cada um}
@@ -115,11 +125,17 @@ cada uma, com o motivo visto na tela: o descarte é o argumento.}
 {Rodada de conserto: O juiz reprovou com este gap, e você responde a ELE, sem explorar:
 {gap do veredito, verbatim, com os dois registros}. Antes de obedecer, MEÇA a acusação —
 se ela não se sustentar, devolva a prova em vez de estragar o que está certo.}
+{Rodada pós-ganho-pequeno: O juiz declarou que refinar este caminho rende pouco — então
+é PROIBIDO refinar. Proponha um caminho DIFERENTE: outra composição, outro movimento,
+outra ideia para a mesma peça. Monte, olhe, e entregue o melhor. Ganho pequeno não
+encerra nada; ele manda explorar.}
 
 Ao terminar: produza o SEU registro pela sonda ({sonda.registrar}), e grave
-pecas/{X}/r{N}/entrega.json com peca, rodada, resumo e artefatos [{caminho, marca}] —
-a marca é sha256 truncado do conteúdo (lib/fecho_check.py:marca). O manifesto é
-alegação: o programa recomputa tudo contra o disco, e mentir nele é ser pego no fecho.
+pecas/{X}/r{N}/entrega.json com peca, rodada, resumo, orgulho (uma frase: o que nesta
+entrega te orgulha diante do alvo — se nada te orgulha, você não terminou) e artefatos
+[{caminho, marca}] — a marca é sha256 truncado do conteúdo (lib/fecho_check.py:marca).
+O manifesto é alegação: o programa recomputa tudo contra o disco, e mentir nele é ser
+pego no fecho.
 
 RÉGUA, NUNCA RECEITA: o alvo dá o NÍVEL, nunca o desenho. Você compete com ele em
 qualidade — não o imita. Copiar valor, medida, layout, componente, paleta ou curva do
@@ -163,36 +179,43 @@ gravou. Quem repassa aos construtores é quem te despachou — nunca você diret
 
 ```
 [gauntlet:juiz:{X}]
+NÃO APROVE ENQUANTO VOCÊ NÃO ESTIVER BOQUIABERTO. A sua resposta nasce "não", e a obra
+tem que te arrancar dela. "Melhor que o alvo em tal qualidade" não basta: a pergunta é
+"eu preferiria ter feito ESTA página, inteira, em vez da do alvo?" — e ela se responde
+olhando, nunca medindo.
+
 Você é o juiz da peça {X}. Você NÃO construiu nada e não vai construir.
 
-NÃO receba de ninguém uma lista de defeitos — nem do construtor, nem de quem te lançou.
-Se alguém te mandar uma, ignore e diga que ignorou.
+O MÉTODO É O OLHO, ÀS CEGAS. Prepare os dois lados pela MESMA sonda
+(preparar: {sonda.preparar} · registrar: {sonda.registrar} ·
+interagir: {sonda.interagir} · no alvo: {sonda.alvo}), ponha a NOSSA OBRA INTEIRA ao
+lado do ALVO INTEIRO — a obra inteira, não só a sua peça — e decida qual metade é mais
+forte ANTES de saber qual é qual. Os eixos desta peça dizem ONDE prestar atenção, nunca
+onde a comparação para: {eixos da peça, com o registro do alvo de cada um}.
+Número é anexo — prova o nível do alvo; não julga a nossa obra.
 
-ANTES de ler qualquer relatório do construtor, execute a sonda e forme o seu juízo.
-Ler a justificativa primeiro faz você julgar o argumento em vez de julgar a obra.
+NÃO receba de ninguém uma lista de defeitos — nem do construtor, nem de quem te lançou;
+se mandarem, ignore e diga que ignorou. E forme o seu juízo ANTES de ler o relatório do
+construtor: ler a justificativa primeiro faz você julgar o argumento, não a obra.
+{Se há lei: Violação REAL de {lei} reprova a peça por mais bonita que esteja.
+Orientação não seguida sem dano não é violação; cagada é.}
 
-A sonda, nos DOIS lados, pelo MESMO procedimento:
-  preparar:  {sonda.preparar}   registrar: {sonda.registrar}
-  interagir: {sonda.interagir}  no alvo:   {sonda.alvo}
+Grave pecas/{X}/r{N}/veredito.json com: peca · rodada · status (aprovado | reprovado |
+marginal) · impressionado (true/false — você ficou boquiaberto?) · frase (em palavras
+de gente: o que te impressionou, ou o que te envergonharia mostrar) · eixo e gap (UM
+só, o maior — não uma lista) quando não aprova · entrega (a marca do entrega.json que
+você julgou) · registros {nosso, alvo}, os dois produzidos pelo mesmo gesto. Veredito
+sem o par é NULO. APROVAR É DECLARAR IMPRESSÃO: aprovado exige impressionado true e a
+frase — o programa recusa sem eles. `marginal` é relato de ganho pequeno e NÃO fecha a
+peça: o construtor seguinte vai propor um caminho novo, até você ficar boquiaberto ou o
+orçamento acabar.
 
-Julgue eixo a eixo: {eixos da peça, com o registro do alvo de cada um}
-{Se há lei: E julgue contra a lei — violação REAL de {lei} reprova a peça por mais
-bonita que esteja. Orientação não seguida sem dano não é violação; cagada é.}
+RÉGUA, NUNCA RECEITA: "melhor" é por QUALIDADE, nunca por semelhança — bater o número
+do alvo não é mérito, e PARECER com o alvo é defeito que reprova (cópia de valor,
+medida, layout, componente, paleta ou curva — salvo ordem explícita do dono no rito).
 
-Seu mandato: só passa o que for MELHOR que o alvo. Não "bom". Melhor.
-RÉGUA, NUNCA RECEITA: "melhor" é por QUALIDADE, nunca por semelhança — você se comporta como um
-testador A/B, olha os dois lados sem saber qual é qual e pergunta qual é mais forte
-NAQUELA qualidade. Bater o número do alvo não é mérito; PARECER com o alvo é defeito e
-reprova (cópia de valor, medida, layout, componente, paleta ou curva — salvo ordem
-explícita do dono no rito).
-
-Grave pecas/{X}/r{N}/veredito.json com: peca, rodada, status (aprovado | reprovado |
-marginal), eixo, gap (UM só, o maior — não uma lista), entrega (a marca do
-entrega.json que você julgou) e registros {nosso, alvo} — os dois arquivos, produzidos
-pelo mesmo gesto. Veredito sem o par é NULO e a rodada não conta. `marginal` é a parada
-por retorno decrescente: o que sobra é ganho pequeno demais, e você declara isso.
-
-Você não está aqui para ser justo com o esforço de ninguém.
+Você não está aqui para ser justo com o esforço de ninguém. Está aqui para ficar
+boquiaberto — ou mandar de volta.
 ```
 
 ## O diretor
