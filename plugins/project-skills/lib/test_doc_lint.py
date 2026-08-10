@@ -125,9 +125,17 @@ def main():
         check("tronco: FAIL entra no veredito do lint", out["fails"] >= 1)
         # e some assim que o arquivo entra no tronco
         subprocess.run(["git", "-C", td, "add", "-A"], check=True, stdin=subprocess.DEVNULL, start_new_session=True)
+        # O git exige AS DUAS identidades — autor e committer. Só o committer
+        # estava aqui, e funcionava na máquina de quem escreveu porque o
+        # `~/.gitconfig` global preenchia a outra. Em runner limpo (a esteira de
+        # portabilidade) o commit sai 128 e a suíte inteira morre num
+        # CalledProcessError que não diz "faltou user.email".
         subprocess.run(["git", "-C", td, "commit", "-qm", "mig", "--no-gpg-sign"],
-                       check=True, env={**os.environ, "GIT_COMMITTER_NAME": "t",
-                                        "GIT_COMMITTER_EMAIL": "t@t"}, stdin=subprocess.DEVNULL, start_new_session=True)
+                       check=True, env={**os.environ,
+                                        "GIT_AUTHOR_NAME": "t", "GIT_AUTHOR_EMAIL": "t@t",
+                                        "GIT_COMMITTER_NAME": "t",
+                                        "GIT_COMMITTER_EMAIL": "t@t"},
+                       stdin=subprocess.DEVNULL, start_new_session=True)
         out = doc_lint.lint(td, [doc7])
         check("tronco: depois do commit, não acusa mais",
               not any(x["check"] == "not-in-trunk" for x in flat(out, doc7)))
