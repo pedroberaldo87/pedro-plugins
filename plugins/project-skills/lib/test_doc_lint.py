@@ -11,6 +11,25 @@ import doc_lint  # noqa: E402
 PASSED = 0
 
 
+# ── A IDENTIDADE DO GIT É UMA RECEITA SÓ ─────────────────────────────────────
+# O git exige AS DUAS identidades (autor e committer) para commitar. Este arquivo
+# tinha TRÊS chamadas de `git commit` e três formas diferentes: uma com `--author`
+# mais o committer no ambiente, e duas só com o committer. As duas últimas
+# funcionavam na máquina de quem escreveu porque o `~/.gitconfig` global preenchia
+# a outra ponta — e saíam com código 128 em runner limpo, derrubando a suíte num
+# CalledProcessError que não diz "faltou user.email". Consertar uma por vez foi o
+# que fez a esteira quebrar duas vezes seguidas no mesmo arquivo.
+GIT_ID = {"GIT_AUTHOR_NAME": "t", "GIT_AUTHOR_EMAIL": "t@t",
+          "GIT_COMMITTER_NAME": "t", "GIT_COMMITTER_EMAIL": "t@t"}
+
+
+def git_commit(td, msg):
+    """Um commit na fixture, com identidade própria e sem depender do ambiente."""
+    subprocess.run(["git", "-C", td, "commit", "-qm", msg, "--no-gpg-sign"],
+                   check=True, env={**os.environ, **GIT_ID},
+                   stdin=subprocess.DEVNULL, start_new_session=True)
+
+
 def check(name, cond):
     global PASSED
     if not cond:
@@ -30,10 +49,7 @@ def make_repo(td):
     with open(os.path.join(td, "compose.yml"), "w") as fh:
         fh.write("services:\n  app:\n    environment:\n      - COMPOSE_VAR=${COMPOSE_VAR}\n")
     subprocess.run(["git", "-C", td, "add", "-A"], check=True, stdin=subprocess.DEVNULL, start_new_session=True)
-    subprocess.run(["git", "-C", td, "commit", "-qm", "init",
-                    "--author", "t <t@t>", "--no-gpg-sign"], check=True,
-                   env={**os.environ, "GIT_COMMITTER_NAME": "t",
-                        "GIT_COMMITTER_EMAIL": "t@t"}, stdin=subprocess.DEVNULL, start_new_session=True)
+    git_commit(td, "init")
     return subprocess.run(["git", "-C", td, "rev-parse", "HEAD"],
                           capture_output=True, text=True, stdin=subprocess.DEVNULL, start_new_session=True).stdout.strip()
 
@@ -125,17 +141,7 @@ def main():
         check("tronco: FAIL entra no veredito do lint", out["fails"] >= 1)
         # e some assim que o arquivo entra no tronco
         subprocess.run(["git", "-C", td, "add", "-A"], check=True, stdin=subprocess.DEVNULL, start_new_session=True)
-        # O git exige AS DUAS identidades — autor e committer. Só o committer
-        # estava aqui, e funcionava na máquina de quem escreveu porque o
-        # `~/.gitconfig` global preenchia a outra. Em runner limpo (a esteira de
-        # portabilidade) o commit sai 128 e a suíte inteira morre num
-        # CalledProcessError que não diz "faltou user.email".
-        subprocess.run(["git", "-C", td, "commit", "-qm", "mig", "--no-gpg-sign"],
-                       check=True, env={**os.environ,
-                                        "GIT_AUTHOR_NAME": "t", "GIT_AUTHOR_EMAIL": "t@t",
-                                        "GIT_COMMITTER_NAME": "t",
-                                        "GIT_COMMITTER_EMAIL": "t@t"},
-                       stdin=subprocess.DEVNULL, start_new_session=True)
+        git_commit(td, "mig")
         out = doc_lint.lint(td, [doc7])
         check("tronco: depois do commit, não acusa mais",
               not any(x["check"] == "not-in-trunk" for x in flat(out, doc7)))
@@ -166,9 +172,7 @@ def main():
         with open(os.path.join(td, "deep", "app", "main.py"), "w") as fh:
             fh.write("# pad\n" * 80)   # 81 linhas; o app/main.py da raiz tem ~16
         subprocess.run(["git", "-C", td, "add", "-A"], check=True, stdin=subprocess.DEVNULL, start_new_session=True)
-        subprocess.run(["git", "-C", td, "commit", "-qm", "deep", "--no-gpg-sign"],
-                       check=True, env={**os.environ, "GIT_COMMITTER_NAME": "t",
-                                        "GIT_COMMITTER_EMAIL": "t@t"}, stdin=subprocess.DEVNULL, start_new_session=True)
+        git_commit(td, "deep")
         doc6 = write_doc(td, "amb.md", "- ver `app/main.py:70`")
         out = doc_lint.lint(td, [doc6])
         check("ponteiro ambíguo vivo no candidato certo não vira FAIL",
