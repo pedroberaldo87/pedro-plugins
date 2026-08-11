@@ -152,9 +152,9 @@ def cumprido_comando(cmd, root):
         return None
     finally:
         if p is not None and p.poll() is None:
-            try:
-                os.killpg(os.getpgid(p.pid), signal.SIGKILL)
-            except OSError:
+            try:                       # Windows não tem killpg/getpgid nem SIGKILL:
+                os.killpg(os.getpgid(p.pid), signal.SIGKILL)   # AttributeError, não OSError
+            except (OSError, AttributeError):
                 p.kill()
             try:
                 p.wait(timeout=5)
