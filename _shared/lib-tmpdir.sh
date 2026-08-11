@@ -17,7 +17,12 @@
 # que `scripts/test_paths_normalize.sh` já trava para a raiz do plugin) e SEM
 # barra final, porque quem chama concatena `/nome` em seguida.
 td_tmpdir() {
-  _td_dir=${TMPDIR:-/tmp}
+  # TMPDIR, TMP, TEMP, e só então `/tmp`. O Windows define TMP e TEMP e NÃO define
+  # TMPDIR: com só o primeiro na cascata, o Git Bash caía no `/tmp` — que ali é
+  # caminho do SHELL, não do sistema. Quem recebia esse caminho e era nativo (o
+  # `python3` do Windows) resolvia `/tmp/x` como `C:\tmp\x`, que não existe, e o
+  # arquivo nascia num lugar que quem escreveu não conseguia mais achar.
+  _td_dir=${TMPDIR:-${TMP:-${TEMP:-/tmp}}}
   _td_dir=$(printf '%s' "$_td_dir" | tr '\\' /)
   while [ "$_td_dir" != "/" ] && [ "${_td_dir%/}" != "$_td_dir" ]; do
     _td_dir=${_td_dir%/}
