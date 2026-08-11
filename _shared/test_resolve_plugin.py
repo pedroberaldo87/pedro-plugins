@@ -17,6 +17,10 @@ import sys
 import tempfile
 
 AQUI = os.path.dirname(os.path.abspath(__file__))
+sys.path.insert(0, AQUI)
+from bash_posix import bash_posix  # noqa: E402
+
+BASH = bash_posix()
 FONTE = os.path.join(AQUI, "resolve-plugin.sh")
 RAIZ = os.path.dirname(AQUI)
 # Os consumidores declarados no `scripts/sync-shared.sh`.
@@ -71,7 +75,10 @@ def resolve(layout, nome="lixeiro", rel="lib/lixeiro.py", pede=None):
         amb = dict(os.environ)
         amb.update({"CLAUDE_PLUGIN_ROOT": root,
                     "CLAUDE_CONFIG_DIR": os.path.join(raiz, "config")})
-        out = subprocess.run(["bash", FONTE, p_nome, p_rel],
+        # BASH, nunca "bash": no Windows o `bash` do PATH é o do WSL, que sem distro
+        # instalada responde uma reclamação em UTF-16 — e as 10 checagens reprovavam o
+        # RESOLVEDOR por causa do interpretador. Ver `_shared/bash_posix.py`.
+        out = subprocess.run([BASH, FONTE, p_nome, p_rel],
                              capture_output=True, text=True, encoding="utf-8", errors="replace", env=amb, stdin=subprocess.DEVNULL, start_new_session=True)
         saida = out.stdout.strip()
         return out.returncode, saida, bool(saida) and os.path.isfile(saida)
@@ -79,9 +86,8 @@ def resolve(layout, nome="lixeiro", rel="lib/lixeiro.py", pede=None):
         shutil.rmtree(raiz, ignore_errors=True)
 
 
-def main():
-    print("resolve-plugin.sh — o irmao entra pelo NOME, nunca pela posicao")
-
+def casos_que_executam():
+    """Os 10 checks que rodam o resolvedor de verdade contra arvores de mentira."""
     rc, saida, existe = resolve("repo")
     check("rodando do repositorio, o irmao direto resolve", rc == 0)
     check("e o caminho devolvido existe de verdade", existe)
@@ -110,6 +116,18 @@ def main():
     rc, saida, _ = resolve("cache", pede=("lixeiro", "lib/nao-existe.py"))
     check("arquivo inexistente dentro do irmao devolve ausencia, nao caminho quebrado",
           rc == 3 and saida == "")
+
+
+def main():
+    print("resolve-plugin.sh — o irmao entra pelo NOME, nunca pela posicao")
+
+    # Sem bash que responda, os casos que EXECUTAM o resolvedor pulam declarando —
+    # as copias vendoradas continuam conferidas, porque isso e leitura de arquivo.
+    # Gate que nao consegue medir diz que nao mediu (Artigo 4).
+    if BASH is None:
+        print("  skip os 10 casos que executam o resolvedor (nenhum bash funcional aqui)")
+    else:
+        casos_que_executam()
 
     print("as copias vendoradas — sem elas o resolvedor nao existe na maquina instalada")
     corpo = open(FONTE, encoding="utf-8").read()

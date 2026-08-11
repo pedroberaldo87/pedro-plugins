@@ -3,6 +3,27 @@ name: portability
 on:
   push:
   pull_request:
+  # Disparo manual com FILTRO — o laço de conserto não cabe em rodadas de 24 min.
+  # Consertar uma classe de defeito e esperar a esteira inteira para saber se funcionou
+  # é o que fez a campanha de 2026-08-10 custar quinze pushes. Com o filtro, a classe
+  # se mede em minutos: `gh workflow run portability.yml -f py='...' -f sh='...'`.
+  # Sem argumento, roda tudo — o padrão continua sendo a esteira completa.
+  workflow_dispatch:
+    inputs:
+      py:
+        description: "globs das suítes Python (espaço entre eles); vazio = todas"
+        required: false
+        default: ""
+      sh:
+        description: "globs das suítes de shell (espaço entre eles); vazio = todas"
+        required: false
+        default: ""
+      os:
+        description: "sistema a rodar"
+        required: false
+        default: "windows-latest"
+        type: choice
+        options: ["windows-latest", "ubuntu-latest", "macos-latest", "todos"]
 
 jobs:
   checks:
@@ -29,7 +50,13 @@ jobs:
       # QUAIS sistemas o problema existe — é a única pergunta que ela responde.
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
+        # No disparo manual com um sistema escolhido, a matriz tem UM elemento — é
+        # o que faz a rodada de conserto custar minutos em vez de 24. Push e PR
+        # continuam nos três, sempre: a esteira só responde "em quais sistemas" se
+        # perguntar aos três.
+        os: ${{ (github.event_name == 'workflow_dispatch' && inputs.os != 'todos')
+                && fromJSON(format('["{0}"]', inputs.os))
+                || fromJSON('["ubuntu-latest","macos-latest","windows-latest"]') }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -76,8 +103,26 @@ jobs:
           # Ele mantém a asserção que o laço tinha: glob que não casa nada REPROVA
           # o passo (glob vazio roda zero teste e fica verde — foi assim que a
           # esteira "passou" sem executar suíte nenhuma).
-          "$PY" scripts/run_suites.py --timeout 180 \
-            --py 'plugins/*/lib/test_*.py' '_shared/test_*.py' 'scripts/test_*.py' 'plugins/*/hooks/test_*.py' \
-            --sh 'plugins/*/hooks/test_*.sh' 'plugins/*/lib/test_*.sh' 'scripts/test_*.sh' '.claude/hooks/test_*.sh' 'plugins/*/skills/*/test_*.sh'
+          # Os globs do disparo manual, quando houver — é o filtro do F0.2. Sem eles
+          # (push, PR, ou dispatch sem argumento) vale a lista inteira de sempre.
+          FPY="${{ inputs.py }}"
+          FSH="${{ inputs.sh }}"
+          if [ -n "$FPY" ] || [ -n "$FSH" ]; then
+            echo "::notice::rodada FILTRADA — py='$FPY' sh='$FSH' (não é a esteira inteira)"
+            # shellcheck disable=SC2086
+            "$PY" scripts/run_suites.py --timeout 180 \
+              ${FPY:+--py $FPY} ${FSH:+--sh $FSH}
+          else
+            "$PY" scripts/run_suites.py --timeout 180 \
+              --py 'plugins/*/lib/test_*.py' '_shared/test_*.py' 'scripts/test_*.py' 'plugins/*/hooks/test_*.py' \
+              --sh 'plugins/*/hooks/test_*.sh' 'plugins/*/lib/test_*.sh' 'scripts/test_*.sh' '.claude/hooks/test_*.sh' 'plugins/*/skills/*/test_*.sh'
+          fi
+          # Rodada filtrada é para DIAGNÓSTICO: ela não vale como esteira verde, e por
+          # isso os cobradores abaixo só rodam na completa. Dizer isso em voz alta,
+          # porque "job verde" de rodada filtrada seria a mesma mentira do glob vazio.
+          if [ -n "$FPY" ] || [ -n "$FSH" ]; then
+            echo "::notice::rodada filtrada NÃO vale como esteira verde"
+            exit 0
+          fi
           "$PY" scripts/hook_contract.py --baseline .claude/hook-contract.baseline.json --fail-on high
           "$PY" scripts/public_repo_check.py
