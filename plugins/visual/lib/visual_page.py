@@ -54,6 +54,7 @@ for _canal in (sys.stdin, sys.stdout, sys.stderr):
             pass
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from bash_posix import bash_posix  # noqa: E402
 from clareza import erros_de_clareza, revisao_do_spec  # noqa: E402
 from regua_texto import (BULLET_MAX, BULLETS_MAX, _cru, bullets_de,  # noqa: E402,F401
                          erros_de_estilo as _erros_de_estilo)
@@ -881,8 +882,17 @@ def build_page(spec, tpl=None):
 def default_out(spec):
     slug = spec.get("slug") or re.sub(r"[^a-z0-9]+", "-",
                                       str(spec["title"]).lower()).strip("-")[:48] or "visual"
-    r = subprocess.run(["bash", RESOLVE_DIR, os.getcwd()], capture_output=True, text=True, encoding="utf-8", errors="replace", stdin=subprocess.DEVNULL, start_new_session=True)
-    d = (r.stdout or "").strip()
+    # BASH resolvido, nunca o do PATH: no Windows o `bash` do PATH é o do WSL,
+    # e sem distro ele responde uma reclamação em UTF-16 — com código 0. E só
+    # vale como caminho o que EXISTE: resolvedor devolve caminho, e o que não
+    # aponta para nada é ruído com formato de resposta.
+    bash = bash_posix()
+    d = ""
+    if bash:
+        r = subprocess.run([bash, RESOLVE_DIR, os.getcwd()], capture_output=True, text=True, encoding="utf-8", errors="replace", stdin=subprocess.DEVNULL, start_new_session=True)
+        d = (r.stdout or "").strip()
+        if d and not os.path.isdir(d):
+            d = ""
     if not d:
         raise SpecError("não consegui resolver o diretório do /visual — passe --out")
     return os.path.join(d, "%s-%s.html" % (time.strftime("%Y-%m-%d"), slug))

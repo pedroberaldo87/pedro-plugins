@@ -41,6 +41,7 @@ import time
 from html.parser import HTMLParser
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from bash_posix import bash_posix  # noqa: E402
 import regua_texto as rt  # noqa: E402  — a régua mora lá; cópia dela aqui divergiria
 import visual_page as vp  # noqa: E402  — só o `_plural`, que é forma de contagem
 
@@ -287,8 +288,18 @@ def varrer(diretorio, desde=None):
 
 
 def dir_padrao():
-    r = subprocess.run(["bash", RESOLVE_DIR, os.getcwd()], capture_output=True, text=True, encoding="utf-8", errors="replace", stdin=subprocess.DEVNULL, start_new_session=True)
-    return (r.stdout or "").strip() or os.path.join(REPO, ".claude", "visual")
+    # BASH resolvido, nunca o do PATH: no Windows o `bash` do PATH é o do WSL,
+    # e sem distro ele responde uma reclamação em UTF-16 — com código 0. E só
+    # vale como caminho o que EXISTE: resolvedor devolve caminho, e o que não
+    # aponta para nada é ruído com formato de resposta.
+    bash = bash_posix()
+    achado = ""
+    if bash:
+        r = subprocess.run([bash, RESOLVE_DIR, os.getcwd()], capture_output=True, text=True, encoding="utf-8", errors="replace", stdin=subprocess.DEVNULL, start_new_session=True)
+        achado = (r.stdout or "").strip()
+        if achado and not os.path.isdir(achado):
+            achado = ""
+    return achado or os.path.join(REPO, ".claude", "visual")
 
 
 # ── saída ──────────────────────────────────────────────────────────────────

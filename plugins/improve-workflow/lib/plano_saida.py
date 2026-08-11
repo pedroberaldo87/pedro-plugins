@@ -57,6 +57,8 @@ for _canal in (sys.stdin, sys.stdout, sys.stderr):
             pass
 
 AQUI = os.path.dirname(os.path.abspath(__file__))
+sys.path.insert(0, AQUI)
+from bash_posix import bash_posix  # noqa: E402
 PLUGIN = os.path.dirname(AQUI)
 RESOLVEDOR = os.path.join(PLUGIN, "skills", "improve-workflow", "resolve-plugin.sh")
 
@@ -81,13 +83,22 @@ def acha_plan_state():
     """O `plan_state.py` do irmão pelo NOME — vazio quando não está na máquina."""
     env = dict(os.environ)
     env.setdefault("CLAUDE_PLUGIN_ROOT", PLUGIN)
+    # BASH resolvido, nunca o do PATH: no Windows o `bash` do PATH é o do WSL, e sem
+    # distro ele responde uma reclamação em UTF-16 — com código 0. Sem isto, a
+    # reclamação virava "o caminho do irmão", e o programa seguia com ela na mão.
+    bash = bash_posix()
+    if not bash:
+        return ""
     try:
-        r = subprocess.run(["bash", RESOLVEDOR, "project-skills", "lib/plan_state.py"],
+        r = subprocess.run([bash, RESOLVEDOR, "project-skills", "lib/plan_state.py"],
                            capture_output=True, text=True, encoding="utf-8", errors="replace", env=env,
                            stdin=subprocess.DEVNULL, start_new_session=True)
     except OSError:
         return ""
-    return r.stdout.strip() if r.returncode == 0 else ""
+    achado = r.stdout.strip() if r.returncode == 0 else ""
+    # Só vale como caminho o que EXISTE — resolvedor devolve caminho, e o que não
+    # aponta para nada é ruído com formato de resposta.
+    return achado if achado and os.path.exists(achado) else ""
 
 
 def extrair_retorno(dado):
