@@ -56,14 +56,23 @@ o programa ancora e reconfere sozinho. Sem lei, só o alvo manda.
 
 **Arsenal** — `~/.claude/gauntlet/arsenal.md` + o do projeto; ofereça a seção do tipo
 da missão. O aceito entra no rito e nos briefings de construtor e recon; o juiz nunca o
-recebe; a entrega declara `arsenal_usado`. **Três naturezas, e a terceira é a que morde:**
+recebe; a entrega declara `arsenal_usado`. **Quatro naturezas, e as duas últimas mordem:**
 biblioteca se USA · referência visual é vibe · **gerador PRODUZ asset que entra na obra**
-— e aí a armadilha "falsificar asset" deixa de ser hipótese. Recurso generativo no rito
-⇒ o briefing do construtor leva junto o que ele pode criar (símbolo, textura, fundo, cena
-autoral) e o que não pode gerar nunca (o que se passaria por registro do que não
-aconteceu: foto de cliente, de equipe, de lugar, de prêmio, rosto ou marca de terceiro).
-O que falta de verdade ganha lugar honesto e sai do julgamento. `arsenal_usado` nomeia o
-modelo, não só a ferramenta — é o que dá ao dono o que vetar depois.
+· **método (skill de agente) muda como o construtor trabalha**.
+
+Recurso generativo no rito ⇒ o briefing do construtor leva junto o que ele pode criar
+(símbolo, textura, fundo, cena autoral) e o que não pode gerar nunca (o que se passaria
+por registro do que não aconteceu: foto de cliente, de equipe, de lugar, de prêmio, rosto
+ou marca de terceiro). O que falta de verdade ganha lugar honesto e sai do julgamento.
+`arsenal_usado` nomeia o modelo, não só a ferramenta — é o que dá ao dono o que vetar.
+
+⚠️ **Método que EXTRAI identidade de uma referência é uma máquina de copiar, e a disputa
+proíbe copiar.** Antes de aceitar um desses no arsenal, diga ao dono para onde ele pode
+apontar: o nosso próprio material e o moodboard aprovado, nunca o ALVO — apontá-lo ao
+alvo industrializa a violação central (`RÉGUA, NUNCA RECEITA`), e o que ele devolve é
+especificação medida, que desde a 0.10.0 só julga se o dono forneceu `metricas`. Vale a
+régua de sempre, e ela não muda por vir de ferramenta: nível e vibe se transportam, forma
+não. Cópia só com ordem explícita do dono, escrita no rito.
 
 **Diretor criativo** — missão estética: ofereça por `AskUserQuestion` ANTES de qualquer
 despacho e espere. `criativo: true/false` no rito decide dali em diante; `false` vale a
