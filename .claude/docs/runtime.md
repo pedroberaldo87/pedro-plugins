@@ -517,6 +517,34 @@ Três decisões de implementação que só fazem sentido juntas:
 
 ⚠️ **Falhar em criar o sentinel é motivo para FALAR, não para calar** — se `/tmp` estiver somente-leitura, o hook avisa de novo em vez de assumir que já avisou. Kill-switch: `BOOTSTRAP_DEPS_GATE=0`. `[confirmado — leitura do arquivo]`
 
+### 7.0b · Como o hook acha o leitor de JSON ao lado de si — e como isso os matou todos no Windows
+
+Todo hook de shell deste repositório carrega o `hook-json.sh` que está na mesma pasta, e
+para isso precisa saber onde ele mesmo está. A receita era `HJ_DIR="${0%/*}"`, com `.` de
+reserva. 🔴 **No Windows isso desinstalava o hook em silêncio, e valia para todos eles**
+`[confirmado — trace de `bash -x` no runner, commit `7ae0d40`]`:
+
+```
++ HJ_DIR='D:\a\...\hooks\scope-cop.sh'   ← ${0%/*} não cortou nada: não há '/' no caminho
++ HJ_DIR=.                                 ← caiu na reserva
++ . ./hook-json.sh ; type hj_campo ; exit 0 ← saiu calado, sem ler o evento
+```
+
+O corte no último `/` não encontra nada num caminho de barra invertida, o `$0` inteiro vira
+o "diretório", o `.` de reserva não tem o arquivo, e o hook **sai 0 sem julgar nada** — o
+fail-open que existe para não travar a sessão vira hook desinstalado. Nada acusa: o plugin
+segue `enabled`, `claude plugin details` segue mostrando `Hooks (N)`, e a sessão inteira roda
+sem guarda nenhum. É o mesmo perigo do §7.0 (fail-open mudo), agora por outro caminho.
+
+O `$0` passa a ser normalizado antes do corte, com a mesma receita que o `hooks.json` já
+aplicava no `CLAUDE_PLUGIN_ROOT` (`tr '\\' /`). Quem cobra é `scripts/test_paths_normalize.sh`,
+e ele tem os dois lados — prova a normalização sob `sh`/`dash`/`bash`/`zsh` **e** reprova quem
+voltar ao padrão velho. Quantos hooks já normalizam sai do disco, não daqui:
+
+```bash
+grep -rln "tr '\\\\\\\\' /" plugins/*/hooks/*.sh .claude/hooks/*.sh | wc -l
+```
+
 ### Ordem
 
 > A ordem de disparo **entre** plugins não é determinável a partir deste repositório: nenhum `hooks.json` declara prioridade e o harness não está aqui. O único ordenamento que o código fixa é **interno ao `project-skills`**: em `plugins/project-skills/hooks/hooks.json` o bloco de índice 1 do array `SessionStart` lista `sessionstart-organism.sh` **antes** de `sessionstart-doc.sh`, e o segundo depende disso — ele só reenquadra o texto para "módulos de um organismo" porque, no comentário literal, "o `sessionstart-organism.sh` já deu o banner". `[confirmado]` · Que o harness respeite a ordem do array é `[inferido]`.

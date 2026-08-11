@@ -44,10 +44,18 @@ def rastreadas(root):
 
 
 def globos(root):
-    """Os padrões que a esteira roda, lidos da linha `roda <runner> '<glob>' …`.
+    """Os padrões que a esteira roda, lidos do próprio arquivo dela.
 
     Lidos do arquivo, nunca copiados para cá: cópia de lista é a mesma dívida que
     o número escrito no artigo — ela defasa e ninguém percebe.
+
+    ⚠️ **Reconhece as DUAS formas**, e a segunda é a de hoje. Até 2026-08-10 as
+    suítes rodavam num laço de shell (`roda <runner> '<glob>' …`); desde então
+    rodam por `scripts/run_suites.py --py '<glob>' … --sh '<glob>' …`. Quando o
+    formato mudou e este leitor só conhecia o antigo, ele passou a ler ZERO globo
+    — e um cobrador que lê zero globo acusa TODA suíte do repositório como órfã.
+    A forma velha fica reconhecida de propósito: leitor de formato não deve
+    quebrar no dia em que o formato muda, deve entender os dois e continuar.
     """
     caminho = os.path.join(root, ESTEIRA)
     try:
@@ -56,11 +64,18 @@ def globos(root):
     except OSError:
         return None
     pats = []
+    dentro = False
     for linha in texto.splitlines():
         s = linha.strip()
-        if not s.startswith("roda "):
+        if s.startswith("roda "):                       # forma antiga: laço de shell
+            pats.extend(re.findall(r"'([^']+)'", s))
             continue
-        pats.extend(re.findall(r"'([^']+)'", s))
+        if "run_suites.py" in s:                        # forma de hoje
+            dentro = True
+        if dentro:
+            pats.extend(re.findall(r"'([^']+)'", s))
+            if not s.endswith("\\"):
+                dentro = False
     return [p for p in pats if "test_" in p]
 
 

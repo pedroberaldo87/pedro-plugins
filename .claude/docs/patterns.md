@@ -448,6 +448,77 @@ script segue com um valor plausível e errado.
   enxergado, e o caso **pula declarando** quando não é. Mesma família do `bash_posix`: gate
   que não consegue medir diz que não mediu, nunca reprova por omissão.
 
+### 1.8b A campanha do Windows: seis classes, e o que cada uma ensina
+
+Entre 2026-08-10 e 11 a esteira ficou vermelha em quinze pushes seguidos, **sempre só no
+Windows**. Não era um defeito com quinze sintomas: eram seis classes distintas, cada uma
+escondida atrás da anterior. O padrão que une todas: **a API existe no POSIX e some no
+Windows, e o programa que a chama não trata a ausência como caso possível.**
+
+- 🔴 **`${0%/*}` não corta barra invertida — 33 hooks estavam MORTOS.** <!-- acopla-ok: 33 é a medição HISTÓRICA do conserto (commit 7ae0d40), não uma contagem viva; o número de hoje sai do comando no fim do bullet --> Lá o `$0` chega como
+  `D:\a\…\hooks\scope-cop.sh`; o corte no último `/` não acha nada, o `$0` inteiro vira o
+  "diretório", o hook não encontra o leitor de JSON ao lado de si e **desiste em silêncio** —
+  fail-open por desenho, hook desinstalado na prática. Todo hook instalado em toda máquina
+  Windows, sem julgar nada, sem nada acusar. O conserto normaliza o `$0` com a mesma receita
+  que o `hooks.json` já usava no `CLAUDE_PLUGIN_ROOT` (`tr '\\' /`). Quem cobra hoje é
+  `scripts/test_paths_normalize.sh`, e ele tem **os dois lados**: prova que a normalização
+  funciona sob `sh`/`dash`/`bash`/`zsh`, e reprova quem voltar ao padrão velho. Confira com
+  `for f in $(grep -rln '${0%/\*}' plugins/*/hooks/*.sh .claude/hooks/*.sh); do grep -q "tr '\\\\\\\\' /" "$f" || echo "$f"; done`
+  — hoje devolve vazio [confirmado nesta rodada].
+
+- 🔴 **`import fcntl` no topo do módulo derruba o módulo INTEIRO.** O `fcntl` é POSIX e não
+  existe no Windows: o `import` estourava antes de qualquer função ser definida, e com ele
+  **todo comando do intent-guard** — não o travamento, o plugin. A regra que sobra vale para
+  qualquer dependência só-POSIX: **`import` de módulo de sistema vai em `try`, com o caminho
+  alternativo escrito**, nunca no topo nu. A trava ganhou a segunda implementação (diretório
+  criado com `os.mkdir`, atômico em qualquer sistema de arquivos).
+
+- 🔴 **Ausência de função é `AttributeError`, e `except OSError` não pega.** `signal.SIGKILL`,
+  `os.killpg` e `os.getpgid` não existem no Windows. Os três chamadores tinham fallback
+  escrito — `except OSError: p.kill()` — que **nunca era alcançado**, porque o erro é de outra
+  família. Proteção contra ausência de API se escreve com `getattr(mod, "NOME", alternativa)`
+  ou `except (OSError, AttributeError)`; `try` que só espera falha de execução não cobre
+  função que não nasceu. No Windows o `SIGTERM` já é encerramento forçado, então o segundo
+  golpe do lixeiro é o mesmo sinal.
+
+- 🔴 **`os.path.dirname("D:\\")` devolve `"D:\\"` — para sempre.** A busca da raiz do projeto
+  subia diretório por diretório e parava em `home` ou em `"/"` literal; na raiz de um drive
+  do Windows nenhum dos dois chega, e o laço **girava sem fim**. Isso pendurou o job da
+  esteira por mais de dez minutos, três vezes seguidas, e foi lido como defeito da trava do
+  ledger — dois consertos foram feitos no lugar errado antes de alguém medir. O que agrava:
+  o temp do runner é `C:\Users\RUNNER~1\…` (nome curto de oito caracteres), que **nunca**
+  casa com o `home` `C:\Users\runneradmin`, então a caminhada passava direto pela única
+  parada que existia. **A raiz se testa por `os.path.dirname(d) == d`**, que vale nos dois
+  mundos; comparar com `"/"` é premissa de POSIX escrita como se fosse universal.
+
+- 🔴 **Ler texto sem declarar a codificação é apostar no console de quem roda.** O Windows
+  abre arquivo em cp1252, e todo acento do repositório chega corrompido — ou estoura. A
+  varredura fechou a classe em produção: hoje são **0** chamadas de `open()` de texto sem
+  `encoding=` fora das suítes, contra 24 ainda nas suítes (ASCII, então não quebram — mas a
+  classe não está fechada lá). Conte com o mesmo AST que produziu esse número:
+  `python3 -c "import ast,glob;…"` sobre `plugins/*/lib/*.py`, `plugins/*/hooks/*.py`,
+  `_shared/*.py` e `scripts/*.py` [confirmado nesta rodada — 164 arquivos varridos]. O mesmo
+  vale para a saída de `subprocess`: `text=True` sozinho herda a codificação do sistema.
+
+- 🔴 **Teste que compara caminho por texto reprova caminho certo.** No Windows o
+  `os.path.expanduser("~/.claude/intent/")` sai com `/` e o `os.path.join` do programa devolve
+  `\` — o mesmo diretório, escrito de dois jeitos, e o `startswith` nega. **Comparação de
+  caminho passa por `os.path.normpath` nos dois lados**, sempre. Foi o último defeito da
+  campanha, e o mais barato de confundir com defeito de produto.
+
+**A lição de método, e ela é maior que as seis:** cada conserto revelava o próximo, porque a
+suíte para no primeiro erro. Quinze pushes a três minutos cada é o preço de descobrir de um
+em um o que uma varredura estática acha de uma vez —
+`grep -rn "signal\.SIG\|os\.getuid\|os\.killpg\|os\.getpgid\|os\.fork\|import pwd\|os\.statvfs"`
+sobre todo o Python do repositório levou segundos e fechou as três últimas classes juntas.
+**Quando o sintoma é "só falha no outro sistema", varra a classe antes de consertar a
+ocorrência.**
+
+⚠️ **Job sem `timeout-minutes` transforma travamento em job de seis horas.** Enquanto a busca
+de raiz girava, o job não falhava — ele *continuava*, e a leitura de fora era "ainda
+rodando". `.github/workflows/portability.yml` agora corta em 30 min (o maior job legítimo, o
+do Windows, fecha em ~15). Travamento tem que ter cor.
+
 ### 1.9 Chamada interna de LLM tem que se auto-marcar
 
 Gate que invoca modelo dispara os hooks do próprio marketplace de novo, agora com o prompt do juiz. A marca viva hoje é a do intent-guard [confirmado, li o arquivo]:
@@ -1411,6 +1482,31 @@ Não há runner nem CI: cada suite é um arquivo executável, stdlib/bash puro, 
 - **`git commit` sem `GIT_AUTHOR_*` sai 128 em runner limpo.** O `~/.gitconfig` global preenchia a outra ponta na máquina do dono. `test_doc_lint.py` tinha TRÊS chamadas em três formas; consertar uma por vez fez a esteira quebrar duas vezes seguidas no mesmo arquivo, com a segunda ocorrência vinte linhas abaixo da primeira. Viraram uma receita só (`git_commit`).
 - **Teste que mede regra usando artefato IGNORADO pelo git.** `test_docguard_scope.sh` media o escopo dos dois gêmeos com o `graphify-out/` do próprio repositório — que está no `.gitignore`. Sem ele o hook sai calado (o comportamento CERTO dele) e os 17 casos de "busca cega tem que bloquear" reprovavam com `0 denies`, sem nada dizer que a causa era artefato ausente. O teste passou a montar o projeto de mentira com os dois pré-requisitos.
 - **Nome de projeto VAZIO quebra a página do plano.** `plan_state.py:cmd_page` deriva o nome do diretório dois níveis acima de `.claude/plans`; com o plano a menos de dois níveis da raiz, `basename('/')` é `''`, o `visual` recusa o spec e a página não nasce. Um plano em `/tmp/<algo>` quebrava no **Linux** e passava no **macOS** — lá `/tmp` é atalho para `/private/tmp` e sobra um nível. Este é defeito de PRODUTO, não de teste, e foi a esteira que o encontrou.
+
+🔴 **A esteira parava na PRIMEIRA suíte que falhasse, e é por isso que "cada rodada revelava
+o defeito seguinte" aparece duas vezes nesta seção.** O passo era um laço de shell sob
+`set -e`: a primeira reprovação matava o passo e as outras nunca rodavam, então **uma rodada
+de ~4 minutos entregava exatamente um defeito**. Entre 10 e 11 de agosto foram quinze pushes
+para achar seis coisas. E suíte que **pendura** era pior: o log de um job em andamento não
+sai, então ninguém sabia sequer **qual** estava presa — a única saída era cancelar às cegas.
+
+Desde 2026-08-11 quem roda é `scripts/run_suites.py`: teto por suíte, segue depois da falha,
+e devolve o placar inteiro com o tempo de cada uma. A primeira execução dele achou **três**
+problemas de uma vez, dois dos quais eram invisíveis no modelo antigo. **Cobrador que para
+no primeiro achado não é cobrador: é uma fila de rodadas.**
+
+⚠️ **E ele nasceu com o defeito que existia para evitar — capturar por CANO pendura.**
+Com `stdout=PIPE`, a leitura só termina quando o último descendente que herdou o descritor o
+fecha; suíte que deixa um neto vivo pendura a captura **depois** de já ter terminado. Duas
+suítes de 46 s e 2 s apareceram como `TIMEOUT 180s`. A saída passou a ir para arquivo
+temporário, que não tem escritor a esperar. **Quando o filho pode deixar neto, capture em
+arquivo, nunca em cano.**
+
+⚠️ **Trocar o formato dos globos quebra quem os lê.** `scripts/suites_orfas.py` lia os padrões
+da linha `roda <runner> '<glob>'` do workflow — e um leitor que não reconhece o formato novo
+não devolve erro: devolve **zero globo**, e aí toda suíte do repositório vira órfã. Ele
+reconhece as duas formas hoje, de propósito. Vale como regra: **leitor de formato entende o
+antigo e o novo; quebrar no dia da troca é acoplar a doc ao workflow por outro caminho.**
 
 **A decisão que fechou o caso do `bash` no Windows: quem precisa dele PROCURA um que rode.** Três tentativas de arrumar pelo PATH do runner falharam (`GITHUB_PATH` não venceu o `System32`; `export PATH=/usr/bin:$PATH` também não). O critério de um bash servir passou a ser **ele responder**, não estar no PATH — `test_conformance.py:bash_posix` testa o candidato com um `echo` e, sem nenhum que responda, os casos que exercitam hook shell **pulam em voz alta** (49 ok em vez de 57). Hook shell sem shell não é falha do hook, e fingir que é foi o que manteve a esteira vermelha.
 
