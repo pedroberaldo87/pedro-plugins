@@ -124,22 +124,26 @@ edita plugins/<nome>/            (skill, hook, lib)
   → cliente: claude plugin install <nome>@pedro-plugins  /  update
 ```
 
-Não há build, bundler, lockfile nem CI — `.github/` tem um arquivo só,
-`copilot-instructions.md`, que é ponteiro de doc, não workflow [confirmado — `find .github -type f`].
+Não há build, bundler nem lockfile. **CI há uma, e é de portabilidade**:
+`.github/workflows/portability.yml`, nascida em 2026-08-06 (`git log --reverse -1 --
+.github/workflows/portability.yml` → `d7ef53e`), roda o mesmo bloco do gate de commit a
+cada push, em Linux, macOS e Windows. Ela não compila nada — mede se o repositório roda
+onde o dono não desenvolve. `.github/` tem dois arquivos: ela e `copilot-instructions.md`,
+que é ponteiro de doc, não workflow [confirmado — `find .github -type f`].
 O **único passo de "compilação"** é o vendoring de `_shared/` (§7): copiar arquivos-fonte
 compartilhados para dentro de cada plugin consumidor, porque o Claude Code isola plugins
 na instalação. [confirmado — cabeçalho de `scripts/sync-shared.sh`]
 
 ## 2. Números derivados mecanicamente neste run
 
-Comandos re-executados agora, na árvore de trabalho sobre `653e69d`:
+Comandos re-executados agora, na árvore de trabalho sobre `5c0e81a`:
 
 ```bash
 ls -1d plugins/*/ | wc -l                            # 22
 ls -1 plugins/*/.claude-plugin/plugin.json | wc -l   # 22
 ls -1 plugins/*/skills/*/SKILL.md | wc -l            # 31
 ls -1 plugins/*/hooks/hooks.json | wc -l             # 12
-find plugins -path '*/lib/*.py' | wc -l              # 114
+find plugins -path '*/lib/*.py' | wc -l              # 122
 python3 -c "import json;print(len(json.load(open('.claude-plugin/marketplace.json'))['plugins']))"   # 22
 ```
 
@@ -160,7 +164,7 @@ python3 -c "import json;print(len(json.load(open('.claude-plugin/marketplace.jso
   [confirmado — os seis comandos re-rodados nesta passada de `/doc-touch`.]
   ⚠️ **Os arquivos `.py` em `lib/` quase não se moveram (100 → 99) apesar de três plugins
   terem sumido** — porque nada foi apagado, só mudou de casa: `plugins/project-skills/lib/`
-  concentra hoje 45 dos 114 (`find plugins/project-skills -path '*/lib/*.py' | wc -l`
+  concentra hoje 47 dos 122 (`find plugins/project-skills -path '*/lib/*.py' | wc -l`
   neste run). Os três últimos a entrar são `plugins/vistoria/lib/inventario.py` e a suíte
   dele, e `plugins/project-skills/lib/test_motor_js.py` — o cobrador que casa cada
   `<nome>Prompt` do motor de `/sprint` com o papel declarado no `SKILL.md` (§5).
@@ -1016,7 +1020,7 @@ As cópias de `regua_texto.py` aparecem à parte porque são vendoring, não có
 (§7.4):
 
 ```
-plugins/project-skills/lib/ 45 dos 114 — o motor de doc inteiro (journal.py · pattern_check.py ·
+plugins/project-skills/lib/ 47 dos 122 — o motor de doc inteiro (journal.py · pattern_check.py ·
                            organism.py · graph_map.py · doc_lint.py · historico.py ·
                            rastreio_etapas.py · curadoria_features.py ·
                            decisoes_estruturais.py · doc_load.py · collect_engine.py vendorado),

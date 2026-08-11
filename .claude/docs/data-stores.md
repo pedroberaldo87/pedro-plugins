@@ -579,28 +579,30 @@ O `scrub()` é um scorer em **quatro camadas**, cada span redigido sendo pulado 
 - **Natureza: RECONSTRUÍVEL, com custo.** Perder o ledger não perde conhecimento — perde a memória de "o que já foi minerado", e a próxima rodada vira um cold-start (que `collect_commits` trunca em `CAP = 1000` commits, com aviso em stderr, nunca em silêncio).
 - **`backups/`** ao lado: 712K, 6 diretórios datados (`20260621T002445Z` … `20260731T221815Z`), o mais recente de hoje. Também gitignorado.
 
-### A3 · `graphify-out/` — 75M · o knowledge graph desta máquina
+### A3 · `graphify-out/` — 140M · o knowledge graph desta máquina
 
 - **Gitignorado desde sempre nesta história** (`.gitignore:44`, seção "RETRATO DESTA MÁQUINA — regenerável, e carimba caminho absoluto e hostname. Sobe o gerador, nunca a saída").
-- **`graph.json`** — 5.541.587 bytes. Chaves de topo: `built_at_commit`, `directed`, `graph`, `hyperedges`, `links`, `multigraph`, `nodes`. Medido nesta rodada: [confirmado]
+- **`graph.json`** — 5.560.257 bytes. Chaves de topo: `built_at_commit`, `directed`, `graph`, `hyperedges`, `links`, `multigraph`, `nodes`. Medido nesta rodada: [confirmado]
 
   ```
-  nodes 6692 · links 8852 · hyperedges 12
-  source_file distinto: 552        communities: 677
-  built_at_commit: 196a7ca48e2a1adb1e6b6c1144ea03e398891843   (== HEAD)
-  relações: contains 4789 · calls 2454 · rationale_for 787 · defines 517
+  nodes 6718 · links 8878 · hyperedges 12
+  source_file distinto: 559        communities: 686
+  built_at_commit: a7d58bdc59cc7794d66cdae059414c1693071d33
+  relações: contains 4801 · calls 2453 · rationale_for 802 · defines 517
             imports 162 · references 60 · method 35 · imports_from 21
+            inherits 12 · implements 8 · conceptually_related_to 4
+            semantically_similar_to 2 · shares_data_with 1
   ```
 
   ⚠️ **Estes números valem para este commit e só.** Todo modo que escreve doc roda `graphify update --force` antes; o que é utilizável é o par número + `built_at_commit`, nunca o número solto.
-- **`.graphify_labels.json`** — 18.047 bytes, **677 labels, dos quais 50 são nomeados** (o resto é o placeholder `Community NNN`, que `graph_map._is_named` descarta). ⚠️ O número de labels acompanha as comunidades (677), mas os **nomeados continuam 50** — a passada AST não nomeia comunidade nova; quem nomeia é a passada com LLM. [confirmado]
-- **`manifest.json`** — 120.515 bytes, **727 chaves**, entre elas as de `pi-plugins/`, que não está no grafo. Contar o manifest é medir o índice, não o mapa: o grafo enxerga 552 arquivos-fonte distintos, contra 567 rastreados pelo git. [confirmado]
-- **`GRAPH_REPORT.md`** — 142.148 bytes, relatório humano gerado junto. É a fonte oficial da taxa de extração: nesta rodada ele declara `99% EXTRACTED · 1% INFERRED`, **62 arestas inferidas** com confiança média 0.81 — a extração de 31/07 não tinha nenhuma, então aresta hoje pode ser palpite do extrator, e não leitura de AST.
+- **`.graphify_labels.json`** — 18.281 bytes, **686 labels, dos quais 50 são nomeados** (o resto é o placeholder `Community NNN`, que `graph_map._is_named` descarta). ⚠️ O número de labels acompanha as comunidades (686), mas os **nomeados continuam 50** — a passada AST não nomeia comunidade nova; quem nomeia é a passada com LLM. [confirmado]
+- **`manifest.json`** — 121.594 bytes, **734 chaves**, entre elas as de `pi-plugins/`, que não está no grafo. Contar o manifest é medir o índice, não o mapa: o grafo enxerga 559 arquivos-fonte distintos, contra 567 rastreados pelo git. [confirmado]
+- **`GRAPH_REPORT.md`** — 142.834 bytes, relatório humano gerado junto. É a fonte oficial da taxa de extração: nesta rodada ele declara `99% EXTRACTED · 1% INFERRED`, **62 arestas inferidas** com confiança média 0.81 — a extração de 31/07 não tinha nenhuma, então aresta hoje pode ser palpite do extrator, e não leitura de AST.
 - **Como o `/doc` consome:** `plugins/project-skills/lib/graph_map.py` destila o grafo num mapa compacto. O que ele muda em relação ao arquivo cru — e o que é **teto**, não medida: [confirmado, saída real do run]
 
   ```bash
   python3 plugins/project-skills/lib/graph_map.py --project-root .
-  # stats: nodes 6692 · links 8852 · hyperedges_total 12
+  # stats: nodes 6718 · links 8878 · hyperedges_total 12
   #        communities_named 30 · god_nodes 60
   # files listados: 40      hyperedges retidas: 6
   # comunidade genérica descartada: "Plugin Manifest Metadata" (18 comunidades)
@@ -609,9 +611,9 @@ O `scrub()` é um scorer em **quatro camadas**, cada span redigido sendo pulado 
   - **`god_nodes: 60` é o corte `top_gods=60`, não uma contagem** — não sobe nem que o repo dobre.
   - **`communities_named: 30` ≠ os 50 labels nomeados** do arquivo: o mapa deduplica por nome e joga fora quem aparece em ≥ `GENERIC_COMMUNITY_MIN = 4` comunidades (metadado repetido, não módulo).
   - **`hyperedges: 6` de 12** — o filtro é `confidence_score >= 0.85`.
-  - **Fan-in semântico exclui `STRUCTURAL_RELATIONS = {"contains", "defines", "method"}`**; `contains` sozinho é 4789 das 8852 arestas, e sem a exclusão o ranking viraria "quem tem mais símbolos", não "quem importa".
+  - **Fan-in semântico exclui `STRUCTURAL_RELATIONS = {"contains", "defines", "method"}`**; `contains` sozinho é 4801 das 8878 arestas, e sem a exclusão o ranking viraria "quem tem mais símbolos", não "quem importa".
   - Degrada gracioso: sem grafo, `run()` devolve `{"available": false}` e o exit code continua 0 — ausência de grafo não é erro.
-- **Natureza: RECONSTRUÍVEL por comando** (`graphify update . --force`, AST, sem LLM). É o depósito mais pesado do repo (75M com os snapshots datados de junho e julho) e o mais barato de perder.
+- **Natureza: RECONSTRUÍVEL por comando** (`graphify update . --force`, AST, sem LLM). É o depósito mais pesado do repo (140M com os snapshots datados de junho e julho) e o mais barato de perder.
 
 ### A4 · `<repo>/.claude/plans/*.plan.json` — os planos ticáveis
 
@@ -780,7 +782,8 @@ Os quatro que entraram, com o que cada um congela [confirmado — leitura dos ar
   ```
 - **Quatro eventos, e o estado vivo é o `fold` deles** (docstring lida): `raw` (o pedido verbatim), `classify` (vira `pedido|correcao|restricao|conversa`; só os três primeiros viram entrada `p-N`), `verdict` (`feito|parcial|nao_feito` × `confirmado|inferido` + evidência) e `baixa` (`by: auditor|usuario|substituido|receita`).
 - ⚠️ **`fold(evs, session)` filtra `pending`/`live` por sessão, e isso é conserto de bug medido:** sem o filtro, sessões paralelas no mesmo projeto compartilhavam a lista de vivos e *"uma única auditoria cobrou 3 frentes de 3 sessões"*. `entries` continua completo — o filtro é só para quem **cobra**.
-- **Escrita concorrente é protegida:** `locked(d)` faz `fcntl.flock(LOCK_EX)` sobre `ledger.lock` pra `load+append` ser atômico — sem isso, hooks concorrentes geravam `r-N`/`p-N` duplicados. O `ledger.lock` (0 bytes) está no disco.
+- **Escrita concorrente é protegida, e a trava tem DUAS implementações** (mudou em 2026-08-10): com `fcntl`, `flock(LOCK_EX)` sobre `ledger.lock` — o caminho de sempre, e o do disco deste projeto (0 bytes, está lá). **Sem `fcntl`** — que é POSIX e não existe no Windows — a trava vira um **diretório** `ledger.lock.d`, criado com `os.mkdir`, que é atômico em qualquer sistema de arquivos: quem cria, entra; quem não cria, espera. Sem isso, hooks concorrentes geram `r-N`/`p-N` duplicados.
+- ⚠️ **A espera pela trava tem teto absoluto, e passou do teto ela segue SEM a trava** (`ESPERA_TRAVA_S = 5.0`, e a trava tem idade máxima igual, para que processo morto no meio não trave todo mundo para sempre). A escolha é declarada no código: *id duplicado é incômodo visível, missão pendurada é dano*. O teto é conferido **no topo do laço**, não depois do `except` — com ele embaixo, o caminho "trava órfã removida" pulava a checagem e o laço girava sem limite. O invariante está em `test_ledger.py:test_concurrent_record_raw` (8 gravações concorrentes, 8 ids distintos).
 - **Arquivos satélites no mesmo diretório**, todos parte do protocolo de auditoria: `audit-*.json` (o veredito de uma rodada), `<audit>.applied` (marcador de idempotência — `apply_audit` sai cedo se existir), `<audit>.escopo` (a lista de ids que o gate **perguntou**, gravada no instante do bloqueio). O `.escopo` conserta uma catraca medida: sem ele, cada mensagem enviada entre auditar e consumir entrava na conta e o veredito nascia impossível de aprovar — *"33 pedidos vivos cobrados de uma auditoria que perguntou por 1"*.
 - **O `tree_hash` protege o veredito de envelhecer**, e exclui `EXEC_ARTIFACTS` (`__pycache__`, `*.pyc`, `node_modules`, `*.log`, `dist`, `build`, `coverage`, …) porque a própria auditoria roda código e sujaria a árvore — *"o gate nunca fecha, bate o cap e libera SEM auditoria, o oposto do propósito"*.
 - **Degradação declarada:** erro de I/O silencia os comandos de escrita e devolve fallback seguro nos de leitura — `verify` falhando devolve `remaining: -1`, jogando tudo pro auditor caro, porque *"degradar pro caro é seguro; pro barato não"*.

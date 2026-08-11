@@ -243,30 +243,40 @@ print("── encerrar sobe até a raiz órfã: a árvore inteira cai ──")
 # Uma árvore de verdade, com raiz órfã: o lançador sai na hora e o bash de dentro
 # é adotado pelo init, com três filhos pendurados nele. Encerrar UMA FOLHA tem
 # que derrubar a raiz e os irmãos — matar só a folha deixa o pai de pé.
-lanc = subprocess.run(
-    ["bash", "-c",
-     "nohup bash -c 'sleep 300 & sleep 300 & sleep 300 & wait' >/dev/null 2>&1 & echo $!"],
-    capture_output=True, text=True, encoding="utf-8", errors="replace", stdin=subprocess.DEVNULL, start_new_session=True)
-raiz_pid = int(lanc.stdout.strip() or 0)
-time.sleep(1.0)
-tabela = lixeiro.processos()
-folhas = [p["pid"] for p in tabela if p["ppid"] == raiz_pid]
-raiz_ppid = next((p["ppid"] for p in tabela if p["pid"] == raiz_pid), None)
-if len(folhas) == 3 and raiz_ppid == 1:
-    ok("a árvore subiu: raiz órfã %d (pai %d) com 3 filhos" % (raiz_pid, raiz_ppid))
-    eq(lixeiro.raiz_orfa(folhas[0], tabela), raiz_pid, "a folha aponta para a raiz órfã da árvore")
-    lixeiro.encerra(folhas[0], grace=2.0)
-    time.sleep(0.5)
-    sobrou = [p for p in [raiz_pid] + folhas if lixeiro.vivo(p)]
-    eq(sobrou, [], "encerrar a folha derrubou a árvore inteira — nada sobrou")
+#
+# ⚠️ ESTE BLOCO É POSIX POR CONSTRUÇÃO, e no Windows ele era PERIGOSO, não só
+# inútil: lá não há adoção pelo processo 1, `nohup` não existe, e o `$!` que o
+# bash do Git responde é um pseudo-pid dele, não um pid do sistema. O `os.kill(p, 9)`
+# da limpeza virava TerminateProcess sobre um número qualquer — encerrando um
+# processo alheio da máquina, escolhido por colisão. A suíte morria sem uma linha
+# de traceback, e o job só dizia "exit code 1".
+if os.name != "posix":
+    print("  ↷ pulado: árvore órfã depende de adoção pelo processo 1 (só POSIX)")
 else:
-    bad("a árvore de teste subiu", "raiz órfã (pai 1) com 3 filhos",
-        "raiz %d, pai %r, filhos %r" % (raiz_pid, raiz_ppid, folhas))
-for p in [raiz_pid] + folhas:
-    try:
-        os.kill(p, 9)
-    except OSError:
-        pass
+    lanc = subprocess.run(
+        ["bash", "-c",
+         "nohup bash -c 'sleep 300 & sleep 300 & sleep 300 & wait' >/dev/null 2>&1 & echo $!"],
+        capture_output=True, text=True, encoding="utf-8", errors="replace", stdin=subprocess.DEVNULL, start_new_session=True)
+    raiz_pid = int(lanc.stdout.strip() or 0)
+    time.sleep(1.0)
+    tabela = lixeiro.processos()
+    folhas = [p["pid"] for p in tabela if p["ppid"] == raiz_pid]
+    raiz_ppid = next((p["ppid"] for p in tabela if p["pid"] == raiz_pid), None)
+    if len(folhas) == 3 and raiz_ppid == 1:
+        ok("a árvore subiu: raiz órfã %d (pai %d) com 3 filhos" % (raiz_pid, raiz_ppid))
+        eq(lixeiro.raiz_orfa(folhas[0], tabela), raiz_pid, "a folha aponta para a raiz órfã da árvore")
+        lixeiro.encerra(folhas[0], grace=2.0)
+        time.sleep(0.5)
+        sobrou = [p for p in [raiz_pid] + folhas if lixeiro.vivo(p)]
+        eq(sobrou, [], "encerrar a folha derrubou a árvore inteira — nada sobrou")
+    else:
+        bad("a árvore de teste subiu", "raiz órfã (pai 1) com 3 filhos",
+            "raiz %d, pai %r, filhos %r" % (raiz_pid, raiz_ppid, folhas))
+    for p in [raiz_pid] + folhas:
+        try:
+            os.kill(p, 9)
+        except OSError:
+            pass
 
 print("── fail-safe: sem leitura de processos, ninguém morre ──")
 eq(lixeiro.candidatos(SID, "sessao", procs=[]), [], "lista vazia de processos não gera candidato")

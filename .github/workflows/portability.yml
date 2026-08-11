@@ -65,22 +65,19 @@ jobs:
           # conferência que eu tinha posto aqui virou obstáculo: barrava o job pelo
           # que o teste já sabe tratar.
           bash scripts/sync-shared.sh --check
-          # Glob que não casa nada roda zero teste e fica verde — foi assim que a
-          # esteira "passou" sem executar suíte nenhuma. Cada padrão é contado, e
-          # padrão com zero arquivo reprova o passo.
-          roda() {
-            runner="$1"; shift
-            for pat in "$@"; do
-              n=0
-              for t in $pat; do
-                [ -f "$t" ] || continue
-                n=$((n + 1)); $runner "$t"
-              done
-              [ "$n" -gt 0 ] || { echo "::error::nenhum arquivo casou em $pat"; exit 1; }
-              echo "  $pat → $n suíte(s)"
-            done
-          }
-          roda "$PY" 'plugins/*/lib/test_*.py' '_shared/test_*.py' 'scripts/test_*.py' 'plugins/*/hooks/test_*.py'
-          roda bash 'plugins/*/hooks/test_*.sh' 'plugins/*/lib/test_*.sh' 'scripts/test_*.sh' '.claude/hooks/test_*.sh' 'plugins/*/skills/*/test_*.sh'
+          # As suítes rodam por `scripts/run_suites.py`, e NÃO por um laço de shell
+          # com `set -e`. O laço parava na primeira que falhasse: cada conserto
+          # revelava a próxima, uma por rodada de ~4 min — quinze pushes para achar
+          # seis defeitos, em 2026-08-10/11. Pior, suíte que PENDURA deixava o job
+          # no ar por mais de dez minutos sem dizer QUAL era, porque o log de um job
+          # em andamento não sai. O programa dá teto por suíte, segue depois da
+          # falha e devolve o placar inteiro numa rodada só.
+          #
+          # Ele mantém a asserção que o laço tinha: glob que não casa nada REPROVA
+          # o passo (glob vazio roda zero teste e fica verde — foi assim que a
+          # esteira "passou" sem executar suíte nenhuma).
+          "$PY" scripts/run_suites.py --timeout 180 \
+            --py 'plugins/*/lib/test_*.py' '_shared/test_*.py' 'scripts/test_*.py' 'plugins/*/hooks/test_*.py' \
+            --sh 'plugins/*/hooks/test_*.sh' 'plugins/*/lib/test_*.sh' 'scripts/test_*.sh' '.claude/hooks/test_*.sh' 'plugins/*/skills/*/test_*.sh'
           "$PY" scripts/hook_contract.py --baseline .claude/hook-contract.baseline.json --fail-on high
           "$PY" scripts/public_repo_check.py
