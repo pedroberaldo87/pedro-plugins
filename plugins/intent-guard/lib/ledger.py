@@ -153,7 +153,12 @@ def locked(d):
     trava = os.path.join(d, "ledger.lock.d")
     limite = time.time() + ESPERA_TRAVA_S
     meu = False
-    while True:
+    # O TETO É CHECADO NO TOPO, e não depois do `except`. Com ele lá embaixo, o
+    # `continue` do caminho "trava órfã removida" pulava a checagem: se outro
+    # processo recriasse a trava nesse intervalo, o laço girava sem limite. Foi o
+    # que pendurou o job do Windows (de 45 s para mais de 10 min) — pela segunda
+    # vez, e pelo mesmo motivo: espera sem teto absoluto.
+    while time.time() < limite:
         try:
             os.mkdir(trava)
             meu = True
@@ -162,12 +167,9 @@ def locked(d):
             try:                      # trava órfã de processo morto não é eterna
                 if time.time() - os.path.getmtime(trava) > ESPERA_TRAVA_S:
                     os.rmdir(trava)
-                    continue
             except OSError:
                 pass
-            if time.time() >= limite:
-                break                 # segue sem trava, em vez de pendurar
-            time.sleep(0.02)
+            time.sleep(0.02)          # segue sem trava se o teto estourar
     try:
         yield
     finally:
