@@ -44,7 +44,7 @@
       "source": "./plugins/branches",
       "description": "Diz quais branches dá pra apagar e quais NÃO dá. O `git branch --merged` mente por omissão: squash-merge e rebase produzem sha novo, então a branch aparece como não-mergeada mesmo com o conteúdo inteiro no tronco — e é por isso que a pilha cresce até o deploy reclamar de 15 branches abertas. Classifica por CONTEÚDO (patch-id), mostra o que só existe em cada branch antes de você decidir, e apaga só o que você marcar — sempre com tag de resgate. Mais dois avisos: no push de branch que ainda não entrou no tronco, e no começo da sessão quando há branch parada há mais de um mês.",
       "category": "dev-tools",
-      "version": "1.3.10",
+      "version": "1.3.11",
       "tags": [
         "fallow",
         "dead-code",
@@ -74,7 +74,7 @@
       "source": "./plugins/context-guard",
       "description": "Dispara o handoff quando o contexto DESTA sessão passa do threshold (default 80%). Estado por-sessão (v1.2.0) — uma sessão cheia não bloqueia as concorrentes. v1.3.0: não interrompe se já estiver no meio de um handoff, e faz o Claude EXECUTAR o /handoff (decision:block) em vez de só parar. Kill-switch: ~/.claude/context-guard/mode=off.",
       "category": "productivity",
-      "version": "1.3.10",
+      "version": "1.3.11",
       "tags": [
         "context",
         "guard",
@@ -118,7 +118,7 @@
       "source": "./plugins/graphify-guard",
       "description": "Ensures graphify knowledge graphs get consulted when relevant. SessionStart heads-up when a project has a graph; PreToolUse net redirects blind grep/glob/find to `graphify query` once per session. Detects stale graphs and offers `graphify --update`. Defense in depth, fail-open, monorepo-aware.",
       "category": "productivity",
-      "version": "1.2.7",
+      "version": "1.2.8",
       "tags": [
         "graphify",
         "knowledge-graph",
@@ -152,7 +152,7 @@
       "source": "./plugins/guardrails",
       "description": "Global editing guardrails as hooks: post-edit lint & type-check (JS/TS/Python), an LLM scope-cop that blocks UI edits drifting from the approved plan, and an Agent Teams misuse guard. Portable across machines — replaces hand-rolled hooks in ~/.claude/settings.json. Run /guardrails:setup once per machine to set the env var and clear the old hooks.",
       "category": "dev-tools",
-      "version": "1.8.2",
+      "version": "1.8.3",
       "tags": [
         "hooks",
         "guardrail",
@@ -167,7 +167,7 @@
       "source": "./plugins/handoff",
       "description": "Session continuity in a single command — /handoff detects the session state and routes: full context → saves a complete knowledge-transfer document; freshly cleared session → resumes from it. Workspace-aware: the handoff belongs to the project the session touched (resolves the .git boundary of the edited files), so it works for a standalone project, a monorepo (one HANDOFF-<module>.md per module), or an umbrella folder with nested projects — no more clobbering between parallel sessions on the same root. Optional [salvar|retomar] argument forces the mode.",
       "category": "productivity",
-      "version": "1.11.9",
+      "version": "1.11.10",
       "tags": [
         "session",
         "continuity",
@@ -207,7 +207,7 @@
       "source": "./plugins/intent-guard",
       "description": "EXPERIMENTAL — Guarda de intenção: caderno append-only dos pedidos verbatim do usuário + gates de plano, checkpoint e ENTREGA (auditoria independente por subagente de contexto virgem, prompt canônico, veredito CONFIRMADO/INFERIDO com evidência). v0.4.0: auditoria dispara no COMMIT (não a cada turno) e ganha escada de custo — pedido com receita mecânica (ex.: 'commit push' → compara hashes) é resolvido por CÓDIGO, sem agente; numa sessão real 4 de 7 pedidos eram isso, ~50k tokens cada. O juiz só ESCOLHE de um catálogo fechado, nunca escreve comando. v0.3.0: pedidos escopados por sessão (sessões paralelas dividiam a lista de vivos). v0.2.0: tree-hash ignora artefato de execução; juízes internos não poluem o caderno. Baixa automática é experimental. Kill-switch: ~/.claude/intent-guard/mode=off.",
       "category": "dev-tools",
-      "version": "0.8.6",
+      "version": "0.8.7",
       "tags": [
         "intent",
         "audit",
@@ -247,7 +247,7 @@
       "source": "./plugins/project-skills",
       "description": "A casa das skills de projeto — documentacao, concepcao, plano, execucao e revisao moram sob um teto so, e conversam entre si por nome de plugin, nunca por caminho relativo para a pasta do vizinho. Traz tambem o motor de execucao autonoma (/sprint): decompoe -> executa -> revisa em Workflow deterministico, com os hooks que o guardam — a reserva de arquivos entre motores, o guarda de espera, o narrador de andamento na statusline e o gate que nega sub-agente com a missao armada (o apelido \"sovai\" segue evocando a skill sprint). O indice da familia se descobre lendo a pasta skills/ do plugin, nunca de cor.",
       "category": "productivity",
-      "version": "0.22.13",
+      "version": "0.22.14",
       "tags": [
         "project",
         "scaffolding",
@@ -259,7 +259,7 @@
       "source": "./plugins/ship",
       "description": "Production deploy flow: lint, type-check, commit, push, deploy in one disciplined sequence. Triggers on 'ship', 'manda', 'deploya tudo'.",
       "category": "dev-tools",
-      "version": "1.5.3",
+      "version": "1.5.4",
       "tags": [
         "deploy",
         "lint",
@@ -311,7 +311,7 @@
       "source": "./plugins/visual",
       "description": "CLI walls-of-text → interactive HTML dark-theme views. The page carries the EVIDENCE, not the account of it: real artifact embedded, raw output verbatim, provenance for every number — enforced by a pre-ExitPlanMode gate. Prose is REFUSED by the builder: every text field is checked (≤140 chars per bullet, one sentence each, no continuation connective, max 6 per block) and a violation aborts without writing the page. Each problem's body is born folded — the title stays visible, consequence and proposal open on click under a label derived from the content itself. Plans, diagnostics and decisions in the browser with live sync back to Claude. Regravar um plano nunca apaga em silêncio o que não veio no pacote: o init parcial FUNDE o bloco de requisitos por id — o requisito que só existe no arquivo fica, e o executor recebe a nota do que foi mantido. O cruzamento também mede o plano contra a arquitetura pretendida: funcionalidade sem peça, e requisito citando peça que o architecture-intent.md não tem, saem em listas próprias — e o mesmo vale para o desenho de funcionamento: funcionalidade sem passo do ciclo, e passo do ciclo que nenhuma funcionalidade atende.",
       "category": "productivity",
-      "version": "1.41.9",
+      "version": "1.41.10",
       "tags": [
         "visualization",
         "html",
