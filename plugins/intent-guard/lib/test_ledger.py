@@ -259,8 +259,9 @@ def main():
         shutil.rmtree(loose)
 
         # Fail-open: intent dir read-only (I/O error) degradação silenciosa.
-        # Skip if running as root (ignores modos de arquivo).
-        if os.getuid() != 0:
+        # Skip se root (ignora modo de arquivo) e no Windows (não tem getuid, e
+        # chmod 0o555 não torna diretório read-only lá — a premissa nem se monta).
+        if hasattr(os, "getuid") and os.getuid() != 0:
             intent = os.path.join(repo, ".claude", "intent")
             orig_mode = os.stat(intent).st_mode
             os.chmod(intent, 0o555)  # read-only
