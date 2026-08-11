@@ -57,6 +57,7 @@ for _canal in (sys.stdin, sys.stdout, sys.stderr):
             pass
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from bash_posix import bash_posix  # noqa: E402
 from regua_pronto import criterio_cortado, erros_de_pronto  # noqa: E402
 from regua_texto import BULLET_MAX  # noqa: E402
 from regua_texto import erros_de_estilo as _erros_de_estilo  # noqa: E402
@@ -121,12 +122,37 @@ def resolve_dir(cwd=None):
         os.path.dirname(os.path.abspath(__file__)), "resolve-dir.sh")
     if not os.path.exists(script):
         raise PlanError("resolve-dir.sh não encontrado em %s — passe --dir" % script)
-    out = subprocess.run(["bash", script, cwd or os.getcwd(), "plans"],
-                         capture_output=True, text=True, encoding="utf-8", errors="replace", stdin=subprocess.DEVNULL, start_new_session=True)
-    target = (out.stdout or "").strip()
+    target = _roda_resolvedor(script, cwd or os.getcwd(), "plans")
     if not target:
         raise PlanError("resolve-dir.sh não devolveu caminho — passe --dir")
     return target
+
+
+
+def _roda_resolvedor(script, *args):
+    """Roda um resolvedor de shell e devolve o caminho — ou "" se não der.
+
+    Duas defesas, e as duas nasceram do mesmo dia no Windows:
+
+    - o bash vem de `bash_posix()`, nunca do PATH. O `bash` do PATH no Windows é o
+      do WSL, e sem distro instalada ele responde uma reclamação em UTF-16 no
+      stdout — com código 0. Sem esta defesa a reclamação virava "o caminho".
+    - o que volta só é aceito se EXISTIR no disco. É a defesa que vale mesmo com o
+      interpretador certo: resolvedor é para devolver caminho, e o que não aponta
+      para nada não é caminho, é ruído com formato de resposta.
+    """
+    bash = bash_posix()
+    if not bash:
+        return ""
+    try:
+        out = subprocess.run([bash, script] + list(args),
+                             capture_output=True, text=True, encoding="utf-8",
+                             errors="replace", stdin=subprocess.DEVNULL,
+                             start_new_session=True)
+    except OSError:
+        return ""
+    achado = (out.stdout or "").strip()
+    return achado if achado and os.path.exists(achado) else ""
 
 
 def visual_page_path():
@@ -139,10 +165,7 @@ def visual_page_path():
     comando de página."""
     script = os.path.join(
         os.path.dirname(os.path.abspath(__file__)), "resolve-plugin.sh")
-    out = subprocess.run(["bash", script, "visual", "lib/visual_page.py"],
-                         capture_output=True, text=True, encoding="utf-8", errors="replace", stdin=subprocess.DEVNULL,
-                         start_new_session=True)
-    achado = (out.stdout or "").strip()
+    achado = _roda_resolvedor(script, "visual", "lib/visual_page.py")
     if achado:
         return achado
     # Rodando do repositório, sem o harness: o plugin é pasta irmã.
@@ -1961,11 +1984,9 @@ def cmd_page(args):
 
     out = args.out
     if not out:
-        vis = subprocess.run(
-            ["bash", os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                                  "resolve-dir.sh"), os.getcwd(), "visual"],
-            capture_output=True, text=True, encoding="utf-8", errors="replace", stdin=subprocess.DEVNULL, start_new_session=True)
-        vdir = (vis.stdout or "").strip()
+        vdir = _roda_resolvedor(
+            os.path.join(os.path.dirname(os.path.abspath(__file__)), "resolve-dir.sh"),
+            os.getcwd(), "visual")
         if not vdir:
             raise PlanError("não consegui resolver o diretório do /visual — passe --out")
         # a vista entra no nome: sem ela, as duas árvores do mesmo plano gravam no

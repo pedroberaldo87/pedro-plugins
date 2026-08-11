@@ -29,6 +29,7 @@ SPECS=(
   "plugins/improve-workflow/lib::bash_posix.py"
   "plugins/project-skills/lib::bash_posix.py"
   "plugins/vistoria/lib::bash_posix.py"
+  "plugins/visual/lib::bash_posix.py"
   "plugins/handoff/lib::collect_engine.py"
   "plugins/project-skills/lib::collect_engine.py"
   # O contrato R8: os DADOS (.json) + o servidor (.py) + a vista humana (.md, gerada

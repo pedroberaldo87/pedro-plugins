@@ -63,7 +63,16 @@ cp_limpar() {
     for v in $paradas; do
       alvo="$CP_CACHE/$market_plug/$v"
       [ -d "$alvo" ] || continue
-      rm -rf "$alvo" && echo "apagado: $market_plug/$v"
+      # Apagar CALADO é o defeito que a lista existe para evitar — e falhar calado
+      # é o mesmo defeito virado do avesso. O `rm -rf` pode não remover (pasta em
+      # uso, permissão, sistema de arquivos que segura o descritor), e até aqui a
+      # única pista era o teste dizendo que a versão velha continuava lá, sem uma
+      # linha explicando por quê. Agora quem não apagou diz que não apagou.
+      if rm -rf "$alvo" 2>/dev/null && [ ! -d "$alvo" ]; then
+        echo "apagado: $market_plug/$v"
+      else
+        echo "NÃO apagado (segue no disco): $market_plug/$v" >&2
+      fi
     done
   done
 }
