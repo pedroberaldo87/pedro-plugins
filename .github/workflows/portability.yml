@@ -28,9 +28,13 @@ on:
 jobs:
   checks:
     runs-on: ${{ matrix.os }}
-    # Suíte pendurada não pode virar job de 6 h: o maior job legítimo (Windows)
-    # fecha em ~15 min; passou de 30, é travamento — falha visível, runner livre.
-    timeout-minutes: 30
+    # Suíte pendurada não pode virar job de 6 h — mas o teto tem que ficar ACIMA do
+    # job legítimo, senão ele deixa de acusar travamento e passa a causar um.
+    # Medido no Windows: 23m42s, depois 25m01s, depois 26m28s — subindo a cada
+    # rodada, porque suíte consertada para de falhar na hora e passa a rodar até o
+    # fim. Com teto de 30 a folga tinha caído para 3 min. 45 dá margem enquanto o
+    # paralelismo do `run_suites.py` derruba o número de verdade.
+    timeout-minutes: 45
     # O console do Windows de fábrica é cp1252, e `print("── …")` de uma SUÍTE
     # morre lá com UnicodeEncodeError antes de testar coisa alguma — foi o que
     # derrubava o job do Windows no primeiro arquivo do glob (`test_cfgjson.py`),
@@ -110,10 +114,10 @@ jobs:
           if [ -n "$FPY" ] || [ -n "$FSH" ]; then
             echo "::notice::rodada FILTRADA — py='$FPY' sh='$FSH' (não é a esteira inteira)"
             # shellcheck disable=SC2086
-            "$PY" scripts/run_suites.py --timeout 180 \
+            "$PY" scripts/run_suites.py --timeout 300 \
               ${FPY:+--py $FPY} ${FSH:+--sh $FSH}
           else
-            "$PY" scripts/run_suites.py --timeout 180 \
+            "$PY" scripts/run_suites.py --timeout 300 \
               --py 'plugins/*/lib/test_*.py' '_shared/test_*.py' 'scripts/test_*.py' 'plugins/*/hooks/test_*.py' \
               --sh 'plugins/*/hooks/test_*.sh' 'plugins/*/lib/test_*.sh' 'scripts/test_*.sh' '.claude/hooks/test_*.sh' 'plugins/*/skills/*/test_*.sh'
           fi

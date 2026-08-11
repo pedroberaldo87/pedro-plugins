@@ -23,6 +23,7 @@ Sai 1 se alguma falhou ou estourou o teto. Só stdlib, como todo o resto do repo
     python3 scripts/run_suites.py --sh "plugins/*/hooks/test_*.sh" ...
 """
 import argparse
+import concurrent.futures
 import glob
 import os
 import signal
@@ -97,6 +98,12 @@ def main(argv=None):
     ap.add_argument("--py", nargs="*", action="extend", default=[])
     ap.add_argument("--sh", nargs="*", action="extend", default=[])
     ap.add_argument("--timeout", type=float, default=180.0)
+    # Quantas suítes ao mesmo tempo. O padrão vem do número de núcleos porque o
+    # gargalo é DISPARAR PROCESSO, não calcular: no Windows criar processo custa
+    # perto de dez vezes o do macOS, e as suítes de shell disparam às centenas.
+    # Sequencial, o job foi de 23m42s a 26m28s em três rodadas — subindo, porque
+    # suíte consertada para de falhar na hora e passa a rodar até o fim.
+    ap.add_argument("--jobs", type=int, default=0)
     a = ap.parse_args(argv)
 
     py = sys.executable
@@ -114,12 +121,26 @@ def main(argv=None):
     else:
         tarefas += [([bash], t) for t in sh_alvos]
 
+    jobs = a.jobs or min(8, (os.cpu_count() or 2))
+    print("  rodando %d suíte(s) com até %d ao mesmo tempo" % (len(tarefas), jobs))
+
+    # Uma suíte por thread: o trabalho é esperar processo, não calcular, então
+    # thread basta e não há estado do interpretador a compartilhar. Cada suíte já
+    # roda em sessão própria e escreve numa saída própria — o que elas dividem é o
+    # DISCO, e é por isso que o número não sobe indefinidamente: suíte que monta
+    # árvore em disco fica mais lenta se houver dez fazendo o mesmo.
     ruins = []
-    for cmd, alvo in tarefas:
-        estado, seg, saida = roda(cmd, alvo, a.timeout)
-        print("  %-8s %6.1fs  %s" % (estado, seg, alvo), flush=True)
-        if estado != "ok":
-            ruins.append((estado, alvo, saida))
+    with concurrent.futures.ThreadPoolExecutor(max_workers=jobs) as pool:
+        futuros = {pool.submit(roda, cmd, alvo, a.timeout): alvo for cmd, alvo in tarefas}
+        for fut in concurrent.futures.as_completed(futuros):
+            alvo = futuros[fut]
+            estado, seg, saida = fut.result()
+            print("  %-8s %6.1fs  %s" % (estado, seg, alvo), flush=True)
+            if estado != "ok":
+                ruins.append((estado, alvo, saida))
+    # A ordem de conclusão é a de quem terminou primeiro; o RELATÓRIO sai em ordem
+    # de nome, para que duas rodadas sejam comparáveis linha a linha.
+    ruins.sort(key=lambda x: x[1])
 
     print("\n%d suíte(s) · %d problema(s)" % (len(tarefas), len(ruins)))
     for estado, alvo, saida in ruins:
