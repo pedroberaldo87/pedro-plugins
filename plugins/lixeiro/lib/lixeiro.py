@@ -607,8 +607,11 @@ def _sinaliza(pid, grace=3.0):
         if not vivo(pid):
             return "TERM"
         time.sleep(0.15)
+    # O Windows não tem SIGKILL — `signal.SIGTERM` lá já é encerramento forçado
+    # (TerminateProcess), então o segundo golpe é o mesmo sinal. Sem este getattr
+    # o módulo INTEIRO morria de AttributeError no primeiro processo teimoso.
     try:
-        os.kill(pid, signal.SIGKILL)
+        os.kill(pid, getattr(signal, "SIGKILL", signal.SIGTERM))
     except (OSError, ProcessLookupError):
         return "TERM"
     time.sleep(0.2)
