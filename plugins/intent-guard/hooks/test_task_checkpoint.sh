@@ -7,7 +7,11 @@ set -euo pipefail
 TMPD=$(td_tmpdir)
 HERE="$(cd "$(dirname "$0")" && pwd)"
 export CLAUDE_PLUGIN_ROOT="$(dirname "$HERE")"
-REPO="$(mktemp -d /tmp/ig-ck-XXXXXX)"; git -C "$REPO" init -q
+# O temporário vem de `td_tmpdir`, nunca de `/tmp` cravado: no Git Bash do
+# Windows `/tmp` é caminho do SHELL, e o `ledger.py`/`python3` que recebe esse
+# `cwd` é o Python nativo — ele resolve `/tmp/x` como `C:\tmp\x`, que não
+# existe. O ledger nascia noutro lugar e o `grep` do teste não achava nada.
+REPO="$(mktemp -d "$(td_tmpdir)"/ig-ck-XXXXXX)"; git -C "$REPO" init -q
 # A identidade e LOCAL deste repo de mentira: o runner da esteira nao tem
 # `user.email` global, e o `git commit` de baixo saía `fatal: empty ident name`
 # com codigo 128 — o job inteiro morria ali, no Linux, desde sempre. Suite que

@@ -3,12 +3,17 @@
 # design-como-doc-autoral: design.md só cobra quem tem interface).
 set -euo pipefail
 HERE="$(cd "$(dirname "$0")" && pwd)"
+. "$(cd "$(dirname "$0")" && pwd)/lib-tmpdir.sh"
 . "$HERE/lib-has-frontend.sh"
 
-BACKEND="$(mktemp -d /tmp/hf-backend-XXXXXX)"
-FRONT_TSX="$(mktemp -d /tmp/hf-tsx-XXXXXX)"
-FRONT_HTML="$(mktemp -d /tmp/hf-html-XXXXXX)"
-FRONT_PKG="$(mktemp -d /tmp/hf-pkg-XXXXXX)"
+# O temporário vem de `td_tmpdir`, nunca de `/tmp` cravado: no Git Bash do
+# Windows `/tmp` é caminho do SHELL, e o `ledger.py`/`python3` que recebe esse
+# `cwd` é o Python nativo — ele resolve `/tmp/x` como `C:\tmp\x`, que não
+# existe. O ledger nascia noutro lugar e o `grep` do teste não achava nada.
+BACKEND="$(mktemp -d "$(td_tmpdir)"/hf-backend-XXXXXX)"
+FRONT_TSX="$(mktemp -d "$(td_tmpdir)"/hf-tsx-XXXXXX)"
+FRONT_HTML="$(mktemp -d "$(td_tmpdir)"/hf-html-XXXXXX)"
+FRONT_PKG="$(mktemp -d "$(td_tmpdir)"/hf-pkg-XXXXXX)"
 trap 'rm -rf "$BACKEND" "$FRONT_TSX" "$FRONT_HTML" "$FRONT_PKG"' EXIT
 
 # 1. backend puro (só .py) → não tem interface

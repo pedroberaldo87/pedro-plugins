@@ -3,7 +3,12 @@
 # trabalho de verdade. O gate de entrega (delivery-audit.sh) só age se esta
 # sentinela existir: sessão só de conversa nunca é bloqueada no Stop.
 set -uo pipefail
-MODE_FILE="$HOME/.claude/intent-guard/mode"
+# `CLAUDE_CONFIG_DIR` quando definido — o resto do repositório já o respeita, e
+# cravar `$HOME` aqui fazia o kill-switch ser GLOBAL de verdade: duas suítes do
+# plugin rodando ao mesmo tempo escreviam e apagavam o mesmo arquivo, e a
+# vítima mudava a cada rodada. Estado por-execução tem que caber num diretório
+# que quem executa escolhe.
+MODE_FILE="${CLAUDE_CONFIG_DIR:-$HOME/.claude}/intent-guard/mode"
 [ -f "$MODE_FILE" ] && [ "$(tr -d '[:space:]' < "$MODE_FILE" 2>/dev/null)" = "off" ] && exit 0
 # Leitor do payload: `jq` quando existe, `python3` (stdlib json) quando não.
 # Sem os dois não há session_id — e aí o hook AVISA, nunca sai calado (issue #5).
