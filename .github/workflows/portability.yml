@@ -7,6 +7,9 @@ on:
 jobs:
   checks:
     runs-on: ${{ matrix.os }}
+    # Suíte pendurada não pode virar job de 6 h: o maior job legítimo (Windows)
+    # fecha em ~15 min; passou de 30, é travamento — falha visível, runner livre.
+    timeout-minutes: 30
     # O console do Windows de fábrica é cp1252, e `print("── …")` de uma SUÍTE
     # morre lá com UnicodeEncodeError antes de testar coisa alguma — foi o que
     # derrubava o job do Windows no primeiro arquivo do glob (`test_cfgjson.py`),

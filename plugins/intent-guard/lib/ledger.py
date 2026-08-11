@@ -36,7 +36,7 @@ for _canal in (sys.stdin, sys.stdout, sys.stderr):
             _canal.reconfigure(encoding="utf-8")
         except Exception:
             pass
-from pathlib import Path
+from pathlib import Path  # noqa: E402  (o reconfigure dos canais tem que vir antes)
 
 MARKERS = ("package.json", "CLAUDE.md", "pyproject.toml", "Cargo.toml", "go.mod", ".git")
 CLASSES = ("pedido", "correcao", "restricao", "conversa")
@@ -52,7 +52,10 @@ def project_root(cwd):
         pass
     d = os.path.abspath(cwd)
     home = os.path.expanduser("~")
-    while d and d not in (home, "/"):
+    # A raiz é "dirname(d) == d" — vale pra "/" E pra "C:\". Comparar com "/" literal
+    # girava infinito no Windows (dirname("D:\\") devolve "D:\\" pra sempre), e foi
+    # isso — não a trava — que pendurou o job da esteira três vezes seguidas.
+    while d and d != home and d != os.path.dirname(d):
         if any(os.path.exists(os.path.join(d, m)) for m in MARKERS):
             return d
         d = os.path.dirname(d)
