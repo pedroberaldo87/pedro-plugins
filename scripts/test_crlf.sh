@@ -27,6 +27,28 @@ fi
 if [ -f .gitattributes ] && grep -q 'eol=lf' .gitattributes; then
   echo "ok   .gitattributes com eol=lf"
 else
-  echo "FAIL .gitattributes ausente (criar: *.sh text eol=lf)"; FAIL=1
+  echo "FAIL .gitattributes ausente (criar: * text=auto eol=lf)"; FAIL=1
+fi
+
+# REGRESSÃO 2026-08-11: o arquivo tem que cobrir a SI MESMO. Ele listava só `*.sh`
+# e `*.py`; no Windows, com o `core.autocrlf=true` de fábrica, ELE saía do checkout
+# com CRLF, a linha virava `eol=lf\r`, o valor deixava de ser válido e o git não
+# normalizava NADA — 154 de 154 `.sh` com CRLF no runner. É o defeito circular: o
+# arquivo que impede a conversão é a primeira vítima dela.
+if git check-attr eol -- .gitattributes | grep -q 'eol: lf'; then
+  echo "ok   o .gitattributes cobre a si mesmo (eol: lf)"
+else
+  echo "FAIL o .gitattributes NÃO se cobre — ele mesmo vira CRLF e derruba a regra"
+  echo "     conserto: uma linha \`.gitattributes text eol=lf\`, DEPOIS da regra geral"
+  FAIL=1
+fi
+
+# E a regra tem que ser GERAL: por extensão só protege o que alguém lembrou de
+# escrever, e `.mjs`, `.yml` e `.json` já tinham ficado de fora.
+if grep -qE '^\* +text' .gitattributes; then
+  echo "ok   a regra vale para todo arquivo de texto, não só para extensão listada"
+else
+  echo "FAIL sem regra geral (`* text=auto eol=lf`): extensão nova nasce desprotegida"
+  FAIL=1
 fi
 exit $FAIL

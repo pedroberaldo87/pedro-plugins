@@ -386,8 +386,15 @@ def lint_doc(root, doc_rel, env_read, defined, allow, all_files=None,
             # --- check 3b: existe no disco, mas está fora do tronco ---
             # O arquivo só existe na máquina de quem escreveu a doc: quem clona o
             # repo não o tem. `head_files is None` = git mudo → não acusa.
+            # `head_files` vem do `git ls-tree`, que emite barra NORMAL em todo
+            # sistema; `os.path.normpath` emite a do sistema. No Windows os dois
+            # lados nunca casavam, este check disparava para TODO ponteiro e o
+            # `continue` abaixo matava a checagem de ponteiro morto que vem
+            # depois — o teste acusava o ponteiro morto ausente, e a causa estava
+            # três checagens acima.
             if head_files is not None and not any(
-                    os.path.normpath(c) in head_files for c in existing):
+                    os.path.normpath(c).replace(os.sep, "/") in head_files
+                    for c in existing):
                 findings.append({
                     "check": "not-in-trunk", "severity": "FAIL",
                     "line": fm_lines + i + 1, "token": "%s:%d" % (f, n),
