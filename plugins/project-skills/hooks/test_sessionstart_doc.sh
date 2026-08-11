@@ -5,6 +5,7 @@
 # contrato (canal/cap/kill-switch/fail-open) que o achado F1.2 aplicou aqui.
 set -euo pipefail
 HERE="$(cd "$(dirname "$0")" && pwd)"
+. "$(cd "$(dirname "$0")" && pwd)/lib-tmpdir.sh"
 HOOK="$HERE/sessionstart-doc.sh"
 trap 'rm -rf "${MINERADO:-}" "${COMPLETO:-}" "${VAZIO:-}" "${NOVO:-}" "${FAKEHOME:-}"; rm -f /tmp/claude-doc-autoral-nudge-*' EXIT
 
@@ -27,13 +28,17 @@ ctx() { python3 -c 'import json,sys; print(json.load(sys.stdin)["hookSpecificOut
 ctxq() { grep -q -- "$2" <<< "$(printf '%s' "$1" | ctx)"; }
 
 # --- fixture: doc minerada (architecture.md), ZERO autorais ---
-MINERADO="$(mktemp -d /tmp/pd-ck-min-XXXXXX)"
+# O temporário vem de `td_tmpdir`, nunca de `/tmp` cravado: no Git Bash do
+# Windows `/tmp` é caminho do SHELL, e o `ledger.py`/`python3` que recebe esse
+# `cwd` é o Python nativo — ele resolve `/tmp/x` como `C:\tmp\x`, que não
+# existe. O ledger nascia noutro lugar e o `grep` do teste não achava nada.
+MINERADO="$(mktemp -d "$(td_tmpdir)"/pd-ck-min-XXXXXX)"
 mkdir -p "$MINERADO/.claude/docs"
 printf '# arch\n' > "$MINERADO/.claude/docs/architecture.md"
 printf '<!-- project-doc:v2 -->\narch\n' > "$MINERADO/.claude/CLAUDE.md"
 
 # --- fixture: doc minerada + os 5 autorais completos ---
-COMPLETO="$(mktemp -d /tmp/pd-ck-full-XXXXXX)"
+COMPLETO="$(mktemp -d "$(td_tmpdir)"/pd-ck-full-XXXXXX)"
 mkdir -p "$COMPLETO/.claude/docs"
 printf '# arch\n' > "$COMPLETO/.claude/docs/architecture.md"
 for f in quality-goals constraints context solution-strategy glossary; do
@@ -42,7 +47,7 @@ done
 printf '<!-- project-doc:v2 -->\narch\n' > "$COMPLETO/.claude/CLAUDE.md"
 
 # --- fixture: sem doc nenhuma ---
-VAZIO="$(mktemp -d /tmp/pd-ck-vazio-XXXXXX)"
+VAZIO="$(mktemp -d "$(td_tmpdir)"/pd-ck-vazio-XXXXXX)"
 git -C "$VAZIO" init -q
 
 # 1. minerado + zero autorais → avisa (o buraco original)
@@ -79,7 +84,7 @@ ctxq "$OUT" "não tem documentação nenhuma"
 echo "6. sem doc nenhuma, ramo antigo intacto: OK"
 
 # --- fixture: doc minerada, ZERO autorais, MAS com sinal de frontend (.tsx) ---
-FRONTEND="$(mktemp -d /tmp/pd-ck-front-XXXXXX)"
+FRONTEND="$(mktemp -d "$(td_tmpdir)"/pd-ck-front-XXXXXX)"
 mkdir -p "$FRONTEND/.claude/docs"
 printf '# arch\n' > "$FRONTEND/.claude/docs/architecture.md"
 printf '<!-- project-doc:v2 -->\narch\n' > "$FRONTEND/.claude/CLAUDE.md"
@@ -96,7 +101,7 @@ echo "7. projeto com interface conta design.md (6): OK"
 # 8. lib-has-frontend.sh AUSENTE → o hook NÃO pode emudecer; só perde a contagem de
 #    design.md. É a isenção "uso local já degradado dispensa guarda no topo" de
 #    patterns.md §5.3 — um exit 0 no topo mataria trabalho que não depende da lib.
-HOOKDIR="$(mktemp -d /tmp/pd-ck-nolib-XXXXXX)"
+HOOKDIR="$(mktemp -d "$(td_tmpdir)"/pd-ck-nolib-XXXXXX)"
 # `hook-json.sh` vai junto: é o leitor do payload (vendorado de _shared/), sem o qual
 # o hook não lê nem o `cwd` — dependência da mesma natureza do doc-detect.sh.
 cp "$HERE/sessionstart-doc.sh" "$HERE/doc-detect.sh" "$HERE/lib-project-root.sh" \
@@ -115,9 +120,9 @@ rm -rf "$FRONTEND"
 # de um HOME de mentira, e sujar o HOME real da máquina que roda a suíte não é
 # opção. O HOME sobrescrito também mantém a subida do project_root intacta —
 # as fixtures moram em /tmp, fora dele.
-NOVO="$(mktemp -d /tmp/pd-ck-novo-XXXXXX)"
+NOVO="$(mktemp -d "$(td_tmpdir)"/pd-ck-novo-XXXXXX)"
 git -C "$NOVO" init -q
-FAKEHOME="$(mktemp -d /tmp/pd-ck-home-XXXXXX)"
+FAKEHOME="$(mktemp -d "$(td_tmpdir)"/pd-ck-home-XXXXXX)"
 RECUSA="$FAKEHOME/.claude/doc/sem-metodologia-$(printf '%s' "$NOVO" | cksum | cut -d' ' -f1)"
 
 # 9. projeto novo, nada recusado → a oferta sai por padrão, contando CINCO etapas

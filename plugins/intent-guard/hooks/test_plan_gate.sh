@@ -8,7 +8,11 @@ set -euo pipefail
 TMPD=$(td_tmpdir)
 HERE="$(cd "$(dirname "$0")" && pwd)"
 export CLAUDE_PLUGIN_ROOT="$(dirname "$HERE")"
-REPO="$(mktemp -d /tmp/ig-pg-XXXXXX)"; git -C "$REPO" init -q
+# O temporário vem de `td_tmpdir`, nunca de `/tmp` cravado: no Git Bash do
+# Windows `/tmp` é caminho do SHELL, e o `ledger.py`/`python3` que recebe esse
+# `cwd` é o Python nativo — ele resolve `/tmp/x` como `C:\tmp\x`, que não
+# existe. O ledger nascia noutro lugar e o `grep` do teste não achava nada.
+REPO="$(mktemp -d "$(td_tmpdir)"/ig-pg-XXXXXX)"; git -C "$REPO" init -q
 trap 'rm -rf "$REPO" "$TMPD"/intent-guard-plandeny-pgsid' EXIT
 L="$CLAUDE_PLUGIN_ROOT/lib/ledger.py"
 printf 'export CSV com ;' | python3 "$L" record-raw --cwd "$REPO" --session pgsid --text-stdin
@@ -47,13 +51,13 @@ echo 2 > "$TMPD"/intent-guard-plandeny-pgsid
 mkin "$REPO" 'plano qualquer' | bash "$HERE/plan-gate.sh"   # exit 0 = passou
 
 # 4. sem pedidos vivos nem pendentes → nem chama juiz (judge inexistente não pode quebrar)
-REPO2="$(mktemp -d /tmp/ig-pg2-XXXXXX)"; git -C "$REPO2" init -q
+REPO2="$(mktemp -d "$(td_tmpdir)"/ig-pg2-XXXXXX)"; git -C "$REPO2" init -q
 export INTENT_GUARD_JUDGE_CMD="/nao/existe"
 mkin "$REPO2" 'plano' | bash "$HERE/plan-gate.sh"
 rm -rf "$REPO2" "$HERE"/mock_judge_*.sh
 
 # 5. sem session_id → exit 0 (fail-open), nunca cria nosid file
-REPO3="$(mktemp -d /tmp/ig-pg3-XXXXXX)"; git -C "$REPO3" init -q
+REPO3="$(mktemp -d "$(td_tmpdir)"/ig-pg3-XXXXXX)"; git -C "$REPO3" init -q
 export INTENT_GUARD_JUDGE_CMD="$HERE/mock_judge_miss3.sh"
 cat > "$HERE/mock_judge_miss3.sh" <<'EOF'
 #!/usr/bin/env bash

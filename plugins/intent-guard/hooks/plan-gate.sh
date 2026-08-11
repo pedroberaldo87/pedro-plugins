@@ -6,7 +6,12 @@
 # Teto anti-loop: máx 2 devoluções por sessão (lição do plan-verification-gate,
 # removido por loop infinito de reescrita). Fail-open em qualquer erro.
 set -uo pipefail
-MODE_FILE="$HOME/.claude/intent-guard/mode"
+# `CLAUDE_CONFIG_DIR` quando definido — o resto do repositório já o respeita, e
+# cravar `$HOME` aqui fazia o kill-switch ser GLOBAL de verdade: duas suítes do
+# plugin rodando ao mesmo tempo escreviam e apagavam o mesmo arquivo, e a
+# vítima mudava a cada rodada. Estado por-execução tem que caber num diretório
+# que quem executa escolhe.
+MODE_FILE="${CLAUDE_CONFIG_DIR:-$HOME/.claude}/intent-guard/mode"
 [ -f "$MODE_FILE" ] && [ "$(tr -d '[:space:]' < "$MODE_FILE" 2>/dev/null)" = "off" ] && exit 0
 PY="$(command -v python3)"
 "$PY" --version >/dev/null 2>&1 || exit 0

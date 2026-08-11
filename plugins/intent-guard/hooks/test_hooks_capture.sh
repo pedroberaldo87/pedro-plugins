@@ -8,14 +8,21 @@ set -euo pipefail
 TMPD=$(td_tmpdir)
 HERE="$(cd "$(dirname "$0")" && pwd)"
 export CLAUDE_PLUGIN_ROOT="$(dirname "$HERE")"
-REPO="$(mktemp -d /tmp/ig-cap-XXXXXX)"
+# O temporário vem de `td_tmpdir`, nunca de `/tmp` cravado: no Git Bash do
+# Windows `/tmp` é caminho do SHELL, e o `ledger.py`/`python3` que recebe esse
+# `cwd` é o Python nativo — ele resolve `/tmp/x` como `C:\tmp\x`, que não
+# existe. O ledger nascia noutro lugar e o `grep` do teste não achava nada.
+REPO="$(mktemp -d "$(td_tmpdir)"/ig-cap-XXXXXX)"
 git -C "$REPO" init -q
-# preserva um kill-switch real do usuário, se existir
-MODE_BAK=""
-[ -f ~/.claude/intent-guard/mode ] && MODE_BAK="$(cat ~/.claude/intent-guard/mode)"
+# CONFIG PROPRIO, e e isso que torna a suite segura ao lado das outras. Ela mexia
+# no kill-switch do usuario, com backup e restauracao — e duas suites deste plugin
+# rodando ao mesmo tempo escreviam e apagavam o MESMO arquivo: a vitima mudava a
+# cada rodada, e o sintoma era uma delas morrendo em 1,5s sem relacao com o que
+# testava. Backup nao resolve corrida; diretorio proprio resolve.
+export CLAUDE_CONFIG_DIR="$REPO/.config-claude"
+mkdir -p "$CLAUDE_CONFIG_DIR"
 restore() {
   rm -rf "$REPO" "$TMPD"/intent-guard-work-testsid
-  if [ -n "$MODE_BAK" ]; then echo "$MODE_BAK" > ~/.claude/intent-guard/mode; else rm -f ~/.claude/intent-guard/mode; fi
 }
 trap restore EXIT
 
@@ -39,11 +46,11 @@ mkjson testsid "$REPO" '   ' | bash "$HERE/capture-prompt.sh" || true
 [ "$(wc -l < "$REPO/.claude/intent/ledger.jsonl")" = "$N1" ]
 
 # 3. kill-switch off → não grava
-mkdir -p ~/.claude/intent-guard
-echo off > ~/.claude/intent-guard/mode
+mkdir -p "$CLAUDE_CONFIG_DIR/intent-guard"
+echo off > "$CLAUDE_CONFIG_DIR/intent-guard/mode"
 mkjson testsid "$REPO" 'outro pedido' | bash "$HERE/capture-prompt.sh" || true
 [ "$(wc -l < "$REPO/.claude/intent/ledger.jsonl")" = "$N1" ]
-rm -f ~/.claude/intent-guard/mode
+rm -f "$CLAUDE_CONFIG_DIR/intent-guard/mode"
 
 # 4. stdin lixo → exit 0 (fail-open)
 echo 'não é json' | bash "$HERE/capture-prompt.sh" || true

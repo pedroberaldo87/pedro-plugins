@@ -24,7 +24,11 @@ commit_new() {  # commit_new <repo> <marca> — cria um commit novo de verdade
   git -C "$1" -c user.email=t@t -c user.name=t commit -qm "$2"
 }
 
-REPO="$(mktemp -d /tmp/ig-da-XXXXXX)"; git -C "$REPO" init -q
+# O temporário vem de `td_tmpdir`, nunca de `/tmp` cravado: no Git Bash do
+# Windows `/tmp` é caminho do SHELL, e o `ledger.py`/`python3` que recebe esse
+# `cwd` é o Python nativo — ele resolve `/tmp/x` como `C:\tmp\x`, que não
+# existe. O ledger nascia noutro lugar e o `grep` do teste não achava nada.
+REPO="$(mktemp -d "$(td_tmpdir)"/ig-da-XXXXXX)"; git -C "$REPO" init -q
 touch "$REPO/f"; git -C "$REPO" add -A; git -C "$REPO" -c user.email=t@t -c user.name=t commit -qm i
 mkin() { printf '{"session_id":"dasid","cwd":"%s"}' "$REPO"; }
 
@@ -70,7 +74,7 @@ OUT="$(mkin | bash "$HERE/delivery-audit.sh")"; [ -z "$OUT" ]
 rm -f "$TMPD"/intent-guard-stopdeny-dasid
 
 # 6. ESCADA DE CUSTO: pedido com receita mecânica é resolvido SEM agente
-REPO4="$(mktemp -d /tmp/ig-da4-XXXXXX)"; BARE="$(mktemp -d /tmp/ig-bare4-XXXXXX)"
+REPO4="$(mktemp -d "$(td_tmpdir)"/ig-da4-XXXXXX)"; BARE="$(mktemp -d "$(td_tmpdir)"/ig-bare4-XXXXXX)"
 git -C "$REPO4" init -q; git init -q --bare "$BARE"
 touch "$REPO4/f"; git -C "$REPO4" add -A
 git -C "$REPO4" -c user.email=t@t -c user.name=t commit -qm i
@@ -92,7 +96,7 @@ python3 "$L" state --cwd "$REPO4" | grep -q 'baixado:receita' \
 
 # 8. cru NUNCA classificado (sessão sem plan mode) + commit novo → classifica no
 #    gate de entrega e BLOQUEIA citando o fluxo do auditor
-REPO2="$(mktemp -d /tmp/ig-da2-XXXXXX)"; git -C "$REPO2" init -q
+REPO2="$(mktemp -d "$(td_tmpdir)"/ig-da2-XXXXXX)"; git -C "$REPO2" init -q
 touch "$REPO2/f"; git -C "$REPO2" add -A; git -C "$REPO2" -c user.email=t@t -c user.name=t commit -qm i
 printf 'faz W' | python3 "$L" record-raw --cwd "$REPO2" --session pendsid --text-stdin
 cat > "$HERE/mock_classify_pedido.sh" <<'EOF'
@@ -110,7 +114,7 @@ grep -q '"decision"' <<< "$OUT"
 grep -q 'auditor-prompt.md' <<< "$OUT"
 
 # 9. cru classificado como conversa → segue mudo mesmo com commit novo
-REPO3="$(mktemp -d /tmp/ig-da3-XXXXXX)"; git -C "$REPO3" init -q
+REPO3="$(mktemp -d "$(td_tmpdir)"/ig-da3-XXXXXX)"; git -C "$REPO3" init -q
 touch "$REPO3/f"; git -C "$REPO3" add -A; git -C "$REPO3" -c user.email=t@t -c user.name=t commit -qm i
 printf 'kkk boa' | python3 "$L" record-raw --cwd "$REPO3" --session convsid --text-stdin
 cat > "$HERE/mock_classify_conversa.sh" <<'EOF'
