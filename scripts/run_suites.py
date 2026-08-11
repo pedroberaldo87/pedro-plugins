@@ -31,6 +31,9 @@ import sys
 import tempfile
 import time
 
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "_shared"))
+from bash_posix import bash_posix  # noqa: E402
+
 for _canal in (sys.stdout, sys.stderr):
     if hasattr(_canal, "reconfigure"):
         try:
@@ -97,7 +100,19 @@ def main(argv=None):
     a = ap.parse_args(argv)
 
     py = sys.executable
-    tarefas = [([py], t) for t in expande(a.py)] + [(["bash"], t) for t in expande(a.sh)]
+    # `bash` do PATH está ERRADO no Windows: lá ele é o do WSL (`System32\bash.exe`),
+    # que sem distro instalada responde uma reclamação em UTF-16 — e as ~35 suítes de
+    # shell reprovam todas de uma vez, por causa do interpretador. A régua não é estar
+    # no PATH, é RESPONDER, e o repositório já tinha a receita (`_shared/bash_posix.py`).
+    # Sem nenhum bash que responda, as suítes de shell PULAM declarando: comando de
+    # shell sem shell não é falha de quem escreveu o comando.
+    sh_alvos = expande(a.sh)
+    tarefas = [([py], t) for t in expande(a.py)]
+    bash = bash_posix()
+    if sh_alvos and bash is None:
+        print("  ↷ %d suíte(s) de shell puladas: nenhum bash funcional nesta máquina" % len(sh_alvos))
+    else:
+        tarefas += [([bash], t) for t in sh_alvos]
 
     ruins = []
     for cmd, alvo in tarefas:
