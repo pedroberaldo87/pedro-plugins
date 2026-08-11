@@ -1506,7 +1506,12 @@ def _detalhe(it):
     pend = pendencia_viva(it)
     if pend:
         return "⛔ falta decidir: " + pend, "pt-desc"
-    return it.get("desc", "") or "", "pt-desc"
+    d = it.get("desc", "") or ""
+    # `desc` em lista sobrevive ao init (o validador o stringifica ao medir) — o
+    # renderizador não pode ser o primeiro a quebrar: vira bullets, um por linha.
+    if isinstance(d, (list, tuple)):
+        d = "\n".join("· " + str(b) for b in d)
+    return d, "pt-desc"
 
 
 def render_text(plan, reqs=None, vista="execucao", compacto=False):
