@@ -169,7 +169,7 @@ JOURNEYS = """\
 def main():
     d = tempfile.mkdtemp(prefix="cob-")
     p = os.path.join(d, "PRD.md")
-    open(p, "w").write(PRD)
+    open(p, "w", encoding="utf-8").write(PRD)
 
     reqs = cb.le_requisitos(p)
     check("acha os 2 requisitos", sorted(reqs) == ["S-4.3", "S-4.8"])
@@ -193,7 +193,7 @@ def main():
 
     # o cruzamento com as jornadas, nas DUAS direções
     j = os.path.join(d, "journeys.md")
-    open(j, "w").write(JOURNEYS)
+    open(j, "w", encoding="utf-8").write(JOURNEYS)
     jornadas = cb.le_jornadas(j)
     check("acha as 2 jornadas", jornadas == ["Planejar o dia", "Revisar a semana"])
     check("lê a jornada de origem do requisito",
@@ -210,7 +210,7 @@ def main():
 
     # o épico que nenhuma funcionalidade liga a um caminho de pessoa
     pe = os.path.join(d, "PRD-epicos.md")
-    open(pe, "w").write(PRD_EPICOS)
+    open(pe, "w", encoding="utf-8").write(PRD_EPICOS)
     reqs_e = cb.le_requisitos(pe)
     plan_e = {"id": "p", "title": "t", "phases": [{"id": "F1", "title": "f", "items": [
         {"id": "F1.1", "title": "a", "desc": "d", "requisito": "S-4.3"},
@@ -224,7 +224,7 @@ def main():
 
     # o requisito escrito sem critério de aceite
     pc = os.path.join(d, "PRD-sem-ca.md")
-    open(pc, "w").write(PRD_SEM_CA)
+    open(pc, "w", encoding="utf-8").write(PRD_SEM_CA)
     reqs_c = cb.le_requisitos(pc)
     check("requisito sem critério fica com None", reqs_c["S-4.9"]["ca"] is None)
     plan_c = {"id": "p", "title": "t", "phases": [{"id": "F1", "title": "f", "items": [
@@ -238,7 +238,7 @@ def main():
 
     # o número escrito duas vezes — some uma descrição, e isso tem que aparecer
     pr = os.path.join(d, "PRD-repetido.md")
-    open(pr, "w").write(PRD_REPETIDO)
+    open(pr, "w", encoding="utf-8").write(PRD_REPETIDO)
     reqs_r = cb.le_requisitos(pr)
     check("o número repetido fica marcado", reqs_r["S-4.3"]["repetido"] is True)
     check("vale a PRIMEIRA descrição, não a segunda",
@@ -255,9 +255,9 @@ def main():
 
     # a citação de artigo conferida contra a lei do projeto
     pa = os.path.join(d, "PRD-artigos.md")
-    open(pa, "w").write(PRD_ARTIGOS)
+    open(pa, "w", encoding="utf-8").write(PRD_ARTIGOS)
     lei = os.path.join(d, "constituicao.md")
-    open(lei, "w").write(LEI)
+    open(lei, "w", encoding="utf-8").write(LEI)
     reqs_a = cb.le_requisitos(pa)
     artigos = cb.le_artigos(lei)
     check("acha os 2 artigos da lei", artigos == ["6", "7"])
@@ -279,7 +279,7 @@ def main():
 
     # a funcionalidade que não nasce de artigo nenhum — e a saída declarada
     psa = os.path.join(d, "PRD-sem-artigo.md")
-    open(psa, "w").write(PRD_SEM_ARTIGO)
+    open(psa, "w", encoding="utf-8").write(PRD_SEM_ARTIGO)
     reqs_sa = cb.le_requisitos(psa)
     check("lê a decisão declarada",
           (reqs_sa["S-4.10"]["decisao"] or "").startswith("conforto meu"))
@@ -303,9 +303,9 @@ def main():
 
     # o cruzamento com as peças da arquitetura pretendida, nas duas pontas
     pp = os.path.join(d, "PRD-pecas.md")
-    open(pp, "w").write(PRD_PECAS)
+    open(pp, "w", encoding="utf-8").write(PRD_PECAS)
     arq = os.path.join(d, "architecture-intent.md")
-    open(arq, "w").write(ARQUITETURA)
+    open(arq, "w", encoding="utf-8").write(ARQUITETURA)
     reqs_p = cb.le_requisitos(pp)
     pecas = cb.le_pecas(arq)
     check("acha as 2 peças do desenho", pecas == ["Motor de plano", "Guarda de estado"])
@@ -342,9 +342,9 @@ def main():
 
     # o cruzamento com o desenho de funcionamento, nas DUAS direções
     ppa = os.path.join(d, "PRD-passos.md")
-    open(ppa, "w").write(PRD_PASSOS)
+    open(ppa, "w", encoding="utf-8").write(PRD_PASSOS)
     bp = os.path.join(d, "blueprint.md")
-    open(bp, "w").write(BLUEPRINT)
+    open(bp, "w", encoding="utf-8").write(BLUEPRINT)
     reqs_pa = cb.le_requisitos(ppa)
     ciclo = cb.le_passos(bp)
     check("acha os 2 passos do ciclo",

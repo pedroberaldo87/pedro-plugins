@@ -15,7 +15,7 @@ import ledger  # noqa: E402
 def make_repo():
     d = tempfile.mkdtemp(prefix="ig-test-")
     subprocess.run(["git", "init", "-q", d], check=True, stdin=subprocess.DEVNULL, start_new_session=True)
-    open(os.path.join(d, "app.py"), "w").write("print(1)\n")
+    open(os.path.join(d, "app.py"), "w", encoding="utf-8").write("print(1)\n")
     subprocess.run(["git", "-C", d, "add", "-A"], check=True, stdin=subprocess.DEVNULL, start_new_session=True)
     subprocess.run(["git", "-C", d, "-c", "user.email=t@t", "-c", "user.name=t",
                     "commit", "-qm", "init"], check=True, stdin=subprocess.DEVNULL, start_new_session=True)
@@ -38,7 +38,7 @@ def test_concurrent_record_raw():
             fh.write("pedido concorrente %d" % i)
             fh.close()
             files.append(fh.name)
-        opened = [open(fn) for fn in files]
+        opened = [open(fn, encoding="utf-8") for fn in files]
         try:
             for f in opened:
                 p = subprocess.Popen([sys.executable, os.path.join(HERE, "ledger.py"),
@@ -76,7 +76,7 @@ def main():
         evs = ledger.load(os.path.join(repo, ".claude", "intent"))
         assert len(evs) == 1 and evs[0]["ev"] == "raw" and evs[0]["text"] == texto
         assert evs[0]["id"] == "r-1" and evs[0]["session"] == "sess1"
-        excl = open(os.path.join(repo, ".git", "info", "exclude")).read()
+        excl = open(os.path.join(repo, ".git", "info", "exclude"), encoding="utf-8").read()
         assert ".claude/intent/" in excl
         # git não enxerga o ledger
         st = subprocess.run(["git", "-C", repo, "status", "--porcelain"],
@@ -114,7 +114,7 @@ def main():
         h1 = run(["tree-hash", "--cwd", repo]).stdout.strip()
         assert len(h1) == 40
         assert run(["tree-hash", "--cwd", repo]).stdout.strip() == h1
-        open(os.path.join(repo, "novo.txt"), "w").write("x")
+        open(os.path.join(repo, "novo.txt"), "w", encoding="utf-8").write("x")
         h2 = run(["tree-hash", "--cwd", repo]).stdout.strip()
         assert h2 != h1, "untracked tem que mudar o hash"
 
@@ -126,7 +126,7 @@ def main():
         chk = json.loads(run(["audit-check", "--cwd", repo, "--file", ap]).stdout)
         assert chk["ok"] is True, chk
         # tree mudou → audit vence
-        open(os.path.join(repo, "outro.txt"), "w").write("y")
+        open(os.path.join(repo, "outro.txt"), "w", encoding="utf-8").write("y")
         chk = json.loads(run(["audit-check", "--cwd", repo, "--file", ap]).stdout)
         assert chk["ok"] is False and any("tree" in w for w in chk["why"])
         os.unlink(os.path.join(repo, "outro.txt"))
@@ -181,7 +181,7 @@ def main():
         run(["record-raw", "--cwd", repo, "--session", "s9", "--text-stdin"],
             stdin="arruma o alvo")
         alvo_f = os.path.join(repo, "alvo.py")
-        open(alvo_f, "w").write("# antes\n")
+        open(alvo_f, "w", encoding="utf-8").write("# antes\n")
         h5 = run(["tree-hash", "--cwd", repo]).stdout.strip()
         aud5 = {"tree_hash": h5, "generated_ts": 1, "verdicts": [
             {"entry": "p-2", "verdict": "feito", "mode": "confirmado",
@@ -192,13 +192,13 @@ def main():
         assert json.loads(run(["audit-check", "--cwd", repo, "--file", p5]).stdout)["ok"] is True
 
         # mexe em arquivo que o veredito NAO cita -> continua valendo
-        open(os.path.join(repo, "nao-citado.txt"), "w").write("z")
+        open(os.path.join(repo, "nao-citado.txt"), "w", encoding="utf-8").write("z")
         chk = json.loads(run(["audit-check", "--cwd", repo, "--file", p5]).stdout)
         assert chk["ok"] is True, ("mudanca fora do que o veredito auditou nao pode "
                                    "vencer o veredito: %s" % chk)
 
         # mexe no arquivo CITADO -> vence, como tem que ser
-        open(alvo_f, "w").write("# depois\n")
+        open(alvo_f, "w", encoding="utf-8").write("# depois\n")
         chk = json.loads(run(["audit-check", "--cwd", repo, "--file", p5]).stdout)
         assert chk["ok"] is False and any("tree" in w for w in chk["why"]), chk
         os.unlink(os.path.join(repo, "nao-citado.txt"))
@@ -281,14 +281,14 @@ def main():
         # liberaria SEM auditoria — o oposto do propósito do plugin.
         h_before = run(["tree-hash", "--cwd", repo]).stdout.strip()
         os.makedirs(os.path.join(repo, "__pycache__"), exist_ok=True)
-        open(os.path.join(repo, "__pycache__", "m.cpython-314.pyc"), "w").write("x")
+        open(os.path.join(repo, "__pycache__", "m.cpython-314.pyc"), "w", encoding="utf-8").write("x")
         os.makedirs(os.path.join(repo, "node_modules", "leftpad"), exist_ok=True)
-        open(os.path.join(repo, "node_modules", "leftpad", "index.js"), "w").write("x")
-        open(os.path.join(repo, "run.log"), "w").write("saida do teste")
+        open(os.path.join(repo, "node_modules", "leftpad", "index.js"), "w", encoding="utf-8").write("x")
+        open(os.path.join(repo, "run.log"), "w", encoding="utf-8").write("saida do teste")
         h_after = run(["tree-hash", "--cwd", repo]).stdout.strip()
         assert h_after == h_before, "artefato de execução NÃO pode mudar o tree-hash"
         # mas código de verdade continua mudando o hash
-        open(os.path.join(repo, "codigo_novo.py"), "w").write("print(1)\n")
+        open(os.path.join(repo, "codigo_novo.py"), "w", encoding="utf-8").write("print(1)\n")
         assert run(["tree-hash", "--cwd", repo]).stdout.strip() != h_before, \
             "código novo TEM que mudar o tree-hash"
 
@@ -359,7 +359,7 @@ def main():
             assert ent["verdicts"][0]["mode"] == "confirmado"
 
             # commit local não publicado → a receita REPROVA (não é carimbo automático)
-            open(os.path.join(esc, "novo.py"), "w").write("x=1\n")
+            open(os.path.join(esc, "novo.py"), "w", encoding="utf-8").write("x=1\n")
             subprocess.run(["git", "-C", esc, "add", "-A"], check=True, stdin=subprocess.DEVNULL, start_new_session=True)
             subprocess.run(["git", "-C", esc, "-c", "user.email=t@t", "-c", "user.name=t",
                             "commit", "-qm", "local"], check=True, stdin=subprocess.DEVNULL, start_new_session=True)
@@ -409,12 +409,12 @@ def main():
 
             bp = os.path.join(cont, "state", "prose-ceiling")
             os.makedirs(bp, exist_ok=True)
-            with open(os.path.join(bp, "bypass.log"), "w") as f:
+            with open(os.path.join(bp, "bypass.log"), "w", encoding="utf-8") as f:
                 f.write(json.dumps({"ts": velho, "linhas_prosa": 9}) + "\n")
                 f.write(json.dumps({"ts": novo, "linhas_prosa": 12}) + "\n")
             fr = os.path.join(cont, "state", "forma-relato")
             os.makedirs(fr, exist_ok=True)
-            with open(os.path.join(fr, "batidas.log"), "w") as f:
+            with open(os.path.join(fr, "batidas.log"), "w", encoding="utf-8") as f:
                 f.write(json.dumps({"ts": novo, "motivo": "julgou", "veredito": "passa"}) + "\n")
                 f.write(json.dumps({"ts": novo, "motivo": "julgou", "veredito": "corte a prosa"}) + "\n")
                 f.write(json.dumps({"ts": novo, "motivo": "nao e relato", "veredito": None}) + "\n")
@@ -424,7 +424,7 @@ def main():
                             "'nao e relato' não contam — deu %s" % t)
             assert n == 3, n
             os.makedirs(os.path.dirname(marca), exist_ok=True)
-            with open(marca, "w") as f:
+            with open(marca, "w", encoding="utf-8") as f:
                 f.write(str(velho + 1))
             t, n, fontes, marca = ledger.furos_da_regua()
             assert (t, n) == (3, 2), ("o total não muda com a marca; só o 'desde a "

@@ -49,7 +49,7 @@ def limpa():
 
 
 # o arquivo que o critério de caminho procura JÁ existe no disco de mentira
-with open(os.path.join(FAKE_ROOT, "lib", "pronto.py"), "w") as fh:
+with open(os.path.join(FAKE_ROOT, "lib", "pronto.py"), "w", encoding="utf-8") as fh:
     fh.write("a = 1\nb = 2\nc = 3\n")
 
 

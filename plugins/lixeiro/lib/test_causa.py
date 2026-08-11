@@ -29,7 +29,7 @@ def main():
     d = tempfile.mkdtemp(prefix="causa-")
     try:
         vaza = os.path.join(d, "vaza.py")
-        open(vaza, "w").write("import subprocess\nsubprocess.run(['git','status'])\n")
+        open(vaza, "w", encoding="utf-8").write("import subprocess\nsubprocess.run(['git','status'])\n")
         r = causa.investiga([{"pid": 4242, "comando": "python3 %s --json" % vaza}])
         check("liga a sobra ao arquivo que a abriu", len(r) == 1 and r[0]["arquivo"] == vaza)
         check("diz em que linha está o defeito", r[0]["linha"] == 2)
@@ -62,7 +62,7 @@ def main():
     try:
         os.makedirs(os.path.join(d, "hooks"), exist_ok=True)
         alvo = os.path.join(d, "hooks", "meu-hook.py")
-        open(alvo, "w").write("x = 1\n")
+        open(alvo, "w", encoding="utf-8").write("x = 1\n")
         open(os.path.join(d, "hooks", "hooks.json"), "w").write(
             '{"hooks": {"Stop": [{"hooks": [{"command": "meu-hook.py"}]}]}}')
         a = causa.alcance([alvo], raiz=d, linhas_mudadas=3)
@@ -76,8 +76,8 @@ def main():
     d = tempfile.mkdtemp(prefix="causa-suite-")
     try:
         alvo = os.path.join(d, "modulo.py")
-        open(alvo, "w").write("x = 1\n")
-        open(os.path.join(d, "test_modulo.py"), "w").write("import sys\nsys.exit(0)\n")
+        open(alvo, "w", encoding="utf-8").write("x = 1\n")
+        open(os.path.join(d, "test_modulo.py"), "w", encoding="utf-8").write("import sys\nsys.exit(0)\n")
         a = causa.alcance([alvo], raiz=d)
         check("acha a suíte que cobre o arquivo", a["tem_suite"] == [alvo])
         rodou, verde, _ = causa.suite_verde(alvo)
@@ -88,8 +88,8 @@ def main():
     d = tempfile.mkdtemp(prefix="causa-suite-red-")
     try:
         alvo = os.path.join(d, "modulo.py")
-        open(alvo, "w").write("x = 1\n")
-        open(os.path.join(d, "test_modulo.py"), "w").write("import sys\nsys.exit(1)\n")
+        open(alvo, "w", encoding="utf-8").write("x = 1\n")
+        open(os.path.join(d, "test_modulo.py"), "w", encoding="utf-8").write("import sys\nsys.exit(1)\n")
         rodou, verde, _ = causa.suite_verde(alvo)
         check("suíte vermelha volta como vermelha", rodou and not verde)
     finally:
@@ -102,7 +102,7 @@ def main():
         fundo = os.path.join(d, "plugins", "cache", "outro-marketplace", "p", "1.0.0")
         os.makedirs(fundo, exist_ok=True)
         alvo = os.path.join(fundo, "x.py")
-        open(alvo, "w").write("x = 1\n")
+        open(alvo, "w", encoding="utf-8").write("x = 1\n")
         a = causa.alcance([alvo], raiz=d)
         check("arquivo de plugin de terceiro é nomeado como tal",
               a["de_terceiro"] == ["outro-marketplace"])

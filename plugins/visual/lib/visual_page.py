@@ -396,7 +396,7 @@ def r_artefato(blk, ctx):
     botões, porque resolvem coisas diferentes: **tela cheia** é ler agora sem perder
     o lugar na página; **nova janela** é deixar aberto e comparar com o resto.
 
-    A nova janela é `<a target="_blank">`, não `window.open()`: bloqueador de popup
+    A nova janela é `<a target="_blank">`, não `window.open(, encoding="utf-8")`: bloqueador de popup
     mata o segundo e não o primeiro, e a página é aberta em `file://`, onde a
     política é mais restritiva ainda.
     """

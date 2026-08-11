@@ -32,7 +32,7 @@ def check(nome, cond):
 
 def monta_projeto(raiz, com_plano_aberto=True, tudo_feito=False):
     """Um projeto de mentira com marcador, pra `resolve-dir` nao cair no Desktop."""
-    open(os.path.join(raiz, "CLAUDE.md"), "w").close()
+    open(os.path.join(raiz, "CLAUDE.md"), "w", encoding="utf-8").close()
     planos = os.path.join(raiz, ".claude", "plans")
     os.makedirs(planos, exist_ok=True)
     if not com_plano_aberto:

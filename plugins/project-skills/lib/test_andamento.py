@@ -194,7 +194,7 @@ def main():
         os.makedirs(base)
         agora = time.time()
         ativo = os.path.join(base, "ativo-s1")
-        open(ativo, "w").close()
+        open(ativo, "w", encoding="utf-8").close()
         os.utime(ativo, (agora - 3000, agora - 3000))
         with open(os.path.join(base, "sinal-s1"), "w", encoding="utf-8") as fh:
             fh.write(str(agora - 20 * 60))
@@ -314,7 +314,7 @@ def main():
 
         # Sinal aceso do jeito antigo (vazio, ou com carimbo que nao e nome) nao
         # inventa motor: continua sendo a execucao continua, que e quem acendia.
-        open(aceso, "w").close()
+        open(aceso, "w", encoding="utf-8").close()
         check("sinal sem nome continua saindo como a execução contínua",
               (a.linha_motor("sm", casa, agora) or "").startswith("🚀 %s · Missão há" % a.MOTOR_PADRAO.capitalize()))
         with open(aceso, "w", encoding="utf-8") as fh:

@@ -224,14 +224,14 @@ def main():
     phash = hashlib.sha1((payload.get("cwd") or "").encode("utf-8")).hexdigest()[:12]
     chave = ESTADO / ("n-%s-%s" % (str(sid)[:16] or "sem-sessao", phash))
     try:
-        n = int(chave.read_text())
+        n = int(chave.read_text(encoding="utf-8"))
     except (OSError, ValueError):
         n = 0
     if n >= MAX_DEVOLUCOES:
         batida("desistiu", sid)
         sys.exit(0)
     try:
-        chave.write_text(str(n + 1))
+        chave.write_text(str(n + 1), encoding="utf-8")
     except OSError:
         pass
 

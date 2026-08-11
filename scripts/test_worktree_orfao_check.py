@@ -35,18 +35,18 @@ def repo_com_worktree(com_codigo, sujo):
     git(d, "init", "-q")
     git(d, "config", "user.email", "t@t")
     git(d, "config", "user.name", "t")
-    open(os.path.join(d, "leiame.md"), "w").write("base\n")
+    open(os.path.join(d, "leiame.md"), "w", encoding="utf-8").write("base\n")
     git(d, "add", "-A")
     git(d, "commit", "-qm", "base")
     wt = os.path.join(d, ".claude", "worktrees", "wf_teste-1")
     os.makedirs(os.path.dirname(wt), exist_ok=True)
     git(d, "worktree", "add", "-q", "-b", "worktree-teste", wt)
     if com_codigo:
-        open(os.path.join(wt, "programa.py"), "w").write("x = 1\n")
+        open(os.path.join(wt, "programa.py"), "w", encoding="utf-8").write("x = 1\n")
         git(wt, "add", "-A")
         git(wt, "commit", "-qm", "com codigo")
     if sujo:
-        open(os.path.join(wt, "leiame.md"), "w").write("mexido\n")
+        open(os.path.join(wt, "leiame.md"), "w", encoding="utf-8").write("mexido\n")
     return d
 
 

@@ -34,7 +34,7 @@ def monta_run(base, projeto, sessao, run):
 
 def reserva(dir_reservas, nome, idade_seg):
     p = os.path.join(dir_reservas, nome + ".files")
-    open(p, "w").write("a.py\nb.py\n")
+    open(p, "w", encoding="utf-8").write("a.py\nb.py\n")
     quando = time.time() - idade_seg
     os.utime(p, (quando, quando))
     return p

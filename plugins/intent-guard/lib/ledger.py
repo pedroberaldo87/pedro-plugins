@@ -13,15 +13,6 @@ Estado vivo = fold dos eventos. Stdlib only. Consumido pelos hooks shell via CLI
 import argparse
 import contextlib
 
-# CANAIS DE TEXTO EM UTF-8, SEMPRE. No Windows eles nascem na codificação do sistema
-# (cp1252) e o payload do evento — que chega por stdin — é UTF-8: sem isto, todo
-# acento do pedido do usuário chega corrompido ao gate, e emoji derruba a escrita.
-for _canal in (sys.stdin, sys.stdout, sys.stderr):
-    if hasattr(_canal, "reconfigure"):
-        try:
-            _canal.reconfigure(encoding="utf-8")
-        except Exception:
-            pass
 try:
     import fcntl                       # POSIX
 except ImportError:                    # Windows não tem fcntl (ver `locked`)
@@ -33,6 +24,18 @@ import subprocess
 import sys
 import tempfile
 import time
+
+ESPERA_TRAVA_S = 5.0   # teto da espera pela trava (ver `locked`)
+
+# CANAIS DE TEXTO EM UTF-8, SEMPRE. No Windows eles nascem na codificação do sistema
+# (cp1252) e o payload do evento — que chega por stdin — é UTF-8: sem isto, todo
+# acento do pedido do usuário chega corrompido ao gate, e emoji derruba a escrita.
+for _canal in (sys.stdin, sys.stdout, sys.stderr):
+    if hasattr(_canal, "reconfigure"):
+        try:
+            _canal.reconfigure(encoding="utf-8")
+        except Exception:
+            pass
 from pathlib import Path
 
 MARKERS = ("package.json", "CLAUDE.md", "pyproject.toml", "Cargo.toml", "go.mod", ".git")
@@ -120,31 +123,59 @@ def locked(d):
     """Trava exclusiva pra load+append atômico — evita r-N/p-N duplicados quando
     hooks concorrentes chamam record-raw/apply.
 
-    `fcntl` é POSIX e NÃO EXISTE no Windows: o `import` no topo derrubava o módulo
-    inteiro lá com ModuleNotFoundError, e com ele todo comando do intent-guard —
-    o hook não travava, ele nem carregava.
+    Duas implementações, porque `fcntl` é POSIX e NÃO EXISTE no Windows (o `import`
+    no topo derrubava o módulo inteiro lá, e com ele todo comando do intent-guard):
 
-    ⚠️ **Sem `fcntl`, a região segue DESTRAVADA — e isso é escolha, não esquecimento.**
-    A primeira tentativa foi traduzir a trava para `msvcrt.locking`, e ela PENDUROU o
-    job do Windows na esteira (de 50 s para mais de 10 min): `LK_LOCK` espera pelo
-    bloqueio, e sobre o primeiro byte de um arquivo de trava recém-criado — vazio — o
-    comportamento não é o mesmo do `flock`. Trava que pendura é pior que trava
-    nenhuma: ela transforma disputa rara em missão parada.
+    - com `fcntl`: `flock`, que é o caminho testado e o de sempre;
+    - sem ele: **diretório de trava**, criado com `os.mkdir`, que é atômico em
+      qualquer sistema de arquivos — quem cria, entra; quem não cria, espera.
 
-    O que se perde sem ela: dois hooks concorrentes da MESMA máquina podem gerar o
-    mesmo `r-N`/`p-N`. O ledger é por projeto e essa disputa é rara; id duplicado é
-    incômodo visível, missão pendurada é dano.
+    ⚠️ NÃO use `msvcrt.locking` aqui. Foi a primeira tentativa e ela PENDUROU o job
+    do Windows na esteira (de 50 s para mais de 10 min): `LK_LOCK` espera pelo
+    bloqueio, e sobre o primeiro byte de um arquivo de trava recém-criado — vazio —
+    não se comporta como o `flock`.
+
+    A espera tem teto (`ESPERA_TRAVA_S`) e a trava tem idade máxima: processo morto
+    no meio deixaria o diretório para trás e travaria todo mundo para sempre. Passou
+    do teto, segue SEM a trava — id duplicado é incômodo visível, missão pendurada é
+    dano. O invariante que isto protege está em `test_ledger.py:test_concurrent_record_raw`.
     """
     os.makedirs(d, exist_ok=True)
-    if fcntl is None:                  # Windows: segue sem trava (ver o docstring)
-        yield
+    if fcntl is not None:
+        with open(os.path.join(d, "ledger.lock"), "a+", encoding="utf-8") as lf:
+            fcntl.flock(lf.fileno(), fcntl.LOCK_EX)
+            try:
+                yield
+            finally:
+                fcntl.flock(lf.fileno(), fcntl.LOCK_UN)
         return
-    with open(os.path.join(d, "ledger.lock"), "a+", encoding="utf-8") as lf:
-        fcntl.flock(lf.fileno(), fcntl.LOCK_EX)
+
+    trava = os.path.join(d, "ledger.lock.d")
+    limite = time.time() + ESPERA_TRAVA_S
+    meu = False
+    while True:
         try:
-            yield
-        finally:
-            fcntl.flock(lf.fileno(), fcntl.LOCK_UN)
+            os.mkdir(trava)
+            meu = True
+            break
+        except FileExistsError:
+            try:                      # trava órfã de processo morto não é eterna
+                if time.time() - os.path.getmtime(trava) > ESPERA_TRAVA_S:
+                    os.rmdir(trava)
+                    continue
+            except OSError:
+                pass
+            if time.time() >= limite:
+                break                 # segue sem trava, em vez de pendurar
+            time.sleep(0.02)
+    try:
+        yield
+    finally:
+        if meu:
+            try:
+                os.rmdir(trava)
+            except OSError:
+                pass
 
 
 def append(d, ev):
@@ -384,7 +415,7 @@ def apply_audit(cwd, path, session=None):
             append(d, {"ev": "baixa", "entry": v["entry"], "by": "auditor",
                        "reason": "feito+confirmado (%s) [EXPERIMENTAL]" % fname})
     try:
-        open(marker, "w").close()
+        open(marker, "w", encoding="utf-8").close()
     except OSError:
         pass
 
@@ -512,7 +543,7 @@ def furos_da_regua():
     claude = Path(os.environ.get("CLAUDE_CONFIG_DIR", Path.home() / ".claude"))
     marca = claude / "state" / "intent-guard" / "olhado"
     try:
-        desde = float(marca.read_text().strip())
+        desde = float(marca.read_text(encoding="utf-8").strip())
     except (OSError, ValueError):
         desde = 0.0
     total = novos = fontes = 0
@@ -560,7 +591,7 @@ def cmd_status(cwd):
                   "rastro,\n  e isso não quer dizer zero furo; quer dizer que ninguém sabe.")
         try:
             marca.parent.mkdir(parents=True, exist_ok=True)
-            marca.write_text(str(time.time()))
+            marca.write_text(str(time.time()), encoding="utf-8")
         except OSError:
             pass  # fail-open: não poder marcar nunca derruba o status
     done = [e for e in st["entries"].values() if e["status"] != "vivo"]

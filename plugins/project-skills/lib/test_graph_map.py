@@ -127,7 +127,7 @@ def test_graceful_degradation():
         # grafo ilegível também degrada, não estoura
         out = os.path.join(tmp, "graphify-out")
         os.makedirs(out)
-        with open(os.path.join(out, "graph.json"), "w") as fh:
+        with open(os.path.join(out, "graph.json"), "w", encoding="utf-8") as fh:
             fh.write("{ not valid json")
         r2 = graph_map.run(tmp)
         check("graph.json corrompido → available=False (não levanta)", r2["available"] is False)

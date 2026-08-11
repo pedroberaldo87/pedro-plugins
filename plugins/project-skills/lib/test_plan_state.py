@@ -1657,7 +1657,7 @@ def main():
 
         print("arquivo corrompido não derruba a listagem")
         before = len(ps.list_plans(d))
-        with open(os.path.join(d, "quebrado.plan.json"), "w") as fh:
+        with open(os.path.join(d, "quebrado.plan.json"), "w", encoding="utf-8") as fh:
             fh.write("{ isto não é json")
         check("list_plans pula o corrompido", len(ps.list_plans(d)) == before)
     finally:

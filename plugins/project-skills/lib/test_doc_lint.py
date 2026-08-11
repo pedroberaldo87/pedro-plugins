@@ -43,10 +43,10 @@ def make_repo(td):
     subprocess.run(["git", "-C", td, "init", "-q"], check=True, stdin=subprocess.DEVNULL, start_new_session=True)
     os.makedirs(os.path.join(td, ".claude", "docs"), exist_ok=True)
     os.makedirs(os.path.join(td, "app"), exist_ok=True)
-    with open(os.path.join(td, "app", "main.py"), "w") as fh:
+    with open(os.path.join(td, "app", "main.py"), "w", encoding="utf-8") as fh:
         fh.write("import os\n" * 3 + 'X = os.environ["REAL_API_KEY"]\n'
                  "TABLE_NAME = 'user_data'\nMY_CONSTANT_X = 1\n" + "# pad\n" * 10)
-    with open(os.path.join(td, "compose.yml"), "w") as fh:
+    with open(os.path.join(td, "compose.yml"), "w", encoding="utf-8") as fh:
         fh.write("services:\n  app:\n    environment:\n      - COMPOSE_VAR=${COMPOSE_VAR}\n")
     subprocess.run(["git", "-C", td, "add", "-A"], check=True, stdin=subprocess.DEVNULL, start_new_session=True)
     git_commit(td, "init")
@@ -56,7 +56,7 @@ def make_repo(td):
 
 def write_doc(td, name, body):
     p = os.path.join(td, ".claude", "docs", name)
-    with open(p, "w") as fh:
+    with open(p, "w", encoding="utf-8") as fh:
         fh.write("---\ngenerated: 2026-07-22\nproject: t\nscope: [app/main.py]\n---\n\n" + body)
     return ".claude/docs/" + name
 
@@ -125,7 +125,7 @@ def main():
         # O caso real: a sessão criou a migration, documentou, e o deploy foi
         # destravado com base numa doc que fala de arquivo que ninguém mais tem.
         os.makedirs(os.path.join(td, "migrations"), exist_ok=True)
-        with open(os.path.join(td, "migrations", "0007_add_col.sql"), "w") as fh:
+        with open(os.path.join(td, "migrations", "0007_add_col.sql"), "w", encoding="utf-8") as fh:
             fh.write("ALTER TABLE user_data ADD COLUMN x int;\n" * 4)
         doc7 = write_doc(td, "trunk.md", "\n".join([
             "- a migration `migrations/0007_add_col.sql:2` já subiu",  # não commitada → FAIL
@@ -169,7 +169,7 @@ def main():
 
         # --- ponteiro ambíguo: vivo em QUALQUER candidato = não é morto ---
         os.makedirs(os.path.join(td, "deep", "app"), exist_ok=True)
-        with open(os.path.join(td, "deep", "app", "main.py"), "w") as fh:
+        with open(os.path.join(td, "deep", "app", "main.py"), "w", encoding="utf-8") as fh:
             fh.write("# pad\n" * 80)   # 81 linhas; o app/main.py da raiz tem ~16
         subprocess.run(["git", "-C", td, "add", "-A"], check=True, stdin=subprocess.DEVNULL, start_new_session=True)
         git_commit(td, "deep")
@@ -183,7 +183,7 @@ def main():
         with tempfile.TemporaryDirectory() as nogit:
             os.makedirs(os.path.join(nogit, ".claude", "docs"))
             dp = os.path.join(nogit, ".claude", "docs", "x.md")
-            with open(dp, "w") as fh:
+            with open(dp, "w", encoding="utf-8") as fh:
                 fh.write("---\ngenerated: 2026-01-01\nproject: T\nscope: a.py\n"
                          "doc-sig: s\n---\n\n- `MINHA_APP_TOKEN` e `src/hub/main.py:12`\n")
             o = doc_lint.lint(nogit)
@@ -208,7 +208,7 @@ def main():
 
         # --- allowlist de arquivo ---
         os.makedirs(os.path.join(td, ".claude", ".project-doc"), exist_ok=True)
-        with open(os.path.join(td, ".claude", ".project-doc", "lint-allow.txt"), "w") as fh:
+        with open(os.path.join(td, ".claude", ".project-doc", "lint-allow.txt"), "w", encoding="utf-8") as fh:
             fh.write("GHOST_API_KEY\n")
         out = doc_lint.lint(td, [doc])
         f = flat(out, doc)
@@ -238,14 +238,14 @@ def test_fail_open_property():
 
     def build(td, mode):
         os.makedirs(os.path.join(td, ".claude", "docs"))
-        with open(os.path.join(td, ".claude", "docs", "x.md"), "w") as fh:
+        with open(os.path.join(td, ".claude", "docs", "x.md"), "w", encoding="utf-8") as fh:
             fh.write(doc)
         if mode == "git-quebrado":       # .git existe mas é lixo → git exit≠0
             os.makedirs(os.path.join(td, ".git"))
-            with open(os.path.join(td, ".git", "HEAD"), "w") as fh:
+            with open(os.path.join(td, ".git", "HEAD"), "w", encoding="utf-8") as fh:
                 fh.write("lixo\n")
         elif mode == "worktree-falso":   # .git é ARQUIVO apontando pra lugar nenhum
-            with open(os.path.join(td, ".git"), "w") as fh:
+            with open(os.path.join(td, ".git"), "w", encoding="utf-8") as fh:
                 fh.write("gitdir: /nao/existe\n")
 
     for mode in ("sem-git", "git-quebrado", "worktree-falso"):
