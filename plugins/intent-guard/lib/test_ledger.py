@@ -255,7 +255,10 @@ def main():
         # fora de git/projeto → fallback em ~/.claude/intent/<slug>
         loose = tempfile.mkdtemp(prefix="ig-loose-")
         d = run(["resolve-dir", "--cwd", loose]).stdout.strip()
-        assert d.startswith(os.path.expanduser("~/.claude/intent/")), d
+        # normpath dos dois lados: no Windows o expanduser sai com "/" e o join
+        # do ledger com "\" — startswith cru reprova caminho certo.
+        assert (os.path.dirname(os.path.normpath(d))
+                == os.path.normpath(os.path.expanduser("~/.claude/intent"))), d
         shutil.rmtree(loose)
 
         # Fail-open: intent dir read-only (I/O error) degradação silenciosa.
