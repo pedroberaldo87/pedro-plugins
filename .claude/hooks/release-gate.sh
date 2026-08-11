@@ -415,6 +415,21 @@ $(printf '%s' "$POUT" | head -20)
   fi
 fi
 
+# P2 · suíte que compara CAMINHO como TEXTO. Ela não deixa passar defeito: ela
+# INVENTA defeito, reprovando código certo onde a barra do sistema é a outra. Seis
+# suítes fizeram isso no Windows em 2026-08-11, e cada uma foi lida como "o programa
+# quebrou" antes de alguém notar que `.claude\docs\x.md` e `.claude/docs/x.md` são o
+# mesmo arquivo. Escopo: só quando o commit traz suíte Python.
+CTC="$ROOT/scripts/caminho_como_texto_check.py"
+if [ -f "$CTC" ] && printf '%s\n' "$FILES" | grep -qE 'test_[^/]*\.py$'; then
+  if ! COUT=$(cd "$ROOT" && python3 "$CTC" 2>&1); then
+    VIOL="${VIOL}
+❌ CAMINHO COMPARADO COMO TEXTO — a suíte reprova código certo no outro sistema:
+$(printf '%s' "$COUT" | head -16)
+   → régua: python3 scripts/caminho_como_texto_check.py"
+  fi
+fi
+
 # Q · cópia de trabalho parada no disco, que vira caminho de execução silencioso.
 # Em 2026-08-08, 14 de 41 marcações do motor rodaram binário que não era o da árvore:
 # os agentes procuraram o arquivo pelo NOME e o `find` alcançou as cópias em

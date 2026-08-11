@@ -20,6 +20,7 @@ import tempfile
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
+from caminho_igual import contem, igual, termina_em  # noqa: E402,F401
 import graph_map  # noqa: E402
 
 PASS = 0
@@ -123,7 +124,8 @@ def test_graceful_degradation():
     try:
         r = graph_map.run(tmp)
         check("sem graphify-out → available=False", r["available"] is False)
-        check("sem grafo informa o path esperado", r["expected_path"].endswith("graphify-out/graph.json"))
+        check("sem grafo informa o path esperado",
+              termina_em(r["expected_path"], "graphify-out/graph.json"))
         # grafo ilegível também degrada, não estoura
         out = os.path.join(tmp, "graphify-out")
         os.makedirs(out)

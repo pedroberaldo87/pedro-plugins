@@ -13,6 +13,18 @@ import sys
 import tempfile
 
 AQUI = os.path.dirname(os.path.abspath(__file__))
+sys.path.insert(0, AQUI)
+from caminho_igual import igual  # noqa: E402
+
+
+def mesma_lista(achado, esperado):
+    """Duas listas de CAMINHO, comparadas como caminho — a barra e do sistema.
+
+    No Windows o `carrega` devolve `.claude\\docs\\x.md` e o esperado escrito
+    aqui tem barra normal: o mesmo arquivo, e a igualdade de lista dizia que nao.
+    """
+    return (len(achado or []) == len(esperado)
+            and all(igual(a, b) for a, b in zip(achado, esperado)))
 spec = importlib.util.spec_from_file_location("doc_load", os.path.join(AQUI, "doc_load.py"))
 dl = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(dl)
@@ -114,7 +126,8 @@ check("mudar o CORPO muda a marca",
 
 # ── lei: ready vale, draft não ────────────────────────────────────────────────
 e = dl.carrega(projeto({"constituicao.md": DOC_LEI_READY}))
-check("lei com status ready VALE como régua", e["regua"] == [".claude/docs/constituicao.md"], str(e["regua"]))
+check("lei com status ready VALE como régua",
+      mesma_lista(e["regua"], [".claude/docs/constituicao.md"]), str(e["regua"]))
 
 e = dl.carrega(projeto({"constituicao.md": DOC_LEI_DRAFT}))
 check("lei com status draft NÃO vale como régua", e["regua"] == [], str(e["regua"]))
@@ -134,7 +147,8 @@ with open(alvo, encoding="utf-8") as fh:
 with open(alvo, "w", encoding="utf-8") as fh:
     fh.write(txt.replace("SUBSTITUIR", str(real)))
 e = dl.carrega(r)
-check("acordo approved com a marca batendo VALE", e["regua"] == [".claude/docs/blueprint.md"], str(e["regua"]))
+check("acordo approved com a marca batendo VALE",
+      mesma_lista(e["regua"], [".claude/docs/blueprint.md"]), str(e["regua"]))
 
 # ── acordo editado depois do de acordo REABRE ─────────────────────────────────
 with open(alvo, encoding="utf-8") as fh:
@@ -143,7 +157,8 @@ with open(alvo, "w", encoding="utf-8") as fh:
     fh.write(txt.replace("Assim funciona.", "Assim funciona, com uma emenda."))
 e = dl.carrega(r)
 check("acordo editado DEPOIS do de acordo sai da régua", e["regua"] == [], str(e["regua"]))
-check("e ele aparece como reaberto", e["reabertos"] == [".claude/docs/blueprint.md"], str(e["reabertos"]))
+check("e ele aparece como reaberto",
+      mesma_lista(e["reabertos"], [".claude/docs/blueprint.md"]), str(e["reabertos"]))
 
 # ── minerado nunca é régua ────────────────────────────────────────────────────
 e = dl.carrega(projeto({"architecture.md": DOC_MINERADO}))
@@ -194,7 +209,8 @@ check("o comando sai 0 e diz o que vale como régua",
 p = subprocess.run([sys.executable, os.path.join(AQUI, "doc_load.py"), "--project-root", r, "--json"],
                    capture_output=True, text=True, encoding="utf-8", errors="replace", stdin=subprocess.DEVNULL, start_new_session=True)
 check("--json devolve JSON válido com a régua dentro",
-      p.returncode == 0 and json.loads(p.stdout)["regua"] == [".claude/docs/constituicao.md"])
+      p.returncode == 0 and mesma_lista(json.loads(p.stdout)["regua"],
+                                        [".claude/docs/constituicao.md"]))
 
 p = subprocess.run([sys.executable, os.path.join(AQUI, "doc_load.py"), "--project-root", r, "--marca"],
                    capture_output=True, text=True, encoding="utf-8", errors="replace", stdin=subprocess.DEVNULL, start_new_session=True)

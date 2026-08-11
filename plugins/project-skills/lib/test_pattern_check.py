@@ -19,6 +19,7 @@ import tempfile
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
+from caminho_igual import contem, igual, termina_em  # noqa: E402,F401
 import pattern_check  # noqa: E402
 
 PASS = 0
@@ -405,7 +406,8 @@ def test_touch_and_generated_commit():
         check("unscoped_new PARA de acusar depois do verified-by",
               "pkg/test_b.py" not in tp5["unscoped_new"])
         check("...e o arquivo de scope segue mapeado (não matei o inverso)",
-              ".claude/docs/two.md" in pattern_check.docs_for_paths(root, ["pkg/b.py"]))
+              any(igual(x, ".claude/docs/two.md")
+                  for x in pattern_check.docs_for_paths(root, ["pkg/b.py"])))
 
         # --- last_full_age_days: dado pra a escalada touch→FULL --------------
         # O FULL é o único que avança ledger.last_commit, então a data desse
