@@ -296,7 +296,7 @@ def test_orphan_commit():
     subprocess.run(["git", "-C", T, "init", "-q"], check=True, capture_output=True, stdin=subprocess.DEVNULL, start_new_session=True)
     subprocess.run(["git", "-C", T, "config", "user.email", "t@t"], check=True, capture_output=True, stdin=subprocess.DEVNULL, start_new_session=True)
     subprocess.run(["git", "-C", T, "config", "user.name", "t"], check=True, capture_output=True, stdin=subprocess.DEVNULL, start_new_session=True)
-    open(os.path.join(T, "a.py"), "w").write("x\n")
+    open(os.path.join(T, "a.py"), "w", encoding="utf-8").write("x\n")
     subprocess.run(["git", "-C", T, "add", "-A"], check=True, capture_output=True, stdin=subprocess.DEVNULL, start_new_session=True)
     subprocess.run(["git", "-C", T, "commit", "-qm", "feat: real commit subject"], check=True, capture_output=True, stdin=subprocess.DEVNULL, start_new_session=True)
     # ledger com last_commit órfão (sha que não existe)
@@ -385,7 +385,7 @@ def test_journal_cycle():
     _git(T, "init", "-q")
     _git(T, "config", "user.email", "t@t")
     _git(T, "config", "user.name", "t")
-    open(os.path.join(T, "rules.py"), "w").write("rule v1\n")
+    open(os.path.join(T, "rules.py"), "w", encoding="utf-8").write("rule v1\n")
     _git(T, "add", "-A")
     _git(T, "commit", "-qm", "init rules.py")
     open(os.path.join(T, ".claude", "HANDOFF.md"), "w").write(
@@ -402,7 +402,7 @@ def test_journal_cycle():
     hf = [f for f in r2["live"] if f["raw_kind"] == "handoff"][0]
 
     # backward via COMMIT: muda rules.py e commita
-    open(os.path.join(T, "rules.py"), "w").write("rule v2\n")
+    open(os.path.join(T, "rules.py"), "w", encoding="utf-8").write("rule v2\n")
     _git(T, "add", "-A")
     _git(T, "commit", "-qm", "change rules.py")
     r3 = journal.run_update(T)
@@ -413,7 +413,7 @@ def test_journal_cycle():
     check("#9 backward marca o handoff pré-existente (commit)", hf["id"] in r3["stale_ids"])
 
     # backward via WORKING-TREE: edição não commitada
-    open(os.path.join(T, "rules.py"), "w").write("rule v3 uncommitted\n")
+    open(os.path.join(T, "rules.py"), "w", encoding="utf-8").write("rule v3 uncommitted\n")
     r4 = journal.run_update(T)
     check("#9 backward marca via working-tree (sem commit novo)", hf["id"] in r4["stale_ids"])
 
@@ -426,7 +426,7 @@ def test_journal_cycle():
     check("#14 curate em id inexistente → erro", cur_bad.get("error") is not None)
 
     # journal só cresce: discovered preservado
-    events = [json.loads(ln) for ln in open(os.path.join(T, ".claude", ".project-doc", "findings.jsonl")) if ln.strip()]
+    events = [json.loads(ln) for ln in open(os.path.join(T, ".claude", ".project-doc", "findings.jsonl"), encoding="utf-8") if ln.strip()]
     evs = [e["ev"] for e in events if e.get("id") == hf["id"] or e.get("target") == hf["id"]]
     check("journal só cresce (discovered + invalidated coexistem)", "discovered" in evs and "invalidated" in evs)
     shutil.rmtree(T, ignore_errors=True)
@@ -474,7 +474,7 @@ def test_adopt():
     body = open(jpath, encoding="utf-8").read()
     check("adopt NÃO grava secret cru no journal git-tracked", "ghp_0123456789abcdefghij0123456789" not in body)
     check("adopt grava como evento discovered", '"ev": "discovered"' in body)
-    ev = [json.loads(ln) for ln in open(jpath) if ln.strip()][0]
+    ev = [json.loads(ln) for ln in open(jpath, encoding="utf-8") if ln.strip()][0]
     check("adopt: source.type = curated_from_doc", ev["source"]["type"] == "curated_from_doc")
     st = journal.fold(journal.read_events(T))
     check("adopt: finding fica vivo", any(f["id"] == r1["id"] for f in journal.live_findings(st)))

@@ -37,7 +37,7 @@ def check(label, cond):
 
 def poe(caminho):
     os.makedirs(os.path.dirname(caminho), exist_ok=True)
-    with open(caminho, "w") as f:
+    with open(caminho, "w", encoding="utf-8") as f:
         f.write("alvo\n")
 
 

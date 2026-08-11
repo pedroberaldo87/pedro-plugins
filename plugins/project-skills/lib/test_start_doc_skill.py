@@ -359,7 +359,7 @@ def main():
     with tempfile.TemporaryDirectory() as tmp:
         proj = os.path.join(tmp, "proj")
         os.makedirs(proj)
-        open(os.path.join(proj, "CLAUDE.md"), "w").write("# marcador de projeto\n")
+        open(os.path.join(proj, "CLAUDE.md"), "w", encoding="utf-8").write("# marcador de projeto\n")
         vazio = os.path.join(tmp, "sem-plugins")
         os.makedirs(vazio)
         ausente = subprocess.run(
@@ -635,7 +635,7 @@ def main():
 
     # O FULL roda: substitui o bloco provisório inteiro, carimba doc-sig e journal.
     os.makedirs(os.path.join(banca, ".claude", ".project-doc"))
-    open(os.path.join(banca, ".claude", ".project-doc", "findings.jsonl"), "w").close()
+    open(os.path.join(banca, ".claude", ".project-doc", "findings.jsonl"), "w", encoding="utf-8").close()
     for nome in sorted(os.listdir(docs)):
         alvo = os.path.join(docs, nome)
         corpo = open(alvo, encoding="utf-8").read()

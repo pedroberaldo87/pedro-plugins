@@ -21,17 +21,17 @@ from inventario import divergencia, inventario, tabela_de_hooks  # noqa: E402
 
 def monta_falso(base, catalogo, disco, hooks=None):
     os.makedirs(os.path.join(base, ".claude-plugin"))
-    with open(os.path.join(base, ".claude-plugin", "marketplace.json"), "w") as fh:
+    with open(os.path.join(base, ".claude-plugin", "marketplace.json"), "w", encoding="utf-8") as fh:
         json.dump({"plugins": [{"name": n} for n in catalogo]}, fh)
     for nome in disco:
         d = os.path.join(base, "plugins", nome, ".claude-plugin")
         os.makedirs(d)
-        with open(os.path.join(d, "plugin.json"), "w") as fh:
+        with open(os.path.join(d, "plugin.json"), "w", encoding="utf-8") as fh:
             json.dump({"name": nome, "version": "0.0.1"}, fh)
     for nome, conf in (hooks or {}).items():
         d = os.path.join(base, "plugins", nome, "hooks")
         os.makedirs(d)
-        with open(os.path.join(d, "hooks.json"), "w") as fh:
+        with open(os.path.join(d, "hooks.json"), "w", encoding="utf-8") as fh:
             json.dump(conf, fh)
 
 

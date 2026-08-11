@@ -63,26 +63,26 @@ def monta_mundo(raiz, *, plugin_ligado=True, style_setado=True, teto_duplicado=F
     (cfg / ".." / "output-styles").resolve().mkdir(parents=True, exist_ok=True)
     cfg.mkdir(parents=True, exist_ok=True)
     (cfg.parent / "output-styles" / "clean-style.md").write_text(
-        "---\nname: Clean Style\nkeep-coding-instructions: true\nforce-for-plugin: true\n---\ncorpo\n")
+        "---\nname: Clean Style\nkeep-coding-instructions: true\nforce-for-plugin: true\n---\ncorpo\n", encoding="utf-8")
     (cfg / "manifest.json").write_text(json.dumps({
         "marketplaces": [{"name": "mkt", "plugins": [{"name": "algum", "enabled": False}]}],
         "skills": {"permitidas": []},
-    }))
+    }), encoding="utf-8")
     claude_md = "# t\n- regra sem numero\n"
     if teto_duplicado:
         claude_md = "# t\n- no maximo 3-4 linhas\n- nunca passar de 10 linhas\n"
-    (cfg / "CLAUDE-global.md").write_text(claude_md)
+    (cfg / "CLAUDE-global.md").write_text(claude_md, encoding="utf-8")
 
     vivo = raiz / "vivo"
     (vivo / "skills").mkdir(parents=True, exist_ok=True)
-    (vivo / "CLAUDE.md").write_text(claude_md)
+    (vivo / "CLAUDE.md").write_text(claude_md, encoding="utf-8")
     settings = {
         "enabledPlugins": {"bootstrap@pedro-plugins": plugin_ligado},
         "outputStyle": "Clean Style" if style_setado else None,
     }
     if not style_setado:
         del settings["outputStyle"]
-    (vivo / "settings.json").write_text(json.dumps(settings))
+    (vivo / "settings.json").write_text(json.dumps(settings), encoding="utf-8")
     return vivo, cfg
 
 
@@ -98,9 +98,9 @@ def teste_mundo_conforme():
 def teste_plugin_religado_na_mao():
     with tempfile.TemporaryDirectory() as t:
         vivo, cfg = monta_mundo(Path(t))
-        s = json.loads((vivo / "settings.json").read_text())
+        s = json.loads((vivo / "settings.json").read_text(encoding="utf-8"))
         s["enabledPlugins"]["algum@mkt"] = True     # manifest diz enabled: false
-        (vivo / "settings.json").write_text(json.dumps(s))
+        (vivo / "settings.json").write_text(json.dumps(s), encoding="utf-8")
         res = roda_conformance(vivo, cfg)
         check("acusa plugin ligado que o manifest manda desligar", "plugins" in areas(res))
 
@@ -110,14 +110,14 @@ def escreve_instalados(vivo, refs):
     (vivo / "plugins").mkdir(parents=True, exist_ok=True)
     (vivo / "plugins" / "installed_plugins.json").write_text(json.dumps({
         "version": 2,
-        "plugins": {r: [{"scope": "user", "installPath": f"/cache/{r}"}] for r in refs}}))
+        "plugins": {r: [{"scope": "user", "installPath": f"/cache/{r}"}] for r in refs}}), encoding="utf-8")
 
 
 def manifest_quer_ligado(cfg):
     """O plugin 'algum@mkt' do mundo minimo passa a ser um que o contrato quer LIGADO."""
-    man = json.loads((cfg / "manifest.json").read_text())
+    man = json.loads((cfg / "manifest.json").read_text(encoding="utf-8"))
     man["marketplaces"][0]["plugins"][0]["enabled"] = True
-    (cfg / "manifest.json").write_text(json.dumps(man))
+    (cfg / "manifest.json").write_text(json.dumps(man), encoding="utf-8")
 
 
 def teste_plugin_ausente_manda_instalar_e_nao_habilitar():
@@ -155,9 +155,9 @@ def teste_plugin_instalado_porem_desligado_pede_enable():
         check("e nao acusa ausencia de quem esta instalado",
               bool(d) and "nao instalado" not in d[0]["o_que"], str(d[:1]))
 
-        s = json.loads((vivo / "settings.json").read_text())
+        s = json.loads((vivo / "settings.json").read_text(encoding="utf-8"))
         s["enabledPlugins"]["algum@mkt"] = True
-        (vivo / "settings.json").write_text(json.dumps(s))
+        (vivo / "settings.json").write_text(json.dumps(s), encoding="utf-8")
         res = roda_conformance(vivo, cfg)
         check("instalado e ligado quando o manifest quer ligado e conforme",
               "plugins" not in areas(res),
@@ -195,18 +195,18 @@ def monta_cache(vivo, plugins, onde="hooks/guard.sh"):
 
     'onde' e o caminho do script DENTRO da raiz do plugin (a raiz tambem e layout valido).
     """
-    s = json.loads((vivo / "settings.json").read_text())
+    s = json.loads((vivo / "settings.json").read_text(encoding="utf-8"))
     for nome, matcher, comando, corpo in plugins:
         raiz = vivo / "plugins" / "cache" / "mkt" / nome / "1.0.0"
         (raiz / "hooks").mkdir(parents=True, exist_ok=True)
         (raiz / "hooks" / "hooks.json").write_text(json.dumps({
             "hooks": {"PreToolUse": [{"matcher": matcher, "hooks": [
-                {"type": "command", "command": comando}]}]}}))
+                {"type": "command", "command": comando}]}]}}), encoding="utf-8")
         script = raiz / onde
         script.parent.mkdir(parents=True, exist_ok=True)
-        script.write_text(corpo)
+        script.write_text(corpo, encoding="utf-8")
         s["enabledPlugins"][f"{nome}@mkt"] = True
-    (vivo / "settings.json").write_text(json.dumps(s))
+    (vivo / "settings.json").write_text(json.dumps(s), encoding="utf-8")
 
 
 def teste_redirecionamento_nao_vira_script_fantasma():
@@ -270,7 +270,7 @@ def teste_token_absoluto_fora_da_raiz_nao_decide():
         vivo, cfg = monta_mundo(raiz)
         fora = raiz / "fora" / "wrapper.sh"
         fora.parent.mkdir(parents=True, exist_ok=True)
-        fora.write_text("#!/bin/bash\nexit 2\n")
+        fora.write_text("#!/bin/bash\nexit 2\n", encoding="utf-8")
         cmd = f"{fora} ${{CLAUDE_PLUGIN_ROOT}}/hooks/guard.sh"
         monta_cache(vivo, [("um", "Grep", cmd, AVISA), ("dois", "Grep", cmd, AVISA)])
         res = roda_conformance(vivo, cfg)
@@ -343,13 +343,13 @@ def monta_scope_cop(raiz):
     binario.mkdir(parents=True, exist_ok=True)
     juiz = binario / "claude"
     juiz.write_text('#!/bin/bash\n'
-                    'echo \'{"verdict":"block","reason":"mexeu no container inteiro"}\'\n')
+                    'echo \'{"verdict":"block","reason":"mexeu no container inteiro"}\'\n', encoding="utf-8")
     juiz.chmod(0o755)
     transcript = raiz / "scope.jsonl"
     transcript.write_text(json.dumps(
-        {"type": "user", "message": {"content": "muda a cor do botao do header"}}) + "\n")
+        {"type": "user", "message": {"content": "muda a cor do botao do header"}}) + "\n", encoding="utf-8")
     ui = raiz / "app.tsx"
-    ui.write_text('export const App = () => <div className="header" />\n')
+    ui.write_text('export const App = () => <div className="header" />\n', encoding="utf-8")
     payload = json.dumps({
         "session_id": "acordo-scope",
         "transcript_path": str(transcript),
@@ -476,8 +476,8 @@ def teste_scope_cop_e_conformance_olham_a_mesma_pasta():
               f"nao achei {SCOPE_COP}")
 
         # A) 'off' onde o auditor le, 'deny' na isca → o hook tem que calar.
-        (vivo / "guardrails" / "scope-cop.mode").write_text("off")
-        (isca / ".claude" / "guardrails" / "scope-cop.mode").write_text("deny")
+        (vivo / "guardrails" / "scope-cop.mode").write_text("off", encoding="utf-8")
+        (isca / ".claude" / "guardrails" / "scope-cop.mode").write_text("deny", encoding="utf-8")
         saida, rc = roda_scope_cop(bindir, payload, isca, vivo)
         check("o hook obedece o modo que mora em CLAUDE_CONFIG_DIR",
               saida == "" and rc == 0, f"saida={saida[:160]} rc={rc}")
@@ -494,8 +494,8 @@ def teste_scope_cop_e_conformance_olham_a_mesma_pasta():
         if not juiz_falso_visivel(bindir):
             print("  skip o ramo 'deny' (o juiz falso nao e executavel nesta maquina)")
             return
-        (vivo / "guardrails" / "scope-cop.mode").write_text("deny")
-        (isca / ".claude" / "guardrails" / "scope-cop.mode").write_text("off")
+        (vivo / "guardrails" / "scope-cop.mode").write_text("deny", encoding="utf-8")
+        (isca / ".claude" / "guardrails" / "scope-cop.mode").write_text("off", encoding="utf-8")
         saida, rc, erro = roda_scope_cop(bindir, payload, isca, vivo, com_erro=True)
         try:
             decisao = json.loads(saida).get("hookSpecificOutput", {}).get("permissionDecision", "")
@@ -533,14 +533,14 @@ def teste_mode_homonimo_em_duas_pastas_e_acusado():
         vivo, cfg = monta_mundo(raiz)
         (vivo / "guardrails").mkdir(parents=True, exist_ok=True)
         (vivo / "hooks").mkdir(parents=True, exist_ok=True)
-        (vivo / "guardrails" / "scope-cop.mode").write_text("warn")
+        (vivo / "guardrails" / "scope-cop.mode").write_text("warn", encoding="utf-8")
 
         res = roda_conformance(vivo, cfg)
         check("um .mode sozinho em 'warn' nao vira desvio",
               not [d for d in res["desvios"] if d["area"] == "gate"],
               str([d["o_que"] for d in res["desvios"]]))
 
-        (vivo / "hooks" / "scope-cop.mode").write_text("warn")
+        (vivo / "hooks" / "scope-cop.mode").write_text("warn", encoding="utf-8")
         res = roda_conformance(vivo, cfg)
         dup = [d for d in res["desvios"] if d["area"] == "gate"]
         check("o homonimo em outra pasta e acusado mesmo os dois valendo 'warn'",
@@ -564,8 +564,8 @@ def teste_homonimo_fora_do_guardrails_nao_elege_vencedor():
         vivo, cfg = monta_mundo(raiz)
         (vivo / "visualA").mkdir(parents=True, exist_ok=True)
         (vivo / "visualB").mkdir(parents=True, exist_ok=True)
-        (vivo / "visualA" / "visual.mode").write_text("warn")
-        (vivo / "visualB" / "visual.mode").write_text("warn")
+        (vivo / "visualA" / "visual.mode").write_text("warn", encoding="utf-8")
+        (vivo / "visualB" / "visual.mode").write_text("warn", encoding="utf-8")
 
         res = roda_conformance(vivo, cfg)
         dup = [d for d in res["desvios"] if d["area"] == "gate"]
@@ -597,9 +597,9 @@ def teste_skill_declarada_e_nao_instalada_nao_e_desvio():
     with tempfile.TemporaryDirectory() as t:
         raiz = Path(t)
         vivo, cfg = monta_mundo(raiz)
-        man = json.loads((cfg / "manifest.json").read_text())
+        man = json.loads((cfg / "manifest.json").read_text(encoding="utf-8"))
         man["skills"] = {"permitidas": ["uma", "duas", "tres"]}
-        (cfg / "manifest.json").write_text(json.dumps(man))
+        (cfg / "manifest.json").write_text(json.dumps(man), encoding="utf-8")
 
         # maquina limpa: nenhuma das 3 instalada
         res = roda_conformance(vivo, cfg)
@@ -620,17 +620,17 @@ def teste_dependencia_externa_de_plugin_ligado():
     with tempfile.TemporaryDirectory() as t:
         raiz = Path(t)
         vivo, cfg = monta_mundo(raiz)
-        man = json.loads((cfg / "manifest.json").read_text())
+        man = json.loads((cfg / "manifest.json").read_text(encoding="utf-8"))
         man["ferramentas_externas"] = {"itens": [
             {"comando": "binario-que-nao-existe-xyz", "pacote": "pkg",
              "instalar": "uv tool install pkg", "requerido_por": ["guarda"],
              "porque": "o guarda depende dele"}]}
-        (cfg / "manifest.json").write_text(json.dumps(man))
-        s = json.loads((vivo / "settings.json").read_text())
+        (cfg / "manifest.json").write_text(json.dumps(man), encoding="utf-8")
+        s = json.loads((vivo / "settings.json").read_text(encoding="utf-8"))
 
         # 1) o plugin que precisa esta DESLIGADO -> nao incomoda
         s["enabledPlugins"]["guarda@mkt"] = False
-        (vivo / "settings.json").write_text(json.dumps(s))
+        (vivo / "settings.json").write_text(json.dumps(s), encoding="utf-8")
         res = roda_conformance(vivo, cfg)
         check("plugin desligado nao cobra dependencia externa",
               "dependencia" not in areas(res),
@@ -638,7 +638,7 @@ def teste_dependencia_externa_de_plugin_ligado():
 
         # 2) LIGADO e sem o binario -> acusa, com o comando de instalar
         s["enabledPlugins"]["guarda@mkt"] = True
-        (vivo / "settings.json").write_text(json.dumps(s))
+        (vivo / "settings.json").write_text(json.dumps(s), encoding="utf-8")
         res = roda_conformance(vivo, cfg)
         dep = [d for d in res["desvios"] if d["area"] == "dependencia"]
         check("plugin ligado sem o binario e acusado", bool(dep))
@@ -659,19 +659,19 @@ def monta_catalogo(vivo, raiz, nomes):
     (mkt / ".claude-plugin" / "marketplace.json").write_text(json.dumps({
         "name": "pedro-plugins",
         "plugins": [{"name": n, "source": f"./plugins/{n}", "version": "1.0.0"}
-                    for n in nomes]}))
+                    for n in nomes]}), encoding="utf-8")
     (vivo / "plugins").mkdir(parents=True, exist_ok=True)
     (vivo / "plugins" / "known_marketplaces.json").write_text(json.dumps({
         "pedro-plugins": {"source": {"source": "directory", "path": str(mkt)},
-                          "installLocation": str(mkt)}}))
+                          "installLocation": str(mkt)}}), encoding="utf-8")
 
 
 def receita_pedro_plugins(cfg, nomes):
     """Troca o mundo minimo por um manifest com a entrada 'pedro-plugins'."""
-    man = json.loads((cfg / "manifest.json").read_text())
+    man = json.loads((cfg / "manifest.json").read_text(encoding="utf-8"))
     man["marketplaces"] = [{"name": "pedro-plugins",
                             "plugins": [{"name": n, "enabled": False} for n in nomes]}]
-    (cfg / "manifest.json").write_text(json.dumps(man))
+    (cfg / "manifest.json").write_text(json.dumps(man), encoding="utf-8")
 
 
 def teste_plugin_publicado_fora_da_receita():
@@ -724,7 +724,7 @@ def _mundo_statusline(raiz, *, comando=None, forward=None, ligados=("context-gua
         s["statusLine"] = {"type": "command", "command": comando}
     if forward is not None:
         s.setdefault("env", {})["CLAUDE_STATUSLINE_FORWARD"] = forward
-    (vivo / "settings.json").write_text(json.dumps(s))
+    (vivo / "settings.json").write_text(json.dumps(s), encoding="utf-8")
     return vivo, cfg
 
 

@@ -698,7 +698,7 @@ def stop_budget(root):
         os.makedirs(lar, exist_ok=True)
         projeto = os.path.join(sandbox, "projeto")
         os.makedirs(projeto, exist_ok=True)
-        open(os.path.join(projeto, "CLAUDE.md"), "w").close()
+        open(os.path.join(projeto, "CLAUDE.md"), "w", encoding="utf-8").close()
         planos = os.path.join(projeto, ".claude", "plans")
         os.makedirs(planos, exist_ok=True)
         for i in range(4):

@@ -85,7 +85,7 @@ def _make_project(tmpdir, claude_md=_CLAUDE_MD_OK, doc_content=_DOC_OK,
     os.makedirs(docs_dir, exist_ok=True)
     if with_journal:
         os.makedirs(proj_doc_dir, exist_ok=True)
-        open(os.path.join(proj_doc_dir, "findings.jsonl"), "w").close()
+        open(os.path.join(proj_doc_dir, "findings.jsonl"), "w", encoding="utf-8").close()
 
     with open(os.path.join(claude_dir, "CLAUDE.md"), "w", encoding="utf-8") as fh:
         fh.write(claude_md)
@@ -252,20 +252,20 @@ def test_scope_staleness():
         _git(root, "config", "user.email", "t@t")
         _git(root, "config", "user.name", "t")
         # arquivo de scope commitado numa data ANTIGA
-        with open(os.path.join(root, "a.py"), "w") as fh:
+        with open(os.path.join(root, "a.py"), "w", encoding="utf-8") as fh:
             fh.write("x=1\n")
         _git(root, "add", "-A")
         _git(root, "commit", "-qm", "init", date="2026-06-01")
 
         docpath = os.path.join(root, ".claude", "docs", "arch.md")
         # doc gerado DEPOIS do último commit de a.py → fresh
-        with open(docpath, "w") as fh:
+        with open(docpath, "w", encoding="utf-8") as fh:
             fh.write(_doc_with("a.py", "2026-07-01"))
         st = pattern_check.scope_staleness(root, docpath)
         check("scope fresco (arquivo não mudou desde generated)", st["state"] == "fresh")
 
         # a.py muda DEPOIS da data de geração → stale
-        with open(os.path.join(root, "a.py"), "w") as fh:
+        with open(os.path.join(root, "a.py"), "w", encoding="utf-8") as fh:
             fh.write("x=2\n")
         _git(root, "add", "-A")
         _git(root, "commit", "-qm", "change", date="2026-07-15")
@@ -274,7 +274,7 @@ def test_scope_staleness():
         check("stale lista o arquivo mudado", "a.py" in st["changed"])
 
         # sem generated: → unknown (fail-LOUD, nunca 'fresco')
-        with open(docpath, "w") as fh:
+        with open(docpath, "w", encoding="utf-8") as fh:
             fh.write("---\nproject: X\nscope: a.py\ndoc-sig: X/a@gen=%s#abcd1234\n---\n\n# doc\n" % CURRENT_GEN)
         st = pattern_check.scope_staleness(root, docpath)
         check("sem generated → unknown (não finge fresco)", st["state"] == "unknown")
@@ -282,7 +282,7 @@ def test_scope_staleness():
     # fora de repo git → unknown
     with tempfile.TemporaryDirectory() as d:
         docpath = os.path.join(d, "x.md")
-        with open(docpath, "w") as fh:
+        with open(docpath, "w", encoding="utf-8") as fh:
             fh.write(_doc_with("a.py", "2026-07-01"))
         st = pattern_check.scope_staleness(d, docpath)
         check("sem git → unknown", st["state"] == "unknown")
@@ -302,15 +302,15 @@ def test_touch_and_generated_commit():
         _git(root, "init", "-q")
         _git(root, "config", "user.email", "t@t")
         _git(root, "config", "user.name", "t")
-        with open(os.path.join(root, "a.py"), "w") as fh:
+        with open(os.path.join(root, "a.py"), "w", encoding="utf-8") as fh:
             fh.write("x=1\n")
         os.makedirs(os.path.join(root, "pkg"))
-        with open(os.path.join(root, "pkg", "b.py"), "w") as fh:
+        with open(os.path.join(root, "pkg", "b.py"), "w", encoding="utf-8") as fh:
             fh.write("y=1\n")
         _git(root, "add", "-A")
         _git(root, "commit", "-qm", "init", date="2026-06-01")
         # a.py muda HOJE (data do commit = hoje real)
-        with open(os.path.join(root, "a.py"), "w") as fh:
+        with open(os.path.join(root, "a.py"), "w", encoding="utf-8") as fh:
             fh.write("x=2\n")
         _git(root, "add", "-A")
         _git(root, "commit", "-qm", "hoje")
@@ -321,13 +321,13 @@ def test_touch_and_generated_commit():
 
         # POR DATA: doc gerado hoje + commit de hoje → stale (janela 00:00 repega)
         docpath = os.path.join(root, ".claude", "docs", "arch.md")
-        with open(docpath, "w") as fh:
+        with open(docpath, "w", encoding="utf-8") as fh:
             fh.write(_doc_with("a.py", today))
         st = pattern_check.scope_staleness(root, docpath)
         check("por DATA: commit de hoje re-suja o doc de hoje", st["state"] == "stale")
 
         # POR COMMIT: generated-commit = HEAD → fresh (diff HEAD..HEAD vazio)
-        with open(docpath, "w") as fh:
+        with open(docpath, "w", encoding="utf-8") as fh:
             fh.write("---\ngenerated: %s\ngenerated-commit: %s\nproject: X\n"
                      "scope: a.py\ndoc-sig: X/a@gen=%s#abcd1234\n---\n\n# doc\n"
                      % (today, head[:12], CURRENT_GEN))
@@ -337,7 +337,7 @@ def test_touch_and_generated_commit():
 
         # docs_for_paths — formatos: lista YAML [a, b], dir, glob
         d2 = os.path.join(root, ".claude", "docs", "two.md")
-        with open(d2, "w") as fh:
+        with open(d2, "w", encoding="utf-8") as fh:
             fh.write("---\ngenerated: %s\nproject: X\nscope: [a.py, pkg/]\n"
                      "doc-sig: s\n---\n\n# t\n" % today)
         m = pattern_check.docs_for_paths(root, ["a.py"])
@@ -354,14 +354,14 @@ def test_touch_and_generated_commit():
               ents == ["a.py", "b.py"])
 
         # touch_plan: read-only no ledger + mapeia mudança de working tree
-        with open(os.path.join(root, "a.py"), "w") as fh:
+        with open(os.path.join(root, "a.py"), "w", encoding="utf-8") as fh:
             fh.write("x=3\n")  # working tree, não commitado
         ledger_dir = os.path.join(root, ".claude", ".project-doc")
         os.makedirs(ledger_dir, exist_ok=True)
         ledger_file = os.path.join(ledger_dir, "ledger.json")
-        with open(ledger_file, "w") as fh:
+        with open(ledger_file, "w", encoding="utf-8") as fh:
             fh.write('{"last_commit": "%s", "mined_sessions": {}}' % head)
-        before = open(ledger_file).read()
+        before = open(ledger_file, encoding="utf-8").read()
         tp = pattern_check.touch_plan(root)
         check("touch_plan mapeia mudança do working tree",
               "a.py" in tp["changed"] and len(tp["docs"]) == 2)
@@ -378,7 +378,7 @@ def test_touch_and_generated_commit():
         check("doc mais novo que o arquivo sai do pending_docs",
               tp2["pending_docs"] == [] and len(tp2["docs"]) == 2)
         time.sleep(0.02)
-        with open(os.path.join(root, "a.py"), "w") as fh:
+        with open(os.path.join(root, "a.py"), "w", encoding="utf-8") as fh:
             fh.write("x=4\n")  # trabalho NOVO depois do touch
         tp3 = pattern_check.touch_plan(root)
         check("trabalho novo após o touch volta pro pending_docs",
@@ -389,7 +389,7 @@ def test_touch_and_generated_commit():
         # suíte do repo (elas pertencem a `verified-by:`). Neste repo eram 11 de
         # 11 acusações falsas. Um consumidor que use "há arquivo fora de escopo?"
         # como gatilho escalaria a cada nascimento de test_*.
-        with open(os.path.join(root, "pkg", "test_b.py"), "w") as fh:
+        with open(os.path.join(root, "pkg", "test_b.py"), "w", encoding="utf-8") as fh:
             fh.write("assert 1\n")
         # `git add`: a janela do touch é working-tree ∪ staged, e `git diff` NÃO
         # lista untracked — arquivo novo só aparece depois de entrar no índice.
@@ -397,7 +397,7 @@ def test_touch_and_generated_commit():
         tp4 = pattern_check.touch_plan(root)
         check("unscoped_new acusa suíte que não está em verified-by nenhum",
               "pkg/test_b.py" in tp4["unscoped_new"])
-        with open(d2, "w") as fh:
+        with open(d2, "w", encoding="utf-8") as fh:
             fh.write("---\ngenerated: %s\nproject: X\nscope: [a.py, pkg/]\n"
                      "verified-by:\n  - pkg/test_b.py\ndoc-sig: s\n---\n\n# t\n"
                      % today)
@@ -415,7 +415,7 @@ def test_touch_and_generated_commit():
         check("last_full_age_days sai como número pro ledger que resolve",
               isinstance(age, float) and age >= 0)
         check("...e o commit é de HOJE, logo idade < 1 dia", age < 1.0)
-        with open(ledger_file, "w") as fh:
+        with open(ledger_file, "w", encoding="utf-8") as fh:
             fh.write('{"last_commit": "deadbeef" "mined_sessions": {}}')  # JSON quebrado
         check("ledger ilegível → last_full_age_days None (não finge recente)",
               pattern_check.touch_plan(root).get("last_full_age_days") is None)
@@ -460,7 +460,7 @@ def test_project_staleness_honra_generated_commit():
         _git(root, "config", "user.email", "t@t")
         _git(root, "config", "user.name", "t")
         for f in ("a.py", "lib/b.py"):
-            with open(os.path.join(root, f), "w") as fh:
+            with open(os.path.join(root, f), "w", encoding="utf-8") as fh:
                 fh.write("x=1\n")
         _git(root, "add", "-A")
         _git(root, "commit", "-qm", "toca a.py e lib/b.py", date="2026-07-15")
@@ -470,7 +470,7 @@ def test_project_staleness_honra_generated_commit():
 
         # (1) O DEFEITO: doc carimbada NO commit que tocou o scope, no mesmo dia.
         # A janela por data pega o próprio commit que a doc documenta.
-        with open(docpath, "w") as fh:
+        with open(docpath, "w", encoding="utf-8") as fh:
             fh.write(_doc_with_commit("a.py", "2026-07-15", sha1))
         check("agregado: carimbado no commit do scope → fresh (era stale pela janela de dia)",
               pattern_check.project_staleness(root) == "fresh")
@@ -479,7 +479,7 @@ def test_project_staleness_honra_generated_commit():
               == pattern_check.scope_staleness(root, docpath)["state"])
 
         # (2) commit NOVO depois do carimbo → os dois têm que dizer stale
-        with open(os.path.join(root, "a.py"), "w") as fh:
+        with open(os.path.join(root, "a.py"), "w", encoding="utf-8") as fh:
             fh.write("x=2\n")
         _git(root, "add", "-A")
         _git(root, "commit", "-qm", "muda a.py depois do carimbo", date="2026-07-15")
@@ -490,23 +490,23 @@ def test_project_staleness_honra_generated_commit():
               == pattern_check.scope_staleness(root, docpath)["state"])
 
         # (3) FALLBACK: doc SEM generated-commit continua na janela por data
-        with open(docpath, "w") as fh:
+        with open(docpath, "w", encoding="utf-8") as fh:
             fh.write(_doc_with_commit("a.py", "2026-07-15"))
         check("agregado: sem generated-commit cai na janela por data → stale",
               pattern_check.project_staleness(root) == "stale")
 
         # (4) commit inexistente no carimbo → NÃO confia nele, cai pra data
-        with open(docpath, "w") as fh:
+        with open(docpath, "w", encoding="utf-8") as fh:
             fh.write(_doc_with_commit("a.py", "2026-07-15", "0" * 40))
         check("agregado: generated-commit que não resolve cai pra data (não finge fresco)",
               pattern_check.project_staleness(root) == "stale")
 
         # (5) DEFEITO 2: scope por DIRETÓRIO. Carimba no HEAD e muda lib/b.py.
-        with open(docpath, "w") as fh:
+        with open(docpath, "w", encoding="utf-8") as fh:
             fh.write(_doc_with_commit("lib/", "2026-07-15", head(root)))
         check("agregado: scope por diretório, nada mudou → fresh",
               pattern_check.project_staleness(root) == "fresh")
-        with open(os.path.join(root, "lib", "b.py"), "w") as fh:
+        with open(os.path.join(root, "lib", "b.py"), "w", encoding="utf-8") as fh:
             fh.write("x=3\n")
         _git(root, "add", "-A")
         _git(root, "commit", "-qm", "muda lib/b.py", date="2026-07-15")
@@ -515,16 +515,16 @@ def test_project_staleness_honra_generated_commit():
               pattern_check.project_staleness(root) == "stale")
 
         # (6) doc sem generated E sem commit → imensurável; nada mensurável = unknown
-        with open(docpath, "w") as fh:
+        with open(docpath, "w", encoding="utf-8") as fh:
             fh.write("---\nproject: X\nscope: a.py\n"
                      "doc-sig: X/a@gen=%s#abcd1234\n---\n\n# doc\n" % CURRENT_GEN)
         check("agregado: nenhum doc mensurável → unknown (nunca fresco)",
               pattern_check.project_staleness(root) == "unknown")
 
         # (7) DOIS docs com carimbos DIFERENTES: um grupo por sha, stale se QUALQUER um
-        with open(docpath, "w") as fh:
+        with open(docpath, "w", encoding="utf-8") as fh:
             fh.write(_doc_with_commit("a.py", "2026-07-15", head(root)))   # fresco
-        with open(os.path.join(docs, "outro.md"), "w") as fh:
+        with open(os.path.join(docs, "outro.md"), "w", encoding="utf-8") as fh:
             fh.write(_doc_with_commit("lib/", "2026-07-15", sha1))          # defasado
         check("agregado: dois carimbos distintos → stale se QUALQUER doc estiver",
               pattern_check.project_staleness(root) == "stale")
@@ -532,7 +532,7 @@ def test_project_staleness_honra_generated_commit():
     # (8) fora de repo git → unknown
     with tempfile.TemporaryDirectory() as d:
         os.makedirs(os.path.join(d, ".claude", "docs"))
-        with open(os.path.join(d, ".claude", "docs", "x.md"), "w") as fh:
+        with open(os.path.join(d, ".claude", "docs", "x.md"), "w", encoding="utf-8") as fh:
             fh.write(_doc_with_commit("a.py", "2026-07-01"))
         check("agregado: sem git → unknown", pattern_check.project_staleness(d) == "unknown")
 
@@ -558,13 +558,13 @@ def test_restamp():
         _git(root, "init", "-q")
         _git(root, "config", "user.email", "t@t")
         _git(root, "config", "user.name", "t")
-        with open(os.path.join(root, "a.py"), "w") as fh:
+        with open(os.path.join(root, "a.py"), "w", encoding="utf-8") as fh:
             fh.write("x=1\n")
         # CLAUDE.md carrega a gen do DOC-SET, que aqui está ATRÁS do código de propósito
-        with open(os.path.join(root, "CLAUDE.md"), "w") as fh:
+        with open(os.path.join(root, "CLAUDE.md"), "w", encoding="utf-8") as fh:
             fh.write("# C\n<!-- project-doc:v2 gen=%s -->\nx\n<!-- project-doc:v2:end -->\n" % OLD_GEN)
         docpath = os.path.join(docs, "arch.md")
-        with open(docpath, "w") as fh:
+        with open(docpath, "w", encoding="utf-8") as fh:
             fh.write(_doc_with("a.py", "2026-01-01"))
         _git(root, "add", "-A")
         _git(root, "commit", "-qm", "codigo + doc no MESMO commit", date="2026-07-20")
@@ -603,7 +603,7 @@ def test_restamp():
 
         # doc AUTORAL é intocável
         autoral = os.path.join(docs, "quality-goals.md")
-        with open(autoral, "w") as fh:
+        with open(autoral, "w", encoding="utf-8") as fh:
             fh.write("---\ngenerated: 2026-01-01\nauthored-by: human\nproject: X\n"
                      "scope: a.py\ndoc-sig: X/a@gen=%s#abcd1234\n---\n\n# meu\n" % OLD_GEN)
         antes = open(autoral, encoding="utf-8").read()
@@ -614,7 +614,7 @@ def test_restamp():
 
         # arquivo sem frontmatter não é doc project-doc
         solto = os.path.join(docs, "nota.md")
-        with open(solto, "w") as fh:
+        with open(solto, "w", encoding="utf-8") as fh:
             fh.write("# nota solta\n")
         out = pattern_check.restamp(root, [".claude/docs/nota.md"])
         check("arquivo sem frontmatter é pulado, não corrompido",
@@ -629,7 +629,7 @@ def test_restamp():
     with tempfile.TemporaryDirectory() as d:
         os.makedirs(os.path.join(d, ".claude", "docs"))
         dp = os.path.join(d, ".claude", "docs", "x.md")
-        with open(dp, "w") as fh:
+        with open(dp, "w", encoding="utf-8") as fh:
             fh.write(_doc_with("a.py", "2026-01-01"))
         antes = open(dp, encoding="utf-8").read()
         out = pattern_check.restamp(d, [".claude/docs/x.md"])
@@ -643,10 +643,10 @@ def test_census_classifies_and_no_crash():
     with tempfile.TemporaryDirectory() as d:
         root = os.path.join(d, "org")
         os.makedirs(os.path.join(root, ".claude", "docs"))
-        with open(os.path.join(root, ".claude", "organism.yaml"), "w") as fh:
+        with open(os.path.join(root, ".claude", "organism.yaml"), "w", encoding="utf-8") as fh:
             fh.write("name: Org\nmodulos: [finance]\ncosturas:\n  - id: x\n    severidade: warn\n    aresta_msg: y\n    pontas:\n      - modulo: finance\n        globs: ['finance/**']\n      - modulo: mcp\n        globs: ['mcp/**']\n")
         os.makedirs(os.path.join(root, "finance", ".claude", "docs"))
-        with open(os.path.join(root, "finance", ".claude", "docs", "db.md"), "w") as fh:
+        with open(os.path.join(root, "finance", ".claude", "docs", "db.md"), "w", encoding="utf-8") as fh:
             fh.write(_doc_with("src/x.ts", "2026-07-01"))
         plan = pattern_check.conformance_plan(root)
         check("plan detecta 1 módulo a migrar (finance)",
@@ -664,10 +664,10 @@ def test_scope_bloco_yaml():
     with tempfile.TemporaryDirectory() as d:
         os.makedirs(os.path.join(d, "src"))
         for name in ("a.py", "b.py"):
-            with open(os.path.join(d, "src", name), "w") as fh:
+            with open(os.path.join(d, "src", name), "w", encoding="utf-8") as fh:
                 fh.write("x=1\n")
         docpath = os.path.join(d, "doc.md")
-        with open(docpath, "w") as fh:
+        with open(docpath, "w", encoding="utf-8") as fh:
             fh.write(
                 "---\n"
                 "generated: 2026-07-01\n"

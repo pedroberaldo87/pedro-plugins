@@ -539,7 +539,7 @@ def bancada_git(texto, tick_cmd, ck_cmd, sujeira_no_indice=None, **kw):
         # Trabalho de OUTRA sessao, ja no indice antes de a onda comecar. O `commit` da
         # onda nao pode carrega-lo: sem pathspec no commit, o indice inteiro entra.
         if sujeira_no_indice:
-            with open(os.path.join(repo, sujeira_no_indice), "w") as fh:
+            with open(os.path.join(repo, sujeira_no_indice), "w", encoding="utf-8") as fh:
                 fh.write("trabalho de outra sessao\n")
             git("add", "--", sujeira_no_indice)
         try:
@@ -555,7 +555,7 @@ def bancada_git(texto, tick_cmd, ck_cmd, sujeira_no_indice=None, **kw):
                                   "HEAD").stdout.split()
         if sujeira_no_indice:
             rodada["indice"] = git("diff", "--cached", "--name-only").stdout.split()
-            with open(os.path.join(repo, sujeira_no_indice)) as fh:
+            with open(os.path.join(repo, sujeira_no_indice), encoding="utf-8") as fh:
                 rodada["sujeira"] = fh.read()
         return rodada
     finally:

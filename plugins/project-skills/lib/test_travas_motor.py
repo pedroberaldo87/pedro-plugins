@@ -212,7 +212,7 @@ def roda_a_compilacao(bloco, raiz):
         return {"erro": "SEM-BLOCO"}
     compilador = os.path.join(raiz, "compilar.sh")
     registro = os.path.join(raiz, "registro.txt")
-    with open(compilador, "w") as f:
+    with open(compilador, "w", encoding="utf-8") as f:
         f.write('#!/bin/sh\n'
                 'if [ -d "$PWD/.cache-de-build" ]; then echo INCR >> "$PWD/registro.txt"\n'
                 'else mkdir "$PWD/.cache-de-build"; echo FULL >> "$PWD/registro.txt"; fi\n')
@@ -227,7 +227,7 @@ def roda_a_compilacao(bloco, raiz):
         return {"erro": casca.stderr.strip()[:200]}
     # A compilacao do EXECUTOR: o mesmo comando, depois do passo da casca.
     subprocess.run(["sh", "-c", "./compilar.sh"], cwd=raiz, capture_output=True, env=amb, stdin=subprocess.DEVNULL, start_new_session=True)
-    with open(registro) as f:
+    with open(registro, encoding="utf-8") as f:
         passadas = f.read().split()
     return {"saida": casca.stdout.strip(), "passadas": passadas}
 
@@ -260,7 +260,7 @@ def planta_o_lixeiro(raiz, layout, quebra=False):
 
     def poe(caminho):
         os.makedirs(os.path.dirname(caminho), exist_ok=True)
-        with open(caminho, "w") as f:
+        with open(caminho, "w", encoding="utf-8") as f:
             f.write(stub)
 
     if layout == "cache":

@@ -14,7 +14,7 @@ DOC = RAIZ / ".claude" / "docs" / "architecture.md"
 
 
 def contagens():
-    fonte = (RAIZ / "scripts" / "sync-shared.sh").read_text()
+    fonte = (RAIZ / "scripts" / "sync-shared.sh").read_text(encoding="utf-8")
     specs = re.search(r"^SPECS=\((.*?)^\)", fonte, re.S | re.M).group(1)
     pares = [ln.strip().strip('"').split("::") for ln in specs.splitlines()
              if "::" in ln and not ln.strip().startswith("#")]
@@ -23,7 +23,7 @@ def contagens():
 
 def test_doc_publica_as_copias_e_pastas_reais():
     copias, pastas, por_arquivo = contagens()
-    doc = DOC.read_text()
+    doc = DOC.read_text(encoding="utf-8")
     assert f"**{copias} cópias, em {pastas} pastas de destino" in doc, \
         f"doc desatualizada: são {copias} cópias em {pastas} pastas"
     assert f"vendora _shared/ → {copias} cópias em {pastas} pastas" in doc, \

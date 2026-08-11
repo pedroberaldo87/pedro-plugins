@@ -170,7 +170,7 @@ print("── valida: JSON quebrado nao passa ──")
 with tempfile.TemporaryDirectory() as t:
     bom = escreve(os.path.join(t, "bom.json"), {"a": 1})
     ruim = os.path.join(t, "ruim.json")
-    with open(ruim, "w") as f:
+    with open(ruim, "w", encoding="utf-8") as f:
         f.write('{"a": ')
     check("JSON valido → 0", roda("valida", bom)[1] == 0)
     check("JSON quebrado → 1", roda("valida", ruim)[1] == 1)

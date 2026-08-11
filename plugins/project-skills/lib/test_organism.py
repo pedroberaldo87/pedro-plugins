@@ -88,7 +88,7 @@ costuras:
 
 def _write_fixture(root):
     os.makedirs(os.path.join(root, ".claude"))
-    with open(os.path.join(root, ".claude", "organism.yaml"), "w") as fh:
+    with open(os.path.join(root, ".claude", "organism.yaml"), "w", encoding="utf-8") as fh:
         fh.write(FIXTURE)
 
 
@@ -129,7 +129,7 @@ def run():
         # 7) verify-cite: citação válida (linha contém símbolo) vs fantasma vs símbolo ausente
         api = os.path.join(root, "alpha", "api.py")
         os.makedirs(os.path.dirname(api), exist_ok=True)
-        with open(api, "w") as fh:
+        with open(api, "w", encoding="utf-8") as fh:
             fh.write("line1\nusa SHARED_KEY aqui\nline3 sem simbolo\n")
         assert organism.verify_cite(root, data, "seam-block", "alpha/api.py:2")["valid"] is True
         assert organism.verify_cite(root, data, "seam-block", "alpha/api.py:3")["valid"] is False  # linha sem símbolo

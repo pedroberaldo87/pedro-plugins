@@ -623,7 +623,10 @@ def collect_handoffs(project_root):
     import glob as _glob
     for path in sorted(_glob.glob(os.path.join(claude, "HANDOFF*.md"))):
         try:
-            text = open(path, encoding="utf-8").read()
+            # `errors="replace"`: o HANDOFF pode ter sido escrito por outro programa
+            # (ou noutra codificação) e um byte inválido não pode matar a rodada
+            # inteira — a mineração continua com o caractere trocado.
+            text = open(path, encoding="utf-8", errors="replace").read()
         except OSError:
             continue
         ref = os.path.basename(path)
