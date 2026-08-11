@@ -30,6 +30,11 @@ SPECS=(
   "plugins/project-skills/lib::bash_posix.py"
   "plugins/vistoria/lib::bash_posix.py"
   "plugins/visual/lib::bash_posix.py"
+  # Comparar CAMINHO, e nao o texto que por acaso o descreve. Seis suites
+  # reprovaram no Windows em 2026-08-11 comparando `.claude\\docs\\x.md` com
+  # `.claude/docs/x.md` — o mesmo arquivo, dois textos. Quem cobra a volta do
+  # padrao velho e `scripts/caminho_como_texto_check.py`.
+  "plugins/project-skills/lib::caminho_igual.py"
   "plugins/handoff/lib::collect_engine.py"
   "plugins/project-skills/lib::collect_engine.py"
   # O contrato R8: os DADOS (.json) + o servidor (.py) + a vista humana (.md, gerada

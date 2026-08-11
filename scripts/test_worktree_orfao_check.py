@@ -13,6 +13,9 @@ import sys
 import tempfile
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(
+    os.path.abspath(__file__))), "_shared"))
+from caminho_igual import contem, igual, termina_em  # noqa: E402,F401
 import worktree_orfao_check as W  # noqa: E402
 
 FALHAS = []
@@ -63,7 +66,8 @@ def main():
     try:
         r = W.varre(d)
         check("acha a cópia parada", len(r) == 1)
-        check("nomeia o caminho dela", r and ".claude/worktrees/wf_teste-1" in r[0]["caminho"])
+        check("nomeia o caminho dela",
+          bool(r) and contem(r[0]["caminho"], ".claude/worktrees/wf_teste-1"))
         check("conta o que está sujo dentro", r and r[0]["sujos"] == 1)
         check("marca que há CÓDIGO dentro — é isso que a busca alcança",
               r and r[0]["tem_codigo"] is True)
