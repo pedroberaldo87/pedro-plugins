@@ -47,6 +47,16 @@ def rotulo(saida, alvo):
     return ""
 
 
+def como_o_git(rel):
+    """O caminho na forma que o fiscal IMPRIME — barra normal, sempre.
+
+    Ele lista pelo `git ls-files`, e o git emite `/` em qualquer sistema. O teste
+    monta o esperado com `os.path.join`, que no Windows devolve `\\`: o mesmo
+    arquivo, dois textos, e o `in saida` dizia que a sonda plantada não aparecia.
+    """
+    return rel.replace(os.sep, "/")
+
+
 def roda(repo, *flags):
     p = subprocess.run([sys.executable, FISCAL] + list(flags) + [repo],
                        stdout=subprocess.PIPE, stderr=subprocess.STDOUT, stdin=subprocess.DEVNULL, start_new_session=True)
@@ -69,7 +79,7 @@ git(repo, "commit", "-qm", "suite legitima")
 # ─── caso limpo: sai 0, e a suíte RASTREADA não é acusada ────────────────────
 codigo, saida = roda(repo)
 check("repo limpo sai 0", codigo == 0)
-check("suite rastreada nao e acusada", legitimo not in saida)
+check("suite rastreada nao e acusada", como_o_git(legitimo) not in saida)
 
 # ─── arquivo ignorado pelo .gitignore não é acusado ──────────────────────────
 escreve(repo, os.path.join("saida-gerada", "relatorio.html"))
@@ -81,32 +91,33 @@ sonda = os.path.join("plugins", "algum", "lib", "test" + "_sonda_esquecida.py")
 escreve(repo, sonda)
 codigo, saida = roda(repo)
 check("sonda plantada sai 1", codigo == 1)
-check("sonda plantada aparece na saida", sonda in saida)
-check("sonda plantada e rotulada sonda", "sonda" in saida.split(sonda)[0].splitlines()[-1])
+check("sonda plantada aparece na saida", como_o_git(sonda) in saida)
+check("sonda plantada e rotulada sonda",
+      "sonda" in saida.split(como_o_git(sonda))[0].splitlines()[-1])
 
 # ─── sonda fora de plugins/ também é acusada ─────────────────────────────────
 sonda2 = os.path.join("scripts", "algo" + "_test.py")
 escreve(repo, sonda2)
 codigo, saida = roda(repo)
-check("sonda fora de plugins e acusada", codigo == 1 and sonda2 in saida)
+check("sonda fora de plugins e acusada", codigo == 1 and como_o_git(sonda2) in saida)
 
 sonda3 = os.path.join("web", "pagina.spec.ts")
 escreve(repo, sonda3)
 codigo, saida = roda(repo)
-check("sonda .spec.ts e acusada", sonda3 in saida)
+check("sonda .spec.ts e acusada", como_o_git(sonda3) in saida)
 
 # ─── arquivo não declarado dentro de plugins/ ────────────────────────────────
 orfao = os.path.join("plugins", "algum", "rascunho.md")
 escreve(repo, orfao)
 codigo, saida = roda(repo)
 check("arquivo nao declarado em plugins/ e acusado",
-      "nao-declarado" in saida.split(orfao)[0].splitlines()[-1])
+      "nao-declarado" in saida.split(como_o_git(orfao))[0].splitlines()[-1])
 
 # ─── arquivo comum FORA de plugins/ não é acusado ────────────────────────────
 escreve(repo, os.path.join("docs", "rascunho.md"))
 codigo, saida = roda(repo)
 check("arquivo comum fora de plugins nao e acusado",
-      os.path.join("docs", "rascunho.md") not in saida)
+      como_o_git(os.path.join("docs", "rascunho.md")) not in saida)
 
 # ─── volta ao limpo depois de recolher as sondas ─────────────────────────────
 for rel in (sonda, sonda2, sonda3, orfao):
@@ -128,7 +139,7 @@ check("funcao sem chamador e rotulada sem-chamador",
 sonda_junto = escreve(repo, os.path.join("plugins", "algum", "test" + "_junto.py"))
 codigo, saida = roda(repo, "--motivo", "sem-chamador")
 check("--motivo sem-chamador acusa a funcao orfa", codigo == 1)
-check("--motivo sem-chamador ignora a sonda", sonda_junto not in saida)
+check("--motivo sem-chamador ignora a sonda", como_o_git(sonda_junto) not in saida)
 os.remove(os.path.join(repo, orfa))
 codigo, saida = roda(repo, "--motivo", "sem-chamador")
 check("--motivo sem-chamador sai 0 quando so restam outros motivos", codigo == 0)

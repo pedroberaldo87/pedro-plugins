@@ -90,6 +90,28 @@ def roda(cmd, alvo, teto):
                 pass
 
 
+
+# O que a suíte imprime de errado costuma ficar no MEIO, não no fim: ela lista
+# dezenas de casos verdes depois do que falhou. Cortar pelas últimas 25 linhas
+# escondia justamente o erro — aconteceu com `test_doc_load`, cujo relatório saiu
+# com 23 linhas de `ok` e nenhuma da falha.
+MARCAS = ("FAIL", "FALHOU", "✗", "Traceback", "Error", "error:", "AssertionError",
+          "not found", "No such file")
+
+
+def linhas_que_importam(saida, teto=25):
+    """As linhas que explicam a falha, e o fim como contexto — nessa ordem."""
+    linhas = saida.strip().splitlines()
+    marcadas = [ln for ln in linhas if any(m in ln for m in MARCAS)]
+    if not marcadas:
+        return linhas[-teto:]
+    # a falha primeiro; o resto do teto vai para o fim da saída, que costuma
+    # trazer o placar ("N passou · M falhou")
+    corte = marcadas[:teto - 5] if len(marcadas) > teto - 5 else marcadas
+    fim = [ln for ln in linhas[-(teto - len(corte)):] if ln not in corte]
+    return corte + (["   …"] if fim else []) + fim
+
+
 def main(argv=None):
     ap = argparse.ArgumentParser()
     # `action="extend"`, não o default: com o default, repetir a bandeira SUBSTITUI
@@ -148,7 +170,7 @@ def main(argv=None):
         if saida is None:
             print("   (estourou o teto de %.0fs — pendurou)" % a.timeout)
             continue
-        for ln in saida.strip().splitlines()[-25:]:
+        for ln in linhas_que_importam(saida):
             print("   " + ln[:200])
     return 1 if ruins else 0
 
