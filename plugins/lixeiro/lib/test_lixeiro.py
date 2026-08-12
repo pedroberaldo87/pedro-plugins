@@ -418,6 +418,52 @@ orfas = lixeiro.sessoes_orfas()
 eq("s-morta" in orfas, True, "sessão com dono inexistente é órfã")
 eq("s2" in orfas, False, "sessão com dono vivo NÃO é órfã")
 
+print("── órfã com processo TRABALHANDO: poupa, e o registro fica ──")
+# O registro da órfã é a única procedência que a próxima varredura terá. Se ele
+# fosse apagado junto da colheita que POUPOU o processo (por estar trabalhando),
+# o servidor viraria para sempre "sem dono conhecido" — invisível a toda colheita.
+CMD_ORFA = "/proj/orfa-viva/.venv/bin/python -m pytest tests/ -q"
+lixeiro.grava_registro({"session_id": "s-orfa-viva", "dono_pid": 2 ** 22, "anotacoes": [
+    {"cmd": "python -m pytest tests/", "cwd": "/proj/orfa-viva", "classe": "efemero",
+     "em": time.time() - 60, "cpu_ultimo_turno": None}]})
+_real_procs = lixeiro.processos
+_real_espera = lixeiro.OCIOSO_ESPERA
+_real_encerra = lixeiro.encerra
+lixeiro.OCIOSO_ESPERA = 0
+_mortes = []
+lixeiro.encerra = lambda pid, **kw: (_mortes.append(pid), "TERM")[1]
+
+
+def _cpu_subindo():
+    """`ps` cuja CPU do 950 SOBE a cada leitura — trabalhando, sempre, não importa
+    quantas leituras o caminho consome nem em que ordem as sessões são varridas."""
+    cpu = [0.0]
+
+    def ler():
+        cpu[0] += 10.0
+        return [proc(950, CMD_ORFA, idade=30, cpu=cpu[0])]
+    return ler
+
+
+try:
+    lixeiro.processos = _cpu_subindo()
+    lixeiro.colhe_orfaos(exceto="s2")
+    eq(_mortes, [], "o processo da órfã que está TRABALHANDO não recebe sinal")
+    eq(os.path.exists(lixeiro.registro_path("s-orfa-viva")), True,
+       "…e o registro dela SOBREVIVE — é a procedência da próxima varredura")
+    # O contrafactual: parado (CPU imóvel), morre — o caminho antigo continua valendo.
+    lixeiro.processos = lambda: [proc(950, CMD_ORFA, idade=30, cpu=10.0)]
+    lixeiro.colhe_orfaos(exceto="s2")
+    eq(_mortes, [950], "a mesma órfã com o processo PARADO é colhida")
+finally:
+    lixeiro.processos = _real_procs
+    lixeiro.OCIOSO_ESPERA = _real_espera
+    lixeiro.encerra = _real_encerra
+try:
+    os.remove(lixeiro.registro_path("s-orfa-viva"))
+except OSError:
+    pass
+
 print("── ponta a ponta: um processo de verdade ──")
 alvo = subprocess.Popen([sys.executable, "-c",
                          "import time,sys\nsys.argv=['x']\nwhile True: time.sleep(0.3)"],
