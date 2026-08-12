@@ -6,9 +6,9 @@
 # abertura seguinte. Mas o fim do turno é justamente quando o servidor do turno
 # ainda serve ao próximo — então aqui a colheita é SELETIVA:
 #
-#   efêmero (suíte, build) ainda vivo  → é lixo certo, morre
-#   serviço com CPU parada desde o turno anterior → ocioso, morre
-#   serviço com CPU subindo           → está em uso, SOBREVIVE
+#   CPU da árvore parada desde o turno anterior → ocioso, morre (suíte ou serviço)
+#   CPU da árvore subindo             → está trabalhando, SOBREVIVE
+#   sem foto do turno anterior, ou com menos de 120s de vida → SOBREVIVE
 #
 # A foto de CPU do turno é tirada DEPOIS da colheita, para o próximo turno ter
 # contra o que comparar.

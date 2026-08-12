@@ -517,6 +517,35 @@ Depósito **novo nesta rodada**, irmão do B8 e deliberadamente diferente dele: 
 - **A marca é o CONTEÚDO, nunca a data** (`fecho_check.py:marca`, sha256 truncado em 16). Data não sobrevive a clone, cópia nem `git checkout` — um julgamento legítimo passaria a ser recusado por uma operação de git que ninguém associaria a esta skill.
 - **Natureza: registro de trabalho, insubstituível e não rastreado.** Perder a pasta perde a disputa inteira — os vereditos, as observações e o que já tinha sido aprovado. Zero backup, e é a mesma classe do `.claude/visual/`: artefato de sessão que o repositório público não carrega.
 
+### B17 · `${CLAUDE_CONFIG_DIR:-$HOME/.claude}/lixeiro/` — 108K · a procedência de quem pode ser encerrado
+
+Estava fora do inventário até 2026-08-12. É o único depósito da casa cuja leitura decide
+**matar processo**, então a natureza dele não é "cache": é prova de posse.
+
+- **Três naturezas na mesma pasta** [confirmado — contado nesta rodada]:
+
+```bash
+ls -1 ~/.claude/lixeiro | sed 's/-[0-9a-f-]\{8\}.*//' | sort | uniq -c
+#   74 avisado-*        marca de "esta sessão já ouviu o aviso" (0 bytes, uma por sessão)
+#   20 sessao-*.json    o REGISTRO: quem abriu o quê, e qual processo é de quem
+#    1 colhido.jsonl    o log de auditoria do que morreu — 79 linhas
+```
+
+- **O caminho sai de `lixeiro.py:state_dir`**, que resolve por `CLAUDE_CONFIG_DIR` — ao contrário
+  do `visual-state` (B2), do `vision.json` (B12) e do `arsenal.md` (B15), que fixam `~/.claude`.
+- **O registro é o que autoriza o sinal.** `sessao-<id>.json` guarda `session_id`, `dono_pid` e a
+  lista de `anotacoes`; cada anotação tem `cmd`, `cwd`, `classe`, `em`, `rodadas_sem_processo` e —
+  **novos na v1.4.0** — `cpu_ultimo_turno`, `cpu_visto_em` e `cpu_pid`, o trio que registra *a
+  última vez que aquele processo foi visto trabalhando*. Sem ele o fim de turno não distingue a
+  suíte em andamento da suíte esquecida, e mata as duas (ver `runtime.md` §18).
+- ⚠️ **Apagar o registro de uma sessão VIVA não é inócuo:** o processo que ela abriu perde a
+  procedência, e nenhuma colheita automática volta a reconhecê-lo — ele só sai pela `/faxina`
+  manual. É por isso que, desde a v1.4.0, o arquivo só é removido quando não sobrou processo de
+  pé (`lixeiro.py:colhe_orfaos` e o ramo `colhe-sessao` do `main`).
+- **Natureza: estado operacional reconstruível, com um custo.** Perder a pasta não quebra nada e
+  ela se refaz sozinha na primeira anotação; o que se perde é o histórico de auditoria
+  (`colhido.jsonl`) e a procedência do que já estava de pé. Zero backup, como todo (B).
+
 ---
 
 ## (C) Dentro do repo, mas gitignorado — some se a máquina sumir

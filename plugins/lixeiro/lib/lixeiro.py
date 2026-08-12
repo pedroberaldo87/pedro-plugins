@@ -8,7 +8,7 @@ do harness e o navegador. `pkill node` mataria o trabalho junto com o lixo.
 
 O ciclo:
   anota   (PostToolUse)  — o comando abriu processo? grava assinatura + hora + sessão
-  colhe   (Stop)         — efêmero vivo morre; serviço só morre se ficou ocioso
+  colhe   (Stop)         — só morre o que não gastou CPU desde o turno anterior
   colhe   (SessionEnd)   — tudo que a sessão anotou
   varre   (SessionStart) — registro de sessão cujo dono não existe mais
 
@@ -83,6 +83,19 @@ INTOCAVEL = [
 ]
 
 CLASSES = (("efemero", EFEMERO), ("servico", SERVICO))
+
+# Quanto tempo de relógio um processo precisa passar SEM gastar CPU para o fim do
+# turno o considerar abandonado. Não é uma constante de gosto: abaixo disso a
+# colheita confunde a suíte que espera o banco de dados subir com a que travou.
+# Ajustável porque uma suíte não pode levar dois minutos para provar a colheita.
+try:
+    OCIOSO_MIN = int(os.environ.get("LIXEIRO_OCIOSO_MIN") or 120)
+except ValueError:
+    OCIOSO_MIN = 120
+# Quanto tempo separa as duas leituras de CPU do fim de sessão. Precisa ser longo
+# o bastante para uma suíte trabalhando aparecer, e curto o bastante para não
+# atrasar o fechamento da sessão.
+OCIOSO_ESPERA = 1.5
 
 
 def classifica(cmd):
@@ -208,12 +221,18 @@ def ancestrais(pid, procs):
     return set(_cadeia(pid, procs))
 
 
-def peso_arvore(procs):
-    """pid -> memória do processo MAIS a de toda a descendência dele, em KB.
+def peso_arvore(procs, campo="rss"):
+    """pid -> valor do processo MAIS o de toda a descendência dele.
 
-    O pai costuma ser um lançador de 5 MB que segura gigabytes de filhos: quem
-    olha só o RSS dele não vê o peso que encerrá-lo devolve à máquina."""
-    total = {p["pid"]: p["rss"] for p in procs}
+    Com `rss`: memória em KB. O pai costuma ser um lançador de 5 MB que segura
+    gigabytes de filhos, e quem olha só o RSS dele não vê o peso que encerrá-lo
+    devolve à máquina.
+
+    Com `cpu`: o trabalho que a ÁRVORE fez, em segundos. É esse o número que diz
+    se uma suíte está trabalhando — quem lança (`cargo`, `npm exec`, o `zsh -c`
+    que o harness usa) fica parado esperando enquanto o filho queima CPU, e olhar
+    só o lançador o faz parecer ocioso quando a suíte está a todo vapor."""
+    total = {p["pid"]: p[campo] for p in procs}
     por_pid = {p["pid"]: p for p in procs}
     for p in procs:
         visto = {p["pid"]}
@@ -222,7 +241,7 @@ def peso_arvore(procs):
             visto.add(atual)
             if atual not in total:
                 break
-            total[atual] += p["rss"]
+            total[atual] += p[campo]
             pai = por_pid.get(atual)
             if not pai:
                 break
@@ -473,14 +492,32 @@ def casa(anotacao, proc):
 def candidatos(session_id, modo, procs=None, agora=None):
     """Devolve [(anotacao, proc, motivo)] do que PODE ser encerrado neste modo.
 
-    modo 'turno'   — efêmero vivo (lixo certo) + serviço ocioso desde o turno anterior
-    modo 'sessao'  — tudo que a sessão anotou e ainda vive
+    modo 'turno'   — só o que NÃO trabalhou desde o turno anterior, suíte ou servidor
+    modo 'sessao'  — tudo que a sessão anotou e ainda vive (quem está trabalhando
+                     é poupado depois, em `colhe`, que mede a CPU ao vivo)
+
+    A regra do turno é uma só, e vale igual para as duas classes: morre quem tem
+    foto de CPU do turno anterior e não gastou CPU nenhuma desde então. Ela nasceu
+    de um estrago real — enquanto "efêmero vivo era lixo certo", uma suíte lançada
+    em segundo plano morria no fim do MESMO turno (medido: `cargo test` encerrado
+    6 segundos depois de começar), porque o fim do turno é justamente quando o
+    agente estaciona o trabalho longo para continuar conversando. Ocioso é a única
+    prova de abandono que não confunde trabalho em curso com lixo.
+
+    E ocioso se mede em TEMPO DE RELÓGIO, não em turnos: dois turnos podem estar a
+    três segundos um do outro (o usuário digita "ok" e o agente devolve), e "não
+    gastou CPU desde o turno anterior" viraria "não gastou CPU em três segundos" —
+    o que mata a suíte parada esperando o banco subir. Por isso o que conta é a
+    última vez que ele foi visto TRABALHANDO, e ela precisa ter no mínimo
+    OCIOSO_MIN segundos.
     """
+    agora = time.time() if agora is None else agora
     procs = processos() if procs is None else procs
     if not procs:
         return []
     reg = le_registro(session_id)
     eu = ancestrais(os.getpid(), procs)
+    cpu_arvore = peso_arvore(procs, "cpu")
     achados = []
     for anot in reg.get("anotacoes", []):
         # Anotação de intocável existe para relatar, nunca para colher. `casa` já
@@ -495,34 +532,101 @@ def candidatos(session_id, modo, procs=None, agora=None):
                 continue
             if modo == "sessao":
                 achados.append((anot, p, "fim de sessão"))
-            elif anot.get("classe") == "efemero":
-                achados.append((anot, p, "suíte/build que devia ter terminado"))
-            elif anot.get("classe") == "servico":
-                antes = anot.get("cpu_ultimo_turno")
-                if antes is not None and p["cpu"] <= antes + 0.5 and p["idade"] > 120:
-                    achados.append((anot, p, "servidor sem uso desde o turno anterior"))
+                continue
+            antes = anot.get("cpu_ultimo_turno")
+            # Comparar CPU só faz sentido entre leituras do MESMO processo. Uma
+            # anotação casa mais de um processo ao longo da sessão (a suíte roda
+            # de novo, o servidor reinicia), e o segundo nasce com a CPU zerada:
+            # sem esta linha ele seria lido como "o primeiro, que parou de
+            # trabalhar" — e morreria no meio do serviço.
+            if antes is None or anot.get("cpu_pid") != p["pid"]:
+                continue
+            if cpu_arvore.get(p["pid"], p["cpu"]) > antes + 0.5:
+                continue
+            if p["idade"] <= OCIOSO_MIN:
+                continue
+            visto = anot.get("cpu_visto_em")
+            if visto is None or agora - visto <= OCIOSO_MIN:
+                continue
+            achados.append((anot, p, "suíte parada desde o turno anterior"
+                            if anot.get("classe") == "efemero"
+                            else "servidor sem uso desde o turno anterior"))
     return achados
 
 
-def marca_cpu(session_id, procs=None):
-    """Fotografa o tempo de CPU de cada serviço anotado. É o que, no turno
-    seguinte, distingue o servidor EM USO do servidor esquecido — sem isso o
-    fim de turno derrubaria o servidor que o próximo turno ia usar."""
+def marca_cpu(session_id, procs=None, agora=None):
+    """Anota a última vez que cada processo anotado foi visto TRABALHANDO — o
+    tempo de CPU da ÁRVORE dele, e o instante da leitura. É o que, no turno
+    seguinte, distingue o que está em uso do que foi esquecido: sem isso o fim de
+    turno derrubaria o servidor que o próximo turno ia usar, e a suíte que ainda
+    estava rodando.
+
+    A foto só se RENOVA quando a CPU subiu. Renovar a cada turno, sem olhar,
+    zeraria o relógio do ocioso a cada troca de mensagem — e numa conversa de
+    turnos curtos nada nunca completaria os OCIOSO_MIN segundos parados, isto é,
+    o lixo de verdade jamais seria colhido.
+
+    E cada processo é fotografado por UMA anotação só. Duas suítes do mesmo
+    projeto casam as duas anotações, e sem esta regra ambas fotografavam o
+    primeiro processo — a segunda ficava eternamente sem foto própria, e o que ela
+    abriu nunca era colhido. Quem já tem foto reivindica o seu processo primeiro,
+    para a correspondência não trocar de dono a cada turno."""
+    agora = time.time() if agora is None else agora
     procs = processos() if procs is None else procs
     if not procs:
         return
+    cpu_arvore = peso_arvore(procs, "cpu")
     reg = le_registro(session_id)
-    mudou = False
-    for anot in reg.get("anotacoes", []):
-        if anot.get("classe") != "servico":
-            continue
-        for p in procs:
-            if casa(anot, p):
-                anot["cpu_ultimo_turno"] = p["cpu"]
-                mudou = True
+    anotacoes = reg.get("anotacoes", [])
+    tomados, par, mudou = set(), {}, False
+    # 1ª volta: quem já tinha foto fica com o mesmo processo, se ele ainda casa.
+    # 2ª volta: o resto pega o primeiro processo que sobrou.
+    for reivindica in (True, False):
+        for i, anot in enumerate(anotacoes):
+            if i in par:
+                continue
+            for p in procs:
+                if p["pid"] in tomados or not casa(anot, p):
+                    continue
+                if reivindica and anot.get("cpu_pid") != p["pid"]:
+                    continue
+                par[i] = p
+                tomados.add(p["pid"])
                 break
+    for i, p in par.items():
+        anot = anotacoes[i]
+        agora_cpu = cpu_arvore.get(p["pid"], p["cpu"])
+        antes = anot.get("cpu_ultimo_turno")
+        trocou = anot.get("cpu_pid") != p["pid"]
+        if antes is None or trocou or agora_cpu > antes + 0.5 or anot.get("cpu_visto_em") is None:
+            anot["cpu_ultimo_turno"] = agora_cpu
+            anot["cpu_visto_em"] = agora
+            anot["cpu_pid"] = p["pid"]
+            mudou = True
     if mudou:
         grava_registro(reg)
+
+
+def trabalhando(pids, procs=None, espera=None):
+    """Quais destes pids estão gastando CPU AGORA — duas leituras da árvore, com
+    uma pausa no meio.
+
+    É a única prova possível onde não existe foto do turno anterior para comparar:
+    o fim de sessão, que pode chegar no meio do trabalho. A colheita de fim de
+    sessão não discriminava nada, e por isso encerrava a suíte em andamento de
+    quem só apertou /clear — a conversa foi descartada, a máquina não."""
+    pids = set(pids)
+    if not pids:
+        return set()
+    procs = processos() if procs is None else procs
+    if not procs:
+        return set()
+    antes = peso_arvore(procs, "cpu")
+    time.sleep(OCIOSO_ESPERA if espera is None else espera)
+    depois = peso_arvore(processos(), "cpu")
+    # 0,05s de CPU em 1,5s de relógio: ~3% de um núcleo. Suíte rodando passa disso
+    # com folga; servidor parado esperando conexão, não.
+    return {p for p in pids if depois.get(p, 0.0) > antes.get(p, 0.0) + 0.05}
 
 
 def raiz_orfa(pid, procs=None, protegidos=None):
@@ -631,11 +735,26 @@ def registra_colheita(itens):
 
 def colhe(session_id, modo, dry_run=False):
     """Encerra o que este modo autoriza. Devolve a lista do que morreu."""
+    alvos = candidatos(session_id, modo)
+    if modo == "sessao" and alvos:
+        # No fim da sessão não há foto do turno anterior para consultar: mede-se
+        # ao vivo. O que estiver trabalhando fica de pé, e a anotação dele
+        # sobrevive — é a varredura de órfãos da abertura seguinte que termina o
+        # serviço, quando aí sim não houver mais a quem servir.
+        ocupados = trabalhando([p["pid"] for _, p, _ in alvos])
+        alvos = [t for t in alvos if t[1]["pid"] not in ocupados]
+    # Entre ler a tabela e mandar o sinal passa tempo — e no fim de sessão passa
+    # mais, porque a medição ao vivo dorme no meio. Se o alvo morrer sozinho nesse
+    # intervalo, o sistema pode ter dado o número dele a OUTRO processo, e o sinal
+    # iria para um inocente. A releitura confirma que o pid ainda é quem era.
+    agora_cmd = {} if dry_run else {p["pid"]: p["cmd"] for p in processos()}
     mortos = []
-    for anot, p, motivo in candidatos(session_id, modo):
+    for anot, p, motivo in alvos:
         if dry_run:
             mortos.append({"pid": p["pid"], "cmd": p["cmd"], "rss_mb": round(p["rss"] / 1024),
                            "motivo": motivo, "sinal": "(simulado)"})
+            continue
+        if agora_cmd.get(p["pid"]) != p["cmd"]:
             continue
         sinal = encerra(p["pid"])
         if sinal:
@@ -701,7 +820,12 @@ def colhe_orfaos(exceto=None, dry_run=False):
         if exceto and sid == exceto:
             continue
         mortos.extend(colhe(sid, "sessao", dry_run=dry_run))
-        if not dry_run:
+        # Mesmo cuidado do fim de sessão: o registro só some quando não sobrou
+        # processo de pé. O que foi poupado por estar trabalhando precisa
+        # continuar tendo dono conhecido, senão nenhuma varredura futura o
+        # reconhece. Anotação sem processo vivo não segura o arquivo — ela some
+        # sozinha, pelo caminho normal.
+        if not dry_run and not candidatos(sid, "sessao"):
             try:
                 os.remove(registro_path(sid))
             except OSError:
@@ -989,6 +1113,15 @@ def main(argv):
         modo = "sessao" if cmd == "colhe-sessao" else ("turno" if cmd == "colhe-turno" else
                                                        (argv[2] if len(argv) > 2 and not argv[2].startswith("-") else "turno"))
         mortos = colhe(sid, modo, dry_run=dry)
+        # O registro morre com a sessão — MENOS quando sobrou processo de pé, e aí
+        # ele é a única procedência que a varredura de órfãos vai ter na abertura
+        # seguinte. Apagá-lo sempre (o que o hook fazia) transformava todo processo
+        # poupado em processo sem dono conhecido, que nenhuma colheita mais encerra.
+        if modo == "sessao" and not dry and not candidatos(sid, "sessao"):
+            try:
+                os.remove(registro_path(sid))
+            except OSError:
+                pass
         print(json.dumps(mortos, ensure_ascii=False))
         return 0
 
