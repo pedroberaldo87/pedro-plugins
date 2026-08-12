@@ -289,6 +289,13 @@ régua —, contrato em **`references/dimensoes-de-revisao.md`** (fonte:
 drift). É o mesmo arquivo que o `/qa-loop` lê: o que muda entre as duas skills é o **ângulo**
 (construído × correto), nunca o mínimo medido. O que cada grão acrescenta é o escopo:
 
+**O Pé 2 do tripé cita os cinco antipadrões de dentro, e por isso eles viajam junto.** Teste que
+não morde é achado de implementação — o conserto é o teste, não o código —, e os cinco jeitos de
+um teste passar sem servir para nada estão em **`references/antipadroes-de-teste.md`** (fonte:
+`_shared/antipadroes-de-teste.md` — não editar a cópia à mão; `scripts/sync-shared.sh --check`
+pega drift). **Leia o arquivo antes de julgar cobertura**, nos três grãos: é a mesma lista que o
+`/qa-loop` usa, e nenhuma das duas skills repete o texto dela.
+
 | Grão | Quem julga | A pergunta |
 |---|---|---|
 | **tarefa** | revisor por tarefa (`TAREFA_REVIEW`) | esta entrega cumpriu o `pronto` dela, com teste que morde e dentro da régua? |
