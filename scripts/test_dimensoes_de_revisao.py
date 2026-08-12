@@ -72,6 +72,20 @@ def ler(p):
         return fh.read()
 
 
+def _skill_de(destino):
+    """O `SKILL.md` dono de uma cópia vendorada.
+
+    Duas formas convivem no vendoring: a cópia em `<skill>/references/` (o r8-tiers,
+    os antipadrões) e a cópia direto em `<skill>/` (a régua de pergunta). Presumir
+    só a primeira faria a suíte falhar por ENDEREÇO no dia em que um consumidor
+    usasse a segunda — falha por defeito e falha por convenção não podem ter a
+    mesma cara.
+    """
+    aqui = os.path.join(ROOT, destino, "SKILL.md")
+    return aqui if os.path.isfile(aqui) else os.path.join(ROOT, os.path.dirname(destino),
+                                                          "SKILL.md")
+
+
 print("\n== o tripé na fonte ==")
 if not os.path.isfile(FONTE):
     print("  FAIL fonte ausente: _shared/%s" % ARQ)
@@ -95,8 +109,7 @@ for d in DESTINOS:
 
 print("\n== as skills APONTAM em vez de repetir ==")
 for d in DESTINOS:
-    # a skill mora um nível acima de references/
-    skill = os.path.join(ROOT, os.path.dirname(d), "SKILL.md")
+    skill = _skill_de(d)
     rel = os.path.relpath(skill, ROOT)
     if not os.path.isfile(skill):
         check("SKILL.md existe: %s" % rel, False)
@@ -124,6 +137,30 @@ for d in DESTINOS:
         marca = ".claude/docs/%s" % doc
         check("%s não enumera %s" % (rel, doc), marca not in txt,
               "(a lista de régua sai do doc_load.py, nunca da prosa)")
+
+print("\n== a premissa anti-drift está no cardápio da família ==")
+# Sem cobrador a premissa é intenção, não regra (constituição, "a cláusula que
+# manda em todas") — e ela é justamente a que impede este contrato de virar duas
+# prosas divergentes. O cardápio é a skill-índice da família.
+CARDAPIO = os.path.join(ROOT, "plugins", "project-skills", "skills",
+                        "project-skills", "SKILL.md")
+if not os.path.isfile(CARDAPIO):
+    check("o cardápio da família existe", False)
+else:
+    card = ler(CARDAPIO)
+    for label, trecho in [
+        ("a premissa tem título próprio", "## A premissa anti-drift"),
+        ("nada que duas skills sabem é escrito duas vezes",
+         "Nada que duas skills precisam saber é escrito em duas skills"),
+        ("a duplicata falha em SILÊNCIO", "falha **em silêncio**"),
+        ("forma 1 — dado vira json compartilhado", "`_shared/<nome>.json`"),
+        ("forma 2 — contrato em prosa vira md vendorado", "`_shared/<nome>.md`"),
+        ("forma 3 — o que muda sozinho vira programa", "manda **rodar** o programa"),
+        ("toda fonte compartilhada nasce com cobrador",
+         "**Toda fonte compartilhada nasce com cobrador**"),
+        ("a pergunta que fecha", "já\nestá escrito em outro lugar?"),
+    ]:
+        check("cardápio: %s" % label, trecho in card, "(faltou %r)" % trecho)
 
 print("\n%d ok, %d falhas" % (PASS, FAIL))
 sys.exit(1 if FAIL else 0)
