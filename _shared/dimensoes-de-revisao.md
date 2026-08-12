@@ -1,8 +1,14 @@
+<!-- FONTE: _shared/dimensoes-de-revisao.md. NÃO editar as cópias vendoradas
+     (plugins/*/skills/*/references/) — edite aqui e rode scripts/sync-shared.sh.
+     Quem cobra o texto nas duas cópias, e que a skill aponte em vez de repetir:
+     scripts/test_dimensoes_de_revisao.py. Estes caminhos são deste repositório e
+     por isso vivem num comentário: na máquina de quem instala eles não existem,
+     e comando que não roda como está escrito viola o Artigo 8. -->
+
 # O tripé da revisão — o mínimo que toda revisão mede
 
 > Contrato único. Quem revisa **aponta para este arquivo**; nenhum `SKILL.md` repete a
-> lista, e nenhum enumera documento de projeto por nome. Fonte: `_shared/dimensoes-de-revisao.md`.
-> Cobrador: `scripts/test_dimensoes_de_revisao.py`.
+> lista, e nenhum enumera documento de projeto por nome.
 
 Toda revisão deste marketplace — a do ciclo de implementação (por tarefa, por bloco, por
 onda) e a do `/qa-loop` — mede **os três pés abaixo**. Não é ordem de preferência: é
@@ -95,7 +101,8 @@ nunca troca silenciosa do critério do julgamento.
 
 ## Como esta lista muda
 
-Dimensão nova entra **aqui**, e chega às skills pelo vendoring — nunca digitada na cópia.
-Editar a cópia à mão é o drift que este arquivo existe para impedir; `sync-shared.sh
---check` acusa, e `scripts/test_dimensoes_de_revisao.py` exige que cada consumidor aponte
-para o contrato em vez de repetir o texto.
+Dimensão nova entra **na fonte**, e chega às skills pelo vendoring — nunca digitada na
+cópia. Editar a cópia à mão é o drift que este arquivo existe para impedir, e há programa
+cobrando os dois lados: que a cópia esteja idêntica à fonte, e que cada consumidor
+**aponte** para o contrato em vez de repetir o texto. Os nomes desses cobradores estão no
+comentário do topo — eles vivem no repositório do marketplace, não na sua máquina.
