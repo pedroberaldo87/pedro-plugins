@@ -93,6 +93,19 @@ MODOS_DE_GASTO = ("real", "ensaio")
 PERGUNTE_AO_PROVEDOR = object()
 
 
+def _credito(valor):
+    """O valor como número de créditos, ou None se ele não for um.
+
+    Existe porque consertar o estouro de tipo NO PONTO onde ele apareceu só o
+    mudou de lugar três vezes: primeiro estourava na validação, depois na
+    impressão, depois em toda leitura do disco. Teto vem de arquivo escrito à
+    mão, então todo lugar que soma teto passa por aqui.
+    """
+    if isinstance(valor, bool) or not isinstance(valor, (int, float)):
+        return None
+    return float(valor)
+
+
 def _higgsfield(args):
     """Roda o CLI do provedor e devolve o stdout, ou None. Fail-open por lei.
 
@@ -125,7 +138,7 @@ def saldo_no_texto(saida):
     # único resultado que esta função não pode produzir. O espaço saiu, e o caso
     # que ele atendia (milhar à francesa) passa a ser recusado em voz alta: número
     # com espaço no meio é ambíguo, e ambíguo vira None, nunca um palpite.
-    if re.search(r"\d[\s\xa0]+[\d.,]*\d\s+credits", saida):
+    if re.search(r"\d[ \t\xa0]+[\d.,]*\d[ \t\xa0]+credits", saida):
         return None
     m = re.search(r"(\d[\d.,]*)\s+credits", saida)
     if not m:
@@ -223,6 +236,15 @@ def abre_gasto(missao, teto_imagem=None, teto_video=None, provedores=None,
     # Reabrir sem querer zera o consumido: o saldo de partida vira o de agora, e o
     # teto recomeça do zero com o dinheiro já gasto. Quem quiser mesmo recomeçar
     # diz isso em voz alta.
+    # A abertura passa pela MESMA validação do rito: sem isto, `--abre` gravava um
+    # gasto.json com teto em texto, todo comando seguinte estourava, e como reabrir
+    # é recusado, consertar o rito não destravava mais nada.
+    furos = erros_do_gasto({"arsenal": True, "gasto": {
+        "modo": modo, "provedores": provedores,
+        "teto": {"imagem": teto_imagem, "video": teto_video}}})
+    if furos:
+        raise ValueError("o gasto não pode ser aberto: %s" % " · ".join(furos))
+
     if not reabre and os.path.isfile(os.path.join(missao, "gasto.json")):
         raise ValueError(
             "esta missão já tem gasto aberto — reabrir apaga o consumido e faz o "
@@ -261,7 +283,9 @@ def _veredito_do_gasto(estado, saldo_agora, por_tipo):
                 "provedores": estado.get("provedores") or []}
 
     teto = estado.get("teto") or {}
-    teto_total = (teto.get("imagem") or 0) + (teto.get("video") or 0)
+    # Teto que não é número conta como AUSENTE, nunca como zero silencioso: o
+    # rótulo vira `sem-teto`, que já diz em voz alta que nada está sendo cobrado.
+    teto_total = sum(_credito(teto.get(t)) or 0 for t in ("imagem", "video"))
     inicial = estado.get("saldo_inicial")
 
     if inicial is None or saldo_agora is None:
@@ -1278,8 +1302,9 @@ def main(argv=None):
               % (conta["consumido"], conta["teto_total"], conta["estado"]))
         for tipo, c in sorted(conta["por_tipo"].items(), key=lambda x: -x[1]):
             print("   %-8s %d" % (tipo, c))
-        # Sair 1 no estouro é o que faz um laço em shell parar sem ler o texto.
-        return 1 if conta["estado"] == "estourado" else 0
+        # Sair 1 é o que faz um laço em shell parar sem ler o texto — e `nao-sei`
+        # para junto: silêncio do provedor não é permissão para seguir gerando.
+        return 1 if conta["estado"] in ("estourado", "nao-sei") else 0
 
     if args.comando == "veto":
         if not args.o_que:
