@@ -108,7 +108,7 @@ const J = o => JSON.stringify(o, null, 1)
 // em args). Sem ela, a instrução é genérica e fail-open: régua ausente não é achado.
 const REGUA_DO_PROJETO = (ARGS.regua && ARGS.regua.length)
   ? `A RÉGUA DESTE PROJETO (o doc-load listou estes arquivos como lei — abra e leia cada um; não confie neste resumo):\n${ARGS.regua.map(r => `- ${r}`).join('\n')}\nDocumento minerado vale como MAPA, nunca como régua. Documento de acordo só vale com status: approved.`
-  : `A RÉGUA DO PROJETO: leia .claude/docs/constituicao.md e .claude/docs/quality-goals.md do repositório da missão QUANDO EXISTIREM — ausência não é achado, e sem esses arquivos o eixo de constituição simplesmente não roda.`
+  : `A RÉGUA DO PROJETO: a casca não a passou. RODE o doc-load na raiz da missão e julgue contra o que ele listar — não adivinhe nomes de arquivo, porque quem sabe o que vale como régua hoje é o programa. Ele não devolver nada é resposta válida: régua ausente não é achado, e o eixo simplesmente não roda.`
 
 // ── A MARCA DA LEI É COMANDO, NUNCA RECEITA EM PROSA (medido 2026-08-09) ──────
 // A instrução era "o cksum do corpo (sem frontmatter) dos arquivos concatenados",
