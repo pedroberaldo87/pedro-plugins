@@ -1086,6 +1086,54 @@ para trás"*, contra 3 achados antes]. **A metade fácil é a que se esquece**: 
 lembra porque o sintoma é visível (o processo trava esperando o terminal), enquanto `start_new_session=`
 só falha quando alguém aplica um teto — e aí o neto sobrevive em silêncio.
 
+### 2.11 Dado que vem de arquivo escrito à mão se valida na ENTRADA, nunca onde ele estoura
+
+Medido em cinco rodadas de revisão sobre o cobrador de gasto do `gauntlet` (2026-08-12). O
+teto de crédito é lido de `rito.json`, que uma pessoa escreve — então ele pode vir como
+texto, lista, número solto, ou não vir. O mesmo `TypeError` foi consertado **quatro vezes**,
+sempre no lugar onde ele tinha aparecido daquela vez:
+
+```
+1ª  na validação      → estourou depois na impressão do comando
+2ª  na impressão      → estourou depois em toda leitura do disco
+3ª  na leitura        → estourou antes dela, no primeiro `.get` de quem chamava
+4ª  na ENTRADA        → parou
+```
+
+O terceiro conserto foi o pior: `--abre` gravava um estado envenenado e, como reabrir é
+recusado por outra regra, **consertar o rito não destravava mais nada**. A quarta versão faz
+a abertura passar pela mesma validação do rito e não gravar quando recusa, e cada camada se
+defende de *não ser bloco* antes de perguntar chave a ela [confirmado — a suíte cobre teto
+como texto, como lista e como número, e o bloco `gasto` inteiro não sendo bloco].
+
+**Régua durável: remendo no ponto onde o erro aparece muda o ENDEREÇO do erro, não o erro.
+Dado de fora entra por uma porta só, e é nela que se valida — depois disso todo consumidor
+confia. E quando o programa recusa, ele não pode ter gravado nada: estado meio-escrito com
+recusa por cima é o que transforma um erro de digitação em beco sem saída.**
+
+### 2.12 Teste que passa pelo motivo errado é pior que teste ausente
+
+Da mesma revisão, e é o achado mais caro dela. Um caso novo afirmava *"com o teto estourado
+o comando sai 1"*, e passava — mas não pelo motivo escrito:
+
+```
+o comando refaz a leitura do provedor
+  → em máquina SEM o provedor (as três da esteira), o estado vira `nao-sei`
+  → `nao-sei` também sai 1
+  → o teste passa mesmo se o ramo do estouro for apagado
+  → e QUEBRA numa máquina onde o provedor responde com a conta cheia
+```
+
+Ele dava cobertura falsa nos três sistemas e era instável no quarto. O conserto tem duas
+partes, e a segunda é a que fecha: **substituir a fonte externa** (aqui, a função que lê o
+saldo) e **escrever o contraditório** — com folga o comando sai 0, então o 1 vem do estouro
+e não do acaso.
+
+**Régua durável: todo caso cujo resultado dependa de algo FORA do repositório precisa (a)
+substituir essa fonte e (b) provar o contrário também. Sem o contraditório, um verde
+constante e um verde correto são indistinguíveis — e o ambiente da esteira, onde a
+ferramenta externa nunca existe, é exatamente onde o falso verde se instala.**
+
 ---
 
 ## 3 · Vendoring de `_shared/` (o único "build")

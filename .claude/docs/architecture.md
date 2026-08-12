@@ -352,7 +352,7 @@ branches          1.3.11  [branches]                 HOOKS
 check-skills       0.7.2  [check-skills]             -
 context-guard     1.3.11  [context-guard]            HOOKS
 fallow             1.2.6  [fallow]                   -
-gauntlet          0.13.1  [gauntlet]                 HOOKS
+gauntlet          0.13.5  [gauntlet]                 HOOKS
 graphify-guard     1.2.8  []                         HOOKS
 grill-me           1.4.0  [grill-me]                 -
 guardrails         1.8.3  [guardrails]               HOOKS
@@ -684,6 +684,32 @@ Observações de arquitetura:
   **Régua durável: expressão calibrada para identificador reusada em texto livre erra dos
   dois lados — reprova o legítimo e deixa passar o que devia pegar. Reuso de padrão exige
   reconferir o VOCABULÁRIO do novo campo, não só o intuito.**
+  ⚠️ **Na v0.13.x o plugin ganhou o cobrador que faltava: o teto de crédito de IA
+  generativa, por TIPO.** A origem é uma perda medida na conta do dono (2026-08-11): uma
+  disputa com gerador no arsenal consumiu 1.183 créditos em dois dias, e a autópsia da
+  conta mostrou que 23 vídeos custaram 1.018 deles (86%) contra 165 de 30 imagens — um
+  vídeo custa o que quinze imagens, então teto único morre em três vídeos sem gerar
+  imagem nenhuma. Até ali a única proteção era uma frase no briefing pedindo economia, e
+  `fecho_check.py` não conhecia a palavra crédito: a mesma classe de furo que criou a
+  skill, com a lei da casa já escrita ao lado (**recurso novo entra com o programa que o
+  cobra**). O campo `gasto` do rito é exigido sempre que houver `arsenal`, e é essa recusa
+  que faz a pergunta ao dono acontecer em toda abertura em vez de depender da memória de
+  quem orquestra [confirmado — `python3 plugins/gauntlet/lib/test_fecho_check.py` →
+  *"tudo verde"*, com *"missão com arsenal e SEM teto de gasto não abre"*]. O consumido
+  sai da DIFERENÇA DE SALDO lida do provedor, nunca da soma das estimativas — a conta tem
+  estorno —, e a separação vídeo/imagem vem do catálogo da conta, que declara o tipo de
+  cada modelo com o mesmo nome que aparece nas transações. **Quem fala com a rede é só a
+  aferição**: o fecho e o mapa leem a última leitura gravada, porque conferidor que
+  depende de rede não é determinístico e esta suíte roda em três sistemas sem conta
+  autenticada em nenhum.
+  ⚠️ **Cinco rodadas de revisão sobre esse cobrador não convergiram, e o motivo é a régua
+  que fica.** As rodadas renderam 3 · 8 · 4 · 3 · 4 achados, sempre com pelo menos um
+  alto, e a maioria dos altos das três últimas foi **criada pelo conserto da rodada
+  anterior** — o gate de regressão não pegava nenhum, porque gate só cobre o que a suíte
+  já conhece e conserto novo nasce fora dela. O mesmo defeito de tipo foi consertado
+  quatro vezes (na validação, na impressão, na leitura do disco) antes de ser consertado
+  onde sempre esteve: **na entrada**. A suíte foi de 116 para 163 casos no processo
+  [confirmado — `grep -c '^  ok'` na saída da suíte].
   O do `guardrails` é o classificador LLM e existe pra **proteger** Agent Teams: ele nega
   sub-agente avulso **quando o prompt pede Agent Teams**, e libera explicitamente *"tarefa
   one-off sem team_name"*. O terceiro é o do `project-skills`
