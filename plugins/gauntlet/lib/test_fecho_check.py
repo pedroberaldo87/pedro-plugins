@@ -357,7 +357,65 @@ try:
           any("não é um número de créditos" in f for f in furos))
 except TypeError:
     check("teto em texto é recusado com mensagem, não com TypeError", False)
+
+# O conserto anterior tratou só a IMPRESSÃO, e o estouro mudou de lugar: `--abre`
+# gravava um gasto.json com teto em texto, e daí em diante toda leitura do disco
+# quebrava — sem saída, porque reabrir é recusado. A abertura passa pela mesma
+# validação do rito, e nada é gravado quando ela recusa.
+try:
+    fc.abre_gasto(m)
+    check("abrir com teto malformado é recusado ANTES de gravar", False)
+except ValueError as erro:
+    check("abrir com teto malformado é recusado ANTES de gravar",
+          "não é um número" in str(erro))
+check("e o disco fica limpo — dá para consertar o rito e abrir de novo",
+      not os.path.isfile(os.path.join(m, "gasto.json")))
+
+# Defesa em profundidade: mesmo com um gasto.json escrito à mão, ler o disco não
+# pode estourar. Teto que não é número conta como ausente, nunca como zero mudo.
+escreve(os.path.join(m, "gasto.json"), {
+    "modo": "real", "provedores": ["h"], "teto": {"imagem": "120", "video": 90},
+    "saldo_inicial": 100, "marco": "z", "tipos": {}, "leituras": [90]})
+try:
+    check("ler um gasto.json com teto em texto não estoura",
+          fc.conta_do_disco(m)["teto_total"] == 90)
+    check("e o mapa também não", "O que a geração custou" in fc.desenha_mapa(m))
+except TypeError:
+    check("ler um gasto.json com teto em texto não estoura", False)
 shutil.rmtree(d)
+
+print()
+print("O SILÊNCIO NÃO É PERMISSÃO — nem no texto, nem no código de saída")
+d = tmp()
+m = monta_missao(d)
+escreve(os.path.join(m, "gasto.json"), {
+    "modo": "real", "provedores": ["h"], "teto": {"imagem": 60, "video": 40},
+    "saldo_inicial": 200, "marco": "z", "tipos": {}, "leituras": [],
+})
+fc.afere_gasto(m, saldo_agora=90)                     # estourou: 110 de 100
+check("com o teto estourado o comando sai 1, para o laço parar",
+      fc.main(["gasto", m]) == 1)
+# A leitura muda responde `nao-sei`. Se ela saísse 0, a resposta honesta chegaria
+# por um canal que se lê como "pode seguir" — e um laço em shell continuaria.
+escreve(os.path.join(m, "gasto.json"), {
+    "modo": "real", "provedores": ["h"], "teto": {"imagem": 60, "video": 40},
+    "saldo_inicial": None, "marco": "z", "tipos": {}, "leituras": [],
+})
+check("e `nao-sei` também sai 1 — silêncio do provedor não libera nada",
+      fc.main(["gasto", m]) == 1)
+shutil.rmtree(d)
+
+print()
+print("O GUARDA DE AMBIGUIDADE FICA NA MESMA LINHA")
+# Ele usava `\\s`, que atravessa a quebra de linha: uma saída futura terminando em
+# dígito antes da linha do saldo emudeceria a leitura inteira — e `saldo_inicial`
+# nasceria None, deixando a missão em `nao-sei` até o fim.
+check("dígito na linha ANTERIOR não emudece a leitura",
+      fc.saldo_no_texto("resets in 3\n1234 credits") == 1234.0)
+check("mas o espaço DENTRO do número continua ambíguo",
+      fc.saldo_no_texto("tier 2 1500 credits") is None)
+check("e a saída real de hoje segue lendo certo",
+      fc.saldo_no_texto("tools@x — plus plan, 96.5 credits\n") == 96.5)
 
 print()
 print("O TETO ZERO — a proteção que nascia desligada, e era o DEFAULT do comando")
