@@ -932,7 +932,8 @@ morre  ⇔  tem foto de CPU do turno anterior           (senão: primeiro turno,
   pode ter dado o número dele a outro programa. `colhe` relê e só sinaliza se o comando bater.
 
 ```bash
-python3 plugins/lixeiro/lib/test_lixeiro.py        # 128 casos, 11 travas com teste de mutação
+python3 plugins/lixeiro/lib/test_lixeiro.py        # a suíte do motor (a contagem sai dela)
+python3 plugins/lixeiro/lib/test_mutacao.py        # desliga cada trava e exige que a suíte acuse
 bash  plugins/lixeiro/hooks/test_lixeiro_hooks.sh  # dois turnos reais: a que trabalha vive
 ```
 

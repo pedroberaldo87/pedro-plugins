@@ -747,7 +747,9 @@ def colhe(session_id, modo, dry_run=False):
     # mais, porque a medição ao vivo dorme no meio. Se o alvo morrer sozinho nesse
     # intervalo, o sistema pode ter dado o número dele a OUTRO processo, e o sinal
     # iria para um inocente. A releitura confirma que o pid ainda é quem era.
-    agora_cmd = {} if dry_run else {p["pid"]: p["cmd"] for p in processos()}
+    # Sem alvo não há sinal a conferir — e este caminho roda a CADA fim de turno,
+    # então a releitura só acontece quando vai haver disparo.
+    agora_cmd = {} if (dry_run or not alvos) else {p["pid"]: p["cmd"] for p in processos()}
     mortos = []
     for anot, p, motivo in alvos:
         if dry_run:

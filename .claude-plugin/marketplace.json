@@ -221,7 +221,7 @@
       "source": "./plugins/lixeiro",
       "description": "Encerra os processos que a sessão abriu e esqueceu — servidor de desenvolvimento, suíte pendurada, compilação em modo observador. O critério é procedência, nunca nome de programa: um hook anota na origem o que abriu processo, e só o que foi anotado pode ser encerrado. Ao fim de cada turno morre só o que não gastou CPU nenhuma desde o turno anterior, suíte ou servidor — o que está trabalhando sobrevive, inclusive a suíte lançada em segundo plano. Ao fim da sessão morre tudo que ela abriu e não estiver gastando CPU naquele instante, e na abertura seguinte o que sessões mortas deixaram de pé; /clear e resume não contam como fim. Máquina virtual, serviço de contêiner e os serviços do próprio programa nunca recebem sinal, só aparecem no relatório. Traz também /faxina, o irmão manual, que mostra tudo que está de pé e encerra só o que você marcar.",
       "category": "dev-tools",
-      "version": "1.4.0",
+      "version": "1.4.1",
       "tags": [
         "processos",
         "memoria",
