@@ -84,11 +84,22 @@ via das dúvidas"* — resposta de missão anterior, no mesmo projeto, NÃO vale
 2. **Quais provedores** valem nesta disputa. Lista vazia é resposta ("nenhum"); campo
    ausente é silêncio, e o programa recusa a abertura.
 
+As duas respostas dele entram no **rito**, em `gasto` — e é de lá que o `--abre` tira o
+teto, sem número digitado de novo: o briefing do construtor interpola esse mesmo campo, e
+teto digitado à parte fazia o construtor ler um número e o programa cobrar outro.
+
+```json
+"gasto": {"modo": "real", "provedores": ["higgsfield"],
+          "teto": {"imagem": 120, "video": 90}}
+```
+
 ```bash
-python3 "${CLAUDE_PLUGIN_ROOT}/lib/fecho_check.py" gasto "<a missão>" --abre \
-  --teto-imagem 120 --teto-video 90 --provedores higgsfield     # ou --ensaio
+python3 "${CLAUDE_PLUGIN_ROOT}/lib/fecho_check.py" gasto "<a missão>" --abre
 python3 "${CLAUDE_PLUGIN_ROOT}/lib/fecho_check.py" gasto "<a missão>"   # afere; sai 1 no estouro
 ```
+
+Abrir duas vezes é recusado: reabrir apaga o consumido e faz o teto recomeçar do zero com
+o dinheiro já gasto. Recomeçar de propósito é `--reabre`, dito em voz alta.
 
 O `--abre` lê o saldo do provedor e o congela; a aferição de cada rodada lê de novo, e
 **o consumido é a diferença de saldo, nunca a soma das estimativas** — a conta tem

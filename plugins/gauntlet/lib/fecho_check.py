@@ -119,13 +119,18 @@ def saldo_no_texto(saida):
     """
     if not saida:
         return None
-    # O espaço também é separador de milhar (`1 234,5`), e ignorá-lo era pior que
-    # falhar: a expressão casava só o `234,5` e devolvia um saldo plausível e
-    # ERRADO, que virava consumido inventado. Número ilegível tem que dar None.
-    m = re.search(r"(\d[\d  .,]*\d|\d)\s+credits", saida)
+    # ⚠️ ACEITAR ESPAÇO DENTRO DO NÚMERO foi conserto que virou defeito pior: a
+    # expressão passou a atravessar o número ANTERIOR da linha, e a linha
+    # "Plan Pro 2.0, 1234 credits" devolvia 20.1234 — plausível e errado, que é o
+    # único resultado que esta função não pode produzir. O espaço saiu, e o caso
+    # que ele atendia (milhar à francesa) passa a ser recusado em voz alta: número
+    # com espaço no meio é ambíguo, e ambíguo vira None, nunca um palpite.
+    if re.search(r"\d[\s\xa0]+[\d.,]*\d\s+credits", saida):
+        return None
+    m = re.search(r"(\d[\d.,]*)\s+credits", saida)
     if not m:
         return None
-    bruto = m.group(1).replace(" ", "").replace(" ", "")
+    bruto = m.group(1)
 
     # Qual símbolo é a vírgula decimal muda com a locale: `1,234.5` é inglês e
     # `1.234,5` é português. O ÚLTIMO separador é o decimal; os anteriores são de
@@ -334,13 +339,17 @@ def afere_gasto(missao, saldo_agora=PERGUNTE_AO_PROVEDOR):
     # que decide se a torneira já fechou. Sem isso, cruzar o teto exatamente na
     # rodada em que o provedor não respondeu deixava `desligado_em` sem gravar, e
     # daí em diante nenhuma geração posterior era detectável.
+    # O que o DISCO sabe decide se a torneira já fechou — mesmo com o provedor
+    # mudo, uma medição anterior pode já ter cruzado o teto, e perder isso tornava
+    # indetectável toda geração seguinte. Mas o que VOLTA para quem chamou é o
+    # veredito desta leitura: devolver o estado velho rotulado como atual faria a
+    # aferição imprimir "verde" depois de uma falha de rede, e quem lesse seguiria
+    # gerando. "Não sei" é a resposta honesta, e nunca vira permissão.
+    do_disco = _veredito_do_gasto(estado, (estado.get("leituras") or [None])[-1],
+                                  estado.get("por_tipo") or {})
+    if do_disco["estado"] == "estourado" and "desligado_em" not in estado:
+        estado["desligado_em"] = do_disco["consumido"]
     veredito = _veredito_do_gasto(estado, saldo_agora, por_tipo)
-    if veredito["estado"] == "nao-sei":
-        veredito = _veredito_do_gasto(
-            estado, (estado.get("leituras") or [None])[-1],
-            estado.get("por_tipo") or {})
-    if veredito["estado"] == "estourado" and "desligado_em" not in estado:
-        estado["desligado_em"] = veredito["consumido"]
     with open(os.path.join(missao, "gasto.json"), "w", encoding="utf-8") as fh:
         json.dump(estado, fh, ensure_ascii=False, indent=1)
     return veredito
@@ -385,10 +394,16 @@ def erros_do_gasto(rito):
             erros.append("o `gasto` real não declara `teto` — são DOIS números, "
                          "`imagem` e `video`, porque um vídeo custa o que 15 imagens")
         else:
-            for tipo in ("imagem", "video"):
-                v = teto.get(tipo)
-                if not isinstance(v, (int, float)) or v < 0:
-                    erros.append("o teto de `%s` não é um número de créditos" % tipo)
+            # Teto malformado sai AQUI. Somar um teto que é texto estourava
+            # TypeError e subia como traceback pelo `erros_do_rito` — justamente
+            # no caminho que existe para devolver a lista de furos em português.
+            mal = [t for t in ("imagem", "video")
+                   if not isinstance(teto.get(t), (int, float))
+                   or isinstance(teto.get(t), bool) or teto.get(t) < 0]
+            for tipo in mal:
+                erros.append("o teto de `%s` não é um número de créditos" % tipo)
+            if mal:
+                return erros
             # Teto zero em modo real é a proteção DESLIGADA de propósito, e era o
             # default do comando: `--abre --provedores x` sem os dois números abria
             # missão que nunca estoura, nunca desliga e nunca é recusada. Quem não
@@ -1235,12 +1250,19 @@ def main(argv=None):
             print("gasto aberto — modo %s · provedores: %s" %
                   (e["modo"], ", ".join(e["provedores"]) or "nenhum"))
             if e["modo"] == "real":
-                print("   teto: %g imagem + %g vídeo = %g créditos"
-                      % (teto["imagem"], teto["video"],
-                         teto["imagem"] + teto["video"]))
-                if teto["imagem"] + teto["video"] <= 0:
-                    print("   ⚠️  teto ZERO é a proteção desligada — declare o teto no "
-                          "rito (`gasto.teto`) ou abra com `--ensaio`")
+                # O teto pode vir de um rito escrito à mão, então pode não ser
+                # número: imprimir o que veio é melhor que estourar aqui.
+                nums = [teto.get(t) for t in ("imagem", "video")]
+                if all(isinstance(v, (int, float)) and not isinstance(v, bool)
+                       for v in nums):
+                    print("   teto: %g imagem + %g vídeo = %g créditos"
+                          % (nums[0], nums[1], nums[0] + nums[1]))
+                    if nums[0] + nums[1] <= 0:
+                        print("   ⚠️  teto ZERO é a proteção desligada — declare o teto "
+                              "no rito (`gasto.teto`) ou abra com `--ensaio`")
+                else:
+                    print("   ⚠️  o teto do rito não é numérico: %r imagem · %r vídeo"
+                          % (nums[0], nums[1]))
                 print("   saldo de partida: %s" % (
                     e["saldo_inicial"] if e["saldo_inicial"] is not None
                     else "não pôde ser lido — a aferição vai dizer `nao-sei`"))

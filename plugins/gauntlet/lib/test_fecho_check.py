@@ -257,16 +257,19 @@ for texto, esperado in [
 ]:
     check("saldo em %r lê %s" % (texto.split("plan,")[-1].strip(), esperado),
           fc.saldo_no_texto(texto) == esperado)
-for texto, esperado in [
-    ("x — plus plan, 1.234.567 credits", 1234567.0),  # milhar com ponto
-    ("x — plus plan, 1 234,5 credits", 1234.5),       # milhar com espaço
-    ("x — plus plan, 1 234.5 credits", 1234.5),
-]:
-    # O espaço era o caso perigoso: a expressão antiga casava só o `234,5` e
-    # devolvia um saldo plausível e ERRADO, que virava consumido inventado.
-    # Ilegível tem que dar None; o que é legível tem que dar o número certo.
-    check("milhar em %r lê %s" % (texto.split("plan,")[-1].strip(), esperado),
-          fc.saldo_no_texto(texto) == esperado)
+check("milhar com ponto lê certo",
+      fc.saldo_no_texto("x — plus plan, 1.234.567 credits") == 1234567.0)
+
+# A LINHA TEM OUTROS NÚMEROS ANTES DO SALDO, e o parser não pode atravessá-los.
+# Aceitar espaço dentro do número (conserto de uma rodada anterior) fez exatamente
+# isso: "Plan Pro 2.0, 1234 credits" virava 20.1234 — plausível e ERRADO, que é o
+# único resultado proibido aqui. Número com espaço no meio é ambíguo: vira None.
+check("número anterior na linha não é colado no saldo",
+      fc.saldo_no_texto("Plan Pro 2.0, 1234 credits") == 1234.0)
+for texto in ("higgsfield v1.2  1234 credits", "tier 2 1500 credits",
+              "x — plus plan, 1 234,5 credits"):
+    check("saldo ambíguo em %r vira None, nunca um palpite" % texto[:26],
+          fc.saldo_no_texto(texto) is None)
 for texto in ("sem saldo nenhum aqui", "", None):
     check("saldo ilegível (%r) devolve None, e nunca zero" % (texto or ""),
           fc.saldo_no_texto(texto) is None)
@@ -327,12 +330,33 @@ check("gerar DEPOIS do desligamento é falta, e o fecho a nomeia",
 # UMA LEITURA MUDA NÃO APAGA MEDIÇÃO BOA. O provedor sem rede devolvia {} e None,
 # e como a conta do disco lê a ÚLTIMA leitura, o estouro já registrado sumia — uma
 # falha de rede na rodada do fecho bastava para a missão fechar limpa.
-fc.afere_gasto(m, saldo_agora=None)
+mudo = fc.afere_gasto(m, saldo_agora=None)
 conta = fc.conta_do_disco(m)
 check("provedor mudo NÃO apaga o estouro já medido",
       conta["gerou_depois_do_desligamento"] and conta["desligado_em"] == 90)
 check("e o fecho continua recusando depois da leitura muda",
       any("DEPOIS do desligamento" in f for f in fc.erros_do_fecho(m)))
+# ...mas o que VOLTA de uma leitura muda é `nao-sei`, nunca o verde velho com cara
+# de atual: quem lesse "verde" depois de uma falha de rede seguiria gerando.
+check("a leitura muda responde `nao-sei` a quem perguntou",
+      mudo["estado"] == "nao-sei")
+shutil.rmtree(d)
+
+print()
+print("RITO MALFORMADO — recusa em português, nunca estouro de programa")
+d = tmp()
+m = monta_missao(d)
+rito = json.load(open(os.path.join(m, "rito.json"), encoding="utf-8"))
+rito["arsenal"] = ["## website\n- gerador"]
+rito["gasto"] = {"modo": "real", "provedores": ["h"],
+                 "teto": {"imagem": "120", "video": 90}}   # teto como TEXTO
+escreve(os.path.join(m, "rito.json"), rito)
+try:
+    furos = fc.erros_do_rito(m)
+    check("teto em texto é recusado com mensagem, não com TypeError",
+          any("não é um número de créditos" in f for f in furos))
+except TypeError:
+    check("teto em texto é recusado com mensagem, não com TypeError", False)
 shutil.rmtree(d)
 
 print()
