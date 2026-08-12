@@ -74,6 +74,30 @@ especificação medida, que desde a 0.10.0 só julga se o dono forneceu `metrica
 régua de sempre, e ela não muda por vir de ferramenta: nível e vibe se transportam, forma
 não. Cópia só com ordem explícita do dono, escrita no rito.
 
+**Gasto — DUAS perguntas ao dono, em TODA abertura, sem herdar resposta.** Aconteceu
+(2026-08-11): uma disputa com gerador no arsenal queimou 1.183 créditos em dois dias e
+derreteu a assinatura dele. *"Toda vez que iniciar um gauntlet, perguntar de novo, por
+via das dúvidas"* — resposta de missão anterior, no mesmo projeto, NÃO vale.
+
+1. **Quanto pode gastar** — dois números, não um: `imagem` e `video` separados. Um vídeo
+   custa o que quinze imagens, então teto único morre em três vídeos sem gerar imagem.
+2. **Quais provedores** valem nesta disputa. Lista vazia é resposta ("nenhum"); campo
+   ausente é silêncio, e o programa recusa a abertura.
+
+```bash
+python3 "${CLAUDE_PLUGIN_ROOT}/lib/fecho_check.py" gasto "<a missão>" --abre \
+  --teto-imagem 120 --teto-video 90 --provedores higgsfield     # ou --ensaio
+python3 "${CLAUDE_PLUGIN_ROOT}/lib/fecho_check.py" gasto "<a missão>"   # afere; sai 1 no estouro
+```
+
+O `--abre` lê o saldo do provedor e o congela; a aferição de cada rodada lê de novo, e
+**o consumido é a diferença de saldo, nunca a soma das estimativas** — a conta tem
+estorno. Rode a aferição a cada rodada: ela avisa na metade e em 80%, e o mapa passa a
+mostrar o custo por tipo. **Teto atingido DESLIGA a geração e a disputa continua** com
+espaço reservado no lugar do asset — nunca para a missão. `--ensaio` roda tudo sem gerar
+nada, e é o que se usa para ver composição antes de gastar. O campo `gasto` é exigido no
+rito sempre que houver `arsenal`: é assim que a pergunta deixa de depender da sua memória.
+
 **Diretor criativo** — missão estética: ofereça por `AskUserQuestion` ANTES de qualquer
 despacho e espere. `criativo: true/false` no rito decide dali em diante; `false` vale a
 missão inteira. O papel é de nascença ou não é.

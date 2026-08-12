@@ -27,6 +27,7 @@ import hashlib
 import json
 import os
 import re
+import subprocess
 import sys
 
 # O rito da abertura, ENXUTO por decisão do dono (2026-08-09): a versão de 9 campos
@@ -68,6 +69,222 @@ STATUS = ("aprovado", "reprovado", "marginal")
 MEDIDA_NO_NOME = re.compile(
     r"\d+([.,]\d+)?(\s*(%|px|ms|fps|rem|vh|vw|kB|KB|MB|GB|min)\b|(em|s)\b)"
 )
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# gasto — o teto de crédito de IA generativa, e quem o cobra
+# ─────────────────────────────────────────────────────────────────────────────
+# Nasceu de uma perda medida (2026-08-11): uma disputa com geração de imagem e
+# vídeo no arsenal consumiu 1.183 créditos em dois dias e derreteu a assinatura
+# do dono — 962 → 96,5. A autópsia da conta mostrou ONDE: 23 vídeos custaram
+# 1.018 créditos (86%) contra 165 de 30 imagens, porque um vídeo custa o mesmo
+# que 15 imagens. Daí o teto ser POR TIPO, e não um número só: um teto único de
+# 150 créditos morre em três vídeos sem gerar imagem nenhuma.
+#
+# A trava anterior era uma frase no briefing ("custo é real, estime antes"), e
+# este arquivo não conhecia a palavra crédito. É a mesma classe de furo que criou
+# a skill — regra escrita em prosa, cobrada por ninguém —, e a lei da casa já
+# dizia o conserto: recurso novo entra com o programa que o cobra junto.
+MODOS_DE_GASTO = ("real", "ensaio")
+
+
+def _higgsfield(args):
+    """Roda o CLI do provedor e devolve o stdout, ou None. Fail-open por lei.
+
+    Provedor ausente, sem rede ou não autenticado NÃO é erro do gauntlet: é
+    "não sei", e "não sei" nunca vira zero (patterns.md §2.2). O disparo fecha a
+    entrada e nasce em grupo próprio — a régua de processo do repositório.
+    """
+    try:
+        r = subprocess.run(["higgsfield"] + list(args), capture_output=True,
+                           text=True, encoding="utf-8", timeout=30,
+                           stdin=subprocess.DEVNULL, start_new_session=True)
+    except (OSError, subprocess.SubprocessError):
+        return None
+    return r.stdout if r.returncode == 0 else None
+
+
+def saldo_do_provedor():
+    """O saldo de crédito de hoje, ou None quando não dá para saber."""
+    saida = _higgsfield(["account", "status"])
+    if not saida:
+        return None
+    m = re.search(r"([\d.,]+)\s+credits", saida)
+    if not m:
+        return None
+    try:
+        return float(m.group(1).replace(",", "."))
+    except ValueError:
+        return None
+
+
+def tipos_do_provedor():
+    """Mapa nome-do-modelo → tipo (image/video/…), lido do catálogo da conta.
+
+    É o que separa vídeo de imagem sem tabela chutada: o catálogo declara o tipo,
+    e o nome que ele usa é o MESMO que aparece na lista de transações.
+    """
+    saida = _higgsfield(["model", "list", "--json"])
+    if not saida:
+        return {}
+    try:
+        dado = json.loads(saida)
+    except ValueError:
+        return {}
+    itens = dado if isinstance(dado, list) else (dado.get("items") or [])
+    fora = {}
+    for m in itens:
+        if isinstance(m, dict) and m.get("display_name"):
+            fora[m["display_name"]] = m.get("type") or "?"
+    return fora
+
+
+def _transacoes(depois_de=""):
+    """As cobranças da conta posteriores ao marco. Lista vazia = não sei ou nada."""
+    saida = _higgsfield(["account", "transactions", "--size", "100", "--json"])
+    if not saida:
+        return []
+    try:
+        itens = json.loads(saida).get("items") or []
+    except (ValueError, AttributeError):
+        return []
+    return [t for t in itens
+            if isinstance(t, dict) and str(t.get("created_at", "")) > depois_de]
+
+
+def abre_gasto(missao, teto_imagem, teto_video, provedores, modo="real"):
+    """Grava o estado de gasto da missão e devolve o que ficou registrado.
+
+    O saldo é lido AQUI, uma vez, e é dele que sai toda medição posterior: o
+    consumido é `saldo_inicial - saldo_de_agora`, nunca a soma das estimativas.
+    A conta tem estorno (geração falhada devolve crédito), então somar o que cada
+    geração deveria custar erra para os dois lados.
+    """
+    tx = _transacoes()
+    estado = {
+        "modo": modo,
+        "provedores": list(provedores),
+        "teto": {"imagem": teto_imagem, "video": teto_video},
+        "saldo_inicial": saldo_do_provedor(),
+        "marco": max([str(t.get("created_at", "")) for t in tx] or [""]),
+        "tipos": tipos_do_provedor(),
+        "leituras": [],
+    }
+    with open(os.path.join(missao, "gasto.json"), "w", encoding="utf-8") as fh:
+        json.dump(estado, fh, ensure_ascii=False, indent=1)
+    return estado
+
+
+def _veredito_do_gasto(estado, saldo_agora, por_tipo):
+    """O cálculo puro: saldo + teto viram um rótulo. Sem disco, sem rede."""
+    if estado.get("modo") == "ensaio":
+        return {"modo": "ensaio", "consumido": 0, "por_tipo": {}, "teto_total": 0,
+                "teto": {}, "estado": "ensaio", "restante": 0,
+                "provedores": estado.get("provedores") or []}
+
+    teto = estado.get("teto") or {}
+    teto_total = (teto.get("imagem") or 0) + (teto.get("video") or 0)
+    inicial = estado.get("saldo_inicial")
+
+    if inicial is None or saldo_agora is None:
+        consumido, rotulo = sum(por_tipo.values()), "nao-sei"
+    else:
+        consumido = max(0, inicial - saldo_agora)
+        if teto_total <= 0:
+            rotulo = "sem-teto"
+        elif consumido >= teto_total:
+            rotulo = "estourado"
+        elif consumido >= 0.8 * teto_total:
+            rotulo = "reta-final"
+        elif consumido >= 0.5 * teto_total:
+            rotulo = "metade"
+        else:
+            rotulo = "verde"
+
+    return {"modo": estado.get("modo"), "consumido": consumido, "por_tipo": por_tipo,
+            "teto_total": teto_total, "teto": teto, "estado": rotulo,
+            "restante": max(0, teto_total - consumido) if teto_total else 0,
+            "provedores": estado.get("provedores") or []}
+
+
+def afere_gasto(missao, saldo_agora=None):
+    """Fala com o provedor, grava a leitura e devolve o veredito.
+
+    É o ÚNICO ponto que sai para a rede, e é por isso que ele existe separado do
+    fecho: conferidor que depende de rede não é determinístico, e a suíte deste
+    repositório roda em três sistemas sem conta autenticada em nenhum deles.
+    Devolve None quando a missão não declarou gasto.
+    """
+    estado, erro = _le(os.path.join(missao, "gasto.json"))
+    if erro or not isinstance(estado, dict):
+        return None
+    if estado.get("modo") == "ensaio":
+        return _veredito_do_gasto(estado, None, {})
+
+    if saldo_agora is None:
+        saldo_agora = saldo_do_provedor()
+
+    por_tipo = {}
+    for t in _transacoes(estado.get("marco") or ""):
+        if t.get("action") != "spend" or (t.get("credits") or 0) >= 0:
+            continue
+        tipo = (estado.get("tipos") or {}).get(t.get("display_name"), "outro")
+        por_tipo[tipo] = por_tipo.get(tipo, 0) + abs(t["credits"])
+
+    # A leitura fica GRAVADA: é dela que o fecho e o mapa tiram a conta depois,
+    # sem tocar a rede. Sem isto, o veredito da missão mudaria conforme a conta
+    # do provedor respondesse ou não no instante do fecho.
+    estado["por_tipo"] = por_tipo
+    estado.setdefault("leituras", []).append(saldo_agora)
+    with open(os.path.join(missao, "gasto.json"), "w", encoding="utf-8") as fh:
+        json.dump(estado, fh, ensure_ascii=False, indent=1)
+    return _veredito_do_gasto(estado, saldo_agora, por_tipo)
+
+
+def conta_do_disco(missao):
+    """O mesmo veredito, calculado só com o que já está gravado. Nunca sai à rede.
+
+    Usa a última leitura de saldo que a aferição registrou. Missão que nunca
+    aferiu devolve `nao-sei` — o que é honesto: ninguém mediu.
+    """
+    estado, erro = _le(os.path.join(missao, "gasto.json"))
+    if erro or not isinstance(estado, dict):
+        return None
+    leituras = estado.get("leituras") or []
+    return _veredito_do_gasto(estado, leituras[-1] if leituras else None,
+                              estado.get("por_tipo") or {})
+
+
+def erros_do_gasto(rito):
+    """Os furos do campo `gasto` do rito. Vazio = pode abrir.
+
+    O campo é obrigatório quando há `arsenal`, e essa é a única forma de o
+    programa cobrar a pergunta que o dono mandou fazer SEMPRE: sem o campo, a
+    disputa com recurso de primeira classe não abre.
+    """
+    erros = []
+    gasto = rito.get("gasto")
+    if not rito.get("arsenal"):
+        return erros
+    if not isinstance(gasto, dict):
+        return ["a missão tem arsenal e o rito não declara `gasto` — pergunte ao dono "
+                "o teto de crédito e os provedores ANTES de despachar, toda vez"]
+    if gasto.get("modo") not in MODOS_DE_GASTO:
+        erros.append("o `gasto` não diz o modo: %s" % " ou ".join(MODOS_DE_GASTO))
+    if "provedores" not in gasto or not isinstance(gasto.get("provedores"), list):
+        erros.append("o `gasto` não lista `provedores` — lista vazia é resposta "
+                     "(\"nenhum\"), campo ausente é silêncio")
+    if gasto.get("modo") == "real" and gasto.get("provedores"):
+        teto = gasto.get("teto")
+        if not isinstance(teto, dict):
+            erros.append("o `gasto` real não declara `teto` — são DOIS números, "
+                         "`imagem` e `video`, porque um vídeo custa o que 15 imagens")
+        else:
+            for tipo in ("imagem", "video"):
+                v = teto.get(tipo)
+                if not isinstance(v, (int, float)) or v < 0:
+                    erros.append("o teto de `%s` não é um número de créditos" % tipo)
+    return erros
 
 
 def _le(caminho):
@@ -267,6 +484,11 @@ def erros_do_rito(missao, sinal=None):
                 erros.append("a sonda rodou e não produziu registro: %s está vazio" % prova)
     else:
         erros.append("a sonda tem que ser um bloco com preparar, registrar e alvo")
+
+    # O teto de crédito é cobrado como qualquer outro recurso: sem ele declarado,
+    # a disputa com arsenal não abre. É assim que a pergunta ao dono deixa de
+    # depender de quem orquestra lembrar de fazê-la.
+    erros.extend(erros_do_gasto(rito))
 
     eixos = rito.get("eixos") or []
     if isinstance(eixos, list):
@@ -671,6 +893,17 @@ def erros_do_fecho(missao):
                     "o diretor olhou uma versão superada de `%s`" % peca_nome
                 )
 
+    # O teto de crédito estourado não é opinião: o dono decidiu que atingi-lo
+    # DESLIGA a geração e a disputa continua, então gasto acima do teto quer dizer
+    # que alguém gerou depois do desligamento. Aqui isso deixa de ser invisível.
+    conta = conta_do_disco(missao)
+    if conta and conta.get("estado") == "estourado":
+        erros.append(
+            "a geração passou do teto: %d créditos consumidos contra %d combinados "
+            "com o dono — alguém gerou depois do desligamento" %
+            (conta["consumido"], conta["teto_total"])
+        )
+
     # Veto do dono depois de uma aprovação que ele toca: ou tem julgamento novo, ou a
     # peça consta reaberta. É o que impede o aprovado de evaporar em silêncio.
     for veto in _linhas(os.path.join(missao, "vetos.jsonl")):
@@ -726,6 +959,27 @@ def desenha_mapa(missao):
                 estado = "reprovada"
                 gap = "%s — %s" % (ver.get("eixo", "?"), ver.get("gap", "?"))
             linhas.append("| %s | %d | %s | %s |" % (nome, len(rodadas), estado, gap))
+        linhas.append("")
+
+    # O custo sai no relato de toda rodada, não só no fim. Medido: sem esta seção
+    # o dono só descobriu o tamanho do gasto quando a assinatura já tinha derretido.
+    conta = conta_do_disco(missao)
+    if conta:
+        linhas.append("## O que a geração custou")
+        if conta["estado"] == "ensaio":
+            linhas.append("Modo ensaio: nada foi gerado, custo zero.")
+        else:
+            linhas.append("**%d de %d créditos** — %s" % (
+                conta["consumido"], conta["teto_total"], {
+                    "verde": "dentro do combinado",
+                    "metade": "⚠️ metade do teto",
+                    "reta-final": "⚠️ 80% do teto — a geração está perto de desligar",
+                    "estourado": "⛔ teto estourado — a geração devia estar desligada",
+                    "sem-teto": "sem teto declarado",
+                    "nao-sei": "o saldo do provedor não pôde ser lido",
+                }[conta["estado"]]))
+            for tipo, c in sorted(conta["por_tipo"].items(), key=lambda x: -x[1]):
+                linhas.append("- %s: %d créditos" % (tipo, c))
         linhas.append("")
 
     vetos = _linhas(os.path.join(missao, "vetos.jsonl"))
@@ -819,11 +1073,17 @@ def grava_veto(missao, o_que, pecas):
 
 def main(argv=None):
     p = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    p.add_argument("comando", choices=("rito", "fecho", "mapa", "veto", "pendentes", "encerra"))
+    p.add_argument("comando", choices=("rito", "fecho", "mapa", "veto", "pendentes",
+                                       "encerra", "gasto"))
     p.add_argument("missao", help="o diretório da missão em .claude/gauntlet/")
     p.add_argument("--o-que", help="o texto do veto, para o comando `veto`")
     p.add_argument("--pecas", help="as peças que o veto toca, separadas por vírgula")
     p.add_argument("--sinal", help="o arquivo que marca uma missão de pé, para o `rito`")
+    p.add_argument("--abre", action="store_true", help="gasto: registra o teto e lê o saldo")
+    p.add_argument("--teto-imagem", type=float, default=0, help="gasto: créditos de imagem")
+    p.add_argument("--teto-video", type=float, default=0, help="gasto: créditos de vídeo")
+    p.add_argument("--provedores", default="", help="gasto: os provedores, por vírgula")
+    p.add_argument("--ensaio", action="store_true", help="gasto: não gera nada, custo zero")
     args = p.parse_args(argv)
 
     # ENCERRAR NÃO É APROVAR. Vem ANTES de tudo e não julga nada: a disputa parada
@@ -838,6 +1098,37 @@ def main(argv=None):
         print("missão encerrada na barra. O veredito do fecho NÃO foi dado — "
               "encerrar não é aprovar.")
         return 0
+
+    # O gasto é lido e aferido por ESTE programa, não relatado por quem orquestra:
+    # a única medida que não discute é o saldo do provedor, antes e depois.
+    if args.comando == "gasto":
+        if args.abre:
+            provedores = [x.strip() for x in args.provedores.split(",") if x.strip()]
+            e = abre_gasto(args.missao, args.teto_imagem, args.teto_video, provedores,
+                           "ensaio" if args.ensaio else "real")
+            print("gasto aberto — modo %s · provedores: %s" %
+                  (e["modo"], ", ".join(e["provedores"]) or "nenhum"))
+            if e["modo"] == "real":
+                print("   teto: %g imagem + %g vídeo = %g créditos"
+                      % (args.teto_imagem, args.teto_video,
+                         args.teto_imagem + args.teto_video))
+                print("   saldo de partida: %s" % (
+                    e["saldo_inicial"] if e["saldo_inicial"] is not None
+                    else "não pôde ser lido — a aferição vai dizer `nao-sei`"))
+            return 0
+        conta = afere_gasto(args.missao)
+        if conta is None:
+            print("⛔ esta missão não declarou gasto — rode `gasto <missao> --abre`")
+            return 2
+        if conta["estado"] == "ensaio":
+            print("ensaio: nada gerado, custo zero.")
+            return 0
+        print("%d de %g créditos consumidos · %s"
+              % (conta["consumido"], conta["teto_total"], conta["estado"]))
+        for tipo, c in sorted(conta["por_tipo"].items(), key=lambda x: -x[1]):
+            print("   %-8s %d" % (tipo, c))
+        # Sair 1 no estouro é o que faz um laço em shell parar sem ler o texto.
+        return 1 if conta["estado"] == "estourado" else 0
 
     if args.comando == "veto":
         if not args.o_que:
