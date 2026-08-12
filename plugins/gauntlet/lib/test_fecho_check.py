@@ -199,6 +199,104 @@ check("julgamento por tempo em minutos é pego igual",
 shutil.rmtree(d)
 
 print()
+print("O TETO DE CRÉDITO — a assinatura que derreteu numa noite (2026-08-11)")
+# Medido na conta do dono: 1.183 créditos em dois dias, 86% deles em vídeo, e a
+# única proteção era uma frase no briefing. O programa não conhecia a palavra
+# crédito — este bloco é o cobrador que faltava.
+d = tmp()
+m = monta_missao(d)
+rito = json.load(open(os.path.join(m, "rito.json"), encoding="utf-8"))
+rito["arsenal"] = ["## website\n- gerador de imagem"]
+escreve(os.path.join(m, "rito.json"), rito)
+furos = fc.erros_do_rito(m)
+check("missão com arsenal e SEM teto de gasto não abre",
+      any("não declara `gasto`" in f for f in furos))
+check("e a recusa manda perguntar ao dono ANTES de despachar",
+      any("ANTES de despachar, toda vez" in f for f in furos))
+
+rito["gasto"] = {"modo": "real", "provedores": ["higgsfield"]}
+escreve(os.path.join(m, "rito.json"), rito)
+check("gasto real com provedor e sem os dois tetos é recusado",
+      any("são DOIS números" in f for f in fc.erros_do_rito(m)))
+
+rito["gasto"]["teto"] = {"imagem": 120}
+escreve(os.path.join(m, "rito.json"), rito)
+check("teto só de imagem é recusado — vídeo é quem estoura",
+      any("teto de `video`" in f for f in fc.erros_do_rito(m)))
+
+rito["gasto"]["teto"] = {"imagem": 120, "video": 90}
+escreve(os.path.join(m, "rito.json"), rito)
+escreve(os.path.join(m, "rito-aprovado.marca"), fc.marca(os.path.join(m, "rito.json")))
+check("com os dois tetos declarados, a missão abre", fc.erros_do_rito(m) == [])
+
+# Lista vazia é RESPOSTA ("nenhum provedor"), e aí não há teto a exigir.
+rito["gasto"] = {"modo": "real", "provedores": []}
+escreve(os.path.join(m, "rito.json"), rito)
+check("`provedores: []` é resposta legítima e dispensa teto", fc.erros_do_rito(m) == [])
+del rito["gasto"]["provedores"]
+escreve(os.path.join(m, "rito.json"), rito)
+check("mas o campo AUSENTE é silêncio, e silêncio não vale",
+      any("campo ausente é silêncio" in f for f in fc.erros_do_rito(m)))
+shutil.rmtree(d)
+
+print()
+print("A AFERIÇÃO — o consumido sai do SALDO, nunca da soma das estimativas")
+d = tmp()
+m = monta_missao(d)
+# O saldo é injetado: a suíte não pode depender de o provedor estar instalado,
+# autenticado e com rede — e é justamente esse o caminho de fail-open.
+escreve(os.path.join(m, "gasto.json"), {
+    "modo": "real", "provedores": ["higgsfield"],
+    "teto": {"imagem": 120, "video": 90},
+    "saldo_inicial": 300, "marco": "", "tipos": {}, "leituras": [],
+})
+check("consumo pequeno fica verde", fc.afere_gasto(m, saldo_agora=280)["estado"] == "verde")
+check("metade do teto acende o primeiro aviso",
+      fc.afere_gasto(m, saldo_agora=190)["estado"] == "metade")
+check("80% acende o aviso de reta final",
+      fc.afere_gasto(m, saldo_agora=125)["estado"] == "reta-final")
+# O teto total é 210 (120 de imagem + 90 de vídeo); 80 de saldo = 220 consumidos.
+conta = fc.afere_gasto(m, saldo_agora=80)
+check("passar do teto é `estourado`, não aviso", conta["estado"] == "estourado")
+check("e o consumido vem da diferença de saldo, não de estimativa",
+      conta["consumido"] == 220)
+check("o fecho acusa o teto estourado nomeando os dois números",
+      any("passou do teto" in f and "220" in f and "210" in f
+          for f in fc.erros_do_fecho(m)))
+check("e o mapa mostra o custo sem ninguém pedir",
+      "O que a geração custou" in fc.desenha_mapa(m))
+shutil.rmtree(d)
+
+d = tmp()
+m = monta_missao(d)
+escreve(os.path.join(m, "gasto.json"), {
+    "modo": "real", "provedores": ["higgsfield"], "teto": {"imagem": 10, "video": 10},
+    "saldo_inicial": None, "marco": "", "tipos": {}, "leituras": [],
+})
+# Fail-open na direção honesta: sem saldo legível o veredito é "não sei", e "não
+# sei" nunca vira "verde" — silêncio não é permissão para gastar.
+check("provedor mudo devolve `nao-sei`, nunca `verde`",
+      fc.afere_gasto(m, saldo_agora=None)["estado"] == "nao-sei")
+check("e o fecho NÃO acusa estouro sobre o que não sabe",
+      not any("passou do teto" in f for f in fc.erros_do_fecho(m)))
+shutil.rmtree(d)
+
+d = tmp()
+m = monta_missao(d)
+escreve(os.path.join(m, "gasto.json"), {"modo": "ensaio", "provedores": [], "teto": {}})
+conta = fc.afere_gasto(m)
+check("modo ensaio custa zero e não estoura nada",
+      conta["estado"] == "ensaio" and conta["consumido"] == 0)
+check("e a missão em ensaio fecha normalmente", fc.erros_do_fecho(m) == [])
+shutil.rmtree(d)
+
+d = tmp()
+m = monta_missao(d)
+check("missão sem gasto declarado não é acusada de nada", fc.afere_gasto(m) is None)
+check("e continua fechando como sempre", fc.erros_do_fecho(m) == [])
+shutil.rmtree(d)
+
+print()
 print("A FALHA CENTRAL — sete peças entregues, zero juízes")
 d = tmp()
 sete = ("hero", "marcas", "contato", "precos", "rodape", "menu", "prova")

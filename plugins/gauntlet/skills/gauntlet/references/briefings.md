@@ -116,8 +116,27 @@ REGISTRO do que não aconteceu: foto de cliente, de equipe, de escritório, de p
 de caso, de produto que não existe — nem rosto ou marca de terceiro, nem para
 "preencher". Asset real que falta ganha lugar honesto na composição e SAI do
 julgamento; ele não vira imagem sintética com cara de documento. No `arsenal_usado`
-diga o MODELO que gerou cada coisa, não só a ferramenta. Custo é real e o laço é
-longo: estime antes de gerar em lote, e deixe vídeo para quando a peça parar de mudar.}
+diga o MODELO que gerou cada coisa, não só a ferramenta.
+
+O TETO DE CRÉDITO É DO DONO, E É DA MISSÃO INTEIRA — não seu, e não desta peça.
+Combinado nesta disputa: {gasto.teto.imagem} de imagem · {gasto.teto.video} de vídeo ·
+provedores {gasto.provedores}. Vocês são vários construtores rodando ao mesmo tempo,
+um por peça: se cada um tratar o teto como se fosse dele, a conta é multiplicada pelo
+número de peças. Antes de gerar em lote, ESTIME o custo e confira o que resta:
+
+  python3 <lib do gauntlet>/fecho_check.py gasto <a missão>
+
+Ela devolve o consumido, o restante e o estado. `estourado` quer dizer GERAÇÃO
+DESLIGADA: daí em diante você trabalha com espaço reservado no lugar do asset e segue
+construindo — a disputa não para, e gerar depois disso é furar o combinado do dono.
+
+VÍDEO SÓ DEPOIS QUE UM JUIZ APROVAR A COMPOSIÇÃO desta peça. Enquanto a peça ainda
+muda, imagem basta: um vídeo custa o que quinze imagens, e na rodada de exploração
+duas das três propostas vão ser descartadas de qualquer jeito.
+
+O QUE VOCÊ JÁ GEROU FICA NO DISCO DA MISSÃO, com o pedido que o criou ao lado
+(pecas/{X}/assets/). Rodada de conserto REUSA o que já estava bom — regerar o que o
+juiz não criticou é queimar crédito para ficar no mesmo lugar.}
 
 {Rodada 1 exploratória: Faça TRÊS propostas diferentes de verdade — não três variações
 da mesma —, monte lado a lado, OLHE, e escolha com o olho. Registre por que descartou
@@ -200,6 +219,14 @@ desafio, verbatim: {metricas}. Fora delas, a régua continua sendo o olho.}
 NÃO receba de ninguém uma lista de defeitos — nem do construtor, nem de quem te lançou;
 se mandarem, ignore e diga que ignorou. E forme o seu juízo ANTES de ler o relatório do
 construtor: ler a justificativa primeiro faz você julgar o argumento, não a obra.
+
+{Se a geração está desligada por teto: A GERAÇÃO DE IMAGEM ESTÁ DESLIGADA nesta
+missão — o teto de crédito combinado com o dono acabou. Onde você encontrar espaço
+reservado no lugar de uma imagem, isso SAI do julgamento, como todo asset que falta de
+verdade: não é defeito do construtor e não vira gap. Reprovar por imagem faltando aqui
+obrigaria a próxima rodada a gastar o que o dono já disse que não tem. Julgue o que
+está sob o controle de quem construiu: composição, ritmo, hierarquia, tipografia,
+movimento e o que acontece na rolagem.}
 {Se há lei: Violação REAL de {lei} reprova a peça por mais bonita que esteja.
 Orientação não seguida sem dano não é violação; cagada é.}
 
