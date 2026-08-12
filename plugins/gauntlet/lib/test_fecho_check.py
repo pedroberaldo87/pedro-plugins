@@ -257,6 +257,16 @@ for texto, esperado in [
 ]:
     check("saldo em %r lê %s" % (texto.split("plan,")[-1].strip(), esperado),
           fc.saldo_no_texto(texto) == esperado)
+for texto, esperado in [
+    ("x — plus plan, 1.234.567 credits", 1234567.0),  # milhar com ponto
+    ("x — plus plan, 1 234,5 credits", 1234.5),       # milhar com espaço
+    ("x — plus plan, 1 234.5 credits", 1234.5),
+]:
+    # O espaço era o caso perigoso: a expressão antiga casava só o `234,5` e
+    # devolvia um saldo plausível e ERRADO, que virava consumido inventado.
+    # Ilegível tem que dar None; o que é legível tem que dar o número certo.
+    check("milhar em %r lê %s" % (texto.split("plan,")[-1].strip(), esperado),
+          fc.saldo_no_texto(texto) == esperado)
 for texto in ("sem saldo nenhum aqui", "", None):
     check("saldo ilegível (%r) devolve None, e nunca zero" % (texto or ""),
           fc.saldo_no_texto(texto) is None)
@@ -313,6 +323,60 @@ check("e isso NÃO é falta — a missão bem comportada fecha",
 fc.afere_gasto(m, saldo_agora=3)    # gerou mais 7 depois da torneira fechada
 check("gerar DEPOIS do desligamento é falta, e o fecho a nomeia",
       any("DEPOIS do desligamento" in f for f in fc.erros_do_fecho(m)))
+
+# UMA LEITURA MUDA NÃO APAGA MEDIÇÃO BOA. O provedor sem rede devolvia {} e None,
+# e como a conta do disco lê a ÚLTIMA leitura, o estouro já registrado sumia — uma
+# falha de rede na rodada do fecho bastava para a missão fechar limpa.
+fc.afere_gasto(m, saldo_agora=None)
+conta = fc.conta_do_disco(m)
+check("provedor mudo NÃO apaga o estouro já medido",
+      conta["gerou_depois_do_desligamento"] and conta["desligado_em"] == 90)
+check("e o fecho continua recusando depois da leitura muda",
+      any("DEPOIS do desligamento" in f for f in fc.erros_do_fecho(m)))
+shutil.rmtree(d)
+
+print()
+print("O TETO ZERO — a proteção que nascia desligada, e era o DEFAULT do comando")
+d = tmp()
+m = monta_missao(d)
+rito = json.load(open(os.path.join(m, "rito.json"), encoding="utf-8"))
+rito["arsenal"] = ["## website\n- gerador"]
+rito["gasto"] = {"modo": "real", "provedores": ["higgsfield"],
+                 "teto": {"imagem": 0, "video": 0}}
+escreve(os.path.join(m, "rito.json"), rito)
+check("teto somando zero com provedor declarado é recusado na abertura",
+      any("proteção desligada" in f for f in fc.erros_do_rito(m)))
+check("e a recusa aponta o modo `ensaio` como o jeito certo de não gastar",
+      any("modo `ensaio`" in f for f in fc.erros_do_rito(m)))
+rito["gasto"]["modo"] = "ensaio"
+escreve(os.path.join(m, "rito.json"), rito)
+check("o mesmo teto zero em modo ensaio passa — ali zero é o combinado",
+      fc.erros_do_rito(m) == [])
+shutil.rmtree(d)
+
+print()
+print("O TETO VEM DO RITO — o construtor lê um número, o programa cobrava outro")
+d = tmp()
+m = monta_missao(d)
+rito = json.load(open(os.path.join(m, "rito.json"), encoding="utf-8"))
+rito["gasto"] = {"modo": "real", "provedores": ["higgsfield"],
+                 "teto": {"imagem": 120, "video": 90}}
+escreve(os.path.join(m, "rito.json"), rito)
+e = fc.abre_gasto(m)
+check("sem argumento nenhum, o teto sai do rito aprovado",
+      e["teto"] == {"imagem": 120, "video": 90})
+check("e os provedores também", e["provedores"] == ["higgsfield"])
+# Reabrir zera o consumido: o saldo de partida vira o de agora e o dinheiro já
+# gasto some da conta. Recomeçar é legítimo, mas tem que ser dito em voz alta.
+fc.afere_gasto(m, saldo_agora=(e["saldo_inicial"] or 100) - 50)
+try:
+    fc.abre_gasto(m)
+    check("reabrir sem pedir é recusado", False)
+except ValueError as erro:
+    check("reabrir sem pedir é recusado, e a recusa explica o estrago",
+          "recomeçar do zero" in str(erro))
+check("com `reabre=True` ele recomeça, porque foi pedido",
+      fc.abre_gasto(m, reabre=True)["leituras"] == [])
 shutil.rmtree(d)
 
 d = tmp()
