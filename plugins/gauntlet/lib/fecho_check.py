@@ -221,9 +221,19 @@ def abre_gasto(missao, teto_imagem=None, teto_video=None, provedores=None,
     construtor ler um número e o programa cobrar outro. O rito é o que o dono
     aprovou, então é ele que manda; os argumentos só sobrescrevem quando vêm.
     """
+    # Cada camada tem que se defender de NÃO SER BLOCO antes de perguntar chave a
+    # ela: a validação que veio depois nunca chegava a rodar, porque o `.get` já
+    # tinha estourado — e o CLI, que só captura ValueError, cuspia um traceback.
     rito, _ = _le(os.path.join(missao, "rito.json"))
-    do_rito = ((rito or {}).get("gasto") or {}) if isinstance(rito, dict) else {}
-    teto_rito = do_rito.get("teto") or {}
+    bruto = (rito or {}).get("gasto") if isinstance(rito, dict) else None
+    if bruto is not None and not isinstance(bruto, dict):
+        raise ValueError("o `gasto` do rito não é um bloco de campos: %r" % (bruto,))
+    do_rito = bruto or {}
+    teto_bruto = do_rito.get("teto")
+    if teto_bruto is not None and not isinstance(teto_bruto, dict):
+        raise ValueError("o `teto` do rito não é um bloco com `imagem` e `video`: %r"
+                         % (teto_bruto,))
+    teto_rito = teto_bruto or {}
     if teto_imagem is None:
         teto_imagem = teto_rito.get("imagem") or 0
     if teto_video is None:
@@ -285,7 +295,10 @@ def _veredito_do_gasto(estado, saldo_agora, por_tipo):
     teto = estado.get("teto") or {}
     # Teto que não é número conta como AUSENTE, nunca como zero silencioso: o
     # rótulo vira `sem-teto`, que já diz em voz alta que nada está sendo cobrado.
-    teto_total = sum(_credito(teto.get(t)) or 0 for t in ("imagem", "video"))
+    # E basta UM dos dois falhar: somar só o que deu certo produzia um teto pela
+    # metade com rótulo de teto normal, que é o mesmo silêncio com outra roupa.
+    lidos = [_credito(teto.get(t)) for t in ("imagem", "video") if t in teto]
+    teto_total = 0 if (not lidos or None in lidos) else sum(lidos)
     inicial = estado.get("saldo_inicial")
 
     if inicial is None or saldo_agora is None:

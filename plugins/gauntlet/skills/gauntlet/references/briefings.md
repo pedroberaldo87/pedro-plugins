@@ -126,9 +126,11 @@ número de peças. Antes de gerar em lote, ESTIME o custo e confira o que resta:
 
   python3 <lib do gauntlet>/fecho_check.py gasto <a missão>
 
-Ela devolve o consumido, o restante e o estado. `estourado` quer dizer GERAÇÃO
-DESLIGADA: daí em diante você trabalha com espaço reservado no lugar do asset e segue
-construindo — a disputa não para, e gerar depois disso é furar o combinado do dono.
+Ela devolve o consumido, o restante e o estado, e SAI 1 quando você tem que parar de
+gerar. São dois casos: `estourado` (o teto acabou) e `nao-sei` (o provedor não respondeu,
+e gastar com o saldo ilegível é gastar às cegas). Nos dois, daí em diante você trabalha
+com espaço reservado no lugar do asset e segue construindo — a disputa não para, e gerar
+depois disso é furar o combinado do dono.
 
 VÍDEO SÓ DEPOIS QUE UM JUIZ APROVAR A COMPOSIÇÃO desta peça. Enquanto a peça ainda
 muda, imagem basta: um vídeo custa o que quinze imagens, e na rodada de exploração
