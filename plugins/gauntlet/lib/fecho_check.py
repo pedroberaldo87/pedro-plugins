@@ -87,6 +87,10 @@ MEDIDA_NO_NOME = re.compile(
 # a skill — regra escrita em prosa, cobrada por ninguém —, e a lei da casa já
 # dizia o conserto: recurso novo entra com o programa que o cobra junto.
 MODOS_DE_GASTO = ("real", "ensaio")
+# `None` já quer dizer "o provedor não respondeu", então ele não pode querer dizer
+# TAMBÉM "vá perguntar ao provedor" — com os dois sentidos no mesmo valor não há
+# como escrever o teste do provedor mudo. Este sentinela separa as duas coisas.
+PERGUNTE_AO_PROVEDOR = object()
 
 
 def _higgsfield(args):
@@ -115,20 +119,31 @@ def saldo_no_texto(saida):
     """
     if not saida:
         return None
-    m = re.search(r"([\d][\d.,]*)\s+credits", saida)
+    # O espaço também é separador de milhar (`1 234,5`), e ignorá-lo era pior que
+    # falhar: a expressão casava só o `234,5` e devolvia um saldo plausível e
+    # ERRADO, que virava consumido inventado. Número ilegível tem que dar None.
+    m = re.search(r"(\d[\d  .,]*\d|\d)\s+credits", saida)
     if not m:
         return None
-    bruto = m.group(1)
+    bruto = m.group(1).replace(" ", "").replace(" ", "")
+
     # Qual símbolo é a vírgula decimal muda com a locale: `1,234.5` é inglês e
-    # `1.234,5` é português. O ÚLTIMO separador é sempre o decimal; os anteriores
-    # são de milhar e saem fora.
+    # `1.234,5` é português. O ÚLTIMO separador é o decimal; os anteriores são de
+    # milhar. Com um símbolo só, três casas depois dele é milhar (`1.234.567`),
+    # qualquer outra contagem é decimal (`96.5`, `12,5`).
     if "," in bruto and "." in bruto:
         decimal = max(bruto.rfind(","), bruto.rfind("."))
         bruto = re.sub(r"[.,]", "", bruto[:decimal]) + "." + bruto[decimal + 1:]
-    elif bruto.count(",") == 1 and len(bruto.split(",")[1]) != 3:
-        bruto = bruto.replace(",", ".")
     else:
-        bruto = bruto.replace(",", "")
+        simbolo = "," if "," in bruto else ("." if "." in bruto else "")
+        if simbolo:
+            partes = bruto.split(simbolo)
+            if all(len(p) == 3 for p in partes[1:]):
+                bruto = "".join(partes)              # milhar: 1.234.567
+            elif len(partes) == 2:
+                bruto = partes[0] + "." + partes[1]  # decimal: 96.5 · 12,5
+            else:
+                return None                          # forma que não se explica
     try:
         return float(bruto)
     except ValueError:
@@ -174,22 +189,51 @@ def _transacoes(depois_de=""):
             if isinstance(t, dict) and str(t.get("created_at", "")) > depois_de]
 
 
-def abre_gasto(missao, teto_imagem, teto_video, provedores, modo="real"):
+def abre_gasto(missao, teto_imagem=None, teto_video=None, provedores=None,
+               modo=None, reabre=False):
     """Grava o estado de gasto da missão e devolve o que ficou registrado.
 
     O saldo é lido AQUI, uma vez, e é dele que sai toda medição posterior: o
     consumido é `saldo_inicial - saldo_de_agora`, nunca a soma das estimativas.
     A conta tem estorno (geração falhada devolve crédito), então somar o que cada
     geração deveria custar erra para os dois lados.
+
+    O teto vem do RITO por padrão, não de número digitado na hora: o briefing do
+    construtor interpola `rito.gasto.teto`, e um teto digitado à parte fazia o
+    construtor ler um número e o programa cobrar outro. O rito é o que o dono
+    aprovou, então é ele que manda; os argumentos só sobrescrevem quando vêm.
     """
+    rito, _ = _le(os.path.join(missao, "rito.json"))
+    do_rito = ((rito or {}).get("gasto") or {}) if isinstance(rito, dict) else {}
+    teto_rito = do_rito.get("teto") or {}
+    if teto_imagem is None:
+        teto_imagem = teto_rito.get("imagem") or 0
+    if teto_video is None:
+        teto_video = teto_rito.get("video") or 0
+    if provedores is None:
+        provedores = do_rito.get("provedores") or []
+    if modo is None:
+        modo = do_rito.get("modo") or "real"
+
+    # Reabrir sem querer zera o consumido: o saldo de partida vira o de agora, e o
+    # teto recomeça do zero com o dinheiro já gasto. Quem quiser mesmo recomeçar
+    # diz isso em voz alta.
+    if not reabre and os.path.isfile(os.path.join(missao, "gasto.json")):
+        raise ValueError(
+            "esta missão já tem gasto aberto — reabrir apaga o consumido e faz o "
+            "teto recomeçar do zero; use --reabre se é isso mesmo que você quer")
     # O marco separa o que esta missão gastou do que a conta já tinha gasto antes.
     # Marco vazio deixava TODA cobrança anterior entrar no detalhe por tipo — medido:
     # uma missão que ainda não gerou nada exibia "outro: 1183 créditos", que é o
     # histórico da conta. Sem transação nenhuma para datar, o relógio de agora serve.
+    # O marco tem que sair no MESMO formato do provedor, senão a comparação de
+    # texto vira sorte: o dele acaba em "Z" e o do Python em "+00:00", e no mesmo
+    # instante os dois ordenam ao contrário. Só a conta sem histórico chega aqui.
     tx = _transacoes()
     marco = max([str(t.get("created_at", "")) for t in tx] or [""])
     if not marco:
-        marco = datetime.datetime.now(datetime.timezone.utc).isoformat()
+        marco = datetime.datetime.now(datetime.timezone.utc).strftime(
+            "%Y-%m-%dT%H:%M:%S.%f") + "Z"
     estado = {
         "modo": modo,
         "provedores": list(provedores),
@@ -243,7 +287,7 @@ def _veredito_do_gasto(estado, saldo_agora, por_tipo):
             "provedores": estado.get("provedores") or []}
 
 
-def afere_gasto(missao, saldo_agora=None):
+def afere_gasto(missao, saldo_agora=PERGUNTE_AO_PROVEDOR):
     """Fala com o provedor, grava a leitura e devolve o veredito.
 
     É o ÚNICO ponto que sai para a rede, e é por isso que ele existe separado do
@@ -257,7 +301,7 @@ def afere_gasto(missao, saldo_agora=None):
     if estado.get("modo") == "ensaio":
         return _veredito_do_gasto(estado, None, {})
 
-    if saldo_agora is None:
+    if saldo_agora is PERGUNTE_AO_PROVEDOR:
         saldo_agora = saldo_do_provedor()
 
     por_tipo = {}
@@ -270,15 +314,31 @@ def afere_gasto(missao, saldo_agora=None):
     # A leitura fica GRAVADA: é dela que o fecho e o mapa tiram a conta depois,
     # sem tocar a rede. Sem isto, o veredito da missão mudaria conforme a conta
     # do provedor respondesse ou não no instante do fecho.
-    estado["por_tipo"] = por_tipo
-    estado.setdefault("leituras", []).append(saldo_agora)
+    #
+    # ⚠️ LEITURA MUDA NÃO APAGA MEDIÇÃO BOA. Uma só falha de rede sobrescrevia
+    # `por_tipo` com {} e empilhava None nas leituras — e como `conta_do_disco`
+    # lê a ÚLTIMA, o estouro já registrado sumia e a missão fechava limpa. O que
+    # não foi lido não se grava: o disco guarda a última medição QUE EXISTIU.
+    if por_tipo:
+        estado["por_tipo"] = por_tipo
+    if saldo_agora is not None:
+        estado.setdefault("leituras", []).append(saldo_agora)
 
     # ONDE A GERAÇÃO DESLIGOU. Cruzar o teto NÃO é falta: a última geração que
     # atravessou a linha já estava paga, e o dono decidiu que atingir o teto
     # desliga a geração e a disputa segue. Sem esta marca, o fecho recusava a
     # missão que gastou exatamente o combinado — ou seja, toda missão que usasse
     # o teto até o fim, que é o comportamento CERTO. Falta é o que vem DEPOIS.
+    # O veredito que VALE é o do estado gravado, não o desta leitura: com a leitura
+    # muda, `conta_do_disco` continua respondendo pela última medição real, e é ela
+    # que decide se a torneira já fechou. Sem isso, cruzar o teto exatamente na
+    # rodada em que o provedor não respondeu deixava `desligado_em` sem gravar, e
+    # daí em diante nenhuma geração posterior era detectável.
     veredito = _veredito_do_gasto(estado, saldo_agora, por_tipo)
+    if veredito["estado"] == "nao-sei":
+        veredito = _veredito_do_gasto(
+            estado, (estado.get("leituras") or [None])[-1],
+            estado.get("por_tipo") or {})
     if veredito["estado"] == "estourado" and "desligado_em" not in estado:
         estado["desligado_em"] = veredito["consumido"]
     with open(os.path.join(missao, "gasto.json"), "w", encoding="utf-8") as fh:
@@ -329,6 +389,15 @@ def erros_do_gasto(rito):
                 v = teto.get(tipo)
                 if not isinstance(v, (int, float)) or v < 0:
                     erros.append("o teto de `%s` não é um número de créditos" % tipo)
+            # Teto zero em modo real é a proteção DESLIGADA de propósito, e era o
+            # default do comando: `--abre --provedores x` sem os dois números abria
+            # missão que nunca estoura, nunca desliga e nunca é recusada. Quem não
+            # quer gastar usa `--ensaio`, que diz isso com todas as letras.
+            soma = (teto.get("imagem") or 0) + (teto.get("video") or 0)
+            if isinstance(soma, (int, float)) and soma <= 0:
+                erros.append(
+                    "o teto soma zero com provedor declarado — isso não é limite, é a "
+                    "proteção desligada; para rodar sem gastar use o modo `ensaio`")
     return erros
 
 
@@ -1125,10 +1194,15 @@ def main(argv=None):
     p.add_argument("--pecas", help="as peças que o veto toca, separadas por vírgula")
     p.add_argument("--sinal", help="o arquivo que marca uma missão de pé, para o `rito`")
     p.add_argument("--abre", action="store_true", help="gasto: registra o teto e lê o saldo")
-    p.add_argument("--teto-imagem", type=float, default=0, help="gasto: créditos de imagem")
-    p.add_argument("--teto-video", type=float, default=0, help="gasto: créditos de vídeo")
-    p.add_argument("--provedores", default="", help="gasto: os provedores, por vírgula")
+    # Sem default numérico: `None` quer dizer "pega do rito", que é o que o dono
+    # aprovou e o que o briefing do construtor mostra. Zero como default abria
+    # missão sem teto nenhum e a proteção nascia desligada em silêncio.
+    p.add_argument("--teto-imagem", type=float, help="gasto: créditos de imagem (default: do rito)")
+    p.add_argument("--teto-video", type=float, help="gasto: créditos de vídeo (default: do rito)")
+    p.add_argument("--provedores", help="gasto: os provedores, por vírgula (default: do rito)")
     p.add_argument("--ensaio", action="store_true", help="gasto: não gera nada, custo zero")
+    p.add_argument("--reabre", action="store_true",
+                   help="gasto: recomeça a contagem, APAGANDO o consumido até aqui")
     args = p.parse_args(argv)
 
     # ENCERRAR NÃO É APROVAR. Vem ANTES de tudo e não julga nada: a disputa parada
@@ -1148,15 +1222,25 @@ def main(argv=None):
     # a única medida que não discute é o saldo do provedor, antes e depois.
     if args.comando == "gasto":
         if args.abre:
-            provedores = [x.strip() for x in args.provedores.split(",") if x.strip()]
-            e = abre_gasto(args.missao, args.teto_imagem, args.teto_video, provedores,
-                           "ensaio" if args.ensaio else "real")
+            provedores = ([x.strip() for x in args.provedores.split(",") if x.strip()]
+                          if args.provedores is not None else None)
+            try:
+                e = abre_gasto(args.missao, args.teto_imagem, args.teto_video,
+                               provedores, "ensaio" if args.ensaio else None,
+                               reabre=args.reabre)
+            except ValueError as erro:
+                print("⛔ %s" % erro)
+                return 2
+            teto = e["teto"]
             print("gasto aberto — modo %s · provedores: %s" %
                   (e["modo"], ", ".join(e["provedores"]) or "nenhum"))
             if e["modo"] == "real":
                 print("   teto: %g imagem + %g vídeo = %g créditos"
-                      % (args.teto_imagem, args.teto_video,
-                         args.teto_imagem + args.teto_video))
+                      % (teto["imagem"], teto["video"],
+                         teto["imagem"] + teto["video"]))
+                if teto["imagem"] + teto["video"] <= 0:
+                    print("   ⚠️  teto ZERO é a proteção desligada — declare o teto no "
+                          "rito (`gasto.teto`) ou abra com `--ensaio`")
                 print("   saldo de partida: %s" % (
                     e["saldo_inicial"] if e["saldo_inicial"] is not None
                     else "não pôde ser lido — a aferição vai dizer `nao-sei`"))
