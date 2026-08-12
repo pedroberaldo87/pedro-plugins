@@ -347,27 +347,27 @@ Saída desta rodada (nome · versão · skills · tem hook):
 
 ```
 archify           2.12.2  [archify]                  -
-bootstrap         1.17.1  [bootstrap]                HOOKS
-branches           1.3.5  [branches]                 HOOKS
-check-skills       0.7.1  [check-skills]             -
-context-guard      1.3.9  [context-guard]            HOOKS
-fallow             1.2.3  [fallow]                   -
-gauntlet          0.10.1  [gauntlet]                 HOOKS
-graphify-guard     1.2.5  []                         HOOKS
+bootstrap        1.17.10  [bootstrap]                HOOKS
+branches          1.3.11  [branches]                 HOOKS
+check-skills       0.7.2  [check-skills]             -
+context-guard     1.3.11  [context-guard]            HOOKS
+fallow             1.2.6  [fallow]                   -
+gauntlet          0.13.1  [gauntlet]                 HOOKS
+graphify-guard     1.2.8  []                         HOOKS
 grill-me           1.4.0  [grill-me]                 -
-guardrails         1.7.8  [guardrails]               HOOKS
-handoff           1.11.2  [handoff]                  HOOKS
-improve-workflow  0.16.18  [improve-workflow]        -
+guardrails         1.8.3  [guardrails]               HOOKS
+handoff          1.11.10  [handoff]                  HOOKS
 improve            1.1.2  [improve]                  -
-intent-guard       0.7.2  [intent-guard]             HOOKS
-lixeiro            1.3.1  [faxina]                   HOOKS
+improve-workflow 0.16.25  [improve-workflow]         -
+intent-guard       0.8.7  [intent-guard]             HOOKS
+lixeiro            1.4.0  [faxina]                   HOOKS
 principles         1.0.5  [principles]               -
-project-skills    0.21.18  [design-md,doc,doc-load,doc-touch,monitorar,pesquisa-referencias,plan,project-skills,qa-loop,sprint,start]  HOOKS
-ship               1.5.0  [ship]                     HOOKS
-slides             1.6.0  [slides]                   -
-vision             0.1.0  []                         -
-vistoria          0.11.0  [vistoria]                 -
-visual            1.41.3  [andamento,visual]         HOOKS
+project-skills   0.22.14  [design-md,doc,doc-load,doc-touch,monitorar,pesquisa-referencias,plan,project-skills,qa-loop,sprint,start] HOOKS
+ship               1.5.4  [ship]                     HOOKS
+slides             1.6.2  [slides]                   -
+vision             0.1.1  []                         -
+vistoria          0.11.7  [vistoria]                 -
+visual           1.41.10  [andamento,visual]         HOOKS
 ```
 
 **A rodada anterior moveu onde as skills MORAM; esta apagou as CASAS que tinham ficado

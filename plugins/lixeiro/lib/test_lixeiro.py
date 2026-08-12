@@ -53,6 +53,17 @@ def proc(pid, cmd, idade=300, cpu=1.0, ppid=1, rss=100000):
     return {"pid": pid, "ppid": ppid, "idade": idade, "cpu": cpu, "rss": rss, "cmd": cmd}
 
 
+def _leitor(*leituras):
+    """`ps` respondendo uma leitura por chamada — a última se repete. É assim que
+    a suíte encena o que muda ENTRE duas leituras: a CPU que sobe, e o número de
+    processo que passou a ser de outro programa."""
+    fila = list(leituras)
+
+    def ler():
+        return fila.pop(0) if len(fila) > 1 else fila[0]
+    return ler
+
+
 print("── classificação: efêmero, serviço, intocável ──")
 eq(lixeiro.classifica("python -m pytest tests/ -q"), "efemero", "pytest é efêmero")
 eq(lixeiro.classifica("node .../node_modules/.bin/vitest run x.test.ts"), "efemero", "vitest run é efêmero")
@@ -188,22 +199,210 @@ procs = [proc(104, "/proj/relatorio-exemplo/.venv/bin/python -m pytest tests/ -q
          proc(101, "node /proj/loja-exemplo/node_modules/.bin/vite --port 5199", idade=300, cpu=30.0)]
 cands = lixeiro.candidatos(SID, "turno", procs=procs)
 pids = sorted(c[1]["pid"] for c in cands)
-eq(pids, [104], "no turno morre a suíte pendurada; o serviço sem foto de CPU sobrevive")
+eq(pids, [], "sem foto de CPU do turno anterior NADA morre — nem a suíte, nem o serviço")
 
 # Com a foto do turno anterior: CPU parada = ocioso, CPU subindo = em uso.
+# A anotação da suíte envelhece junto com a do serviço, senão a janela de `casa`
+# recusaria o processo de 300s e o teste passaria por não casar, não por decidir.
+reg["anotacoes"][0]["em"] = agora - 400
+reg["anotacoes"][0]["cpu_ultimo_turno"] = 1.0
 reg["anotacoes"][1]["cpu_ultimo_turno"] = 30.0
+# A foto tem que ser VELHA: a janela de ocioso é de relógio, e é ela que estes
+# dois testes querem exercer já satisfeita, para julgarem só a CPU.
+reg["anotacoes"][0]["cpu_visto_em"] = agora - 300
+reg["anotacoes"][1]["cpu_visto_em"] = agora - 300
+# A foto é de UM processo: sem o pid dela, a leitura seria de outro bicho.
+reg["anotacoes"][0]["cpu_pid"] = 104
+reg["anotacoes"][1]["cpu_pid"] = 101
 lixeiro.grava_registro(reg)
-cands = lixeiro.candidatos(SID, "turno", procs=procs)
-eq(sorted(c[1]["pid"] for c in cands), [101, 104], "servidor com CPU parada desde o turno anterior morre")
+procs_velhos = [dict(procs[0], idade=300), procs[1]]
+cands = lixeiro.candidatos(SID, "turno", procs=procs_velhos)
+eq(sorted(c[1]["pid"] for c in cands), [101, 104], "suíte e servidor com CPU parada desde o turno anterior morrem")
 
 reg["anotacoes"][1]["cpu_ultimo_turno"] = 10.0
 lixeiro.grava_registro(reg)
-cands = lixeiro.candidatos(SID, "turno", procs=procs)
+cands = lixeiro.candidatos(SID, "turno", procs=procs_velhos)
 eq(sorted(c[1]["pid"] for c in cands), [104], "servidor com CPU crescendo SOBREVIVE ao fim do turno")
+
+print("── a suíte EM ANDAMENTO sobrevive ao fim do turno ──")
+# O estrago de 2026-08-11: `cargo test` lançado em segundo plano morria no fim do
+# mesmo turno, às vezes 6 segundos depois de começar. Três provas, uma por caminho.
+reg["anotacoes"][0]["cpu_ultimo_turno"] = 1.0
+reg["anotacoes"][1]["cpu_ultimo_turno"] = 10.0
+lixeiro.grava_registro(reg)
+eq([c[1]["pid"] for c in lixeiro.candidatos(SID, "turno", procs=[dict(procs[0], idade=6)])],
+   [], "suíte com 6 segundos de vida NÃO é candidata")
+eq([c[1]["pid"] for c in lixeiro.candidatos(SID, "turno",
+                                            procs=[dict(procs[0], idade=300, cpu=90.0)])],
+   [], "suíte queimando CPU desde o turno anterior SOBREVIVE")
+# O lançador parado que segura o filho ocupado: `zsh -c … cargo test` fica esperando
+# com CPU zero enquanto a suíte trabalha. Quem responde é a CPU da ÁRVORE.
+lancador = proc(200, "/bin/zsh -c cd /proj/relatorio-exemplo && python -m pytest tests/ -q",
+                idade=300, cpu=0.1)
+filho = proc(201, "/proj/relatorio-exemplo/.venv/bin/python -m pytest tests/ -q",
+             idade=300, cpu=88.0, ppid=200)
+# A foto tem que ser DO LANÇADOR e velha: senão ele escaparia pela trava do pid ou
+# pela do relógio, e este teste não julgaria a CPU da árvore, que é o que ele quer.
+reg["anotacoes"][0]["cpu_pid"] = 200
+reg["anotacoes"][0]["cpu_ultimo_turno"] = 0.1
+reg["anotacoes"][0]["cpu_visto_em"] = agora - 300
+lixeiro.grava_registro(reg)
+eq([c[1]["pid"] for c in lixeiro.candidatos(SID, "turno", procs=[lancador, filho], agora=agora)],
+   [], "lançador parado com filho trabalhando SOBREVIVE — vale a CPU da árvore")
+# E o mesmo lançador com o filho PARADO morre — senão o teste acima passaria por
+# nada nunca ser candidato, em vez de por a árvore estar ocupada.
+eq([c[1]["pid"] for c in lixeiro.candidatos(
+    SID, "turno", procs=[lancador, dict(filho, cpu=0.0)], agora=agora)],
+   [200], "…e com a árvore inteira parada, ele morre")
+
+print("── ocioso se conta no relógio, não em turnos ──")
+# Dois turnos podem estar a segundos um do outro. Se a janela fosse "desde o turno
+# anterior", a suíte parada esperando o banco subir morreria em 3 segundos.
+reg["anotacoes"][0]["cpu_ultimo_turno"] = 1.0
+reg["anotacoes"][0]["cpu_visto_em"] = agora - 3
+reg["anotacoes"][0]["cpu_pid"] = 104     # o bloco anterior deixou a foto no lançador
+lixeiro.grava_registro(reg)
+eq([c[1]["pid"] for c in lixeiro.candidatos(SID, "turno", procs=procs_velhos, agora=agora)],
+   [], "parada há 3 segundos NÃO é candidata, mesmo com a CPU imóvel")
+reg["anotacoes"][0]["cpu_visto_em"] = agora - 300
+lixeiro.grava_registro(reg)
+eq([c[1]["pid"] for c in lixeiro.candidatos(SID, "turno", procs=procs_velhos, agora=agora)],
+   [104], "parada há 300 segundos morre")
+
+# E a foto só se renova quando ele trabalhou: renovar a cada turno zeraria o
+# relógio do ocioso para sempre numa conversa de turnos curtos.
+reg["anotacoes"][0]["cpu_visto_em"] = agora - 300
+lixeiro.grava_registro(reg)
+lixeiro.marca_cpu(SID, procs=procs_velhos, agora=agora)
+eq(lixeiro.le_registro(SID)["anotacoes"][0]["cpu_visto_em"], agora - 300,
+   "CPU imóvel NÃO renova a foto — o relógio do ocioso continua correndo")
+lixeiro.marca_cpu(SID, procs=[dict(procs_velhos[0], cpu=99.0)], agora=agora)
+eq(lixeiro.le_registro(SID)["anotacoes"][0]["cpu_visto_em"], agora,
+   "CPU que subiu renova a foto e zera o relógio")
+
+print("── a foto vale para UM processo, não para a anotação ──")
+# A mesma anotação casa mais de um processo ao longo da sessão: a suíte roda de
+# novo, o servidor reinicia. O segundo nasce com a CPU zerada, e comparado contra
+# a foto do primeiro pareceria "parado" — morrendo no meio do serviço.
+reg["anotacoes"][0]["cpu_ultimo_turno"] = 300.0
+reg["anotacoes"][0]["cpu_visto_em"] = agora - 300
+reg["anotacoes"][0]["cpu_pid"] = 104
+lixeiro.grava_registro(reg)
+_outro = [dict(procs_velhos[0], pid=555, cpu=5.0)]
+eq([c[1]["pid"] for c in lixeiro.candidatos(SID, "turno", procs=_outro, agora=agora)],
+   [], "processo NOVO na mesma anotação não é julgado pela foto do anterior")
+lixeiro.marca_cpu(SID, procs=_outro, agora=agora)
+_reg = lixeiro.le_registro(SID)["anotacoes"][0]
+eq((_reg["cpu_pid"], _reg["cpu_ultimo_turno"], _reg["cpu_visto_em"]), (555, 5.0, agora),
+   "…e a foto passa a ser dele, com o relógio zerado")
+
+print("── o número do processo é reconferido antes do sinal ──")
+# Entre ler a tabela e sinalizar passa tempo (no fim de sessão, mais: a medição ao
+# vivo dorme no meio). Se o alvo morreu e o sistema reaproveitou o número dele,
+# o sinal iria para um inocente.
+SID_RECI = "sessao-pid-reciclado"
+lixeiro.grava_registro({"session_id": SID_RECI, "dono_pid": meu_pid, "anotacoes": [
+    {"cmd": "python -m pytest tests/", "cwd": "/proj/reciclado", "classe": "efemero",
+     "em": agora - 60, "cpu_ultimo_turno": None}]})
+_antes = [proc(900, "/proj/reciclado/.venv/bin/python -m pytest tests/ -q", idade=30)]
+_depois = [proc(900, "/Applications/Navegador.app/Contents/MacOS/Navegador", idade=1)]
+_real_procs = lixeiro.processos
+_real_espera = lixeiro.OCIOSO_ESPERA
+_real_encerra = lixeiro.encerra
+lixeiro.OCIOSO_ESPERA = 0
+# O que se mede é a CHAMADA, não o efeito: um `os.kill` num número que não existe
+# falha calado, e o teste passaria com ou sem a trava — tautologia. Aqui o sinal é
+# espionado, e nenhum processo de verdade corre risco.
+_sinalizados = []
+lixeiro.encerra = lambda pid, **kw: (_sinalizados.append(pid), "TERM")[1]
+try:
+    # a 1ª leitura acha a suíte; da 2ª em diante o número 900 já é de outro programa
+    lixeiro.processos = _leitor(_antes, _depois)
+    lixeiro.colhe(SID_RECI, "sessao")
+    eq(_sinalizados, [], "pid cujo COMANDO mudou entre a leitura e o sinal NÃO é sinalizado")
+    # e o controle: com o comando intacto, o sinal sai — senão o teste acima
+    # passaria por nada nunca ser sinalizado.
+    lixeiro.processos = _leitor(_antes, _antes)
+    lixeiro.colhe(SID_RECI, "sessao")
+    eq(_sinalizados, [900], "…e o mesmo processo, ainda ele, é sinalizado normalmente")
+finally:
+    lixeiro.processos = _real_procs
+    lixeiro.OCIOSO_ESPERA = _real_espera
+    lixeiro.encerra = _real_encerra
+
+print("── duas suítes do mesmo projeto: uma foto para cada ──")
+# Sem isto, as duas anotações fotografavam o MESMO processo e a segunda suíte
+# ficava para sempre sem foto própria — ou seja, nunca era colhida.
+SID_DUAS = "sessao-duas-suites"
+_anot = {"cmd": "python -m pytest tests/", "cwd": "/proj/duas", "classe": "efemero",
+         "em": agora - 400, "cpu_ultimo_turno": None}
+lixeiro.grava_registro({"session_id": SID_DUAS, "dono_pid": meu_pid,
+                        "anotacoes": [dict(_anot), dict(_anot)]})
+_duas = [proc(301, "/proj/duas/.venv/bin/python -m pytest tests/ -q", idade=200, cpu=7.0),
+         proc(302, "/proj/duas/.venv/bin/python -m pytest tests/ -q", idade=200, cpu=9.0)]
+lixeiro.marca_cpu(SID_DUAS, procs=_duas, agora=agora)
+eq(sorted(a.get("cpu_pid") for a in lixeiro.le_registro(SID_DUAS)["anotacoes"]), [301, 302],
+   "cada anotação fotografou um processo diferente")
+# E a foto não troca de dono no turno seguinte — senão o relógio do ocioso zerava
+# a cada rodada e o lixo nunca completaria a janela.
+# O caso que separa reivindicar de simplesmente distribuir na ordem: as fotos
+# estão CRUZADAS em relação à ordem da lista. Sem a reivindicação, a distribuição
+# devolveria [301, 302] e as duas trocariam de processo — zerando o relógio do
+# ocioso a cada turno, e com ele a chance de o lixo um dia ser colhido.
+_r = lixeiro.le_registro(SID_DUAS)
+_r["anotacoes"][0]["cpu_pid"], _r["anotacoes"][1]["cpu_pid"] = 302, 301
+lixeiro.grava_registro(_r)
+lixeiro.marca_cpu(SID_DUAS, procs=_duas, agora=agora + 10)
+eq([a.get("cpu_pid") for a in lixeiro.le_registro(SID_DUAS)["anotacoes"]],
+   [302, 301], "no turno seguinte cada uma continua com o SEU processo, não com o da vez")
 
 print("── decisão no fim da sessão ──")
 cands = lixeiro.candidatos(SID, "sessao", procs=procs)
 eq(sorted(c[1]["pid"] for c in cands), [101, 104], "no fim da sessão morre tudo que ela anotou")
+
+print("── no fim da sessão, o que está trabalhando é medido AO VIVO ──")
+_procs_t = [proc(700, "x", cpu=10.0), proc(701, "y", cpu=10.0, ppid=700), proc(702, "z", cpu=5.0)]
+_leituras = [_procs_t, [proc(700, "x", cpu=10.0), proc(701, "y", cpu=44.0, ppid=700),
+                        proc(702, "z", cpu=5.0)]]
+_real_procs = lixeiro.processos
+lixeiro.processos = lambda: _leituras[1]
+try:
+    ocupados = lixeiro.trabalhando([700, 702], procs=_leituras[0], espera=0)
+finally:
+    lixeiro.processos = _real_procs
+eq(700 in ocupados, True, "pai parado com FILHO queimando CPU conta como trabalhando")
+eq(702 in ocupados, False, "processo que não gastou CPU nenhuma não é dado como ativo")
+eq(lixeiro.trabalhando([], espera=0), set(), "sem pids não mede nada")
+
+# E a colheita de fim de sessão precisa USAR essa medida, não só tê-la disponível:
+# é o caminho que o /clear dispara, e ele não tem canal para avisar o que matou.
+SID_FIM = "sessao-fim-de-sessao"
+RAIZ_FIM = os.path.join(TMP, "proj-fim")
+os.makedirs(RAIZ_FIM, exist_ok=True)
+CMD_FIM = "%s/.venv/bin/python -m pytest tests/ -q" % RAIZ_FIM
+lixeiro.grava_registro({"session_id": SID_FIM, "dono_pid": meu_pid, "anotacoes": [
+    {"cmd": "python -m pytest tests/", "cwd": RAIZ_FIM, "classe": "efemero",
+     "em": time.time() - 60, "cpu_ultimo_turno": None}]})
+def _arvore(cpu_do_filho):
+    # O lançador parado (800) segurando o trabalhador (801), como `cargo test`
+    return [proc(800, CMD_FIM, idade=30, cpu=10.0),
+            proc(801, CMD_FIM, idade=30, cpu=cpu_do_filho, ppid=800)]
+
+
+_real_procs = lixeiro.processos
+_real_espera = lixeiro.OCIOSO_ESPERA
+lixeiro.OCIOSO_ESPERA = 0
+try:
+    # três leituras: a de `candidatos`, e as duas da medição ao vivo
+    lixeiro.processos = _leitor(_arvore(10.0), _arvore(10.0), _arvore(99.0))
+    eq(lixeiro.colhe(SID_FIM, "sessao", dry_run=True), [],
+       "no fim da sessão, a suíte TRABALHANDO é poupada")
+    lixeiro.processos = _leitor(_arvore(10.0), _arvore(10.0), _arvore(10.0))
+    eq(sorted(m["pid"] for m in lixeiro.colhe(SID_FIM, "sessao", dry_run=True)), [800, 801],
+       "…e a suíte PARADA no fim da sessão morre, como sempre morreu")
+finally:
+    lixeiro.processos = _real_procs
+    lixeiro.OCIOSO_ESPERA = _real_espera
 
 print("── o registro ──")
 os.environ["CLAUDE_CONFIG_DIR"] = TMP

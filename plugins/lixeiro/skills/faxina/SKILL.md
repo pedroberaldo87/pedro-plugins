@@ -227,15 +227,21 @@ o patch literal — degrada a apresentação, nunca o conteúdo. Cada proposta �
 O plugin `lixeiro` traz quatro hooks que trabalham sozinhos, sobre o mesmo motor:
 
 - **Ao fim de cada comando** anota o que abriu processo — comando, pasta, hora, sessão.
-- **Ao fim de cada turno** encerra suíte e compilação que ficaram penduradas, e servidor
-  cuja CPU não subiu desde o turno anterior; servidor em uso sobrevive. **Colheu algo?
+- **Ao fim de cada turno** encerra o que ficou **parado** — suíte, compilação ou servidor
+  cuja CPU (a da árvore inteira, não a do lançador) não subiu nos últimos dois minutos.
+  O que está trabalhando sobrevive, **inclusive a suíte lançada em segundo plano**, que
+  é justamente o que o fim do turno costuma pegar no meio do serviço. **Colheu algo?
   Então investiga a causa pelo mesmo rito dos passos 6 e 7** — o `causa.py` é um só, e
   o irmão automático não pode limpar calado o que vai voltar amanhã. A diferença é o
   desfecho: com o dono ausente, `medio` e `alto` **acumulam** para a página do fim da
   missão, em vez de virarem página por turno.
-- **Ao fim da sessão** encerra tudo que aquela sessão anotou.
+- **Ao fim da sessão** encerra tudo que aquela sessão anotou e não estiver gastando CPU
+  no momento da medição. `/clear` e `resume` não contam como fim: o que acabou ali foi a
+  conversa, e o trabalho de segundo plano continua sendo do usuário.
 - **Na abertura** recolhe o que sessões mortas deixaram de pé.
 
 Desligar tudo: `LIXEIRO=0`. Só a coleta do turno: `LIXEIRO_TURNO=0`. Só a varredura de
 órfãos: `LIXEIRO_ORFAOS=0`. Só o aviso: `LIXEIRO_AVISO=0`. Teto do aviso:
-`LIXEIRO_TETO_N` (default 4) e `LIXEIRO_TETO_MB` (default 400).
+`LIXEIRO_TETO_N` (default 4) e `LIXEIRO_TETO_MB` (default 400). Quanto tempo parado um
+processo precisa ficar para virar candidato: `LIXEIRO_OCIOSO_MIN` (default 120 segundos)
+— abaixar isso reaproxima o defeito de matar trabalho em curso, e existe para a bancada.

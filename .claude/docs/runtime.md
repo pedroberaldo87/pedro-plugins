@@ -891,6 +891,51 @@ Até 2026-08-08 o hook encerrava o que a sessão tinha aberto e parava aí. O ef
 máquina limpava, o defeito ficava, e no turno seguinte tudo voltava — foi por esse ciclo que uma
 máquina chegou a **2125 processos órfãos**. Agora a colheita e a causa saem na **mesma** notícia.
 
+### O que decide quem morre — e por que deixou de ser a classe do comando
+
+Até a v1.3.8 a regra era "suíte viva no fim do turno é lixo certo": tudo classificado como
+efêmero (`pytest`, `cargo test`, `vitest`, `tsc`…) morria sem nenhuma outra checagem. O fim do
+turno, porém, é **exatamente** quando o agente estaciona um trabalho longo para continuar
+conversando — então a regra matava a suíte que estava rodando. Medido no `colhido.jsonl` de
+2026-08-11: `cargo test` lançado em segundo plano às 19:37:50 e encerrado às 19:38:51; relançado
+às 19:40:02 e encerrado às 19:40:08, **seis segundos de vida**. Duas horas depois o agente
+escreveu "a suíte segue rodando" e dois segundos mais tarde ela recebeu o sinal.
+`[confirmado — `~/.claude/lixeiro/colhido.jsonl` cruzado com o transcript da sessão]`
+
+Desde a v1.4.0 a decisão do turno é uma só, e vale igual para as duas classes:
+
+```
+morre  ⇔  tem foto de CPU do turno anterior           (senão: primeiro turno, sobrevive)
+      ∧   a foto é DAQUELE processo (cpu_pid)          (senão: outro processo, sobrevive)
+      ∧   a CPU da ÁRVORE não subiu desde a foto       (senão: está trabalhando)
+      ∧   o processo tem mais de OCIOSO_MIN de vida
+      ∧   a foto tem mais de OCIOSO_MIN de idade       (ocioso é relógio, não "turnos")
+```
+
+- **A CPU é da ÁRVORE, não do processo.** Quem lança (`cargo`, `npm exec`, o `zsh -c` que o
+  harness usa) fica parado esperando enquanto o filho queima CPU; olhar só o lançador o faz
+  parecer ocioso com a suíte a todo vapor. Reaproveita `peso_arvore(procs, campo)`, o mesmo
+  somador que já pesava a memória. `[confirmado — `lixeiro.py:peso_arvore` + caso de bancada]`
+- **A janela é de relógio** (`OCIOSO_MIN`, 120s, ajustável por `LIXEIRO_OCIOSO_MIN`). Dois turnos
+  podem estar a três segundos um do outro, e "não gastou CPU desde o turno anterior" viraria "não
+  gastou CPU em três segundos" — o que mata a suíte parada esperando o banco subir.
+- **A foto só se renova quando a CPU sobe**, e cada processo é fotografado por **uma** anotação
+  (pareamento 1:1 em `marca_cpu`). Renovar sempre zeraria o relógio do ocioso a cada mensagem;
+  fotografar o mesmo processo duas vezes deixava a segunda suíte do projeto sem foto própria — e
+  o que ela abriu nunca era colhido.
+- **`SessionEnd` não é sempre fim.** `reason` igual a `clear` ou `resume` sai sem colher: o que
+  acabou foi a conversa, e o trabalho de segundo plano continua sendo do usuário. Nos demais, a
+  colheita mede a CPU **ao vivo** (duas leituras separadas por `OCIOSO_ESPERA`), porque ali não
+  existe foto anterior para comparar. `[confirmado — `sessionend-colhe.sh` + `lixeiro.py:trabalhando`]`
+- **O número do processo é reconferido antes do sinal.** Entre ler a tabela e sinalizar passa
+  tempo, e mais ainda quando a medição ao vivo dorme no meio: se o alvo morreu sozinho, o sistema
+  pode ter dado o número dele a outro programa. `colhe` relê e só sinaliza se o comando bater.
+
+```bash
+python3 plugins/lixeiro/lib/test_lixeiro.py        # 128 casos, 11 travas com teste de mutação
+bash  plugins/lixeiro/hooks/test_lixeiro_hooks.sh  # dois turnos reais: a que trabalha vive
+```
+
 ```
 MORTOS ← lixeiro.py colhe-turno --sessao <sid>
   ↓ (só quando encerrou algo, e com LIXEIRO_CAUSA≠0)

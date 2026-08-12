@@ -74,6 +74,36 @@ fi
 [ -f "$TMP/lixeiro/colhido.jsonl" ] && ok "o que morreu ficou registrado para auditoria" \
   || bad "registro de auditoria" "colhido.jsonl existe" "ausente"
 
+echo "── /clear não é fim de trabalho ──"
+# O que acabou foi a conversa; o terminal, os servidores e a suíte em segundo plano
+# seguem sendo do usuário. Como o SessionEnd não tem canal de saída, colher aqui
+# matava em silêncio.
+( cd "$PROJ" && exec "$PY3" -m http.server 0 >/dev/null 2>&1 ) &
+NO_CLEAR=$!
+sleep 1.2
+rm -f "$TMP/lixeiro/sessao-s-clear.json"
+printf '{"session_id":"s-clear","cwd":"%s","tool_input":{"command":"python3 -m http.server 0"}}' "$PROJ" \
+  | bash "$SCRIPT_DIR/posttooluse-anota.sh" >/dev/null 2>&1
+printf '{"session_id":"s-clear","reason":"clear"}' | bash "$SCRIPT_DIR/sessionend-colhe.sh" >/dev/null 2>&1
+sleep 0.5
+if kill -0 "$NO_CLEAR" 2>/dev/null; then
+  ok "o /clear NÃO encerrou o que a sessão tinha aberto"
+else
+  bad "o /clear NÃO encerrou o que a sessão tinha aberto" "processo vivo" "foi encerrado"
+fi
+[ -f "$TMP/lixeiro/sessao-s-clear.json" ] && ok "…e o registro sobreviveu ao /clear" \
+  || bad "o registro sobrevive ao /clear" "arquivo presente" "apagado — procedência perdida"
+# E o fim de verdade, na mesma sessão, ainda encerra.
+printf '{"session_id":"s-clear","reason":"prompt_input_exit"}' \
+  | bash "$SCRIPT_DIR/sessionend-colhe.sh" >/dev/null 2>&1
+sleep 0.5
+if kill -0 "$NO_CLEAR" 2>/dev/null; then
+  bad "o fim de verdade ainda encerra" "processo morto" "ainda vivo"
+  kill -9 "$NO_CLEAR" 2>/dev/null
+else
+  ok "o fim de verdade ainda encerra o servidor ocioso"
+fi
+
 echo "── o servidor de OUTRO projeto sobrevive ──"
 VIZINHO="$TMP/projeto-vizinho"; mkdir -p "$VIZINHO"
 ( cd "$VIZINHO" && exec "$PY3" -m http.server 0 >/dev/null 2>&1 ) &
@@ -90,6 +120,62 @@ else
   bad "servidor de outro projeto NÃO foi tocado" "processo vivo" "foi encerrado — FALSO POSITIVO"
 fi
 kill -9 "$ALHEIO" 2>/dev/null
+
+echo "── fim de turno: a suíte TRABALHANDO sobrevive, a parada morre ──"
+# A prova que faltava no dia 11/08: duas suítes DE VERDADE, uma queimando CPU e
+# outra dormindo, ambas anotadas pela mesma sessão. O que separa as duas é só o
+# trabalho — antes deste conserto morriam as duas, e a que trabalhava morria seis
+# segundos depois de nascer.
+# O nome do arquivo é `pytest.py` porque é o COMANDO que classifica: assim o motor
+# reconhece um efêmero de verdade, sem a suíte plantar classe na mão.
+TRAB="$TMP/proj-turno"; mkdir -p "$TRAB"
+cat > "$TRAB/pytest.py" <<'PYEOF'
+import sys, time
+if sys.argv[1:] and sys.argv[1] == "dorme":
+    time.sleep(600)
+else:
+    fim = time.time() + 600
+    x = 0
+    while time.time() < fim:
+        x += 1
+PYEOF
+( cd "$TRAB" && exec "$PY3" "$TRAB/pytest.py" trabalha >/dev/null 2>&1 ) &
+OCUPADA=$!
+( cd "$TRAB" && exec "$PY3" "$TRAB/pytest.py" dorme >/dev/null 2>&1 ) &
+PARADA=$!
+sleep 1.5
+rm -f "$TMP/lixeiro/sessao-s-turno.json"
+# Duas anotações, uma por processo — como acontece de verdade, um comando cada.
+printf '{"session_id":"s-turno","cwd":"%s","tool_input":{"command":"python3 pytest.py trabalha"}}' "$TRAB" \
+  | bash "$SCRIPT_DIR/posttooluse-anota.sh" >/dev/null 2>&1
+printf '{"session_id":"s-turno","cwd":"%s","tool_input":{"command":"python3 pytest.py dorme"}}' "$TRAB" \
+  | bash "$SCRIPT_DIR/posttooluse-anota.sh" >/dev/null 2>&1
+
+# Dois turnos de verdade: o primeiro tira a foto de CPU, o segundo decide. A
+# janela de ocioso encolhe para 1 segundo só aqui — uma suíte não pode levar dois
+# minutos para provar a colheita.
+export LIXEIRO_OCIOSO_MIN=1
+printf '{"session_id":"s-turno"}' | bash "$SCRIPT_DIR/stop-colhe-turno.sh" >/dev/null 2>&1
+if kill -0 "$OCUPADA" 2>/dev/null && kill -0 "$PARADA" 2>/dev/null; then
+  ok "no primeiro turno nada morre — ainda não há foto contra o que comparar"
+else
+  bad "no primeiro turno nada morre" "as duas vivas" "alguma foi encerrada sem foto"
+fi
+sleep 2.5
+printf '{"session_id":"s-turno"}' | bash "$SCRIPT_DIR/stop-colhe-turno.sh" >/dev/null 2>&1
+unset LIXEIRO_OCIOSO_MIN
+sleep 0.5
+if kill -0 "$OCUPADA" 2>/dev/null; then
+  ok "a suíte que estava TRABALHANDO sobreviveu ao fim do turno"
+else
+  bad "a suíte que estava TRABALHANDO sobreviveu" "processo vivo" "foi encerrada — o defeito voltou"
+fi
+if kill -0 "$PARADA" 2>/dev/null; then
+  bad "a suíte PARADA foi encerrada" "processo morto" "ainda viva (pid $PARADA)"
+else
+  ok "…e a suíte PARADA foi encerrada, como tem que ser"
+fi
+kill -9 "$OCUPADA" "$PARADA" 2>/dev/null
 
 echo "── agente de bancada: o que ele abre entra no registro da sessão dona ──"
 # O agente que um workflow solta tem sessão PRÓPRIA, e o processo dele nasce

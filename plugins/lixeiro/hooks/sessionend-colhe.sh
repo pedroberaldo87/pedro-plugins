@@ -32,11 +32,15 @@ INPUT=$(cat 2>/dev/null)
 SID=$(hj_campo "$INPUT" session_id)
 [ -n "$SID" ] || exit 0
 
-"$PY3" "$MOTOR" colhe-sessao --sessao "$SID" >/dev/null 2>&1 || :
+# `/clear` e `resume` NÃO são fim de trabalho: o que acabou foi a conversa, e o
+# terminal, os servidores e a suíte em segundo plano seguem sendo do usuário.
+# Colher aqui matava a suíte de quem só quis limpar o contexto — e sem canal de
+# saída neste evento, matava em silêncio.
+RAZAO=$(hj_campo "$INPUT" reason)
+case "$RAZAO" in clear|resume) exit 0 ;; esac
 
-# O registro da sessão morreu com ela: o que não foi colhido agora será pego
-# pela varredura de órfãos, e manter o arquivo só duplicaria o trabalho.
-STATE="${CLAUDE_CONFIG_DIR:-$HOME/.claude}/lixeiro"
-SAFE=$(printf '%s' "$SID" | tr -c 'A-Za-z0-9_.-' '_')
-rm -f "$STATE/sessao-$SAFE.json" 2>/dev/null || :
+# Quem apaga o registro é o motor, e só quando não sobrou processo de pé: o que
+# foi poupado por estar trabalhando precisa da procedência para a varredura de
+# órfãos terminar o serviço na abertura seguinte.
+"$PY3" "$MOTOR" colhe-sessao --sessao "$SID" >/dev/null 2>&1 || :
 exit 0

@@ -576,6 +576,17 @@ Nasceu em 2026-08-09 com o `gauntlet`. Ver `data-stores.md §B16` para a anatomi
 - **A perda é silenciosa e some sozinha.** Some a pasta, some o sinal por idade (`GAUNTLET_TTL_MIN`, 12h), e nada acusa — só o arranque, e só enquanto o sinal existir (`runtime.md §21`). Uma missão longa interrompida e esquecida evapora sem deixar rastro em lugar nenhum.
 - **O que reduz o estrago hoje**, e é pouco: a obra em si mora no projeto (o campo `raiz` do rito) e essa parte está no git de quem construiu. O que não volta é o **julgamento** — a prova de que aquilo ganhou do alvo.
 
+### 3.16e · Procedência e auditoria do lixeiro — `${CLAUDE_CONFIG_DIR:-$HOME/.claude}/lixeiro/`
+
+Entrou no inventário em 2026-08-12. Ver `data-stores.md §B17` para a anatomia.
+
+`[TODO: sem cobertura declarada]` — fora do repo, sem cópia, sem backup. Detalhe abaixo.
+
+- **Duas perdas de naturezas diferentes, e só uma se refaz.** O **registro** (`sessao-*.json`) se reconstrói sozinho na primeira anotação da sessão seguinte — é estado operacional. O **log de auditoria** (`colhido.jsonl`, 79 linhas hoje) não volta: é o histórico de tudo que o mecanismo já encerrou, e foi exatamente ele que permitiu datar, em 2026-08-11, uma suíte encerrada seis segundos depois de nascer (`runtime.md §18`). Sem esse arquivo, "o lixeiro matou meu teste" fica sendo palavra contra palavra.
+- **Apagar o registro tem custo assimétrico**, e é o oposto do que parece: não é o mecanismo que sofre, é o processo. Sem procedência, o que estava de pé deixa de ser reconhecido por qualquer colheita automática e só sai pela `/faxina` manual. Por isso a v1.4.0 passou a remover o arquivo só quando não sobrou processo vivo.
+- **Sem semente versionada, e é correto assim** — o conteúdo é o que ESTA máquina abriu, com caminhos de projeto dela. Mesma classe do `arsenal.md` (§3.16c) nesse ponto, e pelo mesmo motivo de repositório público.
+- **A perda é silenciosa.** Nada acusa a falta: a pasta é recriada por `state_dir()` com `makedirs(exist_ok=True)` na primeira chamada, e a sessão segue como se nunca tivesse havido histórico.
+
 ### 3.17 · Cofre de secrets — iCloud
 
 - [confirmado] `cofre_paths()` em `plugins/project-skills/lib/journal.py` resolve nesta ordem: `PROJECT_DOC_COFRE_DIR` (override explícito) → `~/Library/Mobile Documents/com~apple~CloudDocs/Cofre` → fallback local `<projeto>/.claude/secrets/_local_cofre`. O nome do arquivo é `<basename>-<8 hex do sha1 do path absoluto>.env`, para dois projetos homônimos não colidirem.
