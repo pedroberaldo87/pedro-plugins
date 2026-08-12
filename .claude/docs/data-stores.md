@@ -1,6 +1,6 @@
 ---
-generated: 2026-08-10
-generated-commit: 3ddc8c4
+generated: 2026-08-12
+generated-commit: a28c84b
 project: pedro-plugins
 scope:
   - .gitignore
@@ -52,7 +52,7 @@ verified-by:
   - plugins/improve-workflow/lib/test_registro.py
   - plugins/improve-workflow/lib/test_medidor.py
   - plugins/improve-workflow/lib/test_plano_saida.py
-doc-sig: pedro-plugins/.gitignore@gen=3.8#733737e8
+doc-sig: pedro-plugins/.gitignore@gen=3.8#cf2b2fce
 ---
 
 # Data Stores — onde o dado mora
