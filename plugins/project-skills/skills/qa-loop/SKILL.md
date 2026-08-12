@@ -392,8 +392,10 @@ while (!cleanRound && r < maxRounds && !churnEscalated) {
   r++; phase(`Rodada ${r}`)
   const tier = tierFor(r)
 
-  // REVIEW — 1 Opus Revisor INDEPENDENTE, no tier da rodada. Checklist de 6 dimensões
-  // (1 agente, não 6). Rodada 1 = sweep completo do material inteiro (decompose_model);
+  // REVIEW — 1 Opus Revisor INDEPENDENTE, no tier da rodada. Checklist de 7 dimensões
+  // (1 agente, não 7) — a 7ª é cobertura por finalidade: o que o plano pede tem teste
+  // que MORDE? É a única que enxerga o teste AUSENTE; as outras julgam o que existe.
+  // Rodada 1 = sweep completo do material inteiro (decompose_model);
   // 2+ = DELTA (coordinate_model): só os arquivos tocados pelos fixes da rodada anterior
   // + findings abertos — caça-regressão, não releitura do material inteiro.
   const review = await agent(reviewPrompt({ round: r, acceptedLimits, invariants,
@@ -520,8 +522,12 @@ return {
 
 ### Os passos do motor, em detalhe
 
-**REVIEW = 1 Opus Revisor (R1), no tier da rodada (R8).** Um único Opus cobre as **6 dimensões como
-CHECKLIST** (arquitetura · backend · frontend · contratos fullstack · correção · UX) — **não** 6 agentes.
+**REVIEW = 1 Opus Revisor (R1), no tier da rodada (R8).** Um único Opus cobre **o tripé inteiro como
+CHECKLIST** — **não** um agente por dimensão. O que ele mede está em
+**`references/dimensoes-de-revisao.md`** (fonte: `_shared/dimensoes-de-revisao.md` — não editar a
+cópia à mão; `scripts/sync-shared.sh --check` pega drift): qualidade (as dimensões), cobertura por
+finalidade e coerência com a régua. **Leia o arquivo antes do sweep** — a lista não é repetida aqui,
+e é a MESMA que o `/sprint` usa ao revisar durante a construção.
 **Rodada 1** roda em `decompose_model` (high — sweep completo): recebe **o material inteiro** + o
 **plano-âncora** + os accepted-limits vivos (não re-reportar) + as invariantes vivas (não violar).
 **Rodadas 2+** rodam em `coordinate_model` (medium) e recebem **o DELTA, não o material inteiro**: os arquivos
@@ -531,15 +537,10 @@ caça-regressão nas mudanças + ângulos frescos sobre elas. Formato de cada fi
 rodadas 2+, as duas restritas ao delta):
 - **Plano** — "compare contra o PLANO: sinalize onde a implementação DIVERGE do planejado, mesmo que o código
   pareça bom".
-- **Constituição** — "**leia `.claude/docs/constituicao.md` do projeto** (a lei: o que o sistema tem que ser)
-  **e `.claude/docs/quality-goals.md`** (as metas de qualidade autorais) e
-  sinalize onde a implementação VIOLA o que está escrito lá". **O desenho aprovado entra junto:** quando
-  existem `.claude/docs/blueprint.md` (o esquema de funcionamento) e `.claude/docs/features.md` (a lista de
-  funcionalidades) com `status: approved`, o REVIEW os lê também e sinaliza onde a implementação
-  **contradiz o que foi acordado ali**, citando o documento e a passagem contradita. Sem `status: approved`
-  o documento é rascunho e não vira régua. O arquivo é lido na rodada, **nunca copiado
-  aqui** — a régua é a do projeto que instalou, não a desta skill. Sem esse arquivo, o eixo simplesmente
-  **não roda** e o REVIEW segue só com o plano — ausência de constituição não é finding. **Quando o que
+- **Régua** — o Pé 3 de `references/dimensoes-de-revisao.md`: rode o `doc-load` e julgue contra TUDO
+  que ele listar, citando o documento e a passagem violada. A lista de documentos **não é escrita
+  aqui nem lá** — quem a produz é o programa. Sem régua no projeto o eixo **não roda** e o REVIEW
+  segue só com o plano; ausência não é finding. **Quando o que
   a implementação descobriu contradiz um documento de concepção já aprovado** (`status: approved`), o finding
   sobe assim mesmo: a entrevista é que errou, não o código. O PLAN o roteia pro bucket 3 como proposta de
   **reabrir a etapa** — nunca pra fila de conserto.
@@ -589,10 +590,10 @@ arquivo (fonte: `_shared/contrato-familia.md`). Este loop **lê** a lei; nunca a
 A skill **não é só review de código** — audita **fidelidade ao plano e à constituição do projeto** a cada
 rodada. Todo finding é roteado em **3 buckets** no PLAN:
 
-1. **Implementação** — código diverge do plano **ou viola a constituição do projeto**
-   (`.claude/docs/constituicao.md` e `.claude/docs/quality-goals.md`, quando o projeto os tem), bug, ou regressão. → fila de conserto (EXEC,
-   com gate). Violar a constituição é divergência igual às outras: entra pela rubrica de severidade normal,
-   sem faixa própria.
+1. **Implementação** — código diverge do plano, **viola a régua que o `doc-load` listou**, deixa uma
+   finalidade sem teste que morda, tem bug, ou regride. → fila de conserto (EXEC,
+   com gate). Violar a régua é divergência igual às outras: entra pela rubrica de severidade normal,
+   sem faixa própria. Os três são os pés de `references/dimensoes-de-revisao.md`.
 2. **Plan-drift (R4)** — um "fix" otimizaria o código mas **afastaria o comportamento do que foi pedido/planejado**. → **restaura pro plano automaticamente** E o desvio sobe no bucket de alertas como **candidato a mudança-de-plano** pro usuário julgar. O plano vence a "melhoria", mesmo que o agente ache que faz sentido mudar. Drift é uma **classe de regressão** — não pausa.
 3. **Plano/arquitetura falho** — o **plano em si** é falho (decisão de arquitetura que gera problema crítico). → **bucket de ALERTA**. NUNCA consertado/implementado no loop. Sobe pro usuário no relatório: "apresento e julgamos". É insumo pro planejamento, não trabalho de QA.
    - **Sub-caso — a concepção errou, não o plano:** o que a implementação descobriu contradiz um documento de concepção já aprovado (`status: approved`). O alerta vira **proposta de reabrir a etapa**: nomeia o documento, a passagem contradita e a linha `correcao-pendente: {o que precisa mudar}` que o **dono** grava no frontmatter. O loop **nunca edita o documento** — nem o corpo (mexer nele reabre a etapa pela marca do de acordo e congela o planejamento) nem o frontmatter. Propor é do loop; escrever e reaprovar é do dono.

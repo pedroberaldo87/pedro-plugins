@@ -51,6 +51,16 @@ SPECS=(
   # único — nenhum dos dois SKILL.md repete o texto, os dois apontam pra cópia.
   "plugins/project-skills/skills/qa-loop/references::antipadroes-de-teste.md"
   "plugins/visual/skills/visual/references::antipadroes-de-teste.md"
+  # O TRIPÉ da revisão (qualidade · cobertura por finalidade · coerência com a régua):
+  # o mesmo mínimo vale pra quem revisa DURANTE a construção (/sprint, três grãos) e
+  # pra quem revisa DEPOIS (/qa-loop). Era prosa em cada skill, e divergiu: uma listava
+  # 6 dimensões sem cobertura, a outra 5 eixos sem cobertura, e a lista de documentos
+  # de régua estava escrita à mão num lado e vinha do doc_load.py no outro.
+  "plugins/project-skills/skills/qa-loop/references::dimensoes-de-revisao.md"
+  "plugins/project-skills/skills/sprint/references::dimensoes-de-revisao.md"
+  # O antipadrão de teste é citado DE DENTRO do tripé (Pé 2), então quem consome o
+  # tripé precisa da cópia local dele — senão o apontamento morre na máquina instalada.
+  "plugins/project-skills/skills/sprint/references::antipadroes-de-teste.md"
   # A régua de POR ONDE a pergunta chega: nasceu dentro do /grill-me e vale pra toda
   # skill que pergunta ao dono. Cada SKILL.md consumidor só aponta pra cópia local —
   # o texto mora aqui. Quem cobra: _shared/test_regua_de_pergunta.py.
