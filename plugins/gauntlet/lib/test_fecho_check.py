@@ -371,15 +371,45 @@ except ValueError as erro:
 check("e o disco fica limpo — dá para consertar o rito e abrir de novo",
       not os.path.isfile(os.path.join(m, "gasto.json")))
 
+# Cada camada se defende de NÃO SER BLOCO antes de perguntar chave a ela: a
+# validação rodava depois do primeiro `.get`, que já tinha estourado, e o CLI
+# (que só captura ValueError) cuspia um traceback em vez da recusa em português.
+for forma in ("120 imagem", ["120"], 120):
+    rito["gasto"]["teto"] = forma
+    escreve(os.path.join(m, "rito.json"), rito)
+    try:
+        fc.abre_gasto(m)
+        check("teto como %r é recusado" % (forma,), False)
+    except ValueError as erro:
+        check("teto como %r é recusado sem estourar" % (forma,),
+              "não é um bloco" in str(erro))
+    except AttributeError:
+        check("teto como %r é recusado sem estourar" % (forma,), False)
+rito["gasto"] = ["nao", "e", "bloco"]
+escreve(os.path.join(m, "rito.json"), rito)
+try:
+    fc.abre_gasto(m)
+    check("`gasto` que não é bloco é recusado", False)
+except ValueError as erro:
+    check("`gasto` que não é bloco é recusado", "não é um bloco" in str(erro))
+except AttributeError:
+    check("`gasto` que não é bloco é recusado", False)
+
 # Defesa em profundidade: mesmo com um gasto.json escrito à mão, ler o disco não
 # pode estourar. Teto que não é número conta como ausente, nunca como zero mudo.
 escreve(os.path.join(m, "gasto.json"), {
     "modo": "real", "provedores": ["h"], "teto": {"imagem": "120", "video": 90},
     "saldo_inicial": 100, "marco": "z", "tipos": {}, "leituras": [90]})
 try:
+    # Um dos dois números falhando derruba o teto INTEIRO: somar só o que deu
+    # certo produzia um teto pela metade com rótulo de teto normal, que é o
+    # mesmo zero silencioso que esta regra existe para impedir.
+    conta = fc.conta_do_disco(m)
     check("ler um gasto.json com teto em texto não estoura",
-          fc.conta_do_disco(m)["teto_total"] == 90)
-    check("e o mapa também não", "O que a geração custou" in fc.desenha_mapa(m))
+          conta["teto_total"] == 0)
+    check("e um teto pela metade é `sem-teto`, não um teto menor em silêncio",
+          conta["estado"] == "sem-teto")
+    check("e o mapa também não estoura", "O que a geração custou" in fc.desenha_mapa(m))
 except TypeError:
     check("ler um gasto.json com teto em texto não estoura", False)
 shutil.rmtree(d)
@@ -393,16 +423,25 @@ escreve(os.path.join(m, "gasto.json"), {
     "saldo_inicial": 200, "marco": "z", "tipos": {}, "leituras": [],
 })
 fc.afere_gasto(m, saldo_agora=90)                     # estourou: 110 de 100
+
+# ⚠️ O PROVEDOR TEM QUE SER SUBSTITUÍDO AQUI, e a razão é o defeito que este bloco
+# já teve: `main` refaz a leitura, e sem provedor na máquina (o caso das três
+# esteiras) o estado vira `nao-sei`, que TAMBÉM sai 1 — o teste passava mesmo se o
+# ramo do estouro não existisse, e quebrava numa máquina com a conta cheia. Teste
+# que passa pelo motivo errado é pior que teste ausente: ele dá cobertura falsa.
+saldo_real = fc.saldo_do_provedor
+fc.saldo_do_provedor = lambda: 90                     # estourado, em qualquer máquina
 check("com o teto estourado o comando sai 1, para o laço parar",
       fc.main(["gasto", m]) == 1)
+fc.saldo_do_provedor = lambda: 195                    # 5 de 100: folgado
+check("e com o teto folgado ele sai 0 — o 1 vem do estouro, não do acaso",
+      fc.main(["gasto", m]) == 0)
 # A leitura muda responde `nao-sei`. Se ela saísse 0, a resposta honesta chegaria
 # por um canal que se lê como "pode seguir" — e um laço em shell continuaria.
-escreve(os.path.join(m, "gasto.json"), {
-    "modo": "real", "provedores": ["h"], "teto": {"imagem": 60, "video": 40},
-    "saldo_inicial": None, "marco": "z", "tipos": {}, "leituras": [],
-})
+fc.saldo_do_provedor = lambda: None
 check("e `nao-sei` também sai 1 — silêncio do provedor não libera nada",
       fc.main(["gasto", m]) == 1)
+fc.saldo_do_provedor = saldo_real
 shutil.rmtree(d)
 
 print()

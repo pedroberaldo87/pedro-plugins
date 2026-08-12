@@ -95,8 +95,12 @@ teto digitado à parte fazia o construtor ler um número e o programa cobrar out
 
 ```bash
 python3 "${CLAUDE_PLUGIN_ROOT}/lib/fecho_check.py" gasto "<a missão>" --abre
-python3 "${CLAUDE_PLUGIN_ROOT}/lib/fecho_check.py" gasto "<a missão>"   # afere; sai 1 no estouro
+python3 "${CLAUDE_PLUGIN_ROOT}/lib/fecho_check.py" gasto "<a missão>"   # afere
 ```
+
+A aferição **sai 1 em dois casos, e os dois mandam parar de gerar**: teto estourado, e
+provedor que não respondeu. Silêncio não é permissão — quem gasta com o saldo ilegível
+gasta às cegas. Sai 0 só quando o teto foi lido e ainda há folga.
 
 Abrir duas vezes é recusado: reabrir apaga o consumido e faz o teto recomeçar do zero com
 o dinheiro já gasto. Recomeçar de propósito é `--reabre`, dito em voz alta.
