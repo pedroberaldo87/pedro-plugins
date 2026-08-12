@@ -23,6 +23,7 @@ O que está em disco sobrevive ao /clear; o que está na conversa, não.
 """
 
 import argparse
+import datetime
 import hashlib
 import json
 import os
@@ -104,18 +105,39 @@ def _higgsfield(args):
     return r.stdout if r.returncode == 0 else None
 
 
-def saldo_do_provedor():
-    """O saldo de crédito de hoje, ou None quando não dá para saber."""
-    saida = _higgsfield(["account", "status"])
+def saldo_no_texto(saida):
+    """O saldo dentro da linha do provedor, ou None. Função PURA, e por isso testável.
+
+    Ela existe separada porque a versão anterior morria no separador de milhar:
+    `1,234.5 credits` caía em ValueError e devolvia None, e o efeito prático era a
+    proteção emudecer JUSTO quando há mais dinheiro na conta. Fail-open honesto
+    continua valendo para o que não dá para ler — nunca para o que dá.
+    """
     if not saida:
         return None
-    m = re.search(r"([\d.,]+)\s+credits", saida)
+    m = re.search(r"([\d][\d.,]*)\s+credits", saida)
     if not m:
         return None
+    bruto = m.group(1)
+    # Qual símbolo é a vírgula decimal muda com a locale: `1,234.5` é inglês e
+    # `1.234,5` é português. O ÚLTIMO separador é sempre o decimal; os anteriores
+    # são de milhar e saem fora.
+    if "," in bruto and "." in bruto:
+        decimal = max(bruto.rfind(","), bruto.rfind("."))
+        bruto = re.sub(r"[.,]", "", bruto[:decimal]) + "." + bruto[decimal + 1:]
+    elif bruto.count(",") == 1 and len(bruto.split(",")[1]) != 3:
+        bruto = bruto.replace(",", ".")
+    else:
+        bruto = bruto.replace(",", "")
     try:
-        return float(m.group(1).replace(",", "."))
+        return float(bruto)
     except ValueError:
         return None
+
+
+def saldo_do_provedor():
+    """O saldo de crédito de hoje, ou None quando não dá para saber."""
+    return saldo_no_texto(_higgsfield(["account", "status"]))
 
 
 def tipos_do_provedor():
@@ -160,13 +182,20 @@ def abre_gasto(missao, teto_imagem, teto_video, provedores, modo="real"):
     A conta tem estorno (geração falhada devolve crédito), então somar o que cada
     geração deveria custar erra para os dois lados.
     """
+    # O marco separa o que esta missão gastou do que a conta já tinha gasto antes.
+    # Marco vazio deixava TODA cobrança anterior entrar no detalhe por tipo — medido:
+    # uma missão que ainda não gerou nada exibia "outro: 1183 créditos", que é o
+    # histórico da conta. Sem transação nenhuma para datar, o relógio de agora serve.
     tx = _transacoes()
+    marco = max([str(t.get("created_at", "")) for t in tx] or [""])
+    if not marco:
+        marco = datetime.datetime.now(datetime.timezone.utc).isoformat()
     estado = {
         "modo": modo,
         "provedores": list(provedores),
         "teto": {"imagem": teto_imagem, "video": teto_video},
         "saldo_inicial": saldo_do_provedor(),
-        "marco": max([str(t.get("created_at", "")) for t in tx] or [""]),
+        "marco": marco,
         "tipos": tipos_do_provedor(),
         "leituras": [],
     }
@@ -201,9 +230,16 @@ def _veredito_do_gasto(estado, saldo_agora, por_tipo):
         else:
             rotulo = "verde"
 
+    # `desligado_em` é o consumido no instante em que a geração foi desligada.
+    # Gastar mais que isso depois é a única leitura possível de "gerou com a
+    # torneira fechada" — e é ela, não o simples cruzar do teto, que vira falta.
+    desligado = estado.get("desligado_em")
     return {"modo": estado.get("modo"), "consumido": consumido, "por_tipo": por_tipo,
             "teto_total": teto_total, "teto": teto, "estado": rotulo,
             "restante": max(0, teto_total - consumido) if teto_total else 0,
+            "desligado_em": desligado,
+            "gerou_depois_do_desligamento": desligado is not None
+                                            and consumido > desligado,
             "provedores": estado.get("provedores") or []}
 
 
@@ -236,9 +272,18 @@ def afere_gasto(missao, saldo_agora=None):
     # do provedor respondesse ou não no instante do fecho.
     estado["por_tipo"] = por_tipo
     estado.setdefault("leituras", []).append(saldo_agora)
+
+    # ONDE A GERAÇÃO DESLIGOU. Cruzar o teto NÃO é falta: a última geração que
+    # atravessou a linha já estava paga, e o dono decidiu que atingir o teto
+    # desliga a geração e a disputa segue. Sem esta marca, o fecho recusava a
+    # missão que gastou exatamente o combinado — ou seja, toda missão que usasse
+    # o teto até o fim, que é o comportamento CERTO. Falta é o que vem DEPOIS.
+    veredito = _veredito_do_gasto(estado, saldo_agora, por_tipo)
+    if veredito["estado"] == "estourado" and "desligado_em" not in estado:
+        estado["desligado_em"] = veredito["consumido"]
     with open(os.path.join(missao, "gasto.json"), "w", encoding="utf-8") as fh:
         json.dump(estado, fh, ensure_ascii=False, indent=1)
-    return _veredito_do_gasto(estado, saldo_agora, por_tipo)
+    return veredito
 
 
 def conta_do_disco(missao):
@@ -893,15 +938,15 @@ def erros_do_fecho(missao):
                     "o diretor olhou uma versão superada de `%s`" % peca_nome
                 )
 
-    # O teto de crédito estourado não é opinião: o dono decidiu que atingi-lo
-    # DESLIGA a geração e a disputa continua, então gasto acima do teto quer dizer
-    # que alguém gerou depois do desligamento. Aqui isso deixa de ser invisível.
+    # Atingir o teto é o fim previsto, não falta: a geração desliga e a disputa
+    # segue. O que o fecho acusa é gasto DEPOIS do desligamento — a diferença
+    # entre o consumido de agora e o que havia quando a linha foi cruzada.
     conta = conta_do_disco(missao)
-    if conta and conta.get("estado") == "estourado":
+    if conta and conta.get("gerou_depois_do_desligamento"):
         erros.append(
-            "a geração passou do teto: %d créditos consumidos contra %d combinados "
-            "com o dono — alguém gerou depois do desligamento" %
-            (conta["consumido"], conta["teto_total"])
+            "a geração continuou DEPOIS do desligamento: %d créditos consumidos "
+            "contra %d quando o teto de %d foi atingido" %
+            (conta["consumido"], conta["desligado_em"], conta["teto_total"])
         )
 
     # Veto do dono depois de uma aprovação que ele toca: ou tem julgamento novo, ou a

@@ -240,6 +240,32 @@ check("mas o campo AUSENTE é silêncio, e silêncio não vale",
 shutil.rmtree(d)
 
 print()
+print("O PARSER DO SALDO — a única fonte da verdade do consumido")
+# Ele estava sem teste, e o buraco tinha dono: a versão de estreia morria no
+# separador de milhar (`1,234.5 credits` → ValueError → None), então a proteção
+# emudecia JUSTO quando havia mais dinheiro na conta. Entradas reais primeiro,
+# armadilhas de locale depois — o mesmo par que pegou o defeito.
+for texto, esperado in [
+    ("<conta> — plus plan, 96.5 credits", 96.5),      # a saída real desta conta
+    ("x — plus plan, 962 credits", 962.0),
+    ("x — free plan, 0 credits", 0.0),
+    ("x — plus plan, 1,234.5 credits", 1234.5),       # milhar em inglês
+    ("x — plus plan, 1.234,5 credits", 1234.5),       # milhar em português
+    ("x — plus plan, 1,234 credits", 1234.0),         # milhar sem decimal
+    ("x — plus plan, 12,5 credits", 12.5),            # decimal com vírgula
+    ("x — plus plan, 1,234,567 credits", 1234567.0),
+]:
+    check("saldo em %r lê %s" % (texto.split("plan,")[-1].strip(), esperado),
+          fc.saldo_no_texto(texto) == esperado)
+for texto in ("sem saldo nenhum aqui", "", None):
+    check("saldo ilegível (%r) devolve None, e nunca zero" % (texto or ""),
+          fc.saldo_no_texto(texto) is None)
+# Zero é um saldo LEGÍTIMO (conta esgotada), e não pode virar "não sei": é
+# exatamente o estado em que a proteção mais precisa funcionar.
+check("zero é saldo lido, não ausência de leitura",
+      fc.saldo_no_texto("x — free plan, 0 credits") == 0.0)
+
+print()
 print("A AFERIÇÃO — o consumido sai do SALDO, nunca da soma das estimativas")
 d = tmp()
 m = monta_missao(d)
@@ -260,11 +286,33 @@ conta = fc.afere_gasto(m, saldo_agora=80)
 check("passar do teto é `estourado`, não aviso", conta["estado"] == "estourado")
 check("e o consumido vem da diferença de saldo, não de estimativa",
       conta["consumido"] == 220)
-check("o fecho acusa o teto estourado nomeando os dois números",
-      any("passou do teto" in f and "220" in f and "210" in f
-          for f in fc.erros_do_fecho(m)))
+check("cruzar o teto marca o desligamento e ainda NÃO é falta",
+      fc.conta_do_disco(m)["desligado_em"] == 220
+      and not any("desligamento" in f for f in fc.erros_do_fecho(m)))
 check("e o mapa mostra o custo sem ninguém pedir",
       "O que a geração custou" in fc.desenha_mapa(m))
+shutil.rmtree(d)
+
+# ATINGIR O TETO É O FIM PREVISTO, NÃO FALTA. A primeira versão recusava o fecho de
+# QUALQUER missão cujo consumido chegasse ao teto — ou seja, de toda missão que usasse
+# o combinado até o fim, que é justamente o comportamento certo. Falta é o que vem
+# DEPOIS do desligamento, e é essa a linha que estes dois casos separam.
+d = tmp()
+m = monta_missao(d)
+escreve(os.path.join(m, "gasto.json"), {
+    "modo": "real", "provedores": ["higgsfield"], "teto": {"imagem": 60, "video": 30},
+    "saldo_inicial": 100, "marco": "z", "tipos": {}, "leituras": [],
+})
+for saldo in (55, 12, 10):          # gasta 45 · 88 · 90 — para exatamente no teto
+    fc.afere_gasto(m, saldo_agora=saldo)
+conta = fc.conta_do_disco(m)
+check("gastar EXATAMENTE o teto marca onde a geração desligou",
+      conta["desligado_em"] == 90)
+check("e isso NÃO é falta — a missão bem comportada fecha",
+      not conta["gerou_depois_do_desligamento"] and fc.erros_do_fecho(m) == [])
+fc.afere_gasto(m, saldo_agora=3)    # gerou mais 7 depois da torneira fechada
+check("gerar DEPOIS do desligamento é falta, e o fecho a nomeia",
+      any("DEPOIS do desligamento" in f for f in fc.erros_do_fecho(m)))
 shutil.rmtree(d)
 
 d = tmp()
