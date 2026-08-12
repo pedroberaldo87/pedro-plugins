@@ -61,6 +61,8 @@ N_CONCEP_AVISO="o script manda o gap de concepção pro relatório"
 
 REVISOR="$(secao "$ALVO" '- **OPUS #2 — Revisor de construção.**' '- **DIAGNÓSTICO')"
 SKEL="$(secao "$ALVO" '// args (da casca)' '**Schemas (JSON Schema')"
+# O executável do motor mora ao lado da skill; o SKILL.md descreve, ele EXECUTA.
+MOTOR_JS="$(cat "$(dirname "$ALVO")/references/motor.js" 2>/dev/null)"
 DECOMP="$(secao "$ALVO" '- `DECOMP` —' '- `TASK_RESULT`')"
 REVIEW="$(secao "$ALVO" '- `BUILD_REVIEW` —' 'O `stopReason`')"
 
@@ -84,23 +86,40 @@ check "o gap de spec vale mesmo com a decomposição cumprida" \
 check "o gap de spec nasce >= severityFloor" "$(tem "$REVIEW" 'severityFloor')"
 check "$N_FILTRO_SPEC" "$(tem "$SKEL" "g.kind === 'spec'")"
 
-echo "3 · a constituição do projeto é citada"
+# Até 2026-08-12 este bloco cobrava a ENUMERAÇÃO dos documentos de régua dentro do
+# prompt do #2 — e era ela que produzia o drift: a skill listava quatro arquivos e o
+# doc_load.py já listava onze. Agora cobra o inverso: que a skill NÃO enumere, e mande
+# rodar o programa que sabe a lista de hoje.
+echo "3 · a régua do projeto vem do programa, não de uma lista escrita"
 check "$N_LEI_CAMINHO" \
-  "$(tem "$REVISOR" '.claude/docs/constituicao.md')"
-check "o #2 lê o quality-goals.md do projeto" \
-  "$(tem "$REVISOR" '.claude/docs/quality-goals.md')"
-check "a régua nunca é copiada pra dentro da skill" \
-  "$(tem "$REVISOR" 'nunca copiado para dentro desta skill')"
+  "$(tem "$REVISOR" 'doc-load')"
+check "o #2 julga contra TUDO que o doc-load listar" \
+  "$(tem "$REVISOR" 'TUDO que ele listar')"
+check "a lista de documentos não se escreve na skill" \
+  "$(tem "$REVISOR" 'não se escreve aqui')"
 check "projeto sem o arquivo não vira gap (fail-open)" \
   "$(tem "$REVISOR" 'ausência de constituição não é gap')"
 check "o schema declara o kind 'constituicao'" "$(tem "$REVIEW" "'constituicao'")"
-check "o motor manda ler o arquivo na rodada" "$(tem "$SKEL" 'quality-goals.md')"
-check "o #2 mede a obra contra o esquema aprovado" \
-  "$(tem "$REVISOR" '.claude/docs/blueprint.md')"
-check "o #2 mede a obra contra a lista de funcionalidades aprovada" \
-  "$(tem "$REVISOR" '.claude/docs/features.md')"
-check "o desenho só entra quando está aprovado" \
-  "$(tem "$REVISOR" 'status: approved')"
+# O EXECUTÁVEL é references/motor.js, não o bloco do SKILL.md: é lá que mora o
+# caminho de degradação da régua, e era lá que ele enumerava dois arquivos.
+check "o motor manda rodar o doc-load quando a casca não passou a régua" \
+  "$(tem "$MOTOR_JS" 'RODE o doc-load')"
+check "o motor NÃO enumera documento no caminho de degradação" \
+  "$([ "$(tem "$MOTOR_JS" '.claude/docs/quality-goals.md')" = "1" ] && echo 0 || echo 1)"
+check "o #2 sabe distinguir lei de acordo aprovado" \
+  "$(tem "$REVISOR" 'approved')"
+
+echo "3b · o #2 mede o TRIPÉ, e não enumera documento"
+check "o #2 aponta pro contrato do tripé" \
+  "$(tem "$REVISOR" 'dimensoes-de-revisao.md')"
+check "o tripé inclui cobertura por finalidade" \
+  "$(tem "$REVISOR" 'cobertura por finalidade')"
+check "…e ela é a que enxerga o teste AUSENTE" \
+  "$(tem "$REVISOR" 'teste AUSENTE')"
+for _d in constituicao quality-goals blueprint features; do
+  check "o #2 não carimba .claude/docs/$_d.md" \
+    "$([ "$(tem "$REVISOR" ".claude/docs/$_d.md")" = "1" ] && echo 0 || echo 1)"
+done
 
 echo "4 · o eixo requisito/pronto"
 check "o schema DECOMP existe" "$([ -n "$DECOMP" ] && echo 1 || echo 0)"

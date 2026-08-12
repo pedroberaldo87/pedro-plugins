@@ -227,7 +227,7 @@ python3 -c "import json;print(len(json.load(open('.claude-plugin/marketplace.jso
 .claude-plugin/marketplace.json   catálogo único — nome, source, version, tags, category
 plugins/<nome>/                   um dir por entrada do catálogo, sem sobra (§2)
 _shared/                          fonte-da-verdade do compartilhado (17 arquivos-fonte)
-scripts/sync-shared.sh            o "build": vendora _shared/ → 90 cópias em 42 pastas  <!-- acopla-ok: §7 traz o comando que produz os dois números -->
+scripts/sync-shared.sh            o "build": vendora _shared/ → 93 cópias em 42 pastas  <!-- acopla-ok: §7 traz o comando que produz os dois números -->
 scripts/hook_contract.py          mede o contrato dos registros de hook (§11)
 scripts/public_repo_check.py      cobra a regra de repo público (checagem H do gate)
 scripts/regua_call_check.py       cobra que gerador de página chame a régua (checagem I)
@@ -360,9 +360,9 @@ handoff          1.11.10  [handoff]                  HOOKS
 improve            1.1.2  [improve]                  -
 improve-workflow 0.16.25  [improve-workflow]         -
 intent-guard       0.8.7  [intent-guard]             HOOKS
-lixeiro            1.4.0  [faxina]                   HOOKS
+lixeiro            1.4.1  [faxina]                   HOOKS
 principles         1.0.5  [principles]               -
-project-skills   0.22.14  [design-md,doc,doc-load,doc-touch,monitorar,pesquisa-referencias,plan,project-skills,qa-loop,sprint,start] HOOKS
+project-skills   0.22.16  [design-md,doc,doc-load,doc-touch,monitorar,pesquisa-referencias,plan,project-skills,qa-loop,sprint,start] HOOKS
 ship               1.5.4  [ship]                     HOOKS
 slides             1.6.2  [slides]                   -
 vision             0.1.1  []                         -
@@ -833,7 +833,7 @@ de checks de cada uma é a última linha que ela imprime (§13).
 
 ## 7. A engine compartilhada vendorada (`_shared/`)
 
-`_shared/` cresceu de seis para **dezessete** arquivos-fonte [confirmado — `ls -1 _shared/`
+`_shared/` cresceu de seis para **vinte** arquivos-fonte [confirmado — `ls -1 _shared/`
 neste run, fora o `__pycache__`], e a natureza do que mora ali mudou: não é só código Python,
 é **shell de hook e texto de skill**.
 
@@ -870,8 +870,8 @@ sed -n '/^SPECS=(/,/^)/p' scripts/sync-shared.sh | grep '::' \
   | sed 's/.*"\(.*\)::.*/\1/' | sort -u | wc -l                        # nº de pastas
 ```
 
-**90 cópias, em 42 pastas de destino, de 17 arquivos-fonte** — contra 19 cópias em 14 pastas <!-- acopla-ok: os dois comandos que produzem os números estão no bloco imediatamente acima; "19" é narrativa histórica -->
-na passada anterior [medido nesta rodada: os dois comandos acima devolvem `88` e `42` — o salto de 83 para 88 é `bash_posix.py`, que nasceu em 2026-08-10 quando a terceira cópia da mesma função ia ser escrita à mão].
+**93 cópias, em 42 pastas de destino, de 20 arquivos-fonte** — contra 19 cópias em 14 pastas <!-- acopla-ok: os dois comandos que produzem os números estão no bloco imediatamente acima; "19" é narrativa histórica -->
+na passada anterior [medido nesta rodada: os dois comandos acima devolvem `93` e `42` — o salto de 90 para 93 é o contrato do TRIPÉ da revisão (`dimensoes-de-revisao.md`, dois consumidores) mais a cópia de `antipadroes-de-teste.md` que o `/sprint` passou a precisar, porque o tripé o cita de dentro].
 Os quatro maiores contribuintes, todos vendorados por consumidor:
 `resolve-plugin.sh` (18), `regua_texto.py` (11), `hook-json.sh` (12), `lib-tmpdir.sh` (10).
 
@@ -1441,8 +1441,8 @@ executado sobre os docs nesta rodada]
 ### 8.10 `doc_load.py` — quais documentos valem como RÉGUA hoje
 
 Nasceu nesta rodada, em `plugins/project-skills/lib/doc_load.py`, com a skill
-`skills/doc-load/SKILL.md` e a suíte `lib/test_doc_load.py` (**29 checks** — `python3
-plugins/project-skills/lib/test_doc_load.py` → *"29 passou · 0 falhou"* nesta passada).
+`skills/doc-load/SKILL.md` e a suíte `lib/test_doc_load.py` (**37 checks** — `python3
+plugins/project-skills/lib/test_doc_load.py` → *"37 passou · 0 falhou"* nesta passada).
 
 Ele responde uma pergunta só, e responde por programa: **contra o que esta obra pode ser
 julgada?** Três naturezas, com exigências diferentes (constantes `LEI`, `ACORDO` e o
@@ -1458,9 +1458,18 @@ minerado no topo do arquivo):
 - **Mapa** — os minerados (`architecture.md`, `patterns.md`, `data-stores.md`,
   `durability.md`, `runtime.md`). Serve para se situar; **nunca** para reprovar.
 
-Campos da saída: `regua`, `marca_regua`, `ausentes`, `dispensa`, `reabertos`,
-`correcoes_pendentes`. Ausência não é achado — projeto sem `constituicao.md` simplesmente
-não tem o eixo, e o programa não escreve nada em lugar nenhum: ele lê.
+Campos da saída: `regua`, `marca_regua`, `ausentes` (mais `ausentes_lei`,
+`ausentes_acordo` e `ausentes_minerados`, a mesma lista separada por natureza), `dispensa`,
+`reabertos`, `correcoes_pendentes`. Ausência não é achado — projeto sem `constituicao.md`
+simplesmente não tem o eixo, e o programa não escreve nada em lugar nenhum: ele lê.
+
+⚠️ **Mas ausência deixou de ser rodapé: desde 2026-08-12 ela abre o relatório.** O bloco
+`⚠️ LACUNA — N de 16 documentos canônicos não existem neste projeto` é a PRIMEIRA linha de
+`texto()`, com uma linha por natureza e o comando que a resolve ao lado (`/start escreve`
+para lei e acordo, `/doc extrai do código` para o mapa) — no fim da página, longe de
+qualquer ação possível, a lacuna era lida como enfeite. Quem cala o bloco é `dispensa.md`
+**com `motivo:` escrito**; dispensa sem motivo não cala e ainda ganha a linha que diz o que
+falta escrever.
 
 ⚠️ **A marca é a MESMA receita do shell, e isso é a decisão, não um detalhe.** É o `cksum`
 POSIX do CORPO (frontmatter fora), reimplementado em Python para rodar onde não há shell, e
@@ -1869,7 +1878,7 @@ plugins/branches/lib/test_branch_state.py       :: OK
 plugins/guardrails/lib/test_askq_lint.py        :: ── 47 passou · 0 falhou ──
 plugins/intent-guard/lib/test_ledger.py         :: test_ledger: OK
 plugins/project-skills/lib/test_doc_lint.py     :: TODOS OS 39 CHECKS PASSARAM
-plugins/project-skills/lib/test_doc_load.py     :: 29 passou · 0 falhou
+plugins/project-skills/lib/test_doc_load.py     :: 37 passou · 0 falhou
 plugins/project-skills/lib/test_graph_map.py    :: TODOS OS 23 CHECKS PASSARAM
 plugins/project-skills/lib/test_journal.py      :: TODOS OS 123 CHECKS PASSARAM
 plugins/project-skills/lib/test_organism.py     :: test_organism: abertura apresenta o herdado item a item (S-12) ✓

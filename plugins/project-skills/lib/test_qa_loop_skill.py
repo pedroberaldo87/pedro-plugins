@@ -94,27 +94,32 @@ def main():
     print("o prompt do REVIEW carrega as duas ancoras")
     check("o REVIEW existe na skill", bool(review))
     check("manda comparar contra o PLANO", "PLANO" in review and "DIVERGE" in review)
-    check("manda ler a lei no caminho que a concepcao produz",
-          ".claude/docs/constituicao.md" in review)
-    check("manda ler `.claude/docs/quality-goals.md` do projeto",
-          ".claude/docs/quality-goals.md" in review)
-    check("a regua e lida do projeto, nao copiada na skill",
-          "nunca copiado" in review or "nunca copiada" in review)
+    # Ate 2026-08-12 estes asserts cobravam a ENUMERACAO dos documentos de regua
+    # dentro do prompt — e era isso que produzia o drift: a skill listava quatro
+    # arquivos e o doc_load.py ja listava onze. Agora cobram o contrario: que a
+    # skill NAO enumere, e mande rodar o programa que sabe a lista de hoje.
+    check("manda RODAR o doc-load em vez de listar documento",
+          "doc-load" in review)
+    check("julga contra TUDO que o doc-load listar",
+          "TUDO" in review and "régua" in review)
+    check("a lista de documentos nao e escrita na skill",
+          "não é escrita" in review or "não se escreve" in review)
     check("fail-open: sem o arquivo o eixo nao roda e nao vira finding",
           "não roda" in review and "não é finding" in review)
 
-    print("o REVIEW mede a obra contra o desenho aprovado")
-    check("manda ler o esquema aprovado `.claude/docs/blueprint.md`",
-          ".claude/docs/blueprint.md" in review)
-    check("manda ler a lista de funcionalidades `.claude/docs/features.md`",
-          ".claude/docs/features.md" in review)
-    check("o desenho so entra quando esta aprovado",
-          "status: approved" in review)
+    print("o REVIEW nao enumera documento de regua (a premissa anti-drift)")
+    for doc in ("constituicao.md", "quality-goals.md", "blueprint.md", "features.md"):
+        check("o REVIEW nao carimba `.claude/docs/%s`" % doc,
+              ".claude/docs/%s" % doc not in review)
+    check("o REVIEW aponta pro contrato do tripe",
+          "dimensoes-de-revisao.md" in texto)
 
     print("o bucket 1 aceita violacao de constituicao como conserto")
     check("a constraint central existe", bool(bucket1))
-    check("bucket 1 cita a constituicao alem do plano",
-          "constituição" in bucket1 and "quality-goals.md" in bucket1)
+    check("bucket 1 cita a regua do doc-load alem do plano",
+          "doc-load" in bucket1 and "régua" in bucket1)
+    check("bucket 1 tambem acolhe finalidade sem teste que morda",
+          "morda" in bucket1 or "sem teste" in bucket1)
 
     print("a execucao avisa que a entrevista errou, sem mexer no documento")
     check("o REVIEW manda subir o que contradiz a concepcao aprovada",
