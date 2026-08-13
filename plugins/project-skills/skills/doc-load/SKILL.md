@@ -73,6 +73,13 @@ O programa grita a lacuna; quem decide o que fazer com ela é o dono, não você
 2. Mostre ao dono o bloco da lacuna **literal** (as linhas do programa, coladas, com o
    comando que preenche cada natureza — `/start` para lei e acordo, `/doc` para o mapa) e
    ofereça: preencher agora, ou seguir a missão sem régua e assumir o risco.
+   **O caminho de preencher muda com a idade do projeto**, e a oferta diz qual é:
+   - **projeto nascendo** (histórico raso, pouca obra) → `/start`, a entrevista do zero —
+     não há de onde inferir.
+   - **projeto maduro** (código denso, histórico longo, doc minerada) → **`/start ex-post`**,
+     que infere o rascunho do que já foi construído e conduz o dono pelo referendo — meses
+     de obra já manifestam as escolhas, e entrevistar do zero desperdiça o que o
+     repositório sabe.
 3. **Espere a resposta dele.** "Segue" libera a missão sem régua; "preenche" chama a skill
    que a saída nomeia. Silêncio não é resposta, e escolher sozinho aqui é escolher pelo
    dono qual documentação o projeto dele vai ter.

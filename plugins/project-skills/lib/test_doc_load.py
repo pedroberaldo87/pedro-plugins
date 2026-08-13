@@ -263,6 +263,15 @@ check("a receita manda rodar principles logo depois", "/principles" in texto)
 check("a receita diz quem ganha no conflito", "ganha o `/doc-load`" in texto)
 check("a receita traz a tabela de etapas", "`/principles review`" in texto)
 
+# ── a oferta distingue projeto nascendo de projeto maduro (F3.1) ─────────────
+# Sem os dois ramos, a lacuna de um projeto com meses de obra mandava o dono para
+# uma entrevista do zero — desperdicando o que o repositório já manifesta.
+check("a oferta tem o ramo do projeto nascendo", "projeto nascendo" in texto)
+check("a oferta tem o ramo do projeto maduro, citando o modo ex-post",
+      "projeto maduro" in texto and "`/start ex-post`" in texto)
+check("o ramo maduro diz o porquê: inferir e referendar, não entrevistar do zero",
+      "referendo" in texto)
+
 print()
 print(f"{ok} passou · {falhou} falhou")
 sys.exit(1 if falhou else 0)

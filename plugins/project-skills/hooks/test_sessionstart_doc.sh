@@ -200,4 +200,16 @@ N_COPIAS=$(grep -c 'AUTORAIS_DOCS="constituicao' "$HOOK")
 [ "$(grep 'AUTORAIS_DOCS="constituicao' "$HOOK" | sed 's/.*="//; s/".*//' | sort -u | wc -l | tr -d ' ')" -eq 1 ]
 echo "15. as 2 cópias de AUTORAIS_DOCS são idênticas: OK"
 
+# 16. projeto com doc minerada e ZERO autorais → o aviso cita o modo ex-post.
+#     É o caso do projeto maduro: obra minerada no disco prova que há de onde
+#     inferir, e mandar o dono para a entrevista do zero desperdiça o que o
+#     repositório já manifesta. Sem o conserto, OUT só oferecia /start gaps.
+MADURO="$(mktemp -d "$(td_tmpdir)"/pd-ck-mad-XXXXXX)"
+mkdir -p "$MADURO/.claude/docs"
+printf '# arch\n' > "$MADURO/.claude/docs/architecture.md"
+printf '<!-- project-doc:v2 -->\narch\n' > "$MADURO/.claude/CLAUDE.md"
+OUT="$(mkin "$MADURO" sess-mad | bash "$HOOK")"
+ctxq "$OUT" "start ex-post"
+echo "16. projeto maduro sem autoral recebe a oferta do ex-post: OK"
+
 echo "test_sessionstart_doc: OK"
