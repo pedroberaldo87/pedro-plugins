@@ -7,8 +7,10 @@ que o programa que ela chama REALMENTE recusa reaproveitar id existente — a se
 comportamento rodado, não citação.
 """
 
+import importlib
 import json
 import os
+import re
 import subprocess
 import sys
 import tempfile
@@ -40,6 +42,28 @@ check("o aviso vem ANTES da gravacao", -1 < pos_open < pos_init)
 check("diz que o id e proprio do plano", "id proprio" in texto or "id próprio" in texto)
 check("diz que o init recusa renomear id existente",
       "recusa" in texto and "renomear id existente" in texto)
+
+
+print("a ida ao mapa da regua")
+# A "linha da ida" e a que manda extrair o CONTEUDO da regua antes da primeira
+# tarefa. Sem cobrador, a proxima edicao tira a linha e ninguem percebe. O modulo
+# citado sai do proprio texto (nada de caminho cravado): o que a skill nomeia tem
+# que existir ao lado desta suite, com as funcoes que ela manda chamar.
+MODULO = re.search(r"import (\w+) as c", texto)
+check("manda montar o mapa da regua antes de escrever tarefa", MODULO is not None)
+pos_mapa = texto.find(MODULO.group(1) + ".py") if MODULO else -1
+check("a ida vem ANTES da gravacao do plano", -1 < pos_mapa < pos_init)
+
+if MODULO:
+    alvo = os.path.join(AQUI, MODULO.group(1) + ".py")
+    check("o programa citado existe: %s" % os.path.basename(alvo), os.path.isfile(alvo))
+    if os.path.isfile(alvo):
+        sys.path.insert(0, AQUI)
+        mod = importlib.import_module(MODULO.group(1))
+        funcs = sorted(set(re.findall(r"c\.(le_\w+)", texto)))
+        check("a ida chama alguma leitura do mapa", len(funcs) >= 1)
+        for f in funcs:
+            check("%s existe em %s" % (f, os.path.basename(alvo)), hasattr(mod, f))
 
 
 print("o programa que a skill chama")
