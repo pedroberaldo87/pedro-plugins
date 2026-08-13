@@ -119,6 +119,17 @@ def _hooks_que_decidem():
     return n
 
 
+def _skills():
+    """(plugins, skills no total, plugins que trazem uma só) — um SKILL.md, uma skill."""
+    base = os.path.join(ROOT, "plugins")
+    por_plugin = [len([s for s in os.listdir(os.path.join(base, p, "skills"))
+                       if os.path.isfile(os.path.join(base, p, "skills", s, "SKILL.md"))])
+                  if os.path.isdir(os.path.join(base, p, "skills")) else 0
+                  for p in sorted(os.listdir(base))
+                  if os.path.isdir(os.path.join(base, p))]
+    return len(por_plugin), sum(por_plugin), por_plugin.count(1)
+
+
 def _plugins_com_hooks():
     """Plugins que registram hook = os que têm hooks/hooks.json (nunca na raiz)."""
     base = os.path.join(ROOT, "plugins")
@@ -146,6 +157,15 @@ AFIRMACOES = [
         "padrao": r"\*\*(\d+) plugins · Markdown",
         "real": lambda: (_catalogo(),),
         "conserto": "conte com: python3 -c \"import json;print(len(json.load(open('.claude-plugin/marketplace.json'))['plugins']))\"",
+    },
+    {
+        "id": "skills",
+        "onde": "frase das skills, logo abaixo do subtítulo",
+        "padrao": r"Os (\d+) plugins somam \*\*(\d+) skills\*\* — (\d+) trazem uma só",
+        "real": _skills,
+        "conserto": "conte com: ls -d plugins/*/skills/*/SKILL.md | wc -l"
+                    " (e o rateio por plugin com: for p in plugins/*/;"
+                    " do echo $(ls -d $p/skills/*/SKILL.md 2>/dev/null | wc -l); done)",
     },
     {
         "id": "liga-desliga",
@@ -287,9 +307,15 @@ def confere():
     except OSError as e:
         return achados, ["README.md ilegível (%s)" % e]
 
-    linhas = texto.splitlines()
     _confere_plugins_citados(texto, achados)
+    _confere_numeros(texto, achados, nao_medidas)
+    _confere_nomes(texto, achados, nao_medidas)
 
+    return achados, nao_medidas
+
+
+def _confere_numeros(texto, achados, nao_medidas):
+    linhas = texto.splitlines()
     for af in AFIRMACOES:
         try:
             reais = af["real"]()
@@ -320,10 +346,6 @@ def confere():
                 "conserto": af["conserto"],
                 "trecho": linhas[linha - 1].strip()[:100],
             })
-
-    _confere_nomes(texto, achados, nao_medidas)
-
-    return achados, nao_medidas
 
 
 def main(argv=None):

@@ -48,6 +48,41 @@ def test_readme_do_repo_esta_em_dia():
         assert _achados_de(f.read()) == []
 
 
+# ── a frase das skills: quantas skills, e quantos plugins trazem uma só ───────
+#
+# Entrou porque o README passou verde afirmando "20 trazem uma só" com 18 plugins
+# de uma skill — a frase se contradizia sozinha (20+2+3+11 dá 36, não as 34 que
+# ela mesma afirma) e nenhuma afirmação do gate media skill.
+
+def _numeros_de(texto):
+    achados, nao_medidas = [], []
+    rcc._confere_numeros(texto, achados, nao_medidas)
+    assert not nao_medidas, nao_medidas
+    return achados
+
+
+def _readme():
+    with open(rcc.README, encoding="utf-8") as f:
+        return f.read()
+
+
+def test_quantidade_de_skills_errada_reprova():
+    reais = rcc._skills()
+    certo = "Os %d plugins somam **%d skills** — %d trazem uma só" % reais
+    errado = certo.replace("— %d " % reais[2], "— %d " % (reais[2] + 2))
+    ids = {a["id"] for a in _numeros_de(_readme().replace(certo, errado))}
+    assert "skills" in ids, ids
+
+
+def test_frase_das_skills_sumida_reprova():
+    ids = {a["id"] for a in _numeros_de("README sem a frase nenhuma.")}
+    assert "skills" in ids, ids
+
+
+def test_numeros_do_readme_do_repo_batem():
+    assert _numeros_de(_readme()) == []
+
+
 if __name__ == "__main__":
     for nome, fn in sorted(globals().items()):
         if nome.startswith("test_"):

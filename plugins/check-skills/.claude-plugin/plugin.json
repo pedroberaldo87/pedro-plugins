@@ -1,6 +1,6 @@
 {
   "name": "check-skills",
-  "version": "0.7.2",
+  "version": "0.7.3",
   "description": "Confere a saúde do que está instalado na máquina em seis lentes: nome de skill repetido, hooks de origens diferentes no mesmo evento, descrições que disputam o mesmo assunto, versões paradas no cache, processo que a skill abre e não fecha, e citação de plugin irmão que não está instalado nesta máquina. A varredura é de programa; o julgamento das contradições de instrução exige ler as descrições lado a lado.",
   "author": {
     "name": "pedroberaldo87",
