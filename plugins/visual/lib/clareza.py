@@ -83,7 +83,11 @@ BANCO = os.path.join(STATE_DIR, "licoes-clareza.json")
 #   evidencia.output → saída crua é literal por obrigação; "humanizar" prova é o
 #                      defeito original com outra roupa
 #   raw_html         → a válvula; quem a usa assume a responsabilidade
-ISENTOS = {("evidencia", "output"), ("raw_html", "html")}
+ISENTOS = {("evidencia", "output"), ("raw_html", "html"),
+           # o documento sob aprovação é VERBATIM por contrato (o build recusa aprovação
+           # sem ele inteiro na página) — vetar o léxico dele torna impossível apresentar
+           # qualquer documento real da casa para o de acordo. A âncora cita o doc literal.
+           ("aprovacao", "doc_integral"), ("aprovacao", "ancora")}
 
 # As lições de fábrica saem das duas reprovações de 2026-08-06. Elas são a semente:
 # `registrar` acrescenta as próximas sem tocar nestas.
