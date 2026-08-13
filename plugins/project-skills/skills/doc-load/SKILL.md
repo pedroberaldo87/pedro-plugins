@@ -47,8 +47,15 @@ Duas naturezas, com exigências diferentes:
 `runtime.md`. Documento minerado do código: serve para **se situar**, nunca para
 reprovar. Ele descreve o que existe, não o que deveria existir.
 
-**AUSENTES** — dito em voz alta, e **ausência não é achado**. Projeto sem
-`constituicao.md` não tem o eixo de constituição; isso não é violação de nada.
+**LACUNA** — a primeira coisa impressa, antes de qualquer lista, sempre que falta algum
+dos canônicos (quantos são sai da própria saída, no `de N` da primeira linha; por programa,
+`python3 "$(bash "${CLAUDE_PLUGIN_ROOT}/lib/resolve-plugin.sh" project-skills lib/doc_load.py)" --project-root "$PWD" --json`
+traz `ausentes_lei`, `ausentes_acordo` e `ausentes_minerados` separados, com o `ausentes`
+antigo intacto ao lado): quantos faltam, quais são, separados por natureza, e o comando que
+escreve cada natureza (`/start` para lei e acordo, `/doc` para o mapa). Não existe uma
+seção "AUSENTES" no rodapé — a lacuna sobe ao topo, porque no fim da página, longe do
+comando que a resolve, ela era lida como enfeite. **Ausência não é achado**: projeto sem
+`constituicao.md` não tem o eixo de constituição, e isso não reprova obra nenhuma.
 
 **DISPENSA** — `dispensa.md` com `motivo:` preenchido é a decisão declarada de viver sem a
 fundação. Dispensa sem motivo escrito não vale: é ausência com um arquivo em cima.
@@ -56,6 +63,31 @@ fundação. Dispensa sem motivo escrito não vale: é ausência com um arquivo e
 **CORREÇÃO PENDENTE** — o `correcao-pendente:` que o dono gravou no frontmatter quando a
 execução descobriu que a concepção errou. Enquanto ele estiver lá, aquele documento tem
 uma dívida declarada, e quem julga precisa saber disso antes de medir.
+
+## A oferta — a lacuna vai ao dono ANTES da missão
+
+O programa grita a lacuna; quem decide o que fazer com ela é o dono, não você. Então:
+
+1. Rodou o comando e a saída começa com `⚠️ LACUNA` → **pare aqui**. Nada de plano, nada
+   de código, nada de leitura de outro arquivo.
+2. Mostre ao dono o bloco da lacuna **literal** (as linhas do programa, coladas, com o
+   comando que preenche cada natureza — `/start` para lei e acordo, `/doc` para o mapa) e
+   ofereça: preencher agora, ou seguir a missão sem régua e assumir o risco.
+3. **Espere a resposta dele.** "Segue" libera a missão sem régua; "preenche" chama a skill
+   que a saída nomeia. Silêncio não é resposta, e escolher sozinho aqui é escolher pelo
+   dono qual documentação o projeto dele vai ter.
+
+Sem lacuna — ou com `dispensa.md` de motivo escrito, que a cala — não há oferta a fazer:
+siga direto.
+
+**A saída para o modo autônomo.** Quando a execução corre sem o dono presente — `/sprint`,
+headless, qualquer modo que o próprio contrato declara sem pausas e sem perguntas —, o
+passo 3 **não** se aplica: **não espere**. Não há a quem oferecer, e esperar por quem não
+está lá trava a missão inteira. Nesse caso: registre a lacuna como **pendência do relatório
+final** (o bloco literal do programa, as naturezas que faltam e o comando que preenche cada
+uma), siga a missão sem régua para o que falta, e continue julgando pelo que existe. A
+oferta do passo 2 vira um item do relatório, e quem decide continua sendo o dono — só que
+quando ele voltar a ler.
 
 ## A marca, e por que ela é a mesma do shell
 

@@ -192,11 +192,45 @@ check("correção pendente declarada pelo dono aparece",
       e["correcoes_pendentes"] and "artigo 3" in e["correcoes_pendentes"][0]["o_que_falta"],
       str(e["correcoes_pendentes"]))
 
+# ── a lacuna sai separada por natureza, e sobe para o TOPO ────────────────────
+e = dl.carrega(projeto({"constituicao.md": DOC_LEI_READY}))
+check("a lacuna separa lei, acordo e mapa",
+      e["ausentes_lei"] == ["quality-goals.md", "constraints.md"]
+      and len(e["ausentes_acordo"]) == 8 and len(e["ausentes_minerados"]) == 5,
+      f"{e['ausentes_lei']} / {e['ausentes_acordo']} / {e['ausentes_minerados']}")
+check("e a soma das três continua sendo o campo de sempre",
+      e["ausentes"] == e["ausentes_lei"] + e["ausentes_acordo"] + e["ausentes_minerados"])
+
+linhas = dl.texto(e).splitlines()
+check("a lacuna é a PRIMEIRA linha, não o rodapé",
+      linhas[0].startswith("⚠️ LACUNA") and "15 de 16" in linhas[0], linhas[0])
+check("e cada natureza vem com o comando que a resolve",
+      any("lei:" in ln and "/start escreve" in ln for ln in linhas)
+      and any("mapa:" in ln and "/doc extrai do código" in ln for ln in linhas),
+      "\n".join(linhas[:5]))
+check("a lacuna aparece ANTES do que vale como régua",
+      linhas.index([ln for ln in linhas if ln.startswith("⚠️ LACUNA")][0])
+      < linhas.index("VALE COMO RÉGUA — julgue contra estes, e cite a passagem:"))
+
+completo = {nome: DOC_LEI_READY for nome, _ in dl.LEI}
+completo.update({nome: DOC_ACORDO_READY for nome, _ in dl.ACORDO})
+completo.update({nome: DOC_MINERADO for nome, _ in dl.MINERADOS})
+e = dl.carrega(projeto(completo))
+check("projeto com os 16 canônicos em disco não deixa ausente nenhum",
+      e["ausentes"] == [], str(e["ausentes"]))
+check("projeto completo não inventa lacuna nenhuma",
+      "LACUNA" not in dl.texto(e), dl.texto(e)[:120])
+
 # ── dispensa ──────────────────────────────────────────────────────────────────
 e = dl.carrega(projeto({"dispensa.md": "---\nmotivo: projeto de uma tarde\n---\n"}))
 check("dispensa com motivo é lida", e["dispensa"] and e["dispensa"]["motivo"] == "projeto de uma tarde")
+check("e dispensa com motivo escrito CALA a lacuna", "LACUNA" not in dl.texto(e), dl.texto(e)[:120])
+
 e = dl.carrega(projeto({"dispensa.md": "---\nmotivo:\n---\n"}))
 check("dispensa SEM motivo aparece com motivo nulo", e["dispensa"]["motivo"] is None)
+check("e dispensa sem motivo NÃO cala — a lacuna sobe e diz o que falta escrever",
+      dl.texto(e).startswith("⚠️ LACUNA")
+      and "dispensa declarada SEM MOTIVO ESCRITO" in dl.texto(e), dl.texto(e)[:200])
 
 # ── o comando de linha ────────────────────────────────────────────────────────
 r = projeto({"constituicao.md": DOC_LEI_READY})

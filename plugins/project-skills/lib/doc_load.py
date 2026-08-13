@@ -18,7 +18,10 @@ frontmatter) — não porque é elegante, mas porque duas receitas dariam duas m
 mesmo texto, e aí a comparação nunca fecharia.
 
 Fail-open na direção honesta: projeto sem `.claude/docs/` devolve lista vazia e sai 0.
-Ausência de documento NÃO é erro — é informação, e o campo `ausentes` a carrega.
+Ausência de documento não derruba a execução, mas também não passa calada: a lacuna sobe
+ao TOPO da saída, dizendo quantos documentos faltam e qual skill escreve cada natureza
+(`/start` para lei e acordo, `/doc` para o mapa). Só uma dispensa com motivo ESCRITO cala
+o alarme — dispensa sem motivo é cobrada na mesma linha.
 """
 
 import argparse
@@ -189,16 +192,16 @@ def le_documento(raiz, nome, natureza, papel):
 
 
 def carrega(raiz):
-    docs, ausentes = [], []
-    for nome, papel in LEI:
-        d = le_documento(raiz, nome, "lei", papel)
-        (docs.append(d) if d else ausentes.append(nome))
-    for nome, papel in ACORDO:
-        d = le_documento(raiz, nome, "acordo", papel)
-        (docs.append(d) if d else ausentes.append(nome))
-    for nome, papel in MINERADOS:
-        d = le_documento(raiz, nome, "minerado", papel)
-        (docs.append(d) if d else ausentes.append(nome))
+    docs = []
+    # Ausência de lei e ausência de etapa de concepção não se corrigem do mesmo jeito —
+    # por isso a lacuna sai separada por natureza. `ausentes` continua sendo a soma das
+    # três, na mesma ordem de sempre, para quem já lê esse campo.
+    faltam = {"lei": [], "acordo": [], "minerado": []}
+    for natureza, lista in (("lei", LEI), ("acordo", ACORDO), ("minerado", MINERADOS)):
+        for nome, papel in lista:
+            d = le_documento(raiz, nome, natureza, papel)
+            (docs.append(d) if d else faltam[natureza].append(nome))
+    ausentes = faltam["lei"] + faltam["acordo"] + faltam["minerado"]
 
     disp = os.path.join(raiz, ".claude", "docs", DISPENSA)
     dispensa = None
@@ -217,6 +220,9 @@ def carrega(raiz):
         "regua": [d["arquivo"] for d in regua],
         "marca_regua": marca_regua,
         "ausentes": ausentes,
+        "ausentes_lei": faltam["lei"],
+        "ausentes_acordo": faltam["acordo"],
+        "ausentes_minerados": faltam["minerado"],
         "dispensa": dispensa,
         "reabertos": [d["arquivo"] for d in docs if d["reaberto"]],
         "correcoes_pendentes": [
@@ -226,8 +232,34 @@ def carrega(raiz):
     }
 
 
+CANONICOS = len(LEI) + len(ACORDO) + len(MINERADOS)
+
+
+def _alarme(estado):
+    """A lacuna, no topo e com o comando que a resolve. Vazia quando não há o que dizer.
+
+    Sobe SEMPRE que falta qualquer canônico — no rodapé, ao lado de nada que se pudesse
+    fazer, a lacuna era lida como enfeite. Dispensa com motivo escrito continua calando.
+    """
+    if not estado["ausentes"] or (estado["dispensa"] and estado["dispensa"]["motivo"]):
+        return []
+    linhas = [f"⚠️ LACUNA — {len(estado['ausentes'])} de {CANONICOS} documentos canônicos "
+              "não existem neste projeto:"]
+    for rotulo, chave, skill in (
+        ("lei", "ausentes_lei", "/start escreve"),
+        ("acordo", "ausentes_acordo", "/start escreve"),
+        ("mapa", "ausentes_minerados", "/doc extrai do código"),
+    ):
+        if estado[chave]:
+            linhas.append(f"   {rotulo}: {' · '.join(estado[chave])}  →  {skill}")
+    if estado["dispensa"]:
+        linhas.append("   dispensa declarada SEM MOTIVO ESCRITO — escreva o motivo para calar isto")
+    linhas.append("")
+    return linhas
+
+
 def texto(estado):
-    linhas = []
+    linhas = _alarme(estado)
     if not estado["documentos"]:
         linhas.append("nenhum documento canônico em .claude/docs/ — não há régua a carregar")
         if estado["dispensa"]:
@@ -259,10 +291,6 @@ def texto(estado):
         linhas.append("CORREÇÃO PENDENTE declarada pelo dono:")
         for c in estado["correcoes_pendentes"]:
             linhas.append(f"  📝 {c['arquivo']}: {c['o_que_falta']}")
-    if estado["ausentes"]:
-        linhas.append("")
-        linhas.append(f"AUSENTES ({len(estado['ausentes'])}) — ausência NÃO é achado, é informação:")
-        linhas.append("   " + " · ".join(estado["ausentes"]))
     linhas.append("")
     linhas.append(f"marca da régua: {estado['marca_regua'] or '(sem régua)'}")
     return "\n".join(linhas)

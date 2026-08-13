@@ -202,7 +202,25 @@ Colha só o que serve de insumo para as perguntas:
 git log --oneline | wc -l                     # o projeto está nascendo ou é antigo?
 ls -d */ 2>/dev/null                          # forma do repositório
 grep -rhoE '^[A-Z_]+(_URL|_KEY|_TOKEN|_HOST)=' .env.example 2>/dev/null | sort -u   # integrações externas
+
+# doc avulsa que já existe no disco (README, pasta docs/, .md soltos) — bytes + caminho
+find . \( -name node_modules -o -name .git -o -name dist -o -name build \
+         -o -name .venv -o -name vendor -o -name graphify-out -o -path './.claude/ata' \) -prune -o \
+  -type f \( -iname 'README*' -o -iname '*.md' \) -print0 2>/dev/null \
+  | xargs -0 wc -c 2>/dev/null | sort -rn | head -40
 ```
+
+O que a varredura devolve é **matéria-prima, não etapa**: qual achado alimenta metas, arquitetura,
+jornadas ou nenhuma delas é julgamento seu ao ler o arquivo. E todo achado entra na entrevista como
+**rascunho**, nunca como conteúdo já aceito — texto de terceiro não é absorvido no documento
+canônico sem o de acordo do dono. Mostre cada um com a fonte à vista (`arquivo:linha` do trecho) e
+ofereça, literalmente, as **três saídas**: **confirma** · **corrige** · **não vale mais**. Arquivo
+grande demais para ler inteiro: leia o começo e os títulos, e cite `arquivo:linha` do trecho que
+virou rascunho.
+
+**O arquivo de origem permanece onde está** — README e afins nunca são movidos nem apagados pela
+concepção. Ele continua no lugar e é **citado como fonte dentro do documento canônico**
+(`arquivo:linha`), que nasce ao lado dele, não no lugar dele.
 
 Mais: versões pinadas (lockfile, `engines`), limites de recurso e serviços (compose), biblioteca de
 auth, onde o banco mora. Cada pista entra na pergunta **com a evidência** — o humano confirma ou

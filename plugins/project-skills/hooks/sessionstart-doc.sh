@@ -62,7 +62,7 @@ if [ -z "$LINES" ]; then
   [ -f "$RECUSA" ] && exit 0
   # design.md só entra na conta de quem TEM interface (F2.2) — backend puro, CLI
   # e este marketplace não devem ser cobrados por doc de design que não se aplica.
-  AUTORAIS_DOCS="quality-goals constraints context solution-strategy glossary"
+  AUTORAIS_DOCS="constituicao quality-goals constraints context solution-strategy glossary"
   has_frontend "$PROJ" && AUTORAIS_DOCS="$AUTORAIS_DOCS design"
   N_AUTORAIS=$(printf '%s\n' $AUTORAIS_DOCS | wc -l | tr -d ' ')
   AUTORAL=0; FALTAM=""
@@ -134,7 +134,7 @@ while IFS=$'\t' read -r TAG PROJ N STALE OOP; do
   #   fail-open  já garantido pelo `command -v jq` no topo do arquivo
   # ---------------------------------------------------------------------------
   if [ "${DOC_AUTORAL_GATE:-1}" != "0" ]; then
-    AUTORAIS_DOCS="quality-goals constraints context solution-strategy glossary"
+    AUTORAIS_DOCS="constituicao quality-goals constraints context solution-strategy glossary"
     has_frontend "${PROJ}" && AUTORAIS_DOCS="$AUTORAIS_DOCS design"
     AUTORAL=0; FALTAM=""
     for f in $AUTORAIS_DOCS; do
@@ -144,13 +144,20 @@ while IFS=$'\t' read -r TAG PROJ N STALE OOP; do
         FALTAM="${FALTAM}${FALTAM:+, }${f}"
       fi
     done
-    if [ "$AUTORAL" -eq 0 ]; then
+    # Lacuna PARCIAL conta igual: 2 de 6 autorais é buraco, não conformidade.
+    # O ramo só cala quando FALTAM está vazio — quem tem tudo não é cobrado.
+    if [ -n "$FALTAM" ]; then
       PHASH=$(printf '%s' "$PROJ" | cksum | cut -d' ' -f1)
       MARK="${TMPDIR:-/tmp}/claude-doc-autoral-nudge-$(id -u)-${SID}-${PHASH}"
       if [ ! -f "$MARK" ]; then
         touch "$MARK" 2>/dev/null
         N_AUTORAIS=$(printf '%s\n' $AUTORAIS_DOCS | wc -l | tr -d ' ')
-        LIST="${LIST}⚠️ ${PROJ} tem doc minerada mas ZERO dos ${N_AUTORAIS} autorais (${FALTAM}) — a regra existe (project-doc/start), mas nunca foi cobrada aqui. OFEREÇA \`/start gaps\`. Desliga com DOC_AUTORAL_GATE=0.\n"
+        if [ "$AUTORAL" -eq 0 ]; then
+          QUANTO="ZERO dos ${N_AUTORAIS} autorais"
+        else
+          QUANTO="só ${AUTORAL} de ${N_AUTORAIS} autorais"
+        fi
+        LIST="${LIST}⚠️ ${PROJ} tem doc minerada mas ${QUANTO} (falta: ${FALTAM}) — a regra existe (project-doc/start), mas nunca foi cobrada aqui. OFEREÇA \`/start gaps\`. Desliga com DOC_AUTORAL_GATE=0.\n"
       fi
     fi
   fi
