@@ -227,7 +227,7 @@ python3 -c "import json;print(len(json.load(open('.claude-plugin/marketplace.jso
 .claude-plugin/marketplace.json   catálogo único — nome, source, version, tags, category
 plugins/<nome>/                   um dir por entrada do catálogo, sem sobra (§2)
 _shared/                          fonte-da-verdade do compartilhado (17 arquivos-fonte)
-scripts/sync-shared.sh            o "build": vendora _shared/ → 94 cópias em 43 pastas  <!-- acopla-ok: §7 traz o comando que produz os dois números -->
+scripts/sync-shared.sh            o "build": vendora _shared/ → 95 cópias em 44 pastas  <!-- acopla-ok: §7 traz o comando que produz os dois números -->
 scripts/hook_contract.py          mede o contrato dos registros de hook (§11)
 scripts/public_repo_check.py      cobra a regra de repo público (checagem H do gate)
 scripts/regua_call_check.py       cobra que gerador de página chame a régua (checagem I)
@@ -849,7 +849,9 @@ Quatro famílias, pelo que cada uma resolve:
   sessão), `resolve-plugin.sh` e `resolve-dir.sh` (achar um plugin irmão / o diretório de
   saída), `green-cache.sh`, e `sessionstart-deps.sh` (o hook compartilhado de §6).
 - **Texto de skill** — `regua-de-pergunta.md`, `contrato-familia.md`,
-  `antipadroes-de-teste.md`. ⚠️ **Isto é novo e é o que mais muda o custo de release**: antes
+  `antipadroes-de-teste.md`, `dimensoes-de-revisao.md` (o tripé da revisão, hoje com três
+  consumidores: `qa-loop`, `sprint` e — desde 2026-08-13 — `plan`, que julga o PLANO pelos
+  mesmos três pés antes de existir código). ⚠️ **Isto é novo e é o que mais muda o custo de release**: antes
   o vendoring espalhava só programa; agora espalha **instrução lida pelo modelo**. Corrigir
   uma frase da régua de pergunta hoje exige bump em nove plugins.
 - **Suítes da própria fonte** — `test_regua_texto.py`, `test_resolve_plugin.py`.
@@ -870,8 +872,8 @@ sed -n '/^SPECS=(/,/^)/p' scripts/sync-shared.sh | grep '::' \
   | sed 's/.*"\(.*\)::.*/\1/' | sort -u | wc -l                        # nº de pastas
 ```
 
-**94 cópias, em 43 pastas de destino, de 20 arquivos-fonte** — contra 19 cópias em 14 pastas <!-- acopla-ok: os dois comandos que produzem os números estão no bloco imediatamente acima; "19" é narrativa histórica -->
-na passada anterior [medido nesta rodada: os dois comandos acima devolvem `94` e `43` — o salto de 90 para 94 é o contrato do TRIPÉ da revisão (`dimensoes-de-revisao.md`, agora TRÊS consumidores: o `/plan` entrou com a seção do artefato plano) mais a cópia de `antipadroes-de-teste.md` que o `/sprint` passou a precisar, porque o tripé o cita de dentro].
+**95 cópias, em 44 pastas de destino, de 20 arquivos-fonte** — contra 19 cópias em 14 pastas <!-- acopla-ok: os dois comandos que produzem os números estão no bloco imediatamente acima; "19" é narrativa histórica -->
+na passada anterior [medido nesta rodada: os dois comandos acima devolvem `95` e `44` — o salto de 90 para 95 é o contrato do TRIPÉ da revisão (`dimensoes-de-revisao.md`, agora QUATRO consumidores: entraram o `/plan`, com a seção do artefato plano, e a skill `completude`, que ganhou `references/` própria) mais a cópia de `antipadroes-de-teste.md` que o `/sprint` passou a precisar, porque o tripé o cita de dentro].
 Os quatro maiores contribuintes, todos vendorados por consumidor:
 `resolve-plugin.sh` (18), `regua_texto.py` (11), `hook-json.sh` (12), `lib-tmpdir.sh` (10).
 
@@ -1046,12 +1048,12 @@ As cópias de `regua_texto.py` aparecem à parte porque são vendoring, não có
 (§7.4):
 
 ```
-plugins/project-skills/lib/ 47 dos 122 — o motor de doc inteiro (journal.py · pattern_check.py ·
+plugins/project-skills/lib/ 51 dos 128 — o motor de doc inteiro (journal.py · pattern_check.py ·
                            organism.py · graph_map.py · doc_lint.py · historico.py ·
                            rastreio_etapas.py · curadoria_features.py ·
                            decisoes_estruturais.py · doc_load.py · collect_engine.py vendorado),
                            o ciclo de vida do plano (plan_state.py · cobertura.py ·
-                           auditoria_plano.py · plan_entrada.py · regua_pronto.py),
+                           completude.py · auditoria_plano.py · plan_entrada.py · regua_pronto.py),
                            andamento.py, green-cache.sh (vendorado) e os resolve-*.sh
                            + as suítes `test_*` correspondentes (`ls plugins/project-skills/lib/test_*`)
 plugins/vistoria/lib/      achado.py · fio_morto.py · inventario.py · medidor.py ·
@@ -1349,16 +1351,30 @@ páginas do `/visual` digitadas pelo modelo custavam **20-31 KB de HTML por pág
     `docs/REQUISITOS.md` → `{}`. **Nenhum documento não é erro**, é o caso comum — inclusive o
     deste repositório, que não tem PRD. A regra escrita no código: *"o requisito é obrigatório;
     o LUGAR dele é opcional"*.
-- **`cobertura.py`** (novo) é o fio entre o requisito e a tarefa, e cabe em **79 linhas**
-  [confirmado — `wc -l`]. `cobertura.py:le_requisitos` lê o formato que o dono já escreve à mão
+- **`cobertura.py`** é o fio entre o requisito e a tarefa, e hoje tem **349 linhas**
+  [confirmado — `wc -l` nesta rodada; nasceu com 79]. `cobertura.py:le_requisitos` lê o formato
+  que o dono já escreve à mão
   (`- **S-4.3 Título** · F1 · Art. 6 — corpo. CA: ...`) e devolve `{id: {titulo, ca, ancora, epico}}`;
   `cobertura.py:mapa` cruza com as tarefas do plano e nomeia **quatro estados** — coberto, tarefa
   sem requisito (trabalho que ninguém pediu), requisito sem tarefa (pedido que ninguém planejou)
   e citação a requisito inexistente. O quarto **não é aviso: é erro que recusa gravar**, tratado
-  em `plan_state.py:validate`. O docstring traz a medição que originou o módulo: num projeto
+  em `plan_state.py:validate`. ⚠️ **Os quatro estados são o núcleo, não o total**: o módulo
+  cresceu para cruzar o plano também contra os outros documentos de régua — `le_jornadas`,
+  `le_artigos`, `le_pecas` e `le_passos` —, e desde 2026-08-13 o cruzamento com a lei corre nas
+  DUAS direções (`artigos_sem_tarefa`: artigo que nenhuma tarefa representa, com número e nome).
+  A lista viva dos baldes sai do próprio programa, não daqui:
+  `python3 -c "import cobertura; print(sorted(cobertura.mapa({}, {})))"`. O docstring traz a medição que originou o módulo: num projeto
   real, 5 de 157 tarefas apontavam para algum dos 77 requisitos escritos — *"silêncio é o estado
   padrão de hoje; este módulo o torna impossível"*. `cobertura.py:resumo` é a linha única que
   todos os consumidores imprimem, pra que um só programa calcule o número.
+- **`completude.py`** (novo em 2026-08-13, **135 linhas**) é o mesmo fio com os elos de cima e de
+  baixo: **feature → requisito → tarefa → prova do tique**. Ele não reparseia nada — a feature e o
+  requisito saem do `cobertura`, a tarefa e a prova saem do `plan_state` —, lê **todos** os planos
+  da pasta como um só (`_plano_unico`), porque requisito atendido por outro plano é requisito
+  atendido, e separa de propósito as duas coisas que o "falta cobertura" solto misturava: `done`
+  com prova abaixo de `EVIDENCE_MIN` é **mentira** (`tique_sem_prova`), tarefa não marcada é só
+  trabalho que falta (`tarefa_pendente`). Uso: `python3 completude.py <features.md> <pasta-dos-planos>
+  [--json]`, saída 1 quando algum elo está furado. Suíte: `plugins/project-skills/lib/test_completude.py`.
 - **`visual_page.py`** converte seis regras que viviam como prosa na SKILL.md em coisas
   impossíveis de violar — entre elas "nenhum rádio nasce `checked`", "`name` único por item",
   "ordem fixa decisions-box antes de feedback-box" e **"decisão/item sem nenhuma evidência crua

@@ -50,7 +50,36 @@ Nunca reaproveite o id de outro plano para gravar assunto diferente: o `init` **
 renomear id existente** (ele acusa cada nó que já está gravado com outro título e não
 grava nada), então reaproveitar id não sobrescreve — só devolve recusa e queima a rodada.
 
-## Passo 3 — grave o plano
+## Passo 3 — monte o mapa da régua ANTES de escrever a primeira tarefa
+
+O `doc-load` diz QUAIS arquivos são a régua — só a lista, não o conteúdo dela. Escrever
+tarefa com a lista na mão é escrever de memória. Então, antes da primeira tarefa, extraia
+o que cada documento da régua de fato contém — os artigos da lei, as jornadas, as peças
+da arquitetura pretendida e os passos do ciclo:
+
+```bash
+COB="$(bash "${CLAUDE_PLUGIN_ROOT}/lib/resolve-plugin.sh" project-skills lib/cobertura.py)"
+python3 -c 'import sys, os
+sys.path.insert(0, os.path.dirname(sys.argv[1]))
+import cobertura as c
+docs = os.path.join(os.getcwd(), ".claude/docs")
+for rotulo, ler, arq in (("artigos", c.le_artigos, "constituicao.md"),
+                         ("jornadas", c.le_jornadas, "journeys.md"),
+                         ("pecas", c.le_pecas, "architecture-intent.md"),
+                         ("passos", c.le_passos, "blueprint.md")):
+    itens = ler(os.path.join(docs, arq))
+    print("%s (%d) <- %s" % (rotulo, len(itens), arq))
+    for i in itens:
+        print("   -", i)' "$COB"
+```
+
+Cada requisito do plano cita daí: `ancora` sai da lista de artigos, `jornada` da lista de
+jornadas, `peca` das peças, `passo` dos passos. Lista vazia é resposta — documento que o
+projeto não tem não vira citação inventada, e o campo correspondente fica de fora. Citação
+que não está na lista é recusada depois pela auditoria (`artigos_inexistentes`,
+`pecas_inexistentes`), então conferir aqui é mais barato que descobrir no passo 4.
+
+## Passo 4 — grave o plano
 
 Monte o JSON a partir da spec aprovada (requisitos com critério de aceite, fases, e uma
 tarefa por unidade entregável, cada uma com `requisito` e `pronto`) e grave de uma vez:
@@ -63,7 +92,14 @@ O gravador recusa por forma antes de aceitar: `pronto` que não é verificável,
 requisito, requisito sem critério de aceite. Recusa é resposta — conserte o JSON e grave
 de novo; o `init` funde com o que já está no arquivo e preserva o que não veio no pacote.
 
-## Passo 4 — quem monta não audita
+## Passo 5 — quem monta não audita
+
+O plano recém-montado é julgado pelos **mesmos três pés de toda revisão deste
+marketplace** — a seção *"Os três pés no artefato PLANO"* de `references/dimensoes-de-revisao.md`,
+ao lado desta skill, diz o que cada pé olha num plano. O texto mora lá e não se repete
+aqui (a fonte é `_shared/dimensoes-de-revisao.md`, vendorada): leia a cópia local antes
+de mandar para a auditoria.
+
 
 O plano recém-montado vai para a auditoria (`lib/auditoria_plano.py`, neste mesmo
 plugin), e **quem audita não é quem montou**. Nível 1 vermelho (o plano contradiz a

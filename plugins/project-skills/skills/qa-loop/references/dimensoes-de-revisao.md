@@ -99,6 +99,28 @@ nunca troca silenciosa do critério do julgamento.
 
 ---
 
+## Os três pés no artefato PLANO
+
+Revisão não é só de código. Quando o que está sob julgamento é um **plano** — a spec
+aprovada virada em tarefas ticáveis —, os três pés continuam sendo os mesmos três; o que
+muda é o que cada um olha. Um plano defeituoso não acusa nada ao ser gravado: ele só cobra
+o preço depois, quando a tarefa é executada e ninguém consegue dizer se ficou pronta.
+
+| Pé | No plano, isto é |
+|---|---|
+| 1 · qualidade | cada tarefa tem `pronto` **verificável** (um comando, um arquivo, um número), a ordem das dependências existe de verdade, e nenhuma tarefa depende de coisa que nenhuma outra entrega |
+| 2 · cobertura por finalidade | **todo requisito da spec tem tarefa**, e toda tarefa rastreia até um requisito. O que falta aqui é o análogo exato do teste que NÃO existe: requisito sem tarefa não cai em nenhum defeito de tarefa, porque não há tarefa para julgar |
+| 3 · coerência com a régua | cada citação do plano (`ancora`, `jornada`, `peca`, `passo`) resolve num item que a régua de fato tem. Citação inventada é o defeito que a auditoria do plano já nomeia (`artigos_inexistentes`, `pecas_inexistentes`) |
+
+**O `pronto` é literal, e proxy é o antipadrão daqui.** Critério que não pode ser cumprido
+como está escrito não vira um substituto "equivalente" na hora da execução: trocar critério
+é decisão do dono. O plano que aceita proxy fecha tarefa sem entregar o que pediu.
+
+Vale a mesma regra do topo: revisão de plano que não mediu um dos pés **declara que não
+mediu**.
+
+---
+
 ## Como esta lista muda
 
 Dimensão nova entra **na fonte**, e chega às skills pelo vendoring — nunca digitada na

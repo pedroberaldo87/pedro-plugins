@@ -20,6 +20,7 @@ NIVEL1 = [
     ("inexistentes", "cita requisito que não existe"),
     ("repetidos", "número de requisito escrito duas vezes"),
     ("sem_artigo", "não nasce de artigo nenhum da lei"),
+    ("artigos_sem_tarefa", "artigo da lei que nenhuma tarefa representa"),
     ("sem_jornada", "não nasce de caminho de pessoa nenhum"),
     ("sem_peca", "não diz em que peça da arquitetura vive"),
     ("sem_passo", "não atende passo nenhum do ciclo"),
@@ -34,6 +35,25 @@ NIVEL2 = [
     ("jornadas_sem_funcionalidade", "jornada que nenhuma funcionalidade atende"),
     ("passos_sem_funcionalidade", "passo do ciclo que ninguém atende"),
     ("epicos_sem_jornada", "épico sem caminho de pessoa nenhum"),
+]
+
+# Nível 3 — julgamento de agente. Não é uma pergunta só: são os TRÊS PÉS de
+# `_shared/dimensoes-de-revisao.md`, com o nome e o critério de lá, não redigidos de
+# novo. Saírem nomeados é o que impede o agente de medir um e achar que mediu a
+# coerência inteira — pé que ele não mediu, ele declara que não mediu.
+NIVEL3 = [
+    ("qualidade",
+     "o que está escrito está certo? Reprova: bug, regressão, contrato quebrado "
+     "entre as pontas, caso de borda, segurança. Lint, type-check e teste vermelho "
+     "NÃO entram aqui — são do portão mecânico."),
+    ("cobertura por finalidade",
+     "o que foi construído tem como falhar calado? Reprova: finalidade da spec sem "
+     "teste que MORDA — o que existe cai num dos cinco antipadrões, ou não existe "
+     "teste nenhum. A prova de que morde é a MUTAÇÃO, não a leitura."),
+    ("coerência com a régua",
+     "a obra respeita o que o projeto acordou? Reprova: passagem citada de lei ou "
+     "acordo que a obra viola — o que vale como régua é o que o doc-load lista, e "
+     "mapa minerado nunca reprova. Ausência de régua não é achado."),
 ]
 
 
@@ -105,7 +125,8 @@ def audita(mapa):
 
     Devolve sempre `nivel1` e `parou_em`. `nivel2` só existe quando o nível 1 está
     verde; `nivel3` só quando os dois estão. O nível 3 é julgamento de agente, então
-    o programa não o declara verde: ele sai `pendente`, para o agente preencher.
+    o programa não o declara verde: ele sai `pendente`, com os três pés nomeados e o
+    critério que reprova cada um, para o agente preencher.
     """
     n1 = _nivel(mapa, NIVEL1)
     n1.update(_classifica(mapa))
@@ -118,7 +139,9 @@ def audita(mapa):
 
     return {"nivel1": n1, "nivel2": n2,
             "nivel3": {"pendente": True,
-                       "nota": "coerência do plano — julgamento de agente"},
+                       "nota": "coerência do plano — julgamento de agente",
+                       "pes": [{"pe": nome, "reprova": criterio}
+                               for nome, criterio in NIVEL3]},
             "parou_em": 3}
 
 

@@ -16,8 +16,14 @@ CA_RE = re.compile(r"\bCA:\s*(.+?)(?=\n\s*[-#]|\Z)", re.S)
 ART_RE = re.compile(r"\b(Art\.\s*\d+[-A-Z]*)")
 # o número dentro da citação — "Art. 6" e "Art. 6-A" viram "6" e "6-A"
 ART_NUM_RE = re.compile(r"(\d+[-A-Z]*)")
-# cada artigo da lei do projeto é um `## Artigo N · nome` no constituicao.md
-ARTIGO_H_RE = re.compile(r"^##\s*Artigo\s+(\d+[-A-Z]*)", re.M)
+# cada artigo da lei do projeto é um `## Artigo N · nome` no constituicao.md — o nome
+# entra junto porque um número solto não diz a ninguém o que ficou sem tarefa
+ARTIGO_H_RE = re.compile(r"^##\s*Artigo\s+(\d+[-A-Z]*[^\n]*?)\s*$", re.M)
+# a própria lei diz de si mesma qual artigo ninguém cobre por programa — a linha
+# `**Sem cobrador:** Artigos 1, 2 e 8` do placar. Os números saem DAÍ, nunca escritos
+# aqui: emenda que ganha cobrador muda o texto, e o número congelado no código passaria
+# a mentir calado.
+SEM_COBRADOR_RE = re.compile(r"\*\*Sem cobrador[^*]*\*\*:?([^\n]*)")
 # a jornada de origem, citada no requisito pelo nome que journeys.md dá a ela
 JORNADA_RE = re.compile(r"\bJornada:\s*([^·—\n]+)")
 # a saída explícita: funcionalidade que o dono assume como escolha dele, sem artigo
@@ -104,7 +110,11 @@ def le_jornadas(fonte):
 
 
 def le_artigos(fonte):
-    """Os números dos artigos da lei do projeto, na ordem em que aparecem.
+    """Os artigos da lei do projeto — `"6 · Estética"` —, na ordem em que aparecem.
+
+    O número vem colado ao nome porque o cruzamento devolve o artigo que ninguém
+    representa, e "6" sozinho não diz a ninguém o que ficou de fora. Quem só precisa
+    do número usa `_num_artigo`, que lê o começo da linha.
 
     `fonte` é o caminho do constituicao.md OU o texto direto. Documento ausente
     devolve [], e [] não acusa ninguém: projeto sem lei escrita não é projeto que
@@ -112,6 +122,25 @@ def le_artigos(fonte):
     regra que `le_jornadas` segue para o journeys.md.
     """
     return [m.group(1) for m in ARTIGO_H_RE.finditer(_texto(fonte))]
+
+
+def le_sem_cobrador(fonte):
+    """Os números dos artigos que a lei declara SEM quem os cobra — `{"1", "2", "8"}`.
+
+    A fonte do fato é a própria lei: a linha do placar `**Sem cobrador:** Artigos
+    1, 2 e 8`. Artigo sem cobrador não é artigo cumprido nem descumprido — é artigo
+    que nenhum programa sabe medir, e o cruzamento passa a dizer isso em vez de
+    contá-lo como furo (ou, pior, de somá-lo ao verde).
+
+    O corte no travessão é o mesmo do placar da linha de cima: o comentário depois
+    dele cita outros números ("o 5, o 6 e o 7 com furo nomeado"), e eles não são
+    parte da lista. Lei sem essa linha devolve conjunto vazio — projeto que não
+    declara nada não tem nada a declarar.
+    """
+    m = SEM_COBRADOR_RE.search(_texto(fonte))
+    if not m:
+        return set()
+    return set(re.findall(r"\d+[-A-Z]*", m.group(1).split("—")[0]))
 
 
 def le_pecas(fonte):
@@ -172,7 +201,8 @@ def _chave(nome):
     return " ".join((nome or "").split()).casefold()
 
 
-def mapa(plan, reqs, jornadas=None, artigos=None, pecas=None, passos=None):
+def mapa(plan, reqs, jornadas=None, artigos=None, pecas=None, passos=None,
+         sem_cobrador=None):
     """Os quatro estados do fio. Nenhum é silencioso — todos viram lista.
 
     `jornadas` é a lista de nomes que `le_jornadas` devolveu. Com ela o cruzamento
@@ -188,8 +218,13 @@ def mapa(plan, reqs, jornadas=None, artigos=None, pecas=None, passos=None):
 
     `artigos` é a lista que `le_artigos` devolveu. Com ela a citação de artigo deixa
     de ser só extraída e passa a ser conferida: requisito que aponta para artigo que
-    a lei não tem cai em `artigos_inexistentes`. Sem ela (None ou vazia) o balde fica
-    vazio — sem lei escrita não há com o que cruzar, e acusar seria ruído.
+    a lei não tem cai em `artigos_inexistentes`. E o cruzamento corre nas DUAS direções,
+    como o das jornadas: artigo da lei que nenhuma tarefa representa cai em
+    `artigos_sem_tarefa`, com o número e o nome — salvo o artigo que `sem_cobrador`
+    (o que `le_sem_cobrador` leu da própria lei) declara sem quem o cobra: esse sai em
+    `artigos_sem_cobrador`, como coisa que depende de julgamento, e não conta como furo.
+    Sem ela (None ou vazia) os baldes ficam
+    vazios — sem lei escrita não há com o que cruzar, e acusar seria ruído.
 
     `pecas` é a lista que `le_pecas` devolveu. Com ela o plano deixa de nascer contra a
     memória de quem o monta: requisito que não diz em que peça da arquitetura ele vive
@@ -244,7 +279,7 @@ def mapa(plan, reqs, jornadas=None, artigos=None, pecas=None, passos=None):
     repetidos = sorted(r for r, d in reqs.items() if d.get("repetido"))
     # citar a lei sem que ninguém confira é o mesmo silêncio que este módulo combate:
     # com a lei em mãos, o artigo que ela não tem vira acusação.
-    numeros = set(artigos or [])
+    numeros = {_num_artigo(a) for a in (artigos or [])}
     artigos_inexistentes = sorted(
         (r, d["ancora"]) for r, d in reqs.items()
         if numeros and d.get("ancora") and _num_artigo(d["ancora"]) not in numeros)
@@ -257,6 +292,18 @@ def mapa(plan, reqs, jornadas=None, artigos=None, pecas=None, passos=None):
                         if numeros and not d.get("ancora") and not d.get("decisao"))
     decididas = sorted(r for r, d in reqs.items()
                        if numeros and not d.get("ancora") and d.get("decisao"))
+    # a outra ponta do mesmo fio: artigo da lei que nenhuma TAREFA representa. O
+    # artigo só conta como representado quando um requisito que o cita tem tarefa —
+    # requisito que cita a lei e ninguém constrói não representa artigo nenhum.
+    representados = {_num_artigo(reqs[r].get("ancora")) for r in por_req if r in reqs}
+    faltando = [a for a in (artigos or [])
+                if reqs and _num_artigo(a) not in representados]
+    # e o que a lei declara que ninguém cobre por programa sai SEPARADO, como coisa
+    # que depende de julgamento — não como furo. Prometer cem por cento medindo o que
+    # não se sabe medir é a mentira que este balde existe pra impedir.
+    julgados = set(sem_cobrador or ())
+    artigos_sem_cobrador = [a for a in faltando if _num_artigo(a) in julgados]
+    artigos_sem_tarefa = [a for a in faltando if _num_artigo(a) not in julgados]
     # o desenho da arquitetura pretendida entra no cruzamento pelas duas pontas: quem
     # não diz em que peça vive, e quem diz uma que o desenho não tem.
     nomes_pecas = {_chave(p) for p in (pecas or [])}
@@ -279,6 +326,8 @@ def mapa(plan, reqs, jornadas=None, artigos=None, pecas=None, passos=None):
             "repetidos": repetidos,
             "sem_artigo": sem_artigo, "decididas": decididas,
             "artigos_inexistentes": artigos_inexistentes,
+            "artigos_sem_tarefa": artigos_sem_tarefa,
+            "artigos_sem_cobrador": artigos_sem_cobrador,
             "sem_peca": sem_peca, "pecas_inexistentes": pecas_inexistentes,
             "sem_passo": sem_passo, "passos_sem_funcionalidade": passos_sem_func,
             "jornadas_sem_funcionalidade": jornadas_sem_func,
@@ -305,6 +354,12 @@ def resumo(m):
     if m.get("decididas"):
         partes.append("⚪ %s por decisão declarada"
                       % _pl(len(m["decididas"]), "funcionalidade"))
+    if m.get("artigos_sem_tarefa"):
+        partes.append("🔴 %s da lei sem tarefa"
+                      % _pl(len(m["artigos_sem_tarefa"]), "artigo"))
+    if m.get("artigos_sem_cobrador"):
+        partes.append("⚪ %s da lei sem cobrador — dependem de julgamento"
+                      % _pl(len(m["artigos_sem_cobrador"]), "artigo"))
     if m.get("sem_peca"):
         partes.append("🔴 %s sem peça da arquitetura"
                       % _pl(len(m["sem_peca"]), "funcionalidade"))
