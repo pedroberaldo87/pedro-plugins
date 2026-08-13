@@ -186,6 +186,18 @@ def main():
           placeholders('X="$(bash "<plugin project-skills>/lib/x.sh")"', SLOTS_OK)
           == ["<plugin project-skills>"])
 
+    print("a fronteira com a /completude esta escrita")
+    # Sem isto a prosa some na proxima edicao e as duas skills voltam a se
+    # sobrepor: gate verde daqui passa a ser lido como "a cadeia fecha".
+    check("a skill nomeia a /completude", "/completude" in texto)
+    check("tem secao de fronteira com a /completude",
+          "## Fronteira com a `/completude`" in texto)
+    # A frase quebra linha no arquivo — normaliza o branco antes de comparar,
+    # senao o cobrador cai em "ausência não é finding", que e outro assunto.
+    check("elo aberto la nao e finding daqui",
+          "Elo aberto da `/completude` não é finding desta skill"
+          in " ".join(texto.split()))
+
     print("a regua do projeto nao foi copiada pra dentro da skill")
     # As quatro checagens de estilo vivem no quality-goals.md do projeto; se
     # aparecerem aqui, a skill passou a carregar uma cópia que defasa.

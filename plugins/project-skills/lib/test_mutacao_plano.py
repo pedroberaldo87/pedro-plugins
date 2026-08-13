@@ -1,10 +1,18 @@
 #!/usr/bin/env python3
-"""test_mutacao_plano.py — prova que as travas do caminho do PLANO mordem.
+"""test_mutacao_plano.py — prova que as travas do PLANO e da COMPLETUDE mordem.
 
-Para cada trava nascida na rodada do plano: desliga SÓ ela numa cópia do plugin,
-roda a suíte INTEIRA do project-skills, e exige que ela acuse. Trava cuja remoção
+Para cada trava nascida na rodada: desliga SÓ ela numa cópia do plugin,
+roda a suíte que deve acusá-la, e exige que ela acuse. Trava cuja remoção
 mantém tudo verde é trava sem cobertura — o defeito que ela previne voltaria sem que
 nenhum teste percebesse. Molde: o harness de mutação do lixeiro.  <!-- acopla-ok: citação de MOLDE em prosa, não dependência executável — este arquivo não lê nem importa nada do plugin vizinho -->
+
+⚠️ **Cada mutação declara a suíte que a cobre, e o veredito NEGATIVO ainda roda tudo.**
+Rodar a suíte inteira em toda mutação custava 12 cópias × 20 suítes e a esteira matou este
+arquivo no teto de 300s (medido em 2026-08-13, `run_suites.py` → `TIMEOUT 300.0s`). Com o
+alvo declarado o caso comum roda UMA suíte; quando ela NÃO acusa, o harness roda a suíte
+inteira antes de declarar sem cobertura — assim o barato é o caminho feliz e o rigor fica
+onde ele importa, que é a hora de dizer "esta trava não tem quem a pegue". Alvo `None`
+significa a suíte inteira, e é o que o CONTROLE usa.
 
 
 A cópia é do REPOSITÓRIO INTEIRO, não só da pasta do plugin: várias suítes leem a
@@ -27,29 +35,79 @@ IGNORA = shutil.ignore_patterns(".git", "graphify-out", "node_modules",
 MUTACOES = [
     ("A) SKILL.md sem a linha da ida ao mapa da régua",
      "skills/plan/SKILL.md",
-     "import cobertura as c", "import cobertura as k"),
+     "import cobertura as c", "import cobertura as k",
+     ("test_spec_to_plan_skill.py",)),
     ("B) nível 3 sem os três pés nomeados",
      "lib/auditoria_plano.py",
      '"pes": [{"pe": nome, "reprova": criterio}\n'
      '                               for nome, criterio in NIVEL3]},',
-     '"pes": []},'),
+     '"pes": []},',
+     ("test_auditoria_plano.py",)),
     ("C) sem o cruzamento artigo→tarefa",
      "lib/cobertura.py",
      '    faltando = [a for a in (artigos or [])\n'
      '                if reqs and _num_artigo(a) not in representados]',
-     '    faltando = []'),
+     '    faltando = []',
+     ("test_cobertura.py", "test_completude.py")),
     ("D) artigo sem tarefa fora do nível 1",
      "lib/auditoria_plano.py",
-     '    ("artigos_sem_tarefa", "artigo da lei que nenhuma tarefa representa"),\n', ''),
+     '    ("artigos_sem_tarefa", "artigo da lei que nenhuma tarefa representa"),\n', '',
+     ("test_auditoria_plano.py",)),
     ("E) init aceita status fora do vocabulário",
      "lib/plan_state.py",
-     "if pst is not None and pst not in PLAN_STATUSES:", "if False:"),
-    ("CONTROLE (nenhuma mutação)", None, None, None),
+     "if pst is not None and pst not in PLAN_STATUSES:", "if False:",
+     ("test_plan_state.py",)),
+    ("F) features.md ausente não vira lacuna",
+     "lib/completude.py",
+     "if not cobertura._texto(features).strip():", "if False:",
+     ("test_completude.py",)),
+    ("G) lacuna não derruba o veredito de completa",
+     "lib/completude.py",
+     '"completa": not falta_doc and all', '"completa": all',
+     ("test_completude.py",)),
+    ("H) o resumo esconde o que depende de julgamento",
+     "lib/completude.py",
+     'for k, v in e.get("declarado", {}).items():', "for k, v in ():",
+     ("test_completude.py",)),
+    ("I) tique com prova curta passa por provado",
+     "lib/completude.py",
+     "if len(prova) < plan_state.EVIDENCE_MIN:", "if False:",
+     ("test_completude.py",)),
+    ("J) só o primeiro plano entra no cruzamento",
+     "lib/completude.py",
+     '    return {"phases": [ph for p in planos for ph in p.get("phases", [])]}',
+     '    return planos[0] if planos else {"phases": []}',
+     ("test_completude.py",)),
+    ("K) a skill da completude mede a olho",
+     "skills/completude/SKILL.md",
+     "lib/completude.py", "a medição",
+     ("test_completude_skill.py",)),
+    ("CONTROLE (nenhuma mutação)", None, None, None, None),
 ]
 
 
-def roda(rel, de, para):
-    """Aplica a mutação numa cópia e devolve o conjunto de suítes VERMELHAS."""
+def suites(lib, alvos):
+    """Os arquivos de suíte a rodar: os declarados, ou todos quando `alvos` é None."""
+    todos = [f for f in sorted(os.listdir(lib))
+             if f.startswith("test_") and f.endswith(".py")
+             and f != os.path.basename(__file__)]
+    if alvos is None:
+        return todos
+    # alvo que não existe mais na pasta é defeito desta lista, não do repositório:
+    # devolvê-lo faria a mutação "não acusar" por arquivo ausente e o veredito mentiria.
+    faltando = [a for a in alvos if a not in todos]
+    if faltando:
+        raise SystemExit("alvo declarado que não existe em lib/: %s" % ", ".join(faltando))
+    return list(alvos)
+
+
+def roda(rel, de, para, alvos):
+    """Aplica a mutação numa cópia e devolve o conjunto de suítes VERMELHAS.
+
+    Roda primeiro só as suítes declaradas. Se NENHUMA acusar, roda a pasta inteira antes
+    de deixar o harness declarar a trava sem cobertura — barato no caminho feliz, completo
+    na hora de acusar.
+    """
     base = tempfile.mkdtemp(prefix="plano-mut-")
     dest = os.path.join(base, "repo")
     shutil.copytree(RAIZ, dest, ignore=IGNORA, symlinks=True)
@@ -63,20 +121,22 @@ def roda(rel, de, para):
             return None
         open(alvo, "w", encoding="utf-8").write(s.replace(de, para))
     vermelhas = set()
-    for f in sorted(os.listdir(lib)):
-        if not (f.startswith("test_") and f.endswith(".py")) or f == os.path.basename(__file__):
-            continue
-        out = subprocess.run([sys.executable, f], cwd=lib, capture_output=True, text=True,
-                             stdin=subprocess.DEVNULL, start_new_session=True)
-        if out.returncode != 0:
-            vermelhas.add(f)
+    for lote in ([suites(lib, alvos)] if alvos is None
+                 else [suites(lib, alvos), suites(lib, None)]):
+        for f in lote:
+            out = subprocess.run([sys.executable, f], cwd=lib, capture_output=True, text=True,
+                                 stdin=subprocess.DEVNULL, start_new_session=True)
+            if out.returncode != 0:
+                vermelhas.add(f)
+        if vermelhas:
+            break
     shutil.rmtree(base, ignore_errors=True)
     return vermelhas
 
 
 sem_cobertura = []
-for nome, rel, de, para in MUTACOES:
-    acusaram = roda(rel, de, para)
+for nome, rel, de, para, alvos in MUTACOES:
+    acusaram = roda(rel, de, para, alvos)
     if acusaram is None:
         linha = "PADRÃO NÃO ENCONTRADO — a mutação não testou nada"
     else:

@@ -79,10 +79,28 @@ def main():
     check("a secao de armacao existe", bool(armacao))
     check("a armacao nao ensina mais `rm -f` do sinal",
           "rm -f" not in armacao)
+    check("a armacao manda `arma <sid> sprint <motor>`",
+          'arma "$CLAUDE_CODE_SESSION_ID" sprint "$SPRINT_MOTOR_ID"' in armacao)
+    check("a armacao nao acende o sinal com printf no arquivo",
+          "printf" not in armacao.replace("`printf`", ""))
     check("a armacao manda `encerra <sid> sprint`",
           'encerra "$CLAUDE_CODE_SESSION_ID" sprint' in armacao)
     check("a prosa da expiracao cobra o `encerra`, nao o `rm`",
           "não te dispensa do `encerra`" in armacao)
+
+    # Sem isto o bullet da fronteira some na proxima edicao e o revisor de
+    # construcao volta a tratar buraco de projeto inteiro como gap da missao.
+    fronteira = secao(texto, "### Fronteira com o `/qa-loop`",
+                      "### O ciclo curto é por BLOCO")
+    print("a fronteira com a /completude esta escrita")
+    check("a secao de fronteira existe", bool(fronteira))
+    check("o bullet diz que a /completude cobre quem sobrou de fora",
+          "**A `/completude` (fora da missão) garante que não SOBROU ninguém de fora**"
+          in fronteira)
+    check("o bullet nega que elo da /completude vire gap daqui",
+          "Não é dele, e não vira gap aqui." in fronteira)
+    check("o resumo tem a linha da /completude",
+          'completude = "sobrou alguém de fora?"' in fronteira)
 
     print()
     if FAILS:

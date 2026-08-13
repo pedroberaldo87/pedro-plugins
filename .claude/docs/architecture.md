@@ -363,7 +363,7 @@ improve-workflow  0.16.25  [improve-workflow]           -
 intent-guard        0.8.7  [intent-guard]               HOOKS
 lixeiro             1.4.1  [faxina]                     HOOKS
 principles          1.0.5  [principles]                 -
-project-skills    0.22.37  [completude,design-md,doc,doc-load,doc-touch,monitorar,pesquisa-referencias,plan,project-skills,qa-loop,sprint,start] HOOKS
+project-skills    0.22.38  [completude,design-md,doc,doc-load,doc-touch,monitorar,pesquisa-referencias,plan,project-skills,qa-loop,sprint,start] HOOKS
 ship                1.5.4  [ship]                       HOOKS
 slides              1.6.2  [slides]                     -
 vision              0.1.1  []                           -
@@ -1368,7 +1368,7 @@ páginas do `/visual` digitadas pelo modelo custavam **20-31 KB de HTML por pág
   real, 5 de 157 tarefas apontavam para algum dos 77 requisitos escritos — *"silêncio é o estado
   padrão de hoje; este módulo o torna impossível"*. `cobertura.py:resumo` é a linha única que
   todos os consumidores imprimem, pra que um só programa calcule o número.
-- **`completude.py`** (novo em 2026-08-13, **135 linhas**) é o mesmo fio com os elos de cima e de
+- **`completude.py`** (novo em 2026-08-13, **182 linhas**) é o mesmo fio com os elos de cima e de
   baixo: **feature → requisito → tarefa → prova do tique**. Ele não reparseia nada — a feature e o
   requisito saem do `cobertura`, a tarefa e a prova saem do `plan_state` —, lê **todos** os planos
   da pasta como um só (`_plano_unico`), porque requisito atendido por outro plano é requisito

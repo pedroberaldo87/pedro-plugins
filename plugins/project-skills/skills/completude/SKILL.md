@@ -59,6 +59,26 @@ Regras da apresentação:
 - **Não conserte nada aqui.** Esta skill mede e nomeia. Quem conserta é `/sprint`; quem
   revisa o construído é `/qa-loop`; quem replaneja é `/plan`.
 
+## Fronteira — quando ela roda, e o que NÃO é dela
+
+Roda **depois** que o construído fechou e **antes** de alguém dizer "pronto": é a última
+pergunta da frente, não a primeira. O ângulo é a **cadeia de papel** — funcionalidade →
+requisito → tarefa → prova —, medida por programa sobre documento, nunca sobre código.
+
+- **Não é do `/qa-loop`.** Ele pergunta _"o código construído tem defeito?"_ — bug,
+  regressão, lint/type/test. Ele lê código; esta medição lê documento. Elo aberto aqui não
+  é defeito lá, e defeito lá não abre elo aqui.
+- **Não é do revisor de construção (OPUS #2 do `/sprint`).** Ele pergunta _"a spec virou
+  código inteiro e coerente?"_, contra a spec da missão, dentro da missão. Esta skill
+  pergunta _"sobrou funcionalidade, requisito ou artigo sem ninguém?"_, no projeto inteiro,
+  **fora** da missão — o buraco que nenhuma tarefa nomeou é justamente o que o #2 não tem
+  como ver, porque ele julga a decomposição que existe.
+- **Não conserta e não replaneja.** Ela mede e nomeia. Conserto é do `/sprint`, defeito é do
+  `/qa-loop`, replanejamento é do `/plan`.
+
+Resumo: **#2 = "está de pé, e é o que a spec pediu?" · qa-loop = "está certo?" ·
+completude = "sobrou alguém de fora?"**.
+
 ## A régua que julga o que a medição achou
 
 Os eixos de revisão **não são repetidos aqui** — eles moram em

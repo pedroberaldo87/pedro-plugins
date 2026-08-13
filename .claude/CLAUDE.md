@@ -4,7 +4,7 @@
 # Project Reference
 
 ## Visão Geral
-Marketplace **público** de 22 plugins do Claude Code (skills em Markdown, hooks em Bash, motores em Python stdlib), distribuído por git e catalogado em `.claude-plugin/marketplace.json`. Não é aplicação: é biblioteca de comportamento. Sem build e sem lockfile; o único passo de "compilação" é o vendoring de `_shared/`. **CI há uma, e é de portabilidade** — `.github/workflows/portability.yml` roda o mesmo bloco do gate de commit a cada push, nos três sistemas, por `scripts/run_suites.py` (teto por suíte, não para na primeira falha). O `marketplace.json` é a fonte da verdade da distribuição, não `ls plugins/`.
+Marketplace **público** de 23 plugins do Claude Code (skills em Markdown, hooks em Bash, motores em Python stdlib), distribuído por git e catalogado em `.claude-plugin/marketplace.json`. Não é aplicação: é biblioteca de comportamento. Sem build e sem lockfile; o único passo de "compilação" é o vendoring de `_shared/`. **CI há uma, e é de portabilidade** — `.github/workflows/portability.yml` roda o mesmo bloco do gate de commit a cada push, nos três sistemas, por `scripts/run_suites.py` (teto por suíte, não para na primeira falha). O `marketplace.json` é a fonte da verdade da distribuição, não `ls plugins/`.
 **Tipo:** lib · **Stack:** Markdown + Bash + Python 3 stdlib (+ Node stdlib no daemon do visual) · **PM:** nenhum
 
 ## Quick Commands
@@ -43,7 +43,7 @@ bash plugins/project-doc/hooks/test_plan_gate.sh
 - **[quality-goals.md](.claude/docs/quality-goals.md)** — *autoral, `authored-by: human`* — a ordem de prioridade quando não dá para ter tudo (escaneabilidade > drill-down > completude > elegância), os dois regimes de documento, os três níveis de leitura, a régua de estilo que abole prosa em página gerada, e o mecanismo anti-ocultação do colapso
   → antes de escrever relatório, plano, página de aprovação ou qualquer artefato que um humano lê para decidir
 
-- **[architecture.md](.claude/docs/architecture.md)** — estrutura do repo, anatomia de plugin, catálogo dos 22 plugins distribuídos com versões, os 11 plugins com hooks evento a evento, a engine vendorada (`_shared/` → 95 cópias em 44 pastas, §7), decisões de arquitetura, terceiros do bootstrap
+- **[architecture.md](.claude/docs/architecture.md)** — estrutura do repo, anatomia de plugin, catálogo dos 23 plugins distribuídos com versões, os 12 plugins com hooks evento a evento, a engine vendorada (`_shared/` → 95 cópias em 44 pastas, §7), decisões de arquitetura, terceiros do bootstrap
   → entender o projeto, adicionar plugin, mexer em hooks, onboarding de máquina nova
 - **[patterns.md](.claude/docs/patterns.md)** — convenções de shell (fail-open, protocolo de saída de hook) e Python (stdlib only), vendoring, green-cache, regras de release + os 10 checks do gate de commit, testing, e a lista completa de gotchas com arquivo:símbolo
   → criar plugin, publicar mudança, escrever hook, evitar as armadilhas de release
