@@ -516,7 +516,11 @@ Falha da colheita não derruba nada.`
 // ───────────────────────── MOTOR ─────────────────────────
 const sevRank = s => ({ P0:3, P1:2, P2:1, P3:0 }[s] ?? 0)
 const floor = sevRank(ARGS.severityFloor || 'P1')
-const maxRounds = ARGS.maxRounds || 12
+// SEM TETO DE RODADAS por default (decisão do dono, 2026-08-13): missão de
+// implementação vai do começo ao fim — um milhão de passos se preciso. Quem para é
+// comportamento: built, vigia (rodadas sem avanço), disjuntor, porta fechada. O
+// número só existe se a casca o passar de propósito.
+const maxRounds = ARGS.maxRounds || Infinity
 const churnThreshold = ARGS.churnThreshold || 2
 const touchesShared = (t, lote) => lote.some(o => o.id !== t.id && o.files?.some(f => t.files?.includes(f)))
 const rounds = []; const blockers = []
