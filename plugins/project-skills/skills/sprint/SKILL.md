@@ -286,7 +286,9 @@ Os dois loops leem a **mesma spec** e perguntam coisas **diferentes** — e isso
 - **Este loop (#1↔#2) garante que está CONSTRUÍDO** — spec + constituição + rastreio + completude + coesão de montagem, medidas **contra a spec** e contra a `constituicao.md` e o `quality-goals.md` do projeto; a decomposição do #1 entra como meio (previu tudo? saiu tudo?), nunca como contrato final. Pergunta: _"a spec virou código inteiro e coerente?"_. **NÃO** caça bug sutil, **NÃO** roda a suíte, **NÃO** mexe em lint/type.
 - **O `/qa-loop` (etapa seguinte) garante que está CORRETO** — bug, regressão, lint/type/test, segurança, e fidelidade ao plano com **profundidade de correção** (os 3 buckets dele). Pergunta: _"o código construído tem defeito?"_.
 
-Resumo: **#2 = "está de pé, e é o que a spec pediu?" · qa-loop = "está certo?"**. O motor de implementação fecha quando a obra está de pé; o qa-loop entra **depois** pra procurar defeito. A spec é o eixo dos dois — o que muda é montagem aqui, defeito lá.
+- **A `/completude` (fora da missão) garante que não SOBROU ninguém de fora** — funcionalidade sem requisito, requisito sem tarefa, tarefa marcada sem prova, artigo da lei que nenhuma tarefa carrega. Pergunta: _"sobrou alguém de fora?"_. O eixo de **completude do #2** olha a decomposição DESTA missão (saiu tudo o que o #1 decompôs?); a `/completude` olha o projeto inteiro em documento, e enxerga justamente o buraco que **nenhuma tarefa nomeou** — o que o #2 não tem como ver, porque ele julga a decomposição que existe. Não é dele, e não vira gap aqui.
+
+Resumo: **#2 = "está de pé, e é o que a spec pediu?" · qa-loop = "está certo?" · completude = "sobrou alguém de fora?"**. O motor de implementação fecha quando a obra está de pé; o qa-loop entra **depois** pra procurar defeito. A spec é o eixo dos dois — o que muda é montagem aqui, defeito lá.
 
 ### O ciclo curto é por BLOCO; a onda é a passada geral
 

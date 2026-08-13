@@ -870,6 +870,19 @@ relatório como bloqueante (`stopReason='gate-red'`), virando item de "Bloqueios
 report do `/sprint`. Conserto de fundamento (lint/type/unit/integração) está no mandato do headless; re-planejar
 um plan-flaw, não.
 
+## Fronteira com a `/completude` (defeito aqui; elo aberto lá)
+
+Esta skill pergunta _"o código construído tem defeito?"_ — bug, regressão, lint/type/test,
+fidelidade ao plano. Ela lê **código**. A `/completude` pergunta _"sobrou alguém de fora?"_ —
+funcionalidade sem requisito, requisito sem tarefa, tarefa marcada sem prova, artigo da lei
+que nenhuma tarefa carrega — e lê **documento**, por programa, no projeto inteiro.
+
+Não se substituem e não se cobrem: gate verde aqui não diz que a cadeia fecha, e cadeia
+fechada lá não diz que o código está certo. **Elo aberto da `/completude` não é finding
+desta skill** — não vira fix, não vira plan-flaw, não entra no relatório como bloqueio daqui.
+A ordem usual é `/qa-loop` primeiro (o código está certo?) e `/completude` por último, antes
+de declarar a frente pronta.
+
 ## Quando NÃO usar
 
 - Sem nada implementado pra revisar → recuse.

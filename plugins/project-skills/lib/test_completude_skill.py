@@ -77,6 +77,13 @@ def main():
     check("nada de porcentagem", "Nada de porcentagem" in texto)
     check("a skill mede e não conserta", "Não conserte nada aqui" in texto)
 
+    print("a fronteira está escrita nos DOIS vizinhos")
+    check("tem seção de fronteira", "## Fronteira" in texto)
+    check("diz em que momento roda", "de alguém dizer \"pronto\"" in texto)
+    check("aponta o /qa-loop", "Não é do `/qa-loop`" in texto)
+    check("aponta o revisor de construção",
+          "revisor de construção (OPUS #2 do `/sprint`)" in texto)
+
     print("o tripé é APONTADO, nunca repetido")
     check("a cópia vendorada do tripé está na pasta da skill",
           os.path.exists(TRIPE))
