@@ -1,13 +1,26 @@
 {
   "name": "pedro-plugins",
   "metadata": {
-    "description": "Marketplace pessoal: 19 plugins (skills, hooks e automações) para Claude Code."
+    "description": "Marketplace pessoal: 23 plugins (skills, hooks e automações) para Claude Code."
   },
   "owner": {
     "name": "pedroberaldo87",
     "email": "tools@viustudio.com.br"
   },
   "plugins": [
+    {
+      "name": "2op",
+      "source": "./plugins/2op",
+      "description": "Segunda opiniao de outro modelo dentro da MESMA sessao, sem subagente e sem re-briefing. /2op (Fable 5), /2op-opus e /2op-sonnet trocam o modelo so pelo turno via o campo model do frontmatter; o modelo da sessao volta no proximo prompt.",
+      "category": "productivity",
+      "version": "1.0.0",
+      "tags": [
+        "review",
+        "second-opinion",
+        "model-switch",
+        "skills"
+      ]
+    },
     {
       "name": "archify",
       "source": "./plugins/archify",

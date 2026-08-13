@@ -126,6 +126,10 @@
       "sourceType": "git",
       "plugins": [
         {
+          "name": "2op",
+          "enabled": true
+        },
+        {
           "name": "archify",
           "enabled": true
         },

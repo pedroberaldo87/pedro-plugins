@@ -214,7 +214,7 @@ python3 -c "import json;print(len(json.load(open('.claude-plugin/marketplace.jso
   até um `claude plugin uninstall` explícito, e aí duas skills com o mesmo nome coexistem.
   É exatamente o conflito que o `check-skills` acusa.
 - Régua de fronteira: **quem manda é `marketplace.json`, não `ls plugins/`**. Diretório fora
-  do catálogo não é plugin distribuído. Hoje os dois lados batem (22 × 22, o bloco acima), e o
+  do catálogo não é plugin distribuído. Hoje os dois lados batem (23 × 23, o bloco acima), e o
   `conformance.py:check_catalogo` existe justamente pra acusar quando divergirem (§10.2).
 - Linguagens: Markdown (as skills), Bash (hooks), Python 3 **stdlib-only**, Node stdlib
   (um daemon, `plugins/visual/server/visual_server.mjs`), JS vendorado de terceiro
@@ -1548,7 +1548,7 @@ claude-plugins-official   14 plugins   desligados: claude-md-management, explana
 impeccable                 1                                                       ← novo
 obsidian-skills            1
 openai-codex               1
-pedro-plugins             22 plugins   desligados: graphify-guard  <!-- acopla-ok: saída derivada do próprio manifest, que é o ÍNDICE -->
+pedro-plugins             23 plugins   desligados: graphify-guard  <!-- acopla-ok: saída derivada do próprio manifest, que é o ÍNDICE -->
 
 ponytail                   1
 voltagent-subagents       10 plugins   TODOS desligados
