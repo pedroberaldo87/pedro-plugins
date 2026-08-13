@@ -11,9 +11,9 @@
     {
       "name": "2op",
       "source": "./plugins/2op",
-      "description": "Segunda opiniao de outro modelo dentro da MESMA sessao, sem subagente e sem re-briefing. /2op (Fable 5), /2op-opus e /2op-sonnet trocam o modelo so pelo turno via o campo model do frontmatter; o modelo da sessao volta no proximo prompt.",
+      "description": "Segunda opinião de outro modelo dentro da MESMA sessão, sem subagente e sem re-briefing. /2op (Fable 5), /2op-opus e /2op-sonnet trocam o modelo só pelo turno via o campo model do frontmatter; o modelo da sessão volta no próximo prompt.",
       "category": "productivity",
-      "version": "1.0.0",
+      "version": "1.0.5",
       "tags": [
         "review",
         "second-opinion",
@@ -41,7 +41,7 @@
       "source": "./plugins/bootstrap",
       "description": "Bootstraps a new machine to this versioned Claude Code setup. Two layers: (1) auto-syncs third-party marketplaces & plugins via hooks (manifest-driven convergence), and (2) applies the versioned global config — env vars, permissions, behavior flags, the global CLAUDE.md, and a machine-resolved statusLine. Replaces bootstrap-third-party. Run /bootstrap:setup once per new machine. Ships the 'Clean Style' output style (single prose ceiling, pasted evidence exempt) and a report-only conformance checker that diffs the live machine against the versioned contract.",
       "category": "productivity",
-      "version": "1.17.10",
+      "version": "1.17.11",
       "tags": [
         "sync",
         "bootstrap",
@@ -71,7 +71,7 @@
       "source": "./plugins/check-skills",
       "description": "Confere a saúde do que está instalado na máquina em seis lentes: nome de skill repetido, hooks de origens diferentes no mesmo evento, descrições que disputam o mesmo assunto, versões paradas no cache, processo que a skill abre e não fecha, e citação de plugin irmão que não está instalado nesta máquina. A varredura é de programa; o julgamento das contradições de instrução exige ler as descrições lado a lado.",
       "category": "productivity",
-      "version": "0.7.2",
+      "version": "0.7.3",
       "tags": [
         "sync",
         "bootstrap",

@@ -4,7 +4,7 @@ Marketplace público de plugins para [Claude Code](https://docs.claude.com/en/do
 
 **23 plugins · Markdown + Shell + Python · sem build, sem package manager.**
 
-Os 23 plugins somam **34 skills** — 20 trazem uma só, `visual` traz duas, `2op` traz três, `project-skills` traz onze, e `graphify-guard` e `vision` não trazem nenhuma.
+Os 23 plugins somam **35 skills** — 18 trazem uma só, `visual` traz duas, `2op` traz três, `project-skills` traz doze, e `graphify-guard` e `vision` não trazem nenhuma.
 
 ---
 
@@ -134,7 +134,7 @@ nenhuma — `graphify-guard` só tem hooks e `vision` só tem a ferramenta
 
 ### project-skills — o ciclo inteiro de um projeto
 
-Um plugin só, **onze skills**, cobrindo a vida de um projeto do primeiro acordo
+Um plugin só, **doze skills**, cobrindo a vida de um projeto do primeiro acordo
 até a revisão do que foi escrito. Elas conversam entre si por nome de plugin,
 nunca por caminho para a pasta da vizinha, e todas julgam contra a lei e o
 acordo do projeto — lidos do `.claude/docs/` na hora, nunca copiados para
@@ -159,6 +159,7 @@ não mudaram.
 | `/sprint` | Executa um plano do começo ao fim **sem pausas, checkpoints ou perguntas**, decidindo o que precisar e anotando cada decisão para o relatório final. O motor é determinístico (decompõe → executa → revisa) e isso é cobrado por hook: enquanto a missão está armada, disparo solto de sub-agente é negado e mandado de volta. O gate **desiste depois de 3 negações** e grava a desistência, porque missão longa com o dono ausente não pode morrer parada. Também dispara em "sova", "não me consulte". |
 | `/monitorar` | Imprime o andamento **agora** de toda missão de pé — relógio, o que está executando, quanto tempo de silêncio, placar da última rodada. Lê tudo do disco, sem perguntar nada a ninguém. Serve para quando você volta ao terminal e a barra de status não está contando a história. Também dispara em "tem coisa rodando aí?". |
 | `/qa-loop` | Revisa código num laço que **para por retornos decrescentes, não por zero erros**. Ancora no plano: cada achado é classificado em erro de implementação, desvio do plano ou falha do próprio plano — e só o primeiro vira conserto. Cada conserto passa pela suíte inteira antes do seguinte, e no fim um portão absoluto exige lint, tipos, unidade e integração verdes no repositório todo. Também dispara em "revisa isso", "tá 100%?". |
+| `/completude` | Mede se o trabalho **fecha**, e devolve o que falta **nomeado item a item** — nunca porcentagem. Dois lados na mesma medição: a cadeia inteira (funcionalidade → requisito → tarefa → prova do tique) e os artigos da lei do projeto que nenhuma tarefa representa. Quem conta é o programa, não o olho, e documento que a medição não achou não vira verde. Também dispara em "o que falta pra fechar". |
 
 **Documentar**
 

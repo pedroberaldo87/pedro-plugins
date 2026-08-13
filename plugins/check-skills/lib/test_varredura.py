@@ -302,6 +302,32 @@ def main():
     finally:
         shutil.rmtree(d, ignore_errors=True)
 
+    # ── 8b · quem o modelo NÃO pode invocar sai da lente ──────────────────────
+    # `disable-model-invocation: true` tira a description do contexto do modelo: ela
+    # passa a servir só quem digita a barra. Cobrar dela a frase escrita PARA o modelo
+    # decidir se invoca é cobrar frase que não alcança leitor nenhum. Caso real: as
+    # três skills do 2op reprovavam aqui tendo o único leitor possível já nomeado.
+    d = tempfile.mkdtemp(prefix="confl-situ-user-")
+    try:
+        base = os.path.join(d, "mkt", "beta", "1.0.0", "skills")
+        for nome, trava in (("so-usuario", True), ("aberta", False)):
+            os.makedirs(os.path.join(base, nome), exist_ok=True)
+            with open(os.path.join(base, nome, "SKILL.md"), "w", encoding="utf-8") as fh:
+                fh.write("---\nname: %s\ndescription: Segunda opinião de outro modelo. "
+                         "Invocar com /%s.\n%s---\n\n# %s\n"
+                         % (nome, nome,
+                            "disable-model-invocation: true\n" if trava else "", nome))
+        sk = C.skills(C.instalados(d))
+        sems = [x["skill"] for x in C.sem_situacao(sk)]
+        check("skill que só o usuário invoca não é cobrada pela lente 8",
+              "so-usuario" not in sems)
+        check("a mesma description SEM a trava continua sendo cobrada",
+              "aberta" in sems)
+        check("a trava não tira a skill das outras lentes",
+              sorted(n for _, _, n, _, _u in sk) == ["aberta", "so-usuario"])
+    finally:
+        shutil.rmtree(d, ignore_errors=True)
+
     # ── 9 · NOME DE FÁBRICA ──────────────────────────────────────────────────
     # Os dois lados: nome que disputa com um comando do harness sem isenção sai
     # acusado; nome que disputa COM isenção declarada sai com o motivo colado. E
@@ -333,7 +359,7 @@ def main():
         check("quem não disputa com a fábrica não aparece",
               "sozinha" not in porskill)
         check("sem disputa nenhuma a lente sai limpa",
-              C.nome_de_fabrica([("m", "p", "sozinha", "")], (nomes, isentos)) == [])
+              C.nome_de_fabrica([("m", "p", "sozinha", "", False)], (nomes, isentos)) == [])
         r = dict(C.varre(C.instalados(d)), nome_de_fabrica=fab)
         texto = C.desenha(r)
         check("o relatório humano nomeia a disputa sem isenção",
@@ -376,8 +402,17 @@ def main():
     # é este o número que o check L do release-gate segura
     dorepo = C.skills_do_repo(raiz)
     faltam = ["%s/%s" % (x["plugin"], x["skill"]) for x in C.sem_situacao(dorepo)]
-    check("as %d skills do marketplace declaram situação de trabalho: %s"
-          % (len(dorepo), faltam or "todas"), len(dorepo) > 20 and not faltam)
+    # As isentas saem da CONTA, não só da lista: dizer "as 35 declaram situação"
+    # quando 3 delas nem são cobradas é o teste passando por isenção, não por mérito.
+    isentas = ["%s/%s" % (p_, n) for _, p_, n, _d, so in dorepo if so]
+    cobradas = len(dorepo) - len(isentas)
+    check("as %d skills cobradas declaram situação de trabalho: %s"
+          % (cobradas, faltam or "todas"), cobradas > 20 and not faltam)
+    check("as %d isentas são só as que proíbem o modelo de invocar: %s"
+          % (len(isentas), isentas or "nenhuma"),
+          all(C._so_do_usuario(os.path.join(raiz, "plugins", x.split("/")[0],
+                                            "skills", x.split("/")[1], "SKILL.md"))
+              for x in isentas))
 
     print("\n%d checagem(ns) · %d falha(s)" % (TOTAL[0], len(FALHAS)))
     for f in FALHAS:

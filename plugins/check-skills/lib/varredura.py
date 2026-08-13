@@ -107,8 +107,33 @@ def _descricao(caminho):
     return " ".join((m.group(1) if m else "").split())
 
 
+def _so_do_usuario(caminho):
+    """`disable-model-invocation: true` no frontmatter — só o usuário pode invocar.
+
+    Quem tem esta marca nunca é escolhida pelo modelo: a description dela não entra
+    na decisão de invocar, entra na ajuda de quem digita a barra. Cobrar dela a frase
+    de situação (`use quando…`, escrita PARA o modelo) é cobrar uma frase que não
+    alcança ninguém — e foi assim que as três skills do 2op reprovaram na lente 8
+    tendo o único leitor possível já nomeado na própria description.
+    """
+    try:
+        with open(caminho, encoding="utf-8", errors="replace") as fh:
+            txt = fh.read(8000)
+    except OSError:
+        return False
+    if not txt.startswith("---"):
+        return False
+    fim = txt.find("\n---", 3)
+    if fim < 0:
+        # frontmatter sem linha de fecho não é frontmatter: a marca não vale, e a
+        # lente continua cobrando. Ler o arquivo inteiro aqui isentaria qualquer
+        # skill que apenas MENCIONE o campo no corpo.
+        return False
+    return re.search(r"^disable-model-invocation:\s*true\s*$", txt[:fim], re.M) is not None
+
+
 def skills(inst):
-    """[(marketplace, plugin, nome, descricao)] de tudo que está instalado."""
+    """[(marketplace, plugin, nome, descricao, so_do_usuario)] do que está instalado."""
     fora = []
     for (market, plug), meta in sorted(inst.items()):
         base = os.path.join(meta["dir"], "skills")
@@ -117,7 +142,7 @@ def skills(inst):
         for nome in sorted(os.listdir(base)):
             sk = os.path.join(base, nome, "SKILL.md")
             if os.path.isfile(sk):
-                fora.append((market, plug, nome, _descricao(sk)))
+                fora.append((market, plug, nome, _descricao(sk), _so_do_usuario(sk)))
     return fora
 
 
@@ -181,7 +206,7 @@ def varre(inst=None):
 
     # 1 · NOME REPETIDO — duas skills com o mesmo nome
     por_nome = defaultdict(list)
-    for market, plug, nome, _ in sk:
+    for market, plug, nome, _, _uso in sk:
         por_nome[nome].append({"marketplace": market, "plugin": plug})
     nomes = [{"nome": n, "onde": v} for n, v in sorted(por_nome.items()) if len(v) > 1]
 
@@ -202,7 +227,7 @@ def varre(inst=None):
     gatilhos = []
     for assunto, palavras in sorted(ASSUNTOS.items()):
         hits = [{"marketplace": m, "plugin": p, "skill": n}
-                for m, p, n, d in sk if any(_cita(d, w) for w in palavras)]
+                for m, p, n, d, _uso in sk if any(_cita(d, w) for w in palavras)]
         markets = {x["marketplace"] for x in hits}
         if len(markets) > 1 and len(hits) > 2:
             gatilhos.append({"assunto": assunto, "marketplaces": sorted(markets),
@@ -396,9 +421,9 @@ def gatilho_morto(inst=None, sk=None):
     # Barra-nome do próprio harness (`/clear`) É atendida — quem digita recebe o comando
     # de fábrica. Sai da lente pela MESMA lista declarada que a lente 9 usa.
     fab, _isentos = fabrica()
-    nomes = {n for _, _, n, _ in sk} | fab
+    nomes = {n for _, _, n, _, _uso in sk} | fab
     fora, vistos = [], set()
-    for market, plug, nome, desc in sk:
+    for market, plug, nome, desc, _uso in sk:
         for m in CITA_COMANDO.finditer(desc):
             gat = m.group(1)
             alvo = gat.lstrip("/").split("/")[0]
@@ -426,9 +451,15 @@ SITUACAO = re.compile(
 
 
 def sem_situacao(sk):
-    """[{marketplace, plugin, skill}] — description sem uma situação de trabalho em frase."""
+    """[{marketplace, plugin, skill}] — description sem uma situação de trabalho em frase.
+
+    Skill marcada `disable-model-invocation: true` fica de FORA: a frase que esta
+    lente cobra é escrita para o modelo decidir se invoca, e nessas o modelo nunca
+    invoca. Isenção por mecanismo declarado no próprio arquivo, não por lista à mão.
+    """
     return [{"marketplace": m, "plugin": p, "skill": n}
-            for m, p, n, d in sk if not SITUACAO.search(d)]
+            for m, p, n, d, so_usuario in sk
+            if not so_usuario and not SITUACAO.search(d)]
 
 
 # ── 9 · NOME DE FÁBRICA — a skill que disputa o nome com o próprio Claude Code ──
@@ -469,11 +500,11 @@ def nome_de_fabrica(sk, fab=None):
     nomes, isentos = fab if fab is not None else fabrica()
     return [{"marketplace": m, "plugin": p, "skill": n,
              "motivo": isentos.get(n, "")}
-            for m, p, n, _ in sk if n in nomes]
+            for m, p, n, _, _uso in sk if n in nomes]
 
 
 def skills_do_repo(raiz):
-    """[(marketplace, plugin, nome, descricao)] lidas do REPOSITÓRIO, não do cache.
+    """[(marketplace, plugin, nome, descricao, so_do_usuario)] lidas do REPOSITÓRIO.
 
     O cache pode estar numa versão anterior à do disco, e é o disco que o commit
     publica — o cobrador do gate tem que olhar o que está sendo commitado.
@@ -487,7 +518,8 @@ def skills_do_repo(raiz):
         for nome in sorted(os.listdir(base)):
             sk = os.path.join(base, nome, "SKILL.md")
             if os.path.isfile(sk):
-                fora.append(("(repositório)", plug, nome, _descricao(sk)))
+                fora.append(("(repositório)", plug, nome, _descricao(sk),
+                             _so_do_usuario(sk)))
     return fora
 
 
