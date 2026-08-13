@@ -252,6 +252,24 @@ def main():
     check("a tabela de etapas da skill tem a linha de funcionalidades",
           "**Funcionalidades**" in skill)
 
+    print("o achado da varredura entra como RASCUNHO, com fonte e tres saidas (F2.2)")
+    # O texto de antes dispensava a pergunta ("não vira pergunta, vira pista
+    # confirmada com o dono") — isto é absorver texto de terceiro no documento
+    # canônico sem o de acordo do dono. Escopo: o bloco do passo 2 só.
+    bloco = skill.split("### 2 · Minerar as pistas")[1].split("### 3 ·")[0]
+    corrido = " ".join(bloco.split())
+    check("o passo 2 nao dispensa a pergunta sobre o que ja esta escrito",
+          "não vira pergunta" not in corrido
+          and "vira pista confirmada com o dono" not in corrido)
+    check("o achado entra como rascunho, nao como conteudo aceito",
+          "rascunho" in corrido)
+    for saida in ("confirma", "corrige", "não vale mais"):
+        check("o passo 2 nomeia a saida '%s'" % saida, saida in corrido)
+    check("o passo 2 exige a fonte do achado (arquivo:linha)",
+          "`arquivo:linha`" in corrido)
+    check("o passo 2 veta absorver texto de terceiro sem o de acordo do dono",
+          "sem o de acordo do dono" in corrido)
+
     print("a tabela de etapas e a MESMA nos dois arquivos que a escrevem")
     etapas_skill = tabela_etapas(SKILL)
     etapas_kit = tabela_etapas(KIT)
