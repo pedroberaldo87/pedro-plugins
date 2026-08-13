@@ -683,6 +683,45 @@ def main():
         check("grill-me: a jornada com documento entra por argumento",
               "`/grill-me com-docs`" in texto)
 
+    print("o modo ex-post: inferir do construido, referendar pelo dono (F0-F2)")
+    skill = ler(SKILL)
+    kit = ler(KIT)
+    # O modo existe, com gatilho e fronteira — sem isto a lacuna de projeto maduro
+    # continua mandando o dono para uma entrevista do zero.
+    check("o modo ex-post esta na lista de invocacoes",
+          "`/start ex-post`" in skill)
+    check("a secao do modo declara a fronteira com projeto nascendo",
+          "O modo ex-post" in skill and "projeto nascendo" in skill)
+    bloco_expost = skill.split("## O modo ex-post")[1].split("\n## ")[0]
+    check("as seis etapas continuam cobertas no modo",
+          "as seis etapas" in bloco_expost)
+    # As tres camadas de evidencia, com rotulo e regua propria.
+    check("as tres camadas tem rotulo escrito",
+          all(r in bloco_expost for r in
+              ("DITO POR VOC", "ESCRITO", "INFERIDO DO C")))
+    check("artigo sem prova vira pergunta, nunca proposta",
+          "Artigo sem prova" in bloco_expost)
+    # A camada 1 sai por comando, nao por julgamento (R-4).
+    check("o comando da fala do dono esta no roteiro",
+          "Direcionamento do usu" in bloco_expost and "findings.jsonl" in bloco_expost)
+    # A camada 3 parte da doc minerada (R-5).
+    check("varrer a arvore inteira de codigo e proibido",
+          "varrer a" in bloco_expost.lower() and "proibido" in bloco_expost.lower())
+    check("o organismo entra pelo mecanismo de heranca existente",
+          "organism.py inherited" in bloco_expost)
+    # O referendo: tres saidas e a proibicao do autoral no rascunho (F2).
+    check("as tres saidas do referendo estao escritas",
+          "confirma" in bloco_expost and "corrige" in bloco_expost
+          and "vale mais" in bloco_expost)
+    check("o rascunho nunca nasce autoral nem aprovado",
+          "NUNCA nasce com" in bloco_expost
+          and "authored-by: human" in bloco_expost)
+    check("a REGRA DURA reconcilia o modo como pergunta noutra forma",
+          "o modo ex-post" in skill.split("A REGRA DURA")[1][:900])
+    # O kit dedica a subsecao de inferencia a cada molde autoral (F1.3).
+    check("o kit tem a subsecao ex-post nos 11 moldes",
+          kit.count("### Ex-post") == 11)
+
     print()
     if FAILS:
         print("FALHOU: %d" % len(FAILS))

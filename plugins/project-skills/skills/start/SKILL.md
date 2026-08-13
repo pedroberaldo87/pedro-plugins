@@ -121,6 +121,11 @@ Isso não é falha da rodada; é o estado honesto.
 versões travadas no lockfile — restrição dura ou só desatualizado?"). Pista alimenta a pergunta.
 Pista nunca vira resposta.
 
+**E o modo ex-post NÃO é exceção a esta regra — é ela com a pergunta noutra forma.** Lá o
+rascunho inferido é a pergunta ("o histórico sugere este artigo — confirma?"), nunca a
+resposta: o que grava o documento continua sendo o veredito do dono, artigo por artigo. O
+que muda é só a forma da pergunta — proposta com prova, em vez de campo em branco.
+
 ## Quando dispara
 
 **Explícito:** `/start`, "vamos conceber", "documenta a intenção", "esse projeto não tem doc".
@@ -156,6 +161,11 @@ Pista nunca vira resposta.
 - `/start gaps` — **read-only**: lista as lacunas e para. Não pergunta nada. É o que o
   `/doc` chama no Tier 5 para saber o que cobrar. **Etapa escrita e não aprovada conta como
   lacuna** — `approved:` vazio é etapa aberta.
+- `/start ex-post` — **engenharia reversa da concepção**, para projeto que JÁ EXISTE: o
+  rascunho de cada documento é **inferido do que foi construído** e o dono referenda artigo
+  por artigo, em vez de responder uma entrevista do zero. Seção própria abaixo
+  ("O modo ex-post"). Nunca para projeto nascendo — sem obra não há de onde inferir, e o
+  caminho é a entrevista normal.
 
 Prosa livre junto da invocação é contexto e vale como resposta antecipada — se o humano já disse
 "o que importa aqui é não perder dado", **não pergunte a meta 1 de novo**: mostre o que entendeu e
@@ -166,6 +176,90 @@ protótipo de uma tarde, é repo de terceiro, o que for): escreva `.claude/docs/
 **motivo verbatim dele no frontmatter**, pelo molde `13 · A dispensa` do `references/authorial-kit.md`,
 e pare por aí. Decisão que fica só na conversa vira, no disco, a mesma coisa que esquecimento — e é
 por isso que o gate de plano trata o projeto sem dispensa registrada como projeto que só esqueceu.
+
+## O modo ex-post — a concepção inferida do que já foi construído
+
+**Quando se aplica:** projeto com código maduro (histórico de commits denso, obra de verdade no
+disco) e documentação autoral ausente ou parcial. **Quando NÃO se aplica:** projeto nascendo —
+sem obra não há de onde inferir, e o caminho é a entrevista normal. A fronteira não é fina:
+meses de iterações manifestam no código as escolhas que uma concepção teria feito, e obrigar o
+dono a explicar do zero o que o repositório já demonstra queima a sessão e irrita — o mesmo
+defeito de perguntar o que já está escrito, numa escala maior.
+
+O modo cobre **as seis etapas**, na mesma ordem e com o mesmo rito de aprovação — o que muda é
+de onde vem o rascunho: em vez de campo em branco, cada documento chega à mesa com os artigos
+**inferidos e provados**, e a entrevista vira **referendo artigo por artigo**.
+
+### As três camadas de evidência — e a régua de cada uma
+
+Todo artigo proposto nasce rotulado com a camada da prova, e a régua do referendo muda com ela:
+
+| Camada | Rótulo | A prova exigida | Régua do referendo |
+|---|---|---|---|
+| 1 · a fala do dono | **DITO POR VOCÊ** | a citação verbatim, com data e fonte (ata, handoff, journal) | quase só confirmar — a palavra já é dele; o referendo pega mudança de opinião |
+| 2 · doc escrita avulsa | **ESCRITO** | `arquivo:linha` do trecho, no README/wiki/`.md` solto | confirmar que ainda vale — texto envelhece calado |
+| 3 · padrão do código | **INFERIDO DO CÓDIGO** | o padrão nomeado + a contagem por comando ("14 de 14 hooks degradam em vez de travar") | julgamento de verdade — padrão pode ser acidente, não decisão |
+
+**Artigo sem prova não vira proposta** — vira pergunta da entrevista normal, listada como
+lacuna no fim do referendo. Prioridade entre metas, apetite de risco e o que o dono quer que o
+sistema SEJA são opinião, e código não responde opinião: o modo não inventa o que não tem prova.
+
+### De onde sai a camada 1 — por comando, nunca por julgamento
+
+A fala do dono já está etiquetada no disco de quem usa a família de skills desta casa:
+
+```bash
+# os blocos de direcionamento das atas — a voz do dono, com data
+grep -rn -A 3 '· Direcionamento do usuário' .claude/ata/*.md 2>/dev/null | head -80
+
+# os achados do journal do project-doc — texto, âncoras de arquivo e fonte datada
+[ -f .claude/.project-doc/findings.jsonl ] && python3 -c "
+import json
+for l in open('.claude/.project-doc/findings.jsonl', encoding='utf-8'):
+    d = json.loads(l)
+    print(d.get('source', {}).get('ts', '?'), '·', (d.get('text') or '')[:140])
+" | head -40
+```
+
+O comando extrai; **separar direcionamento durável de pedido pontual é julgamento seu**, feito
+lendo cada bloco — "nunca venda preço" é regra, "conserta o botão da tela 3" não é. Projeto sem
+atas nem journal: a camada 1 fica vazia e o modo segue com as outras duas — ausência de fonte
+não é erro.
+
+### De onde sai a camada 3 — da doc minerada, nunca de varredura cega
+
+Num organismo de milhares de arquivos, ler a árvore inteira é inviável e desnecessário: a
+leitura curada **já existe**. A inferência lê a doc minerada da raiz (`architecture.md`,
+`patterns.md` e irmãos), a doc por módulo quando houver, e o grafo (`graphify query`, quando
+instalado) — e só desce ao código para **confirmar um candidato** já formulado, nunca para
+procurar do zero. **Varrer a árvore inteira de código está proibido** — é o palpite em escala
+que a doc minerada existe para evitar.
+
+**A receita por documento** — de onde inferir cada um dos autorais, e o que conta como
+evidência dele — está em `references/authorial-kit.md`, na subseção *ex-post* de cada molde. É
+a fonte única; não duplique aqui.
+
+### Organismo: lei na raiz, nuance por módulo
+
+O modo roda o mesmo mecanismo de herança da entrevista normal (o `organism.py inherited` do
+passo 1 do Fluxo): a concepção ex-post nasce na **raiz** do organismo, e o que um módulo tem de
+próprio entra como nuance **referenciando a lei da raiz** — nunca como concepção paralela.
+Rodar o modo escopado num módulo re-silaria o que a migração para o organismo des-silou.
+
+### O referendo — proposta não é resposta
+
+1. Cada documento é apresentado **inteiro**, artigo por artigo, cada artigo com o rótulo da
+   camada e a prova colada — a citação datada, o `arquivo:linha`, ou o padrão com a contagem.
+   Quem referenda vê o que a inferência viu, nunca só a conclusão.
+2. Por artigo, as **três saídas**: **confirma** · **corrige** (a redação do dono substitui a
+   inferida) · **não vale mais** (o padrão existiu e foi abandonado — sai, e a saída fica
+   anotada). As lacunas sem evidência fecham a rodada como perguntas de entrevista normal.
+3. O documento referendado fecha **pelo rito de sempre**: sabatina, reapresentação, e o de
+   acordo gravado por `hooks/doc-aprovar.sh`. **O rascunho inferido NUNCA nasce com
+   `authored-by: human` nem `status: approved`** — nasce `draft`, sem a marca, e só o rito de
+   aprovação o promove. O minerador não se assina como dono: a marca de autoral registra que um
+   humano referendou, e gravá-la no rascunho falsificaria exatamente o que ela existe para
+   provar.
 
 ## Fluxo
 

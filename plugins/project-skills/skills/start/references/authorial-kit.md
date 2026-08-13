@@ -276,6 +276,14 @@ réplicas/healthcheck no compose (disponibilidade), cache/CDN (velocidade), limi
 {o caso real: a situação, o que foi escolhido, o que foi sacrificado, e por quê}
 ```
 
+
+### Ex-post
+
+**Ex-post — de onde inferir:** os trade-offs que o histórico já PAGOU. Camada 1: falas do
+dono sobre o que não pode acontecer. Camada 3: o que os consertos priorizaram (o que sempre foi
+consertado primeiro), réplicas e healthcheck (disponibilidade paga), suíte densa (integridade
+paga). A ORDEM entre as metas é opinião — sai como lacuna de entrevista, nunca inferida.
+
 ---
 
 ## 2 · `constraints.md` — Restrições
@@ -321,6 +329,15 @@ no `package.json`, limites de CPU/memória no compose, runtime antigo no Dockerf
 ## Soluções descartadas por causa das restrições acima
 - **{a solução óbvia}** — descartada por **{qual restrição}**
 ```
+
+
+### Ex-post
+
+**Ex-post — de onde inferir:** o que NUNCA entrou, apesar de ser o caminho fácil. Camada 3:
+dependência ausente com alternativa óbvia (stdlib onde caberia lib), serviço pago ausente,
+versão travada há muito no lockfile. Camada 1: "nunca usamos X" dito em ata. Ausência
+consistente e antiga é a melhor prova de restrição — mas confirmar se é decisão ou acidente é
+exatamente o referendo.
 
 ---
 
@@ -369,6 +386,14 @@ zero aqui é desperdício.
 ```
 ```
 
+
+### Ex-post
+
+**Ex-post — de onde inferir:** onde o sistema termina de fato. Camada 3: as integrações reais
+(env vars de terceiros, webhooks, o que o compose sobe versus o que consome de fora), e a doc
+minerada de arquitetura, que já desenha a fronteira. Camada 2: o README costuma dizer para quem
+o sistema é. O "para quem" definitivo é do dono — confirma-se, não se infere.
+
 ---
 
 ## 4 · `solution-strategy.md` — Estratégia
@@ -408,6 +433,14 @@ auth, onde está o banco. A mineração dá o **o quê**; a entrevista dá o **p
 - **Serve à meta:** {qual atributo do quality-goals.md}
 - **Detalhe em:** {link para o ADR, ou `[PENDENTE: registrar ADR]`}
 ```
+
+
+### Ex-post
+
+**Ex-post — de onde inferir:** as decisões estruturais visíveis na obra. Camada 3: monolito ou
+serviços (o compose responde), a escolha de banco, o padrão de deploy, o que é síncrono e o que
+vai por fila — a doc minerada de arquitetura lista tudo. Camada 1: a justificativa de cada
+escolha, quando dita em ata, é o "porquê" que o código não carrega.
 
 ---
 
@@ -449,6 +482,14 @@ sem definição. Apresente a lista candidata; o humano define ou descarta.
 ## Falsos amigos — significam aqui algo diferente do usual
 - **{termo}** — aqui: {o que é} · no mercado: {o que costuma ser}
 ```
+
+
+### Ex-post
+
+**Ex-post — de onde inferir:** o vocabulário que a casa já usa. Camada 3: os substantivos
+recorrentes dos nomes de módulo, tabela e commit (o grafo e o git log respondem por comando).
+Camada 1: a palavra que o dono usa em ata quando o código usa outra — essa divergência é
+justamente o verbete que o glossário existe para fixar.
 
 ---
 
@@ -498,6 +539,14 @@ oficial", nunca finja que rodou o CLI.
 **O de acordo desta etapa** vai no frontmatter do próprio `design.md`, com o mesmo par dos outros
 (`status: approved` + `approved:`). Linter limpo **não é aprovação** — ele diz que o arquivo é
 válido, não que o dono concordou com a personalidade que está lá dentro.
+
+
+### Ex-post
+
+**Ex-post — de onde inferir:** o sistema visual que as telas já praticam. Camada 3: tokens,
+paleta e tipografia reais (o CSS/tema responde), os componentes mais reusados. Camada 1: falas
+do dono sobre personalidade ("premium", "sem cara de genérico") — no case real, era a camada
+mais rica. A personalidade DESEJADA pode divergir da praticada: a divergência vira pergunta.
 
 ---
 
@@ -566,6 +615,14 @@ módulo, onde o banco mora, e o grafo do `graphify` se o projeto tiver um.
 ```
 ```
 
+
+### Ex-post
+
+**Ex-post — de onde inferir:** as peças e fronteiras que existem. Camada 3: a doc minerada de
+arquitetura É este documento em versão descritiva — a inferência a converte em intenção,
+separando o que é escolha (fica) do que é acidente (vira pergunta "isto é intencional?").
+Organismo: as peças da raiz, com a nuance de cada módulo referenciando-as.
+
 ---
 
 ## 8 · `journeys.md` — Jornadas · **etapa 4**
@@ -608,6 +665,14 @@ CLI, entradas de menu, jobs agendados (jornada sem humano também é jornada).
 - **Onde quebra:** {o ponto de desistência, e o que acontece então}
 - **Toca as peças:** {peças do architecture-intent.md que essa jornada exercita}
 ```
+
+
+### Ex-post
+
+**Ex-post — de onde inferir:** os caminhos de pessoa que as telas reais atendem. Camada 3: as
+rotas e telas existentes (o router responde), na ordem em que se encadeiam. Camada 1: falas do
+dono sobre quem usa o quê. Jornada PLANEJADA e nunca construída não aparece no código — a
+lacuna entre o que existe e o que se queria é pergunta, não inferência.
 
 ---
 
@@ -664,6 +729,14 @@ gravado; documento ainda aberto não serve de origem.
 **O de acordo desta etapa** é o mesmo dos outros: `status: approved` + `approved:` no frontmatter do
 próprio `features.md`, depois de apresentar a lista inteira, sabatinar e reapresentar. Lista derivada
 não é lista acordada.
+
+
+### Ex-post
+
+**Ex-post — de onde inferir:** derivada dos cinco anteriores já referendados, como na
+entrevista normal — a lista nasce das telas e capacidades reais (camada 3), e a curadoria
+item a item continua sendo do dono. Feature construída e abandonada entra como candidata a
+"não vale mais", com a prova do desuso.
 
 ---
 
@@ -742,6 +815,14 @@ descrito e nunca executado nascer.
 `approved:` gravados por `hooks/doc-aprovar.sh`. **Etapa 5 sem `approved:` trava a etapa 6** — sem
 isso a lista de funcionalidades sairia de um entendimento em que ninguém bateu o martelo.
 
+
+### Ex-post
+
+**Ex-post — de onde inferir:** o ciclo de funcionamento real. Camada 3: quem chama quem no
+caminho feliz (o grafo e a doc minerada de runtime respondem), os passos de ponta a ponta já
+documentados. O esquema inferido descreve o que RODA; o referendo decide se o que roda é o que
+se QUER — divergência aqui é achado de ouro, não erro do modo.
+
 ---
 
 ## 11 · `constituicao.md` — A lei do projeto · **etapa 1**
@@ -801,6 +882,15 @@ já existe no repositório — para o artigo que o dono acabou de enunciar.
 
 {…}
 ```
+
+
+### Ex-post
+
+**Ex-post — de onde inferir:** a lei é o destilado das outras cinco — os padrões que o projeto
+NUNCA violou. Camada 1 primeiro (a regra dita com data vale quase autoral — o precedente real
+nasceu de 32 falas do dono); camada 3 com contagem plena ("N de N hooks degradam em vez de
+travar"). Padrão violado uma vez não é artigo: é candidato com a violação anotada, e o dono
+decide se é lei furada ou exceção legítima.
 
 ---
 

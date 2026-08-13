@@ -80,6 +80,13 @@ if [ -z "$LINES" ]; then
 
   if [ "$AUTORAL" -eq 0 ]; then
     CTX="📐 ${PROJ} não tem documentação nenhuma — sem CLAUDE.md, sem .claude/docs/.\n\nProjeto novo começa PELA concepção: OFEREÇA o \`/start\`. Ele entrevista o usuário sobre o que o sistema prioriza, o que é inegociável, onde ele termina, as decisões que explicam o formato e o vocabulário interno. Essa entrevista vem ANTES da mineração — é ela que guia tudo depois, inclusive a sua leitura do código.\nSão cinco etapas de acordo, uma de cada vez: o autoral, a arquitetura, a interface (só se houver tela), as jornadas e a lista de funcionalidades. Cada etapa é apresentada numa página com o texto integral à vista, e o de acordo é colhido ALI — não no chat, e nunca sobre um resumo."
+    # Projeto MADURO não recomeça do zero: com obra densa no disco, o caminho é o modo
+    # ex-post — inferir o rascunho do que já foi construído e conduzir o dono pelo
+    # referendo. O corte por contagem de arquivos versionados é deliberadamente grosso:
+    # ele decide qual CAMINHO a oferta recomenda, nunca se a oferta acontece.
+    if [ "$NFILES" -gt 100 ]; then
+      CTX="${CTX}\n\n🏛️ Este projeto é MADURO (${NFILES} arquivos versionados): ofereça \`/start ex-post\` no lugar da entrevista do zero — meses de obra já manifestam as escolhas, e o modo infere o rascunho de cada documento para o usuário só referendar."
+    fi
     if [ "$NFILES" -gt 0 ]; then
       CTX="${CTX}\nDepois dela, \`/doc\` minera o resto (${NFILES} arquivo(s) versionado(s) aqui)."
     else
@@ -157,7 +164,7 @@ while IFS=$'\t' read -r TAG PROJ N STALE OOP; do
         else
           QUANTO="só ${AUTORAL} de ${N_AUTORAIS} autorais"
         fi
-        LIST="${LIST}⚠️ ${PROJ} tem doc minerada mas ${QUANTO} (falta: ${FALTAM}) — a regra existe (project-doc/start), mas nunca foi cobrada aqui. OFEREÇA \`/start gaps\`. Desliga com DOC_AUTORAL_GATE=0.\n"
+        LIST="${LIST}⚠️ ${PROJ} tem doc minerada mas ${QUANTO} (falta: ${FALTAM}) — a regra existe (project-doc/start), mas nunca foi cobrada aqui. OFEREÇA \`/start gaps\` pra ver o buraco — e, como o projeto JÁ TEM obra minerada, o caminho de preencher é \`/start ex-post\`: inferir o rascunho do que foi construído e só referendar. Desliga com DOC_AUTORAL_GATE=0.\n"
       fi
     fi
   fi
