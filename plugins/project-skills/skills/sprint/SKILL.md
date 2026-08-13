@@ -163,7 +163,7 @@ O resultado vai no `args` do Workflow como **`buildWarm`**, e de lá para **todo
 
 | Knob | Default | O que faz |
 |---|---|---|
-| `maxRounds` | `12` | **Trava de incêndio, não meta.** Teto de voltas do #1↔#2; estourou, o que faltou vira Bloqueio. O dono recusou o teto baixo em 2026-08-09: missão de implementação é longa, e cortar a volta cedo devolve trabalho pela metade. |
+| `maxRounds` | `∞` (sem teto) | **Implementação não tem teto de rodadas** (decisão do dono, 2026-08-13): a missão vai do começo ao fim, e quem para é comportamento — `built`, o vigia por avanço, o disjuntor, a porta fechada. Passar um número aqui é escolha explícita da casca, nunca default. |
 | `severityFloor` | `P1` | Gap abaixo do floor não segura a obra de pé (vira nota no relatório, não nova rodada). |
 | `churnThreshold` | `2` | Mesma tarefa reaparecendo N rodadas **seguidas** → escala pro `diagnose_model`. |
 | `hasQaLoop` | detectado | `false` liga o **confirm-pass** em `finalize_model` antes de declarar `built` (ver a guarda no #2). A casca detecta se a skill `qa-loop` está disponível e passa o booleano — nunca deixa `undefined`, senão a guarda nunca arma. |
@@ -176,7 +176,7 @@ O resultado vai no `args` do Workflow como **`buildWarm`**, e de lá para **todo
 | `levaMax` | `12` | **Teto da leva.** Quantas tarefas o motor despacha numa rodada. O que passa disso **não é falha**: fica na fila da rodada seguinte, e o corte acontece antes da regra de pular. Sem este teto, uma leva de 53 tarefas perdeu 45 numa falha do segundo bloco (2026-08-10) — todas decompostas pelo papel mais caro do motor para nunca serem despachadas. |
 | `tetoExecutorMin` | `20` | **Teto de um executor só.** Minutos que um executor tem para entregar; passou disso, ele devolve `espera: true` e a rodada fecha com quem voltou. É teto **por agente**, não da onda — o vigia acima olha o motor inteiro e não enxerga um agente ciclando dentro de uma onda viva. |
 
-Precedência: flag da invocação > default acima. A casca **sempre** materializa os quatro primeiros antes de disparar o Workflow — `maxRounds` ausente faz o `while` do motor não rodar nenhuma volta e devolver "pronto" sem ter construído nada.
+Precedência: flag da invocação > default acima. A casca **sempre** materializa os quatro primeiros antes de disparar o Workflow — `maxRounds` ausente cai no sem-teto do próprio motor — o `|| Infinity` protege do `r < undefined` que devolvia "pronto" sem construir nada.
 
 ### Os dois freios que olham a EXECUÇÃO, não a obra
 
@@ -340,7 +340,7 @@ Quem não foi despachado **não é tarefa presa**: entra na mesma isenção de c
 
 Revisão é poço sem fundo (mesma disciplina do review-loop: parada por retorno decrescente, não "até zero"). O loop #1↔#2 para no **primeiro** que ocorrer:
 - **[primário]** #2 reporta `complete && cohesive` e **zero gap** acima do floor de severidade — gap de spec e de rastreio contam sempre, estejam onde estiverem na escala → obra de pé, segue pro QA.
-- **[trava]** atingiu `maxRounds` (safety-cap, **não** meta) → o que faltou vira **Bloqueio (precisa de você)** no relatório.
+- **[trava]** `maxRounds` só age quando a casca o passou de propósito — sem teto por default; quem trava missão parada é o vigia por avanço.
 
 ### Nada que o motor usa para si mesmo é escrito à mão — nem caminho, nem nome de skill
 
@@ -432,9 +432,11 @@ export const meta = {
 const ARGS = typeof args === 'string' ? JSON.parse(args) : args
 const sevRank = s => ({ P0:3, P1:2, P2:1, P3:0 }[s] ?? 0)
 const floor = sevRank(ARGS.severityFloor || 'P1')
-// default DENTRO do motor: sem isso, ARGS.maxRounds undefined faz `r < undefined` ser
-// false na 1ª volta — o motor devolveria "nada construído" em silêncio.
-const maxRounds = ARGS.maxRounds || 12
+// SEM TETO DE RODADAS por default (decisão do dono, 2026-08-13): missão de
+// implementação vai do começo ao fim. Quem para é comportamento — built, vigia,
+// disjuntor, porta — nunca um número de voltas. `|| Infinity` também protege do
+// undefined que fazia `r < undefined` devolver "nada construído" em silêncio.
+const maxRounds = ARGS.maxRounds || Infinity
 const churnThreshold = ARGS.churnThreshold || 2
 // 'shared' = a tarefa colide em arquivo com OUTRA do MESMO lote → vai em sub-lote SERIAL.
 // NUNCA em worktree: o trabalho ficaria na cópia e o revisor confere no repo real (ver acima).
