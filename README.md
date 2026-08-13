@@ -2,9 +2,9 @@
 
 Marketplace público de plugins para [Claude Code](https://docs.claude.com/en/docs/claude-code). Monorepo — cada subdiretório em `plugins/` é um plugin independente (skills, hooks e automações), distribuído via `.claude-plugin/marketplace.json`.
 
-**22 plugins · Markdown + Shell + Python · sem build, sem package manager.**
+**23 plugins · Markdown + Shell + Python · sem build, sem package manager.**
 
-Os 22 plugins somam **31 skills** — 20 trazem uma só, `visual` traz duas, `project-skills` traz onze, e `graphify-guard` e `vision` não trazem nenhuma.
+Os 23 plugins somam **34 skills** — 20 trazem uma só, `visual` traz duas, `2op` traz três, `project-skills` traz onze, e `graphify-guard` e `vision` não trazem nenhuma.
 
 ---
 
@@ -60,7 +60,7 @@ claude plugin install bootstrap@pedro-plugins
 /bootstrap:setup
 ```
 
-Resultado esperado numa máquina zerada: **21 plugins ligados + 1 desligado de fábrica**
+Resultado esperado numa máquina zerada: **22 plugins ligados + 1 desligado de fábrica**
 (`graphify-guard`), mais os marketplaces de terceiros do manifest.
 
 > ⚠️ **Se aparecer `sync incompleto: N operações falharam`, rode `/bootstrap:setup` de novo.**
@@ -186,6 +186,7 @@ não mudaram.
 | `gauntlet` ⚙️ | `/gauntlet` | Agentes disputam contra um produto real que você nomeia, e **nada do que foi construído se julga sozinho**: cada peça ganha um construtor e um juiz cego separado. **A barra é ficar BOQUIABERTO** — o juiz põe a obra inteira ao lado do alvo inteiro, decide qual metade é mais forte antes de conferir os rótulos, e a resposta dele nasce "não". Ganho pequeno não fecha nada: manda o construtor seguinte propor um caminho NOVO. Fecham peça só o juiz impressionado, a sua ordem, ou o orçamento esgotado — e o diretor cobra a mesma barra no conjunto. Roda como **equipe visível** na conversa: você vê cada agente, dirige em voo, veta e para. Cada veredito é arquivo em disco com o par de observações que o prova; uma trava de PreToolUse impede despacho novo enquanto houver entrega sem juiz, e o fecho é recusado por programa quando falta algum. Nasceu de uma falha real — sete construtores lançados prometendo um juiz em cada briefing, zero juízes lançados, ninguém percebeu. |
 | `improve-workflow` | `/improve-workflow` | **Autópsia de uma corrida multi-agente que já terminou.** Lê o transcript inteiro, mede o que cada PAPEL custou (agentes, turnos, tokens, taxa de falha), acende sinais de defeito por contagem em vez de julgamento, e entrega um parecer para você aprovar item a item. Ela **investiga e propõe, e é proibida por desenho de consertar o que achou**. |
 | `improve` | `/improve` | Rodadas de melhoria iterativa lendo o `IMPROVEMENT_PROGRAM.md` do app + issues do GitHub com a etiqueta `autoresearch`. Genérico — funciona com qualquer app que siga a metodologia. |
+| `2op` | `/2op` · `/2op-opus` · `/2op-sonnet` | Segunda opinião de **outro modelo dentro da mesma sessão** — sem subagente, sem re-briefing, sem orquestração. O campo `model` do frontmatter troca o modelo pelo turno inteiro, com o contexto já carregado; o modelo da sessão volta sozinho no próximo prompt. O revisor abre com CONCORDO / CONCORDO COM RESSALVA / DISCORDO, rotula cada afirmação CONFIRMADO ou INFERIDO, e é proibido de editar arquivo. Um comando por cabeça porque o frontmatter não interpola argumento (`model: $0` reprova a invocação). |
 
 ### Documentação & conhecimento
 
