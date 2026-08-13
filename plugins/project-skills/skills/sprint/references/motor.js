@@ -495,7 +495,7 @@ Papel mecânico e SÓ: a missão acabou (${motivo}) — apague o sinal dela na b
 e solte a reserva de arquivos desta missão.
 
   ANDAMENTO="$(bash "${RESOLVE}" project-skills lib/andamento.py)"
-  python3 "$ANDAMENTO" encerra ${sessionId} sprint || echo "sprint: não consegui apagar o sinal — apague à mão"
+  python3 "$ANDAMENTO" encerra ${sessionId} sprint ${motorId} || echo "sprint: não consegui apagar o sinal — apague à mão"
   bash "$(bash "${RESOLVE}" project-skills hooks/reserva-de-arquivos.sh)" liberar ${sessionId} ${motorId} \\
     || echo "sprint: não consegui soltar a reserva — ela expira sozinha em 12h"
 
