@@ -341,7 +341,7 @@ que é o programa que decide o que vale como régua. Copiar a receita é exatame
 desta seção — o que impede a divergência é a asserção que calcula a marca pelos dois
 caminhos e exige o mesmo número [confirmado, `plugins/project-skills/lib/test_doc_load.py`
 roda `sh -c '. …/lib-doc-mark.sh && doc_marca …'` e compara com a saída do módulo Python;
-`python3 plugins/project-skills/lib/test_doc_load.py` → `37 passou · 0 falhou` nesta rodada].
+`python3 plugins/project-skills/lib/test_doc_load.py` → `38 passou · 0 falhou` nesta rodada].
 **Régua durável: reimplementação cross-linguagem só é legítima com o teste de identidade
 junto** — sem ele, o que existe são duas receitas que ninguém sabe se ainda concordam.
 
