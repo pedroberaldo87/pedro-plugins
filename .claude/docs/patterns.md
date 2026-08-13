@@ -1637,6 +1637,24 @@ rigor intacto — o veredito "trava sem cobertura" continua nascendo de uma pass
 **Régua durável: em cobrador cujo custo é um produto, acrescentar uma linha na lista é
 acrescentar uma coluna na conta** — é o §1.16 outra vez, com o teto do lado de fora.
 
+⚠️ **A suíte mede a FUNÇÃO, e o defeito mora na COSTURA — foi assim que a esteira inteira,
+verde, deixou passar dois defeitos graves.** Medido em 2026-08-13: o cruzamento
+artigo→tarefa ganhou o parâmetro que exclui artigo sem cobrador, `completude.py` passava o
+parâmetro, e a entrada de linha de comando do plano **não passava** — o mesmo fato saía com
+dois vereditos conforme a porta de entrada, e o veredito errado era o que bloqueava. A suíte
+do cruzamento chamava a função direto, com os argumentos certos, e ficava verde. **Régua
+durável: teste que só chama a função prova que o motor SABE fazer, nunca que alguém PEDE —
+todo mecanismo com mais de uma porta de entrada precisa de um caso que atravesse a porta de
+produção.** É o antipadrão "mede a coisa errada", na variante mais cara de achar.
+
+⚠️ **Suíte de hook não escreve arquivo dentro da própria pasta rastreada.** Duas suítes
+rodando ao mesmo tempo gravam o mesmo `mock_*.sh` na pasta do plugin, e o `trap` de uma
+apaga o mock da outra: a esteira fica vermelha **por sorteio de paralelismo**, e é debaixo
+desse ruído que defeito de verdade passa despercebido — três suítes do `intent-guard`
+faziam isso. Pior num repositório público: processo morto deixa mock órfão no working tree.
+Arquivo temporário de suíte nasce em diretório temporário **por execução**. Quem cobra é
+`scripts/test_suites_nao_escrevem_no_plugin.py`, que varre as grafias de escrita em `$HERE`.
+
 **As disciplinas de teste que este repo cobra**, todas com o sítio que as prova:
 
 - **Teste E2E não-tautológico.** R9/R10 de `test_plan_gate.sh` escrevem o sentinel **rodando o hook escritor de verdade**, nunca recalculando a chave à mão — *"Recalcular a chave à mão aqui foi exatamente o que mascarou o bug de path na 1ª rodada."*
