@@ -53,11 +53,20 @@ Antes de disparar o Workflow, acenda o sinal; ao entregar o relatório, apague. 
 ```bash
 SPRINT_DIR="${CLAUDE_CONFIG_DIR:-$HOME/.claude}/andamento"
 mkdir -p "$SPRINT_DIR"
-printf 'sprint\n' > "$SPRINT_DIR/ativo-$CLAUDE_CODE_SESSION_ID"   # ao armar a missão
 SPRINT_MOTOR_ID="motor-$(date -u +%Y%m%dT%H%M%SZ)-$$"    # id DESTE motor na sessão
+ANDAMENTO="$(bash "${CLAUDE_PLUGIN_ROOT}/lib/resolve-plugin.sh" project-skills lib/andamento.py)"
+python3 "$ANDAMENTO" arma "$CLAUDE_CODE_SESSION_ID" sprint "$SPRINT_MOTOR_ID"   # ao armar a missão
 # ao entregar, a receita do passo 3 (apaga o CONJUNTO do estado, não só o sinal):
-python3 "$(bash "${CLAUDE_PLUGIN_ROOT}/lib/resolve-plugin.sh" project-skills lib/andamento.py)" encerra "$CLAUDE_CODE_SESSION_ID" sprint
+python3 "$ANDAMENTO" encerra "$CLAUDE_CODE_SESSION_ID" sprint "$SPRINT_MOTOR_ID"
 ```
+
+⚠️ **Acender com `printf` direto no arquivo está APOSENTADO (2026-08-12).** O `arma` grava
+a mesma primeira linha (o nome do dono, que a barra lê) **e** registra este motor na lista
+de quem está de pé. Sem esse registro, o `encerra` do primeiro motor a terminar apagava o
+sinal de outro motor da MESMA sessão que seguia rodando — a barra ficava muda com trabalho
+vivo, e o gate que nega despacho por fora desarmava junto. **O id do motor no `encerra` é
+obrigatório pelo mesmo motivo:** sem ele o comando volta a apagar o conjunto sem olhar quem
+sobrou.
 
 **O nome vai DENTRO do sinal** porque é ele que a barra de status lê para dizer quem acendeu (`lib/andamento.py:_motor`). Sinal vazio não é motor anônimo: cai no rótulo genérico, e foi assim que a barra chamou de `sprint` toda missão desta skill mesmo depois de o plugin `sprint` deixar de existir.
 
@@ -1649,13 +1658,15 @@ Passada a QA e **ANTES** de montar o relatório, persista o trabalho. Esta é a 
 3. **Apaga o sinal do sprint e LIBERA os arquivos reservados.** É o par do `mkdir` da seção _Execução_ e da reserva que o motor fez antes de executar, e é obrigatório:
 
    ```bash
-   python3 "$(bash "${CLAUDE_PLUGIN_ROOT}/lib/resolve-plugin.sh" project-skills lib/andamento.py)" encerra "$CLAUDE_CODE_SESSION_ID" sprint
    # O id do motor nasceu em OUTRO bloco e não chega aqui — cada ```bash é uma chamada
-   # à parte. Ele está gravado no NOME de cada reserva desta sessão, e é de lá que sai.
+   # à parte. Ele está gravado no NOME de cada reserva desta sessão, e é de lá que sai:
+   # é o mesmo id que o `encerra` precisa para não derrubar o sinal de um motor vivo.
+   ANDAMENTO="$(bash "${CLAUDE_PLUGIN_ROOT}/lib/resolve-plugin.sh" project-skills lib/andamento.py)"
    for RESERVA in "${CLAUDE_CONFIG_DIR:-$HOME/.claude}/andamento/reservas/$CLAUDE_CODE_SESSION_ID"__*.files; do
      [ -f "$RESERVA" ] || continue   # glob sem casar vem literal
-     MOTOR="${RESERVA##*__}"
-     bash "$(bash "${CLAUDE_PLUGIN_ROOT}/lib/resolve-plugin.sh" project-skills hooks/reserva-de-arquivos.sh)" liberar "$CLAUDE_CODE_SESSION_ID" "${MOTOR%.files}"
+     MOTOR="${RESERVA##*__}"; MOTOR="${MOTOR%.files}"
+     bash "$(bash "${CLAUDE_PLUGIN_ROOT}/lib/resolve-plugin.sh" project-skills hooks/reserva-de-arquivos.sh)" liberar "$CLAUDE_CODE_SESSION_ID" "$MOTOR"
+     python3 "$ANDAMENTO" encerra "$CLAUDE_CODE_SESSION_ID" sprint "$MOTOR"
    done
    ```
 
