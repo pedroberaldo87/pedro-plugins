@@ -1,6 +1,6 @@
 ---
 name: start
-description: Conduz a concepção de um projeto em seis etapas de acordo — metas de qualidade e restrições, arquitetura, interface, jornadas, esquema de funcionamento e a lista de funcionalidades —, cada uma num documento próprio, reapresentada até o dono aprovar e fechada com a aprovação dele gravada. É entrevista, não mineração; pergunta e grava a resposta do humano, nunca inventa conteúdo. Use em "/start", "projeto", "doc-start", "vamos conceber", "começando um projeto novo", "documenta a intenção", "esse projeto não tem doc nenhuma". Dispare também quando não há CLAUDE.md nem .claude/docs/, quando os documentos autorais estão vazios, ou quando o gate de plano barrou por falta de doc.
+description: Conduz a concepção de um projeto em seis etapas de acordo — metas de qualidade e restrições, arquitetura, interface, jornadas, esquema de funcionamento e a lista de funcionalidades —, cada uma num documento próprio, reapresentada até o dono aprovar e fechada com a aprovação dele gravada. É entrevista, não mineração; pergunta e grava a resposta do humano, nunca inventa conteúdo. Em projeto MADURO (código denso, histórico longo) o modo `/start ex-post` inverte a origem — infere o rascunho de cada documento do que já foi construído, com prova por artigo, e o dono só referenda. Use em "/start", "projeto", "doc-start", "vamos conceber", "começando um projeto novo", "documenta a intenção", "esse projeto não tem doc nenhuma" — e "/start ex-post", "deriva a doc do que existe", "constituição ex post" para o caminho inferido. Dispare também quando não há CLAUDE.md nem .claude/docs/, quando os documentos autorais estão vazios, ou quando o gate de plano barrou por falta de doc.
 ---
 
 # start-doc — a documentação que só o humano tem
@@ -83,9 +83,12 @@ documento autoral.
 | **`/doc`** | minera tudo e re-projeta a doc inteira | mudança estrutural, drift amplo, doc nunca minerada |
 | **`/doc-touch`** | re-projeta só os docs que o diff tocou | entre FULLs, depois de um ciclo de código |
 
-**A entrevista vem primeiro.** Num projeto sem documentação, `/start` roda antes da mineração —
-mesmo num codebase grande e antigo. O motivo é que o resultado da entrevista **guia a sessão inteira**,
-não só o arquivo: sem saber o que o sistema prioriza, toda decisão posterior recomeça do zero.
+**A entrevista vem primeiro — em projeto NASCENDO.** Ali o `/start` roda antes da mineração,
+porque o resultado da entrevista **guia a sessão inteira**: sem saber o que o sistema prioriza,
+toda decisão posterior recomeça do zero. **Em codebase grande e antigo a ordem INVERTE**: minera-se
+primeiro (`/doc`) e a concepção nasce pelo modo ex-post, que lê a doc minerada como fonte — obrigar
+o dono de um projeto maduro a responder do zero o que o repositório já manifesta é o desperdício
+que o modo existe para evitar.
 
 ### Quando falta repertório — a pesquisa de referências
 
@@ -210,7 +213,7 @@ A fala do dono já está etiquetada no disco de quem usa a família de skills de
 
 ```bash
 # os blocos de direcionamento das atas — a voz do dono, com data
-grep -rn -A 3 '· Direcionamento do usuário' .claude/ata/*.md 2>/dev/null | head -80
+grep -rn -A 3 '· Direcionamento do usuário' .claude/ata/ 2>/dev/null | head -80
 
 # os achados do journal do project-doc — texto, âncoras de arquivo e fonte datada
 [ -f .claude/.project-doc/findings.jsonl ] && python3 -c "

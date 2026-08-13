@@ -721,6 +721,16 @@ def main():
     # O kit dedica a subsecao de inferencia a cada molde autoral (F1.3).
     check("o kit tem a subsecao ex-post nos 11 moldes",
           kit.count("### Ex-post") == 11)
+    # Consertos da revisao assintotica de 2026-08-13 — cada um reprovava antes:
+    check("a description do frontmatter carrega o gatilho do modo",
+          "ex-post" in skill.split("---", 2)[1])
+    check("a ordem inverte em projeto maduro: minera primeiro, ex-post depois",
+          "a ordem INVERTE" in skill)
+    check("o comando das atas nao usa glob (zsh aborta com glob sem match)",
+          ".claude/ata/*.md" not in bloco_expost
+          and ".claude/ata/" in bloco_expost)
+    check("o Tier 5 do /doc oferece o ex-post para quem acabou de minerar",
+          "`/start ex-post`" in ler(SKILL_DOC))
 
     print()
     if FAILS:
