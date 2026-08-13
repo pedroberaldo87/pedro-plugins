@@ -355,6 +355,8 @@ Empate se resolve **por natureza, nunca por contagem de votos** — quem escreve
 
 `plugins/project-skills/lib/cobertura.py` cruza o documento de requisitos com as tarefas do plano e nomeia quatro situações, nenhuma silenciosa: **coberto**, **tarefa sem requisito** (trabalho que ninguém pediu), **requisito sem tarefa** (pedido que ninguém planejou) e **citação a requisito que não existe**. Os três primeiros são relatório; o quarto é erro que recusa gravar. `[confirmado — `cobertura.py:mapa` e `plan_state.py:validate`]`
 
+⚠️ **Esses quatro são o fio requisito↔tarefa; o mesmo módulo cruza hoje o plano contra os OUTROS documentos de régua** — lei (`le_artigos`), jornadas, peças da arquitetura pretendida e passos do ciclo. E o cruzamento com a lei corre **nas duas direções desde 2026-08-13**: além do requisito que cita artigo inexistente, o artigo que **nenhuma tarefa representa** sai nomeado (`artigos_sem_tarefa`, com número e nome, e uma linha própria no `resumo`). A lista viva dos baldes sai do programa, não desta prosa: `python3 -c "import cobertura; print(sorted(cobertura.mapa({}, {})))"` de dentro de `plugins/project-skills/lib/`. `[confirmado — comando rodado nesta rodada]`
+
 O número **aparece sem ser pedido**, em quatro superfícies, todas lendo a mesma `cobertura.py:resumo` pra que um só programa calcule:
 
 - no **começo da sessão**, pela linha que o `sessionstart-plan.sh` injeta;

@@ -178,6 +178,15 @@ def main():
     try:
         print("schema")
         check("plano válido passa", ps.validate(sample()) is not None)
+        # O status do TOPO tinha vocabulário só na prática: `cmd_open` filtra por
+        # 'active', e um plano gravado como 'open' ficava invisível para a skill e
+        # para o hook de SessionStart sem ninguém reclamar.
+        raises("status de plano fora do vocabulário é recusado",
+               lambda: ps.validate(sample(status="open")),
+               "active|done|abandoned")
+        check("os três status que close/reopen gravam passam",
+              all(ps.validate(sample(status=s)) is not None
+                  for s in ("active", "done", "abandoned")))
         raises("id de fase fora do padrão é recusado",
                lambda: ps.validate(sample(phases=[{"id": "fase1", "title": "x", "items": [
                    {"id": "F1.1", "title": "t", "desc": "d"}]}])), "F<n>")
@@ -328,6 +337,11 @@ def main():
         check("todo passo nasce em todo",
               all(i.get("status") == "todo" for _, i in ps.iter_items(p)))
         check("3 passos gravados", ps.plan_progress(p) == (0, 3))
+        raises("o init recusa plano com status fora do vocabulário",
+               lambda: init_into(d, sample(id="2026-07-27-aberto", status="open")),
+               "active|done|abandoned")
+        check("o plano recusado não foi gravado",
+              not os.path.exists(ps.plan_path(d, "2026-07-27-aberto")))
 
         print("tick")
         raises("tick sem prova é recusado",

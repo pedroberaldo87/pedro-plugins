@@ -56,8 +56,14 @@ SPECS=(
   # pra quem revisa DEPOIS (/qa-loop). Era prosa em cada skill, e divergiu: uma listava
   # 6 dimensões sem cobertura, a outra 5 eixos sem cobertura, e a lista de documentos
   # de régua estava escrita à mão num lado e vinha do doc_load.py no outro.
+  # …e pra quem revisa o PLANO ANTES de existir código (/plan): a seção do artefato
+  # plano mora na mesma fonte, porque os três pés são os mesmos três.
   "plugins/project-skills/skills/qa-loop/references::dimensoes-de-revisao.md"
   "plugins/project-skills/skills/sprint/references::dimensoes-de-revisao.md"
+  "plugins/project-skills/skills/plan/references::dimensoes-de-revisao.md"
+  # …e pra quem MEDE se a cadeia fecha (/completude): o Pé 2 é o pé de que a medição
+  # é a versão de programa, e a skill aponta pra cópia local em vez de repetir os eixos.
+  "plugins/project-skills/skills/completude/references::dimensoes-de-revisao.md"
   # O antipadrão de teste é citado DE DENTRO do tripé (Pé 2), então quem consome o
   # tripé precisa da cópia local dele — senão o apontamento morre na máquina instalada.
   "plugins/project-skills/skills/sprint/references::antipadroes-de-teste.md"

@@ -260,7 +260,8 @@ def main():
     open(lei, "w", encoding="utf-8").write(LEI)
     reqs_a = cb.le_requisitos(pa)
     artigos = cb.le_artigos(lei)
-    check("acha os 2 artigos da lei", artigos == ["6", "7"])
+    check("acha os 2 artigos da lei, com número e nome",
+          artigos == ["6 · Estética", "7 · Clareza da instrução"])
     plan_a = {"id": "p", "title": "t", "phases": [{"id": "F1", "title": "f", "items": [
         {"id": "F1.1", "title": "a", "desc": "d", "requisito": "S-4.3"},
         {"id": "F1.2", "title": "b", "desc": "d", "requisito": "S-4.9"}]}]}
@@ -269,11 +270,26 @@ def main():
           ma["artigos_inexistentes"] == [("S-4.9", "Art. 42")])
     check("o resumo acusa o artigo inexistente",
           "1 requisito citando artigo que a lei não tem" in cb.resumo(ma))
+    # a outra ponta: o artigo da lei que nenhuma tarefa representa
+    check("1 artigo da lei sem tarefa, com número e nome",
+          ma["artigos_sem_tarefa"] == ["7 · Clareza da instrução"])
+    check("o artigo que uma tarefa representa não é acusado",
+          "6 · Estética" not in ma["artigos_sem_tarefa"])
+    check("o resumo acusa o artigo sem tarefa",
+          "1 artigo da lei sem tarefa" in cb.resumo(ma))
+    # requisito que cita a lei mas ninguém constrói não representa artigo nenhum
+    plan_vazio = {"id": "p", "title": "t",
+                  "phases": [{"id": "F1", "title": "f", "items": []}]}
+    check("sem tarefa nenhuma, os 2 artigos são acusados",
+          cb.mapa(plan_vazio, reqs_a, jornadas, artigos)["artigos_sem_tarefa"]
+          == ["6 · Estética", "7 · Clareza da instrução"])
     # sem a lei em mãos não há com o que cruzar — ninguém é acusado
     ma0 = cb.mapa(plan_a, reqs_a, jornadas)
     check("sem a lei, ninguém é acusado de citar artigo",
           ma0["artigos_inexistentes"] == []
           and "artigo" not in cb.resumo(ma0))
+    check("sem a lei, nenhum artigo é acusado de estar sem tarefa",
+          ma0["artigos_sem_tarefa"] == [])
     check("documento da lei ausente devolve []",
           cb.le_artigos(os.path.join(d, "nao-existe.md")) == [])
 

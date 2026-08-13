@@ -24,6 +24,7 @@ LIMPO = {"cobertas": ["F1.1"], "sem_requisito": [], "orfaos": [],
          "inexistentes": [], "por_req": {"S-1": ["F1.1"]},
          "sem_jornada": [], "sem_ca": [], "repetidos": [],
          "sem_artigo": [], "decididas": [], "artigos_inexistentes": [],
+         "artigos_sem_tarefa": [],
          "sem_peca": [], "pecas_inexistentes": [],
          "sem_passo": [], "passos_sem_funcionalidade": [],
          "jornadas_sem_funcionalidade": [], "epicos_sem_jornada": [],
@@ -75,6 +76,17 @@ def main():
     check("nem de nível 3", "nivel3" not in r)
     check("e a parada diz onde parou", r["parou_em"] == 1)
 
+    # o artigo da lei que nenhuma tarefa representa é acusado, com número e nome
+    r = ap.audita(com(artigos_sem_tarefa=["7 · Clareza da instrução"]))
+    check("o artigo da lei sem tarefa fica vermelho no nível 1",
+          r["nivel1"]["vermelho"] and r["parou_em"] == 1)
+    check("e o achado traz o número, o nome e o motivo",
+          any(a.startswith("7 · Clareza da instrução — artigo da lei que nenhuma "
+                           "tarefa representa") for a in r["nivel1"]["achados"]))
+    check("projeto sem lei não acusa artigo nenhum",
+          not any("artigo da lei que nenhuma tarefa" in a
+                  for a in ap.audita(LIMPO)["nivel1"]["achados"]))
+
     # nível 1 verde: o 2 roda, e acha
     r = ap.audita(com(orfaos=["S-9"]))
     check("nível 1 verde libera o nível 2", not r["nivel1"]["vermelho"])
@@ -89,6 +101,22 @@ def main():
     check("com 1 e 2 verdes, o nível 3 aparece", "nivel3" in r)
     check("e ele não se declara verde sozinho",
           r["nivel3"]["pendente"] and not r["nivel3"].get("vermelho"))
+
+    # os três pés do nível 3 — nomeados, e cada um com o que o reprova
+    pes = r["nivel3"]["pes"]
+    check("o nível 3 sai com os três pés, não com uma nota só", len(pes) == 3)
+    check("e os três são os de dimensoes-de-revisao.md, nesta ordem",
+          [p["pe"] for p in pes] ==
+          ["qualidade", "cobertura por finalidade", "coerência com a régua"])
+    check("cada pé diz o que o reprova",
+          all(p.get("reprova", "").strip() for p in pes))
+    check("qualidade reprova bug, e manda lint/type-check pro portão mecânico",
+          "bug" in pes[0]["reprova"] and "portão mecânico" in pes[0]["reprova"])
+    check("cobertura reprova finalidade sem teste que morda",
+          "MORDA" in pes[1]["reprova"] and "MUTAÇÃO" in pes[1]["reprova"])
+    check("a régua reprova por passagem violada, e ausência dela não é achado",
+          "doc-load" in pes[2]["reprova"]
+          and "Ausência de régua não é achado" in pes[2]["reprova"])
     check("a rodada mecânica está limpa", r["parou_em"] == 3)
 
     # cada balde cai no nível certo

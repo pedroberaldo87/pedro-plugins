@@ -87,6 +87,10 @@ DESC_MAX = BULLET_MAX
 EVIDENCE_MIN = 8
 
 STATUSES = ("todo", "doing", "blocked", "done")
+# O status do TOPO tem vocabulário PRÓPRIO, e é o que `close`/`reopen` gravam. Sem
+# esta lista o init aceitava qualquer palavra ('open', por exemplo) e o plano sumia
+# de `cmd_open`, que filtra por 'active' — invisível para a skill e para o hook.
+PLAN_STATUSES = ("active", "done", "abandoned")
 
 
 class PlanError(Exception):
@@ -318,6 +322,10 @@ def erros_do_plano(plan, exigir=None):
         errs.append("id: precisa ser slug minúsculo (ex: 2026-07-27-arvore-do-plano)")
     if not str(plan.get("title", "")).strip():
         errs.append("title: obrigatório")
+    pst = plan.get("status")
+    if pst is not None and pst not in PLAN_STATUSES:
+        errs.append("status '%s': use %s (o do PLANO, não o do passo)"
+                    % (pst, "|".join(PLAN_STATUSES)))
     errs.extend(_erros_dos_limites(plan))
     phases = plan.get("phases")
     if not isinstance(phases, list) or not phases:
@@ -985,6 +993,8 @@ def cmd_cobertura(args):
                            "🔴 funcionalidades sem artigo da lei que as motive"),
                           ("decididas",
                            "⚪ funcionalidades sem artigo, declaradas como decisão sua"),
+                          ("artigos_sem_tarefa",
+                           "🔴 artigos da lei que nenhuma tarefa representa"),
                           ("sem_peca",
                            "🔴 funcionalidades sem peça da arquitetura pretendida"),
                           ("sem_passo",
