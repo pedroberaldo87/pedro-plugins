@@ -57,27 +57,31 @@ tarefa com a lista na mão é escrever de memória. Então, antes da primeira ta
 o que cada documento da régua de fato contém — os artigos da lei, as jornadas, as peças
 da arquitetura pretendida e os passos do ciclo:
 
+Quem sabe ONDE cada documento mora é o programa, não esta página: o `plan_state.py`
+resolve cada um por cascata (variável de ambiente → a pasta de doc do projeto → a raiz),
+e é por isso que o trecho abaixo não escreve nome de arquivo nenhum. Escrever a lista
+aqui já custou caro — projeto que guarda a doc fora do lugar padrão via `artigos (0)` neste
+passo e era reprovado depois pela auditoria, que ACHA a lei.
+
 ```bash
-COB="$(bash "${CLAUDE_PLUGIN_ROOT}/lib/resolve-plugin.sh" project-skills lib/cobertura.py)"
+PS="$(bash "${CLAUDE_PLUGIN_ROOT}/lib/resolve-plugin.sh" project-skills lib/plan_state.py)"
 python3 -c 'import sys, os
 sys.path.insert(0, os.path.dirname(sys.argv[1]))
-import cobertura as c
-docs = os.path.join(os.getcwd(), ".claude/docs")
-for rotulo, ler, arq in (("artigos", c.le_artigos, "constituicao.md"),
-                         ("jornadas", c.le_jornadas, "journeys.md"),
-                         ("pecas", c.le_pecas, "architecture-intent.md"),
-                         ("passos", c.le_passos, "blueprint.md")):
-    itens = ler(os.path.join(docs, arq))
-    print("%s (%d) <- %s" % (rotulo, len(itens), arq))
+import plan_state as c
+d = c.resolve_dir()
+for rotulo, ler in (("artigos", c._artigos_do_projeto), ("jornadas", c._jornadas_do_projeto),
+                    ("pecas", c._pecas_do_projeto), ("passos", c._passos_do_projeto)):
+    itens = ler(d)
+    print("%s (%d)" % (rotulo, len(itens)))
     for i in itens:
-        print("   -", i)' "$COB"
+        print("   -", i)' "$PS"
 ```
 
 Cada requisito do plano cita daí: `ancora` sai da lista de artigos, `jornada` da lista de
 jornadas, `peca` das peças, `passo` dos passos. Lista vazia é resposta — documento que o
 projeto não tem não vira citação inventada, e o campo correspondente fica de fora. Citação
 que não está na lista é recusada depois pela auditoria (`artigos_inexistentes`,
-`pecas_inexistentes`), então conferir aqui é mais barato que descobrir no passo 4.
+`pecas_inexistentes`), então conferir aqui é mais barato que descobrir no passo 5.
 
 ## Passo 4 — grave o plano
 
@@ -98,7 +102,9 @@ O plano recém-montado é julgado pelos **mesmos três pés de toda revisão des
 marketplace** — a seção *"Os três pés no artefato PLANO"* de `references/dimensoes-de-revisao.md`,
 ao lado desta skill, diz o que cada pé olha num plano. O texto mora lá e não se repete
 aqui (a fonte é `_shared/dimensoes-de-revisao.md`, vendorada): leia a cópia local antes
-de mandar para a auditoria.
+de mandar para a auditoria. O Pé 2 aponta para os cinco antipadrões de teste, que moram
+em `references/antipadroes-de-teste.md` (fonte: `_shared/antipadroes-de-teste.md`) —
+também ao lado desta skill, para o apontamento não morrer na máquina instalada.
 
 
 O plano recém-montado vai para a auditoria (`lib/auditoria_plano.py`, neste mesmo

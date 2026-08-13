@@ -201,7 +201,7 @@ Todo artigo proposto nasce rotulado com a camada da prova, e a régua do referen
 |---|---|---|---|
 | 1 · a fala do dono | **DITO POR VOCÊ** | a citação verbatim, com data e fonte (ata, handoff, journal) | quase só confirmar — a palavra já é dele; o referendo pega mudança de opinião |
 | 2 · doc escrita avulsa | **ESCRITO** | `arquivo:linha` do trecho, no README/wiki/`.md` solto | confirmar que ainda vale — texto envelhece calado |
-| 3 · padrão do código | **INFERIDO DO CÓDIGO** | o padrão nomeado + a contagem por comando ("14 de 14 hooks degradam em vez de travar") | julgamento de verdade — padrão pode ser acidente, não decisão |
+| 3 · padrão do código | **INFERIDO DO CÓDIGO** | o padrão nomeado + a contagem por comando ("14 de 14 hooks degradam em vez de travar") | julgamento de verdade — padrão pode ser acidente, não decisão | <!-- acopla-ok: exemplo ilustrativo da forma da prova, não medição deste repositório -->
 
 **Artigo sem prova não vira proposta** — vira pergunta da entrevista normal, listada como
 lacuna no fim do referendo. Prioridade entre metas, apetite de risco e o que o dono quer que o

@@ -51,7 +51,10 @@ print("a ida ao mapa da regua")
 # que existir ao lado desta suite, com as funcoes que ela manda chamar.
 MODULO = re.search(r"import (\w+) as c", texto)
 check("manda montar o mapa da regua antes de escrever tarefa", MODULO is not None)
-pos_mapa = texto.find(MODULO.group(1) + ".py") if MODULO else -1
+# Ancora na CHAMADA (`import <mod> as c`), nunca no nome do arquivo: `plan_state.py`
+# aparece ja no passo 1 (a linha `open`), e ali a posicao seria a do aviso, nao a da ida —
+# o check da ordem passava por construcao. Coberto pela mutacao L do test_mutacao_plano.py.
+pos_mapa = texto.find("import %s as c" % MODULO.group(1)) if MODULO else -1
 check("a ida vem ANTES da gravacao do plano", -1 < pos_mapa < pos_init)
 
 if MODULO:
@@ -60,7 +63,7 @@ if MODULO:
     if os.path.isfile(alvo):
         sys.path.insert(0, AQUI)
         mod = importlib.import_module(MODULO.group(1))
-        funcs = sorted(set(re.findall(r"c\.(le_\w+)", texto)))
+        funcs = sorted(set(re.findall(r"c\.(le_\w+|_\w+_do_projeto)", texto)))
         check("a ida chama alguma leitura do mapa", len(funcs) >= 1)
         for f in funcs:
             check("%s existe em %s" % (f, os.path.basename(alvo)), hasattr(mod, f))

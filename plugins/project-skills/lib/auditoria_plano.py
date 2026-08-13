@@ -14,13 +14,18 @@ por isso não conhece a pasta de plugin vizinho nenhum.
 
 # Nível 1 — o plano contradiz a documentação canônica. Cada balde é um jeito de
 # contradizer: citar o que a lei/arquitetura/desenho não tem, ou não citar nada.
+#
+# `artigos_sem_tarefa` NÃO entra aqui, e não é esquecimento: ele mede a lei INTEIRA
+# contra a união dos planos, e o mapa que chega neste módulo é de UM plano só. Medido
+# aqui, todo plano parcial fica vermelho para sempre — os níveis 2 e 3 viram
+# inalcançáveis e o laço passa a inventar tarefa de artigo que este plano nunca se
+# propôs a tratar. Quem faz essa conta de projeto é `completude.py`, sobre a união.
 NIVEL1 = [
     ("artigos_inexistentes", "cita artigo que a lei não tem"),
     ("pecas_inexistentes", "cita peça que a arquitetura não tem"),
     ("inexistentes", "cita requisito que não existe"),
     ("repetidos", "número de requisito escrito duas vezes"),
     ("sem_artigo", "não nasce de artigo nenhum da lei"),
-    ("artigos_sem_tarefa", "artigo da lei que nenhuma tarefa representa"),
     ("sem_jornada", "não nasce de caminho de pessoa nenhum"),
     ("sem_peca", "não diz em que peça da arquitetura vive"),
     ("sem_passo", "não atende passo nenhum do ciclo"),

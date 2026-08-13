@@ -72,6 +72,20 @@ def ler(p):
         return fh.read()
 
 
+PASTA_DA_REGUA = ".claude/docs"
+
+
+def enumera(txt, doc):
+    """A skill enumera `doc` quando cita a PASTA da régua e o NOME do documento.
+
+    Exigir os dois CONTÍGUOS (`.claude/docs/<nome>`) era brecha: um trecho que põe a
+    pasta numa linha (`docs = os.path.join(cwd, ".claude/docs")`) e os nomes na linha
+    seguinte enumera igual e passava verde. Citar o `doc_load.py` (o programa) segue
+    permitido — ele não escreve a pasta na prosa.
+    """
+    return PASTA_DA_REGUA in txt and doc in txt
+
+
 def _skill_de(destino):
     """O `SKILL.md` dono de uma cópia vendorada.
 
@@ -107,6 +121,18 @@ for d in DESTINOS:
         continue
     check("%s idêntica à fonte" % rel, ler(c) == src)
 
+print("\n== o apontamento do Pé 2 não morre na cópia ==")
+# O Pé 2 cita `antipadroes-de-teste.md` "ao lado deste arquivo". Onde o tripé é
+# vendorado sem o vizinho, o apontamento morre na máquina instalada — que é
+# exatamente o modo de falha que o mapa do vendoring já declara em comentário.
+VIZINHO = "antipadroes-de-teste.md"
+check("o Pé 2 aponta pro vizinho", "ao lado deste arquivo" in src)
+for d in DESTINOS:
+    rel = os.path.join(d, VIZINHO)
+    check("%s existe ao lado do tripé" % rel,
+          os.path.isfile(os.path.join(ROOT, d, VIZINHO)),
+          "(o apontamento do Pé 2 morre nesta cópia)")
+
 print("\n== as skills APONTAM em vez de repetir ==")
 for d in DESTINOS:
     skill = _skill_de(d)
@@ -124,6 +150,19 @@ for d in DESTINOS:
     check("%s não repete os títulos dos pés" % rel,
           "## Pé 1 · Qualidade" not in txt)
 
+print("\n== a régua da enumeração pega pasta e nome SEPARADOS ==")
+# Teste NEGATIVO do alargamento: sem isto, a régua podia voltar a exigir contiguidade
+# e a suíte ficaria verde por acidente, como ficou enquanto a plan enumerava.
+check("pasta e nome em linhas separadas REPROVAM",
+      enumera('docs = os.path.join(cwd, ".claude/docs")\nler(docs, "constituicao.md")',
+              "constituicao.md"))
+check("pasta e nome contíguos REPROVAM",
+      enumera("leia .claude/docs/constituicao.md", "constituicao.md"))
+check("citar só o programa PASSA",
+      not enumera("quem lista a régua é o doc_load.py", "constituicao.md"))
+check("citar o nome sem a pasta da régua PASSA",
+      not enumera("o comando recebe <caminho>/constituicao.md", "constituicao.md"))
+
 print("\n== nenhuma skill de revisão ENUMERA documento de régua ==")
 for d in DESTINOS:
     skill = os.path.join(ROOT, os.path.dirname(d), "SKILL.md")
@@ -132,10 +171,7 @@ for d in DESTINOS:
         continue
     txt = ler(skill)
     for doc in DOCS_QUE_SO_O_PROGRAMA_LISTA:
-        # `.claude/docs/<nome>` é a forma que denuncia a enumeração; citar o
-        # doc_load.py (o programa) continua permitido e é o caminho certo.
-        marca = ".claude/docs/%s" % doc
-        check("%s não enumera %s" % (rel, doc), marca not in txt,
+        check("%s não enumera %s" % (rel, doc), not enumera(txt, doc),
               "(a lista de régua sai do doc_load.py, nunca da prosa)")
 
 print("\n== a premissa anti-drift está no cardápio da família ==")
@@ -161,6 +197,42 @@ else:
         ("a pergunta que fecha", "já\nestá escrito em outro lugar?"),
     ]:
         check("cardápio: %s" % label, trecho in card, "(faltou %r)" % trecho)
+
+print("\n== nenhuma SKILL.md monta caminho de projeto à mão ==")
+# Irmão do check acima: enumerar o NOME do documento e montar a PASTA a partir do
+# cwd são o mesmo defeito — a skill decidindo onde a doc mora. O trecho do Passo 3
+# da `plan` alimentava o resolvedor do programa com `os.getcwd()/.claude/plans` e
+# via `artigos (0)` sempre que o cwd não era a raiz (repro: rodando de dentro de
+# plugins/project-skills/, 0 artigos; com `c.resolve_dir()`, 9).
+
+
+def monta_caminho_a_mao(txt):
+    """Trecho que constrói a pasta de projeto em vez de pedi-la ao programa.
+
+    Julga o TEXTO INTEIRO, como o `enumera` vizinho: exigir os dois na MESMA linha
+    era a mesma brecha da contiguidade — `cwd = os.getcwd()` numa linha e
+    `os.path.join(cwd, ".claude/docs")` na outra monta o caminho igual e passava
+    verde.
+    """
+    if "getcwd(" not in txt or ".claude" not in txt:
+        return []
+    return [ln.strip() for ln in txt.splitlines()
+            if ".claude" in ln or "getcwd(" in ln]
+
+
+check("montar .claude a partir do cwd REPROVA",
+      monta_caminho_a_mao('d = os.path.join(os.getcwd(), ".claude", "plans")'))
+check("cwd e .claude em linhas SEPARADAS REPROVAM",
+      monta_caminho_a_mao('cwd = os.getcwd()\np = os.path.join(cwd, ".claude/docs")'))
+check("pedir a pasta ao resolvedor do programa PASSA",
+      not monta_caminho_a_mao("d = c.resolve_dir()"))
+for base, _dirs, arqs in os.walk(os.path.join(ROOT, "plugins")):
+    if "SKILL.md" not in arqs:
+        continue
+    skill = os.path.join(base, "SKILL.md")
+    ruins = monta_caminho_a_mao(ler(skill))
+    check("%s não monta caminho de projeto" % os.path.relpath(skill, ROOT),
+          not ruins, "(%s)" % "; ".join(ruins))
 
 print("\n%d ok, %d falhas" % (PASS, FAIL))
 sys.exit(1 if FAIL else 0)

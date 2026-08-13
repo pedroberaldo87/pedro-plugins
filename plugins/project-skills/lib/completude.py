@@ -64,8 +64,30 @@ def _plano_unico(planos):
     `cobertura.mapa` recebe UM plano. O projeto tem vários, e requisito atendido
     por outro plano é requisito atendido — juntar as fases é o que impede a
     cadeia de acusar órfão que na verdade está coberto na porta ao lado.
+
+    Do plano ENCERRADO (`abandoned` ou `done`) entra só o que ficou PROVADO —
+    as tarefas `done`. O plano inteiro não pode creditar: o elo 3 já ignora a
+    pendência do plano encerrado, e se ele creditasse tudo o projeto cujo único
+    plano foi abandonado sairia verde nos três elos, sem uma tarefa feita e sem
+    uma prova. `done` entra na mesma régua porque quem grava esse `status` é o
+    modelo, não só o `close`: plano marcado `done` com passo `todo` dentro
+    existe em disco, e creditar esse passo dava requisito verde sem prova
+    nenhuma — o passo pendente sumia no elo 3 e cobria requisito no elo 2. Plano
+    encerrado com tudo feito continua creditando tudo, porque tudo ali está
+    `done`. Descartar o encerrado inteiro também mentiria: `close` grava
+    `abandoned` em QUALQUER encerramento parcial, e o requisito que ganhou
+    tarefa pronta com prova ali passava a ser acusado de órfão. O critério é por
+    EXCLUSÃO, nunca `status == "active"`: plano sem `status` gravado é plano
+    vivo.
     """
-    return {"phases": [ph for p in planos for ph in p.get("phases", [])]}
+    out = []
+    for p in planos:
+        parcial = p.get("status") in ("abandoned", "done")
+        for ph in p.get("phases", []):
+            out.append(dict(ph, items=[it for it in ph.get("items", [])
+                                       if it.get("status") == "done"])
+                       if parcial else ph)
+    return {"phases": out}
 
 
 def cadeia(features, planos, **cruzamentos):
@@ -94,7 +116,11 @@ def cadeia(features, planos, **cruzamentos):
     leitura. Tarefa marcada como feita com prova ausente ou curta demais é
     MENTIRA (`tique_sem_prova`); tarefa que ainda não foi marcada é só trabalho
     que falta (`tarefa_pendente`) — misturar as duas apagaria a única das duas
-    que é defeito.
+    que é defeito. Pendência só conta em plano VIVO (o que não está `done` nem
+    `abandoned`): quem encerra um plano com `close` deixa passo sem marcar de
+    propósito, e contar isso como trabalho que falta fazia a cadeia nunca poder
+    fechar. Mentira (`tique_sem_prova`) conta em plano encerrado também — passo
+    marcado como feito sem prova é falso em qualquer plano.
     """
     falta_doc = lacunas(features, cruzamentos)
     reqs = cobertura.le_requisitos(features)
@@ -113,7 +139,7 @@ def cadeia(features, planos, **cruzamentos):
             if it.get("status") == "done":
                 if len(prova) < plan_state.EVIDENCE_MIN:
                     tique_sem_prova.append(it["id"])
-            else:
+            elif p.get("status") not in ("done", "abandoned"):
                 tarefa_pendente.append(it["id"])
 
     elos = [

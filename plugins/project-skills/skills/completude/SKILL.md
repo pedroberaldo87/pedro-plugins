@@ -89,4 +89,6 @@ aconteceu antes: uma skill listava seis dimensões, a outra cinco.
 
 Leia aquele arquivo quando precisar julgar **se o que está marcado como feito realmente
 fecha** — em especial o **Pé 2 (cobertura por finalidade)**, que é o pé de que esta
-medição é a versão de programa.
+medição é a versão de programa. Esse pé aponta para os cinco antipadrões de teste, que
+moram em `references/antipadroes-de-teste.md` (fonte: `_shared/antipadroes-de-teste.md`)
+— também ao lado desta skill, para o apontamento não morrer na máquina instalada.

@@ -168,6 +168,66 @@ def main():
           falta(c, "tarefa → prova", "tarefa_pendente") == ["F1.4"]
           and "F1.4" not in falta(c, "tarefa → prova", "tique_sem_prova"))
 
+    encerrado = dict(plano(item("F9.1", "S-1"),
+                           item("F9.2", "S-2", "done", "curta")),
+                     id="q", status="abandoned")
+    c = cp.cadeia(FEATURES, [encerrado])
+    check("passo pendente de plano encerrado não é tarefa_pendente",
+          falta(c, "tarefa → prova", "tarefa_pendente") == [])
+    check("mas tique sem prova em plano encerrado continua sendo mentira",
+          falta(c, "tarefa → prova", "tique_sem_prova") == ["F9.2"])
+    vivo = dict(plano(item("F8.1", "S-1")), id="v", status="active")
+    check("e o plano vivo continua acusando a pendência dele",
+          falta(cp.cadeia(FEATURES, [vivo, encerrado]),
+                "tarefa → prova", "tarefa_pendente") == ["F8.1"])
+
+    # plano abandonado não cobre requisito nenhum: se ele credita cobertura no
+    # elo 2 e a pendência dele some no elo 3, a cadeia fecha verde sem uma
+    # tarefa feita e sem uma prova.
+    abandonado = dict(plano(item("F7.1", "S-1"), item("F7.2", "S-2"),
+                            item("F7.3", "S-3")),
+                      id="a", status="abandoned")
+    c = cp.cadeia(FEATURES, [abandonado], **{
+        "artigos": cp.cobertura.le_artigos(PLACAR),
+        "sem_cobrador": cp.cobertura.le_sem_cobrador(PLACAR)})
+    check("plano abandonado não credita cobertura de requisito",
+          falta(c, "requisito → tarefa", "requisito_sem_tarefa")
+          == ["S-1", "S-2", "S-3"])
+    check("e a cadeia com só um plano abandonado NÃO fecha completa",
+          c["completa"] is False)
+    check("plano concluído continua creditando cobertura",
+          falta(cp.cadeia(FEATURES, [dict(plano(
+              item("F6.1", "S-1", "done", "a suíte passou, 12 de 12"),
+              item("F6.2", "S-2", "done", "a suíte passou, 12 de 12"),
+              item("F6.3", "S-3", "done", "a suíte passou, 12 de 12")),
+              id="d", status="done")]),
+              "requisito → tarefa", "requisito_sem_tarefa") == [])
+
+    # `close` grava `abandoned` em QUALQUER encerramento parcial, e o que ficou
+    # PROVADO ali é trabalho feito: descartar o plano inteiro acusava de órfão
+    # requisito que tem tarefa pronta com prova.
+    parcial = dict(plano(item("F5.1", "S-1", "done", "a suíte passou, 12 de 12"),
+                         item("F5.2", "S-2", "done", "a suíte passou, 12 de 12"),
+                         item("F5.3", "S-3")),
+                   id="x", status="abandoned")
+    check("do plano abandonado, só o passo provado credita cobertura",
+          falta(cp.cadeia(FEATURES, [parcial]),
+                "requisito → tarefa", "requisito_sem_tarefa") == ["S-3"])
+
+    # o `status` do plano é escrito pelo modelo, não só pelo `close`: um plano
+    # gravado `done` carregando passo `todo` existe em disco. Se o `done`
+    # creditasse inteiro, esse passo cobriria requisito no elo 2 e sumiria no
+    # elo 3 — o requisito sairia verde sem uma linha de prova.
+    done_com_pendente = dict(plano(
+        item("F4.1", "S-1", "done", "a suíte passou, 12 de 12"),
+        item("F4.2", "S-2", "done", "a suíte passou, 12 de 12"),
+        item("F4.3", "S-3")), id="w", status="done")
+    c = cp.cadeia(FEATURES, [done_com_pendente])
+    check("do plano concluído com passo pendente, só o provado credita cobertura",
+          falta(c, "requisito → tarefa", "requisito_sem_tarefa") == ["S-3"])
+    check("e a pendência dele não conta no elo 3, como em qualquer plano encerrado",
+          falta(c, "tarefa → prova", "tarefa_pendente") == [])
+
     print("== a cadeia inteira ==")
     completo = plano(item("F1.1", "S-1", "done", "a suíte passou, 12 de 12"),
                      item("F1.2", "S-2", "done", "a suíte passou, 12 de 12"),
