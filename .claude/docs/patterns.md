@@ -1627,6 +1627,16 @@ for t in plugins/*/hooks/test_*.sh plugins/*/lib/test_*.sh scripts/test_*.sh .cl
   bash "$t" || echo "RED: $t"; done
 ```
 
+⚠️ **Harness de mutação cresce por MULTIPLICAÇÃO, e o teto da esteira é por suíte.** Em
+2026-08-13 o harness do plano foi de 6 para 12 entradas, e cada uma copia o repositório e roda
+**todas** as suítes de `lib/` — a conta é `mutações × suítes`, não `mutações + suítes`. A esteira
+o matou com `TIMEOUT 300.0s` (`run_suites.py`), e o arquivo que existe para provar que as travas
+mordem virou o **único** vermelho de 130 suítes. O conserto foi cada mutação declarar a suíte que
+deve acusá-la, rodando a pasta inteira **só quando essa suíte não acusa**: 32,9 s medidos, com o
+rigor intacto — o veredito "trava sem cobertura" continua nascendo de uma passada completa.
+**Régua durável: em cobrador cujo custo é um produto, acrescentar uma linha na lista é
+acrescentar uma coluna na conta** — é o §1.16 outra vez, com o teto do lado de fora.
+
 **As disciplinas de teste que este repo cobra**, todas com o sítio que as prova:
 
 - **Teste E2E não-tautológico.** R9/R10 de `test_plan_gate.sh` escrevem o sentinel **rodando o hook escritor de verdade**, nunca recalculando a chave à mão — *"Recalcular a chave à mão aqui foi exatamente o que mascarou o bug de path na 1ª rodada."*
