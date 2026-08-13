@@ -737,6 +737,38 @@ Duas decisões que valem copiar:
 
 🔴 **Gotcha medido nesta sessão: hook que EXISTE mas não está no `hooks.json` nunca dispara — e nada acusa.** O `stop-regua-relato.py` nasceu como arquivo antes de entrar no array `Stop` do `plugins/bootstrap/hooks/hooks.json`; os dois entraram no mesmo commit (`1e59b55`) só porque alguém foi conferir. Não há erro, não há log, `claude plugin validate` passa, e `claude plugin details` mostra `Hooks (N)` **contando EVENTOS, não scripts** — um `Stop` novo no array já povoado não mexe no N. É a mesma família do §1.14 (elo que sai da cadeia sem sintoma), com um agravante: aqui o componente nunca chegou a entrar. **Hook novo se prova pelo `hooks.json`, nunca pela existência do arquivo.**
 
+### 1.18 Estado compartilhado por SESSÃO enquanto quem o usa é por EXECUÇÃO
+
+**Medido em 2026-08-12.** O sinal que anuncia missão de pé é chaveado por sessão
+(`~/.claude/andamento/ativo-<sid>`); a reserva de arquivos que o mesmo motor usa é chaveada
+por sessão **e** execução (`reservas/<sid>__<motor>.files`). Duas chaves diferentes para o
+mesmo ciclo de vida, e a mais grossa ganha na hora de apagar.
+
+O que aconteceu: um motor morreu na largada, o relançamento herdou a sessão, e o
+`encerra:barra` do motor morto apagou o sinal do motor vivo. **A barra ficou muda com
+trabalho rodando, e o gate que nega despacho de sub-agente por fora desarmou junto** — os
+dois leem o mesmo arquivo. Nada acusou; o dono descobriu perguntando.
+
+A conferência que existia **não** pegava: o `encerra` já comparava o **dono** na linha 1
+(`sprint` × `qa-loop` × `gauntlet`), o que separa plugins diferentes e **não** separa duas
+execuções do mesmo plugin. Guarda certa, granularidade errada.
+
+- **A regra:** estado compartilhado se apaga por **contagem de quem está de pé**, nunca por
+  "o último que falou". Quem arma se registra, quem sai se remove, e o estado cai quando a
+  lista esvazia. Em `andamento.py`: `arma <sid> <dono> <motor>` e
+  `encerra <sid> <dono> <motor>`, com a lista em `motorid-<sid>`.
+- **O agravante que vale a lição inteira:** o `motorid-<sid>` **já era apagado em dois
+  lugares e nunca era escrito por ninguém** — o desenho previa o registro e a implementação
+  não veio. Campo fantasma não dá erro: ele é lido como lista vazia, e a lista vazia
+  concorda com "pode apagar". `grep -rn motorid plugins/project-skills/ | grep -v /test_`
+  devolvia só as duas linhas que apagavam. **Prefixo em rotina de limpeza sem escritor
+  correspondente é sintoma, não sobra.**
+- **Consertar a porta não alcança quem já passou por ela.** O `encerra` corrigido evita o
+  caso novo e não devolve o sinal que já caiu, nem alcança o motor que morre sem chamar
+  encerramento nenhum. Por isso a rede: `ressuscita_sinais`, no mesmo desenho da barra,
+  reacende sinal ausente com motor registrado vivo — e a ordem contra `expira_sinais`
+  importa (expirar primeiro, para não ressuscitar o que a outra acabou de matar).
+
 ## 2 · Python
 
 ### 2.1 Stdlib puro, sem exceção observada
