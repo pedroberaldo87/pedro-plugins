@@ -432,6 +432,23 @@ plan-flaw, não entra como bloqueio daqui. A ordem usual é `qa-loop` primeiro, 
 último, antes de declarar a frente pronta. `[confirmado — os cobradores `test_qa_loop_skill.py` e
 `test_sprint_skill.py` prendem as duas pontas e saíram OK nesta rodada]`
 
+**A medição de PROJETO saiu do julgamento de PLANO, e a fronteira agora está no código.**
+`artigos_sem_tarefa` — o artigo da lei que nenhuma tarefa representa — nasceu dentro do
+nível 1 da auditoria de plano, e o nível 1 é **curto-circuito**: a auditoria retorna ali,
+sem sequer calcular os níveis 2 e 3. Como a conta mede a lei INTEIRA contra **um** plano, e
+plano é fatia de trabalho, todo plano parcial ficava vermelho para sempre — e o laço era
+mandado inventar tarefa para artigo que aquela missão nunca se propôs a tratar. Hoje a
+conta de projeto é da `completude.py`, sobre a **união** dos planos, e o comentário do
+`NIVEL1` diz por que ela não volta. `[confirmado — `auditoria_plano.py:18-21` e a suíte]`
+
+**E a completude passou a contar só o que ainda está VIVO.** O elo tarefa→prova varria
+todos os arquivos de plano, inclusive os encerrados — e `close` encerra deixando passo sem
+marcar de propósito. Resultado medido: 71 das 96 pendências vinham de 9 planos já
+encerrados, nenhuma podia ser fechada (o tique exige prova de trabalho que o dono decidiu
+não fazer), e a medição **nunca podia dizer "fechou"** — exatamente o que a skill promete
+medir. A regra ficou por EXCLUSÃO (`abandoned`/`done` saem), nunca por `status == "active"`:
+plano sem status gravado é plano vivo. `[confirmado — `completude.py:68-85`]`
+
 **A missão passou a se MEDIR ao fim, e a medição tem freio.** Depois da persistência, o `sprint` roda `plugins/improve-workflow/lib/medidor.py` **em bash, sem agente nenhum** (achado por `resolve-plugin.sh improve-workflow`; ausente na máquina ⇒ pula calado, igual ao lixeiro). A tabela por papel e a linha `sinais — N dos 6 acesos` viram a sexta seção do relatório, `### Custo`, com a tabela crua num drilldown fechado. ⚠️ **`N` igual a zero ENCERRA ali**: nada de abrir transcript ou disparar agente para a autópsia — os passos de leitura dela são caros, e sem sinal aceso não há defeito endereçado a investigar. Só com pelo menos um sinal aceso (ou a pedido do dono) a skill `improve-workflow` é invocada, a partir do passo 2, recebendo a saída crua. `[confirmado — `plugins/project-skills/skills/sprint/SKILL.md`, passo 5 da persistência]`
 
 **E a rodada de autópsia não toca o projeto que audita — nem para mostrar o resultado.** Todo comando da skill sai de `${CLAUDE_PLUGIN_ROOT}` e não mais de `plugins/improve-workflow/…`, caminho que só resolve no repositório de quem escreveu. A única pasta em que ela escreve é `~/.claude/improve-workflow/`: o registro acumulado (`registro.jsonl`) e a página de parecer do passo 7, que vai com `--out` **obrigatório** — sem ele o `build` cai na cascata do `/visual` (fluxo 4, passo 1) e a página nasceria dentro do `.claude/visual/` do projeto auditado. O `/visual` entra pelo **nome**, por uma cópia vendorada de `resolve-plugin.sh` dentro da própria skill (declarada nos `SPECS` de `scripts/sync-shared.sh`); ausente na máquina, o resolvedor sai calado e a rodada termina dizendo que não há superfície de aprovação — as propostas ficam no `propostas.json` e nada é despejado no chat. Dois cobradores: `python3 plugins/improve-workflow/lib/test_improve_workflow_skill.py` executa os blocos sobre uma fixture e compara a árvore do projeto antes e depois, e `scripts/autopsia_check.py` confere que as frases da lei continuam no texto — este é o check **S** do `.claude/hooks/release-gate.sh`, e só roda quando o commit toca `plugins/improve-workflow/`. `[confirmado nesta rodada — a suíte fecha em "tudo verde", o check sai calado, `sync-shared.sh --check` responde "cópias vendored idênticas", e `CLAUDE_PLUGIN_ROOT=<raiz>/plugins/improve-workflow bash skills/improve-workflow/resolve-plugin.sh visual lib/visual_page.py` devolveu o caminho do irmão]`
