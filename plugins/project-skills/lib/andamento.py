@@ -70,6 +70,73 @@ def _ler(base, nome):
     return os.path.join(base, nome)
 
 
+def execucoes(sessao, base=None):
+    """Quem esta de pe nesta sessao: lista de (dono, id da execucao), na ordem.
+
+    O aviso da barra e por SESSAO (`ativo-<sid>`); a reserva de arquivos e por
+    sessao E execucao (`reservas/<sid>__<execucao>.files`). A assimetria custou o
+    caso medido em 2026-08-12: duas execucoes do MESMO dono na mesma sessao, a
+    primeira terminou, e o encerramento dela apagou o aviso da segunda, que seguia
+    rodando. A barra ficou muda com trabalho de pe, e a trava que impede despachar
+    por fora desarmou junto.
+
+    Este arquivo ja era apagado em dois lugares (`expira_sinais` e `encerra`) e
+    NUNCA era escrito por ninguem — o desenho previa o registro e a implementacao
+    nao veio. Aqui ele passa a existir: uma linha por execucao, `dono\\texecucao`.
+    """
+    base = base or ESTADO
+    try:
+        with open(_ler(base, "motorid-%s" % sessao), encoding="utf-8") as fh:
+            linhas = fh.read().splitlines()
+    except OSError:
+        return []
+    fora = []
+    for linha in linhas:
+        if not linha.strip():
+            continue
+        dono, _, execucao = linha.partition("\t")
+        fora.append((dono.strip(), execucao.strip()))
+    return fora
+
+
+def arma(sessao, dono, execucao, base=None):
+    """Acende o aviso da sessao e registra ESTA execucao. Devolve a lista de pe.
+
+    Idempotente: armar duas vezes a mesma execucao nao duplica a linha. O aviso
+    guarda o nome do dono na primeira linha, que e o que a barra le e o que o gate
+    do motor confere.
+    """
+    base = base or ESTADO
+    try:
+        os.makedirs(base, exist_ok=True)
+    except OSError:
+        return []
+    vivas = [x for x in execucoes(sessao, base) if x != (dono, execucao)]
+    vivas.append((dono, execucao))
+    try:
+        with open(_ler(base, "motorid-%s" % sessao), "w", encoding="utf-8") as fh:
+            for d, e in vivas:
+                fh.write("%s\t%s\n" % (d, e))
+        with open(_ler(base, "ativo-%s" % sessao), "w", encoding="utf-8") as fh:
+            fh.write("%s\n" % dono)
+    except OSError:
+        return []
+    return vivas
+
+
+def _apaga_estado(base, sessao):
+    """Apaga o aviso e todo o estado da missao desta sessao. Devolve o que sumiu."""
+    sumiram = []
+    for prefixo in ("ativo-", "bloqueios-", "onda-", "placar-", "doc-",
+                    "sinal-", "trabalho-", "motorid-"):
+        try:
+            os.remove(_ler(base, prefixo + sessao))
+            sumiram.append(prefixo.rstrip("-"))
+        except OSError:
+            pass
+    return sumiram
+
+
 def _orfao(base, sessao, caminho, agora, limite_idade, limite_mudo):
     """Este sinal esta orfao? Devolve o MOTIVO, ou None quando a missao esta viva.
 
@@ -164,6 +231,75 @@ def expira_sinais(base=None, agora=None, ttl_min=None, mudo_min=None):
         except OSError:
             pass
     return [s for s, _ in apagados]
+
+
+def ressuscita_sinais(base=None, agora=None, ttl_min=None):
+    """Reacende o aviso apagado cedo demais, com execucao ainda registrada de pe.
+
+    E a METADE QUE FALTAVA da varredura acima, e as duas moram no mesmo lugar pelo
+    mesmo motivo: a barra e o unico processo que roda com frequencia garantida.
+    `expira_sinais` pega aviso velho sem execucao; esta pega execucao viva sem
+    aviso — o caso medido em 2026-08-12, quando o encerramento de uma execucao
+    apagou o aviso de outra que seguia rodando na mesma sessao.
+
+    Por que reacender em vez de so evitar apagar: o `encerra` corrigido evita o
+    caso NOVO, e nao alcanca o aviso que ja caiu — nem o motor que morreu de vez,
+    sem chamar encerramento nenhum. Consertar so a porta deixa de pe quem ja passou
+    por ela.
+
+    O TETO DE IDADE VALE AQUI TAMBEM: registro mais velho que o teto do aviso nao
+    reacende nada, e e apagado. Sem isso, execucao esquecida no disco reacenderia o
+    aviso para sempre, que e exatamente o defeito que `expira_sinais` existe para
+    matar — o conserto de um lado nao pode ressuscitar o do outro.
+
+    Fail-open em tudo, como a vizinha: pasta ausente, arquivo que sumiu no meio ou
+    permissao negada nao derrubam a barra, que e so texto.
+    """
+    base = base or ESTADO
+    agora = time.time() if agora is None else agora
+    limite = (TTL_SINAL_MIN if ttl_min is None else ttl_min) * 60
+    acesos = []
+    try:
+        nomes = os.listdir(base)
+    except OSError:
+        return acesos
+    for nome in nomes:
+        if not nome.startswith("motorid-"):
+            continue
+        sessao = nome[len("motorid-"):]
+        if os.path.exists(_ler(base, "ativo-%s" % sessao)):
+            continue
+        vivas = execucoes(sessao, base)
+        if not vivas:
+            continue
+        try:
+            idade = agora - os.path.getmtime(os.path.join(base, nome))
+        except OSError:
+            continue
+        if idade > limite:
+            try:
+                os.remove(os.path.join(base, nome))
+            except OSError:
+                pass
+            continue
+        # O dono e o da PRIMEIRA execucao registrada: e ele que estava na linha 1 do
+        # aviso quando a sessao armou, e e por essa linha que o gate do motor decide.
+        try:
+            with open(_ler(base, "ativo-%s" % sessao), "w", encoding="utf-8") as fh:
+                fh.write("%s\n" % vivas[0][0])
+        except OSError:
+            continue
+        acesos.append((sessao, vivas[0][0], len(vivas)))
+    if acesos:
+        try:
+            with open(os.path.join(base, "expirados.log"), "a", encoding="utf-8") as fh:
+                for sessao, dono, quantas in acesos:
+                    fh.write("%s\tbarra\treaceso\t%d-de-pe\t%s (%s)\n"
+                             % (time.strftime("%FT%TZ", time.gmtime(agora)),
+                                quantas, sessao, dono))
+        except OSError:
+            pass
+    return [s for s, _, _ in acesos]
 
 
 # Os TRES formatos que a amostra mostrou, em ordem de frequencia medida.
@@ -640,6 +776,10 @@ def linha_motor(sessao, dir_estado=None, agora=None):
     # com frequencia garantida — e o sinal orfao e justamente o da sessao que morreu
     # e nunca mais consulta gate nenhum (ver `expira_sinais`).
     expira_sinais(base, agora)
+    # ...e a metade inversa: execucao registrada de pe SEM aviso reacende aqui. A
+    # ordem importa — expirar primeiro apaga o registro da sessao morta, entao a
+    # ressurreicao nao tem como devolver o aviso que a outra acabou de matar.
+    ressuscita_sinais(base, agora)
     ativo = _ler(base, "ativo-%s" % sessao)
     try:
         idade = agora - os.path.getmtime(ativo)
@@ -775,8 +915,17 @@ if __name__ == "__main__":
         # gauntlet gravam o MESMO `ativo-<sid>`, cada um com o próprio nome na
         # linha 1. Sem conferir, o motor que termina apaga a missão do vizinho, que
         # segue viva. Dono divergente sai 0 e mudo — o chamador é `|| echo`.
+        #
+        # E CONFERIR O DONO NÃO BASTA (2026-08-12). Duas execuções do MESMO dono na
+        # mesma sessão — o relançamento depois de uma parada, por exemplo — são
+        # indistinguíveis por aqui: a primeira que termina apaga o aviso da segunda,
+        # que segue rodando. Medido: a barra ficou muda com trabalho de pé e a trava
+        # que impede despachar por fora desarmou junto. Por isso o terceiro
+        # argumento, o id da execução: ele sai do registro, e o aviso só cai quando
+        # não sobra ninguém. Sem o terceiro argumento o comportamento é o de antes.
         alvo = sys.argv[2]
         dono = sys.argv[3] if len(sys.argv) > 3 else None
+        execucao = sys.argv[4] if len(sys.argv) > 4 else None
         if dono:
             try:
                 with open(os.path.join(ESTADO, "ativo-" + alvo),
@@ -787,15 +936,31 @@ if __name__ == "__main__":
             if aceso and aceso != dono:
                 print("sinal é de outro motor (%s) — nada apagado" % aceso)
                 sys.exit(0)
-        sumiram = []
-        for prefixo in ("ativo-", "bloqueios-", "onda-", "placar-", "doc-",
-                        "sinal-", "trabalho-", "motorid-"):
-            try:
-                os.remove(os.path.join(ESTADO, prefixo + alvo))
-                sumiram.append(prefixo.rstrip("-"))
-            except OSError:
-                pass
+        if execucao:
+            restam = [x for x in execucoes(alvo) if x != (dono, execucao)]
+            if restam:
+                try:
+                    with open(os.path.join(ESTADO, "motorid-" + alvo), "w",
+                              encoding="utf-8") as fh:
+                        for d, e in restam:
+                            fh.write("%s\t%s\n" % (d, e))
+                except OSError:
+                    pass
+                print("execução %s encerrada; %d ainda de pé — o aviso continua"
+                      % (execucao, len(restam)))
+                sys.exit(0)
+        sumiram = _apaga_estado(ESTADO, alvo)
         print("missão encerrada na barra: %s" % (", ".join(sumiram) or "nada aceso"))
+        sys.exit(0)
+
+    if len(sys.argv) > 4 and sys.argv[1] == "arma":
+        # arma <sessao> <dono> <execucao> — acende o aviso E registra a execução.
+        # É o par do `encerra` acima, e existe pelo mesmo motivo: enquanto acender
+        # era um `printf` solto no texto da skill, o registro de QUEM está de pé
+        # não era escrito por ninguém, e o encerramento não tinha como saber que
+        # havia outra execução viva.
+        vivas = arma(sys.argv[2], sys.argv[3], sys.argv[4])
+        print("aviso aceso por %s · %d execução(ões) de pé" % (sys.argv[3], len(vivas)))
         sys.exit(0)
 
     if len(sys.argv) > 3 and sys.argv[1] == "doc":

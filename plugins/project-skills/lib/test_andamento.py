@@ -626,6 +626,91 @@ def main():
     finally:
         shutil.rmtree(tmp_blc, ignore_errors=True)
 
+    print("duas execuções na mesma sessão: quem termina primeiro NÃO apaga o aviso da outra")
+    # O caso medido em 2026-08-12. O aviso da barra é por SESSÃO e a reserva de
+    # arquivos é por sessão E execução; quem encerrava conferia só o DONO, então
+    # duas execuções do mesmo dono se apagavam entre si. A barra ficou muda com
+    # trabalho de pé, e a trava que impede despachar por fora desarmou junto.
+    tmp_duas = tempfile.mkdtemp()
+    try:
+        a.arma("s-duas", "sprint", "exec-1", tmp_duas)
+        a.arma("s-duas", "sprint", "exec-2", tmp_duas)
+        check("as duas execuções ficam registradas, sem duplicar",
+              a.execucoes("s-duas", tmp_duas) == [("sprint", "exec-1"), ("sprint", "exec-2")])
+        check("armar a mesma execução de novo não duplica a linha",
+              a.arma("s-duas", "sprint", "exec-2", tmp_duas) ==
+              [("sprint", "exec-1"), ("sprint", "exec-2")])
+        check("o aviso guarda o dono na primeira linha, como o gate espera",
+              open(os.path.join(tmp_duas, "ativo-s-duas"),
+                   encoding="utf-8").readline().strip() == "sprint")
+
+    finally:
+        shutil.rmtree(tmp_duas, ignore_errors=True)
+
+    print("o comando de encerrar só derruba o aviso quando não sobra execução de pé")
+    # O comando é o que o motor chama de verdade no último ato dele, então é ele
+    # que precisa provar o conserto — a função sozinha não cobre o caminho real.
+    casa = tempfile.mkdtemp()
+    estado = os.path.join(casa, "andamento")
+    try:
+        os.makedirs(estado, exist_ok=True)
+        a.arma("s-cli", "sprint", "exec-1", estado)
+        a.arma("s-cli", "sprint", "exec-2", estado)
+        amb = dict(os.environ, CLAUDE_CONFIG_DIR=casa)
+        primeiro = subprocess.run(
+            [sys.executable, os.path.join(os.path.dirname(a.__file__), "andamento.py"),
+             "encerra", "s-cli", "sprint", "exec-1"],
+            capture_output=True, text=True, env=amb)
+        check("encerrar a primeira diz que outra continua de pé",
+              "ainda de pé" in primeiro.stdout)
+        check("e o aviso da barra continua no disco",
+              os.path.exists(os.path.join(estado, "ativo-s-cli")))
+        check("só a execução encerrada saiu do registro",
+              a.execucoes("s-cli", estado) == [("sprint", "exec-2")])
+        ultimo = subprocess.run(
+            [sys.executable, os.path.join(os.path.dirname(a.__file__), "andamento.py"),
+             "encerra", "s-cli", "sprint", "exec-2"],
+            capture_output=True, text=True, env=amb)
+        check("encerrar a última apaga o aviso",
+              "encerrada na barra" in ultimo.stdout
+              and not os.path.exists(os.path.join(estado, "ativo-s-cli")))
+    finally:
+        shutil.rmtree(casa, ignore_errors=True)
+
+    print("aviso apagado com execução viva é REACESO pela varredura da barra")
+    # A metade que faltava: `expira_sinais` apagava aviso velho sem execução, e
+    # nada devolvia o aviso que caiu cedo demais. Sem isto, o conserto do
+    # encerramento não alcança o aviso já perdido nem o motor que morreu de vez.
+    tmp_res = tempfile.mkdtemp()
+    try:
+        a.arma("s-res", "sprint", "exec-viva", tmp_res)
+        os.remove(os.path.join(tmp_res, "ativo-s-res"))
+        check("o aviso sumiu, mas a execução continua registrada",
+              not os.path.exists(os.path.join(tmp_res, "ativo-s-res"))
+              and a.execucoes("s-res", tmp_res) == [("sprint", "exec-viva")])
+        check("a varredura devolve o aviso ao disco",
+              a.ressuscita_sinais(tmp_res) == ["s-res"]
+              and os.path.exists(os.path.join(tmp_res, "ativo-s-res")))
+        check("e o dono reaceso é o da primeira execução registrada",
+              open(os.path.join(tmp_res, "ativo-s-res"),
+                   encoding="utf-8").readline().strip() == "sprint")
+        check("rodar de novo não reacende nada, porque o aviso já está de pé",
+              a.ressuscita_sinais(tmp_res) == [])
+
+        # registro velho NÃO reacende: seria ressuscitar o que a outra varredura mata
+        velho = os.path.join(tmp_res, "motorid-s-velha")
+        with open(velho, "w", encoding="utf-8") as fh:
+            fh.write("sprint\texec-antiga\n")
+        antigo = time.time() - (a.TTL_SINAL_MIN + 60) * 60
+        os.utime(velho, (antigo, antigo))
+        check("registro mais velho que o teto do aviso não reacende nada",
+              a.ressuscita_sinais(tmp_res) == []
+              and not os.path.exists(os.path.join(tmp_res, "ativo-s-velha")))
+        check("e o registro velho é apagado, em vez de ficar tentando para sempre",
+              not os.path.exists(velho))
+    finally:
+        shutil.rmtree(tmp_res, ignore_errors=True)
+
     print()
     if FAILS:
         print("FALHOU: %d" % len(FAILS))
