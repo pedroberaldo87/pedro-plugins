@@ -67,6 +67,8 @@ SPECS=(
   # O antipadrão de teste é citado DE DENTRO do tripé (Pé 2), então quem consome o
   # tripé precisa da cópia local dele — senão o apontamento morre na máquina instalada.
   "plugins/project-skills/skills/sprint/references::antipadroes-de-teste.md"
+  "plugins/project-skills/skills/plan/references::antipadroes-de-teste.md"
+  "plugins/project-skills/skills/completude/references::antipadroes-de-teste.md"
   # A régua de POR ONDE a pergunta chega: nasceu dentro do /grill-me e vale pra toda
   # skill que pergunta ao dono. Cada SKILL.md consumidor só aponta pra cópia local —
   # o texto mora aqui. Quem cobra: _shared/test_regua_de_pergunta.py.

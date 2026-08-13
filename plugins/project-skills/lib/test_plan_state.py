@@ -1580,6 +1580,45 @@ def main():
         finally:
             shutil.rmtree(raiz2, ignore_errors=True)
 
+        # O artigo que a PRÓPRIA lei declara sem quem o cobre não é furo — é coisa que
+        # nenhum programa sabe medir. `completude.py` já lia essa linha do placar; o
+        # `cobertura` do plan_state não lia, e o mesmo fato tinha dois vereditos
+        # conforme a porta por onde se perguntava.
+        print("cobertura respeita o artigo que a lei declara sem cobrador")
+        raiz2b = tempfile.mkdtemp(prefix="plan-sem-cobrador-")
+        try:
+            docs2b = os.path.join(raiz2b, ".claude", "docs")
+            plans2b = os.path.join(raiz2b, ".claude", "plans")
+            os.makedirs(docs2b)
+            os.makedirs(plans2b)
+            with open(os.path.join(docs2b, "constituicao.md"), "w",
+                      encoding="utf-8") as fh:
+                fh.write("# A lei\n\n"
+                         "- **Sem cobrador:** Artigos 6 e 7.\n\n"
+                         "## Artigo 6 · o custo é declarado\nO corpo.\n\n"
+                         "## Artigo 7 · a prova acompanha\nO corpo.\n\n"
+                         "## Artigo 8 · o plano é ticável\nO corpo.\n")
+            plc = sample(id="cob-1", phases=[{"id": "F1", "title": "x", "items": [
+                {"id": "F1.1", "title": "campo custo", "desc": "d",
+                 "pronto": "roda o teste", "requisito": "S-4.3"}]}])
+            plc["requisitos"] = [
+                {"id": "S-4.3", "titulo": "Orçamento de energia",
+                 "ca": "dia estourado corta", "ancora": "Art. 6"}]
+            init_into(plans2b, plc, crus=True)
+            bufc = io.StringIO()
+            with contextlib.redirect_stdout(bufc):
+                ps.cmd_cobertura(Args(dir=plans2b, plan="cob-1", reqs=None, json=False))
+            saidac = bufc.getvalue()
+            furos = saidac.split("nenhuma tarefa representa")[-1]
+            check("o artigo declarado sem cobrador não entra na lista de furos",
+                  "7 · a prova acompanha" not in furos)
+            check("e o artigo que a lei não isentou continua sendo furo",
+                  "8 · o plano é ticável" in furos)
+            check("o resumo separa o sem cobrador como coisa que depende de julgamento",
+                  "1 artigo da lei sem cobrador" in saidac)
+        finally:
+            shutil.rmtree(raiz2b, ignore_errors=True)
+
         # A funcionalidade que não nasce de artigo nenhum é acusada pelo caminho REAL
         # do produto — o mesmo `cobertura` que acha o constituicao.md pela cascata —
         # e a que o dono declarou como escolha dele passa marcada, não acusada.

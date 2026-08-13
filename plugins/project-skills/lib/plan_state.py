@@ -810,23 +810,33 @@ def _jornadas_do_projeto(directory):
     return []
 
 
-def _artigos_do_projeto(directory):
-    """Acha os artigos da lei do projeto. [] se não houver — e isso não é erro.
+def _caminho_da_lei(directory):
+    """O arquivo da lei do projeto, ou "" se não houver — e isso não é erro.
 
     Cascata: $PLAN_LEI → <raiz>/.claude/docs/constituicao.md → <raiz>/docs/constituicao.md
-    → []. Mesma forma da cascata das jornadas, pelo mesmo motivo: sem lei escrita não há
+    → "". Mesma forma da cascata das jornadas, pelo mesmo motivo: sem lei escrita não há
     com o que conferir a citação, e o cruzamento fica quieto em vez de acusar todo mundo.
+
+    O caminho sai daqui em vez de ficar dentro de quem lê os artigos porque a lei
+    responde DUAS perguntas — quais artigos ela tem e quais ela declara sem cobrador —
+    e resolver o arquivo duas vezes é como o mesmo fato ganhou dois vereditos.
     """
-    import cobertura
     env = os.environ.get("PLAN_LEI")
     if env and os.path.exists(env):
-        return cobertura.le_artigos(env)
+        return env
     raiz = os.path.dirname(os.path.dirname(os.path.abspath(directory)))
     for cand in (".claude/docs/constituicao.md", "docs/constituicao.md"):
         p = os.path.join(raiz, cand)
         if os.path.exists(p):
-            return cobertura.le_artigos(p)
-    return []
+            return p
+    return ""
+
+
+def _artigos_do_projeto(directory):
+    """Acha os artigos da lei do projeto. [] se não houver — e isso não é erro."""
+    import cobertura
+    lei = _caminho_da_lei(directory)
+    return cobertura.le_artigos(lei) if lei else []
 
 
 def _pecas_do_projeto(directory):
@@ -976,9 +986,11 @@ def cmd_cobertura(args):
     import cobertura
     reqs = (cobertura.le_requisitos(args.reqs) if args.reqs
             else _requisitos_do_projeto(directory, plan))
+    lei = _caminho_da_lei(directory)
     m = cobertura.mapa(plan, reqs, _jornadas_do_projeto(directory),
                        _artigos_do_projeto(directory), _pecas_do_projeto(directory),
-                       _passos_do_projeto(directory))
+                       _passos_do_projeto(directory),
+                       sem_cobrador=cobertura.le_sem_cobrador(lei) if lei else None)
     if args.json:
         print(json.dumps(m, ensure_ascii=False))
         return 0

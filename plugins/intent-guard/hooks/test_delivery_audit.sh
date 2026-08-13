@@ -14,9 +14,10 @@ export CLAUDE_PLUGIN_ROOT="$(dirname "$HERE")"
 L="$CLAUDE_PLUGIN_ROOT/lib/ledger.py"
 
 REPO_SPACE=""
-trap 'rm -rf "${REPO:-}" "${REPO2:-}" "${REPO3:-}" "${REPO4:-}" "$REPO_SPACE" "${BARE:-}";
-      rm -f "$TMPD"/intent-guard-{work,stopdeny,seenhead}-{dasid,spacesid,pendsid,convsid,escsid} \
-            "$HERE"/mock_classify_*.sh' EXIT
+# Mocks do juiz em temporário POR EXECUÇÃO — ver test_task_checkpoint.sh.
+MOCKD="$(mktemp -d "$(td_tmpdir)"/ig-da-mock-XXXXXX)"
+trap 'rm -rf "${REPO:-}" "${REPO2:-}" "${REPO3:-}" "${REPO4:-}" "$REPO_SPACE" "${BARE:-}" "$MOCKD";
+      rm -f "$TMPD"/intent-guard-{work,stopdeny,seenhead}-{dasid,spacesid,pendsid,convsid,escsid}' EXIT
 
 commit_new() {  # commit_new <repo> <marca> — cria um commit novo de verdade
   echo "$2" >> "$1/work.txt"
@@ -99,13 +100,13 @@ python3 "$L" state --cwd "$REPO4" | grep -q 'baixado:receita' \
 REPO2="$(mktemp -d "$(td_tmpdir)"/ig-da2-XXXXXX)"; git -C "$REPO2" init -q
 touch "$REPO2/f"; git -C "$REPO2" add -A; git -C "$REPO2" -c user.email=t@t -c user.name=t commit -qm i
 printf 'faz W' | python3 "$L" record-raw --cwd "$REPO2" --session pendsid --text-stdin
-cat > "$HERE/mock_classify_pedido.sh" <<'EOF'
+cat > "$MOCKD/mock_classify_pedido.sh" <<'EOF'
 #!/usr/bin/env bash
 cat >/dev/null
 echo '{"classify":[{"ev":"classify","raw":"r-1","class":"pedido","resumo":"W","substitui":null,"verify":null}]}'
 EOF
-chmod +x "$HERE/mock_classify_pedido.sh"
-export INTENT_GUARD_JUDGE_CMD="$HERE/mock_classify_pedido.sh"
+chmod +x "$MOCKD/mock_classify_pedido.sh"
+export INTENT_GUARD_JUDGE_CMD="$MOCKD/mock_classify_pedido.sh"
 P2() { printf '{"session_id":"pendsid","cwd":"%s"}' "$REPO2"; }
 OUT="$(P2 | bash "$HERE/delivery-audit.sh")"; [ -z "$OUT" ]   # marca o HEAD
 commit_new "$REPO2" c1
@@ -117,13 +118,13 @@ grep -q 'auditor-prompt.md' <<< "$OUT"
 REPO3="$(mktemp -d "$(td_tmpdir)"/ig-da3-XXXXXX)"; git -C "$REPO3" init -q
 touch "$REPO3/f"; git -C "$REPO3" add -A; git -C "$REPO3" -c user.email=t@t -c user.name=t commit -qm i
 printf 'kkk boa' | python3 "$L" record-raw --cwd "$REPO3" --session convsid --text-stdin
-cat > "$HERE/mock_classify_conversa.sh" <<'EOF'
+cat > "$MOCKD/mock_classify_conversa.sh" <<'EOF'
 #!/usr/bin/env bash
 cat >/dev/null
 echo '{"classify":[{"ev":"classify","raw":"r-1","class":"conversa","resumo":"","substitui":null}]}'
 EOF
-chmod +x "$HERE/mock_classify_conversa.sh"
-export INTENT_GUARD_JUDGE_CMD="$HERE/mock_classify_conversa.sh"
+chmod +x "$MOCKD/mock_classify_conversa.sh"
+export INTENT_GUARD_JUDGE_CMD="$MOCKD/mock_classify_conversa.sh"
 P3() { printf '{"session_id":"convsid","cwd":"%s"}' "$REPO3"; }
 OUT="$(P3 | bash "$HERE/delivery-audit.sh")"; [ -z "$OUT" ]
 commit_new "$REPO3" c1

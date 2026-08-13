@@ -33,7 +33,32 @@ def test_doc_publica_as_copias_e_pastas_reais():
             f"contribuinte desatualizado: {arquivo} tem {n} cópias"
 
 
+def test_doc_publica_o_numero_de_arquivos_fonte():
+    """Os DOIS lugares que contam _shared/ dizem o mesmo número, e é o real.
+
+    A §2 ('fonte-da-verdade do compartilhado (N arquivos-fonte)') e a §7
+    ('de N arquivos-fonte') citavam 17 e 20 ao mesmo tempo. Número em doc sem
+    cobrador é o mesmo defeito que fez a tabela de plugins defasar.
+    """
+    fontes = len([p for p in (RAIZ / "_shared").iterdir()
+                  if p.is_file() and not p.name.startswith(".")])
+    doc = DOC.read_text(encoding="utf-8")
+    achados = set(re.findall(r"(\d+) arquivos-fonte", doc))
+    assert achados == {str(fontes)}, \
+        f"_shared/ tem {fontes} arquivos-fonte; a doc diz {sorted(achados)}"
+
+
+def test_doc_nao_publica_medicao_divergente_da_frase():
+    """O parêntese 'medido nesta rodada' repete os números dos comandos."""
+    copias, pastas, _ = contagens()
+    doc = DOC.read_text(encoding="utf-8")
+    assert f"devolvem `{copias}` e `{pastas}`" in doc, \
+        f"medição do parêntese desatualizada: são {copias} e {pastas}"
+
+
 if __name__ == "__main__":
     test_doc_publica_as_copias_e_pastas_reais()
+    test_doc_publica_o_numero_de_arquivos_fonte()
+    test_doc_nao_publica_medicao_divergente_da_frase()
     print("ok")
     sys.exit(0)

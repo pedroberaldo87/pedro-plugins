@@ -76,16 +76,21 @@ def main():
     check("nem de nível 3", "nivel3" not in r)
     check("e a parada diz onde parou", r["parou_em"] == 1)
 
-    # o artigo da lei que nenhuma tarefa representa é acusado, com número e nome
+    # O artigo da lei que nenhuma tarefa representa NÃO julga ESTE plano. A conta é de
+    # PROJETO — a lei inteira contra a UNIÃO dos planos, que é o que `completude.py`
+    # faz —, e o mapa que chega aqui é de um plano só: medi-la no nível 1 deixaria todo
+    # plano parcial vermelho para sempre, os níveis 2 e 3 inalcançáveis, e o laço
+    # inventando tarefa de um artigo que este plano nunca se propôs a tratar.
     r = ap.audita(com(artigos_sem_tarefa=["7 · Clareza da instrução"]))
-    check("o artigo da lei sem tarefa fica vermelho no nível 1",
-          r["nivel1"]["vermelho"] and r["parou_em"] == 1)
-    check("e o achado traz o número, o nome e o motivo",
-          any(a.startswith("7 · Clareza da instrução — artigo da lei que nenhuma "
-                           "tarefa representa") for a in r["nivel1"]["achados"]))
-    check("projeto sem lei não acusa artigo nenhum",
+    check("artigo da lei sem tarefa não deixa o nível 1 vermelho",
+          not r["nivel1"]["vermelho"])
+    check("e o plano segue até o nível 3", r["parou_em"] == 3 and "nivel3" in r)
+    check("nenhum achado do plano fala de artigo sem tarefa",
           not any("artigo da lei que nenhuma tarefa" in a
-                  for a in ap.audita(LIMPO)["nivel1"]["achados"]))
+                  for a in r["nivel1"]["achados"] + r["nivel2"]["achados"]))
+    check("e ele também não vira bloqueio de rodada",
+          not ap.rodada(com(artigos_sem_tarefa=["7 · Clareza da instrução"]))
+              ["bloqueios"])
 
     # nível 1 verde: o 2 roda, e acha
     r = ap.audita(com(orfaos=["S-9"]))

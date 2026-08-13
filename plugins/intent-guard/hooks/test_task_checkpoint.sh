@@ -18,7 +18,12 @@ REPO="$(mktemp -d "$(td_tmpdir)"/ig-ck-XXXXXX)"; git -C "$REPO" init -q
 # cria o proprio repo nao pode depender do ~/.gitconfig de quem a roda.
 git -C "$REPO" config user.email "ck@exemplo.invalido"
 git -C "$REPO" config user.name "bancada"
-trap 'rm -rf "$REPO"; rm -f "$TMPD"/intent-guard-ckptblock-cksid-* "$TMPD"/intent-guard-ckptcap-cksid' EXIT
+# Os mocks do juiz nascem num temporário POR EXECUÇÃO, nunca na pasta do
+# plugin: duas suítes em paralelo escreviam o mesmo `mock_*.sh` lá e o trap de
+# uma apagava o mock da outra — esteira vermelha por sorteio, e mock órfão no
+# working tree quando o processo morria.
+MOCKD="$(mktemp -d "$(td_tmpdir)"/ig-ck-mock-XXXXXX)"
+trap 'rm -rf "$REPO" "$MOCKD"; rm -f "$TMPD"/intent-guard-ckptblock-cksid-* "$TMPD"/intent-guard-ckptcap-cksid' EXIT
 # o cap por sessao (v0.5.0) e estado FORA do $REPO: sem limpar aqui ele sobrevive
 # entre execucoes e a suite reprova na segunda rodada por lixo, nao por defeito.
 rm -f "$TMPD"/intent-guard-ckptcap-cksid
@@ -40,12 +45,12 @@ OUT="$(mkin "$REPO" in_progress | bash "$HERE/task-checkpoint.sh")"
 
 # 2. drift → decision:block (make a change to trigger git status)
 echo "modified" > "$REPO/test.txt"
-cat > "$HERE/mock_ck_drift.sh" <<'EOF'
+cat > "$MOCKD/mock_ck_drift.sh" <<'EOF'
 #!/usr/bin/env bash
 cat >/dev/null; echo '{"verdict":"drift","reason":"nenhum diff toca o export CSV"}'
 EOF
-chmod +x "$HERE/mock_ck_drift.sh"
-export INTENT_GUARD_JUDGE_CMD="$HERE/mock_ck_drift.sh"
+chmod +x "$MOCKD/mock_ck_drift.sh"
+export INTENT_GUARD_JUDGE_CMD="$MOCKD/mock_ck_drift.sh"
 OUT="$(mkin "$REPO" completed | bash "$HERE/task-checkpoint.sh")"
 echo "$OUT" | grep -q '"decision"'
 echo "$OUT" | grep -q 'export CSV'
@@ -56,12 +61,12 @@ OUT="$(mkin "$REPO" completed | bash "$HERE/task-checkpoint.sh")"
 
 # 4. ok → silêncio (task nova, com mudança nova)
 echo "another change" > "$REPO/test.txt"
-cat > "$HERE/mock_ck_ok.sh" <<'EOF'
+cat > "$MOCKD/mock_ck_ok.sh" <<'EOF'
 #!/usr/bin/env bash
 cat >/dev/null; echo '{"verdict":"ok","reason":""}'
 EOF
-chmod +x "$HERE/mock_ck_ok.sh"
-export INTENT_GUARD_JUDGE_CMD="$HERE/mock_ck_ok.sh"
+chmod +x "$MOCKD/mock_ck_ok.sh"
+export INTENT_GUARD_JUDGE_CMD="$MOCKD/mock_ck_ok.sh"
 OUT="$(python3 -c 'import json;print(json.dumps({"session_id":"cksid","cwd":"'"$REPO"'","tool_name":"TaskUpdate","tool_input":{"taskId":"8","status":"completed"}}))' | bash "$HERE/task-checkpoint.sh")"
 [ -z "$OUT" ]
 
@@ -72,12 +77,12 @@ OUT="$(python3 -c 'import json;print(json.dumps({"cwd":"'"$REPO"'","tool_name":"
 
 # 6. EXTRA (sentinel collision test): taskIds "a.b" e "a/b" distintos
 #    → devem gerar sentinelas diferentes na mesma sessão
-cat > "$HERE/mock_ck_drift.sh" <<'EOF'
+cat > "$MOCKD/mock_ck_drift.sh" <<'EOF'
 #!/usr/bin/env bash
 cat >/dev/null; echo '{"verdict":"drift","reason":"nenhum diff toca o export CSV"}'
 EOF
-chmod +x "$HERE/mock_ck_drift.sh"
-export INTENT_GUARD_JUDGE_CMD="$HERE/mock_ck_drift.sh"
+chmod +x "$MOCKD/mock_ck_drift.sh"
+export INTENT_GUARD_JUDGE_CMD="$MOCKD/mock_ck_drift.sh"
 
 echo "another fresh change" > "$REPO/test.txt"
 OUT="$(python3 -c 'import json;print(json.dumps({"session_id":"cksid","cwd":"'"$REPO"'","tool_name":"TaskUpdate","tool_input":{"taskId":"a.b","status":"completed"}}))' | bash "$HERE/task-checkpoint.sh")"
@@ -114,13 +119,13 @@ cat > "$REPO/.claude/plans/x.plan.json" <<'EOF'
 {"id":"x","title":"Plano de teste","status":"active",
  "phases":[{"id":"F1","title":"Fase em curso","items":[{"id":"F1.1","status":"todo"}]}]}
 EOF
-CAPTURE="$HERE/captured_judge_in.txt"
-cat > "$HERE/mock_ck_capture.sh" <<EOF
+CAPTURE="$MOCKD/captured_judge_in.txt"
+cat > "$MOCKD/mock_ck_capture.sh" <<EOF
 #!/usr/bin/env bash
 cat > "$CAPTURE"; echo '{"verdict":"ok","reason":""}'
 EOF
-chmod +x "$HERE/mock_ck_capture.sh"
-export INTENT_GUARD_JUDGE_CMD="$HERE/mock_ck_capture.sh"
+chmod +x "$MOCKD/mock_ck_capture.sh"
+export INTENT_GUARD_JUDGE_CMD="$MOCKD/mock_ck_capture.sh"
 echo "plan-aware change" > "$REPO/test.txt"
 python3 -c 'import json;print(json.dumps({"session_id":"cksid","cwd":"'"$REPO"'","tool_name":"TaskUpdate","tool_input":{"taskId":"plan-1","status":"completed"}}))' | bash "$HERE/task-checkpoint.sh" >/dev/null
 grep -q "PLANO ABERTO" "$CAPTURE"
@@ -134,5 +139,4 @@ python3 -c 'import json;print(json.dumps({"session_id":"cksid","cwd":"'"$REPO"'"
 grep -q "PLANO ABERTO.*$" "$CAPTURE" && grep -A1 "PLANO ABERTO" "$CAPTURE" | grep -q "nenhum"
 echo "plan-free fallback OK"
 
-rm -f "$HERE"/mock_ck_*.sh "$CAPTURE"
 echo "test_task_checkpoint: OK"
