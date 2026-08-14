@@ -19,6 +19,7 @@ Portabilidade: usa só `ps -eo` (POSIX), sem `etimes` (que o macOS ignora em
 silêncio) e sem `pkill`. Sistema sem `ps` utilizável: não encerra nada e sai calado.
 """
 
+import functools
 import json
 import os
 import re
@@ -197,13 +198,19 @@ except ValueError:
 OCIOSO_ESPERA = 1.5
 
 
+@functools.lru_cache(maxsize=8192)
 def classifica(cmd):
     """Devolve 'efemero', 'servico', 'intocavel' ou None. Intocável vence tudo.
 
     'intocavel' é CLASSIFICAÇÃO, não autorização: reconhecer o `docker compose up`
     serve para ele constar com procedência no relatório. Quem recusa o sinal é
     `eh_intocavel`, consultado em `casa`, no `inventario` e no `encerra` — e essa
-    recusa não muda aqui."""
+    recusa não muda aqui.
+
+    Memoizada porque o inventário a chama uma vez por (anotação × processo) — com
+    dezenas de sessões anotadas isso passa de um milhão de chamadas, cada uma
+    varrendo as três listas de padrões. O resultado depende só do texto, então o
+    cache é seguro: mesmo comando, mesma classe, sempre."""
     for pat in INTOCAVEL:
         if re.search(pat, cmd, re.I):
             return "intocavel"
@@ -214,8 +221,17 @@ def classifica(cmd):
     return None
 
 
+@functools.lru_cache(maxsize=8192)
 def eh_intocavel(cmd):
     return any(re.search(p, cmd, re.I) for p in INTOCAVEL)
+
+
+@functools.lru_cache(maxsize=4096)
+def _real(caminho):
+    """`os.path.realpath` memoizado. Ele toca o disco a cada chamada, e `casa` o
+    invoca duas vezes por par (anotação × processo) — era o custo mais caro do
+    laço, acima até das expressões regulares."""
+    return os.path.realpath(caminho)
 
 
 # ── ler a tabela de processos ───────────────────────────────────────────────
@@ -273,6 +289,56 @@ def processos():
     return procs
 
 
+_PS_CACHE = {}
+_PS_LIDO = False
+_PS_OK = False
+
+
+def _tabela_ps():
+    """`stat` e `tty` de TODOS os processos numa chamada só.
+
+    Mesma medida do `_carrega_cwds`, pelo mesmo motivo: `vivo()` e
+    `_sem_terminal()` chamavam `ps -p <pid>` uma vez por processo, com teto de
+    5s cada. Numa varredura de centenas de processos isso é o que fazia o
+    `resumo` demorar minutos. Um `ps -eo` cobre a máquina inteira.
+
+    O cache é uma FOTO do instante da leitura: `invalida_ps()` a descarta, e
+    quem precisa de leitura fresca (a colheita, entre um sinal e o próximo)
+    chama isso antes de perguntar de novo."""
+    global _PS_LIDO, _PS_OK
+    _PS_LIDO = True
+    try:
+        out = subprocess.run(["ps", "-eo", "pid=,stat=,tty="],
+                             capture_output=True, text=True, encoding="utf-8", errors="replace",
+                             timeout=15, stdin=subprocess.DEVNULL, start_new_session=True)
+    except (OSError, subprocess.SubprocessError):
+        return
+    _PS_OK = True
+    for linha in out.stdout.splitlines():
+        campos = linha.split()
+        if len(campos) < 2:
+            continue
+        try:
+            _PS_CACHE[int(campos[0])] = (campos[1], campos[2] if len(campos) > 2 else "")
+        except ValueError:
+            continue
+
+
+def invalida_ps():
+    """Descarta a foto do `ps`. Chame entre dois momentos em que o estado do
+    processo pode ter mudado — encerrar e conferir se morreu, por exemplo."""
+    global _PS_LIDO, _PS_OK
+    _PS_LIDO = False
+    _PS_OK = False
+    _PS_CACHE.clear()
+
+
+def _ps_de(pid):
+    if not _PS_LIDO:
+        _tabela_ps()
+    return _PS_CACHE.get(pid)
+
+
 def vivo(pid):
     """Vive de verdade? Processo já encerrado mas ainda não colhido pelo pai
     (estado Z) responde ao sinal 0 como se estivesse vivo — e isso faria a
@@ -286,14 +352,9 @@ def vivo(pid):
         return True
     except OSError:
         return False
-    try:
-        out = subprocess.run(["ps", "-o", "stat=", "-p", str(pid)],
-                             capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=5, stdin=subprocess.DEVNULL, start_new_session=True)
-        estado = out.stdout.strip()
-        if estado.startswith("Z"):
-            return False
-    except (OSError, subprocess.SubprocessError):
-        pass
+    dados = _ps_de(pid)
+    if dados and dados[0].startswith("Z"):
+        return False
     return True
 
 
@@ -573,8 +634,8 @@ def _sob(caminho, raiz):
     casa a própria anotação — e a colheita nunca acontece."""
     if not caminho or not raiz:
         return False
-    formas_raiz = {raiz.rstrip("/"), os.path.realpath(raiz).rstrip("/")}
-    formas_cam = {caminho.rstrip("/"), os.path.realpath(caminho).rstrip("/")}
+    formas_raiz = {raiz.rstrip("/"), _real(raiz).rstrip("/")}
+    formas_cam = {caminho.rstrip("/"), _real(caminho).rstrip("/")}
     for r in formas_raiz:
         for c in formas_cam:
             if c == r or c.startswith(r + "/"):
@@ -606,7 +667,7 @@ def casa(anotacao, proc):
     raiz = (anotacao.get("cwd") or "").rstrip("/")
     if raiz:
         # As duas formas do caminho, pelo mesmo motivo de `_sob`
-        if raiz in proc["cmd"] or os.path.realpath(raiz).rstrip("/") in proc["cmd"]:
+        if raiz in proc["cmd"] or _real(raiz).rstrip("/") in proc["cmd"]:
             return True
         real = cwd_de(proc["pid"])
         if real and _sob(real, raiz):
@@ -841,6 +902,9 @@ def _sinaliza(pid, grace=3.0):
         return None
     fim = time.time() + grace
     while time.time() < fim:
+        # A foto do `ps` é do instante em que foi lida; aqui o estado MUDA a cada
+        # volta, e ler o cache velho faria o zumbi passar por vivo para sempre.
+        invalida_ps()
         if not vivo(pid):
             return "TERM"
         time.sleep(0.15)
@@ -852,6 +916,7 @@ def _sinaliza(pid, grace=3.0):
     except (OSError, ProcessLookupError):
         return "TERM"
     time.sleep(0.2)
+    invalida_ps()
     return "KILL" if not vivo(pid) else None
 
 
@@ -982,13 +1047,13 @@ def _sem_terminal(pid):
     rodando à mão. Suspeito é o que ficou SOLTO. Não dá para responder (sem `ps`
     utilizável): trata como se tivesse terminal, porque a dúvida tem que
     proteger o processo, nunca acusá-lo."""
-    try:
-        out = subprocess.run(["ps", "-o", "tty=", "-p", str(pid)],
-                             capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=5, stdin=subprocess.DEVNULL, start_new_session=True)
-    except (OSError, subprocess.SubprocessError):
-        return False
-    tty = out.stdout.strip()
-    return tty in ("??", "?", "-", "")
+    dados = _ps_de(pid)
+    if dados is None:
+        # Pid fora da tabela com a leitura BOA é o mesmo caso do `ps -p <pid>`
+        # que imprimia vazio: sem terminal. Leitura ruim (sem `ps` utilizável)
+        # protege o processo, que é a regra escrita acima.
+        return _PS_OK
+    return dados[1] in ("??", "?", "-", "")
 
 
 def _procedencia_minerada(procs):
@@ -1081,7 +1146,7 @@ def _casa_raiz_no_texto(cmd, raizes):
     """Alguma pasta anotada aparece no comando? As DUAS formas de cada raiz, pelo
     mesmo motivo de `_sob` (o `/private/var` do macOS)."""
     for r in raizes:
-        if r and (r in cmd or os.path.realpath(r).rstrip("/") in cmd):
+        if r and (r in cmd or _real(r).rstrip("/") in cmd):
             return True
     return False
 
@@ -1095,12 +1160,19 @@ def inventario(idade_min=600, idade_suspeito=3600, procs=None):
         return []
     eu = ancestrais(os.getpid(), procs)
     arvore = peso_arvore(procs)
+    # Só processo da MESMA classe da anotação pode casar (é a 1ª exigência de
+    # `casa`), então o laço olha essa fatia em vez da máquina inteira. Sem isto
+    # são (sessões × anotações × processos) chamadas — passou de um milhão nesta
+    # máquina, e era o que fazia a faxina levar minutos.
+    por_classe = {}
+    for p in procs:
+        por_classe.setdefault(classifica(p["cmd"]), []).append(p)
     anotados = set()
     for nome in os.listdir(state_dir()):
         if nome.startswith("sessao-") and nome.endswith(".json"):
             sid = nome[7:-5]
             for anot in le_registro(sid).get("anotacoes", []):
-                for p in procs:
+                for p in por_classe.get(anot.get("classe"), []):
                     if casa(anot, p):
                         anotados.add(p["pid"])
     itens = []
