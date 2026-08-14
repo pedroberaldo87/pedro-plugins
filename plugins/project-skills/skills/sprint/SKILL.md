@@ -954,12 +954,22 @@ while (!built && r < maxRounds) {
       continue
     }
 
-    // 4 · MARCAÇÃO + COMMIT + DOC + COLHEITA — a trava de 2026-08-09 (revisor de
-    // acordo + suíte verde) agora no grão do bloco, não da onda.
-    if (ARGS.planPath?.endsWith('.plan.json')) {
+    // 4 · COMMIT + MARCAÇÃO + DOC + COLHEITA — a trava de 2026-08-09 (revisor de
+    // acordo + suíte verde) agora no grão do bloco, não da onda. O COMMIT vem
+    // ANTES da marcação (decisão do dono, 2026-08-13): o gate que recusava o
+    // commit era engolido pelo `|| true` DEPOIS de o passo já estar done no
+    // plano — plano dizendo feito, git sem o código. Agora o salvamento devolve
+    // `committed`, e passo só é marcado com o trabalho gravado no histórico.
+    const salvo = await agent(checkpointPrompt({ repoRoot: ARGS.repoRoot, round: r, bloco: b, results: aprovadas, planPath: ARGS.planPath }),
+      { model: ARGS.model, effort: T.mechanical.effort, phase: 'Salvar', label: `commit r${r}b${b}`, schema: CHECKPOINT_RESULT })
+    if (!salvo || salvo.committed !== true) {
+      blockers.push({
+        what: `o commit do bloco ${b} da rodada ${r} ${salvo ? `foi RECUSADO: ${salvo.motivo || 'sem motivo'}` : 'não foi confirmado (agente mudo)'}`,
+        whyNeedsYou: 'o trabalho está no disco e FORA do histórico — destrave o gate (bump no lote) e commite; os passos NÃO foram marcados no plano' })
+    } else if (ARGS.planPath?.endsWith('.plan.json')) {
       const tick = await agent(tickPlanPrompt({ planPath: ARGS.planPath,
         passos: aprovadas.map(t => ({ taskId: t.task_id,
-          evidencia: `${t.summary} · ${(t.files_touched || []).join(' ')}` })) }),
+          evidencia: `${t.summary} · ${(t.files_touched || []).join(' ')} · commit ${salvo.sha || '?'}` })) }),
         { model: ARGS.model, effort: T.mechanical.effort, phase: 'Marcar',
           label: `marcar r${r}b${b} (${aprovadas.length})`, schema: TICK_RESULT })
       const vistos = new Map((tick?.marcados || []).map(m => [m.task_id, m]))
@@ -979,8 +989,6 @@ while (!built && r < maxRounds) {
       }
       marcadosDaOnda.push(...(tick?.marcados || []))
     }
-    await agent(checkpointPrompt({ repoRoot: ARGS.repoRoot, round: r, bloco: b, results: aprovadas, planPath: ARGS.planPath }),
-      { model: ARGS.model, effort: T.mechanical.effort, phase: 'Salvar', label: `commit r${r}b${b}` })
     blocosVerdes.push({ bloco: b, feitos: aprovadas.map(x => x.task_id), placar: suiteB.placar })
     const tocadosB = [...new Set(aprovadas.flatMap(x => x?.files_touched || []))]
     if (tocadosB.length) {
@@ -1545,7 +1553,7 @@ chamadas sem rótulo com a instrução já escrita.
   É o que faz a **barra de status** dizer em que ponto a missão está (`lib/andamento.py:linha_onda` → `linha_motor`). A rodada só existe na memória do motor e o progresso só existe no arquivo do plano: sem este registro, quem volta ao terminal lê `missão há 2h14` sem saber se isso é a primeira volta ou a décima. **O total é contado pelo programa a partir do plano**, nunca pelo agente — quem marcou os passos acabou de gravá-los, e pedir a conta a quem marcou é o mesmo defeito do placar de suíte que o motor descartava. Falhar aqui **não** derruba nada: a barra volta a ser a de antes.
 
 - `TICK_RESULT` — `{ marcados: [{ task_id, ok: bool, motivo }] }`. Uma entrada por passo que o agente tentou marcar, na ordem. `ok: false` carrega em `motivo` a linha que o `plan_state.py` imprimiu ao recusar — recusa legítima (decisão em aberto) e falha de comando chegam pelo mesmo campo, e quem separa é o script pela mensagem. **Passo que o script mandou marcar e não aparece na lista é tratado como perda silenciosa**, não como sucesso.
-- `checkpointPrompt` — **sem schema** (nada volta pro script). Papel **mecânico e só**: gravar no **histórico do git** o que a onda verde produziu, rodando
+- `checkpointPrompt` — **com schema `CHECKPOINT_RESULT`** (`{ committed: bool, sha, motivo }` — decisão do dono, 2026-08-13). Antes ele era sem schema e o retorno era descartado: o gate de release que recusava o commit era engolido pelo `|| true` **depois** de o passo já estar `done` no plano — plano dizendo feito, git sem o código. Agora o commit roda **ANTES** da marcação, devolve `committed`, e o script **segura o `tick` do bloco inteiro** quando `committed` não é `true` (recusa vira Bloqueio nomeado com o motivo do gate; agente mudo idem). `committed: true` com o `sha` vale também para árvore limpa (nada a commitar não é falha). Papel **mecânico e só**: gravar no **histórico do git** o que a onda verde produziu, rodando
 
   ```bash
   OK=""; for f in <arquivo...>; do git -C <raiz> add -- "$f" && OK="$OK $f" || echo "sprint: o git recusou $f — fica fora do ponto de salvamento da onda <r>"; done; [ -n "$OK" ] && git -C <raiz> commit -q -m "sprint: onda <r> bloco <b> verde" -- $OK || true
