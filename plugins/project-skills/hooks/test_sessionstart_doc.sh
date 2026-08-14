@@ -7,6 +7,9 @@ set -euo pipefail
 HERE="$(cd "$(dirname "$0")" && pwd)"
 . "$(cd "$(dirname "$0")" && pwd)/lib-tmpdir.sh"
 HOOK="$HERE/sessionstart-doc.sh"
+# Fingir o lar é receita única (lib-lar-fingido.sh, contrato em lar-fingido.md).
+. "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/lib-lar-fingido.sh"
+
 trap 'rm -rf "${MINERADO:-}" "${COMPLETO:-}" "${PARCIAL:-}" "${VAZIO:-}" "${NOVO:-}" "${FAKEHOME:-}"; rm -f /tmp/claude-doc-autoral-nudge-*' EXIT
 
 mkin() { python3 -c 'import json,sys; print(json.dumps({"cwd":sys.argv[1],"session_id":sys.argv[2]}))' "$@"; }
@@ -127,7 +130,7 @@ RECUSA="$FAKEHOME/.claude/doc/sem-metodologia-$(printf '%s' "$NOVO" | cksum | cu
 
 # 9. projeto novo, nada recusado → a oferta sai por padrão, contando CINCO etapas
 #    e mandando colher o de acordo na página (F7.1), não no chat.
-OUT="$(mkin "$NOVO" sess-novo | HOME="$FAKEHOME" bash "$HOOK")"
+OUT="$(mkin "$NOVO" sess-novo | lar_fingido "$FAKEHOME" bash "$HOOK")"
 ctxq "$OUT" "/start"
 ctxq "$OUT" "cinco etapas"
 ctxq "$OUT" "página"
@@ -137,13 +140,13 @@ echo "9. projeto novo recebe a oferta por padrão (cinco etapas, de acordo na p�
 #     projeto, não da sessão: o usuário não repete a frase a cada /clear).
 mkdir -p "$(dirname "$RECUSA")"
 : > "$RECUSA"
-OUT="$(mkin "$NOVO" sess-novo-2 | HOME="$FAKEHOME" bash "$HOOK")"
+OUT="$(mkin "$NOVO" sess-novo-2 | lar_fingido "$FAKEHOME" bash "$HOOK")"
 [ -z "$OUT" ]
 echo "10. recusa explícita cala a oferta, em sessão nova: OK"
 
 # 11. recusa apagada → a oferta volta (a recusa é reversível, não uma via só)
 rm -f "$RECUSA"
-OUT="$(mkin "$NOVO" sess-novo-3 | HOME="$FAKEHOME" bash "$HOOK")"
+OUT="$(mkin "$NOVO" sess-novo-3 | lar_fingido "$FAKEHOME" bash "$HOOK")"
 ctxq "$OUT" "cinco etapas"
 echo "11. apagar a recusa devolve a oferta: OK"
 

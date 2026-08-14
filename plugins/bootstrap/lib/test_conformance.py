@@ -28,6 +28,9 @@ ok = falhas = 0
 # e reescrito no handoff; agora mora em _shared/bash_posix.py, vendorado.
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from bash_posix import bash_posix  # noqa: E402
+# Fingir o lar é receita única (_shared/lar-fingido.md): trocar só HOME deixa o
+# filho escrever no lar REAL no Windows, que lê USERPROFILE primeiro.
+from lar_fingido import ambiente  # noqa: E402
 
 
 def check(nome, cond, detalhe=""):
@@ -401,8 +404,8 @@ def roda_scope_cop(bindir, payload, home, config_dir, script=None, com_erro=Fals
     # com dois-pontos o PATH inteiro vira uma entrada só de lixo — todo binário
     # some, inclusive o que este teste acabou de montar em `bindir`. Foi metade da
     # esteira vermelha de 2026-08-10 (a outra metade é o `bash` do WSL, abaixo).
-    env = dict(os.environ, HOME=str(home), CLAUDE_CONFIG_DIR=str(config_dir),
-               PATH=f"{bindir}{os.pathsep}{os.environ['PATH']}")
+    env = ambiente(home, CLAUDE_CONFIG_DIR=str(config_dir),
+                   PATH=f"{bindir}{os.pathsep}{os.environ['PATH']}")
     r = subprocess.run([bash_posix(), str(script or SCOPE_COP)], input=payload,
                        capture_output=True, text=True, encoding="utf-8", errors="replace", env=env, start_new_session=True)
     if com_erro:
@@ -420,8 +423,8 @@ def trace_scope_cop(bindir, payload, home, config_dir):
     b = bash_posix()
     if b is None:
         return "(sem bash)"
-    env = dict(os.environ, HOME=str(home), CLAUDE_CONFIG_DIR=str(config_dir),
-               PATH=f"{bindir}{os.pathsep}{os.environ['PATH']}")
+    env = ambiente(home, CLAUDE_CONFIG_DIR=str(config_dir),
+                   PATH=f"{bindir}{os.pathsep}{os.environ['PATH']}")
     r = subprocess.run([b, "-x", str(SCOPE_COP)], input=payload, capture_output=True,
                        text=True, encoding="utf-8", errors="replace", env=env, start_new_session=True)
     linhas = [ln for ln in r.stderr.strip().splitlines() if ln.strip()]

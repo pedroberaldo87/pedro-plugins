@@ -31,6 +31,8 @@ unset BOOTSTRAP_UNINSTALL_UNMANAGED
 # trocar o HOME e o binário. O falso responde ao `plugin list` com o fixture e
 # registra toda OUTRA invocação no log.
 # ---------------------------------------------------------------------------
+# Fingir o lar é receita única (lib-lar-fingido.sh, contrato em lar-fingido.md).
+. "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/lib-lar-fingido.sh"
 FAKEHOME="$TMP/home"; BIN="$TMP/bin"; LOG="$TMP/claude.log"; LISTA="$TMP/plugin-list.txt"
 mkdir -p "$FAKEHOME/.claude/plugins" "$BIN"
 : > "$LOG"
@@ -69,7 +71,7 @@ chmod +x "$BIN/claude"
 # roda um script do bootstrap contra a máquina de mentira
 na_maquina_falsa() { # repo, script
   local repo="$1"; shift
-  HOME="$FAKEHOME" PATH="$BIN:$PATH" FAKE_LIST="$LISTA" FAKE_LOG="$LOG" \
+  lar_fingido "$FAKEHOME" env PATH="$BIN:$PATH" FAKE_LIST="$LISTA" FAKE_LOG="$LOG" \
     PEDRO_PLUGINS_REPO="$repo" bash "$@"
 }
 

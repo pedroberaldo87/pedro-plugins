@@ -13,6 +13,9 @@
 # estado VIVO, que mora em ~/.claude/guardrails/.
 
 SKILL="$(cd "$(dirname "${BASH_SOURCE[0]}")/../skills/guardrails" && pwd)/SKILL.md"
+# Fingir o lar é receita única (lib-lar-fingido.sh, contrato em lar-fingido.md).
+. "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/lib-lar-fingido.sh"
+
 TMP="$(mktemp -d)"
 # Sem raiz temporária não há suíte: cada `rm -rf "$TMP/..."` daqui viraria um caminho
 # absoluto real (`/home`). Aborta antes de armar o trap e antes do primeiro rm.
@@ -55,7 +58,7 @@ monta_home() {
 
 # `env -u`: a raiz de config agora deriva de ${CLAUDE_CONFIG_DIR:-$HOME/.claude}, então
 # a suíte só é hermética se a env var da máquina que roda o teste não vazar pra cá.
-roda() { env -u CLAUDE_CONFIG_DIR HOME="$TMP/home" bash "$BLOCO" >/dev/null 2>&1; echo $?; }
+roda() { lar_fingido "$TMP/home" env -u CLAUDE_CONFIG_DIR bash "$BLOCO" >/dev/null 2>&1; echo $?; }
 
 existe() { [ -e "$1" ] && echo sim || echo nao; }
 
@@ -119,7 +122,7 @@ rm -rf "${TMP:?}/home" "${TMP:?}/cfg"
 mkdir -p "$TMP/home/.claude/hooks" "$TMP/cfg/hooks"
 printf 'warn' > "$TMP/cfg/hooks/scope-cop.mode"
 printf 'nao mexer' > "$TMP/home/.claude/hooks/scope-cop.mode"
-RC5="$(HOME="$TMP/home" CLAUDE_CONFIG_DIR="$TMP/cfg" bash "$BLOCO" >/dev/null 2>&1; echo $?)"
+RC5="$(lar_fingido "$TMP/home" env CLAUDE_CONFIG_DIR="$TMP/cfg" bash "$BLOCO" >/dev/null 2>&1; echo $?)"
 check "com CLAUDE_CONFIG_DIR a limpeza sai 0" "$RC5" "0"
 check "aposenta_o_orfao_da_config_real (CLAUDE_CONFIG_DIR)" \
   "$(existe "$TMP/cfg/hooks/scope-cop.mode.obsoleto")" "sim"
@@ -135,7 +138,7 @@ echo "── rename que falha não pode ser reportado como sucesso ──"
 monta_home
 MVSTUB="$TMP/mvstub"; mkdir -p "$MVSTUB"
 printf '#!/bin/bash\nexit 1\n' > "$MVSTUB/mv"; chmod +x "$MVSTUB/mv"
-SAIDA_MV="$(env -u CLAUDE_CONFIG_DIR HOME="$TMP/home" PATH="$MVSTUB:$PATH" bash "$BLOCO" 2>/dev/null)"
+SAIDA_MV="$(lar_fingido "$TMP/home" env -u CLAUDE_CONFIG_DIR PATH="$MVSTUB:$PATH" bash "$BLOCO" 2>/dev/null)"
 RC7=$?
 check "rename_que_falha_faz_o_bloco_sair_nao_zero" \
   "$([ "$RC7" != "0" ] && echo sim || echo nao)" "sim"
