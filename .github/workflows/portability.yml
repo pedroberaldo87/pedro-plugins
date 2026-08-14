@@ -119,9 +119,13 @@ jobs:
             "$PY" scripts/run_suites.py --timeout 300 \
               ${FPY:+--py $FPY} ${FSH:+--sh $FSH}
           else
-            "$PY" scripts/run_suites.py --timeout 300 \
-              --py 'plugins/*/lib/test_*.py' '_shared/test_*.py' 'scripts/test_*.py' 'plugins/*/hooks/test_*.py' \
-              --sh 'plugins/*/hooks/test_*.sh' 'plugins/*/lib/test_*.sh' 'scripts/test_*.sh' '.claude/hooks/test_*.sh' 'plugins/*/skills/*/test_*.sh'
+            # A esteira INTEIRA mora em `scripts/suite.sh` (F17.3), e o CI a chama
+            # de lá em vez de repetir os nove globs aqui. Enquanto a lista vivia só
+            # dentro deste arquivo, quem precisava dela fora do CI a reconstruía de
+            # cabeça — e em 2026-08-13 a casca do /sprint reconstruiu ERRADO,
+            # passando o rodador pelado ao motor: zero suítes, verde mentiroso,
+            # 87 minutos sem marcar um passo.
+            PYTHON="$PY" bash scripts/suite.sh
           fi
           # Rodada filtrada é para DIAGNÓSTICO: ela não vale como esteira verde, e por
           # isso os cobradores abaixo só rodam na completa. Dizer isso em voz alta,

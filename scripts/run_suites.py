@@ -128,6 +128,21 @@ def main(argv=None):
     ap.add_argument("--jobs", type=int, default=0)
     a = ap.parse_args(argv)
 
+    # SELEÇÃO VAZIA É ERRO, NUNCA VERDE (F17.2). A régua do glob-que-não-casa já
+    # existia dentro do `expande()`, um nível fundo demais: sem NENHUM `--py` e
+    # NENHUM `--sh` o laço dele nem itera, `tarefas` fica vazia, e o programa
+    # imprimia "0 suíte(s) · 0 problema(s)" e saía ZERO. Medido em 2026-08-13: foi
+    # esse o comando que a casca do /sprint passou ao motor como `suiteCmd`, e a
+    # guarda de saúde e a suíte da largada declararam a corrida verde tendo medido
+    # NADA — 87 minutos e nenhum passo marcado. Medidor que não mede tem que dizer
+    # que não mediu; dizer verde é a doença que a fase F17 cura.
+    if not a.py and not a.sh:
+        print("::error::nenhuma seleção: passe --py e/ou --sh com os globs das suítes.\n"
+              "  A esteira canônica deste repositório está em .github/workflows/portability.yml\n"
+              "  (o mesmo comando que o CI roda). Rodar sem seleção mediria ZERO suíte, e\n"
+              "  sair verde sem medir nada é pior que não rodar.", file=sys.stderr)
+        return 2
+
     py = sys.executable
     # `bash` do PATH está ERRADO no Windows: lá ele é o do WSL (`System32\bash.exe`),
     # que sem distro instalada responde uma reclamação em UTF-16 — e as ~35 suítes de
