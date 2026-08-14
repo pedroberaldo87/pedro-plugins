@@ -156,6 +156,16 @@ SPECS=(
   "plugins/ship/hooks::lib-tmpdir.sh"
   "plugins/project-skills/hooks::lib-tmpdir.sh"
   "plugins/visual/hooks::lib-tmpdir.sh"
+  # A receita de FINGIR O LAR (contrato em _shared/lar-fingido.md): quem consome
+  # é SUÍTE, e a suíte roda de dentro da pasta do plugin — então a cópia mora ao
+  # lado dela. Trocar só o HOME não finge o lar no Windows (o `expanduser` lê
+  # `USERPROFILE` primeiro), e o filho ia escrever no lar REAL de quem roda.
+  "plugins/bootstrap/lib::lar_fingido.py"
+  "plugins/improve-workflow/lib::lar_fingido.py"
+  "plugins/visual/hooks::lar_fingido.py"
+  "plugins/bootstrap/hooks::lib-lar-fingido.sh"
+  "plugins/guardrails/hooks::lib-lar-fingido.sh"
+  "plugins/project-skills/hooks::lib-lar-fingido.sh"
   # O green-cache do qa-loop mora em lib/, não em hooks/ — a cópia acompanha ele.
   # O aviso de dependência ausente: UMA cópia só, no bootstrap. Os outros doze
   # plugins que avisam acham esta pelo NOME do plugin (resolve-plugin.sh), em vez
