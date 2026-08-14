@@ -29,32 +29,42 @@ echo "F17.1 — o portão recusa quando não consegue medir"
 # `[ -n "$FILES" ] || exit 0` quando não há staged nem modificado — e aí nunca
 # chega ao bloco do prazo. A primeira versão desta suíte não sabia disso e passou
 # POR ACIDENTE: a árvore estava suja na hora em que foi escrita. Com a árvore
-# limpa ela reprovou, e quem pegou foi a guarda de saúde do motor, medindo as 135
-# suítes na largada. É a mesma doença que a fase F17 cura, agora dentro do próprio
-# teste dela: verde que veio do ambiente, não da coisa medida.
+# limpa ela reprovou, e quem pegou foi a guarda de saúde do motor.
 #
-# Então a suíte monta o estado de que precisa: modifica um arquivo inócuo do
-# repositório, roda, e restaura SEMPRE (o trap cobre inclusive a saída por erro).
-# Arquivo NOVO não serve: untracked fica de fora do FILES de propósito. O que o
-# portão enxerga é tracked-modificado, então a isca é um arquivo já versionado —
-# e o backup mora FORA do repositório, senão a cópia órfã sujaria a árvore que
-# esta suíte precisa devolver limpa.
-ISCA_REAL="$RAIZ/.claude/hooks/release-gate.sh"
-ISCA="${TMPDIR:-/tmp}/prazo-isca-$$"
-cp "$ISCA_REAL" "$ISCA"
-printf '\n# isca da suíte de prazo (removida ao fim)\n' >> "$ISCA_REAL"
-# Restaura o arquivo E apaga o backup, em TODA saída — inclusive a que der erro.
-restaura() { [ -f "$ISCA" ] && mv -f "$ISCA" "$ISCA_REAL"; rm -f "$ISCA"; }
-trap restaura EXIT
+# A SEGUNDA versão sabia, e foi pior: ela sujava o `release-gate.sh` DE VERDADE
+# para criar o estado, restaurando no trap. Com duas execuções concorrentes — o
+# motor rodando a esteira enquanto eu rodava à mão — as iscas empilharam e o
+# portão de produção foi de 565 para 1392 linhas, com 760 de lixo COMMITADO.
+# Teste que escreve em arquivo de produção não tem restauração segura: basta
+# outro processo ler no meio.
+#
+# Esta versão monta um REPOSITÓRIO DE MENTIRA. O portão descobre a raiz pelo
+# `git rev-parse` do diretório em que roda e só age se achar o `marketplace.json`
+# — as duas coisas são baratas de fabricar, e ali ele pode sujar à vontade.
+FALSO="$(mktemp -d "${TMPDIR:-/tmp}"/prazo-repo-XXXXXX)"
+trap 'rm -rf "$FALSO"' EXIT
+git -C "$FALSO" init -q
+mkdir -p "$FALSO/.claude-plugin" "$FALSO/.claude/hooks"
+echo '{"plugins":[]}' > "$FALSO/.claude-plugin/marketplace.json"
+echo "conteudo" > "$FALSO/arquivo.txt"
+git -C "$FALSO" add -A
+git -C "$FALSO" -c user.email=t@t -c user.name=t commit -qm inicial
+# O modificado que faz o portão trabalhar em vez de sair cedo.
+echo "mudou" >> "$FALSO/arquivo.txt"
+# O `settings.json` de mentira dá o teto que o F17.5 confere no repo de verdade.
+cat > "$FALSO/.claude/settings.json" <<'JSON'
+{"hooks":{"PreToolUse":[{"matcher":"Bash","hooks":[
+  {"type":"command","command":"$CLAUDE_PROJECT_DIR/.claude/hooks/release-gate.sh","timeout":600}]}]}}
+JSON
 
-SUJOS=$(cd "$RAIZ" && git diff --name-only | wc -l | tr -d ' ')
-check "a suíte montou o estado de que o portão precisa" \
+SUJOS=$(git -C "$FALSO" diff --name-only | wc -l | tr -d ' ')
+check "a suíte montou o repositório de mentira que o portão precisa" \
       "$([ "$SUJOS" -gt 0 ] && echo 1 || echo 0)" \
-      "com a árvore limpa o portão sai antes do prazo e o teste mediria nada"
+      "sem arquivo modificado o portão sai antes do prazo e o teste mediria nada"
 
 # Deadline de 1s força o estouro no primeiro ponto de verificação, sem esperar os
 # minutos reais. É o mesmo caminho do estouro de verdade — muda só o relógio.
-SAIDA=$(cd "$RAIZ" && printf '%s' "$PAYLOAD" | PORTAO_DEADLINE_S=1 bash "$PORTAO" 2>&1)
+SAIDA=$(cd "$FALSO" && printf '%s' "$PAYLOAD" | PORTAO_DEADLINE_S=1 bash "$PORTAO" 2>&1)
 CODIGO=$?
 check "estourado o prazo, o portão RECUSA (exit 2)" "$([ "$CODIGO" = "2" ] && echo 1 || echo 0)" "exit=$CODIGO"
 case "$SAIDA" in

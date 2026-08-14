@@ -26,8 +26,18 @@ cd "$RAIZ"
 
 PY="${PYTHON:-python3}"
 
+# TETO POR SUÍTE: 600s, não 300s. Medido em 2026-08-14 sob carga real (o motor do
+# /sprint rodando junto): `scripts/test_docguard_scope.sh` leva 349s SOZINHA nesta
+# máquina, e `plugins/project-skills/hooks/test_plan_hooks.sh` leva 109s livre mas
+# estourou 300s com a máquina ocupada. As duas saíam como TIMEOUT, a esteira ficava
+# vermelha, e a guarda de saúde do motor fechava a porta — três largadas seguidas.
+#
+# Teto que a suíte mais lenta não alcança é teto que mede a MÁQUINA, não o código:
+# na máquina livre ele passa, na ocupada ele reprova, e o veredito vira sorteio. O
+# número aqui é o dobro da suíte mais lenta medida — quando alguma passar disso, o
+# certo é acelerar a suíte, não subir o teto de novo em silêncio.
 # Os nove globos da esteira. Mexeu aqui, mexeu para todo mundo — que é o ponto.
-exec "$PY" scripts/run_suites.py --timeout 300 "$@" \
+exec "$PY" scripts/run_suites.py --timeout 600 "$@" \
   --py 'plugins/*/lib/test_*.py' \
        '_shared/test_*.py' \
        'scripts/test_*.py' \
