@@ -228,15 +228,45 @@ ${PYOUT}"
 portao_prazo "A+A2 (vendoring, contrato de tier, espelho de versão)"
 
 # D · testes dos plugins tocados (stdlib, segundos)
+#
+# Com o cache verde: a suíte de um plugin que já passou verde NESTE exato estado da
+# árvore não re-roda. A chave é o tree-hash do git (tracked + untracked), então
+# qualquer edição, arquivo novo ou remoção invalida o registro e tudo roda de novo —
+# não há como um verde velho cobrir código novo. TTL de 24h vem do próprio
+# green-cache.sh. Suíte vermelha NUNCA grava.
+[ -f "$ROOT/_shared/green-cache.sh" ] && . "$ROOT/_shared/green-cache.sh"
+# A PROVA DA ESTEIRA: scripts/suite.sh verde nas DUAS fases grava "full" no
+# green-cache para este exato tree-hash. Com a prova na mão, os quatro blocos de
+# suíte (D, D2, F, J) não re-medem — a esteira roda um SUPERCONJUNTO deles (os
+# quatro globs ⊂ globs do suite.sh, que ainda cobre .claude/hooks/ e skills/, e
+# o D pula sozinho: no green-cache, "full" satisfaz qualquer scope). Qualquer
+# edição na árvore muda a chave e derruba a prova; os checks baratos (vendoring,
+# espelho de versão, repo público…) rodam SEMPRE — julgam a forma do commit, não
+# a saúde da árvore. Medido em 2026-08-14: sem isto o portão custava 20min nesta
+# máquina (1084s só de scripts/test_docguard_scope.sh) e a chamada de commit do
+# motor morria aos 2min — 3h20 de corrida, zero commits.
+PROVA_ESTEIRA=0
+if type green_cache_check >/dev/null 2>&1 && green_cache_check "$ROOT" full; then
+  PROVA_ESTEIRA=1
+fi
 for name in $(printf '%s\n' "$FILES" | sed -n 's#^plugins/\([^/]*\)/.*#\1#p' | sort -u); do
+  if type green_cache_check >/dev/null 2>&1 && green_cache_check "$ROOT" "suite:$name"; then
+    continue
+  fi
+  D_RODOU=0; D_VERDE=1
   for t in "$ROOT/plugins/$name/lib/"test_*.py; do
     [ -f "$t" ] || continue
+    D_RODOU=1
     if ! OUT=$(cd "$ROOT" && python3 "$t" 2>&1); then
+      D_VERDE=0
       VIOL="${VIOL}
 ❌ TESTE VERMELHO — ${t#$ROOT/}
 $(printf '%s' "$OUT" | tail -15)"
     fi
   done
+  if [ "$D_RODOU" = 1 ] && [ "$D_VERDE" = 1 ] && type green_cache_mark >/dev/null 2>&1; then
+    green_cache_mark "$ROOT" "suite:$name" release-gate >/dev/null 2>&1 || true
+  fi
 done
 
 portao_prazo "D (suítes dos plugins tocados)"
@@ -247,7 +277,7 @@ portao_prazo "D (suítes dos plugins tocados)"
 # código compartilhado (os perfis da régua de estilo) nunca rodava no commit, e o único
 # jeito de ela valer era alguém lembrar de chamá-la à mão. Aqui ela passa a valer por
 # derivação. Roda quando o commit toca _shared/ — no resto do tempo custa zero.
-if printf '%s\n' "$FILES" | grep -qE '^_shared/'; then
+if [ "$PROVA_ESTEIRA" = 0 ] && printf '%s\n' "$FILES" | grep -qE '^_shared/'; then
   for t in "$ROOT/_shared/"test_*.py; do
     [ -f "$t" ] || continue
     if ! OUT=$(cd "$ROOT" && python3 "$t" 2>&1); then
@@ -567,16 +597,18 @@ fi
 portao_prazo "T..S (cadeia, vazamento, caminho-texto, worktree, autópsia)"
 
 # F · suites shell dos plugins tocados (as .py já foram no gate D)
-for name in $(printf '%s\n' "$FILES" | sed -n 's#^plugins/\([^/]*\)/.*#\1#p' | sort -u); do
-  for t in "$ROOT/plugins/$name/hooks/"test_*.sh; do
-    [ -f "$t" ] || continue
-    if ! OUT=$(cd "$ROOT" && bash "$t" 2>&1); then
-      VIOL="${VIOL}
+if [ "$PROVA_ESTEIRA" = 0 ]; then
+  for name in $(printf '%s\n' "$FILES" | sed -n 's#^plugins/\([^/]*\)/.*#\1#p' | sort -u); do
+    for t in "$ROOT/plugins/$name/hooks/"test_*.sh; do
+      [ -f "$t" ] || continue
+      if ! OUT=$(cd "$ROOT" && bash "$t" 2>&1); then
+        VIOL="${VIOL}
 ❌ TESTE VERMELHO — ${t#$ROOT/}
 $(printf '%s' "$OUT" | tail -15)"
-    fi
+      fi
+    done
   done
-done
+fi
 
 # J · as suítes que nenhum glob de plugin casa: as de scripts/ e as .py dentro de hooks/.
 # Os checks D, D2 e F varrem plugins/<n>/lib/*.py, _shared/*.py e plugins/<n>/hooks/*.sh —
@@ -587,7 +619,7 @@ done
 # Escopo: só quando o commit toca hook, script ou .gitattributes. Medido em 2026-08-06, o
 # bloco leva ~100s (80s são de scripts/test_bootstrap_aviso.sh) — em todo commit seria
 # proibitivo, e é exatamente esse o recorte que o Artigo 3 pede.
-if printf '%s\n' "$FILES" | grep -qE '^(scripts/|plugins/[^/]+/hooks/|\.claude/hooks/|\.gitattributes$)'; then
+if [ "$PROVA_ESTEIRA" = 0 ] && printf '%s\n' "$FILES" | grep -qE '^(scripts/|plugins/[^/]+/hooks/|\.claude/hooks/|\.gitattributes$)'; then
   roda_suites() {
     runner="$1"; shift
     for pat in "$@"; do

@@ -120,6 +120,11 @@ for nome, texto in (("motor.js", motor), ("esqueleto do SKILL.md", skill)):
           "schema: CHECKPOINT_RESULT" in texto)
     check("commit recusado segura o tick do bloco (%s)" % nome,
           "salvo.committed !== true" in texto and "foi RECUSADO" in texto)
+    # O canal do commit aguenta o gate: sem timeout explícito a chamada de Bash
+    # morria aos 2min default enquanto o gate re-media a árvore (2026-08-14:
+    # 3h20 de corrida, zero commits). Recusa é resultado; canal morto não é.
+    check("a chamada do commit pede timeout de 600000 (%s)" % nome,
+          "timeout: 600000" in texto)
 check("a prova do tique carrega o sha do commit", "commit ${salvo.sha" in motor)
 
 # nada de caminho cravado de máquina — o repo do dono não é este marketplace.
@@ -174,6 +179,40 @@ check("runSuitePrompt roda o comando declarado literal quando ele existe",
 # feita porque o executor documentou a troca e a auto-concedeu.
 check("proxy de critério é proibido no executor e reprovado no revisor",
       "PROXY É PROIBIDO" in motor and "critério REESCRITO" in motor)
+
+# E4 · TRABALHO VIVO É MEDIDO, NÃO JULGADO (F17.4). A linha antiga pedia ao agente
+# `true se há processo de build/servidor ainda rodando` — julgamento por foto, que não
+# separa quem trabalha de quem está pendurado há uma hora, e que desarmava o vigia. A
+# medida agora sai de duas amostras de CPU ACUMULADA, e a falta de medida NÃO vale por
+# sinal de vida. As duas frases vivem nos DOIS arquivos (o prompt no motor.js, o
+# contrato do schema no SKILL.md) — divergir aqui é o defeito voltando por um lado só.
+for _nome, _texto in [("motor.js", motor), ("SKILL.md", skill)]:
+    check("trabalho vivo sai do medidor de duas amostras (%s)" % _nome,
+          "vivo-ou-dormindo.sh" in _texto
+          and "CPU ACUMULADO" in _texto and "DUAS AMOSTRAS SEPARADAS" in _texto)
+    check("medidor que não mediu não vale por sinal de vida (%s)" % _nome,
+          "MEDIDOR QUE NÃO MEDIU" in _texto and "nao-medido" in _texto)
+check("a linha de julgamento por foto saiu do prompt da suíte",
+      "true se há processo de build/servidor ainda rodando" not in motor)
+
+# E4.1 · O MEDIDOR LÊ NÚMERO EM LOCALE NEUTRO. O tempo do `ps` vem com ponto decimal e
+# o `awk` o interpreta pelo locale: em pt_BR `"33.94"` é lido como `33`, e a fração é a
+# única coisa que anda entre duas amostras a 3s (`0:00.43` → `0:00.48`). Sem isto o
+# delta dá zero e o medidor responde "dormindo" com o processo trabalhando — o vigia
+# desarmado justamente na máquina de quem usa. Vale nas DUAS cópias (fonte e vendorada).
+import os as _os
+# lib/ → project-skills/ → plugins/ → raiz: são QUATRO níveis. Parar em três aponta
+# para `plugins/`, os dois arquivos não são encontrados, e a checagem reprova por
+# caminho errado em vez de por defeito — falso vermelho é tão ruim quanto falso verde.
+_raiz = _os.path.abspath(_os.path.join(_os.path.dirname(_os.path.abspath(__file__)),
+                                       "..", "..", ".."))
+for _rel in ("_shared/vivo-ou-dormindo.sh",
+             "plugins/project-skills/lib/vivo-ou-dormindo.sh"):
+    _cam = _os.path.join(_raiz, _rel)
+    check("o medidor existe para ser medido (%s)" % _rel, _os.path.exists(_cam), _cam)
+    _src = open(_cam, encoding="utf-8").read() if _os.path.exists(_cam) else ""
+    check("o medidor fixa locale neutro para ler número (%s)" % _rel,
+          "export LC_ALL=C" in _src)
 
 # F · A BARRA DE STATUS ANDA COM A MISSÃO, E APAGA QUANDO ELA ACABA.
 #

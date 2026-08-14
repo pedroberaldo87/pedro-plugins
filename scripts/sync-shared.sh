@@ -129,6 +129,9 @@ SPECS=(
   "plugins/vistoria/lib::resolve-plugin.sh"
   "plugins/ship/hooks::green-cache.sh"
   "plugins/project-skills/lib::green-cache.sh"
+  # O medidor de trabalho vivo (duas amostras de CPU acumulada): quem consome é o
+  # papel da SUÍTE do /sprint, que o roda pelo resolve-plugin da pasta instalada.
+  "plugins/project-skills/lib::vivo-ou-dormindo.sh"
   # O leitor de JSON dos hooks: todo hook que DECIDE lendo o payload do evento
   # sourceia a cópia da própria pasta (o plugin instalado não enxerga a de fora).
   "plugins/bootstrap/hooks::hook-json.sh"
