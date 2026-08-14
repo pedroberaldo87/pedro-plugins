@@ -39,6 +39,11 @@ import os
 import re
 import sys
 
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), os.pardir, "_shared"))
+# Fingir o lar é receita única (_shared/lar-fingido.md): trocar só HOME deixa o
+# filho escrever no lar REAL no Windows, que lê USERPROFILE primeiro.
+from lar_fingido import ambiente  # noqa: E402
+
 # ── o que conta como cada coisa (padrões vistos no código real deste repo) ────
 
 # Canais que BLOQUEIAM o agente. Os três coexistem hoje: exit 2 (intent-guard,
@@ -718,8 +723,8 @@ def stop_budget(root):
                          "input": {"file_path": "/x/a%d.py" % i}}]}}) + "\n")
         payload = json.dumps({"session_id": "budget-probe", "cwd": projeto,
                               "transcript_path": trans})
-        env = dict(os.environ, HOME=lar, CLAUDE_CONFIG_DIR=os.path.join(lar, ".claude"),
-                   CLAUDE_PROJECT_DIR=projeto, TMPDIR=sandbox)
+        env = ambiente(lar, CLAUDE_CONFIG_DIR=os.path.join(lar, ".claude"),
+                       CLAUDE_PROJECT_DIR=projeto, TMPDIR=sandbox)
         for plug, nome, caminho, timeout in emissores:
             runner = ["python3", caminho] if caminho.endswith(".py") else ["bash", caminho]
             try:

@@ -25,6 +25,9 @@ import tempfile
 # certo por causa do interpretador. Módulo compartilhado (_shared/bash_posix.py).
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from bash_posix import bash_posix  # noqa: E402
+# Fingir o lar é receita única (_shared/lar-fingido.md): trocar só HOME deixa o
+# filho escrever no lar REAL no Windows, que lê USERPROFILE primeiro.
+from lar_fingido import ambiente  # noqa: E402
 
 BASH = bash_posix() or "bash"
 
@@ -244,8 +247,8 @@ def caso_a_pagina_do_passo_7_nasce_fora_do_projeto():
     lar = tempfile.mkdtemp(prefix="autopsia-passo7-lar-")
     antes, antes_aqui = foto(alheio), foto()
     r = subprocess.run([BASH, "-c", blocos[0]], cwd=alheio,
-                       env=dict(os.environ, CLAUDE_PLUGIN_ROOT=PLUGIN,
-                                CLAUDE_CONFIG_DIR=lar, HOME=lar),
+                       env=ambiente(lar, CLAUDE_PLUGIN_ROOT=PLUGIN,
+                                    CLAUDE_CONFIG_DIR=lar),
                        capture_output=True, text=True, encoding="utf-8", errors="replace",
                        stdin=subprocess.DEVNULL, start_new_session=True)
     check("o passo 7 roda de ponta a ponta", r.returncode == 0,
@@ -298,7 +301,7 @@ def caso_sem_o_irmao_a_rodada_pula_declarado():
                     ignore=shutil.ignore_patterns("__pycache__", "fixtures"))
     lar = tempfile.mkdtemp(prefix="autopsia-sem-irmao-lar-")
     alheio = tempfile.mkdtemp(prefix="autopsia-sem-irmao-projeto-")
-    env = dict(os.environ, CLAUDE_PLUGIN_ROOT=raiz, CLAUDE_CONFIG_DIR=lar, HOME=lar)
+    env = ambiente(lar, CLAUDE_PLUGIN_ROOT=raiz, CLAUDE_CONFIG_DIR=lar)
 
     def rodar_bloco(propostas):
         with open(os.path.join(alheio, "propostas.json"), "w", encoding="utf-8") as f:

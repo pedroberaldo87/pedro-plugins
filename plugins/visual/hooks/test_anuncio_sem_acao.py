@@ -13,6 +13,10 @@ import sys
 import tempfile
 
 AQUI = os.path.dirname(os.path.abspath(__file__))
+# Fingir o lar é receita única (_shared/lar-fingido.md): trocar só HOME deixa o
+# filho escrever no lar REAL no Windows, que lê USERPROFILE primeiro.
+sys.path.insert(0, AQUI)
+from lar_fingido import ambiente  # noqa: E402
 HOOK = os.path.join(AQUI, "stop-anuncio-sem-acao.py")
 PLAN_STATE = os.path.join(AQUI, os.pardir, os.pardir, "project-skills", "lib", "plan_state.py")
 
@@ -71,9 +75,9 @@ def roda(raiz, texto, sessao="s1", stop_hook_active=False, env_extra=None):
     payload = json.dumps({"session_id": sessao, "cwd": raiz,
                           "transcript_path": trans,
                           "stop_hook_active": stop_hook_active})
-    env = dict(os.environ, HOME=lar, CLAUDE_CONFIG_DIR=os.path.join(lar, ".claude"),
-               CLAUDE_PROJECT_DIR=raiz, TMPDIR=raiz,
-               ANUNCIO_ACAO_STATE=os.path.join(raiz, "estado"))
+    env = ambiente(lar, CLAUDE_CONFIG_DIR=os.path.join(lar, ".claude"),
+                   CLAUDE_PROJECT_DIR=raiz, TMPDIR=raiz,
+                   ANUNCIO_ACAO_STATE=os.path.join(raiz, "estado"))
     env.pop("ANUNCIO_ACAO", None)
     env.update(env_extra or {})
     r = subprocess.run([sys.executable, HOOK], input=payload, capture_output=True,

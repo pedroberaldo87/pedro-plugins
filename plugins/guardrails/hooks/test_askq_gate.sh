@@ -9,6 +9,8 @@
 # reais são tocados. Sem isso a suite mexeria em ~/.claude/guardrails do usuário.
 
 HOOK="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/askq-humanize.sh"
+# Fingir o lar é receita única (lib-lar-fingido.sh, contrato em lar-fingido.md).
+. "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/lib-lar-fingido.sh"
 FAKE_HOME="$(mktemp -d)"
 trap 'rm -rf "$FAKE_HOME"' EXIT
 
@@ -22,7 +24,7 @@ check() {
 # entrada vazia não emite nem o default).
 run() {
   local out
-  out="$(printf '%s' "$1" | HOME="$FAKE_HOME" ASKQ_GATE="${ASKQ_GATE:-1}" bash "$HOOK" 2>/dev/null)"
+  out="$(printf '%s' "$1" | lar_fingido "$FAKE_HOME" env ASKQ_GATE="${ASKQ_GATE:-1}" bash "$HOOK" 2>/dev/null)"
   [ -z "$out" ] && { echo allow; return; }
   printf '%s' "$out" | jq -r '.hookSpecificOutput.permissionDecision // "allow"' 2>/dev/null
 }
@@ -45,7 +47,7 @@ LIMPA="$(payload "$OK_Q" "$OK_OPTS" "$SID-limpa")"
 check "pergunta que se explica PASSA" "$(run "$LIMPA")" "allow"
 
 # A mensagem tem que citar o que faltou — acusação sem o trecho ensina a ignorar.
-MSG="$(printf '%s' "$SUJA" | HOME="$FAKE_HOME" bash "$HOOK" 2>/dev/null | jq -r '.hookSpecificOutput.permissionDecisionReason')"
+MSG="$(printf '%s' "$SUJA" | lar_fingido "$FAKE_HOME" bash "$HOOK" 2>/dev/null | jq -r '.hookSpecificOutput.permissionDecisionReason')"
 case "$MSG" in *"não diz o que ACONTECE"*) R=sim ;; *) R=nao ;; esac
 check "a devolução cita a violação concreta" "$R" "sim"
 case "$MSG" in *"ASKQ_GATE=0"*) R=sim ;; *) R=nao ;; esac
@@ -88,7 +90,7 @@ echo "── anti-tautologia ──"
 # passaria em todos os casos "allow" acima.
 SAB="$(mktemp -d)"; cp -R "$(dirname "$HOOK")/.." "$SAB/g"
 sed -i.bak 's/^MIN_DESC = 30/MIN_DESC = 0/' "$SAB/g/lib/askq_lint.py"
-OUT="$(printf '%s' "$SUJA" | HOME="$FAKE_HOME" bash "$SAB/g/hooks/askq-humanize.sh" 2>/dev/null)"
+OUT="$(printf '%s' "$SUJA" | lar_fingido "$FAKE_HOME" bash "$SAB/g/hooks/askq-humanize.sh" 2>/dev/null)"
 case "$OUT" in *"não diz o que ACONTECE"*) R=sim ;; *) R=nao ;; esac
 rm -rf "$SAB"
 check "com MIN_DESC=0 a régua da consequência fica MUDA" "$R" "nao"

@@ -9,6 +9,9 @@
 # blockstreak reais são tocados.
 
 HOOK="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/scope-cop.sh"
+# Fingir o lar é receita única (lib-lar-fingido.sh, contrato em lar-fingido.md).
+. "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/lib-lar-fingido.sh"
+
 TMP="$(mktemp -d)"
 trap 'rm -rf "$TMP"' EXIT
 
@@ -46,7 +49,7 @@ run() { # $1=modo  $2=session → stdout cru do hook
   # `env -u`: o HOOK_DIR deriva de ${CLAUDE_CONFIG_DIR:-$HOME/.claude}, então a env var
   # da máquina que roda o teste vazaria o estado real pra dentro da suíte.
   printf '%s' "$(payload "$2")" \
-    | env -u CLAUDE_CONFIG_DIR HOME="$TMP/home" PATH="$TMP/bin:$PATH" bash "$HOOK" 2>/dev/null
+    | lar_fingido "$TMP/home" env -u CLAUDE_CONFIG_DIR PATH="$TMP/bin:$PATH" bash "$HOOK" 2>/dev/null
 }
 
 echo "── modo warn: o aviso tem que CHEGAR no usuário ──"
@@ -118,7 +121,7 @@ run_gate() { # $1=modo  $2=session  $3=valor de SCOPE_COP_GATE → stdout cru
   mkdir -p "$TMP/home/.claude/guardrails"
   printf '%s' "$1" > "$TMP/home/.claude/guardrails/scope-cop.mode"
   printf '%s' "$(payload "$2")" \
-    | env -u CLAUDE_CONFIG_DIR HOME="$TMP/home" PATH="$TMP/bin:$PATH" \
+    | lar_fingido "$TMP/home" env -u CLAUDE_CONFIG_DIR PATH="$TMP/bin:$PATH" \
         SCOPE_COP_GATE="$3" bash "$HOOK" 2>/dev/null
 }
 OUT_G0="$(run_gate deny "gate0-$$" 0)"; RC_G0=$?
