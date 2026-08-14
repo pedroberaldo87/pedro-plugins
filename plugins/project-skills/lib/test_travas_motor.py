@@ -34,6 +34,10 @@ BASH = bash_posix() or "bash"
 
 SKILL_MD = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                         "..", "skills", "sprint", "SKILL.md")
+# O motor QUE RODA. O esqueleto dentro do SKILL.md CHAMA os prompts; quem os DEFINE e
+# este arquivo. Regra sobre o corpo de um prompt so se cobra aqui.
+MOTOR_JS = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                        "..", "skills", "sprint", "references", "motor.js")
 # A COPIA vendorada, nao a fonte em _shared/: e ela que viaja com o plugin instalado, e
 # e ela que o bloco da skill chama.
 RESOLVEDOR = os.path.join(os.path.dirname(os.path.abspath(__file__)),
@@ -432,11 +436,18 @@ def main():
     # test_motor_bancada.py; aqui se cobra que ele EXISTE na skill.
     # O comando deixou de trazer o caminho cravado (F9.51): ele agora nasce de uma BUSCA
     # pelo nome do plugin, numa linha, e roda na seguinte com a variavel. Cobrar
-    # `plan_state.py --dir` na mesma linha do `tick` reprovava justamente o conserto —
-    # e o `<plano>` que estava aqui nem era argumento que o programa aceita.
+    # `plan_state.py --dir` na mesma linha do `tick` reprovava justamente o conserto.
+    # O `<plano>` VOLTOU e agora e cobrado: ele e o primeiro posicional de `tick`
+    # (plan_state.py:2043, `q.add_argument("plan", nargs="?")`), e sem ele o programa
+    # recusa com 2+ planos ativos na pasta — foi o que matou tres corridas em 2026-08-14.
     check("a skill nomeia o comando que marca o plano",
           "resolve-plugin.sh" in texto and "lib/plan_state.py" in texto
-          and "tick <taskId> --evidencia" in texto)
+          and "tick <plano> <taskId> --evidencia" in texto)
+    # O id tem que nascer NO COMANDO que o motor monta, nao numa observacao ao lado: o
+    # papel de marcacao e mecanico e roda o que esta escrito, nao interpreta parenteses.
+    motor = open(MOTOR_JS, encoding="utf-8").read()
+    check("o motor injeta o id do plano no comando de marcacao",
+          "planIdDe" in motor and "tick ${planIdDe(planPath)} <taskId>" in motor)
     check("a prova gravada e a do executor, nao redigida por quem marca",
           "nunca redigida por quem marca" in texto)
 

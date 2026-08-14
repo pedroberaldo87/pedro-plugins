@@ -428,7 +428,15 @@ Rode TODOS, some os resultados, e devolva:
 - \`green\` = true só se NENHUM saiu com código != 0.
 - \`failing\` = os caminhos que falharam.
 - \`placar\` = uma linha crua no formato "N passou · M falhou".
-- \`trabalhoVivo\` = true se há processo de build/servidor ainda rodando na máquina.
+- \`trabalhoVivo\` = o veredito do MEDIDOR, nunca o seu olho na lista de processos. Rode:
+
+    bash "$(bash "${RESOLVE}" project-skills lib/vivo-ou-dormindo.sh)"
+
+  Ele mede TEMPO DE CPU ACUMULADO em DUAS AMOSTRAS SEPARADAS — nunca %CPU numa foto,
+  que não separa quem trabalha de quem está pendurado há uma hora. Traduza a palavra
+  que ele imprime, sem reinterpretar: \`vivo\` ⇒ \`true\` · \`dormindo\` ⇒ \`false\` ·
+  \`nao-medido\` ⇒ \`false\`, e o motivo entra no fim do \`placar\`.
+  MEDIDOR QUE NÃO MEDIU diz que não mediu: falta de medida nunca vira sinal de vida.
 Não conserte nada. Suíte que não existe não é falha.
 
 ANTES de rodar a suíte, marque o BLOCO na barra — é o passo que faz a barra andar
@@ -437,6 +445,12 @@ três blocos deixava a barra parada quinze minutos no mesmo texto):
 
   ANDAMENTO="$(bash "${RESOLVE}" project-skills lib/andamento.py)"
   python3 "$ANDAMENTO" onda ${ARGS.sessionId} ${round} ${ARGS.planPath || ''} --bloco ${bloco} --etapa "suíte" || true`
+
+// O id do plano vai NO COMANDO, não numa observação ao lado: `tick` recebe o plano como
+// primeiro posicional, e sem ele o programa recusa quando há 2+ planos ativos na pasta —
+// a marcação falha, o bloco não fecha e a rodada seguinte lê "todo" de novo (medido em
+// 2026-08-14: três corridas mortas pela mesma porta, 12 passos marcados à mão depois).
+const planIdDe = (planPath) => String(planPath || '').split('/').pop().replace(/\.plan\.json$/, '')
 
 const tickPlanPrompt = ({ planPath, passos }) => `PAPEL: MARCAR
 Papel mecânico e SÓ: gravar no plano os passos que acabaram de sair.
@@ -447,9 +461,9 @@ ${J(passos)}
 Rode UM COMANDO POR PASSO, em sequência:
 
   MARCADOR="$(bash "${RESOLVE}" project-skills lib/plan_state.py)"
-  cd ${RAIZ} && python3 "$MARCADOR" --dir ${RAIZ}/.claude/plans tick <taskId> --evidencia "<evidencia>"
+  cd ${RAIZ} && python3 "$MARCADOR" --dir ${RAIZ}/.claude/plans tick ${planIdDe(planPath)} <taskId> --evidencia "<evidencia>"
 
-(o plano é ${planPath}; se o comando pedir qual plano, use o id do arquivo)
+(o plano é ${planPath} — o id \`${planIdDe(planPath)}\` já está no comando acima; não o omita)
 
 Falha de um passo NÃO interrompe os seguintes. Recusa do tick é resultado legítimo: entra no
 veredito daquele passo com \`ok: false\` e o \`motivo\` = a linha que o programa imprimiu.
