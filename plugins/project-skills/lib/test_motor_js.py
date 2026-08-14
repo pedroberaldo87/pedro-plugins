@@ -149,7 +149,26 @@ for fonte, texto, _base in FONTES:
 # `bloco`, e assinatura divergente é exatamente o que o dono lê como fonte do laço.
 for fonte, texto, _base in FONTES:
     check("a suíte de bloco passa `bloco: b` (%s)" % fonte,
-          "round: r, bloco: b })" in texto)
+          "round: r, bloco: b, suiteCmd" in texto)
+# E2d · O COMANDO DECLARADO E O TETO CHEGAM AOS PAPÉIS MECÂNICOS (2026-08-13).
+# O planText nunca alcança saúde nem suíte, por construção: um agente de saúde rodou o
+# comando proibido da casa como primeira ação — a instrução não tinha como chegar nele —
+# e ficou 58 min num log congelado, invisível pro vigia, que só conta rodadas FECHADAS.
+for fonte, texto, _base in FONTES:
+    check("a saúde recebe suiteCmd e teto (%s)" % fonte,
+          "saudePrompt({ repoRoot: ARGS.repoRoot, round: r, suiteCmd, tetoMin: tetoMecanicoMin })" in texto)
+    check("a suíte da largada recebe suiteCmd e teto (%s)" % fonte,
+          "round: r, bloco: 0, suiteCmd, tetoMin: tetoMecanicoMin })" in texto)
+    check("tetoMecanicoMin existe com default (%s)" % fonte,
+          "ARGS.tetoMecanicoMin || 10" in texto and "ARGS.suiteCmd || null" in texto)
+# O corpo dos prompts só existe no motor.js (o esqueleto não traz prompt nenhum):
+check("saudePrompt proíbe improvisar comando e manda ler a declaração do projeto",
+      "NUNCA improvise um comando de suíte" in motor)
+check("os papéis mecânicos têm teto de relógio com parada escrita",
+      motor.count("PROIBIDO laço de espera") >= 2
+      and "teto de ${tetoMin} min estourado" in motor)
+check("runSuitePrompt roda o comando declarado literal quando ele existe",
+      "o COMANDO DECLARADO DA CASA, literal" in motor)
 # E3 · O `pronto` é literal: executor que não alcança o critério devolve
 # `impossivel`, nunca um proxy — um passo fechou com a medição original jamais
 # feita porque o executor documentou a troca e a auto-concedeu.

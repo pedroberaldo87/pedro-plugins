@@ -153,7 +153,7 @@ const CFG = JSON.parse(fs.readFileSync(process.argv[2], 'utf8'))
 const CORPO = fs.readFileSync(process.argv[3], 'utf8')
 
 const PRELUDE = `
-const DECOMP={}, TASK_RESULT={}, BUILD_REVIEW={}, RESERVA={}, REGUA={}, SUITE_RESULT={}, AUDITOR={}, DOC_TOUCH={}, TICK_RESULT={}, DESAFIO={}, TAREFA_REVIEW={}, DOC_REVIEW={}, SAUDE={};
+const DECOMP={}, TASK_RESULT={}, BUILD_REVIEW={}, RESERVA={}, REGUA={}, SUITE_RESULT={}, AUDITOR={}, DOC_TOUCH={}, TICK_RESULT={}, DESAFIO={}, TAREFA_REVIEW={}, DOC_REVIEW={}, SAUDE={}, CHECKPOINT_RESULT={};
 const mk = n => (p => Object.assign({ __p: n }, p));
 const orquestradorPrompt=mk('decompose'), saudePrompt=mk('saude'),
       decomposePrompt=mk('decompose'), execPrompt=mk('exec'), reviewBuildPrompt=mk('review'),
@@ -231,7 +231,9 @@ function tica(p) {
 // lista de agentes — e o que se quer medir aqui e o que sobrou no HISTORICO depois de o
 // motor ser interrompido.
 function salva(p) {
-  if (!CFG.checkpointCmd) return {}
+  // O motor 0.22.53+ segura a marcacao sem `committed: true` — o stub devolve o
+  // veredito de commit aceito, como um gate que aprovou (arvore limpa conta).
+  if (!CFG.checkpointCmd) return { committed: true, sha: 'bancada' }
   let cmd = CFG.checkpointCmd
   // A lista de arquivos e a que o papel recebe: a uniao dos `files_touched` das tarefas
   // aprovadas no bloco, mais o arquivo do plano que o tique acabou de marcar.
@@ -244,7 +246,7 @@ function salva(p) {
   }
   checkpoints.push({ round: p.round, cmd })
   execSync(cmd, { stdio: 'pipe', shell: '/bin/sh' })
-  return {}
+  return { committed: true, sha: 'bancada' }
 }
 
 // O papel que INVOCA SKILL, com efeito de verdade tambem — igual ao que roda comando.
