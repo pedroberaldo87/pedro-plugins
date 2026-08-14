@@ -5,6 +5,16 @@ set -euo pipefail
 # shellcheck source=/dev/null
 . "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/lib-tmpdir.sh"
 TMPD=$(td_tmpdir)
+# ── O LAR É FINGIDO, E POR ISSO ESTA SUÍTE PODE RODAR EM PARALELO ────────────
+# Mesma razão da `test_delivery_audit.sh`, e o defeito era o par: as duas liam o
+# `${CLAUDE_CONFIG_DIR:-$HOME/.claude}/intent-guard/` REAL de quem as roda. Em
+# série passavam (235s e 150s); em paralelo caíam as duas. Quem pegou foi a
+# guarda de saúde do motor, na primeira largada em que a esteira mediu de verdade.
+# shellcheck source=/dev/null
+. "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/lib-lar-fingido.sh"
+LAR_CK="$(mktemp -d "$TMPD"/ig-ck-lar-XXXXXX)"
+lar_fingido_exporta "$LAR_CK"
+export CLAUDE_CONFIG_DIR="$LAR_CK/.claude"
 HERE="$(cd "$(dirname "$0")" && pwd)"
 export CLAUDE_PLUGIN_ROOT="$(dirname "$HERE")"
 # O temporário vem de `td_tmpdir`, nunca de `/tmp` cravado: no Git Bash do
@@ -23,7 +33,7 @@ git -C "$REPO" config user.name "bancada"
 # uma apagava o mock da outra — esteira vermelha por sorteio, e mock órfão no
 # working tree quando o processo morria.
 MOCKD="$(mktemp -d "$(td_tmpdir)"/ig-ck-mock-XXXXXX)"
-trap 'rm -rf "$REPO" "$MOCKD"; rm -f "$TMPD"/intent-guard-ckptblock-cksid-* "$TMPD"/intent-guard-ckptcap-cksid' EXIT
+trap 'rm -rf "$REPO" "$MOCKD" "${LAR_CK:-}"; rm -f "$TMPD"/intent-guard-ckptblock-cksid-* "$TMPD"/intent-guard-ckptcap-cksid' EXIT
 # o cap por sessao (v0.5.0) e estado FORA do $REPO: sem limpar aqui ele sobrevive
 # entre execucoes e a suite reprova na segunda rodada por lixo, nao por defeito.
 rm -f "$TMPD"/intent-guard-ckptcap-cksid

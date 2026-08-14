@@ -630,3 +630,321 @@ ${VIOL}
 Conserte e commite de novo. (Gate mecânico: .claude/hooks/release-gate.sh)
 EOF
 exit 2
+
+# isca da suíte de prazo (removida ao fim)
+
+# isca da suíte de prazo (removida ao fim)
+
+# isca da suíte de prazo (removida ao fim)
+
+# isca da suíte de prazo (removida ao fim)
+
+# isca da suíte de prazo (removida ao fim)
+
+# isca da suíte de prazo (removida ao fim)
+
+# isca da suíte de prazo (removida ao fim)
+
+# isca da suíte de prazo (removida ao fim)
+
+# isca da suíte de prazo (removida ao fim)
+
+# isca da suíte de prazo (removida ao fim)
+
+# isca da suíte de prazo (removida ao fim)
+
+# isca da suíte de prazo (removida ao fim)
+
+# isca da suíte de prazo (removida ao fim)
+
+# isca da suíte de prazo (removida ao fim)
+
+# isca da suíte de prazo (removida ao fim)
+
+# isca da suíte de prazo (removida ao fim)
+
+# isca da suíte de prazo (removida ao fim)
+
+# isca da suíte de prazo (removida ao fim)
+
+# isca da suíte de prazo (removida ao fim)
+
+# isca da suíte de prazo (removida ao fim)
+
+# isca da suíte de prazo (removida ao fim)
+
+# isca da suíte de prazo (removida ao fim)
+
+# isca da suíte de prazo (removida ao fim)
+
+# isca da suíte de prazo (removida ao fim)
+
+# isca da suíte de prazo (removida ao fim)
+
+# isca da suíte de prazo (removida ao fim)
+
+# isca da suíte de prazo (removida ao fim)
+
+# isca da suíte de prazo (removida ao fim)
+
+# isca da suíte de prazo (removida ao fim)
+
+# isca da suíte de prazo (removida ao fim)
+
+# isca da suíte de prazo (removida ao fim)
+
+# isca da suíte de prazo (removida ao fim)
+
+# isca da suíte de prazo (removida ao fim)
+
+# isca da suíte de prazo (removida ao fim)
+
+# isca da suíte de prazo (removida ao fim)
+
+# isca da suíte de prazo (removida ao fim)
+
+# isca da suíte de prazo (removida ao fim)
+
+# isca da suíte de prazo (removida ao fim)
+
+# isca da suíte de prazo (removida ao fim)
+
+# isca da suíte de prazo (removida ao fim)
+
+# isca da suíte de prazo (removida ao fim)
+
+# isca da suíte de prazo (removida ao fim)
+
+# isca da suíte de prazo (removida ao fim)
+
+# isca da suíte de prazo (removida ao fim)
+
+# isca da suíte de prazo (removida ao fim)
+
+# isca da suíte de prazo (removida ao fim)
+
+# isca da suíte de prazo (removida ao fim)
+
+# isca da suíte de prazo (removida ao fim)
+
+# isca da suíte de prazo (removida ao fim)
+
+# isca da suíte de prazo (removida ao fim)
+
+# isca da suíte de prazo (removida ao fim)
+
+# isca da suíte de prazo (removida ao fim)
+
+# isca da suíte de prazo (removida ao fim)
+
+# isca da suíte de prazo (removida ao fim)
+
+# isca da suíte de prazo (removida ao fim)
+
+# isca da suíte de prazo (removida ao fim)
+
+# isca da suíte de prazo (removida ao fim)
+
+# isca da suíte de prazo (removida ao fim)
+
+# isca da suíte de prazo (removida ao fim)
+
+# isca da suíte de prazo (removida ao fim)
+
+# isca da suíte de prazo (removida ao fim)
+
+# isca da suíte de prazo (removida ao fim)
+
+# isca da suíte de prazo (removida ao fim)
+
+# isca da suíte de prazo (removida ao fim)
+
+# isca da suíte de prazo (removida ao fim)
+
+# isca da suíte de prazo (removida ao fim)
+
+# isca da suíte de prazo (removida ao fim)
+
+# isca da suíte de prazo (removida ao fim)
+
+# isca da suíte de prazo (removida ao fim)
+
+# isca da suíte de prazo (removida ao fim)
+
+# isca da suíte de prazo (removida ao fim)
+
+# isca da suíte de prazo (removida ao fim)
+
+# isca da suíte de prazo (removida ao fim)
+
+# isca da suíte de prazo (removida ao fim)
+
+# isca da suíte de prazo (removida ao fim)
+
+# isca da suíte de prazo (removida ao fim)
+
+# isca da suíte de prazo (removida ao fim)
+
+# isca da suíte de prazo (removida ao fim)
+
+# isca da suíte de prazo (removida ao fim)
+
+# isca da suíte de prazo (removida ao fim)
+
+# isca da suíte de prazo (removida ao fim)
+
+# isca da suíte de prazo (removida ao fim)
+
+# isca da suíte de prazo (removida ao fim)
+
+# isca da suíte de prazo (removida ao fim)
+
+# isca da suíte de prazo (removida ao fim)
+
+# isca da suíte de prazo (removida ao fim)
+
+# isca da suíte de prazo (removida ao fim)
+
+# isca da suíte de prazo (removida ao fim)
+
+# isca da suíte de prazo (removida ao fim)
+
+# isca da suíte de prazo (removida ao fim)
+
+# isca da suíte de prazo (removida ao fim)
+
+# isca da suíte de prazo (removida ao fim)
+
+# isca da suíte de prazo (removida ao fim)
+
+# isca da suíte de prazo (removida ao fim)
+
+# isca da suíte de prazo (removida ao fim)
+
+# isca da suíte de prazo (removida ao fim)
+
+# isca da suíte de prazo (removida ao fim)
+
+# isca da suíte de prazo (removida ao fim)
+
+# isca da suíte de prazo (removida ao fim)
+
+# isca da suíte de prazo (removida ao fim)
+
+# isca da suíte de prazo (removida ao fim)
+
+# isca da suíte de prazo (removida ao fim)
+
+# isca da suíte de prazo (removida ao fim)
+
+# isca da suíte de prazo (removida ao fim)
+
+# isca da suíte de prazo (removida ao fim)
+
+# isca da suíte de prazo (removida ao fim)
+
+# isca da suíte de prazo (removida ao fim)
+
+# isca da suíte de prazo (removida ao fim)
+
+# isca da suíte de prazo (removida ao fim)
+
+# isca da suíte de prazo (removida ao fim)
+
+# isca da suíte de prazo (removida ao fim)
+
+# isca da suíte de prazo (removida ao fim)
+
+# isca da suíte de prazo (removida ao fim)
+
+# isca da suíte de prazo (removida ao fim)
+
+# isca da suíte de prazo (removida ao fim)
+
+# isca da suíte de prazo (removida ao fim)
+
+# isca da suíte de prazo (removida ao fim)
+
+# isca da suíte de prazo (removida ao fim)
+
+# isca da suíte de prazo (removida ao fim)
+
+# isca da suíte de prazo (removida ao fim)
+
+# isca da suíte de prazo (removida ao fim)
+
+# isca da suíte de prazo (removida ao fim)
+
+# isca da suíte de prazo (removida ao fim)
+
+# isca da suíte de prazo (removida ao fim)
+
+# isca da suíte de prazo (removida ao fim)
+
+# isca da suíte de prazo (removida ao fim)
+
+# isca da suíte de prazo (removida ao fim)
+
+# isca da suíte de prazo (removida ao fim)
+
+# isca da suíte de prazo (removida ao fim)
+
+# isca da suíte de prazo (removida ao fim)
+
+# isca da suíte de prazo (removida ao fim)
+
+# isca da suíte de prazo (removida ao fim)
+
+# isca da suíte de prazo (removida ao fim)
+
+# isca da suíte de prazo (removida ao fim)
+
+# isca da suíte de prazo (removida ao fim)
+
+# isca da suíte de prazo (removida ao fim)
+
+# isca da suíte de prazo (removida ao fim)
+
+# isca da suíte de prazo (removida ao fim)
+
+# isca da suíte de prazo (removida ao fim)
+
+# isca da suíte de prazo (removida ao fim)
+
+# isca da suíte de prazo (removida ao fim)
+
+# isca da suíte de prazo (removida ao fim)
+
+# isca da suíte de prazo (removida ao fim)
+
+# isca da suíte de prazo (removida ao fim)
+
+# isca da suíte de prazo (removida ao fim)
+
+# isca da suíte de prazo (removida ao fim)
+
+# isca da suíte de prazo (removida ao fim)
+
+# isca da suíte de prazo (removida ao fim)
+
+# isca da suíte de prazo (removida ao fim)
+
+# isca da suíte de prazo (removida ao fim)
+
+# isca da suíte de prazo (removida ao fim)
+
+# isca da suíte de prazo (removida ao fim)
+
+# isca da suíte de prazo (removida ao fim)
+
+# isca da suíte de prazo (removida ao fim)
+
+# isca da suíte de prazo (removida ao fim)
+
+# isca da suíte de prazo (removida ao fim)
+
+# isca da suíte de prazo (removida ao fim)
+
+# isca da suíte de prazo (removida ao fim)
+
+# isca da suíte de prazo (removida ao fim)
