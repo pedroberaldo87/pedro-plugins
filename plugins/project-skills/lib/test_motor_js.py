@@ -105,6 +105,23 @@ check("nenhum 'sovai' sobrevive no motor.js", "sovai" not in motor.lower())
 # o commit da onda sai com o prefixo novo (o suite_congela compara literal).
 check("o checkpoint commita como 'sprint: onda'", "sprint: onda" in motor)
 
+# O commit vem ANTES da marcação e segura o tick (decisão do dono, 2026-08-13):
+# o gate que recusava o commit era engolido pelo `|| true` DEPOIS de o passo já
+# estar done no plano — plano dizendo feito, git sem o código (achado da revisão
+# pré-corrida). O salvamento agora devolve CHECKPOINT_RESULT e o script só marca
+# com committed: true.
+check("CHECKPOINT_RESULT existe com committed obrigatório",
+      "CHECKPOINT_RESULT" in motor and "required:['committed']" in motor)
+for nome, texto in (("motor.js", motor), ("esqueleto do SKILL.md", skill)):
+    salvar, marcar = texto.find("phase: 'Salvar'"), texto.find("phase: 'Marcar'")
+    check("o commit roda antes da marcação (%s)" % nome, 0 <= salvar < marcar,
+          "Salvar@%d Marcar@%d" % (salvar, marcar))
+    check("o salvamento devolve o veredito no schema (%s)" % nome,
+          "schema: CHECKPOINT_RESULT" in texto)
+    check("commit recusado segura o tick do bloco (%s)" % nome,
+          "salvo.committed !== true" in texto and "foi RECUSADO" in texto)
+check("a prova do tique carrega o sha do commit", "commit ${salvo.sha" in motor)
+
 # nada de caminho cravado de máquina — o repo do dono não é este marketplace.
 check("sem caminho absoluto de máquina", "/Users/" not in motor)
 

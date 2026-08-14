@@ -98,6 +98,11 @@ const TICK_RESULT = { type:'object', required:['marcados'], properties:{
   marcados:{type:'array',items:{type:'object',required:['task_id','ok'],properties:{
     task_id:{type:'string'}, ok:{type:'boolean'}, motivo:{type:'string'} }}} } }
 
+// O veredito do salvamento volta ao script (decisão do dono, 2026-08-13): sem ele,
+// o gate que recusava o commit era invisível e o passo ficava done sem código no git.
+const CHECKPOINT_RESULT = { type:'object', required:['committed'], properties:{
+  committed:{type:'boolean'}, sha:{type:'string'}, motivo:{type:'string'} } }
+
 const DOC_TOUCH = { type:'object', required:['docs'], properties:{
   docs:{type:'array',items:{type:'string'}} } }
 
@@ -458,7 +463,11 @@ REGRAS:
 - O \`commit\` também vai por caminho, não só o \`add\` — commit sem pathspec grava o índice inteiro.
 - \`add\` que recusa um caminho não derruba o commit dos outros.
 - Árvore limpa ⇒ nada a commitar, e isso não é falha.
-- Projeto com gate de commit: gate que RECUSA é resultado legítimo — relate na saída, não force, não use --no-verify.`
+- Projeto com gate de commit: gate que RECUSA é resultado legítimo — relate committed: false com o motivo, não force, não use --no-verify.
+
+DEVOLVA o veredito no schema (committed · sha · motivo):
+- committed: true com o sha (\`git -C ${repoRoot} rev-parse --short HEAD\`) quando o commit ENTROU — ou quando a árvore estava limpa (nada a commitar).
+- committed: false com o motivo COPIADO da saída do gate quando o commit foi recusado — o script segura a marcação dos passos por causa disso.`
 
 const docTouchPrompt = ({ repoRoot, round, files, sessionId }) => `PAPEL: MECANICO
 Papel mecânico e SÓ: re-projetar a doc dos arquivos que a onda ${round} tocou.
@@ -902,11 +911,21 @@ while (!built && r < maxRounds) {
       continue
     }
 
-    // 4 · MARCAÇÃO + COMMIT + DOC + COLHEITA — no grão do bloco.
-    if (ARGS.planPath?.endsWith('.plan.json')) {
+    // 4 · COMMIT + MARCAÇÃO + DOC + COLHEITA — no grão do bloco. O COMMIT vem
+    // ANTES da marcação (decisão do dono, 2026-08-13): o gate que recusava o
+    // commit era engolido pelo `|| true` DEPOIS de o passo já estar done no
+    // plano — plano dizendo feito, git sem o código. Agora o salvamento devolve
+    // `committed`, e passo só é marcado com o trabalho gravado no histórico.
+    const salvo = await agent(checkpointPrompt({ repoRoot: ARGS.repoRoot, round: r, bloco: b, results: aprovadas, planPath: ARGS.planPath }),
+      { model: ARGS.model, effort: T.mechanical.effort, phase: 'Salvar', label: `commit r${r}b${b}`, schema: CHECKPOINT_RESULT })
+    if (!salvo || salvo.committed !== true) {
+      blockers.push({
+        what: `o commit do bloco ${b} da rodada ${r} ${salvo ? `foi RECUSADO: ${salvo.motivo || 'sem motivo'}` : 'não foi confirmado (agente mudo)'}`,
+        whyNeedsYou: 'o trabalho está no disco e FORA do histórico — destrave o gate (bump no mesmo lote) e commite; os passos NÃO foram marcados no plano' })
+    } else if (ARGS.planPath?.endsWith('.plan.json')) {
       const tick = await agent(tickPlanPrompt({ planPath: ARGS.planPath,
         passos: aprovadas.map(t => ({ taskId: t.task_id,
-          evidencia: `${t.summary} · ${(t.files_touched || []).join(' ')}` })) }),
+          evidencia: `${t.summary} · ${(t.files_touched || []).join(' ')} · commit ${salvo.sha || '?'}` })) }),
         { model: ARGS.model, effort: T.mechanical.effort, phase: 'Marcar',
           label: `marcar r${r}b${b} (${aprovadas.length})`, schema: TICK_RESULT })
       const vistos = new Map((tick?.marcados || []).map(m => [m.task_id, m]))
@@ -926,8 +945,6 @@ while (!built && r < maxRounds) {
       }
       marcadosDaOnda.push(...(tick?.marcados || []))
     }
-    await agent(checkpointPrompt({ repoRoot: ARGS.repoRoot, round: r, bloco: b, results: aprovadas, planPath: ARGS.planPath }),
-      { model: ARGS.model, effort: T.mechanical.effort, phase: 'Salvar', label: `commit r${r}b${b}` })
     blocosVerdes.push({ bloco: b, feitos: aprovadas.map(x => x.task_id), placar: suiteB.placar })
     const tocadosB = [...new Set(aprovadas.flatMap(x => x?.files_touched || []))]
     if (tocadosB.length) {
