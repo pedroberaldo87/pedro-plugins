@@ -71,27 +71,38 @@ EFEMERO = [
     # Por stack, o que compila/testa e devia acabar: iOS/macOS, Flutter, C/C++ (o
     # compilador órfão do make, mesmo caso do rustc), Zig, Elixir, JVM (sbt/lein),
     # Haskell, PHP/Ruby (instalação de dependência), JS (instalação e build por
-    # gerenciador), e infra declarativa que só planeja.
+    # gerenciador). O que espera REDE segurando estado remoto (terraform, ansible,
+    # git clone, npm publish, rsync) fica FORA de propósito: rede lenta é ociosa
+    # e legítima, e a régua de CPU não distingue as duas.
     r"\bxcodebuild\b", r"\bswift (build|test)\b", r"\bflutter (build|test|analyze)\b",
-    r"\bninja\b(?!.*\bserve\b)", r"\bbazel (build|test|run)\b", r"\bzig build\b",
+    r"\bninja\b(?!.*\bserve\b)", r"\bbazel (build|test|run)\b", r"\bzig (build|test)\b",
     r"\bmix (test|compile|deps\.get)\b", r"\bsbt\b.*\b(test|compile|package)\b",
     r"(?:^|\s)(?:\S*/)?(?:gcc|g\+\+|clang|clang\+\+|cc1(?:plus)?|ld|lld|swiftc|javac|kotlinc)(?:\s|$)",
-    r"\bcabal (build|test)\b", r"\bstack (build|test)\b",
+    r"\bcabal (build|test)\b", r"\bstack (build|test)\b", r"\bghc\b", r"\bdart compile\b",
     r"\bcomposer (install|update)\b", r"\bbundle (install|exec rspec)\b",
     r"\b(?:yarn|pnpm|npm|bun) (install|ci|run build|build)\b",
-    r"\bterraform (plan|validate|init)\b",
+    r"\bgem install\b", r"\bpod install\b", r"\bgo mod download\b",
+    # Suítes que faltavam por runtime: Deno, Bun, CMake e os runners de JS.
+    r"\bdeno test\b", r"\bbun test\b", r"\bctest\b", r"\bnox\b", r"(?:^|\s)ava(?:\s|$)",
     # O build do mundo React/TypeScript: cada framework tem o seu, e todos deviam
     # acabar sozinhos. O dev de cada um está em SERVICO; aqui é só o one-shot.
     r"\b(?:next|vite|astro|gatsby|remix|react-scripts) build\b",
     r"\bturbo (?:run )?(build|test|lint)\b", r"\bnx (build|test|lint|affected)\b",
     # Python além do pytest: gerenciador, checador de tipo e linter.
     r"\bpoetry (install|lock|build)\b", r"\bpyright\b", r"\bflake8\b", r"\bisort\b",
-    # Tauri empacotando, Homebrew instalando, npx criando projeto, npm publicando,
-    # e os conversores de mídia/documento que uma sessão dispara e esquece.
+    r"\bpylint\b", r"\bbiome (check|lint|format)\b", r"\bstylelint\b",
+    r"\bgolangci-lint\b", r"\brubocop\b", r"\bswiftlint\b", r"\bshellcheck\b",
+    # Geradores puros, sem estado remoto: prisma/graphql/protoc geram arquivo
+    # local. `migrate` NÃO entra — migração morta no meio é estado pela metade.
+    r"\bprisma generate\b", r"\bgraphql-codegen\b", r"\bprotoc\b",
+    r"\bdrizzle-kit generate\b",
+    # Tauri empacotando, Homebrew instalando, npx criando projeto, e os
+    # conversores de mídia/documento que uma sessão dispara e esquece. Todos
+    # gastam CPU enquanto trabalham — ocioso aqui é morto de verdade.
     r"\btauri (build|bundle)\b", r"\bbrew (install|upgrade|update|bundle)\b",
-    r"\bnpx create-\S+", r"\bnpm publish\b",
-    r"\bffmpeg\b", r"\bpandoc\b", r"\b(?:pdf|lua|xe)latex\b",
-    r"\bgit (clone|fetch|lfs)\b",
+    r"\bnpx create-\S+", r"\belectron-builder\b", r"\bbuild-storybook\b",
+    r"\bffmpeg\b", r"\bpandoc\b", r"\b(?:pdf|lua|xe)latex\b", r"\bmagick\b",
+    r"\bsphinx-build\b", r"\bmkdocs build\b", r"\btypedoc\b",
 ]
 SERVICO = [
     r"\bnext (dev|start)\b", r"\bnext-server\b", r"\bvite\b(?!.*\bbuild\b)",
@@ -129,6 +140,18 @@ SERVICO = [
     # Tauri em desenvolvimento (o `tauri dev` cobre `cargo tauri dev` e o do npm),
     # Electron de projeto, e o `npx serve` de pasta estática.
     r"\btauri dev\b", r"\belectron\b(?!.*Helper)", r"\bnpx serve\b",
+    # Geradores de site estático servindo, executores em watch, backends que
+    # faltavam, workers de fila, port-forward (mesma família do ssh -L), e os
+    # emuladores de nuvem locais — tudo descartável de desenvolvimento.
+    r"\bnuxt (dev|start)\b", r"\bember serve\b", r"\beleventy\b.*\b--serve\b",
+    r"\bhugo server\b", r"\bjekyll serve\b", r"\bbrowser-sync\b", r"\bmkdocs serve\b",
+    r"\bcargo watch\b", r"\bwatchexec\b", r"\bbun\b.*\b--watch\b",
+    r"\bdaphne\b", r"\bpuma\b", r"(?:^|\s)(?:\S*/)?go run(?:\s|$)",
+    r"\bsidekiq\b", r"\brq worker\b",
+    r"\bkubectl port-forward\b", r"\blocaltunnel\b",
+    r"\bgradio\b", r"\bmarimo (edit|run)\b", r"\bvoila\b",
+    r"\bfirebase emulators\b", r"\bvercel dev\b", r"\bnetlify dev\b",
+    r"\bstripe listen\b", r"\bmailpit\b", r"\bazurite\b",
 ]
 # Máquina virtual, serviço de contêiner e o que o próprio harness mantém de pé.
 # A decisão de 2026-08-05 foi explícita: o lixeiro NUNCA encosta nestes — reporta.
@@ -137,9 +160,18 @@ INTOCAVEL = [
     r"\bDocker Desktop\b", r"\bollama\b",
     # Banco de dados e fila nativos (fora de contêiner) guardam estado: matar no
     # meio de uma escrita corrompe. `postgres` pega também os workers forkados.
+    # `UTM` ficou de fora de propósito: com re.I casaria o `utm_source` de
+    # qualquer URL; o app entra pelo caminho `UTM.app`.
     r"\bpostgres\b", r"\bmysqld\b", r"\bmariadbd\b", r"\bmongod\b", r"\bredis-server\b",
-    r"\belasticsearch\b", r"\bkafka\b", r"\bzookeeper\b",
+    r"\belasticsearch\b", r"\bopensearch\b", r"\bkafka\b", r"\bzookeeper\b",
+    r"\brabbitmq\b", r"\bnats-server\b", r"\betcd\b", r"\bclickhouse\b",
+    r"\binfluxd\b", r"\bmeilisearch\b", r"\btypesense\b", r"\bminio\b", r"\bmemcached\b",
     r"\bminikube\b", r"\bpodman\b", r"(?:^|\s)kind(?:\s|$)",
+    r"\bOrbStack\b", r"\borbstack\b", r"\bvagrant\b", r"UTM\.app",
+    # LLM local segura modelo carregado na memória: recarregar custa minutos.
+    r"\bllama-server\b", r"\bLM Studio\b",
+    # Simulador iOS/Android de pé: derrubar perde o estado do app instalado.
+    r"Simulator\.app", r"\bemulator\b.*\B-avd\b",
     # O PROGRAMA claude, não o diretório de configuração dele: `~/.claude/…`
     # aparece em TODO comando que o harness lança (snapshot de shell, arquivo de
     # cwd), e `\bclaude\b` casava nesse caminho — o que tornava intocável tudo
