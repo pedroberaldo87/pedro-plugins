@@ -52,6 +52,46 @@ EFEMERO = [
     r"\bpytest\b", r"\bvitest\b(?!.*\bwatch\b)", r"\bjest\b", r"\bnpm (run )?test\b",
     r"\btsc\b", r"\bwebpack\b(?!.*\bserve\b)", r"\besbuild\b", r"\bplaywright test\b",
     r"\bgo test\b", r"\bcargo test\b", r"\bmocha\b", r"\bnyc\b",
+    # O neto que sobrevive ao pai: matar o `cargo` deixa os `rustc` filhos de pé,
+    # dormindo com o lock do diretório de compilação na mão, e a tentativa seguinte
+    # parece travada. Sem classe própria eles não casavam com anotação nenhuma e o
+    # lixeiro nunca os tocava (medido em 2026-08-13, três órfãos de 14 minutos).
+    r"/rustc\b", r"/rustdoc\b",
+    # O resto do que uma sessão de Claude Code planta e devia morrer sozinho:
+    # build e checagem (Rust, Go, JVM, .NET, C, formatador/linter de cada mundo).
+    # `cargo run` NÃO entra: é servidor em desenvolvimento, e a classe dele é a de
+    # baixo. `make` só conta como token executável, senão `cmake`/`gmake` de
+    # terceiros casariam por substring.
+    r"\bcargo (build|check|clippy|fmt)\b", r"\bgo (build|vet|generate)\b",
+    r"\bgradle\w* (test|build|check|assemble)\b", r"\bmvn\b.*\b(test|package|verify|compile)\b",
+    r"\bdotnet (test|build|publish)\b", r"(?:^|\s)(?:\S*/)?make(?:\s|$)",
+    r"\beslint\b", r"\bprettier\b", r"\bruff\b", r"\bmypy\b", r"\bblack\b(?!.*\bserver\b)",
+    r"\brspec\b", r"\bphpunit\b", r"\bcypress run\b", r"\btox\b",
+    r"\bpip3? install\b", r"\buv (sync|pip|lock)\b",
+    # Por stack, o que compila/testa e devia acabar: iOS/macOS, Flutter, C/C++ (o
+    # compilador órfão do make, mesmo caso do rustc), Zig, Elixir, JVM (sbt/lein),
+    # Haskell, PHP/Ruby (instalação de dependência), JS (instalação e build por
+    # gerenciador), e infra declarativa que só planeja.
+    r"\bxcodebuild\b", r"\bswift (build|test)\b", r"\bflutter (build|test|analyze)\b",
+    r"\bninja\b(?!.*\bserve\b)", r"\bbazel (build|test|run)\b", r"\bzig build\b",
+    r"\bmix (test|compile|deps\.get)\b", r"\bsbt\b.*\b(test|compile|package)\b",
+    r"(?:^|\s)(?:\S*/)?(?:gcc|g\+\+|clang|clang\+\+|cc1(?:plus)?|ld|lld|swiftc|javac|kotlinc)(?:\s|$)",
+    r"\bcabal (build|test)\b", r"\bstack (build|test)\b",
+    r"\bcomposer (install|update)\b", r"\bbundle (install|exec rspec)\b",
+    r"\b(?:yarn|pnpm|npm|bun) (install|ci|run build|build)\b",
+    r"\bterraform (plan|validate|init)\b",
+    # O build do mundo React/TypeScript: cada framework tem o seu, e todos deviam
+    # acabar sozinhos. O dev de cada um está em SERVICO; aqui é só o one-shot.
+    r"\b(?:next|vite|astro|gatsby|remix|react-scripts) build\b",
+    r"\bturbo (?:run )?(build|test|lint)\b", r"\bnx (build|test|lint|affected)\b",
+    # Python além do pytest: gerenciador, checador de tipo e linter.
+    r"\bpoetry (install|lock|build)\b", r"\bpyright\b", r"\bflake8\b", r"\bisort\b",
+    # Tauri empacotando, Homebrew instalando, npx criando projeto, npm publicando,
+    # e os conversores de mídia/documento que uma sessão dispara e esquece.
+    r"\btauri (build|bundle)\b", r"\bbrew (install|upgrade|update|bundle)\b",
+    r"\bnpx create-\S+", r"\bnpm publish\b",
+    r"\bffmpeg\b", r"\bpandoc\b", r"\b(?:pdf|lua|xe)latex\b",
+    r"\bgit (clone|fetch|lfs)\b",
 ]
 SERVICO = [
     r"\bnext (dev|start)\b", r"\bnext-server\b", r"\bvite\b(?!.*\bbuild\b)",
@@ -67,12 +107,39 @@ SERVICO = [
     # significa nada (é o caso que dá nome à regra) e o binário de suíte/build já
     # foi reconhecido antes, porque EFEMERO é consultado primeiro.
     r"\bnode\s+(?:-\S+\s+)*\S+\.[mc]?[jt]s\b",
+    # Os outros servidores que uma sessão sobe para ver a coisa funcionando:
+    # Django, FastAPI, Laravel, Deno/Bun em watch, `cargo run`, live-reload de Go,
+    # Jupyter/Streamlit, tailwind em watch, e túnel de exposição (ngrok e afins).
+    r"\bmanage\.py runserver\b", r"\bfastapi (dev|run)\b", r"\bartisan serve\b",
+    r"\bdeno (run|serve|task)\b.*\b--watch\b", r"\bbun run dev\b", r"\bcargo run\b",
+    r"(?:^|\s)(?:\S*/)?air(?:\s|$)", r"\bjupyter (lab|notebook)\b", r"\bstreamlit run\b",
+    r"\btailwindcss\b.*\b--watch\b", r"\bngrok\b", r"\bcloudflared tunnel\b",
+    r"\blive-server\b", r"\bwrangler (dev|pages dev)\b",
+    # Por stack: PHP embutido, Elixir/Phoenix, JVM em modo dev, .NET em watch,
+    # Flutter/React Native rodando no simulador, e o metro bundler deles.
+    r"\bphp -S\b", r"\bmix phx\.server\b", r"\bspring-boot:run\b",
+    r"\bgradle\w* bootRun\b", r"\bdotnet (run|watch)\b",
+    r"\bflutter run\b", r"\bexpo start\b", r"\breact-native start\b",
+    # O dev-server do mundo React/TypeScript, framework a framework, mais os
+    # executores de TS em watch e o worker de fila do Python.
+    r"\breact-scripts start\b", r"\b(?:astro|remix|gatsby) (dev|develop)\b",
+    r"\bwebpack(?:-dev-server| serve)\b", r"\bparcel\b(?!.*\bbuild\b)",
+    r"\bts-node-dev\b", r"\btsx watch\b", r"\bdocusaurus start\b",
+    r"\bcelery\b.*\bworker\b", r"\bhypercorn\b", r"\bsanic\b",
+    # Tauri em desenvolvimento (o `tauri dev` cobre `cargo tauri dev` e o do npm),
+    # Electron de projeto, e o `npx serve` de pasta estática.
+    r"\btauri dev\b", r"\belectron\b(?!.*Helper)", r"\bnpx serve\b",
 ]
 # Máquina virtual, serviço de contêiner e o que o próprio harness mantém de pé.
 # A decisão de 2026-08-05 foi explícita: o lixeiro NUNCA encosta nestes — reporta.
 INTOCAVEL = [
     r"\blimactl\b", r"\bqemu", r"\bcolima\b", r"\bdocker\b", r"\bcontainerd\b",
     r"\bDocker Desktop\b", r"\bollama\b",
+    # Banco de dados e fila nativos (fora de contêiner) guardam estado: matar no
+    # meio de uma escrita corrompe. `postgres` pega também os workers forkados.
+    r"\bpostgres\b", r"\bmysqld\b", r"\bmariadbd\b", r"\bmongod\b", r"\bredis-server\b",
+    r"\belasticsearch\b", r"\bkafka\b", r"\bzookeeper\b",
+    r"\bminikube\b", r"\bpodman\b", r"(?:^|\s)kind(?:\s|$)",
     # O PROGRAMA claude, não o diretório de configuração dele: `~/.claude/…`
     # aparece em TODO comando que o harness lança (snapshot de shell, arquivo de
     # cwd), e `\bclaude\b` casava nesse caminho — o que tornava intocável tudo
