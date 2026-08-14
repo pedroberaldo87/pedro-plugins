@@ -36,8 +36,28 @@ PY="${PYTHON:-python3}"
 # na máquina livre ele passa, na ocupada ele reprova, e o veredito vira sorteio. O
 # número aqui é o dobro da suíte mais lenta medida — quando alguma passar disso, o
 # certo é acelerar a suíte, não subir o teto de novo em silêncio.
-# Os nove globos da esteira. Mexeu aqui, mexeu para todo mundo — que é o ponto.
-exec "$PY" scripts/run_suites.py --timeout 600 "$@" \
+# ── DUAS FASES: o grosso em paralelo, e o punhado que DISPUTA ESTADO em série ──
+#
+# As suítes do `intent-guard` exercitam hooks que gravam estado por sessão em
+# `$TMPDIR` e leem o ledger do repositório — com ids de sessão fixos. Rodando ao
+# mesmo tempo, uma pisa na outra: medido em 2026-08-14, em série passam sempre, em
+# paralelo caem ora uma, ora outra, ora nenhuma. Seis camadas de isolamento já
+# entraram (lar fingido, mock do juiz, limpeza antes e depois, artefato fora do
+# tree-hash, teto de git de 60s), e ainda sobrava disputa.
+#
+# ⚠️ Isto NÃO é lista de teste ignorado: elas rodam, inteiras, e reprovam a esteira
+# se falharem. O que muda é o COMO — recurso compartilhado se serializa, não se
+# sorteia. O dia em que elas ficarem independentes de verdade, esta lista encolhe;
+# enquanto não ficarem, o veredito delas é honesto em vez de aleatório. A frente
+# que as torna independentes é a fase F19 do plano.
+# A lista das seriais é UMA linha, e o resto se deduz dela: o glob de hooks segue
+# sendo `plugins/*/hooks/test_*.sh` e o rodador simplesmente PULA quem está aqui.
+# Enumerar plugin a plugin, que foi a primeira tentativa, cria globo vazio a cada
+# plugin sem suíte de hook (o `handoff` é um) — e globo vazio reprova, com razão.
+SERIAIS='plugins/intent-guard/hooks/test_*.sh'
+
+RC=0
+SUITE_PULA="$SERIAIS" "$PY" scripts/run_suites.py --timeout 600 "$@" \
   --py 'plugins/*/lib/test_*.py' \
        '_shared/test_*.py' \
        'scripts/test_*.py' \
@@ -46,4 +66,10 @@ exec "$PY" scripts/run_suites.py --timeout 600 "$@" \
        'plugins/*/lib/test_*.sh' \
        'scripts/test_*.sh' \
        '.claude/hooks/test_*.sh' \
-       'plugins/*/skills/*/test_*.sh'
+       'plugins/*/skills/*/test_*.sh' || RC=$?
+
+echo
+echo "── as que disputam estado, agora em SÉRIE ──────────────────────────────"
+"$PY" scripts/run_suites.py --timeout 600 --jobs 1 --sh "$SERIAIS" || RC=$?
+
+exit $RC
