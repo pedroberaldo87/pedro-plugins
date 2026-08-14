@@ -62,10 +62,26 @@ check "a suíte montou o repositório de mentira que o portão precisa" \
       "$([ "$SUJOS" -gt 0 ] && echo 1 || echo 0)" \
       "sem arquivo modificado o portão sai antes do prazo e o teste mediria nada"
 
-# Deadline de 1s força o estouro no primeiro ponto de verificação, sem esperar os
-# minutos reais. É o mesmo caminho do estouro de verdade — muda só o relógio.
-SAIDA=$(cd "$FALSO" && printf '%s' "$PAYLOAD" | PORTAO_DEADLINE_S=1 bash "$PORTAO" 2>&1)
+# ⚠️ O ESTOURO É FORÇADO PELO RELÓGIO JÁ ADIANTADO, NÃO POR ESPERAR O TEMPO PASSAR.
+# A versão anterior passava `PORTAO_DEADLINE_S=1` e torcia para que 1 segundo
+# tivesse decorrido até o primeiro ponto de verificação. No repositório de mentira
+# os checks caros nem existem (sem `sync-shared.sh`, sem `_shared/`), então o
+# portão chega ao primeiro checkpoint em MENOS de 1s e não estoura — o teste
+# passava só quando a máquina estava lenta o bastante. Medido em 2026-08-14: em
+# paralelo com as vizinhas, quatro casos caíam; sozinho, passava. É o mesmo defeito
+# que a suíte existe para cobrar, de novo dentro dela.
+#
+# O harness extrai o bloco do portão REAL e adianta `PORTAO_INICIO` em 100s: o
+# prazo nasce estourado, e o veredito não depende mais de quanto o disco demorou.
+HARNESS_E=$(mktemp)
+sed -n '/^PORTAO_INICIO=\$SECONDS/,/^}$/p' "$PORTAO" > "$HARNESS_E"
+SAIDA=$(cd "$FALSO" && PORTAO_DEADLINE_S=1 bash -c "
+  $(cat "$HARNESS_E")
+  PORTAO_INICIO=\$((SECONDS - 100))
+  portao_prazo 'A+A2 (vendoring, contrato de tier, espelho de versão)'
+  echo NAO-DEVIA-CHEGAR-AQUI" 2>&1)
 CODIGO=$?
+rm -f "$HARNESS_E"
 check "estourado o prazo, o portão RECUSA (exit 2)" "$([ "$CODIGO" = "2" ] && echo 1 || echo 0)" "exit=$CODIGO"
 case "$SAIDA" in
   *"NÃO TER CONSEGUIDO MEDIR"*) check "a recusa diz que ele não MEDIU (não que achou defeito)" 1 ;;

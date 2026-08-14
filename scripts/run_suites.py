@@ -45,14 +45,29 @@ for _canal in (sys.stdout, sys.stderr):
 
 def expande(padroes):
     """Um glob por padrão, e padrão que não casa NADA é erro — foi assim que a
-    esteira 'passou' sem executar suíte nenhuma."""
+    esteira 'passou' sem executar suíte nenhuma.
+
+    `SUITE_PULA` (globs separados por espaço) tira arquivos da seleção. Ele existe
+    para a esteira rodar em DUAS fases — o grosso em paralelo e o punhado que
+    disputa estado global em série — sem que a segunda fase precise reescrever os
+    globos da primeira com exceções enumeradas plugin a plugin. Não é lista de
+    teste ignorado: quem sai daqui roda na outra fase, e o `suite.sh` soma os dois
+    códigos de saída.
+    """
+    pula = set()
+    for g in (os.environ.get("SUITE_PULA") or "").split():
+        pula |= {p for p in glob.glob(g, recursive=True) if os.path.isfile(p)}
     fora = []
     for pat in padroes:
         casou = sorted(p for p in glob.glob(pat, recursive=True) if os.path.isfile(p))
         if not casou:
             print("::error::nenhum arquivo casou em %s" % pat)
             sys.exit(1)
-        print("  %s → %d suíte(s)" % (pat, len(casou)))
+        # O glob tem que casar ALGO antes de descontar o que a outra fase leva —
+        # senão um `SUITE_PULA` largo demais esconderia um glob que já morreu.
+        casou = [c for c in casou if c not in pula]
+        print("  %s → %d suíte(s)%s" % (pat, len(casou),
+                                        " (fora as da fase serial)" if pula else ""))
         fora.extend(casou)
     return fora
 

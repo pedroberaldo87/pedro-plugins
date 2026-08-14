@@ -93,6 +93,15 @@ def globos(root):
             pats.extend(re.findall(r"'([^']+)'", s))
             if not s.endswith("\\"):
                 dentro = False
+    # ⚠️ A esteira pode ter MAIS DE UMA invocação — desde 2026-08-14 ela roda em duas
+    # fases (o grosso em paralelo, e as que disputam estado global em série). Um
+    # leitor que parasse na primeira leria só metade dos globos e acusaria a outra
+    # metade de órfã: 28 suítes de hook de uma vez. O laço acima já percorre o
+    # arquivo inteiro; o que falta é pegar o globo que mora numa VARIÁVEL, que é como
+    # a lista das seriais é declarada (`SERIAIS='...'`), fora de qualquer invocação.
+    for m in re.finditer(r"^[A-Z_]+='([^']+)'", texto, re.M):
+        if "test_" in m.group(1):
+            pats.append(m.group(1))
     return [p for p in pats if "test_" in p]
 
 

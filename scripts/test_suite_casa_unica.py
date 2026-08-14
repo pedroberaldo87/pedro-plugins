@@ -12,6 +12,7 @@ O que esta suíte cobra não é o conteúdo dos globs (esse muda quando o repo m
     python3 scripts/test_suite_casa_unica.py
 """
 
+import glob
 import os
 import re
 import subprocess
@@ -66,7 +67,10 @@ EXECUTAVEIS = (".sh", ".yml", ".yaml", ".py", ".js")
 IGNORA = {os.path.join(RAIZ, "scripts", "suite.sh"),
           os.path.join(RAIZ, "scripts", "test_suite_casa_unica.py"),
           # o rodador cita os globs no próprio texto de uso (docstring)
-          os.path.join(RAIZ, "scripts", "run_suites.py")}
+          os.path.join(RAIZ, "scripts", "run_suites.py"),
+          # o cobrador de órfãs monta uma esteira DE MENTIRA no arnês dele; os
+          # globos que ele escreve lá são cenário de teste, não segunda casa.
+          os.path.join(RAIZ, "scripts", "test_suites_orfas.py")}
 divergentes = []
 for base, dirs, arqs in os.walk(RAIZ):
     dirs[:] = [d for d in dirs
@@ -96,14 +100,27 @@ check("o CLAUDE.md nomeia a casa", "scripts/suite.sh" in claude_md,
       "sem o ponteiro, a casca volta a reconstruir de cabeça")
 
 # ── E a casa REALMENTE seleciona (não é um arquivo que só existe) ─────────────
-r = subprocess.run(["bash", CASA, "--jobs", "1", "--timeout", "1"],
-                   capture_output=True, text=True, encoding="utf-8",
-                   errors="replace", stdin=subprocess.DEVNULL,
-                   start_new_session=True, cwd=RAIZ, timeout=120)
-saida = (r.stdout or "") + (r.stderr or "")
-m = re.search(r"rodando (\d+) suíte\(s\)", saida)
-check("a casa seleciona suítes de verdade", bool(m) and int(m.group(1)) > 50,
-      "linha de seleção: %r" % (m.group(0) if m else saida[:200]))
+# ⚠️ NÃO se roda a esteira aqui. A versão anterior chamava `suite.sh --timeout 1`
+# achando que o teto de 1s a faria voltar rápido — mas o teto é POR SUÍTE, não da
+# rodada, e as 135 continuam saindo. O teste pendurava e morria nos 120s dele
+# (medido em 2026-08-14). O que interessa é a SELEÇÃO, e ela se mede expandindo os
+# globos da casa aqui mesmo, sem disparar processo nenhum.
+alvos = set()
+for g in da_casa:
+    alvos |= {p for p in glob.glob(g) if os.path.isfile(p)}
+check("a casa seleciona suítes de verdade", len(alvos) > 50,
+      "os globos da casa expandem para %d arquivo(s)" % len(alvos))
+
+# E a seleção cobre TUDO que o git rastreia como suíte — a esteira em duas fases
+# não pode ter deixado ninguém de fora ao dividir os globos.
+r = subprocess.run(["git", "ls-files"], capture_output=True, text=True,
+                   encoding="utf-8", errors="replace", cwd=RAIZ, timeout=60,
+                   stdin=subprocess.DEVNULL, start_new_session=True)
+rastreadas = {f for f in r.stdout.split()
+              if re.search(r"(^|/)test_[^/]*\.(py|sh)$", f)}
+fora = sorted(rastreadas - alvos)
+check("nenhuma suíte rastreada ficou fora da esteira", not fora,
+      "de fora: %s" % fora[:6])
 
 print("\nsuite-casa-única: %d ok, %d falhas" % (ok, falhas))
 sys.exit(1 if falhas else 0)

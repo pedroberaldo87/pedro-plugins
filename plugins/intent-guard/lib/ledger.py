@@ -27,6 +27,14 @@ import time
 
 ESPERA_TRAVA_S = 5.0   # teto da espera pela trava (ver `locked`)
 
+# Teto dos comandos git deste módulo. Era 5s, e 5s mede a MÁQUINA: com a esteira
+# rodando 8 suítes em paralelo, o `git` estoura, a exceção é engolida, o tree-hash
+# volta vazio e o veredito do auditor deixa de bater — a suíte do gate de entrega
+# caía de forma intermitente por isso (medido em 2026-08-14). O git aqui é local e
+# barato; o teto existe para não pendurar, não para arbitrar desempenho.
+GIT_TIMEOUT_S = 60
+
+
 # CANAIS DE TEXTO EM UTF-8, SEMPRE. No Windows eles nascem na codificação do sistema
 # (cp1252) e o payload do evento — que chega por stdin — é UTF-8: sem isto, todo
 # acento do pedido do usuário chega corrompido ao gate, e emoji derruba a escrita.
@@ -45,7 +53,7 @@ CLASSES = ("pedido", "correcao", "restricao", "conversa")
 def project_root(cwd):
     try:
         r = subprocess.run(["git", "-C", cwd, "rev-parse", "--show-toplevel"],
-                           capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=5, stdin=subprocess.DEVNULL, start_new_session=True)
+                           capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=GIT_TIMEOUT_S, stdin=subprocess.DEVNULL, start_new_session=True)
         if r.returncode == 0 and r.stdout.strip():
             return r.stdout.strip()
     except Exception:
@@ -84,7 +92,7 @@ def ensure_exclude(cwd):
         return
     try:
         r = subprocess.run(["git", "-C", root, "rev-parse", "--git-path", "info/exclude"],
-                           capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=5, stdin=subprocess.DEVNULL, start_new_session=True)
+                           capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=GIT_TIMEOUT_S, stdin=subprocess.DEVNULL, start_new_session=True)
         if r.returncode != 0 or not r.stdout.strip():
             return
         p = r.stdout.strip()
@@ -287,7 +295,7 @@ def tree_hash(cwd):
         return ""
     try:
         r = subprocess.run(["git", "-C", root, "rev-parse", "--git-dir"],
-                           capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=5, stdin=subprocess.DEVNULL, start_new_session=True)
+                           capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=GIT_TIMEOUT_S, stdin=subprocess.DEVNULL, start_new_session=True)
         if r.returncode != 0:
             return ""
     except Exception:
