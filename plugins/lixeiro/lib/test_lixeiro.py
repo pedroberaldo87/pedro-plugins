@@ -97,8 +97,19 @@ eq(lixeiro.classifica("flutter run -d ios"), "servico", "flutter no simulador é
 eq(lixeiro.classifica("ngrok http 3000"), "servico", "túnel é serviço")
 eq(lixeiro.classifica("/usr/local/bin/postgres -D /data"), "intocavel", "postgres nativo guarda estado")
 eq(lixeiro.classifica("redis-server /etc/redis.conf"), "intocavel", "redis nativo guarda estado")
+eq(lixeiro.classifica("deno test --allow-read"), "efemero", "suíte de deno é efêmera")
+eq(lixeiro.classifica("hugo server -D"), "servico", "hugo servindo é serviço")
+eq(lixeiro.classifica("kubectl port-forward svc/db 5432:5432"), "servico", "port-forward é túnel")
+eq(lixeiro.classifica("minio server /data"), "intocavel", "minio guarda estado")
 eq(lixeiro.classifica("git status"), None, "comando comum não é abridor")
 eq(lixeiro.classifica("ls -la"), None, "listar arquivo não é abridor")
+# Os cortes por bom senso: espera de rede é ociosa e legítima — não pode ter classe.
+eq(lixeiro.classifica("git clone https://github.com/x/repo.git"), None,
+   "git clone fica sem classe: rede lenta parece travamento")
+eq(lixeiro.classifica("terraform plan -out=tf.plan"), None,
+   "terraform fica sem classe: segura lock de estado remoto")
+eq(lixeiro.classifica("curl -N https://api.exemplo.com/stream?utm_source=x"), None,
+   "curl com utm_source na URL não vira intocável nem abridor")
 
 print("── intocáveis: a lista que nunca recebe sinal ──")
 for cmd in ["/opt/homebrew/bin/limactl hostagent --pidfile x",
@@ -688,13 +699,23 @@ lixeiro.grava_registro({"session_id": SID_G, "dono_pid": meu_pid, "anotacoes": [
     {"cmd": "npm run dev", "cwd": "/proj/que-nao-existe-em-lugar-nenhum",
      "classe": "servico", "em": time.time(), "cpu_ultimo_turno": None},
 ]})
-# Pelo caminho de verdade: é o que `stop-colhe-turno.sh` chama.
-lixeiro.main(["lixeiro.py", "colhe-turno", "--sessao", SID_G])
-eq(len(lixeiro.le_registro(SID_G)["anotacoes"]), 1,
-   "anotação que não casou nada SOBREVIVE à primeira rodada")
-lixeiro.main(["lixeiro.py", "colhe-turno", "--sessao", SID_G])
-eq(len(lixeiro.le_registro(SID_G)["anotacoes"]), 0,
-   "e some na rodada seguinte, quando a falta de processo se confirma")
+# A tabela de processos é PLANTADA, e não lida da máquina: onde não existe `ps`
+# (o Windows) a leitura devolve lista vazia, a limpeza sai pela porta do fail-safe
+# — "não sei ler, não descarto nada" — e a anotação nunca some. O teste passava a
+# medir a máquina em vez da regra das duas rodadas. Um processo alheio basta: ele
+# prova que a tabela foi lida, sem casar a anotação.
+_real_procs = lixeiro.processos
+lixeiro.processos = lambda: [proc(9999, "sshd: alguem@pts/0", idade=9000)]
+try:
+    # Pelo caminho de verdade: é o que `stop-colhe-turno.sh` chama.
+    lixeiro.main(["lixeiro.py", "colhe-turno", "--sessao", SID_G])
+    eq(len(lixeiro.le_registro(SID_G)["anotacoes"]), 1,
+       "anotação que não casou nada SOBREVIVE à primeira rodada")
+    lixeiro.main(["lixeiro.py", "colhe-turno", "--sessao", SID_G])
+    eq(len(lixeiro.le_registro(SID_G)["anotacoes"]), 0,
+       "e some na rodada seguinte, quando a falta de processo se confirma")
+finally:
+    lixeiro.processos = _real_procs
 
 print("── a família: processos idênticos numa linha só ──")
 # Quinze trabalhadores do mesmo compilador são UMA decisão. O que o usuário
