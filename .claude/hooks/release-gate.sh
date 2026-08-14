@@ -84,6 +84,61 @@ FILES=$( { git -C "$ROOT" diff --cached --name-only
 
 VIOL=""
 
+# ── O PORTÃO NÃO MORRE CALADO (F17.1) ────────────────────────────────────────
+# Este hook tem um teto no `.claude/settings.json`, e o harness o MATA quando ele
+# estoura. Hook morto no teto é hook que não respondeu, e PreToolUse sem resposta
+# é fail-open: o commit passa SEM verificação nenhuma. Medido em 2026-08-14: o
+# portão levava 4min57 a 8min50 com o teto em 60s — todo commit desde que ele
+# ficou lento entrou sem gate, e foi assim que `cfc1090` publicou o espelho do
+# lixeiro quebrado. O portão cresceu de 192 para 565 linhas com o teto parado.
+#
+# Agora ele sabe do próprio teto e se antecipa: passou do prazo, PARA e RECUSA,
+# dizendo o que já mediu e o que ficou sem medir. É fail-CLOSED de propósito, e a
+# diferença para a convenção fail-open da casa é a evidência: fail-open protege o
+# caso "não tenho como medir" (sem git, sem python3, fora do repo); aqui o portão
+# ESTAVA medindo e não coube — deixar passar seria dizer verde sem ter olhado.
+#
+# `SECONDS` é do bash e não custa processo (o `date` custaria, e este bloco roda
+# entre cada check). `PORTAO_DEADLINE_S=0` desliga a trava; a suíte usa isso para
+# forçar o estouro sem esperar minutos.
+PORTAO_INICIO=$SECONDS
+PORTAO_TETO=$(python3 -c '
+import json, sys
+try:
+    d = json.load(open(".claude/settings.json"))
+    for grupo in d.get("hooks", {}).get("PreToolUse", []):
+        for h in grupo.get("hooks", []):
+            if "release-gate" in h.get("command", ""):
+                print(int(h.get("timeout", 0))); sys.exit(0)
+except Exception:
+    pass
+print(0)' 2>/dev/null) || PORTAO_TETO=0
+# A margem existe para o portão conseguir IMPRIMIR antes de o harness o matar:
+# recusa que não chega na tela é a mesma morte calada com outro nome.
+PORTAO_MARGEM=${PORTAO_MARGEM_S:-20}
+PORTAO_DEADLINE=${PORTAO_DEADLINE_S-$(( PORTAO_TETO > PORTAO_MARGEM ? PORTAO_TETO - PORTAO_MARGEM : 0 ))}
+PORTAO_FEITO=""
+portao_prazo() {
+  # Chamado entre os checks: registra o que acabou de rodar e aborta se estourou.
+  PORTAO_FEITO="${PORTAO_FEITO}${PORTAO_FEITO:+, }$1"
+  [ "${PORTAO_DEADLINE:-0}" -gt 0 ] || return 0
+  [ $(( SECONDS - PORTAO_INICIO )) -ge "$PORTAO_DEADLINE" ] || return 0
+  cat >&2 <<EOF
+🚧 release-gate (pedro-plugins) RECUSOU o commit por NÃO TER CONSEGUIDO MEDIR:
+
+❌ O portão passou de ${PORTAO_DEADLINE}s (teto do hook: ${PORTAO_TETO}s) e parou no meio.
+   Já tinha medido: ${PORTAO_FEITO}
+   NÃO chegou a medir o resto — então ninguém pode dizer que este commit está limpo.
+
+   Isto NÃO é o portão implicando: é ele se recusando a mentir. Antes desta trava
+   o harness o matava no teto e o commit passava sem verificação nenhuma.
+
+   → Rode a esteira à mão (bash scripts/suite.sh) e commite de novo, ou suba o
+     teto do hook em .claude/settings.json se o portão cresceu de vez.
+EOF
+  exit 2
+}
+
 # A · vendoring de _shared/ (o único "build" do monorepo)
 if [ -x "$ROOT/scripts/sync-shared.sh" ] || [ -f "$ROOT/scripts/sync-shared.sh" ]; then
   if ! OUT=$(bash "$ROOT/scripts/sync-shared.sh" --check 2>&1); then
@@ -170,6 +225,8 @@ print("\n".join(viol))
 [ -n "$PYOUT" ] && VIOL="${VIOL}
 ${PYOUT}"
 
+portao_prazo "A+A2 (vendoring, contrato de tier, espelho de versão)"
+
 # D · testes dos plugins tocados (stdlib, segundos)
 for name in $(printf '%s\n' "$FILES" | sed -n 's#^plugins/\([^/]*\)/.*#\1#p' | sort -u); do
   for t in "$ROOT/plugins/$name/lib/"test_*.py; do
@@ -181,6 +238,8 @@ $(printf '%s' "$OUT" | tail -15)"
     fi
   done
 done
+
+portao_prazo "D (suítes dos plugins tocados)"
 
 # D2 · suíte de _shared/ — a FONTE do código vendorado.
 # O check D varre plugins/<nome>/lib/test_*.py e o F varre plugins/<nome>/hooks/test_*.sh:
@@ -198,6 +257,8 @@ $(printf '%s' "$OUT" | tail -15)"
     fi
   done
 fi
+
+portao_prazo "D2 (suíte de _shared)"
 
 # E · contrato dos hooks — só o que PIOROU vs o retrato congelado.
 # Comparar com o baseline (e não exigir zero) é o que impede a regra de apodrecer:
@@ -279,6 +340,8 @@ ${GOUT}
    → régua: grep -rn 'gen=[0-9]\+\.[0-9]\+' plugins/project-skills/skills/"
   fi
 fi
+
+portao_prazo "E+G (contrato dos hooks, gen das skills)"
 
 # H · dado pessoal em arquivo que vai pro repo público.
 # Este marketplace é público e instalado por terceiros: nome do dono, caminho da máquina
@@ -380,6 +443,8 @@ $(printf '%s' "$NOUT" | head -20)
    → régua: python3 scripts/desacoplamento_check.py"
   fi
 fi
+
+portao_prazo "H..N (repo público, régua de estilo, README, acoplamento)"
 
 # T · a cadeia de entrega: escrito → publicado → mandado instalar.
 # Plugin que nasce em plugins/ e não entra no marketplace.json não chega em máquina
@@ -498,6 +563,8 @@ $(printf '%s' "$SOUT" | head -12)
    → régua: python3 scripts/autopsia_check.py"
   fi
 fi
+
+portao_prazo "T..S (cadeia, vazamento, caminho-texto, worktree, autópsia)"
 
 # F · suites shell dos plugins tocados (as .py já foram no gate D)
 for name in $(printf '%s\n' "$FILES" | sed -n 's#^plugins/\([^/]*\)/.*#\1#p' | sort -u); do
