@@ -40,6 +40,24 @@ CWD="$(hj_campo "$INPUT" cwd)"; [ -n "$CWD" ] || CWD="$PWD"
 # sem session_id não dá pra escopar por sessão → não age
 [ -n "$SID" ] || exit 0
 
+# SÓ TURNO RELEVANTE PAGA AUDITORIA (2026-08-14, ordem do usuário). A promessa do
+# cabeçalho — "sessão teve trabalho (sentinela do mark-work)" — nunca tinha virado
+# código: o gate cobrava auditoria em turno de pura conversa, desde que existisse
+# commit novo de QUALQUER origem. A sentinela nasce no mark-work.sh quando ESTA
+# sessão edita arquivo; sem ela, o turno é conversa e o gate fica mudo.
+[ -f "${TMPD}/intent-guard-work-${SID}" ] || exit 0
+
+# COM O MOTOR DO /sprint ARMADO, O GATE FICA MUDO (mesma ordem). Dois motivos, os
+# dois medidos hoje: (1) o motor commita a cada bloco verde — cada commit dele fazia
+# TODO turno do usuário encontrar "commit novo" e pagar cobrança, sem o usuário ter
+# entregue nada; (2) o bloqueio manda despachar um subagente auditor, e o gate do
+# próprio sprint NEGA despacho de subagente com a missão armada — o turno ficava
+# girando entre dois hooks que se contradizem, sem ter como terminar. A obra do
+# motor tem auditoria própria (revisor por tarefa, por bloco e geral + qa-loop);
+# a cobrança deste gate volta sozinha quando o sinal apaga.
+SINAL_SPRINT="${CLAUDE_CONFIG_DIR:-$HOME/.claude}/andamento/sinal-${SID}"
+[ -f "$SINAL_SPRINT" ] && exit 0
+
 # GATILHO = COMMIT NOVO, não fim de turno (decisão de projeto, 2026-07-24).
 # Turno é a unidade do Claude; commit é o marco em que o USUÁRIO decidiu que o
 # trabalho virou entrega. Cobrar a cada turno interrompia no meio de um ciclo e

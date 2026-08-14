@@ -83,6 +83,25 @@ mkin() { printf '{"session_id":"dasid","cwd":"%s"}' "$REPO"; }
 printf 'faz X' | python3 "$L" record-raw --cwd "$REPO" --session dasid --text-stdin
 printf '%s' '{"ev":"classify","raw":"r-1","class":"pedido","resumo":"X","substitui":null}' | python3 "$L" apply --cwd "$REPO"
 
+# 0a. SEM a sentinela de trabalho o gate é MUDO (2026-08-14, ordem do usuário):
+# sessão de pura conversa não paga auditoria, por mais commit novo que haja.
+# A promessa estava no cabeçalho do hook desde sempre — e nunca tinha virado código:
+# o gate cobrava em todo turno, e cada cobrança girava um juiz de 60s no Stop.
+OUT="$(mkin | bash "$HERE/delivery-audit.sh")"; [ -z "$OUT" ]
+[ ! -f "$TMPD"/intent-guard-seenhead-dasid ]   # nem o marco nasce: o gate nem olhou o git
+
+# a sessão "trabalhou": a sentinela que o mark-work.sh grava no Edit/Write
+touch "$TMPD/intent-guard-work-dasid"
+
+# 0b. COM o motor do /sprint armado o gate é MUDO: o motor commita a cada bloco
+# (todo turno acharia "commit novo"), e o bloqueio manda despachar subagente que o
+# gate do próprio sprint nega — os dois hooks se contradizem e o turno gira sem fim.
+SINAL_DIR="${CLAUDE_CONFIG_DIR:-$HOME/.claude}/andamento"
+SINAL_JA_EXISTIA=0; [ -f "$SINAL_DIR/sinal-dasid" ] && SINAL_JA_EXISTIA=1
+mkdir -p "$SINAL_DIR"; printf 'teste' > "$SINAL_DIR/sinal-dasid"
+OUT="$(mkin | bash "$HERE/delivery-audit.sh")"; [ -z "$OUT" ]
+[ "$SINAL_JA_EXISTIA" = 1 ] || rm -f "$SINAL_DIR/sinal-dasid"
+
 # 1. primeira passada da sessão → só registra o HEAD de partida, não cobra
 OUT="$(mkin | bash "$HERE/delivery-audit.sh")"; [ -z "$OUT" ]
 [ -f "$TMPD"/intent-guard-seenhead-dasid ]
@@ -129,6 +148,7 @@ git -C "$REPO4" -c user.email=t@t -c user.name=t commit -qm i
 git -C "$REPO4" remote add origin "$BARE"; git -C "$REPO4" push -q -u origin HEAD
 printf 'commit push' | python3 "$L" record-raw --cwd "$REPO4" --session escsid --text-stdin
 printf '%s' '{"ev":"classify","raw":"r-1","class":"pedido","resumo":"commit push","substitui":null,"verify":"git_synced"}' | python3 "$L" apply --cwd "$REPO4"
+touch "$TMPD/intent-guard-work-escsid"   # a sessão "trabalhou" (pré-condição do gate)
 ESC() { printf '{"session_id":"escsid","cwd":"%s"}' "$REPO4"; }
 OUT="$(ESC | bash "$HERE/delivery-audit.sh")"; [ -z "$OUT" ]   # marca o HEAD de partida
 echo "x" >> "$REPO4/f"; git -C "$REPO4" add -A
@@ -154,6 +174,7 @@ echo '{"classify":[{"ev":"classify","raw":"r-1","class":"pedido","resumo":"W","s
 EOF
 chmod +x "$MOCKD/mock_classify_pedido.sh"
 export INTENT_GUARD_JUDGE_CMD="$MOCKD/mock_classify_pedido.sh"
+touch "$TMPD/intent-guard-work-pendsid"   # a sessão "trabalhou" (pré-condição do gate)
 P2() { printf '{"session_id":"pendsid","cwd":"%s"}' "$REPO2"; }
 OUT="$(P2 | bash "$HERE/delivery-audit.sh")"; [ -z "$OUT" ]   # marca o HEAD
 commit_new "$REPO2" c1
@@ -172,6 +193,7 @@ echo '{"classify":[{"ev":"classify","raw":"r-1","class":"conversa","resumo":"","
 EOF
 chmod +x "$MOCKD/mock_classify_conversa.sh"
 export INTENT_GUARD_JUDGE_CMD="$MOCKD/mock_classify_conversa.sh"
+touch "$TMPD/intent-guard-work-convsid"   # a sessão "trabalhou" (pré-condição do gate)
 P3() { printf '{"session_id":"convsid","cwd":"%s"}' "$REPO3"; }
 OUT="$(P3 | bash "$HERE/delivery-audit.sh")"; [ -z "$OUT" ]
 commit_new "$REPO3" c1
@@ -184,6 +206,7 @@ touch "$REPO_SPACE/f"; git -C "$REPO_SPACE" add -A
 git -C "$REPO_SPACE" -c user.email=t@t -c user.name=t commit -qm i
 printf 'faz Z' | python3 "$L" record-raw --cwd "$REPO_SPACE" --session spacesid --text-stdin
 printf '%s' '{"ev":"classify","raw":"r-1","class":"pedido","resumo":"Z","substitui":null}' | python3 "$L" apply --cwd "$REPO_SPACE"
+touch "$TMPD/intent-guard-work-spacesid"   # a sessão "trabalhou" (pré-condição do gate)
 PS_() { printf '{"session_id":"spacesid","cwd":"%s"}' "$REPO_SPACE"; }
 OUT="$(PS_ | bash "$HERE/delivery-audit.sh")"; [ -z "$OUT" ]
 commit_new "$REPO_SPACE" c1
