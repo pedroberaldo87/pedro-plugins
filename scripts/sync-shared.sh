@@ -166,6 +166,7 @@ SPECS=(
   "plugins/bootstrap/hooks::lib-lar-fingido.sh"
   "plugins/guardrails/hooks::lib-lar-fingido.sh"
   "plugins/project-skills/hooks::lib-lar-fingido.sh"
+  "plugins/intent-guard/hooks::lib-lar-fingido.sh"
   # O green-cache do qa-loop mora em lib/, não em hooks/ — a cópia acompanha ele.
   # O aviso de dependência ausente: UMA cópia só, no bootstrap. Os outros doze
   # plugins que avisam acham esta pelo NOME do plugin (resolve-plugin.sh), em vez

@@ -25,9 +25,36 @@ check() {
 
 echo "F17.1 — o portão recusa quando não consegue medir"
 
+# ⚠️ O PORTÃO SÓ TRABALHA COM ARQUIVO NO COMMIT. Ele sai cedo em
+# `[ -n "$FILES" ] || exit 0` quando não há staged nem modificado — e aí nunca
+# chega ao bloco do prazo. A primeira versão desta suíte não sabia disso e passou
+# POR ACIDENTE: a árvore estava suja na hora em que foi escrita. Com a árvore
+# limpa ela reprovou, e quem pegou foi a guarda de saúde do motor, medindo as 135
+# suítes na largada. É a mesma doença que a fase F17 cura, agora dentro do próprio
+# teste dela: verde que veio do ambiente, não da coisa medida.
+#
+# Então a suíte monta o estado de que precisa: modifica um arquivo inócuo do
+# repositório, roda, e restaura SEMPRE (o trap cobre inclusive a saída por erro).
+# Arquivo NOVO não serve: untracked fica de fora do FILES de propósito. O que o
+# portão enxerga é tracked-modificado, então a isca é um arquivo já versionado —
+# e o backup mora FORA do repositório, senão a cópia órfã sujaria a árvore que
+# esta suíte precisa devolver limpa.
+ISCA_REAL="$RAIZ/.claude/hooks/release-gate.sh"
+ISCA="${TMPDIR:-/tmp}/prazo-isca-$$"
+cp "$ISCA_REAL" "$ISCA"
+printf '\n# isca da suíte de prazo (removida ao fim)\n' >> "$ISCA_REAL"
+# Restaura o arquivo E apaga o backup, em TODA saída — inclusive a que der erro.
+restaura() { [ -f "$ISCA" ] && mv -f "$ISCA" "$ISCA_REAL"; rm -f "$ISCA"; }
+trap restaura EXIT
+
+SUJOS=$(cd "$RAIZ" && git diff --name-only | wc -l | tr -d ' ')
+check "a suíte montou o estado de que o portão precisa" \
+      "$([ "$SUJOS" -gt 0 ] && echo 1 || echo 0)" \
+      "com a árvore limpa o portão sai antes do prazo e o teste mediria nada"
+
 # Deadline de 1s força o estouro no primeiro ponto de verificação, sem esperar os
 # minutos reais. É o mesmo caminho do estouro de verdade — muda só o relógio.
-SAIDA=$(printf '%s' "$PAYLOAD" | PORTAO_DEADLINE_S=1 bash "$PORTAO" 2>&1)
+SAIDA=$(cd "$RAIZ" && printf '%s' "$PAYLOAD" | PORTAO_DEADLINE_S=1 bash "$PORTAO" 2>&1)
 CODIGO=$?
 check "estourado o prazo, o portão RECUSA (exit 2)" "$([ "$CODIGO" = "2" ] && echo 1 || echo 0)" "exit=$CODIGO"
 case "$SAIDA" in

@@ -266,6 +266,15 @@ EXEC_ARTIFACTS = (
     # hash), mas projeto que VERSIONA build cairia no mesmo defeito. Preventivo.
     "dist", "build", ".vite", ".next", ".turbo",
     "playwright-report", "test-results", "coverage",
+    # O PRÓPRIO ESTADO DO INTENT-GUARD, e este é o caso mais afiado da lista: o
+    # veredito do auditor nasce em `.claude/intent/audit-*.json` CARIMBANDO o
+    # tree-hash do momento — mas escrever esse arquivo muda a árvore, e portanto
+    # muda o hash que ele acabou de carimbar. O auditor nunca podia bater com o
+    # tree que ele mesmo auditou. Medido em 2026-08-14: a suíte do gate de entrega
+    # caía de forma intermitente no caso do "audit válido no tree atual", e a
+    # intermitência vinha de quando o disco terminava a escrita. Gate que corre
+    # contra o próprio artefato mede a si mesmo, não o trabalho.
+    ".claude/intent",
 )
 
 

@@ -4,11 +4,31 @@
 # acontece quando aparece commit novo. Antes o gatilho era "mexeu em arquivo",
 # o que fazia um agente caro rodar a cada turno.
 set -euo pipefail
+# ── REPROVAR SEM DIZER POR QUÊ É METADE DE UM MEDIDOR ─────────────────────────
+# As asserções aqui são `[ -z "$OUT" ]` e `grep -q` nus: com `set -e`, falhar
+# derruba o script SEM imprimir nada. Medido em 2026-08-14: a esteira acusou esta
+# suíte com "(sem detalhe impresso)", e descobrir a linha exigiu rodá-la à mão
+# várias vezes. Este trap troca o silêncio pela linha e pelo comando que caíram —
+# é a mesma régua que o resto do repositório cobra dos gates.
+trap 'c=$?; [ "$c" -ne 0 ] && printf "FALHOU na linha %s: %s (exit %s)\n" "$LINENO" "$BASH_COMMAND" "$c" >&2; exit $c' ERR
 # O hook grava no temporário DO SISTEMA — a suíte pergunta pelo mesmo caminho
 # que ele, em vez de assumir /tmp.
 # shellcheck source=/dev/null
 . "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/lib-tmpdir.sh"
 TMPD=$(td_tmpdir)
+# ── O LAR É FINGIDO, E POR ISSO ESTA SUÍTE PODE RODAR EM PARALELO ────────────
+# O `delivery-audit.sh` lê `${CLAUDE_CONFIG_DIR:-$HOME/.claude}/intent-guard/mode`
+# e escreve estado por sessão. Sem fingir o lar, esta suíte usava o lar REAL de
+# quem a roda — e, com ids de sessão fixos, ela e a `test_task_checkpoint.sh`
+# pisavam uma na outra quando a esteira as disparava ao mesmo tempo. Medido em
+# 2026-08-14: em série as duas passam (150s e 235s); em paralelo, as duas caem.
+# Foi a guarda de saúde do motor que pegou, na primeira largada em que a esteira
+# realmente rodou — antes disso o comando media zero suítes e dizia verde.
+# shellcheck source=/dev/null
+. "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/lib-lar-fingido.sh"
+LAR_DA="$(mktemp -d "$TMPD"/ig-da-lar-XXXXXX)"
+lar_fingido_exporta "$LAR_DA"
+export CLAUDE_CONFIG_DIR="$LAR_DA/.claude"
 HERE="$(cd "$(dirname "$0")" && pwd)"
 export CLAUDE_PLUGIN_ROOT="$(dirname "$HERE")"
 L="$CLAUDE_PLUGIN_ROOT/lib/ledger.py"
@@ -16,8 +36,35 @@ L="$CLAUDE_PLUGIN_ROOT/lib/ledger.py"
 REPO_SPACE=""
 # Mocks do juiz em temporário POR EXECUÇÃO — ver test_task_checkpoint.sh.
 MOCKD="$(mktemp -d "$(td_tmpdir)"/ig-da-mock-XXXXXX)"
-trap 'rm -rf "${REPO:-}" "${REPO2:-}" "${REPO3:-}" "${REPO4:-}" "$REPO_SPACE" "${BARE:-}" "$MOCKD";
+
+# ── O JUIZ É MOCK DESDE A PRIMEIRA LINHA, NUNCA O MODELO DE VERDADE ──────────
+# Sem `INTENT_GUARD_JUDGE_CMD` o hook chama `claude -p --model haiku` (linha 85
+# do delivery-audit.sh) para classificar o cru. Os casos 1 a 7 desta suíte não
+# definiam o mock, então mediam o veredito de um MODELO: lento, pago, e — o que
+# importa aqui — não-determinístico. Medido em 2026-08-14: rodando em paralelo
+# com as vizinhas, a suíte caía ora na linha 60, ora na 70, ora passava. Teste
+# que muda de resposta sem o código mudar não é teste, é sorteio.
+# O mock sai NÃO-ZERO de propósito: é o caminho do "juiz indisponível", que o
+# hook trata como fail-open ("segue com o que já estava classificado"). É esse o
+# comportamento que os casos 1-7 sempre mediram — só que por acidente, quando a
+# chamada real ao modelo falhava ou demorava. Agora é escolha declarada, e o
+# resultado não depende mais de quem responde do outro lado da rede.
+cat > "$MOCKD/mock_classify_mudo.sh" <<'EOF'
+#!/usr/bin/env bash
+cat >/dev/null
+exit 1
+EOF
+chmod +x "$MOCKD/mock_classify_mudo.sh"
+export INTENT_GUARD_JUDGE_CMD="$MOCKD/mock_classify_mudo.sh"
+trap 'rm -rf "${REPO:-}" "${REPO2:-}" "${REPO3:-}" "${REPO4:-}" "$REPO_SPACE" "${BARE:-}" "$MOCKD" "${LAR_DA:-}";
       rm -f "$TMPD"/intent-guard-{work,stopdeny,seenhead}-{dasid,spacesid,pendsid,convsid,escsid}' EXIT
+# ⚠️ E LIMPA ANTES TAMBÉM, não só na saída. O caso 1 mede "a PRIMEIRA passada da
+# sessão", e os ids aqui são fixos: um `seenhead-dasid` sobrando de uma execução
+# anterior — que morreu no meio, ou que o trap não alcançou — faz a primeira
+# passada não ser a primeira, e o caso cai. Medido em 2026-08-14: rodando três
+# vezes seguidas em paralelo, a 1ª caía e as duas seguintes passavam. Suíte que
+# depende de não ter sobrado nada da anterior é suíte que dá resultado por sorte.
+rm -f "$TMPD"/intent-guard-{work,stopdeny,seenhead}-{dasid,spacesid,pendsid,convsid,escsid}
 
 commit_new() {  # commit_new <repo> <marca> — cria um commit novo de verdade
   echo "$2" >> "$1/work.txt"
