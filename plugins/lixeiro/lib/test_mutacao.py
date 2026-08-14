@@ -7,6 +7,7 @@ verde é trava sem cobertura — o defeito que ela previne voltaria sem que nenh
 teste percebesse. Nasceu do estrago de 2026-08-11 (suíte em andamento encerrada
 pelo fim de turno): cada trava daqui é um jeito de aquele estrago renascer.
 """
+import concurrent.futures
 import os
 import shutil
 import subprocess
@@ -60,16 +61,25 @@ def roda(de_para):
         if de_para[0] not in s:
             return "PADRÃO NÃO ENCONTRADO — a mutação não testou nada"
         open(alvo, "w", encoding="utf-8").write(s.replace(de_para[0], de_para[1]))
+    # `encoding` explícito: o console do Windows é cp1252 e a saída da suíte tem
+    # acento e traço longo — sem isto, ler o stdout do filho estoura
+    # UnicodeDecodeError e `out.stdout` volta None (medido no run 31762527054).
     out = subprocess.run([sys.executable, os.path.join(base, "lib", "test_lixeiro.py")],
-                         capture_output=True, text=True,
+                         capture_output=True, text=True, encoding="utf-8", errors="replace",
+                         env=dict(os.environ, PYTHONIOENCODING="utf-8"),
                          stdin=subprocess.DEVNULL, start_new_session=True)
     shutil.rmtree(base, ignore_errors=True)
     return (out.stdout.strip().splitlines() or ["(sem saída)"])[-1]
 
 
+# As 13 mutações rodam LADO A LADO: cada uma é uma cópia isolada do plugin, sem
+# nada compartilhado além do disco. Em fila davam 3m49s nesta máquina e não
+# cabiam no teto de 300 s por suíte da esteira — no Windows, mais lento, o teto
+# estourava e a suíte aparecia como pendurada em vez de reprovada.
 falhou_o_teste_de_mutacao = []
-for nome, de, para in MUTACOES:
-    linha = roda((de, para))
+with concurrent.futures.ThreadPoolExecutor(max_workers=4) as pool:
+    linhas = list(pool.map(roda, [(de, para) for _, de, para in MUTACOES]))
+for (nome, de, _), linha in zip(MUTACOES, linhas):
     controle = de is None
     verde = "0 falhas" in linha
     veredito = "ok" if (verde == controle) else "⚠️  TRAVA SEM COBERTURA"
