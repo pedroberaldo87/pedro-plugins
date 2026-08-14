@@ -135,7 +135,7 @@ SERVICO = [
     # O dev-server do mundo React/TypeScript, framework a framework, mais os
     # executores de TS em watch e o worker de fila do Python.
     r"\breact-scripts start\b", r"\b(?:astro|remix|gatsby) (dev|develop)\b",
-    r"\bwebpack(?:-dev-server| serve)\b", r"\bparcel\b(?!.*\bbuild\b)",
+    r"\bwebpack(?:-dev-server| serve)\b",
     r"\bts-node-dev\b", r"\btsx watch\b", r"\bdocusaurus start\b",
     r"\bcelery\b.*\bworker\b", r"\bhypercorn\b", r"\bsanic\b",
     # Tauri em desenvolvimento (o `tauri dev` cobre `cargo tauri dev` e o do npm),
