@@ -324,7 +324,7 @@
       "source": "./plugins/visual",
       "description": "CLI walls-of-text → interactive HTML dark-theme views. The page carries the EVIDENCE, not the account of it: real artifact embedded, raw output verbatim, provenance for every number — enforced by a pre-ExitPlanMode gate. Prose is REFUSED by the builder: every text field is checked (≤140 chars per bullet, one sentence each, no continuation connective, max 6 per block) and a violation aborts without writing the page. Each problem's body is born folded — the title stays visible, consequence and proposal open on click under a label derived from the content itself. Plans, diagnostics and decisions in the browser with live sync back to Claude. Regravar um plano nunca apaga em silêncio o que não veio no pacote: o init parcial FUNDE o bloco de requisitos por id — o requisito que só existe no arquivo fica, e o executor recebe a nota do que foi mantido. O cruzamento também mede o plano contra a arquitetura pretendida: funcionalidade sem peça, e requisito citando peça que o architecture-intent.md não tem, saem em listas próprias — e o mesmo vale para o desenho de funcionamento: funcionalidade sem passo do ciclo, e passo do ciclo que nenhuma funcionalidade atende.",
       "category": "productivity",
-      "version": "1.41.13",
+      "version": "1.41.14",
       "tags": [
         "visualization",
         "html",
