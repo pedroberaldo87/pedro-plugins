@@ -61,14 +61,26 @@ CAUDA_CHARS = 500
 AQUI = Path(__file__).resolve().parent
 
 
+def _posix(p):
+    """O caminho como o bash do Windows entende — barra NORMAL, sempre.
+
+    `C:\\Users\\…` chega ao Git bash como uma string sem barra nenhuma: o
+    `dirname` do `resolve-dir.sh` devolve "." já na primeira volta, a busca por
+    marcador passa a olhar o cwd do processo e o hook resolve a pasta de planos
+    ERRADA — o gate nunca vê plano aberto e cala em todo caso legítimo. Barra
+    normal o Windows aceita nos dois lados.
+    """
+    return Path(p).as_posix()
+
+
 def _plan_state():
     """O programa do plano mora no plugin `project-skills`, e e achado pelo NOME —
     caminho relativo para o vizinho nao vale no cache do harness. Ausente: ""."""
-    r = subprocess.run(["bash", str(AQUI / "resolve-plugin.sh"),
+    r = subprocess.run(["bash", _posix(AQUI / "resolve-plugin.sh"),
                         "project-skills", "lib/plan_state.py"],
                        capture_output=True, text=True, encoding="utf-8", errors="replace", stdin=subprocess.DEVNULL,
                        start_new_session=True,
-                       env=dict(os.environ, CLAUDE_PLUGIN_ROOT=str(AQUI.parent)))
+                       env=dict(os.environ, CLAUDE_PLUGIN_ROOT=_posix(AQUI.parent)))
     return (r.stdout or "").strip()
 
 
@@ -160,7 +172,7 @@ def planos_abertos(cwd):
     if not PLAN_STATE or not RESOLVE_DIR.is_file():
         return [], False
     try:
-        r = subprocess.run(["bash", str(RESOLVE_DIR), cwd, "plans"],
+        r = subprocess.run(["bash", _posix(RESOLVE_DIR), _posix(cwd), "plans"],
                            capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=10, stdin=subprocess.DEVNULL, start_new_session=True)
         plans_dir = (r.stdout or "").strip()
         de_reserva = r.returncode == 3

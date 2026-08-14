@@ -368,7 +368,7 @@ ship                1.5.4  [ship]                       HOOKS
 slides              1.6.2  [slides]                     -
 vision              0.1.1  []                           -
 vistoria           0.11.7  [vistoria]                   -
-visual            1.41.13  [andamento,visual]           HOOKS
+visual            1.41.14  [andamento,visual]           HOOKS
 ```
 
 **A rodada anterior moveu onde as skills MORAM; esta apagou as CASAS que tinham ficado
