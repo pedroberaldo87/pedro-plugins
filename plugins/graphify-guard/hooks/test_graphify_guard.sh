@@ -21,6 +21,13 @@ HOOK="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/pretooluse-graphify-guard.sh
 # shellcheck source=/dev/null
 . "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/lib-tmpdir.sh"
 TMPD=$(td_tmpdir)
+# O sentinel de sessão mora numa PASTA PRÓPRIA dentro do temporário, e não solto nele
+# (conserto de 2026-08-14): a poda lista o diretório onde procura, e o topo do
+# temporário tinha 343.936 entradas nesta máquina — 16s por chamada, num PreToolUse.
+# O teste aponta para a mesma pasta que o hook usa; se o hook voltar a escrever solto,
+# os casos de poda abaixo param de achar o que checar e reprovam.
+GG_DIR="$TMPD/claude-graphify-guard"
+mkdir -p "$GG_DIR" 2>/dev/null || true
 TMP="$(mktemp -d)"
 SESSIONS=""
 SESS=""
@@ -30,12 +37,12 @@ SESS=""
 nova_sessao() { SESS="gg-$$-$RANDOM"; SESSIONS="$SESSIONS $SESS"; }
 cleanup() {
   rm -rf "$TMP"
-  for s in $SESSIONS; do rm -f "$TMPD/claude-graphify-guard-$s"; done
+  for s in $SESSIONS; do rm -f "$GG_DIR/$s"; done
   # o caso dos dois gates roda o doc-guard de verdade, que também escreve lá
   rm -f "$TMPD"/claude-doc-guard-gg-$$-* "$TMPD"/claude-doc-guard-count-gg-$$-* 2>/dev/null
   # cinto e suspensório: poda pelo padrão desta rodada (PID), caso algum caso futuro
   # volte a criar sessão de dentro de um subshell.
-  rm -f "$TMPD"/claude-graphify-guard-gg-$$-* 2>/dev/null
+  rm -f "$GG_DIR"/gg-$$-* 2>/dev/null
 }
 trap cleanup EXIT
 
@@ -158,8 +165,8 @@ echo "── poda: sentinel de sessão morta não pode viver pra sempre no tempo
 # busca não para). Sessão morre e o arquivo fica: 55 acumulados desde 26/07 até o
 # dia em que este teste nasceu. Poda por mtime, limitada ao PRÓPRIO padrão de nome.
 old_mtime() { date -v-3d +%Y%m%d%H%M 2>/dev/null || date -d '3 days ago' +%Y%m%d%H%M; }
-S_OLD="$TMPD/claude-graphify-guard-gg-velho-$$"
-S_NEW="$TMPD/claude-graphify-guard-gg-vivo-$$"
+S_OLD="$GG_DIR/gg-velho-$$"
+S_NEW="$GG_DIR/gg-vivo-$$"
 ALHEIO="$TMPD/claude-vizinho-de-outro-hook-$$"
 : > "$S_OLD"; touch -t "$(old_mtime)" "$S_OLD"
 : > "$S_NEW"                                   # outra aba, sessão viva
@@ -216,8 +223,8 @@ echo "── poda: o gatilho é TODA busca interceptada até o nudge, não 'a pr
 # Sessão literal (não `nova_sessao`): aqui o sentinel não nasce, e o check de higiene
 # lá embaixo compara SESSIONS com os sentinels que existem de verdade.
 SP="gg-podadupla-$$"
-V1="$TMPD/claude-graphify-guard-gg-velho1-$$"
-V2="$TMPD/claude-graphify-guard-gg-velho2-$$"
+V1="$GG_DIR/gg-velho1-$$"
+V2="$GG_DIR/gg-velho2-$$"
 busca_sem_grafo() {
   jq -nc --arg s "$SP" --arg c "$NOGRAPH" \
     '{session_id:$s, cwd:$c, tool_name:"Grep", tool_input:{pattern:"foo", path:$c}}' \
@@ -227,12 +234,12 @@ busca_sem_grafo() {
 busca_sem_grafo
 check "1ª busca já roda a poda" "$(existe "$V1")" "apagado"
 check "…e não queima o sentinel da sessão (não houve nudge)" \
-  "$(existe "$TMPD/claude-graphify-guard-$SP")" "apagado"
+  "$(existe "$GG_DIR/$SP")" "apagado"
 : > "$V2"; touch -t "$(old_mtime)" "$V2"
 busca_sem_grafo
 check "2ª busca da MESMA sessão roda a poda DE NOVO (o sentinel nunca nasceu)" \
   "$(existe "$V2")" "apagado"
-rm -f "$V1" "$V2" "$TMPD/claude-graphify-guard-$SP"
+rm -f "$V1" "$V2" "$GG_DIR/$SP"
 # E o fonte tem que contar esse gatilho, com o custo que ele carrega por chamada.
 check "o fonte não descreve mais a poda como coisa de uma vez por sessão" \
   "$(grep -c 'só antes do primeiro nudge' "$HOOK")" "0"
@@ -247,7 +254,7 @@ echo "── higiene da própria suíte: o trap precisa ter o que podar ──"
 # /tmp no dia em que este caso nasceu. O id nasce no shell PAI (nova_sessao).
 check "o cleanup conhece TODO sentinel que esta rodada criou" \
   "$(set -- $SESSIONS; echo $#)" \
-  "$(ls -d "$TMPD"/claude-graphify-guard-gg-$$-* 2>/dev/null | wc -l | tr -d ' ')"
+  "$(ls -d "$GG_DIR"/gg-$$-* 2>/dev/null | wc -l | tr -d ' ')"
 
 printf '── %d passou · %d falhou ──\n' "$PASS" "$FAIL"
 [ "$FAIL" -eq 0 ]

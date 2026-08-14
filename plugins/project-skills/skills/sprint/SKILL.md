@@ -1593,6 +1593,12 @@ chamadas sem rótulo com a instrução já escrita.
   mesma lista de arquivos aparece duas vezes na linha: uma para o `add`, outra para o `commit`.
   O que era de fora segue **staged e intacto**, para a sessão dona dele.
 
+  ⚠️ **A chamada de Bash do commit vai com `timeout: 600000` no parâmetro da ferramenta.**
+  O gate de commit re-mede a árvore quando não encontra a prova da esteira e pode levar
+  minutos; com o timeout default o canal morre **antes** do veredito e o trabalho fica fora
+  do histórico (medido em 2026-08-14: 3h20 de corrida, zero commits, canal morto aos 2min).
+  Recusa do gate é resultado; canal morto não é resultado nenhum.
+
   ⚠️ **Caminho que o `git add` RECUSA não pode derrubar o salvamento.** Arquivo fora do
   repositório, ou que o executor declarou e não existe mais, faz o `add` sair não-zero — com um
   `&&` na frente do `commit`, a onda inteira ficava sem ponto de salvamento, e o `|| true` do

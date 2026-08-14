@@ -483,6 +483,12 @@ Rode, a partir de ${repoRoot}:
 
   OK=""; for f in <arquivo...>; do git -C ${repoRoot} add -- "$f" && OK="$OK $f" || echo "sprint: o git recusou $f — fica fora do ponto de salvamento da onda ${round}"; done; [ -n "$OK" ] && git -C ${repoRoot} commit -q -m "sprint: onda ${round} bloco ${bloco} verde" -- $OK || true
 
+⚠️ A chamada de Bash deste comando vai com \`timeout: 600000\` NO PARÂMETRO da ferramenta.
+O gate de commit re-mede a árvore quando não encontra a prova da esteira e pode levar
+minutos; com o timeout default o canal morre ANTES do veredito e o trabalho fica fora do
+histórico (medido em 2026-08-14: 3h20 de corrida, zero commits, canal morto aos 2min).
+Recusa do gate é resultado; canal morto não é resultado nenhum.
+
 REGRAS:
 - Os arquivos são NOMEADOS, nunca \`add -A\`: varrer a árvore engoliria trabalho de outra sessão.
 - O \`commit\` também vai por caminho, não só o \`add\` — commit sem pathspec grava o índice inteiro.

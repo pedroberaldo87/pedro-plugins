@@ -76,20 +76,39 @@ $cand"
 esac
 
 # Once-per-session: if we've already nudged, let everything through.
-SENTINEL="${TMPD}/claude-graphify-guard-${SESSION}"
+#
+# O estado mora numa PASTA PRÓPRIA, não solto no temporário. A diferença não é
+# organização, é custo: a poda logo abaixo precisa LISTAR o diretório onde procura,
+# e o temporário do macOS é compartilhado com a máquina inteira. Medido em
+# 2026-08-14 nesta máquina: 343.936 entradas no topo do temporário, e a poda levava
+# 16 SEGUNDOS por chamada — num hook de PreToolUse, isto é, em toda chamada de Bash
+# de quem tem o plugin instalado. Dentro da pasta própria só existem os sentinelas
+# desta ferramenta (um por sessão), e a mesma poda passa a custar milissegundos.
+# Sentinela do formato antigo (solto no temporário) fica órfã e o sistema a recolhe;
+# varrer o topo para apagá-la reintroduziria exatamente o custo que este conserto tira.
+SENTINEL_DIR="${TMPD}/claude-graphify-guard"
+mkdir -p "$SENTINEL_DIR" 2>/dev/null || true
+SENTINEL="${SENTINEL_DIR}/${SESSION}"
 [ -f "$SENTINEL" ] && exit 0
 
-# Poda: sessão morre e o sentinel fica. Mesma janela e mesma forma do irmão
-# (guardrails/hooks/scope-cop.sh). Restrita ao PRÓPRIO padrão de nome — nunca
-# glob amplo no temporário. Gatilho: roda em toda busca interceptada até que um nudge seja
-# emitido — quem corta é o sentinel da linha acima, e ele só nasce quando o hook de
-# fato avisa. Num projeto sem grafo o nudge nunca acontece (o exit do PROJ vazio sai
-# sem queimar o sentinel), então aqui é a sessão inteira, uma passada por busca cega.
-# Custo medido em 2026-07-30: ~6ms por chamada com ~1500 entradas no temporário — aceito.
+# Poda: sessão morre e o sentinel fica. Gatilho: roda em toda busca interceptada até
+# que um nudge seja emitido — quem corta é o sentinel da linha acima, e ele só nasce
+# quando o hook de fato avisa. Num projeto sem grafo o nudge nunca acontece (o exit do
+# PROJ vazio sai sem queimar o sentinel), então aqui é a sessão inteira, uma passada
+# por busca cega.
+#
+# ⚠️ A PODA VARRE A PASTA PRÓPRIA, NUNCA O TOPO DO TEMPORÁRIO. Um `find` custa o
+# tamanho do diretório que ele lista, não o número de arquivos que casam: com
+# 343.936 entradas no topo (medido nesta máquina em 2026-08-14) a versão anterior
+# levava 16s POR CHAMADA para apagar meia dúzia de sentinelas. A medição que a
+# aprovou dizia "~6ms com ~1500 entradas, aceito" — o número não estava errado
+# quando foi feito; ele envelheceu junto com a máquina, e nada remedia. Custo agora
+# é o da própria pasta, que tem um arquivo por sessão.
+#
 # A barra final no diretório é obrigatória: no macOS o temporário é symlink e
 # o find físico (-P, o default) não desce por um symlink dado como ponto de partida —
 # sem a barra ele casa zero arquivo e a poda vira no-op silencioso.
-find "$TMPD/" -maxdepth 1 -name 'claude-graphify-guard-*' -mtime +1 -delete 2>/dev/null
+find "$SENTINEL_DIR/" -maxdepth 1 -type f -mtime +1 -delete 2>/dev/null
 
 # Nearest ancestor of a dir that owns a graph (cheap: stat while walking up).
 find_graph_up() {

@@ -207,6 +207,95 @@ check "_shared/ intocado pelo commit não é varrido" \
   "$(printf '%s' "$out" | grep -q 'test_quebrado.py' && echo 0 || echo 1)"
 
 
+# ── D · cache verde: mesma árvore não re-roda a suíte ───────────────────────
+# O portão levava minutos e o harness o matava no teto — commit passando sem gate
+# nenhum. Quem paga o tempo é a suíte dos plugins tocados, e ela é DETERMINÍSTICA
+# no estado da árvore: mesma árvore, mesmo resultado. A prova aqui não é o relógio
+# (que mede rápido em repo de brinquedo), é o CONTADOR: a suíte anota cada vez que
+# roda, num arquivo FORA da árvore (dentro dela, o contador mudaria a chave).
+echo "Check D — cache verde (tree-hash, TTL 24h)"
+GC=$(mktemp -d "${TMPDIR:-/tmp}/green-suite-test.XXXXXX")
+trap 'rm -rf "$R" "$GC"' EXIT
+export GREEN_SUITE_DIR="$GC/registro"
+CONTADOR="$GC/rodadas"
+: > "$CONTADOR"
+git -C "$R" rm -q -f _shared/test_quebrado.py >/dev/null 2>&1
+mkdir -p "$R/_shared"
+cp "$HERE/../../_shared/green-cache.sh" "$R/_shared/"
+printf 'open(%s, "a").write("x\\n")\n' "$(python3 -c 'import json,sys;print(json.dumps(sys.argv[1]))' "$CONTADOR")" \
+  > "$R/plugins/exemplo/lib/test_conta.py"
+git -C "$R" add -A >/dev/null
+
+gate_out "git commit -m x" >/dev/null
+check "1ª rodada roda a suíte do plugin tocado" \
+  "$([ "$(wc -l < "$CONTADOR")" -eq 1 ] && echo 1 || echo 0)"
+
+T0=$SECONDS
+gate_out "git commit -m x" >/dev/null
+T2=$(( SECONDS - T0 ))
+check "2ª rodada na MESMA árvore fecha por HIT — a suíte não re-roda" \
+  "$([ "$(wc -l < "$CONTADOR")" -eq 1 ] && echo 1 || echo 0)"
+check "e a 2ª rodada fecha em menos de 60s (medido: ${T2}s)" \
+  "$([ "$T2" -lt 60 ] && echo 1 || echo 0)"
+
+printf 'x=9\n' >> "$R/plugins/exemplo/lib/mod.py"
+git -C "$R" add -A >/dev/null
+gate_out "git commit -m x" >/dev/null
+check "árvore mudada invalida o HIT e re-roda tudo" \
+  "$([ "$(wc -l < "$CONTADOR")" -eq 2 ] && echo 1 || echo 0)"
+
+# suíte VERMELHA nunca grava verde: a rodada seguinte, na mesma árvore, roda de novo
+printf 'import sys\nopen(%s, "a").write("x\\n")\nsys.exit(1)\n' \
+  "$(python3 -c 'import json,sys;print(json.dumps(sys.argv[1]))' "$CONTADOR")" \
+  > "$R/plugins/exemplo/lib/test_conta.py"
+git -C "$R" add -A >/dev/null
+gate_out "git commit -m x" >/dev/null
+gate_out "git commit -m x" >/dev/null
+check "suíte vermelha não vira HIT — roda nas duas rodadas" \
+  "$([ "$(wc -l < "$CONTADOR")" -eq 4 ] && echo 1 || echo 0)"
+
+# GREEN_SUITE_DIR segue exportado até o fim: sem ele, as rodadas seguintes gravariam
+# no registro real de ~/.claude/green-suite — teste não suja estado de máquina.
+git -C "$R" rm -q -f plugins/exemplo/lib/test_conta.py >/dev/null 2>&1
+
+
+# ── A prova da esteira: "full" pula os quatro blocos de suíte ───────────────
+# scripts/suite.sh verde grava "full"; o portão, com a prova na mão, não re-mede
+# (o custo real era o bloco J: 1084s de UMA suíte de scripts/, medido 2026-08-14).
+# O contador prova o pulo; o GLOB VAZIO prova que o pulo é do bloco INTEIRO — o
+# repo de brinquedo não tem os quatro globs, então J de pé sempre acusa vazio.
+echo "A prova da esteira — full pula D, D2, F e J; árvore mudada derruba a prova"
+mkdir -p "$R/scripts"
+CONTJ="$GC/rodadas-j"
+: > "$CONTJ"
+printf '#!/bin/bash\necho x >> %s\nexit 0\n' \
+  "$(python3 -c 'import json,sys;print(json.dumps(sys.argv[1]))' "$CONTJ")" \
+  > "$R/scripts/test_conta.sh"
+git -C "$R" add -A >/dev/null
+
+out=$(gate_out "git commit -m x")
+check "sem a prova, o J roda a suíte de scripts/" \
+  "$([ "$(wc -l < "$CONTJ")" -ge 1 ] && echo 1 || echo 0)"
+check "e acusa GLOB VAZIO nos globs sem arquivo — o J está mesmo de pé" \
+  "$(printf '%s' "$out" | grep -q 'GLOB VAZIO' && echo 1 || echo 0)"
+
+# a esteira "fecha verde" e grava a prova — o mesmo mark que scripts/suite.sh faz
+: > "$CONTJ"
+( cd "$R" && . _shared/green-cache.sh && green_cache_mark "$R" full suite.sh ) >/dev/null 2>&1
+out=$(gate_out "git commit -m x")
+check "com a prova full, o J não roda — contador parado" \
+  "$([ "$(wc -l < "$CONTJ")" -eq 0 ] && echo 1 || echo 0)"
+check "e sem GLOB VAZIO — o bloco foi pulado inteiro, não remendado" \
+  "$(printf '%s' "$out" | grep -q 'GLOB VAZIO' && echo 0 || echo 1)"
+
+printf 'x=11\n' >> "$R/plugins/exemplo/lib/mod.py"
+git -C "$R" add -A >/dev/null
+out=$(gate_out "git commit -m x")
+check "árvore mudada derruba a prova e o J volta a rodar" \
+  "$([ "$(wc -l < "$CONTJ")" -ge 1 ] && echo 1 || echo 0)"
+git -C "$R" rm -q -f scripts/test_conta.sh >/dev/null 2>&1
+
+
 # ── L · função nova que ninguém chama ───────────────────────────────────────
 # De quatro passos reprovados numa rodada, três tinham código bom que caminho nenhum
 # invocava. Peça que não roda não deixa suíte vermelha — sem este check, nada acusa.
