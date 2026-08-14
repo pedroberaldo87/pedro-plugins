@@ -462,6 +462,38 @@ def _marcas(cmd):
 
 
 _CWD_CACHE = {}
+_CWD_TODOS = False
+
+
+def _carrega_cwds():
+    """UMA chamada de `lsof` para a máquina inteira, em vez de uma por processo.
+
+    Medido em 2026-08-13: a varredura chamava `lsof -p <pid>` em série, com teto
+    de 5s CADA. Numa máquina com centenas de processos vivos isso é centenas de
+    chamadas enfileiradas — e processo dormindo em chamada de sistema (o caso
+    dos `rustc` no funil do `syspolicyd`) é justamente o que faz `lsof` esperar
+    o teto inteiro. O `resumo` levava minutos e parecia travado.
+
+    `-Fpn` imprime blocos `p<pid>` seguidos de `n<caminho>`; sem `-p` ele cobre
+    todos os processos de uma vez. Falha ou ausência do `lsof` deixa o cache
+    vazio, e cada consulta cai no caminho antigo — degrada, não quebra."""
+    global _CWD_TODOS
+    _CWD_TODOS = True
+    try:
+        out = subprocess.run(["lsof", "-d", "cwd", "-Fpn"],
+                             capture_output=True, text=True, encoding="utf-8", errors="replace",
+                             timeout=20, stdin=subprocess.DEVNULL, start_new_session=True)
+    except (OSError, subprocess.SubprocessError):
+        return
+    atual = None
+    for linha in out.stdout.splitlines():
+        if linha.startswith("p"):
+            try:
+                atual = int(linha[1:])
+            except ValueError:
+                atual = None
+        elif linha.startswith("n/") and atual is not None:
+            _CWD_CACHE.setdefault(atual, linha[1:])
 
 
 def cwd_de(pid):
@@ -469,6 +501,8 @@ def cwd_de(pid):
     projeto anotado — mais forte que o texto do comando, que muitas vezes não
     carrega o caminho (`next-server (v16.2.11)` é o exemplo desta máquina).
     Sem `lsof`, devolve None e o casamento cai para o texto do comando."""
+    if not _CWD_TODOS:
+        _carrega_cwds()
     if pid in _CWD_CACHE:
         return _CWD_CACHE[pid]
     val = None
