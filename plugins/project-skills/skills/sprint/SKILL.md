@@ -138,6 +138,18 @@ Sem `planIds` a trava sai de cena inteira, e o motor volta ao comportamento medi
 uma a uma com *"passo 'F21.5-R' não existe no plano"*, e o trabalho ficou no disco com o
 plano dizendo que não.
 
+### O comando da suíte vai no `args` (antes de disparar o Workflow)
+
+A casca lê o CLAUDE.md do projeto da missão, encontra o comando de suíte/checks que ele
+declara, e o passa **literal** em `suiteCmd`. É a única via pela qual essa instrução
+alcança os papéis mecânicos: o `planText` — onde a casca escreveria "rode X, nunca Y" —
+vai ao orquestrador e aos revisores e **nunca** chega à saúde nem à suíte, por
+construção. Medido em 2026-08-13: um contrato abria com o comando certo em negrito na
+primeira linha, e o agente de saúde rodou o comando proibido como primeira ação — não
+por desobediência, mas porque a instrução não tinha como alcançá-lo. Projeto sem
+declaração ⇒ deixe `null`, e o prompt manda o agente ler a declaração do projeto em vez
+de improvisar.
+
 ### A compilação cara é paga UMA vez, pela casca (obrigatório, antes de disparar o Workflow)
 
 Projeto que compila em minutos cobra esse preço **de cada executor** quando ninguém compila antes: numa execução real, **dez minutos de compilação por tarefa** foi o que empurrou o agente para o segundo plano — e processo em segundo plano que morre não avisa. A compilação é paga **aqui, uma vez**, e o que os executores herdam é o **cache quente** no disco do repositório.
@@ -175,6 +187,8 @@ O resultado vai no `args` do Workflow como **`buildWarm`**, e de lá para **todo
 | `blocoMax` | `4` | **O grão do ciclo curto.** A onda sai em blocos desse tamanho, e CADA bloco fecha o ciclo inteiro: revisor por tarefa → revisão do bloco → suíte → marcação → commit → doc → colheita (decisão do dono, 2026-08-09). O primeiro bloco que traz falha **fecha a onda ali**: o resto volta pro orquestrador sem ser despachado. Bloco maior = menos ciclos e mais trabalho perdido quando a premissa fura cedo. **O tamanho que mede o dano de falhar cedo é o da LEVA, não o do bloco** — ver `levaMax` abaixo. |
 | `levaMax` | `12` | **Teto da leva.** Quantas tarefas o motor despacha numa rodada. O que passa disso **não é falha**: fica na fila da rodada seguinte, e o corte acontece antes da regra de pular. Sem este teto, uma leva de 53 tarefas perdeu 45 numa falha do segundo bloco (2026-08-10) — todas decompostas pelo papel mais caro do motor para nunca serem despachadas. |
 | `tetoExecutorMin` | `20` | **Teto de um executor só.** Minutos que um executor tem para entregar; passou disso, ele devolve `espera: true` e a rodada fecha com quem voltou. É teto **por agente**, não da onda — o vigia acima olha o motor inteiro e não enxerga um agente ciclando dentro de uma onda viva. |
+| `suiteCmd` | `null` | **O comando declarado da casa, para os papéis mecânicos.** A casca o lê do CLAUDE.md do projeto da missão e o passa literal; `saudePrompt` e `runSuitePrompt` o escrevem no corpo — é a ÚNICA via, porque o `planText` vai ao orquestrador e aos revisores e **nunca** chega à saúde nem à suíte, por construção. Sem ele, o prompt manda o agente ler a declaração do projeto em vez de improvisar: um agente improvisando rodou o comando proibido da casa e pendurou 58 min num daemon doente (2026-08-13). |
+| `tetoMecanicoMin` | `10` | **Teto de relógio dos papéis mecânicos** (saúde e suíte), pelo mesmo mecanismo em prosa do executor: marca a hora ao começar, estourou devolve com o motivo escrito — a saúde fail-open (`fechada: false`), a suíte como porta fechada (`green: false` com o placar dizendo onde travou). Sem ele, agente mecânico pendurado no meio da rodada era invisível para TODOS os freios: o vigia só conta rodadas que fecham, e o `tetoExecutorMin` só fala com executor. |
 
 Precedência: flag da invocação > default acima. A casca **sempre** materializa os quatro primeiros antes de disparar o Workflow — `maxRounds` ausente cai no sem-teto do próprio motor — o `|| Infinity` protege do `r < undefined` que devolvia "pronto" sem construir nada.
 
@@ -422,7 +436,11 @@ export const meta = {
 }
 
 // args (da casca): { planPath, planText, planIds, maxRounds, severityFloor, repoRoot,
-//                    churnThreshold, hasQaLoop, sessionId, motorId }
+//                    churnThreshold, hasQaLoop, sessionId, motorId, suiteCmd, tetoMecanicoMin }
+// `suiteCmd` = o comando da suíte/checks que o PROJETO declara (a casca o lê do CLAUDE.md
+// da missão). É a única via pela qual a instrução chega aos papéis mecânicos: o planText
+// vai ao orquestrador e aos revisores, NUNCA à saúde nem à suíte — sem suiteCmd eles
+// improvisavam e caíam no comando proibido da casa (medido 2026-08-13).
 // `planIds` = TODOS os ids que existem no arquivo do plano. Sem ele a trava de id
 // inventado nunca arma, e o orquestrador volta a forjar tarefa que ninguem consegue
 // marcar. A casca o extrai antes de disparar (ver o passo na secao acima).
@@ -452,6 +470,13 @@ const rodadasMudasMax = ARGS.rodadasMudasMax || 3
 // trabalho vivo não acorda o vigia, então um executor ciclando dentro dela é invisível
 // pros dois freios de cima.
 const tetoExecutorMin = ARGS.tetoExecutorMin || 20
+// PAPÉIS MECÂNICOS (2026-08-13) — o comando declarado da casa e o teto de relógio da
+// saúde e da suíte. Sem suiteCmd o agente improvisava (o planText nunca chega a esses
+// papéis, por construção) e caiu no comando proibido; sem teto, um agente pendurado no
+// meio da rodada era invisível pro vigia — que só conta rodadas FECHADAS — e consumiu
+// 58 min num log congelado.
+const suiteCmd = ARGS.suiteCmd || null
+const tetoMecanicoMin = ARGS.tetoMecanicoMin || 10
 // CACHE QUENTE (F9.34) — a casca já pagou a compilação; `=== true` porque o valor ausente
 // tem que virar `false`, e não `undefined` chegando ao executor como se fosse aviso.
 const buildWarm = ARGS.buildWarm === true
@@ -570,7 +595,7 @@ while (!built && r < maxRounds) {
   // agora é genérica: na largada de TODA rodada os checks determinísticos da casa
   // rodam UMA vez; porta fechada — qualquer porta — vira parada na hora, com a
   // saída crua colada. Fail-open: check quebrado ou agente mudo não fecha nada.
-  const saude = await agent(saudePrompt({ repoRoot: ARGS.repoRoot, round: r }),
+  const saude = await agent(saudePrompt({ repoRoot: ARGS.repoRoot, round: r, suiteCmd, tetoMin: tetoMecanicoMin }),
     { model: ARGS.model, effort: T.mechanical.effort, phase: 'Decompor',
       label: `saude:r${r}`, schema: SAUDE })
   if (saude?.fechada) {
@@ -585,7 +610,7 @@ while (!built && r < maxRounds) {
   // vermelha na largada é porta fechada com a lista colada, nunca descoberta no meio
   // da onda. Fail-open: agente mudo não fecha nada.
   if (r === 1) {
-    const base = await agent(runSuitePrompt({ repoRoot: ARGS.repoRoot, round: r, bloco: 0 }),
+    const base = await agent(runSuitePrompt({ repoRoot: ARGS.repoRoot, round: r, bloco: 0, suiteCmd, tetoMin: tetoMecanicoMin }),
       { model: ARGS.model, effort: T.mechanical.effort, phase: 'Decompor',
         label: 'suite:largada', schema: SUITE_RESULT })
     if (base && base.green === false) {
@@ -941,7 +966,7 @@ while (!built && r < maxRounds) {
 
     // 3 · SUÍTE INTEIRA — 147s por bloco, medidos; é o que separa "preservado" de
     // "gravei a quebra". Vermelha fecha a onda aqui, e nada deste bloco é marcado.
-    const suiteB = await agent(runSuitePrompt({ repoRoot: ARGS.repoRoot, round: r, bloco: b }),
+    const suiteB = await agent(runSuitePrompt({ repoRoot: ARGS.repoRoot, round: r, bloco: b, suiteCmd, tetoMin: tetoMecanicoMin }),
       { model: ARGS.model, effort: T.mechanical.effort, phase: 'Suíte', label: `suite:r${r}b${b}`, schema: SUITE_RESULT })
     // trabalho vivo protege a rodada em que foi VISTO, e só ela: guardar a última suíte
     // qualquer fazia a VERMELHA que fecha o bloco apagar o `trabalhoVivo` da verde anterior.

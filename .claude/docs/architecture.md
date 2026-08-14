@@ -363,12 +363,12 @@ improve-workflow  0.16.25  [improve-workflow]           -
 intent-guard        0.8.8  [intent-guard]               HOOKS
 lixeiro             1.4.1  [faxina]                     HOOKS
 principles          1.0.5  [principles]                 -
-project-skills    0.22.51  [completude,design-md,doc,doc-load,doc-touch,monitorar,pesquisa-referencias,plan,project-skills,qa-loop,sprint,start] HOOKS
+project-skills    0.22.54  [completude,design-md,doc,doc-load,doc-touch,monitorar,pesquisa-referencias,plan,project-skills,qa-loop,sprint,start] HOOKS
 ship                1.5.4  [ship]                       HOOKS
 slides              1.6.2  [slides]                     -
 vision              0.1.1  []                           -
 vistoria           0.11.7  [vistoria]                   -
-visual            1.41.10  [andamento,visual]           HOOKS
+visual            1.41.11  [andamento,visual]           HOOKS
 ```
 
 **A rodada anterior moveu onde as skills MORAM; esta apagou as CASAS que tinham ficado

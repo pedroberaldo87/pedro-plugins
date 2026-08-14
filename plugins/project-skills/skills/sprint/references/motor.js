@@ -159,13 +159,19 @@ REGRAS QUE NÃO SE NEGOCIAM:
 
 Devolva o JSON do schema.`
 
-const saudePrompt = ({ repoRoot, round }) => `PAPEL: MECANICO
+const saudePrompt = ({ repoRoot, round, suiteCmd, tetoMin }) => `PAPEL: MECANICO
 Rodada ${round}. Papel mecânico e SÓ: rode os checks determinísticos da casa a partir de ${repoRoot}
 e diga se a porta do repositório está FECHADA (algum deles reprova o estado atual).
 
-Descubra quais existem: os mesmos que o gate de commit do projeto consulta (leia
-.claude/hooks/release-gate.sh quando existir; neste marketplace, por exemplo,
-python3 scripts/desacoplamento_check.py). Rode cada um, capturando a saída.
+${suiteCmd
+  ? `O COMANDO DECLARADO DA CASA É: ${suiteCmd} — é ELE, literal; não escolha outro, não\namplie o escopo (medido 2026-08-13: o comando errado num projeto com daemon doente\npendurou o agente de saúde por 58 minutos).`
+  : `Descubra quais existem LENDO O QUE O PROJETO DECLARA (CLAUDE.md da raiz, depois\n.claude/hooks/release-gate.sh quando existir; neste marketplace, por exemplo,\npython3 scripts/desacoplamento_check.py). NUNCA improvise um comando de suíte que o\nprojeto não declarou — foi assim que um agente rodou o comando proibido da casa.`}
+Rode cada um, capturando a saída.
+
+TETO: ${tetoMin} minutos. Marque a hora ao começar (\`date\`). Chegou no teto sem terminar,
+PARE onde está e devolva \`fechada: false\` com \`motivo\` = "teto de ${tetoMin} min estourado
+em <qual check>". PROIBIDO laço de espera sobre saída que não cresce — check pendurado
+não é check reprovando, é infra: fail-open.
 
 Qualquer um que saia com código != 0 sobre o estado ATUAL do repositório ⇒ \`fechada: true\`,
 com \`motivo\` (uma linha) e \`saida\` (a saída crua, até 40 linhas).
@@ -402,12 +408,17 @@ ignora, ou a causa concorrente mais simples. Vá ao disco conferir.
 
 \`anchor\` = a última linha não vazia do que você leu, literal.`
 
-const runSuitePrompt = ({ repoRoot, round, bloco }) => `PAPEL: SUITE
+const runSuitePrompt = ({ repoRoot, round, bloco, suiteCmd, tetoMin }) => `PAPEL: SUITE
 Rodada ${round}. Papel mecânico e SÓ. cd ${repoRoot} e rode a suíte do repositório —
-a que o projeto declara (CLAUDE.md, Makefile, package.json); sem declaração, a LISTA
-sai deste comando, IGUAL em toda rodada da missão:
+${suiteCmd
+  ? `o COMANDO DECLARADO DA CASA, literal, e SÓ ele:\n\n  ${suiteCmd}\n\nNão amplie, não substitua, não acrescente fase que o comando não roda (medido\n2026-08-13: a fase extra que um agente acrescentou pendurou para sempre num daemon\ndoente da máquina — o comando declarado existia justamente para evitá-la).`
+  : `a que o projeto declara (CLAUDE.md, Makefile, package.json); sem declaração, a LISTA\nsai deste comando, IGUAL em toda rodada da missão:\n\n  find ${repoRoot} -path '*/node_modules' -prune -o -path '*/.git' -prune -o \\( -name 'test_*.py' -o -name 'test_*.sh' \\) -print | sort`}
 
-  find ${repoRoot} -path '*/node_modules' -prune -o -path '*/.git' -prune -o \\( -name 'test_*.py' -o -name 'test_*.sh' \\) -print | sort
+TETO: ${tetoMin} minutos. Marque a hora ao começar (\`date\`). Chegou no teto sem a suíte
+terminar, PARE, mate o processo pendurado, e devolva \`green: false\` com \`failing\` =
+[o que estava rodando] e \`placar\` = "teto de ${tetoMin} min estourado em <onde>".
+PROIBIDO laço de espera sobre log que não cresce — teto estourado é porta fechada com
+o motivo escrito, nunca espera infinita.
 
 "Os diretórios do trabalho desta missão" NÃO é critério: foi assim que a rodada 1 de uma
 corrida real rodou 43 testes, a rodada 2 rodou 120, e um vermelho PRÉ-EXISTENTE do repo
@@ -537,6 +548,12 @@ let built = false, r = 0
 const tokenBudget = ARGS.tokenBudget || null
 const rodadasMudasMax = ARGS.rodadasMudasMax || 3
 const tetoExecutorMin = ARGS.tetoExecutorMin || 20
+// Papéis mecânicos (saúde, suíte) ganham comando declarado e teto de relógio próprios
+// (2026-08-13): sem suiteCmd o agente improvisava e caía no comando proibido da casa;
+// sem teto, um agente pendurado no meio da rodada era invisível para o vigia — que só
+// conta rodadas FECHADAS — e consumiu 58 min num log congelado.
+const suiteCmd = ARGS.suiteCmd || null
+const tetoMecanicoMin = ARGS.tetoMecanicoMin || 10
 const buildWarm = ARGS.buildWarm === true
 let rodadasMudas = 0
 let trabalhoVivoEm = 0
@@ -623,7 +640,7 @@ while (!built && r < maxRounds) {
   const tier = tierFor(r)
 
   // ── GUARDA CATCHALL DE SAÚDE (autópsia 2026-08-09, decisão do dono) ─────────
-  const saude = await agent(saudePrompt({ repoRoot: ARGS.repoRoot, round: r }),
+  const saude = await agent(saudePrompt({ repoRoot: ARGS.repoRoot, round: r, suiteCmd, tetoMin: tetoMecanicoMin }),
     { model: ARGS.model, effort: T.mechanical.effort, phase: 'Decompor',
       label: `saude:r${r}`, schema: SAUDE })
   if (saude?.fechada) {
@@ -642,7 +659,7 @@ while (!built && r < maxRounds) {
   // com a lista colada, nunca descoberta no meio da onda. Fail-open: agente mudo
   // não fecha nada — o gate real continua sendo a suíte do bloco.
   if (r === 1) {
-    const base = await agent(runSuitePrompt({ repoRoot: ARGS.repoRoot, round: r, bloco: 0 }),
+    const base = await agent(runSuitePrompt({ repoRoot: ARGS.repoRoot, round: r, bloco: 0, suiteCmd, tetoMin: tetoMecanicoMin }),
       { model: ARGS.model, effort: T.mechanical.effort, phase: 'Decompor',
         label: 'suite:largada', schema: SUITE_RESULT })
     if (base && base.green === false) {
@@ -897,7 +914,7 @@ while (!built && r < maxRounds) {
     if (!aprovadas.length) continue
 
     // 3 · SUÍTE INTEIRA — vermelha fecha a onda aqui, e nada deste bloco é marcado.
-    const suiteB = await agent(runSuitePrompt({ repoRoot: ARGS.repoRoot, round: r, bloco: b }),
+    const suiteB = await agent(runSuitePrompt({ repoRoot: ARGS.repoRoot, round: r, bloco: b, suiteCmd, tetoMin: tetoMecanicoMin }),
       { model: ARGS.model, effort: T.mechanical.effort, phase: 'Suíte', label: `suite:r${r}b${b}`, schema: SUITE_RESULT })
     // trabalho vivo protege a rodada em que foi VISTO, e só ela: guardar a última suíte
     // qualquer fazia a suíte VERMELHA que fecha o bloco apagar o `trabalhoVivo` da verde

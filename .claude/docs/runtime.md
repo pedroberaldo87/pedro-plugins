@@ -382,8 +382,14 @@ revisão DO BLOCO     revisorBlocoPrompt · schema BUILD_REVIEW · os MESMOS eix
   ↓                  entregas juntas + COESÃO, sem herdar o veredito por tarefa
 suíte inteira        SUITE_RESULT — vermelha ⇒ nada deste bloco é marcado
   ↓
-marcação → commit (checkpointPrompt) → doc-touch dos arquivos do bloco → colheita
+commit (checkpointPrompt · schema CHECKPOINT_RESULT) → marcação → doc-touch → colheita
 ```
+
+**O commit vem ANTES da marcação, e o gate recusado segura o tick** (0.22.53): o
+checkpoint devolve `{committed, sha, motivo}`; `committed !== true` vira Bloqueio nomeado
+com o motivo do gate e **nenhum passo do bloco é marcado** — a prova do tique carrega o
+sha. Antes, o passo era marcado primeiro e o commit terminava em `|| true`: gate de
+release recusado deixava passo `done` sem código no histórico.
 
 **E a mesma suíte roda UMA vez na largada** (`suite:largada`, rodada 1, antes de qualquer
 executor): vermelho ali é porta fechada — defeito pré-existente do repositório, nunca
@@ -391,6 +397,14 @@ obra desta missão. A lista de testes é enumerada por comando escrito no prompt
 toda rodada; "os diretórios do trabalho da missão" deixou de ser critério depois que uma
 corrida rodou 43 testes na rodada 1 e 120 na rodada 2, descobrindo no meio do bloco um
 vermelho que já existia antes da largada.
+
+**Os papéis mecânicos (saúde e suíte) recebem o comando declarado da casa e um teto de
+relógio próprios** (`suiteCmd` e `tetoMecanicoMin`, args da casca — 0.22.54): o `planText`
+vai ao orquestrador e aos revisores e **nunca** chega a esses dois papéis, então sem
+`suiteCmd` um agente de saúde improvisou o comando proibido do projeto e ficou 58 min num
+log congelado — invisível para o vigia, que só conta rodadas FECHADAS. Com o teto, estourar
+é parada com o motivo escrito: a saúde devolve fail-open (`fechada: false`), a suíte devolve
+`green: false` com o placar dizendo onde travou.
 
 As duas travas acima (de acordo do revisor + verde) passaram a valer **no grão do bloco**: bloco vermelho não vira ponto de salvamento, e as entregas voltam pelo decompositor. O `docTouchPrompt` roda **a cada bloco**, sobre TODOS os documentos afetados pelos arquivos daquele bloco — o comentário do código declara o custo aceito: documento grande pode ser reescrito mais de uma vez na mesma onda, e o conflito disso é achado da revisão geral de doc, não deste passo. `[confirmado — o laço `for` dos blocos, passos 1 a 4]`
 
