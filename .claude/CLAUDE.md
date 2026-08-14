@@ -21,7 +21,10 @@ bash scripts/sync-shared.sh --check          # acusa drift do vendoring
 # ÚNICO diagnóstico de hook — mostra "Hooks (N)" e a versão REALMENTE ativa
 claude plugin details <nome>@pedro-plugins
 
-# Testes (o release-gate roda os do plugin tocado)
+# A ESTEIRA INTEIRA — fonte única da seleção (o CI chama o mesmo arquivo)
+bash scripts/suite.sh                  # ⚠️ NUNCA `run_suites.py` pelado: sem globs
+                                       # ele roda ZERO suítes e sai VERDE (F17.2/F17.3)
+# Testes avulsos (o release-gate roda os do plugin tocado)
 python3 plugins/project-doc/lib/test_pattern_check.py
 bash plugins/project-doc/hooks/test_plan_gate.sh
 ```

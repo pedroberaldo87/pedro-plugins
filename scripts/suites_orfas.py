@@ -27,7 +27,14 @@ import re
 import subprocess
 import sys
 
-ESTEIRA = ".github/workflows/portability.yml"
+# A esteira mudou de casa em 2026-08-14 (F17.3): os globos saíram de dentro do
+# workflow e passaram a viver em `scripts/suite.sh`, que o CI invoca. As DUAS
+# ficam na lista, na ordem de hoje primeiro — pelo mesmo motivo que o leitor
+# abaixo entende dois formatos: leitor de fonte não deve quebrar no dia em que a
+# fonte se muda, deve procurar onde ela pode estar. Um cobrador que lê zero globo
+# acusa TODA suíte do repositório como órfã.
+ESTEIRAS = ("scripts/suite.sh", ".github/workflows/portability.yml")
+ESTEIRA = ESTEIRAS[0]   # compatibilidade com quem importa o nome antigo
 
 
 def rastreadas(root):
@@ -57,11 +64,21 @@ def globos(root):
     A forma velha fica reconhecida de propósito: leitor de formato não deve
     quebrar no dia em que o formato muda, deve entender os dois e continuar.
     """
-    caminho = os.path.join(root, ESTEIRA)
-    try:
-        with open(caminho, encoding="utf-8") as fh:
-            texto = fh.read()
-    except OSError:
+    texto = None
+    for rel in ESTEIRAS:
+        try:
+            with open(os.path.join(root, rel), encoding="utf-8") as fh:
+                t = fh.read()
+        except OSError:
+            continue
+        # A primeira fonte que REALMENTE declara globo vence. Só existir não basta:
+        # depois do F17.3 o workflow continua no disco, mas sem a lista dentro —
+        # aceitar o arquivo pela existência faria o cobrador ler zero e acusar tudo.
+        if "test_" in t and ("run_suites.py" in t or t.strip().startswith("roda ")
+                             or re.search(r"^\s*roda ", t, re.M)):
+            texto = t
+            break
+    if texto is None:
         return None
     pats = []
     dentro = False

@@ -38,11 +38,17 @@ def monta(d, arquivos):
     git(d, "init", "-q")
     git(d, "config", "user.email", "t@t")
     git(d, "config", "user.name", "t")
-    os.makedirs(os.path.join(d, ".github", "workflows"), exist_ok=True)
-    with open(os.path.join(d, so.ESTEIRA), "w", encoding="utf-8") as fh:
-        fh.write("jobs:\n  x:\n    steps:\n      - run: |\n"
-                 "          roda \"$PY\" 'plugins/*/lib/test_*.py'\n"
-                 "          roda bash 'plugins/*/hooks/test_*.sh'\n")
+    # A esteira de mentira nasce na casa de HOJE (`scripts/suite.sh`, F17.3) e no
+    # formato de hoje. O caminho sai de `so.ESTEIRA`, nunca escrito aqui: o dia em
+    # que a esteira mudar de casa de novo, este arnês acompanha sozinho — foi
+    # justamente o descompasso entre leitor e fonte que derrubou este cobrador.
+    alvo = os.path.join(d, so.ESTEIRA)
+    os.makedirs(os.path.dirname(alvo), exist_ok=True)
+    with open(alvo, "w", encoding="utf-8") as fh:
+        fh.write("#!/usr/bin/env bash\n"
+                 "exec \"$PY\" scripts/run_suites.py --timeout 300 \\\n"
+                 "  --py 'plugins/*/lib/test_*.py' \\\n"
+                 "  --sh 'plugins/*/hooks/test_*.sh'\n")
     for rel in arquivos:
         caminho = os.path.join(d, rel)
         os.makedirs(os.path.dirname(caminho), exist_ok=True)
