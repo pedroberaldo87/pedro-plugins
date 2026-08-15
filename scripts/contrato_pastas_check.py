@@ -20,8 +20,13 @@ AQUI = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(AQUI)
 CONTRATO = os.path.join(ROOT, "_shared", "contrato-familia.md")
 
-# `~/.claude/x/` e `$HOME/.claude/x/` ficam de fora pelo grupo de prefixo.
-CITACAO = re.compile(r"(~|\$HOME|\{HOME\})?(/?)\.claude/(\.?[a-z0-9][a-z0-9_-]*)/")
+# `~/.claude/x/` e `$HOME/.claude/x/` ficam de fora pelo grupo de prefixo. As aspas
+# entram no grupo porque em shell o caminho vem citado (`"$HOME"/.claude/…`), e sem
+# elas o prefixo não casava: o estado cross-projeto do harness aparecia como pasta de
+# trabalho não declarada.
+CITACAO = re.compile(
+    r"""(~|\$HOME|\{HOME\}|CLAUDE_CONFIG_DIR[:\-\w]*\})?["']?(/?)"""
+    r"""\.claude/(\.?[a-z0-9][a-z0-9_-]*)/""")
 
 
 def declaradas(texto):
@@ -38,11 +43,27 @@ def declaradas(texto):
     }
 
 
+# Quem ESCOLHE pasta de trabalho não é só a prosa da skill: o motor do /sprint e os
+# hooks a escolhem em código, e varrer só Markdown deixava justamente eles de fora —
+# a pasta nova nasceria num `.js` ou num `.sh` sem nada acusar. Suíte fica de fora de
+# propósito: teste cria e apaga pasta temporária o tempo todo, e cobrá-lo aqui viraria
+# ruído em cima de quem não escolhe nada.
+LIDOS = ("SKILL.md", ".js", ".sh", ".py")
+
+
+def _e_fonte(nome):
+    if nome == "SKILL.md":
+        return True
+    if nome.startswith("test_") or nome.endswith(("_test.py", ".test.js")):
+        return False
+    return nome.endswith((".js", ".sh", ".py"))
+
+
 def skills(raiz):
     for base, dirs, arqs in os.walk(os.path.join(raiz, "plugins")):
         dirs[:] = [d for d in dirs if d != "node_modules"]
         for a in arqs:
-            if a == "SKILL.md":
+            if _e_fonte(a):
                 yield os.path.join(base, a)
 
 

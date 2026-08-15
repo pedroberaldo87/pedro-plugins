@@ -59,5 +59,29 @@ with tempfile.TemporaryDirectory() as tmp:
     check("não acusa a casa do ledger", ".sprint" not in pastas)
     check("não acusa estado sob ~/", "tambem-inventado" not in pastas)
 
+# Quem ESCOLHE pasta de trabalho não é só a prosa da skill: o motor do /sprint e os
+# hooks a escolhem em código. Varrendo só Markdown, a pasta nova nascia num `.js` ou
+# num `.sh` sem nada acusar — e foi assim que duas casas reais deste repositório
+# ficaram fora do contrato até 2026-08-15.
+print("\n== o cobrador enxerga o código, não só a prosa da skill ==")
+with tempfile.TemporaryDirectory() as tmp:
+    d = os.path.join(tmp, "plugins", "novo", "hooks")
+    os.makedirs(d)
+    with open(os.path.join(d, "motor.js"), "w", encoding="utf-8") as fh:
+        fh.write("const dir = repoRoot + '/.claude/so-no-js/';\n")
+    with open(os.path.join(d, "gancho.sh"), "w", encoding="utf-8") as fh:
+        # o caminho CITADO em shell vem entre aspas: sem elas no prefixo, o estado
+        # cross-projeto do harness aparecia como pasta de trabalho não declarada
+        fh.write('mkdir -p .claude/so-no-sh/\n'
+                 'for c in "$HOME"/.claude/plugins/cache/*; do :; done\n')
+    with open(os.path.join(d, "test_gancho.sh"), "w", encoding="utf-8") as fh:
+        fh.write("mkdir -p .claude/so-na-suite/\n")   # suíte não escolhe casa
+    _, fora = C.varre(tmp)
+    pastas = sorted(p for _, _, p in fora)
+    check("acusa a pasta que só existe no .js", "so-no-js" in pastas, "(achou %s)" % pastas)
+    check("acusa a pasta que só existe no .sh", "so-no-sh" in pastas, "(achou %s)" % pastas)
+    check("não acusa o cache do harness citado com aspas", "plugins" not in pastas)
+    check("não acusa pasta criada por suíte", "so-na-suite" not in pastas)
+
 print("\n%d ok, %d falhas" % (PASS, FAIL))
 sys.exit(1 if FAIL else 0)
