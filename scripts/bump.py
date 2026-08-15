@@ -21,6 +21,7 @@ import json
 import os
 import re
 import sys
+import time
 
 RAIZ = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.join(RAIZ, "scripts"))
@@ -42,6 +43,35 @@ def proxima(versao, parte):
     return "%d.%d.%d" % (n[0], n[1], n[2] + 1)
 
 
+def _tranca(segundos=60):
+    """Serializa o bump: dois plugins diferentes na MESMA onda reescrevem os mesmos
+    dois arquivos compartilhados (o catálogo e a tabela da doc). Sem tranca, quem
+    escreve por último lê o arquivo de antes do vizinho e apaga o bump dele — o gate
+    de commit barra a onda inteira, e o motivo aparece como 'esqueceram o bump'.
+    """
+    alvo = os.path.join(RAIZ, ".claude-plugin", ".bump.lock")
+    espera = 0.0
+    while True:
+        try:
+            fd = os.open(alvo, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
+            os.write(fd, str(os.getpid()).encode())
+            os.close(fd)
+            return alvo
+        except FileExistsError:
+            # tranca órfã (processo morto no meio) não trava ninguém para sempre
+            try:
+                if time.time() - os.path.getmtime(alvo) > segundos:
+                    os.remove(alvo)
+                    continue
+            except OSError:
+                continue
+            if espera > segundos:
+                print("a tranca do bump não liberou em %ds — seguindo sem ela" % segundos)
+                return None
+            time.sleep(0.2)
+            espera += 0.2
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("plugin")
@@ -54,6 +84,18 @@ def main():
     if not os.path.exists(manifesto):
         print("plugin desconhecido: %s (não achei %s)" % (a.plugin, manifesto))
         return 1
+    lock = _tranca()
+    try:
+        return _bump(manifesto, a)
+    finally:
+        if lock:
+            try:
+                os.remove(lock)
+            except OSError:
+                pass
+
+
+def _bump(manifesto, a):
     atual = json.loads(_le(manifesto))["version"]
     nova = a.para or proxima(atual, "major" if a.major else
                              "minor" if a.minor else "patch")
