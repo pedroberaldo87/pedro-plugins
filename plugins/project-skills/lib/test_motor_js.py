@@ -59,10 +59,27 @@ FONTES = [("motor.js", motor, 0), ("esqueleto do SKILL.md", esqueleto, BASE_ESQ)
 # A · as peças do esqueleto — a MESMA lista da conferência escrita no SKILL.md.
 PECAS = ["blocoMax", "naoDespachadas", "idsDoPlano", "congeladas", "esperaChain",
          "saudePrompt", "ledgerCorrida", "impressaoTarefa", "emCirculo",
-         "paraPorCausaGlobal"]
+         "paraPorCausaGlobal", "destravaOuPara"]
 for peca in PECAS:
     check("peça '%s' está no motor.js" % peca, peca in motor)
     check("peça '%s' segue no esqueleto do SKILL.md" % peca, peca in skill)
+
+# A2 · O DESTRAVADOR (F23.9) — o papel que conserta a porta fechada DURANTE a corrida,
+# em vez de a corrida morrer nela. Quatro corridas seguidas morreram na mesma classe de
+# causa em 2026-08-15, todas destravadas pelo dono em dois minutos na manhã seguinte.
+# Sem estas checagens o papel volta a ser prosa numa fonte e ausência na outra.
+for nome, fonte, _base in FONTES:
+    check("o destravador existe e é chamado (%s)" % nome,
+          "destravadorPrompt" in fonte and "destravaOuPara" in fonte)
+    check("a causa de repositório passa pelo destravador antes de parar (%s)" % nome,
+          "await destravaOuPara(d, t.id)" in fonte)
+    check("quem re-mede a porta é a guarda de saúde, não a palavra do destravador (%s)"
+          % nome,
+          "saude:pos-destrave" in fonte and "remedida.fechada === false" in fonte)
+    check("uma tentativa por corrida — a segunda seria repetir sem mudar o estado (%s)"
+          % nome, "destravesUsados >= 1" in fonte)
+    check("destravou de verdade ⇒ a causa sai do cache e a corrida segue (%s)" % nome,
+          "delete causaCache['@repositorio']" in fonte)
 
 # B · a tabela prompt -> PAPEL do SKILL.md, cobrada no arquivo executável.
 PAPEIS = {

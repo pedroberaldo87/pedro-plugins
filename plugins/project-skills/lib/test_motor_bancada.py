@@ -156,7 +156,7 @@ const CFG = JSON.parse(fs.readFileSync(process.argv[2], 'utf8'))
 const CORPO = fs.readFileSync(process.argv[3], 'utf8')
 
 const PRELUDE = `
-const DECOMP={}, TASK_RESULT={}, BUILD_REVIEW={}, RESERVA={}, REGUA={}, SUITE_RESULT={}, AUDITOR={}, DOC_TOUCH={}, TICK_RESULT={}, DESAFIO={}, TAREFA_REVIEW={}, DOC_REVIEW={}, SAUDE={}, CHECKPOINT_RESULT={};
+const DECOMP={}, TASK_RESULT={}, BUILD_REVIEW={}, RESERVA={}, REGUA={}, SUITE_RESULT={}, AUDITOR={}, DOC_TOUCH={}, TICK_RESULT={}, DESAFIO={}, TAREFA_REVIEW={}, DOC_REVIEW={}, SAUDE={}, CHECKPOINT_RESULT={}, DESTRAVE={};
 const mk = n => (p => Object.assign({ __p: n }, p));
 const orquestradorPrompt=mk('decompose'), saudePrompt=mk('saude'),
       decomposePrompt=mk('decompose'), execPrompt=mk('exec'), reviewBuildPrompt=mk('review'),
@@ -165,7 +165,7 @@ const orquestradorPrompt=mk('decompose'), saudePrompt=mk('saude'),
       diagnoseStuckTaskPrompt=mk('diag'), reservaPrompt=mk('reserva'), confirmBuildPrompt=mk('confirm'),
       reguaPrompt=mk('regua'), auditorPrompt=mk('auditor'), desafioCausaPrompt=mk('desafio'),
       revisorTarefaPrompt=mk('revTarefa'), revisorBlocoPrompt=mk('revBloco'),
-      revisaoDocPrompt=mk('revDoc');
+      revisaoDocPrompt=mk('revDoc'), destravadorPrompt=mk('destrava');
 `
 
 const chamadas = []
@@ -178,6 +178,10 @@ const vereditos = []
 const auditorias = []
 const investigacoes = []
 const desafios = []
+// O destravador (F23.9): o que ele recebeu, e se ele disse ter consertado — é o que
+// deixa a porta mudar de estado entre a causa e a re-medição.
+const destraves = []
+let destravou = false
 const docs = []
 const agentes = []
 // F9.57: QUEM foi despachado, na ordem. `agentes` so guarda o papel ('exec'), e com ele
@@ -284,9 +288,27 @@ async function agent(p, opts) {
   switch (p.__p) {
     case 'decompose': return { tasks: CFG.tasks, blockers: [] }
     // A guarda de saúde: aberta por padrão; CFG.portaFechada exercita a parada.
-    case 'saude':     return { fechada: CFG.portaFechada === true,
-                               motivo: CFG.portaFechada ? 'check determinístico reprovou' : '',
-                               saida: CFG.portaFechada ? 'gate: 2 achado(s) novo(s)' : '' }
+    // O DESTRAVADOR (F23.9) precisa da porta MUDANDO de estado: fechada quando a causa
+    // aparece, aberta depois do conserto. Com a resposta fixa, o cenário do conserto
+    // que PEGA nunca aconteceria — e é ele que separa "consertou e seguiu" de "morreu".
+    // `portaFechaSoNaRemedida` é o cenário do conserto que NÃO pegou: a largada passa
+    // (a corrida chega a rodar), e a porta só aparece fechada na re-medição de depois
+    // do destravador — que é onde o motor tem de desligar mesmo com ele dizendo que
+    // consertou. Sem isso, porta fechada na largada mataria a rodada antes da causa.
+    case 'saude': {
+      const fechada = CFG.portaFechada === true ||
+                      (CFG.portaFechaSoNaRemedida === true && destraves.length > 0)
+      return { fechada, motivo: fechada ? 'check determinístico reprovou' : '',
+               saida: fechada ? 'gate: 2 achado(s) novo(s)' : '' }
+    }
+    // O papel que conserta a causa referendada DURANTE a corrida. O cenário escolhe se
+    // ele consegue (CFG.destravaOk); `destraves` guarda o que ele recebeu, para a
+    // bancada poder perguntar se a CAUSA chegou nele — destravar sem a causa é remendo.
+    case 'destrava':
+      destraves.push({ causa: p.causa })
+      destravou = CFG.destravaOk === true
+      return { destravou, oQueFez: 'consertei a causa e commitei sozinho',
+               prova: 'suite: 4 ok' }
     // A recusa da reserva vem do cenario. Com ela fixa em `false` (como era aqui) o
     // caminho de saida por `reserva` nunca acontecia na bancada — e ele e o UNICO que
     // sai sem apagar o sinal da sessao, porque o outro motor segue vivo.
@@ -357,6 +379,9 @@ async function agent(p, opts) {
       desafios.push({ taskId: p.task && p.task.id, causa: p.causa })
       const referenda = (CFG.desafioReferendaNaVolta || 0) === desafios.length
       return { procede: referenda, motivo: referenda ? '' : 'a causa nao explica o fato X',
+               // o ESCOPO sai do par em acordo, nunca do motor: 'repositorio' e o que
+               // dispara o destravador (F23.9). O cenario escolhe.
+               escopo: CFG.desafioEscopo || 'tarefa',
                anchor: 'ultima linha da causa que desafiei' }
     }
     // A conferencia final da parada (autopsia 2026-08-09). Sem este caso o papel volta
@@ -393,7 +418,7 @@ const corpo = CORPO.replace(/^export const meta = \{[\s\S]*?\n\}\n/m, '')
 const motor = new Function('args', 'agent', 'phase', 'log', 'budget', 'parallel',
                            'return (async () => {' + PRELUDE + corpo + '})()')
 motor(CFG.args, agent, phase, log, budget, parallel).then(saida => {
-  fs.writeFileSync(CFG.out, JSON.stringify({ saida, chamadas, checkpoints, docs, agentes, executados, vereditos, auditorias, narrado, investigacoes, desafios }, null, 2))
+  fs.writeFileSync(CFG.out, JSON.stringify({ saida, chamadas, checkpoints, docs, agentes, executados, vereditos, auditorias, narrado, investigacoes, desafios, destraves }, null, 2))
 }).catch(e => { console.error('MOTOR ESTOUROU: ' + (e && e.stack || e)); process.exit(3) })
 """
 
@@ -410,7 +435,8 @@ def roda_motor(tmp, texto, plan_dir, tick_cmd, plan_path, token_budget=None,
                review_sem_ancora=None, alegacao_impossivel=None, auditor_derruba=False,
                auditor_motivo="", auditor_nao_tentou=None, doc_falso=None,
                confirm_gaps=None, espera_todos=False, desafio_referenda_na_volta=0,
-               rev_tarefa_reprova=None, rev_bloco_gaps=None, rev_doc_gaps=None):
+               rev_tarefa_reprova=None, rev_bloco_gaps=None, rev_doc_gaps=None,
+               desafio_escopo=None, destrava_ok=False, porta_fecha_so_na_remedida=False):
     """Executa o esqueleto do SKILL.md com os agentes de mentira. Devolve
     {saida, chamadas, agentes} ou levanta AssertionError com o motivo."""
     corpo = os.path.join(tmp, "motor.js")
@@ -477,6 +503,9 @@ def roda_motor(tmp, texto, plan_dir, tick_cmd, plan_path, token_budget=None,
         "gaps": gaps or [],
         "confirmGaps": confirm_gaps or [],
         "desafioReferendaNaVolta": desafio_referenda_na_volta,
+        "desafioEscopo": desafio_escopo,
+        "destravaOk": destrava_ok,
+        "portaFechaSoNaRemedida": porta_fecha_so_na_remedida,
         "reviewSemAncora": review_sem_ancora,
         "auditorDerruba": auditor_derruba,
         "auditorMotivo": auditor_motivo,
@@ -1359,6 +1388,45 @@ def main():
     check("a disputa e 'precisa de voce', nomeando a tarefa",
           bool(emdisputa) and emdisputa[0].get("taskId") == "F1.3"
           and "causa em disputa" in (emdisputa[0].get("whyNeedsYou") or ""))
+
+    # ── F23.9 · o DESTRAVADOR: causa de repositorio se conserta NA corrida ──────
+    # Quatro corridas seguidas morreram na mesma classe de causa (2026-08-15): um
+    # estado que uma suite cobra e ficou para tras. O trabalho estava pronto no disco,
+    # o commit nao passava, e a corrida inteira morria — com o dono destravando em dois
+    # minutos na manha seguinte. Os dois cenarios abaixo mudam UMA coisa: se o conserto
+    # pegou.
+    print("F23.9 — causa de repositorio: o destravador conserta, o motor RE-MEDE e segue")
+    destravou = bancada(texto, tick_cmd, max_rounds=1, review_complete=False,
+                        rev_tarefa_reprova=["F1.1"], desafio_referenda_na_volta=1,
+                        desafio_escopo="repositorio", destrava_ok=True)
+    if destravou is None:
+        return 1
+    check("o destravador foi chamado uma vez",
+          destravou["agentes"].count("destrava") == 1)
+    check("ele recebeu a CAUSA referendada, nao so o pedido de consertar",
+          bool(destravou["destraves"])
+          and "causa apontada" in str(destravou["destraves"][0].get("causa")))
+    check("quem re-mediu a porta foi a guarda de saude, depois do destravador",
+          destravou["agentes"].index("destrava") + 1
+          < len(destravou["agentes"])
+          and destravou["agentes"][destravou["agentes"].index("destrava") + 1] == "saude")
+    check("a corrida NAO desligou por causa-global",
+          destravou["saida"].get("stopReason") != "causa-global"
+          and not [b for b in destravou["saida"]["blockers"]
+                   if b.get("kind") == "causa-global"])
+
+    print("F23.9 — conserto que NAO pegou: a palavra do destravador nao abre porta")
+    nao_pegou = bancada(texto, tick_cmd, max_rounds=1, review_complete=False,
+                        rev_tarefa_reprova=["F1.1"], desafio_referenda_na_volta=1,
+                        desafio_escopo="repositorio", destrava_ok=True,
+                        porta_fecha_so_na_remedida=True)
+    if nao_pegou is None:
+        return 1
+    global_ = [b for b in nao_pegou["saida"]["blockers"] if b.get("kind") == "causa-global"]
+    check("o motor desligou por causa-global mesmo com o destravador dizendo que consertou",
+          nao_pegou["saida"].get("stopReason") == "causa-global" and len(global_) == 1)
+    check("e o bloqueio diz que a re-medicao continuou fechada",
+          bool(global_) and "re-medição" in (global_[0].get("whyNeedsYou") or ""))
 
     print("ciclo por bloco — o revisor DO BLOCO retem a marcacao; a geral reabre com re-tick")
     GAP_NA_F11 = {"kind": "coesao", "severity": "P1", "task_id": "F1.1",

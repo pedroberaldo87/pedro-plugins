@@ -894,7 +894,15 @@ def main():
     for a, pa, b, pb in papeis:
         tabela[a] = pa
         tabela[b] = pb
-    check("a tabela nomeia o papel dos 14 prompts do motor", len(tabela) == 14)
+    # O NUMERO sai do esqueleto, nunca escrito aqui: com ele fixo, todo prompt novo
+    # deixava a suite vermelha por contagem em vez de por buraco — e o conserto virava
+    # trocar o numero, que e o gesto que nao mede nada. O que importa e a cobertura:
+    # prompt chamado pelo motor e ausente da tabela vira DESCONHECIDO na autopsia.
+    chamados = sorted(set(re.findall(r"\b(\w+Prompt)\b", js)))
+    sem_papel = [c for c in chamados if c not in tabela]
+    check("a tabela nomeia o papel de TODO prompt que o esqueleto chama (%d hoje%s)"
+          % (len(chamados), "" if not sem_papel else "; sem papel: %s" % sem_papel),
+          not sem_papel)
     check("os prompts da tabela sao os que o esqueleto chama",
           all(nome in js for nome in tabela))
     # A metade de BANCADA: reescreve a prosa em volta da linha declarada e pergunta ao
