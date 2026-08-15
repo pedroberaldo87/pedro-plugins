@@ -888,12 +888,11 @@ def main():
           "PAPEL: <NOME>`.**" in texto)
     check("o corpo do execPrompt ABRE com a linha, nao so a tabela",
           "```\nPAPEL: EXECUTOR\n" in texto)
-    papeis = re.findall(r"\|\s*`(\w+Prompt)`\s*\|\s*`([A-Z]+)`\s*"
-                        r"\|\s*`(\w+Prompt)`\s*\|\s*`([A-Z]+)`\s*\|", texto)
-    tabela = {}
-    for a, pa, b, pb in papeis:
-        tabela[a] = pa
-        tabela[b] = pb
+    # PAR a par, nao linha a linha: a tabela tem duas colunas de pares, e a regra de
+    # quatro celulas exigia numero PAR de prompts — o 21o (pendenciaPrompt) so entraria
+    # inventando um par falso ao lado. O lookahead deixa o `|` do fim para o par seguinte.
+    papeis = re.findall(r"\|\s*`(\w+Prompt)`\s*\|\s*`([A-Z]+)`\s*(?=\|)", texto)
+    tabela = dict(papeis)
     # O NUMERO sai do esqueleto, nunca escrito aqui: com ele fixo, todo prompt novo
     # deixava a suite vermelha por contagem em vez de por buraco — e o conserto virava
     # trocar o numero, que e o gesto que nao mede nada. O que importa e a cobertura:

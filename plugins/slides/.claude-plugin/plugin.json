@@ -1,6 +1,6 @@
 {
   "name": "slides",
-  "version": "1.6.2",
+  "version": "1.6.3",
   "description": "Markdown → keynote-grade single-file HTML deck. Two modes: (A) transcription — renders a ready .md faithfully, never invents text; (B) explainer — drives the didactics (narrative structure, audience level, granular vs summary, infographics) to teach a concept, grounded (factual + current). Theme system (VIU default), no-JS adaptive (WhatsApp thumbnail).",
   "author": {
     "name": "pedroberaldo87",

@@ -101,9 +101,11 @@ As cinco seções e as linhas que decidem cada depósito deste doc:
 
 ```
 1 · REGISTRO DE TRABALHO   .claude/ata/ · .claude/plans/ · .claude/specs/
-                           .claude/vistoria/ · .claude/gauntlet/ · .claude/HANDOFF*.md
+                           .claude/vistoria/ · .claude/gauntlet/ · .claude/reports/
+                           .claude/prints/ · .claude/HANDOFF*.md
                            .claude/RETOMAR-*.md · .claude/BRIEFING-*.md
-                           .claude/.project-doc/ · .claude/intent/ · docs/superpowers/
+                           .claude/.project-doc/ · .claude/intent/ · .claude/.sprint/
+                           docs/superpowers/
 2 · SEGREDO                scripts/public_repo_terms · .claude/secrets/ · .env · .env.*
                            *.pem · *.key · *.p12 · id_rsa* · .netrc
 3 · RETRATO DESTA MÁQUINA  graphify-out/ · .claude/qa-loop/ · .claude/visual/
@@ -688,6 +690,19 @@ No topo do plano, ao lado de `phases`:
 ```json
 "requisitos": [{"id": "S-1.1", "titulo": "...", "ca": "...",
                 "ancora": "Art. 6", "epico": "E1 — Base"}]
+```
+
+**Duas outras chaves de topo entraram depois, e as duas são opcionais** [confirmado — `plan_state.py:_erros_dos_limites` e `plan_state.py:_erros_da_frente`]:
+
+```
+limites   lista de {limite, motivo} · o que a rodada aceitou deixar de fora. É por aqui
+          que a recusa da oferta de branch fica gravada, e é o que faz a oferta se calar
+          nas rodadas seguintes. Funde por TEXTO do limite, nunca por posição
+frente    objeto {branch, worktree} · a branch e a árvore em que este plano é trabalhado.
+          TUDO OU NADA: meio-gravada daria uma frente que o fechamento não sabe encerrar,
+          então os dois campos são cobrados juntos. Projeto que trabalha na própria árvore
+          grava a raiz do repositório como worktree. Aparece na árvore de texto, vira
+          cartão de fechamento na página HTML, e o `close` avisa que a branch continua viva
 ```
 
 - **Por que o bloco existe no próprio plano:** o requisito é obrigatório, mas o *lugar* dele é opcional. Projeto com documento de requisitos aponta pra lá; projeto sem documento — *"o caso deste repositório, que não tem PRD"* — declara aqui. Sem essa porta, todo projeto sem PRD voltaria a ter tarefa que não rastreia pra nada. [confirmado, docstring de `_requisitos_do_plano`]

@@ -165,7 +165,8 @@ const orquestradorPrompt=mk('decompose'), saudePrompt=mk('saude'),
       diagnoseStuckTaskPrompt=mk('diag'), reservaPrompt=mk('reserva'), confirmBuildPrompt=mk('confirm'),
       reguaPrompt=mk('regua'), auditorPrompt=mk('auditor'), desafioCausaPrompt=mk('desafio'),
       revisorTarefaPrompt=mk('revTarefa'), revisorBlocoPrompt=mk('revBloco'),
-      revisaoDocPrompt=mk('revDoc'), destravadorPrompt=mk('destrava');
+      revisaoDocPrompt=mk('revDoc'), destravadorPrompt=mk('destrava'),
+      pendenciaPrompt=mk('pendencia');
 `
 
 const chamadas = []

@@ -623,6 +623,12 @@ For manual invocation (the user types `/visual` outside plan mode), session scop
 
 Slug = kebab-case of main topic (e.g., `plan`, `diagnostico-cron`, `decisao-arquitetura`).
 
+**Sister folders, same contract.** The page lives in `.claude/visual/`; a written report
+(`.md`) goes to `.claude/reports/`, and a screen capture goes to `.claude/prints/`. These
+houses are declared in one place only — the "As pastas" table of `contrato-familia.md`
+(vendored into the `project-skills` skills). Never invent a folder, and never leave a
+report or a capture in `/tmp`.
+
 After writing, always run `open <path>` to show it.
 
 ## Hierarchy rules (non-negotiable)

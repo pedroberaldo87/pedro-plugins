@@ -130,6 +130,28 @@ def main():
     check("funcionalidade sem peça é nível 1",
           "nivel2" not in ap.audita(com(sem_peca=["S-1"])))
 
+    # o ato do dono: `pronto` que só ele pode cumprir, com e sem a espera declarada
+    ato = com(tarefas=[{"id": "F1.1", "pronto": "o site publicado em produção"}])
+    r = ap.audita(ato)
+    check("pronto com ato do dono e sem espera é acusado no nível 1",
+          r["nivel1"]["vermelho"] and r["parou_em"] == 1)
+    check("e o achado nomeia a tarefa e o motivo",
+          any("F1.1" in a and "espera_dono" in a
+              for a in r["nivel1"]["achados"]))
+    check("sem tarefa nenhuma no mapa, o balde não acusa ninguém",
+          not ap.audita(LIMPO)["nivel1"]["vermelho"])
+
+    declarado = com(tarefas=[{"id": "F1.1", "pronto": "o site publicado em produção",
+                              "espera_dono": "publicar o site"}])
+    check("o mesmo pronto com espera declarada passa",
+          not ap.audita(declarado)["nivel1"]["vermelho"])
+    check("e o plano segue até o nível 3",
+          ap.audita(declarado)["parou_em"] == 3)
+    check("pronto sem ato do dono nenhum passa igual",
+          not ap.audita(com(tarefas=[{"id": "F1.1",
+                                      "pronto": "o teste do parser verde"}]))
+              ["nivel1"]["vermelho"])
+
     # os três baldes do nível 1 — quem segue pro conserto e quem devolve a pergunta
     r = ap.audita(com(inexistentes=["S-9"]))["nivel1"]
     check("sem classificação escrita, o achado é plano-errado",

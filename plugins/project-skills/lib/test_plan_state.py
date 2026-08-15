@@ -128,6 +128,16 @@ def completo(plan):
     return plan
 
 
+def todo_provado(plan):
+    """Marca todo passo como feito COM prova — o estado em que o `close` grava
+    'done' no plano. Só assim um plano 'done' passa pela régua do R-11."""
+    for ph in plan.get("phases") or []:
+        for it in ph.get("items") or []:
+            it["status"] = "done"
+            it["evidence"] = "o comando rodou e saiu 0"
+    return plan
+
+
 # A skill que ENSINA o formato do plano ainda mora no plugin `visual` (a mudança
 # de casa dela é outro passo). Sem ele na máquina, este bloco é pulado.
 SKILL_MD = (os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(_VP)), "..",
@@ -184,8 +194,10 @@ def main():
         raises("status de plano fora do vocabulário é recusado",
                lambda: ps.validate(sample(status="open")),
                "active|done|abandoned")
+        # 'done' entra na lista com os passos MARCADOS de propósito: o close só
+        # escreve 'done' quando todos estão, e a régua abaixo recusa o contrário.
         check("os três status que close/reopen gravam passam",
-              all(ps.validate(sample(status=s)) is not None
+              all(ps.validate(todo_provado(sample(status=s))) is not None
                   for s in ("active", "done", "abandoned")))
         raises("id de fase fora do padrão é recusado",
                lambda: ps.validate(sample(phases=[{"id": "fase1", "title": "x", "items": [
@@ -1834,6 +1846,83 @@ def main():
                   load(d16, "2026-08-08-limites").get("limites") == [])
         finally:
             shutil.rmtree(d16, ignore_errors=True)
+
+        # R-20: a frente de trabalho (branch + worktree) pertence ao PLANO. Aninhada
+        # e inteira — meio-gravada, o fechamento não teria o que encerrar.
+        print("a frente de trabalho é do plano, e se grava inteira")
+        d17 = tempfile.mkdtemp(prefix="plan-frente-")
+        try:
+            frente = {"branch": "feature/arvore-do-plano", "worktree": "/w/arvore"}
+            init_into(d17, dict(sample(id="2026-08-14-frente"), frente=frente))
+            salvo = load(d17, "2026-08-14-frente")
+            check("a frente chega ao disco com branch e worktree",
+                  salvo.get("frente") == frente)
+            raises("branch sem worktree é recusada",
+                   lambda: ps.validate(dict(sample(), frente={"branch": "feature/x"})),
+                   "frente worktree")
+            raises("worktree sem branch é recusada",
+                   lambda: ps.validate(dict(sample(), frente={"worktree": "/w/x"})),
+                   "frente branch")
+            raises("frente que não é objeto é recusada",
+                   lambda: ps.validate(dict(sample(), frente="feature/x")),
+                   "objeto {branch, worktree}")
+            check("plano sem frente continua válido",
+                  ps.validate(sample()) is not None)
+            init_into(d17, sample(id="2026-08-14-frente"))
+            check("init parcial não apaga a frente",
+                  load(d17, "2026-08-14-frente").get("frente") == frente)
+            txt = ps.render_text(salvo)
+            check("a árvore mostra a branch e a worktree da frente",
+                  "feature/arvore-do-plano" in txt and "/w/arvore" in txt)
+            check("plano sem frente não inventa a linha na árvore",
+                  "🌿" not in ps.render_text(completo(sample())))
+            htm = ps.render_html(salvo)
+            check("a página mostra a branch e a worktree da frente",
+                  "feature/arvore-do-plano" in htm and "/w/arvore" in htm)
+            check("plano sem frente não inventa a linha na página",
+                  "🌿" not in ps.render_html(completo(sample())))
+            # R-20: na página do relatório do sprint a frente não é aviso, é CARTÃO DE
+            # FECHAMENTO — nomear a branch sem oferecer a decisão e os comandos deixa
+            # exatamente o esquecimento que o requisito existe pra fechar.
+            check("a página traz o cartão de fechamento da frente",
+                  'class="pt-frente pt-frente-fechar"' in htm)
+            check("o cartão oferece a decisão do fechamento",
+                  ps.FRENTE_DECIDA in htm)
+            check("o cartão traz os comandos que fecham a frente",
+                  "git worktree remove /w/arvore" in htm
+                  and "git branch -d feature/arvore-do-plano" in htm)
+            check("plano sem frente não inventa o cartão",
+                  "pt-frente-fechar" not in ps.render_html(completo(sample())))
+            # R-20: fechar o plano não fecha a branch — o close NOMEIA a que ficou viva.
+            buf = io.StringIO()
+            with contextlib.redirect_stdout(buf):
+                ps.cmd_close(Args(dir=d17, plan="2026-08-14-frente"))
+            check("o close nomeia a branch da frente que ficou aberta",
+                  "feature/arvore-do-plano" in buf.getvalue())
+            init_into(d17, sample(id="2026-08-14-sem-frente"))
+            buf = io.StringIO()
+            with contextlib.redirect_stdout(buf):
+                ps.cmd_close(Args(dir=d17, plan="2026-08-14-sem-frente"))
+            check("plano sem frente fecha sem inventar aviso",
+                  "🌿" not in buf.getvalue())
+        finally:
+            shutil.rmtree(d17, ignore_errors=True)
+
+        # R-11: plano 'done' sai da listagem de planos abertos. Escrito à mão com
+        # passo que ninguém provou, ele levaria o passo junto para fora da vista.
+        print("plano 'done' com passo sem prova é recusado na gravação")
+        d18 = tempfile.mkdtemp(prefix="plan-done-")
+        try:
+            raises("init recusa plano 'done' carregando passo todo",
+                   lambda: init_into(d18, sample(id="2026-08-14-done", status="done")),
+                   "status 'done' com 3 passo(s) sem prova: F1.1, F1.2, F2.1")
+            check("o plano recusado não chegou ao disco",
+                  not os.path.exists(ps.plan_path(d18, "2026-08-14-done")))
+            init_into(d18, todo_provado(sample(id="2026-08-14-fechado", status="done")))
+            check("plano 'done' com todo passo provado passa",
+                  load(d18, "2026-08-14-fechado")["status"] == "done")
+        finally:
+            shutil.rmtree(d18, ignore_errors=True)
     finally:
         shutil.rmtree(d, ignore_errors=True)
 

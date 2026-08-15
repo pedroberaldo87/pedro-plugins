@@ -518,6 +518,28 @@ Terminado, registre a volta:
   python3 "$ANDAMENTO" onda ${ARGS.sessionId} <rodada> ${planPath}
 Falhar aqui não derruba nada.`
 
+// ── O BLOCKER DE DECISÃO VIRA PENDÊNCIA NO PASSO (F12.5 · R-21) ───────────────
+// O blocker morria no relatório do FIM da corrida: o passo continuava `todo` no
+// arquivo do plano, a rodada seguinte soltava executor nele de novo, e a pergunta que
+// só o dono responde aparecia horas depois de nascer. Gravada no passo, ela recusa o
+// tique (`plan_state.pendencia_viva`) e desenha o ⛔ na árvore que o dono lê.
+const pendenciaPrompt = ({ planPath, passos }) => `PAPEL: MARCAR
+Papel mecânico e SÓ: gravar no plano a decisão que trava cada passo.
+
+PASSOS (a \`pendencia\` é a pergunta que o dono tem que responder — COPIE, não redija):
+${J(passos)}
+
+Rode UM COMANDO POR PASSO, em sequência:
+
+  MARCADOR="$(bash "${RESOLVE}" project-skills lib/plan_state.py)"
+  cd ${RAIZ} && python3 "$MARCADOR" --dir ${RAIZ}/.claude/plans pendencia ${planIdDe(planPath)} <taskId> "<pendencia>"
+
+(o plano é ${planPath} — o id \`${planIdDe(planPath)}\` já está no comando acima; não o omita)
+
+Falha de um passo NÃO interrompe os seguintes. Recusa do programa é resultado legítimo:
+entra no veredito daquele passo com \`ok: false\` e o \`motivo\` = a linha que ele imprimiu.
+Não reescreva a pendência para driblar uma recusa — o texto é o que o motor mandou.`
+
 const checkpointPrompt = ({ repoRoot, round, bloco, results, planPath }) => `PAPEL: MECANICO
 Papel mecânico e SÓ: gravar no histórico do git o que o bloco ${bloco} da onda ${round} produziu.
 
@@ -650,6 +672,25 @@ const paraPorCausaGlobal = (d, taskId, nota) => {
     what: `causa confirmada com escopo de REPOSITÓRIO: ${String(d.causa).slice(0, 300)}`,
     whyNeedsYou: (nota ? nota + ' — ' : '')
       + 'todo trabalho novo morreria na mesma porta — o motor parou no mesmo turno; destrave e relance' })
+}
+// ── O BLOCKER DE DECISÃO VIRA PENDÊNCIA NO PASSO, NA MESMA RODADA (F12.5) ────
+// O relatório do fim da corrida era o ÚNICO lugar onde o blocker aparecia — e ele só
+// chega quando a corrida acaba. Aqui a pergunta desce para o arquivo do plano na
+// rodada em que nasceu, e o passo passa a recusar o tique enquanto ela viver. O cursor
+// `pendGravadas` deixa a função ser chamada em todo caminho de saída da rodada sem
+// regravar o que já foi — blocker sem `taskId` é da corrida, não de um passo, e fica
+// só no relatório.
+let pendGravadas = 0
+const linhaDePendencia = b => String(b.what).replace(/\s+/g, ' ').split('. ')[0]
+  .replace(/[.!?]+$/, '').slice(0, 140)
+const gravaPendencias = async () => {
+  const novos = blockers.slice(pendGravadas).filter(b => b.taskId)
+  pendGravadas = blockers.length
+  if (!novos.length || !ARGS.planPath?.endsWith('.plan.json')) return
+  await agent(pendenciaPrompt({ planPath: ARGS.planPath,
+    passos: novos.map(b => ({ taskId: b.taskId, pendencia: linhaDePendencia(b) })) }),
+    { model: ARGS.model, effort: T.mechanical.effort, phase: 'Marcar',
+      label: `pendências r${r} (${novos.length})`, schema: TICK_RESULT })
 }
 // ── O DESTRAVADOR (F23.9) ────────────────────────────────────────────────────
 // Medido em quatro corridas seguidas (2026-08-15): a causa de repositório era sempre
@@ -921,6 +962,17 @@ while (!built && r < maxRounds) {
     break
   }
 
+  // ── A VARREDURA DA LARGADA (F12.6 · R-21) ──────────────────────────────────
+  // F12.5 grava a pendência nos caminhos de SAÍDA da rodada. A pendência que nasce na
+  // decomposição DESTA volta (critério faltando, id forjado, tarefa pulada por estado
+  // repetido) só desceria para o arquivo do plano depois que a onda já tivesse rodado —
+  // e o dono lê a árvore enquanto ela roda. Aqui ela desce ANTES do disparo, e a lista
+  // fica no ledger da corrida, que é o que as rodadas seguintes leem.
+  const pendDaLargada = blockers.slice(pendGravadas).filter(x => x.taskId).map(x => x.taskId)
+  if (pendDaLargada.length) ledgerCorrida.push({ r, tipo: 'pendencia', taskId: null,
+    resumo: `pendência nova na largada: ${pendDaLargada.join(' · ')}` })
+  await gravaPendencias()
+
   // ── RESERVA DE ARQUIVOS ENTRE MOTORES (F9.2) ────────────────────────────────
   const arquivosDaOnda = [...new Set(todo.flatMap(t => t.files || []))]
   if (arquivosDaOnda.length) {
@@ -1090,6 +1142,7 @@ while (!built && r < maxRounds) {
   rodadasMudas = blocosVerdes.length ? 0 : rodadasMudas + 1
 
   if (desligadoPor === 'causa-global') {
+    await gravaPendencias()
     rounds.push({ r, decomp, results: respostas.filter(x => !x.espera), review: null,
                   diagnoses, checkpoint: blocosVerdes.length > 0, blocos: blocosVerdes,
                   feitos: blocosVerdes.flatMap(x => x.feitos),
@@ -1147,6 +1200,12 @@ while (!built && r < maxRounds) {
   }
 
   // REVISÃO GERAL DA OBRA — julga o repositório no escopo dos arquivos da onda.
+  //
+  // ANTES dela, tudo o que a rodada travou num PASSO desce para o arquivo do plano
+  // (F12.5) — aqui já nasceram os blockers da onda inteira: os do laço de blocos, o
+  // impedimento confirmado pelo auditor e a proposta do arquivo sob tranca.
+  await gravaPendencias()
+
   const filesDaOnda = [...new Set(results.flatMap(x => x?.files_touched || []))]
   const review = await julga(reviewBuildPrompt({ planPath: ARGS.planPath, planText: ARGS.planText, repoRoot: ARGS.repoRoot, decomp, results, round: r, lawMark, protegidas: [...protegidas], files: filesDaOnda, ledger: trilho() }),
     { model: tier.model, effort: tier.effort, phase: 'Revisar', label: `rev-geral:r${r}`, schema: BUILD_REVIEW })
@@ -1322,6 +1381,7 @@ if (!built && entregouAlgo && desligadoPor !== 'orcamento') {
         whyNeedsYou: 'a missão já parou — este conserto vira tarefa no plano, não sai sozinho' })
     }
   }
+  await gravaPendencias()   // o defeito achado na parada também trava o passo (F12.5)
 }
 
 // O QUE FALTOU, SEPARADO POR MOTIVO (F9.19).
