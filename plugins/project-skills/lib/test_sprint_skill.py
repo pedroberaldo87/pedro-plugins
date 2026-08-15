@@ -124,6 +124,28 @@ def main():
     check("o retorno resolve o hook da reserva pelo resolvedor",
           "project-skills hooks/reserva-de-arquivos.sh" in retorno)
 
+    # F24.2 — a linha do ledger nasce no MESMO retorno, escrita pelo programa a
+    # partir do JSON que o Workflow devolveu. Sem estas assercoes a receita volta a
+    # deixar o numero da corrida na memoria da sessao, que e onde ele morre.
+    print("o retorno da chamada tambem GRAVA a linha do ledger da corrida")
+    check("o retorno chama o registrador do ledger",
+          "ledger_corridas.py" in retorno and "registra-run" in retorno)
+    check("o ledger e resolvido pelo resolvedor, sem caminho a mao",
+          "project-skills lib/ledger_corridas.py" in retorno)
+    check("a entrada sai do JSON que o Workflow devolveu, colado literal",
+          "COLADO LITERAL" in retorno and "o JSON que o Workflow devolveu" in retorno)
+    check("a receita nomeia os campos que saem do retorno do motor",
+          "`progresso.feitos`" in retorno and "`gasto`" in retorno
+          and "`stopReason`" in retorno)
+    check("a receita proibe redigir o numero de memoria",
+          "nunca da sua memória" in retorno)
+    check("a receita diz que campo vazio o programa RECUSA",
+          "Campo obrigatório vazio o programa RECUSA" in retorno)
+    check("a corrida e identificada pelo mesmo motor que morreu",
+          '--run-id "$MOTOR_MORTO"' in retorno)
+    check("a largada e impressa pelo bloco 1, nao chutada no retorno",
+          "$(date +%s)" in armacao and 'SPRINT_INICIO="…"' in retorno)
+
     # O passo 3 da Persistencia deixou de ser o lugar onde o sinal cai nem onde a
     # reserva e solta: la e repeticao idempotente do caminho feliz.
     passo3 = secao(texto, "3. **Confere o sinal apagado", "4. **Passa o caminhão do lixo")

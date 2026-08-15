@@ -363,7 +363,7 @@ improve-workflow  0.16.27  [improve-workflow]           -
 intent-guard       0.8.15  [intent-guard]               HOOKS
 lixeiro             1.5.4  [faxina]                     HOOKS
 principles          1.0.5  [principles]                 -
-project-skills    0.22.72  [completude,design-md,doc,doc-load,doc-touch,monitorar,pesquisa-referencias,plan,project-skills,qa-loop,sprint,start] HOOKS
+project-skills    0.22.77  [completude,design-md,doc,doc-load,doc-touch,monitorar,pesquisa-referencias,plan,project-skills,qa-loop,sprint,start] HOOKS
 ship                1.5.6  [ship]                       HOOKS
 slides              1.6.2  [slides]                     -
 vision              0.1.1  []                           -
@@ -1049,12 +1049,22 @@ As cópias de `regua_texto.py` aparecem à parte porque são vendoring, não có
 (§7.4):
 
 ```
-plugins/project-skills/lib/ 51 dos 128 — o motor de doc inteiro (journal.py · pattern_check.py ·
+plugins/project-skills/lib/ 54 dos 133 — o motor de doc inteiro (journal.py · pattern_check.py ·
                            organism.py · graph_map.py · doc_lint.py · historico.py ·
                            rastreio_etapas.py · curadoria_features.py ·
                            decisoes_estruturais.py · doc_load.py · collect_engine.py vendorado),
                            o ciclo de vida do plano (plan_state.py · cobertura.py ·
                            completude.py · auditoria_plano.py · plan_entrada.py · regua_pronto.py),
+                           o ledger de corridas do projeto (ledger_corridas.py — uma entrada
+                           append-only por run em .claude/.sprint/corridas.jsonl, fora do git;
+                           quem escreve é o `registra-run`, com o retorno do motor colado
+                           literal pela casca do sprint — campo vazio sai 2 e não grava;
+                           a largada vai antes para .claude/.sprint/em-curso/<run>.json,
+                           e corrida que não volta em 12h vira linha `morta-por-fora`
+                           na leitura seguinte, com o não medido marcado `nao-medido`;
+                           `serie` lê a série e devolve, por corrida, quanto o fechado
+                           subiu contra a anterior da mesma missão e o custo por passo
+                           fechado — é ele que responde se a missão avança ou gira),
                            andamento.py, green-cache.sh (vendorado) e os resolve-*.sh
                            + as suítes `test_*` correspondentes (`ls plugins/project-skills/lib/test_*`)
 plugins/vistoria/lib/      achado.py · fio_morto.py · inventario.py · medidor.py ·
