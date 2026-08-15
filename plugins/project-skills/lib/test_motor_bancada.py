@@ -26,6 +26,9 @@ import subprocess
 import sys
 import tempfile
 
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from bash_posix import bash_posix  # noqa: E402  — o vendorado ao lado, nunca o PATH pelado
+
 AQUI = os.path.dirname(os.path.abspath(__file__))
 SKILL_MD = os.path.join(AQUI, "..", "skills", "sprint", "SKILL.md")
 PLAN_STATE = os.path.join(AQUI, "plan_state.py")
@@ -251,7 +254,11 @@ function salva(p) {
   // O comando da skill e POSIX (`for`/`&&`/`||`), entao precisa de sh — mas no Windows
   // nao existe /bin/sh e o spawn morre com ENOENT antes de rodar. O bash do Git for
   // Windows esta no PATH (e o proprio shell do job do CI), e entende a mesma sintaxe.
-  execSync(cmd, { stdio: 'pipe', shell: process.platform === 'win32' ? 'bash.exe' : '/bin/sh' })
+  // O comando e POSIX, e no Windows o `bash` PELADO do PATH e o do WSL — que em
+  // maquina sem distro responde em UTF-16 e roda `cd C:/...` dentro do namespace do
+  // Linux. Quem resolve isso ja existe e e vendorado ao lado: lib/bash_posix.py. O
+  // caminho ABSOLUTO vem no CFG; sem ele, /bin/sh (o caso POSIX de sempre).
+  execSync(cmd, { stdio: 'pipe', shell: CFG.shell || '/bin/sh' })
   return { committed: true, sha: 'bancada' }
 }
 
@@ -459,6 +466,7 @@ def roda_motor(tmp, texto, plan_dir, tick_cmd, plan_path, token_budget=None,
         "suiteFalhando": suite_falhando or [],
         "largadaFalhando": largada_falhando or [],
         "reservaRecusada": reserva_recusada,
+        "shell": bash_posix() or "/bin/sh",
         "pluginSkills": os.path.abspath(os.path.join(AQUI, "..")),
         "raiz": tmp,
         "planoId": PLANO["id"],
