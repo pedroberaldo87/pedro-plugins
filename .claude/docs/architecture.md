@@ -360,7 +360,7 @@ guardrails          1.8.7  [guardrails]                 HOOKS
 handoff           1.11.12  [handoff]                    HOOKS
 improve             1.1.2  [improve]                    -
 improve-workflow  0.16.27  [improve-workflow]           -
-intent-guard       0.8.13  [intent-guard]               HOOKS
+intent-guard       0.8.14  [intent-guard]               HOOKS
 lixeiro             1.5.4  [faxina]                     HOOKS
 principles          1.0.5  [principles]                 -
 project-skills    0.22.68  [completude,design-md,doc,doc-load,doc-touch,monitorar,pesquisa-referencias,plan,project-skills,qa-loop,sprint,start] HOOKS
