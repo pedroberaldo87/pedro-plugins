@@ -13,7 +13,32 @@ repete o texto.
 | `.claude/docs/` | os documentos canônicos — autorais e minerados, lado a lado | sim |
 | `.claude/docs/decisions/` | o log de decisões, `NNNN-<slug>.md`, um arquivo por decisão | sim |
 | `.claude/plans/` | os planos de implementação, `<id>.plan.json`, ticáveis | conforme o projeto |
-| `.claude/visual/` · `.claude/archify/` | página e diagrama de sessão — artefato, não documento | não |
+| `.claude/visual/` | a página de sessão — artefato, não documento | não |
+| `.claude/prints/` | os prints de tela da validação visual, `<slug>.png` | não |
+| `.claude/reports/` | os relatórios em texto — de execução, de varredura, de causa | não |
+| `.claude/archify/` | o diagrama de sessão — artefato, não documento | não |
+| `.claude/ata/` | as atas verbatim do `/handoff`, `LOG-<sessão>.md` + `INDEX.md` | não |
+| `.claude/pesquisa/` | os dossiês de referência, `<slug>.md` | não |
+| `.claude/specs/` | os arquivos de projeto que não são doc — especificação avulsa e export de ferramenta (`.claude/specs/checkout-v2.md`, `.claude/specs/tokens-figma.json`) | não |
+| `.claude/vistoria/` | os relatórios de vistoria em HTML | não |
+| `.claude/qa-loop/` | a telemetria do `/qa-loop` do projeto | não |
+| `.claude/gauntlet/` | o rito e os vereditos de cada disputa, `<data>-<slug>/` | não |
+| `.claude/intent/` | o ledger do `/intent-guard` e o desligador `off` | não |
+| `.claude/.sprint/` | o ledger de corridas do `/sprint`, `corridas.jsonl`, e as largadas ainda em curso em `em-curso/` | não |
+| `.claude/.project-doc/` | a máquina do `/doc` — journal, ledger e achados de mineração | não |
+| `.claude/secrets/` | o elo para o cofre de valores-secreto, fora da árvore | não |
+| `.claude/hooks/` | os hooks do próprio projeto (não é pasta de trabalho de skill) | sim |
+
+Esta tabela é a lista FECHADA das pastas de trabalho de um projeto. Pasta nova
+citada por uma skill sem entrar aqui é acusada por `scripts/contrato_pastas_check.py`
+— e a ordem é a inversa do costume: primeiro a casa é declarada aqui, depois a skill
+a usa. Estado que atravessa projetos mora em `~/.claude/…` e não é assunto desta
+tabela.
+
+**A fixture de teste é a exceção e NÃO vai para `.claude/specs/`**: ela mora rastreada ao
+lado da suíte que a lê (`fixtures/` junto do `test_*`), dentro do git. Fixture jogada numa
+pasta ignorada some na máquina limpa e derruba o CI — o arquivo que um teste abre é código,
+não registro de trabalho.
 
 `CLAUDE.md` e os ponteiros finos de outras ferramentas (`AGENTS.md`, `GEMINI.md`, `.cursorrules`)
 ficam na **raiz do projeto**, não em `.claude/docs/`.

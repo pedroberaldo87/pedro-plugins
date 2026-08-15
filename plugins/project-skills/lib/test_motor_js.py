@@ -81,6 +81,43 @@ for nome, fonte, _base in FONTES:
     check("destravou de verdade ⇒ a causa sai do cache e a corrida segue (%s)" % nome,
           "delete causaCache['@repositorio']" in fonte)
 
+# A3 · O BLOCKER DE DECISÃO VIRA PENDÊNCIA NO PASSO (F12.5 · R-21). O blocker morria
+# no relatório do FIM da corrida: o passo continuava `todo` no arquivo do plano e a
+# rodada seguinte soltava executor nele de novo. A gravação é código do laço, então
+# vale nas DUAS fontes; o corpo do prompt só existe no motor.js, por desenho.
+for nome, fonte, _base in FONTES:
+    check("a gravação de pendência existe e é chamada (%s)" % nome,
+          "gravaPendencias" in fonte and "await gravaPendencias()" in fonte)
+    check("ela grava na MESMA rodada — antes da revisão geral e na parada por causa "
+          "global (%s)" % nome, fonte.count("await gravaPendencias()") >= 3)
+    check("só blocker com passo vira pendência (%s)" % nome,
+          "blockers.slice(pendGravadas).filter(b => b.taskId)" in fonte)
+    check("o cursor impede regravar o que já desceu (%s)" % nome,
+          "pendGravadas = blockers.length" in fonte)
+# A3b · A VARREDURA DA LARGADA (F12.6 · R-21). A pendência nascida na decomposição
+# desta volta tem que descer para o plano ANTES do disparo da onda — não depois — e a
+# lista fica no ledger da corrida, que é o que as rodadas seguintes leem.
+for nome, fonte, _base in FONTES:
+    varredura = fonte.find("A VARREDURA DA LARGADA")
+    check("a varredura da largada existe (%s)" % nome, varredura > 0)
+    check("ela varre a pendência nova da rodada (%s)" % nome,
+          "blockers.slice(pendGravadas).filter(x => x.taskId)" in fonte)
+    check("ela lista a pendência nova no ledger da corrida (%s)" % nome,
+          "tipo: 'pendencia'" in fonte and "pendência nova na largada" in fonte)
+    check("ela roda ANTES do disparo da onda (%s)" % nome,
+          0 < varredura < fonte.find("for (const bloco of blocos)")
+          and varredura < fonte.find("RESERVA DE ARQUIVOS ENTRE MOTORES"))
+    check("a varredura chama a mesma gravação, não uma segunda via (%s)" % nome,
+          fonte.count("await gravaPendencias()") >= 4)
+
+check("o prompt chama o subcomando `pendencia` do plan_state.py",
+      "pendencia ${planIdDe(planPath)} <taskId>" in motor)
+# o programa que a gravação chama tem que existir com esse nome — prompt apontando
+# para subcomando inexistente falharia calado, uma recusa por passo, corrida afora.
+_plan_state = open(os.path.join(PLUGIN, "lib", "plan_state.py"), encoding="utf-8").read()
+check("plan_state.py tem o subcomando `pendencia`",
+      'sub.add_parser("pendencia"' in _plan_state and "def cmd_pendencia" in _plan_state)
+
 # B · a tabela prompt -> PAPEL do SKILL.md, cobrada no arquivo executável.
 PAPEIS = {
     "orquestradorPrompt": "ORQUESTRADOR", "execPrompt": "EXECUTOR",
@@ -90,7 +127,7 @@ PAPEIS = {
     "saudePrompt": "MECANICO", "reservaPrompt": "MECANICO",
     "checkpointPrompt": "MECANICO", "docTouchPrompt": "MECANICO",
     "colheitaPrompt": "MECANICO", "tickPlanPrompt": "MARCAR",
-    "runSuitePrompt": "SUITE",
+    "runSuitePrompt": "SUITE", "pendenciaPrompt": "MARCAR",
 }
 for nome, papel in PAPEIS.items():
     m = re.search(r"const %s = [^`]*`PAPEL: (\w+)" % nome, motor)
@@ -130,7 +167,11 @@ check("o checkpoint commita como 'sprint: onda'", "sprint: onda" in motor)
 check("CHECKPOINT_RESULT existe com committed obrigatório",
       "CHECKPOINT_RESULT" in motor and "required:['committed']" in motor)
 for nome, texto in (("motor.js", motor), ("esqueleto do SKILL.md", skill)):
-    salvar, marcar = texto.find("phase: 'Salvar'"), texto.find("phase: 'Marcar'")
+    # A âncora é o RÓTULO da chamada, não a fase: `phase: 'Marcar'` deixou de ser
+    # exclusivo do tique quando a gravação de pendência (F12.5) passou a usar a mesma
+    # fase, e ela é DEFINIDA antes do laço de blocos — a ordem media as duas coisas
+    # erradas. O que esta checagem cobra continua sendo o par commit→tique do bloco.
+    salvar, marcar = texto.find("label: `commit r"), texto.find("label: `marcar r")
     check("o commit roda antes da marcação (%s)" % nome, 0 <= salvar < marcar,
           "Salvar@%d Marcar@%d" % (salvar, marcar))
     check("o salvamento devolve o veredito no schema (%s)" % nome,

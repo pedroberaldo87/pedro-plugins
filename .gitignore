@@ -20,6 +20,7 @@
 .claude/vistoria/
 .claude/gauntlet/
 .claude/reports/
+.claude/prints/
 .claude/HANDOFF*.md
 .claude/RETOMAR-*.md
 .claude/BRIEFING-*.md
@@ -30,6 +31,7 @@
 # ela existe porque foi por aí que nome de cliente vazou. O custo aceito: o journal
 # não viaja entre máquinas neste projeto.
 .claude/intent/
+.claude/.sprint/
 docs/superpowers/
 
 # ─────────────────────────────────────────────────────────────────────────────

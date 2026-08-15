@@ -16,6 +16,7 @@ quem instalou, porque o cache do harness instala cada plugin em pasta própria.
 """
 
 import os
+import re
 import sys
 
 AQUI = os.path.dirname(os.path.abspath(__file__))
@@ -115,6 +116,37 @@ def main():
           em_ordem(skill, ["## Adição local — por onde a pergunta chega",
                            "## Adição local — quando o chamador é o `/start-doc`"]))
 
+    print("a aposta em cada pergunta, e o fechamento (F9.2)")
+    check("a pergunta vai com o palpite na mesa",
+          "Toda pergunta vai com o palpite na mesa e a confiança em percentual"
+          in skill)
+    check("a confianca vem em percentual, com o simbolo",
+          re.search(r"confiança:\s*\d+%", skill) is not None)
+    # As tres travas moram na regua compartilhada — o SKILL.md so aponta pra ela,
+    # senao sao duas redacoes que envelhecem separadas (F9.2).
+    check("o simbolo % e cobrado como obrigatorio, na regua",
+          "**O `%` é obrigatório**" in regua and "**O `%` é obrigatório**" not in skill)
+    check("palpite sem pista visivel nao existe, na regua",
+          "Palpite sem pista visível não existe" in regua)
+    check("confianca alta nao fecha decisao sozinha, na regua",
+          "Confiança de 95% não vira resposta do dono" in regua)
+    check("o SKILL.md aponta pra secao da aposta na regua",
+          "A aposta que vai junto com a pergunta" in skill
+          and "A aposta que vai junto com a pergunta" in regua)
+    check("o fechamento tem teste de parada operacional",
+          "O fechamento tem teste de parada operacional" in skill)
+    check("o teste de parada lista a fronteira vazia item a item",
+          "**Fronteira vazia, listada**" in skill
+          and "fronteira \"vazia\" com item por dentro é fechamento falso" in skill)
+    check("aposta nao confirmada nao sustenta o plano",
+          "**Nenhuma aposta não confirmada sustenta o plano**" in skill)
+    check("o fora-de-escopo e obrigatorio no fechamento",
+          "O fora-de-escopo é obrigatório no fechamento" in skill
+          and "Seção vazia não passa" in skill)
+    check("o fora-de-escopo vem antes do entendimento comum ser declarado",
+          em_ordem(skill, ["## Adição local — a aposta em cada pergunta, e o fechamento",
+                           "## Adição local — o modo com documento"]))
+
     print("o irmao e invocado por nome, nunca por caminho")
     check("nao ha irmao por posicao relativa",
           "CLAUDE_PLUGIN_ROOT" not in cru and "CLAUDE_PLUGIN_ROOT" not in regua)
@@ -161,8 +193,8 @@ def main():
           and "`status: approved`" in skill)
     check("objecao nao resolvida volta pro documento",
           "**Objeção não resolvida volta pro documento**" in skill)
-    check("as tres adicoes se declaram do marketplace, e nao do autor",
-          skill.count("Esta seção é do marketplace, não do autor original") == 3)
+    check("as quatro adicoes se declaram do marketplace, e nao do autor",
+          skill.count("Esta seção é do marketplace, não do autor original") == 4)
 
     print()
     if FAILS:

@@ -565,6 +565,22 @@ $(printf '%s' "$QOUT" | head -12)
   fi
 fi
 
+# R-19 · pasta de trabalho inventada na hora, sem casa declarada. Cada skill que
+# escolhia sozinha onde gravar criava mais uma pasta em `.claude/`, e ninguém tinha
+# a lista — a casa da vez só aparecia lendo a SKILL.md. A lista fechada é a tabela
+# "As pastas" de _shared/contrato-familia.md: a ordem é declarar primeiro, usar
+# depois. Escopo: só quando o commit traz um SKILL.md ou o próprio contrato.
+CPC="$ROOT/scripts/contrato_pastas_check.py"
+if [ -f "$CPC" ] && printf '%s\n' "$FILES" | grep -qE '/SKILL\.md$|contrato-familia\.md$'; then
+  if ! CPOUT=$(cd "$ROOT" && python3 "$CPC" 2>&1); then
+    VIOL="${VIOL}
+❌ PASTA DE TRABALHO SEM CASA — a skill cita pasta que o contrato não declara:
+$(printf '%s' "$CPOUT" | head -16)
+   → declare na tabela 'As pastas' de _shared/contrato-familia.md e rode scripts/sync-shared.sh
+   → régua: python3 scripts/contrato_pastas_check.py"
+  fi
+fi
+
 # R · description que só serve a quem já sabe que a skill existe.
 # Apelido (`"/faxina"`, `"sovai"`) é achado por quem lembra do nome. Quem NÃO lembra que a
 # skill existe só é atendido se a description disser em que SITUAÇÃO DE TRABALHO ela entra

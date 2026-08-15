@@ -633,6 +633,25 @@ const paraPorCausaGlobal = (d, taskId, nota) => {
     whyNeedsYou: (nota ? nota + ' — ' : '')
       + 'todo trabalho novo morreria na mesma porta — o motor parou no mesmo turno; destrave e relance' })
 }
+// ── O BLOCKER DE DECISÃO VIRA PENDÊNCIA NO PASSO, NA MESMA RODADA (F12.5) ────
+// O relatório do fim da corrida era o ÚNICO lugar onde o blocker aparecia — e ele só
+// chega quando a corrida acaba. Aqui a pergunta desce para o arquivo do plano na
+// rodada em que nasceu, e o passo passa a recusar o tique enquanto ela viver. O cursor
+// `pendGravadas` deixa a função ser chamada em todo caminho de saída da rodada sem
+// regravar o que já foi — blocker sem `taskId` é da corrida, não de um passo, e fica
+// só no relatório.
+let pendGravadas = 0
+const linhaDePendencia = b => String(b.what).replace(/\s+/g, ' ').split('. ')[0]
+  .replace(/[.!?]+$/, '').slice(0, 140)
+const gravaPendencias = async () => {
+  const novos = blockers.slice(pendGravadas).filter(b => b.taskId)
+  pendGravadas = blockers.length
+  if (!novos.length || !ARGS.planPath?.endsWith('.plan.json')) return
+  await agent(pendenciaPrompt({ planPath: ARGS.planPath,
+    passos: novos.map(b => ({ taskId: b.taskId, pendencia: linhaDePendencia(b) })) }),
+    { model: ARGS.model, effort: T.mechanical.effort, phase: 'Marcar',
+      label: `pendências r${r} (${novos.length})`, schema: TICK_RESULT })
+}
 // ── O DESTRAVADOR (F23.9) ────────────────────────────────────────────────────
 // Medido em quatro corridas seguidas (2026-08-15): a causa de repositório era sempre
 // a mesma classe — um estado que uma suíte cobra e que ficou para trás (uma linha de
@@ -970,6 +989,17 @@ while (!built && r < maxRounds) {
     break
   }
 
+  // ── A VARREDURA DA LARGADA (F12.6 · R-21) ──────────────────────────────────
+  // F12.5 grava a pendência nos caminhos de SAÍDA da rodada. A pendência que nasce na
+  // decomposição DESTA volta (critério faltando, id forjado, tarefa pulada por estado
+  // repetido) só desceria para o arquivo do plano depois que a onda já tivesse rodado —
+  // e o dono lê a árvore enquanto ela roda. Aqui ela desce ANTES do disparo, e a lista
+  // fica no ledger da corrida, que é o que as rodadas seguintes leem.
+  const pendDaLargada = blockers.slice(pendGravadas).filter(x => x.taskId).map(x => x.taskId)
+  if (pendDaLargada.length) ledgerCorrida.push({ r, tipo: 'pendencia', taskId: null,
+    resumo: `pendência nova na largada: ${pendDaLargada.join(' · ')}` })
+  await gravaPendencias()
+
   // ── RESERVA DE ARQUIVOS ENTRE MOTORES (F9.2) ────────────────────────────────
   // Mais de um motor pode estar vivo na MESMA sessão, e dois motores escrevendo o
   // MESMO arquivo é um apagando o trabalho do outro — com o dono ausente, ninguém
@@ -1195,6 +1225,7 @@ while (!built && r < maxRounds) {
   // a parada por causa global registra a rodada antes de sair: os blocos que já
   // fecharam verdes ficam no retrato, e o relatório sabe ONDE a corrida parou.
   if (desligadoPor === 'causa-global') {
+    await gravaPendencias()
     rounds.push({ r, decomp, results: respostas.filter(x => !x.espera), review: null,
                   diagnoses, checkpoint: blocosVerdes.length > 0, blocos: blocosVerdes,
                   feitos: blocosVerdes.flatMap(x => x.feitos),
@@ -1281,6 +1312,12 @@ while (!built && r < maxRounds) {
   // marca FIXADA, contra a qual ele mede — não contra o texto que estiver no disco agora.
   // `protegidas` vai junto: nelas o critério do #2 é o INVERSO do normal — proposta com
   // antes/depois literais aprova, e arquivo protegido aparecendo no git diff reprova.
+  //
+  // ANTES dela, tudo o que a rodada travou num PASSO desce para o arquivo do plano
+  // (F12.5) — aqui já nasceram os blockers da onda inteira: os do laço de blocos, o
+  // impedimento confirmado pelo auditor e a proposta do arquivo sob tranca.
+  await gravaPendencias()
+
   const filesDaOnda = [...new Set(results.flatMap(x => x?.files_touched || []))]
   const review = await julga(reviewBuildPrompt({ planPath: ARGS.planPath, planText: ARGS.planText, repoRoot: ARGS.repoRoot, decomp, results, round: r, lawMark, protegidas: [...protegidas], files: filesDaOnda, ledger: trilho() }),
     { model: tier.model, effort: tier.effort, phase: 'Revisar', label: `rev-geral:r${r}`, schema: BUILD_REVIEW })
@@ -1546,6 +1583,7 @@ if (!built && entregouAlgo && desligadoPor !== 'orcamento') {
         whyNeedsYou: 'a missão já parou — este conserto vira tarefa no plano, não sai sozinho' })
     }
   }
+  await gravaPendencias()   // o defeito achado na parada também trava o passo (F12.5)
 }
 
 // O QUE FALTOU, SEPARADO POR MOTIVO (F9.19). Os dois chegavam misturados, e quem lê não
@@ -1639,6 +1677,7 @@ return {
 | `desafioCausaPrompt` | `DESAFIADOR` | `runSuitePrompt` | `SUITE` |
 | `revisorTarefaPrompt` | `REVISOR` | `revisorBlocoPrompt` | `REVISOR` |
 | `revisaoDocPrompt` | `REVISOR` | `encerraPrompt` | `MECANICO` |
+| `pendenciaPrompt` | `MARCAR` |  |  |
 
 A declaração é a **primeira linha do corpo**, sozinha, antes de qualquer prosa — o corpo do `execPrompt` acima mostra a forma. Quem cobra que a regra continue no texto é `lib/test_travas_motor.py` (bloco `S-123`), que reescreve a prosa em volta da linha e confere no `medidor.py` que a classificação fica de pé.
 
@@ -1726,6 +1765,15 @@ chamadas sem rótulo com a instrução já escrita.
   ```
 
   É o que faz a **barra de status** dizer em que ponto a missão está (`lib/andamento.py:linha_onda` → `linha_motor`). A rodada só existe na memória do motor e o progresso só existe no arquivo do plano: sem este registro, quem volta ao terminal lê `missão há 2h14` sem saber se isso é a primeira volta ou a décima. **O total é contado pelo programa a partir do plano**, nunca pelo agente — quem marcou os passos acabou de gravá-los, e pedir a conta a quem marcou é o mesmo defeito do placar de suíte que o motor descartava. Falhar aqui **não** derruba nada: a barra volta a ser a de antes.
+
+- `pendenciaPrompt` — **com schema `TICK_RESULT`**, o mesmo do tique, e a lista inteira num agente só. Papel **mecânico e só**: gravar no passo a decisão que o travou, rodando **um comando por passo**:
+
+  ```bash
+  MARCADOR="$(bash "${CLAUDE_PLUGIN_ROOT}/lib/resolve-plugin.sh" project-skills lib/plan_state.py)"
+  cd <raiz> && python3 "$MARCADOR" --dir <raiz>/.claude/plans pendencia <plano> <taskId> "<pendencia>"
+  ```
+
+  Quem dispara é `gravaPendencias()`, **na rodada em que o blocker nasce** — antes, o blocker de decisão só aparecia no relatório do fim da corrida, o passo seguia `todo` no arquivo e a rodada seguinte soltava executor nele de novo. O texto é o que o motor mandou, nunca redigido aqui; recusa do programa (régua de estilo, passo inexistente) entra no veredito daquele passo com `ok: false`. Blocker **sem** `taskId` é da corrida, não de um passo: fica só no relatório.
 
 - `TICK_RESULT` — `{ marcados: [{ task_id, ok: bool, motivo }] }`. Uma entrada por passo que o agente tentou marcar, na ordem. `ok: false` carrega em `motivo` a linha que o `plan_state.py` imprimiu ao recusar — recusa legítima (decisão em aberto) e falha de comando chegam pelo mesmo campo, e quem separa é o script pela mensagem. **Passo que o script mandou marcar e não aparece na lista é tratado como perda silenciosa**, não como sucesso.
 - `checkpointPrompt` — **com schema `CHECKPOINT_RESULT`** (`{ committed: bool, sha, motivo }` — decisão do dono, 2026-08-13). Antes ele era sem schema e o retorno era descartado: o gate de release que recusava o commit era engolido pelo `|| true` **depois** de o passo já estar `done` no plano — plano dizendo feito, git sem o código. Agora o commit roda **ANTES** da marcação, devolve `committed`, e o script **segura o `tick` do bloco inteiro** quando `committed` não é `true` (recusa vira Bloqueio nomeado com o motivo do gate; agente mudo idem). `committed: true` com o `sha` vale também para árvore limpa (nada a commitar não é falha). Papel **mecânico e só**: gravar no **histórico do git** o que a onda verde produziu, rodando

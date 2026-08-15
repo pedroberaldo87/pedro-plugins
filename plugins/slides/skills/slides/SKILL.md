@@ -112,10 +112,13 @@ Num deck compilado isso passa por construção. Se acusar, **não conserte o HTM
 
 ### 6. Verifique o visual — os 4 cenários (reproduza e OLHE o print)
 Não basta inspecionar o DOM: tire screenshot e analise se está coerente com o esperado.
+Print tem casa declarada — `.claude/prints/` do projeto, pela tabela "As pastas" do
+`contrato-familia.md`. Nada de `/tmp`: print fora da casa some sem ninguém ver.
 
 1. **Thumbnail do WhatsApp (sem JS):** reproduza com a engine WebKit do macOS —
    ```bash
-   qlmanage -t -s 1200 -o /tmp "<deck>.html" && open "/tmp/<deck>.png"
+   mkdir -p .claude/prints
+   qlmanage -t -s 1200 -o .claude/prints "<deck>.html" && open ".claude/prints/<deck>.png"
    ```
    A **capa** tem que aparecer (não pode sair preto/vazio). É exatamente o que o WhatsApp mostra no anexo.
 2. **Mobile:** Playwright a **390×844** → scroll vertical legível, **zero overflow horizontal**, fonte ok (fallback de sistema cobre sem internet).

@@ -27,3 +27,19 @@ A instrução da skill diz **o que** perguntar. Quem escolhe **por onde** é o u
 **Quem escolhe é o usuário.** Na primeira rodada, ofereça os dois e use o que ele pedir; ele pode
 trocar de canal a qualquer momento, e a troca vale da rodada seguinte em diante. Sem escolha dita,
 use o padrão.
+
+## A aposta que vai junto com a pergunta
+
+Campo em branco obriga o dono a compor a resposta do zero; palpite errado ele derruba numa linha, e
+derrubar é mais rápido e mais honesto do que redigir. Por isso **toda pergunta vai com o palpite na
+mesa e a confiança em percentual** — como cada skill nomeia e formata esse palpite é dela, mas estas
+três travas valem em todas:
+
+- **O `%` é obrigatório** — "confiança alta" e "meio certo" não são confiança, são impressão. O
+  número existe para dizer ao dono onde gastar atenção: **abaixo de 50%** é chute que ele precisa
+  corrigir; **acima de 80%** é conferência rápida. Sem número, ele lê tudo com a mesma desconfiança.
+- **Palpite sem pista visível não existe.** Ele nasce do insumo que você já leu, e a pista vai junto
+  — `arquivo:linha`, ou o trecho literal.
+- **Confiança de 95% não vira resposta do dono.** Palpite que ele não confirmou continua sendo
+  palpite: silêncio nunca é aprovação, e o que fica registrado é o que ELE respondeu, não o que você
+  apostou. Se não há pista para apostar, pergunte em branco e diga que não tem palpite.

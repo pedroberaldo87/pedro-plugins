@@ -293,6 +293,36 @@ def _erros_dos_limites(plan):
     return errs
 
 
+# A mesma frase no aviso do close e no cartão da página: a decisão é uma só, e
+# duas redações dela envelheceriam separadas.
+FRENTE_DECIDA = "decida mesclar, manter ou descartar — fechar o plano não fecha a branch."
+
+
+def _erros_da_frente(plan):
+    """A seção `frente` — a branch e a worktree em que este plano é trabalhado (R-20).
+
+    É ANINHADA e os dois campos são obrigatórios juntos: a decisão do dono é que
+    haja uma checagem só no fechamento, e meio-gravar (branch sem worktree, ou o
+    contrário) daria uma frente que o fechamento não sabe encerrar. Projeto que
+    trabalha na própria árvore grava a raiz do repositório como worktree.
+
+    Formato, no topo do plano, ao lado de `phases`:
+        "frente": {"branch": "feature/<slug>", "worktree": "<caminho>"}
+    """
+    fr = plan.get("frente")
+    if fr is None:
+        return []
+    if not isinstance(fr, dict):
+        return ["frente: precisa ser um objeto {branch, worktree}, ou ausente"]
+    errs = []
+    for campo in ("branch", "worktree"):
+        if not str(fr.get(campo, "")).strip():
+            errs.append("frente %s: obrigatório — a frente se grava inteira ou não se\n"
+                        "     grava: só com a branch E a worktree o fechamento tem o que\n"
+                        "     encerrar." % campo)
+    return errs
+
+
 def _funde_limites(stored, incoming):
     """União da seção `limites` por texto do limite. Devolve (lista, mantidos).
 
@@ -328,6 +358,7 @@ def erros_do_plano(plan, exigir=None):
         errs.append("status '%s': use %s (o do PLANO, não o do passo)"
                     % (pst, "|".join(PLAN_STATUSES)))
     errs.extend(_erros_dos_limites(plan))
+    errs.extend(_erros_da_frente(plan))
     phases = plan.get("phases")
     if not isinstance(phases, list) or not phases:
         errs.append("phases: precisa ser uma lista com ao menos 1 fase")
@@ -421,6 +452,22 @@ def erros_do_plano(plan, exigir=None):
                 errs.append(
                     "%s status 'done' sem prova: marcar feito é `tick <id> --evidencia`,\n"
                     "     que grava a prova junto. Escrito à mão, 'concluído' é palpite." % itag)
+    # R-11: plano 'done' some da listagem de planos abertos. Gravado com passo que
+    # ninguém provou, ele leva o passo junto para fora da vista — e some sem que
+    # nada tenha sido feito. Quem encerra é `close`, que só escreve 'done' quando
+    # todos os passos estão marcados; à mão, é recusado com os ids na cara.
+    if pst == "done":
+        pendentes = [str(it.get("id", "?"))
+                     for ph in phases if isinstance(ph, dict)
+                     for it in ph.get("items") or []
+                     if isinstance(it, dict) and it.get("status") != "done"]
+        if pendentes:
+            errs.append(
+                "status 'done' com %d passo(s) sem prova: %s.\n"
+                "     Encerrar é `close`, e ele só escreve 'done' quando todo passo\n"
+                "     está marcado com `tick <id> --evidencia`. Plano 'done' sai da\n"
+                "     listagem — do jeito que está, ele levaria esses passos junto."
+                % (len(pendentes), ", ".join(pendentes[:8])))
     return errs
 
 
@@ -1047,6 +1094,37 @@ def cmd_state(args):
     return 0
 
 
+def cmd_pendencia(args):
+    """Grava no passo a decisão que o trava — o blocker do motor virando pergunta.
+
+    Sem isto o blocker do /sprint morria no relatório do fim da corrida: o passo
+    continuava `todo` no arquivo, a rodada seguinte soltava executor nele de novo, e a
+    decisão que só o dono pode tomar aparecia horas depois de nascer. Escrever a
+    pergunta AQUI é o que a faz valer: `pendencia_viva` recusa o tique e a árvore
+    desenha o ⛔ na linha do passo.
+
+    A `decidido` sai junto porque escolha registrada apaga a pendência
+    (`pendencia_viva`) — mantê-la faria a pergunta nova nascer invisível.
+    """
+    directory = args.dir or resolve_dir()
+    plan = pick_plan(directory, args.plan)
+    ph, it = find_item(plan, args.node)
+    if it is None:
+        raise PlanError("passo '%s' não existe no plano '%s'" % (args.node, plan["id"]))
+    texto = (args.texto or "").strip()
+    if not texto:
+        raise PlanError("⛔ pendência vazia: diga o que falta decidir.")
+    erros = erros_de_estilo(texto, "pendencia")
+    if erros:
+        raise PlanError("⛔ pendência recusada — a régua vale para o texto que o dono lê:"
+                        "\n  - %s" % "\n  - ".join(erros))
+    it["pendencia"] = texto
+    it.pop("decidido", None)
+    save(directory, plan)
+    print("⛔ %s  ·  falta decidir: %s" % (args.node, texto))
+    return 0
+
+
 def cmd_reabrir(args):
     """Derruba uma decisão que o agente tomou no lugar do dono.
 
@@ -1083,6 +1161,13 @@ def cmd_close(args):
     print("🏁 plano '%s' encerrado como '%s' (%d/%d passos)" % (plan["id"], plan["status"], d, t))
     if d != t:
         print("   %d passo(s) ficaram sem marcar — continuam registrados no arquivo." % (t - d))
+    # R-20: fechar o plano não fecha a frente. A branch continua viva na máquina e é
+    # exatamente isso que fica esquecido — o aviso NOMEIA a branch pra que o dono
+    # decida mesclar, manter ou descartar.
+    fr = plan.get("frente") or {}
+    if fr.get("branch"):
+        print("   🌿 frente ainda aberta: %s (%s) — %s"
+              % (fr["branch"], fr.get("worktree", ""), FRENTE_DECIDA))
     return 0
 
 
@@ -1576,7 +1661,13 @@ def render_text(plan, reqs=None, vista="execucao", compacto=False):
     if vista == "valor":
         return _render_valor(plan, reqs or {})
     done, total = plan_progress(plan)
-    out = ["📋 %s — %d/%d passos" % (plan.get("title", plan["id"]), done, total), ""]
+    out = ["📋 %s — %d/%d passos" % (plan.get("title", plan["id"]), done, total)]
+    # A frente aparece na árvore porque ela é o que fica esquecido: quem lê "onde a
+    # gente está" tem que ver em qual branch/worktree este plano vive.
+    fr = plan.get("frente") or {}
+    if fr.get("branch"):
+        out.append("🌿 frente: %s · %s" % (fr["branch"], fr.get("worktree", "")))
+    out.append("")
     for ph in plan["phases"]:
         pd, pt = phase_progress(ph)
         out.append("%s %s · %s   (%d/%d)" % (MARK[phase_status(ph)], ph["id"], ph["title"], pd, pt))
@@ -1759,6 +1850,20 @@ def render_html(plan, mode="track", reqs=None, vista="execucao"):
              '    <span class="pt-count">%d/%d passos</span>' % (done, total),
              '  </div>',
              '  <div class="pt-bar"><div class="pt-fill" style="width:%d%%"></div></div>' % pct]
+    # A mesma frente que a árvore de texto mostra: a página HTML é a superfície que o
+    # dono abre, e é nela que a branch esquecida tem que aparecer. Aqui ela vem como
+    # CARTÃO DE FECHAMENTO (R-20) — nomear a branch só avisa; o que fecha a frente é a
+    # decisão com os comandos dela à mão, na página do relatório do sprint.
+    fr = plan.get("frente") or {}
+    if fr.get("branch"):
+        b, w = _e(fr["branch"]), _e(fr.get("worktree", ""))
+        parts.append('  <div class="pt-frente pt-frente-fechar">')
+        parts.append('    <b>🌿 frente aberta: %s</b>' % b)
+        parts.append('    <p>worktree: %s</p>' % w)
+        parts.append('    <p>%s</p>' % FRENTE_DECIDA)
+        parts.append('    <p><code>git worktree remove %s</code> · '
+                     '<code>git branch -d %s</code></p>' % (w, b))
+        parts.append('  </div>')
 
     for n, ph in enumerate(plan["phases"], 1):
         st = phase_status(ph)
@@ -2091,6 +2196,12 @@ def build_parser():
     q.add_argument("--reqs", help="caminho do documento de requisitos (default: cascata)")
     q.add_argument("--json", action="store_true")
     q.set_defaults(func=cmd_cobertura)
+
+    q = sub.add_parser("pendencia", help="grava no passo a decisão que o trava")
+    q.add_argument("plan", nargs="?")
+    q.add_argument("node")
+    q.add_argument("texto")
+    q.set_defaults(func=cmd_pendencia)
 
     q = sub.add_parser("reabrir", help="derruba uma decisão tomada no seu lugar")
     q.add_argument("plan", nargs="?")

@@ -48,7 +48,7 @@ bash plugins/project-doc/hooks/test_plan_gate.sh
 
 - **[architecture.md](.claude/docs/architecture.md)** — estrutura do repo, anatomia de plugin, catálogo dos 23 plugins distribuídos com versões, os 12 plugins com hooks evento a evento, a engine vendorada (`_shared/` → 107 cópias em 44 pastas, §7), decisões de arquitetura, terceiros do bootstrap
   → entender o projeto, adicionar plugin, mexer em hooks, onboarding de máquina nova
-- **[patterns.md](.claude/docs/patterns.md)** — convenções de shell (fail-open, protocolo de saída de hook) e Python (stdlib only), vendoring, green-cache, regras de release + os 10 checks do gate de commit, testing, e a lista completa de gotchas com arquivo:símbolo
+- **[patterns.md](.claude/docs/patterns.md)** — convenções de shell (fail-open, protocolo de saída de hook) e Python (stdlib only), vendoring, green-cache, regras de release + os checks do gate de commit (quantos são hoje sai do próprio arquivo: `grep -cE '^# [A-Z0-9-]+ · ' .claude/hooks/release-gate.sh`), testing, e a lista completa de gotchas com arquivo:símbolo
   → criar plugin, publicar mudança, escrever hook, evitar as armadilhas de release
 - **[data-stores.md](.claude/docs/data-stores.md)** — todo depósito de dado, dentro e fora do repo (journal, ledger, grafo, atas, os planos ticáveis em `.claude/plans/`, o estado que os hooks escrevem em `~/.claude/`, o cofre no iCloud), com a natureza de cada um
   → responder "o que a gente guarda?", avaliar impacto de perda, antes de apagar diretório de estado

@@ -38,6 +38,40 @@ e a cópia local é derivada — não editar à mão; `scripts/sync-shared.sh` a
 
 ---
 
+## Adição local — a aposta em cada pergunta, e o fechamento
+
+*(Esta seção é do marketplace, não do autor original. O texto acima está verbatim.)*
+
+**Toda pergunta vai com o palpite na mesa e a confiança em percentual.** O `➡️` da rodada deixa de
+ser só a recomendação: ele é a sua **aposta**, e vem com o número. Campo em branco obriga o dono a
+compor a resposta do zero; palpite errado ele derruba numa linha, e derrubar é mais rápido e mais
+honesto do que redigir. A forma é sempre esta:
+
+> ➡️ **Aposta:** a fila roda em processo separado, não dentro do servidor — **confiança: 70%**
+> (pista: `docker-compose.yml:14` já sobe um worker).
+
+As três travas da aposta — **o `%` obrigatório**, **palpite sem pista visível não existe** e
+**confiança de 95% não vira resposta do dono** — estão em **`regua-de-pergunta.md`**, ao lado deste
+arquivo, na seção *A aposta que vai junto com a pergunta*. O texto mora lá; aqui só o `➡️`.
+
+**O fechamento tem teste de parada operacional.** "A fronteira está vazia" é sensação enquanto não
+for conferível. Só feche escrevendo, e o dono lendo, as três linhas:
+
+1. **Fronteira vazia, listada** — as decisões que restaram abertas, uma a uma, cada uma com o motivo
+   de não bloquear (`[PENDENTE]` aceito pelo dono, ou fato que não muda o desenho). Lista vazia se
+   diz vazia; fronteira "vazia" com item por dentro é fechamento falso.
+2. **Nenhuma aposta não confirmada sustenta o plano** — toda aposta sua virou resposta do dono, ou
+   está na lista acima como pendência declarada.
+3. **O fora-de-escopo escrito** — veja abaixo.
+
+**O fora-de-escopo é obrigatório no fechamento.** Metade do desalinhamento é discordância silenciosa
+sobre o que **não** está sendo construído. Antes de declarar entendimento comum, escreva a seção
+**Fora de escopo** com os itens que a sabatina levantou e o plano não vai fazer — cada um com uma
+linha de motivo (adiado, decidido contra, ou pertence a outro trabalho). Seção vazia não passa: se
+nada ficou de fora, ou a sabatina não foi funda o bastante, ou você não anotou o que descartou.
+
+---
+
 ## Adição local — o modo com documento, que entra por argumento
 
 *(Esta seção é do marketplace, não do autor original. O texto acima está verbatim.)*

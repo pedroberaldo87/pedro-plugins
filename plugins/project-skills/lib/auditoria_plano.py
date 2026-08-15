@@ -12,6 +12,8 @@ nenhum. Quem lê documento é o cruzamento; este módulo só ordena o que ele ap
 por isso não conhece a pasta de plugin vizinho nenhum.
 """
 
+import re
+
 # Nível 1 — o plano contradiz a documentação canônica. Cada balde é um jeito de
 # contradizer: citar o que a lei/arquitetura/desenho não tem, ou não citar nada.
 #
@@ -21,6 +23,8 @@ por isso não conhece a pasta de plugin vizinho nenhum.
 # inalcançáveis e o laço passa a inventar tarefa de artigo que este plano nunca se
 # propôs a tratar. Quem faz essa conta de projeto é `completude.py`, sobre a união.
 NIVEL1 = [
+    ("pronto_sem_espera",
+     "o pronto depende de ato do dono e não declara espera_dono"),
     ("artigos_inexistentes", "cita artigo que a lei não tem"),
     ("pecas_inexistentes", "cita peça que a arquitetura não tem"),
     ("inexistentes", "cita requisito que não existe"),
@@ -75,6 +79,32 @@ PERGUNTA = {
     DOC_VENCIDA: "a doc não acompanhou o que já existe — quem muda é a doc ou o plano?",
     DOC_EM_CONFLITO: "dois documentos canônicos discordam — qual deles vale?",
 }
+
+
+# O vocabulário do ato do dono — o que só ele pode fazer (`plan/SKILL.md`, passo 5,
+# classe 1). Tarefa cujo `pronto` pede um destes e não declara `espera_dono` é tarefa
+# que trava a noite: o executor chega no critério, não tem como cumpri-lo, e a rodada
+# queima. Quem declarou a espera passa — a espera é justamente a declaração.
+# ponytail: casamento por prefixo, sem análise de frase — "aprova" dentro de outra
+# oração acusa junto; se o ruído incomodar, o passo seguinte é olhar a oração do verbo.
+ATO_DO_DONO = re.compile(
+    r"deploy|publica|aprova|credencia|acesso|compra", re.IGNORECASE)
+
+
+def _pronto_sem_espera(mapa):
+    """Ids das tarefas cujo `pronto` pede ato do dono sem espera declarada.
+
+    A lista de tarefas chega em `tarefas` (o que o `.plan.json` tem: `id`, `pronto`,
+    `espera_dono`). Sem ela o balde fica vazio, como todo cruzamento sem com o que
+    cruzar — acusar todo mundo seria ruído, não cobrança.
+    """
+    out = []
+    for t in mapa.get("tarefas") or []:
+        if str(t.get("espera_dono") or "").strip():
+            continue
+        if ATO_DO_DONO.search(str(t.get("pronto") or "")):
+            out.append(str(t.get("id")))
+    return out
 
 
 def _alvo(item):
@@ -133,6 +163,8 @@ def audita(mapa):
     o programa não o declara verde: ele sai `pendente`, com os três pés nomeados e o
     critério que reprova cada um, para o agente preencher.
     """
+    mapa = dict(mapa or {})
+    mapa["pronto_sem_espera"] = _pronto_sem_espera(mapa)
     n1 = _nivel(mapa, NIVEL1)
     n1.update(_classifica(mapa))
     if n1["vermelho"]:

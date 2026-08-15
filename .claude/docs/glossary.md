@@ -21,7 +21,7 @@ scope: []
 
 ## Interno (inventado pela equipe)
 - **esteira** — a bateria completa de suítes do repositório · `scripts/suite.sh`.
-- **portão / release-gate** — o hook de commit que barra release fora do padrão · `.claude/hooks/release-gate.sh` (a contagem de checks sai de `grep -cE '^# [A-Z0-9]+ · '` no próprio arquivo).
+- **portão / release-gate** — o hook de commit que barra release fora do padrão · `.claude/hooks/release-gate.sh` (a contagem de checks sai de `grep -cE '^# [A-Z0-9-]+ · '` no próprio arquivo).
 - **motor** — o programa que executa um plano sozinho, despachando agentes em ondas · `plugins/project-skills/skills/sprint/references/motor.js` · não confundir com **motor de skill**.
 - **motor de skill** — a mecânica em Python que uma skill chama em vez de fazer por prosa · `lib/*.py` de cada plugin.
 - **bump** — subir a versão no `plugin.json` (espelhada no catálogo); é o que faz o cliente receber a mudança.
