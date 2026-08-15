@@ -197,6 +197,15 @@ check("runSuitePrompt roda o comando declarado literal quando ele existe",
 check("proxy de critério é proibido no executor e reprovado no revisor",
       "PROXY É PROIBIDO" in motor and "critério REESCRITO" in motor)
 
+# R-17 · O JUIZ NÃO RECEBE A CONCLUSÃO DE QUEM PEDE O JULGAMENTO (Art. 4). A linha
+# vale nos DOIS motores — cobrar só o do /sprint deixa o viés voltar pelo /qa-loop.
+SEM_HIPOTESE = "VOCÊ NÃO RECEBE A HIPÓTESE DE QUEM PEDIU O JULGAMENTO"
+motor_qa = open(os.path.join(PLUGIN, "skills", "qa-loop", "references", "motor.js"),
+                encoding="utf-8").read()
+for _nome, _texto in [("motor.js do sprint", motor), ("motor.js do qa-loop", motor_qa)]:
+    check("a proibição de receber a hipótese de quem pediu está declarada (%s)" % _nome,
+          SEM_HIPOTESE in _texto and "${SEM_HIPOTESE}" in _texto)
+
 # E4 · TRABALHO VIVO É MEDIDO, NÃO JULGADO (F17.4). A linha antiga pedia ao agente
 # `true se há processo de build/servidor ainda rodando` — julgamento por foto, que não
 # separa quem trabalha de quem está pendurado há uma hora, e que desarmava o vigia. A

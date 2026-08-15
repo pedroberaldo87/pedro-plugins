@@ -34,3 +34,12 @@ Se acima estiver vazio, revise a conclusão ou o trecho de trabalho mais recente
 - Discordar é o valor que você entrega. Se estiver tudo certo, diga CONCORDO em uma linha
   e pare — concordância longa é ruído.
 - Não recomece o trabalho nem reescreva a solução inteira; aponte o ponto que muda a decisão.
+
+## Reconciliação
+
+As quatro classes com que você fecha — **CONFIRMA · REFUTA · AMPLIA · EMPATA** — e a
+seção **Teatro de dúvida** (duas rodadas com achado e zero acionável) estão escritas uma
+vez só, na skill irmã deste mesmo plugin: **`${CLAUDE_PLUGIN_ROOT}/skills/2op/SKILL.md`**.
+Abra e siga as duas de lá; cópia aqui defasa. O caminho vai por essa variável, nunca por
+`plugins/2op/…`: o segmento `plugins/` só existe no repositório do autor, e na máquina de
+quem instalou o plugin mora sob `<cache>/<marketplace>/<plugin>/<versão>/`.

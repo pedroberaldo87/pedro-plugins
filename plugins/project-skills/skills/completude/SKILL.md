@@ -92,3 +92,19 @@ fecha** — em especial o **Pé 2 (cobertura por finalidade)**, que é o pé de 
 medição é a versão de programa. Esse pé aponta para os cinco antipadrões de teste, que
 moram em `references/antipadroes-de-teste.md` (fonte: `_shared/antipadroes-de-teste.md`)
 — também ao lado desta skill, para o apontamento não morrer na máquina instalada.
+
+## Racionalizações — a desculpa refutada antes de você dá-la
+
+A medição existe para desmentir o "cem por cento". As frases abaixo são as formas de
+ressuscitá-lo, e todas já foram tentadas:
+
+- **"a cadeia está verde, então não sobrou ninguém"** → verde mede o que alguém
+  representou. Requisito que ninguém representou não aparece em teste nenhum.
+- **"faltam dois, arredonda pra 100%"** → o número sai do programa. Arredondar é falsificar
+  a medida, e o relatório mostra os DOIS lados justamente para impedir isso.
+- **"esses órfãos são irrelevantes"** → órfão se nomeia pelo identificador. Relevância é
+  decisão do dono, e ele só decide sobre o que enxerga.
+- **"já que estou aqui, conserto o que achei"** → medir e consertar na mesma passada
+  esconde o buraco. Conserto é do `/sprint`, defeito é do `/qa-loop`.
+- **"contei de cabeça, dá no mesmo"** → sem `lib/completude.py` a contagem é opinião do
+  modelo. O código de saída é o veredito.

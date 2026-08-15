@@ -60,9 +60,13 @@ partir da raiz do projeto.
 **1 · Medir.** O programa faz a conta; você não estima nada.
 
 ```bash
-python3 "${CLAUDE_PLUGIN_ROOT}/lib/medidor.py"            # o run mais recente
-python3 "${CLAUDE_PLUGIN_ROOT}/lib/medidor.py" <run>      # um run nomeado
+python3 "${CLAUDE_PLUGIN_ROOT}/lib/medidor.py"            # o mais recente DESTE projeto
+python3 "${CLAUDE_PLUGIN_ROOT}/lib/medidor.py" <run>      # o id do run desta missão
 ```
+
+**Passe o id do run sempre que souber qual é** — sem ele o medidor pega o mais recente,
+e o mais recente pode ser de outra missão do mesmo projeto. Run que mora na pasta de
+OUTRO projeto é recusado pelo id: o transcript dele fala de arquivos que não existem aqui.
 
 Sem run no disco ele diz isso e para — **avisando, e saindo ZERO**: num projeto
 que nunca rodou missão não há defeito nenhum a acusar, só medição que não houve.

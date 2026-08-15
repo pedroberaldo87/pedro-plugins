@@ -659,6 +659,23 @@ O eixo "vale a pena" é o **gate de severidade** (retornos decrescentes) + o **r
 (risco de regressão — o churn é o "agora gera mais regressão que conserto, para"). **Tokens = número PASSIVO no
 journal, nunca eixo de parada nem framing de "custo".**
 
+### Teatro de dúvida — o sinal de duas rodadas com achado e zero acionável
+
+**O sinal, nomeado:** duas rodadas seguidas produziram findings e NENHUM deles virou conserto —
+todos caíram em plan-drift, plano-falho, limite proposto ou P2 documentado. Isso não é convergência:
+é **validação fantasiada de revisão**. O loop está pagando rodada para carimbar o que já estava lá,
+e a rodada limpa que vier depois vale zero, porque nada foi mexido entre uma e outra.
+
+**A conduta, escrita** — quem conta é a casca, olhando as rodadas que o motor devolveu:
+
+1. Na segunda rodada seguida sem nenhum acionável, **PARE o loop** — não dispare a terceira.
+2. O relatório abre nomeando o sinal — *teatro de dúvida* — e diz para onde os achados foram
+   (quantos viraram plan-drift, quantos plano-falho, quantos limite, quantos P2).
+3. **Isso não é sucesso.** A Fase Gate continua obrigatória, e a parada é reportada como
+   `teatro-de-duvida`, ao lado de `gate-red` e do teto — nunca como rodada limpa.
+4. Se o dono quiser continuar, o próximo ciclo muda de eixo (outro alvo, outro tripé) ou muda o
+   plano — repetir o mesmo review no mesmo alvo produz o mesmo teatro.
+
 ---
 
 ## CASCA — Passo 8 · Fase Gate (saída) + Relatório (humano) + Journal (agêntico) — R7
@@ -902,3 +919,20 @@ de declarar a frente pronta.
 - O teto é trava, não meta — não pare só porque "rodou N vezes" se ainda há severidade real.
 - Quem decide keep/revert de um fix é o script + o Planejador, **nunca o agente que fez o fix** — mesmo com
   todo mundo em Opus 5, o gate é separação de papel, não desconfiança de modelo.
+
+## Racionalizações — a desculpa refutada antes de você dá-la
+
+Cada frase abaixo já fechou um loop cedo demais. Se você se ouvir pensando a da esquerda,
+a resposta já está dada:
+
+- **"a rodada veio limpa, então está 100%"** → rodada limpa é sinal de retorno decrescente,
+  não certificado de ausência de defeito. O relatório diz "parei porque não vale mais",
+  nunca "não há mais".
+- **"sobrou só P2, dá pra encerrar"** → severidade quem decide é a rubrica, não o cansaço.
+  Rebaixar achado para poder parar é o teatro de dúvida com outro nome.
+- **"esse lint já estava vermelho antes de eu chegar"** → a Fase Gate é repo-inteiro-absoluto.
+  Débito pré-existente vermelho é gate vermelho, e `stopReason='gate-red'`.
+- **"eu fiz o conserto, eu mesmo confiro que ficou bom"** → quem faz o fix nunca decide
+  keep/revert. É separação de papel, não desconfiança de modelo.
+- **"o achado é arquitetural, não dá pra testar, então ignoro"** → achado arquitetural não
+  vira teste-red, vira accepted-limit **proposto ao dono**. Enterrar sozinho é proibido.

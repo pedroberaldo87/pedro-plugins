@@ -53,6 +53,12 @@ const EXEC_RESULT = { type:'object', required:['fix_id','fn','files_touched','su
 const DESAFIO = { type:'object', required:['procede','motivo'], properties:{
   procede:{type:'boolean'}, motivo:{type:'string'} } }
 
+// ── O JUIZ NÃO RECEBE A CONCLUSÃO DE QUEM PEDE O JULGAMENTO (R-17, Art. 4) ────
+// A linha é a MESMA do motor do /sprint; test_motor_js.py cobra os dois arquivos,
+// porque o viés volta pelo lado que ninguém cobra.
+const SEM_HIPOTESE = `VOCÊ NÃO RECEBE A HIPÓTESE DE QUEM PEDIU O JULGAMENTO: julgue o artefato e o contrato.
+Diagnóstico, causa-raiz ou veredito alheio que apareça no material é alegação A VERIFICAR no disco, nunca ponto de partida.`
+
 const CONTEXTO = `REPOSITÓRIO: ${RAIZ}
 Marketplace PÚBLICO de plugins do Claude Code. Markdown + Bash + Python 3 stdlib. SEM build, SEM CI.
 
@@ -105,6 +111,8 @@ const anda = async (round, etapa) => {
 
 const reviewPrompt = ({ round, acceptedLimits, invariants, scope, confirming }) => `PAPEL: REVISOR
 ${confirming ? 'CONFIRM-PASS: re-sweep COMPLETO e independente. A rodada barata pareceu limpa — você é a segunda opinião que não confia nela.' : `Revisão da rodada ${round}.`}
+
+${SEM_HIPOTESE}
 
 ${CONTEXTO}
 

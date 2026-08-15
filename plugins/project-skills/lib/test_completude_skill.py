@@ -94,6 +94,20 @@ def main():
     for pe in ("Pé 1 · Qualidade", "Pé 3 · Coerência com a régua"):
         check("a skill não copia o eixo %r" % pe, pe not in texto)
 
+    # A seção de racionalizações: a desculpa fica REFUTADA no texto antes de o
+    # modelo dá-la. Sem cobrador, a próxima edição a apaga e ninguém percebe.
+    print("as racionalizações estão refutadas por escrito")
+    check("a skill tem a seção de racionalizações",
+          "## Racionalizações" in texto)
+    check("a desculpa da cadeia verde está refutada",
+          "a cadeia está verde" in texto)
+    check("a desculpa do arredondamento está refutada",
+          "arredonda pra 100%" in texto)
+    check("a desculpa do órfão irrelevante está refutada",
+          "esses órfãos são irrelevantes" in texto)
+    check("a desculpa de consertar de passagem está refutada",
+          "já que estou aqui, conserto" in texto)
+
     print()
     if FALHAS:
         print("FALHOU: %d" % len(FALHAS))

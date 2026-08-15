@@ -232,6 +232,55 @@ def prova_serie():
     return falhas
 
 
+def prova_relance():
+    """F24.5 — causa repetida em duas entradas vira pendencia, nao terceira tentativa."""
+    falhas = []
+    def corrida(run_id, desfecho, missao="m"):
+        return {"run_id": run_id, "missao": missao,
+                "progresso": {"fechadas": 1, "total": 40},
+                "custo": {"tokens": 100}, "tempo": {"inicio": 1, "fim": 2},
+                "desfecho": desfecho}
+
+    with tempfile.TemporaryDirectory() as raiz:
+        # ledger vazio: nada parou nada, relanca
+        if not ledger_corridas.relance(raiz, "m")["relanca"]:
+            falhas.append("ledger vazio deveria liberar o relancamento")
+
+        ledger_corridas.registra(raiz, corrida("r1", "gate-de-suite-vermelho"))
+        v = ledger_corridas.relance(raiz, "m")
+        if not v["relanca"]:
+            falhas.append("uma parada so deveria liberar a 2a tentativa: %r" % v)
+
+        # a MESMA causa numa segunda entrada: a 3a tentativa nao sai
+        ledger_corridas.registra(raiz, corrida("r2", "gate-de-suite-vermelho"))
+        v = ledger_corridas.relance(raiz, "m")
+        if v["relanca"]:
+            falhas.append("causa repetida em 2 entradas deveria virar pendencia: %r" % v)
+        elif [(p["causa"], p["vezes"]) for p in v["pendencias"]] \
+                != [("gate-de-suite-vermelho", 2)]:
+            falhas.append("a pendencia nao nomeia a causa e as vezes: %r" % v["pendencias"])
+        elif v["pendencias"][0]["corridas"] != ["r1", "r2"]:
+            falhas.append("a pendencia nao mostra as corridas que provam: %r" % v["pendencias"])
+
+        # causas DIFERENTES nao somam: pedra nova nao e a mesma pedra
+        ledger_corridas.registra(raiz, corrida("d1", "teto-de-rodadas", missao="d"))
+        ledger_corridas.registra(raiz, corrida("d2", "canal-caiu", missao="d"))
+        if not ledger_corridas.relance(raiz, "d")["relanca"]:
+            falhas.append("duas causas diferentes nao deveriam virar pendencia")
+
+        # fim limpo repetido nao e parada
+        ledger_corridas.registra(raiz, corrida("c1", "completo", missao="c"))
+        ledger_corridas.registra(raiz, corrida("c2", "build-complete", missao="c"))
+        ledger_corridas.registra(raiz, corrida("c3", "completo", missao="c"))
+        if not ledger_corridas.relance(raiz, "c")["relanca"]:
+            falhas.append("corrida que terminou o que foi fazer nao e causa de parada")
+
+        # a pendencia e por missao: a pedra de 'm' nao trava 'd'
+        if not ledger_corridas.relance(raiz, "d")["relanca"]:
+            falhas.append("a pendencia de uma missao vazou para outra")
+    return falhas
+
+
 def main():
     falhas = []
     with tempfile.TemporaryDirectory() as raiz:
@@ -268,6 +317,7 @@ def main():
         falhas += prova_morta_por_fora(raiz)
 
     falhas += prova_serie()
+    falhas += prova_relance()
 
     for f in falhas:
         print("FALHA: %s" % f)

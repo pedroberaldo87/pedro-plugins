@@ -13,7 +13,7 @@
       "source": "./plugins/2op",
       "description": "Segunda opinião de outro modelo dentro da MESMA sessão, sem subagente e sem re-briefing. /2op (Fable 5), /2op-opus (Opus 5) e /2op-sonnet (Sonnet 5) usam o campo model do frontmatter: o turno inteiro roda no modelo escolhido, com o contexto já carregado, e o modelo da sessão volta sozinho no próximo prompt. O revisor responde com veredito na primeira linha, rotula CONFIRMADO/INFERIDO e não edita nada.",
       "category": "productivity",
-      "version": "1.0.5",
+      "version": "1.1.2",
       "tags": [
         "review",
         "second-opinion",
@@ -206,7 +206,7 @@
       "source": "./plugins/improve-workflow",
       "description": "Workflow autopsy — reads the full transcript of a finished multi-agent run, measures cost and friction per role (agents, turns, tokens), flags suspect roles by counting instead of judging, and proposes fixes for the user to approve. It investigates and proposes, and is forbidden by design from implementing its own proposals. Early stage: today it ships the run-scoped leftovers sweeper (stale file reservations of that run only), the per-role measurer over a run transcript, and the skill that runs the round.",
       "category": "productivity",
-      "version": "0.16.27",
+      "version": "0.16.29",
       "tags": [
         "workflow",
         "autopsy",
@@ -260,7 +260,7 @@
       "source": "./plugins/project-skills",
       "description": "A casa das skills de projeto — documentacao, concepcao, plano, execucao e revisao moram sob um teto so, e conversam entre si por nome de plugin, nunca por caminho relativo para a pasta do vizinho. Traz tambem o motor de execucao autonoma (/sprint): decompoe -> executa -> revisa em Workflow deterministico, com os hooks que o guardam — a reserva de arquivos entre motores, o guarda de espera, o narrador de andamento na statusline e o gate que nega sub-agente com a missao armada (o apelido \"sovai\" segue evocando a skill sprint). O indice da familia se descobre lendo a pasta skills/ do plugin, nunca de cor.",
       "category": "productivity",
-      "version": "0.22.78",
+      "version": "0.22.85",
       "tags": [
         "project",
         "scaffolding",

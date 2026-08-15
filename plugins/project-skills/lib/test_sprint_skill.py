@@ -177,6 +177,45 @@ def main():
     check("o unico fallback continua sendo a skill visual ausente",
           "só quando a skill `visual` não existe na máquina" in desfechos)
 
+    # F6.3 — a secao de custo deriva os tres numeros de programa. Sem cobrador, o
+    # relatorio volta a dizer "levou umas tres horas e uns 8M de tokens" de memoria,
+    # que e palpite com cara de medicao.
+    custo = secao(texto, "### Custo (medidor da autópsia)", "### Entrega via /visual")
+    print("a secao de custo deriva duracao, tokens e placar do medidor e do plano")
+    check("a secao de custo existe", bool(custo))
+    check("a duracao sai do tempo da linha do ledger",
+          "`tempo.fim` − `tempo.inicio`" in custo)
+    check("os tokens saem do custo da linha e a tabela do medidor",
+          "`custo.tokens`" in custo and "tabela do medidor" in custo)
+    check("o placar sai do progresso da linha, com o total do plano",
+          "`progresso.fechadas`" in custo and "`progresso.total`" in custo
+          and "tamanho da fila do plano" in custo)
+    check("a memoria do modelo esta proibida como fonte",
+          "nunca da sua memória do que aconteceu" in custo)
+    check("o comando que le a linha desta corrida esta no texto",
+          "ledger_corridas.py" in custo and "le --project-root" in custo)
+    check("o que nao foi medido sai como nao medido, nunca inventado",
+          "como `não medido`" in custo)
+    check("a secao sai igual nos tres desfechos",
+          "igual nos três desfechos" in custo)
+
+    # F6.4 — a proibicao do `plugin update` durante a missao. Sem cobrador, a frase
+    # some na proxima edicao e a corrida volta a poder ficar meia nova, meia velha.
+    update = secao(texto, "### `claude plugin update` está PROIBIDO",
+                   "### Knobs deste motor")
+    print("a skill proibe `claude plugin update` durante a missao, com o motivo")
+    check("a secao da proibicao existe", bool(update))
+    check("a proibicao alcanca casca, papel e executor",
+          "nem a casca, nem" in update and "executor" in update)
+    check("o motivo nomeia o resolvedor pegando a versao mais alta do cache",
+          "versão mais alta" in update and "cache do marketplace" in update)
+    check("o motivo diz que so vale depois de reiniciar",
+          "depois de reiniciar" in update)
+    check("o motivo nomeia a corrida meio nova, meio velha",
+          "meio nova, meio velha" in update)
+    check("a saida e terminar, atualizar, reiniciar e disparar de novo",
+          "Termine a missão, atualize, reinicie" in update)
+
     # Sem isto o bullet da fronteira some na proxima edicao e o revisor de
     # construcao volta a tratar buraco de projeto inteiro como gap da missao.
     fronteira = secao(texto, "### Fronteira com o `/qa-loop`",
@@ -190,6 +229,19 @@ def main():
           "Não é dele, e não vira gap aqui." in fronteira)
     check("o resumo tem a linha da /completude",
           'completude = "sobrou alguém de fora?"' in fronteira)
+
+    # A seção de racionalizações: a desculpa fica REFUTADA no texto antes de o
+    # modelo dá-la. Sem cobrador, a próxima edição a apaga e ninguém percebe.
+    print("as racionalizações estão refutadas por escrito")
+    rac = secao(texto, "## Racionalizações", "\n## ")
+    check("a skill tem a seção de racionalizações", rac != "")
+    check("a desculpa do resto trivial está refutada",
+          "o que sobrou é trivial" in rac)
+    check("a desculpa de decidir sem anotar está refutada",
+          "o dono não está aqui" in rac)
+    check("a desculpa do teto estourado está refutada", "passei do teto" in rac)
+    check("a desculpa da troca de critério está refutada",
+          "troquei por um equivalente" in rac)
 
     print()
     if FAILS:
