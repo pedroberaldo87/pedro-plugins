@@ -136,15 +136,15 @@ na instalação. [confirmado — cabeçalho de `scripts/sync-shared.sh`]
 
 ## 2. Números derivados mecanicamente neste run
 
-Comandos re-executados agora, na árvore de trabalho sobre `5c0e81a`:
+Comandos re-executados agora, na árvore de trabalho sobre `4705fa2`:
 
 ```bash
-ls -1d plugins/*/ | wc -l                            # 22
-ls -1 plugins/*/.claude-plugin/plugin.json | wc -l   # 22
-ls -1 plugins/*/skills/*/SKILL.md | wc -l            # 31
+ls -1d plugins/*/ | wc -l                            # 23
+ls -1 plugins/*/.claude-plugin/plugin.json | wc -l   # 23
+ls -1 plugins/*/skills/*/SKILL.md | wc -l            # 35
 ls -1 plugins/*/hooks/hooks.json | wc -l             # 12
-find plugins -path '*/lib/*.py' | wc -l              # 122
-python3 -c "import json;print(len(json.load(open('.claude-plugin/marketplace.json'))['plugins']))"   # 22
+find plugins -path '*/lib/*.py' | wc -l              # 131
+python3 -c "import json;print(len(json.load(open('.claude-plugin/marketplace.json'))['plugins']))"   # 23
 ```
 
 - ✅ **A divergência dirs × catálogo fechou.** `plugins/improve-workflow/` nascera com código
@@ -164,7 +164,7 @@ python3 -c "import json;print(len(json.load(open('.claude-plugin/marketplace.jso
   [confirmado — os seis comandos re-rodados nesta passada de `/doc-touch`.]
   ⚠️ **Os arquivos `.py` em `lib/` quase não se moveram (100 → 99) apesar de três plugins
   terem sumido** — porque nada foi apagado, só mudou de casa: `plugins/project-skills/lib/`
-  concentra hoje 47 dos 122 (`find plugins/project-skills -path '*/lib/*.py' | wc -l`
+  concentra hoje 52 dos 131 (`find plugins/project-skills -path '*/lib/*.py' | wc -l`
   neste run). Os três últimos a entrar são `plugins/vistoria/lib/inventario.py` e a suíte
   dele, e `plugins/project-skills/lib/test_motor_js.py` — o cobrador que casa cada
   `<nome>Prompt` do motor de `/sprint` com o papel declarado no `SKILL.md` (§5).
@@ -173,7 +173,7 @@ python3 -c "import json;print(len(json.load(open('.claude-plugin/marketplace.jso
   `collect_engine.py`, `plan_state.py` e `resolve-*.sh` repetem o padrão (§7). Contar
   `lib/*.py` mede o vendoring junto com o código — a medida de código próprio é
   `find plugins -path '*/lib/*.py' ! -name regua_texto.py ! -name collect_engine.py ! -name padroes_vazamento.py`
-  (**100** neste run).
+  (**117** neste run).
 - **Registros de hook e scripts distintos: quem mede é a ferramenta, não esta linha** —
   `python3 scripts/hook_contract.py | head -1` imprime *"Contrato dos hooks — 54 registros,
   41 scripts distintos"* neste run, e `python3 scripts/hook_contract.py --scripts | grep -c .`
@@ -186,7 +186,7 @@ python3 -c "import json;print(len(json.load(open('.claude-plugin/marketplace.jso
   **uma vez só**). E o total já caiu sem nada ser removido — os três registros de
   `ExitPlanMode` viraram um só (§6). Por isso a linha que vale é a saída do comando, nunca o
   número copiado dela.
-- 31 skills em 22 diretórios porque **dois não têm `skills/` nenhum** — <!-- acopla-ok: leitura do bloco de comandos de §2, não afirmação independente -->
+- 35 skills em 23 diretórios porque **dois não têm `skills/` nenhum** — <!-- acopla-ok: leitura do bloco de comandos de §2, não afirmação independente -->
   `graphify-guard` (100% hook) e `vision` (100% MCP); o **`improve-workflow`**, que era o
   terceiro, ganhou a skill `improve-workflow/` nesta rodada —, e porque a família concentra a maioria delas, que se listam sem escrever nome
   nenhum aqui:
@@ -363,7 +363,7 @@ improve-workflow  0.16.27  [improve-workflow]           -
 intent-guard       0.8.11  [intent-guard]               HOOKS
 lixeiro             1.5.3  [faxina]                     HOOKS
 principles          1.0.5  [principles]                 -
-project-skills    0.22.62  [completude,design-md,doc,doc-load,doc-touch,monitorar,pesquisa-referencias,plan,project-skills,qa-loop,sprint,start] HOOKS
+project-skills    0.22.64  [completude,design-md,doc,doc-load,doc-touch,monitorar,pesquisa-referencias,plan,project-skills,qa-loop,sprint,start] HOOKS
 ship                1.5.4  [ship]                       HOOKS
 slides              1.6.2  [slides]                     -
 vision              0.1.1  []                           -
@@ -1571,7 +1571,7 @@ ponytail                   1
 voltagent-subagents       10 plugins   TODOS desligados
 ```
 
-O `pedro-plugins` declara os **22** plugins um a um — é isso que o `check_catalogo` compara <!-- acopla-ok: o manifest é o índice, e o check_catalogo é quem cobra a divergência -->
+O `pedro-plugins` declara os **23** plugins um a um — é isso que o `check_catalogo` compara <!-- acopla-ok: o manifest é o índice, e o check_catalogo é quem cobra a divergência -->
 contra o `marketplace.json` (§10.2), e nesta rodada os dois conjuntos batem exatamente (a
 diferença simétrica entre eles é vazia nos dois sentidos).
 

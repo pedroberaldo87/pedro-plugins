@@ -129,6 +129,43 @@ check "a mensagem mostra os DOIS textos, pra dar pra escolher" \
 check "e explica que as duas sao lidas" \
   "$(printf '%s' "$out" | grep -q 'As duas sao lidas' && echo 1 || echo 0)"
 
+# ── B3 · a TABELA do catálogo em architecture.md acompanha o bump ───────────
+# O defeito, medido DUAS vezes na madrugada de 2026-08-15: o bump que o próprio
+# portão exige defasa a linha do plugin na tabela que architecture.md publica,
+# `test_doc_catalogo_plugins.py` reprova, a esteira fica VERMELHA, e o motor do
+# /sprint morre na porta de TODA rodada. O espelho eram dois arquivos e sempre
+# foram três.
+tabela() {
+  mkdir -p "$R/.claude/docs"
+  printf 'exemplo    %s  [uma] HOOKS\n' "$1" > "$R/.claude/docs/architecture.md"
+}
+
+desc 2.0.0 "igual" "igual"; tabela 2.0.0
+git -C "$R" add -A >/dev/null; git -C "$R" commit -qm "com tabela"
+printf 'y=3\n' >> "$R/plugins/exemplo/lib/mod.py"
+desc 2.1.0 "igual" "igual"; tabela 2.1.0
+out=$(gate_out "git commit -m x")
+check "tabela em dia com o bump NÃO acusa" \
+  "$(printf '%s' "$out" | grep -qc 'TABELA DO CATÁLOGO DEFASADA' >/dev/null && echo 0 || echo 1)"
+
+printf 'z=4\n' >> "$R/plugins/exemplo/lib/mod.py"
+desc 2.2.0 "igual" "igual"   # o bump sai, a tabela fica em 2.1.0
+out=$(gate_out "git commit -m x")
+check "tabela defasada ACUSA" \
+  "$(printf '%s' "$out" | grep -q 'TABELA DO CATÁLOGO DEFASADA' && echo 1 || echo 0)"
+check "a mensagem mostra os dois números, doc e disco" \
+  "$(printf '%s' "$out" | grep -q 'doc=2.1.0' \
+     && printf '%s' "$out" | grep -q 'disco=2.2.0' && echo 1 || echo 0)"
+check "e diz que bump são TRÊS arquivos" \
+  "$(printf '%s' "$out" | grep -q 'TRÊS arquivos' && echo 1 || echo 0)"
+
+rm -f "$R/.claude/docs/architecture.md"
+printf 'w=5\n' >> "$R/plugins/exemplo/lib/mod.py"
+desc 2.3.0 "igual" "igual"
+out=$(gate_out "git commit -m x")
+check "projeto SEM a tabela não é acusado (fail-open)" \
+  "$(printf '%s' "$out" | grep -qc 'TABELA DO CATÁLOGO DEFASADA' >/dev/null && echo 0 || echo 1)"
+
 # divida antiga nao trava trabalho alheio: o gate so olha o plugin TOCADO
 mkdir -p "$R/plugins/outro/.claude-plugin"
 printf '{"name":"outro","version":"1.0.0","description":"A"}\n' > "$R/plugins/outro/.claude-plugin/plugin.json"
