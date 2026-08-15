@@ -352,6 +352,24 @@ anterior aprovada.
 - Grave a resposta **literal**. Organizar em bullets e corrigir digitação é permitido; trocar o
   julgamento do humano por uma redação mais bonita, não.
 
+**Toda pergunta vai com o palpite na mesa e a confiança em percentual.** Campo em branco obriga o
+dono a compor a resposta do zero; palpite errado ele derruba numa linha, e derrubar é mais rápido e
+mais honesto do que redigir. Então a pergunta abre assim, sempre nesta forma:
+
+> **Palpite:** o projeto prioriza não perder dado acima de responder rápido — **confiança: 70%**
+> (pista: `README.md:12` fala em "nenhuma escrita pode sumir"). Confirma, corrige ou inverte?
+
+- **O `%` é obrigatório** — "confiança alta" e "meio certo" não são confiança, são impressão. O
+  número existe para dizer ao dono onde gastar atenção: **abaixo de 50%** é chute que ele precisa
+  corrigir; **acima de 80%** é conferência rápida. Sem número, ele lê tudo com a mesma desconfiança.
+- **Palpite sem pista visível não existe.** Ele nasce do insumo já minerado, e a pista vai junto —
+  a mesma regra do bullet acima, com o palpite por cima dela.
+- **Confiança de 95% não vira resposta gravada.** Palpite que o dono não confirmou continua sendo
+  palpite: silêncio nunca é aprovação, e o documento grava o que ELE respondeu, não o que você
+  apostou. Se não há pista para apostar, pergunte em branco e diga que não tem palpite.
+- Em `AskUserQuestion`, o palpite é a opção que você marca como aposta no texto da pergunta, com o
+  percentual ao lado; as outras opções continuam inteiras, sem sugestão de que já perderam.
+
 **A etapa 5 (esquema) você abre com o ciclo montado, não com uma pergunta em branco.** Monte o
 ciclo passo a passo a partir dos documentos **aprovados** (`architecture-intent.md`, `journeys.md`,
 `quality-goals.md`), cada passo com a passagem que o originou ao lado — `arquivo:linha` —, e a

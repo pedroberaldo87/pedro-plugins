@@ -690,6 +690,24 @@ def main():
         check("grill-me: a jornada com documento entra por argumento",
               "`/grill-me com-docs`" in texto)
 
+    print("a entrevista pergunta com palpite e confianca em percentual (F9.1)")
+    skill = ler(SKILL)
+    bloco_entrevista = skill.split("### 3 · Entrevistar")[1].split("\n### ")[0]
+    check("a instrucao manda perguntar com palpite declarado",
+          "palpite na mesa" in bloco_entrevista)
+    # O simbolo % e obrigatorio — decisao do dono, 2026-08-13. Confianca em
+    # prosa ("alta", "meio certo") e impressao, nao numero.
+    check("a confianca vem em percentual, com o simbolo",
+          "confiança em percentual" in bloco_entrevista
+          and re.search(r"confiança:\s*\d+%", bloco_entrevista) is not None)
+    check("o simbolo % e cobrado como obrigatorio",
+          "O `%` é obrigatório" in bloco_entrevista)
+    # As duas travas que impedem o palpite de virar resposta do dono.
+    check("palpite sem pista visivel nao existe",
+          "Palpite sem pista visível não existe" in bloco_entrevista)
+    check("confianca alta nao dispensa a confirmacao do dono",
+          "não vira resposta gravada" in bloco_entrevista)
+
     print("o modo ex-post: inferir do construido, referendar pelo dono (F0-F2)")
     skill = ler(SKILL)
     kit = ler(KIT)
