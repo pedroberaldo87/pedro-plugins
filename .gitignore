@@ -81,3 +81,6 @@ __pycache__/
 # 5 · CÓPIA LOCAL DEFASADA de plugins/ — não é fonte (architecture.md §12)
 # ─────────────────────────────────────────────────────────────────────────────
 pi-plugins/
+
+# a tranca do bump — serializa dois plugins na mesma onda, não é produto
+.claude-plugin/.bump.lock
