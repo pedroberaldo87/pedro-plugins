@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""run_suites.py — roda as suítes da esteira com TETO DE TEMPO e placar por arquivo.
+"""run_suites.py — roda as suítes da esteira com VIGIA DE PROGRESSO e placar por arquivo.
 
 Por que existe (2026-08-11)
 ---------------------------
@@ -11,13 +11,17 @@ não sai), e a única saída era cancelar às cegas.
 
 Este programa resolve os dois de uma vez:
 
-- **teto por suíte** (`--timeout`, 180 s): quem pendura é morto, aparece como
-  TIMEOUT com o nome, e as outras seguem;
+- **vigia de progresso** (`--janela`, 120 s): a cada janela se pergunta se a suíte
+  ainda ANDA — CPU na árvore de processos dela (medido por
+  `_shared/vivo-ou-dormindo.sh`) ou saída crescendo. Só quem fica parada nos dois
+  sinais, por duas janelas seguidas, é morta: aparece como TRAVOU com o nome, e as
+  outras seguem. Teto fixo mediria a máquina, não o código — a mesma suíte passava
+  na máquina livre e reprovava na ocupada;
 - **não para na primeira**: roda todas e devolve o placar completo, então uma
   rodada mostra TODOS os defeitos em vez de um;
 - **tempo de cada uma**, para a lentidão aparecer antes de virar travamento.
 
-Sai 1 se alguma falhou ou estourou o teto. Só stdlib, como todo o resto do repo.
+Sai 1 se alguma falhou ou travou. Só stdlib, como todo o resto do repo.
 
     python3 scripts/run_suites.py --py "plugins/*/lib/test_*.py" ...
     python3 scripts/run_suites.py --sh "plugins/*/hooks/test_*.sh" ...
@@ -72,10 +76,56 @@ def expande(padroes):
     return fora
 
 
-def roda(cmd, alvo, teto):
-    """Uma suíte, com teto. A suíte vai para uma SESSÃO PRÓPRIA: quem pendura
-    costuma ter aberto filhos, e matar só o pai deixa a árvore de pé segurando o
-    job — que é justamente o desfecho que este programa existe para evitar."""
+VIVO = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "_shared",
+                    "vivo-ou-dormindo.sh")
+
+
+def cpu_viva(bash, pgid, amostra):
+    """A árvore daquele disparo andou de CPU entre duas amostras?
+
+    Quem MEDE é `_shared/vivo-ou-dormindo.sh` — aqui só se pergunta, com o grupo
+    de processos como escopo. Segunda redação da mesma medição está proibida: uma
+    delas envelheceria calada, e as duas responderiam coisas diferentes sobre a
+    mesma máquina.
+
+    Devolve True/False, ou None quando NÃO deu para medir (sem bash, ou o `ps`
+    mudo). None não é "vivo" nem "dormindo": é ausência de sinal, e quem chama
+    decide com o outro sinal que tem.
+    """
+    if bash is None:
+        return None
+    try:
+        r = subprocess.run([bash, VIVO, str(amostra), "--grupo", str(pgid)],
+                           capture_output=True, text=True, stdin=subprocess.DEVNULL,
+                           start_new_session=True, timeout=amostra + 30)
+    except Exception:
+        return None
+    fala = (r.stdout or "").strip().splitlines()
+    fala = fala[-1] if fala else ""
+    if fala == "vivo":
+        return True
+    if fala == "dormindo":
+        return False
+    return None
+
+
+def roda(cmd, alvo, janela, bash):
+    """Uma suíte, sob VIGIA DE PROGRESSO — não sob teto de relógio.
+
+    Teto fixo mede a máquina, não o código: o mesmo arquivo passa na máquina
+    livre e reprova na ocupada, e o veredito vira sorteio (medido em 2026-08-14,
+    três largadas do /sprint derrubadas por suítes que só estavam lentas). Aqui a
+    pergunta é outra e é a certa: ela ainda está ANDANDO? Anda quem consome CPU
+    na própria árvore de processos OU cresce a saída. Uma suíte só morre quando
+    os DOIS sinais ficam parados por duas janelas seguidas — nenhuma delas
+    sozinha basta: há suíte que calcula em silêncio, e há suíte que imprime
+    esperando I/O.
+
+    A suíte vai para uma SESSÃO PRÓPRIA — o que dá a ela um grupo de processos
+    próprio (pgid == pid do disparo), que é justamente o escopo do vigia, e o que
+    garante que matar mate a árvore inteira em vez de deixar filho segurando o
+    job.
+    """
     t0 = time.time()
     p = None
     # A saída vai para um ARQUIVO, não para um cano. Com cano, a leitura só termina
@@ -87,11 +137,31 @@ def roda(cmd, alvo, teto):
     try:
         p = subprocess.Popen(cmd + [alvo], stdout=tmp, stderr=subprocess.STDOUT,
                              stdin=subprocess.DEVNULL, start_new_session=True)
-        p.wait(timeout=teto)
+        # A amostra de CPU cabe DENTRO da janela: ela é o pedaço da janela em que
+        # se olha, não um tempo somado por cima dele.
+        amostra = max(1, min(3, int(janela / 4) or 1))
+        paradas, escrito = 0, 0
+        while True:
+            try:
+                p.wait(timeout=janela)
+                break
+            except subprocess.TimeoutExpired:
+                pass
+            # Tamanho pelo descritor: a posição do OBJETO de arquivo daqui não anda
+            # — quem escreve é o filho, com o descritor dele.
+            agora = os.fstat(tmp.fileno()).st_size
+            cresceu, escrito = agora > escrito, agora
+            viva = None if cresceu else cpu_viva(bash, p.pid, amostra)
+            if cresceu or viva is True:
+                paradas = 0
+                continue
+            paradas += 1
+            # Sem CPU medível (máquina sem bash, `ps` mudo), a saída decide
+            # sozinha — e aí com o dobro da paciência, porque é meio sinal.
+            if paradas >= (2 if viva is False else 4):
+                return "TRAVOU", time.time() - t0, None
         tmp.seek(0)
         return ("ok" if p.returncode == 0 else "FALHOU"), time.time() - t0, tmp.read()
-    except subprocess.TimeoutExpired:
-        return "TIMEOUT", time.time() - t0, None
     finally:
         tmp.close()
         if p is not None and p.poll() is None:
@@ -134,7 +204,10 @@ def main(argv=None):
     # defeito que este programa existe para não ter.
     ap.add_argument("--py", nargs="*", action="extend", default=[])
     ap.add_argument("--sh", nargs="*", action="extend", default=[])
-    ap.add_argument("--timeout", type=float, default=180.0)
+    # A JANELA DE MEDIÇÃO, não um teto de relógio: de quanto em quanto tempo se
+    # pergunta se a suíte ainda anda. `--timeout` continua aceito para não quebrar
+    # comando antigo, e vira janela — o teto fixo saiu de cena (ver `roda`).
+    ap.add_argument("--janela", "--timeout", dest="janela", type=float, default=120.0)
     # Quantas suítes ao mesmo tempo. O padrão vem do número de núcleos porque o
     # gargalo é DISPARAR PROCESSO, não calcular: no Windows criar processo custa
     # perto de dez vezes o do macOS, e as suítes de shell disparam às centenas.
@@ -183,7 +256,7 @@ def main(argv=None):
     # árvore em disco fica mais lenta se houver dez fazendo o mesmo.
     ruins = []
     with concurrent.futures.ThreadPoolExecutor(max_workers=jobs) as pool:
-        futuros = {pool.submit(roda, cmd, alvo, a.timeout): alvo for cmd, alvo in tarefas}
+        futuros = {pool.submit(roda, cmd, alvo, a.janela, bash): alvo for cmd, alvo in tarefas}
         for fut in concurrent.futures.as_completed(futuros):
             alvo = futuros[fut]
             estado, seg, saida = fut.result()
@@ -198,7 +271,8 @@ def main(argv=None):
     for estado, alvo, saida in ruins:
         print("\n───────── %s: %s" % (estado, alvo))
         if saida is None:
-            print("   (estourou o teto de %.0fs — pendurou)" % a.timeout)
+            print("   (TRAVOU: sem CPU na árvore e sem saída nova por 2 janelas "
+                  "de %.0fs — morta pelo vigia)" % a.janela)
             continue
         for ln in linhas_que_importam(saida):
             print("   " + ln[:200])

@@ -21,7 +21,13 @@ PY3=$(command -v python3) || { echo "python3 ausente"; exit 1; }
 # Sem esta linha a suíte quebraria lá na frente, com erro que não nomeia a causa.
 "$PY3" --version >/dev/null 2>&1 || { echo "python3 existe mas não executa (stub?)"; exit 1; }
 
-TMP=$(mktemp -d)
+# O temporário sai da receita única. `mktemp -d` pelado devolve o `/tmp` do Git Bash:
+# esse caminho vira `cwd` da anotação, o `ps` do Windows reporta `C:/Users/.../Temp/...`,
+# nada casa e NADA é encerrado — a suíte inteira do encerramento passava a medir vazio
+# (.claude/reports/causas-windows-2026-08-15.md).
+. "$SCRIPT_DIR/lib-tmpdir.sh" 2>/dev/null
+TD=$(td_tmpdir 2>/dev/null || printf '%s' "${TMPDIR:-/tmp}")
+TMP=$(mktemp -d "$TD/lixeiro-hooks-XXXXXX")
 export CLAUDE_CONFIG_DIR="$TMP"
 export CLAUDE_PLUGIN_ROOT="$PLUG"
 PROJ="$TMP/projeto-de-teste"
@@ -244,7 +250,7 @@ echo "── a causa do que sobrou ──"
 # defeito fica, então no turno seguinte tudo volta — foi assim que uma máquina chegou a
 # 2125 processos órfãos em 2026-08-08. Aqui a colheita é SIMULADA (`LIXEIRO_MORTOS_TESTE`),
 # porque plantar processo de verdade numa bancada é pior que não testar.
-CAUSA_DIR=$(mktemp -d)
+CAUSA_DIR=$(mktemp -d "$TD/lixeiro-causa-XXXXXX")
 printf 'import subprocess\nsubprocess.run(["git","status"])\n' > "$CAUSA_DIR/vaza.py"
 MORTOS_JSON="[{\"pid\": 4242, \"rss_mb\": 12, \"cmd\": \"python3 $CAUSA_DIR/vaza.py\"}]"
 SAIDA=$(printf '{"session_id":"s-causa"}' \

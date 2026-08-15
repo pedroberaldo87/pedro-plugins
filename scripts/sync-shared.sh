@@ -155,6 +155,7 @@ SPECS=(
   "plugins/guardrails/hooks::lib-tmpdir.sh"
   "plugins/handoff/hooks::lib-tmpdir.sh"
   "plugins/intent-guard/hooks::lib-tmpdir.sh"
+  "plugins/lixeiro/hooks::lib-tmpdir.sh"
   "plugins/project-skills/hooks::lib-tmpdir.sh"
   "plugins/ship/hooks::lib-tmpdir.sh"
   "plugins/project-skills/hooks::lib-tmpdir.sh"

@@ -81,5 +81,50 @@ check("glob que não casa nada continua reprovando", codigo != 0,
       "exit=%d" % codigo)
 check("e diz qual padrão não casou", "nenhum arquivo casou" in saida, saida[:200])
 
+
+# ─────────────────────────────────────────────────────────────────────────────
+print("\nF4.9 — o vigia de progresso derruba a travada e deixa a lenta terminar")
+
+# O teto de relógio antigo não distinguia as duas: a suíte que pendura e a que
+# só demora eram o MESMO veredito, e por isso três largadas do /sprint morreram
+# por suíte saudável. Os dois casos abaixo são justamente esse par — mesma
+# duração de parede, vereditos opostos.
+import tempfile  # noqa: E402  (só os dois casos abaixo precisam)
+
+TRAVADA = ("import time\n"
+           "time.sleep(3600)\n")           # nem CPU, nem saída: pendurada de fato
+# Lenta SAUDÁVEL: passa muito tempo além da janela, em SILÊNCIO (nada de saída
+# nova depois da primeira linha) — o que a salva é só a CPU na árvore dela.
+LENTA = ("import time\n"
+         "print('comecei', flush=True)\n"
+         "fim = time.time() + 12\n"
+         "n = 0\n"
+         "while time.time() < fim:\n"
+         "    n += 1\n")
+
+casa = tempfile.mkdtemp(prefix="vigia-")
+alvos = {}
+for nome, corpo in (("travada", TRAVADA), ("lenta", LENTA)):
+    # Nome sem `test_` de propósito: arquivo de arnês não é suíte a ser coletada.
+    alvos[nome] = os.path.join(casa, "caso_%s.py" % nome)
+    with open(alvos[nome], "w", encoding="utf-8") as fh:
+        fh.write(corpo)
+
+# Janela de 3s: o vigia mata na segunda janela parada, então a travada morre em
+# ~12s (duas janelas + as duas amostras de CPU) em vez de esperar uma hora.
+codigo, saida = roda("--janela", "3", "--py", alvos["travada"])
+check("a suíte PENDURADA é derrubada", codigo != 0, "exit=%d\n%s" % (codigo, saida[-400:]))
+check("e o placar a nomeia como TRAVOU", "TRAVOU" in saida, saida[-400:])
+check("e diz que mediu os dois sinais antes de matar",
+      "sem CPU na árvore e sem saída nova" in saida, saida[-400:])
+
+codigo, saida = roda("--janela", "3", "--py", alvos["lenta"])
+check("a suíte LENTA E SAUDÁVEL termina viva (a CPU na árvore a salva)",
+      codigo == 0 and "TRAVOU" not in saida, "exit=%d\n%s" % (codigo, saida[-400:]))
+
+for a in alvos.values():
+    os.unlink(a)
+os.rmdir(casa)
+
 print("\nrun_suites-seleção: %d ok, %d falhas" % (ok, falhas))
 sys.exit(1 if falhas else 0)

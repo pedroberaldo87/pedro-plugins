@@ -10,7 +10,11 @@
 #   bash plugins/visual/hooks/test_entrada_no_arranque.sh
 
 HOOK="$(cd "$(dirname "$0")" && pwd)/sessionstart-plan.sh"
-TMP="$(mktemp -d)"
+# O temporário sai da receita única: `mktemp -d` pelado devolve o `/tmp` do Git Bash,
+# que o python3 nativo do Windows resolve como `C:\tmp\...` e não acha (ver
+# .claude/reports/causas-windows-2026-08-15.md).
+. "$(cd "$(dirname "$0")" && pwd)/lib-tmpdir.sh" 2>/dev/null
+TMP="$(mktemp -d "$(td_tmpdir 2>/dev/null || printf '%s' "${TMPDIR:-/tmp}")/entrada-XXXXXX")"
 trap 'rm -rf "$TMP"' EXIT
 
 OK=0; FALHA=0

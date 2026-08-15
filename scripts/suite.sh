@@ -26,16 +26,14 @@ cd "$RAIZ"
 
 PY="${PYTHON:-python3}"
 
-# TETO POR SUÍTE: 600s, não 300s. Medido em 2026-08-14 sob carga real (o motor do
-# /sprint rodando junto): `scripts/test_docguard_scope.sh` leva 349s SOZINHA nesta
-# máquina, e `plugins/project-skills/hooks/test_plan_hooks.sh` leva 109s livre mas
-# estourou 300s com a máquina ocupada. As duas saíam como TIMEOUT, a esteira ficava
-# vermelha, e a guarda de saúde do motor fechava a porta — três largadas seguidas.
-#
-# Teto que a suíte mais lenta não alcança é teto que mede a MÁQUINA, não o código:
-# na máquina livre ele passa, na ocupada ele reprova, e o veredito vira sorteio. O
-# número aqui é o dobro da suíte mais lenta medida — quando alguma passar disso, o
-# certo é acelerar a suíte, não subir o teto de novo em silêncio.
+# SEM TETO DE RELÓGIO: VIGIA DE PROGRESSO. O teto fixo media a MÁQUINA, não o
+# código — `scripts/test_docguard_scope.sh` levava 349s sozinha e estourava 300s com
+# a máquina ocupada, e três largadas do /sprint morreram por suíte que só estava
+# lenta. Quem decide agora é o `run_suites.py`: a cada janela ele pergunta se a suíte
+# ainda anda (CPU na árvore dela, medida por `_shared/vivo-ou-dormindo.sh`, ou saída
+# crescendo), e só mata quem fica parada nos dois sinais. Suíte lenta e saudável
+# roda até o fim; suíte pendurada morre em minutos, com nome. A janela default
+# (120s) vale — subir número aqui era o remendo que o vigia veio substituir.
 # ── DUAS FASES: o grosso em paralelo, e o punhado que DISPUTA ESTADO em série ──
 #
 # As suítes do `intent-guard` exercitam hooks que gravam estado por sessão em
@@ -88,7 +86,7 @@ fi
 RC=0
 # O `SUITE_PULA` é lido com `.split()` do outro lado: os padrões vão separados por
 # espaço, que é exatamente o que `${SERIAIS[*]}` produz.
-SUITE_PULA="${SERIAIS[*]}" "$PY" scripts/run_suites.py --timeout 600 "$@" \
+SUITE_PULA="${SERIAIS[*]}" "$PY" scripts/run_suites.py "$@" \
   --py 'plugins/*/lib/test_*.py' \
        '_shared/test_*.py' \
        'scripts/test_*.py' \
@@ -101,7 +99,7 @@ SUITE_PULA="${SERIAIS[*]}" "$PY" scripts/run_suites.py --timeout 600 "$@" \
 
 echo
 echo "── as que disputam estado, agora em SÉRIE ──────────────────────────────"
-"$PY" scripts/run_suites.py --timeout 600 --jobs 1 --sh "${SERIAIS[@]}" || RC=$?
+"$PY" scripts/run_suites.py --jobs 1 --sh "${SERIAIS[@]}" || RC=$?
 
 # ── A PROVA VIAJA COM A ÁRVORE ──────────────────────────────────────────────
 # Esteira verde nas DUAS fases ⇒ grava "full" no green-cache (chave = tree-hash
