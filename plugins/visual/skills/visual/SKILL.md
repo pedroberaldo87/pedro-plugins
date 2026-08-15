@@ -43,6 +43,9 @@ Ele julga **dois eixos**, e reprova em qualquer um dos dois.
 **Eixo 1 · o que a página deixou de contar.** A falta é sempre a mesma, o CONTEXTO, nunca
 a definição de dicionário:
 
+- **Identificador no lugar da coisa** — passo, requisito, artigo, arquivo ou achado citado
+  pelo nome curto sem dizer, na mesma linha, o que ele é. Pediram para dizer o que falta e a
+  página respondeu "falta o passo 3": o endereço, não a coisa.
 - **Metáfora, apelido ou nome batizado** usado como se explicasse a coisa.
 - **Referência indireta** — "o motor", "a régua", "aquela ponte", "o approach atual" — sem
   dizer que coisa concreta é essa.
@@ -105,6 +108,27 @@ A página **carrega a prova, não o relato da prova.** O usuário tem que ver na
 - **Coisa que existe** (slide, tela, deck, arquivo, código) → embutida (`.artefato` + `<iframe src="file:///caminho/real">`) ou citada literal com `arquivo:linha`. Testado: caminho absoluto cross-dir renderiza no Chrome.
 - **Número ou afirmação medida** → o output cru que a produziu, verbatim, em `.evidencia`, com o comando que gerou. Não "medi e deu +155%": as linhas que você leu, com n, com as duas amostras.
 - **Premissa, conclusão anterior, coisa em discussão** → a passagem literal (quem disse, onde), o commit, o trecho do plano. Sem fonte no disco, rotule **INFERIDO** — nunca apresente como fato.
+
+### Pediram para DIZER o que é — então diga o que é, não o nome dela
+
+**Menção não é apresentação.** Quando o pedido é dizer o que alguma coisa é, explicar
+alguma coisa ou apresentar alguma coisa, cumprir é **mostrar a coisa** — nunca devolver o
+identificador dela e seguir em frente. Perguntaram o que falta no plano: *"falta o passo 3"*
+não responde nada; responde *"falta o passo 3, que é escrever o cobrador dos três desfechos
+do relatório"*.
+
+Vale para tudo que tem nome curto e conteúdo longo — passo de plano, requisito, artigo da
+lei, achado, arquivo, decisão, comando. O identificador é o endereço, não a coisa: quem lê
+não tem como abrir o endereço enquanto lê a página.
+
+**A régua, e ela é a mesma na elaboração e no julgamento:** todo identificador aparece com
+o que ele é, em palavras de gente, **na mesma linha**, na primeira vez que aparece. O teste
+é o de sempre — tape o resto da página; a frase sozinha diz o que aquilo é, ou só diz como
+aquilo se chama?
+
+Isto é o **referente pendurado** aplicado ao ato de responder: a lista dos itens é o
+esqueleto, e o esqueleto sem a carne obriga o leitor a ir buscar em outro lugar o que a
+página existia para trazer.
 
 ### A forma da página de decisão
 
