@@ -220,6 +220,27 @@ for name in touched:
                     "     catalogo mostra a do marketplace. As duas sao lidas: iguale."
                     % (pname, len(cdesc), cdesc[:60], len(mdesc), mdesc[:60]))
 
+    # B3 · a TABELA do catálogo em architecture.md, que a doc publica com a version.
+    # Nasceu de defeito medido duas vezes na mesma madrugada (2026-08-15): o bump que
+    # ESTA checagem exige defasa a linha do plugin na tabela, `test_doc_catalogo_plugins.py`
+    # reprova, a esteira fica VERMELHA e o motor do /sprint morre na porta de toda rodada.
+    # O espelho eram DOIS arquivos e sempre foram TRÊS. Só cobra o plugin tocado, pela
+    # mesma regra do B2 — dívida antiga de outro plugin não barra trabalho alheio.
+    try:
+        _doc = open(".claude/docs/architecture.md", encoding="utf-8").read()
+        _linha = next((l for l in _doc.splitlines()
+                       if l.startswith(pname + " ") or l.startswith(pname + "\t")), None)
+    except Exception:
+        _linha = None
+    if _linha is not None:
+        _m = re.search(r"\b\d+\.\d+\.\d+\b", _linha)
+        if _m and _m.group(0) != pver:
+            viol.append("❌ TABELA DO CATÁLOGO DEFASADA — %s: doc=%s · disco=%s\n"
+                        "   → a tabela de .claude/docs/architecture.md publica a version;\n"
+                        "     bump são TRÊS arquivos: plugin.json, marketplace.json e a tabela.\n"
+                        "     Sem os três a esteira fica vermelha e o /sprint morre na porta."
+                        % (pname, _m.group(0), pver))
+
 print("\n".join(viol))
 ' 2>/dev/null)
 [ -n "$PYOUT" ] && VIOL="${VIOL}
