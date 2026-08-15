@@ -86,8 +86,40 @@ def descreve(v):
     return "%s [%s] %s" % (versao, ",".join(skills), "HOOKS" if hook else "-")
 
 
+def conserta(disco):
+    """--fix: reescreve o bloco publicado com o que está no disco AGORA.
+
+    Existe porque a mesma falha matou três corridas do /sprint: quem bumpa a versão
+    lembra do plugin.json e do marketplace.json, esquece a tabela, e a esteira fica
+    vermelha para todo mundo. Quem sabe montar a tabela é este arquivo — pedir para
+    o autor rodar o comando na mão e colar a saída era pedir o passo que ele acabou
+    de esquecer.
+    """
+    with open(DOC, encoding="utf-8") as fh:
+        texto = fh.read()
+    i = texto.find(ABERTURA)
+    abre = texto.find("```", i)
+    fecha = texto.find("```", abre + 3)
+    if i < 0 or abre < 0 or fecha < 0:
+        print("não achei o bloco da tabela em architecture.md — conserte à mão")
+        return 1
+    # o espaço fora do `%-28s` é o que separa lista de skills longa do HOOKS: com o
+    # preenchimento sozinho, a lista que estoura a coluna cola no marcador
+    linhas = ["%-18s%7s  %-28s %s" % (nome, v[0], "[%s]" % ",".join(v[1]),
+                                      "HOOKS" if v[2] else "-")
+              for nome, v in sorted(disco.items())]
+    novo = texto[:abre + 3] + "\n" + "\n".join(l.rstrip() for l in linhas) \
+        + "\n" + texto[fecha:]
+    with open(DOC, "w", encoding="utf-8") as fh:
+        fh.write(novo)
+    print("tabela reescrita com os %d plugins do disco" % len(disco))
+    return 0
+
+
 def main():
     disco = do_disco()
+    if "--fix" in sys.argv:
+        return conserta(disco)
     doc = do_doc()
     if doc is None:
         print("\n".join("  FAIL " + f for f in FALHAS))
@@ -111,8 +143,9 @@ def main():
 
     if FALHAS:
         print("\nCATÁLOGO DEFASADO em: " + ", ".join(FALHAS))
-        print("Conserte rodando o comando que architecture.md publica logo acima da\n"
-              "tabela e colando a saída dele no lugar do bloco.")
+        print("Conserte com `python3 scripts/test_doc_catalogo_plugins.py --fix`, que\n"
+              "reescreve o bloco com o disco de agora — é o mesmo comando que\n"
+              "architecture.md publica logo acima da tabela, sem a colagem na mão.")
         return 1
     print("  ok   os %d plugins batem em version, skills e hook" % len(disco))
     print("\na tabela de architecture.md é a saída do comando que ela mesma publica")

@@ -239,7 +239,8 @@ for name in touched:
             viol.append("❌ TABELA DO CATÁLOGO DEFASADA — %s: doc=%s · disco=%s\n"
                         "   → a tabela de .claude/docs/architecture.md publica a version;\n"
                         "     bump são TRÊS arquivos: plugin.json, marketplace.json e a tabela.\n"
-                        "     Sem os três a esteira fica vermelha e o /sprint morre na porta."
+                        "     Sem os três a esteira fica vermelha e o /sprint morre na porta.\n"
+                        "     Conserta com: python3 scripts/test_doc_catalogo_plugins.py --fix"
                         % (pname, _m.group(0), pver))
 
 print("\n".join(viol))
