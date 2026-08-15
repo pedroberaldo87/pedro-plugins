@@ -679,6 +679,37 @@ def main():
     finally:
         shutil.rmtree(casa, ignore_errors=True)
 
+    print("id que não está registrado NÃO apaga nada, e diz isso")
+    # Quem escreve o id na mão é a casca, no retorno da chamada do motor. Colar o
+    # `motor-…` do exemplo saía com a MESMA linha do caso legítimo ("encerrada; N
+    # ainda de pé"), então o sinal ficava aceso sem ninguém perceber.
+    casa_id = tempfile.mkdtemp()
+    estado_id = os.path.join(casa_id, "andamento")
+    try:
+        os.makedirs(estado_id, exist_ok=True)
+        a.arma("s-id", "sprint", "motor-real-123", estado_id)
+        errado = subprocess.run(
+            [sys.executable, os.path.join(os.path.dirname(a.__file__), "andamento.py"),
+             "encerra", "s-id", "sprint", "motor-…"],
+            capture_output=True, text=True, encoding="utf-8", errors="replace",
+            env=dict(os.environ, CLAUDE_CONFIG_DIR=casa_id),
+            stdin=subprocess.DEVNULL, start_new_session=True)
+        check("o aviso diz que nada foi apagado, e mostra quem está de pé",
+              "NADA foi apagado" in errado.stdout and "motor-real-123" in errado.stdout)
+        check("o registro fica intacto",
+              a.execucoes("s-id", estado_id) == [("sprint", "motor-real-123")])
+        certo = subprocess.run(
+            [sys.executable, os.path.join(os.path.dirname(a.__file__), "andamento.py"),
+             "encerra", "s-id", "sprint", "motor-real-123"],
+            capture_output=True, text=True, encoding="utf-8", errors="replace",
+            env=dict(os.environ, CLAUDE_CONFIG_DIR=casa_id),
+            stdin=subprocess.DEVNULL, start_new_session=True)
+        check("com o id certo, o aviso cai",
+              "encerrada na barra" in certo.stdout
+              and not os.path.exists(os.path.join(estado_id, "ativo-s-id")))
+    finally:
+        shutil.rmtree(casa_id, ignore_errors=True)
+
     print("aviso apagado com execução viva é REACESO pela varredura da barra")
     # A metade que faltava: `expira_sinais` apagava aviso velho sem execução, e
     # nada devolvia o aviso que caiu cedo demais. Sem isto, o conserto do

@@ -48,17 +48,42 @@ programa, e as quatro cópias dela em prosa divergiam.
 
 ### O sinal que arma o gate (obrigatório, e é a PRIMEIRA coisa)
 
-Antes de disparar o Workflow, acenda o sinal; ao entregar o relatório, apague. É ele que faz o gate existir:
+**O sinal nasce e morre com a CHAMADA, não dentro do script.** Acenda na linha imediatamente
+antes de chamar o `Workflow`; apague na linha imediatamente depois de a chamada voltar — em
+**qualquer desfecho**. É ele que faz o gate existir:
 
 ```bash
+# 1) ANTES da chamada — acende (a chamada do Workflow é a ÚNICA coisa entre os dois blocos)
 SPRINT_DIR="${CLAUDE_CONFIG_DIR:-$HOME/.claude}/andamento"
 mkdir -p "$SPRINT_DIR"
 SPRINT_MOTOR_ID="motor-$(date -u +%Y%m%dT%H%M%SZ)-$$"    # id DESTE motor na sessão
 ANDAMENTO="$(bash "${CLAUDE_PLUGIN_ROOT}/lib/resolve-plugin.sh" project-skills lib/andamento.py)"
-python3 "$ANDAMENTO" arma "$CLAUDE_CODE_SESSION_ID" sprint "$SPRINT_MOTOR_ID"   # ao armar a missão
-# ao entregar, a receita do passo 3 (apaga o CONJUNTO do estado, não só o sinal):
-python3 "$ANDAMENTO" encerra "$CLAUDE_CODE_SESSION_ID" sprint "$SPRINT_MOTOR_ID"
+python3 "$ANDAMENTO" arma "$CLAUDE_CODE_SESSION_ID" sprint "$SPRINT_MOTOR_ID"
+echo "$SPRINT_MOTOR_ID"    # ANOTE: cada ```bash é uma chamada à parte, o id não atravessa
 ```
+
+```bash
+# 2) NO RETORNO da chamada — apaga o CONJUNTO do estado, não só o sinal, e SOLTA a
+#    reserva DESTE motor. Cole abaixo o id que o bloco 1 imprimiu: id que não existe no
+#    registro não apaga nada, e o `encerra` diz isso em uma linha começada por ⚠️.
+MOTOR_MORTO="motor-…"    # ← COLE aqui, literal, o id impresso pelo bloco 1
+ANDAMENTO="$(bash "${CLAUDE_PLUGIN_ROOT}/lib/resolve-plugin.sh" project-skills lib/andamento.py)"
+python3 "$ANDAMENTO" encerra "$CLAUDE_CODE_SESSION_ID" sprint "$MOTOR_MORTO"
+# Quem morreu por fora não entregou, e quem não entrega não libera: a reserva fica
+# pendurada e recusa o próximo motor da sessão por até 12h. Solte a DESTE motor e SÓ a
+# dele — outro motor da mesma sessão pode estar vivo escrevendo os mesmos arquivos, e
+# soltar a reserva dele devolve dois motores ao mesmo arquivo, que é o defeito que o
+# hook existe para impedir.
+RESERVA_SH="$(bash "${CLAUDE_PLUGIN_ROOT}/lib/resolve-plugin.sh" project-skills hooks/reserva-de-arquivos.sh)"
+bash "$RESERVA_SH" liberar "$CLAUDE_CODE_SESSION_ID" "$MOTOR_MORTO"
+```
+
+⚠️ **"Qualquer desfecho" é literal:** obra pronta, teto de rodadas, vigia, disjuntor, erro do
+`Workflow`, e **a missão parada por você por fora** (TaskStop). O apagar é a PRIMEIRA coisa ao
+voltar — antes da QA, do commit e do relatório —, porque tudo que vem depois pode não
+acontecer. Medido pela sessão irmã em 2026-08-13: **das 5 corridas, as 4 que saíram sozinhas
+apagaram o sinal e a única morta por fora deixou aceso por 4h** — o último ato vivia dentro do
+script, e o script morreu junto com a missão. Script não apaga o que ele não controla.
 
 ⚠️ **Acender com `printf` direto no arquivo está APOSENTADO (2026-08-12).** O `arma` grava
 a mesma primeira linha (o nome do dono, que a barra lê) **e** registra este motor na lista
@@ -1700,7 +1725,7 @@ Passada a QA e **ANTES** de montar o relatório, persista o trabalho. Esta é a 
    - Árvore limpa (nada pra commitar) → pula e anota "nada a persistir".
    - Falha de push (sem remote, sem auth, rejeição) → **não force**; registra como `Bloqueio (precisa de você)` com o erro real e segue pro relatório (o commit local fica feito).
 
-3. **Apaga o sinal do sprint e LIBERA os arquivos reservados.** É o par do `mkdir` da seção _Execução_ e da reserva que o motor fez antes de executar, e é obrigatório:
+3. **Confere o sinal apagado e as reservas soltas.** As duas coisas já caíram no retorno da chamada (seção _Execução_), reserva inclusive; esta passada é a mesma receita rodada de novo — ela é idempotente, e existe para o caminho feliz que passa por aqui. Obrigatória:
 
    ```bash
    # O id do motor nasceu em OUTRO bloco e não chega aqui — cada ```bash é uma chamada
@@ -1721,15 +1746,16 @@ Passada a QA e **ANTES** de montar o relatório, persista o trabalho. Esta é a 
 
    ⚠️ **`encerra` no lugar do `rm` de antes, porque o estado da missão é mais que o sinal.** Onda, placar, doc e trabalho em curso morriam com a sessão e reapareciam na barra de quem reusasse o id. O comando apaga o conjunto, numa receita só — e é a mesma que o motor chama.
 
-   **São TRÊS camadas, e as três existem porque cada uma falha sozinha:**
+   **Quem apaga, e por quê cada camada existe — todas falham sozinhas:**
 
    | quem apaga | quando | o que ele não alcança |
    |---|---|---|
-   | o **motor** (`encerra:barra`, último papel antes do `return`) | todo caminho de saída: obra pronta, teto, vigia, disjuntor, onda estéril, causa global | o motor que morreu de vez (erro terminal, sessão derrubada) |
-   | a **casca** (este passo) | o caminho feliz, junto do resto da persistência | o turno interrompido antes de chegar aqui |
+   | a **casca**, em volta da chamada (seção _Execução_) | **todo desfecho da chamada**, inclusive erro do `Workflow` e missão parada por você (TaskStop) — e é ali que a reserva da execução morta é solta | o turno interrompido no meio da própria chamada |
+   | o **motor** (`encerra:barra`, último papel antes do `return`) | todo caminho de saída DO SCRIPT: obra pronta, teto, vigia, disjuntor, onda estéril, causa global | o motor que morreu de vez (erro terminal, sessão derrubada, parada por fora) |
+   | a **casca** (este passo, de novo) | o caminho feliz, junto do resto da persistência | o turno interrompido antes de chegar aqui |
    | a **barra** (`andamento.py:expira_sinais`, no desenho) | qualquer sinal que passe de 12h, inclusive de sessão MORTA | nada — é a última rede |
 
-   A terceira nasceu porque as duas primeiras não alcançam a sessão que morreu: o gate do motor já expirava sinal velho, mas **só quando alguém consultava**, e quem consulta é a sessão que acendeu. Medido em 2026-08-09: **cinco sinais órfãos vivos ao mesmo tempo, o mais velho de 75 horas**, todos anunciando "missão de pé" na barra. Quem varre agora é quem desenha a barra — o único processo que roda com frequência garantida em toda sessão viva.
+   A da barra nasceu porque nenhuma das outras alcança a sessão que morreu: o gate do motor já expirava sinal velho, mas **só quando alguém consultava**, e quem consulta é a sessão que acendeu. Medido em 2026-08-09: **cinco sinais órfãos vivos ao mesmo tempo, o mais velho de 75 horas**, todos anunciando "missão de pé" na barra. Quem varre agora é quem desenha a barra — o único processo que roda com frequência garantida em toda sessão viva.
 
 4. **Passa o caminhão do lixo (F9.38).** A missão abriu suíte, build e servidor a cada onda, e nada disso morre sozinho: fica de pé até alguém reclamar da máquina. Última passada, e é obrigatória:
 
@@ -1761,6 +1787,20 @@ O hash do commit + resultado do push entram na `### Verificação`; a doc regene
 ## Relatório Final
 
 O relatório é a única coisa que o usuário lê desta sessão — e ele lê **depois**, pra revisar tudo e refatorar. Por isso ele sai como uma **superfície de revisão em HTML**, não como textão no CLI.
+
+### Os três desfechos — a página sai em TODOS
+
+A missão acaba de três jeitos, e **os três terminam em página**. O que muda é só **o que lidera** a superfície; o backbone das seções é o mesmo nos três.
+
+| desfecho | o que é | o que **lidera a página** |
+|---|---|---|
+| **obra pronta** | a fila fechou e a conferência final passou | `### Feito` no topo, com a `### Verificação` logo abaixo — é a prova de que acabou |
+| **parada** | o motor saiu sem terminar a fila: teto de rodadas, vigia, disjuntor de orçamento, onda estéril, causa global — ou não voltou (erro terminal do `Workflow`, sessão derrubada, `TaskStop` por fora) | **uma linha dizendo POR QUE parou e em que tarefa**, e logo abaixo `### Bloqueios` com o que sobrou da fila, tarefa a tarefa |
+| **espera** | a fila não fechou porque falta um ato SEU: credencial que só você tem, aprovação, decisão de escopo — o motor devolveu isso em `esperandoVoce` | `### Esperando você (não é falha)` no topo, cada item com o ato exato que destrava — **nunca** dentro de `### Bloqueios`, que é a seção do que falhou |
+
+⚠️ **Parada NÃO degrada o relatório.** Missão que parou entrega a **mesma** página, com as mesmas seções preenchidas e a mesma entrega via `/visual` — nunca um resumo em três linhas no CLI "porque não terminou". Parada é exatamente quando o usuário mais precisa da superfície de revisão: é dela que sai a decisão de retomar. Cortar seção, pular o `/visual` ou trocar a página por texto curto por causa da parada é proibido. O único fallback legítimo continua sendo o markdown completo, e só quando a skill `visual` não existe na máquina.
+
+**Motor que não voltou é parada, e a página sai igual** — só que montada pela casca no turno seguinte, a partir do **último estado conhecido em disco** (`~/.claude/andamento/…` e o plano ticável): em que onda e em que tarefa a missão morreu. Página remontada do disco diz isso no topo, para o usuário não ler dado velho como se fosse fresco.
 
 ### Conteúdo (backbone — sempre o mesmo)
 

@@ -154,7 +154,50 @@ check "motor 1 liberou ao entregar, e o motor 2 passa a disparar" \
 roda liberar "$SID" motor-2
 printf 'plugins/x/viva.sh\n' > "$VIVA"
 
-# 12 · anti-tautologia: sabotar o cruzamento tem que fazer a suíte reprovar
+# 12 · A MORTE POR FORA. TaskStop mata o motor no meio: ele nunca chega no `liberar`, e a
+# reserva órfã (nova, longe da expiração) recusaria o próximo motor da sessão por até 12h.
+# Quem solta é a receita do RETORNO da chamada, na casca — e é ela, LITERAL, que roda aqui:
+# o laço sai do bloco "2) NO RETORNO" da skill por recorte, não é reescrito à mão.
+# O recorte pega SÓ a linha que solta a reserva — a de cima resolve o caminho do hook
+# pelo resolvedor, e aqui o hook é o do repositório, entregue por env.
+RECEITA=$(awk '/# 2\) NO RETORNO da chamada/,/^```$/' "$SKILL" \
+  | grep -F 'bash "$RESERVA_SH" liberar')
+check "a receita do retorno traz o comando que libera a reserva do motor morto" \
+  "$([ -n "$RECEITA" ] && echo 1 || echo 0)"
+
+printf 'plugins/m/morto.sh\n' > "$RESERVAS/${SID}__motor-morto-por-fora.files"
+printf 'plugins/m/viva.sh\n'  > "$RESERVAS/${SID}__motor-ainda-vivo.files"
+OUT=$(roda reservar "$SID" motor-seguinte plugins/m/morto.sh)
+check "com a reserva órfã de pé, o próximo motor É RECUSADO (o defeito existe)" \
+  "$(nega "$OUT")" "saiu: $OUT"
+
+CLAUDE_CONFIG_DIR="$TMP" CLAUDE_CODE_SESSION_ID="$SID" RESERVA_SH="$HOOK" \
+  MOTOR_MORTO=motor-morto-por-fora bash -c "$RECEITA" >/dev/null 2>&1
+check "a receita do retorno apaga a reserva da execução morta" \
+  "$([ ! -f "$RESERVAS/${SID}__motor-morto-por-fora.files" ] && echo 1 || echo 0)"
+# O P0 que a versão anterior desta receita trazia: ela varria a sessão INTEIRA e soltava
+# também a reserva de um motor VIVO — dois motores voltavam ao mesmo arquivo, que é
+# exatamente o que este hook existe para impedir.
+check "a reserva do motor que segue VIVO na mesma sessão sobrevive" \
+  "$([ -f "$RESERVAS/${SID}__motor-ainda-vivo.files" ] && echo 1 || echo 0)"
+OUT=$(roda reservar "$SID" motor-seguinte plugins/m/viva.sh)
+check "e por isso o arquivo do motor vivo continua recusando o próximo" \
+  "$(nega "$OUT")" "saiu: $OUT"
+OUT=$(roda reservar "$SID" motor-seguinte plugins/m/morto.sh)
+check "depois da receita, o arquivo do motor morto passa" \
+  "$([ -z "$OUT" ] && echo 1 || echo 0)" "saiu: $OUT"
+roda liberar "$SID" motor-seguinte
+roda liberar "$SID" motor-ainda-vivo
+
+# reserva de OUTRA sessão não é tocada pela receita desta
+printf 'plugins/m/morto.sh\n' > "$RESERVAS/outra-sessao__motor-morto-por-fora.files"
+CLAUDE_CONFIG_DIR="$TMP" CLAUDE_CODE_SESSION_ID="$SID" RESERVA_SH="$HOOK" \
+  MOTOR_MORTO=motor-morto-por-fora bash -c "$RECEITA" >/dev/null 2>&1
+check "a receita não solta reserva de outra sessão" \
+  "$([ -f "$RESERVAS/outra-sessao__motor-morto-por-fora.files" ] && echo 1 || echo 0)"
+rm -f "$RESERVAS/outra-sessao__motor-morto-por-fora.files"
+
+# 13 · anti-tautologia: sabotar o cruzamento tem que fazer a suíte reprovar
 SAB="$TMP/sabotado.sh"
 sed 's/^  CRUZOU=.*grep -F -x -f.*$/  CRUZOU=""/' "$HOOK" > "$SAB"
 OUT=$(CLAUDE_CONFIG_DIR="$TMP" bash "$SAB" reservar "$SID" motor-sab plugins/x/viva.sh 2>/dev/null)

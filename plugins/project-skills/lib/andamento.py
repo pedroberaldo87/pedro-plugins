@@ -937,7 +937,17 @@ if __name__ == "__main__":
                 print("sinal é de outro motor (%s) — nada apagado" % aceso)
                 sys.exit(0)
         if execucao:
-            restam = [x for x in execucoes(alvo) if x != (dono, execucao)]
+            registradas = execucoes(alvo)
+            # Id que não consta não apaga nada — e até 2026-08-15 isso saía disfarçado
+            # de sucesso ("encerrada; N ainda de pé"), que é a mesma linha do caso
+            # legítimo. Quem escreve o id na mão (a casca, no retorno da chamada)
+            # colava o `motor-…` de exemplo e o sinal ficava aceso em silêncio.
+            if registradas and (dono, execucao) not in registradas:
+                print("⚠️ id '%s' não está registrado — NADA foi apagado. "
+                      "De pé: %s. Use o id impresso ao armar."
+                      % (execucao, ", ".join(e for _, e in registradas)))
+                sys.exit(0)
+            restam = [x for x in registradas if x != (dono, execucao)]
             if restam:
                 try:
                     with open(os.path.join(ESTADO, "motorid-" + alvo), "w",

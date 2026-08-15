@@ -11,7 +11,7 @@
     {
       "name": "2op",
       "source": "./plugins/2op",
-      "description": "Segunda opinião de outro modelo dentro da MESMA sessão, sem subagente e sem re-briefing. /2op (Fable 5), /2op-opus e /2op-sonnet trocam o modelo só pelo turno via o campo model do frontmatter; o modelo da sessão volta no próximo prompt.",
+      "description": "Segunda opinião de outro modelo dentro da MESMA sessão, sem subagente e sem re-briefing. /2op (Fable 5), /2op-opus (Opus 5) e /2op-sonnet (Sonnet 5) usam o campo model do frontmatter: o turno inteiro roda no modelo escolhido, com o contexto já carregado, e o modelo da sessão volta sozinho no próximo prompt. O revisor responde com veredito na primeira linha, rotula CONFIRMADO/INFERIDO e não edita nada.",
       "category": "productivity",
       "version": "1.0.5",
       "tags": [
@@ -260,7 +260,7 @@
       "source": "./plugins/project-skills",
       "description": "A casa das skills de projeto — documentacao, concepcao, plano, execucao e revisao moram sob um teto so, e conversam entre si por nome de plugin, nunca por caminho relativo para a pasta do vizinho. Traz tambem o motor de execucao autonoma (/sprint): decompoe -> executa -> revisa em Workflow deterministico, com os hooks que o guardam — a reserva de arquivos entre motores, o guarda de espera, o narrador de andamento na statusline e o gate que nega sub-agente com a missao armada (o apelido \"sovai\" segue evocando a skill sprint). O indice da familia se descobre lendo a pasta skills/ do plugin, nunca de cor.",
       "category": "productivity",
-      "version": "0.22.69",
+      "version": "0.22.72",
       "tags": [
         "project",
         "scaffolding",
@@ -298,7 +298,7 @@
     {
       "name": "vision",
       "source": "./plugins/vision",
-      "description": "Dá olhos ao Claude delegando a um servidor de visão (Qwen3.6 35B A3B VL, API OpenAI-compatible). Expõe a tool see_image para descrever imagens quando o modelo do Claude não as lê.",
+      "description": "Dá olhos ao Claude delegando a um servidor de visão (Qwen3.6 35B A3B VL, API OpenAI-compatible). Expõe a tool see_image: quando o Claude precisa entender uma imagem que não lê, ele chama see_image(caminho, pergunta) e o servidor devolve a descrição em texto. O endpoint do servidor de visão é configurado por QWEN_BASE/QWEN_MODEL ou ~/.claude/vision.json — quem instala aponta para o próprio backend.",
       "category": "productivity",
       "version": "0.1.1",
       "tags": [
