@@ -102,6 +102,7 @@ print("\n[cobrador — quem troca HOME sem a receita reprova]")
 
 ALVOS = ("plugins/*/lib/test_*.py", "plugins/*/hooks/test_*.py",
          "plugins/*/hooks/test_*.sh", "plugins/*/lib/test_*.sh",
+         "plugins/*/skills/*/test_*.py", "plugins/*/skills/*/test_*.sh",
          "scripts/*.py", "_shared/test_*.py", ".claude/hooks/test_*.sh")
 # `HOME=` no começo da linha ou depois de espaço/`;`/`(`/`{` — a atribuição.
 # `"$HOME/x"` e `FAKEHOME=` não casam, e não devem: o que reprova é fingir.

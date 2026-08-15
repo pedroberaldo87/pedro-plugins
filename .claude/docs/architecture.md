@@ -227,7 +227,7 @@ python3 -c "import json;print(len(json.load(open('.claude-plugin/marketplace.jso
 .claude-plugin/marketplace.json   catálogo único — nome, source, version, tags, category
 plugins/<nome>/                   um dir por entrada do catálogo, sem sobra (§2)
 _shared/                          fonte-da-verdade do compartilhado (25 arquivos-fonte)
-scripts/sync-shared.sh            o "build": vendora _shared/ → 105 cópias em 44 pastas  <!-- acopla-ok: §7 traz o comando que produz os dois números -->
+scripts/sync-shared.sh            o "build": vendora _shared/ → 106 cópias em 44 pastas  <!-- acopla-ok: §7 traz o comando que produz os dois números -->
 scripts/hook_contract.py          mede o contrato dos registros de hook (§11)
 scripts/public_repo_check.py      cobra a regra de repo público (checagem H do gate)
 scripts/regua_call_check.py       cobra que gerador de página chame a régua (checagem I)
@@ -349,26 +349,26 @@ Saída desta rodada (nome · versão · skills · tem hook):
 2op                 1.0.5  [2op,2op-opus,2op-sonnet]    -
 archify            2.12.2  [archify]                    -
 bootstrap         1.17.13  [bootstrap]                  HOOKS
-branches           1.3.11  [branches]                   HOOKS
+branches           1.3.12  [branches]                   HOOKS
 check-skills        0.7.3  [check-skills]               -
-context-guard      1.3.11  [context-guard]              HOOKS
+context-guard      1.3.12  [context-guard]              HOOKS
 fallow              1.2.6  [fallow]                     -
 gauntlet           0.13.5  [gauntlet]                   HOOKS
-graphify-guard      1.2.9  []                           HOOKS
+graphify-guard     1.2.10  []                           HOOKS
 grill-me            1.4.0  [grill-me]                   -
-guardrails          1.8.5  [guardrails]                 HOOKS
-handoff           1.11.10  [handoff]                    HOOKS
+guardrails          1.8.6  [guardrails]                 HOOKS
+handoff           1.11.11  [handoff]                    HOOKS
 improve             1.1.2  [improve]                    -
 improve-workflow  0.16.27  [improve-workflow]           -
-intent-guard       0.8.11  [intent-guard]               HOOKS
+intent-guard       0.8.12  [intent-guard]               HOOKS
 lixeiro             1.5.3  [faxina]                     HOOKS
 principles          1.0.5  [principles]                 -
-project-skills    0.22.65  [completude,design-md,doc,doc-load,doc-touch,monitorar,pesquisa-referencias,plan,project-skills,qa-loop,sprint,start] HOOKS
-ship                1.5.4  [ship]                       HOOKS
+project-skills    0.22.66  [completude,design-md,doc,doc-load,doc-touch,monitorar,pesquisa-referencias,plan,project-skills,qa-loop,sprint,start] HOOKS
+ship                1.5.5  [ship]                       HOOKS
 slides              1.6.2  [slides]                     -
 vision              0.1.1  []                           -
 vistoria           0.11.7  [vistoria]                   -
-visual            1.41.14  [andamento,visual]           HOOKS
+visual            1.41.15  [andamento,visual]           HOOKS
 ```
 
 **A rodada anterior moveu onde as skills MORAM; esta apagou as CASAS que tinham ficado
@@ -873,8 +873,8 @@ sed -n '/^SPECS=(/,/^)/p' scripts/sync-shared.sh | grep '::' \
   | sed 's/.*"\(.*\)::.*/\1/' | sort -u | wc -l                        # nº de pastas
 ```
 
-**105 cópias, em 44 pastas de destino, de 25 arquivos-fonte** — contra 19 cópias em 14 pastas <!-- acopla-ok: os dois comandos que produzem os números estão no bloco imediatamente acima; "19" é narrativa histórica -->
-na passada anterior [medido nesta rodada: os dois comandos acima devolvem `105` e `44` — o salto de 97 para 103 é a família do **lar fingido** (F4.3): a receita única de fingir o HOME em teste (`lar-fingido.md` + `lar_fingido.py` + `lib-lar-fingido.sh`, com cobrador próprio) nasceu em `_shared/` e foi vendorada nos cinco consumidores que fingiam o lar à mão, cada um do seu jeito e três deles quebrando no Windows].
+**106 cópias, em 44 pastas de destino, de 25 arquivos-fonte** — contra 19 cópias em 14 pastas <!-- acopla-ok: os dois comandos que produzem os números estão no bloco imediatamente acima; "19" é narrativa histórica -->
+na passada anterior [medido nesta rodada: os dois comandos acima devolvem `106` e `44` — o salto de 97 para 103 é a família do **lar fingido** (F4.3): a receita única de fingir o HOME em teste (`lar-fingido.md` + `lar_fingido.py` + `lib-lar-fingido.sh`, com cobrador próprio) nasceu em `_shared/` e foi vendorada nos cinco consumidores que fingiam o lar à mão, cada um do seu jeito e três deles quebrando no Windows].
 Os quatro maiores contribuintes, todos vendorados por consumidor:
 `resolve-plugin.sh` (18), `regua_texto.py` (11), `hook-json.sh` (12), `lib-tmpdir.sh` (10).
 
