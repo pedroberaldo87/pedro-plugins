@@ -90,6 +90,7 @@ def roda(raiz, registro):
     env = dict(os.environ, GREEN_SUITE_DIR=registro)
     return subprocess.run(["bash", os.path.join(raiz, "scripts", "suite.sh")],
                           cwd=raiz, env=env, capture_output=True, text=True,
+                          encoding="utf-8", errors="replace",
                           stdin=subprocess.DEVNULL, start_new_session=True)
 
 
@@ -100,7 +101,7 @@ def tem_prova(raiz, registro):
         ["bash", "-c",
          '. "$1/_shared/green-cache.sh" && green_cache_check "$1" full',
          "_", raiz],
-        env=env, capture_output=True, text=True,
+        env=env, capture_output=True, text=True, encoding="utf-8", errors="replace",
         stdin=subprocess.DEVNULL, start_new_session=True)
     return r.returncode == 0
 

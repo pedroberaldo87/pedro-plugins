@@ -42,12 +42,15 @@ if not prompt.strip():
 # UTF-8 inválido, o `sys.stdin.read()` estourava, e o `except` de fail-open do
 # ledger engolia: nada era gravado, exit 0, nenhum sinal. Foi assim que a suíte do
 # Windows morreu no primeiro grep ("ledger.jsonl: No such file or directory", 2026-08-15).
+# `errors="replace"` junto, como o `ledger.py` faz nos 11 sítios dele: byte que não
+# decodifica vira "\ufffd" em vez de estourar UnicodeDecodeError — que o `2>/dev/null
+# || true` da última linha engoliria, perdendo o pedido em silêncio.
 d = subprocess.run([sys.executable, ledger, "resolve-dir", "--cwd", cwd],
-                   capture_output=True, text=True, encoding="utf-8", timeout=10).stdout.strip()
+                   capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=10).stdout.strip()
 if d and os.path.exists(os.path.join(d, "off")):
     sys.exit(0)
 subprocess.run([sys.executable, ledger, "record-raw", "--cwd", cwd,
                 "--session", sid, "--text-stdin"],
-               input=prompt, text=True, encoding="utf-8", timeout=10)
+               input=prompt, text=True, encoding="utf-8", errors="replace", timeout=10)
 ' "$LEDGER" 2>/dev/null || true
 exit 0

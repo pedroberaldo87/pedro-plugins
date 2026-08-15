@@ -180,7 +180,8 @@ BASE = "HEAD~1:" if os.environ.get("GATE_AMEND") == "amend" else "HEAD:"
 def head_json(path):
     try:
         return json.loads(subprocess.run(["git", "show", BASE + path],
-                                         capture_output=True, text=True, check=True).stdout)
+                                         capture_output=True, text=True, check=True,
+                                         encoding="utf-8", errors="replace").stdout)
     except Exception:
         return None
 

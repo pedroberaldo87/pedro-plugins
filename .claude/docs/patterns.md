@@ -509,7 +509,16 @@ Windows, e o programa que a chama não trata a ausência como caso possível.**
   classe não está fechada lá). Conte com o mesmo AST que produziu esse número:
   `python3 -c "import ast,glob;…"` sobre `plugins/*/lib/*.py`, `plugins/*/hooks/*.py`,
   `_shared/*.py` e `scripts/*.py` [confirmado nesta rodada — 164 arquivos varridos]. O mesmo
-  vale para a saída de `subprocess`: `text=True` sozinho herda a codificação do sistema.
+  vale para a saída de `subprocess`: `text=True` sozinho herda a codificação do sistema — e
+  **essa metade não estava fechada**, porque a varredura contava só `open()`. Em 2026-08-15 o
+  cano do caderno do `intent-guard` (`hooks/capture-prompt.sh`) mandava o pedido do usuário por
+  `text=True` sem `encoding=`: saía em cp1252, o `ledger.py` do outro lado — que reconfigura os
+  canais dele para UTF-8 — recebia byte inválido, o `read()` estourava e o `except` de fail-open
+  engolia. **Nada era gravado, exit 0, nenhum sinal**; a suíte do Windows morreu no primeiro
+  grep (`ledger.jsonl: No such file or directory`). Regra que sobra: **`encoding=` explícito nos
+  DOIS lados do cano**, não só em quem lê. Hoje a varredura de `text=True`/`universal_newlines=`
+  sem `encoding=` devolve **1** ocorrência em produção (`scripts/run_suites.py:98`) [confirmado
+  nesta rodada — mesmo AST, 95 arquivos fora das suítes].
 
 - 🔴 **Teste que compara caminho por texto reprova caminho certo.** No Windows o
   `os.path.expanduser("~/.claude/intent/")` sai com `/` e o `os.path.join` do programa devolve
@@ -529,6 +538,34 @@ ocorrência.**
 de raiz girava, o job não falhava — ele *continuava*, e a leitura de fora era "ainda
 rodando". `.github/workflows/portability.yml` agora corta em 30 min (o maior job legítimo, o
 do Windows, fecha em ~15). Travamento tem que ter cor.
+
+### 1.8c As classes de defeito de portabilidade — defeito, causa e cobrador
+
+Cada classe daqui tem **causa medida**, não suspeita: alguém rodou, viu o número errado e
+escreveu por quê. Classe cuja causa ainda é palpite **não entra** — fica declarada no fim,
+para não virar régua antes de ser verdade.
+
+- 🔴 **O lar fingido que não finge nada no Windows** [confirmado, `_shared/lar-fingido.md`].
+  **Defeito:** a suíte troca `HOME` por um diretório de mentira, roda o hook, e ele escreve no
+  lar REAL da máquina — sujando o estado do dono. O teste segue verde, porque ele confere o que
+  o hook respondeu, nunca onde o arquivo caiu. **Causa:** o `expanduser` do Python decide o lar
+  nesta ordem — `USERPROFILE`, depois `HOMEDRIVE`+`HOMEPATH`, e só então `HOME`. Com
+  `USERPROFILE` intacto, o `HOME` fingido é ignorado. **As quatro variáveis andam juntas ou não
+  andam.** **Cobrador:** `_shared/test_lar_fingido.py` — confere as duas metades da receita
+  (`lar_fingido.py` e `lib-lar-fingido.sh`, vendoradas) e **varre as suítes** atrás de quem
+  atribui `HOME=`, `USERPROFILE=` ou `HOMEPATH=` fora dela; caso legítimo isenta a linha com
+  `lar-fingido: ok <motivo>`. Régua: `python3 _shared/test_lar_fingido.py` → `12 passou · 0
+  falhou` [confirmado nesta rodada]. Corolário que veio junto: **o lar fingido nasce FORA do
+  projeto de teste** — dentro dele, a cascata de `resolve-dir.sh` para cedo e o hook cai no
+  caminho errado.
+
+**Ainda sem causa medida, e por isso fora desta seção** [declarado]: o motor da bancada que
+não carrega no node, a divergência entre as duas receitas de `cksum`, os dois caminhos de
+binário (`/usr/bin/grep` cravado e binário ausente), o byte nulo do `ExitPlanMode`, e as duas
+suítes do lixeiro no arranque. Cada uma entra aqui **quando** o run que a mediu existir, com o
+id citado — não antes. ⚠️ **"O ledger que não é achado" saiu desta lista em 2026-08-15**: a
+causa foi medida (o cano sem `encoding=` do `capture-prompt.sh`) e está no bullet de codificação
+do §1.8b, com o conserto no commit `b1d6f97`.
 
 ### 1.9 Chamada interna de LLM tem que se auto-marcar
 

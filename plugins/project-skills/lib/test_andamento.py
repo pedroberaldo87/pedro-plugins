@@ -660,7 +660,7 @@ def main():
         primeiro = subprocess.run(
             [sys.executable, os.path.join(os.path.dirname(a.__file__), "andamento.py"),
              "encerra", "s-cli", "sprint", "exec-1"],
-            capture_output=True, text=True, env=amb,
+            capture_output=True, text=True, encoding="utf-8", errors="replace", env=amb,
             stdin=subprocess.DEVNULL, start_new_session=True)
         check("encerrar a primeira diz que outra continua de pé",
               "ainda de pé" in primeiro.stdout)
@@ -671,7 +671,7 @@ def main():
         ultimo = subprocess.run(
             [sys.executable, os.path.join(os.path.dirname(a.__file__), "andamento.py"),
              "encerra", "s-cli", "sprint", "exec-2"],
-            capture_output=True, text=True, env=amb,
+            capture_output=True, text=True, encoding="utf-8", errors="replace", env=amb,
             stdin=subprocess.DEVNULL, start_new_session=True)
         check("encerrar a última apaga o aviso",
               "encerrada na barra" in ultimo.stdout

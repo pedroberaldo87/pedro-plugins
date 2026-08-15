@@ -360,10 +360,10 @@ guardrails          1.8.7  [guardrails]                 HOOKS
 handoff           1.11.12  [handoff]                    HOOKS
 improve             1.1.2  [improve]                    -
 improve-workflow  0.16.27  [improve-workflow]           -
-intent-guard       0.8.14  [intent-guard]               HOOKS
+intent-guard       0.8.15  [intent-guard]               HOOKS
 lixeiro             1.5.4  [faxina]                     HOOKS
 principles          1.0.5  [principles]                 -
-project-skills    0.22.68  [completude,design-md,doc,doc-load,doc-touch,monitorar,pesquisa-referencias,plan,project-skills,qa-loop,sprint,start] HOOKS
+project-skills    0.22.69  [completude,design-md,doc,doc-load,doc-touch,monitorar,pesquisa-referencias,plan,project-skills,qa-loop,sprint,start] HOOKS
 ship                1.5.6  [ship]                       HOOKS
 slides              1.6.2  [slides]                     -
 vision              0.1.1  []                           -
@@ -1242,8 +1242,12 @@ forma arquitetural do `journal.py`.
   `<root>/.claude/intent`; sem raiz, cai num slug do path absoluto sob `~/.claude/intent/`.
   O ramo que compara `os.path.realpath(cwd) == os.path.realpath(root)` existe pra preservar a
   **grafia** do caminho quando o cwd já é a raiz — mesma classe de problema do `PHASH` do §6.1.
-- **`append(d, ev)`** (god node) é a única porta de escrita, e ela grava sob `locked()`
-  (`fcntl`) — sessões concorrentes escrevem no mesmo arquivo.
+- **`append(d, ev)`** (god node) é a única porta de escrita, e ela grava sob `locked()` —
+  sessões concorrentes escrevem no mesmo arquivo. A trava tem **duas implementações**, porque
+  `fcntl` é POSIX e não existe no Windows: `flock` quando o `import` do topo funciona,
+  diretório de trava criado com `os.mkdir` quando `fcntl is None` [confirmado — o `import fcntl`
+  do topo vive num `try` e `ledger.py:locked` tem os dois ramos; a classe está em §1.8b do
+  `patterns.md`].
 - **`ensure_exclude()`** ignora o caderno em `.git/info/exclude` (ignore LOCAL), **nunca** no
   `.gitignore` versionado do projeto alheio. Usa `git rev-parse --git-path info/exclude` porque
   num worktree o `.git` é um arquivo, não um diretório.
