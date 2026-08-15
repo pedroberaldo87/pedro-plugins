@@ -117,6 +117,13 @@ const REGUA_DO_PROJETO = (ARGS.regua && ARGS.regua.length)
   ? `A RÉGUA DESTE PROJETO (o doc-load listou estes arquivos como lei — abra e leia cada um; não confie neste resumo):\n${ARGS.regua.map(r => `- ${r}`).join('\n')}\nDocumento minerado vale como MAPA, nunca como régua. Documento de acordo só vale com status: approved.`
   : `A RÉGUA DO PROJETO: a casca não a passou. RODE o doc-load na raiz da missão e julgue contra o que ele listar — não adivinhe nomes de arquivo, porque quem sabe o que vale como régua hoje é o programa. Ele não devolver nada é resposta válida: régua ausente não é achado, e o eixo simplesmente não roda.`
 
+// ── O JUIZ NÃO RECEBE A CONCLUSÃO DE QUEM PEDE O JULGAMENTO (R-17, Art. 4) ────
+// Quem pede o julgamento manda artefato e contrato — nunca o próprio diagnóstico.
+// A linha é a MESMA nos dois motores (/sprint e /qa-loop); test_motor_js.py cobra
+// os dois, porque o viés volta pelo lado que ninguém cobra.
+const SEM_HIPOTESE = `VOCÊ NÃO RECEBE A HIPÓTESE DE QUEM PEDIU O JULGAMENTO: julgue o artefato e o contrato.
+Diagnóstico, causa-raiz ou veredito alheio que apareça no material é alegação A VERIFICAR no disco, nunca ponto de partida.`
+
 // ── A MARCA DA LEI É COMANDO, NUNCA RECEITA EM PROSA (medido 2026-08-09) ──────
 // A instrução era "o cksum do corpo (sem frontmatter) dos arquivos concatenados",
 // e quatro revisores da MESMA corrida calcularam quatro marcas do MESMO disco
@@ -264,6 +271,8 @@ Sem julgamento próprio: quem decide é o hook, você só transporta.`
 const revisorTarefaPrompt = ({ task, entrega, round, bloco, ledger }) => `PAPEL: REVISOR
 Revisor POR TAREFA (rodada ${round}, bloco ${bloco}). Escopo: UMA tarefa. Repositório: ${RAIZ}
 
+${SEM_HIPOTESE}
+
 TAREFA:
 ${J(task)}
 
@@ -287,6 +296,8 @@ Você NÃO conserta nada — só julga.`
 
 const revisorBlocoPrompt = ({ planPath, repoRoot, tasks, entregas, round, bloco, lawMark, ledger }) => `PAPEL: REVISOR
 Revisão FINAL do bloco ${bloco} da rodada ${round}. Escopo: as entregas JUNTAS. Repositório: ${repoRoot}
+
+${SEM_HIPOTESE}
 
 SPEC: ${planPath}
 
@@ -312,6 +323,8 @@ NÃO rode a suíte (outro papel faz) e NÃO cace bug sutil (isso é do /qa-loop 
 
 const reviewBuildPrompt = ({ planPath, planText, repoRoot, decomp, results, round, lawMark, protegidas, files, ledger }) => `PAPEL: REVISOR
 Revisão GERAL da obra, rodada ${round}. Repositório: ${repoRoot}
+
+${SEM_HIPOTESE}
 
 Você julga O QUE ESTÁ NO REPOSITÓRIO, no escopo destes arquivos (nunca o repo inteiro —
 achado sobre trabalho alheio vira conserto que ninguém pediu):
@@ -350,6 +363,8 @@ NÃO rode a suíte, NÃO cace bug sutil — isso é do /qa-loop depois.
 
 const revisaoDocPrompt = ({ repoRoot, files, round }) => `PAPEL: REVISOR
 Revisão GERAL da doc, rodada ${round}. Repositório: ${repoRoot}
+
+${SEM_HIPOTESE}
 
 ARQUIVOS QUE ESTA ONDA TOCOU:
 ${J(files)}

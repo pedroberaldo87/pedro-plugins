@@ -559,11 +559,39 @@ para não virar régua antes de ser verdade.
   projeto de teste** — dentro dele, a cascata de `resolve-dir.sh` para cedo e o hook cai no
   caminho errado.
 
+- 🔴 **O `/tmp` do Git Bash não é o temporário que o Python nativo enxerga** [confirmado,
+  runs `31761090697` (vermelho) → `31890249824` (`ok 8.4s`), commit `ca721e9`]. **Defeito:**
+  a suíte cria a pasta de trabalho com `mktemp -d` pelado, escreve o arquivo por um lado e o
+  programa não o acha pelo outro — `FileNotFoundError` em quatro checks de
+  `test_entrada_no_arranque.sh`, só no Windows. **Causa:** o `mktemp -d` devolve `/tmp/x`, que
+  existe **dentro do shell**; o `python3` do Windows resolve esse mesmo texto como `C:\tmp\x`,
+  que não existe. E o Git Bash só traduz caminho que vai como **argumento** — embutido no texto
+  de um `python3 -c "... '$PASTA/arquivo' ..."` não há o que traduzir, e é por isso que a mesma
+  suíte tinha checks verdes ao lado dos vermelhos. **Cobrador:** `_shared/lib-tmpdir.sh ::
+  td_tmpdir` (cascata `TMPDIR`/`TMP`/`TEMP` + `cygpath -m`), vendorado por
+  `scripts/sync-shared.sh` nos consumidores, e `scripts/test_tmpdir.sh`, que varre os hooks
+  atrás de quem ainda escreve `/tmp` literal. Régua: `bash scripts/test_tmpdir.sh` → `VERDE —
+  TMPDIR honrado pelos hooks` [confirmado nesta rodada]. **Receita:** `mktemp -d` vira
+  `mktemp -d "$(td_tmpdir)/nome-XXXXXX"`.
+
+⚠️ **A colheita do lixeiro no Windows tem causa medida e conserto BLOQUEADO por falta de dado**
+[confirmado em 2026-08-15, run `31890249824`]. Quatro checks de `test_lixeiro_hooks.sh` seguem
+vermelhos só lá — **nada é encerrado porque o motor não descobre a pasta de trabalho do
+processo**: `lixeiro.py:_carrega_cwds` pergunta ao `lsof`, que não existe no Windows, `cwd_de`
+devolve `None`, e `casa` recusa. Reproduz-se aqui com um `lsof` postiço que só sai 1 —
+`printf '#!/bin/sh\nexit 1\n' > <rascunho>/lsof && chmod +x <rascunho>/lsof && PATH=<rascunho>:$PATH
+bash plugins/lixeiro/hooks/test_lixeiro_hooks.sh` derruba **as mesmas quatro** (macOS com `lsof`:
+`26 ok, 0 falhas`). Descartados por medição, não por palpite: o formato do caminho (o `td_tmpdir`
+entrou e as quatro continuaram, run `31870181027`), o `$!` do Git Bash (nunca chega ao motor) e
+casar pelo TEXTO do comando (o teste vizinho sobe o mesmo `python3 -m http.server 0` em outra
+pasta — casar por texto encerraria processo de projeto alheio). **Falta uma segunda fonte de
+pasta de trabalho para onde não há `lsof`**, e nem `wmic` nem `tasklist` a devolvem: escrever
+leitura de saída de ferramenta sem dado real é o que a régua da casa proíbe.
+
 **Ainda sem causa medida, e por isso fora desta seção** [declarado]: o motor da bancada que
 não carrega no node, a divergência entre as duas receitas de `cksum`, os dois caminhos de
-binário (`/usr/bin/grep` cravado e binário ausente), o byte nulo do `ExitPlanMode`, e as duas
-suítes do lixeiro no arranque. Cada uma entra aqui **quando** o run que a mediu existir, com o
-id citado — não antes. ⚠️ **"O ledger que não é achado" saiu desta lista em 2026-08-15**: a
+binário (`/usr/bin/grep` cravado e binário ausente) e o byte nulo do `ExitPlanMode`. Cada uma
+entra aqui **quando** o run que a mediu existir, com o id citado — não antes. ⚠️ **"O ledger que não é achado" saiu desta lista em 2026-08-15**: a
 causa foi medida (o cano sem `encoding=` do `capture-prompt.sh`) e está no bullet de codificação
 do §1.8b, com o conserto no commit `b1d6f97`.
 

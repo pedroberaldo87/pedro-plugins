@@ -69,6 +69,20 @@ if MODULO:
             check("%s existe em %s" % (f, os.path.basename(alvo)), hasattr(mod, f))
 
 
+# A secao de racionalizacoes: a desculpa fica REFUTADA no texto antes de o modelo
+# da-la. Sem cobrador, a proxima edicao a apaga e ninguem percebe.
+print("as racionalizacoes estao refutadas por escrito")
+check("a skill tem a secao de racionalizacoes", "## Racionalizações" in texto)
+check("a desculpa de escrever o plano direto esta refutada",
+      "escrevo o plano direto" in texto)
+check("a desculpa do pronto generico esta refutada",
+      "pode ser genérico" in texto)
+check("a desculpa de dispensar a auditoria esta refutada",
+      "dispenso a auditoria" in texto)
+check("a desculpa do passo grande demais esta refutada",
+      "quem executar se vira" in texto)
+
+
 print("o programa que a skill chama")
 PLANO = {
     "id": "2026-01-01-teste",

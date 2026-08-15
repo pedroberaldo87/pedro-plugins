@@ -110,3 +110,17 @@ também ao lado desta skill, para o apontamento não morrer na máquina instalad
 O plano recém-montado vai para a auditoria (`lib/auditoria_plano.py`, neste mesmo
 plugin), e **quem audita não é quem montou**. Nível 1 vermelho (o plano contradiz a
 documentação canônica) para o laço; só com o nível 1 limpo a cobertura da spec é medida.
+
+## Racionalizações — a desculpa refutada antes de você dá-la
+
+Todo plano torto deste repositório começou com uma destas frases:
+
+- **"o pedido está claro, escrevo o plano direto"** → sem a régua e sem os planos abertos
+  na mesa, o plano novo nasce duplicando ou contradizendo o que já existe.
+- **"esse passo é óbvio, o `pronto` pode ser genérico"** → `pronto` que ninguém consegue
+  reprovar não é critério, é desejo. O gravador recusa por forma, e recusa é resposta.
+- **"eu montei e sei que está bom, dispenso a auditoria"** → quem monta não audita.
+- **"a auditoria reclamou de detalhe, sigo assim mesmo"** → nível 1 vermelho (o plano
+  contradiz a documentação canônica) para o laço. Não há cobertura a medir antes disso.
+- **"o passo é grande, mas quem executar se vira"** → tarefa que não cabe num executor
+  volta como espera. Quebrar agora é mais barato que descobrir no meio da noite.

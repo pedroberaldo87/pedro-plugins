@@ -26,6 +26,11 @@ def check(nome, cond):
         FALHAS.append(nome)
 
 
+# o run mora na pasta DESTE projeto: desde F6.5 o medidor recusa run de outra
+# missão, e disco de mentira em pasta de outro projeto seria run alheio.
+PROJETO = sobras.medidor.projeto_atual()
+
+
 def monta_run(base, projeto, sessao, run):
     d = os.path.join(base, projeto, sessao, "subagents", "workflows", run)
     os.makedirs(d)
@@ -75,8 +80,8 @@ def caso_varredura():
     try:
         os.environ["CLAUDE_CONFIG_DIR"] = d
         base = os.path.join(d, "projects")
-        meu = monta_run(base, "proj", "sessao-abc", "wf_meu")
-        monta_run(base, "proj", "sessao-xyz", "wf_outro")
+        meu = monta_run(base, PROJETO, "sessao-abc", "wf_meu")
+        monta_run(base, PROJETO, "sessao-xyz", "wf_outro")
         res = os.path.join(d, "sprint", "reservas")
         os.makedirs(res)
         reserva(res, "sessao-abc__motor-1", VELHO)
@@ -117,7 +122,7 @@ def caso_relatorio():
     try:
         os.environ["CLAUDE_CONFIG_DIR"] = d
         base = os.path.join(d, "projects")
-        limpo = monta_run(base, "proj", "sessao-abc", "wf_limpo")
+        limpo = monta_run(base, PROJETO, "sessao-abc", "wf_limpo")
         check("run sem sobra sai com 0", sobras.main(["--run", limpo]) == 0)
 
         res = os.path.join(d, "sprint", "reservas")

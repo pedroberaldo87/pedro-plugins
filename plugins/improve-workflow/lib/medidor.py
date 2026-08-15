@@ -20,9 +20,11 @@ relê tudo a cada turno, então turno é a causa e token é a consequência.
 
     python3 medidor.py [<run>] [--json]
 
-O <run> é o caminho do diretório OU só o nome dele (`wf_…`); sem nenhum, mede o
-run mais recente do disco. Sem run nenhum no disco, o comando diz isso e para —
-medir o run errado é pior do que não medir.
+O <run> é o caminho do diretório OU o ID dele (`wf_…`); sem nenhum, mede o run
+mais recente DESTE projeto. Run que mora na pasta de outro projeto é RECUSADO
+pelo id: foi o defeito de 2026-08-15 — o mais recente do disco era de outra
+missão, e a leitura apontou arquivos que não existem aqui. Sem run nenhum no
+disco, o comando diz isso e para — medir o run errado é pior do que não medir.
 """
 
 import argparse
@@ -401,29 +403,49 @@ def desligado(base=None):
         return False
 
 
-def runs_conhecidos(base=None):
-    """Todo diretório de run no disco, do mais recente para o mais antigo:
-    <projeto>/<sessão>/subagents/workflows/<runId>/."""
-    padrao = os.path.join(base or _base_runs(), "*", "*", "subagents", "workflows", "*")
+def projeto_atual(raiz=None):
+    """A pasta que o Claude Code dá a ESTE projeto dentro de `projects/`: o caminho
+    absoluto com tudo que não é letra nem número virando `-`."""
+    return re.sub(r"[^A-Za-z0-9]", "-", os.path.abspath(raiz or os.getcwd()))
+
+
+def runs_conhecidos(base=None, projeto=None):
+    """Todo diretório de run DESTE projeto, do mais recente para o mais antigo:
+    <projeto>/<sessão>/subagents/workflows/<runId>/. `projeto="*"` abre para o
+    disco inteiro — só quem precisa NOMEAR o dono de um run de fora usa isso."""
+    padrao = os.path.join(base or _base_runs(), projeto or projeto_atual(),
+                          "*", "subagents", "workflows", "*")
     dirs = [d for d in glob.glob(padrao) if os.path.isdir(d)]
     return sorted(dirs, key=os.path.getmtime, reverse=True)
 
 
-def resolver_run(nome=None, base=None):
-    """(diretório, erro). Caminho vale como caminho, nome vale como nome do run,
-    e sem nada vale o mais recente. Sem run nenhum no disco a resposta é o erro —
-    adivinhar qual run medir é como medir outro run."""
+def _projeto_do_run(dir_run):
+    """<projeto>/<sessão>/subagents/workflows/<runId> → o <projeto>."""
+    partes = os.path.normpath(dir_run).split(os.sep)
+    return partes[-5] if len(partes) >= 5 else ""
+
+
+def resolver_run(nome=None, base=None, projeto=None):
+    """(diretório, erro). Caminho vale como caminho, id vale como id do run, e sem
+    nada vale o mais recente DESTA missão. Id que só existe na pasta de outro
+    projeto é recusado com o nome do dono: o run de outra missão fala de arquivos
+    que não existem aqui, e medi-lo é pior do que não medir."""
     if nome and os.path.isdir(nome):
         return nome, None
-    conhecidos = runs_conhecidos(base)
+    projeto = projeto or projeto_atual()
+    conhecidos = runs_conhecidos(base, projeto)
     if nome:
         for d in conhecidos:
             if os.path.basename(d) == nome:
                 return d, None
+        for d in runs_conhecidos(base, "*"):
+            if os.path.basename(d) == nome:
+                return None, ("run de outra missão: %s mora em %s, e esta missão é %s"
+                              % (nome, _projeto_do_run(d), projeto))
         return None, "run não encontrado: %s" % nome
     if not conhecidos:
         return None, ("nenhum run no disco em %s — rode uma missão antes, ou passe o "
-                      "nome do run" % (base or _base_runs()))
+                      "id do run" % os.path.join(base or _base_runs(), projeto))
     return conhecidos[0], None
 
 
@@ -443,7 +465,7 @@ def _n(v):
 def main(argv=None):
     ap = argparse.ArgumentParser(description="mede um run por papel: agentes, turnos, tokens")
     ap.add_argument("run", nargs="?",
-                    help="caminho OU nome do run; sem isto, o mais recente do disco")
+                    help="caminho OU id do run; sem isto, o mais recente DESTA missão")
     ap.add_argument("--json", action="store_true", help="devolve os números crus")
     ap.add_argument("--contra", help="run anterior: compara o PAR turno×falha papel a papel")
     args = ap.parse_args(argv)

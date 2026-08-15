@@ -24,6 +24,9 @@ CLI:
 
   # F24.4 — a série lida: progresso por corrida e custo por passo fechado.
   ledger_corridas.py serie --project-root D [--missao Y]
+
+  # F24.5 — antes de relançar: causa que já parou duas vezes sai 3 (pendência do dono).
+  ledger_corridas.py relance --project-root D --missao Y
 """
 import argparse
 import json
@@ -55,6 +58,12 @@ CAMPOS = (
 # vira "o motor ainda está no registro do andamento".
 TETO_SEM_SINAL = 12 * 3600
 NAO_MEDIDO = "nao-medido"
+
+# Desfecho que diz "a corrida terminou o que foi fazer". Todo o resto é uma PARADA —
+# a corrida esbarrou em alguma coisa, e é essa coisa que o relance conta.
+# ponytail: lista curta de fim limpo em vez de catálogo de causas; se o motor passar a
+# devolver outro nome para "acabou", ele entra aqui.
+FIM_LIMPO = ("completo", "build-complete")
 
 
 def caminho(project_root):
@@ -250,10 +259,33 @@ def serie(project_root, missao=None):
     return fora
 
 
+def relance(project_root, missao, limite=2):
+    """Antes de relançar: causa que já parou duas vezes é pendência do dono (F24.5 · R-34).
+
+    Relançar é apostar que a próxima corrida passa onde a anterior parou. Na terceira
+    vez a aposta já perdeu duas: o que falta não é tentativa, é decisão de quem manda.
+    A causa é o `desfecho` da corrida — a série já descarta a corrida contada duas
+    vezes (a `morta-por-fora` que depois voltou), então quem conta aqui é ela.
+    """
+    causas = {}
+    for c in serie(project_root, missao):
+        if c["desfecho"] in FIM_LIMPO:
+            continue  # terminou o que foi fazer: não parou em nada
+        causas.setdefault(c["desfecho"], []).append(c["run_id"])
+    repetidas = sorted((k for k in causas if len(causas[k]) >= limite),
+                       key=lambda k: (-len(causas[k]), k))
+    return {
+        "relanca": not repetidas,
+        "pendencias": [{"causa": k, "vezes": len(causas[k]), "corridas": causas[k]}
+                       for k in repetidas],
+    }
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("comando",
-                    choices=("registra", "registra-run", "le", "abre", "colhe", "serie"))
+                    choices=("registra", "registra-run", "le", "abre", "colhe", "serie",
+                             "relance"))
     ap.add_argument("--project-root", required=True)
     ap.add_argument("--json", help="entrada em JSON, ou '-' para ler do stdin")
     ap.add_argument("--run-id")
@@ -261,6 +293,16 @@ def main():
     ap.add_argument("--total", type=int)
     ap.add_argument("--inicio", type=float)
     a = ap.parse_args()
+    if a.comando == "relance":
+        v = relance(a.project_root, a.missao)
+        print(json.dumps(v, ensure_ascii=False, indent=2))
+        if not v["relanca"]:
+            p = v["pendencias"][0]
+            print("PENDENCIA DO DONO: '%s' ja parou %d corridas — relancar seria a %da "
+                  "tentativa na mesma pedra." % (p["causa"], p["vezes"], p["vezes"] + 1),
+                  file=sys.stderr)
+            return 3
+        return 0
     if a.comando == "serie":
         print(json.dumps(serie(a.project_root, a.missao), ensure_ascii=False, indent=2))
         return 0

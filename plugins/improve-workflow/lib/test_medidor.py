@@ -9,6 +9,7 @@ O que a fixture existe para provar, e cada item já mentiu num run real:
 """
 
 import os
+import re
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -258,12 +259,12 @@ def caso_cli():
     check("run inexistente sai com 2", medidor.main([os.path.join(RUN, "nao-existe")]) == 2)
 
 
-def _base_falsa(tmp, nomes):
+def _base_falsa(tmp, nomes, projeto="proj", base=None):
     """Um disco de mentira no formato real: <projeto>/<sessão>/subagents/workflows/<run>.
     A ordem de `nomes` é a ordem de mtime — o último é o mais recente."""
-    base = os.path.join(tmp, "projects")
+    base = base or os.path.join(tmp, "projects")
     for i, nome in enumerate(nomes):
-        d = os.path.join(base, "proj", "sessao", "subagents", "workflows", nome)
+        d = os.path.join(base, projeto, "sessao", "subagents", "workflows", nome)
         os.makedirs(d)
         os.utime(d, (1_000_000 + i * 60, 1_000_000 + i * 60))
     return base
@@ -276,7 +277,7 @@ def caso_escolha_do_run():
     with tempfile.TemporaryDirectory() as tmp:
         vazia = os.path.join(tmp, "projects")
         os.makedirs(vazia)
-        dir_run, erro = medidor.resolver_run(base=vazia)
+        dir_run, erro = medidor.resolver_run(base=vazia, projeto="proj")
         check("sem run nenhum não escolhe nada e diz o porquê",
               dir_run is None and erro and "nenhum run" in erro)
         os.environ["CLAUDE_CONFIG_DIR"] = tmp
@@ -290,20 +291,55 @@ def caso_escolha_do_run():
     with tempfile.TemporaryDirectory() as tmp:
         base = _base_falsa(tmp, ["wf_velho", "wf_meio", "wf_novo"])
         check("com vários, o padrão é o mais recente",
-              os.path.basename(medidor.resolver_run(base=base)[0]) == "wf_novo")
+              os.path.basename(medidor.resolver_run(base=base, projeto="proj")[0]) == "wf_novo")
         # basename, não endswith("/..."): no Windows o separador é "\\" e a
         # comparação nunca casava — o mesmo defeito de barra da linha de cima.
-        check("o nome do run escolhe o run, não o mais recente",
-              os.path.basename(medidor.resolver_run("wf_velho", base=base)[0]) == "wf_velho")
-        check("nome que não existe vira erro, não um palpite",
-              medidor.resolver_run("wf_nao_existe", base=base) == (
+        check("o id do run escolhe o run, não o mais recente",
+              os.path.basename(medidor.resolver_run("wf_velho", base=base,
+                                                    projeto="proj")[0]) == "wf_velho")
+        check("id que não existe vira erro, não um palpite",
+              medidor.resolver_run("wf_nao_existe", base=base, projeto="proj") == (
                   None, "run não encontrado: wf_nao_existe"))
         check("caminho continua valendo como caminho",
-              medidor.resolver_run(RUN, base=base)[0] == RUN)
+              medidor.resolver_run(RUN, base=base, projeto="proj")[0] == RUN)
 
     with tempfile.TemporaryDirectory() as tmp:
         # run que existe mas está vazio não é erro: é um aviso e saída zero.
         check("run sem agent-*.jsonl avisa e sai com 0", medidor.main([tmp]) == 0)
+
+
+def caso_run_de_outra_missao():
+    """F6.5, medido em 2026-08-15: o mais recente do DISCO era de outra missão, e a
+    autópsia leu transcript que fala de arquivos que não existem aqui. O run desta
+    missão chega pelo ID, e run que mora na pasta de outro projeto é RECUSADO."""
+    import tempfile
+
+    with tempfile.TemporaryDirectory() as tmp:
+        base = _base_falsa(tmp, ["wf_daqui"], projeto="proj")
+        # o de fora é criado DEPOIS: no disco inteiro ele é o mais recente
+        _base_falsa(tmp, ["wf_de_fora"], projeto="outro-proj", base=base)
+        os.utime(os.path.join(base, "outro-proj", "sessao", "subagents", "workflows",
+                              "wf_de_fora"), (2_000_000, 2_000_000))
+        dir_run, erro = medidor.resolver_run(base=base, projeto="proj")
+        check("o padrão é o run desta missão, não o mais recente do disco",
+              erro is None and os.path.basename(dir_run) == "wf_daqui")
+        _, erro = medidor.resolver_run("wf_de_fora", base=base, projeto="proj")
+        check("run de outra missão pedido pelo id é recusado, e o dono é nomeado",
+              erro is not None and "outra missão" in erro and "outro-proj" in erro)
+        check("nada de outra missão é medido: a recusa não devolve diretório",
+              medidor.resolver_run("wf_de_fora", base=base, projeto="proj")[0] is None)
+        check("o mesmo id, medido de dentro da missão dona, resolve",
+              os.path.basename(medidor.resolver_run("wf_de_fora", base=base,
+                                                    projeto="outro-proj")[0]) == "wf_de_fora")
+    # A entrada é um caminho JÁ absoluto na máquina que roda — `/tmp/a.b/c` não é
+    # absoluto no Windows (`ntpath.isabs` devolve False), o `abspath` colava a letra do
+    # drive na frente, e a asserção reprovava só nos runners de lá. O que se mede aqui
+    # é a troca de pontuação por traço, não a forma do caminho: então o caminho vem de
+    # `os.path.abspath`, que é absoluto em qualquer sistema.
+    absoluto = os.path.abspath(os.path.join("a.b", "c"))
+    check("o nome da pasta do projeto é o caminho absoluto sem pontuação",
+          medidor.projeto_atual(absoluto)
+          == re.sub(r"[^A-Za-z0-9]", "-", absoluto))
 
 
 def caso_projeto_alheio():
@@ -351,6 +387,7 @@ def main():
     caso_par_turno_e_falha()
     caso_cli()
     caso_escolha_do_run()
+    caso_run_de_outra_missao()
     caso_projeto_alheio()
     print()
     if FALHAS:

@@ -57,6 +57,13 @@ antes de chamar o `Workflow`; apague na linha imediatamente depois de a chamada 
 SPRINT_DIR="${CLAUDE_CONFIG_DIR:-$HOME/.claude}/andamento"
 mkdir -p "$SPRINT_DIR"
 SPRINT_MOTOR_ID="motor-$(date -u +%Y%m%dT%H%M%SZ)-$$"    # id DESTE motor na sessão
+REPO_ROOT="…"; PLAN_PATH="…"; TOTAL_DE_PASSOS="…"   # os mesmos que vão no `args`
+# As últimas corridas desta missão são lidas ANTES de acender qualquer coisa: relançar é
+# apostar que a próxima passa onde a anterior parou, e na terceira vez a aposta já perdeu
+# duas. Sai 3 ⇒ NÃO chame o Workflow e NÃO acenda o sinal: leve a causa ao dono como
+# pendência e pare aqui. O que falta ali não é tentativa, é decisão dele.
+LEDGER="$(bash "${CLAUDE_PLUGIN_ROOT}/lib/resolve-plugin.sh" project-skills lib/ledger_corridas.py)"
+python3 "$LEDGER" relance --project-root "$REPO_ROOT" --missao "$PLAN_PATH" || exit $?
 ANDAMENTO="$(bash "${CLAUDE_PLUGIN_ROOT}/lib/resolve-plugin.sh" project-skills lib/andamento.py)"
 python3 "$ANDAMENTO" arma "$CLAUDE_CODE_SESSION_ID" sprint "$SPRINT_MOTOR_ID"
 # A LARGADA vai para o disco AQUI, antes da chamada: a linha do ledger é escrita no
@@ -64,9 +71,7 @@ python3 "$ANDAMENTO" arma "$CLAUDE_CODE_SESSION_ID" sprint "$SPRINT_MOTOR_ID"
 # caído) não tem retorno. Sem esta marca, a corrida que fracassou é justamente a que
 # some do ledger. O `registra-run` do bloco 3 solta a marca; o que sobrar vira linha
 # com desfecho `morta-por-fora` na próxima leitura do ledger.
-REPO_ROOT="…"; PLAN_PATH="…"; TOTAL_DE_PASSOS="…"   # os mesmos que vão no `args`
 SPRINT_INICIO="$(date +%s)"
-LEDGER="$(bash "${CLAUDE_PLUGIN_ROOT}/lib/resolve-plugin.sh" project-skills lib/ledger_corridas.py)"
 python3 "$LEDGER" abre --project-root "$REPO_ROOT" --run-id "$SPRINT_MOTOR_ID" \
   --missao "$PLAN_PATH" --total "$TOTAL_DE_PASSOS" --inicio "$SPRINT_INICIO"
 echo "$SPRINT_MOTOR_ID $SPRINT_INICIO"   # ANOTE OS DOIS: cada ```bash é uma chamada à
@@ -221,6 +226,18 @@ echo "buildWarm=$BUILD_WARM"
 ```
 
 O resultado vai no `args` do Workflow como **`buildWarm`**, e de lá para **todo** `execPrompt` — cache quente que ninguém avisa ao executor é cache que ele derruba com um `clean` de rotina. **Fail-open:** compilação que falha devolve `buildWarm=false` e a missão segue — o erro real chega ao executor pelo próprio build dele, e travar a missão por causa do aquecimento é pior que aquecimento nenhum. O log fica em `~/.claude/andamento/`, fora do repositório.
+
+### `claude plugin update` está PROIBIDO durante a missão
+
+Enquanto a missão está de pé, **ninguém roda `claude plugin update`** — nem a casca, nem
+um papel, nem um executor "só pra pegar a correção". O motivo: o resolvedor de plugin
+acha a pasta no cache do marketplace por `<marketplace>/<plugin>/<versão>/` e escolhe a
+**versão mais alta** que existe lá; a atualização deposita a pasta nova, mas o processo
+que já está rodando só passa a valer depois de reiniciar. O resultado é uma corrida
+**meio nova, meio velha**: os agentes que resolverem o caminho depois do update leem a
+skill e os programas da versão nova, os que já resolveram continuam na antiga, e o
+mesmo motor passa a obedecer duas leis ao mesmo tempo. Precisa da versão nova?
+Termine a missão, atualize, reinicie, e dispare de novo.
 
 ### Knobs deste motor (a casca passa em `args`)
 
@@ -1900,6 +1917,9 @@ Cinco seções fixas, mais a do custo quando houve medição. Monte este conteú
 - [⚠️ alertas de plano/arquitetura que NÃO implementei — pra você julgar]
 
 ### Custo (medidor da autópsia)
+- [duração: `tempo.fim` − `tempo.inicio` da linha DESTA corrida no ledger]
+- [tokens: `custo.tokens` da mesma linha, e por papel a tabela do medidor]
+- [placar: `progresso.fechadas` de `progresso.total` da mesma linha — o total é o tamanho da fila do plano]
 - [uma linha: quanto a missão custou por papel no que pesou, mais `sinais — N dos 6 acesos`]
 - [drilldown fechado: a tabela crua do medidor inteira, e — só se N > 0 — o parecer da autópsia]
 ```
@@ -1908,6 +1928,23 @@ São **seis** seções quando houve medição. `### Custo` sai sempre que o medi
 acima), inclusive com zero sinal aceso: a visão geral é UMA linha, e a tabela crua mora num
 drilldown fechado — mesma revelação progressiva das páginas do `/visual`. Medidor pulado
 (ausente na máquina) ⇒ a seção não sai.
+
+⚠️ **Os três números saem de programa, nunca da sua memória do que aconteceu.** Duração,
+tokens e placar são lidos da **linha desta corrida no ledger** — a que o bloco 3 gravou com o
+retorno literal do `Workflow` — e a tabela por papel vem do **medidor**, que mede o run DESTA
+missão (ele recusa run de outra pasta de projeto, e run de outra missão traz números de
+trabalho que não é este). Leia a linha antes de escrever a seção, e o total do plano com ela:
+
+```bash
+REPO_ROOT="…"    # ← a raiz do repositório desta missão (a mesma dos blocos 1 e 3)
+LEDGER="$(bash "${CLAUDE_PLUGIN_ROOT}/lib/resolve-plugin.sh" project-skills lib/ledger_corridas.py)"
+python3 "$LEDGER" le --project-root "$REPO_ROOT"     # a linha com o `run_id` do bloco 1
+```
+
+Campo que saiu `nao-medido` entra na seção **como `não medido`** — inventar o número é
+exatamente o defeito que o ledger existe para matar, e "a missão levou umas três horas"
+é memória, não medição. A seção sai igual nos três desfechos: corrida que parou tem
+duração, tokens e placar tanto quanto a que fechou, e é neles que se decide relançar.
 
 ### Entrega via /visual (titular)
 
@@ -1944,3 +1981,21 @@ Os títulos dos bloqueios são um **índice** (não o conteúdo) — segurança,
 Se a Skill `visual` **não** estiver disponível, emita o **relatório markdown completo** (o bloco de conteúdo acima, com as 6 seções preenchidas) direto no CLI. É um fallback à altura: entrega 100% da mesma informação — só a apresentação degrada, não o conteúdo.
 
 Detalhe técnico só se o usuário pedir depois.
+
+## Racionalizações — a desculpa refutada antes de você dá-la
+
+Toda desculpa abaixo já foi dada, por escrito, num sprint que terminou torto. Ela está
+aqui **refutada de antemão**: se você se ouvir pensando a frase da esquerda, a resposta
+já está dada e não há o que negociar.
+
+- **"o que sobrou é trivial, dá pra considerar fechado"** → tarefa que não rodou não está
+  feita. O `pronto` é literal: ou a verificação rodou e passou, ou o item continua aberto.
+- **"o dono não está aqui, então eu decido e sigo"** → decidir sozinho é o modo; **não
+  anotar** a decisão não é. Decisão sem registro no relatório é mudança clandestina.
+- **"esse teste vermelho já estava quebrado, não é meu"** → vermelho é vermelho. Ou entra
+  no conserto, ou vira bloqueio nomeado no relatório — nunca some da conta.
+- **"passei do teto, mas falta pouco, eu termino"** → teto estourado devolve espera com o
+  ponto exato onde parou. Entrega parcial vestida de pronta é o pior desfecho dos três.
+- **"o critério não dava pra cumprir como escrito, troquei por um equivalente"** → trocar
+  critério é decisão do dono. O caminho é devolver impossível com o motivo, nunca a sua
+  caneta.

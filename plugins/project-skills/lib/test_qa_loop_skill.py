@@ -186,6 +186,20 @@ def main():
           placeholders('X="$(bash "<plugin project-skills>/lib/x.sh")"', SLOTS_OK)
           == ["<plugin project-skills>"])
 
+    print("o teatro de duvida e sinal nomeado, com conduta escrita")
+    # Sem NOME o padrao nao e reconhecivel na hora: o loop roda a terceira rodada
+    # achando que esta convergindo, quando nenhuma das duas anteriores mexeu em nada.
+    teatro = secao(texto, "### Teatro de dúvida", "\n---")
+    check("a secao do sinal existe", bool(teatro))
+    check("o sinal esta definido: duas rodadas, achado, zero acionavel",
+          "duas rodadas" in teatro and "conserto" in teatro)
+    check("nomeia o que o padrao e de verdade",
+          "validação fantasiada de revisão" in teatro)
+    check("a conduta manda PARAR antes da terceira rodada",
+          "PARE o loop" in teatro and "terceira" in teatro)
+    check("a conduta nega que isso seja sucesso",
+          "não é sucesso" in teatro and "teatro-de-duvida" in teatro)
+
     print("a fronteira com a /completude esta escrita")
     # Sem isto a prosa some na proxima edicao e as duas skills voltam a se
     # sobrepor: gate verde daqui passa a ser lido como "a cadeia fecha".
@@ -203,6 +217,19 @@ def main():
     # aparecerem aqui, a skill passou a carregar uma cópia que defasa.
     check("nao ha copia do teto de 140 caracteres",
           not re.search(r"140 caracteres por bullet", texto))
+
+    # A seção de racionalizações: a desculpa fica REFUTADA no texto antes de o
+    # modelo dá-la. Sem cobrador, a próxima edição a apaga e ninguém percebe.
+    print("as racionalizações estão refutadas por escrito")
+    rac = secao(texto, "## Racionalizações", "\n## ")
+    check("a skill tem a seção de racionalizações", rac != "")
+    check("a desculpa da rodada limpa está refutada",
+          "a rodada veio limpa" in rac)
+    check("a desculpa do P2 sobrando está refutada", "sobrou só P2" in rac)
+    check("a desculpa do lint pré-existente está refutada",
+          "já estava vermelho antes" in rac)
+    check("a desculpa de conferir o próprio conserto está refutada",
+          "eu mesmo confiro" in rac)
 
     print()
     if FAILS:
