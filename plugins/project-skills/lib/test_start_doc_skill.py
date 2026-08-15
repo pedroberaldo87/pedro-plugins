@@ -42,6 +42,8 @@ RAIZ_PLUGINS = os.path.join(PLUGIN, "..")
 
 KIT = os.path.join(SKILLS, "start", "references", "authorial-kit.md")
 SKILL = os.path.join(SKILLS, "start", "SKILL.md")
+# Fonte: _shared/regua-de-pergunta.md, vendorada ao lado do SKILL.md (F9.2).
+REGUA = os.path.join(SKILLS, "start", "regua-de-pergunta.md")
 SKILL_DOC = os.path.join(SKILLS, "doc", "SKILL.md")
 DESIGN = os.path.join(PLUGIN, "skills", "design-md", "SKILL.md")
 GRILL_ME = os.path.join(RAIZ_PLUGINS, "grill-me", "skills", "grill-me", "SKILL.md")
@@ -700,13 +702,41 @@ def main():
     check("a confianca vem em percentual, com o simbolo",
           "confiança em percentual" in bloco_entrevista
           and re.search(r"confiança:\s*\d+%", bloco_entrevista) is not None)
-    check("o simbolo % e cobrado como obrigatorio",
-          "O `%` é obrigatório" in bloco_entrevista)
+    # As tres travas moram na regua compartilhada — o SKILL.md so aponta pra ela,
+    # senao sao duas redacoes que envelhecem separadas (F9.2).
+    regua = ler(REGUA)
+    check("o simbolo % e cobrado como obrigatorio, na regua",
+          "**O `%` é obrigatório**" in regua)
     # As duas travas que impedem o palpite de virar resposta do dono.
-    check("palpite sem pista visivel nao existe",
-          "Palpite sem pista visível não existe" in bloco_entrevista)
-    check("confianca alta nao dispensa a confirmacao do dono",
-          "não vira resposta gravada" in bloco_entrevista)
+    check("palpite sem pista visivel nao existe, na regua",
+          "Palpite sem pista visível não existe" in regua)
+    check("confianca alta nao dispensa a confirmacao do dono, na regua",
+          "Confiança de 95% não vira resposta do dono" in regua)
+    check("a entrevista aponta pra secao da aposta na regua",
+          "A aposta que vai junto com a pergunta" in bloco_entrevista
+          and "A aposta que vai junto com a pergunta" in regua)
+
+    print("cada etapa fecha registrando o que ficou por decidir (F12.1)")
+    # O bloco do fechamento da etapa: a passada de decisao aberta vive DENTRO
+    # dele, antes do de acordo — solta em outro lugar da skill nao fecha etapa.
+    bloco_acordo = skill.split("### 5 · Apresentar")[1].split("\n### ")[0]
+    check("a etapa registra o que ficou por decidir antes do de acordo",
+          "Registre o que ficou por decidir" in bloco_acordo
+          and bloco_acordo.index("Registre o que ficou por decidir")
+          < bloco_acordo.index("Grave o de acordo"))
+    check("a marca gravada e a linha decisao-pendente:",
+          "decisao-pendente: {" in bloco_acordo)
+    check("a passada roda em toda etapa, mesmo sem pendencia",
+          "TODA etapa" in bloco_acordo and "vazia" in bloco_acordo)
+    check("a pendencia vive no frontmatter, nunca no corpo aprovado",
+          "frontmatter, nunca no corpo" in bloco_acordo
+          and "approved-sig" in bloco_acordo)
+    check("decisao aberta nao se confunde com resposta faltando",
+          "[PENDENTE]" in bloco_acordo)
+    check("a pendencia nao segura o de acordo",
+          "não segura o de acordo" in bloco_acordo)
+    check("o relatorio imprime as decisoes abertas no Passo 5",
+          "Por decidir →" in skill.split("## Output Protocol")[1])
 
     print("o modo ex-post: inferir do construido, referendar pelo dono (F0-F2)")
     skill = ler(SKILL)
@@ -756,6 +786,19 @@ def main():
           and ".claude/ata/" in bloco_expost)
     check("o Tier 5 do /doc oferece o ex-post para quem acabou de minerar",
           "`/start ex-post`" in ler(SKILL_DOC))
+
+    # F12.7 — a concepcao e onde a decisao nasce. Sem isto por escrito, a escolha
+    # ia para `decisao-pendente:` sem ninguem ter investigado nada.
+    print("adiar decisao por falta de material esta proibido no Passo 5")
+    check("a proibicao esta escrita",
+          "Decidir depois é opção, nunca necessidade" in skill
+          and "Falta de material não adia decisão" in skill)
+    check("manda investigar ate a decisao ficar decidivel",
+          "Investigar até a decisão ficar decidível" in skill)
+    check("pendencia sem investigacao esta nomeada como etapa encoberta",
+          "sem investigação é etapa encoberta" in skill)
+    check("a desculpa de deixar pendente por falta de material esta refutada",
+          "falta material para decidir, deixo pendente para o dono" in skill)
 
     print()
     if FAILS:

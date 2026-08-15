@@ -355,20 +355,20 @@ context-guard      1.3.13  [context-guard]              HOOKS
 fallow              1.2.6  [fallow]                     -
 gauntlet           0.13.5  [gauntlet]                   HOOKS
 graphify-guard     1.2.11  []                           HOOKS
-grill-me            1.4.0  [grill-me]                   -
+grill-me            1.5.1  [grill-me]                   -
 guardrails          1.8.7  [guardrails]                 HOOKS
-handoff           1.11.12  [handoff]                    HOOKS
-improve             1.1.2  [improve]                    -
+handoff           1.11.14  [handoff]                    HOOKS
+improve             1.1.4  [improve]                    -
 improve-workflow  0.16.29  [improve-workflow]           -
 intent-guard       0.8.15  [intent-guard]               HOOKS
-lixeiro             1.5.4  [faxina]                     HOOKS
+lixeiro             1.5.6  [faxina]                     HOOKS
 principles          1.0.5  [principles]                 -
-project-skills    0.22.87  [completude,design-md,doc,doc-load,doc-touch,monitorar,pesquisa-referencias,plan,project-skills,qa-loop,sprint,start] HOOKS
+project-skills    0.22.101  [completude,design-md,doc,doc-load,doc-touch,monitorar,pesquisa-referencias,plan,project-skills,qa-loop,sprint,start] HOOKS
 ship                1.5.6  [ship]                       HOOKS
-slides              1.6.2  [slides]                     -
+slides              1.6.3  [slides]                     -
 vision              0.1.1  []                           -
 vistoria           0.11.7  [vistoria]                   -
-visual            1.41.17  [andamento,visual]           HOOKS
+visual            1.41.18  [andamento,visual]           HOOKS
 ```
 
 **A rodada anterior moveu onde as skills MORAM; esta apagou as CASAS que tinham ficado
@@ -1297,10 +1297,10 @@ páginas do `/visual` digitadas pelo modelo custavam **20-31 KB de HTML por pág
   uma vez (`init`) e daí em diante só MARCA (`tick`, que **recusa sem prova**, `EVIDENCE_MIN = 8`).
   Quem desenha a árvore é o programa. `PlanError` (god node) é a exceção única de todos os
   verbos; `DESC_MAX = 140` é limite de schema *"porque a linha didática é o produto do arquivo"*.
-  O módulo tem **2054 linhas** e **11 subcomandos** — `init`, `tick`, `state`, `render`, `page`,
+  O módulo tem **2201 linhas** e **11 subcomandos** — `init`, `tick`, `state`, `render`, `page`,
   `brief`, `cobertura`, `reabrir`, `open`, `close`, `reopen` [confirmado — `wc -l` e
   `grep -c 'add_parser('` sobre `plugins/project-skills/lib/plan_state.py` neste run devolvem
-  `2054` e `11`]. Cresceu 650 linhas sem ganhar subcomando: o que entrou foi régua dentro dos
+  `2201` e `11`]. Cresceu 650 linhas sem ganhar subcomando: o que entrou foi régua dentro dos
   verbos que já existiam — ver `regua_pronto.py`, importado no topo do arquivo. **Ele importa
   DUAS funções de lá, e a diferença entre elas é de política:** `erros_de_pronto` julga a
   redação do critério e é descontada pelo texto herdado (o `pronto` que já estava no disco não

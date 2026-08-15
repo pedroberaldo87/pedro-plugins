@@ -180,6 +180,43 @@ chegava `undefined`, e isso matava o motor na primeira volta. Trocar um tier é 
 `_shared/r8-tiers.json`, rodar `scripts/sync-shared.sh`, espelhar a constante no
 `motor.js` — e o teste reprova se o espelho ficar para trás.
 
+### As pendências do plano são lidas e IMPRESSAS antes do disparo (obrigatório)
+
+Passo que ainda espera uma decisão do dono não é tarefa: é pergunta. Quem sabe quais
+perguntas estão de pé é o **arquivo do plano** (`.claude/plans/*.plan.json`, campo
+`pendencia` de cada passo), nunca a sua memória da conversa — e ela é lida **antes** de
+acender qualquer coisa. Medido nesta casa: nove passos presos por decisão entraram numa
+corrida como se fossem trabalho, os executores voltaram sem ter como concluir, e o que
+era **uma pergunta ao dono antes da largada** virou uma onda inteira de churn.
+
+Quem decide se a pergunta ainda trava é `plan_state.py:pendencia_viva` — a mesma função
+que recusa o tique —, e por isso ela é **importada**, não reescrita aqui: régua copiada
+diverge, e aí a varredura anuncia preso o que o plano já destravou.
+
+```bash
+PLAN_STATE="$(bash "${CLAUDE_PLUGIN_ROOT}/lib/resolve-plugin.sh" project-skills lib/plan_state.py)"
+PLANO="$(ls -t .claude/plans/*.plan.json 2>/dev/null | head -1)"
+python3 - "$PLAN_STATE" "$PLANO" <<'PY'
+import importlib.util, json, sys
+spec = importlib.util.spec_from_file_location("plan_state", sys.argv[1])
+ps = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(ps)
+plano = json.load(open(sys.argv[2], encoding="utf-8"))
+presos = [(it.get("id"), ps.pendencia_viva(it))
+          for fase in plano.get("phases", []) for it in fase.get("items", [])]
+presos = [p for p in presos if p[1]]
+for pid, pergunta in presos:
+    print("PRESO %s · %s" % (pid, pergunta))
+print("PENDENCIAS=%d" % len(presos))
+PY
+```
+
+Saiu `PENDENCIAS=0` ⇒ siga. Saiu qualquer outro número ⇒ **não dispare**: imprima as
+linhas `PRESO` como estão e leve as perguntas ao dono. Falta de material não adia
+decisão (ver _Racionalizações_) — mas decisão que é **dele** também não se toma no lugar
+dele: o que a varredura devolve é a lista do que perguntar antes da largada, e ela sai na
+tela em todos os casos, inclusive quando é zero.
+
 ### Os ids do plano vão no `args` (obrigatório, antes de disparar o Workflow)
 
 A trava que impede o orquestrador de forjar tarefa compara o id contra os ids REAIS. Ela
@@ -1999,3 +2036,17 @@ já está dada e não há o que negociar.
 - **"o critério não dava pra cumprir como escrito, troquei por um equivalente"** → trocar
   critério é decisão do dono. O caminho é devolver impossível com o motivo, nunca a sua
   caneta.
+- **"falta material para decidir, deixo pendente para o dono"** → falta de material é ordem
+  de investigar, não licença para adiar. Só vira pendência depois da investigação, e a
+  pendência diz o que foi investigado.
+
+**Decidir depois é opção, nunca necessidade.** Falta de material não adia decisão: é
+proibido mandar a escolha para o relatório como espera porque "falta informação", "depende
+do que o dono quiser" ou "só dá para saber implementando". Quem não tem o material vai
+buscar o material — lê o código que a escolha toca, roda o comando que mede, abre o
+documento da régua — e só então a escolha vai para um dos dois lugares: **decisão tomada**,
+com a razão que a decidiu, ou **esperando você**, com o que você INVESTIGOU e a razão pela
+qual, mesmo assim, só o dono pode decidir. Investigar até a decisão ficar decidível é
+trabalho do sprint, não do dono na manhã seguinte — espera escrita
+sem investigação é etapa encoberta, e foi assim que uma rodada inteira parou esperando um
+dono que não tinha nada a decidir.
