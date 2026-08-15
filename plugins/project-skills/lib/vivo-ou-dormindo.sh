@@ -11,7 +11,8 @@
 # processo executa) é lido em DUAS amostras separadas por alguns segundos, e o
 # veredito é o que mudou entre elas.
 #
-# Uso:  bash vivo-ou-dormindo.sh [segundos-entre-amostras]   (default: 3)
+# Uso:  bash vivo-ou-dormindo.sh [segundos-entre-amostras] [--grupo PGID]
+#       (default: 3 segundos; sem `--grupo`, mede a máquina inteira)
 #
 # Imprime UMA palavra em stdout:
 #   vivo        — algum processo de build/servidor consumiu CPU entre as amostras
@@ -38,19 +39,33 @@ export LC_ALL=C
 
 ESPERA="${1:-3}"
 
+# ESCOPO OPCIONAL: um GRUPO de processos, em vez da máquina inteira.
+#
+#   bash vivo-ou-dormindo.sh 3 --grupo 41234
+#
+# Quem pergunta "esta tarefa que eu disparei está trabalhando?" não pode aceitar
+# como resposta o vizinho: numa esteira com oito suítes em paralelo, a máquina
+# está SEMPRE viva, e o veredito global nunca acusaria a que pendurou. Com o
+# grupo, a mesma medição por diferença responde só pela árvore daquele disparo —
+# e aí o filtro por NOME sai de cena, porque a árvore é dela por definição, rode
+# ela o interpretador que rodar.
+GRUPO=""
+if [ "${2:-}" = "--grupo" ]; then GRUPO="${3:-}"; fi
+
 # Nomes de processo que caracterizam trabalho de construção/servidor. Nome sozinho
 # nunca é veredito — ele só escolhe QUEM medir; quem decide é o delta de CPU.
 PADRAO='node|npm|pnpm|yarn|bun|deno|vite|webpack|esbuild|tsc|jest|vitest|python|pytest|ruby|rails|cargo|rustc|go|java|gradle|maven|mvn|make|cc1|clang|gcc|swift|xcodebuild|docker|next|nuxt|astro|turbo'
 
 amostra() {
   # pid<tab>centesimos-de-segundo-de-CPU-acumulados, um por processo que interessa.
-  ps -eo pid=,time=,args= 2>/dev/null | awk -v pad="$PADRAO" '
+  ps -eo pid=,pgid=,time=,args= 2>/dev/null | awk -v pad="$PADRAO" -v grupo="$GRUPO" '
     {
-      pid = $1; t = $2
-      cmd = ""; for (i = 3; i <= NF; i++) cmd = cmd " " $i
+      pid = $1; pg = $2; t = $3
+      cmd = ""; for (i = 4; i <= NF; i++) cmd = cmd " " $i
       # minúsculas e sufixo de versão: o mesmo interpretador aparece como
       # `python`, `python3.14` e `.../MacOS/Python` na mesma máquina.
-      if (tolower(cmd) !~ ("(^| |/)(" pad ")[0-9.]*([ /]|$)")) next
+      if (grupo != "") { if (pg != grupo) next }
+      else if (tolower(cmd) !~ ("(^| |/)(" pad ")[0-9.]*([ /]|$)")) next
       gsub("-", ":", t)                                   # [DD-]HH:MM:SS[.ss]
       n = split(t, p, ":")
       seg = 0; for (i = 1; i <= n; i++) seg = seg * 60 + p[i]

@@ -227,7 +227,7 @@ python3 -c "import json;print(len(json.load(open('.claude-plugin/marketplace.jso
 .claude-plugin/marketplace.json   catálogo único — nome, source, version, tags, category
 plugins/<nome>/                   um dir por entrada do catálogo, sem sobra (§2)
 _shared/                          fonte-da-verdade do compartilhado (25 arquivos-fonte)
-scripts/sync-shared.sh            o "build": vendora _shared/ → 106 cópias em 44 pastas  <!-- acopla-ok: §7 traz o comando que produz os dois números -->
+scripts/sync-shared.sh            o "build": vendora _shared/ → 107 cópias em 44 pastas  <!-- acopla-ok: §7 traz o comando que produz os dois números -->
 scripts/hook_contract.py          mede o contrato dos registros de hook (§11)
 scripts/public_repo_check.py      cobra a regra de repo público (checagem H do gate)
 scripts/regua_call_check.py       cobra que gerador de página chame a régua (checagem I)
@@ -361,9 +361,9 @@ handoff           1.11.12  [handoff]                    HOOKS
 improve             1.1.2  [improve]                    -
 improve-workflow  0.16.27  [improve-workflow]           -
 intent-guard       0.8.13  [intent-guard]               HOOKS
-lixeiro             1.5.3  [faxina]                     HOOKS
+lixeiro             1.5.4  [faxina]                     HOOKS
 principles          1.0.5  [principles]                 -
-project-skills    0.22.67  [completude,design-md,doc,doc-load,doc-touch,monitorar,pesquisa-referencias,plan,project-skills,qa-loop,sprint,start] HOOKS
+project-skills    0.22.68  [completude,design-md,doc,doc-load,doc-touch,monitorar,pesquisa-referencias,plan,project-skills,qa-loop,sprint,start] HOOKS
 ship                1.5.6  [ship]                       HOOKS
 slides              1.6.2  [slides]                     -
 vision              0.1.1  []                           -
@@ -873,10 +873,10 @@ sed -n '/^SPECS=(/,/^)/p' scripts/sync-shared.sh | grep '::' \
   | sed 's/.*"\(.*\)::.*/\1/' | sort -u | wc -l                        # nº de pastas
 ```
 
-**106 cópias, em 44 pastas de destino, de 25 arquivos-fonte** — contra 19 cópias em 14 pastas <!-- acopla-ok: os dois comandos que produzem os números estão no bloco imediatamente acima; "19" é narrativa histórica -->
-na passada anterior [medido nesta rodada: os dois comandos acima devolvem `106` e `44` — o salto de 97 para 103 é a família do **lar fingido** (F4.3): a receita única de fingir o HOME em teste (`lar-fingido.md` + `lar_fingido.py` + `lib-lar-fingido.sh`, com cobrador próprio) nasceu em `_shared/` e foi vendorada nos cinco consumidores que fingiam o lar à mão, cada um do seu jeito e três deles quebrando no Windows].
+**107 cópias, em 44 pastas de destino, de 25 arquivos-fonte** — contra 19 cópias em 14 pastas <!-- acopla-ok: os dois comandos que produzem os números estão no bloco imediatamente acima; "19" é narrativa histórica -->
+na passada anterior [medido nesta rodada: os dois comandos acima devolvem `107` e `44` — o salto de 97 para 103 é a família do **lar fingido** (F4.3): a receita única de fingir o HOME em teste (`lar-fingido.md` + `lar_fingido.py` + `lib-lar-fingido.sh`, com cobrador próprio) nasceu em `_shared/` e foi vendorada nos cinco consumidores que fingiam o lar à mão, cada um do seu jeito e três deles quebrando no Windows].
 Os quatro maiores contribuintes, todos vendorados por consumidor:
-`resolve-plugin.sh` (18), `regua_texto.py` (11), `hook-json.sh` (12), `lib-tmpdir.sh` (10).
+`resolve-plugin.sh` (18), `regua_texto.py` (11), `hook-json.sh` (12), `lib-tmpdir.sh` (11).
 
 ⚠️ **Esses quatro números e os dois de cima deixaram de ser promessa: viraram teste.**
 `scripts/test_doc_vendoring_counts.py` reparseia o `SPECS` do `sync-shared.sh` e cobra as
