@@ -36,12 +36,18 @@ cwd = data.get("cwd") or os.getcwd()
 sid = data.get("session_id") or ""
 if not prompt.strip():
     sys.exit(0)
+# `encoding="utf-8"` nos DOIS lados do cano. `text=True` sozinho usa a codificação
+# do sistema — cp1252 no Windows —, e o `ledger.py` do outro lado reconfigura os
+# canais dele para UTF-8. Pedido com acento saía daqui em cp1252, chegava lá como
+# UTF-8 inválido, o `sys.stdin.read()` estourava, e o `except` de fail-open do
+# ledger engolia: nada era gravado, exit 0, nenhum sinal. Foi assim que a suíte do
+# Windows morreu no primeiro grep ("ledger.jsonl: No such file or directory", 2026-08-15).
 d = subprocess.run([sys.executable, ledger, "resolve-dir", "--cwd", cwd],
-                   capture_output=True, text=True, timeout=10).stdout.strip()
+                   capture_output=True, text=True, encoding="utf-8", timeout=10).stdout.strip()
 if d and os.path.exists(os.path.join(d, "off")):
     sys.exit(0)
 subprocess.run([sys.executable, ledger, "record-raw", "--cwd", cwd,
                 "--session", sid, "--text-stdin"],
-               input=prompt, text=True, timeout=10)
+               input=prompt, text=True, encoding="utf-8", timeout=10)
 ' "$LEDGER" 2>/dev/null || true
 exit 0
