@@ -239,9 +239,12 @@ function salva(p) {
   // aprovadas no bloco, mais o arquivo do plano que o tique acabou de marcar.
   const alvos = [...new Set((p.results || []).flatMap(x => x?.files_touched || []))]
   if (p.planPath?.endsWith('.plan.json')) alvos.push(p.planPath)
-  for (const [k, v] of Object.entries({ '<raiz>': CFG.raiz, '<r>': String(p.round),
+  // Barra invertida some dentro do bash (vira escape), entao a raiz do Windows entra
+  // aqui em barra normal — o git a entende igual nos dois sistemas.
+  const raizSh = CFG.raiz.split('\\').join('/')
+  for (const [k, v] of Object.entries({ '<raiz>': raizSh, '<r>': String(p.round),
                                         '<b>': String(p.bloco ?? 1),
-                                        '<arquivo...>': alvos.join(' ') })) {
+                                        '<arquivo...>': alvos.map(a => a.split('\\').join('/')).join(' ') })) {
     cmd = cmd.split(k).join(v)
   }
   checkpoints.push({ round: p.round, cmd })
