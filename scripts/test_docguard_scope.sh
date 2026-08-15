@@ -44,6 +44,12 @@ trap 'rm -f "/tmp/claude-graphify-guard-${S_BASE}-"* 2>/dev/null; rm -rf "$SCOPE
 deny_count() { # $1=hook  $2=comando
   S="${S_BASE}-${RANDOM}${RANDOM}"
   rm -f "/tmp/claude-graphify-guard-$S" 2>/dev/null
+  # MSYS_NO_PATHCONV/MSYS2_ARG_CONV_EXCL: no Windows o bash do Git reescreve todo
+  # argumento que COMEÇA com `/` para caminho do Windows antes de entregá-lo a um
+  # programa nativo — o caso `/usr/bin/grep x` chegava ao Python como
+  # `C:/Program Files/Git/usr/bin/grep x` e o hook, com razão, não bloqueava. O
+  # que se mede aqui é a regra, não o tradutor de caminho do ambiente.
+  MSYS_NO_PATHCONV=1 MSYS2_ARG_CONV_EXCL='*' \
   "$PY" -c "import json,sys;print(json.dumps({'tool_name':'Bash','session_id':'$S','cwd':'$SCOPE_CWD','tool_input':{'command':sys.argv[1]}}))" \
     "$2" | GRAPHIFY_DENY=1 bash "$1" 2>/dev/null | grep -cE "$DENY"
 }
