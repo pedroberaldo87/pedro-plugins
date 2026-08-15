@@ -588,8 +588,23 @@ const buildWarm = ARGS.buildWarm === true
 let rodadasMudas = 0                  // rodadas seguidas sem bloco verde e sem passo marcado
 let trabalhoVivoEm = 0                // rodada da última suíte que DECLAROU trabalho vivo
 let desligadoPor = null               // 'orcamento' | 'vigia' — vira stopReason
-const gastoAgora = () => budget.spent()
-const gastoInicial = budget.spent()
+// ── O GASTO SÓ SOBE (medido em 2026-08-15) ───────────────────────────────────
+// `budget.spent()` conta o turno inteiro, e ele PODE CAIR no meio da corrida: numa
+// corrida de 6h o relatório saiu com `gasto: -831562`. Gasto negativo não é curiosidade
+// de relatório — é o disjuntor DESARMADO, porque `gasto >= tokenBudget` nunca é
+// verdade com número negativo. É a doença da casa outra vez: medidor que não mede
+// diz verde. Aqui o gasto é acumulado por DELTA POSITIVO, do mesmo jeito que a
+// medição de CPU acumulado do vigia: contador que reinicia não apaga o que já foi
+// gasto, e o total nunca anda para trás.
+let _gastoSomado = 0
+let _gastoUltimo = budget.spent()
+const gastoAgora = () => {
+  const v = budget.spent()
+  if (v >= _gastoUltimo) _gastoSomado += v - _gastoUltimo
+  _gastoUltimo = v          // caiu: o contador reiniciou, e o de antes já está somado
+  return _gastoSomado
+}
+const gastoInicial = 0
 let feedback = null   // do #2 pro #1 na volta seguinte (a seta de volta)
 let lawMark = null    // marca da lei do projeto, CONGELADA na rodada 1 (ver o pino abaixo)
 const taskChurn = {}  // { task_id: nº de rodadas seguidas reaparecendo em missingTasks/gaps }
