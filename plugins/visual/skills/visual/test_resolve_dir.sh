@@ -16,6 +16,8 @@
 
 set -u
 SCRIPT="$(cd "$(dirname "$0")" && pwd)/resolve-dir.sh"
+# Fingir o lar é receita única (lib-lar-fingido.sh, contrato em lar-fingido.md).
+. "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/lib-lar-fingido.sh"
 FALHAS=0
 
 ok()   { printf '  ok   %s\n' "$1"; }
@@ -23,7 +25,7 @@ falha() { printf '  FALHA %s\n     %s\n' "$1" "$2"; FALHAS=$((FALHAS + 1)); }
 
 BASE=$(mktemp -d)
 trap 'rm -rf "$BASE"' EXIT
-export HOME="$BASE/home"
+lar_fingido_exporta "$BASE/home"
 mkdir -p "$HOME/Desktop" "$BASE/solto/site-do-cliente" "$BASE/solto/outro-projeto"
 
 # roda o script isolando stdout de stderr
