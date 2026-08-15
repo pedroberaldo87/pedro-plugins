@@ -54,3 +54,24 @@ O veredito da auditoria marca `fallow/lib/report.py`, `slides/lib/md2deck.py` e
 
 **Não é violação de forma — é ausência de amostra.** O conserto certo é gerar uma
 página por esses caminhos e medir, não editar o gerador às cegas.
+
+## O histórico do git carrega tudo que já saiu da árvore
+
+Limpar o índice não limpa os commits publicados — quem clona alcança as versões
+anteriores. O que **revoga** este limite: o dono decidir reescrever o histórico,
+o que segue não executado.
+
+## Todo commit carrega o endereço do projeto
+
+`git log --format='%ae' | sort -u` devolve a conta de contato do projeto em todos
+os commits (não a pessoal). A régua da casa permite endereço de contato do projeto;
+fica como registro. Lição para repositório novo: gravar a identidade local desejada
+antes do primeiro commit. O que **revoga**: a mesma reescrita de histórico acima.
+
+## Nota de reconferência (2026-08-14)
+
+O comando de reconferência mudou de forma e de universo desde o retrato original:
+hoje `python3 plugins/visual/lib/regua_audit.py paginas` devolve
+"🔍 Régua de forma · 202 páginas · 2417 violações", sem a linha "N com violação"
+nem a lista de páginas limpas. O retrato de "82 de 100" é histórico; a régua segue
+valendo do artefato novo em diante, e o número vivo sai do comando acima.
