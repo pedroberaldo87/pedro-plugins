@@ -359,14 +359,9 @@ mais honesto do que redigir. Então a pergunta abre assim, sempre nesta forma:
 > **Palpite:** o projeto prioriza não perder dado acima de responder rápido — **confiança: 70%**
 > (pista: `README.md:12` fala em "nenhuma escrita pode sumir"). Confirma, corrige ou inverte?
 
-- **O `%` é obrigatório** — "confiança alta" e "meio certo" não são confiança, são impressão. O
-  número existe para dizer ao dono onde gastar atenção: **abaixo de 50%** é chute que ele precisa
-  corrigir; **acima de 80%** é conferência rápida. Sem número, ele lê tudo com a mesma desconfiança.
-- **Palpite sem pista visível não existe.** Ele nasce do insumo já minerado, e a pista vai junto —
-  a mesma regra do bullet acima, com o palpite por cima dela.
-- **Confiança de 95% não vira resposta gravada.** Palpite que o dono não confirmou continua sendo
-  palpite: silêncio nunca é aprovação, e o documento grava o que ELE respondeu, não o que você
-  apostou. Se não há pista para apostar, pergunte em branco e diga que não tem palpite.
+- As três travas da aposta — **o `%` obrigatório**, **palpite sem pista visível não existe** e
+  **confiança de 95% não vira resposta do dono** — estão em **`regua-de-pergunta.md`**, na seção
+  *A aposta que vai junto com a pergunta*. O texto mora lá; aqui só o que é do `/start`.
 - Em `AskUserQuestion`, o palpite é a opção que você marca como aposta no texto da pergunta, com o
   percentual ao lado; as outras opções continuam inteiras, sem sugestão de que já perderam.
 
@@ -522,7 +517,36 @@ Escrever **não fecha** a etapa. O ciclo é este, e ele repete até o dono estar
    que roda aqui: conferência que edita texto aprovado reabriria a etapa pela marca
    (`approved-sig`). O que ele acusar entra no Passo 5 do relatório e vira pergunta ao dono; não
    conserte sozinho, e não segure o de acordo por causa dele — a lista é cobrança visível, não gate.
-5. **Grave o de acordo** — só depois de ele dizer que está satisfeito — com o comando, nunca à mão:
+5. **Registre o que ficou por decidir** — antes de gravar o de acordo, e em TODA etapa, mesmo que a
+   lista saia vazia. Releia a conversa da etapa e separe o que o dono decidiu do que ele **não**
+   decidiu: opção que ficou entre duas, escolha adiada para "quando tiver mais material", ponto que
+   os dois contornaram sem fechar. Cada uma vira uma linha no frontmatter do documento da etapa:
+
+   ```
+   decisao-pendente: {a decisão aberta} — trava {o que não anda sem ela} — destrava com {o que falta}
+   ```
+
+   - **No frontmatter, nunca no corpo** — o corpo é o texto que o dono aprovou, e escrever ali
+     reabre a etapa pela marca (`approved-sig`), a mesma regra da `correcao-pendente:`.
+   - **Nenhuma pendência é resultado, e se diz em voz alta**: o Passo 5 do relatório imprime
+     "nenhuma decisão aberta". Etapa que fecha sem essa passada empurra a decisão para o plano, e lá
+     ela reaparece como bloqueio no meio da execução — que é exatamente o que a concepção existe
+     para evitar.
+   - **Não confunda com o `[PENDENTE]` da entrevista**: aquele é resposta que faltou; este é escolha
+     que ninguém fez.
+   - **Decidir depois é opção, nunca necessidade.** Falta de material não adia decisão: é proibido
+     gravar `decisao-pendente:` porque "falta informação", "depende do que o dono quiser" ou "só dá
+     para saber implementando". Quem não tem o material vai buscar o material — lê o código que a
+     escolha toca, roda o comando que mede, abre o documento da régua — e só então a escolha vai
+     para um dos dois lugares: o corpo do documento, decidida, com o critério que a decidiu, ou a
+     linha `decisao-pendente:`, com o que você INVESTIGOU e a razão pela qual, mesmo assim, só o
+     dono pode decidir. Investigar até a decisão ficar decidível é trabalho da concepção, não do
+     executor às três da manhã — pendência escrita sem investigação é etapa encoberta, e foi assim
+     que uma rodada inteira parou esperando um dono que não tinha nada a decidir. A desculpa
+     **"falta material para decidir, deixo pendente para o dono"** já está refutada aqui.
+   - **Ela não segura o de acordo.** A etapa fecha com a pendência gravada — cobrança visível, não
+     gate. A linha sai quando a decisão for tomada.
+6. **Grave o de acordo** — só depois de ele dizer que está satisfeito — com o comando, nunca à mão:
 
    ```bash
    bash "$(bash "${CLAUDE_PLUGIN_ROOT}/lib/resolve-plugin.sh" project-skills hooks/doc-aprovar.sh)" .claude/docs/journeys.md
@@ -583,6 +607,7 @@ Depois, ofereça o próximo passo:
 **Passo 4/7:** Escrito → {lista de arquivos com status draft|ready}
 **Passo 5/7:** De acordo → {etapa}: {aprovada em YYYY-MM-DD | ABERTA, {N} reapresentações} … (uma linha por etapa)
              Esquema → `blueprint.md`: {aprovado em YYYY-MM-DD | ABERTO} · diagrama → {caminho em `.claude/archify/` | `archify` ausente, DEGRADADO} · revisão 5b → {rodada | pendente}
+             Por decidir → {etapa}: {a decisão aberta} … (uma linha por `decisao-pendente:` gravada) | nenhuma decisão aberta
              Sem dono → {N} funcionalidades sem origem · {M} jornadas sem funcionalidade · {K} passos do desenho sem funcionalidade (saída de `rastreio_etapas.py`)
 **Passo 6/7:** Decisões → `decisions/0001-{slug}.md` + {N} candidatas pendentes
 **Passo 7/7:** Índice → {N docs promovidos | índice mínimo escrito com {N} docs aprovados} · Ponteiros → {os escritos | os pulados por terem conteúdo próprio} · Pendências → {lista de [PENDENTE] por doc} · Correções pendentes → {N, com o doc de cada uma}

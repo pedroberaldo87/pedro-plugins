@@ -243,6 +243,48 @@ def main():
     check("a desculpa da troca de critério está refutada",
           "troquei por um equivalente" in rac)
 
+    # F12.7 — o sprint decide sozinho por definicao; adiar por "falta material"
+    # devolve ao dono uma espera que ninguem investigou.
+    print("adiar decisao por falta de material esta proibido")
+    check("a proibicao esta escrita",
+          "Decidir depois é opção, nunca necessidade" in texto
+          and "Falta de material não adia decisão" in texto)
+    check("manda investigar ate a decisao ficar decidivel",
+          "Investigar até a decisão ficar decidível" in texto)
+    check("espera sem investigacao esta nomeada como etapa encoberta",
+          "sem investigação é etapa encoberta" in texto)
+    check("a desculpa de deixar pendente por falta de material esta refutada",
+          "falta material para decidir, deixo pendente para o dono" in rac)
+
+    # F12.4 — a varredura de pendencias LE o arquivo do plano e IMPRIME antes do
+    # disparo. Sem cobrador, a casca volta a largar com passo preso por decisao do
+    # dono na fila: nove deles entraram numa corrida como trabalho e voltaram como
+    # churn. O bloco tem que nascer e morrer sozinho — foi variavel vinda de outro
+    # bloco que quebrou a corrida 8.
+    varredura = secao(texto, "### As pendências do plano são lidas",
+                      "### Os ids do plano vão no `args`")
+    print("a varredura le as pendencias do arquivo do plano e as imprime antes do disparo")
+    check("a secao da varredura existe", bool(varredura))
+    check("ela le o arquivo do plano, nao a memoria da conversa",
+          ".claude/plans/*.plan.json" in varredura
+          and "nunca a sua memória" in varredura)
+    check("ela le o campo `pendencia` de cada passo",
+          "`pendencia` de cada passo" in varredura)
+    check("o programa abre o arquivo e varre os passos",
+          "json.load(open(sys.argv[2]" in varredura
+          and 'fase.get("items", [])' in varredura)
+    check("quem julga se a pendencia trava e a funcao do plan_state, importada",
+          "pendencia_viva" in varredura and "importada" in varredura)
+    check("a varredura IMPRIME o que achou",
+          'print("PRESO %s' in varredura and 'print("PENDENCIAS=%d' in varredura)
+    check("pendencia aberta impede o disparo",
+          "não dispare" in varredura)
+    check("o bloco nasce e morre sozinho (as variaveis usadas sao definidas nele)",
+          all(("%s=" % v) in varredura for v in ("PLAN_STATE", "PLANO")))
+    check("a varredura vem ANTES do disparo do Workflow",
+          0 < texto.find("### As pendências do plano são lidas")
+          < texto.find("Workflow({ scriptPath: MOTOR"))
+
     print()
     if FAILS:
         print("FALHOU: %d" % len(FAILS))
