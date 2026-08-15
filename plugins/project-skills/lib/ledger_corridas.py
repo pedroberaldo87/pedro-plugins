@@ -266,12 +266,24 @@ def relance(project_root, missao, limite=2):
     vez a aposta já perdeu duas: o que falta não é tentativa, é decisão de quem manda.
     A causa é o `desfecho` da corrida — a série já descarta a corrida contada duas
     vezes (a `morta-por-fora` que depois voltou), então quem conta aqui é ela.
+
+    **Só as ÚLTIMAS corridas contam, e a sequência quebra na primeira que sai
+    diferente.** O que segura o relance é a mesma pedra com o estado inalterado — uma
+    corrida que parou noutro ponto, ou que fechou passo, é prova de que o estado mudou,
+    e causa velha de antes disso não pode barrar a tentativa de agora. Contar o
+    histórico inteiro travava a missão pelo que já tinha sido consertado: medido em
+    2026-08-15, duas corridas mortas pela mesma porta foram consertadas na raiz, a
+    seguinte fechou três passos, e o relance ainda apontava a pedra antiga.
     """
     causas = {}
-    for c in serie(project_root, missao):
+    ultimo = None
+    for c in reversed(serie(project_root, missao)):
         if c["desfecho"] in FIM_LIMPO:
-            continue  # terminou o que foi fazer: não parou em nada
-        causas.setdefault(c["desfecho"], []).append(c["run_id"])
+            break  # terminou o que foi fazer: daqui para trás é outra história
+        if ultimo is not None and c["desfecho"] != ultimo:
+            break  # a sequência quebrou: a pedra de agora não é a de antes
+        ultimo = c["desfecho"]
+        causas.setdefault(c["desfecho"], []).insert(0, c["run_id"])
     repetidas = sorted((k for k in causas if len(causas[k]) >= limite),
                        key=lambda k: (-len(causas[k]), k))
     return {

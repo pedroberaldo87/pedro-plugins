@@ -278,6 +278,22 @@ def prova_relance():
         # a pendencia e por missao: a pedra de 'm' nao trava 'd'
         if not ledger_corridas.relance(raiz, "d")["relanca"]:
             falhas.append("a pendencia de uma missao vazou para outra")
+
+        # A PEDRA DE ANTES DO CONSERTO NAO TRAVA A TENTATIVA DE AGORA. Medido em
+        # 2026-08-15: duas corridas morreram na mesma porta, a causa foi consertada na
+        # raiz, a corrida seguinte parou noutro ponto e fechou passos — e o relance
+        # ainda apontava a pedra velha. So a sequencia mais RECENTE conta; corrida que
+        # sai diferente e a prova de que o estado mudou.
+        ledger_corridas.registra(raiz, corrida("r3", "porta-fechada"))
+        v = ledger_corridas.relance(raiz, "m")
+        if not v["relanca"]:
+            falhas.append("a causa consertada continuou travando o relance: %r" % v)
+
+        # e a pedra NOVA volta a travar quando ela mesma se repete
+        ledger_corridas.registra(raiz, corrida("r4", "porta-fechada"))
+        v = ledger_corridas.relance(raiz, "m")
+        if v["relanca"] or [p["causa"] for p in v["pendencias"]] != ["porta-fechada"]:
+            falhas.append("a causa nova repetida deveria virar pendencia: %r" % v)
     return falhas
 
 
