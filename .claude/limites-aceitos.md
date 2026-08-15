@@ -75,3 +75,36 @@ hoje `python3 plugins/visual/lib/regua_audit.py paginas` devolve
 "🔍 Régua de forma · 202 páginas · 2417 violações", sem a linha "N com violação"
 nem a lista de páginas limpas. O retrato de "82 de 100" é histórico; a régua segue
 valendo do artefato novo em diante, e o número vivo sai do comando acima.
+
+## A colheita do lixeiro no Windows — 4 checks vermelhos, conserto bloqueado por falta de dado
+
+`bash plugins/lixeiro/hooks/test_lixeiro_hooks.sh` fecha verde no macOS (26 ok) e reprova
+no Windows em quatro checks do encerramento — medido no run 31890249824 do CI:
+
+```
+✗ o fim de sessão encerrou o servidor anotado
+✗ o fim de verdade ainda encerra
+✗ a suíte PARADA foi encerrada
+✗ registro de auditoria
+lixeiro-hooks: 16 ok, 7 falhas
+```
+
+**A causa está medida, e o conserto é que não está.** O lixeiro só encerra o processo cuja
+pasta de trabalho anotada bate com a que o sistema reporta. No Windows as duas nunca casam:
+a suíte anota o caminho do shell (`/tmp/tmp.X/projeto`) e o sistema reporta o do Windows
+(`C:/Users/RUNNER~1/AppData/Local/Temp/tmp.X/projeto`). Zero candidatos ⇒ nada é encerrado
+⇒ os quatro checks caem, e as vizinhas que exigem SOBREVIVÊNCIA passam de graça, o que é
+pior: elas passam sem medir nada.
+
+**Por que é limite e não conserto:** falta o dado, não a lógica. Casar os dois formatos
+exige uma segunda fonte de pasta de trabalho no Windows, e qual deve ser é decisão de
+arquitetura — o substituto testado nesta sessão reproduz três dos quatro checks, e o quarto
+(*a suíte PARADA foi encerrada*) muda de resultado sem explicação medida. Consertar sem
+essa decisão é chutar, e o chute já custou uma rodada.
+
+**O que revoga:** o dono cravar de onde tirar a pasta de trabalho no Windows — e aí o
+conserto é mecânico e os quatro fecham.
+
+**Enquanto valer:** a colheita automática não é confiável no Windows. Quem roda lá encerra
+processo aberto pelo agente à mão (`/faxina`), e a suíte segue vermelha lá de propósito, não
+por descuido.
