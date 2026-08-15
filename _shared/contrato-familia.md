@@ -27,6 +27,7 @@ repete o texto.
 | `.claude/.sprint/` | o ledger de corridas do `/sprint`, `corridas.jsonl`, e as largadas ainda em curso em `em-curso/` | não |
 | `.claude/.project-doc/` | a máquina do `/doc` — journal, ledger e achados de mineração | não |
 | `.claude/secrets/` | o elo para o cofre de valores-secreto, fora da árvore | não |
+| `.claude/legacy-pre-migracao/` | a doc de antes de o projeto virar organismo — preservada, e invisível aos hooks | conforme o projeto |
 | `.claude/hooks/` | os hooks do próprio projeto (não é pasta de trabalho de skill) | sim |
 
 Esta tabela é a lista FECHADA das pastas de trabalho de um projeto. Pasta nova
