@@ -282,26 +282,26 @@ def main():
         with open(os.path.join(planos, "p.plan.json"), "w", encoding="utf-8") as fh:
             json.dump(completo, fh)
         r = subprocess.run([sys.executable, cp.__file__, md, planos, lei, "--json"],
-                           capture_output=True, text=True, cwd=d,
+                           capture_output=True, text=True, encoding="utf-8", errors="replace", cwd=d,
                            stdin=subprocess.DEVNULL, start_new_session=True)
         check("a linha de comando roda de outra pasta e sai 0 na cadeia completa",
               r.returncode == 0)
         check("e devolve a cadeia em JSON",
               json.loads(r.stdout)["completa"] is True)
         r = subprocess.run([sys.executable, cp.__file__, md, os.path.join(d, "vazio"),
-                            lei], capture_output=True, text=True, cwd=d,
+                            lei], capture_output=True, text=True, encoding="utf-8", errors="replace", cwd=d,
                            stdin=subprocess.DEVNULL, start_new_session=True)
         check("pasta de planos ausente sai 1 e nomeia o elo furado",
               r.returncode == 1 and "requisito → tarefa" in r.stdout)
         r = subprocess.run([sys.executable, cp.__file__,
                             os.path.join(d, "nao-existe.md"), planos, lei],
-                           capture_output=True, text=True, cwd=d,
+                           capture_output=True, text=True, encoding="utf-8", errors="replace", cwd=d,
                            stdin=subprocess.DEVNULL, start_new_session=True)
         check("caminho errado do features.md sai 1 e nomeia a lacuna",
               r.returncode == 1 and "🔴 lacuna — features.md ausente" in r.stdout
               and "✅ completo" not in r.stdout)
         r = subprocess.run([sys.executable, cp.__file__, md, planos],
-                           capture_output=True, text=True, cwd=d,
+                           capture_output=True, text=True, encoding="utf-8", errors="replace", cwd=d,
                            stdin=subprocess.DEVNULL, start_new_session=True)
         check("sem a lei no comando sai 1 e nomeia a lacuna",
               r.returncode == 1 and "🔴 lacuna — constituicao.md ausente" in r.stdout)

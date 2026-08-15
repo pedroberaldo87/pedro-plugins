@@ -96,7 +96,8 @@ def cpu_viva(bash, pgid, amostra):
         return None
     try:
         r = subprocess.run([bash, VIVO, str(amostra), "--grupo", str(pgid)],
-                           capture_output=True, text=True, stdin=subprocess.DEVNULL,
+                           capture_output=True, text=True, encoding="utf-8", errors="replace",
+                           stdin=subprocess.DEVNULL,
                            start_new_session=True, timeout=amostra + 30)
     except Exception:
         return None

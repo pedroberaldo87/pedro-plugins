@@ -146,7 +146,7 @@ def roda(rel, de, para, alvos):
     for lote in ([suites(lib, alvos)] if alvos is None
                  else [suites(lib, alvos), suites(lib, None)]):
         for f in lote:
-            out = subprocess.run([sys.executable, f], cwd=lib, capture_output=True, text=True,
+            out = subprocess.run([sys.executable, f], cwd=lib, capture_output=True, text=True, encoding="utf-8", errors="replace",
                                  stdin=subprocess.DEVNULL, start_new_session=True)
             if out.returncode != 0:
                 vermelhas.add(f)

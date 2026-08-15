@@ -20,7 +20,8 @@ FALHAS = []
 
 def git(*args):
     out = subprocess.run(["git"] + list(args), cwd=RAIZ, capture_output=True,
-                         text=True, stdin=subprocess.DEVNULL,
+                         text=True, encoding="utf-8", errors="replace",
+                         stdin=subprocess.DEVNULL,
                          start_new_session=True)
     return out.stdout
 
