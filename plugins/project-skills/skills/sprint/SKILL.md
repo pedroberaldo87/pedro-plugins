@@ -59,7 +59,18 @@ mkdir -p "$SPRINT_DIR"
 SPRINT_MOTOR_ID="motor-$(date -u +%Y%m%dT%H%M%SZ)-$$"    # id DESTE motor na sessão
 ANDAMENTO="$(bash "${CLAUDE_PLUGIN_ROOT}/lib/resolve-plugin.sh" project-skills lib/andamento.py)"
 python3 "$ANDAMENTO" arma "$CLAUDE_CODE_SESSION_ID" sprint "$SPRINT_MOTOR_ID"
-echo "$SPRINT_MOTOR_ID"    # ANOTE: cada ```bash é uma chamada à parte, o id não atravessa
+# A LARGADA vai para o disco AQUI, antes da chamada: a linha do ledger é escrita no
+# retorno, e corrida que morre por fora (limite de sessão, processo morto, canal
+# caído) não tem retorno. Sem esta marca, a corrida que fracassou é justamente a que
+# some do ledger. O `registra-run` do bloco 3 solta a marca; o que sobrar vira linha
+# com desfecho `morta-por-fora` na próxima leitura do ledger.
+REPO_ROOT="…"; PLAN_PATH="…"; TOTAL_DE_PASSOS="…"   # os mesmos que vão no `args`
+SPRINT_INICIO="$(date +%s)"
+LEDGER="$(bash "${CLAUDE_PLUGIN_ROOT}/lib/resolve-plugin.sh" project-skills lib/ledger_corridas.py)"
+python3 "$LEDGER" abre --project-root "$REPO_ROOT" --run-id "$SPRINT_MOTOR_ID" \
+  --missao "$PLAN_PATH" --total "$TOTAL_DE_PASSOS" --inicio "$SPRINT_INICIO"
+echo "$SPRINT_MOTOR_ID $SPRINT_INICIO"   # ANOTE OS DOIS: cada ```bash é uma chamada à
+                                      # parte; nem o id nem a largada atravessam
 ```
 
 ```bash
@@ -67,6 +78,8 @@ echo "$SPRINT_MOTOR_ID"    # ANOTE: cada ```bash é uma chamada à parte, o id n
 #    reserva DESTE motor. Cole abaixo o id que o bloco 1 imprimiu: id que não existe no
 #    registro não apaga nada, e o `encerra` diz isso em uma linha começada por ⚠️.
 MOTOR_MORTO="motor-…"    # ← COLE aqui, literal, o id impresso pelo bloco 1
+SPRINT_INICIO="…"        # ← COLE aqui a largada (o segundo campo da mesma linha)
+REPO_ROOT="…"; PLAN_PATH="…"; TOTAL_DE_PASSOS="…"   # os mesmos que foram no `args`
 ANDAMENTO="$(bash "${CLAUDE_PLUGIN_ROOT}/lib/resolve-plugin.sh" project-skills lib/andamento.py)"
 python3 "$ANDAMENTO" encerra "$CLAUDE_CODE_SESSION_ID" sprint "$MOTOR_MORTO"
 # Quem morreu por fora não entregou, e quem não entrega não libera: a reserva fica
@@ -76,6 +89,19 @@ python3 "$ANDAMENTO" encerra "$CLAUDE_CODE_SESSION_ID" sprint "$MOTOR_MORTO"
 # hook existe para impedir.
 RESERVA_SH="$(bash "${CLAUDE_PLUGIN_ROOT}/lib/resolve-plugin.sh" project-skills hooks/reserva-de-arquivos.sh)"
 bash "$RESERVA_SH" liberar "$CLAUDE_CODE_SESSION_ID" "$MOTOR_MORTO"
+
+# 3) A LINHA DO LEDGER — quem escreve é o programa, com o retorno REAL do Workflow.
+#    O JSON abaixo é o que a chamada devolveu, COLADO LITERAL: `progresso.feitos`,
+#    `gasto` e `stopReason` saem dele, nunca da sua memória do que aconteceu. O
+#    `--total` é o tamanho da fila do plano e o `--inicio` é a largada que o bloco 1
+#    imprimiu. Campo obrigatório vazio o programa RECUSA (sai 2 e não grava) — é o
+#    aviso de que algo não foi medido, não motivo para inventar o número.
+LEDGER="$(bash "${CLAUDE_PLUGIN_ROOT}/lib/resolve-plugin.sh" project-skills lib/ledger_corridas.py)"
+python3 "$LEDGER" registra-run --project-root "$REPO_ROOT" \
+  --run-id "$MOTOR_MORTO" --missao "$PLAN_PATH" --total "$TOTAL_DE_PASSOS" \
+  --inicio "$SPRINT_INICIO" --json - <<'RETORNO_DO_MOTOR'
+{ … cole aqui, literal, o JSON que o Workflow devolveu … }
+RETORNO_DO_MOTOR
 ```
 
 ⚠️ **"Qualquer desfecho" é literal:** obra pronta, teto de rodadas, vigia, disjuntor, erro do
