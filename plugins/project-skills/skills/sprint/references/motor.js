@@ -74,6 +74,8 @@ const AUDITOR = { type:'object', required:['derruba','motivo','naoTentou','ancho
 
 const SAUDE = { type:'object', required:['fechada'], properties:{
   fechada:{type:'boolean'}, motivo:{type:'string'}, saida:{type:'string'} } }
+const DESTRAVE = { type:'object', required:['destravou','oQueFez','prova'], properties:{
+  destravou:{type:'boolean'}, oQueFez:{type:'string'}, prova:{type:'string'} } }
 
 const DESAFIO = { type:'object', required:['procede','motivo','anchor'], properties:{
   procede:{type:'boolean'}, motivo:{type:'string'},
@@ -183,6 +185,34 @@ derruba nada:
 
   ANDAMENTO="$(bash "${RESOLVE}" project-skills lib/andamento.py)"
   python3 "$ANDAMENTO" onda ${ARGS.sessionId} ${round} ${ARGS.planPath || ''} --etapa "separando o trabalho" || true`
+
+const destravadorPrompt = ({ repoRoot, causa, suiteCmd, tetoMin }) => `PAPEL: DESTRAVADOR
+A porta do repositório está fechada por uma causa JÁ investigada e JÁ referendada por um
+desafiador. Ela vem colada abaixo. Seu papel é UM: consertar essa causa, e nada além.
+
+A CAUSA REFERENDADA:
+${causa}
+
+O QUE VOCÊ FAZ (a partir de cd ${repoRoot}):
+1. Reproduza a porta fechada por comando, e cole a saída — conserto sem reprodução é
+   remendo de sintoma. Não achou como reproduzir ⇒ \`destravou: false\`.
+2. Conserte a causa, no menor toque que a resolve. O projeto costuma ter comando
+   próprio para isso (o texto da causa e a saída do check em geral o nomeiam) — use o
+   comando declarado antes de editar arquivo à mão.
+3. Rode ${suiteCmd || 'a suíte que o projeto declara'} e confira que a porta abriu.
+4. Commite o conserto SOZINHO, por caminho nomeado (\`git add <arquivo>\`, nunca \`-A\`):
+   ele não pertence a passo nenhum do plano, e misturá-lo com obra some com ele.
+
+PROIBIDO, e isto é o que separa destravar de trabalhar:
+- executar tarefa do plano, adiantar passo, "aproveitar que estou aqui";
+- tocar arquivo que não é da causa;
+- marcar passo no plano;
+- declarar \`destravou: true\` sem a saída do comando que prova a porta aberta.
+
+TETO: ${tetoMin} minutos, marcados com \`date\` ao começar. Estourou ⇒ pare e devolva
+\`destravou: false\` com o que ficou pela metade — o motor desliga e o dono destrava.
+
+Devolva \`destravou\`, \`oQueFez\` (uma linha) e \`prova\` (o comando e a saída crua).`
 
 const reguaPrompt = ({ repoRoot, criterios }) => `PAPEL: MECANICO
 Papel mecânico e SÓ, sem julgamento próprio. Para cada par abaixo, rode:
@@ -599,11 +629,51 @@ let fpRodadaAnterior = null
 const causaCache = {}
 const chaveDeCausa = t => ((t?.files || []).join('|') || t?.id || '?')
 // ── TODA CAUSA GANHA ESCOPO, E ESCOPO DE REPOSITÓRIO PARA O MOTOR (autópsia) ──
-const paraPorCausaGlobal = (d, taskId) => {
+const paraPorCausaGlobal = (d, taskId, nota) => {
   desligadoPor = 'causa-global'
   blockers.push({ taskId, kind: 'causa-global',
     what: `causa confirmada com escopo de REPOSITÓRIO: ${String(d.causa).slice(0, 300)}`,
-    whyNeedsYou: 'todo trabalho novo morreria na mesma porta — o motor parou no mesmo turno; destrave e relance' })
+    whyNeedsYou: (nota ? nota + ' — ' : '')
+      + 'todo trabalho novo morreria na mesma porta — o motor parou no mesmo turno; destrave e relance' })
+}
+// ── O DESTRAVADOR (F23.9) ────────────────────────────────────────────────────
+// Medido em quatro corridas seguidas (2026-08-15): a causa de repositório era sempre
+// um estado que uma suíte cobra e que ficou para trás — uma linha de versão numa
+// tabela de doc. O trabalho estava pronto no disco, o commit não passava, e a corrida
+// inteira morria por isso. Morrer é a resposta certa para causa que o motor não sabe
+// consertar; é a resposta errada para a que ele sabe. Então: UM papel conserta só a
+// causa referendada, o motor RE-MEDE a porta por conta própria, e a corrida segue.
+// Uma tentativa por corrida — a segunda seria repetir sem mudança de estado, que é o
+// antipadrão que este motor persegue desde a autópsia de 2026-08-09.
+let destravesUsados = 0
+const destravaOuPara = async (d, taskId) => {
+  if (destravesUsados >= 1) {
+    paraPorCausaGlobal(d, taskId, 'o destravador já foi usado nesta corrida e a porta fechou de novo')
+    return false
+  }
+  destravesUsados++
+  const fix = await agent(destravadorPrompt({ repoRoot: ARGS.repoRoot, causa: String(d.causa),
+      suiteCmd, tetoMin: tetoMecanicoMin }),
+    { model: ARGS.model, effort: T.diagnose.effort, phase: 'Diagnose',
+      label: `destrava:${taskId || 'repo'}`, schema: DESTRAVE })
+  // A palavra do destravador não abre porta nenhuma: quem diz se abriu é a MESMA
+  // guarda de saúde que a fecharia na rodada seguinte.
+  const remedida = await agent(saudePrompt({ repoRoot: ARGS.repoRoot, round: r, suiteCmd,
+      tetoMin: tetoMecanicoMin }),
+    { model: ARGS.model, effort: T.mechanical.effort, phase: 'Diagnose',
+      label: `saude:pos-destrave`, schema: SAUDE })
+  const aberta = fix?.destravou === true && !!remedida && remedida.fechada === false
+  ledgerCorrida.push({ r, tipo: 'destrave', taskId, ok: aberta,
+                       resumo: String(fix?.oQueFez || 'sem relato').slice(0, 160) })
+  if (!aberta) {
+    paraPorCausaGlobal(d, taskId, fix?.destravou
+      ? 'o destravador disse ter consertado, mas a porta continua fechada na re-medição'
+      : 'o destravador não conseguiu consertar a causa')
+    return false
+  }
+  // A causa foi embora: mantê-la no cache faria toda tarefa seguinte nascer condenada.
+  delete causaCache['@repositorio']
+  return true
 }
 const investigaCausa = async (task, attempts) => {
   const chave = causaCache['@repositorio'] ? '@repositorio' : chaveDeCausa(task)
@@ -741,7 +811,7 @@ while (!built && r < maxRounds) {
       const d = await investigaCausa(t, taskChurn[t.id])
       if (d.causa) {
         diagnoses.push({ task_id: t.id, diagnosis: d.causa, desafiada: true, deCache: !!d.deCache })
-        if (d.escopo === 'repositorio') { paraPorCausaGlobal(d, t.id); break }
+        if (d.escopo === 'repositorio' && !(await destravaOuPara(d, t.id))) break
       } else {
         blockers.push({ taskId: t.id, kind: 'causa-em-disputa',
           what: `a causa de ${t.id} não sobreviveu ao desafio: investigador diz "${d.disputa?.investigador || 'sem resposta'}" · desafiador diz "${d.disputa?.desafiador || 'sem veredito'}"`,
@@ -901,7 +971,7 @@ while (!built && r < maxRounds) {
         reprovadasNaTarefa.add(entregues[i].task_id)
         if ((v.gaps || []).some(g => sevRank(g.severity) >= floor)) {
           const d = await investigaCausa(decomp.tasks.find(t => t.id === entregues[i].task_id), 1)
-          if (d.causa && d.escopo === 'repositorio') paraPorCausaGlobal(d, entregues[i].task_id)
+          if (d.causa && d.escopo === 'repositorio') await destravaOuPara(d, entregues[i].task_id)
           if (d.causa) diagnoses.push({ task_id: entregues[i].task_id, diagnosis: d.causa,
                                         desafiada: true, deCache: !!d.deCache })
           else if (d.disputa) blockers.push({ taskId: entregues[i].task_id, kind: 'causa-em-disputa',

@@ -469,7 +469,7 @@ contra `r8-tiers.json`, tudo conferido na suíte do plugin.
 o arquivo não é o desta versão:
 
 ```bash
-for peca in blocoMax naoDespachadas idsDoPlano congeladas esperaChain saudePrompt ledgerCorrida impressaoTarefa emCirculo paraPorCausaGlobal; do
+for peca in blocoMax naoDespachadas idsDoPlano congeladas esperaChain saudePrompt ledgerCorrida impressaoTarefa emCirculo paraPorCausaGlobal destravaOuPara; do
   printf '%-16s esqueleto=%s motor.js=%s\n' "$peca" \
     "$(grep -c "$peca" <SKILL.md>)" "$(grep -c "$peca" <references/motor.js>)"
 done
@@ -572,11 +572,51 @@ const chaveDeCausa = t => ((t?.files || []).join('|') || t?.id || '?')
 // referendo — 'tarefa' ou 'repositorio' — e causa de repositório: (1) mora numa chave
 // única do cache, valendo pra TODAS as tarefas; (2) para o motor no MESMO turno, pelo
 // helper abaixo. O rótulo nasce do par em acordo, nunca do motor sozinho.
-const paraPorCausaGlobal = (d, taskId) => {
+const paraPorCausaGlobal = (d, taskId, nota) => {
   desligadoPor = 'causa-global'
   blockers.push({ taskId, kind: 'causa-global',
     what: `causa confirmada com escopo de REPOSITÓRIO: ${String(d.causa).slice(0, 300)}`,
-    whyNeedsYou: 'todo trabalho novo morreria na mesma porta — o motor parou no mesmo turno; destrave e relance' })
+    whyNeedsYou: (nota ? nota + ' — ' : '')
+      + 'todo trabalho novo morreria na mesma porta — o motor parou no mesmo turno; destrave e relance' })
+}
+// ── O DESTRAVADOR (F23.9) ────────────────────────────────────────────────────
+// Medido em quatro corridas seguidas (2026-08-15): a causa de repositório era sempre
+// a mesma classe — um estado que uma suíte cobra e que ficou para trás (uma linha de
+// versão numa tabela de doc). O trabalho estava pronto no disco, o commit não passava,
+// e a corrida inteira morria por isso, com o dono consertando de manhã em dois
+// minutos. Morrer é a resposta certa para a causa que o motor NÃO sabe consertar; é a
+// resposta errada para a que ele sabe. Então: UM papel conserta só a causa referendada,
+// o motor RE-MEDE a porta por conta própria, e a corrida segue. Uma tentativa por
+// corrida — a segunda seria repetir sem mudança de estado.
+let destravesUsados = 0
+const destravaOuPara = async (d, taskId) => {
+  if (destravesUsados >= 1) {
+    paraPorCausaGlobal(d, taskId, 'o destravador já foi usado nesta corrida e a porta fechou de novo')
+    return false
+  }
+  destravesUsados++
+  const fix = await agent(destravadorPrompt({ repoRoot: ARGS.repoRoot, causa: String(d.causa),
+      suiteCmd, tetoMin: tetoMecanicoMin }),
+    { model: ARGS.model, effort: T.diagnose.effort, phase: 'Diagnose',
+      label: `destrava:${taskId || 'repo'}`, schema: DESTRAVE })
+  // A palavra do destravador não abre porta nenhuma: quem diz se abriu é a MESMA
+  // guarda de saúde que a fecharia na rodada seguinte.
+  const remedida = await agent(saudePrompt({ repoRoot: ARGS.repoRoot, round: r, suiteCmd,
+      tetoMin: tetoMecanicoMin }),
+    { model: ARGS.model, effort: T.mechanical.effort, phase: 'Diagnose',
+      label: `saude:pos-destrave`, schema: SAUDE })
+  const aberta = fix?.destravou === true && !!remedida && remedida.fechada === false
+  ledgerCorrida.push({ r, tipo: 'destrave', taskId, ok: aberta,
+                       resumo: String(fix?.oQueFez || 'sem relato').slice(0, 160) })
+  if (!aberta) {
+    paraPorCausaGlobal(d, taskId, fix?.destravou
+      ? 'o destravador disse ter consertado, mas a porta continua fechada na re-medição'
+      : 'o destravador não conseguiu consertar a causa')
+    return false
+  }
+  // A causa foi embora: mantê-la no cache faria toda tarefa seguinte nascer condenada.
+  delete causaCache['@repositorio']
+  return true
 }
 const investigaCausa = async (task, attempts) => {
   const chave = causaCache['@repositorio'] ? '@repositorio' : chaveDeCausa(task)
@@ -762,7 +802,7 @@ while (!built && r < maxRounds) {
         diagnoses.push({ task_id: t.id, diagnosis: d.causa, desafiada: true, deCache: !!d.deCache })
         // causa de REPOSITÓRIO para o motor no MESMO turno: nada mais é despachado
         // para morrer na mesma porta (autópsia 2026-08-09).
-        if (d.escopo === 'repositorio') { paraPorCausaGlobal(d, t.id); break }
+        if (d.escopo === 'repositorio' && !(await destravaOuPara(d, t.id))) break
       } else {
         blockers.push({ taskId: t.id, kind: 'causa-em-disputa',
           what: `a causa de ${t.id} não sobreviveu ao desafio: investigador diz "${d.disputa?.investigador || 'sem resposta'}" · desafiador diz "${d.disputa?.desafiador || 'sem veredito'}"`,
@@ -980,7 +1020,7 @@ while (!built && r < maxRounds) {
         // do dono: severidade também dispara, não só reincidência) — com o cache.
         if ((v.gaps || []).some(g => sevRank(g.severity) >= floor)) {
           const d = await investigaCausa(decomp.tasks.find(t => t.id === entregues[i].task_id), 1)
-          if (d.causa && d.escopo === 'repositorio') paraPorCausaGlobal(d, entregues[i].task_id)
+          if (d.causa && d.escopo === 'repositorio') await destravaOuPara(d, entregues[i].task_id)
           if (d.causa) diagnoses.push({ task_id: entregues[i].task_id, diagnosis: d.causa,
                                         desafiada: true, deCache: !!d.deCache })
           else if (d.disputa) blockers.push({ taskId: entregues[i].task_id, kind: 'causa-em-disputa',
@@ -1536,13 +1576,15 @@ return {
 | prompt | `PAPEL:` | prompt | `PAPEL:` |
 |---|---|---|---|
 | `orquestradorPrompt` | `ORQUESTRADOR` | `reguaPrompt` | `MECANICO` |
-| `saudePrompt` | `MECANICO` | | |
+| `saudePrompt` | `MECANICO` | `destravadorPrompt` | `DESTRAVADOR` |
 | `execPrompt` | `EXECUTOR` | `reservaPrompt` | `MECANICO` |
 | `reviewBuildPrompt` | `REVISOR` | `checkpointPrompt` | `MECANICO` |
 | `confirmBuildPrompt` | `CONFIRMADOR` | `docTouchPrompt` | `MECANICO` |
 | `auditorPrompt` | `AUDITOR` | `colheitaPrompt` | `MECANICO` |
 | `diagnoseStuckTaskPrompt` | `DIAGNOSTICO` | `tickPlanPrompt` | `MARCAR` |
 | `desafioCausaPrompt` | `DESAFIADOR` | `runSuitePrompt` | `SUITE` |
+| `revisorTarefaPrompt` | `REVISOR` | `revisorBlocoPrompt` | `REVISOR` |
+| `revisaoDocPrompt` | `REVISOR` | `encerraPrompt` | `MECANICO` |
 
 A declaração é a **primeira linha do corpo**, sozinha, antes de qualquer prosa — o corpo do `execPrompt` acima mostra a forma. Quem cobra que a regra continue no texto é `lib/test_travas_motor.py` (bloco `S-123`), que reescreve a prosa em volta da linha e confere no `medidor.py` que a classificação fica de pé.
 
@@ -1587,6 +1629,7 @@ chamadas sem rótulo com a instrução já escrita.
 - `TASK_RESULT` — `{ task_id, files_touched: [...], summary, done: bool, note, anchor, espera: bool, impossivel?: string, ferramentas?: [...], proposta?: { arquivo, antes, depois } }`. **`impossivel`** = a alegação de que a tarefa não tem como sair, com o motivo; **`ferramentas`** = o que havia à mão no contexto dela. Alegar não encerra nada: repetida por `churnThreshold` rodadas seguidas na mesma tarefa, ela convoca o `AUDITOR`. **`proposta`** = o entregável da tarefa `protegido` (regra 5 do executor): `antes` e `depois` **literais**, o primeiro copiado do disco e o segundo pronto pra colar. O script cobra os dois — proposta sem um deles vira `done: false` e Bloqueio, porque descrição do que mudar deixa o trabalho todo pro dono. Com os dois, a proposta sai em **Bloqueios (precisam de você)** com o antes/depois inteiro, e `git diff` vazio no arquivo é o resultado certo. **`anchor`** = a última linha não vazia do que o executor leu para decidir que estava pronto — a prova de leitura inteira (ver "o juiz prova que leu"). **`espera`** = o executor bateu no `tetoMin` e parou por isso (regra 4 dele). O script tira essas do `results` — o revisor não recebe meia obra como obra — e as manda pro `missing` do #1 na volta seguinte; a rodada **fecha com quem voltou**. `espera: true` não é falha e não vira Bloqueio: sai em `naoDeuTempo`, com o teto no motivo.
 - `AUDITOR` — `{ derruba: bool, motivo, naoTentou: [...], anchor }`, devolvido por `auditorPrompt` (`diagnose_model`). A lente é **invertida**: o ônus é do auditor provar que **não dá**, e ele recebe `ferramentas` — o que havia à mão — para dizer em `naoTentou` o que o executor nem tentou. `derruba: true` **devolve a tarefa ao loop** (ela entra no `missing` do #1 na volta seguinte, com o que o auditor apontou); `derruba: false` **encerra como impedimento real** — Bloqueio de `kind: 'impedimento'` com o `motivo` escrito. Auditor mudo não encerra nada: a tarefa volta pro loop, porque quem não respondeu não confirmou impedimento. Como todo veredito, sem `anchor` ele é recusado e o papel roda de novo.
 - `SAUDE` — `{ fechada: bool, motivo, saida }`, devolvido por `saudePrompt` (`mechanical_model`), na largada de **toda** rodada. Papel **mecânico e só**: roda os checks determinísticos da casa a partir da raiz — os mesmos que o gate de commit consulta (`python3 scripts/desacoplamento_check.py` e vizinhos listados em `.claude/hooks/release-gate.sh`, quando existirem) — e devolve `fechada: true` com `motivo` (uma linha) e `saida` (a saída crua) quando **qualquer** um reprova o estado atual do repositório. É a guarda **catchall** da autópsia de 2026-08-09: a porta fechada de hoje era o commit; a de amanhã pode ser outra, e o que fecha o motor é o check reprovando, não o nome da doença. Fail-open nas duas pontas: projeto sem esses checks, check quebrado ou agente mudo ⇒ `fechada: false` — travar a corrida por infra de gate é pior que gate nenhum.
+- `DESTRAVE` — `{ destravou: bool, oQueFez, prova }`, devolvido por `destravadorPrompt` (`diagnose_model`), **só** quando o par investigador+desafiador referenda uma causa de escopo `'repositorio'`. É o papel que conserta a porta fechada **durante** a corrida, em vez de a corrida morrer nela: recebe a causa já referendada, reproduz a falha por comando, conserta no menor toque, roda a suíte e **commita o conserto sozinho, por caminho nomeado** — ele não pertence a passo nenhum do plano. **Proibido executar tarefa do plano, tocar arquivo alheio à causa ou marcar passo**: destravar não é trabalhar. E a palavra dele **não abre porta nenhuma** — quem diz se abriu é o `saudePrompt` rodado logo depois, o mesmo que a fecharia na rodada seguinte; `destravou: true` com re-medição fechada desliga o motor do mesmo jeito, agora dizendo que o conserto não pegou. **Uma tentativa por corrida**: a segunda seria repetir sem mudança de estado, o antipadrão que este motor persegue. Nasceu de quatro corridas seguidas mortas pela MESMA classe de causa em 2026-08-15 — um estado que uma suíte cobra e ficou para trás —, todas destravadas pelo dono em dois minutos na manhã seguinte.
 - `DESAFIO` — `{ procede: bool, motivo, escopo?, anchor }`, devolvido por `desafioCausaPrompt` (`diagnose_model`). **`escopo`** = `'tarefa'` ou `'repositorio'`, declarado **pelo par em acordo** — o desafiador que referenda diz até onde a causa alcança, e `'repositorio'` significa que ela mata QUALQUER trabalho novo, não só esta tarefa. É esse rótulo (nunca inferência do motor) que dispara a parada no mesmo turno e a chave global do cache de causa. Ausente ⇒ `'tarefa'`. O desafiador recebe a tarefa e a **causa** que o investigador apontou, com a ordem de **derrubá-la**: `procede: false` carrega em `motivo` o fato que a causa não explica ou a concorrente mais simples — e esse motivo volta ao investigador na volta seguinte (`desafioAnterior`). `procede: true` referenda, e só então o diagnóstico entra no `feedback` (`desafiada: true`). Três voltas sem acordo viram Bloqueio `kind: 'causa-em-disputa'` com as duas versões; desafiador mudo **não referenda**. Como todo veredito, sem `anchor` é recusado e roda de novo.
 - `SUITE_RESULT` — `{ green: bool, failing: [nome...], placar, trabalhoVivo: bool }`. **`placar`** = a linha crua que a suíte imprimiu (`139 passou · 0 falhou`, `OK (56 checks)`, `17 ok / 0 falhas`), <!-- acopla-ok: exemplos do formato de placar reconhecido, não contagem deste repositório --> lida por `lib/andamento.py:placar` e comparada com a da onda anterior por `lib/andamento.py:avanco` — dois placares iguais seguidos saem como `sem avanço`. O veredito aparece nas **duas** superfícies: no cartão que fecha a onda (`hooks/posttooluse-andamento.sh`, que vê a saída crua da suíte) e na **barra** (`hooks/statusline-motor.sh` → `linha_placar`), que é a que fica. O registro é um só, em `~/.claude/andamento/placar-<sid>` — o motor guarda o campo na onda (`rounds[].placar`) e não o descarta mais. **`trabalhoVivo`** separa demora de travamento: com ele `true`, o vigia **não** derruba naquela rodada, por mais parada que ela pareça. **Ele é MEDIDO, não julgado** — o papel da suíte roda `lib/vivo-ou-dormindo.sh` (fonte em `_shared/`), que mede TEMPO DE CPU ACUMULADO em DUAS AMOSTRAS SEPARADAS — nunca %CPU numa foto, que não separa quem trabalha de quem está pendurado há uma hora — e imprime uma palavra: `vivo` ⇒ `true`, `dormindo` ⇒ `false`, `nao-medido` ⇒ `false` com o motivo no fim do `placar`. MEDIDOR QUE NÃO MEDIU DIZ QUE NÃO MEDIU: falta de medida nunca vira sinal de vida, senão o vigia é desarmado justamente quando ninguém consegue olhar. **Todo campo deste schema tem linha correspondente no corpo do `runSuitePrompt`** — `heartbeat` saiu em 2026-08-10 justamente por não ter: era um número sem descrição, o agente preencheu com `1`, e o vigia leu 56 anos de silêncio. Campo em schema que o prompt não descreve é convite a valor inventado, e a regra vale para todos os schemas do motor.
 - `blocker` de `kind: 'criterio'` — critério de aceite que só se cumpre injetando valor inventado dentro de entregável. Não vira tarefa: vira Bloqueio, e o `whyNeedsYou` diz qual passo da spec precisa reescrever o `pronto`. **Quem o emite é o SCRIPT**, logo depois da decomposição e antes de qualquer executor sair (ver o bloco da régua no esqueleto) — não é julgamento do #1.
