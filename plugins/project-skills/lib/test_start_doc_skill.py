@@ -374,6 +374,9 @@ def main():
     # Caminho 1 — archify presente: o HTML nasce em .claude/archify/ pela régua
     # de nome dele. Caminho 2 — archify ausente: sai a linha DEGRADADO e o
     # código 3, e a etapa segue.
+    # O interpretador é o BASH que RESPONDE, nunca o `bash` do PATH: no Windows
+    # o do PATH é o do WSL, e as quatro checagens abaixo reprovavam por causa
+    # dele, não por causa do mecanismo.
     with tempfile.TemporaryDirectory() as tmp:
         proj = os.path.join(tmp, "proj")
         os.makedirs(proj)
@@ -381,7 +384,7 @@ def main():
         vazio = os.path.join(tmp, "sem-plugins")
         os.makedirs(vazio)
         ausente = subprocess.run(
-            ["bash", DIAGRAMA, proj, "workflow", ENTRADA_EXEMPLO, "organismo.html"],
+            [BASH, DIAGRAMA, proj, "workflow", ENTRADA_EXEMPLO, "organismo.html"],
             capture_output=True, text=True, encoding="utf-8", errors="replace",
             env=dict(os.environ, CLAUDE_PLUGIN_ROOT=vazio, CLAUDE_CONFIG_DIR=vazio), stdin=subprocess.DEVNULL, start_new_session=True)
         check("sem archify: codigo 3 e a linha DEGRADADO, sem travar",
@@ -389,7 +392,7 @@ def main():
         check("sem archify: nada foi escrito em .claude/archify/",
               not os.path.exists(os.path.join(proj, ".claude", "archify")))
         fora_da_regua = subprocess.run(
-            ["bash", DIAGRAMA, proj, "workflow", ENTRADA_EXEMPLO, "blueprint.html"],
+            [BASH, DIAGRAMA, proj, "workflow", ENTRADA_EXEMPLO, "blueprint.html"],
             capture_output=True, text=True, encoding="utf-8", errors="replace",
             env=dict(os.environ, CLAUDE_PLUGIN_ROOT=PLUGIN), stdin=subprocess.DEVNULL, start_new_session=True)
         check("nome fora da regua do archify e recusado",
@@ -401,7 +404,7 @@ def main():
             print("  --   archify irmao ou node ausentes — 2 checagens puladas")
         else:
             presente = subprocess.run(
-                ["bash", DIAGRAMA, proj, "workflow", ENTRADA_EXEMPLO, "organismo.html"],
+                [BASH, DIAGRAMA, proj, "workflow", ENTRADA_EXEMPLO, "organismo.html"],
                 capture_output=True, text=True, encoding="utf-8", errors="replace",
                 env=dict(os.environ, CLAUDE_PLUGIN_ROOT=PLUGIN), stdin=subprocess.DEVNULL, start_new_session=True)
             esperado = os.path.join(proj, ".claude", "archify", "organismo.html")

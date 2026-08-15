@@ -15,8 +15,14 @@
 # e o hook que depende de ferramenta ausente é o hook que cega em silêncio.
 
 # doc_corpo <arquivo> — o texto abaixo do frontmatter YAML (sem frontmatter: tudo).
+#
+# O `\r` final cai ANTES de qualquer outra regra: no Windows o mesmo documento chega
+# com fim de linha CRLF, e sem isto a receita do shell somava um byte a mais por linha
+# que a do Python (que corta o `\r` ao separar as linhas) — duas marcas para um texto só.
+# De quebra, `---\r` volta a ser reconhecido como cerca do frontmatter.
 doc_corpo() {
   awk '
+    { sub(/\r$/, "") }
     NR == 1 && $0 == "---" { dentro = 1; next }
     dentro && $0 == "---"  { dentro = 0; next }
     dentro                 { next }

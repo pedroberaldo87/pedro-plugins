@@ -401,7 +401,10 @@ def roda_motor(tmp, texto, plan_dir, tick_cmd, plan_path, token_budget=None,
     """Executa o esqueleto do SKILL.md com os agentes de mentira. Devolve
     {saida, chamadas, agentes} ou levanta AssertionError com o motivo."""
     corpo = os.path.join(tmp, "motor.js")
-    with open(corpo, "w", encoding="utf-8") as fh:
+    # newline="\n": no Windows a escrita em modo texto vira CRLF, e o recorte do
+    # `export const meta` no harness casa `\n}\n` — com \r\n ele nao casa, o `export`
+    # sobrevive dentro do new Function e o node morre com "Unexpected token 'export'".
+    with open(corpo, "w", encoding="utf-8", newline="\n") as fh:
         fh.write(esqueleto(texto))
     harness = os.path.join(tmp, "harness.js")
     with open(harness, "w", encoding="utf-8") as fh:
@@ -640,7 +643,7 @@ def bancada_qa(rodadas, max_rounds=6, confirm=None, regride=None):
     tmp = tempfile.mkdtemp(prefix="qa-bancada-")
     try:
         corpo = os.path.join(tmp, "motor.js")
-        with open(corpo, "w", encoding="utf-8") as fh:
+        with open(corpo, "w", encoding="utf-8", newline="\n") as fh:  # LF: ver roda_motor
             fh.write(esqueleto(open(QA_SKILL_MD, encoding="utf-8").read()))
         harness = os.path.join(tmp, "harness.js")
         with open(harness, "w", encoding="utf-8") as fh:

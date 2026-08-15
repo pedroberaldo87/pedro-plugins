@@ -14,7 +14,10 @@ import tempfile
 
 AQUI = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, AQUI)
+from bash_posix import bash_posix  # noqa: E402
 from caminho_igual import igual  # noqa: E402
+
+BASH = bash_posix()
 
 
 def mesma_lista(achado, esperado):
@@ -105,15 +108,41 @@ print("bancada do doc_load")
 print()
 
 # ── a marca é a MESMA do shell ────────────────────────────────────────────────
+LIB_MARK = os.path.join(AQUI, os.pardir, "hooks", "lib-doc-mark.sh").replace(os.sep, "/")
+
+
+def marca_do_shell(caminho):
+    """A marca pela receita do shell. Caminho em barra NORMAL: o Git-Bash do Windows
+    engasga com a invertida dentro de aspas simples (ela lá é escape, não separador)."""
+    r = subprocess.run(
+        [BASH, "-c", f". '{LIB_MARK}' && doc_marca '{caminho.replace(os.sep, '/')}'"],
+        capture_output=True, text=True, encoding="utf-8", errors="replace",
+        stdin=subprocess.DEVNULL, start_new_session=True)
+    return r.returncode, r.stdout.strip()
+
+
 raiz = projeto({"constituicao.md": DOC_LEI_READY})
 alvo = os.path.join(raiz, ".claude", "docs", "constituicao.md")
 py = dl.cksum(alvo)
-shell = subprocess.run(
-    ["sh", "-c", f". {AQUI}/../hooks/lib-doc-mark.sh && doc_marca '{alvo}'"],
-    capture_output=True, text=True, encoding="utf-8", errors="replace", stdin=subprocess.DEVNULL, start_new_session=True)
-check("a marca do programa bate com a do lib-doc-mark.sh",
-      shell.returncode == 0 and shell.stdout.strip() == str(py),
-      f"shell={shell.stdout.strip()!r} python={py}")
+if BASH is None:
+    print("  skip a marca do programa bate com a do lib-doc-mark.sh"
+          " (nenhum bash funcional nesta máquina)")
+else:
+    rc, saida = marca_do_shell(alvo)
+    check("a marca do programa bate com a do lib-doc-mark.sh",
+          rc == 0 and saida == str(py), f"shell={saida!r} python={py}")
+
+    # O mesmo documento com fim de linha do Windows (CRLF) tem que dar a MESMA marca
+    # nas duas receitas — foi por aqui que elas divergiam, um `\r` por linha.
+    r_crlf = tempfile.mkdtemp(prefix="doc-load-crlf-")
+    os.makedirs(os.path.join(r_crlf, ".claude", "docs"))
+    alvo_crlf = os.path.join(r_crlf, ".claude", "docs", "constituicao.md")
+    with open(alvo_crlf, "w", encoding="utf-8", newline="\r\n") as fh:
+        fh.write(DOC_LEI_READY)
+    rc_crlf, saida_crlf = marca_do_shell(alvo_crlf)
+    check("documento em CRLF: as duas receitas continuam dando a mesma marca",
+          rc_crlf == 0 and saida_crlf == str(dl.cksum(alvo_crlf)) == str(py),
+          f"shell={saida_crlf!r} python={dl.cksum(alvo_crlf)} lf={py}")
 
 # ── o frontmatter fica FORA da marca ──────────────────────────────────────────
 r2 = projeto({"constituicao.md": DOC_LEI_READY.replace("status: ready", "status: approved")})

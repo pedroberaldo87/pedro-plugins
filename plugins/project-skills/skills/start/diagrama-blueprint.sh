@@ -22,6 +22,9 @@ TIPO="${2:?uso: diagrama-blueprint.sh <raiz> <tipo> <entrada.json> <nome.html>}"
 ENTRADA="${3:?uso: diagrama-blueprint.sh <raiz> <tipo> <entrada.json> <nome.html>}"
 NOME="${4:?uso: diagrama-blueprint.sh <raiz> <tipo> <entrada.json> <nome.html>}"
 AQUI="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# Os sub-scripts rodam no MESMO bash que este: no Windows o `bash` do PATH é o do
+# WSL, e chamar por nome trocaria o interpretador no meio do caminho.
+BASH="${BASH:-bash}"
 
 case "$NOME" in
   organismo.html|fluxo-*.html) ;;
@@ -29,14 +32,14 @@ case "$NOME" in
      exit 2 ;;
 esac
 
-BIN=$(bash "$AQUI/resolve-plugin.sh" archify skills/archify/bin/archify.mjs 2>/dev/null)
-DIR_SH=$(bash "$AQUI/resolve-plugin.sh" archify skills/archify/resolve-dir.sh 2>/dev/null)
+BIN=$("$BASH" "$AQUI/resolve-plugin.sh" archify skills/archify/bin/archify.mjs 2>/dev/null)
+DIR_SH=$("$BASH" "$AQUI/resolve-plugin.sh" archify skills/archify/resolve-dir.sh 2>/dev/null)
 if [ -z "$BIN" ] || [ -z "$DIR_SH" ]; then
   printf 'DEGRADADO: `archify` ausente nesta máquina — %s não foi desenhado; o blueprint.md sozinho fecha a etapa.\n' "$NOME"
   exit 3
 fi
 
-DESTINO=$(bash "$DIR_SH" "$RAIZ" archify 2>/dev/null)
+DESTINO=$("$BASH" "$DIR_SH" "$RAIZ" archify 2>/dev/null)
 [ -n "$DESTINO" ] || exit 1
 
 node "$BIN" render "$TIPO" "$ENTRADA" "$DESTINO/$NOME" >/dev/null 2>&1 || exit 1
