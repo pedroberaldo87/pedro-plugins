@@ -245,7 +245,10 @@ function salva(p) {
     cmd = cmd.split(k).join(v)
   }
   checkpoints.push({ round: p.round, cmd })
-  execSync(cmd, { stdio: 'pipe', shell: '/bin/sh' })
+  // O comando da skill e POSIX (`for`/`&&`/`||`), entao precisa de sh — mas no Windows
+  // nao existe /bin/sh e o spawn morre com ENOENT antes de rodar. O bash do Git for
+  // Windows esta no PATH (e o proprio shell do job do CI), e entende a mesma sintaxe.
+  execSync(cmd, { stdio: 'pipe', shell: process.platform === 'win32' ? 'bash.exe' : '/bin/sh' })
   return { committed: true, sha: 'bancada' }
 }
 
