@@ -1,6 +1,6 @@
 {
   "name": "guardrails",
-  "version": "1.8.5",
+  "version": "1.8.7",
   "description": "Global editing guardrails as hooks: post-edit lint & type-check (JS/TS/Python), an LLM scope-cop that blocks UI edits drifting from the approved plan, and an Agent Teams misuse guard. Portable across machines — replaces hand-rolled hooks in ~/.claude/settings.json. Run /guardrails:setup once per machine to set the env var and clear the old hooks.",
   "author": {
     "name": "pedroberaldo87",

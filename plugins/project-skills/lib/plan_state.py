@@ -44,6 +44,7 @@ import os
 import re
 import subprocess
 import sys
+import tempfile
 import time
 
 # CANAIS DE TEXTO EM UTF-8, SEMPRE. No Windows eles nascem na codificação do sistema
@@ -1291,7 +1292,12 @@ def _sentinel_sessao(directory, sid):
     """
     if not sid:
         return None
-    tmp = os.environ.get("TMPDIR") or "/tmp"
+    # `tempfile.gettempdir()`, não `TMPDIR or "/tmp"`: no Windows nenhuma das
+    # variáveis POSIX está definida e o `/tmp` cravado vira `C:\tmp`, que não
+    # existe — a marca nunca era gravada (o `except OSError` a engole), e o fim
+    # de turno deixava de afirmar "Onde estamos" para quem tinha marcado o passo.
+    # A stdlib já faz a cascata TMPDIR→TMP→TEMP→temp do sistema.
+    tmp = tempfile.gettempdir()
     chave = hashlib.sha1(os.path.abspath(directory).encode("utf-8")).hexdigest()[:12]
     try:
         uid = os.getuid()
