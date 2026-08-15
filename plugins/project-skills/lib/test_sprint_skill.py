@@ -88,6 +88,73 @@ def main():
     check("a prosa da expiracao cobra o `encerra`, nao o `rm`",
           "não te dispensa do `encerra`" in armacao)
 
+    # F5.7 — o ciclo de vida do sinal e da CASCA, em volta da chamada. Medido pela
+    # sessao irma: das 5 corridas, as 4 que sairam sozinhas apagaram o sinal e a
+    # unica morta por fora (TaskStop) deixou aceso 4h — porque o ultimo ato vivia
+    # dentro do script, que morreu junto. Sem estas assercoes a receita volta a
+    # ensinar "apague ao entregar o relatorio", que nao roda quando a missao morre.
+    print("o sinal nasce e morre em volta da CHAMADA do Workflow")
+    check("a receita acende ANTES da chamada",
+          "ANTES da chamada" in armacao)
+    check("a receita apaga NO RETORNO da chamada",
+          "NO RETORNO da chamada" in armacao)
+    check("o acender vem antes do apagar na receita",
+          0 < armacao.find('arma "$CLAUDE_CODE_SESSION_ID"')
+          < armacao.find('encerra "$CLAUDE_CODE_SESSION_ID"'))
+    check("apagar vale em qualquer desfecho, inclusive parada por fora",
+          "qualquer desfecho" in armacao and "TaskStop" in armacao)
+    check("apagar vem antes da QA, do commit e do relatorio",
+          "antes da QA, do commit e do relatório" in armacao)
+
+    # F5.8 — a MESMA receita do retorno solta a reserva de arquivos. TaskStop numa
+    # corrida madura deixaria a reserva pendurada e o proximo motor da sessao seria
+    # recusado por ate 12h. Sem estas assercoes, liberar volta a morar so no passo 3
+    # da Persistencia, que a missao morta nunca alcanca.
+    retorno = secao(armacao, "# 2) NO RETORNO da chamada", "```\n\n⚠️")
+    print("o retorno da chamada tambem LIBERA as reservas de arquivos")
+    check("o bloco do retorno existe", bool(retorno))
+    check("o retorno roda o `liberar` do hook de reserva",
+          'liberar "$CLAUDE_CODE_SESSION_ID" "$MOTOR_MORTO"' in retorno)
+    check("o retorno solta a reserva do motor MORTO, nao a da sessao inteira",
+          'reservas/$CLAUDE_CODE_SESSION_ID"__' not in retorno)
+    check("o encerra e o liberar falam do MESMO motor",
+          retorno.count('"$MOTOR_MORTO"') >= 2)
+    check("a receita avisa que o motor vivo da sessao nao pode ser solto",
+          "vivo escrevendo os mesmos arquivos" in retorno)
+    check("o retorno resolve o hook da reserva pelo resolvedor",
+          "project-skills hooks/reserva-de-arquivos.sh" in retorno)
+
+    # O passo 3 da Persistencia deixou de ser o lugar onde o sinal cai nem onde a
+    # reserva e solta: la e repeticao idempotente do caminho feliz.
+    passo3 = secao(texto, "3. **Confere o sinal apagado", "4. **Passa o caminhão do lixo")
+    print("o passo 3 da Persistencia virou rede, nao o lugar do apagamento")
+    check("o passo 3 existe com o novo titulo", bool(passo3))
+    check("o passo 3 diz que o sinal ja caiu no retorno da chamada",
+          "no retorno da chamada" in passo3)
+    check("a tabela de camadas credita a casca em volta da chamada",
+          "a **casca**, em volta da chamada" in passo3)
+
+    # F6.2 — o cobrador da regra dos tres desfechos (F6.1). Regra em prosa sem
+    # cobrador nao pega: a entrega em pagina era condicional e nenhum texto cobria a
+    # missao que PARA, que e justamente quando o usuario mais precisa da superficie
+    # de revisao para decidir se retoma.
+    desfechos = secao(texto, "### Os três desfechos", "### Conteúdo")
+    print("a skill nomeia os tres desfechos e o que lidera a pagina em cada um")
+    check("a secao dos desfechos existe", bool(desfechos))
+    for desfecho, lidera in (("obra pronta", "### Feito"),
+                             ("parada", "### Bloqueios"),
+                             ("espera", "### Esperando você")):
+        check("o desfecho '%s' aparece com o que lidera a pagina" % desfecho,
+              ("**%s**" % desfecho) in desfechos and lidera in desfechos)
+    check("a espera NAO cai em Bloqueios (e a secao dela, nao a do que falhou)",
+          "nunca** dentro de `### Bloqueios`" in desfechos)
+    check("parada nao degrada o relatorio",
+          "Parada NÃO degrada o relatório" in desfechos)
+    check("proibido trocar a pagina por texto curto por causa da parada",
+          "trocar a página por texto curto por causa da parada é proibido" in desfechos)
+    check("o unico fallback continua sendo a skill visual ausente",
+          "só quando a skill `visual` não existe na máquina" in desfechos)
+
     # Sem isto o bullet da fronteira some na proxima edicao e o revisor de
     # construcao volta a tratar buraco de projeto inteiro como gap da missao.
     fronteira = secao(texto, "### Fronteira com o `/qa-loop`",
