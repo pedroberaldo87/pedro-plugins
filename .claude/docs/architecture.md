@@ -349,26 +349,26 @@ Saída desta rodada (nome · versão · skills · tem hook):
 2op                 1.0.5  [2op,2op-opus,2op-sonnet]    -
 archify            2.12.2  [archify]                    -
 bootstrap         1.17.13  [bootstrap]                  HOOKS
-branches           1.3.12  [branches]                   HOOKS
+branches           1.3.13  [branches]                   HOOKS
 check-skills        0.7.3  [check-skills]               -
-context-guard      1.3.12  [context-guard]              HOOKS
+context-guard      1.3.13  [context-guard]              HOOKS
 fallow              1.2.6  [fallow]                     -
 gauntlet           0.13.5  [gauntlet]                   HOOKS
-graphify-guard     1.2.10  []                           HOOKS
+graphify-guard     1.2.11  []                           HOOKS
 grill-me            1.4.0  [grill-me]                   -
-guardrails          1.8.6  [guardrails]                 HOOKS
-handoff           1.11.11  [handoff]                    HOOKS
+guardrails          1.8.7  [guardrails]                 HOOKS
+handoff           1.11.12  [handoff]                    HOOKS
 improve             1.1.2  [improve]                    -
 improve-workflow  0.16.27  [improve-workflow]           -
-intent-guard       0.8.12  [intent-guard]               HOOKS
+intent-guard       0.8.13  [intent-guard]               HOOKS
 lixeiro             1.5.3  [faxina]                     HOOKS
 principles          1.0.5  [principles]                 -
-project-skills    0.22.66  [completude,design-md,doc,doc-load,doc-touch,monitorar,pesquisa-referencias,plan,project-skills,qa-loop,sprint,start] HOOKS
-ship                1.5.5  [ship]                       HOOKS
+project-skills    0.22.67  [completude,design-md,doc,doc-load,doc-touch,monitorar,pesquisa-referencias,plan,project-skills,qa-loop,sprint,start] HOOKS
+ship                1.5.6  [ship]                       HOOKS
 slides              1.6.2  [slides]                     -
 vision              0.1.1  []                           -
 vistoria           0.11.7  [vistoria]                   -
-visual            1.41.15  [andamento,visual]           HOOKS
+visual            1.41.16  [andamento,visual]           HOOKS
 ```
 
 **A rodada anterior moveu onde as skills MORAM; esta apagou as CASAS que tinham ficado

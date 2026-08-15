@@ -341,9 +341,20 @@ que é o programa que decide o que vale como régua. Copiar a receita é exatame
 desta seção — o que impede a divergência é a asserção que calcula a marca pelos dois
 caminhos e exige o mesmo número [confirmado, `plugins/project-skills/lib/test_doc_load.py`
 roda `sh -c '. …/lib-doc-mark.sh && doc_marca …'` e compara com a saída do módulo Python;
-`python3 plugins/project-skills/lib/test_doc_load.py` → `38 passou · 0 falhou` nesta rodada].
+`python3 plugins/project-skills/lib/test_doc_load.py` → `42 passou · 0 falhou` nesta rodada].
 **Régua durável: reimplementação cross-linguagem só é legítima com o teste de identidade
 junto** — sem ele, o que existe são duas receitas que ninguém sabe se ainda concordam.
+
+🔴 **E a divergência apareceu justamente onde o teste não olhava: o fim de linha do Windows.**
+O mesmo documento chega lá com `\r\n`, e o Python corta o `\r` sozinho ao separar as linhas
+(`splitlines()`), enquanto o `awk` do shell não cortava — um byte a mais por linha, duas marcas
+para um texto só, e de quebra o `---\r` deixava de ser reconhecido como cerca do frontmatter.
+O conserto é uma linha em `doc_corpo` (`{ sub(/\r$/, "") }` antes de qualquer outra regra), e a
+lição de método é a que interessa: **teste de identidade só vale se rodar com o dado do OUTRO
+sistema também** — hoje `test_doc_load.py` grava o documento em CRLF de propósito e exige o
+mesmo número das duas receitas [confirmado, caso *"documento em CRLF: as duas receitas continuam
+dando a mesma marca"*; verde no Windows na CI de portabilidade, run `31860821914`, job
+`checks (windows-latest)` → `ok  1.1s  plugins\project-skills\lib\test_doc_load.py`].
 
 ### 1.7 Regex de intenção: fronteira de palavra e o lado seguro
 

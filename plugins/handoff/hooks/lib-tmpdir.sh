@@ -28,5 +28,15 @@ td_tmpdir() {
     _td_dir=${_td_dir%/}
   done
   [ -n "$_td_dir" ] || _td_dir=/tmp
+  # A cascata acima ainda cai no `/tmp` do SHELL quando NENHUMA das três está
+  # definida — foi o que aconteceu no runner do Windows (medido em 2026-08-15:
+  # `mktemp -d "$(td_tmpdir)"/ig-cap-XXXXXX` devolveu `/tmp/ig-cap-P0Q4jT`, e o
+  # `python3` nativo que recebeu esse caminho por STDIN o resolveu como
+  # `C:\tmp\...`). `cygpath` só existe onde há essa tradução a fazer, e traduz
+  # tanto o `/tmp` do shell quanto um caminho que já é do Windows.
+  if command -v cygpath >/dev/null 2>&1; then
+    _td_win=$(cygpath -m "$_td_dir" 2>/dev/null)
+    [ -n "$_td_win" ] && _td_dir=${_td_win%/}
+  fi
   printf '%s' "$_td_dir"
 }

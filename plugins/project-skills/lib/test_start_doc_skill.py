@@ -26,6 +26,10 @@ import tempfile
 # certo por causa do interpretador. Módulo compartilhado (_shared/bash_posix.py).
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from bash_posix import bash_posix  # noqa: E402
+# Comparar CAMINHO, não o texto dele: o script devolve `<raiz>/.claude/archify/...`
+# montado com barra normal pelo bash, e `os.path.join` no Windows monta com a
+# invertida. São o mesmo diretório, e o `==` cru reprovaria o mecanismo certo.
+from caminho_igual import igual  # noqa: E402
 
 BASH = bash_posix() or "bash"
 
@@ -411,7 +415,7 @@ def main():
             check("com archify: o html nasce em .claude/archify/ pela regua de nome dele",
                   presente.returncode == 0 and os.path.exists(esperado))
             check("com archify: o caminho do html sai no stdout, pro relatorio citar",
-                  presente.stdout.strip() == esperado)
+                  igual(presente.stdout.strip(), esperado))
 
     print("cada funcionalidade e curada item a item, com a passagem ao lado (F4.2)")
     check("a skill manda usar o bloco `item` do /visual, o componente que ja existe",

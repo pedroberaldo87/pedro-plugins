@@ -13,6 +13,16 @@
 HOOKS="plugins/project-skills/hooks/pretooluse-doc-guard.sh
 plugins/graphify-guard/hooks/pretooluse-graphify-guard.sh"
 S_BASE="scope-test-$$"
+# Os gêmeos rodam no MESMO bash que esta bateria: no Windows o `bash` do PATH é o
+# do WSL, e chamá-lo por nome trocaria o interpretador no meio do caminho — o hook
+# rodaria noutro sistema de arquivos, onde o projeto de mentira abaixo nem existe.
+BASH_BIN="${BASH:-bash}"
+# O temporário DO SISTEMA, perguntado e não assumido: `/tmp` literal é caminho do
+# SHELL, e o projeto de mentira precisa existir também para quem é nativo.
+AQUI="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=/dev/null
+. "$AQUI/../_shared/lib-tmpdir.sh"
+TMPD="$(td_tmpdir)"
 # O GRAFO É DO TESTE, NUNCA O DO REPOSITÓRIO. O gêmeo `graphify-guard` só age onde
 # acha `graphify-out/graph.json` subindo a partir do `cwd` — e `graphify-out/` está
 # no .gitignore (linha 53). Na máquina de quem escreveu ele existe, então a bateria
@@ -20,7 +30,7 @@ S_BASE="scope-test-$$"
 # "busca cega tem que bloquear" reprovavam com `0 denies` — sem que nada dissesse
 # que a causa era um artefato ausente. O teste monta o seu, e mede o ESCOPO da regra
 # em vez de medir o que estava no disco de quem rodou.
-SCOPE_CWD="$(mktemp -d)"
+SCOPE_CWD="$(mktemp -d "$TMPD/scope-XXXXXX")"
 # CADA GÊMEO TEM O SEU PRÉ-REQUISITO, e o projeto de mentira traz os dois:
 #   graphify-guard → graphify-out/graph.json  (subindo a partir do cwd)
 #   doc-guard      → .claude/docs/ + CLAUDE.md (a doc que ele manda ler)
@@ -35,15 +45,23 @@ printf '# arquitetura de mentira\n' > "$SCOPE_CWD/.claude/docs/architecture.md"
 # COMPACTA (`"permissionDecision":"deny"`). Casar o espaço do `jq -n` media formatação,
 # não decisão.
 DENY='permissionDecision"[[:space:]]*:[[:space:]]*"deny'
-PY="$(command -v python3 || command -v python)"
+# O python que RESPONDE, não o primeiro que o PATH oferecer: no Windows o
+# `python3.exe` do PATH pode ser o stub da Store, que existe e não roda — e um
+# gerador de payload mudo devolveria `0 denies` em TODO caso, reprovando a regra
+# certa por causa do interpretador.
+for c in python3 python; do
+  P="$(command -v "$c" 2>/dev/null)" || continue
+  [ -n "$P" ] && "$P" --version >/dev/null 2>&1 && { PY="$P"; break; }
+done
+[ -n "$PY" ] || { echo "↷ pulada: nenhum python funcional nesta máquina"; exit 0; }
 
 # O graphify-guard avisa uma vez por sessão e queima um sentinel em /tmp; sem sessão
 # nova por chamada, o 2º caso da bateria sairia calado e a suíte ficaria verde à toa.
-trap 'rm -f "/tmp/claude-graphify-guard-${S_BASE}-"* 2>/dev/null; rm -rf "$SCOPE_CWD" 2>/dev/null' EXIT
+trap 'rm -f "$TMPD/claude-graphify-guard-${S_BASE}-"* 2>/dev/null; rm -rf "$SCOPE_CWD" 2>/dev/null' EXIT
 
 deny_count() { # $1=hook  $2=comando
   S="${S_BASE}-${RANDOM}${RANDOM}"
-  rm -f "/tmp/claude-graphify-guard-$S" 2>/dev/null
+  rm -f "$TMPD/claude-graphify-guard-$S" 2>/dev/null
   # MSYS_NO_PATHCONV/MSYS2_ARG_CONV_EXCL: no Windows o bash do Git reescreve todo
   # argumento que COMEÇA com `/` para caminho do Windows antes de entregá-lo a um
   # programa nativo — o caso `/usr/bin/grep x` chegava ao Python como
@@ -51,7 +69,7 @@ deny_count() { # $1=hook  $2=comando
   # que se mede aqui é a regra, não o tradutor de caminho do ambiente.
   MSYS_NO_PATHCONV=1 MSYS2_ARG_CONV_EXCL='*' \
   "$PY" -c "import json,sys;print(json.dumps({'tool_name':'Bash','session_id':'$S','cwd':'$SCOPE_CWD','tool_input':{'command':sys.argv[1]}}))" \
-    "$2" | GRAPHIFY_DENY=1 bash "$1" 2>/dev/null | grep -cE "$DENY"
+    "$2" | GRAPHIFY_DENY=1 "$BASH_BIN" "$1" 2>/dev/null | grep -cE "$DENY"
 }
 
 FAIL=0
