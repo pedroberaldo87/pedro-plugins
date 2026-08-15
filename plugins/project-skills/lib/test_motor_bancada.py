@@ -200,7 +200,18 @@ const log = m => { narrado.push(String(m)) }
 // unico jeito de o disjuntor ser exercitado de verdade — com `spent()` fixo em zero
 // (como era aqui), o teto nunca e alcancado e a trava passa sem nunca ter armado.
 let gastoAcumulado = 0
-const budget = { spent: () => gastoAcumulado }
+// `CFG.gastoBase` + `CFG.gastoCaiEm` reproduzem o contador que ANDA PARA TRÁS. No caso
+// real o motor entra num turno que JÁ gastou (base alta) e, no meio da corrida, o
+// contador do runtime reinicia: `spent()` devolve um número menor que o do arranque, e
+// `spent() - inicial` fica negativo — foi assim que uma corrida de 6h relatou
+// `gasto: -831562`. Sem a base alta o defeito não aparece, porque a bancada começa do
+// zero e a diferença nunca chega a ser negativa.
+let chamadasDeGasto = 0
+const budget = { spent: () => {
+  chamadasDeGasto++
+  if (CFG.gastoCaiEm && chamadasDeGasto >= CFG.gastoCaiEm) return gastoAcumulado
+  return (CFG.gastoBase || 0) + gastoAcumulado
+} }
 const parallel = fns => Promise.all(fns.map(f => f()))
 
 // O papel de marcacao roda o comando REAL da skill. E o unico agente com efeito de
@@ -425,7 +436,7 @@ motor(CFG.args, agent, phase, log, budget, parallel).then(saida => {
 
 
 def roda_motor(tmp, texto, plan_dir, tick_cmd, plan_path, token_budget=None,
-               gasto_por_chamada=0, max_rounds=2, review_complete=True,
+               gasto_por_chamada=0, gasto_cai_em=None, gasto_base=0, max_rounds=2, review_complete=True,
                trabalho_vivo=False, rodadas_mudas_max=None,
                checkpoint_cmd="", escreve_no_disco=False,
                suite_verde=True, suite_falhando=None, largada_falhando=None,
@@ -500,6 +511,8 @@ def roda_motor(tmp, texto, plan_dir, tick_cmd, plan_path, token_budget=None,
         "out": out,
         "trabalhoVivo": trabalho_vivo,
         "gastoPorChamada": gasto_por_chamada,
+        "gastoCaiEm": gasto_cai_em,
+        "gastoBase": gasto_base,
         "reviewComplete": review_complete,
         "gaps": gaps or [],
         "confirmGaps": confirm_gaps or [],
@@ -798,6 +811,21 @@ def main():
     check("sem teto, o gasto e alto e ninguem reclama",
           solto["saida"]["gasto"] > 400 and not any(
               "disjuntor" in (b.get("what") or "") for b in solto["saida"]["blockers"]))
+
+    # ── O GASTO SÓ SOBE (2026-08-15) ───────────────────────────────────────────
+    # `budget.spent()` conta o turno inteiro e PODE CAIR no meio da corrida: uma de 6h
+    # devolveu `gasto: -831562`. Número negativo não é curiosidade de relatório — é o
+    # disjuntor DESARMADO, porque `gasto >= tokenBudget` nunca é verdade com negativo.
+    # Aqui o contador cai no meio de propósito, e o teto tem que armar do mesmo jeito.
+    print("F9.12 — contador que ANDA PARA TRÁS não desarma o disjuntor")
+    caiu = bancada(texto, tick_cmd, token_budget=1000, gasto_por_chamada=400,
+                   gasto_base=900000, gasto_cai_em=2, max_rounds=3,
+                   review_complete=False)
+    if caiu is None:
+        return 1
+    check("o gasto relatado nunca é negativo", caiu["saida"]["gasto"] >= 0)
+    check("com o contador caindo, o disjuntor ainda desliga a missão",
+          caiu["saida"]["stopReason"] == "orcamento")
 
     print("F9.12 — o motor estoura o teto, se desliga sozinho e diz quanto gastou")
     # Mesma missao, mesmo numero de voltas permitido, mesma queima por agente. A UNICA
