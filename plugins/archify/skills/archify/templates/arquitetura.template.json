@@ -1,0 +1,332 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "Template de arquitetura",
+    "subtitle": "Vocabulário completo — troque os rótulos, mantenha os papéis",
+    "output": "arquitetura.template.html",
+    "quality_profile": "standard",
+    "views": [
+      {
+        "id": "caminho-principal",
+        "label": "Caminho principal",
+        "focus": [
+          "cliente",
+          "borda",
+          "balanceador",
+          "servico",
+          "banco"
+        ],
+        "note": "A requisição do cliente até o estado durável."
+      },
+      {
+        "id": "confianca",
+        "label": "Fronteira de confiança",
+        "focus": [
+          "identidade",
+          "servico",
+          "banco"
+        ],
+        "note": "Quem prova identidade e o que fica dentro da fronteira."
+      },
+      {
+        "id": "assincrono",
+        "label": "Trabalho assíncrono",
+        "focus": [
+          "servico",
+          "fila",
+          "trabalhador"
+        ],
+        "note": "O que sai do caminho da resposta e roda depois."
+      }
+    ]
+  },
+  "components": [
+    {
+      "id": "cliente",
+      "type": "external",
+      "label": "Ator externo",
+      "sublabel": "quem chega de fora",
+      "pos": [
+        40,
+        300
+      ],
+      "size": [
+        120,
+        60
+      ]
+    },
+    {
+      "id": "identidade",
+      "type": "security",
+      "label": "Identidade",
+      "sublabel": "prova quem é quem",
+      "pos": [
+        40,
+        110
+      ],
+      "size": [
+        120,
+        64
+      ],
+      "tag": "OIDC"
+    },
+    {
+      "id": "borda",
+      "type": "cloud",
+      "label": "Borda",
+      "sublabel": "primeira parada pública",
+      "pos": [
+        250,
+        300
+      ],
+      "size": [
+        130,
+        60
+      ]
+    },
+    {
+      "id": "interface",
+      "type": "frontend",
+      "label": "Interface",
+      "sublabel": "camada de apresentação",
+      "pos": [
+        250,
+        440
+      ],
+      "size": [
+        130,
+        60
+      ]
+    },
+    {
+      "id": "balanceador",
+      "type": "cloud",
+      "label": "Distribuidor",
+      "sublabel": "reparte a carga",
+      "pos": [
+        460,
+        300
+      ],
+      "size": [
+        130,
+        60
+      ]
+    },
+    {
+      "id": "servico",
+      "type": "backend",
+      "label": "Serviço de aplicação",
+      "sublabel": "onde a regra mora",
+      "pos": [
+        670,
+        300
+      ],
+      "size": [
+        130,
+        60
+      ]
+    },
+    {
+      "id": "cache",
+      "type": "database",
+      "label": "Depósito volátil",
+      "sublabel": "resposta rápida, perde-se",
+      "pos": [
+        670,
+        150
+      ],
+      "size": [
+        130,
+        60
+      ]
+    },
+    {
+      "id": "banco",
+      "type": "database",
+      "label": "Depósito durável",
+      "sublabel": "a verdade guardada",
+      "pos": [
+        880,
+        300
+      ],
+      "size": [
+        130,
+        60
+      ]
+    },
+    {
+      "id": "fila",
+      "type": "messagebus",
+      "label": "Fila",
+      "sublabel": "trabalho que espera vez",
+      "pos": [
+        670,
+        440
+      ],
+      "size": [
+        130,
+        60
+      ]
+    },
+    {
+      "id": "trabalhador",
+      "type": "backend",
+      "label": "Trabalhador",
+      "sublabel": "consome a fila",
+      "pos": [
+        880,
+        440
+      ],
+      "size": [
+        130,
+        60
+      ]
+    }
+  ],
+  "boundaries": [
+    {
+      "kind": "region",
+      "label": "Zona: onde tudo isso roda",
+      "wraps": [
+        "borda",
+        "interface",
+        "balanceador",
+        "servico",
+        "cache",
+        "banco",
+        "fila",
+        "trabalhador"
+      ]
+    },
+    {
+      "kind": "security-group",
+      "label": "Fronteira de confiança: só quem provou identidade",
+      "wraps": [
+        "servico",
+        "banco"
+      ]
+    }
+  ],
+  "connections": [
+    {
+      "id": "cliente-borda",
+      "from": "cliente",
+      "to": "borda",
+      "label": "HTTPS",
+      "variant": "emphasis"
+    },
+    {
+      "id": "identidade-servico",
+      "from": "identidade",
+      "to": "servico",
+      "label": "verifica credencial",
+      "variant": "security",
+      "fromSide": "right",
+      "toSide": "top",
+      "via": [
+        [
+          620,
+          142
+        ],
+        [
+          620,
+          246
+        ],
+        [
+          735,
+          246
+        ]
+      ]
+    },
+    {
+      "id": "borda-balanceador",
+      "from": "borda",
+      "to": "balanceador"
+    },
+    {
+      "id": "borda-interface",
+      "from": "borda",
+      "to": "interface",
+      "label": "estático",
+      "variant": "dashed",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "labelDy": 58
+    },
+    {
+      "id": "balanceador-servico",
+      "from": "balanceador",
+      "to": "servico"
+    },
+    {
+      "id": "servico-cache",
+      "from": "servico",
+      "to": "cache",
+      "label": "leitura quente",
+      "fromSide": "top",
+      "toSide": "bottom",
+      "labelDy": -68
+    },
+    {
+      "id": "servico-banco",
+      "from": "servico",
+      "to": "banco",
+      "label": "SQL"
+    },
+    {
+      "id": "servico-fila",
+      "from": "servico",
+      "to": "fila",
+      "label": "enfileira",
+      "variant": "dashed",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "labelDy": 58
+    },
+    {
+      "id": "fila-trabalhador",
+      "from": "fila",
+      "to": "trabalhador"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "Camadas",
+      "items": [
+        "Borda: o que o mundo alcança",
+        "Aplicação: onde a decisão acontece",
+        "Dados: o que sobrevive ao reinício"
+      ]
+    },
+    {
+      "dot": "emerald",
+      "title": "Protocolos",
+      "items": [
+        "HTTPS na entrada pública",
+        "SQL até o depósito durável",
+        "Mensagem até a fila do trabalho adiado"
+      ]
+    },
+    {
+      "dot": "rose",
+      "title": "Fronteiras",
+      "items": [
+        "Zona: o cerco de rede que abriga tudo",
+        "Fronteira de confiança: serviço e depósito durável",
+        "Ator externo e guarda de identidade ficam de fora"
+      ]
+    },
+    {
+      "dot": "amber",
+      "title": "Extensão declarada",
+      "items": [
+        "O que não cabe no vocabulário-base entra declarado, nunca desenhado à parte",
+        "Agendador por relógio não tem tipo próprio: declare {\"type\": \"backend\", \"tag\": \"cron\"}",
+        "A tag nomeia o papel extra; o tipo segue sendo um dos sete da base",
+        "Papel que a tag não resolve vira pedido de tipo novo no archify, nunca SVG à mão"
+      ]
+    }
+  ]
+}

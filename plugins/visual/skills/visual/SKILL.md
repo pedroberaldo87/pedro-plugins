@@ -1020,6 +1020,18 @@ Imagem se lê muito mais rápido que texto. Conceito com ≥3 entidades ligadas 
 
 **Atenção à ordem:** o diagrama explica o **mecanismo**; a `.evidencia` mostra o **fato**. Diagrama bonito no lugar da saída crua é o defeito original com outra roupa. Primeiro a prova, depois o desenho que a explica.
 
+**Diagrama de arquitetura não se inventa aqui.** O molde com o vocabulário inteiro
+(camadas, zonas, depósitos, filas, fronteiras de confiança, externos, protocolos) mora
+numa fonte só, no plugin `archify`: `skills/archify/templates/arquitetura.template.json`,
+com o exemplo renderizado ao lado (`arquitetura.template.html`). Copie o molde, troque os
+rótulos, renderize pelo archify — o `/visual` embute o HTML resultante e **não** repete a
+lista de peças, senão as duas versões divergem.
+
+**Diagrama de fluxo, idem.** O molde é `skills/archify/templates/fluxo.template.json`,
+com o exemplo renderizado em `fluxo.template.html` — passos, decisão com saídas nomeadas,
+ramos paralelos, caminho de erro com retomada, atores e estados. A lista das peças e dos
+recursos extras mora lá, nos cartões do próprio exemplo; aqui só o ponteiro.
+
 **Como, em ordem de preferência:**
 
 1. **SVG inline** dentro de `.diagram` — `viewBox`, `stroke="currentColor"`, formas simples, `<marker>` pra seta, traço 1.5–2px.

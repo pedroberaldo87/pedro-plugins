@@ -156,6 +156,21 @@ A régua fecha: `git ls-files -i -c --exclude-standard` → **0**. [confirmado]
 - **Natureza: julgamento escrito, coberto pelo git — e insubstituível dentro disso.** O número de violações é remedível por um comando; a **decisão de aceitá-las** não sai de lugar nenhum além deste arquivo. É a mesma classe do "julgamento embutido" dos baselines A5/A5a, com a diferença de que aqui o julgamento é o arquivo inteiro, não um metadado dele.
 - ⚠️ **Nenhum verificador o lê.** Diferente do A5, cujo baseline o release-gate compara, este arquivo é lido por humano. Um limite que deixou de valer não é acusado por ninguém — quem revoga é quem lembra.
 
+### A9 · `.claude/docs/fluxos/` — o diagrama como DOCUMENTO, dentro do clone
+
+- **Nasceu em 2026-08-16.** Hoje **1 arquivo rastreado, 512K** — o número sai do comando, nunca daqui: `git ls-files .claude/docs/fluxos/ | wc -l` e `du -sh .claude/docs/fluxos/`. [confirmado nesta rodada]
+- **Por que é depósito e não artefato de sessão:** até aqui todo desenho nascia em `.claude/archify/`, que é pasta de sessão como `.claude/visual/` — e desenho que mora em pasta de sessão morre no `/clear` sem ninguém notar. A decisão do dono (2026-08-13) foi promover fluxo, arquitetura e desenho de módulo a **documento versionado**: nascem aqui, entram no commit de conteúdo, e defasam junto com o texto.
+- **Quem escreve:** o passo 2b do `/doc-touch` (`plugins/project-skills/skills/doc-touch/SKILL.md`), que re-renderiza pelo `archify` a camada de todo doc re-projetado — `architecture.md` puxa o `organismo.html`, `runtime.md` puxa os `fluxo-<slug>.html`, doc de módulo puxa o `app-<nome>.html`. Os três dividem **esta** casa; um destino só evita que o mesmo tipo de artefato viva em duas pastas. [confirmado — `plugins/project-skills/lib/test_doc_touch_skill.py`]
+- ⚠️ **É rastreado, então vale a regra do repositório público:** HTML com caminho absoluto de máquina dentro é reprovado pela checagem H do gate de commit (`scripts/public_repo_check.py`).
+- **Natureza: derivado, e por isso remediável** — sai de novo do doc curado a cada touch. O que não se recupera é o **doc que o originou**, não o desenho.
+
+### A10 · `.claude/docs/prototipo/` — a lei do sidecar e a casa do protótipo aprovado
+
+- **Hoje 1 arquivo rastreado** (`git ls-files .claude/docs/prototipo/` devolve `FORMATO.md`); os HTMLs do protótipo e os `<etapa>.prototipo.md` entram aqui quando um projeto tem interface aprovada.
+- **`FORMATO.md` é a parte NORMATIVA**, e mora dentro do que o clone recebe **porque o cobrador a lê em qualquer máquina** (`plugins/project-skills/lib/test_sidecar_prototipo.py`). A spec de concepção discute o porquê; aqui está a lei.
+- **O sidecar é ANEXO, não régua** — `plugins/project-skills/lib/doc_load.py:le_anexos` o lê fora da lista que julga obra, e a marca do CONJUNTO (`conjunto-sig`) reabre o anexo quando alguém mexe no protótipo depois do de acordo.
+- **Natureza: acordo com o dono, sob tranca.** O corpo aprovado não se toca sem novo de acordo — o que se grava é `correcao-pendente:` no frontmatter, que não reabre a etapa.
+
 ### Sementes versionadas (o resto de (A) que é depósito)
 
 - `plugins/visual/skills/visual/config.default.json` — semente do `config.json` do `/visual`, que vive em (B2). O default sobe; a escolha do usuário, não.
@@ -834,6 +849,15 @@ Os quatro que entraram, com o que cada um congela [confirmado — leitura dos ar
 - **O `tree_hash` protege o veredito de envelhecer**, e exclui `EXEC_ARTIFACTS` (`__pycache__`, `*.pyc`, `node_modules`, `*.log`, `dist`, `build`, `coverage`, …) porque a própria auditoria roda código e sujaria a árvore — *"o gate nunca fecha, bate o cap e libera SEM auditoria, o oposto do propósito"*.
 - **Degradação declarada:** erro de I/O silencia os comandos de escrita e devolve fallback seguro nos de leitura — `verify` falhando devolve `remaining: -1`, jogando tudo pro auditor caro, porque *"degradar pro caro é seguro; pro barato não"*.
 - **Natureza: histórico de intenção, insubstituível, sem backup.**
+
+### A11 · `.claude/.sprint/corridas.jsonl` — a SÉRIE de execuções da missão
+
+- **Uma linha por execução do motor de plano, append-only, gitignorado.** Quantas hoje sai do comando: `wc -l < .claude/.sprint/corridas.jsonl`. [confirmado nesta rodada]
+- **Cada linha traz** o id da execução, a missão (o caminho do plano), o progresso (`fechadas` de `total`), o custo em tokens, o par início/fim e o **desfecho** — o vocabulário medido até aqui inclui `onda-esteril`, `porta-fechada`, `causa-global` e `parada-pelo-dono`.
+- **Por que existe:** uma execução isolada não diz se a missão avança ou gira em falso; a **série** diz. É ela que o `relance` lê antes de relançar — relançar é apostar que a próxima passa onde a anterior parou, e na terceira vez a aposta já perdeu duas. [confirmado — `plugins/project-skills/lib/ledger_corridas.py`, verbos `abre`, `registra-run`, `serie`, `relance`]
+- **Quem escreve é o programa, nunca a mão** — e a **largada** vai ao disco ANTES da chamada, porque execução que morre por fora não tem retorno: sem essa marca, a que fracassou é justamente a que sumiria da série.
+- ⚠️ **Já foi truncado uma vez sem culpado conhecido** (2026-08-15: 4 linhas às 17h, 1 às 20h45, num arquivo append-only por desenho). As três foram restauradas com os números que o próprio programa tinha impresso, marcadas com `restaurado:`. **Causa desconhecida — pode voltar a acontecer.**
+- **Natureza: histórico de medição, insubstituível.** O progresso se remede pelo plano; o **custo e o tempo de cada execução passada**, não.
 
 ### Os outros de (C)
 

@@ -250,6 +250,23 @@ Depósito **novo em 2026-08-03** (commit `1e59b55`). Ver `data-stores.md §A8` p
 - **Mesma classe dos baselines A5/A5a (§3.6, §3.6a): julgamento embutido.** A diferença é o sentido — o baseline é um retrato regenerável com uma decisão implícita no ato de recongelar; aqui a decisão é o conteúdo inteiro, e nenhum comando a produz.
 - ⚠️ **Nenhum verificador o lê** [confirmado — nenhum hook nem script do repo o referencia]. O arquivo declara o que revoga cada limite, mas quem confere é humano. Um limite vencido continua no arquivo até alguém rodar o comando que ele mesmo prescreve — e a §3.19 abaixo já mostra um número que saiu do lugar.
 
+### 2.7 · Diagrama como documento — `.claude/docs/fluxos/`
+
+Depósito **novo em 2026-08-16**. Ver `data-stores.md §A9` para a anatomia.
+
+- 🟢 **Coberto.** [confirmado — `git ls-files .claude/docs/fluxos/`] Rastreado, e entra na mesma lista de arquivos sob `.claude/` que estão no índice (§2.3).
+- **Por que ele passou a merecer cobertura:** até 2026-08-16 todo desenho nascia em `.claude/archify/`, que é gitignorado como `.claude/visual/` — e ali ele tinha a durabilidade de artefato de sessão, ou seja, nenhuma. A decisão do dono promoveu fluxo, arquitetura e desenho de módulo a documento: se o texto entra no commit, o desenho que descreve a mesma coisa entra junto.
+- **O que se perde e o que não:** o HTML é **derivado** do doc curado, então um clone o regera pelo `/doc-touch`. O que não volta é o doc que o originou — e esse já está coberto pela §2.3.
+- ⚠️ **A régua do repositório público vale aqui:** HTML com caminho absoluto de máquina dentro é reprovado pela checagem H do gate de commit, e é por isso que este depósito tem uma linha própria em vez de herdar a da §2.3 em silêncio.
+
+### 2.8 · A lei do sidecar de protótipo — `.claude/docs/prototipo/FORMATO.md`
+
+Depósito **novo em 2026-08-16**. Ver `data-stores.md §A10`.
+
+- 🟢 **Coberto.** [confirmado — `git ls-files .claude/docs/prototipo/`] Rastreado, pela §2.3.
+- **Por que ele mora dentro do clone e não numa spec:** o cobrador (`plugins/project-skills/lib/test_sidecar_prototipo.py`) precisa lê-lo em **qualquer** máquina; lei que fica fora do que o clone recebe é lei que o cobrador não alcança.
+- **Insubstituível na parte que é acordo.** O formato se re-escreve; o **de acordo do dono** sobre ele, não — e é ele que a marca do frontmatter (`approved-sig`) protege.
+
 ---
 
 ## 3 · Ativos SEM cobertura
@@ -587,6 +604,17 @@ Entrou no inventário em 2026-08-12. Ver `data-stores.md §B17` para a anatomia.
 - **Apagar o registro tem custo assimétrico**, e é o oposto do que parece: não é o mecanismo que sofre, é o processo. Sem procedência, o que estava de pé deixa de ser reconhecido por qualquer colheita automática e só sai pela `/faxina` manual. Por isso a v1.4.0 passou a remover o arquivo só quando não sobrou processo vivo.
 - **Sem semente versionada, e é correto assim** — o conteúdo é o que ESTA máquina abriu, com caminhos de projeto dela. Mesma classe do `arsenal.md` (§3.16c) nesse ponto, e pelo mesmo motivo de repositório público.
 - **A perda é silenciosa.** Nada acusa a falta: a pasta é recriada por `state_dir()` com `makedirs(exist_ok=True)` na primeira chamada, e a sessão segue como se nunca tivesse havido histórico.
+
+### 3.16f · A série de execuções da missão — `<projeto>/.claude/.sprint/corridas.jsonl`
+
+Entrou no inventário em 2026-08-16. Ver `data-stores.md §A11` para a anatomia.
+
+`[TODO: sem cobertura declarada]` — dentro do repo, mas gitignorado (`.claude/.sprint/`), sem cópia nenhuma.
+
+- **Duas perdas de naturezas diferentes, e só uma se refaz.** O **progresso** de cada execução se remede lendo o plano; o **custo em tokens, o tempo e o desfecho** de cada execução passada não saem de lugar nenhum — são medição de um evento que já acabou.
+- **É por isso que a perda importa mais do que parece:** a série é o que responde "a missão avança ou gira em falso", e é ela que o `relance` lê antes de autorizar a próxima execução. Sem histórico, a decisão de relançar volta a ser palpite — que foi o defeito que o registro existe para matar.
+- ⚠️ **Já perdeu linhas uma vez, e ninguém sabe por quê** (2026-08-15, num arquivo append-only por desenho). As três foram restauradas do que o próprio programa tinha impresso e marcadas com `restaurado:` — a **causa segue desconhecida**, então a perda pode se repetir sem aviso.
+- **Sem semente versionada, e é correto assim** — o conteúdo é o que ESTA máquina executou, com o caminho do plano dela. Mesma classe do `arsenal.md` (§3.16c) nesse ponto.
 
 ### 3.17 · Cofre de secrets — iCloud
 

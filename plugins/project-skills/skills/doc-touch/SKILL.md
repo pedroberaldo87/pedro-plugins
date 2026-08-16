@@ -58,7 +58,7 @@ passo 2**, não uma varredura nova — o escopo inverso já fez o trabalho:
 |---|---|
 | `architecture.md` | `organismo.html` — na mesma casa canônica VERSIONADA dos fluxos (`.claude/docs/fluxos/`): arquitetura é doc pela mesma razão que fluxo é, e diagrama que nasce em pasta de sessão morre no `/clear` sem ninguém notar |
 | `runtime.md` | os `fluxo-<slug>.html` dos fluxos cujos títulos o diff tocou — re-renderizados em **`.claude/docs/fluxos/`**, a casa canônica VERSIONADA (decisão do dono em 2026-08-13): fluxo é doc, entra no commit de conteúdo do passo 5, nunca em pasta de sessão |
-| doc de um aplicativo (monorepo) | `app-<nome>.html` daquele aplicativo |
+| doc de um aplicativo/módulo (monorepo) | `app-<nome>.html` daquele aplicativo — **mesma casa versionada** (`.claude/docs/fluxos/`): desenho de módulo defasa igual ao texto dele, e um destino só evita que o mesmo tipo de artefato viva em duas pastas |
 
 Para cada um, o ciclo da skill `archify` (invoque-a com a Skill tool — as camadas, os nomes
 estáveis e o destino estão lá; não os redigite aqui):
@@ -69,6 +69,7 @@ estáveis e o destino estão lá; não os redigite aqui):
 FLUXOS_DIR=$(bash <plugin archify>/skills/archify/resolve-dir.sh "$PWD" docs/fluxos)
 node <plugin archify>/skills/archify/bin/archify.mjs render architecture <entrada>.json "$FLUXOS_DIR/organismo.html"
 node <plugin archify>/skills/archify/bin/archify.mjs render workflow <entrada>.json "$FLUXOS_DIR/fluxo-<slug>.html"
+node <plugin archify>/skills/archify/bin/archify.mjs render architecture <entrada>.json "$FLUXOS_DIR/app-<nome>.html"
 ```
 
 ⚠️ O HTML que nasce em `.claude/docs/fluxos/` é **rastreado no git** — vale a régua do repo

@@ -1259,6 +1259,39 @@ rodada]`
 
 ---
 
+## 24 · O diagrama vira DOCUMENTO — a camada visual que viaja no commit da doc
+
+Até 2026-08-16 todo desenho nascia em `.claude/archify/`, gitignorado como `.claude/visual/`:
+tinha a durabilidade de artefato de sessão, ou seja, **nenhuma**. O fluxo abaixo é a promoção a
+documento — e o motivo é o mesmo que justifica versionar o texto: desenho e texto descrevem a
+mesma coisa, e deixar um se atualizar sem o outro é como o diagrama envelhece até virar
+mentira ilustrada.
+
+1. **O gatilho é o doc re-projetado, não uma varredura nova.** O passo 2 do `/doc-touch`
+   re-projeta os docs cujo `scope:` intersecta o diff; o passo 2b pega **esses** e re-renderiza a
+   camada de cada um. `architecture.md` → `organismo.html` · `runtime.md` → os
+   `fluxo-<slug>.html` dos fluxos que o diff tocou · doc de módulo → `app-<nome>.html`.
+   `[confirmado — plugins/project-skills/skills/doc-touch/SKILL.md, passo 2b]`
+2. **Os três dividem UMA casa, e ela é versionada:** `.claude/docs/fluxos/`, resolvida por
+   `resolve-dir.sh "$PWD" docs/fluxos` — o resolvedor aceita subdir com barra desde o mesmo dia
+   (§ do cenário 1). Um destino só existe para o mesmo tipo de artefato não viver em duas
+   pastas; foi o defeito que a rodada de 2026-08-16 corrigiu, com o organismo ainda apontando
+   para a pasta de sessão enquanto o fluxo já morava na casa nova.
+   `[confirmado — plugins/project-skills/lib/test_doc_touch_skill.py, os checks do destino]`
+3. **O JSON de entrada sai do doc curado, nunca do código cru.** Desenhar direto do código
+   reintroduz exatamente o palpite que a doc existe para evitar.
+4. **O desenho entra no commit de CONTEÚDO** (passo 5 do touch), junto do texto que o originou —
+   e o carimbo vem no segundo commit, pela regra do ovo-e-galinha que já governa a doc.
+5. **Duas guardas que só existem porque agora é rastreado:** a régua do repositório público
+   reprova caminho absoluto de máquina dentro do HTML (checagem H do gate de commit), e o
+   `archify` ausente **degrada em voz alta** — avisa e segue, porque diagrama é camada a mais
+   sobre a doc, nunca pré-requisito dela.
+
+⚠️ **Nome estável significa sobrescrever:** um assunto, um arquivo, sempre o atual. Documentação
+viva não se versiona por data — quem quer o desenho de ontem tem o git.
+
+---
+
 ## Pendências
 
 - **Ponteiros cross-tool inertes** (cenário 2): os 5 arquivos apontam pra um `CLAUDE.md` na raiz que não existe. `[confirmado]`
