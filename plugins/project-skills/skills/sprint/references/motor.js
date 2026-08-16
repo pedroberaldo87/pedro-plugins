@@ -243,7 +243,7 @@ ${J(task)}
 TETO: ${tetoMin} minutos. CACHE DE COMPILAÇÃO JÁ QUENTE: ${buildWarm}
 
 REGRAS — cada uma nasceu de trabalho perdido:
-1. CONFIRA NO DISCO ANTES DE IMPLEMENTAR. Abra o arquivo do \`pronto\` e veja se ele já está cumprido. Já cumprido ⇒ devolve \`done: true\` com o \`arquivo:linha\` que prova, e não reescreve nada.
+1. CONFIRA NO DISCO ANTES DE IMPLEMENTAR. Abra o arquivo do \`pronto\` e veja se ele já está cumprido. Já cumprido ⇒ devolve \`done: true\` com o \`arquivo:linha\` que prova, e não reescreve nada. Já cumprido MAS o arquivo aparece modificado no \`git status\` (trabalho fora do histórico) ⇒ o diff órfão é obra desta entrega: confira contra o \`pronto\` e liste esses caminhos em \`files_touched\` mesmo sem editar — adotar é o único caminho para o diff órfão entrar no commit.
 2. FORMATAR O PROJETO INTEIRO É PROIBIDO. Nada de \`ruff format .\`, \`prettier --write .\`, \`black .\` sem caminho. Formate só os arquivos que ESTA tarefa tocou, nomeados um a um.
 3. SONDA DE DEPURAÇÃO NASCE FORA DO ALCANCE DA SUÍTE. Script temporário vai para o diretório de rascunho da sessão, nunca com nome que a suíte colete (\`test_*.py\`, \`*_test.py\`).
 4. PASSOU DO TETO, PARE E DEVOLVA \`espera: true\`. Marque a hora ao começar; chegou no teto sem fechar o \`pronto\`, pare onde está, deixe no disco o que já funciona e devolva \`{done:false, espera:true, note:<em que ponto parou e o que falta>}\`. Isso NÃO é falha.
@@ -257,7 +257,7 @@ ${REGUA_DO_PROJETO}
 
 ANTES DE DEVOLVER: rode a verificação que o \`pronto\` nomeia e cole a saída crua no \`summary\`.
 \`anchor\` = a última linha não vazia do que você leu para decidir que estava pronto, literal.
-\`files_touched\` = todo caminho que você escreveu — é dele que sai o commit; caminho omitido é trabalho que não entra no histórico.`
+\`files_touched\` = todo caminho cujo conteúdo esta entrega responde — escrito por você OU adotado do disco (regra 1) — é dele que sai o commit; caminho omitido é trabalho que não entra no histórico.`
 
 const reservaPrompt = ({ verbo, sessionId, motorId, files }) => `PAPEL: MECANICO
 Papel mecânico e SÓ. Rode, a partir de ${RAIZ}:
