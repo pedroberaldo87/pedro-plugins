@@ -41,7 +41,7 @@
       "source": "./plugins/bootstrap",
       "description": "Bootstraps a new machine to this versioned Claude Code setup. Two layers: (1) auto-syncs third-party marketplaces & plugins via hooks (manifest-driven convergence), and (2) applies the versioned global config — env vars, permissions, behavior flags, the global CLAUDE.md, and a machine-resolved statusLine. Replaces bootstrap-third-party. Run /bootstrap:setup once per new machine. Ships the 'Clean Style' output style (single prose ceiling, pasted evidence exempt) and a report-only conformance checker that diffs the live machine against the versioned contract.",
       "category": "productivity",
-      "version": "1.17.13",
+      "version": "1.17.14",
       "tags": [
         "sync",
         "bootstrap",
@@ -234,7 +234,7 @@
       "source": "./plugins/lixeiro",
       "description": "Encerra os processos que a sessão abriu e esqueceu — servidor de desenvolvimento, suíte pendurada, compilação em modo observador. O critério é procedência, nunca nome de programa: um hook anota na origem o que abriu processo, e só o que foi anotado pode ser encerrado. Ao fim de cada turno morre só o que não gastou CPU nenhuma desde o turno anterior, suíte ou servidor — o que está trabalhando sobrevive, inclusive a suíte lançada em segundo plano. Ao fim da sessão morre tudo que ela abriu e não estiver gastando CPU naquele instante, e na abertura seguinte o que sessões mortas deixaram de pé; /clear e resume não contam como fim. Máquina virtual, serviço de contêiner e os serviços do próprio programa nunca recebem sinal, só aparecem no relatório. Traz também /faxina, o irmão manual, que mostra tudo que está de pé e encerra só o que você marcar.",
       "category": "dev-tools",
-      "version": "1.5.7",
+      "version": "1.5.8",
       "tags": [
         "processos",
         "memoria",
@@ -324,7 +324,7 @@
       "source": "./plugins/visual",
       "description": "CLI walls-of-text → interactive HTML dark-theme views. The page carries the EVIDENCE, not the account of it: real artifact embedded, raw output verbatim, provenance for every number — enforced by a pre-ExitPlanMode gate. Prose is REFUSED by the builder: every text field is checked (≤140 chars per bullet, one sentence each, no continuation connective, max 6 per block) and a violation aborts without writing the page. Each problem's body is born folded — the title stays visible, consequence and proposal open on click under a label derived from the content itself. Plans, diagnostics and decisions in the browser with live sync back to Claude. Regravar um plano nunca apaga em silêncio o que não veio no pacote: o init parcial FUNDE o bloco de requisitos por id — o requisito que só existe no arquivo fica, e o executor recebe a nota do que foi mantido. O cruzamento também mede o plano contra a arquitetura pretendida: funcionalidade sem peça, e requisito citando peça que o architecture-intent.md não tem, saem em listas próprias — e o mesmo vale para o desenho de funcionamento: funcionalidade sem passo do ciclo, e passo do ciclo que nenhuma funcionalidade atende.",
       "category": "productivity",
-      "version": "1.41.19",
+      "version": "1.41.20",
       "tags": [
         "visualization",
         "html",

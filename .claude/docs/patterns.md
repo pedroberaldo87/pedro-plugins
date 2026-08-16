@@ -562,7 +562,10 @@ para não virar régua antes de ser verdade.
   `lar-fingido: ok <motivo>`. Régua: `python3 _shared/test_lar_fingido.py` → `12 passou · 0
   falhou` [confirmado nesta rodada]. Corolário que veio junto: **o lar fingido nasce FORA do
   projeto de teste** — dentro dele, a cascata de `resolve-dir.sh` para cedo e o hook cai no
-  caminho errado.
+  caminho errado. A receita fechou verde **no Windows de verdade**, não só no varredor: as
+  oito suítes da família adotaram-na (commit `172703f`) e os runs filtrados `31960762453`
+  (as três Python) e `31960895417` (as quatro de shell + o próprio cobrador) saíram verdes
+  em `windows-latest` em 2026-08-16 [confirmado, jobs lidos nesta rodada].
 
 - 🔴 **O `/tmp` do Git Bash não é o temporário que o Python nativo enxerga** [confirmado,
   runs `31761090697` (vermelho) → `31890249824` (`ok 8.4s`), commit `ca721e9`]. **Defeito:**
@@ -578,6 +581,23 @@ para não virar régua antes de ser verdade.
   atrás de quem ainda escreve `/tmp` literal. Régua: `bash scripts/test_tmpdir.sh` → `VERDE —
   TMPDIR honrado pelos hooks` [confirmado nesta rodada]. **Receita:** `mktemp -d` vira
   `mktemp -d "$(td_tmpdir)/nome-XXXXXX"`.
+
+- 🔴 **O `bash` cru que o Windows entrega é o do WSL, não um shell que roda**
+  [confirmado, commits `a6c85c8` e `e2b7734`, doc em `_shared/bash_posix.py`]. **Defeito:**
+  qualquer chamada pelada — `subprocess.run(["bash", …])` ou `shutil.which("bash")` — resolve
+  `System32\bash.exe`; em runner sem distro ele responde *"Windows Subsystem for Linux has no
+  installed distributions."* **em UTF-16 e com código 0**. Em teste, isso reprova código certo
+  pelo interpretador ("não imprimiu nada" e "não existe" ficam indistinguíveis); em produção
+  foi pior: nove chamadas guardavam `out.stdout.strip()` como caminho do plugin irmão, e a
+  reclamação do WSL **virava o caminho**. **Causa:** o critério "estar no PATH" não mede o que
+  importa — três tentativas de arrumar pelo PATH do runner falharam (`GITHUB_PATH` não vence o
+  `System32`; `export PATH=/usr/bin:$PATH` idem). A régua é o candidato **RESPONDER**.
+  **Cobrador:** `_shared/bash_posix.py` — prova cada candidato com um `echo VIVO` (o `which`,
+  depois os caminhos do Git Bash) e devolve `None` quando nenhum responde; quem chama **pula
+  declarando**, nunca reprova por omissão. Vendorado nos consumidores (a contagem sai do mapa:
+  `sed -n '/^SPECS=(/,/^)/p' scripts/sync-shared.sh | grep -c '::bash_posix.py'`), drift pego
+  pelo check A do vendoring. **Declarado:** não existe varredura que acuse chamada pelada
+  NOVA — quem escreve `["bash", …]` hoje só descobre no vermelho do Windows.
 
 ⚠️ **A colheita do lixeiro no Windows tem causa medida e conserto BLOQUEADO por falta de dado**
 [confirmado em 2026-08-15, run `31890249824`]. Quatro checks de `test_lixeiro_hooks.sh` seguem
