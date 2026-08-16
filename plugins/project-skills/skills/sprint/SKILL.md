@@ -1988,6 +1988,17 @@ A missão acaba de três jeitos, e **os três terminam em página**. O que muda 
 
 **Motor que não voltou é parada, e a página sai igual** — só que montada pela casca no turno seguinte, a partir do **último estado conhecido em disco** (`~/.claude/andamento/…` e o plano ticável): em que onda e em que tarefa a missão morreu. Página remontada do disco diz isso no topo, para o usuário não ler dado velho como se fosse fresco.
 
+### A frente aberta sai na página, nos três desfechos (R-20)
+
+**Fechar o plano não fecha a branch.** Plano com `frente` gravada (branch + worktree) sai na página com o **cartão de fechamento** — a branch nomeada, a worktree, e os comandos `git worktree remove` e `git branch -d` à mão, para o dono decidir **mesclar, manter ou descartar**. Quem escreve o cartão é o programa, não você: `plan_state.py` já emite o bloco `pt-frente-fechar` no HTML da árvore, então a página do relatório **inclui a árvore do plano** desta missão em vez de descrever o plano em prosa:
+
+```bash
+PLAN_STATE="$(bash "${CLAUDE_PLUGIN_ROOT}/lib/resolve-plugin.sh" project-skills lib/plan_state.py)"
+python3 "$PLAN_STATE" page <planId>   # a árvore, já com o cartão da frente quando há uma
+```
+
+Vale nos três desfechos — missão que **parou** é justamente a que deixa a branch viva na máquina. Plano sem `frente` gravada: o cartão não sai, e nada se inventa no lugar dele.
+
 ### Conteúdo (backbone — sempre o mesmo)
 
 Cinco seções fixas, mais a do custo quando houve medição. Monte este conteúdo PRIMEIRO; a forma de entrega (HTML ou markdown) vem depois.
