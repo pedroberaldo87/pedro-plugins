@@ -1,0 +1,396 @@
+{
+  "schema_version": 1,
+  "diagram_type": "workflow",
+  "meta": {
+    "title": "Template de fluxo",
+    "subtitle": "Vocabulário completo — troque os rótulos, mantenha os papéis",
+    "output": "fluxo.template.html",
+    "quality_profile": "standard",
+    "animation": "trace",
+    "viewBox": [
+      980,
+      900
+    ],
+    "views": [
+      {
+        "id": "caminho-feliz",
+        "label": "Caminho feliz",
+        "focus": [
+          "inicio",
+          "passo",
+          "decisao",
+          "ramo_a",
+          "junta",
+          "fim"
+        ],
+        "note": "Do disparo do ator até o desfecho, sem desvio."
+      },
+      {
+        "id": "paralelo",
+        "label": "Ramos paralelos",
+        "focus": [
+          "decisao",
+          "ramo_a",
+          "ramo_b",
+          "junta"
+        ],
+        "note": "O que roda ao mesmo tempo e onde os ramos se juntam."
+      },
+      {
+        "id": "erro",
+        "label": "Caminho de erro",
+        "focus": [
+          "decisao",
+          "falha",
+          "retomada"
+        ],
+        "note": "Onde o fluxo quebra e como ele volta."
+      }
+    ]
+  },
+  "lanes": [
+    {
+      "id": "ator",
+      "label": "Ator"
+    },
+    {
+      "id": "fluxo",
+      "label": "Passos do sistema"
+    },
+    {
+      "id": "ramo1",
+      "label": "Ramo paralelo A"
+    },
+    {
+      "id": "ramo2",
+      "label": "Ramo paralelo B"
+    },
+    {
+      "id": "estados",
+      "label": "Estados registrados"
+    },
+    {
+      "id": "erros",
+      "label": "Caminho de erro",
+      "variant": "exception"
+    }
+  ],
+  "phases": [
+    {
+      "id": "entrada",
+      "label": "Entrada",
+      "fromCol": 0,
+      "toCol": 1
+    },
+    {
+      "id": "decisao_fase",
+      "label": "Decisão e ramificação",
+      "fromCol": 2,
+      "toCol": 3,
+      "variant": "emphasis"
+    },
+    {
+      "id": "fecho",
+      "label": "Junção e desfecho",
+      "fromCol": 4,
+      "toCol": 5,
+      "variant": "dashed"
+    }
+  ],
+  "groups": [
+    {
+      "id": "desvio",
+      "label": "Desvio e retomada",
+      "lane": "erros",
+      "fromCol": 3,
+      "toCol": 5,
+      "variant": "security"
+    }
+  ],
+  "mainPath": [
+    "inicio",
+    "passo",
+    "decisao",
+    "ramo_a",
+    "junta",
+    "fim"
+  ],
+  "nodes": [
+    {
+      "id": "inicio",
+      "lane": "ator",
+      "col": 0,
+      "type": "external",
+      "label": "Início",
+      "sublabel": "o ator dispara o fluxo"
+    },
+    {
+      "id": "fim",
+      "lane": "ator",
+      "col": 5,
+      "type": "frontend",
+      "label": "Fim",
+      "sublabel": "o ator recebe o desfecho"
+    },
+    {
+      "id": "passo",
+      "lane": "fluxo",
+      "col": 1,
+      "type": "backend",
+      "label": "Passo",
+      "sublabel": "uma ação do sistema"
+    },
+    {
+      "id": "decisao",
+      "lane": "fluxo",
+      "col": 3,
+      "type": "security",
+      "label": "Decisão",
+      "sublabel": "uma pergunta, saídas nomeadas",
+      "tag": "sim / não"
+    },
+    {
+      "id": "junta",
+      "lane": "fluxo",
+      "col": 5,
+      "type": "backend",
+      "label": "Junção",
+      "sublabel": "espera os dois ramos"
+    },
+    {
+      "id": "ramo_a",
+      "lane": "ramo1",
+      "col": 4,
+      "type": "messagebus",
+      "label": "Ramo A",
+      "sublabel": "roda em paralelo"
+    },
+    {
+      "id": "ramo_b",
+      "lane": "ramo2",
+      "col": 4,
+      "type": "cloud",
+      "label": "Ramo B",
+      "sublabel": "não espera o vizinho"
+    },
+    {
+      "id": "falha",
+      "lane": "erros",
+      "col": 4,
+      "type": "security",
+      "label": "Falha",
+      "sublabel": "o passo não completou"
+    },
+    {
+      "id": "retomada",
+      "lane": "erros",
+      "col": 5,
+      "type": "messagebus",
+      "label": "Retomada",
+      "sublabel": "tenta de novo ou desiste"
+    },
+    {
+      "id": "estado_aberto",
+      "lane": "estados",
+      "col": 0,
+      "type": "database",
+      "label": "Estado inicial",
+      "sublabel": "gravado ao começar"
+    },
+    {
+      "id": "estado_fechado",
+      "lane": "estados",
+      "col": 5,
+      "type": "database",
+      "label": "Estado final",
+      "sublabel": "gravado ao terminar"
+    }
+  ],
+  "edges": [
+    {
+      "id": "inicio-passo",
+      "from": "inicio",
+      "to": "passo",
+      "variant": "default"
+    },
+    {
+      "id": "passo-decisao",
+      "from": "passo",
+      "to": "decisao",
+      "variant": "emphasis"
+    },
+    {
+      "id": "decisao-ramo-a",
+      "from": "decisao",
+      "to": "ramo_a",
+      "label": "sim",
+      "variant": "emphasis",
+      "role": "branch",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "route": "drop",
+      "labelSegment": 1,
+      "labelAt": [
+        465,
+        291
+      ]
+    },
+    {
+      "id": "decisao-ramo-b",
+      "from": "decisao",
+      "to": "ramo_b",
+      "label": "em paralelo",
+      "variant": "dashed",
+      "role": "async",
+      "fromSide": "bottom",
+      "toSide": "left",
+      "route": "auto",
+      "labelSegment": 1,
+      "via": [
+        [
+          430,
+          491
+        ]
+      ],
+      "labelAt": [
+        442,
+        455
+      ]
+    },
+    {
+      "id": "decisao-falha",
+      "from": "decisao",
+      "to": "falha",
+      "label": "não",
+      "variant": "security",
+      "role": "error",
+      "fromSide": "bottom",
+      "toSide": "left",
+      "route": "auto",
+      "labelSegment": 1,
+      "via": [
+        [
+          430,
+          739
+        ]
+      ],
+      "labelAt": [
+        442,
+        703
+      ]
+    },
+    {
+      "id": "ramo-a-junta",
+      "from": "ramo_a",
+      "to": "junta",
+      "variant": "emphasis",
+      "role": "return"
+    },
+    {
+      "id": "ramo-b-junta",
+      "from": "ramo_b",
+      "to": "junta",
+      "variant": "dashed",
+      "role": "async",
+      "fromSide": "right",
+      "toSide": "bottom",
+      "route": "auto",
+      "via": [
+        [
+          625,
+          491
+        ]
+      ]
+    },
+    {
+      "id": "falha-retomada",
+      "from": "falha",
+      "to": "retomada",
+      "variant": "dashed",
+      "role": "branch"
+    },
+    {
+      "id": "retomada-passo",
+      "from": "retomada",
+      "to": "passo",
+      "label": "tenta de novo",
+      "variant": "dashed",
+      "role": "return",
+      "fromSide": "bottom",
+      "toSide": "bottom",
+      "route": "bottom-channel",
+      "channelY": 800,
+      "labelSegment": 1
+    },
+    {
+      "id": "junta-fim",
+      "from": "junta",
+      "to": "fim",
+      "variant": "emphasis",
+      "role": "return",
+      "fromSide": "right",
+      "toSide": "right",
+      "route": "outside-right"
+    },
+    {
+      "id": "passo-estado-aberto",
+      "from": "passo",
+      "to": "estado_aberto",
+      "label": "grava estado",
+      "variant": "dashed"
+    },
+    {
+      "id": "junta-estado-fechado",
+      "from": "junta",
+      "to": "estado_fechado",
+      "label": "fecha estado",
+      "variant": "dashed",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "route": "drop",
+      "labelSegment": 0
+    }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "Peças do fluxo",
+      "items": [
+        "Raia: quem faz, não o que faz",
+        "Passo: uma ação, um verbo",
+        "Decisão: uma pergunta com saídas nomeadas",
+        "Estado: o que fica gravado depois do passo"
+      ]
+    },
+    {
+      "dot": "rose",
+      "title": "Caminhos",
+      "items": [
+        "Principal: a sequência que costuma acontecer",
+        "Paralelo: ramos que não esperam um ao outro",
+        "Erro: a raia de exceção, com a retomada",
+        "Junção: onde os ramos voltam a ser um"
+      ]
+    },
+    {
+      "dot": "emerald",
+      "title": "Recursos extras",
+      "items": [
+        "views: recortes guiados do mesmo fluxo",
+        "phases e groups: faixas que nomeiam trechos",
+        "mainPath: destaca a sequência principal",
+        "animation trace: anima o caminho na leitura"
+      ]
+    },
+    {
+      "dot": "amber",
+      "title": "Extensão declarada",
+      "items": [
+        "O que não cabe no vocabulário-base entra declarado, nunca desenhado à parte",
+        "Espera por gente não tem tipo próprio: declare {\"type\": \"security\", \"tag\": \"espera humana\"}",
+        "A tag nomeia o papel extra; a raia diz de quem é a espera",
+        "Papel que a tag não resolve vira pedido de tipo novo no archify, nunca SVG à mão"
+      ]
+    }
+  ]
+}

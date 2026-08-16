@@ -65,6 +65,15 @@ def main():
     check("nenhum comando manda o organismo pra pasta de sessao",
           "ARCHIFY_DIR/organismo.html" not in passo_2b)
 
+    # R-24 (F14.9): modulo tocado sai com desenho novo. Sem estes checks a linha do
+    # aplicativo era so um nome de arquivo na tabela — sem destino e sem comando, o
+    # desenho do modulo nunca era re-renderizado e defasava calado.
+    print("o modulo tocado re-renderiza o desenho dele, na mesma casa versionada")
+    check("a tabela liga doc de aplicativo/modulo ao app-<nome>.html",
+          "app-<nome>.html" in passo_2b)
+    check("o desenho do modulo tem o mesmo destino versionado",
+          '"$FLUXOS_DIR/app-<nome>.html"' in passo_2b)
+
     print("o passo 5 leva o fluxo re-renderizado pro commit de conteudo")
     check("o passo 5 existe", bool(passo_5))
     check("o git add do conteudo inclui .claude/docs/fluxos/",

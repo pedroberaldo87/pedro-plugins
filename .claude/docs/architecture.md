@@ -347,7 +347,7 @@ Saída desta rodada (nome · versão · skills · tem hook):
 
 ```
 2op                 1.1.2  [2op,2op-opus,2op-sonnet]    -
-archify            2.12.3  [archify]                    -
+archify            2.13.1  [archify]                    -
 bootstrap         1.17.14  [bootstrap]                  HOOKS
 branches           1.3.13  [branches]                   HOOKS
 check-skills        0.7.3  [check-skills]               -
@@ -363,12 +363,12 @@ improve-workflow  0.16.29  [improve-workflow]           -
 intent-guard       0.8.15  [intent-guard]               HOOKS
 lixeiro             1.5.8  [faxina]                     HOOKS
 principles          1.0.5  [principles]                 -
-project-skills    0.22.130  [completude,design-md,doc,doc-load,doc-touch,monitorar,pesquisa-referencias,plan,project-skills,qa-loop,sprint,start] HOOKS
+project-skills    0.22.131  [completude,design-md,doc,doc-load,doc-touch,monitorar,pesquisa-referencias,plan,project-skills,qa-loop,sprint,start] HOOKS
 ship                1.5.6  [ship]                       HOOKS
 slides              1.6.3  [slides]                     -
 vision              0.1.1  []                           -
 vistoria           0.11.7  [vistoria]                   -
-visual            1.41.20  [andamento,visual]           HOOKS
+visual            1.41.21  [andamento,visual]           HOOKS
 ```
 
 **A rodada anterior moveu onde as skills MORAM; esta apagou as CASAS que tinham ficado
