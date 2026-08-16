@@ -365,6 +365,27 @@ mais honesto do que redigir. Então a pergunta abre assim, sempre nesta forma:
 - Em `AskUserQuestion`, o palpite é a opção que você marca como aposta no texto da pergunta, com o
   percentual ao lado; as outras opções continuam inteiras, sem sugestão de que já perderam.
 
+#### As seis pautas transversais — cada uma na etapa dela
+
+Seis pautas atravessam qualquer projeto e a prática sempre esquece de perguntar. Elas **não viram
+questionário** — despejar as seis numa rodada só é o interrogatório que a entrevista existe para
+evitar. Cada uma é perguntada **dentro da etapa dela**, uma pergunta só, junto das perguntas que a
+etapa já faz. "Não se aplica" é resposta válida; **faltar a pergunta, não** — quem cobra a presença
+das seis é a suíte (`lib/test_start_doc_skill.py`), nunca a sua lembrança.
+
+| Pauta | Etapa · documento | A pergunta |
+|---|---|---|
+| integrações | 1 · `context.md` | com que sistemas de fora este projeto conversa — e qual deles pode sumir sem parar o seu? |
+| abstração de IA | 1 · `solution-strategy.md` | onde entra modelo de IA — e o que muda quando o fornecedor ou o modelo trocar? |
+| governança | 1 · `constituicao.md` | quem tem a palavra final sobre o quê — e o que ninguém muda sem o dono? |
+| topologia do repositório | 2 · `architecture-intent.md` | um repositório só, vários, monorepo — e o que decidiu essa forma? |
+| controle de acesso | 4 · `journeys.md` | quem pode fazer o quê em cada jornada — e quem NÃO pode? |
+| registro de log | 5 · `blueprint.md` | que passo do ciclo deixa registro — e quem lê esse registro depois? |
+
+Como toda pergunta da entrevista, a da pauta vai com a pista minerada à vista quando houver
+(o `.env.example` para integrações, a forma do repositório para topologia) — e sem pista o palpite
+declara isso, com a confiança baixa que a honestidade pede.
+
 **A etapa 5 (esquema) você abre com o ciclo montado, não com uma pergunta em branco.** Monte o
 ciclo passo a passo a partir dos documentos **aprovados** (`architecture-intent.md`, `journeys.md`,
 `quality-goals.md`), cada passo com a passagem que o originou ao lado — `arquivo:linha` —, e a
@@ -373,6 +394,17 @@ estão em `references/authorial-kit.md`; o diagrama é do `archify` e quem o des
 `skills/start/diagrama-blueprint.sh` (um por HTML: `organismo.html` e um `fluxo-<slug>.html` por
 fluxo nomeado). Ausente o `archify`, ele devolve a linha `DEGRADADO:` e código `3` — a ausência
 **degrada em voz alta no relatório**, nunca trava a etapa. **Só com essa etapa aprovada a 6 abre.**
+
+**O diagrama aprovado é obra aprovável, não artefato de sessão.** Quando o dono aprova a etapa 5,
+copie os HTMLs desenhados de `.claude/archify/` para a casa `.claude/docs/prototipo/` e escreva o
+sidecar `esquema.prototipo.md` — o mesmo formato de `.claude/docs/prototipo/FORMATO.md`, um por
+etapa como a lei já prevê — com `anexo-de: blueprint.md`: o `## Arquivos` lista os HTMLs copiados,
+e cada diagrama ganha uma linha em `## Superfícies` com a **procedência citada** — a passagem do
+`blueprint.md` que o originou (`- Organismo — jornada: o ciclo inteiro — procedência: blueprint.md
+§<seção>`; para `fluxo-<slug>.html`, a jornada é o fluxo nomeado). Quem grava o `conjunto-sig` é o
+rito de aprovação, nunca você à mão. `archify` ausente ⇒ **não nasce sidecar do esquema** — sidecar
+sem arquivo é erro de formato, não degradação; a ausência sai como a linha `DEGRADADO:` do script,
+declarada no relatório e na página de aprovação.
 
 **A etapa 6 (funcionalidades) é a única em que você fala primeiro.** A lista de `features.md` é
 **derivada** dos documentos já aprovados — cada item nasce de uma jornada, de uma meta ou de uma peça,
@@ -479,6 +511,34 @@ Um arquivo por documento em `.claude/docs/`, com o frontmatter do contrato (`aut
 gravar `.claude/docs/design.md` no padrão `DESIGN.md` e validar pelo CLI oficial (`npx --yes
 @google/design.md@0.3.0 lint`). Sem `node`/`npx`, ela já degrada pra checagem manual — diga isso em
 voz alta no relatório, nunca finja que o CLI rodou.
+
+**A oferta de prototipagem — dentro da etapa de interface, antes do de acordo.** Com o `design.md`
+gravado e **antes** de montar a página de aprovação da etapa 3, ofereça ao dono o protótipo
+navegável: telas HTML em `.claude/docs/prototipo/` com o sidecar `interface.prototipo.md`, no
+formato que `.claude/docs/prototipo/FORMATO.md` define (é a lei; o cobrador dela roda na suíte).
+Oferecer no fim da rodada não vale — a exaustão da última etapa reabriria a decisão que sustentou
+as três anteriores. **Oferta, nunca imposição: quem decide é o dono.**
+
+- **Aceitou ⇒ o protótipo entra na mesma aprovação da etapa**: as telas vão para a casa, o sidecar
+  as lista, e quem grava a marca do conjunto (`conjunto-sig`) é o rito de aprovação — nunca você à
+  mão.
+- **Aceitou ⇒ as superfícies obrigatórias entram por jornada, ou saem como lacuna declarada.**
+  Erro, vazio, carregando, configuração e governança são o que a prática sempre ignora — o
+  protótipo que só mostra o caminho feliz aprova metade da interface. Para **cada jornada** de
+  `journeys.md`, o `## Superfícies` do sidecar ou cobre as cinco com linha de superfície, ou
+  declara a lacuna com motivo (`- lacuna: <superfície> — jornada: <a jornada> — motivo: <por
+  quê>`, o formato do `FORMATO.md`). Lacuna sem motivo não vale, e a cobrança **recalcula a
+  cada jornada nova** — nada de "já cobrado" guardado em lugar nenhum. Quem cobra a presença
+  desta regra e do formato da lacuna é a suíte (`lib/test_sidecar_prototipo.py`).
+- **Recusou? A recusa se grava** — uma linha no frontmatter de `design.md` (frontmatter, nunca no
+  corpo: o corpo é o texto que o dono aprova, a mesma regra da `decisao-pendente:`):
+
+  ```
+  recusa-prototipo: {o motivo, na fala dele} — {data}
+  ```
+
+- **Gravada a recusa, a oferta se cala**: rodada seguinte que encontrar essa linha em `design.md`
+  não pergunta de novo — só volta a oferecer se o dono pedir.
 
 ### 5 · Apresentar, sabatinar e colher o de acordo — por etapa
 Escrever **não fecha** a etapa. O ciclo é este, e ele repete até o dono estar satisfeito:
@@ -606,7 +666,7 @@ Depois, ofereça o próximo passo:
 **Passo 3/7:** Entrevista → {doc}: {respondido | PENDENTE} … (uma linha por documento)
 **Passo 4/7:** Escrito → {lista de arquivos com status draft|ready}
 **Passo 5/7:** De acordo → {etapa}: {aprovada em YYYY-MM-DD | ABERTA, {N} reapresentações} … (uma linha por etapa)
-             Esquema → `blueprint.md`: {aprovado em YYYY-MM-DD | ABERTO} · diagrama → {caminho em `.claude/archify/` | `archify` ausente, DEGRADADO} · revisão 5b → {rodada | pendente}
+             Esquema → `blueprint.md`: {aprovado em YYYY-MM-DD | ABERTO} · diagrama → {promovido ao sidecar `esquema.prototipo.md` | `archify` ausente, DEGRADADO} · revisão 5b → {rodada | pendente}
              Por decidir → {etapa}: {a decisão aberta} … (uma linha por `decisao-pendente:` gravada) | nenhuma decisão aberta
              Sem dono → {N} funcionalidades sem origem · {M} jornadas sem funcionalidade · {K} passos do desenho sem funcionalidade (saída de `rastreio_etapas.py`)
 **Passo 6/7:** Decisões → `decisions/0001-{slug}.md` + {N} candidatas pendentes

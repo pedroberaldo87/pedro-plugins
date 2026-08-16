@@ -16,6 +16,7 @@ chega INTEIRO às skills que revisam. Quatro defeitos ela pega:
 """
 
 import os
+import re
 import sys
 
 AQUI = os.path.dirname(os.path.abspath(__file__))
@@ -74,16 +75,24 @@ def ler(p):
 
 PASTA_DA_REGUA = ".claude/docs"
 
+# A pasta da régua APONTADA como pasta da régua: solta (aspas, parêntese, espaço, fim)
+# ou colada ao documento. Caminho que segue para uma SUBPASTA — `.claude/docs/prototipo/`,
+# a casa do protótipo — aponta OUTRA coisa, e citá-lo não é enumerar a régua. Sem esta
+# distinção a régua media o arquivo inteiro: em 2026-08-16 uma linha nova sobre o
+# protótipo reprovou duas menções legítimas a 58 linhas dela, e a porta do repositório
+# fechou por defeito do medidor, não da obra.
+APONTA_A_REGUA = re.compile(re.escape(PASTA_DA_REGUA) + r"(?!/[a-z0-9_-]+/)")
+
 
 def enumera(txt, doc):
-    """A skill enumera `doc` quando cita a PASTA da régua e o NOME do documento.
+    """A skill enumera `doc` quando aponta a PASTA da régua e cita o NOME do documento.
 
     Exigir os dois CONTÍGUOS (`.claude/docs/<nome>`) era brecha: um trecho que põe a
     pasta numa linha (`docs = os.path.join(cwd, ".claude/docs")`) e os nomes na linha
     seguinte enumera igual e passava verde. Citar o `doc_load.py` (o programa) segue
     permitido — ele não escreve a pasta na prosa.
     """
-    return PASTA_DA_REGUA in txt and doc in txt
+    return bool(APONTA_A_REGUA.search(txt)) and doc in txt
 
 
 def _skill_de(destino):

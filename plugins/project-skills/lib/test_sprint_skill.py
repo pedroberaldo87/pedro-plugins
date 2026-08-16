@@ -310,6 +310,43 @@ def main():
           0 < texto.find("### As pendências do plano são lidas")
           < texto.find("Workflow({ scriptPath: MOTOR"))
 
+    # F13.8 — a fidelidade ao design aprovado em dois niveis. Sem cobrador, a
+    # divisao some na proxima edicao e todo pixel fora do lugar volta a segurar a
+    # obra em serie — ou pior, acabamento e estrutura viram a mesma coisa e o
+    # revisor decide sozinho o que bloqueia.
+    fidelidade = secao(texto, "### A fidelidade ao design aprovado tem DOIS níveis",
+                       "**A suíte é a MESMA")
+    print("a fidelidade ao aprovado tem dois niveis e a conferencia visual e por onda")
+    check("a secao da fidelidade existe", bool(fidelidade))
+    check("divergencia de estrutura segura a obra em >= P1",
+          "Divergência de ESTRUTURA segura a obra" in fidelidade
+          and "≥ P1" in fidelidade)
+    check("o arquivo divergente entra nos arquivos da onda do revisor",
+          "entra nos arquivos da onda que o\n  revisor recebe" in fidelidade
+          or "entra nos arquivos da onda" in fidelidade)
+    check("acabamento vira nota P3, nunca bloqueio",
+          "ACABAMENTO vira NOTA" in fidelidade and "P3" in fidelidade
+          and "nunca bloqueio" in fidelidade)
+    check("a conferencia visual e 1x por onda, so superficies tocadas",
+          "1× por ONDA" in fidelidade and "superfícies tocadas" in fidelidade)
+    check("a conferencia olha o render, nao so o DOM",
+          "print analisado" in fidelidade and "não leitura de DOM" in fidelidade)
+    check("a data da conferencia vive no relatorio, nunca no artefato",
+          "vive no relatório da onda, nunca no artefato" in fidelidade)
+
+    # F13.13 — o marcador de dado ficticio se grepa por onda nos arquivos de
+    # produto. Sem cobrador, o grep some da skill e o ficticio do prototipo vaza
+    # para producao sem ninguem olhar.
+    print("o marcador de dado ficticio e grepado por onda nos arquivos de produto")
+    check("a skill escreve o token literal e o grep por onda",
+          "marcador de dado fictício se grepa por ONDA" in fidelidade
+          and 'grep -rn "DADO-FICTICIO"' in fidelidade)
+    check("o token vem do frontmatter do sidecar, com a lei citada",
+          "marcador-ficticio" in fidelidade and "FORMATO.md" in fidelidade)
+    check("a casa do prototipo fica fora do grep, e achado nasce >= P1",
+          "excluindo a casa do protótipo" in fidelidade
+          and fidelidade.count("≥ P1") >= 2)
+
     print()
     if FAILS:
         print("FALHOU: %d" % len(FAILS))

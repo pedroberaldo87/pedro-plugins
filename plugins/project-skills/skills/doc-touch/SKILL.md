@@ -57,7 +57,7 @@ passo 2**, não uma varredura nova — o escopo inverso já fez o trabalho:
 | Doc re-projetado | Diagrama a re-renderizar |
 |---|---|
 | `architecture.md` | `organismo.html` |
-| `runtime.md` | os `fluxo-<slug>.html` dos fluxos cujos títulos o diff tocou |
+| `runtime.md` | os `fluxo-<slug>.html` dos fluxos cujos títulos o diff tocou — re-renderizados em **`.claude/docs/fluxos/`**, a casa canônica VERSIONADA (decisão do dono em 2026-08-13): fluxo é doc, entra no commit de conteúdo do passo 5, nunca em pasta de sessão |
 | doc de um aplicativo (monorepo) | `app-<nome>.html` daquele aplicativo |
 
 Para cada um, o ciclo da skill `archify` (invoque-a com a Skill tool — as camadas, os nomes
@@ -66,7 +66,14 @@ estáveis e o destino estão lá; não os redigite aqui):
 ```bash
 ARCHIFY_DIR=$(bash <plugin archify>/skills/archify/resolve-dir.sh "$PWD" archify)
 node <plugin archify>/skills/archify/bin/archify.mjs render architecture <entrada>.json "$ARCHIFY_DIR/organismo.html"
+
+# Fluxo tem casa própria e versionada — o resolve-dir aceita subdir com barra:
+FLUXOS_DIR=$(bash <plugin archify>/skills/archify/resolve-dir.sh "$PWD" docs/fluxos)
+node <plugin archify>/skills/archify/bin/archify.mjs render workflow <entrada>.json "$FLUXOS_DIR/fluxo-<slug>.html"
 ```
+
+⚠️ O HTML que nasce em `.claude/docs/fluxos/` é **rastreado no git** — vale a régua do repo
+público: sem caminho absoluto de máquina dentro dele (a checagem H do release-gate reprova).
 
 **O JSON de entrada é derivado do doc que acabou de ser re-projetado**, não do código cru: o
 doc é a leitura já curada da arquitetura, e desenhar direto do código reintroduz o palpite
@@ -99,7 +106,7 @@ Report curto primeiro: docs tocados (com o quê) · `seam_review` (costuras toca
 PC="$(bash "${CLAUDE_PLUGIN_ROOT}/lib/resolve-plugin.sh" project-skills lib/pattern_check.py)"
 
 # 1º commit — o CONTEÚDO (código, se houver, + os docs re-projetados + journal + grafo)
-git add <arquivos tocados> .claude/docs/<tocados> .claude/.project-doc/findings.jsonl graphify-out/
+git add <arquivos tocados> .claude/docs/<tocados> .claude/docs/fluxos/<re-renderizados> .claude/.project-doc/findings.jsonl graphify-out/
 git commit -m "..."          # nunca `git add -A`
 
 # 2º commit — o CARIMBO, apontando pro commit que acabou de nascer

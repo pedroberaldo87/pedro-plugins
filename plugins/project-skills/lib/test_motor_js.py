@@ -238,6 +238,30 @@ check("runSuitePrompt roda o comando declarado literal quando ele existe",
 check("proxy de critério é proibido no executor e reprovado no revisor",
       "PROXY É PROIBIDO" in motor and "critério REESCRITO" in motor)
 
+# E5 · A TRANCA HERDA (F13.6 · R-22). HTML nunca tem frontmatter, e sem herança o
+# executor edita protótipo aprovado sem nada acusar: o decompositor tem que tratar
+# arquivo citado por doc sob tranca como protegido. O corpo do prompt só existe no
+# motor.js, por desenho — o esqueleto não traz prompt nenhum.
+check("a tranca herda: arquivo citado por doc sob tranca é protegido",
+      "A TRANCA HERDA" in motor
+      and "arquivo citado por doc sob tranca é protegido" in motor
+      and "herda a tranca do doc que o cita" in motor)
+
+# E6 · FONTE DE LEITURA ≠ ARQUIVO DE ESCRITA (F13.11 · R-22). O protótipo aprovado é
+# insumo direto da implementação: a decomposição o entrega em `fontes`, separado de
+# `files`, e o executor pode copiar markup dele mas nunca editá-lo. Sem a distinção,
+# ou o protótipo entra em `files` (e vira escrita), ou some do prompt (e o executor
+# reinventa a tela). Schema sem descrição no prompt é convite a valor inventado.
+check("o schema da decomposição tem o campo `fontes` separado de `files`",
+      "fontes: {type:'array', items:{type:'string'}}" in motor)
+check("o decompositor separa a fonte de leitura dos arquivos de escrita",
+      "FONTE DE LEITURA, SEPARADA DA ESCRITA (R-22)" in motor
+      and "entra em \\`fontes\\`, NUNCA em \\`files\\`" in motor)
+check("o executor copia markup da fonte mas não a edita",
+      "`fontes` É LEITURA, NUNCA ESCRITA (R-22)" in motor.replace("\\`", "`")
+      and "NÃO edite a fonte" in motor
+      and "fonte não entra em \\`files_touched\\`" in motor)
+
 # R-17 · O JUIZ NÃO RECEBE A CONCLUSÃO DE QUEM PEDE O JULGAMENTO (Art. 4). A linha
 # vale nos DOIS motores — cobrar só o do /sprint deixa o viés voltar pelo /qa-loop.
 SEM_HIPOTESE = "VOCÊ NÃO RECEBE A HIPÓTESE DE QUEM PEDIU O JULGAMENTO"

@@ -41,7 +41,7 @@ anexo-de: design.md
 design-sig: 1836471203
 status: approved
 conjunto-sig: {sig}
-marcador-ficticio: FICTICIO
+marcador-ficticio: DADO-FICTICIO
 ---
 
 ## Arquivos
@@ -53,10 +53,16 @@ marcador-ficticio: FICTICIO
 
 - Painel do dia — jornada: acompanhar a obra — procedência: blueprint.md §3
 - Entrada de pedido — jornada: registrar um pedido — procedência: blueprint.md §4
+- lacuna: governança — jornada: acompanhar a obra — motivo: sem papel de admin neste sistema
 """
 
-TELAS = {"painel.html": "<h1>Painel</h1>\n<p>3 pedidos (FICTICIO)</p>\n",
-         "entrada.html": "<h1>Entrada</h1>\n<form>FICTICIO</form>\n"}
+# As superfícies OBRIGATÓRIAS (F13.5): o que a prática sempre ignora. Cobradas por
+# jornada no rito; aqui o cobrador de presença confere que a lei as escreve e que a
+# lacuna declarada carrega motivo.
+OBRIGATORIAS = ("erro", "vazio", "carregando", "configuração", "governança")
+
+TELAS = {"painel.html": "<h1>Painel</h1>\n<p>3 pedidos (DADO-FICTICIO)</p>\n",
+         "entrada.html": "<h1>Entrada</h1>\n<form>DADO-FICTICIO</form>\n"}
 
 ok = falhou = 0
 
@@ -73,17 +79,22 @@ def check(nome, cond, detalhe=""):
             print(f"       {detalhe}")
 
 
-def arquivos(caminho):
-    """Os caminhos listados no `## Arquivos` do corpo, na ordem em que aparecem."""
+def _secao(caminho, titulo):
+    """As linhas `- ...` de uma seção `## <titulo>` do corpo, na ordem."""
     lista, dentro = [], False
     with open(caminho, encoding="utf-8") as fh:
         for linha in fh:
             if linha.startswith("## "):
-                dentro = linha.strip() == "## Arquivos"
+                dentro = linha.strip() == "## " + titulo
                 continue
             if dentro and linha.strip().startswith("- "):
                 lista.append(linha.strip()[2:].strip())
     return lista
+
+
+def arquivos(caminho):
+    """Os caminhos listados no `## Arquivos` do corpo, na ordem em que aparecem."""
+    return _secao(caminho, "Arquivos")
 
 
 def conjunto_sig(raiz, lista):
@@ -114,6 +125,8 @@ def valida(raiz, caminho):
         erros.append("status é `approved` ou `ready`")
     if fm.get("status") == "ready" and not fm.get("correcao-pendente"):
         erros.append("status `ready` exige `correcao-pendente`")
+    if fm.get("marcador-ficticio") not in (None, "DADO-FICTICIO"):
+        erros.append("o marcador é o token literal `DADO-FICTICIO`, e só (decisão do dono)")
     lista = arquivos(caminho)
     if not lista:
         erros.append("o corpo não lista arquivo nenhum em `## Arquivos`")
@@ -122,6 +135,9 @@ def valida(raiz, caminho):
             erros.append(f"fora da casa {CASA}: {rel}")
         elif not os.path.isfile(os.path.join(raiz, *rel.split("/"))):
             erros.append(f"listado e não existe em disco: {rel}")
+    for sup in _secao(caminho, "Superfícies"):
+        if sup.startswith("lacuna:") and "motivo:" not in sup:
+            erros.append(f"lacuna declarada sem motivo: {sup}")
     if not erros and fm.get("conjunto-sig") != str(conjunto_sig(raiz, lista)):
         erros.append("o `conjunto-sig` gravado diverge do conjunto de hoje — protótipo mudado")
     return erros
@@ -177,12 +193,86 @@ r4, c4 = monta(sig=sig)
 with open(c4, encoding="utf-8") as fh:
     texto = fh.read()
 with open(c4, "w", encoding="utf-8") as fh:
-    fh.write(texto.replace("marcador-ficticio: FICTICIO\n", "")
+    fh.write(texto.replace("marcador-ficticio: DADO-FICTICIO\n", "")
                   .replace("- .claude/docs/prototipo/painel.html", "- docs/painel.html"))
 erros = valida(r4, c4)
 check("falta de campo e casa errada são acusadas",
       any("marcador-ficticio" in e for e in erros) and any("fora da casa" in e for e in erros),
       str(erros))
+
+r5, c5 = monta(sig=sig)
+with open(c5, encoding="utf-8") as fh:
+    texto = fh.read()
+with open(c5, "w", encoding="utf-8") as fh:
+    fh.write(texto.replace(" — motivo: sem papel de admin neste sistema", ""))
+check("lacuna declarada sem motivo é defeito",
+      any("lacuna declarada sem motivo" in e for e in valida(r5, c5)), str(valida(r5, c5)))
+
+# F13.13 — o marcador é o TOKEN LITERAL, não um valor livre: valor inventado no campo
+# faria a conferência por onda grepar a palavra errada e o fictício vazar calado.
+r7, c7 = monta(sig=sig)
+with open(c7, encoding="utf-8") as fh:
+    texto = fh.read()
+with open(c7, "w", encoding="utf-8") as fh:
+    fh.write(texto.replace("marcador-ficticio: DADO-FICTICIO", "marcador-ficticio: FAKE"))
+check("marcador diferente do token literal é defeito",
+      any("token literal" in e for e in valida(r7, c7)), str(valida(r7, c7)))
+
+print("· o consumidor da completude lê a mesma lista de superfícies")
+import completude  # noqa: E402
+check("as três superfícies do exemplo saem com jornada e marca de lacuna",
+      completude.le_superficies(caminho) == [("acompanhar a obra", False),
+                                             ("registrar um pedido", False),
+                                             ("acompanhar a obra", True)],
+      str(completude.le_superficies(caminho)))
+
+print("· o sidecar do esquema (F13.10): diagrama promovido, com procedência citada")
+# A lei já diz "um por etapa (<etapa>.prototipo.md)": o diagrama da etapa 5 entra pelo
+# MESMO formato, com `anexo-de: blueprint.md` — nada de formato paralelo.
+ESQUEMA = """---
+natureza: anexo
+anexo-de: blueprint.md
+design-sig: 77
+status: approved
+conjunto-sig: {sig}
+marcador-ficticio: DADO-FICTICIO
+---
+
+## Arquivos
+
+- .claude/docs/prototipo/organismo.html
+
+## Superfícies
+
+- Organismo — jornada: o ciclo inteiro — procedência: blueprint.md §2
+"""
+r6 = tempfile.mkdtemp(prefix="sidecar-esquema-")
+casa6 = os.path.join(r6, ".claude", "docs", "prototipo")
+os.makedirs(casa6)
+with open(os.path.join(casa6, "organismo.html"), "w", encoding="utf-8", newline="") as fh:
+    fh.write("<svg>ciclo (DADO-FICTICIO)</svg>\n")
+c6 = os.path.join(casa6, "esquema.prototipo.md")
+with open(c6, "w", encoding="utf-8") as fh:
+    fh.write(ESQUEMA.format(sig="0"))
+sig6 = conjunto_sig(r6, arquivos(c6))
+with open(c6, "w", encoding="utf-8") as fh:
+    fh.write(ESQUEMA.format(sig=sig6))
+check("o sidecar do esquema passa no MESMO validador, sem formato paralelo",
+      valida(r6, c6) == [], str(valida(r6, c6)))
+check("a linha do diagrama cita a procedência no blueprint",
+      any("procedência: blueprint.md" in s for s in _secao(c6, "Superfícies")),
+      str(_secao(c6, "Superfícies")))
+
+SKILL = os.path.join(AQUI, os.pardir, "skills", "start", "SKILL.md")
+skill_txt = ""
+if os.path.isfile(SKILL):
+    with open(SKILL, encoding="utf-8") as fh:
+        skill_txt = fh.read()
+check("a etapa 5 promove o diagrama ao sidecar `esquema.prototipo.md`, ancorado no blueprint",
+      "esquema.prototipo.md" in skill_txt and "anexo-de: blueprint.md" in skill_txt)
+check("a skill exige a procedência citada e declara a degradação sem archify",
+      "procedência citada" in skill_txt and "não nasce sidecar do esquema" in skill_txt
+      and "DEGRADADO" in skill_txt)
 
 print("· o formato escrito viaja com a árvore")
 check("a casa existe em disco, rastreada", os.path.isdir(os.path.dirname(FORMATO)), FORMATO)
@@ -196,6 +286,17 @@ check("o exemplo tem todos os campos",
       all(f"{c}:" in formato_txt for c in CAMPOS),
       str([c for c in CAMPOS if f"{c}:" not in formato_txt]))
 check("o formato ensina a conferir a marca na mão", "| cksum" in formato_txt)
+check("as cinco superfícies obrigatórias estão escritas na lei",
+      all(s in formato_txt for s in OBRIGATORIAS),
+      str([s for s in OBRIGATORIAS if s not in formato_txt]))
+check("a lei cobra as superfícies POR JORNADA e escreve a forma da lacuna com motivo",
+      "POR JORNADA" in formato_txt
+      and "- lacuna: <superfície> — jornada:" in formato_txt
+      and "motivo:" in formato_txt)
+check("a lei escreve o token literal do marcador e o grep por onda nos arquivos de produto",
+      "marcador-ficticio: DADO-FICTICIO" in formato_txt
+      and "conferência por onda" in formato_txt
+      and "PRODUTO" in formato_txt)
 
 print(f"{ok} passou · {falhou} falhou")
 sys.exit(1 if falhou else 0)

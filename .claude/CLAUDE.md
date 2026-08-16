@@ -59,12 +59,15 @@ bash plugins/project-skills/hooks/test_plan_gate.sh
 
 ## Diagramas (archify)
 
-Os diagramas de arquitetura moram em **`.claude/archify/`** (fora do git — artefato de
-sessão, como `.claude/visual/`), em três camadas com nome **estável**, uma por assunto:
-`organismo.html` (o repositório inteiro) · `app-<nome>.html` (um por aplicativo, só quando
-há dois ou mais) · `fluxo-<slug>.html` (um por fluxo que `runtime.md` nomeia — hoje
-`grep -c '^## ' .claude/docs/runtime.md` devolve 24 (23 fluxos + Pendências)). A régua de quando cada camada existe,
-e o resolvedor de destino, estão em `plugins/archify/skills/archify/SKILL.md`.
+Os diagramas de arquitetura vivem em três camadas com nome **estável**, uma por assunto:
+`organismo.html` (o repositório inteiro) e `app-<nome>.html` (um por aplicativo, só quando
+há dois ou mais) moram em **`.claude/archify/`** (fora do git — artefato de sessão, como
+`.claude/visual/`); `fluxo-<slug>.html` (um por fluxo que `runtime.md` nomeia — hoje
+`grep -c '^## ' .claude/docs/runtime.md` devolve 24 (23 fluxos + Pendências)) mora em
+**`.claude/docs/fluxos/`**, casa canônica **versionada** (decisão do dono em 2026-08-13:
+fluxo é doc, entra no commit de conteúdo — e por ser rastreado vale a régua do repo
+público, sem caminho absoluto de máquina dentro do HTML). A régua de quando cada camada
+existe, e o resolvedor de destino, estão em `plugins/archify/skills/archify/SKILL.md`.
 
 **Eles se atualizam junto com a doc:** o passo 2b do `/doc-touch` re-renderiza o diagrama de
 toda camada cujo doc foi re-projetado — `architecture.md` puxa o organismo, `runtime.md`
