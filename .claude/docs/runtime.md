@@ -1,6 +1,6 @@
 ---
-generated: 2026-08-13
-generated-commit: 9054b6f
+generated: 2026-08-16
+generated-commit: 7793362
 project: pedro-plugins
 scope:
   - plugins/project-skills/hooks/sessionstart-doc.sh
@@ -90,7 +90,7 @@ verified-by:
   - plugins/project-skills/lib/test_motor_js.py
   - plugins/gauntlet/hooks/test_gauntlet_hooks.sh
   - plugins/lixeiro/hooks/test_lixeiro_hooks.sh
-doc-sig: pedro-plugins/sessionstart-doc.sh@gen=3.8#fc1ccc33
+doc-sig: pedro-plugins/sessionstart-doc.sh@gen=3.8#14bde3c1
 
 # Runtime — fluxos ponta-a-ponta
 
