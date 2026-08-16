@@ -71,7 +71,7 @@ eq(lixeiro.classifica("node .../.bin/tsc -b"), "efemero", "compilação é efêm
 eq(lixeiro.classifica("node /proj/node_modules/.bin/vite --port 5199"), "servico", "vite é serviço")
 eq(lixeiro.classifica("next-server (v16.2.11)"), "servico", "servidor do next é serviço")
 eq(lixeiro.classifica("python3 -m http.server 8000"), "servico", "servidor http é serviço")
-eq(lixeiro.classifica("/Users/x/.rustup/toolchains/stable/bin/rustc"), "efemero",
+eq(lixeiro.classifica("/Users/x/.rustup/toolchains/stable/bin/rustc"), "efemero",  # public-ok: conta fictícia "x" no lugar do nome real, que é a forma que a própria regra manda usar em exemplo
    "rustc órfão do cargo é efêmero")
 eq(lixeiro.classifica("cargo build --release"), "efemero", "build de rust é efêmero")
 eq(lixeiro.classifica("cmake -S . -B build"), None, "cmake não casa na regra do make")
