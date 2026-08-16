@@ -65,6 +65,12 @@ MINERADOS = [
 
 DISPENSA = "dispensa.md"
 
+# A CASA do protótipo (lei: .claude/docs/prototipo/FORMATO.md). O sidecar de lá é ANEXO:
+# natureza própria, fora de `regua`/`marca_regua` — o protótipo muda de tela sem mudar a
+# lei, e contaminar a marca congelada faria toda missão longa acusar lei mexida à toa.
+CASA_PROTOTIPO = ("prototipo",)
+SUFIXO_SIDECAR = ".prototipo.md"
+
 
 def corpo(caminho):
     """O texto abaixo do frontmatter YAML. Sem frontmatter: o arquivo inteiro.
@@ -191,6 +197,93 @@ def le_documento(raiz, nome, natureza, papel):
     }
 
 
+def _arquivos_do_sidecar(caminho):
+    """Os caminhos do `## Arquivos` do corpo, na ordem em que aparecem."""
+    lista, dentro = [], False
+    try:
+        with open(caminho, encoding="utf-8", errors="replace") as fh:
+            for linha in fh:
+                if linha.startswith("## "):
+                    dentro = linha.strip() == "## Arquivos"
+                    continue
+                if dentro and linha.strip().startswith("- "):
+                    lista.append(linha.strip()[2:].strip())
+    except OSError:
+        pass
+    return lista
+
+
+def _conjunto_sig(raiz, lista):
+    """A marca do CONJUNTO: `cksum` POSIX da emenda dos arquivos, na ordem do corpo
+    (o `cat a b | cksum` do FORMATO). Arquivo ausente devolve None — sem conjunto inteiro
+    não há marca a comparar, e fingir uma inventaria divergência ou acordo falso."""
+    crc, n = 0, 0
+    for rel in lista:
+        try:
+            with open(os.path.join(raiz, *rel.split("/")), "rb") as fh:
+                dados = fh.read()
+        except OSError:
+            return None
+        for b in dados:
+            crc = _crc_byte(crc, b)
+        n += len(dados)
+    while n:
+        crc = _crc_byte(crc, n & 0xFF)
+        n >>= 8
+    return (~crc) & 0xFFFFFFFF
+
+
+def le_anexos(raiz):
+    """Os sidecars de protótipo da casa, cada um como ANEXO — nunca como régua.
+
+    Dois gatilhos reabrem o anexo, e os dois saem nomeados:
+      - divergência do CONJUNTO: o `conjunto-sig` gravado não bate com a emenda dos
+        arquivos de hoje — alguém mexeu no protótipo depois do de acordo;
+      - de acordo do design REGRAVADO: o `design-sig` gravado não bate com a marca de
+        hoje do documento que o sustenta (`anexo-de`) — o design mudou por baixo.
+    """
+    casa = os.path.join(raiz, ".claude", "docs", *CASA_PROTOTIPO)
+    if not os.path.isdir(casa):
+        return []
+    anexos = []
+    for nome in sorted(os.listdir(casa)):
+        if not nome.endswith(SUFIXO_SIDECAR):
+            continue
+        caminho = os.path.join(casa, nome)
+        fm = frontmatter(caminho)
+        status = fm.get("status", "")
+        anexo_de = fm.get("anexo-de", "")
+        lista = _arquivos_do_sidecar(caminho)
+        conjunto_hoje = _conjunto_sig(raiz, lista) if lista else None
+        gravada = fm.get("conjunto-sig", "")
+        diverge = bool(gravada) and (conjunto_hoje is None or str(conjunto_hoje) != gravada)
+        design_sig = fm.get("design-sig", "")
+        design_hoje = cksum(os.path.join(raiz, ".claude", "docs", anexo_de)) if anexo_de else None
+        regravado = bool(design_sig) and design_hoje is not None and str(design_hoje) != design_sig
+        reaberto = diverge or regravado
+        vale = status == "approved" and not reaberto
+        if reaberto:
+            motivo = ("o conjunto de hoje diverge do `conjunto-sig` gravado — protótipo mudado"
+                      if diverge else
+                      "o de acordo do design foi regravado — o `design-sig` não bate mais")
+        elif vale:
+            motivo = "anexo aprovado, fora da régua congelada"
+        else:
+            motivo = f"status é '{status or 'sem status'}', e só 'approved' vale como acordo"
+        anexos.append({
+            "arquivo": os.path.relpath(caminho, raiz),
+            "natureza": "anexo",
+            "anexo_de": anexo_de or None,
+            "status": status or None,
+            "vale": vale,
+            "divergencia_conjunto": diverge,
+            "reaberto": reaberto,
+            "motivo": motivo,
+            "correcao_pendente": fm.get("correcao-pendente") or None,
+        })
+    return anexos
+
+
 def carrega(raiz):
     docs = []
     # Ausência de lei e ausência de etapa de concepção não se corrigem do mesmo jeito —
@@ -210,6 +303,7 @@ def carrega(raiz):
         dispensa = {"arquivo": os.path.relpath(disp, raiz), "motivo": fm.get("motivo") or None}
 
     regua = [d for d in docs if d["vale_como_regua"]]
+    anexos = le_anexos(raiz)
     # A marca da missão: a soma das marcas do que vale como régua, na ordem de leitura.
     # É ela que a execução contínua congela na primeira volta — lei editada no meio da
     # missão muda este número, e a mudança aparece em vez de passar calada.
@@ -224,6 +318,9 @@ def carrega(raiz):
         "ausentes_acordo": faltam["acordo"],
         "ausentes_minerados": faltam["minerado"],
         "dispensa": dispensa,
+        # O anexo fica FORA de `regua` e de `marca_regua` de propósito: protótipo que
+        # muda de tela não é lei mexida, e contaminá-la dispararia alarme falso.
+        "anexos": anexos,
         "reabertos": [d["arquivo"] for d in docs if d["reaberto"]],
         "correcoes_pendentes": [
             {"arquivo": d["arquivo"], "o_que_falta": d["correcao_pendente"]}
@@ -281,6 +378,12 @@ def texto(estado):
         if not d["vale_como_regua"]:
             marca = "⚠️" if d["reaberto"] else "  "
             linhas.append(f"  {marca} {d['arquivo']:<34} {d['motivo']}")
+    if estado["anexos"]:
+        linhas.append("")
+        linhas.append("ANEXO — o protótipo, fora da régua congelada (nunca entra na marca):")
+        for a in estado["anexos"]:
+            marca = "✅" if a["vale"] else "⚠️"
+            linhas.append(f"  {marca} {a['arquivo']:<34} {a['motivo']}")
     if estado["reabertos"]:
         linhas.append("")
         linhas.append("REABERTOS — editados depois do de acordo, não valem como régua:")

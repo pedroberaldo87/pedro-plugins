@@ -25,8 +25,8 @@ claude plugin details <nome>@pedro-plugins
 bash scripts/suite.sh                  # ⚠️ NUNCA `run_suites.py` pelado: sem globs
                                        # ele roda ZERO suítes e sai VERDE (F17.2/F17.3)
 # Testes avulsos (o release-gate roda os do plugin tocado)
-python3 plugins/project-doc/lib/test_pattern_check.py
-bash plugins/project-doc/hooks/test_plan_gate.sh
+python3 plugins/project-skills/lib/test_pattern_check.py
+bash plugins/project-skills/hooks/test_plan_gate.sh
 ```
 
 ## Gotchas Críticos
@@ -35,8 +35,8 @@ bash plugins/project-doc/hooks/test_plan_gate.sh
 - ⚠️ **Mudou um plugin? Pergunte SEMPRE o que mais tem que acompanhar** — e a resposta muda conforme o tipo de mudança. Apurado em 2026-08-02: **bump de versão não toca o bootstrap** (o `manifest.json` dele lista plugin por `name` + `enabled`, sem número de versão — verificável com `grep -c '[0-9]\+\.[0-9]\+\.[0-9]\+' plugins/bootstrap/config/manifest.json`). **Plugin NOVO toca**, e aí são três arquivos (`plugin.json`, `marketplace.json`, `bootstrap/config/manifest.json`) — quem cobra é `conformance.py:check_catalogo`, **não** o release-gate, então o commit passa e o desvio só aparece no próximo `bootstrap:setup`. **Contrato de skill consumido por outro plugin** só defasa quando foi COPIADO: `handoff` e `qa-loop` apontam para `visual_page.py schema` e `plan_state.py`, que são lidos na hora, então não defasam — cópia em prosa defasaria.
 - ⚠️ **Estado mutável vai em `~/.claude/…`, NUNCA dentro do plugin** (`${CLAUDE_PLUGIN_ROOT}` é cache reescrito a cada bump). Estado por-sessão em `/tmp` **tem que** ser chaveado por `session_id`.
 - ⚠️ **Nunca canonicalize path na chave de um sentinel** — `git rev-parse` dá `/private/var/…` e o recorte de string dá `/var/…`; o `cksum` diverge e o sentinel nunca casa. Use `hooks/lib-project-root.sh`.
-- ⚠️ **Editar `_shared/` sem rodar `scripts/sync-shared.sh`** deixa as 108 cópias vendoradas defasadas (o número sai do mapa, nunca daqui: `sed -n '/^SPECS=(/,/^)/p' scripts/sync-shared.sh | grep -c '::'`) — fix de código compartilhado nasce em `_shared/`, nunca na cópia.
-- ⚠️ **A história do git foi recriada em 2026-07-31** (commit órfão único `2587006`, sem ancestral comum com a anterior). Hash citado em doc velha não resolve mais, e todo mecanismo que compara contra um SHA gravado cai no caminho de cold-start — foi assim que a janela do `doc-touch` virou "690 mil linhas apagadas". Só o `/project-doc` FULL reaponta o `ledger.json`.
+- ⚠️ **Editar `_shared/` sem rodar `scripts/sync-shared.sh`** deixa as 109 cópias vendoradas defasadas (o número sai do mapa, nunca daqui: `sed -n '/^SPECS=(/,/^)/p' scripts/sync-shared.sh | grep -c '::'`) — fix de código compartilhado nasce em `_shared/`, nunca na cópia.
+- ⚠️ **A história do git foi recriada em 2026-07-31** (commit órfão único `2587006`, sem ancestral comum com a anterior). Hash citado em doc velha não resolve mais, e todo mecanismo que compara contra um SHA gravado cai no caminho de cold-start — foi assim que a janela do `doc-touch` virou "690 mil linhas apagadas". Só o `/doc` FULL (skill `project-skills:doc`) reaponta o `ledger.json`.
 
 ## Documentation Index
 
@@ -46,7 +46,7 @@ bash plugins/project-doc/hooks/test_plan_gate.sh
 - **[quality-goals.md](.claude/docs/quality-goals.md)** — *autoral, `authored-by: human`* — a ordem de prioridade quando não dá para ter tudo (escaneabilidade > drill-down > completude > elegância), os dois regimes de documento, os três níveis de leitura, a régua de estilo que abole prosa em página gerada, e o mecanismo anti-ocultação do colapso
   → antes de escrever relatório, plano, página de aprovação ou qualquer artefato que um humano lê para decidir
 
-- **[architecture.md](.claude/docs/architecture.md)** — estrutura do repo, anatomia de plugin, catálogo dos 23 plugins distribuídos com versões, os 12 plugins com hooks evento a evento, a engine vendorada (`_shared/` → 108 cópias em 44 pastas, §7), decisões de arquitetura, terceiros do bootstrap
+- **[architecture.md](.claude/docs/architecture.md)** — estrutura do repo, anatomia de plugin, catálogo dos 23 plugins distribuídos com versões, os 12 plugins com hooks evento a evento, a engine vendorada (`_shared/` → 109 cópias em 44 pastas, §7), decisões de arquitetura, terceiros do bootstrap
   → entender o projeto, adicionar plugin, mexer em hooks, onboarding de máquina nova
 - **[patterns.md](.claude/docs/patterns.md)** — convenções de shell (fail-open, protocolo de saída de hook) e Python (stdlib only), vendoring, green-cache, regras de release + os checks do gate de commit (quantos são hoje sai do próprio arquivo: `grep -cE '^# [A-Z0-9-]+ · ' .claude/hooks/release-gate.sh`), testing, e a lista completa de gotchas com arquivo:símbolo
   → criar plugin, publicar mudança, escrever hook, evitar as armadilhas de release

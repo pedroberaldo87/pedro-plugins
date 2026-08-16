@@ -65,12 +65,12 @@ verified-by:
   - .claude/hooks/test_release_gate.sh
   - plugins/slides/lib/test_md2deck.py
 doc-sig: pedro-plugins/release-gate.sh@gen=3.8#6312a749
+---
 
 # Patterns & Gotchas
 
 Convenções deste marketplace. Tudo aqui é regra lida no código desta rodada, não estilo sugerido.
 Rótulos: **[confirmado]** = li o arquivo ou rodei o comando nesta rodada · **[inferido]** = deduzido, não testado · **[relatado]** = veio de comentário/registro no próprio código.
----
 
 ## 1 · Shell (hooks)
 
@@ -345,8 +345,8 @@ precisou ser reimplementada em Python em `plugins/project-skills/lib/doc_load.py
 que é o programa que decide o que vale como régua. Copiar a receita é exatamente o defeito
 desta seção — o que impede a divergência é a asserção que calcula a marca pelos dois
 caminhos e exige o mesmo número [confirmado, `plugins/project-skills/lib/test_doc_load.py`
-roda `sh -c '. …/lib-doc-mark.sh && doc_marca …'` e compara com a saída do módulo Python;
-`python3 plugins/project-skills/lib/test_doc_load.py` → `42 passou · 0 falhou` nesta rodada].
+roda `bash -c '. …/lib-doc-mark.sh && doc_marca …'` e compara com a saída do módulo Python;
+`python3 plugins/project-skills/lib/test_doc_load.py` → `50 passou · 0 falhou` nesta rodada].
 **Régua durável: reimplementação cross-linguagem só é legítima com o teste de identidade
 junto** — sem ele, o que existe são duas receitas que ninguém sabe se ainda concordam.
 
@@ -433,7 +433,8 @@ script segue com um valor plausível e errado.
   propaganda em vez de rodar. O arquivo existe, `command -v` aprova, o guard passa e o hook
   só quebra na chamada real. O resolvedor certo tenta rodar: `hj_py` (`_shared/hook-json.sh`)
   percorre `python3` e `python` e só aceita quem responde a `--version`; o equivalente para
-  o interpretador é `test_conformance.py:bash_posix`. Medida de hoje: `grep`ando os hooks de
+  o interpretador é `bash_posix` — hoje em `_shared/bash_posix.py`, vendorado
+  (`test_conformance.py` o importa da cópia local). Medida de hoje: `grep`ando os hooks de
   produção, **nenhum** decide por presença — 16 usam o resolvedor.
 
 - 🔴 **`stat -f` não falha no GNU: ele imprime e SÓ ENTÃO sai com erro** [confirmado,
@@ -1724,7 +1725,7 @@ não devolve erro: devolve **zero globo**, e aí toda suíte do repositório vir
 reconhece as duas formas hoje, de propósito. Vale como regra: **leitor de formato entende o
 antigo e o novo; quebrar no dia da troca é acoplar a doc ao workflow por outro caminho.**
 
-**A decisão que fechou o caso do `bash` no Windows: quem precisa dele PROCURA um que rode.** Três tentativas de arrumar pelo PATH do runner falharam (`GITHUB_PATH` não venceu o `System32`; `export PATH=/usr/bin:$PATH` também não). O critério de um bash servir passou a ser **ele responder**, não estar no PATH — `test_conformance.py:bash_posix` testa o candidato com um `echo` e, sem nenhum que responda, os casos que exercitam hook shell **pulam em voz alta** (49 ok em vez de 57). Hook shell sem shell não é falha do hook, e fingir que é foi o que manteve a esteira vermelha.
+**A decisão que fechou o caso do `bash` no Windows: quem precisa dele PROCURA um que rode.** Três tentativas de arrumar pelo PATH do runner falharam (`GITHUB_PATH` não venceu o `System32`; `export PATH=/usr/bin:$PATH` também não). O critério de um bash servir passou a ser **ele responder**, não estar no PATH — `bash_posix` (hoje em `_shared/bash_posix.py`, vendorado; `test_conformance.py` o importa) testa o candidato com um `echo` e, sem nenhum que responda, os casos que exercitam hook shell **pulam em voz alta** (49 ok em vez de 57). Hook shell sem shell não é falha do hook, e fingir que é foi o que manteve a esteira vermelha.
 
 **Onde cada família de suíte mora, e quem a roda no commit** — a contagem sai do `ls`, nunca de um número escrito aqui:
 

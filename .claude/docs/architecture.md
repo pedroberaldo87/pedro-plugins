@@ -84,7 +84,6 @@ verified-by:
   - plugins/branches/lib/test_branch_state.py
   - plugins/guardrails/lib/test_askq_lint.py
   - plugins/slides/lib/test_md2deck.py
-doc-sig: pedro-plugins/marketplace.json@gen=3.8#b3ff1b39
 ---
 
 # Arquitetura — pedro-plugins
@@ -200,7 +199,7 @@ python3 -c "import json;print(len(json.load(open('.claude-plugin/marketplace.jso
   **preâmbulo** que as outras rodam antes de julgar qualquer coisa. Quem já a invoca se lê
   sem cravar lista aqui —
   `grep -rl 'doc-load' plugins/*/skills/*/SKILL.md | grep -v 'skills/doc-load/'` (devolve
-  **10** arquivos neste run, em **quatro** plugins — o `gauntlet` entrou na v0.3.1, e é o
+  **11** arquivos neste run, em **quatro** plugins — o `gauntlet` entrou na v0.3.1, e é o
   primeiro consumidor de fora do trio que já a usava: a abertura dele resolve a lei do
   modo com-lei pelo `doc_load.py`. **Na v0.4.0 o congelamento dessa lei saiu da prosa e
   virou programa:** o `rito` verde grava `lei-aprovada.marca` (o conteúdo de cada documento
@@ -311,7 +310,7 @@ plugins/<nome>/
 ```json
 {
   "name": "bootstrap",
-  "version": "1.8.5",
+  "version": "1.17.14",
   "description": "…",
   "author": { "name": "pedroberaldo87", "email": "tools@viustudio.com.br" },
   "homepage": "https://github.com/pedroberaldo87/pedro-plugins",
@@ -364,7 +363,7 @@ improve-workflow  0.16.29  [improve-workflow]           -
 intent-guard       0.8.15  [intent-guard]               HOOKS
 lixeiro             1.5.8  [faxina]                     HOOKS
 principles          1.0.5  [principles]                 -
-project-skills    0.22.117  [completude,design-md,doc,doc-load,doc-touch,monitorar,pesquisa-referencias,plan,project-skills,qa-loop,sprint,start] HOOKS
+project-skills    0.22.118  [completude,design-md,doc,doc-load,doc-touch,monitorar,pesquisa-referencias,plan,project-skills,qa-loop,sprint,start] HOOKS
 ship                1.5.6  [ship]                       HOOKS
 slides              1.6.3  [slides]                     -
 vision              0.1.1  []                           -
@@ -1485,8 +1484,8 @@ executado sobre os docs nesta rodada]
 ### 8.10 `doc_load.py` — quais documentos valem como RÉGUA hoje
 
 Nasceu nesta rodada, em `plugins/project-skills/lib/doc_load.py`, com a skill
-`skills/doc-load/SKILL.md` e a suíte `lib/test_doc_load.py` (**38 checks** — `python3
-plugins/project-skills/lib/test_doc_load.py` → *"38 passou · 0 falhou"* nesta passada).
+`skills/doc-load/SKILL.md` e a suíte `lib/test_doc_load.py` (**50 checks** — `python3
+plugins/project-skills/lib/test_doc_load.py` → *"50 passou · 0 falhou"* nesta passada).
 
 Ele responde uma pergunta só, e responde por programa: **contra o que esta obra pode ser
 julgada?** Três naturezas, com exigências diferentes (constantes `LEI`, `ACORDO` e o
@@ -1504,7 +1503,13 @@ minerado no topo do arquivo):
 
 Campos da saída: `regua`, `marca_regua`, `ausentes` (mais `ausentes_lei`,
 `ausentes_acordo` e `ausentes_minerados`, a mesma lista separada por natureza), `dispensa`,
-`reabertos`, `correcoes_pendentes`. Ausência não é achado — projeto sem `constituicao.md`
+`reabertos`, `correcoes_pendentes` — e `anexos`: os sidecars de protótipo de
+`.claude/docs/prototipo/*.prototipo.md` (`le_anexos`), quarta natureza que **nunca** entra
+em `regua` nem em `marca_regua` — o protótipo troca de tela sem mudar a lei, e contaminar a
+marca congelada acusaria lei mexida à toa; cada anexo sai com os dois gatilhos de reabertura
+nomeados (conjunto divergente do `conjunto-sig` · `design-sig` que não bate mais com o
+`anexo-de`). O formato do sidecar é lei própria: `.claude/docs/prototipo/FORMATO.md`
+(§1.10a de `patterns.md`). Ausência não é achado — projeto sem `constituicao.md`
 simplesmente não tem o eixo, e o programa não escreve nada em lugar nenhum: ele lê.
 
 ⚠️ **Mas ausência deixou de ser rodapé: desde 2026-08-12 ela abre o relatório.** O bloco
@@ -1933,7 +1938,7 @@ plugins/branches/lib/test_branch_state.py       :: OK
 plugins/guardrails/lib/test_askq_lint.py        :: ── 47 passou · 0 falhou ──
 plugins/intent-guard/lib/test_ledger.py         :: test_ledger: OK
 plugins/project-skills/lib/test_doc_lint.py     :: TODOS OS 39 CHECKS PASSARAM
-plugins/project-skills/lib/test_doc_load.py     :: 38 passou · 0 falhou
+plugins/project-skills/lib/test_doc_load.py     :: 50 passou · 0 falhou
 plugins/project-skills/lib/test_graph_map.py    :: TODOS OS 23 CHECKS PASSARAM
 plugins/project-skills/lib/test_journal.py      :: TODOS OS 123 CHECKS PASSARAM
 plugins/project-skills/lib/test_organism.py     :: test_organism: abertura apresenta o herdado item a item (S-12) ✓
