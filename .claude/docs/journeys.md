@@ -7,6 +7,7 @@ status: approved
 approved: 2026-08-16
 scope: []
 approved-sig: 1066034391
+correcao-pendente: dois marcadores [PENDENTE] (linhas 36-37) dizem que a etapa de protótipo e o programa das pautas transversais ainda não existem no /start — a corrida 12 os construiu (skills/start/SKILL.md:368 e :515, cobertos por test_start_doc_skill.py); a proposta com antes e depois literais está no relatório da parada
 ---
 
 # Jornadas

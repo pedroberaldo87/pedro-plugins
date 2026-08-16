@@ -57,6 +57,16 @@ def main():
     check("o código de saída é o veredito", "código de saída" in texto)
     check("os caminhos saem do /doc-load, não de cor", "/doc-load" in texto)
 
+    print("o sidecar de protótipo entra como 4º posicional (F13.9)")
+    check("a chamada de exemplo passa o sidecar como 4º posicional",
+          "<caminho>/.claude/docs/prototipo/<etapa>.prototipo.md" in texto)
+    check("a skill nomeia o argumento como sidecar de protótipo",
+          "sidecar de protótipo" in texto)
+    check("a lista do /doc-load cobre os quatro caminhos",
+          "Os quatro caminhos saem do `/doc-load`" in texto)
+    check("sidecar ausente não autoriza omitir o argumento",
+          "passe o caminho mesmo assim" in texto)
+
     print("os DOIS lados aparecem, sempre")
     check("a apresentação tem seção própria",
           "## Como apresentar — os DOIS lados, sempre" in texto)

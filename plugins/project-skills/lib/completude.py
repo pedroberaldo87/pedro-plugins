@@ -17,6 +17,7 @@ e a pasta dos planos de quem chama.
 
 import json
 import os
+import re
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -27,6 +28,31 @@ import plan_state  # noqa: E402
 # a feature é o cabeçalho `## E1 …` do features.md — a camada acima do requisito,
 # que o `cobertura` já sabe achar mas só usa como rótulo de agrupamento.
 FEATURE_RE = cobertura.EPICO_RE
+
+# a jornada citada numa linha de superfície do sidecar de protótipo, no formato
+# que a lei escreve (.claude/docs/prototipo/FORMATO.md): `— jornada: <nome> —`
+SUP_JORNADA_RE = re.compile(r"\bjornada:\s*([^—\n]+)")
+
+
+def le_superficies(fonte):
+    """As superfícies do sidecar de protótipo: [(jornada, é_lacuna), …].
+
+    `fonte` é o caminho do `<etapa>.prototipo.md` OU o texto direto, a mesma
+    regra do `cobertura`. Lê as linhas `- …` do `## Superfícies`, no formato da
+    lei (FORMATO.md): superfície real cita `— jornada: <nome>`; lacuna declarada
+    começa em `lacuna:` e cita a jornada igual. Linha sem jornada não entra —
+    sem jornada não há com que cruzar requisito.
+    """
+    sups, dentro = [], False
+    for linha in cobertura._texto(fonte).splitlines():
+        if linha.startswith("## "):
+            dentro = linha.strip() == "## Superfícies"
+            continue
+        corpo = linha.strip()[2:].strip() if linha.strip().startswith("- ") else ""
+        jor = SUP_JORNADA_RE.search(corpo) if dentro and corpo else None
+        if jor:
+            sups.append((jor.group(1).strip(), corpo.startswith("lacuna:")))
+    return sups
 
 
 def le_features(fonte):
@@ -90,7 +116,7 @@ def _plano_unico(planos):
     return {"phases": out}
 
 
-def cadeia(features, planos, **cruzamentos):
+def cadeia(features, planos, prototipo="", **cruzamentos):
     """Os quatro elos, cada um com o que falta nele.
 
     `features` é o caminho do features.md ou o texto; `planos` é a lista que
@@ -121,6 +147,18 @@ def cadeia(features, planos, **cruzamentos):
     propósito, e contar isso como trabalho que falta fazia a cadeia nunca poder
     fechar. Mentira (`tique_sem_prova`) conta em plano encerrado também — passo
     marcado como feito sem prova é falso em qualquer plano.
+
+    Elo 4 — requisito → protótipo: todo requisito com jornada tem protótipo. A
+    feature é épico sem campo de interface, então o elo medível é o requisito,
+    pelo campo `Jornada`, cruzado contra as superfícies do sidecar (`prototipo`,
+    caminho ou texto do `<etapa>.prototipo.md`). Jornada com superfície real no
+    sidecar cobre o requisito; jornada citada só em `lacuna:` sai em `declarado`
+    (`lacuna_declarada`) — fora da conta, como o artigo sem cobrador; jornada
+    que o sidecar não cita sai em `requisito_sem_prototipo`. Sidecar ausente
+    NÃO esvazia o balde: requisito com jornada sem sidecar nenhum é requisito
+    sem protótipo — a obrigação é do protótipo existir, não da medição achar o
+    arquivo. Requisito sem campo `Jornada` não entra: sem jornada não há tela
+    prometida a cobrar.
     """
     falta_doc = lacunas(features, cruzamentos)
     reqs = cobertura.le_requisitos(features)
@@ -142,6 +180,17 @@ def cadeia(features, planos, **cruzamentos):
             elif p.get("status") not in ("done", "abandoned"):
                 tarefa_pendente.append(it["id"])
 
+    sups = le_superficies(prototipo)
+    reais = {cobertura._chave(j) for j, lac in sups if not lac}
+    lacunas_proto = {cobertura._chave(j) for j, lac in sups if lac}
+    requisito_sem_prototipo, lacuna_declarada = [], []
+    for rid in sorted(reqs):
+        chave = cobertura._chave(reqs[rid].get("jornada") or "")
+        if not chave or chave in reais:
+            continue
+        (lacuna_declarada if chave in lacunas_proto
+         else requisito_sem_prototipo).append(rid)
+
     elos = [
         {"elo": "feature → requisito",
          "falta": {"feature_sem_requisito": feature_sem_requisito,
@@ -155,6 +204,9 @@ def cadeia(features, planos, **cruzamentos):
         {"elo": "tarefa → prova",
          "falta": {"tique_sem_prova": tique_sem_prova,
                    "tarefa_pendente": tarefa_pendente}},
+        {"elo": "requisito → protótipo",
+         "falta": {"requisito_sem_prototipo": requisito_sem_prototipo},
+         "declarado": {"lacuna_declarada": lacuna_declarada}},
     ]
     for e in elos:
         e.setdefault("declarado", {})
@@ -189,12 +241,15 @@ def resumo(c):
 def main(argv):
     if len(argv) < 3:
         print("uso: completude.py <features.md> <pasta-dos-planos> "
-              "[<constituicao.md>] [--json]", file=sys.stderr)
+              "[<constituicao.md>] [<sidecar.prototipo.md>] [--json]",
+              file=sys.stderr)
         return 2
     # a lei entra por argumento porque sem ela a medição não fecha: ausente, ela
     # sai nomeada em `lacunas` em vez de virar balde vazio que ninguém lê.
-    lei = argv[3] if len(argv) > 3 and not argv[3].startswith("--") else ""
-    c = cadeia(argv[1], plan_state.list_plans(argv[2]),
+    pos = [a for a in argv[3:] if not a.startswith("--")]
+    lei = pos[0] if pos else ""
+    sidecar = pos[1] if len(pos) > 1 else ""
+    c = cadeia(argv[1], plan_state.list_plans(argv[2]), prototipo=sidecar,
                artigos=cobertura.le_artigos(lei),
                sem_cobrador=cobertura.le_sem_cobrador(lei))
     if "--json" in argv:

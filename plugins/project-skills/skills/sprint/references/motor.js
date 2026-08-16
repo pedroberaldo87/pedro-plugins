@@ -40,7 +40,8 @@ const DECOMP = { type: 'object', required: ['tasks'], properties: {
       pronto: {type:'string'}, files: {type:'array', items:{type:'string'}},
       parallelizable: {type:'boolean'}, dependsOn: {type:'array', items:{type:'string'}},
       done: {type:'boolean'}, complexity: {type:'string', enum:['standard','mechanical']},
-      esperaDono: {type:'string'}, protegido: {type:'string'} } } },
+      esperaDono: {type:'string'}, protegido: {type:'string'},
+      fontes: {type:'array', items:{type:'string'}} } } },
   blockers: { type: 'array', items: { type:'object', required:['what','whyNeedsYou'],
     properties:{ what:{type:'string'}, whyNeedsYou:{type:'string'}, taskId:{type:'string'}, kind:{type:'string'} } } } } }
 
@@ -161,10 +162,11 @@ REGRAS QUE NÃO SE NEGOCIAM:
 1. \`id\` é COPIADO do plano, literal. Id que não existe no plano é recusado pelo script e vira Bloqueio — nenhum executor sai nele. Nunca invente sufixo ("-R", "-fix", "-bis").
 2. \`requisito\` e \`pronto\` são COPIADOS da spec, nunca redigidos por você. Item sem um dos dois vira \`blocker\`, não tarefa.
 3. \`esperaDono\` só existe se o passo no .plan.json trouxer \`espera_dono\` — copie literal. Não invente, não remova.
-4. \`protegido\` = o caminho do arquivo que a tarefa toca e que traz \`status: approved\` no frontmatter, mais o motivo. Descubra LENDO O DISCO (grep no frontmatter), nunca por achismo.
+4. \`protegido\` = o caminho do arquivo que a tarefa toca e que traz \`status: approved\` no frontmatter, mais o motivo. Descubra LENDO O DISCO (grep no frontmatter), nunca por achismo. A TRANCA HERDA (R-22): arquivo citado por doc sob tranca é protegido também, mesmo sem frontmatter próprio — HTML nunca tem frontmatter, e o protótipo aprovado herda a tranca do doc que o cita.
 5. \`files\` = os caminhos que a tarefa vai tocar. É deles que sai a reserva, o commit e a doc — lista errada perde trabalho.
-6. \`complexity: 'mechanical'\` só para operação bem delimitada (renomear, mover, 1 config, 1 valor).
-7. Vigie os ANTIPADRÕES conhecidos: porta fechada do repositório · trabalho condenado despachado após causa global · repetição como conserto · julgamento cego do já julgado · isolamento sem fusão declarada · id forjado pelo planejador.
+6. \`fontes\` = FONTE DE LEITURA, SEPARADA DA ESCRITA (R-22): o protótipo aprovado (e qualquer arquivo que a tarefa só LÊ como referência) entra em \`fontes\`, NUNCA em \`files\`. Copiar markup da fonte pode; editar a fonte não — fonte que aparece em \`files\` é erro de decomposição.
+7. \`complexity: 'mechanical'\` só para operação bem delimitada (renomear, mover, 1 config, 1 valor).
+8. Vigie os ANTIPADRÕES conhecidos: porta fechada do repositório · trabalho condenado despachado após causa global · repetição como conserto · julgamento cego do já julgado · isolamento sem fusão declarada · id forjado pelo planejador.
 
 Devolva o JSON do schema.`
 
@@ -248,6 +250,7 @@ REGRAS — cada uma nasceu de trabalho perdido:
 3. SONDA DE DEPURAÇÃO NASCE FORA DO ALCANCE DA SUÍTE. Script temporário vai para o diretório de rascunho da sessão, nunca com nome que a suíte colete (\`test_*.py\`, \`*_test.py\`).
 4. PASSOU DO TETO, PARE E DEVOLVA \`espera: true\`. Marque a hora ao começar; chegou no teto sem fechar o \`pronto\`, pare onde está, deixe no disco o que já funciona e devolva \`{done:false, espera:true, note:<em que ponto parou e o que falta>}\`. Isso NÃO é falha.
 5. ARQUIVO SOB TRANCA: O ENTREGÁVEL É A PROPOSTA. Tarefa com \`protegido\` ⇒ NÃO edite o arquivo (nem corpo, nem frontmatter). Devolva \`proposta: {arquivo, antes, depois}\` com os dois lados LITERAIS. \`git diff\` vazio ali é o resultado CERTO.
+5b. \`fontes\` É LEITURA, NUNCA ESCRITA (R-22). O que está em \`fontes\` (o protótipo aprovado, em geral) é insumo: abra, leia, COPIE markup dele para os arquivos de \`files\` à vontade — mas NÃO edite a fonte, e fonte não entra em \`files_touched\`.
 6. CACHE QUENTE: NÃO RECOMPILE DO ZERO se \`buildWarm\` for true.
 7. O \`pronto\` É LITERAL — PROXY É PROIBIDO. Se o critério não pode ser cumprido COMO ESCRITO (pré-condição ausente, medição que não existe, decisão congelada do dono), NÃO invente um substituto "equivalente" nem troque o número medido por outro: devolva \`impossivel\` com o motivo. Documentar a troca honestamente não a autoriza — trocar critério é decisão do dono, e o caminho dela é o auditor, nunca a sua caneta.
 

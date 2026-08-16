@@ -438,6 +438,41 @@ id (regrava a prova), nunca tarefa nova com id forjado. E o custo é conhecido: 
 inteira custa ~147s medidos, pagos uma vez POR BLOCO — é o preço de nada entrar no
 histórico sem teste verde.
 
+### A fidelidade ao design aprovado tem DOIS níveis; a conferência visual é por ONDA
+
+Quando o projeto tem design aprovado (protótipo de interface, telas sob tranca), a obra é
+julgada contra ele em **dois níveis por severidade** — sem a divisão, todo pixel fora do
+lugar vira bloqueio em série e a missão para por vírgula:
+
+- **Divergência de ESTRUTURA segura a obra.** O que **muda o aprovado** — layout,
+  hierarquia, superfície ausente, fluxo diferente do que o dono aprovou — nasce em
+  severidade **≥ P1**: reprova, e o arquivo divergente **entra nos arquivos da onda que o
+  revisor recebe** na volta seguinte, até a estrutura voltar ao aprovado.
+- **ACABAMENTO vira NOTA.** Espaçamento, tom, microcopy, polimento — sai como **P3, nota
+  de relatório**, nunca bloqueio. O dono decide depois se vale conserto; a missão não para
+  por isso.
+
+**Conferência visual: 1× por ONDA, só nas superfícies tocadas.** No grão da onda (a
+revisão geral da obra), quem julga **abre a superfície de verdade e olha o render** —
+print analisado, não leitura de DOM — uma vez por onda, apenas nas superfícies que a onda
+tocou. **A data da conferência vive no relatório da onda, nunca no artefato**: carimbar o
+protótipo aprovado mudaria o corpo sob tranca e derrubaria a marca do de acordo.
+
+**O marcador de dado fictício se grepa por ONDA, nos arquivos de PRODUTO.** O protótipo
+marca todo dado inventado com o token que o sidecar declara em `marcador-ficticio` — o
+token literal `DADO-FICTICIO` (a lei é o `FORMATO.md` da casa `.claude/docs/prototipo/`).
+Na mesma revisão geral da obra, quem julga roda o grep do token nos arquivos que a onda
+tocou, **excluindo a casa do protótipo** — lá o token é obrigatório; fora dela é fictício
+vazando para produção:
+
+```bash
+grep -rn "DADO-FICTICIO" <arquivos da onda> | grep -v "\.claude/docs/prototipo/"
+```
+
+Qualquer achado nasce **≥ P1**: dado inventado em arquivo de produto é estrutura errada,
+não acabamento. Isenção só para quem ESCREVE a regra — a lei do formato, esta skill e as
+suas suítes citam o token de propósito e não contam como vazamento.
+
 **A suíte é a MESMA em toda rodada, e roda uma vez na LARGADA (2026-08-09).** Duas regras
 que nasceram da mesma corrida: (1) o conjunto de testes é **enumerado por comando** — o
 `runSuitePrompt` escreve o `find` no texto —, nunca "os diretórios do trabalho desta

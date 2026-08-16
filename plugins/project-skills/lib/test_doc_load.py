@@ -320,7 +320,7 @@ anexo-de: design.md
 design-sig: {design_sig}
 status: approved
 conjunto-sig: {conjunto_sig}
-marcador-ficticio: FICTICIO
+marcador-ficticio: DADO-FICTICIO
 ---
 
 ## Arquivos

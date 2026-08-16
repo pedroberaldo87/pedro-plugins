@@ -451,7 +451,8 @@ As duas travas acima (de acordo do revisor + verde) passaram a valer **no grão 
 código construído tem defeito?"* — as duas dentro da missão, contra o que foi decomposto. A skill
 `completude` pergunta *"sobrou alguém de fora?"* sobre o **projeto inteiro**, em documento e por
 programa: funcionalidade sem requisito, requisito sem tarefa, tarefa marcada sem prova, artigo da
-lei que nenhuma tarefa carrega. É justamente o buraco que **nenhuma tarefa nomeou** — o que o `#2`
+lei que nenhuma tarefa carrega — e, desde 2026-08-16, requisito com jornada que nenhuma
+superfície do protótipo cobre (`completude.py`, elo requisito → protótipo). É justamente o buraco que **nenhuma tarefa nomeou** — o que o `#2`
 não tem como ver, porque ele julga a decomposição que existe. A fronteira está escrita nos três
 lados (`skills/completude/SKILL.md` *"Fronteira — quando ela roda, e o que NÃO é dela"*,
 `skills/qa-loop/SKILL.md` *"Fronteira com a `/completude`"*, e o terceiro pé no resumo de vias de
@@ -475,7 +476,10 @@ marcar de propósito. Resultado medido: 71 das 96 pendências vinham de 9 planos
 encerrados, nenhuma podia ser fechada (o tique exige prova de trabalho que o dono decidiu
 não fazer), e a medição **nunca podia dizer "fechou"** — exatamente o que a skill promete
 medir. A regra ficou por EXCLUSÃO (`abandoned`/`done` saem), nunca por `status == "active"`:
-plano sem status gravado é plano vivo. `[confirmado — `completude.py:68-85`]`
+plano sem status gravado é plano vivo. Desde 2026-08-16 o plano encerrado não sai INTEIRO:
+as tarefas `done` dele seguem creditando requisito (só a pendência dele deixa de contar, e
+`tique_sem_prova` conta em plano encerrado também — mentira é falsa em qualquer plano).
+`[confirmado — `completude.py:_plano_unico` e o docstring do elo 3 em `cadeia`, lidos nesta rodada]`
 
 **A missão passou a se MEDIR ao fim, e a medição tem freio.** Depois da persistência, o `sprint` roda `plugins/improve-workflow/lib/medidor.py` **em bash, sem agente nenhum** (achado por `resolve-plugin.sh improve-workflow`; ausente na máquina ⇒ pula calado, igual ao lixeiro). A tabela por papel e a linha `sinais — N dos 6 acesos` viram a sexta seção do relatório, `### Custo`, com a tabela crua num drilldown fechado. ⚠️ **Desde 2026-08-15 essa seção não sai só do medidor:** duração, tokens e placar (`fechadas` de `total`) são lidos da linha DESTA corrida no ledger de corridas (`lib/ledger_corridas.py le`, o arquivo append-only em `.claude/.sprint/corridas.jsonl`), campo `nao-medido` entra como *não medido*, e a seção sai igual nos três desfechos — corrida que parou tem custo tanto quanto a que fechou, e é nele que se decide relançar. O medidor, por sua vez, só olha run **deste** projeto (`medidor.py:projeto_atual`): run de outra pasta traz números de trabalho que não é este. ⚠️ **`N` igual a zero ENCERRA ali**: nada de abrir transcript ou disparar agente para a autópsia — os passos de leitura dela são caros, e sem sinal aceso não há defeito endereçado a investigar. Só com pelo menos um sinal aceso (ou a pedido do dono) a skill `improve-workflow` é invocada, a partir do passo 2, recebendo a saída crua. `[confirmado — `plugins/project-skills/skills/sprint/SKILL.md`, passo 5 da persistência]`
 
@@ -910,7 +914,7 @@ O caso que o cabeçalho nomeia como coberto é o do monorepo-container: mesmo co
 
 1. **O script existe e é lido do disco** — `python3 "<skill_dir>/references/r8_tiers.py" args` monta `{model, tiers: {<knob>: {effort}}}` a partir de `r8-tiers.json`. Saída medida nesta rodada: `model: "opus"` e os seis knobs `decompose`, `coordinate`, `executor`, `mechanical`, `diagnose`, `finalize`. `[confirmado — `python3 _shared/r8_tiers.py args`]`
 2. 🔴 **O passo em que o valor entra mudou DUAS vezes, e a segunda é de 2026-08-09.** Primeiro ele saiu de `args.tiers` lido em tempo de execução e virou constante literal escrita no texto do script. Agora ele nem é transportado: a constante já está **gravada no arquivo do motor**, `plugins/project-skills/skills/sprint/references/motor.js`, e a casca só passa o caminho.
-3. **Quem impede a constante de envelhecer é teste, não lembrança** — `plugins/project-skills/lib/test_motor_js.py` lê `r8-tiers.json` e compara knob a knob com o que está escrito no `motor.js`; espelho defasado reprova a suíte do plugin. `[confirmado — `python3 plugins/project-skills/lib/test_motor_js.py` → "test_motor_js: 53 checagens verdes"]`
+3. **Quem impede a constante de envelhecer é teste, não lembrança** — `plugins/project-skills/lib/test_motor_js.py` lê `r8-tiers.json` e compara knob a knob com o que está escrito no `motor.js`; espelho defasado reprova a suíte do plugin. `[confirmado — `python3 plugins/project-skills/lib/test_motor_js.py` → "test_motor_js: 139 checagens verdes" nesta rodada; o número cresce com a suíte, o que vale é o comando]`
 
 ⚠️ **O motivo da primeira inversão é medido, e contradiz o que este doc afirmava antes:** *"o canal que levava esse valor até o script FALHAVA, e `args.tiers` chegava `undefined` — o que matava o motor na primeira volta"*. A versão anterior tratava essa morte como "a falha certa"; na prática ela acontecia por defeito de canal, não por contrato violado, e o motor morria sem que ninguém tivesse mexido em tier nenhum.
 
@@ -1206,7 +1210,7 @@ Campos da saída: `regua`, `marca_regua`, `ausentes` (e a mesma lista separada p
 
 **A ida ao mapa da régua, dentro da skill `plan`, ganhou cobrador em 2026-08-12.** O preâmbulo garante que a régua seja LIDA; o que faltava era garantir que o plano a CONSULTE antes de escrever a primeira tarefa — a linha que manda montar o mapa vivia só em prosa no `SKILL.md`, e prosa some numa edição sem ninguém notar. A suíte `plugins/project-skills/lib/test_spec_to_plan_skill.py` agora lê o texto da skill, extrai dele o módulo citado (`import <modulo> as c`, nada de caminho cravado), exige que esse arquivo exista ao lado dela, importa-o e confere que **toda** função de leitura que a skill manda chamar (`c.le_*`) realmente existe no módulo — mais a ordem: a ida vem **antes** da gravação do plano. Módulo resolvido neste run: `cobertura.py`, com `le_artigos`, `le_jornadas`, `le_pecas` e `le_passos`. `[confirmado — saída da suíte]`
 
-**Verificado:** `python3 plugins/project-skills/lib/test_doc_load.py` → **50 passou · 0 falhou** nesta rodada · `python3 plugins/project-skills/lib/test_spec_to_plan_skill.py` → **52 ok · 0 falhas** · `python3 plugins/project-skills/lib/test_start_doc_skill.py` → **OK**, 169 checks (contagem deste run: `python3 … | grep -c '^  ok'`). `[confirmado — saída das suítes]`
+**Verificado:** `python3 plugins/project-skills/lib/test_doc_load.py` → **50 passou · 0 falhou** nesta rodada · `python3 plugins/project-skills/lib/test_spec_to_plan_skill.py` → **52 ok · 0 falhas** · `python3 plugins/project-skills/lib/test_start_doc_skill.py` → **OK**, 191 checks (contagem deste run: `python3 … | grep -c '^  ok'`). `[confirmado — saída das suítes]`
 
 ---
 

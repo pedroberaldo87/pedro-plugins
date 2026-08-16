@@ -228,6 +228,46 @@ def main():
     check("e a pendência dele não conta no elo 3, como em qualquer plano encerrado",
           falta(c, "tarefa → prova", "tarefa_pendente") == [])
 
+    print("== elo 4 · requisito → protótipo ==")
+    # o requisito com jornada é o elo medível (feature é épico sem campo de
+    # interface); as superfícies saem do sidecar no formato da lei (FORMATO.md).
+    com_jornada = """# Funcionalidades
+
+## E1 O painel
+- **S-1 Ver o painel** · Art. 1 — Jornada: acompanhar a obra · corpo. CA: o critério.
+- **S-2 Registrar pedido** · Art. 1 — Jornada: registrar um pedido · corpo. CA: o critério.
+- **S-3 Administrar** · Art. 1 — Jornada: governar o sistema · corpo. CA: o critério.
+- **S-4 Sem tela** · Art. 1 — corpo. CA: o critério.
+"""
+    sidecar = """---
+natureza: anexo
+---
+
+## Superfícies
+
+- Painel do dia — jornada: acompanhar a obra — procedência: blueprint.md §3
+- lacuna: governança — jornada: governar o sistema — motivo: sem papel de admin
+"""
+    c = cp.cadeia(com_jornada, [], prototipo=sidecar)
+    check("requisito cuja jornada nenhuma superfície cita sai nomeado",
+          falta(c, "requisito → protótipo", "requisito_sem_prototipo") == ["S-2"])
+    check("jornada coberta só por lacuna sai declarada, não como furo",
+          decl(c, "requisito → protótipo", "lacuna_declarada") == ["S-3"])
+    check("requisito sem campo Jornada não entra no cruzamento",
+          "S-4" not in falta(c, "requisito → protótipo", "requisito_sem_prototipo"))
+    check("sem sidecar nenhum, todo requisito com jornada fica sem protótipo",
+          falta(cp.cadeia(com_jornada, []),
+                "requisito → protótipo", "requisito_sem_prototipo")
+          == ["S-1", "S-2", "S-3"])
+    maiuscula = "## Superfícies\n\n- Tela — jornada:  Acompanhar  A OBRA — procedência: x\n"
+    check("jornada comparada sem depender de caixa nem de espaço a mais",
+          "S-1" not in falta(cp.cadeia(com_jornada, [], prototipo=maiuscula),
+                             "requisito → protótipo", "requisito_sem_prototipo"))
+    coberto = sidecar + "- Entrada de pedido — jornada: registrar um pedido — procedência: blueprint.md §4\n"
+    c = cp.cadeia(com_jornada, [], prototipo=coberto)
+    check("jornada com superfície real cobre o requisito",
+          falta(c, "requisito → protótipo", "requisito_sem_prototipo") == [])
+
     print("== a cadeia inteira ==")
     completo = plano(item("F1.1", "S-1", "done", "a suíte passou, 12 de 12"),
                      item("F1.2", "S-2", "done", "a suíte passou, 12 de 12"),
@@ -236,9 +276,9 @@ def main():
                    "sem_cobrador": cp.cobertura.le_sem_cobrador(PLACAR)}
     c = cp.cadeia(FEATURES, [completo], **lei_em_maos)
     check("cadeia sem furo nenhum sai completa", c["completa"] is True)
-    check("e os três elos saem completos",
-          [e["completo"] for e in c["elos"]] == [True, True, True])
-    check("o resumo diz elo por elo", cp.resumo(c).count("✅") == 3)
+    check("e os quatro elos saem completos",
+          [e["completo"] for e in c["elos"]] == [True, True, True, True])
+    check("o resumo diz elo por elo", cp.resumo(c).count("✅") == 4)
 
     c = cp.cadeia(FEATURES, [plano(item("F1.1", "S-1"))])
     check("um furo em qualquer elo derruba a cadeia", c["completa"] is False)
@@ -259,7 +299,7 @@ def main():
     # o elo 1 e o elo 3 ficam VERDES sobre o documento ausente — é justamente o
     # verde vazio que a lacuna desmente, e sem ela a saída dizia "completo".
     check("os elos que o documento ausente esvaziou saem verdes mesmo assim",
-          [e["completo"] for e in c["elos"]] == [True, False, True])
+          [e["completo"] for e in c["elos"]] == [True, False, True, True])
     check("o resumo nomeia a lacuna antes dos elos",
           cp.resumo(c).splitlines()[0] == "🔴 lacuna — features.md ausente")
     check("documento vazio conta igual ao ausente",

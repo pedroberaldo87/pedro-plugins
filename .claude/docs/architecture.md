@@ -363,7 +363,7 @@ improve-workflow  0.16.29  [improve-workflow]           -
 intent-guard       0.8.15  [intent-guard]               HOOKS
 lixeiro             1.5.8  [faxina]                     HOOKS
 principles          1.0.5  [principles]                 -
-project-skills    0.22.125  [completude,design-md,doc,doc-load,doc-touch,monitorar,pesquisa-referencias,plan,project-skills,qa-loop,sprint,start] HOOKS
+project-skills    0.22.129  [completude,design-md,doc,doc-load,doc-touch,monitorar,pesquisa-referencias,plan,project-skills,qa-loop,sprint,start] HOOKS
 ship                1.5.6  [ship]                       HOOKS
 slides              1.6.3  [slides]                     -
 vision              0.1.1  []                           -
@@ -1394,14 +1394,20 @@ páginas do `/visual` digitadas pelo modelo custavam **20-31 KB de HTML por pág
   real, 5 de 157 tarefas apontavam para algum dos 77 requisitos escritos — *"silêncio é o estado
   padrão de hoje; este módulo o torna impossível"*. `cobertura.py:resumo` é a linha única que
   todos os consumidores imprimem, pra que um só programa calcule o número.
-- **`completude.py`** (novo em 2026-08-13, **208 linhas**) é o mesmo fio com os elos de cima e de
-  baixo: **feature → requisito → tarefa → prova do tique**. Ele não reparseia nada — a feature e o
+- **`completude.py`** (novo em 2026-08-13, **263 linhas** nesta rodada) é o mesmo fio com os elos de cima e de
+  baixo: **feature → requisito → tarefa → prova do tique** — e, desde 2026-08-16, o **quarto elo
+  requisito → protótipo**: o requisito com campo `Jornada` é cruzado contra as superfícies do
+  sidecar de protótipo (`le_superficies`, formato de `.claude/docs/prototipo/FORMATO.md`); jornada
+  sem superfície real sai em `requisito_sem_prototipo`, jornada citada só em `lacuna:` sai como
+  `lacuna_declarada` (fora da conta), e **sidecar ausente não esvazia o balde** — requisito com
+  jornada sem sidecar nenhum é requisito sem protótipo. Ele não reparseia nada — a feature e o
   requisito saem do `cobertura`, a tarefa e a prova saem do `plan_state` —, lê **todos** os planos
   da pasta como um só (`_plano_unico`), porque requisito atendido por outro plano é requisito
   atendido, e separa de propósito as duas coisas que o "falta cobertura" solto misturava: `done`
   com prova abaixo de `EVIDENCE_MIN` é **mentira** (`tique_sem_prova`), tarefa não marcada é só
   trabalho que falta (`tarefa_pendente`). Uso: `python3 completude.py <features.md> <pasta-dos-planos>
-  [--json]`, saída 1 quando algum elo está furado. Suíte: `plugins/project-skills/lib/test_completude.py`.
+  [<constituicao.md>] [<sidecar.prototipo.md>] [--json]`, saída 1 quando algum elo está furado.
+  Suíte: `plugins/project-skills/lib/test_completude.py`.
 - **`visual_page.py`** converte seis regras que viviam como prosa na SKILL.md em coisas
   impossíveis de violar — entre elas "nenhum rádio nasce `checked`", "`name` único por item",
   "ordem fixa decisions-box antes de feedback-box" e **"decisão/item sem nenhuma evidência crua

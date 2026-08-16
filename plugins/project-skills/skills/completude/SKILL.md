@@ -25,16 +25,23 @@ O motor é `lib/completude.py` do próprio plugin — nenhuma contagem sai do se
 
 ```bash
 python3 "${CLAUDE_PLUGIN_ROOT}/lib/completude.py" \
-  <caminho>/features.md <caminho>/.claude/plans <caminho>/constituicao.md
+  <caminho>/features.md <caminho>/.claude/plans <caminho>/constituicao.md \
+  <caminho>/.claude/docs/prototipo/<etapa>.prototipo.md
 ```
+
+O 4º posicional é o **sidecar de protótipo** (`<etapa>.prototipo.md`) — sem ele o elo
+requisito → protótipo nunca recebe a lista de superfícies e todo requisito com jornada sai
+como descoberto. Sidecar ausente no projeto não é desculpa para omitir o argumento: passe
+o caminho mesmo assim, e a medição nomeia a lacuna em vez de fingir verde.
 
 Saída legível por padrão; `--json` devolve a estrutura inteira quando você precisa listar
 os itens um a um. Sai com código 1 enquanto a cadeia não fecha — o código de saída é o
 veredito, não a decoração.
 
-Os três caminhos saem do `/doc-load`, nunca de cor: ele é quem diz qual documento vale como
-régua neste projeto. **Documento que a medição não achou não vira verde** — sai nomeado em
-`lacunas`, e sozinho já derruba o "completa".
+Os quatro caminhos saem do `/doc-load`, nunca de cor: ele é quem diz qual documento vale
+como régua neste projeto — features, planos, constituição e o sidecar de protótipo da
+etapa. **Documento que a medição não achou não vira verde** — sai nomeado em `lacunas`, e
+sozinho já derruba o "completa".
 
 ## Como apresentar — os DOIS lados, sempre
 

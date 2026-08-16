@@ -7,6 +7,7 @@ status: approved
 approved: 2026-08-16
 scope: []
 approved-sig: 1827305419
+correcao-pendente: o marcador [PENDENTE] da linha 80 ('a etapa de protótipo ainda não existe no /start') ficou defasado — a oferta com as superfícies obrigatórias por jornada existe em skills/start/SKILL.md:515 e no FORMATO.md, com cobrador verde (test_sidecar_prototipo.py, 21 passou)
 ---
 
 # Funcionalidades

@@ -800,6 +800,73 @@ def main():
     check("a desculpa de deixar pendente por falta de material esta refutada",
           "falta material para decidir, deixo pendente para o dono" in skill)
 
+    # F13.4 — a oferta de prototipagem mora DENTRO da etapa de interface, antes do
+    # de acordo. Oferecida no fim da rodada, a exaustao reabre a decisao que
+    # sustentou tres etapas; imposta, viola o R-23 (oferta nunca e imposicao).
+    print("a prototipagem e oferecida na etapa de interface, antes do de acordo (F13.4)")
+    bloco_escrever = skill.split("### 4 · Escrever")[1].split("\n### ")[0]
+    check("a oferta vive no passo de escrita da interface, antes do passo do de acordo",
+          "A oferta de prototipagem" in bloco_escrever
+          and "antes do de acordo" in bloco_escrever)
+    check("a oferta aponta a casa e o sidecar do formato",
+          ".claude/docs/prototipo/" in bloco_escrever
+          and "interface.prototipo.md" in bloco_escrever
+          and "FORMATO.md" in bloco_escrever)
+    check("oferta nunca e imposicao — quem decide e o dono",
+          "nunca imposição" in bloco_escrever)
+    check("a recusa se grava, no frontmatter de design.md",
+          "recusa-prototipo: {" in bloco_escrever
+          and "frontmatter, nunca no corpo" in bloco_escrever)
+    check("gravada a recusa, a oferta se cala ate o dono pedir",
+          "a oferta se cala" in bloco_escrever
+          and "se o dono pedir" in bloco_escrever)
+    check("aceita, quem grava a marca do conjunto e o rito, nunca a mao",
+          "conjunto-sig" in bloco_escrever)
+    check("oferecer no fim da rodada esta refutado",
+          "fim da rodada não vale" in bloco_escrever)
+
+    # F13.7 — as seis pautas transversais (journeys.md: "perguntada por programa,
+    # nunca por lembrança"), cada uma DENTRO da etapa dela, com uma pergunta. Sem
+    # endereço, cada etapa herda as seis e a entrevista vira questionário.
+    print("as seis pautas transversais entram cada uma na etapa dela (F13.7)")
+    PAUTAS = ("integrações", "abstração de IA", "governança",
+              "topologia do repositório", "controle de acesso", "registro de log")
+    cru = open(SKILL, encoding="utf-8").read()
+    bloco_pautas = (cru.split("#### As seis pautas transversais")[1].split("\n#### ")[0]
+                    if "#### As seis pautas transversais" in cru else "")
+    check("a subsecao das pautas vive dentro da entrevista (passo 3)",
+          em_ordem(cru, ["### 3 · Entrevistar", "#### As seis pautas transversais",
+                         "### 4 · Escrever"]))
+    linhas_pauta = [ln for ln in bloco_pautas.splitlines() if ln.strip().startswith("|")]
+    for pauta in PAUTAS:
+        linha = next((ln for ln in linhas_pauta if pauta in ln), "")
+        check("a pauta '%s' entra com uma pergunta, apontando o documento da etapa" % pauta,
+              "?" in linha and re.search(r"`[a-z-]+\.md`", linha) is not None)
+    check("nao se aplica e resposta valida; faltar a pergunta, nao",
+          "Não se aplica" in bloco_pautas and "faltar a pergunta, não" in bloco_pautas)
+    check("as pautas nao viram questionario despejado de uma vez",
+          "questionário" in bloco_pautas and "dentro da etapa dela" in bloco_pautas)
+    check("quem cobra a presenca das seis e esta suite, nunca a lembranca",
+          "lib/test_start_doc_skill.py" in bloco_pautas)
+
+    # F13.5 — as superfícies obrigatórias (erro, vazio, carregando, configuração,
+    # governança) cobradas por jornada, ou lacuna declarada com motivo. Sem isto o
+    # protótipo do caminho feliz aprova metade da interface.
+    print("o rito exige as superficies obrigatorias por jornada ou lacuna declarada (F13.5)")
+    check("as cinco superficies obrigatorias estao nomeadas no rito",
+          all(s in bloco_escrever for s in
+              ("erro", "vazio", "carregando", "configuração", "governança")))
+    check("a cobranca e por jornada, contra o journeys.md",
+          "cada jornada" in bloco_escrever and "journeys.md" in bloco_escrever)
+    check("fora de proposito sai como lacuna declarada com motivo",
+          "lacuna" in bloco_escrever
+          and "- lacuna: <superfície> — jornada:" in bloco_escrever
+          and "Lacuna sem motivo não vale" in bloco_escrever)
+    check("a cobranca recalcula a cada jornada nova, sem estado de ja cobrado",
+          "recalcula" in bloco_escrever and "já cobrado" in bloco_escrever)
+    check("o cobrador de presenca esta apontado",
+          "lib/test_sidecar_prototipo.py" in bloco_escrever)
+
     print()
     if FAILS:
         print("FALHOU: %d" % len(FAILS))
