@@ -1697,9 +1697,12 @@ def render_text(plan, reqs=None, vista="execucao", compacto=False):
                     out.append("            ⏸️ espera você: %s" % it["espera_dono"])
                 # a pendência sobrevive ao corte junto com a espera acima: ela é o "deu
                 # problema", e esconder problema no modo curto seria o anti-padrão que
-                # o resto deste arquivo existe pra impedir
-                if it.get("pendencia"):
-                    out.append("            ⛔ %s" % it["pendencia"])
+                # o resto deste arquivo existe pra impedir. Quem decide se ela ainda
+                # trava é `pendencia_viva` — a pendência crua aqui era a segunda cópia
+                # da regra, e anunciava preso o passo que o `decidido` já destravou.
+                pend_viva = pendencia_viva(it)
+                if pend_viva:
+                    out.append("            ⛔ %s" % pend_viva)
                 continue
             det = _detalhe(it)[0]
             # `prova:` multilinha chega com \n — cada bullet ganha a mesma sangria
