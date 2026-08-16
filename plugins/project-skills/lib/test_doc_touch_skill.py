@@ -54,6 +54,17 @@ def main():
     check("a regua do repo publico cobre o HTML versionado",
           "sem caminho absoluto de m" in passo_2b)
 
+    # R-24 (F14.4): a ARQUITETURA visual e canonica pelo mesmo caminho do fluxo.
+    # Sem este check o organismo voltava pra pasta de sessao e morria no /clear —
+    # dois destinos pro mesmo tipo de artefato e' a divergencia que o cobrador mata.
+    print("o organismo re-renderiza na MESMA casa versionada do fluxo")
+    check("architecture.md dispara o organismo.html",
+          "`architecture.md`" in passo_2b and "organismo.html" in passo_2b)
+    check("o organismo tem o mesmo destino versionado do fluxo",
+          '"$FLUXOS_DIR/organismo.html"' in passo_2b)
+    check("nenhum comando manda o organismo pra pasta de sessao",
+          "ARCHIFY_DIR/organismo.html" not in passo_2b)
+
     print("o passo 5 leva o fluxo re-renderizado pro commit de conteudo")
     check("o passo 5 existe", bool(passo_5))
     check("o git add do conteudo inclui .claude/docs/fluxos/",
