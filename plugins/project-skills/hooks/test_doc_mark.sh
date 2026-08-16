@@ -77,6 +77,102 @@ printf '# Sem frontmatter\ntexto\n' > "$TMP/solto.md"
   && ok "documento sem frontmatter: a marca ainda é calculável" \
   || bad "documento sem frontmatter: a marca ainda é calculável" "uma marca" "vazio"
 
+echo "── Marca do conjunto (sidecar de protótipo, R-22) ──"
+
+# Fixture: um projeto de mentira com a casa .claude/docs/prototipo/ e duas telas.
+CASA="$TMP/proj/.claude/docs/prototipo"
+mkdir -p "$CASA"
+printf '<h1>Painel</h1>\n<p>3 pedidos (FICTICIO)</p>\n' > "$CASA/painel.html"
+printf '<h1>Entrada</h1>\n<form>FICTICIO</form>\n'      > "$CASA/entrada.html"
+SC="$CASA/interface.prototipo.md"
+cat > "$SC" <<'EOF'
+---
+natureza: anexo
+anexo-de: design.md
+design-sig: 1836471203
+status: ready
+correcao-pendente: trocar o rótulo do painel
+conjunto-sig: 0
+marcador-ficticio: FICTICIO
+---
+
+## Arquivos
+
+- .claude/docs/prototipo/painel.html
+- .claude/docs/prototipo/entrada.html
+EOF
+ESPERADA=$(cat "$CASA/painel.html" "$CASA/entrada.html" | cksum | cut -d' ' -f1)
+
+# 7) fora do rito: --marca IMPRIME a marca do conjunto e não escreve um byte
+ANTES=$(cat "$SC")
+OUT=$(bash "$APROVAR" --marca "$SC" 2>&1)
+[ "$OUT" = "$ESPERADA" ] \
+  && ok "--marca imprime a marca do conjunto (cat | cksum)" \
+  || bad "--marca imprime a marca do conjunto (cat | cksum)" "$ESPERADA" "$OUT"
+[ "$(cat "$SC")" = "$ANTES" ] \
+  && ok "--marca não escreve no sidecar" \
+  || bad "--marca não escreve no sidecar" "arquivo intacto" "arquivo alterado"
+
+# 8) o rito grava conjunto-sig e o status vira approved
+bash "$APROVAR" "$SC" >/dev/null 2>&1
+grep -q "^conjunto-sig: $ESPERADA$" "$SC" \
+  && ok "o rito grava conjunto-sig no sidecar" \
+  || bad "o rito grava conjunto-sig no sidecar" "conjunto-sig: $ESPERADA" "$(grep '^conjunto-sig:' "$SC")"
+grep -q '^status: approved$' "$SC" \
+  && ok "o rito aprova o sidecar (status: approved)" \
+  || bad "o rito aprova o sidecar (status: approved)" "status: approved" "$(grep '^status:' "$SC")"
+
+# 9) trocar uma tela diverge a marca gravada — o conjunto aprovado é DESTE conteúdo
+printf '<h1>Painel</h1>\n<p>4 pedidos</p>\n' > "$CASA/painel.html"
+NOVA=$(bash "$APROVAR" --marca "$SC" 2>&1)
+[ "$NOVA" != "$ESPERADA" ] \
+  && ok "tela alterada: a marca do conjunto diverge da gravada" \
+  || bad "tela alterada: a marca do conjunto diverge da gravada" "marca != $ESPERADA" "marca == $NOVA"
+
+# 10) arquivo listado e ausente: o rito RECUSA, não aprova conjunto pela metade
+rm "$CASA/entrada.html"
+if bash "$APROVAR" "$SC" >/dev/null 2>&1; then
+  bad "arquivo listado e ausente: o rito recusa" "exit != 0" "exit 0"
+else
+  ok "arquivo listado e ausente: o rito recusa"
+fi
+
+# 11) CICLO do design regravado (F13.2): design muda → doc-load reabre o anexo →
+#     o rito reaprova (regravando TAMBÉM o design-sig) → o anexo fecha de novo.
+DOC_LOAD="$SCRIPT_DIR/../lib/doc_load.py"
+reaberto() { # imprime True/False do campo `reaberto` do único anexo
+  python3 -c '
+import json, subprocess, sys
+estado = json.loads(subprocess.run(
+    [sys.executable, sys.argv[1], "--project-root", sys.argv[2], "--json"],
+    capture_output=True, text=True).stdout)
+print(estado["anexos"][0]["reaberto"])' "$DOC_LOAD" "$TMP/proj"
+}
+printf '<h1>Entrada</h1>\n<form>FICTICIO</form>\n' > "$CASA/entrada.html"   # restaura a tela do teste 10
+printf -- '---\nauthored-by: human\nstatus: approved\n---\n# Design\nUma tela.\n' > "$TMP/proj/.claude/docs/design.md"
+bash "$APROVAR" "$SC" >/dev/null 2>&1                                        # aprova com o design de agora
+[ "$(reaberto)" = "False" ] \
+  && ok "ciclo: anexo recém-aprovado nasce fechado" \
+  || bad "ciclo: anexo recém-aprovado nasce fechado" "reaberto=False" "reaberto=$(reaberto)"
+printf -- '---\nauthored-by: human\nstatus: approved\n---\n# Design\nDuas telas.\n' > "$TMP/proj/.claude/docs/design.md"
+[ "$(reaberto)" = "True" ] \
+  && ok "ciclo: design regravado reabre o anexo" \
+  || bad "ciclo: design regravado reabre o anexo" "reaberto=True" "reaberto=$(reaberto)"
+bash "$APROVAR" "$SC" >/dev/null 2>&1                                        # o rito reaprova
+grep -q '^design-sig: [0-9]' "$SC" \
+  && ok "ciclo: o rito regrava o design-sig no sidecar" \
+  || bad "ciclo: o rito regrava o design-sig no sidecar" "design-sig numérico" "$(grep '^design-sig:' "$SC")"
+[ "$(reaberto)" = "False" ] \
+  && ok "ciclo: reaprovado, o anexo fecha de novo" \
+  || bad "ciclo: reaprovado, o anexo fecha de novo" "reaberto=False" "reaberto=$(reaberto)"
+
+# 12) documento autoral comum: --marca imprime a marca do corpo, sem escrever
+escreve draft "O visitante entra e vê o catálogo."
+OUT=$(bash "$APROVAR" --marca "$DOC" 2>&1)
+[ "$OUT" = "$(doc_marca "$DOC")" ] && ! grep -q '^approved-sig:' "$DOC" \
+  && ok "--marca no doc autoral imprime a marca do corpo e não aprova" \
+  || bad "--marca no doc autoral imprime a marca do corpo e não aprova" "$(doc_marca "$DOC")" "$OUT"
+
 echo
 printf '%s passaram · %s falharam\n' "$PASS" "$FAIL"
 [ "$FAIL" -eq 0 ]
