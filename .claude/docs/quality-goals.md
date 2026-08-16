@@ -74,6 +74,20 @@ texto solto e lista             text · items
 legenda de artefato e gráfico   procedencia · alt · title
 ```
 
+## O critério do texto corrido — vale além do gerador
+
+Texto corrido para informação técnica reprova **onde quer que apareça**, não só no que o
+gerador emite: relatório escrito à mão, mensagem de fim de turno, resumo em conversa.
+**Parágrafo denso reprova mesmo curto** — o defeito é a forma, não o tamanho. Informação
+técnica viaja em bullets; prosa fica para o que é argumento de constituição.
+
+A fonte é a fala do dono, minerada das atas (verbatim):
+
+> "ninguém aguenta mais texto corrido eu não quero saber de texto corrido [...] Não quero
+> saber de texto corrido, parágrafo, essas coisas, nada disso. A gente quer bullets para
+> passar essas informações, principalmente que são informações técnicas. Não interessa
+> prosa, não interessa prosa. Abole prosa, não queremos saber de prosa."
+
 ## Nada nasce aberto por ser curto
 
 O nível 1 fecha **sem exceção de tamanho**. Prova curta, bloco de três linhas, item de

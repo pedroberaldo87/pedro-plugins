@@ -76,6 +76,34 @@ hoje `python3 plugins/visual/lib/regua_audit.py paginas` devolve
 nem a lista de páginas limpas. O retrato de "82 de 100" é histórico; a régua segue
 valendo do artefato novo em diante, e o número vivo sai do comando acima.
 
+## Dois falso-positivos do detector de ato-do-dono na auditoria do plano
+
+**Decidido em 2026-08-16**, na revisão pré-largada da corrida 11. O detector
+`ATO_DO_DONO` (`plugins/project-skills/lib/auditoria_plano.py`) casa por palavra
+(`aprova|publica|…`) e acusa dois passos onde a palavra não é ato do dono:
+
+- **F7.1** — o pronto diz "o push do conserto sai publicado"; o push é do motor,
+  autorizado na largada de 2026-08-13, e o passo está `done` com prova. Reescrever
+  pronto de passo fechado mudaria registro histórico.
+- **F13.2** — "o doc-aprovar grava conjunto-sig" cita o programa do rito
+  (`hooks/doc-aprovar.sh`) pelo nome; o pronto é provável por suíte, sem o dono.
+
+**O que revoga:** o detector aprender a pular passo `done` e nome de programa —
+aí os dois saem daqui e voltam a ser medidos.
+
+## Duas jornadas que o plano dos quatro itens não se propõe a cobrir
+
+**Decidido em 2026-08-16**, na mesma revisão. O nível 2 da auditoria acusa
+"Criar um aplicativo dentro de um organismo que já existe" e "Extinguir ou fundir
+um plugin" como jornadas que nenhuma funcionalidade atende. O plano
+`2026-08-12-os-quatro-itens` é parcial por definição — tripé, rigor do plano,
+completude e CI verde — e essas duas jornadas não pertencem a nenhum dos quatro.
+
+**Quem cobra o todo é a completude da união dos planos** (`completude.py`), não a
+auditoria de um plano só — a distinção está escrita no cabeçalho de
+`auditoria_plano.py`. **O que revoga:** um plano futuro cobrir essas jornadas, ou
+o dono cortá-las do `journeys.md` pelo rito.
+
 ## A colheita do lixeiro no Windows — 4 checks vermelhos, conserto bloqueado por falta de dado
 
 `bash plugins/lixeiro/hooks/test_lixeiro_hooks.sh` fecha verde no macOS (26 ok) e reprova

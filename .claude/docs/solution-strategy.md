@@ -3,9 +3,11 @@ generated: 2026-08-14
 reviewed: 2026-08-14
 project: pedro-plugins
 authored-by: ex-post-rascunho
-status: draft
-approved:
+status: approved
+approved: 2026-08-16
 scope: []
+approved-sig: 775696971
+correcao-pendente: promover a procedência da decisão da página com prova de INFERIDO para DITO POR VOCÊ, com data (F27.2) — corpo aprovado não se toca; reapresentar e reaprovar
 ---
 
 # Estratégia da solução

@@ -151,7 +151,7 @@ def _classifica(mapa):
             "devolve_ao_dono": bool(perguntas)}
 
 
-def audita(mapa):
+def audita(mapa, limites_aceitos=()):
     """Roda os níveis na ordem e para no primeiro vermelho.
 
     O `nivel1` vem com os achados já repartidos em `baldes`: `conserta` é o que o laço
@@ -162,16 +162,32 @@ def audita(mapa):
     verde; `nivel3` só quando os dois estão. O nível 3 é julgamento de agente, então
     o programa não o declara verde: ele sai `pendente`, com os três pés nomeados e o
     critério que reprova cada um, para o agente preencher.
+
+    `limites_aceitos` é a lista de alvos cujo achado o dono aceitou com motivo
+    escrito (`.claude/limites-aceitos.md`). Achado aceito continua LISTADO — a
+    transparência não se negocia — mas deixa de segurar a descida e sai de
+    `conserta`: sem isso, dois aceitos no nível 1 deixavam o nível 2 sem medir
+    para sempre, e o laço tentava consertar o que o dono mandou não consertar.
     """
     mapa = dict(mapa or {})
     mapa["pronto_sem_espera"] = _pronto_sem_espera(mapa)
+    aceitos = set(limites_aceitos or ())
+
+    def _vivos(nivel):
+        return [a for a in nivel["achados"] if a.split(" — ")[0] not in aceitos]
+
     n1 = _nivel(mapa, NIVEL1)
     n1.update(_classifica(mapa))
-    if n1["vermelho"]:
+    n1["conserta"] = [a for a in n1["conserta"] if a not in aceitos]
+    vivos1 = _vivos(n1)
+    n1["vermelho"] = bool(vivos1)
+    if vivos1:
         return {"nivel1": n1, "parou_em": 1}
 
     n2 = _nivel(mapa, NIVEL2)
-    if n2["vermelho"]:
+    vivos2 = _vivos(n2)
+    n2["vermelho"] = bool(vivos2)
+    if vivos2:
         return {"nivel1": n1, "nivel2": n2, "parou_em": 2}
 
     return {"nivel1": n1, "nivel2": n2,
@@ -207,7 +223,7 @@ def rodada(mapa, limites_aceitos=()):
     está limpa. Sem isso o laço não termina — alguém desiste em silêncio e o
     resultado parece pronto.
     """
-    r = audita(mapa)
+    r = audita(mapa, limites_aceitos)
     r["limites_aceitos"] = list(limites_aceitos or ())
     r["bloqueios"] = _bloqueios(r, limites_aceitos)
     r["limpa"] = not r["bloqueios"] and not r["nivel1"]["devolve_ao_dono"]
