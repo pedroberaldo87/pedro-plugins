@@ -106,6 +106,23 @@ fi
 # Peça que ninguém invoca não cumpre critério nenhum: aqui roda o HOOK, com o
 # payload que o harness manda, e se confere que a ressalva chegou no texto que o
 # modelo lê (`additionalContext`). É por este caminho que o aviso vale.
+echo "== a casa canônica versionada aceita subdir com barra =="
+OUT_F=$(bash "$SCRIPT" "$BASE/projeto" docs/fluxos 2>/dev/null)
+if [ "$OUT_F" = "$BASE/projeto/.claude/docs/fluxos" ] && [ -d "$OUT_F" ]; then
+  ok "docs/fluxos resolve para .claude/docs/fluxos dentro do projeto"
+else
+  falha "subdir com barra não resolveu na casa canônica" \
+        "esperado $BASE/projeto/.claude/docs/fluxos, veio $OUT_F"
+fi
+
+# Na reserva a barra vira traço: sem isso "claude-docs" viraria pote comum e a
+# gaveta por pasta de origem se partiria em duas.
+OUT_FR=$(bash "$SCRIPT" "$BASE/solto/site-do-cliente" docs/fluxos 2>/dev/null)
+case "$OUT_FR" in
+  "$HOME/Desktop/claude-docs-fluxos/"*) ok "na reserva a barra do subdir vira traço ($OUT_FR)" ;;
+  *) falha "a reserva partiu o subdir com barra" "$OUT_FR" ;;
+esac
+
 echo "== o consumidor repassa o aviso (sessionstart-plan.sh) =="
 # O HOOK É PROCURADO POR NOME, NUNCA PELA POSIÇÃO. Ele morava em
 # plugins/visual/hooks/ e mudou para project-skills na fusão da família (1f575e9);

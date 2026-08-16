@@ -438,6 +438,16 @@ ul.pt-prova {
 }
 ul.pt-prova li { position: relative; word-break: break-word; }
 ul.pt-prova li::before { content: "·"; position: absolute; left: -11px; opacity: .6; }
+/* F25.1: a prova nasce FECHADA — <details> nativo, sem JS. */
+details.pt-evidence-d > summary {
+  list-style: none; cursor: pointer;
+  font-size: 12.5px; color: var(--ok); opacity: .8;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+details.pt-evidence-d > summary::-webkit-details-marker { display: none; }
+details.pt-evidence-d > summary .pt-prova-rot { display: inline; }
+details.pt-evidence-d > summary .pt-chev { display: inline-block; margin-right: 3px; }
+details.pt-evidence-d[open] > summary .pt-chev { transform: rotate(90deg); }
 /* na página de aprovação a fase É o item revisável — o veredito mora nela,
    e a árvore continua sendo a ÚNICA lista da página. */
 .plan-tree .feedback-item.pt-phase { margin-bottom: 12px; }

@@ -27,6 +27,11 @@
 #        mesma cascata, outro diretório. Cada família de artefato tem a própria
 #        pasta: misturar diagrama com relatório e plano é o que faz o usuário
 #        não achar o que gerou ontem.
+#        O subdir pode ter BARRA: "docs/fluxos" resolve para
+#        <raiz>/.claude/docs/fluxos — é a casa canônica versionada dos
+#        diagramas de fluxo. Na reserva a barra vira traço
+#        (~/Desktop/claude-docs-fluxos/<pasta>-<id>), senão a gaveta por pasta
+#        de origem se parte em duas e o "claude-docs" vira pote comum.
 # Saída: caminho absoluto do diretório-alvo no stdout (já criado com mkdir -p).
 #        Código de saída: 0 = veio de projeto · 3 = veio da RESERVA.
 #
@@ -35,7 +40,7 @@
 
 CWD="${1:-$PWD}"
 SUB="${2:-visual}"
-DESKTOP="$HOME/Desktop/claude-$SUB"
+DESKTOP="$HOME/Desktop/claude-${SUB//\//-}"
 
 resolve() {
   # Nível 1 — raiz do repositório git (robusto: cobre worktrees/submodules)

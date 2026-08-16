@@ -3,7 +3,9 @@
 #
 # PreToolUse(Bash): intercepta `git commit` e checa os invariantes que hoje só
 # existiam como prosa no CLAUDE.md (vendoring, espelho de versão, bump, testes).
-# Zero token, ~50ms. FAIL-OPEN em erro de infra (sem git/python3, fora do repo):
+# Zero token, ~50ms.  # custo-ok: ordem de grandeza do cabeçalho, nunca medida — os
+# custos que FORAM medidos, com data e amostra, estão nos blocos abaixo.
+# FAIL-OPEN em erro de infra (sem git/python3, fora do repo):
 # só bloqueia com evidência concreta na mão.
 set -uo pipefail
 
@@ -267,7 +269,8 @@ portao_prazo "A+A2 (vendoring, contrato de tier, espelho de versão)"
 # espelho de versão, repo público…) rodam SEMPRE — julgam a forma do commit, não
 # a saúde da árvore. Medido em 2026-08-14: sem isto o portão custava 20min nesta
 # máquina (1084s só de scripts/test_docguard_scope.sh) e a chamada de commit do
-# motor morria aos 2min — 3h20 de corrida, zero commits.
+# motor morria aos 2min — 3h20 de corrida, zero commits. Amostra: as 141 suítes que
+# a esteira coleta (contadas em 2026-08-16 — o número cresce, o 20min envelhece com ele).
 PROVA_ESTEIRA=0
 if type green_cache_check >/dev/null 2>&1 && green_cache_check "$ROOT" full; then
   PROVA_ESTEIRA=1
@@ -606,7 +609,8 @@ fi
 # em que o código muda: é aqui que a discordância nasce.
 # SEM RECORTE por arquivo tocado, de propósito: `.claude/plans/` é ignorado pelo git
 # (registro de trabalho não é produto), então plano nenhum aparece em $FILES — recortar
-# por ele deixaria o check calado para sempre. Custo medido em 2026-08-07: ~0,6s.
+# por ele deixaria o check calado para sempre. Custo medido em 2026-08-07: ~0,6s
+# sobre 31 planos em `.claude/plans/` (amostra contada em 2026-08-16).
 PVC="$ROOT/scripts/plano_vs_codigo.py"
 if [ -f "$PVC" ]; then
   if ! OOUT=$(cd "$ROOT" && python3 "$PVC" 2>&1); then
@@ -655,7 +659,8 @@ fi
 # portabilidade (Artigo 3 da constituição) tinham medidor sem cobrador no commit.
 # Mesmo gerador do .github/workflows/portability.yml, com a MESMA asserção de quantidade:
 # glob que deixou de casar arquivo não pode ficar verde sem rodar nada (Artigo 5).
-# Escopo: só quando o commit toca hook, script ou .gitattributes. Medido em 2026-08-06, o
+# Escopo: só quando o commit toca hook, script ou .gitattributes. Medido em 2026-08-06 sobre
+# as 40 suítes que os quatro globs coletam (contadas em 2026-08-16), o
 # bloco leva ~100s (80s são de scripts/test_bootstrap_aviso.sh) — em todo commit seria
 # proibitivo, e é exatamente esse o recorte que o Artigo 3 pede.
 if [ "$PROVA_ESTEIRA" = 0 ] && printf '%s\n' "$FILES" | grep -qE '^(scripts/|plugins/[^/]+/hooks/|\.claude/hooks/|\.gitattributes$)'; then

@@ -240,8 +240,14 @@ def mapa(plan, reqs, jornadas=None, artigos=None, pecas=None, passos=None,
     Sem ela os dois baldes ficam vazios, pela mesma regra dos outros cruzamentos.
     """
     cobertas, sem_req, inexistentes, por_req = [], [], [], {}
+    # o `pronto` e a espera declarada de cada tarefa viajam no mapa. Sem eles o balde
+    # `pronto_sem_espera` da auditoria nunca teria com o que cruzar: ele existiria no
+    # código e ficaria vazio para sempre, que é acusação nenhuma escrita como se fosse.
+    tarefas = []
     for ph in plan.get("phases", []):
         for it in ph.get("items", []):
+            tarefas.append({"id": it["id"], "pronto": it.get("pronto"),
+                            "espera_dono": it.get("espera_dono")})
             rid = str(it.get("requisito", "")).strip()
             if not rid:
                 sem_req.append(it["id"])
@@ -321,6 +327,7 @@ def mapa(plan, reqs, jornadas=None, artigos=None, pecas=None, passos=None,
     passos_sem_func = [p for p in (passos or [])
                        if reqs and _chave(p) not in citados]
     return {"cobertas": cobertas, "sem_requisito": sem_req, "orfaos": orfaos,
+            "tarefas": tarefas,
             "inexistentes": inexistentes, "por_req": por_req,
             "sem_jornada": sem_jornada, "sem_ca": sem_ca,
             "repetidos": repetidos,

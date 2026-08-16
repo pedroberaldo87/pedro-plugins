@@ -9,6 +9,7 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import auditoria_plano as ap  # noqa: E402
+import cobertura  # noqa: E402
 
 FAILS = []
 
@@ -151,6 +152,27 @@ def main():
           not ap.audita(com(tarefas=[{"id": "F1.1",
                                       "pronto": "o teste do parser verde"}]))
               ["nivel1"]["vermelho"])
+
+    # e o balde tem com o que cruzar no caminho REAL: o mapa que a auditoria recebe é
+    # o do `cobertura.mapa`, e é ele que tem que carregar o `pronto` e a espera de cada
+    # tarefa. Com fixture escrita à mão os dois checks acima passariam com o balde
+    # desligado da montagem — vazio para sempre, que é acusação nenhuma.
+    plano = {"phases": [{"items": [
+        {"id": "F1.1", "requisito": "S-1", "pronto": "o site publicado em produção"},
+        {"id": "F1.2", "requisito": "S-1", "pronto": "o site publicado em produção",
+         "espera_dono": "publicar o site"}]}]}
+    reqs = {"S-1": {"ca": "sim"}}
+    m = cobertura.mapa(plano, reqs)
+    check("o mapa do cobertura carrega o pronto e a espera de cada tarefa",
+          [t["id"] for t in m.get("tarefas") or []] == ["F1.1", "F1.2"]
+          and (m.get("tarefas") or [{}])[0].get("pronto")
+          == "o site publicado em produção"
+          and (m.get("tarefas") or [{}, {}])[1].get("espera_dono")
+          == "publicar o site")
+    r = ap.audita(m)
+    check("e a auditoria acusa só a tarefa sem espera declarada",
+          r["nivel1"]["vermelho"]
+          and [a.split(" — ")[0] for a in r["nivel1"]["achados"]] == ["F1.1"])
 
     # os três baldes do nível 1 — quem segue pro conserto e quem devolve a pergunta
     r = ap.audita(com(inexistentes=["S-9"]))["nivel1"]
