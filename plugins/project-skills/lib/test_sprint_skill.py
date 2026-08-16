@@ -177,6 +177,31 @@ def main():
     check("o unico fallback continua sendo a skill visual ausente",
           "só quando a skill `visual` não existe na máquina" in desfechos)
 
+    # F11.3 — o cartao de fechamento da frente (R-20). O programa ja emite o bloco
+    # `pt-frente-fechar`, mas quem monta a pagina do relatorio e a casca: sem esta
+    # secao a arvore ficava de fora, a branch continuava viva na maquina e ninguem
+    # decidia nada sobre ela.
+    frente = secao(texto, "### A frente aberta sai na página", "### Conteúdo")
+    print("a skill manda o cartao de fechamento da frente sair na pagina do relatorio")
+    check("a secao da frente existe", bool(frente))
+    check("fechar o plano nao fecha a branch esta escrito",
+          "Fechar o plano não fecha a branch" in frente)
+    check("o cartao traz os comandos de fechamento",
+          "git worktree remove" in frente and "git branch -d" in frente)
+    check("a decisao do dono e mesclar, manter ou descartar",
+          "mesclar, manter ou descartar" in frente)
+    check("quem escreve o cartao e o programa, pelo bloco pt-frente-fechar",
+          "pt-frente-fechar" in frente and "plan_state.py" in frente)
+    check("a pagina inclui a arvore em vez de descrever o plano em prosa",
+          "inclui a árvore do plano" in frente)
+    check("o comando que monta a arvore esta no texto",
+          "resolve-plugin.sh\" project-skills lib/plan_state.py" in frente
+          and "page <planId>" in frente)
+    check("vale nos tres desfechos, inclusive na missao que parou",
+          "três desfechos" in frente and "parou" in frente)
+    check("plano sem frente nao inventa cartao",
+          "sem `frente` gravada" in frente)
+
     # F6.3 — a secao de custo deriva os tres numeros de programa. Sem cobrador, o
     # relatorio volta a dizer "levou umas tres horas e uns 8M de tokens" de memoria,
     # que e palpite com cara de medicao.
