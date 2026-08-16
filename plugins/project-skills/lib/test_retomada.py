@@ -1,0 +1,159 @@
+#!/usr/bin/env python3
+"""Suite da retomada: o inventario de desfechos (F23.1) e o classificador (F23.2) · R-33.
+
+O que prova: a lista DESFECHOS — o que o programa da retomada sabe fazer quando um
+run para — cobre TODO stopReason que o motor.js do /sprint pode emitir. A lista de
+verdade nao e uma copia em prosa: sai do proprio motor.js, lido aqui, e e o conjunto
+dos valores que `desligadoPor` recebe mais os literais da linha do `stopReason`.
+
+Reprova nos dois lados: desfecho novo no motor sem entrada aqui (quem retoma nao
+saberia o que fazer) e entrada aqui que o motor nao emite mais (lista podre).
+
+Roda com: python3 lib/test_retomada.py
+Sem framework: __main__ com asserts, sai !=0 se falhar.
+"""
+import json
+import os
+import re
+import shutil
+import subprocess
+import sys
+import tempfile
+
+AQUI = os.path.dirname(os.path.abspath(__file__))
+MOTOR = os.path.join(os.path.dirname(AQUI), "skills", "sprint", "references", "motor.js")
+
+sys.path.insert(0, AQUI)
+from retomada import DESFECHOS, SEGUE, CONSERTA, DONO, classifica  # noqa: E402
+
+RETOMADA = os.path.join(AQUI, "retomada.py")
+
+
+def do_motor():
+    """O conjunto REAL de stopReason que o motor.js emite."""
+    js = open(MOTOR, encoding="utf-8").read()
+    # Os valores atribuidos a desligadoPor (o `===` das comparacoes nao casa com `=\s*'`).
+    causas = set(re.findall(r"desligadoPor\s*=\s*'([^']+)'", js))
+    # Os literais do fallback, na linha que monta o campo.
+    linha = [ln for ln in js.splitlines() if "stopReason:" in ln]
+    if len(linha) != 1:
+        raise AssertionError("esperava UMA linha com stopReason: no motor.js, achei %d" % len(linha))
+    literais = set(re.findall(r"'([^']+)'", linha[0]))
+    if not causas or not literais:
+        raise AssertionError("leitura do motor.js voltou vazia — o formato mudou")
+    return causas | literais
+
+
+# Tres saidas de run no formato que o motor.js devolve (o objeto do `return` do fim da
+# corrida), uma por caminho. Os textos de `blockers` sao os literais que o motor empurra
+# nas linhas de `porta-fechada`, `reserva` e no fecho por teto de rodadas.
+FIXTURES = {
+    SEGUE: {
+        "rounds": [{"r": 1}, {"r": 2}],
+        "built": False,
+        "blockers": [],
+        "progresso": {"feitos": 3, "passos": ["F1.1", "F1.2", "F1.3"]},
+        "impedidos": [], "naoDeuTempo": ["F1.4"], "esperandoVoce": [],
+        "gasto": 812345,
+        "stopReason": "max-rounds",
+    },
+    CONSERTA: {
+        "rounds": [{"r": 1}],
+        "built": False,
+        "blockers": [{"what": "a porta do repositorio esta fechada: suite vermelha",
+                      "whyNeedsYou": "nenhuma onda sai com a porta fechada — todo trabalho novo morreria nela. "
+                                     "Prova:\nFAILED lib/test_journal.py::test_ledger — 1 failed, 373 passed"}],
+        "progresso": {"feitos": 0, "passos": []},
+        "impedidos": [], "naoDeuTempo": [], "esperandoVoce": [],
+        "gasto": 41000,
+        "stopReason": "porta-fechada",
+    },
+    DONO: {
+        "rounds": [],
+        "built": False,
+        "blockers": [{"what": "outro motor desta sessao ja reservou: <raiz>/lib/plan_state.py",
+                      "whyNeedsYou": "dois motores no mesmo arquivo e um apagando o trabalho do outro — "
+                                     "espere o outro terminar (ele libera ao sair) ou recorte a missao"}],
+        "progresso": {"feitos": 0, "passos": []},
+        "impedidos": [], "naoDeuTempo": [], "esperandoVoce": [],
+        "gasto": 9000,
+        "stopReason": "reserva",
+    },
+}
+
+
+def tres_caminhos():
+    """Roda `retomada.py --run <saida>` numa fixture de cada caminho."""
+    falhas = []
+    tmp = tempfile.mkdtemp(prefix="retomada-")
+    for esperada, run in FIXTURES.items():
+        alvo = os.path.join(tmp, "%s.json" % run["stopReason"])
+        with open(alvo, "w", encoding="utf-8") as fh:
+            json.dump(run, fh, ensure_ascii=False)
+        p = subprocess.run([sys.executable, RETOMADA, "--run", alvo],
+                           capture_output=True, text=True,
+                           stdin=subprocess.DEVNULL, start_new_session=True)
+        if p.returncode != 0:
+            falhas.append("--run %s saiu %d: %s" % (alvo, p.returncode, p.stderr.strip()))
+            continue
+        try:
+            saida = json.loads(p.stdout)
+        except ValueError:
+            falhas.append("--run %s nao devolveu JSON: %r" % (alvo, p.stdout[:120]))
+            continue
+        if sorted(saida) != ["acao", "causa", "desfecho", "evidencia"]:
+            falhas.append("campos errados para %s: %s" % (run["stopReason"], sorted(saida)))
+            continue
+        if saida["acao"] != esperada:
+            falhas.append("%s deu acao %r, esperava %r" % (run["stopReason"], saida["acao"], esperada))
+        if saida["desfecho"] != run["stopReason"]:
+            falhas.append("%s devolveu desfecho %r" % (run["stopReason"], saida["desfecho"]))
+        blk = run["blockers"]
+        if blk:
+            if saida["causa"] != blk[-1]["what"]:
+                falhas.append("%s nao trouxe a causa do blocker: %r" % (run["stopReason"], saida["causa"]))
+            if saida["evidencia"] != blk[-1]["whyNeedsYou"]:
+                falhas.append("%s nao trouxe a evidencia do blocker" % run["stopReason"])
+        elif not saida["causa"].strip() or not saida["evidencia"].strip():
+            falhas.append("%s sem blocker deixou causa/evidencia vazia" % run["stopReason"])
+    # Desfecho que o inventario nao conhece nao vira palpite: cai em espera-dono.
+    if classifica({"stopReason": "desfecho-que-ninguem-viu"})["acao"] != DONO:
+        falhas.append("stopReason desconhecido nao caiu em espera-dono")
+    shutil.rmtree(tmp, ignore_errors=True)
+    return falhas
+
+
+def main():
+    emitidos = do_motor()
+    falhas = []
+
+    faltando = sorted(emitidos - set(DESFECHOS))
+    if faltando:
+        falhas.append("o motor emite e a lista nao cobre: %s" % ", ".join(faltando))
+
+    sobrando = sorted(set(DESFECHOS) - emitidos)
+    if sobrando:
+        falhas.append("a lista tem desfecho que o motor nao emite mais: %s" % ", ".join(sobrando))
+
+    vazios = sorted(k for k, v in DESFECHOS.items() if not str(v[1]).strip())
+    if vazios:
+        falhas.append("desfecho sem o que fazer na retomada: %s" % ", ".join(vazios))
+
+    acoes = {a for a, _ in DESFECHOS.values()}
+    if acoes - {SEGUE, CONSERTA, DONO}:
+        falhas.append("acao fora das tres: %s" % ", ".join(sorted(acoes - {SEGUE, CONSERTA, DONO})))
+
+    falhas += tres_caminhos()
+
+    for f in falhas:
+        print("FALHA: %s" % f)
+    if falhas:
+        print("FALHOU: %d" % len(falhas))
+        return 1
+    print("OK: retomada (%d desfechos do motor.js cobertos: %s)"
+          % (len(emitidos), ", ".join(sorted(emitidos))))
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

@@ -227,7 +227,7 @@ python3 -c "import json;print(len(json.load(open('.claude-plugin/marketplace.jso
 .claude-plugin/marketplace.json   catálogo único — nome, source, version, tags, category
 plugins/<nome>/                   um dir por entrada do catálogo, sem sobra (§2)
 _shared/                          fonte-da-verdade do compartilhado (25 arquivos-fonte)
-scripts/sync-shared.sh            o "build": vendora _shared/ → 107 cópias em 44 pastas  <!-- acopla-ok: §7 traz o comando que produz os dois números -->
+scripts/sync-shared.sh            o "build": vendora _shared/ → 108 cópias em 44 pastas  <!-- acopla-ok: §7 traz o comando que produz os dois números -->
 scripts/hook_contract.py          mede o contrato dos registros de hook (§11)
 scripts/public_repo_check.py      cobra a regra de repo público (checagem H do gate)
 scripts/regua_call_check.py       cobra que gerador de página chame a régua (checagem I)
@@ -347,7 +347,7 @@ Saída desta rodada (nome · versão · skills · tem hook):
 
 ```
 2op                 1.1.2  [2op,2op-opus,2op-sonnet]    -
-archify            2.12.2  [archify]                    -
+archify            2.12.3  [archify]                    -
 bootstrap         1.17.13  [bootstrap]                  HOOKS
 branches           1.3.13  [branches]                   HOOKS
 check-skills        0.7.3  [check-skills]               -
@@ -363,12 +363,12 @@ improve-workflow  0.16.29  [improve-workflow]           -
 intent-guard       0.8.15  [intent-guard]               HOOKS
 lixeiro             1.5.6  [faxina]                     HOOKS
 principles          1.0.5  [principles]                 -
-project-skills    0.22.106  [completude,design-md,doc,doc-load,doc-touch,monitorar,pesquisa-referencias,plan,project-skills,qa-loop,sprint,start] HOOKS
+project-skills    0.22.112  [completude,design-md,doc,doc-load,doc-touch,monitorar,pesquisa-referencias,plan,project-skills,qa-loop,sprint,start] HOOKS
 ship                1.5.6  [ship]                       HOOKS
 slides              1.6.3  [slides]                     -
 vision              0.1.1  []                           -
 vistoria           0.11.7  [vistoria]                   -
-visual            1.41.18  [andamento,visual]           HOOKS
+visual            1.41.19  [andamento,visual]           HOOKS
 ```
 
 **A rodada anterior moveu onde as skills MORAM; esta apagou as CASAS que tinham ficado
@@ -873,8 +873,8 @@ sed -n '/^SPECS=(/,/^)/p' scripts/sync-shared.sh | grep '::' \
   | sed 's/.*"\(.*\)::.*/\1/' | sort -u | wc -l                        # nº de pastas
 ```
 
-**107 cópias, em 44 pastas de destino, de 25 arquivos-fonte** — contra 19 cópias em 14 pastas <!-- acopla-ok: os dois comandos que produzem os números estão no bloco imediatamente acima; "19" é narrativa histórica -->
-na passada anterior [medido nesta rodada: os dois comandos acima devolvem `107` e `44` — o salto de 97 para 103 é a família do **lar fingido** (F4.3): a receita única de fingir o HOME em teste (`lar-fingido.md` + `lar_fingido.py` + `lib-lar-fingido.sh`, com cobrador próprio) nasceu em `_shared/` e foi vendorada nos cinco consumidores que fingiam o lar à mão, cada um do seu jeito e três deles quebrando no Windows].
+**108 cópias, em 44 pastas de destino, de 25 arquivos-fonte** — contra 19 cópias em 14 pastas <!-- acopla-ok: os dois comandos que produzem os números estão no bloco imediatamente acima; "19" é narrativa histórica -->
+na passada anterior [medido nesta rodada: os dois comandos acima devolvem `108` e `44` — nove das onze cópias novas no salto de 97 para 108 são a família do **lar fingido** (F4.3): a receita única de fingir o HOME em teste (`lar-fingido.md` + `lar_fingido.py` + `lib-lar-fingido.sh`, com cobrador próprio) nasceu em `_shared/` e foi vendorada em todo consumidor que fingia o lar à mão, cada um do seu jeito e três deles quebrando no Windows — hoje são **nove** cópias dela (4 de `lar_fingido.py`, 5 de `lib-lar-fingido.sh`), a última em `plugins/project-skills/lib/`].
 Os quatro maiores contribuintes, todos vendorados por consumidor:
 `resolve-plugin.sh` (18), `regua_texto.py` (11), `hook-json.sh` (12), `lib-tmpdir.sh` (11).
 
@@ -1106,8 +1106,10 @@ pattern_check.py → organism        (find_organism, costuras_for_path)
 pattern_check.py → journal         (touch_plan lê journal.load_ledger → last_commit)
 journal.py       → collect_engine  (try/except ImportError → HAVE_ENGINE, degrada sem tier 4)
 organism.py      → yaml (PyYAML)   (try/except ImportError → mini_yaml stdlib)
-plan_state.py    → cobertura       (import lazy em 5 pontos: _requisitos_do_projeto,
-                                    cmd_cobertura, brief_lines, _render_valor, _html_valor)
+plan_state.py    → cobertura       (import lazy em 9 pontos: _requisitos_do_projeto,
+                                    _jornadas_do_projeto, _artigos_do_projeto,
+                                    _pecas_do_projeto, _passos_do_projeto, cmd_cobertura,
+                                    brief_lines, _render_valor, _html_valor)
 visual_page.py   → regua_texto     (import de TOPO, via sys.path.insert do próprio dir —
 plan_state.py    → regua_texto      a cópia vendorada mora ao lado; ver §7.4)
 visual_page.py   → clareza         (import de topo: erros_de_clareza RECUSA a página com
@@ -1297,10 +1299,11 @@ páginas do `/visual` digitadas pelo modelo custavam **20-31 KB de HTML por pág
   uma vez (`init`) e daí em diante só MARCA (`tick`, que **recusa sem prova**, `EVIDENCE_MIN = 8`).
   Quem desenha a árvore é o programa. `PlanError` (god node) é a exceção única de todos os
   verbos; `DESC_MAX = 140` é limite de schema *"porque a linha didática é o produto do arquivo"*.
-  O módulo tem **2201 linhas** e **11 subcomandos** — `init`, `tick`, `state`, `render`, `page`,
-  `brief`, `cobertura`, `reabrir`, `open`, `close`, `reopen` [confirmado — `wc -l` e
+  O módulo tem **2253 linhas** e **12 subcomandos** — `init`, `tick`, `state`, `render`, `page`,
+  `brief`, `cobertura`, `pendencia`, `reabrir`, `open`, `close`, `reopen` [confirmado — `wc -l` e
   `grep -c 'add_parser('` sobre `plugins/project-skills/lib/plan_state.py` neste run devolvem
-  `2201` e `11`]. Cresceu 650 linhas sem ganhar subcomando: o que entrou foi régua dentro dos
+  `2253` e `12`]. Cresceu ~700 linhas e ganhou **um** verbo (`pendencia`, que grava no passo a
+  decisão que o trava): o resto do que entrou foi régua dentro dos
   verbos que já existiam — ver `regua_pronto.py`, importado no topo do arquivo. **Ele importa
   DUAS funções de lá, e a diferença entre elas é de política:** `erros_de_pronto` julga a
   redação do critério e é descontada pelo texto herdado (o `pronto` que já estava no disco não
@@ -1369,7 +1372,7 @@ páginas do `/visual` digitadas pelo modelo custavam **20-31 KB de HTML por pág
     `docs/REQUISITOS.md` → `{}`. **Nenhum documento não é erro**, é o caso comum — inclusive o
     deste repositório, que não tem PRD. A regra escrita no código: *"o requisito é obrigatório;
     o LUGAR dele é opcional"*.
-- **`cobertura.py`** é o fio entre o requisito e a tarefa, e hoje tem **349 linhas**
+- **`cobertura.py`** é o fio entre o requisito e a tarefa, e hoje tem **394 linhas**
   [confirmado — `wc -l` nesta rodada; nasceu com 79]. `cobertura.py:le_requisitos` lê o formato
   que o dono já escreve à mão
   (`- **S-4.3 Título** · F1 · Art. 6 — corpo. CA: ...`) e devolve `{id: {titulo, ca, ancora, epico}}`;
@@ -1385,7 +1388,7 @@ páginas do `/visual` digitadas pelo modelo custavam **20-31 KB de HTML por pág
   real, 5 de 157 tarefas apontavam para algum dos 77 requisitos escritos — *"silêncio é o estado
   padrão de hoje; este módulo o torna impossível"*. `cobertura.py:resumo` é a linha única que
   todos os consumidores imprimem, pra que um só programa calcule o número.
-- **`completude.py`** (novo em 2026-08-13, **182 linhas**) é o mesmo fio com os elos de cima e de
+- **`completude.py`** (novo em 2026-08-13, **208 linhas**) é o mesmo fio com os elos de cima e de
   baixo: **feature → requisito → tarefa → prova do tique**. Ele não reparseia nada — a feature e o
   requisito saem do `cobertura`, a tarefa e a prova saem do `plan_state` —, lê **todos** os planos
   da pasta como um só (`_plano_unico`), porque requisito atendido por outro plano é requisito
@@ -1439,7 +1442,7 @@ páginas do `/visual` digitadas pelo modelo custavam **20-31 KB de HTML por pág
     (`_tri(..., mostra_problema=False)`). Um bloqueio sobre o qual se decide não é
     informação, é item de decisão — mesmo desenho do `item`, com a profundidade do tri.
     [confirmado — `visual_page.py:r_tri`]
-  - **`_plural()` existe DUAS vezes** — `visual_page.py:90` e `plan_state.py:727`, mesma
+  - **`_plural()` existe DUAS vezes** — `visual_page.py:110` e `plan_state.py:1245`, mesma
     assinatura, 2 linhas cada [confirmado — `grep -rn '^def _plural' --include='*.py' plugins/`
     devolve exatamente esses dois neste run]. Não é descuido: importar `plan_state` inteiro por
     um formatador de duas linhas custa mais que copiá-lo. Mesma lógica das três cópias de `_e()`
