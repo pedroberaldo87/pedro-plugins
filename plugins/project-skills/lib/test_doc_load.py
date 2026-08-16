@@ -301,6 +301,97 @@ check("a oferta tem o ramo do projeto maduro, citando o modo ex-post",
 check("o ramo maduro diz o porquê: inferir e referendar, não entrevistar do zero",
       "referendo" in texto)
 
+# ── o sidecar do protótipo é ANEXO, fora da régua congelada (F13.1) ──────────
+DOC_DESIGN = """---
+project: teste
+authored-by: human
+status: approved
+approved-sig: SUBSTITUIR
+---
+
+# O desenho
+
+Botões azuis.
+"""
+
+SIDECAR = """---
+natureza: anexo
+anexo-de: design.md
+design-sig: {design_sig}
+status: approved
+conjunto-sig: {conjunto_sig}
+marcador-ficticio: FICTICIO
+---
+
+## Arquivos
+
+- .claude/docs/prototipo/painel.html
+"""
+
+
+def projeto_com_anexo(tela="<h1>Painel</h1>\n"):
+    """Projeto com design.md aprovado (marca batendo) e um sidecar de protótipo válido."""
+    r = projeto({"constituicao.md": DOC_LEI_READY, "design.md": DOC_DESIGN})
+    design = os.path.join(r, ".claude", "docs", "design.md")
+    with open(design, encoding="utf-8") as fh:
+        txt = fh.read()
+    with open(design, "w", encoding="utf-8") as fh:
+        fh.write(txt.replace("SUBSTITUIR", str(dl.cksum(design))))
+    casa = os.path.join(r, ".claude", "docs", "prototipo")
+    os.makedirs(casa)
+    with open(os.path.join(casa, "painel.html"), "w", encoding="utf-8", newline="") as fh:
+        fh.write(tela)
+    sig = dl._conjunto_sig(r, [".claude/docs/prototipo/painel.html"])
+    with open(os.path.join(casa, "interface.prototipo.md"), "w", encoding="utf-8") as fh:
+        fh.write(SIDECAR.format(design_sig=dl.cksum(design), conjunto_sig=sig))
+    return r
+
+
+r = projeto_com_anexo()
+sem_anexo = dl.carrega(projeto({"constituicao.md": DOC_LEI_READY}))
+e = dl.carrega(r)
+check("o sidecar entra como anexo, aprovado",
+      len(e["anexos"]) == 1 and e["anexos"][0]["vale"]
+      and e["anexos"][0]["natureza"] == "anexo"
+      and igual(e["anexos"][0]["anexo_de"], "design.md"), str(e["anexos"]))
+check("o anexo fica FORA da régua",
+      not any("prototipo" in a for a in e["regua"]), str(e["regua"]))
+check("e não contamina a marca congelada da lei",
+      e["marca_regua"].split("+")[0] == sem_anexo["marca_regua"],
+      f"{e['marca_regua']} vs {sem_anexo['marca_regua']}")
+check("o texto imprime o anexo na seção própria", "ANEXO" in dl.texto(e), dl.texto(e)[:400])
+
+r2 = projeto_com_anexo()
+with open(os.path.join(r2, ".claude", "docs", "prototipo", "painel.html"),
+          "w", encoding="utf-8", newline="") as fh:
+    fh.write("<h1>Painel mudado</h1>\n")
+e = dl.carrega(r2)
+check("trocar uma tela ACUSA divergência do conjunto",
+      e["anexos"][0]["divergencia_conjunto"] and e["anexos"][0]["reaberto"]
+      and not e["anexos"][0]["vale"] and "protótipo mudado" in e["anexos"][0]["motivo"],
+      str(e["anexos"]))
+
+r3 = projeto_com_anexo()
+design = os.path.join(r3, ".claude", "docs", "design.md")
+velho = dl.frontmatter(design)["approved-sig"]
+with open(design, encoding="utf-8") as fh:
+    txt = fh.read()
+txt = txt.replace("Botões azuis.", "Botões verdes.")
+with open(design, "w", encoding="utf-8") as fh:
+    fh.write(txt)
+novo = dl.cksum(design)
+with open(design, "w", encoding="utf-8") as fh:
+    fh.write(txt.replace(f"approved-sig: {velho}", f"approved-sig: {novo}"))
+e = dl.carrega(r3)
+check("regravar o de acordo do design REABRE o anexo",
+      e["anexos"][0]["reaberto"] and not e["anexos"][0]["divergencia_conjunto"]
+      and "regravado" in e["anexos"][0]["motivo"], str(e["anexos"]))
+check("o design regravado continua valendo como régua — só o anexo reabriu",
+      any(igual(a, ".claude/docs/design.md") for a in e["regua"]), str(e["regua"]))
+
+e = dl.carrega(projeto({"constituicao.md": DOC_LEI_READY}))
+check("projeto sem casa de protótipo devolve anexos vazio", e["anexos"] == [])
+
 print()
 print(f"{ok} passou · {falhou} falhou")
 sys.exit(1 if falhou else 0)

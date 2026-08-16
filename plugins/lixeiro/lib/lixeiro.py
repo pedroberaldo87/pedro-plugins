@@ -17,6 +17,9 @@ cada bump de versão). Um arquivo por sessão, mais um log do que foi encerrado.
 
 Portabilidade: usa só `ps -eo` (POSIX), sem `etimes` (que o macOS ignora em
 silêncio) e sem `pkill`. Sistema sem `ps` utilizável: não encerra nada e sai calado.
+No Windows o `ps` do Git Bash mente (formato próprio, pid MSYS) e não há `lsof`:
+a enumeração vem de `Get-CimInstance` e a pasta de trabalho do PEB, por ctypes —
+tudo em pid nativo, que é o que `os.kill` de lá aceita.
 """
 
 import functools
@@ -260,9 +263,56 @@ def _seg_cputime(s):
     return partes[0] * 3600 + partes[1] * 60 + partes[2]
 
 
+# A enumeração nativa do Windows, num comando só. O `ps` que existe lá é o do
+# Git Bash: ele ignora `-eo` e devolve o formato fixo dele, com pid MSYS que não
+# é o pid do sistema — parseá-lo como POSIX leria PGID como etime e WINPID como
+# time (provado na sonda probe/windows-cwd, run 31958904558). `Get-CimInstance`
+# devolve tudo que o motor usa, já em pid nativo, que é o que `os.kill` aceita.
+_PS1_ENUM = (
+    "Get-CimInstance Win32_Process | ForEach-Object { "
+    "$idade = 0; if ($_.CreationDate) { $idade = [int](((Get-Date) - $_.CreationDate).TotalSeconds) }; "
+    "$cpu = [int](($_.UserModeTime + $_.KernelModeTime) / 1e7); "
+    "$rss = [int]($_.WorkingSetSize / 1024); "
+    "Write-Output ($_.ProcessId.ToString() + '|' + $_.ParentProcessId + '|' + "
+    "$idade + '|' + $cpu + '|' + $rss + '|' + $_.CommandLine) }"
+)
+
+
+def _processos_nt():
+    """`processos()` do Windows, via PowerShell (sempre presente). CPU em segundos
+    INTEIROS — o bastante para o discriminador de ocioso (0,05s de folga), e imune
+    ao separador decimal da localidade, que em pt-BR imprimiria `1,5`."""
+    try:
+        out = subprocess.run(
+            ["powershell", "-NoProfile", "-NonInteractive", "-Command", _PS1_ENUM],
+            capture_output=True, text=True, encoding="utf-8", errors="replace",
+            timeout=30, stdin=subprocess.DEVNULL, start_new_session=True)
+    except (OSError, subprocess.SubprocessError):
+        return []
+    if out.returncode != 0:
+        return []
+    procs = []
+    for linha in out.stdout.splitlines():
+        campos = linha.split("|", 5)
+        if len(campos) < 6:
+            continue
+        pid, ppid, idade, cpu, rss, cmd = campos
+        try:
+            procs.append({
+                "pid": int(pid), "ppid": int(ppid),
+                "idade": int(idade), "cpu": float(cpu),
+                "rss": int(rss), "cmd": cmd.strip(),
+            })
+        except ValueError:
+            continue
+    return procs
+
+
 def processos():
     """Lista de dicts {pid, ppid, idade, cpu, rss, cmd}. Lista vazia = não sei ler,
     e não saber ler significa não encerrar nada (fail-safe, não fail-open cego)."""
+    if os.name == "nt":
+        return _processos_nt()
     try:
         out = subprocess.run(
             ["ps", "-eo", "pid=,ppid=,etime=,time=,rss=,args="],
@@ -307,6 +357,11 @@ def _tabela_ps():
     chama isso antes de perguntar de novo."""
     global _PS_LIDO, _PS_OK
     _PS_LIDO = True
+    # No Windows o `ps` do Git Bash ignora `-eo` e sai com rc=0 no formato dele:
+    # a tabela nasceria de pids MSYS, que não são os pids que o motor usa. Cache
+    # vazio sem _PS_OK = "não sei ler" — e a dúvida protege o processo.
+    if os.name == "nt":
+        return
     try:
         out = subprocess.run(["ps", "-eo", "pid=,stat=,tty="],
                              capture_output=True, text=True, encoding="utf-8", errors="replace",
@@ -339,11 +394,35 @@ def _ps_de(pid):
     return _PS_CACHE.get(pid)
 
 
+def _vivo_nt(pid):
+    """`vivo()` do Windows. `os.kill(pid, 0)` lá NÃO é sonda: qualquer sinal fora
+    dos dois CTRL_* vira TerminateProcess — perguntar "está vivo?" MATARIA o
+    processo. A pergunta certa é abrir o handle e ler o código de saída."""
+    import ctypes
+    try:
+        k32 = ctypes.windll.kernel32
+    except AttributeError:
+        return False
+    PROCESS_QUERY_LIMITED_INFORMATION = 0x1000
+    h = k32.OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, False, int(pid))
+    if not h:
+        return k32.GetLastError() == 5   # acesso negado: existe, só não é nosso
+    try:
+        codigo = ctypes.c_ulong()
+        if not k32.GetExitCodeProcess(h, ctypes.byref(codigo)):
+            return True
+        return codigo.value == 259       # STILL_ACTIVE
+    finally:
+        k32.CloseHandle(h)
+
+
 def vivo(pid):
     """Vive de verdade? Processo já encerrado mas ainda não colhido pelo pai
     (estado Z) responde ao sinal 0 como se estivesse vivo — e isso faria a
     colheita concluir que o encerramento falhou, e escalar para o sinal forte
     à toa. Por isso o zumbi conta como morto."""
+    if os.name == "nt":
+        return _vivo_nt(pid)
     try:
         os.kill(pid, 0)
     except ProcessLookupError:
@@ -540,6 +619,8 @@ def _carrega_cwds():
     vazio, e cada consulta cai no caminho antigo — degrada, não quebra."""
     global _CWD_TODOS
     _CWD_TODOS = True
+    if os.name == "nt":     # sem lsof lá; `cwd_de` tem caminho próprio, por pid
+        return
     try:
         out = subprocess.run(["lsof", "-d", "cwd", "-Fpn"],
                              capture_output=True, text=True, encoding="utf-8", errors="replace",
@@ -557,11 +638,81 @@ def _carrega_cwds():
             _CWD_CACHE.setdefault(atual, linha[1:])
 
 
+def _cwd_nt(pid):
+    """Pasta de trabalho no Windows, lida do PEB do próprio processo — não há
+    `lsof` lá, e nem `wmic` nem `tasklist` devolvem cwd. O caminho foi provado
+    com dado real de um runner (sonda probe/windows-cwd, run 31958835356):
+    NtQueryInformationProcess dá o PEB; PEB+0x20 aponta os ProcessParameters;
+    +0x38 é CurrentDirectory.DosPath (UNICODE_STRING). Offsets de x64 — noutra
+    arquitetura devolve None, e não saber a pasta protege o processo.
+    Sai normalizado (`C:/…`, sem barra final), a forma que a anotação usa."""
+    import ctypes
+    if ctypes.sizeof(ctypes.c_void_p) != 8:
+        return None
+    try:
+        k32 = ctypes.windll.kernel32
+        ntdll = ctypes.windll.ntdll
+    except AttributeError:
+        return None
+    h = k32.OpenProcess(0x0410, False, int(pid))  # QUERY_INFORMATION | VM_READ
+    if not h:
+        return None
+    try:
+        class _PBI(ctypes.Structure):
+            _fields_ = [("ExitStatus", ctypes.c_void_p),
+                        ("PebBaseAddress", ctypes.c_void_p),
+                        ("AffinityMask", ctypes.c_void_p),
+                        ("BasePriority", ctypes.c_void_p),
+                        ("UniqueProcessId", ctypes.c_void_p),
+                        ("InheritedFromUniqueProcessId", ctypes.c_void_p)]
+        pbi = _PBI()
+        devolvido = ctypes.c_ulong()
+        if ntdll.NtQueryInformationProcess(h, 0, ctypes.byref(pbi),
+                                           ctypes.sizeof(pbi), ctypes.byref(devolvido)) != 0:
+            return None
+        if not pbi.PebBaseAddress:
+            return None
+
+        def ler(addr, tam):
+            buf = ctypes.create_string_buffer(tam)
+            lidos = ctypes.c_size_t()
+            if not k32.ReadProcessMemory(h, ctypes.c_void_p(addr), buf, tam,
+                                         ctypes.byref(lidos)):
+                return None
+            return buf.raw
+
+        ptr_pp = ler(pbi.PebBaseAddress + 0x20, 8)
+        if not ptr_pp:
+            return None
+        pp = int.from_bytes(ptr_pp, "little")
+        us = ler(pp + 0x38, 16)
+        if not us:
+            return None
+        tam = int.from_bytes(us[0:2], "little")
+        ptr = int.from_bytes(us[8:16], "little")
+        if not ptr or not tam:
+            return None
+        bruto = ler(ptr, min(tam, 4096))
+        if not bruto:
+            return None
+        return bruto.decode("utf-16-le", "replace").replace("\\", "/").rstrip("/")
+    finally:
+        k32.CloseHandle(h)
+
+
 def cwd_de(pid):
     """Pasta de trabalho do processo. É a prova mais forte de que ele pertence ao
     projeto anotado — mais forte que o texto do comando, que muitas vezes não
     carrega o caminho (`next-server (v16.2.11)` é o exemplo desta máquina).
-    Sem `lsof`, devolve None e o casamento cai para o texto do comando."""
+    Sem `lsof`, devolve None e o casamento cai para o texto do comando.
+    No Windows a fonte é outra (`_cwd_nt`), mas o contrato é o mesmo."""
+    if os.name == "nt":
+        if pid not in _CWD_CACHE:
+            try:
+                _CWD_CACHE[pid] = _cwd_nt(pid)
+            except OSError:
+                _CWD_CACHE[pid] = None
+        return _CWD_CACHE[pid]
     if not _CWD_TODOS:
         _carrega_cwds()
     if pid in _CWD_CACHE:
@@ -634,6 +785,10 @@ def _sob(caminho, raiz):
     casa a própria anotação — e a colheita nunca acontece."""
     if not caminho or not raiz:
         return False
+    if os.name == "nt":
+        # NTFS não distingue caixa, e `C:\…` e `C:/…` são a mesma pasta.
+        caminho = caminho.replace("\\", "/").lower()
+        raiz = raiz.replace("\\", "/").lower()
     formas_raiz = {raiz.rstrip("/"), _real(raiz).rstrip("/")}
     formas_cam = {caminho.rstrip("/"), _real(caminho).rstrip("/")}
     for r in formas_raiz:

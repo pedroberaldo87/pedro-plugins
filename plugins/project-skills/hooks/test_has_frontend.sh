@@ -47,4 +47,17 @@ echo "4. package.json com react: tem interface OK"
 ! has_frontend "/tmp/nao-existe-hf-XXXXX"
 echo "5. dir inexistente: fail-safe OK"
 
+# 6. protótipo rastreado em .claude/docs/prototipo NÃO flipa o detector (F13.3):
+#    é documentação da interface, não a interface — backend com protótipo segue backend.
+PROTO="$(mktemp -d "$(td_tmpdir)"/hf-proto-XXXXXX)"
+trap 'rm -rf "$BACKEND" "$FRONT_TSX" "$FRONT_HTML" "$FRONT_PKG" "$PROTO"' EXIT
+git -C "$PROTO" init -q
+echo "print(1)" > "$PROTO/main.py"
+mkdir -p "$PROTO/.claude/docs/prototipo"
+echo "<html></html>" > "$PROTO/.claude/docs/prototipo/index.html"
+echo "export default 1" > "$PROTO/.claude/docs/prototipo/App.tsx"
+git -C "$PROTO" add -A -f && git -C "$PROTO" -c user.email=t@t -c user.name=t commit -qm i
+! has_frontend "$PROTO"
+echo "6. protótipo em .claude/docs: sem interface OK"
+
 echo "test_has_frontend: OK"
