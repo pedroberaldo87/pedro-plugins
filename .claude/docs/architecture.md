@@ -136,14 +136,14 @@ na instalação. [confirmado — cabeçalho de `scripts/sync-shared.sh`]
 
 ## 2. Números derivados mecanicamente neste run
 
-Comandos re-executados agora, na árvore de trabalho sobre `4705fa2`:
+Comandos re-executados agora, na árvore de trabalho sobre `5df1964`:
 
 ```bash
 ls -1d plugins/*/ | wc -l                            # 23
 ls -1 plugins/*/.claude-plugin/plugin.json | wc -l   # 23
 ls -1 plugins/*/skills/*/SKILL.md | wc -l            # 35
 ls -1 plugins/*/hooks/hooks.json | wc -l             # 12
-find plugins -path '*/lib/*.py' | wc -l              # 131
+find plugins -path '*/lib/*.py' | wc -l              # 137
 python3 -c "import json;print(len(json.load(open('.claude-plugin/marketplace.json'))['plugins']))"   # 23
 ```
 
@@ -164,16 +164,17 @@ python3 -c "import json;print(len(json.load(open('.claude-plugin/marketplace.jso
   [confirmado — os seis comandos re-rodados nesta passada de `/doc-touch`.]
   ⚠️ **Os arquivos `.py` em `lib/` quase não se moveram (100 → 99) apesar de três plugins
   terem sumido** — porque nada foi apagado, só mudou de casa: `plugins/project-skills/lib/`
-  concentra hoje 52 dos 131 (`find plugins/project-skills -path '*/lib/*.py' | wc -l`
-  neste run). Os três últimos a entrar são `plugins/vistoria/lib/inventario.py` e a suíte
-  dele, e `plugins/project-skills/lib/test_motor_js.py` — o cobrador que casa cada
-  `<nome>Prompt` do motor de `/sprint` com o papel declarado no `SKILL.md` (§5).
+  concentra hoje 58 dos 137 (`find plugins/project-skills -path '*/lib/*.py' | wc -l`
+  neste run). Os últimos a entrar são `plugins/project-skills/lib/retomada.py` e a suíte
+  dele — o classificador da parada do motor de `/sprint` (§8) —, precedidos por
+  `ledger_corridas.py` + suíte e pela cópia vendorada de `lar_fingido.py`
+  (`git log --diff-filter=A --name-only -- 'plugins/*/lib/*.py'` neste run).
   ⚠️ **Boa parte desse total é CÓPIA, não código novo**:
   `regua_texto.py` sozinha responde por 10 deles, e `padroes_vazamento.py`,
   `collect_engine.py`, `plan_state.py` e `resolve-*.sh` repetem o padrão (§7). Contar
   `lib/*.py` mede o vendoring junto com o código — a medida de código próprio é
   `find plugins -path '*/lib/*.py' ! -name regua_texto.py ! -name collect_engine.py ! -name padroes_vazamento.py`
-  (**117** neste run).
+  (**123** neste run).
 - **Registros de hook e scripts distintos: quem mede é a ferramenta, não esta linha** —
   `python3 scripts/hook_contract.py | head -1` imprime *"Contrato dos hooks — 54 registros,
   41 scripts distintos"* neste run, e `python3 scripts/hook_contract.py --scripts | grep -c .`
@@ -363,7 +364,7 @@ improve-workflow  0.16.29  [improve-workflow]           -
 intent-guard       0.8.15  [intent-guard]               HOOKS
 lixeiro             1.5.6  [faxina]                     HOOKS
 principles          1.0.5  [principles]                 -
-project-skills    0.22.112  [completude,design-md,doc,doc-load,doc-touch,monitorar,pesquisa-referencias,plan,project-skills,qa-loop,sprint,start] HOOKS
+project-skills    0.22.115  [completude,design-md,doc,doc-load,doc-touch,monitorar,pesquisa-referencias,plan,project-skills,qa-loop,sprint,start] HOOKS
 ship                1.5.6  [ship]                       HOOKS
 slides              1.6.3  [slides]                     -
 vision              0.1.1  []                           -
@@ -1049,7 +1050,7 @@ As cópias de `regua_texto.py` aparecem à parte porque são vendoring, não có
 (§7.4):
 
 ```
-plugins/project-skills/lib/ 54 dos 133 — o motor de doc inteiro (journal.py · pattern_check.py ·
+plugins/project-skills/lib/ 58 dos 137 — o motor de doc inteiro (journal.py · pattern_check.py ·
                            organism.py · graph_map.py · doc_lint.py · historico.py ·
                            rastreio_etapas.py · curadoria_features.py ·
                            decisoes_estruturais.py · doc_load.py · collect_engine.py vendorado),
@@ -1068,6 +1069,12 @@ plugins/project-skills/lib/ 54 dos 133 — o motor de doc inteiro (journal.py ·
                            `relance` lê essa mesma série ANTES de relançar: causa que já
                            parou duas corridas sai 3, e a casca do sprint para sem chamar
                            o motor — a terceira tentativa na mesma pedra é decisão do dono),
+                           o classificador da parada (retomada.py — lê o retorno cru do
+                           motor.js e devolve, para cada `stopReason`, uma de TRÊS ações:
+                           segue-no-motor · conserta-e-relanca · espera-dono; desfecho
+                           que a tabela não conhece cai em espera-dono, e
+                           `test_retomada.py` cobra que a tabela cobre todo `stopReason`
+                           que o motor.js emite — hoje 9, número que sai do próprio teste),
                            andamento.py, green-cache.sh (vendorado) e os resolve-*.sh
                            + as suítes `test_*` correspondentes (`ls plugins/project-skills/lib/test_*`)
 plugins/vistoria/lib/      achado.py · fio_morto.py · inventario.py · medidor.py ·
@@ -1916,8 +1923,9 @@ Cada uma é uma regra que sobreviveu a um defeito, com o arquivo e o símbolo on
 
 ## 13. Verificação
 
-Todas as suítes `plugins/*/lib/test_*.py` executadas nesta rodada, saída literal da última linha
-de cada uma:
+As suítes `plugins/*/lib/test_*.py` que ESTA passada executou — **14 das 66 que o repositório
+tem hoje** (`ls plugins/*/lib/test_*.py | wc -l` neste run); quem roda todas é a esteira
+(`bash scripts/suite.sh`), nunca esta lista —, saída literal da última linha de cada uma:
 
 ```
 plugins/bootstrap/lib/test_conformance.py       :: 67 ok · 0 FAIL

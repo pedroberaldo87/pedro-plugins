@@ -1764,8 +1764,26 @@ def main():
         html = ps._detalhe_html(texto, classe)
         check("html da prova sai como lista",
               'ul class="pt-prova"' in html and html.count("<li>") == 3)
-        check("prova de um segmento continua span",
-              ps._detalhe_html("prova: x", "pt-evidence").startswith("<span"))
+        # F25.1: fechada por padrão — <details> sem `open`, e o texto da prova dentro dele.
+        check("html da prova nasce fechado e dobrável",
+              html.startswith('<details class="pt-evidence-d">')
+              and "open" not in html.split("<summary>")[0]
+              and html.endswith("</details>"))
+        um = ps._detalhe_html("prova: x", "pt-evidence")
+        check("prova de um segmento também nasce fechada",
+              um.startswith('<details class="pt-evidence-d">')
+              and "<summary>" in um and ">x<" in um.split("</summary>")[1])
+        # F25.1: o rótulo do bloco fechado é DERIVADO do conteúdo (quality-goals.md:102) —
+        # primeiro pedaço + contagem do resto, nunca a etiqueta fixa "prova:".
+        rotulo = html.split('class="pt-prova-rot">')[1].split("<")[0]
+        check("rótulo do bloco fechado sai do conteúdo e conta o resto",
+              rotulo == "a rodou · +2")
+        check("rótulo de um segmento só é o próprio texto",
+              um.split('class="pt-prova-rot">')[1].split("<")[0] == "x")
+        longa = ps._detalhe_html("prova:\n· " + "y" * 200 + "\n· z", "pt-evidence")
+        rot_longo = longa.split('class="pt-prova-rot">')[1].split("<")[0]
+        check("rótulo longo é cortado, o corpo guarda a prova inteira",
+              rot_longo == "y" * 87 + "… · +1" and ("y" * 200) in longa)
 
         # S-81: o plano inteiro volta pro disco sem ser recusado pelo texto que já
         # estava lá. O que a gravação REESCREVE continua sendo cobrado.

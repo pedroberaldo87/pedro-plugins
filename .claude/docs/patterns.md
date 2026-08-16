@@ -25,12 +25,14 @@ scope:
   - plugins/visual/lib/visual_page.py
   - plugins/project-skills/lib/plan_state.py
   - plugins/project-skills/lib/cobertura.py
+  - .claude/docs/prototipo/FORMATO.md
   - _shared/regua-de-pergunta.md
   - _shared/contrato-familia.md
   - _shared/hook-json.sh
   - _shared/resolve-plugin.sh
   - _shared/sessionstart-deps.sh
   - scripts/desacoplamento_check.py
+  - scripts/custo_check.py
   - scripts/fiscal_de_bancada.py
   - scripts/vazamento_check.py
   - scripts/plano_vs_codigo.py
@@ -54,6 +56,8 @@ verified-by:
   - plugins/visual/lib/test_visual_page.py
   - plugins/project-skills/lib/test_plan_state.py
   - plugins/project-skills/lib/test_cobertura.py
+  - plugins/project-skills/lib/test_sidecar_prototipo.py
+  - scripts/test_custo_check.py
   - plugins/project-skills/skills/sprint/references/motor.js
   - plugins/project-skills/lib/test_motor_js.py
   - plugins/visual/hooks/test_exitplan_gate.sh
@@ -322,7 +326,8 @@ não trava mais"* vivia em `plan_state.py:cmd_tick` (quem RECUSA o tique) e foi 
 o que o motor de execução contínua lê como fila**, então ele gastou o tier caro
 diagnosticando por que passos com resposta gravada "não saíam do lugar".
 
-Hoje a regra é `plan_state.py:pendencia_viva`, chamada pelos dois. A docstring dela carrega o
+Hoje a regra é `plan_state.py:pendencia_viva`, chamada pelos dois — e, desde que a largada do
+`/sprint` passou a varrer pendência antes de disparar, pelos três, sempre por importação. A docstring dela carrega o
 porquê, e a suíte varre a fronteira inteira (`decidido` ausente, texto, lista, dicionário
 vazio, `escolha` nula, vazia, só espaço, preenchida) — **8 casos, porque o defeito estava
 justamente numa borda**: `str(None)` devolve a palavra `"None"`, que é texto não-vazio, então
@@ -612,6 +617,33 @@ Gate que invoca modelo dispara os hooks do próprio marketplace de novo, agora c
 Padrão de `delivery-audit.sh`, generalizável a todo gate que pergunta agora e lê a resposta depois: o hook cola no prompt do auditor a lista de pedidos vivos **daquele instante** e grava essa lista num arquivo irmão `<artefato>.escopo`, porque o JSON de resposta só existe turnos depois. As três propriedades [relatado — comentários do arquivo, lido por grep nesta rodada]: **grava quem sabe, no instante em que sabe**; **o nome deriva do artefato**, não de sessão nem de timestamp; **ausência é estado legítimo e tem que ser o conservador** (artefato sem sidecar cai no comportamento antigo, que cobra tudo).
 
 O mesmo raciocínio aparecia nos hooks Python de `Stop` como `batidas.log` — o gate registrava o que sabia no instante em que sabia, e o `conformance.py` lia depois. 🔴 **Os dois lados desse par foram removidos em 2026-08-09** (§5.4); o padrão fica, o exemplo não roda mais.
+
+---
+
+### 1.10a A NORMA que um cobrador lê tem que viajar no clone
+
+**Novo em 2026-08-16.** O formato do sidecar de protótipo é lei escrita em
+`.claude/docs/prototipo/FORMATO.md` — um arquivo rastreado no git, dentro da mesma pasta
+que guarda os arquivos do protótipo. A discussão que o originou fica na spec
+(`.claude/specs/concepcao-prototipagem.md` §2b, fora do git); a lei fica no clone. Em
+divergência entre os dois, o `FORMATO.md` ganha, e a spec diz isso por escrito.
+
+O motivo é mecânico, não estético: quem cobra o formato é
+`plugins/project-skills/lib/test_sidecar_prototipo.py`, e ele **abre esse arquivo** —
+`FORMATO` é montado com `os.pardir` a partir do próprio `__file__` e conferido com
+`os.path.isfile` [confirmado — constante `FORMATO` e os `check(...)` do arquivo, lidos nesta rodada]. Norma
+que mora só na spec ignorada pelo git some no clone de terceiro e o cobrador reprova sem ter
+o que ler. As três propriedades: **a lei viaja onde o cobrador procura**; **a casa é uma só**
+(caminho fora de `.claude/docs/prototipo/` é erro de formato, não gosto — é o que a
+conferência por onda sabe olhar sem procurar); **ausência REPROVA, não pula** — a suíte não
+tem caminho de escape para o arquivo faltando.
+
+A bancada não confere só a presença: ela monta o exemplo escrito no `FORMATO.md` num lar
+fingido (receita de `_shared/lar-fingido.md`, cópia vendorada em
+`plugins/project-skills/lib/lar_fingido.py`), confere campo a campo, confere o `conjunto-sig`
+contra o `cat … | cksum` de verdade e confere que trocar uma tela diverge a marca — o teto
+verde sai do próprio arquivo: `python3 plugins/project-skills/lib/test_sidecar_prototipo.py`.
+É o §2.12 aplicado: exemplo que ninguém executa é prosa, e prosa não reprova.
 
 ---
 
@@ -1012,7 +1044,7 @@ bloco `requisitos` no próprio plano  →  $PLAN_REQS  →  <raiz>/docs/PRD.md
 - **O mais específico vem primeiro**, e a docstring diz por quê: *"quem o declarou no plano quis aquele conjunto, não o do projeto inteiro"*.
 - **O fim da cascata é `{}`, e `{}` não é erro.** *"Projeto sem documento de requisitos não é erro, é o caso comum"* — dicionário vazio **desliga** a checagem de citação órfã em vez de reprovar tudo. É a mesma escolha do §2.2: "não sei" ≠ "zero".
 - **A checagem que o dicionário liga é dura.** Com requisitos conhecidos, tarefa que cita um id inexistente **recusa a gravação inteira** — não é aviso. O comentário traz a medida: *"7 de 154 itens de um plano real citaram artigo de lei sem ninguém nunca conferir se o artigo existia"*.
-- **Quem calcula não guarda.** `cobertura.py` (o tamanho sai de `wc -l < plugins/project-skills/lib/cobertura.py`, hoje **349** — nasceu com 79) lê, cruza e devolve; a vista "épico › requisito › grupo › tarefa" é **derivada em toda leitura**, nunca gravada — mesmo princípio de `phase_status`, que deriva o estado da fase dos passos porque *"estado duplicado é estado que diverge"*.
+- **Quem calcula não guarda.** `cobertura.py` (o tamanho sai de `wc -l < plugins/project-skills/lib/cobertura.py`, hoje **394** — nasceu com 79) lê, cruza e devolve; a vista "épico › requisito › grupo › tarefa" é **derivada em toda leitura**, nunca gravada — mesmo princípio de `phase_status`, que deriva o estado da fase dos passos porque *"estado duplicado é estado que diverge"*.
 
 **Régua durável: quando um campo passa a ser obrigatório, a fonte que o valida precisa de cascata com fundo vazio — senão a regra nova vira bloqueio para todo projeto que ainda não tem a estrutura que ela pressupõe.**
 
@@ -1465,8 +1497,8 @@ A ordem de execução não importa: todos só acumulam em `VIOL`.
 - **O · plano e código discordando** — roda `python3 scripts/plano_vs_codigo.py` e barra passo **aberto** cujo critério de pronto o disco já cumpre ⇒ `❌ PLANO ATRASADO`. ⚠️ **É o único check SEM recorte por arquivo tocado, e de propósito**: `.claude/plans/` é gitignorado, então plano nenhum aparece em `$FILES` — recortar por arquivo o deixaria calado para sempre. Custo medido: ~0,6s. O comentário registra que ele existia e ninguém o consultava: *"ele rodava e acusava sem que portão nenhum o consultasse"*.
 - **S · a lei da autópsia virando cobrança** — **novo em 2026-08-09**. Roda `python3 scripts/autopsia_check.py`, e só quando o commit toca `plugins/improve-workflow/` ⇒ `❌ LEI DA AUTÓPSIA FURADA`. Ele mede **texto**, não código: as três frases fixas que a skill `improve-workflow` tem que continuar carregando (a trava de robustez — *"reprove toda proposta que troque robustez por economia"*; a ordem de derrubar — *"tente derrubar cada afirmação"*; a proibição — *"nenhum arquivo do projeto muda durante a apura"*), e nenhum bloco executável do `SKILL.md` escrevendo na árvore (`git commit`/`git add`/`rm `/`mv `/`tee `/redirecionamento). O motivo está no cabeçalho do próprio script: *"prosa some numa reescrita e nada acusa — a rodada seguinte fica sem refutador e com licença para editar"*. ⚠️ **As três frases são o texto exato que o script exige, e a skill reescreve o vocabulário dela de vez em quando** — em 2026-08-09 a terceira trocou *"durante a rodada"* por *"durante a apura"*, e a doc que as citava passou a citar frase morta. O par vivo sai do próprio cobrador: `python3 -c "import sys;sys.path.insert(0,'scripts');import autopsia_check as a;print(a.FRASES)"`. É a régua de que **regra que só existe em prosa não é regra**, aplicada à skill que audita as outras. Fail-open declarado: sem `scripts/autopsia_check.py` o bloco inteiro é pulado. Suíte própria: `scripts/test_autopsia_check.py` (verde nesta rodada; `python3 scripts/autopsia_check.py` → rc=0).
 
-  🔴 **O eixo de placeholder mudo entrou depois, e a lição é sobre a FORMA da isenção.** A primeira versão isentava o **operador**: `>` só contava como redirecionamento quando vinha depois de espaço (`\s>>?\s*\S`), para que `<run>` nos exemplos de uso não reprovasse a skill inteira. Afrouxar o operador abriu o buraco — `<plugin visual>` passava calado, e o shell lê aquilo como par de redirecionamentos, num bloco que quem copia vai executar. O conserto trocou o eixo: a isenção passou a ser do **token declarado** (`DECLARADOS = ("<run>",)`, apagado do bloco antes da varredura, preservando as posições para a linha do achado continuar certa), e o operador voltou a ser cobrado inteiro (`>>?\s*\S`). O que sobra de `<…>` vira o segundo achado, *"nomeia por placeholder mudo"*. **Régua durável: isenção de gate se escreve como lista fechada do que é legítimo, nunca como afrouxamento da regra** — afrouxar o operador isenta tudo que se parecer com o caso conhecido; nomear o token isenta só ele. É a mesma família do `public-ok:`, `r8-ok:` e `vaza-ok:`, que também isentam a **linha nomeada**, não o padrão.
-- **R-19 · pasta de trabalho sem casa declarada** — **novo em 2026-08-15**. Roda `python3 scripts/contrato_pastas_check.py` quando o commit traz um `SKILL.md` ou o próprio `contrato-familia.md` ⇒ `❌ PASTA DE TRABALHO SEM CASA`. A lista fechada é a tabela *"As pastas"* de `_shared/contrato-familia.md` (17 pastas declaradas nesta rodada — o número sai da execução: o script imprime `contrato: N pastas declaradas`), e a ordem é a inversa do costume: **declara-se a casa primeiro, a skill a usa depois**. Nasceu de skill que escolhia sozinha onde gravar — cada uma criava mais uma pasta em `.claude/` e ninguém tinha a lista. Estado que atravessa projetos (`~/.claude/…`) está fora do alcance dele. Suíte própria: `scripts/test_contrato_pastas_check.py` (13 checks, verde nesta rodada). ⚠️ **O rótulo dele furou a contagem publicada, e o conserto foi na RÉGUA, não no rótulo**: a classe `[A-Z0-9]+` não casa `# R-19 · ` (o hífen está de fora), então o comando devolvia o mesmo 21 de antes e este check era invisível para quem contava. A classe publicada aqui, no `glossary.md` e no índice passou a ser `[A-Z0-9-]+`. **Régua durável: comando de contagem publicado em doc é um cobrador como outro qualquer — rótulo novo que ele não casa some em silêncio, e o número segue parecendo certo.**
+  🔴 **O eixo de placeholder mudo entrou depois, e a lição é sobre a FORMA da isenção.** A primeira versão isentava o **operador**: `>` só contava como redirecionamento quando vinha depois de espaço (`\s>>?\s*\S`), para que `<run>` nos exemplos de uso não reprovasse a skill inteira. Afrouxar o operador abriu o buraco — `<plugin visual>` passava calado, e o shell lê aquilo como par de redirecionamentos, num bloco que quem copia vai executar. O conserto trocou o eixo: a isenção passou a ser do **token declarado** (`DECLARADOS = ("<run>",)`, apagado do bloco antes da varredura, preservando as posições para a linha do achado continuar certa), e o operador voltou a ser cobrado inteiro (`>>?\s*\S`). O que sobra de `<…>` vira o segundo achado, *"nomeia por placeholder mudo"*. **Régua durável: isenção de gate se escreve como lista fechada do que é legítimo, nunca como afrouxamento da regra** — afrouxar o operador isenta tudo que se parecer com o caso conhecido; nomear o token isenta só ele. É a mesma família do `public-ok:`, `r8-ok:`, `vaza-ok:` e `custo-ok:`, que também isentam a **linha nomeada**, não o padrão.
+- **R-19 · pasta de trabalho sem casa declarada** — **novo em 2026-08-15**. Roda `python3 scripts/contrato_pastas_check.py` quando o commit traz um `SKILL.md` ou o próprio `contrato-familia.md` ⇒ `❌ PASTA DE TRABALHO SEM CASA`. A lista fechada é a tabela *"As pastas"* de `_shared/contrato-familia.md` (18 pastas declaradas nesta rodada — o número sai da execução: o script imprime `contrato: N pastas declaradas`), e a ordem é a inversa do costume: **declara-se a casa primeiro, a skill a usa depois**. Nasceu de skill que escolhia sozinha onde gravar — cada uma criava mais uma pasta em `.claude/` e ninguém tinha a lista. Estado que atravessa projetos (`~/.claude/…`) está fora do alcance dele. Suíte própria: `scripts/test_contrato_pastas_check.py` (13 checks, verde nesta rodada). ⚠️ **O rótulo dele furou a contagem publicada, e o conserto foi na RÉGUA, não no rótulo**: a classe `[A-Z0-9]+` não casa `# R-19 · ` (o hífen está de fora), então o comando devolvia o mesmo 21 de antes e este check era invisível para quem contava. A classe publicada aqui, no `glossary.md` e no índice passou a ser `[A-Z0-9-]+`. **Régua durável: comando de contagem publicado em doc é um cobrador como outro qualquer — rótulo novo que ele não casa some em silêncio, e o número segue parecendo certo.**
 - **F · testes shell** — roda `plugins/<nome>/hooks/test_*.sh` dos plugins tocados.
 - **O bump agora tem cobrador que compara NÚMERO, e não presença de arquivo** (2026-08-13, `scripts/test_bump_propagado.py`). Ele pergunta, plugin a plugin, se a version de hoje é diferente da que valia no último commit que tocou a pasta. A primeira versão perguntava outra coisa — se o `plugin.json` aparecia entre os arquivos daquele commit —, e isso é proxy: commit que mexe só na `description` toca o arquivo sem subir número nenhum e passava. Nasceu de caso medido: `d7d48c2` acrescentou a entrada do `2op` em `plugins/bootstrap/config/manifest.json` e deixou a version do bootstrap em `1.17.10`, então quem já tinha o plugin instalado nunca receberia a receita nova. ⚠️ **`git rev-parse <raiz>^` não devolve vazio: sai 128 e ECOA o argumento no stdout** — sem conferir que a saída tem forma de sha, o commit raiz virava um pai falso e o plugin era pulado em silêncio, que é o mesmo defeito de proxy com outra roupa. É o **oitavo** episódio da mesma família do §5.1: o bump que "todo mundo lembra" foi contornado sete vezes pelo gatilho do gate, e a oitava foi o próprio cobrador aceitando prova fraca.
 - **J · as suítes que nenhum glob de plugin casa** — o check que cresce por descoberta de buraco. Nasceu de um declarado: *"`grep -n 'scripts/test_' .claude/hooks/release-gate.sh` não devolvia nada, e as suítes de portabilidade tinham medidor sem cobrador no commit"*. Escopo: commit que toca `scripts/`, `plugins/*/hooks/`, `.claude/hooks/` ou `.gitattributes`. Custo medido em 2026-08-06: **~100s**, dos quais 80s são de `scripts/test_bootstrap_aviso.sh` — é o check mais caro do gate, e o recorte existe porque em todo commit seria proibitivo.
@@ -1478,6 +1510,8 @@ A ordem de execução não importa: todos só acumulam em `VIOL`.
   **Régua durável, e ela é a lição do J inteiro: glob de cobrador é a superfície mais fácil de furar sem sintoma.** Suíte que nenhum glob casa não fica vermelha, não fica verde — fica ausente, e ausência não tem cor. Quem mede isso de fora é `scripts/suites_orfas.py`; quando ele acusar uma órfã, o conserto é uma esteira nova aqui, não um lembrete.
 
 - **T · a cadeia de entrega rompida** — **novo em 2026-08-09**. Roda `python3 scripts/cadeia_check.py --repo` quando o commit toca `plugins/` ou o catálogo ⇒ `❌ CADEIA DE ENTREGA ROMPIDA`. Ele confere as fronteiras que fazem o código escrito virar comportamento na máquina de quem instala: **escrito** (`plugins/<nome>/`) → **publicado** (`.claude-plugin/marketplace.json`) → **mandado instalar** (a receita do `bootstrap`). Plugin que nasce em `plugins/` e não entra no catálogo não chega a máquina nenhuma, **e as skills dele somem junto** — por isso o recado conta quantas skills ficam de fora, com o nome delas: é assim que o defeito se apresenta a quem o vive ("desenvolvi e não aparece"). O elo publicado→receita também é cobrado pelo `conformance.py:check_catalogo`, mas só quando alguém roda o setup do `bootstrap`; aqui o commit já responde. ⚠️ **Só o lado REPOSITÓRIO entra no gate**: comparar com o que está instalado nesta máquina reprovaria o commit de quem apenas ainda não rodou o `update`, e isso é assunto de aviso de arranque (§5.2b), nunca de impedimento de commit. Suíte própria: `scripts/test_cadeia_check.py`.
+
+- **Fora do gate, e a doc diz que está fora: `scripts/custo_check.py`** — **novo em 2026-08-16**. Ele reprova afirmação de custo em hook que não diz **quando** foi medida nem **sobre quanto** ("~50ms", "~100s" sem data e sem amostra viram número que envelhece sozinho). Isenção na linha: `# custo-ok: <motivo>` — é a quarta da família do `public-ok:`. ⚠️ **Nenhum bloco do `release-gate.sh` o chama** (`grep -n custo_check .claude/hooks/release-gate.sh` não devolve nada nesta rodada): hoje ele é **régua manual** — `python3 scripts/custo_check.py` → `custo-check: OK — nenhuma afirmação de custo sem data e sem amostra`, com 8 afirmações conformes [confirmado — rodado nesta passada, rc=0]. O que tem cobrador é só a suíte dele, `scripts/test_custo_check.py`, que entra na esteira pelo glob `scripts/test_*.py` do check J. Medidor sem cobrador é dívida declarada, não regra (a cláusula que manda em todas, na constituição).
 
 ⚠️ **Dois checks varrem o repo inteiro, e os dois pelo mesmo motivo**: o alvo deles não aparece em diff nenhum. O `O` porque `.claude/plans/` é gitignorado; o `Q` porque cópia de trabalho parada não é arquivo rastreado. Recortar por arquivo tocado deixaria os dois calados para sempre.
 
@@ -1781,7 +1815,7 @@ Arquivo temporário de suíte nasce em diretório temporário **por execução**
 - ⚠️ **`author` tem que ser objeto** no `marketplace.json`; string é rejeitada pelo `validate` [relatado; o estado atual é consistente — os dois `author` presentes hoje são objeto, verificado neste run].
 - 🔴 **O release-gate só existe para commit feito pela ferramenta Bash** (`matcher: "Bash"`). Commit por outro caminho não o dispara e nem precisa de `--no-verify` pra isso. **Bump esquecido não deixa rastro** — quem quiser saber se aconteceu tem que reconstruir commit a commit.
 - 🔴 **Cobrador de CONTAGEM não pega NOME errado, e o número certo dá a impressão contrária.** O README afirmava a quantidade certa de plugins desligados de fábrica e nomeava dois errados; o check K passava verde e quem instala ligava o plugin errado. Toda afirmação que é `<número> + <lista>` precisa das duas conferências — a segunda entrou em `readme_counts_check.py:_confere_nomes` (§5.2).
-- ⚠️ **Isenção de gate se escreve como token declarado, nunca como operador afrouxado** — o `autopsia_check.py` afrouxou o `>` para deixar passar `<run>` e abriu passagem para `<plugin visual>` (§5.2). `public-ok:`, `r8-ok:` e `vaza-ok:` são a forma certa: isentam a linha nomeada, com motivo escrito.
+- ⚠️ **Isenção de gate se escreve como token declarado, nunca como operador afrouxado** — o `autopsia_check.py` afrouxou o `>` para deixar passar `<run>` e abriu passagem para `<plugin visual>` (§5.2). `public-ok:`, `r8-ok:`, `vaza-ok:` e `custo-ok:` são a forma certa: isentam a linha nomeada, com motivo escrito.
 - ✅ **O furo que fez 7 de 9 commits passarem sem bump era o GATILHO, e ele foi consertado** (§5.1, §5.2): o `grep` na forma do comando deixava passar `env FOO=1 git commit`, `(git commit)`, `bash -c "git commit"` e `VAR=x git commit`. Hoje o comando é tokenizado e o subcomando do git é lido. **Detecção que casa forma de comando é gate desligável por acidente.**
 
 ### Código compartilhado

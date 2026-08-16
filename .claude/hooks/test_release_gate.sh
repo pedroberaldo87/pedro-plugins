@@ -298,7 +298,7 @@ git -C "$R" rm -q -f plugins/exemplo/lib/test_conta.py >/dev/null 2>&1
 
 # ── A prova da esteira: "full" pula os quatro blocos de suíte ───────────────
 # scripts/suite.sh verde grava "full"; o portão, com a prova na mão, não re-mede
-# (o custo real era o bloco J: 1084s de UMA suíte de scripts/, medido 2026-08-14).
+# (o custo real era o bloco J: 1084s de UMA das 40 suítes de scripts/, medido 2026-08-14).
 # O contador prova o pulo; o GLOB VAZIO prova que o pulo é do bloco INTEIRO — o
 # repo de brinquedo não tem os quatro globs, então J de pé sempre acusa vazio.
 echo "A prova da esteira — full pula D, D2, F e J; árvore mudada derruba a prova"

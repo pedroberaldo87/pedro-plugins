@@ -1606,19 +1606,34 @@ def prova_bullets(ev):
 
 
 def _detalhe_html(texto, classe):
-    """A prova multilinha vira lista no HTML; o resto continua um span.
+    """A prova vira um bloco dobrável fechado; o resto continua um span.
 
     O `_detalhe` devolve `prova:` + bullets separados por `\n` — jogar isso num
     span colapsaria tudo numa linha, que é o defeito que F6.1 conserta.
+
+    O rótulo do que fica fechado é DERIVADO do conteúdo (`quality-goals.md:102`):
+    promove o primeiro pedaço da prova e conta o que sobrou (`… · +2`). A etiqueta
+    fixa `prova:` já foi tentada e rejeitada — num plano de 72 passos feitos ela
+    dava 72 linhas idênticas, que não ajudam a decidir se vale abrir.
     """
-    if classe == "pt-evidence" and "\n" in texto:
-        linhas = texto.split("\n")
-        out = ['<div class="pt-evidence"><span class="pt-prova-rot">%s</span>' % _e(linhas[0]),
-               '<ul class="pt-prova">']
-        out += ["<li>%s</li>" % _e(b.lstrip("· ")) for b in linhas[1:] if b.strip()]
-        out += ["</ul></div>"]
-        return "".join(out)
-    return '<span class="%s">%s</span>' % (classe, _e(texto))
+    if classe != "pt-evidence":
+        return '<span class="%s">%s</span>' % (classe, _e(texto))
+    # F25.1: a prova nasce FECHADA — <details> nativo, sem JS, como a árvore de valor.
+    linhas = texto.split("\n")
+    if len(linhas) > 1:
+        bullets = [b.lstrip("· ").strip() for b in linhas[1:] if b.strip()]
+    else:
+        bullets = [linhas[0].partition(":")[2].strip() or linhas[0]]
+    rot = bullets[0] if len(bullets[0]) <= 88 else bullets[0][:87].rstrip() + "…"
+    if len(bullets) > 1:
+        rot += " · +%d" % (len(bullets) - 1)
+        corpo = ('<ul class="pt-prova">'
+                 + "".join("<li>%s</li>" % _e(b) for b in bullets)
+                 + "</ul>")
+    else:
+        corpo = '<span class="pt-evidence">%s</span>' % _e(bullets[0])
+    return ('<details class="pt-evidence-d"><summary><span class="pt-chev">▸</span>'
+            '<span class="pt-prova-rot">%s</span></summary>%s</details>' % (_e(rot), corpo))
 
 
 def _detalhe(it):

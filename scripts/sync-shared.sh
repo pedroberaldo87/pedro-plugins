@@ -166,6 +166,7 @@ SPECS=(
   # `USERPROFILE` primeiro), e o filho ia escrever no lar REAL de quem roda.
   "plugins/bootstrap/lib::lar_fingido.py"
   "plugins/improve-workflow/lib::lar_fingido.py"
+  "plugins/project-skills/lib::lar_fingido.py"
   "plugins/visual/hooks::lar_fingido.py"
   "plugins/bootstrap/hooks::lib-lar-fingido.sh"
   "plugins/guardrails/hooks::lib-lar-fingido.sh"
