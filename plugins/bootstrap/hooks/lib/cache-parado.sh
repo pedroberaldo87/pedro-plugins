@@ -26,6 +26,10 @@ cp_parados() {
   command -v python3 >/dev/null 2>&1 || return 0
   python3 - "$CP_CACHE" <<'PY' 2>/dev/null
 import os, re, sys
+# No Windows o stdout em modo texto emite \r\n; o `read` do bash que consome esta
+# lista deixa o \r grudado na última versão, o `[ -d ]` não acha a pasta e o
+# cp_limpar pula a remoção CALADO. Newline explícito mata a classe inteira.
+sys.stdout.reconfigure(newline="\n")
 cache = sys.argv[1]
 
 def ver(t):

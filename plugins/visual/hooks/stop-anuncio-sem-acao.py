@@ -59,6 +59,8 @@ MAX_DEVOLUCOES = 2
 CAUDA_CHARS = 500
 
 AQUI = Path(__file__).resolve().parent
+sys.path.insert(0, str(AQUI))
+from bash_posix import bash_posix  # noqa: E402  (vendorado ao lado; fonte em _shared/)
 
 
 def _posix(p):
@@ -76,7 +78,10 @@ def _posix(p):
 def _plan_state():
     """O programa do plano mora no plugin `project-skills`, e e achado pelo NOME —
     caminho relativo para o vizinho nao vale no cache do harness. Ausente: ""."""
-    r = subprocess.run(["bash", _posix(AQUI / "resolve-plugin.sh"),
+    BASH = bash_posix()
+    if BASH is None:
+        return ""            # fail-open: sem bash funcional, o gate desarma calado
+    r = subprocess.run([BASH, _posix(AQUI / "resolve-plugin.sh"),
                         "project-skills", "lib/plan_state.py"],
                        capture_output=True, text=True, encoding="utf-8", errors="replace", stdin=subprocess.DEVNULL,
                        start_new_session=True,
@@ -171,8 +176,11 @@ def planos_abertos(cwd):
     """
     if not PLAN_STATE or not RESOLVE_DIR.is_file():
         return [], False
+    BASH = bash_posix()
+    if BASH is None:
+        return [], False     # fail-open: sem bash funcional, o gate desarma calado
     try:
-        r = subprocess.run(["bash", _posix(RESOLVE_DIR), _posix(cwd), "plans"],
+        r = subprocess.run([BASH, _posix(RESOLVE_DIR), _posix(cwd), "plans"],
                            capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=10, stdin=subprocess.DEVNULL, start_new_session=True)
         plans_dir = (r.stdout or "").strip()
         de_reserva = r.returncode == 3
