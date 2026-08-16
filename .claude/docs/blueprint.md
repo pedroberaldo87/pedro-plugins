@@ -3,9 +3,10 @@ generated: 2026-08-14
 reviewed: 2026-08-14
 project: pedro-plugins
 authored-by: ex-post-rascunho
-status: ready
-approved:
+status: approved
+approved: 2026-08-16
 scope: []
+approved-sig: 3304081701
 ---
 
 # Como o sistema funciona
