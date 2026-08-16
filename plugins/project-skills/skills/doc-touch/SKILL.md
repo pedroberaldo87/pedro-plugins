@@ -56,7 +56,7 @@ passo 2**, não uma varredura nova — o escopo inverso já fez o trabalho:
 
 | Doc re-projetado | Diagrama a re-renderizar |
 |---|---|
-| `architecture.md` | `organismo.html` |
+| `architecture.md` | `organismo.html` — na mesma casa canônica VERSIONADA dos fluxos (`.claude/docs/fluxos/`): arquitetura é doc pela mesma razão que fluxo é, e diagrama que nasce em pasta de sessão morre no `/clear` sem ninguém notar |
 | `runtime.md` | os `fluxo-<slug>.html` dos fluxos cujos títulos o diff tocou — re-renderizados em **`.claude/docs/fluxos/`**, a casa canônica VERSIONADA (decisão do dono em 2026-08-13): fluxo é doc, entra no commit de conteúdo do passo 5, nunca em pasta de sessão |
 | doc de um aplicativo (monorepo) | `app-<nome>.html` daquele aplicativo |
 
@@ -64,11 +64,10 @@ Para cada um, o ciclo da skill `archify` (invoque-a com a Skill tool — as cama
 estáveis e o destino estão lá; não os redigite aqui):
 
 ```bash
-ARCHIFY_DIR=$(bash <plugin archify>/skills/archify/resolve-dir.sh "$PWD" archify)
-node <plugin archify>/skills/archify/bin/archify.mjs render architecture <entrada>.json "$ARCHIFY_DIR/organismo.html"
-
-# Fluxo tem casa própria e versionada — o resolve-dir aceita subdir com barra:
+# Arquitetura e fluxo dividem a MESMA casa canônica e versionada — o resolve-dir
+# aceita subdir com barra:
 FLUXOS_DIR=$(bash <plugin archify>/skills/archify/resolve-dir.sh "$PWD" docs/fluxos)
+node <plugin archify>/skills/archify/bin/archify.mjs render architecture <entrada>.json "$FLUXOS_DIR/organismo.html"
 node <plugin archify>/skills/archify/bin/archify.mjs render workflow <entrada>.json "$FLUXOS_DIR/fluxo-<slug>.html"
 ```
 
