@@ -55,6 +55,9 @@ O veredito da auditoria marca `fallow/lib/report.py`, `slides/lib/md2deck.py` e
 **Não é violação de forma — é ausência de amostra.** O conserto certo é gerar uma
 página por esses caminhos e medir, não editar o gerador às cegas.
 
+**O que revoga:** uma página nascer por qualquer um dos três caminhos — aí ela é medida
+pela régua normal e o gerador sai desta lista.
+
 ## O histórico do git carrega tudo que já saiu da árvore
 
 Limpar o índice não limpa os commits publicados — quem clona alcança as versões
