@@ -62,6 +62,34 @@ check("o segredo mora em .claude/secrets/, escondida", ".claude/secrets/" in PRO
 check("a pasta do segredo fica fora do git (gitignore, não só o ponto no nome)",
       ".gitignore" in PROSA and "fora do git" in PROSA)
 
+# ── a premissa chega às skills que decidem onde a doc nasce ────────────────
+
+# Contrato em prosa sem cobrador de PRESENÇA vira contrato que ninguém lê: o
+# cardápio da família e a pauta de concepção são os dois pontos onde a premissa
+# encontra quem escreve doc. Os dois APONTAM para este arquivo — repetir a prosa
+# aqui é o drift que a premissa anti-drift proíbe.
+
+print("\n[a premissa nos dois SKILL.md — cardápio da família e pauta de concepção]")
+
+RAIZ = os.path.dirname(AQUI)
+SKILLS = os.path.join(RAIZ, "plugins", "project-skills", "skills")
+
+for rotulo, rel in (
+    ("cardápio da família", os.path.join("project-skills", "SKILL.md")),
+    ("pauta de concepção", os.path.join("start", "SKILL.md")),
+):
+    caminho = os.path.join(SKILLS, rel)
+    if not os.path.isfile(caminho):
+        check("%s existe" % rotulo, False, caminho)
+        continue
+    txt = open(caminho, encoding="utf-8").read()
+    check("%s: a doc visível nasce em docs/ na raiz" % rotulo,
+          "`docs/` na raiz" in txt)
+    check("%s: o segredo mora em .claude/secrets/, fora do git" % rotulo,
+          ".claude/secrets/" in txt and "fora do git" in txt)
+    check("%s: aponta para o contrato em vez de repetir a prosa" % rotulo,
+          "_shared/casa-da-doc.md" in txt)
+
 with tempfile.TemporaryDirectory() as tmp:
     nova = os.path.join(tmp, "casa-nova")
     velha = os.path.join(tmp, "casa-velha")

@@ -238,7 +238,10 @@ def imprime(inv, so_classe=None):
         print(f"    para        : {c['para']}")
         print(f"    confere com : {c['comando']}")
         if so_classe:
-            for rel, linha, trecho, _linha_inteira in c["pontos"]:
+            for ponto in c["pontos"]:
+                # B e D descrevem o arquivo inteiro e não carregam a linha crua que
+                # A e C guardam para a isenção — o ponto é lido por índice, não desempacotado
+                rel, linha, trecho = ponto[0], ponto[1], ponto[2]
                 alvo = f"{rel}:{linha}" if linha else rel
                 print(f"      {alvo}  {trecho}")
         print()
