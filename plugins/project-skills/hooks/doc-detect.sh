@@ -22,6 +22,10 @@
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PATTERN_CHECK_PY="$SCRIPT_DIR/../lib/pattern_check.py"
+# A casa da doc mudou de lugar (docs/ na raiz); quem precisa do caminho pergunta
+# ao resolvedor, nunca crava. Sem ele, este detector responde "projeto sem doc".
+# shellcheck source=/dev/null
+. "$SCRIPT_DIR/lib-casa-da-doc.sh"
 
 # find_claude_md <project_dir> — prints the CLAUDE.md path. Prefers whichever
 # location actually carries the project-doc:v2 marker (handles projects that have
@@ -80,16 +84,18 @@ doc_staleness() {
 }
 
 # doc_line <project_dir> — print one TSV line if project_dir has a project-doc CLAUDE.md
-# (root or nested) AND a .claude/docs/ dir — the dir requirement keeps an arbitrary
+# (root or nested) AND a casa-da-doc dir — the dir requirement keeps an arbitrary
 # hand-written root CLAUDE.md (no project-doc docs) from being reported as a project-doc
 # project now that root is checked too.
 doc_line() {
   local PROJ="$1" CLAUDE_MD
   CLAUDE_MD=$(find_claude_md "$PROJ")
   [ -z "$CLAUDE_MD" ] && return 1
-  [ -d "$PROJ/.claude/docs" ] || return 1
+  local CASA
+  CASA=$(casa_da_doc "$PROJ")
+  [ -d "$CASA" ] || return 1
   local N STALE OOP
-  N=$(find "$PROJ/.claude/docs" -type f -name '*.md' 2>/dev/null | wc -l | tr -d ' ')
+  N=$(find "$CASA" -type f -name '*.md' 2>/dev/null | wc -l | tr -d ' ')
   STALE=$(doc_staleness "$PROJ")
   OOP=$(doc_out_of_pattern "$PROJ")
   printf 'DOC\t%s\t%s\t%s\t%s\n' "$PROJ" "${N:-0}" "${STALE:-0}" "${OOP:-0}"
