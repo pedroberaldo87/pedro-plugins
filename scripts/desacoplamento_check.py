@@ -76,14 +76,14 @@ INDICES = ("marketplace.json", "manifest.json", "settings-defaults.json",
            "portability.yml", "hooks.json")
 # `.claude/` inteiro descreve ou retrata o repositório: doc, retrato de gate, registro de
 # limite. Acusar um retrato de citar o que ele retrata é acusar o termômetro pela febre.
-DIRS_ISENTOS = (".claude/", "README.md", "scripts/")
+DIRS_ISENTOS = (".claude/", "docs/", "README.md", "scripts/")
 
 # ...mas a isenção é de NOME, não de NÚMERO. Descrever o repositório obriga a citar os
 # plugins pelo nome; não obriga a cravar quantos são. É justamente na doc que a contagem
 # envelhece em silêncio — a própria constituição carregou **54** enquanto a medição
 # devolvia **60**. Então a pasta da documentação sai da isenção da contagem cravada, e o
 # que entra no lugar do número é o comando que o produz (S-58).
-DOC = ".claude/docs/"
+DOC = ("docs/", ".claude/docs/")
 
 
 def isento_de_contagem(rel):
