@@ -156,17 +156,17 @@ A régua fecha: `git ls-files -i -c --exclude-standard` → **0**. [confirmado]
 - **Natureza: julgamento escrito, coberto pelo git — e insubstituível dentro disso.** O número de violações é remedível por um comando; a **decisão de aceitá-las** não sai de lugar nenhum além deste arquivo. É a mesma classe do "julgamento embutido" dos baselines A5/A5a, com a diferença de que aqui o julgamento é o arquivo inteiro, não um metadado dele.
 - ⚠️ **Nenhum verificador o lê.** Diferente do A5, cujo baseline o release-gate compara, este arquivo é lido por humano. Um limite que deixou de valer não é acusado por ninguém — quem revoga é quem lembra.
 
-### A9 · `.claude/docs/fluxos/` — o diagrama como DOCUMENTO, dentro do clone
+### A9 · `docs/fluxos/` — o diagrama como DOCUMENTO, dentro do clone
 
-- **Nasceu em 2026-08-16.** Hoje **1 arquivo rastreado, 512K** — o número sai do comando, nunca daqui: `git ls-files .claude/docs/fluxos/ | wc -l` e `du -sh .claude/docs/fluxos/`. [confirmado nesta rodada]
+- **Nasceu em 2026-08-16.** Hoje **1 arquivo rastreado, 512K** — o número sai do comando, nunca daqui: `git ls-files docs/fluxos/ | wc -l` e `du -sh docs/fluxos/` (a doc desceu para `docs/` na raiz em 2026-08-20; o número foi remedido lá). [confirmado nesta rodada]
 - **Por que é depósito e não artefato de sessão:** até aqui todo desenho nascia em `.claude/archify/`, que é pasta de sessão como `.claude/visual/` — e desenho que mora em pasta de sessão morre no `/clear` sem ninguém notar. A decisão do dono (2026-08-13) foi promover fluxo, arquitetura e desenho de módulo a **documento versionado**: nascem aqui, entram no commit de conteúdo, e defasam junto com o texto.
 - **Quem escreve:** o passo 2b do `/doc-touch` (`plugins/project-skills/skills/doc-touch/SKILL.md`), que re-renderiza pelo `archify` a camada de todo doc re-projetado — `architecture.md` puxa o `organismo.html`, `runtime.md` puxa os `fluxo-<slug>.html`, doc de módulo puxa o `app-<nome>.html`. Os três dividem **esta** casa; um destino só evita que o mesmo tipo de artefato viva em duas pastas. [confirmado — `plugins/project-skills/lib/test_doc_touch_skill.py`]
 - ⚠️ **É rastreado, então vale a regra do repositório público:** HTML com caminho absoluto de máquina dentro é reprovado pela checagem H do gate de commit (`scripts/public_repo_check.py`).
 - **Natureza: derivado, e por isso remediável** — sai de novo do doc curado a cada touch. O que não se recupera é o **doc que o originou**, não o desenho.
 
-### A10 · `.claude/docs/prototipo/` — a lei do sidecar e a casa do protótipo aprovado
+### A10 · `docs/prototipo/` — a lei do sidecar e a casa do protótipo aprovado
 
-- **Hoje 1 arquivo rastreado** (`git ls-files .claude/docs/prototipo/` devolve `FORMATO.md`); os HTMLs do protótipo e os `<etapa>.prototipo.md` entram aqui quando um projeto tem interface aprovada.
+- **Hoje 1 arquivo rastreado** (`git ls-files docs/prototipo/` devolve `FORMATO.md` — casa nova desde a descida da doc para `docs/`); os HTMLs do protótipo e os `<etapa>.prototipo.md` entram aqui quando um projeto tem interface aprovada.
 - **`FORMATO.md` é a parte NORMATIVA**, e mora dentro do que o clone recebe **porque o cobrador a lê em qualquer máquina** (`plugins/project-skills/lib/test_sidecar_prototipo.py`). A spec de concepção discute o porquê; aqui está a lei.
 - **O sidecar é ANEXO, não régua** — `plugins/project-skills/lib/doc_load.py:le_anexos` o lê fora da lista que julga obra, e a marca do CONJUNTO (`conjunto-sig`) reabre o anexo quando alguém mexe no protótipo depois do de acordo.
 - **Natureza: acordo com o dono, sob tranca.** O corpo aprovado não se toca sem novo de acordo — o que se grava é `correcao-pendente:` no frontmatter, que não reabre a etapa.
@@ -717,7 +717,12 @@ frente    objeto {branch, worktree} · a branch e a árvore em que este plano é
           TUDO OU NADA: meio-gravada daria uma frente que o fechamento não sabe encerrar,
           então os dois campos são cobrados juntos. Projeto que trabalha na própria árvore
           grava a raiz do repositório como worktree. Aparece na árvore de texto, vira
-          cartão de fechamento na página HTML, e o `close` avisa que a branch continua viva
+          cartão de fechamento na página HTML, e o `close` avisa que a branch continua viva.
+          Desde 2026-08-20 (R-42) quem escreve é `plan_state.py:cmd_frente` (idempotente;
+          `--encerrar` remove o bloco no fechamento), e a largada do /sprint grava a frente
+          obrigatoriamente — a worktree dela mora em `~/.claude/worktrees/<repo>/<id>`,
+          FORA do repositório: trabalho não-mesclado vive lá até o rito de fechamento,
+          e frente órfã é o que `scripts/frente_orfa_check.py` varre (aviso, não gate)
 ```
 
 - **Por que o bloco existe no próprio plano:** o requisito é obrigatório, mas o *lugar* dele é opcional. Projeto com documento de requisitos aponta pra lá; projeto sem documento — *"o caso deste repositório, que não tem PRD"* — declara aqui. Sem essa porta, todo projeto sem PRD voltaria a ter tarefa que não rastreia pra nada. [confirmado, docstring de `_requisitos_do_plano`]

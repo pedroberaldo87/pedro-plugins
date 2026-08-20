@@ -264,6 +264,79 @@ echo "buildWarm=$BUILD_WARM"
 
 O resultado vai no `args` do Workflow como **`buildWarm`**, e de lá para **todo** `execPrompt` — cache quente que ninguém avisa ao executor é cache que ele derruba com um `clean` de rotina. **Fail-open:** compilação que falha devolve `buildWarm=false` e a missão segue — o erro real chega ao executor pelo próprio build dele, e travar a missão por causa do aquecimento é pior que aquecimento nenhum. O log fica em `~/.claude/andamento/`, fora do repositório.
 
+### A frente da missão abre antes do primeiro executor (obrigatório, antes de disparar o Workflow) — R-42
+
+Toda missão trabalha numa **frente própria**: uma branch `frente/<id-do-plano>` que nasce
+da main e uma worktree em `~/.claude/worktrees/<repo>/<id-do-plano>`. Durante a missão a
+main fica intocada — commits de bloco, doc e checkpoint acontecem na branch da frente,
+dentro da worktree. Nasce da medição de 2026-08-20: 7 branches locais e 5 remotas órfãs,
+e uma worktree em `/tmp` de sessão morta há 3 dias — frente sem registro ninguém fecha.
+
+A largada é **idempotente** — rodar de novo (retomada, sessão nova no mesmo plano) não
+duplica nada. Os três caminhos:
+
+1. **Frente gravada no plano e branch viva** → reusa: nada se cria, e regravar a mesma
+   frente não é erro.
+2. **Sem frente gravada** → cria a branch `frente/<id-do-plano>` **a partir da main**
+   (nunca do HEAD da sessão), monta a worktree, e grava os dois no plano.
+3. **Frente gravada cuja branch sumiu** (alguém apagou fora da missão) → **recria da
+   main**, com o mesmo nome gravado, e remonta a worktree.
+
+```bash
+PLAN_STATE="$(bash "${CLAUDE_PLUGIN_ROOT}/lib/resolve-plugin.sh" project-skills lib/plan_state.py)"
+MAIN_ROOT="$(git rev-parse --show-toplevel)"
+PLAN_ID="<id do plano da missão>"
+WORKTREE="$HOME/.claude/worktrees/$(basename "$MAIN_ROOT")/$PLAN_ID"
+
+# A branch: a que o plano já gravou, senão o nome padrão da frente
+BRANCH="$(python3 -c 'import json,sys; print((json.load(open(sys.argv[1])).get("frente") or {}).get("branch",""))' \
+  "$MAIN_ROOT/.claude/plans/$PLAN_ID.plan.json")"
+BRANCH="${BRANCH:-frente/$PLAN_ID}"
+
+# A main de verdade do projeto (fallback: main)
+MAIN="$(git symbolic-ref --quiet --short refs/remotes/origin/HEAD 2>/dev/null | sed 's|^origin/||')"
+
+# Caminhos 2 e 3 num teste só: branch ausente (nunca criada OU sumiu) nasce/renasce da main
+git show-ref --verify --quiet "refs/heads/$BRANCH" \
+  || git branch "$BRANCH" "${MAIN:-main}"
+[ -d "$WORKTREE" ] || git worktree add "$WORKTREE" "$BRANCH"
+
+# Grava os dois no plano — idempotente, é o que o cartão de fechamento (R-20) lê depois
+python3 "$PLAN_STATE" frente "$PLAN_ID" "$BRANCH" "$WORKTREE"
+```
+
+**O `repoRoot` que a casca passa ao motor é a WORKTREE** (`repoRoot: $WORKTREE`), não a
+árvore principal: é lá que executores compilam, a suíte roda e os commits de bloco caem.
+**O plano e os tiques ficam na árvore principal** — a casca continua rodando
+`plan_state.py` de `$MAIN_ROOT`, e o `planPath` do `args` aponta para o
+`.claude/plans/` da árvore principal, porque o plano é estado da missão, não obra: se
+morasse na worktree, fechar a frente descartaria o placar junto.
+
+⚠️ Isto **não** revoga a proibição de `isolation: 'worktree'` no motor (ver abaixo): a
+frente é UMA worktree para a missão inteira, aberta pela casca e fechada pelo dono via
+cartão — não uma worktree por tarefa que ninguém funde.
+
+### CI de código não-mergeado se mede pela branch da frente — sonda avulsa é PROIBIDA — R-42
+
+Quando a missão precisa saber se código que ainda não entrou na main passa na esteira de
+CI (a portabilidade nos três sistemas), o caminho é o disparo manual apontando a própria
+frente — o disparo aceita `--ref` de branch empurrada (medido 2026-08-20):
+
+```bash
+# a branch sai do PLANO, dentro deste bloco — cada bloco bash é uma chamada à parte,
+# e variável nascida noutro bloco não atravessa (a lição do SPRINT_MOTOR_ID)
+PLAN_FILE="<raiz-principal>/.claude/plans/<planId>.plan.json"
+BRANCH="$(python3 -c 'import json,sys; print((json.load(open(sys.argv[1])).get("frente") or {}).get("branch",""))' "$PLAN_FILE")"
+git push -u origin "$BRANCH"                      # a frente sobe; push de branch não dispara a esteira (filtro branches: [main])
+gh workflow run portability.yml --ref "$BRANCH"   # mede EXATAMENTE o código da frente
+```
+
+**Branch de sonda avulsa é PROIBIDA.** Ninguém cria branch descartável (`sonda/*`,
+`ci-test/*`, o que for) só para medir CI: **a branch da frente É a sonda** — ela já
+carrega exatamente o código que se quer medir, e **morre no fechamento** da frente (o
+rito 2b da Persistência), então não deixa órfã. Sonda avulsa não tem rito de morte, e
+foi assim que a medição de 2026-08-20 achou 5 branches remotas órfãs.
+
 ### `claude plugin update` está PROIBIDO durante a missão
 
 Enquanto a missão está de pé, **ninguém roda `claude plugin update`** — nem a casca, nem
@@ -2026,6 +2099,52 @@ Passada a QA e **ANTES** de montar o relatório, persista o trabalho. Esta é a 
    - **Nunca** `--force`; **nunca** push direto numa branch protegida (`main`/`master`) — se a sessão estiver nela, crie uma branch de feature antes (mesma regra do "force push em main" do Contrato) e registre como decisão.
    - Árvore limpa (nada pra commitar) → pula e anota "nada a persistir".
    - Falha de push (sem remote, sem auth, rejeição) → **não force**; registra como `Bloqueio (precisa de você)` com o erro real e segue pro relatório (o commit local fica feito).
+
+2b. **Fecha a frente — o rito (R-42).** Só nos planos com `frente` gravada, e a condição é escrita: **só com QA verde E suíte verde na worktree**. Qualquer outro desfecho — parada, suíte vermelha, bloqueio, espera — deixa a frente **VIVA**, e o cartão `pt-frente-fechar` sai na página do relatório (seção _A frente aberta sai na página_) para o dono decidir. Fechar é um rito com ordem numerada, e pular passo é exatamente o que deixou 7 branches órfãs locais e 5 remotas na medição de 2026-08-20:
+
+   ```bash
+   PLAN_STATE="$(bash "${CLAUDE_PLUGIN_ROOT}/lib/resolve-plugin.sh" project-skills lib/plan_state.py)"
+   MAIN_ROOT="$(git rev-parse --show-toplevel)"
+   PLAN_ID="<id do plano da missão>"
+   SUITE_CMD="<o mesmo suiteCmd que a casca passou no args>"
+
+   # BRANCH e WORKTREE saem do plano — os mesmos que a largada gravou
+   PLAN_FILE="$MAIN_ROOT/.claude/plans/$PLAN_ID.plan.json"
+   BRANCH="$(python3 -c 'import json,sys; print((json.load(open(sys.argv[1])).get("frente") or {}).get("branch",""))' "$PLAN_FILE")"
+   WORKTREE="$(python3 -c 'import json,sys; print((json.load(open(sys.argv[1])).get("frente") or {}).get("worktree",""))' "$PLAN_FILE")"
+
+   cd "$WORKTREE"
+   git tag "rescue/$(date +%Y-%m-%d)-$(basename "$BRANCH")"   # (1) tag de resgate — o trabalho sobrevive a qualquer passo errado abaixo
+   git merge main                                             # (2) sincroniza a main NA frente — conflito: ver abaixo, NUNCA merge forçado
+   $SUITE_CMD                     # (3) a suíte DE NOVO, pós-sincronização — o mesmo `suiteCmd` que a casca passou ao motor
+   cd "$MAIN_ROOT"
+   git merge --no-ff "$BRANCH" && git push                    # (4) a entrega entra na main, com o nó do merge visível
+   git worktree remove "$WORKTREE"                            # (5)
+   git branch -d "$BRANCH"                                    # (6) -d, nunca -D: só apaga o que a main já contém
+   python3 "$PLAN_STATE" frente <planId> --encerrar           # (7) a frente sai do plano — o cartão para de anunciá-la
+   ```
+
+   - **(1) vem primeiro de propósito**: a tag `rescue/<data>-<branch>` é o que torna todo passo seguinte reversível — sem ela, um merge errado no (4) é trabalho perdido.
+   - **(2) conflito NÃO se resolve na força.** `git merge --abort`, a frente fica **viva**, e o conflito vira **Bloqueio nomeado** (`Bloqueio (precisa de você)`: a branch, os arquivos em conflito, e a tag de resgate já criada). Merge forçado — `-X theirs`, resolver no chute, commit por cima — é proibido: quem decide o conflito é o dono.
+   - **(3) suíte vermelha pós-sincronização** ⇒ o rito **para ali**: a frente fica viva, o vermelho vira Bloqueio com o placar, e nada segue pro (4). A suíte verde do QA mediu a frente ANTES da main entrar; o que o (3) mede é a soma — e é a soma que vai pra main.
+   - **(4)** é `--no-ff` porque o nó do merge é o registro de que a missão existiu — fast-forward dissolve a frente na linha da main e o histórico perde a fronteira.
+   - **(7)** fecha o ciclo do cartório: a mesma `plan_state.py frente` que gravou o par na largada o remove aqui. Frente que fechou de verdade e ficou gravada faria o cartão `pt-frente-fechar` cobrar o fechamento de uma branch que já não existe.
+
+2c. **Varre as frentes órfãs (R-42).** O rito 2b fecha a frente DESTA missão; o que
+   ele não alcança é o resto de missão passada. Se o projeto tiver o varredor, rode-o:
+
+   ```bash
+   MAIN_ROOT="$(git rev-parse --show-toplevel)"
+   [ -f "$MAIN_ROOT/scripts/frente_orfa_check.py" ] \
+     && python3 "$MAIN_ROOT/scripts/frente_orfa_check.py" "$MAIN_ROOT" || true
+   ```
+
+   Ele acusa três casos: branch local que nenhum plano ativo declara como frente,
+   worktree registrada cujo caminho sumiu ou cuja missão já fechou, e branch remota
+   com zero commits fora da main. **Achado vira aviso no relatório final, nunca
+   bloqueio** — e é de propósito que isto NÃO mora no release-gate: branch viva
+   durante a missão é estado legítimo, e um gate ali barraria os commits de bloco da
+   própria frente. Projeto sem o script pula calado (o `[ -f ]` é o fail-open).
 
 3. **Confere o sinal apagado e as reservas soltas.** As duas coisas já caíram no retorno da chamada (seção _Execução_), reserva inclusive; esta passada é a mesma receita rodada de novo — ela é idempotente, e existe para o caminho feliz que passa por aqui. Obrigatória:
 
