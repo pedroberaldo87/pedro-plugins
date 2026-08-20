@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Suíte do resolvedor da casa da doc — a cascata nos dois cenários de casa.
 
-Um projeto com `docs/` na raiz e um projeto só com `.claude/docs/` respondem
+Um projeto com `docs/` na raiz e um projeto só com `.claude/docs/` respondem  # casa-ok: o resolvedor e a suite dele sao o unico lugar que pode escrever a casa
 caminhos diferentes, e as duas metades (Python e bash) têm que concordar: duas
 implementações da mesma cascata que divergem são a dívida de novo, com sotaque.
 
@@ -112,11 +112,11 @@ with tempfile.TemporaryDirectory() as tmp:
     check("subpasta também (fluxos/)",
           casa(nova, "fluxos", "f.html") == os.path.join(nova, "docs", "fluxos", "f.html"))
 
-    # ── cenário 2: a casa antiga, só .claude/docs/ ─────────────────────────
+    # ── cenário 2: a casa antiga, só .claude/docs/ ─────────────────────────  # casa-ok: o resolvedor e a suite dele sao o unico lugar que pode escrever a casa
 
-    print("\n[cenário 2 — projeto só com .claude/docs/ (retrocompatibilidade)]")
+    print("\n[cenário 2 — projeto só com .claude/docs/ (retrocompatibilidade)]")  # casa-ok: o resolvedor e a suite dele sao o unico lugar que pode escrever a casa
 
-    check("a pasta é <raiz>/.claude/docs",
+    check("a pasta é <raiz>/.claude/docs",  # casa-ok: o resolvedor e a suite dele sao o unico lugar que pode escrever a casa
           casa(velha) == os.path.join(velha, ".claude", "docs"), casa(velha))
     check("o arquivo cai dentro dela",
           casa(velha, "architecture.md")

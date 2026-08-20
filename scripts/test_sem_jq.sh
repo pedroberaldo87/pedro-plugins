@@ -19,7 +19,8 @@
 
 RAIZ="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$RAIZ" || exit 1
-DOC=".claude/docs/jq-pontos-de-decisao.md"
+source "$RAIZ/_shared/lib-casa-da-doc.sh"
+DOC=$(casa_da_doc "$RAIZ" jq-pontos-de-decisao.md)
 FAIL=0
 
 ok()   { echo "ok   $1"; }

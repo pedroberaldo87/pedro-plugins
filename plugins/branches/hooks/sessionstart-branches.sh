@@ -5,7 +5,7 @@
 # — se este hook listasse tudo, viraria parede de texto no começo de toda
 # sessão e você aprenderia a pular. Aviso que se ignora não avisa nada.
 #
-# CONTRATO DE GATE (.claude/docs/patterns.md → §5.3):
+# CONTRATO DE GATE (`patterns.md` na casa da doc → §5.3):
 #   canal      additionalContext — INFORMA, nunca bloqueia
 #   cap        n/a (não bloqueia); só fala quando há branch parada
 #   desligar   BRANCHES_GATE=0

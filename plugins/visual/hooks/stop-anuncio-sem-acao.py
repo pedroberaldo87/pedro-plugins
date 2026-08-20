@@ -23,7 +23,7 @@ TRES CONDICOES, todas necessarias:
   2. o texto final promete continuar        — em 1a pessoa, nao "o proximo passo e X"
   3. o texto NAO espera o usuario           — pergunta e pedido de aval desarmam
 
-CONTRATO DE GATE (.claude/docs/patterns.md → §5.3):
+CONTRATO DE GATE (`patterns.md` na casa da doc → §5.3):
   canal      decision:block (devolve o turno; o harness tem cap nativo)
   cap        2 devolucoes por (sessao, projeto), depois desiste
   desligar   ANUNCIO_ACAO=0

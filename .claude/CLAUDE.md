@@ -40,21 +40,21 @@ bash plugins/project-skills/hooks/test_plan_gate.sh
 
 ## Documentation Index
 
-- **[constituicao.md](.claude/docs/constituicao.md)** — *autoral, `authored-by: human`* — **a lei do projeto**: as 9 dimensões em que todo plugin é julgado (arquitetura, aplicabilidade, portabilidade, rigor, funcionalidade, estética, clareza da instrução, executabilidade por um agente, desacoplamento — a lista viva sai do próprio arquivo: `grep -c '^## Artigo ' .claude/docs/constituicao.md`), cada uma com **quem a cobra** e a prova do estado de hoje; artigo sem cobrador é dívida declarada, e o placar de quem cobra o quê é parte da lei
+- **[constituicao.md](docs/constituicao.md)** — *autoral, `authored-by: human`* — **a lei do projeto**: as 9 dimensões em que todo plugin é julgado (arquitetura, aplicabilidade, portabilidade, rigor, funcionalidade, estética, clareza da instrução, executabilidade por um agente, desacoplamento — a lista viva sai do próprio arquivo: `grep -c '^## Artigo ' docs/constituicao.md`), cada uma com **quem a cobra** e a prova do estado de hoje; artigo sem cobrador é dívida declarada, e o placar de quem cobra o quê é parte da lei
   → **antes de mudar qualquer plugin, hook ou skill** — e antes de declarar uma frente pronta. Em conflito com qualquer outro doc, este ganha. Os motores de `/sprint` e `/qa-loop` abrem este arquivo no eixo *constituição*
 
-- **[quality-goals.md](.claude/docs/quality-goals.md)** — *autoral, `authored-by: human`* — a ordem de prioridade quando não dá para ter tudo (escaneabilidade > drill-down > completude > elegância), os dois regimes de documento, os três níveis de leitura, a régua de estilo que abole prosa em página gerada, e o mecanismo anti-ocultação do colapso
+- **[quality-goals.md](docs/quality-goals.md)** — *autoral, `authored-by: human`* — a ordem de prioridade quando não dá para ter tudo (escaneabilidade > drill-down > completude > elegância), os dois regimes de documento, os três níveis de leitura, a régua de estilo que abole prosa em página gerada, e o mecanismo anti-ocultação do colapso
   → antes de escrever relatório, plano, página de aprovação ou qualquer artefato que um humano lê para decidir
 
-- **[architecture.md](.claude/docs/architecture.md)** — estrutura do repo, anatomia de plugin, catálogo dos 23 plugins distribuídos com versões, os 12 plugins com hooks evento a evento, a engine vendorada (`_shared/` → 111 cópias em 44 pastas, §7), decisões de arquitetura, terceiros do bootstrap
+- **[architecture.md](docs/architecture.md)** — estrutura do repo, anatomia de plugin, catálogo dos 23 plugins distribuídos com versões, os 12 plugins com hooks evento a evento, a engine vendorada (`_shared/` → 111 cópias em 44 pastas, §7), decisões de arquitetura, terceiros do bootstrap
   → entender o projeto, adicionar plugin, mexer em hooks, onboarding de máquina nova
-- **[patterns.md](.claude/docs/patterns.md)** — convenções de shell (fail-open, protocolo de saída de hook) e Python (stdlib only), vendoring, green-cache, regras de release + os checks do gate de commit (quantos são hoje sai do próprio arquivo: `grep -cE '^# [A-Z0-9-]+ · ' .claude/hooks/release-gate.sh`), testing, e a lista completa de gotchas com arquivo:símbolo
+- **[patterns.md](docs/patterns.md)** — convenções de shell (fail-open, protocolo de saída de hook) e Python (stdlib only), vendoring, green-cache, regras de release + os checks do gate de commit (quantos são hoje sai do próprio arquivo: `grep -cE '^# [A-Z0-9-]+ · ' .claude/hooks/release-gate.sh`), testing, e a lista completa de gotchas com arquivo:símbolo
   → criar plugin, publicar mudança, escrever hook, evitar as armadilhas de release
-- **[data-stores.md](.claude/docs/data-stores.md)** — todo depósito de dado, dentro e fora do repo (journal, ledger, grafo, atas, os planos ticáveis em `.claude/plans/`, o estado que os hooks escrevem em `~/.claude/`, o cofre no iCloud), com a natureza de cada um
+- **[data-stores.md](docs/data-stores.md)** — todo depósito de dado, dentro e fora do repo (journal, ledger, grafo, atas, os planos ticáveis em `.claude/plans/`, o estado que os hooks escrevem em `~/.claude/`, o cofre no iCloud), com a natureza de cada um
   → responder "o que a gente guarda?", avaliar impacto de perda, antes de apagar diretório de estado
-- **[durability.md](.claude/docs/durability.md)** — quem copia cada depósito, com que frequência, e o que **não** tem cobertura nenhuma; RPO/RTO e restauração testada
+- **[durability.md](docs/durability.md)** — quem copia cada depósito, com que frequência, e o que **não** tem cobertura nenhuma; RPO/RTO e restauração testada
   → responder "o que entra no backup?", mexer em retenção, avaliar risco de perda
-- **[runtime.md](.claude/docs/runtime.md)** — 23 fluxos ponta-a-ponta (sync do bootstrap, roteamento de doc cross-tool, ponte do context-guard, live-sync do visual, geração de slides, gate de teste do ship, o arranque do SessionStart, a falha do gate de plano o ciclo de vida de um plano de implementação e a varredura de contrato dos hooks, a régua que recusa no ponto de uso, o tier do motor que chega como dado e a ponte de visão por MCP)
+- **[runtime.md](docs/runtime.md)** — 23 fluxos ponta-a-ponta (sync do bootstrap, roteamento de doc cross-tool, ponte do context-guard, live-sync do visual, geração de slides, gate de teste do ship, o arranque do SessionStart, a falha do gate de plano o ciclo de vida de um plano de implementação e a varredura de contrato dos hooks, a régua que recusa no ponto de uso, o tier do motor que chega como dado e a ponte de visão por MCP)
   → entender como as coisas acontecem de verdade, debugar fluxo cross-plugin, onboarding
 
 ## Diagramas (archify)
@@ -63,8 +63,8 @@ Os diagramas de arquitetura vivem em três camadas com nome **estável**, uma po
 `organismo.html` (o repositório inteiro) e `app-<nome>.html` (um por aplicativo, só quando
 há dois ou mais) moram em **`.claude/archify/`** (fora do git — artefato de sessão, como
 `.claude/visual/`); `fluxo-<slug>.html` (um por fluxo que `runtime.md` nomeia — hoje
-`grep -c '^## ' .claude/docs/runtime.md` devolve 24 (23 fluxos + Pendências)) mora em
-**`.claude/docs/fluxos/`**, casa canônica **versionada** (decisão do dono em 2026-08-13:
+`grep -c '^## ' docs/runtime.md` devolve 24 (23 fluxos + Pendências)) mora em
+**`docs/fluxos/`**, casa canônica **versionada** (decisão do dono em 2026-08-13:
 fluxo é doc, entra no commit de conteúdo — e por ser rastreado vale a régua do repo
 público, sem caminho absoluto de máquina dentro do HTML). A régua de quando cada camada
 existe, e o resolvedor de destino, estão em `plugins/archify/skills/archify/SKILL.md`.

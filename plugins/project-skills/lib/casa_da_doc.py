@@ -2,14 +2,14 @@
 """Onde mora a doc canônica de um projeto — a versão Python.
 
 Por que existe: o caminho da doc estava cravado em mais de cem pontos, e a casa
-mudou (`docs/` na raiz, visível ao humano; `.claude/docs/` só como
+mudou (`docs/` na raiz, visível ao humano; `.claude/docs/` só como  # casa-ok: o resolvedor e a suite dele sao o unico lugar que pode escrever a casa
 retrocompatibilidade). Caminho cravado é a doença que o dono nomeou AI SLOP:
 duplicar até virar dívida. Aqui é o único lugar que decide.
 
 O contrato em prosa (e o irmão em bash) estão em `_shared/casa-da-doc.md`.
 
     from casa_da_doc import casa
-    casa(raiz)                      # <raiz>/docs  ou  <raiz>/.claude/docs
+    casa(raiz)                      # <raiz>/docs  ou  <raiz>/.claude/docs  # casa-ok: o resolvedor e a suite dele sao o unico lugar que pode escrever a casa
     casa(raiz, "architecture.md")   # o arquivo dentro da casa que vale
 """
 

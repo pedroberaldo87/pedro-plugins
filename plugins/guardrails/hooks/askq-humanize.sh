@@ -11,7 +11,7 @@
 # custaria espera antes da tela abrir e poderia inventar contexto que o modelo
 # nunca teve.
 #
-# CONTRATO DE GATE (ver .claude/docs/patterns.md → "Contrato dos hooks"):
+# CONTRATO DE GATE (ver `patterns.md` na casa da doc → "Contrato dos hooks"):
 #   canal      permissionDecision:"deny" em JSON no stdout, com exit 0
 #   cap        3 devoluções por sessão — depois vira silêncio
 #   desligar   ASKQ_GATE=0

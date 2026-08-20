@@ -52,6 +52,36 @@ def test_isencao_so_vale_com_motivo_escrito():
     assert len(m.classe_a(pelado)["pontos"]) == 1
 
 
+def test_toda_classe_tem_situacao_com_dono_e_teto():
+    """F15.7 — ou a fonte única existe em código, ou a dívida está declarada com dono.
+
+    Classe sem uma das duas é a própria doença dentro do medidor: inventário de gaveta.
+    """
+    for c in inv.inventario()["classes"]:
+        sit = c["situacao"]
+        assert "IMPLEMENTADA" in sit or "DECLARADA" in sit, (c["id"], sit)
+        assert isinstance(c["teto"], int), c["id"]
+        # dono nomeado = um arquivo que existe de verdade no repositório
+        alvos = [t.strip("`,;.") for t in sit.split() if "/" in t or t.endswith(".json")]
+        existe = [a for a in alvos if os.path.exists(os.path.join(inv.RAIZ, a))]
+        assert existe, (c["id"], alvos)
+
+
+def test_check_acusa_reincidencia_da_classe():
+    """O teto é o que morde: uma ocorrência a mais na classe reprova, com o nome dela."""
+    import subprocess
+    dado = inv.inventario()
+    assert inv.checa(dado) == 0, "a codebase de hoje já está acima do teto"
+    dado["classes"][2]["ocorrencias"] = dado["classes"][2]["teto"] + 1
+    dado["classes"][2]["reincidiu"] = True
+    assert inv.checa(dado) == 1
+    r = subprocess.run([sys.executable, os.path.join(inv.RAIZ, "scripts",
+                                                     "anti_slop_inventario.py"), "--check"],
+                       cwd=inv.RAIZ, capture_output=True, text=True,
+                       stdin=subprocess.DEVNULL, start_new_session=True)
+    assert r.returncode == 0, r.stdout + r.stderr
+
+
 def test_o_comando_de_cada_classe_roda_de_verdade():
     """"Conferível por comando" só vale se o comando escrito na ficha EXECUTA.
 

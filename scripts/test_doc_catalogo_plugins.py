@@ -27,7 +27,10 @@ import re
 import sys
 
 RAIZ = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-DOC = os.path.join(RAIZ, ".claude", "docs", "architecture.md")
+sys.path.insert(0, os.path.join(RAIZ, "_shared"))
+from casa_da_doc import casa  # noqa: E402  (precisa do sys.path acima)
+
+DOC = casa(RAIZ, "architecture.md")
 ABERTURA = "Saída desta rodada (nome · versão · skills · tem hook):"
 FALHAS = []
 

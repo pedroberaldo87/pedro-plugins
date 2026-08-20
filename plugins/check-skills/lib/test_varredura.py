@@ -258,7 +258,7 @@ def main():
             "doc": 'NAO substitui o /project-doc FULL. Roda /clear antes. '
                    # "alfa" é plugin INVENTADO da fixture, e o literal é o próprio caso
                    # de teste: caminho de arquivo não pode virar gatilho.
-                   'Le plugins/alfa/lib/motor.py e .claude/docs/x.md.'}}})  # acopla-ok: fixture
+                   'Le plugins/alfa/lib/motor.py e .claude/docs/x.md.'}}})  # acopla-ok: fixture  # casa-ok: o caminho e o DADO do fixture, nao a casa deste codigo
         r = C.varre(C.instalados(d))
         mortos = r["gatilho_morto"]
         check("o gatilho que aponta pro nome morto é acusado",

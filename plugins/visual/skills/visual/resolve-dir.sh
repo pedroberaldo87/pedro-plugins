@@ -27,8 +27,8 @@
 #        mesma cascata, outro diretório. Cada família de artefato tem a própria
 #        pasta: misturar diagrama com relatório e plano é o que faz o usuário
 #        não achar o que gerou ontem.
-#        O subdir pode ter BARRA: "docs/fluxos" resolve para
-#        <raiz>/.claude/docs/fluxos — é a casa canônica versionada dos
+#        O subdir pode ter BARRA: "docs/fluxos" resolve para a pasta  casa-ok: nomeia o argumento literal que o chamador passa
+#        `fluxos` dentro da casa da doc — a casa canônica versionada dos
 #        diagramas de fluxo. Na reserva a barra vira traço
 #        (~/Desktop/claude-docs-fluxos/<pasta>-<id>), senão a gaveta por pasta
 #        de origem se parte em duas e o "claude-docs" vira pote comum.

@@ -5,7 +5,7 @@
 # Escopado por session_id. NÃO procura plano por mtime (isso casaria plano de
 # outra sessão): o conteúdo vem direto de tool_input.plan.
 #
-# CONTRATO DE GATE (ver .claude/docs/patterns.md → "Contrato dos hooks"):
+# CONTRATO DE GATE (ver `patterns.md` na casa da doc → "Contrato dos hooks"):
 #   canal      exit 2 com o motivo no stderr
 #   cap        3 devoluções por (sessão, projeto) — depois vira silêncio
 #   desligar   VISUAL_GATE=0

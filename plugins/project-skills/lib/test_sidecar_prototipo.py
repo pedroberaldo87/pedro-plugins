@@ -22,6 +22,7 @@ from bash_posix import bash_posix  # noqa: E402
 # Fingir o lar é receita única (_shared/lar-fingido.md): trocar só HOME deixa o filho
 # escrever no lar REAL no Windows, que lê USERPROFILE primeiro.
 from lar_fingido import ambiente  # noqa: E402
+from casa_da_doc import casa  # noqa: E402
 
 spec = importlib.util.spec_from_file_location("doc_load", os.path.join(AQUI, "doc_load.py"))
 dl = importlib.util.module_from_spec(spec)
@@ -32,8 +33,8 @@ CAMPOS = ("natureza", "anexo-de", "design-sig", "status", "conjunto-sig", "marca
 # A parte NORMATIVA do formato mora sob `.claude/docs/`, que o clone RECEBE — a spec de
 # concepção fica em `.claude/specs/`, que o .gitignore não rastreia, e ali o cobrador não
 # teria o que ler no CI.
-FORMATO = os.path.join(AQUI, os.pardir, os.pardir, os.pardir,
-                       ".claude", "docs", "prototipo", "FORMATO.md")
+FORMATO = casa(os.path.join(AQUI, os.pardir, os.pardir, os.pardir),
+               "prototipo", "FORMATO.md")
 
 SIDECAR = """---
 natureza: anexo

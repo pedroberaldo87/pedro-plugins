@@ -4,7 +4,7 @@
 # Por que existe: o campo que DECIDE (session_id, tool_input.command,
 # stop_hook_active) só era legível com `jq`. Em máquina sem `jq` o gate saía 0
 # antes de olhar o payload — para o harness isso é indistinguível de "o gate
-# rodou e liberou". O inventário está em `.claude/docs/jq-pontos-de-decisao.md`.
+# rodou e liberou". O inventário está em `jq-pontos-de-decisao.md`, na casa da doc.
 #
 # Ordem: `jq` quando existe (é o caminho já testado e mais rápido), senão o
 # `python3` que todo motor deste marketplace já exige. Sem os dois, quem chama

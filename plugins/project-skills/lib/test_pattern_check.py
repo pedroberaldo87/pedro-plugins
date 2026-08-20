@@ -20,6 +20,7 @@ import tempfile
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 from caminho_igual import contem, igual, termina_em  # noqa: E402,F401
+from casa_da_doc import casa  # noqa: E402
 import pattern_check  # noqa: E402
 
 PASS = 0
@@ -701,7 +702,7 @@ def test_verified_by_do_patterns_nomeia_as_suites_de_hook():
     Único teste do arquivo que LÊ repo real (não escreve nada) — a invariante é
     sobre o conteúdo do patterns.md deste marketplace."""
     root = os.path.abspath(os.path.join(HERE, "..", "..", ".."))
-    docpath = os.path.join(root, ".claude", "docs", "patterns.md")
+    docpath = casa(root, "patterns.md")
     check("patterns.md do repo existe", os.path.exists(docpath))
     verified = set(pattern_check._scope_entries(root, docpath, field="verified-by"))
     scope = set(pattern_check._scope_entries(root, docpath))

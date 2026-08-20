@@ -39,7 +39,7 @@ GREP_EXT = ["--include=*.ts", "--include=*.tsx", "--include=*.js", "--include=*.
 SYMBOL_SEARCH = ["src", "app", "lib", "routes", "pages", "components",
                  "tests", "test", "e2e", "scripts"]
 # infra de EXECUÇÃO (agendador/runtime), não prosa: aqui um script citado é de fato rodado.
-# docs/*.md ficam de fora — citar um script num plano é planejamento, não uso ativo.
+# os `.md` da doc ficam de fora — citar um script num plano é planejamento, não uso ativo.
 EXTERNAL_PATHS = ["deploy", "infra", ".github"]
 EXTERNAL_GLOBS = ["docker-compose.yml", "docker-compose.prod.yml", "docker-compose.dev.yml",
                   "Procfile", "crontab", "Makefile"]

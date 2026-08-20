@@ -16,7 +16,7 @@
 # ─────────────────────────────────────────────────────────────────────────────
 .claude/ata/
 .claude/plans/
-.claude/specs/
+docs/specs/
 .claude/vistoria/
 .claude/gauntlet/
 .claude/reports/
