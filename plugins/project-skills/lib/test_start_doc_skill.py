@@ -825,17 +825,18 @@ def main():
     check("oferecer no fim da rodada esta refutado",
           "fim da rodada não vale" in bloco_escrever)
 
-    # F13.7 — as seis pautas transversais (journeys.md: "perguntada por programa,
+    # F13.7/F15.4 — as sete pautas transversais (journeys.md: "perguntada por programa,
     # nunca por lembrança"), cada uma DENTRO da etapa dela, com uma pergunta. Sem
-    # endereço, cada etapa herda as seis e a entrevista vira questionário.
-    print("as seis pautas transversais entram cada uma na etapa dela (F13.7)")
+    # endereço, cada etapa herda as sete e a entrevista vira questionário.
+    print("as sete pautas transversais entram cada uma na etapa dela (F13.7)")
     PAUTAS = ("integrações", "abstração de IA", "governança",
-              "topologia do repositório", "controle de acesso", "registro de log")
+              "topologia do repositório", "controle de acesso", "registro de log",
+              "casa da doc")
     cru = open(SKILL, encoding="utf-8").read()
-    bloco_pautas = (cru.split("#### As seis pautas transversais")[1].split("\n#### ")[0]
-                    if "#### As seis pautas transversais" in cru else "")
+    bloco_pautas = (cru.split("#### As sete pautas transversais")[1].split("\n#### ")[0]
+                    if "#### As sete pautas transversais" in cru else "")
     check("a subsecao das pautas vive dentro da entrevista (passo 3)",
-          em_ordem(cru, ["### 3 · Entrevistar", "#### As seis pautas transversais",
+          em_ordem(cru, ["### 3 · Entrevistar", "#### As sete pautas transversais",
                          "### 4 · Escrever"]))
     linhas_pauta = [ln for ln in bloco_pautas.splitlines() if ln.strip().startswith("|")]
     for pauta in PAUTAS:
@@ -846,8 +847,24 @@ def main():
           "Não se aplica" in bloco_pautas and "faltar a pergunta, não" in bloco_pautas)
     check("as pautas nao viram questionario despejado de uma vez",
           "questionário" in bloco_pautas and "dentro da etapa dela" in bloco_pautas)
-    check("quem cobra a presenca das seis e esta suite, nunca a lembranca",
+    check("quem cobra a presenca das sete e esta suite, nunca a lembranca",
           "lib/test_start_doc_skill.py" in bloco_pautas)
+
+    # F15.4 — a premissa da doc visível é DEFAULT de concepção, com as duas
+    # metades juntas: doc em docs/ na raiz, segredo em .claude/secrets/ fora do
+    # git. Sem as duas escritas, a pergunta oferece meia premissa e o segredo
+    # volta pra dentro do commit.
+    print("a pauta da casa da doc leva a premissa inteira, com o contrato ao lado (F15.4)")
+    linha_casa = next((ln for ln in linhas_pauta if "casa da doc" in ln), "")
+    check("a pauta oferece a casa visivel: docs/ na raiz",
+          "`docs/`" in linha_casa and "raiz" in linha_casa)
+    check("a pauta oferece a casa do segredo: .claude/secrets/ fora do git",
+          ".claude/secrets/" in linha_casa and "fora do git" in linha_casa)
+    check("o default vem escrito, e o dono pode recusar — faltar a pergunta, nao",
+          "default" in bloco_pautas and "recusar o default" in bloco_pautas)
+    check("o contrato mora em _shared, e o caminho quem responde e o resolvedor",
+          "_shared/casa-da-doc.md" in bloco_pautas
+          and "casa_da_doc.py" in bloco_pautas)
 
     # F13.5 — as superfícies obrigatórias (erro, vazio, carregando, configuração,
     # governança) cobradas por jornada, ou lacuna declarada com motivo. Sem isto o

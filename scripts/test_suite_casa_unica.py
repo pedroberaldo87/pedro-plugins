@@ -107,7 +107,11 @@ check("o CLAUDE.md nomeia a casa", "scripts/suite.sh" in claude_md,
 # globos da casa aqui mesmo, sem disparar processo nenhum.
 alvos = set()
 for g in da_casa:
-    alvos |= {p for p in glob.glob(g) if os.path.isfile(p)}
+    # O `glob` devolve a barra do SISTEMA (`plugins\x\test_y.py` no Windows) e o
+    # `git ls-files` devolve sempre a normal. Comparar os dois como texto acusava
+    # 143 suites "de fora da esteira" sem nenhuma estar — o caminho e o mesmo,
+    # escrito de dois jeitos (medido no run 32326701424, windows-latest).
+    alvos |= {p.replace(os.sep, "/") for p in glob.glob(g) if os.path.isfile(p)}
 check("a casa seleciona suítes de verdade", len(alvos) > 50,
       "os globos da casa expandem para %d arquivo(s)" % len(alvos))
 

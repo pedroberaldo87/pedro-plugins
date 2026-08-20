@@ -125,8 +125,11 @@ edita plugins/<nome>/            (skill, hook, lib)
 
 Não há build, bundler nem lockfile. **CI há uma, e é de portabilidade**:
 `.github/workflows/portability.yml`, nascida em 2026-08-06 (`git log --reverse -1 --
-.github/workflows/portability.yml` → `d7ef53e`), roda o mesmo bloco do gate de commit a
-cada push, em Linux, macOS e Windows. Ela não compila nada — mede se o repositório roda
+.github/workflows/portability.yml` → `d7ef53e`), roda o mesmo bloco do gate de commit
+no push para `main`, em todo pull request e sob disparo manual, em Linux, macOS e Windows.
+⚠️ **O push de branch que não é `main` NÃO dispara nada** (`branches: [main]`, posto em
+2026-08-19 depois de cinco rodadas completas queimadas por pushes de sonda): quem está
+consertando uma classe mede pelo `workflow_dispatch` filtrado, que continua inteiro. Ela não compila nada — mede se o repositório roda
 onde o dono não desenvolve. `.github/` tem dois arquivos: ela e `copilot-instructions.md`,
 que é ponteiro de doc, não workflow [confirmado — `find .github -type f`].
 O **único passo de "compilação"** é o vendoring de `_shared/` (§7): copiar arquivos-fonte
@@ -226,8 +229,8 @@ python3 -c "import json;print(len(json.load(open('.claude-plugin/marketplace.jso
 ```
 .claude-plugin/marketplace.json   catálogo único — nome, source, version, tags, category
 plugins/<nome>/                   um dir por entrada do catálogo, sem sobra (§2)
-_shared/                          fonte-da-verdade do compartilhado (25 arquivos-fonte)
-scripts/sync-shared.sh            o "build": vendora _shared/ → 109 cópias em 44 pastas  <!-- acopla-ok: §7 traz o comando que produz os dois números -->
+_shared/                          fonte-da-verdade do compartilhado (29 arquivos-fonte)
+scripts/sync-shared.sh            o "build": vendora _shared/ → 111 cópias em 44 pastas  <!-- acopla-ok: §7 traz o comando que produz os dois números -->
 scripts/hook_contract.py          mede o contrato dos registros de hook (§11)
 scripts/public_repo_check.py      cobra a regra de repo público (checagem H do gate)
 scripts/regua_call_check.py       cobra que gerador de página chame a régua (checagem I)
@@ -241,7 +244,7 @@ scripts/*.py                      os outros cobradores do gate — a lista está
   │                               (uma letra por checagem, e as letras NÃO são contíguas nem
   │                               estão em ordem no arquivo — a lista é
   │                               `grep -o '^# [A-Z] ·' .claude/hooks/release-gate.sh`, que
-  │                               neste run devolve 18)
+  │                               neste run devolve 19)
   ├── hook-contract.baseline.json o retrato do contrato dos hooks  ← VERSIONADO
   ├── *.baseline.json             os outros retratos congelados — `git ls-files '.claude/*.baseline.json'`
   ├── settings.json               registra o release-gate como PreToolUse(Bash)
@@ -855,7 +858,18 @@ Quatro famílias, pelo que cada uma resolve:
   mesmos três pés antes de existir código). ⚠️ **Isto é novo e é o que mais muda o custo de release**: antes
   o vendoring espalhava só programa; agora espalha **instrução lida pelo modelo**. Corrigir
   uma frase da régua de pergunta hoje exige bump em nove plugins.
-- **Suítes da própria fonte** — `test_regua_texto.py`, `test_resolve_plugin.py`.
+- **Suítes da própria fonte** — a lista de hoje é `ls -1 _shared/test_*.py`; nesta rodada
+  são quatro (`test_regua_texto.py`, `test_resolve_plugin.py`, `test_lar_fingido.py`,
+  `test_casa_da_doc.py`).
+
+⚠️ **O conjunto mais novo atravessa três dessas famílias de uma vez: a CASA DA DOC** (2026-08-19, ainda fora do commit) — o contrato em
+`casa-da-doc.md` mais o resolvedor nas duas linguagens (`casa_da_doc.py`, `lib-casa-da-doc.sh`)
+e a suíte da fonte. Quem precisa do caminho da documentação **pergunta ao resolvedor** —
+`docs/` na raiz primeiro, `.claude/docs/` só como retrocompatibilidade (é onde a doc deste
+repositório ainda mora) — em vez de cravar a pasta. Duas cópias em `project-skills` porque
+hook não enxerga o `lib/` do plugin no cache do harness. [confirmado nesta rodada —
+`python3 _shared/test_casa_da_doc.py` → `21 passou · 0 falhou`; nenhum hook a consome ainda,
+`grep -rl casa_da_doc plugins` devolve só `project-skills` e o `SKILL.md` do `/start`]
 
 O porquê do vendoring, copiado do cabeçalho de
 `scripts/sync-shared.sh`: *"o Claude Code isola plugins na instalação — só `plugins/<nome>/`
@@ -873,8 +887,8 @@ sed -n '/^SPECS=(/,/^)/p' scripts/sync-shared.sh | grep '::' \
   | sed 's/.*"\(.*\)::.*/\1/' | sort -u | wc -l                        # nº de pastas
 ```
 
-**109 cópias, em 44 pastas de destino, de 25 arquivos-fonte** — contra 19 cópias em 14 pastas <!-- acopla-ok: os dois comandos que produzem os números estão no bloco imediatamente acima; "19" é narrativa histórica -->
-na passada anterior [medido nesta rodada: os dois comandos acima devolvem `109` e `44` — nove das onze cópias novas no salto de 97 para 108 são a família do **lar fingido** (F4.3): a receita única de fingir o HOME em teste (`lar-fingido.md` + `lar_fingido.py` + `lib-lar-fingido.sh`, com cobrador próprio) nasceu em `_shared/` e foi vendorada em todo consumidor que fingia o lar à mão, cada um do seu jeito e três deles quebrando no Windows — hoje são **nove** cópias dela (4 de `lar_fingido.py`, 5 de `lib-lar-fingido.sh`), a última em `plugins/project-skills/lib/`].
+**111 cópias, em 44 pastas de destino, de 29 arquivos-fonte** — contra 19 cópias em 14 pastas <!-- acopla-ok: os dois comandos que produzem os números estão no bloco imediatamente acima; "19" é narrativa histórica -->
+na passada anterior [medido nesta rodada: os dois comandos acima devolvem `111` e `44` — o salto foi de 109 para 111 cópias (as mesmas 44 pastas) <!-- acopla-ok: narrativa do salto medido na rodada; os comandos que produzem os números estão no bloco acima -->, e as **duas** cópias novas são a família da **casa da doc** (`casa_da_doc.py` + `lib-casa-da-doc.sh`), o resolvedor único de onde mora a documentação. A família do **lar fingido** (F4.3) — a receita única de fingir o HOME em teste (`lar-fingido.md` + `lar_fingido.py` + `lib-lar-fingido.sh`, com cobrador próprio), que nasceu em `_shared/` e foi vendorada em todo consumidor que fingia o lar à mão, cada um do seu jeito e três deles quebrando no Windows — segue com **nove** cópias (4 de `lar_fingido.py`, 5 de `lib-lar-fingido.sh`), a última em `plugins/project-skills/lib/`].
 Os quatro maiores contribuintes, todos vendorados por consumidor:
 `resolve-plugin.sh` (18), `regua_texto.py` (11), `hook-json.sh` (12), `lib-tmpdir.sh` (11).
 

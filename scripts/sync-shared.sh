@@ -178,6 +178,12 @@ SPECS=(
   "plugins/project-skills/hooks::lib-lar-fingido.sh"
   "plugins/intent-guard/hooks::lib-lar-fingido.sh"
   "plugins/visual/skills/visual::lib-lar-fingido.sh"
+  # O resolvedor da CASA DA DOC (contrato em _shared/casa-da-doc.md): quem precisa
+  # do caminho da doc pergunta a ele — `docs/` na raiz primeiro, `.claude/docs/`
+  # só como retrocompatibilidade. Duas cópias porque hook não enxerga o lib/ do
+  # plugin no cache do harness, e as duas linguagens andam juntas.
+  "plugins/project-skills/lib::casa_da_doc.py"
+  "plugins/project-skills/hooks::lib-casa-da-doc.sh"
   # O green-cache do qa-loop mora em lib/, não em hooks/ — a cópia acompanha ele.
   # O aviso de dependência ausente: UMA cópia só, no bootstrap. Os outros doze
   # plugins que avisam acham esta pelo NOME do plugin (resolve-plugin.sh), em vez

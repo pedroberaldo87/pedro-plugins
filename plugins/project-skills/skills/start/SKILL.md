@@ -365,13 +365,13 @@ mais honesto do que redigir. Então a pergunta abre assim, sempre nesta forma:
 - Em `AskUserQuestion`, o palpite é a opção que você marca como aposta no texto da pergunta, com o
   percentual ao lado; as outras opções continuam inteiras, sem sugestão de que já perderam.
 
-#### As seis pautas transversais — cada uma na etapa dela
+#### As sete pautas transversais — cada uma na etapa dela
 
-Seis pautas atravessam qualquer projeto e a prática sempre esquece de perguntar. Elas **não viram
-questionário** — despejar as seis numa rodada só é o interrogatório que a entrevista existe para
+Sete pautas atravessam qualquer projeto e a prática sempre esquece de perguntar. Elas **não viram
+questionário** — despejar as sete numa rodada só é o interrogatório que a entrevista existe para
 evitar. Cada uma é perguntada **dentro da etapa dela**, uma pergunta só, junto das perguntas que a
 etapa já faz. "Não se aplica" é resposta válida; **faltar a pergunta, não** — quem cobra a presença
-das seis é a suíte (`lib/test_start_doc_skill.py`), nunca a sua lembrança.
+das sete é a suíte (`lib/test_start_doc_skill.py`), nunca a sua lembrança.
 
 | Pauta | Etapa · documento | A pergunta |
 |---|---|---|
@@ -381,6 +381,12 @@ das seis é a suíte (`lib/test_start_doc_skill.py`), nunca a sua lembrança.
 | topologia do repositório | 2 · `architecture-intent.md` | um repositório só, vários, monorepo — e o que decidiu essa forma? |
 | controle de acesso | 4 · `journeys.md` | quem pode fazer o quê em cada jornada — e quem NÃO pode? |
 | registro de log | 5 · `blueprint.md` | que passo do ciclo deixa registro — e quem lê esse registro depois? |
+| casa da doc | 2 · `architecture-intent.md` | a doc canônica nasce visível em `docs/` na raiz e o segredo em `.claude/secrets/`, escondida e fora do git — confirma esse default ou este projeto tem outra casa? |
+
+A pauta da **casa da doc** é a única que já vai com o default escrito, porque é premissa desta casa,
+não gosto: **doc é visível, segredo é escondido** — o contrato inteiro está em `_shared/casa-da-doc.md`,
+e o caminho quem responde é o resolvedor (`casa_da_doc.py` · `lib-casa-da-doc.sh`), nunca a sua memória.
+O dono pode recusar o default; o que não pode é a pergunta faltar.
 
 Como toda pergunta da entrevista, a da pauta vai com a pista minerada à vista quando houver
 (o `.env.example` para integrações, a forma do repositório para topologia) — e sem pista o palpite

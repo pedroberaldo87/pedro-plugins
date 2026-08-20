@@ -39,6 +39,7 @@ DESFECHOS = {
     "porta-fechada": (CONSERTA, "consertar a porta (lint/type/teste do repo) e re-medir antes de relancar"),
     "onda-esteril": (CONSERTA, "destravar o que os impedidos/esperando apontam — relancar igual repete"),
     "corrida-em-circulo": (CONSERTA, "destravar o que os achados apontam; rodada nova repetiria o estado"),
+    "em-falso": (CONSERTA, "destravar o que os achados apontam; a medicao das ultimas rodadas nao mostrou obra saindo"),
     "vigia": (CONSERTA, "investigar travamento; o ultimo estado salvo e o checkpoint da rodada anterior"),
     # PROVISORIO ate F23.5: os dois abaixo gastam dinheiro ou mexem com outro motor da
     # sessao — decisao de dono, nao do laco.
@@ -64,6 +65,15 @@ def classifica(run):
 
 
 def main(argv=None):
+    # A saida e JSON com acento e travessao (`ensure_ascii=False`), e o console do
+    # Windows de fabrica e cp1252: sem isto o `print` do fim morre de
+    # UnicodeEncodeError, ou chega mordido a quem le. Quem escreve o texto declara o
+    # encoding dele — nao se deixa a conta para a variavel de ambiente do runner.
+    if hasattr(sys.stdout, "reconfigure"):
+        try:
+            sys.stdout.reconfigure(encoding="utf-8")
+        except Exception:
+            pass
     ap = argparse.ArgumentParser(description="classifica a parada de um run do /sprint")
     ap.add_argument("--run", required=True, help="arquivo com a saida JSON do motor (ou - para stdin)")
     a = ap.parse_args(argv)

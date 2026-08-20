@@ -178,6 +178,8 @@ Report each step to the user as you execute. Don't skip steps or batch them sile
 **Passo 0 (logo após identificar o root, antes de ramificar):** aplique a regra pesado/leve do grafo — ver **Workflow Engine → Passo 0** (canônica). A destilação do mapa (`graph_map.py`) só ocorre no FULL/`--deep` (quem consome o fan-out).
 
 1. **Identify project root** — find nearest git repo root or use cwd
+1b. **Casa da doc — detectar a casa antiga e OFERECER a migração** (F15.8): pergunte ao resolvedor onde a doc mora — `lib/casa_da_doc.py` (`casa(raiz)`) ou o irmão `hooks/lib-casa-da-doc.sh` (`casa_da_doc "$RAIZ"`), nunca caminho cravado. Se ele devolver a casa VELHA (`.claude/docs/` existe e `docs/` na raiz não), **pare e pergunte com `AskUserQuestion`** — não migre calado, e não siga calado. A pergunta leva o de-para VISÍVEL no `preview` da opção (`.claude/docs/architecture.md` → `docs/architecture.md`, e assim por diante, os arquivos reais que estão lá). Duas opções: **migrar agora** (`git mv .claude/docs docs`, e a doc deste run já nasce na casa nova) e **ficar como está** (o run segue na casa velha, e a oferta volta no próximo `/doc`). Sem resposta do dono, nada se move — a casa da doc é decisão dele, não do agente.
+
 2. **Detect project layout** — check for monorepo indicators:
    - `apps/` or `packages/` directory with 2+ subdirs containing Dockerfile, package.json, or main entry files
    - Root docker-compose.yml with services mapping to subdirs (e.g., `dockerfile: apps/X/Dockerfile`)

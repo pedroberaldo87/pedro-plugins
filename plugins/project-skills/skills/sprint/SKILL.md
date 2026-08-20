@@ -1092,6 +1092,8 @@ while (!built && r < maxRounds) {
   // o estado do ciclo por bloco — consolidado no registro da onda, lá embaixo
   let b = 0, ultimaSuite = null
   const blocosVerdes = [], marcadosDaOnda = [], reprovadasNosBlocos = [], docsDaOnda = []
+  const tocadosDaOnda = new Set()
+  const bloqueiosAntes = blockers.length
   for (const bloco of blocos) {
     // bloco depois da falha não sai: é este `continue` que faz o motor reagir ANTES de a
     // onda terminar. Eles voltam pro #1 como faltantes, não como fracasso de ninguém.
@@ -1241,6 +1243,7 @@ while (!built && r < maxRounds) {
     }
     blocosVerdes.push({ bloco: b, feitos: aprovadas.map(x => x.task_id), placar: suiteB.placar })
     const tocadosB = [...new Set(aprovadas.flatMap(x => x?.files_touched || []))]
+    tocadosB.forEach(f => tocadosDaOnda.add(f))
     if (tocadosB.length) {
       // TODOS os documentos afetados, a cada bloco — decisão do dono (2026-08-09),
       // ciente do custo: doc grande pode ser reescrito mais de uma vez na onda, e o
@@ -1271,6 +1274,20 @@ while (!built && r < maxRounds) {
   // o que zera e o BLOCO VERDE, nao a marcacao: `marcadosDaOnda` guarda tambem o passo
   // que o plano RECUSOU marcar, e recusa nao e avanco.
   rodadasMudas = blocosVerdes.length ? 0 : rodadasMudas + 1
+
+  // ── A RODADA REGISTRA O QUE PRODUZIU (F16.1 · R-26) ─────────────────────────
+  // Medição do que ACONTECEU, não juízo de quem rodou: quantos passos o plano aceitou
+  // marcar, quantos lotes fecharam verdes, que arquivos mudaram e quantos bloqueios
+  // nasceram nesta rodada. Fica no ledger da corrida, junto dos vereditos, porque é
+  // dele que o relatório do fim conta a história rodada a rodada.
+  ledgerCorrida.push({ r, tipo: 'producao', taskId: null,
+    passosMarcados: marcadosDaOnda.filter(m => m.ok).map(m => m.task_id),
+    lotesVerdes: blocosVerdes.map(x => x.bloco),
+    arquivosTocados: [...tocadosDaOnda],
+    bloqueiosNovos: blockers.length - bloqueiosAntes,
+    resumo: `r${r} produziu: ${marcadosDaOnda.filter(m => m.ok).length} passo(s) marcado(s), `
+          + `${blocosVerdes.length} lote(s) verde(s), ${tocadosDaOnda.size} arquivo(s), `
+          + `${blockers.length - bloqueiosAntes} bloqueio(s) novo(s)` })
 
   // a parada por causa global registra a rodada antes de sair: os blocos que já
   // fecharam verdes ficam no retrato, e o relatório sabe ONDE a corrida parou.
@@ -1551,6 +1568,24 @@ while (!built && r < maxRounds) {
   // do revisor.
   // gap de concepção sai do filtro por decisão: ele já virou aviso acima, e segurar a obra
   // por ele empurraria o motor a "consertar" código que está certo.
+  // ── A CORRIDA EM FALSO PARA (F16.2 · R-26) ──────────────────────────────────
+  // Quem está dentro do laço não é juiz do próprio andamento: o motor manda a MEDIÇÃO
+  // crua das últimas rodadas (F16.1) para um juiz de contexto limpo — nada de veredito
+  // de revisor, nada de resumo de executor — e ele responde produtivo ou em falso. Não
+  // há teto de número de rodadas aqui: o que para a corrida é o veredito, não a conta.
+  const medicoes = ledgerCorrida.filter(x => x.tipo === 'producao').slice(-3)
+  if (medicoes.length >= 2) {
+    const parecer = await julga(produtividadePrompt({ medicoes }),
+      { model: ARGS.model, effort: T.diagnose.effort, phase: 'Diagnose',
+        label: `produtividade:r${r}`, schema: PRODUTIVIDADE })
+    if (parecer?.veredito === 'em falso') {
+      desligadoPor = 'em-falso'
+      blockers.push({ what: `corrida em falso, na medição das últimas ${medicoes.length} rodadas: ${parecer.motivo}`,
+                      whyNeedsYou: 'os números das últimas rodadas não mostram obra saindo — destrave o que os achados apontam antes de relançar' })
+      break
+    }
+  }
+
   const holdsBuild = g => g.kind !== 'concepcao' && (g.kind === 'spec' || g.kind === 'rastreio' || sevRank(g.severity) >= floor)
   const gaps = (review.gaps || []).filter(holdsBuild)
 
@@ -1727,7 +1762,7 @@ return {
 | `desafioCausaPrompt` | `DESAFIADOR` | `runSuitePrompt` | `SUITE` |
 | `revisorTarefaPrompt` | `REVISOR` | `revisorBlocoPrompt` | `REVISOR` |
 | `revisaoDocPrompt` | `REVISOR` | `encerraPrompt` | `MECANICO` |
-| `pendenciaPrompt` | `MARCAR` |  |  |
+| `pendenciaPrompt` | `MARCAR` | `produtividadePrompt` | `PRODUTIVIDADE` |
 
 A declaração é a **primeira linha do corpo**, sozinha, antes de qualquer prosa — o corpo do `execPrompt` acima mostra a forma. Quem cobra que a regra continue no texto é `lib/test_travas_motor.py` (bloco `S-123`), que reescreve a prosa em volta da linha e confere no `medidor.py` que a classificação fica de pé.
 
