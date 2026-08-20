@@ -76,10 +76,19 @@ for nome, fonte, _base in FONTES:
     check("quem re-mede a porta é a guarda de saúde, não a palavra do destravador (%s)"
           % nome,
           "saude:pos-destrave" in fonte and "remedida.fechada === false" in fonte)
-    check("uma tentativa por corrida — a segunda seria repetir sem mudar o estado (%s)"
-          % nome, "destravesUsados >= 1" in fonte)
+    # F30.1 — o teto passou a ser por CAUSA DISTINTA, não por corrida. O teto por corrida
+    # matou a corrida de 2026-08-20 (573k tokens, ZERO passos) numa causa de dois minutos:
+    # causa NOVA é mudança de estado, e parar nela era parar por engano. A MESMA causa
+    # repetida continua parando — é esse par que estas duas checagens seguram.
+    check("a MESMA causa destravada duas vezes ainda para a corrida (%s)" % nome,
+          "causasDestravadas.has(chaveDestrave)" in fonte)
+    check("causa DISTINTA não é barrada pelo teto de uma tentativa (%s)" % nome,
+          "destravesUsados >= 1" not in fonte and "causasDestravadas.add" in fonte)
+    check("existe teto de causas distintas, para o destravador não virar laço (%s)" % nome,
+          "causasDestravadas.size >=" in fonte)
     check("destravou de verdade ⇒ a causa sai do cache e a corrida segue (%s)" % nome,
           "delete causaCache['@repositorio']" in fonte)
+
 
 # A3 · O BLOCKER DE DECISÃO VIRA PENDÊNCIA NO PASSO (F12.5 · R-21). O blocker morria
 # no relatório do FIM da corrida: o passo continuava `todo` no arquivo do plano e a
@@ -461,3 +470,21 @@ if falhas:
     print("FALHOU: %d" % falhas)
     sys.exit(1)
 print("test_motor_js: %d checagens verdes" % ok)
+
+
+# F30.2 e F30.3 — as duas curas de 2026-08-20, e elas moram em corpo de PROMPT. Pela
+# mesma razão de E1 e E3, rodam sobre o motor.js e mais nada: o esqueleto do SKILL.md
+# não traz prompt, por desenho. A prosa que as descreve no SKILL.md é cobrada logo
+# abaixo, contra o texto da skill, que é onde ela vive.
+check("o papel da suíte confere a prova gravada antes de rodar (motor.js)",
+      "green_cache_check" in motor)
+check("a conferência da prova é fail-open — ausente ou velha, roda normalmente (motor.js)",
+      "fail-open" in motor and "green_cache_check" in motor)
+check("existe rodapé com teto de turnos para papel mecânico (motor.js)",
+      "RODAPE_MECANICO" in motor and "no máximo 2 turnos" in motor)
+check("o rodapé mecânico exige a raiz do projeto em todo comando (motor.js)",
+      "RAIZ OBRIGATÓRIA" in motor)
+check("os papéis mecânicos carregam o rodapé — todos, não um (motor.js)",
+      motor.count("${RODAPE_MECANICO(") >= 6)
+check("o SKILL.md descreve o rodapé mecânico e a prova reaproveitada",
+      "RODAPE_MECANICO" in skill and "green_cache_check" in skill)
