@@ -8,7 +8,7 @@
 # recalcula depois. Aprovação digitada à mão nasce sem marca e o de acordo volta a
 # ser sobre um nome de arquivo.
 #
-# SIDECAR de protótipo (R-22, lei em .claude/docs/prototipo/FORMATO.md): documento
+# SIDECAR de protótipo (R-22, lei em prototipo/FORMATO.md, na casa da doc): documento
 # com `natureza: anexo` no frontmatter é aprovado pela marca do CONJUNTO — o `cksum`
 # POSIX da emenda dos arquivos listados em `## Arquivos`, na ordem do corpo. O rito
 # grava `conjunto-sig:`; com `--marca` o comando só IMPRIME a marca, sem escrever
@@ -26,9 +26,11 @@ DOC="${1:-}"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=/dev/null
 . "$SCRIPT_DIR/lib-doc-mark.sh" || exit 2
+# A casa da doc sai do resolvedor único (contrato em _shared/casa-da-doc.md).
+. "$SCRIPT_DIR/lib-casa-da-doc.sh" || exit 2
 
 # conjunto_marca <sidecar> — o `cat <arquivos> | cksum` da emenda, na ordem do corpo.
-# A raiz do projeto é a casa do sidecar menos `.claude/docs/prototipo/`. Arquivo
+# A raiz do projeto é a casa do sidecar menos `.claude/docs/prototipo/`. Arquivo  # casa-ok: o comentário documenta a aritmética ../../.. da casa antiga
 # listado e ausente é recusa, não marca de conjunto pela metade.
 conjunto_marca() {
   local raiz rel alvos=()
@@ -63,7 +65,7 @@ if [ "$EH_ANEXO" -eq 1 ]; then
   ANEXO_DE=$(sed -n '2,/^---/p' "$DOC" | sed -n 's/^anexo-de:[[:space:]]*//p' | head -1 | tr -d ' \r')
   if [ -n "$ANEXO_DE" ]; then
     RAIZ="$(cd "$(dirname "$DOC")/../../.." && pwd)"
-    [ -f "$RAIZ/.claude/docs/$ANEXO_DE" ] && DSIG=$(doc_marca "$RAIZ/.claude/docs/$ANEXO_DE")
+    [ -f "$(casa_da_doc "$RAIZ" "$ANEXO_DE")" ] && DSIG=$(doc_marca "$(casa_da_doc "$RAIZ" "$ANEXO_DE")")
   fi
   awk -v marca="$MARCA" -v dsig="$DSIG" '
     NR == 1 && $0 == "---" { print; dentro = 1; next }

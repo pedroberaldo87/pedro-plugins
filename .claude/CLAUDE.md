@@ -54,18 +54,19 @@ bash plugins/project-skills/hooks/test_plan_gate.sh
   → responder "o que a gente guarda?", avaliar impacto de perda, antes de apagar diretório de estado
 - **[durability.md](docs/durability.md)** — quem copia cada depósito, com que frequência, e o que **não** tem cobertura nenhuma; RPO/RTO e restauração testada
   → responder "o que entra no backup?", mexer em retenção, avaliar risco de perda
-- **[runtime.md](docs/runtime.md)** — 23 fluxos ponta-a-ponta (sync do bootstrap, roteamento de doc cross-tool, ponte do context-guard, live-sync do visual, geração de slides, gate de teste do ship, o arranque do SessionStart, a falha do gate de plano o ciclo de vida de um plano de implementação e a varredura de contrato dos hooks, a régua que recusa no ponto de uso, o tier do motor que chega como dado e a ponte de visão por MCP)
+- **[runtime.md](docs/runtime.md)** — 24 fluxos ponta-a-ponta (sync do bootstrap, roteamento de doc cross-tool, ponte do context-guard, live-sync do visual, geração de slides, gate de teste do ship, o arranque do SessionStart, a falha do gate de plano o ciclo de vida de um plano de implementação e a varredura de contrato dos hooks, a régua que recusa no ponto de uso, o tier do motor que chega como dado, a ponte de visão por MCP e o diagrama que viaja no commit da doc)
   → entender como as coisas acontecem de verdade, debugar fluxo cross-plugin, onboarding
 
 ## Diagramas (archify)
 
 Os diagramas de arquitetura vivem em três camadas com nome **estável**, uma por assunto:
-`organismo.html` (o repositório inteiro) e `app-<nome>.html` (um por módulo, e quem decide
+`organismo.html` (o repositório inteiro), `app-<nome>.html` (um por módulo, e quem decide
 se a camada existe é o classificador `grao-de-modulo.py` vendorado na skill — classes A/B/C
-sim, D/E só o organismo, decisão do dono de 2026-08-19) moram em **`.claude/archify/`** (fora do git — artefato de sessão, como
-`.claude/visual/`); `fluxo-<slug>.html` (um por fluxo que `runtime.md` nomeia — hoje
-`grep -c '^## ' docs/runtime.md` devolve 24 (23 fluxos + Pendências)) mora em
-**`docs/fluxos/`**, casa canônica **versionada** (decisão do dono em 2026-08-13:
+sim, D/E só o organismo, decisão do dono de 2026-08-19) e `fluxo-<slug>.html` (um por
+fluxo que `runtime.md` nomeia — hoje `grep -c '^## ' docs/runtime.md` devolve 25
+(24 fluxos + Pendências)). **As três camadas moram em `docs/fluxos/`**, casa canônica
+**versionada** (o organismo desceu para lá em `1e0bb99`, F14.4; `.claude/archify/` ficou
+só para desenho avulso de sessão do `/archify`) (decisão do dono em 2026-08-13:
 fluxo é doc, entra no commit de conteúdo — e por ser rastreado vale a régua do repo
 público, sem caminho absoluto de máquina dentro do HTML). A régua de quando cada camada
 existe, e o resolvedor de destino, estão em `plugins/archify/skills/archify/SKILL.md`.

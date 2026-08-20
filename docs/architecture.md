@@ -241,12 +241,12 @@ scripts/*.py                      os outros cobradores do gate — a lista está
                                   em `patterns.md` §5.2
 .claude/                          documentação + estado + gate LOCAL deste repo
   ├── CLAUDE.md                   índice de roteamento (marker project-doc:v2)
-  ├── docs/                       architecture · patterns · data-stores · durability · runtime
   ├── hooks/release-gate.sh       gate mecânico de commit deste monorepo
   │                               (uma letra por checagem, e as letras NÃO são contíguas nem
   │                               estão em ordem no arquivo — a lista é
-  │                               `grep -o '^# [A-Z] ·' .claude/hooks/release-gate.sh`, que
-  │                               neste run devolve 19)
+  │                               `grep -oE '^# [A-Z0-9-]+ · ' .claude/hooks/release-gate.sh`,
+  │                               que neste run devolve 25; a classe `[A-Z] ·` de antes não
+  │                               casava `R-19`/`R-25`/`P2` e subcontava)
   ├── hook-contract.baseline.json o retrato do contrato dos hooks  ← VERSIONADO
   ├── *.baseline.json             os outros retratos congelados — `git ls-files '.claude/*.baseline.json'`
   ├── settings.json               registra o release-gate como PreToolUse(Bash)
@@ -254,6 +254,10 @@ scripts/*.py                      os outros cobradores do gate — a lista está
                                   (`.project-doc/` e `qa-loop/` guardam o nome dos plugins
                                   extintos — é caminho de dado gravado, não plugin vivo)
                                   estado local da máquina — TODOS gitignorados (§3.1)
+docs/                             a casa da doc (desceu de `.claude/docs/` em `98b712e`):
+                                  architecture · patterns · data-stores · durability · runtime
+                                  + constituicao · quality-goals · os aprovados do ex-post
+                                  + fluxos/ (diagramas) + prototipo/ — tudo VERSIONADO
 graphify-out/                     knowledge graph — gitignorado inteiro, regenerável
 AGENTS.md · GEMINI.md · .cursorrules · .windsurfrules · .github/copilot-instructions.md
                                   ponteiros finos p/ outras IAs
@@ -368,7 +372,7 @@ improve-workflow  0.16.29  [improve-workflow]           -
 intent-guard       0.8.16  [intent-guard]               HOOKS
 lixeiro            1.5.10  [faxina]                     HOOKS
 principles          1.0.5  [principles]                 -
-project-skills    0.22.144  [completude,design-md,doc,doc-load,doc-touch,monitorar,pesquisa-referencias,plan,project-skills,qa-loop,sprint,start] HOOKS
+project-skills    0.22.146  [completude,design-md,doc,doc-load,doc-touch,monitorar,pesquisa-referencias,plan,project-skills,qa-loop,sprint,start] HOOKS
 ship                1.5.7  [ship]                       HOOKS
 slides              1.6.4  [slides]                     -
 vision              0.1.1  []                           -
@@ -789,16 +793,16 @@ as peças do `intent-guard` e do `visual` (bloco `PORTÃO ÚNICO DE ExitPlanMode
 qualquer coisa própria); depois disso, e em `EnterPlanMode` desde a primeira linha, ele é o
 gate de doc descrito abaixo. Saídas do gate de doc, copiadas do cabeçalho e do corpo:
 
-- **A — projeto sem documentação nenhuma** (nem `CLAUDE.md`, nem `.claude/docs/`):
+- **A — projeto sem documentação nenhuma** (nem `CLAUDE.md`, nem a casa da doc — o gate pergunta ao resolvedor `casa_da_doc`, cascata `docs/` → `.claude/docs/`, desde `bd42b5f`):
   `permissionDecision: "deny"` **sempre**, sem cap, mandando rodar `/start` (o nome curto que a
   skill ganhou ao mudar para o `project-skills` — `grep -n '/start' …plan-gate.sh`). Comentário
   literal: *"Decisão de projeto (2026-07-26): nega sempre, a não ser que o usuário verbalize
   que é para ignorar. Por isso NÃO há cap de nudges aqui."*
 - **B — tem doc, mas não foi lida nesta sessão**: `deny` com cap (`MAX_NUDGES=3`), reusando o
   sentinel `/tmp/claude-doc-guard-${SESSION}-${PHASH}` que o `posttooluse-doc-read.sh` escreve.
-  Um `Read` em qualquer `.claude/docs/*.md` libera.
+  Um `Read` em `.claude/docs/*.md`, no índice `.claude/CLAUDE.md` ou num `CLAUDE.md` de raiz libera — são os padrões que `posttooluse-doc-read.sh` casa; a casa nova `docs/` na raiz ainda não escreve esse sentinel.
 - **C — tem doc e já foi lida**: `exit 0`, silêncio.
-- **Quarto caminho: `CLAUDE.md` escrito à mão sem `.claude/docs/`** não cai no caso A (que
+- **Quarto caminho: `CLAUDE.md` escrito à mão sem a casa da doc** não cai no caso A (que
   negaria pra sempre com uma mensagem falsa) — vira caso B com cap próprio (`[ "$C" -ge 3 ]`)
   e oferece `/start` + `/doc` depois do plano.
 

@@ -390,7 +390,7 @@ ${SEM_HIPOTESE}
 ARQUIVOS QUE ESTA ONDA TOCOU:
 ${J(files)}
 
-Releia INTEIROS os documentos de ${repoRoot}/.claude/docs/ afetados por esses arquivos (pelo
+Releia INTEIROS os documentos da casa da doc de ${repoRoot} afetados por esses arquivos (pelo
 campo \`scope:\` do frontmatter de cada doc), mais o índice ${repoRoot}/.claude/CLAUDE.md.
 Procure: contradição com o repositório de AGORA, e conflito entre reescritas de blocos diferentes.
 

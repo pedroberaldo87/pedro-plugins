@@ -23,7 +23,7 @@ retorno — ela mora no `detail` do bloco `item` da página. Passe o mesmo spec.
 
 Uso:
     python3 curadoria_features.py --retorno ~/.claude/visual-state/latest.json \\
-        --saida .claude/docs/features.md [--proposta {spec.json}]
+        --saida <casa da doc>/features.md [--proposta {spec.json}]
 
 Saída: 0 gravou · 2 recusou (nomeando o item sem veredito) · 2 uso errado.
 stdlib only (requisito do repo).

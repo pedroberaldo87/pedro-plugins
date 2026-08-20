@@ -70,7 +70,7 @@ NARRATIVA = re.compile(r"\b(?:dizia|at[ée] 20\d\d-|era \*\*|quando a medi|virou
 NARRATIVA_RAIZ = re.compile(r"\b(?:estava errad|envelhec)", re.I)
 
 # Arquivos que EXISTEM para listar ou para descrever o repositório — isentos por natureza.
-# A documentação em `.claude/docs/` cita plugin pelo nome porque o trabalho dela é esse;
+# A documentação da casa da doc cita plugin pelo nome porque o trabalho dela é esse;
 # acusá-la seria acusar o próprio mapa de ser um mapa.
 INDICES = ("marketplace.json", "manifest.json", "settings-defaults.json",
            "portability.yml", "hooks.json")
@@ -83,7 +83,7 @@ DIRS_ISENTOS = (".claude/", "docs/", "README.md", "scripts/")
 # envelhece em silêncio — a própria constituição carregou **54** enquanto a medição
 # devolvia **60**. Então a pasta da documentação sai da isenção da contagem cravada, e o
 # que entra no lugar do número é o comando que o produz (S-58).
-DOC = ("docs/", ".claude/docs/")
+DOC = ("docs/", ".claude/docs/")  # casa-ok: reconhece as DUAS casas no caminho varrido, não escolhe uma
 
 
 def isento_de_contagem(rel):

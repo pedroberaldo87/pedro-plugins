@@ -2,19 +2,19 @@
 # pretooluse-doc-guard.sh — gate (RF8).
 # When a blind search (Grep/Glob, Bash grep|rg|find|..., or a code-EXPLORING Task
 # subagent) is about to run in a project that has project-doc documentation, DENY
-# it and redirect to .claude/docs/. The deny lists the actual docs and flags
+# it and redirect to the doc house. The deny lists the actual docs and flags
 # staleness. Mirrors graphify-guard; separate sentinel.
 # Fail-open: any error → exit 0 (action proceeds).
 #
 # PRIMARY decision: SENTINEL-FILE
 #   posttooluse-doc-read.sh writes <temp>/claude-doc-guard-${SESSION}-${PHASH} the
-#   moment Claude reads any file under .claude/docs/ or .claude/CLAUDE.md. The
+#   moment Claude reads any file under the doc house or .claude/CLAUDE.md. The
 #   guard checks for that sentinel; if present → doc was consulted → pass.
 #   Sem sentinel, a busca é negada SEMPRE — não há porta de escape por contagem
 #   (MAX_NUDGES caiu em 2026-08-04: os agentes atravessavam depois de 3 avisos).
 #
 # MONOREPO: if the searched path is under apps/{app}/ and
-#   .claude/docs/apps/{app}.md exists, the nudge cites that specific doc.
+#   apps/{app}.md exists in the doc house, the nudge cites that specific doc.
 #
 # OUT_OF_PATTERN: 5th column from doc-detect.sh --one is included in the nudge.
 
@@ -127,9 +127,14 @@ fi
 # No doc covers this → let it through.
 [ -z "$PROJ" ] && exit 0
 
+# A casa da doc sai do resolvedor único (contrato em _shared/casa-da-doc.md).
+. "$SCRIPT_DIR/lib-casa-da-doc.sh" 2>/dev/null || exit 0
+CASA=$(casa_da_doc "$PROJ")
+CASA_REL="${CASA#"$PROJ"/}"
+
 # ---------------------------------------------------------------------------
 # MONOREPO detection: check if any candidate is under $PROJ/apps/{app}/.
-# If .claude/docs/apps/{app}.md exists → use it as the target doc.
+# Se apps/{app}.md existir na casa da doc → use-o como doc alvo.
 # ---------------------------------------------------------------------------
 APP_DOC=""
 APP_NAME=""
@@ -146,7 +151,7 @@ while IFS= read -r c; do
     # extract the app name (first path component after apps/)
     a="${suffix%%/*}"
     [ -z "$a" ] && continue
-    candidate_doc="$PROJ/.claude/docs/apps/${a}.md"
+    candidate_doc="$CASA/apps/${a}.md"
     if [ -f "$candidate_doc" ]; then
       APP_DOC="$candidate_doc"
       APP_NAME="$a"
@@ -161,9 +166,9 @@ EOF
 # apps — exige o sentinel por-doc do índice raiz; sem índice, o CLAUDE.md
 # (basename "CLAUDE.md" casa com a raiz E a aninhada, então nunca tranca).
 ROOT_DOC=""
-if [ -d "$PROJ/.claude/docs/apps" ]; then
-  if [ -f "$PROJ/.claude/docs/index.md" ]; then
-    ROOT_DOC="$PROJ/.claude/docs/index.md"
+if [ -d "$CASA/apps" ]; then
+  if [ -f "$CASA/index.md" ]; then
+    ROOT_DOC="$CASA/index.md"
   elif [ -f "$PROJ/CLAUDE.md" ]; then
     ROOT_DOC="$PROJ/CLAUDE.md"
   else
@@ -174,7 +179,7 @@ fi
 # ---------------------------------------------------------------------------
 # SENTINEL-FILE check (PRIMARY decision)
 # posttooluse-doc-read.sh writes <temp>/claude-doc-guard-${SESSION}-${PHASH}
-# the moment Claude reads any file under .claude/docs/ or .claude/CLAUDE.md.
+# the moment Claude reads any file under the doc house or .claude/CLAUDE.md.
 # Check for that sentinel; if present → doc was consulted → pass (exit 0).
 # Fail-open: any I/O issue → sentinel absent → continue to nudge.
 # ---------------------------------------------------------------------------
@@ -214,7 +219,7 @@ STALE=$(printf '%s' "$LINE" | cut -f4)
 OOP=$(printf '%s' "$LINE" | cut -f5)
 
 # List the real docs so the nudge is actionable (not just "read the index").
-DOCLIST=$(for f in "$PROJ/.claude/docs"/*.md; do [ -e "$f" ] && basename "$f"; done | paste -sd ', ' -)
+DOCLIST=$(for f in "$CASA"/*.md; do [ -e "$f" ] && basename "$f"; done | paste -sd ', ' -)
 [ -n "$DOCLIST" ] && DOCLIST=" Docs: ${DOCLIST}."
 
 # Staleness flag (TERNÁRIO por-scope): louder quando vermelho. NÃO muda a decisão
@@ -233,10 +238,10 @@ if [ "$OOP" = "1" ]; then
 fi
 
 # App-specific nudge vs monorepo-root nudge vs generic nudge
-RELEASE_HINT=" Use a ferramenta Read em qualquer arquivo de .claude/docs/ ou .claude/CLAUDE.md; isso registra um sentinel e esta ação será liberada automaticamente na próxima tentativa."
+RELEASE_HINT=" Use a ferramenta Read em qualquer arquivo de ${CASA_REL}/ ou .claude/CLAUDE.md; isso registra um sentinel e esta ação será liberada automaticamente na próxima tentativa."
 if [ -n "$APP_NAME" ] && [ -n "$APP_DOC" ]; then
-  APPMSG=" Para o app '${APP_NAME}', leia o doc específico em .claude/docs/apps/${APP_NAME}.md."
-  READ_TARGET="${PROJ}/.claude/docs/apps/${APP_NAME}.md"
+  APPMSG=" Para o app '${APP_NAME}', leia o doc específico em ${CASA_REL}/apps/${APP_NAME}.md."
+  READ_TARGET="$CASA/apps/${APP_NAME}.md"
 elif [ -n "$ROOT_DOC" ] && [ "$ROOT_COVERED" = "1" ]; then
   RDN="${ROOT_DOC#${PROJ}/}"
   APPMSG=" Para busca na raiz do monorepo, leia ${RDN}."
@@ -258,10 +263,10 @@ else
   else
     CLAUDE_MD_PATH="${PROJ}/.claude/CLAUDE.md"
   fi
-  READ_TARGET="${CLAUDE_MD_PATH} e o doc relevante em .claude/docs/"
+  READ_TARGET="${CLAUDE_MD_PATH} e o doc relevante em ${CASA_REL}/"
 fi
 
-MSG="📚 ${PROJ} tem documentação project-doc (${N} doc(s) em .claude/docs/).${DOCLIST}${APPMSG} Antes de busca cega ou de delegar exploração, leia ${READ_TARGET}.${STALEMSG}${OOPMSG}${RELEASE_HINT} A busca fica bloqueada até a doc ser lida."
+MSG="📚 ${PROJ} tem documentação project-doc (${N} doc(s) em ${CASA_REL}/).${DOCLIST}${APPMSG} Antes de busca cega ou de delegar exploração, leia ${READ_TARGET}.${STALEMSG}${OOPMSG}${RELEASE_HINT} A busca fica bloqueada até a doc ser lida."
 
 hj_deny "$MSG"
 exit 0

@@ -14,7 +14,11 @@ def test_quatro_classes_com_dono_e_de_para():
     for c in dado["classes"]:
         assert c["dono"] and c["de"] and c["para"] and c["comando"], c["id"]
         assert c["ocorrencias"] == len(c["pontos"]), c["id"]
-        assert c["ocorrencias"] > 0, f"classe {c['id']} sem achado: padrão quebrado?"
+        # A classe A foi ZERADA (F15.2: todo ponto adotou o resolvedor); zero ali é o
+        # estado certo, e o padrão dela segue guardado pelo teste de fixture abaixo
+        # (test_classe_a_conta_so_codigo_executavel). Nas demais, zero = regex quebrada.
+        if c["id"] != "A":
+            assert c["ocorrencias"] > 0, f"classe {c['id']} sem achado: padrão quebrado?"
 
 
 def test_versao_do_catalogo_bate_com_a_do_plugin():

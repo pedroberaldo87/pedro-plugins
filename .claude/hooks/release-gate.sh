@@ -230,7 +230,16 @@ for name in touched:
     # O espelho eram DOIS arquivos e sempre foram TRÊS. Só cobra o plugin tocado, pela
     # mesma regra do B2 — dívida antiga de outro plugin não barra trabalho alheio.
     try:
-        _doc = open(".claude/docs/architecture.md", encoding="utf-8").read()
+        sys.path.insert(0, "_shared")
+        try:
+            from casa_da_doc import casa
+        except Exception:
+            # fallback à altura: a MESMA cascata do resolvedor, para repo sem _shared/
+            def casa(r, *ps):
+                d = os.path.join(r, "docs")
+                if not os.path.isdir(d): d = os.path.join(r, ".claude", "docs")  # casa-ok: fallback degradado quando o resolvedor não está no repo
+                return os.path.join(d, *ps)
+        _doc = open(casa(".", "architecture.md"), encoding="utf-8").read()
         _linha = next((l for l in _doc.splitlines()
                        if l.startswith(pname + " ") or l.startswith(pname + "\t")), None)
     except Exception:
@@ -239,7 +248,7 @@ for name in touched:
         _m = re.search(r"\b\d+\.\d+\.\d+\b", _linha)
         if _m and _m.group(0) != pver:
             viol.append("❌ TABELA DO CATÁLOGO DEFASADA — %s: doc=%s · disco=%s\n"
-                        "   → a tabela de .claude/docs/architecture.md publica a version;\n"
+                        "   → a tabela de architecture.md (na casa da doc) publica a version;\n"
                         "     bump são TRÊS arquivos: plugin.json, marketplace.json e a tabela.\n"
                         "     Sem os três a esteira fica vermelha e o /sprint morre na porta.\n"
                         "     Conserta com: python3 scripts/test_doc_catalogo_plugins.py --fix"
@@ -331,7 +340,7 @@ if printf '%s\n' "$FILES" | grep -qE '^plugins/[^/]+/hooks/'; then
 $(printf '%s' "$OUT" | sed -n '3,30p')
    → conserte, ou aceite conscientemente e recongele o retrato:
      python3 scripts/hook_contract.py --json > .claude/hook-contract.baseline.json
-   → o contrato está em .claude/docs/patterns.md → \"Contrato dos hooks\""
+   → o contrato está em patterns.md (na casa da doc) → \"Contrato dos hooks\""
     fi
   fi
 
@@ -574,7 +583,7 @@ fi
 # P2 · suíte que compara CAMINHO como TEXTO. Ela não deixa passar defeito: ela
 # INVENTA defeito, reprovando código certo onde a barra do sistema é a outra. Seis
 # suítes fizeram isso no Windows em 2026-08-11, e cada uma foi lida como "o programa
-# quebrou" antes de alguém notar que `.claude\docs\x.md` e `.claude/docs/x.md` são o
+# quebrou" antes de alguém notar que o mesmo doc com barra invertida e com barra normal é o
 # mesmo arquivo. Escopo: só quando o commit traz suíte Python.
 CTC="$ROOT/scripts/caminho_como_texto_check.py"
 if [ -f "$CTC" ] && printf '%s\n' "$FILES" | grep -qE 'test_[^/]*\.py$'; then
@@ -677,7 +686,7 @@ fi
 # num merge e nada acusa — foi o furo que o próprio artigo declara. Escopo: só quando o
 # commit toca a lei ou o cobrador; no resto do tempo custa zero.
 CVC="$ROOT/scripts/cobertura_visual_check.py"
-if [ -f "$CVC" ] && printf '%s\n' "$FILES" | grep -qE '(^|/)(docs/constituicao\.md$|cobertura_visual_check\.py$)'; then
+if [ -f "$CVC" ] && printf '%s\n' "$FILES" | grep -qE '(^|/)(docs/constituicao\.md$|cobertura_visual_check\.py$)'; then  # casa-ok: reconhece o arquivo tocado no diff, não escreve a casa
   if ! UOUT=$(cd "$ROOT" && python3 "$CVC" 2>&1); then
     VIOL="${VIOL}
 ❌ COBERTURA VISUAL SEM LEI — a regra do Artigo 12 sumiu do texto canônico:

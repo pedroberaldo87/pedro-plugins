@@ -1,5 +1,5 @@
 #!/bin/bash
-# doc-detect.sh — shared helper: detect project-doc documentation (CLAUDE.md + .claude/docs/).
+# doc-detect.sh — shared helper: detect project-doc documentation (CLAUDE.md + a casa da doc).
 #
 # CLAUDE.md location: Claude Code's native convention is project ROOT (confirmed
 # empirically — that's where the harness actually loads project instructions from);

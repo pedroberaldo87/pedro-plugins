@@ -832,17 +832,26 @@ def _requisitos_do_projeto(directory, plan=None):
     if env and os.path.exists(env):
         return cobertura.le_requisitos(env)
     raiz = os.path.dirname(os.path.dirname(os.path.abspath(directory)))
-    for cand in ("docs/PRD.md", "docs/REQUISITOS.md"):
-        p = os.path.join(raiz, cand)
+    from casa_da_doc import NOVA
+    for nome in ("PRD.md", "REQUISITOS.md"):
+        p = os.path.join(raiz, *NOVA, nome)
         if os.path.exists(p):
             return cobertura.le_requisitos(p)
     return {}
 
 
+def _doc_cands(raiz, nome):
+    """Os candidatos de um documento nas duas casas da doc, casa antiga primeiro
+    (a ordem que a cascata sempre teve). As casas saem do resolvedor único
+    (`casa_da_doc`, contrato em _shared/casa-da-doc.md), nunca cravadas aqui."""
+    from casa_da_doc import NOVA, VELHA
+    return [os.path.join(raiz, *c, nome) for c in (VELHA, NOVA)]
+
+
 def _jornadas_do_projeto(directory):
     """Acha as jornadas do projeto. [] se não houver — e isso não é erro.
 
-    Cascata: $PLAN_JORNADAS → <raiz>/.claude/docs/journeys.md → <raiz>/docs/journeys.md
+    Cascata: $PLAN_JORNADAS → journeys.md nas duas casas da doc (casa antiga primeiro)
     → []. É o documento que a etapa 4 do /start escreve; sem ele não há caminho de
     pessoa com o que cruzar, e o cruzamento fica quieto em vez de acusar todo mundo.
     """
@@ -851,8 +860,7 @@ def _jornadas_do_projeto(directory):
     if env and os.path.exists(env):
         return cobertura.le_jornadas(env)
     raiz = os.path.dirname(os.path.dirname(os.path.abspath(directory)))
-    for cand in (".claude/docs/journeys.md", "docs/journeys.md"):
-        p = os.path.join(raiz, cand)
+    for p in _doc_cands(raiz, "journeys.md"):
         if os.path.exists(p):
             return cobertura.le_jornadas(p)
     return []
@@ -861,7 +869,7 @@ def _jornadas_do_projeto(directory):
 def _caminho_da_lei(directory):
     """O arquivo da lei do projeto, ou "" se não houver — e isso não é erro.
 
-    Cascata: $PLAN_LEI → <raiz>/.claude/docs/constituicao.md → <raiz>/docs/constituicao.md
+    Cascata: $PLAN_LEI → constituicao.md nas duas casas da doc (casa antiga primeiro)
     → "". Mesma forma da cascata das jornadas, pelo mesmo motivo: sem lei escrita não há
     com o que conferir a citação, e o cruzamento fica quieto em vez de acusar todo mundo.
 
@@ -873,8 +881,7 @@ def _caminho_da_lei(directory):
     if env and os.path.exists(env):
         return env
     raiz = os.path.dirname(os.path.dirname(os.path.abspath(directory)))
-    for cand in (".claude/docs/constituicao.md", "docs/constituicao.md"):
-        p = os.path.join(raiz, cand)
+    for p in _doc_cands(raiz, "constituicao.md"):
         if os.path.exists(p):
             return p
     return ""
@@ -890,8 +897,8 @@ def _artigos_do_projeto(directory):
 def _pecas_do_projeto(directory):
     """Acha as peças da arquitetura pretendida. [] se não houver — e isso não é erro.
 
-    Cascata: $PLAN_ARQUITETURA → <raiz>/.claude/docs/architecture-intent.md →
-    <raiz>/docs/architecture-intent.md → []. É o documento que a etapa 2 do /start
+    Cascata: $PLAN_ARQUITETURA → architecture-intent.md nas duas casas da doc
+    (casa antiga primeiro) → []. É o documento que a etapa 2 do /start
     escreve (o que a arquitetura DEVE ser, não o que o código é); sem ele não há
     desenho com o que cruzar, e o cruzamento fica quieto em vez de acusar todo mundo.
     """
@@ -900,8 +907,7 @@ def _pecas_do_projeto(directory):
     if env and os.path.exists(env):
         return cobertura.le_pecas(env)
     raiz = os.path.dirname(os.path.dirname(os.path.abspath(directory)))
-    for cand in (".claude/docs/architecture-intent.md", "docs/architecture-intent.md"):
-        p = os.path.join(raiz, cand)
+    for p in _doc_cands(raiz, "architecture-intent.md"):
         if os.path.exists(p):
             return cobertura.le_pecas(p)
     return []
@@ -910,7 +916,7 @@ def _pecas_do_projeto(directory):
 def _passos_do_projeto(directory):
     """Acha os passos do ciclo do desenho de funcionamento. [] se não houver.
 
-    Cascata: $PLAN_BLUEPRINT → <raiz>/.claude/docs/blueprint.md → <raiz>/docs/blueprint.md
+    Cascata: $PLAN_BLUEPRINT → blueprint.md nas duas casas da doc (casa antiga primeiro)
     → []. É o documento que a etapa 5 do /start escreve (como o sistema funciona, do
     começo ao fim); sem ele não há ciclo com o que cruzar, e o cruzamento fica quieto em
     vez de acusar todo mundo.
@@ -920,8 +926,7 @@ def _passos_do_projeto(directory):
     if env and os.path.exists(env):
         return cobertura.le_passos(env)
     raiz = os.path.dirname(os.path.dirname(os.path.abspath(directory)))
-    for cand in (".claude/docs/blueprint.md", "docs/blueprint.md"):
-        p = os.path.join(raiz, cand)
+    for p in _doc_cands(raiz, "blueprint.md"):
         if os.path.exists(p):
             return cobertura.le_passos(p)
     return []

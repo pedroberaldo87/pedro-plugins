@@ -16,6 +16,8 @@ AQUI = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, AQUI)
 from bash_posix import bash_posix  # noqa: E402
 from caminho_igual import igual  # noqa: E402
+from casa_da_doc import VELHA  # noqa: E402
+_CASA = "/".join(VELHA)   # a casa da fixture sai do resolvedor, não cravada
 
 BASH = bash_posix()
 
@@ -325,7 +327,7 @@ marcador-ficticio: DADO-FICTICIO
 
 ## Arquivos
 
-- .claude/docs/prototipo/painel.html
+- @CASA@/prototipo/painel.html
 """
 
 
@@ -343,7 +345,7 @@ def projeto_com_anexo(tela="<h1>Painel</h1>\n"):
         fh.write(tela)
     sig = dl._conjunto_sig(r, [".claude/docs/prototipo/painel.html"])  # casa-ok: fixture de teste, o literal e o dado do caso
     with open(os.path.join(casa, "interface.prototipo.md"), "w", encoding="utf-8") as fh:
-        fh.write(SIDECAR.format(design_sig=dl.cksum(design), conjunto_sig=sig))
+        fh.write(SIDECAR.replace("@CASA@", _CASA).format(design_sig=dl.cksum(design), conjunto_sig=sig))
     return r
 
 

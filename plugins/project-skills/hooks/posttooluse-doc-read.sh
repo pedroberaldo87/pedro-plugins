@@ -1,6 +1,6 @@
 #!/bin/bash
 # posttooluse-doc-read.sh — RESOLVE the doc-guard when Claude actually READS a
-# project's documentation (.claude/docs/* or .claude/CLAUDE.md). The PreToolUse
+# project's documentation (a casa da doc or .claude/CLAUDE.md). The PreToolUse
 # guard's sentinel now means "the doc was consulted", not "Claude was warned" —
 # so the guard keeps nudging on blind searches until the doc is genuinely read,
 # then goes quiet. Mirrors the PHASH the guard uses.
@@ -37,7 +37,7 @@ case "$FP" in /*) : ;; *) FP="$CWD/$FP" ;; esac
 # Code's native convention) resolves it too, not just the nested .claude/CLAUDE.md —
 # order matters: the more specific nested pattern is tried first.
 case "$FP" in
-  */.claude/docs/*)    PROJ="${FP%%/.claude/docs/*}" ;;
+  */.claude/docs/*)    PROJ="${FP%%/.claude/docs/*}" ;;  # casa-ok: reconhece o caminho LIDO na entrada, não escreve a casa
   */.claude/CLAUDE.md) PROJ="${FP%/.claude/CLAUDE.md}" ;;
   */CLAUDE.md)         PROJ="${FP%/CLAUDE.md}" ;;
   *) exit 0 ;;
@@ -58,9 +58,9 @@ touch "${TMPD}/claude-doc-guard-${SESSION}-${PHASH}-doc-${DPHASH}" 2>/dev/null
 # de ler está DEFASADO, injeta um aviso AGORA — o momento exato do consumo. É
 # PostToolUse (injeta contexto, SEM permissionDecision) → estruturalmente incapaz
 # de loopar (ao contrário de um deny no Read, que bloquearia a ação que libera o
-# sentinel). Só p/ leitura de doc de concern (.claude/docs/*), não do índice.
+# sentinel). Só p/ leitura de doc de concern (a casa da doc), não do índice.
 case "$FP" in
-  */.claude/docs/*) : ;;
+  */.claude/docs/*) : ;;  # casa-ok: reconhece o caminho LIDO na entrada, não escreve a casa
   *) exit 0 ;;
 esac
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"

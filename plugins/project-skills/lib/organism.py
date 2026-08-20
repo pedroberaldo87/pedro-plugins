@@ -346,7 +346,7 @@ def verify_cite(root, data, costura_id, cite):
 #
 # Motivo: a skill era closed-world (só via a árvore da raiz). Num organismo
 # (monorepo de módulos que antes eram repos separados), cada módulo herdou uma
-# `<módulo>/.claude/docs/` própria que a raiz nunca tocava → drift órfão. O
+# casa da doc própria por módulo que a raiz nunca tocava → drift órfão. O
 # census abre o mundo: enumera tudo, classifica em 4 (design com o Fable), e a
 # skill decide o que migrar/arquivar. Stateless — só localização+marker decidem
 # (um manifesto de "o que o run gerou" envelhece e quebra cross-machine).
@@ -394,14 +394,14 @@ def _is_projectdoc_claude_md(path):
 
 
 def _is_projectdoc_doc(path):
-    """.md sob .claude/docs/ é project-doc? Exige frontmatter com doc-sig (o que
+    """.md sob a casa da doc é project-doc? Exige frontmatter com doc-sig (o que
     a skill gera). Um .md solto sem isso é autoral → info, não ação."""
     h = _head(path)
     return h.startswith("---\n") and bool(_DOCSIG_RE.search(h))
 
 
 def _walk_repo_docs(root):
-    """Gera (abspath, relposix) de todo CLAUDE.md e .claude/docs/*.md do repo,
+    """Gera (abspath, relposix) de todo CLAUDE.md e *.md da casa da doc do repo,
     podando o ruído (CENSUS_PRUNE). Não desce em legacy-pre-migracao (só reporta
     o topo como archived, sem varrer o conteúdo)."""
     for dirpath, dirnames, filenames in os.walk(root):
@@ -411,7 +411,7 @@ def _walk_repo_docs(root):
         # não varre legacy-pre-migracao a fundo (é preservado-fora-do-vigente)
         if "legacy-pre-migracao" in dirnames:
             dirnames.remove("legacy-pre-migracao")
-        is_docs_dir = ".claude/docs/" in (rel_dir + "/")
+        is_docs_dir = ".claude/docs/" in (rel_dir + "/")  # casa-ok: reconhecimento/rótulo de caminho relativo do que já está no disco, não escolha da casa
         for fn in filenames:
             if fn == "CLAUDE.md" or (fn.endswith(".md") and is_docs_dir):
                 ap = os.path.join(dirpath, fn)
@@ -447,7 +447,7 @@ def classify_doc(root, modulos, abspath, rel):
     if rel in ("CLAUDE.md", ".claude/CLAUDE.md"):
         return {"path": rel, "kind": "canonical", "module": None,
                 "is_projectdoc": True, "reason": "índice da raiz"}
-    if rel.startswith(".claude/docs/"):
+    if rel.startswith(".claude/docs/"):  # casa-ok: reconhecimento/rótulo de caminho relativo do que já está no disco, não escolha da casa
         return {"path": rel, "kind": "canonical", "module": None,
                 "is_projectdoc": True, "reason": "doc canônico da raiz (costura ou modules/)"}
     if is_claude and module and _ROUTER_MARKER_RE.search(_head(abspath)):
@@ -692,7 +692,7 @@ def inherited(start_path):
         for nome, tipo in INHERITED_DOCS:
             ap = os.path.join(root, ".claude", "docs", nome)
             if os.path.isfile(ap):
-                itens.extend(_doc_items(ap, ".claude/docs/" + nome, tipo))
+                itens.extend(_doc_items(ap, ".claude/docs/" + nome, tipo))  # casa-ok: reconhecimento/rótulo de caminho relativo do que já está no disco, não escolha da casa
     return {"organism": True, "root": root, "name": (data or {}).get("name"),
             "modulo": modulo, "itens": itens}
 

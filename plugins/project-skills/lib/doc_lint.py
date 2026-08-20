@@ -345,7 +345,7 @@ def lint_doc(root, doc_rel, env_read, defined, allow, all_files=None,
     # --- check 3: ponteiro arquivo:N (idem — sem índice, não acusa) ---
     scope = _scope_entries(root, p)
     modp = ""
-    m = re.search(r"(?:^|/)\.claude/docs/modules/([^/]+)/", "/" + doc_rel)
+    m = re.search(r"(?:^|/)\.claude/docs/modules/([^/]+)/", "/" + doc_rel)  # casa-ok: reconhecimento/rótulo de caminho relativo do que já está no disco, não escolha da casa
     if m:
         modp = m.group(1) + "/"
     pointer_warned = False

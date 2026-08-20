@@ -436,18 +436,25 @@ rm -rf "$R/plugins/alfa" "$R/plugins/beta" "$R/scripts/desacoplamento_check.py" 
        "$R/.claude"
 
 # ── R-25b · caminho de doc cravado fora do resolvedor ───────────────────────
-# O teto do cobrador é ABSOLUTO (a dívida medida no repositório de verdade), então o
-# repo de teste nunca o alcançaria sozinho. Aqui o que se prova é a LIGAÇÃO: com o teto
-# abaixado, o gate chama o cobrador e o commit para com a mensagem dele.
+# O teto do cobrador é ABSOLUTO — e desde o F15.2 ele é ZERO no repositório de
+# verdade. Para provar o caso "dívida declarada passa", o primeiro passo SIMULA um
+# teto de 1 (a dívida declarada); depois o teto volta a zero e o gate barra.
 echo "Check R-25b — caminho de doc cravado"
 mkdir -p "$R/scripts"
 cp "$HERE/../../scripts/anti_slop_inventario.py" "$HERE/../../scripts/casa_da_doc_check.py" \
    "$R/scripts/"
+python3 - "$R/scripts/anti_slop_inventario.py" <<'PY'
+import re, sys
+p = sys.argv[1]
+s = open(p, encoding="utf-8").read()
+open(p, "w", encoding="utf-8").write(re.sub(r'"A": \d+', '"A": 1', s, count=1))
+PY
+rm -rf "$R/scripts/__pycache__"   # pyc do mesmo segundo esconderia o teto novo
 # o caminho nasce em dois pedaços: inteiro nesta linha, ele seria o próprio defeito
 printf 'abrir("%s")\n' ".claude""/docs/architecture.md" > "$R/plugins/exemplo/lib/crava.py"
 git -C "$R" add -A >/dev/null
 out=$(gate_out "git commit -m x")
-check "dentro do teto, caminho cravado nao barra (divida antiga passa)" \
+check "dentro do teto, caminho cravado nao barra (divida declarada passa)" \
   "$(printf '%s' "$out" | grep -q 'CAMINHO DE DOC CRAVADO' && echo 0 || echo 1)"
 
 python3 - "$R/scripts/anti_slop_inventario.py" <<'PY'
@@ -456,6 +463,7 @@ p = sys.argv[1]
 s = open(p, encoding="utf-8").read()
 open(p, "w", encoding="utf-8").write(re.sub(r'"A": \d+', '"A": 0', s, count=1))
 PY
+rm -rf "$R/scripts/__pycache__"   # pyc do mesmo segundo esconderia o teto novo
 git -C "$R" add -A >/dev/null
 out=$(gate_out "git commit -m x")
 check "acima do teto, o gate barra o commit pelo cobrador do caminho" \

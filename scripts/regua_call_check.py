@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """regua_call_check.py — reprova gerador de página que não passa pela régua.
 
-A régua de estilo (`_shared/regua_texto.py`, vinda de `.claude/docs/quality-goals.md`)
+A régua de estilo (`_shared/regua_texto.py`, vinda de `quality-goals.md`, na casa da doc)
 só vale para o texto que passa por ela. Um gerador novo monta HTML, emite texto
 autoral e ninguém percebe que ele nasceu fora da regra — foi assim que cada
 gerador ficou livre para inventar a própria forma. Este script é o gate: se o

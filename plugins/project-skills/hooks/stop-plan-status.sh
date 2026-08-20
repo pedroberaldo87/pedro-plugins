@@ -10,7 +10,7 @@
 # escreveu código e não marcou nada, entra UM bullet a mais, 1× por sessão.
 # Um hook só em vez de dois — dois `systemMessage` no mesmo Stop competiriam.
 #
-# CONTRATO DE GATE (.claude/docs/patterns.md → §5.3):
+# CONTRATO DE GATE (patterns.md, na casa da doc, → §5.3):
 #   canal      systemMessage (informa, não bloqueia — nunca emite decision:block)
 #   cap        n/a (não bloqueia); a COBRANÇA é 1× por (sessão, projeto)
 #   desligar   PLAN_STATUS=0  (e PLAN_NUDGE=0 desliga as duas cobranças)
