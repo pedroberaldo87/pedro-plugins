@@ -89,7 +89,11 @@ MAX_NUDGES=3
 COUNT=0
 [ -f "$COUNT_FILE" ] && COUNT="$(tr -d '[:space:]' < "$COUNT_FILE" 2>/dev/null)"
 case "$COUNT" in ''|*[!0-9]*) COUNT=0 ;; esac
-[ "$COUNT" -ge "$MAX_NUDGES" ] && exit 0
+if [ "$COUNT" -ge "$MAX_NUDGES" ]; then
+  # O silêncio se anuncia: sem esta linha o gate some sem dizer que ainda há violação.
+  hj_ctx "PreToolUse" "⚠️ askq gate silenciado nesta sessão: a pergunta ainda viola a régua, mas o teto de ${MAX_NUDGES} devoluções foi atingido — liberando pra não prender."
+  exit 0
+fi
 echo $((COUNT + 1)) > "$COUNT_FILE" 2>/dev/null
 
 MSG="$(cat <<EOF

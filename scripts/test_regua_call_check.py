@@ -88,6 +88,28 @@ os.makedirs(G.ROOT, exist_ok=True)
 check("fora de repo git, zero achado (fail-open)", G.varre(staged=True) == [])
 G.ROOT = _orig
 
+# ─── fail-open confessa em canal que o portão lê (R-27) ──────────────────────
+# A confissão era stderr + saída 0; o portão só lê o texto capturado e o código
+# de saída, então a exceção evaporava. Este caso força a exceção e CAI se a
+# saída voltar a zero mudo (sem o marcador NÃO MEDIDO no stdout).
+import contextlib  # noqa: E402
+import io  # noqa: E402
+
+
+def _explode():
+    raise RuntimeError("sabotagem")
+
+
+_main = G.main
+G.main = _explode
+_buf = io.StringIO()
+with contextlib.redirect_stdout(_buf):
+    _rc = G.cli()
+G.main = _main
+check("excecao interna nao trava o commit (saida 0)", _rc == 0)
+check("a confissao NÃO MEDIDO sai no stdout — nunca zero mudo",
+      "NÃO MEDIDO" in _buf.getvalue())
+
 # ─── o gate roda de verdade no repo ──────────────────────────────────────────
 achados = G.varre()
 check("varre() devolve lista", isinstance(achados, list))

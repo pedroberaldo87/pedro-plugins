@@ -231,8 +231,8 @@ python3 -c "import json;print(len(json.load(open('.claude-plugin/marketplace.jso
 ```
 .claude-plugin/marketplace.json   catálogo único — nome, source, version, tags, category
 plugins/<nome>/                   um dir por entrada do catálogo, sem sobra (§2)
-_shared/                          fonte-da-verdade do compartilhado (29 arquivos-fonte)
-scripts/sync-shared.sh            o "build": vendora _shared/ → 111 cópias em 44 pastas  <!-- acopla-ok: §7 traz o comando que produz os dois números -->
+_shared/                          fonte-da-verdade do compartilhado (31 arquivos-fonte)
+scripts/sync-shared.sh            o "build": vendora _shared/ → 113 cópias em 45 pastas  <!-- acopla-ok: §7 traz o comando que produz os dois números -->
 scripts/hook_contract.py          mede o contrato dos registros de hook (§11)
 scripts/public_repo_check.py      cobra a regra de repo público (checagem H do gate)
 scripts/regua_call_check.py       cobra que gerador de página chame a régua (checagem I)
@@ -352,7 +352,7 @@ Saída desta rodada (nome · versão · skills · tem hook):
 
 ```
 2op                 1.2.0  [2op,2op-opus,2op-sonnet]    -
-archify            2.13.2  [archify]                    -
+archify            2.14.0  [archify]                    -
 bootstrap         1.17.15  [bootstrap]                  HOOKS
 branches           1.3.14  [branches]                   HOOKS
 check-skills        0.7.4  [check-skills]               -
@@ -361,19 +361,19 @@ fallow              1.2.7  [fallow]                     -
 gauntlet           0.13.6  [gauntlet]                   HOOKS
 graphify-guard     1.2.12  []                           HOOKS
 grill-me            1.5.1  [grill-me]                   -
-guardrails          1.8.8  [guardrails]                 HOOKS
+guardrails          1.8.9  [guardrails]                 HOOKS
 handoff           1.11.15  [handoff]                    HOOKS
 improve             1.1.4  [improve]                    -
 improve-workflow  0.16.29  [improve-workflow]           -
 intent-guard       0.8.16  [intent-guard]               HOOKS
 lixeiro            1.5.10  [faxina]                     HOOKS
 principles          1.0.5  [principles]                 -
-project-skills    0.22.139  [completude,design-md,doc,doc-load,doc-touch,monitorar,pesquisa-referencias,plan,project-skills,qa-loop,sprint,start] HOOKS
+project-skills    0.22.140  [completude,design-md,doc,doc-load,doc-touch,monitorar,pesquisa-referencias,plan,project-skills,qa-loop,sprint,start] HOOKS
 ship                1.5.7  [ship]                       HOOKS
 slides              1.6.4  [slides]                     -
 vision              0.1.1  []                           -
 vistoria           0.11.8  [vistoria]                   -
-visual             1.42.0  [andamento,visual]           HOOKS
+visual             1.42.1  [andamento,visual]           HOOKS
 ```
 
 **A rodada anterior moveu onde as skills MORAM; esta apagou as CASAS que tinham ficado
@@ -839,7 +839,7 @@ de checks de cada uma é a última linha que ela imprime (§13).
 
 ## 7. A engine compartilhada vendorada (`_shared/`)
 
-`_shared/` cresceu de seis para **vinte e quatro** arquivos-fonte [confirmado — `ls -1 _shared/`
+`_shared/` cresceu de seis para **trinta e um** arquivos-fonte [confirmado — `ls -1 _shared/`
 neste run, fora o `__pycache__`], e a natureza do que mora ali mudou: não é só código Python,
 é **shell de hook e texto de skill**.
 
@@ -894,8 +894,8 @@ sed -n '/^SPECS=(/,/^)/p' scripts/sync-shared.sh | grep '::' \
   | sed 's/.*"\(.*\)::.*/\1/' | sort -u | wc -l                        # nº de pastas
 ```
 
-**111 cópias, em 44 pastas de destino, de 29 arquivos-fonte** — contra 19 cópias em 14 pastas <!-- acopla-ok: os dois comandos que produzem os números estão no bloco imediatamente acima; "19" é narrativa histórica -->
-na passada anterior [medido nesta rodada: os dois comandos acima devolvem `111` e `44` — o salto foi de 109 para 111 cópias (as mesmas 44 pastas) <!-- acopla-ok: narrativa do salto medido na rodada; os comandos que produzem os números estão no bloco acima -->, e as **duas** cópias novas são a família da **casa da doc** (`casa_da_doc.py` + `lib-casa-da-doc.sh`), o resolvedor único de onde mora a documentação. A família do **lar fingido** (F4.3) — a receita única de fingir o HOME em teste (`lar-fingido.md` + `lar_fingido.py` + `lib-lar-fingido.sh`, com cobrador próprio), que nasceu em `_shared/` e foi vendorada em todo consumidor que fingia o lar à mão, cada um do seu jeito e três deles quebrando no Windows — segue com **nove** cópias (4 de `lar_fingido.py`, 5 de `lib-lar-fingido.sh`), a última em `plugins/project-skills/lib/`].
+**113 cópias, em 45 pastas de destino, de 31 arquivos-fonte** — contra 19 cópias em 14 pastas <!-- acopla-ok: os dois comandos que produzem os números estão no bloco imediatamente acima; "19" é narrativa histórica -->
+na passada anterior [medido nesta rodada: os dois comandos acima devolvem `113` e `45` — o salto foi de 111 para 113 cópias (44 → 45 pastas) <!-- acopla-ok: narrativa do salto medido na rodada; os comandos que produzem os números estão no bloco acima -->, e as **duas** cópias novas são o classificador do **grão de módulo** (`grao-de-modulo.py`, as 5 classes A-E do survey de 2026-08-19), vendorado em `archify` e no `doc-touch` — quantos diagramas um projeto ganha é programa, nunca prosa. A rodada anterior tinha trazido a família da **casa da doc** (`casa_da_doc.py` + `lib-casa-da-doc.sh`), o resolvedor único de onde mora a documentação. A família do **lar fingido** (F4.3) — a receita única de fingir o HOME em teste (`lar-fingido.md` + `lar_fingido.py` + `lib-lar-fingido.sh`, com cobrador próprio), que nasceu em `_shared/` e foi vendorada em todo consumidor que fingia o lar à mão, cada um do seu jeito e três deles quebrando no Windows — segue com **nove** cópias (4 de `lar_fingido.py`, 5 de `lib-lar-fingido.sh`), a última em `plugins/project-skills/lib/`].
 Os quatro maiores contribuintes, todos vendorados por consumidor:
 `resolve-plugin.sh` (18), `regua_texto.py` (11), `hook-json.sh` (12), `lib-tmpdir.sh` (11).
 
@@ -2009,7 +2009,7 @@ $ bash scripts/sync-shared.sh --check                    →  OK: cópias vendor
 
 ```
 $ python3 _shared/test_regua_texto.py                    →  71 passou · 0 falhou
-$ python3 scripts/test_regua_call_check.py               →  18 asserts ok ✓ (0 gerador fora da régua hoje)
+$ python3 scripts/test_regua_call_check.py               →  20 asserts ok ✓ (0 gerador fora da régua hoje)
 $ python3 plugins/visual/lib/test_regua_audit.py         →  OK
 $ python3 plugins/guardrails/hooks/test_artefato_regua.py →  22 checks ok, 0 falhas
 $ python3 _shared/r8_tiers.py check                      →  OK: R8 servido de _shared/r8-tiers.json

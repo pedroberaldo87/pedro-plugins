@@ -422,12 +422,18 @@ fi
 # Só olha o que ESTE commit traz: os 4 geradores que já estavam fora não travam
 # ninguém (mesma regra do check H), mas gerador tocado agora é barrado na porta.
 RCC="$ROOT/scripts/regua_call_check.py"
+NAO_MEDIDO_RT=""
 if [ -f "$RCC" ]; then
   if ! ROUT=$(cd "$ROOT" && python3 "$RCC" --staged 2>&1); then
     VIOL="${VIOL}
 ❌ PÁGINA SEM RÉGUA — o arquivo monta HTML e não chama a régua de estilo:
 $(printf '%s' "$ROUT" | head -20)
    → régua: python3 scripts/regua_call_check.py --staged"
+  elif printf '%s' "$ROUT" | grep -q 'NÃO MEDIDO'; then
+    # R-27 · o cobrador rodou mas confessou exceção interna (fail-open): saída 0
+    # sem medição. A confissão agora vem no stdout e vira linha NÃO MEDIDO.
+    NAO_MEDIDO_RT="${NAO_MEDIDO_RT}
+   • check I — scripts/regua_call_check.py (rodou sem medir: $(printf '%s' "$ROUT" | head -1))"
   fi
 fi
 
@@ -739,6 +745,24 @@ $(printf '%s' "$OUT" | tail -15)"
   # `suites_orfas.py` acusou como órfã no dia em que nasceu.
   roda_suites bash    'plugins/*/lib/test_*.sh'
 fi
+
+# R-27 · checador ausente não pode sumir em silêncio. Cada bloco acima só roda se o
+# arquivo do cobrador existe ([ -f ]) — apagado ou renomeado, ele deixava de medir e
+# nada registrava. Aqui a ausência vira linha no veredito: a lista NÃO MEDIDO nomeia
+# cada cobrador que não rodou por não estar no disco. Informativa, nunca bloqueia.
+NAO_MEDIDO=""
+nm() { [ -f "$2" ] || NAO_MEDIDO="${NAO_MEDIDO}
+   • check $1 — ${2#$ROOT/}"; }
+nm A    "$ROOT/scripts/sync-shared.sh"
+nm A2   "$ROOT/_shared/r8_tiers.py"
+nm E    "$ROOT/scripts/hook_contract.py"
+nm H    "$PRC";  nm I    "$RCC";  nm K "$RCT";  nm L "$FDB";  nm N "$DSC"
+nm R-25 "$ASI";  nm R-25b "$CDD"; nm T "$CDC";  nm P "$VZC";  nm P2 "$CTC"
+nm Q    "$WOC";  nm R-19 "$CPC";  nm R "$VAR";  nm O "$PVC";  nm S "$APC"
+nm U    "$CVC"
+# cobrador presente no disco que confessou não ter medido (fail-open com marcador)
+NAO_MEDIDO="${NAO_MEDIDO}${NAO_MEDIDO_RT}"
+[ -n "$NAO_MEDIDO" ] && printf '⚠️ NÃO MEDIDO — cobrador ausente do disco, o portão pulou sem rodar:%s\n' "$NAO_MEDIDO" >&2
 
 [ -n "$VIOL" ] || exit 0
 

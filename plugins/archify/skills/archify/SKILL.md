@@ -381,17 +381,22 @@ julgamento de rodada:
 os componentes de primeiro nível e como se ligam. É o diagrama que `architecture.md`
 referencia. Arquivo: `organismo.html`.
 
-**2 · Aplicativo — quando há mais de um.** Existe um por aplicativo independente quando o
-repositório tem **dois ou mais**. O que conta como aplicativo independente:
+**2 · Módulo — quando o grão de módulo manda.** Se um módulo ganha diagrama próprio
+**não é julgamento de rodada nem leitura de árvore à mão**: é o classificador das 5
+classes de arquitetura (survey de 25 repositórios reais), vendorado ao lado desta skill:
 
 ```bash
-# pastas com manifesto próprio, fora da raiz e fora de dependências
-find . -maxdepth 3 \( -name package.json -o -name pyproject.toml -o -name go.mod \
-       -o -name Cargo.toml \) -not -path '*/node_modules/*' -not -path './package.json' | wc -l
+python3 "<pasta desta skill>/grao-de-modulo.py" "$PWD"
+# JSON: {classe, grao, unidades, diagrama_por_modulo}
 ```
 
-Um só resultado (ou nenhum) → esta camada não existe, e o organismo já conta a história.
-Arquivo: `app-<nome-da-pasta>.html`.
+`diagrama_por_modulo: true` (classes **A** coleção de unidades nomeadas, **B** monorepo
+declarado, **C** dois lados que conversam) → um diagrama por item de `unidades`, no grão
+que o campo `grao` nomeia. `false` (classes **D** app em camadas, **E** projeto pequeno) →
+esta camada **não existe** e o organismo já conta a história — quebrar um `src/` único em
+módulos inventa fronteira que o código não tem. A regra A/B/C-sim, D/E-não é decisão do
+dono (2026-08-19) e mora no programa: não a re-derive contando manifestos.
+Arquivo: `app-<nome-da-unidade>.html`.
 
 **3 · Função principal — quando a doc já a nomeia.** Não invente o recorte: uma função
 principal é um **fluxo que a documentação do projeto já descreve** como fluxo ponta a

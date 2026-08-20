@@ -58,7 +58,7 @@ passo 2**, não uma varredura nova — o escopo inverso já fez o trabalho:
 |---|---|
 | `architecture.md` | `organismo.html` — na mesma casa canônica VERSIONADA dos fluxos (`.claude/docs/fluxos/`): arquitetura é doc pela mesma razão que fluxo é, e diagrama que nasce em pasta de sessão morre no `/clear` sem ninguém notar |
 | `runtime.md` | os `fluxo-<slug>.html` dos fluxos cujos títulos o diff tocou — re-renderizados em **`.claude/docs/fluxos/`**, a casa canônica VERSIONADA (decisão do dono em 2026-08-13): fluxo é doc, entra no commit de conteúdo do passo 5, nunca em pasta de sessão |
-| doc de um aplicativo/módulo (monorepo) | `app-<nome>.html` daquele aplicativo — **mesma casa versionada** (`.claude/docs/fluxos/`): desenho de módulo defasa igual ao texto dele, e um destino só evita que o mesmo tipo de artefato viva em duas pastas |
+| doc de um aplicativo/módulo (monorepo) | `app-<nome>.html` daquele aplicativo — **mesma casa versionada** (`.claude/docs/fluxos/`): desenho de módulo defasa igual ao texto dele, e um destino só evita que o mesmo tipo de artefato viva em duas pastas. **Se o módulo ganha diagrama próprio quem diz é o programa**, nunca prosa: `python3 "<pasta desta skill>/grao-de-modulo.py" "$PWD"` (cópia vendorada ao lado deste SKILL.md) devolve `diagrama_por_modulo` — classes A/B/C sim, D/E só o organismo (decisão do dono, 2026-08-19) |
 
 Para cada um, o ciclo da skill `archify` (invoque-a com a Skill tool — as camadas, os nomes
 estáveis e o destino estão lá; não os redigite aqui):

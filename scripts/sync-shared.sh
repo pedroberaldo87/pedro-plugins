@@ -119,6 +119,12 @@ SPECS=(
   # porque o plugin instalado só enxerga a própria pasta.
   "plugins/visual/skills/visual::resolve-dir.sh"
   "plugins/archify/skills/archify::resolve-dir.sh"
+  # O grão de módulo (as 5 classes A-E do survey de 2026-08-19): quantos diagramas
+  # um projeto ganha é PROGRAMA, nunca prosa — a decisão do dono (A/B/C por módulo,
+  # D/E só o organismo) mora no classificador, e as duas skills que desenham/atualizam
+  # diagrama o consomem pela cópia local. Quem cobra: _shared/test_grao_de_modulo.py.
+  "plugins/archify/skills/archify::grao-de-modulo.py"
+  "plugins/project-skills/skills/doc-touch::grao-de-modulo.py"
   # O programa do plano resolve o diretório dos planos pela mesma cascata, e a
   # cópia mora ao lado dele em lib/ — o plugin instalado só enxerga a própria pasta.
   "plugins/project-skills/lib::resolve-dir.sh"
