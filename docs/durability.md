@@ -206,26 +206,13 @@ $ grep -rniE "crontab|systemd|launchd|launchctl|pg_dump|mysqldump|restic|borg|rs
 - [confirmado] O espelho `plugin.json` ↔ `marketplace.json` fecha em todas as entradas — nenhuma diverge. É o check B do release-gate, e ele passa hoje.
 - Cobertura real: quem instala pelo marketplace só depende deste arquivo e do `plugins/**` — ambos no remote.
 
-### 2.3 · Documentação gerada — `.claude/docs/*.md` e `.claude/CLAUDE.md`
+### 2.3 · Documentação gerada — `docs/*.md` e `.claude/CLAUDE.md`
 
-- [confirmado, nesta rodada] Sob `.claude/` há exatamente **13** arquivos rastreados — eram 9 na rodada anterior:
+- [confirmado, remedido em 2026-08-20] **A doc desceu para `docs/` na raiz** (a casa da doc mudou; `.claude/docs/` deixou de existir neste repo — quem precisa do caminho pergunta ao resolvedor `casa_da_doc`, ver `architecture.md`). Continua tudo rastreado, então a cobertura é a mesma: `git ls-files docs` devolve os `.md` canônicos (arquitetura, runtime, patterns, data-stores, durability, constituição, quality-goals e os aprovados do ex-post) mais `docs/fluxos/` e `docs/prototipo/`. Sob `.claude/` restam **15** arquivos rastreados — índice (`CLAUDE.md`), limites, baselines, `settings.json` e os hooks do gate com suas suítes; nenhum doc:
   ```bash
-  $ git ls-files .claude
-  .claude/CLAUDE.md
-  .claude/LIMITES-CONHECIDOS.md
-  .claude/docs/architecture.md
-  .claude/docs/data-stores.md
-  .claude/docs/durability.md
-  .claude/docs/patterns.md
-  .claude/docs/quality-goals.md
-  .claude/docs/runtime.md
-  .claude/hooks/release-gate.sh
-  .claude/hooks/test_release_gate.sh
-  .claude/limites-aceitos.md
-  .claude/settings.json
-  .claude/stop-budget.baseline.json
+  $ git ls-files docs | wc -l    # os docs, agora na raiz
+  $ git ls-files .claude         # índice, baselines, hooks do gate — sem docs
   ```
-  Os quatro que entraram não são todos da mesma natureza: `quality-goals.md` e `stop-budget.baseline.json` já tinham bloco próprio aqui (§3.6a) ou no `data-stores.md`; `limites-aceitos.md` é o depósito novo do §2.6, e `test_release_gate.sh` é teste, não depósito.
 - Tudo o mais que o `.claude/` do repo carrega hoje está no §3 — a assimetria é o ponto do `.gitignore`, seção 1 (*registro de trabalho pertence a quem escreveu, não a quem instala*).
 
 ### 2.4 · O manifest do bootstrap — `plugins/bootstrap/config/manifest.json`
@@ -250,20 +237,20 @@ Depósito **novo em 2026-08-03** (commit `1e59b55`). Ver `data-stores.md §A8` p
 - **Mesma classe dos baselines A5/A5a (§3.6, §3.6a): julgamento embutido.** A diferença é o sentido — o baseline é um retrato regenerável com uma decisão implícita no ato de recongelar; aqui a decisão é o conteúdo inteiro, e nenhum comando a produz.
 - ⚠️ **Nenhum verificador o lê** [confirmado — nenhum hook nem script do repo o referencia]. O arquivo declara o que revoga cada limite, mas quem confere é humano. Um limite vencido continua no arquivo até alguém rodar o comando que ele mesmo prescreve — e a §3.19 abaixo já mostra um número que saiu do lugar.
 
-### 2.7 · Diagrama como documento — `.claude/docs/fluxos/`
+### 2.7 · Diagrama como documento — `docs/fluxos/`
 
 Depósito **novo em 2026-08-16**. Ver `data-stores.md §A9` para a anatomia.
 
-- 🟢 **Coberto.** [confirmado — `git ls-files .claude/docs/fluxos/`] Rastreado, e entra na mesma lista de arquivos sob `.claude/` que estão no índice (§2.3).
+- 🟢 **Coberto.** [confirmado — `git ls-files docs/fluxos/`, remedido em 2026-08-20 após a descida da doc para `docs/`] Rastreado, e entra na mesma lista de arquivos da doc no índice (§2.3).
 - **Por que ele passou a merecer cobertura:** até 2026-08-16 todo desenho nascia em `.claude/archify/`, que é gitignorado como `.claude/visual/` — e ali ele tinha a durabilidade de artefato de sessão, ou seja, nenhuma. A decisão do dono promoveu fluxo, arquitetura e desenho de módulo a documento: se o texto entra no commit, o desenho que descreve a mesma coisa entra junto.
 - **O que se perde e o que não:** o HTML é **derivado** do doc curado, então um clone o regera pelo `/doc-touch`. O que não volta é o doc que o originou — e esse já está coberto pela §2.3.
 - ⚠️ **A régua do repositório público vale aqui:** HTML com caminho absoluto de máquina dentro é reprovado pela checagem H do gate de commit, e é por isso que este depósito tem uma linha própria em vez de herdar a da §2.3 em silêncio.
 
-### 2.8 · A lei do sidecar de protótipo — `.claude/docs/prototipo/FORMATO.md`
+### 2.8 · A lei do sidecar de protótipo — `docs/prototipo/FORMATO.md`
 
 Depósito **novo em 2026-08-16**. Ver `data-stores.md §A10`.
 
-- 🟢 **Coberto.** [confirmado — `git ls-files .claude/docs/prototipo/`] Rastreado, pela §2.3.
+- 🟢 **Coberto.** [confirmado — `git ls-files docs/prototipo/`, remedido em 2026-08-20] Rastreado, pela §2.3.
 - **Por que ele mora dentro do clone e não numa spec:** o cobrador (`plugins/project-skills/lib/test_sidecar_prototipo.py`) precisa lê-lo em **qualquer** máquina; lei que fica fora do que o clone recebe é lei que o cobrador não alcança.
 - **Insubstituível na parte que é acordo.** O formato se re-escreve; o **de acordo do dono** sobre ele, não — e é ele que a marca do frontmatter (`approved-sig`) protege.
 
@@ -344,6 +331,11 @@ Nasceram nesta rodada e levaram a família de baselines de dois para seis. Anato
 - **Consequência prática:** os checks que leem esses retratos — inclusive o **E**, do contrato dos hooks — funcionam em qualquer clone.
 - **RPO/RTO:** o mesmo do repositório — perde-se o que não foi commitado, e restaurar é um `git checkout`.
 - ⚠️ **O que a perda custa é a DECISÃO, não o dado.** Regerar qualquer um é um comando; um retrato regenerado do zero aceita, em silêncio, o estado atual — inclusive a regressão que alguém tinha barrado ontem. Vale sobretudo para o `desacoplamento.baseline.json`, cujas 95 entradas são dívida que alguém leu e decidiu tolerar.
+
+### 3.21 · Worktrees das frentes de missão — `~/.claude/worktrees/<repo>/<id-do-plano>`
+
+- **Novo em 2026-08-20 (R-42).** A largada do `/sprint` monta aqui a worktree da frente (branch `frente/<id-do-plano>`); é onde os commits de bloco vivem até o rito de fechamento mesclar na main (`skills/sprint/SKILL.md`, rito 2b).
+- 🔴 **SEM COBERTURA até o merge** — trabalho commitado só na branch local morre com o disco. Mitigações que já existem: a sonda de CI empurra a branch pro origin quando usada (`git push -u origin`), a tag `rescue/` do rito precede todo passo destrutivo, e `scripts/frente_orfa_check.py` acusa frente esquecida (aviso, nunca gate).
 
 ### 3.20 · Memória de duração e estado da missão — `~/.claude/andamento/`
 

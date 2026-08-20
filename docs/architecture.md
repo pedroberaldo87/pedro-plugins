@@ -368,7 +368,7 @@ improve-workflow  0.16.29  [improve-workflow]           -
 intent-guard       0.8.16  [intent-guard]               HOOKS
 lixeiro            1.5.10  [faxina]                     HOOKS
 principles          1.0.5  [principles]                 -
-project-skills    0.22.140  [completude,design-md,doc,doc-load,doc-touch,monitorar,pesquisa-referencias,plan,project-skills,qa-loop,sprint,start] HOOKS
+project-skills    0.22.144  [completude,design-md,doc,doc-load,doc-touch,monitorar,pesquisa-referencias,plan,project-skills,qa-loop,sprint,start] HOOKS
 ship                1.5.7  [ship]                       HOOKS
 slides              1.6.4  [slides]                     -
 vision              0.1.1  []                           -
@@ -867,8 +867,8 @@ Quatro famílias, pelo que cada uma resolve:
 ⚠️ **O conjunto mais novo atravessa três dessas famílias de uma vez: a CASA DA DOC** (2026-08-19, commitada em `b738348`) — o contrato em
 `casa-da-doc.md` mais o resolvedor nas duas linguagens (`casa_da_doc.py`, `lib-casa-da-doc.sh`)
 e a suíte da fonte. Quem precisa do caminho da documentação **pergunta ao resolvedor** —
-`docs/` na raiz primeiro, `.claude/docs/` só como retrocompatibilidade (é onde a doc deste
-repositório ainda mora) — em vez de cravar a pasta. Duas cópias em `project-skills` porque
+`docs/` na raiz primeiro, `.claude/docs/` só como retrocompatibilidade (a doc deste
+repositório já desceu para `docs/` na raiz — commit `98b712e`, 2026-08-20) — em vez de cravar a pasta. Duas cópias em `project-skills` porque
 hook não enxerga o `lib/` do plugin no cache do harness. ⚠️ **A suíte da fonte também cobra
 PRESENÇA da premissa nas skills que decidem onde a doc nasce** (2026-08-20): o cardápio da
 família e a pauta de concepção precisam dizer que a doc visível nasce em `docs/` na raiz e

@@ -1151,6 +1151,38 @@ def cmd_reabrir(args):
     return 0
 
 
+def cmd_frente(args):
+    """Grava a frente da missão (branch + worktree) no plano — R-42.
+
+    Quem abre branch e worktree é a casca do /sprint, antes do primeiro executor;
+    este comando é só o cartório: registra o par no topo do plano para que a árvore
+    mostre a frente aberta e o fechamento (`pt-frente-fechar`) saiba o que encerrar.
+    É idempotente — regravar a mesma frente não é erro, e é o que torna a largada
+    reexecutável. Meia frente é recusada aqui pelo mesmo motivo que
+    `_erros_da_frente` recusa no init: branch sem worktree o fechamento não sabe
+    encerrar.
+    """
+    directory = args.dir or resolve_dir()
+    plan = pick_plan(directory, args.plan)
+    if getattr(args, "encerrar", False):
+        # Passo (7) do rito de fechamento (R-42): a frente já foi mesclada na main
+        # e a branch/worktree removidas — o registro sai do plano pra que a árvore
+        # e o cartão `pt-frente-fechar` parem de anunciar uma frente que não existe.
+        fr = plan.pop("frente", None)
+        save(directory, plan)
+        print("🌿 frente encerrada: %s" % ((fr or {}).get("branch") or "(não havia)"))
+        return 0
+    branch = (args.branch or "").strip()
+    worktree = (args.worktree or "").strip()
+    if not branch or not worktree:
+        raise PlanError("⛔ frente incompleta: preciso da branch E da worktree — "
+                        "a frente se grava inteira ou não se grava.")
+    plan["frente"] = {"branch": branch, "worktree": worktree}
+    save(directory, plan)
+    print("🌿 frente gravada: %s · %s" % (branch, worktree))
+    return 0
+
+
 def cmd_close(args):
     directory = args.dir or resolve_dir()
     plan = pick_plan(directory, args.plan)
@@ -2225,6 +2257,14 @@ def build_parser():
     q.add_argument("plan", nargs="?")
     q.add_argument("node")
     q.set_defaults(func=cmd_reabrir)
+
+    q = sub.add_parser("frente", help="grava a frente da missão (branch + worktree) no plano")
+    q.add_argument("plan", nargs="?")
+    q.add_argument("branch", nargs="?")
+    q.add_argument("worktree", nargs="?")
+    q.add_argument("--encerrar", action="store_true",
+                   help="tira a frente do plano — passo (7) do rito de fechamento")
+    q.set_defaults(func=cmd_frente)
 
     q = sub.add_parser("open", help="lista os planos abertos")
     q.add_argument("--json", action="store_true")

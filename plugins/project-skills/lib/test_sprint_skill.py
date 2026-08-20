@@ -347,6 +347,212 @@ def main():
           "excluindo a casa do protótipo" in fidelidade
           and fidelidade.count("≥ P1") >= 2)
 
+    # F31.1 — a casca abre a FRENTE da missao antes do primeiro executor (R-42).
+    # Sem cobrador, a largada volta a trabalhar na main: a medicao de 2026-08-20
+    # achou 7 branches locais e 5 remotas orfas, e uma worktree em /tmp de sessao
+    # morta ha 3 dias. Os checks sao uma FUNCAO porque a mutacao abaixo os roda de
+    # novo sobre um texto sem a abertura — e exige que fiquem vermelhos.
+    def checks_frente_abre(txt, sec):
+        return [
+            ("a secao da abertura da frente existe", bool(sec)),
+            ("a largada e idempotente e nao duplica nada",
+             "idempotente" in sec and "não\nduplica nada" in sec),
+            ("caminho 1: frente gravada e branch viva reusa, nada se cria",
+             "reusa: nada se cria" in sec
+             and 'git show-ref --verify --quiet "refs/heads/$BRANCH"' in sec),
+            ("caminho 2: sem frente, a branch frente/<id> nasce da main, nunca do HEAD",
+             "frente/$PLAN_ID" in sec
+             and 'git branch "$BRANCH" "${MAIN:-main}"' in sec
+             and "nunca do HEAD" in sec),
+            ("a worktree mora em ~/.claude/worktrees/<repo>/<plan-id>",
+             '$HOME/.claude/worktrees/' in sec
+             and 'git worktree add "$WORKTREE" "$BRANCH"' in sec),
+            ("caminho 3: branch gravada que sumiu renasce da main, com o mesmo nome",
+             "branch sumiu" in sec and "recria da" in sec
+             and "mesmo nome gravado" in sec),
+            ("os dois se gravam no plano pelo comando frente do plan_state",
+             'frente "$PLAN_ID" "$BRANCH" "$WORKTREE"' in sec),
+            ("o repoRoot passado ao motor e a WORKTREE",
+             "que a casca passa ao motor é a WORKTREE" in sec
+             and "repoRoot: $WORKTREE" in sec),
+            ("o plano e os tiques ficam na arvore principal",
+             "plano e os tiques ficam na árvore principal" in sec),
+            ("a abertura vem ANTES do disparo do Workflow",
+             0 < txt.find("### A frente da missão abre")
+             < txt.find("Workflow({ scriptPath: MOTOR")),
+        ]
+
+    sec_frente = secao(texto, "### A frente da missão abre",
+                       "### `claude plugin update`")
+    print("a casca abre a frente da missao antes do primeiro executor, idempotente")
+    for label, cond in checks_frente_abre(texto, sec_frente):
+        check(label, cond)
+
+    # A MUTACAO: o texto sem a abertura tem que deixar estes checks vermelhos —
+    # prova de que a suite seguraria a proxima edicao que apagar a secao.
+    mutante = texto.replace(sec_frente, "")
+    sec_mut = secao(mutante, "### A frente da missão abre",
+                    "### `claude plugin update`")
+    check("MUTACAO: remover a abertura da frente deixa a suite vermelha",
+          bool(sec_frente)
+          and not all(c for _, c in checks_frente_abre(mutante, sec_mut)))
+
+    # O comando `frente` do plan_state grava o par de verdade (nao so prosa):
+    # roda num plano descartavel e le o arquivo de volta. Meia frente e recusada.
+    import json
+    import subprocess
+    import tempfile
+    plan_state = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                              "plan_state.py")
+    d = tempfile.mkdtemp(prefix="sprint-frente-")
+    caminho = os.path.join(d, "2026-01-01-x.plan.json")
+    with open(caminho, "w", encoding="utf-8") as fh:
+        json.dump({"id": "2026-01-01-x", "title": "Plano de teste da frente",
+                   "phases": [{"id": "F1", "title": "Fase um",
+                               "items": [{"id": "F1.1", "status": "todo",
+                                          "title": "Um passo qualquer de teste"}]}],
+                   "created": "2026-01-01", "status": "active"}, fh)
+    print("o comando frente do plan_state grava branch + worktree no plano")
+    r = subprocess.run([sys.executable, plan_state, "--dir", d, "frente",
+                        "2026-01-01-x", "frente/2026-01-01-x", d],
+                       capture_output=True, text=True,
+                       stdin=subprocess.DEVNULL, start_new_session=True)
+    gravado = json.load(open(caminho, encoding="utf-8")).get("frente") or {}
+    check("o comando sai 0 e o plano carrega o par",
+          r.returncode == 0
+          and gravado == {"branch": "frente/2026-01-01-x", "worktree": d})
+    r2 = subprocess.run([sys.executable, plan_state, "--dir", d, "frente",
+                         "2026-01-01-x", "so-branch", ""],
+                        capture_output=True, text=True,
+                       stdin=subprocess.DEVNULL, start_new_session=True)
+    check("meia frente (sem worktree) e recusada",
+          r2.returncode != 0 and "frente incompleta" in r2.stderr)
+
+    # F31.2 — o fechamento da frente e rito da persistencia, na ordem numerada e
+    # condicionado a entrega (R-42). Os checks sao uma FUNCAO porque as mutacoes
+    # abaixo os rodam sobre textos sem a condicao, sem a tag e sem a sincronizacao
+    # com a main — e exigem que cada um deixe a suite vermelha.
+    def checks_frente_fecha(sec):
+        return [
+            ("o rito do fechamento existe na Persistencia", bool(sec)),
+            ("a condicao esta escrita: so com QA verde E suite verde na worktree",
+             "só com QA verde E suíte verde na worktree" in sec),
+            ("(1) a tag de resgate rescue/<data>-<branch> vem primeiro",
+             'git tag "rescue/' in sec and "vem primeiro de propósito" in sec),
+            ("(2) a main entra NA frente antes de a frente entrar na main",
+             "git merge main" in sec
+             and "sincroniza a main NA frente" in sec),
+            ("(2) conflito vira Bloqueio nomeado com a frente viva, nunca merge forcado",
+             "conflito NÃO se resolve na força" in sec
+             and "Bloqueio nomeado" in sec and "git merge --abort" in sec),
+            ("(3) a suite roda DE NOVO pos-sincronizacao, e vermelho para o rito",
+             "pós-sincronização" in sec
+             and "suíte vermelha pós-sincronização" in sec),
+            ("(4) o merge na main e --no-ff, com push",
+             'git merge --no-ff "$BRANCH" && git push' in sec),
+            ("(5) e (6): worktree remove e branch -d, nunca -D",
+             'git worktree remove "$WORKTREE"' in sec
+             and 'git branch -d "$BRANCH"' in sec and "nunca -D" in sec),
+            ("(7) a frente sai do plano pelo cartorio, frente --encerrar",
+             "frente <planId> --encerrar" in sec),
+            ("qualquer outro desfecho deixa a frente VIVA e o cartao sai na pagina",
+             "deixa a frente **VIVA**" in sec and "pt-frente-fechar" in sec),
+        ]
+
+    sec_fecha = secao(texto, "2b. **Fecha a frente", "3. **Confere o sinal apagado")
+    print("o fechamento da frente e rito da persistencia, na ordem e condicionado")
+    for label, cond in checks_frente_fecha(sec_fecha):
+        check(label, cond)
+
+    # AS MUTACOES do pronto: a condicao, a tag e a sincronizacao com a main — cada
+    # uma removida do texto tem que deixar a suite vermelha, provando que o rito
+    # nao pode ser desidratado numa edicao futura sem ninguem perceber.
+    for nome, alvo in (
+            ("a condicao", "só com QA verde E suíte verde na worktree"),
+            ("a tag de resgate", 'git tag "rescue/'),
+            ("a sincronizacao com a main", "git merge main")):
+        assert alvo in sec_fecha, "a mutacao de %s nao acha o alvo" % nome
+        mut = secao(texto.replace(alvo, ""),
+                    "2b. **Fecha a frente", "3. **Confere o sinal apagado")
+        check("MUTACAO: remover %s deixa a suite vermelha" % nome,
+              not all(c for _, c in checks_frente_fecha(mut)))
+
+    # E o passo (7) de verdade, nao so prosa: `frente --encerrar` tira o registro
+    # do plano gravado acima — o cartao para de cobrar uma branch que ja morreu.
+    r3 = subprocess.run([sys.executable, plan_state, "--dir", d, "frente",
+                         "2026-01-01-x", "--encerrar"],
+                        capture_output=True, text=True,
+                       stdin=subprocess.DEVNULL, start_new_session=True)
+    depois = json.load(open(caminho, encoding="utf-8"))
+    check("frente --encerrar sai 0 e o plano fica sem frente",
+          r3.returncode == 0 and "frente" not in depois)
+
+    # F31.3 — CI de codigo nao-mergeado se mede pela BRANCH DA FRENTE (R-42):
+    # disparo manual com --ref na branch empurrada, e branch de sonda avulsa e
+    # PROIBIDA — a frente E a sonda e morre no fechamento (rito 2b). Os checks
+    # sao uma FUNCAO porque a mutacao abaixo os roda sobre o texto sem a regra.
+    def checks_ci_frente(sec):
+        return [
+            ("a secao da medicao de CI da frente existe", bool(sec)),
+            ("o disparo e gh workflow run portability.yml --ref na branch da frente",
+             'gh workflow run portability.yml --ref "$BRANCH"' in sec),
+            ("a skill registra que o --ref aceita branch empurrada, medido 2026-08-20",
+             "`--ref` de branch empurrada" in sec and "medido 2026-08-20" in sec),
+            ("a frente sobe antes do disparo, e push de branch nao dispara a esteira",
+             'git push -u origin "$BRANCH"' in sec
+             and "não dispara a esteira" in sec),
+            ("branch de sonda avulsa e PROIBIDA",
+             "sonda avulsa é PROIBIDA" in sec),
+            ("a branch da frente E a sonda e morre no fechamento da frente",
+             "a branch da frente É a sonda" in sec
+             and "morre no fechamento" in sec),
+        ]
+
+    sec_ci = secao(texto, "### CI de código não-mergeado",
+                   "### `claude plugin update`")
+    print("CI de codigo nao-mergeado se mede pela frente, sem sonda avulsa")
+    for label, cond in checks_ci_frente(sec_ci):
+        check(label, cond)
+
+    # A MUTACAO: o texto sem a regra tem que deixar estes checks vermelhos.
+    check("MUTACAO: remover a regra do CI da frente deixa a suite vermelha",
+          bool(sec_ci)
+          and not all(c for _, c in checks_ci_frente(
+              secao(texto.replace(sec_ci, ""),
+                    "### CI de código não-mergeado",
+                    "### `claude plugin update`"))))
+
+    # F31.4 — a varredura de frente orfa roda na PERSISTENCIA (R-42): a chamada
+    # a scripts/frente_orfa_check.py esta gravada na skill, guardada por [ -f ]
+    # (projeto sem o varredor pula calado), achado e aviso e o check NAO mora no
+    # release-gate — branch viva durante a missao e estado legitimo.
+    def checks_frente_orfa(sec):
+        return [
+            ("o passo 2c da varredura de frente orfa existe", bool(sec)),
+            ("a chamada ao varredor esta gravada na skill",
+             'python3 "$MAIN_ROOT/scripts/frente_orfa_check.py" "$MAIN_ROOT"'
+             in sec),
+            ("projeto sem o script pula calado (guarda [ -f ])",
+             '[ -f "$MAIN_ROOT/scripts/frente_orfa_check.py" ]' in sec),
+            ("achado vira aviso no relatorio, nunca bloqueio",
+             "aviso no relatório" in sec and "bloqueio" in sec),
+            ("a skill registra que o check NAO mora no release-gate",
+             "NÃO mora no release-gate" in sec),
+        ]
+
+    sec_orfa = secao(texto, "2c. **Varre as frentes órfãs",
+                     "3. **Confere o sinal apagado")
+    print("A varredura de frente orfa roda na persistencia, fora do release-gate")
+    for label, cond in checks_frente_orfa(sec_orfa):
+        check(label, cond)
+
+    check("MUTACAO: remover a varredura de frente orfa deixa a suite vermelha",
+          bool(sec_orfa)
+          and not all(c for _, c in checks_frente_orfa(
+              secao(texto.replace(sec_orfa, ""),
+                    "2c. **Varre as frentes órfãs",
+                    "3. **Confere o sinal apagado"))))
+
     print()
     if FAILS:
         print("FALHOU: %d" % len(FAILS))
