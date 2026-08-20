@@ -8,7 +8,7 @@
 # A pilha de branches não se forma por preguiça: se forma porque merge não é o
 # último passo do ciclo. Este hook põe a pergunta no ciclo.
 #
-# CONTRATO DE GATE (.claude/docs/patterns.md → §5.3):
+# CONTRATO DE GATE (`patterns.md` na casa da doc → §5.3):
 #   canal      systemMessage — INFORMA, nunca bloqueia
 #   cap        1 pergunta por (branch, sessão) — perguntar a cada push é ruído
 #   desligar   BRANCHES_GATE=0

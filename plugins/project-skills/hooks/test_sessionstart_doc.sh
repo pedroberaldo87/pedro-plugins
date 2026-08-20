@@ -107,9 +107,14 @@ echo "7. projeto com interface conta design.md (7): OK"
 HOOKDIR="$(mktemp -d "$(td_tmpdir)"/pd-ck-nolib-XXXXXX)"
 # `hook-json.sh` vai junto: é o leitor do payload (vendorado de _shared/), sem o qual
 # o hook não lê nem o `cwd` — dependência da mesma natureza do doc-detect.sh.
-cp "$HERE/sessionstart-doc.sh" "$HERE/doc-detect.sh" "$HERE/lib-project-root.sh" \
+# A lista NÃO se escreve à mão: o hook ganha dependência nova (foi assim que
+# `lib-casa-da-doc.sh` entrou na migração de 2026-08-20) e a lista escrita fica para
+# trás — o ambiente mínimo nasce sem a lib, o hook não acha a doc, e o caso reprova
+# por um motivo que não é o que ele mede. Copia TUDO e tira só a que o caso exclui.
+cp "$HERE/sessionstart-doc.sh" "$HERE"/doc-detect.sh "$HERE"/lib-*.sh \
    "$HERE/hook-json.sh" "$HOOKDIR/" 2>/dev/null
-# de propósito NÃO copia lib-has-frontend.sh
+# de propósito, a única ausente: é ela que este caso mede
+rm -f "$HOOKDIR/lib-has-frontend.sh"
 OUT="$(mkin "$FRONTEND" sess-nolib | bash "$HOOKDIR/sessionstart-doc.sh")"
 ctxq "$OUT" "documentação project-doc"       # o heads-up sobrevive
 ctxq "$OUT" "ZERO dos 6 autorais"            # cai pra 6: design não conta

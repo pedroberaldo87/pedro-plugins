@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """A régua de estilo do regime "informação rápida" — uma por TIPO de artefato.
 
-Fonte: `.claude/docs/quality-goals.md`, seção "A régua de estilo — quatro
+Fonte: `quality-goals.md` na casa da doc, seção "A régua de estilo — quatro
 checagens, cobradas por programa". As quatro nasceram dentro do
 `visual_page.py` e valiam só para a página. Elas saíram de lá porque os outros
 geradores (plano, slide, texto de hook) emitem texto que o mesmo humano lê com

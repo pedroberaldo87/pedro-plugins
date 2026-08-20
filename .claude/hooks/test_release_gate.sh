@@ -415,6 +415,36 @@ check "a mensagem aponta o arquivo e o irmao citado" \
 rm -rf "$R/plugins/alfa" "$R/plugins/beta" "$R/scripts/desacoplamento_check.py" \
        "$R/.claude"
 
+# ── R-25b · caminho de doc cravado fora do resolvedor ───────────────────────
+# O teto do cobrador é ABSOLUTO (a dívida medida no repositório de verdade), então o
+# repo de teste nunca o alcançaria sozinho. Aqui o que se prova é a LIGAÇÃO: com o teto
+# abaixado, o gate chama o cobrador e o commit para com a mensagem dele.
+echo "Check R-25b — caminho de doc cravado"
+mkdir -p "$R/scripts"
+cp "$HERE/../../scripts/anti_slop_inventario.py" "$HERE/../../scripts/casa_da_doc_check.py" \
+   "$R/scripts/"
+# o caminho nasce em dois pedaços: inteiro nesta linha, ele seria o próprio defeito
+printf 'abrir("%s")\n' ".claude""/docs/architecture.md" > "$R/plugins/exemplo/lib/crava.py"
+git -C "$R" add -A >/dev/null
+out=$(gate_out "git commit -m x")
+check "dentro do teto, caminho cravado nao barra (divida antiga passa)" \
+  "$(printf '%s' "$out" | grep -q 'CAMINHO DE DOC CRAVADO' && echo 0 || echo 1)"
+
+python3 - "$R/scripts/anti_slop_inventario.py" <<'PY'
+import re, sys
+p = sys.argv[1]
+s = open(p, encoding="utf-8").read()
+open(p, "w", encoding="utf-8").write(re.sub(r'"A": \d+', '"A": 0', s, count=1))
+PY
+git -C "$R" add -A >/dev/null
+out=$(gate_out "git commit -m x")
+check "acima do teto, o gate barra o commit pelo cobrador do caminho" \
+  "$(printf '%s' "$out" | grep -q 'CAMINHO DE DOC CRAVADO' && echo 1 || echo 0)"
+check "a mensagem aponta o resolvedor unico" \
+  "$(printf '%s' "$out" | grep -q '_shared/casa_da_doc.py' && echo 1 || echo 0)"
+rm -f "$R/plugins/exemplo/lib/crava.py" "$R/scripts/casa_da_doc_check.py" \
+      "$R/scripts/anti_slop_inventario.py"
+
 # ── O · plano e código discordando ──────────────────────────────────────────
 # O cobrador existia e nenhum portão o consultava. Aqui ele vale: um passo ABERTO
 # cujo critério de pronto o disco já cumpre barra o commit. E o critério de VÁRIAS

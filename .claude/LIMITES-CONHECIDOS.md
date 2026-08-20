@@ -62,8 +62,8 @@ destrackear.
 # 1º padrão: os 3 nomes de cliente/sistema privado + o caminho absoluto da máquina do dono
 $ git grep -nliE '<nomes-de-cliente>|/Users/<conta-do-dono>' -- .claude/
 .claude/LIMITES-CONHECIDOS.md
-.claude/docs/data-stores.md
-.claude/docs/runtime.md
+docs/data-stores.md
+docs/runtime.md
 # (o .claude/hook-contract.baseline.json saía aqui; hoje não sai — o campo `root`,
 #  que gravava o caminho absoluto da máquina, foi removido e o arquivo voltou ao git)
 

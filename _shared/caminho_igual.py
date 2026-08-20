@@ -6,7 +6,7 @@ Por que existe
 Seis suítes deste repositório reprovaram no Windows em 2026-08-11 pela mesma razão,
 e nenhuma delas media coisa errada: elas mediam a coisa certa comparando string.
 
-    ['.claude\\docs\\blueprint.md'] == ['.claude/docs/blueprint.md']   → False
+    ['proj\\sub\\blueprint.md'] == ['proj/sub/blueprint.md']   → False
 
 É o mesmo diretório, escrito de dois jeitos. `os.path.join` devolve a barra do
 sistema, `os.path.expanduser` às vezes devolve a outra, e o teste que escreveu o
@@ -78,22 +78,22 @@ def termina_em(caminho, sufixo):
 def demo():
     """A prova que roda: `python3 _shared/caminho_igual.py`."""
     sep = os.sep
-    a = sep.join([".claude", "docs", "blueprint.md"])
+    a = sep.join(["proj", "sub", "blueprint.md"])
 
-    assert igual(a, ".claude/docs/blueprint.md")
+    assert igual(a, "proj/sub/blueprint.md")
     assert igual("a/b/", "a/b")
     assert igual("a/./b", "a/b")
     assert not igual("a/b", "a/c")
     assert not igual(None, "a")
 
-    assert contem(a, ".claude/docs")
-    assert contem(a, "docs")
+    assert contem(a, "proj/sub")
+    assert contem(a, "sub")
     assert contem(sep.join(["x", "lib", "y"]), "lib")
     # o que o `in` cru erraria: "lib" NÃO está em "biblioteca"
     assert not contem(sep.join(["x", "biblioteca", "y"]), "lib")
     assert not contem(a, "")
 
-    assert termina_em(a, "docs/blueprint.md")
+    assert termina_em(a, "sub/blueprint.md")
     assert termina_em(a, "blueprint.md")
     # o que o `endswith` cru erraria: "meu-x.py" não termina em "x.py"
     assert not termina_em(sep.join(["p", "meu-x.py"]), "x.py")

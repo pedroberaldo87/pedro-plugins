@@ -220,7 +220,7 @@ def _frontmatter_e_corpo(texto):
 
 
 def estado_etapas(project_root):
-    """Estado das etapas de concepção LIDO DO DISCO (`{project_root}/.claude/docs`).
+    """Estado das etapas de concepção LIDO DO DISCO (a casa da doc do projeto).
 
     Mesma régua do gate de plano (`pretooluse-plan-gate.sh:acordado`): a etapa está
     aprovada quando o frontmatter traz `status: approved` e o CORPO não tem

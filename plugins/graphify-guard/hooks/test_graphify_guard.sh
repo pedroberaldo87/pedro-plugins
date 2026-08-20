@@ -190,10 +190,10 @@ DOC_GUARD="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../project-skills/hooks" && p
 check "o doc-guard existe no disco (gate ausente sai calado — não confundir com gate mudo)" \
   "$(if [ -f "$DOC_GUARD" ]; then echo tem; else echo falta; fi)" "tem"
 DUPLO="$TMP/duplo"
-mkdir -p "$DUPLO/graphify-out" "$DUPLO/.claude/docs"
+mkdir -p "$DUPLO/graphify-out" "$DUPLO/.claude/docs"  # casa-ok: o teste CRIA a casa antiga em disco para provar a cascata
 printf '{"nodes":[],"edges":[]}\n' > "$DUPLO/graphify-out/graph.json"
 printf '<!-- project-doc:v2 -->\n# Proj\n' > "$DUPLO/CLAUDE.md"
-printf '# arch\n' > "$DUPLO/.claude/docs/architecture.md"
+printf '# arch\n' > "$DUPLO/.claude/docs/architecture.md"  # casa-ok: fixture escrito na casa que o teste acabou de criar
 payload_duplo() { jq -nc --arg s "$1" --arg c "$DUPLO" \
   '{session_id:$s, cwd:$c, tool_name:"Grep", tool_input:{pattern:"foo", path:$c}}'; }
 nova_sessao; SD="$SESS"

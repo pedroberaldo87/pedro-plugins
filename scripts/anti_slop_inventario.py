@@ -7,12 +7,16 @@ dessa doença — esta varredura caça as outras quatro na codebase inteira, lin
 linha, e devolve o inventário POR CLASSE com contagem, dono (a fonte única que
 deveria mandar) e de-para (o que o ponto escreve hoje, o que passaria a perguntar).
 
-Ele MEDE e LISTA. Não conserta nada, e nunca reprova commit: quem morde é o
-cobrador de cada classe, que é o passo seguinte (F15.7).
+Ele MEDE, LISTA e — desde o F15.7 — ACUSA REINCIDÊNCIA. Cada classe carrega a
+situação dela (fonte única implementada, ou dívida declarada com dono nomeado) e um
+TETO: a contagem do dia em que a classe foi inventariada. `--check` reprova quando a
+classe passa do teto, ou seja, quando alguém acrescentou ocorrência nova da mesma
+doença. Ele nunca conserta nada — teto só desce, e quem o abaixa é o conserto.
 
     python3 scripts/anti_slop_inventario.py             # inventário legível
     python3 scripts/anti_slop_inventario.py --json      # o mesmo, para máquina
     python3 scripts/anti_slop_inventario.py --classe A  # só uma classe, com os pontos
+    python3 scripts/anti_slop_inventario.py --check     # reincidência: sai 1 se subiu
 
 O universo varrido é o que o git rastreia, menos o que é saída de ferramenta
 (`graphify-out/`), menos os próprios relatórios (`.claude/reports/`) e menos este
@@ -33,6 +37,33 @@ for _canal in (sys.stdout, sys.stderr):
             pass
 
 RAIZ = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+# O TETO DE CADA CLASSE — a contagem medida em 2026-08-20 (commit b9b3823), no molde do
+# `.claude/desacoplamento.baseline.json`: dívida antiga passa, ocorrência NOVA reprova.
+# Ele só desce, e quem o abaixa é o conserto que apagou pontos: baixou de verdade, edite
+# aqui junto. Subir número aqui é legalizar reincidência — se for decisão do dono, ela
+# vem escrita no relatório da classe, nunca só neste dicionário.
+# A abaixou de 322 para 319 quando a migração da doc (F15.5) apagou três pontos:
+# a catraca desce junto com o conserto, senão a folga engole a próxima reincidência
+# — foi exatamente isso que fez o cobrador do F15.3 passar verde numa mutação real
+# (conta 319, teto 322, mutante 320: cabia na folga).
+TETO = {"A": 319, "B": 45, "C": 138, "D": 24}
+
+# A SITUAÇÃO DE CADA CLASSE (F15.7): ou a fonte única existe em código, ou a dívida está
+# declarada com dono nomeado. Não há terceira opção — classe sem uma das duas é o próprio
+# defeito que o inventário caça, agora dentro do medidor.
+SITUACAO = {
+    "A": ("fonte única IMPLEMENTADA — `_shared/casa_da_doc.py`, contrato em "
+          "`_shared/casa-da-doc.md`, é o único que decide onde a doc mora; adotar os "
+          "323 pontos que restam é a dívida, e o teto impede o 324º"),
+    "B": ("dívida DECLARADA — dono: `.claude-plugin/marketplace.json` para a lista de "
+          "plugin (existe e ninguém pergunta a ela) e `plugins/project-skills/lib/"
+          "doc_load.py` para a lista de doc canônico (LEI/ACORDO/MINERADOS)"),
+    "C": ("dívida DECLARADA — dono: `scripts/readme_counts_check.py`, que já recalcula da "
+          "fonte, hoje só sobre o README (10 das 138); estendê-lo aos docs é o conserto"),
+    "D": ("fonte única IMPLEMENTADA e cobrada — `scripts/bump.py` espelha a versão, "
+          "`scripts/sync-shared.sh --check` acusa cópia defasada, e o release-gate morde"),
+}
 FORA = ("graphify-out/", ".claude/reports/", "scripts/anti_slop_inventario")
 
 
@@ -120,7 +151,7 @@ def classe_a(alvos):
     return {
         "id": "A",
         "nome": "caminho de doc cravado em código executável",
-        "dono": "_shared/ — o resolvedor único do caminho da doc (F15.1)",
+        "dono": "_shared/casa_da_doc.py — o resolvedor único do caminho da doc (F15.1)",
         "de": "o literal `.claude/docs/x.md` ou `docs/x.md` dentro de .py/.sh/.js",
         "para": "perguntar ao resolvedor: ele tenta docs/ e cai em .claude/docs/",
         "escopo": ("só código executável (%s); prosa e baseline citam o caminho de "
@@ -222,6 +253,9 @@ def inventario():
     for c in classes:
         c["ocorrencias"] = len(c["pontos"])
         c["arquivos"] = len({p[0] for p in c["pontos"]})
+        c["situacao"] = SITUACAO[c["id"]]
+        c["teto"] = TETO[c["id"]]
+        c["reincidiu"] = c["ocorrencias"] > c["teto"]
     return {"arquivos_varridos": len(alvos), "classes": classes}
 
 
@@ -236,6 +270,9 @@ def imprime(inv, so_classe=None):
         print(f"    dono        : {c['dono']}")
         print(f"    de          : {c['de']}")
         print(f"    para        : {c['para']}")
+        print(f"    situação    : {c['situacao']}")
+        print(f"    teto        : {c['teto']}"
+              + ("  ⚠️ REINCIDIU" if c["reincidiu"] else ""))
         print(f"    confere com : {c['comando']}")
         if so_classe:
             for ponto in c["pontos"]:
@@ -247,12 +284,30 @@ def imprime(inv, so_classe=None):
         print()
 
 
+def checa(inv):
+    """Sai 1 quando alguma classe passou do teto — reincidência da mesma doença."""
+    piores = [c for c in inv["classes"] if c["reincidiu"]]
+    if not piores:
+        return 0
+    for c in piores:
+        print(f"❌ REINCIDÊNCIA na classe {c['id']} · {c['nome']}: "
+              f"{c['ocorrencias']} ocorrências contra o teto de {c['teto']}")
+        print(f"   dono   : {c['dono']}")
+        print(f"   onde   : {c['comando']}")
+        print(f"   saída  : some com a ocorrência nova, ou pergunte ao dono da classe")
+    return 1
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--json", action="store_true")
     ap.add_argument("--classe", choices=["A", "B", "C", "D"])
+    ap.add_argument("--check", action="store_true",
+                    help="reprova (sai 1) a classe que passou do teto")
     args = ap.parse_args()
     inv = inventario()
+    if args.check:
+        return checa(inv)
     if args.json:
         print(json.dumps(inv, ensure_ascii=False, indent=2))
     else:

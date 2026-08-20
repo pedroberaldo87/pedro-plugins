@@ -500,6 +500,35 @@ $(printf '%s' "$NOUT" | head -20)
   fi
 fi
 
+# R-25 · reincidência anti-slop: ocorrência NOVA de uma classe já inventariada.
+# As quatro classes (caminho cravado, lista duplicada, contagem à mão, valor copiado)
+# têm dono e teto em `scripts/anti_slop_inventario.py`. Igual ao N: dívida antiga passa,
+# o ponto a mais reprova. Teto só desce, e quem o abaixa é o conserto.
+ASI="$ROOT/scripts/anti_slop_inventario.py"
+if [ -f "$ASI" ] && printf '%s\n' "$FILES" | grep -qE '\.(md|sh|py|js|mjs|json)$'; then
+  if ! AOUT=$(cd "$ROOT" && python3 "$ASI" --check 2>&1); then
+    VIOL="${VIOL}
+❌ REINCIDÊNCIA ANTI-SLOP — a classe passou do teto medido:
+$(printf '%s' "$AOUT" | head -20)
+   → régua: python3 scripts/anti_slop_inventario.py --check"
+  fi
+fi
+
+# R-25b · caminho de doc CRAVADO em código executável, fora do resolvedor único
+# (`_shared/casa_da_doc.py` e `_shared/lib-casa-da-doc.sh`). Quem escreve o caminho como
+# texto decide de novo, sozinho, e fica para trás no dia em que a casa da doc mudar.
+# Igual ao N: dívida antiga passa (teto medido), ponto NOVO reprova.
+# Escopo: só quando o commit traz código executável — é onde a classe vale.
+CDD="$ROOT/scripts/casa_da_doc_check.py"
+if [ -f "$CDD" ] && printf '%s\n' "$FILES" | grep -qE '\.(py|sh|js|mjs)$'; then
+  if ! COUT=$(cd "$ROOT" && python3 "$CDD" 2>&1); then
+    VIOL="${VIOL}
+❌ CAMINHO DE DOC CRAVADO — código executável escreve o lugar da doc em vez de perguntar:
+$(printf '%s' "$COUT" | head -20)
+   → régua: python3 scripts/casa_da_doc_check.py"
+  fi
+fi
+
 portao_prazo "H..N (repo público, régua de estilo, README, acoplamento)"
 
 # T · a cadeia de entrega: escrito → publicado → mandado instalar.

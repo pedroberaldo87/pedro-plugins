@@ -11,7 +11,7 @@ rebase produzem commits com sha novo, então a branch original aparece como
 
 Medido no pedro-plugins em 2026-07-28:
 
-    docs/readme     git --merged: NÃO     conteúdo na main: SIM (squash)
+    doc/readme      git --merged: NÃO     conteúdo na main: SIM (squash)
 
 É isso que faz a pilha crescer: você não confia na lista, então não apaga
 nenhuma, e em seis meses são quinze.

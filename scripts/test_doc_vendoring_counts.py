@@ -10,7 +10,10 @@ from collections import Counter
 from pathlib import Path
 
 RAIZ = Path(__file__).resolve().parent.parent
-DOC = RAIZ / ".claude" / "docs" / "architecture.md"
+sys.path.insert(0, str(RAIZ / "_shared"))
+from casa_da_doc import casa  # noqa: E402  (precisa do sys.path acima)
+
+DOC = Path(casa(RAIZ, "architecture.md"))
 
 
 def contagens():
