@@ -56,14 +56,16 @@ def universo():
 
 
 def _pontos(alvos, padrao, filtro_rel=None):
-    """(rel, linha, trecho) de cada casamento — a prova crua de cada contagem."""
+    """(rel, nº da linha, trecho, linha inteira) de cada casamento — a prova crua."""
     achados = []
     for rel, texto in alvos:
         if filtro_rel and not filtro_rel(rel):
             continue
         for n, linha in enumerate(texto.splitlines(), 1):
             for m in padrao.finditer(linha):
-                achados.append((rel, n, m.group(0)))
+                # a LINHA vai junto: é nela que mora o marcador de isenção, e o trecho
+                # casado sozinho nunca o carrega (F30.6)
+                achados.append((rel, n, m.group(0), linha))
     return achados
 
 
@@ -90,15 +92,40 @@ RE_CONTAGEM = re.compile(
 # plugin (plugin.json ↔ marketplace.json) e o código vendorado (_shared ↔ cópia).
 
 
+# O que CONTA como caminho cravado (F30.6, decisão de 2026-08-20): só CÓDIGO
+# EXECUTÁVEL. Prosa e retrato de baseline citam o caminho de propósito — a doc que
+# ENSINA onde a documentação mora precisa escrever o lugar, e o retrato do
+# desacoplamento guarda o texto do achado. Medido em 2026-08-20: com prosa dentro,
+# a classe A dava 718 pontos e o zero que o F15.2 exige era inalcançável por
+# construção. Isenção pontual ganha `casa-ok: <motivo>` na linha, no molde do
+# `acopla-ok` do Artigo 9.
+EXECUTAVEL = (".py", ".sh", ".js", ".mjs")
+ISENCAO_CASA = "casa-ok:"
+
+
+def _e_executavel(rel):
+    return rel.endswith(EXECUTAVEL)
+
+
 def classe_a(alvos):
     pontos = _pontos(alvos, RE_CAMINHO,
-                     filtro_rel=lambda r: not r.startswith("_shared/lar_fingido"))
+                     filtro_rel=lambda r: (_e_executavel(r)
+                                           and not r.startswith("_shared/lar_fingido")))
+    # A isenção declarada sai da conta — e SÓ vale com motivo escrito. Marcador pelado
+    # é o mesmo defeito que ele evita, com um carimbo em cima: continua contando.
+    def _isento(linha):
+        i = linha.find(ISENCAO_CASA)
+        return i >= 0 and linha[i + len(ISENCAO_CASA):].strip() != ""
+    pontos = [p for p in pontos if not _isento(p[3])]
     return {
         "id": "A",
-        "nome": "caminho de doc cravado",
+        "nome": "caminho de doc cravado em código executável",
         "dono": "_shared/ — o resolvedor único do caminho da doc (F15.1)",
-        "de": "o literal `.claude/docs/x.md` ou `docs/x.md` escrito no arquivo",
+        "de": "o literal `.claude/docs/x.md` ou `docs/x.md` dentro de .py/.sh/.js",
         "para": "perguntar ao resolvedor: ele tenta docs/ e cai em .claude/docs/",
+        "escopo": ("só código executável (%s); prosa e baseline citam o caminho de "
+                   "propósito. Isenção pontual: `%s <motivo>` na linha."
+                   % (" ".join(EXECUTAVEL), ISENCAO_CASA)),
         "comando": "python3 scripts/anti_slop_inventario.py --classe A | grep -c '^      '",
         "pontos": pontos,
     }
@@ -211,7 +238,7 @@ def imprime(inv, so_classe=None):
         print(f"    para        : {c['para']}")
         print(f"    confere com : {c['comando']}")
         if so_classe:
-            for rel, linha, trecho in c["pontos"]:
+            for rel, linha, trecho, _linha_inteira in c["pontos"]:
                 alvo = f"{rel}:{linha}" if linha else rel
                 print(f"      {alvo}  {trecho}")
         print()
