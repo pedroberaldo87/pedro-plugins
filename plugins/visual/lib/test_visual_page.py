@@ -784,5 +784,106 @@ check("cada barra de progresso carrega a isenção declarada do conferidor de de
       all("impeccable-disable-line layout-transition --" in ln for ln in _barras_prog),
       _barras_prog)
 
+# ── esquema: os 6 desenhos nativos ─────────────────────────────────────────
+#
+# Os seis nasceram como HTML artesanal dentro de `raw_html` — 230 linhas de
+# desenho redigitadas por página. O que estes checks protegem é que cada um saia
+# do PROGRAMA: se algum voltar a depender de `raw_html`, o teste do fim da seção
+# cai, porque a página inteira é montada sem nenhum bloco de válvula.
+
+print("\n[esquema — os 6 desenhos vêm do programa, não de raw_html artesanal]")
+
+ESQ = {
+    "escada": {"kind": "esquema", "tipo": "escada", "nota": "quem está mais acima vence",
+               "itens": [{"titulo": "Nada se perde", "sub": "falhou? alerta com os dados"},
+                         {"titulo": "Reversível", "sub": "nasce pausado"}]},
+    "quadrantes": {"kind": "esquema", "tipo": "quadrantes",
+                   "grupos": [{"titulo": "QUEM MANDA",
+                               "itens": [{"marca": "🔒", "texto": "o dono opera a conta"}]},
+                              {"titulo": "TÉCNICA",
+                               "itens": [{"marca": "⏳", "texto": "sem build"}]}]},
+    "mapa": {"kind": "esquema", "tipo": "mapa",
+             "caixas": [{"id": "ads", "titulo": "Anúncios", "sub": "de fora", "x": 40, "y": 20},
+                        {"id": "lp", "titulo": "As páginas", "sub": "este repo", "x": 300,
+                         "y": 200}],
+             "setas": [{"de": "ads", "para": "lp", "rotulo": "clique"}]},
+    "fluxo": {"kind": "esquema", "tipo": "fluxo", "retorno": "volta valendo",
+              "passos": [{"titulo": "Anúncio", "subs": ["só quem já busca"]},
+                         {"titulo": "Página", "subs": ["uma por intenção"]},
+                         {"titulo": "Funil", "subs": ["o dono do lead"]}]},
+    "glossario": {"kind": "esquema", "tipo": "glossario",
+                  "termos": [{"termo": "MQL", "desc": "o lead que o dono marcou como bom"}],
+                  "falsos": [{"termo": "“conversão”", "errado": "formulário preenchido",
+                              "certo": "o lead marcado à mão"}]},
+    "placar": {"kind": "esquema", "tipo": "placar", "nota": "o que cada peça obedece",
+               "linhas": [{"n": "1", "titulo": "A lei manda", "estado": "ok", "obs": "em dia"},
+                          {"n": "2", "titulo": "Nada some", "estado": "divida",
+                           "obs": "sem cobrador"}]},
+}
+
+check("os 6 tipos do desenho estão registrados",
+      sorted(V.ESQUEMAS) == ["escada", "fluxo", "glossario", "mapa", "placar", "quadrantes"],
+      sorted(V.ESQUEMAS))
+
+for _tipo, _blk in ESQ.items():
+    _s = spec(sections=[{"title": "S", "blocks": [dict(EVID), dict(_blk)]}])
+    check("esquema %s: spec válido passa" % _tipo, V.validate(_s) == [], V.validate(_s))
+    _pg, _ = V.build_page(_s, T)
+    _corpo = "".join(V.RENDERERS["esquema"](_blk, {"n_items": 0}))
+    check("esquema %s: sai desenho de verdade na página (svg ou grid)" % _tipo,
+          '<div class="diagram">' in _corpo and ("<svg" in _corpo or "display:flex" in _corpo),
+          _corpo[:120])
+    check("esquema %s: nenhum trecho vem de fora (sem rede, sem lib)" % _tipo,
+          "http" not in _corpo and "<script" not in _corpo)
+    check("esquema %s: o conteúdo do spec chega na página" % _tipo,
+          _corpo in _pg or _corpo.strip() in _pg.replace("\n", ""))
+
+# Legenda curta é o motivo do bloco existir: "só quem já busca" não é frase e não
+# tem que virar uma. A régua de estilo cobra os outros blocos e passa longe deste.
+_curto = dict(ESQ["fluxo"])
+_curto["passos"] = [{"titulo": "Anúncio", "subs": ["e só quem já busca — sem ponto final"]},
+                    {"titulo": "Página", "subs": ["x" * 200]}]
+check("o texto de dentro do desenho é isento da régua de estilo",
+      V.validate(spec(sections=[{"blocks": [dict(EVID), _curto]}])) == [])
+check("mas a régua continua valendo no bloco vizinho",
+      any("bullets" in e for e in V.validate(spec(sections=[{"blocks": [
+          dict(EVID), _curto, {"kind": "bullets", "items": ["e " + "y" * 200]}]}]))))
+
+check("tipo desconhecido é recusado com a lista dos que existem",
+      any("escada|fluxo" in e for e in
+          V.validate(spec(sections=[{"blocks": [dict(EVID),
+                                                {"kind": "esquema", "tipo": "pizza"}]}]))))
+check("desenho sem conteúdo é recusado",
+      any("desenho vazio" in e for e in
+          V.validate(spec(sections=[{"blocks": [dict(EVID),
+                                                {"kind": "esquema", "tipo": "escada",
+                                                 "itens": []}]}]))))
+check("caixa do mapa sem posição é recusada",
+      any("sem 'y'" in e for e in V.validate(spec(sections=[{"blocks": [
+          dict(EVID), {"kind": "esquema", "tipo": "mapa",
+                       "caixas": [{"id": "a", "titulo": "A", "x": 10}]}]}]))))
+check("seta que aponta pra caixa que não existe é recusada",
+      any("caixa inexistente" in e for e in V.validate(spec(sections=[{"blocks": [
+          dict(EVID), {"kind": "esquema", "tipo": "mapa",
+                       "caixas": [{"id": "a", "titulo": "A", "x": 10, "y": 10}],
+                       "setas": [{"de": "a", "para": "zz"}]}]}]))))
+check("estado fora do vocabulário do placar é recusado",
+      any("'estado'" in e for e in V.validate(spec(sections=[{"blocks": [
+          dict(EVID), {"kind": "esquema", "tipo": "placar",
+                       "linhas": [{"titulo": "T", "estado": "mais_ou_menos"}]}]}]))))
+
+# A prova de que nenhum dos seis ficou dependendo da válvula: uma página com os
+# seis juntos, e zero `raw_html` no spec.
+_seis = spec(sections=[{"title": "Os seis", "blocks": [dict(EVID)] + [dict(b) for b in
+                                                                     ESQ.values()]}])
+check("os 6 numa página só: nenhum bloco raw_html no spec",
+      not any(b.get("kind") == "raw_html" for b in _seis["sections"][0]["blocks"]))
+_pg6, _ = V.build_page(_seis, T)
+check("os 6 numa página só: a página é escrita e traz 6 caixas de desenho",
+      _pg6.count('<div class="diagram">') == 6, _pg6.count('<div class="diagram">'))
+check("os 6 numa página só: cor do desenho sai do tema, não de hex fixo",
+      "var(--accent)" in _pg6 and not re.search(r'(rect|text)[^>]*fill="#', _pg6))
+
+
 print("\n%d passou · %d falhou" % (PASS, FAIL))
 sys.exit(1 if FAIL else 0)

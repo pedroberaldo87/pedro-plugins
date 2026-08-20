@@ -33,10 +33,10 @@ def test_classe_a_conta_so_codigo_executavel():
     """
     import anti_slop_inventario as m
     alvos = [
-        ("plugins/x/lib/motor.py", "abre('.claude/docs/architecture.md')"),
-        ("plugins/x/hooks/guarda.sh", "ler docs/patterns.md"),
-        (".claude/CLAUDE.md", "a doc canônica mora em .claude/docs/ e responde ali"),
-        (".claude/desacoplamento.baseline.json", '{"trecho": "docs/runtime.md"}'),
+        ("plugins/x/lib/motor.py", "abre('.claude/docs/architecture.md')"),  # casa-ok: fixture de teste, o literal e o dado do caso
+        ("plugins/x/hooks/guarda.sh", "ler docs/patterns.md"),  # casa-ok: fixture de teste, o literal e o dado do caso
+        (".claude/CLAUDE.md", "a doc canônica mora em .claude/docs/ e responde ali"),  # casa-ok: fixture de teste, o literal e o dado do caso
+        (".claude/desacoplamento.baseline.json", '{"trecho": "docs/runtime.md"}'),  # casa-ok: fixture de teste, o literal e o dado do caso
     ]
     pontos = m.classe_a(alvos)["pontos"]
     achados = sorted({p[0] for p in pontos})

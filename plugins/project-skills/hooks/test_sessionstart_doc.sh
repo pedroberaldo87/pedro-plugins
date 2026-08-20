@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # test_sessionstart_doc.sh — cobre o achado F1 (sessão 871f9573): o hook só
 # contava documento autoral no ramo "sem doc nenhuma"; um projeto já minerado
-# e com ZERO autorais passava batido. Ver .claude/docs/patterns.md §5.3 pro
+# e com ZERO autorais passava batido. Ver .claude/docs/patterns.md §5.3 pro  # casa-ok: fixture de teste, o literal e o dado do caso
 # contrato (canal/cap/kill-switch/fail-open) que o achado F1.2 aplicou aqui.
 set -euo pipefail
 HERE="$(cd "$(dirname "$0")" && pwd)"
@@ -36,16 +36,16 @@ ctxq() { grep -q -- "$2" <<< "$(printf '%s' "$1" | ctx)"; }
 # `cwd` é o Python nativo — ele resolve `/tmp/x` como `C:\tmp\x`, que não
 # existe. O ledger nascia noutro lugar e o `grep` do teste não achava nada.
 MINERADO="$(mktemp -d "$(td_tmpdir)"/pd-ck-min-XXXXXX)"
-mkdir -p "$MINERADO/.claude/docs"
-printf '# arch\n' > "$MINERADO/.claude/docs/architecture.md"
+mkdir -p "$MINERADO/.claude/docs"  # casa-ok: fixture de teste, o literal e o dado do caso
+printf '# arch\n' > "$MINERADO/.claude/docs/architecture.md"  # casa-ok: fixture de teste, o literal e o dado do caso
 printf '<!-- project-doc:v2 -->\narch\n' > "$MINERADO/.claude/CLAUDE.md"
 
 # --- fixture: doc minerada + os 6 autorais completos ---
 COMPLETO="$(mktemp -d "$(td_tmpdir)"/pd-ck-full-XXXXXX)"
-mkdir -p "$COMPLETO/.claude/docs"
-printf '# arch\n' > "$COMPLETO/.claude/docs/architecture.md"
+mkdir -p "$COMPLETO/.claude/docs"  # casa-ok: fixture de teste, o literal e o dado do caso
+printf '# arch\n' > "$COMPLETO/.claude/docs/architecture.md"  # casa-ok: fixture de teste, o literal e o dado do caso
 for f in constituicao quality-goals constraints context solution-strategy glossary; do
-  printf 'x\n' > "$COMPLETO/.claude/docs/${f}.md"
+  printf 'x\n' > "$COMPLETO/.claude/docs/${f}.md"  # casa-ok: fixture de teste, o literal e o dado do caso
 done
 printf '<!-- project-doc:v2 -->\narch\n' > "$COMPLETO/.claude/CLAUDE.md"
 
@@ -88,8 +88,8 @@ echo "6. sem doc nenhuma, ramo antigo intacto: OK"
 
 # --- fixture: doc minerada, ZERO autorais, MAS com sinal de frontend (.tsx) ---
 FRONTEND="$(mktemp -d "$(td_tmpdir)"/pd-ck-front-XXXXXX)"
-mkdir -p "$FRONTEND/.claude/docs"
-printf '# arch\n' > "$FRONTEND/.claude/docs/architecture.md"
+mkdir -p "$FRONTEND/.claude/docs"  # casa-ok: fixture de teste, o literal e o dado do caso
+printf '# arch\n' > "$FRONTEND/.claude/docs/architecture.md"  # casa-ok: fixture de teste, o literal e o dado do caso
 printf '<!-- project-doc:v2 -->\narch\n' > "$FRONTEND/.claude/CLAUDE.md"
 git -C "$FRONTEND" init -q
 echo "export default 1" > "$FRONTEND/App.tsx"
@@ -160,9 +160,9 @@ echo "11. apagar a recusa devolve a oferta: OK"
 # autorais passava calado, e o silêncio lia como conformidade. Este caso reprova
 # o comportamento velho — sem o conserto, OUT não menciona os que faltam.
 PARCIAL="$(mktemp -d "$(td_tmpdir)"/pd-ck-parc-XXXXXX)"
-mkdir -p "$PARCIAL/.claude/docs"
-printf '# arch\n' > "$PARCIAL/.claude/docs/architecture.md"
-for f in quality-goals constraints; do printf 'x\n' > "$PARCIAL/.claude/docs/${f}.md"; done
+mkdir -p "$PARCIAL/.claude/docs"  # casa-ok: fixture de teste, o literal e o dado do caso
+printf '# arch\n' > "$PARCIAL/.claude/docs/architecture.md"  # casa-ok: fixture de teste, o literal e o dado do caso
+for f in quality-goals constraints; do printf 'x\n' > "$PARCIAL/.claude/docs/${f}.md"; done  # casa-ok: fixture de teste, o literal e o dado do caso
 printf '<!-- project-doc:v2 -->\narch\n' > "$PARCIAL/.claude/CLAUDE.md"
 
 # 12. 2 de 6 autorais → avisa nomeando os 4 que faltam
@@ -183,10 +183,10 @@ echo "13. parcial respeita cap e kill-switch: OK"
 # plano abrem nunca era cobrado. Este caso reprova o comportamento velho — e
 # confere que o número impresso sai do TAMANHO da lista, não da mão.
 LEI="$(mktemp -d "$(td_tmpdir)"/pd-ck-lei-XXXXXX)"
-mkdir -p "$LEI/.claude/docs"
-printf '# arch\n' > "$LEI/.claude/docs/architecture.md"
+mkdir -p "$LEI/.claude/docs"  # casa-ok: fixture de teste, o literal e o dado do caso
+printf '# arch\n' > "$LEI/.claude/docs/architecture.md"  # casa-ok: fixture de teste, o literal e o dado do caso
 for f in quality-goals constraints context solution-strategy glossary; do
-  printf 'x\n' > "$LEI/.claude/docs/${f}.md"
+  printf 'x\n' > "$LEI/.claude/docs/${f}.md"  # casa-ok: fixture de teste, o literal e o dado do caso
 done
 printf '<!-- project-doc:v2 -->\narch\n' > "$LEI/.claude/CLAUDE.md"
 
@@ -213,8 +213,8 @@ echo "15. as 2 cópias de AUTORAIS_DOCS são idênticas: OK"
 #     inferir, e mandar o dono para a entrevista do zero desperdiça o que o
 #     repositório já manifesta. Sem o conserto, OUT só oferecia /start gaps.
 MADURO="$(mktemp -d "$(td_tmpdir)"/pd-ck-mad-XXXXXX)"
-mkdir -p "$MADURO/.claude/docs"
-printf '# arch\n' > "$MADURO/.claude/docs/architecture.md"
+mkdir -p "$MADURO/.claude/docs"  # casa-ok: fixture de teste, o literal e o dado do caso
+printf '# arch\n' > "$MADURO/.claude/docs/architecture.md"  # casa-ok: fixture de teste, o literal e o dado do caso
 printf '<!-- project-doc:v2 -->\narch\n' > "$MADURO/.claude/CLAUDE.md"
 OUT="$(mkin "$MADURO" sess-mad | bash "$HOOK")"
 ctxq "$OUT" "start ex-post"

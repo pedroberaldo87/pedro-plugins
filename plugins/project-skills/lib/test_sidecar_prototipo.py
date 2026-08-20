@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Bancada do FORMATO do sidecar de protótipo (lei: .claude/docs/prototipo/FORMATO.md).
+"""Bancada do FORMATO do sidecar de protótipo (lei: .claude/docs/prototipo/FORMATO.md).  # casa-ok: fixture de teste, o literal e o dado do caso
 
 O formato é a fundação: nasce definido e com cobrador ANTES de qualquer consumidor. Aqui o
 exemplo escrito no FORMATO é MONTADO num diretório temporário e conferido de verdade — campo a
@@ -28,9 +28,9 @@ spec = importlib.util.spec_from_file_location("doc_load", os.path.join(AQUI, "do
 dl = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(dl)
 
-CASA = ".claude/docs/prototipo/"
+CASA = ".claude/docs/prototipo/"  # casa-ok: fixture de teste, o literal e o dado do caso
 CAMPOS = ("natureza", "anexo-de", "design-sig", "status", "conjunto-sig", "marcador-ficticio")
-# A parte NORMATIVA do formato mora sob `.claude/docs/`, que o clone RECEBE — a spec de
+# A parte NORMATIVA do formato mora sob `.claude/docs/`, que o clone RECEBE — a spec de  # casa-ok: fixture de teste, o literal e o dado do caso
 # concepção fica em `.claude/specs/`, que o .gitignore não rastreia, e ali o cobrador não
 # teria o que ler no CI.
 FORMATO = casa(os.path.join(AQUI, os.pardir, os.pardir, os.pardir),
@@ -166,7 +166,7 @@ raiz, caminho = monta(sig=sig)
 check("o exemplo aprovado passa inteiro", valida(raiz, caminho) == [],
       str(valida(raiz, caminho)))
 check("os dois arquivos saem do corpo, na ordem", lista == [
-    ".claude/docs/prototipo/painel.html", ".claude/docs/prototipo/entrada.html"], str(lista))
+    ".claude/docs/prototipo/painel.html", ".claude/docs/prototipo/entrada.html"], str(lista))  # casa-ok: fixture de teste, o literal e o dado do caso
 
 print("· a marca do conjunto é a do `cat | cksum` de verdade")
 BASH = bash_posix()
@@ -195,7 +195,7 @@ with open(c4, encoding="utf-8") as fh:
     texto = fh.read()
 with open(c4, "w", encoding="utf-8") as fh:
     fh.write(texto.replace("marcador-ficticio: DADO-FICTICIO\n", "")
-                  .replace("- .claude/docs/prototipo/painel.html", "- docs/painel.html"))
+                  .replace("- .claude/docs/prototipo/painel.html", "- docs/painel.html"))  # casa-ok: fixture de teste, o literal e o dado do caso
 erros = valida(r4, c4)
 check("falta de campo e casa errada são acusadas",
       any("marcador-ficticio" in e for e in erros) and any("fora da casa" in e for e in erros),

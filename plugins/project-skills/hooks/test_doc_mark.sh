@@ -79,8 +79,8 @@ printf '# Sem frontmatter\ntexto\n' > "$TMP/solto.md"
 
 echo "── Marca do conjunto (sidecar de protótipo, R-22) ──"
 
-# Fixture: um projeto de mentira com a casa .claude/docs/prototipo/ e duas telas.
-CASA="$TMP/proj/.claude/docs/prototipo"
+# Fixture: um projeto de mentira com a casa .claude/docs/prototipo/ e duas telas.  # casa-ok: fixture de teste, o literal e o dado do caso
+CASA="$TMP/proj/.claude/docs/prototipo"  # casa-ok: fixture de teste, o literal e o dado do caso
 mkdir -p "$CASA"
 printf '<h1>Painel</h1>\n<p>3 pedidos (FICTICIO)</p>\n' > "$CASA/painel.html"
 printf '<h1>Entrada</h1>\n<form>FICTICIO</form>\n'      > "$CASA/entrada.html"
@@ -149,12 +149,12 @@ estado = json.loads(subprocess.run(
 print(estado["anexos"][0]["reaberto"])' "$DOC_LOAD" "$TMP/proj"
 }
 printf '<h1>Entrada</h1>\n<form>FICTICIO</form>\n' > "$CASA/entrada.html"   # restaura a tela do teste 10
-printf -- '---\nauthored-by: human\nstatus: approved\n---\n# Design\nUma tela.\n' > "$TMP/proj/.claude/docs/design.md"
+printf -- '---\nauthored-by: human\nstatus: approved\n---\n# Design\nUma tela.\n' > "$TMP/proj/.claude/docs/design.md"  # casa-ok: fixture de teste, o literal e o dado do caso
 bash "$APROVAR" "$SC" >/dev/null 2>&1                                        # aprova com o design de agora
 [ "$(reaberto)" = "False" ] \
   && ok "ciclo: anexo recém-aprovado nasce fechado" \
   || bad "ciclo: anexo recém-aprovado nasce fechado" "reaberto=False" "reaberto=$(reaberto)"
-printf -- '---\nauthored-by: human\nstatus: approved\n---\n# Design\nDuas telas.\n' > "$TMP/proj/.claude/docs/design.md"
+printf -- '---\nauthored-by: human\nstatus: approved\n---\n# Design\nDuas telas.\n' > "$TMP/proj/.claude/docs/design.md"  # casa-ok: fixture de teste, o literal e o dado do caso
 [ "$(reaberto)" = "True" ] \
   && ok "ciclo: design regravado reabre o anexo" \
   || bad "ciclo: design regravado reabre o anexo" "reaberto=True" "reaberto=$(reaberto)"

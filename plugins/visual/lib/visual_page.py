@@ -68,6 +68,14 @@ SEV = {"high": "sev-high", "med": "sev-med", "low": "sev-low"}
 DEFAULT_ITEM_LABELS = ["✓ Manter", "✏️ Mudar", "✗ Remover"]
 APROVACAO_LABELS = ["✓ Aprovar", "✏️ Aprovar com ajuste", "✗ Reprovar"]
 CALLOUT_VARIANTS = ("info", "warn", "danger", "ok")
+# As cores do `esquema` saem das variáveis do template, nunca de hex: desenho com
+# cor fixa mente no tema claro, e o desenho é o resumo do documento na página.
+ESQ_CORES = ("var(--accent)", "var(--ok)", "var(--warn)", "var(--danger)",
+             "var(--text-dim)")
+ESQ_ESTADOS = {"ok": ("var(--ok)", "✅ cumprido"),
+               "obra": ("var(--warn)", "🔧 cobrador proposto"),
+               "divida": ("var(--danger)", "⚠️ dívida"),
+               "novo": ("var(--accent)", "🆕 nasceu agora")}
 
 
 def e_parecer(spec):
@@ -334,6 +342,40 @@ def _validate_block(k, blk, where):
         errs.extend(erros_de_estilo(blk.get("text"), "%s: text" % where))
     elif k == "bullets":
         errs.extend(erros_de_estilo(blk.get("items") or [], "%s: bullets" % where))
+    elif k == "esquema":
+        # O texto de DENTRO do desenho é isento da régua de estilo (legenda de caixa
+        # não vira frase). O que se cobra aqui é a forma do dado: tipo conhecido,
+        # lista cheia, e cada entrada com o campo que o desenho lê — desenho meio
+        # montado sai como buraco na página, não como erro.
+        t = blk.get("tipo")
+        if t not in ESQUEMAS:
+            errs.append("%s: esquema com 'tipo' %r — use %s"
+                        % (where, t, "|".join(sorted(ESQUEMAS))))
+            return errs
+        campo, obrig = ESQ_CAMPOS[t]
+        lista = blk.get(campo) or []
+        if not lista:
+            errs.append("%s: esquema %s sem '%s' — desenho vazio não vai pra página"
+                        % (where, t, campo))
+        for ii, entrada in enumerate(lista, 1):
+            if not isinstance(entrada, dict):
+                errs.append("%s: %s[%d] tem que ser objeto" % (where, campo, ii))
+                continue
+            for f in obrig:
+                if not str(entrada.get(f) or "").strip() and entrada.get(f) != 0:
+                    errs.append("%s: %s[%d] sem '%s'" % (where, campo, ii, f))
+        if t == "mapa":
+            ids = set(c.get("id") for c in lista if isinstance(c, dict))
+            for si, seta in enumerate(blk.get("setas") or [], 1):
+                for ponta in ("de", "para"):
+                    if seta.get(ponta) not in ids:
+                        errs.append("%s: seta %d aponta pra caixa inexistente %r"
+                                    % (where, si, seta.get(ponta)))
+        if t == "placar":
+            for li, l in enumerate(lista, 1):
+                if isinstance(l, dict) and l.get("estado") not in ESQ_ESTADOS:
+                    errs.append("%s: linha %d com 'estado' %r (use %s)"
+                                % (where, li, l.get("estado"), "|".join(ESQ_ESTADOS)))
     elif k == "raw_html":
         # Válvula declarada: layout excepcional. Fora da régua de propósito.
         pass
@@ -664,6 +706,223 @@ def r_chart(blk, ctx):
     return out
 
 
+def r_esquema(blk, ctx):
+    """Os 6 desenhos que a concepção pede — SVG/grid inline, sem lib e sem rede.
+
+    Nasceram como HTML artesanal num gerador de referendo (`raw_html`, 230 linhas
+    por página). Desenho que se redigita a cada página diverge: o `esquema` é a
+    mesma forma, agora do programa, com o spec carregando só o CONTEÚDO.
+
+    O texto de dentro do desenho fica fora da régua de estilo de propósito — a
+    legenda de uma caixa de 130px não cabe em frase, e forçar prosa ali só faria o
+    autor cair de volta no `raw_html`.
+    """
+    return ESQUEMAS[blk["tipo"]](blk)
+
+
+def _cor(i):
+    return ESQ_CORES[i % len(ESQ_CORES)]
+
+
+def _esq_nota(nota, cor="var(--text-dim)"):
+    return ['    <p class="cap" style="color:%s">%s</p>' % (cor, _e(nota))] if nota else []
+
+
+def _esq_escada(blk):
+    """Escada de prioridade: quem está mais acima e mais largo vence o desempate."""
+    itens = blk["itens"]
+    linhas, y = [], 26
+    for i, it in enumerate(itens):
+        cor = _cor(i)
+        # o teto é 660, não 800: o "vence ↓" mora DEPOIS da barra e a barra mais
+        # larga ainda tem que deixar ele caber dentro do viewBox — a primeira
+        # versão saiu com o rótulo cortado na borda direita
+        w = max(240, 660 - i * 110)
+        linhas.append(
+            '      <rect x="30" y="%d" width="%d" height="58" rx="12" fill="var(--card)" '
+            'stroke="%s" stroke-width="1.6"/>'
+            '<text x="58" y="%d" font-size="24" font-weight="800" fill="%s">%d</text>'
+            '<text x="92" y="%d" font-size="16" font-weight="700" fill="var(--text)">%s</text>'
+            '<text x="92" y="%d" font-size="12" fill="var(--text-dim)">%s</text>'
+            % (y, w, cor, y + 38, cor, i + 1, y + 27, _e(it["titulo"]),
+               y + 47, _e(it.get("sub") or "")))
+        if i < len(itens) - 1:
+            linhas.append('      <text x="%d" y="%d" font-size="12" '
+                          'fill="var(--text-dim)">vence ↓</text>' % (30 + w + 12, y + 40))
+        y += 72
+    return (['  <div class="diagram">',
+             '    <svg viewBox="0 0 800 %d" role="img" aria-label="escada de prioridade" '
+             'style="width:100%%;height:auto">' % (y + 8)]
+            + linhas + ["    </svg>"] + _esq_nota(blk.get("nota")) + ["  </div>"])
+
+
+def _esq_quadrantes(blk):
+    """Grupos lado a lado — os muros do terreno, um cartão por natureza."""
+    cards = []
+    for i, g in enumerate(blk["grupos"]):
+        itens = "".join(
+            '<div style="display:flex;gap:8px;margin:7px 0;font-size:13px;line-height:1.35">'
+            '<span>%s</span><span>%s</span></div>'
+            % (_e(it.get("marca") or "·"), _rich(it.get("texto")))
+            for it in (g.get("itens") or []))
+        cards.append('      <div style="flex:1 1 280px;background:var(--card);border:1px solid %s;'
+                     'border-radius:12px;padding:14px 16px"><div style="font-weight:800;color:%s;'
+                     'margin-bottom:4px">%s</div>%s</div>'
+                     % (_cor(i), _cor(i), _e(g["titulo"]), itens))
+    return (['  <div class="diagram">',
+             '    <div style="display:flex;flex-wrap:wrap;gap:12px">']
+            + cards + ["    </div>"] + _esq_nota(blk.get("nota")) + ["  </div>"])
+
+
+def _esq_mapa(blk):
+    """Caixas posicionadas pelo spec e setas que o programa apara na borda.
+
+    A seta vai de centro a centro e é CORTADA no retângulo de cada ponta: seta que
+    entra por baixo da caixa foi o defeito de todo mapa desenhado à mão.
+    """
+    caixas = {c["id"]: c for c in blk["caixas"]}
+    out = []
+    alt = 0
+    for i, c in enumerate(blk["caixas"]):
+        w, h = c.get("w", 190), c.get("h", 50)
+        out.append('      <rect x="%d" y="%d" width="%d" height="%d" rx="10" fill="var(--card)" '
+                   'stroke="%s" stroke-width="1.6"/>'
+                   '<text x="%.1f" y="%d" text-anchor="middle" font-size="13" '
+                   'font-weight="700" fill="var(--text)">%s</text>'
+                   % (c["x"], c["y"], w, h, _cor(i), c["x"] + w / 2.0, c["y"] + 22,
+                      _e(c["titulo"])))
+        if c.get("sub"):
+            out.append('      <text x="%.1f" y="%d" text-anchor="middle" font-size="11" '
+                       'fill="var(--text-dim)">%s</text>'
+                       % (c["x"] + w / 2.0, c["y"] + 39, _e(c["sub"])))
+        alt = max(alt, c["y"] + h)
+    for s in (blk.get("setas") or []):
+        a, b = caixas[s["de"]], caixas[s["para"]]
+        p1 = _esq_borda(a, b)
+        p2 = _esq_borda(b, a)
+        out.append('      <line x1="%.1f" y1="%.1f" x2="%.1f" y2="%.1f" stroke="var(--text-dim)" '
+                   'stroke-width="1.4" marker-end="url(#esq-seta)"/>' % (p1 + p2))
+        if s.get("rotulo"):
+            out.append('      <text x="%.1f" y="%.1f" text-anchor="middle" font-size="10.5" '
+                       'fill="var(--text-dim)">%s</text>'
+                       % ((p1[0] + p2[0]) / 2.0, (p1[1] + p2[1]) / 2.0 - 5, _e(s["rotulo"])))
+    return (['  <div class="diagram">',
+             '    <svg viewBox="0 0 800 %d" role="img" aria-label="mapa do território" '
+             'style="width:100%%;height:auto">' % (alt + 20),
+             '      <defs><marker id="esq-seta" viewBox="0 0 10 10" refX="9" refY="5" '
+             'markerWidth="7" markerHeight="7" orient="auto">'
+             '<path d="M0,0 L10,5 L0,10 z" fill="var(--text-dim)"/></marker></defs>']
+            + out + ["    </svg>"] + _esq_nota(blk.get("nota")) + ["  </div>"])
+
+
+def _esq_borda(a, b):
+    """Onde a reta centro-a-centro sai da caixa `a` indo para a caixa `b`."""
+    ax = a["x"] + a.get("w", 190) / 2.0
+    ay = a["y"] + a.get("h", 50) / 2.0
+    bx = b["x"] + b.get("w", 190) / 2.0
+    by = b["y"] + b.get("h", 50) / 2.0
+    dx, dy = bx - ax, by - ay
+    if dx == 0 and dy == 0:
+        return ax, ay
+    hw, hh = a.get("w", 190) / 2.0, a.get("h", 50) / 2.0
+    t = min(hw / abs(dx) if dx else 1e9, hh / abs(dy) if dy else 1e9)
+    return ax + dx * t, ay + dy * t
+
+
+def _esq_fluxo(blk):
+    """O caminho horizontal, um passo por caixa, com o retorno opcional por baixo."""
+    passos = blk["passos"]
+    n = len(passos)
+    gap, marg = 20, 20
+    w = (800 - 2 * marg - gap * (n - 1)) / float(n)
+    out = []
+    for i, p in enumerate(passos):
+        x = marg + i * (w + gap)
+        out.append('      <rect x="%.1f" y="40" width="%.1f" height="70" rx="10" '
+                   'fill="var(--card)" stroke="%s" stroke-width="1.6"/>'
+                   '<text x="%.1f" y="64" text-anchor="middle" font-size="13" '
+                   'font-weight="700" fill="var(--text)">%s</text>'
+                   % (x, w, _cor(i), x + w / 2.0, _e(p["titulo"])))
+        for j, sub in enumerate(p.get("subs") or []):
+            out.append('      <text x="%.1f" y="%d" text-anchor="middle" font-size="10.5" '
+                       'fill="var(--text-dim)">%s</text>'
+                       % (x + w / 2.0, 82 + j * 15, _e(sub)))
+        if i < n - 1:
+            out.append('      <line x1="%.1f" y1="75" x2="%.1f" y2="75" stroke="var(--text-dim)" '
+                       'stroke-width="1.4" marker-end="url(#esq-fluxo)"/>'
+                       % (x + w + 2, x + w + gap - 4))
+    alt = 130
+    if blk.get("retorno"):
+        out.append('      <path d="M %.1f 110 C %.1f 165, %.1f 165, %.1f 112" '
+                   'stroke="var(--text-dim)" stroke-width="1.4" fill="none" '
+                   'marker-end="url(#esq-fluxo)"/>'
+                   % (800 - marg - w / 2.0, 800 - marg - w / 2.0, marg + w / 2.0,
+                      marg + w / 2.0))
+        out.append('      <text x="400" y="182" text-anchor="middle" font-size="11.5" '
+                   'fill="var(--ok)">%s</text>' % _e(blk["retorno"]))
+        alt = 195
+    return (['  <div class="diagram">',
+             '    <svg viewBox="0 0 800 %d" role="img" aria-label="fluxo do caminho" '
+             'style="width:100%%;height:auto">' % alt,
+             '      <defs><marker id="esq-fluxo" viewBox="0 0 10 10" refX="9" refY="5" '
+             'markerWidth="7" markerHeight="7" orient="auto">'
+             '<path d="M0,0 L10,5 L0,10 z" fill="var(--text-dim)"/></marker></defs>']
+            + out + ["    </svg>"] + _esq_nota(blk.get("nota")) + ["  </div>"])
+
+
+def _esq_glossario(blk):
+    """Os termos da casa como cartões — e embaixo os que enganam, errado → certo."""
+    cards = "".join(
+        '<div style="flex:1 1 230px;background:var(--card);border:1px solid var(--border);'
+        'border-radius:10px;padding:11px 13px"><div style="font-weight:800;font-size:13px;'
+        'color:var(--accent)">%s</div><div style="font-size:12.5px;color:var(--text-dim);'
+        'margin-top:3px;line-height:1.4">%s</div></div>'
+        % (_e(t["termo"]), _rich(t.get("desc"))) for t in blk["termos"])
+    out = ['  <div class="diagram">',
+           '    <div style="display:flex;flex-wrap:wrap;gap:10px">%s</div>' % cards]
+    falsos = blk.get("falsos") or []
+    if falsos:
+        linhas = "".join(
+            '<div style="display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin:8px 0;'
+            'font-size:12.5px"><span style="min-width:150px;font-weight:700;color:var(--warn)">'
+            '%s</span><span style="color:var(--danger)">✗ %s</span>'
+            '<span style="color:var(--text-dim)">→</span><span style="color:var(--ok)">✓ %s</span>'
+            '</div>' % (_e(f["termo"]), _e(f["errado"]), _e(f["certo"])) for f in falsos)
+        out.append('    <div style="margin-top:14px;padding-top:10px;border-top:1px dashed '
+                   'var(--border)"><p class="cap">os termos que enganam:</p>%s</div>' % linhas)
+    return out + _esq_nota(blk.get("nota")) + ["  </div>"]
+
+
+def _esq_placar(blk):
+    """Um artigo da lei por linha, com a etiqueta do estado e quem cobra."""
+    linhas = "".join(
+        '<div style="display:flex;flex-wrap:wrap;align-items:center;gap:10px;padding:7px 10px;'
+        'border-bottom:1px solid var(--border)">'
+        '<span style="min-width:22px;font-weight:800;color:var(--accent)">%s</span>'
+        '<span style="flex:1;font-size:13px;color:var(--text)">%s</span>'
+        '<span style="font-size:11px;font-weight:700;color:%s;white-space:nowrap">%s</span>'
+        '<span style="flex:1.2;font-size:11.5px;color:var(--text-dim)">%s</span></div>'
+        % (_e(str(l.get("n") or i)), _e(l["titulo"]),
+           ESQ_ESTADOS[l["estado"]][0], _e(l.get("rotulo") or ESQ_ESTADOS[l["estado"]][1]),
+           _rich(l.get("obs")))
+        for i, l in enumerate(blk["linhas"], 1))
+    return (['  <div class="diagram">']
+            + _esq_nota(blk.get("nota"))
+            + ['    <div style="background:var(--card);border:1px solid var(--border);'
+               'border-radius:12px;overflow:hidden">%s</div>' % linhas, "  </div>"])
+
+
+ESQUEMAS = {"escada": _esq_escada, "quadrantes": _esq_quadrantes, "mapa": _esq_mapa,
+            "fluxo": _esq_fluxo, "glossario": _esq_glossario, "placar": _esq_placar}
+# por tipo: a lista que carrega o desenho, e o que cada entrada dela precisa ter
+ESQ_CAMPOS = {"escada": ("itens", ("titulo",)),
+              "quadrantes": ("grupos", ("titulo",)),
+              "mapa": ("caixas", ("id", "titulo", "x", "y")),
+              "fluxo": ("passos", ("titulo",)),
+              "glossario": ("termos", ("termo", "desc")),
+              "placar": ("linhas", ("titulo", "estado"))}
+
+
 def r_raw_html(blk, ctx):
     """A válvula. Página excepcional (layout novo, SVG sob medida) não pode ficar
     impossível só porque o spec não previu — senão a gente troca token por
@@ -719,7 +978,8 @@ def r_aprovacao(blk, ctx):
 RENDERERS = {"text": r_text, "bullets": r_bullets, "evidencia": r_evidencia,
              "aprovacao": r_aprovacao,
              "artefato": r_artefato, "callout": r_callout, "tri": r_tri, "item": r_item,
-             "decision": r_decision, "chart": r_chart, "raw_html": r_raw_html}
+             "decision": r_decision, "chart": r_chart, "esquema": r_esquema,
+             "raw_html": r_raw_html}
 
 
 # ── a página ───────────────────────────────────────────────────────────────
@@ -962,7 +1222,8 @@ SPEC do /visual — o modelo escreve ISTO, o programa escreve o HTML.
 A RÉGUA DE ESTILO — vale para TODO campo de texto abaixo (prosa é proibida):
   ≤ 140 caracteres por bullet (marcação não conta) · uma frase por bullet ·
   não abra bullet com "e/mas/que/porque/então/ou seja/além disso" · máx. 6 por bloco
-  FORA da régua: evidencia.output (prova é literal) e raw_html (a válvula)
+  FORA da régua: evidencia.output (prova é literal), raw_html (a válvula) e o texto
+  de dentro do `esquema` (legenda de caixa não vira frase)
   Estourar não é aviso: sai 2 e NÃO escreve a página. O teto manda quebrar em
   bullets, nunca encolher a informação.
 
@@ -993,6 +1254,19 @@ BLOCOS (campo "kind"):
                          "ancora": "trecho literal do doc_integral"}]}
              o veredito sai nos mesmos valores keep|change|remove, com rótulos de aprovação
   chart      {"title": "…", "rounds": [{"label": "R1", "p0": 2, "p1": 5, "p2": 8, "p3": 3}]}
+  esquema    {"tipo": "escada|quadrantes|mapa|fluxo|glossario|placar", "nota": "…"}
+             o desenho é do programa — o spec traz só o conteúdo, e o texto de dentro
+             é isento da régua de estilo:
+    escada     {"itens": [{"titulo": "…", "sub": "…"}]}        ← 1 vence 2 vence 3…
+    quadrantes {"grupos": [{"titulo": "…", "itens": [{"marca": "🔒", "texto": "…"}]}]}
+    mapa       {"caixas": [{"id": "crm", "titulo": "…", "sub": "…", "x": 0, "y": 0,
+                            "w": 190, "h": 50}],
+                "setas": [{"de": "id", "para": "id", "rotulo": "…"}]}
+    fluxo      {"passos": [{"titulo": "…", "subs": ["…"]}], "retorno": "o que volta"}
+    glossario  {"termos": [{"termo": "…", "desc": "…"}],
+                "falsos": [{"termo": "…", "errado": "…", "certo": "…"}]}
+    placar     {"linhas": [{"n": "1", "titulo": "…", "obs": "…",
+                            "estado": "ok|obra|divida|novo", "rotulo": "…"}]}
   raw_html   {"html": "<…>"}                              ← a válvula; use pouco
 
 GARANTIDO PELO PROGRAMA (não escreva à mão, não precisa lembrar):

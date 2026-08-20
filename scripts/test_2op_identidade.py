@@ -5,8 +5,9 @@ O que ela protege: a skill /2op é chamada com um pedido de modelo, não com uma
 garantia. Quando o titular da sessão já é o mesmo modelo pedido (caso comum:
 sessão em claude-opus-5[1m] chamando /2op-opus), o corpo que AFIRMA "você é o
 Opus 5" fabrica confiança — o titular lê o CONCORDO no próximo prompt como
-corroboração independente de outra cabeça. Por isso o corpo manda CONFERIR e
-declarar na primeira linha, nunca afirmar identidade.
+corroboração independente de outra cabeça. Mandar o revisor se autodeclarar não
+resolvia (a testemunha era o réu): quem confere é `plugins/2op/lib/quem_serviu.py`,
+que lê o campo `model` do transcrito e acusa quando o titular serviu a si mesmo.
 
     python3 scripts/test_2op_identidade.py
 """
@@ -69,8 +70,8 @@ for nome in SKILLS:
     c = CONDICIONAL_INVERIFICAVEL.search(corpo)
     check("%s: o aviso não depende de condição que o revisor não pode conferir" % nome,
           c is None, c.group(0) if c else "")
-    check("%s: o corpo manda declarar o modelo real na primeira linha, sem condição" % nome,
-          "primeira linha" in corpo)
+    check("%s: o corpo não pede autodeclaração — quem confere é o transcrito" % nome,
+          "quem_serviu.py" in corpo and "qual modelo você é de fato" not in corpo)
     check("%s: o corpo escreve literal a família que a skill pediu" % nome,
           "**%s**" % FAMILIA_PEDIDA[nome] in corpo)
     # Invariante viva, nos DOIS estados possíveis. Enquanto o arquivo proíbe o modelo

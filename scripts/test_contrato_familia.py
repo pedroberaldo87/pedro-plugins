@@ -28,8 +28,8 @@ DESTINOS = [
 
 # Cada cláusula do contrato, pelo que ela decide.
 CLAUSULAS = [
-    ("a pasta canônica dos documentos", "`.claude/docs/`"),
-    ("a pasta do log de decisões", "`.claude/docs/decisions/`"),
+    ("a pasta canônica dos documentos", "`.claude/docs/`"),  # casa-ok: fixture de teste, o literal e o dado do caso
+    ("a pasta do log de decisões", "`.claude/docs/decisions/`"),  # casa-ok: fixture de teste, o literal e o dado do caso
     ("a pasta dos planos", "`.claude/plans/`"),
     ("o índice e os ponteiros ficam na raiz", "ficam na **raiz do projeto**"),
     ("os autorais das seis etapas", "`architecture-intent.md`"),

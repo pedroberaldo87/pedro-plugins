@@ -16,7 +16,7 @@ significa a suíte inteira, e é o que o CONTROLE usa.
 
 
 A cópia é do REPOSITÓRIO INTEIRO, não só da pasta do plugin: várias suítes leem a
-lei em `.claude/docs/` e as pastas dos plugins vizinhos, e numa cópia parcial elas
+lei em `.claude/docs/` e as pastas dos plugins vizinhos, e numa cópia parcial elas  # casa-ok: prosa que descreve a casa velha, nao um caminho usado
 ficam vermelhas por falta de arquivo — aí o CONTROLE acusa sujeira em vez de mutação
 e todo veredito vira ruído. Fora ficam só `.git`, o grafo e os caches (0,7 s de cópia).
 """

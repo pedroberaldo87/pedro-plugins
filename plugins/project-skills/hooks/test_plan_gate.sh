@@ -35,23 +35,23 @@ trap 'rm -rf "$TMP"; rm -f "$TMPD"/claude-plan-gate-*-'"$SESSION"'-* "$TMPD"/cla
 BARE="$TMP/projeto-sem-doc"        # git repo, zero documentação
 mkdir -p "$BARE" && (cd "$BARE" && git init -q . && git commit -q --allow-empty -m x 2>/dev/null)
 
-DOCD="$TMP/projeto-com-doc"        # git repo com CLAUDE.md v2 + .claude/docs/
-mkdir -p "$DOCD/.claude/docs" && (cd "$DOCD" && git init -q . && git commit -q --allow-empty -m x 2>/dev/null)
+DOCD="$TMP/projeto-com-doc"        # git repo com CLAUDE.md v2 + .claude/docs/  # casa-ok: fixture de teste, o literal e o dado do caso
+mkdir -p "$DOCD/.claude/docs" && (cd "$DOCD" && git init -q . && git commit -q --allow-empty -m x 2>/dev/null)  # casa-ok: fixture de teste, o literal e o dado do caso
 printf '<!-- project-doc:v2 gen=3.8 -->\n# Project Reference\n<!-- project-doc:v2:end -->\n' > "$DOCD/CLAUDE.md"
-printf -- '---\ngenerated: 2026-07-26\nscope:\n  - x.py\ndoc-sig: a/b@gen=3.8#deadbeef\n---\n# Arch\n' > "$DOCD/.claude/docs/architecture.md"
+printf -- '---\ngenerated: 2026-07-26\nscope:\n  - x.py\ndoc-sig: a/b@gen=3.8#deadbeef\n---\n# Arch\n' > "$DOCD/.claude/docs/architecture.md"  # casa-ok: fixture de teste, o literal e o dado do caso
 # As metas de qualidade do projeto e as etapas do acordo são pré-requisito do CASO B/C
 # (F3.2 / F5.3) — sem elas o gate recusa antes de chegar ao nudge de leitura.
 # `approved` é a marca do de acordo no contrato autoral; `ready` é só "escrito".
 aprovado() { printf -- '---\nauthored-by: human\nstatus: approved\napproved: 2026-08-03\nscope: []\n---\n# %s\n' "$2" > "$1"; }
-aprovado "$DOCD/.claude/docs/quality-goals.md" Metas
-aprovado "$DOCD/.claude/docs/architecture-intent.md" "Arquitetura pretendida"
-aprovado "$DOCD/.claude/docs/journeys.md" Jornadas
-aprovado "$DOCD/.claude/docs/blueprint.md" Esquema
-aprovado "$DOCD/.claude/docs/features.md" Funcionalidades
+aprovado "$DOCD/.claude/docs/quality-goals.md" Metas  # casa-ok: fixture de teste, o literal e o dado do caso
+aprovado "$DOCD/.claude/docs/architecture-intent.md" "Arquitetura pretendida"  # casa-ok: fixture de teste, o literal e o dado do caso
+aprovado "$DOCD/.claude/docs/journeys.md" Jornadas  # casa-ok: fixture de teste, o literal e o dado do caso
+aprovado "$DOCD/.claude/docs/blueprint.md" Esquema  # casa-ok: fixture de teste, o literal e o dado do caso
+aprovado "$DOCD/.claude/docs/features.md" Funcionalidades  # casa-ok: fixture de teste, o literal e o dado do caso
 
 AUTH="$TMP/projeto-so-autoral"     # start-doc começou, índice ainda não existe
-mkdir -p "$AUTH/.claude/docs" && (cd "$AUTH" && git init -q . && git commit -q --allow-empty -m x 2>/dev/null)
-printf -- '---\nauthored-by: human\nstatus: draft\n---\n# Metas\n' > "$AUTH/.claude/docs/quality-goals.md"
+mkdir -p "$AUTH/.claude/docs" && (cd "$AUTH" && git init -q . && git commit -q --allow-empty -m x 2>/dev/null)  # casa-ok: fixture de teste, o literal e o dado do caso
+printf -- '---\nauthored-by: human\nstatus: draft\n---\n# Metas\n' > "$AUTH/.claude/docs/quality-goals.md"  # casa-ok: fixture de teste, o literal e o dado do caso
 
 # MESMO helper que os hooks usam. Recalcular a chave à mão aqui foi exatamente
 # o que mascarou o bug de path na 1ª rodada — o teste tem que falar a mesma língua.
@@ -116,10 +116,10 @@ case "$(reason "$OUT")" in *"1 de 5"*) ok "autoral parcial: reporta 1 de 5 docum
 # 4b) S-105 — dispensa deliberada x ausência silenciosa. Um teste por lado, sobre o
 #     MESMO projeto sem documentação: o que muda é só o arquivo da dispensa.
 DISP="$TMP/projeto-dispensado"
-mkdir -p "$DISP/.claude/docs" && (cd "$DISP" && git init -q . && git commit -q --allow-empty -m x 2>/dev/null)
+mkdir -p "$DISP/.claude/docs" && (cd "$DISP" && git init -q . && git commit -q --allow-empty -m x 2>/dev/null)  # casa-ok: fixture de teste, o literal e o dado do caso
 
 # lado 1 — ausência: dispensa escrita SEM motivo não é dispensa, e o gate nomeia o arquivo
-printf -- '---\nauthored-by: human\n---\n# Dispensa\n' > "$DISP/.claude/docs/dispensa.md"
+printf -- '---\nauthored-by: human\n---\n# Dispensa\n' > "$DISP/.claude/docs/dispensa.md"  # casa-ok: fixture de teste, o literal e o dado do caso
 OUT=$(gate EnterPlanMode "$DISP")
 [ "$(decision "$OUT")" = "deny" ] && ok "dispensa sem motivo: continua sendo ausência, negado" \
                                   || bad "dispensa sem motivo negada" deny "$(decision "$OUT")"
@@ -132,7 +132,7 @@ DLEN=$(awk -F'ESC_HINT="' '/\[ -f "\$DISPENSA" \] && ESC_HINT=/{sub(/"$/,"",$2);
                            || bad "aviso da dispensa na régua" "≤140" "$DLEN"
 
 # lado 2 — dispensa: com `motivo:` no frontmatter o gate libera, e em silêncio
-printf -- '---\nauthored-by: human\nmotivo: protótipo descartável de uma tarde\n---\n# Dispensa\n' > "$DISP/.claude/docs/dispensa.md"
+printf -- '---\nauthored-by: human\nmotivo: protótipo descartável de uma tarde\n---\n# Dispensa\n' > "$DISP/.claude/docs/dispensa.md"  # casa-ok: fixture de teste, o literal e o dado do caso
 OUT=$(gate EnterPlanMode "$DISP")
 [ -z "$OUT" ] && ok "dispensa com motivo: passa em silêncio" || bad "dispensa com motivo passa" "vazio" "$OUT"
 
@@ -239,7 +239,7 @@ OUT=$(escape "--com-doc" "$BARE")
                                                           || bad "gate volta após revogar" deny allow
 rm -f "$(esc_file)"
 
-# R6) CLAUDE.md escrito à mão SEM .claude/docs/ era negado PARA SEMPRE, com mensagem
+# R6) CLAUDE.md escrito à mão SEM .claude/docs/ era negado PARA SEMPRE, com mensagem  # casa-ok: fixture de teste, o literal e o dado do caso
 #     mentindo "sem CLAUDE.md". Documentação à mão É documentação: vira CASO B (com cap).
 HAND="$TMP/projeto-md-manual"
 mkdir -p "$HAND" && (cd "$HAND" && git init -q .)
@@ -278,7 +278,7 @@ rm -f "$SENT"
 rm -f "$TMPD/claude-doc-guard-${SESSION}-$(phash "$DOCD")" "$TMPD/claude-plan-gate-count-${SESSION}-$(phash "$DOCD")"
 [ "$(decision "$(gate EnterPlanMode "$DOCD")")" = "deny" ] || bad "E2E setup: deveria negar antes do Read" deny allow
 printf '{"tool_name":"Read","session_id":"%s","cwd":"%s","tool_input":{"file_path":"%s"}}' \
-  "$SESSION" "$DOCD" "$DOCD/.claude/docs/architecture.md" | bash "$SCRIPT_DIR/posttooluse-doc-read.sh" >/dev/null 2>&1
+  "$SESSION" "$DOCD" "$DOCD/.claude/docs/architecture.md" | bash "$SCRIPT_DIR/posttooluse-doc-read.sh" >/dev/null 2>&1  # casa-ok: fixture de teste, o literal e o dado do caso
 OUT=$(gate EnterPlanMode "$DOCD")
 [ -z "$OUT" ] && ok "E2E: Read real -> posttooluse escreve -> gate libera" \
               || bad "E2E posttooluse->gate" "vazio (liberado)" "ainda nega — CHAVE DIVERGIU"
@@ -295,9 +295,9 @@ echo "── Acordo: metas de qualidade e etapas (F3.2 / F5.3) ──"
 
 # ACORDO — fixture própria: doc minerada completa, acordo a ser montado passo a passo.
 ACC="$TMP/projeto-acordo"
-mkdir -p "$ACC/.claude/docs" && (cd "$ACC" && git init -q . && git commit -q --allow-empty -m x 2>/dev/null)
+mkdir -p "$ACC/.claude/docs" && (cd "$ACC" && git init -q . && git commit -q --allow-empty -m x 2>/dev/null)  # casa-ok: fixture de teste, o literal e o dado do caso
 printf '<!-- project-doc:v2 gen=3.8 -->\n# Project Reference\n<!-- project-doc:v2:end -->\n' > "$ACC/CLAUDE.md"
-printf -- '---\ngenerated: 2026-07-26\nscope:\n  - x.py\n---\n# Arch\n' > "$ACC/.claude/docs/architecture.md"
+printf -- '---\ngenerated: 2026-07-26\nscope:\n  - x.py\n---\n# Arch\n' > "$ACC/.claude/docs/architecture.md"  # casa-ok: fixture de teste, o literal e o dado do caso
 acc_reset() { rm -f "$TMPD/claude-plan-gate-count-${SESSION}-$(phash "$ACC")" \
                     "$TMPD/claude-doc-guard-${SESSION}-$(phash "$ACC")" \
                     "$TMPD/claude-plan-gate-escape-${SESSION}-$(phash "$ACC")"; }
@@ -317,7 +317,7 @@ for _ in 1 2 3 4 5; do [ "$(decision "$(gate EnterPlanMode "$ACC")")" = "deny" ]
                     || bad "sem quality-goals sem cap" "5 denies" "houve allow"
 
 # A3) metas de qualidade EM ABERTO (draft) também são recusadas
-printf -- '---\nauthored-by: human\nstatus: draft\nscope: []\n---\n# Metas\n[PENDENTE]\n' > "$ACC/.claude/docs/quality-goals.md"
+printf -- '---\nauthored-by: human\nstatus: draft\nscope: []\n---\n# Metas\n[PENDENTE]\n' > "$ACC/.claude/docs/quality-goals.md"  # casa-ok: fixture de teste, o literal e o dado do caso
 acc_reset
 OUT=$(gate EnterPlanMode "$ACC")
 [ "$(decision "$OUT")" = "deny" ] && ok "quality-goals.md draft: negado (aberto não é acordado)" \
@@ -328,7 +328,7 @@ E=$(estilo_hook "$(reason "$OUT")")
 [ -z "$E" ] && ok "recusa por metas de qualidade: a mensagem passa na régua (perfil hook)" \
             || bad "régua da mensagem de metas de qualidade" "sem erros de estilo" "$E"
 
-# A3b) F1.3 — "constituição" é o nome de .claude/docs/constituicao.md, o arquivo contra
+# A3b) F1.3 — "constituição" é o nome de .claude/docs/constituicao.md, o arquivo contra  # casa-ok: fixture de teste, o literal e o dado do caso
 #      o qual os revisores medem. A recusa por quality-goals.md tem que chamá-lo pelo
 #      que ele é (as metas de qualidade); dois arquivos com o mesmo nome de lei mandam
 #      o leitor abrir o errado.
@@ -341,7 +341,7 @@ case "$(reason "$OUT")" in *"metas de qualidade"*) ok "recusa por quality-goals:
 #     iniciada. Enquanto a cobrança exigia que um dos documentos já existisse, este
 #     projeto passava batido — é justamente quem mais precisa ser barrado.
 for d in quality-goals constraints context solution-strategy glossary; do
-  aprovado "$ACC/.claude/docs/${d}.md" "$d"
+  aprovado "$ACC/.claude/docs/${d}.md" "$d"  # casa-ok: fixture de teste, o literal e o dado do caso
 done
 acc_reset
 : > "$TMPD/claude-doc-guard-${SESSION}-$(phash "$ACC")"
@@ -363,8 +363,8 @@ case "$(reason "$OUT")" in *[Cc]onstitui*) bad "recusa por etapa não chama a 1�
 # A5) O CRITÉRIO DE PRONTO — arquitetura fechada e as jornadas em aberto: o plano é
 #     NEGADO, e a mensagem nomeia a etapa que falta. A etapa 2 é o architecture-intent
 #     (o desenho pretendido); solution-strategy é da etapa 1, junto com os 5 autorais.
-aprovado "$ACC/.claude/docs/architecture-intent.md" "Arquitetura pretendida"
-printf -- '---\nauthored-by: human\nstatus: draft\nscope: []\n---\n# Jornadas\n[PENDENTE]\n' > "$ACC/.claude/docs/journeys.md"
+aprovado "$ACC/.claude/docs/architecture-intent.md" "Arquitetura pretendida"  # casa-ok: fixture de teste, o literal e o dado do caso
+printf -- '---\nauthored-by: human\nstatus: draft\nscope: []\n---\n# Jornadas\n[PENDENTE]\n' > "$ACC/.claude/docs/journeys.md"  # casa-ok: fixture de teste, o literal e o dado do caso
 acc_reset
 : > "$TMPD/claude-doc-guard-${SESSION}-$(phash "$ACC")"
 OUT=$(gate EnterPlanMode "$ACC")
@@ -382,7 +382,7 @@ D=$(decision "$(gate ExitPlanMode "$ACC")")
 [ "$D" = "deny" ] && ok "jornadas em aberto: ExitPlanMode também negado" || bad "ExitPlanMode negado" deny "$D"
 
 # A7) etapa pulada (documento nem existe) é igual a etapa em aberto
-rm -f "$ACC/.claude/docs/journeys.md"
+rm -f "$ACC/.claude/docs/journeys.md"  # casa-ok: fixture de teste, o literal e o dado do caso
 acc_reset
 : > "$TMPD/claude-doc-guard-${SESSION}-$(phash "$ACC")"
 case "$(reason "$(gate EnterPlanMode "$ACC")")" in *"jornadas (journeys.md)"*) ok "etapa PULADA conta como em aberto" ;;
@@ -399,8 +399,8 @@ OUT=$(gate EnterPlanMode "$ACC")
 #      anteriores, e enquanto não está acordada o plano implementa a lista que o dono
 #      nunca curou. As quatro fechadas e só ela em aberto: o plano é NEGADO, nomeando-a.
 acc_reset
-aprovado "$ACC/.claude/docs/journeys.md" Jornadas
-printf -- '---\nauthored-by: human\nstatus: draft\nscope: []\n---\n# Funcionalidades\n[PENDENTE]\n' > "$ACC/.claude/docs/features.md"
+aprovado "$ACC/.claude/docs/journeys.md" Jornadas  # casa-ok: fixture de teste, o literal e o dado do caso
+printf -- '---\nauthored-by: human\nstatus: draft\nscope: []\n---\n# Funcionalidades\n[PENDENTE]\n' > "$ACC/.claude/docs/features.md"  # casa-ok: fixture de teste, o literal e o dado do caso
 : > "$TMPD/claude-doc-guard-${SESSION}-$(phash "$ACC")"
 OUT=$(gate EnterPlanMode "$ACC")
 [ "$(decision "$OUT")" = "deny" ] && ok "funcionalidades em aberto: plano negado (S-5)" \
@@ -414,7 +414,7 @@ E=$(estilo_hook "$(reason "$OUT")")
             || bad "régua da mensagem de funcionalidades" "sem erros de estilo" "$E"
 
 # A8c) etapa 5 PULADA (o documento nem existe) é igual a etapa em aberto
-rm -f "$ACC/.claude/docs/features.md"
+rm -f "$ACC/.claude/docs/features.md"  # casa-ok: fixture de teste, o literal e o dado do caso
 acc_reset
 : > "$TMPD/claude-doc-guard-${SESSION}-$(phash "$ACC")"
 case "$(reason "$(gate EnterPlanMode "$ACC")")" in *"funcionalidades (features.md)"*) ok "features.md ausente conta como em aberto" ;;
@@ -425,9 +425,9 @@ case "$(reason "$(gate EnterPlanMode "$ACC")")" in *"funcionalidades (features.m
 #      e a recusa nomeia a etapa. Sem isso a lista de funcionalidades seria derivada de
 #      um desenho que ninguém bateu o martelo.
 acc_reset
-aprovado "$ACC/.claude/docs/journeys.md" Jornadas
-aprovado "$ACC/.claude/docs/features.md" Funcionalidades
-rm -f "$ACC/.claude/docs/blueprint.md"
+aprovado "$ACC/.claude/docs/journeys.md" Jornadas  # casa-ok: fixture de teste, o literal e o dado do caso
+aprovado "$ACC/.claude/docs/features.md" Funcionalidades  # casa-ok: fixture de teste, o literal e o dado do caso
+rm -f "$ACC/.claude/docs/blueprint.md"  # casa-ok: fixture de teste, o literal e o dado do caso
 : > "$TMPD/claude-doc-guard-${SESSION}-$(phash "$ACC")"
 OUT=$(gate EnterPlanMode "$ACC")
 [ "$(decision "$OUT")" = "deny" ] && ok "blueprint.md ausente: plano negado (S-70)" \
@@ -444,9 +444,9 @@ E=$(estilo_hook "$(reason "$OUT")")
 #     -> o gate cala. É o impasse que o contrato autoral e o gate tinham: o contrato
 #     grava `approved` e o gate cobrava `ready`, e nada fechava o acordo.
 acc_reset
-aprovado "$ACC/.claude/docs/journeys.md" Jornadas
-aprovado "$ACC/.claude/docs/blueprint.md" Esquema
-aprovado "$ACC/.claude/docs/features.md" Funcionalidades
+aprovado "$ACC/.claude/docs/journeys.md" Jornadas  # casa-ok: fixture de teste, o literal e o dado do caso
+aprovado "$ACC/.claude/docs/blueprint.md" Esquema  # casa-ok: fixture de teste, o literal e o dado do caso
+aprovado "$ACC/.claude/docs/features.md" Funcionalidades  # casa-ok: fixture de teste, o literal e o dado do caso
 : > "$TMPD/claude-doc-guard-${SESSION}-$(phash "$ACC")"
 OUT=$(gate EnterPlanMode "$ACC")
 [ -z "$OUT" ] && ok "os 8 documentos approved: passa em silêncio" || bad "8 approved passa" "vazio" "$(reason "$OUT" | head -c 90)"
@@ -456,7 +456,7 @@ acc_reset
 #      rascunho: o plano é negado, e a recusa nomeia a constituição. Ela é o documento
 #      contra o qual os revisores medem, e em conflito com qualquer outro doc ela ganha:
 #      plano medido por lei que o dono não sancionou vale o que vale o rascunho.
-printf -- '---\nauthored-by: human\nstatus: draft\nscope: []\n---\n# A constituição\n' > "$ACC/.claude/docs/constituicao.md"
+printf -- '---\nauthored-by: human\nstatus: draft\nscope: []\n---\n# A constituição\n' > "$ACC/.claude/docs/constituicao.md"  # casa-ok: fixture de teste, o literal e o dado do caso
 : > "$TMPD/claude-doc-guard-${SESSION}-$(phash "$ACC")"
 OUT=$(gate EnterPlanMode "$ACC")
 [ "$(decision "$OUT")" = "deny" ] && ok "só a lei em rascunho: plano NEGADO (S-4)" \
@@ -470,7 +470,7 @@ E=$(estilo_hook "$(reason "$OUT")")
             || bad "régua da mensagem da lei" "sem erros de estilo" "$E"
 
 # A11) a lei acordada devolve o silêncio — a recusa é sobre o de acordo, não sobre existir.
-aprovado "$ACC/.claude/docs/constituicao.md" "A constituição"
+aprovado "$ACC/.claude/docs/constituicao.md" "A constituição"  # casa-ok: fixture de teste, o literal e o dado do caso
 acc_reset
 : > "$TMPD/claude-doc-guard-${SESSION}-$(phash "$ACC")"
 OUT=$(gate EnterPlanMode "$ACC")
@@ -478,7 +478,7 @@ OUT=$(gate EnterPlanMode "$ACC")
 
 # A12) projeto SEM constituição não é barrado por ela: nenhuma skill gera esse documento,
 #      então cobrá-lo de quem não o tem seria recusa sem saída.
-rm -f "$ACC/.claude/docs/constituicao.md"
+rm -f "$ACC/.claude/docs/constituicao.md"  # casa-ok: fixture de teste, o literal e o dado do caso
 acc_reset
 : > "$TMPD/claude-doc-guard-${SESSION}-$(phash "$ACC")"
 OUT=$(gate EnterPlanMode "$ACC")
@@ -501,11 +501,9 @@ aprovado_marcado() {
 }
 
 # M0) a marca é do CORPO: gravar o frontmatter não a muda, editar o texto muda.
-aprovado_marcado "$ACC/.claude/docs/journeys.md" Jornadas "O usuário entra pela home."
-M_ANTES=$(doc_marca "$ACC/.claude/docs/journeys.md")
-[ "$M_ANTES" = "$(doc_marca_registrada "$ACC/.claude/docs/journeys.md")" ] \
-  && ok "a marca gravada é a do corpo (o frontmatter não entra)" \
-  || bad "marca do corpo" "$M_ANTES" "$(doc_marca_registrada "$ACC/.claude/docs/journeys.md")"
+aprovado_marcado "$ACC/.claude/docs/journeys.md" Jornadas "O usuário entra pela home."  # casa-ok: fixture de teste, o literal e o dado do caso
+M_ANTES=$(doc_marca "$ACC/.claude/docs/journeys.md")  # casa-ok: fixture de teste, o literal e o dado do caso
+[ "$M_ANTES" = "$(doc_marca_registrada "$ACC/.claude/docs/journeys.md")" ] && ok "a marca gravada é a do corpo (o frontmatter não entra)" || bad "marca do corpo" "$M_ANTES" "$(doc_marca_registrada "$ACC/.claude/docs/journeys.md")"  # casa-ok: fixture de teste, o literal e o dado do caso
 
 # M1) documento aprovado, marca batendo: o gate segue calado (os 7 fechados).
 acc_reset
@@ -515,7 +513,7 @@ OUT=$(gate EnterPlanMode "$ACC")
               || bad "aprovado com marca íntegra passa" "vazio" "$(reason "$OUT" | head -c 90)"
 
 # M2) O CRITÉRIO DE PRONTO — editar o corpo do documento APROVADO reabre a etapa.
-printf 'O usuário entra pelo painel, e não mais pela home.\n' >> "$ACC/.claude/docs/journeys.md"
+printf 'O usuário entra pelo painel, e não mais pela home.\n' >> "$ACC/.claude/docs/journeys.md"  # casa-ok: fixture de teste, o literal e o dado do caso
 acc_reset
 : > "$TMPD/claude-doc-guard-${SESSION}-$(phash "$ACC")"
 OUT=$(gate EnterPlanMode "$ACC")
@@ -530,7 +528,7 @@ E=$(estilo_hook "$(reason "$OUT")")
             || bad "régua da mensagem de marca" "sem erros de estilo" "$E"
 
 # M3) reaprovar (regravar a marca sobre o texto de agora) fecha a etapa de novo.
-aprovado_marcado "$ACC/.claude/docs/journeys.md" Jornadas "O usuário entra pelo painel."
+aprovado_marcado "$ACC/.claude/docs/journeys.md" Jornadas "O usuário entra pelo painel."  # casa-ok: fixture de teste, o literal e o dado do caso
 acc_reset
 : > "$TMPD/claude-doc-guard-${SESSION}-$(phash "$ACC")"
 OUT=$(gate EnterPlanMode "$ACC")
@@ -538,8 +536,8 @@ OUT=$(gate EnterPlanMode "$ACC")
               || bad "reaprovar fecha" "vazio" "$(reason "$OUT" | head -c 90)"
 
 # M4) as metas de qualidade também são medidas pela marca, com motivo próprio.
-aprovado_marcado "$ACC/.claude/docs/quality-goals.md" Metas "Escaneabilidade antes de completude."
-printf 'Completude antes de escaneabilidade.\n' >> "$ACC/.claude/docs/quality-goals.md"
+aprovado_marcado "$ACC/.claude/docs/quality-goals.md" Metas "Escaneabilidade antes de completude."  # casa-ok: fixture de teste, o literal e o dado do caso
+printf 'Completude antes de escaneabilidade.\n' >> "$ACC/.claude/docs/quality-goals.md"  # casa-ok: fixture de teste, o literal e o dado do caso
 acc_reset
 : > "$TMPD/claude-doc-guard-${SESSION}-$(phash "$ACC")"
 OUT=$(gate EnterPlanMode "$ACC")
@@ -554,7 +552,7 @@ E=$(estilo_hook "$(reason "$OUT")")
 # M5) RETROCOMPAT — documento aprovado ANTES de a marca existir (sem approved-sig)
 #     continua fechado. Cobrar marca de quem nunca a gravou barraria todo projeto
 #     já acordado, o oposto do que o gate existe pra fazer.
-aprovado "$ACC/.claude/docs/quality-goals.md" Metas
+aprovado "$ACC/.claude/docs/quality-goals.md" Metas  # casa-ok: fixture de teste, o literal e o dado do caso
 acc_reset
 : > "$TMPD/claude-doc-guard-${SESSION}-$(phash "$ACC")"
 OUT=$(gate EnterPlanMode "$ACC")
@@ -567,7 +565,7 @@ NOMARK="$TMP/hooks-sem-marca"
 mkdir -p "$NOMARK" && cp "$SCRIPT_DIR"/*.sh "$NOMARK/" 2>/dev/null
 mkdir -p "$TMP/hooks-sem-marca-lib" && cp -r "$SCRIPT_DIR/../lib" "$TMP/hooks-sem-marca-lib/lib" 2>/dev/null
 rm -f "$NOMARK/lib-doc-mark.sh"
-aprovado_marcado "$ACC/.claude/docs/journeys.md" Jornadas "O usuário entra pelo painel."
+aprovado_marcado "$ACC/.claude/docs/journeys.md" Jornadas "O usuário entra pelo painel."  # casa-ok: fixture de teste, o literal e o dado do caso
 acc_reset
 : > "$TMPD/claude-doc-guard-${SESSION}-$(phash "$ACC")"
 OUT=$(printf '{"tool_name":"EnterPlanMode","session_id":"%s","cwd":"%s"}' "$SESSION" "$ACC" | bash "$NOMARK/pretooluse-plan-gate.sh" 2>/dev/null)
@@ -594,7 +592,7 @@ OUT=$(gate EnterPlanMode "$ACC")
 
 # C1) O CRITÉRIO DE PRONTO — correção registrada num documento aprovado NÃO congela o
 #     planejamento (antes, registrá-la no corpo derrubava a aprovação inteira).
-corrigir "$ACC/.claude/docs/journeys.md" "o painel virou a porta de entrada"
+corrigir "$ACC/.claude/docs/journeys.md" "o painel virou a porta de entrada"  # casa-ok: fixture de teste, o literal e o dado do caso
 acc_reset
 : > "$TMPD/claude-doc-guard-${SESSION}-$(phash "$ACC")"
 OUT=$(gate EnterPlanMode "$ACC")
@@ -615,7 +613,7 @@ E=$(estilo_hook "$M")
 
 # C3b) a correção é escrita com o vocabulário de lacuna da skill (`[PENDENTE]`), e no
 #      FRONTMATTER isso não pode derrubar a aprovação — o marcador só reabre no corpo.
-corrigir "$ACC/.claude/docs/architecture-intent.md" "[PENDENTE] confirmar o limite do motor"
+corrigir "$ACC/.claude/docs/architecture-intent.md" "[PENDENTE] confirmar o limite do motor"  # casa-ok: fixture de teste, o literal e o dado do caso
 acc_reset
 : > "$TMPD/claude-doc-guard-${SESSION}-$(phash "$ACC")"
 OUT=$(gate EnterPlanMode "$ACC")
@@ -623,7 +621,7 @@ OUT=$(gate EnterPlanMode "$ACC")
                                    || bad "[PENDENTE] no frontmatter não reabre" "allow" "$(reason "$OUT" | head -c 90)"
 
 # C4) correções em documentos diferentes somam na contagem
-corrigir "$ACC/.claude/docs/quality-goals.md" "falta o exemplo de trade-off"
+corrigir "$ACC/.claude/docs/quality-goals.md" "falta o exemplo de trade-off"  # casa-ok: fixture de teste, o literal e o dado do caso
 acc_reset
 : > "$TMPD/claude-doc-guard-${SESSION}-$(phash "$ACC")"
 M=$(mensagem "$(gate EnterPlanMode "$ACC")")
@@ -633,7 +631,7 @@ case "$M" in *"3 correções pendentes"*) ok "três correções: a contagem soma
 # C5) `[PENDENTE]` no CORPO continua reabrindo a etapa — correção pendente é a do
 #     frontmatter, e lacuna de texto não escrito não pode virar uma delas por engano.
 #     (quality-goals.md aqui não tem approved-sig, então quem nega só pode ser o corpo)
-printf '[PENDENTE]\n' >> "$ACC/.claude/docs/quality-goals.md"
+printf '[PENDENTE]\n' >> "$ACC/.claude/docs/quality-goals.md"  # casa-ok: fixture de teste, o literal e o dado do caso
 acc_reset
 : > "$TMPD/claude-doc-guard-${SESSION}-$(phash "$ACC")"
 OUT=$(gate EnterPlanMode "$ACC")
@@ -651,7 +649,7 @@ cp -a "$DOCD" "$STL"; rm -rf "$STL/.git"
 printf 'x = 1\n' > "$STL/x.py"
 (cd "$STL" && git add -A >/dev/null 2>&1 && git commit -q -m x)
 stale_msg() { # <data-do-generated> → systemMessage/reason do gate
-  printf -- '---\ngenerated: %s\nscope:\n  - x.py\ndoc-sig: a/b@gen=3.8#deadbeef\n---\n# Arch\n' "$1" > "$STL/.claude/docs/architecture.md"
+  printf -- '---\ngenerated: %s\nscope:\n  - x.py\ndoc-sig: a/b@gen=3.8#deadbeef\n---\n# Arch\n' "$1" > "$STL/.claude/docs/architecture.md"  # casa-ok: fixture de teste, o literal e o dado do caso
   rm -f "$TMPD"/claude-plan-gate-count-"$SESSION"-"$(phash "$STL")"
   gate EnterPlanMode "$STL" | jq -r '.hookSpecificOutput.permissionDecisionReason // empty' 2>/dev/null
 }

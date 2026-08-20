@@ -33,14 +33,14 @@ TMPD="$(td_tmpdir)"
 SCOPE_CWD="$(mktemp -d "$TMPD/scope-XXXXXX")"
 # CADA GÊMEO TEM O SEU PRÉ-REQUISITO, e o projeto de mentira traz os dois:
 #   graphify-guard → graphify-out/graph.json  (subindo a partir do cwd)
-#   doc-guard      → .claude/docs/ + CLAUDE.md (a doc que ele manda ler)
+#   doc-guard      → .claude/docs/ + CLAUDE.md (a doc que ele manda ler)  # casa-ok: fixture de teste, o literal e o dado do caso
 # Sem eles o hook sai CALADO — que é o comportamento certo dele, e o errado para
 # uma bateria que mede ESCOPO de regra.
-mkdir -p "$SCOPE_CWD/graphify-out" "$SCOPE_CWD/.claude/docs"
+mkdir -p "$SCOPE_CWD/graphify-out" "$SCOPE_CWD/.claude/docs"  # casa-ok: fixture de teste, o literal e o dado do caso
 printf '{"nodes":[],"edges":[]}' > "$SCOPE_CWD/graphify-out/graph.json"
 printf '# Projeto de mentira\n' > "$SCOPE_CWD/CLAUDE.md"
 printf '# Projeto de mentira\n' > "$SCOPE_CWD/.claude/CLAUDE.md"
-printf '# arquitetura de mentira\n' > "$SCOPE_CWD/.claude/docs/architecture.md"
+printf '# arquitetura de mentira\n' > "$SCOPE_CWD/.claude/docs/architecture.md"  # casa-ok: fixture de teste, o literal e o dado do caso
 # Regex e não texto fixo: a decisão é JSON, e desde o fallback sem `jq` ela é montada
 # COMPACTA (`"permissionDecision":"deny"`). Casar o espaço do `jq -n` media formatação,
 # não decisão.

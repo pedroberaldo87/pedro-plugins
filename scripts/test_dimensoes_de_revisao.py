@@ -73,10 +73,10 @@ def ler(p):
         return fh.read()
 
 
-PASTA_DA_REGUA = ".claude/docs"
+PASTA_DA_REGUA = ".claude/docs"  # casa-ok: fixture de teste, o literal e o dado do caso
 
 # A pasta da régua APONTADA como pasta da régua: solta (aspas, parêntese, espaço, fim)
-# ou colada ao documento. Caminho que segue para uma SUBPASTA — `.claude/docs/prototipo/`,
+# ou colada ao documento. Caminho que segue para uma SUBPASTA — `.claude/docs/prototipo/`,  # casa-ok: fixture de teste, o literal e o dado do caso
 # a casa do protótipo — aponta OUTRA coisa, e citá-lo não é enumerar a régua. Sem esta
 # distinção a régua media o arquivo inteiro: em 2026-08-16 uma linha nova sobre o
 # protótipo reprovou duas menções legítimas a 58 linhas dela, e a porta do repositório
@@ -87,8 +87,8 @@ APONTA_A_REGUA = re.compile(re.escape(PASTA_DA_REGUA) + r"(?!/[a-z0-9_-]+/)")
 def enumera(txt, doc):
     """A skill enumera `doc` quando aponta a PASTA da régua e cita o NOME do documento.
 
-    Exigir os dois CONTÍGUOS (`.claude/docs/<nome>`) era brecha: um trecho que põe a
-    pasta numa linha (`docs = os.path.join(cwd, ".claude/docs")`) e os nomes na linha
+    Exigir os dois CONTÍGUOS (`.claude/docs/<nome>`) era brecha: um trecho que põe a  # casa-ok: prosa que descreve a casa velha, nao um caminho usado
+    pasta numa linha (`docs = os.path.join(cwd, ".claude/docs")`) e os nomes na linha  # casa-ok: prosa que descreve a casa velha, nao um caminho usado
     seguinte enumera igual e passava verde. Citar o `doc_load.py` (o programa) segue
     permitido — ele não escreve a pasta na prosa.
     """
@@ -163,10 +163,10 @@ print("\n== a régua da enumeração pega pasta e nome SEPARADOS ==")
 # Teste NEGATIVO do alargamento: sem isto, a régua podia voltar a exigir contiguidade
 # e a suíte ficaria verde por acidente, como ficou enquanto a plan enumerava.
 check("pasta e nome em linhas separadas REPROVAM",
-      enumera('docs = os.path.join(cwd, ".claude/docs")\nler(docs, "constituicao.md")',
+      enumera('docs = os.path.join(cwd, ".claude/docs")\nler(docs, "constituicao.md")',  # casa-ok: fixture de teste, o literal e o dado do caso
               "constituicao.md"))
 check("pasta e nome contíguos REPROVAM",
-      enumera("leia .claude/docs/constituicao.md", "constituicao.md"))
+      enumera("leia .claude/docs/constituicao.md", "constituicao.md"))  # casa-ok: fixture de teste, o literal e o dado do caso
 check("citar só o programa PASSA",
       not enumera("quem lista a régua é o doc_load.py", "constituicao.md"))
 check("citar o nome sem a pasta da régua PASSA",
@@ -220,7 +220,7 @@ def monta_caminho_a_mao(txt):
 
     Julga o TEXTO INTEIRO, como o `enumera` vizinho: exigir os dois na MESMA linha
     era a mesma brecha da contiguidade — `cwd = os.getcwd()` numa linha e
-    `os.path.join(cwd, ".claude/docs")` na outra monta o caminho igual e passava
+    `os.path.join(cwd, ".claude/docs")` na outra monta o caminho igual e passava  # casa-ok: prosa que descreve a casa velha, nao um caminho usado
     verde.
     """
     if "getcwd(" not in txt or ".claude" not in txt:
@@ -232,7 +232,7 @@ def monta_caminho_a_mao(txt):
 check("montar .claude a partir do cwd REPROVA",
       monta_caminho_a_mao('d = os.path.join(os.getcwd(), ".claude", "plans")'))
 check("cwd e .claude em linhas SEPARADAS REPROVAM",
-      monta_caminho_a_mao('cwd = os.getcwd()\np = os.path.join(cwd, ".claude/docs")'))
+      monta_caminho_a_mao('cwd = os.getcwd()\np = os.path.join(cwd, ".claude/docs")'))  # casa-ok: fixture de teste, o literal e o dado do caso
 check("pedir a pasta ao resolvedor do programa PASSA",
       not monta_caminho_a_mao("d = c.resolve_dir()"))
 for base, _dirs, arqs in os.walk(os.path.join(ROOT, "plugins")):

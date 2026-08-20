@@ -1193,8 +1193,14 @@ while (!built && r < maxRounds) {
     if (revBloco) ledgerCorrida.push({ r, tipo: 'veredito', taskId: null,
       resumo: `revisor-bloco r${r}b${b}: ${(revBloco.gaps || []).length} gap(s), ${(revBloco.missingTasks || []).length} faltante(s)` })
     // revisor de bloco mudo não aprova NINGUÉM — as entregas voltam pro orquestrador
+    // O gap do revisor de bloco SÓ reprova acima do floor — a mesma régua do revisor por
+    // tarefa e do veredito final. Aqui ela faltava, e a omissão custou uma corrida inteira
+    // em 2026-08-20: um gap P3 que dizia no próprio texto "Não bloqueia o commit deste
+    // bloco" bloqueou o commit; os quatro revisores por tarefa tinham aprovado, `aprovadas`
+    // ficou vazio, e os arquivos da onda ficaram órfãos no disco com a suíte verde.
+    const segura = g => g.kind === 'spec' || g.kind === 'rastreio' || sevRank(g.severity) >= floor
     const reprovadasNoBloco = new Set(revBloco
-      ? [...(revBloco.gaps || []).map(g => g.task_id), ...(revBloco.missingTasks || [])].filter(Boolean)
+      ? [...(revBloco.gaps || []).filter(segura).map(g => g.task_id), ...(revBloco.missingTasks || [])].filter(Boolean)
       : aprovadasTarefa.map(x => x.task_id))
     reprovadasNosBlocos.push(...[...reprovadasNoBloco].filter(id => !reprovadasNaTarefa.has(id)))
     const aprovadas = aprovadasTarefa.filter(x => !reprovadasNoBloco.has(x.task_id))

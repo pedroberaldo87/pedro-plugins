@@ -58,7 +58,7 @@ def write_doc(td, name, body):
     p = os.path.join(td, ".claude", "docs", name)
     with open(p, "w", encoding="utf-8") as fh:
         fh.write("---\ngenerated: 2026-07-22\nproject: t\nscope: [app/main.py]\n---\n\n" + body)
-    return ".claude/docs/" + name
+    return ".claude/docs/" + name  # casa-ok: fixture de teste, o literal e o dado do caso
 
 
 def flat(out, doc):

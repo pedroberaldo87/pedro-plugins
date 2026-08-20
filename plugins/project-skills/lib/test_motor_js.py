@@ -457,6 +457,23 @@ for fonte, texto, base in FONTES:
     check("toda chamada de agente tem label próprio (%s)" % fonte, not sem_rotulo,
           "sem rótulo → %s" % " | ".join(sem_rotulo))
 
+# F30.4 — o gap do revisor DE BLOCO tem que passar pelo floor de severidade, igual ao do
+# revisor por tarefa e ao veredito final. A omissão custou uma corrida inteira em
+# 2026-08-20: um gap P3 cujo texto dizia "Não bloqueia o commit deste bloco" bloqueou o
+# commit do bloco, e 13 arquivos com a suíte verde ficaram fora do histórico. A checagem
+# olha o TRECHO do revisor de bloco, não o arquivo todo: o `sevRank(...) >= floor` já
+# aparece em outros dois lugares, e procurar no arquivo inteiro passaria verde sem o fix.
+_trecho_bloco = motor.split("const reprovadasNoBloco")[0].split("2 · REVISÃO DO BLOCO")[-1] \
+    + "const reprovadasNoBloco" + motor.split("const reprovadasNoBloco")[1][:600]
+check("o gap do revisor de bloco passa pelo floor de severidade (motor.js)",
+      "sevRank(g.severity) >= floor" in _trecho_bloco
+      and ".filter(segura)" in _trecho_bloco,
+      "gap P3 do revisor de bloco não pode bloquear o commit do bloco")
+check("o filtro do revisor de bloco segura spec e rastreio em qualquer severidade (motor.js)",
+      "g.kind === 'spec'" in _trecho_bloco and "g.kind === 'rastreio'" in _trecho_bloco)
+check("o esqueleto do SKILL.md carrega o mesmo filtro",
+      ".filter(segura)" in skill and "const segura = g =>" in skill)
+
 # sintaxe: o arquivo tem que ser JavaScript válido (quando node existe na máquina).
 if shutil.which("node"):
     r = subprocess.run(["node", "--check", MOTOR], capture_output=True, text=True, encoding="utf-8", errors="replace",

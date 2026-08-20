@@ -125,7 +125,7 @@ def main():
 
     d = tempfile.mkdtemp(prefix="desac-doc-")
     try:
-        monta(d, {".claude/docs/architecture.md":
+        monta(d, {".claude/docs/architecture.md":  # casa-ok: fixture de teste, o literal e o dado do caso
                   "O beta vive em plugins/beta/ e faz o seu trabalho.\n"})
         check("documentação que descreve o repo não é acusada por CITAR o nome",
               dc.varre(d) == [])
@@ -135,7 +135,7 @@ def main():
     # A isenção da doc é de NOME, não de NÚMERO: é lá que a contagem envelhece calada.
     d = tempfile.mkdtemp(prefix="desac-docnum-")
     try:
-        monta(d, {".claude/docs/architecture.md": "O repo tem 21 plugins hoje.\n"})
+        monta(d, {".claude/docs/architecture.md": "O repo tem 21 plugins hoje.\n"})  # casa-ok: fixture de teste, o literal e o dado do caso
         a = dc.varre(d)
         check("contagem cravada NA DOC é acusada", formas(a) == ["contagem-cravada"])
         check("e nomeia a contagem que envelheceu",
@@ -145,7 +145,7 @@ def main():
 
     d = tempfile.mkdtemp(prefix="desac-docmd-")
     try:
-        monta(d, {".claude/docs/architecture.md":
+        monta(d, {".claude/docs/architecture.md":  # casa-ok: fixture de teste, o literal e o dado do caso
                   "São 21 plugins — `$ ls plugins | wc -l` diz quantos.\n"})
         check("na doc, o número COM o comando que o produz segue legítimo",
               dc.varre(d) == [])
@@ -157,7 +157,7 @@ def main():
     # cravado passar — passe que se obtém digitando.
     d = tempfile.mkdtemp(prefix="desac-docraiz-")
     try:
-        monta(d, {".claude/docs/architecture.md":
+        monta(d, {".claude/docs/architecture.md":  # casa-ok: fixture de teste, o literal e o dado do caso
                   "O repo tem 21 plugins, e esse número envelhece sem avisar.\n"})
         check("na doc, a raiz frouxa NÃO isenta o número cravado",
               formas(dc.varre(d)) == ["contagem-cravada"])
@@ -172,7 +172,7 @@ def main():
     # porque é vocabulário corrente ali (caso acima). O cobrador faz exatamente isto.
     d = tempfile.mkdtemp(prefix="desac-docnarr-")
     try:
-        monta(d, {".claude/docs/architecture.md":
+        monta(d, {".claude/docs/architecture.md":  # casa-ok: fixture de teste, o literal e o dado do caso
                   "Até 2026-08-07 este doc dizia 54 suítes.\n"})
         check("na doc, a narrativa datada isenta — é a isenção que o Artigo 9 escreve",
               dc.varre(d) == [])

@@ -109,8 +109,8 @@ def main():
 
     print("o REVIEW nao enumera documento de regua (a premissa anti-drift)")
     for doc in ("constituicao.md", "quality-goals.md", "blueprint.md", "features.md"):
-        check("o REVIEW nao carimba `.claude/docs/%s`" % doc,
-              ".claude/docs/%s" % doc not in review)
+        check("o REVIEW nao carimba `.claude/docs/%s`" % doc,  # casa-ok: fixture de teste, o literal e o dado do caso
+              ".claude/docs/%s" % doc not in review)  # casa-ok: fixture de teste, o literal e o dado do caso
     check("o REVIEW aponta pro contrato do tripe",
           "dimensoes-de-revisao.md" in texto)
 

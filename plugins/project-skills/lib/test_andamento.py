@@ -397,10 +397,10 @@ def main():
     # ── A DOC DA ONDA VIRA REGISTRO EM DISCO (S-111) ────────────────────────────
     tmp_doc = tempfile.mkdtemp()
     try:
-        a.doc_da_onda("s-doc", 2, [".claude/docs/architecture.md"], tmp_doc)
+        a.doc_da_onda("s-doc", 2, [".claude/docs/architecture.md"], tmp_doc)  # casa-ok: fixture de teste, o literal e o dado do caso
         reg = a.ultima_doc("s-doc", tmp_doc)
         check("grava os caminhos confirmados por sessão",
-              reg.get("docs") == [".claude/docs/architecture.md"]
+              reg.get("docs") == [".claude/docs/architecture.md"]  # casa-ok: fixture de teste, o literal e o dado do caso
               and str(reg.get("round")) == "2")
         check("lista vazia não escreve nada",
               a.doc_da_onda("s-vazia", 3, [], tmp_doc) == []
