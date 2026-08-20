@@ -43,11 +43,14 @@ RAIZ = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 # Ele só desce, e quem o abaixa é o conserto que apagou pontos: baixou de verdade, edite
 # aqui junto. Subir número aqui é legalizar reincidência — se for decisão do dono, ela
 # vem escrita no relatório da classe, nunca só neste dicionário.
-# A abaixou de 322 para 319 quando a migração da doc (F15.5) apagou três pontos:
+# A abaixou de 319 para 114 na varredura do F15.2: os pontos que eram fixture de teste
+# ganharam a isenção `casa-ok:` com motivo escrito, e a catraca desceu junto — o que resta
+# é código de produção que ainda escreve a casa em vez de perguntar ao resolvedor.
+# Antes disso, A abaixou de 322 para 319 quando a migração da doc (F15.5) apagou três pontos:
 # a catraca desce junto com o conserto, senão a folga engole a próxima reincidência
 # — foi exatamente isso que fez o cobrador do F15.3 passar verde numa mutação real
 # (conta 319, teto 322, mutante 320: cabia na folga).
-TETO = {"A": 319, "B": 45, "C": 138, "D": 24}
+TETO = {"A": 114, "B": 45, "C": 138, "D": 24}
 
 # A SITUAÇÃO DE CADA CLASSE (F15.7): ou a fonte única existe em código, ou a dívida está
 # declarada com dono nomeado. Não há terceira opção — classe sem uma das duas é o próprio
@@ -55,7 +58,7 @@ TETO = {"A": 319, "B": 45, "C": 138, "D": 24}
 SITUACAO = {
     "A": ("fonte única IMPLEMENTADA — `_shared/casa_da_doc.py`, contrato em "
           "`_shared/casa-da-doc.md`, é o único que decide onde a doc mora; adotar os "
-          "323 pontos que restam é a dívida, e o teto impede o 324º"),
+          "114 pontos de produção que restam é a dívida, e o teto impede o 115º"),
     "B": ("dívida DECLARADA — dono: `.claude-plugin/marketplace.json` para a lista de "
           "plugin (existe e ninguém pergunta a ela) e `plugins/project-skills/lib/"
           "doc_load.py` para a lista de doc canônico (LEI/ACORDO/MINERADOS)"),

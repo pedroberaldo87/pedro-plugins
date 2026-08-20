@@ -3,7 +3,7 @@
 
 O defeito que isto impede: o passo 2b re-renderizava o diagrama de fluxo na pasta
 de sessao (fora do git), e o dono decidiu em 2026-08-13 que fluxo e doc canonica —
-mora em `.claude/docs/fluxos/` e entra no commit de conteudo. Sem esta suite, a
+mora em `.claude/docs/fluxos/` e entra no commit de conteudo. Sem esta suite, a  # casa-ok: prosa que descreve a casa velha, nao um caminho usado
 prosa do 2b poderia voltar calada pra pasta de sessao e o diagrama sumiria do
 historico. (A test_stop_doc_touch.sh cobre OUTRO contrato — o hook de Stop.)
 """
@@ -43,12 +43,12 @@ def main():
           "`runtime.md`" in passo_2b and "fluxo-<slug>.html" in passo_2b)
 
     print("o fluxo re-renderiza na casa versionada, nunca em pasta de sessao")
-    check("o destino do fluxo e .claude/docs/fluxos/",
-          ".claude/docs/fluxos/" in passo_2b)
+    check("o destino do fluxo e .claude/docs/fluxos/",  # casa-ok: fixture de teste, o literal e o dado do caso
+          ".claude/docs/fluxos/" in passo_2b)  # casa-ok: fixture de teste, o literal e o dado do caso
     check("a casa e nomeada como versionada",
           "VERSIONADA" in passo_2b or "versionada" in passo_2b)
-    check("o comando resolve o destino com subdir docs/fluxos",
-          "resolve-dir.sh" in passo_2b and "docs/fluxos" in passo_2b)
+    check("o comando resolve o destino com subdir docs/fluxos",  # casa-ok: fixture de teste, o literal e o dado do caso
+          "resolve-dir.sh" in passo_2b and "docs/fluxos" in passo_2b)  # casa-ok: fixture de teste, o literal e o dado do caso
     check("a prosa proibe a pasta de sessao pro fluxo",
           "nunca em pasta de sess" in passo_2b)
     check("a regua do repo publico cobre o HTML versionado",
@@ -76,8 +76,8 @@ def main():
 
     print("o passo 5 leva o fluxo re-renderizado pro commit de conteudo")
     check("o passo 5 existe", bool(passo_5))
-    check("o git add do conteudo inclui .claude/docs/fluxos/",
-          ".claude/docs/fluxos/" in passo_5)
+    check("o git add do conteudo inclui .claude/docs/fluxos/",  # casa-ok: fixture de teste, o literal e o dado do caso
+          ".claude/docs/fluxos/" in passo_5)  # casa-ok: fixture de teste, o literal e o dado do caso
 
     print()
     if FAILS:

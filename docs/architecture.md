@@ -351,7 +351,7 @@ for p in plugins/*/; do n=$(basename $p);
 Saída desta rodada (nome · versão · skills · tem hook):
 
 ```
-2op                 1.1.2  [2op,2op-opus,2op-sonnet]    -
+2op                 1.2.0  [2op,2op-opus,2op-sonnet]    -
 archify            2.13.2  [archify]                    -
 bootstrap         1.17.15  [bootstrap]                  HOOKS
 branches           1.3.14  [branches]                   HOOKS
@@ -368,12 +368,12 @@ improve-workflow  0.16.29  [improve-workflow]           -
 intent-guard       0.8.16  [intent-guard]               HOOKS
 lixeiro            1.5.10  [faxina]                     HOOKS
 principles          1.0.5  [principles]                 -
-project-skills    0.22.137  [completude,design-md,doc,doc-load,doc-touch,monitorar,pesquisa-referencias,plan,project-skills,qa-loop,sprint,start] HOOKS
+project-skills    0.22.139  [completude,design-md,doc,doc-load,doc-touch,monitorar,pesquisa-referencias,plan,project-skills,qa-loop,sprint,start] HOOKS
 ship                1.5.7  [ship]                       HOOKS
 slides              1.6.4  [slides]                     -
 vision              0.1.1  []                           -
 vistoria           0.11.8  [vistoria]                   -
-visual            1.41.22  [andamento,visual]           HOOKS
+visual             1.42.0  [andamento,visual]           HOOKS
 ```
 
 **A rodada anterior moveu onde as skills MORAM; esta apagou as CASAS que tinham ficado
@@ -1110,6 +1110,7 @@ plugins/intent-guard/lib/  ledger.py + test_ledger.py
 plugins/branches/lib/      branch_state.py + test_branch_state.py
 plugins/guardrails/lib/    askq_lint.py + test_askq_lint.py
 plugins/bootstrap/lib/     conformance.py + test_conformance.py
+plugins/2op/lib/           quem_serviu.py + test_quem_serviu.py
 plugins/gauntlet/lib/      fecho_check.py + test_fecho_check.py
 plugins/improve-workflow/lib/ sobras.py · medidor.py · registro.py · proposta.py ·
                            plano_saida.py + as suítes
@@ -1475,6 +1476,19 @@ páginas do `/visual` digitadas pelo modelo custavam **20-31 KB de HTML por pág
     (`_tri(..., mostra_problema=False)`). Um bloqueio sobre o qual se decide não é
     informação, é item de decisão — mesmo desenho do `item`, com a profundidade do tri.
     [confirmado — `visual_page.py:r_tri`]
+  - **O bloco `esquema` tira o desenho da mão de quem escreve o spec** (2026-08-20). Seis
+    tipos — `escada`, `quadrantes`, `mapa`, `fluxo`, `glossario`, `placar` —, cada um uma
+    função `_esq_*` que emite SVG/grid inline, sem lib e sem rede. O spec carrega só o
+    CONTEÚDO. Nasceu de HTML artesanal redigitado a cada página pela válvula `raw_html`, e
+    desenho redigitado diverge. Três decisões amarradas a um modo de falha: a cor sai de
+    `var(--…)` do template e nunca de hex (hex fixo mente no tema claro); a seta do `mapa` é
+    aparada na borda do retângulo (`_esq_borda`), porque seta de centro a centro entra por
+    baixo da caixa; e o validador cobra a FORMA do dado — tipo conhecido, lista cheia, seta
+    apontando pra caixa que existe, `estado` do `placar` dentro de `ESQ_ESTADOS` —, porque
+    desenho meio montado vira buraco na página em vez de erro. O texto de dentro do desenho
+    é a terceira isenção da régua de estilo (`patterns.md §2.7`): legenda de caixa de 130px
+    não vira frase. [confirmado — `python3 plugins/visual/lib/test_visual_page.py` →
+    `227 passou · 0 falhou` nesta rodada]
   - **`_plural()` existe DUAS vezes** — `visual_page.py:110` e `plan_state.py:1245`, mesma
     assinatura, 2 linhas cada [confirmado — `grep -rn '^def _plural' --include='*.py' plugins/`
     devolve exatamente esses dois neste run]. Não é descuido: importar `plan_state` inteiro por
@@ -1955,7 +1969,7 @@ Cada uma é uma regra que sobreviveu a um defeito, com o arquivo e o símbolo on
 
 ## 13. Verificação
 
-As suítes `plugins/*/lib/test_*.py` que ESTA passada executou — **14 das 66 que o repositório
+As suítes `plugins/*/lib/test_*.py` que ESTA passada executou — **14 das 69 que o repositório
 tem hoje** (`ls plugins/*/lib/test_*.py | wc -l` neste run); quem roda todas é a esteira
 (`bash scripts/suite.sh`), nunca esta lista —, saída literal da última linha de cada uma:
 
@@ -1973,7 +1987,7 @@ plugins/project-skills/lib/test_pattern_check.py:: TODOS OS 84 CHECKS PASSARAM
 plugins/project-skills/lib/test_plan_state.py   :: OK
 plugins/project-skills/lib/test_cobertura.py    :: OK
 plugins/slides/lib/test_md2deck.py              :: 60 passou · 0 falhou
-plugins/visual/lib/test_visual_page.py          :: 180 passou · 0 falhou
+plugins/visual/lib/test_visual_page.py          :: 227 passou · 0 falhou
 ```
 
 ⚠️ **Cinco caminhos dessa lista mudaram sem que uma linha de teste mudasse** — as suítes de

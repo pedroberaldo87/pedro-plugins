@@ -63,7 +63,7 @@ def main():
         escreve(raiz, ("docs",), ARTIGO)
         escreve(raiz, (".claude", "docs"), ARTIGO.replace("Cobertura visual", "Nada"))
         achados, _ = cvc.confere(raiz)
-        check("docs/ na raiz ganha de .claude/docs", achados == [])
+        check("docs/ na raiz ganha de .claude/docs", achados == [])  # casa-ok: fixture de teste, o literal e o dado do caso
 
     print("a sabotagem — a regra some e o check tem que ficar vermelho")
     with tempfile.TemporaryDirectory() as raiz:

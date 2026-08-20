@@ -299,7 +299,7 @@ def main():
     check("a revisao 5b reapresenta o MESMO documento da 5",
           etapas_kit.get("5b") == ["blueprint.md"])
     print("a lei que os motores leem nasce na etapa autoral (F16.2)")
-    # Quatro leitores cobram `.claude/docs/constituicao.md` e nenhuma etapa a
+    # Quatro leitores cobram `.claude/docs/constituicao.md` e nenhuma etapa a  # casa-ok: fixture de teste, o literal e o dado do caso
     # produzia: a lei era exigida de um arquivo que o rito nunca escrevia.
     check("constituicao.md e documento da etapa 1 nas duas tabelas",
           "constituicao.md" in etapas_skill.get("1", [])
@@ -309,8 +309,8 @@ def main():
           and "# A lei deste projeto" in kit
           and "## Artigo 1 ·" in kit)
     check("o molde fixa o caminho de saida da lei nos dois arquivos",
-          ".claude/docs/constituicao.md" in kit
-          and ".claude/docs/constituicao.md" in skill)
+          ".claude/docs/constituicao.md" in kit  # casa-ok: fixture de teste, o literal e o dado do caso
+          and ".claude/docs/constituicao.md" in skill)  # casa-ok: fixture de teste, o literal e o dado do caso
     check("a skill aceita `constituicao` como documento avulso",
           "`constituicao`" in skill)
 
@@ -335,7 +335,7 @@ def main():
           re.search(r"`journeys`, `blueprint`, `features`", skill) is not None)
     check("a trava da etapa 6 esta escrita, e diz o que conferir no disco",
           skill.count("A etapa 6 não abre sem `blueprint.md` aprovado") >= 2
-          and "`.claude/docs/blueprint.md` existe e traz `status: approved`" in skill)
+          and "`.claude/docs/blueprint.md` existe e traz `status: approved`" in skill)  # casa-ok: fixture de teste, o literal e o dado do caso
     check("a trava manda PARAR e conduzir a etapa 5, nao seguir",
           "pare e conduza a etapa 5" in skill)
     check("o passo 3 abre a etapa do esquema com o ciclo montado",
@@ -356,7 +356,7 @@ def main():
           "a etapa fecha sem tocar o arquivo" in skill)
     check("mudou, a troca do texto aprovado passa pelo historico e nao por edicao direta",
           "a troca passa pelo histórico, nunca por edição direta no corpo" in skill
-          and 'lib/historico.py)" reescrever .claude/docs/blueprint.md' in skill
+          and 'lib/historico.py)" reescrever .claude/docs/blueprint.md' in skill  # casa-ok: fixture de teste, o literal e o dado do caso
           and "blueprint.historico.md" in skill)
     check("a skill sabe que o historico reabre a etapa e manda reaprovar",
           "reabriu_aprovacao" in skill
@@ -638,7 +638,7 @@ def main():
     with open(os.path.join(docs, "design.md"), "w", encoding="utf-8") as fh:
         fh.write("---\nauthored-by: human\nstatus: draft\n---\n\n# Design\n")
     rascunhos.append("design.md")
-    linhas = ["- **[%s](.claude/docs/%s)** — %s → leia quando decidir sobre isso"
+    linhas = ["- **[%s](.claude/docs/%s)** — %s → leia quando decidir sobre isso"  # casa-ok: fixture de teste, o literal e o dado do caso
               % (n, n, n[:-3]) for n in aprovados]
     indice = ("# bancada\n\n<!-- start-doc:index -->\n"
               "## Documentation Index\n" + "\n".join(linhas) +
@@ -649,9 +649,9 @@ def main():
         with open(os.path.join(banca, ponteiro), "w", encoding="utf-8") as fh:
             fh.write("Read `CLAUDE.md` at the project root for the project index.\n")
     check("o indice minimo lista todo documento aprovado da fixture",
-          aprovados and all(("(.claude/docs/%s)" % n) in indice for n in aprovados))
+          aprovados and all(("(.claude/docs/%s)" % n) in indice for n in aprovados))  # casa-ok: fixture de teste, o literal e o dado do caso
     check("documento nao aprovado da fixture fica de fora do indice",
-          rascunhos and not any(("(.claude/docs/%s)" % n) in indice for n in rascunhos))
+          rascunhos and not any(("(.claude/docs/%s)" % n) in indice for n in rascunhos))  # casa-ok: fixture de teste, o literal e o dado do caso
     check("os ponteiros de agente apontam o indice da raiz",
           all("Read `CLAUDE.md`" in ler(os.path.join(banca, p))
               for p in ("AGENTS.md", "GEMINI.md", ".cursorrules")))
@@ -809,7 +809,7 @@ def main():
           "A oferta de prototipagem" in bloco_escrever
           and "antes do de acordo" in bloco_escrever)
     check("a oferta aponta a casa e o sidecar do formato",
-          ".claude/docs/prototipo/" in bloco_escrever
+          ".claude/docs/prototipo/" in bloco_escrever  # casa-ok: fixture de teste, o literal e o dado do caso
           and "interface.prototipo.md" in bloco_escrever
           and "FORMATO.md" in bloco_escrever)
     check("oferta nunca e imposicao — quem decide e o dono",

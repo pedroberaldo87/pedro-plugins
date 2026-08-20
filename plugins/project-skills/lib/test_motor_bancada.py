@@ -145,7 +145,7 @@ GAP_SPEC = dict(GAP_CONCEPCAO, kind="spec")
 # eixo de constituicao ela nasce como gap de `constituicao` e SEGURA a obra; se o errado
 # for o desenho, o mesmo texto entra como `concepcao` e vira aviso sem segurar nada.
 GAP_DESENHO = {"task_id": "F1.1", "kind": "constituicao", "severity": "P0",
-               "problem": "`.claude/docs/blueprint.md` (aprovado) desenha a leitura saindo "
+               "problem": "`.claude/docs/blueprint.md` (aprovado) desenha a leitura saindo "  # casa-ok: fixture de teste, o literal e o dado do caso
                           "do cache local, e a obra le a origem a cada chamada"}
 GAP_DESENHO_CONCEPCAO = dict(GAP_DESENHO, kind="concepcao")
 
@@ -284,9 +284,9 @@ function salva(p) {
 // que ninguem escreveu. Os dois passam pela mesma peneira, que e o disco — e e por isso
 // que a mentira volta como lista vazia, sem o motor precisar acreditar em ninguem.
 function documenta(p) {
-  const alegado = CFG.docFalso || ('.claude/docs/onda-' + p.round + '.md')
+  const alegado = CFG.docFalso || ('.claude/docs/onda-' + p.round + '.md')  // casa-ok: fixture de teste, o literal e o dado do caso
   if (!CFG.docFalso) {
-    fs.mkdirSync(CFG.raiz + '/.claude/docs', { recursive: true })
+    fs.mkdirSync(CFG.raiz + '/.claude/docs', { recursive: true })  // casa-ok: fixture de teste, o literal e o dado do caso
     fs.writeFileSync(CFG.raiz + '/' + alegado, 'doc re-projetada na onda ' + p.round + '\n')
   }
   const confirmados = [alegado].filter(f => fs.existsSync(CFG.raiz + '/' + f))
@@ -1049,9 +1049,9 @@ def main():
     print("S-112 — o papel que invoca skill devolve os caminhos que tocou")
     check("a doc devolvida pelo papel e a que o disco confirma",
           bool(interrompido["docs"]) and interrompido["docs"][0]["docs"] ==
-          [".claude/docs/onda-1.md"])
+          [".claude/docs/onda-1.md"])  # casa-ok: fixture de teste, o literal e o dado do caso
     check("a onda registra o que o papel confirmou, nao a lista que ele recebeu",
-          saida5["rounds"][0].get("doc") == [".claude/docs/onda-1.md"])
+          saida5["rounds"][0].get("doc") == [".claude/docs/onda-1.md"])  # casa-ok: fixture de teste, o literal e o dado do caso
     check("papel que confirmou a doc nao vira Bloqueio",
           not [b for b in saida5["blockers"] if "não foi confirmada no disco" in (b.get("what") or "")])
 
@@ -1060,13 +1060,13 @@ def main():
     # volta vazia, e lista vazia e Bloqueio.
     print("S-112 — papel que devolve caminho que o disco nao confirma vira Bloqueio")
     mentiu = bancada_git(texto, tick_cmd, ck_cmd, max_rounds=1,
-                         doc_falso=".claude/docs/nunca-escrita.md")
+                         doc_falso=".claude/docs/nunca-escrita.md")  # casa-ok: fixture de teste, o literal e o dado do caso
     if mentiu is None:
         return 1
     saida_m = mentiu["saida"]
     check("o papel foi chamado e alegou ter re-projetado uma doc",
           bool(mentiu["docs"]) and mentiu["docs"][0]["alegados"] ==
-          [".claude/docs/nunca-escrita.md"])
+          [".claude/docs/nunca-escrita.md"])  # casa-ok: fixture de teste, o literal e o dado do caso
     check("o caminho que o disco nao confirma nao entra na lista",
           mentiu["docs"][0]["docs"] == [])
     doc_bloq = [b for b in saida_m["blockers"] if "não foi confirmada no disco" in (b.get("what") or "")]
@@ -1175,7 +1175,7 @@ def main():
     aviso_des = [b for b in desenho_erra["saida"]["blockers"]
                  if "a concepção está errada" in (b.get("what") or "")]
     check("o aviso nomeia o documento contradito",
-          bool(aviso_des) and ".claude/docs/blueprint.md" in aviso_des[0]["what"])
+          bool(aviso_des) and ".claude/docs/blueprint.md" in aviso_des[0]["what"])  # casa-ok: fixture de teste, o literal e o dado do caso
     check("e ele nao segura a obra", desenho_erra["saida"]["built"] is True)
 
     # ── F9.16 · S-24 ─────────────────────────────────────────────────────────────

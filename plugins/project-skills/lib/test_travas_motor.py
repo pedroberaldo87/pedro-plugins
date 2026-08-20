@@ -599,11 +599,11 @@ def main():
     # A METADE DE EXECUCAO: o bloco roda de verdade, com uma tarefa protegida que voltou
     # com proposta completa e outra que voltou so com resumo.
     tranca = bloco_da_tranca(js)
-    decomp_t = ("{ tasks: [{ id: 'P1', protegido: 'docs/visao.md tem status: approved' },"
-                "{ id: 'P2', protegido: 'docs/visao.md tem status: approved' },"
+    decomp_t = ("{ tasks: [{ id: 'P1', protegido: 'docs/visao.md tem status: approved' },"  # casa-ok: fixture de teste, o literal e o dado do caso
+                "{ id: 'P2', protegido: 'docs/visao.md tem status: approved' },"  # casa-ok: fixture de teste, o literal e o dado do caso
                 "{ id: 'N1' }] }")
     results_t = ("[{ task_id: 'P1', done: true, summary: 'ajustar a meta',"
-                 "   proposta: { arquivo: 'docs/visao.md', antes: 'LINHA VELHA', depois: 'LINHA NOVA' } },"
+                 "   proposta: { arquivo: 'docs/visao.md', antes: 'LINHA VELHA', depois: 'LINHA NOVA' } },"  # casa-ok: fixture de teste, o literal e o dado do caso
                  " { task_id: 'P2', done: true, summary: 'trocar o titulo' },"
                  " { task_id: 'N1', done: true, summary: 'codigo normal' }]")
     saiu = roda_a_tranca(tranca, decomp_t, results_t)
@@ -617,7 +617,7 @@ def main():
           "LINHA VELHA" in blq.get("P1", {}).get("whyNeedsYou", "")
           and "LINHA NOVA" in blq.get("P1", {}).get("whyNeedsYou", ""))
     check("o bloqueio nomeia o arquivo sob tranca",
-          "docs/visao.md" in blq.get("P1", {}).get("what", ""))
+          "docs/visao.md" in blq.get("P1", {}).get("what", ""))  # casa-ok: fixture de teste, o literal e o dado do caso
     check("git diff vazio sai como CERTO tambem pro dono",
           "CERTO" in blq.get("P1", {}).get("whyNeedsYou", ""))
     check("quem voltou sem os dois lados vira bloqueio, com o motivo",

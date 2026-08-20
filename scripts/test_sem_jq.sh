@@ -1,7 +1,7 @@
 #!/bin/bash
 # test_sem_jq.sh — o requisito W-2: em máquina SEM `jq` o gate ainda decide.
 #
-# O inventário (.claude/docs/jq-pontos-de-decisao.md) separa os hooks que leem o
+# O inventário (.claude/docs/jq-pontos-de-decisao.md) separa os hooks que leem o  # casa-ok: fixture de teste, o literal e o dado do caso
 # payload em duas naturezas:
 #   A  — o `jq` só formata a saída ou lê config → fail-open é aceitável
 #   B  — o hook lê o campo que DECIDE (tool_input.command, session_id,
@@ -185,9 +185,9 @@ else
 
   # Projeto de mentira: documentação project-doc presente = o doc-guard tem o que cobrar.
   PROJ="$SANDBOX/proj"
-  mkdir -p "$PROJ/.claude/docs"
+  mkdir -p "$PROJ/.claude/docs"  # casa-ok: fixture de teste, o literal e o dado do caso
   printf '# Project Reference\n' > "$PROJ/CLAUDE.md"
-  printf '# arquitetura\n' > "$PROJ/.claude/docs/architecture.md"
+  printf '# arquitetura\n' > "$PROJ/.claude/docs/architecture.md"  # casa-ok: fixture de teste, o literal e o dado do caso
 
   GUARD="plugins/project-skills/hooks/pretooluse-doc-guard.sh"
   paylod_bash() { printf '{"tool_name":"Bash","session_id":"%s","cwd":"%s","tool_input":{"command":"%s"}}' "$1" "$PROJ" "$2"; }

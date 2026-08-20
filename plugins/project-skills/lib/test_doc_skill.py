@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """A SKILL.md do /doc tem que OFERECER a migracao da casa da doc (F15.8).
 
-O defeito que isto impede: projeto com a doc na casa velha (`.claude/docs/`, sem
+O defeito que isto impede: projeto com a doc na casa velha (`.claude/docs/`, sem  # casa-ok: prosa que descreve a casa velha, nao um caminho usado
 `docs/` na raiz) rodava o /doc e seguia calado — a casa antiga se perpetuava, e o
 dono nunca via a oferta. A decisao dele (2026-08-16) foi migrar todos, cada um
 quando o /doc rodar nele e ele aceitar — pergunta por AskUserQuestion, com o
@@ -32,7 +32,7 @@ def main():
     print("o passo da casa da doc existe dentro do Process (F15.8)")
     check("o passo 1b esta no Process, logo depois de identificar a raiz", bool(passo))
     check("ele nomeia a casa antiga e a casa nova",
-          ".claude/docs/" in passo and "docs/" in passo)
+          ".claude/docs/" in passo and "docs/" in passo)  # casa-ok: fixture de teste, o literal e o dado do caso
 
     print("a deteccao pergunta ao resolvedor, nunca a caminho cravado")
     check("o resolvedor Python e nomeado", "casa_da_doc.py" in passo)

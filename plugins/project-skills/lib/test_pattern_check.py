@@ -346,7 +346,7 @@ def test_touch_and_generated_commit():
         check("inverso: a.py mapeia os 2 docs", len(m) == 2)
         m = pattern_check.docs_for_paths(root, ["pkg/b.py"])
         check("inverso: entrada-dir casa por prefixo",
-              ".claude/docs/two.md" in m and len(m) == 1)
+              ".claude/docs/two.md" in m and len(m) == 1)  # casa-ok: fixture de teste, o literal e o dado do caso
         m = pattern_check.docs_for_paths(root, ["nope.py"])
         check("inverso: arquivo fora de todo scope → vazio", m == {})
 
@@ -374,7 +374,7 @@ def test_touch_and_generated_commit():
         # pending (senão o touch repetido é no-op e o hook re-sugere pra sempre)
         import time
         time.sleep(0.02)
-        for dp in (".claude/docs/arch.md", ".claude/docs/two.md"):
+        for dp in (".claude/docs/arch.md", ".claude/docs/two.md"):  # casa-ok: fixture de teste, o literal e o dado do caso
             os.utime(os.path.join(root, dp), None)
         tp2 = pattern_check.touch_plan(root)
         check("doc mais novo que o arquivo sai do pending_docs",
@@ -407,7 +407,7 @@ def test_touch_and_generated_commit():
         check("unscoped_new PARA de acusar depois do verified-by",
               "pkg/test_b.py" not in tp5["unscoped_new"])
         check("...e o arquivo de scope segue mapeado (não matei o inverso)",
-              any(igual(x, ".claude/docs/two.md")
+              any(igual(x, ".claude/docs/two.md")  # casa-ok: fixture de teste, o literal e o dado do caso
                   for x in pattern_check.docs_for_paths(root, ["pkg/b.py"])))
 
         # --- last_full_age_days: dado pra a escalada touch→FULL --------------
@@ -578,7 +578,7 @@ def test_restamp():
         check("antes do restamp: doc se acusa de defasada sobre o próprio commit",
               pattern_check.scope_staleness(root, docpath)["state"] == "stale")
 
-        out = pattern_check.restamp(root, [".claude/docs/arch.md"])
+        out = pattern_check.restamp(root, [".claude/docs/arch.md"])  # casa-ok: fixture de teste, o literal e o dado do caso
         check("restamp devolve o HEAD carimbado", out["commit"] == head)
         check("restamp carimbou 1 doc, sem pular nada",
               len(out["stamped"]) == 1 and not out["skipped"])
@@ -610,7 +610,7 @@ def test_restamp():
             fh.write("---\ngenerated: 2026-01-01\nauthored-by: human\nproject: X\n"
                      "scope: a.py\ndoc-sig: X/a@gen=%s#abcd1234\n---\n\n# meu\n" % OLD_GEN)
         antes = open(autoral, encoding="utf-8").read()
-        out = pattern_check.restamp(root, [".claude/docs/quality-goals.md"])
+        out = pattern_check.restamp(root, [".claude/docs/quality-goals.md"])  # casa-ok: fixture de teste, o literal e o dado do caso
         check("doc autoral (authored-by: human) é PULADO",
               not out["stamped"] and out["skipped"][0]["reason"].startswith("doc autoral"))
         check("doc autoral fica byte-idêntico", open(autoral, encoding="utf-8").read() == antes)
@@ -619,13 +619,13 @@ def test_restamp():
         solto = os.path.join(docs, "nota.md")
         with open(solto, "w", encoding="utf-8") as fh:
             fh.write("# nota solta\n")
-        out = pattern_check.restamp(root, [".claude/docs/nota.md"])
+        out = pattern_check.restamp(root, [".claude/docs/nota.md"])  # casa-ok: fixture de teste, o literal e o dado do caso
         check("arquivo sem frontmatter é pulado, não corrompido",
               not out["stamped"] and "frontmatter" in out["skipped"][0]["reason"]
               and open(solto, encoding="utf-8").read() == "# nota solta\n")
 
         # doc inexistente não derruba a rodada
-        out = pattern_check.restamp(root, [".claude/docs/nao-existe.md"])
+        out = pattern_check.restamp(root, [".claude/docs/nao-existe.md"])  # casa-ok: fixture de teste, o literal e o dado do caso
         check("doc inexistente é pulado com motivo", out["skipped"] and not out["stamped"])
 
     # fora de repo git: fail-LOUD e NÃO escreve nada
@@ -635,7 +635,7 @@ def test_restamp():
         with open(dp, "w", encoding="utf-8") as fh:
             fh.write(_doc_with("a.py", "2026-01-01"))
         antes = open(dp, encoding="utf-8").read()
-        out = pattern_check.restamp(d, [".claude/docs/x.md"])
+        out = pattern_check.restamp(d, [".claude/docs/x.md"])  # casa-ok: fixture de teste, o literal e o dado do caso
         check("sem git: erro explícito, nada carimbado", out["error"] and not out["stamped"])
         check("sem git: arquivo intocado (carimbo pela metade é pior que velho)",
               open(dp, encoding="utf-8").read() == antes)
@@ -655,7 +655,7 @@ def test_census_classifies_and_no_crash():
         check("plan detecta 1 módulo a migrar (finance)",
               len(plan["migrate"]) == 1 and plan["migrate"][0]["module"] == "finance")
         check("plan aponta target modules/finance/",
-              plan["migrate"][0]["target"] == ".claude/docs/modules/finance/")
+              plan["migrate"][0]["target"] == ".claude/docs/modules/finance/")  # casa-ok: fixture de teste, o literal e o dado do caso
 
 
 def test_scope_bloco_yaml():

@@ -67,7 +67,7 @@ def main():
     print("a regra existe, uma vez, na skill que escreve documento")
     check("a secao de desacoplamento existe no /doc", SECAO in full)
     check("a secao vale para todo doc escrito, nao so para o CLAUDE.md",
-          "`CLAUDE.md`" in full and ".claude/docs/*.md" in full)
+          "`CLAUDE.md`" in full and ".claude/docs/*.md" in full)  # casa-ok: fixture de teste, o literal e o dado do caso
 
     print("troca 1 — o COMANDO entra no lugar do numero")
     check("a skill manda a contagem cravada sair",
@@ -108,7 +108,7 @@ def main():
             subprocess.run(["git", "-C", d] + a, capture_output=True, timeout=30, stdin=subprocess.DEVNULL, start_new_session=True)
         saida = subprocess.run([sys.executable, COBRADOR, "--root", d, "--todos"],
                                capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=60, stdin=subprocess.DEVNULL, start_new_session=True)
-        check("numero cravado num doc de `.claude/docs/` e acusado",
+        check("numero cravado num doc de `.claude/docs/` e acusado",  # casa-ok: fixture de teste, o literal e o dado do caso
               saida.returncode == 1 and "contagem-cravada" in saida.stdout
               and "architecture.md" in saida.stdout)
     finally:

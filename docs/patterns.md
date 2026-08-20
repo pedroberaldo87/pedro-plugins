@@ -814,7 +814,7 @@ Três regras que caíram daí:
 
 Par do §1.14, do outro lado: lá o elo sumia sem sintoma, aqui o conteúdo fica visível mas **inalcançável**. Mesmo desenho de conserto — a garantia é do programa, não da lembrança de quem escreve.
 
-O `.artefato` embute o artefato real num quadro pequeno, e pequeno é a escolha certa: em tamanho natural ele quebra a leitura do documento e empurra a decisão pra fora da tela. O que faltava não era tamanho, era **saída** — não havia como olhar de perto sem sair da página. Desde 2026-08-02 `r_artefato()` emite dois botões, e eles não são redundantes [confirmado — `visual_page.py`; `python3 plugins/visual/lib/test_visual_page.py` → `192 passou · 0 falhou` nesta rodada]:
+O `.artefato` embute o artefato real num quadro pequeno, e pequeno é a escolha certa: em tamanho natural ele quebra a leitura do documento e empurra a decisão pra fora da tela. O que faltava não era tamanho, era **saída** — não havia como olhar de perto sem sair da página. Desde 2026-08-02 `r_artefato()` emite dois botões, e eles não são redundantes [confirmado — `visual_page.py`; `python3 plugins/visual/lib/test_visual_page.py` → `227 passou · 0 falhou` nesta rodada]:
 
 - **tela cheia** — ler agora **sem perder o lugar** no documento (`Esc` volta).
 - **nova janela** — deixar aberto e **comparar** com o resto.
@@ -1116,7 +1116,7 @@ O contrato está na docstring, e ele fecha a saída de emergência óbvia [confi
 
 ⚠️ **O escopo da régua é o REGIME, não o arquivo.** Ela vale para tudo que sai de gerador (regime "informação rápida"); `SKILL.md` e `.claude/docs/` são constituição, admitem nuance e **não** passam por ela. A fronteira é o pipeline — **não existe campo `regime` no spec**, de propósito: campo declarável viraria a saída de emergência universal.
 
-Duas isenções escritas no código, as duas por natureza do conteúdo e válidas em **todo** perfil: `evidencia.output` (saída crua é literal por obrigação — parafrasear a prova é o defeito original com outra roupa) e `raw_html` (a válvula de layout). Linha de árvore de plano fica fora nos perfis que declaram `arvore_fora`: é gerada por programa, não é redação.
+Três isenções escritas no código, as três por natureza do conteúdo e válidas em **todo** perfil: `evidencia.output` (saída crua é literal por obrigação — parafrasear a prova é o defeito original com outra roupa), `raw_html` (a válvula de layout) e o texto de dentro do bloco `esquema` (legenda de caixa de desenho não vira frase — forçar prosa ali empurraria o autor de volta pro `raw_html`) [confirmado — `visual_page.py:_validate_block`, ramo `esquema`]. Linha de árvore de plano fica fora nos perfis que declaram `arvore_fora`: é gerada por programa, não é redação.
 
 **Duas frentes cobram a régua hoje**, e nenhuma sozinha fecha: o check I do release-gate barra **gerador de HTML que não a chama** (§5.2), e os dois hooks do §1.17 pegam o texto já escrito — o arquivo na porta, o relato na rede.
 

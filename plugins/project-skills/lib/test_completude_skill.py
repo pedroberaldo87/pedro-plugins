@@ -59,7 +59,7 @@ def main():
 
     print("o sidecar de protótipo entra como 4º posicional (F13.9)")
     check("a chamada de exemplo passa o sidecar como 4º posicional",
-          "<caminho>/.claude/docs/prototipo/<etapa>.prototipo.md" in texto)
+          "<caminho>/.claude/docs/prototipo/<etapa>.prototipo.md" in texto)  # casa-ok: fixture de teste, o literal e o dado do caso
     check("a skill nomeia o argumento como sidecar de protótipo",
           "sidecar de protótipo" in texto)
     check("a lista do /doc-load cobre os quatro caminhos",

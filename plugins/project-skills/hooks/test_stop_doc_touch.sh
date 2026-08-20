@@ -39,13 +39,13 @@ export CLAUDE_CONFIG_DIR="$ROOT/cfg"
 # Projeto com doc project-doc cujo `scope:` cobre dois arquivos JÁ COMMITADOS e
 # depois modificados — é assim que o `touch_plan` enxerga trabalho pendente.
 PROJ="$ROOT/proj"
-mkdir -p "$PROJ/lib" "$PROJ/.claude/docs"
+mkdir -p "$PROJ/lib" "$PROJ/.claude/docs"  # casa-ok: fixture de teste, o literal e o dado do caso
 git -C "$PROJ" init -q -b main
 git -C "$PROJ" config user.email "teste@exemplo.dev"
 git -C "$PROJ" config user.name "Teste"
 printf 'a = 1\n' > "$PROJ/lib/a.py"
 printf 'b = 1\n' > "$PROJ/lib/b.py"
-cat > "$PROJ/.claude/docs/architecture.md" <<'DOC'
+cat > "$PROJ/.claude/docs/architecture.md" <<'DOC'  # casa-ok: fixture de teste, o literal e o dado do caso
 ---
 generated: 2026-01-01
 project: proj
@@ -56,7 +56,7 @@ DOC
 git -C "$PROJ" add -A >/dev/null 2>&1
 git -C "$PROJ" commit -q -m inicio
 # O doc precisa ser MAIS VELHO que os arquivos, senão o plano o dá por já tocado.
-touch -t 202601010000 "$PROJ/.claude/docs/architecture.md"
+touch -t 202601010000 "$PROJ/.claude/docs/architecture.md"  # casa-ok: fixture de teste, o literal e o dado do caso
 printf 'a = 2\n' > "$PROJ/lib/a.py"
 printf 'b = 2\n' > "$PROJ/lib/b.py"
 
@@ -84,9 +84,9 @@ check "doc velha: não manda o dono escolher entre as duas" "$(printf '%s' "$M" 
 MF=$(msg "$(CLAUDE_CONFIG_DIR="$ROOT/vazio" run "$SESS-semcache")")
 check "sem resolvedor: cai no nome cru da skill" "$(printf '%s' "$MF" | grep -q '/doc pra atualizar' && echo 1 || echo 0)"
 # Mesma sessão de trabalho, doc carimbada HOJE: o atraso cabe no incremental.
-sed -i.bak "s/^generated: .*/generated: $(date +%Y-%m-%d)/" "$PROJ/.claude/docs/architecture.md"
-rm -f "$PROJ/.claude/docs/architecture.md.bak"
-touch -t 202601010000 "$PROJ/.claude/docs/architecture.md"
+sed -i.bak "s/^generated: .*/generated: $(date +%Y-%m-%d)/" "$PROJ/.claude/docs/architecture.md"  # casa-ok: fixture de teste, o literal e o dado do caso
+rm -f "$PROJ/.claude/docs/architecture.md.bak"  # casa-ok: fixture de teste, o literal e o dado do caso
+touch -t 202601010000 "$PROJ/.claude/docs/architecture.md"  # casa-ok: fixture de teste, o literal e o dado do caso
 M2=$(msg "$(run "$SESS-nova")")
 check "doc de hoje: manda a rodada CURTA, com o plugin descoberto" "$(printf '%s' "$M2" | grep -q '/project-skills:doc-touch' && echo 1 || echo 0)"
 check "doc de hoje: mostra o número que sustentou a escolha" "$(printf '%s' "$M2" | grep -qE 'tem [0-9]+ dias' && echo 1 || echo 0)"
@@ -95,7 +95,7 @@ check "doc de hoje: a sugestão medida passa na régua" "$([ -z "$(printf '%s\n'
 echo "a sugestão — o silêncio"
 check "DOC_TOUCH_SUGGEST=0: cala" "$([ -z "$(printf '{"session_id":"%s-off","cwd":"%s"}' "$SESS" "$PROJ" | DOC_TOUCH_SUGGEST=0 bash "$HOOK" 2>/dev/null)" ] && echo 1 || echo 0)"
 VAZIO="$ROOT/sem-doc"; mkdir -p "$VAZIO"
-check "projeto sem .claude/docs: cala" "$([ -z "$(printf '{"session_id":"%s-x","cwd":"%s"}' "$SESS" "$VAZIO" | bash "$HOOK" 2>/dev/null)" ] && echo 1 || echo 0)"
+check "projeto sem .claude/docs: cala" "$([ -z "$(printf '{"session_id":"%s-x","cwd":"%s"}' "$SESS" "$VAZIO" | bash "$HOOK" 2>/dev/null)" ] && echo 1 || echo 0)"  # casa-ok: fixture de teste, o literal e o dado do caso
 
 echo "a régua do canal de texto (perfil hook)"
 # Saída vazia = passou; cada motivo recusado sai numa linha do stderr.

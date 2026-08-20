@@ -20,9 +20,9 @@ done
 TMPDIR_TEST=$(mktemp -d)
 PROJ=$(mktemp -d)
 trap 'rm -rf "$TMPDIR_TEST" "$PROJ"' EXIT
-mkdir -p "$PROJ/.claude/docs"
+mkdir -p "$PROJ/.claude/docs"  # casa-ok: fixture de teste, o literal e o dado do caso
 printf '# proj\n' > "$PROJ/CLAUDE.md"
-printf '# arch\n' > "$PROJ/.claude/docs/architecture.md"
+printf '# arch\n' > "$PROJ/.claude/docs/architecture.md"  # casa-ok: fixture de teste, o literal e o dado do caso
 
 S="tmpdirtest-$$"
 export TMPDIR="$TMPDIR_TEST"
@@ -57,8 +57,7 @@ verifica() {
 }
 
 # 1) doc-guard: ler a doc grava o sentinel que libera a busca cega.
-printf '{"tool_name":"Read","session_id":"%s","cwd":"%s","tool_input":{"file_path":"%s/.claude/docs/architecture.md"}}' \
-  "$S" "$PROJ" "$PROJ" | bash "$DOC_READ" >/dev/null 2>&1
+printf '{"tool_name":"Read","session_id":"%s","cwd":"%s","tool_input":{"file_path":"%s/.claude/docs/architecture.md"}}' "$S" "$PROJ" "$PROJ" | bash "$DOC_READ" >/dev/null 2>&1  # casa-ok: fixture de teste, o literal e o dado do caso
 verifica "doc-guard (sentinel de doc lida)" "claude-doc-guard-${S}*"
 
 # 2) context-guard writer: o statusLine grava o context% da sessão.

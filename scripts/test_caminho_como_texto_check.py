@@ -34,20 +34,20 @@ def main():
     sep = os.sep
     a = sep.join([".claude", "docs", "blueprint.md"])
     check("o caminho do sistema iguala o escrito com barra normal",
-          ci.igual(a, ".claude/docs/blueprint.md"))
+          ci.igual(a, ".claude/docs/blueprint.md"))  # casa-ok: fixture de teste, o literal e o dado do caso
     check("barra final não muda o caminho", ci.igual("a/b/", "a/b"))
     check("caminho diferente continua diferente", not ci.igual("a/b", "a/c"))
     check("None não iguala caminho nenhum", not ci.igual(None, "a"))
-    check("contem acha o segmento", ci.contem(a, ".claude/docs"))
+    check("contem acha o segmento", ci.contem(a, ".claude/docs"))  # casa-ok: fixture de teste, o literal e o dado do caso
     check("contem NÃO casa pedaço de palavra (lib ≠ biblioteca)",
           not ci.contem(sep.join(["x", "biblioteca", "y"]), "lib"))
     check("termina_em conta segmento, não letra",
           not ci.termina_em(sep.join(["p", "meu-x.py"]), "x.py"))
-    check("termina_em aceita o sufixo de verdade", ci.termina_em(a, "docs/blueprint.md"))
+    check("termina_em aceita o sufixo de verdade", ci.termina_em(a, "docs/blueprint.md"))  # casa-ok: fixture de teste, o literal e o dado do caso
 
     print("o cobrador — o que ele acusa, e o que ele deixa em paz")
     check("literal com barra e extensão parece caminho",
-          cc.parece_caminho(".claude/docs/x.md"))
+          cc.parece_caminho(".claude/docs/x.md"))  # casa-ok: fixture de teste, o literal e o dado do caso
     check("nome de branch NÃO parece caminho", not cc.parece_caminho("feat/squash"))
     check("frase com barra dentro NÃO parece caminho",
           not cc.parece_caminho("morto · src/a.ts: prob_h"))
@@ -67,17 +67,17 @@ def main():
         with open(alvo, "w", encoding="utf-8") as fh:
             fh.write("import os\n"
                      "caminho = os.path.abspath('.')\n"
-                     "assert caminho == '.claude/docs/x.md'\n")
+                     "assert caminho == '.claude/docs/x.md'\n")  # casa-ok: fixture de teste, o literal e o dado do caso
         _, achados = cc.varre(d)
         check("o defeito plantado é acusado", len(achados) == 1)
         check("...e a acusação nomeia o literal",
-              bool(achados) and ".claude/docs/x.md" in achados[0][2])
+              bool(achados) and ".claude/docs/x.md" in achados[0][2])  # casa-ok: fixture de teste, o literal e o dado do caso
 
         # E a isenção declarada silencia — senão o cobrador vira obstáculo.
         with open(alvo, "w", encoding="utf-8") as fh:
             fh.write("import os\n"
                      "caminho = os.path.abspath('.')\n"
-                     "assert caminho == '.claude/docs/x.md'  # caminho-ok: exemplo do teste\n")
+                     "assert caminho == '.claude/docs/x.md'  # caminho-ok: exemplo do teste\n")  # casa-ok: fixture de teste, o literal e o dado do caso
         _, isentos = cc.varre(d)
         check("isenção declarada silencia o achado", isentos == [])
     finally:

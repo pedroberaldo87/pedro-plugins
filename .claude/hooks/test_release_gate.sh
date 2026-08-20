@@ -136,8 +136,8 @@ check "e explica que as duas sao lidas" \
 # /sprint morre na porta de TODA rodada. O espelho eram dois arquivos e sempre
 # foram três.
 tabela() {
-  mkdir -p "$R/.claude/docs"
-  printf 'exemplo    %s  [uma] HOOKS\n' "$1" > "$R/.claude/docs/architecture.md"
+  mkdir -p "$R/.claude/docs"  # casa-ok: fixture de teste, o literal e o dado do caso
+  printf 'exemplo    %s  [uma] HOOKS\n' "$1" > "$R/.claude/docs/architecture.md"  # casa-ok: fixture de teste, o literal e o dado do caso
 }
 
 desc 2.0.0 "igual" "igual"; tabela 2.0.0
@@ -159,7 +159,7 @@ check "a mensagem mostra os dois números, doc e disco" \
 check "e diz que bump são TRÊS arquivos" \
   "$(printf '%s' "$out" | grep -q 'TRÊS arquivos' && echo 1 || echo 0)"
 
-rm -f "$R/.claude/docs/architecture.md"
+rm -f "$R/.claude/docs/architecture.md"  # casa-ok: fixture de teste, o literal e o dado do caso
 printf 'w=5\n' >> "$R/plugins/exemplo/lib/mod.py"
 desc 2.3.0 "igual" "igual"
 out=$(gate_out "git commit -m x")

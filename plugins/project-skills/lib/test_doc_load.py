@@ -156,7 +156,7 @@ check("mudar o CORPO muda a marca",
 # ── lei: ready vale, draft não ────────────────────────────────────────────────
 e = dl.carrega(projeto({"constituicao.md": DOC_LEI_READY}))
 check("lei com status ready VALE como régua",
-      mesma_lista(e["regua"], [".claude/docs/constituicao.md"]), str(e["regua"]))
+      mesma_lista(e["regua"], [".claude/docs/constituicao.md"]), str(e["regua"]))  # casa-ok: fixture de teste, o literal e o dado do caso
 
 e = dl.carrega(projeto({"constituicao.md": DOC_LEI_DRAFT}))
 check("lei com status draft NÃO vale como régua", e["regua"] == [], str(e["regua"]))
@@ -177,7 +177,7 @@ with open(alvo, "w", encoding="utf-8") as fh:
     fh.write(txt.replace("SUBSTITUIR", str(real)))
 e = dl.carrega(r)
 check("acordo approved com a marca batendo VALE",
-      mesma_lista(e["regua"], [".claude/docs/blueprint.md"]), str(e["regua"]))
+      mesma_lista(e["regua"], [".claude/docs/blueprint.md"]), str(e["regua"]))  # casa-ok: fixture de teste, o literal e o dado do caso
 
 # ── acordo editado depois do de acordo REABRE ─────────────────────────────────
 with open(alvo, encoding="utf-8") as fh:
@@ -187,7 +187,7 @@ with open(alvo, "w", encoding="utf-8") as fh:
 e = dl.carrega(r)
 check("acordo editado DEPOIS do de acordo sai da régua", e["regua"] == [], str(e["regua"]))
 check("e ele aparece como reaberto",
-      mesma_lista(e["reabertos"], [".claude/docs/blueprint.md"]), str(e["reabertos"]))
+      mesma_lista(e["reabertos"], [".claude/docs/blueprint.md"]), str(e["reabertos"]))  # casa-ok: fixture de teste, o literal e o dado do caso
 
 # ── minerado nunca é régua ────────────────────────────────────────────────────
 e = dl.carrega(projeto({"architecture.md": DOC_MINERADO}))
@@ -203,7 +203,7 @@ check("a marca da régua é nula quando não há régua", e["marca_regua"] is No
 
 vazio = tempfile.mkdtemp(prefix="doc-load-sem-claude-")
 e = dl.carrega(vazio)
-check("projeto sem .claude/docs/ não estoura", e["documentos"] == [])
+check("projeto sem .claude/docs/ não estoura", e["documentos"] == [])  # casa-ok: fixture de teste, o literal e o dado do caso
 
 # ── a marca da régua muda quando a lei muda ───────────────────────────────────
 a = dl.carrega(projeto({"constituicao.md": DOC_LEI_READY}))["marca_regua"]
@@ -273,7 +273,7 @@ p = subprocess.run([sys.executable, os.path.join(AQUI, "doc_load.py"), "--projec
                    capture_output=True, text=True, encoding="utf-8", errors="replace", stdin=subprocess.DEVNULL, start_new_session=True)
 check("--json devolve JSON válido com a régua dentro",
       p.returncode == 0 and mesma_lista(json.loads(p.stdout)["regua"],
-                                        [".claude/docs/constituicao.md"]))
+                                        [".claude/docs/constituicao.md"]))  # casa-ok: fixture de teste, o literal e o dado do caso
 
 p = subprocess.run([sys.executable, os.path.join(AQUI, "doc_load.py"), "--project-root", r, "--marca"],
                    capture_output=True, text=True, encoding="utf-8", errors="replace", stdin=subprocess.DEVNULL, start_new_session=True)
@@ -341,7 +341,7 @@ def projeto_com_anexo(tela="<h1>Painel</h1>\n"):
     os.makedirs(casa)
     with open(os.path.join(casa, "painel.html"), "w", encoding="utf-8", newline="") as fh:
         fh.write(tela)
-    sig = dl._conjunto_sig(r, [".claude/docs/prototipo/painel.html"])
+    sig = dl._conjunto_sig(r, [".claude/docs/prototipo/painel.html"])  # casa-ok: fixture de teste, o literal e o dado do caso
     with open(os.path.join(casa, "interface.prototipo.md"), "w", encoding="utf-8") as fh:
         fh.write(SIDECAR.format(design_sig=dl.cksum(design), conjunto_sig=sig))
     return r
@@ -387,7 +387,7 @@ check("regravar o de acordo do design REABRE o anexo",
       e["anexos"][0]["reaberto"] and not e["anexos"][0]["divergencia_conjunto"]
       and "regravado" in e["anexos"][0]["motivo"], str(e["anexos"]))
 check("o design regravado continua valendo como régua — só o anexo reabriu",
-      any(igual(a, ".claude/docs/design.md") for a in e["regua"]), str(e["regua"]))
+      any(igual(a, ".claude/docs/design.md") for a in e["regua"]), str(e["regua"]))  # casa-ok: fixture de teste, o literal e o dado do caso
 
 e = dl.carrega(projeto({"constituicao.md": DOC_LEI_READY}))
 check("projeto sem casa de protótipo devolve anexos vazio", e["anexos"] == [])

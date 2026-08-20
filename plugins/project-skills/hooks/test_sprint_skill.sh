@@ -84,7 +84,10 @@ check "$N_KIND_SPEC" "$(tem "$REVIEW" "kind: 'spec'")"
 check "o gap de spec vale mesmo com a decomposição cumprida" \
   "$(tem "$REVIEW" 'mesmo com a decomposição cumprida')"
 check "o gap de spec nasce >= severityFloor" "$(tem "$REVIEW" 'severityFloor')"
-check "$N_FILTRO_SPEC" "$(tem "$SKEL" "g.kind === 'spec'")"
+# A agulha é a LINHA do holdsBuild, não o fragmento "kind === 'spec'": desde 2026-08-20 o
+# esqueleto tem duas fontes legítimas do fragmento (o filtro do bloco e o geral), e a
+# sabotagem que remove uma deixava a outra segurando a checagem verde.
+check "$N_FILTRO_SPEC" "$(tem "$SKEL" "holdsBuild = g => g.kind !== 'concepcao'")"
 
 # Até 2026-08-12 este bloco cobrava a ENUMERAÇÃO dos documentos de régua dentro do
 # prompt do #2 — e era ela que produzia o drift: a skill listava quatro arquivos e o
@@ -105,7 +108,7 @@ check "o schema declara o kind 'constituicao'" "$(tem "$REVIEW" "'constituicao'"
 check "o motor manda rodar o doc-load quando a casca não passou a régua" \
   "$(tem "$MOTOR_JS" 'RODE o doc-load')"
 check "o motor NÃO enumera documento no caminho de degradação" \
-  "$([ "$(tem "$MOTOR_JS" '.claude/docs/quality-goals.md')" = "1" ] && echo 0 || echo 1)"
+  "$([ "$(tem "$MOTOR_JS" '.claude/docs/quality-goals.md')" = "1" ] && echo 0 || echo 1)"  # casa-ok: fixture de teste, o literal e o dado do caso
 check "o #2 sabe distinguir lei de acordo aprovado" \
   "$(tem "$REVISOR" 'approved')"
 
@@ -117,8 +120,7 @@ check "o tripé inclui cobertura por finalidade" \
 check "…e ela é a que enxerga o teste AUSENTE" \
   "$(tem "$REVISOR" 'teste AUSENTE')"
 for _d in constituicao quality-goals blueprint features; do
-  check "o #2 não carimba .claude/docs/$_d.md" \
-    "$([ "$(tem "$REVISOR" ".claude/docs/$_d.md")" = "1" ] && echo 0 || echo 1)"
+  check "o #2 não carimba .claude/docs/$_d.md" "$([ "$(tem "$REVISOR" ".claude/docs/$_d.md")" = "1" ] && echo 0 || echo 1)"  # casa-ok: fixture de teste, o literal e o dado do caso
 done
 
 echo "4 · o eixo requisito/pronto"

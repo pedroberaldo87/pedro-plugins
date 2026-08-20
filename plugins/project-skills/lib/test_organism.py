@@ -237,18 +237,18 @@ def test_census():
 
         assert cen["organism"] is True, "organismo não detectado"
         assert K(".claude/CLAUDE.md") == "canonical", K(".claude/CLAUDE.md")
-        assert K(".claude/docs/architecture.md") == "canonical"
-        assert K(".claude/docs/modules/mcp/api.md") == "canonical"
+        assert K(".claude/docs/architecture.md") == "canonical"  # casa-ok: fixture de teste, o literal e o dado do caso
+        assert K(".claude/docs/modules/mcp/api.md") == "canonical"  # casa-ok: fixture de teste, o literal e o dado do caso
         assert K("mcp/.claude/CLAUDE.md") == "canonical", "router não é canônico: %s" % K("mcp/.claude/CLAUDE.md")
-        assert K("finance/.claude/docs/database.md") == "pending-migration", K("finance/.claude/docs/database.md")
+        assert K("finance/.claude/docs/database.md") == "pending-migration", K("finance/.claude/docs/database.md")  # casa-ok: fixture de teste, o literal e o dado do caso
         assert K("finance/.claude/CLAUDE.md") == "pending-migration", "índice legado do módulo: %s" % K("finance/.claude/CLAUDE.md")
-        assert K("mcp/.claude/docs/api.md") == "orphan", "leftover pós-migração: %s" % K("mcp/.claude/docs/api.md")
+        assert K("mcp/.claude/docs/api.md") == "orphan", "leftover pós-migração: %s" % K("mcp/.claude/docs/api.md")  # casa-ok: fixture de teste, o literal e o dado do caso
         assert K("sub/CLAUDE.md") == "authoral", "CLAUDE.md sem marker deve ser autoral: %s" % K("sub/CLAUDE.md")
-        assert K("_archive/old/.claude/docs/z.md") == "legacy-archived"
+        assert K("_archive/old/.claude/docs/z.md") == "legacy-archived"  # casa-ok: fixture de teste, o literal e o dado do caso
         # ruído: NENHUM desses paths existe no census
-        for noisy in ("node_modules/p/.claude/docs/n.md",
-                      ".claude/worktrees/wt/.claude/docs/w.md",
-                      "_repos-antigos/r/.claude/docs/o.md"):
+        for noisy in ("node_modules/p/.claude/docs/n.md",  # casa-ok: fixture de teste, o literal e o dado do caso
+                      ".claude/worktrees/wt/.claude/docs/w.md",  # casa-ok: fixture de teste, o literal e o dado do caso
+                      "_repos-antigos/r/.claude/docs/o.md"):  # casa-ok: fixture de teste, o literal e o dado do caso
             assert noisy not in klass, "ruído vazou no census: %s" % noisy
         print("test_organism: census 4-classes + filtro de ruído ✓")
 
@@ -358,7 +358,7 @@ def test_blueprint_herda():
         bp = [i for i in itens if i["tipo"] == "desenho-do-sistema"]
         assert len(bp) == 1, itens
         assert "só o worker toca o banco" in bp[0]["texto"], bp
-        assert bp[0]["fonte"].startswith(".claude/docs/blueprint.md:"), bp
+        assert bp[0]["fonte"].startswith(".claude/docs/blueprint.md:"), bp  # casa-ok: fixture de teste, o literal e o dado do caso
         assert organism.cite_ok(root, bp[0])["valid"] is True, bp
     print("test_organism: blueprint.md entra na herança com fonte por linha (S-67) ✓")
 
