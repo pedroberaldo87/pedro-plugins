@@ -24,12 +24,6 @@ def test_versao_do_catalogo_bate_com_a_do_plugin():
     assert not divergem, divergem
 
 
-if __name__ == "__main__":
-    test_quatro_classes_com_dono_e_de_para()
-    test_versao_do_catalogo_bate_com_a_do_plugin()
-    print("ok")
-
-
 def test_classe_a_conta_so_codigo_executavel():
     """F30.6 — prosa e retrato citam o caminho de propósito; só código executável conta.
 
@@ -56,3 +50,27 @@ def test_isencao_so_vale_com_motivo_escrito():
     pelado = [("plugins/x/lib/b.py", "p = '.claude/docs/x.md'  # casa-ok:")]
     assert m.classe_a(com_motivo)["pontos"] == []
     assert len(m.classe_a(pelado)["pontos"]) == 1
+
+
+def test_o_comando_de_cada_classe_roda_de_verdade():
+    """"Conferível por comando" só vale se o comando escrito na ficha EXECUTA.
+
+    B e D crashavam em `--classe X` (os pontos deles têm 3 campos, não 4) — a ficha
+    prometia uma conferência que morria com ValueError.
+    """
+    import subprocess
+    for c in inv.inventario()["classes"]:
+        r = subprocess.run(c["comando"], shell=True, cwd=inv.RAIZ,
+                           capture_output=True, text=True,
+                           stdin=subprocess.DEVNULL, start_new_session=True)
+        assert not r.stderr.strip(), (c["id"], r.stderr[-400:])
+        assert r.stdout.strip() == str(c["ocorrencias"]), \
+            (c["id"], r.stdout.strip(), c["ocorrencias"])
+
+
+if __name__ == "__main__":
+    for _nome, _fn in sorted(globals().items()):
+        if _nome.startswith("test_") and callable(_fn):
+            _fn()
+            print("  ok", _nome)
+    print("ok")

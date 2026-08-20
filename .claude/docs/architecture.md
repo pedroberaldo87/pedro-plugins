@@ -56,6 +56,8 @@ scope:
   - scripts/suites_orfas.py
   - scripts/readme_counts_check.py
   - scripts/cadeia_check.py
+  - _shared/casa_da_doc.py
+  - _shared/casa-da-doc.md
 verified-by:
   - plugins/bootstrap/lib/test_conformance.py
   - plugins/bootstrap/hooks/test_bootstrap_hooks.sh
@@ -366,7 +368,7 @@ improve-workflow  0.16.29  [improve-workflow]           -
 intent-guard       0.8.15  [intent-guard]               HOOKS
 lixeiro             1.5.9  [faxina]                     HOOKS
 principles          1.0.5  [principles]                 -
-project-skills    0.22.133  [completude,design-md,doc,doc-load,doc-touch,monitorar,pesquisa-referencias,plan,project-skills,qa-loop,sprint,start] HOOKS
+project-skills    0.22.134  [completude,design-md,doc,doc-load,doc-touch,monitorar,pesquisa-referencias,plan,project-skills,qa-loop,sprint,start] HOOKS
 ship                1.5.6  [ship]                       HOOKS
 slides              1.6.3  [slides]                     -
 vision              0.1.1  []                           -
@@ -862,14 +864,19 @@ Quatro famílias, pelo que cada uma resolve:
   são quatro (`test_regua_texto.py`, `test_resolve_plugin.py`, `test_lar_fingido.py`,
   `test_casa_da_doc.py`).
 
-⚠️ **O conjunto mais novo atravessa três dessas famílias de uma vez: a CASA DA DOC** (2026-08-19, ainda fora do commit) — o contrato em
+⚠️ **O conjunto mais novo atravessa três dessas famílias de uma vez: a CASA DA DOC** (2026-08-19, commitada em `b738348`) — o contrato em
 `casa-da-doc.md` mais o resolvedor nas duas linguagens (`casa_da_doc.py`, `lib-casa-da-doc.sh`)
 e a suíte da fonte. Quem precisa do caminho da documentação **pergunta ao resolvedor** —
 `docs/` na raiz primeiro, `.claude/docs/` só como retrocompatibilidade (é onde a doc deste
 repositório ainda mora) — em vez de cravar a pasta. Duas cópias em `project-skills` porque
-hook não enxerga o `lib/` do plugin no cache do harness. [confirmado nesta rodada —
-`python3 _shared/test_casa_da_doc.py` → `21 passou · 0 falhou`; nenhum hook a consome ainda,
-`grep -rl casa_da_doc plugins` devolve só `project-skills` e o `SKILL.md` do `/start`]
+hook não enxerga o `lib/` do plugin no cache do harness. ⚠️ **A suíte da fonte também cobra
+PRESENÇA da premissa nas skills que decidem onde a doc nasce** (2026-08-20): o cardápio da
+família e a pauta de concepção precisam dizer que a doc visível nasce em `docs/` na raiz e
+que o segredo mora em `.claude/secrets/`, fora do git — e **apontar** para
+`_shared/casa-da-doc.md` em vez de recopiar a prosa, que é o drift que a própria premissa
+proíbe. [confirmado nesta rodada — `python3 _shared/test_casa_da_doc.py` →
+`27 passou · 0 falhou`; nenhum hook a consome ainda, e quem menciona `casa_da_doc` é só o
+`project-skills`, hoje em sete arquivos — a lista sai de `grep -rl casa_da_doc plugins`]
 
 O porquê do vendoring, copiado do cabeçalho de
 `scripts/sync-shared.sh`: *"o Claude Code isola plugins na instalação — só `plugins/<nome>/`

@@ -50,3 +50,18 @@ de `scripts/vendoring.py`, que os lê do próprio `sync-shared.sh`: lista de cam
 
 Ao criar ou editar skill desta família, a pergunta é uma: **isto que estou escrevendo já
 está escrito em outro lugar?** Se estiver, apague e aponte.
+
+---
+
+## A casa da doc — onde a documentação de um projeto mora
+
+Premissa desta casa, não gosto, e ela tem **duas metades que andam juntas**: **doc é
+visível, segredo é escondido**. A doc canônica nasce em `docs/` na raiz, à vista de quem
+abre o projeto; valor-secreto vai para `.claude/secrets/`, pasta escondida e **fora do git**
+(a linha no `.gitignore` é o que a esconde de verdade), e a doc referencia o nome da
+variável, nunca o valor.
+
+O contrato inteiro — a cascata, a casa antiga que continua respondendo, o resolvedor
+(`casa_da_doc.py` · `lib-casa-da-doc.sh`) e quem cobra — está em `_shared/casa-da-doc.md`.
+Nenhuma skill desta família escreve o caminho de novo: **pergunta ao resolvedor**. Cravar
+`.claude/docs/` na prosa é a duplicata da seção acima, com outra roupa.
