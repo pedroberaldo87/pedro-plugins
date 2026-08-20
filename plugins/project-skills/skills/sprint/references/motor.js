@@ -73,6 +73,9 @@ const DOC_REVIEW = { type:'object', required:['ok','consertados','gaps','anchor'
 const AUDITOR = { type:'object', required:['derruba','motivo','naoTentou','anchor'], properties:{
   derruba:{type:'boolean'}, motivo:{type:'string'}, naoTentou:{type:'array',items:{type:'string'}}, anchor:{type:'string'} } }
 
+const PRODUTIVIDADE = { type:'object', required:['veredito','motivo','anchor'], properties:{
+  veredito:{type:'string',enum:['produtivo','em falso']}, motivo:{type:'string'}, anchor:{type:'string'} } }
+
 const SAUDE = { type:'object', required:['fechada'], properties:{
   fechada:{type:'boolean'}, motivo:{type:'string'}, saida:{type:'string'} } }
 const DESTRAVE = { type:'object', required:['destravou','oQueFez','prova'], properties:{
@@ -423,6 +426,21 @@ ${cobra}
 Já aconteceu de um executor declarar impossível o que ele conseguia fazer com a ferramenta que
 já tinha na mão. \`derruba: true\` devolve a tarefa ao loop; \`derruba: false\` a encerra como
 impedimento real, e aí o \`motivo\` é o que o dono vai ler.
+\`anchor\` = a última linha não vazia do que você leu para decidir, literal.`
+
+const produtividadePrompt = ({ medicoes }) => `PAPEL: PRODUTIVIDADE
+Repositório: ${RAIZ}
+
+Você recebe SÓ a medição do que as últimas rodadas produziram — passos marcados, lotes verdes,
+arquivos tocados e bloqueios novos. Nenhuma conclusão de quem rodou a corrida chega até aqui,
+de propósito: quem está dentro do laço sempre acha que a próxima rodada resolve.
+
+MEDIÇÃO DAS ÚLTIMAS RODADAS:
+${J(medicoes)}
+
+\`veredito: 'produtivo'\` = os números mostram obra saindo, mesmo devagar.
+\`veredito: 'em falso'\` = as rodadas estão girando sem produzir — mais uma repete o mesmo pelo
+mesmo preço, e a corrida para aqui. \`motivo\` é o que o dono vai ler.
 \`anchor\` = a última linha não vazia do que você leu para decidir, literal.`
 
 const diagnoseStuckTaskPrompt = ({ task, attempts, desafioAnterior }) => `PAPEL: DIAGNOSTICO
@@ -1016,6 +1034,8 @@ while (!built && r < maxRounds) {
   let blocoQueFalhou = null
   let b = 0, ultimaSuite = null
   const blocosVerdes = [], marcadosDaOnda = [], reprovadasNosBlocos = [], docsDaOnda = []
+  const tocadosDaOnda = new Set()
+  const bloqueiosAntes = blockers.length
   for (const bloco of blocos) {
     if (blocoQueFalhou) { naoDespachadas.push(...bloco.map(t => t.id)); continue }
     const par = bloco.filter(t => t.parallelizable && !(t.dependsOn?.length))
@@ -1139,6 +1159,7 @@ while (!built && r < maxRounds) {
     }
     blocosVerdes.push({ bloco: b, feitos: aprovadas.map(x => x.task_id), placar: suiteB.placar })
     const tocadosB = [...new Set(aprovadas.flatMap(x => x?.files_touched || []))]
+    tocadosB.forEach(f => tocadosDaOnda.add(f))
     if (tocadosB.length) {
       const doc = await agent(docTouchPrompt({ repoRoot: ARGS.repoRoot, round: r, files: tocadosB, sessionId: ARGS.sessionId }),
         { model: ARGS.model, effort: T.mechanical.effort, phase: 'Doc', label: `doc r${r}b${b}`, schema: DOC_TOUCH })
@@ -1158,6 +1179,20 @@ while (!built && r < maxRounds) {
   // recusa não é avanço. Marcação só acontece depois de suíte verde, então todo passo
   // marcado de verdade já tem um bloco verde a lhe corresponder aqui.
   rodadasMudas = blocosVerdes.length ? 0 : rodadasMudas + 1
+
+  // ── A RODADA REGISTRA O QUE PRODUZIU (F16.1 · R-26) ─────────────────────────
+  // Medição do que ACONTECEU, não juízo de quem rodou: quantos passos o plano aceitou
+  // marcar, quantos lotes fecharam verdes, que arquivos mudaram e quantos bloqueios
+  // nasceram nesta rodada. Fica no ledger da corrida, junto dos vereditos, porque é
+  // dele que o relatório do fim conta a história rodada a rodada.
+  ledgerCorrida.push({ r, tipo: 'producao', taskId: null,
+    passosMarcados: marcadosDaOnda.filter(m => m.ok).map(m => m.task_id),
+    lotesVerdes: blocosVerdes.map(x => x.bloco),
+    arquivosTocados: [...tocadosDaOnda],
+    bloqueiosNovos: blockers.length - bloqueiosAntes,
+    resumo: `r${r} produziu: ${marcadosDaOnda.filter(m => m.ok).length} passo(s) marcado(s), `
+          + `${blocosVerdes.length} lote(s) verde(s), ${tocadosDaOnda.size} arquivo(s), `
+          + `${blockers.length - bloqueiosAntes} bloqueio(s) novo(s)` })
 
   if (desligadoPor === 'causa-global') {
     await gravaPendencias()
@@ -1340,6 +1375,24 @@ while (!built && r < maxRounds) {
     blockers.push({ what: `vigia: ${rodadasMudas} ${rodadasMudas === 1 ? 'rodada fechou' : 'rodadas seguidas fecharam'} sem nenhum bloco verde e sem nenhum passo marcado, e não há trabalho vivo na máquina`,
                     whyNeedsYou: 'travamento, não demora — o último estado salvo é o checkpoint da rodada anterior' })
     break
+  }
+
+  // ── A CORRIDA EM FALSO PARA (F16.2 · R-26) ──────────────────────────────────
+  // Quem está dentro do laço não é juiz do próprio andamento: o motor manda a MEDIÇÃO
+  // crua das últimas rodadas (F16.1) para um juiz de contexto limpo — nada de veredito
+  // de revisor, nada de resumo de executor — e ele responde produtivo ou em falso. Não
+  // há teto de número de rodadas aqui: o que para a corrida é o veredito, não a conta.
+  const medicoes = ledgerCorrida.filter(x => x.tipo === 'producao').slice(-3)
+  if (medicoes.length >= 2) {
+    const parecer = await julga(produtividadePrompt({ medicoes }),
+      { model: ARGS.model, effort: T.diagnose.effort, phase: 'Diagnose',
+        label: `produtividade:r${r}`, schema: PRODUTIVIDADE })
+    if (parecer?.veredito === 'em falso') {
+      desligadoPor = 'em-falso'
+      blockers.push({ what: `corrida em falso, na medição das últimas ${medicoes.length} rodadas: ${parecer.motivo}`,
+                      whyNeedsYou: 'os números das últimas rodadas não mostram obra saindo — destrave o que os achados apontam antes de relançar' })
+      break
+    }
   }
 
   const holdsBuild = g => g.kind !== 'concepcao' && (g.kind === 'spec' || g.kind === 'rastreio' || sevRank(g.severity) >= floor)

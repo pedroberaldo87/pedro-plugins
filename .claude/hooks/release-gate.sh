@@ -637,6 +637,20 @@ $(printf '%s' "$SOUT" | head -12)
   fi
 fi
 
+# U · a lei da COBERTURA VISUAL (Artigo 12), que só existe como texto na constituição.
+# Regra decidida pelo dono vive num arquivo que todo re-projeto de doc reescreve: some
+# num merge e nada acusa — foi o furo que o próprio artigo declara. Escopo: só quando o
+# commit toca a lei ou o cobrador; no resto do tempo custa zero.
+CVC="$ROOT/scripts/cobertura_visual_check.py"
+if [ -f "$CVC" ] && printf '%s\n' "$FILES" | grep -qE '(^|/)(docs/constituicao\.md$|cobertura_visual_check\.py$)'; then
+  if ! UOUT=$(cd "$ROOT" && python3 "$CVC" 2>&1); then
+    VIOL="${VIOL}
+❌ COBERTURA VISUAL SEM LEI — a regra do Artigo 12 sumiu do texto canônico:
+$(printf '%s' "$UOUT" | head -12)
+   → régua: python3 scripts/cobertura_visual_check.py"
+  fi
+fi
+
 portao_prazo "T..S (cadeia, vazamento, caminho-texto, worktree, autópsia)"
 
 # F · suites shell dos plugins tocados (as .py já foram no gate D)

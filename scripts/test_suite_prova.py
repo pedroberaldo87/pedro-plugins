@@ -26,6 +26,19 @@ import sys
 import tempfile
 
 RAIZ = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, os.path.join(RAIZ, "_shared"))
+from bash_posix import bash_posix  # noqa: E402
+
+# `["bash", ...]` pega o do PATH, e no Windows o do PATH é o do WSL: sem distro
+# instalada ele responde uma reclamação em UTF-16, e os três cenários daqui
+# reprovavam o `suite.sh` por causa do interpretador (medido no run 32326701424,
+# windows-latest: "and 'wsl.exe --install <Distro>' to install."). A régua é
+# RESPONDER, e ela já mora em `_shared/bash_posix.py`.
+BASH = bash_posix()
+if BASH is None:
+    print("skip: nenhum bash funcional nesta máquina — a prova da esteira é de shell")
+    sys.exit(0)
+
 ok = falhas = 0
 
 
@@ -88,7 +101,7 @@ def escreve_esteira(raiz, corpo_da_medicao):
 
 def roda(raiz, registro):
     env = dict(os.environ, GREEN_SUITE_DIR=registro)
-    return subprocess.run(["bash", os.path.join(raiz, "scripts", "suite.sh")],
+    return subprocess.run([BASH, os.path.join(raiz, "scripts", "suite.sh")],
                           cwd=raiz, env=env, capture_output=True, text=True,
                           encoding="utf-8", errors="replace",
                           stdin=subprocess.DEVNULL, start_new_session=True)
@@ -98,7 +111,7 @@ def tem_prova(raiz, registro):
     """Consulta o registro do jeito que o portão consulta: green_cache_check full."""
     env = dict(os.environ, GREEN_SUITE_DIR=registro)
     r = subprocess.run(
-        ["bash", "-c",
+        [BASH, "-c",
          '. "$1/_shared/green-cache.sh" && green_cache_check "$1" full',
          "_", raiz],
         env=env, capture_output=True, text=True, encoding="utf-8", errors="replace",

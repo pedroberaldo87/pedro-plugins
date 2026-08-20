@@ -90,8 +90,13 @@ def tres_caminhos():
         alvo = os.path.join(tmp, "%s.json" % run["stopReason"])
         with open(alvo, "w", encoding="utf-8") as fh:
             json.dump(run, fh, ensure_ascii=False)
+        # `text=True` sem `encoding` decodifica com o encoding do LOCAL — cp1252 no
+        # Windows —, e a evidencia do blocker (que tem travessao) voltava mordida:
+        # a suite reprovava o programa por causa da leitura dela. Medido no run
+        # 32326701424 (windows-latest): "porta-fechada nao trouxe a evidencia".
         p = subprocess.run([sys.executable, RETOMADA, "--run", alvo],
                            capture_output=True, text=True,
+                           encoding="utf-8", errors="replace",
                            stdin=subprocess.DEVNULL, start_new_session=True)
         if p.returncode != 0:
             falhas.append("--run %s saiu %d: %s" % (alvo, p.returncode, p.stderr.strip()))

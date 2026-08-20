@@ -1,7 +1,11 @@
 name: portability
 
 on:
+  # FILTRO DE BRANCH no push. Sem ele, cada push de branch de sonda disparava a
+  # esteira completa nos três sistemas — cinco rodadas queimadas na campanha de
+  # 2026-08-19. Sonda se mede por `workflow_dispatch`, que continua intacto abaixo.
   push:
+    branches: [main]
   pull_request:
   # Disparo manual com FILTRO — o laço de conserto não cabe em rodadas de 24 min.
   # Consertar uma classe de defeito e esperar a esteira inteira para saber se funcionou

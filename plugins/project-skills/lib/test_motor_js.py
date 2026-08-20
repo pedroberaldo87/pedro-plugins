@@ -110,6 +110,53 @@ for nome, fonte, _base in FONTES:
     check("a varredura chama a mesma gravação, não uma segunda via (%s)" % nome,
           fonte.count("await gravaPendencias()") >= 4)
 
+# A3c · A PRODUÇÃO DA RODADA NO LEDGER (F16.1 · R-26). O ledger guardava só veredito e
+# marcação — quem lia o relatório não sabia o que a rodada PRODUZIU. Agora toda rodada
+# grava a medição do que aconteceu, com os quatro campos, no caminho por onde toda saída
+# passa (a mesma linha que fecha a conta do vigia).
+for nome, fonte, _base in FONTES:
+    check("a rodada grava a produção no ledger da corrida (%s)" % nome,
+          "tipo: 'producao'" in fonte)
+    for campo in ("passosMarcados", "lotesVerdes", "arquivosTocados", "bloqueiosNovos"):
+        check("o campo '%s' está na medição da rodada (%s)" % (campo, nome),
+              campo + ":" in fonte)
+    check("é medição do que aconteceu, não palavra de agente (%s)" % nome,
+          "marcadosDaOnda.filter(m => m.ok)" in fonte
+          and "blockers.length - bloqueiosAntes" in fonte
+          and "[...tocadosDaOnda]" in fonte)
+    check("os bloqueios novos são contados a partir da largada da rodada (%s)" % nome,
+          "const bloqueiosAntes = blockers.length" in fonte)
+    check("ela é gravada no caminho por onde toda saída da rodada passa (%s)" % nome,
+          fonte.find("tipo: 'producao'") > fonte.find("rodadasMudas = blocosVerdes.length"))
+
+# A3d · O JUIZ DE CONTEXTO LIMPO PARA A CORRIDA EM FALSO (F16.2 · R-26). Quem está
+# dentro do laço não julga o próprio andamento: o motor manda SÓ a medição das últimas
+# rodadas (a de F16.1) para um juiz separado, e o veredito 'em falso' desliga a corrida —
+# sem teto de número de rodadas, que continua sendo `maxRounds || Infinity`.
+for nome, fonte, _base in FONTES:
+    check("o motor consulta o juiz de produtividade (%s)" % nome,
+          "produtividadePrompt({ medicoes })" in fonte and "schema: PRODUTIVIDADE" in fonte)
+    check("o juiz recebe SÓ a medição das últimas rodadas (%s)" % nome,
+          "ledgerCorrida.filter(x => x.tipo === 'producao').slice(-3)" in fonte)
+    check("o veredito 'em falso' para a corrida (%s)" % nome,
+          "parecer?.veredito === 'em falso'" in fonte
+          and "desligadoPor = 'em-falso'" in fonte
+          and re.search(r"desligadoPor = 'em-falso'.*?\n\s*blockers\.push\(.*?\n.*?\n\s*break", fonte, re.S) is not None)
+    check("a parada é do veredito, não de um teto de rodadas (%s)" % nome,
+          "medicoes.length >= 2" in fonte and "rodadasMudasMax" not in fonte.split("F16.2")[1].split("holdsBuild")[0])
+
+check("o schema do juiz aceita só produtivo ou em falso",
+      "const PRODUTIVIDADE" in motor
+      and "enum:['produtivo','em falso']" in motor
+      and "required:['veredito','motivo','anchor']" in motor)
+_corpo = motor.split("const produtividadePrompt", 1)[-1].split("\nconst ", 1)[0]
+check("o prompt do juiz não recebe conclusão de quem roda a corrida",
+      "MEDIÇÃO DAS ÚLTIMAS RODADAS" in _corpo
+      and "${J(medicoes)}" in _corpo
+      and not any(x in _corpo for x in ("J(results", "J(review", "ledger", "resumo do executor")))
+check("a corrida sem teto de rodadas continua sendo o padrão",
+      "const maxRounds = ARGS.maxRounds || Infinity" in motor)
+
 check("o prompt chama o subcomando `pendencia` do plan_state.py",
       "pendencia ${planIdDe(planPath)} <taskId>" in motor)
 # o programa que a gravação chama tem que existir com esse nome — prompt apontando
@@ -128,6 +175,7 @@ PAPEIS = {
     "checkpointPrompt": "MECANICO", "docTouchPrompt": "MECANICO",
     "colheitaPrompt": "MECANICO", "tickPlanPrompt": "MARCAR",
     "runSuitePrompt": "SUITE", "pendenciaPrompt": "MARCAR",
+    "produtividadePrompt": "PRODUTIVIDADE",
 }
 for nome, papel in PAPEIS.items():
     m = re.search(r"const %s = [^`]*`PAPEL: (\w+)" % nome, motor)

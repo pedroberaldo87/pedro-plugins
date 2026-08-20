@@ -359,8 +359,13 @@ def _tabela_ps():
     _PS_LIDO = True
     # No Windows o `ps` do Git Bash ignora `-eo` e sai com rc=0 no formato dele:
     # a tabela nasceria de pids MSYS, que não são os pids que o motor usa. Cache
-    # vazio sem _PS_OK = "não sei ler" — e a dúvida protege o processo.
+    # vazio, mas a leitura é BOA: lá não existe terminal de controle, e "nenhum
+    # processo tem tty" é RESPOSTA, não ignorância. Sem o `_PS_OK`, `_sem_terminal`
+    # respondia "tem terminal" para todo mundo e a varredura do inventário parava
+    # de apontar suspeito e órfão no Windows inteiro (8 casos da suíte, run
+    # 32325412887) — foi este o defeito que e13a850 introduziu.
     if os.name == "nt":
+        _PS_OK = True
         return
     try:
         out = subprocess.run(["ps", "-eo", "pid=,stat=,tty="],
@@ -397,21 +402,30 @@ def _ps_de(pid):
 def _vivo_nt(pid):
     """`vivo()` do Windows. `os.kill(pid, 0)` lá NÃO é sonda: qualquer sinal fora
     dos dois CTRL_* vira TerminateProcess — perguntar "está vivo?" MATARIA o
-    processo. A pergunta certa é abrir o handle e ler o código de saída."""
+    processo. A pergunta certa é abrir o handle e ESPERAR ZERO SEGUNDO por ele:
+    o encerramento no Windows é assíncrono, e o código de saída já aparece
+    enquanto as threads ainda estão saindo — quem só lê o código responde
+    "morreu" antes de o processo cair. O handle só é sinalizado no fim de
+    verdade."""
     import ctypes
     try:
         k32 = ctypes.windll.kernel32
     except AttributeError:
         return False
     PROCESS_QUERY_LIMITED_INFORMATION = 0x1000
-    h = k32.OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, False, int(pid))
+    SYNCHRONIZE = 0x00100000
+    h = k32.OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION | SYNCHRONIZE, False, int(pid))
     if not h:
         return k32.GetLastError() == 5   # acesso negado: existe, só não é nosso
     try:
-        codigo = ctypes.c_ulong()
-        if not k32.GetExitCodeProcess(h, ctypes.byref(codigo)):
-            return True
-        return codigo.value == 259       # STILL_ACTIVE
+        # Quem responde é a ESPERA DE ZERO SEGUNDO, não o código de saída.
+        # `TerminateProcess` é assíncrono: o código de saída já aparece enquanto as
+        # threads ainda estão saindo, e `GetExitCodeProcess` dizia "morreu" cedo
+        # demais — `encerra()` voltava "TERM" e o `Popen.poll()` de quem esperava
+        # ainda devolvia None, ou seja, o processo NÃO tinha caído (medido no
+        # runner: `encerra -> 'TERM' em 0.6s` com `poll=None`, run 32326254747).
+        # O objeto do processo só é sinalizado quando ele acabou de verdade.
+        return k32.WaitForSingleObject(h, 0) != 0   # 0 = WAIT_OBJECT_0 = terminou
     finally:
         k32.CloseHandle(h)
 
