@@ -18,9 +18,14 @@ hj_leitor >/dev/null 2>&1 || { hj_avisa "sessionstart-doc"; exit 0; }
 # A detecção de interface é opcional: se a lib sumir, o aviso de doc autoral apenas
 # deixa de contar design.md — o resto do hook (o heads-up da doc minerada) não depende
 # dela e NÃO pode morrer junto. É a isenção "uso local já degradado dispensa guarda no
-# topo" de .claude/docs/patterns.md §5.3: um `exit 0` aqui mataria trabalho alheio.
+# topo" de patterns.md §5.3 (na casa da doc): um `exit 0` aqui mataria trabalho alheio.
 if ! . "$SCRIPT_DIR/lib-has-frontend.sh" 2>/dev/null; then
   has_frontend() { return 1; }
+fi
+# A casa da doc sai do resolvedor único (contrato em _shared/casa-da-doc.md);
+# se a lib sumir, degrada pra casa antiga — aviso a menos, nunca sessão morta.
+if ! . "$SCRIPT_DIR/lib-casa-da-doc.sh" 2>/dev/null; then
+  casa_da_doc() { printf '%s/.claude/docs\n' "${1%/}"; }  # casa-ok: fallback degradado quando a lib do resolvedor sumiu
 fi
 
 INPUT=$(cat 2>/dev/null)
@@ -67,7 +72,7 @@ if [ -z "$LINES" ]; then
   N_AUTORAIS=$(printf '%s\n' $AUTORAIS_DOCS | wc -l | tr -d ' ')
   AUTORAL=0; FALTAM=""
   for f in $AUTORAIS_DOCS; do
-    if [ -f "$PROJ/.claude/docs/${f}.md" ]; then
+    if [ -f "$(casa_da_doc "$PROJ")/${f}.md" ]; then
       AUTORAL=$((AUTORAL + 1))
     else
       FALTAM="${FALTAM}${FALTAM:+, }${f}"
@@ -79,7 +84,7 @@ if [ -z "$LINES" ]; then
   [ -z "$NFILES" ] && NFILES=0
 
   if [ "$AUTORAL" -eq 0 ]; then
-    CTX="📐 ${PROJ} não tem documentação nenhuma — sem CLAUDE.md, sem .claude/docs/.\n\nProjeto novo começa PELA concepção: OFEREÇA o \`/start\`. Ele entrevista o usuário sobre o que o sistema prioriza, o que é inegociável, onde ele termina, as decisões que explicam o formato e o vocabulário interno. Essa entrevista vem ANTES da mineração — é ela que guia tudo depois, inclusive a sua leitura do código.\nSão cinco etapas de acordo, uma de cada vez: o autoral, a arquitetura, a interface (só se houver tela), as jornadas e a lista de funcionalidades. Cada etapa é apresentada numa página com o texto integral à vista, e o de acordo é colhido ALI — não no chat, e nunca sobre um resumo."
+    CTX="📐 ${PROJ} não tem documentação nenhuma — sem CLAUDE.md, sem pasta de docs.\n\nProjeto novo começa PELA concepção: OFEREÇA o \`/start\`. Ele entrevista o usuário sobre o que o sistema prioriza, o que é inegociável, onde ele termina, as decisões que explicam o formato e o vocabulário interno. Essa entrevista vem ANTES da mineração — é ela que guia tudo depois, inclusive a sua leitura do código.\nSão cinco etapas de acordo, uma de cada vez: o autoral, a arquitetura, a interface (só se houver tela), as jornadas e a lista de funcionalidades. Cada etapa é apresentada numa página com o texto integral à vista, e o de acordo é colhido ALI — não no chat, e nunca sobre um resumo."
     # Projeto MADURO não recomeça do zero: com obra densa no disco, o caminho é o modo
     # ex-post — inferir o rascunho do que já foi construído e conduzir o dono pelo
     # referendo. O corte por contagem de arquivos versionados é deliberadamente grosso:
@@ -127,14 +132,14 @@ while IFS=$'\t' read -r TAG PROJ N STALE OOP; do
   else
     CLAUDE_MD_DISPLAY="${PROJ}/.claude/CLAUDE.md"
   fi
-  LIST="${LIST}- ${CLAUDE_MD_DISPLAY} (${N} doc(s) em .claude/docs/)${FLAG}\n"
+  LIST="${LIST}- ${CLAUDE_MD_DISPLAY} (${N} doc(s) na pasta de docs)${FLAG}\n"
 
   # ---------------------------------------------------------------------------
   # F1: minerado-sem-autoral. Projeto TEM doc (passou pelo ramo acima), mas os
   # 5 autorais (quality-goals, constraints, context, solution-strategy,
   # glossary) nunca foram preenchidos. Achado da sessão 871f9573: este ramo
   # nunca contava autoral — só o ramo "sem doc nenhuma" acima contava.
-  # CONTRATO DE GATE (.claude/docs/patterns.md → §5.3):
+  # CONTRATO DE GATE (patterns.md, na casa da doc → §5.3):
   #   canal      additionalContext (informa, não bloqueia)
   #   cap        1x por (sessão, projeto) — escopado por session_id
   #   desligar   DOC_AUTORAL_GATE=0
@@ -145,7 +150,7 @@ while IFS=$'\t' read -r TAG PROJ N STALE OOP; do
     has_frontend "${PROJ}" && AUTORAIS_DOCS="$AUTORAIS_DOCS design"
     AUTORAL=0; FALTAM=""
     for f in $AUTORAIS_DOCS; do
-      if [ -f "${PROJ}/.claude/docs/${f}.md" ]; then
+      if [ -f "$(casa_da_doc "$PROJ")/${f}.md" ]; then
         AUTORAL=$((AUTORAL + 1))
       else
         FALTAM="${FALTAM}${FALTAM:+, }${f}"
@@ -181,7 +186,7 @@ if [ -n "$ORG_MARK" ] && [ "$(hj_campo "$ORG_MARK" organism)" = "true" ]; then
   HEADER="📚 Docs por módulo do organismo ${ORG_NAME} (o todo vive em .claude/CLAUDE.md da raiz — NÃO trate como projetos isolados):"
 fi
 
-CTX="${HEADER}\n${LIST}\nAntes de explorar com grep/Glob/Explore, LEIA o índice CLAUDE.md e o doc relevante em .claude/docs/ — cobre stack, arquitetura, gotchas, deploy. A doc é agent-facing (feita pra você consumir). Atualizar: /doc."
+CTX="${HEADER}\n${LIST}\nAntes de explorar com grep/Glob/Explore, LEIA o índice CLAUDE.md e o doc relevante na pasta de docs do projeto — cobre stack, arquitetura, gotchas, deploy. A doc é agent-facing (feita pra você consumir). Atualizar: /doc."
 
 # expand \n escapes into real newlines, then JSON-encode safely via jq
 CTX=$(printf '%b' "$CTX")

@@ -85,7 +85,8 @@ mkdir -p "$CASA"
 printf '<h1>Painel</h1>\n<p>3 pedidos (FICTICIO)</p>\n' > "$CASA/painel.html"
 printf '<h1>Entrada</h1>\n<form>FICTICIO</form>\n'      > "$CASA/entrada.html"
 SC="$CASA/interface.prototipo.md"
-cat > "$SC" <<'EOF'
+CASA_REL="${CASA#"$TMP/proj/"}"   # o rel da fixture sai da própria CASA, sem cravar de novo
+cat > "$SC" <<EOF
 ---
 natureza: anexo
 anexo-de: design.md
@@ -98,8 +99,8 @@ marcador-ficticio: FICTICIO
 
 ## Arquivos
 
-- .claude/docs/prototipo/painel.html
-- .claude/docs/prototipo/entrada.html
+- ${CASA_REL}/painel.html
+- ${CASA_REL}/entrada.html
 EOF
 ESPERADA=$(cat "$CASA/painel.html" "$CASA/entrada.html" | cksum | cut -d' ' -f1)
 

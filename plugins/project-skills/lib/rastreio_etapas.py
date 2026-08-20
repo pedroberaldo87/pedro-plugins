@@ -30,7 +30,7 @@ verbatim** (é a regra do kit — toda linha aponta a passagem que a originou), 
 cujo texto não aparece em `features.md` é passo que ninguém pegou.
 
 Uso:
-    python3 rastreio_etapas.py <dir com os .claude/docs, ou o próprio .claude/docs>
+    python3 rastreio_etapas.py <a raiz do projeto, ou a própria casa da doc>
 
 stdlib only (requisito do repo).
 """
@@ -182,7 +182,7 @@ def conferir(docs_dir):
 
 
 def resolver(caminho):
-    """Aceita a raiz do projeto ou o próprio `.claude/docs`."""
+    """Aceita a raiz do projeto ou a própria casa da doc."""
     caminho = os.path.abspath(caminho or ".")
     dentro = os.path.join(caminho, ".claude", "docs")
     return dentro if os.path.isdir(dentro) else caminho

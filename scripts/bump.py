@@ -3,7 +3,7 @@
 
 Por que existe (2026-08-15). Quatro corridas do /sprint morreram na mesma porta: o
 autor sobe a versão em `plugins/<nome>/.claude-plugin/plugin.json`, espelha em
-`.claude-plugin/marketplace.json`, esquece a tabela que `.claude/docs/architecture.md`
+`.claude-plugin/marketplace.json`, esquece a tabela que `architecture.md` (na casa da doc)
 publica — e a esteira fica vermelha para todo mundo. Nenhuma delas foi desatenção
 isolada: o terceiro arquivo não parece parte do bump, e lembrar dele é justamente o
 que falha sob carga.

@@ -6,7 +6,7 @@
 #   A) projeto SEM documentação nenhuma  -> DENY SEMPRE, manda rodar /start.
 #      Dois escapes: o usuário VERBALIZAR que é pra ignorar — o
 #      userpromptsubmit-plan-escape.sh ouve a frase e grava o sentinel de escape —
-#      ou a DISPENSA REGISTRADA (S-105): `.claude/docs/dispensa.md` com `motivo:`
+#      ou a DISPENSA REGISTRADA (S-105): `dispensa.md` na casa da doc com `motivo:`
 #      no frontmatter. Ausência silenciosa e dispensa deliberada tinham a mesma
 #      cara; agora só a segunda tem arquivo, e só ela libera entre sessões.
 #      Decisão de projeto (2026-07-26): nega sempre, a não ser que o usuário
@@ -22,7 +22,7 @@
 #   F3.2 e F5.3) — ter doc não é ter acordo, e era aqui que o gate calava:
 #
 #   D) doc existe mas as METAS DE QUALIDADE do projeto não estão fechadas -> DENY.
-#      (o nome "constituição" é de `.claude/docs/constituicao.md`, contra o qual os
+#      (o nome "constituição" é de `constituicao.md` na casa da doc, contra o qual os
 #      revisores medem — dois arquivos com o mesmo nome de lei mandam o leitor
 #      abrir o errado, F1.3.)
 #   D2) a CONSTITUIÇÃO do projeto existe mas não está acordada -> DENY nomeando-a
@@ -103,6 +103,10 @@ esac
 # ---------------------------------------------------------------------------
 . "$SCRIPT_DIR/lib-project-root.sh" 2>/dev/null || exit 0
 PROJ=$(project_root "$CWD") || exit 0
+# A casa da doc sai do resolvedor único (contrato em _shared/casa-da-doc.md).
+. "$SCRIPT_DIR/lib-casa-da-doc.sh" 2>/dev/null || exit 0
+CASA=$(casa_da_doc "$PROJ")
+CASA_REL="${CASA#"$PROJ"/}"
 [ -z "$PROJ" ] && exit 0
 
 PHASH=$(project_hash "$PROJ")
@@ -115,12 +119,12 @@ ESCAPE="${TMPD}/claude-plan-gate-escape-${SESSION}-${PHASH}"
 
 # ---------------------------------------------------------------------------
 # DISPENSA REGISTRADA (S-105). Dispensar a fundação é ATO, não ausência: quem
-# dispensa deixa `.claude/docs/dispensa.md` com `motivo:` no frontmatter. É
+# dispensa deixa `dispensa.md` na casa da doc com `motivo:` no frontmatter. É
 # documento, não sentinel de sessão — dura entre sessões, vai pro git e o próximo
 # humano lê por que este projeto planeja sem concepção. Arquivo sem `motivo:`
 # preenchido NÃO é dispensa: segue tratado como ausência, e o gate diz isso.
 # ---------------------------------------------------------------------------
-DISPENSA="$PROJ/.claude/docs/dispensa.md"
+DISPENSA="$CASA/dispensa.md"
 DISPENSA_MOTIVO=""
 [ -f "$DISPENSA" ] && DISPENSA_MOTIVO=$(sed -n 's/^motivo:[[:space:]]*//p' "$DISPENSA" 2>/dev/null | head -1)
 
@@ -135,13 +139,13 @@ liberado() { [ -f "$ESCAPE" ] || [ -n "$DISPENSA_MOTIVO" ]; }
 # ---------------------------------------------------------------------------
 [ -r "$SCRIPT_DIR/doc-detect.sh" ] || exit 0
 
-# Tem documentação project-doc? (CLAUDE.md com marker + .claude/docs/)
+# Tem documentação project-doc? (CLAUDE.md com marker + a casa da doc)
 LINE=$(bash "$SCRIPT_DIR/doc-detect.sh" --one "$PROJ" 2>/dev/null)
 
 if [ -z "$LINE" ]; then
   # -------------------------------------------------------------------------
   # Sem doc project-doc. MAS existe um CLAUDE.md escrito à mão? O doc-detect
-  # exige `.claude/docs/` pra reportar, então repo com CLAUDE.md manual e sem a
+  # exige a casa da doc pra reportar, então repo com CLAUDE.md manual e sem a
   # árvore caía aqui e era negado PARA SEMPRE — com uma mensagem que mentia
   # ("sem CLAUDE.md") sobre um arquivo que está lá. É o caso mais comum de repo
   # alheio. Documentação escrita à mão É documentação: trata como CASO B (leia),
@@ -159,7 +163,7 @@ if [ -z "$LINE" ]; then
     [ "$C" -eq "$C" ] 2>/dev/null || C=0
     [ "$C" -ge 3 ] && exit 0
     echo $((C + 1)) > "$CF"
-    MSG="📐 ${PROJ} tem um CLAUDE.md escrito à mão (\`${HANDMD}\`), mas não a documentação estruturada (\`.claude/docs/\`). LEIA o ${HANDMD} antes de planejar — é a única documentação que existe aqui. Depois do plano, ofereça \`/start\` (a intenção do sistema) e \`/doc\` (mineração do resto): o CLAUDE.md sozinho não cobre dado, durabilidade nem fluxo. Um Read nele libera este aviso (aviso $((C + 1))/3)."
+    MSG="📐 ${PROJ} tem um CLAUDE.md escrito à mão (\`${HANDMD}\`), mas não a documentação estruturada (\`${CASA_REL}/\`). LEIA o ${HANDMD} antes de planejar — é a única documentação que existe aqui. Depois do plano, ofereça \`/start\` (a intenção do sistema) e \`/doc\` (mineração do resto): o CLAUDE.md sozinho não cobre dado, durabilidade nem fluxo. Um Read nele libera este aviso (aviso $((C + 1))/3)."
     hj_deny "$MSG"
     exit 0
   fi
@@ -170,19 +174,19 @@ if [ -z "$LINE" ]; then
   # Autoral já começou? (start-doc rodou mas o índice ainda não existe)
   AUTORAL=0
   for f in quality-goals constraints context solution-strategy glossary; do
-    [ -f "$PROJ/.claude/docs/${f}.md" ] && AUTORAL=$((AUTORAL + 1))
+    [ -f "$CASA/${f}.md" ] && AUTORAL=$((AUTORAL + 1))
   done
 
   # Dispensa escrita sem motivo é ausência com arquivo em cima: dizer só "não tem
   # documentação nenhuma" mandaria o dono procurar um arquivo que está lá.
-  [ -f "$DISPENSA" ] && ESC_HINT="Existe .claude/docs/dispensa.md sem \`motivo:\` no frontmatter — sem motivo não é dispensa. Escreva o motivo ali, ou rode \`/start\`. "
+  [ -f "$DISPENSA" ] && ESC_HINT="Existe ${CASA_REL}/dispensa.md sem \`motivo:\` no frontmatter — sem motivo não é dispensa. Escreva o motivo ali, ou rode \`/start\`. "
 
-  ESC_HINT="${ESC_HINT}Este gate nega SEMPRE enquanto não houver doc. O escape é o usuário autorizar explicitamente — o token garantido é \`--sem-doc\` (frases como \"ignora a doc\" também valem, mas o token é inequívoco). Ele revoga com \`--com-doc\`. Para dispensar de vez, e não só nesta sessão, registre \`.claude/docs/dispensa.md\` com \`motivo:\` no frontmatter — dispensa é ato registrado, e é o que separa este projeto de um que só esqueceu a documentação."
+  ESC_HINT="${ESC_HINT}Este gate nega SEMPRE enquanto não houver doc. O escape é o usuário autorizar explicitamente — o token garantido é \`--sem-doc\` (frases como \"ignora a doc\" também valem, mas o token é inequívoco). Ele revoga com \`--com-doc\`. Para dispensar de vez, e não só nesta sessão, registre \`${CASA_REL}/dispensa.md\` com \`motivo:\` no frontmatter — dispensa é ato registrado, e é o que separa este projeto de um que só esqueceu a documentação."
 
   if [ "$AUTORAL" -gt 0 ]; then
     MSG="📐 ${PROJ} tem ${AUTORAL} de 5 documentos autorais, mas ainda não tem índice CLAUDE.md nem doc minerada. Termine com \`/start\` (ele cobra o que falta) e depois rode \`/doc\` — aí o plano pode ser feito em cima de algo. Plano sem documentação nasce no vácuo e o erro só aparece na implementação. ${ESC_HINT}"
   else
-    MSG="📐 ${PROJ} NÃO tem documentação nenhuma — sem CLAUDE.md, sem .claude/docs/. Antes de planejar, rode \`/start\`: ele entrevista o usuário sobre o que o sistema prioriza, o que é inegociável, onde ele termina, as decisões que explicam o formato e o vocabulário interno. É essa entrevista que guia tudo que vem depois — inclusive este plano. Se houver código, depois dela rode \`/doc\` pra minerar o resto. ${ESC_HINT}"
+    MSG="📐 ${PROJ} NÃO tem documentação nenhuma — sem CLAUDE.md, sem ${CASA_REL}/. Antes de planejar, rode \`/start\`: ele entrevista o usuário sobre o que o sistema prioriza, o que é inegociável, onde ele termina, as decisões que explicam o formato e o vocabulário interno. É essa entrevista que guia tudo que vem depois — inclusive este plano. Se houver código, depois dela rode \`/doc\` pra minerar o resto. ${ESC_HINT}"
   fi
 
   hj_deny "$MSG"
@@ -204,7 +208,7 @@ fi
 #   (`lib-doc-mark.sh`). Editar depois do de acordo reabre a etapa — o de acordo é
 #   sobre um TEXTO, não sobre um nome de arquivo.
 # ---------------------------------------------------------------------------
-DOCS_DIR="$PROJ/.claude/docs"
+DOCS_DIR="$CASA"
 
 # F2.2/S-2: `approved` diz que o dono deu o de acordo, não SOBRE QUAL TEXTO. Sem a
 # marca, editar o corpo depois da aprovação deixava a etapa fechada com um conteúdo
@@ -280,7 +284,7 @@ if ! liberado; then
     # A mensagem sai no perfil "hook" da régua (_shared/regua_texto.py): cabeçalho com
     # emoji, bullets de uma frase, sem markdown — o canal não renderiza crase nem `**`.
     MSG="📐 Plano barrado: as metas de qualidade deste projeto não estão acordadas.
-• .claude/docs/quality-goals.md ${QG_WHY}
+• ${CASA_REL}/quality-goals.md ${QG_WHY}
 • são elas que dizem o que este sistema prioriza quando não dá pra ter tudo
 • sem elas o plano nasce sem régua, e o trade-off vira preferência sua
 • rode /start quality-goals e feche o acordo com o usuário
@@ -290,7 +294,7 @@ if ! liberado; then
   fi
 
   # ---- D2) a lei do projeto (S-4) ----
-  # `.claude/docs/constituicao.md` é o documento contra o qual os revisores medem — em
+  # `constituicao.md` na casa da doc é o documento contra o qual os revisores medem — em
   # conflito com qualquer outro doc, ele ganha. Lei em rascunho é lei que ninguém acordou:
   # o plano nasceria medido por um texto que o dono nunca sancionou.
   # Cobrada SÓ quando o arquivo existe: nenhuma skill gera constituição (o /start
@@ -304,7 +308,7 @@ if ! liberado; then
       LEI_WHY="está em rascunho (falta status: approved, ou há [PENDENTE] no corpo)"
     fi
     MSG="📐 Plano barrado: a constituição deste projeto não está acordada.
-• .claude/docs/constituicao.md ${LEI_WHY}
+• ${CASA_REL}/constituicao.md ${LEI_WHY}
 • é a lei do projeto: em conflito com qualquer outro documento, ela ganha
 • plano medido por lei que o dono não sancionou vale o que vale o rascunho
 • feche o acordo sobre a constituição e volte a planejar
@@ -393,7 +397,7 @@ N=$(printf '%s' "$LINE" | cut -f3)
 STALE=$(printf '%s' "$LINE" | cut -f4)
 OOP=$(printf '%s' "$LINE" | cut -f5)
 
-DOCLIST=$(for f in "$PROJ/.claude/docs"/*.md; do [ -e "$f" ] && basename "$f"; done | paste -sd ', ' -)
+DOCLIST=$(for f in "$CASA"/*.md; do [ -e "$f" ] && basename "$f"; done | paste -sd ', ' -)
 [ -n "$DOCLIST" ] && DOCLIST=" Docs: ${DOCLIST}."
 
 STALEMSG=""
@@ -423,7 +427,7 @@ else
 fi
 
 NUDGE_NO=$((COUNT + 1))
-MSG="📐 Você está prestes a fazer um plano em ${PROJ}, que TEM documentação (${N} doc(s)) — e ela ainda não foi lida nesta sessão.${DOCLIST} Leia ${CLAUDE_MD_PATH} e o(s) doc(s) do assunto do plano ANTES de planejar: plano feito sem a doc repete decisão já tomada e ignora gotcha já conhecido. Um Read em qualquer arquivo de .claude/docs/ ou no CLAUDE.md libera automaticamente (aviso ${NUDGE_NO}/${MAX_NUDGES} — depois disso silencio).${STALEMSG}"
+MSG="📐 Você está prestes a fazer um plano em ${PROJ}, que TEM documentação (${N} doc(s)) — e ela ainda não foi lida nesta sessão.${DOCLIST} Leia ${CLAUDE_MD_PATH} e o(s) doc(s) do assunto do plano ANTES de planejar: plano feito sem a doc repete decisão já tomada e ignora gotcha já conhecido. Um Read em qualquer arquivo de ${CASA_REL}/ ou no CLAUDE.md libera automaticamente (aviso ${NUDGE_NO}/${MAX_NUDGES} — depois disso silencio).${STALEMSG}"
 
 hj_deny "$MSG"
 exit 0

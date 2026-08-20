@@ -29,12 +29,13 @@ repete o texto.
 | `.claude/secrets/` | o elo para o cofre de valores-secreto, fora da árvore | não |
 | `.claude/legacy-pre-migracao/` | a doc de antes de o projeto virar organismo — preservada, e invisível aos hooks | conforme o projeto |
 | `.claude/hooks/` | os hooks do próprio projeto (não é pasta de trabalho de skill) | sim |
+| `~/.claude/worktrees/<repo>/<plan-id>` | a worktree por-missão da frente do plano — o `/sprint` a cria, o rito de fechamento a remove, e a sobra é acusada por `scripts/frente_orfa_check.py` | não (fora da árvore) |
 
 Esta tabela é a lista FECHADA das pastas de trabalho de um projeto. Pasta nova
 citada por uma skill sem entrar aqui é acusada por `scripts/contrato_pastas_check.py`
 — e a ordem é a inversa do costume: primeiro a casa é declarada aqui, depois a skill
 a usa. Estado que atravessa projetos mora em `~/.claude/…` e não é assunto desta
-tabela.
+tabela — a exceção é a casa das worktrees, que é por-missão e por isso entra.
 
 **A fixture de teste é a exceção e NÃO vai para `.claude/specs/`**: ela mora rastreada ao
 lado da suíte que a lê (`fixtures/` junto do `test_*`), dentro do git. Fixture jogada numa

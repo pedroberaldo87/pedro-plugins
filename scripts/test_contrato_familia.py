@@ -31,6 +31,7 @@ CLAUSULAS = [
     ("a pasta canônica dos documentos", "`.claude/docs/`"),  # casa-ok: fixture de teste, o literal e o dado do caso
     ("a pasta do log de decisões", "`.claude/docs/decisions/`"),  # casa-ok: fixture de teste, o literal e o dado do caso
     ("a pasta dos planos", "`.claude/plans/`"),
+    ("a casa das worktrees por-missão", "`~/.claude/worktrees/<repo>/<plan-id>`"),
     ("o índice e os ponteiros ficam na raiz", "ficam na **raiz do projeto**"),
     ("os autorais das seis etapas", "`architecture-intent.md`"),
     ("os minerados", "`runtime.md`"),

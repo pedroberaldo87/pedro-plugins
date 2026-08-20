@@ -37,7 +37,7 @@ SPECS=(
   "plugins/visual/hooks::bash_posix.py"
   # Comparar CAMINHO, e nao o texto que por acaso o descreve. Seis suites
   # reprovaram no Windows em 2026-08-11 comparando `.claude\\docs\\x.md` com
-  # `.claude/docs/x.md` — o mesmo arquivo, dois textos. Quem cobra a volta do
+  # com barra normal — o mesmo arquivo, dois textos. Quem cobra a volta do
   # padrao velho e `scripts/caminho_como_texto_check.py`.
   "plugins/project-skills/lib::caminho_igual.py"
   "plugins/handoff/lib::collect_engine.py"
@@ -185,7 +185,7 @@ SPECS=(
   "plugins/intent-guard/hooks::lib-lar-fingido.sh"
   "plugins/visual/skills/visual::lib-lar-fingido.sh"
   # O resolvedor da CASA DA DOC (contrato em _shared/casa-da-doc.md): quem precisa
-  # do caminho da doc pergunta a ele — `docs/` na raiz primeiro, `.claude/docs/`
+  # do caminho da doc pergunta a ele — `docs/` na raiz primeiro, `.claude/docs/`  # casa-ok: o comentário descreve o próprio resolvedor
   # só como retrocompatibilidade. Duas cópias porque hook não enxerga o lib/ do
   # plugin no cache do harness, e as duas linguagens andam juntas.
   "plugins/project-skills/lib::casa_da_doc.py"

@@ -5,7 +5,7 @@ pattern_check.py — verifica se o projeto segue o padrão project-doc v2 (gen=3
 Checks 5 invariantes de disco:
   (a) markers v2 presentes em CLAUDE.md (raiz do projeto — convenção nativa do
       Claude Code; fallback para .claude/CLAUDE.md em projetos mais antigos)
-  (b) todo .claude/docs/*.md abre com frontmatter YAML `^---\n`
+  (b) todo *.md da casa da doc abre com frontmatter YAML `^---\n`
   (c) .claude/.project-doc/findings.jsonl existe
   (d) todo doc tem linha doc-sig no frontmatter (required from new gen)
   (e) gen_found == CURRENT_GEN
@@ -340,7 +340,7 @@ def check_pattern(project_root):
     if not os.path.isfile(journal_path):
         result["violations"].append("(c) .claude/.project-doc/findings.jsonl não existe")
 
-    # --- (b) e (d) — verifica cada .claude/docs/*.md ---
+    # --- (b) e (d) — verifica cada *.md da casa da doc ---
     docs_dir = os.path.join(project_root, ".claude", "docs")
     doc_files = []
     try:
@@ -436,7 +436,7 @@ def check_nested_pointers(project_root, docs_result):
         )
         if app_doc is None:
             violations.append(
-                "(nested) app %s tem marker nested-pointer mas não tem doc em .claude/docs/" % app_name
+                "(nested) app %s tem marker nested-pointer mas não tem doc na casa da doc" % app_name
             )
 
     return violations
@@ -550,7 +550,7 @@ def _git_diff_names(root, range_or_sha, subtree, added_only=False, cached=False,
 
 def _doc_base(root, docpath):
     """Dir-base contra o qual o `scope:` do doc resolve = o dir que contém .claude/.
-    Ex.: <root>/finance/.claude/docs/db.md → base rel 'finance'; <root>/.claude/... → ''."""
+    Ex.: <root>/finance/<casa da doc>/db.md → base rel 'finance'; <root>/.claude/... → ''."""
     rel = os.path.relpath(os.path.abspath(docpath), root).replace(os.sep, "/")
     marker = "/.claude/"
     idx = ("/" + rel).find(marker)
@@ -655,8 +655,8 @@ def scope_staleness(root, docpath):
 # ---------------------------------------------------------------------------
 def _enumerate_scoped_docs(root):
     """Todos os docs project-doc com frontmatter, root-relativos POSIX.
-    Cobre .claude/docs/** (recursivo, pega modules/) e, em organismo,
-    <módulo>/.claude/docs/* (docs pending-migration ainda não conformados)."""
+    Cobre a casa da doc inteira (recursivo, pega modules/) e, em organismo,
+    a casa da doc de cada módulo (docs pending-migration ainda não conformados)."""
     root = os.path.abspath(root)
     found = []
     bases = [os.path.join(root, ".claude", "docs")]
@@ -676,7 +676,7 @@ def _enumerate_scoped_docs(root):
                     continue
                 p = os.path.join(dirpath, name)
                 # Só doc project-doc (tem frontmatter). Um README/nota solto em
-                # .claude/docs/ não é gerado pela skill e não deve ser lintado
+                # a casa da doc não é gerada pela skill e não deve ser lintada
                 # nem policiado por staleness.
                 try:
                     with open(p, encoding="utf-8", errors="replace") as fh:
@@ -688,11 +688,11 @@ def _enumerate_scoped_docs(root):
     return sorted(set(found))
 
 
-_MODULE_DOC_RE = re.compile(r"(?:^|/)\.claude/docs/modules/([^/]+)/")
+_MODULE_DOC_RE = re.compile(r"(?:^|/)\.claude/docs/modules/([^/]+)/")  # casa-ok: o cobrador da doc reconhece a casa antiga de propósito (é o que ele varre)
 
 
 def _module_prefix_of_doc(root, docpath_abs):
-    """Se o doc vive em .claude/docs/modules/<m>/, devolve '<m>/' (fallback de
+    """Se o doc vive em modules/<m>/ da casa da doc, devolve '<m>/' (fallback de
     resolução — os agentes escrevem o scope desses docs relativo ao MÓDULO)."""
     rel = os.path.relpath(os.path.abspath(docpath_abs), root).replace(os.sep, "/")
     m = _MODULE_DOC_RE.search("/" + rel)
@@ -921,7 +921,7 @@ def _find_git_root(start):
 
 def project_staleness(project_dir):
     project_dir = os.path.abspath(project_dir)
-    # RECURSIVO: os docs v3.x vivem também em .claude/docs/modules/<m>/. Um
+    # RECURSIVO: os docs v3.x vivem também em modules/<m>/ da casa da doc. Um
     # listdir raso amostrava só os docs de topo e concluía fresh/unknown pelo
     # subconjunto errado.
     try:
@@ -1093,7 +1093,7 @@ def conformance_plan(root):
         elif d["kind"] == "orphan":
             orphans.append(d["path"])
     migrate = [{"module": m, "docs": sorted(ds),
-                "target": ".claude/docs/modules/%s/" % m,
+                "target": ".claude/docs/modules/%s/" % m,  # casa-ok: o cobrador da doc reconhece a casa antiga de propósito (é o que ele varre)
                 "router": "%s/.claude/CLAUDE.md" % m} for m, ds in sorted(by_mod.items())]
     stale = [d["path"] for d in cen["docs"]
              if d.get("staleness") == "stale"]

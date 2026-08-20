@@ -183,12 +183,12 @@ desligadas em pedro-plugins .. graphify-guard, intent-guard
 AGENTS.md / GEMINI.md  (mesmo bloco de 3 passos)
   1. Read `CLAUDE.md` for the project index — it contains the stack, critical
      gotchas, and a documentation routing table
-  2. Based on your current task, read the relevant docs from `.claude/docs/` …
+  2. Based on your current task, read the relevant docs from `docs/` …
   3. Each doc entry includes "→ read when" hints …
 
 .cursorrules / .windsurfrules / .github/copilot-instructions.md  (par de 2 linhas)
   Read `CLAUDE.md` at the project root for the project index and documentation routing table.
-  Detailed docs by concern are in `.claude/docs/` — load only what's relevant to the current task.
+  Detailed docs by concern are in `docs/` — load only what's relevant to the current task.
 ```
 
 O índice carrega o marker `<!-- project-doc:v2 gen=3.8 -->` na primeira linha. `[confirmado — `head -1 .claude/CLAUDE.md`]`
@@ -1206,7 +1206,7 @@ Campos da saída: `regua`, `marca_regua`, `ausentes` (e a mesma lista separada p
 
 **E a etapa não fecha mais sem separar o que o dono decidiu do que ele NÃO decidiu.** Entre a sabatina e o de acordo entrou um passo obrigatório em TODA etapa, mesmo com lista vazia: releia a conversa e grave cada escolha que ficou em aberto como uma linha `decisao-pendente: {a decisão} — trava {o que não anda} — destrava com {o que falta}` **no frontmatter**, nunca no corpo — escrever no corpo reabriria a etapa pela marca (`approved-sig`), a mesma regra da `correcao-pendente:`. Não confundir com o `[PENDENTE]` da entrevista: aquele é resposta que faltou, este é escolha que ninguém fez. **Ela não segura o de acordo** — é cobrança visível, e o Passo 5 do relatório imprime a linha *"Por decidir"* por etapa, ou *"nenhuma decisão aberta"*. O motivo é o custo do lado de lá: decisão não declarada na concepção reaparece como bloqueio no meio da execução, com o executor parado. A mesma régua do outro lado do fio está no passo 5 da skill `plan` (a passada das cinco classes antes de gravar). `[confirmado — passo 5 da seção "### 5 · Apresentar, sabatinar e colher o de acordo" e o esqueleto do relatório em skills/start/SKILL.md]`
 
-**A marca é a MESMA do shell, e é aí que o mecanismo se prova.** `doc_load.py:cksum` reimplementa em Python o `cksum` POSIX do **corpo** (sem frontmatter) que `plugins/project-skills/hooks/lib-doc-mark.sh:doc_marca` produz — duas receitas para o mesmo número divergem em silêncio (`patterns.md` §1.6), então a suíte compara as duas sobre o mesmo arquivo. Conferido nesta rodada sobre `.claude/docs/constituicao.md`: `1697768643` pelos dois lados, e `--marca` devolveu a emenda de **10** marcas coladas por `+` (as três leis e os sete acordos aprovados que valem como régua hoje — a cadeia cresce a cada de acordo novo, então o número de parcelas é deste run, nunca constante). ⚠️ O `lawMark` que a missão do motor congela (fluxo 5) usa outra receita desde 2026-08-09 — a saída literal de `cat <arquivos da régua> | cksum`, comando escrito no prompt pelo `motor.js:leiMarcaInstr` — porque a receita em prosa rendeu quatro marcas divergentes do mesmo disco numa corrida real. `[confirmado — os dois comandos rodados nesta rodada]`
+**A marca é a MESMA do shell, e é aí que o mecanismo se prova.** `doc_load.py:cksum` reimplementa em Python o `cksum` POSIX do **corpo** (sem frontmatter) que `plugins/project-skills/hooks/lib-doc-mark.sh:doc_marca` produz — duas receitas para o mesmo número divergem em silêncio (`patterns.md` §1.6), então a suíte compara as duas sobre o mesmo arquivo. Conferido naquela rodada sobre a constituição (então em `.claude/docs/`, hoje `docs/constituicao.md`): `1697768643` pelos dois lados, e `--marca` devolveu a emenda de **10** marcas coladas por `+` (as três leis e os sete acordos aprovados que valem como régua hoje — a cadeia cresce a cada de acordo novo, então o número de parcelas é deste run, nunca constante). ⚠️ O `lawMark` que a missão do motor congela (fluxo 5) usa outra receita desde 2026-08-09 — a saída literal de `cat <arquivos da régua> | cksum`, comando escrito no prompt pelo `motor.js:leiMarcaInstr` — porque a receita em prosa rendeu quatro marcas divergentes do mesmo disco numa corrida real. `[confirmado — os dois comandos rodados nesta rodada]`
 
 **A ida ao mapa da régua, dentro da skill `plan`, ganhou cobrador em 2026-08-12.** O preâmbulo garante que a régua seja LIDA; o que faltava era garantir que o plano a CONSULTE antes de escrever a primeira tarefa — a linha que manda montar o mapa vivia só em prosa no `SKILL.md`, e prosa some numa edição sem ninguém notar. A suíte `plugins/project-skills/lib/test_spec_to_plan_skill.py` agora lê o texto da skill, extrai dele o módulo citado (`import <modulo> as c`, nada de caminho cravado), exige que esse arquivo exista ao lado dela, importa-o e confere que **toda** função de leitura que a skill manda chamar (`c.le_*`) realmente existe no módulo — mais a ordem: a ida vem **antes** da gravação do plano. Módulo resolvido neste run: `cobertura.py`, com `le_artigos`, `le_jornadas`, `le_pecas` e `le_passos`. `[confirmado — saída da suíte]`
 
@@ -1272,12 +1272,16 @@ mentira ilustrada.
    camada de cada um. `architecture.md` → `organismo.html` · `runtime.md` → os
    `fluxo-<slug>.html` dos fluxos que o diff tocou · doc de módulo → `app-<nome>.html`.
    `[confirmado — plugins/project-skills/skills/doc-touch/SKILL.md, passo 2b]`
-2. **Os três dividem UMA casa, e ela é versionada:** `.claude/docs/fluxos/`, resolvida por
-   `resolve-dir.sh "$PWD" docs/fluxos` — o resolvedor aceita subdir com barra desde o mesmo dia
-   (§ do cenário 1). Um destino só existe para o mesmo tipo de artefato não viver em duas
-   pastas; foi o defeito que a rodada de 2026-08-16 corrigiu, com o organismo ainda apontando
-   para a pasta de sessão enquanto o fluxo já morava na casa nova.
-   `[confirmado — plugins/project-skills/lib/test_doc_touch_skill.py, os checks do destino]`
+2. **Os três dividem UMA casa, e ela é versionada:** hoje `docs/fluxos/` na raiz — a casa
+   desceu junto com a doc em `98b712e` (2026-08-20); até então era `.claude/docs/fluxos/`,
+   resolvida por `resolve-dir.sh "$PWD" docs/fluxos` (o resolvedor aceita subdir com barra
+   desde o mesmo dia, § do cenário 1). ⚠️ O passo 2b do `doc-touch` ainda escreve
+   `.claude/docs/fluxos/` na prosa e chama o `resolve-dir.sh` antigo — quem pergunta a casa
+   ao resolvedor único (`casa_da_doc`) é a rodada que vem. Um destino só existe para o mesmo
+   tipo de artefato não viver em duas pastas; foi o defeito que a rodada de 2026-08-16
+   corrigiu, com o organismo ainda apontando para a pasta de sessão enquanto o fluxo já
+   morava na casa nova.
+   `[confirmado — `git ls-files docs/fluxos/` e plugins/project-skills/skills/doc-touch/SKILL.md, passo 2b]`
 3. **O JSON de entrada sai do doc curado, nunca do código cru.** Desenhar direto do código
    reintroduz exatamente o palpite que a doc existe para evitar.
 4. **O desenho entra no commit de CONTEÚDO** (passo 5 do touch), junto do texto que o originou —

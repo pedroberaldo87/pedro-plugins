@@ -30,10 +30,10 @@ CWD=$(hj_campo "$INPUT" cwd)
 # Projeto = git root com doc project-doc (sobe do cwd).
 PROJ="$CWD"
 while [ -n "$PROJ" ] && [ "$PROJ" != "/" ]; do
-  [ -d "$PROJ/.claude/docs" ] && break
+  [ -d "$PROJ/docs" ] || [ -d "$PROJ/.claude/docs" ] && break  # casa-ok: sobe a árvore ATRÁS da casa; o resolvedor pressupõe a raiz já achada
   PROJ=$(dirname "$PROJ")
 done
-[ -d "$PROJ/.claude/docs" ] || exit 0
+{ [ -d "$PROJ/docs" ] || [ -d "$PROJ/.claude/docs" ]; } || exit 0  # casa-ok: idem — detecção de raiz, não escolha de casa
 
 # Throttle: 1 sugestão por (sessão×projeto).
 PHASH=$(printf '%s' "$PROJ" | cksum | cut -d' ' -f1)

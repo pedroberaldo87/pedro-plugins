@@ -22,7 +22,8 @@ from bash_posix import bash_posix  # noqa: E402
 # Fingir o lar é receita única (_shared/lar-fingido.md): trocar só HOME deixa o filho
 # escrever no lar REAL no Windows, que lê USERPROFILE primeiro.
 from lar_fingido import ambiente  # noqa: E402
-from casa_da_doc import casa  # noqa: E402
+from casa_da_doc import casa, VELHA  # noqa: E402
+_CASA = "/".join(VELHA)   # a casa das fixtures sai do resolvedor, não cravada
 
 spec = importlib.util.spec_from_file_location("doc_load", os.path.join(AQUI, "doc_load.py"))
 dl = importlib.util.module_from_spec(spec)
@@ -47,8 +48,8 @@ marcador-ficticio: DADO-FICTICIO
 
 ## Arquivos
 
-- .claude/docs/prototipo/painel.html
-- .claude/docs/prototipo/entrada.html
+- @CASA@/prototipo/painel.html
+- @CASA@/prototipo/entrada.html
 
 ## Superfícies
 
@@ -154,7 +155,7 @@ def monta(sig="0", telas=None):
             fh.write(html)
     caminho = os.path.join(casa, "interface.prototipo.md")
     with open(caminho, "w", encoding="utf-8") as fh:
-        fh.write(SIDECAR.format(sig=sig))
+        fh.write(SIDECAR.replace("@CASA@", _CASA).format(sig=sig))
     return raiz, caminho
 
 
@@ -195,7 +196,7 @@ with open(c4, encoding="utf-8") as fh:
     texto = fh.read()
 with open(c4, "w", encoding="utf-8") as fh:
     fh.write(texto.replace("marcador-ficticio: DADO-FICTICIO\n", "")
-                  .replace("- .claude/docs/prototipo/painel.html", "- docs/painel.html"))  # casa-ok: fixture de teste, o literal e o dado do caso
+                  .replace("- " + _CASA + "/prototipo/painel.html", "- docs/painel.html"))  # casa-ok: a casa ERRADA é o dado do caso de teste
 erros = valida(r4, c4)
 check("falta de campo e casa errada são acusadas",
       any("marcador-ficticio" in e for e in erros) and any("fora da casa" in e for e in erros),
@@ -241,7 +242,7 @@ marcador-ficticio: DADO-FICTICIO
 
 ## Arquivos
 
-- .claude/docs/prototipo/organismo.html
+- @CASA@/prototipo/organismo.html
 
 ## Superfícies
 
@@ -254,10 +255,10 @@ with open(os.path.join(casa6, "organismo.html"), "w", encoding="utf-8", newline=
     fh.write("<svg>ciclo (DADO-FICTICIO)</svg>\n")
 c6 = os.path.join(casa6, "esquema.prototipo.md")
 with open(c6, "w", encoding="utf-8") as fh:
-    fh.write(ESQUEMA.format(sig="0"))
+    fh.write(ESQUEMA.replace("@CASA@", _CASA).format(sig="0"))
 sig6 = conjunto_sig(r6, arquivos(c6))
 with open(c6, "w", encoding="utf-8") as fh:
-    fh.write(ESQUEMA.format(sig=sig6))
+    fh.write(ESQUEMA.replace("@CASA@", _CASA).format(sig=sig6))
 check("o sidecar do esquema passa no MESMO validador, sem formato paralelo",
       valida(r6, c6) == [], str(valida(r6, c6)))
 check("a linha do diagrama cita a procedência no blueprint",

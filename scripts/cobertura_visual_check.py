@@ -14,7 +14,7 @@ Uso:
     python3 scripts/cobertura_visual_check.py --json
 
 O caminho do texto canônico NÃO é cravado: sai do resolvedor abaixo, que tenta `docs/`
-na raiz antes de `.claude/docs/`. Quando o resolvedor único do repositório (F15.1)
+na raiz antes da casa antiga. Quando o resolvedor único do repositório (F15.1)
 existir vendorado, este é o único ponto a trocar.
 """
 import argparse

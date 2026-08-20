@@ -5,7 +5,7 @@ O que ele procura, e por que
 ----------------------------
 Em 2026-08-11 seis suítes reprovaram no Windows sem que nada estivesse quebrado:
 elas comparavam caminho com `==`, `in`, `startswith` ou `endswith` contra um
-literal escrito com barra normal. `.claude\\docs\\x.md` e `.claude/docs/x.md` são o
+literal escrito com barra normal. O mesmo doc com barra invertida e com barra normal é o
 mesmo arquivo e textos diferentes, então a asserção mentia — na pior direção, a de
 reprovar o que funciona.
 
@@ -83,7 +83,7 @@ def parece_caminho(v):
 
 
 # O outro lado da comparação precisa VIR do sistema de arquivos. Sem esta exigência
-# a varredura acusa `"..." in skill_md` — procurar o texto ".claude/docs/x.md" DENTRO
+# a varredura acusa `"..." in skill_md` — procurar o texto ".claude/docs/x.md" DENTRO  # casa-ok: o exemplo é o próprio objeto da checagem
 # de um documento, onde a barra é sempre `/` e nada diverge. Medido: de 52 achados,
 # só os que casam aqui eram o defeito.
 FONTES = ("os.path", "os.listdir", "os.getcwd", "os.walk", "os.scandir",

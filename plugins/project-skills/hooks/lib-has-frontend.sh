@@ -18,7 +18,7 @@ has_frontend() {
   [ -n "$dir" ] && [ -d "$dir" ] || return 1
 
   # A pasta de doc fica FORA da conta (F13.3): protótipo aprovado mora em
-  # .claude/docs/prototipo/ e é documentação da interface, não a interface —
+  # prototipo/ da casa da doc e é documentação da interface, não a interface —
   # contá-lo faria todo projeto backend com protótipo ser cobrado por design.md.
   git -C "$dir" ls-files 2>/dev/null | grep -vE '^\.claude/' | grep -qE '\.(tsx|jsx|vue|svelte)$' && return 0
   git -C "$dir" ls-files 2>/dev/null | grep -vE '^\.claude/' | grep -qE '(^|/)index\.html$' && return 0

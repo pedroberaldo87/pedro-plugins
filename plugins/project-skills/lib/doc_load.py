@@ -17,7 +17,7 @@ A receita da marca é a MESMA de `hooks/lib-doc-mark.sh` (cksum do CORPO, sem o
 frontmatter) — não porque é elegante, mas porque duas receitas dariam duas marcas para o
 mesmo texto, e aí a comparação nunca fecharia.
 
-Fail-open na direção honesta: projeto sem `.claude/docs/` devolve lista vazia e sai 0.
+Fail-open na direção honesta: projeto sem casa da doc devolve lista vazia e sai 0.
 Ausência de documento não derruba a execução, mas também não passa calada: a lacuna sobe
 ao TOPO da saída, dizendo quantos documentos faltam e qual skill escreve cada natureza
 (`/start` para lei e acordo, `/doc` para o mapa). Só uma dispensa com motivo ESCRITO cala
@@ -65,7 +65,7 @@ MINERADOS = [
 
 DISPENSA = "dispensa.md"
 
-# A CASA do protótipo (lei: .claude/docs/prototipo/FORMATO.md). O sidecar de lá é ANEXO:
+# A CASA do protótipo (lei: prototipo/FORMATO.md, na casa da doc). O sidecar de lá é ANEXO:
 # natureza própria, fora de `regua`/`marca_regua` — o protótipo muda de tela sem mudar a
 # lei, e contaminar a marca congelada faria toda missão longa acusar lei mexida à toa.
 CASA_PROTOTIPO = ("prototipo",)
@@ -358,7 +358,7 @@ def _alarme(estado):
 def texto(estado):
     linhas = _alarme(estado)
     if not estado["documentos"]:
-        linhas.append("nenhum documento canônico em .claude/docs/ — não há régua a carregar")
+        linhas.append("nenhum documento canônico na casa da doc — não há régua a carregar")
         if estado["dispensa"]:
             linhas.append(f"  dispensa declarada: {estado['dispensa']['motivo'] or 'SEM MOTIVO ESCRITO'}")
         return "\n".join(linhas)

@@ -30,7 +30,7 @@ import plan_state  # noqa: E402
 FEATURE_RE = cobertura.EPICO_RE
 
 # a jornada citada numa linha de superfície do sidecar de protótipo, no formato
-# que a lei escreve (.claude/docs/prototipo/FORMATO.md): `— jornada: <nome> —`
+# que a lei escreve (prototipo/FORMATO.md, na casa da doc): `— jornada: <nome> —`
 SUP_JORNADA_RE = re.compile(r"\bjornada:\s*([^—\n]+)")
 
 
