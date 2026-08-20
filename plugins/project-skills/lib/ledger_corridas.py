@@ -49,7 +49,11 @@ CAMPOS = (
     "custo",        # {"tokens": n}
     "tempo",        # {"inicio": epoch, "fim": epoch}
     "desfecho",     # como terminou: "completo", "teto", "morta-por-fora", ...
+    "causa",        # a PEDRA em que bateu (o último blocker) — None quando não houve
 )
+
+# Campo que pode nascer vazio sem ser omissão de medida.
+OPCIONAIS = ("causa",)
 
 
 # Corrida sem sinal de vida por mais que isto está morta, não lenta — é o mesmo teto
@@ -76,7 +80,9 @@ def dir_largadas(project_root):
 
 def registra(project_root, entrada):
     """Acrescenta UMA entrada ao ledger. Devolve a entrada gravada."""
-    faltando = [c for c in CAMPOS if not entrada.get(c)]
+    # `causa` é o único campo legitimamente VAZIO: corrida que terminou o que foi
+    # fazer não bateu em pedra nenhuma, e exigir uma inventaria a pedra.
+    faltando = [c for c in CAMPOS if c not in OPCIONAIS and not entrada.get(c)]
     # Vazio de DENTRO também reprova: `progresso` cheio de None é dict verdadeiro e
     # passaria calado — e é justamente o que o run devolve quando não mediu (F24.2).
     # `is None` e não falsidade: zero passo fechado é medição legítima, não ausência.
@@ -112,7 +118,23 @@ def do_run(resultado, run_id, missao, total, inicio, fim=None):
         "custo": {"tokens": resultado.get("gasto")},
         "tempo": {"inicio": inicio, "fim": fim if fim is not None else time.time()},
         "desfecho": resultado.get("stopReason"),
+        "causa": _causa_de(resultado),
     }
+
+
+def _causa_de(resultado):
+    """A pedra em que a corrida bateu — o `what` do ÚLTIMO blocker, normalizado.
+
+    O desfecho diz a CLASSE da parada (`porta-fechada`); a causa diz QUAL pedra.
+    Medido em 2026-08-20: três corridas seguidas pararam com o mesmo desfecho e
+    causas distintas — catálogo defasado, contagem à mão nova, comparação de caminho
+    por texto —, cada uma consertada na raiz. Contar desfecho barrou a quarta como se
+    fosse a mesma pedra; contar causa deixa passar o que mudou de verdade.
+    """
+    blockers = [b for b in (resultado.get("blockers") or []) if isinstance(b, dict)]
+    if not blockers:
+        return None
+    return " ".join(str(blockers[-1].get("what") or "").split())[:160] or None
 
 
 def abre(project_root, run_id, missao, total, inicio):
@@ -247,6 +269,7 @@ def serie(project_root, missao=None):
             "run_id": e.get("run_id"),
             "missao": e.get("missao"),
             "desfecho": e.get("desfecho"),
+            "causa": e.get("causa"),
             "fechadas": fechadas if fechadas is not None else NAO_MEDIDO,
             "total": total if total is not None else NAO_MEDIDO,
             "acumulado": soma if soma is not None else NAO_MEDIDO,
@@ -275,15 +298,19 @@ def relance(project_root, missao, limite=2):
     2026-08-15, duas corridas mortas pela mesma porta foram consertadas na raiz, a
     seguinte fechou três passos, e o relance ainda apontava a pedra antiga.
     """
+    # A pedra é a CAUSA, não o desfecho (F23.6). Desfecho é a classe da parada e se
+    # repete por natureza; o que prova "ninguém consertou nada" é bater na MESMA causa.
+    # Linha antiga, sem causa gravada, cai no desfecho — retrocompatível.
+    pedra = lambda c: c.get("causa") or c["desfecho"]
     causas = {}
-    ultimo = None
+    ultima = None
     for c in reversed(serie(project_root, missao)):
         if c["desfecho"] in FIM_LIMPO:
             break  # terminou o que foi fazer: daqui para trás é outra história
-        if ultimo is not None and c["desfecho"] != ultimo:
+        if ultima is not None and pedra(c) != ultima:
             break  # a sequência quebrou: a pedra de agora não é a de antes
-        ultimo = c["desfecho"]
-        causas.setdefault(c["desfecho"], []).insert(0, c["run_id"])
+        ultima = pedra(c)
+        causas.setdefault(pedra(c), []).insert(0, c["run_id"])
     repetidas = sorted((k for k in causas if len(causas[k]) >= limite),
                        key=lambda k: (-len(causas[k]), k))
     return {
