@@ -8,6 +8,7 @@ Roda com: python3 lib/test_ledger_corridas.py
 Sem framework: __main__ com asserts, sai !=0 se falhar.
 """
 import os
+import shutil
 import tempfile
 import time
 
@@ -314,7 +315,10 @@ def main():
                           % [e["run_id"] for e in entradas])
 
         for e in entradas:
-            vazios = [c for c in ledger_corridas.CAMPOS if not e.get(c)]
+            # `causa` nasce vazia quando a corrida não bateu em pedra — é medição,
+            # não omissão, e por isso está em OPCIONAIS.
+            vazios = [c for c in ledger_corridas.CAMPOS
+                      if c not in ledger_corridas.OPCIONAIS and not e.get(c)]
             if vazios:
                 falhas.append("entrada %s sem campos %s" % (e.get("run_id"), vazios))
             if not e.get("gravado_em"):
@@ -334,11 +338,55 @@ def main():
 
     falhas += prova_serie()
     falhas += prova_relance()
+    falhas += causa_repetida_vs_pedra_nova()
 
     for f in falhas:
         print("FALHA: %s" % f)
     print("FALHOU: %d" % len(falhas) if falhas else "OK: ledger_corridas (2 corridas, 2 entradas)")
     return 1 if falhas else 0
+
+
+
+def causa_repetida_vs_pedra_nova():
+    """F23.6 — o laço para por CAUSA repetida, nunca por desfecho repetido.
+
+    Medido em 2026-08-20: três corridas seguidas pararam com o mesmo desfecho
+    (`porta-fechada`) e pedras DISTINTAS — catálogo defasado, contagem à mão nova,
+    comparação de caminho por texto —, cada uma consertada na raiz. Contar desfecho
+    barrava a quarta como se ninguém tivesse consertado nada.
+    """
+    falhas = []
+    tmp = tempfile.mkdtemp()
+    try:
+        M = "plano-x.plan.json"
+
+        def grava(run_id, causa):
+            ledger_corridas.registra(tmp, {
+                "run_id": run_id, "missao": M,
+                "progresso": {"fechadas": 0, "total": 10},
+                "custo": {"tokens": 100},
+                "tempo": {"inicio": 1.0, "fim": 2.0},
+                "desfecho": "porta-fechada", "causa": causa,
+            })
+
+        # três paradas, MESMO desfecho, pedras diferentes: relançar é legítimo
+        grava("r1", "o catalogo esta defasado")
+        grava("r2", "a contagem a mao subiu de 138 para 139")
+        grava("r3", "comparacao de caminho por texto cru")
+        v = ledger_corridas.relance(tmp, M)
+        if not v["relanca"]:
+            falhas.append("pedra NOVA a cada parada barrou o relance: %s" % v["pendencias"])
+
+        # agora a MESMA pedra duas vezes seguidas: aí sim é do dono
+        grava("r4", "comparacao de caminho por texto cru")
+        v2 = ledger_corridas.relance(tmp, M)
+        if v2["relanca"]:
+            falhas.append("a MESMA causa duas vezes seguidas nao segurou o relance")
+        elif v2["pendencias"][0]["vezes"] != 2:
+            falhas.append("contou %s vezes, esperado 2" % v2["pendencias"][0]["vezes"])
+    finally:
+        shutil.rmtree(tmp, ignore_errors=True)
+    return falhas
 
 
 if __name__ == "__main__":
