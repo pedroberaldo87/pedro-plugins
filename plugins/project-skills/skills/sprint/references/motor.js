@@ -543,6 +543,10 @@ três blocos deixava a barra parada quinze minutos no mesmo texto):
 // a marcação falha, o bloco não fecha e a rodada seguinte lê "todo" de novo (medido em
 // 2026-08-14: três corridas mortas pela mesma porta, 12 passos marcados à mão depois).
 const planIdDe = (planPath) => String(planPath || '').split('/').pop().replace(/\.plan\.json$/, '')
+// Em worktree o plano mora na cópia PRINCIPAL, e RAIZ é o worktree: `--dir ${RAIZ}/.claude/plans`
+// aponta pra uma pasta onde o plano não existe e TODO tique falha em silêncio (medido em
+// 2026-08-20: 13 passos entregues, zero marcados). A pasta sai do próprio caminho do plano.
+const dirDe = (planPath) => String(planPath || '').split('/').slice(0, -1).join('/') || `${RAIZ}/.claude/plans`
 
 const tickPlanPrompt = ({ planPath, passos }) => `PAPEL: MARCAR
 Papel mecânico e SÓ: gravar no plano os passos que acabaram de sair.
@@ -553,7 +557,7 @@ ${J(passos)}
 Rode UM COMANDO POR PASSO, em sequência:
 
   MARCADOR="$(bash "${RESOLVE}" project-skills lib/plan_state.py)"
-  cd ${RAIZ} && python3 "$MARCADOR" --dir ${RAIZ}/.claude/plans tick ${planIdDe(planPath)} <taskId> --evidencia "<evidencia>"
+  cd ${RAIZ} && python3 "$MARCADOR" --dir ${dirDe(planPath)} tick ${planIdDe(planPath)} <taskId> --evidencia "<evidencia>"
 
 (o plano é ${planPath} — o id \`${planIdDe(planPath)}\` já está no comando acima; não o omita)
 
@@ -579,7 +583,7 @@ ${J(passos)}
 Rode UM COMANDO POR PASSO, em sequência:
 
   MARCADOR="$(bash "${RESOLVE}" project-skills lib/plan_state.py)"
-  cd ${RAIZ} && python3 "$MARCADOR" --dir ${RAIZ}/.claude/plans pendencia ${planIdDe(planPath)} <taskId> "<pendencia>"
+  cd ${RAIZ} && python3 "$MARCADOR" --dir ${dirDe(planPath)} pendencia ${planIdDe(planPath)} <taskId> "<pendencia>"
 
 (o plano é ${planPath} — o id \`${planIdDe(planPath)}\` já está no comando acima; não o omita)
 
@@ -591,7 +595,7 @@ const checkpointPrompt = ({ repoRoot, round, bloco, results, planPath }) => `PAP
 Papel mecânico e SÓ: gravar no histórico do git o que o bloco ${bloco} da onda ${round} produziu.
 
 ARQUIVOS (a união dos \`files_touched\` das entregas aprovadas, MAIS o plano):
-${J([...new Set(results.flatMap(x => x?.files_touched || []))].concat(planPath && planPath.endsWith('.plan.json') ? [planPath] : []))}
+${J([...new Set(results.flatMap(x => x?.files_touched || []))].concat(planPath && planPath.endsWith('.plan.json') && planPath.startsWith(repoRoot) ? [planPath] : []))}
 
 Rode, a partir de ${repoRoot}:
 
