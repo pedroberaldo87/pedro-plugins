@@ -173,6 +173,21 @@ REGRAS QUE NÃO SE NEGOCIAM:
 
 Devolva o JSON do schema.`
 
+// F30.3 — o rodapé que TODO papel mecânico carrega. O medidor de 2026-08-20 acendeu
+// dois sinais sobre eles: MECANICO/MARCAR/SUITE acima do teto de turnos (procurando em
+// vez de gravar) e um comando que rodou plugin de FORA da árvore do projeto — o binário
+// de outra cópia, com regras de outra versão.
+const RODAPE_MECANICO = (repoRoot) => `
+
+VOCÊ É PAPEL MECÂNICO: no máximo 2 turnos de ferramenta. Não explore, não procure
+alternativa, não leia arquivo que ninguém pediu. Rode o que está escrito e devolva.
+Passou de 2 turnos sem conseguir, devolva o que tem com o motivo — procurar mais é o
+sinal 'voltas demais' que a autópsia acende.
+
+RAIZ OBRIGATÓRIA: todo comando roda a partir de ${repoRoot}, e todo caminho de programa
+sai do resolvedor por nome. Rodar binário de fora desta árvore executa OUTRA versão das
+regras, e isso já aconteceu (sinal 'caminho fantasma', 2026-08-20).`
+
 const saudePrompt = ({ repoRoot, round, suiteCmd, tetoMin }) => `PAPEL: MECANICO
 Rodada ${round}. Papel mecânico e SÓ: rode os checks determinísticos da casa a partir de ${repoRoot}
 e diga se a porta do repositório está FECHADA (algum deles reprova o estado atual).
@@ -196,7 +211,7 @@ ANTES DE TUDO, marque na BARRA que esta rodada começou — um comando, e falhar
 derruba nada:
 
   ANDAMENTO="$(bash "${RESOLVE}" project-skills lib/andamento.py)"
-  python3 "$ANDAMENTO" onda ${ARGS.sessionId} ${round} ${ARGS.planPath || ''} --etapa "separando o trabalho" || true`
+  python3 "$ANDAMENTO" onda ${ARGS.sessionId} ${round} ${ARGS.planPath || ''} --etapa "separando o trabalho" || true${RODAPE_MECANICO(repoRoot)}`
 
 const destravadorPrompt = ({ repoRoot, causa, suiteCmd, tetoMin }) => `PAPEL: DESTRAVADOR
 A porta do repositório está fechada por uma causa JÁ investigada e JÁ referendada por um
@@ -237,7 +252,7 @@ PARES:
 ${J(criterios)}
 
 Devolva em \`reprovados\` os que saíram com exit 1, com \`motivo\` = a linha que o programa imprimiu.
-Exit 0 não entra na lista. Programa ausente ou comando quebrado ⇒ \`reprovados: []\` (fail-open).`
+Exit 0 não entra na lista. Programa ausente ou comando quebrado ⇒ \`reprovados: []\` (fail-open).${RODAPE_MECANICO(repoRoot)}`
 
 const execPrompt = ({ task, tetoMin, buildWarm }) => `PAPEL: EXECUTOR
 Você é EXECUTOR. Implemente esta tarefa no repositório ${RAIZ}.
@@ -272,7 +287,7 @@ Papel mecânico e SÓ. Rode, a partir de ${RAIZ}:
 
 Devolva o veredito do JSON que saiu: \`recusado: true\` quando veio \`permissionDecision: "deny"\`,
 com \`arquivos\` = os caminhos em disputa que a recusa nomeou. Script mudo ou ausente ⇒ \`recusado: false\`.
-Sem julgamento próprio: quem decide é o hook, você só transporta.`
+Sem julgamento próprio: quem decide é o hook, você só transporta.${RODAPE_MECANICO(ARGS.repoRoot)}`
 
 const revisorTarefaPrompt = ({ task, entrega, round, bloco, ledger }) => `PAPEL: REVISOR
 Revisor POR TAREFA (rodada ${round}, bloco ${bloco}). Escopo: UMA tarefa. Repositório: ${RAIZ}
@@ -480,6 +495,17 @@ ${suiteCmd
   ? `o COMANDO DECLARADO DA CASA, literal, e SÓ ele:\n\n  ${suiteCmd}\n\nNão amplie, não substitua, não acrescente fase que o comando não roda (medido\n2026-08-13: a fase extra que um agente acrescentou pendurou para sempre num daemon\ndoente da máquina — o comando declarado existia justamente para evitá-la).`
   : `a que o projeto declara (CLAUDE.md, Makefile, package.json); sem declaração, a LISTA\nsai deste comando, IGUAL em toda rodada da missão:\n\n  find ${repoRoot} -path '*/node_modules' -prune -o -path '*/.git' -prune -o \\( -name 'test_*.py' -o -name 'test_*.sh' \\) -print | sort`}
 
+ANTES DE RODAR, CONFIRA A PROVA JÁ GRAVADA (F30.2). A esteira desta casa grava um
+selo por árvore de arquivos quando fecha verde, e rodá-la de novo sobre a MESMA árvore
+é 147s jogados fora — medido em 2026-08-20: cinco agentes da mesma corrida rodaram o
+mesmo comando, um atrás do outro, sobre a árvore que não tinha mudado. Rode primeiro:
+
+    . "${repoRoot}/_shared/green-cache.sh" && green_cache_check "${repoRoot}" full
+
+Saiu 0, a prova está fresca para a árvore de AGORA: devolva \`green: true\`, \`placar\` =
+"prova da esteira reaproveitada para esta árvore" e NÃO rode a suíte. Saiu diferente de
+0, ou o arquivo não existe, rode normalmente — fail-open, sempre.
+
 TETO: ${tetoMin} minutos. Marque a hora ao começar (\`date\`). Chegou no teto sem a suíte
 terminar, PARE, mate o processo pendurado, e devolva \`green: false\` com \`failing\` =
 [o que estava rodando] e \`placar\` = "teto de ${tetoMin} min estourado em <onde>".
@@ -510,7 +536,7 @@ DENTRO da onda, e não só a cada onda nova (pedido do dono, 2026-08-09: uma ond
 três blocos deixava a barra parada quinze minutos no mesmo texto):
 
   ANDAMENTO="$(bash "${RESOLVE}" project-skills lib/andamento.py)"
-  python3 "$ANDAMENTO" onda ${ARGS.sessionId} ${round} ${ARGS.planPath || ''} --bloco ${bloco} --etapa "suíte" || true`
+  python3 "$ANDAMENTO" onda ${ARGS.sessionId} ${round} ${ARGS.planPath || ''} --bloco ${bloco} --etapa "suíte" || true${RODAPE_MECANICO(repoRoot)}`
 
 // O id do plano vai NO COMANDO, não numa observação ao lado: `tick` recebe o plano como
 // primeiro posicional, e sem ele o programa recusa quando há 2+ planos ativos na pasta —
@@ -537,7 +563,7 @@ veredito daquele passo com \`ok: false\` e o \`motivo\` = a linha que o programa
 Terminado, registre a volta:
   ANDAMENTO="$(bash "${RESOLVE}" project-skills lib/andamento.py)"
   python3 "$ANDAMENTO" onda ${ARGS.sessionId} <rodada> ${planPath}
-Falhar aqui não derruba nada.`
+Falhar aqui não derruba nada.${RODAPE_MECANICO(ARGS.repoRoot)}`
 
 // ── O BLOCKER DE DECISÃO VIRA PENDÊNCIA NO PASSO (F12.5 · R-21) ───────────────
 // O blocker morria no relatório do FIM da corrida: o passo continuava `todo` no
@@ -559,7 +585,7 @@ Rode UM COMANDO POR PASSO, em sequência:
 
 Falha de um passo NÃO interrompe os seguintes. Recusa do programa é resultado legítimo:
 entra no veredito daquele passo com \`ok: false\` e o \`motivo\` = a linha que ele imprimiu.
-Não reescreva a pendência para driblar uma recusa — o texto é o que o motor mandou.`
+Não reescreva a pendência para driblar uma recusa — o texto é o que o motor mandou.${RODAPE_MECANICO(ARGS.repoRoot)}`
 
 const checkpointPrompt = ({ repoRoot, round, bloco, results, planPath }) => `PAPEL: MECANICO
 Papel mecânico e SÓ: gravar no histórico do git o que o bloco ${bloco} da onda ${round} produziu.
@@ -586,7 +612,7 @@ REGRAS:
 
 DEVOLVA o veredito no schema (committed · sha · motivo):
 - committed: true com o sha (\`git -C ${repoRoot} rev-parse --short HEAD\`) quando o commit ENTROU — ou quando a árvore estava limpa (nada a commitar).
-- committed: false com o motivo COPIADO da saída do gate quando o commit foi recusado — o script segura a marcação dos passos por causa disso.`
+- committed: false com o motivo COPIADO da saída do gate quando o commit foi recusado — o script segura a marcação dos passos por causa disso.${RODAPE_MECANICO(repoRoot)}`
 
 const docTouchPrompt = ({ repoRoot, round, files, sessionId }) => `PAPEL: MECANICO
 Papel mecânico e SÓ: re-projetar a doc dos arquivos que a onda ${round} tocou.
@@ -603,7 +629,7 @@ ${J(files)}
 4. Grave a lista:  python3 "$(bash "${RESOLVE}" project-skills lib/andamento.py)" doc ${sessionId} ${round} <caminho...>
    Falhar aqui não derruba a onda.
 
-Raiz: ${repoRoot}. Quem decide touch-vs-FULL é o próprio touch — ele escala e segue, sem perguntar.`
+Raiz: ${repoRoot}. Quem decide touch-vs-FULL é o próprio touch — ele escala e segue, sem perguntar.${RODAPE_MECANICO(repoRoot)}`
 
 // ── O MOTOR APAGA O PRÓPRIO SINAL AO SAIR (pedido do dono, 2026-08-09) ───────
 // O `rm` do sinal era passo da CASCA, em prosa — e a casca só o roda no caminho
@@ -735,15 +761,23 @@ const gravaPendencias = async () => {
 // inteira morria por isso. Morrer é a resposta certa para causa que o motor não sabe
 // consertar; é a resposta errada para a que ele sabe. Então: UM papel conserta só a
 // causa referendada, o motor RE-MEDE a porta por conta própria, e a corrida segue.
-// Uma tentativa por corrida — a segunda seria repetir sem mudança de estado, que é o
-// antipadrão que este motor persegue desde a autópsia de 2026-08-09.
-let destravesUsados = 0
+// Uma tentativa por CAUSA DISTINTA, não por corrida (F30.1). O teto por corrida matou
+// a corrida de 2026-08-20: 573k tokens, ZERO passos marcados, e as duas linhas que
+// fechavam a porta levaram dois minutos para o dono consertar na manhã seguinte. O
+// antipadrão que o teto persegue é REPETIR SEM MUDANÇA DE ESTADO — e causa nova É
+// mudança de estado. Repetir a MESMA causa continua proibido, agora pelo conjunto.
+const causasDestravadas = new Set()
 const destravaOuPara = async (d, taskId) => {
-  if (destravesUsados >= 1) {
-    paraPorCausaGlobal(d, taskId, 'o destravador já foi usado nesta corrida e a porta fechou de novo')
+  const chaveDestrave = String(d.causa || '').replace(/\s+/g, ' ').slice(0, 200)
+  if (causasDestravadas.has(chaveDestrave)) {
+    paraPorCausaGlobal(d, taskId, 'esta MESMA causa já foi destravada nesta corrida e a porta fechou de novo')
     return false
   }
-  destravesUsados++
+  if (causasDestravadas.size >= (ARGS.destravesMax || 5)) {
+    paraPorCausaGlobal(d, taskId, `o teto de ${ARGS.destravesMax || 5} causas distintas destravadas nesta corrida foi atingido`)
+    return false
+  }
+  causasDestravadas.add(chaveDestrave)
   const fix = await agent(destravadorPrompt({ repoRoot: ARGS.repoRoot, causa: String(d.causa),
       suiteCmd, tetoMin: tetoMecanicoMin }),
     { model: ARGS.model, effort: T.diagnose.effort, phase: 'Diagnose',

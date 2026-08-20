@@ -52,4 +52,4 @@ esteira e no gate de commit. Ele confere os três arquivos deste contrato (prosa
 Python, bash), prova a cascata nos **dois cenários de casa** — projeto com
 `docs/` e projeto só com `.claude/docs/` — e cobra que as **duas metades da
 premissa** estejam escritas aqui. A pauta de concepção que leva a premissa ao
-dono é cobrada por `plugins/project-skills/lib/test_start_doc_skill.py`.
+dono é cobrada pela suíte da skill de concepção, no plugin que a hospeda.
