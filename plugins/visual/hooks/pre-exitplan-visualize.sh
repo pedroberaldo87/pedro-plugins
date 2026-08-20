@@ -60,7 +60,11 @@ MAX_NUDGES=3
 COUNT=0
 [ -f "$COUNT_FILE" ] && COUNT="$(tr -d '[:space:]' < "$COUNT_FILE" 2>/dev/null)"
 case "$COUNT" in ''|*[!0-9]*) COUNT=0 ;; esac
-capped() { [ "$COUNT" -ge "$MAX_NUDGES" ]; }
+# Ao bater o teto o gate cala, mas o silêncio se anuncia — uma linha, não zero.
+capped() {
+  [ "$COUNT" -ge "$MAX_NUDGES" ] || return 1
+  echo "⚠️ VISUAL GATE silenciado nesta sessão: teto de ${MAX_NUDGES} avisos atingido — a violação persiste, mas o gate libera pra não prender." >&2
+}
 bump()   { echo $((COUNT + 1)) > "$COUNT_FILE" 2>/dev/null; }
 
 # ── o plano existe como ARQUIVO? ─────────────────────────────────────────────

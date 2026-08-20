@@ -211,6 +211,26 @@ printf 'def velho(t):\n    return "%s" + t\n' "$DOCTYPE" > "$R/plugins/exemplo/l
 out=$(gate_out "git commit -m x")
 check "gerador antigo FORA do commit nao trava" \
   "$(printf '%s' "$out" | grep -q 'velho.py' && echo 0 || echo 1)"
+check "detector saudável não entra na lista NÃO MEDIDO" \
+  "$(printf '%s' "$out" | grep -q 'rodou sem medir' && echo 0 || echo 1)"
+
+# R-27 · o detector explode por dentro: a confissão de fail-open (stderr + saída 0)
+# evaporava porque o portão só lê o código de saída. Sabota o main() do detector
+# REAL e cobra que a checagem apareça como não medida — e nunca como bloqueio.
+cat > "$R/scripts/regua_call_check.py" <<PYEOF
+import sys
+sys.path.insert(0, "$HERE/../../scripts")
+import regua_call_check as G
+def _explode():
+    raise RuntimeError("sabotagem")
+G.main = _explode
+sys.exit(G.cli())
+PYEOF
+out=$(gate_out "git commit -m x")
+check "detector que explode NAO barra o commit como pagina sem regua" \
+  "$(printf '%s' "$out" | grep -q 'PÁGINA SEM RÉGUA' && echo 0 || echo 1)"
+check "a explosao vira linha NÃO MEDIDO no veredito (nao zero mudo)" \
+  "$(printf '%s' "$out" | grep 'NÃO MEDIDO' -A 30 | grep -q 'rodou sem medir' && echo 1 || echo 0)"
 rm -f "$R/plugins/exemplo/lib/velho.py" "$R/plugins/exemplo/lib/gerador.py" "$R/scripts/regua_call_check.py"
 
 
@@ -479,6 +499,21 @@ check "critério de duas cláusulas não é julgado pela primeira (o caso F11.9)
 
 rm -rf "$R/.claude/plans" "$R/scripts/plano_vs_codigo.py" \
        "$R/plugins/exemplo/lib/feito.py"
+
+# ── R-27 · checador ausente entra na lista NÃO MEDIDO ───────────────────────
+# Cada bloco do gate só roda se o arquivo do cobrador existe: apagado ou renomeado,
+# ele deixava de medir EM SILÊNCIO. Agora a ausência tem nome no veredito.
+echo "R-27 — checador apagado aparece na lista NÃO MEDIDO"
+mkdir -p "$R/scripts"
+cp "$HERE/../../scripts/public_repo_check.py" "$R/scripts/"
+out=$(gate_out "git commit -m x")
+check "checador PRESENTE não entra na lista" \
+  "$(printf '%s' "$out" | grep 'NÃO MEDIDO' -A 30 | grep -q 'public_repo_check.py' && echo 0 || echo 1)"
+rm -f "$R/scripts/public_repo_check.py"
+out=$(gate_out "git commit -m x")
+check "checador APAGADO tem o nome impresso na lista NÃO MEDIDO" \
+  "$(printf '%s' "$out" | grep -q 'NÃO MEDIDO' \
+     && printf '%s' "$out" | grep 'NÃO MEDIDO' -A 30 | grep -q 'public_repo_check.py' && echo 1 || echo 0)"
 
 echo
 echo "Heredoc — o corpo não é comando (fricção medida 3× em 2026-08-09)"

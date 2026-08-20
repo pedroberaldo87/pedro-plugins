@@ -138,9 +138,17 @@ def main():
     return 1
 
 
-if __name__ == "__main__":
+def cli():
+    """Fail-open COM confissão que o portão lê. Erro de infra não trava commit,
+    mas a confissão em stderr evaporava: o release-gate só lê o código de saída
+    e o texto capturado — então o marcador NÃO MEDIDO sai no stdout, e o gate
+    põe a checagem na lista NÃO MEDIDO do veredito (R-27)."""
     try:
-        sys.exit(main())
+        return main()
     except Exception as e:                      # fail-open: erro de infra não trava commit
-        print("regua-call-check: não rodou (%s) — seguindo" % e, file=sys.stderr)
-        sys.exit(0)
+        print("regua-call-check: NÃO MEDIDO (%s) — erro de infra, seguiu sem medir" % e)
+        return 0
+
+
+if __name__ == "__main__":
+    sys.exit(cli())

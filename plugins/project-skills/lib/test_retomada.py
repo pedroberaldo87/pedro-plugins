@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Suite da retomada: o inventario de desfechos (F23.1) e o classificador (F23.2) · R-33.
+"""Suite da retomada: inventario (F23.1), classificador (F23.2), lista fechada do dono (F23.5) · R-33.
 
 O que prova: a lista DESFECHOS — o que o programa da retomada sabe fazer quando um
 run para — cobre TODO stopReason que o motor.js do /sprint pode emitir. A lista de
@@ -24,7 +24,7 @@ AQUI = os.path.dirname(os.path.abspath(__file__))
 MOTOR = os.path.join(os.path.dirname(AQUI), "skills", "sprint", "references", "motor.js")
 
 sys.path.insert(0, AQUI)
-from retomada import DESFECHOS, SEGUE, CONSERTA, DONO, classifica  # noqa: E402
+from retomada import CASOS_DONO, DESFECHOS, SEGUE, CONSERTA, DONO, classifica  # noqa: E402
 
 RETOMADA = os.path.join(AQUI, "retomada.py")
 
@@ -45,10 +45,11 @@ def do_motor():
 
 
 # Tres saidas de run no formato que o motor.js devolve (o objeto do `return` do fim da
-# corrida), uma por caminho. Os textos de `blockers` sao os literais que o motor empurra
-# nas linhas de `porta-fechada`, `reserva` e no fecho por teto de rodadas.
-FIXTURES = {
-    SEGUE: {
+# corrida), pares (acao esperada, run). Os textos de `blockers` sao os literais que o
+# motor empurra nas linhas de `porta-fechada`, `reserva` e no fecho por teto de rodadas.
+# Nenhum stopReason espera DONO: desde F23.5 o dono so se chama por caso declarado.
+FIXTURES = [
+    (SEGUE, {
         "rounds": [{"r": 1}, {"r": 2}],
         "built": False,
         "blockers": [],
@@ -56,8 +57,8 @@ FIXTURES = {
         "impedidos": [], "naoDeuTempo": ["F1.4"], "esperandoVoce": [],
         "gasto": 812345,
         "stopReason": "max-rounds",
-    },
-    CONSERTA: {
+    }),
+    (CONSERTA, {
         "rounds": [{"r": 1}],
         "built": False,
         "blockers": [{"what": "a porta do repositorio esta fechada: suite vermelha",
@@ -67,8 +68,8 @@ FIXTURES = {
         "impedidos": [], "naoDeuTempo": [], "esperandoVoce": [],
         "gasto": 41000,
         "stopReason": "porta-fechada",
-    },
-    DONO: {
+    }),
+    (SEGUE, {
         "rounds": [],
         "built": False,
         "blockers": [{"what": "outro motor desta sessao ja reservou: <raiz>/lib/plan_state.py",
@@ -78,15 +79,15 @@ FIXTURES = {
         "impedidos": [], "naoDeuTempo": [], "esperandoVoce": [],
         "gasto": 9000,
         "stopReason": "reserva",
-    },
-}
+    }),
+]
 
 
 def tres_caminhos():
     """Roda `retomada.py --run <saida>` numa fixture de cada caminho."""
     falhas = []
     tmp = tempfile.mkdtemp(prefix="retomada-")
-    for esperada, run in FIXTURES.items():
+    for esperada, run in FIXTURES:
         alvo = os.path.join(tmp, "%s.json" % run["stopReason"])
         with open(alvo, "w", encoding="utf-8") as fh:
             json.dump(run, fh, ensure_ascii=False)
@@ -121,9 +122,13 @@ def tres_caminhos():
                 falhas.append("%s nao trouxe a evidencia do blocker" % run["stopReason"])
         elif not saida["causa"].strip() or not saida["evidencia"].strip():
             falhas.append("%s sem blocker deixou causa/evidencia vazia" % run["stopReason"])
-    # Desfecho que o inventario nao conhece nao vira palpite: cai em espera-dono.
-    if classifica({"stopReason": "desfecho-que-ninguem-viu"})["acao"] != DONO:
-        falhas.append("stopReason desconhecido nao caiu em espera-dono")
+    # O pronto do F23.5 e literal: espera-dono SO para os quatro casos, e o de fora
+    # o LACO decide — desconhecido cai em conserta (investigar a causa), nunca no dono.
+    saida = classifica({"stopReason": "desfecho-que-ninguem-viu"})
+    if saida["acao"] == DONO:
+        falhas.append("stopReason desconhecido chamou o dono — a lista fechada vazou")
+    if saida["acao"] != CONSERTA:
+        falhas.append("stopReason desconhecido nao caiu em conserta (investigar antes de relancar)")
     shutil.rmtree(tmp, ignore_errors=True)
     return falhas
 

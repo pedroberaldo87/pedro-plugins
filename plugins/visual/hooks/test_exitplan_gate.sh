@@ -132,6 +132,21 @@ else
   bad "e o init o aceita"
 fi
 
+echo "Cap — acima do teto o gate cala, mas ANUNCIA o silêncio"
+SIDCAP="99999999-7777"
+zera_cap "$SIDCAP"
+for _ in 1 2 3; do
+  printf '{"session_id":"%s","cwd":"%s","tool_name":"ExitPlanMode","tool_input":{"plan":"x"}}' \
+    "$SIDCAP" "$PROJ" | bash "$GATE" >/dev/null 2>&1
+done
+out=$(printf '{"session_id":"%s","cwd":"%s","tool_name":"ExitPlanMode","tool_input":{"plan":"x"}}' \
+      "$SIDCAP" "$PROJ" | bash "$GATE" 2>&1 >/dev/null)
+rc=$?
+check "4ª chamada libera (exit 0)" "$([ "$rc" = "0" ] && echo 1 || echo 0)"
+check "e sai uma linha dizendo que o gate está silenciado" \
+      "$(grep -q 'silenciado' <<< "$out" && echo 1 || echo 0)"
+zera_cap "$SIDCAP"
+
 echo "Kill-switch e fail-open"
 r=$(zera_cap ffffffff-6666; printf '{"session_id":"ffffffff-6666","cwd":"%s","tool_name":"ExitPlanMode","tool_input":{"plan":"x"}}' "$PROJ" \
     | VISUAL_GATE=0 bash "$GATE" 2>&1 >/dev/null; printf '|%s' "$?")

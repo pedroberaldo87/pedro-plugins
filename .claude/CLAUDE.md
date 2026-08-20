@@ -35,7 +35,7 @@ bash plugins/project-skills/hooks/test_plan_gate.sh
 - ⚠️ **Mudou um plugin? Pergunte SEMPRE o que mais tem que acompanhar** — e a resposta muda conforme o tipo de mudança. Apurado em 2026-08-02: **bump de versão não toca o bootstrap** (o `manifest.json` dele lista plugin por `name` + `enabled`, sem número de versão — verificável com `grep -c '[0-9]\+\.[0-9]\+\.[0-9]\+' plugins/bootstrap/config/manifest.json`). **Plugin NOVO toca**, e aí são três arquivos (`plugin.json`, `marketplace.json`, `bootstrap/config/manifest.json`) — quem cobra é `conformance.py:check_catalogo`, **não** o release-gate, então o commit passa e o desvio só aparece no próximo `bootstrap:setup`. **Contrato de skill consumido por outro plugin** só defasa quando foi COPIADO: `handoff` e `qa-loop` apontam para `visual_page.py schema` e `plan_state.py`, que são lidos na hora, então não defasam — cópia em prosa defasaria.
 - ⚠️ **Estado mutável vai em `~/.claude/…`, NUNCA dentro do plugin** (`${CLAUDE_PLUGIN_ROOT}` é cache reescrito a cada bump). Estado por-sessão em `/tmp` **tem que** ser chaveado por `session_id`.
 - ⚠️ **Nunca canonicalize path na chave de um sentinel** — `git rev-parse` dá `/private/var/…` e o recorte de string dá `/var/…`; o `cksum` diverge e o sentinel nunca casa. Use `hooks/lib-project-root.sh`.
-- ⚠️ **Editar `_shared/` sem rodar `scripts/sync-shared.sh`** deixa as 111 cópias vendoradas defasadas (o número sai do mapa, nunca daqui: `sed -n '/^SPECS=(/,/^)/p' scripts/sync-shared.sh | grep -c '::'`) — fix de código compartilhado nasce em `_shared/`, nunca na cópia.
+- ⚠️ **Editar `_shared/` sem rodar `scripts/sync-shared.sh`** deixa as 113 cópias vendoradas defasadas (o número sai do mapa, nunca daqui: `sed -n '/^SPECS=(/,/^)/p' scripts/sync-shared.sh | grep -c '::'`) — fix de código compartilhado nasce em `_shared/`, nunca na cópia.
 - ⚠️ **A história do git foi recriada em 2026-07-31** (commit órfão único `2587006`, sem ancestral comum com a anterior). Hash citado em doc velha não resolve mais, e todo mecanismo que compara contra um SHA gravado cai no caminho de cold-start — foi assim que a janela do `doc-touch` virou "690 mil linhas apagadas". Só o `/doc` FULL (skill `project-skills:doc`) reaponta o `ledger.json`.
 
 ## Documentation Index
@@ -46,7 +46,7 @@ bash plugins/project-skills/hooks/test_plan_gate.sh
 - **[quality-goals.md](docs/quality-goals.md)** — *autoral, `authored-by: human`* — a ordem de prioridade quando não dá para ter tudo (escaneabilidade > drill-down > completude > elegância), os dois regimes de documento, os três níveis de leitura, a régua de estilo que abole prosa em página gerada, e o mecanismo anti-ocultação do colapso
   → antes de escrever relatório, plano, página de aprovação ou qualquer artefato que um humano lê para decidir
 
-- **[architecture.md](docs/architecture.md)** — estrutura do repo, anatomia de plugin, catálogo dos 23 plugins distribuídos com versões, os 12 plugins com hooks evento a evento, a engine vendorada (`_shared/` → 111 cópias em 44 pastas, §7), decisões de arquitetura, terceiros do bootstrap
+- **[architecture.md](docs/architecture.md)** — estrutura do repo, anatomia de plugin, catálogo dos 23 plugins distribuídos com versões, os 12 plugins com hooks evento a evento, a engine vendorada (`_shared/` → 113 cópias em 45 pastas, §7), decisões de arquitetura, terceiros do bootstrap
   → entender o projeto, adicionar plugin, mexer em hooks, onboarding de máquina nova
 - **[patterns.md](docs/patterns.md)** — convenções de shell (fail-open, protocolo de saída de hook) e Python (stdlib only), vendoring, green-cache, regras de release + os checks do gate de commit (quantos são hoje sai do próprio arquivo: `grep -cE '^# [A-Z0-9-]+ · ' .claude/hooks/release-gate.sh`), testing, e a lista completa de gotchas com arquivo:símbolo
   → criar plugin, publicar mudança, escrever hook, evitar as armadilhas de release
@@ -60,8 +60,9 @@ bash plugins/project-skills/hooks/test_plan_gate.sh
 ## Diagramas (archify)
 
 Os diagramas de arquitetura vivem em três camadas com nome **estável**, uma por assunto:
-`organismo.html` (o repositório inteiro) e `app-<nome>.html` (um por aplicativo, só quando
-há dois ou mais) moram em **`.claude/archify/`** (fora do git — artefato de sessão, como
+`organismo.html` (o repositório inteiro) e `app-<nome>.html` (um por módulo, e quem decide
+se a camada existe é o classificador `grao-de-modulo.py` vendorado na skill — classes A/B/C
+sim, D/E só o organismo, decisão do dono de 2026-08-19) moram em **`.claude/archify/`** (fora do git — artefato de sessão, como
 `.claude/visual/`); `fluxo-<slug>.html` (um por fluxo que `runtime.md` nomeia — hoje
 `grep -c '^## ' docs/runtime.md` devolve 24 (23 fluxos + Pendências)) mora em
 **`docs/fluxos/`**, casa canônica **versionada** (decisão do dono em 2026-08-13:

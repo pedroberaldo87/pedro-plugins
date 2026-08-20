@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
-"""Le a saida de um run do /sprint e diz o que fazer com a parada (F23.2 · R-33).
+"""Le a saida de um run do /sprint e diz o que fazer com a parada (F23.2/F23.5 · R-33).
 
-Uso: python3 lib/retomada.py --run <arquivo.json>   (ou `-` para ler do stdin)
+Uso: python3 lib/retomada.py --run <arquivo.json> [--caso <id>]   (`-` le do stdin)
 
 O arquivo e a saida crua que o motor.js devolve no fim da corrida — o objeto com
 `stopReason` e `blockers`. Sai um JSON de quatro campos:
@@ -16,11 +16,12 @@ As tres acoes, e so tres:
                     igual repete a mesma parada pelo mesmo preco.
   espera-dono       decisao que nao e do laco: chama o dono.
 
-⚠️ A lista de espera-dono aqui e PROVISORIA. A lista FECHADA (credencial ausente ·
-ato externo irreversivel nao autorizado · escrever na lei ou em doc aprovada · mesma
-causa repetida) e da tarefa F23.5 e ainda nao existe. Ate ela chegar, o que classifica
-e so o inventario de desfechos medido no motor.js (F23.1), e desfecho DESCONHECIDO cai
-em espera-dono por seguranca — quem retoma nao inventa o que fazer com o que nao sabe.
+A lista do que chama o dono e FECHADA (F23.5): sao os quatro casos de CASOS_DONO, e
+nenhum stopReason chega la sozinho — o motor nao sabe dizer "isto e do dono", quem
+sabe e o laco, depois de investigar a causa (F23.4) ou de ver a mesma causa voltar
+(F23.6). O laco declara o caso pelo `--caso`; caso fora da lista NAO chama o dono —
+todo o resto o laco decide, inclusive desfecho que o inventario nao conhece (esse
+cai em conserta-e-relanca: investigar antes de relancar, nunca inventar).
 """
 import argparse
 import json
@@ -30,8 +31,18 @@ SEGUE = "segue-no-motor"
 CONSERTA = "conserta-e-relanca"
 DONO = "espera-dono"
 
+# A lista FECHADA do que chama o dono (F23.5). So estes quatro devolvem espera-dono;
+# quem os identifica e o laco (investigacao/repeticao), nunca o stopReason sozinho.
+CASOS_DONO = {
+    "credencial-ausente": "fornecer a credencial que so o dono tem — o laco nao cria segredo",
+    "ato-irreversivel": "autorizar o ato externo irreversivel (deploy, drop, push forcado) — sem autorizacao previa ninguem executa",
+    "lei-ou-doc-aprovada": "aprovar a mudanca na lei do projeto ou em doc aprovada — texto acordado so muda com o dono",
+    "causa-repetida": "decidir o rumo: a mesma causa parou o laco de novo sem o estado mudar — relancar repetiria",
+}
+
 # Cada desfecho que o motor.js emite (a suite cobra que a lista cobre TODOS), com a
-# acao de quem retoma e o que ela exige. A chave e o `stopReason`.
+# acao de quem retoma e o que ela exige. A chave e o `stopReason`. Nenhuma entrada
+# aponta para espera-dono: dono se chama por CASOS_DONO, nunca por desfecho.
 DESFECHOS = {
     "build-complete": (SEGUE, "nada: o plano fechou — so o relatorio"),
     "max-rounds": (SEGUE, "relancar com o mesmo plano; o que faltou esta nas tarefas abertas"),
@@ -41,17 +52,22 @@ DESFECHOS = {
     "corrida-em-circulo": (CONSERTA, "destravar o que os achados apontam; rodada nova repetiria o estado"),
     "em-falso": (CONSERTA, "destravar o que os achados apontam; a medicao das ultimas rodadas nao mostrou obra saindo"),
     "vigia": (CONSERTA, "investigar travamento; o ultimo estado salvo e o checkpoint da rodada anterior"),
-    # PROVISORIO ate F23.5: os dois abaixo gastam dinheiro ou mexem com outro motor da
-    # sessao — decisao de dono, nao do laco.
-    "reserva": (DONO, "esperar o outro motor da sessao sair, ou recortar a missao para outros arquivos"),
-    "orcamento": (DONO, "decidir se vale relancar com teto maior de tokens"),
+    # F23.5: reserva e orcamento sairam do dono — a lista fechada nao os tem, e o
+    # laco resolve os dois relancando (esperando a vez, ou com teto novo).
+    "reserva": (SEGUE, "esperar o outro motor da sessao liberar (ele solta ao sair) e relancar igual"),
+    "orcamento": (SEGUE, "relancar com teto maior de tokens — o laco decide o teto, nao o dono"),
 }
 
 
-def classifica(run):
-    """run: o dict que o motor.js devolveu. Devolve os quatro campos."""
+def classifica(run, caso=None):
+    """run: o dict que o motor.js devolveu; caso: o que o laco identificou na causa
+    (um id de CASOS_DONO chama o dono; qualquer outro valor nao muda nada).
+    Devolve os quatro campos."""
     desfecho = str(run.get("stopReason") or "").strip() or "(sem stopReason)"
-    acao, exige = DESFECHOS.get(desfecho, (DONO, "desfecho que o inventario nao conhece — nao ha o que retomar em automatico"))
+    if caso in CASOS_DONO:
+        acao, exige = DONO, CASOS_DONO[caso]
+    else:
+        acao, exige = DESFECHOS.get(desfecho, (CONSERTA, "desfecho que o inventario nao conhece — investigar a causa antes de relancar"))
 
     blockers = [b for b in (run.get("blockers") or []) if isinstance(b, dict)]
     ultimo = blockers[-1] if blockers else {}
@@ -76,6 +92,7 @@ def main(argv=None):
             pass
     ap = argparse.ArgumentParser(description="classifica a parada de um run do /sprint")
     ap.add_argument("--run", required=True, help="arquivo com a saida JSON do motor (ou - para stdin)")
+    ap.add_argument("--caso", help="o que o laco identificou na causa; um de: %s" % ", ".join(sorted(CASOS_DONO)))
     a = ap.parse_args(argv)
     bruto = sys.stdin.read() if a.run == "-" else open(a.run, encoding="utf-8").read()
     try:
@@ -83,7 +100,7 @@ def main(argv=None):
     except ValueError as e:
         print("saida de run ilegivel: %s" % e, file=sys.stderr)
         return 2
-    print(json.dumps(classifica(run), ensure_ascii=False, indent=2))
+    print(json.dumps(classifica(run, caso=a.caso), ensure_ascii=False, indent=2))
     return 0
 
 

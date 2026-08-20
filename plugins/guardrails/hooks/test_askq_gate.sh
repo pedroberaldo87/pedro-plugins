@@ -73,6 +73,10 @@ check "1ª devolução"  "$(run "$CAPQ")" "deny"
 check "2ª devolução"  "$(run "$CAPQ")" "deny"
 check "3ª devolução"  "$(run "$CAPQ")" "deny"
 check "4ª vira silêncio (degrada, não prende)" "$(run "$CAPQ")" "allow"
+# O silêncio não é mudo: acima do teto sai UMA linha dizendo que o gate calou.
+OUT="$(printf '%s' "$CAPQ" | lar_fingido "$FAKE_HOME" bash "$HOOK" 2>/dev/null)"
+case "$OUT" in *silenciado*) R=sim ;; *) R=nao ;; esac
+check "acima do teto o hook AVISA que está silenciado" "$R" "sim"
 # Outra sessão começa do zero — o cap não vaza entre sessões.
 check "sessão nova NÃO herda o cap esgotado" \
   "$(run "$(payload 'Qual das duas?' '[{"label":"A","description":""}]' "outra-$$")")" "deny"
