@@ -32,12 +32,6 @@ on:
 jobs:
   checks:
     runs-on: ${{ matrix.os }}
-    env:
-      # Modo UTF-8 do Python nos três sistemas. Sem ele, o runner do Windows abre os
-      # canos de processo em cp1252: o filho que imprime `→` morre de UnicodeEncodeError
-      # e o pai que lê UTF-8 morre de UnicodeDecodeError — medido no run 32494830242,
-      # onde as duas suítes vermelhas caíam por isso e não pelo que testavam.
-      PYTHONUTF8: "1"
     # Suíte pendurada não pode virar job de 6 h — mas o teto tem que ficar ACIMA do
     # job legítimo, senão ele deixa de acusar travamento e passa a causar um.
     # Medido no Windows: 23m42s, depois 25m01s, depois 26m28s — subindo a cada
