@@ -4,10 +4,9 @@ reviewed: 2026-08-14
 project: pedro-plugins
 authored-by: ex-post-rascunho
 status: approved
-approved: 2026-08-16
+approved: 2026-08-21
 scope: []
-approved-sig: 1827305419
-correcao-pendente: o marcador [PENDENTE] da linha 80 ('a etapa de protótipo ainda não existe no /start') ficou defasado — a oferta com as superfícies obrigatórias por jornada existe em skills/start/SKILL.md:515 e no FORMATO.md, com cobrador verde (test_sidecar_prototipo.py, 21 passou)
+approved-sig: 2789012455
 ---
 
 # Funcionalidades
@@ -53,7 +52,7 @@ correcao-pendente: o marcador [PENDENTE] da linha 80 ('a etapa de protótipo ain
 - **Passagem que a motivou:** "tique com prova"
 
 ### F-8 · Executar sozinho a noite inteira
-- **O que faz:** o `/sprint` arma sinal e reserva, despacha ondas com revisor por tarefa e entrega relatório em página em todo desfecho — concluída, parada ou derrubada. [PENDENTE: a regra do relatório em todo desfecho é obra do plano aberto (fase F6)]
+- **O que faz:** o `/sprint` arma sinal e reserva, despacha ondas com revisor por tarefa e entrega relatório em página em todo desfecho — concluída, parada ou derrubada (a regra vive na SKILL do sprint: "qualquer desfecho. É ele que faz o gate existir").
 - **Origem:** jornada "Executar um plano noite adentro"
 - **Passagem que a motivou:** "passos marcados com prova e commits publicados"
 
@@ -78,7 +77,7 @@ correcao-pendente: o marcador [PENDENTE] da linha 80 ('a etapa de protótipo ain
 - **Passagem que a motivou:** [DITO POR VOCÊ] "grafo é documentação, tem que assumir que faz parte, não tem que ser opcional (…) nem dá opção pro usuário"
 
 ### F-15 · Prototipar antes de construir
-- **O que faz:** o protótipo cobre a jornada padrão, a tela de erro, a de configuração e a de governança; aprovado, vale como documentação canônica e a implementação o segue à risca. [PENDENTE: a etapa de protótipo ainda não existe no /start — é obra do plano aberto (fase F13)]
+- **O que faz:** o protótipo cobre a jornada padrão, a tela de erro, a de configuração e a de governança; aprovado, vale como documentação canônica e a implementação o segue à risca (a oferta vive na etapa de interface do /start; formato em FORMATO.md, cobrador test_sidecar_prototipo.py).
 - **Origem:** jornada "Conceber um projeto com a metodologia"
 - **Passagem que a motivou:** [DITO POR VOCÊ] "os protótipos equivalem a documentação canônica (…) é um sistema, não é brincadeira de criança"
 
