@@ -32,6 +32,7 @@ import glob
 import json
 import os
 import re
+import subprocess
 import sys
 
 RAIZ = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -67,14 +68,34 @@ from padroes_vazamento import RISCO as _RISCO  # noqa: E402
 JS_HERDA = next(p for p, _c, _h in _RISCO if "stdio" in p.pattern)
 
 
+# Quando o gate roda no commit, o universo é o do commit — não a árvore inteira.
+# Rascunho não rastreado no disco de um agente reprovava o commit de todo mundo.
+SO_DO_COMMIT = None  # None = árvore inteira; set = caminhos absolutos que vão no commit
+
+
+def _universo_do_commit():
+    """staged ∪ tracked-modificado — o mesmo universo que o release-gate declara."""
+    achados = set()
+    for cmd in (["git", "diff", "--cached", "--name-only", "--diff-filter=ACMR"],
+                ["git", "diff", "--name-only", "--diff-filter=ACMR"]):
+        r = subprocess.run(cmd, cwd=RAIZ, capture_output=True, text=True,
+                           encoding="utf-8", errors="replace",
+                           stdin=subprocess.DEVNULL, start_new_session=True)
+        achados |= {os.path.join(RAIZ, x) for x in r.stdout.splitlines() if x}
+    return achados
+
+
 def _arquivos(ext=("py",)):
     padroes = []
     for e in ext:
         padroes += ["plugins/**/*.%s" % e, "scripts/*.%s" % e, "_shared/*.%s" % e]
     for p in padroes:
         for f in glob.glob(os.path.join(RAIZ, p), recursive=True):
-            if "__pycache__" not in f and "/node_modules/" not in f:
-                yield f
+            if "__pycache__" in f or "/node_modules/" in f:
+                continue
+            if SO_DO_COMMIT is not None and os.path.realpath(f) not in SO_DO_COMMIT:
+                continue
+            yield f
 
 
 def _varre_js(raiz):
@@ -139,7 +160,11 @@ def varre(raiz=None):
 def main(argv=None):
     p = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     p.add_argument("--json", action="store_true")
+    p.add_argument("--staged", action="store_true",
+                   help="só os arquivos que vão no commit (staged ∪ tracked-modificado)")
     a = p.parse_args(argv)
+    if a.staged:
+        globals()["SO_DO_COMMIT"] = {os.path.realpath(x) for x in _universo_do_commit()}
     r = varre()
     if a.json:
         print(json.dumps(r, ensure_ascii=False, indent=1))
