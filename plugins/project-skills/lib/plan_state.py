@@ -348,6 +348,86 @@ def _funde_limites(stored, incoming):
     return novos + mantidos, [str(x.get("limite", "")).strip() for x in mantidos]
 
 
+def _depende_de(it):
+    """A lista `depende` do passo, sempre lista (ausente = vazia)."""
+    d = it.get("depende")
+    return d if isinstance(d, list) else []
+
+
+def _passos_do_plano(plan):
+    """Todo passo do plano, tolerante a plano torto — esta varredura roda ANTES
+    de o plano estar provado válido, então `phases`/`items` podem não ser listas."""
+    for ph in plan.get("phases") or []:
+        if not isinstance(ph, dict):
+            continue
+        for it in ph.get("items") or []:
+            if isinstance(it, dict):
+                yield it
+
+
+def _erros_das_dependencias(plan):
+    """O campo `depende` — a aresta única "o outro termina antes deste começar".
+
+    Formato, no passo, ao lado de `requisito`:
+        "depende": ["F11.1"]
+
+    Recusa a GRAVAÇÃO em vez de avisar: quem escreve o JSON é o modelo, e aresta
+    que aponta pro nada apodrece em silêncio igual ao `requisito` inexistente.
+    """
+    errs = []
+    grafo = {}
+    # Só id de PASSO: fase é pasta, não trabalho — quem quer travar a fase inteira
+    # lista os passos dela.
+    ids = {str(it.get("id", "")) for it in _passos_do_plano(plan)}
+    for it in _passos_do_plano(plan):
+        iid = str(it.get("id", "?"))
+        dep = it.get("depende")
+        if dep is None:
+            continue
+        if not isinstance(dep, list) or not all(isinstance(x, str) for x in dep):
+            errs.append("%s depende: lista de ids de passo (ex: [\"F1.1\"]), ou ausente" % iid)
+            continue
+        vistos = []
+        for d in dep:
+            d = d.strip()
+            if d == iid:
+                errs.append("%s depende de si mesmo: passo que espera a si nunca começa" % iid)
+            elif d not in ids:
+                errs.append("%s depende de '%s': não existe no plano.\n"
+                            "     Ids conhecidos: %s"
+                            % (iid, d, ", ".join(sorted(ids)[:8]) or "(nenhum)"))
+            elif d in vistos:
+                errs.append("%s depende de '%s' duas vezes" % (iid, d))
+            else:
+                vistos.append(d)
+        grafo[iid] = vistos
+    # Ciclo — a única guarda com algoritmo. Varredura em profundidade com marca de
+    # cinza (na pilha) e preto (fechado); o anel INTEIRO entra na recusa, senão quem
+    # lê sabe que há ciclo e não sabe onde cortá-lo.
+    cor, pilha, anel = {}, [], []
+
+    def desce(n):
+        cor[n] = "cinza"
+        pilha.append(n)
+        for m in grafo.get(n, []):
+            if cor.get(m) == "cinza":
+                anel.append(pilha[pilha.index(m):] + [m])
+                return True
+            if cor.get(m) is None and desce(m):
+                return True
+        pilha.pop()
+        cor[n] = "preto"
+        return False
+
+    for n in grafo:
+        if cor.get(n) is None and desce(n):
+            break
+    if anel:
+        errs.append("depende: ciclo — %s. Ninguém pode começar: cada um espera o\n"
+                    "     seguinte. Corte uma das setas." % " → ".join(anel[0]))
+    return errs
+
+
 def erros_do_plano(plan, exigir=None):
     """Erros de forma, todos de uma vez — devolver um por vez faz o autor
     gastar N rodadas pra escrever um arquivo.
@@ -477,6 +557,7 @@ def erros_do_plano(plan, exigir=None):
                 "     está marcado com `tick <id> --evidencia`. Plano 'done' sai da\n"
                 "     listagem — do jeito que está, ele levaria esses passos junto."
                 % (len(pendentes), ", ".join(pendentes[:8])))
+    errs.extend(_erros_das_dependencias(plan))
     return errs
 
 
@@ -584,13 +665,23 @@ def cmd_init(args):
         # o merge funde por id, então o que vai FICAR gravado é a união — validar
         # contra o pedaço reprovaria a tarefa que cita requisito só do arquivo.
         fonte = dict(incoming, requisitos=_funde_requisitos(stored, incoming)[0])
+    # A guarda de `depende` (R-36) julga o plano FUNDIDO, não o que chegou: init
+    # parcial que não traz a fase vizinha diria "não existe no plano" de um passo
+    # que está no disco, e o ciclo que só nasce da FUSÃO (o arquivo tem A→B, o init
+    # traz B→A) não está inteiro em nenhum dos dois lados e passaria batido.
+    isentos = list(_erros_herdados(stored, incoming))
+    if stored is not None:
+        isentos += _erros_das_dependencias(incoming)
     validate(incoming, exigir=novos,
              reqs=_requisitos_do_projeto(directory, fonte),
-             isentos=_erros_herdados(stored, incoming))
+             isentos=isentos)
 
     notes = []
     if stored is not None:
         incoming, notes = merge(stored, incoming, renames=dict(args.rename or []))
+        errs = _erros_das_dependencias(incoming)
+        if errs:
+            raise PlanError("plano inválido:\n  - " + "\n  - ".join(errs))
     else:
         incoming.setdefault("created", time.strftime("%Y-%m-%d"))
         incoming.setdefault("status", "active")
@@ -979,6 +1070,18 @@ def cmd_tick(args):
               file=sys.stderr)
         for e in erros[:3]:
             print("     %s" % e, file=sys.stderr)
+
+    # WBS · R-36: a base tem que estar de pé. Marcar feito um passo cuja dependência
+    # ainda está aberta é a mesma mentira que `done` sem prova — e essa o arquivo já
+    # recusa. Decisão do dono em 2026-08-16: "Recusar, sempre".
+    abertas = [d for d in _depende_de(it)
+               if (find_item(plan, d)[1] or {}).get("status") != "done"]
+    if abertas:
+        raise PlanError(
+            "⛔ tick recusado: %s depende de passo que ainda não fechou: %s.\n"
+            "   O que este passo espera tem que estar marcado antes dele. Se a ordem\n"
+            "   mudou, mude a seta no plano (`init`) — não o tique."
+            % (node_id, ", ".join(abertas)))
 
     pend = pendencia_viva(it)
     if pend:
