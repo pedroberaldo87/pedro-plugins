@@ -112,7 +112,8 @@ ${RESERVA_AVISO}📋 Há plano(s) de implementação ABERTO(S) neste projeto:
 ${LIST}
 
 Este arquivo é a fonte da verdade do plano — NÃO reconstrua o plano de memória e
-NÃO renomeie as fases. Antes de continuar o trabalho:
+NÃO renomeie as fases. E pré-check vencido → rode a caça antes de planejar ou
+executar por cima. Antes de continuar o trabalho:
 
   python3 <plugin project-skills>/lib/plan_state.py render --format text
 
