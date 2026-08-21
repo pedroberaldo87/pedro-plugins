@@ -689,7 +689,9 @@ def _pergunta_a_guarda(proot, cmd, tool, entrada, raiz, teto):
     """Roda a guarda de verdade com o payload do passo. Devolve a saída, ou None."""
     payload = json.dumps({"tool_name": tool, "cwd": raiz,
                           "session_id": "precheck-largada", "tool_input": entrada})
-    env = dict(os.environ, CLAUDE_PLUGIN_ROOT=proot, CLAUDE_PROJECT_DIR=raiz)
+    env = dict(os.environ,
+               CLAUDE_PLUGIN_ROOT=proot.replace(os.sep, "/"),
+               CLAUDE_PROJECT_DIR=raiz.replace(os.sep, "/"))
     try:
         r = subprocess.run(cmd, cwd=raiz, shell=True, capture_output=True, text=True,
                            encoding="utf-8", errors="replace", timeout=teto,
@@ -725,8 +727,12 @@ def _reservas_na_arvore(raiz, base_estado, agora):
                 continue
             alvo = ln if os.path.isabs(ln) else os.path.join(raiz, ln)
             if os.path.realpath(alvo).startswith(os.path.realpath(raiz) + os.sep):
+                # barra POSIX: este relativo cruza com os `files` do plano, que são
+                # POSIX — com `\` do Windows a interseção zerava e o BLOQUEANTE
+                # virava ADIÁVEL em silêncio
                 meus.append(os.path.relpath(os.path.realpath(alvo),
-                                            os.path.realpath(raiz)))
+                                            os.path.realpath(raiz))
+                            .replace(os.sep, "/"))
         if meus:
             fora.append((sid, motor, sorted(set(meus)), arq))
     return fora
@@ -851,6 +857,16 @@ def passada4(plano, raiz, base_estado=None, teto_guarda=15, agora=None):
             break
     if regra:
         rc, ps = _roda("ps -eo pid=,args=", raiz, 15)
+        if rc != 0 or not (ps or "").strip():
+            # o ps desta máquina não entrega a lista com argumentos (o do Windows
+            # não tem -eo) — o gate DIZ que não mediu em vez de calar (Artigo 4)
+            achados.append(_achado(
+                {"id": "largada"}, "exclusividade", ADIAVEL,
+                "a regra de exclusividade existe, mas o `ps` desta máquina não "
+                "lista processos com argumentos — a vizinhança de processos NÃO "
+                "foi medida; confere à mão antes de largar?",
+                "ps -eo pid=,args=: rc=%s" % rc))
+            ps = ""
         # O PRÓPRIO PROCESSO NÃO É O VIZINHO. Quem chama o pré-check costuma ser um
         # shell cuja linha de comando CITA a esteira — sem tirar a nossa árvore da
         # frente, a checagem acusaria a si mesma toda vez.
