@@ -17,7 +17,7 @@ O que é mecânico mora aqui; o julgamento ("que decisão está embutida nesta f
     segredo             variável citada com zero ocorrência na árvore
     impedimento         "não alcanço X" afirmado de memória, sem comando que prove
 
-ESTE MÓDULO NÃO ESCREVE NADA. Achado vira PERGUNTA ao dono — nunca campo gravado no
+O MÓDULO NÃO ESCREVE NO PLANO. Achado vira PERGUNTA ao dono — nunca campo gravado no
 passo por palpite. Quem grava é o dono respondendo, e a resposta é selada em
 `decisoes_seladas`. E ANTES de virar pergunta, todo achado passa pelo registro
 selado: pergunta repetida é falha do processo, não pedido novo.
@@ -34,6 +34,13 @@ Uso:
     r["perguntas"]                 # o que vai ao dono ANTES da largada
     r["registrados"]               # o adiável e o que o registro selado já respondeu
 
+    t = triar(raiz, achados)       # a suspeita que NÃO passa no teste da pergunta
+                                   # precisa (passo + pergunta + prova) não vai ao
+                                   # dono e não some: vira linha em
+                                   # `.claude/neblina.md` (F22.9). `pode_fechar(raiz)`
+                                   # só libera o fecho com neblina vazia ou toda
+                                   # declarada fora de escopo.
+
     r = passada2(plano, raiz)      # a SEQUÊNCIA: o que só trava no encadeamento
                                    # (dependência real fora do dependsOn, dois
                                    #  paralelos no mesmo arquivo quente, ordem que
@@ -48,7 +55,20 @@ Uso:
                                    # referência é a FOTO da largada, nunca verde
                                    # absoluto — e porta fechada aqui não larga.
 
-    python3 precheck_largada.py <plano.json> [--raiz .] [--passada 1|2|3]
+    r = passada4(plano, raiz)      # A VIZINHANÇA: motor vivo na mesma árvore
+                                   # (sinal + reserva de arquivo), guarda de
+                                   # PreToolUse que NEGA o comando do passo, recurso
+                                   # externo sem espera declarada, porta fixa
+                                   # disputada e a regra de exclusividade do
+                                   # CLAUDE.md virada checagem de `ps`.
+
+    r = rodada_seguinte(raiz, respostas)
+                                   # A RODADA N+1: parte das RESPOSTAS da rodada N,
+                                   # não do plano. Lê o que cada resposta confirmou,
+                                   # desconfirmou ou revelou de novo; rodada sem
+                                   # decorrência devolve `fechou: True`.
+
+    python3 precheck_largada.py <plano.json> [--raiz .] [--passada 1|2|3|4]
                                    # exit 1 = há pergunta
 
 stdlib only (requisito do repo).
@@ -60,9 +80,11 @@ import os
 import re
 import subprocess
 import sys
+import time
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
+import andamento  # noqa: E402
 from auditoria_plano import ATO_DO_DONO  # noqa: E402
 from decisoes_seladas import consultar  # noqa: E402
 from plan_state import pick_plan  # noqa: E402
@@ -567,12 +589,461 @@ def passada3(raiz, suite_cmd=None, gate_cmd=None, planos=None, alvo=None,
             "registrados": registrados}
 
 
+# ── PASSADA 4 · A VIZINHANÇA (F22.4) ────────────────────────────────────────
+# As três passadas anteriores olham o plano e a casa como se a máquina fosse só
+# dela. Não é: outro motor pode estar de pé na MESMA árvore, uma guarda de
+# PreToolUse pode negar por texto o comando que o passo vai rodar, um passo pode
+# depender de coisa que não está nesta máquina (CI, credencial, aprovação), e dois
+# passos podem disputar a mesma porta. Nada disso aparece lendo o passo sozinho.
+#
+# A guarda NÃO é adivinhada por leitura do script: ela é MEDIDA — o payload do
+# passo entra por stdin no hook de verdade e o veredito é o que ele responde. Só
+# matcher de Bash/edição roda aqui; `Agent` fica de fora de propósito, porque o
+# gate do motor ARMA sinal quando consultado e o pré-check não escreve estado.
+
+_COMANDO = re.compile(r"`([^`\n]{3,120})`")
+_RECURSO = re.compile(
+    r"\b(CI\b|GitHub Actions|pipeline|credencial|token de acesso|chave de API"
+    r"|/plugin\b|App Store|VPN|conta paga|aprova[çc][ãa]o d[oa])", re.I)
+_PORTA = re.compile(r"(?:localhost|127\.0\.0\.1|0\.0\.0\.0):(\d{2,5})"
+                    r"|(?<![\w.]):(\d{4,5})(?![\w.])")
+_EXCLUSIVO = re.compile(r"nunca duas [^.\n]*ao mesmo tempo"
+                        r"|uma [^.\n]{1,40} por vez"
+                        r"|nunca [^.\n]{1,40} em paralelo", re.I)
+_DENY = re.compile(r'"permissionDecision"\s*:\s*"deny"')
+_TOOL_CMD = ("Bash",)
+_TOOL_ARQ = ("Edit", "Write", "MultiEdit")
+
+
+def _comandos(passo):
+    """Os comandos citados entre crases no texto do passo."""
+    out = []
+    for c in _COMANDO.findall(_texto(passo)):
+        c = c.strip()
+        if re.match(r"^[a-z][a-z0-9_.-]*(\s|$)", c) and (" " in c or "/" in c):
+            out.append(c)
+    return out
+
+
+def _guardas(raiz):
+    """As guardas de PreToolUse dos plugins da árvore: (raiz_do_plugin, cmd, tool)."""
+    fora = []
+    import glob as _glob
+    for arq in sorted(_glob.glob(os.path.join(raiz, "plugins", "*", "hooks", "hooks.json"))):
+        try:
+            with open(arq, encoding="utf-8") as fh:
+                d = json.load(fh)
+        except (OSError, ValueError):
+            continue
+        proot = os.path.dirname(os.path.dirname(arq))
+        for m in (d.get("hooks") or {}).get("PreToolUse") or []:
+            tools = set(str(m.get("matcher") or "").split("|"))
+            for h in m.get("hooks") or []:
+                cmd = str(h.get("command") or "").strip()
+                if not cmd:
+                    continue
+                for t in _TOOL_CMD + _TOOL_ARQ:
+                    if t in tools:
+                        fora.append((proot, cmd, t))
+    return fora
+
+
+def _pergunta_a_guarda(proot, cmd, tool, entrada, raiz, teto):
+    """Roda a guarda de verdade com o payload do passo. Devolve a saída, ou None."""
+    payload = json.dumps({"tool_name": tool, "cwd": raiz,
+                          "session_id": "precheck-largada", "tool_input": entrada})
+    env = dict(os.environ, CLAUDE_PLUGIN_ROOT=proot, CLAUDE_PROJECT_DIR=raiz)
+    try:
+        r = subprocess.run(cmd, cwd=raiz, shell=True, capture_output=True, text=True,
+                           encoding="utf-8", errors="replace", timeout=teto,
+                           input=payload, env=env, start_new_session=True)
+    except (OSError, subprocess.SubprocessError):
+        return None
+    return (r.stdout or "") + (r.stderr or "")
+
+
+def _reservas_na_arvore(raiz, base_estado, agora):
+    """Reserva de arquivo VIVA apontando para dentro desta árvore: (sid, motor, arqs).
+
+    Reusa o estado que `reserva-de-arquivos.sh` já escreve (`reservas/<sid>__<motor>.files`)
+    e o mesmo teto de idade do sinal (`andamento.TTL_SINAL_MIN`): reserva expirada é
+    motor morto, e motor morto não disputa nada.
+    """
+    import glob as _glob
+    fora = []
+    for arq in sorted(_glob.glob(os.path.join(base_estado, "reservas", "*.files"))):
+        try:
+            if agora - os.path.getmtime(arq) > andamento.TTL_SINAL_MIN * 60:
+                continue
+            with open(arq, encoding="utf-8") as fh:
+                linhas = [ln.strip() for ln in fh if ln.strip()]
+        except OSError:
+            continue
+        sid, _, motor = os.path.basename(arq)[:-len(".files")].partition("__")
+        meus = []
+        for ln in linhas:
+            # Caminho RELATIVO na reserva pode ser de outro projeto: só conta o que
+            # existe AQUI. Absoluto já diz de qual árvore fala.
+            if not os.path.isabs(ln) and not os.path.exists(os.path.join(raiz, ln)):
+                continue
+            alvo = ln if os.path.isabs(ln) else os.path.join(raiz, ln)
+            if os.path.realpath(alvo).startswith(os.path.realpath(raiz) + os.sep):
+                meus.append(os.path.relpath(os.path.realpath(alvo),
+                                            os.path.realpath(raiz)))
+        if meus:
+            fora.append((sid, motor, sorted(set(meus)), arq))
+    return fora
+
+
+def _pid(linha):
+    """O pid que abre uma linha de `ps -eo pid=,args=`, ou -1."""
+    try:
+        return int(linha.split()[0])
+    except (IndexError, ValueError):
+        return -1
+
+
+def _ancestrais():
+    """Os pids deste processo e dos que o lançaram — eles não são a vizinhança."""
+    pids, pid = set(), os.getpid()
+    for _ in range(20):
+        pids.add(pid)
+        _, out = _roda("ps -o ppid= -p %d" % pid, ".", 10)
+        try:
+            pid = int((out or "").strip())
+        except ValueError:
+            break
+        if pid <= 1:
+            break
+    return pids
+
+
+def passada4(plano, raiz, base_estado=None, teto_guarda=15, agora=None):
+    """A passada sobre a VIZINHANÇA — quem mais está de pé em volta desta largada.
+
+    Mesma saída das outras: `perguntas` e `registrados`. Não escreve nada.
+    """
+    agora = time.time() if agora is None else agora
+    base_estado = base_estado or andamento.ESTADO
+    passos = list(_abertos(plano))
+    achados = []
+
+    # 1 · motor/sessão viva na MESMA árvore (sinal de andamento + reserva de arquivo).
+    meus_arquivos = set()
+    for p in passos:
+        meus_arquivos |= _arquivos(p)
+    for sid, motor, arqs, arq in _reservas_na_arvore(raiz, base_estado, agora):
+        vivo = os.path.exists(os.path.join(base_estado, "ativo-%s" % sid))
+        cruza = sorted(meus_arquivos.intersection(arqs))
+        classe = BLOQUEANTE if (vivo and cruza) else ADIAVEL
+        achados.append(_achado(
+            {"id": "largada"}, "motor_vivo", classe,
+            "o motor %s já está de pé nesta mesma árvore e reservou %s%s — espera ele "
+            "terminar, ou as duas largadas dividem os arquivos?"
+            % (motor or "?", arqs[0], " (que este plano também toca)" if cruza else ""),
+            "%s: %s%s" % (arq, ", ".join(arqs[:5]),
+                          " · ativo-%s aceso" % sid if vivo else " · sem aviso aceso")))
+
+    # 2 · guarda de PreToolUse que NEGA, medida com o payload dos passos abertos.
+    guardas = _guardas(raiz)
+    vistos = set()
+    for p in passos:
+        pid = str(p.get("id") or "?")
+        alvos = [("command", c) for c in _comandos(p)]
+        alvos += [("file_path", c) for c in sorted(_arquivos(p))]
+        for campo, valor in alvos:
+            for proot, cmd, tool in guardas:
+                if (campo == "command") != (tool in _TOOL_CMD):
+                    continue
+                chave = (proot, cmd, tool, valor)
+                if chave in vistos:
+                    continue
+                vistos.add(chave)
+                entrada = {campo: valor}
+                if campo == "file_path":
+                    entrada["path"] = valor
+                saida = _pergunta_a_guarda(proot, cmd, tool, entrada, raiz, teto_guarda)
+                if saida and _DENY.search(saida):
+                    achados.append(_achado(
+                        p, "guarda_nega", BLOQUEANTE,
+                        "a guarda de %s nega %s antes de o passo %s começar — o passo "
+                        "muda de caminho, ou a guarda sai do caminho dele?"
+                        % (os.path.basename(proot), valor, pid),
+                        "%s (%s): %s" % (cmd.split(";")[-1].strip(), tool,
+                                         _tail(saida, 240))))
+
+    # 3 · recurso externo exigido pelo passo sem espera declarada.
+    for p in passos:
+        if str(p.get("espera_dono") or "").strip():
+            continue
+        m = _RECURSO.search(_texto(p))
+        if m:
+            achados.append(_achado(
+                p, "recurso_externo", BLOQUEANTE,
+                "o passo depende de %s, que não está nesta máquina, e não declara "
+                "espera — você libera o recurso antes, ou o passo declara a espera?"
+                % m.group(0), _texto(p).strip()[:200]))
+
+    # 4 · porta fixa compartilhada por dois passos abertos.
+    portas = {}
+    for p in passos:
+        for a, b in _PORTA.findall(_texto(p)):
+            portas.setdefault(a or b, set()).add(str(p.get("id") or "?"))
+    for porta, quem in sorted(portas.items()):
+        if len(quem) > 1:
+            achados.append(_achado(
+                {"id": sorted(quem)[0]}, "porta_compartilhada", BLOQUEANTE,
+                "os passos %s citam a MESMA porta %s — o segundo a subir morre com "
+                "porta ocupada; serializa os dois ou dá porta própria a cada um?"
+                % (", ".join(sorted(quem)), porta),
+                "porta %s citada em: %s" % (porta, ", ".join(sorted(quem)))))
+
+    # 5 · a regra escrita no CLAUDE.md ("nunca duas suítes ao mesmo tempo") vira
+    #     checagem de `ps`: se a regra existe e o processo JÁ está de pé, não larga.
+    import glob as _glob
+    regra = None
+    for arq in [os.path.join(raiz, "CLAUDE.md")] + sorted(
+            _glob.glob(os.path.join(raiz, "*", "CLAUDE.md"))):
+        try:
+            with open(arq, encoding="utf-8", errors="replace") as fh:
+                m = _EXCLUSIVO.search(fh.read())
+        except OSError:
+            continue
+        if m:
+            regra = (arq, m.group(0))
+            break
+    if regra:
+        rc, ps = _roda("ps -eo pid=,args=", raiz, 15)
+        # O PRÓPRIO PROCESSO NÃO É O VIZINHO. Quem chama o pré-check costuma ser um
+        # shell cuja linha de comando CITA a esteira — sem tirar a nossa árvore da
+        # frente, a checagem acusaria a si mesma toda vez.
+        meus = _ancestrais()
+        linhas = [ln for ln in (ps or "").splitlines()
+                  if "ps -eo" not in ln and _pid(ln) not in meus]
+        for p in passos:
+            for c in _comandos(p):
+                alvo = os.path.basename(c.split()[-1]) if "/" in c else c.split()[0]
+                linha = next((ln for ln in linhas if alvo and alvo in ln), None)
+                if linha:
+                    achados.append(_achado(
+                        p, "exclusividade", BLOQUEANTE,
+                        "a regra de %s diz \"%s\" e JÁ existe um `%s` de pé nesta "
+                        "máquina — espera o que está rodando, ou larga por cima?"
+                        % (os.path.relpath(regra[0], raiz), regra[1], alvo),
+                        linha.strip()[:200]))
+
+    perguntas, registrados = [], []
+    for a in achados:
+        seladas = consultar(raiz, a["pergunta"])
+        if seladas:
+            a["respondida_por"] = seladas[0]
+            registrados.append(a)
+        elif a["classe"] == BLOQUEANTE:
+            perguntas.append(a)
+        else:
+            registrados.append(a)
+    return {"passos_abertos": [str(p.get("id")) for p in passos],
+            "achados": achados, "perguntas": perguntas, "registrados": registrados}
+
+
+# ── NEBLINA · a suspeita que não vira pergunta (F22.9) ──────────────────────
+# Nem toda suspeita tem forma de pergunta. A que não tem só tinha dois destinos:
+# ir ao dono como neblina ("acho que tem algo aqui") — e ele não tem o que
+# responder —, ou sumir da rodada e voltar como surpresa no meio da corrida.
+# O terceiro destino é este: REGISTRO. Fora do plugin (`${CLAUDE_PLUGIN_ROOT}` é
+# cache reescrito a cada bump), na casa do projeto, no mesmo molde de
+# `decisoes-seladas.md`: uma linha por suspeita, grep-ável, inteira numa linha só.
+#
+# O teste da pergunta precisa, as três exigências: aponta UM passo, termina em
+# pergunta de verdade, e carrega a prova visível. Falhou qualquer uma ⇒ neblina.
+
+NEBLINA = os.path.join(".claude", "neblina.md")
+
+CABECALHO_NEBLINA = """\
+# Neblina
+
+Suspeita que não passou no teste da pergunta precisa (passo nomeado + pergunta de
+verdade + prova visível). Uma linha por suspeita, a frase inteira NA MESMA LINHA.
+O loop só fecha com esta lista vazia, ou com cada item declarado FORA DE ESCOPO.
+"""
+
+_FORA = " — fora de escopo: "
+
+
+def pergunta_precisa(achado):
+    """O que falta para a suspeita ser pergunta. `[]` = passa no teste."""
+    faltas = []
+    if not str(achado.get("passo") or "").strip() or str(achado.get("passo")) == "?":
+        faltas.append("não aponta passo nenhum")
+    pergunta = str(achado.get("pergunta") or "").strip()
+    if len(pergunta) < 20 or "?" not in pergunta:
+        faltas.append("não é pergunta de verdade")
+    if not str(achado.get("prova") or "").strip():
+        faltas.append("não traz prova visível")
+    return faltas
+
+
+def casa_da_neblina(raiz):
+    return os.path.join(raiz, NEBLINA)
+
+
+def _linhas_de_neblina(raiz):
+    arq = casa_da_neblina(raiz)
+    if not os.path.isfile(arq):
+        return []
+    with open(arq, encoding="utf-8") as f:
+        return [ln.rstrip("\n") for ln in f if ln.startswith("- [")]
+
+
+def anotar_neblina(raiz, suspeita, motivo, passo="?", data=None):
+    """Grava UMA linha de neblina. Devolve a linha (ou a já existente — sem dobro)."""
+    suspeita = " ".join(str(suspeita or "").split())
+    if not suspeita or not str(motivo or "").strip():
+        raise ValueError("neblina sem suspeita ou sem motivo não registra nada")
+    data = data or time.strftime("%Y-%m-%d")
+    linha = '- [%s] "%s" — passo: %s — sem forma: %s' % (
+        data, suspeita, str(passo or "?").strip(), str(motivo).strip())
+    for existente in _linhas_de_neblina(raiz):
+        if '"%s"' % suspeita in existente:
+            return existente
+    arq = casa_da_neblina(raiz)
+    os.makedirs(os.path.dirname(arq), exist_ok=True)
+    novo = not os.path.isfile(arq)
+    with open(arq, "a", encoding="utf-8") as f:
+        if novo:
+            f.write(CABECALHO_NEBLINA + "\n")
+        f.write(linha + "\n")
+    return linha
+
+
+def neblina_aberta(raiz):
+    """As linhas que ninguém declarou fora de escopo — as que ainda seguram o fecho."""
+    return [ln for ln in _linhas_de_neblina(raiz) if _FORA not in ln]
+
+
+def declarar_fora_de_escopo(raiz, suspeita, motivo):
+    """Marca a linha da suspeita como fora de escopo. `False` = não existe tal linha."""
+    suspeita = " ".join(str(suspeita or "").split())
+    if not str(motivo or "").strip():
+        raise ValueError("fora de escopo sem motivo não declara nada")
+    arq = casa_da_neblina(raiz)
+    if not os.path.isfile(arq):
+        return False
+    with open(arq, encoding="utf-8") as f:
+        linhas = f.readlines()
+    achou = False
+    for i, ln in enumerate(linhas):
+        if ln.startswith("- [") and '"%s"' % suspeita in ln and _FORA not in ln:
+            linhas[i] = ln.rstrip("\n") + _FORA + str(motivo).strip() + "\n"
+            achou = True
+    if achou:
+        with open(arq, "w", encoding="utf-8") as f:
+            f.writelines(linhas)
+    return achou
+
+
+def triar(raiz, achados, data=None):
+    """Separa o que vira pergunta do que vira neblina. A neblina é GRAVADA aqui.
+
+    O achado que não passa no teste da pergunta precisa sai da fila do dono e entra
+    no registro — nunca some, nunca chega a ele como "acho que tem algo aqui".
+    """
+    perguntas, neblina = [], []
+    for a in achados:
+        faltas = pergunta_precisa(a)
+        if not faltas:
+            perguntas.append(a)
+            continue
+        motivo = "; ".join(faltas)
+        suspeita = str(a.get("pergunta") or a.get("prova") or a.get("check") or "").strip()
+        linha = anotar_neblina(raiz, suspeita or str(a.get("check") or "suspeita"),
+                               motivo, a.get("passo"), data)
+        neblina.append(dict(a, sem_forma=faltas, linha=linha))
+    return {"perguntas": perguntas, "neblina": neblina}
+
+
+def pode_fechar(raiz):
+    """O fecho do loop: `(True, [])` só com neblina vazia ou toda fora de escopo."""
+    abertas = neblina_aberta(raiz)
+    return (not abertas), abertas
+
+
+# ── RODADA N+1 · a que parte das RESPOSTAS (F22.7) ──────────────────────────
+# A rodada seguinte NÃO re-varre o plano: varrer de novo devolve as mesmas sete
+# checagens sobre o mesmo texto e o loop nunca fecha. O insumo dela é o que o dono
+# RESPONDEU, e a leitura de cada resposta é uma pergunta só, em três partes: o que
+# ela CONFIRMOU (o achado morre ali), o que DESCONFIRMOU (a prova da rodada
+# anterior caiu — o passo tem que ser reescrito) e o que REVELOU de novo (nome que
+# não estava na rodada N e agora entra). Confirmação pura não gera pergunta — é
+# exatamente assim que o loop chega ao fim.
+
+_DESCONFIRMA = re.compile(
+    r"\b(n[ãa]o\b|nenhum\w*|nada disso|errad\w+|na verdade|pelo contr[áa]rio"
+    r"|deixou de|nunca (?:foi|existiu))", re.I)
+
+
+def _revelado(resposta, conhecido):
+    """Nome concreto que a resposta cita e a rodada anterior não conhecia."""
+    novos = []
+    for rx in (_CAMINHO, _COMANDO):
+        for nome in rx.findall(resposta):
+            nome = nome.strip()
+            if nome and nome not in conhecido and nome not in novos:
+                novos.append(nome)
+    return novos
+
+
+def rodada_seguinte(raiz, respostas):
+    """A rodada N+1, feita das RESPOSTAS da rodada N. Não lê o plano.
+
+    Cada item de `respostas` é o achado da rodada anterior com a resposta do dono
+    colada: `{"passo", "pergunta", "prova", "resposta"}`. Devolve a `leitura` de
+    cada uma (confirmou / desconfirmou / revelou), as `perguntas` decorrentes e
+    `fechou` — verdadeiro quando nenhuma resposta gerou decorrência.
+    """
+    achados, leitura = [], []
+    for r in respostas:
+        passo = {"id": r.get("passo") or "?"}
+        resposta = " ".join(str(r.get("resposta") or "").split())
+        conhecido = "%s %s" % (r.get("pergunta") or "", r.get("prova") or "")
+        desconfirmou = bool(_DESCONFIRMA.search(resposta))
+        revelou = _revelado(resposta, conhecido)
+        leitura.append({"passo": passo["id"], "resposta": resposta,
+                        "desconfirmou": desconfirmou, "revelou": revelou,
+                        "confirmou": not desconfirmou and not revelou})
+        if desconfirmou:
+            achados.append(_achado(
+                passo, "desconfirmado", BLOQUEANTE,
+                "a resposta derruba a prova que sustentava o achado anterior — o "
+                "passo continua de pé como está escrito, ou é reescrito?",
+                "prova da rodada anterior: %s\nresposta: %s"
+                % (r.get("prova") or "(sem prova)", resposta)))
+        for nome in revelou:
+            achados.append(_achado(
+                passo, "revelado", BLOQUEANTE,
+                "a resposta trouxe %s, que não estava na rodada anterior — o passo "
+                "passa a depender disso, ou isso fica fora da largada?" % nome,
+                "resposta: %s" % resposta))
+
+    perguntas, registrados = [], []
+    for a in achados:
+        seladas = consultar(raiz, a["pergunta"])
+        if seladas:
+            a["respondida_por"] = seladas[0]
+            registrados.append(a)
+        else:
+            perguntas.append(a)
+    return {"leitura": leitura, "achados": achados, "perguntas": perguntas,
+            "registrados": registrados, "fechou": not perguntas}
+
+
 def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("plano", help="o .plan.json a varrer")
     ap.add_argument("--raiz", default=".", help="a raiz do projeto (disco e registro)")
-    ap.add_argument("--passada", choices=("1", "2", "3"), default="1",
-                    help="1 = item a item (padrão); 2 = a sequência; 3 = a casa")
+    ap.add_argument("--passada", choices=("1", "2", "3", "4"), default="1",
+                    help="1 = item a item (padrão); 2 = a sequência; 3 = a casa; "
+                         "4 = a vizinhança")
     ap.add_argument("--suite", default="bash scripts/suite.sh",
                     help="o comando da esteira INTEIRA (passada 3)")
     ap.add_argument("--gate", default="", help="o gate de commit (passada 3)")
@@ -583,6 +1054,8 @@ def main(argv=None):
         r = passada3(args.raiz, suite_cmd=args.suite, gate_cmd=args.gate,
                      planos=os.path.dirname(os.path.abspath(args.plano)),
                      alvo=plano.get("id"))
+    elif args.passada == "4":
+        r = passada4(plano, args.raiz)
     else:
         r = (passada1 if args.passada == "1" else passada2)(plano, args.raiz)
     print(json.dumps(r, ensure_ascii=False, indent=1))
