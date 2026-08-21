@@ -553,6 +553,40 @@ def main():
                     "2c. **Varre as frentes órfãs",
                     "3. **Confere o sinal apagado"))))
 
+    # F22.5 — o relatorio do pre-check e conferido ANTES de armar o motor (R-32):
+    # quem mediu grava, quem larga confere. A skill tem que apontar o passo, a casa
+    # do artefato e os TRES motivos de recusa.
+    def checks_precheck(sec, bloco):
+        return [
+            ("a secao do pre-check de largada existe", bool(sec)),
+            ("a skill aponta o modulo do pre-check",
+             "lib/precheck_largada.py" in sec),
+            ("o relatorio e GRAVADO pelo --relatorio", "--relatorio" in sec),
+            ("a casa do artefato e .claude/.sprint/, fora do plugin",
+             ".claude/.sprint/precheck.json" in sec and "fora do git" in sec),
+            ("a marca cobre os passos ABERTOS e o registro selado",
+             "ABERTOS" in sec and "registro selado" in sec),
+            ("os tres motivos de recusa estao escritos",
+             "ausente" in sec and "vencido" in sec and "decisão em aberto" in sec),
+            ("a recusa nomeia QUAL decisao esta em aberto",
+             "nomeia a pergunta" in sec),
+            ("o bloco 1 confere ANTES de armar o motor",
+             '--confere' in bloco
+             and bloco.find("--confere") < bloco.find('"$ANDAMENTO" arma')),
+        ]
+
+    sec_pre = secao(texto, "### O pré-check de largada grava",
+                    "### Por que o gate precisou nascer")
+    bloco1 = secao(texto, "# 1) ANTES da chamada", "# 2) NO RETORNO")
+    print("O pre-check de largada grava, e a casca confere antes de armar")
+    for label, cond in checks_precheck(sec_pre, bloco1):
+        check(label, cond)
+
+    check("MUTACAO: remover a conferencia do pre-check deixa a suite vermelha",
+          bool(sec_pre) and bool(bloco1)
+          and not all(c for _, c in checks_precheck(
+              "", bloco1.replace("--confere", "--nada"))))
+
     print()
     if FAILS:
         print("FALHOU: %d" % len(FAILS))
