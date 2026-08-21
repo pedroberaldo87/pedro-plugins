@@ -3842,7 +3842,7 @@
         <rect data-graph-role="structural-frame" data-composition-frame-kind="region" data-composition-frame-id="0" x="36" y="86" width="218" height="248" rx="12" class="c-region" stroke-width="1"/>
         <text x="44" y="104" class="t-cloud" font-size="9" font-weight="600">Engine vendorada</text>
 
-        <rect data-graph-role="structural-frame" data-composition-frame-kind="region" data-composition-frame-id="1" x="406" y="86" width="758" height="112" rx="12" class="c-region" stroke-width="1"/>
+        <rect data-graph-role="structural-frame" data-composition-frame-kind="region" data-composition-frame-id="1" x="406" y="86" width="758" height="197" rx="12" class="c-region" stroke-width="1"/>
         <text x="414" y="104" class="t-cloud" font-size="9" font-weight="600">Marketplace</text>
 
         <rect data-graph-role="structural-frame" data-composition-frame-kind="security-group" data-composition-frame-id="2" x="36" y="426" width="508" height="108" rx="8" class="c-security-group" stroke-width="1"/>
@@ -3871,6 +3871,7 @@
         <path data-edge-from="motor" data-edge-to="plan_state" data-edge-label="tick com portão do pré-check" data-edge-key="13" data-composition-points="1170,434;1135,434;1135,364;1100,364" d="M 1170 434 L 1143 434 Q 1135 434 1135 426 L 1135 372 Q 1135 364 1127 364 L 1100 364" class="a-default" stroke-width="1.5" marker-end="url(#arrowhead)"/>
         <path data-edge-from="motor" data-edge-to="ledger" data-edge-label="corridas + paradas" data-edge-key="14" data-composition-points="1260,468;1260,560" d="M 1260 468 L 1260 560" class="a-default" stroke-width="1.5" marker-end="url(#arrowhead)"/>
         <path data-edge-from="motor" data-edge-to="gate" data-edge-label="commit por bloco passa no gate" data-edge-key="15" data-composition-points="1260,400;1260,290;430,290;430,450" d="M 1260 400 L 1260 298 Q 1260 290 1252 290 L 438 290 Q 430 290 430 298 L 430 450" class="a-dashed" stroke-width="1.5" marker-end="url(#arrowhead-dashed)"/>
+        <path data-edge-from="consent" data-edge-to="cliente" data-edge-label="sem a marca: só env + flags, e avisa" data-edge-key="16" data-composition-points="1140,234;1212.5,234;1212.5,174;1285,174" d="M 1140 234 L 1204.5 234 Q 1212.5 234 1212.5 226 L 1212.5 182 Q 1212.5 174 1220.5 174 L 1285 174" class="a-security" stroke-width="1.5" marker-end="url(#arrowhead-security)"/>
 
         <!-- Components -->
         <g id="node-shared" data-node-id="shared" data-node-label="_shared/" tabindex="0" role="button" aria-label="Focus _shared/, 31 arquivos-fonte, 4 famílias, Engine vendorada" aria-pressed="false" data-node-kind="backend" data-node-sublabel="31 arquivos-fonte, 4 famílias" data-node-tag="fonte" data-node-context="Engine vendorada">
@@ -3944,8 +3945,8 @@
         <text data-detail="context" x="1285" y="156" class="t-muted" font-size="9" text-anchor="middle">install / update via git</text>
         </g>
 
-        <g id="node-checks" data-node-id="checks" data-node-label="scripts/*_check.py" tabindex="0" role="button" aria-label="Focus scripts/*_check.py, público · conformidade · vazamento…, Cobradores de release" aria-pressed="false" data-node-kind="security" data-node-sublabel="público · conformidade · vazamento…" data-node-context="Cobradores de release">
-          <title>scripts/*_check.py · público · conformidade · vazamento… · Cobradores de release</title>
+        <g id="node-checks" data-node-id="checks" data-node-label="scripts/*_check.py" tabindex="0" role="button" aria-label="Focus scripts/*_check.py, público · conformidade · msgs de hook · artigo 8…, Cobradores de release" aria-pressed="false" data-node-kind="security" data-node-sublabel="público · conformidade · msgs de hook · artigo 8…" data-node-context="Cobradores de release">
+          <title>scripts/*_check.py · público · conformidade · msgs de hook · artigo 8… · Cobradores de release</title>
           <rect x="60" y="450" width="190" height="64" rx="6" class="c-mask"/>
           <rect x="60" y="450" width="190" height="64" rx="6" class="c-security" stroke-width="1.5"/>
           <g aria-hidden="true" data-semantic-sigil="security" class="semantic-sigil s-security" transform="translate(66 456) scale(0.6875)">
@@ -3953,7 +3954,7 @@
             <path d="m5.8 8 1.5 1.5 3-3"/>
           </g>
           <text data-detail-anchor x="155" y="480" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">scripts/*_check.py</text>
-        <text data-detail="context" x="155" y="496" class="t-muted" font-size="9" text-anchor="middle">público · conformidade · vazamento…</text>
+        <text data-detail="context" x="155" y="496" class="t-muted" font-size="9" text-anchor="middle">público · conformidade · msgs de hook · artigo 8…</text>
         </g>
 
         <g id="node-gate" data-node-id="gate" data-node-label="release-gate.sh" tabindex="0" role="button" aria-label="Focus release-gate.sh, intercepta o git commit, Cobradores de release" aria-pressed="false" data-node-kind="security" data-node-sublabel="intercepta o git commit" data-node-tag="PreToolUse" data-node-context="Cobradores de release">
@@ -4049,6 +4050,19 @@
         <text data-detail="context" x="1260" y="606" class="t-muted" font-size="9" text-anchor="middle">ledger de corridas + paradas.jsonl</text>
         </g>
 
+        <g id="node-consent" data-node-id="consent" data-node-label="Portão de consentimento" tabindex="0" role="button" aria-label="Focus Portão de consentimento, permissions só com a marca permissions-ok, Marketplace" aria-pressed="false" data-node-kind="security" data-node-sublabel="permissions só com a marca permissions-ok" data-node-tag="apply-config.sh" data-node-context="Marketplace">
+          <title>Portão de consentimento · permissions só com a marca permissions-ok · Marketplace · apply-config.sh</title>
+          <rect x="950" y="205" width="190" height="58" rx="6" class="c-mask"/>
+          <rect x="950" y="205" width="190" height="58" rx="6" class="c-security" stroke-width="1.5"/>
+          <g aria-hidden="true" data-semantic-sigil="security" class="semantic-sigil s-security" transform="translate(956 211) scale(0.6875)">
+            <path d="M8 2.2 13 4v3.5c0 3.1-1.8 5.4-5 6.5-3.2-1.1-5-3.4-5-6.5V4Z"/>
+            <path d="m5.8 8 1.5 1.5 3-3"/>
+          </g>
+          <text data-detail-anchor x="1045" y="232" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">Portão de consentimento</text>
+        <text data-detail="context" x="1045" y="248" class="t-muted" font-size="9" text-anchor="middle">permissions só com a marca permissions-ok</text>
+        <text data-detail="fine" x="1045" y="255" class="t-security" font-size="7" text-anchor="middle">apply-config.sh</text>
+        </g>
+
         <!-- Connection labels -->
         <g data-detail="context" data-edge-from="shared" data-edge-to="sync" data-edge-label="fonte da verdade" data-edge-key="0">
           <rect x="101.6" y="178" width="86.8" height="14" rx="3" class="c-mask"/>
@@ -4113,6 +4127,10 @@
         <g data-detail="context" data-edge-from="motor" data-edge-to="gate" data-edge-label="commit por bloco passa no gate" data-edge-key="15">
           <rect x="623" y="272" width="154" height="14" rx="3" class="c-mask"/>
           <text x="700" y="282" class="t-messagebus" font-size="8" text-anchor="middle">commit por bloco passa no gate</text>
+        </g>
+        <g data-detail="context" data-edge-from="consent" data-edge-to="cliente" data-edge-label="sem a marca: só env + flags, e avisa" data-edge-key="16">
+          <rect x="1123.6" y="267" width="182.79999999999998" height="14" rx="3" class="c-mask"/>
+          <text x="1215" y="277" class="t-security" font-size="8" text-anchor="middle">sem a marca: só env + flags, e avisa</text>
         </g>
 
         <!-- Legend -->
@@ -4336,6 +4354,8 @@
           <li>&bull; Bump do plugin.json em TODA mudança, espelhado no marketplace.json — chave de propagação</li>
           <li>&bull; A CI é de portabilidade: mede se o repositório roda onde o dono não desenvolve</li>
           <li>&bull; Push de branch que não é main não dispara nada — sonda se mede por workflow_dispatch</li>
+          <li>&bull; Cobradores novos do pente fino de 2026-08-21: a régua das mensagens de hook (test_regua_hook_msgs.py) e o Artigo 8 ampliado (references/ + .md vendorados entram na varredura)</li>
+          <li>&bull; Quantas checagens o gate tem hoje sai de comando, nunca daqui: grep -cE &#39;^# [A-Z0-9-]+ · &#39; .claude/hooks/release-gate.sh</li>
         </ul>
       </div>
     </div>

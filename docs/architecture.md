@@ -1,7 +1,7 @@
 ---
-doc-sig: pedro-plugins/marketplace.json@gen=3.8#c97512fe
+doc-sig: pedro-plugins/marketplace.json@gen=3.8#329087e2
 generated: 2026-08-21
-generated-commit: 27447c8
+generated-commit: b7f4dd6
 project: pedro-plugins
 scope:
   - .claude-plugin/marketplace.json
@@ -147,7 +147,7 @@ ls -1d plugins/*/ | wc -l                            # 23
 ls -1 plugins/*/.claude-plugin/plugin.json | wc -l   # 23
 ls -1 plugins/*/skills/*/SKILL.md | wc -l            # 36
 ls -1 plugins/*/hooks/hooks.json | wc -l             # 12
-find plugins -path '*/lib/*.py' | wc -l              # 149
+find plugins -path '*/lib/*.py' | wc -l              # 150
 python3 -c "import json;print(len(json.load(open('.claude-plugin/marketplace.json'))['plugins']))"   # 23
 ```
 
@@ -168,8 +168,9 @@ python3 -c "import json;print(len(json.load(open('.claude-plugin/marketplace.jso
   [confirmado — os seis comandos re-rodados nesta passada de `/doc-touch`.]
   ⚠️ **Os arquivos `.py` em `lib/` quase não se moveram (100 → 99) apesar de três plugins
   terem sumido** — porque nada foi apagado, só mudou de casa: `plugins/project-skills/lib/`
-  concentra hoje 68 dos 149 (`find plugins/project-skills -path '*/lib/*.py' | wc -l`
-  neste run). Os últimos a entrar são a suíte da skill `reentrada`
+  concentra hoje 68 dos 150 (`find plugins/project-skills -path '*/lib/*.py' | wc -l`
+  neste run). O mais novo é cópia do pente fino de 2026-08-21 (`casa_da_doc.py` em
+  `plugins/handoff/lib/`, §7); antes dele entraram a suíte da skill `reentrada`
   (`test_reentrada_skill.py`) e o par `precheck_largada.py` + suíte — a passada mecânica
   de largada do `/sprint` (§8) —, precedidos por `orfaos.py` e `decisoes_seladas.py`
   (`git log --diff-filter=A --name-only -- 'plugins/*/lib/*.py'` neste run).
@@ -178,7 +179,7 @@ python3 -c "import json;print(len(json.load(open('.claude-plugin/marketplace.jso
   `collect_engine.py`, `plan_state.py` e `resolve-*.sh` repetem o padrão (§7). Contar
   `lib/*.py` mede o vendoring junto com o código — a medida de código próprio é
   `find plugins -path '*/lib/*.py' ! -name regua_texto.py ! -name collect_engine.py ! -name padroes_vazamento.py`
-  (**135** neste run).
+  (**136** neste run).
 - **Registros de hook e scripts distintos: quem mede é a ferramenta, não esta linha** —
   `python3 scripts/hook_contract.py | head -1` imprime *"Contrato dos hooks — 54 registros,
   41 scripts distintos"* neste run, e `python3 scripts/hook_contract.py --scripts | grep -c .`
@@ -889,8 +890,12 @@ consomem.** O gate de plano faz source de `lib-casa-da-doc.sh` e pergunta `casa_
 antes de decidir (o `. "$SCRIPT_DIR/lib-casa-da-doc.sh"` no topo de
 `pretooluse-plan-gate.sh`), e `doc_load.py` e `pattern_check.py`
 importam `casa_da_doc.py` no topo em vez de cravar `docs/` (`from casa_da_doc import casa`
-nos dois). Quem menciona `casa_da_doc` segue sendo só o `project-skills` — hoje em dezoito
-arquivos, e a lista sai de `grep -rl casa_da_doc plugins`.
+nos dois). Quem menciona `casa_da_doc` deixou de ser só o `project-skills`: o pente fino de
+2026-08-21 vendorou uma cópia em `plugins/handoff/lib/` — o extrator de ata cravava
+`.claude/docs/` e, em projeto com a doc já em `docs/` na raiz, listava toda etapa de
+concepção como ausente (`extract_ata.py:estado_etapas` hoje importa `casa_da_doc.py` e
+pergunta à cascata). A lista de quem menciona sai de `grep -rl casa_da_doc plugins`
+(**20** arquivos, em dois plugins, neste run).
 
 O porquê do vendoring, copiado do cabeçalho de
 `scripts/sync-shared.sh`: *"o Claude Code isola plugins na instalação — só `plugins/<nome>/`
@@ -1172,10 +1177,10 @@ plugins/vistoria/lib/      achado.py · fio_morto.py · inventario.py · medidor
                            pagina.py · plano_saida.py · suite_congela.py + as suítes
 plugins/visual/lib/        visual_page.py · clareza.py · regua_audit.py + as suítes
 plugins/lixeiro/lib/       causa.py · lixeiro.py · padroes_vazamento.py (vendorado) + suítes
-plugins/handoff/lib/       collect_engine.py (vendorado) · extract_ata.py
-                           + test_handoff_skill.py
+plugins/handoff/lib/       collect_engine.py (vendorado) · casa_da_doc.py (vendorado) ·
+                           extract_ata.py + test_handoff_skill.py
 plugins/check-skills/lib/  varredura.py · padroes_vazamento.py (vendorado) + test_varredura.py
-plugins/fallow/lib/        audit.py · report.py + test_report.py
+plugins/fallow/lib/        audit.py · report.py · resolve-dir.sh (vendorado) + test_report.py
 plugins/slides/lib/        md2deck.py + test_md2deck.py
 plugins/intent-guard/lib/  ledger.py + test_ledger.py
 plugins/branches/lib/      branch_state.py + test_branch_state.py
@@ -1610,8 +1615,8 @@ executado sobre os docs nesta rodada]
 ### 8.10 `doc_load.py` — quais documentos valem como RÉGUA hoje
 
 Nasceu nesta rodada, em `plugins/project-skills/lib/doc_load.py`, com a skill
-`skills/doc-load/SKILL.md` e a suíte `lib/test_doc_load.py` (**50 checks** — `python3
-plugins/project-skills/lib/test_doc_load.py` → *"50 passou · 0 falhou"* nesta passada).
+`skills/doc-load/SKILL.md` e a suíte `lib/test_doc_load.py` (`python3
+plugins/project-skills/lib/test_doc_load.py` → *"53 passou · 0 falhou"* nesta passada).
 
 Ele responde uma pergunta só, e responde por programa: **contra o que esta obra pode ser
 julgada?** Três naturezas, com exigências diferentes (constantes `LEI`, `ACORDO` e o
@@ -1624,6 +1629,12 @@ minerado no topo do arquivo):
 - **Acordo** — `context.md`, `solution-strategy.md`, `glossary.md`, `architecture-intent.md`,
   `design.md`, `journeys.md`, `blueprint.md`, `features.md`. **Só** com `approved`, e o que
   teve o corpo mexido depois do de acordo sai como **reaberto**.
+  ⚠️ **`design.md` só entra na cobrança de ausência quando o projeto TEM tela** (pente fino
+  de 2026-08-21): `doc_load.py:tem_tela` reimplementa a MESMA regra de
+  `hooks/lib-has-frontend.sh` (F2.2), a suíte cobra a paridade, e projeto sem tela sai com o
+  denominador da lacuna reduzido (campo `canonicos` na saída). Existindo o arquivo, ele é
+  lido normal — o que muda é só a cobrança do ausente, porque cobrança que não cabe ensina a
+  ignorar cobrança.
 - **Mapa** — os minerados (`architecture.md`, `patterns.md`, `data-stores.md`,
   `durability.md`, `runtime.md`). Serve para se situar; **nunca** para reprovar.
 
@@ -1639,7 +1650,8 @@ nomeados (conjunto divergente do `conjunto-sig` · `design-sig` que não bate ma
 simplesmente não tem o eixo, e o programa não escreve nada em lugar nenhum: ele lê.
 
 ⚠️ **Mas ausência deixou de ser rodapé: desde 2026-08-12 ela abre o relatório.** O bloco
-`⚠️ LACUNA — N de 16 documentos canônicos não existem neste projeto` é a PRIMEIRA linha de
+`⚠️ LACUNA — N de 16 documentos canônicos não existem neste projeto` (15 em projeto sem
+tela — o denominador acompanha o campo `canonicos`) é a PRIMEIRA linha de
 `texto()`, com uma linha por natureza e o comando que a resolve ao lado (`/start escreve`
 para lei e acordo, `/doc extrai do código` para o mapa) — no fim da página, longe de
 qualquer ação possível, a lacuna era lida como enfeite. Quem cala o bloco é `dispensa.md`
@@ -1739,10 +1751,30 @@ diferença simétrica entre eles é vazia nos dois sentidos).
 
 ⚠️ **Plugin desligado no manifest e LIGADO na máquina é desvio que o `conformance.py` acusa** — era o caso desta máquina de desenvolvimento para `project-skills` e `vistoria` antes do religamento, e por isso o desvio aparecia aqui em vez de no cliente.
 
+⚠️ **Desde 2026-08-21 o merge de permissões pede CONSENTIMENTO.** O `allow` de
+`config/settings-defaults.json` liga aprovação automática de comandos na máquina de quem
+instala — default de risco não nasce ligado (Artigo 2). O bloco `CONSENTIMENTO` de
+`plugins/bootstrap/hooks/lib/apply-config.sh` só mescla o bloco `permissions` quando a marca
+`~/.claude/pedro-plugins-permissions-ok` existe no disco; quem a grava é o `/bootstrap`
+(setup), depois de mostrar a lista. Sem a marca, env + flags seguem aplicados e as
+permissões esperam, com aviso na saída. **Máquina onde o merge JÁ tinha acontecido é
+anistiada**: uma permissão distintiva dos defaults presente no `settings.json` grava a marca
+sozinha (com log) — travar ali não protegeria nada e só cortaria a atualização de quem já
+vive nesse estado. [confirmado — leitura do bloco no arquivo;
+`bash plugins/bootstrap/hooks/test_bootstrap_hooks.sh` tem o bloco *"permissões só entram
+com a marca de consentimento"* verde nesta passada]
+
 ### 10.1 Dependência externa de plugin — a terceira categoria do manifest
 
 `ferramentas_externas.itens` lista binários que **plugins deste marketplace** precisam e que não
-são instaláveis via marketplace. Hoje há um item, copiado literal:
+são instaláveis via marketplace. A lista se lê do próprio manifest
+(`python3 -c "import json;print([i['comando'] for i in json.load(open('plugins/bootstrap/config/manifest.json'))['ferramentas_externas']['itens']])"`
+→ `['graphify', 'jq', 'node', 'gh']` neste run). `node` e `gh` entraram no pente fino de
+2026-08-21 — `node` porque o daemon de live-sync do `visual` e o renderizador do `archify`
+rodam nele (sem node os dois **avisam e degradam**, nenhum trava), `gh` porque as skills de
+`sprint` e `ship` conferem o run de CI por `gh run list/view`; `jq` carrega
+`requerido_por: []` de propósito (só o snapshot de máquina que CLONOU o repo o usa — acusar
+toda máquina sem jq seria alarme falso). O primeiro item, copiado literal:
 
 ```json
 {"comando": "graphify", "pacote": "graphifyy",
@@ -1990,6 +2022,12 @@ Cada uma é uma regra que sobreviveu a um defeito, com o arquivo e o símbolo on
   cache reescrito a cada bump. E estado por-sessão em `/tmp` **tem que** ser chaveado por
   `session_id`, senão sessões concorrentes se contaminam (o escape do gate de plano, o cap de
   nudges, o anti-loop dos dois Stop hooks).
+  ⚠️ **Desde o pente fino de 2026-08-21 o corolário é programa: payload SEM `session_id`
+  libera (`exit 0`) em vez de cair num sentinela `unknown`** — o fallback `unknown` era um
+  arquivo compartilhado por toda sessão sem id, exatamente o defeito cross-sessão que o
+  context-guard v1.2.0 tinha consertado e que renascia por outra porta. Quem carrega a
+  guarda se lê pelo comentário padrão dela:
+  `grep -rl 'payload sem sessão' plugins/*/hooks/*.sh | wc -l` devolve **12** neste run.
 - **Uma expressão só para resolver caminho, compartilhada pelos dois lados.**
   `hooks/lib-project-root.sh` para os hooks do gate de plano; `CLAUDE_DIR` idêntico entre
   `stop-prose-ceiling.py` e `lib/conformance.py`. Quando os lados divergem, **cada um fica
@@ -2077,7 +2115,7 @@ plugins/branches/lib/test_branch_state.py       :: OK
 plugins/guardrails/lib/test_askq_lint.py        :: ── 47 passou · 0 falhou ──
 plugins/intent-guard/lib/test_ledger.py         :: test_ledger: OK
 plugins/project-skills/lib/test_doc_lint.py     :: TODOS OS 39 CHECKS PASSARAM
-plugins/project-skills/lib/test_doc_load.py     :: 51 passou · 0 falhou
+plugins/project-skills/lib/test_doc_load.py     :: 53 passou · 0 falhou
 plugins/project-skills/lib/test_graph_map.py    :: TODOS OS 23 CHECKS PASSARAM
 plugins/project-skills/lib/test_journal.py      :: TODOS OS 123 CHECKS PASSARAM
 plugins/project-skills/lib/test_organism.py     :: test_organism: abertura apresenta o herdado item a item (S-12) ✓
@@ -2134,6 +2172,17 @@ $ python3 scripts/test_readme_counts_check.py             →  todos verdes
 $ python3 scripts/test_autopsia_check.py                  →  tudo verde
 ```
 
+**O cobrador que nasceu no pente fino de 2026-08-21** — `scripts/test_regua_hook_msgs.py`
+mede a linha LITERAL que todo hook shell emite (`hj_deny`/`hj_block`/`systemMessage` e as
+atribuições de `MSG`/`CTX`) contra o teto do perfil `hook` da régua de texto, fechando o
+furo que a checagem I declarava (ela só cobre gerador **Python**; hook shell ficava fora).
+As recusas dos hooks foram reescritas em cabeçalho + bullets na mesma passada, para caber no
+teto. Isenção por linha: `msg-ok: <motivo>`. Saída literal nesta passada:
+
+```
+$ python3 scripts/test_regua_hook_msgs.py  →  regua-hook-msgs: OK — 123 hooks medidos, nenhuma mensagem acima do teto.
+```
+
 Elas TÊM cobrador de commit — o **check J** do `release-gate.sh` roda
 `scripts/test_*.py` e `scripts/test_*.sh` quando o commit toca `scripts/`, `hooks/` ou
 `.gitattributes`, e reprova também o **glob vazio** (suíte renomeada não pode deixar o gate
@@ -2164,16 +2213,14 @@ gate está em `patterns.md` §5.2]
   juiz sem resposta"*, *"acusa juiz parado ha mais de 24h"* e *"nao cobra juiz de quem nao
   instalou o bootstrap"*. Esse último é a metade da régua que impede o verificador de acusar
   quem simplesmente não tem o plugin.
-- **`plugins/bootstrap/hooks/test_bootstrap_hooks.sh` — 52 checks** [confirmado — execução
-  nesta passada; eram 36 antes do bloco novo `-- regua de estilo nos bullets do relato`, que
-  cobre o `stop-regua-relato.py` da §10.2 (2b)], com um bloco dedicado ao
-  juiz (`-- juiz de forma do relato`). Ele tem uma proteção que merece registro, porque é a
-  única defesa contra um teste verde falso: como o juiz é fail-open, **um juiz mudo aprovaria
-  todos os casos e a suíte ficaria verde sem ter testado nada**. Por isso, além de
-  *"relato bom passa"* (exit 0) e *"relato ruim reprova"* (exit 2), há um check explícito
-  — *"o juiz respondeu de verdade (nao foi fail-open)"* — que reprova com
-  `FAIL juiz mudo — o verde acima nao vale`. O bloco inteiro é pulado (`skip`) quando não há
-  `claude` no PATH. [confirmado — leitura do arquivo + execução]
+- **`plugins/bootstrap/hooks/test_bootstrap_hooks.sh`** — a contagem é a última linha da
+  execução, `33 ok · 0 FAIL` nesta passada [confirmado — execução; os blocos do juiz de
+  forma e da régua de bullets saíram da suíte junto com os hooks de `Stop` que eles cobriam
+  (§10.2, remoção de 2026-08-09)]. O bloco mais novo é o do **consentimento de permissões**
+  (pente fino de 2026-08-21, §10): sem a marca no disco o merge entrega env + flags e deixa
+  o `allow` de fora; com a marca, o `allow` dos defaults entra inteiro; máquina onde o merge
+  já tinha acontecido ganha a anistia — os três casos estão na saída da suíte, sob
+  *"-- permissões só entram com a marca de consentimento"*.
 
 ### 13.2 Contrato dos hooks
 

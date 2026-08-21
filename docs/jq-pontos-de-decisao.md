@@ -43,6 +43,18 @@ de carregar cópia. A fonte é `_shared/sessionstart-deps.sh`, ele é classe A p
 
 O campo que DECIDE é um destes três: `tool_input.command`, `session_id`, `stop_hook_active`.
 
+## O ponto de decisão da sessão ausente (pente fino de 2026-08-21)
+
+Ler o `session_id` ganhou um segundo julgamento, logo depois do `hj_campo_ou`: **payload
+sem `session_id` libera** (`exit 0`) em vez de cair no reserva `unknown`. O motivo é o
+defeito do context-guard v1.1 com outra roupa — `unknown` é um nome só para todas as
+sessões, então o estado e o sentinel chaveados por ele vazavam entre sessões. Quantos
+hooks carregam esse ponto sai do próprio código, nunca daqui:
+`grep -rl 'sem sessão: liberado' plugins/*/hooks/*.sh | wc -l` (o comentário padronizado
+na linha do `exit 0` é o marcador). Os demais leitores de `session_id` seguem no
+`hj_campo` cru porque neles o campo vazio já derruba o hook na linha seguinte, sem
+sentinela compartilhado a criar.
+
 ## O que era o issue #5, e o que ficou no lugar
 
 Todo hook da classe B calava sozinho quando o `jq` faltava, por um de dois mecanismos: o bail
@@ -99,19 +111,29 @@ Dentro da classe B há ainda dois graus:
 | A | `plugins/graphify-guard/hooks/sessionstart-graphify.sh` | 8, 11, 38 | lê `.cwd` e serializa o `additionalContext` |
 | A | `plugins/project-skills/hooks/sessionstart-organism.sh` | 15, 21, 26, 28, 29, 30, 31, 33, 42 | lê `.cwd`, desmonta o brief do organismo e serializa a saída |
 
+Fora do recorte das tabelas (não lê o payload do evento, e mora em `hooks/lib/`, não em
+`hooks/*.sh`), mas parente direto do `session-sync.sh`: o
+`plugins/bootstrap/hooks/lib/apply-config.sh` ganhou no pente fino de 2026-08-21 um
+**portão de consentimento de permissões**. O merge do bloco `permissions` dos defaults só
+roda com a marca `~/.claude/pedro-plugins-permissions-ok` gravada (quem a grava é o
+`/bootstrap` setup, depois de mostrar a lista); sem ela, env + flags entram e as
+permissões esperam — com anistia para a máquina onde o merge já tinha acontecido. Quem
+decide ali é `grep` sobre o settings + a existência do arquivo de marca, não `jq` nem
+`hook-json.sh`.
+
 ## Classe B1 — lê o campo que decide BLOQUEAR (o dano máximo do issue #5)
 
 | classe | arquivo | linha(s) | campo | canal de bloqueio |
 | --- | --- | --- | --- | --- |
-| B1 | `plugins/gauntlet/hooks/pretooluse-gauntlet.sh` | 59, 98 | `session_id` · `tool_input.prompt` | `permissionDecision:"deny"` em dois pontos — a trava do briefing sem a régua anti-cópia (linha 104, v0.5.0) e a trava dupla do juiz (linha 159) — mais `systemMessage` + `additionalContext` (`hj_msg_ctx`, linha 151) quando ele DESISTE de negar |
-| B1 | `plugins/graphify-guard/hooks/pretooluse-graphify-guard.sh` | 37, 51 | `session_id`, `tool_input.command` | `permissionDecision:"deny"` |
+| B1 | `plugins/gauntlet/hooks/pretooluse-gauntlet.sh` | 59, 98 | `session_id` · `tool_input.prompt` | `permissionDecision:"deny"` em dois pontos — a trava do briefing sem a régua anti-cópia (linha 104, v0.5.0) e a trava dupla do juiz (linha 161) — mais `systemMessage` + `additionalContext` (`hj_msg_ctx`, linha 151) quando ele DESISTE de negar |
+| B1 | `plugins/graphify-guard/hooks/pretooluse-graphify-guard.sh` | 37, 53 | `session_id`, `tool_input.command` | `permissionDecision:"deny"` |
 | B1 | `plugins/guardrails/hooks/askq-humanize.sh` | 53 | `session_id` | `permissionDecision:"deny"` |
 | B1 | `plugins/guardrails/hooks/lint-and-typecheck.sh` | 34 | `session_id` | `exit 2` |
 | B1 | `plugins/guardrails/hooks/scope-cop.sh` | 83 | `session_id` | `permissionDecision: "deny"` |
 | B1 | `plugins/intent-guard/hooks/delivery-audit.sh` | 37 | `session_id` | `decision:"block"` |
 | B1 | `plugins/intent-guard/hooks/plan-gate.sh` | 36 | `session_id` | `exit 2` — sem registro próprio: chamado pelo portão único da família |
 | B1 | `plugins/intent-guard/hooks/task-checkpoint.sh` | 36 | `session_id` | `decision:"block"` |
-| B1 | `plugins/project-skills/hooks/pretooluse-doc-guard.sh` | 42, 55 | `session_id`, `tool_input.command` | `permissionDecision:"deny"` |
+| B1 | `plugins/project-skills/hooks/pretooluse-doc-guard.sh` | 42, 57 | `session_id`, `tool_input.command` | `permissionDecision:"deny"` |
 | B1 | `plugins/project-skills/hooks/pretooluse-organism-gate.sh` | 50 | `session_id` | `permissionDecision:"deny"` |
 | B1 | `plugins/project-skills/hooks/pretooluse-plan-gate.sh` | 70 | `session_id` | `permissionDecision:"deny"` |
 | B1 | `plugins/ship/hooks/pre-deploy-test-check.sh` | 31 | `tool_input.command` | `exit 2` |
@@ -138,7 +160,7 @@ Dentro da classe B há ainda dois graus:
 | B2 | `plugins/project-skills/hooks/posttooluse-doc-read.sh` | 25 | `session_id` | a leitura de doc não é registrada; o `doc-guard` segue cobrando |
 | B2 | `plugins/project-skills/hooks/sessionstart-doc.sh` | 34 | `session_id` | o briefing de doc não abre a sessão |
 | B2 | `plugins/project-skills/hooks/posttooluse-andamento.sh` | 50, 75 | `session_id`, `tool_input.command` | a linha de andamento do motor nunca sai na barra |
-| B2 | `plugins/project-skills/hooks/stop-doc-touch.sh` | 23, 25 | `session_id`, `stop_hook_active` | a cobrança de doc defasada não sai |
+| B2 | `plugins/project-skills/hooks/stop-doc-touch.sh` | 23, 27 | `session_id`, `stop_hook_active` | a cobrança de doc defasada não sai |
 | B2 | `plugins/project-skills/hooks/userpromptsubmit-plan-escape.sh` | 47 | `session_id` | a escapatória do gate de plano não é registrada |
 | B2 | `plugins/project-skills/hooks/sessionstart-plan.sh` | 29 | `session_id` | o plano aberto não ressuscita depois do `/clear` |
 | B2 | `plugins/intent-guard/hooks/capture-prompt.sh` | 34, 36 | `prompt`, `session_id` | o pedido não entra no caderno; o `delivery-audit` fica sem base — *(Python embutido)* |

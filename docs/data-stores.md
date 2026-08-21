@@ -1,6 +1,6 @@
 ---
 generated: 2026-08-21
-generated-commit: 27447c8
+generated-commit: b7f4dd6
 project: pedro-plugins
 scope:
   - .gitignore
@@ -54,7 +54,7 @@ verified-by:
   - plugins/improve-workflow/lib/test_registro.py
   - plugins/improve-workflow/lib/test_medidor.py
   - plugins/improve-workflow/lib/test_plano_saida.py
-doc-sig: pedro-plugins/.gitignore@gen=3.8#01ec22a7
+doc-sig: pedro-plugins/.gitignore@gen=3.8#9089becd
 ---
 
 # Data Stores — onde o dado mora
@@ -576,6 +576,14 @@ ls -1 ~/.claude/lixeiro | sed 's/-[0-9a-f-]\{8\}.*//' | sort | uniq -c
   ela se refaz sozinha na primeira anotação; o que se perde é o histórico de auditoria
   (`colhido.jsonl`) e a procedência do que já estava de pé. Zero backup, como todo (B).
 
+### B18 · `~/.claude/pedro-plugins-permissions-ok` — a marca de consentimento das permissões
+
+- **Nasceu em 2026-08-21** (commit `bfbe936`, o pente fino). Um arquivo pequeno, e **o que importa é existir**: sem ele, o `apply-config.sh` do bootstrap aplica env, flags e barra de status a cada `SessionStart` e **segura o merge de `permissions`** — o allow dos defaults liga aprovação automática na máquina de quem instala, e default de risco não nasce ligado (Artigo 2 da constituição do marketplace).
+- **Dois escritores, duas naturezas:** o `/bootstrap:setup` grava por `touch` **só depois do "sim" do dono**, com a lista do que o allow liga mostrada antes; e o próprio `apply-config.sh` grava por **anistia** quando detecta que o merge já aconteceu antes da regra existir (uma permissão distintiva dos defaults presente no `settings.json`) — o conteúdo aí é a linha `anistia: merge anterior detectado em <data>`, e o motivo é declarado no script: travar uma máquina que já vive nesse estado só a deixaria sem atualização. [confirmado — `plugins/bootstrap/hooks/lib/apply-config.sh` e `skills/bootstrap/SKILL.md`]
+- **Um leitor:** o mesmo `apply-config.sh`, a cada `SessionStart`. Marca ausente não trava a sessão — o apply segue com o resto dos defaults e avisa que as permissões esperam o de acordo.
+- ⚠️ **Nesta máquina o arquivo ainda NÃO existe**, embora a condição de anistia já seja verdadeira (`grep -c 'mcp__plugin_playwright_playwright__browser_navigate' ~/.claude/settings.json` → 2): a anistia só roda no próximo `SessionStart`, e nenhum aconteceu desde o commit. [confirmado nesta rodada]
+- **Natureza: acordo com o dono, sem backup — e barato de refazer.** Apagá-lo não perde dado: re-trava o merge de permissões até um novo "sim" (ou até a anistia notar o settings já mesclado). É a versão de-máquina do que A12 é no repo: a fala do dono virando arquivo que um programa consulta.
+
 ---
 
 ## (C) Dentro do repo, mas gitignorado — some se a máquina sumir
@@ -941,7 +949,9 @@ Os quatro que entraram, com o que cada um congela [confirmado — leitura dos ar
 
 ## Estado efêmero em `/tmp` — chaveado por sessão, some no boot
 
-Regra do repo: estado por-sessão em `/tmp` **tem que** ser chaveado por `session_id`. As três famílias vivas:
+Regra do repo: estado por-sessão em `/tmp` **tem que** ser chaveado por `session_id` — e desde 2026-08-21 (commit `bfbe936`) a regra ganhou o complemento: **payload sem `session_id` sai liberado sem escrever nada**. O fallback antigo (`session_id` ausente virava a chave literal `unknown`) criava um sentinela compartilhado entre todas as sessões sem id — o mesmo defeito do estado global que motivou o per-sessão do context-guard v1.1, só que renomeado. São **12 hooks** com o ramo novo, e o número sai do comando, nunca daqui: `grep -rl 'payload sem sessão: liberado' plugins/*/hooks/*.sh | wc -l`. [confirmado nesta rodada]
+
+As três famílias vivas:
 
 - **context-guard** — `/tmp/claude-context-pct-<session_id>` (escrito pelo wrapper de statusLine `context-guard-writer.sh`) e `/tmp/claude-context-warned-<session_id>` (sentinel do disparo). O `context-guard-reset.sh` apaga **só os da própria sessão** e depois poda órfãos: `find /tmp -maxdepth 1 -name 'claude-context-pct-*' -mtime +1 -delete` (idem `-warned-`). O comentário registra o bug que motivou o per-sessão: um arquivo global era sobrescrito pela última statusLine a renderizar, e **uma** sessão a 80% fazia o guard bloquear **todas**. [confirmado]
 
@@ -1020,6 +1030,9 @@ plugins/bootstrap/config/manifest.json  regenerado no SessionStart, MENOS as cha
                                        ~/.claude/projects; run já rotacionado não volta
 .claude/.sprint/precheck.json          as 4 passadas refazem do plano + registro selado;
                                        a resposta do dono, quando selada, mora no A12
+~/.claude/pedro-plugins-permissions-ok  volta com um novo "sim" no /bootstrap:setup
+                                       (ou pela anistia sobre settings já mesclado);
+                                       sem ela o merge de permissões não roda
 ```
 
 **Descartável por desenho:**
