@@ -78,6 +78,14 @@ python3 "$ANDAMENTO" arma "$CLAUDE_CODE_SESSION_ID" sprint "$SPRINT_MOTOR_ID"
 # `lib/retomada.py`, e só a lista fechada de casos do dono interrompe o laço". A
 # vigília não é comando avulso nem opção do dono: nasce com o sinal do motor e morre
 # com ele. Sprint que para na primeira parada não é sprint — é uma rodada só.
+# GOAL AUSENTE NA MÁQUINA (`ls ~/.claude/commands/goal* ~/.claude/skills/goal` volta
+# vazio): a vigília NÃO finge que roda. DECLARE a ausência em voz alta, duas vezes —
+# na largada ("vigília sem /goal — rito manual") e de novo no relatório final. No
+# lugar do goal entra o RITO MANUAL, com os mesmos passos e nada afrouxado: a cada
+# parada, (1) investigar, (2) causa com prova de comando, (3) desafiador, (4) conserto
+# commitado, (5) gravar a parada no ledger (o bloco "a parada vai para o disco"),
+# (6) relançar. Silenciar a ausência, ou seguir sem o rito fingindo que vigia, é o
+# único desfecho proibido: ou tem caminho próprio, ou diz que não vigia.
 # CONSERTAR SEM APURAR É PROIBIDO: antes de o laço remendar QUALQUER coisa, a causa
 # passa por dois passos, nesta ordem, e nenhum dos dois é dispensável.
 # (1) PROVA DE COMANDO — a causa só existe se vier com a saída CRUA do comando que a
@@ -138,7 +146,9 @@ python3 "$ANDAMENTO" encerra "$CLAUDE_CODE_SESSION_ID" sprint "$MOTOR_MORTO"
 # A VIGÍLIA morre AQUI, junto do sinal, em TODO desfecho de parada — obra pronta, teto
 # de rodadas, vigia, disjuntor, erro do `Workflow` e TaskStop: apague o `/goal` do
 # harness antes de seguir, na mesma volta em que o sinal cai. Goal aceso depois do
-# motor morto relança missão que já acabou.
+# motor morto relança missão que já acabou. Goal que nunca acendeu (ausente na
+# máquina, rito manual em curso) não tem o que apagar — mas a declaração da ausência
+# segue viva até o relatório.
 # Quem morreu por fora não entregou, e quem não entrega não libera: a reserva fica
 # pendurada e recusa o próximo motor da sessão por até 12h. Solte a DESTE motor e SÓ a
 # dele — outro motor da mesma sessão pode estar vivo escrevendo os mesmos arquivos, e

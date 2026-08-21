@@ -4,7 +4,7 @@ Marketplace público de plugins para [Claude Code](https://docs.claude.com/en/do
 
 **23 plugins · Markdown + Shell + Python · sem build, sem package manager.**
 
-Os 23 plugins somam **35 skills** — 18 trazem uma só, `visual` traz duas, `2op` traz três, `project-skills` traz doze, e `graphify-guard` e `vision` não trazem nenhuma.
+Os 23 plugins somam **36 skills** — 18 trazem uma só, `visual` traz duas, `2op` traz três, `project-skills` traz treze, e `graphify-guard` e `vision` não trazem nenhuma.
 
 ---
 

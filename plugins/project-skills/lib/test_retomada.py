@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-"""Suite da retomada: inventario (F23.1), classificador (F23.2), lista fechada do dono (F23.5) · R-33.
+"""Suite da retomada: inventario (F23.1), classificador (F23.2), lista fechada do dono (F23.5),
+rito manual sem o /goal (F23.8) · R-33.
 
 O que prova: a lista DESFECHOS — o que o programa da retomada sabe fazer quando um
 run para — cobre TODO stopReason que o motor.js do /sprint pode emitir. A lista de
@@ -22,9 +23,10 @@ import tempfile
 
 AQUI = os.path.dirname(os.path.abspath(__file__))
 MOTOR = os.path.join(os.path.dirname(AQUI), "skills", "sprint", "references", "motor.js")
+SKILL = os.path.join(os.path.dirname(AQUI), "skills", "sprint", "SKILL.md")
 
 sys.path.insert(0, AQUI)
-from retomada import CASOS_DONO, DESFECHOS, SEGUE, CONSERTA, DONO, classifica  # noqa: E402
+from retomada import DESFECHOS, SEGUE, CONSERTA, DONO, classifica  # noqa: E402
 
 RETOMADA = os.path.join(AQUI, "retomada.py")
 
@@ -133,6 +135,42 @@ def tres_caminhos():
     return falhas
 
 
+def sem_goal(md=None):
+    """F23.8: sem o /goal nativo na maquina, a SKILL.md do sprint nao pode fingir que
+    vigia — ou entrega o rito manual, declarando a ausencia em voz alta (na largada e
+    no relatorio), ou reprova aqui. Le a SKILL.md real, nunca uma copia."""
+    falhas = []
+    if md is None:
+        md = open(SKILL, encoding="utf-8").read()
+    pos = md.find("GOAL AUSENTE")
+    if pos < 0:
+        return ["a SKILL.md do sprint nao trata o caso do /goal ausente na maquina — "
+                "a vigilia finge que roda"]
+    trecho = md[pos:pos + 1500]
+    # A declaracao em voz alta, nos dois momentos.
+    for token, falta in [
+        ("DECLARE", "a ausencia do goal nao e declarada em voz alta"),
+        ("largada", "a ausencia nao e declarada na largada"),
+        ("relatório", "a ausencia nao e declarada no relatorio"),
+        ("Silenciar", "o trecho nao proibe silenciar a ausencia"),
+    ]:
+        if token not in trecho:
+            falhas.append("%s (falta %r no trecho do goal ausente)" % (falta, token))
+    # O rito manual, com os seis passos NA ORDEM do laco.
+    rito = ["investigar", "prova de comando", "desafiador", "conserto",
+            "ledger", "relançar"]
+    anterior = -1
+    for passo in rito:
+        i = trecho.find(passo)
+        if i < 0:
+            falhas.append("o rito manual nao entrega o passo %r" % passo)
+        elif i < anterior:
+            falhas.append("o passo %r do rito manual esta fora de ordem" % passo)
+        else:
+            anterior = i
+    return falhas
+
+
 def main():
     emitidos = do_motor()
     falhas = []
@@ -154,6 +192,7 @@ def main():
         falhas.append("acao fora das tres: %s" % ", ".join(sorted(acoes - {SEGUE, CONSERTA, DONO})))
 
     falhas += tres_caminhos()
+    falhas += sem_goal()
 
     for f in falhas:
         print("FALHA: %s" % f)
