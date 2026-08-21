@@ -31,7 +31,9 @@ fi
 INPUT=$(cat 2>/dev/null)
 CWD=$(hj_campo "$INPUT" cwd)
 [ -z "$CWD" ] && CWD="$PWD"
-SID=$(hj_campo_ou "$INPUT" session_id unknown)
+SID=$(hj_campo_ou "$INPUT" session_id "")
+# payload sem sessão: liberado — o sentinela "unknown" seria compartilhado entre sessões (o defeito do context-guard v1.1)
+[ -n "$SID" ] || exit 0
 
 LINES=$(bash "$SCRIPT_DIR/doc-detect.sh" "$CWD" 2>/dev/null)
 
@@ -84,13 +86,13 @@ if [ -z "$LINES" ]; then
   [ -z "$NFILES" ] && NFILES=0
 
   if [ "$AUTORAL" -eq 0 ]; then
-    CTX="📐 ${PROJ} não tem documentação nenhuma — sem CLAUDE.md, sem pasta de docs.\n\nProjeto novo começa PELA concepção: OFEREÇA o \`/start\`. Ele entrevista o usuário sobre o que o sistema prioriza, o que é inegociável, onde ele termina, as decisões que explicam o formato e o vocabulário interno. Essa entrevista vem ANTES da mineração — é ela que guia tudo depois, inclusive a sua leitura do código.\nSão cinco etapas de acordo, uma de cada vez: o autoral, a arquitetura, a interface (só se houver tela), as jornadas e a lista de funcionalidades. Cada etapa é apresentada numa página com o texto integral à vista, e o de acordo é colhido ALI — não no chat, e nunca sobre um resumo."
+    CTX="📐 ${PROJ} não tem documentação nenhuma — sem CLAUDE.md, sem pasta de docs.\n\nProjeto novo começa PELA concepção: OFEREÇA o \`/start\`.\nEle entrevista o usuário sobre prioridades, o inegociável, as fronteiras, as decisões de formato e o vocabulário interno.\nEssa entrevista vem ANTES da mineração — é ela que guia tudo depois, inclusive a sua leitura do código.\nSão cinco etapas de acordo, uma de cada vez: o autoral, a arquitetura, a interface (só se houver tela), as jornadas e a lista de funcionalidades.\nCada etapa é apresentada numa página com o texto integral à vista, e o de acordo é colhido ALI — não no chat, e nunca sobre um resumo."
     # Projeto MADURO não recomeça do zero: com obra densa no disco, o caminho é o modo
     # ex-post — inferir o rascunho do que já foi construído e conduzir o dono pelo
     # referendo. O corte por contagem de arquivos versionados é deliberadamente grosso:
     # ele decide qual CAMINHO a oferta recomenda, nunca se a oferta acontece.
     if [ "$NFILES" -gt 100 ]; then
-      CTX="${CTX}\n\n🏛️ Este projeto é MADURO (${NFILES} arquivos versionados): ofereça \`/start ex-post\` no lugar da entrevista do zero — meses de obra já manifestam as escolhas, e o modo infere o rascunho de cada documento para o usuário só referendar."
+      CTX="${CTX}\n\n🏛️ Este projeto é MADURO (${NFILES} arquivos versionados): ofereça \`/start ex-post\` no lugar da entrevista do zero.\nMeses de obra já manifestam as escolhas; o modo infere o rascunho de cada documento e o usuário só referenda."
     fi
     if [ "$NFILES" -gt 0 ]; then
       CTX="${CTX}\nDepois dela, \`/doc\` minera o resto (${NFILES} arquivo(s) versionado(s) aqui)."
@@ -98,7 +100,7 @@ if [ -z "$LINES" ]; then
       CTX="${CTX}\nO projeto ainda não tem código versionado — por ora só o autoral faz sentido; \`/doc\` fica pra quando houver o que minerar."
     fi
     CTX="${CTX}\n\n⚠️ O gate de plano BARRA planos neste projeto enquanto não houver doc. Escape só se o usuário disser explicitamente pra ignorar."
-    CTX="${CTX}\nSeguir sem a concepção NÃO é o padrão — só vale se o usuário disser que não vamos segui-la neste projeto. Quando ele disser isso (e só então), grave a recusa e pare de oferecer:\n  mkdir -p \"$(dirname "$RECUSA")\" && touch \"${RECUSA}\"\nPra voltar a oferecer, apague esse arquivo."
+    CTX="${CTX}\nSeguir sem a concepção NÃO é o padrão — só vale se o usuário disser que não vamos segui-la neste projeto.\nQuando ele disser isso (e só então), grave a recusa e pare de oferecer:\n  mkdir -p \"$(dirname "$RECUSA")\" && touch \"${RECUSA}\"\nPra voltar a oferecer, apague esse arquivo."
   else
     CTX="📐 ${PROJ} tem ${AUTORAL} de ${N_AUTORAIS} documentos autorais, mas nenhum índice CLAUDE.md.\nFalta: ${FALTAM}.\n\nOFEREÇA \`/start\` pra fechar as lacunas e, se houver código, \`/doc\` em seguida.\n\n⚠️ O gate de plano BARRA planos aqui enquanto não houver índice."
   fi
@@ -186,7 +188,7 @@ if [ -n "$ORG_MARK" ] && [ "$(hj_campo "$ORG_MARK" organism)" = "true" ]; then
   HEADER="📚 Docs por módulo do organismo ${ORG_NAME} (o todo vive em .claude/CLAUDE.md da raiz — NÃO trate como projetos isolados):"
 fi
 
-CTX="${HEADER}\n${LIST}\nAntes de explorar com grep/Glob/Explore, LEIA o índice CLAUDE.md e o doc relevante na pasta de docs do projeto — cobre stack, arquitetura, gotchas, deploy. A doc é agent-facing (feita pra você consumir). Atualizar: /doc."
+CTX="${HEADER}\n${LIST}\nAntes de explorar com grep/Glob/Explore, LEIA o índice CLAUDE.md e o doc relevante na pasta de docs do projeto — cobre stack, arquitetura, gotchas, deploy.\nA doc é agent-facing (feita pra você consumir). Atualizar: /doc."
 
 # expand \n escapes into real newlines, then JSON-encode safely via jq
 CTX=$(printf '%b' "$CTX")

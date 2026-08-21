@@ -155,7 +155,8 @@ diretor → [gauntlet:diretor]            criativo (opcional) → [gauntlet:cria
    boquiaberto: `impressionado` + frase, cobrados pelo fecho.
 
 O placar de cada rodada é `fecho_check.py mapa "<a missão>"` virando página `/visual` —
-relato de parada nunca é textão no terminal. A obra abre no browser do dono desde a primeira
+relato de parada nunca é textão no terminal. **Visual ausente na máquina**: o mapa do
+`fecho_check.py` sai literal num arquivo em `.claude/reports/`, com o aviso de que a página não abriu. A obra abre no browser do dono desde a primeira
 versão (`open <url>`); os juízes observam pela MESMA sonda, nunca por relatório de construtor.
 
 ## 4 · O dono em voo

@@ -424,7 +424,8 @@ A lista derivada **não vai para o documento antes de passar item a item pelo do
 uma página do `/visual`, e lá cada funcionalidade é **um bloco `item`** — o componente de veredito
 já existe, não invente outro. O contrato está no `visual_page.py` do plugin `visual`, achado pelo
 nome — `python3 "$(bash "${CLAUDE_PLUGIN_ROOT}/skills/start/resolve-plugin.sh" visual lib/visual_page.py)" schema`
-imprime o schema.
+imprime o schema. **Visual ausente na máquina** (resolvedor vazio): a curadoria não roda em página —
+apresente a lista item a item por `AskUserQuestion`, um veredito por vez, e diga por que o canal mudou.
 
 - **Um bloco `item` por funcionalidade.** No `title`, o que ela faz em uma linha; no `detail`, a
   **passagem literal** do documento aprovado que a motivou, com o arquivo de onde ela saiu — a
@@ -558,6 +559,9 @@ Escrever **não fecha** a etapa. O ciclo é este, e ele repete até o dono estar
    PAGINA="$(bash "${CLAUDE_PLUGIN_ROOT}/skills/start/resolve-plugin.sh" visual lib/visual_page.py)"
    [ -n "$PAGINA" ] && python3 "$PAGINA" build --spec {spec.json}
    ```
+
+   `$PAGINA` vazio = visual ausente na máquina: a etapa não trava — apresente o documento
+   integral no chat e colha o de acordo por `AskUserQuestion`, dizendo que a página não abriu.
 
    - **O esquema vem ANTES do texto, e o programa RECUSA a página sem ele.** Aprovar documento é
      ler documento, e documento é textão por natureza: um bloco `esquema` do tipo certo abre a

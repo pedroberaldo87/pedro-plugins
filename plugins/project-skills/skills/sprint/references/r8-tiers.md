@@ -10,7 +10,8 @@ Os dois motores (decompõe→executa→revisa do `/sprint`; revisa→planeja→c
 Trocar o tier de uma etapa aqui vale pros dois — é um contrato, não duas listas.
 
 **O valor não mora em nenhum SKILL.md.** Ele mora em `r8-tiers.json`, e chega ao motor
-como dado: a casca roda `python3 <skill_dir>/references/r8_tiers.py args` e passa o
+como dado (`<skill_dir>` é a "Base directory for this skill" que o harness injeta ao
+carregar a skill): a casca roda `python3 <skill_dir>/references/r8_tiers.py args` e passa o
 resultado no `args` do Workflow, que consulta `args.tiers.<knob>.effort` em vez de um
 literal. Cada skill descreve **onde** cada knob entra no motor dela; nenhuma descreve
 **quanto** ele vale.

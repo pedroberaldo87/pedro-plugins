@@ -124,7 +124,7 @@ provedores {gasto.provedores}. Vocês são vários construtores rodando ao mesmo
 um por peça: se cada um tratar o teto como se fosse dele, a conta é multiplicada pelo
 número de peças. Antes de gerar em lote, ESTIME o custo e confira o que resta:
 
-  python3 <lib do gauntlet>/fecho_check.py gasto <a missão>
+  python3 {lib do gauntlet}/fecho_check.py gasto {a missão}
 
 Ela devolve o consumido, o restante e o estado, e SAI 1 quando você tem que parar de
 gerar. São dois casos: `estourado` (o teto acabou) e `nao-sei` (o provedor não respondeu,

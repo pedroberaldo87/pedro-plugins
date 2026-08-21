@@ -40,6 +40,10 @@ O registro é `.claude/decisoes-seladas.md` na raiz do projeto: uma linha por de
 frase-chave inteira NA MESMA LINHA (partida em duas, o `grep` não acha). Quem lê e escreve é
 `lib/decisoes_seladas.py` do plugin **project-skills**:
 
+`<resolve-plugin>` é o caminho do `resolve-plugin.sh` vendorado no plugin que carregou ESTA
+skill — procure o arquivo com esse nome na pasta do próprio plugin (`hooks/` ou a pasta da
+skill). Vazio ou ausente = project-skills fora desta máquina: siga sem o registro, dizendo isso.
+
 ```bash
 SELADAS="$(bash "<resolve-plugin>" project-skills lib/decisoes_seladas.py)"
 python3 "$SELADAS" consultar <raiz> "<a pergunta que você ia fazer>"   # saída 1 = nenhuma, pergunte

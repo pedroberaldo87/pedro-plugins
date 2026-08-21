@@ -83,13 +83,30 @@ roda ANTES deste passo: ele mostra o que só existe de cada lado, sem prescrever
 bash "${CLAUDE_PLUGIN_ROOT}/hooks/lib/apply-config.sh"
 ```
 
+**As permissões pedem CONSENTIMENTO na primeira vez.** Sem a marca
+`~/.claude/pedro-plugins-permissions-ok`, o apply aplica env, flags e barra de status e
+**segura o allow/deny** — default de risco não nasce ligado (Artigo 2 da constituição
+deste marketplace). O rito: mostre ao usuário o que o allow liga (o comando abaixo diz a
+contagem de hoje; a lista vive em `config/settings-defaults.json`), e **só com o de acordo
+dele** grave a marca e rode o apply de novo:
+
+```bash
+python3 -c "import json;p=json.load(open('${CLAUDE_PLUGIN_ROOT}/config/settings-defaults.json'))['permissions'];print(len(p['allow']),'no allow ·',len(p['deny']),'no deny')"
+touch ~/.claude/pedro-plugins-permissions-ok   # SÓ depois do "sim" do usuário
+```
+
+Máquina onde o merge já tinha acontecido antes desta regra é anistiada com a marca gravada
+automaticamente — o estado dela já era esse, e travar agora só a deixaria sem atualização.
+
 Isso faz merge de `config/settings-defaults.json` em `~/.claude/settings.json`:
 - **env** — seta `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS`, `CLAUDE_CONTEXT_THRESHOLD`, `CLAUDE_STATUSLINE_FORWARD` (os defaults vencem).
 - **permissions** — UNIÃO do allow/deny existente da máquina com os defaults versionados (a máquina mantém os seus, ganha os compartilhados). Isso **liga aprovação automática**. O que entra, o que não entra, e por quê:
 
-  **Entra** — 121 no `allow` (12 ferramentas nativas: leitura, edição, busca, web, subagente · 87 comandos de shell · 22 chamadas do Playwright) e 19 padrões destrutivos no `deny`.
+  **Entra** — o `allow` e o `deny` inteiros dos defaults (a contagem de hoje sai do comando
+  de consentimento acima, nunca deste texto): ferramentas nativas de leitura, edição, busca,
+  web e subagente · comandos de shell · chamadas do Playwright · padrões destrutivos no `deny`.
 
-  Os 87 de shell, por família:
+  Os de shell, por família:
   - **arquivo local, git sem publicar, teste e inspeção** — o grosso: ler e escrever arquivo, git **sem `push`** (`push --force` está no `deny`), test runner, linter, inspeção de container.
   - **baixa da rede e instala** — `pip install`, `brew`, `node`, `bun`.
   - **pergunta à rede, sem agir nem levar credencial** — `ping`, `dig`, `nslookup`, `host`.

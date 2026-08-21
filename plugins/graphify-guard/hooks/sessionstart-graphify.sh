@@ -28,7 +28,7 @@ done <<< "$LINES"
 
 [ -z "$LIST" ] && exit 0
 
-CTX="🕸️ Este projeto tem knowledge graph(s) graphify:\n${LIST}\nPara perguntas de arquitetura, dependências, blast radius ou \"como funciona X\", CONSULTE o grafo ANTES de grep/Explore:\n  cd <projeto> && graphify query \"sua pergunta\"\nOutros comandos: graphify path \"A\" \"B\" · graphify explain \"Nó\". O grafo é mapa, não verdade — aponta onde olhar; confirme a causa-raiz lendo o código real."
+CTX="🕸️ Este projeto tem knowledge graph(s) graphify:\n${LIST}\nPara perguntas de arquitetura, dependências, blast radius ou \"como funciona X\", CONSULTE o grafo ANTES de grep/Explore:\n  cd <projeto> && graphify query \"sua pergunta\"\nOutros comandos: graphify path \"A\" \"B\" · graphify explain \"Nó\".\nO grafo é mapa, não verdade — aponta onde olhar; confirme a causa-raiz lendo o código real."
 if [ "$STALE_ANY" = "1" ]; then
   CTX="${CTX}\n⚠️ Há grafo defasado acima. Ofereça ao usuário rodar \`graphify --update\` (re-extrai só o que mudou, é barato) antes de confiar nas respostas do grafo."
 fi

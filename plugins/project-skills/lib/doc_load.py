@@ -68,6 +68,36 @@ MINERADOS = [
 
 DISPENSA = "dispensa.md"
 
+
+def tem_tela(raiz):
+    """O projeto tem interface? A MESMA regra de `hooks/lib-has-frontend.sh` (F2.2),
+    reimplementada para rodar sem shell — mudou lá, muda aqui (test_doc_load cobra a paridade).
+    Sem git ou indeterminado ⇒ False: falso negativo cala a cobrança, falso positivo cobra quem não deve."""
+    import subprocess
+    try:
+        out = subprocess.run(["git", "-C", str(raiz), "ls-files"], capture_output=True,
+                             text=True, encoding="utf-8", errors="replace", timeout=30,
+                             stdin=subprocess.DEVNULL, start_new_session=True)
+        if out.returncode != 0:
+            return False
+        arquivos = [a for a in out.stdout.splitlines() if not a.startswith(".claude/")]
+    except Exception:
+        return False
+    import re as _re
+    if any(_re.search(r"\.(tsx|jsx|vue|svelte|swift|kt)$", a) for a in arquivos):
+        return True
+    if any(a == "index.html" or a.endswith("/index.html") for a in arquivos):
+        return True
+    pkg = os.path.join(str(raiz), "package.json")
+    if os.path.isfile(pkg):
+        try:
+            with open(pkg, encoding="utf-8", errors="replace") as fh:
+                if _re.search(r'"(react|react-dom|vue|svelte|next|@angular/core|solid-js|preact)"', fh.read()):
+                    return True
+        except OSError:
+            pass
+    return False
+
 # A CASA do protótipo (lei: prototipo/FORMATO.md, na casa da doc). O sidecar de lá é ANEXO:
 # natureza própria, fora de `regua`/`marca_regua` — o protótipo muda de tela sem mudar a
 # lei, e contaminar a marca congelada faria toda missão longa acusar lei mexida à toa.
@@ -293,10 +323,16 @@ def carrega(raiz):
     # por isso a lacuna sai separada por natureza. `ausentes` continua sendo a soma das
     # três, na mesma ordem de sempre, para quem já lê esse campo.
     faltam = {"lei": [], "acordo": [], "minerado": []}
+    # design.md só é cobrado de quem TEM tela (decisão F2.2, a mesma de lib-has-frontend.sh):
+    # cobrança que não cabe ensina a ignorar cobrança. Existindo o arquivo, ele é lido normal.
+    com_tela = tem_tela(raiz)
     for natureza, lista in (("lei", LEI), ("acordo", ACORDO), ("minerado", MINERADOS)):
         for nome, papel in lista:
             d = le_documento(raiz, nome, natureza, papel)
-            (docs.append(d) if d else faltam[natureza].append(nome))
+            if d:
+                docs.append(d)
+            elif nome != "design.md" or com_tela:
+                faltam[natureza].append(nome)
     ausentes = faltam["lei"] + faltam["acordo"] + faltam["minerado"]
 
     disp = casa_da_doc(raiz, DISPENSA)
@@ -325,6 +361,7 @@ def carrega(raiz):
         # muda de tela não é lei mexida, e contaminá-la dispararia alarme falso.
         "anexos": anexos,
         "reabertos": [d["arquivo"] for d in docs if d["reaberto"]],
+        "canonicos": CANONICOS - (0 if com_tela else 1),
         "correcoes_pendentes": [
             {"arquivo": d["arquivo"], "o_que_falta": d["correcao_pendente"]}
             for d in docs if d["correcao_pendente"]
@@ -343,7 +380,7 @@ def _alarme(estado):
     """
     if not estado["ausentes"] or (estado["dispensa"] and estado["dispensa"]["motivo"]):
         return []
-    linhas = [f"⚠️ LACUNA — {len(estado['ausentes'])} de {CANONICOS} documentos canônicos "
+    linhas = [f"⚠️ LACUNA — {len(estado['ausentes'])} de {estado.get('canonicos', CANONICOS)} documentos canônicos "
               "não existem neste projeto:"]
     for rotulo, chave, skill in (
         ("lei", "ausentes_lei", "/start escreve"),

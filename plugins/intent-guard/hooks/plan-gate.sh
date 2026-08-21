@@ -113,5 +113,8 @@ if [ "$N" -ge 2 ]; then
   exit 0   # cap batido: vira aviso implícito, não prende o fluxo
 fi
 echo $((N + 1)) > "$DENYF"
-echo "intent-guard (trava do plano): o plano NÃO cobre pedido(s) vivo(s) do usuário: ${MISSING}. Revise o plano pra cobrir (ou explicar por que não) ANTES de apresentar. Pedidos vivos: rode 'python3 ${LEDGER} status --cwd ${CWD}'." >&2
+echo "intent-guard (trava do plano): o plano NÃO cobre pedido(s) vivo(s) do usuário.
+- Faltam: ${MISSING}.
+- Revise o plano para cobrir (ou explicar por que não) ANTES de apresentar.
+- Pedidos vivos: rode 'python3 ${LEDGER} status --cwd ${CWD}'." >&2
 exit 2

@@ -83,9 +83,16 @@ RE_ATRIBUI = re.compile(
 
 
 def skills(root):
-    """Toda SKILL.md do repositório — a varredura é do repo, não de uma lista."""
-    return sorted(glob.glob(os.path.join(root, "plugins", "*", "skills", "*", "SKILL.md")) +
-                  glob.glob(os.path.join(root, "skills", "*", "SKILL.md")))
+    """Todo .md executável por agente: SKILL.md, os references/ e os .md vendorados
+    na pasta da skill — a varredura é do repo, não de uma lista. O alcance cresceu
+    em 2026-08-21 (achado do pente fino): comando quebrado em references/ e em cópia
+    vendorada quebra igual, e ficava fora do retrato."""
+    vistos = set()
+    tudo = (glob.glob(os.path.join(root, "plugins", "*", "skills", "*", "SKILL.md")) +
+            glob.glob(os.path.join(root, "skills", "*", "SKILL.md")) +
+            glob.glob(os.path.join(root, "plugins", "*", "skills", "*", "references", "*.md")) +
+            glob.glob(os.path.join(root, "plugins", "*", "skills", "*", "*.md")))
+    return sorted(f for f in tudo if not (f in vistos or vistos.add(f)))
 
 
 def blocos(linhas):

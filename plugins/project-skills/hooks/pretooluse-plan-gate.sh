@@ -67,7 +67,9 @@ hj_leitor >/dev/null 2>&1 || { hj_avisa "pretooluse-plan-gate"; exit 0; }
 
 INPUT=$(cat 2>/dev/null)
 TOOL=$(hj_campo "$INPUT" tool_name)
-SESSION=$(hj_campo_ou "$INPUT" session_id unknown)
+SESSION=$(hj_campo_ou "$INPUT" session_id "")
+# payload sem sessão: liberado — o sentinela "unknown" seria compartilhado entre sessões (o defeito do context-guard v1.1)
+[ -n "$SESSION" ] || exit 0
 CWD=$(hj_campo "$INPUT" cwd)
 
 # ── PORTÃO ÚNICO DE ExitPlanMode (F14.5 · decisão de 2026-08-08) ─────────────
@@ -163,7 +165,10 @@ if [ -z "$LINE" ]; then
     [ "$C" -eq "$C" ] 2>/dev/null || C=0
     [ "$C" -ge 3 ] && exit 0
     echo $((C + 1)) > "$CF"
-    MSG="📐 ${PROJ} tem um CLAUDE.md escrito à mão (\`${HANDMD}\`), mas não a documentação estruturada (\`${CASA_REL}/\`). LEIA o ${HANDMD} antes de planejar — é a única documentação que existe aqui. Depois do plano, ofereça \`/start\` (a intenção do sistema) e \`/doc\` (mineração do resto): o CLAUDE.md sozinho não cobre dado, durabilidade nem fluxo. Um Read nele libera este aviso (aviso $((C + 1))/3)."
+    MSG="📐 ${PROJ} tem um CLAUDE.md escrito à mão e nenhuma doc estruturada (aviso $((C + 1))/3).
+- LEIA o ${HANDMD} antes de planejar — é a única documentação que existe aqui.
+- Um Read nele libera este aviso.
+- Depois do plano, ofereça \`/start\` (a intenção) e \`/doc\` (a mineração do resto)."
     hj_deny "$MSG"
     exit 0
   fi
@@ -179,14 +184,22 @@ if [ -z "$LINE" ]; then
 
   # Dispensa escrita sem motivo é ausência com arquivo em cima: dizer só "não tem
   # documentação nenhuma" mandaria o dono procurar um arquivo que está lá.
-  [ -f "$DISPENSA" ] && ESC_HINT="Existe ${CASA_REL}/dispensa.md sem \`motivo:\` no frontmatter — sem motivo não é dispensa. Escreva o motivo ali, ou rode \`/start\`. "
+  [ -f "$DISPENSA" ] && ESC_HINT="- Existe ${CASA_REL}/dispensa.md sem \`motivo:\` no frontmatter — sem motivo não é dispensa.
+"
 
-  ESC_HINT="${ESC_HINT}Este gate nega SEMPRE enquanto não houver doc. O escape é o usuário autorizar explicitamente — o token garantido é \`--sem-doc\` (frases como \"ignora a doc\" também valem, mas o token é inequívoco). Ele revoga com \`--com-doc\`. Para dispensar de vez, e não só nesta sessão, registre \`${CASA_REL}/dispensa.md\` com \`motivo:\` no frontmatter — dispensa é ato registrado, e é o que separa este projeto de um que só esqueceu a documentação."
+  ESC_HINT="${ESC_HINT}- O gate nega enquanto não houver doc; o escape é o usuário autorizar com \`--sem-doc\` (revoga com \`--com-doc\`).
+- Para dispensar de vez, registre \`${CASA_REL}/dispensa.md\` com \`motivo:\` no frontmatter — dispensa é ato registrado."
 
   if [ "$AUTORAL" -gt 0 ]; then
-    MSG="📐 ${PROJ} tem ${AUTORAL} de 5 documentos autorais, mas ainda não tem índice CLAUDE.md nem doc minerada. Termine com \`/start\` (ele cobra o que falta) e depois rode \`/doc\` — aí o plano pode ser feito em cima de algo. Plano sem documentação nasce no vácuo e o erro só aparece na implementação. ${ESC_HINT}"
+    MSG="📐 ${PROJ} tem ${AUTORAL} de 5 documentos autorais, sem índice CLAUDE.md e sem doc minerada.
+- Termine com \`/start\` (ele cobra o que falta) e rode \`/doc\` na sequência.
+- Plano sem documentação nasce no vácuo; o erro só aparece na implementação.
+${ESC_HINT}"
   else
-    MSG="📐 ${PROJ} NÃO tem documentação nenhuma — sem CLAUDE.md, sem ${CASA_REL}/. Antes de planejar, rode \`/start\`: ele entrevista o usuário sobre o que o sistema prioriza, o que é inegociável, onde ele termina, as decisões que explicam o formato e o vocabulário interno. É essa entrevista que guia tudo que vem depois — inclusive este plano. Se houver código, depois dela rode \`/doc\` pra minerar o resto. ${ESC_HINT}"
+    MSG="📐 ${PROJ} NÃO tem documentação nenhuma — sem CLAUDE.md, sem ${CASA_REL}/.
+- Rode \`/start\` antes de planejar: a entrevista dele guia tudo que vem depois, inclusive este plano.
+- Havendo código, rode \`/doc\` depois dela para minerar o resto.
+${ESC_HINT}"
   fi
 
   hj_deny "$MSG"
@@ -427,7 +440,10 @@ else
 fi
 
 NUDGE_NO=$((COUNT + 1))
-MSG="📐 Você está prestes a fazer um plano em ${PROJ}, que TEM documentação (${N} doc(s)) — e ela ainda não foi lida nesta sessão.${DOCLIST} Leia ${CLAUDE_MD_PATH} e o(s) doc(s) do assunto do plano ANTES de planejar: plano feito sem a doc repete decisão já tomada e ignora gotcha já conhecido. Um Read em qualquer arquivo de ${CASA_REL}/ ou no CLAUDE.md libera automaticamente (aviso ${NUDGE_NO}/${MAX_NUDGES} — depois disso silencio).${STALEMSG}"
+MSG="📐 ${PROJ} TEM documentação (${N} doc(s)) e ela ainda não foi lida nesta sessão.${DOCLIST}
+- Leia ${CLAUDE_MD_PATH} e o(s) doc(s) do assunto ANTES de planejar.
+- Plano sem a doc repete decisão já tomada e ignora gotcha conhecido.
+- Um Read em ${CASA_REL}/ ou no CLAUDE.md libera (aviso ${NUDGE_NO}/${MAX_NUDGES} — depois, silêncio).${STALEMSG}"
 
 hj_deny "$MSG"
 exit 0

@@ -227,7 +227,9 @@ def estado_etapas(project_root):
     `[PENDENTE]` — escrita sem o de acordo do dono é etapa aberta, não etapa pronta.
     Só lê; não julga se a etapa se aplica ao projeto (a ausente sai como ausente).
     """
-    docs_dir = os.path.join(project_root or ".", ".claude", "docs")
+    sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+    from casa_da_doc import casa  # vendorado de _shared/ — quem decide onde a doc mora é a cascata do resolvedor
+    docs_dir = casa(project_root or ".")
     etapas = []
     for nome, arquivo in ETAPAS_CONCEPCAO:
         caminho = os.path.join(docs_dir, arquivo)

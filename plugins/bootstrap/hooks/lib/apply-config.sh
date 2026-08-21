@@ -57,6 +57,31 @@ mkdir -p "$CLAUDE_DIR"
 "$PY" "$CFGJSON" valida "$DEFAULTS" 2>/dev/null || { echo "[bootstrap/config] settings-defaults.json inválido"; exit 1; }
 
 # --- 1. Merge settings-defaults into settings.json ---
+# CONSENTIMENTO (Artigo 2 da constituição deste marketplace): o allow dos defaults
+# liga aprovação automática na máquina de quem instala — default de risco não
+# nasce ligado. O merge das permissões só roda com a marca de consentimento
+# gravada (é o /bootstrap:setup quem a grava, depois de mostrar a lista).
+# Máquina onde o merge JÁ aconteceu (uma permissão distintiva dos defaults está
+# no settings) é anistiada: o estado dela já é esse, e travar agora só a
+# deixaria sem atualização — a marca é gravada e o fluxo segue, com log.
+CONSENT="$CLAUDE_DIR/pedro-plugins-permissions-ok"
+if [ ! -f "$CONSENT" ]; then
+  if [ -f "$SETTINGS" ] && grep -q 'mcp__plugin_playwright_playwright__browser_navigate' "$SETTINGS" 2>/dev/null; then
+    printf 'anistia: merge anterior detectado em %s\n' "$(date +%Y-%m-%d)" > "$CONSENT" 2>/dev/null
+    echo "[bootstrap/config] consentimento gravado por anistia — o allow destes defaults já vivia no settings"
+  else
+    SEM_CONSENT=1
+    echo "[bootstrap/config] ⏸ permissões NÃO aplicadas — falta o consentimento.
+- Os defaults ligam aprovação automática de comandos (a lista vive em config/settings-defaults.json).
+- Rode /bootstrap (setup): ele mostra a lista e grava o de acordo em $CONSENT."
+  fi
+fi
+DEFAULTS_EFETIVO="$DEFAULTS"
+if [ -n "${SEM_CONSENT:-}" ]; then
+  # o resto dos defaults (env, flags, barra) segue valendo — só permissão espera o de acordo
+  DEFAULTS_EFETIVO="$CLAUDE_DIR/.defaults-sem-permissoes.json"
+  "$PY" -c 'import json,sys; d=json.load(open(sys.argv[1])); d.pop("permissions", None); json.dump(d, open(sys.argv[2], "w"), indent=2)' "$DEFAULTS" "$DEFAULTS_EFETIVO"     || { echo "[bootstrap/config] falha ao recortar permissões — nada aplicado"; exit 1; }
+fi
 CURRENT="{}"
 if [ -f "$SETTINGS" ]; then
   "$PY" "$CFGJSON" valida "$SETTINGS" 2>/dev/null || { echo "[bootstrap/config] settings.json local inválido — abortando (não sobrescrevo)"; exit 1; }
@@ -65,11 +90,16 @@ if [ -f "$SETTINGS" ]; then
 fi
 
 printf '%s' "$CURRENT" > "$SETTINGS.cur" \
-  && "$PY" "$CFGJSON" merge-settings "$SETTINGS.cur" "$DEFAULTS" > "$SETTINGS.tmp" \
+  && "$PY" "$CFGJSON" merge-settings "$SETTINGS.cur" "$DEFAULTS_EFETIVO" > "$SETTINGS.tmp" \
   && mv "$SETTINGS.tmp" "$SETTINGS" \
   && rm -f "$SETTINGS.cur" \
   || { rm -f "$SETTINGS.tmp" "$SETTINGS.cur"; echo "[bootstrap/config] merge falhou — settings.json intacto"; exit 1; }
-echo "[bootstrap/config] ✓ settings.json: env + permissions (union) + flags aplicados"
+rm -f "$CLAUDE_DIR/.defaults-sem-permissoes.json"
+if [ -n "${SEM_CONSENT:-}" ]; then
+  echo "[bootstrap/config] ✓ settings.json: env + flags aplicados (permissões aguardando consentimento)"
+else
+  echo "[bootstrap/config] ✓ settings.json: env + permissions (union) + flags aplicados"
+fi
 
 # --- 2. Resolve statusLine to the context-guard writer on THIS machine ---
 # nullglob loop (not `ls -d $glob`): survives no-match (no literal `*`) and paths

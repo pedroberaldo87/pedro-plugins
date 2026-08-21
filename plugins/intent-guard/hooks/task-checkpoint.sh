@@ -143,5 +143,8 @@ try:
 except Exception:
     sys.exit(0)
 sys.stdout.write("; ".join("%s %s" % (v.get("id"), v.get("resumo")) for v in vivos))' 2>/dev/null)"
-hj_block "intent-guard (checkpoint): a task ${TASKID} foi concluída mas o trabalho parece DERIVAR dos pedidos do usuário. ${REASON}. Pedidos vivos: ${LIVELIST}. Realinhe antes de seguir — ou, se o desvio é intencional/combinado, siga e explique na entrega."
+hj_block "intent-guard (checkpoint): a task ${TASKID} concluiu, mas o trabalho parece DERIVAR dos pedidos do usuário.
+- ${REASON}.
+- Pedidos vivos: ${LIVELIST}.
+- Realinhe antes de seguir — desvio intencional/combinado segue, explicado na entrega."
 exit 0

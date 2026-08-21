@@ -149,7 +149,9 @@ if [ "$N" -ge "$MAX" ]; then
   # modelo); a rede final segue de pé — o fecho continua vermelho sem os vereditos.
   LISTA=$(printf '%s' "$PENDENTES" | tr '\n' ' ')
   type hj_msg_ctx >/dev/null 2>&1 && hj_msg_ctx "PreToolUse" \
-    "⚠️ A trava do gauntlet DESISTIU após $N negações: a sessão segue SEM o guarda do juiz. Entrega(s) ainda sem veredito: ${LISTA} — o fecho continuará vermelho até os juízes existirem."
+    "⚠️ A trava do gauntlet DESISTIU após $N negações: a sessão segue SEM o guarda do juiz.
+- Entrega(s) ainda sem veredito: ${LISTA}
+- O fecho continuará vermelho até os juízes existirem."
   exit 0
 fi
 

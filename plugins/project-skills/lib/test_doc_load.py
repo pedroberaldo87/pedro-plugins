@@ -227,18 +227,30 @@ check("correção pendente declarada pelo dono aparece",
 e = dl.carrega(projeto({"constituicao.md": DOC_LEI_READY}))
 check("a lacuna separa lei, acordo e mapa",
       e["ausentes_lei"] == ["quality-goals.md", "constraints.md"]
-      and len(e["ausentes_acordo"]) == 8 and len(e["ausentes_minerados"]) == 5,
+      and len(e["ausentes_acordo"]) == 7 and len(e["ausentes_minerados"]) == 5,
       f"{e['ausentes_lei']} / {e['ausentes_acordo']} / {e['ausentes_minerados']}")
+check("projeto sem tela não é cobrado por design.md (F2.2)",
+      "design.md" not in e["ausentes_acordo"], str(e["ausentes_acordo"]))
 check("e a soma das três continua sendo o campo de sempre",
       e["ausentes"] == e["ausentes_lei"] + e["ausentes_acordo"] + e["ausentes_minerados"])
 
 linhas = dl.texto(e).splitlines()
 check("a lacuna é a PRIMEIRA linha, não o rodapé",
-      linhas[0].startswith("⚠️ LACUNA") and "15 de 16" in linhas[0], linhas[0])
+      linhas[0].startswith("⚠️ LACUNA") and "14 de 15" in linhas[0], linhas[0])
 check("e cada natureza vem com o comando que a resolve",
       any("lei:" in ln and "/start escreve" in ln for ln in linhas)
       and any("mapa:" in ln and "/doc extrai do código" in ln for ln in linhas),
       "\n".join(linhas[:5]))
+# ── com tela, design.md volta a ser cobrado (paridade com lib-has-frontend.sh) ──
+r_tela = projeto({"constituicao.md": DOC_LEI_READY})
+subprocess.run(["git", "-C", r_tela, "init", "-q"], check=True, stdin=subprocess.DEVNULL, start_new_session=True)
+with open(os.path.join(r_tela, "index.html"), "w", encoding="utf-8") as fh:
+    fh.write("<h1>tela</h1>")
+subprocess.run(["git", "-C", r_tela, "add", "index.html"], check=True, stdin=subprocess.DEVNULL, start_new_session=True)
+e_tela = dl.carrega(r_tela)
+check("projeto com tela rastreada é cobrado por design.md",
+      "design.md" in e_tela["ausentes_acordo"], str(e_tela["ausentes_acordo"]))
+
 check("a lacuna aparece ANTES do que vale como régua",
       linhas.index([ln for ln in linhas if ln.startswith("⚠️ LACUNA")][0])
       < linhas.index("VALE COMO RÉGUA — julgue contra estes, e cite a passagem:"))

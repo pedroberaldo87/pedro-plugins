@@ -289,6 +289,14 @@
       "firecrawl",
       "gpt-taste",
       "graphify",
+      "higgsfield-brandkit",
+      "higgsfield-generate",
+      "higgsfield-marketplace-cards",
+      "higgsfield-product-photoshoot",
+      "higgsfield-soul-id",
+      "higgsfield-video-explainer",
+      "higgsfield-websites",
+      "higgsfield-youtube-thumbnail",
       "high-end-visual-design",
       "imagegen-frontend-mobile",
       "imagegen-frontend-web",
@@ -298,7 +306,8 @@
       "redesign-existing-projects",
       "remotion-best-practices",
       "stitch-design-taste",
-      "stop-slop"
+      "stop-slop",
+      "unslop"
     ]
   },
   "ferramentas_externas": {
@@ -323,6 +332,30 @@
         "licenca": "MIT",
         "requerido_por": [],
         "porque": "so o snapshot.sh ainda usa jq, e ele so roda em maquina que CLONOU o repositorio (HAS_SOURCE exige ~/pedro-plugins/.git) para gravar o estado da maquina de volta no manifest. Quem instala pelo marketplace nunca passa por ele — por isso requerido_por esta vazio: acusar toda maquina sem jq seria alarme falso"
+      },
+      {
+        "comando": "node",
+        "pacote": "node",
+        "instalar": "brew install node (macOS) · winget install OpenJS.NodeJS (Windows) · apt install nodejs (Linux)",
+        "alternativa": "sem node o visual degrada para copiar/colar (o daemon de live-sync nao sobe) e o archify nao desenha — os dois avisam, nenhum trava",
+        "licenca": "MIT",
+        "requerido_por": [
+          "visual",
+          "archify"
+        ],
+        "porque": "o daemon de live-sync do visual (server/visual_server.mjs) e o renderizador do archify (bin/archify.mjs) rodam em node; os dois plugins nascem ligados no manifest"
+      },
+      {
+        "comando": "gh",
+        "pacote": "gh",
+        "instalar": "brew install gh (macOS) · winget install GitHub.cli (Windows) · apt install gh (Linux)",
+        "alternativa": "sem gh a conferencia de run de CI (sprint, ship) e feita pela web pelo dono; as skills declaram o caminho manual",
+        "licenca": "MIT",
+        "requerido_por": [
+          "project-skills",
+          "ship"
+        ],
+        "porque": "as skills de sprint e ship conferem o run do CI por 'gh run list/view'; a vigilia da execucao autonoma depende dessa leitura"
       }
     ]
   }

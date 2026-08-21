@@ -91,7 +91,7 @@ After writing all files, run this verification checklist. Report results to the 
 
 **16. Versioned Artifacts Are Tracked (CRITICAL — o conhecimento precisa viajar)**
 - Os artefatos cujo PROPÓSITO é viajar no git **não podem estar gitignored nem untracked**. Caso real: no `tools` o **journal caiu no `.gitignore`** — a doc gerava, mas o conhecimento não viajava entre máquinas/clones (quebra o RF Portabilidade **em silêncio**).
-- Para cada path abaixo, rode `git -C "<root>" check-ignore -q <path>` (ignorado se exit 0) **e** `git -C "<root>" ls-files --error-unmatch <path>` (tracked se exit 0):
+- `<root>` é a raiz do projeto documentado (o diretório do CLAUDE.md). Para cada path abaixo, rode `git -C "<root>" check-ignore -q <path>` (ignorado se exit 0) **e** `git -C "<root>" ls-files --error-unmatch <path>` (tracked se exit 0):
   - `.claude/CLAUDE.md` e todo `.claude/docs/*.md`
   - **`.claude/.project-doc/findings.jsonl`** e **`.claude/.project-doc/ledger.json`** — o journal + ledger, o ÚNICO veículo do conhecimento entre máquinas
   - **`graphify-out/graph.json`** (se o projeto tem grafo) — o grafo é documentação obrigatória (premissa do FULL/`--deep`); o passo 0.0 o gera/atualiza, mas só viaja entre máquinas se entrar no git. Caso real do furo: a skill regenerava o grafo e **não o stageava** — cada clone ficava sem mapa, em silêncio (mesma classe do journal no `tools`).
