@@ -572,7 +572,7 @@ fi
 # Escopo: só quando o commit traz Python.
 VZC="$ROOT/scripts/vazamento_check.py"
 if [ -f "$VZC" ] && printf '%s\n' "$FILES" | grep -qE '\.py$'; then
-  if ! POUT=$(cd "$ROOT" && python3 "$VZC" 2>&1); then
+  if ! POUT=$(cd "$ROOT" && python3 "$VZC" --staged 2>&1); then
     VIOL="${VIOL}
 ❌ VAZAMENTO DE PROCESSO — o disparo pode deixar filho rodando depois de terminar:
 $(printf '%s' "$POUT" | head -20)
