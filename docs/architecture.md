@@ -145,9 +145,9 @@ Comandos re-executados agora, na árvore de trabalho sobre `5df1964`:
 ```bash
 ls -1d plugins/*/ | wc -l                            # 23
 ls -1 plugins/*/.claude-plugin/plugin.json | wc -l   # 23
-ls -1 plugins/*/skills/*/SKILL.md | wc -l            # 35
+ls -1 plugins/*/skills/*/SKILL.md | wc -l            # 36
 ls -1 plugins/*/hooks/hooks.json | wc -l             # 12
-find plugins -path '*/lib/*.py' | wc -l              # 137
+find plugins -path '*/lib/*.py' | wc -l              # 149
 python3 -c "import json;print(len(json.load(open('.claude-plugin/marketplace.json'))['plugins']))"   # 23
 ```
 
@@ -168,17 +168,17 @@ python3 -c "import json;print(len(json.load(open('.claude-plugin/marketplace.jso
   [confirmado — os seis comandos re-rodados nesta passada de `/doc-touch`.]
   ⚠️ **Os arquivos `.py` em `lib/` quase não se moveram (100 → 99) apesar de três plugins
   terem sumido** — porque nada foi apagado, só mudou de casa: `plugins/project-skills/lib/`
-  concentra hoje 58 dos 137 (`find plugins/project-skills -path '*/lib/*.py' | wc -l`
-  neste run). Os últimos a entrar são `plugins/project-skills/lib/retomada.py` e a suíte
-  dele — o classificador da parada do motor de `/sprint` (§8) —, precedidos por
-  `ledger_corridas.py` + suíte e pela cópia vendorada de `lar_fingido.py`
+  concentra hoje 68 dos 149 (`find plugins/project-skills -path '*/lib/*.py' | wc -l`
+  neste run). Os últimos a entrar são a suíte da skill `reentrada`
+  (`test_reentrada_skill.py`) e o par `precheck_largada.py` + suíte — a passada mecânica
+  de largada do `/sprint` (§8) —, precedidos por `orfaos.py` e `decisoes_seladas.py`
   (`git log --diff-filter=A --name-only -- 'plugins/*/lib/*.py'` neste run).
   ⚠️ **Boa parte desse total é CÓPIA, não código novo**:
   `regua_texto.py` sozinha responde por 10 deles, e `padroes_vazamento.py`,
   `collect_engine.py`, `plan_state.py` e `resolve-*.sh` repetem o padrão (§7). Contar
   `lib/*.py` mede o vendoring junto com o código — a medida de código próprio é
   `find plugins -path '*/lib/*.py' ! -name regua_texto.py ! -name collect_engine.py ! -name padroes_vazamento.py`
-  (**123** neste run).
+  (**135** neste run).
 - **Registros de hook e scripts distintos: quem mede é a ferramenta, não esta linha** —
   `python3 scripts/hook_contract.py | head -1` imprime *"Contrato dos hooks — 54 registros,
   41 scripts distintos"* neste run, e `python3 scripts/hook_contract.py --scripts | grep -c .`
@@ -191,7 +191,7 @@ python3 -c "import json;print(len(json.load(open('.claude-plugin/marketplace.jso
   **uma vez só**). E o total já caiu sem nada ser removido — os três registros de
   `ExitPlanMode` viraram um só (§6). Por isso a linha que vale é a saída do comando, nunca o
   número copiado dela.
-- 35 skills em 23 diretórios porque **dois não têm `skills/` nenhum** — <!-- acopla-ok: leitura do bloco de comandos de §2, não afirmação independente -->
+- 36 skills em 23 diretórios porque **dois não têm `skills/` nenhum** — <!-- acopla-ok: leitura do bloco de comandos de §2, não afirmação independente -->
   `graphify-guard` (100% hook) e `vision` (100% MCP); o **`improve-workflow`**, que era o
   terceiro, ganhou a skill `improve-workflow/` nesta rodada —, e porque a família concentra a maioria delas, que se listam sem escrever nome
   nenhum aqui:
@@ -200,7 +200,12 @@ python3 -c "import json;print(len(json.load(open('.claude-plugin/marketplace.jso
   ls -1 plugins/project-skills/skills/   # acopla-ok: é o COMANDO que descobre a lista, que é justamente o que o Artigo 9 manda escrever no lugar dela
   ```
 
-  A skill que entrou nesta rodada é `doc-load` (§8.10), e ela não é mais uma etapa: é o
+  A skill mais nova é `reentrada` — o portão de volta do `/sprint`: o motor morreu no meio
+  da corrida (madrugada, limite de sessão, processo derrubado), e ela lê o desfecho do último
+  run no ledger e classifica pela `lib/retomada.py` — segue-no-motor, conserta-e-relança ou
+  espera-dono — em vez de largar do zero; não relança nada sozinha nem decide de memória
+  [confirmado — frontmatter e abertura de `plugins/project-skills/skills/reentrada/SKILL.md`].
+  Antes dela entrou `doc-load` (§8.10), que não é mais uma etapa: é o
   **preâmbulo** que as outras rodam antes de julgar qualquer coisa. Quem já a invoca se lê
   sem cravar lista aqui —
   `grep -rl 'doc-load' plugins/*/skills/*/SKILL.md | grep -v 'skills/doc-load/'` (devolve
@@ -372,7 +377,7 @@ improve-workflow  0.16.29  [improve-workflow]           -
 intent-guard       0.8.16  [intent-guard]               HOOKS
 lixeiro            1.5.11  [faxina]                     HOOKS
 principles          1.0.5  [principles]                 -
-project-skills    0.22.189  [completude,design-md,doc,doc-load,doc-touch,monitorar,pesquisa-referencias,plan,project-skills,qa-loop,reentrada,sprint,start] HOOKS
+project-skills    0.22.190  [completude,design-md,doc,doc-load,doc-touch,monitorar,pesquisa-referencias,plan,project-skills,qa-loop,reentrada,sprint,start] HOOKS
 ship                1.5.7  [ship]                       HOOKS
 slides              1.6.5  [slides]                     -
 vision              0.1.1  []                           -
@@ -879,8 +884,13 @@ família e a pauta de concepção precisam dizer que a doc visível nasce em `do
 que o segredo mora em `.claude/secrets/`, fora do git — e **apontar** para
 `_shared/casa-da-doc.md` em vez de recopiar a prosa, que é o drift que a própria premissa
 proíbe. [confirmado nesta rodada — `python3 _shared/test_casa_da_doc.py` →
-`27 passou · 0 falhou`; nenhum hook a consome ainda, e quem menciona `casa_da_doc` é só o
-`project-skills`, hoje em sete arquivos — a lista sai de `grep -rl casa_da_doc plugins`]
+`27 passou · 0 falhou`]. ⚠️ **O resolvedor deixou de ser promessa: hook e motor já o
+consomem.** O gate de plano faz source de `lib-casa-da-doc.sh` e pergunta `casa_da_doc`
+antes de decidir (o `. "$SCRIPT_DIR/lib-casa-da-doc.sh"` no topo de
+`pretooluse-plan-gate.sh`), e `doc_load.py` e `pattern_check.py`
+importam `casa_da_doc.py` no topo em vez de cravar `docs/` (`from casa_da_doc import casa`
+nos dois). Quem menciona `casa_da_doc` segue sendo só o `project-skills` — hoje em dezoito
+arquivos, e a lista sai de `grep -rl casa_da_doc plugins`.
 
 O porquê do vendoring, copiado do cabeçalho de
 `scripts/sync-shared.sh`: *"o Claude Code isola plugins na instalação — só `plugins/<nome>/`
@@ -1074,10 +1084,11 @@ As cópias de `regua_texto.py` aparecem à parte porque são vendoring, não có
 (§7.4):
 
 ```
-plugins/project-skills/lib/ 67 dos 148 — o motor de doc inteiro (journal.py · pattern_check.py ·
+plugins/project-skills/lib/ 68 dos 149 — o motor de doc inteiro (journal.py · pattern_check.py ·
                            organism.py · graph_map.py · doc_lint.py · historico.py ·
                            rastreio_etapas.py · curadoria_features.py ·
-                           decisoes_estruturais.py · doc_load.py · collect_engine.py vendorado),
+                           decisoes_estruturais.py · doc_load.py · collect_engine.py e
+                           bash_posix.py vendorados),
                            o ciclo de vida do plano (plan_state.py · cobertura.py ·
                            completude.py · auditoria_plano.py · plan_entrada.py · regua_pronto.py),
                            a passada mecânica de largada (precheck_largada.py — QUATRO
@@ -1555,8 +1566,14 @@ páginas do `/visual` digitadas pelo modelo custavam **20-31 KB de HTML por pág
     apontando pra caixa que existe, `estado` do `placar` dentro de `ESQ_ESTADOS` —, porque
     desenho meio montado vira buraco na página em vez de erro. O texto de dentro do desenho
     é a terceira isenção da régua de estilo (`patterns.md §2.7`): legenda de caixa de 130px
-    não vira frase. [confirmado — `python3 plugins/visual/lib/test_visual_page.py` →
-    `249 passou · 0 falhou` nesta rodada]
+    não vira frase. **E o esquema virou PORTA da aprovação de documento** (2026-08-20): o
+    `validate` recusa spec cujo bloco `aprovacao` com `doc_integral` não tem um `esquema`
+    ANTES dele na ordem de leitura — a regra estava escrita na skill e não pegava nada; aqui
+    ela pega (`visual_page.py:validate_spec`, comentário literal no código). Qual desenho
+    cada documento canônico pede também saiu da prosa: `ESQUEMA_POR_DOC` mora no módulo e a
+    skill aponta para a saída de `python3 visual_page.py schema`, *"porque lista de nome de
+    documento copiada em texto é a que sai do lugar sem ninguém perceber"*. [confirmado —
+    `python3 plugins/visual/lib/test_visual_page.py` → `253 passou · 0 falhou` nesta rodada]
   - **`_plural()` existe DUAS vezes** — `visual_page.py:110` e `plan_state.py:1245`, mesma
     assinatura, 2 linhas cada [confirmado — `grep -rn '^def _plural' --include='*.py' plugins/`
     devolve exatamente esses dois neste run]. Não é descuido: importar `plan_state` inteiro por
@@ -2003,6 +2020,19 @@ Cada uma é uma regra que sobreviveu a um defeito, com o arquivo e o símbolo on
   coisa, com quatro redações diferentes, e virou **programa** invocado como preâmbulo. O
   cabeçalho do arquivo nomeia o defeito que isso fecha: *"prosa copiada diverge no primeiro
   conserto, e a divergência é silenciosa — nenhum dos lados está errado sozinho"*.
+- **No Windows, o interpretador é suspeito até responder.** O verde de ponta a ponta na
+  perna Windows da CI custou uma varredura de classe, não um conserto de caso, e deixou três
+  regras: (1) executor Python que chama shell pega o binário de `bash_posix()`
+  (`_shared/bash_posix.py`, vendorado — `find plugins -name bash_posix.py | wc -l` devolve
+  **7** neste run), porque o `bash` do PATH no Windows é o do WSL e, sem distro, responde
+  reclamação em UTF-16 **com código 0** — a régua não é estar no PATH, é RESPONDER; sem bash
+  nenhum, a suíte PULA o caso declarando, em vez de reprovar código certo; (2) todo leitor de
+  arquivo declara `encoding="utf-8"` no `open()`, porque o default do Windows é cp1252 e o
+  primeiro acento vira exceção (a varredura passou pelos leitores de `_shared/`, `plugins/` e
+  `scripts/`); (3) caminho temporário sai de `tempfile.gettempdir()`, nunca de `/tmp` cravado
+  (`collect_engine.py:discover_transcript`). O que volta do resolvedor de shell ainda só é
+  aceito se EXISTIR no disco (`plan_state.py:_roda_resolvedor`, as duas defesas no docstring).
+  [confirmado — leitura dos três símbolos neste run]
 - **O gate compara com um retrato, não exige zero.** O gate E do `release-gate.sh` usa
   `.claude/hook-contract.baseline.json` e só barra o que **PIOROU** — o comentário do arquivo
   explica: *"os achados que já existiam e foram aceitos não travam ninguém, mas hook novo que
@@ -2037,17 +2067,17 @@ Cada uma é uma regra que sobreviveu a um defeito, com o arquivo e o símbolo on
 
 ## 13. Verificação
 
-As suítes `plugins/*/lib/test_*.py` que ESTA passada executou — **14 das 69 que o repositório
+As suítes `plugins/*/lib/test_*.py` que ESTA passada executou — **14 das 73 que o repositório
 tem hoje** (`ls plugins/*/lib/test_*.py | wc -l` neste run); quem roda todas é a esteira
 (`bash scripts/suite.sh`), nunca esta lista —, saída literal da última linha de cada uma:
 
 ```
-plugins/bootstrap/lib/test_conformance.py       :: 67 ok · 0 FAIL
+plugins/bootstrap/lib/test_conformance.py       :: 57 ok · 0 FAIL
 plugins/branches/lib/test_branch_state.py       :: OK
 plugins/guardrails/lib/test_askq_lint.py        :: ── 47 passou · 0 falhou ──
 plugins/intent-guard/lib/test_ledger.py         :: test_ledger: OK
 plugins/project-skills/lib/test_doc_lint.py     :: TODOS OS 39 CHECKS PASSARAM
-plugins/project-skills/lib/test_doc_load.py     :: 50 passou · 0 falhou
+plugins/project-skills/lib/test_doc_load.py     :: 51 passou · 0 falhou
 plugins/project-skills/lib/test_graph_map.py    :: TODOS OS 23 CHECKS PASSARAM
 plugins/project-skills/lib/test_journal.py      :: TODOS OS 123 CHECKS PASSARAM
 plugins/project-skills/lib/test_organism.py     :: test_organism: abertura apresenta o herdado item a item (S-12) ✓
@@ -2055,7 +2085,7 @@ plugins/project-skills/lib/test_pattern_check.py:: TODOS OS 84 CHECKS PASSARAM
 plugins/project-skills/lib/test_plan_state.py   :: OK
 plugins/project-skills/lib/test_cobertura.py    :: OK
 plugins/slides/lib/test_md2deck.py              :: 60 passou · 0 falhou
-plugins/visual/lib/test_visual_page.py          :: 227 passou · 0 falhou
+plugins/visual/lib/test_visual_page.py          :: 253 passou · 0 falhou
 ```
 
 ⚠️ **Cinco caminhos dessa lista mudaram sem que uma linha de teste mudasse** — as suítes de

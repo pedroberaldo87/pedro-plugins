@@ -29,6 +29,9 @@ import json
 import os
 import sys
 
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from casa_da_doc import casa as casa_da_doc  # noqa: E402  (a doc migrou para docs/; a casa velha é retrocompatível)
+
 # Quem é canônico, e a natureza de cada um. A ordem é a de leitura: a lei primeiro.
 # Fonte: _shared/contrato-familia.md, seção "Os documentos".
 # LEI — vale como régua com `ready` OU `approved`; só `draft` fica de fora. É o
@@ -158,7 +161,7 @@ def frontmatter(caminho):
 
 
 def le_documento(raiz, nome, natureza, papel):
-    caminho = os.path.join(raiz, ".claude", "docs", nome)
+    caminho = casa_da_doc(raiz, nome)
     if not os.path.isfile(caminho):
         return None
     fm = frontmatter(caminho)
@@ -242,7 +245,7 @@ def le_anexos(raiz):
       - de acordo do design REGRAVADO: o `design-sig` gravado não bate com a marca de
         hoje do documento que o sustenta (`anexo-de`) — o design mudou por baixo.
     """
-    casa = os.path.join(raiz, ".claude", "docs", *CASA_PROTOTIPO)
+    casa = casa_da_doc(raiz, *CASA_PROTOTIPO)
     if not os.path.isdir(casa):
         return []
     anexos = []
@@ -258,7 +261,7 @@ def le_anexos(raiz):
         gravada = fm.get("conjunto-sig", "")
         diverge = bool(gravada) and (conjunto_hoje is None or str(conjunto_hoje) != gravada)
         design_sig = fm.get("design-sig", "")
-        design_hoje = cksum(os.path.join(raiz, ".claude", "docs", anexo_de)) if anexo_de else None
+        design_hoje = cksum(casa_da_doc(raiz, anexo_de)) if anexo_de else None
         regravado = bool(design_sig) and design_hoje is not None and str(design_hoje) != design_sig
         reaberto = diverge or regravado
         vale = status == "approved" and not reaberto
@@ -296,7 +299,7 @@ def carrega(raiz):
             (docs.append(d) if d else faltam[natureza].append(nome))
     ausentes = faltam["lei"] + faltam["acordo"] + faltam["minerado"]
 
-    disp = os.path.join(raiz, ".claude", "docs", DISPENSA)
+    disp = casa_da_doc(raiz, DISPENSA)
     dispensa = None
     if os.path.isfile(disp):
         fm = frontmatter(disp)
