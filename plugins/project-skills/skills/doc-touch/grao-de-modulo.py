@@ -100,7 +100,7 @@ def _workspace(raiz):
             if os.path.isdir(p) and any(
                 os.path.isfile(os.path.join(p, m)) for m in MANIFESTOS
             ):
-                unidades.append(os.path.relpath(p, raiz))
+                unidades.append(os.path.relpath(p, raiz).replace(os.sep, "/"))
     return unidades or None
 
 
@@ -118,7 +118,10 @@ def _por_pasta(arquivos):
 def _colecao(arquivos):
     """Classe A: (tronco, unidades) do primeiro tronco com >= 3 irmãs comparáveis."""
     contagem = _por_pasta(arquivos)
-    troncos = sorted({f.replace("\\", "/").split("/")[0] for f in arquivos if "/" in f})
+    # normaliza ANTES do filtro: no Windows os caminhos chegam com `\` e o filtro
+    # `"/" in f` cru zerava os troncos — toda coleção virava classe E lá.
+    normais = [f.replace("\\", "/") for f in arquivos]
+    troncos = sorted({f.split("/")[0] for f in normais if "/" in f})
     for tronco in [t for t in troncos if t not in IGNORAR and not t.startswith(".")]:
         filhas = sorted(
             {c for c in contagem if c.startswith(tronco + "/") and c.count("/") == 1}
@@ -134,7 +137,10 @@ def _colecao(arquivos):
 
 def _lados(raiz, arquivos):
     """Classe C: troncos que são processos distintos (>= 2), ou None."""
-    troncos = sorted({f.replace("\\", "/").split("/")[0] for f in arquivos if "/" in f})
+    # normaliza ANTES do filtro: no Windows os caminhos chegam com `\` e o filtro
+    # `"/" in f` cru zerava os troncos — toda coleção virava classe E lá.
+    normais = [f.replace("\\", "/") for f in arquivos]
+    troncos = sorted({f.split("/")[0] for f in normais if "/" in f})
     achados = []
     for t in troncos:
         if t in IGNORAR or t.startswith("."):

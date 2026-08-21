@@ -1,6 +1,6 @@
 {
   "name": "project-skills",
-  "version": "0.22.180",
+  "version": "0.22.181",
   "description": "A casa das skills de projeto — documentacao, concepcao, plano, execucao e revisao moram sob um teto so, e conversam entre si por nome de plugin, nunca por caminho relativo para a pasta do vizinho. Traz tambem o motor de execucao autonoma (/sprint): decompoe -> executa -> revisa em Workflow deterministico, com os hooks que o guardam — a reserva de arquivos entre motores, o guarda de espera, o narrador de andamento na statusline e o gate que nega sub-agente com a missao armada (o apelido \"sovai\" segue evocando a skill sprint). O indice da familia se descobre lendo a pasta skills/ do plugin, nunca de cor.",
   "author": {
     "name": "pedro-plugins"
