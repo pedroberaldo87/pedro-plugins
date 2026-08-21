@@ -1840,7 +1840,7 @@ def ondas(plan):
     a maior onda de quem ele depende, +1. A cadeia crítica é o caminho mais longo do
     grafo — a resposta desenhada de "o que trava o resto?". O eixo é a onda e nunca o
     calendário: estimar duração é proibido neste projeto, e data sem estimativa é
-    chute com cara de medição (`docs/specs/wbs-gantt-proposta.md`, §5).
+    chute com cara de medição (`docs/specs/wbs-gantt-proposta.md`, §5).  # casa-ok: citacao da spec em comentario, nao caminho operacional
     """
     idx = {it["id"]: it for _, it in iter_items(plan)}
     nivel, base = {}, {}
