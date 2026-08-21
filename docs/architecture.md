@@ -372,7 +372,7 @@ improve-workflow  0.16.29  [improve-workflow]           -
 intent-guard       0.8.16  [intent-guard]               HOOKS
 lixeiro            1.5.11  [faxina]                     HOOKS
 principles          1.0.5  [principles]                 -
-project-skills    0.22.163  [completude,design-md,doc,doc-load,doc-touch,monitorar,pesquisa-referencias,plan,project-skills,qa-loop,sprint,start] HOOKS
+project-skills    0.22.166  [completude,design-md,doc,doc-load,doc-touch,monitorar,pesquisa-referencias,plan,project-skills,qa-loop,sprint,start] HOOKS
 ship                1.5.7  [ship]                       HOOKS
 slides              1.6.5  [slides]                     -
 vision              0.1.1  []                           -
@@ -1074,12 +1074,21 @@ As cópias de `regua_texto.py` aparecem à parte porque são vendoring, não có
 (§7.4):
 
 ```
-plugins/project-skills/lib/ 65 dos 146 — o motor de doc inteiro (journal.py · pattern_check.py ·
+plugins/project-skills/lib/ 67 dos 148 — o motor de doc inteiro (journal.py · pattern_check.py ·
                            organism.py · graph_map.py · doc_lint.py · historico.py ·
                            rastreio_etapas.py · curadoria_features.py ·
                            decisoes_estruturais.py · doc_load.py · collect_engine.py vendorado),
                            o ciclo de vida do plano (plan_state.py · cobertura.py ·
                            completude.py · auditoria_plano.py · plan_entrada.py · regua_pronto.py),
+                           a passada mecânica de largada (precheck_largada.py — sete
+                           checagens sobre os passos ABERTOS do plano escolhido por
+                           `plan_state.py:pick_plan`, cada achado virando PERGUNTA ao dono;
+                           o módulo NÃO escreve no plano, e importa os irmãos em vez de
+                           reescrever régua — `regua_pronto`, `auditoria_plano:ATO_DO_DONO`,
+                           `decisoes_seladas:consultar`. ⚠️ **Ninguém o chama ainda**: a
+                           varredura de `precheck_largada` no repositório inteiro devolve
+                           só o próprio arquivo e a suíte dele, então hoje é motor sem
+                           ignição — a skill `sprint` não o invoca em passo nenhum),
                            o detector de trabalho órfão (orfaos.py — cruza `git status
                            --porcelain -uall` e os commits desde o último tique com os
                            passos ABERTOS do plano — pelo arquivo que o passo nomeia (o
