@@ -13,7 +13,7 @@
       "source": "./plugins/2op",
       "description": "Segunda opinião de outro modelo dentro da MESMA sessão, sem subagente e sem re-briefing. /2op (Fable 5), /2op-opus (Opus 5) e /2op-sonnet (Sonnet 5) usam o campo model do frontmatter: o turno inteiro roda no modelo escolhido, com o contexto já carregado, e o modelo da sessão volta sozinho no próximo prompt. O revisor responde com veredito na primeira linha, rotula CONFIRMADO/INFERIDO e não edita nada.",
       "category": "productivity",
-      "version": "1.2.0",
+      "version": "1.3.0",
       "tags": [
         "review",
         "second-opinion",
@@ -149,7 +149,7 @@
         "homepage": "https://github.com/mattpocock/skills"
       },
       "category": "dev-tools",
-      "version": "1.5.1",
+      "version": "1.5.2",
       "tags": [
         "design-review",
         "planning",
@@ -180,7 +180,7 @@
       "source": "./plugins/handoff",
       "description": "Session continuity in a single command — /handoff detects the session state and routes: full context → saves a complete knowledge-transfer document; freshly cleared session → resumes from it. Workspace-aware: the handoff belongs to the project the session touched (resolves the .git boundary of the edited files), so it works for a standalone project, a monorepo (one HANDOFF-<module>.md per module), or an umbrella folder with nested projects — no more clobbering between parallel sessions on the same root. Optional [salvar|retomar] argument forces the mode.",
       "category": "productivity",
-      "version": "1.11.15",
+      "version": "1.11.16",
       "tags": [
         "session",
         "continuity",
@@ -193,7 +193,7 @@
       "source": "./plugins/improve",
       "description": "Generic self-improvement implementer using the autoresearch ML methodology. Reads the app's IMPROVEMENT_PROGRAM.md, fetches proposals from GitHub Issues (label 'autoresearch'), implements changes.",
       "category": "dev-tools",
-      "version": "1.1.4",
+      "version": "1.1.5",
       "tags": [
         "automation",
         "ml",
@@ -234,7 +234,7 @@
       "source": "./plugins/lixeiro",
       "description": "Encerra os processos que a sessão abriu e esqueceu — servidor de desenvolvimento, suíte pendurada, compilação em modo observador. O critério é procedência, nunca nome de programa: um hook anota na origem o que abriu processo, e só o que foi anotado pode ser encerrado. Ao fim de cada turno morre só o que não gastou CPU nenhuma desde o turno anterior, suíte ou servidor — o que está trabalhando sobrevive, inclusive a suíte lançada em segundo plano. Ao fim da sessão morre tudo que ela abriu e não estiver gastando CPU naquele instante, e na abertura seguinte o que sessões mortas deixaram de pé; /clear e resume não contam como fim. Máquina virtual, serviço de contêiner e os serviços do próprio programa nunca recebem sinal, só aparecem no relatório. Traz também /faxina, o irmão manual, que mostra tudo que está de pé e encerra só o que você marcar.",
       "category": "dev-tools",
-      "version": "1.5.10",
+      "version": "1.5.11",
       "tags": [
         "processos",
         "memoria",
@@ -260,7 +260,7 @@
       "source": "./plugins/project-skills",
       "description": "A casa das skills de projeto — documentacao, concepcao, plano, execucao e revisao moram sob um teto so, e conversam entre si por nome de plugin, nunca por caminho relativo para a pasta do vizinho. Traz tambem o motor de execucao autonoma (/sprint): decompoe -> executa -> revisa em Workflow deterministico, com os hooks que o guardam — a reserva de arquivos entre motores, o guarda de espera, o narrador de andamento na statusline e o gate que nega sub-agente com a missao armada (o apelido \"sovai\" segue evocando a skill sprint). O indice da familia se descobre lendo a pasta skills/ do plugin, nunca de cor.",
       "category": "productivity",
-      "version": "0.22.147",
+      "version": "0.22.152",
       "tags": [
         "project",
         "scaffolding",
@@ -285,7 +285,7 @@
       "source": "./plugins/slides",
       "description": "Markdown → keynote-grade single-file HTML deck. Two modes: (A) transcription — renders a ready .md faithfully, never invents text; (B) explainer — drives the didactics (narrative structure, audience level, granular vs summary, infographics) to teach a concept, grounded (factual + current). Theme system (VIU default), no-JS adaptive (WhatsApp thumbnail).",
       "category": "productivity",
-      "version": "1.6.4",
+      "version": "1.6.5",
       "tags": [
         "slides",
         "presentation",
@@ -324,7 +324,7 @@
       "source": "./plugins/visual",
       "description": "CLI walls-of-text → interactive HTML dark-theme views. The page carries the EVIDENCE, not the account of it: real artifact embedded, raw output verbatim, provenance for every number — enforced by a pre-ExitPlanMode gate. Prose is REFUSED by the builder: every text field is checked (≤140 chars per bullet, one sentence each, no continuation connective, max 6 per block) and a violation aborts without writing the page. Each problem's body is born folded — the title stays visible, consequence and proposal open on click under a label derived from the content itself. Plans, diagnostics and decisions in the browser with live sync back to Claude. Regravar um plano nunca apaga em silêncio o que não veio no pacote: o init parcial FUNDE o bloco de requisitos por id — o requisito que só existe no arquivo fica, e o executor recebe a nota do que foi mantido. O cruzamento também mede o plano contra a arquitetura pretendida: funcionalidade sem peça, e requisito citando peça que o architecture-intent.md não tem, saem em listas próprias — e o mesmo vale para o desenho de funcionamento: funcionalidade sem passo do ciclo, e passo do ciclo que nenhuma funcionalidade atende.",
       "category": "productivity",
-      "version": "1.42.1",
+      "version": "1.42.2",
       "tags": [
         "visualization",
         "html",

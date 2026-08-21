@@ -86,5 +86,27 @@ for nome in SKILLS:
     check("%s: a description diz ao usuário qual barra digitar" % nome,
           "/%s" % nome in desc, desc)
 
+# O caso interativo: medir e RECUSAR em voz alta, com a alternativa que funciona hoje.
+# Sem isto a skill fingia segunda opinião quando o titular servia a si mesmo — o campo
+# `model` do frontmatter é honrado em `claude -p` e ignorado em silêncio no interativo.
+RECUSA = "**SEM SEGUNDA OPINIÃO — quem serviu este turno foi o modelo titular"
+SECAO = "## Quando quem serviu foi o titular"
+
+print("\n2op · caso interativo: recusa honesta e alternativa que funciona")
+for nome in SKILLS:
+    corpo, _ = corpo_e_descricao(ler(nome))
+    i = corpo.find(SECAO)
+    secao = "" if i < 0 else corpo[i:corpo.find("## Reconciliação", i)]
+    check("%s: tem a seção do caso interativo" % nome, bool(secao))
+    check("%s: manda MEDIR antes de responder, pelo caminho instalado" % nome,
+          "${CLAUDE_PLUGIN_ROOT}/lib/quem_serviu.py" in secao and "ACUSA" in secao)
+    check("%s: escreve a frase de recusa literal" % nome, RECUSA in secao)
+    check("%s: entrega pela alternativa que funciona (subagente com modelo cravado)" % nome,
+          "Subagente com o modelo cravado" in secao)
+    check("%s: e pelo /model manual quando o subagente não serve" % nome,
+          "`/model`" in secao)
+    check("%s: proíbe fingir que a segunda cabeça veio" % nome,
+          "seguir calado" in secao)
+
 print("\n%d ok, %d FAIL" % (PASS, FAIL))
 sys.exit(1 if FAIL else 0)

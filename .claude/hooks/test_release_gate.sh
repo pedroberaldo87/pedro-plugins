@@ -11,7 +11,15 @@
 # Monta um repo git descartável em TMPDIR, com a mesma forma do monorepo.
 # Uso: bash test_release_gate.sh
 
-set -uo pipefail
+# SEM `pipefail`, E DE PROPÓSITO. Quase toda asserção daqui é
+# `printf '%s' "$out" | grep -q ...`: o `grep -q` sai no primeiro casamento e
+# fecha o cano, o `printf` que ainda estava escrevendo leva SIGPIPE, e com
+# `pipefail` o status da pipeline vira o do printf — a asserção reprova por ter
+# ACERTADO cedo demais. Depende de quem termina primeiro, então falha ora aqui
+# ora ali (medido em 2026-08-20: "e diz que bump são TRÊS arquivos" caindo com
+# `write error: Broken pipe` só na segunda de três rodadas simultâneas). Quem
+# responde a pergunta destas pipelines é sempre o comando da DIREITA.
+set -u
 HERE="$(cd "$(dirname "$0")" && pwd)"
 GATE="$HERE/release-gate.sh"
 PASS=0; FAIL=0
@@ -19,6 +27,17 @@ PASS=0; FAIL=0
 ok()   { PASS=$((PASS+1)); printf '  ok   %s\n' "$1"; }
 bad()  { FAIL=$((FAIL+1)); printf '  FAIL %s\n' "$1"; }
 check(){ if [ "$2" = "1" ]; then ok "$1"; else bad "$1"; fi; }
+
+# ── O PORTÃO AQUI NÃO TEM PRESSA ────────────────────────────────────────────
+# O gate carrega um freio de relógio próprio (`PORTAO_DEADLINE`, release-gate.sh)
+# para não morrer calado quando o harness o mata: passado o prazo ele PARA NO MEIO
+# e recusa por não ter conseguido medir. Isso é certo em produção e é veneno numa
+# bancada — com a máquina ocupada, o freio disparava no meio da rodada e derrubava
+# justamente os checks do fim (medido em 2026-08-20: "função nova sem chamador" e
+# "a mensagem nomeia o plano e o passo" caindo em rodadas diferentes, enquanto a
+# mesma suíte sozinha fechava 68/68). O que se mede aqui é o VEREDITO do portão,
+# nunca quanto ele demora; sem prazo, o resultado deixa de depender da máquina.
+export PORTAO_DEADLINE_S=0
 
 R=$(mktemp -d "${TMPDIR:-/tmp}/release-gate-test.XXXXXX")
 trap 'rm -rf "$R"' EXIT

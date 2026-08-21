@@ -28,6 +28,32 @@ A instrução da skill diz **o que** perguntar. Quem escolhe **por onde** é o u
 trocar de canal a qualquer momento, e a troca vale da rodada seguinte em diante. Sem escolha dita,
 use o padrão.
 
+## Antes de perguntar: o registro de decisões já seladas
+
+**Pergunta repetida é falha do processo, não pedido novo.** A mesma pergunta parou quatro corridas
+em dias diferentes, e a resposta ("tudo que puder decidir no final, decido no final") já estava dita.
+Por isso **todo papel que vai perguntar — o pré-check de largada, o motor do /sprint, a casca —
+consulta o registro ANTES de levar qualquer coisa ao dono**, e a linha achada É a resposta: a
+pergunta morre ali, com a fala dele citada literal e a data.
+
+O registro é `.claude/decisoes-seladas.md` na raiz do projeto: uma linha por decisão, com a
+frase-chave inteira NA MESMA LINHA (partida em duas, o `grep` não acha). Quem lê e escreve é
+`lib/decisoes_seladas.py` do plugin **project-skills**:
+
+```bash
+SELADAS="$(bash "<resolve-plugin>" project-skills lib/decisoes_seladas.py)"
+python3 "$SELADAS" consultar <raiz> "<a pergunta que você ia fazer>"   # saída 1 = nenhuma, pergunte
+python3 "$SELADAS" indice    <raiz>                                    # o registro inteiro
+```
+
+**Decisão nova entra no registro na hora em que o dono responde** — na mesma volta, não no fim:
+
+```bash
+python3 "$SELADAS" selar <raiz> --fala "<a fala literal dele>" --fonte "<onde foi dita>"
+```
+
+Registro ausente não trava nada: sem arquivo, a consulta devolve vazio e a pergunta segue.
+
 ## A aposta que vai junto com a pergunta
 
 Campo em branco obriga o dono a compor a resposta do zero; palpite errado ele derruba numa linha, e

@@ -156,7 +156,7 @@ const CFG = JSON.parse(fs.readFileSync(process.argv[2], 'utf8'))
 const CORPO = fs.readFileSync(process.argv[3], 'utf8')
 
 const PRELUDE = `
-const DECOMP={}, TASK_RESULT={}, BUILD_REVIEW={}, RESERVA={}, REGUA={}, SUITE_RESULT={}, AUDITOR={}, DOC_TOUCH={}, TICK_RESULT={}, DESAFIO={}, TAREFA_REVIEW={}, DOC_REVIEW={}, SAUDE={}, CHECKPOINT_RESULT={}, DESTRAVE={}, PRODUTIVIDADE={};
+const DECOMP={}, TASK_RESULT={}, BUILD_REVIEW={}, RESERVA={}, REGUA={}, SUITE_RESULT={}, AUDITOR={}, DOC_TOUCH={}, TICK_RESULT={}, DESAFIO={}, TAREFA_REVIEW={}, DOC_REVIEW={}, SAUDE={}, CHECKPOINT_RESULT={}, DESTRAVE={}, PRODUTIVIDADE={}, ORFAOS={};
 const mk = n => (p => Object.assign({ __p: n }, p));
 const orquestradorPrompt=mk('decompose'), saudePrompt=mk('saude'),
       decomposePrompt=mk('decompose'), execPrompt=mk('exec'), reviewBuildPrompt=mk('review'),
@@ -166,7 +166,8 @@ const orquestradorPrompt=mk('decompose'), saudePrompt=mk('saude'),
       reguaPrompt=mk('regua'), auditorPrompt=mk('auditor'), desafioCausaPrompt=mk('desafio'),
       revisorTarefaPrompt=mk('revTarefa'), revisorBlocoPrompt=mk('revBloco'),
       revisaoDocPrompt=mk('revDoc'), destravadorPrompt=mk('destrava'),
-      pendenciaPrompt=mk('pendencia'), produtividadePrompt=mk('produtividade');
+      pendenciaPrompt=mk('pendencia'), produtividadePrompt=mk('produtividade'),
+      orfaosPrompt=mk('orfaos');
 `
 
 const chamadas = []

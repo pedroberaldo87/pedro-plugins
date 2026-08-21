@@ -171,6 +171,15 @@ A régua fecha: `git ls-files -i -c --exclude-standard` → **0**. [confirmado]
 - **O sidecar é ANEXO, não régua** — `plugins/project-skills/lib/doc_load.py:le_anexos` o lê fora da lista que julga obra, e a marca do CONJUNTO (`conjunto-sig`) reabre o anexo quando alguém mexe no protótipo depois do de acordo.
 - **Natureza: acordo com o dono, sob tranca.** O corpo aprovado não se toca sem novo de acordo — o que se grava é `correcao-pendente:` no frontmatter, que não reabre a etapa.
 
+### A12 · `.claude/decisoes-seladas.md` — a decisão do dono que mata a pergunta repetida
+
+- **Nasceu em 2026-08-20**, com `plugins/project-skills/lib/decisoes_seladas.py`. **Markdown rastreado quando existe** — não está no `.gitignore`, e o próprio módulo declara por quê: *"é doc: entra no commit"*. ⚠️ **Neste repositório o arquivo ainda NÃO existe** (`ls .claude/decisoes-seladas.md` → não encontrado): o mecanismo está de pé, o registro está vazio. [confirmado nesta rodada]
+- **Uma linha por decisão**, no formato `- [data] "fala literal do dono" — fonte: <onde foi dita>`. A frase-chave mora **inteira numa linha só** — partida em duas, o `grep` não a acha, e foi assim que a mesma pergunta parou quatro corridas em dias diferentes com a resposta já dita.
+- **Quem lê e escreve é um programa, nunca prosa:** `decisoes_seladas.py consultar <raiz> "<pergunta>"` devolve as linhas que já respondem (saída **1** = nenhuma cobre, e aí a pergunta segue ao dono) e `selar <raiz> --fala … --fonte …` grava a resposta nova **na mesma volta** em que ela é dada. O casamento é por frase inteira ou por radical de 4 letras, para que a pergunta reescrita ache a mesma decisão.
+- **Quem manda consultar** é a régua única `_shared/regua-de-pergunta.md`, vendorada ao lado de cada skill que pergunta (nove cópias hoje) — o pré-check de largada, o motor do `/sprint` e a casca consultam **antes** de levar qualquer coisa ao dono.
+- **Natureza: acordo com o dono, coberto pelo git.** É a mesma classe do A8 (`limites-aceitos.md`): o que se perde ao apagá-lo não é dado remedível por comando, é a fala de quem decidiu. **Registro ausente não trava nada** — sem arquivo a consulta devolve vazio e a pergunta segue, que é o comportamento de hoje neste repo.
+- ⚠️ **Ninguém cobra que a decisão seja SELADA.** `test_decisoes_seladas.py` (20 ok nesta rodada) cobra o módulo e o texto da régua; que um papel tenha de fato gravado a fala do dono depois de perguntar, nada verifica — a mesma dívida declarada do A8.
+
 ### Sementes versionadas (o resto de (A) que é depósito)
 
 - `plugins/visual/skills/visual/config.default.json` — semente do `config.json` do `/visual`, que vive em (B2). O default sobe; a escolha do usuário, não.

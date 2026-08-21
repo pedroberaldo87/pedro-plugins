@@ -31,6 +31,7 @@ import concurrent.futures
 import glob
 import os
 import signal
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -135,9 +136,23 @@ def roda(cmd, alvo, janela, bash):
     # a acusa de TIMEOUT sem ela ter demorado nada. Medido: duas suítes de 50 s
     # aparecendo como 180 s. Arquivo não tem escritor a esperar.
     tmp = tempfile.TemporaryFile(mode="w+", encoding="utf-8", errors="replace")
+    # ── CADA SUÍTE NO PRÓPRIO TEMPORÁRIO ────────────────────────────────────
+    # A CAUSA das suítes instáveis, apurada em 2026-08-20: a chave do estado que
+    # elas escrevem é um id de sessão CRAVADO no código (`dasid`, `sess-x`,
+    # `cksid`…) e a casa é o temporário do sistema, o mesmo para todo mundo. Duas
+    # esteiras de pé — duas sessões de agente, ou o CI ao lado do terminal — e uma
+    # apaga o arquivo que a outra acabou de escrever; a suíte acusada muda a cada
+    # rodada, que é a assinatura de disputa, não de defeito. Serializar não
+    # resolvia: a colisão é da CHAVE, não da ordem. Trocar todos os ids por nome
+    # sorteado seria o mesmo conserto repetido em cinco arquivos e esquecido no
+    # sexto — aqui a casa é que passa a ser própria, e o id fixo deixa de importar.
+    # As três variáveis andam juntas porque o Windows lê TMP/TEMP e não TMPDIR.
+    casa = tempfile.mkdtemp(prefix="suite-")
+    ambiente = dict(os.environ, TMPDIR=casa, TMP=casa, TEMP=casa)
     try:
         p = subprocess.Popen(cmd + [alvo], stdout=tmp, stderr=subprocess.STDOUT,
-                             stdin=subprocess.DEVNULL, start_new_session=True)
+                             stdin=subprocess.DEVNULL, start_new_session=True,
+                             env=ambiente)
         # A amostra de CPU cabe DENTRO da janela: ela é o pedaço da janela em que
         # se olha, não um tempo somado por cima dele.
         amostra = max(1, min(3, int(janela / 4) or 1))
@@ -174,6 +189,9 @@ def roda(cmd, alvo, janela, bash):
                 p.wait(timeout=5)
             except Exception:
                 pass
+        # Só DEPOIS de a árvore morrer: apagar a casa embaixo de um processo vivo
+        # deixaria a suíte escrevendo em diretório que não existe mais.
+        shutil.rmtree(casa, ignore_errors=True)
 
 
 
@@ -215,6 +233,14 @@ def main(argv=None):
     # Sequencial, o job foi de 23m42s a 26m28s em três rodadas — subindo, porque
     # suíte consertada para de falhar na hora e passa a rodar até o fim.
     ap.add_argument("--jobs", type=int, default=0)
+    # ── COBRADOR DE PARALELISMO (F19.3) ─────────────────────────────────────
+    # Roda a MESMA seleção duas vezes, as duas ao mesmo tempo no mesmo pool, e
+    # reprova só quem responde coisas diferentes nas duas: passou numa e falhou na
+    # outra. Isso é INSTABILIDADE — a suíte disputa alguma coisa com a cópia dela
+    # (arquivo de chave fixa, porta, diretório compartilhado) —, e é o defeito que
+    # a casa própria de temporário veio matar. Suíte que falha nas DUAS não é
+    # assunto daqui: é obra ruim, e quem a acusa é a esteira normal.
+    ap.add_argument("--flake", action="store_true")
     a = ap.parse_args(argv)
 
     # SELEÇÃO VAZIA É ERRO, NUNCA VERDE (F17.2). A régua do glob-que-não-casa já
@@ -247,6 +273,8 @@ def main(argv=None):
     else:
         tarefas += [([bash], t) for t in sh_alvos]
 
+    if a.flake:
+        tarefas += list(tarefas)   # as duas rodadas disputam o mesmo pool
     jobs = a.jobs or min(8, (os.cpu_count() or 2))
     print("  rodando %d suíte(s) com até %d ao mesmo tempo" % (len(tarefas), jobs))
 
@@ -256,14 +284,28 @@ def main(argv=None):
     # DISCO, e é por isso que o número não sobe indefinidamente: suíte que monta
     # árvore em disco fica mais lenta se houver dez fazendo o mesmo.
     ruins = []
+    vereditos = {}
     with concurrent.futures.ThreadPoolExecutor(max_workers=jobs) as pool:
         futuros = {pool.submit(roda, cmd, alvo, a.janela, bash): alvo for cmd, alvo in tarefas}
         for fut in concurrent.futures.as_completed(futuros):
             alvo = futuros[fut]
             estado, seg, saida = fut.result()
             print("  %-8s %6.1fs  %s" % (estado, seg, alvo), flush=True)
+            vereditos.setdefault(alvo, []).append(estado)
             if estado != "ok":
                 ruins.append((estado, alvo, saida))
+
+    if a.flake:
+        instaveis = sorted(alvo for alvo, v in vereditos.items() if len(set(v)) > 1)
+        print("\n%d suíte(s) rodadas 2x · %d instável(is)" % (len(vereditos), len(instaveis)))
+        for alvo in instaveis:
+            print("   INSTÁVEL  %s  (rodada 1: %s · rodada 2: %s)"
+                  % (alvo, vereditos[alvo][0], vereditos[alvo][1]))
+        if instaveis:
+            print("\n   Veredito que muda entre duas rodadas simultâneas não é obra ruim: é\n"
+                  "   DISPUTA. Procure estado de chave fixa (arquivo com id cravado, porta,\n"
+                  "   diretório compartilhado) que as duas cópias escrevem.")
+        return 1 if instaveis else 0
     # A ordem de conclusão é a de quem terminou primeiro; o RELATÓRIO sai em ordem
     # de nome, para que duas rodadas sejam comparáveis linha a linha.
     ruins.sort(key=lambda x: x[1])

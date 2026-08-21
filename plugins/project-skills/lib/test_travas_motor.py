@@ -874,6 +874,39 @@ def main():
     check("a marcacao exige a suite verde do bloco",
           js.index("!suiteB || !suiteB.green") < js.index("await agent(tickPlanPrompt("))
     check("a retencao sai nomeada, nunca calada", "naoMarcados" in js)
+
+    print("F18.2 (R-28) — o orfao detectado entra no MESMO ciclo, sem atalho de marcacao")
+    # O detector da largada so LISTA. Quem despacha e o orquestrador, e por isso a lista
+    # tem que CHEGAR nele: sem esse fio, o orfao virava aviso na tela e o passo continuava
+    # aberto na retomada seguinte.
+    check("a lista de orfaos chega ao orquestrador",
+          "orfaos: orfaosDaLargada" in js
+          and "orfaos }) => `PAPEL: ORQUESTRADOR" in motor)
+    check("o orquestrador recebe a regra de despachar orfao como TAREFA",
+          "TRABALHO ÓRFÃO É TAREFA, NUNCA MARCAÇÃO" in motor)
+    # E o ciclo do orfao e o de todo mundo: revisor por tarefa -> suite -> tique. Reprovado,
+    # volta ao orquestrador pelo `missing` e NENHUM passo e marcado.
+    check("o reprovado do revisor volta ao orquestrador como tarefa",
+          "reprovadasNosBlocos" in js
+          and "missing: [...new Set([" in js and "...reprovadasNosBlocos," in js)
+    check("o reprovado NAO e marcado, e a retencao diz por que",
+          "reprova do revisor de tarefa ou de bloco" in js)
+    print("F18.3 (R-28) — o tique do orfao exige veredito do revisor E sha")
+    # A prova de quem estava presente nao serve pra obra achada no disco: o comando leva
+    # `--retomada` e o plan_state.py cobra as duas provas do rito feito a mao.
+    check("o passo orfao e marcado por retomada",
+          "retomada: orfaosDaLargada.includes(t.task_id)" in js)
+    check("a prova do orfao sai do veredito REAL do revisor, e com sha",
+          "provaDoRevisor(vereditoDaTarefa.get(t.task_id))" in js
+          and "vereditoDaTarefa.set(entregues[i].task_id, porTarefa[i])" in js
+          and "commit ${salvo.sha || '?'}" in js)
+    check("o marcador e mandado passar --retomada",
+          "--retomada" in motor and "retomada: true" in motor)
+    marcador = open(os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                 "plan_state.py"), encoding="utf-8").read()
+    check("o programa recusa o tique de retomada sem as duas provas",
+          "tick de retomada recusado" in marcador and "--retomada" in marcador)
+
     check("a conferencia final roda na parada", "confirm-na-parada" in js and "conferidoPor" in js)
     check("a parada por orcamento NAO gasta a conferencia",
           "desligadoPor !== 'orcamento'" in js)

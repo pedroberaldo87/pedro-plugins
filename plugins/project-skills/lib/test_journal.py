@@ -14,11 +14,29 @@ import os
 import shutil
 import subprocess
 import sys
+import tempfile
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
-os.environ["PROJECT_DOC_COFRE_DIR"] = "/tmp/pdtest_cofre"
-shutil.rmtree("/tmp/pdtest_cofre", ignore_errors=True)
+
+# ── A CASA DOS CASOS É SORTEADA, NUNCA CRAVADA ──────────────────────────────
+# Até 2026-08-20 cada caso trabalhava num caminho fixo (`/tmp/pdtest_orphan` e
+# irmãos). Duas execuções desta suíte ao mesmo tempo — duas sessões de agente no
+# mesmo repositório, ou o CI ao lado do terminal — criavam, commitavam e apagavam
+# o MESMO repositório de mentira: uma apagava o `.git` embaixo da outra (`git
+# commit` saindo 128, "not a git repository") ou commitava numa árvore que a
+# vizinha já tinha mexido (saindo 1). A suíte caía em duas de três rodadas, e
+# nunca pelo código que ela mede. Nome sorteado por execução acaba com a disputa.
+_BASE = tempfile.mkdtemp(prefix="pdtest-")
+
+
+def _t(nome):
+    """O caminho de um caso, dentro da casa desta execução."""
+    return os.path.join(_BASE, nome)
+
+
+os.environ["PROJECT_DOC_COFRE_DIR"] = _t("cofre")
+shutil.rmtree(_t("cofre"), ignore_errors=True)
 import journal  # noqa: E402
 
 PASS = 0
@@ -271,7 +289,7 @@ def test_scrubber_r7():
 
 def test_curate_scrub():
     print("\n== curate/invalidate passam pelo scrubber ==")
-    T = "/tmp/pdtest_curate"
+    T = _t("curate")
     shutil.rmtree(T, ignore_errors=True)
     os.makedirs(os.path.join(T, ".claude", ".project-doc"))
     journal.state_dir = lambda pr: os.path.join(T, ".claude", ".project-doc")
@@ -289,7 +307,7 @@ def test_curate_scrub():
 
 def test_orphan_commit():
     print("\n== journal — last_commit órfão (rebase/amend) re-minera ==")
-    T = "/tmp/pdtest_orphan"
+    T = _t("orphan")
     shutil.rmtree(T, ignore_errors=True)
     os.makedirs(os.path.join(T, ".claude", ".project-doc"))
     journal.state_dir = lambda pr: os.path.join(T, ".claude", ".project-doc")
@@ -327,8 +345,8 @@ def test_engine_robust():
 # ---------------------------------------------------------------------------
 def test_cofre():
     print("\n== cofre — integridade ==")
-    shutil.rmtree("/tmp/pdtest_cofre", ignore_errors=True)
-    T = "/tmp/pdtest_proj"
+    shutil.rmtree(_t("cofre"), ignore_errors=True)
+    T = _t("proj")
     shutil.rmtree(T, ignore_errors=True)
     os.makedirs(T)
     # #7: mesma chave, dois valores → ambos no cofre, placeholders distintos
@@ -378,7 +396,7 @@ def _git(T, *a):
 
 def test_journal_cycle():
     print("\n== journal — delta / backward / invalidate ==")
-    T = "/tmp/pdtest_repo"
+    T = _t("repo")
     shutil.rmtree(T, ignore_errors=True)
     os.makedirs(os.path.join(T, ".claude"))
     journal.state_dir = lambda pr: os.path.join(T, ".claude", ".project-doc")  # estado fora do repo real
@@ -461,7 +479,7 @@ def test_scrubber_jwt():
 
 def test_adopt():
     print("\n== adopt — nuance da doc antiga vira finding discovered (scrubbed, idempotente) ==")
-    T = "/tmp/pdtest_adopt"
+    T = _t("adopt")
     shutil.rmtree(T, ignore_errors=True)
     os.makedirs(os.path.join(T, ".claude", ".project-doc"))
     journal.state_dir = lambda pr: os.path.join(T, ".claude", ".project-doc")
@@ -493,7 +511,7 @@ def test_adopt():
 
 def test_fuse():
     print("\n== fuse — absorve journals de módulo na raiz (dedup por id, idempotente) ==")
-    T = "/tmp/pdtest_fuse"
+    T = _t("fuse")
     shutil.rmtree(T, ignore_errors=True)
     # state_dir REAL (por-projeto) — test_adopt deixou o global monkeypatchado
     journal.state_dir = lambda pr: os.path.join(pr, ".claude", ".project-doc")

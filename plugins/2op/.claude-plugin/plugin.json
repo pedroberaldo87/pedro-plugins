@@ -1,6 +1,6 @@
 {
   "name": "2op",
-  "version": "1.2.0",
+  "version": "1.3.0",
   "description": "Segunda opinião de outro modelo dentro da MESMA sessão, sem subagente e sem re-briefing. /2op (Fable 5), /2op-opus (Opus 5) e /2op-sonnet (Sonnet 5) usam o campo model do frontmatter: o turno inteiro roda no modelo escolhido, com o contexto já carregado, e o modelo da sessão volta sozinho no próximo prompt. O revisor responde com veredito na primeira linha, rotula CONFIRMADO/INFERIDO e não edita nada.",
   "author": {
     "name": "pedroberaldo87",
