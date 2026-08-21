@@ -1032,6 +1032,59 @@ def _passos_do_projeto(directory):
     return []
 
 
+# F22.10 · R-32 — o escape DECLARADO do portão de pré-check, no molde do kill-switch
+# do plan-gate (plugins/intent-guard/hooks/plan-gate.sh: MODE_FILE = "off" ⇒ sai 0).
+# Aqui é variável de ambiente porque o tique roda por CLI, não por hook: quem pula
+# declara `PLAN_STATE_PRECHECK=off` e o pulo fica dito no stderr, nunca em silêncio.
+PRECHECK_ESCAPE = "PLAN_STATE_PRECHECK"
+
+
+def _gate_precheck(directory, plan):
+    """F22.10 · R-32 — o tique só anda sobre pré-check FRESCO.
+
+    Reusa marca()/confere_largada()/casa_do_relatorio() de precheck_largada.py —
+    a régua de frescor é UMA, medida por quem mediu. Regra de transição: plano sem
+    NENHUM relatório no disco avisa e deixa passar (fail-open declarado — plano
+    velho não ganha portão retroativo); plano COM relatório cobra frescor.
+
+    Devolve o resselador a rodar DEPOIS do save, ou None. Resselar é o que faz o
+    frescor imune ao próprio progresso: a marca cobre só os passos ABERTOS, então
+    o passo que este tique fecha sairia da lista e o relatório venceria por conta
+    do próprio andar — a marca é regravada sobre o plano já ticado.
+    """
+    if os.environ.get(PRECHECK_ESCAPE, "").strip().lower() == "off":
+        print("⚠️  portão de pré-check PULADO por %s=off — o tique anda sem conferir "
+              "o relatório da largada." % PRECHECK_ESCAPE, file=sys.stderr)
+        return None
+    import precheck_largada as pl
+    raiz = os.path.dirname(os.path.dirname(os.path.abspath(directory)))
+    renova = ("python3 %s %s --raiz %s --relatorio"
+              % (os.path.abspath(pl.__file__), plan_path(directory, plan["id"]), raiz))
+    v = pl.confere_largada(raiz, plan)
+    if v.get("motivo") == "ausente":
+        print("⚠️  sem relatório de pré-check no disco — o tique passa (fail-open "
+              "declarado). Para ganhar o portão: %s" % renova, file=sys.stderr)
+        return None
+    if v.get("motivo") == "vencido":
+        raise PlanError(
+            "⛔ tick recusado: o pré-check da largada VENCEU.\n   %s\n"
+            "   Renova com: %s\n"
+            "   Escape declarado: %s=off pula este portão (dito no stderr, nunca "
+            "em silêncio)." % (v.get("texto"), renova, PRECHECK_ESCAPE))
+
+    def _ressela():
+        alvo = pl.casa_do_relatorio(raiz)
+        try:
+            with open(alvo, encoding="utf-8") as f:
+                rel = json.load(f)
+            rel["marca"] = pl.marca(plan, raiz)
+            with open(alvo, "w", encoding="utf-8") as f:
+                json.dump(rel, f, ensure_ascii=False, indent=1)
+        except (OSError, ValueError):
+            pass
+    return _ressela
+
+
 def cmd_tick(args):
     directory = args.dir or resolve_dir()
     plan = pick_plan(directory, args.plan)
@@ -1129,6 +1182,8 @@ def cmd_tick(args):
                 "   Modelo: --evidencia \"revisor de órfão APROVOU · <o que ele conferiu>"
                 " · commit <sha>\"" % (node_id, "\n  - ".join(falta)))
 
+    ressela = _gate_precheck(directory, plan)
+
     it["status"] = "done"
     it["evidence"] = ev
     # S-148: a espera do dono entra pelo gravador e agora SAI por ele, junto da prova
@@ -1140,6 +1195,8 @@ def cmd_tick(args):
         it.pop("espera_dono", None)
     it["done_at"] = time.strftime("%Y-%m-%dT%H:%M:%S")
     save(directory, plan)
+    if ressela:
+        ressela()
 
     pd, pt = phase_progress(ph)
     d, t = plan_progress(plan)

@@ -457,6 +457,62 @@ def main():
         finally:
             shutil.rmtree(d3, ignore_errors=True)
 
+        print("portão do pré-check no tick (F22.10 · R-32)")
+        raiz6 = tempfile.mkdtemp(prefix="plan-precheck-")
+        try:
+            import io
+            import contextlib
+            import precheck_largada as pl
+            d6 = os.path.join(raiz6, ".claude", "plans")
+            os.makedirs(d6)
+            init_into(d6, sample())
+            # transição, lado 1: sem NENHUM relatório no disco → avisa e passa
+            err = io.StringIO()
+            with contextlib.redirect_stderr(err):
+                ps.cmd_tick(Args(dir=d6, node="F1.1", evidencia="rodei e passou"))
+            check("sem relatório no disco o tique passa (fail-open)",
+                  load(d6)["phases"][0]["items"][0]["status"] == "done")
+            check("o fail-open é declarado no stderr", "pré-check" in err.getvalue())
+            # transição, lado 2: COM relatório fresco → passa
+            os.makedirs(os.path.join(raiz6, ".claude", ".sprint"))
+            rel = {"marca": pl.marca(load(d6), raiz6), "abertas": [], "tomadas": [],
+                   "propostas": [], "adiadas": [], "veredito": "livre"}
+            with open(pl.casa_do_relatorio(raiz6), "w", encoding="utf-8") as fh:
+                json.dump(rel, fh)
+            ps.cmd_tick(Args(dir=d6, node="F1.2", evidencia="rodei e passou"))
+            check("com relatório fresco o tique passa",
+                  load(d6)["phases"][0]["items"][1]["status"] == "done")
+            # o próprio tique NÃO vence: a marca foi resselada sobre o plano ticado
+            rel2 = json.load(open(pl.casa_do_relatorio(raiz6), encoding="utf-8"))
+            check("o tique ressela a marca — o próprio progresso não a vence",
+                  rel2["marca"] == pl.marca(load(d6), raiz6))
+            # pronto mudado VENCE: a recusa cita a marca esperada e o comando
+            arq6 = ps.plan_path(d6, "2026-07-27-teste")
+            plano6 = json.load(open(arq6, encoding="utf-8"))
+            plano6["phases"][1]["items"][0]["pronto"] = "outro critério de pronto"
+            json.dump(plano6, open(arq6, "w", encoding="utf-8"), ensure_ascii=False)
+            try:
+                ps.cmd_tick(Args(dir=d6, node="F2.1", evidencia="rodei e passou"))
+                check("pronto mudado recusa o tique", False)
+            except ps.PlanError as exc:
+                m = str(exc)
+                check("pronto mudado recusa o tique", "VENCEU" in m)
+                check("a recusa cita a marca esperada", rel2["marca"]["plano"] in m)
+                check("a recusa cita o comando que renova",
+                      "precheck_largada" in m and "--relatorio" in m)
+                check("a recusa declara o escape", ps.PRECHECK_ESCAPE in m)
+            # o escape declarado deixa passar mesmo vencido
+            os.environ[ps.PRECHECK_ESCAPE] = "off"
+            try:
+                with contextlib.redirect_stderr(io.StringIO()):
+                    ps.cmd_tick(Args(dir=d6, node="F2.1", evidencia="rodei e passou"))
+            finally:
+                del os.environ[ps.PRECHECK_ESCAPE]
+            check("o escape declarado deixa o tique passar mesmo vencido",
+                  load(d6)["phases"][1]["items"][0]["status"] == "done")
+        finally:
+            shutil.rmtree(raiz6, ignore_errors=True)
+
         print("o critério de aceite ecoa quando o requisito fecha")
         raiz = tempfile.mkdtemp(prefix="plan-ca-")
         try:
