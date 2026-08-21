@@ -22,6 +22,9 @@ import os
 import re
 import sys
 
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from casa_da_doc import casa as casa_da_doc  # noqa: E402  (a doc migrou para docs/; a casa velha é retrocompatível)
+
 CURRENT_GEN = "3.8"
 
 # Regex que casa a abertura do marker: <!-- project-doc:v2 gen=X ... -->
@@ -341,7 +344,7 @@ def check_pattern(project_root):
         result["violations"].append("(c) .claude/.project-doc/findings.jsonl não existe")
 
     # --- (b) e (d) — verifica cada *.md da casa da doc ---
-    docs_dir = os.path.join(project_root, ".claude", "docs")
+    docs_dir = casa_da_doc(project_root)
     doc_files = []
     try:
         for name in sorted(os.listdir(docs_dir)):
@@ -659,12 +662,12 @@ def _enumerate_scoped_docs(root):
     a casa da doc de cada módulo (docs pending-migration ainda não conformados)."""
     root = os.path.abspath(root)
     found = []
-    bases = [os.path.join(root, ".claude", "docs")]
+    bases = [casa_da_doc(root)]
     try:
         import organism
         _oroot, data = organism.find_organism(root)
         for mod in (data or {}).get("modulos") or []:
-            bases.append(os.path.join(root, mod, ".claude", "docs"))
+            bases.append(casa_da_doc(os.path.join(root, mod)))
     except Exception:
         pass
     for base in bases:

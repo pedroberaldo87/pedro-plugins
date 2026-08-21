@@ -524,15 +524,40 @@ Windows, e o programa que a chama não trata a ausência como caso possível.**
   canais dele para UTF-8 — recebia byte inválido, o `read()` estourava e o `except` de fail-open
   engolia. **Nada era gravado, exit 0, nenhum sinal**; a suíte do Windows morreu no primeiro
   grep (`ledger.jsonl: No such file or directory`). Regra que sobra: **`encoding=` explícito nos
-  DOIS lados do cano**, não só em quem lê. Hoje a varredura de `text=True`/`universal_newlines=`
-  sem `encoding=` devolve **1** ocorrência em produção (`scripts/run_suites.py:98`) [confirmado
-  nesta rodada — mesmo AST, 95 arquivos fora das suítes].
+  DOIS lados do cano**, não só em quem lê. E em 2026-08-21 a classe mordeu de novo, pelo lado
+  que ninguém tinha fechado — **o PAI que LÊ**: o filho já escrevia UTF-8 (`PYTHONIOENCODING`
+  do job da esteira), mas o pré-check da largada abria o cano de leitura na codificação do
+  sistema, e no Windows isso é cp1252 — `UnicodeDecodeError` no primeiro acento da saída da
+  suíte [confirmado, commit `bb24bb7`, `plugins/project-skills/lib/precheck_largada.py`]. A
+  forma FECHADA da regra, medida em runs do CI de 21/08: **`text=True` SEMPRE acompanhado de
+  `encoding="utf-8", errors="replace"`** — o `errors=` existe porque byte estranho derrubar o
+  medidor inteiro é pior que um `�` no relatório. Hoje a varredura de
+  `text=True`/`universal_newlines=` sem `encoding=` devolve **3** ocorrências em produção
+  (`_shared/grao-de-modulo.py:_arquivos`, `scripts/anti_slop_inventario.py:universo`,
+  `scripts/tetos_rodadas_inventario.py:universo`), as três lendo `git ls-files` — só caminhos, então
+  não quebram, mas a classe não está fechada ali [confirmado nesta rodada — mesmo AST, 115
+  arquivos fora das suítes; a contagem sai do AST, nunca deste número].
 
 - 🔴 **Teste que compara caminho por texto reprova caminho certo.** No Windows o
   `os.path.expanduser("~/.claude/intent/")` sai com `/` e o `os.path.join` do programa devolve
   `\` — o mesmo diretório, escrito de dois jeitos, e o `startswith` nega. **Comparação de
   caminho passa por `os.path.normpath` nos dois lados**, sempre. Foi o último defeito da
   campanha, e o mais barato de confundir com defeito de produto.
+
+  🔴 **E a mesma classe em PRODUÇÃO tem sintoma pior: chave de retrato que muda de texto muda
+  de IDENTIDADE.** Medido nos runs do CI de 2026-08-21: o `who` do cobrador do artigo 8 e o do
+  contrato de hooks entravam na chave do retrato com o separador do sistema — no Windows
+  `plugins\x` não casa com o `plugins/x` gravado, e **dívida ACEITA virava "achado novo"**;
+  no desduplicador do contrato, o mesmo script resolvido por dois caminhos virava dois textos
+  e **a cópia única virava duas** (run `32496524302`). Conserto padrão, nos dois cobradores:
+  **toda chave que se grava, compara ou desduplica nasce de
+  `os.path.relpath(...).replace(os.sep, "/")`** (`scripts/hook_contract.py:_rel`,
+  `scripts/artigo8_check.py:varre`; o resolvedor ganhou `os.path.normpath` —
+  `hook_contract.py:resolve_script`, commit `3385424`). O mesmo gesto vale para **caminho
+  EMBUTIDO em comando ou ambiente de shell POSIX**, que só entende `/`:
+  `raiz.replace(os.sep, "/")` antes de entrar no comando
+  (`plugins/project-skills/lib/precheck_largada.py`, commit `42cc412`) [confirmado, li as
+  linhas].
 
 **A lição de método, e ela é maior que as seis:** cada conserto revelava o próximo, porque a
 suíte para no primeiro erro. Quinze pushes a três minutos cada é o preço de descobrir de um
@@ -602,8 +627,26 @@ para não virar régua antes de ser verdade.
   depois os caminhos do Git Bash) e devolve `None` quando nenhum responde; quem chama **pula
   declarando**, nunca reprova por omissão. Vendorado nos consumidores (a contagem sai do mapa:
   `sed -n '/^SPECS=(/,/^)/p' scripts/sync-shared.sh | grep -c '::bash_posix.py'`), drift pego
-  pelo check A do vendoring. **Declarado:** não existe varredura que acuse chamada pelada
+  pelo check A do vendoring. Em 2026-08-21 a régua ganhou o corolário do `shell=True`: no
+  Windows ele cai no **cmd.exe**, onde `;` não separa comandos e não há `grep` — o `_roda` do
+  pré-check devolvia "verde" para uma esteira vermelha, porque a resposta plausível do shell
+  errado virava o dado [confirmado, commits `42cc412` e `f742a7e`]. **Comando de shell POSIX
+  roda pelo executável que `bash_posix()` devolveu, nunca por `shell=True` nem por `"bash"`
+  cru** (`plugins/project-skills/lib/precheck_largada.py:_roda`, que também pula declarando
+  quando o resolvedor devolve `None`). **Declarado:** não existe varredura que acuse chamada pelada
   NOVA — quem escreve `["bash", …]` hoje só descobre no vermelho do Windows.
+
+- 🔴 **O `ps` do Windows não entrega a lista com argumentos — e o medidor DECLARA que não
+  mediu** [confirmado, commit `01040fb`, CI de 2026-08-21]. **Defeito:** a checagem de
+  exclusividade do pré-check pergunta `ps -eo pid=,args=`; no runner do Windows o comando
+  falha ou volta vazio, e seguir com a lista vazia responderia "nenhum vizinho" — verde por
+  omissão. **Causa:** o `ps` que existe lá não implementa `-eo` com `args=`; não é erro do
+  programa, é ausência de instrumento. **Cobrador:** `rc != 0` ou saída vazia vira achado
+  ADIÁVEL — *"a vizinhança de processos NÃO foi medida; confere à mão antes de largar?"* — que
+  é o Artigo 4 da constituição em código (`plugins/project-skills/lib/precheck_largada.py`), e a
+  suíte cobre o caso: *"sem ps utilizável, a passada DECLARA que não mediu a vizinhança"*
+  (`test_precheck_largada.py`). Mesma família do `bash_posix` e do `juiz_falso_visivel`
+  (§1.8a): quem não consegue medir diz que não mediu, nunca decide por omissão.
 
 ⚠️ **A colheita do lixeiro no Windows tem causa medida e conserto BLOQUEADO por falta de dado**
 [confirmado em 2026-08-15, run `31890249824`]. Quatro checks de `test_lixeiro_hooks.sh` seguem
@@ -1393,7 +1436,7 @@ Consumidores declarados no próprio cabeçalho: *"Fase Gate do qa-loop (grava), 
 
 ### 5.1 As regras
 
-1. **Bump em TODA mudança, por UM comando: `python3 scripts/bump.py <plugin>`** (`--minor`, `--major`, `--para X.Y.Z`). Ele sobe o `plugin.json`, espelha o `.claude-plugin/marketplace.json` e a tabela de `architecture.md` no mesmo gesto — a mão esquece o terceiro. É a chave de propagação [relatado — comportamento do harness, não reproduzido nesta rodada].
+1. **Bump em TODA mudança, por UM comando: `python3 scripts/bump.py <plugin>`** (`--minor`, `--major`, `--para X.Y.Z`). Ele sobe o `plugin.json`, espelha o `.claude-plugin/marketplace.json` e a tabela de `architecture.md` no mesmo gesto — a mão esquece o terceiro. É a chave de propagação [relatado — comportamento do harness, não reproduzido nesta rodada]. ⚠️ **O bump roda num comando e o `git commit` noutro**: o gate é `PreToolUse` (§5.2), então ele julga o disco ANTES de o comando Bash executar — `bump.py … && git commit` num comando só é avaliado com a versão velha e barra como `BUMP ESQUECIDO` [inferido do mecanismo do §5.2, não reproduzido nesta rodada].
 2. **O espelho `plugin.json` ↔ `marketplace.json` é cobrado pelo check B**, e a tabela por `scripts/test_doc_catalogo_plugins.py` (que tem `--fix`).
 3. **`claude plugin validate .` antes de publicar.**
 4. **Rode as suites do plugin tocado** (§6) — os checks D e F do release-gate fazem isso no commit.

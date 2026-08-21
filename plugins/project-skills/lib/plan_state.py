@@ -1033,7 +1033,8 @@ def _passos_do_projeto(directory):
 
 
 # F22.10 · R-32 — o escape DECLARADO do portão de pré-check, no molde do kill-switch
-# do plan-gate (plugins/intent-guard/hooks/plan-gate.sh: MODE_FILE = "off" ⇒ sai 0).
+# do gate de plano do plugin de intenção (arquivo de modo em "off" ⇒ sai 0) — o molde,
+# não uma dependência: nada daqui executa aquele hook.
 # Aqui é variável de ambiente porque o tique roda por CLI, não por hook: quem pula
 # declara `PLAN_STATE_PRECHECK=off` e o pulo fica dito no stderr, nunca em silêncio.
 PRECHECK_ESCAPE = "PLAN_STATE_PRECHECK"

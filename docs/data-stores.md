@@ -221,8 +221,8 @@ du -sh ~/.claude/state/*
 - **Dois escritores, e eles resolvem o caminho por expressões DIFERENTES.** [confirmado — `grep -n "HOOK_DIR=" plugins/guardrails/hooks/*.sh` nesta rodada]
 
   ```
-  scope-cop.sh:39      HOOK_DIR="${CLAUDE_CONFIG_DIR:-$HOME/.claude}/guardrails"
-  askq-humanize.sh:45  HOOK_DIR="$HOME/.claude/guardrails"
+  scope-cop.sh:51      HOOK_DIR="${CLAUDE_CONFIG_DIR:-$HOME/.claude}/guardrails"
+  askq-humanize.sh:58  HOOK_DIR="$HOME/.claude/guardrails"
   ```
 
   Nesta máquina `CLAUDE_CONFIG_DIR` está unset, então as duas dão a mesma pasta e a divergência é invisível — é exatamente a condição em que ela sobrevive. Numa máquina que seta a var, `scope-cop.*` e `askq.*` se separam em dois diretórios e o auditor passa a varrer o lado errado.
@@ -871,9 +871,10 @@ Os quatro que entraram, com o que cada um congela [confirmado — leitura dos ar
 ### A11 · `.claude/.sprint/corridas.jsonl` — a SÉRIE de execuções da missão
 
 - **Uma linha por execução do motor de plano, append-only, gitignorado.** Quantas hoje sai do comando: `wc -l < .claude/.sprint/corridas.jsonl`. [confirmado nesta rodada]
-- **Cada linha traz** o id da execução, a missão (o caminho do plano), o progresso (`fechadas` de `total`), o custo em tokens, o par início/fim e o **desfecho** — o vocabulário medido até aqui inclui `onda-esteril`, `porta-fechada`, `causa-global` e `parada-pelo-dono`.
-- **Por que existe:** uma execução isolada não diz se a missão avança ou gira em falso; a **série** diz. É ela que o `relance` lê antes de relançar — relançar é apostar que a próxima passa onde a anterior parou, e na terceira vez a aposta já perdeu duas. [confirmado — `plugins/project-skills/lib/ledger_corridas.py`, verbos `abre`, `registra-run`, `serie`, `relance`]
+- **Cada linha traz** o id da execução, a missão (o caminho do plano), o progresso (`fechadas` de `total`), o custo em tokens, o par início/fim, o **desfecho** — o vocabulário medido até aqui inclui `onda-esteril`, `porta-fechada`, `causa-global`, `parada-pelo-dono` e `morta-por-fora` — e, desde 2026-08-20, a **`causa`**: o `what` do último blocker, normalizado e cortado em 160 chars (`_causa_de`). É o único campo legitimamente vazio — corrida que terminou limpa não bateu em pedra, e exigir uma inventaria a pedra. [confirmado — `ledger_corridas.py:CAMPOS`, `OPCIONAIS`]
+- **Por que existe:** uma execução isolada não diz se a missão avança ou gira em falso; a **série** diz. É ela que o `relance` lê antes de relançar — relançar é apostar que a próxima passa onde a anterior parou, e na terceira vez a aposta já perdeu duas. ⚠️ **A pedra que o `relance` conta é a CAUSA, não o desfecho** (mudou em `498764e`): três corridas seguidas pararam com o mesmo desfecho (`porta-fechada`) e pedras distintas, cada uma consertada na raiz — contar desfecho barrou a quarta como se ninguém tivesse consertado nada. Linha antiga sem causa cai no desfecho, retrocompatível. [confirmado — `ledger_corridas.py`, verbos `abre`, `registra-run`, `serie`, `relance`]
 - **Quem escreve é o programa, nunca a mão** — e a **largada** vai ao disco ANTES da chamada, porque execução que morre por fora não tem retorno: sem essa marca, a que fracassou é justamente a que sumiria da série.
+- **A marca da largada tem casa própria: `.claude/.sprint/em-curso/<run_id>.json`** (`dir_largadas`). O `abre` grava `{run_id, missao, total, inicio}` antes da chamada; o `registra-run` solta a marca no retorno; o que sobrar sem sinal de vida por mais de 12h (`TETO_SEM_SINAL`) o `colhe` fecha como linha `morta-por-fora` na série, com o não-medido marcado `nao-medido` em vez de 0 — zero é medição, inventá-la é o defeito que o ledger existe para matar. Marca ilegível (processo morto no meio da escrita) entra pelo que o nome do arquivo diz, em vez de derrubar a leitura inteira. **Efêmero por desenho: vazio agora, e as 2 linhas `morta-por-fora` da série provam que a colheita já rodou de verdade.** [confirmado — `ledger_corridas.py:abre`, `colhe_orfas`, e `ls .claude/.sprint/em-curso/`]
 - ⚠️ **Já foi truncado uma vez sem culpado conhecido** (2026-08-15: 4 linhas às 17h, 1 às 20h45, num arquivo append-only por desenho). As três foram restauradas com os números que o próprio programa tinha impresso, marcadas com `restaurado:`. **Causa desconhecida — pode voltar a acontecer.**
 - **Natureza: histórico de medição, insubstituível.** O progresso se remede pelo plano; o **custo e o tempo de cada execução passada**, não.
 
@@ -881,10 +882,20 @@ Os quatro que entraram, com o que cada um congela [confirmado — leitura dos ar
 
 - **Uma linha por PARADA do laço do `/sprint`, append-only, gitignorado** (mesma pasta do A11, mesma linha do `.gitignore:34`). Quantas hoje: `wc -l < .claude/.sprint/paradas.jsonl`.
 - **Cinco campos, todos obrigatórios:** `run_id` (a corrida em que parou), `desfecho` (o `stopReason`), `causa` (a causa já referendada pelo desafiador), `conserto` e `sha` (o commit que aplicou o conserto, ou o literal `sem-commit`). Campo vazio **sai 2 e não grava**. [confirmado — `ledger_corridas.py:CAMPOS_PARADA` e `registra_parada`]
+- **A parada do DONO tem válvula declarada:** `conserto: "sem-conserto"` (`SEM_CONSERTO`). A parada que só o dono resolve não tem conserto para gravar — e é a que mais interessa a ele; sem a válvula, era justamente essa que o registro recusava, e a seção "uma linha por parada" nascia incompleta. Medição declarada, não campo vazio: vazio continua reprovando. **Das 2 linhas no disco hoje, 1 usa a válvula.** [confirmado — `ledger_corridas.py:SEM_CONSERTO` + leitura do arquivo nesta rodada]
 - **É outro GRÃO, não outra cópia do A11.** A corrida é a unidade do custo; a parada é a unidade do laço — a mesma corrida pode bater em várias pedras, e uma pedra pode voltar em corridas diferentes. Por isso mora em arquivo próprio, e não como campo da linha da corrida.
 - **Por que existe:** a seção `### Problemas (as paradas do laço)` do relatório final é **derivada deste arquivo**, nunca da memória da sessão. É o par `conserto`+`sha` que separa "consertado" de "lembrado" — sem ele, problema resolvido pela metade saía no relatório como resolvido. [confirmado — a seção "Conteúdo (backbone)" de `skills/sprint/SKILL.md`]
 - **Quem escreve é a vigília do sprint, a cada volta do laço, logo depois de o conserto virar commit** — e o laço não relança sem a linha gravada. [confirmado — `test_sprint_skill.py`, check *"parada sem linha gravada nao relanca"*]
 - **Natureza: histórico de medição, insubstituível.** O conserto se relê no commit; a associação *pedra → conserto → corrida* não sai de lugar nenhum depois que a sessão fecha.
+
+### A11c · `.claude/.sprint/precheck.json` — o relatório do pré-check de largada
+
+- **Um arquivo por projeto, SOBRESCRITO a cada rodada** — ao contrário dos dois vizinhos append-only, aqui a pergunta não é de série: é "o motor pode largar AGORA?". Mesma pasta, mesma linha do `.gitignore:34`. [confirmado — `precheck_largada.py:grava_relatorio` abre com `"w"`]
+- **Por que existe, copiado do comentário do módulo:** *"Sem isto o pré-check é conversa: as quatro passadas rodam, o dono lê na tela, e o motor larga sem que nada no disco diga que elas rodaram, ou que rodaram sobre ESTE plano."* Quem MEDIU grava (`grava_relatorio`), quem LARGA confere (`confere_largada`) — a mesma régua da prova da esteira.
+- **O conteúdo:** `marca` + `gravado_em` + `passadas` + quatro listas — `abertas` (pergunta que ainda vai ao dono), `tomadas` (achado que o registro selado A12 já respondeu), `propostas` (a rodada N+1 pediu reescrita de um passo) e `adiadas` (o que não deu para medir; não fecha a porta, mas o `--confere` o NOMEIA no texto do "livre") — e o `veredito`: `livre` ou `em-aberto`.
+- **A `marca` é o que faz o relatório VENCER na hora certa:** sha256 sobre `id`+`desc`+`pronto` dos passos **abertos** do plano + o texto do `decisoes-seladas.md` — e **nada da árvore**, porque cada tique mexe no disco e venceria o relatório por conta própria. Tique não vence; passo reescrito, passo novo e decisão selada nova vencem. [confirmado — `precheck_largada.py:marca`]
+- **A conferência recusa a largada em quatro casos, nomeando qual:** relatório ausente, vencido (a marca divergiu), proposta pendente ou decisão em aberto. E a rodada N+1 **atualiza** o relatório em vez de substituí-lo (`aplica_rodada_seguinte`) — substituir era a porta escancarada: regravar o arquivo inteiro com o resultado da N+1 sumia com as `abertas` das 4 passadas, e um arquivo de respostas vazio bastava para o `--confere` deixar largar.
+- **Natureza: derivado, remediável** — some, e as quatro passadas o refazem do plano e do registro selado. O que não volta sozinho é a **resposta do dono** às abertas, mas essa mora no A12 quando é selada, não aqui.
 
 ### Os outros de (C)
 
@@ -989,6 +1000,8 @@ Efêmeras por definição. Nenhuma delas é entrada de nada — reconstroem-se s
                                       não se regenera por comando nenhum — só por uso)
 ~/.claude/visual-state/licoes-clareza.json                   (as regras de escrita das
                                       páginas; só as de fábrica voltam, as aprendidas não)
+.claude/.sprint/corridas.jsonl        31 linhas             (custo e tempo de cada corrida)
+.claude/.sprint/paradas.jsonl          2 linhas             (pedra → conserto → corrida)
 ```
 
 **Reconstruível, com custo:**
@@ -1005,6 +1018,8 @@ plugins/bootstrap/config/manifest.json  regenerado no SessionStart, MENOS as cha
 ~/.claude/vision.json                  config do servidor VL — redigitar à mão, sem semente
 ~/.claude/improve-workflow/registro.jsonl  remedir os runs que ainda estiverem em
                                        ~/.claude/projects; run já rotacionado não volta
+.claude/.sprint/precheck.json          as 4 passadas refazem do plano + registro selado;
+                                       a resposta do dono, quando selada, mora no A12
 ```
 
 **Descartável por desenho:**

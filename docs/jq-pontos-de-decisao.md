@@ -52,9 +52,9 @@ vazio derrubava o hook na linha seguinte). O efeito era o mesmo: numa máquina s
 **saía 0 antes de olhar o payload**, e para o harness isso é indistinguível de "o gate rodou e
 liberou" — sem mensagem, sem registro, sem segunda chance.
 
-Hoje os 32 da forma comum leem pelo `_shared/hook-json.sh`, vendorado em cada pasta de
-hooks; os dois do Python embutido tomam dele **só o aviso** (`hj_avisa`, quando o
-`python3` falta): ele usa `jq`
+Hoje os da forma comum (a classe B menos os marcados *(Python embutido)* nas tabelas)
+leem pelo `_shared/hook-json.sh`, vendorado em cada pasta de hooks; os três do Python
+embutido tomam dele **só o aviso** (`hj_avisa`, quando o `python3` falta): ele usa `jq`
 quando existe e o `python3` (só stdlib) quando não, tanto para LER o campo quanto para EMITIR
 a decisão (`hj_deny`, `hj_block`, `hj_ctx`, `hj_msg`). Sem `jq` **e** sem `python3` não há como
 julgar — e aí o hook chama `hj_avisa`, que fala pelos dois canais em vez de sair calado. O
@@ -69,8 +69,9 @@ pelo `hook-json.sh` — `plugins/intent-guard/hooks/capture-prompt.sh` (lê `pro
 `plugins/handoff/hooks/sessionstart-ata.sh` (lê `session_id` e `transcript_path`, e grava
 o sentinel que o `/handoff --auto` consome — a forma defensiva `data.get(campo, "")`,
 que foi justamente a que escapou da primeira medição). O estrago é o do issue #5 com
-outra roupa: sem `python3` eles saem 0 antes de olhar o payload, e — por estarem fora da
-biblioteca — não existe nem o `hj_avisa` para falar que o julgamento não aconteceu.
+outra roupa: sem `python3` eles saem antes de olhar o payload — mas os três hoje
+carregam o `hook-json.sh` só para isso, e o `hj_avisa` fala em vez de deixá-los sair
+calados (a suíte prova, rodando sem `jq` nem `python3`).
 Estão nas tabelas abaixo, marcados como *(Python embutido)*. Um quarto arquivo parecido
 (`plugins/handoff/hooks/teamcreate-nudge.sh`) **não lê o payload** — o corpo Python só
 imprime um lembrete fixo — e fica fora, pela regra do recorte abaixo.
@@ -92,7 +93,7 @@ Dentro da classe B há ainda dois graus:
 
 | classe | arquivo | linha(s) | o que o `jq` faz ali |
 | --- | --- | --- | --- |
-| A | `plugins/bootstrap/hooks/session-sync.sh` | 150 | interroga `known_marketplaces.json` (arquivo de config, não o payload do evento) |
+| A | `plugins/bootstrap/hooks/session-sync.sh` | 191 | interroga `known_marketplaces.json` (arquivo de config, não o payload do evento) — o último `jq` do caminho de instalação foi trocado pelo `cfgjson.py` (Python stdlib); do `jq` resta só a menção em comentário |
 | A | `plugins/bootstrap/hooks/sessionstart-deps.sh` | 19 | só confere se o `jq` existe para avisar da falta — a mensagem sai sem ele |
 | A | `plugins/branches/hooks/sessionstart-branches.sh` | 15, 21, 34, 44 | lê `.cwd` e serializa o `additionalContext` |
 | A | `plugins/graphify-guard/hooks/sessionstart-graphify.sh` | 8, 11, 38 | lê `.cwd` e serializa o `additionalContext` |
@@ -103,20 +104,20 @@ Dentro da classe B há ainda dois graus:
 | classe | arquivo | linha(s) | campo | canal de bloqueio |
 | --- | --- | --- | --- | --- |
 | B1 | `plugins/gauntlet/hooks/pretooluse-gauntlet.sh` | 59, 98 | `session_id` · `tool_input.prompt` | `permissionDecision:"deny"` em dois pontos — a trava do briefing sem a régua anti-cópia (linha 104, v0.5.0) e a trava dupla do juiz (linha 159) — mais `systemMessage` + `additionalContext` (`hj_msg_ctx`, linha 151) quando ele DESISTE de negar |
-| B1 | `plugins/graphify-guard/hooks/pretooluse-graphify-guard.sh` | 29, 43 | `session_id`, `tool_input.command` | `permissionDecision:"deny"` |
-| B1 | `plugins/guardrails/hooks/askq-humanize.sh` | 46 | `session_id` | `permissionDecision:"deny"` |
-| B1 | `plugins/guardrails/hooks/lint-and-typecheck.sh` | 31 | `session_id` | `exit 2` |
-| B1 | `plugins/guardrails/hooks/scope-cop.sh` | 77 | `session_id` | `permissionDecision: "deny"` |
-| B1 | `plugins/intent-guard/hooks/delivery-audit.sh` | 25 | `session_id` | `decision:"block"` |
-| B1 | `plugins/intent-guard/hooks/plan-gate.sh` | 24 | `session_id` | `exit 2` — sem registro próprio: chamado pelo portão único da família |
-| B1 | `plugins/intent-guard/hooks/task-checkpoint.sh` | 24 | `session_id` | `decision:"block"` |
-| B1 | `plugins/project-skills/hooks/pretooluse-doc-guard.sh` | 34, 47 | `session_id`, `tool_input.command` | `permissionDecision:"deny"` |
-| B1 | `plugins/project-skills/hooks/pretooluse-organism-gate.sh` | 42 | `session_id` | `permissionDecision:"deny"` |
-| B1 | `plugins/project-skills/hooks/pretooluse-plan-gate.sh` | 51 | `session_id` | `permissionDecision:"deny"` |
-| B1 | `plugins/ship/hooks/pre-deploy-test-check.sh` | 27 | `tool_input.command` | `exit 2` |
-| B1 | `plugins/project-skills/hooks/pretooluse-espera-com-guarda.sh` | 47, 53 | `session_id`, `tool_input.command` | `permissionDecision:"deny"` |
-| B1 | `plugins/project-skills/hooks/pretooluse-motor-arma.sh` | 60 | `session_id` | `permissionDecision:"deny"` |
-| B1 | `plugins/visual/hooks/pre-exitplan-visualize.sh` | 29 | `session_id` | `exit 2` — sem registro próprio: chamado pelo portão único da família |
+| B1 | `plugins/graphify-guard/hooks/pretooluse-graphify-guard.sh` | 37, 51 | `session_id`, `tool_input.command` | `permissionDecision:"deny"` |
+| B1 | `plugins/guardrails/hooks/askq-humanize.sh` | 53 | `session_id` | `permissionDecision:"deny"` |
+| B1 | `plugins/guardrails/hooks/lint-and-typecheck.sh` | 34 | `session_id` | `exit 2` |
+| B1 | `plugins/guardrails/hooks/scope-cop.sh` | 83 | `session_id` | `permissionDecision: "deny"` |
+| B1 | `plugins/intent-guard/hooks/delivery-audit.sh` | 37 | `session_id` | `decision:"block"` |
+| B1 | `plugins/intent-guard/hooks/plan-gate.sh` | 36 | `session_id` | `exit 2` — sem registro próprio: chamado pelo portão único da família |
+| B1 | `plugins/intent-guard/hooks/task-checkpoint.sh` | 36 | `session_id` | `decision:"block"` |
+| B1 | `plugins/project-skills/hooks/pretooluse-doc-guard.sh` | 42, 55 | `session_id`, `tool_input.command` | `permissionDecision:"deny"` |
+| B1 | `plugins/project-skills/hooks/pretooluse-organism-gate.sh` | 50 | `session_id` | `permissionDecision:"deny"` |
+| B1 | `plugins/project-skills/hooks/pretooluse-plan-gate.sh` | 70 | `session_id` | `permissionDecision:"deny"` |
+| B1 | `plugins/ship/hooks/pre-deploy-test-check.sh` | 31 | `tool_input.command` | `exit 2` |
+| B1 | `plugins/project-skills/hooks/pretooluse-espera-com-guarda.sh` | 48, 54 | `session_id`, `tool_input.command` | `permissionDecision:"deny"` |
+| B1 | `plugins/project-skills/hooks/pretooluse-motor-arma.sh` | 65 | `session_id` | `permissionDecision:"deny"` |
+| B1 | `plugins/visual/hooks/pre-exitplan-visualize.sh` | 33 | `session_id` | `exit 2` — sem registro próprio: chamado pelo portão único da família |
 | B1 | `plugins/handoff/hooks/handoff-completeness-gate.sh` | 36 | `session_id` | `decision:"block"` — *(Python embutido; degrada pela env var quando o campo falta)* |
 
 ## Classe B2 — lê o campo que decide REGISTRAR (o dano diferido do issue #5)
@@ -124,25 +125,25 @@ Dentro da classe B há ainda dois graus:
 | classe | arquivo | linha(s) | campo | o que se perde sem `jq` |
 | --- | --- | --- | --- | --- |
 | B2 | `plugins/gauntlet/hooks/sessionstart-lembra-missao.sh` | 36 | `session_id` | a missão aberta no disco não é lembrada no arranque, e o sinal expira calado em 12h |
-| B2 | `plugins/bootstrap/hooks/post-plugin-command.sh` | 57 | `tool_input.command` | mutação de plugin não é detectada; o snapshot/commit nunca roda |
-| B2 | `plugins/branches/hooks/posttooluse-push-branch.sh` | 28, 39 | `tool_input.command`, `session_id` | push não é notado; o aviso de branch some |
-| B2 | `plugins/context-guard/hooks/context-guard.sh` | 26 | `session_id` | o guard de contexto não abre |
-| B2 | `plugins/context-guard/hooks/context-guard-reset.sh` | 11 | `session_id` | o sentinel da sessão nunca é limpo |
-| B2 | `plugins/context-guard/hooks/context-guard-writer.sh` | 19 | `session_id` | o `%` de contexto nunca é gravado — e o guard depende desse arquivo |
-| B2 | `plugins/intent-guard/hooks/mark-work.sh` | 15 | `session_id` | o trabalho da sessão não é marcado; `delivery-audit` fica sem base |
-| B2 | `plugins/lixeiro/hooks/posttooluse-anota.sh` | 31, 34 | `tool_input.command`, `session_id` | artefato criado não é anotado |
-| B2 | `plugins/lixeiro/hooks/sessionend-colhe.sh` | 28 | `session_id` | a colheita de fim de sessão não acontece |
-| B2 | `plugins/lixeiro/hooks/sessionstart-orfaos.sh` | 29 | `session_id` | órfãos de sessões passadas não são cobrados |
-| B2 | `plugins/lixeiro/hooks/stop-colhe-turno.sh` | 36, 37 | `stop_hook_active`, `session_id` | sem o `stop_hook_active` não há nem guarda de reentrância nem colheita |
-| B2 | `plugins/project-skills/hooks/posttooluse-doc-read.sh` | 17 | `session_id` | a leitura de doc não é registrada; o `doc-guard` segue cobrando |
-| B2 | `plugins/project-skills/hooks/sessionstart-doc.sh` | 25 | `session_id` | o briefing de doc não abre a sessão |
-| B2 | `plugins/project-skills/hooks/posttooluse-andamento.sh` | 42, 47 | `session_id`, `tool_input.command` | a linha de andamento do motor nunca sai na barra |
-| B2 | `plugins/project-skills/hooks/stop-doc-touch.sh` | 19, 21 | `session_id`, `stop_hook_active` | a cobrança de doc defasada não sai |
-| B2 | `plugins/project-skills/hooks/userpromptsubmit-plan-escape.sh` | 39 | `session_id` | a escapatória do gate de plano não é registrada |
-| B2 | `plugins/project-skills/hooks/sessionstart-plan.sh` | 25 | `session_id` | o plano aberto não ressuscita depois do `/clear` |
-| B2 | `plugins/intent-guard/hooks/capture-prompt.sh` | 29, 31 | `prompt`, `session_id` | o pedido não entra no caderno; o `delivery-audit` fica sem base — *(Python embutido)* |
-| B2 | `plugins/handoff/hooks/sessionstart-ata.sh` | 21, 22 | `session_id`, `transcript_path` | o sentinel do transcript não é gravado; o `/handoff --auto` perde a descoberta — *(Python embutido)* |
-| B2 | `plugins/project-skills/hooks/stop-plan-status.sh` | 35, 38 | `stop_hook_active`, `session_id` | o status do plano não é cobrado no fim do turno |
+| B2 | `plugins/bootstrap/hooks/post-plugin-command.sh` | 60 | `tool_input.command` | mutação de plugin não é detectada; o snapshot/commit nunca roda |
+| B2 | `plugins/branches/hooks/posttooluse-push-branch.sh` | 32, 43 | `tool_input.command`, `session_id` | push não é notado; o aviso de branch some |
+| B2 | `plugins/context-guard/hooks/context-guard.sh` | 34 | `session_id` | o guard de contexto não abre |
+| B2 | `plugins/context-guard/hooks/context-guard-reset.sh` | 19 | `session_id` | o sentinel da sessão nunca é limpo |
+| B2 | `plugins/context-guard/hooks/context-guard-writer.sh` | 26 | `session_id` | o `%` de contexto nunca é gravado — e o guard depende desse arquivo |
+| B2 | `plugins/intent-guard/hooks/mark-work.sh` | 27 | `session_id` | o trabalho da sessão não é marcado; `delivery-audit` fica sem base |
+| B2 | `plugins/lixeiro/hooks/posttooluse-anota.sh` | 35, 38 | `tool_input.command`, `session_id` | artefato criado não é anotado |
+| B2 | `plugins/lixeiro/hooks/sessionend-colhe.sh` | 32 | `session_id` | a colheita de fim de sessão não acontece |
+| B2 | `plugins/lixeiro/hooks/sessionstart-orfaos.sh` | 33 | `session_id` | órfãos de sessões passadas não são cobrados |
+| B2 | `plugins/lixeiro/hooks/stop-colhe-turno.sh` | 40, 41 | `stop_hook_active`, `session_id` | sem o `stop_hook_active` não há nem guarda de reentrância nem colheita |
+| B2 | `plugins/project-skills/hooks/posttooluse-doc-read.sh` | 25 | `session_id` | a leitura de doc não é registrada; o `doc-guard` segue cobrando |
+| B2 | `plugins/project-skills/hooks/sessionstart-doc.sh` | 34 | `session_id` | o briefing de doc não abre a sessão |
+| B2 | `plugins/project-skills/hooks/posttooluse-andamento.sh` | 50, 75 | `session_id`, `tool_input.command` | a linha de andamento do motor nunca sai na barra |
+| B2 | `plugins/project-skills/hooks/stop-doc-touch.sh` | 23, 25 | `session_id`, `stop_hook_active` | a cobrança de doc defasada não sai |
+| B2 | `plugins/project-skills/hooks/userpromptsubmit-plan-escape.sh` | 47 | `session_id` | a escapatória do gate de plano não é registrada |
+| B2 | `plugins/project-skills/hooks/sessionstart-plan.sh` | 29 | `session_id` | o plano aberto não ressuscita depois do `/clear` |
+| B2 | `plugins/intent-guard/hooks/capture-prompt.sh` | 34, 36 | `prompt`, `session_id` | o pedido não entra no caderno; o `delivery-audit` fica sem base — *(Python embutido)* |
+| B2 | `plugins/handoff/hooks/sessionstart-ata.sh` | 25, 26 | `session_id`, `transcript_path` | o sentinel do transcript não é gravado; o `/handoff --auto` perde a descoberta — *(Python embutido)* |
+| B2 | `plugins/project-skills/hooks/stop-plan-status.sh` | 39, 42 | `stop_hook_active`, `session_id` | o status do plano não é cobrado no fim do turno |
 
 ---
 
