@@ -401,10 +401,15 @@ checa("a passada NÃO grava prova no depósito compartilhado", tem_prova() is Fa
 
 # CASO 2b · a prova existe para a árvore de AGORA, gravada por QUEM rodou a esteira
 # inteira (o hook do ship, o qa-loop): a esteira não roda de novo.
-subprocess.run(["bash", "-c", ". %s; green_cache_mark %s full teste"
-                % (os.path.join(AQUI, "green-cache.sh").replace(os.sep, "/"),
-                   casa.replace(os.sep, "/"))],
-               check=True, timeout=60, stdin=subprocess.DEVNULL, start_new_session=True)
+_mk = subprocess.run(["bash", "-c", ". %s; green_cache_mark %s full teste"
+                      % (os.path.join(AQUI, "green-cache.sh").replace(os.sep, "/"),
+                         casa.replace(os.sep, "/"))],
+                     capture_output=True, text=True, encoding="utf-8", errors="replace",
+                     timeout=60, stdin=subprocess.DEVNULL, start_new_session=True)
+# a saída crua vai para o relato: sem ela a falha do Windows saía como
+# CalledProcessError truncado, três rodadas de CI sem dizer a causa
+checa("a semeadura da prova (green_cache_mark) roda", _mk.returncode == 0,
+      "rc=%s\nstdout=%s\nstderr=%s" % (_mk.returncode, _mk.stdout, _mk.stderr))
 r2b = passada3(casa, suite_cmd=VERMELHA, teto_suite=60)
 checa("com a prova gravada, a esteira é PULADA e a passada diz que reaproveitou",
       [a["classe"] for a in checks(r2b, "esteira")] == [ADIAVEL]
