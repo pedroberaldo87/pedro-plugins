@@ -814,7 +814,7 @@ plano_arq = os.path.join(lar, "PL.plan.json")
 with open(plano_arq, "w", encoding="utf-8") as f:
     json.dump(PLANO_L, f)
 rc = subprocess.run([sys.executable, MODULO, plano_arq, "--raiz", lar, "--confere"],
-                    capture_output=True, text=True,
+                    capture_output=True, text=True, encoding="utf-8", errors="replace",
                     stdin=subprocess.DEVNULL, start_new_session=True)
 checa("o CLI --confere sai 3 quando recusa", rc.returncode == 3, rc.stderr[-300:])
 
@@ -836,14 +836,14 @@ with open(resp_arq, "w", encoding="utf-8") as f:
 # A rodada N+1 RESPONDE o relatório das 4 passadas — sem ele não há o que responder,
 # e o comando recusa em vez de fabricar um relatório novo.
 rc = subprocess.run([sys.executable, MODULO, plano_rot, "--raiz", rot,
-                     "--respostas", resp_arq], capture_output=True, text=True,
+                     "--respostas", resp_arq], capture_output=True, text=True, encoding="utf-8", errors="replace",
                     stdin=subprocess.DEVNULL, start_new_session=True)
 checa("a rodada N+1 sem relatório nenhum RECUSA (sai 3)",
       rc.returncode == 3 and "rode `--relatorio` antes" in rc.stderr, rc.stderr[-300:])
 
 subprocess.run([sys.executable, MODULO, plano_rot, "--raiz", rot, "--relatorio",
                 "--suite", "echo '3 suíte(s) · 0 problema(s)'"],
-               capture_output=True, text=True,
+               capture_output=True, text=True, encoding="utf-8", errors="replace",
                     stdin=subprocess.DEVNULL, start_new_session=True)
 _casa_rot = os.path.join(rot, ".claude", ".sprint", "precheck.json")
 with open(_casa_rot, encoding="utf-8") as f:
@@ -863,7 +863,7 @@ vazio_arq = os.path.join(rot, "vazio.json")
 with open(vazio_arq, "w", encoding="utf-8") as f:
     json.dump([], f)
 subprocess.run([sys.executable, MODULO, plano_rot, "--raiz", rot,
-                "--respostas", vazio_arq], capture_output=True, text=True,
+                "--respostas", vazio_arq], capture_output=True, text=True, encoding="utf-8", errors="replace",
                     stdin=subprocess.DEVNULL, start_new_session=True)
 with open(os.path.join(rot, ".claude", ".sprint", "precheck.json"), encoding="utf-8") as f:
     _rel_vazio = json.load(f)
@@ -873,7 +873,7 @@ checa("rodada N+1 com respostas VAZIAS não apaga as perguntas de pé",
       "antes %d · depois %d" % (len(_rel_antes["abertas"]), len(_rel_vazio["abertas"])))
 
 rc = subprocess.run([sys.executable, MODULO, plano_rot, "--raiz", rot,
-                     "--respostas", resp_arq], capture_output=True, text=True,
+                     "--respostas", resp_arq], capture_output=True, text=True, encoding="utf-8", errors="replace",
                     stdin=subprocess.DEVNULL, start_new_session=True)
 saida = json.loads(rc.stdout or "{}")
 with open(os.path.join(rot, ".claude", ".sprint", "precheck.json"), encoding="utf-8") as f:
@@ -885,7 +885,7 @@ checa("a rodada N+1 pela linha de comando GRAVA a proposta no relatório",
       and saida["propostas"][0]["acao"] == "reescrever",
       rc.stdout[-400:] + rc.stderr[-200:])
 rc = subprocess.run([sys.executable, MODULO, plano_rot, "--raiz", rot, "--confere"],
-                    capture_output=True, text=True,
+                    capture_output=True, text=True, encoding="utf-8", errors="replace",
                     stdin=subprocess.DEVNULL, start_new_session=True)
 v = json.loads(rc.stdout or "{}")
 checa("o --confere RECUSA a largada enquanto a proposta não for decidida",

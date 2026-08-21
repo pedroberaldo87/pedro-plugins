@@ -160,7 +160,8 @@ def _grep(raiz, agulha):
     """Quantos arquivos rastreados citam a agulha. `None` = não deu para medir."""
     try:
         r = subprocess.run(["git", "grep", "-lF", "--", agulha], cwd=raiz,
-                           capture_output=True, text=True, timeout=30,
+                           capture_output=True, text=True,
+                           encoding="utf-8", errors="replace", timeout=30,
                            stdin=subprocess.DEVNULL, start_new_session=True)
     except (OSError, subprocess.SubprocessError):
         return None
