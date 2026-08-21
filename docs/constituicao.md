@@ -1,6 +1,6 @@
 ---
 generated: 2026-08-05
-reviewed: 2026-08-16
+reviewed: 2026-08-21
 project: pedro-plugins
 authored-by: human
 status: ready
@@ -164,9 +164,10 @@ Suíte rastreada que nenhum globo alcança sai como órfã e o comando devolve 1
 inverso — globo que deixou de casar arquivo — já reprova dentro da própria esteira. Os dois
 juntos fecham a conta sem que exista um número escrito em lugar nenhum.
 
-O furo de momento continua verificável:
-`grep -c 'scripts/test_\*\.py\|\.claude/hooks/test_' .claude/hooks/release-gate.sh` devolve
-**0**. O vermelho antigo desta seção — o juiz de forma em
+O furo de momento encolheu e continua verificável: o portão roda `scripts/test_*.py` no
+commit (`grep -n "roda_suites python3 'scripts/test_" .claude/hooks/release-gate.sh` acha
+a linha), e o que resta só na esteira do push é `.claude/hooks/test_*.sh` —
+`grep -c '\.claude/hooks/test_' .claude/hooks/release-gate.sh` devolve 0. O vermelho antigo desta seção — o juiz de forma em
 `plugins/bootstrap/hooks/test_bootstrap_hooks.sh` — não existe mais: a suíte fecha
 `53 ok · 0 FAIL` e sai 0, numa máquina com `claude` no PATH.
 
@@ -177,14 +178,16 @@ O furo de momento continua verificável:
 **O que exige** — Todo texto que um humano lê passa pela régua de `_shared/regua_texto.py`
 antes de sair. Isso inclui a página gerada, o relatório, **e a mensagem que um hook emite**.
 
-**Como se cobra** — Cobrado só para gerador em Python, e por menção. A checagem I roda
-`scripts/regua_call_check.py --staged`, que filtra por extensão `.py` — então os hooks `.sh`
-que falam com humano ficam fora — e casa a *string* do nome da régua, o que faz um
-comentário isentar o arquivo. Fecha casando a chamada real fora de comentário e estendendo
-o alvo a todo hook que emite mensagem ao usuário.
+**Como se cobra** — Cobrado em duas frentes: a checagem I roda
+`scripts/regua_call_check.py --staged` sobre os geradores Python, e
+`scripts/test_regua_hook_msgs.py` (na esteira e no bloco de commit dos testes de scripts)
+mede a linha EMITIDA de toda mensagem de hook shell — teto de 160, o 140 do perfil mais a
+folga de marcação. O que segue em aberto: a checagem I casa a string do nome da régua,
+então um comentário ainda isenta o arquivo.
 
-**Prova de que vale hoje** — O hook mais novo do repositório reprova na própria régua: a
-mensagem de dependência ausente tem 209 caracteres, e o teto do perfil de hook é 140.
+**Prova de que vale hoje** — `python3 scripts/test_regua_hook_msgs.py` mede os hooks do
+repositório e sai 0; uma linha de recusa acima do teto faz o mesmo comando sair 1 (o
+autoteste embutido prova as duas direções).
 
 ---
 
@@ -201,9 +204,12 @@ segue cobrindo a linguagem das perguntas, e a checagem G o carimbo de geração 
 Número em prosa é coberto só onde o padrão casa (`scripts/desacoplamento_check.py`); o
 teste dedicado a número dentro de `SKILL.md` continua dívida declarada.
 
-**Prova de que vale hoje** — Duas skills do mesmo plugin casam na mesma condição ("projeto
-sem CLAUDE.md") com ordens opostas, e nenhuma cita a outra. Uma skill afirma "60 checks"
-onde a suíte devolve 139.
+**Prova de que vale hoje** — Os dois exemplos que este artigo carregava foram consertados:
+as duas skills que disputavam "projeto sem CLAUDE.md" hoje declaram a precedência nos dois
+lados (`start` na seção "Convivência com o /doc", `doc` na seção "Documentos autorais —
+território do /start"), e nenhum `SKILL.md` afirma contagem de checks divergente. A dívida
+que resta é a mesma declarada acima: número cravado fora do padrão do cobrador só cai por
+leitura — três foram achados e consertados no pente fino de 2026-08-21.
 
 ---
 
@@ -213,29 +219,28 @@ onde a suíte devolve 139.
 da pasta do projeto de quem instalou. Sem placeholder para o agente adivinhar, sem caminho
 relativo à raiz deste repositório, sem variável que chega vazia.
 
-**Como se cobra** — Hoje não há quem cobre, e é o artigo com mais violações. O gate é o
-mais barato dos oito: varrer os blocos de comando das skills e reprovar três padrões —
-caminho `plugins/<x>/...` (que só existe neste repositório), placeholder entre sinais de
-menor e maior não definido no próprio arquivo, e a variável de raiz do plugin (que chega
-vazia quando o agente roda o comando por conta própria). Isenção ganha marca na linha, no
-molde do `public-ok`.
+**Como se cobra** — Cobrado desde 2026-08-21: `scripts/artigo8_check.py` varre os `.md`
+executáveis das skills (SKILL.md, references e cópias vendoradas) e reprova os três
+padrões — caminho `plugins/<x>/...`, placeholder órfão, e a variável de raiz do plugin em
+comando de agente. O check V do `release-gate.sh` barra o que PIORA contra o retrato
+`.claude/artigo8.baseline.json`; a dívida congelada é paga por passo de plano, como no
+Artigo 9. Isenção ganha `artigo8-ok: <motivo>` na linha.
 
-**Prova de que vale hoje** — Numa sessão com os plugins instalados, a variável de raiz do
-plugin chega vazia ao terminal, e o comando de plano vira `python3 /lib/plan_state.py` —
-arquivo inexistente. Fora deste repositório, os caminhos `plugins/<x>/lib/...` citados nas
-skills não resolvem.
+**Prova de que vale hoje** — `python3 scripts/artigo8_check.py --json` devolve o placar
+contra o retrato; apagado o retrato, o mesmo comando lista as centenas de achados
+congelados em vez de dizer 'nenhum'.
 
 ---
 
 ## O placar de hoje
 
-- **Com cobrador real:** Artigos 3, 4, 5, 6, 7, 9 e 13 — o 5, o 6 e o 7 com furo nomeado
-  acima (no 5 é de momento: quatro suítes só têm a esteira do push, não o commit; no 7 o
-  cobrador é a varredura do check-skills, `plugins/check-skills/lib/varredura.py`, que pega
-  gatilho cruzado mas não número afirmado dentro de `SKILL.md`); o 9 nasce com a dívida
-  medida como linha de base.
+- **Com cobrador real:** Artigos 3, 4, 5, 6, 7, 8, 9 e 13 — o 5 com o furo de momento
+  reduzido (só `.claude/hooks/test_*.sh` fica sem gate de commit); o 6 cobrado em duas
+  frentes (gerador Python pela checagem I, mensagem de hook shell por
+  `scripts/test_regua_hook_msgs.py`); o 7 com o teste dedicado a número em `SKILL.md`
+  ainda como dívida; o 8 e o 9 nascem com a dívida congelada como linha de base.
 - **Com cobrador parcial e furo declarado no próprio artigo:** Artigos 10, 11 e 12.
-- **Sem cobrador:** Artigos 1, 2 e 8.
+- **Sem cobrador:** Artigos 1 e 2.
 
 Este placar é parte da lei, não nota de rodapé. Ele é o que impede a constituição de virar
 o parágrafo que não pegou.
@@ -347,8 +352,10 @@ corrigida como a do texto.
 re-projetado. O furo aberto: não há cobrador de cobertura (fluxo sem diagrama passa
 calado) — construí-lo é trabalho em aberto, já planejado.
 
-**Prova de que vale hoje** — `.claude/archify/` guarda as três camadas com nome
-estável, e o passo 2b do doc-touch as regenera.
+**Prova de que vale hoje** — `docs/fluxos/` guarda as três camadas com nome estável
+(`organismo.html`, `app-<nome>.html`, `fluxo-<slug>.html`) e é versionada — a casa
+canônica desde o commit `1e0bb99`; `.claude/archify/` ficou para desenho avulso de
+sessão. O passo 2b do doc-touch as regenera.
 
 ---
 
