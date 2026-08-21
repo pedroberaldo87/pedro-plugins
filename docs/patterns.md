@@ -1393,8 +1393,8 @@ Consumidores declarados no próprio cabeçalho: *"Fase Gate do qa-loop (grava), 
 
 ### 5.1 As regras
 
-1. **Bump da `version` em `plugins/<nome>/.claude-plugin/plugin.json` em TODA mudança.** É a chave de propagação [relatado — comportamento do harness, não reproduzido nesta rodada].
-2. **Espelhe a `version` em `.claude-plugin/marketplace.json`.** As duas têm que bater — cobrado pelo check B.
+1. **Bump em TODA mudança, por UM comando: `python3 scripts/bump.py <plugin>`** (`--minor`, `--major`, `--para X.Y.Z`). Ele sobe o `plugin.json`, espelha o `.claude-plugin/marketplace.json` e a tabela de `architecture.md` no mesmo gesto — a mão esquece o terceiro. É a chave de propagação [relatado — comportamento do harness, não reproduzido nesta rodada].
+2. **O espelho `plugin.json` ↔ `marketplace.json` é cobrado pelo check B**, e a tabela por `scripts/test_doc_catalogo_plugins.py` (que tem `--fix`).
 3. **`claude plugin validate .` antes de publicar.**
 4. **Rode as suites do plugin tocado** (§6) — os checks D e F do release-gate fazem isso no commit.
 5. **Plugin novo entra em TRÊS arquivos**: `plugin.json`, `marketplace.json` e `plugins/bootstrap/config/manifest.json`. Catálogo diz *o que existe pra instalar*; receita diz *o que a máquina instala*. Quem cobra é `conformance.py:check_catalogo` [confirmado, li a função], **não** o `release-gate.sh` — então o commit **passa** com a receita desatualizada e o desvio só aparece no próximo `bootstrap:setup`. A docstring nomeia o modo de falha: *"Plugin que entra no catalogo e nao entra na receita nunca chega em maquina nenhuma — e ninguem descobre, porque nada mais compara os dois lados."*
