@@ -113,6 +113,13 @@ CMD_POS = r"(?:^|[|;&]|\$\(|\btype\s+|\bcommand\s+-v\s+)\s*\"?"
 # `graphify-detect.sh` (script bash) e o nome dentro de comentário/string.
 # Nome de ferramenta seguido de -, / ou . é OUTRO programa.
 NOT_SUFFIXED = r"(?![\w./-])"
+def _rel(caminho, root):
+    """relpath com barra POSIX: o resultado entra na CHAVE do retrato, e chave que
+    muda de separador por sistema fez os 42 achados antigos virarem "novos" no
+    runner do Windows (run 32491657813) — o --fail-on high reprovava dívida aceita."""
+    return os.path.relpath(caminho, root).replace(os.sep, "/")
+
+
 COMMENT = re.compile(r"(?<!\\)#.*$")
 
 SEV_ORDER = {"high": 3, "med": 2, "low": 1}
@@ -179,7 +186,7 @@ def cita_registro(root, hooks_json, alvo):
     citações é recusado na porta —, e o tradutor dela repetia o msg como
     "prova". A prova de um veredito sobre NOME/registro é a linha do registro.
     """
-    rel = os.path.relpath(hooks_json, root) if hooks_json else "?"
+    rel = _rel(hooks_json, root) if hooks_json else "?"
     # o alvo pode chegar como a linha de comando inteira do hooks.json — o basename
     # dela arrasta aspas e barras de escape, e aí a busca nunca casa com o texto cru.
     nome = os.path.basename(alvo or "").strip("\\\"'")
@@ -231,7 +238,10 @@ def resolve_script(root, plug, cmd):
     # única veio matar. O aviso de dependência é o caso: treze registros, um script.
     m = re.search(r"resolve-plugin\.sh\s+([\w.-]+)\s+([\w./-]+\.(?:sh|py))", cmd)
     if m:
-        return os.path.join(root, "plugins", m.group(1), m.group(2))
+        # normpath: o grupo 2 traz "/" e o join usa os.sep — no Windows o mesmo
+        # script saía com dois textos, a cópia única virava duas e o achado
+        # "duplicado" não estava no retrato (run 32496524302)
+        return os.path.normpath(os.path.join(root, "plugins", m.group(1), m.group(2)))
     # Forma nova: `CLAUDE_PLUGIN_ROOT=$(printf '%s' "$CLAUDE_PLUGIN_ROOT" | tr '\\' /)`
     # normaliza backslash → barra sem `${x//y/z}` (que é bashismo e morre no shell
     # POSIX do Linux). O script fica no rabo, após o ';', em três formas:
@@ -250,7 +260,8 @@ def resolve_script(root, plug, cmd):
     m = re.search(r"\$\{?CLAUDE_PLUGIN_ROOT\}?/(.+)$", cmd.strip())
     if not m:
         return None
-    return os.path.join(root, "plugins", plug, m.group(1).strip().strip('"'))
+    return os.path.normpath(
+        os.path.join(root, "plugins", plug, m.group(1).strip().strip('"')))
 
 
 def measure(path):
@@ -368,7 +379,7 @@ def judge(entry, m, root="."):
     nenhum dos 42 achados, e a vistoria — que monta `onde` como who:line —
     apontava para arquivo inexistente."""
     f = []
-    who = os.path.relpath(entry["script"], root)
+    who = _rel(entry["script"], root)
     blocks = m["blocking"]
 
     if blocks:
@@ -459,7 +470,7 @@ def run(root):
     findings, measured = [], []
     for e in entries:
         if e.get("error"):
-            rel = os.path.relpath(e["hooks_json"], root) if e.get("hooks_json") else e["plugin"]
+            rel = _rel(e["hooks_json"], root) if e.get("hooks_json") else e["plugin"]
             ln = e.get("error_line") or 0
             findings.append(dict(rule="R0-config", sev="high", who=rel,
                                  line=ln, msg=e["error"],
@@ -522,7 +533,7 @@ def run(root):
     # carregar o caminho da máquina que mediu: a raiz não é emitida, e o caminho
     # do script sai relativo a ela. Quem lê o retrato só usa `findings`, logo a
     # ausência da raiz não quebra comparação nenhuma.
-    measured = [dict(e, script=os.path.relpath(e["script"], root))
+    measured = [dict(e, script=_rel(e["script"], root))
                 if e.get("script") else e for e in measured]
     return {"entries": len(entries), "scripts": n_scripts, "findings": uniq,
             "measured": measured}
