@@ -408,8 +408,23 @@ _mk = subprocess.run(["bash", "-c", ". %s; green_cache_mark %s full teste"
                      timeout=60, stdin=subprocess.DEVNULL, start_new_session=True)
 # a saída crua vai para o relato: sem ela a falha do Windows saía como
 # CalledProcessError truncado, três rodadas de CI sem dizer a causa
+if _mk.returncode != 0:
+    # a mesma chamada SEM o descarte de stderr do script: o erro real do git aparece
+    _dbg = subprocess.run(["bash", "-x", "-c", ". %s; green_cache_mark %s full teste"
+                           % (os.path.join(AQUI, "green-cache.sh").replace(os.sep, "/"),
+                              casa.replace(os.sep, "/"))],
+                          capture_output=True, text=True, encoding="utf-8",
+                          errors="replace", timeout=60,
+                          stdin=subprocess.DEVNULL, start_new_session=True)
+    print("DIAG green_cache_mark: rc=%s\n--- trace ---\n%s\n--- git direto ---" 
+          % (_dbg.returncode, _dbg.stderr[-1500:]))
+    _g = subprocess.run(["git", "-C", casa, "rev-parse", "--show-toplevel"],
+                        capture_output=True, text=True, encoding="utf-8",
+                        errors="replace", stdin=subprocess.DEVNULL,
+                        start_new_session=True)
+    print("git rev-parse: rc=%s out=%r err=%r" % (_g.returncode, _g.stdout, _g.stderr))
 checa("a semeadura da prova (green_cache_mark) roda", _mk.returncode == 0,
-      "rc=%s\nstdout=%s\nstderr=%s" % (_mk.returncode, _mk.stdout, _mk.stderr))
+      "rc=%s\nstdout=%r\nstderr=%r" % (_mk.returncode, _mk.stdout, _mk.stderr))
 r2b = passada3(casa, suite_cmd=VERMELHA, teto_suite=60)
 checa("com a prova gravada, a esteira é PULADA e a passada diz que reaproveitou",
       [a["classe"] for a in checks(r2b, "esteira")] == [ADIAVEL]
