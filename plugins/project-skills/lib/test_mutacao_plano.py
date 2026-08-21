@@ -122,6 +122,14 @@ MUTACOES = [
      "lib/plan_state.py",
      '    if pst == "done":\n', '    if False:\n',
      ("test_plan_state.py",)),
+    ("P) a aresta `depende` grava apontando pro nada (e em ciclo)",
+     "lib/plan_state.py",
+     "    errs.extend(_erros_das_dependencias(plan))\n", "",
+     ("test_plan_state.py",)),
+    ("Q) o tique passa com dependência ainda aberta",
+     "lib/plan_state.py",
+     "    if abertas:\n", "    if False:\n",
+     ("test_plan_state.py",)),
     ("CONTROLE (nenhuma mutação)", None, None, None, None),
 ]
 
