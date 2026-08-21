@@ -372,7 +372,7 @@ improve-workflow  0.16.29  [improve-workflow]           -
 intent-guard       0.8.16  [intent-guard]               HOOKS
 lixeiro            1.5.11  [faxina]                     HOOKS
 principles          1.0.5  [principles]                 -
-project-skills    0.22.178  [completude,design-md,doc,doc-load,doc-touch,monitorar,pesquisa-referencias,plan,project-skills,qa-loop,sprint,start] HOOKS
+project-skills    0.22.180  [completude,design-md,doc,doc-load,doc-touch,monitorar,pesquisa-referencias,plan,project-skills,qa-loop,reentrada,sprint,start] HOOKS
 ship                1.5.7  [ship]                       HOOKS
 slides              1.6.5  [slides]                     -
 vision              0.1.1  []                           -
@@ -1154,7 +1154,7 @@ plugins/project-skills/lib/ 67 dos 148 — o motor de doc inteiro (journal.py ·
                            segue-no-motor · conserta-e-relanca · espera-dono; desfecho
                            que a tabela não conhece cai em espera-dono, e
                            `test_retomada.py` cobra que a tabela cobre todo `stopReason`
-                           que o motor.js emite — hoje 9, número que sai do próprio teste),
+                           que o motor.js emite — hoje 10, número que sai do próprio teste),
                            andamento.py, green-cache.sh (vendorado) e os resolve-*.sh
                            + as suítes `test_*` correspondentes (`ls plugins/project-skills/lib/test_*`)
 plugins/vistoria/lib/      achado.py · fio_morto.py · inventario.py · medidor.py ·
