@@ -22,6 +22,8 @@ scope:
   - .claude/fio-morto.baseline.json
   - .claude/custo-gatilho.baseline.json
   - .claude/desacoplamento.baseline.json
+  - .claude/decisoes-seladas.md
+  - plugins/project-skills/lib/decisoes_seladas.py
   - plugins/project-skills/lib/andamento.py
   - plugins/project-skills/hooks/posttooluse-andamento.sh
   - plugins/visual/lib/visual_page.py
@@ -173,11 +175,11 @@ A régua fecha: `git ls-files -i -c --exclude-standard` → **0**. [confirmado]
 
 ### A12 · `.claude/decisoes-seladas.md` — a decisão do dono que mata a pergunta repetida
 
-- **Nasceu em 2026-08-20**, com `plugins/project-skills/lib/decisoes_seladas.py`. **Markdown rastreado quando existe** — não está no `.gitignore`, e o próprio módulo declara por quê: *"é doc: entra no commit"*. ⚠️ **Neste repositório o arquivo ainda NÃO existe** (`ls .claude/decisoes-seladas.md` → não encontrado): o mecanismo está de pé, o registro está vazio. [confirmado nesta rodada]
+- **Nasceu em 2026-08-20**, com `plugins/project-skills/lib/decisoes_seladas.py`. **Markdown rastreado quando existe** — não está no `.gitignore`, e o próprio módulo declara por quê: *"é doc: entra no commit"*. **Neste repositório o arquivo já existe e está POVOADO** — `grep -c '^- \[' .claude/decisoes-seladas.md` → **34** linhas seladas, todas da corrida de agosto/2026: o mecanismo está de pé e o registro é usado. [confirmado nesta rodada]
 - **Uma linha por decisão**, no formato `- [data] "fala literal do dono" — fonte: <onde foi dita>`. A frase-chave mora **inteira numa linha só** — partida em duas, o `grep` não a acha, e foi assim que a mesma pergunta parou quatro corridas em dias diferentes com a resposta já dita.
 - **Quem lê e escreve é um programa, nunca prosa:** `decisoes_seladas.py consultar <raiz> "<pergunta>"` devolve as linhas que já respondem (saída **1** = nenhuma cobre, e aí a pergunta segue ao dono) e `selar <raiz> --fala … --fonte …` grava a resposta nova **na mesma volta** em que ela é dada. O casamento é por frase inteira ou por radical de 4 letras, para que a pergunta reescrita ache a mesma decisão.
 - **Quem manda consultar** é a régua única `_shared/regua-de-pergunta.md`, vendorada ao lado de cada skill que pergunta (nove cópias hoje) — o pré-check de largada, o motor do `/sprint` e a casca consultam **antes** de levar qualquer coisa ao dono.
-- **Natureza: acordo com o dono, coberto pelo git.** É a mesma classe do A8 (`limites-aceitos.md`): o que se perde ao apagá-lo não é dado remedível por comando, é a fala de quem decidiu. **Registro ausente não trava nada** — sem arquivo a consulta devolve vazio e a pergunta segue, que é o comportamento de hoje neste repo.
+- **Natureza: acordo com o dono, coberto pelo git.** É a mesma classe do A8 (`limites-aceitos.md`): o que se perde ao apagá-lo não é dado remedível por comando, é a fala de quem decidiu. **Registro ausente não trava nada** — sem arquivo a consulta devolve vazio e a pergunta segue; é o caminho fail-open, que neste repo já não é o exercitado.
 - ⚠️ **Ninguém cobra que a decisão seja SELADA.** `test_decisoes_seladas.py` (20 ok nesta rodada) cobra o módulo e o texto da régua; que um papel tenha de fato gravado a fala do dono depois de perguntar, nada verifica — a mesma dívida declarada do A8.
 
 ### Sementes versionadas (o resto de (A) que é depósito)

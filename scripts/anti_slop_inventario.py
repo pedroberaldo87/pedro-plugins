@@ -203,9 +203,20 @@ def classe_b(alvos):
     }
 
 
+# A classe C também tem isenção declarada, pelo mesmo motivo da A e do Artigo 9: a
+# constituição isenta PROVA LITERAL, e saída crua de comando citada como prova carrega
+# número por obrigação. Marcador pelado não isenta nada — o motivo tem que estar escrito.
+ISENCAO_CONTAGEM = "acopla-ok:"
+
+
 def classe_c(alvos):
     pontos = _pontos(alvos, RE_CONTAGEM,
                      filtro_rel=lambda r: r.endswith(".md"))
+
+    def _isento(linha):
+        i = linha.find(ISENCAO_CONTAGEM)
+        return i >= 0 and linha[i + len(ISENCAO_CONTAGEM):].strip(" -->") != ""
+    pontos = [p for p in pontos if not _isento(p[3])]
     return {
         "id": "C",
         "nome": "contagem escrita à mão",

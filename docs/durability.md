@@ -11,6 +11,8 @@ scope:
   - .claude/fio-morto.baseline.json
   - .claude/custo-gatilho.baseline.json
   - .claude/desacoplamento.baseline.json
+  - .claude/decisoes-seladas.md
+  - plugins/project-skills/lib/decisoes_seladas.py
   - plugins/project-skills/lib/andamento.py
   - plugins/project-skills/hooks/posttooluse-andamento.sh
   - plugins/handoff/skills/handoff/SKILL.md
@@ -258,7 +260,7 @@ Depósito **novo em 2026-08-16**. Ver `data-stores.md §A10`.
 
 Depósito **novo em 2026-08-20**. Ver `data-stores.md §A12`.
 
-- 🟢 **Coberto quando existe** — não está no `.gitignore`, então nasce rastreado e viaja em todo clone e em todo espelho da §1. ⚠️ **Neste repositório ele ainda não foi criado** (`ls .claude/decisoes-seladas.md` → não encontrado): a cobertura está pronta, o conteúdo é zero. [confirmado nesta rodada]
+- 🟢 **Coberto quando existe** — não está no `.gitignore`, então nasce rastreado e viaja em todo clone e em todo espelho da §1. **Neste repositório ele já existe e viaja rastreado** (`git ls-files .claude/decisoes-seladas.md` → listado; 34 linhas seladas): a cobertura está exercida, não só pronta. [confirmado nesta rodada] <!-- acopla-ok: saida crua de comando citada como prova, e o proprio texto diz que o que vale e o comando -->
 - **Por que precisa viajar com o clone:** quem consulta é um programa que roda na máquina de quem clonou (`decisoes_seladas.py consultar`), a partir da raiz do projeto. Registro que ficasse em `~/.claude/` daria uma decisão do dono válida numa máquina e inexistente na outra — e a pergunta repetida voltaria justamente na máquina nova.
 - **Insubstituível.** É fala do dono, com data e fonte: nenhum comando a regera. Mesma classe da §2.6, e com a mesma consequência — perder o arquivo é perder o motivo, não um número.
 
