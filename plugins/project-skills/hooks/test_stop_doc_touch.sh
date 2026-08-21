@@ -68,28 +68,28 @@ msg() { printf '%s' "$1" | jq -r '.systemMessage // empty' 2>/dev/null; }
 echo "a sugestão — quando é pra falar"
 OUT=$(run "$SESS")
 M=$(msg "$OUT")
-check "sessão com 2 arquivos cobertos por doc: sugere" "$(printf '%s' "$M" | grep -q 'doc-touch' && echo 1 || echo 0)"
-check "diz quantos arquivos e quantas docs" "$(printf '%s' "$M" | grep -q '2 arquivo(s) tocados, cobertos por 1 doc(s)' && echo 1 || echo 0)"
-check "nomeia a doc afetada" "$(printf '%s' "$M" | grep -q 'architecture.md' && echo 1 || echo 0)"
-check "NUNCA emite decision:block" "$(printf '%s' "$OUT" | grep -q '"decision"' && echo 0 || echo 1)"
+check "sessão com 2 arquivos cobertos por doc: sugere" "$(grep -q 'doc-touch' <<<"$M" && echo 1 || echo 0)"
+check "diz quantos arquivos e quantas docs" "$(grep -q '2 arquivo(s) tocados, cobertos por 1 doc(s)' <<<"$M" && echo 1 || echo 0)"
+check "nomeia a doc afetada" "$(grep -q 'architecture.md' <<<"$M" && echo 1 || echo 0)"
+check "NUNCA emite decision:block" "$(grep -q '"decision"' <<<"$OUT" && echo 0 || echo 1)"
 check "sugere 1× por (sessão, projeto)" "$([ -z "$(run "$SESS")" ] && echo 1 || echo 0)"
 
 echo "a rodada é medida, não perguntada — os dois desfechos"
 # O doc do fixture é de 2026-01-01: atraso muito acima do teto de 30 dias.
-check "doc velha: manda a rodada COMPLETA, com o plugin descoberto" "$(printf '%s' "$M" | grep -q '/project-skills:doc pra atualizar' && echo 1 || echo 0)"
-check "doc velha: não escreve o nome de skill que não existe" "$(printf '%s' "$M" | grep -qE '/project-doc|/start-doc' && echo 0 || echo 1)"
-check "doc velha: mostra o número que sustentou a escolha" "$(printf '%s' "$M" | grep -qE 'tem [0-9]+ dias' && echo 1 || echo 0)"
-check "doc velha: não manda o dono escolher entre as duas" "$(printf '%s' "$M" | grep -q ':doc-touch' && echo 0 || echo 1)"
+check "doc velha: manda a rodada COMPLETA, com o plugin descoberto" "$(grep -q '/project-skills:doc pra atualizar' <<<"$M" && echo 1 || echo 0)"
+check "doc velha: não escreve o nome de skill que não existe" "$(grep -qE '/project-doc|/start-doc' <<<"$M" && echo 0 || echo 1)"
+check "doc velha: mostra o número que sustentou a escolha" "$(grep -qE 'tem [0-9]+ dias' <<<"$M" && echo 1 || echo 0)"
+check "doc velha: não manda o dono escolher entre as duas" "$(grep -q ':doc-touch' <<<"$M" && echo 0 || echo 1)"
 # Sem resolvedor na máquina, a sugestão ainda NOMEIA a rodada — só sem o prefixo.
 MF=$(msg "$(CLAUDE_CONFIG_DIR="$ROOT/vazio" run "$SESS-semcache")")
-check "sem resolvedor: cai no nome cru da skill" "$(printf '%s' "$MF" | grep -q '/doc pra atualizar' && echo 1 || echo 0)"
+check "sem resolvedor: cai no nome cru da skill" "$(grep -q '/doc pra atualizar' <<<"$MF" && echo 1 || echo 0)"
 # Mesma sessão de trabalho, doc carimbada HOJE: o atraso cabe no incremental.
 sed -i.bak "s/^generated: .*/generated: $(date +%Y-%m-%d)/" "$PROJ/.claude/docs/architecture.md"  # casa-ok: fixture de teste, o literal e o dado do caso
 rm -f "$PROJ/.claude/docs/architecture.md.bak"  # casa-ok: fixture de teste, o literal e o dado do caso
 touch -t 202601010000 "$PROJ/.claude/docs/architecture.md"  # casa-ok: fixture de teste, o literal e o dado do caso
 M2=$(msg "$(run "$SESS-nova")")
-check "doc de hoje: manda a rodada CURTA, com o plugin descoberto" "$(printf '%s' "$M2" | grep -q '/project-skills:doc-touch' && echo 1 || echo 0)"
-check "doc de hoje: mostra o número que sustentou a escolha" "$(printf '%s' "$M2" | grep -qE 'tem [0-9]+ dias' && echo 1 || echo 0)"
+check "doc de hoje: manda a rodada CURTA, com o plugin descoberto" "$(grep -q '/project-skills:doc-touch' <<<"$M2" && echo 1 || echo 0)"
+check "doc de hoje: mostra o número que sustentou a escolha" "$(grep -qE 'tem [0-9]+ dias' <<<"$M2" && echo 1 || echo 0)"
 check "doc de hoje: a sugestão medida passa na régua" "$([ -z "$(printf '%s\n' "$M2" | python3 "$REGUA" --perfil hook --onde "sugestão de doc-touch" - 2>&1)" ] && echo 1 || echo 0)"
 
 echo "a sugestão — o silêncio"
@@ -102,8 +102,8 @@ echo "a régua do canal de texto (perfil hook)"
 regua() { printf '%s\n' "$1" | python3 "$REGUA" --perfil hook --onde "sugestão de doc-touch" - 2>&1 || :; }
 check "a régua está vendorada no plugin (instalado, ele só enxerga a própria pasta)" "$([ -f "$REGUA" ] && echo 1 || echo 0)"
 check "a sugestão REAL do hook passa na régua" "$([ -z "$(regua "$M")" ] && echo 1 || echo 0)"
-check "a mesma sugestão com markdown é RECUSADA" "$(regua "$(printf '%s' "$M" | sed 's/doc-touch:/**doc-touch:**/')" | grep -q markdown && echo 1 || echo 0)"
-check "a mesma sugestão sem emoji no cabeçalho é RECUSADA" "$(regua "$(printf '%s' "$M" | sed 's/^📝 //')" | grep -q emoji && echo 1 || echo 0)"
+check "a mesma sugestão com markdown é RECUSADA" "$(grep -q markdown <<<"$(regua "${M/doc-touch:/**doc-touch:**}")" && echo 1 || echo 0)"
+check "a mesma sugestão sem emoji no cabeçalho é RECUSADA" "$(grep -q emoji <<<"$(regua "${M#📝 }")" && echo 1 || echo 0)"
 
 echo
 if [ "$FAIL" -gt 0 ]; then echo "FALHOU: $FAIL de $((PASS+FAIL))"; exit 1; fi

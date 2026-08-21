@@ -582,8 +582,9 @@ design.
 **A válvula:** página excepcional (layout novo, SVG sob medida) usa o bloco
 `raw_html`. Use pouco — cada uso é um pedaço que volta a não ter garantia.
 
-Suite: `python3 plugins/visual/lib/test_visual_page.py` (60 checks). Toda regra de
-forma que antes era prosa aqui tem um check lá.
+Suite: `python3 ${CLAUDE_PLUGIN_ROOT}/lib/test_visual_page.py` (quantos checks são hoje
+sai da própria suíte: `python3 ${CLAUDE_PLUGIN_ROOT}/lib/test_visual_page.py | tail -1`).
+Toda regra de forma que antes era prosa aqui tem um check lá.
 
 ## What to render
 

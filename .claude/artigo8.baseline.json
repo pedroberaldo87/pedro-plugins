@@ -1,0 +1,2469 @@
+{
+  "skills": 35,
+  "findings": [
+    {
+      "rule": "A3-variavel-vazia",
+      "who": "plugins/2op/skills/2op-opus/SKILL.md",
+      "line": 40,
+      "msg": "$CLAUDE_PLUGIN_ROOT não é derivada no bloco e não vem do ambiente — chega vazia e o comando roda contra caminho errado",
+      "quote": "python3 ${CLAUDE_PLUGIN_ROOT}/lib/quem_serviu.py"
+    },
+    {
+      "rule": "A3-variavel-vazia",
+      "who": "plugins/2op/skills/2op-sonnet/SKILL.md",
+      "line": 40,
+      "msg": "$CLAUDE_PLUGIN_ROOT não é derivada no bloco e não vem do ambiente — chega vazia e o comando roda contra caminho errado",
+      "quote": "python3 ${CLAUDE_PLUGIN_ROOT}/lib/quem_serviu.py"
+    },
+    {
+      "rule": "A3-variavel-vazia",
+      "who": "plugins/2op/skills/2op/SKILL.md",
+      "line": 40,
+      "msg": "$CLAUDE_PLUGIN_ROOT não é derivada no bloco e não vem do ambiente — chega vazia e o comando roda contra caminho errado",
+      "quote": "python3 ${CLAUDE_PLUGIN_ROOT}/lib/quem_serviu.py"
+    },
+    {
+      "rule": "A2-placeholder-orfao",
+      "who": "plugins/archify/skills/archify/SKILL.md",
+      "line": 80,
+      "msg": "placeholder <raiz-do-projeto> não é definido em lugar nenhum do arquivo — o agente teria que adivinhar",
+      "quote": "ARCHIFY_DIR=$(bash resolve-dir.sh \"$PWD\" archify)   # <raiz-do-projeto>/.claude/archify"
+    },
+    {
+      "rule": "A2-placeholder-orfao",
+      "who": "plugins/archify/skills/archify/SKILL.md",
+      "line": 92,
+      "msg": "placeholder <input> não é definido em lugar nenhum do arquivo — o agente teria que adivinhar",
+      "quote": "node bin/archify.mjs render <type> <input>.json \"$ARCHIFY_DIR/AAAA-MM-DD-<assunto>.html\""
+    },
+    {
+      "rule": "A3-variavel-vazia",
+      "who": "plugins/archify/skills/archify/SKILL.md",
+      "line": 92,
+      "msg": "$ARCHIFY_DIR não é derivada no bloco e não vem do ambiente — chega vazia e o comando roda contra caminho errado",
+      "quote": "node bin/archify.mjs render <type> <input>.json \"$ARCHIFY_DIR/AAAA-MM-DD-<assunto>.html\""
+    },
+    {
+      "rule": "A2-placeholder-orfao",
+      "who": "plugins/archify/skills/archify/SKILL.md",
+      "line": 93,
+      "msg": "placeholder <input> não é definido em lugar nenhum do arquivo — o agente teria que adivinhar",
+      "quote": "node bin/archify.mjs validate <type> <input>.json --json"
+    },
+    {
+      "rule": "A2-placeholder-orfao",
+      "who": "plugins/archify/skills/archify/SKILL.md",
+      "line": 93,
+      "msg": "placeholder <output> não é definido em lugar nenhum do arquivo — o agente teria que adivinhar",
+      "quote": "node bin/archify.mjs check <output>.html"
+    },
+    {
+      "rule": "A2-placeholder-orfao",
+      "who": "plugins/archify/skills/archify/SKILL.md",
+      "line": 283,
+      "msg": "placeholder <input> não é definido em lugar nenhum do arquivo — o agente teria que adivinhar",
+      "quote": "node bin/archify.mjs render architecture <input>.json <output>.html"
+    },
+    {
+      "rule": "A2-placeholder-orfao",
+      "who": "plugins/archify/skills/archify/SKILL.md",
+      "line": 283,
+      "msg": "placeholder <output> não é definido em lugar nenhum do arquivo — o agente teria que adivinhar",
+      "quote": "node bin/archify.mjs render architecture <input>.json <output>.html"
+    },
+    {
+      "rule": "A2-placeholder-orfao",
+      "who": "plugins/archify/skills/archify/SKILL.md",
+      "line": 389,
+      "msg": "placeholder <pasta desta skill> não é definido em lugar nenhum do arquivo — o agente teria que adivinhar",
+      "quote": "python3 \"<pasta desta skill>/grao-de-modulo.py\" \"$PWD\""
+    },
+    {
+      "rule": "A3-variavel-vazia",
+      "who": "plugins/bootstrap/skills/bootstrap/SKILL.md",
+      "line": 30,
+      "msg": "$CLAUDE_PLUGIN_ROOT não é derivada no bloco e não vem do ambiente — chega vazia e o comando roda contra caminho errado",
+      "quote": "bash \"${CLAUDE_PLUGIN_ROOT}/hooks/lib/apply.sh\""
+    },
+    {
+      "rule": "A3-variavel-vazia",
+      "who": "plugins/bootstrap/skills/bootstrap/SKILL.md",
+      "line": 42,
+      "msg": "$CLAUDE_PLUGIN_ROOT não é derivada no bloco e não vem do ambiente — chega vazia e o comando roda contra caminho errado",
+      "quote": "python3 \"${CLAUDE_PLUGIN_ROOT}/lib/conformance.py\""
+    },
+    {
+      "rule": "A3-variavel-vazia",
+      "who": "plugins/bootstrap/skills/bootstrap/SKILL.md",
+      "line": 83,
+      "msg": "$CLAUDE_PLUGIN_ROOT não é derivada no bloco e não vem do ambiente — chega vazia e o comando roda contra caminho errado",
+      "quote": "bash \"${CLAUDE_PLUGIN_ROOT}/hooks/lib/apply-config.sh\""
+    },
+    {
+      "rule": "A3-variavel-vazia",
+      "who": "plugins/bootstrap/skills/bootstrap/SKILL.md",
+      "line": 109,
+      "msg": "$CLAUDE_PLUGIN_ROOT não é derivada no bloco e não vem do ambiente — chega vazia e o comando roda contra caminho errado",
+      "quote": "python3 -c \"import json,sys;p=json.load(open(sys.argv[1]))['permissions'];a=p['allow'];print('allow',len(a),'| nativas',sum(1 for x in a if "
+    },
+    {
+      "rule": "A3-variavel-vazia",
+      "who": "plugins/bootstrap/skills/bootstrap/SKILL.md",
+      "line": 179,
+      "msg": "$PEDRO_PLUGINS_REPO não é derivada no bloco e não vem do ambiente — chega vazia e o comando roda contra caminho errado",
+      "quote": "}' \"$HOME/.claude/settings.json\" > \"$PEDRO_PLUGINS_REPO/plugins/bootstrap/config/settings-defaults.json\""
+    },
+    {
+      "rule": "A3-variavel-vazia",
+      "who": "plugins/bootstrap/skills/bootstrap/SKILL.md",
+      "line": 181,
+      "msg": "$PEDRO_PLUGINS_REPO não é derivada no bloco e não vem do ambiente — chega vazia e o comando roda contra caminho errado",
+      "quote": "cp \"$HOME/.claude/CLAUDE.md\" \"$PEDRO_PLUGINS_REPO/plugins/bootstrap/config/CLAUDE-global.md\""
+    },
+    {
+      "rule": "A3-variavel-vazia",
+      "who": "plugins/branches/skills/branches/SKILL.md",
+      "line": 41,
+      "msg": "$CLAUDE_PLUGIN_ROOT não é derivada no bloco e não vem do ambiente — chega vazia e o comando roda contra caminho errado",
+      "quote": "BS=\"${CLAUDE_PLUGIN_ROOT}/lib/branch_state.py\""
+    },
+    {
+      "rule": "A2-placeholder-orfao",
+      "who": "plugins/branches/skills/branches/SKILL.md",
+      "line": 53,
+      "msg": "placeholder <nomes> não é definido em lugar nenhum do arquivo — o agente teria que adivinhar",
+      "quote": "python3 $BS prune --dry-run <nomes>   # mostra o que faria"
+    },
+    {
+      "rule": "A2-placeholder-orfao",
+      "who": "plugins/branches/skills/branches/SKILL.md",
+      "line": 69,
+      "msg": "placeholder <nome> não é definido em lugar nenhum do arquivo — o agente teria que adivinhar",
+      "quote": "git branch <nome> <tag>"
+    },
+    {
+      "rule": "A2-placeholder-orfao",
+      "who": "plugins/branches/skills/branches/SKILL.md",
+      "line": 69,
+      "msg": "placeholder <tag> não é definido em lugar nenhum do arquivo — o agente teria que adivinhar",
+      "quote": "git branch <nome> <tag>"
+    },
+    {
+      "rule": "A2-placeholder-orfao",
+      "who": "plugins/branches/skills/branches/SKILL.md",
+      "line": 76,
+      "msg": "placeholder <b> não é definido em lugar nenhum do arquivo — o agente teria que adivinhar",
+      "quote": "git push origin --delete <b>"
+    },
+    {
+      "rule": "A3-variavel-vazia",
+      "who": "plugins/check-skills/skills/check-skills/SKILL.md",
+      "line": 39,
+      "msg": "$CLAUDE_PLUGIN_ROOT não é derivada no bloco e não vem do ambiente — chega vazia e o comando roda contra caminho errado",
+      "quote": "python3 \"${CLAUDE_PLUGIN_ROOT}/lib/varredura.py\"          # relatório humano"
+    },
+    {
+      "rule": "A3-variavel-vazia",
+      "who": "plugins/check-skills/skills/check-skills/SKILL.md",
+      "line": 40,
+      "msg": "$CLAUDE_PLUGIN_ROOT não é derivada no bloco e não vem do ambiente — chega vazia e o comando roda contra caminho errado",
+      "quote": "python3 \"${CLAUDE_PLUGIN_ROOT}/lib/varredura.py\" --json   # para consumir"
+    },
+    {
+      "rule": "A3-variavel-vazia",
+      "who": "plugins/check-skills/skills/check-skills/SKILL.md",
+      "line": 83,
+      "msg": "$CLAUDE_PLUGIN_ROOT não é derivada no bloco e não vem do ambiente — chega vazia e o comando roda contra caminho errado",
+      "quote": "python3 \"${CLAUDE_PLUGIN_ROOT}/lib/test_varredura.py\""
+    },
+    {
+      "rule": "A2-placeholder-orfao",
+      "who": "plugins/fallow/skills/fallow/SKILL.md",
+      "line": 99,
+      "msg": "placeholder <file> não é definido em lugar nenhum do arquivo — o agente teria que adivinhar",
+      "quote": "npx fallow dead-code -r <projeto> --trace <file>:<export>"
+    },
+    {
+      "rule": "A2-placeholder-orfao",
+      "who": "plugins/fallow/skills/fallow/SKILL.md",
+      "line": 99,
+      "msg": "placeholder <export> não é definido em lugar nenhum do arquivo — o agente teria que adivinhar",
+      "quote": "npx fallow dead-code -r <projeto> --trace <file>:<export>"
+    },
+    {
+      "rule": "A3-variavel-vazia",
+      "who": "plugins/gauntlet/skills/gauntlet/SKILL.md",
+      "line": 97,
+      "msg": "$CLAUDE_PLUGIN_ROOT não é derivada no bloco e não vem do ambiente — chega vazia e o comando roda contra caminho errado",
+      "quote": "python3 \"${CLAUDE_PLUGIN_ROOT}/lib/fecho_check.py\" gasto \"<a missão>\" --abre"
+    },
+    {
+      "rule": "A3-variavel-vazia",
+      "who": "plugins/gauntlet/skills/gauntlet/SKILL.md",
+      "line": 98,
+      "msg": "$CLAUDE_PLUGIN_ROOT não é derivada no bloco e não vem do ambiente — chega vazia e o comando roda contra caminho errado",
+      "quote": "python3 \"${CLAUDE_PLUGIN_ROOT}/lib/fecho_check.py\" gasto \"<a missão>\"   # afere"
+    },
+    {
+      "rule": "A2-placeholder-orfao",
+      "who": "plugins/gauntlet/skills/gauntlet/SKILL.md",
+      "line": 120,
+      "msg": "placeholder <o sinal> não é definido em lugar nenhum do arquivo — o agente teria que adivinhar",
+      "quote": "python3 \"${CLAUDE_PLUGIN_ROOT}/lib/fecho_check.py\" rito \"<a missão>\" --sinal \"<o sinal>\""
+    },
+    {
+      "rule": "A3-variavel-vazia",
+      "who": "plugins/gauntlet/skills/gauntlet/SKILL.md",
+      "line": 120,
+      "msg": "$CLAUDE_PLUGIN_ROOT não é derivada no bloco e não vem do ambiente — chega vazia e o comando roda contra caminho errado",
+      "quote": "python3 \"${CLAUDE_PLUGIN_ROOT}/lib/fecho_check.py\" rito \"<a missão>\" --sinal \"<o sinal>\""
+    },
+    {
+      "rule": "A3-variavel-vazia",
+      "who": "plugins/gauntlet/skills/gauntlet/SKILL.md",
+      "line": 125,
+      "msg": "$CLAUDE_CONFIG_DIR não é derivada no bloco e não vem do ambiente — chega vazia e o comando roda contra caminho errado",
+      "quote": "GDIR=\"${CLAUDE_CONFIG_DIR:-$HOME/.claude}/andamento\"; mkdir -p \"$GDIR\""
+    },
+    {
+      "rule": "A2-placeholder-orfao",
+      "who": "plugins/gauntlet/skills/gauntlet/SKILL.md",
+      "line": 126,
+      "msg": "placeholder <caminho absoluto da missão> não é definido em lugar nenhum do arquivo — o agente teria que adivinhar",
+      "quote": "printf 'gauntlet\\n%s\\n' \"<caminho absoluto da missão>\" > \"$GDIR/ativo-$CLAUDE_CODE_SESSION_ID\""
+    },
+    {
+      "rule": "A3-variavel-vazia",
+      "who": "plugins/gauntlet/skills/gauntlet/SKILL.md",
+      "line": 126,
+      "msg": "$CLAUDE_CODE_SESSION_ID não é derivada no bloco e não vem do ambiente — chega vazia e o comando roda contra caminho errado",
+      "quote": "printf 'gauntlet\\n%s\\n' \"<caminho absoluto da missão>\" > \"$GDIR/ativo-$CLAUDE_CODE_SESSION_ID\""
+    },
+    {
+      "rule": "A2-placeholder-orfao",
+      "who": "plugins/gauntlet/skills/gauntlet/SKILL.md",
+      "line": 159,
+      "msg": "placeholder <url> não é definido em lugar nenhum do arquivo — o agente teria que adivinhar",
+      "quote": "open <url>"
+    },
+    {
+      "rule": "A2-placeholder-orfao",
+      "who": "plugins/gauntlet/skills/gauntlet/SKILL.md",
+      "line": 170,
+      "msg": "placeholder <o sinal> não é definido em lugar nenhum do arquivo — o agente teria que adivinhar",
+      "quote": "python3 \"${CLAUDE_PLUGIN_ROOT}/lib/fecho_check.py\" fecho \"<a missão>\" --sinal \"<o sinal>\""
+    },
+    {
+      "rule": "A3-variavel-vazia",
+      "who": "plugins/gauntlet/skills/gauntlet/SKILL.md",
+      "line": 170,
+      "msg": "$CLAUDE_PLUGIN_ROOT não é derivada no bloco e não vem do ambiente — chega vazia e o comando roda contra caminho errado",
+      "quote": "python3 \"${CLAUDE_PLUGIN_ROOT}/lib/fecho_check.py\" fecho \"<a missão>\" --sinal \"<o sinal>\""
+    },
+    {
+      "rule": "A3-variavel-vazia",
+      "who": "plugins/guardrails/skills/guardrails/SKILL.md",
+      "line": 40,
+      "msg": "$SETTINGS não é derivada no bloco e não vem do ambiente — chega vazia e o comando roda contra caminho errado",
+      "quote": "[ -f \"$SETTINGS\" ] && { jq . \"$SETTINGS\" > /dev/null || { echo \"settings.json não é JSON válido — abortando\"; exit 1; }; }"
+    },
+    {
+      "rule": "A3-variavel-vazia",
+      "who": "plugins/guardrails/skills/guardrails/SKILL.md",
+      "line": 40,
+      "msg": "$SETTINGS não é derivada no bloco e não vem do ambiente — chega vazia e o comando roda contra caminho errado",
+      "quote": "[ -f \"$SETTINGS\" ] && { jq . \"$SETTINGS\" > /dev/null || { echo \"settings.json não é JSON válido — abortando\"; exit 1; }; }"
+    },
+    {
+      "rule": "A3-variavel-vazia",
+      "who": "plugins/guardrails/skills/guardrails/SKILL.md",
+      "line": 46,
+      "msg": "$SETTINGS não é derivada no bloco e não vem do ambiente — chega vazia e o comando roda contra caminho errado",
+      "quote": "cp \"$SETTINGS\" \"$SETTINGS.bak.$(date +%Y%m%d%H%M%S)\""
+    },
+    {
+      "rule": "A3-variavel-vazia",
+      "who": "plugins/guardrails/skills/guardrails/SKILL.md",
+      "line": 46,
+      "msg": "$SETTINGS não é derivada no bloco e não vem do ambiente — chega vazia e o comando roda contra caminho errado",
+      "quote": "cp \"$SETTINGS\" \"$SETTINGS.bak.$(date +%Y%m%d%H%M%S)\""
+    },
+    {
+      "rule": "A3-variavel-vazia",
+      "who": "plugins/guardrails/skills/guardrails/SKILL.md",
+      "line": 76,
+      "msg": "$SETTINGS não é derivada no bloco e não vem do ambiente — chega vazia e o comando roda contra caminho errado",
+      "quote": "' \"$SETTINGS\" > \"$SETTINGS.tmp\" && mv \"$SETTINGS.tmp\" \"$SETTINGS\" || { rm -f \"$SETTINGS.tmp\"; echo \"transform falhou — settings.json intacto"
+    },
+    {
+      "rule": "A3-variavel-vazia",
+      "who": "plugins/guardrails/skills/guardrails/SKILL.md",
+      "line": 76,
+      "msg": "$SETTINGS não é derivada no bloco e não vem do ambiente — chega vazia e o comando roda contra caminho errado",
+      "quote": "' \"$SETTINGS\" > \"$SETTINGS.tmp\" && mv \"$SETTINGS.tmp\" \"$SETTINGS\" || { rm -f \"$SETTINGS.tmp\"; echo \"transform falhou — settings.json intacto"
+    },
+    {
+      "rule": "A3-variavel-vazia",
+      "who": "plugins/guardrails/skills/guardrails/SKILL.md",
+      "line": 76,
+      "msg": "$SETTINGS não é derivada no bloco e não vem do ambiente — chega vazia e o comando roda contra caminho errado",
+      "quote": "' \"$SETTINGS\" > \"$SETTINGS.tmp\" && mv \"$SETTINGS.tmp\" \"$SETTINGS\" || { rm -f \"$SETTINGS.tmp\"; echo \"transform falhou — settings.json intacto"
+    },
+    {
+      "rule": "A3-variavel-vazia",
+      "who": "plugins/guardrails/skills/guardrails/SKILL.md",
+      "line": 76,
+      "msg": "$SETTINGS não é derivada no bloco e não vem do ambiente — chega vazia e o comando roda contra caminho errado",
+      "quote": "' \"$SETTINGS\" > \"$SETTINGS.tmp\" && mv \"$SETTINGS.tmp\" \"$SETTINGS\" || { rm -f \"$SETTINGS.tmp\"; echo \"transform falhou — settings.json intacto"
+    },
+    {
+      "rule": "A3-variavel-vazia",
+      "who": "plugins/guardrails/skills/guardrails/SKILL.md",
+      "line": 76,
+      "msg": "$SETTINGS não é derivada no bloco e não vem do ambiente — chega vazia e o comando roda contra caminho errado",
+      "quote": "' \"$SETTINGS\" > \"$SETTINGS.tmp\" && mv \"$SETTINGS.tmp\" \"$SETTINGS\" || { rm -f \"$SETTINGS.tmp\"; echo \"transform falhou — settings.json intacto"
+    },
+    {
+      "rule": "A3-variavel-vazia",
+      "who": "plugins/guardrails/skills/guardrails/SKILL.md",
+      "line": 99,
+      "msg": "$CLAUDE_CONFIG_DIR não é derivada no bloco e não vem do ambiente — chega vazia e o comando roda contra caminho errado",
+      "quote": "OLD_HOOKS=\"${CLAUDE_CONFIG_DIR:-$HOME/.claude}/hooks\""
+    },
+    {
+      "rule": "A3-variavel-vazia",
+      "who": "plugins/guardrails/skills/guardrails/SKILL.md",
+      "line": 102,
+      "msg": "$OLD_HOOKS não é derivada no bloco e não vem do ambiente — chega vazia e o comando roda contra caminho errado",
+      "quote": "if [ -f \"$OLD_HOOKS/$f\" ]; then"
+    },
+    {
+      "rule": "A3-variavel-vazia",
+      "who": "plugins/guardrails/skills/guardrails/SKILL.md",
+      "line": 104,
+      "msg": "$OLD_HOOKS não é derivada no bloco e não vem do ambiente — chega vazia e o comando roda contra caminho errado",
+      "quote": "if [ -e \"$OLD_HOOKS/$dest\" ]; then"
+    },
+    {
+      "rule": "A3-variavel-vazia",
+      "who": "plugins/guardrails/skills/guardrails/SKILL.md",
+      "line": 106,
+      "msg": "$OLD_HOOKS não é derivada no bloco e não vem do ambiente — chega vazia e o comando roda contra caminho errado",
+      "quote": "while [ -e \"$OLD_HOOKS/$f.obsoleto.$n\" ]; do n=$((n + 1)); done"
+    },
+    {
+      "rule": "A3-variavel-vazia",
+      "who": "plugins/guardrails/skills/guardrails/SKILL.md",
+      "line": 112,
+      "msg": "$OLD_HOOKS não é derivada no bloco e não vem do ambiente — chega vazia e o comando roda contra caminho errado",
+      "quote": "if mv \"$OLD_HOOKS/$f\" \"$OLD_HOOKS/$dest\"; then"
+    },
+    {
+      "rule": "A3-variavel-vazia",
+      "who": "plugins/guardrails/skills/guardrails/SKILL.md",
+      "line": 112,
+      "msg": "$OLD_HOOKS não é derivada no bloco e não vem do ambiente — chega vazia e o comando roda contra caminho errado",
+      "quote": "if mv \"$OLD_HOOKS/$f\" \"$OLD_HOOKS/$dest\"; then"
+    },
+    {
+      "rule": "A3-variavel-vazia",
+      "who": "plugins/guardrails/skills/guardrails/SKILL.md",
+      "line": 115,
+      "msg": "$OLD_HOOKS não é derivada no bloco e não vem do ambiente — chega vazia e o comando roda contra caminho errado",
+      "quote": "echo \"FALHOU aposentar: $f — segue órfão em $OLD_HOOKS\" >&2"
+    },
+    {
+      "rule": "A3-variavel-vazia",
+      "who": "plugins/guardrails/skills/guardrails/SKILL.md",
+      "line": 131,
+      "msg": "$SETTINGS não é derivada no bloco e não vem do ambiente — chega vazia e o comando roda contra caminho errado",
+      "quote": "jq . \"$SETTINGS\" > /dev/null && echo \"settings.json OK\""
+    },
+    {
+      "rule": "A3-variavel-vazia",
+      "who": "plugins/guardrails/skills/guardrails/SKILL.md",
+      "line": 134,
+      "msg": "$SETTINGS não é derivada no bloco e não vem do ambiente — chega vazia e o comando roda contra caminho errado",
+      "quote": "jq -r '.env.CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS' \"$SETTINGS\"   # → 1"
+    },
+    {
+      "rule": "A3-variavel-vazia",
+      "who": "plugins/guardrails/skills/guardrails/SKILL.md",
+      "line": 137,
+      "msg": "$SETTINGS não é derivada no bloco e não vem do ambiente — chega vazia e o comando roda contra caminho errado",
+      "quote": "jq -r '.hooks' \"$SETTINGS\" | grep -E 'lint-and-typecheck|pretooluse-scope-cop|substitute for Agent Teams' || echo \"hooks antigos removidos\""
+    },
+    {
+      "rule": "A3-variavel-vazia",
+      "who": "plugins/guardrails/skills/guardrails/SKILL.md",
+      "line": 140,
+      "msg": "$SETTINGS não é derivada no bloco e não vem do ambiente — chega vazia e o comando roda contra caminho errado",
+      "quote": "jq -r '.hooks.SessionStart' \"$SETTINGS\" | grep -q 'sessionstart-adhd-mode' && echo \"hook adhd preservado\""
+    },
+    {
+      "rule": "A3-variavel-vazia",
+      "who": "plugins/handoff/skills/handoff/SKILL.md",
+      "line": 72,
+      "msg": "$CLAUDE_CODE_SESSION_ID não é derivada no bloco e não vem do ambiente — chega vazia e o comando roda contra caminho errado",
+      "quote": "python3 \"<skill_dir>/../../lib/extract_ata.py\" --auto --session \"$CLAUDE_CODE_SESSION_ID\" --cwd \"$(pwd)\""
+    },
+    {
+      "rule": "A2-placeholder-orfao",
+      "who": "plugins/handoff/skills/handoff/SKILL.md",
+      "line": 88,
+      "msg": "placeholder <plugin project-skills> não é definido em lugar nenhum do arquivo — o agente teria que adivinhar",
+      "quote": "python3 <plugin project-skills>/lib/plan_state.py --dir <project_root>/.claude/plans render --format text"
+    },
+    {
+      "rule": "A2-placeholder-orfao",
+      "who": "plugins/handoff/skills/handoff/SKILL.md",
+      "line": 88,
+      "msg": "placeholder <project_root> não é definido em lugar nenhum do arquivo — o agente teria que adivinhar",
+      "quote": "python3 <plugin project-skills>/lib/plan_state.py --dir <project_root>/.claude/plans render --format text"
+    },
+    {
+      "rule": "A2-placeholder-orfao",
+      "who": "plugins/handoff/skills/handoff/SKILL.md",
+      "line": 90,
+      "msg": "placeholder <project_root> não é definido em lugar nenhum do arquivo — o agente teria que adivinhar",
+      "quote": "python3 - \"<project_root>/.claude/plans\" <<'PY'"
+    },
+    {
+      "rule": "A2-placeholder-orfao",
+      "who": "plugins/handoff/skills/handoff/SKILL.md",
+      "line": 220,
+      "msg": "placeholder <project_root> não é definido em lugar nenhum do arquivo — o agente teria que adivinhar",
+      "quote": "git -C \"<project_root>\" worktree list --porcelain 2>/dev/null | sed -n 's/^worktree //p' | while read -r wt; do"
+    },
+    {
+      "rule": "A2-placeholder-orfao",
+      "who": "plugins/handoff/skills/handoff/SKILL.md",
+      "line": 251,
+      "msg": "placeholder <project_root> não é definido em lugar nenhum do arquivo — o agente teria que adivinhar",
+      "quote": "git -C \"<project_root>\" log --oneline -10"
+    },
+    {
+      "rule": "A2-placeholder-orfao",
+      "who": "plugins/handoff/skills/handoff/SKILL.md",
+      "line": 251,
+      "msg": "placeholder <project_root> não é definido em lugar nenhum do arquivo — o agente teria que adivinhar",
+      "quote": "git -C \"<project_root>\" status"
+    },
+    {
+      "rule": "A2-placeholder-orfao",
+      "who": "plugins/handoff/skills/handoff/SKILL.md",
+      "line": 254,
+      "msg": "placeholder <handoff_path> não é definido em lugar nenhum do arquivo — o agente teria que adivinhar",
+      "quote": "python3 - \"<handoff_path>\" <<'PY'"
+    },
+    {
+      "rule": "A2-placeholder-orfao",
+      "who": "plugins/improve-workflow/skills/improve-workflow/SKILL.md",
+      "line": 14,
+      "msg": "placeholder <plugin project-skills> não é definido em lugar nenhum do arquivo — o agente teria que adivinhar",
+      "quote": "python3 \"$(bash \"<plugin project-skills>/lib/resolve-plugin.sh\" project-skills lib/doc_load.py)\" --project-root \"$PWD\""
+    },
+    {
+      "rule": "A3-variavel-vazia",
+      "who": "plugins/improve-workflow/skills/improve-workflow/SKILL.md",
+      "line": 63,
+      "msg": "$CLAUDE_PLUGIN_ROOT não é derivada no bloco e não vem do ambiente — chega vazia e o comando roda contra caminho errado",
+      "quote": "python3 \"${CLAUDE_PLUGIN_ROOT}/lib/medidor.py\"            # o mais recente DESTE projeto"
+    },
+    {
+      "rule": "A2-placeholder-orfao",
+      "who": "plugins/improve-workflow/skills/improve-workflow/SKILL.md",
+      "line": 64,
+      "msg": "placeholder <run> não é definido em lugar nenhum do arquivo — o agente teria que adivinhar",
+      "quote": "python3 \"${CLAUDE_PLUGIN_ROOT}/lib/medidor.py\" <run>      # o id do run desta missão"
+    },
+    {
+      "rule": "A3-variavel-vazia",
+      "who": "plugins/improve-workflow/skills/improve-workflow/SKILL.md",
+      "line": 64,
+      "msg": "$CLAUDE_PLUGIN_ROOT não é derivada no bloco e não vem do ambiente — chega vazia e o comando roda contra caminho errado",
+      "quote": "python3 \"${CLAUDE_PLUGIN_ROOT}/lib/medidor.py\" <run>      # o id do run desta missão"
+    },
+    {
+      "rule": "A3-variavel-vazia",
+      "who": "plugins/improve-workflow/skills/improve-workflow/SKILL.md",
+      "line": 90,
+      "msg": "$CLAUDE_PLUGIN_ROOT não é derivada no bloco e não vem do ambiente — chega vazia e o comando roda contra caminho errado",
+      "quote": "python3 \"${CLAUDE_PLUGIN_ROOT}/lib/sobras.py\" --json          # o run mais recente"
+    },
+    {
+      "rule": "A2-placeholder-orfao",
+      "who": "plugins/improve-workflow/skills/improve-workflow/SKILL.md",
+      "line": 91,
+      "msg": "placeholder <run> não é definido em lugar nenhum do arquivo — o agente teria que adivinhar",
+      "quote": "python3 \"${CLAUDE_PLUGIN_ROOT}/lib/sobras.py\" --run <run> --json"
+    },
+    {
+      "rule": "A3-variavel-vazia",
+      "who": "plugins/improve-workflow/skills/improve-workflow/SKILL.md",
+      "line": 91,
+      "msg": "$CLAUDE_PLUGIN_ROOT não é derivada no bloco e não vem do ambiente — chega vazia e o comando roda contra caminho errado",
+      "quote": "python3 \"${CLAUDE_PLUGIN_ROOT}/lib/sobras.py\" --run <run> --json"
+    },
+    {
+      "rule": "A2-placeholder-orfao",
+      "who": "plugins/improve-workflow/skills/improve-workflow/SKILL.md",
+      "line": 104,
+      "msg": "placeholder <run> não é definido em lugar nenhum do arquivo — o agente teria que adivinhar",
+      "quote": "python3 \"${CLAUDE_PLUGIN_ROOT}/lib/registro.py\" gravar <run> \\"
+    },
+    {
+      "rule": "A3-variavel-vazia",
+      "who": "plugins/improve-workflow/skills/improve-workflow/SKILL.md",
+      "line": 104,
+      "msg": "$CLAUDE_PLUGIN_ROOT não é derivada no bloco e não vem do ambiente — chega vazia e o comando roda contra caminho errado",
+      "quote": "python3 \"${CLAUDE_PLUGIN_ROOT}/lib/registro.py\" gravar <run> \\"
+    },
+    {
+      "rule": "A3-variavel-vazia",
+      "who": "plugins/improve-workflow/skills/improve-workflow/SKILL.md",
+      "line": 154,
+      "msg": "$CLAUDE_PLUGIN_ROOT não é derivada no bloco e não vem do ambiente — chega vazia e o comando roda contra caminho errado",
+      "quote": "PAGINA=\"$(bash \"${CLAUDE_PLUGIN_ROOT}/skills/improve-workflow/resolve-plugin.sh\" visual lib/visual_page.py)\""
+    },
+    {
+      "rule": "A3-variavel-vazia",
+      "who": "plugins/improve-workflow/skills/improve-workflow/SKILL.md",
+      "line": 155,
+      "msg": "$CLAUDE_CONFIG_DIR não é derivada no bloco e não vem do ambiente — chega vazia e o comando roda contra caminho errado",
+      "quote": "PARECER=\"${CLAUDE_CONFIG_DIR:-$HOME/.claude}/improve-workflow/parecer-$(date +%Y%m%d-%H%M%S).html\""
+    },
+    {
+      "rule": "A3-variavel-vazia",
+      "who": "plugins/improve-workflow/skills/improve-workflow/SKILL.md",
+      "line": 156,
+      "msg": "$CLAUDE_PLUGIN_ROOT não é derivada no bloco e não vem do ambiente — chega vazia e o comando roda contra caminho errado",
+      "quote": "SPEC=\"$(python3 \"${CLAUDE_PLUGIN_ROOT}/lib/proposta.py\" propostas.json)\" || exit 2"
+    },
+    {
+      "rule": "A3-variavel-vazia",
+      "who": "plugins/improve-workflow/skills/improve-workflow/SKILL.md",
+      "line": 160,
+      "msg": "$SPEC não é derivada no bloco e não vem do ambiente — chega vazia e o comando roda contra caminho errado",
+      "quote": "printf '%s' \"$SPEC\" | python3 \"$PAGINA\" build --spec - --out \"$PARECER\""
+    },
+    {
+      "rule": "A3-variavel-vazia",
+      "who": "plugins/improve-workflow/skills/improve-workflow/SKILL.md",
+      "line": 160,
+      "msg": "$PARECER não é derivada no bloco e não vem do ambiente — chega vazia e o comando roda contra caminho errado",
+      "quote": "printf '%s' \"$SPEC\" | python3 \"$PAGINA\" build --spec - --out \"$PARECER\""
+    },
+    {
+      "rule": "A3-variavel-vazia",
+      "who": "plugins/improve-workflow/skills/improve-workflow/SKILL.md",
+      "line": 182,
+      "msg": "$CLAUDE_CONFIG_DIR não é derivada no bloco e não vem do ambiente — chega vazia e o comando roda contra caminho errado",
+      "quote": "RETORNO=\"${CLAUDE_CONFIG_DIR:-$HOME/.claude}/visual-state/latest.json\""
+    },
+    {
+      "rule": "A3-variavel-vazia",
+      "who": "plugins/improve-workflow/skills/improve-workflow/SKILL.md",
+      "line": 183,
+      "msg": "$SPEC não é derivada no bloco e não vem do ambiente — chega vazia e o comando roda contra caminho errado",
+      "quote": "printf '%s' \"$SPEC\" | python3 \"${CLAUDE_PLUGIN_ROOT}/lib/plano_saida.py\" \\"
+    },
+    {
+      "rule": "A3-variavel-vazia",
+      "who": "plugins/improve-workflow/skills/improve-workflow/SKILL.md",
+      "line": 183,
+      "msg": "$CLAUDE_PLUGIN_ROOT não é derivada no bloco e não vem do ambiente — chega vazia e o comando roda contra caminho errado",
+      "quote": "printf '%s' \"$SPEC\" | python3 \"${CLAUDE_PLUGIN_ROOT}/lib/plano_saida.py\" \\"
+    },
+    {
+      "rule": "A2-placeholder-orfao",
+      "who": "plugins/improve-workflow/skills/improve-workflow/SKILL.md",
+      "line": 184,
+      "msg": "placeholder <run> não é definido em lugar nenhum do arquivo — o agente teria que adivinhar",
+      "quote": "--retorno \"$RETORNO\" --proposta - --dir .claude/plans --run <run>"
+    },
+    {
+      "rule": "A3-variavel-vazia",
+      "who": "plugins/improve-workflow/skills/improve-workflow/SKILL.md",
+      "line": 217,
+      "msg": "$CLAUDE_PLUGIN_ROOT não é derivada no bloco e não vem do ambiente — chega vazia e o comando roda contra caminho errado",
+      "quote": "python3 \"${CLAUDE_PLUGIN_ROOT}/lib/test_improve_workflow_skill.py\""
+    },
+    {
+      "rule": "A2-placeholder-orfao",
+      "who": "plugins/intent-guard/skills/intent-guard/SKILL.md",
+      "line": 10,
+      "msg": "placeholder <cmd> não é definido em lugar nenhum do arquivo — o agente teria que adivinhar",
+      "quote": "python3 ${CLAUDE_PLUGIN_ROOT}/lib/ledger.py <cmd> --cwd <projeto>"
+    },
+    {
+      "rule": "A3-variavel-vazia",
+      "who": "plugins/intent-guard/skills/intent-guard/SKILL.md",
+      "line": 10,
+      "msg": "$CLAUDE_PLUGIN_ROOT não é derivada no bloco e não vem do ambiente — chega vazia e o comando roda contra caminho errado",
+      "quote": "python3 ${CLAUDE_PLUGIN_ROOT}/lib/ledger.py <cmd> --cwd <projeto>"
+    },
+    {
+      "rule": "A3-variavel-vazia",
+      "who": "plugins/lixeiro/skills/faxina/SKILL.md",
+      "line": 20,
+      "msg": "$CLAUDE_PLUGIN_ROOT não é derivada no bloco e não vem do ambiente — chega vazia e o comando roda contra caminho errado",
+      "quote": "python3 \"${CLAUDE_PLUGIN_ROOT}/lib/lixeiro.py\" resumo --idade-min 300"
+    },
+    {
+      "rule": "A3-variavel-vazia",
+      "who": "plugins/lixeiro/skills/faxina/SKILL.md",
+      "line": 31,
+      "msg": "$CLAUDE_PLUGIN_ROOT não é derivada no bloco e não vem do ambiente — chega vazia e o comando roda contra caminho errado",
+      "quote": "python3 \"${CLAUDE_PLUGIN_ROOT}/lib/lixeiro.py\" inventario --idade-min 300"
+    },
+    {
+      "rule": "A3-variavel-vazia",
+      "who": "plugins/lixeiro/skills/faxina/SKILL.md",
+      "line": 103,
+      "msg": "$CLAUDE_PLUGIN_ROOT não é derivada no bloco e não vem do ambiente — chega vazia e o comando roda contra caminho errado",
+      "quote": "python3 \"${CLAUDE_PLUGIN_ROOT}/lib/lixeiro.py\" encerra 41633 41835 75831"
+    },
+    {
+      "rule": "A2-placeholder-orfao",
+      "who": "plugins/lixeiro/skills/faxina/SKILL.md",
+      "line": 136,
+      "msg": "placeholder <raiz do projeto> não é definido em lugar nenhum do arquivo — o agente teria que adivinhar",
+      "quote": "echo '{\"sobras\": [{\"pid\": 4242, \"comando\": \"...\"}], \"raizes\": [\"<raiz do projeto>\"]}' \\"
+    },
+    {
+      "rule": "A3-variavel-vazia",
+      "who": "plugins/lixeiro/skills/faxina/SKILL.md",
+      "line": 137,
+      "msg": "$CLAUDE_PLUGIN_ROOT não é derivada no bloco e não vem do ambiente — chega vazia e o comando roda contra caminho errado",
+      "quote": "| python3 \"${CLAUDE_PLUGIN_ROOT}/lib/causa.py\" investiga"
+    },
+    {
+      "rule": "A2-placeholder-orfao",
+      "who": "plugins/lixeiro/skills/faxina/SKILL.md",
+      "line": 155,
+      "msg": "placeholder <caminho> não é definido em lugar nenhum do arquivo — o agente teria que adivinhar",
+      "quote": "echo '{\"arquivos\": [\"<caminho>\"], \"raiz\": \"<raiz>\", \"linhas_mudadas\": 3}' \\"
+    },
+    {
+      "rule": "A2-placeholder-orfao",
+      "who": "plugins/lixeiro/skills/faxina/SKILL.md",
+      "line": 155,
+      "msg": "placeholder <raiz> não é definido em lugar nenhum do arquivo — o agente teria que adivinhar",
+      "quote": "echo '{\"arquivos\": [\"<caminho>\"], \"raiz\": \"<raiz>\", \"linhas_mudadas\": 3}' \\"
+    },
+    {
+      "rule": "A3-variavel-vazia",
+      "who": "plugins/lixeiro/skills/faxina/SKILL.md",
+      "line": 156,
+      "msg": "$CLAUDE_PLUGIN_ROOT não é derivada no bloco e não vem do ambiente — chega vazia e o comando roda contra caminho errado",
+      "quote": "| python3 \"${CLAUDE_PLUGIN_ROOT}/lib/causa.py\" alcance"
+    },
+    {
+      "rule": "A3-variavel-vazia",
+      "who": "plugins/lixeiro/skills/faxina/SKILL.md",
+      "line": 180,
+      "msg": "$CLAUDE_PLUGIN_ROOT não é derivada no bloco e não vem do ambiente — chega vazia e o comando roda contra caminho errado",
+      "quote": "import sys; sys.path.insert(0, \"${CLAUDE_PLUGIN_ROOT}/lib\")"
+    },
+    {
+      "rule": "A2-placeholder-orfao",
+      "who": "plugins/lixeiro/skills/faxina/SKILL.md",
+      "line": 182,
+      "msg": "placeholder <o arquivo que você acabou de mudar> não é definido em lugar nenhum do arquivo — o agente teria que adivinhar",
+      "quote": "rodou, verde, saida = causa.suite_verde(\"<o arquivo que você acabou de mudar>\")"
+    },
+    {
+      "rule": "A2-placeholder-orfao",
+      "who": "plugins/lixeiro/skills/faxina/SKILL.md",
+      "line": 188,
+      "msg": "placeholder <arquivo> não é definido em lugar nenhum do arquivo — o agente teria que adivinhar",
+      "quote": "git checkout -- <arquivo>"
+    },
+    {
+      "rule": "A3-variavel-vazia",
+      "who": "plugins/project-skills/skills/completude/SKILL.md",
+      "line": 27,
+      "msg": "$CLAUDE_PLUGIN_ROOT não é derivada no bloco e não vem do ambiente — chega vazia e o comando roda contra caminho errado",
+      "quote": "python3 \"${CLAUDE_PLUGIN_ROOT}/lib/completude.py\" \\"
+    },
+    {
+      "rule": "A2-placeholder-orfao",
+      "who": "plugins/project-skills/skills/completude/SKILL.md",
+      "line": 28,
+      "msg": "placeholder <caminho> não é definido em lugar nenhum do arquivo — o agente teria que adivinhar",
+      "quote": "<caminho>/features.md <caminho>/.claude/plans <caminho>/constituicao.md \\"
+    },
+    {
+      "rule": "A2-placeholder-orfao",
+      "who": "plugins/project-skills/skills/completude/SKILL.md",
+      "line": 28,
+      "msg": "placeholder <caminho> não é definido em lugar nenhum do arquivo — o agente teria que adivinhar",
+      "quote": "<caminho>/features.md <caminho>/.claude/plans <caminho>/constituicao.md \\"
+    },
+    {
+      "rule": "A2-placeholder-orfao",
+      "who": "plugins/project-skills/skills/completude/SKILL.md",
+      "line": 28,
+      "msg": "placeholder <caminho> não é definido em lugar nenhum do arquivo — o agente teria que adivinhar",
+      "quote": "<caminho>/features.md <caminho>/.claude/plans <caminho>/constituicao.md \\"
+    },
+    {
+      "rule": "A2-placeholder-orfao",
+      "who": "plugins/project-skills/skills/completude/SKILL.md",
+      "line": 29,
+      "msg": "placeholder <caminho> não é definido em lugar nenhum do arquivo — o agente teria que adivinhar",
+      "quote": "<caminho>/.claude/docs/prototipo/<etapa>.prototipo.md"
+    },
+    {
+      "rule": "A2-placeholder-orfao",
+      "who": "plugins/project-skills/skills/design-md/SKILL.md",
+      "line": 14,
+      "msg": "placeholder <plugin project-skills> não é definido em lugar nenhum do arquivo — o agente teria que adivinhar",
+      "quote": "python3 \"$(bash \"<plugin project-skills>/lib/resolve-plugin.sh\" project-skills lib/doc_load.py)\" --project-root \"$PWD\""
+    },
+    {
+      "rule": "A2-placeholder-orfao",
+      "who": "plugins/project-skills/skills/design-md/SKILL.md",
+      "line": 55,
+      "msg": "placeholder <comando> não é definido em lugar nenhum do arquivo — o agente teria que adivinhar",
+      "quote": "npx --yes @google/design.md@0.3.0 <comando> ..."
+    },
+    {
+      "rule": "A2-placeholder-orfao",
+      "who": "plugins/project-skills/skills/design-md/SKILL.md",
+      "line": 100,
+      "msg": "placeholder <arquivo> não é definido em lugar nenhum do arquivo — o agente teria que adivinhar",
+      "quote": "npx --yes @google/design.md@0.3.0 lint <arquivo> --format json"
+    },
+    {
+      "rule": "A2-placeholder-orfao",
+      "who": "plugins/project-skills/skills/design-md/SKILL.md",
+      "line": 108,
+      "msg": "placeholder <arquivo> não é definido em lugar nenhum do arquivo — o agente teria que adivinhar",
+      "quote": "npx --yes @google/design.md@0.3.0 export <arquivo> --format css-tailwind   # Tailwind v4 (@theme CSS)"
+    },
+    {
+      "rule": "A2-placeholder-orfao",
+      "who": "plugins/project-skills/skills/design-md/SKILL.md",
+      "line": 109,
+      "msg": "placeholder <arquivo> não é definido em lugar nenhum do arquivo — o agente teria que adivinhar",
+      "quote": "npx --yes @google/design.md@0.3.0 export <arquivo> --format json-tailwind  # Tailwind v3 (theme.extend) — alias: tailwind"
+    },
+    {
+      "rule": "A2-placeholder-orfao",
+      "who": "plugins/project-skills/skills/design-md/SKILL.md",
+      "line": 110,
+      "msg": "placeholder <arquivo> não é definido em lugar nenhum do arquivo — o agente teria que adivinhar",
+      "quote": "npx --yes @google/design.md@0.3.0 export <arquivo> --format dtcg           # W3C Design Tokens"
+    },
+    {
+      "rule": "A2-placeholder-orfao",
+      "who": "plugins/project-skills/skills/design-md/SKILL.md",
+      "line": 115,
+      "msg": "placeholder <arquivo-antes> não é definido em lugar nenhum do arquivo — o agente teria que adivinhar",
+      "quote": "npx --yes @google/design.md@0.3.0 diff <arquivo-antes> <arquivo-depois> --format json"
+    },
+    {
+      "rule": "A2-placeholder-orfao",
+      "who": "plugins/project-skills/skills/design-md/SKILL.md",
+      "line": 115,
+      "msg": "placeholder <arquivo-depois> não é definido em lugar nenhum do arquivo — o agente teria que adivinhar",
+      "quote": "npx --yes @google/design.md@0.3.0 diff <arquivo-antes> <arquivo-depois> --format json"
+    },
+    {
+      "rule": "A3-variavel-vazia",
+      "who": "plugins/project-skills/skills/doc-load/SKILL.md",
+      "line": 21,
+      "msg": "$CLAUDE_PLUGIN_ROOT não é derivada no bloco e não vem do ambiente — chega vazia e o comando roda contra caminho errado",
+      "quote": "python3 \"$(bash \"${CLAUDE_PLUGIN_ROOT}/lib/resolve-plugin.sh\" project-skills lib/doc_load.py)\" \\"
+    },
+    {
+      "rule": "A3-variavel-vazia",
+      "who": "plugins/project-skills/skills/doc-load/SKILL.md",
+      "line": 52,
+      "msg": "$CLAUDE_PLUGIN_ROOT não é derivada no bloco e não vem do ambiente — chega vazia e o comando roda contra caminho errado",
+      "quote": "python3 \"$(bash \"${CLAUDE_PLUGIN_ROOT}/lib/resolve-plugin.sh\" project-skills lib/doc_load.py)\" --project-root \"$PWD\" --json"
+    },
+    {
+      "rule": "A1-caminho-local",
+      "who": "plugins/project-skills/skills/doc-load/SKILL.md",
+      "line": 109,
+      "msg": "caminho `plugins/project-skills/…` só existe neste repositório — na máquina de quem instala o plugin mora no cache do harness",
+      "quote": ". plugins/project-skills/hooks/lib-doc-mark.sh"
+    },
+    {
+      "rule": "A1-caminho-local",
+      "who": "plugins/project-skills/skills/doc-load/SKILL.md",
+      "line": 111,
+      "msg": "caminho `plugins/project-skills/…` só existe neste repositório — na máquina de quem instala o plugin mora no cache do harness",
+      "quote": "python3 plugins/project-skills/lib/doc_load.py --marca       # o programa"
+    },
+    {
+      "rule": "A1-caminho-local",
+      "who": "plugins/project-skills/skills/doc-load/SKILL.md",
+      "line": 153,
+      "msg": "caminho `plugins/project-skills/…` só existe neste repositório — na máquina de quem instala o plugin mora no cache do harness",
+      "quote": "python3 plugins/project-skills/lib/test_doc_load.py"
+    },
+    {
+      "rule": "A2-placeholder-orfao",
+      "who": "plugins/project-skills/skills/doc-touch/SKILL.md",
+      "line": 14,
+      "msg": "placeholder <plugin project-skills> não é definido em lugar nenhum do arquivo — o agente teria que adivinhar",
+      "quote": "python3 \"$(bash \"<plugin project-skills>/lib/resolve-plugin.sh\" project-skills lib/doc_load.py)\" --project-root \"$PWD\""
+    },
+    {
+      "rule": "A2-placeholder-orfao",
+      "who": "plugins/project-skills/skills/doc-touch/SKILL.md",
+      "line": 28,
+      "msg": "placeholder <root> não é definido em lugar nenhum do arquivo — o agente teria que adivinhar",
+      "quote": "graphify update \"<root>\" --force    # AST, ZERO LLM, segundos, idempotente. Ausente → cria; fresco → no-op."
+    },
+    {
+      "rule": "A2-placeholder-orfao",
+      "who": "plugins/project-skills/skills/doc-touch/SKILL.md",
+      "line": 29,
+      "msg": "placeholder <root> não é definido em lugar nenhum do arquivo — o agente teria que adivinhar",
+      "quote": "python3 \"$(bash \"${CLAUDE_PLUGIN_ROOT}/lib/resolve-plugin.sh\" project-skills lib/pattern_check.py)\" --project-root \"<root>\" --touch-plan --j"
+    },
+    {
+      "rule": "A3-variavel-vazia",
+      "who": "plugins/project-skills/skills/doc-touch/SKILL.md",
+      "line": 29,
+      "msg": "$CLAUDE_PLUGIN_ROOT não é derivada no bloco e não vem do ambiente — chega vazia e o comando roda contra caminho errado",
+      "quote": "python3 \"$(bash \"${CLAUDE_PLUGIN_ROOT}/lib/resolve-plugin.sh\" project-skills lib/pattern_check.py)\" --project-root \"<root>\" --touch-plan --j"
+    },
+    {
+      "rule": "A2-placeholder-orfao",
+      "who": "plugins/project-skills/skills/doc-touch/SKILL.md",
+      "line": 46,
+      "msg": "placeholder <ledger_last_commit> não é definido em lugar nenhum do arquivo — o agente teria que adivinhar",
+      "quote": "git diff <ledger_last_commit> -- <files>"
+    },
+    {
+      "rule": "A2-placeholder-orfao",
+      "who": "plugins/project-skills/skills/doc-touch/SKILL.md",
+      "line": 46,
+      "msg": "placeholder <files> não é definido em lugar nenhum do arquivo — o agente teria que adivinhar",
+      "quote": "git diff <ledger_last_commit> -- <files>"
+    },
+    {
+      "rule": "A2-placeholder-orfao",
+      "who": "plugins/project-skills/skills/doc-touch/SKILL.md",
+      "line": 61,
+      "msg": "placeholder <pasta desta skill> não é definido em lugar nenhum do arquivo — o agente teria que adivinhar",
+      "quote": "python3 \"<pasta desta skill>/grao-de-modulo.py\" \"$PWD\""
+    },
+    {
+      "rule": "A2-placeholder-orfao",
+      "who": "plugins/project-skills/skills/doc-touch/SKILL.md",
+      "line": 69,
+      "msg": "placeholder <plugin archify> não é definido em lugar nenhum do arquivo — o agente teria que adivinhar",
+      "quote": "FLUXOS_DIR=$(bash <plugin archify>/skills/archify/resolve-dir.sh \"$PWD\" docs/fluxos)"
+    },
+    {
+      "rule": "A2-placeholder-orfao",
+      "who": "plugins/project-skills/skills/doc-touch/SKILL.md",
+      "line": 70,
+      "msg": "placeholder <plugin archify> não é definido em lugar nenhum do arquivo — o agente teria que adivinhar",
+      "quote": "node <plugin archify>/skills/archify/bin/archify.mjs render architecture <entrada>.json \"$FLUXOS_DIR/organismo.html\""
+    },
+    {
+      "rule": "A2-placeholder-orfao",
+      "who": "plugins/project-skills/skills/doc-touch/SKILL.md",
+      "line": 70,
+      "msg": "placeholder <entrada> não é definido em lugar nenhum do arquivo — o agente teria que adivinhar",
+      "quote": "node <plugin archify>/skills/archify/bin/archify.mjs render architecture <entrada>.json \"$FLUXOS_DIR/organismo.html\""
+    },
+    {
+      "rule": "A3-variavel-vazia",
+      "who": "plugins/project-skills/skills/doc-touch/SKILL.md",
+      "line": 70,
+      "msg": "$FLUXOS_DIR não é derivada no bloco e não vem do ambiente — chega vazia e o comando roda contra caminho errado",
+      "quote": "node <plugin archify>/skills/archify/bin/archify.mjs render architecture <entrada>.json \"$FLUXOS_DIR/organismo.html\""
+    },
+    {
+      "rule": "A2-placeholder-orfao",
+      "who": "plugins/project-skills/skills/doc-touch/SKILL.md",
+      "line": 71,
+      "msg": "placeholder <plugin archify> não é definido em lugar nenhum do arquivo — o agente teria que adivinhar",
+      "quote": "node <plugin archify>/skills/archify/bin/archify.mjs render workflow <entrada>.json \"$FLUXOS_DIR/fluxo-<slug>.html\""
+    },
+    {
+      "rule": "A2-placeholder-orfao",
+      "who": "plugins/project-skills/skills/doc-touch/SKILL.md",
+      "line": 71,
+      "msg": "placeholder <entrada> não é definido em lugar nenhum do arquivo — o agente teria que adivinhar",
+      "quote": "node <plugin archify>/skills/archify/bin/archify.mjs render workflow <entrada>.json \"$FLUXOS_DIR/fluxo-<slug>.html\""
+    },
+    {
+      "rule": "A3-variavel-vazia",
+      "who": "plugins/project-skills/skills/doc-touch/SKILL.md",
+      "line": 71,
+      "msg": "$FLUXOS_DIR não é derivada no bloco e não vem do ambiente — chega vazia e o comando roda contra caminho errado",
+      "quote": "node <plugin archify>/skills/archify/bin/archify.mjs render workflow <entrada>.json \"$FLUXOS_DIR/fluxo-<slug>.html\""
+    },
+    {
+      "rule": "A2-placeholder-orfao",
+      "who": "plugins/project-skills/skills/doc-touch/SKILL.md",
+      "line": 72,
+      "msg": "placeholder <plugin archify> não é definido em lugar nenhum do arquivo — o agente teria que adivinhar",
+      "quote": "node <plugin archify>/skills/archify/bin/archify.mjs render architecture <entrada>.json \"$FLUXOS_DIR/app-<nome>.html\""
+    },
+    {
+      "rule": "A2-placeholder-orfao",
+      "who": "plugins/project-skills/skills/doc-touch/SKILL.md",
+      "line": 72,
+      "msg": "placeholder <entrada> não é definido em lugar nenhum do arquivo — o agente teria que adivinhar",
+      "quote": "node <plugin archify>/skills/archify/bin/archify.mjs render architecture <entrada>.json \"$FLUXOS_DIR/app-<nome>.html\""
+    },
+    {
+      "rule": "A3-variavel-vazia",
+      "who": "plugins/project-skills/skills/doc-touch/SKILL.md",
+      "line": 72,
+      "msg": "$FLUXOS_DIR não é derivada no bloco e não vem do ambiente — chega vazia e o comando roda contra caminho errado",
+      "quote": "node <plugin archify>/skills/archify/bin/archify.mjs render architecture <entrada>.json \"$FLUXOS_DIR/app-<nome>.html\""
+    },
+    {
+      "rule": "A2-placeholder-orfao",
+      "who": "plugins/project-skills/skills/doc-touch/SKILL.md",
+      "line": 90,
+      "msg": "placeholder <root> não é definido em lugar nenhum do arquivo — o agente teria que adivinhar",
+      "quote": "python3 \"$(bash \"${CLAUDE_PLUGIN_ROOT}/lib/resolve-plugin.sh\" project-skills lib/doc_lint.py)\" --project-root \"<root>\" --docs <docs tocados>"
+    },
+    {
+      "rule": "A2-placeholder-orfao",
+      "who": "plugins/project-skills/skills/doc-touch/SKILL.md",
+      "line": 90,
+      "msg": "placeholder <docs tocados> não é definido em lugar nenhum do arquivo — o agente teria que adivinhar",
+      "quote": "python3 \"$(bash \"${CLAUDE_PLUGIN_ROOT}/lib/resolve-plugin.sh\" project-skills lib/doc_lint.py)\" --project-root \"<root>\" --docs <docs tocados>"
+    },
+    {
+      "rule": "A3-variavel-vazia",
+      "who": "plugins/project-skills/skills/doc-touch/SKILL.md",
+      "line": 90,
+      "msg": "$CLAUDE_PLUGIN_ROOT não é derivada no bloco e não vem do ambiente — chega vazia e o comando roda contra caminho errado",
+      "quote": "python3 \"$(bash \"${CLAUDE_PLUGIN_ROOT}/lib/resolve-plugin.sh\" project-skills lib/doc_lint.py)\" --project-root \"<root>\" --docs <docs tocados>"
+    },
+    {
+      "rule": "A3-variavel-vazia",
+      "who": "plugins/project-skills/skills/doc-touch/SKILL.md",
+      "line": 106,
+      "msg": "$CLAUDE_PLUGIN_ROOT não é derivada no bloco e não vem do ambiente — chega vazia e o comando roda contra caminho errado",
+      "quote": "PC=\"$(bash \"${CLAUDE_PLUGIN_ROOT}/lib/resolve-plugin.sh\" project-skills lib/pattern_check.py)\""
+    },
+    {
+      "rule": "A2-placeholder-orfao",
+      "who": "plugins/project-skills/skills/doc-touch/SKILL.md",
+      "line": 109,
+      "msg": "placeholder <arquivos tocados> não é definido em lugar nenhum do arquivo — o agente teria que adivinhar",
+      "quote": "git add <arquivos tocados> .claude/docs/<tocados> .claude/docs/fluxos/<re-renderizados> .claude/.project-doc/findings.jsonl graphify-out/"
+    },
+    {
+      "rule": "A2-placeholder-orfao",
+      "who": "plugins/project-skills/skills/doc-touch/SKILL.md",
+      "line": 109,
+      "msg": "placeholder <tocados> não é definido em lugar nenhum do arquivo — o agente teria que adivinhar",
+      "quote": "git add <arquivos tocados> .claude/docs/<tocados> .claude/docs/fluxos/<re-renderizados> .claude/.project-doc/findings.jsonl graphify-out/"
+    },
+    {
+      "rule": "A2-placeholder-orfao",
+      "who": "plugins/project-skills/skills/doc-touch/SKILL.md",
+      "line": 109,
+      "msg": "placeholder <re-renderizados> não é definido em lugar nenhum do arquivo — o agente teria que adivinhar",
+      "quote": "git add <arquivos tocados> .claude/docs/<tocados> .claude/docs/fluxos/<re-renderizados> .claude/.project-doc/findings.jsonl graphify-out/"
+    },
+    {
+      "rule": "A2-placeholder-orfao",
+      "who": "plugins/project-skills/skills/doc-touch/SKILL.md",
+      "line": 113,
+      "msg": "placeholder <tocados> não é definido em lugar nenhum do arquivo — o agente teria que adivinhar",
+      "quote": "python3 $PC --project-root . --restamp .claude/docs/<tocados>"
+    },
+    {
+      "rule": "A2-placeholder-orfao",
+      "who": "plugins/project-skills/skills/doc-touch/SKILL.md",
+      "line": 114,
+      "msg": "placeholder <tocados> não é definido em lugar nenhum do arquivo — o agente teria que adivinhar",
+      "quote": "git add .claude/docs/<tocados> && git commit -m \"docs: re-stamp pro commit do conteúdo\""
+    },
+    {
+      "rule": "A2-placeholder-orfao",
+      "who": "plugins/project-skills/skills/doc-touch/SKILL.md",
+      "line": 122,
+      "msg": "placeholder <branch> não é definido em lugar nenhum do arquivo — o agente teria que adivinhar",
+      "quote": "git merge-base --is-ancestor origin/<branch> HEAD"
+    },
+    {
+      "rule": "A2-placeholder-orfao",
+      "who": "plugins/project-skills/skills/doc/SKILL.md",
+      "line": 14,
+      "msg": "placeholder <plugin project-skills> não é definido em lugar nenhum do arquivo — o agente teria que adivinhar",
+      "quote": "python3 \"$(bash \"<plugin project-skills>/lib/resolve-plugin.sh\" project-skills lib/doc_load.py)\" --project-root \"$PWD\""
+    },
+    {
+      "rule": "A3-variavel-vazia",
+      "who": "plugins/project-skills/skills/doc/SKILL.md",
+      "line": 201,
+      "msg": "$CLAUDE_PLUGIN_ROOT não é derivada no bloco e não vem do ambiente — chega vazia e o comando roda contra caminho errado",
+      "quote": "python3 \"$(bash \"${CLAUDE_PLUGIN_ROOT}/lib/resolve-plugin.sh\" project-skills lib/pattern_check.py)\" --project-root \"<root>\""
+    },
+    {
+      "rule": "A3-variavel-vazia",
+      "who": "plugins/project-skills/skills/doc/SKILL.md",
+      "line": 301,
+      "msg": "$CLAUDE_PLUGIN_ROOT não é derivada no bloco e não vem do ambiente — chega vazia e o comando roda contra caminho errado",
+      "quote": "python3 \"$(bash \"${CLAUDE_PLUGIN_ROOT}/lib/resolve-plugin.sh\" project-skills lib/journal.py)\" update  --project-root \"<root>\" [--session \"$C"
+    },
+    {
+      "rule": "A3-variavel-vazia",
+      "who": "plugins/project-skills/skills/doc/SKILL.md",
+      "line": 301,
+      "msg": "$CLAUDE_CODE_SESSION_ID não é derivada no bloco e não vem do ambiente — chega vazia e o comando roda contra caminho errado",
+      "quote": "python3 \"$(bash \"${CLAUDE_PLUGIN_ROOT}/lib/resolve-plugin.sh\" project-skills lib/journal.py)\" update  --project-root \"<root>\" [--session \"$C"
+    },
+    {
+      "rule": "A2-placeholder-orfao",
+      "who": "plugins/project-skills/skills/doc/SKILL.md",
+      "line": 320,
+      "msg": "placeholder <id> não é definido em lugar nenhum do arquivo — o agente teria que adivinhar",
+      "quote": "python3 .../journal.py invalidate --project-root \"<root>\" --id <id> --reason \"...\""
+    },
+    {
+      "rule": "A2-placeholder-orfao",
+      "who": "plugins/project-skills/skills/doc/SKILL.md",
+      "line": 323,
+      "msg": "placeholder <id> não é definido em lugar nenhum do arquivo — o agente teria que adivinhar",
+      "quote": "python3 .../journal.py curate --project-root \"<root>\" --id <id> --text \"...\""
+    },
+    {
+      "rule": "A3-variavel-vazia",
+      "who": "plugins/project-skills/skills/doc/SKILL.md",
+      "line": 356,
+      "msg": "$CLAUDE_PLUGIN_ROOT não é derivada no bloco e não vem do ambiente — chega vazia e o comando roda contra caminho errado",
+      "quote": "python3 \"$(bash \"${CLAUDE_PLUGIN_ROOT}/lib/resolve-plugin.sh\" project-skills lib/graph_map.py)\" --project-root \"<root>\""
+    },
+    {
+      "rule": "A3-variavel-vazia",
+      "who": "plugins/project-skills/skills/doc/SKILL.md",
+      "line": 362,
+      "msg": "$CLAUDE_PLUGIN_ROOT não é derivada no bloco e não vem do ambiente — chega vazia e o comando roda contra caminho errado",
+      "quote": "python3 \"$(bash \"${CLAUDE_PLUGIN_ROOT}/lib/resolve-plugin.sh\" project-skills lib/pattern_check.py)\" --project-root \"<root>\""
+    },
+    {
+      "rule": "A2-placeholder-orfao",
+      "who": "plugins/project-skills/skills/doc/SKILL.md",
+      "line": 382,
+      "msg": "placeholder <fato> não é definido em lugar nenhum do arquivo — o agente teria que adivinhar",
+      "quote": "python3 \"$(bash \"${CLAUDE_PLUGIN_ROOT}/lib/resolve-plugin.sh\" project-skills lib/journal.py)\" adopt --project-root \"<root>\" --text \"<fato>\" "
+    },
+    {
+      "rule": "A3-variavel-vazia",
+      "who": "plugins/project-skills/skills/doc/SKILL.md",
+      "line": 382,
+      "msg": "$CLAUDE_PLUGIN_ROOT não é derivada no bloco e não vem do ambiente — chega vazia e o comando roda contra caminho errado",
+      "quote": "python3 \"$(bash \"${CLAUDE_PLUGIN_ROOT}/lib/resolve-plugin.sh\" project-skills lib/journal.py)\" adopt --project-root \"<root>\" --text \"<fato>\" "
+    },
+    {
+      "rule": "A3-variavel-vazia",
+      "who": "plugins/project-skills/skills/doc/SKILL.md",
+      "line": 401,
+      "msg": "$CLAUDE_PLUGIN_ROOT não é derivada no bloco e não vem do ambiente — chega vazia e o comando roda contra caminho errado",
+      "quote": "python3 \"$(bash \"${CLAUDE_PLUGIN_ROOT}/lib/resolve-plugin.sh\" project-skills lib/doc_lint.py)\" --project-root \"<root>\" --json"
+    },
+    {
+      "rule": "A3-variavel-vazia",
+      "who": "plugins/project-skills/skills/doc/SKILL.md",
+      "line": 511,
+      "msg": "$CLAUDE_PLUGIN_ROOT não é derivada no bloco e não vem do ambiente — chega vazia e o comando roda contra caminho errado",
+      "quote": "python3 \"$(bash \"${CLAUDE_PLUGIN_ROOT}/lib/resolve-plugin.sh\" project-skills lib/pattern_check.py)\" --project-root \"<root>\""
+    },
+    {
+      "rule": "A3-variavel-vazia",
+      "who": "plugins/project-skills/skills/doc/SKILL.md",
+      "line": 518,
+      "msg": "$CLAUDE_PLUGIN_ROOT não é derivada no bloco e não vem do ambiente — chega vazia e o comando roda contra caminho errado",
+      "quote": "python3 \"$(bash \"${CLAUDE_PLUGIN_ROOT}/lib/resolve-plugin.sh\" project-skills lib/pattern_check.py)\" --sig <docfile>"
+    },
+    {
+      "rule": "A1-caminho-local",
+      "who": "plugins/project-skills/skills/doc/SKILL.md",
+      "line": 555,
+      "msg": "caminho `plugins/project-skills/…` só existe neste repositório — na máquina de quem instala o plugin mora no cache do harness",
+      "quote": "grep -rn \"gen=3\\.\" plugins/project-skills/skills/"
+    },
+    {
+      "rule": "A3-variavel-vazia",
+      "who": "plugins/project-skills/skills/doc/SKILL.md",
+      "line": 591,
+      "msg": "$CLAUDE_PLUGIN_ROOT não é derivada no bloco e não vem do ambiente — chega vazia e o comando roda contra caminho errado",
+      "quote": "python3 \"$(bash \"${CLAUDE_PLUGIN_ROOT}/lib/resolve-plugin.sh\" project-skills lib/pattern_check.py)\" --project-root \"<root>\""
+    },
+    {
+      "rule": "A3-variavel-vazia",
+      "who": "plugins/project-skills/skills/doc/SKILL.md",
+      "line": 593,
+      "msg": "$CLAUDE_PLUGIN_ROOT não é derivada no bloco e não vem do ambiente — chega vazia e o comando roda contra caminho errado",
+      "quote": "python3 \"$(bash \"${CLAUDE_PLUGIN_ROOT}/lib/resolve-plugin.sh\" project-skills lib/pattern_check.py)\" --sig <docfile>"
+    },
+    {
+      "rule": "A2-placeholder-orfao",
+      "who": "plugins/project-skills/skills/doc/SKILL.md",
+      "line": 688,
+      "msg": "placeholder <script> não é definido em lugar nenhum do arquivo — o agente teria que adivinhar",
+      "quote": "python3 scripts/<script>.py"
+    },
+    {
+      "rule": "A3-variavel-vazia",
+      "who": "plugins/project-skills/skills/monitorar/SKILL.md",
+      "line": 15,
+      "msg": "$CLAUDE_PLUGIN_ROOT não é derivada no bloco e não vem do ambiente — chega vazia e o comando roda contra caminho errado",
+      "quote": "python3 \"${CLAUDE_PLUGIN_ROOT}/lib/andamento.py\""
+    },
+    {
+      "rule": "A2-placeholder-orfao",
+      "who": "plugins/project-skills/skills/plan/SKILL.md",
+      "line": 14,
+      "msg": "placeholder <plugin project-skills> não é definido em lugar nenhum do arquivo — o agente teria que adivinhar",
+      "quote": "python3 \"$(bash \"<plugin project-skills>/lib/resolve-plugin.sh\" project-skills lib/doc_load.py)\" --project-root \"$PWD\""
+    },
+    {
+      "rule": "A2-placeholder-orfao",
+      "who": "plugins/project-skills/skills/plan/SKILL.md",
+      "line": 34,
+      "msg": "placeholder <plugin project-skills> não é definido em lugar nenhum do arquivo — o agente teria que adivinhar",
+      "quote": "python3 <plugin project-skills>/lib/plan_state.py open"
+    },
+    {
+      "rule": "A3-variavel-vazia",
+      "who": "plugins/project-skills/skills/plan/SKILL.md",
+      "line": 67,
+      "msg": "$CLAUDE_PLUGIN_ROOT não é derivada no bloco e não vem do ambiente — chega vazia e o comando roda contra caminho errado",
+      "quote": "PS=\"$(bash \"${CLAUDE_PLUGIN_ROOT}/lib/resolve-plugin.sh\" project-skills lib/plan_state.py)\""
+    },
+    {
+      "rule": "A2-placeholder-orfao",
+      "who": "plugins/project-skills/skills/plan/SKILL.md",
+      "line": 166,
+      "msg": "placeholder <plugin project-skills> não é definido em lugar nenhum do arquivo — o agente teria que adivinhar",
+      "quote": "python3 <plugin project-skills>/lib/plan_state.py init --file <arquivo.json>"
+    },
+    {
+      "rule": "A2-placeholder-orfao",
+      "who": "plugins/project-skills/skills/plan/SKILL.md",
+      "line": 166,
+      "msg": "placeholder <arquivo.json> não é definido em lugar nenhum do arquivo — o agente teria que adivinhar",
+      "quote": "python3 <plugin project-skills>/lib/plan_state.py init --file <arquivo.json>"
+    },
+    {
+      "rule": "A3-variavel-vazia",
+      "who": "plugins/project-skills/skills/project-skills/SKILL.md",
+      "line": 14,
+      "msg": "$CLAUDE_PLUGIN_ROOT não é derivada no bloco e não vem do ambiente — chega vazia e o comando roda contra caminho errado",
+      "quote": "ls \"${CLAUDE_PLUGIN_ROOT}/skills\""
+    },
+    {
+      "rule": "A2-placeholder-orfao",
+      "who": "plugins/project-skills/skills/qa-loop/SKILL.md",
+      "line": 14,
+      "msg": "placeholder <plugin project-skills> não é definido em lugar nenhum do arquivo — o agente teria que adivinhar",
+      "quote": "python3 \"$(bash \"<plugin project-skills>/lib/resolve-plugin.sh\" project-skills lib/doc_load.py)\" --project-root \"$PWD\""
+    },
+    {
+      "rule": "A2-placeholder-orfao",
+      "who": "plugins/project-skills/skills/qa-loop/SKILL.md",
+      "line": 113,
+      "msg": "placeholder <skill_dir> não é definido em lugar nenhum do arquivo — o agente teria que adivinhar",
+      "quote": "python3 \"<skill_dir>/references/r8_tiers.py\" args"
+    },
+    {
+      "rule": "A3-variavel-vazia",
+      "who": "plugins/project-skills/skills/qa-loop/SKILL.md",
+      "line": 213,
+      "msg": "$CLAUDE_PLUGIN_ROOT não é derivada no bloco e não vem do ambiente — chega vazia e o comando roda contra caminho errado",
+      "quote": "RESERVA=\"$(bash \"${CLAUDE_PLUGIN_ROOT}/skills/qa-loop/resolve-plugin.sh\" project-skills hooks/reserva-de-arquivos.sh)\""
+    },
+    {
+      "rule": "A3-variavel-vazia",
+      "who": "plugins/project-skills/skills/qa-loop/SKILL.md",
+      "line": 214,
+      "msg": "$CLAUDE_SESSION_ID não é derivada no bloco e não vem do ambiente — chega vazia e o comando roda contra caminho errado",
+      "quote": "[ -n \"$RESERVA\" ] && sh \"$RESERVA\" reservar \"${CLAUDE_SESSION_ID}\" qa-loop $ARQUIVOS_DO_REVIEW"
+    },
+    {
+      "rule": "A3-variavel-vazia",
+      "who": "plugins/project-skills/skills/qa-loop/SKILL.md",
+      "line": 214,
+      "msg": "$ARQUIVOS_DO_REVIEW não é derivada no bloco e não vem do ambiente — chega vazia e o comando roda contra caminho errado",
+      "quote": "[ -n \"$RESERVA\" ] && sh \"$RESERVA\" reservar \"${CLAUDE_SESSION_ID}\" qa-loop $ARQUIVOS_DO_REVIEW"
+    },
+    {
+      "rule": "A3-variavel-vazia",
+      "who": "plugins/project-skills/skills/qa-loop/SKILL.md",
+      "line": 230,
+      "msg": "$CLAUDE_PLUGIN_ROOT não é derivada no bloco e não vem do ambiente — chega vazia e o comando roda contra caminho errado",
+      "quote": "RESERVA=\"$(bash \"${CLAUDE_PLUGIN_ROOT}/skills/qa-loop/resolve-plugin.sh\" project-skills hooks/reserva-de-arquivos.sh)\""
+    },
+    {
+      "rule": "A3-variavel-vazia",
+      "who": "plugins/project-skills/skills/qa-loop/SKILL.md",
+      "line": 231,
+      "msg": "$CLAUDE_SESSION_ID não é derivada no bloco e não vem do ambiente — chega vazia e o comando roda contra caminho errado",
+      "quote": "[ -n \"$RESERVA\" ] && sh \"$RESERVA\" liberar \"${CLAUDE_SESSION_ID}\" qa-loop"
+    },
+    {
+      "rule": "A3-variavel-vazia",
+      "who": "plugins/project-skills/skills/qa-loop/SKILL.md",
+      "line": 283,
+      "msg": "$CLAUDE_CONFIG_DIR não é derivada no bloco e não vem do ambiente — chega vazia e o comando roda contra caminho errado",
+      "quote": "ADIR=\"${CLAUDE_CONFIG_DIR:-$HOME/.claude}/andamento\""
+    },
+    {
+      "rule": "A3-variavel-vazia",
+      "who": "plugins/project-skills/skills/qa-loop/SKILL.md",
+      "line": 285,
+      "msg": "$CLAUDE_CODE_SESSION_ID não é derivada no bloco e não vem do ambiente — chega vazia e o comando roda contra caminho errado",
+      "quote": "printf 'qa-loop\\n' > \"$ADIR/ativo-$CLAUDE_CODE_SESSION_ID\"     # ao disparar o Workflow"
+    },
+    {
+      "rule": "A3-variavel-vazia",
+      "who": "plugins/project-skills/skills/qa-loop/SKILL.md",
+      "line": 293,
+      "msg": "$CLAUDE_PLUGIN_ROOT não é derivada no bloco e não vem do ambiente — chega vazia e o comando roda contra caminho errado",
+      "quote": "AND=\"$(bash \"${CLAUDE_PLUGIN_ROOT}/lib/resolve-plugin.sh\" project-skills lib/andamento.py)\""
+    },
+    {
+      "rule": "A2-placeholder-orfao",
+      "who": "plugins/project-skills/skills/qa-loop/SKILL.md",
+      "line": 294,
+      "msg": "placeholder <rodada> não é definido em lugar nenhum do arquivo — o agente teria que adivinhar",
+      "quote": "python3 \"$AND\" onda \"$CLAUDE_CODE_SESSION_ID\" <rodada> --etapa \"revisando\" || true"
+    },
+    {
+      "rule": "A3-variavel-vazia",
+      "who": "plugins/project-skills/skills/qa-loop/SKILL.md",
+      "line": 294,
+      "msg": "$CLAUDE_CODE_SESSION_ID não é derivada no bloco e não vem do ambiente — chega vazia e o comando roda contra caminho errado",
+      "quote": "python3 \"$AND\" onda \"$CLAUDE_CODE_SESSION_ID\" <rodada> --etapa \"revisando\" || true"
+    },
+    {
+      "rule": "A3-variavel-vazia",
+      "who": "plugins/project-skills/skills/qa-loop/SKILL.md",
+      "line": 306,
+      "msg": "$CLAUDE_PLUGIN_ROOT não é derivada no bloco e não vem do ambiente — chega vazia e o comando roda contra caminho errado",
+      "quote": "python3 \"$(bash \"${CLAUDE_PLUGIN_ROOT}/lib/resolve-plugin.sh\" project-skills lib/andamento.py)\" encerra \"$CLAUDE_CODE_SESSION_ID\" qa-loop"
+    },
+    {
+      "rule": "A3-variavel-vazia",
+      "who": "plugins/project-skills/skills/qa-loop/SKILL.md",
+      "line": 306,
+      "msg": "$CLAUDE_CODE_SESSION_ID não é derivada no bloco e não vem do ambiente — chega vazia e o comando roda contra caminho errado",
+      "quote": "python3 \"$(bash \"${CLAUDE_PLUGIN_ROOT}/lib/resolve-plugin.sh\" project-skills lib/andamento.py)\" encerra \"$CLAUDE_CODE_SESSION_ID\" qa-loop"
+    },
+    {
+      "rule": "A3-variavel-vazia",
+      "who": "plugins/project-skills/skills/qa-loop/SKILL.md",
+      "line": 335,
+      "msg": "$CLAUDE_PLUGIN_ROOT não é derivada no bloco e não vem do ambiente — chega vazia e o comando roda contra caminho errado",
+      "quote": "MOTOR=\"$(bash \"${CLAUDE_PLUGIN_ROOT}/lib/resolve-plugin.sh\" project-skills skills/qa-loop/references/motor.js)\""
+    },
+    {
+      "rule": "A3-variavel-vazia",
+      "who": "plugins/project-skills/skills/qa-loop/SKILL.md",
+      "line": 689,
+      "msg": "$CLAUDE_PLUGIN_ROOT não é derivada no bloco e não vem do ambiente — chega vazia e o comando roda contra caminho errado",
+      "quote": "source \"$(bash \"${CLAUDE_PLUGIN_ROOT}/lib/resolve-plugin.sh\" project-skills lib/green-cache.sh)\""
+    },
+    {
+      "rule": "A2-placeholder-orfao",
+      "who": "plugins/project-skills/skills/qa-loop/SKILL.md",
+      "line": 731,
+      "msg": "placeholder <visual> não é definido em lugar nenhum do arquivo — o agente teria que adivinhar",
+      "quote": "python3 <visual>/lib/visual_page.py build --spec <f>"
+    },
+    {
+      "rule": "A2-placeholder-orfao",
+      "who": "plugins/project-skills/skills/qa-loop/SKILL.md",
+      "line": 731,
+      "msg": "placeholder <f> não é definido em lugar nenhum do arquivo — o agente teria que adivinhar",
+      "quote": "python3 <visual>/lib/visual_page.py build --spec <f>"
+    },
+    {
+      "rule": "A2-placeholder-orfao",
+      "who": "plugins/project-skills/skills/sprint/SKILL.md",
+      "line": 40,
+      "msg": "placeholder <plugin project-skills> não é definido em lugar nenhum do arquivo — o agente teria que adivinhar",
+      "quote": "python3 \"$(bash \"<plugin project-skills>/lib/resolve-plugin.sh\" project-skills lib/doc_load.py)\" --project-root \"$PWD\" --json"
+    },
+    {
+      "rule": "A3-variavel-vazia",
+      "who": "plugins/project-skills/skills/sprint/SKILL.md",
+      "line": 57,
+      "msg": "$CLAUDE_CONFIG_DIR não é derivada no bloco e não vem do ambiente — chega vazia e o comando roda contra caminho errado",
+      "quote": "SPRINT_DIR=\"${CLAUDE_CONFIG_DIR:-$HOME/.claude}/andamento\""
+    },
+    {
+      "rule": "A3-variavel-vazia",
+      "who": "plugins/project-skills/skills/sprint/SKILL.md",
+      "line": 58,
+      "msg": "$SPRINT_DIR não é derivada no bloco e não vem do ambiente — chega vazia e o comando roda contra caminho errado",
+      "quote": "mkdir -p \"$SPRINT_DIR\""
+    },
+    {
+      "rule": "A3-variavel-vazia",
+      "who": "plugins/project-skills/skills/sprint/SKILL.md",
+      "line": 65,
+      "msg": "$CLAUDE_PLUGIN_ROOT não é derivada no bloco e não vem do ambiente — chega vazia e o comando roda contra caminho errado",
+      "quote": "LEDGER=\"$(bash \"${CLAUDE_PLUGIN_ROOT}/lib/resolve-plugin.sh\" project-skills lib/ledger_corridas.py)\""
+    },
+    {
+      "rule": "A3-variavel-vazia",
+      "who": "plugins/project-skills/skills/sprint/SKILL.md",
+      "line": 66,
+      "msg": "$LEDGER não é derivada no bloco e não vem do ambiente — chega vazia e o comando roda contra caminho errado",
+      "quote": "python3 \"$LEDGER\" relance --project-root \"$REPO_ROOT\" --missao \"$PLAN_PATH\" || exit $?"
+    },
+    {
+      "rule": "A3-variavel-vazia",
+      "who": "plugins/project-skills/skills/sprint/SKILL.md",
+      "line": 66,
+      "msg": "$REPO_ROOT não é derivada no bloco e não vem do ambiente — chega vazia e o comando roda contra caminho errado",
+      "quote": "python3 \"$LEDGER\" relance --project-root \"$REPO_ROOT\" --missao \"$PLAN_PATH\" || exit $?"
+    },
+    {
+      "rule": "A3-variavel-vazia",
+      "who": "plugins/project-skills/skills/sprint/SKILL.md",
+      "line": 67,
+      "msg": "$CLAUDE_PLUGIN_ROOT não é derivada no bloco e não vem do ambiente — chega vazia e o comando roda contra caminho errado",
+      "quote": "ANDAMENTO=\"$(bash \"${CLAUDE_PLUGIN_ROOT}/lib/resolve-plugin.sh\" project-skills lib/andamento.py)\""
+    },
+    {
+      "rule": "A3-variavel-vazia",
+      "who": "plugins/project-skills/skills/sprint/SKILL.md",
+      "line": 68,
+      "msg": "$ANDAMENTO não é derivada no bloco e não vem do ambiente — chega vazia e o comando roda contra caminho errado",
+      "quote": "python3 \"$ANDAMENTO\" arma \"$CLAUDE_CODE_SESSION_ID\" sprint \"$SPRINT_MOTOR_ID\""
+    },
+    {
+      "rule": "A3-variavel-vazia",
+      "who": "plugins/project-skills/skills/sprint/SKILL.md",
+      "line": 68,
+      "msg": "$CLAUDE_CODE_SESSION_ID não é derivada no bloco e não vem do ambiente — chega vazia e o comando roda contra caminho errado",
+      "quote": "python3 \"$ANDAMENTO\" arma \"$CLAUDE_CODE_SESSION_ID\" sprint \"$SPRINT_MOTOR_ID\""
+    },
+    {
+      "rule": "A3-variavel-vazia",
+      "who": "plugins/project-skills/skills/sprint/SKILL.md",
+      "line": 68,
+      "msg": "$SPRINT_MOTOR_ID não é derivada no bloco e não vem do ambiente — chega vazia e o comando roda contra caminho errado",
+      "quote": "python3 \"$ANDAMENTO\" arma \"$CLAUDE_CODE_SESSION_ID\" sprint \"$SPRINT_MOTOR_ID\""
+    },
+    {
+      "rule": "A3-variavel-vazia",
+      "who": "plugins/project-skills/skills/sprint/SKILL.md",
+      "line": 75,
+      "msg": "$LEDGER não é derivada no bloco e não vem do ambiente — chega vazia e o comando roda contra caminho errado",
+      "quote": "python3 \"$LEDGER\" abre --project-root \"$REPO_ROOT\" --run-id \"$SPRINT_MOTOR_ID\" \\"
+    },
+    {
+      "rule": "A3-variavel-vazia",
+      "who": "plugins/project-skills/skills/sprint/SKILL.md",
+      "line": 75,
+      "msg": "$REPO_ROOT não é derivada no bloco e não vem do ambiente — chega vazia e o comando roda contra caminho errado",
+      "quote": "python3 \"$LEDGER\" abre --project-root \"$REPO_ROOT\" --run-id \"$SPRINT_MOTOR_ID\" \\"
+    },
+    {
+      "rule": "A3-variavel-vazia",
+      "who": "plugins/project-skills/skills/sprint/SKILL.md",
+      "line": 75,
+      "msg": "$SPRINT_MOTOR_ID não é derivada no bloco e não vem do ambiente — chega vazia e o comando roda contra caminho errado",
+      "quote": "python3 \"$LEDGER\" abre --project-root \"$REPO_ROOT\" --run-id \"$SPRINT_MOTOR_ID\" \\"
+    },
+    {
+      "rule": "A3-variavel-vazia",
+      "who": "plugins/project-skills/skills/sprint/SKILL.md",
+      "line": 76,
+      "msg": "$SPRINT_INICIO não é derivada no bloco e não vem do ambiente — chega vazia e o comando roda contra caminho errado",
+      "quote": "--missao \"$PLAN_PATH\" --total \"$TOTAL_DE_PASSOS\" --inicio \"$SPRINT_INICIO\""
+    },
+    {
+      "rule": "A3-variavel-vazia",
+      "who": "plugins/project-skills/skills/sprint/SKILL.md",
+      "line": 77,
+      "msg": "$SPRINT_MOTOR_ID não é derivada no bloco e não vem do ambiente — chega vazia e o comando roda contra caminho errado",
+      "quote": "echo \"$SPRINT_MOTOR_ID $SPRINT_INICIO\"   # ANOTE OS DOIS: cada ```bash é uma chamada à"
+    },
+    {
+      "rule": "A3-variavel-vazia",
+      "who": "plugins/project-skills/skills/sprint/SKILL.md",
+      "line": 77,
+      "msg": "$SPRINT_INICIO não é derivada no bloco e não vem do ambiente — chega vazia e o comando roda contra caminho errado",
+      "quote": "echo \"$SPRINT_MOTOR_ID $SPRINT_INICIO\"   # ANOTE OS DOIS: cada ```bash é uma chamada à"
+    },
+    {
+      "rule": "A3-variavel-vazia",
+      "who": "plugins/project-skills/skills/sprint/SKILL.md",
+      "line": 88,
+      "msg": "$CLAUDE_PLUGIN_ROOT não é derivada no bloco e não vem do ambiente — chega vazia e o comando roda contra caminho errado",
+      "quote": "ANDAMENTO=\"$(bash \"${CLAUDE_PLUGIN_ROOT}/lib/resolve-plugin.sh\" project-skills lib/andamento.py)\""
+    },
+    {
+      "rule": "A3-variavel-vazia",
+      "who": "plugins/project-skills/skills/sprint/SKILL.md",
+      "line": 89,
+      "msg": "$ANDAMENTO não é derivada no bloco e não vem do ambiente — chega vazia e o comando roda contra caminho errado",
+      "quote": "python3 \"$ANDAMENTO\" encerra \"$CLAUDE_CODE_SESSION_ID\" sprint \"$MOTOR_MORTO\""
+    },
+    {
+      "rule": "A3-variavel-vazia",
+      "who": "plugins/project-skills/skills/sprint/SKILL.md",
+      "line": 89,
+      "msg": "$CLAUDE_CODE_SESSION_ID não é derivada no bloco e não vem do ambiente — chega vazia e o comando roda contra caminho errado",
+      "quote": "python3 \"$ANDAMENTO\" encerra \"$CLAUDE_CODE_SESSION_ID\" sprint \"$MOTOR_MORTO\""
+    },
+    {
+      "rule": "A3-variavel-vazia",
+      "who": "plugins/project-skills/skills/sprint/SKILL.md",
+      "line": 89,
+      "msg": "$MOTOR_MORTO não é derivada no bloco e não vem do ambiente — chega vazia e o comando roda contra caminho errado",
+      "quote": "python3 \"$ANDAMENTO\" encerra \"$CLAUDE_CODE_SESSION_ID\" sprint \"$MOTOR_MORTO\""
+    },
+    {
+      "rule": "A3-variavel-vazia",
+      "who": "plugins/project-skills/skills/sprint/SKILL.md",
+      "line": 95,
+      "msg": "$CLAUDE_PLUGIN_ROOT não é derivada no bloco e não vem do ambiente — chega vazia e o comando roda contra caminho errado",
+      "quote": "RESERVA_SH=\"$(bash \"${CLAUDE_PLUGIN_ROOT}/lib/resolve-plugin.sh\" project-skills hooks/reserva-de-arquivos.sh)\""
+    },
+    {
+      "rule": "A3-variavel-vazia",
+      "who": "plugins/project-skills/skills/sprint/SKILL.md",
+      "line": 96,
+      "msg": "$RESERVA_SH não é derivada no bloco e não vem do ambiente — chega vazia e o comando roda contra caminho errado",
+      "quote": "bash \"$RESERVA_SH\" liberar \"$CLAUDE_CODE_SESSION_ID\" \"$MOTOR_MORTO\""
+    },
+    {
+      "rule": "A3-variavel-vazia",
+      "who": "plugins/project-skills/skills/sprint/SKILL.md",
+      "line": 96,
+      "msg": "$CLAUDE_CODE_SESSION_ID não é derivada no bloco e não vem do ambiente — chega vazia e o comando roda contra caminho errado",
+      "quote": "bash \"$RESERVA_SH\" liberar \"$CLAUDE_CODE_SESSION_ID\" \"$MOTOR_MORTO\""
+    },
+    {
+      "rule": "A3-variavel-vazia",
+      "who": "plugins/project-skills/skills/sprint/SKILL.md",
+      "line": 96,
+      "msg": "$MOTOR_MORTO não é derivada no bloco e não vem do ambiente — chega vazia e o comando roda contra caminho errado",
+      "quote": "bash \"$RESERVA_SH\" liberar \"$CLAUDE_CODE_SESSION_ID\" \"$MOTOR_MORTO\""
+    },
+    {
+      "rule": "A3-variavel-vazia",
+      "who": "plugins/project-skills/skills/sprint/SKILL.md",
+      "line": 104,
+      "msg": "$CLAUDE_PLUGIN_ROOT não é derivada no bloco e não vem do ambiente — chega vazia e o comando roda contra caminho errado",
+      "quote": "LEDGER=\"$(bash \"${CLAUDE_PLUGIN_ROOT}/lib/resolve-plugin.sh\" project-skills lib/ledger_corridas.py)\""
+    },
+    {
+      "rule": "A3-variavel-vazia",
+      "who": "plugins/project-skills/skills/sprint/SKILL.md",
+      "line": 105,
+      "msg": "$LEDGER não é derivada no bloco e não vem do ambiente — chega vazia e o comando roda contra caminho errado",
+      "quote": "python3 \"$LEDGER\" registra-run --project-root \"$REPO_ROOT\" \\"
+    },
+    {
+      "rule": "A3-variavel-vazia",
+      "who": "plugins/project-skills/skills/sprint/SKILL.md",
+      "line": 105,
+      "msg": "$REPO_ROOT não é derivada no bloco e não vem do ambiente — chega vazia e o comando roda contra caminho errado",
+      "quote": "python3 \"$LEDGER\" registra-run --project-root \"$REPO_ROOT\" \\"
+    },
+    {
+      "rule": "A3-variavel-vazia",
+      "who": "plugins/project-skills/skills/sprint/SKILL.md",
+      "line": 106,
+      "msg": "$MOTOR_MORTO não é derivada no bloco e não vem do ambiente — chega vazia e o comando roda contra caminho errado",
+      "quote": "--run-id \"$MOTOR_MORTO\" --missao \"$PLAN_PATH\" --total \"$TOTAL_DE_PASSOS\" \\"
+    },
+    {
+      "rule": "A3-variavel-vazia",
+      "who": "plugins/project-skills/skills/sprint/SKILL.md",
+      "line": 107,
+      "msg": "$SPRINT_INICIO não é derivada no bloco e não vem do ambiente — chega vazia e o comando roda contra caminho errado",
+      "quote": "--inicio \"$SPRINT_INICIO\" --json - <<'RETORNO_DO_MOTOR'"
+    },
+    {
+      "rule": "A3-variavel-vazia",
+      "who": "plugins/project-skills/skills/sprint/SKILL.md",
+      "line": 197,
+      "msg": "$CLAUDE_PLUGIN_ROOT não é derivada no bloco e não vem do ambiente — chega vazia e o comando roda contra caminho errado",
+      "quote": "PLAN_STATE=\"$(bash \"${CLAUDE_PLUGIN_ROOT}/lib/resolve-plugin.sh\" project-skills lib/plan_state.py)\""
+    },
+    {
+      "rule": "A3-variavel-vazia",
+      "who": "plugins/project-skills/skills/sprint/SKILL.md",
+      "line": 199,
+      "msg": "$PLANO não é derivada no bloco e não vem do ambiente — chega vazia e o comando roda contra caminho errado",
+      "quote": "python3 - \"$PLAN_STATE\" \"$PLANO\" <<'PY'"
+    },
+    {
+      "rule": "A3-variavel-vazia",
+      "who": "plugins/project-skills/skills/sprint/SKILL.md",
+      "line": 253,
+      "msg": "$CLAUDE_CONFIG_DIR não é derivada no bloco e não vem do ambiente — chega vazia e o comando roda contra caminho errado",
+      "quote": "SPRINT_DIR=\"${CLAUDE_CONFIG_DIR:-$HOME/.claude}/andamento\""
+    },
+    {
+      "rule": "A3-variavel-vazia",
+      "who": "plugins/project-skills/skills/sprint/SKILL.md",
+      "line": 255,
+      "msg": "$CLAUDE_CODE_SESSION_ID não é derivada no bloco e não vem do ambiente — chega vazia e o comando roda contra caminho errado",
+      "quote": "BUILD_LOG=\"$SPRINT_DIR/build-$CLAUDE_CODE_SESSION_ID.log\""
+    },
+    {
+      "rule": "A3-variavel-vazia",
+      "who": "plugins/project-skills/skills/sprint/SKILL.md",
+      "line": 258,
+      "msg": "$SPRINT_BUILD_CMD não é derivada no bloco e não vem do ambiente — chega vazia e o comando roda contra caminho errado",
+      "quote": "if [ -n \"$SPRINT_BUILD_CMD\" ] && ( cd \"$SPRINT_REPO_ROOT\" && sh -c \"$SPRINT_BUILD_CMD\" ) >\"$BUILD_LOG\" 2>&1"
+    },
+    {
+      "rule": "A3-variavel-vazia",
+      "who": "plugins/project-skills/skills/sprint/SKILL.md",
+      "line": 258,
+      "msg": "$SPRINT_REPO_ROOT não é derivada no bloco e não vem do ambiente — chega vazia e o comando roda contra caminho errado",
+      "quote": "if [ -n \"$SPRINT_BUILD_CMD\" ] && ( cd \"$SPRINT_REPO_ROOT\" && sh -c \"$SPRINT_BUILD_CMD\" ) >\"$BUILD_LOG\" 2>&1"
+    },
+    {
+      "rule": "A3-variavel-vazia",
+      "who": "plugins/project-skills/skills/sprint/SKILL.md",
+      "line": 258,
+      "msg": "$SPRINT_BUILD_CMD não é derivada no bloco e não vem do ambiente — chega vazia e o comando roda contra caminho errado",
+      "quote": "if [ -n \"$SPRINT_BUILD_CMD\" ] && ( cd \"$SPRINT_REPO_ROOT\" && sh -c \"$SPRINT_BUILD_CMD\" ) >\"$BUILD_LOG\" 2>&1"
+    },
+    {
+      "rule": "A3-variavel-vazia",
+      "who": "plugins/project-skills/skills/sprint/SKILL.md",
+      "line": 258,
+      "msg": "$BUILD_LOG não é derivada no bloco e não vem do ambiente — chega vazia e o comando roda contra caminho errado",
+      "quote": "if [ -n \"$SPRINT_BUILD_CMD\" ] && ( cd \"$SPRINT_REPO_ROOT\" && sh -c \"$SPRINT_BUILD_CMD\" ) >\"$BUILD_LOG\" 2>&1"
+    },
+    {
+      "rule": "A3-variavel-vazia",
+      "who": "plugins/project-skills/skills/sprint/SKILL.md",
+      "line": 262,
+      "msg": "$BUILD_WARM não é derivada no bloco e não vem do ambiente — chega vazia e o comando roda contra caminho errado",
+      "quote": "echo \"buildWarm=$BUILD_WARM\""
+    },
+    {
+      "rule": "A3-variavel-vazia",
+      "who": "plugins/project-skills/skills/sprint/SKILL.md",
+      "line": 286,
+      "msg": "$CLAUDE_PLUGIN_ROOT não é derivada no bloco e não vem do ambiente — chega vazia e o comando roda contra caminho errado",
+      "quote": "PLAN_STATE=\"$(bash \"${CLAUDE_PLUGIN_ROOT}/lib/resolve-plugin.sh\" project-skills lib/plan_state.py)\""
+    },
+    {
+      "rule": "A2-placeholder-orfao",
+      "who": "plugins/project-skills/skills/sprint/SKILL.md",
+      "line": 288,
+      "msg": "placeholder <id do plano da missão> não é definido em lugar nenhum do arquivo — o agente teria que adivinhar",
+      "quote": "PLAN_ID=\"<id do plano da missão>\""
+    },
+    {
+      "rule": "A3-variavel-vazia",
+      "who": "plugins/project-skills/skills/sprint/SKILL.md",
+      "line": 289,
+      "msg": "$MAIN_ROOT não é derivada no bloco e não vem do ambiente — chega vazia e o comando roda contra caminho errado",
+      "quote": "WORKTREE=\"$HOME/.claude/worktrees/$(basename \"$MAIN_ROOT\")/$PLAN_ID\""
+    },
+    {
+      "rule": "A3-variavel-vazia",
+      "who": "plugins/project-skills/skills/sprint/SKILL.md",
+      "line": 289,
+      "msg": "$PLAN_ID não é derivada no bloco e não vem do ambiente — chega vazia e o comando roda contra caminho errado",
+      "quote": "WORKTREE=\"$HOME/.claude/worktrees/$(basename \"$MAIN_ROOT\")/$PLAN_ID\""
+    },
+    {
+      "rule": "A3-variavel-vazia",
+      "who": "plugins/project-skills/skills/sprint/SKILL.md",
+      "line": 293,
+      "msg": "$MAIN_ROOT não é derivada no bloco e não vem do ambiente — chega vazia e o comando roda contra caminho errado",
+      "quote": "\"$MAIN_ROOT/.claude/plans/$PLAN_ID.plan.json\")\""
+    },
+    {
+      "rule": "A3-variavel-vazia",
+      "who": "plugins/project-skills/skills/sprint/SKILL.md",
+      "line": 293,
+      "msg": "$PLAN_ID não é derivada no bloco e não vem do ambiente — chega vazia e o comando roda contra caminho errado",
+      "quote": "\"$MAIN_ROOT/.claude/plans/$PLAN_ID.plan.json\")\""
+    },
+    {
+      "rule": "A3-variavel-vazia",
+      "who": "plugins/project-skills/skills/sprint/SKILL.md",
+      "line": 294,
+      "msg": "$BRANCH não é derivada no bloco e não vem do ambiente — chega vazia e o comando roda contra caminho errado",
+      "quote": "BRANCH=\"${BRANCH:-frente/$PLAN_ID}\""
+    },
+    {
+      "rule": "A3-variavel-vazia",
+      "who": "plugins/project-skills/skills/sprint/SKILL.md",
+      "line": 294,
+      "msg": "$PLAN_ID não é derivada no bloco e não vem do ambiente — chega vazia e o comando roda contra caminho errado",
+      "quote": "BRANCH=\"${BRANCH:-frente/$PLAN_ID}\""
+    },
+    {
+      "rule": "A3-variavel-vazia",
+      "who": "plugins/project-skills/skills/sprint/SKILL.md",
+      "line": 300,
+      "msg": "$BRANCH não é derivada no bloco e não vem do ambiente — chega vazia e o comando roda contra caminho errado",
+      "quote": "git show-ref --verify --quiet \"refs/heads/$BRANCH\" \\"
+    },
+    {
+      "rule": "A3-variavel-vazia",
+      "who": "plugins/project-skills/skills/sprint/SKILL.md",
+      "line": 301,
+      "msg": "$BRANCH não é derivada no bloco e não vem do ambiente — chega vazia e o comando roda contra caminho errado",
+      "quote": "|| git branch \"$BRANCH\" \"${MAIN:-main}\""
+    },
+    {
+      "rule": "A3-variavel-vazia",
+      "who": "plugins/project-skills/skills/sprint/SKILL.md",
+      "line": 301,
+      "msg": "$MAIN não é derivada no bloco e não vem do ambiente — chega vazia e o comando roda contra caminho errado",
+      "quote": "|| git branch \"$BRANCH\" \"${MAIN:-main}\""
+    },
+    {
+      "rule": "A3-variavel-vazia",
+      "who": "plugins/project-skills/skills/sprint/SKILL.md",
+      "line": 302,
+      "msg": "$WORKTREE não é derivada no bloco e não vem do ambiente — chega vazia e o comando roda contra caminho errado",
+      "quote": "[ -d \"$WORKTREE\" ] || git worktree add \"$WORKTREE\" \"$BRANCH\""
+    },
+    {
+      "rule": "A3-variavel-vazia",
+      "who": "plugins/project-skills/skills/sprint/SKILL.md",
+      "line": 302,
+      "msg": "$WORKTREE não é derivada no bloco e não vem do ambiente — chega vazia e o comando roda contra caminho errado",
+      "quote": "[ -d \"$WORKTREE\" ] || git worktree add \"$WORKTREE\" \"$BRANCH\""
+    },
+    {
+      "rule": "A3-variavel-vazia",
+      "who": "plugins/project-skills/skills/sprint/SKILL.md",
+      "line": 302,
+      "msg": "$BRANCH não é derivada no bloco e não vem do ambiente — chega vazia e o comando roda contra caminho errado",
+      "quote": "[ -d \"$WORKTREE\" ] || git worktree add \"$WORKTREE\" \"$BRANCH\""
+    },
+    {
+      "rule": "A3-variavel-vazia",
+      "who": "plugins/project-skills/skills/sprint/SKILL.md",
+      "line": 305,
+      "msg": "$PLAN_ID não é derivada no bloco e não vem do ambiente — chega vazia e o comando roda contra caminho errado",
+      "quote": "python3 \"$PLAN_STATE\" frente \"$PLAN_ID\" \"$BRANCH\" \"$WORKTREE\""
+    },
+    {
+      "rule": "A3-variavel-vazia",
+      "who": "plugins/project-skills/skills/sprint/SKILL.md",
+      "line": 305,
+      "msg": "$BRANCH não é derivada no bloco e não vem do ambiente — chega vazia e o comando roda contra caminho errado",
+      "quote": "python3 \"$PLAN_STATE\" frente \"$PLAN_ID\" \"$BRANCH\" \"$WORKTREE\""
+    },
+    {
+      "rule": "A3-variavel-vazia",
+      "who": "plugins/project-skills/skills/sprint/SKILL.md",
+      "line": 305,
+      "msg": "$WORKTREE não é derivada no bloco e não vem do ambiente — chega vazia e o comando roda contra caminho errado",
+      "quote": "python3 \"$PLAN_STATE\" frente \"$PLAN_ID\" \"$BRANCH\" \"$WORKTREE\""
+    },
+    {
+      "rule": "A2-placeholder-orfao",
+      "who": "plugins/project-skills/skills/sprint/SKILL.md",
+      "line": 328,
+      "msg": "placeholder <raiz-principal> não é definido em lugar nenhum do arquivo — o agente teria que adivinhar",
+      "quote": "PLAN_FILE=\"<raiz-principal>/.claude/plans/<planId>.plan.json\""
+    },
+    {
+      "rule": "A2-placeholder-orfao",
+      "who": "plugins/project-skills/skills/sprint/SKILL.md",
+      "line": 328,
+      "msg": "placeholder <planId> não é definido em lugar nenhum do arquivo — o agente teria que adivinhar",
+      "quote": "PLAN_FILE=\"<raiz-principal>/.claude/plans/<planId>.plan.json\""
+    },
+    {
+      "rule": "A3-variavel-vazia",
+      "who": "plugins/project-skills/skills/sprint/SKILL.md",
+      "line": 329,
+      "msg": "$PLAN_FILE não é derivada no bloco e não vem do ambiente — chega vazia e o comando roda contra caminho errado",
+      "quote": "BRANCH=\"$(python3 -c 'import json,sys; print((json.load(open(sys.argv[1])).get(\"frente\") or {}).get(\"branch\",\"\"))' \"$PLAN_FILE\")\""
+    },
+    {
+      "rule": "A3-variavel-vazia",
+      "who": "plugins/project-skills/skills/sprint/SKILL.md",
+      "line": 330,
+      "msg": "$BRANCH não é derivada no bloco e não vem do ambiente — chega vazia e o comando roda contra caminho errado",
+      "quote": "git push -u origin \"$BRANCH\"                      # a frente sobe; push de branch não dispara a esteira (filtro branches: [main])"
+    },
+    {
+      "rule": "A3-variavel-vazia",
+      "who": "plugins/project-skills/skills/sprint/SKILL.md",
+      "line": 331,
+      "msg": "$BRANCH não é derivada no bloco e não vem do ambiente — chega vazia e o comando roda contra caminho errado",
+      "quote": "gh workflow run portability.yml --ref \"$BRANCH\"   # mede EXATAMENTE o código da frente"
+    },
+    {
+      "rule": "A2-placeholder-orfao",
+      "who": "plugins/project-skills/skills/sprint/SKILL.md",
+      "line": 452,
+      "msg": "placeholder <arquivos da régua> não é definido em lugar nenhum do arquivo — o agente teria que adivinhar",
+      "quote": "cat <arquivos da régua> | cksum"
+    },
+    {
+      "rule": "A2-placeholder-orfao",
+      "who": "plugins/project-skills/skills/sprint/SKILL.md",
+      "line": 542,
+      "msg": "placeholder <arquivos da onda> não é definido em lugar nenhum do arquivo — o agente teria que adivinhar",
+      "quote": "grep -rn \"DADO-FICTICIO\" <arquivos da onda> | grep -v \"\\.claude/docs/prototipo/\""
+    },
+    {
+      "rule": "A2-placeholder-orfao",
+      "who": "plugins/project-skills/skills/sprint/SKILL.md",
+      "line": 644,
+      "msg": "placeholder <skill_dir> não é definido em lugar nenhum do arquivo — o agente teria que adivinhar",
+      "quote": "MOTOR=\"$(bash \"$(dirname \"<skill_dir>\")/../../lib/resolve-plugin.sh\" project-skills skills/sprint/references/motor.js)\""
+    },
+    {
+      "rule": "A2-placeholder-orfao",
+      "who": "plugins/project-skills/skills/sprint/SKILL.md",
+      "line": 665,
+      "msg": "placeholder <SKILL.md> não é definido em lugar nenhum do arquivo — o agente teria que adivinhar",
+      "quote": "\"$(grep -c \"$peca\" <SKILL.md>)\" \"$(grep -c \"$peca\" <references/motor.js>)\""
+    },
+    {
+      "rule": "A2-placeholder-orfao",
+      "who": "plugins/project-skills/skills/sprint/SKILL.md",
+      "line": 1990,
+      "msg": "placeholder <repoRoot> não é definido em lugar nenhum do arquivo — o agente teria que adivinhar",
+      "quote": ". \"<repoRoot>/_shared/green-cache.sh\" && green_cache_check \"<repoRoot>\" full"
+    },
+    {
+      "rule": "A2-placeholder-orfao",
+      "who": "plugins/project-skills/skills/sprint/SKILL.md",
+      "line": 1990,
+      "msg": "placeholder <repoRoot> não é definido em lugar nenhum do arquivo — o agente teria que adivinhar",
+      "quote": ". \"<repoRoot>/_shared/green-cache.sh\" && green_cache_check \"<repoRoot>\" full"
+    },
+    {
+      "rule": "A2-placeholder-orfao",
+      "who": "plugins/project-skills/skills/sprint/SKILL.md",
+      "line": 2005,
+      "msg": "placeholder <pronto> não é definido em lugar nenhum do arquivo — o agente teria que adivinhar",
+      "quote": "printf '%s' \"<pronto>\" | python3 \"$(bash \"${CLAUDE_PLUGIN_ROOT}/lib/resolve-plugin.sh\" project-skills lib/regua_pronto.py)\" --onde <id> -"
+    },
+    {
+      "rule": "A2-placeholder-orfao",
+      "who": "plugins/project-skills/skills/sprint/SKILL.md",
+      "line": 2005,
+      "msg": "placeholder <id> não é definido em lugar nenhum do arquivo — o agente teria que adivinhar",
+      "quote": "printf '%s' \"<pronto>\" | python3 \"$(bash \"${CLAUDE_PLUGIN_ROOT}/lib/resolve-plugin.sh\" project-skills lib/regua_pronto.py)\" --onde <id> -"
+    },
+    {
+      "rule": "A3-variavel-vazia",
+      "who": "plugins/project-skills/skills/sprint/SKILL.md",
+      "line": 2005,
+      "msg": "$CLAUDE_PLUGIN_ROOT não é derivada no bloco e não vem do ambiente — chega vazia e o comando roda contra caminho errado",
+      "quote": "printf '%s' \"<pronto>\" | python3 \"$(bash \"${CLAUDE_PLUGIN_ROOT}/lib/resolve-plugin.sh\" project-skills lib/regua_pronto.py)\" --onde <id> -"
+    },
+    {
+      "rule": "A3-variavel-vazia",
+      "who": "plugins/project-skills/skills/sprint/SKILL.md",
+      "line": 2015,
+      "msg": "$CLAUDE_PLUGIN_ROOT não é derivada no bloco e não vem do ambiente — chega vazia e o comando roda contra caminho errado",
+      "quote": "MARCADOR=\"$(bash \"${CLAUDE_PLUGIN_ROOT}/lib/resolve-plugin.sh\" project-skills lib/plan_state.py)\""
+    },
+    {
+      "rule": "A2-placeholder-orfao",
+      "who": "plugins/project-skills/skills/sprint/SKILL.md",
+      "line": 2016,
+      "msg": "placeholder <evidencia> não é definido em lugar nenhum do arquivo — o agente teria que adivinhar",
+      "quote": "cd <raiz> && python3 \"$MARCADOR\" --dir <raiz>/.claude/plans tick <plano> <taskId> --evidencia \"<evidencia>\""
+    },
+    {
+      "rule": "A3-variavel-vazia",
+      "who": "plugins/project-skills/skills/sprint/SKILL.md",
+      "line": 2036,
+      "msg": "$CLAUDE_PLUGIN_ROOT não é derivada no bloco e não vem do ambiente — chega vazia e o comando roda contra caminho errado",
+      "quote": "ANDAMENTO=\"$(bash \"${CLAUDE_PLUGIN_ROOT}/lib/resolve-plugin.sh\" project-skills lib/andamento.py)\""
+    },
+    {
+      "rule": "A2-placeholder-orfao",
+      "who": "plugins/project-skills/skills/sprint/SKILL.md",
+      "line": 2037,
+      "msg": "placeholder <rodada> não é definido em lugar nenhum do arquivo — o agente teria que adivinhar",
+      "quote": "python3 \"$ANDAMENTO\" onda <sessionId> <rodada> <planPath>"
+    },
+    {
+      "rule": "A2-placeholder-orfao",
+      "who": "plugins/project-skills/skills/sprint/SKILL.md",
+      "line": 2037,
+      "msg": "placeholder <planPath> não é definido em lugar nenhum do arquivo — o agente teria que adivinhar",
+      "quote": "python3 \"$ANDAMENTO\" onda <sessionId> <rodada> <planPath>"
+    },
+    {
+      "rule": "A3-variavel-vazia",
+      "who": "plugins/project-skills/skills/sprint/SKILL.md",
+      "line": 2045,
+      "msg": "$CLAUDE_PLUGIN_ROOT não é derivada no bloco e não vem do ambiente — chega vazia e o comando roda contra caminho errado",
+      "quote": "MARCADOR=\"$(bash \"${CLAUDE_PLUGIN_ROOT}/lib/resolve-plugin.sh\" project-skills lib/plan_state.py)\""
+    },
+    {
+      "rule": "A2-placeholder-orfao",
+      "who": "plugins/project-skills/skills/sprint/SKILL.md",
+      "line": 2046,
+      "msg": "placeholder <pendencia> não é definido em lugar nenhum do arquivo — o agente teria que adivinhar",
+      "quote": "cd <raiz> && python3 \"$MARCADOR\" --dir <raiz>/.claude/plans pendencia <plano> <taskId> \"<pendencia>\""
+    },
+    {
+      "rule": "A2-placeholder-orfao",
+      "who": "plugins/project-skills/skills/sprint/SKILL.md",
+      "line": 2057,
+      "msg": "placeholder <arquivo...> não é definido em lugar nenhum do arquivo — o agente teria que adivinhar",
+      "quote": "OK=\"\"; for f in <arquivo...>; do git -C <raiz> add -- \"$f\" && OK=\"$OK $f\" || echo \"sprint: o git recusou $f — fica fora do ponto de salvamen"
+    },
+    {
+      "rule": "A2-placeholder-orfao",
+      "who": "plugins/project-skills/skills/sprint/SKILL.md",
+      "line": 2057,
+      "msg": "placeholder <r> não é definido em lugar nenhum do arquivo — o agente teria que adivinhar",
+      "quote": "OK=\"\"; for f in <arquivo...>; do git -C <raiz> add -- \"$f\" && OK=\"$OK $f\" || echo \"sprint: o git recusou $f — fica fora do ponto de salvamen"
+    },
+    {
+      "rule": "A2-placeholder-orfao",
+      "who": "plugins/project-skills/skills/sprint/SKILL.md",
+      "line": 2057,
+      "msg": "placeholder <r> não é definido em lugar nenhum do arquivo — o agente teria que adivinhar",
+      "quote": "OK=\"\"; for f in <arquivo...>; do git -C <raiz> add -- \"$f\" && OK=\"$OK $f\" || echo \"sprint: o git recusou $f — fica fora do ponto de salvamen"
+    },
+    {
+      "rule": "A2-placeholder-orfao",
+      "who": "plugins/project-skills/skills/sprint/SKILL.md",
+      "line": 2057,
+      "msg": "placeholder <b> não é definido em lugar nenhum do arquivo — o agente teria que adivinhar",
+      "quote": "OK=\"\"; for f in <arquivo...>; do git -C <raiz> add -- \"$f\" && OK=\"$OK $f\" || echo \"sprint: o git recusou $f — fica fora do ponto de salvamen"
+    },
+    {
+      "rule": "A2-placeholder-orfao",
+      "who": "plugins/project-skills/skills/sprint/SKILL.md",
+      "line": 2096,
+      "msg": "placeholder <raiz do project-skills> não é definido em lugar nenhum do arquivo — o agente teria que adivinhar",
+      "quote": "bash <raiz do project-skills>/lib/resolve-skill.sh doc-touch"
+    },
+    {
+      "rule": "A2-placeholder-orfao",
+      "who": "plugins/project-skills/skills/sprint/SKILL.md",
+      "line": 2096,
+      "msg": "placeholder <raiz do project-skills> não é definido em lugar nenhum do arquivo — o agente teria que adivinhar",
+      "quote": "python3 <raiz do project-skills>/lib/andamento.py doc <sessionId> <rodada> <caminho...>"
+    },
+    {
+      "rule": "A2-placeholder-orfao",
+      "who": "plugins/project-skills/skills/sprint/SKILL.md",
+      "line": 2096,
+      "msg": "placeholder <rodada> não é definido em lugar nenhum do arquivo — o agente teria que adivinhar",
+      "quote": "python3 <raiz do project-skills>/lib/andamento.py doc <sessionId> <rodada> <caminho...>"
+    },
+    {
+      "rule": "A2-placeholder-orfao",
+      "who": "plugins/project-skills/skills/sprint/SKILL.md",
+      "line": 2096,
+      "msg": "placeholder <caminho...> não é definido em lugar nenhum do arquivo — o agente teria que adivinhar",
+      "quote": "python3 <raiz do project-skills>/lib/andamento.py doc <sessionId> <rodada> <caminho...>"
+    },
+    {
+      "rule": "A3-variavel-vazia",
+      "who": "plugins/project-skills/skills/sprint/SKILL.md",
+      "line": 2100,
+      "msg": "$CLAUDE_PLUGIN_ROOT não é derivada no bloco e não vem do ambiente — chega vazia e o comando roda contra caminho errado",
+      "quote": "LIXEIRO=\"$(bash \"${CLAUDE_PLUGIN_ROOT}/skills/sprint/resolve-plugin.sh\" lixeiro lib/lixeiro.py)\""
+    },
+    {
+      "rule": "A3-variavel-vazia",
+      "who": "plugins/project-skills/skills/sprint/SKILL.md",
+      "line": 2102,
+      "msg": "$CLAUDE_CODE_SESSION_ID não é derivada no bloco e não vem do ambiente — chega vazia e o comando roda contra caminho errado",
+      "quote": "python3 \"$LIXEIRO\" colhe-turno --sessao \"$CLAUDE_CODE_SESSION_ID\" \\"
+    },
+    {
+      "rule": "A2-placeholder-orfao",
+      "who": "plugins/project-skills/skills/sprint/SKILL.md",
+      "line": 2108,
+      "msg": "placeholder <arquivos da régua> não é definido em lugar nenhum do arquivo — o agente teria que adivinhar",
+      "quote": "cat <arquivos da régua> | cksum"
+    },
+    {
+      "rule": "A3-variavel-vazia",
+      "who": "plugins/project-skills/skills/sprint/SKILL.md",
+      "line": 2163,
+      "msg": "$CLAUDE_PLUGIN_ROOT não é derivada no bloco e não vem do ambiente — chega vazia e o comando roda contra caminho errado",
+      "quote": "bash \"${CLAUDE_PLUGIN_ROOT}/lib/resolve-skill.sh\" doc-touch    # → <plugin>:doc-touch"
+    },
+    {
+      "rule": "A3-variavel-vazia",
+      "who": "plugins/project-skills/skills/sprint/SKILL.md",
+      "line": 2177,
+      "msg": "$CLAUDE_PLUGIN_ROOT não é derivada no bloco e não vem do ambiente — chega vazia e o comando roda contra caminho errado",
+      "quote": "PLAN_STATE=\"$(bash \"${CLAUDE_PLUGIN_ROOT}/lib/resolve-plugin.sh\" project-skills lib/plan_state.py)\""
+    },
+    {
+      "rule": "A2-placeholder-orfao",
+      "who": "plugins/project-skills/skills/sprint/SKILL.md",
+      "line": 2179,
+      "msg": "placeholder <id do plano da missão> não é definido em lugar nenhum do arquivo — o agente teria que adivinhar",
+      "quote": "PLAN_ID=\"<id do plano da missão>\""
+    },
+    {
+      "rule": "A2-placeholder-orfao",
+      "who": "plugins/project-skills/skills/sprint/SKILL.md",
+      "line": 2180,
+      "msg": "placeholder <o mesmo suiteCmd que a casca passou no args> não é definido em lugar nenhum do arquivo — o agente teria que adivinhar",
+      "quote": "SUITE_CMD=\"<o mesmo suiteCmd que a casca passou no args>\""
+    },
+    {
+      "rule": "A3-variavel-vazia",
+      "who": "plugins/project-skills/skills/sprint/SKILL.md",
+      "line": 2183,
+      "msg": "$MAIN_ROOT não é derivada no bloco e não vem do ambiente — chega vazia e o comando roda contra caminho errado",
+      "quote": "PLAN_FILE=\"$MAIN_ROOT/.claude/plans/$PLAN_ID.plan.json\""
+    },
+    {
+      "rule": "A3-variavel-vazia",
+      "who": "plugins/project-skills/skills/sprint/SKILL.md",
+      "line": 2183,
+      "msg": "$PLAN_ID não é derivada no bloco e não vem do ambiente — chega vazia e o comando roda contra caminho errado",
+      "quote": "PLAN_FILE=\"$MAIN_ROOT/.claude/plans/$PLAN_ID.plan.json\""
+    },
+    {
+      "rule": "A3-variavel-vazia",
+      "who": "plugins/project-skills/skills/sprint/SKILL.md",
+      "line": 2184,
+      "msg": "$PLAN_FILE não é derivada no bloco e não vem do ambiente — chega vazia e o comando roda contra caminho errado",
+      "quote": "BRANCH=\"$(python3 -c 'import json,sys; print((json.load(open(sys.argv[1])).get(\"frente\") or {}).get(\"branch\",\"\"))' \"$PLAN_FILE\")\""
+    },
+    {
+      "rule": "A3-variavel-vazia",
+      "who": "plugins/project-skills/skills/sprint/SKILL.md",
+      "line": 2185,
+      "msg": "$PLAN_FILE não é derivada no bloco e não vem do ambiente — chega vazia e o comando roda contra caminho errado",
+      "quote": "WORKTREE=\"$(python3 -c 'import json,sys; print((json.load(open(sys.argv[1])).get(\"frente\") or {}).get(\"worktree\",\"\"))' \"$PLAN_FILE\")\""
+    },
+    {
+      "rule": "A3-variavel-vazia",
+      "who": "plugins/project-skills/skills/sprint/SKILL.md",
+      "line": 2187,
+      "msg": "$WORKTREE não é derivada no bloco e não vem do ambiente — chega vazia e o comando roda contra caminho errado",
+      "quote": "cd \"$WORKTREE\""
+    },
+    {
+      "rule": "A3-variavel-vazia",
+      "who": "plugins/project-skills/skills/sprint/SKILL.md",
+      "line": 2188,
+      "msg": "$BRANCH não é derivada no bloco e não vem do ambiente — chega vazia e o comando roda contra caminho errado",
+      "quote": "git tag \"rescue/$(date +%Y-%m-%d)-$(basename \"$BRANCH\")\"   # (1) tag de resgate — o trabalho sobrevive a qualquer passo errado abaixo"
+    },
+    {
+      "rule": "A3-variavel-vazia",
+      "who": "plugins/project-skills/skills/sprint/SKILL.md",
+      "line": 2190,
+      "msg": "$SUITE_CMD não é derivada no bloco e não vem do ambiente — chega vazia e o comando roda contra caminho errado",
+      "quote": "$SUITE_CMD                     # (3) a suíte DE NOVO, pós-sincronização — o mesmo `suiteCmd` que a casca passou ao motor"
+    },
+    {
+      "rule": "A3-variavel-vazia",
+      "who": "plugins/project-skills/skills/sprint/SKILL.md",
+      "line": 2191,
+      "msg": "$MAIN_ROOT não é derivada no bloco e não vem do ambiente — chega vazia e o comando roda contra caminho errado",
+      "quote": "cd \"$MAIN_ROOT\""
+    },
+    {
+      "rule": "A3-variavel-vazia",
+      "who": "plugins/project-skills/skills/sprint/SKILL.md",
+      "line": 2192,
+      "msg": "$BRANCH não é derivada no bloco e não vem do ambiente — chega vazia e o comando roda contra caminho errado",
+      "quote": "git merge --no-ff \"$BRANCH\" && git push                    # (4) a entrega entra na main, com o nó do merge visível"
+    },
+    {
+      "rule": "A3-variavel-vazia",
+      "who": "plugins/project-skills/skills/sprint/SKILL.md",
+      "line": 2193,
+      "msg": "$WORKTREE não é derivada no bloco e não vem do ambiente — chega vazia e o comando roda contra caminho errado",
+      "quote": "git worktree remove \"$WORKTREE\"                            # (5)"
+    },
+    {
+      "rule": "A3-variavel-vazia",
+      "who": "plugins/project-skills/skills/sprint/SKILL.md",
+      "line": 2194,
+      "msg": "$BRANCH não é derivada no bloco e não vem do ambiente — chega vazia e o comando roda contra caminho errado",
+      "quote": "git branch -d \"$BRANCH\"                                    # (6) -d, nunca -D: só apaga o que a main já contém"
+    },
+    {
+      "rule": "A2-placeholder-orfao",
+      "who": "plugins/project-skills/skills/sprint/SKILL.md",
+      "line": 2195,
+      "msg": "placeholder <planId> não é definido em lugar nenhum do arquivo — o agente teria que adivinhar",
+      "quote": "python3 \"$PLAN_STATE\" frente <planId> --encerrar           # (7) a frente sai do plano — o cartão para de anunciá-la"
+    },
+    {
+      "rule": "A3-variavel-vazia",
+      "who": "plugins/project-skills/skills/sprint/SKILL.md",
+      "line": 2226,
+      "msg": "$CLAUDE_PLUGIN_ROOT não é derivada no bloco e não vem do ambiente — chega vazia e o comando roda contra caminho errado",
+      "quote": "ANDAMENTO=\"$(bash \"${CLAUDE_PLUGIN_ROOT}/lib/resolve-plugin.sh\" project-skills lib/andamento.py)\""
+    },
+    {
+      "rule": "A3-variavel-vazia",
+      "who": "plugins/project-skills/skills/sprint/SKILL.md",
+      "line": 2227,
+      "msg": "$CLAUDE_CONFIG_DIR não é derivada no bloco e não vem do ambiente — chega vazia e o comando roda contra caminho errado",
+      "quote": "for RESERVA in \"${CLAUDE_CONFIG_DIR:-$HOME/.claude}/andamento/reservas/$CLAUDE_CODE_SESSION_ID\"__*.files; do"
+    },
+    {
+      "rule": "A3-variavel-vazia",
+      "who": "plugins/project-skills/skills/sprint/SKILL.md",
+      "line": 2227,
+      "msg": "$CLAUDE_CODE_SESSION_ID não é derivada no bloco e não vem do ambiente — chega vazia e o comando roda contra caminho errado",
+      "quote": "for RESERVA in \"${CLAUDE_CONFIG_DIR:-$HOME/.claude}/andamento/reservas/$CLAUDE_CODE_SESSION_ID\"__*.files; do"
+    },
+    {
+      "rule": "A3-variavel-vazia",
+      "who": "plugins/project-skills/skills/sprint/SKILL.md",
+      "line": 2230,
+      "msg": "$CLAUDE_PLUGIN_ROOT não é derivada no bloco e não vem do ambiente — chega vazia e o comando roda contra caminho errado",
+      "quote": "bash \"$(bash \"${CLAUDE_PLUGIN_ROOT}/lib/resolve-plugin.sh\" project-skills hooks/reserva-de-arquivos.sh)\" liberar \"$CLAUDE_CODE_SESSION_ID\" \""
+    },
+    {
+      "rule": "A3-variavel-vazia",
+      "who": "plugins/project-skills/skills/sprint/SKILL.md",
+      "line": 2230,
+      "msg": "$CLAUDE_CODE_SESSION_ID não é derivada no bloco e não vem do ambiente — chega vazia e o comando roda contra caminho errado",
+      "quote": "bash \"$(bash \"${CLAUDE_PLUGIN_ROOT}/lib/resolve-plugin.sh\" project-skills hooks/reserva-de-arquivos.sh)\" liberar \"$CLAUDE_CODE_SESSION_ID\" \""
+    },
+    {
+      "rule": "A3-variavel-vazia",
+      "who": "plugins/project-skills/skills/sprint/SKILL.md",
+      "line": 2231,
+      "msg": "$ANDAMENTO não é derivada no bloco e não vem do ambiente — chega vazia e o comando roda contra caminho errado",
+      "quote": "python3 \"$ANDAMENTO\" encerra \"$CLAUDE_CODE_SESSION_ID\" sprint \"$MOTOR\""
+    },
+    {
+      "rule": "A3-variavel-vazia",
+      "who": "plugins/project-skills/skills/sprint/SKILL.md",
+      "line": 2231,
+      "msg": "$CLAUDE_CODE_SESSION_ID não é derivada no bloco e não vem do ambiente — chega vazia e o comando roda contra caminho errado",
+      "quote": "python3 \"$ANDAMENTO\" encerra \"$CLAUDE_CODE_SESSION_ID\" sprint \"$MOTOR\""
+    },
+    {
+      "rule": "A3-variavel-vazia",
+      "who": "plugins/project-skills/skills/sprint/SKILL.md",
+      "line": 2255,
+      "msg": "$CLAUDE_PLUGIN_ROOT não é derivada no bloco e não vem do ambiente — chega vazia e o comando roda contra caminho errado",
+      "quote": "LIXEIRO=\"$(bash \"${CLAUDE_PLUGIN_ROOT}/skills/sprint/resolve-plugin.sh\" lixeiro lib/lixeiro.py)\""
+    },
+    {
+      "rule": "A3-variavel-vazia",
+      "who": "plugins/project-skills/skills/sprint/SKILL.md",
+      "line": 2257,
+      "msg": "$CLAUDE_CODE_SESSION_ID não é derivada no bloco e não vem do ambiente — chega vazia e o comando roda contra caminho errado",
+      "quote": "python3 \"$LIXEIRO\" colhe-turno --sessao \"$CLAUDE_CODE_SESSION_ID\" \\"
+    },
+    {
+      "rule": "A3-variavel-vazia",
+      "who": "plugins/project-skills/skills/sprint/SKILL.md",
+      "line": 2267,
+      "msg": "$CLAUDE_PLUGIN_ROOT não é derivada no bloco e não vem do ambiente — chega vazia e o comando roda contra caminho errado",
+      "quote": "MEDIDOR=\"$(bash \"${CLAUDE_PLUGIN_ROOT}/skills/sprint/resolve-plugin.sh\" improve-workflow lib/medidor.py)\""
+    },
+    {
+      "rule": "A3-variavel-vazia",
+      "who": "plugins/project-skills/skills/sprint/SKILL.md",
+      "line": 2302,
+      "msg": "$CLAUDE_PLUGIN_ROOT não é derivada no bloco e não vem do ambiente — chega vazia e o comando roda contra caminho errado",
+      "quote": "PLAN_STATE=\"$(bash \"${CLAUDE_PLUGIN_ROOT}/lib/resolve-plugin.sh\" project-skills lib/plan_state.py)\""
+    },
+    {
+      "rule": "A2-placeholder-orfao",
+      "who": "plugins/project-skills/skills/sprint/SKILL.md",
+      "line": 2303,
+      "msg": "placeholder <planId> não é definido em lugar nenhum do arquivo — o agente teria que adivinhar",
+      "quote": "python3 \"$PLAN_STATE\" page <planId>   # a árvore, já com o cartão da frente quando há uma"
+    },
+    {
+      "rule": "A3-variavel-vazia",
+      "who": "plugins/project-skills/skills/sprint/SKILL.md",
+      "line": 2357,
+      "msg": "$CLAUDE_PLUGIN_ROOT não é derivada no bloco e não vem do ambiente — chega vazia e o comando roda contra caminho errado",
+      "quote": "LEDGER=\"$(bash \"${CLAUDE_PLUGIN_ROOT}/lib/resolve-plugin.sh\" project-skills lib/ledger_corridas.py)\""
+    },
+    {
+      "rule": "A3-variavel-vazia",
+      "who": "plugins/project-skills/skills/sprint/SKILL.md",
+      "line": 2358,
+      "msg": "$LEDGER não é derivada no bloco e não vem do ambiente — chega vazia e o comando roda contra caminho errado",
+      "quote": "python3 \"$LEDGER\" le --project-root \"$REPO_ROOT\"     # a linha com o `run_id` do bloco 1"
+    },
+    {
+      "rule": "A2-placeholder-orfao",
+      "who": "plugins/project-skills/skills/start/SKILL.md",
+      "line": 14,
+      "msg": "placeholder <plugin project-skills> não é definido em lugar nenhum do arquivo — o agente teria que adivinhar",
+      "quote": "python3 \"$(bash \"<plugin project-skills>/lib/resolve-plugin.sh\" project-skills lib/doc_load.py)\" --project-root \"$PWD\""
+    },
+    {
+      "rule": "A2-placeholder-orfao",
+      "who": "plugins/project-skills/skills/start/SKILL.md",
+      "line": 285,
+      "msg": "placeholder <raiz-do-projeto> não é definido em lugar nenhum do arquivo — o agente teria que adivinhar",
+      "quote": "python3 \"$(bash \"${CLAUDE_PLUGIN_ROOT}/lib/resolve-plugin.sh\" project-skills lib/organism.py)\" inherited <raiz-do-projeto> --apresentar"
+    },
+    {
+      "rule": "A3-variavel-vazia",
+      "who": "plugins/project-skills/skills/start/SKILL.md",
+      "line": 285,
+      "msg": "$CLAUDE_PLUGIN_ROOT não é derivada no bloco e não vem do ambiente — chega vazia e o comando roda contra caminho errado",
+      "quote": "python3 \"$(bash \"${CLAUDE_PLUGIN_ROOT}/lib/resolve-plugin.sh\" project-skills lib/organism.py)\" inherited <raiz-do-projeto> --apresentar"
+    },
+    {
+      "rule": "A2-placeholder-orfao",
+      "who": "plugins/project-skills/skills/start/SKILL.md",
+      "line": 330,
+      "msg": "placeholder <raiz-do-projeto> não é definido em lugar nenhum do arquivo — o agente teria que adivinhar",
+      "quote": "python3 \"$(bash \"${CLAUDE_PLUGIN_ROOT}/lib/resolve-plugin.sh\" project-skills lib/decisoes_estruturais.py)\" <raiz-do-projeto>"
+    },
+    {
+      "rule": "A3-variavel-vazia",
+      "who": "plugins/project-skills/skills/start/SKILL.md",
+      "line": 330,
+      "msg": "$CLAUDE_PLUGIN_ROOT não é derivada no bloco e não vem do ambiente — chega vazia e o comando roda contra caminho errado",
+      "quote": "python3 \"$(bash \"${CLAUDE_PLUGIN_ROOT}/lib/resolve-plugin.sh\" project-skills lib/decisoes_estruturais.py)\" <raiz-do-projeto>"
+    },
+    {
+      "rule": "A3-variavel-vazia",
+      "who": "plugins/project-skills/skills/start/SKILL.md",
+      "line": 426,
+      "msg": "$CLAUDE_PLUGIN_ROOT não é derivada no bloco e não vem do ambiente — chega vazia e o comando roda contra caminho errado",
+      "quote": "python3 \"$(bash \"${CLAUDE_PLUGIN_ROOT}/skills/start/resolve-plugin.sh\" visual lib/visual_page.py)\" schema"
+    },
+    {
+      "rule": "A3-variavel-vazia",
+      "who": "plugins/project-skills/skills/start/SKILL.md",
+      "line": 446,
+      "msg": "$CLAUDE_PLUGIN_ROOT não é derivada no bloco e não vem do ambiente — chega vazia e o comando roda contra caminho errado",
+      "quote": "python3 \"$(bash \"${CLAUDE_PLUGIN_ROOT}/lib/resolve-plugin.sh\" project-skills lib/curadoria_features.py)\" \\"
+    },
+    {
+      "rule": "A3-variavel-vazia",
+      "who": "plugins/project-skills/skills/start/SKILL.md",
+      "line": 464,
+      "msg": "$CLAUDE_PLUGIN_ROOT não é derivada no bloco e não vem do ambiente — chega vazia e o comando roda contra caminho errado",
+      "quote": "python3 \"$(bash \"${CLAUDE_PLUGIN_ROOT}/lib/resolve-plugin.sh\" project-skills lib/historico.py)\" reescrever .claude/docs/features.md \\"
+    },
+    {
+      "rule": "A3-variavel-vazia",
+      "who": "plugins/project-skills/skills/start/SKILL.md",
+      "line": 495,
+      "msg": "$CLAUDE_PLUGIN_ROOT não é derivada no bloco e não vem do ambiente — chega vazia e o comando roda contra caminho errado",
+      "quote": "python3 \"$(bash \"${CLAUDE_PLUGIN_ROOT}/lib/resolve-plugin.sh\" project-skills lib/historico.py)\" reescrever .claude/docs/blueprint.md \\"
+    },
+    {
+      "rule": "A3-variavel-vazia",
+      "who": "plugins/project-skills/skills/start/SKILL.md",
+      "line": 558,
+      "msg": "$CLAUDE_PLUGIN_ROOT não é derivada no bloco e não vem do ambiente — chega vazia e o comando roda contra caminho errado",
+      "quote": "PAGINA=\"$(bash \"${CLAUDE_PLUGIN_ROOT}/skills/start/resolve-plugin.sh\" visual lib/visual_page.py)\""
+    },
+    {
+      "rule": "A3-variavel-vazia",
+      "who": "plugins/project-skills/skills/start/SKILL.md",
+      "line": 577,
+      "msg": "$CLAUDE_PLUGIN_ROOT não é derivada no bloco e não vem do ambiente — chega vazia e o comando roda contra caminho errado",
+      "quote": "python3 \"$(bash \"${CLAUDE_PLUGIN_ROOT}/lib/resolve-plugin.sh\" project-skills lib/rastreio_etapas.py)\" ."
+    },
+    {
+      "rule": "A3-variavel-vazia",
+      "who": "plugins/project-skills/skills/start/SKILL.md",
+      "line": 618,
+      "msg": "$CLAUDE_PLUGIN_ROOT não é derivada no bloco e não vem do ambiente — chega vazia e o comando roda contra caminho errado",
+      "quote": "bash \"$(bash \"${CLAUDE_PLUGIN_ROOT}/lib/resolve-plugin.sh\" project-skills hooks/doc-aprovar.sh)\" .claude/docs/journeys.md"
+    },
+    {
+      "rule": "A3-variavel-vazia",
+      "who": "plugins/ship/skills/ship/SKILL.md",
+      "line": 47,
+      "msg": "$CLAUDE_PLUGIN_ROOT não é derivada no bloco e não vem do ambiente — chega vazia e o comando roda contra caminho errado",
+      "quote": "source \"${CLAUDE_PLUGIN_ROOT}/hooks/green-cache.sh\""
+    },
+    {
+      "rule": "A3-variavel-vazia",
+      "who": "plugins/slides/skills/slides/SKILL.md",
+      "line": 73,
+      "msg": "$CLAUDE_PLUGIN_ROOT não é derivada no bloco e não vem do ambiente — chega vazia e o comando roda contra caminho errado",
+      "quote": "MD2=\"${CLAUDE_PLUGIN_ROOT}/lib/md2deck.py\""
+    },
+    {
+      "rule": "A2-placeholder-orfao",
+      "who": "plugins/slides/skills/slides/SKILL.md",
+      "line": 74,
+      "msg": "placeholder <fonte.md> não é definido em lugar nenhum do arquivo — o agente teria que adivinhar",
+      "quote": "python3 $MD2 <fonte.md> --plan"
+    },
+    {
+      "rule": "A2-placeholder-orfao",
+      "who": "plugins/slides/skills/slides/SKILL.md",
+      "line": 99,
+      "msg": "placeholder <fonte.md> não é definido em lugar nenhum do arquivo — o agente teria que adivinhar",
+      "quote": "python3 $MD2 <fonte.md> [--tema <tema>] [--anota anota.json]"
+    },
+    {
+      "rule": "A3-variavel-vazia",
+      "who": "plugins/slides/skills/slides/SKILL.md",
+      "line": 99,
+      "msg": "$MD2 não é derivada no bloco e não vem do ambiente — chega vazia e o comando roda contra caminho errado",
+      "quote": "python3 $MD2 <fonte.md> [--tema <tema>] [--anota anota.json]"
+    },
+    {
+      "rule": "A2-placeholder-orfao",
+      "who": "plugins/slides/skills/slides/SKILL.md",
+      "line": 107,
+      "msg": "placeholder <skill> não é definido em lugar nenhum do arquivo — o agente teria que adivinhar",
+      "quote": "python3 <skill>/scripts/check_fidelity.py <deck.html> <fonte.md>"
+    },
+    {
+      "rule": "A2-placeholder-orfao",
+      "who": "plugins/slides/skills/slides/SKILL.md",
+      "line": 107,
+      "msg": "placeholder <deck.html> não é definido em lugar nenhum do arquivo — o agente teria que adivinhar",
+      "quote": "python3 <skill>/scripts/check_fidelity.py <deck.html> <fonte.md>"
+    },
+    {
+      "rule": "A2-placeholder-orfao",
+      "who": "plugins/slides/skills/slides/SKILL.md",
+      "line": 107,
+      "msg": "placeholder <fonte.md> não é definido em lugar nenhum do arquivo — o agente teria que adivinhar",
+      "quote": "python3 <skill>/scripts/check_fidelity.py <deck.html> <fonte.md>"
+    },
+    {
+      "rule": "A2-placeholder-orfao",
+      "who": "plugins/slides/skills/slides/SKILL.md",
+      "line": 130,
+      "msg": "placeholder <dir-do-deck> não é definido em lugar nenhum do arquivo — o agente teria que adivinhar",
+      "quote": "(cd <dir-do-deck> && python3 -m http.server 8899 >/dev/null 2>&1 &)"
+    },
+    {
+      "rule": "A2-placeholder-orfao",
+      "who": "plugins/slides/skills/slides/SKILL.md",
+      "line": 163,
+      "msg": "placeholder <skill> não é definido em lugar nenhum do arquivo — o agente teria que adivinhar",
+      "quote": "python3 <skill>/scripts/check_provenance.py <deck.html> <fonte1> [fonte2 ...]"
+    },
+    {
+      "rule": "A2-placeholder-orfao",
+      "who": "plugins/slides/skills/slides/SKILL.md",
+      "line": 163,
+      "msg": "placeholder <deck.html> não é definido em lugar nenhum do arquivo — o agente teria que adivinhar",
+      "quote": "python3 <skill>/scripts/check_provenance.py <deck.html> <fonte1> [fonte2 ...]"
+    },
+    {
+      "rule": "A2-placeholder-orfao",
+      "who": "plugins/slides/skills/slides/SKILL.md",
+      "line": 163,
+      "msg": "placeholder <fonte1> não é definido em lugar nenhum do arquivo — o agente teria que adivinhar",
+      "quote": "python3 <skill>/scripts/check_provenance.py <deck.html> <fonte1> [fonte2 ...]"
+    },
+    {
+      "rule": "A2-placeholder-orfao",
+      "who": "plugins/vistoria/skills/vistoria/SKILL.md",
+      "line": 14,
+      "msg": "placeholder <plugin project-skills> não é definido em lugar nenhum do arquivo — o agente teria que adivinhar",
+      "quote": "python3 \"$(bash \"<plugin project-skills>/lib/resolve-plugin.sh\" project-skills lib/doc_load.py)\" --project-root \"$PWD\""
+    },
+    {
+      "rule": "A1-caminho-local",
+      "who": "plugins/vistoria/skills/vistoria/SKILL.md",
+      "line": 32,
+      "msg": "caminho `plugins/vistoria/…` só existe neste repositório — na máquina de quem instala o plugin mora no cache do harness",
+      "quote": "python3 plugins/vistoria/lib/inventario.py            # os pedaços e a tabela evento→hooks"
+    },
+    {
+      "rule": "A1-caminho-local",
+      "who": "plugins/vistoria/skills/vistoria/SKILL.md",
+      "line": 33,
+      "msg": "caminho `plugins/vistoria/…` só existe neste repositório — na máquina de quem instala o plugin mora no cache do harness",
+      "quote": "python3 plugins/vistoria/lib/inventario.py --json     # cru"
+    },
+    {
+      "rule": "A1-caminho-local",
+      "who": "plugins/vistoria/skills/vistoria/SKILL.md",
+      "line": 46,
+      "msg": "caminho `plugins/vistoria/…` só existe neste repositório — na máquina de quem instala o plugin mora no cache do harness",
+      "quote": "python3 plugins/vistoria/lib/medidor.py            # resumo por cobrador"
+    },
+    {
+      "rule": "A1-caminho-local",
+      "who": "plugins/vistoria/skills/vistoria/SKILL.md",
+      "line": 47,
+      "msg": "caminho `plugins/vistoria/…` só existe neste repositório — na máquina de quem instala o plugin mora no cache do harness",
+      "quote": "python3 plugins/vistoria/lib/medidor.py --json     # {achados, _descartes}"
+    },
+    {
+      "rule": "A1-caminho-local",
+      "who": "plugins/vistoria/skills/vistoria/SKILL.md",
+      "line": 63,
+      "msg": "caminho `plugins/vistoria/…` só existe neste repositório — na máquina de quem instala o plugin mora no cache do harness",
+      "quote": "python3 plugins/vistoria/lib/suite_congela.py   # assert que espera frase que nada escreve"
+    },
+    {
+      "rule": "A1-caminho-local",
+      "who": "plugins/vistoria/skills/vistoria/SKILL.md",
+      "line": 64,
+      "msg": "caminho `plugins/vistoria/…` só existe neste repositório — na máquina de quem instala o plugin mora no cache do harness",
+      "quote": "python3 plugins/vistoria/lib/fio_morto.py       # script de hook que ninguém registra"
+    },
+    {
+      "rule": "A1-caminho-local",
+      "who": "plugins/vistoria/skills/vistoria/SKILL.md",
+      "line": 74,
+      "msg": "caminho `plugins/vistoria/…` só existe neste repositório — na máquina de quem instala o plugin mora no cache do harness",
+      "quote": "python3 plugins/vistoria/lib/medidor.py --json \\"
+    },
+    {
+      "rule": "A1-caminho-local",
+      "who": "plugins/vistoria/skills/vistoria/SKILL.md",
+      "line": 75,
+      "msg": "caminho `plugins/vistoria/…` só existe neste repositório — na máquina de quem instala o plugin mora no cache do harness",
+      "quote": "| python3 plugins/vistoria/lib/pagina.py --dir .claude/vistoria --rodada <apelido-da-rodada>"
+    },
+    {
+      "rule": "A2-placeholder-orfao",
+      "who": "plugins/vistoria/skills/vistoria/SKILL.md",
+      "line": 75,
+      "msg": "placeholder <apelido-da-rodada> não é definido em lugar nenhum do arquivo — o agente teria que adivinhar",
+      "quote": "| python3 plugins/vistoria/lib/pagina.py --dir .claude/vistoria --rodada <apelido-da-rodada>"
+    },
+    {
+      "rule": "A1-caminho-local",
+      "who": "plugins/vistoria/skills/vistoria/SKILL.md",
+      "line": 94,
+      "msg": "caminho `plugins/vistoria/…` só existe neste repositório — na máquina de quem instala o plugin mora no cache do harness",
+      "quote": "python3 plugins/vistoria/lib/achado.py --validar <arquivo.json>"
+    },
+    {
+      "rule": "A2-placeholder-orfao",
+      "who": "plugins/vistoria/skills/vistoria/SKILL.md",
+      "line": 94,
+      "msg": "placeholder <arquivo.json> não é definido em lugar nenhum do arquivo — o agente teria que adivinhar",
+      "quote": "python3 plugins/vistoria/lib/achado.py --validar <arquivo.json>"
+    },
+    {
+      "rule": "A1-caminho-local",
+      "who": "plugins/vistoria/skills/vistoria/SKILL.md",
+      "line": 104,
+      "msg": "caminho `plugins/vistoria/…` só existe neste repositório — na máquina de quem instala o plugin mora no cache do harness",
+      "quote": "python3 plugins/vistoria/lib/plano_saida.py --dir .claude/plans < marcados.json"
+    },
+    {
+      "rule": "A2-placeholder-orfao",
+      "who": "plugins/visual/skills/andamento/SKILL.md",
+      "line": 14,
+      "msg": "placeholder <plugin project-skills> não é definido em lugar nenhum do arquivo — o agente teria que adivinhar",
+      "quote": "python3 <plugin project-skills>/lib/plan_state.py render --format text --compacto"
+    },
+    {
+      "rule": "A2-placeholder-orfao",
+      "who": "plugins/visual/skills/andamento/SKILL.md",
+      "line": 21,
+      "msg": "placeholder <plugin project-skills> não é definido em lugar nenhum do arquivo — o agente teria que adivinhar",
+      "quote": "python3 <plugin project-skills>/lib/plan_state.py render <id-do-plano> --format text --compacto"
+    },
+    {
+      "rule": "A2-placeholder-orfao",
+      "who": "plugins/visual/skills/andamento/SKILL.md",
+      "line": 21,
+      "msg": "placeholder <id-do-plano> não é definido em lugar nenhum do arquivo — o agente teria que adivinhar",
+      "quote": "python3 <plugin project-skills>/lib/plan_state.py render <id-do-plano> --format text --compacto"
+    },
+    {
+      "rule": "A3-variavel-vazia",
+      "who": "plugins/visual/skills/visual/SKILL.md",
+      "line": 24,
+      "msg": "$CLAUDE_PLUGIN_ROOT não é derivada no bloco e não vem do ambiente — chega vazia e o comando roda contra caminho errado",
+      "quote": "python3 ${CLAUDE_PLUGIN_ROOT}/lib/clareza.py licoes"
+    },
+    {
+      "rule": "A3-variavel-vazia",
+      "who": "plugins/visual/skills/visual/SKILL.md",
+      "line": 88,
+      "msg": "$CLAUDE_PLUGIN_ROOT não é derivada no bloco e não vem do ambiente — chega vazia e o comando roda contra caminho errado",
+      "quote": "python3 ${CLAUDE_PLUGIN_ROOT}/lib/clareza.py registrar --json licoes-novas.json"
+    },
+    {
+      "rule": "A3-variavel-vazia",
+      "who": "plugins/visual/skills/visual/SKILL.md",
+      "line": 193,
+      "msg": "$CLAUDE_PLUGIN_ROOT não é derivada no bloco e não vem do ambiente — chega vazia e o comando roda contra caminho errado",
+      "quote": "python3 ${CLAUDE_PLUGIN_ROOT}/lib/clareza.py revisar --spec pagina.json"
+    },
+    {
+      "rule": "A3-variavel-vazia",
+      "who": "plugins/visual/skills/visual/SKILL.md",
+      "line": 250,
+      "msg": "$CLAUDE_PLUGIN_ROOT não é derivada no bloco e não vem do ambiente — chega vazia e o comando roda contra caminho errado",
+      "quote": "cp \"${CLAUDE_PLUGIN_ROOT}/skills/visual/config.default.json\" ~/.claude/visual-state/config.json"
+    },
+    {
+      "rule": "A2-placeholder-orfao",
+      "who": "plugins/visual/skills/visual/SKILL.md",
+      "line": 264,
+      "msg": "placeholder <plugin project-skills> não é definido em lugar nenhum do arquivo — o agente teria que adivinhar",
+      "quote": "PS=\"<plugin project-skills>/lib/plan_state.py\""
+    },
+    {
+      "rule": "A3-variavel-vazia",
+      "who": "plugins/visual/skills/visual/SKILL.md",
+      "line": 341,
+      "msg": "$PS não é derivada no bloco e não vem do ambiente — chega vazia e o comando roda contra caminho errado",
+      "quote": "python3 $PS render --format text"
+    },
+    {
+      "rule": "A3-variavel-vazia",
+      "who": "plugins/visual/skills/visual/SKILL.md",
+      "line": 550,
+      "msg": "$CLAUDE_PLUGIN_ROOT não é derivada no bloco e não vem do ambiente — chega vazia e o comando roda contra caminho errado",
+      "quote": "VP=\"${CLAUDE_PLUGIN_ROOT}/lib/visual_page.py\""
+    },
+    {
+      "rule": "A3-variavel-vazia",
+      "who": "plugins/visual/skills/visual/SKILL.md",
+      "line": 585,
+      "msg": "$CLAUDE_PLUGIN_ROOT não é derivada no bloco e não vem do ambiente — chega vazia e o comando roda contra caminho errado",
+      "quote": "python3 ${CLAUDE_PLUGIN_ROOT}/lib/test_visual_page.py"
+    },
+    {
+      "rule": "A3-variavel-vazia",
+      "who": "plugins/visual/skills/visual/SKILL.md",
+      "line": 586,
+      "msg": "$CLAUDE_PLUGIN_ROOT não é derivada no bloco e não vem do ambiente — chega vazia e o comando roda contra caminho errado",
+      "quote": "python3 ${CLAUDE_PLUGIN_ROOT}/lib/test_visual_page.py | tail -1"
+    },
+    {
+      "rule": "A2-placeholder-orfao",
+      "who": "plugins/visual/skills/visual/SKILL.md",
+      "line": 828,
+      "msg": "placeholder <pathname> não é definido em lugar nenhum do arquivo — o agente teria que adivinhar",
+      "quote": "claude-visual:<pathname>"
+    },
+    {
+      "rule": "A3-variavel-vazia",
+      "who": "plugins/visual/skills/visual/SKILL.md",
+      "line": 1129,
+      "msg": "$CLAUDE_PLUGIN_ROOT não é derivada no bloco e não vem do ambiente — chega vazia e o comando roda contra caminho errado",
+      "quote": "python3 ${CLAUDE_PLUGIN_ROOT}/lib/visual_page.py build --spec <f>"
+    }
+  ]
+}

@@ -695,6 +695,22 @@ $(printf '%s' "$UOUT" | head -12)
   fi
 fi
 
+# V · o comando da skill roda COMO ESTÁ ESCRITO (Artigo 8) — só o que PIOROU vs o retrato.
+# Os três padrões que matam o comando na máquina de quem instala: caminho `plugins/<x>/…`
+# (que só existe aqui), placeholder que o arquivo nunca define, e variável que chega vazia.
+# A dívida de hoje é grande e está congelada em `.claude/artigo8.baseline.json`; o que barra
+# é o padrão NOVO. Escopo: só quando o commit toca alguma SKILL.md ou o próprio cobrador.
+A8C="$ROOT/scripts/artigo8_check.py"
+if [ -f "$A8C" ] && printf '%s\n' "$FILES" | grep -qE '(SKILL\.md$|artigo8_check\.py$)'; then  # casa-ok: reconhece o arquivo tocado no diff, não escreve a casa
+  if ! VOUT=$(cd "$ROOT" && python3 "$A8C" --check 2>&1); then
+    VIOL="${VIOL}
+❌ COMANDO DE SKILL QUE NÃO RODA FORA DAQUI (Artigo 8) — padrão NOVO (o que já existia não conta):
+$(printf '%s' "$VOUT" | sed -n '3,24p')
+   → conserte, ou isente na linha com \`artigo8-ok: <motivo>\`, ou recongele o retrato:
+     python3 scripts/artigo8_check.py"
+  fi
+fi
+
 portao_prazo "T..S (cadeia, vazamento, caminho-texto, worktree, autópsia)"
 
 # F · suites shell dos plugins tocados (as .py já foram no gate D)
@@ -768,7 +784,7 @@ nm E    "$ROOT/scripts/hook_contract.py"
 nm H    "$PRC";  nm I    "$RCC";  nm K "$RCT";  nm L "$FDB";  nm N "$DSC"
 nm R-25 "$ASI";  nm R-25b "$CDD"; nm T "$CDC";  nm P "$VZC";  nm P2 "$CTC"
 nm Q    "$WOC";  nm R-19 "$CPC";  nm R "$VAR";  nm O "$PVC";  nm S "$APC"
-nm U    "$CVC"
+nm U    "$CVC"; nm V "$A8C"
 # cobrador presente no disco que confessou não ter medido (fail-open com marcador)
 NAO_MEDIDO="${NAO_MEDIDO}${NAO_MEDIDO_RT}"
 [ -n "$NAO_MEDIDO" ] && printf '⚠️ NÃO MEDIDO — cobrador ausente do disco, o portão pulou sem rodar:%s\n' "$NAO_MEDIDO" >&2

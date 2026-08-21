@@ -1981,6 +1981,121 @@ def main():
                   load(d18, "2026-08-14-fechado")["status"] == "done")
         finally:
             shutil.rmtree(d18, ignore_errors=True)
+
+        # R-36 · WBS: `depende` é a seta "o outro termina antes deste começar".
+        # Aresta que aponta pro nada, laço e tique fora de ordem são recusados na
+        # GRAVAÇÃO — aviso que deixa passar vira plano quebrado no disco.
+        print("o campo `depende` grava a aresta e recusa a aresta impossível")
+        d19 = tempfile.mkdtemp(prefix="plan-depende-")
+        try:
+            def com_dep(**over):
+                over.setdefault("id", "2026-08-16-dep")
+                return completo(sample(**over))
+
+            def seta(pl, iid, deps):
+                for ph in pl["phases"]:
+                    for it in ph["items"]:
+                        if it["id"] == iid:
+                            it["depende"] = deps
+                return pl
+
+            init_into(d19, seta(com_dep(), "F1.2", ["F1.1"]))
+            check("aresta válida grava",
+                  load(d19, "2026-08-16-dep")["phases"][0]["items"][1]["depende"] == ["F1.1"])
+            raises("id inexistente recusa",
+                   lambda: ps.validate(seta(com_dep(), "F1.2", ["F9.9"])),
+                   "F1.2 depende de 'F9.9': não existe no plano")
+            raises("auto-referência recusa",
+                   lambda: ps.validate(seta(com_dep(), "F1.2", ["F1.2"])),
+                   "F1.2 depende de si mesmo")
+            raises("id repetido na lista recusa",
+                   lambda: ps.validate(seta(com_dep(), "F1.2", ["F1.1", "F1.1"])),
+                   "F1.2 depende de 'F1.1' duas vezes")
+            raises("dependência de FASE recusa — fase é pasta, não trabalho",
+                   lambda: ps.validate(seta(com_dep(), "F1.2", ["F1"])),
+                   "F1.2 depende de 'F1': não existe no plano")
+            ciclo = seta(seta(seta(com_dep(), "F1.1", ["F2.1"]),
+                              "F1.2", ["F1.1"]), "F2.1", ["F1.2"])
+            raises("ciclo de três recusa NOMEANDO o anel",
+                   lambda: ps.validate(ciclo),
+                   "ciclo — F1.1 → F2.1 → F1.2 → F1.1")
+            # Init PARCIAL: a guarda julga o plano que vai pro disco, não o pedaço
+            # que chegou — senão a fase que ficou de fora "não existe" e o ciclo que
+            # só nasce da fusão passa batido.
+            def so_fase(pl, fid):
+                pl["phases"] = [p for p in pl["phases"] if p["id"] == fid]
+                return pl
+
+            init_into(d19, com_dep(id="2026-08-16-fusao"))
+            init_into(d19, so_fase(seta(com_dep(id="2026-08-16-fusao"),
+                                        "F2.1", ["F1.1"]), "F2"))
+            check("init parcial cita passo que só existe no disco e grava",
+                  load(d19, "2026-08-16-fusao")["phases"][1]["items"][0]["depende"] == ["F1.1"])
+            raises("ciclo que só nasce da FUSÃO recusa, nomeando o anel",
+                   lambda: init_into(d19, so_fase(seta(com_dep(id="2026-08-16-fusao"),
+                                                       "F1.1", ["F2.1"]), "F1")),
+                   "ciclo — F1.1 → F2.1 → F1.1")
+            raises("tick com dependência aberta recusa, nomeando o que falta",
+                   lambda: ps.cmd_tick(Args(dir=d19, plan="2026-08-16-dep", node="F1.2",
+                                            evidencia="o comando rodou e saiu 0")),
+                   "F1.2 depende de passo que ainda não fechou: F1.1")
+            ps.cmd_tick(Args(dir=d19, plan="2026-08-16-dep", node="F1.1",
+                             evidencia="o comando rodou e saiu 0"))
+            ps.cmd_tick(Args(dir=d19, plan="2026-08-16-dep", node="F1.2",
+                             evidencia="o comando rodou e saiu 0"))
+            check("com a base fechada, o tique passa",
+                  load(d19, "2026-08-16-dep")["phases"][0]["items"][1]["status"] == "done")
+            init_into(d19, com_dep(id="2026-08-16-sem-dep"))
+            check("plano sem `depende` continua gravando igual",
+                  "depende" not in json.dumps(load(d19, "2026-08-16-sem-dep")))
+
+            # R-36 · a terceira vista: uma barra por passo, agrupada pela ONDA
+            # derivada de `depende` — nunca por calendário. A régua dupla: plano
+            # sem o campo sai IDÊNTICO ao render de hoje (regressão zero), e o
+            # exemplo da spec (§4 de docs/specs/wbs-gantt-proposta.md) sai com
+            # três ondas e o caminho crítico marcado.
+            print()
+            print("a vista de ondas (--vista gantt)")
+            GOLDEN = (
+                "\U0001f4cb Plano de teste \u2014 0/3 passos\n\n"
+                "\u2b1c F1 \u00b7 Primeira fase   (0/2)\n"
+                "     \u25cb F1.1  Passo um\n            faz a primeira coisa\n"
+                "     \u25cb F1.2  Passo dois\n            faz a segunda coisa\n\n"
+                "\u2b1c F2 \u00b7 Segunda fase   (0/1)\n"
+                "     \u25cb F2.1  Passo tres\n            faz a terceira coisa\n")
+            check("plano sem `depende` sai IDÊNTICO ao render de hoje",
+                  ps.render_text(completo(sample())) == GOLDEN)
+            exemplo = completo(sample(id="2026-08-16-gantt", phases=[
+                {"id": "F11", "title": "A frente", "items": [
+                    {"id": "F11.1", "title": "O plano grava a frente", "desc": "x",
+                     "status": "done", "evidence": "o comando rodou e saiu 0"},
+                    {"id": "F11.5", "title": "Plano done sem prova recusa", "desc": "x"},
+                    {"id": "F11.3", "title": "O relatorio oferece o fechamento",
+                     "desc": "x", "depende": ["F11.1"]},
+                    {"id": "F11.4", "title": "O close avisa frente viva",
+                     "desc": "x", "depende": ["F11.1"]},
+                    {"id": "F11.2", "title": "O plan oferece a frente",
+                     "desc": "x", "depende": ["F11.3"]}]}]))
+            check("o exemplo da spec grava (a aresta é válida)",
+                  ps.validate(exemplo) is not None)
+            g = ps.render_text(exemplo, vista="gantt")
+            check("três ondas, e o que corre junto está na mesma",
+                  "ONDA 1" in g and "ONDA 2" in g and "ONDA 3" in g
+                  and "ONDA 4" not in g)
+            check("caminho crítico marcado, nomeando a cadeia mais longa",
+                  "🔥 caminho crítico: F11.1 → F11.3 → F11.2" in g)
+            check("a barra começa na coluna da própria onda",
+                  "\n          🔥 ██ F11.2" in g)
+            check("cada passo diz de quem espera",
+                  "← espera F11.1" in g and "← espera F11.3" in g)
+            check("sem `depende`, a vista degrada para uma onda só",
+                  "ONDA 2" not in ps.render_text(completo(sample()), vista="gantt"))
+            h = ps.render_html(exemplo, vista="gantt")
+            check("a página tem a mesma vista, com o crítico marcado",
+                  'class="plan-tree pt-gantt"' in h and "pt-critico" in h
+                  and h.count('class="pt-phase pt-onda"') == 3)
+        finally:
+            shutil.rmtree(d19, ignore_errors=True)
     finally:
         shutil.rmtree(d, ignore_errors=True)
 

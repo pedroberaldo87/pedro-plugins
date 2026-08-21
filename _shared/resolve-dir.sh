@@ -47,6 +47,16 @@ resolve() {
   if [ -d "$CWD" ]; then
     git_root=$(git -C "$CWD" rev-parse --show-toplevel 2>/dev/null)
     if [ -n "$git_root" ]; then
+      # Worktree LIGADO: o .claude/ é do repositório PRINCIPAL. O worktree nasce
+      # sem ele (.claude/ é ignorado pelo git, então `git worktree add` entrega a
+      # pasta vazia) e quem resolve pelo topo do worktree escreve num pote vazio
+      # — foi assim que 5 commits de trabalho não marcaram passo nenhum no plano.
+      common=$(git -C "$CWD" rev-parse --path-format=absolute --git-common-dir 2>/dev/null)
+      principal=$(dirname "$common")
+      if [ -n "$common" ] && [ "$principal" != "$git_root" ] && [ -d "$principal" ]; then
+        printf '%s\n' "$principal/.claude/$SUB"
+        return 0
+      fi
       printf '%s\n' "$git_root/.claude/$SUB"
       return 0
     fi
