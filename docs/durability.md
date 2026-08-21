@@ -1,6 +1,6 @@
 ---
 generated: 2026-08-21
-generated-commit: 27447c8
+generated-commit: b7f4dd6
 project: pedro-plugins
 scope:
   - .gitignore
@@ -38,7 +38,7 @@ verified-by:
   - plugins/project-skills/lib/test_plan_state.py
   - plugins/project-skills/lib/test_cobertura.py
   - plugins/handoff/lib/test_handoff_skill.py
-doc-sig: pedro-plugins/.gitignore@gen=3.8#32f288ac
+doc-sig: pedro-plugins/.gitignore@gen=3.8#b0b7a7ae
 ---
 
 # Durabilidade
@@ -630,6 +630,15 @@ Entrou no inventário em 2026-08-21. Escrito por `plugins/project-skills/lib/pre
 - **RPO: irrelevante. RTO: um comando** (`precheck_largada.py <plano> --relatorio`).
 - **A marca de largada divide a mesma resposta.** `<projeto>/.claude/.sprint/em-curso/<run_id>.json` (escrita por `ledger_corridas.py:abre` antes da chamada do motor, solta pelo `registra-run`) também é efêmera e gitignorada: a órfã de mais de 12h vira linha `morta-por-fora` na próxima leitura do ledger — perder a marca perde só a autópsia daquela corrida, nunca o plano. Sem backup, por decisão. [confirmado — `ledger_corridas.py:abre` e `colhe_orfas`]
 
+### 3.16h · A marca de consentimento das permissões — `~/.claude/pedro-plugins-permissions-ok`
+
+Entrou no inventário em 2026-08-21 (commit `bfbe936`, o pente fino). Escrita pelo `/bootstrap:setup` (só depois do "sim" do usuário) ou por anistia do próprio `apply-config.sh` quando detecta que o merge já tinha acontecido antes da regra existir; lida por `plugins/bootstrap/hooks/lib/apply-config.sh` a cada SessionStart.
+
+- **Cobertura: NENHUMA — e a perda é declarada barata.** Um arquivo-texto pequeno fora de qualquer repositório, sem cópia, sem backup. [confirmado — `apply-config.sh:CONSENT`, e o caminho mora em `~/.claude/`, o bloco (B) inteiro sem cobertura]
+- **O que se perde se sumir:** só o *de acordo gravado*. O próximo SessionStart segura o merge de permissões dos defaults (env, flags e barra seguem aplicados) e avisa em vez de aplicar — nenhum dado some, nenhum comportamento inverte em silêncio: a mensagem do apply diz o que falta e como resolver. **A anistia ainda pega o caso comum:** máquina onde o merge já aconteceu tem uma permissão distintiva no `settings.json`, e o apply regrava a marca sozinho na próxima sessão.
+- **RPO: irrelevante. RTO: um comando** — o `/bootstrap:setup` mostra a lista do allow (a contagem sai do comando no `SKILL.md` do bootstrap, nunca de texto) e regrava a marca com o de acordo.
+- **Por que ela existe fora do repo, e é correto assim:** a marca é o consentimento de *quem instala*, por máquina — versioná-la no marketplace seria distribuir o "sim" de uma pessoa como default de todas. Mesma lógica do `arsenal.md` (§3.16c).
+
 ### 3.17 · Cofre de secrets — iCloud
 
 - [confirmado] `cofre_paths()` em `plugins/project-skills/lib/journal.py` resolve nesta ordem: `PROJECT_DOC_COFRE_DIR` (override explícito) → `~/Library/Mobile Documents/com~apple~CloudDocs/Cofre` → fallback local `<projeto>/.claude/secrets/_local_cofre`. O nome do arquivo é `<basename>-<8 hex do sha1 do path absoluto>.env`, para dois projetos homônimos não colidirem.
@@ -640,7 +649,8 @@ Entrou no inventário em 2026-08-21. Escrito por `plugins/project-skills/lib/pre
 
 ### 3.18 · Estado por-sessão em `/tmp` e sentinelas de sync
 
-- [confirmado] `plugins/context-guard/hooks/context-guard-reset.sh` remove `/tmp/claude-context-pct-<session>` e `/tmp/claude-context-warned-<session>` da própria sessão e faz prune de órfãos com `-mtime +1`. O comentário guarda o defeito anterior: o glob antigo apagava o sentinel de **todas** as sessões e rearmava o bloqueio das já abertas.
+- [confirmado] `plugins/context-guard/hooks/context-guard-reset.sh` remove `claude-context-pct-<session>` e `claude-context-warned-<session>` da própria sessão — no temporário **do sistema** (`lib-tmpdir.sh`, não `/tmp` cravado) — e faz prune de órfãos com `-mtime +1`. O comentário guarda o defeito anterior: o glob antigo apagava o sentinel de **todas** as sessões e rearmava o bloqueio das já abertas.
+- 🟢 **O ramo `unknown` morreu em 2026-08-21** [confirmado — commit `bfbe936`]: os hooks com sentinela por sessão deixaram de gravar arquivo com `session_id` "unknown" quando o payload vem sem sessão — agora liberam sem gravar nada. Era a mesma classe do defeito do context-guard v1.1: sentinela "unknown" é estado **compartilhado entre sessões** disfarçado de por-sessão. Consequência de durabilidade: uma família de arquivos órfãos deixou de nascer; a que já existe no disco expira pelo prune normal.
 - [confirmado] `session-sync.sh` usa `LAST_SYNC_FILE="$HOME/.claude/plugins/.pedro-plugins-last-sync"` (existe, vazio, mtime de hoje 18:56) e `LOCK_DIR="$HOME/.claude/plugins/.pedro-plugins-sync.lock"` (não existe agora — o lock é criado com `mkdir` e removido por `trap ... EXIT INT TERM`; lock com mais de 300s é quebrado).
 - Perda: nula em conteúdo. O pior efeito de apagar o `last-sync` é um ciclo de sync extra.
 
@@ -701,7 +711,7 @@ Ordenado por custo da perda, do pior para o mais barato:
 - 🔴 **Os 20 vereditos de reprovação do juiz de forma** — texto livre descrevendo cada defeito, sem cópia e sem regenerador; era contagem na rodada anterior, virou corpus nesta (§3.13).
 - 🔴 **Os dois acumulados de `~/.claude/` que NENHUM comando refaz** — as durações por comando (§3.20) e as regras de escrita das páginas (§3.11a). Os dois só existem porque algo rodou ou foi reprovado dezenas de vezes nesta máquina; os dois moram fora de qualquer repositório; e nenhum verificador acusa a perda. Fora do índice não por decisão sobre eles, mas porque `~/.claude/` inteiro está fora.
 - 🟡 **Batidas do juiz de forma e do teto de prosa** — entrada de **dois** verificadores desde esta rodada (o conformance, que pergunta se o guarda está vivo, e o `furos_da_regua`, que conta furos pro dono); apagar faz um reportar "nunca executou" para hook que funciona e o outro perder o histórico de furos (§3.13, §3.14, §3.14-b, §3.15).
-- 🟡 **Preferências e kill-switches** (`config.json` do `/visual`, arquivos `mode`, `vision.json`) — perder não custa dado, custa **inversão silenciosa de comportamento**; o `vision.json`, em vez de inverter, para a tool com mensagem pedindo reconfig (§3.11, §3.16, §3.16b).
+- 🟡 **Preferências e kill-switches** (`config.json` do `/visual`, arquivos `mode`, `vision.json`) — perder não custa dado, custa **inversão silenciosa de comportamento**; o `vision.json`, em vez de inverter, para a tool com mensagem pedindo reconfig (§3.11, §3.16, §3.16b). A marca de consentimento das permissões (§3.16h) é o caso mais barato da classe: a perda só segura o merge com aviso na tela, e um `/bootstrap:setup` a regrava.
 - 🟢 **Grafo do graphify, saída do `/visual`, baseline de hooks** — regeneráveis por comando (§3.3, §3.6, §3.19).
   ⚠️ **Com uma ressalva desde 2026-08-03:** as 100 páginas de `.claude/visual/` seguem descartáveis, mas o que as isenta da régua (`.claude/limites-aceitos.md`, §2.6) é um arquivo **coberto** que guarda a medição de um alvo **não coberto** — e a medição já saiu do lugar (99·82 registrados contra 100·83 medidos hoje). Cobertura de git protege o registro da decisão, nunca a validade dela.
 - 🟢 **Contrato de tier e registro de limites** (`_shared/r8-tiers.json`, `.claude/limites-aceitos.md`) — rastreados e cobertos pelo remote (§2.5, §2.6). O valor volta com um `git checkout`; o **julgamento escrito ao lado dele** (o `porque` de cada tier, o motivo de aceitar cada limite) não sai de comando nenhum.
