@@ -2048,6 +2048,52 @@ def main():
             init_into(d19, com_dep(id="2026-08-16-sem-dep"))
             check("plano sem `depende` continua gravando igual",
                   "depende" not in json.dumps(load(d19, "2026-08-16-sem-dep")))
+
+            # R-36 · a terceira vista: uma barra por passo, agrupada pela ONDA
+            # derivada de `depende` — nunca por calendário. A régua dupla: plano
+            # sem o campo sai IDÊNTICO ao render de hoje (regressão zero), e o
+            # exemplo da spec (§4 de docs/specs/wbs-gantt-proposta.md) sai com
+            # três ondas e o caminho crítico marcado.
+            print()
+            print("a vista de ondas (--vista gantt)")
+            GOLDEN = (
+                "\U0001f4cb Plano de teste \u2014 0/3 passos\n\n"
+                "\u2b1c F1 \u00b7 Primeira fase   (0/2)\n"
+                "     \u25cb F1.1  Passo um\n            faz a primeira coisa\n"
+                "     \u25cb F1.2  Passo dois\n            faz a segunda coisa\n\n"
+                "\u2b1c F2 \u00b7 Segunda fase   (0/1)\n"
+                "     \u25cb F2.1  Passo tres\n            faz a terceira coisa\n")
+            check("plano sem `depende` sai IDÊNTICO ao render de hoje",
+                  ps.render_text(completo(sample())) == GOLDEN)
+            exemplo = completo(sample(id="2026-08-16-gantt", phases=[
+                {"id": "F11", "title": "A frente", "items": [
+                    {"id": "F11.1", "title": "O plano grava a frente", "desc": "x",
+                     "status": "done", "evidence": "o comando rodou e saiu 0"},
+                    {"id": "F11.5", "title": "Plano done sem prova recusa", "desc": "x"},
+                    {"id": "F11.3", "title": "O relatorio oferece o fechamento",
+                     "desc": "x", "depende": ["F11.1"]},
+                    {"id": "F11.4", "title": "O close avisa frente viva",
+                     "desc": "x", "depende": ["F11.1"]},
+                    {"id": "F11.2", "title": "O plan oferece a frente",
+                     "desc": "x", "depende": ["F11.3"]}]}]))
+            check("o exemplo da spec grava (a aresta é válida)",
+                  ps.validate(exemplo) is not None)
+            g = ps.render_text(exemplo, vista="gantt")
+            check("três ondas, e o que corre junto está na mesma",
+                  "ONDA 1" in g and "ONDA 2" in g and "ONDA 3" in g
+                  and "ONDA 4" not in g)
+            check("caminho crítico marcado, nomeando a cadeia mais longa",
+                  "🔥 caminho crítico: F11.1 → F11.3 → F11.2" in g)
+            check("a barra começa na coluna da própria onda",
+                  "\n          🔥 ██ F11.2" in g)
+            check("cada passo diz de quem espera",
+                  "← espera F11.1" in g and "← espera F11.3" in g)
+            check("sem `depende`, a vista degrada para uma onda só",
+                  "ONDA 2" not in ps.render_text(completo(sample()), vista="gantt"))
+            h = ps.render_html(exemplo, vista="gantt")
+            check("a página tem a mesma vista, com o crítico marcado",
+                  'class="plan-tree pt-gantt"' in h and "pt-critico" in h
+                  and h.count('class="pt-phase pt-onda"') == 3)
         finally:
             shutil.rmtree(d19, ignore_errors=True)
     finally:
