@@ -112,4 +112,9 @@ if [ "$RC" -eq 0 ] && [[ " $* " != *" --flake "* ]] && [ -f "$RAIZ/_shared/green
   fi
 fi
 
+# A linha existe por causa do Windows do CI: duas esteiras completas terminaram com
+# suítes FALHOU, sem o bloco de detalhes do rodador, e o passo seguiu como se o exit
+# fosse 0 (runs 32491657813 e 32493288667). Com o rc dito em voz alta dá para cravar
+# de que lado o veredito se perde.
+echo "suite.sh: saindo com rc=$RC"
 exit $RC
