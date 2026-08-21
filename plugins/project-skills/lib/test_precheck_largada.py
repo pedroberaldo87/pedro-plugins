@@ -353,20 +353,25 @@ VERMELHA = 'echo "155 suíte(s) · 3 problema(s)"; exit 1'
 VAZIA = 'echo "0 suíte(s) · 0 problema(s)"'
 
 
-def marca_prova():
-    """Grava a prova da esteira para a árvore como ela está AGORA."""
-    subprocess.run(["bash", "-c", ". %s; green_cache_mark %s full teste"
-                    % (os.path.join(AQUI, "green-cache.sh"), casa)],
-                   check=True, timeout=60,
-               stdin=subprocess.DEVNULL, start_new_session=True)
-
-
 def checks(r, nome):
     return [a for a in r["achados"] if a["check"] == nome]
 
 
+def suja(tag):
+    """Mexe na árvore: hash novo ⇒ MISS no green-cache ⇒ a esteira RODA de verdade."""
+    with open(os.path.join(casa, "sujeira-%s.txt" % tag), "w", encoding="utf-8") as f:
+        f.write(tag)
+
+
+def tem_prova():
+    return subprocess.run(
+        ["bash", "-c", ". %s; green_cache_check %s full"
+         % (os.path.join(AQUI, "green-cache.sh"), casa)],
+        timeout=60, stdin=subprocess.DEVNULL, start_new_session=True).returncode == 0
+
+
 # CASO 1 · a esteira está VERMELHA.
-marca_prova()
+suja("vermelha")
 r1 = passada3(casa, suite_cmd=VERMELHA, teto_suite=60)
 checa("esteira vermelha vira pergunta bloqueante",
       [a["classe"] for a in checks(r1, "esteira")] == [BLOQUEANTE]
@@ -376,24 +381,44 @@ checa("a prova da esteira vermelha cola o rc e a saída crua",
       and "3 problema" in checks(r1, "esteira")[0]["prova"],
       repr(checks(r1, "esteira")[0]["prova"]))
 
-# CASO 2 · não existe prova gravada para ESTA árvore. O verde de antes não vale:
-# basta um arquivo novo no disco para a foto ser outra.
-with open(os.path.join(casa, "novo.txt"), "w", encoding="utf-8") as f:
-    f.write("editado depois da prova\n")
+checa("a esteira vermelha NÃO grava prova nenhuma", tem_prova() is False)
+
+# CASO 2 · não existe prova gravada para ESTA árvore. Isso NÃO fecha a porta: quem
+# mede é esta passada, e é ela que grava a prova quando a esteira sai verde. Exigir
+# prova de terceiro aqui tornava a largada insatisfazível fora deste repositório.
+suja("verde")
 r2 = passada3(casa, suite_cmd=VERDE, teto_suite=60)
-checa("sem prova para a árvore de agora, a porta fecha",
-      [a["classe"] for a in checks(r2, "prova_da_arvore")] == [BLOQUEANTE],
+checa("MISS no green-cache NÃO fecha a porta — a passada mede em casa",
+      checks(r2, "prova_da_arvore") == [] and checks(r2, "esteira") == [],
       repr(r2["achados"]))
-checa("a referência é a FOTO da largada: o hash da árvore vai na prova",
-      r2["arvore"] and r2["arvore"][:7] in checks(r2, "prova_da_arvore")[0]["prova"],
+# A passada MEDE, mas NÃO grava no depósito de prova compartilhado: o comando da
+# esteira aqui é o que a largada declarou, e o depósito tem contrato — só a esteira
+# INTEIRA grava a prova de escopo total, que depois satisfaz toda consulta.
+checa("a passada NÃO grava prova no depósito compartilhado", tem_prova() is False,
       repr(r2["arvore"]))
-marca_prova()
-r2b = passada3(casa, suite_cmd=VERDE, teto_suite=60)
-checa("com a prova gravada para a árvore de agora, a porta abre",
-      checks(r2b, "prova_da_arvore") == [] and checks(r2b, "esteira") == [],
-      repr(r2b["achados"]))
+
+# CASO 2b · a prova existe para a árvore de AGORA, gravada por QUEM rodou a esteira
+# inteira (o hook do ship, o qa-loop): a esteira não roda de novo.
+subprocess.run(["bash", "-c", ". %s; green_cache_mark %s full teste"
+                % (os.path.join(AQUI, "green-cache.sh"), casa)],
+               check=True, timeout=60, stdin=subprocess.DEVNULL, start_new_session=True)
+r2b = passada3(casa, suite_cmd=VERMELHA, teto_suite=60)
+checa("com a prova gravada, a esteira é PULADA e a passada diz que reaproveitou",
+      [a["classe"] for a in checks(r2b, "esteira")] == [ADIAVEL]
+      and "reaproveitada" in checks(r2b, "esteira")[0]["prova"]
+      and r2b["perguntas"] == [], repr(r2b["achados"]))
+
+# CASO 2c · a árvore não é MEDÍVEL (raiz fora do git): o gate que não consegue medir
+# tem que DIZER que não mediu (Artigo 4) — e não fechar a porta de toda largada.
+sem_git = tempfile.mkdtemp(prefix="precheck-sem-git-")
+r2c = passada3(sem_git, suite_cmd=VERDE, teto_suite=60)
+checa("árvore não medível vira ADIÁVEL que diz que NÃO MEDIU, não bloqueante",
+      [a["classe"] for a in checks(r2c, "prova_da_arvore")] == [ADIAVEL]
+      and "não deu para MEDIR" in checks(r2c, "prova_da_arvore")[0]["pergunta"]
+      and checks(r2c, "prova_da_arvore")[0] not in r2c["perguntas"], repr(r2c["achados"]))
 
 # CASO 3 · o comando da esteira mede ZERO suítes e sai verde (o glob vazio).
+suja("vazia")
 r3 = passada3(casa, suite_cmd=VAZIA, teto_suite=60)
 checa("suiteCmd que mede zero suítes reprova mesmo saindo verde",
       [a["classe"] for a in checks(r3, "suite_mede")] == [BLOQUEANTE]
@@ -402,10 +427,12 @@ checa("suiteCmd vazio é pergunta, não silêncio",
       [a["check"] for a in passada3(casa, suite_cmd="")["perguntas"]][:1] == ["esteira"])
 
 # O gate de commit que não responde dentro do teto.
+suja("gate")
 rg = passada3(casa, suite_cmd=VERDE, gate_cmd="sleep 5", teto_suite=60, teto_gate=1)
 checa("gate de commit que estoura o teto vira pergunta",
       [a["classe"] for a in checks(rg, "gate_de_commit")] == [BLOQUEANTE],
       repr(rg["achados"]))
+suja("gatev")
 rgv = passada3(casa, suite_cmd=VERDE, gate_cmd="exit 3", teto_suite=60)
 checa("gate de commit que reprova a árvore vira pergunta",
       "rc=3" in checks(rgv, "gate_de_commit")[0]["prova"], repr(rgv["achados"]))
@@ -414,13 +441,14 @@ checa("gate de commit que reprova a árvore vira pergunta",
 sino = os.path.join(casa, "sino")
 INSTAVEL = ('if [ -f %s ]; then echo "155 suíte(s) · 1 problema(s)"; exit 1; '
             'else : > %s; echo "155 suíte(s) · 0 problema(s)"; fi' % (sino, sino))
+suja("instavel")
 ri = passada3(casa, suite_cmd=INSTAVEL, teto_suite=60, rodadas=2)
 checa("veredito que muda entre duas rodadas reprova",
       [a["classe"] for a in checks(ri, "veredito_estavel")] == [BLOQUEANTE],
       repr(checks(ri, "veredito_estavel")))
 checa("com uma rodada só, o medidor DIZ que não mediu a estabilidade",
-      [a["classe"] for a in checks(r2b, "veredito_estavel")] == [ADIAVEL],
-      repr(checks(r2b, "veredito_estavel")))
+      [a["classe"] for a in checks(r2, "veredito_estavel")] == [ADIAVEL],
+      repr(checks(r2, "veredito_estavel")))
 
 # O alvo da largada: dois planos ativos e nenhum alvo declarado não larga.
 planos = os.path.join(casa, "planos")
@@ -438,7 +466,27 @@ checa("com o alvo declarado, a porta do alvo abre",
 
 checa("todo achado da passada 3 sai com pergunta e prova",
       all(a["pergunta"].strip() and a["prova"].strip()
-          for r in (r1, r2, r3, rg, ri, ra) for a in r["achados"]))
+          for r in (r1, r2, r2b, r3, rg, ri, ra) for a in r["achados"]))
+
+# O ADIÁVEL CHEGA AO ARTEFATO (Artigo 4). O que se mede é o RELATÓRIO no disco e o
+# texto que a casca imprime — não o valor de retorno da passada, que ninguém lê.
+adi = tempfile.mkdtemp(prefix="precheck-adiavel-")
+PLANO_ADI = {"id": "AD", "phases": [{"items": [
+    {"id": "F1.1", "desc": "um passo", "pronto": "a suíte passa"}]}]}
+rel_adi = grava_relatorio(adi, PLANO_ADI,
+                          {"3": passada3(adi, suite_cmd=VERDE, teto_suite=60)})
+with open(os.path.join(adi, ".claude", ".sprint", "precheck.json"), encoding="utf-8") as f:
+    do_disco = json.load(f)
+checa("o achado ADIÁVEL vai para o relatório GRAVADO, não morre no retorno",
+      any(a["check"] == "prova_da_arvore" for a in do_disco.get("adiadas") or []),
+      repr(do_disco))
+v_adi = confere_largada(adi, PLANO_ADI)
+checa("a casca larga, mas o texto NOMEIA os adiados e cita o primeiro por extenso",
+      v_adi["larga"] is True and "ADIADO" in v_adi["texto"]
+      and ("%d achado" % len(do_disco["adiadas"])) in v_adi["texto"]
+      and do_disco["adiadas"][0]["pergunta"] in v_adi["texto"], repr(v_adi))
+checa("o veredito do relatório com adiável continua livre",
+      rel_adi["veredito"] == "livre", repr(rel_adi["veredito"]))
 
 # ── PASSADA 4 · A VIZINHANÇA (F22.4) ────────────────────────────────────────
 # Os dois cenários caros são REPRODUZIDOS, não simulados por mock: um motor vivo
@@ -656,6 +704,14 @@ rr = rodada_seguinte(rod, [dict(REVELA, resposta="na verdade quem produz é outr
                                                  "passo, o F0.4")])
 checa("resposta que contraria sem negar existência propõe REESCREVER",
       [p["acao"] for p in rr["propostas"]] == ["reescrever"], repr(rr["propostas"]))
+# O FALSO-POSITIVO que a proposta trazia (F22.8): "nenhum" solto dentro de uma
+# CONFIRMAÇÃO virava proposta de remover o passo que o dono acabou de confirmar.
+rc_ok = rodada_seguinte(rod, [dict(REVELA, resposta="não, nenhum problema — o passo "
+                                                    "está certo")])
+checa("resposta que confirma com 'não, nenhum problema' NÃO vira proposta",
+      rc_ok["propostas"] == [] and rc_ok["leitura"][0]["desconfirmou"] is False
+      and rc_ok["fechou"] is True, repr(rc_ok))
+
 checa("a proposta não escreve no plano — o retorno é só dado",
       all(isinstance(p, dict) for p in rr["propostas"])
       and [a for a in rr["propostas"] if a["check"] != "desconfirmado"] == [],
@@ -690,29 +746,28 @@ TOMADA = {"passo": "F1.1", "check": "tranca", "classe": BLOQUEANTE,
           "respondida_por": "reabre, sim"}
 
 lar = tempfile.mkdtemp(prefix="precheck-largada-")
-ARV = "aaaa1111"
 
-v = confere_largada(lar, PLANO_L, arvore=ARV)
+v = confere_largada(lar, PLANO_L)
 checa("sem relatório nenhum, a casca RECUSA largar",
       v["larga"] is False and v["motivo"] == "ausente", repr(v))
 
 rel = grava_relatorio(lar, PLANO_L, {"1": {"perguntas": [ABERTA],
-                                           "registrados": [TOMADA]}}, arvore=ARV)
+                                           "registrados": [TOMADA]}})
 checa("o relatório grava a marca, o veredito e a lista de decisões TOMADAS",
       rel["veredito"] == "em-aberto" and [t["check"] for t in rel["tomadas"]] == ["tranca"]
-      and rel["marca"]["arvore"] == ARV and rel["marca"]["plano"], repr(rel))
+      and rel["marca"]["plano"] and "arvore" not in rel["marca"], repr(rel))
 checa("a casa do relatório é .claude/.sprint/, fora do plugin",
       os.path.exists(os.path.join(lar, ".claude", ".sprint", "precheck.json")),
       os.listdir(lar))
 
-v = confere_largada(lar, PLANO_L, arvore=ARV)
+v = confere_largada(lar, PLANO_L)
 checa("com decisão em aberto a casca RECUSA e diz QUAL decisão falta",
       v["larga"] is False and v["motivo"] == "decisao-em-aberto"
       and ABERTA["pergunta"] in v["texto"] and "F1.1" in v["texto"], repr(v))
 
 rel = grava_relatorio(lar, PLANO_L, {"1": {"perguntas": [],
-                                           "registrados": [TOMADA]}}, arvore=ARV)
-v = confere_largada(lar, PLANO_L, arvore=ARV)
+                                           "registrados": [TOMADA]}})
+v = confere_largada(lar, PLANO_L)
 checa("com relatório fresco e nada em aberto, a casca ACEITA largar",
       v["larga"] is True and v["motivo"] == "livre" and rel["veredito"] == "livre",
       repr(v))
@@ -722,24 +777,28 @@ checa("com relatório fresco e nada em aberto, a casca ACEITA largar",
 PLANO_TICADO = json.loads(json.dumps(PLANO_L))
 PLANO_TICADO["phases"][0]["items"][1]["status"] = "done"
 checa("tique de passo já fechado NÃO vence o relatório",
-      confere_largada(lar, PLANO_TICADO, arvore=ARV)["larga"] is True,
-      repr(marca(PLANO_TICADO, lar, ARV)))
+      confere_largada(lar, PLANO_TICADO)["larga"] is True,
+      repr(marca(PLANO_TICADO, lar)))
 
 PLANO_MUDADO = json.loads(json.dumps(PLANO_L))
 PLANO_MUDADO["phases"][0]["items"][0]["pronto"] = "a suíte passa e o gate aprova"
-v = confere_largada(lar, PLANO_MUDADO, arvore=ARV)
+v = confere_largada(lar, PLANO_MUDADO)
 checa("passo ABERTO reescrito VENCE o relatório, e a recusa diz que foi o plano",
       v["larga"] is False and v["motivo"] == "vencido" and v["mudou"] == ["plano"],
       repr(v))
 
-v = confere_largada(lar, PLANO_L, arvore="bbbb2222")
-checa("árvore diferente VENCE o relatório, e a recusa diz que foi a árvore",
-      v["larga"] is False and v["motivo"] == "vencido" and v["mudou"] == ["arvore"],
-      repr(v))
+# A ÁRVORE NÃO ENTRA NA MARCA (R-32): mexer no disco não vence o relatório — só o
+# plano e o registro selado vencem. E a marca não mede nada, então não tem como
+# medir errado e gravar constante nenhuma para o lado do "passou".
+with open(os.path.join(lar, "mexido.txt"), "w", encoding="utf-8") as f:
+    f.write("arquivo novo depois da medição\n")
+checa("mexer na árvore NÃO vence o relatório, e a marca não carrega hash de árvore",
+      confere_largada(lar, PLANO_L)["larga"] is True
+      and list(marca(PLANO_L, lar)) == ["plano"], repr(marca(PLANO_L, lar)))
 
 # Decisão nova selada entra na marca: o registro selado é parte do que foi medido.
 selar(lar, "de agora em diante o gate roda antes", "dono")
-v = confere_largada(lar, PLANO_L, arvore=ARV)
+v = confere_largada(lar, PLANO_L)
 checa("decisão selada nova VENCE o relatório", v["motivo"] == "vencido", repr(v))
 
 # E pela linha de comando, que é como a casca chama: recusa sai 3.
@@ -749,6 +808,77 @@ with open(plano_arq, "w", encoding="utf-8") as f:
 rc = subprocess.run([sys.executable, MODULO, plano_arq, "--raiz", lar, "--confere"],
                     capture_output=True, text=True)
 checa("o CLI --confere sai 3 quando recusa", rc.returncode == 3, rc.stderr[-300:])
+
+
+# ── F22.8 · a ROTA da proposta até o dono ───────────────────────────────────
+# Proposta que só volta como valor de retorno não chega em ninguém. A rota é a que a
+# casca percorre: a rodada N+1 pela linha de comando GRAVA o relatório, e o `--confere`
+# do bloco 1 RECUSA a largada nomeando o passo e citando a resposta do dono.
+rot = tempfile.mkdtemp(prefix="rota-")
+plano_rot = os.path.join(rot, "PL.plan.json")
+with open(plano_rot, "w", encoding="utf-8") as f:
+    json.dump(PLANO_L, f)
+resp_arq = os.path.join(rot, "respostas.json")
+with open(resp_arq, "w", encoding="utf-8") as f:
+    json.dump([{"passo": "F1.1", "check": "ato_do_dono",
+                "pergunta": "o `pronto` do F1.1 pede aprovação do dono — quem aprova?",
+                "prova": "pronto: a suíte passa",
+                "resposta": "na verdade a suíte não cobre esse passo"}], f)
+# A rodada N+1 RESPONDE o relatório das 4 passadas — sem ele não há o que responder,
+# e o comando recusa em vez de fabricar um relatório novo.
+rc = subprocess.run([sys.executable, MODULO, plano_rot, "--raiz", rot,
+                     "--respostas", resp_arq], capture_output=True, text=True)
+checa("a rodada N+1 sem relatório nenhum RECUSA (sai 3)",
+      rc.returncode == 3 and "rode `--relatorio` antes" in rc.stderr, rc.stderr[-300:])
+
+subprocess.run([sys.executable, MODULO, plano_rot, "--raiz", rot, "--relatorio",
+                "--suite", "echo '3 suíte(s) · 0 problema(s)'"],
+               capture_output=True, text=True)
+_casa_rot = os.path.join(rot, ".claude", ".sprint", "precheck.json")
+with open(_casa_rot, encoding="utf-8") as f:
+    _rel_antes = json.load(f)
+# Uma pergunta de pé no relatório — é ela que a rodada N+1 não pode fazer sumir.
+_rel_antes["abertas"].append({"passo": "F9.9", "check": "ato_do_dono",
+                              "pergunta": "quem aprova o F9.9?", "prova": "pronto: …",
+                              "passada": "1"})
+_rel_antes["veredito"] = "em-aberto"
+with open(_casa_rot, "w", encoding="utf-8") as f:
+    json.dump(_rel_antes, f, ensure_ascii=False)
+
+# Respostas VAZIAS não podem esvaziar o relatório: era assim que a rodada N+1 abria a
+# porta que as 4 passadas fecharam — ela REGRAVAVA o arquivo inteiro com o próprio
+# resultado, e as perguntas de pé sumiam junto.
+vazio_arq = os.path.join(rot, "vazio.json")
+with open(vazio_arq, "w", encoding="utf-8") as f:
+    json.dump([], f)
+subprocess.run([sys.executable, MODULO, plano_rot, "--raiz", rot,
+                "--respostas", vazio_arq], capture_output=True, text=True)
+with open(os.path.join(rot, ".claude", ".sprint", "precheck.json"), encoding="utf-8") as f:
+    _rel_vazio = json.load(f)
+checa("rodada N+1 com respostas VAZIAS não apaga as perguntas de pé",
+      len(_rel_vazio["abertas"]) == len(_rel_antes["abertas"])
+      and len(_rel_antes["abertas"]) > 0,
+      "antes %d · depois %d" % (len(_rel_antes["abertas"]), len(_rel_vazio["abertas"])))
+
+rc = subprocess.run([sys.executable, MODULO, plano_rot, "--raiz", rot,
+                     "--respostas", resp_arq], capture_output=True, text=True)
+saida = json.loads(rc.stdout or "{}")
+with open(os.path.join(rot, ".claude", ".sprint", "precheck.json"), encoding="utf-8") as f:
+    rel_rot = json.load(f)
+checa("a rodada N+1 pela linha de comando GRAVA a proposta no relatório",
+      rc.returncode == 1
+      and [pr["passo"] for pr in rel_rot["propostas"]] == ["F1.1"]
+      and rel_rot["propostas"][0]["citacao"] == "na verdade a suíte não cobre esse passo"
+      and saida["propostas"][0]["acao"] == "reescrever",
+      rc.stdout[-400:] + rc.stderr[-200:])
+rc = subprocess.run([sys.executable, MODULO, plano_rot, "--raiz", rot, "--confere"],
+                    capture_output=True, text=True)
+v = json.loads(rc.stdout or "{}")
+checa("o --confere RECUSA a largada enquanto a proposta não for decidida",
+      rc.returncode == 3 and v["motivo"] == "proposta-pendente"
+      and "F1.1" in v["texto"]
+      and "na verdade a suíte não cobre esse passo" in v["texto"],
+      rc.stdout[-400:] + rc.stderr[-200:])
 
 
 print("test_precheck_largada: %d ok, %d falha(s)" % (ok, falhas))

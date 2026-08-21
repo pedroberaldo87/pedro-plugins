@@ -702,6 +702,26 @@ Complementos, não substitutos: `sev` (`high`/`med`/`low`) no item quando eles t
 gravidade diferente; o bloco `bullets` com `"problema": true` continua para os 2-3
 bullets de "qual é o problema" da página como um todo — não para itens de bloqueio.
 
+### Página de aprovação de documento — o esquema vem ANTES do texto
+
+Aprovar documento é ler documento, e documento é textão por natureza. A regra: **em toda página de aprovação de documento, um bloco `esquema` do tipo certo vem ANTES do bloco `aprovacao`.** O desenho é o que se lê primeiro; o texto fica atrás dele, para conferir. Página de aprovação sem esquema à frente é textão e reprova.
+
+O `doc_integral` **continua obrigatório** — o de acordo é sobre o texto, não sobre o desenho. O esquema não resume o documento no lugar dele: ele dá a forma que o texto tem, para que a leitura do texto seja conferência e não descoberta.
+
+O desenho é do programa, não seu: o bloco `esquema` já existe em
+`plugins/visual/lib/visual_page.py` (função `r_esquema`, seis tipos). Os campos de cada
+tipo e **o tipo certo para cada documento** saem de um comando só — não invente desenho
+em `raw_html`, e não decore a lista aqui, que é onde ela sai do lugar sem ninguém ver:
+
+```bash
+VP="$(bash "${CLAUDE_PLUGIN_ROOT}/lib/resolve-plugin.sh" visual lib/visual_page.py)"
+python3 "$VP" schema
+```
+
+Documento fora da lista escolhe pela forma do conteúdo, não pelo nome: ordem que
+desempata é `escada`, grupo é `quadrantes`, peça e fronteira é `mapa`, passo depois de
+passo é `fluxo`, termo é `glossario`, lista com estado é `placar`.
+
 ### Prosa é PROIBIDA — a régua de estilo, cobrada pelo build
 
 Página gerada é lida com pressa e vem volumosa. **Bullets, nunca parágrafo.** Quatro

@@ -559,6 +559,11 @@ Escrever **não fecha** a etapa. O ciclo é este, e ele repete até o dono estar
    [ -n "$PAGINA" ] && python3 "$PAGINA" build --spec {spec.json}
    ```
 
+   - **O esquema vem ANTES do texto, e o programa RECUSA a página sem ele.** Aprovar documento é
+     ler documento, e documento é textão por natureza: um bloco `esquema` do tipo certo abre a
+     página, e o texto integral fica atrás dele para conferência. Qual tipo cada documento pede
+     está na saída do subcomando `schema` do mesmo programa, e a regra inteira mora na skill do `/visual`
+     (seção "Página de aprovação de documento") — leia lá, não decore aqui.
    - **Aprovação sem o texto integral na página o programa RECUSA** (sai 2, não escreve arquivo) —
      resumo de documento é a forma mais barata de comprar aprovação que não existe.
    - **O veredito volta pelo disco, não pelo chat.** Quando ele disser "ok"/"pronto"/"lido", leia

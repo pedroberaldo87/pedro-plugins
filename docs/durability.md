@@ -323,7 +323,7 @@ Cada bloco abaixo diz o mesmo em variações: existe no disco desta máquina, n�
 
 - 🟢 **Voltou a ser RASTREADO, e este bloco estava desatualizado** [confirmado nesta rodada — `git ls-files .claude/hook-contract.baseline.json` devolve o caminho e `git check-ignore -v` não casa nada]. Ele saiu da seção *retrato desta máquina* do `.gitignore` quando **perdeu a chave `root`**, que gravava o caminho absoluto da máquina que mediu. Sem ela o retrato viaja, e outra máquina reproduz a comparação.
 - Chaves de topo hoje: `entries`, `scripts`, `findings`, `measured` — nenhum caminho de máquina (`grep -c '/Users/'` devolve 0). Ver `data-stores.md §A5`.
-- **Consequência de durabilidade:** o check E do release-gate deixou de depender de um baseline local. A família de seis retratos (§3.6a, §3.6b) está inteira coberta pelo git — o "único que não viaja" descrito aqui deixou de existir.
+- **Consequência de durabilidade:** o check E do release-gate deixou de depender de um baseline local. A família de retratos (§3.6a, §3.6b — sete hoje, e a lista viva sai de `git ls-files '.claude/*.baseline.json'`) está inteira coberta pelo git — o "único que não viaja" descrito aqui deixou de existir.
 - Regenerável pela varredura de contrato; o que a perda custa é o *julgamento* das isenções aceitas, que vive em prosa no `patterns.md`, não o contrato em si.
 
 ### 3.6a · Retrato do custo do fim de turno — `.claude/stop-budget.baseline.json`
@@ -338,8 +338,8 @@ Nasceu em 2026-08-02. Irmão do §3.6, e a diferença de cobertura entre os dois
 
 Nasceram nesta rodada e levaram a família de baselines de dois para seis. Anatomia em `data-stores.md §A5d`. A lista viva sai de `git ls-files '.claude/*.baseline.json'`.
 
-- 🟢 **Todos RASTREADOS, logo COBERTOS pelo backup do git** — e desde que o §3.6 perdeu a chave `root` e voltou ao índice, **a família dos seis está inteira coberta**: não há mais o caso de um baseline que só existe nesta máquina.
-- 🔴 **O sétimo, `.claude/artigo8.baseline.json` (2026-08-21), está FORA do índice hoje e por isso SEM cobertura nenhuma** — apagar a pasta de trabalho leva junto os 277 achados congelados, e regerar o retrato num clone limpo aceita, calado, a dívida que estiver lá. Não é decisão de ignorar: o `.gitignore` não o exclui, ele só ainda não foi commitado. Enquanto isso, o check **V** sai 0 em qualquer clone sem o arquivo — verde por falta de retrato, não por mérito [confirmado nesta rodada — `git ls-files '.claude/*.baseline.json'` devolve seis; `git check-ignore` não casa o sétimo].
+- 🟢 **Todos RASTREADOS, logo COBERTOS pelo backup do git** — e desde que o §3.6 perdeu a chave `root` e voltou ao índice, **a família está inteira coberta**: não há mais o caso de um baseline que só existe nesta máquina.
+- 🟢 **O sétimo, `.claude/artigo8.baseline.json` (2026-08-21), ENTROU no índice e passou a ter a mesma cobertura dos outros** — enquanto esteve de fora, o check **V** saía 0 em qualquer clone sem o arquivo, verde por falta de retrato e não por mérito; hoje o retrato viaja com o repositório. Quantos achados ele congela sai do comando, nunca daqui [confirmado nesta rodada — `git ls-files '.claude/*.baseline.json'` → **7** caminhos, o sétimo entre eles].
 - **Consequência prática:** os checks que leem esses retratos — inclusive o **E**, do contrato dos hooks — funcionam em qualquer clone.
 - **RPO/RTO:** o mesmo do repositório — perde-se o que não foi commitado, e restaurar é um `git checkout`.
 - ⚠️ **O que a perda custa é a DECISÃO, não o dado.** Regerar qualquer um é um comando; um retrato regenerado do zero aceita, em silêncio, o estado atual — inclusive a regressão que alguém tinha barrado ontem. Vale sobretudo para o `desacoplamento.baseline.json`, cujas 95 entradas são dívida que alguém leu e decidiu tolerar.
