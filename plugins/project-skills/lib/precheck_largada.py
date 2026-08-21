@@ -87,6 +87,9 @@ import sys
 import time
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+# o `which("bash")` cru acha o bash do WSL no Windows — sem distro ele imprime
+# "Windows Subsystem for Linux has no installed distributions" e sai 1
+from bash_posix import bash_posix  # noqa: E402
 
 import andamento  # noqa: E402
 from auditoria_plano import ATO_DO_DONO  # noqa: E402
@@ -462,7 +465,7 @@ def _roda(cmd, raiz, teto):
     ele roda em bash quando há um — `shell=True` no Windows cai no cmd.exe, onde o
     `;` não separa comando e a esteira "vermelha" saía verde (run 32492362032).
     """
-    bash = shutil.which("bash")
+    bash = bash_posix()
     argv = [bash, "-c", cmd] if bash else cmd
     try:
         r = subprocess.run(argv, cwd=raiz, shell=not bash, capture_output=True,
