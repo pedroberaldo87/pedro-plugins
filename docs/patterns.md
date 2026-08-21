@@ -778,7 +778,7 @@ caso:
 - **A prosa que sobrou vira contrato conferível.** `plugins/project-skills/lib/test_motor_js.py`
   casa o `motor.js` com as três fontes que o definem: as peças nomeadas do esqueleto, a tabela
   `prompt → PAPEL` e a constante de esforço contra `_shared/r8-tiers.json`
-  [confirmado — `python3 plugins/project-skills/lib/test_motor_js.py` → `test_motor_js: 139 checagens verdes` nesta rodada; o número cresce com a suíte, o que vale é o comando].
+  [confirmado — `python3 plugins/project-skills/lib/test_motor_js.py` → `test_motor_js: 196 checagens verdes` nesta rodada; o número cresce com a suíte, o que vale é o comando]. <!-- acopla-ok: saida crua de comando citada como prova, e o proprio texto diz que o que vale e o comando -->
 
 **Régua durável: instrução que alguém traduz em código a cada uso é código sem endereço. Ou ela vira arquivo versionado, ou a cópia de ontem volta amanhã sem nada acusar.**
 
