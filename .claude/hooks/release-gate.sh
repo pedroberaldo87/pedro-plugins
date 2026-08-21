@@ -200,7 +200,8 @@ for name in touched:
     old = head_json(mf)
     if old is not None and old.get("version") == pver:
         viol.append("❌ BUMP ESQUECIDO — %s mudou mas version continua %s\n"
-                    "   → suba a version em %s E espelhe em .claude-plugin/marketplace.json"
+                    "   → um gesto só: python3 scripts/bump.py %s\n"
+                    "     (sobe plugin.json, espelha o marketplace e a tabela do architecture.md na casa da doc)"
                     % (name, pver, mf))
 
     # B · espelho da VERSION
@@ -511,7 +512,8 @@ if [ -f "$DSC" ] && printf '%s\n' "$FILES" | grep -qE '\.(md|sh|py|json|yml)$'; 
     VIOL="${VIOL}
 ❌ ACOPLAMENTO NOVO — o arquivo amarra o nome de outro plugin ou crava uma contagem:
 $(printf '%s' "$NOUT" | head -20)
-   → régua: python3 scripts/desacoplamento_check.py"
+   → régua: python3 scripts/desacoplamento_check.py
+   → dívida antiga que o retrato ainda não tem: python3 scripts/desacoplamento_check.py --gravar-retrato"
   fi
 fi
 
