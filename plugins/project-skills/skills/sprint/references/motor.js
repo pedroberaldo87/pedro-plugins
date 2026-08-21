@@ -78,6 +78,8 @@ const PRODUTIVIDADE = { type:'object', required:['veredito','motivo','anchor'], 
 
 const SAUDE = { type:'object', required:['fechada'], properties:{
   fechada:{type:'boolean'}, motivo:{type:'string'}, saida:{type:'string'} } }
+const ORFAOS = { type:'object', required:['orfaos'], properties:{
+  orfaos:{type:'array',items:{type:'string'}}, saida:{type:'string'} } }
 const DESTRAVE = { type:'object', required:['destravou','oQueFez','prova'], properties:{
   destravou:{type:'boolean'}, oQueFez:{type:'string'}, prova:{type:'string'} } }
 
@@ -144,7 +146,7 @@ const leiMarcaInstr = lawMark => !LEI_CMD
     ? `MARCA DA LEI FIXADA NA RODADA 1: ${lawMark} — meça contra ELA, não contra o texto de agora. Devolva em \`lawMark\` a SAÍDA LITERAL (uma linha) de: ${LEI_CMD}`
     : `Devolva em \`lawMark\` a SAÍDA LITERAL (uma linha) de: ${LEI_CMD} — rode EXATAMENTE este comando; não invente outra receita, não tire frontmatter, não some por arquivo.`
 
-const orquestradorPrompt = ({ planPath, planText, round, feedback, ledger }) => `PAPEL: ORQUESTRADOR
+const orquestradorPrompt = ({ planPath, planText, round, feedback, ledger, orfaos }) => `PAPEL: ORQUESTRADOR
 Você é o ORQUESTRADOR do motor de implementação. Repositório: ${RAIZ}
 
 Não planeja do zero e NÃO re-arquiteta. Pega a spec abaixo e a quebra em tarefas de
@@ -170,6 +172,8 @@ REGRAS QUE NÃO SE NEGOCIAM:
 6. \`fontes\` = FONTE DE LEITURA, SEPARADA DA ESCRITA (R-22): o protótipo aprovado (e qualquer arquivo que a tarefa só LÊ como referência) entra em \`fontes\`, NUNCA em \`files\`. Copiar markup da fonte pode; editar a fonte não — fonte que aparece em \`files\` é erro de decomposição.
 7. \`complexity: 'mechanical'\` só para operação bem delimitada (renomear, mover, 1 config, 1 valor).
 8. Vigie os ANTIPADRÕES conhecidos: porta fechada do repositório · trabalho condenado despachado após causa global · repetição como conserto · julgamento cego do já julgado · isolamento sem fusão declarada · id forjado pelo planejador.
+9. TRABALHO ÓRFÃO É TAREFA, NUNCA MARCAÇÃO (R-28). Os ids abaixo têm obra no disco que ninguém marcou. Eles entram na onda como TAREFA NORMAL, com o mesmo \`pronto\` copiado do plano e o mesmo bloco de todo mundo — o executor confere contra o \`pronto\` (regra 1 dele: já cumprido devolve \`done: true\` e ADOTA os caminhos em \`files_touched\`), o revisor por tarefa julga, a suíte roda e só então o tique marca com prova. É PROIBIDO tratá-los como já feitos, pular o despacho, ou pedir marcação direta: a lista é SUSPEITA, não veredito.
+${(orfaos || []).length ? `TRABALHO ÓRFÃO DETECTADO NA LARGADA (obra no disco, passo ABERTO): ${orfaos.join(' · ')}` : 'TRABALHO ÓRFÃO DETECTADO NA LARGADA: nenhum.'}
 
 Devolva o JSON do schema.`
 
@@ -212,6 +216,19 @@ derruba nada:
 
   ANDAMENTO="$(bash "${RESOLVE}" project-skills lib/andamento.py)"
   python3 "$ANDAMENTO" onda ${ARGS.sessionId} ${round} ${ARGS.planPath || ''} --etapa "separando o trabalho" || true${RODAPE_MECANICO(repoRoot)}`
+
+const orfaosPrompt = ({ repoRoot, planPath }) => `PAPEL: MECANICO
+Rodada 1. Papel mecânico e SÓ: rode o detector de trabalho órfão a partir de ${repoRoot}
+e devolva o que ele imprimir. Não julgue, não conserte, não marque passo nenhum — a
+lista só vai para a tela.
+
+  ORFAOS="$(bash "${RESOLVE}" project-skills lib/orfaos.py)"
+  python3 "$ORFAOS" ${planPath} --root ${repoRoot}
+
+A saída é JSON: {"orfaos":[{"id","title","status","paths","commits"}]}. Devolva em \`orfaos\` os
+ids (só os ids, na ordem da saída) e em \`saida\` o JSON cru.
+Detector ausente, comando != 0 ou saída ilegível ⇒ \`orfaos: []\` — fail-open: suspeita
+que não se conseguiu ler não vira parada.${RODAPE_MECANICO(repoRoot)}`
 
 const destravadorPrompt = ({ repoRoot, causa, suiteCmd, tetoMin }) => `PAPEL: DESTRAVADOR
 A porta do repositório está fechada por uma causa JÁ investigada e JÁ referendada por um
@@ -561,6 +578,11 @@ Rode UM COMANDO POR PASSO, em sequência:
 
 (o plano é ${planPath} — o id \`${planIdDe(planPath)}\` já está no comando acima; não o omita)
 
+PASSO COM \`retomada: true\` LEVA \`--retomada\` NO FIM DO COMANDO (F18.3 · R-28). Ele veio
+de trabalho ÓRFÃO — obra que estava no disco antes desta corrida, que ninguém viu sair —,
+e aí o programa cobra as duas provas do rito: o veredito de quem revisou e o sha do
+commit. As duas já estão na \`evidencia\` que você recebeu; COPIE-A inteira, não a resuma.
+
 Falha de um passo NÃO interrompe os seguintes. Recusa do tick é resultado legítimo: entra no
 veredito daquele passo com \`ok: false\` e o \`motivo\` = a linha que o programa imprimiu.
 
@@ -673,6 +695,13 @@ Falha da colheita não derruba nada.`
 
 // ───────────────────────── MOTOR ─────────────────────────
 const sevRank = s => ({ P0:3, P1:2, P2:1, P3:0 }[s] ?? 0)
+
+// F18.3 · R-28 — a prova do tique de RETOMADA sai do veredito REAL do revisor por
+// tarefa, nunca de frase cravada. Revisor mudo devolve a linha SEM a palavra que o
+// programa procura, e o tique é recusado: é esse o ponto: sem testemunha, não marca.
+const provaDoRevisor = v => v?.aprova
+  ? `revisor de tarefa APROVOU a obra órfã (retomada) · âncora: ${String(v.anchor || '').slice(0, 120)} · `
+  : 'retomada SEM veredito do revisor · '
 const floor = sevRank(ARGS.severityFloor || 'P1')
 // SEM TETO DE RODADAS por default (decisão do dono, 2026-08-13): missão de
 // implementação vai do começo ao fim — um milhão de passos se preciso. Quem para é
@@ -694,6 +723,7 @@ const suiteCmd = ARGS.suiteCmd || null
 const tetoMecanicoMin = ARGS.tetoMecanicoMin || 10
 const buildWarm = ARGS.buildWarm === true
 let rodadasMudas = 0
+let orfaosDaLargada = []        // ids que a largada achou feitos e não marcados (F18.1)
 let trabalhoVivoEm = 0
 let desligadoPor = null
 // ── O GASTO SÓ SOBE (medido em 2026-08-15) ───────────────────────────────────
@@ -890,9 +920,26 @@ while (!built && r < maxRounds) {
     }
   }
 
+  // ── TRABALHO ÓRFÃO NA LARGADA (F18.1 · R-28) ────────────────────────────────
+  // A corrida de 2026-08-13 entregou 4 tarefas e 3 commits com ZERO passos marcados:
+  // o bloco não fechou antes da parada. Antes de decompor, a rodada 1 pergunta ao
+  // disco o que já parece feito — árvore suja e commits desde o último tique contra
+  // os passos ABERTOS — e IMPRIME a lista. É SUSPEITA: refazer o que está pronto e
+  // marcar no escuro são os dois desfechos errados, e quem julga o órfão é o revisor
+  // por tarefa. Fail-open: detector mudo devolve lista vazia e a rodada segue.
+  if (r === 1 && ARGS.planPath) {
+    const det = await agent(orfaosPrompt({ repoRoot: ARGS.repoRoot, planPath: ARGS.planPath }),
+      { model: ARGS.model, effort: T.mechanical.effort, phase: 'Decompor',
+        label: 'orfaos:r1', schema: ORFAOS })
+    orfaosDaLargada = det?.orfaos || []
+    log(orfaosDaLargada.length
+      ? `trabalho órfão no disco (feito e não marcado): ${orfaosDaLargada.join(' · ')}`
+      : 'nenhum trabalho órfão no disco')
+  }
+
   // ORQUESTRAR — rodada 1 decompõe o plano inteiro; rodadas 2+ só o delta.
   const decomp = await agent(orquestradorPrompt({ planPath: ARGS.planPath, planText: ARGS.planText, round: r, feedback,
-                                                  ledger: trilho() }),
+                                                  ledger: trilho(), orfaos: orfaosDaLargada }),
     { model: tier.model, effort: tier.effort, phase: 'Decompor',
       label: r === 1 ? 'orquestrar:r1 (plano inteiro)' : `orquestrar:r${r} (delta)`, schema: DECOMP })
   if (!decomp) {
@@ -1107,6 +1154,11 @@ while (!built && r < maxRounds) {
         { model: ARGS.model, effort: T.coordinate.effort, phase: 'Revisar',
           label: `rev-tarefa:${x.task_id}`, schema: TAREFA_REVIEW })))
     const reprovadasNaTarefa = new Set()
+    // F18.3 · R-28 — o veredito REAL do revisor por tarefa, guardado por id: é ele que
+    // vira a prova do tique de retomada lá embaixo. Antes a prova era uma frase cravada
+    // ("revisor de órfão APROVOU"), e aí metade da trava do programa não podia reprovar
+    // no fluxo real — revisor MUDO passava como se tivesse aprovado.
+    const vereditoDaTarefa = new Map()
     for (let i = 0; i < entregues.length; i++) {
       const v = porTarefa[i]
       if (!v) continue
@@ -1123,6 +1175,8 @@ while (!built && r < maxRounds) {
         }
       }
     }
+    for (let i = 0; i < entregues.length; i++) if (porTarefa[i])
+      vereditoDaTarefa.set(entregues[i].task_id, porTarefa[i])
     for (let i = 0; i < entregues.length; i++) if (porTarefa[i])
       ledgerCorrida.push({ r, tipo: 'veredito', taskId: entregues[i].task_id,
                            resumo: `revisor-tarefa r${r}b${b}: ${porTarefa[i].aprova ? 'aprovou' : 'reprovou'}` })
@@ -1181,9 +1235,15 @@ while (!built && r < maxRounds) {
         what: `o commit do bloco ${b} da rodada ${r} ${salvo ? `foi RECUSADO: ${salvo.motivo || 'sem motivo'}` : 'não foi confirmado (agente mudo)'}`,
         whyNeedsYou: 'o trabalho está no disco e FORA do histórico — destrave o gate (bump no mesmo lote) e commite; os passos NÃO foram marcados no plano' })
     } else if (ARGS.planPath?.endsWith('.plan.json')) {
+      // F18.3 · R-28 — o passo que a largada achou ÓRFÃO é marcado por RETOMADA: a
+      // prova sai daqui já com o veredito do revisor por tarefa (foi ele quem julgou
+      // a obra achada no disco) e com o sha, e o comando leva `--retomada`, que faz o
+      // programa cobrar os dois. Sem isso, trabalho de outra sessão entrava no plano
+      // com a prova de sempre, como se tivesse saído desta onda.
       const tick = await agent(tickPlanPrompt({ planPath: ARGS.planPath,
         passos: aprovadas.map(t => ({ taskId: t.task_id,
-          evidencia: `${t.summary} · ${(t.files_touched || []).join(' ')} · commit ${salvo.sha || '?'}` })) }),
+          retomada: orfaosDaLargada.includes(t.task_id),
+          evidencia: `${orfaosDaLargada.includes(t.task_id) ? provaDoRevisor(vereditoDaTarefa.get(t.task_id)) : ''}${t.summary} · ${(t.files_touched || []).join(' ')} · commit ${salvo.sha || '?'}` })) }),
         { model: ARGS.model, effort: T.mechanical.effort, phase: 'Marcar',
           label: `marcar r${r}b${b} (${aprovadas.length})`, schema: TICK_RESULT })
       const vistos = new Map((tick?.marcados || []).map(m => [m.task_id, m]))

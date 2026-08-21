@@ -378,6 +378,46 @@ def main():
         check("fase fecha sozinha quando os passos fecham",
               ps.phase_status(p["phases"][0]) == "done")
 
+        print("tick de retomada (F18.3 · R-28) — veredito do revisor E sha, ou recusa")
+        # O passo achado no disco pela largada não foi visto sair: quem marca não estava
+        # lá. A prova tem que trazer os dois do rito à mão (F16.1, F15.1, F23.5, F17.10).
+        d4 = tempfile.mkdtemp(prefix="plan-retomada-")
+        try:
+            init_into(d4, sample(phases=[{"id": "F1", "title": "x", "items": [
+                {"id": "F1.1", "title": "a", "desc": "d"},
+                {"id": "F1.2", "title": "b", "desc": "d"},
+                {"id": "F1.3", "title": "c", "desc": "d"},
+                {"id": "F1.4", "title": "e", "desc": "d"}]}]))
+            def ret(node, ev):
+                return ps.cmd_tick(Args(dir=d4, node=node, evidencia=ev, retomada=True))
+            check("prova sem veredito nenhum é recusada",
+                  _levanta(lambda: ret("F1.1", "rodei a suíte · commit b738348")))
+            check("prova com sha e sem revisor é recusada",
+                  _levanta(lambda: ret("F1.1", "suíte verde 143 · commit b738348")))
+            check("prova com veredito e sem sha é recusada",
+                  _levanta(lambda: ret("F1.1", "revisor de órfão APROVOU · suíte verde")))
+            check("a frase que o motor produz quando o revisor fica MUDO é recusada",
+                  _levanta(lambda: ret("F1.1", "retomada SEM veredito do revisor · "
+                                               "x.py · commit b738348")))
+            check("reprovado não vira aprovado por acaso",
+                  _levanta(lambda: ret("F1.1", "revisor REPROVOU · commit b738348")))
+            check("nenhuma recusa gravou o passo",
+                  load(d4, "2026-07-27-teste")["phases"][0]["items"][0]["status"] == "todo")
+            ret("F1.2", "revisor de órfão APROVOU · orfaos.py lista F1.2 · commit b738348")
+            it2 = load(d4, "2026-07-27-teste")["phases"][0]["items"][1]
+            check("com os dois, o tique de retomada passa", it2["status"] == "done")
+            check("a prova da retomada fica gravada inteira", "b738348" in it2["evidence"])
+            ret("F1.3", "revisado por outro executor, APROVADO · sha 34b9962c0a1")
+            check("a ordem das duas provas não importa",
+                  load(d4, "2026-07-27-teste")["phases"][0]["items"][2]["status"] == "done")
+            # E o tique NORMAL não herda a cobrança: exigir sha de quem acabou de
+            # entregar dentro do bloco travaria a onda inteira.
+            ps.cmd_tick(Args(dir=d4, node="F1.4", evidencia="rodei e passou"))
+            check("tique comum segue passando sem revisor nem sha",
+                  load(d4, "2026-07-27-teste")["phases"][0]["items"][3]["status"] == "done")
+        finally:
+            shutil.rmtree(d4, ignore_errors=True)
+
         print("validate no tick + pendencia")
         d3 = tempfile.mkdtemp(prefix="plan-tick-")
         try:

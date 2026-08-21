@@ -254,6 +254,15 @@ Depósito **novo em 2026-08-16**. Ver `data-stores.md §A10`.
 - **Por que ele mora dentro do clone e não numa spec:** o cobrador (`plugins/project-skills/lib/test_sidecar_prototipo.py`) precisa lê-lo em **qualquer** máquina; lei que fica fora do que o clone recebe é lei que o cobrador não alcança.
 - **Insubstituível na parte que é acordo.** O formato se re-escreve; o **de acordo do dono** sobre ele, não — e é ele que a marca do frontmatter (`approved-sig`) protege.
 
+### 2.9 · As decisões seladas do dono — `.claude/decisoes-seladas.md`
+
+Depósito **novo em 2026-08-20**. Ver `data-stores.md §A12`.
+
+- 🟢 **Coberto quando existe** — não está no `.gitignore`, então nasce rastreado e viaja em todo clone e em todo espelho da §1. ⚠️ **Neste repositório ele ainda não foi criado** (`ls .claude/decisoes-seladas.md` → não encontrado): a cobertura está pronta, o conteúdo é zero. [confirmado nesta rodada]
+- **Por que precisa viajar com o clone:** quem consulta é um programa que roda na máquina de quem clonou (`decisoes_seladas.py consultar`), a partir da raiz do projeto. Registro que ficasse em `~/.claude/` daria uma decisão do dono válida numa máquina e inexistente na outra — e a pergunta repetida voltaria justamente na máquina nova.
+- **Insubstituível.** É fala do dono, com data e fonte: nenhum comando a regera. Mesma classe da §2.6, e com a mesma consequência — perder o arquivo é perder o motivo, não um número.
+
+
 ---
 
 ## 3 · Ativos SEM cobertura

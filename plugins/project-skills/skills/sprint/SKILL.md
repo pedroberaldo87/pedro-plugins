@@ -555,6 +555,35 @@ vermelho ali é **porta fechada**, não obra desta missão — o teste que já e
 antes da largada apareceu no meio do bloco 1 da rodada 2, matou o salvamento e queimou
 três rodadas em cima de um defeito que não era da obra.
 
+### A largada também procura trabalho ÓRFÃO — feito no disco, sem passo marcado
+
+Uma corrida de 2026-08-13 entregou 4 tarefas e 3 commits e marcou **zero passos**: parou
+antes de o bloco fechar. Quem retomasse leria "todo" e mandaria refazer tudo. Por isso,
+ainda na rodada 1 e **antes de decompor**, o papel mecânico `orfaos:r1` roda
+`lib/orfaos.py`, que cruza a árvore suja (`git status --porcelain -uall`) e os commits
+desde o último tique com os passos **abertos** do plano — pelo arquivo que o passo nomeia
+e pelo id citado no assunto do commit —, e a lista sai na tela.
+
+Ela é **suspeita, não veredito**: nada é marcado aqui: refazer o que está pronto e marcar
+no escuro são os dois desfechos errados. Detector ausente ou saída ilegível ⇒ lista vazia
+e a rodada segue (fail-open).
+
+**E o órfão entra no MESMO ciclo de todo mundo (R-28).** A lista vai para o orquestrador
+(`orfaos` no prompt dele, regra 9), que despacha cada id como **tarefa normal**, no bloco,
+com o `pronto` copiado do plano. Daí o caminho é o de sempre: o executor confere contra o
+`pronto` e, se já estiver cumprido, devolve `done: true` **adotando** os caminhos em
+`files_touched` (é assim que o diff órfão entra no commit); o **revisor por tarefa** julga;
+a suíte roda; e só então o tique marca com prova. Órfão **reprovado** cai em
+`reprovadasNosBlocos`, volta ao orquestrador no `missing` da rodada seguinte e **nenhum
+passo é marcado** — atalho de marcação a partir da detecção não existe.
+
+**E o tique dele cobra mais (R-28).** Órfão aprovado é marcado com `--retomada`, e aí o
+`plan_state.py` exige na prova as DUAS coisas do rito que a mão fez em F16.1, F15.1,
+F23.5 e F17.10: o **veredito de quem revisou** e o **sha** do commit. Falta uma ⇒ tique
+recusado, e a recusa diz qual falta. É o contrapeso do atalho: obra que ninguém viu sair
+não fecha com a prova de sempre, e commit que não devolveu sha faz o passo ficar aberto,
+que é o desfecho certo — o errado seria carimbá-lo.
+
 ### A volta ao #1 é por BLOCO, não por onda inteira
 
 O laço era **decompor tudo → executar tudo → revisar tudo**: numa onda de vinte tarefas, quem falhava na primeira só era notado depois que a vigésima voltasse — e as dezenove seguintes já tinham sido construídas em cima de uma premissa furada. Agora a onda sai em **blocos de `blocoMax`**, e o **primeiro bloco que traz falha** (`done: false` ou executor que não voltou) **fecha a onda ali**: os blocos seguintes **não são despachados**, entram no `missing` da volta seguinte, e o orquestrador re-decompõe o delta já sabendo o que quebrou.
@@ -631,7 +660,7 @@ contra `r8-tiers.json`, tudo conferido na suíte do plugin.
 o arquivo não é o desta versão:
 
 ```bash
-for peca in blocoMax naoDespachadas idsDoPlano congeladas esperaChain saudePrompt ledgerCorrida impressaoTarefa emCirculo paraPorCausaGlobal destravaOuPara; do
+for peca in blocoMax naoDespachadas idsDoPlano congeladas esperaChain saudePrompt ledgerCorrida impressaoTarefa emCirculo paraPorCausaGlobal destravaOuPara orfaosDaLargada; do
   printf '%-16s esqueleto=%s motor.js=%s\n' "$peca" \
     "$(grep -c "$peca" <SKILL.md>)" "$(grep -c "$peca" <references/motor.js>)"
 done
@@ -662,6 +691,13 @@ export const meta = {
 // dizer por quê. Converte ANTES de usar, e o resto do script só fala com ARGS.
 const ARGS = typeof args === 'string' ? JSON.parse(args) : args
 const sevRank = s => ({ P0:3, P1:2, P2:1, P3:0 }[s] ?? 0)
+
+// F18.3 · R-28 — a prova do tique de RETOMADA sai do veredito REAL do revisor por
+// tarefa, nunca de frase cravada. Revisor mudo devolve a linha SEM a palavra que o
+// programa procura, e o tique é recusado: é esse o ponto: sem testemunha, não marca.
+const provaDoRevisor = v => v?.aprova
+  ? `revisor de tarefa APROVOU a obra órfã (retomada) · âncora: ${String(v.anchor || '').slice(0, 120)} · `
+  : 'retomada SEM veredito do revisor · '
 const floor = sevRank(ARGS.severityFloor || 'P1')
 // SEM TETO DE RODADAS por default (decisão do dono, 2026-08-13): missão de
 // implementação vai do começo ao fim. Quem para é comportamento — built, vigia,
@@ -694,6 +730,7 @@ const tetoMecanicoMin = ARGS.tetoMecanicoMin || 10
 // tem que virar `false`, e não `undefined` chegando ao executor como se fosse aviso.
 const buildWarm = ARGS.buildWarm === true
 let rodadasMudas = 0                  // rodadas seguidas sem bloco verde e sem passo marcado
+let orfaosDaLargada = []              // ids que a largada achou feitos e não marcados (F18.1)
 let trabalhoVivoEm = 0                // rodada da última suíte que DECLAROU trabalho vivo
 let desligadoPor = null               // 'orcamento' | 'vigia' — vira stopReason
 // ── O GASTO SÓ SOBE (medido em 2026-08-15) ───────────────────────────────────
@@ -917,12 +954,29 @@ while (!built && r < maxRounds) {
     }
   }
 
+  // ── TRABALHO ÓRFÃO NA LARGADA (F18.1 · R-28) ────────────────────────────────
+  // A corrida de 2026-08-13 entregou 4 tarefas e 3 commits com ZERO passos marcados:
+  // o bloco não fechou antes da parada. Antes de decompor, a rodada 1 pergunta ao
+  // disco o que já parece feito — árvore suja e commits desde o último tique contra
+  // os passos ABERTOS — e IMPRIME a lista. É SUSPEITA: refazer o que está pronto e
+  // marcar no escuro são os dois desfechos errados, e quem julga o órfão é o revisor
+  // por tarefa. Fail-open: detector mudo devolve lista vazia e a rodada segue.
+  if (r === 1 && ARGS.planPath) {
+    const det = await agent(orfaosPrompt({ repoRoot: ARGS.repoRoot, planPath: ARGS.planPath }),
+      { model: ARGS.model, effort: T.mechanical.effort, phase: 'Decompor',
+        label: 'orfaos:r1', schema: ORFAOS })
+    orfaosDaLargada = det?.orfaos || []
+    log(orfaosDaLargada.length
+      ? `trabalho órfão no disco (feito e não marcado): ${orfaosDaLargada.join(' · ')}`
+      : 'nenhum trabalho órfão no disco')
+  }
+
   // ORQUESTRAR — Opus #1, no tier da rodada. r==1: decompõe o plano inteiro; r>1: só o
   // DELTA do feedback. NUNCA re-arquiteta; buraco que exige decisão de arquitetura
   // vira blocker (não vira tarefa). Recebe o LEDGER: quem monta a onda sabe o que já
   // foi julgado, consertado e confirmado — e vigia os antipadrões conhecidos.
   const decomp = await agent(orquestradorPrompt({ planPath: ARGS.planPath, planText: ARGS.planText, round: r, feedback,
-                                                  ledger: trilho() }),
+                                                  ledger: trilho(), orfaos: orfaosDaLargada }),
     { model: tier.model, effort: tier.effort, phase: 'Decompor',
       label: r === 1 ? 'orquestrar:r1 (plano inteiro)' : `orquestrar:r${r} (delta)`, schema: DECOMP })
   // Orquestrador morto derruba a rodada inteira (não há tarefa a executar). Sai do laço em
@@ -1227,6 +1281,11 @@ while (!built && r < maxRounds) {
         { model: ARGS.model, effort: T.coordinate.effort, phase: 'Revisar',
           label: `rev-tarefa:${x.task_id}`, schema: TAREFA_REVIEW })))
     const reprovadasNaTarefa = new Set()
+    // F18.3 · R-28 — o veredito REAL do revisor por tarefa, guardado por id: é ele que
+    // vira a prova do tique de retomada lá embaixo. Antes a prova era uma frase cravada
+    // ("revisor de órfão APROVOU"), e aí metade da trava do programa não podia reprovar
+    // no fluxo real — revisor MUDO passava como se tivesse aprovado.
+    const vereditoDaTarefa = new Map()
     for (let i = 0; i < entregues.length; i++) {
       const v = porTarefa[i]
       // veredito mudo não aprova nem reprova: a tarefa segue pro revisor do bloco
@@ -1247,6 +1306,8 @@ while (!built && r < maxRounds) {
         }
       }
     }
+    for (let i = 0; i < entregues.length; i++) if (porTarefa[i])
+      vereditoDaTarefa.set(entregues[i].task_id, porTarefa[i])
     for (let i = 0; i < entregues.length; i++) if (porTarefa[i])
       ledgerCorrida.push({ r, tipo: 'veredito', taskId: entregues[i].task_id,
                            resumo: `revisor-tarefa r${r}b${b}: ${porTarefa[i].aprova ? 'aprovou' : 'reprovou'}` })
@@ -1307,9 +1368,15 @@ while (!built && r < maxRounds) {
         what: `o commit do bloco ${b} da rodada ${r} ${salvo ? `foi RECUSADO: ${salvo.motivo || 'sem motivo'}` : 'não foi confirmado (agente mudo)'}`,
         whyNeedsYou: 'o trabalho está no disco e FORA do histórico — destrave o gate (bump no lote) e commite; os passos NÃO foram marcados no plano' })
     } else if (ARGS.planPath?.endsWith('.plan.json')) {
+      // F18.3 · R-28 — o passo que a largada achou ÓRFÃO é marcado por RETOMADA: a
+      // prova sai daqui já com o veredito do revisor por tarefa (foi ele quem julgou
+      // a obra achada no disco) e com o sha, e o comando leva `--retomada`, que faz o
+      // programa cobrar os dois. Sem isso, trabalho de outra sessão entrava no plano
+      // com a prova de sempre, como se tivesse saído desta onda.
       const tick = await agent(tickPlanPrompt({ planPath: ARGS.planPath,
         passos: aprovadas.map(t => ({ taskId: t.task_id,
-          evidencia: `${t.summary} · ${(t.files_touched || []).join(' ')} · commit ${salvo.sha || '?'}` })) }),
+          retomada: orfaosDaLargada.includes(t.task_id),
+          evidencia: `${orfaosDaLargada.includes(t.task_id) ? provaDoRevisor(vereditoDaTarefa.get(t.task_id)) : ''}${t.summary} · ${(t.files_touched || []).join(' ')} · commit ${salvo.sha || '?'}` })) }),
         { model: ARGS.model, effort: T.mechanical.effort, phase: 'Marcar',
           label: `marcar r${r}b${b} (${aprovadas.length})`, schema: TICK_RESULT })
       const vistos = new Map((tick?.marcados || []).map(m => [m.task_id, m]))
@@ -1851,6 +1918,7 @@ return {
 | `revisorTarefaPrompt` | `REVISOR` | `revisorBlocoPrompt` | `REVISOR` |
 | `revisaoDocPrompt` | `REVISOR` | `encerraPrompt` | `MECANICO` |
 | `pendenciaPrompt` | `MARCAR` | `produtividadePrompt` | `PRODUTIVIDADE` |
+| `orfaosPrompt` | `MECANICO` | | |
 
 A declaração é a **primeira linha do corpo**, sozinha, antes de qualquer prosa — o corpo do `execPrompt` acima mostra a forma. Quem cobra que a regra continue no texto é `lib/test_travas_motor.py` (bloco `S-123`), que reescreve a prosa em volta da linha e confere no `medidor.py` que a classificação fica de pé.
 
@@ -1870,6 +1938,7 @@ governança, `DIAGNOSTICO` é ruído. A forma por etapa:
 | etapa | rótulo | etapa | rótulo |
 |---|---|---|---|
 | saúde | `saude:r<N>` | suíte | `suite:r<N>b<B>` |
+| trabalho órfão da largada | `orfaos:r1` | | |
 | orquestrador | `orquestrar:r1 (plano inteiro)` · `orquestrar:r<N> (delta)` | marcação | `marcar r<N>b<B> (<n>)` |
 | régua do `pronto` | `regua:r<N> (<n> criterios)` | commit | `commit r<N>b<B>` |
 | reserva | `reserva:r<N> (<n> arquivos)` | doc | `doc r<N>b<B>` |
@@ -1978,6 +2047,8 @@ ausente ou função inexistente nunca impede a suíte de rodar.
   ```
 
   Quem dispara é `gravaPendencias()`, **na rodada em que o blocker nasce** — antes, o blocker de decisão só aparecia no relatório do fim da corrida, o passo seguia `todo` no arquivo e a rodada seguinte soltava executor nele de novo. O texto é o que o motor mandou, nunca redigido aqui; recusa do programa (régua de estilo, passo inexistente) entra no veredito daquele passo com `ok: false`. Blocker **sem** `taskId` é da corrida, não de um passo: fica só no relatório.
+
+  **Passo vindo de trabalho ÓRFÃO leva `--retomada` (F18.3 · R-28)**, e aí o `plan_state.py` exige na prova o **veredito do revisor** e o **sha** — as duas coisas que o rito à mão trouxe em F16.1, F15.1, F23.5 e F17.10. O script já monta a `evidencia` com o veredito na frente e o `commit <sha>` no fim; falta de uma delas é recusa, e recusa aqui é o desfecho certo: obra que ninguém viu sair não fecha com a prova de quem estava presente.
 
 - `TICK_RESULT` — `{ marcados: [{ task_id, ok: bool, motivo }] }`. Uma entrada por passo que o agente tentou marcar, na ordem. `ok: false` carrega em `motivo` a linha que o `plan_state.py` imprimiu ao recusar — recusa legítima (decisão em aberto) e falha de comando chegam pelo mesmo campo, e quem separa é o script pela mensagem. **Passo que o script mandou marcar e não aparece na lista é tratado como perda silenciosa**, não como sucesso.
 - `checkpointPrompt` — **com schema `CHECKPOINT_RESULT`** (`{ committed: bool, sha, motivo }` — decisão do dono, 2026-08-13). Antes ele era sem schema e o retorno era descartado: o gate de release que recusava o commit era engolido pelo `|| true` **depois** de o passo já estar `done` no plano — plano dizendo feito, git sem o código. Agora o commit roda **ANTES** da marcação, devolve `committed`, e o script **segura o `tick` do bloco inteiro** quando `committed` não é `true` (recusa vira Bloqueio nomeado com o motivo do gate; agente mudo idem). `committed: true` com o `sha` vale também para árvore limpa (nada a commitar não é falha). Papel **mecânico e só**: gravar no **histórico do git** o que a onda verde produziu, rodando

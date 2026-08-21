@@ -5,7 +5,7 @@ A mesma pergunta parou corridas 4 vezes em dias diferentes, e "tudo que puder
 decidir no final, decido no final" já estava dito e ninguém consultava. O conserto
 é um registro POR PROJETO das decisões que o dono JÁ tomou: uma linha por decisão
 (fala literal + data + fonte), grep-ável — a frase-chave inteira mora numa linha
-só, porque partida em duas o grep não acha (medido na LifeOrchestra).
+só, porque partida em duas o grep não acha (medido num projeto real).
 
 Quem consulta: TODO papel antes de perguntar qualquer coisa ao dono — o pré-check
 de largada, o prompt de pendência do motor, a casca. A régua compartilhada
@@ -72,6 +72,12 @@ def _tokens(texto):
             if len(t) > 2 and t not in _VAZIAS}
 
 
+def _radicais(texto):
+    """As 4 primeiras letras de cada palavra que conta — 'decisão', 'decidir' e
+    'decido' viram o mesmo radical, senão a pergunta reescrita não acha a decisão."""
+    return {t[:4] for t in _tokens(texto)}
+
+
 def _linhas_de_decisao(raiz):
     arq = caminho(raiz)
     if not os.path.isfile(arq):
@@ -108,7 +114,7 @@ def consultar(raiz, pergunta):
     sobreposição de palavras significativas — a pergunta re-escrita com outras
     palavras de enchimento ainda acha a mesma decisão.
     """
-    alvo = _tokens(pergunta)
+    alvo = _radicais(pergunta)
     perg_norm = _normaliza(pergunta)
     achadas = []
     for linha in _linhas_de_decisao(raiz):
@@ -118,13 +124,15 @@ def consultar(raiz, pergunta):
         if fala_norm and (fala_norm in perg_norm or perg_norm in fala_norm):
             achadas.append((1.0, linha))
             continue
-        seus = _tokens(linha)
+        seus = _radicais(fala)
         if not alvo or not seus:
             continue
         comum = len(alvo & seus)
-        # ponytail: limiar fixo de metade das palavras da pergunta; ajuste se
-        # falso-positivo aparecer em registro grande.
-        if comum >= 2 and comum / len(alvo) >= 0.5:
+        # ponytail: limiar fixo de 2 radicais e 30% da pergunta; falso-positivo
+        # aqui custa barato (mostra ao perguntador a fala do próprio dono, que ele
+        # julga), falso-negativo custa a pergunta repetida. Aperte se registro
+        # grande começar a casar tudo.
+        if comum >= 2 and comum / len(alvo) >= 0.3:
             achadas.append((comum / len(alvo), linha))
     achadas.sort(key=lambda par: -par[0])
     return [linha for _, linha in achadas]

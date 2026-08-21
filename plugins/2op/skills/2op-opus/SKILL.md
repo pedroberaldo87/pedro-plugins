@@ -35,6 +35,30 @@ Se acima estiver vazio, revise a conclusão ou o trecho de trabalho mais recente
   e pare — concordância longa é ruído.
 - Não recomece o trabalho nem reescreva a solução inteira; aponte o ponto que muda a decisão.
 
+## Quando quem serviu foi o titular
+
+Antes de responder, **meça** — não adivinhe: `python3 ${CLAUDE_PLUGIN_ROOT}/lib/quem_serviu.py`.
+Ele lê o transcrito da sessão e sai com `ACUSA:` quando o turno de antes e o de depois rodaram
+no mesmo modelo. Em sessão interativa isso é o caso comum: o campo `model` do frontmatter é
+honrado em `claude -p` e ignorado em silêncio no interativo, então quem atende a barra é o
+próprio titular.
+
+Acusou? A **primeira linha** da sua resposta é esta, literal:
+
+**SEM SEGUNDA OPINIÃO — quem serviu este turno foi o modelo titular; o que vem abaixo é o
+mesmo modelo se relendo, não outra cabeça.**
+
+E aí você entrega pelo caminho que funciona hoje, nesta ordem:
+
+1. **Subagente com o modelo cravado** — despache a revisão numa Task com o modelo que esta
+   skill pede escrito explicitamente, e traga a resposta dela. É fork com briefing, não
+   continuação do contexto: resuma no pedido o que precisa ser revisado.
+2. **Troca manual** — se o subagente não servir, instrua o usuário em UMA linha: rodar
+   `/model` com a família que esta skill pede, redigitar a barra, e voltar ao modelo de
+   antes depois.
+
+O que você **nunca** faz: seguir calado como se a segunda cabeça tivesse vindo.
+
 ## Reconciliação
 
 As quatro classes com que você fecha — **CONFIRMA · REFUTA · AMPLIA · EMPATA** — e a

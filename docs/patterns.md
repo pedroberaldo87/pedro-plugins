@@ -411,7 +411,7 @@ prove que ela pega o que deve, e um que prove que ela NÃO pega o legítimo do n
 
 ### 1.8 Prelúdio, portabilidade e exit code
 
-- **`set` varia por TIPO de script, de propósito** [confirmado]. Build usa `set -euo pipefail` (`scripts/sync-shared.sh`); gate usa `set -uo pipefail` sem o `-e` (`.claude/hooks/release-gate.sh`); e `plugins/guardrails/hooks/scope-cop.sh` **não declara `set` nenhum** (`grep -c '^set ' plugins/guardrails/hooks/scope-cop.sh` → 0). Motivo: com `-e`, um hook-trava abortaria no meio de uma checagem e viraria bloqueio acidental — o oposto do fail-open.
+- **`set` varia por TIPO de script, de propósito** [confirmado]. Build usa `set -euo pipefail` (`scripts/sync-shared.sh`); gate usa `set -uo pipefail` sem o `-e` (`.claude/hooks/release-gate.sh`); e `plugins/guardrails/hooks/scope-cop.sh` **não declara `set` nenhum** (`grep -c '^set ' plugins/guardrails/hooks/scope-cop.sh` → 0). Motivo: com `-e`, um hook-trava abortaria no meio de uma checagem e viraria bloqueio acidental — o oposto do fail-open. ⚠️ **E a SUÍTE do gate largou o `pipefail` em 2026-08-20, de propósito** (`.claude/hooks/test_release_gate.sh`): quase toda asserção dela é `printf '%s' "$out" | grep -q …`, o `grep -q` sai no primeiro casamento e fecha o cano, o `printf` leva SIGPIPE — e com `pipefail` o status da pipeline vira o do `printf`, ou seja, a asserção **reprova por ter acertado cedo demais**. Falha ora num check ora noutro, conforme quem termina primeiro. **Régua: em pipeline cuja pergunta é do comando da DIREITA, `pipefail` mede o mensageiro.** A mesma suíte desliga também o freio de relógio do portão (`PORTAO_DEADLINE_S=0`): o prazo existe para o gate recusar em voz alta quando o harness o mata em produção, e numa bancada com a máquina ocupada ele derrubava os checks do fim — o que se mede ali é o VEREDITO do portão, nunca quanto ele demora.
 - **Binário se resolve por `command -v`, nunca por caminho absoluto** [confirmado, `scope-cop.sh`]: `JQ="$(command -v jq)"`, `PY="$(command -v python3)"`, `CLAUDE_BIN="$(command -v claude 2>/dev/null)"`, com o comentário *"Sem path hardcoded de app específico — isso amarrava o hook a uma máquina/app."* No Python o equivalente é `shutil.which`, hoje em `conformance.py:check_ferramentas_externas`. ⚠️ **`command -v` sozinho responde a pergunta errada** — ver §1.8a, primeiro item.
 - **`.cwd` ausente não pode apagar o gate** [confirmado, `pre-deploy-test-check.sh`]: era `[ -z "$CWD" ] && exit 0`, hoje é `[ -z "$CWD" ] && CWD="$PWD"`, com a justificativa *"falha VISÍVEL (bloqueio com mensagem) … é estritamente melhor que gate invisível"*.
 - **Âncora de posição-de-comando na detecção**, e prefixo **enumerado**, nunca "qualquer palavra antes" [confirmado, `pre-deploy-test-check.sh:CMDPFX`]:
@@ -1798,6 +1798,30 @@ desse ruído que defeito de verdade passa despercebido — três suítes do `int
 faziam isso. Pior num repositório público: processo morto deixa mock órfão no working tree.
 Arquivo temporário de suíte nasce em diretório temporário **por execução**. Quem cobra é
 `scripts/test_suites_nao_escrevem_no_plugin.py`, que varre as grafias de escrita em `$HERE`.
+
+⚠️ **A disputa se conserta na CASA, não na ordem — e desde 2026-08-20 a esteira tem uma fase só.**
+Três suítes do `intent-guard` rodavam em série numa segunda fase do `scripts/suite.sh`, porque
+gravam estado por sessão no temporário do sistema com ids **cravados no código** (`dasid`,
+`cksid`, `pgsid`…). Serializar era remendo: a colisão é da CHAVE, não da ordem — duas esteiras de
+pé (duas sessões de agente no mesmo repositório, ou o CI ao lado do terminal) continuavam pisando
+uma na outra, e a **suíte acusada mudava a cada rodada**, que é a assinatura de disputa e não de
+defeito. Hoje `scripts/run_suites.py:roda` dá a cada suíte um temporário próprio (`TMPDIR`, `TMP` e
+`TEMP` juntos — o Windows não lê `TMPDIR`), apagado só depois de a árvore de processos morrer, e
+com casa própria o id fixo deixa de importar. A lista das seriais encolheu a zero e a segunda fase
+saiu junto; o `SUITE_PULA` do rodador segue de pé para o dia em que voltar a existir suíte que
+dispute recurso de verdade. ⚠️ **Trocar os ids cravados por nome sorteado seria o mesmo conserto
+repetido em cinco arquivos e esquecido no sexto** — regra da casa: disputa de estado se mata onde
+todas as suítes passam, nunca em cada uma delas.
+
+⚠️ **E instabilidade virou coisa MEDIDA, não impressão.** `bash scripts/suite.sh --flake` roda a
+mesma seleção **duas vezes ao mesmo tempo, no mesmo pool**, e reprova só quem responde coisas
+diferentes nas duas — passou numa e falhou na outra. Suíte que falha nas duas não é assunto dele
+(é obra ruim, e quem a acusa é a esteira normal). ⚠️ **`--flake` NÃO grava prova no green-cache**:
+verde ali significa *"nenhuma suíte instável"*, não *"a esteira passou"* — emprestar verde a partir
+dele seria a mesma mentira do glob vazio (F17.2). Quem cobra o cobrador é
+`scripts/test_paralelismo_check.py`, que monta uma suíte propositalmente instável (duas cópias
+disputando um arquivo de chave fixa) e exige que ela seja **nomeada**, mais uma esteira estável
+exigindo silêncio.
 
 **As disciplinas de teste que este repo cobra**, todas com o sítio que as prova:
 

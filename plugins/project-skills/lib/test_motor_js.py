@@ -59,10 +59,53 @@ FONTES = [("motor.js", motor, 0), ("esqueleto do SKILL.md", esqueleto, BASE_ESQ)
 # A · as peças do esqueleto — a MESMA lista da conferência escrita no SKILL.md.
 PECAS = ["blocoMax", "naoDespachadas", "idsDoPlano", "congeladas", "esperaChain",
          "saudePrompt", "ledgerCorrida", "impressaoTarefa", "emCirculo",
-         "paraPorCausaGlobal", "destravaOuPara"]
+         "paraPorCausaGlobal", "destravaOuPara", "orfaosDaLargada"]
 for peca in PECAS:
     check("peça '%s' está no motor.js" % peca, peca in motor)
     check("peça '%s' segue no esqueleto do SKILL.md" % peca, peca in skill)
+
+# A3 · O DETECTOR DE TRABALHO ÓRFÃO NA LARGADA (F18.1 · R-28). A corrida de 2026-08-13
+# entregou 4 tarefas e 3 commits com ZERO passos marcados; a retomada seguinte refaria
+# tudo. A rodada 1 pergunta ao disco antes de decompor — e a lista vai para a TELA, nunca
+# para o tique.
+check("o prompt do detector de órfão existe no motor.js",
+      "orfaosPrompt" in motor and "lib/orfaos.py" in motor)
+check("o detector roda na rodada 1, ANTES da decomposição",
+      motor.find("label: 'orfaos:r1'") > 0
+      and motor.find("label: 'orfaos:r1'") < motor.find("orquestradorPrompt({"))
+for nome, fonte, _base in FONTES:
+    check("a lista de órfãos da largada é impressa (%s)" % nome,
+          "orfaosDaLargada" in fonte and "trabalho órfão no disco" in fonte)
+check("o detector de órfão está no disco",
+      os.path.isfile(os.path.join(PLUGIN, "lib", "orfaos.py")))
+
+# A4 · O ÓRFÃO ENTRA NO MESMO CICLO (F18.2 · R-28). Detectar sem despachar deixaria o
+# passo aberto igual; marcar a partir da detecção marcaria no escuro. O caminho é um só:
+# tarefa no bloco → revisor por tarefa → suíte → tique com prova.
+for nome, fonte, _base in FONTES:
+    check("a lista de órfãos chega ao orquestrador (%s)" % nome,
+          "orfaos: orfaosDaLargada" in fonte)
+check("o orquestrador manda despachar órfão como TAREFA, sem atalho de marcação",
+      "TRABALHO ÓRFÃO É TAREFA, NUNCA MARCAÇÃO" in motor
+      and "orfaos }) => `PAPEL: ORQUESTRADOR" in motor)
+check("órfão reprovado volta ao orquestrador e não é marcado",
+      "reprovadasNosBlocos" in motor
+      and "reprova do revisor de tarefa ou de bloco" in motor)
+
+# A5 · O TIQUE DO ÓRFÃO COBRA MAIS (F18.3 · R-28). Marcar obra achada no disco com a
+# prova de quem estava presente é carimbo sem testemunha: o passo de retomada leva
+# `--retomada`, e o programa exige veredito do revisor E sha.
+for nome, fonte, _base in FONTES:
+    check("o tique do órfão vai marcado como retomada (%s)" % nome,
+          "retomada: orfaosDaLargada.includes(t.task_id)" in fonte)
+    check("a prova do órfão sai do veredito REAL do revisor, não de frase cravada (%s)" % nome,
+          "provaDoRevisor(vereditoDaTarefa.get(t.task_id))" in fonte
+          and "vereditoDaTarefa.set(entregues[i].task_id, porTarefa[i])" in fonte
+          and "commit ${salvo.sha || '?'}" in fonte)
+    check("revisor mudo vira prova sem aprovação, que o plan_state recusa (%s)" % nome,
+          "retomada SEM veredito do revisor" in fonte)
+check("o marcador recebe a ordem de passar --retomada",
+      "--retomada" in motor and "retomada: true" in motor)
 
 # A2 · O DESTRAVADOR (F23.9) — o papel que conserta a porta fechada DURANTE a corrida,
 # em vez de a corrida morrer nela. Quatro corridas seguidas morreram na mesma classe de

@@ -355,7 +355,7 @@ for p in plugins/*/; do n=$(basename $p);
 Saída desta rodada (nome · versão · skills · tem hook):
 
 ```
-2op                 1.2.0  [2op,2op-opus,2op-sonnet]    -
+2op                 1.3.0  [2op,2op-opus,2op-sonnet]    -
 archify            2.14.0  [archify]                    -
 bootstrap         1.17.15  [bootstrap]                  HOOKS
 branches           1.3.14  [branches]                   HOOKS
@@ -364,20 +364,20 @@ context-guard      1.3.14  [context-guard]              HOOKS
 fallow              1.2.7  [fallow]                     -
 gauntlet           0.13.6  [gauntlet]                   HOOKS
 graphify-guard     1.2.12  []                           HOOKS
-grill-me            1.5.1  [grill-me]                   -
+grill-me            1.5.2  [grill-me]                   -
 guardrails          1.8.9  [guardrails]                 HOOKS
-handoff           1.11.15  [handoff]                    HOOKS
-improve             1.1.4  [improve]                    -
+handoff           1.11.16  [handoff]                    HOOKS
+improve             1.1.5  [improve]                    -
 improve-workflow  0.16.29  [improve-workflow]           -
 intent-guard       0.8.16  [intent-guard]               HOOKS
-lixeiro            1.5.10  [faxina]                     HOOKS
+lixeiro            1.5.11  [faxina]                     HOOKS
 principles          1.0.5  [principles]                 -
-project-skills    0.22.147  [completude,design-md,doc,doc-load,doc-touch,monitorar,pesquisa-referencias,plan,project-skills,qa-loop,sprint,start] HOOKS
+project-skills    0.22.152  [completude,design-md,doc,doc-load,doc-touch,monitorar,pesquisa-referencias,plan,project-skills,qa-loop,sprint,start] HOOKS
 ship                1.5.7  [ship]                       HOOKS
-slides              1.6.4  [slides]                     -
+slides              1.6.5  [slides]                     -
 vision              0.1.1  []                           -
 vistoria           0.11.8  [vistoria]                   -
-visual             1.42.1  [andamento,visual]           HOOKS
+visual             1.42.2  [andamento,visual]           HOOKS
 ```
 
 **A rodada anterior moveu onde as skills MORAM; esta apagou as CASAS que tinham ficado
@@ -1041,7 +1041,7 @@ carrega inventário, e *"inventário cortado esconde item"*.
 O consumidor **declara o perfil e não redigita a régua**. O `visual_page.py` hoje tem uma
 constante só — `PERFIL = "pagina"` — e importa `erros_de_estilo`; os emissores de hook em Bash
 chamam pela linha de comando (`printf '%s' "$MSG" | python3 regua_texto.py --perfil hook -`).
-**Quatorze arquivos chamam a régua** neste run — 8 em Python (`import`) e 6 em Bash (a linha
+**Dezesseis arquivos chamam a régua** neste run — 9 em Python (`import`) e 7 em Bash (a linha
 `REGUA="$SCRIPT_DIR/../lib/regua_texto.py"`) [confirmado — `grep -rln` por
 `import regua_texto|erros_de_estilo` e `grep -rn regua_texto --include='*.sh'` sobre
 `plugins/`, descontando as cópias vendoradas e os testes].
@@ -1074,12 +1074,38 @@ As cópias de `regua_texto.py` aparecem à parte porque são vendoring, não có
 (§7.4):
 
 ```
-plugins/project-skills/lib/ 58 dos 137 — o motor de doc inteiro (journal.py · pattern_check.py ·
+plugins/project-skills/lib/ 65 dos 146 — o motor de doc inteiro (journal.py · pattern_check.py ·
                            organism.py · graph_map.py · doc_lint.py · historico.py ·
                            rastreio_etapas.py · curadoria_features.py ·
                            decisoes_estruturais.py · doc_load.py · collect_engine.py vendorado),
                            o ciclo de vida do plano (plan_state.py · cobertura.py ·
                            completude.py · auditoria_plano.py · plan_entrada.py · regua_pronto.py),
+                           o detector de trabalho órfão (orfaos.py — cruza `git status
+                           --porcelain -uall` e os commits desde o último tique com os
+                           passos ABERTOS do plano — pelo arquivo que o passo nomeia (o
+                           campo `files` do nó quando existe; só na falta dele o recorte
+                           de caminho na PROSA, que é peneira furada: no plano de
+                           2026-08-12, 3 dos 39 passos abertos nomeavam caminho no texto) e
+                           pelo id citado no assunto do commit — e devolve esses ids; é a largada do /sprint (`orfaos:r1`) que o roda,
+                           antes de decompor, e a lista é SUSPEITA: quem julga é o revisor
+                           por tarefa, quem marca é o tique com prova — a lista vai para o
+                           ORQUESTRADOR (regra 9 do prompt dele), que despacha cada órfão
+                           como TAREFA normal do bloco; reprovado, ele volta ao orquestrador
+                           no `missing` da rodada seguinte e nenhum passo é marcado; o
+                           que passa é marcado por RETOMADA — `tick --retomada`, que
+                           exige na prova o veredito do revisor E o sha, as duas coisas
+                           do rito feito à mão),
+                           o registro de decisões seladas (decisoes_seladas.py — uma linha
+                           por decisão do dono em .claude/decisoes-seladas.md na raiz do
+                           projeto CONSUMIDOR, com fala literal + data + fonte e a
+                           frase-chave inteira na mesma linha; `consultar` devolve as
+                           decisões que já respondem uma pergunta — casamento por frase
+                           inteira ou por radical de 4 letras, para a pergunta reescrita
+                           achar a mesma decisão — e saída 1 quando nenhuma cobre, que é
+                           a licença para perguntar; quem manda consultar ANTES de levar
+                           qualquer pergunta ao dono é a régua única
+                           `_shared/regua-de-pergunta.md`, vendorada ao lado de cada skill
+                           que pergunta, o /sprint entre elas),
                            o ledger de corridas do projeto (ledger_corridas.py — uma entrada
                            append-only por run em .claude/.sprint/corridas.jsonl, fora do git;
                            quem escreve é o `registra-run`, com o retorno do motor colado

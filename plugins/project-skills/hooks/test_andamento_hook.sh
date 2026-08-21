@@ -185,8 +185,14 @@ check "com motor vivo a PRIMEIRA linha é a do motor (acima do hud)" \
   "$(printf '%s' "$PRIMEIRA" | grep -q '^🚀 Motor · Missão há' && echo 1 || echo 0)" "saiu: [$PRIMEIRA]"
 check "a linha vem do estado em disco (a idade da missão)" \
   "$(printf '%s' "$PRIMEIRA" | grep -q 'Missão há 10min' && echo 1 || echo 0)" "saiu: [$PRIMEIRA]"
+# FAIXA, NÃO IGUALDADE: o carimbo diz "70 s atrás" e a barra é renderizada
+# DEPOIS — com a máquina ocupada passa mais de um segundo entre as duas coisas e
+# a idade sai 71 s. A igualdade de string media o relógio da máquina, não o
+# código (caiu assim em 2026-08-20, com a esteira rodando três vezes ao mesmo
+# tempo). A faixa dos 70 continua provando o que importa: o número veio do sinal
+# em disco, e não do relógio da missão nem de um valor cravado.
 check "a linha traz o silêncio lido do sinal em disco" \
-  "$(printf '%s' "$PRIMEIRA" | grep -q 'Último sinal há 70s' && echo 1 || echo 0)" "saiu: [$PRIMEIRA]"
+  "$(printf '%s' "$PRIMEIRA" | grep -qE 'Último sinal há 7[0-9]s' && echo 1 || echo 0)" "saiu: [$PRIMEIRA]"
 check "o hud continua idêntico embaixo da linha do motor" \
   "$([ "$RESTO" = "$HUD_CRU" ] && echo 1 || echo 0)" "saiu: [$RESTO] esperado: [$HUD_CRU]"
 

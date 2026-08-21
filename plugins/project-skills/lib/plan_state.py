@@ -87,6 +87,15 @@ PERFIL_BRIEF = "hook"
 DESC_MAX = BULLET_MAX
 EVIDENCE_MIN = 8
 
+# Tique de RETOMADA (F18.3 · R-28): o passo que a largada achou feito no disco e
+# ninguém marcou só fecha com as DUAS provas do rito que a mão fez em F16.1, F15.1,
+# F23.5 e F17.10 — o veredito de quem revisou ("revisor … APROVOU") e o sha do
+# commit. Sem elas, "já estava pronto" é palpite sobre trabalho de outra sessão, que
+# é exatamente o que a retomada não pode carimbar.
+REVISOR_RE = re.compile(r"revis", re.I)
+VEREDITO_RE = re.compile(r"aprov", re.I)
+SHA_RE = re.compile(r"(?<![0-9A-Za-z])[0-9a-f]{7,40}(?![0-9A-Za-z])")
+
 STATUSES = ("todo", "doing", "blocked", "done")
 # O status do TOPO tem vocabulário PRÓPRIO, e é o que `close`/`reopen` gravam. Sem
 # esta lista o init aceitava qualquer palavra ('open', por exemplo) e o plano sumia
@@ -997,6 +1006,25 @@ def cmd_tick(args):
             "     --evidencia \"$ pytest -q → 62 ok · sync-shared --check OK · a1b2c3d\"\n"
             "   Saída crua de um comando só passa inteira — o teto só vale pro texto\n"
             "   que VOCÊ redigiu." % (node_id, len(ev)))
+
+    # F18.3 · R-28 — o tique de RETOMADA cobra mais que os outros. Trabalho achado no
+    # disco não foi visto sair: quem marca não estava lá quando saiu. Então a prova tem
+    # que trazer os dois que o rito à mão trouxe (F16.1, F15.1, F23.5, F17.10): o
+    # veredito do revisor e o sha. Faltando um, é marcação no escuro — e a recusa diz
+    # qual falta, senão o executor adivinha.
+    if getattr(args, "retomada", False):
+        falta = []
+        if not (REVISOR_RE.search(ev) and VEREDITO_RE.search(ev)):
+            falta.append("o veredito de quem revisou (ex.: 'revisor de órfão APROVOU')")
+        if not SHA_RE.search(ev):
+            falta.append("o sha do commit (7+ hex, ex.: 'commit b738348')")
+        if falta:
+            raise PlanError(
+                "⛔ tick de retomada recusado: falta na prova de %s\n  - %s\n\n"
+                "   Passo marcado por retomada é trabalho que ninguém viu sair: sem\n"
+                "   revisão e sem sha, 'já estava feito' é palpite sobre sessão alheia.\n"
+                "   Modelo: --evidencia \"revisor de órfão APROVOU · <o que ele conferiu>"
+                " · commit <sha>\"" % (node_id, "\n  - ".join(falta)))
 
     it["status"] = "done"
     it["evidence"] = ev
@@ -2211,6 +2239,9 @@ def build_parser():
     q.add_argument("--evidencia", "--evidence", dest="evidencia", default="")
     q.add_argument("--sem-espera", dest="sem_espera", action="store_true",
                    help="tira a espera do dono deste passo (o ato já aconteceu)")
+    q.add_argument("--retomada", action="store_true",
+                   help="o passo veio de trabalho órfão: a prova exige veredito do "
+                        "revisor E sha do commit")
     q.set_defaults(func=cmd_tick)
 
     q = sub.add_parser("state", help="muda o estado de um passo (todo/doing/blocked)")
