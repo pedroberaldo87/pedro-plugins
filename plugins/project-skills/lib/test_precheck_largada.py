@@ -22,6 +22,8 @@ import tempfile
 
 AQUI = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, AQUI)
+from bash_posix import bash_posix  # noqa: E402  (o bash cru do PATH é o do WSL no Windows)
+BASH = bash_posix() or "bash"
 MODULO = os.path.join(AQUI, "precheck_largada.py")
 
 from decisoes_seladas import selar  # noqa: E402
@@ -366,7 +368,7 @@ def suja(tag):
 def tem_prova():
     return subprocess.run(
         # barra POSIX nos caminhos embutidos: dentro do bash, `D:\a\…` vira escape
-        ["bash", "-c", ". %s; green_cache_check %s full"
+        [BASH, "-c", ". %s; green_cache_check %s full"
          % (os.path.join(AQUI, "green-cache.sh").replace(os.sep, "/"),
             casa.replace(os.sep, "/"))],
         timeout=60, stdin=subprocess.DEVNULL, start_new_session=True).returncode == 0
@@ -401,7 +403,7 @@ checa("a passada NÃO grava prova no depósito compartilhado", tem_prova() is Fa
 
 # CASO 2b · a prova existe para a árvore de AGORA, gravada por QUEM rodou a esteira
 # inteira (o hook do ship, o qa-loop): a esteira não roda de novo.
-_mk = subprocess.run(["bash", "-c", ". %s; green_cache_mark %s full teste"
+_mk = subprocess.run([BASH, "-c", ". %s; green_cache_mark %s full teste"
                       % (os.path.join(AQUI, "green-cache.sh").replace(os.sep, "/"),
                          casa.replace(os.sep, "/"))],
                      capture_output=True, text=True, encoding="utf-8", errors="replace",
@@ -410,7 +412,7 @@ _mk = subprocess.run(["bash", "-c", ". %s; green_cache_mark %s full teste"
 # CalledProcessError truncado, três rodadas de CI sem dizer a causa
 if _mk.returncode != 0:
     # a mesma chamada SEM o descarte de stderr do script: o erro real do git aparece
-    _dbg = subprocess.run(["bash", "-x", "-c", ". %s; green_cache_mark %s full teste"
+    _dbg = subprocess.run([BASH, "-x", "-c", ". %s; green_cache_mark %s full teste"
                            % (os.path.join(AQUI, "green-cache.sh").replace(os.sep, "/"),
                               casa.replace(os.sep, "/"))],
                           capture_output=True, text=True, encoding="utf-8",

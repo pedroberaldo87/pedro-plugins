@@ -31,6 +31,8 @@ SKILL = os.path.join(PLUGIN, "skills", "reentrada", "SKILL.md")
 SPRINT = os.path.join(PLUGIN, "skills", "sprint", "SKILL.md")
 
 sys.path.insert(0, AQUI)
+from bash_posix import bash_posix  # noqa: E402  (o bash cru do PATH é o do WSL no Windows)
+BASH = bash_posix() or "bash"
 from retomada import SEGUE, CONSERTA, DONO  # noqa: E402
 
 
@@ -61,7 +63,7 @@ def roda_bloco(repo_root, plan_path):
         f.write("#!/bin/sh\nexec \"%s\" \"$@\"\n" % sys.executable.replace("\\", "/"))
     os.chmod(os.path.join(shim, "python3"), 0o755)
     env["PATH"] = shim + os.pathsep + env.get("PATH", "")
-    return subprocess.run(["bash", "-c", bloco], capture_output=True, text=True, env=env,
+    return subprocess.run([BASH, "-c", bloco], capture_output=True, text=True, env=env,
                           encoding="utf-8", errors="replace",
                           stdin=subprocess.DEVNULL, start_new_session=True)
 
