@@ -1387,10 +1387,10 @@ páginas do `/visual` digitadas pelo modelo custavam **20-31 KB de HTML por pág
   uma vez (`init`) e daí em diante só MARCA (`tick`, que **recusa sem prova**, `EVIDENCE_MIN = 8`).
   Quem desenha a árvore é o programa. `PlanError` (god node) é a exceção única de todos os
   verbos; `DESC_MAX = 140` é limite de schema *"porque a linha didática é o produto do arquivo"*.
-  O módulo tem **2253 linhas** e **12 subcomandos** — `init`, `tick`, `state`, `render`, `page`,
-  `brief`, `cobertura`, `pendencia`, `reabrir`, `open`, `close`, `reopen` [confirmado — `wc -l` e
+  O módulo tem **2603 linhas** e **13 subcomandos** — `init`, `tick`, `state`, `render`, `page`,
+  `brief`, `cobertura`, `pendencia`, `reabrir`, `frente`, `open`, `close`, `reopen` [confirmado — `wc -l` e
   `grep -c 'add_parser('` sobre `plugins/project-skills/lib/plan_state.py` neste run devolvem
-  `2253` e `12`]. Cresceu ~700 linhas e ganhou **um** verbo (`pendencia`, que grava no passo a
+  `2603` e `13`]. Cresceu ~700 linhas e ganhou **um** verbo (`pendencia`, que grava no passo a
   decisão que o trava): o resto do que entrou foi régua dentro dos
   verbos que já existiam — ver `regua_pronto.py`, importado no topo do arquivo. **Ele importa
   DUAS funções de lá, e a diferença entre elas é de política:** `erros_de_pronto` julga a
@@ -1412,6 +1412,14 @@ páginas do `/visual` digitadas pelo modelo custavam **20-31 KB de HTML por pág
   - **`status: "done"` escrito à mão passou a ser recusado no `init`** quando a `evidence` não
     chega a `EVIDENCE_MIN`: o teto da prova é o mesmo dos dois lados, senão o `tick` cobra prova
     e o `init` a contorna. [confirmado — `plan_state.py:erros_do_plano`]
+  - **O tique só anda sobre pré-check FRESCO (F22.10, R-32):** o `tick` reusa
+    `marca()`/`confere_largada()`/`casa_do_relatorio()` de `precheck_largada.py` — relatório
+    VENCIDO recusa citando a marca esperada e o comando que renova; relatório AUSENTE avisa e
+    deixa passar (fail-open declarado: plano velho não ganha portão retroativo). Depois do save
+    a marca é resselada sobre o plano ticado, então o frescor é imune ao próprio progresso. O
+    escape segue o molde do plan-gate: `PLAN_STATE_PRECHECK=off`, dito no stderr, nunca em
+    silêncio. [confirmado — `plan_state.py:PRECHECK_ESCAPE` e o `import precheck_largada`
+    dentro do verbo, coberto por `test_plan_state.py`]
   - **`plan_state.py:le_plano`** é a única porta de leitura de um plano: arquivo ilegível vira
     `PlanError` dizendo QUAL arquivo e QUAL erro, em vez de traceback. Quem LISTA
     (`list_plans`) segue engolindo o arquivo torto, pra que um byte errado não derrube a
