@@ -79,6 +79,7 @@ RC=0
        'scripts/test_*.sh' \
        '.claude/hooks/test_*.sh' \
        'plugins/*/skills/*/test_*.sh' || RC=$?
+echo "run_suites devolveu rc=$RC"
 
 # ── A PROVA VIAJA COM A ÁRVORE ──────────────────────────────────────────────
 # Esteira verde ⇒ grava "full" no green-cache (chave = tree-hash
