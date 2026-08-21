@@ -43,6 +43,8 @@ RAIZ = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 # Ele só desce, e quem o abaixa é o conserto que apagou pontos: baixou de verdade, edite
 # aqui junto. Subir número aqui é legalizar reincidência — se for decisão do dono, ela
 # vem escrita no relatório da classe, nunca só neste dicionário.
+# B abaixou de 45 para 42 quando o retrato de baseline saiu da varredura (F28.3):
+# retrato não é lista recopiada à mão, é medida gravada — a catraca desce junto.
 # A abaixou de 319 para 114 na varredura do F15.2: os pontos que eram fixture de teste
 # ganharam a isenção `casa-ok:` com motivo escrito, e a catraca desceu junto — o que resta
 # é código de produção que ainda escreve a casa em vez de perguntar ao resolvedor.
@@ -50,7 +52,7 @@ RAIZ = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 # a catraca desce junto com o conserto, senão a folga engole a próxima reincidência
 # — foi exatamente isso que fez o cobrador do F15.3 passar verde numa mutação real
 # (conta 319, teto 322, mutante 320: cabia na folga).
-TETO = {"A": 0, "B": 45, "C": 138, "D": 24}
+TETO = {"A": 0, "B": 42, "C": 138, "D": 24}
 
 # A SITUAÇÃO DE CADA CLASSE (F15.7): ou a fonte única existe em código, ou a dívida está
 # declarada com dono nomeado. Não há terceira opção — classe sem uma das duas é o próprio
@@ -166,6 +168,11 @@ def classe_a(alvos):
 
 
 def classe_b(alvos):
+    # Retrato de baseline cita os nomes POR CONSTRUÇÃO — é o que ele é: a medida
+    # gravada de um achado por plugin/skill. Mesma decisão que a classe A tomou em
+    # 2026-08-20 para prosa e baseline; aqui a classe B ganha o par dela, senão todo
+    # cobrador novo que grave um retrato estoura o teto sem ter duplicado nada.
+    alvos = [(rel, texto) for rel, texto in alvos if not rel.endswith(".baseline.json")]
     pontos = []
     for rel, texto in alvos:
         quantos = sum(1 for nome in DOCS_CANONICOS if nome in texto)
