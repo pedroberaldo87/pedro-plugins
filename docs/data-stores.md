@@ -877,6 +877,15 @@ Os quatro que entraram, com o que cada um congela [confirmado — leitura dos ar
 - ⚠️ **Já foi truncado uma vez sem culpado conhecido** (2026-08-15: 4 linhas às 17h, 1 às 20h45, num arquivo append-only por desenho). As três foram restauradas com os números que o próprio programa tinha impresso, marcadas com `restaurado:`. **Causa desconhecida — pode voltar a acontecer.**
 - **Natureza: histórico de medição, insubstituível.** O progresso se remede pelo plano; o **custo e o tempo de cada execução passada**, não.
 
+### A11b · `.claude/.sprint/paradas.jsonl` — a PEDRA em que a missão bateu
+
+- **Uma linha por PARADA do laço do `/sprint`, append-only, gitignorado** (mesma pasta do A11, mesma linha do `.gitignore:34`). Quantas hoje: `wc -l < .claude/.sprint/paradas.jsonl`.
+- **Cinco campos, todos obrigatórios:** `run_id` (a corrida em que parou), `desfecho` (o `stopReason`), `causa` (a causa já referendada pelo desafiador), `conserto` e `sha` (o commit que aplicou o conserto, ou o literal `sem-commit`). Campo vazio **sai 2 e não grava**. [confirmado — `ledger_corridas.py:CAMPOS_PARADA` e `registra_parada`]
+- **É outro GRÃO, não outra cópia do A11.** A corrida é a unidade do custo; a parada é a unidade do laço — a mesma corrida pode bater em várias pedras, e uma pedra pode voltar em corridas diferentes. Por isso mora em arquivo próprio, e não como campo da linha da corrida.
+- **Por que existe:** a seção `### Problemas (as paradas do laço)` do relatório final é **derivada deste arquivo**, nunca da memória da sessão. É o par `conserto`+`sha` que separa "consertado" de "lembrado" — sem ele, problema resolvido pela metade saía no relatório como resolvido. [confirmado — a seção "Conteúdo (backbone)" de `skills/sprint/SKILL.md`]
+- **Quem escreve é a vigília do sprint, a cada volta do laço, logo depois de o conserto virar commit** — e o laço não relança sem a linha gravada. [confirmado — `test_sprint_skill.py`, check *"parada sem linha gravada nao relanca"*]
+- **Natureza: histórico de medição, insubstituível.** O conserto se relê no commit; a associação *pedra → conserto → corrida* não sai de lugar nenhum depois que a sessão fecha.
+
 ### Os outros de (C)
 
 - **`.claude/visual/` — 5,2M, 100 entradas** (`.gitignore:47`). As páginas HTML que o `/visual` gera. Descartável: são a apresentação, não a fonte. [confirmado — `du -sh` + `ls | wc -l` nesta rodada]

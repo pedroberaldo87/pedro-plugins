@@ -224,6 +224,28 @@ def main():
     check("a secao sai igual nos tres desfechos",
           "igual nos três desfechos" in custo)
 
+    # F23.7 — a secao de problemas do relatorio final e DERIVADA do registro por
+    # parada (desfecho, causa, conserto, sha), lido por comando. Sem cobrador, ela
+    # volta a ser a memoria da sessao — e memoria da lembrado como consertado.
+    prob = secao(texto, "São **sete** seções", "### Entrega via /visual")
+    print("a secao de problemas deriva do registro por parada, nunca da memoria")
+    check("a secao de problemas existe no backbone",
+          "### Problemas (as paradas do laço)" in texto)
+    check("o item da secao sai do registro, com os quatro campos",
+          "subcomando `paradas`" in texto
+          and "desfecho · causa · conserto · sha" in texto)
+    check("a derivacao esta escrita, e a memoria da sessao esta proibida",
+          bool(prob) and "derivada do registro por parada" in prob
+          and "nunca da memória da sessão" in prob)
+    check("o comando que le as paradas esta no texto",
+          bool(prob) and "ledger_corridas.py" in prob
+          and "paradas --project-root" in prob)
+    check("parada que nao esta no registro nao entra na secao",
+          bool(prob) and "não entra" in prob and "não a lembrança" in prob)
+    check("registro vazio nao inventa secao",
+          bool(prob) and "a seção não sai" in prob)
+
+
     # F6.4 — a proibicao do `plugin update` durante a missao. Sem cobrador, a frase
     # some na proxima edicao e a corrida volta a poder ficar meia nova, meia velha.
     update = secao(texto, "### `claude plugin update` está PROIBIDO",
@@ -605,6 +627,117 @@ def main():
           and all(c for _, c in checks_precheck(sec_pre, bloco1))
           and not all(c for _, c in checks_precheck(
               sec_pre, bloco1.replace("--confere", "--nada"))))
+
+    # F23.3 — a VIGILIA (`/goal` do harness) nasce e morre com o sinal do motor: acende
+    # no bloco 1, logo depois do `arma`, e apaga no bloco 2, junto do `encerra`, em todo
+    # desfecho de parada. Sem estas assercoes a vigilia volta a ser comando avulso que
+    # alguem lembra de dar — e sprint que para na primeira parada nao e sprint.
+    def corrido(bloco):
+        # A agulha casa a prosa do comentario com o `# ` fora e os espacos colapsados:
+        # a linha quebra onde couber, e agulha presa a quebra fica vermelha em qualquer
+        # reflow do paragrafo sem que a regra tenha mudado.
+        return " ".join(" ".join(x.lstrip("# ") for x in bloco.splitlines()).split())
+
+    def checks_vigilia(b1, b2):
+        c1, c2 = corrido(b1), corrido(b2)
+        return [
+            ("o bloco 1 acende o `/goal` do harness",
+             "invoque o `/goal` do harness" in c1),
+            ("a vigilia acende DEPOIS do arma e ANTES do Workflow",
+             0 < b1.find('"$ANDAMENTO" arma') < b1.find("invoque o `/goal`")
+             and "ANTES de chamar o Workflow" in c1),
+            ("a vigilia nao e comando avulso nem opcao do dono",
+             "não é comando avulso nem opção do dono" in c1
+             and "nasce com o sinal do motor e morre com ele" in c1),
+            ("o bloco 2 apaga o `/goal` junto do encerra",
+             "apague o `/goal` do harness" in c2
+             and 0 < b2.find('"$ANDAMENTO" encerra') < b2.find("apague o `/goal`")),
+            ("o apagar vale em TODO desfecho de parada, um a um",
+             "em TODO desfecho de parada" in c2
+             and all(d in c2 for d in ("obra pronta", "teto de rodadas", "vigia",
+                                       "disjuntor", "erro do `Workflow`", "TaskStop"))),
+        ]
+
+    bloco2 = secao(texto, "# 2) NO RETORNO da chamada", "# 3) A LINHA DO LEDGER")
+    print("A vigilia do /goal nasce e morre com o sinal do motor")
+    for label, cond in checks_vigilia(bloco1, bloco2):
+        check(label, cond)
+
+    # A MUTACAO mora na LINHA sabotada: o bloco entra intacto, so a linha que acende
+    # (ou a que apaga) some — e os checks tem que ficar vermelhos.
+    def sem_linha(bloco, agulha):
+        return "\n".join(x for x in bloco.splitlines() if agulha not in x)
+
+    check("MUTACAO: remover o acender da vigilia deixa a suite vermelha",
+          bool(bloco1) and bool(bloco2)
+          and all(c for _, c in checks_vigilia(bloco1, bloco2))
+          and not all(c for _, c in checks_vigilia(
+              sem_linha(bloco1, "invoque o `/goal`"), bloco2)))
+    check("MUTACAO: remover o apagar da vigilia deixa a suite vermelha",
+          bool(bloco2)
+          and not all(c for _, c in checks_vigilia(
+              bloco1, sem_linha(bloco2, "apague o `/goal`"))))
+
+    # F23.4 — o rito da vigilia proibe remendo antes de apurar: a causa so vale com a
+    # SAIDA CRUA do comando colada (nunca a memoria do que aconteceu) e so passa depois
+    # de um DESAFIADOR tentar derruba-la. Sem os dois passos escritos, o laco volta a
+    # consertar sintoma em cima de lembranca.
+    def checks_apuracao(b1):
+        c1 = corrido(b1)
+        return [
+            ("o rito proibe consertar antes de apurar",
+             "CONSERTAR SEM APURAR É PROIBIDO" in c1
+             and "antes de o laço remendar QUALQUER coisa" in c1),
+            ("a proibicao vem DEPOIS de acender a vigilia, no mesmo rito",
+             0 < b1.find("invoque o `/goal`") < b1.find("CONSERTAR SEM APURAR")),
+            ("passo 1: a causa exige PROVA DE COMANDO com a saida crua colada",
+             "PROVA DE COMANDO" in c1
+             and "saída CRUA do comando" in c1
+             and "COLADA literal" in c1),
+            ("memoria do que aconteceu nao vale como prova",
+             "memória do que aconteceu NÃO é prova" in c1),
+            ("passo 2: a causa provada vai a um DESAFIADOR com ordem de derruba-la",
+             "DESAFIADOR" in c1 and "ordem de DERRUBÁ-LA" in c1
+             and "Desafiador mudo não referenda" in c1),
+            ("sem os dois passos o laco nao conserta e nao relanca",
+             "Sem os dois, o laço NÃO conserta e NÃO relança" in c1),
+        ]
+
+    print("O rito exige causa com prova de comando e desafiador antes do conserto")
+    for label, cond in checks_apuracao(bloco1):
+        check(label, cond)
+
+    check("MUTACAO: tirar a exigencia da prova de comando deixa a suite vermelha",
+          all(c for _, c in checks_apuracao(bloco1))
+          and not all(c for _, c in checks_apuracao(
+              sem_linha(bloco1, "PROVA DE COMANDO"))))
+    check("MUTACAO: tirar o desafiador deixa a suite vermelha",
+          not all(c for _, c in checks_apuracao(
+              sem_linha(bloco1, "DESAFIADOR — a causa provada"))))
+
+    # O laco escreve a linha na MESMA volta do conserto, e o programa recusa vazio:
+    # sem o par conserto+sha a secao volta a nao distinguir consertado de lembrado.
+    esc = corrido(bloco1)
+    print("a vigilia grava a linha da parada a cada volta do laco")
+    check("o bloco 1 manda gravar a parada a cada volta",
+          "REGISTRO POR PARADA" in esc and "a cada volta do laço" in esc)
+    # O comando mora num bloco PRÓPRIO, que deriva o que usa — cada bloco é uma
+    # chamada à parte, e variável de outro bloco chega vazia (Artigo 8).
+    bloco_parada = secao(texto, "# A PARADA vai para o disco", "```")
+    pros_parada = corrido(secao(texto, "**A parada vai para o disco no seu próprio bloco.**",
+                                "```bash"))
+    check("o comando de gravar a parada esta num bloco proprio",
+          '"$LEDGER" parada --project-root' in bloco_parada
+          and all(f in bloco_parada
+                  for f in ("--desfecho", "--causa", "--conserto", "--sha")))
+    check("o bloco da parada deriva o que usa, sem herdar de outro bloco",
+          'REPO_ROOT="' in bloco_parada and 'RUN_ID="' in bloco_parada
+          and 'LEDGER="$(bash' in bloco_parada)
+    check("campo vazio RECUSA, e a parada do dono tem valvula declarada",
+          "cinco campos são obrigatórios e o comando recusa vazio" in pros_parada
+          and "`sem-conserto` no conserto e `sem-commit` no sha" in pros_parada)
+    check("parada sem linha gravada nao relanca",
+          "NÃO relança sem ela" in esc)
 
     print()
     if FAILS:
