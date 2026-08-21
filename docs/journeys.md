@@ -4,10 +4,9 @@ reviewed: 2026-08-14
 project: pedro-plugins
 authored-by: ex-post-rascunho
 status: approved
-approved: 2026-08-16
+approved: 2026-08-21
 scope: []
-approved-sig: 1066034391
-correcao-pendente: dois marcadores [PENDENTE] (linhas 36-37) dizem que a etapa de protótipo e o programa das pautas transversais ainda não existem no /start — a corrida 12 os construiu (skills/start/SKILL.md:368 e :515, cobertos por test_start_doc_skill.py); a proposta com antes e depois literais está no relatório da parada
+approved-sig: 343544995
 ---
 
 # Jornadas
@@ -34,8 +33,8 @@ correcao-pendente: dois marcadores [PENDENTE] (linhas 36-37) dizem que a etapa d
 ## Conceber um projeto com a metodologia
 - **Ator:** o dono, num projeto qualquer da casa
 - **Gatilho:** projeto sem régua — sem lei, sem acordo, ou com etapa aberta
-- **Percurso:** `/start` (ou `ex-post` no maduro) → os acordos na ordem, cada um sabatinado e aprovado com marca → entre a concepção e o plano, a pesquisa de referências em duas frentes (código aberto para aproveitar solução pronta, produto fechado para amadurecer jornada) → o protótipo, que cobre também erro, configuração e governança [PENDENTE: etapa ainda não construída no /start — é obra do plano aberto]
-- **A pauta transversal é perguntada por programa, nunca por lembrança:** topologia do repositório, integrações, abstração de IA, controle de acesso, governança e registro de log. "Não se aplica" é resposta válida; faltar a pergunta, não. [PENDENTE: o programa que pergunta ainda não existe no /start — é obra do plano aberto]
+- **Percurso:** `/start` (ou `ex-post` no maduro) → os acordos na ordem, cada um sabatinado e aprovado com marca → entre a concepção e o plano, a pesquisa de referências em duas frentes (código aberto para aproveitar solução pronta, produto fechado para amadurecer jornada) → o protótipo, que cobre também erro, configuração e governança — a oferta com as superfícies obrigatórias por jornada vive na etapa de interface do /start, com cobrador verde (test_sidecar_prototipo.py)
+- **A pauta transversal é perguntada por rito cobrado, nunca por lembrança:** topologia do repositório, integrações, abstração de IA, controle de acesso, governança, registro de log e a casa da doc — as sete, cada uma na etapa dela. "Não se aplica" é resposta válida; faltar a pergunta, não (quem cobra a presença das sete é a suíte do /start, test_start_doc_skill.py).
 - **Fim feliz:** a régua existe e o `/doc-load` a carrega em toda etapa que julga.
 - **Onde quebra:** etapa escrita sem aprovação — o gate de plano trata como aberta e cobra. [INFERIDO DO CÓDIGO: pretooluse-plan-gate.sh]
 - **Toca as peças:** Skill, Motor de skill, Hook
@@ -43,7 +42,7 @@ correcao-pendente: dois marcadores [PENDENTE] (linhas 36-37) dizem que a etapa d
 ## Executar um plano noite adentro
 - **Ator:** o dono (decide) e o motor (executa)
 - **Gatilho:** plano ticável aberto e uma noite disponível
-- **Percurso:** o plano é varrido em quatro passadas atrás do que travaria (item a item · sequência encadeada · portas medidas por comando · vizinhança da árvore) [PENDENTE: o pré-check de largada é obra do plano aberto (fase F22)] → o que sobrou vira página de decisão → `/sprint` arma o sinal e a reserva → ondas de agentes com revisor por tarefa → tique com a prova que o critério pede → relatório de manhã
+- **Percurso:** o plano é varrido em quatro passadas atrás do que travaria (item a item · sequência encadeada · portas medidas por comando · vizinhança da árvore — o pré-check de largada, precheck_largada.py, cujo relatório o tique confere) → o que sobrou vira página de decisão → `/sprint` arma o sinal e a reserva → ondas de agentes com revisor por tarefa → tique com a prova que o critério pede → relatório de manhã
 - **Fim feliz:** passos marcados com prova e commits publicados; o que travou virou pendência nomeada.
 - **Onde quebra:** decisão do dono não tomada antes da largada — o passo volta recusado de madrugada. [DITO POR VOCÊ: plano F22, colheita das corridas paradas por pergunta]
 - **Toca as peças:** Motor, Portão de release, Esteira
