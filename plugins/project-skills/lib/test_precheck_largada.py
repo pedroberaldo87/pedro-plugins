@@ -25,8 +25,11 @@ sys.path.insert(0, AQUI)
 MODULO = os.path.join(AQUI, "precheck_largada.py")
 
 from decisoes_seladas import selar  # noqa: E402
-from precheck_largada import (ADIAVEL, BLOQUEANTE, passada1, passada2,  # noqa: E402
-                              passada3)
+from precheck_largada import (ADIAVEL, BLOQUEANTE, anotar_neblina,  # noqa: E402
+                              casa_da_neblina, declarar_fora_de_escopo,
+                              neblina_aberta, passada1, passada2, passada3,
+                              passada4, pergunta_precisa, pode_fechar,
+                              rodada_seguinte, triar)
 
 ok = falhas = 0
 
@@ -39,6 +42,15 @@ def checa(nome, cond, detalhe=""):
     else:
         falhas += 1
         print("  FAIL %s  %s" % (nome, detalhe))
+
+
+def _erra(fn, *a):
+    """Roda e diz se levantou ValueError — o registro recusa item sem motivo."""
+    try:
+        fn(*a)
+    except ValueError:
+        return True
+    return False
 
 
 def por_check(r, nome):
@@ -426,6 +438,219 @@ checa("com o alvo declarado, a porta do alvo abre",
 checa("todo achado da passada 3 sai com pergunta e prova",
       all(a["pergunta"].strip() and a["prova"].strip()
           for r in (r1, r2, r3, rg, ri, ra) for a in r["achados"]))
+
+# ── PASSADA 4 · A VIZINHANÇA (F22.4) ────────────────────────────────────────
+# Os dois cenários caros são REPRODUZIDOS, não simulados por mock: um motor vivo
+# com reserva de arquivo dentro da mesma árvore (o estado que
+# `reserva-de-arquivos.sh` escreve), e uma guarda de PreToolUse de verdade, com
+# hooks.json e script, que responde `deny` ao comando do passo.
+viz = tempfile.mkdtemp(prefix="precheck4-")
+os.makedirs(os.path.join(viz, "scripts"))
+with open(os.path.join(viz, "scripts", "suite.sh"), "w", encoding="utf-8") as f:
+    f.write("echo ok\n")
+
+# O motor vizinho: reserva viva apontando para um arquivo DESTA árvore, com o
+# aviso `ativo-<sid>` aceso — exatamente o par que o sprint deixa no disco.
+estado = tempfile.mkdtemp(prefix="precheck4-estado-")
+os.makedirs(os.path.join(estado, "reservas"))
+with open(os.path.join(estado, "reservas", "sessX__motor-b.files"), "w",
+          encoding="utf-8") as f:
+    f.write("%s\n" % os.path.join(viz, "scripts", "suite.sh"))
+with open(os.path.join(estado, "ativo-sessX"), "w", encoding="utf-8") as f:
+    f.write("sprint\n")
+
+# A guarda de verdade: plugin plantado na árvore, hooks.json com PreToolUse de
+# Bash, e um script que NEGA quem citar a esteira.
+guarda = os.path.join(viz, "plugins", "vigia", "hooks")
+os.makedirs(guarda)
+with open(os.path.join(guarda, "hooks.json"), "w", encoding="utf-8") as f:
+    json.dump({"hooks": {"PreToolUse": [{"matcher": "Bash", "hooks": [
+        {"type": "command",
+         "command": 'sh "$CLAUDE_PLUGIN_ROOT/hooks/nega.sh"'}]}]}}, f)
+with open(os.path.join(guarda, "nega.sh"), "w", encoding="utf-8") as f:
+    f.write('#!/bin/sh\nIN=$(cat)\ncase "$IN" in *suite.sh*) printf \'{"hookSpecific'
+            'Output":{"hookEventName":"PreToolUse","permissionDecision":"deny",'
+            '"permissionDecisionReason":"a esteira nao roda por fora"}}\';; esac\n')
+
+PLANO4 = {"phases": [{"id": "F", "items": [
+    {"id": "V.1", "status": "todo",
+     "desc": "roda a esteira com `bash scripts/suite.sh`",
+     "files": ["scripts/suite.sh"],
+     "pronto": "a esteira sai verde"},
+    {"id": "V.2", "status": "todo",
+     "desc": "o CI do projeto tem que ficar verde antes do passo seguinte",
+     "pronto": "o pipeline verde no painel"},
+    {"id": "V.3", "status": "todo", "desc": "sobe o servidor em localhost:8123",
+     "pronto": "responde em localhost:8123"},
+    {"id": "V.4", "status": "todo", "desc": "sobe o painel em localhost:8123",
+     "pronto": "a página abre"},
+]}]}
+
+r4 = passada4(PLANO4, viz, base_estado=estado)
+
+checa("motor vivo na MESMA árvore vira pergunta, com a reserva como prova",
+      [a["classe"] for a in checks(r4, "motor_vivo")] == [BLOQUEANTE]
+      and "suite.sh" in checks(r4, "motor_vivo")[0]["prova"]
+      and "ativo-sessX aceso" in checks(r4, "motor_vivo")[0]["prova"],
+      repr(checks(r4, "motor_vivo")))
+
+checa("a guarda de PreToolUse que NEGA o comando do passo vira pergunta",
+      [(a["classe"], a["passo"]) for a in checks(r4, "guarda_nega")] == [(BLOQUEANTE, "V.1")]
+      and "deny" in checks(r4, "guarda_nega")[0]["prova"],
+      repr(checks(r4, "guarda_nega")))
+
+checa("recurso externo sem espera_dono sai como achado NOMEADO",
+      [(a["passo"], a["classe"]) for a in checks(r4, "recurso_externo")] == [("V.2", BLOQUEANTE)],
+      repr(checks(r4, "recurso_externo")))
+
+checa("dois passos na mesma porta fixa não largam juntos",
+      [a["classe"] for a in checks(r4, "porta_compartilhada")] == [BLOQUEANTE]
+      and "8123" in checks(r4, "porta_compartilhada")[0]["prova"],
+      repr(checks(r4, "porta_compartilhada")))
+
+checa("tudo isso vai ao dono como PERGUNTA, com prova colada",
+      all(a["pergunta"].strip() and a["prova"].strip() for a in r4["achados"])
+      and len(r4["perguntas"]) == len(r4["achados"]), repr(r4["perguntas"]))
+
+# Com o passo já declarando a espera, o recurso externo para de perguntar.
+PLANO4E = json.loads(json.dumps(PLANO4))
+PLANO4E["phases"][0]["items"][1]["espera_dono"] = "o dono roda o CI"
+checa("com espera_dono declarado, o recurso externo cala",
+      checks(passada4(PLANO4E, viz, base_estado=estado), "recurso_externo") == [])
+
+# A regra de exclusividade do CLAUDE.md virando checagem de `ps`: com a regra
+# escrita e o processo JÁ de pé, a passada acusa.
+with open(os.path.join(viz, "CLAUDE.md"), "w", encoding="utf-8") as f:
+    f.write("# regra da casa\n\nNunca duas suítes ao mesmo tempo na mesma máquina.\n")
+ESTEIRA_VIZINHA = os.path.join(viz, "scripts", "esteira-vizinha.sh")
+with open(ESTEIRA_VIZINHA, "w", encoding="utf-8") as f:
+    f.write("sleep 37\n")
+vizinho = subprocess.Popen(["sh", ESTEIRA_VIZINHA], stdin=subprocess.DEVNULL,
+                           start_new_session=True)
+try:
+    PLANO4P = {"phases": [{"id": "F", "items": [
+        {"id": "V.9", "status": "todo",
+         "desc": "roda a esteira com `sh scripts/esteira-vizinha.sh`",
+         "pronto": "o comando termina"}]}]}
+    rx = passada4(PLANO4P, viz, base_estado=estado)
+    checa("regra 'nunca duas ao mesmo tempo' + processo de pé = pergunta",
+          [a["classe"] for a in checks(rx, "exclusividade")] == [BLOQUEANTE]
+          and "esteira-vizinha.sh" in checks(rx, "exclusividade")[0]["prova"],
+          repr(checks(rx, "exclusividade")))
+finally:
+    vizinho.kill()
+    vizinho.wait(timeout=10)
+
+# Reserva EXPIRADA é motor morto: não disputa nada.
+velha = os.path.join(estado, "reservas", "sessX__motor-b.files")
+os.utime(velha, (0, 0))
+checa("reserva expirada não conta como motor vivo",
+      checks(passada4(PLANO4, viz, base_estado=estado), "motor_vivo") == [])
+
+
+# ── NEBLINA (F22.9) · a suspeita sem forma vira registro, não pergunta ──────
+neb = tempfile.mkdtemp(prefix="neblina-")
+PRECISA = {"passo": "F1.2", "check": "precondicao", "classe": BLOQUEANTE,
+           "pergunta": "o passo parte de docs/x.md, que não está no disco — quem "  # casa-ok: caminho ficticio dentro de fixture, nao caminho operacional
+                       "produz esse arquivo antes da largada?",
+           "prova": "docs/x.md: não existe"}  # casa-ok: caminho ficticio dentro de fixture, nao caminho operacional
+SEM_FORMA = {"passo": "?", "check": "cheiro", "classe": BLOQUEANTE,
+             "pergunta": "tem algo estranho aqui", "prova": ""}
+
+checa("pergunta precisa passa no teste", pergunta_precisa(PRECISA) == [],
+      repr(pergunta_precisa(PRECISA)))
+checa("suspeita sem forma acusa as três faltas",
+      len(pergunta_precisa(SEM_FORMA)) == 3, repr(pergunta_precisa(SEM_FORMA)))
+
+t = triar(neb, [PRECISA, SEM_FORMA], data="2026-08-21")
+checa("só a precisa vira pergunta ao dono",
+      [a["passo"] for a in t["perguntas"]] == ["F1.2"], repr(t["perguntas"]))
+checa("a sem forma vira registro de neblina, não some",
+      len(t["neblina"]) == 1 and "tem algo estranho aqui" in t["neblina"][0]["linha"],
+      repr(t["neblina"]))
+
+arq = casa_da_neblina(neb)
+conteudo = open(arq, encoding="utf-8").read()
+checa("o registro mora na casa do projeto, fora do plugin",
+      arq.endswith(os.path.join(".claude", "neblina.md"))
+      and os.path.isfile(arq) and AQUI not in arq, arq)
+checa("a suspeita cabe inteira numa linha só (grep acha)",
+      any('"tem algo estranho aqui"' in ln for ln in conteudo.splitlines()), conteudo)
+
+checa("suspeita repetida não duplica linha",
+      triar(neb, [SEM_FORMA], data="2026-08-21")
+      and len([ln for ln in open(arq, encoding="utf-8")
+               if "tem algo estranho aqui" in ln]) == 1, conteudo)
+
+# O fecho do loop: neblina aberta segura; declarada fora de escopo libera.
+checa("loop NÃO fecha com neblina aberta", pode_fechar(neb) == (False, neblina_aberta(neb))
+      and not pode_fechar(neb)[0] and len(pode_fechar(neb)[1]) == 1,
+      repr(pode_fechar(neb)))
+checa("declarar fora de escopo exige motivo",
+      _erra(declarar_fora_de_escopo, neb, "tem algo estranho aqui", ""))
+checa("declarar fora de escopo acha a linha",
+      declarar_fora_de_escopo(neb, "tem algo estranho aqui", "outro plano cuida"))
+checa("loop fecha com cada item declarado fora de escopo",
+      pode_fechar(neb) == (True, []), repr(pode_fechar(neb)))
+
+vazio = tempfile.mkdtemp(prefix="neblina-vazia-")
+checa("loop fecha com neblina vazia (registro nem existe)",
+      pode_fechar(vazio) == (True, []), repr(pode_fechar(vazio)))
+
+anotar_neblina(neb, "segunda suspeita sem forma", "não traz prova visível", "F2.1")
+checa("neblina nova reabre o fecho",
+      pode_fechar(neb)[0] is False and len(pode_fechar(neb)[1]) == 1,
+      repr(pode_fechar(neb)))
+
+# ── RODADA N+1 (F22.7) · a rodada que parte das RESPOSTAS ───────────────────
+# Duas respostas à MESMA rodada: uma que revela nome novo (gera decorrência) e
+# uma que só confirma (não gera nada). E depois a rodada seguinte às respostas
+# sem decorrência — a que FECHA o loop.
+rod = tempfile.mkdtemp(prefix="rodada-")
+
+REVELA = {"passo": "F1.2", "check": "precondicao",
+          "pergunta": "o passo parte de docs/x.md, que não está no disco — quem "  # casa-ok: caminho ficticio dentro de fixture, nao caminho operacional
+                      "produz esse arquivo antes da largada?",
+          "prova": "docs/x.md: não existe",  # casa-ok: caminho ficticio dentro de fixture, nao caminho operacional
+          "resposta": "quem produz é o passo F0.9, que grava docs/x.md a partir de "  # casa-ok: caminho ficticio dentro de fixture, nao caminho operacional
+                      "scripts/gera-x.sh"}
+CONFIRMA = {"passo": "F1.3", "check": "tranca",
+            "pergunta": "o passo toca docs/x.md, que está aprovado e trancado — "  # casa-ok: caminho ficticio dentro de fixture, nao caminho operacional
+                        "entrega proposta ou você destranca o arquivo?",
+            "prova": "docs/x.md: status: approved no frontmatter",  # casa-ok: caminho ficticio dentro de fixture, nao caminho operacional
+            "resposta": "isso mesmo, entrega proposta"}
+
+r7 = rodada_seguinte(rod, [REVELA, CONFIRMA])
+checa("a rodada N+1 lê as duas respostas sem tocar no plano",
+      [l["passo"] for l in r7["leitura"]] == ["F1.2", "F1.3"], repr(r7["leitura"]))
+checa("a resposta que traz nome novo gera pergunta decorrente",
+      [a["passo"] for a in r7["perguntas"]] == ["F1.2"]
+      and "scripts/gera-x.sh" in " ".join(a["pergunta"] for a in r7["perguntas"]),
+      repr(r7["perguntas"]))
+checa("a resposta que só confirma não gera decorrência",
+      r7["leitura"][1]["confirmou"] is True
+      and [a for a in r7["achados"] if a["passo"] == "F1.3"] == [],
+      repr(r7["leitura"][1]))
+checa("com decorrência aberta o loop NÃO fecha", r7["fechou"] is False, repr(r7))
+
+# A resposta que DESCONFIRMA a prova da rodada anterior também é decorrência.
+rd = rodada_seguinte(rod, [dict(REVELA, resposta="não existe passo nenhum que "
+                                                 "produza esse arquivo")])
+checa("resposta que derruba a prova anterior vira pergunta",
+      [a["check"] for a in rd["perguntas"]] == ["desconfirmado"], repr(rd["perguntas"]))
+
+# A rodada SEGUINTE, feita da resposta sem decorrência: fecha o loop.
+FECHA = {"passo": "F1.2", "check": "revelado",
+         "pergunta": "a resposta trouxe scripts/gera-x.sh, que não estava na rodada "
+                     "anterior — o passo passa a depender disso, ou isso fica fora "
+                     "da largada?",
+         "prova": "resposta: quem produz é o passo F0.9, que grava docs/x.md a "  # casa-ok: caminho ficticio dentro de fixture, nao caminho operacional
+                  "partir de scripts/gera-x.sh",
+         "resposta": "fica fora da largada, sim"}
+r8 = rodada_seguinte(rod, [FECHA])
+checa("rodada sem decorrência nenhuma FECHA o loop",
+      r8["fechou"] is True and r8["perguntas"] == [] and r8["leitura"][0]["confirmou"],
+      repr(r8))
 
 print("test_precheck_largada: %d ok, %d falha(s)" % (ok, falhas))
 sys.exit(1 if falhas else 0)
