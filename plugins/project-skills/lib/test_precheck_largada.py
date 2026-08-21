@@ -167,10 +167,25 @@ checa("pré-condição que OUTRO passo aberto produz é ADIÁVEL, não pergunta"
 
 # ── 5 · O PLANO DE VERDADE ──────────────────────────────────────────────────
 RAIZ_PROJ = os.path.abspath(os.path.join(AQUI, "..", "..", ".."))
-reais = sorted(glob.glob(os.path.join(RAIZ_PROJ, ".claude", "plans", "*.plan.json")))
+# O plano ESCOLHIDO é o que tem passo aberto, nunca "o último da lista": ordem
+# alfabética entrega plano FECHADO (autopsia-2026-08-09) e a checagem reprovava por
+# um motivo que não é o que ela mede.
+def _com_passo_aberto(caminhos):
+    for c in reversed(caminhos):
+        try:
+            with open(c, encoding="utf-8") as f:
+                p = json.load(f)
+        except Exception:
+            continue
+        if any(i.get("status") == "todo" for fa in p.get("phases", []) for i in fa.get("items", [])):
+            return c, p
+    return None, None
+
+
+_todos = sorted(glob.glob(os.path.join(RAIZ_PROJ, ".claude", "plans", "*.plan.json")))
+_escolhido, real = _com_passo_aberto(_todos)
+reais = [_escolhido] if _escolhido else []
 if reais:
-    with open(reais[-1], encoding="utf-8") as f:
-        real = json.load(f)
     rr = passada1(real, RAIZ_PROJ)
     checa("a passada roda sobre um plano de verdade e devolve os passos abertos",
           isinstance(rr["achados"], list) and rr["passos_abertos"], reais[-1])
