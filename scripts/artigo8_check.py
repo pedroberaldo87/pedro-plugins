@@ -74,8 +74,12 @@ VARS_DO_AMBIENTE = {
     "EDITOR", "LANG", "PS1", "RANDOM", "PYTHONPATH", "USERPROFILE", "APPDATA",
 }
 # Atribuição no PRÓPRIO bloco: `X=…`, `export X=…`, `read X`, `for X in`.
+# re.M porque o bloco é julgado como texto de VÁRIAS linhas: sem ele, `^` só casava no
+# começo do bloco inteiro e toda variável derivada da segunda linha em diante era acusada
+# de vazia — o falso-positivo que fechou a porta de commit em 21/08.
 RE_ATRIBUI = re.compile(
-    r"(?:^|[;&|]|\bexport\s+|\bfor\s+|\bread\s+|\blocal\s+)\s*([A-Z][A-Z0-9_]*)\s*(?:=|\bin\b)")
+    r"(?:^|[;&|]|\bexport\s+|\bfor\s+|\bread\s+|\blocal\s+)\s*([A-Z][A-Z0-9_]*)\s*(?:=|\bin\b)",
+    re.M)
 
 
 def skills(root):

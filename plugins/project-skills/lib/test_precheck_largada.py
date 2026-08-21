@@ -29,6 +29,7 @@ from precheck_largada import (ADIAVEL, BLOQUEANTE, anotar_neblina,  # noqa: E402
                               casa_da_neblina, declarar_fora_de_escopo,
                               neblina_aberta, passada1, passada2, passada3,
                               passada4, pergunta_precisa, pode_fechar,
+                              confere_largada, grava_relatorio, marca,
                               rodada_seguinte, triar)
 
 ok = falhas = 0
@@ -639,6 +640,27 @@ rd = rodada_seguinte(rod, [dict(REVELA, resposta="não existe passo nenhum que "
 checa("resposta que derruba a prova anterior vira pergunta",
       [a["check"] for a in rd["perguntas"]] == ["desconfirmado"], repr(rd["perguntas"]))
 
+# E o achado `desconfirmado` vira PROPOSTA (F22.8) — o passo apontado pelo id, a
+# resposta do dono citada LITERAL, e nenhuma escrita no plano.
+checa("o desconfirmado vira proposta apontando o passo e citando a resposta",
+      len(rd["propostas"]) == 1
+      and rd["propostas"][0]["passo"] == "F1.2"
+      and rd["propostas"][0]["citacao"] == "não existe passo nenhum que produza "
+                                           "esse arquivo"
+      and "não existe passo nenhum que produza esse arquivo" in rd["propostas"][0]["texto"]
+      and "F1.2" in rd["propostas"][0]["texto"],
+      repr(rd["propostas"]))
+checa("resposta que nega a existência propõe REMOVER o passo",
+      rd["propostas"][0]["acao"] == "remover", repr(rd["propostas"][0]))
+rr = rodada_seguinte(rod, [dict(REVELA, resposta="na verdade quem produz é outro "
+                                                 "passo, o F0.4")])
+checa("resposta que contraria sem negar existência propõe REESCREVER",
+      [p["acao"] for p in rr["propostas"]] == ["reescrever"], repr(rr["propostas"]))
+checa("a proposta não escreve no plano — o retorno é só dado",
+      all(isinstance(p, dict) for p in rr["propostas"])
+      and [a for a in rr["propostas"] if a["check"] != "desconfirmado"] == [],
+      repr(rr["propostas"]))
+
 # A rodada SEGUINTE, feita da resposta sem decorrência: fecha o loop.
 FECHA = {"passo": "F1.2", "check": "revelado",
          "pergunta": "a resposta trouxe scripts/gera-x.sh, que não estava na rodada "
@@ -651,6 +673,83 @@ r8 = rodada_seguinte(rod, [FECHA])
 checa("rodada sem decorrência nenhuma FECHA o loop",
       r8["fechou"] is True and r8["perguntas"] == [] and r8["leitura"][0]["confirmou"],
       repr(r8))
+
+# ── F22.5 · quem mediu grava, quem larga confere ────────────────────────────
+# O cenário é reproduzido inteiro: plano no disco, relatório gravado a partir do
+# retorno das passadas, e a casca conferindo antes de armar o motor.
+PLANO_L = {"id": "PL", "phases": [{"items": [
+    {"id": "F1.1", "desc": "escreve o módulo", "pronto": "a suíte passa"},
+    {"id": "F1.2", "desc": "outro passo", "pronto": "o arquivo existe",
+     "status": "done"}]}]}
+ABERTA = {"passo": "F1.1", "check": "ato_do_dono", "classe": BLOQUEANTE,
+          "pergunta": "o `pronto` do F1.1 pede aprovação do dono — quem aprova?",
+          "prova": "pronto: a suíte passa"}
+TOMADA = {"passo": "F1.1", "check": "tranca", "classe": BLOQUEANTE,
+          "pergunta": "o passo toca documento aprovado — reabre a etapa?",
+          "prova": "docs/x.md: status approved",  # casa-ok: caminho ficticio de fixture
+          "respondida_por": "reabre, sim"}
+
+lar = tempfile.mkdtemp(prefix="precheck-largada-")
+ARV = "aaaa1111"
+
+v = confere_largada(lar, PLANO_L, arvore=ARV)
+checa("sem relatório nenhum, a casca RECUSA largar",
+      v["larga"] is False and v["motivo"] == "ausente", repr(v))
+
+rel = grava_relatorio(lar, PLANO_L, {"1": {"perguntas": [ABERTA],
+                                           "registrados": [TOMADA]}}, arvore=ARV)
+checa("o relatório grava a marca, o veredito e a lista de decisões TOMADAS",
+      rel["veredito"] == "em-aberto" and [t["check"] for t in rel["tomadas"]] == ["tranca"]
+      and rel["marca"]["arvore"] == ARV and rel["marca"]["plano"], repr(rel))
+checa("a casa do relatório é .claude/.sprint/, fora do plugin",
+      os.path.exists(os.path.join(lar, ".claude", ".sprint", "precheck.json")),
+      os.listdir(lar))
+
+v = confere_largada(lar, PLANO_L, arvore=ARV)
+checa("com decisão em aberto a casca RECUSA e diz QUAL decisão falta",
+      v["larga"] is False and v["motivo"] == "decisao-em-aberto"
+      and ABERTA["pergunta"] in v["texto"] and "F1.1" in v["texto"], repr(v))
+
+rel = grava_relatorio(lar, PLANO_L, {"1": {"perguntas": [],
+                                           "registrados": [TOMADA]}}, arvore=ARV)
+v = confere_largada(lar, PLANO_L, arvore=ARV)
+checa("com relatório fresco e nada em aberto, a casca ACEITA largar",
+      v["larga"] is True and v["motivo"] == "livre" and rel["veredito"] == "livre",
+      repr(v))
+
+# A MARCA é imune ao próprio progresso: fechar passo aberto muda o plano (menos
+# passos), mas TICAR o que já estava fechado não muda nada.
+PLANO_TICADO = json.loads(json.dumps(PLANO_L))
+PLANO_TICADO["phases"][0]["items"][1]["status"] = "done"
+checa("tique de passo já fechado NÃO vence o relatório",
+      confere_largada(lar, PLANO_TICADO, arvore=ARV)["larga"] is True,
+      repr(marca(PLANO_TICADO, lar, ARV)))
+
+PLANO_MUDADO = json.loads(json.dumps(PLANO_L))
+PLANO_MUDADO["phases"][0]["items"][0]["pronto"] = "a suíte passa e o gate aprova"
+v = confere_largada(lar, PLANO_MUDADO, arvore=ARV)
+checa("passo ABERTO reescrito VENCE o relatório, e a recusa diz que foi o plano",
+      v["larga"] is False and v["motivo"] == "vencido" and v["mudou"] == ["plano"],
+      repr(v))
+
+v = confere_largada(lar, PLANO_L, arvore="bbbb2222")
+checa("árvore diferente VENCE o relatório, e a recusa diz que foi a árvore",
+      v["larga"] is False and v["motivo"] == "vencido" and v["mudou"] == ["arvore"],
+      repr(v))
+
+# Decisão nova selada entra na marca: o registro selado é parte do que foi medido.
+selar(lar, "de agora em diante o gate roda antes", "dono")
+v = confere_largada(lar, PLANO_L, arvore=ARV)
+checa("decisão selada nova VENCE o relatório", v["motivo"] == "vencido", repr(v))
+
+# E pela linha de comando, que é como a casca chama: recusa sai 3.
+plano_arq = os.path.join(lar, "PL.plan.json")
+with open(plano_arq, "w", encoding="utf-8") as f:
+    json.dump(PLANO_L, f)
+rc = subprocess.run([sys.executable, MODULO, plano_arq, "--raiz", lar, "--confere"],
+                    capture_output=True, text=True)
+checa("o CLI --confere sai 3 quando recusa", rc.returncode == 3, rc.stderr[-300:])
+
 
 print("test_precheck_largada: %d ok, %d falha(s)" % (ok, falhas))
 sys.exit(1 if falhas else 0)
