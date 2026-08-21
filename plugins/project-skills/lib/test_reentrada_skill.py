@@ -48,8 +48,11 @@ def roda_bloco(repo_root, plan_path):
     bloco = bloco_da_skill()
     assert "<a raiz do projeto>" in bloco and "<o plano da missão>" in bloco, \
         "os placeholders do bloco mudaram — a prosa da skill tem que defini-los"
-    bloco = bloco.replace("<a raiz do projeto>", repo_root).replace("<o plano da missão>", plan_path)
-    env = dict(os.environ, CLAUDE_PLUGIN_ROOT=PLUGIN)
+    # Barra POSIX em tudo que entra no bloco: no Windows `D:\a\…` cru dentro do bash
+    # vira escape — os hooks da casa normalizam com `tr '\\' /`, o teste faz o mesmo.
+    bloco = (bloco.replace("<a raiz do projeto>", repo_root.replace(os.sep, "/"))
+                  .replace("<o plano da missão>", plan_path.replace(os.sep, "/")))
+    env = dict(os.environ, CLAUDE_PLUGIN_ROOT=PLUGIN.replace(os.sep, "/"))
     # O bloco chama `python3` como está escrito, e o bash do runner do Windows não
     # tem esse nome — a suíte garante o intérprete com um shim na frente do PATH,
     # do mesmo jeito que o rodador de suítes entrega o seu `$PY`.
