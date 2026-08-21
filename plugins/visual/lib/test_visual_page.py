@@ -270,9 +270,11 @@ for _intruso in ({"kind": "aprovacao", "etapa": "a spec", "doc_integral": "texto
                          sections=[{"blocks": [dict(EVID), _intruso]}]))
     check("item do trabalho (%s) é recusado no parecer" % _intruso["kind"],
           any("página de parecer" in e for e in _errs), _errs)
-_errs = V.validate(spec(sections=[{"blocks": [dict(EVID),
-                                           {"kind": "aprovacao", "etapa": "a spec",
-                                            "doc_integral": "texto inteiro"}]}]))
+_errs = V.validate(spec(sections=[{"blocks": [
+    {"kind": "esquema", "tipo": "glossario",
+     "termos": [{"termo": "gate", "desc": "o passo que recusa o commit"}]},
+    dict(EVID), {"kind": "aprovacao", "etapa": "a spec",
+                 "doc_integral": "texto inteiro"}]}]))
 check("fora do parecer a aprovação continua passando", _errs == [], _errs)
 
 
@@ -604,9 +606,24 @@ APROV = {"kind": "aprovacao", "etapa": "Etapa 3 — o gate de release",
          "doc_integral": DOC,
          "cards": [{"title": "O que o gate cobra", "ancora": "Quem não bumpa a versão não passa."}]}
 
+# O esquema vem ANTES do texto integral (F29.2): a página de aprovação de documento
+# abre pelo desenho, e o documento inteiro fica atrás dele.
+ESQUEMA_ANTES = {"kind": "esquema", "tipo": "fluxo", "retorno": "volta valendo",
+                 "passos": [{"titulo": "Commit", "subs": ["o gate acorda"]},
+                            {"titulo": "Gate", "subs": ["mede staged e modificado"]},
+                            {"titulo": "Release", "subs": ["a versão propaga"]}]}
+COM_ESQ = [{"blocks": [dict(ESQUEMA_ANTES), dict(APROV)]}]
+
 check("aprovação com o texto integral é aceita",
-      V.validate(spec(sections=[{"blocks": [dict(APROV)]}])) == [],
-      V.validate(spec(sections=[{"blocks": [dict(APROV)]}])))
+      V.validate(spec(sections=COM_ESQ)) == [],
+      V.validate(spec(sections=COM_ESQ)))
+
+_errs_sem_esq = V.validate(spec(sections=[{"blocks": [dict(APROV)]}]))
+check("aprovação de documento SEM esquema à frente é recusada",
+      any("sem bloco 'esquema' antes" in x for x in _errs_sem_esq), _errs_sem_esq)
+_errs_ordem = V.validate(spec(sections=[{"blocks": [dict(APROV), dict(ESQUEMA_ANTES)]}]))
+check("esquema DEPOIS do texto integral não conta — a ordem é a régua",
+      any("sem bloco 'esquema' antes" in x for x in _errs_ordem), _errs_ordem)
 
 for falta in ({}, {"doc_integral": ""}, {"doc_integral": "   \n  "}):
     errs = V._validate_block("aprovacao", dict(APROV, **falta) if falta
@@ -632,7 +649,7 @@ check("o texto integral fica FORA da régua (é o documento, não bullet)",
       V._validate_block("aprovacao", dict(APROV, doc_integral="x" * 900, cards=[]),
                         "s1 b1") == [])
 
-_pg_ap, _ctx_ap = V.build_page(spec(sections=[{"blocks": [dict(APROV)]}]), T)
+_pg_ap, _ctx_ap = V.build_page(spec(sections=COM_ESQ), T)
 check("o texto integral está na página, verbatim",
       "A prova é a saída crua do próprio gate." in _pg_ap)
 check("a página carrega o documento INTEIRO, não um trecho",
@@ -647,7 +664,8 @@ check("o card fica POR CIMA do texto integral (é índice, não conteúdo)",
 check("o card navega pra âncora dentro do documento",
       'href="#aprov-1-1"' in _pg_ap and 'id="aprov-1-1"' in _pg_ap, "âncora não ligada")
 check("aprovação conta como pedido COM prova (o doc é a prova)",
-      V.validate(spec(sections=[{"blocks": [dict(APROV), {"kind": "item", "title": "i"}]}])) == [])
+      V.validate(spec(sections=[{"blocks": [dict(ESQUEMA_ANTES), dict(APROV),
+                                            {"kind": "item", "title": "i"}]}])) == [])
 
 # o critério de pronto, no caminho que a skill usa de verdade
 with tempfile.TemporaryDirectory() as td:
@@ -883,6 +901,45 @@ check("os 6 numa página só: a página é escrita e traz 6 caixas de desenho",
       _pg6.count('<div class="diagram">') == 6, _pg6.count('<div class="diagram">'))
 check("os 6 numa página só: cor do desenho sai do tema, não de hex fixo",
       "var(--accent)" in _pg6 and not re.search(r'(rect|text)[^>]*fill="#', _pg6))
+
+
+# ── a regra que só vive na SKILL.md ────────────────────────────────────────
+# A página de aprovação de documento sem desenho na frente é textão. A regra é
+# de prosa (o programa não sabe qual documento está sendo aprovado), então o que
+# a suíte cobra é a PRESENÇA dela — e do vocabulário por tipo, que é a parte que
+# some primeiro quando alguém reescreve a seção.
+
+print("\n[SKILL.md — a seção da página de aprovação de documento]")
+
+with open(os.path.join(HERE, "..", "skills", "visual", "SKILL.md"), encoding="utf-8") as fh:
+    SKILL = fh.read()
+
+check("a seção existe",
+      "### Página de aprovação de documento — o esquema vem ANTES do texto" in SKILL)
+check("a regra da ordem está escrita",
+      "vem ANTES do bloco `aprovacao`" in SKILL)
+check("o doc_integral continua obrigatório",
+      "O `doc_integral` **continua obrigatório**" in SKILL)
+check("sem esquema à frente reprova",
+      "Página de aprovação sem esquema à frente é textão e reprova." in SKILL)
+check("aponta pro bloco que já existe, não reinventa desenho",
+      "plugins/visual/lib/visual_page.py" in SKILL and "r_esquema" in SKILL)
+_sec = SKILL.split("### Página de aprovação de documento")[1].split("\n### ")[0]
+for _t in sorted(V.ESQUEMAS):
+    check("vocabulário por tipo: %s aparece na seção" % _t, "`%s`" % _t in _sec)
+# O mapa documento→tipo mora no PROGRAMA e sai por `visual_page.py schema` — a seção
+# aponta o comando em vez de repetir a lista, que é onde ela envelhecia calada.
+check("a seção manda buscar o mapa no comando, não decorar a lista",
+      "visual_page.py" in _sec and '"$VP" schema' in _sec)
+_saida_schema = subprocess.run(
+    [sys.executable, os.path.join(HERE, "visual_page.py"), "schema"],
+    capture_output=True, text=True, stdin=subprocess.DEVNULL,
+    start_new_session=True).stdout
+for _d, _tipo, _ in V.ESQUEMA_POR_DOC:
+    check("documento mapeado na saída do schema: %s" % _d,
+          _d in _saida_schema and _tipo in V.ESQUEMAS)
+check("todo documento canônico do mapa tem tipo que o programa sabe desenhar",
+      all(tp in V.ESQUEMAS for _, tp, _ in V.ESQUEMA_POR_DOC))
 
 
 print("\n%d passou · %d falhou" % (PASS, FAIL))
