@@ -313,6 +313,11 @@ check "o mesmo aviso com markdown é RECUSADO" \
 check "o mesmo aviso sem emoji no cabeçalho é RECUSADO" \
       "$(regua "$(printf '%s' "$AUSENTE" | sed 's/^⚠️ //')" ausente | grep -q emoji && echo 1 || echo 0)"
 
+# F22.12 — a camada de AVISO no lembrete de plano aberto: régua carregada não é
+# plano varrido, e quem chega depois do /clear precisa ler isso antes de largar.
+check "o lembrete de plano aberto carrega a linha do pré-check vencido" \
+      "$(grep -q -- 'pré-check vencido → rode a caça antes de planejar ou' "$HERE/sessionstart-plan.sh" && echo 1 || echo 0)"
+
 rm -f "${TMPDIR:-/tmp}"/claude-plan-{mark,nudge,closed,missing}-"$(id -u)"-g*-"$PHASH" \
       "${TMPDIR:-/tmp}"/claude-plan-{mark,nudge,closed,missing}-"$(id -u)"-g*-"$PHASH_V" \
       "${TMPDIR:-/tmp}"/claude-plan-{mark,nudge,closed,missing}-"$(id -u)"-s*-"$PHASH" \

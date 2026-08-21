@@ -394,6 +394,15 @@ check("o design regravado continua valendo como régua — só o anexo reabriu",
 e = dl.carrega(projeto({"constituicao.md": DOC_LEI_READY}))
 check("projeto sem casa de protótipo devolve anexos vazio", e["anexos"] == [])
 
+# F22.12 — a camada de AVISO: o preâmbulo da skill lembra que régua carregada não
+# é plano varrido. Sem esta cobrança a linha some no primeiro conserto de prosa.
+_SKILL = os.path.join(AQUI, "..", "skills", "doc-load", "SKILL.md")
+with open(_SKILL, encoding="utf-8") as fh:
+    _texto = fh.read()
+check("o preâmbulo da skill carrega a linha do pré-check vencido",
+      "pré-check vencido → rode a caça antes de planejar ou executar por cima" in _texto,
+      _texto[:200])
+
 print()
 print(f"{ok} passou · {falhou} falhou")
 sys.exit(1 if falhou else 0)

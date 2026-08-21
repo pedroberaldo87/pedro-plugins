@@ -70,11 +70,14 @@ Uso:
 
     python3 precheck_largada.py <plano.json> [--raiz .] [--passada 1|2|3|4]
                                    # exit 1 = há pergunta
+    python3 precheck_largada.py <plano.json> --relatorio   # grava a prova das 4 passadas
+    python3 precheck_largada.py <plano.json> --confere     # a casca antes de largar (exit 3 = recusa)
 
 stdlib only (requisito do repo).
 """
 
 import argparse
+import hashlib
 import json
 import os
 import re
@@ -86,6 +89,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 import andamento  # noqa: E402
 from auditoria_plano import ATO_DO_DONO  # noqa: E402
+from decisoes_seladas import caminho as decisoes_caminho  # noqa: E402
 from decisoes_seladas import consultar  # noqa: E402
 from plan_state import pick_plan  # noqa: E402
 from regua_pronto import criterio_cortado, erros_de_pronto  # noqa: E402
@@ -993,6 +997,27 @@ def _revelado(resposta, conhecido):
     return novos
 
 
+_NEGA_EXISTENCIA = re.compile(r"\b(n[ãa]o existe|nunca (?:foi|existiu)|nenhum\w*)", re.I)
+
+
+def _proposta_desconfirmado(pid, r, resposta):
+    """A decorrência do `desconfirmado`: uma PROPOSTA, nunca uma edição.
+
+    O pré-check NÃO escreve no `.plan.json` — ele devolve o passo apontado pelo id,
+    a prova que caiu e a resposta LITERAL do dono, e quem decide reescrever ou
+    remover é o dono. Quando a resposta nega a existência do que sustentava o
+    passo, a proposta é remover; nos demais casos, reescrever.
+    """
+    acao = "remover" if _NEGA_EXISTENCIA.search(resposta) else "reescrever"
+    return {
+        "passo": pid, "acao": acao, "check": "desconfirmado",
+        "prova_caida": r.get("prova") or "(sem prova)",
+        "citacao": resposta,
+        "texto": '%s o passo %s: a resposta do dono derruba a prova que o '
+                 'sustentava — "%s"' % (acao.capitalize(), pid, resposta),
+    }
+
+
 def rodada_seguinte(raiz, respostas):
     """A rodada N+1, feita das RESPOSTAS da rodada N. Não lê o plano.
 
@@ -1001,7 +1026,7 @@ def rodada_seguinte(raiz, respostas):
     cada uma (confirmou / desconfirmou / revelou), as `perguntas` decorrentes e
     `fechou` — verdadeiro quando nenhuma resposta gerou decorrência.
     """
-    achados, leitura = [], []
+    achados, leitura, propostas = [], [], []
     for r in respostas:
         passo = {"id": r.get("passo") or "?"}
         resposta = " ".join(str(r.get("resposta") or "").split())
@@ -1018,6 +1043,7 @@ def rodada_seguinte(raiz, respostas):
                 "passo continua de pé como está escrito, ou é reescrito?",
                 "prova da rodada anterior: %s\nresposta: %s"
                 % (r.get("prova") or "(sem prova)", resposta)))
+            propostas.append(_proposta_desconfirmado(passo["id"], r, resposta))
         for nome in revelou:
             achados.append(_achado(
                 passo, "revelado", BLOQUEANTE,
@@ -1034,7 +1060,107 @@ def rodada_seguinte(raiz, respostas):
         else:
             perguntas.append(a)
     return {"leitura": leitura, "achados": achados, "perguntas": perguntas,
-            "registrados": registrados, "fechou": not perguntas}
+            "registrados": registrados, "propostas": propostas,
+            "fechou": not perguntas}
+
+
+# ── O RELATÓRIO E A CONFERÊNCIA DA LARGADA (F22.5) ──────────────────────────
+# Quem MEDIU grava, quem LARGA confere — a mesma régua da prova da esteira. Sem isto
+# o pré-check é conversa: as quatro passadas rodam, o dono lê na tela, e o motor
+# larga sem que nada no disco diga que elas rodaram, ou que rodaram sobre ESTA
+# árvore e ESTE plano.
+#
+# A marca cobre `id` + `pronto` + `desc` dos passos ABERTOS (não do plano inteiro) e
+# o registro selado: assim ela é imune ao próprio progresso — tique de passo não
+# vence o relatório, mas passo reescrito, passo novo e decisão nova selada vencem.
+#
+# Casa: <projeto>/.claude/.sprint/precheck.json — registro de trabalho, fora do git,
+# no mesmo molde de `.claude/.sprint/corridas.jsonl` do ledger.
+
+RELATORIO = os.path.join(".claude", ".sprint", "precheck.json")
+
+
+def casa_do_relatorio(raiz):
+    return os.path.join(raiz, RELATORIO)
+
+
+def marca(plano, raiz, arvore=None):
+    """A marca da árvore E do plano. Muda ⇒ o relatório venceu."""
+    corpo = json.dumps([[str(p.get("id") or "?"), p.get("desc") or "",
+                         p.get("pronto") or ""] for p in _abertos(plano)],
+                       ensure_ascii=False, sort_keys=True)
+    selado = ""
+    try:
+        with open(decisoes_caminho(raiz), encoding="utf-8") as f:
+            selado = f.read()
+    except OSError:
+        pass
+    if arvore is None:
+        arvore = _green(raiz, "green_tree_hash", raiz)[1]
+    return {"arvore": arvore or "(hash ilegível)",
+            "plano": hashlib.sha256((corpo + "\n" + selado).encode("utf-8")).hexdigest()[:16]}
+
+
+def grava_relatorio(raiz, plano, passadas, arvore=None):
+    """As 4 passadas viram artefato: veredito, decisões TOMADAS e o que ficou aberto.
+
+    `passadas` é o dicionário {"1": r1, ...} com o retorno de cada passada. Aberta é
+    a pergunta que ainda vai ao dono; tomada é o achado que o registro selado já
+    respondeu (`respondida_por`) — as duas listas saem do retorno, nunca de memória.
+    """
+    abertas, tomadas = [], []
+    for nome in sorted(passadas):
+        r = passadas[nome] or {}
+        for a in r.get("perguntas") or []:
+            abertas.append(dict(a, passada=nome))
+        for a in r.get("registrados") or []:
+            if a.get("respondida_por"):
+                tomadas.append(dict(a, passada=nome))
+    rel = {"marca": marca(plano, raiz, arvore), "gravado_em": time.time(),
+           "passadas": sorted(passadas), "abertas": abertas, "tomadas": tomadas,
+           "veredito": "livre" if not abertas else "em-aberto"}
+    alvo = casa_do_relatorio(raiz)
+    os.makedirs(os.path.dirname(alvo), exist_ok=True)
+    with open(alvo, "w", encoding="utf-8") as f:
+        json.dump(rel, f, ensure_ascii=False, indent=1)
+    return rel
+
+
+def confere_largada(raiz, plano, arvore=None):
+    """A casca confere ANTES de armar o motor. Devolve {"larga": bool, "motivo": str}.
+
+    Recusa em três casos, e o motivo diz qual: relatório AUSENTE, VENCIDO (a árvore
+    ou o plano mudaram desde a medição) ou com DECISÃO EM ABERTO — e aí nomeia a
+    pergunta que falta responder, porque "tem coisa em aberto" não dá o que fazer.
+    """
+    alvo = casa_do_relatorio(raiz)
+    try:
+        with open(alvo, encoding="utf-8") as f:
+            rel = json.load(f)
+    except (OSError, ValueError):
+        return {"larga": False, "motivo": "ausente",
+                "texto": "não existe relatório de pré-check em %s — roda as 4 passadas "
+                         "antes de largar." % RELATORIO}
+    agora = marca(plano, raiz, arvore)
+    gravada = rel.get("marca") or {}
+    mudou = [k for k in ("arvore", "plano") if gravada.get(k) != agora[k]]
+    if mudou:
+        return {"larga": False, "motivo": "vencido", "mudou": mudou,
+                "texto": "o relatório de pré-check venceu: %s mudou desde a medição "
+                         "(gravado %s · agora %s) — roda o pré-check de novo."
+                         % (" e ".join(mudou),
+                            " / ".join(str(gravada.get(k)) for k in mudou),
+                            " / ".join(agora[k] for k in mudou))}
+    abertas = rel.get("abertas") or []
+    if abertas:
+        a = abertas[0]
+        return {"larga": False, "motivo": "decisao-em-aberto", "abertas": abertas,
+                "texto": "o pré-check deixou %d decisão(ões) em aberto; a primeira é do "
+                         "passo %s (%s): %s" % (len(abertas), a.get("passo"),
+                                                a.get("check"), a.get("pergunta"))}
+    return {"larga": True, "motivo": "livre",
+            "texto": "pré-check fresco e sem decisão em aberto (%d tomada(s))."
+                     % len(rel.get("tomadas") or [])}
 
 
 def main(argv=None):
@@ -1047,9 +1173,31 @@ def main(argv=None):
     ap.add_argument("--suite", default="bash scripts/suite.sh",
                     help="o comando da esteira INTEIRA (passada 3)")
     ap.add_argument("--gate", default="", help="o gate de commit (passada 3)")
+    ap.add_argument("--relatorio", action="store_true",
+                    help="roda as 4 passadas e GRAVA o relatório da largada (F22.5)")
+    ap.add_argument("--confere", action="store_true",
+                    help="confere o relatório antes de armar o motor; sai 3 se recusa")
     args = ap.parse_args(argv)
     with open(args.plano, encoding="utf-8") as f:
         plano = json.load(f)
+    if args.confere:
+        v = confere_largada(args.raiz, plano)
+        print(json.dumps(v, ensure_ascii=False, indent=1))
+        if not v["larga"]:
+            print("RECUSADO: %s" % v["texto"], file=sys.stderr)
+            return 3
+        return 0
+    if args.relatorio:
+        rel = grava_relatorio(args.raiz, plano, {
+            "1": passada1(plano, args.raiz),
+            "2": passada2(plano, args.raiz),
+            "3": passada3(args.raiz, suite_cmd=args.suite, gate_cmd=args.gate,
+                          planos=os.path.dirname(os.path.abspath(args.plano)),
+                          alvo=plano.get("id")),
+            "4": passada4(plano, args.raiz),
+        })
+        print(json.dumps(rel, ensure_ascii=False, indent=1))
+        return 1 if rel["abertas"] else 0
     if args.passada == "3":
         r = passada3(args.raiz, suite_cmd=args.suite, gate_cmd=args.gate,
                      planos=os.path.dirname(os.path.abspath(args.plano)),

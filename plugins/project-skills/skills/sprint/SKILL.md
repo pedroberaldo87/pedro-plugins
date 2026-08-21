@@ -64,6 +64,12 @@ REPO_ROOT="…"; PLAN_PATH="…"; TOTAL_DE_PASSOS="…"   # os mesmos que vão n
 # pendência e pare aqui. O que falta ali não é tentativa, é decisão dele.
 LEDGER="$(bash "${CLAUDE_PLUGIN_ROOT}/lib/resolve-plugin.sh" project-skills lib/ledger_corridas.py)"
 python3 "$LEDGER" relance --project-root "$REPO_ROOT" --missao "$PLAN_PATH" || exit $?
+# O RELATÓRIO DO PRÉ-CHECK é conferido AQUI, antes de armar: quem mediu grava, quem
+# larga confere. Sai 3 ⇒ NÃO arme e NÃO chame o Workflow — o texto da recusa diz se
+# falta o relatório, se ele venceu (árvore ou plano mudaram) ou QUAL decisão do dono
+# ainda está em aberto.
+PRECHECK="$(bash "${CLAUDE_PLUGIN_ROOT}/lib/resolve-plugin.sh" project-skills lib/precheck_largada.py)"
+python3 "$PRECHECK" "$PLAN_PATH" --raiz "$REPO_ROOT" --confere || exit $?
 ANDAMENTO="$(bash "${CLAUDE_PLUGIN_ROOT}/lib/resolve-plugin.sh" project-skills lib/andamento.py)"
 python3 "$ANDAMENTO" arma "$CLAUDE_CODE_SESSION_ID" sprint "$SPRINT_MOTOR_ID"
 # A LARGADA vai para o disco AQUI, antes da chamada: a linha do ledger é escrita no
@@ -143,6 +149,33 @@ próprio motor apontou, porque sem ela nenhuma onda sai — e aí o conserto é 
 hora, por caminho nomeado, antes do relançamento.
 
 **A rede embaixo do esquecimento (desde 2026-08-06):** o sinal **expira por idade**. Passado `SPRINT_TTL_MIN` (default 720 min = 12h) sem ser apagado, a primeira consulta do gate o **remove** — junto com o contador de bloqueios dele — e registra a linha em `expirados.log`. Isso não te dispensa do `encerra`: a janela é de 12h porque a missão que o gate protege é longa por definição, e encurtá-la mataria sinal de execução legítima em andamento.
+
+### O pré-check de largada grava, e a casca confere (obrigatório, antes de armar) — R-32
+
+As quatro passadas do pré-check (`lib/precheck_largada.py`, deste plugin) rodam ANTES da
+largada e deixam **artefato** em `.claude/.sprint/precheck.json` — registro de trabalho,
+fora do git, na mesma casa do ledger de corridas. É a mesma régua da prova da esteira: **quem mediu
+grava, quem larga confere.**
+
+**Este é o bloco 0, e ele é obrigatório**: sem ele o `--confere` do bloco 1 não tem o que
+conferir e a largada morre no exit 3. Rode-o antes de acender qualquer coisa — ele é a
+medição que o bloco 1 depois cobra.
+
+```bash
+# 0) A MEDIÇÃO — as 4 passadas rodam e gravam o relatório que o bloco 1 vai conferir
+REPO_ROOT="…"; PLAN_PATH="…"   # os mesmos que vão no `args` do Workflow
+PRECHECK="$(bash "${CLAUDE_PLUGIN_ROOT}/lib/resolve-plugin.sh" project-skills lib/precheck_largada.py)"
+python3 "$PRECHECK" "$PLAN_PATH" --raiz "$REPO_ROOT" --relatorio
+```
+
+O relatório carrega a **marca da árvore e do plano**, e a marca cobre `id` + `pronto` + `desc`
+dos passos **ABERTOS** mais o registro selado — por isso ela é imune ao próprio progresso:
+tique de passo não vence o relatório, mas passo reescrito, passo novo ou decisão nova selada
+vencem. O `--confere` do bloco 1 **recusa a largada** em três casos e sai 3: relatório
+**ausente**, **vencido** (árvore ou plano mudaram desde a medição) ou com **decisão em aberto**
+— e neste último ele nomeia a pergunta que falta responder, porque "tem coisa em aberto" não
+diz o que fazer. Pré-check que roda e só aparece na tela não segura largada nenhuma: a corrida
+sai com a decisão do dono ainda pendurada e ela explode no meio, como tique recusado.
 
 ### Por que o gate precisou nascer
 

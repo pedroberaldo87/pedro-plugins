@@ -15,6 +15,9 @@ quatro vezes, com quatro redações diferentes.
 Prosa copiada diverge no primeiro conserto, e a divergência é **silenciosa**: nenhum dos
 lados fica errado sozinho (`patterns.md` §1.6a). Aqui a regra é uma, e é programa.
 
+A régua carregada aqui é o que a obra é julgada CONTRA — ela não substitui a varredura do
+plano: **pré-check vencido → rode a caça antes de planejar ou executar por cima.**
+
 ## O comando
 
 ```bash
