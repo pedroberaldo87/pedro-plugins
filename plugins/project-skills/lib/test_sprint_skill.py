@@ -557,6 +557,7 @@ def main():
     # quem mediu grava, quem larga confere. A skill tem que apontar o passo, a casa
     # do artefato e os TRES motivos de recusa.
     def checks_precheck(sec, bloco):
+        corrido = " ".join(sec.split())
         return [
             ("a secao do pre-check de largada existe", bool(sec)),
             ("a skill aponta o modulo do pre-check",
@@ -570,6 +571,20 @@ def main():
              "ausente" in sec and "vencido" in sec and "decisão em aberto" in sec),
             ("a recusa nomeia QUAL decisao esta em aberto",
              "nomeia a pergunta" in sec),
+            ("a proposta pendente tambem recusa a largada",
+             "proposta pendente" in sec),
+            ("a aceitacao NOMEIA os achados adiados (Artigo 4)",
+             "adiados" in sec and "adiável não fecha porta" in sec),
+            # A agulha casa a prosa com os espaços COLAPSADOS: o texto do arquivo
+            # quebra linha onde couber, e agulha presa à quebra fica vermelha em
+            # qualquer reflow do parágrafo sem que a regra tenha mudado.
+            ("a prova da esteira e MEDIDA aqui, e prova ausente nao fecha porta",
+             "MEDIDA aqui, e a prova NÃO é gravada aqui" in corrido
+             and "nunca fecha a porta" in corrido and "reaproveita" in corrido),
+            ("a rodada N+1 ATUALIZA o relatorio, nunca o substitui",
+             "nunca substitui o relatório das 4 passadas" in corrido),
+            ("a rodada N+1 tem rota de linha de comando ate o dono (F22.8)",
+             "--respostas" in sec and "nada é escrito no `.plan.json`" in sec),
             ("o bloco 1 confere ANTES de armar o motor",
              '--confere' in bloco
              and bloco.find("--confere") < bloco.find('"$ANDAMENTO" arma')),
@@ -582,10 +597,14 @@ def main():
     for label, cond in checks_precheck(sec_pre, bloco1):
         check(label, cond)
 
+    # A agulha da mutacao mora na LINHA sabotada: a secao entra INTACTA, so o
+    # `--confere` do bloco 1 some. Passar sec="" tornava `not all(...)` verdadeiro
+    # pela secao vazia, e a linha removida nunca era medida.
     check("MUTACAO: remover a conferencia do pre-check deixa a suite vermelha",
           bool(sec_pre) and bool(bloco1)
+          and all(c for _, c in checks_precheck(sec_pre, bloco1))
           and not all(c for _, c in checks_precheck(
-              "", bloco1.replace("--confere", "--nada"))))
+              sec_pre, bloco1.replace("--confere", "--nada"))))
 
     print()
     if FAILS:
