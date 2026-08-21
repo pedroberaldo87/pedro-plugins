@@ -72,6 +72,29 @@ PRECHECK="$(bash "${CLAUDE_PLUGIN_ROOT}/lib/resolve-plugin.sh" project-skills li
 python3 "$PRECHECK" "$PLAN_PATH" --raiz "$REPO_ROOT" --confere || exit $?
 ANDAMENTO="$(bash "${CLAUDE_PLUGIN_ROOT}/lib/resolve-plugin.sh" project-skills lib/andamento.py)"
 python3 "$ANDAMENTO" arma "$CLAUDE_CODE_SESSION_ID" sprint "$SPRINT_MOTOR_ID"
+# A VIGÍLIA acende JUNTO com o sinal: assim que este bloco voltar, e ANTES de chamar o
+# Workflow, invoque o `/goal` do harness com a condição desta missão — "o plano
+# $PLAN_PATH fecha; cada parada é investigada, consertada e relançada por
+# `lib/retomada.py`, e só a lista fechada de casos do dono interrompe o laço". A
+# vigília não é comando avulso nem opção do dono: nasce com o sinal do motor e morre
+# com ele. Sprint que para na primeira parada não é sprint — é uma rodada só.
+# CONSERTAR SEM APURAR É PROIBIDO: antes de o laço remendar QUALQUER coisa, a causa
+# passa por dois passos, nesta ordem, e nenhum dos dois é dispensável.
+# (1) PROVA DE COMANDO — a causa só existe se vier com a saída CRUA do comando que a
+# mostra, COLADA literal (o teste que falha, o `git status`, o log). Sua memória do
+# que aconteceu NÃO é prova: o que você lembra é o sintoma, e remendo em cima de
+# lembrança é o conserto do sintoma com etiqueta nova.
+# (2) DESAFIADOR — a causa provada vai a um agente com a ordem de DERRUBÁ-LA: apontar
+# o fato que ela não explica, o caminho que ela ignora, a causa concorrente mais
+# simples. Desafiador mudo não referenda. Se ele derruba, volta ao passo 1 com a
+# causa nova; sem acordo em 3 voltas, a causa está em disputa e o caso é do dono
+# (`--caso causa-repetida`), nunca do remendo.
+# Sem os dois, o laço NÃO conserta e NÃO relança: ele para e chama o dono.
+# REGISTRO POR PARADA (F23.7): a cada volta do laço, assim que o conserto virar commit,
+# a parada vira UMA LINHA em disco, gravada pelo bloco "a parada vai para o disco"
+# logo abaixo desta lista de blocos — e é dela que a seção de problemas do relatório
+# final sai, nunca da sua memória do que aconteceu. Parada sem linha gravada não
+# existe no relatório, e o laço NÃO relança sem ela.
 # A LARGADA vai para o disco AQUI, antes da chamada: a linha do ledger é escrita no
 # retorno, e corrida que morre por fora (limite de sessão, processo morto, canal
 # caído) não tem retorno. Sem esta marca, a corrida que fracassou é justamente a que
@@ -84,6 +107,25 @@ echo "$SPRINT_MOTOR_ID $SPRINT_INICIO"   # ANOTE OS DOIS: cada ```bash é uma ch
                                       # parte; nem o id nem a largada atravessam
 ```
 
+**A parada vai para o disco no seu próprio bloco.** Ele deriva tudo que usa: cada bloco
+de comando é uma chamada à parte, e variável de outro bloco chega vazia aqui. Os cinco
+campos são obrigatórios e o comando recusa vazio — é o par conserto+sha que separa
+"consertado" de "lembrado". Parada que é do **dono** não tem conserto: escreva
+`sem-conserto` no conserto e `sem-commit` no sha; as duas são medição declarada, campo
+vazio não é, e hash inventado muito menos. No comando, `<o stopReason da corrida que parou>`
+é o campo `stopReason` do JSON que o Workflow devolveu; `<a causa referendada>` é a causa
+que o desafiador aprovou; `<o que foi feito para a próxima passar>` é o conserto em uma
+frase; `<o commit do conserto>` é o sha dele (ou `sem-commit`).
+
+```bash
+# A PARADA vai para o disco — rode assim que o conserto virar commit
+REPO_ROOT="…"; RUN_ID="…"   # o id que o bloco 1 imprimiu, colado aqui à mão
+LEDGER="$(bash "${CLAUDE_PLUGIN_ROOT}/lib/resolve-plugin.sh" project-skills lib/ledger_corridas.py)"
+python3 "$LEDGER" parada --project-root "$REPO_ROOT" --run-id "$RUN_ID" \
+  --desfecho "<o stopReason da corrida que parou>" --causa "<a causa referendada>" \
+  --conserto "<o que foi feito para a próxima passar>" --sha "<o commit do conserto>"
+```
+
 ```bash
 # 2) NO RETORNO da chamada — apaga o CONJUNTO do estado, não só o sinal, e SOLTA a
 #    reserva DESTE motor. Cole abaixo o id que o bloco 1 imprimiu: id que não existe no
@@ -93,6 +135,10 @@ SPRINT_INICIO="…"        # ← COLE aqui a largada (o segundo campo da mesma l
 REPO_ROOT="…"; PLAN_PATH="…"; TOTAL_DE_PASSOS="…"   # os mesmos que foram no `args`
 ANDAMENTO="$(bash "${CLAUDE_PLUGIN_ROOT}/lib/resolve-plugin.sh" project-skills lib/andamento.py)"
 python3 "$ANDAMENTO" encerra "$CLAUDE_CODE_SESSION_ID" sprint "$MOTOR_MORTO"
+# A VIGÍLIA morre AQUI, junto do sinal, em TODO desfecho de parada — obra pronta, teto
+# de rodadas, vigia, disjuntor, erro do `Workflow` e TaskStop: apague o `/goal` do
+# harness antes de seguir, na mesma volta em que o sinal cai. Goal aceso depois do
+# motor morto relança missão que já acabou.
 # Quem morreu por fora não entregou, e quem não entrega não libera: a reserva fica
 # pendurada e recusa o próximo motor da sessão por até 12h. Solte a DESTE motor e SÓ a
 # dele — outro motor da mesma sessão pode estar vivo escrevendo os mesmos arquivos, e
@@ -2367,7 +2413,7 @@ Vale nos três desfechos — missão que **parou** é justamente a que deixa a b
 
 ### Conteúdo (backbone — sempre o mesmo)
 
-Cinco seções fixas, mais a do custo quando houve medição. Monte este conteúdo PRIMEIRO; a forma de entrega (HTML ou markdown) vem depois.
+Cinco seções fixas, mais DUAS condicionais: a dos problemas quando o laço parou pelo menos uma vez, e a do custo quando houve medição. Monte este conteúdo PRIMEIRO; a forma de entrega (HTML ou markdown) vem depois.
 
 ```
 ## Sprint — terminei
@@ -2393,6 +2439,9 @@ Cinco seções fixas, mais a do custo quando houve medição. Monte este conteú
 - [uma linha por problema: o defeito, e quantas VOLTAS ele levou até a rodada limpa — do `voltasPorProblema` do motor e do mesmo campo do /qa-loop, os dois juntos]
 - [⚠️ alertas de plano/arquitetura que NÃO implementei — pra você julgar]
 
+### Problemas (as paradas do laço)
+- [um item por entrada que o subcomando `paradas` devolve: desfecho · causa · conserto · sha]
+
 ### Custo (medidor da autópsia)
 - [duração: `tempo.fim` − `tempo.inicio` da linha DESTA corrida no ledger]
 - [tokens: `custo.tokens` da mesma linha, e por papel a tabela do medidor]
@@ -2401,7 +2450,23 @@ Cinco seções fixas, mais a do custo quando houve medição. Monte este conteú
 - [drilldown fechado: a tabela crua do medidor inteira, e — só se N > 0 — o parecer da autópsia]
 ```
 
-São **seis** seções quando houve medição. `### Custo` sai sempre que o medidor rodou (passo 5
+São **sete** seções quando houve medição e o laço parou pelo menos uma vez. `### Problemas
+(as paradas do laço)` é **derivada do registro por parada**, nunca da memória da sessão — as
+linhas que a vigília gravou a cada conserto, lidas por comando antes de escrever a seção:
+
+```bash
+REPO_ROOT="…"    # ← a mesma raiz dos blocos 1 e 3
+LEDGER="$(bash "${CLAUDE_PLUGIN_ROOT}/lib/resolve-plugin.sh" project-skills lib/ledger_corridas.py)"
+python3 "$LEDGER" paradas --project-root "$REPO_ROOT"    # a lista das paradas, em JSON
+```
+
+Cada linha vira um item com os quatro campos que ela carrega — `desfecho`, `causa`, `conserto`
+e `sha` —, na ordem em que foram gravadas. Parada que você lembra mas que não está no registro
+**não entra**: o que sustenta "isto foi consertado" é o sha, não a lembrança, e é exatamente
+por lembrança que problema consertado pela metade saía no relatório como resolvido. Registro
+vazio ⇒ a seção não sai (o laço não parou nenhuma vez).
+
+`### Custo` sai sempre que o medidor rodou (passo 5
 acima), inclusive com zero sinal aceso: a visão geral é UMA linha, e a tabela crua mora num
 drilldown fechado — mesma revelação progressiva das páginas do `/visual`. Medidor pulado
 (ausente na máquina) ⇒ a seção não sai.

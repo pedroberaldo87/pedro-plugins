@@ -372,7 +372,7 @@ improve-workflow  0.16.29  [improve-workflow]           -
 intent-guard       0.8.16  [intent-guard]               HOOKS
 lixeiro            1.5.11  [faxina]                     HOOKS
 principles          1.0.5  [principles]                 -
-project-skills    0.22.175  [completude,design-md,doc,doc-load,doc-touch,monitorar,pesquisa-referencias,plan,project-skills,qa-loop,sprint,start] HOOKS
+project-skills    0.22.178  [completude,design-md,doc,doc-load,doc-touch,monitorar,pesquisa-referencias,plan,project-skills,qa-loop,sprint,start] HOOKS
 ship                1.5.7  [ship]                       HOOKS
 slides              1.6.5  [slides]                     -
 vision              0.1.1  []                           -
@@ -1144,6 +1144,11 @@ plugins/project-skills/lib/ 67 dos 148 — o motor de doc inteiro (journal.py ·
                            `relance` lê essa mesma série ANTES de relançar: causa que já
                            parou duas corridas sai 3, e a casca do sprint para sem chamar
                            o motor — a terceira tentativa na mesma pedra é decisão do dono),
+                           o registro por PARADA do mesmo módulo (`parada` grava e `paradas`
+                           lê .claude/.sprint/paradas.jsonl, append-only ao lado das corridas
+                           — run_id · desfecho · causa · conserto · sha, os cinco obrigatórios,
+                           vazio sai 2 e não grava; é o grão do LAÇO, não o do custo, e é dele
+                           que a seção de problemas do relatório final é derivada),
                            o classificador da parada (retomada.py — lê o retorno cru do
                            motor.js e devolve, para cada `stopReason`, uma de TRÊS ações:
                            segue-no-motor · conserta-e-relanca · espera-dono; desfecho

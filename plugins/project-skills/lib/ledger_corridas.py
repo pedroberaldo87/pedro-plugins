@@ -27,6 +27,12 @@ CLI:
 
   # F24.5 — antes de relançar: causa que já parou duas vezes sai 3 (pendência do dono).
   ledger_corridas.py relance --project-root D --missao Y
+
+  # F23.7 — uma linha por PARADA, escrita pela vigilia a cada volta do laco; e a
+  # leitura de onde a secao de problemas do relatorio final e derivada:
+  ledger_corridas.py parada  --project-root D --run-id X --desfecho D --causa C \\
+                     --conserto O --sha SHA
+  ledger_corridas.py paradas --project-root D
 """
 import argparse
 import json
@@ -55,6 +61,26 @@ CAMPOS = (
 # Campo que pode nascer vazio sem ser omissão de medida.
 OPCIONAIS = ("causa",)
 
+# F23.7 · R-33 — a PARADA é o outro grão do registro. A corrida é a unidade do custo;
+# a parada é a unidade do laço: bateu numa pedra, alguém consertou, o conserto virou
+# commit. Os quatro campos são obrigatórios porque é o par conserto+sha que separa
+# "consertado" de "lembrado" — sem eles a seção de problemas do relatório volta a ser
+# a memória da sessão, que é o defeito que este registro existe para matar.
+# Conserto que legitimamente não produz commit escreve `sem-commit` no sha, e isso é
+# medição — inventar hash não é.
+CAMPOS_PARADA = (
+    "run_id",     # a corrida em que a parada aconteceu
+    "desfecho",   # a CLASSE da parada (o `stopReason`)
+    "causa",      # a PEDRA — a causa apurada, já referendada pelo desafiador
+    "conserto",   # o que foi feito para a próxima corrida passar
+    "sha",        # o commit que aplicou o conserto (ou `sem-commit`)
+)
+# A parada que o DONO tem que resolver não tem conserto para gravar — e é a que mais
+# interessa a ele. Sem esta válvula, a única parada que o relatório não registrava era
+# justamente essa, e a seção "uma linha por parada" nascia incompleta. `sem-conserto`
+# é medição declarada; deixar o campo vazio continua sendo omissão e o comando recusa.
+SEM_CONSERTO = "sem-conserto"
+
 
 # Corrida sem sinal de vida por mais que isto está morta, não lenta — é o mesmo teto
 # da reserva de arquivos do sprint.
@@ -74,19 +100,21 @@ def caminho(project_root):
     return os.path.join(project_root, ".claude", ".sprint", "corridas.jsonl")
 
 
+def caminho_paradas(project_root):
+    return os.path.join(project_root, ".claude", ".sprint", "paradas.jsonl")
+
+
 def dir_largadas(project_root):
     return os.path.join(project_root, ".claude", ".sprint", "em-curso")
 
 
-def registra(project_root, entrada):
-    """Acrescenta UMA entrada ao ledger. Devolve a entrada gravada."""
-    # `causa` é o único campo legitimamente VAZIO: corrida que terminou o que foi
-    # fazer não bateu em pedra nenhuma, e exigir uma inventaria a pedra.
-    faltando = [c for c in CAMPOS if c not in OPCIONAIS and not entrada.get(c)]
+def _acrescenta(alvo, entrada, campos, opcionais=()):
+    """Valida os campos e acrescenta UMA linha ao arquivo. Devolve a linha gravada."""
+    faltando = [c for c in campos if c not in opcionais and not entrada.get(c)]
     # Vazio de DENTRO também reprova: `progresso` cheio de None é dict verdadeiro e
     # passaria calado — e é justamente o que o run devolve quando não mediu (F24.2).
     # `is None` e não falsidade: zero passo fechado é medição legítima, não ausência.
-    for c in CAMPOS:
+    for c in campos:
         v = entrada.get(c)
         if isinstance(v, dict):
             faltando += ["%s.%s" % (c, k) for k, sub in sorted(v.items()) if sub is None]
@@ -94,11 +122,34 @@ def registra(project_root, entrada):
         raise ValueError("campo obrigatorio vazio: " + ", ".join(faltando))
     linha = dict(entrada)
     linha["gravado_em"] = time.time()
-    alvo = caminho(project_root)
     os.makedirs(os.path.dirname(alvo), exist_ok=True)
     with open(alvo, "a", encoding="utf-8") as f:
         f.write(json.dumps(linha, ensure_ascii=False) + "\n")
     return linha
+
+
+def registra(project_root, entrada):
+    """Acrescenta UMA entrada ao ledger. Devolve a entrada gravada."""
+    # `causa` é o único campo legitimamente VAZIO: corrida que terminou o que foi
+    # fazer não bateu em pedra nenhuma, e exigir uma inventaria a pedra.
+    return _acrescenta(caminho(project_root), entrada, CAMPOS, OPCIONAIS)
+
+
+def registra_parada(project_root, entrada):
+    """Acrescenta UMA linha por PARADA — desfecho, causa, conserto e sha (F23.7 · R-33).
+
+    Append-only pelo mesmo motivo do ledger de corridas: a pergunta é de SÉRIE ("a
+    mesma pedra voltou?"), e reescrever a linha anterior apaga a comparação. É este
+    arquivo que a vigília escreve a cada volta do laço, logo depois de o conserto
+    virar commit, e é dele que a seção de problemas do relatório final é derivada —
+    nunca da memória da sessão.
+    """
+    return _acrescenta(caminho_paradas(project_root), entrada, CAMPOS_PARADA)
+
+
+def le_paradas(project_root):
+    """As paradas, na ordem em que foram gravadas. Sem arquivo = []."""
+    return _le_jsonl(caminho_paradas(project_root))
 
 
 def do_run(resultado, run_id, missao, total, inicio, fim=None):
@@ -208,7 +259,10 @@ def colhe_orfas(project_root, agora=None, teto=TETO_SEM_SINAL):
 def le(project_root):
     """Todas as entradas, na ordem em que foram gravadas. Sem ledger = []."""
     colhe_orfas(project_root)  # ler é a hora em que a corrida sem retorno vira linha
-    alvo = caminho(project_root)
+    return _le_jsonl(caminho(project_root))
+
+
+def _le_jsonl(alvo):
     if not os.path.exists(alvo):
         return []
     entradas = []
@@ -324,14 +378,32 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("comando",
                     choices=("registra", "registra-run", "le", "abre", "colhe", "serie",
-                             "relance"))
+                             "relance", "parada", "paradas"))
     ap.add_argument("--project-root", required=True)
     ap.add_argument("--json", help="entrada em JSON, ou '-' para ler do stdin")
     ap.add_argument("--run-id")
     ap.add_argument("--missao")
     ap.add_argument("--total", type=int)
     ap.add_argument("--inicio", type=float)
+    ap.add_argument("--desfecho")
+    ap.add_argument("--causa")
+    ap.add_argument("--conserto",
+                    help="o que foi feito, ou 'sem-conserto' quando a parada é do dono")
+    ap.add_argument("--sha", help="o commit do conserto, ou 'sem-commit'")
     a = ap.parse_args()
+    if a.comando == "paradas":
+        print(json.dumps(le_paradas(a.project_root), ensure_ascii=False, indent=2))
+        return 0
+    if a.comando == "parada":
+        try:
+            gravada = registra_parada(a.project_root, {
+                "run_id": a.run_id, "desfecho": a.desfecho, "causa": a.causa,
+                "conserto": a.conserto, "sha": a.sha})
+        except ValueError as e:
+            print("REPROVADO: %s" % e, file=sys.stderr)
+            return 2
+        print(json.dumps(gravada, ensure_ascii=False))
+        return 0
     if a.comando == "relance":
         v = relance(a.project_root, a.missao)
         print(json.dumps(v, ensure_ascii=False, indent=2))
