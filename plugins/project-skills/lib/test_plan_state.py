@@ -2052,7 +2052,7 @@ def main():
             # R-36 · a terceira vista: uma barra por passo, agrupada pela ONDA
             # derivada de `depende` — nunca por calendário. A régua dupla: plano
             # sem o campo sai IDÊNTICO ao render de hoje (regressão zero), e o
-            # exemplo da spec (§4 de docs/specs/wbs-gantt-proposta.md) sai com
+            # exemplo da spec (§4 de docs/specs/wbs-gantt-proposta.md) sai com  # casa-ok: citacao da spec em comentario, nao caminho operacional
             # três ondas e o caminho crítico marcado.
             print()
             print("a vista de ondas (--vista gantt)")
