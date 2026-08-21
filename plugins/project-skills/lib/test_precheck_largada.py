@@ -365,8 +365,10 @@ def suja(tag):
 
 def tem_prova():
     return subprocess.run(
+        # barra POSIX nos caminhos embutidos: dentro do bash, `D:\a\…` vira escape
         ["bash", "-c", ". %s; green_cache_check %s full"
-         % (os.path.join(AQUI, "green-cache.sh"), casa)],
+         % (os.path.join(AQUI, "green-cache.sh").replace(os.sep, "/"),
+            casa.replace(os.sep, "/"))],
         timeout=60, stdin=subprocess.DEVNULL, start_new_session=True).returncode == 0
 
 
@@ -400,7 +402,8 @@ checa("a passada NÃO grava prova no depósito compartilhado", tem_prova() is Fa
 # CASO 2b · a prova existe para a árvore de AGORA, gravada por QUEM rodou a esteira
 # inteira (o hook do ship, o qa-loop): a esteira não roda de novo.
 subprocess.run(["bash", "-c", ". %s; green_cache_mark %s full teste"
-                % (os.path.join(AQUI, "green-cache.sh"), casa)],
+                % (os.path.join(AQUI, "green-cache.sh").replace(os.sep, "/"),
+                   casa.replace(os.sep, "/"))],
                check=True, timeout=60, stdin=subprocess.DEVNULL, start_new_session=True)
 r2b = passada3(casa, suite_cmd=VERMELHA, teto_suite=60)
 checa("com a prova gravada, a esteira é PULADA e a passada diz que reaproveitou",
