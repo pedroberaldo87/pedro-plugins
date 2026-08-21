@@ -81,6 +81,7 @@ import hashlib
 import json
 import os
 import re
+import shutil
 import subprocess
 import sys
 import time
@@ -454,9 +455,17 @@ _MEDIDAS = re.compile(r"(\d+)\s*su[íi]te", re.I)
 
 
 def _roda(cmd, raiz, teto):
-    """Roda o comando na raiz. Devolve (rc, saída) — rc `None` = estourou o teto."""
+    """Roda o comando na raiz. Devolve (rc, saída) — rc `None` = estourou o teto.
+
+    O comando é de SHELL POSIX (`bash scripts/suite.sh`, `echo "…"; exit 1`), então
+    ele roda em bash quando há um — `shell=True` no Windows cai no cmd.exe, onde o
+    `;` não separa comando e a esteira "vermelha" saía verde (run 32492362032).
+    """
+    bash = shutil.which("bash")
+    argv = [bash, "-c", cmd] if bash else cmd
     try:
-        r = subprocess.run(cmd, cwd=raiz, shell=True, capture_output=True, text=True,
+        r = subprocess.run(argv, cwd=raiz, shell=not bash, capture_output=True,
+                           text=True,
                            encoding="utf-8", errors="replace", timeout=teto,
                            stdin=subprocess.DEVNULL, start_new_session=True)
     except subprocess.TimeoutExpired:

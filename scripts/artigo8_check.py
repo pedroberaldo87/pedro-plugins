@@ -177,7 +177,10 @@ def varre(root=None):
     for caminho in skills(root):
         with open(caminho, encoding="utf-8", errors="replace") as fh:
             src = fh.read()
-        achados += julga(caminho, src, os.path.relpath(caminho, root))
+        # relpath com barra POSIX: o `who` entra na CHAVE do retrato, e chave com o
+        # separador do sistema fez os achados antigos virarem "novos" no Windows.
+        achados += julga(caminho, src,
+                         os.path.relpath(caminho, root).replace(os.sep, "/"))
     achados.sort(key=lambda f: (f["who"], f["line"], f["rule"]))
     return {"skills": len(skills(root)), "findings": achados}
 
