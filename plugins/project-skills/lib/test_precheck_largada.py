@@ -607,7 +607,7 @@ try:
          "desc": "roda a esteira com `sh scripts/esteira-vizinha.sh`",
          "pronto": "o comando termina"}]}]}
     rx = passada4(PLANO4P, viz, base_estado=estado)
-    _sem_ps = any(a["classe"] == ADIAVEL and "não foi medida" in a["pergunta"]
+    _sem_ps = any(a["classe"] == ADIAVEL and "foi medida" in a["pergunta"].lower()
                   for a in checks(rx, "exclusividade"))
     if _sem_ps:
         # o ps desta máquina não lista argumentos (Windows) — a passada declarou
