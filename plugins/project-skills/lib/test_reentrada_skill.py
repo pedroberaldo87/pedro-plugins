@@ -102,8 +102,8 @@ def caso_ultimo_run_classificado():
         grava_corrida(tmp, "motor-1", "max-rounds", None, "plano.json")
         grava_corrida(tmp, "motor-2", "porta-fechada", "suite do repo reprovou no lint", "plano.json")
         r = roda_bloco(tmp, "plano.json")
-        assert r.returncode == 0, ("bloco da skill falhou: rc=%s\nstderr=%s\n"
-                                   "stdout=%s") % (r.returncode, r.stderr, r.stdout)
+        assert r.returncode == 0, ("bloco da skill falhou: rc=%s\nstderr=%r\n"
+                                   "stdout=%r") % (r.returncode, r.stderr[:600], r.stdout[:600])
         # o stdout traz o JSON do relance e depois o do classificador; o ultimo objeto e o veredito
         veredito = objetos(r.stdout)[-1]
         assert veredito["desfecho"] == "porta-fechada", veredito
@@ -124,8 +124,8 @@ def caso_morta_por_fora():
         with open(os.path.join(pend, "motor-2.json"), "w", encoding="utf-8") as f:
             json.dump({"run_id": "motor-2", "missao": "plano.json", "total": 8, "inicio": 1}, f)
         r = roda_bloco(tmp, "plano.json")
-        assert r.returncode == 0, ("bloco da skill falhou: rc=%s\nstderr=%s\n"
-                                   "stdout=%s") % (r.returncode, r.stderr, r.stdout)
+        assert r.returncode == 0, ("bloco da skill falhou: rc=%s\nstderr=%r\n"
+                                   "stdout=%r") % (r.returncode, r.stderr[:600], r.stdout[:600])
         veredito = objetos(r.stdout)[-1]
         assert veredito["desfecho"] == "morta-por-fora", veredito
         assert veredito["acao"] == CONSERTA, veredito
@@ -140,8 +140,8 @@ def caso_causa_repetida_chama_o_dono():
         grava_corrida(tmp, "motor-1", "porta-fechada", "mesma pedra", "plano.json")
         grava_corrida(tmp, "motor-2", "porta-fechada", "mesma pedra", "plano.json")
         r = roda_bloco(tmp, "plano.json")
-        assert r.returncode == 0, ("bloco da skill falhou: rc=%s\nstderr=%s\n"
-                                   "stdout=%s") % (r.returncode, r.stderr, r.stdout)
+        assert r.returncode == 0, ("bloco da skill falhou: rc=%s\nstderr=%r\n"
+                                   "stdout=%r") % (r.returncode, r.stderr[:600], r.stdout[:600])
         veredito = objetos(r.stdout)[-1]
         assert veredito["acao"] == DONO, veredito
         assert "PENDENCIA DO DONO" in r.stderr, r.stderr
