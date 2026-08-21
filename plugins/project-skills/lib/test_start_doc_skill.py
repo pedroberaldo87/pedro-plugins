@@ -891,6 +891,20 @@ def main():
     check("o cobrador de presenca esta apontado",
           "lib/test_sidecar_prototipo.py" in bloco_escrever)
 
+    # F29.3 — o formato do referendo de etapa é APONTADO, nunca copiado: cópia de prosa
+    # é o que envelhece calada quando a régua muda do outro lado.
+    print("o referendo de etapa aponta a regua do /visual, e nao a copia (F29.3)")
+    texto_skill = open(SKILL, encoding="utf-8").read()
+    corrido = " ".join(texto_skill.split())
+    check("o rito manda o esquema vir ANTES do texto integral",
+          "esquema vem ANTES do texto" in corrido)
+    check("o rito APONTA a skill do visual como fonte da regra",
+          "skill do `/visual`" in corrido
+          and "Página de aprovação de documento" in corrido)
+    check("o tipo por documento vem do comando, nao de uma lista copiada aqui",
+          "subcomando `schema`" in corrido
+          and "quality-goals.md" not in corrido.split("### 5 ·")[-1][:4000])
+
     print()
     if FAILS:
         print("FALHOU: %d" % len(FAILS))
