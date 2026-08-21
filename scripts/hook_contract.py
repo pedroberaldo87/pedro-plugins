@@ -238,7 +238,10 @@ def resolve_script(root, plug, cmd):
     # única veio matar. O aviso de dependência é o caso: treze registros, um script.
     m = re.search(r"resolve-plugin\.sh\s+([\w.-]+)\s+([\w./-]+\.(?:sh|py))", cmd)
     if m:
-        return os.path.join(root, "plugins", m.group(1), m.group(2))
+        # normpath: o grupo 2 traz "/" e o join usa os.sep — no Windows o mesmo
+        # script saía com dois textos, a cópia única virava duas e o achado
+        # "duplicado" não estava no retrato (run 32496524302)
+        return os.path.normpath(os.path.join(root, "plugins", m.group(1), m.group(2)))
     # Forma nova: `CLAUDE_PLUGIN_ROOT=$(printf '%s' "$CLAUDE_PLUGIN_ROOT" | tr '\\' /)`
     # normaliza backslash → barra sem `${x//y/z}` (que é bashismo e morre no shell
     # POSIX do Linux). O script fica no rabo, após o ';', em três formas:
@@ -257,7 +260,8 @@ def resolve_script(root, plug, cmd):
     m = re.search(r"\$\{?CLAUDE_PLUGIN_ROOT\}?/(.+)$", cmd.strip())
     if not m:
         return None
-    return os.path.join(root, "plugins", plug, m.group(1).strip().strip('"'))
+    return os.path.normpath(
+        os.path.join(root, "plugins", plug, m.group(1).strip().strip('"')))
 
 
 def measure(path):
