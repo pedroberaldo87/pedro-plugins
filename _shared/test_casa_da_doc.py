@@ -16,6 +16,7 @@ import tempfile
 AQUI = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, AQUI)
 from bash_posix import bash_posix  # noqa: E402
+from caminho_igual import igual  # noqa: E402  (no Windows o bash devolve C:\…/docs misto)
 from casa_da_doc import casa  # noqa: E402
 
 PASS = FAIL = 0
@@ -149,11 +150,13 @@ with tempfile.TemporaryDirectory() as tmp:
             ("subpasta na casa nova", nova, ("fluxos", "f.html")),
         ):
             esperado = casa(raiz, *partes)
+            # `igual`, não `==`: no Windows o bash monta `C:\…\casa/docs` (separador
+            # misto) e o Python `C:\…\casa\docs` — mesmo caminho, texto diferente.
             check("bash concorda com Python — %s" % rotulo,
-                  em_bash(raiz, *partes) == esperado, em_bash(raiz, *partes))
+                  igual(em_bash(raiz, *partes), esperado), em_bash(raiz, *partes))
 
         check("bash tolera raiz com barra no fim",
-              em_bash(nova + "/") == os.path.join(nova, "docs"), em_bash(nova + "/"))
+              igual(em_bash(nova + "/"), os.path.join(nova, "docs")), em_bash(nova + "/"))
 
 print("\n%d passou · %d falhou" % (PASS, FAIL))
 sys.exit(1 if FAIL else 0)

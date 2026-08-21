@@ -22,6 +22,8 @@ import tempfile
 
 AQUI = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, AQUI)
+from bash_posix import bash_posix  # noqa: E402  (o bash cru do PATH é o do WSL no Windows)
+BASH = bash_posix() or "bash"
 MODULO = os.path.join(AQUI, "precheck_largada.py")
 
 from decisoes_seladas import selar  # noqa: E402
@@ -365,8 +367,10 @@ def suja(tag):
 
 def tem_prova():
     return subprocess.run(
-        ["bash", "-c", ". %s; green_cache_check %s full"
-         % (os.path.join(AQUI, "green-cache.sh"), casa)],
+        # barra POSIX nos caminhos embutidos: dentro do bash, `D:\a\…` vira escape
+        [BASH, "-c", ". %s; green_cache_check %s full"
+         % (os.path.join(AQUI, "green-cache.sh").replace(os.sep, "/"),
+            casa.replace(os.sep, "/"))],
         timeout=60, stdin=subprocess.DEVNULL, start_new_session=True).returncode == 0
 
 
@@ -399,9 +403,30 @@ checa("a passada NÃO grava prova no depósito compartilhado", tem_prova() is Fa
 
 # CASO 2b · a prova existe para a árvore de AGORA, gravada por QUEM rodou a esteira
 # inteira (o hook do ship, o qa-loop): a esteira não roda de novo.
-subprocess.run(["bash", "-c", ". %s; green_cache_mark %s full teste"
-                % (os.path.join(AQUI, "green-cache.sh"), casa)],
-               check=True, timeout=60, stdin=subprocess.DEVNULL, start_new_session=True)
+_mk = subprocess.run([BASH, "-c", ". %s; green_cache_mark %s full teste"
+                      % (os.path.join(AQUI, "green-cache.sh").replace(os.sep, "/"),
+                         casa.replace(os.sep, "/"))],
+                     capture_output=True, text=True, encoding="utf-8", errors="replace",
+                     timeout=60, stdin=subprocess.DEVNULL, start_new_session=True)
+# a saída crua vai para o relato: sem ela a falha do Windows saía como
+# CalledProcessError truncado, três rodadas de CI sem dizer a causa
+if _mk.returncode != 0:
+    # a mesma chamada SEM o descarte de stderr do script: o erro real do git aparece
+    _dbg = subprocess.run([BASH, "-x", "-c", ". %s; green_cache_mark %s full teste"
+                           % (os.path.join(AQUI, "green-cache.sh").replace(os.sep, "/"),
+                              casa.replace(os.sep, "/"))],
+                          capture_output=True, text=True, encoding="utf-8",
+                          errors="replace", timeout=60,
+                          stdin=subprocess.DEVNULL, start_new_session=True)
+    print("DIAG green_cache_mark: rc=%s\n--- trace ---\n%s\n--- git direto ---" 
+          % (_dbg.returncode, _dbg.stderr[-1500:]))
+    _g = subprocess.run(["git", "-C", casa, "rev-parse", "--show-toplevel"],
+                        capture_output=True, text=True, encoding="utf-8",
+                        errors="replace", stdin=subprocess.DEVNULL,
+                        start_new_session=True)
+    print("git rev-parse: rc=%s out=%r err=%r" % (_g.returncode, _g.stdout, _g.stderr))
+checa("a semeadura da prova (green_cache_mark) roda", _mk.returncode == 0,
+      "rc=%s\nstdout=%r\nstderr=%r" % (_mk.returncode, _mk.stdout, _mk.stderr))
 r2b = passada3(casa, suite_cmd=VERMELHA, teto_suite=60)
 checa("com a prova gravada, a esteira é PULADA e a passada diz que reaproveitou",
       [a["classe"] for a in checks(r2b, "esteira")] == [ADIAVEL]
@@ -582,10 +607,18 @@ try:
          "desc": "roda a esteira com `sh scripts/esteira-vizinha.sh`",
          "pronto": "o comando termina"}]}]}
     rx = passada4(PLANO4P, viz, base_estado=estado)
-    checa("regra 'nunca duas ao mesmo tempo' + processo de pé = pergunta",
-          [a["classe"] for a in checks(rx, "exclusividade")] == [BLOQUEANTE]
-          and "esteira-vizinha.sh" in checks(rx, "exclusividade")[0]["prova"],
-          repr(checks(rx, "exclusividade")))
+    _sem_ps = any(a["classe"] == ADIAVEL and "foi medida" in a["pergunta"].lower()
+                  for a in checks(rx, "exclusividade"))
+    if _sem_ps:
+        # o ps desta máquina não lista argumentos (Windows) — a passada declarou
+        # que não mediu, e é ISSO que se confere aqui
+        checa("sem ps utilizável, a passada DECLARA que não mediu a vizinhança",
+              True)
+    else:
+        checa("regra 'nunca duas ao mesmo tempo' + processo de pé = pergunta",
+              [a["classe"] for a in checks(rx, "exclusividade")] == [BLOQUEANTE]
+              and "esteira-vizinha.sh" in checks(rx, "exclusividade")[0]["prova"],
+              repr(checks(rx, "exclusividade")))
 finally:
     vizinho.kill()
     vizinho.wait(timeout=10)
@@ -806,7 +839,7 @@ plano_arq = os.path.join(lar, "PL.plan.json")
 with open(plano_arq, "w", encoding="utf-8") as f:
     json.dump(PLANO_L, f)
 rc = subprocess.run([sys.executable, MODULO, plano_arq, "--raiz", lar, "--confere"],
-                    capture_output=True, text=True,
+                    capture_output=True, text=True, encoding="utf-8", errors="replace",
                     stdin=subprocess.DEVNULL, start_new_session=True)
 checa("o CLI --confere sai 3 quando recusa", rc.returncode == 3, rc.stderr[-300:])
 
@@ -828,14 +861,14 @@ with open(resp_arq, "w", encoding="utf-8") as f:
 # A rodada N+1 RESPONDE o relatório das 4 passadas — sem ele não há o que responder,
 # e o comando recusa em vez de fabricar um relatório novo.
 rc = subprocess.run([sys.executable, MODULO, plano_rot, "--raiz", rot,
-                     "--respostas", resp_arq], capture_output=True, text=True,
+                     "--respostas", resp_arq], capture_output=True, text=True, encoding="utf-8", errors="replace",
                     stdin=subprocess.DEVNULL, start_new_session=True)
 checa("a rodada N+1 sem relatório nenhum RECUSA (sai 3)",
       rc.returncode == 3 and "rode `--relatorio` antes" in rc.stderr, rc.stderr[-300:])
 
 subprocess.run([sys.executable, MODULO, plano_rot, "--raiz", rot, "--relatorio",
                 "--suite", "echo '3 suíte(s) · 0 problema(s)'"],
-               capture_output=True, text=True,
+               capture_output=True, text=True, encoding="utf-8", errors="replace",
                     stdin=subprocess.DEVNULL, start_new_session=True)
 _casa_rot = os.path.join(rot, ".claude", ".sprint", "precheck.json")
 with open(_casa_rot, encoding="utf-8") as f:
@@ -855,7 +888,7 @@ vazio_arq = os.path.join(rot, "vazio.json")
 with open(vazio_arq, "w", encoding="utf-8") as f:
     json.dump([], f)
 subprocess.run([sys.executable, MODULO, plano_rot, "--raiz", rot,
-                "--respostas", vazio_arq], capture_output=True, text=True,
+                "--respostas", vazio_arq], capture_output=True, text=True, encoding="utf-8", errors="replace",
                     stdin=subprocess.DEVNULL, start_new_session=True)
 with open(os.path.join(rot, ".claude", ".sprint", "precheck.json"), encoding="utf-8") as f:
     _rel_vazio = json.load(f)
@@ -865,7 +898,7 @@ checa("rodada N+1 com respostas VAZIAS não apaga as perguntas de pé",
       "antes %d · depois %d" % (len(_rel_antes["abertas"]), len(_rel_vazio["abertas"])))
 
 rc = subprocess.run([sys.executable, MODULO, plano_rot, "--raiz", rot,
-                     "--respostas", resp_arq], capture_output=True, text=True,
+                     "--respostas", resp_arq], capture_output=True, text=True, encoding="utf-8", errors="replace",
                     stdin=subprocess.DEVNULL, start_new_session=True)
 saida = json.loads(rc.stdout or "{}")
 with open(os.path.join(rot, ".claude", ".sprint", "precheck.json"), encoding="utf-8") as f:
@@ -877,7 +910,7 @@ checa("a rodada N+1 pela linha de comando GRAVA a proposta no relatório",
       and saida["propostas"][0]["acao"] == "reescrever",
       rc.stdout[-400:] + rc.stderr[-200:])
 rc = subprocess.run([sys.executable, MODULO, plano_rot, "--raiz", rot, "--confere"],
-                    capture_output=True, text=True,
+                    capture_output=True, text=True, encoding="utf-8", errors="replace",
                     stdin=subprocess.DEVNULL, start_new_session=True)
 v = json.loads(rc.stdout or "{}")
 checa("o --confere RECUSA a largada enquanto a proposta não for decidida",

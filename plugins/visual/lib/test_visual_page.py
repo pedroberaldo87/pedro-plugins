@@ -933,8 +933,8 @@ check("a seção manda buscar o mapa no comando, não decorar a lista",
       "visual_page.py" in _sec and '"$VP" schema' in _sec)
 _saida_schema = subprocess.run(
     [sys.executable, os.path.join(HERE, "visual_page.py"), "schema"],
-    capture_output=True, text=True, stdin=subprocess.DEVNULL,
-    start_new_session=True).stdout
+    capture_output=True, text=True, encoding="utf-8", errors="replace",
+    stdin=subprocess.DEVNULL, start_new_session=True).stdout
 for _d, _tipo, _ in V.ESQUEMA_POR_DOC:
     check("documento mapeado na saída do schema: %s" % _d,
           _d in _saida_schema and _tipo in V.ESQUEMAS)

@@ -81,11 +81,15 @@ import hashlib
 import json
 import os
 import re
+import shutil
 import subprocess
 import sys
 import time
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+# o `which("bash")` cru acha o bash do WSL no Windows — sem distro ele imprime
+# "Windows Subsystem for Linux has no installed distributions" e sai 1
+from bash_posix import bash_posix  # noqa: E402
 
 import andamento  # noqa: E402
 from auditoria_plano import ATO_DO_DONO  # noqa: E402
@@ -159,7 +163,8 @@ def _grep(raiz, agulha):
     """Quantos arquivos rastreados citam a agulha. `None` = não deu para medir."""
     try:
         r = subprocess.run(["git", "grep", "-lF", "--", agulha], cwd=raiz,
-                           capture_output=True, text=True, timeout=30,
+                           capture_output=True, text=True,
+                           encoding="utf-8", errors="replace", timeout=30,
                            stdin=subprocess.DEVNULL, start_new_session=True)
     except (OSError, subprocess.SubprocessError):
         return None
@@ -454,9 +459,17 @@ _MEDIDAS = re.compile(r"(\d+)\s*su[íi]te", re.I)
 
 
 def _roda(cmd, raiz, teto):
-    """Roda o comando na raiz. Devolve (rc, saída) — rc `None` = estourou o teto."""
+    """Roda o comando na raiz. Devolve (rc, saída) — rc `None` = estourou o teto.
+
+    O comando é de SHELL POSIX (`bash scripts/suite.sh`, `echo "…"; exit 1`), então
+    ele roda em bash quando há um — `shell=True` no Windows cai no cmd.exe, onde o
+    `;` não separa comando e a esteira "vermelha" saía verde (run 32492362032).
+    """
+    bash = bash_posix()
+    argv = [bash, "-c", cmd] if bash else cmd
     try:
-        r = subprocess.run(cmd, cwd=raiz, shell=True, capture_output=True, text=True,
+        r = subprocess.run(argv, cwd=raiz, shell=not bash, capture_output=True,
+                           text=True,
                            encoding="utf-8", errors="replace", timeout=teto,
                            stdin=subprocess.DEVNULL, start_new_session=True)
     except subprocess.TimeoutExpired:
@@ -676,9 +689,15 @@ def _pergunta_a_guarda(proot, cmd, tool, entrada, raiz, teto):
     """Roda a guarda de verdade com o payload do passo. Devolve a saída, ou None."""
     payload = json.dumps({"tool_name": tool, "cwd": raiz,
                           "session_id": "precheck-largada", "tool_input": entrada})
-    env = dict(os.environ, CLAUDE_PLUGIN_ROOT=proot, CLAUDE_PROJECT_DIR=raiz)
+    env = dict(os.environ,
+               CLAUDE_PLUGIN_ROOT=proot.replace(os.sep, "/"),
+               CLAUDE_PROJECT_DIR=raiz.replace(os.sep, "/"))
     try:
-        r = subprocess.run(cmd, cwd=raiz, shell=True, capture_output=True, text=True,
+        # o comando da guarda é de shell POSIX ($VAR expande) — no Windows o
+        # shell=True cai no cmd.exe e a guarda "respondia" vazio
+        _b = bash_posix()
+        r = subprocess.run([_b, "-c", cmd] if _b else cmd,
+                           cwd=raiz, shell=not _b, capture_output=True, text=True,
                            encoding="utf-8", errors="replace", timeout=teto,
                            input=payload, env=env, start_new_session=True)
     except (OSError, subprocess.SubprocessError):
@@ -712,8 +731,12 @@ def _reservas_na_arvore(raiz, base_estado, agora):
                 continue
             alvo = ln if os.path.isabs(ln) else os.path.join(raiz, ln)
             if os.path.realpath(alvo).startswith(os.path.realpath(raiz) + os.sep):
+                # barra POSIX: este relativo cruza com os `files` do plano, que são
+                # POSIX — com `\` do Windows a interseção zerava e o BLOQUEANTE
+                # virava ADIÁVEL em silêncio
                 meus.append(os.path.relpath(os.path.realpath(alvo),
-                                            os.path.realpath(raiz)))
+                                            os.path.realpath(raiz))
+                            .replace(os.sep, "/"))
         if meus:
             fora.append((sid, motor, sorted(set(meus)), arq))
     return fora
@@ -838,6 +861,16 @@ def passada4(plano, raiz, base_estado=None, teto_guarda=15, agora=None):
             break
     if regra:
         rc, ps = _roda("ps -eo pid=,args=", raiz, 15)
+        if rc != 0 or not (ps or "").strip():
+            # o ps desta máquina não entrega a lista com argumentos (o do Windows
+            # não tem -eo) — o gate DIZ que não mediu em vez de calar (Artigo 4)
+            achados.append(_achado(
+                {"id": "largada"}, "exclusividade", ADIAVEL,
+                "a regra de exclusividade existe, mas o `ps` desta máquina não "
+                "lista processos com argumentos — a vizinhança de processos NÃO "
+                "foi medida; confere à mão antes de largar?",
+                "ps -eo pid=,args=: rc=%s" % rc))
+            ps = ""
         # O PRÓPRIO PROCESSO NÃO É O VIZINHO. Quem chama o pré-check costuma ser um
         # shell cuja linha de comando CITA a esteira — sem tirar a nossa árvore da
         # frente, a checagem acusaria a si mesma toda vez.

@@ -92,10 +92,17 @@ def test_o_comando_de_cada_classe_roda_de_verdade():
     B e D crashavam em `--classe X` (os pontos deles têm 3 campos, não 4) — a ficha
     prometia uma conferência que morria com ValueError.
     """
+    import shutil
     import subprocess
+    # O comando da ficha é de shell POSIX (pipe com grep) — roda em bash quando há
+    # um; `shell=True` no Windows cai no cmd.exe, que não tem grep, e o run
+    # 32492362032 devolveu contagem vazia.
+    bash = shutil.which("bash")
     for c in inv.inventario()["classes"]:
-        r = subprocess.run(c["comando"], shell=True, cwd=inv.RAIZ,
+        argv = [bash, "-c", c["comando"]] if bash else c["comando"]
+        r = subprocess.run(argv, shell=not bash, cwd=inv.RAIZ,
                            capture_output=True, text=True,
+                           encoding="utf-8", errors="replace",
                            stdin=subprocess.DEVNULL, start_new_session=True)
         assert not r.stderr.strip(), (c["id"], r.stderr[-400:])
         assert r.stdout.strip() == str(c["ocorrencias"]), \

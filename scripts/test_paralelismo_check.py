@@ -33,6 +33,8 @@ def roda(casa, *extra):
     r = subprocess.run([sys.executable, RODADOR, "--flake", "--janela", "10",
                         "--py", "test_*.py", *extra],
                        cwd=casa, capture_output=True, text=True,
+                       encoding="utf-8", errors="replace",
+                       stdin=subprocess.DEVNULL, start_new_session=True,
                        env=dict(os.environ, DISPUTA=os.path.join(casa, "disputa.mark")))
     return r.returncode, r.stdout + r.stderr
 

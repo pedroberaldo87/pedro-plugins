@@ -310,15 +310,18 @@ def main(argv=None):
     # de nome, para que duas rodadas sejam comparáveis linha a linha.
     ruins.sort(key=lambda x: x[1])
 
-    print("\n%d suíte(s) · %d problema(s)" % (len(tarefas), len(ruins)))
+    # flush em TODA linha do relatório: no Windows do CI o processo perdia o resumo
+    # inteiro (runs 32491657813 · 32493288667 · 32494014937 — as suítes saíam, o
+    # placar não, e o passo seguia como se o rc fosse 0).
+    print("\n%d suíte(s) · %d problema(s)" % (len(tarefas), len(ruins)), flush=True)
     for estado, alvo, saida in ruins:
-        print("\n───────── %s: %s" % (estado, alvo))
+        print("\n───────── %s: %s" % (estado, alvo), flush=True)
         if saida is None:
             print("   (TRAVOU: sem CPU na árvore e sem saída nova por 2 janelas "
-                  "de %.0fs — morta pelo vigia)" % a.janela)
+                  "de %.0fs — morta pelo vigia)" % a.janela, flush=True)
             continue
         for ln in linhas_que_importam(saida):
-            print("   " + ln[:200])
+            print("   " + ln[:200], flush=True)
     return 1 if ruins else 0
 
 
