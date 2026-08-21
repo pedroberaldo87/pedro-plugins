@@ -372,12 +372,12 @@ improve-workflow  0.16.29  [improve-workflow]           -
 intent-guard       0.8.16  [intent-guard]               HOOKS
 lixeiro            1.5.11  [faxina]                     HOOKS
 principles          1.0.5  [principles]                 -
-project-skills    0.22.170  [completude,design-md,doc,doc-load,doc-touch,monitorar,pesquisa-referencias,plan,project-skills,qa-loop,sprint,start] HOOKS
+project-skills    0.22.174  [completude,design-md,doc,doc-load,doc-touch,monitorar,pesquisa-referencias,plan,project-skills,qa-loop,sprint,start] HOOKS
 ship                1.5.7  [ship]                       HOOKS
 slides              1.6.5  [slides]                     -
 vision              0.1.1  []                           -
 vistoria           0.11.8  [vistoria]                   -
-visual             1.42.4  [andamento,visual]           HOOKS
+visual             1.43.1  [andamento,visual]           HOOKS
 ```
 
 **A rodada anterior moveu onde as skills MORAM; esta apagou as CASAS que tinham ficado
@@ -1089,11 +1089,19 @@ plugins/project-skills/lib/ 67 dos 148 — o motor de doc inteiro (journal.py ·
                            escreve no plano, e importa os irmãos em vez de reescrever régua
                            — `regua_pronto`, `auditoria_plano:ATO_DO_DONO`,
                            `decisoes_seladas:consultar`. **Quem mediu grava, quem larga
-                           confere:** `--relatorio` grava veredito, decisões tomadas e a
-                           marca da árvore + do plano em `.claude/.sprint/precheck.json`
+                           confere:** `--relatorio` grava veredito, decisões tomadas,
+                           propostas e a marca do PLANO — e **nada da árvore**, porque
+                           cada tique mexe no disco e venceria o relatório sozinho — em
+                           `.claude/.sprint/precheck.json`
                            (fora do git, mesma casa do ledger de corridas), e `--confere`
-                           sai 3 quando o relatório está ausente, venceu ou tem decisão em
-                           aberto. Quem chama é o bloco 1 do disparo em
+                           sai 3 em QUATRO casos: relatório ausente, vencido (o plano
+                           mudou), com proposta pendente ou com decisão em
+                           aberto. A quinta lista, `adiadas`, é o achado ADIÁVEL — o que
+                           não deu para MEDIR: não recusa a largada, mas o texto do
+                           veredito `livre` a nomeia. A rodada N+1 tem linha de comando própria
+                           (`--respostas <json>`), que regrava o relatório com as
+                           propostas de reescrita — e nada é escrito no `.plan.json`.
+                           Quem chama é o bloco 1 do disparo em
                            `skills/sprint/SKILL.md`, antes de armar o motor — `git grep -l
                            precheck_largada` devolve o módulo, a suíte dele, a skill,
                            `test_sprint_skill.py` e esta página),
@@ -1535,7 +1543,7 @@ páginas do `/visual` digitadas pelo modelo custavam **20-31 KB de HTML por pág
     desenho meio montado vira buraco na página em vez de erro. O texto de dentro do desenho
     é a terceira isenção da régua de estilo (`patterns.md §2.7`): legenda de caixa de 130px
     não vira frase. [confirmado — `python3 plugins/visual/lib/test_visual_page.py` →
-    `227 passou · 0 falhou` nesta rodada]
+    `249 passou · 0 falhou` nesta rodada]
   - **`_plural()` existe DUAS vezes** — `visual_page.py:110` e `plan_state.py:1245`, mesma
     assinatura, 2 linhas cada [confirmado — `grep -rn '^def _plural' --include='*.py' plugins/`
     devolve exatamente esses dois neste run]. Não é descuido: importar `plan_state` inteiro por

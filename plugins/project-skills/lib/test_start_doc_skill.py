@@ -125,6 +125,13 @@ def _spec_aprovacao(corpo):
         "subtitle": "o documento inteiro, para o de acordo",
         "ident": {"projeto": "bancada", "artefato": "journeys.md", "estado": "gerado"},
         "sections": [{"title": "A etapa", "blocks": [{
+            # O esquema abre a página; o texto integral vem atrás dele. Sem ele o
+            # programa do /visual recusa a página de aprovação de documento.
+            "kind": "esquema", "tipo": "fluxo", "retorno": "volta valendo",
+            "passos": [{"titulo": "Escreve", "subs": ["o plugin novo"]},
+                       {"titulo": "Valida", "subs": ["o catálogo confere"]},
+                       {"titulo": "Publica", "subs": ["a versão propaga"]}],
+        }, {
             "kind": "aprovacao",
             "etapa": "Etapa de jornadas",
             "doc_integral": corpo,

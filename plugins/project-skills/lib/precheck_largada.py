@@ -493,18 +493,33 @@ def passada3(raiz, suite_cmd=None, gate_cmd=None, planos=None, alvo=None,
     achados = []
     passo = {"id": "largada"}
     arvore_antes = _green(raiz, "green_tree_hash", raiz)[1]
+    # A prova é REAPROVEITADA, nunca EXIGIDA: HIT no green-cache para esta mesma árvore
+    # quer dizer que alguém já rodou a esteira inteira sobre este exato disco, então
+    # rodar de novo é queimar minutos. MISS não fecha porta nenhuma — quem mede é esta
+    # passada, e ela grava a prova no fim (fail-open, como motor.js e a SKILL.md mandam).
+    reaproveitada = bool(arvore_antes) and _green(
+        raiz, "green_cache_check", raiz, "full")[0] == 0
+    esteira_verde = None
 
     if not str(suite_cmd or "").strip():
         achados.append(_achado(passo, "esteira", BLOQUEANTE,
                                "a largada não declara o comando da esteira — qual é o "
                                "comando que roda a suíte inteira deste projeto?",
                                "suiteCmd vazio"))
+    elif reaproveitada:
+        achados.append(_achado(passo, "esteira", ADIAVEL,
+                               "a esteira NÃO rodou nesta passada: já existe prova de "
+                               "verde para esta MESMA árvore — vale forçar a rodada "
+                               "assim mesmo?",
+                               "prova reaproveitada · árvore %s: HIT no green-cache"
+                               % arvore_antes[:7]))
     else:
         vereditos, saida = [], ""
         for _ in range(max(1, int(rodadas))):
             rc, saida = _roda(suite_cmd, raiz, teto_suite)
             vereditos.append(rc)
         rc = vereditos[-1]
+        esteira_verde = rc == 0
         if rc is None:
             achados.append(_achado(passo, "esteira", BLOQUEANTE,
                                    "a esteira não terminou em %ds — o teto sobe ou a "
@@ -540,22 +555,27 @@ def passada3(raiz, suite_cmd=None, gate_cmd=None, planos=None, alvo=None,
                                    "rodada só) — vale rodar `--flake` antes da largada?",
                                    "rodadas=1"))
 
-    # A PROVA VIAJA COM A ÁRVORE: a esteira só grava quando a árvore ficou parada, e
-    # a chave da prova é o hash de AGORA. Sem prova para esta foto, o verde que
-    # existir é de outro estado do disco — emprestado.
+    # QUEM MEDIU GRAVA: a esteira rodou aqui, então a prova desta árvore sai daqui —
+    # exigir que OUTRO processo (o hook do ship) já tivesse gravado tornava a porta
+    # insatisfazível fora do repositório do plugin. Os dois fatos que ainda fecham a
+    # porta são medidos em casa: esteira VERMELHA e árvore que se mexeu no meio.
     arvore = _green(raiz, "green_tree_hash", raiz)[1]
-    if _green(raiz, "green_cache_check", raiz, "full")[0] != 0:
-        achados.append(_achado(passo, "prova_da_arvore", BLOQUEANTE,
-                               "não existe prova de esteira verde para a árvore desta "
-                               "largada — roda a esteira inteira com a árvore parada, "
-                               "ou larga sem prova?",
-                               "árvore %s: sem registro no green-cache"
-                               % (arvore or "(hash ilegível)")))
-    elif arvore_antes and arvore and arvore_antes != arvore:
+    if not arvore:
+        achados.append(_achado(passo, "prova_da_arvore", ADIAVEL,
+                               "não deu para MEDIR a árvore desta largada — sem hash "
+                               "não há chave de prova, e este gate não mediu nada; "
+                               "larga sem a prova da esteira?",
+                               "green_tree_hash não devolveu hash em %s (raiz fora do "
+                               "git, git ausente ou medição estourou o teto)" % raiz))
+    elif arvore_antes and arvore_antes != arvore:
         achados.append(_achado(passo, "prova_da_arvore", BLOQUEANTE,
                                "a árvore MUDOU durante a medição — o que foi medido não "
                                "é o que vai rodar; mede de novo com a árvore parada?",
                                "antes %s · depois %s" % (arvore_antes[:7], arvore[:7])))
+    # A prova da esteira NÃO é gravada aqui. O depósito compartilhado tem um contrato
+    # escrito (scripts/suite.sh: "só a esteira INTEIRA grava full"), e o `--suite` deste
+    # gate aceita qualquer comando — gravar a partir dele fabricaria prova de esteira
+    # inteira para uma rodada filtrada, e `full` satisfaz toda consulta posterior.
 
     if str(gate_cmd or "").strip():
         rc, out = _roda(gate_cmd, raiz, teto_gate)
@@ -997,7 +1017,20 @@ def _revelado(resposta, conhecido):
     return novos
 
 
-_NEGA_EXISTENCIA = re.compile(r"\b(n[ãa]o existe|nunca (?:foi|existiu)|nenhum\w*)", re.I)
+# "nenhum" solto NÃO nega existência (F22.8): em "não, nenhum problema — o passo está
+# certo" ele aparece dentro de uma CONFIRMAÇÃO, e a proposta saía mandando remover o passo
+# que o dono acabou de confirmar. Aqui ele só conta colado ao verbo de existência.
+_NEGA_EXISTENCIA = re.compile(
+    r"\b(n[ãa]o existe|n[ãa]o h[áa]\b|nunca (?:foi|existiu)"
+    r"|nenhum\w*\s+\S+\s+(?:existe|existiu|foi criad\w+))", re.I)
+
+# A resposta que CONFIRMA o passo, mesmo carregando um "não" na frente. Sem esta guarda,
+# "não, nenhum problema" contava como desconfirmação e gerava proposta contra o passo.
+# O `(?<!n[ãa]o )` existe porque "não está certo" é a forma MAIS direta de o dono
+# contrariar a premissa de um passo, e sem a guarda ela era lida como confirmação.
+_CONFIRMA_PASSO = re.compile(
+    r"\b(nenhum problema|sem problema|nada a mudar|nada a corrigir"
+    r"|(?<!n[ãa]o )(?:est|t)[áa] cert\w+|tudo cert\w+|isso mesmo|pode seguir)", re.I)
 
 
 def _proposta_desconfirmado(pid, r, resposta):
@@ -1031,7 +1064,8 @@ def rodada_seguinte(raiz, respostas):
         passo = {"id": r.get("passo") or "?"}
         resposta = " ".join(str(r.get("resposta") or "").split())
         conhecido = "%s %s" % (r.get("pergunta") or "", r.get("prova") or "")
-        desconfirmou = bool(_DESCONFIRMA.search(resposta))
+        desconfirmou = (bool(_DESCONFIRMA.search(resposta))
+                        and not _CONFIRMA_PASSO.search(resposta))
         revelou = _revelado(resposta, conhecido)
         leitura.append({"passo": passo["id"], "resposta": resposta,
                         "desconfirmou": desconfirmou, "revelou": revelou,
@@ -1067,11 +1101,11 @@ def rodada_seguinte(raiz, respostas):
 # ── O RELATÓRIO E A CONFERÊNCIA DA LARGADA (F22.5) ──────────────────────────
 # Quem MEDIU grava, quem LARGA confere — a mesma régua da prova da esteira. Sem isto
 # o pré-check é conversa: as quatro passadas rodam, o dono lê na tela, e o motor
-# larga sem que nada no disco diga que elas rodaram, ou que rodaram sobre ESTA
-# árvore e ESTE plano.
+# larga sem que nada no disco diga que elas rodaram, ou que rodaram sobre ESTE plano.
 #
 # A marca cobre `id` + `pronto` + `desc` dos passos ABERTOS (não do plano inteiro) e
-# o registro selado: assim ela é imune ao próprio progresso — tique de passo não
+# o registro selado — e NADA da árvore, porque cada tique mexe no disco e venceria o
+# relatório por conta própria (R-32). Assim ela é imune ao próprio progresso: tique não
 # vence o relatório, mas passo reescrito, passo novo e decisão nova selada vencem.
 #
 # Casa: <projeto>/.claude/.sprint/precheck.json — registro de trabalho, fora do git,
@@ -1084,8 +1118,8 @@ def casa_do_relatorio(raiz):
     return os.path.join(raiz, RELATORIO)
 
 
-def marca(plano, raiz, arvore=None):
-    """A marca da árvore E do plano. Muda ⇒ o relatório venceu."""
+def marca(plano, raiz):
+    """A marca do PLANO: passos abertos + registro selado. Muda ⇒ o relatório venceu."""
     corpo = json.dumps([[str(p.get("id") or "?"), p.get("desc") or "",
                          p.get("pronto") or ""] for p in _abertos(plano)],
                        ensure_ascii=False, sort_keys=True)
@@ -1095,29 +1129,41 @@ def marca(plano, raiz, arvore=None):
             selado = f.read()
     except OSError:
         pass
-    if arvore is None:
-        arvore = _green(raiz, "green_tree_hash", raiz)[1]
-    return {"arvore": arvore or "(hash ilegível)",
-            "plano": hashlib.sha256((corpo + "\n" + selado).encode("utf-8")).hexdigest()[:16]}
+    return {"plano": hashlib.sha256((corpo + "\n" + selado).encode("utf-8")).hexdigest()[:16]}
 
 
-def grava_relatorio(raiz, plano, passadas, arvore=None):
+def grava_relatorio(raiz, plano, passadas):
     """As 4 passadas viram artefato: veredito, decisões TOMADAS e o que ficou aberto.
 
     `passadas` é o dicionário {"1": r1, ...} com o retorno de cada passada. Aberta é
     a pergunta que ainda vai ao dono; tomada é o achado que o registro selado já
     respondeu (`respondida_por`) — as duas listas saem do retorno, nunca de memória.
+
+    A terceira lista é `propostas` (F22.8): a decorrência da rodada N+1 só chega ao dono
+    se ATRAVESSAR o artefato — valor de retorno que ninguém lê fora do teste não é rota.
+    Por isso ela é gravada aqui e o `--confere` recusa a largada enquanto houver proposta
+    pendente, do mesmo jeito que recusa por decisão em aberto.
+
+    A quarta lista é `adiadas` (F22.5 r2): o achado ADIÁVEL — "não deu para MEDIR a
+    árvore", "a estabilidade não foi medida" — não fecha a porta, mas é justamente o
+    remédio do Artigo 4, e remédio que não sai do valor de retorno não fala com ninguém.
+    Ele é gravado aqui e o `--confere` o NOMEIA no texto do "livre".
     """
-    abertas, tomadas = [], []
+    abertas, tomadas, propostas, adiadas = [], [], [], []
     for nome in sorted(passadas):
         r = passadas[nome] or {}
         for a in r.get("perguntas") or []:
             abertas.append(dict(a, passada=nome))
+        for pr in r.get("propostas") or []:
+            propostas.append(dict(pr, passada=nome))
         for a in r.get("registrados") or []:
             if a.get("respondida_por"):
                 tomadas.append(dict(a, passada=nome))
-    rel = {"marca": marca(plano, raiz, arvore), "gravado_em": time.time(),
+            else:
+                adiadas.append(dict(a, passada=nome))
+    rel = {"marca": marca(plano, raiz), "gravado_em": time.time(),
            "passadas": sorted(passadas), "abertas": abertas, "tomadas": tomadas,
+           "propostas": propostas, "adiadas": adiadas,
            "veredito": "livre" if not abertas else "em-aberto"}
     alvo = casa_do_relatorio(raiz)
     os.makedirs(os.path.dirname(alvo), exist_ok=True)
@@ -1126,12 +1172,47 @@ def grava_relatorio(raiz, plano, passadas, arvore=None):
     return rel
 
 
-def confere_largada(raiz, plano, arvore=None):
+def aplica_rodada_seguinte(raiz, plano, r, respostas):
+    """A rodada N+1 ATUALIZA o relatório das 4 passadas — nunca o substitui.
+
+    Substituir era a porta escancarada: `grava_relatorio(raiz, plano, {"N+1": r})`
+    regravava o arquivo inteiro com o resultado da rodada N+1, e as `abertas` das 4
+    passadas sumiam junto — um arquivo de respostas VAZIO bastava para o `--confere`
+    passar a deixar largar. Aqui a rodada N+1 só tira da lista o que ela de fato
+    respondeu, e acrescenta o que ela descobriu.
+    """
+    with open(casa_do_relatorio(raiz), encoding="utf-8") as f:
+        rel = json.load(f)
+
+    respondidas = {(str(x.get("passo") or "?"), str(x.get("pergunta") or ""))
+                   for x in respostas if str(x.get("resposta") or "").strip()}
+    rel["abertas"] = [a for a in rel.get("abertas") or []
+                      if (str(a.get("passo") or "?"),
+                          str(a.get("pergunta") or "")) not in respondidas]
+    for lista, novos in (("abertas", r.get("perguntas")),
+                         ("tomadas", r.get("registrados")),
+                         ("propostas", r.get("propostas"))):
+        rel.setdefault(lista, [])
+        rel[lista] += [dict(x, passada="N+1") for x in (novos or [])]
+    rel["passadas"] = sorted(set(rel.get("passadas") or []) | {"N+1"})
+    rel["marca"] = marca(plano, raiz)
+    rel["gravado_em"] = time.time()
+    rel["veredito"] = "livre" if not rel["abertas"] else "em-aberto"
+    with open(casa_do_relatorio(raiz), "w", encoding="utf-8") as f:
+        json.dump(rel, f, ensure_ascii=False, indent=1)
+    return rel
+
+
+def confere_largada(raiz, plano):
     """A casca confere ANTES de armar o motor. Devolve {"larga": bool, "motivo": str}.
 
-    Recusa em três casos, e o motivo diz qual: relatório AUSENTE, VENCIDO (a árvore
-    ou o plano mudaram desde a medição) ou com DECISÃO EM ABERTO — e aí nomeia a
-    pergunta que falta responder, porque "tem coisa em aberto" não dá o que fazer.
+    Larga com ADIADAS nomeadas no texto: o adiável não fecha porta, mas quem larga tem
+    que ler o que não deu para medir — silêncio aqui é o Artigo 4 quebrado.
+
+    Recusa em quatro casos, e o motivo diz qual: relatório AUSENTE, VENCIDO (o plano
+    mudou desde a medição), com PROPOSTA PENDENTE (a rodada N+1 pediu reescrita de um
+    passo e ninguém decidiu) ou com DECISÃO EM ABERTO — e nestes dois últimos ele nomeia
+    a proposta e a pergunta, porque "tem coisa em aberto" não dá o que fazer.
     """
     alvo = casa_do_relatorio(raiz)
     try:
@@ -1141,9 +1222,9 @@ def confere_largada(raiz, plano, arvore=None):
         return {"larga": False, "motivo": "ausente",
                 "texto": "não existe relatório de pré-check em %s — roda as 4 passadas "
                          "antes de largar." % RELATORIO}
-    agora = marca(plano, raiz, arvore)
+    agora = marca(plano, raiz)
     gravada = rel.get("marca") or {}
-    mudou = [k for k in ("arvore", "plano") if gravada.get(k) != agora[k]]
+    mudou = [k for k in ("plano",) if gravada.get(k) != agora[k]]
     if mudou:
         return {"larga": False, "motivo": "vencido", "mudou": mudou,
                 "texto": "o relatório de pré-check venceu: %s mudou desde a medição "
@@ -1151,6 +1232,14 @@ def confere_largada(raiz, plano, arvore=None):
                          % (" e ".join(mudou),
                             " / ".join(str(gravada.get(k)) for k in mudou),
                             " / ".join(agora[k] for k in mudou))}
+    propostas = rel.get("propostas") or []
+    if propostas:
+        pr = propostas[0]
+        return {"larga": False, "motivo": "proposta-pendente", "propostas": propostas,
+                "texto": "o pré-check deixou %d proposta(s) para o dono decidir; a "
+                         "primeira é %s o passo %s — %s"
+                         % (len(propostas), pr.get("acao"), pr.get("passo"),
+                            pr.get("texto"))}
     abertas = rel.get("abertas") or []
     if abertas:
         a = abertas[0]
@@ -1158,9 +1247,14 @@ def confere_largada(raiz, plano, arvore=None):
                 "texto": "o pré-check deixou %d decisão(ões) em aberto; a primeira é do "
                          "passo %s (%s): %s" % (len(abertas), a.get("passo"),
                                                 a.get("check"), a.get("pergunta"))}
-    return {"larga": True, "motivo": "livre",
-            "texto": "pré-check fresco e sem decisão em aberto (%d tomada(s))."
-                     % len(rel.get("tomadas") or [])}
+    adiadas = rel.get("adiadas") or []
+    texto = ("pré-check fresco e sem decisão em aberto (%d tomada(s))."
+             % len(rel.get("tomadas") or []))
+    if adiadas:
+        a = adiadas[0]
+        texto += (" ATENÇÃO: %d achado(s) ADIADO(s) — o primeiro é do passo %s (%s): %s"
+                  % (len(adiadas), a.get("passo"), a.get("check"), a.get("pergunta")))
+    return {"larga": True, "motivo": "livre", "adiadas": adiadas, "texto": texto}
 
 
 def main(argv=None):
@@ -1170,11 +1264,15 @@ def main(argv=None):
     ap.add_argument("--passada", choices=("1", "2", "3", "4"), default="1",
                     help="1 = item a item (padrão); 2 = a sequência; 3 = a casa; "
                          "4 = a vizinhança")
-    ap.add_argument("--suite", default="bash scripts/suite.sh",
-                    help="o comando da esteira INTEIRA (passada 3)")
+    ap.add_argument("--suite", default="",
+                    help="o comando da esteira INTEIRA do PROJETO (passada 3); sem ele "
+                         "a passada 3 pergunta ao dono em vez de chutar um comando")
     ap.add_argument("--gate", default="", help="o gate de commit (passada 3)")
     ap.add_argument("--relatorio", action="store_true",
                     help="roda as 4 passadas e GRAVA o relatório da largada (F22.5)")
+    ap.add_argument("--respostas", default="",
+                    help="o JSON com as RESPOSTAS do dono à rodada anterior: roda a "
+                         "rodada N+1 e REGRAVA o relatório com as propostas (F22.8)")
     ap.add_argument("--confere", action="store_true",
                     help="confere o relatório antes de armar o motor; sai 3 se recusa")
     args = ap.parse_args(argv)
@@ -1187,6 +1285,18 @@ def main(argv=None):
             print("RECUSADO: %s" % v["texto"], file=sys.stderr)
             return 3
         return 0
+    if args.respostas:
+        with open(args.respostas, encoding="utf-8") as f:
+            respostas = json.load(f)
+        r = rodada_seguinte(args.raiz, respostas)
+        try:
+            rel = aplica_rodada_seguinte(args.raiz, plano, r, respostas)
+        except FileNotFoundError:
+            print("RECUSADO: a rodada N+1 responde o relatório das 4 passadas, e ele "
+                  "não existe — rode `--relatorio` antes.", file=sys.stderr)
+            return 3
+        print(json.dumps(dict(r, relatorio=rel), ensure_ascii=False, indent=1))
+        return 1 if (rel["abertas"] or rel["propostas"]) else 0
     if args.relatorio:
         rel = grava_relatorio(args.raiz, plano, {
             "1": passada1(plano, args.raiz),

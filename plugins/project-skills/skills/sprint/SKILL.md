@@ -66,7 +66,7 @@ LEDGER="$(bash "${CLAUDE_PLUGIN_ROOT}/lib/resolve-plugin.sh" project-skills lib/
 python3 "$LEDGER" relance --project-root "$REPO_ROOT" --missao "$PLAN_PATH" || exit $?
 # O RELATÓRIO DO PRÉ-CHECK é conferido AQUI, antes de armar: quem mediu grava, quem
 # larga confere. Sai 3 ⇒ NÃO arme e NÃO chame o Workflow — o texto da recusa diz se
-# falta o relatório, se ele venceu (árvore ou plano mudaram) ou QUAL decisão do dono
+# falta o relatório, se ele venceu (o plano mudou) ou QUAL decisão do dono
 # ainda está em aberto.
 PRECHECK="$(bash "${CLAUDE_PLUGIN_ROOT}/lib/resolve-plugin.sh" project-skills lib/precheck_largada.py)"
 python3 "$PRECHECK" "$PLAN_PATH" --raiz "$REPO_ROOT" --confere || exit $?
@@ -164,17 +164,44 @@ medição que o bloco 1 depois cobra.
 ```bash
 # 0) A MEDIÇÃO — as 4 passadas rodam e gravam o relatório que o bloco 1 vai conferir
 REPO_ROOT="…"; PLAN_PATH="…"   # os mesmos que vão no `args` do Workflow
+SUITE_CMD="…"   # o MESMO `suiteCmd` do `args` — o comando que o CLAUDE.md do projeto
+                # declara. Sem ele a passada 3 não chuta comando nenhum: pergunta ao dono.
 PRECHECK="$(bash "${CLAUDE_PLUGIN_ROOT}/lib/resolve-plugin.sh" project-skills lib/precheck_largada.py)"
-python3 "$PRECHECK" "$PLAN_PATH" --raiz "$REPO_ROOT" --relatorio
+python3 "$PRECHECK" "$PLAN_PATH" --raiz "$REPO_ROOT" --relatorio --suite "$SUITE_CMD"
 ```
 
-O relatório carrega a **marca da árvore e do plano**, e a marca cobre `id` + `pronto` + `desc`
-dos passos **ABERTOS** mais o registro selado — por isso ela é imune ao próprio progresso:
+O relatório carrega a **marca do plano**, e a marca cobre `id` + `pronto` + `desc`
+dos passos **ABERTOS** mais o registro selado — e **nada da árvore**, porque cada tique mexe no
+disco e venceria o relatório por conta própria. Por isso ela é imune ao próprio progresso:
 tique de passo não vence o relatório, mas passo reescrito, passo novo ou decisão nova selada
-vencem. O `--confere` do bloco 1 **recusa a largada** em três casos e sai 3: relatório
-**ausente**, **vencido** (árvore ou plano mudaram desde a medição) ou com **decisão em aberto**
-— e neste último ele nomeia a pergunta que falta responder, porque "tem coisa em aberto" não
-diz o que fazer. Pré-check que roda e só aparece na tela não segura largada nenhuma: a corrida
+vencem. O `--confere` do bloco 1 **recusa a largada** em quatro casos e sai 3: relatório
+**ausente**, **vencido** (o plano mudou desde a medição), com **proposta pendente** ou com
+**decisão em aberto** — e nestes dois últimos ele nomeia a proposta pendente e
+nomeia a pergunta que falta responder, porque "tem coisa em aberto" não diz o que fazer.
+Quando ele **aceita**, o texto ainda nomeia os achados **adiados** que o relatório gravou
+(o que não deu para medir): adiável não fecha porta, mas quem larga tem que ler.
+
+**A esteira é MEDIDA aqui, e a prova NÃO é gravada aqui.** A passada 3 roda a esteira
+inteira; se já existe prova de verde para esta MESMA árvore, ela reaproveita e diz que
+reaproveitou. Prova ausente nunca fecha a porta — o que fecha é esteira **vermelha** ou
+árvore que **mudou durante a medição**. Ela não escreve no depósito de prova compartilhado
+porque o comando da esteira aqui é o que a largada declarou, e o depósito tem contrato: só
+a esteira INTEIRA grava a prova de escopo total, e essa prova depois satisfaz toda consulta.
+
+**A rodada N+1 tem linha de comando, e é por ela que a proposta chega ao dono.** Respondidas
+as perguntas, o mesmo módulo roda de novo com as RESPOSTAS — não com o plano — e ATUALIZA o
+relatório: tira das abertas só o que foi respondido e acrescenta as propostas de reescrita
+que as respostas geraram. Ele nunca substitui o relatório das 4 passadas, porque substituir
+apagaria as perguntas ainda de pé e abriria a porta que este gate existe para fechar:
+
+```bash
+REPO_ROOT="…"; PLAN_PATH="…"   # os mesmos do bloco 0; as respostas do dono vão num JSON
+PRECHECK="$(bash "${CLAUDE_PLUGIN_ROOT}/lib/resolve-plugin.sh" project-skills lib/precheck_largada.py)"
+python3 "$PRECHECK" "$PLAN_PATH" --raiz "$REPO_ROOT" --respostas "$REPO_ROOT/.claude/.sprint/respostas.json"
+```
+
+Cada proposta aponta o passo pelo id, cita a resposta do dono LITERAL e diz se é
+**reescrever** ou **remover** — e **nada é escrito no `.plan.json`**: quem decide é o dono. Pré-check que roda e só aparece na tela não segura largada nenhuma: a corrida
 sai com a decisão do dono ainda pendurada e ela explode no meio, como tique recusado.
 
 ### Por que o gate precisou nascer

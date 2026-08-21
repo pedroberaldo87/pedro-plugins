@@ -222,6 +222,24 @@ def validate(spec):
                     "(nenhum bloco 'evidencia' com output, 'artefato' ou 'chart'). "
                     "Sem prova pra mostrar não há decisão a pedir — há investigação a fazer.")
 
+    # Página de aprovação de DOCUMENTO abre com o esquema, e o texto vem atrás: o
+    # documento inteiro em prosa é justamente o que a página existe para evitar. A regra
+    # estava escrita na skill e não pegava nada — página sem esquema era construída e
+    # gravada normalmente. Aqui ela pega: bloco `aprovacao` com `doc_integral` exige um
+    # `esquema` ANTES dele, na ordem em que a página é lida.
+    blocos_em_ordem = [b for sec in (spec.get("sections") or [])
+                       if isinstance(sec, dict)
+                       for b in (sec.get("blocks") or []) if isinstance(b, dict)]
+    ordem = [b.get("kind") for b in blocos_em_ordem]
+    for i, b in enumerate(blocos_em_ordem):
+        if b.get("kind") != "aprovacao" or not str(b.get("doc_integral") or "").strip():
+            continue
+        if "esquema" not in ordem[:i]:
+            errs.append("página de aprovação de documento sem bloco 'esquema' antes do "
+                        "'aprovacao' — o esquema é o que se lê primeiro; o texto integral "
+                        "vem atrás dele, nunca sozinho.")
+            break
+
     labels = spec.get("item_labels") or DEFAULT_ITEM_LABELS
     if not (isinstance(labels, list) and len(labels) == 3):
         errs.append("item_labels tem que ser uma lista de 3 rótulos (keep/change/remove)")
@@ -1189,8 +1207,33 @@ def cmd_build(args):
     return 0
 
 
+# O tipo de esquema que cada documento canônico pede. Mora AQUI, e não na prosa da
+# skill, porque lista de nome de documento copiada em texto é a que sai do lugar sem
+# ninguém perceber. A skill aponta para a saída de `visual_page.py schema`.
+ESQUEMA_POR_DOC = [
+    ("quality-goals.md", "escada",
+     "a ordem de prioridade é um desempate: quem está acima vence"),
+    ("constraints.md", "quadrantes", "restrição vive em grupos, e o grupo é o que importa"),
+    ("context.md", "mapa", "quem é vizinho de quem, e por onde a coisa entra"),
+    ("architecture-intent.md", "mapa", "peça e fronteira são caixa e seta, nunca parágrafo"),
+    ("solution-strategy.md", "escada", "estratégia é a escolha que vence as outras"),
+    ("glossary.md", "glossario", "termo, definição e o falso amigo ao lado"),
+    ("journeys.md", "fluxo", "jornada é passo depois de passo, com o que volta"),
+    ("blueprint.md", "fluxo", "o ciclo do sistema, ponta a ponta"),
+    ("features.md", "placar", "uma linha por item, com o estado de cada um"),
+    ("constituicao.md", "placar", "um artigo por linha, com o estado de quem o cobra"),
+    ("design.md", "quadrantes", "os grupos de token e de personalidade"),
+]
+
+
 def cmd_schema(args):
     print(SCHEMA_DOC)
+    print("\nESQUEMA por documento — o desenho que vem ANTES do texto na aprovação:")
+    for doc, tipo, porque in ESQUEMA_POR_DOC:
+        print("  %-24s %-11s %s" % (doc, tipo, porque))
+    print("  documento fora da lista escolhe pela FORMA do conteúdo: ordem que "
+          "desempata é escada,\n  grupo é quadrantes, peça e fronteira é mapa, passo "
+          "depois de passo é fluxo,\n  termo é glossario, lista com estado é placar.")
     return 0
 
 
