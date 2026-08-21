@@ -475,11 +475,12 @@ ${J(medicoes)}
 mesmo preço, e a corrida para aqui. \`motivo\` é o que o dono vai ler.
 \`anchor\` = a última linha não vazia do que você leu para decidir, literal.`
 
-const diagnoseStuckTaskPrompt = ({ task, attempts, desafioAnterior }) => `PAPEL: DIAGNOSTICO
+const diagnoseStuckTaskPrompt = ({ task, attempts, desafioAnterior, achado }) => `PAPEL: DIAGNOSTICO
 Repositório: ${RAIZ}
 
-Esta tarefa não sai do lugar há ${attempts} rodada(s):
-${J(task)}
+${achado?.length
+  ? `Esta tarefa ACABOU de ser entregue e o revisor a REPROVOU com estes achados:\n${J(achado)}\n\nA tarefa:\n${J(task)}`
+  : `Esta tarefa não sai do lugar há ${attempts} rodada(s):\n${J(task)}`}
 
 PARE e investigue a CAUSA REAL. Não descreva o sintoma e não mande consertar onde o defeito
 apareceu — remendo no ponto de aparição deixa de pé todos os outros pontos com a mesma raiz.
@@ -835,12 +836,12 @@ const destravaOuPara = async (d, taskId) => {
   delete causaCache['@repositorio']
   return true
 }
-const investigaCausa = async (task, attempts) => {
+const investigaCausa = async (task, attempts, achado) => {
   const chave = causaCache['@repositorio'] ? '@repositorio' : chaveDeCausa(task)
   if (causaCache[chave]) return { ...causaCache[chave], deCache: true }
   let causa = null, desafio = null, acordo = false
   for (let volta = 1; volta <= 3 && !acordo; volta++) {
-    causa = await agent(diagnoseStuckTaskPrompt({ task, attempts,
+    causa = await agent(diagnoseStuckTaskPrompt({ task, attempts, achado,
         desafioAnterior: desafio?.motivo || null }),
       { model: ARGS.model, effort: T.diagnose.effort, phase: 'Diagnose',
         label: `causa:${task?.id || '?'} v${volta}` })
@@ -1164,8 +1165,9 @@ while (!built && r < maxRounds) {
       if (!v) continue
       if (!v.aprova) {
         reprovadasNaTarefa.add(entregues[i].task_id)
-        if ((v.gaps || []).some(g => sevRank(g.severity) >= floor)) {
-          const d = await investigaCausa(decomp.tasks.find(t => t.id === entregues[i].task_id), 1)
+        const graves = (v.gaps || []).filter(g => sevRank(g.severity) >= floor)
+        if (graves.length) {
+          const d = await investigaCausa(decomp.tasks.find(t => t.id === entregues[i].task_id), 1, graves)
           if (d.causa && d.escopo === 'repositorio') await destravaOuPara(d, entregues[i].task_id)
           if (d.causa) diagnoses.push({ task_id: entregues[i].task_id, diagnosis: d.causa,
                                         desafiada: true, deCache: !!d.deCache })
@@ -1179,7 +1181,7 @@ while (!built && r < maxRounds) {
       vereditoDaTarefa.set(entregues[i].task_id, porTarefa[i])
     for (let i = 0; i < entregues.length; i++) if (porTarefa[i])
       ledgerCorrida.push({ r, tipo: 'veredito', taskId: entregues[i].task_id,
-                           resumo: `revisor-tarefa r${r}b${b}: ${porTarefa[i].aprova ? 'aprovou' : 'reprovou'}` })
+                           resumo: `revisor-tarefa r${r}b${b}: ${porTarefa[i].aprova ? 'aprovou' : `reprovou — ${(porTarefa[i].gaps || []).map(g => `${g.severity}: ${g.what || g.gap || ''}`).join(' · ').slice(0, 240) || 'sem gap declarado'}`}` })
     if (desligadoPor === 'causa-global') break
     const aprovadasTarefa = entregues.filter(x => !reprovadasNaTarefa.has(x.task_id))
     reprovadasNosBlocos.push(...reprovadasNaTarefa)
