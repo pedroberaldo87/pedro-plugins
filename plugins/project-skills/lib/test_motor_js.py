@@ -88,9 +88,15 @@ for nome, fonte, _base in FONTES:
 check("o orquestrador manda despachar órfão como TAREFA, sem atalho de marcação",
       "TRABALHO ÓRFÃO É TAREFA, NUNCA MARCAÇÃO" in motor
       and "orfaos }) => `PAPEL: ORQUESTRADOR" in motor)
-check("órfão reprovado volta ao orquestrador e não é marcado",
-      "reprovadasNosBlocos" in motor
-      and "reprova do revisor de tarefa ou de bloco" in motor)
+# Substring LITERAL das duas linhas que fazem o caminho, não o nome da variável solta:
+# com o nome só, apagar o repasse ao orquestrador deixava a asserção verde.
+for nome, fonte, _base in FONTES:
+    check("órfão reprovado volta ao orquestrador no `missing` (%s)" % nome,
+          "...naoTentadasNaRodada, ...reprovadasNosBlocos," in fonte)
+    check("só o que passou vai ao tique — o reprovado não é marcado (%s)" % nome,
+          "passos: aprovadas.map(t => ({ taskId: t.task_id," in fonte)
+check("o motivo do não-marcado fica no relatório da rodada",
+      "reprova do revisor de tarefa ou de bloco" in motor)
 
 # A5 · O TIQUE DO ÓRFÃO COBRA MAIS (F18.3 · R-28). Marcar obra achada no disco com a
 # prova de quem estava presente é carimbo sem testemunha: o passo de retomada leva
