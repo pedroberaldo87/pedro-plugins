@@ -22,7 +22,9 @@ hj_leitor >/dev/null 2>&1 || { hj_avisa "posttooluse-doc-read"; exit 0; }
 INPUT=$(cat 2>/dev/null)
 TOOL=$(hj_campo "$INPUT" tool_name)
 [ "$TOOL" = "Read" ] || exit 0
-SESSION=$(hj_campo_ou "$INPUT" session_id unknown)
+SESSION=$(hj_campo_ou "$INPUT" session_id "")
+# payload sem sessão: liberado — o sentinela "unknown" seria compartilhado entre sessões (o defeito do context-guard v1.1)
+[ -n "$SESSION" ] || exit 0
 FP=$(hj_campo "$INPUT" tool_input.file_path)
 [ -z "$FP" ] && exit 0
 CWD=$(hj_campo "$INPUT" cwd)

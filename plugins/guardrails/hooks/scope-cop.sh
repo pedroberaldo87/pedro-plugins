@@ -428,7 +428,10 @@ if [ "$VERDICT" = "block" ]; then
   # permissionDecision "deny" = nega pra mim (Claude), NÃO pergunta ao usuário.
   # O reason me instrui a repensar e reimplementar — auto-correção.
   # shellcheck disable=SC2016  # as aspas simples são do programa jq; $REASON é interpolado via --arg, fora delas
-  hj_deny "Scope-cop (auto-revisão): essa edição parece desviar do escopo combinado. $REASON — REPENSE a implementação e reescreva de um jeito coerente com o plano/pedido (não reenvie idêntico). Isto é revisão automática; NÃO envolve o usuário."
+  hj_deny "Scope-cop (auto-revisão): essa edição parece desviar do escopo combinado.
+- $REASON
+- REPENSE e reescreva coerente com o plano/pedido; não reenvie idêntico.
+- Isto é revisão automática; NÃO envolve o usuário."
   exit 0
 else
   echo 0 > "$STREAK_FILE"

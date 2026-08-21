@@ -277,6 +277,21 @@ def main():
     finally:
         shutil.rmtree(raiz, ignore_errors=True)
 
+    print("o extrator enxerga a casa NOVA da doc (docs/ na raiz)")
+    raiz = tempfile.mkdtemp(prefix="handoff-casa-nova-")
+    try:
+        docs = os.path.join(raiz, "docs")
+        os.makedirs(docs)
+        escreve(os.path.join(docs, "constituicao.md"),
+                "---\nstatus: ready\n---\n\nA lei do projeto.\n", 1754000000)
+        est = estado_etapas(raiz)
+        check("doc em docs/ na raiz não sai como ausente",
+              "lei" not in est["ausentes"])
+        check("o docs_dir resolvido aponta a casa nova",
+              est["docs_dir"] == docs)
+    finally:
+        shutil.rmtree(raiz, ignore_errors=True)
+
     print("o PRD nasce com a seção do estado da concepção")
     check("o molde do HANDOFF.md tem a seção", "## Estado da Concepção" in texto)
     sec_conc = texto[texto.find("## Estado da Concepção"):texto.find("## Findings & Gotchas")]

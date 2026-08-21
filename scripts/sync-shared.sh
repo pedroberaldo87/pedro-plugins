@@ -41,6 +41,7 @@ SPECS=(
   # padrao velho e `scripts/caminho_como_texto_check.py`.
   "plugins/project-skills/lib::caminho_igual.py"
   "plugins/handoff/lib::collect_engine.py"
+  "plugins/handoff/lib::casa_da_doc.py"
   "plugins/project-skills/lib::collect_engine.py"
   # O contrato R8: os DADOS (.json) + o servidor (.py) + a vista humana (.md, gerada
   # do json). A skill instalada só enxerga a própria pasta, então a casca lê o tier
@@ -128,6 +129,7 @@ SPECS=(
   # O programa do plano resolve o diretório dos planos pela mesma cascata, e a
   # cópia mora ao lado dele em lib/ — o plugin instalado só enxerga a própria pasta.
   "plugins/project-skills/lib::resolve-dir.sh"
+  "plugins/fallow/lib::resolve-dir.sh"
   # O resolvedor de plugin IRMÃO por nome: quem precisa de um arquivo de outro plugin
   # pergunta por nome em vez de apontar `../<irmão>/`, que só resolve rodando do
   # repositório. A cópia mora ao lado da skill que a chama, porque o plugin instalado

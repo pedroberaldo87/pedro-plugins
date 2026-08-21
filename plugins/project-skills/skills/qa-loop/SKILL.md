@@ -392,8 +392,9 @@ while (!cleanRound && r < maxRounds && !churnEscalated) {
   r++; phase(`Rodada ${r}`)
   const tier = tierFor(r)
 
-  // REVIEW — 1 Opus Revisor INDEPENDENTE, no tier da rodada. Checklist de 7 dimensões
-  // (1 agente, não 7) — a 7ª é cobertura por finalidade: o que o plano pede tem teste
+  // REVIEW — 1 Opus Revisor INDEPENDENTE, no tier da rodada. Checklist das dimensões
+  // de references/dimensoes-de-revisao.md (a lista viva mora lá; 1 agente, nunca um por
+  // dimensão) — a última é cobertura por finalidade: o que o plano pede tem teste
   // que MORDE? É a única que enxerga o teste AUSENTE; as outras julgam o que existe.
   // Rodada 1 = sweep completo do material inteiro (decompose_model);
   // 2+ = DELTA (coordinate_model): só os arquivos tocados pelos fixes da rodada anterior
@@ -726,6 +727,8 @@ Passada a Fase Gate, a casca produz **DOIS artefatos com públicos distintos**:
 **INVOQUE a skill `/visual`** pra renderizar (não reimplemente template nem daemon): o `/visual` já traz a
 hierarquia, o "pedido se explica sozinho", o vocabulário banido, o daemon de live-sync e a semântica de copy.
 Você passa o conteúdo estruturado (do `return` do Workflow); o `/visual` resolve template + daemon + path + abre.
+**Visual ausente na máquina** (resolvedor devolve vazio): o relatório não some — grave o mesmo conteúdo em
+`.claude/reports/<data>-qa-loop.md` e diga na entrega que a página não abriu por falta do plugin.
 
 **A página é EMITIDA por programa, não digitada** (desde o `visual` v1.8.0). Você escreve um **spec JSON** e
 roda `python3 <visual>/lib/visual_page.py build --spec <f>`; o contrato dos blocos sai de

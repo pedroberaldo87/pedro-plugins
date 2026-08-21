@@ -31,7 +31,9 @@ THRESHOLD="${CLAUDE_CONTEXT_THRESHOLD:-80}"
 
 INPUT=$(cat)
 # session_id chaveia TANTO o estado quanto o sentinel por sessão.
-SESSION_ID=$(hj_campo_ou "$INPUT" session_id unknown)
+SESSION_ID=$(hj_campo_ou "$INPUT" session_id "")
+# payload sem sessão: liberado — o sentinela "unknown" seria compartilhado entre sessões (o defeito do context-guard v1.1)
+[ -n "$SESSION_ID" ] || exit 0
 STATE="${TMPD}/claude-context-pct-${SESSION_ID}"
 SENTINEL="${TMPD}/claude-context-warned-${SESSION_ID}"
 

@@ -543,12 +543,23 @@ function post(){{if(!window.VISUAL_SESSION)return;clearTimeout(pt);pt=setTimeout
 
 
 def resolve_visual_dir(root):
-    """Espelha plugins/visual/skills/visual/resolve-dir.sh: salva o relatório
-    DENTRO do projeto analisado (<root>/.claude/visual), não no Desktop.
-    Cascata: raiz git → marcador de projeto subindo de root → fallback Desktop.
-    Replicado em Python (não chama o .sh do visual) porque o Claude Code isola
-    plugins no cache — report.py não acha o resolve-dir.sh do plugin visual de
-    forma confiável. Fonte da lógica: resolve-dir.sh."""
+    """Onde salvar o relatório: DENTRO do projeto analisado (<root>/.claude/visual).
+
+    Ordem: a cópia vendorada de `_shared/resolve-dir.sh` (a MESMA fonte que o visual
+    usa — drift entre as duas o `sync-shared.sh --check` acusa) roda primeiro; a
+    reserva em Python abaixo replica a cascata inteira e só decide quando não há
+    bash na máquina — degradação declarada, nunca lógica divergente."""
+    sh = os.path.join(os.path.dirname(os.path.abspath(__file__)), "resolve-dir.sh")
+    if os.path.isfile(sh):
+        try:
+            r = subprocess.run(["bash", sh, root], capture_output=True, text=True,
+                               encoding="utf-8", errors="replace", timeout=15,
+                               stdin=subprocess.DEVNULL, start_new_session=True)
+            destino = (r.stdout or "").strip().splitlines()[-1] if r.stdout.strip() else ""
+            if r.returncode == 0 and destino:
+                return destino
+        except (subprocess.TimeoutExpired, FileNotFoundError, OSError):
+            pass  # sem bash (ou timeout): a reserva em Python decide
     home = os.path.expanduser("~")
     # Nível 1 — raiz do repositório git
     try:

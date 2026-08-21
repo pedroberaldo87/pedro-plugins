@@ -44,7 +44,9 @@ hj_leitor >/dev/null 2>&1 || { hj_avisa "userpromptsubmit-plan-escape"; exit 0; 
 
 INPUT=$(cat 2>/dev/null)
 PROMPT=$(hj_campo "$INPUT" prompt)
-SESSION=$(hj_campo_ou "$INPUT" session_id unknown)
+SESSION=$(hj_campo_ou "$INPUT" session_id "")
+# payload sem sessão: liberado — o sentinela "unknown" seria compartilhado entre sessões (o defeito do context-guard v1.1)
+[ -n "$SESSION" ] || exit 0
 CWD=$(hj_campo "$INPUT" cwd)
 [ -z "$PROMPT" ] && exit 0
 [ -z "$CWD" ] && CWD="$PWD"
@@ -97,7 +99,7 @@ fi
 
 printf '%s\n' "$PROJ" > "$ESCAPE" 2>/dev/null || exit 0
 
-CTX="🔓 Escape do gate de documentação ATIVADO para ${PROJ} nesta sessão — o usuário autorizou explicitamente planejar sem documentação. O gate de plano não vai mais barrar aqui. Ainda assim: registre no plano que ele foi feito SEM doc de referência, e ofereça \`/start\` ao final. Se isto foi engano, o usuário revoga com \`--com-doc\`."
+CTX="🔓 Escape do gate de documentação ATIVADO para ${PROJ} nesta sessão — o usuário autorizou planejar sem documentação.\nO gate de plano não vai mais barrar aqui.\nRegistre no plano que ele foi feito SEM doc de referência, e ofereça \`/start\` ao final.\nSe foi engano, o usuário revoga com \`--com-doc\`."
 
 hj_ctx UserPromptSubmit "$CTX"
 exit 0

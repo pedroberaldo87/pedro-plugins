@@ -39,7 +39,9 @@ hj_leitor >/dev/null 2>&1 || { hj_avisa "pretooluse-doc-guard"; exit 0; }
 
 INPUT=$(cat 2>/dev/null)
 TOOL=$(hj_campo "$INPUT" tool_name)
-SESSION=$(hj_campo_ou "$INPUT" session_id unknown)
+SESSION=$(hj_campo_ou "$INPUT" session_id "")
+# payload sem sessão: liberado — o sentinela "unknown" seria compartilhado entre sessões (o defeito do context-guard v1.1)
+[ -n "$SESSION" ] || exit 0
 CWD=$(hj_campo "$INPUT" cwd)
 [ -z "$CWD" ] && CWD="$PWD"
 
@@ -266,7 +268,9 @@ else
   READ_TARGET="${CLAUDE_MD_PATH} e o doc relevante em ${CASA_REL}/"
 fi
 
-MSG="📚 ${PROJ} tem documentação project-doc (${N} doc(s) em ${CASA_REL}/).${DOCLIST}${APPMSG} Antes de busca cega ou de delegar exploração, leia ${READ_TARGET}.${STALEMSG}${OOPMSG}${RELEASE_HINT} A busca fica bloqueada até a doc ser lida."
+MSG="📚 ${PROJ} tem documentação project-doc (${N} doc(s) em ${CASA_REL}/).${DOCLIST}${APPMSG}
+- Antes de busca cega ou de delegar exploração, leia ${READ_TARGET}.${STALEMSG}${OOPMSG}${RELEASE_HINT}
+- A busca fica bloqueada até a doc ser lida."
 
 hj_deny "$MSG"
 exit 0

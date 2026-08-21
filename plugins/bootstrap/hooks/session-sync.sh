@@ -70,7 +70,9 @@ if [ "${PEDRO_CACHE_AVISO:-1}" != "0" ] && [ -f "$LIB_DIR/cache-parado.sh" ]; th
       if [ "${CP_N:-0}" -gt 0 ] 2>/dev/null; then
         CP_TOPO="$(cp_parados 2>/dev/null | sort -k3 -rn | head -3 \
                    | awk '{printf "%s roda %s (%s paradas) · ", $1, $2, $3}')"
-        CP_MSG="🧹 ${CP_N} versão(ões) de plugin paradas no cache — só a mais alta roda. ${CP_TOPO}Peça \"limpa o cache\" e eu apago tudo que não é a mais alta, mostrando a lista antes."
+        CP_MSG="🧹 ${CP_N} versão(ões) de plugin paradas no cache — só a mais alta roda.
+- ${CP_TOPO}
+- Peça \"limpa o cache\": eu apago o que não é a mais alta, mostrando a lista antes."
         { command -v python3 >/dev/null 2>&1 && python3 --version >/dev/null 2>&1; } && \
           python3 -c 'import json,sys; print(json.dumps({"systemMessage": sys.argv[1]}))' "$CP_MSG"
         echo "$CP_AGORA" > "$CP_MARCA" 2>/dev/null

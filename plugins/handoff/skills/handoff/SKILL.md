@@ -85,7 +85,9 @@ Por que o extrator gera o LOG e não você: o seu julgamento não entra no LOG �
      - **Guardrail anti-sobrescrita:** se o `scope.handoff_path` já existe e foi escrito **< 5 min atrás** (ou é de uma frente claramente diferente do mesmo módulo) → suspeito (salvar dois handoffs seguidos não é o fluxo normal) → **confirme** antes de sobrescrever.
    - O PRD agrupa por tema o que está no LOG. Para CADA id em `gate_items`, referencia `[id]` no ponto onde aquela fala/decisão é tratada (o gate confirma que nada se perdeu). Findings e gotchas: ver a regra "verbatim" nas Regras do SALVAR.
    - **⚠️ ANTES de olhar o `last_plan`: existe arquivo de plano no disco?** Rode `ls <scope.project_root>/.claude/plans/*.plan.json 2>/dev/null`. **Se existir, ele MANDA e o `last_plan` é ignorado.** O `last_plan` é derivado do transcript: guarda só `txt[:1200]` do plano e adivinha a conclusão por `commits_after > 0 or edits_after >= 3` — 1 commit basta pra ele carimbar um plano de 10 fases como executado. O arquivo, ao contrário, tem o estado **passo a passo, com a prova de cada conclusão**. Com arquivo presente:
-     - Leia a árvore: `python3 <plugin project-skills>/lib/plan_state.py --dir <project_root>/.claude/plans render --format text` — ela dá o progresso e a prova de cada tique, mas é a vista de **execução**: `pronto`, `pendencia` e `requisito` NÃO aparecem nela. Esses três só existem no JSON, e são justamente os que você ia reescrever de cabeça. Leia-os do arquivo:
+     - Leia a árvore (o caminho do programa sai do resolvedor, e vazio = project-skills ausente — aí leia o JSON do plano direto, dizendo isso):
+       `PS="$(bash "<skill_dir>/../../hooks/resolve-plugin.sh" project-skills lib/plan_state.py)"` e
+       `python3 "$PS" --dir <project_root>/.claude/plans render --format text` — ela dá o progresso e a prova de cada tique, mas é a vista de **execução**: `pronto`, `pendencia` e `requisito` NÃO aparecem nela. Esses três só existem no JSON, e são justamente os que você ia reescrever de cabeça. Leia-os do arquivo:
        ```bash
        python3 - "<project_root>/.claude/plans" <<'PY'
        import glob, json, os, sys

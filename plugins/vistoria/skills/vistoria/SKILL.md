@@ -14,6 +14,8 @@ prosa "leia a constituição e o quality-goals do projeto":
    `python3 "$(bash "<plugin project-skills>/lib/resolve-plugin.sh" project-skills lib/doc_load.py)" --project-root "$PWD"`).
    Ela diz o que vale como régua HOJE — a lei com `ready`/`approved`, o acordo só com
    `approved`, o minerado como mapa — e o que está ausente, sem fingir.
+   **project-skills ausente na máquina** (resolvedor vazio): siga sem a régua carregada e
+   declare isso no relato — julgamento sem régua é julgamento de memória, e o leitor precisa saber.
 2. **Os princípios genéricos** — a skill `principles` em modo `review`, quando instalada
    na máquina. Ausente: siga sem ela, dizendo isso no relato.
 

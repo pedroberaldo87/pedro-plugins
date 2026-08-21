@@ -79,7 +79,9 @@ if [ "${PEDRO_CACHE_AVISO:-1}" != "0" ] \
     if [ "${PARADAS:-0}" -gt 0 ] 2>/dev/null; then
       TOPO="$(cp_parados 2>/dev/null | sort -k3 -rn | head -3 \
               | awk '{printf "%s roda %s (%s paradas) · ", $1, $2, $3}')"
-      MSG="🧹 ${PARADAS} versão(ões) de plugin paradas no cache — só a mais alta roda. ${TOPO}Peça \"limpa o cache\" e eu apago tudo que não é a mais alta, mostrando a lista antes."
+      MSG="🧹 ${PARADAS} versão(ões) de plugin paradas no cache — só a mais alta roda.
+- ${TOPO}
+- Peça \"limpa o cache\": eu apago o que não é a mais alta, mostrando a lista antes."
       if command -v python3 >/dev/null 2>&1 && python3 --version >/dev/null 2>&1; then
         python3 -c 'import json,sys; print(json.dumps({"systemMessage": sys.argv[1]}))' "$MSG"
       fi

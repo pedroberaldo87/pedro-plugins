@@ -1,6 +1,6 @@
 {
   "name": "gauntlet",
-  "version": "0.13.6",
+  "version": "0.13.7",
   "description": "Agents compete against a real-world benchmark you name, and nothing you built grades itself. The goal is split into separately judgeable pieces by an agent, each piece gets its own builder and its own blind judge, and the judge only passes what beats the target — never what merely satisfies the brief. The whole contest runs as a VISIBLE, steerable agent team in the conversation: the owner watches every builder and judge, redirects them mid-flight, vetoes, and stops — nothing runs inside a black box. Born from a real failure: seven builders were launched promising a judge in every briefing, zero judges were launched, and nobody noticed. Here a PreToolUse gate refuses to dispatch any new agent while a delivery sits unjudged, every verdict is a file on disk with the pair of observations that proves it, and the close is refused by a program when any of that is missing. Optional project law: it guides the builders, and the judge fails real violations. Works for a site, a game, an app screen, a report — anything you can build, iterate and judge with agents.",
   "author": {
     "name": "pedro-plugins"

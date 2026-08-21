@@ -14,6 +14,8 @@ prosa "leia a constituição e o quality-goals do projeto":
    `python3 "$(bash "<plugin project-skills>/lib/resolve-plugin.sh" project-skills lib/doc_load.py)" --project-root "$PWD"`).
    Ela diz o que vale como régua HOJE — a lei com `ready`/`approved`, o acordo só com
    `approved`, o minerado como mapa — e o que está ausente, sem fingir.
+   **project-skills ausente na máquina** (resolvedor vazio): siga sem a régua carregada e
+   declare isso no relato — julgamento sem régua é julgamento de memória, e o leitor precisa saber.
 2. **Os princípios genéricos** — a skill `principles` em modo `review`, quando instalada
    na máquina. Ausente: siga sem ela, dizendo isso no relato.
 
@@ -109,7 +111,8 @@ A saída traz `contra_a_anterior.consertos`: cada conserto nomeado, o número qu
 mirava nos dois lados, e o veredito (`melhorou`, `piorou`, `igual`, `sem_medida`).
 Nenhum conserto anotado ⇒ a lista sai vazia, e a resposta honesta é "não dá para saber".
 
-**A retenção: ficam as 50 rodadas mais novas.** Toda gravação apaga do arquivo o que
+**A retenção: ficam as rodadas mais novas, no teto da constante `RETENCAO` de
+`lib/registro.py` (é lá que o número vive).** Toda gravação apaga do arquivo o que
 passar disso — a comparação usa a rodada anterior, e histórico velho não responde
 pergunta nenhuma enquanto o arquivo cresceria para sempre. Quem aplica é o próprio
 `registro.py` (`RETENCAO`), não o agente: não há passo manual de limpeza aqui.

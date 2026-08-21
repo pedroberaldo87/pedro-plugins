@@ -200,7 +200,7 @@ as que eram dele vêm no mesmo automático.
 Quem decide quais entram é o próprio projeto minerado:
 
 ```bash
-python3 "$(bash "${CLAUDE_PLUGIN_ROOT}/lib/resolve-plugin.sh" project-skills lib/decisoes_estruturais.py)" <raiz-do-projeto>
+python3 "$(bash "${CLAUDE_PLUGIN_ROOT}/lib/resolve-plugin.sh" project-skills lib/decisoes_estruturais.py)" <raiz-do-projeto>   # <raiz-do-projeto> = a raiz git do projeto entrevistado
 ```
 
 - **Três são incondicionais** — como isso sobe, como se volta atrás, como se descobre que quebrou.
@@ -798,7 +798,7 @@ sistema inteiro e um `fluxo-<slug>.html` para cada fluxo que o `blueprint.md` no
 
 ```bash
 bash "${CLAUDE_PLUGIN_ROOT}/skills/start/diagrama-blueprint.sh" \
-  "<raiz>" workflow <entrada>.json organismo.html
+  "<raiz>" workflow <entrada>.json organismo.html   # <raiz> = a raiz do projeto · <entrada> = o JSON derivado do doc aprovado
 ```
 
 Ele acha o `archify` pelo **nome** (`resolve-plugin.sh`), nunca por caminho relativo, e recusa nome

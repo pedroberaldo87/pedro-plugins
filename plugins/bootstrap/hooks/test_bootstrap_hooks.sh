@@ -296,6 +296,27 @@ check "a statusLine nasce com refreshInterval" "10" \
   "$(python3 -c "import json,sys; print((json.load(open(sys.argv[1])).get('statusLine') or {}).get('refreshInterval'))" \
      "$CONF/settings.json" 2>/dev/null)"
 
+# ── O CONSENTIMENTO DAS PERMISSÕES (Artigo 2) ───────────────────────────────
+# Default de risco não nasce ligado: sem a marca de consentimento, o merge das
+# permissões não roda; com ela, o allow inteiro dos defaults entra por union.
+echo "-- permissões só entram com a marca de consentimento"
+
+CP="$TMP/ct-consent"
+mkdir -p "$CP/plugins/cache/pedro-plugins/context-guard/9.9.9/hooks"  # acopla-ok: fixture do caminho que o proprio apply-config.sh resolve
+: > "$CP/plugins/cache/pedro-plugins/context-guard/9.9.9/hooks/context-guard-writer.sh"  # acopla-ok: fixture do caminho que o proprio apply-config.sh resolve
+env CLAUDE_CONFIG_DIR="$CP" CLAUDE_PLUGIN_ROOT="$AQUI/.." \
+  bash "$AQUI/lib/apply-config.sh" >/dev/null 2>&1
+check "sem a marca, o allow não é aplicado" "0" \
+  "$(python3 -c "import json,sys; p=json.load(open(sys.argv[1])).get('permissions') or {}; print(len(p.get('allow') or []))" \
+     "$CP/settings.json" 2>/dev/null)"
+ESPERADO="$(python3 -c "import json,sys; print(len(json.load(open(sys.argv[1]))['permissions']['allow']))" "$AQUI/../config/settings-defaults.json")"
+touch "$CP/pedro-plugins-permissions-ok"
+env CLAUDE_CONFIG_DIR="$CP" CLAUDE_PLUGIN_ROOT="$AQUI/.." \
+  bash "$AQUI/lib/apply-config.sh" >/dev/null 2>&1
+check "com a marca, o allow dos defaults entra inteiro" "$ESPERADO" \
+  "$(python3 -c "import json,sys; print(len(json.load(open(sys.argv[1]))['permissions']['allow']))" \
+     "$CP/settings.json" 2>/dev/null)"
+
 echo
 echo "$OK ok · $FAIL FAIL"
 [ "$FAIL" -eq 0 ]
