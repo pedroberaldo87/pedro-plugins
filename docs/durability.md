@@ -619,6 +619,7 @@ Entrou no inventário em 2026-08-16. Ver `data-stores.md §A11` para a anatomia.
 - **É por isso que a perda importa mais do que parece:** a série é o que responde "a missão avança ou gira em falso", e é ela que o `relance` lê antes de autorizar a próxima execução. Sem histórico, a decisão de relançar volta a ser palpite — que foi o defeito que o registro existe para matar.
 - ⚠️ **Já perdeu linhas uma vez, e ninguém sabe por quê** (2026-08-15, num arquivo append-only por desenho). As três foram restauradas do que o próprio programa tinha impresso e marcadas com `restaurado:` — a **causa segue desconhecida**, então a perda pode se repetir sem aviso.
 - **Sem semente versionada, e é correto assim** — o conteúdo é o que ESTA máquina executou, com o caminho do plano dela. Mesma classe do `arsenal.md` (§3.16c) nesse ponto.
+- 🆕 **O vizinho `paradas.jsonl` (mesma pasta, mesmo gitignore, `data-stores.md §A11b`) tem a MESMA cobertura: nenhuma — e perde mais.** Ali mora uma linha por parada do laço com `causa`, `conserto` e o `sha` do commit; o commit sobrevive no git, mas a associação *pedra → conserto → corrida* só existe neste arquivo, e é dela que a seção de problemas do relatório final é derivada. Apagado, o relatório volta a sair da memória da sessão, que é o defeito que o registro existe para matar.
 
 ### 3.17 · Cofre de secrets — iCloud
 

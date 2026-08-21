@@ -42,6 +42,56 @@ RETORNO_DO_MOTOR = {
 }
 
 
+def prova_da_parada(raiz):
+    """F23.7 — uma linha por PARADA, com desfecho, causa, conserto e sha.
+
+    O que prova: duas paradas viram DUAS linhas (a segunda nao apaga a primeira), os
+    quatro campos chegam inteiros na leitura, e campo obrigatorio vazio RECUSA — e o
+    par que mais importa e conserto+sha, porque e ele que separa "consertado" de
+    "lembrado" na secao de problemas do relatorio final.
+    """
+    falhas = []
+    P1 = {"run_id": "wf_abc", "desfecho": "porta-fechada",
+          "causa": "o catalogo de desfechos estava defasado",
+          "conserto": "entrada nova no inventario de retomada.py",
+          "sha": "a1b2c3d"}
+    P2 = dict(P1, run_id="wf_def", causa="comparacao de caminho por texto cru",
+              conserto="passou a usar lib-project-root.sh", sha="sem-commit")
+
+    if ledger_corridas.le_paradas(raiz) != []:
+        falhas.append("registro de paradas inexistente deveria ler vazio")
+    ledger_corridas.registra_parada(raiz, P1)
+    ledger_corridas.registra_parada(raiz, P2)
+    linhas = ledger_corridas.le_paradas(raiz)
+    if len(linhas) != 2:
+        falhas.append("esperava 2 paradas, veio %d — a segunda sobrescreveu?" % len(linhas))
+    else:
+        for gravada, esperada in zip(linhas, (P1, P2)):
+            for campo in ledger_corridas.CAMPOS_PARADA:
+                if gravada.get(campo) != esperada[campo]:
+                    falhas.append("parada %s perdeu o campo %s: %r"
+                                  % (esperada["run_id"], campo, gravada.get(campo)))
+            if not gravada.get("gravado_em"):
+                falhas.append("parada %s sem carimbo de gravacao" % esperada["run_id"])
+
+    # O registro nao se mistura com o das corridas: sao dois graos, dois arquivos.
+    if ledger_corridas.caminho_paradas(raiz) == ledger_corridas.caminho(raiz):
+        falhas.append("a parada esta sendo gravada no arquivo das corridas")
+
+    # Campo obrigatorio vazio RECUSA — nenhum dos quatro e opcional, e o par
+    # conserto+sha e justamente o que a memoria da sessao supria de graca.
+    for campo in ledger_corridas.CAMPOS_PARADA:
+        try:
+            ledger_corridas.registra_parada(raiz, dict(P1, **{campo: ""}))
+            falhas.append("parada sem `%s` deveria reprovar, gravou" % campo)
+        except ValueError:
+            pass
+
+    if len(ledger_corridas.le_paradas(raiz)) != 2:
+        falhas.append("uma recusa chegou a escrever no registro (nao e append-only limpo)")
+    return falhas
+
+
 def prova_do_run(raiz):
     """F24.2 — a entrada SAI do resultado do run, e vazio reprova."""
     falhas = []
@@ -333,6 +383,7 @@ def main():
         except ValueError:
             pass
 
+        falhas += prova_da_parada(raiz)
         falhas += prova_do_run(raiz)
         falhas += prova_morta_por_fora(raiz)
 
