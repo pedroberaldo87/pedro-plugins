@@ -693,7 +693,11 @@ def _pergunta_a_guarda(proot, cmd, tool, entrada, raiz, teto):
                CLAUDE_PLUGIN_ROOT=proot.replace(os.sep, "/"),
                CLAUDE_PROJECT_DIR=raiz.replace(os.sep, "/"))
     try:
-        r = subprocess.run(cmd, cwd=raiz, shell=True, capture_output=True, text=True,
+        # o comando da guarda é de shell POSIX ($VAR expande) — no Windows o
+        # shell=True cai no cmd.exe e a guarda "respondia" vazio
+        _b = bash_posix()
+        r = subprocess.run([_b, "-c", cmd] if _b else cmd,
+                           cwd=raiz, shell=not _b, capture_output=True, text=True,
                            encoding="utf-8", errors="replace", timeout=teto,
                            input=payload, env=env, start_new_session=True)
     except (OSError, subprocess.SubprocessError):
