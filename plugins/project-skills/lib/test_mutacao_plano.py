@@ -130,6 +130,10 @@ MUTACOES = [
      "lib/plan_state.py",
      "    if abertas:\n", "    if False:\n",
      ("test_plan_state.py",)),
+    ("R) o init parcial julga só o pedaço que chegou",
+     "lib/plan_state.py",
+     "        errs = _erros_das_dependencias(incoming)\n", "        errs = []\n",
+     ("test_plan_state.py",)),
     ("CONTROLE (nenhuma mutação)", None, None, None, None),
 ]
 

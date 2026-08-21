@@ -1833,6 +1833,113 @@ def _detalhe(it):
     return d, "pt-desc"
 
 
+def ondas(plan):
+    """(onda de cada passo, cadeia crítica) — DERIVADO do grafo, nunca gravado.
+
+    Onda = distância topológica: quem não espera ninguém é onda 1, e quem espera é
+    a maior onda de quem ele depende, +1. A cadeia crítica é o caminho mais longo do
+    grafo — a resposta desenhada de "o que trava o resto?". O eixo é a onda e nunca o
+    calendário: estimar duração é proibido neste projeto, e data sem estimativa é
+    chute com cara de medição (`docs/specs/wbs-gantt-proposta.md`, §5).
+    """
+    idx = {it["id"]: it for _, it in iter_items(plan)}
+    nivel, base = {}, {}
+
+    def calc(iid, vendo):
+        if iid in nivel:
+            return nivel[iid]
+        # ciclo é recusado na gravação; aqui a marca `vendo` só impede o estouro de
+        # pilha se um arquivo torto chegar ao renderizador
+        deps = [d for d in _depende_de(idx[iid]) if d in idx and d not in vendo]
+        alturas = [(calc(d, vendo | {iid}), d) for d in deps]
+        alto = max(alturas) if alturas else (0, None)
+        nivel[iid] = alto[0] + 1
+        base[iid] = alto[1]
+        return nivel[iid]
+
+    for iid in idx:
+        calc(iid, set())
+    critico = []
+    if nivel and max(nivel.values()) > 1:
+        fim = max(idx, key=lambda i: (nivel[i], -list(idx).index(i)))
+        while fim:
+            critico.insert(0, fim)
+            fim = base.get(fim)
+    return nivel, critico
+
+
+def _linha_gantt(it, onda, critico):
+    """Uma barra por passo, começando na coluna da própria onda."""
+    st = it.get("status", "todo")
+    espera = _depende_de(it)
+    return "%s%s ██ %s  %s  %s%s" % (
+        " " * (2 + 4 * (onda - 1)),
+        "🔥" if it["id"] in critico else "  ",
+        it["id"], it["title"], MARK[st],
+        ("  ← espera %s" % ", ".join(espera)) if espera else "")
+
+
+def _render_gantt(plan):
+    """A vista de ondas: o que pode correr junto, e o que trava o resto."""
+    nivel, critico = ondas(plan)
+    done, total = plan_progress(plan)
+    out = ["📋 %s — %d/%d passos" % (plan.get("title", plan["id"]), done, total), ""]
+    out.append("🔥 caminho crítico: %s" % " → ".join(critico) if critico
+               else "sem dependência declarada: tudo cai na onda 1")
+    out.append("")
+    for n in sorted(set(nivel.values())):
+        out.append("ONDA %d  %s" % (n, "(nada trava)" if n == 1
+                                    else "(espera a onda %d)" % (n - 1)))
+        for _, it in iter_items(plan):
+            if nivel[it["id"]] == n:
+                out.append(_linha_gantt(it, n, critico))
+        out.append("")
+    return "\n".join(out).rstrip() + "\n"
+
+
+def _html_gantt(plan):
+    """A mesma vista na página: onda no lugar da fase, barra no lugar do bolinha.
+
+    Reaproveita as classes `pt-*` do template — vista nova não pede CSS novo.
+    """
+    nivel, critico = ondas(plan)
+    done, total = plan_progress(plan)
+    pct = int(round(100.0 * done / total)) if total else 0
+    p = ['<div class="plan-tree pt-gantt">',
+         '  <div class="pt-head">',
+         '    <span class="pt-title">📋 %s</span>' % _e(plan.get("title", plan["id"])),
+         '    <span class="pt-count">%d/%d passos</span>' % (done, total),
+         '  </div>',
+         '  <div class="pt-bar"><div class="pt-fill" style="width:%d%%"></div></div>' % pct,
+         '  <p class="pt-desc">%s</p>'
+         % _e("🔥 caminho crítico: " + " → ".join(critico) if critico
+              else "sem dependência declarada: tudo cai na onda 1")]
+    for n in sorted(set(nivel.values())):
+        p.append('  <div class="pt-phase pt-onda">')
+        p.append('    <div class="pt-phase-head"><span class="pt-phase-title">'
+                 'ONDA %d</span><span class="pt-phase-count">%s</span></div>'
+                 % (n, _e("nada trava" if n == 1 else "espera a onda %d" % (n - 1))))
+        p.append('    <ul class="pt-items">')
+        for _, it in iter_items(plan):
+            if nivel[it["id"]] != n:
+                continue
+            st = it.get("status", "todo")
+            espera = _depende_de(it)
+            p.append('      <li class="pt-item pt-%s%s" style="margin-left:%dem">'
+                     % (st, " pt-critico" if it["id"] in critico else "", 2 * (n - 1)))
+            p.append('        <span class="pt-dot">%s</span>' % MARK[st])
+            p.append('        <span class="pt-item-title"><span class="pt-id">%s</span>%s</span>'
+                     % (_e(it["id"]), _e(it["title"])))
+            if espera:
+                p.append('        <span class="pt-desc">← espera %s</span>'
+                         % _e(", ".join(espera)))
+            p.append('      </li>')
+        p.append('    </ul>')
+        p.append('  </div>')
+    p.append('</div>')
+    return "\n".join(p) + "\n"
+
+
 def render_text(plan, reqs=None, vista="execucao", compacto=False):
     """A árvore de execução em texto.
 
@@ -1843,6 +1950,8 @@ def render_text(plan, reqs=None, vista="execucao", compacto=False):
     """
     if vista == "valor":
         return _render_valor(plan, reqs or {})
+    if vista == "gantt":
+        return _render_gantt(plan)
     done, total = plan_progress(plan)
     out = ["📋 %s — %d/%d passos" % (plan.get("title", plan["id"]), done, total)]
     # A frente aparece na árvore porque ela é o que fica esquecido: quem lê "onde a
@@ -2028,6 +2137,8 @@ def render_html(plan, mode="track", reqs=None, vista="execucao"):
     """
     if vista == "valor":
         return _html_valor(plan, reqs or {})
+    if vista == "gantt":
+        return _html_gantt(plan)
     done, total = plan_progress(plan)
     pct = int(round(100.0 * done / total)) if total else 0
     parts = ['<div class="plan-tree">',
@@ -2357,7 +2468,7 @@ def build_parser():
     q.add_argument("plan", nargs="?")
     q.add_argument("--mode", choices=("track", "approve"), default="track")
     q.add_argument("--format", choices=("html", "text"), default="html")
-    q.add_argument("--vista", choices=("execucao", "valor"), default="execucao")
+    q.add_argument("--vista", choices=("execucao", "valor", "gantt"), default="execucao")
     q.add_argument("--compacto", action="store_true",
                    help="uma linha por passo, sem a prova — a vista de 'onde a gente está'")
     q.set_defaults(func=cmd_render)
@@ -2366,7 +2477,7 @@ def build_parser():
     q.add_argument("plan", nargs="?")
     q.add_argument("--mode", choices=("track", "approve"), default="track")
     q.add_argument("--out", help="caminho do HTML (default: <dir do /visual>/plano-<id>-<modo>.html)")
-    q.add_argument("--vista", choices=("execucao", "valor"), default="execucao")
+    q.add_argument("--vista", choices=("execucao", "valor", "gantt"), default="execucao")
     q.set_defaults(func=cmd_page)
 
     q = sub.add_parser("brief", help="1-3 bullets de 'onde nós estamos' (usado pelo hook de fim de turno)")
