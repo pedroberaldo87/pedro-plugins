@@ -348,6 +348,86 @@ def _funde_limites(stored, incoming):
     return novos + mantidos, [str(x.get("limite", "")).strip() for x in mantidos]
 
 
+def _depende_de(it):
+    """A lista `depende` do passo, sempre lista (ausente = vazia)."""
+    d = it.get("depende")
+    return d if isinstance(d, list) else []
+
+
+def _passos_do_plano(plan):
+    """Todo passo do plano, tolerante a plano torto — esta varredura roda ANTES
+    de o plano estar provado válido, então `phases`/`items` podem não ser listas."""
+    for ph in plan.get("phases") or []:
+        if not isinstance(ph, dict):
+            continue
+        for it in ph.get("items") or []:
+            if isinstance(it, dict):
+                yield it
+
+
+def _erros_das_dependencias(plan):
+    """O campo `depende` — a aresta única "o outro termina antes deste começar".
+
+    Formato, no passo, ao lado de `requisito`:
+        "depende": ["F11.1"]
+
+    Recusa a GRAVAÇÃO em vez de avisar: quem escreve o JSON é o modelo, e aresta
+    que aponta pro nada apodrece em silêncio igual ao `requisito` inexistente.
+    """
+    errs = []
+    grafo = {}
+    # Só id de PASSO: fase é pasta, não trabalho — quem quer travar a fase inteira
+    # lista os passos dela.
+    ids = {str(it.get("id", "")) for it in _passos_do_plano(plan)}
+    for it in _passos_do_plano(plan):
+        iid = str(it.get("id", "?"))
+        dep = it.get("depende")
+        if dep is None:
+            continue
+        if not isinstance(dep, list) or not all(isinstance(x, str) for x in dep):
+            errs.append("%s depende: lista de ids de passo (ex: [\"F1.1\"]), ou ausente" % iid)
+            continue
+        vistos = []
+        for d in dep:
+            d = d.strip()
+            if d == iid:
+                errs.append("%s depende de si mesmo: passo que espera a si nunca começa" % iid)
+            elif d not in ids:
+                errs.append("%s depende de '%s': não existe no plano.\n"
+                            "     Ids conhecidos: %s"
+                            % (iid, d, ", ".join(sorted(ids)[:8]) or "(nenhum)"))
+            elif d in vistos:
+                errs.append("%s depende de '%s' duas vezes" % (iid, d))
+            else:
+                vistos.append(d)
+        grafo[iid] = vistos
+    # Ciclo — a única guarda com algoritmo. Varredura em profundidade com marca de
+    # cinza (na pilha) e preto (fechado); o anel INTEIRO entra na recusa, senão quem
+    # lê sabe que há ciclo e não sabe onde cortá-lo.
+    cor, pilha, anel = {}, [], []
+
+    def desce(n):
+        cor[n] = "cinza"
+        pilha.append(n)
+        for m in grafo.get(n, []):
+            if cor.get(m) == "cinza":
+                anel.append(pilha[pilha.index(m):] + [m])
+                return True
+            if cor.get(m) is None and desce(m):
+                return True
+        pilha.pop()
+        cor[n] = "preto"
+        return False
+
+    for n in grafo:
+        if cor.get(n) is None and desce(n):
+            break
+    if anel:
+        errs.append("depende: ciclo — %s. Ninguém pode começar: cada um espera o\n"
+                    "     seguinte. Corte uma das setas." % " → ".join(anel[0]))
+    return errs
+
+
 def erros_do_plano(plan, exigir=None):
     """Erros de forma, todos de uma vez — devolver um por vez faz o autor
     gastar N rodadas pra escrever um arquivo.
@@ -477,6 +557,7 @@ def erros_do_plano(plan, exigir=None):
                 "     está marcado com `tick <id> --evidencia`. Plano 'done' sai da\n"
                 "     listagem — do jeito que está, ele levaria esses passos junto."
                 % (len(pendentes), ", ".join(pendentes[:8])))
+    errs.extend(_erros_das_dependencias(plan))
     return errs
 
 
@@ -584,13 +665,23 @@ def cmd_init(args):
         # o merge funde por id, então o que vai FICAR gravado é a união — validar
         # contra o pedaço reprovaria a tarefa que cita requisito só do arquivo.
         fonte = dict(incoming, requisitos=_funde_requisitos(stored, incoming)[0])
+    # A guarda de `depende` (R-36) julga o plano FUNDIDO, não o que chegou: init
+    # parcial que não traz a fase vizinha diria "não existe no plano" de um passo
+    # que está no disco, e o ciclo que só nasce da FUSÃO (o arquivo tem A→B, o init
+    # traz B→A) não está inteiro em nenhum dos dois lados e passaria batido.
+    isentos = list(_erros_herdados(stored, incoming))
+    if stored is not None:
+        isentos += _erros_das_dependencias(incoming)
     validate(incoming, exigir=novos,
              reqs=_requisitos_do_projeto(directory, fonte),
-             isentos=_erros_herdados(stored, incoming))
+             isentos=isentos)
 
     notes = []
     if stored is not None:
         incoming, notes = merge(stored, incoming, renames=dict(args.rename or []))
+        errs = _erros_das_dependencias(incoming)
+        if errs:
+            raise PlanError("plano inválido:\n  - " + "\n  - ".join(errs))
     else:
         incoming.setdefault("created", time.strftime("%Y-%m-%d"))
         incoming.setdefault("status", "active")
@@ -979,6 +1070,18 @@ def cmd_tick(args):
               file=sys.stderr)
         for e in erros[:3]:
             print("     %s" % e, file=sys.stderr)
+
+    # WBS · R-36: a base tem que estar de pé. Marcar feito um passo cuja dependência
+    # ainda está aberta é a mesma mentira que `done` sem prova — e essa o arquivo já
+    # recusa. Decisão do dono em 2026-08-16: "Recusar, sempre".
+    abertas = [d for d in _depende_de(it)
+               if (find_item(plan, d)[1] or {}).get("status") != "done"]
+    if abertas:
+        raise PlanError(
+            "⛔ tick recusado: %s depende de passo que ainda não fechou: %s.\n"
+            "   O que este passo espera tem que estar marcado antes dele. Se a ordem\n"
+            "   mudou, mude a seta no plano (`init`) — não o tique."
+            % (node_id, ", ".join(abertas)))
 
     pend = pendencia_viva(it)
     if pend:
@@ -1730,6 +1833,113 @@ def _detalhe(it):
     return d, "pt-desc"
 
 
+def ondas(plan):
+    """(onda de cada passo, cadeia crítica) — DERIVADO do grafo, nunca gravado.
+
+    Onda = distância topológica: quem não espera ninguém é onda 1, e quem espera é
+    a maior onda de quem ele depende, +1. A cadeia crítica é o caminho mais longo do
+    grafo — a resposta desenhada de "o que trava o resto?". O eixo é a onda e nunca o
+    calendário: estimar duração é proibido neste projeto, e data sem estimativa é
+    chute com cara de medição (`docs/specs/wbs-gantt-proposta.md`, §5).
+    """
+    idx = {it["id"]: it for _, it in iter_items(plan)}
+    nivel, base = {}, {}
+
+    def calc(iid, vendo):
+        if iid in nivel:
+            return nivel[iid]
+        # ciclo é recusado na gravação; aqui a marca `vendo` só impede o estouro de
+        # pilha se um arquivo torto chegar ao renderizador
+        deps = [d for d in _depende_de(idx[iid]) if d in idx and d not in vendo]
+        alturas = [(calc(d, vendo | {iid}), d) for d in deps]
+        alto = max(alturas) if alturas else (0, None)
+        nivel[iid] = alto[0] + 1
+        base[iid] = alto[1]
+        return nivel[iid]
+
+    for iid in idx:
+        calc(iid, set())
+    critico = []
+    if nivel and max(nivel.values()) > 1:
+        fim = max(idx, key=lambda i: (nivel[i], -list(idx).index(i)))
+        while fim:
+            critico.insert(0, fim)
+            fim = base.get(fim)
+    return nivel, critico
+
+
+def _linha_gantt(it, onda, critico):
+    """Uma barra por passo, começando na coluna da própria onda."""
+    st = it.get("status", "todo")
+    espera = _depende_de(it)
+    return "%s%s ██ %s  %s  %s%s" % (
+        " " * (2 + 4 * (onda - 1)),
+        "🔥" if it["id"] in critico else "  ",
+        it["id"], it["title"], MARK[st],
+        ("  ← espera %s" % ", ".join(espera)) if espera else "")
+
+
+def _render_gantt(plan):
+    """A vista de ondas: o que pode correr junto, e o que trava o resto."""
+    nivel, critico = ondas(plan)
+    done, total = plan_progress(plan)
+    out = ["📋 %s — %d/%d passos" % (plan.get("title", plan["id"]), done, total), ""]
+    out.append("🔥 caminho crítico: %s" % " → ".join(critico) if critico
+               else "sem dependência declarada: tudo cai na onda 1")
+    out.append("")
+    for n in sorted(set(nivel.values())):
+        out.append("ONDA %d  %s" % (n, "(nada trava)" if n == 1
+                                    else "(espera a onda %d)" % (n - 1)))
+        for _, it in iter_items(plan):
+            if nivel[it["id"]] == n:
+                out.append(_linha_gantt(it, n, critico))
+        out.append("")
+    return "\n".join(out).rstrip() + "\n"
+
+
+def _html_gantt(plan):
+    """A mesma vista na página: onda no lugar da fase, barra no lugar do bolinha.
+
+    Reaproveita as classes `pt-*` do template — vista nova não pede CSS novo.
+    """
+    nivel, critico = ondas(plan)
+    done, total = plan_progress(plan)
+    pct = int(round(100.0 * done / total)) if total else 0
+    p = ['<div class="plan-tree pt-gantt">',
+         '  <div class="pt-head">',
+         '    <span class="pt-title">📋 %s</span>' % _e(plan.get("title", plan["id"])),
+         '    <span class="pt-count">%d/%d passos</span>' % (done, total),
+         '  </div>',
+         '  <div class="pt-bar"><div class="pt-fill" style="width:%d%%"></div></div>' % pct,
+         '  <p class="pt-desc">%s</p>'
+         % _e("🔥 caminho crítico: " + " → ".join(critico) if critico
+              else "sem dependência declarada: tudo cai na onda 1")]
+    for n in sorted(set(nivel.values())):
+        p.append('  <div class="pt-phase pt-onda">')
+        p.append('    <div class="pt-phase-head"><span class="pt-phase-title">'
+                 'ONDA %d</span><span class="pt-phase-count">%s</span></div>'
+                 % (n, _e("nada trava" if n == 1 else "espera a onda %d" % (n - 1))))
+        p.append('    <ul class="pt-items">')
+        for _, it in iter_items(plan):
+            if nivel[it["id"]] != n:
+                continue
+            st = it.get("status", "todo")
+            espera = _depende_de(it)
+            p.append('      <li class="pt-item pt-%s%s" style="margin-left:%dem">'
+                     % (st, " pt-critico" if it["id"] in critico else "", 2 * (n - 1)))
+            p.append('        <span class="pt-dot">%s</span>' % MARK[st])
+            p.append('        <span class="pt-item-title"><span class="pt-id">%s</span>%s</span>'
+                     % (_e(it["id"]), _e(it["title"])))
+            if espera:
+                p.append('        <span class="pt-desc">← espera %s</span>'
+                         % _e(", ".join(espera)))
+            p.append('      </li>')
+        p.append('    </ul>')
+        p.append('  </div>')
+    p.append('</div>')
+    return "\n".join(p) + "\n"
+
+
 def render_text(plan, reqs=None, vista="execucao", compacto=False):
     """A árvore de execução em texto.
 
@@ -1740,6 +1950,8 @@ def render_text(plan, reqs=None, vista="execucao", compacto=False):
     """
     if vista == "valor":
         return _render_valor(plan, reqs or {})
+    if vista == "gantt":
+        return _render_gantt(plan)
     done, total = plan_progress(plan)
     out = ["📋 %s — %d/%d passos" % (plan.get("title", plan["id"]), done, total)]
     # A frente aparece na árvore porque ela é o que fica esquecido: quem lê "onde a
@@ -1925,6 +2137,8 @@ def render_html(plan, mode="track", reqs=None, vista="execucao"):
     """
     if vista == "valor":
         return _html_valor(plan, reqs or {})
+    if vista == "gantt":
+        return _html_gantt(plan)
     done, total = plan_progress(plan)
     pct = int(round(100.0 * done / total)) if total else 0
     parts = ['<div class="plan-tree">',
@@ -2254,7 +2468,7 @@ def build_parser():
     q.add_argument("plan", nargs="?")
     q.add_argument("--mode", choices=("track", "approve"), default="track")
     q.add_argument("--format", choices=("html", "text"), default="html")
-    q.add_argument("--vista", choices=("execucao", "valor"), default="execucao")
+    q.add_argument("--vista", choices=("execucao", "valor", "gantt"), default="execucao")
     q.add_argument("--compacto", action="store_true",
                    help="uma linha por passo, sem a prova — a vista de 'onde a gente está'")
     q.set_defaults(func=cmd_render)
@@ -2263,7 +2477,7 @@ def build_parser():
     q.add_argument("plan", nargs="?")
     q.add_argument("--mode", choices=("track", "approve"), default="track")
     q.add_argument("--out", help="caminho do HTML (default: <dir do /visual>/plano-<id>-<modo>.html)")
-    q.add_argument("--vista", choices=("execucao", "valor"), default="execucao")
+    q.add_argument("--vista", choices=("execucao", "valor", "gantt"), default="execucao")
     q.set_defaults(func=cmd_page)
 
     q = sub.add_parser("brief", help="1-3 bullets de 'onde nós estamos' (usado pelo hook de fim de turno)")

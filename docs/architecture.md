@@ -245,7 +245,7 @@ scripts/*.py                      os outros cobradores do gate — a lista está
   │                               (uma letra por checagem, e as letras NÃO são contíguas nem
   │                               estão em ordem no arquivo — a lista é
   │                               `grep -oE '^# [A-Z0-9-]+ · ' .claude/hooks/release-gate.sh`,
-  │                               que neste run devolve 25; a classe `[A-Z] ·` de antes não
+  │                               que neste run devolve 26 (o V, do Artigo 8, entrou em 2026-08-21); a classe `[A-Z] ·` de antes não
   │                               casava `R-19`/`R-25`/`P2` e subcontava)
   ├── hook-contract.baseline.json o retrato do contrato dos hooks  ← VERSIONADO
   ├── *.baseline.json             os outros retratos congelados — `git ls-files '.claude/*.baseline.json'`
@@ -372,12 +372,12 @@ improve-workflow  0.16.29  [improve-workflow]           -
 intent-guard       0.8.16  [intent-guard]               HOOKS
 lixeiro            1.5.11  [faxina]                     HOOKS
 principles          1.0.5  [principles]                 -
-project-skills    0.22.152  [completude,design-md,doc,doc-load,doc-touch,monitorar,pesquisa-referencias,plan,project-skills,qa-loop,sprint,start] HOOKS
+project-skills    0.22.155  [completude,design-md,doc,doc-load,doc-touch,monitorar,pesquisa-referencias,plan,project-skills,qa-loop,sprint,start] HOOKS
 ship                1.5.7  [ship]                       HOOKS
 slides              1.6.5  [slides]                     -
 vision              0.1.1  []                           -
 vistoria           0.11.8  [vistoria]                   -
-visual             1.42.2  [andamento,visual]           HOOKS
+visual             1.42.3  [andamento,visual]           HOOKS
 ```
 
 **A rodada anterior moveu onde as skills MORAM; esta apagou as CASAS que tinham ficado
