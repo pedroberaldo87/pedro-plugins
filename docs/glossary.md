@@ -45,7 +45,7 @@ approved-sig: 1157159911
 - **doc autoral** — a que só o humano pode responder (metas, restrições, lei); vale como régua.
 - **2op** — segunda opinião: outra cabeça de modelo revisa sem receber a conclusão de quem pediu.
 - **organismo** — repositório raiz com módulos dentro; a lei nasce na raiz e o módulo herda.
-- **assintótico** — domínio sem estado perfeito alcançável (raspador, classificador, "achar todos os defeitos"); ali a parada é por severidade e retorno decrescente, nunca por zero.
+- **assintótico** — domínio sem estado perfeito alcançável (raspador, classificador, "achar todos os defeitos"); ali o laço fecha por SEVERIDADE — rodada completa sem achado acima do piso —, nunca por zero nem por gasto (Artigo 14).
 - **convergente** — domínio com estado-alvo binário alcançável; ali o laço vai até atingir.
 - **drill-down** — tudo nasce fechado e quem desce ao detalhe é o dono, perguntando; vale para página, relatório e resposta.
 - **limite aceito** — desacordo entre a régua e a obra que o dono decidiu não consertar, com motivo e condição de revogação escritos.

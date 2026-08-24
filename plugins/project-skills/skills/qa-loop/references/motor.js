@@ -42,13 +42,16 @@ const PLAN = { type:'object', required:['bucket1','drift','alerts'], properties:
   drift:{type:'array', items:{type:'object'}},
   alerts:{type:'array', items:{type:'object'}},
   proposedLimits:{type:'array', items:{type:'object'}},
-  rejected:{type:'array', items:{type:'object'}},
+  // `id` é obrigatório porque o fecho monta `rejeitados` a partir dele: sem id, o
+  // Set nasce {undefined} e o achado derrubado pelo árbitro volta em `emAberto`.
+  rejected:{type:'array', items:{type:'object', required:['id','motivo'],
+    properties:{ id:{type:'string'}, motivo:{type:'string'} }}},
   anchor:{type:'string'} } }
 
 const EXEC_RESULT = { type:'object', required:['fix_id','fn','files_touched','suiteRegressed'], properties:{
   fix_id:{type:'string'}, fn:{type:'string'}, files_touched:{type:'array',items:{type:'string'}},
   test_name:{type:'string'}, suiteRegressed:{type:'boolean'}, suiteOutput:{type:'string'},
-  newInvariant:{type:'string'}, note:{type:'string'} } }
+  newInvariant:{type:'string'}, note:{type:'string'}, reverted:{type:'boolean'} } }
 
 const DESAFIO = { type:'object', required:['procede','motivo'], properties:{
   procede:{type:'boolean'}, motivo:{type:'string'} } }
@@ -59,21 +62,50 @@ const DESAFIO = { type:'object', required:['procede','motivo'], properties:{
 const SEM_HIPOTESE = `VOCÊ NÃO RECEBE A HIPÓTESE DE QUEM PEDIU O JULGAMENTO: julgue o artefato e o contrato.
 Diagnóstico, causa-raiz ou veredito alheio que apareça no material é alegação A VERIFICAR no disco, nunca ponto de partida.`
 
+// ── O PROJETO REVISADO NEM SEMPRE É ESTA CASA (2026-08-23) ───────────────────
+// Stack, regras da casa e comando de suíte VÊM POR ARGS; o default é este
+// repositório, então quem revisa o marketplace não vê diferença nenhuma.
+//
+// Cravados, eles diziam ao revisor de QUALQUER projeto que ele estava num
+// marketplace de Markdown/Bash/Python sem build, e mandavam julgar contra sete
+// regras (bump de plugin.json, sync-shared, subprocess...) que só existem aqui.
+// Pior: o `find` por test_*.py do execPrompt, num projeto TypeScript, acha ZERO
+// teste do módulo alterado — e ainda varre a suíte Python de módulos vizinhos,
+// que é a armadilha que os CLAUDE.md de monorepo nomeiam ("vermelho de ambiente
+// passando por vermelho de código"). Suíte que não coleta nada devolve "nenhum
+// teste falhou", então `suiteRegressed` nascia false e o gate de regressão POR
+// CONSERTO — o de maior retorno da skill — ficava cego parecendo verde.
+// Medido em 2026-08-23: 5 sessões pós-arquivo, todas em projetos JS/TS, 44
+// consertos aplicados e 0 regressões detectadas.
+//
+// O motor do /sprint já resolvia isto desde 2026-08-13 (`suiteCmd`, l.723 de lá);
+// este ficou para trás — a MESMA assimetria que o comentário do topo narra, num
+// outro eixo. Cobrador: test_qa_loop_motor.py (checagem F).
+const STACK_PADRAO = 'Marketplace PÚBLICO de plugins do Claude Code. Markdown + Bash + Python 3 stdlib. SEM build, SEM CI.'
+const REGRAS_PADRAO = [
+  'Bump de plugin.json em toda mudança de plugin + espelho no .claude-plugin/marketplace.json (cobrador: scripts/cadeia_check.py --repo).',
+  'Todo subprocess nasce com stdin=subprocess.DEVNULL e start_new_session=True (cobrador: scripts/vazamento_check.py).',
+  'Nada de caminho absoluto de máquina, nome próprio do dono, e-mail pessoal ou credencial em arquivo rastreado (cobrador: scripts/public_repo_check.py).',
+  'Caminho de plugin se resolve por NOME (lib/resolve-plugin.sh, lib/resolve-skill.sh), nunca escrito à mão.',
+  'Editou _shared/? rode scripts/sync-shared.sh — as cópias vendoradas defasam.',
+  'Contagem cravada em doc é acoplamento: entra o COMANDO que a produz (cobrador: scripts/desacoplamento_check.py).',
+  'Estado mutável vai em ~/.claude/, nunca dentro do plugin.',
+]
+const stack = ARGS.stack || STACK_PADRAO
+const regrasDaCasa = (ARGS.regrasDaCasa && ARGS.regrasDaCasa.length) ? ARGS.regrasDaCasa : REGRAS_PADRAO
+// null = sem declaração; o execPrompt cai no `find` E manda conferir se ele cobre o
+// que foi tocado. A casca lê este comando do CLAUDE.md do projeto e o passa literal.
+const suiteCmd = ARGS.suiteCmd || null
+
 const CONTEXTO = `REPOSITÓRIO: ${RAIZ}
-Marketplace PÚBLICO de plugins do Claude Code. Markdown + Bash + Python 3 stdlib. SEM build, SEM CI.
+${stack}
 
 A RÉGUA DESTE PROJETO (abra e leia — não confie neste resumo):
 ${(ARGS.regua || []).map(r => `- ${r}`).join('\n')}
 Documento minerado vale como MAPA, nunca como régua.
 
-REGRAS DA CASA (do CLAUDE.md — resumo; o arquivo manda):
-- Bump de plugin.json em toda mudança de plugin + espelho no .claude-plugin/marketplace.json (cobrador: scripts/cadeia_check.py --repo).
-- Todo subprocess nasce com stdin=subprocess.DEVNULL e start_new_session=True (cobrador: scripts/vazamento_check.py).
-- Nada de caminho absoluto de máquina, nome próprio do dono, e-mail pessoal ou credencial em arquivo rastreado (cobrador: scripts/public_repo_check.py).
-- Caminho de plugin se resolve por NOME (lib/resolve-plugin.sh, lib/resolve-skill.sh), nunca escrito à mão.
-- Editou _shared/? rode scripts/sync-shared.sh — as cópias vendoradas defasam.
-- Contagem cravada em doc é acoplamento: entra o COMANDO que a produz (cobrador: scripts/desacoplamento_check.py).
-- Estado mutável vai em ~/.claude/, nunca dentro do plugin.
+REGRAS DA CASA (resumo; o CLAUDE.md do projeto manda):
+${regrasDaCasa.map(r => `- ${r}`).join('\n')}
 
 O QUE ESTA SESSÃO MUDOU (o alvo da revisão):
 ${ARGS.target}
@@ -148,7 +180,7 @@ INVARIANTES VIVAS: ${J(invariants)}
 LIMITES ACEITOS: ${J(acceptedLimits)}
 
 MANDATO ADVERSARIAL: seu default é REJEITAR o finding, a não ser que ele se justifique contra a rubrica.
-Gerar não é julgar — o Revisor achou, VOCÊ carimba a severidade. Finding rejeitado vai em \`rejected\` com o motivo.
+Gerar não é julgar — o Revisor achou, VOCÊ carimba a severidade. Finding rejeitado vai em \`rejected\` com o \`id\` dele e o motivo.
 
 ROTEIE CADA FINDING QUE PROCEDE EM UM DOS TRÊS BALDES:
 1. bucket1 — IMPLEMENTAÇÃO (código diverge do plano, bug, regressão, viola a régua da casa, teste que não morde). Vira conserto.
@@ -171,10 +203,17 @@ INVARIANTES VIVAS (não viole): ${J(invariants)}
 A ORDEM É ESTA, e nenhum passo é opcional:
 1. TESTE PRIMEIRO (vermelho) — escreva o teste que REPRODUZ o defeito e VEJA ELE FALHAR. O nome do teste carrega a invariante (ex: "o achado sai com trecho literal"). Se o defeito não reproduz por teste determinístico (é arquitetural), NÃO invente teste: devolva suiteRegressed:false com note explicando, e não edite nada.
 2. FIX CIRÚRGICO — a MENOR mudança que faz o teste passar. Extensão enumerada é melhor que alargar regra genérica.
-3. RODE A SUÍTE INTEIRA do repositório, não só o teste novo:
-   for t in $(find ${RAIZ} -path '*/node_modules' -prune -o -path '*/.git' -prune -o \\( -name 'test_*.py' -o -name 'test_*.sh' \\) -print | sort); do ... done
+3. RODE A SUÍTE INTEIRA do repositório, não só o teste novo —
+${suiteCmd
+  ? `   o COMANDO DECLARADO DA CASA, literal, e SÓ ele:\n\n     ${suiteCmd}\n\n   Não amplie, não substitua, não troque por um \`find\` seu: num monorepo, varrer a\n   raiz roda a suíte de módulos que esta mudança não toca e faz vermelho de ambiente\n   passar por vermelho de código.`
+  : `   a que o projeto declara (CLAUDE.md, Makefile, package.json, pyproject.toml); sem\n   declaração, a LISTA sai deste comando:\n\n     for t in $(find ${RAIZ} -path '*/node_modules' -prune -o -path '*/.git' -prune -o \\( -name 'test_*.py' -o -name 'test_*.sh' \\) -print | sort); do ... done\n\n   ANTES de aceitar essa lista, CONFIRA que ela cobre os arquivos que você tocou. Se\n   ela vier vazia para eles, ela NÃO é a suíte deste projeto: ache a declarada e use-a.\n   Lista vazia devolve "nenhum teste falhou", e aí \`suiteRegressed\` mente verde.`}
    Some os resultados. \`suiteRegressed\` = true se QUALQUER teste que passava antes falhou agora.
-4. REGRA DA CASA: tocou arquivo de plugin? bumpe plugins/<nome>/.claude-plugin/plugin.json E espelhe em .claude-plugin/marketplace.json, e confira com \`python3 scripts/cadeia_check.py --repo\`. Todo subprocess novo nasce com stdin=subprocess.DEVNULL e start_new_session=True.
+4. SUÍTE VERMELHA POR SUA CAUSA ⇒ DESFAÇA VOCÊ MESMO. Se \`suiteRegressed\` for true, REVERTA sua própria
+   edição — todo arquivo que você tocou, o teste novo inclusive — ANTES de responder, e devolva
+   \`reverted: true\`. Ninguém desfaz por você: sem \`reverted: true\` o laço registra que a edição
+   quebrada FICOU DE PÉ na árvore e precisa de decisão do dono.
+5. REGRAS DA CASA que valem no conserto:
+${regrasDaCasa.map(r => `   - ${r}`).join('\n')}
 
 Devolva \`suiteOutput\` com a saída crua do placar. \`newInvariant\` quando o fix estabelece uma regra que os próximos não podem quebrar.`
 
@@ -203,24 +242,53 @@ Seu papel é PROVAR QUE ESSA CAUSA ESTÁ ERRADA. Vá ao disco. Procure:
 
 const sevRank = s => ({P0:3, P1:2, P2:1, P3:0}[s] ?? 0)
 const floor = sevRank(ARGS.severityFloor || 'P1')
-let acceptedLimits = ARGS.acceptedLimits || []
+// RATIFICADO ≠ PROPOSTO (2026-08-24). `acceptedLimits` é SÓ o que o dono já gravou em
+// `.claude/qa-loop.config.md` e chega por args — é a lista que os dois filtros consultam
+// (o de `severe`, que libera a rodada limpa, e o do fecho, que monta `emAberto`).
+// O que o planejador propõe fica AQUI, separado, e sai no `return` como proposta: engordar
+// a de cima dentro da corrida dava ao planejador o poder de aposentar o próprio achado —
+// ele propunha o limite e, da rodada seguinte em diante, o mesmo P1 sumia dos dois filtros
+// e a corrida fechava verde sem ninguém ter ratificado nada.
+const acceptedLimits = ARGS.acceptedLimits || []
+const proposedLimits = []
 let invariants = ARGS.invariants || []
 const churn = {}
 const causaCache = {}
 const causaDisputada = []
 const churnKey = fix => `${fix.file || '?'}:${fix.fn || '?'}`
 const rounds = []
-let cleanRound = false, churnEscalated = false, r = 0
+let cleanRound = false, churnEscalated = false, teatroDeDuvida = false, r = 0, rodadasSemConserto = 0
+let regressaoTotal = false, rodadasSoRegressao = 0
 let touchedLastRound = [], openFindings = []
 
+// ── ARTIGO 14 · A ASSÍNTOTA É DE SEVERIDADE, NUNCA DE GASTO ──────────────────
+// `cleanRound` é o ÚNICO desfecho que é sucesso, e ele é ASSINTÓTICO: rodada
+// completa sem nenhum achado ACIMA DO PISO (`severityFloor`), com o confirm-pass
+// independente concordando. Achado abaixo do piso não segura o laço — é preciosismo
+// que não afeta consistência nem funcionamento, e exigir zero obrigaria a rebaixar
+// achado para poder fechar, que é fraudar o próprio critério.
+//
+// Os outros dois desfechos (`max-rounds`, `churn-escalated`) são FALHA — o `return`
+// os devolve com `sucesso: false` e a lista do que ficou acima do piso, e a casca NÃO
+// pode apresentá-los como revisão feita.
+//
+// SEM TETO POR DEFAULT (era 12; o dono cortou em 2026-08-23: "o que NÃO pode ter é o
+// teto por gasto de rodadas ou tokens"). `maxRounds` só existe quando quem invoca passa
+// um, como freio de emergência para laço preso em defeito de ambiente. O clamp por
+// camada de rede abaixo NÃO é gasto: sem suíte, cada fix é aposta cega e mais voltas
+// multiplicam o ESTRAGO — é risco, e por isso sobrevive ao artigo.
 const LAYER_CAP = { 4: 2, 5: 1 }
 const churnThreshold = ARGS.churnThreshold || 2
-const maxRounds = Math.min(ARGS.maxRounds || 12, LAYER_CAP[ARGS.safetyLayer] ?? Infinity)
+const capDaCamada = LAYER_CAP[ARGS.safetyLayer]
+const maxRounds = Math.min(ARGS.maxRounds || Infinity, capDaCamada ?? Infinity)
+// Quem foi que limitou? O veredito do fecho não pode chamar o clamp de "freio":
+// freio é gasto, clamp é risco de estrago, e trocar um pelo outro apaga a causa.
+const limitePorCamada = capDaCamada !== undefined && capDaCamada <= (ARGS.maxRounds || Infinity)
 const T = ARGS.tiers
 const tierFor = round => ({ model: ARGS.model, effort: round === 1 ? T.decompose.effort : T.coordinate.effort })
 const isAccepted = (f, limits) => (limits || []).some(l => (l.id && l.id === f.id) || (l.file && l.file === f.file && l.problem === f.problem))
 
-while (!cleanRound && r < maxRounds && !churnEscalated) {
+while (!cleanRound && r < maxRounds && !churnEscalated && !teatroDeDuvida) {
   r++; phase(`Rodada ${r}`)
   const tier = tierFor(r)
   await anda(r, 'revisando')
@@ -243,6 +311,9 @@ while (!cleanRound && r < maxRounds && !churnEscalated) {
       { model: ARGS.model, effort: T.finalize.effort, phase: 'Confirm',
         label: `confirm:r${r}`, schema: FINDINGS })
     const confirmSevere = confirm ? (confirm.findings || []).filter(f => sevRank(f.severity) >= floor && !isAccepted(f, acceptedLimits)) : null
+    // O confirm-pass entra na MESMA lista da rodada, inclusive quando ela fecha limpa:
+    // o fecho varre `review.findings`, e achado abaixo do piso some do bloqueio, nunca da vista.
+    if (confirm) review.findings = (review.findings || []).concat(confirm.findings || [])
     if (confirm && confirm.complete && confirmSevere.length === 0) {
       rounds.push({ r, review, confirm, corrections: [], regressions: 0, alerts: [] })
       cleanRound = true; break
@@ -251,7 +322,6 @@ while (!cleanRound && r < maxRounds && !churnEscalated) {
       rounds.push({ r, review, confirm: null, nota: 'confirm-pass não respondeu — NÃO declaro rodada limpa' })
       break
     }
-    review.findings = (review.findings || []).concat(confirm.findings || [])
   }
 
   await anda(r, 'planejando')
@@ -291,18 +361,54 @@ while (!cleanRound && r < maxRounds && !churnEscalated) {
         causaDisputada.push(desfecho)
         churnEscalated = true; break
       }
-      log(`fix ${fix.id} regrediu a suíte — revertido, churn ${churn[k]}/${churnThreshold}`)
+      // QUEM DESFAZ É O EXECUTOR, E SÓ ELE SABE SE DESFEZ (2026-08-24). Nada aqui reverte
+      // arquivo; enquanto isto logava "revertido", a edição quebrada ficava na árvore e se
+      // empilhava rodada após rodada — sem teto por default, para sempre — com o operador
+      // lendo o contrário. A afirmação agora depende da confirmação do `execPrompt`.
+      log(res.reverted
+        ? `fix ${fix.id} regrediu a suíte — o executor desfez a própria edição, churn ${churn[k]}/${churnThreshold}`
+        : `fix ${fix.id} regrediu a suíte e a edição FICOU DE PÉ (o executor não confirmou ter desfeito) — precisa de decisão, churn ${churn[k]}/${churnThreshold}`)
     } else {
       corrections.push(res)
       if (res.newInvariant) invariants.push(res.newInvariant)
     }
   }
 
-  acceptedLimits = acceptedLimits.concat(plan.proposedLimits || [])
+  proposedLimits.push(...(plan.proposedLimits || []))
   touchedLastRound = corrections.flatMap(c => c.files_touched || [])
   openFindings = (review.findings || []).filter(f => !corrections.some(c => c.fix_id === f.id))
   rounds.push({ r, review, plan, corrections, regressions, alerts: plan.alerts || [], drift: plan.drift || [], rejected: plan.rejected || [] })
+
+  // ── TEATRO DE DÚVIDA · duas rodadas com achado e ZERO conserto ──────────────
+  // Quem conta é o MOTOR, não a casca: o Workflow é um só e a casca só vê `rounds`
+  // depois do return — na hora em que a terceira rodada já teria sido paga. Não
+  // fere o Artigo 14: não é parar por esforço, é parar porque o laço deixou de
+  // produzir conserto (achado sai todo para drift/alerts/limite/P2). Sem isto, com
+  // `maxRounds` = Infinity o mesmo P1 roteado para drift volta em `openFindings`
+  // toda rodada e o laço não tem saída.
+  // Conta rodada SEM CONSERTO, com ou sem achado: exigir achado fazia o contador
+  // zerar quando o revisor devolvia lista vazia sem `complete`, e aí nada quebrava
+  // o `while` (medido: 51 rodadas). Rodada estéril é ainda menos produtiva que
+  // rodada com achado e zero conserto. A rodada limpa não passa por aqui — sai por
+  // `cleanRound` antes.
+  rodadasSemConserto = corrections.length === 0 ? rodadasSemConserto + 1 : 0
+  // Rodada em que TODO conserto tentado REGREDIU a suíte NÃO é o laço deixando de
+  // atacar — ele atacou e quebrou. Conserto que regride some de `corrections` (só o
+  // ramo `else` empurra), então a rodada caía no contador acima e o dono lia "NENHUM
+  // virou conserto", o diagnóstico invertido. Com dois fixes regredindo em funções
+  // DIFERENTES o churn fica 1/2 em cada chave e `churnEscalated` não pega. Desfecho
+  // próprio, que nomeia a suíte quebrada.
+  rodadasSoRegressao = (corrections.length === 0 && regressions > 0) ? rodadasSoRegressao + 1 : 0
+  if (rodadasSoRegressao >= 2) regressaoTotal = true
+  if (rodadasSemConserto >= 2) teatroDeDuvida = true
 }
+
+// ── ABANDONO POR AGENTE MUDO ≠ FREIO DE RODADAS (2026-08-24) ────────────────
+// Sem teto por default, `r < Infinity` nunca falha: os três `break` de agente que
+// não respondeu eram os ÚNICOS que chegavam ao desfecho `max-rounds`, e o relatório
+// saía culpando "o freio de Infinity rodada(s)". A `nota` que a própria rodada já
+// gravou é o motivo — só ela existe nesses três caminhos.
+const agenteMudo = (rounds.length && rounds[rounds.length - 1].nota) || null
 
 const voltasPorProblema = []
 const porId = {}
@@ -324,9 +430,41 @@ const tally = fs => (fs || []).reduce((a, f) => { a[f.severity] = (a[f.severity]
 // aceso 9h26 depois do fim, medido em 2026-08-10.
 if (ARGS.sessionId) {
   await agent(encerraPrompt({ motivo: cleanRound ? 'rodada limpa'
-                                     : churnEscalated ? 'churn escalado' : 'teto de rodadas' }),
+                                     : churnEscalated ? 'churn escalado'
+                                     : regressaoTotal ? 'conserto regrediu a suíte'
+                                     : teatroDeDuvida ? 'teatro de dúvida'
+                                     : agenteMudo || 'teto de rodadas' }),
     { model: ARGS.model, effort: T.mechanical.effort, phase: 'Limpeza', label: 'encerra:barra' })
 }
+
+// ── O QUE FICOU DE PÉ, EM DUAS LISTAS (Artigo 14) ───────────────────────────
+// A assíntota é de severidade, então o que sobra se separa em DOIS destinos, e
+// confundi-los é o defeito que este bloco existe para impedir:
+//   · `emAberto`  — ACIMA do piso e ainda de pé (nem consertado, nem rejeitado pelo
+//                   árbitro, nem coberto por limite aceito). A casca abre o relatório
+//                   com esta lista. ATENÇÃO: ela pode ter item MESMO na rodada limpa —
+//                   `drift` e `alerts` são destinos legítimos, e o achado que sai por
+//                   eles não vira conserto e não reaparece na rodada seguinte. Por isso
+//                   o veredito de sucesso NUNCA afirma "nenhum achado" sem conferir esta
+//                   lista: quando ela tem item, ele conta quantos ficaram na mesa do dono.
+//   · `abaixoDoPiso` — preciosismo que não afeta consistência nem funcionamento.
+//                   NÃO segura o fecho, mas é LISTADO: some do bloqueio, nunca da
+//                   vista. Enterrar isto em silêncio seria o outro extremo do erro.
+const consertados = new Set(rounds.flatMap(x => (x.corrections || []).map(c => c.fix_id)))
+const rejeitados = new Set(rounds.flatMap(x => (x.rejected || []).map(f => f.id)))
+const emAberto = []
+const abaixoDoPiso = []
+const jaListado = new Set()
+for (const x of rounds)
+  for (const f of ((x.review && x.review.findings) || [])) {
+    if (consertados.has(f.id) || rejeitados.has(f.id) || jaListado.has(f.id)) continue
+    if (isAccepted(f, acceptedLimits)) continue
+    jaListado.add(f.id)
+    const item = { id: f.id, file: f.file, line: f.line, severity: f.severity,
+                   problem: f.problem, fix_direction: f.fix_direction, vistoNaRodada: x.r }
+    if (sevRank(f.severity) >= floor) emAberto.push(item)
+    else abaixoDoPiso.push(item)
+  }
 
 return {
   rounds: rounds.map(x => ({ r: x.r, complete: x.review?.complete,
@@ -335,10 +473,39 @@ return {
     alerts: (x.alerts || []).length, drift: (x.drift || []).length, rejected: (x.rejected || []).length,
     nota: x.nota })),
   detalhe: rounds,
-  acceptedLimits, invariants, churn, voltasPorProblema, causaDisputada,
+  acceptedLimits, proposedLimits, invariants, churn, voltasPorProblema, causaDisputada,
   planFlawAlerts: rounds.flatMap(x => x.alerts || []),
   driftItems: rounds.flatMap(x => x.drift || []),
   telemetry: rounds.map(x => ({ round: x.r, corrections: (x.corrections || []).length,
     regressions: x.regressions || 0, findings_by_sev: tally(x.review?.findings) })),
-  stopReason: cleanRound ? 'no-severe-finding' : churnEscalated ? 'churn-escalated' : 'max-rounds',
+  stopReason: cleanRound ? 'no-severe-finding' : churnEscalated ? 'churn-escalated'
+    : regressaoTotal ? 'regressao-total'
+    : teatroDeDuvida ? 'teatro-de-duvida' : agenteMudo ? 'agente-mudo' : 'max-rounds',
+  // Artigo 14: só a rodada limpa (assíntota de severidade alcançada) é sucesso. Teto e
+  // churn são FALHA, e a casca as reporta como "a revisão NÃO terminou", com `emAberto`
+  // na frente do relatório. `abaixoDoPiso` acompanha SEMPRE, inclusive no sucesso.
+  sucesso: cleanRound === true,
+  severityFloor: ARGS.severityFloor || 'P1',
+  emAberto,
+  abaixoDoPiso,
+  vereditoHumano: cleanRound
+    ? (emAberto.length
+        ? `rodada limpa, mas ${emAberto.length} achado(s) acima do piso ficaram na mesa do dono (roteados para plano/drift, não consertados)`
+        : `nenhum achado acima de ${ARGS.severityFloor || 'P1'}`) +
+      (abaixoDoPiso.length ? ` · ${abaixoDoPiso.length} abaixo do piso, listados e não bloqueantes` : '')
+    : churnEscalated
+      ? 'A REVISÃO NÃO TERMINOU — o mesmo ponto regrediu a cada tentativa e a investigação de causa assumiu'
+      : regressaoTotal
+        ? `A REVISÃO NÃO TERMINOU — em duas rodadas seguidas TODO conserto tentado quebrou a suíte (o laço atacou, não desistiu), com ${emAberto.length} achado(s) acima do piso ainda de pé`
+      : teatroDeDuvida
+        ? `A REVISÃO NÃO TERMINOU — duas rodadas seguidas acharam problema e NENHUM virou conserto (teatro de dúvida), com ${emAberto.length} achado(s) acima do piso na mesa do dono`
+        : agenteMudo
+          ? `A REVISÃO NÃO TERMINOU — ${agenteMudo}, com ${emAberto.length} achado(s) acima do piso ainda de pé`
+          // Só sobram estes quando `maxRounds` é finito: com o default Infinity, `r < maxRounds`
+          // nunca falha e a saída sem conserto é sempre um dos casos acima. E são DOIS,
+          // porque quem limitou muda a causa: o clamp da camada de rede é RISCO (sem suíte
+          // o conserto não tem prova), o teto de quem invoca é freio de emergência.
+          : limitePorCamada
+            ? `A REVISÃO NÃO TERMINOU — a rede de segurança deste projeto é Camada ${ARGS.safetyLayer}, então cada conserto é aposta cega e mais voltas multiplicam o ESTRAGO: o laço parou em ${maxRounds} rodada(s) por RISCO, não por gasto, com ${emAberto.length} achado(s) acima do piso ainda de pé`
+            : `A REVISÃO NÃO TERMINOU — o freio de ${maxRounds} rodada(s) agiu com ${emAberto.length} achado(s) acima do piso ainda de pé`,
 }

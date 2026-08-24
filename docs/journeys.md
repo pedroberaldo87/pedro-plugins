@@ -87,10 +87,11 @@ approved-sig: 343544995
 - **Onde quebra:** o recorte de escopo com o nome morto vira check inerte em vez de check vermelho — parece protegido e não protege. [ESCRITO: patterns.md — a régua da fusão]
 - **Toca as peças:** Catálogo, Portão de release, Bootstrap
 
-## Revisar até valer a pena
+## Revisar até a assíntota de severidade
 - **Ator:** o dono
 - **Gatilho:** um ciclo de implementação terminou e ele quer saber se está 100%
-- **Percurso:** `/qa-loop` ancora no plano → achados viram conserto só quando são de implementação → regression gate por conserto → para por retornos decrescentes
-- **Fim feliz:** repo com lint, type, unit e integração verdes, e um relatório do que ficou por design.
-- **Onde quebra:** loop até zero — proibido de propósito: queima token e regride. [DITO POR VOCÊ: journal 2026-06-20]
+- **Percurso:** `/qa-loop` ancora no plano → achados viram conserto só quando são de implementação → regression gate por conserto → fecha quando uma rodada completa não traz achado acima do piso de severidade
+- **Fim feliz:** repo com lint, type, unit e integração verdes, e um relatório listando o que ficou abaixo do piso e o que ficou acima para o dono decidir.
+<!-- artigo14-ok: cita o dono verbatim; as palavras dele aparecem porque são dele -->
+- **Onde quebra:** fechar por gasto (rodada, token, tempo) ou rebaixar um achado de severidade para alcançar o fecho — as duas são a fraude do critério (Artigo 14). [DITO POR VOCÊ: 2026-08-23 — "Não tem a ver com 'rendendo menos'... Tem a ver com SEVERIDADE"]
 - **Toca as peças:** Skill, Motor de skill, Esteira

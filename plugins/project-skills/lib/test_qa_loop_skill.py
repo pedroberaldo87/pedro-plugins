@@ -17,6 +17,8 @@ SKILL_MD = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                         "..", "skills", "qa-loop", "SKILL.md")
 SPRINT_MD = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                          "..", "skills", "sprint", "SKILL.md")
+MOTOR_JS = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                        "..", "skills", "qa-loop", "references", "motor.js")
 
 FAILS = []
 
@@ -230,6 +232,60 @@ def main():
           "já estava vermelho antes" in rac)
     check("a desculpa de conferir o próprio conserto está refutada",
           "eu mesmo confiro" in rac)
+
+    # O teatro de dúvida já apareceu DUAS vezes no arquivo, com o mesmo cabeçalho e
+    # o mesmo parágrafo de sinal — e a conduta só na segunda cópia. Quem lê e para na
+    # primeira ocorrência não recebe conduta nenhuma.
+    print("o teatro de dúvida é uma seção só, com sinal e conduta juntos")
+    cab = "### Teatro de dúvida — o sinal de duas rodadas com achado e zero acionável"
+    check("o cabeçalho do teatro de dúvida aparece uma vez só",
+          texto.count(cab) == 1)
+    teatro = secao(texto, cab, "\n---")
+    check("a seção do teatro nomeia o sinal", "**O sinal, nomeado:**" in teatro)
+    check("a seção do teatro separa do Artigo 14",
+          "**Não confunda com o Artigo 14.**" in teatro)
+    check("a seção do teatro traz a conduta", "**A conduta, escrita**" in teatro)
+    check("a conduta tem os quatro passos",
+          all(("\n%d. " % n) in teatro for n in (1, 2, 3, 4)))
+
+    # As duas enumerações de desfecho da casca listavam três dos desfechos que o
+    # `return` do motor produz — `teatro-de-duvida`, `agente-mudo` e `regressao-total`
+    # ficavam de fora, e o contrato escrito passava a mentir sobre o que pode chegar.
+    # A lista de referência sai do PRÓPRIO motor, para nunca mais defasar em silêncio.
+    print("as enumerações de desfecho batem com o `stopReason` do motor")
+    motor = open(MOTOR_JS, encoding="utf-8").read()
+    ret = secao(motor, "  stopReason:", "\n  //")
+    desfechos = [d for d in re.findall(r"'([a-z-]+)'", ret) if d != "no-severe-finding"]
+    check("o motor produz mais de três desfechos de falha", len(desfechos) > 3)
+    falha = secao(texto, "**Todo o resto é FALHA", "\n**Fase Gate")
+    for d in desfechos:
+        check("a lista de [FALHA] nomeia `%s`" % d, d in falha)
+    casca = secao(texto, "- **Quem seta o `stopReason` FINAL", "\n- **")
+    for d in desfechos + ["no-severe-finding"]:
+        check("o contrato motor→casca nomeia `%s`" % d, d in casca)
+
+    # O bloco documentado do laço se contradizia: o fecho monta `rejeitados` de
+    # `x.rejected`, mas o `rounds.push` documentado não gravava `rejected` — lido
+    # literal, o Set nasce vazio e todo achado derrubado pelo árbitro volta em
+    # `emAberto`. E o `telemetry` documentado lia `x.corrections.length` /
+    # `x.review.findings` sem guarda, estourando no push de agente mudo
+    # (`{ r, review: null, nota }`) que o MESMO bloco mostra.
+    print("o bloco documentado do laço grava e lê os mesmos campos que o motor")
+
+    def push_da_rodada(src):
+        m = re.search(r"rounds\.push\(\{ r, review, plan,([^}]*)\}\)", src)
+        return m.group(1) if m else ""
+
+    chaves_motor = set(re.findall(r"(\w+):", push_da_rodada(motor)))
+    chaves_doc = set(re.findall(r"(\w+):", push_da_rodada(texto)))
+    check("o push documentado existe", push_da_rodada(texto) != "")
+    for k in sorted(chaves_motor):
+        check("o push documentado grava `%s` como o motor" % k, k in chaves_doc)
+    tele_doc = secao(texto, "  telemetry: rounds.map", "\n  stopReason")
+    check("o telemetry documentado guarda `corrections`",
+          "(x.corrections || []).length" in tele_doc)
+    check("o telemetry documentado guarda `review`",
+          "x.review?.findings" in tele_doc)
 
     print()
     if FAILS:

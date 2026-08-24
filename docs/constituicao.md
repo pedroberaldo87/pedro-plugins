@@ -235,7 +235,7 @@ congelados em vez de dizer 'nenhum'.
 
 ## O placar de hoje
 
-- **Com cobrador real:** Artigos 3, 4, 5, 6, 7, 8, 9 e 13 — o 5 com o furo de momento
+- **Com cobrador real:** Artigos 3, 4, 5, 6, 7, 8, 9, 13 e 14 — o 5 com o furo de momento
   reduzido (só `.claude/hooks/test_*.sh` fica sem gate de commit); o 6 cobrado em duas
   frentes (gerador Python pela checagem I, mensagem de hook shell por
   `scripts/test_regua_hook_msgs.py`); o 7 com o teste dedicado a número em `SKILL.md`
@@ -376,3 +376,57 @@ alterado no meio do caminho vire aviso, nunca troca silenciosa.
 **Prova de que vale hoje** — os três cobradores acima existem e têm suíte, e a impressão
 descrita acima é registrada a cada execução; a dos três documentos da lei, nesta sessão,
 é `2396033228+2813587699+881584814`.
+
+---
+
+## Artigo 14 · A assíntota da revisão é de SEVERIDADE, nunca de gasto
+
+**O que exige** — Todo laço de revisão deste marketplace fecha por um critério
+**assintótico em severidade**, e por nenhum outro:
+
+> **uma rodada COMPLETA que não produz nenhum achado acima do piso de severidade,
+> confirmada por um re-sweep independente.**
+
+Os dois lados disso são igualmente lei.
+
+**Por que a assíntota, e não "zero erros".** "Zero achados" é otimista e, pior, falso:
+boa parte do que um revisor chama de erro é **preciosismo que não afeta consistência nem
+funcionamento** — naming, gosto, micro-refator. Um finder adversarial sempre produz mais
+um desses. Exigir zero transforma gosto de revisor em bloqueio, e obriga quem quer fechar
+a rebaixar achado — corrompendo o único instrumento que separa defeito de opinião. A
+assíntota é a admissão honesta de que a cauda existe e **não importa**; o que importa é o
+que está **acima do piso**.
+
+**O que a assíntota NÃO é** — e é aqui que o desenho anterior errou:
+
+- **Não é taxa de descoberta caindo.** "Está rendendo menos", "retornos decrescentes na
+  quantidade de achados", "as últimas rodadas acharam pouco" não são critério. Uma rodada
+  que acha UM P0 é uma rodada que não fecha, mesmo que as três anteriores tenham achado
+  vinte P3 cada.
+- **Não é gasto.** **PROIBIDO fechar por número de rodadas, tokens, tempo ou dinheiro.**
+  Não existe teto de rodadas como critério de fecho, e **teto não se declara dentro do
+  projeto** — número escrito antes de saber o que a obra tem envelhece calado e vira lei
+  sem dono.
+- **Não é licença para rebaixar.** Mover um achado de P1 para P2 a fim de alcançar o fecho
+  é fraudar o critério, e é a falta mais grave deste artigo, porque não deixa rastro: o
+  relatório fica verde e o defeito fica de pé.
+
+**O que sobra abaixo do piso** sai **listado** no relatório, com severidade e local — some
+do bloqueio, nunca da vista. E achado **acima** do piso que não vai ser consertado só
+escapa por uma porta: **o dono ratifica** um limite aceito, com motivo escrito. O laço
+propõe; quem anistia é quem paga a conta.
+
+**Como se cobra** — `scripts/test_revisao_fecha_por_problema.py`, que varre as skills e os
+motores de revisão e reprova (a) fecho por gasto — rodada, token, tempo, custo — em
+qualquer forma; (b) a assíntota descrita como taxa de descoberta em vez de severidade;
+(c) teto de rodadas apresentado como critério de fecho;
+(d) limite aceito gravado como permanente sem a marca de ratificação do dono. Roda no
+`release-gate.sh` (check I2).
+
+**Prova de que vale hoje** — antes desta emenda, `qa-loop/SKILL.md` definia o fecho como
+*"para quando não vale mais a pena"* e ancorava a parada em *"retornos decrescentes"* —
+as duas leituras erradas ao mesmo tempo (cansaço e taxa). E havia teto declarado dentro de
+projeto: um `max_rounds: 6` viajava em dois `qa-loop.config.md` sem ninguém ter decidido,
+um deles chamando-o de "default" quando o default era 12. Medido em 2026-08-23, numa
+revisão real com teto 4: a quarta rodada ainda abriu 7 achados, **1 deles P1** — acima do
+piso, portanto rodada que não fecha. O teto teria encerrado assim mesmo.

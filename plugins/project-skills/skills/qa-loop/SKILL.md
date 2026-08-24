@@ -1,6 +1,6 @@
 ---
 name: qa-loop
-description: Use quando o usuário quer revisar código num loop que para por retornos decrescentes, não por zero erros. Ancora no plano de implementação — cada finding vira implementação, plan-drift ou plano-falho, e só implementação é consertada, com regression gate por conserto. Duas fases, um review assintótico e um gate absoluto que exige lint, type, unit e integração verdes no repo inteiro. Substitui as skills antigas qa, rev6 e iterate. Trigger em "/qa-loop", "qa", "audita o plano", "tá 100%", "revisa isso", "loopa o review", "revisa até valer a pena".
+description: Use quando o usuário quer revisar código num loop com critério de parada ASSINTÓTICO EM SEVERIDADE — fecha quando uma rodada completa não traz nada acima do piso de severidade, nunca porque gastou rodadas, tempo ou tokens (Artigo 14 da constituição). Zero achados não é o alvo, porque parte do que se chama de erro é preciosismo que não afeta consistência nem funcionamento. Ancora no plano de implementação — cada finding vira implementação, plan-drift ou plano-falho, e só implementação é consertada, com regression gate por conserto. Duas fases, o julgamento por severidade e um gate absoluto que exige lint, type, unit e integração verdes no repo inteiro. O que fica abaixo do piso sai listado; o que fica acima só escapa com ratificação do dono. Substitui as skills antigas qa, rev6 e iterate. Trigger em "/qa-loop", "qa", "audita o plano", "tá 100%", "revisa isso", "loopa o review", "revisa até valer a pena".
 ---
 
 # /qa-loop — Loop de review→conserto disciplinado
@@ -19,20 +19,57 @@ prosa "leia a constituição e o quality-goals do projeto":
 
 Em conflito, **a régua do projeto ganha** — princípio genérico não revoga a lei da casa.
 
-Revisa código num loop e **para quando não vale mais a pena** — não quando chega a zero.
+Revisa código num loop com parada **assintótica em SEVERIDADE**: fecha quando uma rodada completa
+não traz nada **acima do piso** — nunca porque gastou rodadas, tempo ou dinheiro (**Artigo 14**).
 Ancora no **plano de implementação**: o código não pode "melhorar" e afastar do que foi combinado.
 
 Substitui três skills: o esqueleto de loop multi-agente do antigo `/qa`, as lentes paralelas do
 antigo `/rev6`, e a disciplina de regression-gate + baseline do antigo `/iterate` — tudo num fluxo só.
 
-## A ideia central (por que existe)
+## A ideia central (por que existe) — Artigo 14 da constituição
 
-Um loop "conserte até zero erros" tratado como convergente sobre um problema **assintótico**
-(scrubber/parser/ranker/regex/prompt — espaço de input infinito) nunca para sozinho: um finder
-adversarial SEMPRE acha mais um. "Zero findings" é assíntota, não estado. A skill troca o critério por
-**"uma rodada inteira sem finding novo de severidade real fora dos limites já aceitos"** — e gasta a
-maior parte da disciplina em **não gerar regressões** ao consertar. (Esse é o eixo **assintótico**. O outro
-eixo — os checks objetivos lint/type/unit/integração — é **absoluto** e vive na Fase Gate; ver "As duas fases".)
+**O critério de fecho é ASSINTÓTICO, e a assíntota é de SEVERIDADE:**
+
+> **uma rodada COMPLETA que não produz nenhum achado acima do piso de severidade,
+> confirmada por um re-sweep independente.**
+
+**Por que assintótico, e não "zero erros".** Zero achados é otimista e, pior, falso: boa parte
+do que um revisor chama de erro é **preciosismo que não afeta consistência nem funcionamento**
+— naming, gosto, micro-refator. Num problema de espaço de input infinito (scrubber/parser/
+ranker/regex/prompt) um finder adversarial sempre produz mais um desses. Exigir zero
+transformaria gosto de revisor em bloqueio e obrigaria quem quer fechar a **rebaixar** achado —
+corrompendo o único instrumento que separa defeito de opinião. A assíntota é a admissão honesta
+de que a cauda existe e **não importa**; o que importa é o que está **acima do piso**.
+
+**O que a assíntota NÃO é** — as duas leituras tortas, as duas já cometidas aqui:
+
+<!-- artigo14-ok: nomeia as leituras erradas para poder proibi-las -->
+- **Não é taxa de descoberta caindo.** "Está rendendo menos", "as últimas rodadas acharam
+  pouco" não são critério. Uma rodada que acha UM P0 é rodada que não fecha, mesmo que as três
+  anteriores tenham achado vinte P3 cada.
+- **Não é gasto.** Rodada, token, tempo e dinheiro **nunca** fecham revisão. Não há teto de
+  rodadas como critério, e teto não se declara dentro do projeto.
+
+**E nunca é licença para rebaixar.** Mover um achado de P1 para P2 a fim de alcançar o fecho é
+fraudar o critério — a falta mais grave do artigo, porque não deixa rastro: o relatório fica
+verde e o defeito fica de pé.
+
+O que fica **abaixo do piso** sai **listado** no relatório, com severidade e local: some do
+bloqueio, nunca da vista. O que fica **acima** e não vai ser consertado só escapa por uma porta:
+**o dono ratifica** um limite aceito, com motivo escrito.
+
+O grosso da disciplina segue sendo **não gerar regressão ao consertar** — é ali que mora o maior
+retorno. (Esse é o eixo do julgamento. O outro eixo — os checks objetivos lint/type/unit/
+integração — é **absoluto** e vive na Fase Gate; ver "As duas fases".)
+
+<!-- artigo14-ok: cita o texto revogado para registrar de onde a emenda veio -->
+> Emendado em 2026-08-23. O desenho anterior misturava as duas leituras erradas ao mesmo tempo:
+> definia o fecho como *"para quando não vale mais a pena"* (cansaço) e ancorava a parada em
+> *"retornos decrescentes"* (taxa de descoberta). E havia teto declarado dentro de projeto — um
+> `max_rounds: 6` viajava em dois `qa-loop.config.md` sem ninguém ter decidido, um deles
+> chamando-o de "default" quando o default era 12. Medido numa revisão real com teto 4: a quarta
+> rodada ainda abriu 7 achados, **1 deles P1** — acima do piso, portanto rodada que não fecha; o
+> teto teria encerrado assim mesmo. Cobrador: `scripts/test_revisao_fecha_por_problema.py`.
 
 ## A arquitetura em uma frase — motor = Workflow, casca = skill
 
@@ -59,10 +96,11 @@ a UMA delas, e cada fase tem seu próprio critério de "pronto". Confundir as du
 existe pra matar: tratar um erro de type como "finding de severidade rebaixável", ou tratar um cheiro de
 código como "tem que zerar".
 
-**Fase Assintótica** — revisão de código, aderência ao plano (os 3 buckets), findings de **severidade
-variável** (P0-P3), accepted-limits, parada por **retornos decrescentes**. **e2e/Playwright vive aqui**:
-cobertura parcial e honesta, vira *actionable* no relatório — **não bloqueia**. É todo o corpo desta skill
-(os passos abaixo descrevem ela).
+**Fase de Julgamento** — revisão de código, aderência ao plano (os 3 buckets), findings de
+**severidade variável** (P0-P3), limites aceitos **ratificados pelo dono**, e fecho **só quando não
+sobrou problema procedente em aberto** (Artigo 14 — jamais por esforço gasto). **e2e/Playwright vive
+aqui**: cobertura parcial e honesta, vira *actionable* no relatório — **não bloqueia**. É todo o corpo
+desta skill (os passos abaixo descrevem ela).
 
 **Fase Gate** — lint, type-check, teste unitário, teste de integração e afins. **Absolutista: 100% verde
 no repo inteiro ou não passou.** Binário. Sem severidade, sem julgamento, sem accepted-limit, sem "não vale
@@ -71,8 +109,8 @@ Passo 8.0 (gate de saída) + na seção "Detecção de rede".
 
 > As fases **não são sequenciais no tempo**. O gate é **invariante de saída**, protegido continuamente pelo
 > regression-net por-fix do motor (a suíte roda a cada conserto). A skill só declara **sucesso da sessão**
-> quando AS DUAS fecham: a Fase Assintótica chega a uma **rodada limpa** (seu evento interno — retornos
-> decrescentes) E a Fase Gate fica 100% verde. "Rodada limpa" é o desfecho do motor; "sucesso da sessão" é das
+> quando AS DUAS fecham: a Fase Assintótica chega a uma **rodada limpa** (seu evento interno — zero achado
+> acima do piso, confirmado pelo re-sweep) E a Fase Gate fica 100% verde. "Rodada limpa" é o desfecho do motor; "sucesso da sessão" é das
 > duas juntas. Gate vermelho **nunca** é sucesso — a casca seta `stopReason='gate-red'`.
 
 ## Input
@@ -130,7 +168,7 @@ Os **6 model-knobs** (`decompose_model`, `coordinate_model`, `executor_model`, `
 | Knob | Default | O que faz |
 |---|---|---|
 | `severity_floor` | `P1` | Conserta P0/P1; P2/P3 viram candidato a accepted-limit. **Load-bearing**: define "finding de severidade real". |
-| `max_rounds` | `12` | **TRAVA DE INCÊNDIO, NÃO META.** Quem decide a parada é o gate de severidade. **Clampado pela camada de rede** no motor: Camada 4 → 2, Camada 5 → 1 (rede fraca não ganha mais voltas de aposta cega). |
+| `max_rounds` | `null` (SEM TETO) | **NÃO é critério de fecho — Artigo 14 proíbe fechar por gasto.** Quem fecha é a assíntota de severidade. Sem valor, o laço roda até a rodada limpa, e é assim que deve ser. Existe só como **freio de emergência de quem invoca** (laço preso num defeito de ambiente), e aí bater nele é **FALHA**, com a lista do que ficou acima do piso. **NUNCA se declara no `qa-loop.config.md` do projeto** — número escrito antes de saber o que a obra tem envelhece calado e vira lei sem dono (medido: um `max_rounds: 6` viajava em dois configs sem ninguém ter decidido). **Clampado pela camada de rede** no motor: Camada 4 → 2, Camada 5 → 1 — este clamp é sobre **risco de estrago** (sem suíte, cada fix é aposta cega e mais voltas multiplicam a aposta), jamais sobre custo. |
 | `domain` | `auto` | `auto` infere; `convergent` (tem comando pass/fail objetivo) ou `asymptotic`. |
 | `regression_gate` | `on` | Sempre on — é o coração. |
 | `triage_threshold` | `2` | Com ≥2 findings (ou qualquer alargamento de regra), o PLAN vira tabela formal; com 1, decisão inline. |
@@ -242,8 +280,10 @@ lado só — ela faz duas coisas: define o **conteúdo da Fase Gate** E calibra 
   integração rodam ao fim como portão absoluto (100% verde no repo inteiro, ou `stopReason='gate-red'`).
   Quanto mais forte a suíte, mais forte o gate; o alvo objetivo também dá teto alto pra Fase Assintótica.
 - **Assintótico** (default pra heurística — scrubber/parser/ranker/regex/prompt/classificador/"achar todos
-  os bugs") — não há estado-alvo binário pro review; governa o gate de **severidade** e a parada por
-  retornos decrescentes da Fase Assintótica. **É o caso primário desta skill.** **O domínio NÃO decide se há
+  os bugs") — não há um comando único que dê pass/fail no review; governa o gate de **severidade** da
+  Fase de Julgamento. **Não muda o critério de fecho:** ele segue sendo "não sobrou problema procedente
+  em aberto" (Artigo 14) — domínio infinito autoriza o dono a ratificar limite, nunca o laço a desistir.
+  **É o caso primário desta skill.** **O domínio NÃO decide se há
   Fase Gate:** se o projeto tem checks objetivos (até um scrubber tem lint+unit), eles compõem a Fase Gate
   absoluta igual ao caso convergente — o domínio só muda o teto/severidade da fase assintótica. Só SEM nenhum
   check objetivo a **Fase Gate fica vazia, declarada honesto** — nunca finge gate.
@@ -342,9 +382,28 @@ descoberto por `resolve-plugin.sh`) e **`sessionId`**, porque é dele que saem o
 barra e o encerramento. Sem `sessionId` os dois papéis simplesmente não rodam, e o sinal
 volta a depender de alguém lembrar.
 
+### O motor não sabe em que projeto está — a casca é quem conta (obrigatório)
+
+Três `args` descrevem o projeto REVISADO, e sem eles o motor assume **este** repositório.
+A casca os lê do `CLAUDE.md` do projeto da missão e os passa:
+
+| arg | o que é | sem ele |
+|---|---|---|
+| `stack` | uma linha: linguagem, framework, se tem build/CI | o revisor de um app Next.js é informado de que está num marketplace de Markdown/Bash/Python |
+| `regrasDaCasa` | as regras do projeto com seus cobradores | o revisor julga contra as sete regras deste repo (bump de `plugin.json`, `sync-shared`…), que lá não existem |
+| `suiteCmd` | **o comando de teste declarado pelo projeto, literal** | o executor cai num `find` por `test_*.py` que, num projeto TypeScript, acha ZERO teste do módulo alterado — e num monorepo ainda varre a suíte de módulos vizinhos |
+
+**`suiteCmd` é o que sustenta o gate de regressão por conserto**, que esta skill chama de
+maior retorno. Suíte que não coleta nada devolve "nenhum teste falhou", `suiteRegressed`
+nasce `false`, e o gate fica cego **parecendo verde**. Medido em 2026-08-23: 5 sessões
+desde que o motor virou arquivo, todas em projetos JS/TS, **44 consertos e 0 regressões
+detectadas**. O motor do `/sprint` recebe `suiteCmd` desde 2026-08-13 pelo mesmo motivo —
+este ficou para trás, que é a mesma assimetria narrada no topo do `motor.js`, noutro eixo.
+
 Quem cobra que o arquivo não regrida é **`lib/test_qa_loop_motor.py`**: o encerramento tem
 que vir antes do `return` (para alcançar teto e churn, não só a rodada limpa), cada etapa
-tem que registrar onde está, e toda chamada de agente tem que levar `label`.
+tem que registrar onde está, toda chamada de agente tem que levar `label`, e **stack,
+regras e comando de suíte têm que entrar por `args`** em vez de cravados no prompt.
 
 O bloco abaixo é a **fonte documentada** do laço — quem muda comportamento edita os DOIS.
 Os três schemas (`FINDINGS`, `PLAN`, `EXEC_RESULT`) são o que torna os gates determinísticos:
@@ -358,10 +417,13 @@ export const meta = {
 }
 
 // args (vindos da casca): { target, planPath, severityFloor, maxRounds, domain,
-//   safetyLayer, churnThreshold, acceptedLimits[], invariants[], learnings }
+//   safetyLayer, churnThreshold, acceptedLimits[], invariants[], learnings,
+//   stack, regrasDaCasa[], suiteCmd }   // <- os três que descrevem o projeto REVISADO;
+//   sem eles o motor assume ESTE repositório (ver a tabela acima)
 const sevRank = s => ({P0:3, P1:2, P2:1, P3:0}[s] ?? 0)
 const floor = sevRank(args.severityFloor || 'P1')
-let acceptedLimits = args.acceptedLimits || []
+const acceptedLimits = args.acceptedLimits || []   // RATIFICADO pelo dono (args) — é ESTA que os filtros leem
+const proposedLimits = []                          // PROPOSTO pelo planejador — sai no return, não silencia achado
 let invariants = args.invariants || []
 const churn = {}                 // { 'arquivo:função': nº de regressões }
 const causaCache = {}            // causa referendada por chave — a mesma raiz não paga duas investigações
@@ -370,16 +432,27 @@ const causaDisputada = []        // o desfecho de cada escalada: causa referenda
 // (dois `validate()` em módulos diferentes) e escalaria o diagnóstico caro cedo demais.
 const churnKey = fix => `${fix.file || '?'}:${fix.fn || '?'}`
 const rounds = []
-let cleanRound = false, churnEscalated = false, r = 0
+let cleanRound = false, churnEscalated = false, teatroDeDuvida = false, r = 0, rodadasSemConserto = 0
+let regressaoTotal = false, rodadasSoRegressao = 0
 let touchedLastRound = [], openFindings = []   // delta pro REVIEW das rodadas 2+
 
-// Teto de rodadas: default DENTRO do motor (sem ele, args.maxRounds undefined faz
-// `r < undefined` ser false na 1ª volta — o motor devolveria "limpo" sem ter revisado
-// nada), e CLAMP pela camada de rede — "rede fraca baixa o teto" é lógica do script,
-// não regra pro modelo lembrar (Camada 4 = teto 2, Camada 5 = teto 1).
+// ── ARTIGO 14 · A ASSÍNTOTA É DE SEVERIDADE, NUNCA DE GASTO ──────────────────
+// `cleanRound` é o ÚNICO desfecho que é sucesso, e ele é ASSINTÓTICO: rodada completa
+// sem nenhum achado ACIMA DO PISO (`severityFloor`), com o confirm-pass concordando.
+// Os outros desfechos são FALHA — o `return` os devolve com `sucesso: false`.
+//
+// SEM TETO POR DEFAULT (era 12; o dono cortou em 2026-08-23: "o que NÃO pode ter é o
+// teto por gasto de rodadas ou tokens"). `maxRounds` só existe quando quem invoca passa
+// um, como freio de emergência para laço preso em defeito de ambiente. O clamp por
+// camada de rede abaixo NÃO é gasto: sem suíte, cada fix é aposta cega e mais voltas
+// multiplicam o ESTRAGO — é risco, e por isso sobrevive ao artigo.
 const LAYER_CAP = { 4: 2, 5: 1 }
 const churnThreshold = args.churnThreshold || 2
-const maxRounds = Math.min(args.maxRounds || 12, LAYER_CAP[args.safetyLayer] ?? Infinity)
+const capDaCamada = LAYER_CAP[args.safetyLayer]
+const maxRounds = Math.min(args.maxRounds || Infinity, capDaCamada ?? Infinity)
+// Quem foi que limitou? O veredito do fecho não pode chamar o clamp de "freio":
+// freio é gasto, clamp é risco de estrago, e trocar um pelo outro apaga a causa.
+const limitePorCamada = capDaCamada !== undefined && capDaCamada <= (args.maxRounds || Infinity)
 
 // Tier por rodada (R8): rodada 1 = decompose_model (sweep completo); rodadas 2+ =
 // coordinate_model (caça-regressão + delta). Os valores chegam em args.tiers, servidos
@@ -388,7 +461,7 @@ const T = args.tiers
 const tierFor = round => ({ model: args.model,
   effort: round === 1 ? T.decompose.effort : T.coordinate.effort })
 
-while (!cleanRound && r < maxRounds && !churnEscalated) {
+while (!cleanRound && r < maxRounds && !churnEscalated && !teatroDeDuvida) {
   r++; phase(`Rodada ${r}`)
   const tier = tierFor(r)
 
@@ -402,6 +475,14 @@ while (!cleanRound && r < maxRounds && !churnEscalated) {
   const review = await agent(reviewPrompt({ round: r, acceptedLimits, invariants,
       scope: r === 1 ? 'full' : { touchedFiles: touchedLastRound, openFindings } }),
     { model: tier.model, effort: tier.effort, phase: 'Review', schema: FINDINGS, agentType: 'voltagent-qa-sec:code-reviewer' })
+
+  // Agente que não respondeu sai do laço deixando a `nota` — é ela que vira o desfecho
+  // `agente-mudo` lá embaixo. No motor o mesmo guard existe para o confirm-pass e para
+  // o planejador; aqui um basta para mostrar de onde a nota vem.
+  if (!review) {
+    rounds.push({ r, review: null, nota: 'revisor não respondeu' })
+    break
+  }
 
   // GATE de severidade (JS) — sobre rodada COMPLETA (todo ângulo retornou).
   const severe = review.findings.filter(f =>
@@ -475,18 +556,40 @@ while (!cleanRound && r < maxRounds && !churnEscalated) {
         causaDisputada.push(desfecho)
         churnEscalated = true; break
       }
-      await revertAndMaybeRedo(fix, res, tier)   // reverte; refaz cirúrgico no tier DA RODADA
+      // quem desfaz é o EXECUTOR (o `execPrompt` manda), e a afirmação só sai se ele confirmar
+      log(res.reverted ? `fix ${fix.id} regrediu a suíte — o executor desfez a própria edição, churn …`
+                       : `fix ${fix.id} regrediu a suíte e a edição FICOU DE PÉ … — precisa de decisão`)
     } else {
       corrections.push(res)
       if (res.newInvariant) invariants.push(res.newInvariant)   // invariante viva pras próximas rodadas
     }
   }
 
-  acceptedLimits = acceptedLimits.concat(plan.proposedLimits || [])   // propostos (não ratificados — R6)
+  proposedLimits.push(...(plan.proposedLimits || []))   // proposta ≠ limite: só o dono ratifica (R6)
   touchedLastRound = corrections.flatMap(c => c.files_touched || [])  // delta do REVIEW da próxima rodada
   openFindings = review.findings.filter(f => !corrections.some(c => c.fix_id === f.id))
-  rounds.push({ r, review, plan, corrections, regressions, alerts: plan.alerts || [] })
+  // `drift` e `rejected` entram AQUI porque o fecho os lê de `rounds`: sem `rejected`
+  // gravado, o Set de rejeitados lá embaixo nasce vazio e todo achado derrubado pelo
+  // árbitro volta a aparecer em `emAberto`.
+  rounds.push({ r, review, plan, corrections, regressions, alerts: plan.alerts || [],
+    drift: plan.drift || [], rejected: plan.rejected || [] })
+
+  // TEATRO DE DÚVIDA — conta rodada SEM CONSERTO, com ou sem achado (rodada limpa não
+  // chega aqui: sai por `cleanRound` antes). Sem este contador, com `maxRounds` Infinity
+  // um P1 roteado para drift volta em `openFindings` toda rodada e o laço não tem saída.
+  rodadasSemConserto = corrections.length === 0 ? rodadasSemConserto + 1 : 0
+  // REGRESSÃO TOTAL ≠ teatro de dúvida — conserto que quebra a suíte NÃO entra em
+  // `corrections`; a rodada caía no contador acima e o dono lia "NENHUM
+  // virou conserto", com o laço tendo atacado e quebrado. Desfecho próprio.
+  rodadasSoRegressao = (corrections.length === 0 && regressions > 0) ? rodadasSoRegressao + 1 : 0
+  if (rodadasSoRegressao >= 2) regressaoTotal = true
+  if (rodadasSemConserto >= 2) teatroDeDuvida = true
 }
+
+// ABANDONO POR AGENTE MUDO ≠ FREIO DE RODADAS — sem teto por default, `r < Infinity`
+// nunca falha, e os `break` de agente mudo eram os únicos que caíam em `max-rounds`,
+// fazendo o relatório culpar "o freio de Infinity rodada(s)". A `nota` é o motivo.
+const agenteMudo = (rounds.length && rounds[rounds.length - 1].nota) || null
 
 // VOLTAS POR PROBLEMA (F25.4) — quantas rodadas cada achado levou até sumir. Sai do que já
 // está em `rounds`: da volta em que o problema apareceu até a última em que ainda aparecia.
@@ -501,14 +604,64 @@ for (const x of rounds)
     porId[f.id].voltas = x.r - porId[f.id].primeira + 1
   }
 
+// O QUE FICOU DE PÉ, EM DUAS LISTAS (Artigo 14): achado não consertado, não rejeitado
+// pelo árbitro e não aceito vai para `emAberto` se está ACIMA do piso (segura o fecho)
+// ou para `abaixoDoPiso` (não bloqueia, mas é LISTADO — some do bloqueio, nunca da vista).
+const consertados = new Set(rounds.flatMap(x => (x.corrections || []).map(c => c.fix_id)))
+const rejeitados = new Set(rounds.flatMap(x => (x.rejected || []).map(f => f.id)))
+const emAberto = [], abaixoDoPiso = [], jaListado = new Set()
+for (const x of rounds)
+  for (const f of (x.review?.findings || [])) {
+    if (consertados.has(f.id) || rejeitados.has(f.id) || jaListado.has(f.id)) continue
+    if (isAccepted(f, acceptedLimits)) continue
+    jaListado.add(f.id)
+    const item = { id: f.id, file: f.file, line: f.line, severity: f.severity,
+                   problem: f.problem, fix_direction: f.fix_direction, vistoNaRodada: x.r }
+    ;(sevRank(f.severity) >= floor ? emAberto : abaixoDoPiso).push(item)
+  }
+
 return {
-  rounds, acceptedLimits, invariants, churn,
+  rounds, acceptedLimits, proposedLimits, invariants, churn,
   voltasPorProblema,   // por achado: em que volta apareceu e quantas levou até a rodada limpa
   causaDisputada,   // escaladas de churn: causa referendada pelo desafiador, ou as duas versões em disputa
   planFlawAlerts: rounds.flatMap(x => x.alerts),
-  telemetry: rounds.map(x => ({ round: x.r, corrections: x.corrections.length, regressions: x.regressions,
-    findings_by_sev: tallyBySev(x.review.findings) })),
-  stopReason: cleanRound ? 'no-severe-finding' : churnEscalated ? 'churn-escalated' : 'max-rounds',
+  // as guardas não são zelo: a rodada de agente mudo empurra `{ r, review: null, nota }`
+  // — sem elas o próprio fecho estoura no caminho que este bloco documenta acima.
+  telemetry: rounds.map(x => ({ round: x.r, corrections: (x.corrections || []).length,
+    regressions: x.regressions || 0, findings_by_sev: tallyBySev(x.review?.findings) })),
+  stopReason: cleanRound ? 'no-severe-finding' : churnEscalated ? 'churn-escalated'
+    : regressaoTotal ? 'regressao-total'
+    : teatroDeDuvida ? 'teatro-de-duvida' : agenteMudo ? 'agente-mudo' : 'max-rounds',
+  // Artigo 14: só a rodada limpa é sucesso. Teto, churn, teatro de dúvida e agente mudo
+  // são FALHA, e a casca as reporta como "a revisão NÃO terminou", com `emAberto` na
+  // frente do relatório. `abaixoDoPiso` acompanha SEMPRE, inclusive no sucesso.
+  sucesso: cleanRound === true,
+  severityFloor: args.severityFloor || 'P1',
+  emAberto,
+  abaixoDoPiso,
+  vereditoHumano: cleanRound
+    // `emAberto` pode ter item MESMO na rodada limpa (drift/alerts são destinos
+    // legítimos e não viram conserto), então o sucesso confere a lista antes de
+    // afirmar "nenhum achado".
+    ? (emAberto.length
+        ? `rodada limpa, mas ${emAberto.length} achado(s) acima do piso ficaram na mesa do dono (roteados para plano/drift, não consertados)`
+        : `nenhum achado acima de ${args.severityFloor || 'P1'}`) +
+      (abaixoDoPiso.length ? ` · ${abaixoDoPiso.length} abaixo do piso, listados e não bloqueantes` : '')
+    : churnEscalated
+      ? 'A REVISÃO NÃO TERMINOU — o mesmo ponto regrediu a cada tentativa e a investigação de causa assumiu'
+      : regressaoTotal
+        ? `A REVISÃO NÃO TERMINOU — em duas rodadas seguidas TODO conserto tentado quebrou a suíte (o laço atacou, não desistiu), com ${emAberto.length} achado(s) acima do piso ainda de pé`
+      : teatroDeDuvida
+        ? `A REVISÃO NÃO TERMINOU — duas rodadas seguidas acharam problema e NENHUM virou conserto (teatro de dúvida), com ${emAberto.length} achado(s) acima do piso na mesa do dono`
+        : agenteMudo
+          ? `A REVISÃO NÃO TERMINOU — ${agenteMudo}, com ${emAberto.length} achado(s) acima do piso ainda de pé`
+          // Só sobram estes quando `maxRounds` é finito: com o default Infinity, `r < maxRounds`
+          // nunca falha e a saída sem conserto é sempre um dos casos acima. E são DOIS,
+          // porque quem limitou muda a causa: o clamp da camada de rede é RISCO (sem suíte
+          // o conserto não tem prova), o teto de quem invoca é freio de emergência.
+          : limitePorCamada
+            ? `A REVISÃO NÃO TERMINOU — a rede de segurança deste projeto é Camada ${args.safetyLayer}, então cada conserto é aposta cega e mais voltas multiplicam o ESTRAGO: o laço parou em ${maxRounds} rodada(s) por RISCO, não por gasto, com ${emAberto.length} achado(s) acima do piso ainda de pé`
+            : `A REVISÃO NÃO TERMINOU — o freio de ${maxRounds} rodada(s) agiu com ${emAberto.length} achado(s) acima do piso ainda de pé`,
 }
 ```
 
@@ -572,11 +725,12 @@ bucket 2/3. Ele ser Opus **não** relaxa nenhuma dessas travas: o papel é estre
 limitação de modelo.
 
 **GATE de regressão (código, não LLM).** O `EXEC_RESULT.suiteRegressed` é objetivo (a suíte passou ou não).
-Vermelho → **reverte** + `churn++`; o Planejador (no tier da rodada) decide refazer cirúrgico (troca difuso
+Vermelho → o **executor desfaz a própria edição** e confirma em `reverted` (sem confirmação, o log diz que a
+edição FICOU DE PÉ e precisa de decisão) + `churn++`; o Planejador (no tier da rodada) decide refazer cirúrgico (troca difuso
 por extensão enumerada / exceção mais específica) — até `churn_threshold`. A partir do threshold, escala pra
 `diagnose_model` (Opus medium, R8 "diagnóstico após falhas repetidas"): não é mais "refaz cirúrgico", é achar
 a causa raiz do acoplamento. **Quem decide keep/revert é sempre o script + o Planejador, nunca o executor
-que fez o fix** — é separação de papel, não desconfiança de modelo (agora os dois são Opus).
+que fez o fix** (executar o desfazer é dele; DECIDIR não) — é separação de papel, não desconfiança de modelo (agora os dois são Opus).
 
 **Bucket 2 (plan-drift) e bucket 3 (plan-flaw)** nunca viram edição do executor (R4 e a constraint central abaixo).
 
@@ -632,33 +786,65 @@ Fora da pasta ignorada `.claude/qa-loop/`. Versionado de propósito — viaja co
 
 Precedência: **flag > config do projeto > default da skill.**
 
-## Critério de parada (DUAS condições: Fase Assintótica + Fase Gate)
+## Critério de parada — Artigo 14: assíntota de SEVERIDADE, nunca gasto
 
-A skill só declara **sucesso** quando AS DUAS fecham. São critérios independentes.
+**Há UM desfecho que é sucesso, e ele exige as DUAS fases fechadas.**
 
-**Fase Assintótica — para se qualquer um (gate de severidade primário, teto = trava):**
-- **[PRIMÁRIO]** uma rodada INTEIRA completou (`complete=true`) E produziu ZERO findings novos de severidade
-  ≥ `floor` FORA dos accepted-limits **E o confirm-pass dedicado (`finalize_model`, medium) concordou** —
-  rodada limpa nunca é declarada só pelo resultado mais barato (`coordinate_model`) que pareceu limpo.
-- **[TRAVA]** atingiu `max_rounds` → reporta "teto atingido sem convergir" (ALARME, não sucesso).
-- **[ESCALADA]** churn escalou (≥`churn_threshold` regressões na mesma função) → passa por `diagnose_model`
-  (medium) antes de virar `churn-escalated`.
+**Fase de Julgamento — o ÚNICO fecho legítimo (a assíntota):**
+- uma rodada INTEIRA completou (`complete=true`) E produziu ZERO findings **acima do piso de
+  severidade** (`severity_floor`) que não estejam resolvidos ou anistiados pelo dono, **E o
+  confirm-pass dedicado (`finalize_model`) concordou** — rodada limpa nunca é declarada só pelo
+  resultado mais barato (`coordinate_model`) que pareceu limpo.
+- **Achado abaixo do piso NÃO segura o fecho.** Ele é listado no relatório com severidade e
+  local, e pronto. Isso não é desistir: é a definição correta do alvo — preciosismo que não
+  afeta consistência nem funcionamento nunca foi o que a revisão está procurando.
+- **Achado acima do piso SEMPRE segura o fecho**, por mais barato que pareça ignorá-lo, e por
+  mais voltas que o laço já tenha dado.
 
-**Fase Gate — condição ABSOLUTA de sucesso (não é "parada por retorno decrescente"):**
+**Todo o resto é FALHA, e sai do laço com a lista do que ficou acima do piso:**
+- **[FALHA]** `max-rounds` (o teto `max_rounds`), quando quem invocou passou um. **Isto não é "parou", é "não
+  terminou"** — o relatório abre com o que ficou acima do piso, e o dono decide: outra volta ou
+  anistia explícita. **Sem teto passado, este desfecho não existe**, que é o normal.
+- **[FALHA]** churn escalou (≥`churn_threshold` regressões na mesma função) → passa por
+  `diagnose_model` e vira `churn-escalated`, com a causa (ou a disputa) no relatório. **Não é
+  parada por esforço:** é o sinal de que remendar ali está gerando estrago, e a saída é
+  investigar a causa raiz — mais trabalho, não menos.
+- **[FALHA]** `regressao-total` — a rodada tentou consertos e TODOS regrediram a suíte. O
+  relatório nomeia a suíte quebrada e nunca diz que nenhum achado virou conserto: viraram, e
+  cada um quebrou o que estava de pé.
+- **[FALHA]** `teatro-de-duvida` — duas rodadas com achado e ZERO conserto. Não é parada por
+  esforço: é o laço ter deixado de atacar problema. Ver a seção "Teatro de dúvida".
+- **[FALHA]** `agente-mudo` — um agente do laço devolveu vazio e a rodada não pôde ser julgada.
+  Silêncio de agente nunca vira rodada limpa.
+- **[FALHA]** `gate-red` — ver abaixo.
+
+**Fase Gate — condição ABSOLUTA de sucesso:**
 - **Sucesso EXIGE a Fase Gate 100% verde** (lint/type/unit/integração no repo inteiro, incluindo
   pré-existentes). Vermelho → vira fila de conserto; se travar, `stopReason='gate-red'` (fracasso
-  explícito, **nunca** sucesso). e2e/Playwright **NÃO** entra aqui — é Fase Assintótica, vira actionable.
+  explícito, **nunca** sucesso). e2e/Playwright **NÃO** entra aqui — vira actionable.
 - Projeto sem checks objetivos → Fase Gate **vazia, declarada honesto** (não é sucesso fingido nem gate-red).
 
-> O teto NÃO é meta. Quem decide é o gate de severidade — para na rodada 2 se convergiu rápido, vai até o teto
-> se ainda acha P0. Cravar um número fixo agora seria o erro simétrico ao "até zero". A telemetria (passo 8) é
-> que vai dizer, com o tempo, se vale cravar.
+> **Não há teto por default, e teto nunca é critério.** Ele existe só como freio de quem invoca,
+> para um laço preso em defeito de ambiente não rodar a noite inteira, e bater nele é falha. Teto
+> **não se declara dentro do projeto** — número escrito antes de saber o que a obra tem envelhece
+> calado e vira lei sem dono (medido: um `max_rounds: 6` viajava em dois `qa-loop.config.md` sem
+> ninguém ter decidido, e um deles ainda o chamava de "default" quando o default era 12).
 
-## "Vale a pena" (R5) — retornos decrescentes + risco de regressão, NUNCA tokens
+## O eixo é severidade. Gasto NUNCA entra na conta.
 
-O eixo "vale a pena" é o **gate de severidade** (retornos decrescentes) + o **regression gate / churn detector**
-(risco de regressão — o churn é o "agora gera mais regressão que conserto, para"). **Tokens = número PASSIVO no
-journal, nunca eixo de parada nem framing de "custo".**
+**Tokens, tempo e número de rodadas são números PASSIVOS no journal** — nunca eixo de parada,
+nunca framing de "custo". Um achado acima do piso obriga outra volta, e o preço disso não entra
+na conta. O que legitimamente tira um achado da frente é só isto:
+
+- ele está **abaixo do piso de severidade** — vai para a lista, não para o bloqueio; ou
+- ele foi **resolvido** (com teste que morde e a suíte verde); ou
+- o árbitro julgou que **não procede**, e escreveu o motivo em `rejected`; ou
+- o **dono ratificou** um limite aceito, com o motivo, no `qa-loop.config.md`.
+
+**O que NUNCA tira um achado da frente:** rebaixar a severidade dele para caber num desses.
+Essa é a fraude do critério, e é a falta mais grave do Artigo 14 porque não deixa rastro — o
+relatório fica verde e o defeito fica de pé. A rubrica e o árbitro único existem exatamente
+para que a severidade não seja negociada pelo cansaço de quem quer fechar.
 
 ### Teatro de dúvida — o sinal de duas rodadas com achado e zero acionável
 
@@ -667,9 +853,15 @@ todos caíram em plan-drift, plano-falho, limite proposto ou P2 documentado. Iss
 é **validação fantasiada de revisão**. O loop está pagando rodada para carimbar o que já estava lá,
 e a rodada limpa que vier depois vale zero, porque nada foi mexido entre uma e outra.
 
-**A conduta, escrita** — quem conta é a casca, olhando as rodadas que o motor devolveu:
+**Não confunda com o Artigo 14.** Parar aqui não é parar por esforço: é parar porque o laço **deixou
+de produzir conserto**, ou seja, está rodando sem atacar problema nenhum. Por isso o desfecho é
+`teatro-de-duvida` e é **FALHA** — com os achados que ficaram de pé indo para a mesa do dono.
 
-1. Na segunda rodada seguida sem nenhum acionável, **PARE o loop** — não dispare a terceira.
+**A conduta, escrita** — quem conta é o MOTOR, dentro do laço. A casca não tem como contar: o
+Workflow é um só e ela só vê `rounds` depois do return, quando a terceira rodada já foi paga.
+
+1. Na segunda rodada seguida sem nenhum acionável, **PARE o loop** — o motor não dispara a
+   terceira rodada e devolve `stopReason: 'teatro-de-duvida'` com `sucesso: false`.
 2. O relatório abre nomeando o sinal — *teatro de dúvida* — e diz para onde os achados foram
    (quantos viraram plan-drift, quantos plano-falho, quantos limite, quantos P2).
 3. **Isso não é sucesso.** A Fase Gate continua obrigatória, e a parada é reportada como
@@ -699,7 +891,7 @@ Antes de qualquer relatório, a casca roda os **checks objetivos do projeto** co
   Assintótica (lento demais e dependente de ambiente pra ser portão).
 - **Escopo: repo inteiro, absoluto.** Exige TODO o lint/type/unit/integração do repo **100% verde —
   incluindo erros pré-existentes não-relacionados à revisão**. "Tá errado = corrige = fim." Sem severidade,
-  sem accepted-limit, sem "retornos decrescentes". (Mesma disciplina do `/ship`, rodada mais cedo.) Se o
+  sem limite aceito, sem desconto por esforço gasto. (Mesma disciplina do `/ship`, rodada mais cedo.) Se o
   projeto oferece um runner com escopo próprio (`scripts/run_app_tests.sh`, target de Makefile,
   `pnpm --filter`, `cargo test -p`), use-o **pra rodar no ambiente certo** — nunca pra encolher o que
   precisa passar; em monorepo de múltiplos ambientes é o que evita falso-vermelho de import.
@@ -711,7 +903,8 @@ Antes de qualquer relatório, a casca roda os **checks objetivos do projeto** co
   assintótica). Se travar de verdade (erro que exige decisão de arquitetura), **NÃO declara sucesso** — e o
   conserto que travou escala pra `diagnose_model` (medium) antes de virar `gate-red`.
 - **Quem seta o `stopReason` FINAL é a CASCA, não o motor.** O motor (Workflow) reporta o stopReason da fase
-  assintótica (`no-severe-finding` / `churn-escalated` / `max-rounds`); a casca, pós-gate, computa o stopReason
+  assintótica (`no-severe-finding` / `churn-escalated` / `regressao-total` / `teatro-de-duvida` /
+  `agente-mudo` / `max-rounds` — os seis que o `return` produz); a casca, pós-gate, computa o stopReason
   da sessão — **promove a `gate-red`** quando o gate trava vermelho, e mantém o do motor quando o gate fecha
   verde. O relatório **lidera** com "GATE VERMELHO — bloqueante" sempre que `gate-red`.
 - **Transparência (anti-violação-de-surgical-changes).** O conserto repo-wide é real, mas o relatório
@@ -742,14 +935,18 @@ Estrutura do relatório (no topo → fundo):
 - **Faixa de STATUS DA FASE GATE (topo de tudo, read-only):** verde "gate 100% — N checks" ou vermelho
   "GATE VERMELHO — bloqueante" (`stopReason='gate-red'`). Se houve conserto repo-wide, **separa duas pilhas**
   com diff — "consertos da revisão" vs "débito pré-existente zerado" — pra o usuário revisar/reverter. Fica
-  ACIMA de tudo: um gate vermelho é a primeira coisa que ele vê.
+  ACIMA de tudo: um gate vermelho é a primeira coisa que ele vê. **O veredito da faixa é o `vereditoHumano`
+  do `return`, impresso LITERAL** — não redigite frase de desfecho: o motor já conta os que ficaram e sabe se
+  foi rodada limpa, teto, teatro de dúvida ou agente mudo. **Colada nela, a lista `emAberto`** (achados ACIMA
+  do piso que sobraram de pé, cada um com id · severidade · arquivo), read-only — é a promessa central do fecho
+  e não tem outra seção onde caber.
 - **Gráfico único — findings por severidade: NÃO desenhe o SVG.** Emita o bloco `chart` do spec, com uma
   entrada por rodada: `{"kind":"chart","rounds":[{"label":"R1","p0":2,"p1":6,"p2":4,"p3":1}, …]}`. Os números
   saem direto do `return` do Workflow; o programa desenha as barras empilhadas P0/P1/P2/P3 e sobrepõe a linha de
   severidade real (P0+P1) — a composição E a queda no mesmo lugar. Um gráfico só, porque com 4-5 rodadas dois
   lado a lado apertam. **Por que é do programa:** coordenada de barra é aritmética sobre número que você já
-  recebeu pronto, e barra fora de escala **não dá erro** — dá a conclusão errada sobre retornos decrescentes,
-  que é a única leitura pra qual este gráfico existe. Contagem em string é recusada pelo build (nada de coerção
+  recebeu pronto, e barra fora de escala **não dá erro** — dá a conclusão errada sobre a queda da severidade
+  ao longo das voltas, que é a única leitura pra qual este gráfico existe. Contagem em string é recusada pelo build (nada de coerção
   silenciosa). + **tabela por rodada** com as considerações **DENTRO da linha** (colapsável, o `detail` do item),
   NÃO um listão depois. Read-only.
 - **Voltas por problema (logo abaixo do gráfico, read-only):** uma linha por achado do
@@ -772,8 +969,9 @@ Estrutura do relatório (no topo → fundo):
   O mapeamento (a partir do `return`):
   1. **Importantes — recomendação** ← `planFlawAlerts` P0/P1 (decisões de arquitetura do plano: "apresento e julgamos") — **inclui a proposta de reabrir a etapa** quando a concepção errou, com o documento, a passagem e a linha `correcao-pendente:` sugerida.
   2. **Sugestões de melhoria** ← `plan-drift` (candidatos a mudança de plano) + refators propostos pelo loop.
-  3. **Limitações atuais** (não quebram, mas importam) ← `acceptedLimits` propostos + churn hotspots.
-  4. **Extras** (opcionais) ← P2/P3 documentados (picuinhas abaixo do floor, nice-to-have).
+  3. **Limitações atuais** (não quebram, mas importam) ← `proposedLimits` (propostos, à espera da ratificação do dono) + churn hotspots.
+  4. **Extras** (opcionais) ← `abaixoDoPiso` do `return` (os P2/P3 documentados — picuinhas abaixo do floor,
+     nice-to-have). Acompanha SEMPRE, inclusive quando a corrida fecha em sucesso: some do bloqueio, nunca da vista.
 - **Fechamento** (`feedback-box`): progresso + observação geral + botões "Aprovar tudo" / "Copiar feedback".
 
 **Seleção live → próximo plano (o ciclo fecha aqui).** O usuário marca os itens, diz **"ok"**, e a casca lê
@@ -838,9 +1036,9 @@ As camadas abaixo são detectadas UMA vez e servem a **dois propósitos distinto
    com rede fraca, baixa o teto e declara o blast-radius não-coberto.
 2. **Fase Gate de SAÍDA** (Passo 8.0) — portão absoluto: **só as Camadas 1 e 3** (unit/integração + lint/type)
    compõem o gate e têm que estar 100% verdes no repo pra declarar sucesso. A Camada 2 (caracterização, escopo
-   parcial) e a Camada 4 (e2e, dependente de ambiente) ficam **de FORA** do gate — são da fase assintótica.
-   Aqui NÃO há "teto" nem "retorno decrescente" — é binário. ("Teto" só governa o nº de rodadas da fase
-   assintótica quando a rede é fraca; não toca o gate.)
+   parcial) e a Camada 4 (e2e, dependente de ambiente) ficam **de FORA** do gate — são da Fase de Julgamento.
+   Aqui NÃO há teto nem desconto por esforço — é binário. (O teto só limita o nº de rodadas da Fase de
+   Julgamento quando a rede de regressão é fraca; não toca o gate.)
 
 Detecte na ordem:
 
@@ -864,8 +1062,14 @@ que regrediu investiga a causa na PRIMEIRA queda, sem esperar reincidir — com 
 ### Accepted-limits (R6) — proposto, nunca enterrado sozinho
 Vivo, **ancorado ao alvo**. O loop **PROPÕE** (`plan.proposedLimits`); o Planejador adjudica se procede; mas só
 vira **PERMANENTE** quando o usuário move pra `.claude/qa-loop.config.md`. **Critério explícito de entrada** (é
+<!-- artigo14-ok: nomeia o abuso que a ratificação do dono existe para impedir -->
 genuinamente espaço-de-input-infinito? ou só difícil?) — não é o lixo do que cansou de consertar; um bug real
 classificado como limite some pra sempre. **Headless propõe + reporta, nunca grava permanente.**
+
+**É AQUI que o Artigo 14 encosta.** O limite aceito é a ÚNICA porta legítima para um achado
+procedente ficar sem conserto — e ela é do **dono**, não do laço. O loop nunca grava permanente,
+nunca "aceita para poder fechar", e a rodada limpa que depende de um limite não-ratificado não é
+rodada limpa: o achado segue em `emAberto` e o desfecho segue sendo falha.
 
 **Finding de Fase Gate (lint/type/unit/integração vermelho) é INELEGÍVEL a accepted-limit** — erro objetivo
 nunca vira "limite aceito" nem P2 rebaixado. Só findings da Fase Assintótica podem virar limite; o gate é
@@ -919,7 +1123,9 @@ de declarar a frente pronta.
   "débito pré-existente zerado" (com diff) — conserto repo-wide nunca é silencioso (respeita surgical-changes).
 - Nunca consertar um finding de bucket plan-drift no sentido que afasta do plano; nunca implementar um plan-flaw.
 - Nunca rodar como se houvesse rede de regressão quando não há (Camada 5 é declaração explícita, não fallback silencioso).
-- O teto é trava, não meta — não pare só porque "rodou N vezes" se ainda há severidade real.
+- O fecho é a assíntota de SEVERIDADE (Artigo 14): enquanto houver achado **acima do piso**, o
+  laço continua — não importa quantas voltas já deu, quanto custou ou quanto tempo levou. Teto,
+  quando quem invoca passa um, é freio de emergência, e bater nele é FALHA.
 - Quem decide keep/revert de um fix é o script + o Planejador, **nunca o agente que fez o fix** — mesmo com
   todo mundo em Opus 5, o gate é separação de papel, não desconfiança de modelo.
 
@@ -928,11 +1134,21 @@ de declarar a frente pronta.
 Cada frase abaixo já fechou um loop cedo demais. Se você se ouvir pensando a da esquerda,
 a resposta já está dada:
 
-- **"a rodada veio limpa, então está 100%"** → rodada limpa é sinal de retorno decrescente,
-  não certificado de ausência de defeito. O relatório diz "parei porque não vale mais",
-  nunca "não há mais".
-- **"sobrou só P2, dá pra encerrar"** → severidade quem decide é a rubrica, não o cansaço.
-  Rebaixar achado para poder parar é o teatro de dúvida com outro nome.
+- **"a rodada veio limpa, então está 100%"** → rodada limpa quer dizer que nada acima do piso
+  apareceu NESTA volta, não que o código esteja correto. O relatório diz o que a assíntota
+  alcançou, nunca "não há mais defeito".
+- **"sobrou só P2, dá pra encerrar"** → **este está certo, e é o critério** — P2 abaixo do piso
+  vai para a lista e não segura o fecho. O que é proibido é o passo seguinte: **rebaixar** um P1
+  para P2 a fim de chegar nesse estado. Severidade quem decide é a rubrica e o árbitro único,
+  nunca a vontade de fechar.
+<!-- artigo14-ok: nomeia as desculpas para refutá-las -->
+- **"já rodei bastante, o retorno está caindo"** → **Artigo 14: isso não é a assíntota.** A
+  assíntota é de severidade, não de quantidade de achados. Uma rodada que traz um P0 não fecha,
+  mesmo que as três anteriores só tenham trazido P3.
+- **"está ficando caro / gastando muito token"** → gasto nunca é eixo de parada. Se o preço
+  virou o problema, quem decide encurtar é o dono, avisado, e a decisão sai no relatório.
+- **"o teto chegou, então terminei"** → teto atingido é `max-rounds`, que é **FALHA**. Entregue a
+  lista do que ficou acima do piso e diga que a revisão não terminou.
 - **"esse lint já estava vermelho antes de eu chegar"** → a Fase Gate é repo-inteiro-absoluto.
   Débito pré-existente vermelho é gate vermelho, e `stopReason='gate-red'`.
 - **"eu fiz o conserto, eu mesmo confiro que ficou bom"** → quem faz o fix nunca decide

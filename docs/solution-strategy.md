@@ -79,8 +79,8 @@ approved-sig: 775696971
 - **Detalhe em:** [DITO POR VOCÊ: 2026-08-07 — "eu nunca mais quero ter que te dizer isso"; 2026-08-13 — "isso devia estar em um lugar só, estruturado, canônico"]
 
 ### Antes de abrir um laço, classifique o domínio
-- **Por quê:** domínio convergente tem estado-alvo alcançável e vai até atingir; domínio assintótico (raspador, classificador, "achar todos os defeitos") não tem perfeito, e ali a parada é por severidade e retorno decrescente.
-- **Descartamos:** aplicar o critério de um no outro — em domínio convergente, parar por retorno decrescente é desistir.
+- **Por quê:** domínio convergente tem estado-alvo alcançável e vai até atingir; domínio assintótico (raspador, classificador, "achar todos os defeitos") não tem perfeito, e ali o laço fecha por SEVERIDADE — rodada completa sem achado acima do piso (Artigo 14).
+- **Descartamos:** aplicar o critério de um no outro — em domínio convergente, "assíntota de severidade" não existe; em assintótico, exigir zero obriga a rebaixar achado para poder fechar, que é a fraude do critério.
 - **Serve ao artigo:** Art. 4 · Rigor (constituicao.md).
 - **Detalhe em:** [ESCRITO: briefing do laço de revisão — "o erro-raiz desta sessão: tratar um problema assintótico com critério convergente"]
 
@@ -110,9 +110,9 @@ approved-sig: 775696971
 - **Detalhe em:** [DITO POR VOCÊ: 2026-07-27 — "não usaremos mais o sonnet para implementar"; contrato em `_shared/r8-tiers.md`]
 
 ### Duas máquinas que não se misturam: a revisão é assintótica, o gate é absolutista
-- **Por quê:** julgamento de severidade variável (revisão de código, aderência ao escopo) para por retornos decrescentes; verificação binária (tipo, lint, teste de integração) só fecha em 100% — **inclusive erro que já estava lá antes**.
-- **Descartamos:** loop até zero no lado assintótico, e qualquer escopo no lado absolutista.
-- **O motivo da parada NÃO é economia:** é retorno decrescente e risco de regressão auto-infligida. Token, tempo e turno nunca justificam parar.
-- **O critério de parada não é contagem:** teto por número de rodadas é proibido — mede-se a produtividade da rodada e um juiz isento decide seguir ou parar.
+- **Por quê:** julgamento de severidade variável (revisão de código, aderência ao escopo) fecha quando uma rodada completa não traz achado acima do piso (assíntota de severidade, Artigo 14); verificação binária (tipo, lint, teste de integração) só fecha em 100% — **inclusive erro que já estava lá antes**.
+- **Descartamos:** exigir zero no lado assintótico (obriga a rebaixar achado para fechar), qualquer escopo no lado absolutista, e fechar por gasto — rodada, token, tempo — em qualquer dos dois.
+- **O motivo da parada NUNCA é economia nem cansaço:** é a assíntota de severidade — não sobrou achado acima do piso, confirmado por um re-sweep independente. Token, tempo e turno nunca justificam parar.
+- **O critério de parada não é contagem:** teto por número de rodadas é proibido, e rebaixar achado para alcançar o fecho também. O que fica abaixo do piso sai listado; o que fica acima só escapa com ratificação do dono.
 - **Serve ao artigo:** Art. 4 · Rigor (constituicao.md).
 - **Detalhe em:** [DITO POR VOCÊ: 2026-06-21 — "é como se a skill QA tivesse DUAS FASES. uma fase assintótica e uma fase que é um gate" e "o critério é absolutista. só vai passar quando estiver 100%, incluindo erros pré-existentes. tipo tá errado, tá errado = tem que corrigir e fim"]

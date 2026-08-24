@@ -56,10 +56,10 @@ approved-sig: 2789012455
 - **Origem:** jornada "Executar um plano noite adentro"
 - **Passagem que a motivou:** "passos marcados com prova e commits publicados"
 
-### F-9 · Revisar até valer a pena, nunca até zero
-- **O que faz:** `/qa-loop` para por retornos decrescentes, com regression gate por conserto e gate absoluto no fim.
-- **Origem:** jornada "Revisar até valer a pena"
-- **Passagem que a motivou:** "loop até zero — proibido de propósito"
+### F-9 · Revisar até a assíntota de severidade, nunca até zero
+- **O que faz:** `/qa-loop` fecha quando uma rodada completa não traz achado acima do piso de severidade, com regression gate por conserto e gate absoluto no fim. Nunca por gasto (rodada, token, tempo) nem por taxa de descoberta.
+- **Origem:** jornada "Revisar até a assíntota de severidade"
+- **Passagem que a motivou:** "zero erros é otimista — parte do que se chama erro é preciosismo que não afeta consistência nem funcionamento. A assíntota é de severidade" (Artigo 14, 2026-08-23)
 
 ### F-10 · Toda decisão chega como página com prova
 - **O que faz:** o `/visual` monta a página com o artefato e a saída crua embutidos; o construtor recusa decisão sem prova.

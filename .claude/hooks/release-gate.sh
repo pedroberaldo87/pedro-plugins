@@ -447,6 +447,23 @@ $(printf '%s' "$ROUT" | head -20)
   fi
 fi
 
+# I2 · ARTIGO 14 — nenhum laço de revisão autoriza fechar por esforço gasto.
+# Revisão que encerra por rodada, tempo, token ou "retornos decrescentes" descreve o
+# cansaço de quem revisa, não o estado da obra. O gate lê os textos que MANDAM nos dois
+# laços (qa-loop e sprint) e reprova vocabulário de parada por esforço sem a marca
+# `artigo14-ok: <motivo>`, teto tratado como sucesso, e limite aceito sem ratificação do
+# dono. Varre a lista inteira (não só o staged): a lei vale para o estado do repo, e são
+# 5 arquivos — barato de medir por completo.
+RFP="$ROOT/scripts/test_revisao_fecha_por_problema.py"
+if [ -f "$RFP" ]; then
+  if ! FOUT=$(cd "$ROOT" && python3 "$RFP" 2>&1); then
+    VIOL="${VIOL}
+❌ ARTIGO 14 — laço de revisão autorizando fechar por esforço, não por problema resolvido:
+$(printf '%s' "$FOUT" | head -20)
+   → régua: python3 scripts/test_revisao_fecha_por_problema.py"
+  fi
+fi
+
 # K · número de contagem afirmado no README contra o repositório.
 # O README é a vitrine e afirma quantidade (quantos plugins, quantos ligados de fábrica,
 # quantos hooks pedem jq, quantos plugins registram hook e quantos registros dão). Nada

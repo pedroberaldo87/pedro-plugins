@@ -708,11 +708,16 @@ Quem não foi despachado **não é tarefa presa**: entra na mesma isenção de c
 
 **O laço é fechado, e é o MESMO das duas receitas.** Aqui (implementação) e no `/qa-loop` (revisão) vale a mesma regra: **feito o conserto, quem revisa reabre sobre ele** — o #2 julga de novo a obra depois de cada volta de execução, e o laço só fecha quando uma rodada vem **limpa** (`complete && cohesive` e zero gap acima do floor). Conserto que sai sem re-revisão declara pronto o que ninguém reconferiu, e é assim que o resíduo do próprio conserto — o caso que o fix deixou de fora — atravessa a missão inteira sem ninguém ver. O que cada laço reabre muda (lá é o delta dos arquivos tocados, aqui é a obra contra a spec); o fechamento por rodada limpa, não.
 
-### Freio do loop (não é "até o #2 ficar feliz")
+### Fecho do loop (não é "até o #2 ficar feliz", e também não é "até cansar")
 
-Revisão é poço sem fundo (mesma disciplina do review-loop: parada por retorno decrescente, não "até zero"). O loop #1↔#2 para no **primeiro** que ocorrer:
-- **[primário]** #2 reporta `complete && cohesive` e **zero gap** acima do floor de severidade — gap de spec e de rastreio contam sempre, estejam onde estiverem na escala → obra de pé, segue pro QA.
-- **[trava]** `maxRounds` só age quando a casca o passou de propósito — sem teto por default; quem trava missão parada é o vigia por avanço.
+**Artigo 14 da constituição vale aqui igual:** o loop #1↔#2 fecha por uma **assíntota de
+SEVERIDADE** — zero gap **acima do floor** —, nunca por esforço gasto. Não existe "já revisei
+bastante"; e também não existe "até zerar tudo", porque parte do que #2 aponta é preciosismo que
+não afeta consistência nem funcionamento.
+- **[ÚNICO FECHO]** #2 reporta `complete && cohesive` e **zero gap acima do floor** de severidade — gap de spec e de rastreio contam sempre, estejam onde estiverem na escala → obra de pé, segue pro QA.
+- **[FALHA]** `maxRounds` só age quando a casca o passou de propósito — **sem teto por default**, e bater
+  nele não é fecho: é a onda voltando com o que ficou acima do floor nomeado. Quem trava missão parada é o
+  vigia por avanço, que mede **ausência de progresso** — não custo, não número de voltas.
 
 ### Nada que o motor usa para si mesmo é escrito à mão — nem caminho, nem nome de skill
 

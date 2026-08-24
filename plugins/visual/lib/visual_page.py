@@ -663,8 +663,8 @@ def r_chart(blk, ctx):
     """Barras empilhadas P0-P3 por rodada + a linha de severidade real (P0+P1).
 
     Coordenada de barra é aritmética, não julgamento: barra fora de escala não dá
-    erro, dá uma conclusão errada sobre retornos decrescentes — que é a única
-    leitura pra qual este gráfico existe.
+    erro, dá uma conclusão errada sobre a SEVERIDADE que sobrou na última rodada —
+    que é a única leitura pra qual este gráfico existe (Artigo 14).
     """
     rounds = blk["rounds"]
     keys = ("p0", "p1", "p2", "p3")
