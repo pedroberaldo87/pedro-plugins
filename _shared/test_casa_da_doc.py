@@ -131,6 +131,20 @@ with tempfile.TemporaryDirectory() as tmp:
           casa(ambas))
     check("sem nenhuma, a doc nasce na canônica",
           casa(vazia) == os.path.join(vazia, "docs"), casa(vazia))
+
+    # docs/ de outro uso (sem nenhum .md) não esconde a casa habitada — o caso
+    # medido no outro projeto em 2026-08-26, onde docs/ só tinha uma subpasta e a
+    # doc aprovada morava em .claude/docs/.
+    habitada = os.path.join(tmp, "casa-habitada-na-velha")
+    os.makedirs(os.path.join(habitada, "docs", "outra-coisa"))
+    os.makedirs(os.path.join(habitada, ".claude", "docs"))
+    open(os.path.join(habitada, ".claude", "docs", "quality-goals.md"), "w").close()
+    check("docs/ sem .md nao esconde a velha habitada",
+          casa(habitada) == os.path.join(habitada, ".claude", "docs"), casa(habitada))
+    open(os.path.join(habitada, "docs", "readme.md"), "w").close()
+    check("docs/ com .md volta a ganhar",
+          casa(habitada) == os.path.join(habitada, "docs"), casa(habitada))
+    os.remove(os.path.join(habitada, "docs", "readme.md"))
     check("o resolvedor não cria pasta nenhuma",
           not os.path.isdir(os.path.join(vazia, "docs")))
 
@@ -146,6 +160,7 @@ with tempfile.TemporaryDirectory() as tmp:
             ("casa velha", velha, ()),
             ("as duas casas", ambas, ()),
             ("sem casa", vazia, ()),
+            ("docs sem .md e velha habitada", habitada, ()),
             ("arquivo na casa velha", velha, ("architecture.md",)),
             ("subpasta na casa nova", nova, ("fluxos", "f.html")),
         ):

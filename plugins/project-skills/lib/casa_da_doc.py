@@ -21,14 +21,30 @@ NOVA = ("docs",)              # a casa canônica: visível na raiz
 VELHA = (".claude", "docs")   # a casa antiga: retrocompatibilidade
 
 
+def _tem_md(pasta):
+    """A pasta tem pelo menos um .md no primeiro nível — é casa habitada."""
+    try:
+        return any(n.endswith(".md") for n in os.listdir(pasta))
+    except OSError:
+        return False
+
+
 def casa(raiz, *partes):
     """O caminho da casa da doc de `raiz`, com `partes` juntadas dentro dela.
 
     Cascata: a casa NOVA se ela existir; senão a VELHA, se existir; senão a
     NOVA — porque doc que ainda não nasceu nasce na casa canônica.
+    Exceção medida (outro projeto, 2026-08-26): a NOVA existe sem nenhum .md
+    e a VELHA tem a doc de verdade — uma `docs/` de outro uso na raiz fazia
+    o resolvedor ignorar a casa habitada. Nesse caso a VELHA responde.
     """
     raiz = str(raiz)
     nova = os.path.join(raiz, *NOVA)
     velha = os.path.join(raiz, *VELHA)
-    escolhida = nova if os.path.isdir(nova) or not os.path.isdir(velha) else velha
+    if not os.path.isdir(nova):
+        escolhida = velha if os.path.isdir(velha) else nova
+    elif os.path.isdir(velha) and not _tem_md(nova) and _tem_md(velha):
+        escolhida = velha
+    else:
+        escolhida = nova
     return os.path.join(escolhida, *[str(p) for p in partes]) if partes else escolhida

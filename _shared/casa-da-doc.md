@@ -30,7 +30,10 @@ hardcodar e espalhar até virar dívida, em vez de amarrar e tornar recursivo.
 
 ## A cascata (para no primeiro que bater)
 
-1. `<raiz>/docs/` existe → é ela.
+1. `<raiz>/docs/` existe → é ela — **salvo** quando ela não tem nenhum `.md`
+   no primeiro nível e `<raiz>/.claude/docs/` tem: aí a casa habitada responde
+   (caso medido no outro projeto em 2026-08-26, onde uma `docs/` de outro uso
+   escondia a doc aprovada).
 2. senão, `<raiz>/.claude/docs/` existe → é ela (a casa antiga).
 3. nenhuma das duas existe → `<raiz>/docs/`, porque doc que ainda não nasceu
    nasce na casa canônica.
