@@ -159,6 +159,39 @@ def conferir(docs_dir):
         if _VAZIO.match(it["origem"].strip()):
             out["funcionalidades_sem_origem"].append(it["nome"])
 
+    # Origem com citação entre aspas tem que ser VERBATIM no doc citado (F9,
+    # 2026-08-27): uma origem inventada passava porque só a presença era checada.
+    # Tolerante a quebra de linha (a normalização colapsa espaço) e a recorte
+    # marcado com "…" (cada fragmento ≥ 15 chars é exigido separadamente).
+    out["origens_nao_verbatim"] = []
+    _docs_cache = {}
+    for it in itens:
+        origem = it["origem"]
+        m_doc = re.search(r"([a-z0-9_-]+\.md)", origem)
+        m_cit = re.findall(r'[""]([^""]+)[""]|"([^"]+)"', origem)
+        citacoes = [a or b for a, b in m_cit]
+        if not m_doc or not citacoes:
+            continue
+        alvo = os.path.join(docs_dir, m_doc.group(1))
+        if not os.path.exists(alvo):
+            continue
+        def _lisa(txt):
+            # aspas tipográficas → retas; marcação markdown (negrito/código) fora
+            # da comparação — negrito no doc de origem não torna a citação falsa.
+            txt = (txt.replace(""", '"').replace(""", '"')
+                      .replace("'", "'").replace("'", "'")
+                      .replace("*", "").replace("`", ""))
+            return _norm(txt)
+        if alvo not in _docs_cache:
+            _docs_cache[alvo] = _lisa(_ler(alvo))
+        corpo_alvo = _docs_cache[alvo]
+        for cit in citacoes:
+            frags = [f.strip() for f in re.split(r"[…]|\.\.\.", cit) if len(f.strip()) >= 15]
+            for frag in frags:
+                if _lisa(frag) not in corpo_alvo:
+                    out["origens_nao_verbatim"].append(
+                        {"nome": it["nome"], "doc": m_doc.group(1), "trecho": frag})
+
     corpo = _norm("\n".join(it["bloco"] + "\n" + it["nome"] for it in itens))
     for nome in nomes:
         if _norm(nome) not in corpo:
@@ -174,6 +207,7 @@ def conferir(docs_dir):
         "funcionalidades_sem_origem": len(out["funcionalidades_sem_origem"]),
         "jornadas_sem_funcionalidade": len(out["jornadas_sem_funcionalidade"]),
         "passos_sem_funcionalidade": len(out["passos_sem_funcionalidade"]),
+        "origens_nao_verbatim": len(out["origens_nao_verbatim"]),
     }
     out["sem_dono"] = (out["contagem"]["funcionalidades_sem_origem"]
                        + out["contagem"]["jornadas_sem_funcionalidade"]

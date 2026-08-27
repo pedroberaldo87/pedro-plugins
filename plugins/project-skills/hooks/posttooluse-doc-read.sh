@@ -65,6 +65,16 @@ case "$FP" in
   */.claude/docs/*) : ;;  # casa-ok: reconhece o caminho LIDO na entrada, não escreve a casa
   *) exit 0 ;;
 esac
+# Doc AUTORAL aprovada não é doc minerada: o de acordo do dono não envelhece
+# porque um arquivo de código mudou — o staleness do projeto mede a MINERADA.
+# Sem esta saída o hook carimbava a própria constituição de "DEFASADA — trate
+# como hipótese" no dia da aprovação (C2 da revisão adversarial, 2026-08-27).
+# F3/F11 (rodada 2): aceita `aceita` (os ADRs de decisions/ usam esse status) e
+# valor entre aspas — YAML válido que escapava do grep e trazia o carimbo de volta.
+if head -40 "$FP" 2>/dev/null | grep -qE '^authored-by:[[:space:]]*"?human"?[[:space:]]*$' && \
+   head -40 "$FP" 2>/dev/null | grep -qE '^status:[[:space:]]*"?(approved|aceita)[^"]*"?[[:space:]]*$'; then
+  exit 0
+fi
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PATTERN_CHECK_PY="$SCRIPT_DIR/../lib/pattern_check.py"
 PY3=$(command -v python3 2>/dev/null)
