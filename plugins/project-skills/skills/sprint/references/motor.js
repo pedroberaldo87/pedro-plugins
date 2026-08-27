@@ -620,7 +620,16 @@ Papel mecânico e SÓ: gravar no histórico do git o que o bloco ${bloco} da ond
 ARQUIVOS (a união dos \`files_touched\` das entregas aprovadas, MAIS o plano):
 ${J([...new Set(results.flatMap(x => x?.files_touched || []))].concat(planPath && planPath.endsWith('.plan.json') && planPath.startsWith(repoRoot) ? [planPath] : []))}
 
-Rode, a partir de ${repoRoot}:
+Rode, a partir de ${repoRoot}, DOIS comandos em sequência.
+
+1) FECHO POR IMPORT — o bloco é uma fatia por tarefa, não por dependência: arquivo novo que
+importa helper que a tarefa não nomeou fica de fora e o commit não builda (a suíte roda ANTES,
+na árvore inteira, e fica verde sempre). Este comando imprime os caminhos SUJOS que os arquivos
+da onda importam e que não estão na lista acima — eles entram no commit junto:
+
+  cd ${repoRoot} && for f in <arquivo...>; do base=$(echo "$f" | sed "s|/src/.*|/src|"); grep -hoE "from '@/[^']+'" "$f" 2>/dev/null | sed "s|from '@/||;s|'||" | while read l; do for e in .ts .tsx; do p="$base/$l$e"; [ -f "$p" ] && git status --porcelain -- "$p" | grep -q . && echo "$p"; done; done; done | sort -u
+
+2) COMMIT — a lista é a união: os ARQUIVOS acima MAIS o que o passo 1 imprimiu.
 
   OK=""; for f in <arquivo...>; do git -C ${repoRoot} add -- "$f" && OK="$OK $f" || echo "sprint: o git recusou $f — fica fora do ponto de salvamento da onda ${round}"; done; [ -n "$OK" ] && git -C ${repoRoot} commit -q -m "sprint: onda ${round} bloco ${bloco} verde" -- $OK || true
 
