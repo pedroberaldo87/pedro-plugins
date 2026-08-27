@@ -247,7 +247,10 @@ PROVIDER_RE = re.compile(
     r"(?:AKIA[0-9A-Z]{16}|ASIA[0-9A-Z]{16}"
     r"|gh[posu]_[A-Za-z0-9]{20,}|github_pat_[A-Za-z0-9_]{20,}"
     r"|sk-[A-Za-z0-9]{20,}|sk_live_[A-Za-z0-9]{16,}|sk_test_[A-Za-z0-9]{16,}|rk_live_[A-Za-z0-9]{16,}"
-    r"|xox[baprs]-[A-Za-z0-9-]{10,}|glpat-[A-Za-z0-9_-]{16,}|AIza[A-Za-z0-9_-]{20,}|ya29\.[A-Za-z0-9_-]{20,})")
+    r"|xox[baprs]-[A-Za-z0-9-]{10,}|glpat-[A-Za-z0-9_-]{16,}|AIza[A-Za-z0-9_-]{20,}|ya29\.[A-Za-z0-9_-]{20,}"
+    # GOCSPX- = Google OAuth client secret. Escapou em produção (2026-08-27, outro projeto:
+    # dois findings de memória carregaram o valor real pro journal versionado).
+    r"|GOCSPX-[A-Za-z0-9_-]{16,})")
 # Camada 3 (prosa): palavra que sinaliza segredo logo antes do valor.
 SIGNAL_RE = re.compile(
     r"\b(senhas?|passwords?|passwd|secrets?|tokens?|api[\s_-]?keys?|"
