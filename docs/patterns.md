@@ -1,6 +1,6 @@
 ---
 generated: 2026-08-28
-generated-commit: 92418a0
+generated-commit: 62fbe73
 project: pedro-plugins
 scope:
   - .claude/hooks/release-gate.sh
@@ -46,6 +46,7 @@ scope:
   - scripts/hook_contract.py
   - .claude-plugin/marketplace.json
 verified-by:
+  - scripts/test_pilares_de_revisao.py
   - plugins/bootstrap/lib/test_conformance.py
   - plugins/bootstrap/hooks/test_bootstrap_hooks.sh
   - plugins/project-skills/lib/test_doc_lint.py
