@@ -330,6 +330,9 @@ const agent = async (prompt, opts) => {
     return voltas === 1 ? { complete: false, findings: [finding] } : { complete: true, findings: [] }
   }
   if (opts.phase === 'Confirm') return { complete: true, findings: [] }
+  if (opts.phase === 'Auditoria') return opts.label.includes('cobertura')
+    ? { complete: true, semAncora: 'harness sem plano nem pedido', itens: [] }
+    : { complete: true, semAncora: 'harness sem régua', itens: [], foraDaConta: [] }
   if (opts.phase === 'Plan') return { bucket1: [], drift: [{ id: 'F1' }], alerts: [], rejected: [] }
   return null
 }
@@ -442,6 +445,9 @@ const agent = async (prompt, opts) => {
     return { complete: true, findings: [] }
   }
   if (opts.phase === 'Confirm') return { complete: true, findings: [p3] }
+  if (opts.phase === 'Auditoria') return opts.label.includes('cobertura')
+    ? { complete: true, semAncora: 'harness sem plano nem pedido', itens: [] }
+    : { complete: true, semAncora: 'harness sem régua', itens: [], foraDaConta: [] }
   return null
 }
 const e = { effort: 'm' }
@@ -654,6 +660,180 @@ if shutil.which("node"):
           "quebrou a suíte e foi revertido" not in motor)
 else:
     print("  skip reversão confirmada (node ausente)")
+
+# R · OS PILARES COBERTURA E COERÊNCIA — AUDITORIA EXTERNA NO CANDIDATO A FECHO ─
+# (2026-08-28, ordem do dono) Todo revisor mede três pilares contra três âncoras.
+# A rodada limpa é CANDIDATA: dois auditores isolados rodam antes do fecho, e quem
+# soma o 100% é o script. Checagens de TEXTO primeiro; os cenários executam depois.
+check("o schema AUDIT_COBERTURA existe, com as lentes",
+      "AUDIT_COBERTURA" in motor and "'sem-infra'" in motor and "'antipadrao'" in motor)
+check("o schema AUDIT_COERENCIA existe, com os vereditos item a item",
+      "AUDIT_COERENCIA" in motor and "'violado'" in motor and "'nao-medido'" in motor)
+check("o auditor é ISOLADO: o bloco SEM_HISTORICO existe",
+      "SEM_HISTORICO" in motor and "NÃO recebe os achados do revisor" in motor)
+audit_prompts = motor[motor.find("const auditCoberturaPrompt"):motor.find("const sevRank")]
+check("os prompts de auditoria não interpolam o histórico do laço",
+      audit_prompts and "review" not in audit_prompts and "openFindings" not in audit_prompts
+      and "rounds" not in audit_prompts)
+check("a conta do 100% é do script (furosDe + filtros em JS)",
+      "furosDe" in motor and "furosCobertura" in motor
+      and "i.veredito === 'violado' || i.veredito === 'nao-medido'" in motor)
+check("as três âncoras entram por args e a ausência é DECLARADA",
+      "ARGS.pedidos" in motor and "pedidosAusentes" in motor and "AUSENTE" in motor)
+check("dispensa de lente é ratificação do dono, por args",
+      "lentesDispensadas" in motor and "ARGS.lentesDispensadas" in motor)
+check("cobertura sem infra E2E tem veredito literal e nunca sucesso silencioso",
+      "COBERTURA NÃO MEDIDA NA LENTE E2E" in motor and "auditoriaNaoMedida" in motor)
+check("o return devolve os três pilares",
+      "pilares:" in motor and "qualidade:" in motor and "cobertura:" in motor and "coerencia:" in motor)
+check("finding AUD-* não é rebaixado nem rejeitado pelo árbitro (garantia no script)",
+      "/^AUD-/" in motor and "AUD-*" in motor)
+
+# R1 · auditoria reprova → o laço REABRE → fecha na tentativa seguinte com 100%.
+HARNESS_AUDITORIA = r"""
+import fs from 'node:fs'
+const src = fs.readFileSync(process.argv[2], 'utf8').replace('export const meta', 'const meta')
+const AsyncFunction = Object.getPrototypeOf(async function () {}).constructor
+const motor = new AsyncFunction('args', 'agent', 'phase', 'log', src)
+const lenteOk = { veredito: 'sim', evidencia: 'ev' }
+const itemFuro = { id: 'S-1', origem: 'plano', descricao: 'a finalidade', implementado: lenteOk,
+  suite: { veredito: 'descoberta', teste: null, antipadrao: null, evidencia: 'sem teste' },
+  e2e: { veredito: 'confirmado', evidencia: 'jornada ok' } }
+const itemOk = { ...itemFuro, suite: { veredito: 'morde', teste: 't', antipadrao: null, evidencia: 'ev' } }
+let audits = 0, voltas = 0
+const agent = async (prompt, opts) => {
+  if (opts.phase === 'Review' || opts.phase === 'Confirm') {
+    if (++voltas > 12) throw new Error('LACO-SEM-SAIDA')
+    return { complete: true, findings: [] }
+  }
+  if (opts.phase === 'Auditoria') {
+    if (opts.label.includes('cobertura'))
+      return { complete: true, semAncora: null, itens: [++audits === 1 ? itemFuro : itemOk] }
+    return { complete: true, semAncora: null, foraDaConta: [],
+             itens: [{ documento: 'constituicao.md', item: 'Artigo 1', veredito: 'conforme',
+                       passagem: null, evidencia: 'ev' }] }
+  }
+  if (opts.phase === 'Plan') return { bucket1: [], drift: [], alerts: [], rejected: [] }
+  if (opts.phase === 'Exec') return { fix_id: 'AUD-C1', fn: 'f', files_touched: ['a.js'], suiteRegressed: false }
+  return null
+}
+const e = { effort: 'm' }
+const out = await motor(
+  { repoRoot: '/x', model: 'm', planPath: 'p.md',
+    tiers: { decompose: e, coordinate: e, finalize: e, executor: e, diagnose: e, mechanical: e } },
+  agent, () => {}, () => {})
+console.log(JSON.stringify({ sucesso: out.sucesso, stopReason: out.stopReason,
+  rodadas: out.rounds.length, cob: out.pilares.cobertura.status, coe: out.pilares.coerencia.status,
+  veredito: out.vereditoHumano }))
+"""
+
+if shutil.which("node"):
+    import json
+    import tempfile
+    with tempfile.TemporaryDirectory() as d:
+        h = os.path.join(d, "harness_auditoria.mjs")
+        open(h, "w", encoding="utf-8").write(HARNESS_AUDITORIA)
+        r = subprocess.run(["node", h, MOTOR], capture_output=True, text=True, encoding="utf-8",
+                           errors="replace", stdin=subprocess.DEVNULL, start_new_session=True, timeout=60)
+    saida = json.loads(r.stdout) if r.returncode == 0 and r.stdout.strip() else {}
+    check("auditoria com furo NÃO fecha a rodada limpa — o laço reabre e conserta",
+          saida.get("sucesso") is True and saida.get("rodadas", 0) >= 2
+          and saida.get("cob") == "aprovada" and saida.get("coe") == "aprovada",
+          "saída=%s erro=%s" % (r.stdout.strip()[:200], r.stderr.strip()[-200:]))
+    check("o veredito de sucesso declara o estado dos dois pilares auditados",
+          "auditoria externa" in (saida.get("veredito") or ""),
+          "veredito=%s" % (saida.get("veredito"),))
+else:
+    print("  skip auditoria reprova-e-reabre (node ausente)")
+
+# R2 · sem infraestrutura E2E e sem dispensa: fecha DECLARADO, nunca sucesso.
+HARNESS_SEMINFRA = r"""
+import fs from 'node:fs'
+const src = fs.readFileSync(process.argv[2], 'utf8').replace('export const meta', 'const meta')
+const AsyncFunction = Object.getPrototypeOf(async function () {}).constructor
+const motor = new AsyncFunction('args', 'agent', 'phase', 'log', src)
+const item = { id: 'S-1', origem: 'plano', descricao: 'a finalidade',
+  implementado: { veredito: 'sim', evidencia: 'ev' },
+  suite: { veredito: 'morde', teste: 't', antipadrao: null, evidencia: 'ev' },
+  e2e: { veredito: 'sem-infra', evidencia: 'projeto sem playwright' } }
+const agent = async (prompt, opts) => {
+  if (opts.phase === 'Review' || opts.phase === 'Confirm') return { complete: true, findings: [] }
+  if (opts.phase === 'Auditoria') return opts.label.includes('cobertura')
+    ? { complete: true, semAncora: null, itens: [item] }
+    : { complete: true, semAncora: null, foraDaConta: [],
+        itens: [{ documento: 'constituicao.md', item: 'Artigo 1', veredito: 'conforme', passagem: null, evidencia: 'ev' }] }
+  return null
+}
+const e = { effort: 'm' }
+const roda = async dispensa => motor(
+  { repoRoot: '/x', model: 'm', planPath: 'p.md', lentesDispensadas: dispensa,
+    tiers: { decompose: e, coordinate: e, finalize: e, executor: e, diagnose: e, mechanical: e } },
+  agent, () => {}, () => {})
+const sem = await roda([])
+const com = await roda(['e2e'])
+console.log(JSON.stringify({
+  semSucesso: sem.sucesso, semStop: sem.stopReason, semCob: sem.pilares.cobertura.status,
+  semVeredito: sem.vereditoHumano,
+  comSucesso: com.sucesso, comCob: com.pilares.cobertura.status, comVeredito: com.vereditoHumano }))
+"""
+
+if shutil.which("node"):
+    import json
+    import tempfile
+    with tempfile.TemporaryDirectory() as d:
+        h = os.path.join(d, "harness_seminfra.mjs")
+        open(h, "w", encoding="utf-8").write(HARNESS_SEMINFRA)
+        r = subprocess.run(["node", h, MOTOR], capture_output=True, text=True, encoding="utf-8",
+                           errors="replace", stdin=subprocess.DEVNULL, start_new_session=True, timeout=60)
+    saida = json.loads(r.stdout) if r.returncode == 0 and r.stdout.strip() else {}
+    check("lente E2E sem infra e sem dispensa: fecha declarado, `sucesso: false`",
+          saida.get("semSucesso") is False and saida.get("semStop") == "cobertura-nao-medida"
+          and saida.get("semCob") == "nao-medida-lente-e2e",
+          "saída=%s erro=%s" % (r.stdout.strip()[:240], r.stderr.strip()[-160:]))
+    check("o veredito sem dispensa traz o literal do contrato",
+          "COBERTURA NÃO MEDIDA NA LENTE E2E" in (saida.get("semVeredito") or ""),
+          "veredito=%s" % (saida.get("semVeredito"),))
+    check("com a dispensa RATIFICADA em args, a lente sai da conta e o fecho declara isso",
+          saida.get("comSucesso") is True and saida.get("comCob") == "aprovada"
+          and "dispensada" in (saida.get("comVeredito") or ""),
+          "saída=%s" % (r.stdout.strip()[:240],))
+else:
+    print("  skip lente E2E sem infra (node ausente)")
+
+# R3 · auditor mudo nunca fecha.
+HARNESS_AUDMUDO = r"""
+import fs from 'node:fs'
+const src = fs.readFileSync(process.argv[2], 'utf8').replace('export const meta', 'const meta')
+const AsyncFunction = Object.getPrototypeOf(async function () {}).constructor
+const motor = new AsyncFunction('args', 'agent', 'phase', 'log', src)
+const agent = async (prompt, opts) => {
+  if (opts.phase === 'Review' || opts.phase === 'Confirm') return { complete: true, findings: [] }
+  if (opts.phase === 'Auditoria') return null
+  return null
+}
+const e = { effort: 'm' }
+const out = await motor(
+  { repoRoot: '/x', model: 'm',
+    tiers: { decompose: e, coordinate: e, finalize: e, executor: e, diagnose: e, mechanical: e } },
+  agent, () => {}, () => {})
+console.log(JSON.stringify({ sucesso: out.sucesso, stopReason: out.stopReason, veredito: out.vereditoHumano }))
+"""
+
+if shutil.which("node"):
+    import json
+    import tempfile
+    with tempfile.TemporaryDirectory() as d:
+        h = os.path.join(d, "harness_audmudo.mjs")
+        open(h, "w", encoding="utf-8").write(HARNESS_AUDMUDO)
+        r = subprocess.run(["node", h, MOTOR], capture_output=True, text=True, encoding="utf-8",
+                           errors="replace", stdin=subprocess.DEVNULL, start_new_session=True, timeout=60)
+    saida = json.loads(r.stdout) if r.returncode == 0 and r.stdout.strip() else {}
+    check("auditor mudo nunca fecha: `sucesso: false` e o motivo nomeado",
+          saida.get("sucesso") is False
+          and "auditor externo não respondeu" in (saida.get("veredito") or ""),
+          "saída=%s erro=%s" % (r.stdout.strip()[:200], r.stderr.strip()[-160:]))
+else:
+    print("  skip auditor mudo (node ausente)")
 
 # sintaxe: tem que ser JavaScript válido (quando node existe na máquina).
 if shutil.which("node"):

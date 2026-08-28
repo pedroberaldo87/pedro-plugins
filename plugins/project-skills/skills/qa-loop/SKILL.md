@@ -98,7 +98,11 @@ código como "tem que zerar".
 
 **Fase de Julgamento** — revisão de código, aderência ao plano (os 3 buckets), findings de
 **severidade variável** (P0-P3), limites aceitos **ratificados pelo dono**, e fecho **só quando não
-sobrou problema procedente em aberto** (Artigo 14 — jamais por esforço gasto). **e2e/Playwright vive
+sobrou problema procedente em aberto** (Artigo 14 — jamais por esforço gasto). **E o fecho dela exige
+os TRÊS PILARES** (contrato em `references/dimensoes-de-revisao.md`): QUALIDADE fecha pela assíntota de
+severidade; COBERTURA e COERÊNCIA fecham por **100%**, medidos por **auditores externos isolados** que
+rodam no candidato a fecho — a conta do 100% é do script do motor, nunca do auditor, e tudo se mede
+contra as três âncoras (PEDIDO · PLANO · CONSTITUIÇÃO). **e2e/Playwright vive
 aqui**: cobertura parcial e honesta, vira *actionable* no relatório — **não bloqueia**. É todo o corpo
 desta skill (os passos abaixo descrevem ela).
 
@@ -392,6 +396,22 @@ A casca os lê do `CLAUDE.md` do projeto da missão e os passa:
 | `stack` | uma linha: linguagem, framework, se tem build/CI | o revisor de um app Next.js é informado de que está num marketplace de Markdown/Bash/Python |
 | `regrasDaCasa` | as regras do projeto com seus cobradores | o revisor julga contra as sete regras deste repo (bump de `plugin.json`, `sync-shared`…), que lá não existem |
 | `suiteCmd` | **o comando de teste declarado pelo projeto, literal** | o executor cai num `find` por `test_*.py` que, num projeto TypeScript, acha ZERO teste do módulo alterado — e num monorepo ainda varre a suíte de módulos vizinhos |
+| `pedidos` | **a âncora PEDIDO**: os pedidos vivos do usuário, verbatim, lidos do caderno do `intent-guard` | os auditores medem só contra plano e régua, e a intenção dita fica sem cobrador |
+| `pedidosAusentes` | o motivo declarado quando não há pedidos (plugin ausente, caderno vazio) | a ausência viraria aprovação por omissão — proibido pelo contrato dos pilares |
+| `lentesDispensadas` | lentes de COBERTURA que o **dono ratificou** dispensar no `qa-loop.config.md` (ex.: `e2e` num projeto sem interface) | projeto sem infra E2E fecharia sempre em "não medida", sem porta de decisão |
+
+**Como a casca lê a âncora PEDIDO (fail-open, obrigatório):** resolva o caderno pelo nome
+e leia o estado; qualquer falha vira ausência **declarada**, nunca silêncio:
+
+```bash
+RAIZ="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"   # a raiz do projeto REVISADO
+LEDGER="$(bash "${CLAUDE_PLUGIN_ROOT}/skills/qa-loop/resolve-plugin.sh" intent-guard lib/ledger.py 2>/dev/null)" || LEDGER=""  # artigo8-ok: o harness injeta CLAUDE_PLUGIN_ROOT quando a skill roda
+if [ -n "$LEDGER" ] && [ -f "$LEDGER" ]; then
+  PEDIDOS_JSON="$(python3 "$LEDGER" state --cwd "$RAIZ" --session "$CLAUDE_CODE_SESSION_ID" 2>/dev/null)" || PEDIDOS_JSON=""  # artigo8-ok: o harness injeta CLAUDE_CODE_SESSION_ID quando a skill roda
+fi
+# PEDIDOS_JSON vazio → args.pedidos = [] e args.pedidosAusentes = "intent-guard não instalado" (ou "caderno vazio")
+# com conteúdo → args.pedidos = lista {id, resumo, text} dos vivos (live + standing), verbatim
+```
 
 **`suiteCmd` é o que sustenta o gate de regressão por conserto**, que esta skill chama de
 maior retorno. Suíte que não coleta nada devolve "nenhum teste falhou", `suiteRegressed`
@@ -413,16 +433,24 @@ o script lê campos estruturados, não texto solto.
 export const meta = {
   name: 'qa-loop-engine',
   description: 'Motor de QA: tier por etapa (R8) — decompose/coordinate/executor/mechanical/diagnose/finalize',
-  phases: [{ title: 'Review' }, { title: 'Plan' }, { title: 'Exec' }, { title: 'Confirm' }],
+  phases: [{ title: 'Review' }, { title: 'Plan' }, { title: 'Exec' }, { title: 'Confirm' },
+           { title: 'Auditoria' }],
 }
 
 // args (vindos da casca): { target, planPath, severityFloor, maxRounds, domain,
 //   safetyLayer, churnThreshold, acceptedLimits[], invariants[], learnings,
-//   stack, regrasDaCasa[], suiteCmd }   // <- os três que descrevem o projeto REVISADO;
-//   sem eles o motor assume ESTE repositório (ver a tabela acima)
+//   stack, regrasDaCasa[], suiteCmd,     // <- os três que descrevem o projeto REVISADO;
+//   pedidos[], pedidosAusentes,          // <- a âncora PEDIDO (ledger do intent-guard; fail-open declarado)
+//   lentesDispensadas[] }                // <- SÓ o que o dono ratificou no qa-loop.config.md
+//   sem os três do projeto o motor assume ESTE repositório (ver a tabela acima)
 const sevRank = s => ({P0:3, P1:2, P2:1, P3:0}[s] ?? 0)
 const floor = sevRank(args.severityFloor || 'P1')
 const acceptedLimits = args.acceptedLimits || []   // RATIFICADO pelo dono (args) — é ESTA que os filtros leem
+// PILARES 2 e 3 — o estado que a auditoria externa preenche. A conta é do script.
+const lentesDispensadas = args.lentesDispensadas || []   // RATIFICADO pelo dono, igual aos limites
+let auditCob = null, auditCoe = null
+let cobStatus = 'nao-rodou', coeStatus = 'nao-rodou'
+let furosCobertura = [], violadosCoerencia = [], auditoriaNaoMedida = false
 const proposedLimits = []                          // PROPOSTO pelo planejador — sai no return, não silencia achado
 let invariants = args.invariants || []
 const churn = {}                 // { 'arquivo:função': nº de regressões }
@@ -629,7 +657,23 @@ return {
   // — sem elas o próprio fecho estoura no caminho que este bloco documenta acima.
   telemetry: rounds.map(x => ({ round: x.r, corrections: (x.corrections || []).length,
     regressions: x.regressions || 0, findings_by_sev: tallyBySev(x.review?.findings) })),
-  stopReason: cleanRound ? 'no-severe-finding' : churnEscalated ? 'churn-escalated'
+  // OS TRÊS PILARES (contrato: references/dimensoes-de-revisao.md). A rodada limpa é
+  // CANDIDATA a fecho: dois auditores ISOLADOS (SEM_HISTORICO — não veem achados nem
+  // histórico; recebem código final + as três âncoras PEDIDO·PLANO·RÉGUA) rodam entre o
+  // confirm e o `cleanRound = true`. Schemas AUDIT_COBERTURA (itens do escopo × lentes
+  // implementado/suite/e2e; 'revisado' e 'auditado' são conta do script) e
+  // AUDIT_COERENCIA (régua item a item: conforme|violado|nao-aplicavel|nao-medido, com
+  // `foraDaConta` para reaberto/minerado). QUEM SOMA O 100% É O SCRIPT (`furosDe`):
+  // furo vira finding AUD-* (o árbitro não rebaixa nem rejeita — garantia no script) e o
+  // laço REABRE; `e2e: sem-infra` sem `lentesDispensadas` ratificada fecha DECLARADO
+  // ("COBERTURA NÃO MEDIDA NA LENTE E2E", sucesso: false); âncora ausente = 'sem-ancora'
+  // declarado; auditor mudo nunca fecha.
+  pilares: { qualidade: { status: cleanRound ? 'assintota-alcancada' : 'nao-fechou' },
+             cobertura: { status: cobStatus, furos: furosCobertura, dispensadas: lentesDispensadas },
+             coerencia: { status: coeStatus, violados: violadosCoerencia, foraDaConta: [] } },
+  stopReason: cleanRound ? 'no-severe-finding'
+    : auditoriaNaoMedida ? 'cobertura-nao-medida'
+    : churnEscalated ? 'churn-escalated'
     : regressaoTotal ? 'regressao-total'
     : teatroDeDuvida ? 'teatro-de-duvida' : agenteMudo ? 'agente-mudo' : 'max-rounds',
   // Artigo 14: só a rodada limpa é sucesso. Teto, churn, teatro de dúvida e agente mudo
@@ -816,6 +860,12 @@ Precedência: **flag > config do projeto > default da skill.**
   esforço: é o laço ter deixado de atacar problema. Ver a seção "Teatro de dúvida".
 - **[FALHA]** `agente-mudo` — um agente do laço devolveu vazio e a rodada não pôde ser julgada.
   Silêncio de agente nunca vira rodada limpa.
+- **[FALHA]** `cobertura-nao-medida` — a auditoria externa do pilar COBERTURA não conseguiu medir a
+  lente E2E (o projeto não tem como executar a confirmação direta) e o dono ainda não ratificou a
+  dispensa. **Não é parada por esforço:** é o laço declarando que uma lente da aprovação ficou sem
+  medição — girar mais uma volta não a mediria, porque não há conserto de executor para infra ausente.
+  O veredito abre com "COBERTURA NÃO MEDIDA NA LENTE E2E" e a decisão é do dono: ratificar a dispensa
+  em `lentesDispensadas` do `qa-loop.config.md`, ou mandar criar a infra.
 - **[FALHA]** `gate-red` — ver abaixo.
 
 **Fase Gate — condição ABSOLUTA de sucesso:**
@@ -888,7 +938,10 @@ Antes de qualquer relatório, a casca roda os **checks objetivos do projeto** co
 - **O que roda:** lint + type-check + teste unitário + teste de integração. **A detecção reusa as camadas
   já definidas** (ver "Detecção de rede"): unit/integração = Camada 1; lint/type = Camada 3. **e2e marcado**
   (`@pytest.mark.e2e`, specs Playwright, script `e2e`) é **EXCLUÍDO daqui** → vira actionable na Fase
-  Assintótica (lento demais e dependente de ambiente pra ser portão).
+  Assintótica (lento demais e dependente de ambiente pra ser portão). ⚠️ **Fora do portão ≠ fora da
+  aprovação**: E2E é lente obrigatória do pilar COBERTURA (a auditoria externa do motor, contrato em
+  `references/dimensoes-de-revisao.md`) — sem infra E2E o fecho sai "COBERTURA NÃO MEDIDA NA LENTE E2E"
+  até o dono ratificar a dispensa no `qa-loop.config.md`.
 - **Escopo: repo inteiro, absoluto.** Exige TODO o lint/type/unit/integração do repo **100% verde —
   incluindo erros pré-existentes não-relacionados à revisão**. "Tá errado = corrige = fim." Sem severidade,
   sem limite aceito, sem desconto por esforço gasto. (Mesma disciplina do `/ship`, rodada mais cedo.) Se o
@@ -903,8 +956,8 @@ Antes de qualquer relatório, a casca roda os **checks objetivos do projeto** co
   assintótica). Se travar de verdade (erro que exige decisão de arquitetura), **NÃO declara sucesso** — e o
   conserto que travou escala pra `diagnose_model` (medium) antes de virar `gate-red`.
 - **Quem seta o `stopReason` FINAL é a CASCA, não o motor.** O motor (Workflow) reporta o stopReason da fase
-  assintótica (`no-severe-finding` / `churn-escalated` / `regressao-total` / `teatro-de-duvida` /
-  `agente-mudo` / `max-rounds` — os seis que o `return` produz); a casca, pós-gate, computa o stopReason
+  assintótica (`no-severe-finding` / `cobertura-nao-medida` / `churn-escalated` / `regressao-total` /
+  `teatro-de-duvida` / `agente-mudo` / `max-rounds` — os sete que o `return` produz); a casca, pós-gate, computa o stopReason
   da sessão — **promove a `gate-red`** quando o gate trava vermelho, e mantém o do motor quando o gate fecha
   verde. O relatório **lidera** com "GATE VERMELHO — bloqueante" sempre que `gate-red`.
 - **Transparência (anti-violação-de-surgical-changes).** O conserto repo-wide é real, mas o relatório

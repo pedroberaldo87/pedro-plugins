@@ -17,7 +17,7 @@ export const meta = {
   description: 'Motor de implementação: tier por etapa (R8) — decompose/coordinate/executor/mechanical/diagnose/finalize',
   phases: [{ title: 'Decompor' }, { title: 'Diagnose' }, { title: 'Executar' },
            { title: 'Revisar' }, { title: 'Suíte' }, { title: 'Marcar' },
-           { title: 'Salvar' }, { title: 'Doc' }, { title: 'Limpeza' }, { title: 'Confirmar' }],
+           { title: 'Salvar' }, { title: 'Doc' }, { title: 'Limpeza' }, { title: 'Confirmar' }, { title: 'Auditoria' }],
 }
 
 // O parâmetro pode chegar TEXTO (JSON serializado) em vez de objeto — quando isso
@@ -129,6 +129,85 @@ const REGUA_DO_PROJETO = (ARGS.regua && ARGS.regua.length)
 // os dois, porque o viés volta pelo lado que ninguém cobra.
 const SEM_HIPOTESE = `VOCÊ NÃO RECEBE A HIPÓTESE DE QUEM PEDIU O JULGAMENTO: julgue o artefato e o contrato.
 Diagnóstico, causa-raiz ou veredito alheio que apareça no material é alegação A VERIFICAR no disco, nunca ponto de partida.`
+
+// ── O AUDITOR EXTERNO NÃO VÊ O LAÇO (pilares COBERTURA e COERÊNCIA) ──────────
+// Contrato em references/dimensoes-de-revisao.md ("O auditor externo"): recebe a obra
+// final e as três âncoras (PEDIDO · PLANO · RÉGUA) — nunca a decomposição, os results,
+// o trilho nem os gaps. Quem soma o 100% é ESTE script. Mesmo par de prompts/schemas do
+// motor do /qa-loop, duplicado de propósito (padrão SEM_HIPOTESE, cobrador dos dois lados).
+const SEM_HISTORICO = `VOCÊ É AUDITOR EXTERNO: NÃO recebe os achados do revisor, os consertos
+nem o histórico do laço — de propósito. Você recebe só o código final e as âncoras
+(PEDIDO · PLANO · RÉGUA). Veredito alheio que apareça no material é alegação A VERIFICAR no disco.`
+
+const ANCORAS = `AS TRÊS ÂNCORAS (meça contra as três; ausente = declare, nunca aprove por omissão):
+PEDIDO${(ARGS.pedidos || []).length
+  ? ` — os pedidos vivos do usuário, verbatim:\n${(ARGS.pedidos || []).map(pp => `  - [${pp.id}] ${pp.text}`).join('\n')}`
+  : ` — AUSENTE: ${ARGS.pedidosAusentes || 'a casca não passou pedidos'}.`}
+PLANO — ${ARGS.planPath ? `o plano-âncora: ${ARGS.planPath}` : 'AUSENTE: missão sem plano, declarada.'}
+RÉGUA — ${(ARGS.regua && ARGS.regua.length) ? ARGS.regua.join(' · ') : 'AUSENTE: rode o doc-load; se nada vier, declare.'}`
+
+const AUDIT_COBERTURA = { type:'object', required:['complete','itens'], properties:{
+  complete:{type:'boolean'}, semAncora:{type:['string','null']},
+  itens:{type:'array', items:{type:'object',
+    required:['id','origem','descricao','implementado','suite','e2e'], properties:{
+      id:{type:'string'}, origem:{type:'string',enum:['pedido','plano']}, descricao:{type:'string'},
+      implementado:{type:'object', required:['veredito','evidencia'], properties:{
+        veredito:{type:'string',enum:['sim','parcial','nao']}, evidencia:{type:'string'} }},
+      suite:{type:'object', required:['veredito','evidencia'], properties:{
+        veredito:{type:'string',enum:['morde','descoberta','antipadrao']},
+        teste:{type:['string','null']}, antipadrao:{type:['string','null']}, evidencia:{type:'string'} }},
+      e2e:{type:'object', required:['veredito','evidencia'], properties:{
+        veredito:{type:'string',enum:['confirmado','falhou','sem-infra','nao-aplicavel']},
+        evidencia:{type:'string'} }} }}},
+  anchor:{type:'string'} } }
+
+const AUDIT_COERENCIA = { type:'object', required:['complete','itens'], properties:{
+  complete:{type:'boolean'}, semAncora:{type:['string','null']},
+  itens:{type:'array', items:{type:'object', required:['documento','item','veredito'], properties:{
+    documento:{type:'string'}, item:{type:'string'},
+    veredito:{type:'string',enum:['conforme','violado','nao-aplicavel','nao-medido']},
+    passagem:{type:['string','null']}, evidencia:{type:['string','null']} }}},
+  foraDaConta:{type:'array', items:{type:'object', required:['documento','motivo'], properties:{
+    documento:{type:'string'}, motivo:{type:'string',enum:['reaberto','minerado']} }}},
+  anchor:{type:'string'} } }
+
+const auditCoberturaPrompt = ({ arquivos }) => `PAPEL: AUDITOR DE COBERTURA (pilar 2)
+${SEM_HISTORICO}
+
+${ANCORAS}
+
+REPOSITÓRIO: ${ARGS.repoRoot}
+A OBRA (os arquivos que a missão tocou): ${J(arquivos)}
+
+COBERTURA NÃO É SÓ TESTE — é implementação COMPLETA (contrato: as cinco lentes).
+ENUMERE TODO item do escopo a partir das âncoras (cada finalidade/requisito do PEDIDO e
+do PLANO que a obra devia entregar). Para CADA item, meça TRÊS lentes no disco:
+- implementado — o código do item existe e faz o que o item pede? \`sim\` | \`parcial\` | \`nao\`.
+- suite — existe teste que MORDE o item? \`morde\` | \`descoberta\` (sem teste) | \`antipadrao\`
+  (teste que existe e não morde). Nas travas de segurança, a prova é MUTAÇÃO.
+- e2e — EXECUTE a confirmação direta do funcionamento esperado: interface = a jornada real
+  (Playwright, olhando o RESULTADO na tela, não só o DOM); CLI/biblioteca = rode o programa
+  real de ponta a ponta. \`confirmado\` | \`falhou\` | \`sem-infra\` | \`nao-aplicavel\` (com motivo).
+As lentes "revisado" e "auditado" são conta DESTE script, não sua.
+\`evidencia\` de cada lente: o que você rodou/leu, literal. Sem NENHUMA âncora: \`semAncora\`.
+\`anchor\` = a última linha não vazia do último arquivo que você leu, literal.`
+
+const auditCoerenciaPrompt = ({ arquivos }) => `PAPEL: AUDITOR DE COERÊNCIA (pilar 3)
+${SEM_HISTORICO}
+
+${ANCORAS}
+
+REPOSITÓRIO: ${ARGS.repoRoot}
+A OBRA (os arquivos que a missão tocou): ${J(arquivos)}
+
+PERCORRA A RÉGUA INTEIRA, ITEM A ITEM — artigo por artigo, restrição por restrição, seção
+por seção de CADA documento que a régua lista. Rode o doc-load do projeto quando a lista
+acima não bastar. Para cada item: \`conforme\` | \`violado\` (cite \`passagem\` e \`evidencia\`)
+| \`nao-aplicavel\` (com motivo) | \`nao-medido\` (diga por quê; NUNCA omita o item).
+Documento REABERTO ou MINERADO não entra na conta: vai em \`foraDaConta\` com o motivo.
+As restrições do PEDIDO (o que o usuário mandou NÃO mexer) também são itens.
+Sem régua E sem pedido: \`semAncora\` com o motivo, itens [].
+\`anchor\` = a última linha não vazia do último arquivo que você leu, literal.`
 
 // ── A MARCA DA LEI É COMANDO, NUNCA RECEITA EM PROSA (medido 2026-08-09) ──────
 // A instrução era "o cksum do corpo (sem frontmatter) dos arquivos concatenados",
@@ -758,6 +837,20 @@ let lawMark = null
 const taskChurn = {}
 const impossivelChurn = {}
 const marcadosNaMissao = new Set()
+
+// ── PILARES 2 e 3 · a conta do 100% é DESTE script (contrato: dimensoes-de-revisao.md)
+const lentesDispensadas = ARGS.lentesDispensadas || []
+const furosDe = it => {
+  const f = []
+  if (it.implementado.veredito !== 'sim') f.push('implementado')
+  if (it.suite.veredito !== 'morde') f.push('suite')
+  if (!['confirmado', 'nao-aplicavel', 'sem-infra'].includes(it.e2e.veredito)) f.push('e2e')
+  if (!(it.implementado.evidencia && it.suite.evidencia && it.e2e.evidencia)) f.push('auditado')
+  return f.filter(l => !lentesDispensadas.includes(l)).map(lente => ({ item: it.id, lente, descricao: it.descricao }))
+}
+let auditCob = null, auditCoe = null
+let cobStatus = 'nao-rodou', coeStatus = 'nao-rodou'
+let furosCobertura = [], violadosCoerencia = []
 
 // ── O LEDGER DA CORRIDA (autópsia 2026-08-09, decisão do dono) ───────────────
 const ledgerCorrida = []
@@ -1512,7 +1605,7 @@ while (!built && r < maxRounds) {
     }
   }
 
-  const holdsBuild = g => g.kind !== 'concepcao' && (g.kind === 'spec' || g.kind === 'rastreio' || sevRank(g.severity) >= floor)
+  const holdsBuild = g => g.kind !== 'concepcao' && (g.kind === 'spec' || g.kind === 'rastreio' || g.kind === 'auditoria' || sevRank(g.severity) >= floor)
   const gaps = (review.gaps || []).filter(holdsBuild)
 
   // `built` é FATO do programa antes de ser juízo do revisor: rodada com tarefa não
@@ -1536,6 +1629,61 @@ while (!built && r < maxRounds) {
                      naoDespachadas: naoTentadasNaRodada, diagnoses }
         continue
       }
+    }
+
+    // ── AUDITORIA EXTERNA (pilares COBERTURA e COERÊNCIA) — roda SEMPRE no candidato
+    // a built, com ou sem /qa-loop adiante: aprovar por delegação violaria o pilar.
+    // Só no FIM, nunca por bloco: obra incompleta daria furo falso de `implementado`.
+    const arquivosDaObra = [...new Set(rounds.flatMap(x => (x.results || [])
+      .filter(Boolean).flatMap(t => t.files_touched || [])))]
+    auditCob = await julga(auditCoberturaPrompt({ arquivos: arquivosDaObra }),
+      { model: ARGS.model, effort: T.finalize.effort, phase: 'Auditoria',
+        label: `audit:cobertura r${r}`, schema: AUDIT_COBERTURA })
+    auditCoe = await julga(auditCoerenciaPrompt({ arquivos: arquivosDaObra }),
+      { model: ARGS.model, effort: T.finalize.effort, phase: 'Auditoria',
+        label: `audit:coerencia r${r}`, schema: AUDIT_COERENCIA })
+    if (!auditCob || !auditCoe || !auditCob.complete || !auditCoe.complete) {
+      blockers.push({ what: 'a auditoria externa dos pilares não respondeu (ou voltou incompleta)',
+                      whyNeedsYou: 'sem auditoria, COBERTURA e COERÊNCIA ficaram sem medição — não considere entregue' })
+      break
+    }
+    const itensCob = auditCob.itens || []
+    const itensCoe = auditCoe.itens || []
+    furosCobertura = auditCob.semAncora ? [] : itensCob.flatMap(furosDe)
+    violadosCoerencia = auditCoe.semAncora ? []
+      : itensCoe.filter(i => i.veredito === 'violado' || i.veredito === 'nao-medido')
+    const semInfraE2E = !auditCob.semAncora && !lentesDispensadas.includes('e2e')
+      && itensCob.some(it => it.e2e.veredito === 'sem-infra')
+    const cobVazia = !auditCob.semAncora && itensCob.length === 0
+    const coeVazia = !auditCoe.semAncora && itensCoe.length === 0
+    cobStatus = auditCob.semAncora ? 'sem-ancora'
+      : (furosCobertura.length || cobVazia) ? 'reprovada'
+      : semInfraE2E ? 'nao-medida-lente-e2e' : 'aprovada'
+    coeStatus = auditCoe.semAncora ? 'sem-ancora'
+      : (violadosCoerencia.length || coeVazia) ? 'reprovada' : 'aprovada'
+
+    if (furosCobertura.length || violadosCoerencia.length || cobVazia || coeVazia) {
+      // Furo consertável reabre o laço: vira gap kind 'auditoria' (≥ floor, segurado
+      // pelo holdsBuild) e o decompositor re-decompõe o delta; re-audita no próximo
+      // candidato — código que mudou é veredito vencido.
+      feedback = { gaps: [
+          ...furosCobertura.map(fu => ({ task_id: null, kind: 'auditoria', severity: 'P1',
+            problem: `pilar COBERTURA: item "${fu.descricao || fu.item}" com a lente ${fu.lente} furada` })),
+          ...violadosCoerencia.map(vi => ({ task_id: null, kind: 'auditoria', severity: 'P1',
+            problem: `pilar COERÊNCIA: ${vi.documento} · "${vi.item}": ${vi.veredito}${vi.passagem ? ` — ${vi.passagem}` : ''}` })),
+          ...(cobVazia ? [{ task_id: null, kind: 'auditoria', severity: 'P1',
+            problem: 'auditor de cobertura devolveu zero itens com âncora presente — não auditou' }] : []),
+          ...(coeVazia ? [{ task_id: null, kind: 'auditoria', severity: 'P1',
+            problem: 'auditor de coerência devolveu zero itens com régua presente — não auditou' }] : []),
+        ], missing: [], naoDespachadas: naoTentadasNaRodada, diagnoses }
+      continue
+    }
+    if (semInfraE2E) {
+      // Não há tarefa de executor para infra ausente: girar o laço seria rodada em falso.
+      // A obra fecha DE PÉ, com o bloqueio declarado — decisão do dono: ratificar a
+      // dispensa da lente no config do /qa-loop ou mandar criar a infra.
+      blockers.push({ what: 'COBERTURA NÃO MEDIDA NA LENTE E2E — o projeto não tem como executar a confirmação direta',
+                      whyNeedsYou: 'ratifique a dispensa da lente (lentesDispensadas) ou mande criar a infra E2E' })
     }
     built = true; break
   }
@@ -1612,6 +1760,17 @@ if (desligadoPor !== 'reserva')
 
 return {
   rounds, built, blockers, lawMark,
+  // Os três pilares (contrato em references/dimensoes-de-revisao.md); a conta é do script.
+  pilares: {
+    qualidade: { status: built ? 'revisao-fechou' : 'nao-fechou' },
+    cobertura: { status: cobStatus, furos: furosCobertura, dispensadas: lentesDispensadas,
+                 itens: (auditCob && auditCob.itens || []).length,
+                 semAncora: (auditCob && auditCob.semAncora) || null },
+    coerencia: { status: coeStatus, violados: violadosCoerencia,
+                 foraDaConta: (auditCoe && auditCoe.foraDaConta) || [],
+                 itens: (auditCoe && auditCoe.itens || []).length,
+                 semAncora: (auditCoe && auditCoe.semAncora) || null },
+  },
   ledger: ledgerCorrida,
   voltasPorProblema,
   progresso: { feitos: passosFeitos.length, passos: passosFeitos },

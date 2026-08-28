@@ -37,7 +37,7 @@ severidade mais a lista de rejeitados com motivo. E ele NÃO alcança teto decla
 `qa-loop.config.md` de projeto consumidor: ALVOS são arquivos DESTE repositório, e esses
 configs vivem no `.claude/` de outros projetos — quem os pega é a revisão de lá. E ele NÃO
 alcança os documentos de concepção com `status: approved` + `approved-sig` no frontmatter
-(docs/solution-strategy.md, docs/features.md, docs/journeys.md, docs/glossary.md): são
+(docs/solution-strategy.md, docs/features.md, docs/journeys.md, docs/glossary.md — casa-ok: prosa que cita o caso medido, nao um caminho usado): são
 acordo assinado pelo dono, e mexer neles quebraria a assinatura — a frase revogada que
 ainda vive lá é ALERTA para o dono re-referendar, nunca conserto deste cobrador.
 
@@ -66,15 +66,15 @@ ALVOS = [
     # VITRINE E DOC DESCRITIVA — texto que o público lê antes de instalar qualquer
     # coisa, e os docs que descrevem o comportamento. Entraram por ENUMERAÇÃO
     # (2026-08-23), nunca por varredura de *.md: varredura reprovaria a própria
-    # docs/constituicao.md, que cita as frases proibidas no ato de revogá-las — a lei
+    # docs/constituicao.md, que cita as frases proibidas no ato de revogá-las — a lei  # casa-ok: prosa que cita o caso medido, nao um caminho usado
     # fica FORA de propósito, e a exclusão está documentada aqui.
     "README.md",
     "plugins/project-skills/skills/qa-loop/EXAMPLE-REPORT.md",
     "plugins/visual/lib/visual_page.py",
-    "docs/features.md",
-    "docs/glossary.md",
-    "docs/journeys.md",
-    "docs/solution-strategy.md",
+    "docs/features.md",  # casa-ok: alvo enumerado do cobrador, nao resolucao de caminho de doc
+    "docs/glossary.md",  # casa-ok: alvo enumerado do cobrador, nao resolucao de caminho de doc
+    "docs/journeys.md",  # casa-ok: alvo enumerado do cobrador, nao resolucao de caminho de doc
+    "docs/solution-strategy.md",  # casa-ok: alvo enumerado do cobrador, nao resolucao de caminho de doc
 ]
 
 # Onde o critério de fecho é DEFINIDO — estes carregam as checagens E e F.

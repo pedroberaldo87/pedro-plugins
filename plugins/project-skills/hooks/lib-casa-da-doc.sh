@@ -24,8 +24,7 @@ casa_da_doc() {
   local escolhida="$raiz/docs"
   if [ ! -d "$raiz/docs" ] && [ -d "$raiz/.claude/docs" ]; then  # casa-ok: o resolvedor e a suite dele sao o unico lugar que pode escrever a casa
     escolhida="$raiz/.claude/docs"  # casa-ok: o resolvedor e a suite dele sao o unico lugar que pode escrever a casa
-  elif [ -d "$raiz/docs" ] && [ -d "$raiz/.claude/docs" ] \
-       && ! _casa_tem_md "$raiz/docs" && _casa_tem_md "$raiz/.claude/docs"; then  # casa-ok: o resolvedor e a suite dele sao o unico lugar que pode escrever a casa
+  elif [ -d "$raiz/docs" ] && [ -d "$raiz/.claude/docs" ] && ! _casa_tem_md "$raiz/docs" && _casa_tem_md "$raiz/.claude/docs"; then  # casa-ok: o resolvedor e a suite dele sao o unico lugar que pode escrever a casa
     # Exceção medida (outro projeto, 2026-08-26): docs/ de outro uso, sem nenhum
     # .md, escondia a casa habitada — a VELHA com a doc de verdade responde.
     escolhida="$raiz/.claude/docs"  # casa-ok: o resolvedor e a suite dele sao o unico lugar que pode escrever a casa

@@ -134,7 +134,7 @@ with tempfile.TemporaryDirectory() as tmp:
 
     # docs/ de outro uso (sem nenhum .md) não esconde a casa habitada — o caso
     # medido no outro projeto em 2026-08-26, onde docs/ só tinha uma subpasta e a
-    # doc aprovada morava em .claude/docs/.
+    # doc aprovada morava em .claude/docs/.  # casa-ok: prosa que cita o caso medido, nao um caminho usado
     habitada = os.path.join(tmp, "casa-habitada-na-velha")
     os.makedirs(os.path.join(habitada, "docs", "outra-coisa"))
     os.makedirs(os.path.join(habitada, ".claude", "docs"))

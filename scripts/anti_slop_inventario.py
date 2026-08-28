@@ -186,10 +186,24 @@ def classe_b(alvos):
     except (OSError, ValueError, KeyError):
         pass
     if nomes:
+        # NOME INTEIRO, NUNCA PEDAÇO DE OUTRO NOME (2026-08-28). `n in texto` conta
+        # `improve` dentro de `improve-workflow`: um arquivo que cita só o segundo era
+        # acusado de citar os dois, e a citação legítima seguinte estourava o teto por
+        # um ponto que não existe. Medido: a SKILL do /sprint saía com "10 de 23" com
+        # nove nomes reais escritos nela. O que muda é só isso — nenhum outro arquivo
+        # entra ou sai da conta.
+        def _cita(nome, texto):
+            for m in re.finditer(re.escape(nome), texto):
+                antes = texto[m.start() - 1] if m.start() else " "
+                depois = texto[m.end()] if m.end() < len(texto) else " "
+                if not (antes.isalnum() or antes == "-") and not (depois.isalnum() or depois == "-"):
+                    return True
+            return False
+
         for rel, texto in alvos:
             if rel.endswith("marketplace.json"):
                 continue
-            quantos = sum(1 for n in nomes if n in texto)
+            quantos = sum(1 for n in nomes if _cita(n, texto))
             if quantos >= 10:
                 pontos.append((rel, 0, f"lista de plugin ({quantos} de {len(nomes)})"))
     return {

@@ -8,7 +8,7 @@ só enumerava skill e motor: texto de vitrine não estava na lista, e o que não
 lista não é medido.
 
 A extensão é por ENUMERAÇÃO, nunca por varredura genérica de *.md: varredura reprovaria a
-própria docs/constituicao.md, que cita as frases proibidas no ato de revogá-las.
+própria docs/constituicao.md, que as cita no ato de revogá-las (casa-ok: prosa que cita o caso medido, nao um caminho usado).
 
 O que este arquivo trava:
   1. os três textos de vitrine estão dentro de ALVOS (o cobrador enxerga a vitrine);

@@ -235,7 +235,7 @@ congelados em vez de dizer 'nenhum'.
 
 ## O placar de hoje
 
-- **Com cobrador real:** Artigos 3, 4, 5, 6, 7, 8, 9, 13 e 14 — o 5 com o furo de momento
+- **Com cobrador real:** Artigos 3, 4, 5, 6, 7, 8, 9, 13, 14 e 15 — o 5 com o furo de momento
   reduzido (só `.claude/hooks/test_*.sh` fica sem gate de commit); o 6 cobrado em duas
   frentes (gerador Python pela checagem I, mensagem de hook shell por
   `scripts/test_regua_hook_msgs.py`); o 7 com o teste dedicado a número em `SKILL.md`
@@ -430,3 +430,40 @@ projeto: um `max_rounds: 6` viajava em dois `qa-loop.config.md` sem ninguém ter
 um deles chamando-o de "default" quando o default era 12. Medido em 2026-08-23, numa
 revisão real com teto 4: a quarta rodada ainda abriu 7 achados, **1 deles P1** — acima do
 piso, portanto rodada que não fecha. O teto teria encerrado assim mesmo.
+
+## Artigo 15 · Os três pilares da revisão
+
+**O que exige** — Todo revisor de código deste marketplace (o laço de revisão `/qa-loop`,
+o motor de implementação `/sprint`, e qualquer revisor futuro) mede **três pilares**, e
+mede os três contra **três âncoras**: o **PEDIDO** (a intenção do usuário, verbatim, no
+caderno do `intent-guard`), o **PLANO** (a spec aprovada virada em tarefas) e a
+**CONSTITUIÇÃO** (a régua que o `doc-load` lista).
+
+- **QUALIDADE** fecha pela assíntota de severidade do Artigo 14 — nada muda nele.
+- **COBERTURA** fecha por **100% de implementação completa**: cada item do escopo com as
+  **cinco lentes** fechadas — implementado · revisado · coberto por teste que morde ·
+  confirmado por E2E de funcionamento real · auditado. Item com lente faltando é **furo
+  nomeado** (item + lente). Quem mede é **auditor externo isolado** (não vê os achados do
+  revisor nem o histórico do laço); quem soma o 100% é o **programa**, nunca o auditor.
+- **COERÊNCIA** fecha por **100% da régua, item a item** — artigo por artigo, restrição
+  por restrição — com veredito conforme/violado/não-aplicável por item; zero violado e
+  zero não-medido. Mesmo desenho de auditor; mesma conta do programa.
+
+Lente ou âncora ausente é **declarada** — nunca aprovação por omissão. A dispensa de uma
+lente (ex.: E2E em projeto sem interface) é **ratificação do dono**, gravada em config; o
+laço nunca dispensa sozinho. Furo consertável reabre o laço; veredito de código que mudou
+está vencido e a auditoria re-roda no próximo candidato a fecho.
+
+**Como se cobra** — `scripts/test_pilares_de_revisao.py` (check I3 do `release-gate.sh`):
+reprova motor ou casca sem as peças — schemas dos auditores, a conta do 100% em código,
+o isolamento (prompts de auditoria sem interpolação do histórico), o desfecho declarado
+da lente não medida, o fail-open da âncora PEDIDO. Mais os harnesses que EXECUTAM o motor:
+`lib/test_qa_loop_motor.py` (auditoria reprova→reabre→fecha · auditor mudo não fecha ·
+lente sem infra fecha declarado, nunca sucesso) e `hooks/test_sprint_skill.sh` (a seção
+da auditoria com sabotagem).
+
+**Prova de que vale hoje** — a lacuna medida em 2026-08-28, antes desta emenda: cobertura
+e coerência eram itens de checklist do MESMO revisor, sem critério de aprovação e sem
+medidor externo (`_shared/dimensoes-de-revisao.md` não tinha "100%" nem "auditor"); e a
+âncora PEDIDO existia no ledger do `intent-guard` sem que nenhum motor de revisão a
+consumisse — a intenção dita ficava sem cobrador exatamente onde ela mais importa.

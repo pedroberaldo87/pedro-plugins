@@ -464,6 +464,20 @@ $(printf '%s' "$FOUT" | head -20)
   fi
 fi
 
+# I3 · PILARES DA REVISÃO — todo laço de revisão carrega os três pilares contra as três
+# âncoras (ordem do dono, 2026-08-28): QUALIDADE assintótica (o I2 cobre), COBERTURA 100%
+# em cinco lentes e COERÊNCIA 100% item a item, medidas por auditor externo isolado cuja
+# conta é do script. Este check cobra a PRESENÇA das peças nos motores e cascas.
+PDR="$ROOT/scripts/test_pilares_de_revisao.py"
+if [ -f "$PDR" ]; then
+  if ! FOUT=$(cd "$ROOT" && python3 "$PDR" 2>&1); then
+    VIOL="${VIOL}
+❌ PILARES DA REVISÃO — motor ou casca sem as peças da auditoria externa (cobertura/coerência):
+$(printf '%s' "$FOUT" | grep FAIL | head -12)
+   → régua: python3 scripts/test_pilares_de_revisao.py"
+  fi
+fi
+
 # K · número de contagem afirmado no README contra o repositório.
 # O README é a vitrine e afirma quantidade (quantos plugins, quantos ligados de fábrica,
 # quantos hooks pedem jq, quantos plugins registram hook e quantos registros dão). Nada

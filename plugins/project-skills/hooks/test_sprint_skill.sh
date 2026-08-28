@@ -58,6 +58,9 @@ N_LEI_MARCA="o motor congela a marca da lei na 1ª volta"
 N_LEI_AVISO="lei trocada no meio da missão vira aviso, nunca troca calada"
 N_CONCEP_KIND="o schema declara o kind 'concepcao'"
 N_CONCEP_AVISO="o script manda o gap de concepção pro relatório"
+N_AUD_SECAO="a auditoria externa dos pilares tem seção na skill"
+N_AUD_KIND="o gap de auditoria é fabricado pelo script, >= floor"
+N_AUD_MOTOR="o motor roda os auditores isolados no candidato a built"
 
 REVISOR="$(secao "$ALVO" '- **OPUS #2 — Revisor de construção.**' '- **DIAGNÓSTICO')"
 SKEL="$(secao "$ALVO" '// args (da casca)' '**Schemas (JSON Schema')"
@@ -157,6 +160,17 @@ check "o gap de concepção não segura a obra (não há o que consertar no cód
   "$(tem "$REVIEW" 'não segura a obra')"
 check "$N_CONCEP_AVISO" "$(tem "$SKEL" "kind === 'concepcao')")"
 
+echo
+echo "[auditoria externa dos pilares — COBERTURA e COERÊNCIA]"
+check "$N_AUD_SECAO" "$(tem "$(cat "$ALVO")" '### A auditoria externa dos pilares')"
+check "$N_AUD_KIND" "$(tem "$(cat "$ALVO")" "= **gap fabricado pelo SCRIPT**")"
+check "a skill declara o fail-open do caderno de pedidos" "$(tem "$(cat "$ALVO")" 'pedidosAusentes')"
+check "a dispensa de lente é ratificação do dono" "$(tem "$(cat "$ALVO")" 'lentesDispensadas')"
+check "$N_AUD_MOTOR" "$(tem "$MOTOR_JS" 'SEM_HISTORICO')"
+check "o motor soma o 100% no script (furosDe)" "$(tem "$MOTOR_JS" 'furosDe')"
+check "o motor segura o kind de auditoria no holdsBuild" "$(tem "$MOTOR_JS" "g.kind === 'auditoria'")"
+check "sem infra E2E o motor declara o veredito literal" "$(tem "$MOTOR_JS" 'COBERTURA NÃO MEDIDA NA LENTE E2E')"
+
 # Com argumento a suíte é só a verificação — é assim que a sabotagem a chama.
 if [ -n "$1" ]; then
   echo
@@ -196,6 +210,7 @@ sabota "schema DECOMP"      '- `DECOMP` —'                             "$N_DEC
 sabota "pino da marca da lei" 'lawMark = review.lawMark'               "$N_LEI_MARCA"
 sabota "aviso da lei trocada" 'a lei do projeto mudou durante a missão' "$N_LEI_AVISO"
 sabota "aviso da concepção errada" "kind === 'concepcao'))"           "$N_CONCEP_AVISO"
+sabota "seção da auditoria"  '### A auditoria externa dos pilares'       "$N_AUD_SECAO"
 
 echo
 if [ "$FALHA" -eq 0 ]; then

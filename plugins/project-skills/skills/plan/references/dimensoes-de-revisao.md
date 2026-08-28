@@ -19,6 +19,66 @@ deixam passar inteiro.
 
 ---
 
+## Os três pilares — critério de aprovação e quem mede
+
+O tripé diz O QUE se mede. Esta seção diz QUANDO cada pé aprova, e QUEM tem a palavra:
+
+| Pilar | Critério de aprovação | Quem mede |
+|---|---|---|
+| **QUALIDADE** (Pé 1) | assintótico por SEVERIDADE — rodada completa sem achado acima do piso, confirmada por re-sweep (Artigo 14 da constituição do marketplace) | o revisor interno do laço |
+| **COBERTURA** (Pé 2) | **100%** — cada item do escopo com as **cinco lentes** fechadas; item com lente faltando é **FURO, nomeando item e lente** | **auditor EXTERNO**, isolado do laço; **quem soma o 100% é o script**, nunca o auditor |
+| **COERÊNCIA** (Pé 3) | **100%** — a régua inteira, item a item, zero VIOLADO e zero NÃO-MEDIDO | **auditor EXTERNO**, isolado do laço; a conta é do script |
+
+O 100% dos pilares 2 e 3 é sobre lentes e itens medidos — nunca sobre "zero achados de
+qualidade", que continua regido pela assíntota de severidade do Pé 1.
+
+**As cinco lentes da COBERTURA** — cobertura não é só teste: é implementação COMPLETA.
+Para cada item do escopo (finalidade/requisito do PEDIDO e do PLANO):
+
+1. **implementado** — o código do item existe e faz o que o item pede;
+2. **revisado** — o item passou pela revisão do laço; é FATO que o script atesta da
+   própria telemetria, nunca pergunta ao auditor (quem não viu o laço inventaria);
+3. **suíte** — teste que MORDE, sem os cinco antipadrões — o corpo do Pé 2, abaixo;
+4. **E2E** — confirmação direta do funcionamento esperado: a jornada real executada
+   (interface = Playwright olhando o resultado na tela, não só o DOM; CLI e biblioteca =
+   o programa real de ponta a ponta). Item sem comportamento executável sai
+   `nao-aplicavel`, com motivo;
+5. **auditado** — o auditor externo listou o item com evidência; o script atesta pela
+   presença do item no veredito.
+
+**E2E fica fora do portão mecânico** (lento e dependente de ambiente — a regra vigente do
+portão não muda) **mas é lente obrigatória da aprovação**: projeto sem infraestrutura E2E
+não fecha o 100% — o veredito sai **"COBERTURA NÃO MEDIDA NA LENTE E2E"**, declarado, e
+quem resolve é o dono: ratifica a dispensa ou manda criar a infra. Nunca aprovação por
+omissão.
+
+## As três âncoras — contra o que os três pilares medem
+
+| Âncora | O que é | De onde vem |
+|---|---|---|
+| **PEDIDO** | a intenção do usuário, verbatim | o caderno de pedidos do `intent-guard`, quando instalado no projeto |
+| **PLANO** | a spec aprovada virada em tarefas | o plano que a casca passa ao motor |
+| **CONSTITUIÇÃO** | a lei e os acordos do projeto | a régua que o `doc-load` lista (o Pé 3, abaixo) |
+
+**Âncora ausente é declarada no relatório, nunca vira aprovação por omissão** — a mesma
+regra que o Pé 3 já aplica à régua vale para as três.
+
+## O auditor externo
+
+Roda **dentro do laço, depois da rodada limpa e antes do veredito final** — a rodada
+limpa é candidata a fecho, não fecho.
+
+- **Recebe:** o código final e as três âncoras.
+- **NÃO recebe, de propósito:** os achados do revisor, os consertos e o histórico do
+  laço. Veredito alheio que apareça no material é alegação a verificar no disco.
+- O veredito é **schema estruturado**; quem soma o 100% é o script, nunca o auditor.
+- Reprovação vira fila de conserto e o laço reabre; no próximo candidato a fecho,
+  **re-audita do zero** — código que mudou é veredito vencido.
+- Auditor mudo nunca fecha. Lista vazia com âncora presente reprova — auditor que não
+  enumerou nada não auditou.
+
+---
+
 ## Pé 1 · Qualidade — o que está escrito está certo?
 
 Bug, regressão, contrato quebrado entre as pontas, caso de borda, segurança. É o pé que
@@ -89,6 +149,9 @@ Enumerar os arquivos em prosa foi o defeito que este marketplace carregou até 2
 uma skill citava quatro documentos e o programa já listava onze. Nenhum dos dois lados
 ficava errado sozinho — é a divergência silenciosa do `patterns.md` §1.6a, exatamente o
 que o `doc-load` existe para matar.
+
+**Reaberto e minerado ficam FORA da conta do 100%** do pilar COERÊNCIA — e saem
+declarados no veredito como fora da conta, nunca somidos em silêncio.
 
 **Ausência não é achado.** Projeto sem régua não tem este pé; o revisor diz isso e segue
 com os outros dois. E **régua ausente nunca vira aprovação por omissão**.

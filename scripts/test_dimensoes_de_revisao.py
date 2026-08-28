@@ -46,6 +46,16 @@ CLAUSULAS = [
     ("ausência de régua não é achado", "**Ausência não é achado.**"),
     ("a lei é fixada na primeira volta", "fixada na primeira volta"),
     ("lint/type/teste vermelho não é este pé", "O que NÃO conta como este pé"),
+    # Os três pilares (ordem do dono, 2026-08-28) — critério + medidor por pé.
+    ("a seção dos pilares existe", "## Os três pilares"),
+    ("cobertura fecha por 100% com as cinco lentes", "cinco lentes"),
+    ("o furo nomeia item e lente", "FURO, nomeando item e lente"),
+    ("quem soma o 100% é o script", "quem soma o 100% é o script"),
+    ("as três âncoras existem", "## As três âncoras"),
+    ("âncora ausente nunca aprova por omissão", "nunca vira aprovação por omissão"),
+    ("o auditor externo tem seção própria", "## O auditor externo"),
+    ("E2E: fora do portão, dentro da aprovação", "fora do portão mecânico"),
+    ("o veredito literal da lente E2E ausente", "COBERTURA NÃO MEDIDA NA LENTE E2E"),
 ]
 
 # Nome de documento de projeto que NENHUMA skill de revisão pode enumerar: quem

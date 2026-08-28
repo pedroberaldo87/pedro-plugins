@@ -35,7 +35,7 @@ def casa(raiz, *partes):
     Cascata: a casa NOVA se ela existir; senão a VELHA, se existir; senão a
     NOVA — porque doc que ainda não nasceu nasce na casa canônica.
     Exceção medida (outro projeto, 2026-08-26): a NOVA existe sem nenhum .md
-    e a VELHA tem a doc de verdade — uma `docs/` de outro uso na raiz fazia
+    e a VELHA tem a doc de verdade — uma `docs/` de outro uso na raiz fazia (casa-ok: prosa que cita o caso medido, nao um caminho usado)
     o resolvedor ignorar a casa habitada. Nesse caso a VELHA responde.
     """
     raiz = str(raiz)

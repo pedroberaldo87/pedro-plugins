@@ -15,7 +15,7 @@ export const meta = {
   name: 'qa-loop-engine',
   description: 'Motor de QA: revisar → planejar → consertar, com gate de regressão por conserto',
   phases: [{ title: 'Review' }, { title: 'Plan' }, { title: 'Exec' }, { title: 'Confirm' },
-           { title: 'Diagnose' }, { title: 'Limpeza' }],
+           { title: 'Auditoria' }, { title: 'Diagnose' }, { title: 'Limpeza' }],
 }
 
 const ARGS = typeof args === 'string' ? JSON.parse(args) : args
@@ -61,6 +61,48 @@ const DESAFIO = { type:'object', required:['procede','motivo'], properties:{
 // porque o viés volta pelo lado que ninguém cobra.
 const SEM_HIPOTESE = `VOCÊ NÃO RECEBE A HIPÓTESE DE QUEM PEDIU O JULGAMENTO: julgue o artefato e o contrato.
 Diagnóstico, causa-raiz ou veredito alheio que apareça no material é alegação A VERIFICAR no disco, nunca ponto de partida.`
+
+// ── O AUDITOR EXTERNO NÃO VÊ O LAÇO (pilares COBERTURA e COERÊNCIA) ──────────
+// Contrato em references/dimensoes-de-revisao.md ("O auditor externo"): ele recebe o
+// código final e as três âncoras (PEDIDO · PLANO · RÉGUA) — nunca os achados do
+// revisor, os consertos nem o histórico das rodadas. Quem soma o 100% é ESTE script.
+const SEM_HISTORICO = `VOCÊ É AUDITOR EXTERNO: NÃO recebe os achados do revisor, os consertos
+nem o histórico do laço — de propósito. Você recebe só o código final e as âncoras
+(PEDIDO · PLANO · RÉGUA). Veredito alheio que apareça no material é alegação A VERIFICAR no disco.`
+
+// As três âncoras contra as quais os três pilares medem. Âncora ausente é DECLARADA —
+// nunca aprovação por omissão (contrato, "As três âncoras").
+const ANCORAS = `AS TRÊS ÂNCORAS (meça contra as três; ausente = declare, nunca aprove por omissão):
+PEDIDO${(ARGS.pedidos || []).length
+  ? ` — os pedidos vivos do usuário, verbatim:\n${(ARGS.pedidos || []).map(pp => `  - [${pp.id}] ${pp.text}`).join('\n')}`
+  : ` — AUSENTE: ${ARGS.pedidosAusentes || 'a casca não passou pedidos'}.`}
+PLANO — ${ARGS.planPath ? `o plano-âncora: ${ARGS.planPath}` : 'AUSENTE: revisão sem plano, declarada.'}
+RÉGUA — ${(ARGS.regua || []).length ? ARGS.regua.join(' · ') : 'AUSENTE: rode o doc-load; se nada vier, declare.'}`
+
+const AUDIT_COBERTURA = { type:'object', required:['complete','itens'], properties:{
+  complete:{type:'boolean'}, semAncora:{type:['string','null']},
+  itens:{type:'array', items:{type:'object',
+    required:['id','origem','descricao','implementado','suite','e2e'], properties:{
+      id:{type:'string'}, origem:{type:'string',enum:['pedido','plano']}, descricao:{type:'string'},
+      implementado:{type:'object', required:['veredito','evidencia'], properties:{
+        veredito:{type:'string',enum:['sim','parcial','nao']}, evidencia:{type:'string'} }},
+      suite:{type:'object', required:['veredito','evidencia'], properties:{
+        veredito:{type:'string',enum:['morde','descoberta','antipadrao']},
+        teste:{type:['string','null']}, antipadrao:{type:['string','null']}, evidencia:{type:'string'} }},
+      e2e:{type:'object', required:['veredito','evidencia'], properties:{
+        veredito:{type:'string',enum:['confirmado','falhou','sem-infra','nao-aplicavel']},
+        evidencia:{type:'string'} }} }}},
+  anchor:{type:'string'} } }
+
+const AUDIT_COERENCIA = { type:'object', required:['complete','itens'], properties:{
+  complete:{type:'boolean'}, semAncora:{type:['string','null']},
+  itens:{type:'array', items:{type:'object', required:['documento','item','veredito'], properties:{
+    documento:{type:'string'}, item:{type:'string'},
+    veredito:{type:'string',enum:['conforme','violado','nao-aplicavel','nao-medido']},
+    passagem:{type:['string','null']}, evidencia:{type:['string','null']} }}},
+  foraDaConta:{type:'array', items:{type:'object', required:['documento','motivo'], properties:{
+    documento:{type:'string'}, motivo:{type:'string',enum:['reaberto','minerado']} }}},
+  anchor:{type:'string'} } }
 
 // ── O PROJETO REVISADO NEM SEMPRE É ESTA CASA (2026-08-23) ───────────────────
 // Stack, regras da casa e comando de suíte VÊM POR ARGS; o default é este
@@ -181,6 +223,8 @@ LIMITES ACEITOS: ${J(acceptedLimits)}
 
 MANDATO ADVERSARIAL: seu default é REJEITAR o finding, a não ser que ele se justifique contra a rubrica.
 Gerar não é julgar — o Revisor achou, VOCÊ carimba a severidade. Finding rejeitado vai em \`rejected\` com o \`id\` dele e o motivo.
+EXCEÇÃO — finding com id \`AUD-*\` vem da auditoria externa dos pilares (a conta é do
+script, booleana): você NÃO o rebaixa e NÃO o rejeita — roteie TODOS ao bucket1.
 
 ROTEIE CADA FINDING QUE PROCEDE EM UM DOS TRÊS BALDES:
 1. bucket1 — IMPLEMENTAÇÃO (código diverge do plano, bug, regressão, viola a régua da casa, teste que não morde). Vira conserto.
@@ -240,6 +284,53 @@ Seu papel é PROVAR QUE ESSA CAUSA ESTÁ ERRADA. Vá ao disco. Procure:
 - a causa concorrente mais simples.
 \`procede: false\` = você a derrubou, e \`motivo\` traz o fato. \`procede: true\` = você tentou e não conseguiu derrubá-la.`
 
+const auditCoberturaPrompt = () => `PAPEL: AUDITOR DE COBERTURA (pilar 2)
+${SEM_HISTORICO}
+
+${ANCORAS}
+
+REPOSITÓRIO: ${RAIZ}
+${stack}
+O ALVO (o código final sob auditoria): ${ARGS.target}
+DIFF: rode \`git -C ${RAIZ} diff ${ARGS.diffRef}\`.
+
+COBERTURA NÃO É SÓ TESTE — é implementação COMPLETA (contrato: as cinco lentes).
+ENUMERE TODO item do escopo a partir das âncoras (cada finalidade/requisito do PEDIDO e
+do PLANO que o alvo devia entregar). Para CADA item, meça TRÊS lentes no disco:
+- implementado — o código do item existe e faz o que o item pede? \`sim\` | \`parcial\` | \`nao\`.
+- suite — existe teste que MORDE o item? \`morde\` | \`descoberta\` (sem teste) | \`antipadrao\`
+  (teste que existe e não morde — os cinco antipadrões de antipadroes-de-teste.md). Nas
+  travas de segurança, a prova é MUTAÇÃO: desligue numa cópia e exija que a suíte acuse.
+- e2e — EXECUTE a confirmação direta do funcionamento esperado: interface = a jornada real
+  (Playwright, olhando o RESULTADO na tela, não só o DOM); CLI/biblioteca = rode o programa
+  real de ponta a ponta. \`confirmado\` | \`falhou\` | \`sem-infra\` (não há como executar
+  neste projeto) | \`nao-aplicavel\` (item sem comportamento executável — diga o motivo).
+As lentes "revisado" e "auditado" são conta DESTE script, não sua.
+\`evidencia\` de cada lente: o que você rodou/leu, literal (comando + saída, arquivo:linha).
+Sem NENHUMA âncora (nem pedido, nem plano, nem régua): \`semAncora\` com o motivo, itens [].
+\`anchor\` = a última linha não vazia do último arquivo que você leu, literal.`
+
+const auditCoerenciaPrompt = () => `PAPEL: AUDITOR DE COERÊNCIA (pilar 3)
+${SEM_HISTORICO}
+
+${ANCORAS}
+
+REPOSITÓRIO: ${RAIZ}
+${stack}
+O ALVO (o código final sob auditoria): ${ARGS.target}
+DIFF: rode \`git -C ${RAIZ} diff ${ARGS.diffRef}\`.
+
+PERCORRA A RÉGUA INTEIRA, ITEM A ITEM — artigo por artigo, restrição por restrição,
+seção por seção de CADA documento que a régua lista. Rode o doc-load do projeto quando a
+lista acima não bastar. Para cada item: \`conforme\` | \`violado\` (cite a \`passagem\` e a
+\`evidencia\` no código) | \`nao-aplicavel\` (com o motivo em \`evidencia\`) | \`nao-medido\`
+(não conseguiu medir — diga por quê; NUNCA omita o item da lista).
+Documento REABERTO ou MINERADO não entra na conta: vai em \`foraDaConta\` com o motivo.
+As restrições do PEDIDO (o que o usuário mandou NÃO mexer) também são itens: confira que
+o alvo as respeitou.
+Sem régua E sem pedido: \`semAncora\` com o motivo, itens [].
+\`anchor\` = a última linha não vazia do último arquivo que você leu, literal.`
+
 const sevRank = s => ({P0:3, P1:2, P2:1, P3:0}[s] ?? 0)
 const floor = sevRank(ARGS.severityFloor || 'P1')
 // RATIFICADO ≠ PROPOSTO (2026-08-24). `acceptedLimits` é SÓ o que o dono já gravou em
@@ -288,6 +379,23 @@ const T = ARGS.tiers
 const tierFor = round => ({ model: ARGS.model, effort: round === 1 ? T.decompose.effort : T.coordinate.effort })
 const isAccepted = (f, limits) => (limits || []).some(l => (l.id && l.id === f.id) || (l.file && l.file === f.file && l.problem === f.problem))
 
+// ── PILARES 2 e 3 · a conta do 100% é DESTE script, nunca do auditor ─────────
+// Dispensa de lente é RATIFICAÇÃO do dono (qa-loop.config.md → args), mesma porta dos
+// acceptedLimits: o laço nunca dispensa sozinho para poder fechar.
+const lentesDispensadas = ARGS.lentesDispensadas || []
+const furosDe = it => {
+  const f = []
+  if (it.implementado.veredito !== 'sim') f.push('implementado')
+  if (it.suite.veredito !== 'morde') f.push('suite')
+  if (!['confirmado', 'nao-aplicavel', 'sem-infra'].includes(it.e2e.veredito)) f.push('e2e')
+  if (!(it.implementado.evidencia && it.suite.evidencia && it.e2e.evidencia)) f.push('auditado')
+  return f.filter(l => !lentesDispensadas.includes(l)).map(lente => ({ item: it.id, lente, descricao: it.descricao }))
+}
+let auditCob = null, auditCoe = null
+let cobStatus = 'nao-rodou', coeStatus = 'nao-rodou'
+let furosCobertura = [], violadosCoerencia = [], auditoriaNaoMedida = false
+let audSeq = 0
+
 while (!cleanRound && r < maxRounds && !churnEscalated && !teatroDeDuvida) {
   r++; phase(`Rodada ${r}`)
   const tier = tierFor(r)
@@ -315,8 +423,82 @@ while (!cleanRound && r < maxRounds && !churnEscalated && !teatroDeDuvida) {
     // o fecho varre `review.findings`, e achado abaixo do piso some do bloqueio, nunca da vista.
     if (confirm) review.findings = (review.findings || []).concat(confirm.findings || [])
     if (confirm && confirm.complete && confirmSevere.length === 0) {
-      rounds.push({ r, review, confirm, corrections: [], regressions: 0, alerts: [] })
-      cleanRound = true; break
+      // ── AUDITORIA EXTERNA (pilares COBERTURA e COERÊNCIA) ──────────────────
+      // A rodada limpa é CANDIDATA a fecho, não fecho: os dois auditores isolados
+      // rodam aqui, e quem soma o 100% é este script. Reprovou → os furos viram
+      // findings e o laço reabre; código que mudou é veredito vencido, então o
+      // próximo candidato re-audita do zero.
+      await anda(r, 'auditando')
+      auditCob = await agent(auditCoberturaPrompt(),
+        { model: ARGS.model, effort: T.finalize.effort, phase: 'Auditoria',
+          label: `audit:cobertura r${r}`, schema: AUDIT_COBERTURA })
+      auditCoe = await agent(auditCoerenciaPrompt(),
+        { model: ARGS.model, effort: T.finalize.effort, phase: 'Auditoria',
+          label: `audit:coerencia r${r}`, schema: AUDIT_COERENCIA })
+      if (!auditCob || !auditCoe) {
+        rounds.push({ r, review, confirm, auditCob, auditCoe,
+          nota: 'auditor externo não respondeu — NÃO declaro rodada limpa' })
+        break
+      }
+      if (!auditCob.complete || !auditCoe.complete) {
+        rounds.push({ r, review, confirm, auditCob, auditCoe,
+          nota: 'auditoria externa incompleta — NÃO declaro rodada limpa' })
+        break
+      }
+
+      const itensCob = auditCob.itens || []
+      const itensCoe = auditCoe.itens || []
+      furosCobertura = auditCob.semAncora ? [] : itensCob.flatMap(furosDe)
+      violadosCoerencia = auditCoe.semAncora ? []
+        : itensCoe.filter(i => i.veredito === 'violado' || i.veredito === 'nao-medido')
+      const semInfraE2E = !auditCob.semAncora && !lentesDispensadas.includes('e2e')
+        && itensCob.some(it => it.e2e.veredito === 'sem-infra')
+      // Auditor que não enumerou nada não auditou — lista vazia COM âncora reprova.
+      const cobVazia = !auditCob.semAncora && itensCob.length === 0
+      const coeVazia = !auditCoe.semAncora && itensCoe.length === 0
+
+      cobStatus = auditCob.semAncora ? 'sem-ancora'
+        : (furosCobertura.length || cobVazia) ? 'reprovada'
+        : semInfraE2E ? 'nao-medida-lente-e2e' : 'aprovada'
+      coeStatus = auditCoe.semAncora ? 'sem-ancora'
+        : (violadosCoerencia.length || coeVazia) ? 'reprovada' : 'aprovada'
+
+      // Furo consertável vira finding e o laço reabre — fila de conserto normal.
+      const audFindings = []
+      for (const fu of furosCobertura)
+        audFindings.push({ id: `AUD-C${++audSeq}`, file: fu.item, line: null, severity: 'P1',
+          dimension: 'auditoria-cobertura',
+          problem: `item "${fu.descricao || fu.item}" com a lente ${fu.lente} furada`,
+          fix_direction: fu.lente === 'suite' ? 'escreva o teste que morde o item'
+            : fu.lente === 'e2e' ? 'faça a jornada real confirmar o funcionamento esperado'
+            : 'complete a implementação do item' })
+      for (const vi of violadosCoerencia)
+        audFindings.push({ id: `AUD-K${++audSeq}`, file: vi.documento, line: null, severity: 'P1',
+          dimension: 'auditoria-coerencia',
+          problem: `${vi.documento} · "${vi.item}": ${vi.veredito}${vi.passagem ? ` — ${vi.passagem}` : ''}`,
+          fix_direction: vi.veredito === 'violado' ? 'conserte o código até conformar com o item'
+            : 'meça o item e traga a prova' })
+      if (cobVazia) audFindings.push({ id: `AUD-C${++audSeq}`, file: '(escopo)', line: null,
+        severity: 'P1', dimension: 'auditoria-cobertura',
+        problem: 'auditor de cobertura devolveu zero itens com âncora presente — não auditou',
+        fix_direction: 're-audite enumerando o escopo das âncoras' })
+      if (coeVazia) audFindings.push({ id: `AUD-K${++audSeq}`, file: '(régua)', line: null,
+        severity: 'P1', dimension: 'auditoria-coerencia',
+        problem: 'auditor de coerência devolveu zero itens com régua presente — não auditou',
+        fix_direction: 're-audite percorrendo a régua item a item' })
+
+      if (audFindings.length) {
+        review.findings = (review.findings || []).concat(audFindings)
+      } else if (semInfraE2E) {
+        // Não há conserto de executor para infra ausente: girar o laço seria teatro.
+        // Fecha DECLARADO — "COBERTURA NÃO MEDIDA NA LENTE E2E" — e a decisão é do
+        // dono: ratificar a dispensa no qa-loop.config.md ou mandar criar a infra.
+        rounds.push({ r, review, confirm, auditCob, auditCoe, corrections: [], regressions: 0, alerts: [] })
+        auditoriaNaoMedida = true; break
+      } else {
+        rounds.push({ r, review, confirm, auditCob, auditCoe, corrections: [], regressions: 0, alerts: [] })
+        cleanRound = true; break
+      }
     }
     if (!confirm) {
       rounds.push({ r, review, confirm: null, nota: 'confirm-pass não respondeu — NÃO declaro rodada limpa' })
@@ -331,6 +513,17 @@ while (!cleanRound && r < maxRounds && !churnEscalated && !teatroDeDuvida) {
   if (!plan) {
     rounds.push({ r, review, plan: null, nota: 'planejador não respondeu' })
     break
+  }
+
+  // Garantia do script (não da prosa): finding AUD-* fora do bucket1 volta para ele.
+  // O gate dos pilares é booleano do script — o árbitro não tem alçada sobre ele.
+  for (const f of (review.findings || []).filter(x => /^AUD-/.test(x.id))) {
+    if (!(plan.bucket1 || []).some(b => b.id === f.id)) {
+      plan.bucket1 = plan.bucket1 || []
+      plan.bucket1.push({ id: f.id, fn: '?', file: f.file, severity: f.severity,
+        order: plan.bucket1.length + 1000, fix_direction: f.fix_direction })
+      plan.rejected = (plan.rejected || []).filter(rj => rj.id !== f.id)
+    }
   }
 
   const corrections = []; let regressions = 0
@@ -430,6 +623,7 @@ const tally = fs => (fs || []).reduce((a, f) => { a[f.severity] = (a[f.severity]
 // aceso 9h26 depois do fim, medido em 2026-08-10.
 if (ARGS.sessionId) {
   await agent(encerraPrompt({ motivo: cleanRound ? 'rodada limpa'
+                                     : auditoriaNaoMedida ? 'cobertura não medida (lente E2E)'
                                      : churnEscalated ? 'churn escalado'
                                      : regressaoTotal ? 'conserto regrediu a suíte'
                                      : teatroDeDuvida ? 'teatro de dúvida'
@@ -474,11 +668,26 @@ return {
     nota: x.nota })),
   detalhe: rounds,
   acceptedLimits, proposedLimits, invariants, churn, voltasPorProblema, causaDisputada,
+  // Os três pilares (contrato em references/dimensoes-de-revisao.md). A conta do 100%
+  // dos pilares 2-3 é deste script; o auditor só mede. Âncora ausente sai declarada.
+  pilares: {
+    qualidade: { status: cleanRound ? 'assintota-alcancada' : 'nao-fechou' },
+    cobertura: { status: cobStatus, furos: furosCobertura,
+                 dispensadas: lentesDispensadas,
+                 itens: (auditCob && auditCob.itens || []).length,
+                 semAncora: (auditCob && auditCob.semAncora) || null },
+    coerencia: { status: coeStatus, violados: violadosCoerencia,
+                 foraDaConta: (auditCoe && auditCoe.foraDaConta) || [],
+                 itens: (auditCoe && auditCoe.itens || []).length,
+                 semAncora: (auditCoe && auditCoe.semAncora) || null },
+  },
   planFlawAlerts: rounds.flatMap(x => x.alerts || []),
   driftItems: rounds.flatMap(x => x.drift || []),
   telemetry: rounds.map(x => ({ round: x.r, corrections: (x.corrections || []).length,
     regressions: x.regressions || 0, findings_by_sev: tally(x.review?.findings) })),
-  stopReason: cleanRound ? 'no-severe-finding' : churnEscalated ? 'churn-escalated'
+  stopReason: cleanRound ? 'no-severe-finding'
+    : auditoriaNaoMedida ? 'cobertura-nao-medida'
+    : churnEscalated ? 'churn-escalated'
     : regressaoTotal ? 'regressao-total'
     : teatroDeDuvida ? 'teatro-de-duvida' : agenteMudo ? 'agente-mudo' : 'max-rounds',
   // Artigo 14: só a rodada limpa (assíntota de severidade alcançada) é sucesso. Teto e
@@ -492,7 +701,11 @@ return {
     ? (emAberto.length
         ? `rodada limpa, mas ${emAberto.length} achado(s) acima do piso ficaram na mesa do dono (roteados para plano/drift, não consertados)`
         : `nenhum achado acima de ${ARGS.severityFloor || 'P1'}`) +
-      (abaixoDoPiso.length ? ` · ${abaixoDoPiso.length} abaixo do piso, listados e não bloqueantes` : '')
+      (abaixoDoPiso.length ? ` · ${abaixoDoPiso.length} abaixo do piso, listados e não bloqueantes` : '') +
+      ` · auditoria externa: cobertura ${cobStatus}, coerência ${coeStatus}` +
+      (lentesDispensadas.length ? ` (lente(s) ${lentesDispensadas.join(', ')} dispensada(s) por ratificação do dono)` : '')
+    : auditoriaNaoMedida
+      ? `COBERTURA NÃO MEDIDA NA LENTE E2E — o projeto não tem como executar a confirmação direta; ratifique a dispensa no qa-loop.config.md ou mande criar a infra (coerência: ${coeStatus})`
     : churnEscalated
       ? 'A REVISÃO NÃO TERMINOU — o mesmo ponto regrediu a cada tentativa e a investigação de causa assumiu'
       : regressaoTotal
