@@ -740,6 +740,39 @@ consequência, proposta, aviso, sumário:
 O teto não existe para você encolher informação — existe para você **quebrar em bullets**.
 Informação que não cabe no nível 0 desce para o nível 1; nada é apagado para caber.
 
+### O texto tem que CABER no desenho — a régua de geometria, cobrada pelo build
+
+A régua de estilo acima é sobre **texto**; esta é sobre **pixel**, e as duas são
+independentes. O desenho de um `esquema` é SVG de largura fixa: o texto **não quebra
+linha**. Quando ele não cabe, ele não some nem encolhe — ele **atravessa a caixa vizinha
+ou sai pela borda**, e a página fica ilegível sem que nada acuse.
+
+Nasceu em 2026-08-28, de três desenhos da mesma página. O retorno do dono, verbatim:
+*"tá ruim. as coisas tão se atropelando"*. Os três passaram no build e passaram no juiz de
+clareza — porque **o build lê texto e o juiz lê texto, e ninguém media geometria**.
+
+O que o build cobra hoje, com a mensagem dizendo quantos caracteres cabem:
+
+- **`fluxo`** — a caixa é `(800 − 40 − 20×(n−1)) / n` de largura, então **cada passo a mais
+  encolhe todos**. Com 4 passos cabem ~23 caracteres no título; com 6, cabem ~13. Teto de 6
+  passos, e **no máximo 2 linhas de apoio** por caixa (a terceira nasce fora dela).
+- **`escada`** — a barra **encolhe 110px por degrau** (mínimo 240). O degrau 1 aceita ~94
+  caracteres na linha de apoio; o degrau 6 aceita ~26. **Escreva pensando no degrau de
+  baixo.**
+- **`mapa`** — caixa que passa de `x + w > 800` é cortada na borda, e duas caixas
+  sobrepostas viram uma ilegível. As duas reprovam.
+
+`quadrantes`, `placar` e `glossario` são HTML com quebra de linha: não entram nesta régua.
+
+**A conta vive no mesmo lugar do desenho** (`plugins/visual/lib/visual_page.py`,
+`_erros_de_geometria` ao lado de `_esq_fluxo`/`_esq_escada`/`_esq_mapa`) porque duas
+verdades sobre a mesma largura seria o defeito de volta, com um gate por cima dizendo que
+está tudo bem.
+
+⚠️ **Esta régua não substitui olhar.** Ela pega o que é aritmética (largura, contagem,
+sobreposição); ela não sabe se o desenho **explica**. Quando a página tem esquema, tire o
+print e leia a imagem antes de entregar — foi assim que os três defeitos apareceram.
+
 ### Human language — banned vocabulary
 
 The text the user reads is for a human, not a log. Forbidden as the visible headline/title/option of what they approve:

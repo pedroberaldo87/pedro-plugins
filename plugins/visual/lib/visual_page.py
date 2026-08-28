@@ -389,6 +389,8 @@ def _validate_block(k, blk, where):
                     if seta.get(ponta) not in ids:
                         errs.append("%s: seta %d aponta pra caixa inexistente %r"
                                     % (where, si, seta.get(ponta)))
+        # A GEOMETRIA — o texto cabe no desenho? (2026-08-28, ver `_erros_de_geometria`)
+        errs.extend(_erros_de_geometria(t, blk, where))
         if t == "placar":
             for li, l in enumerate(lista, 1):
                 if isinstance(l, dict) and l.get("estado") not in ESQ_ESTADOS:
@@ -722,6 +724,119 @@ def r_chart(blk, ctx):
                % (legenda, " · " + _rich(blk["title"]) if blk.get("title") else ""))
     out.append("  </div>")
     return out
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# A RÉGUA DE GEOMETRIA — o desenho tem largura FIXA, e texto que não cabe nele
+# não quebra linha: ele ATRAVESSA a caixa vizinha ou sai pela borda do SVG.
+#
+# Isto nasceu em 2026-08-28, de um defeito repetido que nenhum gate pegava. O
+# retorno do dono, verbatim: *"tá ruim. as coisas tão se atropelando"*. Três
+# desenhos da mesma página, cada um estourando de um jeito: um `fluxo` de seis
+# passos com os títulos escritos por cima uns dos outros; um `mapa` com as caixas
+# da direita cortadas na borda; uma `escada` com o rótulo "vence ↓" em cima do
+# texto do degrau. Todos passaram no build e no juiz de clareza — porque os dois
+# leem TEXTO (tamanho de bullet, prosa, palavra banida) e ninguém media PIXEL.
+#
+# As contas abaixo são as MESMAS de `_esq_fluxo`, `_esq_escada` e `_esq_mapa`: se
+# a geometria do desenho mudar lá, muda aqui. Duas verdades sobre a mesma largura
+# seria o defeito de novo, com um gate por cima dizendo que está tudo bem.
+# ─────────────────────────────────────────────────────────────────────────────
+
+def _larg(texto, px, bold=False):
+    """Largura aproximada do texto em pixels do viewBox.
+
+    Fator por caractere medido na fonte da página (sans-serif do sistema): 0.58em
+    no peso 700+, 0.53em no regular. É aproximação de propósito — medir a fonte de
+    verdade exigiria o navegador, e a régua tem que rodar no build, sem ele. Por
+    isso a margem de 8px na hora de comparar: o erro do fator não pode virar
+    reprovação de texto que caberia.
+    """
+    return len(str(texto or "")) * px * (0.58 if bold else 0.53)
+
+
+def _erros_de_geometria(t, blk, where):
+    """O texto de cada desenho cabe no espaço que o desenho reserva pra ele?"""
+    errs = []
+
+    if t == "fluxo":
+        passos = blk.get("passos") or []
+        n = len(passos)
+        if not n:
+            return errs
+        # a mesma conta de `_esq_fluxo`: viewBox 800, margem 20 de cada lado, 20 de gap
+        w = (800 - 40 - 20 * (n - 1)) / float(n)
+        if w < 95:
+            errs.append("%s: fluxo com %d passos — a caixa fica com %.0fpx e o título "
+                        "não cabe em nenhuma palavra. Teto: 6 passos; acima disso "
+                        "agrupe os passos que não decidem nada." % (where, n, w))
+        for i, p in enumerate(passos, 1):
+            if _larg(p.get("titulo"), 13, True) > w - 8:
+                cabe = int((w - 8) / (13 * 0.58))
+                errs.append("%s: fluxo passo %d — o título tem %d caracteres e só cabem "
+                            "%d na caixa de %.0fpx (%d passos). Corte o título ou tire "
+                            "um passo; o detalhe vai nos 'subs'."
+                            % (where, i, len(str(p.get("titulo") or "")), cabe, w, n))
+            subs = p.get("subs") or []
+            # a caixa tem 70px de altura (y 40→110) e o 1º sub cai em y=82, de 15 em 15:
+            # o terceiro (y=112) já nasce FORA dela.
+            if len(subs) > 2:
+                errs.append("%s: fluxo passo %d com %d linhas de apoio — só cabem 2 "
+                            "dentro da caixa; a terceira sai por baixo."
+                            % (where, i, len(subs)))
+            for j, sub in enumerate(subs, 1):
+                if _larg(sub, 10.5) > w - 8:
+                    cabe = int((w - 8) / (10.5 * 0.53))
+                    errs.append("%s: fluxo passo %d, linha de apoio %d — %d caracteres "
+                                "para %d que cabem na caixa de %.0fpx."
+                                % (where, i, j, len(str(sub or "")), cabe, w))
+
+    elif t == "escada":
+        # a mesma conta de `_esq_escada`: a barra ENCOLHE 110px por degrau (mínimo 240),
+        # e o texto começa em x=92 enquanto a barra começa em x=30.
+        for i, it in enumerate(blk.get("itens") or []):
+            w = max(240, 660 - i * 110)
+            util = w - 70   # de x=92 até a borda direita da barra, com folga
+            if _larg(it.get("titulo"), 16, True) > util:
+                errs.append("%s: escada degrau %d — o título tem %d caracteres e a barra "
+                            "deste degrau só comporta %d (ela encolhe conforme desce)."
+                            % (where, i + 1, len(str(it.get("titulo") or "")),
+                               int(util / (16 * 0.58))))
+            if _larg(it.get("sub"), 12) > util:
+                errs.append("%s: escada degrau %d — a linha de apoio tem %d caracteres e "
+                            "só cabem %d; o excedente sai da barra e bate no rótulo "
+                            "\"vence ↓\". Os degraus de BAIXO são os mais estreitos."
+                            % (where, i + 1, len(str(it.get("sub") or "")),
+                               int(util / (12 * 0.53))))
+
+    elif t == "mapa":
+        caixas = [c for c in (blk.get("caixas") or []) if isinstance(c, dict)]
+        for i, c in enumerate(caixas, 1):
+            x, y = c.get("x", 0), c.get("y", 0)
+            w, h = c.get("w", 190), c.get("h", 50)
+            # o viewBox do mapa tem 800 de largura, e o que passa disso é CORTADO
+            if x + w > 800:
+                errs.append("%s: mapa caixa %d (%r) termina em x=%d — o desenho tem 800 "
+                            "de largura e o que passa disso é cortado na borda."
+                            % (where, i, c.get("id"), x + w))
+            if _larg(c.get("titulo"), 13, True) > w - 8:
+                errs.append("%s: mapa caixa %d (%r) — o título tem %d caracteres para %d "
+                            "que cabem em %dpx."
+                            % (where, i, c.get("id"), len(str(c.get("titulo") or "")),
+                               int((w - 8) / (13 * 0.58)), w))
+            if _larg(c.get("sub"), 11) > w - 8:
+                errs.append("%s: mapa caixa %d (%r) — a linha de apoio tem %d caracteres "
+                            "para %d que cabem em %dpx."
+                            % (where, i, c.get("id"), len(str(c.get("sub") or "")),
+                               int((w - 8) / (11 * 0.53)), w))
+            # duas caixas no mesmo lugar viram uma ilegível
+            for c2 in caixas[i:]:
+                x2, y2 = c2.get("x", 0), c2.get("y", 0)
+                w2, h2 = c2.get("w", 190), c2.get("h", 50)
+                if x < x2 + w2 and x2 < x + w and y < y2 + h2 and y2 < y + h:
+                    errs.append("%s: mapa — as caixas %r e %r se sobrepõem."
+                                % (where, c.get("id"), c2.get("id")))
+    return errs
 
 
 def r_esquema(blk, ctx):
@@ -1321,7 +1436,13 @@ GARANTIDO PELO PROGRAMA (não escreva à mão, não precisa lembrar):
 RECUSADO PELO PROGRAMA:
   decisão/veredito sem nenhuma prova na página · bloco de evidência vazio ·
   decisão com 2 ou 4 opções · tri incompleto · prosa em qualquer campo de texto ·
-  aprovação sem o texto integral do documento presente na página
+  aprovação sem o texto integral do documento presente na página ·
+  TEXTO QUE NÃO CABE NO DESENHO (a régua de geometria, 2026-08-28): o desenho tem
+  largura fixa e o texto não quebra linha — ele atravessa a caixa vizinha ou sai
+  pela borda. Cobrado em `fluxo` (título e linha de apoio por caixa, no máximo 2
+  linhas de apoio e 6 passos), `escada` (a barra encolhe 110px por degrau, então o
+  degrau de baixo é o mais estreito) e `mapa` (caixa além dos 800 do desenho, e
+  caixas sobrepostas). A mensagem sempre diz quantos caracteres cabem.
 """
 
 

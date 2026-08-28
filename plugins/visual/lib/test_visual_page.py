@@ -860,9 +860,15 @@ for _tipo, _blk in ESQ.items():
 # tem que virar uma. A régua de estilo cobra os outros blocos e passa longe deste.
 _curto = dict(ESQ["fluxo"])
 _curto["passos"] = [{"titulo": "Anúncio", "subs": ["e só quem já busca — sem ponto final"]},
-                    {"titulo": "Página", "subs": ["x" * 200]}]
+                    {"titulo": "Página", "subs": ["duas frases. sem maiúscula, sem ponto"]}]
 check("o texto de dentro do desenho é isento da régua de estilo",
       V.validate(spec(sections=[{"blocks": [dict(EVID), _curto]}])) == [])
+# ESTILO e GEOMETRIA são réguas distintas, e a segunda nasceu em 28/08: a legenda do
+# desenho não precisa ser frase (estilo não a alcança), mas precisa CABER na caixa.
+check("isento de estilo NÃO é isento de geometria",
+      any("cabem" in e for e in V.validate(spec(sections=[{"blocks": [
+          dict(EVID), dict(_curto, passos=[{"titulo": "Anúncio", "subs": ["x" * 200]},
+                                           {"titulo": "Página", "subs": ["ok"]}])]}]))))
 check("mas a régua continua valendo no bloco vizinho",
       any("bullets" in e for e in V.validate(spec(sections=[{"blocks": [
           dict(EVID), _curto, {"kind": "bullets", "items": ["e " + "y" * 200]}]}]))))
@@ -941,6 +947,65 @@ for _d, _tipo, _ in V.ESQUEMA_POR_DOC:
 check("todo documento canônico do mapa tem tipo que o programa sabe desenhar",
       all(tp in V.ESQUEMAS for _, tp, _ in V.ESQUEMA_POR_DOC))
 
+
+# ── A RÉGUA DE GEOMETRIA (2026-08-28) ────────────────────────────────────────
+# Os três casos abaixo são os DEFEITOS REAIS de uma página só, de 28/08. O dono,
+# verbatim: "tá ruim. as coisas tão se atropelando". Os três passaram no build e
+# no juiz de clareza, porque os dois leem TEXTO e ninguém media PIXEL.
+_G = V._erros_de_geometria
+
+_fluxo6 = {"tipo": "fluxo", "passos": [
+    {"titulo": "1 · o rótulo do título é conhecido?", "subs": ["sim, segue"]},
+    {"titulo": "2 · alguém de fora tem que agir?", "subs": ["não, é sua"]},
+    {"titulo": "3 · a data está longe demais para ser prazo?", "subs": ["não, ela é de 15/08"]},
+    {"titulo": "4 · a data é futura E foi você que pôs?", "subs": ["não, já venceu"]},
+    {"titulo": "5 · tem consequência no seu dicionário?", "subs": ["sim: comercial"]},
+    {"titulo": "6 · a data foi VOCÊ que pôs?", "subs": ["veio da importação do kommo",
+                                                        "→ cai na TRIAGEM", "e a 3ª sai da caixa"]}]}
+_e = _G("fluxo", _fluxo6, "x")
+check("fluxo: título que não cabe na caixa reprova", any("o título tem" in m for m in _e))
+check("fluxo: a mensagem diz quantos caracteres CABEM", any("só cabem" in m for m in _e))
+check("fluxo: a terceira linha de apoio sai da caixa e reprova",
+      any("só cabem 2 " in m for m in _e))
+
+check("fluxo de 4 passos com título curto passa limpo",
+      _G("fluxo", {"tipo": "fluxo", "passos": [
+          {"titulo": "1 a 4 · passa", "subs": ["rótulo conhecido", "é sua, não é futura"]},
+          {"titulo": "5 · tem peso?", "subs": ["sim: comercial"]},
+          {"titulo": "6 · quem pôs?", "subs": ["não foi você", "veio do kommo"]},
+          {"titulo": "→ TRIAGEM", "subs": ["fora do dia"]}]}, "x") == [])
+
+_mapa = {"tipo": "mapa", "caixas": [
+    {"id": "a", "titulo": "e não volta sozinha", "sub": "11 tarefas assim há 10 dias",
+     "x": 655, "y": 0, "w": 185, "h": 54}]}
+check("mapa: caixa que passa dos 800 do desenho é cortada e reprova",
+      any("cortado na borda" in m for m in _G("mapa", _mapa, "x")))
+check("mapa: duas caixas no mesmo lugar reprovam",
+      any("se sobrepõem" in m for m in _G("mapa", {"tipo": "mapa", "caixas": [
+          {"id": "a", "titulo": "a", "x": 0, "y": 0, "w": 190, "h": 50},
+          {"id": "b", "titulo": "b", "x": 100, "y": 20, "w": 190, "h": 50}]}, "x")))
+
+# a barra da escada ENCOLHE 110px por degrau: o mesmo texto passa em cima e estoura embaixo
+_escada = {"tipo": "escada", "itens": [
+    {"titulo": "1 · saúde", "sub": "dentista, médico, exame, receita, terapia"},
+    {"titulo": "2 · risco físico", "sub": "gerador, disjuntor, manutenção, vazamento"},
+    {"titulo": "3 · jurídico", "sub": "assinar, distrato, termo de"},
+    {"titulo": "4 · fiscal", "sub": "nota fiscal, imposto, DARF, contabilidade"},
+    {"titulo": "5 · caixa", "sub": "pagamento, boleto, cobrança, reembolso"},
+    {"titulo": "6 · comercial", "sub": "proposta, orçamento, contrato — e agora fup, falar"}]}
+_ee = _G("escada", _escada, "x")
+check("escada: o degrau de baixo é o mais estreito e reprova primeiro",
+      any("degrau 5" in m for m in _ee) and any("degrau 6" in m for m in _ee))
+check("escada: a mensagem avisa que os degraus de baixo são os mais estreitos",
+      any("degraus de BAIXO" in m for m in _ee))
+check("escada: o degrau 1, com a barra inteira, aceita o mesmo tamanho de texto",
+      not any("degrau 1" in m for m in _ee))
+
+check("a régua roda dentro do build, não como passo que alguém tem que lembrar",
+      "_erros_de_geometria(t, blk, where)" in open(
+          os.path.join(HERE, "visual_page.py"), encoding="utf-8").read())
+check("o contrato do schema declara a régua de geometria",
+      "NÃO CABE NO DESENHO" in V.SCHEMA_DOC and "régua de geometria" in V.SCHEMA_DOC)
 
 print("\n%d passou · %d falhou" % (PASS, FAIL))
 sys.exit(1 if FAIL else 0)
