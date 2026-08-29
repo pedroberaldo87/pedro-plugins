@@ -29,21 +29,64 @@ def _tem_md(pasta):
         return False
 
 
+def _tem_doc_da_familia(pasta):
+    """A pasta tem documento DESTA família — o que abre com frontmatter e traz `project:`.
+
+    É a marca mecânica que separa o documento das skills (gerado pelo /doc ou escrito
+    pelo /start) do que o dono escreveu à mão: prosa em markdown não tem frontmatter, e
+    frontmatter de outra ferramenta não tem `project:`. Não se adivinha nada — lê-se o
+    cabeçalho.
+    """
+    try:
+        nomes = [n for n in os.listdir(pasta) if n.endswith(".md")]
+    except OSError:
+        return False
+    for nome in nomes:
+        try:
+            with open(os.path.join(pasta, nome), encoding="utf-8", errors="replace") as fh:
+                if fh.readline().strip() != "---":
+                    continue
+                for _ in range(40):                     # o cabeçalho, nunca o corpo
+                    linha = fh.readline()
+                    if not linha or linha.strip() == "---":
+                        break
+                    if linha.startswith("project:"):
+                        return True
+        except OSError:
+            continue
+    return False
+
+
 def casa(raiz, *partes):
     """O caminho da casa da doc de `raiz`, com `partes` juntadas dentro dela.
 
     Cascata: a casa NOVA se ela existir; senão a VELHA, se existir; senão a
     NOVA — porque doc que ainda não nasceu nasce na casa canônica.
-    Exceção medida (outro projeto, 2026-08-26): a NOVA existe sem nenhum .md
-    e a VELHA tem a doc de verdade — uma `docs/` de outro uso na raiz fazia (casa-ok: prosa que cita o caso medido, nao um caminho usado)
-    o resolvedor ignorar a casa habitada. Nesse caso a VELHA responde.
+
+    DUAS exceções medidas, e as duas são sobre a casa VELHA estar habitada:
+
+    1. A NOVA existe sem nenhum .md e a VELHA tem a doc (medido em 2026-08-26):
+       uma `docs/` de outro uso na raiz fazia o resolvedor ignorar a casa habitada. (casa-ok: prosa que cita o caso medido, nao um caminho usado)
+    2. As DUAS têm .md, cada uma com um tipo de documento (medido em 2026-08-28):
+       a NOVA com a prosa que o dono escreveu à mão, a VELHA com os documentos das
+       skills. A cascata dava a NOVA, e como a marca que as ferramentas procuram só
+       existe na VELHA, elas concluíam que o projeto não tinha documentação nenhuma —
+       em silêncio, com cara de sucesso: o `/doc-touch` dizia "nada a tocar" com 277
+       arquivos mudados, e o `/doc-load` declarava a lei do projeto AUSENTE com os 16
+       documentos no disco. Toda skill que julga obra contra o acordado julgava sem
+       régua, achando que régua não havia. O desempate é MECÂNICO, não adivinhado:
+       responde a casa que tem documento DESTA família (frontmatter com `project:`).
     """
     raiz = str(raiz)
     nova = os.path.join(raiz, *NOVA)
     velha = os.path.join(raiz, *VELHA)
     if not os.path.isdir(nova):
         escolhida = velha if os.path.isdir(velha) else nova
-    elif os.path.isdir(velha) and not _tem_md(nova) and _tem_md(velha):
+    elif not os.path.isdir(velha):
+        escolhida = nova
+    elif not _tem_md(nova):
+        escolhida = velha if _tem_md(velha) else nova
+    elif _tem_md(velha) and not _tem_doc_da_familia(nova) and _tem_doc_da_familia(velha):
         escolhida = velha
     else:
         escolhida = nova

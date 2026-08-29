@@ -133,7 +133,7 @@ with tempfile.TemporaryDirectory() as tmp:
           casa(vazia) == os.path.join(vazia, "docs"), casa(vazia))
 
     # docs/ de outro uso (sem nenhum .md) não esconde a casa habitada — o caso
-    # medido no outro projeto em 2026-08-26, onde docs/ só tinha uma subpasta e a
+    # medido num projeto real em 2026-08-26, onde docs/ só tinha uma subpasta e a
     # doc aprovada morava em .claude/docs/.  # casa-ok: prosa que cita o caso medido, nao um caminho usado
     habitada = os.path.join(tmp, "casa-habitada-na-velha")
     os.makedirs(os.path.join(habitada, "docs", "outra-coisa"))
@@ -148,6 +148,47 @@ with tempfile.TemporaryDirectory() as tmp:
     check("o resolvedor não cria pasta nenhuma",
           not os.path.isdir(os.path.join(vazia, "docs")))
 
+    # ── as DUAS habitadas, cada uma com um TIPO de documento ───────────────
+    # O caso medido no um projeto real em 2026-08-28: a nova com a prosa que o dono
+    # escreveu à mão, a antiga com os documentos das skills. A cascata dava a
+    # nova, as ferramentas não achavam a marca que procuram, e declaravam o
+    # projeto SEM documentação nenhuma — em silêncio. Os arquivos aqui têm
+    # frontmatter DE VERDADE de propósito: os `.md` vazios dos cenários acima não
+    # são documento da família, e por isso o defeito passava por eles.
+    DA_FAMILIA = "---\nproject: exemplo\nscope:\n  - src/x.py\n---\n\n# corpo\n"
+    PROSA_DO_DONO = "# A constituição\n\nTexto que uma pessoa escreveu, sem cabeçalho.\n"
+
+    def _casa_com(rotulo, na_nova, na_velha):
+        raiz = os.path.join(tmp, rotulo)
+        os.makedirs(os.path.join(raiz, "docs"))
+        os.makedirs(os.path.join(raiz, ".claude", "docs"))
+        with open(os.path.join(raiz, "docs", "a.md"), "w", encoding="utf-8") as fh:
+            fh.write(na_nova)
+        with open(os.path.join(raiz, ".claude", "docs", "b.md"), "w", encoding="utf-8") as fh:
+            fh.write(na_velha)
+        return raiz
+
+    skill_na_velha = _casa_com("skill-na-velha", PROSA_DO_DONO, DA_FAMILIA)
+    check("as duas habitadas, o documento de skill na VELHA: ela responde",
+          casa(skill_na_velha) == os.path.join(skill_na_velha, ".claude", "docs"),
+          casa(skill_na_velha))
+
+    skill_na_nova = _casa_com("skill-na-nova", DA_FAMILIA, PROSA_DO_DONO)
+    check("as duas habitadas, o documento de skill na NOVA: ela responde",
+          casa(skill_na_nova) == os.path.join(skill_na_nova, "docs"), casa(skill_na_nova))
+
+    nenhum_da_familia = _casa_com("sem-doc-de-skill", PROSA_DO_DONO, PROSA_DO_DONO)
+    check("nenhuma das duas com documento de skill: a canônica ganha",
+          casa(nenhum_da_familia) == os.path.join(nenhum_da_familia, "docs"),
+          casa(nenhum_da_familia))
+
+    # A marca é `project:` no CABEÇALHO, nunca no corpo: doc que menciona a
+    # palavra num parágrafo não vira documento da família por causa disso.
+    so_no_corpo = _casa_com("project-so-no-corpo",
+                            "# Prosa\n\nAqui eu falo de project: alguma coisa.\n", DA_FAMILIA)
+    check("`project:` no CORPO não conta — quem responde é a casa com frontmatter",
+          casa(so_no_corpo) == os.path.join(so_no_corpo, ".claude", "docs"), casa(so_no_corpo))
+
     # ── a metade bash responde o mesmo ─────────────────────────────────────
 
     print("\n[bash — a mesma cascata, mesmo resultado]")
@@ -161,6 +202,10 @@ with tempfile.TemporaryDirectory() as tmp:
             ("as duas casas", ambas, ()),
             ("sem casa", vazia, ()),
             ("docs sem .md e velha habitada", habitada, ()),
+            ("as duas habitadas, skill na velha", skill_na_velha, ()),
+            ("as duas habitadas, skill na nova", skill_na_nova, ()),
+            ("as duas habitadas, nenhuma de skill", nenhum_da_familia, ()),
+            ("`project:` só no corpo não conta", so_no_corpo, ()),
             ("arquivo na casa velha", velha, ("architecture.md",)),
             ("subpasta na casa nova", nova, ("fluxos", "f.html")),
         ):

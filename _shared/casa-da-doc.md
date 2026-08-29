@@ -30,13 +30,40 @@ hardcodar e espalhar até virar dívida, em vez de amarrar e tornar recursivo.
 
 ## A cascata (para no primeiro que bater)
 
-1. `<raiz>/docs/` existe → é ela — **salvo** quando ela não tem nenhum `.md`
-   no primeiro nível e `<raiz>/.claude/docs/` tem: aí a casa habitada responde
-   (caso medido no outro projeto em 2026-08-26, onde uma `docs/` de outro uso
-   escondia a doc aprovada).
+1. `<raiz>/docs/` existe → é ela, **salvo pelas duas exceções abaixo**, que são
+   as duas sobre a casa antiga estar habitada de verdade.
 2. senão, `<raiz>/.claude/docs/` existe → é ela (a casa antiga).
 3. nenhuma das duas existe → `<raiz>/docs/`, porque doc que ainda não nasceu
    nasce na casa canônica.
+
+### Exceção 1 · a nova existe VAZIA e a antiga tem a doc
+
+`<raiz>/docs/` sem nenhum `.md` no primeiro nível e `<raiz>/.claude/docs/` com:
+a casa habitada responde. Caso medido num projeto real em 2026-08-26, onde uma
+`docs/` de outro uso escondia a doc aprovada.
+
+### Exceção 2 · as DUAS habitadas, cada uma com um tipo de documento
+
+As duas com `.md`, a nova com a prosa que o dono escreveu à mão e a antiga com
+os documentos das skills: responde **a que tem documento desta família** — o que
+abre com frontmatter e traz `project:` no cabeçalho.
+
+O desempate é **mecânico, não adivinhado**: prosa escrita à mão não tem
+frontmatter, e frontmatter de outra ferramenta não traz `project:`. Lê-se o
+cabeçalho, nunca o corpo, e nunca se pergunta ao modelo.
+
+**O caso medido em 2026-08-28 e o estrago dele.** As duas pastas
+habitadas — 26 documentos de prosa na nova, nenhum com `project:`; 20 na antiga,
+9 com o frontmatter completo. A cascata dava a nova, as ferramentas não achavam
+a marca que procuram, e concluíam que o projeto **não tinha documentação
+nenhuma** — em silêncio, com cara de sucesso: o `/doc-touch` dizia "nada a
+tocar" com 277 arquivos mudados, e o `doc-load` declarava a lei do projeto
+AUSENTE com os 16 documentos no disco. Como o `doc-load` é o preâmbulo
+obrigatório de toda skill que julga obra, todas julgavam **sem régua, achando
+que régua não existia**.
+
+Nenhuma das duas com documento da família ⇒ segue valendo a canônica: a regra
+só desempata quando há o que desempatar.
 
 ## A receita
 
