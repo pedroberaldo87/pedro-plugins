@@ -174,6 +174,20 @@ OUT=$(bash "$APROVAR" --marca "$DOC" 2>&1)
   && ok "--marca no doc autoral imprime a marca do corpo e não aprova" \
   || bad "--marca no doc autoral imprime a marca do corpo e não aprova" "$(doc_marca "$DOC")" "$OUT"
 
+# 13) casa NOVA (`docs/` na raiz): o rito acha a raiz pelo project_root, não por ../../..
+#     — a aritmética antiga subia um nível a mais e morria em "ausente em disco".
+CASA2="$TMP/proj2/docs/prototipo"
+mkdir -p "$CASA2" "$TMP/proj2/.claude"
+: > "$TMP/proj2/.claude/CLAUDE.md"
+printf '<h1>Organismo</h1>\n' > "$CASA2/organismo.html"
+SC2="$CASA2/esquema.prototipo.md"
+printf -- '---\nnatureza: anexo\nanexo-de: blueprint.md\n---\n\n## Arquivos\n\n- docs/prototipo/organismo.html\n' > "$SC2"
+ESPERADA2=$(cksum < "$CASA2/organismo.html" | cut -d' ' -f1)
+OUT=$(bash "$APROVAR" "$SC2" 2>&1)
+grep -q "^conjunto-sig: $ESPERADA2$" "$SC2" \
+  && ok "casa nova (docs/ na raiz): o rito acha a raiz e grava conjunto-sig" \
+  || bad "casa nova (docs/ na raiz): o rito acha a raiz e grava conjunto-sig" "conjunto-sig: $ESPERADA2" "$OUT"
+
 echo
 printf '%s passaram · %s falharam\n' "$PASS" "$FAIL"
 [ "$FAIL" -eq 0 ]

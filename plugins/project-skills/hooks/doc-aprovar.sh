@@ -28,13 +28,16 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 . "$SCRIPT_DIR/lib-doc-mark.sh" || exit 2
 # A casa da doc sai do resolvedor único (contrato em _shared/casa-da-doc.md).
 . "$SCRIPT_DIR/lib-casa-da-doc.sh" || exit 2
+# A raiz do projeto sobe do sidecar pelo mesmo resolvedor dos hooks (lib-project-root.sh):
+# a aritmética ../../.. era da casa antiga e, na casa nova (`docs/` na raiz), devolvia o PAI
+# da raiz — o rito procurava os HTMLs no lugar errado e morria.
+. "$SCRIPT_DIR/lib-project-root.sh" || exit 2
 
 # conjunto_marca <sidecar> — o `cat <arquivos> | cksum` da emenda, na ordem do corpo.
-# A raiz do projeto é a casa do sidecar menos `.claude/docs/prototipo/`. Arquivo  # casa-ok: o comentário documenta a aritmética ../../.. da casa antiga
-# listado e ausente é recusa, não marca de conjunto pela metade.
+# Arquivo listado e ausente é recusa, não marca de conjunto pela metade.
 conjunto_marca() {
   local raiz rel alvos=()
-  raiz="$(cd "$(dirname "$1")/../../.." && pwd)" || return 1
+  raiz=$(project_root "$(dirname "$1")") || return 1
   while IFS= read -r rel; do
     [ -f "$raiz/$rel" ] || { echo "listado em ## Arquivos e ausente em disco: $rel" >&2; return 1; }
     alvos+=("$raiz/$rel")
@@ -64,7 +67,7 @@ if [ "$EH_ANEXO" -eq 1 ]; then
   DSIG=""
   ANEXO_DE=$(sed -n '2,/^---/p' "$DOC" | sed -n 's/^anexo-de:[[:space:]]*//p' | head -1 | tr -d ' \r')
   if [ -n "$ANEXO_DE" ]; then
-    RAIZ="$(cd "$(dirname "$DOC")/../../.." && pwd)"
+    RAIZ=$(project_root "$(dirname "$DOC")")
     [ -f "$(casa_da_doc "$RAIZ" "$ANEXO_DE")" ] && DSIG=$(doc_marca "$(casa_da_doc "$RAIZ" "$ANEXO_DE")")
   fi
   awk -v marca="$MARCA" -v dsig="$DSIG" '
