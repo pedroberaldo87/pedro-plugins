@@ -75,7 +75,21 @@ def test_sem_blueprint_nao_inventa_ponta():
     assert out["sem_dono"] == 0, out
 
 
+def test_raiz_com_doc_na_casa_nova_docs():
+    """A skill chama `rastreio_etapas.py .` pela raiz. Com a doc em `docs/` (casa nova),
+    o resolvedor tem que achá-la — antes ele só conhecia `.claude/docs/` e contava 0 jornadas."""
+    with tempfile.TemporaryDirectory() as tmp:
+        docs = os.path.join(tmp, "docs")
+        os.makedirs(docs)
+        with open(os.path.join(docs, "journeys.md"), "w", encoding="utf-8") as fh:
+            fh.write(JOURNEYS)
+        out = rastreio_etapas.conferir(rastreio_etapas.resolver(tmp))
+        assert out["journeys_lidas"], out["docs"]
+        assert out["contagem"]["jornadas"] == 1, out["contagem"]
+
+
 if __name__ == "__main__":
     test_passo_orfao_sai_nomeado()
     test_sem_blueprint_nao_inventa_ponta()
+    test_raiz_com_doc_na_casa_nova_docs()
     print("OK — a terceira lista acusa o passo órfão pelo nome")

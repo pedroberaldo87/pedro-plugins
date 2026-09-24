@@ -41,6 +41,9 @@ import re
 import sys
 import unicodedata
 
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from casa_da_doc import casa as casa_da_doc  # noqa: E402  (a doc migrou para docs/; a casa velha é retrocompatível)
+
 FEATURES = "features.md"
 JOURNEYS = "journeys.md"
 BLUEPRINT = "blueprint.md"
@@ -218,7 +221,7 @@ def conferir(docs_dir):
 def resolver(caminho):
     """Aceita a raiz do projeto ou a própria casa da doc."""
     caminho = os.path.abspath(caminho or ".")
-    dentro = os.path.join(caminho, ".claude", "docs")
+    dentro = casa_da_doc(caminho)
     return dentro if os.path.isdir(dentro) else caminho
 
 
