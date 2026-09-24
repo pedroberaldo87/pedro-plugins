@@ -523,6 +523,7 @@ escrever `.claude/docs/design.md` no formato correto e validar.
    passar (sério, lúdico, premium, urgente)?"
 3. "Qual família tipográfica o corpo do texto usa (ou deveria usar)?"
 4. "Tem algo que NUNCA pode acontecer visualmente neste produto — um 'don't' que já causou problema?"
+   Pista para esta pergunta: o banco de sugestões da skill `design-md` (`references/dos-and-donts.md`, cada item com a fonte), filtrado pelo que o produto faz, somado aos defeitos que o próprio projeto já provou. O palpite vai com os itens escolhidos; o dono confirma, corta ou acrescenta.
 
 **Molde:** delegado à skill `design-md` (absorvida neste plugin — F3 do plano
 `design-como-doc-autoral`) — ela escreve `.claude/docs/design.md` seguindo
