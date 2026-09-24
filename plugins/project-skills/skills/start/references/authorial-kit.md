@@ -584,6 +584,7 @@ módulo, onde o banco mora, e o grafo do `graphify` se o projeto tiver um.
 3. "Quem pode chamar quem? Tem chamada que você quer proibir de propósito?"
 4. "Onde o estado mora, e quem tem permissão de escrever nele?"
 5. "O que você decidiu NÃO construir, mesmo sendo tentador?"
+6. **Ofertas de arquitetura:** depois da 5, ofereça — uma por vez, quando pertinentes — as capacidades de `ofertas-de-arquitetura.md` (ao lado deste arquivo): backup com gestão na tela, registro completo, desfazer em vários níveis, avisos por vários canais e WhatsApp. Oferta não é resposta: só entra o que o dono confirmar.
 6. Para cada peça: "ela serve qual das metas do `quality-goals.md`?"
 
 **Molde:**
