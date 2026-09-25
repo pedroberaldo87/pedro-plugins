@@ -663,6 +663,11 @@ check("o card fica POR CIMA do texto integral (é índice, não conteúdo)",
       _pg_ap.index("O que o gate cobra") < _pg_ap.index("A prova é a saída crua"))
 check("o card navega pra âncora dentro do documento",
       'href="#aprov-1-1"' in _pg_ap and 'id="aprov-1-1"' in _pg_ap, "âncora não ligada")
+check("o texto integral nasce RECOLHIDO (aberto, ele era a página inteira)",
+      '<details class="aprov-box">' in _pg_ap and '<details class="aprov-box" open' not in _pg_ap)
+check("o texto integral quebra linha (linha longa empurrava a página para o lado)",
+      "white-space:pre-wrap" in _pg_ap)
+check("o card abre o texto recolhido antes de navegar", "details.aprov-box" in _pg_ap)
 check("aprovação conta como pedido COM prova (o doc é a prova)",
       V.validate(spec(sections=[{"blocks": [dict(ESQUEMA_ANTES), dict(APROV),
                                             {"kind": "item", "title": "i"}]}])) == [])

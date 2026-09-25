@@ -79,10 +79,18 @@ def origens(proposta):
     if not proposta:
         return {}
     blocos = proposta.get("blocks") if isinstance(proposta, dict) else proposta
+    # O spec real da página do /visual guarda os blocos dentro de `sections`, e o
+    # `detail` do bloco `item` é {"summary", "paragraphs"} — ler só o formato plano
+    # deixava toda origem [PENDENTE] (ou quebrava no .strip de um dict).
+    if isinstance(proposta, dict) and not blocos:
+        blocos = [b for sec in proposta.get("sections") or [] for b in sec.get("blocks") or []]
     fora = {}
     for blk in blocos or []:
         if isinstance(blk, dict) and blk.get("title"):
-            fora[blk["title"]] = (blk.get("detail") or "").strip()
+            det = blk.get("detail") or ""
+            if isinstance(det, dict):
+                det = " ".join(det.get("paragraphs") or [])
+            fora[blk["title"]] = det.strip()
     return fora
 
 
@@ -102,8 +110,11 @@ def montar(itens, mapa_origem, frontmatter=FRONTMATTER):
         linhas += ["### F-%d · %s" % (n, texto), "- **Origem:** %s" % origem, ""]
     if deixados:
         linhas += ["## Deixado de fora de propósito", ""]
+        # Bullet, como no molde do authorial-kit: `###` aqui fazia o rastreio_etapas.py
+        # contar o item deixado de fora como funcionalidade sem origem.
         for titulo, motivo in deixados:
-            linhas += ["### %s" % titulo, "- **Motivo:** %s" % motivo, ""]
+            linhas += ["- **%s** — %s" % (titulo, motivo)]
+        linhas.append("")
     return "\n".join(linhas).rstrip("\n") + "\n"
 
 

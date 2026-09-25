@@ -1098,11 +1098,18 @@ def r_aprovacao(blk, ctx):
         anc = str(c.get("ancora") or "")
         if anc:
             doc = doc.replace(_e(anc), '<span id="%s">%s</span>' % (aid, _e(anc)), 1)
-        out.append('      <a class="chip" href="#%s">%s</a>' % (aid, _rich(c.get("title"))))
+        out.append('      <a class="chip" href="#%s" onclick="this.closest(\'.feedback-item\')'
+                   '.querySelector(\'details.aprov-box\').open=true">%s</a>'
+                   % (aid, _rich(c.get("title"))))
     if cards:
         out.append("    </div>")
 
-    out.append('    <pre class="aprov-doc">%s</pre>' % doc)
+    # Recolhido e com quebra de linha: aberto, o texto integral virava a página
+    # inteira (27 mil px numa aprovação de 6 documentos) e as linhas longas sem
+    # quebra empurravam a página para o lado. Os cards abrem o texto no clique.
+    out.append('    <details class="aprov-box"><summary>📄 Ler o texto integral</summary>')
+    out.append('    <pre class="aprov-doc" style="white-space:pre-wrap;overflow-wrap:anywhere">%s</pre>' % doc)
+    out.append('    </details>')
     out.append('    <textarea class="feedback-textarea" placeholder="O que mudar..."></textarea>')
     out.append("  </div>")
     return out
@@ -1231,7 +1238,7 @@ def _integral_presente(page, texto):
     alvo = re.sub(r"\s+", " ", str(texto or "")).strip()
     if not alvo:
         return False
-    for m in re.finditer(r'<pre class="aprov-doc">(.*?)</pre>', page, flags=re.S):
+    for m in re.finditer(r'<pre class="aprov-doc"[^>]*>(.*?)</pre>', page, flags=re.S):
         corpo = re.sub(r"\s+", " ",
                        html.unescape(re.sub(r"<[^>]+>", "", m.group(1)))).strip()
         if alvo in corpo:

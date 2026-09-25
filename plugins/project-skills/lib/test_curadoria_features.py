@@ -87,6 +87,12 @@ def test_positivo():
               "- **Origem:** \"eu jogo o extrato do banco e ele entende\" — journeys.md"
               in corpo)
         check("relatório conta os vereditos", "1 keep · 1 change · 1 remove" in out)
+        check("deixado de fora sai como bullet do molde, não como item ###",
+              "- **Compartilhar carteira** — não é pra ser multiusuário na v1" in corpo
+              and "### Compartilhar carteira" not in corpo)
+        import rastreio_etapas as re_
+        check("o rastreio não conta o deixado de fora como funcionalidade",
+              all(i["nome"] != "Compartilhar carteira" for i in re_.funcionalidades(corpo)))
     finally:
         shutil.rmtree(tmp, ignore_errors=True)
 
@@ -149,7 +155,17 @@ def test_frontmatter_existente_preservado():
         shutil.rmtree(tmp, ignore_errors=True)
 
 
+def test_spec_real_do_visual():
+    print("\n== o spec real da página: blocos em sections, detail como objeto ==")
+    proposta = {"sections": [{"title": "Compras", "blocks": [
+        {"kind": "item", "title": "Pedido com vários itens",
+         "detail": {"summary": "de onde veio", "paragraphs": ["journeys.md — \"cria o pedido\""]}}]}]}
+    check("origem lida de dentro de sections, com detail objeto",
+          cf.origens(proposta) == {"Pedido com vários itens": "journeys.md — \"cria o pedido\""})
+
+
 if __name__ == "__main__":
+    test_spec_real_do_visual()
     test_positivo()
     test_negativo_radio_em_branco()
     test_veredito_fora_do_spec()
