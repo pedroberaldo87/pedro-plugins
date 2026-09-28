@@ -150,7 +150,7 @@ decide ali é `grep` sobre o settings + a existência do arquivo de marca, não 
 | B2 | `plugins/gauntlet/hooks/sessionstart-lembra-missao.sh` | 36 | `session_id` | a missão aberta no disco não é lembrada no arranque, e o sinal expira calado em 12h |
 | B2 | `plugins/bootstrap/hooks/post-plugin-command.sh` | 60 | `tool_input.command` | mutação de plugin não é detectada; o snapshot/commit nunca roda |
 | B2 | `plugins/branches/hooks/posttooluse-push-branch.sh` | 32, 43 | `tool_input.command`, `session_id` | push não é notado; o aviso de branch some |
-| B2 | `plugins/context-guard/hooks/context-guard.sh` | 36 | `session_id` | o guard de contexto não abre |
+| B2 | `plugins/context-guard/hooks/context-guard.sh` | 34 | `session_id` | o guard de contexto não abre |
 | B2 | `plugins/context-guard/hooks/context-guard-reset.sh` | 19 | `session_id` | o sentinel da sessão nunca é limpo |
 | B2 | `plugins/context-guard/hooks/context-guard-writer.sh` | 26 | `session_id` | o `%` de contexto nunca é gravado — e o guard depende desse arquivo |
 | B2 | `plugins/intent-guard/hooks/mark-work.sh` | 27 | `session_id` | o trabalho da sessão não é marcado; `delivery-audit` fica sem base |
