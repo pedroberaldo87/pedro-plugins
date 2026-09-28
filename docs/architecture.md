@@ -366,24 +366,24 @@ archify            2.14.2  [archify]                    -
 bootstrap         1.17.16  [bootstrap]                  HOOKS
 branches           1.3.15  [branches]                   HOOKS
 check-skills        0.7.4  [check-skills]               -
-context-guard      1.3.15  [context-guard]              HOOKS
+context-guard      1.3.16  [context-guard]              HOOKS
 fallow              1.2.8  [fallow]                     -
 gauntlet           0.13.7  [gauntlet]                   HOOKS
-graphify-guard     1.2.13  []                           HOOKS
+graphify-guard     1.2.14  []                           HOOKS
 grill-me            1.5.3  [grill-me]                   -
-guardrails         1.8.10  [guardrails]                 HOOKS
+guardrails         1.8.11  [guardrails]                 HOOKS
 handoff           1.11.20  [handoff]                    HOOKS
 improve             1.1.6  [improve]                    -
 improve-workflow  0.16.30  [improve-workflow]           -
 intent-guard       0.8.17  [intent-guard]               HOOKS
 lixeiro            1.5.12  [faxina]                     HOOKS
 principles          1.0.5  [principles]                 -
-project-skills    0.22.223  [completude,design-md,doc,doc-load,doc-touch,monitorar,pesquisa-referencias,plan,project-skills,qa-loop,reentrada,sprint,start] HOOKS
+project-skills    0.22.224  [completude,design-md,doc,doc-load,doc-touch,monitorar,pesquisa-referencias,plan,project-skills,qa-loop,reentrada,sprint,start] HOOKS
 ship                1.5.7  [ship]                       HOOKS
 slides              1.6.6  [slides]                     -
 vision              0.1.1  []                           -
 vistoria           0.11.9  [vistoria]                   -
-visual             1.44.1  [andamento,visual]           HOOKS
+visual             1.44.2  [andamento,visual]           HOOKS
 ```
 
 **A rodada anterior moveu onde as skills MORAM; esta apagou as CASAS que tinham ficado

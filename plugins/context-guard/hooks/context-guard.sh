@@ -28,6 +28,8 @@ MODE_FILE="${HOME}/.claude/context-guard/mode"
 [ -f "$MODE_FILE" ] && [ "$(tr -d '[:space:]' < "$MODE_FILE" 2>/dev/null)" = "off" ] && exit 0
 
 THRESHOLD="${CLAUDE_CONTEXT_THRESHOLD:-80}"
+# Teto em tokens absolutos: em janela de 1M o percentual só chega a 80% em ~800 mil.
+TOK_THRESHOLD="${CLAUDE_CONTEXT_TOKENS:-450000}"
 
 INPUT=$(cat)
 # session_id chaveia TANTO o estado quanto o sentinel por sessão.
@@ -49,11 +51,13 @@ if printf '%s' "$(hj_campo_json "$INPUT" tool_input)" | grep -qi 'handoff'; then
 fi
 
 PCT=$(cat "$STATE" 2>/dev/null)
-[ -z "$PCT" ] && exit 0
+TOK=$(cat "${TMPD}/claude-context-tok-${SESSION_ID}" 2>/dev/null)
+[ -z "$PCT" ] && [ -z "$TOK" ] && exit 0
 
-PCT_INT="${PCT%.*}"
+PCT_INT="${PCT%.*}"; PCT_INT="${PCT_INT:-0}"
+TOK_INT="${TOK%.*}"; TOK_INT="${TOK_INT:-0}"
 
-if [ "$PCT_INT" -ge "$THRESHOLD" ] 2>/dev/null; then
+if [ "$PCT_INT" -ge "$THRESHOLD" ] 2>/dev/null || [ "$TOK_INT" -ge "$TOK_THRESHOLD" ] 2>/dev/null; then
   touch "$SENTINEL"
   printf '{"decision":"block","reason":"⚠️ CONTEXTO EM %s%%. Rode o /handoff AGORA (skill handoff, modo SALVAR) pra preservar a sessão antes de continuar o trabalho."}\n' "$PCT_INT"
 fi

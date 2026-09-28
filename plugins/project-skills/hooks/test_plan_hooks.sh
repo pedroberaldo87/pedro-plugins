@@ -38,6 +38,8 @@ mark_of()  { printf '%s/claude-plan-mark-%s-%s-%s' "${TMPDIR:-/tmp}" "$(id -u)" 
 nudge_of() { printf '%s/claude-plan-nudge-%s-%s-%s' "${TMPDIR:-/tmp}" "$(id -u)" "$1" "$PHASH"; }
 # a cobrança de plano AUSENTE tem sentinela só dela; 2º argumento = qual projeto
 missing_of() { printf '%s/claude-plan-missing-%s-%s-%s' "${TMPDIR:-/tmp}" "$(id -u)" "$1" "${2:-$PHASH}"; }
+# último resumo impresso pela sessão — igual ao anterior, o Stop cala
+brief_of() { printf '%s/claude-plan-brief-%s-%s-%s' "${TMPDIR:-/tmp}" "$(id -u)" "$1" "$PHASH"; }
 
 # transcript falso com N edições em N arquivos DISTINTOS.
 # O `file_path` não é enfeite: a métrica das duas cobranças é ARQUIVO distinto,
@@ -184,6 +186,7 @@ check "com plano ativo, o resumo sai" "$(grep -q -- 'Plano aberto no projeto' <<
 # O `tr -d '\r'` é por causa do jq do Windows, que escreve stdout em modo TEXTO:
 # a linha em branco chega como CR, `head -c 1` vê o CR e o teste reprovava por
 # causa do interpretador, não da mensagem.
+rm -f "$(brief_of r1)"
 check "a mensagem abre com linha em branco, pro prefixo do harness não colar" \
       "$(run_st r1 "$T1" | jq -r '.systemMessage' | tr -d '\r' | head -c 1 | grep -q . && echo 0 || echo 1)"
 # E marcar um passo é o que devolve a afirmação — este é o par do check acima. O
@@ -201,6 +204,13 @@ check "o resumo cabe em no máximo 3 bullets" "$([ "$(grep -c -- '^•' <<< "$ms
 check "o resumo diz o progresso" "$(grep -q -- 'Feito:' <<< "$msg" && echo 1 || echo 0)"
 check "o resumo diz onde estamos agora" "$(grep -q -- 'Agora:' <<< "$msg" && echo 1 || echo 0)"
 check "o resumo diz o que falta" "$(grep -q -- 'Falta:' <<< "$msg" && echo 1 || echo 0)"
+
+# O mesmo resumo no turno seguinte da MESMA sessão não repete; mudou, volta a falar.
+rm -f "$(brief_of r1)"
+um=$(run_st r1 "$T1"); dois=$(run_st r1 "$T1")
+check "o 1º turno imprime o resumo" "$([ -n "$um" ] && echo 1 || echo 0)"
+check "o 2º turno, com o MESMO resumo, cala" "$([ -z "$dois" ] && echo 1 || echo 0)"
+check "outra sessão no mesmo projeto ainda recebe o resumo" "$([ -n "$(run_st r8 "$T1")" ] && echo 1 || echo 0)"
 
 out=$(PLAN_STATUS=0 run_st r1 "$T1")
 check "PLAN_STATUS=0 cala o resumo inteiro" "$([ -z "$out" ] && echo 1 || echo 0)"

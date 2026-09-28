@@ -64,6 +64,15 @@ $P"
     # palavra ("please do grep") vira falso-positivo. bash -c/sh -c segue passando (exige
     # parsing de string). Regra espelhada em project-doc/hooks/pretooluse-doc-guard.sh.
     printf '%s' "$CMD" | grep -Eq '(^|[;&|(){}`]|(^|[[:space:]])(do|then)[[:space:]])[[:space:]]*([A-Za-z_][A-Za-z0-9_]*=[^[:space:]]*[[:space:]]+)*((sudo|time|xargs|env|nohup|command)[[:space:]]+([^[:space:];|()]+[[:space:]]+)*)?((\.{0,2}/)[^[:space:]]*/)?(grep|egrep|fgrep|rg|ripgrep|ag|ack|find)([^[:alnum:]_]|$)' || exit 0
+    # `cd <pasta> && …` muda onde a busca acontece: a pasta de destino substitui a
+    # atual como candidata — senão uma busca em ~/.claude cobrava a doc do repo aberto.
+    case "$CMD" in
+      cd[[:space:]]*)
+        D=$(printf '%s' "$CMD" | sed -E 's/^cd[[:space:]]+//; s/[;&|[:space:]].*//; s/^["'\'']//; s/["'\'']$//')
+        case "$D" in "~"|"~/"*) D="$HOME${D#\~}" ;; /*) : ;; *) D="$CWD/$D" ;; esac
+        [ -d "$D" ] && { CWD="$D"; CANDS="$D"; }
+        ;;
+    esac
     # add command tokens that exist as paths, so `grep -r x subprojeto/` fires from the parent dir
     for tok in $CMD; do
       case "$tok" in -*) continue ;; esac

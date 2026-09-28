@@ -26,6 +26,10 @@ if type hj_campo >/dev/null 2>&1 && hj_leitor >/dev/null 2>&1; then
   SID=$(hj_campo "$INPUT" session_id)
   # Sem session_id → não grava (fail-safe: guard sem arquivo da sessão = não dispara).
   [ -n "$PCT" ] && [ -n "$SID" ] && printf '%s' "$PCT" > "${TMPD}/claude-context-pct-${SID}"
+  # Tokens absolutos também: numa janela de 1M, 80% só chega em ~800 mil — bem
+  # depois do ponto em que o handoff ainda cabe folgado. O guard usa o que vier antes.
+  TOK=$(hj_campo "$INPUT" context_window.total_input_tokens)
+  [ -n "$TOK" ] && [ -n "$SID" ] && printf '%s' "$TOK" > "${TMPD}/claude-context-tok-${SID}"
 
   # ── o uso da JANELA DE 5H ────────────────────────────────────────────────
   # Mesmo payload, outro campo. Sem isto, decidir "parar antes de estourar o

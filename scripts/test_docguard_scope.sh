@@ -57,7 +57,10 @@ done
 
 # O graphify-guard avisa uma vez por sessão e queima um sentinel em /tmp; sem sessão
 # nova por chamada, o 2º caso da bateria sairia calado e a suíte ficaria verde à toa.
-trap 'rm -f "$TMPD/claude-graphify-guard-${S_BASE}-"* 2>/dev/null; rm -rf "$SCOPE_CWD" 2>/dev/null' EXIT
+# Pasta FORA de qualquer projeto (sem CLAUDE.md, sem grafo) e subpasta DENTRO dele.
+FORA="$(mktemp -d "$TMPD/scope-fora-XXXXXX")"
+mkdir -p "$SCOPE_CWD/sub"
+trap 'rm -f "$TMPD/claude-graphify-guard-${S_BASE}-"* 2>/dev/null; rm -rf "$SCOPE_CWD" "$FORA" 2>/dev/null' EXIT
 
 deny_count() { # $1=hook  $2=comando
   S="${S_BASE}-${RANDOM}${RANDOM}"
@@ -95,6 +98,21 @@ for c in 'grep -rn foo src/' 'rg --files src' 'find . -name "*.py"' 'cat x | gre
   n=$(deny_count "$H" "$c")
   [ "$n" = "1" ] && echo "ok   bloqueado: $c" || { echo "FAIL não bloqueado: $c ($n denies)"; FAIL=1; }
 done
+# `cd <pasta> && busca`: quem decide é a pasta de DESTINO, não a atual. Fora de
+# projeto passa; para dentro do projeto continua bloqueado.
+n=$(deny_count "$H" "cd $FORA && grep -r foo .")
+[ "$n" = "0" ] && echo "ok   passa: cd <fora do projeto> && grep" || { echo "FAIL bloqueado: cd fora && grep ($n denies)"; FAIL=1; }
+n=$(deny_count "$H" "cd sub && grep -r foo .")
+[ "$n" = "1" ] && echo "ok   bloqueado: cd <subpasta do projeto> && grep" || { echo "FAIL não bloqueado: cd sub && grep ($n denies)"; FAIL=1; }
 done
+
+# A instrução GLOBAL (~/.claude/CLAUDE.md) não transforma a pasta de configuração
+# em projeto: busca em ~/.claude/projects não pode cobrar "leia a doc".
+CASA="$FORA/casa"; mkdir -p "$CASA/.claude/projects" "$CASA/.claude/docs"  # casa-ok: fixture de teste, o literal e o dado do caso
+printf '# global\n' > "$CASA/.claude/CLAUDE.md"; printf '# x\n' > "$CASA/.claude/docs/x.md"  # casa-ok: fixture de teste, o literal e o dado do caso
+# shellcheck source=/dev/null
+. "$AQUI/../_shared/lib-lar-fingido.sh"
+n=$(lar_fingido "$CASA" deny_count plugins/project-skills/hooks/pretooluse-doc-guard.sh "cd $CASA/.claude/projects && grep -r foo .")
+[ "$n" = "0" ] && echo "ok   passa: busca na pasta de configuração global" || { echo "FAIL bloqueado: pasta de configuração tratada como projeto ($n denies)"; FAIL=1; }
 
 exit $FAIL

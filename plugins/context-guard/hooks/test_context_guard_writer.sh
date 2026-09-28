@@ -105,6 +105,27 @@ case "$SAIDA" in
   *) bad "repasse do payload" "o JSON de entrada" "${SAIDA:-vazio}" ;;
 esac
 
+echo "── o guard dispara por tokens absolutos, não só por percentual ──"
+novo_tmp
+roda '{"session_id":"sess-tok","context_window":{"used_percentage":46,"total_input_tokens":460000}}'
+T=$(cat "$TMPD/claude-context-tok-sess-tok" 2>/dev/null)
+[ "$T" = "460000" ] && ok "o writer grava os tokens da sessão" || bad "tokens gravados" "460000" "${T:-nada}"
+G="$SCRIPT_DIR/context-guard.sh"
+guard() { rm -f "$TMPD/claude-context-warned-$1"; printf '{"session_id":"%s","tool_input":{}}' "$1" | bash "$G" 2>/dev/null; }
+OUT=$(guard sess-tok)
+case "$OUT" in *'"decision":"block"'*) ok "460 mil tokens a 46% → pede o /handoff" ;; *) bad "460k tokens" "block" "${OUT:-silêncio}" ;; esac
+roda '{"session_id":"sess-low","context_window":{"used_percentage":30,"total_input_tokens":300000}}'
+OUT=$(guard sess-low)
+[ -z "$OUT" ] && ok "300 mil tokens a 30% → silêncio" || bad "300k tokens" "silêncio" "$OUT"
+roda '{"session_id":"sess-pct","context_window":{"used_percentage":85,"total_input_tokens":170000}}'
+OUT=$(guard sess-pct)
+case "$OUT" in *'"decision":"block"'*) ok "janela pequena a 85% → continua disparando pelo percentual" ;; *) bad "85%" "block" "${OUT:-silêncio}" ;; esac
+# Depois do /compact o reset tem que levar os tokens velhos junto — senão um
+# 460 mil antigo dispara o guard antes da barra regravar o número novo.
+printf '{"session_id":"sess-tok"}' | bash "$SCRIPT_DIR/context-guard-reset.sh" >/dev/null 2>&1
+[ ! -e "$TMPD/claude-context-tok-sess-tok" ] && ok "o reset da sessão apaga os tokens dela" || bad "reset dos tokens" "arquivo apagado" "arquivo ficou"
+rm -f "$TMPD"/claude-context-{pct,tok,warned}-sess-{tok,low,pct}
+
 echo ""
 printf 'context-guard-writer: %d ok, %d falhas\n' "$PASS" "$FAIL"
 [ "$FAIL" -eq 0 ] || exit 1

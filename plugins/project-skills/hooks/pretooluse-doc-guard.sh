@@ -68,6 +68,15 @@ $P"
     # palavra ("please do grep") vira falso-positivo. bash -c/sh -c segue passando (exige
     # parsing de string). Regra espelhada em graphify-guard/hooks/pretooluse-graphify-guard.sh.
     printf '%s' "$CMD" | grep -Eq '(^|[;&|(){}`]|(^|[[:space:]])(do|then)[[:space:]])[[:space:]]*([A-Za-z_][A-Za-z0-9_]*=[^[:space:]]*[[:space:]]+)*((sudo|time|xargs|env|nohup|command)[[:space:]]+([^[:space:];|()]+[[:space:]]+)*)?((\.{0,2}/)[^[:space:]]*/)?(grep|egrep|fgrep|rg|ripgrep|ag|ack|find)([^[:alnum:]_]|$)' || exit 0
+    # `cd <pasta> && …` muda onde a busca acontece: a pasta de destino substitui a
+    # atual como candidata — senão uma busca em ~/.claude cobrava a doc do repo aberto.
+    case "$CMD" in
+      cd[[:space:]]*)
+        D=$(printf '%s' "$CMD" | sed -E 's/^cd[[:space:]]+//; s/[;&|[:space:]].*//; s/^["'\'']//; s/["'\'']$//')
+        case "$D" in "~"|"~/"*) D="$HOME${D#\~}" ;; /*) : ;; *) D="$CWD/$D" ;; esac
+        [ -d "$D" ] && { CWD="$D"; CANDS="$D"; }
+        ;;
+    esac
     # set -f: tokenize WITHOUT glob-expanding — otherwise "*.json" in the command
     # would list the hook's own CWD and create bogus candidates. Tokens with stray
     # quotes are harmless: the [ -e ] test below drops anything that isn't a real path.
@@ -105,6 +114,9 @@ find_doc_up() {
   local d="$1"
   case "$d" in /*) : ;; *) d="$CWD/$d" ;; esac
   while [ -n "$d" ] && [ "$d" != "/" ]; do
+    # ~/.claude/CLAUDE.md é a instrução GLOBAL do usuário, não doc de projeto:
+    # a pasta pessoal e a de configuração nunca contam como projeto.
+    case "$d" in "$HOME"|"${CLAUDE_CONFIG_DIR:-$HOME/.claude}") return 1 ;; esac
     { [ -f "$d/CLAUDE.md" ] || [ -f "$d/.claude/CLAUDE.md" ]; } && { printf '%s' "$d"; return 0; }
     d=$(dirname "$d")
   done

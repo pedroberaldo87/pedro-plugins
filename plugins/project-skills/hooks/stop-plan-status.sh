@@ -1,5 +1,5 @@
 #!/bin/bash
-# stop-plan-status.sh — "onde nós estamos", ao fim de cada turno.
+# stop-plan-status.sh — "onde nós estamos", ao fim do turno em que o resumo mudou.
 #
 # Emite 1-3 bullets curtos com o progresso do plano ativo, e — quando tudo
 # fechou — uma confirmação INEQUÍVOCA de conclusão. O texto NÃO mora aqui:
@@ -237,6 +237,12 @@ fi
 # que o usuário lê de verdade, e a origem do plano muda o que o resumo significa.
 [ -n "$RESERVA_AVISO" ] && BRIEF="${RESERVA_AVISO}
 ${BRIEF}"
+# Mesmo resumo do turno anterior desta sessão → silêncio. Repetir "32 planos
+# abertos" em todo turno ensinava a ignorar o canal; mudou algo, volta a falar.
+ULTIMO="${TMPDIR:-/tmp}/claude-plan-brief-$(id -u)-${SESSION}-${PHASH}"
+BHASH=$(printf '%s' "$BRIEF" | cksum | cut -d' ' -f1)
+[ "$(cat "$ULTIMO" 2>/dev/null)" = "$BHASH" ] && exit 0
+printf '%s' "$BHASH" > "$ULTIMO" 2>/dev/null
 regua_hook "$BRIEF" "resumo de fim de turno"
 hj_msg "$(printf '\n\n%s' "$BRIEF")"
 exit 0

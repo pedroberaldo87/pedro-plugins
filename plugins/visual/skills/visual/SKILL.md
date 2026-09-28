@@ -1145,9 +1145,9 @@ O plugin registra **três** hooks (`hooks/hooks.json`):
 |---|---|---|
 | `PreToolUse[ExitPlanMode]` | `pre-exitplan-visualize.sh` | bloqueia a apresentação do plano no CLI até existir HTML COM prova |
 | `SessionStart` | `sessionstart-plan.sh` | avisa que há plano aberto, com progresso e fase em curso |
-| `Stop` | `stop-plan-status.sh` | **resume onde estamos em 1-3 bullets ao fim de cada turno** — e, quando tudo fecha, confirma a conclusão de forma inequívoca. A cobrança do tique entra no lugar do bullet "Falta" (1× por sessão), nunca como 4º. Nunca bloqueia. |
+| `Stop` | `stop-plan-status.sh` | **resume onde estamos em 1-3 bullets ao fim do turno — só quando o resumo mudou desde o último impresso na sessão** — e, quando tudo fecha, confirma a conclusão de forma inequívoca. A cobrança do tique entra no lugar do bullet "Falta" (1× por sessão), nunca como 4º. Nunca bloqueia. |
 
-O hook `${CLAUDE_PLUGIN_ROOT}/hooks/pre-exitplan-visualize.sh` roda no `PreToolUse` de `ExitPlanMode` (registrado em `hooks/hooks.json`). Trabalho dele: **bloquear a apresentação do plano no CLI até o HTML existir E carregar prova**, pra o usuário ler no browser antes de aprovar.
+O hook `${CLAUDE_PLUGIN_ROOT}/hooks/pre-exitplan-visualize.sh` roda no `PreToolUse` de `ExitPlanMode` — sem registro próprio: quem o chama é o portão único do plugin `project-skills` (`hooks/pretooluse-plan-gate.sh`). Trabalho dele: **bloquear a apresentação do plano no CLI até o HTML existir E carregar prova**, pra o usuário ler no browser antes de aprovar.
 
 Flow when the hook blocks (exit 2):
 

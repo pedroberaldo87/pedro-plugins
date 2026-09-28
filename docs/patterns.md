@@ -308,6 +308,8 @@ Duas normalizações — e só essas duas — são permitidas [confirmado nos do
 
 Consumidores da mesma chave hoje [confirmado]: `pretooluse-doc-guard.sh` (`find_doc_up` + `cksum` inline), `pretooluse-plan-gate.sh` e `userpromptsubmit-plan-escape.sh` (ambos via `. lib-project-root.sh`), `posttooluse-doc-read.sh` (recorte de string). **Hook novo que fale desses sentinels usa `project_root`/`project_hash` — não reimplemente a subida.**
 
+⚠️ **A subida do `find_doc_up` para em `$HOME` e em `~/.claude` desde 2026-09-28** [confirmado — `scripts/test_docguard_scope.sh`]: o `~/.claude/CLAUDE.md` é a instrução GLOBAL do usuário, e sem essa parada qualquer busca sob `~/.claude` era barrada pedindo "leia a doc" de um projeto que não existe. Na mesma rodada o guard passou a trocar o `cwd` pela pasta de destino quando o comando começa com `cd <pasta>`.
+
 O teste protege com dois casos E2E não-tautológicos (R9/R10 em `test_plan_gate.sh`): o sentinel é escrito rodando o `posttooluse-doc-read.sh` de verdade, e o gate tem que liberar. O comentário registra por quê [confirmado, literal]: *"Recalcular a chave à mão aqui foi exatamente o que mascarou o bug de path na 1ª rodada."*
 
 Nomes de sentinel em uso, com o dono de cada um [confirmado]:

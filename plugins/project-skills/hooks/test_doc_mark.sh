@@ -181,7 +181,7 @@ mkdir -p "$CASA2" "$TMP/proj2/.claude"
 : > "$TMP/proj2/.claude/CLAUDE.md"
 printf '<h1>Organismo</h1>\n' > "$CASA2/organismo.html"
 SC2="$CASA2/esquema.prototipo.md"
-printf -- '---\nnatureza: anexo\nanexo-de: blueprint.md\n---\n\n## Arquivos\n\n- docs/prototipo/organismo.html\n' > "$SC2"
+printf -- '---\nnatureza: anexo\nanexo-de: blueprint.md\n---\n\n## Arquivos\n\n- docs/prototipo/organismo.html\n' > "$SC2"  # casa-ok: fixture de teste, o literal e o dado do caso
 ESPERADA2=$(cksum < "$CASA2/organismo.html" | cut -d' ' -f1)
 OUT=$(bash "$APROVAR" "$SC2" 2>&1)
 grep -q "^conjunto-sig: $ESPERADA2$" "$SC2" \

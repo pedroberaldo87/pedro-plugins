@@ -37,6 +37,13 @@ if [ -z "$FILE_PATH" ]; then
   exit 0
 fi
 
+# Rascunho no temporário do sistema é descartável: barrar um script de uso único
+# por nome de variável só gera volta à toa.
+case "$FILE_PATH" in
+  /tmp/*|/private/tmp/*|/var/folders/*) exit 0 ;;
+esac
+[ -n "${TMPDIR:-}" ] && case "$FILE_PATH" in "${TMPDIR%/}"/*) exit 0 ;; esac
+
 ERRORS=""
 
 # ============================================================
