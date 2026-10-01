@@ -376,7 +376,7 @@ handoff           1.11.20  [handoff]                    HOOKS
 improve             1.1.6  [improve]                    -
 improve-workflow  0.16.30  [improve-workflow]           -
 intent-guard       0.8.17  [intent-guard]               HOOKS
-lixeiro            1.5.12  [faxina]                     HOOKS
+lixeiro             1.6.0  [faxina]                     HOOKS
 principles          1.0.5  [principles]                 -
 project-skills    0.22.224  [completude,design-md,doc,doc-load,doc-touch,monitorar,pesquisa-referencias,plan,project-skills,qa-loop,reentrada,sprint,start] HOOKS
 ship                1.5.7  [ship]                       HOOKS

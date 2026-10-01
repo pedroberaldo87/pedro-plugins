@@ -254,7 +254,16 @@ reg["anotacoes"][1]["cpu_pid"] = 101
 lixeiro.grava_registro(reg)
 procs_velhos = [dict(procs[0], idade=300), procs[1]]
 cands = lixeiro.candidatos(SID, "turno", procs=procs_velhos)
-eq(sorted(c[1]["pid"] for c in cands), [101, 104], "suíte e servidor com CPU parada desde o turno anterior morrem")
+# Servidor tem prazo próprio (SERVICO_OCIOSO_MIN, 30 min): quem usa o servidor no
+# navegador o deixa parado minutos a fio, esperando clique. Medido em 2026-10-01:
+# o app local e o protótipo morreram com 2 minutos de tela aberta.
+eq(sorted(c[1]["pid"] for c in cands), [104], "suíte parada há 5 min morre; servidor parado há 5 min SOBREVIVE")
+reg["anotacoes"][1]["em"] = agora - 2000
+reg["anotacoes"][1]["cpu_visto_em"] = agora - 1900
+lixeiro.grava_registro(reg)
+procs_velhos = [dict(procs[0], idade=300), dict(procs[1], idade=1900)]
+cands = lixeiro.candidatos(SID, "turno", procs=procs_velhos)
+eq(sorted(c[1]["pid"] for c in cands), [101, 104], "servidor parado há mais de 30 min morre, junto da suíte parada")
 
 reg["anotacoes"][1]["cpu_ultimo_turno"] = 10.0
 lixeiro.grava_registro(reg)
@@ -838,6 +847,34 @@ if _ABRE in _TXT and _FECHA in _TXT:
 else:
     bad("a skill traz a seção de classe e procedência", "%r … %r" % (_ABRE, _FECHA),
         "âncora não encontrada em %s" % SKILL)
+
+print("── a marca LIXEIRO_SERVICO=1: servidor que sobe por caminho de teste ──")
+eq(lixeiro.classifica("LIXEIRO_SERVICO=1 LIGAR_LOCAL=1 npx playwright test ligar-local"), "servico",
+   "comando de teste com a marca é serviço")
+eq(lixeiro.classifica("LIGAR_LOCAL=1 npx playwright test ligar-local"), "efemero", "o mesmo comando sem a marca continua teste")
+SID_M = "sessao-marca"
+t0 = time.time()
+lanc_m = proc(300, "/bin/zsh -c cd /proj/app-local && LIXEIRO_SERVICO=1 LIGAR_LOCAL=1 npx playwright test ligar-local",
+              idade=600, cpu=0.1)
+filho_m = proc(301, "node /proj/app-local/node_modules/.bin/playwright test ligar-local", idade=600, cpu=0.1, ppid=300)
+anot_m = {"cmd": "cd /proj/app-local && LIXEIRO_SERVICO=1 LIGAR_LOCAL=1 npx playwright test ligar-local",
+          "cwd": "/proj/app-local", "classe": "servico", "em": t0 - 700,
+          "cpu_ultimo_turno": 0.2, "cpu_visto_em": t0 - 600, "cpu_pid": 300}
+# Uma suíte do mesmo projeto, rodada antes, cuja foto ficou no filho do app: o filho
+# não carrega a marca (variável de ambiente não aparece na linha de comando) e, sem
+# a regra da árvore, seria lido como "suíte parada".
+anot_velha = {"cmd": "npx playwright test versao", "cwd": "/proj/app-local", "classe": "efemero", "em": t0 - 900,
+              "cpu_ultimo_turno": 0.1, "cpu_visto_em": t0 - 600, "cpu_pid": 301}
+lixeiro.grava_registro({"session_id": SID_M, "dono_pid": meu_pid, "anotacoes": [anot_m, anot_velha]})
+eq([c[1]["pid"] for c in lixeiro.candidatos(SID_M, "turno", procs=[lanc_m, filho_m], agora=t0)], [],
+   "app marcado parado há 10 min sobrevive, e a suíte antiga não pega o filho dele")
+anot_m.update(em=t0 - 2000, cpu_visto_em=t0 - 1900)
+lixeiro.grava_registro({"session_id": SID_M, "dono_pid": meu_pid, "anotacoes": [anot_m, anot_velha]})
+velhos_m = [dict(lanc_m, idade=1900), dict(filho_m, idade=1900)]
+eq([c[1]["pid"] for c in lixeiro.candidatos(SID_M, "turno", procs=velhos_m, agora=t0)], [300],
+   "parado há mais de 30 min, o app marcado é colhido pelo lançador")
+eq([c[1]["pid"] for c in lixeiro.candidatos(SID_M, "sessao", procs=[lanc_m, filho_m], agora=t0)], [300],
+   "no fim da sessão o app marcado é colhido, como todo o resto")
 
 print("── prova anti-tautologia ──")
 # Sabota a trava de intocável e exige que a decisão MUDE. Sem isto, a suíte pode

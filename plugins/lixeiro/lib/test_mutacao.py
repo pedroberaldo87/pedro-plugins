@@ -19,9 +19,9 @@ SRC = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 MUTACOES = [
     ("A) sem a trava de idade mínima",
-     'if p["idade"] <= OCIOSO_MIN:', 'if False:'),
+     'if p["idade"] <= limite:', 'if False:'),
     ("B) sem a janela de relógio do ocioso",
-     'if visto is None or agora - visto <= OCIOSO_MIN:', 'if False:'),
+     'if visto is None or agora - visto <= limite:', 'if False:'),
     ("C) CPU do processo em vez da ÁRVORE",
      'cpu_arvore.get(p["pid"], p["cpu"]) > antes + 0.5', 'p["cpu"] > antes + 0.5'),
     ("D) foto de CPU renovada todo turno",
@@ -47,6 +47,12 @@ MUTACOES = [
      'if agora_cmd.get(p["pid"]) != p["cmd"]:', 'if False:'),
     ("L) órfã poupada perde o registro mesmo assim",
      'if not dry_run and not candidatos(sid, "sessao"):', 'if not dry_run:'),
+    ("M) sem a marca LIXEIRO_SERVICO=1",
+     '    if re.search(MARCA_SERVICO, cmd):\n        return "servico"\n', ''),
+    ("N) suíte antiga pega o filho do servidor marcado",
+     'if anot.get("classe") == "efemero" and p["pid"] in do_servico:', 'if False:'),
+    ("O) servidor com o prazo de 2 min da suíte",
+     'limite = SERVICO_OCIOSO_MIN if anot.get("classe") == "servico" else OCIOSO_MIN', 'limite = OCIOSO_MIN'),
     ("CONTROLE (nenhuma mutação)", None, None),
 ]
 

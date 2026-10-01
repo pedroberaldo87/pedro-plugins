@@ -245,3 +245,7 @@ Desligar tudo: `LIXEIRO=0`. Só a coleta do turno: `LIXEIRO_TURNO=0`. Só a varr
 `LIXEIRO_TETO_N` (default 4) e `LIXEIRO_TETO_MB` (default 400). Quanto tempo parado um
 processo precisa ficar para virar candidato: `LIXEIRO_OCIOSO_MIN` (default 120 segundos)
 — abaixar isso reaproxima o defeito de matar trabalho em curso, e existe para a bancada.
+Servidor tem prazo próprio, `LIXEIRO_SERVICO_OCIOSO_MIN` (default 1800 segundos), porque quem
+usa o servidor no navegador o deixa parado esperando clique. Servidor que sobe por caminho de
+teste (o app local que nasce de `playwright test`) leva `LIXEIRO_SERVICO=1` no comando: vira
+servidor, e o que roda abaixo dele fica fora das regras de suíte.

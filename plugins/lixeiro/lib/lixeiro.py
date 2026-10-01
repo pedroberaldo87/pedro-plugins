@@ -187,6 +187,14 @@ INTOCAVEL = [
 
 CLASSES = (("efemero", EFEMERO), ("servico", SERVICO))
 
+# A marca de quem sobe um SERVIDOR por um caminho que o vocabulário lê como outra
+# coisa — o app local que nasce de `playwright test`, por exemplo. Ela vence as
+# listas (não a de intocável) e protege a árvore inteira abaixo do comando marcado:
+# o filho não carrega a marca, porque variável de ambiente não aparece na linha de
+# comando. Medido em 2026-10-01: sem ela o app local morreu três vezes como
+# "suíte parada", com o dono olhando para ele no navegador.
+MARCA_SERVICO = r"\bLIXEIRO_SERVICO=1\b"
+
 # Quanto tempo de relógio um processo precisa passar SEM gastar CPU para o fim do
 # turno o considerar abandonado. Não é uma constante de gosto: abaixo disso a
 # colheita confunde a suíte que espera o banco de dados subir com a que travou.
@@ -195,6 +203,12 @@ try:
     OCIOSO_MIN = int(os.environ.get("LIXEIRO_OCIOSO_MIN") or 120)
 except ValueError:
     OCIOSO_MIN = 120
+# Servidor tem prazo próprio: quem usa o servidor no navegador o deixa parado
+# minutos a fio, esperando clique, e 2 minutos derrubavam o que estava em uso.
+try:
+    SERVICO_OCIOSO_MIN = int(os.environ.get("LIXEIRO_SERVICO_OCIOSO_MIN") or 1800)
+except ValueError:
+    SERVICO_OCIOSO_MIN = 1800
 # Quanto tempo separa as duas leituras de CPU do fim de sessão. Precisa ser longo
 # o bastante para uma suíte trabalhando aparecer, e curto o bastante para não
 # atrasar o fechamento da sessão.
@@ -217,6 +231,8 @@ def classifica(cmd):
     for pat in INTOCAVEL:
         if re.search(pat, cmd, re.I):
             return "intocavel"
+    if re.search(MARCA_SERVICO, cmd):
+        return "servico"
     for nome, pats in CLASSES:
         for pat in pats:
             if re.search(pat, cmd, re.I):
@@ -881,6 +897,8 @@ def candidatos(session_id, modo, procs=None, agora=None):
     reg = le_registro(session_id)
     eu = ancestrais(os.getpid(), procs)
     cpu_arvore = peso_arvore(procs, "cpu")
+    # o que roda abaixo de um comando marcado é do servidor, nunca de uma suíte
+    do_servico = {d["pid"] for p in procs if re.search(MARCA_SERVICO, p["cmd"]) for d in _descendentes(p["pid"], procs)}
     achados = []
     for anot in reg.get("anotacoes", []):
         # Anotação de intocável existe para relatar, nunca para colher. `casa` já
@@ -891,6 +909,8 @@ def candidatos(session_id, modo, procs=None, agora=None):
         for p in procs:
             if p["pid"] in eu:
                 continue                      # trava de suicídio
+            if anot.get("classe") == "efemero" and p["pid"] in do_servico:
+                continue
             if not casa(anot, p):
                 continue
             if modo == "sessao":
@@ -906,10 +926,11 @@ def candidatos(session_id, modo, procs=None, agora=None):
                 continue
             if cpu_arvore.get(p["pid"], p["cpu"]) > antes + 0.5:
                 continue
-            if p["idade"] <= OCIOSO_MIN:
+            limite = SERVICO_OCIOSO_MIN if anot.get("classe") == "servico" else OCIOSO_MIN
+            if p["idade"] <= limite:
                 continue
             visto = anot.get("cpu_visto_em")
-            if visto is None or agora - visto <= OCIOSO_MIN:
+            if visto is None or agora - visto <= limite:
                 continue
             achados.append((anot, p, "suíte parada desde o turno anterior"
                             if anot.get("classe") == "efemero"

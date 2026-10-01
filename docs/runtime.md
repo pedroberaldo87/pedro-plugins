@@ -1000,15 +1000,27 @@ conversando — então a regra matava a suíte que estava rodando. Medido no `co
 escreveu "a suíte segue rodando" e dois segundos mais tarde ela recebeu o sinal.
 `[confirmado — `~/.claude/lixeiro/colhido.jsonl` cruzado com o transcript da sessão]`
 
-Desde a v1.4.0 a decisão do turno é uma só, e vale igual para as duas classes:
+Desde a v1.4.0 a decisão do turno é uma só para as duas classes; desde a v1.6.0 só o PRAZO
+muda com a classe (`limite` = `OCIOSO_MIN` para suíte, `SERVICO_OCIOSO_MIN` para servidor):
 
 ```
 morre  ⇔  tem foto de CPU do turno anterior           (senão: primeiro turno, sobrevive)
       ∧   a foto é DAQUELE processo (cpu_pid)          (senão: outro processo, sobrevive)
       ∧   a CPU da ÁRVORE não subiu desde a foto       (senão: está trabalhando)
-      ∧   o processo tem mais de OCIOSO_MIN de vida
-      ∧   a foto tem mais de OCIOSO_MIN de idade       (ocioso é relógio, não "turnos")
+      ∧   o processo tem mais de `limite` de vida
+      ∧   a foto tem mais de `limite` de idade         (ocioso é relógio, não "turnos")
+      ∧   anotação de suíte não pega processo abaixo de um comando marcado
 ```
+
+- **Servidor tem prazo próprio** (`SERVICO_OCIOSO_MIN`, 30 min, ajustável por
+  `LIXEIRO_SERVICO_OCIOSO_MIN`). Quem usa o servidor no navegador o deixa parado minutos a fio,
+  esperando clique: com o prazo da suíte, o app local e o protótipo morreram com a tela aberta.
+  `[confirmado — `colhido.jsonl` de 2026-10-01: "servidor sem uso desde o turno anterior" às 14:05 e 14:25]`
+- **A marca `LIXEIRO_SERVICO=1`** no comando o classifica como servidor, vencendo as listas (não a
+  de intocável). Existe para quem sobe servidor por caminho de teste — o app local que nasce de
+  `playwright test` morria como "suíte parada". O filho não carrega a marca (variável de ambiente
+  não aparece na linha de comando), por isso a árvore abaixo do comando marcado fica fora das
+  anotações de suíte. `[confirmado — `colhido.jsonl` de 2026-10-01, 14:22 e 14:25 + `test_lixeiro.py`]`
 
 - **A CPU é da ÁRVORE, não do processo.** Quem lança (`cargo`, `npm exec`, o `zsh -c` que o
   harness usa) fica parado esperando enquanto o filho queima CPU; olhar só o lançador o faz
