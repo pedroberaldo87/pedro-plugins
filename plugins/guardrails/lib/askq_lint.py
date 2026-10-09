@@ -22,6 +22,7 @@ Uso:
 """
 
 import json
+import os
 import re
 import sys
 
@@ -79,18 +80,96 @@ def _txt(v):
     return v.strip() if isinstance(v, str) else ""
 
 
-def camel_suspeitas(s):
-    """Palavras com maiúscula interna que NÃO são nome próprio conhecido."""
+def camel_suspeitas(s, do_contexto=frozenset()):
+    """Palavras com maiúscula interna que NÃO são nome próprio conhecido — nem da lista
+    fixa, nem do contexto desta pergunta (`nomes_do_contexto`)."""
     return [w for w in _MEIO_MAIUSCULO.findall(s)
-            if w.lower() not in NOMES_PROPRIOS]
+            if w.lower() not in NOMES_PROPRIOS and w.lower() not in do_contexto]
 
 
-def code_tells(s):
+def code_tells(s, do_contexto=frozenset()):
     """Nomes dos padrões de código que casam em s (lista, possivelmente vazia)."""
     achados = [nome for nome, rx in CODE_TELLS if rx.search(s)]
-    if camel_suspeitas(s):
+    if camel_suspeitas(s, do_contexto):
         achados.append("maiuscula_no_meio")
     return achados
+
+
+# ── Nomes próprios do CONTEXTO ───────────────────────────────────────────────
+# A lista fixa não conhece o nome do projeto em que se trabalha, nem o vocabulário que o
+# usuário trouxe — e a regra existe para barrar o nome que SÓ o modelo batizou. Por isso
+# passa também: o nome da raiz do projeto, o título do CLAUDE.md dele e toda palavra com
+# maiúscula interna que o USUÁRIO digitou na conversa. O que o modelo escreveu, ou o que
+# veio de saída de ferramenta, não conta. Qualquer falha ao ler ⇒ conjunto vazio, e a
+# régua antiga segue valendo (fail-open nunca afrouxa por erro).
+
+def _raiz_do_projeto(cwd):
+    """Sobe de `cwd` até a pasta que tem `.git`; sem `.git`, a própria `cwd`."""
+    atual = os.path.abspath(cwd)
+    while True:
+        if os.path.exists(os.path.join(atual, ".git")):
+            return atual
+        acima = os.path.dirname(atual)
+        if acima == atual:
+            return os.path.abspath(cwd)
+        atual = acima
+
+
+def _titulo_do_claude_md(raiz):
+    for rel in (os.path.join(".claude", "CLAUDE.md"), "CLAUDE.md"):
+        try:
+            with open(os.path.join(raiz, rel), encoding="utf-8") as f:
+                for linha in f:
+                    if linha.startswith("# "):
+                        return linha[2:].strip()
+        except OSError:
+            continue
+    return ""
+
+
+def _o_que_o_usuario_digitou(transcript_path):
+    """O texto das falas do usuário — sem bloco de ferramenta e sem aviso do sistema
+    (o mesmo filtro do scope-cop: o transcript marca tudo isso como `type: user`)."""
+    textos = []
+    with open(transcript_path, encoding="utf-8") as f:
+        for linha in f:
+            try:
+                o = json.loads(linha)
+            except ValueError:
+                continue
+            if o.get("type") != "user":
+                continue
+            c = (o.get("message") or {}).get("content")
+            if isinstance(c, str):
+                txt = c
+            elif isinstance(c, list):
+                txt = "".join(b.get("text", "") for b in c
+                              if isinstance(b, dict) and b.get("type") == "text")
+            else:
+                continue
+            if txt.lstrip().startswith("<") or "system-reminder" in txt:
+                continue
+            textos.append(txt)
+    return "\n".join(textos)
+
+
+def nomes_do_contexto(payload):
+    """As palavras com maiúscula interna que o contexto legitima, em minúsculas."""
+    fontes = []
+    try:
+        cwd = payload.get("cwd")
+        if isinstance(cwd, str) and cwd and os.path.isdir(cwd):
+            raiz = _raiz_do_projeto(cwd)
+            fontes += [os.path.basename(raiz), _titulo_do_claude_md(raiz)]
+    except Exception:
+        pass
+    try:
+        tp = payload.get("transcript_path")
+        if isinstance(tp, str) and tp and os.path.isfile(tp):
+            fontes.append(_o_que_o_usuario_digitou(tp))
+    except Exception:
+        pass
+    return frozenset(w.lower() for t in fontes for w in _MEIO_MAIUSCULO.findall(t))
 
 
 def lint(payload):
@@ -104,6 +183,7 @@ def lint(payload):
     if not isinstance(questions, list):
         return []
 
+    do_contexto = nomes_do_contexto(payload)
     viol = []
     for qi, q in enumerate(questions, 1):
         if not isinstance(q, dict):
@@ -119,7 +199,7 @@ def lint(payload):
 
         # ── 1 · nome que só o modelo conhece, na superfície visível ──────────
         for campo, valor in (("question", pergunta), ("header", header)):
-            tells = code_tells(valor)
+            tells = code_tells(valor, do_contexto)
             if tells:
                 viol.append(
                     "%s · o %s traz nome de código (%s): %r\n"
@@ -160,7 +240,9 @@ REGRAS = """askq_lint — as três réguas (o resto é julgamento, não régua):
 
   1. Nome de código em `question` ou `header`     → o humano não batizou isso junto
      (maiúscula no meio da palavra conta, MENOS os nomes próprios de NOMES_PROPRIOS —
-      "GitHub", "JavaScript", "macOS" são grafia normal, não identificador)
+      "GitHub", "JavaScript", "macOS" são grafia normal, não identificador — e MENOS
+      os do contexto: o nome do projeto, o título do CLAUDE.md dele e o que o usuário
+      digitou na conversa)
   2. `description` de opção com menos de %d chars → rótulo não é consequência
   3. `question` com menos de %d chars E zero preview → decidir no vácuo
 

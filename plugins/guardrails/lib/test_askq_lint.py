@@ -196,5 +196,56 @@ rc, out = run_cli("nada disso")
 check("JSON válido mas forma estranha: exit 0", rc == 0)
 
 
+# ── Régua 1 · nome próprio que vem do CONTEXTO, não da lista fixa ───────────
+# A lista fixa não conhece o nome do projeto em que se trabalha nem o vocabulário que o
+# usuário trouxe. O nome do projeto e as palavras que ELE digitou passam; palavra com
+# maiúscula interna que só o modelo escreveu continua barrando.
+print("── régua 1 · nomes do contexto ──")
+import tempfile  # noqa: E402
+
+_tmp = tempfile.mkdtemp()
+_proj = os.path.join(_tmp, "NovaAgenda")
+os.makedirs(os.path.join(_proj, ".git"))
+os.makedirs(os.path.join(_proj, "app", "src"))
+_q_proj = {"question": "O banco da NovaAgenda volta vazio ou com a cópia da semana passada inteira?",
+           "header": "Banco", "options": OK_OPT}
+
+
+def viol_com(questions, **campos):
+    return askq_lint.lint(dict({"tool_input": {"questions": questions}}, **campos))
+
+
+check("nome do projeto sem contexto: barra (o comportamento antigo segue valendo)",
+      has(viol([_q_proj]), "maiuscula_no_meio"))
+check("nome do projeto com cwd numa subpasta dele: passa",
+      not has(viol_com([_q_proj], cwd=os.path.join(_proj, "app", "src")), "maiuscula_no_meio"))
+
+_outro = os.path.join(_tmp, "pasta-sem-maiuscula")
+os.makedirs(os.path.join(_outro, ".git"))
+os.makedirs(os.path.join(_outro, ".claude"))
+open(os.path.join(_outro, ".claude", "CLAUDE.md"), "w").write("# NovaAgenda\n\ntexto\n")
+check("título do CLAUDE.md do projeto: passa",
+      not has(viol_com([_q_proj], cwd=_outro), "maiuscula_no_meio"))
+
+_tr = os.path.join(_tmp, "conversa.jsonl")
+with open(_tr, "w") as f:
+    f.write(json.dumps({"type": "user", "message": {"content": "quero ligar a CasaVerde no app"}}) + "\n")
+    f.write(json.dumps({"type": "assistant", "message": {"content": [
+        {"type": "text", "text": "vou mexer no ProntoBot agora"}]}}) + "\n")
+    f.write(json.dumps({"type": "user", "message": {"content": [
+        {"type": "tool_result", "content": "saída com ZetaQuant dentro"}]}}) + "\n")
+_q = lambda nome: {"question": "Ligo a %s agora ou espero a semana que vem para não mexer em nada?" % nome,
+                   "header": "Ligar", "options": OK_OPT}
+check("palavra que o USUÁRIO digitou: passa",
+      not has(viol_com([_q("CasaVerde")], transcript_path=_tr), "maiuscula_no_meio"))
+check("palavra que só o MODELO escreveu: barra",
+      has(viol_com([_q("ProntoBot")], transcript_path=_tr), "maiuscula_no_meio"))
+check("palavra que só veio de saída de ferramenta: barra",
+      has(viol_com([_q("ZetaQuant")], transcript_path=_tr), "maiuscula_no_meio"))
+check("contexto quebrado (caminhos que não existem) não derruba: barra como antes",
+      has(viol_com([_q("CasaVerde")], cwd="/nao/existe", transcript_path="/nao/existe.jsonl"),
+          "maiuscula_no_meio"))
+
+
 print("── %d passou · %d falhou ──" % (PASS, FAIL))
 sys.exit(1 if FAIL else 0)
