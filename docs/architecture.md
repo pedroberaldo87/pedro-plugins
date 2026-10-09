@@ -371,7 +371,7 @@ fallow              1.2.8  [fallow]                     -
 gauntlet           0.13.7  [gauntlet]                   HOOKS
 graphify-guard     1.2.14  []                           HOOKS
 grill-me            1.5.3  [grill-me]                   -
-guardrails         1.8.11  [guardrails]                 HOOKS
+guardrails         1.8.12  [guardrails]                 HOOKS
 handoff           1.11.20  [handoff]                    HOOKS
 improve             1.1.6  [improve]                    -
 improve-workflow  0.16.30  [improve-workflow]           -
