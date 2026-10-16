@@ -117,7 +117,7 @@ git add .claude/docs/<tocados> && git commit -m "docs: re-stamp pro commit do co
 python3 $PC --project-root . --project-staleness .
 ```
 
-O `--restamp` faz o que antes era receita de `sed` pra lembrar: `generated:` = hoje, `generated-commit:` = HEAD, `doc-sig:` recomputada **do corpo final** e **preservando a gen do doc-set** (lida do marker do `CLAUDE.md`, não o `CURRENT_GEN` do código — o `--sig` cru bumpa a gen e viola o invariante "Gen NÃO bumpa"). Ele **pula** doc autoral (`authored-by: human`) e arquivo sem frontmatter, e **falha sem escrever nada** se não resolver o HEAD — carimbo pela metade é pior que carimbo velho. Passe **só os docs que você re-projetou**: carimbar doc que ninguém tocou escreveria `generated: hoje` sobre trabalho que não aconteceu.
+O `--restamp` faz o que antes era receita de `sed` pra lembrar: `generated:` = hoje, `generated-commit:` = HEAD, `doc-sig:` recomputada **do corpo final** e **preservando a gen do doc-set** (lida do marker do `CLAUDE.md`, não o `CURRENT_GEN` do código — o `--sig` cru bumpa a gen e viola o invariante "Gen NÃO bumpa"). Ele **pula** doc autoral (`authored-by: human`) e arquivo sem frontmatter — a única exceção é `--restamp <doc> --revisado-pelo-dono`, depois que o dono revisou e confirmou o texto: carimba só o cabeçalho do autoral (`generated-commit` = HEAD, `reviewed` = hoje), nunca o corpo, e recusa doc aprovado cujo corpo mudou depois do de acordo —, e **falha sem escrever nada** se não resolver o HEAD — carimbo pela metade é pior que carimbo velho. Passe **só os docs que você re-projetou**: carimbar doc que ninguém tocou escreveria `generated: hoje` sobre trabalho que não aconteceu.
 
 Push seguro: `git fetch` antes, confirme fast-forward (`git merge-base --is-ancestor origin/<branch> HEAD`), **nunca `--force`** — o `session-sync` do bootstrap disputa esse push.
 
@@ -127,8 +127,8 @@ O que entra nos commits: só os artefatos de doc — docs tocados, `findings.jso
 
 - **Doc autoral é INTOCÁVEL.** Arquivo com `authored-by: human` no frontmatter (`quality-goals.md`,
   `constraints.md`, `context.md`, `solution-strategy.md`, `glossary.md`, `decisions/*.md` — território
-  do `/start`) **nunca é re-projetado, nunca ganha `scope:`, nunca é re-stampado**. Se um aparecer
-  no plano, **pule e reporte**. Hoje a proteção é indireta — o `scope: []` vazio o mantém fora do
+  do `/start`) **nunca é re-projetado, nunca ganha `scope:`, e só é carimbado pela revisão do dono**. Se um aparecer
+  no plano, **pule e reporte**. Autoral que JÁ declara `scope:` (doc escrito à mão sobre o código, como um manual de schema) acende o alarme quando o código muda — e só se apaga quando o dono revisa o texto e você roda `--restamp <doc> --revisado-pelo-dono`, que move apenas o cabeçalho. Hoje a proteção é indireta — o `scope: []` vazio o mantém fora do
   `touch-plan` —, mas o passo 5 manda corrigir `dead_scope` e adotar `unscoped_new` no `scope:` do doc
   certo: popular o scope de um autoral quebraria a trava **para sempre e em silêncio**. Antes de
   mexer no `scope:` de qualquer doc, cheque o `authored-by:`. (Achado da revisão de 2026-07-26.)

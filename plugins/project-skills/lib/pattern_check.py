@@ -166,7 +166,51 @@ def doc_set_gen(project_root):
     return None
 
 
-def restamp(project_root, docs, today=None):
+def _carimba_revisao(path, rel, fm, body, head, today, out):
+    """Carimbo de REVISÃO de doc autoral: o dono revisou o texto e confirmou.
+
+    Doc autoral com `scope:` (escrito à mão, mas declarando o código que cobre) ficava
+    defasado para sempre: o restamp pula autoral, então o carimbo nunca andava. Aqui só
+    o cabeçalho muda — `generated-commit` (o commit revisado) e `reviewed` (a data). O
+    corpo, `generated` e a ausência de `doc-sig` ficam como estão, e a marca de
+    aprovação (`approved-sig`, cksum do CORPO) continua valendo. Doc aprovado cujo
+    corpo mudou depois do de acordo é RECUSADO: revisão não substitui reaprovação.
+    """
+    gravada = _fm_field(fm, "approved-sig")
+    if gravada:
+        import doc_load
+        if str(doc_load.cksum(path)) != gravada.strip():
+            out["skipped"].append({"doc": rel, "reason": (
+                "doc autoral mudou depois do de acordo (approved-sig não casa com o corpo) "
+                "— reaprove o texto antes de carimbar a revisão")})
+            return
+    fm2 = fm
+    if re.search(r"^generated-commit:", fm2, re.MULTILINE):
+        fm2 = re.sub(r"^generated-commit:.*$", "generated-commit: %s" % head,
+                     fm2, count=1, flags=re.MULTILINE)
+    else:
+        fm2 = fm2.rstrip("\n") + "\ngenerated-commit: %s\n" % head
+    if re.search(r"^reviewed:", fm2, re.MULTILINE):
+        fm2 = re.sub(r"^reviewed:.*$", "reviewed: %s" % today, fm2, count=1, flags=re.MULTILINE)
+    else:
+        fm2 = fm2.rstrip("\n") + "\nreviewed: %s\n" % today
+    tmp = path + ".tmp"
+    try:
+        with open(tmp, "w", encoding="utf-8") as fh:
+            fh.write("---\n" + fm2.strip("\n") + "\n---\n" + body)
+        os.replace(tmp, path)
+    except OSError as exc:
+        try:
+            os.unlink(tmp)
+        except OSError:
+            pass
+        out["skipped"].append({"doc": rel, "reason": "falhou ao gravar: %s" % exc})
+        return
+    out["stamped"].append({"doc": rel, "reviewed": today, "generated_commit": head,
+                           "revisao_do_dono": True})
+
+
+def restamp(project_root, docs, today=None, revisado=False):
     """Carimba os docs recém-projetados: `generated`, `generated-commit`, `doc-sig`.
 
     Existe por um problema de ovo-e-galinha que este repo já pagou 3 vezes
@@ -182,7 +226,10 @@ def restamp(project_root, docs, today=None):
       - **`doc-sig` é sha256 do CORPO** — recomputada aqui a partir do corpo, depois
         de o frontmatter estar final, senão a sig mente.
       - **doc autoral é intocável.** `authored-by: human` no frontmatter (território
-        do `/start`) é PULADO, nunca re-carimbado.
+        do `/start`) é PULADO — a menos que `revisado=True` (o dono revisou e
+        confirmou): aí só o cabeçalho anda (`generated-commit`, `reviewed`), nunca o
+        corpo, e doc aprovado cujo corpo mudou depois do de acordo é recusado
+        (`_carimba_revisao`).
 
     A lista de docs é EXPLÍCITA de propósito: carimbar um doc que ninguém
     re-projetou escreveria `generated: hoje` sobre trabalho que não aconteceu.
@@ -226,7 +273,10 @@ def restamp(project_root, docs, today=None):
             out["skipped"].append({"doc": rel, "reason": "sem frontmatter — não é doc project-doc"})
             continue
         if re.search(r"^authored-by:\s*human\b", fm, re.MULTILINE):
-            out["skipped"].append({"doc": rel, "reason": "doc autoral (authored-by: human)"})
+            if not revisado:
+                out["skipped"].append({"doc": rel, "reason": "doc autoral (authored-by: human)"})
+                continue
+            _carimba_revisao(path, rel, fm, body, head, today, out)
             continue
 
         new_sig = sig(path, project_root)
@@ -1142,12 +1192,16 @@ def main():
                     help="carimba os docs LISTADOS: generated=hoje, generated-commit=HEAD, "
                          "doc-sig recomputada preservando a gen do doc-set. É o 2º commit do "
                          "rito do doc-touch (um doc não cita o commit que o contém)")
+    ap.add_argument("--revisado-pelo-dono", action="store_true",
+                    help="com --restamp: carimba TAMBÉM doc autoral que o dono acabou de revisar "
+                         "— só o cabeçalho (generated-commit=HEAD, reviewed=hoje), nunca o corpo; "
+                         "doc aprovado cujo corpo mudou depois do de acordo é recusado")
     args = ap.parse_args()
 
     # --- modo --restamp: o 2º commit do rito, sem receita de sed pra lembrar ---
     if args.restamp:
         root = os.path.abspath(args.project_root or os.getcwd())
-        out = restamp(root, args.restamp)
+        out = restamp(root, args.restamp, revisado=args.revisado_pelo_dono)
         if args.json:
             print(json.dumps(out, ensure_ascii=False, indent=2))
         else:
@@ -1156,7 +1210,8 @@ def main():
             else:
                 print("Carimbado em %s (gen do doc-set preservada):" % out["commit"])
                 for s in out["stamped"]:
-                    print("  %-40s %s" % (s["doc"], s["doc_sig"]))
+                    print("  %-40s %s" % (s["doc"], s.get("doc_sig")
+                                          or "revisão do dono (só o cabeçalho)"))
             for s in out["skipped"]:
                 print("  PULADO %-34s %s" % (s["doc"], s["reason"]), file=sys.stderr)
         return 1 if out["error"] else 0

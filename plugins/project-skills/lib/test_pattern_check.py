@@ -655,6 +655,91 @@ def test_restamp():
               open(dp, encoding="utf-8").read() == antes)
 
 
+
+def test_restamp_revisao_autoral():
+    """Doc autoral COM escopo (escrito à mão, mas declarando o código que cobre) ficava
+    "defasado" para sempre: o restamp pula autoral de propósito, então o carimbo nunca
+    andava, nem depois de o dono revisar o texto. A revisão do dono passa a carimbar SÓ
+    o cabeçalho (`generated-commit` e `reviewed`) — o corpo nunca é tocado, e texto
+    aprovado que mudou depois do de acordo é recusado (precisa de reaprovação antes).
+    """
+    import shutil
+    import subprocess
+    if not shutil.which("git"):
+        print("  (git ausente — pulo restamp de revisão)")
+        return
+    import doc_load
+
+    with tempfile.TemporaryDirectory() as d:
+        root = os.path.join(d, "repo")
+        docs = os.path.join(root, ".claude", "docs")
+        os.makedirs(docs)
+        _git(root, "init", "-q")
+        _git(root, "config", "user.email", "t@t")
+        _git(root, "config", "user.name", "t")
+        with open(os.path.join(root, "a.py"), "w", encoding="utf-8") as fh:
+            fh.write("x=1\n")
+        _git(root, "add", "-A")
+        _git(root, "commit", "-qm", "codigo", date="2026-07-01")
+        velho = subprocess.run(["git", "-C", root, "rev-parse", "--short", "HEAD"],
+                               capture_output=True, text=True, encoding="utf-8", errors="replace",
+                               stdin=subprocess.DEVNULL, start_new_session=True).stdout.strip()
+
+        autoral = os.path.join(docs, "manual.md")
+        corpo = "\n# Manual\n\nTexto escrito pelo dono.\n"
+        with open(autoral, "w", encoding="utf-8") as fh:
+            fh.write("---\ngenerated: 2026-07-01\nreviewed: 2026-07-01\ngenerated-commit: %s\n"
+                     "project: X\nauthored-by: human\nstatus: approved\nscope: a.py\n"
+                     "approved-sig: PLACEHOLDER\n---\n%s" % (velho, corpo))
+        marca = str(doc_load.cksum(autoral))
+        t0 = open(autoral, encoding="utf-8").read().replace("PLACEHOLDER", marca)
+        with open(autoral, "w", encoding="utf-8") as fh:
+            fh.write(t0)
+
+        # o código coberto muda depois da última revisão: o alarme acende (certo)
+        with open(os.path.join(root, "a.py"), "w", encoding="utf-8") as fh:
+            fh.write("x=2\n")
+        _git(root, "add", "-A")
+        _git(root, "commit", "-qm", "codigo muda", date="2026-07-10")
+        head = subprocess.run(["git", "-C", root, "rev-parse", "--short", "HEAD"],
+                              capture_output=True, text=True, encoding="utf-8", errors="replace",
+                              stdin=subprocess.DEVNULL, start_new_session=True).stdout.strip()
+        check("autoral com escopo: código mudou depois da revisão → stale",
+              pattern_check.scope_staleness(root, autoral)["state"] == "stale")
+
+        # sem a revisão do dono, nada muda (o comportamento de antes continua)
+        out = pattern_check.restamp(root, [".claude/docs/manual.md"])  # casa-ok: fixture de teste, o literal e o dado do caso
+        check("sem a revisão do dono, autoral continua PULADO",
+              not out["stamped"] and out["skipped"][0]["reason"].startswith("doc autoral"))
+        check("sem a revisão do dono, autoral fica byte-idêntico",
+              open(autoral, encoding="utf-8").read() == t0)
+
+        # o dono revisou: carimba só o cabeçalho
+        out = pattern_check.restamp(root, [".claude/docs/manual.md"], today="2026-07-11",  # casa-ok: fixture de teste, o literal e o dado do caso
+                                    revisado=True)
+        depois = open(autoral, encoding="utf-8").read()
+        _, corpo_depois = pattern_check._extract_frontmatter_and_body(depois)
+        _, corpo_antes = pattern_check._extract_frontmatter_and_body(t0)
+        check("revisão do dono carimba o autoral", len(out["stamped"]) == 1 and not out["skipped"])
+        check("revisão grava o HEAD em generated-commit", "generated-commit: %s" % head in depois)
+        check("revisão grava a data em reviewed", "reviewed: 2026-07-11" in depois)
+        check("revisão não toca generated (data de criação)", "generated: 2026-07-01" in depois)
+        check("revisão não escreve doc-sig em autoral", "doc-sig:" not in depois)
+        check("corpo byte-idêntico depois da revisão", corpo_depois == corpo_antes)
+        check("a aprovação continua valendo (marca do corpo igual)",
+              str(doc_load.cksum(autoral)) == marca and "approved-sig: %s" % marca in depois)
+        check("depois da revisão: fresh", pattern_check.scope_staleness(root, autoral)["state"] == "fresh")
+
+        # texto aprovado mexido depois do de acordo: a revisão é recusada
+        with open(autoral, "w", encoding="utf-8") as fh:
+            fh.write(depois.replace("Texto escrito pelo dono.", "Texto mexido por alguém."))
+        mexido = open(autoral, encoding="utf-8").read()
+        out = pattern_check.restamp(root, [".claude/docs/manual.md"], today="2026-07-12",  # casa-ok: fixture de teste, o literal e o dado do caso
+                                    revisado=True)
+        check("texto mudou depois do de acordo: revisão RECUSADA",
+              not out["stamped"] and "de acordo" in out["skipped"][0]["reason"])
+        check("recusado fica byte-idêntico", open(autoral, encoding="utf-8").read() == mexido)
+
 def test_census_classifies_and_no_crash():
     """census() e conformance_plan() rodam sem crashar num layout mínimo de organismo."""
     with tempfile.TemporaryDirectory() as d:
@@ -748,6 +833,7 @@ if __name__ == "__main__":
     test_touch_and_generated_commit()
     test_project_staleness_honra_generated_commit()
     test_restamp()
+    test_restamp_revisao_autoral()
     test_census_classifies_and_no_crash()
     test_verified_by_do_patterns_nomeia_as_suites_de_hook()
     print("\nTODOS OS %d CHECKS PASSARAM" % PASS)
