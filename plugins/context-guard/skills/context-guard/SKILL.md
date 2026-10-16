@@ -59,7 +59,7 @@ O wrapper extrai o context% E encaminha o stdin pro comando original — qualque
 
 Adicione ao `env` do settings.json (se ainda não estiver):
 ```json
-"CLAUDE_CONTEXT_THRESHOLD": "80"
+"CLAUDE_CONTEXT_THRESHOLD": "85"
 ```
 
 Se havia um statusLine original (passo 3), adicione também:

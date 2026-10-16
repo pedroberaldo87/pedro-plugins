@@ -27,9 +27,9 @@ TMPD=$(td_tmpdir 2>/dev/null || printf '%s' "${TMPDIR:-/tmp}")
 MODE_FILE="${HOME}/.claude/context-guard/mode"
 [ -f "$MODE_FILE" ] && [ "$(tr -d '[:space:]' < "$MODE_FILE" 2>/dev/null)" = "off" ] && exit 0
 
-THRESHOLD="${CLAUDE_CONTEXT_THRESHOLD:-80}"
-# Teto em tokens absolutos: em janela de 1M o percentual só chega a 80% em ~800 mil.
-TOK_THRESHOLD="${CLAUDE_CONTEXT_TOKENS:-450000}"
+THRESHOLD="${CLAUDE_CONTEXT_THRESHOLD:-85}"
+# Teto em tokens absolutos, alinhado ao percentual: 85% de uma janela de 1M.
+TOK_THRESHOLD="${CLAUDE_CONTEXT_TOKENS:-850000}"
 
 INPUT=$(cat)
 # session_id chaveia TANTO o estado quanto o sentinel por sessão.

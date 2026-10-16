@@ -21,7 +21,7 @@ Decida **SALVAR** vs **RETOMAR** usando estes sinais, em ordem de confiança:
    - Quase vazia (este `/handoff` é a primeira/precoce ação depois de um `/clear` ou numa sessão nova) → tende a **RETOMAR**.
 
 2. **`/tmp/claude-context-pct` (reforço objetivo, quando presente).** Leia: `cat /tmp/claude-context-pct 2>/dev/null`.
-   - Ausente ou baixo (mais ou menos abaixo da metade do `$CLAUDE_CONTEXT_THRESHOLD`, default 80) → recém-limpa → **RETOMAR**.
+   - Ausente ou baixo (mais ou menos abaixo da metade do `$CLAUDE_CONTEXT_THRESHOLD`, default 85) → recém-limpa → **RETOMAR**.
    - Alto → sessão cheia → **SALVAR**.
    - Nota: o hook de reset do context-guard deleta esse arquivo no `/clear`/SessionStart, então um arquivo *ausente* já é em si um sinal de "sessão nova".
 
