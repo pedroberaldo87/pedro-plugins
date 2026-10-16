@@ -367,9 +367,9 @@ def check_pattern(project_root):
         if not content.startswith("---\n"):
             result["violations"].append("(b) frontmatter YAML ausente em %s" % rel)
 
-        # (d) linha doc-sig no frontmatter
+        # (d) linha doc-sig no frontmatter — doc autoral fica fora: o restamp nunca o carimba
         fm, _ = _extract_frontmatter_and_body(content)
-        if not _DOCSIG_RE.search(fm):
+        if not _DOCSIG_RE.search(fm) and not re.search(r"^authored-by:\s*human\b", fm, re.MULTILINE):
             result["violations"].append("(d) doc-sig ausente no frontmatter de %s" % rel)
 
         doc_sig = sig(dpath, project_root=project_root)

@@ -188,6 +188,20 @@ def test_invariant_d_missing_docsig():
 
 
 # ---------------------------------------------------------------------------
+def test_invariant_d_autoral_sem_docsig():
+    print("\n== check_pattern — doc autoral sem doc-sig NÃO viola (d) ==")
+    # O restamp pula doc autoral de propósito; se (d) o cobrasse, a doc ficaria fora do padrão para sempre.
+    with tempfile.TemporaryDirectory() as d:
+        root = _make_project(d)
+        with open(os.path.join(root, ".claude", "docs", "quality-goals.md"), "w", encoding="utf-8") as fh:
+            fh.write("---\ngenerated: 2026-01-01\nauthored-by: human\nproject: X\n---\n\n# Metas\n")
+        r = pattern_check.check_pattern(root)
+        check("autoral sem doc-sig fora das violações",
+              not any("quality-goals" in v for v in r["violations"]))
+        check("in_pattern True", r["in_pattern"] is True)
+
+
+# ---------------------------------------------------------------------------
 def test_sig_not_self_referential_for_claude_md():
     """Invariante F1: sig() de CLAUDE.md (sem frontmatter) NÃO aparece dentro
     do próprio arquivo — logo grep da sig no transcript nunca casa via
@@ -727,6 +741,7 @@ if __name__ == "__main__":
     test_sig_deterministic()
     test_invariant_c_missing_journal()
     test_invariant_d_missing_docsig()
+    test_invariant_d_autoral_sem_docsig()
     test_sig_not_self_referential_for_claude_md()
     test_invariant_a_missing_end_marker()
     test_scope_staleness()
