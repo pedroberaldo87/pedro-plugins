@@ -154,6 +154,27 @@ def main():
         f = flat(out, doc4)
         check("count: 3 declarado vs 4 itens = WARN",
               any(x["check"] == "count" and x["severity"] == "WARN" for x in f))
+        # exemplo em prosa lido como lista: a exceção registrada cala SÓ aquela contagem
+        allow_dir = os.path.join(td, ".claude", ".project-doc")
+        os.makedirs(allow_dir, exist_ok=True)
+        with open(os.path.join(allow_dir, "lint-allow.txt"), "w", encoding="utf-8") as fh:
+            fh.write("# exemplo em prosa, não lista\ncount:3-modos\n")
+        out = doc_lint.lint(td, [doc4])
+        check("count: exceção count:3-modos no lint-allow cala o aviso",
+              not any(x["check"] == "count" for x in flat(out, doc4)))
+        with open(os.path.join(allow_dir, "lint-allow.txt"), "w", encoding="utf-8") as fh:
+            fh.write("count:4-modos\n")
+        out = doc_lint.lint(td, [doc4])
+        check("count: exceção de OUTRA contagem não cala este aviso",
+              any(x["check"] == "count" for x in flat(out, doc4)))
+        os.remove(os.path.join(allow_dir, "lint-allow.txt"))
+        doc4b = write_doc(td, "count-inline.md", "\n".join([
+            "<!-- lint:ignore count:3-modos -->",
+            "**3 modos** — os modos:", "- a", "- b", "- c", "- d", "",
+        ]))
+        out = doc_lint.lint(td, [doc4b])
+        check("count: lint:ignore inline cala o aviso",
+              not any(x["check"] == "count" for x in flat(out, doc4b)))
 
         # --- fail-OPEN: erro de ambiente nunca vira acusação (regressão) ---
         with tempfile.TemporaryDirectory() as nogit:

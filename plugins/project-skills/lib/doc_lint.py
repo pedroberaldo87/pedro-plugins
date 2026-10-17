@@ -18,7 +18,8 @@ auditoria de 2026-07-22 mostrou serem 68% do drift:
   4. contagem vs lista no próprio doc — "N itens" seguido de lista com M≠N → WARN.
 
 Escape hatch: `<!-- lint:ignore TOKEN -->` inline no doc, ou uma linha por
-token em `.claude/.project-doc/lint-allow.txt`.
+token em `.claude/.project-doc/lint-allow.txt`. Contagem (check 4) usa o token
+`count:<N>-<palavra>` (ex.: `count:2-etapas`).
 
 CLI:
   python3 doc_lint.py --project-root <root> [--docs a.md b.md] [--json]
@@ -466,6 +467,10 @@ def lint_doc(root, doc_rel, env_read, defined, allow, all_files=None,
                 break
             j += 1
         counted = items if items else inline
+        # exemplo em prosa lido como lista ("2 etapas — ...") se registra como
+        # `count:<N>-<palavra>`, no lint-allow.txt ou inline; sem isto o aviso não tinha saída
+        if "count:%d-%s" % (n_claimed, cm.group(2)) in ignores:
+            continue
         if counted and 2 <= n_claimed <= 60 and counted != n_claimed and abs(counted - n_claimed) <= max(3, n_claimed // 3):
             findings.append({
                 "check": "count", "severity": "WARN",
