@@ -923,9 +923,18 @@ def touch_plan(root):
         # doc-touch) escalaria sempre que nascesse um test_*.
         all_verified |= {e for e in _scope_entries(root, docpath, field="verified-by")
                          if "*" not in e}
+    # entrada-dir (`pasta/`) cobre o código da pasta, como no docs_for_paths;
+    # suíte (test_*, *.test.*, *.spec.*) continua pertencendo só ao verified-by
+    scope_prefixes = tuple(e for e in all_scope_files if e.endswith("/"))
+
+    def _suite(p):
+        b = os.path.basename(p)
+        return b.startswith("test_") or ".test." in b or ".spec." in b
+
     res["unscoped_new"] = sorted(
         p for p in changed
         if p not in all_scope_files and p not in all_verified
+        and not (scope_prefixes and p.startswith(scope_prefixes) and not _suite(p))
         and os.path.dirname(p) in all_scope_dirs)
 
     # Idade do último FULL, em dias. O FULL é o único que avança

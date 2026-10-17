@@ -413,6 +413,17 @@ def test_touch_and_generated_commit():
         tp4 = pattern_check.touch_plan(root)
         check("unscoped_new acusa suíte que não está em verified-by nenhum",
               "pkg/test_b.py" in tp4["unscoped_new"])
+        # entrada-dir (`pkg/`) cobre o CÓDIGO da pasta também no unscoped_new —
+        # antes só o docs_for_paths casava por prefixo, e todo arquivo novo numa
+        # pasta declarada saía "sem documento" mesmo com a pasta no scope
+        with open(os.path.join(root, "pkg", "c.py"), "w", encoding="utf-8") as fh:
+            fh.write("y=1\n")
+        _git(root, "add", "pkg/c.py")
+        tp4b = pattern_check.touch_plan(root)
+        check("entrada-dir cobre arquivo de código novo da pasta",
+              "pkg/c.py" not in tp4b["unscoped_new"])
+        check("...mas suíte na pasta segue exigindo verified-by",
+              "pkg/test_b.py" in tp4b["unscoped_new"])
         with open(d2, "w", encoding="utf-8") as fh:
             fh.write("---\ngenerated: %s\nproject: X\nscope: [a.py, pkg/]\n"
                      "verified-by:\n  - pkg/test_b.py\ndoc-sig: s\n---\n\n# t\n"
