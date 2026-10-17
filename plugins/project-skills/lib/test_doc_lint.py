@@ -236,6 +236,15 @@ def main():
         check("allowlist de arquivo suprime FAIL",
               not any(x["token"] == "GHOST_API_KEY" for x in f))
 
+        # --- histórico é registro literal: a varredura sozinha não o cobra ---
+        hist = write_doc(td, "x.historico.md", "- ver `app/sumiu.py:3`\n")
+        out = doc_lint.lint(td)
+        check("varredura sem lista pula o .historico.md (caminho morto é o registro)",
+              not flat(out, hist))
+        out = doc_lint.lint(td, [hist])
+        check("histórico pedido pelo nome continua sendo lido",
+              any(x["check"] == "pointer" and x["severity"] == "FAIL" for x in flat(out, hist)))
+
     test_fail_open_property()
     print("\nTODOS OS %d CHECKS PASSARAM" % PASSED)
 

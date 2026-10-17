@@ -487,7 +487,10 @@ def lint(root, docs=None):
     allow = _load_allowlist(root)
     journal_ids = _journal_id_prefixes(root)
     head_files = _git_head_files(root)
-    doc_list = docs if docs else _enumerate_scoped_docs(root)
+    # `<doc>.historico.md` guarda, literal, o texto que saiu do canônico (historico.py):
+    # caminho morto ali é o registro, não erro. Pedido pelo nome, continua sendo lido.
+    doc_list = docs if docs else [d for d in _enumerate_scoped_docs(root)
+                                  if not d.endswith(".historico.md")]
     results = []
     fails = warns = 0
     for doc_rel in doc_list:
