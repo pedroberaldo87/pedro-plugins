@@ -52,7 +52,10 @@ RAIZ = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 # a catraca desce junto com o conserto, senão a folga engole a próxima reincidência
 # — foi exatamente isso que fez o cobrador do F15.3 passar verde numa mutação real
 # (conta 319, teto 322, mutante 320: cabia na folga).
-TETO = {"A": 0, "B": 42, "C": 138, "D": 24}
+# D subiu de 24 para 25 por decisão do dono em 2026-10-24: plugin novo `sec`. A classe D
+# conta um `plugin.json` por plugin (cada um guarda a própria versão), então todo plugin
+# novo soma um ponto — não é cópia solta. A decisão está escrita em SITUACAO["D"].
+TETO = {"A": 0, "B": 42, "C": 138, "D": 25}
 
 # A SITUAÇÃO DE CADA CLASSE (F15.7): ou a fonte única existe em código, ou a dívida está
 # declarada com dono nomeado. Não há terceira opção — classe sem uma das duas é o próprio
@@ -67,7 +70,9 @@ SITUACAO = {
     "C": ("dívida DECLARADA — dono: `scripts/readme_counts_check.py`, que já recalcula da "
           "fonte, hoje só sobre o README (10 das 138); estendê-lo aos docs é o conserto"),
     "D": ("fonte única IMPLEMENTADA e cobrada — `scripts/bump.py` espelha a versão, "
-          "`scripts/sync-shared.sh --check` acusa cópia defasada, e o release-gate morde"),
+          "`scripts/sync-shared.sh --check` acusa cópia defasada, e o release-gate morde; "
+          "teto 24 → 25 por decisão do dono em 2026-10-24 (plugin novo `sec`: um plugin.json "
+          "por plugin, todo plugin novo soma um)"),
 }
 FORA = ("graphify-out/", ".claude/reports/", "scripts/anti_slop_inventario")
 
