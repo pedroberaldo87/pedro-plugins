@@ -1,0 +1,33 @@
+{
+ "id": "PYSEC-2026-2275",
+ "aliases": [
+  "CVE-2026-25645",
+  "GHSA-gc5v-m9x4-r6x2"
+ ],
+ "affected": [
+  {
+   "package": {
+    "name": "requests",
+    "ecosystem": "PyPI",
+    "purl": "pkg:pypi/requests"
+   },
+   "ranges": [
+    {
+     "type": "ECOSYSTEM",
+     "events": [
+      {
+       "introduced": "0"
+      },
+      {
+       "fixed": "2.33.0"
+      }
+     ]
+    }
+   ],
+   "ecosystem_specific": {},
+   "database_specific": {
+    "source": "https://github.com/pypa/advisory-database/blob/main/vulns/requests/PYSEC-2026-2275.yaml"
+   }
+  }
+ ]
+}

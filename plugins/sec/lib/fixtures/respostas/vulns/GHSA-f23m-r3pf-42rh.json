@@ -1,0 +1,113 @@
+{
+ "id": "GHSA-f23m-r3pf-42rh",
+ "summary": "lodash vulnerable to Prototype Pollution via array path bypass in `_.unset` and `_.omit`",
+ "aliases": [
+  "CVE-2026-2950"
+ ],
+ "database_specific": {
+  "cwe_ids": [
+   "CWE-1321"
+  ],
+  "severity": "MODERATE",
+  "github_reviewed": true,
+  "github_reviewed_at": "2026-04-01T23:50:27Z",
+  "nvd_published_at": "2026-03-31T20:16:26Z"
+ },
+ "affected": [
+  {
+   "package": {
+    "name": "lodash",
+    "ecosystem": "npm",
+    "purl": "pkg:npm/lodash"
+   },
+   "ranges": [
+    {
+     "type": "SEMVER",
+     "events": [
+      {
+       "introduced": "0"
+      },
+      {
+       "fixed": "4.18.0"
+      }
+     ]
+    }
+   ],
+   "database_specific": {
+    "last_known_affected_version_range": "<= 4.17.23",
+    "source": "https://github.com/github/advisory-database/blob/main/advisories/github-reviewed/2026/04/GHSA-f23m-r3pf-42rh/GHSA-f23m-r3pf-42rh.json"
+   }
+  },
+  {
+   "package": {
+    "name": "lodash-es",
+    "ecosystem": "npm",
+    "purl": "pkg:npm/lodash-es"
+   },
+   "ranges": [
+    {
+     "type": "SEMVER",
+     "events": [
+      {
+       "introduced": "0"
+      },
+      {
+       "fixed": "4.18.0"
+      }
+     ]
+    }
+   ],
+   "database_specific": {
+    "last_known_affected_version_range": "<= 4.17.23",
+    "source": "https://github.com/github/advisory-database/blob/main/advisories/github-reviewed/2026/04/GHSA-f23m-r3pf-42rh/GHSA-f23m-r3pf-42rh.json"
+   }
+  },
+  {
+   "package": {
+    "name": "lodash-amd",
+    "ecosystem": "npm",
+    "purl": "pkg:npm/lodash-amd"
+   },
+   "ranges": [
+    {
+     "type": "SEMVER",
+     "events": [
+      {
+       "introduced": "0"
+      },
+      {
+       "fixed": "4.18.0"
+      }
+     ]
+    }
+   ],
+   "database_specific": {
+    "last_known_affected_version_range": "<= 4.17.23",
+    "source": "https://github.com/github/advisory-database/blob/main/advisories/github-reviewed/2026/04/GHSA-f23m-r3pf-42rh/GHSA-f23m-r3pf-42rh.json"
+   }
+  },
+  {
+   "package": {
+    "name": "lodash.unset",
+    "ecosystem": "npm",
+    "purl": "pkg:npm/lodash.unset"
+   },
+   "ranges": [
+    {
+     "type": "SEMVER",
+     "events": [
+      {
+       "introduced": "4.0.0"
+      },
+      {
+       "fixed": "4.18.0"
+      }
+     ]
+    }
+   ],
+   "database_specific": {
+    "source": "https://github.com/github/advisory-database/blob/main/advisories/github-reviewed/2026/04/GHSA-f23m-r3pf-42rh/GHSA-f23m-r3pf-42rh.json"
+   }
+  }
+ ]
+}

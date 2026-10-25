@@ -1,0 +1,5 @@
+requests==2.19.0
+flask>=2.0
+numpy
+-r outro.txt
+rich[jupyter]==13.0.0 ; python_version >= "3.8"

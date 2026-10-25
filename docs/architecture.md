@@ -238,7 +238,7 @@ python3 -c "import json;print(len(json.load(open('.claude-plugin/marketplace.jso
 .claude-plugin/marketplace.json   catálogo único — nome, source, version, tags, category
 plugins/<nome>/                   um dir por entrada do catálogo, sem sobra (§2)
 _shared/                          fonte-da-verdade do compartilhado (31 arquivos-fonte)
-scripts/sync-shared.sh            o "build": vendora _shared/ → 115 cópias em 45 pastas  <!-- acopla-ok: §7 traz o comando que produz os dois números -->
+scripts/sync-shared.sh            o "build": vendora _shared/ → 116 cópias em 46 pastas  <!-- acopla-ok: §7 traz o comando que produz os dois números -->
 scripts/hook_contract.py          mede o contrato dos registros de hook (§11)
 scripts/public_repo_check.py      cobra a regra de repo público (checagem H do gate)
 scripts/regua_call_check.py       cobra que gerador de página chame a régua (checagem I)
@@ -363,7 +363,7 @@ Saída desta rodada (nome · versão · skills · tem hook):
 ```
 2op                 1.3.0  [2op,2op-opus,2op-sonnet]    -
 archify            2.14.2  [archify]                    -
-bootstrap         1.17.17  [bootstrap]                  HOOKS
+bootstrap         1.17.18  [bootstrap]                  HOOKS
 branches           1.3.15  [branches]                   HOOKS
 check-skills        0.7.4  [check-skills]               -
 context-guard      1.3.17  [context-guard]              HOOKS
@@ -379,6 +379,7 @@ intent-guard       0.8.17  [intent-guard]               HOOKS
 lixeiro             1.6.0  [faxina]                     HOOKS
 principles          1.0.5  [principles]                 -
 project-skills    0.22.229  [completude,design-md,doc,doc-load,doc-touch,monitorar,pesquisa-referencias,plan,project-skills,qa-loop,reentrada,sprint,start] HOOKS
+sec                 0.1.0  [sec]                        -
 ship                1.5.7  [ship]                       HOOKS
 slides              1.6.6  [slides]                     -
 vision              0.1.1  []                           -
@@ -913,10 +914,10 @@ sed -n '/^SPECS=(/,/^)/p' scripts/sync-shared.sh | grep '::' \
   | sed 's/.*"\(.*\)::.*/\1/' | sort -u | wc -l                        # nº de pastas
 ```
 
-**115 cópias, em 45 pastas de destino, de 31 arquivos-fonte** — contra 19 cópias em 14 pastas <!-- acopla-ok: os dois comandos que produzem os números estão no bloco imediatamente acima; "19" é narrativa histórica -->
-na passada anterior [medido nesta rodada: os dois comandos acima devolvem `115` e `45` — o salto foi de 113 para 115 cópias (45 pastas nas duas) <!-- acopla-ok: narrativa do salto medido na rodada; os comandos que produzem os números estão no bloco acima -->, e as **duas** cópias novas são do pente fino de 2026-08-21: `casa_da_doc.py` no `handoff` (o extrator passou a resolver a casa da doc pela cascata) e `resolve-dir.sh` no `fallow` (a réplica em Python virou reserva da cópia vendorada). A rodada anterior tinha trazido o classificador do **grão de módulo** (`grao-de-modulo.py`), vendorado em `archify` e no `doc-touch`. A rodada anterior tinha trazido a família da **casa da doc** (`casa_da_doc.py` + `lib-casa-da-doc.sh`), o resolvedor único de onde mora a documentação. A família do **lar fingido** (F4.3) — a receita única de fingir o HOME em teste (`lar-fingido.md` + `lar_fingido.py` + `lib-lar-fingido.sh`, com cobrador próprio), que nasceu em `_shared/` e foi vendorada em todo consumidor que fingia o lar à mão, cada um do seu jeito e três deles quebrando no Windows — segue com **nove** cópias (4 de `lar_fingido.py`, 5 de `lib-lar-fingido.sh`), a última em `plugins/project-skills/lib/`].
+**116 cópias, em 46 pastas de destino, de 31 arquivos-fonte** — contra 19 cópias em 14 pastas <!-- acopla-ok: os dois comandos que produzem os números estão no bloco imediatamente acima; "19" é narrativa histórica -->
+na passada anterior [medido nesta rodada: os dois comandos acima devolvem `116` e `46` — a cópia mais nova é `regua_texto.py` no `sec` (2026-10-24, pasta nova); antes disso o salto foi de 113 para 115 cópias (45 pastas nas duas) <!-- acopla-ok: narrativa do salto medido na rodada; os comandos que produzem os números estão no bloco acima -->, e as **duas** cópias novas são do pente fino de 2026-08-21: `casa_da_doc.py` no `handoff` (o extrator passou a resolver a casa da doc pela cascata) e `resolve-dir.sh` no `fallow` (a réplica em Python virou reserva da cópia vendorada). A rodada anterior tinha trazido o classificador do **grão de módulo** (`grao-de-modulo.py`), vendorado em `archify` e no `doc-touch`. A rodada anterior tinha trazido a família da **casa da doc** (`casa_da_doc.py` + `lib-casa-da-doc.sh`), o resolvedor único de onde mora a documentação. A família do **lar fingido** (F4.3) — a receita única de fingir o HOME em teste (`lar-fingido.md` + `lar_fingido.py` + `lib-lar-fingido.sh`, com cobrador próprio), que nasceu em `_shared/` e foi vendorada em todo consumidor que fingia o lar à mão, cada um do seu jeito e três deles quebrando no Windows — segue com **nove** cópias (4 de `lar_fingido.py`, 5 de `lib-lar-fingido.sh`), a última em `plugins/project-skills/lib/`].
 Os quatro maiores contribuintes, todos vendorados por consumidor:
-`resolve-plugin.sh` (18), `regua_texto.py` (11), `hook-json.sh` (12), `lib-tmpdir.sh` (11).
+`resolve-plugin.sh` (18), `regua_texto.py` (12), `hook-json.sh` (12), `lib-tmpdir.sh` (11).
 
 ⚠️ **Esses quatro números e os dois de cima deixaram de ser promessa: viraram teste.**
 `scripts/test_doc_vendoring_counts.py` reparseia o `SPECS` do `sync-shared.sh` e cobra as

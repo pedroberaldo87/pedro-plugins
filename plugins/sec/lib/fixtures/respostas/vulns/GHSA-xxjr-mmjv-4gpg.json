@@ -1,0 +1,113 @@
+{
+ "id": "GHSA-xxjr-mmjv-4gpg",
+ "summary": "Lodash has Prototype Pollution Vulnerability in `_.unset` and `_.omit` functions",
+ "aliases": [
+  "CVE-2025-13465"
+ ],
+ "database_specific": {
+  "cwe_ids": [
+   "CWE-1321"
+  ],
+  "severity": "MODERATE",
+  "github_reviewed": true,
+  "github_reviewed_at": "2026-01-21T23:01:22Z",
+  "nvd_published_at": "2026-01-21T20:16:05Z"
+ },
+ "affected": [
+  {
+   "package": {
+    "name": "lodash",
+    "ecosystem": "npm",
+    "purl": "pkg:npm/lodash"
+   },
+   "ranges": [
+    {
+     "type": "SEMVER",
+     "events": [
+      {
+       "introduced": "4.0.0"
+      },
+      {
+       "fixed": "4.17.23"
+      }
+     ]
+    }
+   ],
+   "database_specific": {
+    "last_known_affected_version_range": "<= 4.17.22",
+    "source": "https://github.com/github/advisory-database/blob/main/advisories/github-reviewed/2026/01/GHSA-xxjr-mmjv-4gpg/GHSA-xxjr-mmjv-4gpg.json"
+   }
+  },
+  {
+   "package": {
+    "name": "lodash.unset",
+    "ecosystem": "npm",
+    "purl": "pkg:npm/lodash.unset"
+   },
+   "ranges": [
+    {
+     "type": "SEMVER",
+     "events": [
+      {
+       "introduced": "4.0.0"
+      },
+      {
+       "last_affected": "4.5.2"
+      }
+     ]
+    }
+   ],
+   "database_specific": {
+    "source": "https://github.com/github/advisory-database/blob/main/advisories/github-reviewed/2026/01/GHSA-xxjr-mmjv-4gpg/GHSA-xxjr-mmjv-4gpg.json"
+   }
+  },
+  {
+   "package": {
+    "name": "lodash-es",
+    "ecosystem": "npm",
+    "purl": "pkg:npm/lodash-es"
+   },
+   "ranges": [
+    {
+     "type": "SEMVER",
+     "events": [
+      {
+       "introduced": "4.0.0"
+      },
+      {
+       "fixed": "4.17.23"
+      }
+     ]
+    }
+   ],
+   "database_specific": {
+    "last_known_affected_version_range": "<= 4.17.22",
+    "source": "https://github.com/github/advisory-database/blob/main/advisories/github-reviewed/2026/01/GHSA-xxjr-mmjv-4gpg/GHSA-xxjr-mmjv-4gpg.json"
+   }
+  },
+  {
+   "package": {
+    "name": "lodash-amd",
+    "ecosystem": "npm",
+    "purl": "pkg:npm/lodash-amd"
+   },
+   "ranges": [
+    {
+     "type": "SEMVER",
+     "events": [
+      {
+       "introduced": "4.0.0"
+      },
+      {
+       "fixed": "4.17.23"
+      }
+     ]
+    }
+   ],
+   "database_specific": {
+    "last_known_affected_version_range": "<= 4.17.22",
+    "source": "https://github.com/github/advisory-database/blob/main/advisories/github-reviewed/2026/01/GHSA-xxjr-mmjv-4gpg/GHSA-xxjr-mmjv-4gpg.json"
+   }
+  }
+ ]
+}

@@ -198,6 +198,10 @@
           "enabled": true
         },
         {
+          "name": "sec",
+          "enabled": true
+        },
+        {
           "name": "ship",
           "enabled": true
         },

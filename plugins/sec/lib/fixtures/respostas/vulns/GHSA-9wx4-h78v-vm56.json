@@ -1,0 +1,42 @@
+{
+ "id": "GHSA-9wx4-h78v-vm56",
+ "summary": "Requests `Session` object does not verify requests after making first request with verify=False",
+ "aliases": [
+  "CVE-2024-35195",
+  "PYSEC-2026-1873"
+ ],
+ "database_specific": {
+  "severity": "MODERATE",
+  "github_reviewed": true,
+  "github_reviewed_at": "2024-05-20T20:15:00Z",
+  "nvd_published_at": "2024-05-20T21:15:09Z",
+  "cwe_ids": [
+   "CWE-670"
+  ]
+ },
+ "affected": [
+  {
+   "package": {
+    "name": "requests",
+    "ecosystem": "PyPI",
+    "purl": "pkg:pypi/requests"
+   },
+   "ranges": [
+    {
+     "type": "ECOSYSTEM",
+     "events": [
+      {
+       "introduced": "0"
+      },
+      {
+       "fixed": "2.32.0"
+      }
+     ]
+    }
+   ],
+   "database_specific": {
+    "source": "https://github.com/github/advisory-database/blob/main/advisories/github-reviewed/2024/05/GHSA-9wx4-h78v-vm56/GHSA-9wx4-h78v-vm56.json"
+   }
+  }
+ ]
+}

@@ -105,6 +105,7 @@ SPECS=(
   "plugins/visual/lib::regua_texto.py"
   "plugins/branches/lib::regua_texto.py"
   "plugins/fallow/lib::regua_texto.py"
+  "plugins/sec/lib::regua_texto.py"
   "plugins/slides/lib::regua_texto.py"
   "plugins/vistoria/lib::regua_texto.py"
   # Os emissores de hook: o .sh chama a régua pela linha de comando, e o plugin

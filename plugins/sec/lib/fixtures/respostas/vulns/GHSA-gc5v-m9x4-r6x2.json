@@ -1,0 +1,42 @@
+{
+ "id": "GHSA-gc5v-m9x4-r6x2",
+ "summary": "Requests has Insecure Temp File Reuse in its extract_zipped_paths() utility function",
+ "aliases": [
+  "CVE-2026-25645",
+  "PYSEC-2026-2275"
+ ],
+ "database_specific": {
+  "github_reviewed_at": "2026-03-25T16:56:28Z",
+  "nvd_published_at": "2026-03-25T17:16:52Z",
+  "cwe_ids": [
+   "CWE-377"
+  ],
+  "severity": "MODERATE",
+  "github_reviewed": true
+ },
+ "affected": [
+  {
+   "package": {
+    "name": "requests",
+    "ecosystem": "PyPI",
+    "purl": "pkg:pypi/requests"
+   },
+   "ranges": [
+    {
+     "type": "ECOSYSTEM",
+     "events": [
+      {
+       "introduced": "0"
+      },
+      {
+       "fixed": "2.33.0"
+      }
+     ]
+    }
+   ],
+   "database_specific": {
+    "source": "https://github.com/github/advisory-database/blob/main/advisories/github-reviewed/2026/03/GHSA-gc5v-m9x4-r6x2/GHSA-gc5v-m9x4-r6x2.json"
+   }
+  }
+ ]
+}

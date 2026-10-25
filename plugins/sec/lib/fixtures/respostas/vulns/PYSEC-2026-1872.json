@@ -1,0 +1,33 @@
+{
+ "id": "PYSEC-2026-1872",
+ "summary": "Requests vulnerable to .netrc credentials leak via malicious URLs",
+ "aliases": [
+  "CVE-2024-47081",
+  "GHSA-9hjg-9r4m-mvj7"
+ ],
+ "affected": [
+  {
+   "package": {
+    "name": "requests",
+    "ecosystem": "PyPI",
+    "purl": "pkg:pypi/requests"
+   },
+   "ranges": [
+    {
+     "type": "ECOSYSTEM",
+     "events": [
+      {
+       "introduced": "0"
+      },
+      {
+       "fixed": "2.32.4"
+      }
+     ]
+    }
+   ],
+   "database_specific": {
+    "source": "https://github.com/pypa/advisory-database/blob/main/vulns/requests/PYSEC-2026-1872.yaml"
+   }
+  }
+ ]
+}

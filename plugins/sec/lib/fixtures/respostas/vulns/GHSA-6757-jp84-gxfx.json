@@ -1,0 +1,52 @@
+{
+ "id": "GHSA-6757-jp84-gxfx",
+ "summary": "Improper Input Validation in PyYAML",
+ "aliases": [
+  "CVE-2020-1747",
+  "PYSEC-2020-96"
+ ],
+ "database_specific": {
+  "github_reviewed": true,
+  "github_reviewed_at": "2021-04-07T22:29:00Z",
+  "nvd_published_at": "2020-03-24T15:15:00Z",
+  "cwe_ids": [
+   "CWE-20"
+  ],
+  "severity": "CRITICAL"
+ },
+ "affected": [
+  {
+   "package": {
+    "name": "pyyaml",
+    "ecosystem": "PyPI",
+    "purl": "pkg:pypi/pyyaml"
+   },
+   "ranges": [
+    {
+     "type": "ECOSYSTEM",
+     "events": [
+      {
+       "introduced": "5.1b7"
+      },
+      {
+       "fixed": "5.3.1"
+      }
+     ]
+    }
+   ],
+   "versions": [
+    "5.1",
+    "5.1.1",
+    "5.1.2",
+    "5.1b7",
+    "5.2",
+    "5.2b1",
+    "5.3",
+    "5.3b1"
+   ],
+   "database_specific": {
+    "source": "https://github.com/github/advisory-database/blob/main/advisories/github-reviewed/2021/04/GHSA-6757-jp84-gxfx/GHSA-6757-jp84-gxfx.json"
+   }
+  }
+ ]
+}

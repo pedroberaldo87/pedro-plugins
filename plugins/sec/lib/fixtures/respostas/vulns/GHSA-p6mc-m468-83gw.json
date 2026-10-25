@@ -1,0 +1,229 @@
+{
+ "id": "GHSA-p6mc-m468-83gw",
+ "summary": "Prototype Pollution in lodash",
+ "aliases": [
+  "CVE-2020-8203"
+ ],
+ "database_specific": {
+  "github_reviewed": true,
+  "github_reviewed_at": "2020-07-15T19:14:58Z",
+  "nvd_published_at": "2020-07-15T17:15:00Z",
+  "cwe_ids": [
+   "CWE-1321",
+   "CWE-770"
+  ],
+  "severity": "HIGH"
+ },
+ "affected": [
+  {
+   "package": {
+    "name": "lodash",
+    "ecosystem": "npm",
+    "purl": "pkg:npm/lodash"
+   },
+   "ranges": [
+    {
+     "type": "SEMVER",
+     "events": [
+      {
+       "introduced": "3.7.0"
+      },
+      {
+       "fixed": "4.17.19"
+      }
+     ]
+    }
+   ],
+   "database_specific": {
+    "source": "https://github.com/github/advisory-database/blob/main/advisories/github-reviewed/2020/07/GHSA-p6mc-m468-83gw/GHSA-p6mc-m468-83gw.json"
+   }
+  },
+  {
+   "package": {
+    "name": "lodash-es",
+    "ecosystem": "npm",
+    "purl": "pkg:npm/lodash-es"
+   },
+   "ranges": [
+    {
+     "type": "SEMVER",
+     "events": [
+      {
+       "introduced": "3.7.0"
+      },
+      {
+       "fixed": "4.17.20"
+      }
+     ]
+    }
+   ],
+   "database_specific": {
+    "source": "https://github.com/github/advisory-database/blob/main/advisories/github-reviewed/2020/07/GHSA-p6mc-m468-83gw/GHSA-p6mc-m468-83gw.json"
+   }
+  },
+  {
+   "package": {
+    "name": "lodash.pick",
+    "ecosystem": "npm",
+    "purl": "pkg:npm/lodash.pick"
+   },
+   "ranges": [
+    {
+     "type": "SEMVER",
+     "events": [
+      {
+       "introduced": "4.0.0"
+      },
+      {
+       "last_affected": "4.4.0"
+      }
+     ]
+    }
+   ],
+   "database_specific": {
+    "source": "https://github.com/github/advisory-database/blob/main/advisories/github-reviewed/2020/07/GHSA-p6mc-m468-83gw/GHSA-p6mc-m468-83gw.json"
+   }
+  },
+  {
+   "package": {
+    "name": "lodash.set",
+    "ecosystem": "npm",
+    "purl": "pkg:npm/lodash.set"
+   },
+   "ranges": [
+    {
+     "type": "SEMVER",
+     "events": [
+      {
+       "introduced": "3.7.0"
+      },
+      {
+       "last_affected": "4.3.2"
+      }
+     ]
+    }
+   ],
+   "database_specific": {
+    "source": "https://github.com/github/advisory-database/blob/main/advisories/github-reviewed/2020/07/GHSA-p6mc-m468-83gw/GHSA-p6mc-m468-83gw.json"
+   }
+  },
+  {
+   "package": {
+    "name": "lodash.setwith",
+    "ecosystem": "npm",
+    "purl": "pkg:npm/lodash.setwith"
+   },
+   "ranges": [
+    {
+     "type": "SEMVER",
+     "events": [
+      {
+       "introduced": "0"
+      },
+      {
+       "last_affected": "4.3.2"
+      }
+     ]
+    }
+   ],
+   "database_specific": {
+    "source": "https://github.com/github/advisory-database/blob/main/advisories/github-reviewed/2020/07/GHSA-p6mc-m468-83gw/GHSA-p6mc-m468-83gw.json"
+   }
+  },
+  {
+   "package": {
+    "name": "lodash.update",
+    "ecosystem": "npm",
+    "purl": "pkg:npm/lodash.update"
+   },
+   "ranges": [
+    {
+     "type": "SEMVER",
+     "events": [
+      {
+       "introduced": "0"
+      },
+      {
+       "last_affected": "4.10.2"
+      }
+     ]
+    }
+   ],
+   "database_specific": {
+    "source": "https://github.com/github/advisory-database/blob/main/advisories/github-reviewed/2020/07/GHSA-p6mc-m468-83gw/GHSA-p6mc-m468-83gw.json"
+   }
+  },
+  {
+   "package": {
+    "name": "lodash.updatewith",
+    "ecosystem": "npm",
+    "purl": "pkg:npm/lodash.updatewith"
+   },
+   "ranges": [
+    {
+     "type": "SEMVER",
+     "events": [
+      {
+       "introduced": "0"
+      },
+      {
+       "last_affected": "4.10.2"
+      }
+     ]
+    }
+   ],
+   "database_specific": {
+    "source": "https://github.com/github/advisory-database/blob/main/advisories/github-reviewed/2020/07/GHSA-p6mc-m468-83gw/GHSA-p6mc-m468-83gw.json"
+   }
+  },
+  {
+   "package": {
+    "name": "lodash-rails",
+    "ecosystem": "RubyGems",
+    "purl": "pkg:gem/lodash-rails"
+   },
+   "ranges": [
+    {
+     "type": "ECOSYSTEM",
+     "events": [
+      {
+       "introduced": "3.7.0"
+      },
+      {
+       "fixed": "4.17.19"
+      }
+     ]
+    }
+   ],
+   "versions": [
+    "3.10.0",
+    "3.10.1",
+    "3.7.0",
+    "3.9.3",
+    "4.0.0",
+    "4.11.2",
+    "4.12.0",
+    "4.13.1",
+    "4.14.1",
+    "4.15.0",
+    "4.16.1",
+    "4.16.3",
+    "4.16.4",
+    "4.16.6",
+    "4.17.10",
+    "4.17.11",
+    "4.17.14",
+    "4.17.15",
+    "4.17.2",
+    "4.17.4",
+    "4.17.5",
+    "4.3.0",
+    "4.5.1",
+    "4.6.1"
+   ],
+   "database_specific": {
+    "source": "https://github.com/github/advisory-database/blob/main/advisories/github-reviewed/2020/07/GHSA-p6mc-m468-83gw/GHSA-p6mc-m468-83gw.json"
+   }
+  }
+ ]
+}

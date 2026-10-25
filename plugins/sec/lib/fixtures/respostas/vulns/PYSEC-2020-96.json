@@ -1,0 +1,41 @@
+{
+ "id": "PYSEC-2020-96",
+ "aliases": [
+  "CVE-2020-1747",
+  "GHSA-6757-jp84-gxfx"
+ ],
+ "affected": [
+  {
+   "package": {
+    "name": "pyyaml",
+    "ecosystem": "PyPI",
+    "purl": "pkg:pypi/pyyaml"
+   },
+   "ranges": [
+    {
+     "type": "ECOSYSTEM",
+     "events": [
+      {
+       "introduced": "5.1"
+      },
+      {
+       "fixed": "5.3.1"
+      }
+     ]
+    }
+   ],
+   "versions": [
+    "5.1",
+    "5.1.1",
+    "5.1.2",
+    "5.2b1",
+    "5.2",
+    "5.3b1",
+    "5.3"
+   ],
+   "database_specific": {
+    "source": "https://github.com/pypa/advisory-database/blob/main/vulns/pyyaml/PYSEC-2020-96.yaml"
+   }
+  }
+ ]
+}

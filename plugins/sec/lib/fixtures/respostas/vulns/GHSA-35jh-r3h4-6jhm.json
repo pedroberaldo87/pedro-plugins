@@ -1,0 +1,134 @@
+{
+ "id": "GHSA-35jh-r3h4-6jhm",
+ "summary": "Command Injection in lodash",
+ "aliases": [
+  "CVE-2021-23337"
+ ],
+ "database_specific": {
+  "cwe_ids": [
+   "CWE-77",
+   "CWE-94"
+  ],
+  "severity": "HIGH",
+  "github_reviewed": true,
+  "github_reviewed_at": "2021-03-31T23:59:26Z",
+  "nvd_published_at": "2021-02-15T13:15:00Z"
+ },
+ "affected": [
+  {
+   "package": {
+    "name": "lodash",
+    "ecosystem": "npm",
+    "purl": "pkg:npm/lodash"
+   },
+   "ranges": [
+    {
+     "type": "SEMVER",
+     "events": [
+      {
+       "introduced": "0"
+      },
+      {
+       "fixed": "4.17.21"
+      }
+     ]
+    }
+   ],
+   "database_specific": {
+    "source": "https://github.com/github/advisory-database/blob/main/advisories/github-reviewed/2021/05/GHSA-35jh-r3h4-6jhm/GHSA-35jh-r3h4-6jhm.json"
+   }
+  },
+  {
+   "package": {
+    "name": "lodash-es",
+    "ecosystem": "npm",
+    "purl": "pkg:npm/lodash-es"
+   },
+   "ranges": [
+    {
+     "type": "SEMVER",
+     "events": [
+      {
+       "introduced": "0"
+      },
+      {
+       "fixed": "4.17.21"
+      }
+     ]
+    }
+   ],
+   "database_specific": {
+    "source": "https://github.com/github/advisory-database/blob/main/advisories/github-reviewed/2021/05/GHSA-35jh-r3h4-6jhm/GHSA-35jh-r3h4-6jhm.json"
+   }
+  },
+  {
+   "package": {
+    "name": "lodash.template",
+    "ecosystem": "npm",
+    "purl": "pkg:npm/lodash.template"
+   },
+   "ranges": [
+    {
+     "type": "SEMVER",
+     "events": [
+      {
+       "introduced": "0"
+      },
+      {
+       "last_affected": "4.5.0"
+      }
+     ]
+    }
+   ],
+   "database_specific": {
+    "source": "https://github.com/github/advisory-database/blob/main/advisories/github-reviewed/2021/05/GHSA-35jh-r3h4-6jhm/GHSA-35jh-r3h4-6jhm.json"
+   }
+  },
+  {
+   "package": {
+    "name": "lodash-template",
+    "ecosystem": "npm",
+    "purl": "pkg:npm/lodash-template"
+   },
+   "ranges": [
+    {
+     "type": "SEMVER",
+     "events": [
+      {
+       "introduced": "0"
+      },
+      {
+       "last_affected": "1.0.0"
+      }
+     ]
+    }
+   ],
+   "database_specific": {
+    "source": "https://github.com/github/advisory-database/blob/main/advisories/github-reviewed/2021/05/GHSA-35jh-r3h4-6jhm/GHSA-35jh-r3h4-6jhm.json"
+   }
+  },
+  {
+   "package": {
+    "name": "lodash-rails",
+    "ecosystem": "RubyGems",
+    "purl": "pkg:gem/lodash-rails"
+   },
+   "ranges": [
+    {
+     "type": "ECOSYSTEM",
+     "events": [
+      {
+       "introduced": "0"
+      },
+      {
+       "fixed": "4.17.21"
+      }
+     ]
+    }
+   ],
+   "database_specific": {
+    "source": "https://github.com/github/advisory-database/blob/main/advisories/github-reviewed/2021/05/GHSA-35jh-r3h4-6jhm/GHSA-35jh-r3h4-6jhm.json"
+   }
+  }
+ ]
+}

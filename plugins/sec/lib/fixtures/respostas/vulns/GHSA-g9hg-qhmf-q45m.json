@@ -1,0 +1,43 @@
+{
+ "id": "GHSA-g9hg-qhmf-q45m",
+ "summary": "MCP Inspector is Vulnerable to Potential Command Execution via XSS When Connecting to an Untrusted MCP Server",
+ "aliases": [
+  "CVE-2025-58444"
+ ],
+ "database_specific": {
+  "cwe_ids": [
+   "CWE-79",
+   "CWE-84",
+   "CWE-94"
+  ],
+  "severity": "HIGH",
+  "github_reviewed": true,
+  "github_reviewed_at": "2025-09-08T21:14:23Z",
+  "nvd_published_at": "2025-09-08T22:15:34Z"
+ },
+ "affected": [
+  {
+   "package": {
+    "name": "@modelcontextprotocol/inspector",
+    "ecosystem": "npm",
+    "purl": "pkg:npm/%40modelcontextprotocol/inspector"
+   },
+   "ranges": [
+    {
+     "type": "SEMVER",
+     "events": [
+      {
+       "introduced": "0"
+      },
+      {
+       "fixed": "0.16.6"
+      }
+     ]
+    }
+   ],
+   "database_specific": {
+    "source": "https://github.com/github/advisory-database/blob/main/advisories/github-reviewed/2025/09/GHSA-g9hg-qhmf-q45m/GHSA-g9hg-qhmf-q45m.json"
+   }
+  }
+ ]
+}

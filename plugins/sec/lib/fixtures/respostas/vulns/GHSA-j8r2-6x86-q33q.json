@@ -1,0 +1,42 @@
+{
+ "id": "GHSA-j8r2-6x86-q33q",
+ "summary": "Unintended leak of Proxy-Authorization header in requests",
+ "aliases": [
+  "CVE-2023-32681",
+  "PYSEC-2023-74"
+ ],
+ "database_specific": {
+  "cwe_ids": [
+   "CWE-200"
+  ],
+  "severity": "MODERATE",
+  "github_reviewed": true,
+  "github_reviewed_at": "2023-05-22T20:36:32Z",
+  "nvd_published_at": "2023-05-26T18:15:14Z"
+ },
+ "affected": [
+  {
+   "package": {
+    "name": "requests",
+    "ecosystem": "PyPI",
+    "purl": "pkg:pypi/requests"
+   },
+   "ranges": [
+    {
+     "type": "ECOSYSTEM",
+     "events": [
+      {
+       "introduced": "2.3.0"
+      },
+      {
+       "fixed": "2.31.0"
+      }
+     ]
+    }
+   ],
+   "database_specific": {
+    "source": "https://github.com/github/advisory-database/blob/main/advisories/github-reviewed/2023/05/GHSA-j8r2-6x86-q33q/GHSA-j8r2-6x86-q33q.json"
+   }
+  }
+ ]
+}

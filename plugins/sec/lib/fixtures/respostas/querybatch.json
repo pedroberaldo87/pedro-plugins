@@ -1,0 +1,38 @@
+{
+ "PyPI|PyYAML|5.3": [
+  "GHSA-6757-jp84-gxfx",
+  "GHSA-8q59-q68h-6hv4",
+  "PYSEC-2020-96",
+  "PYSEC-2021-142"
+ ],
+ "PyPI|requests|2.19.0": [
+  "GHSA-9hjg-9r4m-mvj7",
+  "GHSA-9wx4-h78v-vm56",
+  "GHSA-gc5v-m9x4-r6x2",
+  "GHSA-j8r2-6x86-q33q",
+  "GHSA-x84v-xcm2-53pg",
+  "PYSEC-2018-28",
+  "PYSEC-2023-74",
+  "PYSEC-2026-1872",
+  "PYSEC-2026-1873",
+  "PYSEC-2026-2275"
+ ],
+ "npm|@actions/core|1.2.6": [
+  "GHSA-7r3h-m5j6-3q42"
+ ],
+ "npm|@modelcontextprotocol/inspector|0.14.0": [
+  "GHSA-7f8r-222p-6f5g",
+  "GHSA-g9hg-qhmf-q45m"
+ ],
+ "npm|event-stream|3.3.6": [
+  "GHSA-mh6f-8j2x-4483"
+ ],
+ "npm|lodash|4.17.15": [
+  "GHSA-29mw-wpgm-hmr9",
+  "GHSA-35jh-r3h4-6jhm",
+  "GHSA-f23m-r3pf-42rh",
+  "GHSA-p6mc-m468-83gw",
+  "GHSA-r5fr-rjxr-66jc",
+  "GHSA-xxjr-mmjv-4gpg"
+ ]
+}

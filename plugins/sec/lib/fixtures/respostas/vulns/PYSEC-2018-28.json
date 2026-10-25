@@ -1,0 +1,44 @@
+{
+ "id": "PYSEC-2018-28",
+ "aliases": [
+  "CVE-2018-18074",
+  "GHSA-x84v-xcm2-53pg"
+ ],
+ "affected": [
+  {
+   "package": {
+    "name": "requests",
+    "ecosystem": "PyPI",
+    "purl": "pkg:pypi/requests"
+   },
+   "ranges": [
+    {
+     "type": "GIT",
+     "repo": "https://github.com/requests/requests",
+     "events": [
+      {
+       "introduced": "0"
+      },
+      {
+       "fixed": "c45d7c49ea75133e52ab22a8e9e13173938e36ff"
+      }
+     ]
+    },
+    {
+     "type": "ECOSYSTEM",
+     "events": [
+      {
+       "introduced": "0"
+      },
+      {
+       "fixed": "2.20.0"
+      }
+     ]
+    }
+   ],
+   "database_specific": {
+    "source": "https://github.com/pypa/advisory-database/blob/main/vulns/requests/PYSEC-2018-28.yaml"
+   }
+  }
+ ]
+}

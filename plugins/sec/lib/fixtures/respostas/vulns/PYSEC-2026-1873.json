@@ -1,0 +1,33 @@
+{
+ "id": "PYSEC-2026-1873",
+ "summary": "Requests `Session` object does not verify requests after making first request with verify=False",
+ "aliases": [
+  "CVE-2024-35195",
+  "GHSA-9wx4-h78v-vm56"
+ ],
+ "affected": [
+  {
+   "package": {
+    "name": "requests",
+    "ecosystem": "PyPI",
+    "purl": "pkg:pypi/requests"
+   },
+   "ranges": [
+    {
+     "type": "ECOSYSTEM",
+     "events": [
+      {
+       "introduced": "0"
+      },
+      {
+       "fixed": "2.32.0"
+      }
+     ]
+    }
+   ],
+   "database_specific": {
+    "source": "https://github.com/pypa/advisory-database/blob/main/vulns/requests/PYSEC-2026-1873.yaml"
+   }
+  }
+ ]
+}

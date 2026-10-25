@@ -1,0 +1,162 @@
+{
+ "id": "GHSA-9jrq-w75r-8gcw",
+ "summary": "Vite: Cross origin script execution through Vite custom middleware",
+ "aliases": [
+  "CVE-2026-112945"
+ ],
+ "database_specific": {
+  "cwe_ids": [
+   "CWE-80"
+  ],
+  "severity": "LOW",
+  "github_reviewed": true,
+  "github_reviewed_at": "2026-10-21T16:48:14Z",
+  "nvd_published_at": "2026-10-20T16:17:05Z"
+ },
+ "affected": [
+  {
+   "package": {
+    "name": "vite",
+    "ecosystem": "npm",
+    "purl": "pkg:npm/vite"
+   },
+   "ranges": [
+    {
+     "type": "SEMVER",
+     "events": [
+      {
+       "introduced": "8.3.0"
+      },
+      {
+       "fixed": "8.3.3"
+      }
+     ]
+    }
+   ],
+   "database_specific": {
+    "last_known_affected_version_range": "<= 8.3.2",
+    "source": "https://github.com/github/advisory-database/blob/main/advisories/github-reviewed/2026/10/GHSA-9jrq-w75r-8gcw/GHSA-9jrq-w75r-8gcw.json"
+   }
+  },
+  {
+   "package": {
+    "name": "vite",
+    "ecosystem": "npm",
+    "purl": "pkg:npm/vite"
+   },
+   "ranges": [
+    {
+     "type": "SEMVER",
+     "events": [
+      {
+       "introduced": "8.2.0"
+      },
+      {
+       "fixed": "8.2.4"
+      }
+     ]
+    }
+   ],
+   "database_specific": {
+    "source": "https://github.com/github/advisory-database/blob/main/advisories/github-reviewed/2026/10/GHSA-9jrq-w75r-8gcw/GHSA-9jrq-w75r-8gcw.json",
+    "last_known_affected_version_range": "<= 8.2.3"
+   }
+  },
+  {
+   "package": {
+    "name": "vite",
+    "ecosystem": "npm",
+    "purl": "pkg:npm/vite"
+   },
+   "ranges": [
+    {
+     "type": "SEMVER",
+     "events": [
+      {
+       "introduced": "8.0.0"
+      },
+      {
+       "fixed": "8.1.6"
+      }
+     ]
+    }
+   ],
+   "database_specific": {
+    "last_known_affected_version_range": "<= 8.1.5",
+    "source": "https://github.com/github/advisory-database/blob/main/advisories/github-reviewed/2026/10/GHSA-9jrq-w75r-8gcw/GHSA-9jrq-w75r-8gcw.json"
+   }
+  },
+  {
+   "package": {
+    "name": "vite",
+    "ecosystem": "npm",
+    "purl": "pkg:npm/vite"
+   },
+   "ranges": [
+    {
+     "type": "SEMVER",
+     "events": [
+      {
+       "introduced": "7.0.0"
+      },
+      {
+       "fixed": "7.3.7"
+      }
+     ]
+    }
+   ],
+   "database_specific": {
+    "last_known_affected_version_range": "<= 7.3.6",
+    "source": "https://github.com/github/advisory-database/blob/main/advisories/github-reviewed/2026/10/GHSA-9jrq-w75r-8gcw/GHSA-9jrq-w75r-8gcw.json"
+   }
+  },
+  {
+   "package": {
+    "name": "vite",
+    "ecosystem": "npm",
+    "purl": "pkg:npm/vite"
+   },
+   "ranges": [
+    {
+     "type": "SEMVER",
+     "events": [
+      {
+       "introduced": "0"
+      },
+      {
+       "fixed": "6.4.4"
+      }
+     ]
+    }
+   ],
+   "database_specific": {
+    "last_known_affected_version_range": "<= 6.4.3",
+    "source": "https://github.com/github/advisory-database/blob/main/advisories/github-reviewed/2026/10/GHSA-9jrq-w75r-8gcw/GHSA-9jrq-w75r-8gcw.json"
+   }
+  },
+  {
+   "package": {
+    "name": "vite-plus",
+    "ecosystem": "npm",
+    "purl": "pkg:npm/vite-plus"
+   },
+   "ranges": [
+    {
+     "type": "SEMVER",
+     "events": [
+      {
+       "introduced": "0"
+      },
+      {
+       "fixed": "1.1.0"
+      }
+     ]
+    }
+   ],
+   "database_specific": {
+    "last_known_affected_version_range": "<= 1.0.0",
+    "source": "https://github.com/github/advisory-database/blob/main/advisories/github-reviewed/2026/10/GHSA-9jrq-w75r-8gcw/GHSA-9jrq-w75r-8gcw.json"
+   }
+  }
+ ]
+}

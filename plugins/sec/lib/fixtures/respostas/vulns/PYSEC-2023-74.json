@@ -1,0 +1,44 @@
+{
+ "id": "PYSEC-2023-74",
+ "aliases": [
+  "CVE-2023-32681",
+  "GHSA-j8r2-6x86-q33q"
+ ],
+ "affected": [
+  {
+   "package": {
+    "name": "requests",
+    "ecosystem": "PyPI",
+    "purl": "pkg:pypi/requests"
+   },
+   "ranges": [
+    {
+     "type": "GIT",
+     "repo": "https://github.com/psf/requests",
+     "events": [
+      {
+       "introduced": "0"
+      },
+      {
+       "fixed": "74ea7cf7a6a27a4eeb2ae24e162bcc942a6706d5"
+      }
+     ]
+    },
+    {
+     "type": "ECOSYSTEM",
+     "events": [
+      {
+       "introduced": "2.3.0"
+      },
+      {
+       "fixed": "2.31.0"
+      }
+     ]
+    }
+   ],
+   "database_specific": {
+    "source": "https://github.com/pypa/advisory-database/blob/main/vulns/requests/PYSEC-2023-74.yaml"
+   }
+  }
+ ]
+}
