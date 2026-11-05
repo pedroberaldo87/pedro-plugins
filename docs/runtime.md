@@ -715,7 +715,7 @@ Como a recusa de uma peça vira a recusa do portão:
 
 ### O que libera de verdade (CASO B)
 
-`posttooluse-doc-read.sh` (PostToolUse, matcher `Read`) escreve o sentinel `/tmp/claude-doc-guard-${SESSION}-${PHASH}` quando o Claude lê `*/.claude/docs/*`, `*/.claude/CLAUDE.md` ou `*/CLAUDE.md`. Ele também injeta o aviso **no momento do consumo** quando `pattern_check.py --project-staleness` devolve `stale` ou `unknown` — e é PostToolUse, sem `permissionDecision`, logo **estruturalmente incapaz de loopar**. `[confirmado]`
+`posttooluse-doc-read.sh` (PostToolUse, matcher `Read`) escreve o sentinel `/tmp/claude-doc-guard-${SESSION}-${PHASH}` quando o Claude lê `*/.claude/docs/*`, `*/.claude/CLAUDE.md`, `*/CLAUDE.md` ou um arquivo de `docs/` que `casa_da_doc` confirme como a casa do projeto. Ele também injeta o aviso **no momento do consumo** quando `pattern_check.py --project-staleness` devolve `stale` ou `unknown` — e é PostToolUse, sem `permissionDecision`, logo **estruturalmente incapaz de loopar**. `[confirmado]`
 
 ### Por que os dois lados casam: `lib-project-root.sh`
 

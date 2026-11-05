@@ -42,6 +42,14 @@ case "$FP" in
   */.claude/docs/*)    PROJ="${FP%%/.claude/docs/*}" ;;  # casa-ok: reconhece o caminho LIDO na entrada, não escreve a casa
   */.claude/CLAUDE.md) PROJ="${FP%/.claude/CLAUDE.md}" ;;
   */CLAUDE.md)         PROJ="${FP%/CLAUDE.md}" ;;
+  # docs/ na raiz é a casa atual, e é ela que o gate manda ler. Só vale se for a casa
+  # DESTE projeto: src/docs/, ou prosa em docs/ com a casa em outro lugar, não liberam.
+  */docs/*)
+    . "$HJ_DIR/lib-project-root.sh" 2>/dev/null || exit 0
+    . "$HJ_DIR/lib-casa-da-doc.sh" 2>/dev/null || exit 0
+    PROJ=$(project_root "${FP%/*}") || exit 0
+    case "$FP" in "$(casa_da_doc "$PROJ")"/*) : ;; *) exit 0 ;; esac
+    ;;
   *) exit 0 ;;
 esac
 [ -n "$PROJ" ] || exit 0
@@ -62,7 +70,7 @@ touch "${TMPD}/claude-doc-guard-${SESSION}-${PHASH}-doc-${DPHASH}" 2>/dev/null
 # de loopar (ao contrário de um deny no Read, que bloquearia a ação que libera o
 # sentinel). Só p/ leitura de doc de concern (a casa da doc), não do índice.
 case "$FP" in
-  */.claude/docs/*) : ;;  # casa-ok: reconhece o caminho LIDO na entrada, não escreve a casa
+  */docs/*) : ;;  # as duas casas; a de docs/ já foi conferida acima
   *) exit 0 ;;
 esac
 # Doc AUTORAL aprovada não é doc minerada: o de acordo do dono não envelhece

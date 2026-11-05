@@ -299,6 +299,10 @@ case "$FP" in
   */.claude/docs/*)    PROJ="${FP%%/.claude/docs/*}" ;;
   */.claude/CLAUDE.md) PROJ="${FP%/.claude/CLAUDE.md}" ;;
   */CLAUDE.md)         PROJ="${FP%/CLAUDE.md}" ;;
+  */docs/*)
+    PROJ=$(project_root "${FP%/*}") || exit 0
+    case "$FP" in "$(casa_da_doc "$PROJ")"/*) : ;; *) exit 0 ;; esac
+    ;;
   *) exit 0 ;;
 esac
 PHASH=$(printf '%s' "$PROJ" | cksum | cut -d' ' -f1)

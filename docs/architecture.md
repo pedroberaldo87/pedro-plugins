@@ -378,7 +378,7 @@ improve-workflow  0.16.30  [improve-workflow]           -
 intent-guard       0.8.17  [intent-guard]               HOOKS
 lixeiro             1.6.0  [faxina]                     HOOKS
 principles          1.0.5  [principles]                 -
-project-skills    0.22.229  [completude,design-md,doc,doc-load,doc-touch,monitorar,pesquisa-referencias,plan,project-skills,qa-loop,reentrada,sprint,start] HOOKS
+project-skills    0.22.230  [completude,design-md,doc,doc-load,doc-touch,monitorar,pesquisa-referencias,plan,project-skills,qa-loop,reentrada,sprint,start] HOOKS
 sec                 0.1.0  [sec]                        -
 ship                1.5.7  [ship]                       HOOKS
 slides              1.6.6  [slides]                     -
@@ -807,7 +807,7 @@ gate de doc descrito abaixo. Saídas do gate de doc, copiadas do cabeçalho e do
   que é para ignorar. Por isso NÃO há cap de nudges aqui."*
 - **B — tem doc, mas não foi lida nesta sessão**: `deny` com cap (`MAX_NUDGES=3`), reusando o
   sentinel `/tmp/claude-doc-guard-${SESSION}-${PHASH}` que o `posttooluse-doc-read.sh` escreve.
-  Um `Read` em `.claude/docs/*.md`, no índice `.claude/CLAUDE.md` ou num `CLAUDE.md` de raiz libera — são os padrões que `posttooluse-doc-read.sh` casa; a casa nova `docs/` na raiz ainda não escreve esse sentinel.
+  Um `Read` em `.claude/docs/*.md`, no índice `.claude/CLAUDE.md`, num `CLAUDE.md` de raiz ou em qualquer arquivo da casa `docs/` libera — são os padrões que `posttooluse-doc-read.sh` casa; `docs/` só vale quando `casa_da_doc` a aponta como a casa daquele projeto (`src/docs/` não libera).
 - **C — tem doc e já foi lida**: `exit 0`, silêncio.
 - **Quarto caminho: `CLAUDE.md` escrito à mão sem a casa da doc** não cai no caso A (que
   negaria pra sempre com uma mensagem falsa) — vira caso B com cap próprio (`[ "$C" -ge 3 ]`)
