@@ -74,7 +74,10 @@ SITUACAO = {
           "teto 24 → 25 por decisão do dono em 2026-10-24 (plugin novo `sec`: um plugin.json "
           "por plugin, todo plugin novo soma um)"),
 }
-FORA = ("graphify-out/", ".claude/reports/", "scripts/anti_slop_inventario")
+# README.pt-BR.md é o ESPELHO traduzido do README.md (mesma lista, mesmos números): contá-lo
+# dobraria a dívida sem criar uma fonte nova. Quem o mantém igual é o `readme_counts_check.py`,
+# que confere os dois idiomas contra o repositório.
+FORA = ("graphify-out/", ".claude/reports/", "scripts/anti_slop_inventario", "README.pt-BR.md")
 
 
 def universo():

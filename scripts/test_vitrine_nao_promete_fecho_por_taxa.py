@@ -32,6 +32,7 @@ _spec.loader.exec_module(cobrador)
 
 VITRINE = [
     "README.md",
+    "README.pt-BR.md",
     "plugins/project-skills/skills/qa-loop/EXAMPLE-REPORT.md",
     "plugins/visual/lib/visual_page.py",
 ]

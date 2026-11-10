@@ -485,7 +485,7 @@ fi
 # vez (19→21, 17→19, 46→68, 10→12, 34→54), porque plugin novo entra e a prosa fica.
 # Escopo: só quando o commit mexe no README ou numa das fontes que alimentam esses números.
 RCT="$ROOT/scripts/readme_counts_check.py"
-if [ -f "$RCT" ] && printf '%s\n' "$FILES" | grep -qE '^(README\.md$|\.claude-plugin/marketplace\.json$|plugins/bootstrap/config/manifest\.json$|plugins/[^/]+/hooks/)'; then
+if [ -f "$RCT" ] && printf '%s\n' "$FILES" | grep -qE '^(README\.md$|README\.pt-BR\.md$|\.claude-plugin/marketplace\.json$|plugins/bootstrap/config/manifest\.json$|plugins/[^/]+/hooks/)'; then
   if ! KOUT=$(cd "$ROOT" && python3 "$RCT" 2>&1); then
     VIOL="${VIOL}
 ❌ README DEFASADO — número afirmado na vitrine não bate com o repositório:

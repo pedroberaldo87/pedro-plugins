@@ -1,6 +1,9 @@
 #!/usr/bin/env python3
 """readme_counts_check.py — reprova número de contagem defasado no README.
 
+São dois: `README.md` (inglês, o principal) e `README.pt-BR.md` (português). Cada um é
+conferido com os padrões do seu idioma (`padrao_en` / `padrao`), contra os mesmos números.
+
 O README é a vitrine do marketplace e afirma quantidade: quantos plugins o catálogo
 tem, quantos o `bootstrap` liga de fábrica, quantos hooks precisam de `jq`, quantos
 plugins registram hook e quantos registros isso dá. Todo esse número é DERIVÁVEL do
@@ -26,7 +29,13 @@ import subprocess
 import sys
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-README = os.path.join(ROOT, "README.md")
+
+# Dois README com o mesmo conteúdo: o inglês é o principal, o português é a tradução.
+# Os números e os nomes têm que bater nos DOIS — cada idioma com o seu padrão de texto
+# (a âncora é a frase, que muda de idioma; o número que ela carrega, não).
+README = os.path.join(ROOT, "README.pt-BR.md")      # padrões em português (padrao)
+README_EN = os.path.join(ROOT, "README.md")         # padrões em inglês (padrao_en)
+READMES = (("pt", README), ("en", README_EN))
 
 
 # ── os números reais, cada um derivado da sua fonte ───────────────────────────
@@ -155,6 +164,7 @@ AFIRMACOES = [
         "id": "catalogo",
         "onde": "subtítulo do topo",
         "padrao": r"\*\*(\d+) plugins · Markdown",
+        "padrao_en": r"\*\*(\d+) plugins · Markdown",
         "real": lambda: (_catalogo(),),
         "conserto": "conte com: python3 -c \"import json;print(len(json.load(open('.claude-plugin/marketplace.json'))['plugins']))\"",
     },
@@ -162,6 +172,7 @@ AFIRMACOES = [
         "id": "skills",
         "onde": "frase das skills, logo abaixo do subtítulo",
         "padrao": r"Os (\d+) plugins somam \*\*(\d+) skills\*\* — (\d+) trazem uma só",
+        "padrao_en": r"The (\d+) plugins add up to \*\*(\d+) skills\*\* — (\d+) ship exactly one",
         "real": _skills,
         "conserto": "conte com: ls -d plugins/*/skills/*/SKILL.md | wc -l"
                     " (e o rateio por plugin com: for p in plugins/*/;"
@@ -171,6 +182,7 @@ AFIRMACOES = [
         "id": "liga-desliga",
         "onde": "resultado do /bootstrap:setup",
         "padrao": r"\*\*(\d+) plugins ligados \+ (\d+) desligados? de fábrica\*\*",
+        "padrao_en": r"\*\*(\d+) plugins enabled \+ (\d+) disabled by default\*\*",
         "real": _manifest_liga_desliga,
         "conserto": "a receita é plugins/bootstrap/config/manifest.json (campo enabled)",
     },
@@ -178,6 +190,7 @@ AFIRMACOES = [
         "id": "hooks-jq",
         "onde": "tabela de dependência externa",
         "padrao": r"\|\s*(\d+) hooks — `grep -rl",
+        "padrao_en": r"\|\s*(\d+) hooks — `grep -rl",
         "real": lambda: (_hooks_com_jq(),),
         "conserto": "conte com: grep -rl '\\bjq\\b' plugins/*/hooks/*.sh"
                     " | grep -v -e /test_ $(ls _shared/*.sh | sed -E 's#.*/#-e /#')"
@@ -187,6 +200,7 @@ AFIRMACOES = [
         "id": "hooks-decisao",
         "onde": "tabela de dependência externa (a célula do jq)",
         "padrao": r"os (\d+) hooks que decidem",
+        "padrao_en": r"the (\d+) hooks that make a decision",
         "real": lambda: (_hooks_que_decidem(),),
         "conserto": "conte com: bash scripts/test_sem_jq.sh (linha 'classe B')",
     },
@@ -194,6 +208,7 @@ AFIRMACOES = [
         "id": "hooks-plugins",
         "onde": "abertura de 'Hooks automáticos'",
         "padrao": r"(\d+) plugins registram hooks que disparam sem slash command",
+        "padrao_en": r"(\d+) plugins register hooks that fire without a slash command",
         "real": lambda: (_plugins_com_hooks(),),
         "conserto": "conte com: ls -d plugins/*/hooks/hooks.json | wc -l",
     },
@@ -201,6 +216,7 @@ AFIRMACOES = [
         "id": "hooks-registros",
         "onde": "abertura de 'Hooks automáticos'",
         "padrao": r"(\d+) registros no total",
+        "padrao_en": r"(\d+) registrations in total",
         "real": lambda: (_registros_de_hook(),),
         "conserto": "conte com: python3 scripts/hook_contract.py",
     },
@@ -214,16 +230,29 @@ NOMES_DESLIGADOS = [
         "id": "desligados-nomes-setup",
         "onde": "resultado do /bootstrap:setup",
         "padrao": r"desligados? de fábrica\*\*\s*\n\(([^)]*)\)",
+        "padrao_en": r"disabled by default\*\*\s*\n\(([^)]*)\)",
     },
     {
         "id": "desligados-nomes-plugins",
         "onde": "abertura de 'Plugins'",
         "padrao": r"desligados? de fábrica\*\* na receita do `bootstrap`[^:]*:(.*?)Ligar:",
+        "padrao_en": r"disabled by default\*\* in the `bootstrap` recipe[^:]*:(.*?)Enable:",
     },
 ]
 
 
-def _confere_nomes(texto, achados, nao_medidas):
+def _padrao(af, lang):
+    """O padrão da afirmação no idioma do README (o português é o padrão antigo)."""
+    return af["padrao_en"] if lang == "en" else af["padrao"]
+
+
+def _id(af, arquivo):
+    """Com mais de um README, o id diz qual deles falhou; sem arquivo, fica o id puro
+    (é o que as suítes de `test_readme_counts_check.py` comparam)."""
+    return af["id"] if not arquivo else "%s@%s" % (af["id"], os.path.basename(arquivo))
+
+
+def _confere_nomes(texto, achados, nao_medidas, lang="pt", arquivo=None):
     try:
         reais = _manifest_desligados_nomes()
         with open(os.path.join(ROOT, ".claude-plugin", "marketplace.json"),
@@ -234,10 +263,10 @@ def _confere_nomes(texto, achados, nao_medidas):
         return
 
     for af in NOMES_DESLIGADOS:
-        m = re.search(af["padrao"], texto, re.DOTALL)
+        m = re.search(_padrao(af, lang), texto, re.DOTALL)
         if not m:
             achados.append({
-                "id": af["id"], "onde": af["onde"], "linha": 0,
+                "id": _id(af, arquivo), "onde": af["onde"], "linha": 0,
                 "afirmado": None, "real": reais,
                 "msg": "a passagem que lista os plugins desligados sumiu do README (ou "
                        "foi reescrita): o padrão não casa mais.",
@@ -249,7 +278,7 @@ def _confere_nomes(texto, achados, nao_medidas):
         if afirmados != reais:
             linha = texto[:m.start()].count("\n") + 1
             achados.append({
-                "id": af["id"], "onde": af["onde"], "linha": linha,
+                "id": _id(af, arquivo), "onde": af["onde"], "linha": linha,
                 "afirmado": afirmados, "real": reais,
                 "msg": "README lista %s como desligados, o manifest desliga %s"
                        % (", ".join(afirmados) or "(nenhum)", ", ".join(reais)),
@@ -258,7 +287,7 @@ def _confere_nomes(texto, achados, nao_medidas):
             })
 
 
-def _confere_plugins_citados(texto, achados):
+def _confere_plugins_citados(texto, achados, arquivo=None):
     """Todo plugin que o README manda instalar, ou lista em tabela, EXISTE?
 
     POR QUE EXISTE (2026-08-10). O cobrador media CONTAGEM — "22 plugins", "54
@@ -288,7 +317,8 @@ def _confere_plugins_citados(texto, achados):
         if nome in catalogo:
             continue
         achados.append({
-            "id": "plugin-inexistente", "onde": ".claude-plugin/marketplace.json",
+            "id": _id({"id": "plugin-inexistente"}, arquivo),
+            "onde": ".claude-plugin/marketplace.json",
             "linha": linha, "afirmado": nome, "real": sorted(catalogo),
             "msg": "o README cita o plugin `%s`, que NÃO está no catálogo. Quem "
                    "seguir a instrução recebe erro no install." % nome,
@@ -299,22 +329,29 @@ def _confere_plugins_citados(texto, achados):
 
 
 def confere():
-    """Devolve (achados, nao_medidas). Achado = afirmação divergente ou sumida."""
-    achados, nao_medidas = [], []
-    try:
-        with open(README, encoding="utf-8") as f:
-            texto = f.read()
-    except OSError as e:
-        return achados, ["README.md ilegível (%s)" % e]
+    """Devolve (achados, nao_medidas). Achado = afirmação divergente ou sumida.
 
-    _confere_plugins_citados(texto, achados)
-    _confere_numeros(texto, achados, nao_medidas)
-    _confere_nomes(texto, achados, nao_medidas)
+    Confere os DOIS README (inglês e português): o que muda de um para o outro é a
+    frase-âncora, nunca o número nem o nome do plugin.
+    """
+    achados, nao_medidas = [], []
+    for lang, caminho in READMES:
+        nome = os.path.basename(caminho)
+        try:
+            with open(caminho, encoding="utf-8") as f:
+                texto = f.read()
+        except OSError as e:
+            nao_medidas.append("%s ilegível (%s)" % (nome, e))
+            continue
+
+        _confere_plugins_citados(texto, achados, caminho)
+        _confere_numeros(texto, achados, nao_medidas, lang, caminho)
+        _confere_nomes(texto, achados, nao_medidas, lang, caminho)
 
     return achados, nao_medidas
 
 
-def _confere_numeros(texto, achados, nao_medidas):
+def _confere_numeros(texto, achados, nao_medidas, lang="pt", arquivo=None):
     linhas = texto.splitlines()
     for af in AFIRMACOES:
         try:
@@ -323,10 +360,10 @@ def _confere_numeros(texto, achados, nao_medidas):
             nao_medidas.append("%s — não medido (%s)" % (af["id"], e))
             continue
 
-        m = re.search(af["padrao"], texto)
+        m = re.search(_padrao(af, lang), texto)
         if not m:
             achados.append({
-                "id": af["id"], "onde": af["onde"], "linha": 0,
+                "id": _id(af, arquivo), "onde": af["onde"], "linha": 0,
                 "afirmado": None, "real": list(reais),
                 "msg": "afirmação sumiu do README (ou foi reescrita): o padrão não casa "
                        "mais. Reescreva o padrão em scripts/readme_counts_check.py ou "
@@ -339,7 +376,7 @@ def _confere_numeros(texto, achados, nao_medidas):
         if afirmados != tuple(reais):
             linha = texto[:m.start()].count("\n") + 1
             achados.append({
-                "id": af["id"], "onde": af["onde"], "linha": linha,
+                "id": _id(af, arquivo), "onde": af["onde"], "linha": linha,
                 "afirmado": list(afirmados), "real": list(reais),
                 "msg": "README afirma %s, o repositório tem %s"
                        % (" + ".join(map(str, afirmados)), " + ".join(map(str, reais))),
@@ -364,14 +401,17 @@ def main(argv=None):
         print("⚪ %s" % nm)
 
     if not achados:
-        print("README em dia — %d afirmação(ões) de contagem conferida(s)."
-              % (len(AFIRMACOES) + len(NOMES_DESLIGADOS) - len(nao_medidas)))
+        print("README em dia (%s) — %d afirmação(ões) de contagem conferida(s)."
+              % (" + ".join(os.path.basename(c) for _, c in READMES),
+                 (len(AFIRMACOES) + len(NOMES_DESLIGADOS)) * len(READMES)
+                 - len(nao_medidas)))
         return 0
 
     print("README DEFASADO — %d afirmação(ões) de contagem divergem do repositório:"
           % len(achados))
     for a in achados:
-        alvo = "README.md:%d" % a["linha"] if a["linha"] else "README.md"
+        arq = a["id"].split("@")[1] if "@" in a["id"] else "README.md"
+        alvo = "%s:%d" % (arq, a["linha"]) if a["linha"] else arq
         print("\n  %s (%s)\n    %s" % (alvo, a["onde"], a["msg"]))
         if a.get("trecho"):
             print("    │ %s" % a["trecho"])

@@ -69,6 +69,7 @@ ALVOS = [
     # docs/constituicao.md, que cita as frases proibidas no ato de revogá-las — a lei  # casa-ok: prosa que cita o caso medido, nao um caminho usado
     # fica FORA de propósito, e a exclusão está documentada aqui.
     "README.md",
+    "README.pt-BR.md",
     "plugins/project-skills/skills/qa-loop/EXAMPLE-REPORT.md",
     "plugins/visual/lib/visual_page.py",
     "docs/features.md",  # casa-ok: alvo enumerado do cobrador, nao resolucao de caminho de doc

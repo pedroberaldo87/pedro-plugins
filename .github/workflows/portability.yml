@@ -29,6 +29,10 @@ on:
         type: choice
         options: ["windows-latest", "ubuntu-latest", "macos-latest", "todos"]
 
+# Só leitura: a esteira não escreve no repositório, então o token não precisa de mais.
+permissions:
+  contents: read
+
 jobs:
   checks:
     runs-on: ${{ matrix.os }}
@@ -66,10 +70,11 @@ jobs:
                 && fromJSON(format('["{0}"]', inputs.os))
                 || fromJSON('["ubuntu-latest","macos-latest","windows-latest"]') }}
     steps:
-      - uses: actions/checkout@v4
+      # Actions fixadas por SHA de commit (a tag móvel pode ser reapontada); o comentário diz a tag.
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           fetch-depth: 0
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
         with:
           python-version: '3.12'
       - name: Install jq
