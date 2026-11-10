@@ -7,6 +7,7 @@ Marketplace público de plugins para [Claude Code](https://code.claude.com/docs/
 [![portability](https://github.com/pedroberaldo87/pedro-plugins/actions/workflows/portability.yml/badge.svg)](https://github.com/pedroberaldo87/pedro-plugins/actions/workflows/portability.yml)
 ![Plataformas: macOS, Linux e Windows](https://img.shields.io/badge/plataformas-macOS%20%C2%B7%20Linux%20%C2%B7%20Windows-informational)
 ![Roda no Claude Code](https://img.shields.io/badge/roda%20no-Claude%20Code-blueviolet)
+[![Licença: MIT](https://img.shields.io/badge/Licen%C3%A7a-MIT-yellow.svg)](LICENSE)
 
 Monorepo: cada subdiretório de `plugins/` é um plugin independente, distribuído pelo catálogo `.claude-plugin/marketplace.json`.
 
