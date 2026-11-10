@@ -83,6 +83,75 @@ def test_numeros_do_readme_do_repo_batem():
     assert _numeros_de(_readme()) == []
 
 
+# ── o README em inglês: os mesmos números e nomes, com as frases no idioma dele ──
+#
+# O README.md é o principal (inglês) e o README.pt-BR.md a tradução. O cobrador confere
+# os dois; este bloco trava que o inglês não vire a ponta solta que ninguém mede.
+
+def _readme_en():
+    with open(rcc.README_EN, encoding="utf-8") as f:
+        return f.read()
+
+
+def _numeros_en(texto):
+    achados, nao_medidas = [], []
+    rcc._confere_numeros(texto, achados, nao_medidas, "en")
+    assert not nao_medidas, nao_medidas
+    return achados
+
+
+def _nomes_en(texto):
+    achados, nao_medidas = [], []
+    rcc._confere_nomes(texto, achados, nao_medidas, "en")
+    assert not nao_medidas, nao_medidas
+    return achados
+
+
+def test_numeros_do_readme_em_ingles_batem():
+    assert _numeros_en(_readme_en()) == []
+
+
+def test_nomes_desligados_do_readme_em_ingles_batem():
+    assert _nomes_en(_readme_en()) == []
+
+
+def test_quantidade_de_skills_errada_no_ingles_reprova():
+    reais = rcc._skills()
+    certo = "The %d plugins add up to **%d skills** — %d ship exactly one" % reais
+    errado = certo.replace("— %d " % reais[2], "— %d " % (reais[2] + 2))
+    texto = _readme_en()
+    assert certo in texto, "a frase das skills mudou no README.md"
+    ids = {a["id"] for a in _numeros_en(texto.replace(certo, errado))}
+    assert "skills" in ids, ids
+
+
+def test_frase_sumida_no_ingles_reprova():
+    ids = {a["id"] for a in _numeros_en("README with no claims at all.")}
+    assert ids == {af["id"] for af in rcc.AFIRMACOES}, ids
+
+
+def test_nome_desligado_errado_no_ingles_reprova():
+    molde = ("Expected result: **9 plugins enabled + 9 disabled by default**\n(%s), plus the rest.\n\n"
+             "Nine ship **disabled by default** in the `bootstrap` recipe and you enable them:\n%s.\n"
+             "Enable: `claude plugin enable <name>@pedro-plugins`.\n")
+    ids = {a["id"] for a in _nomes_en(molde % ("`intent-guard`", "`intent-guard`"))}
+    assert ids == {"desligados-nomes-setup", "desligados-nomes-plugins"}, ids
+    assert _nomes_en(molde % (NOMES, NOMES)) == []
+
+
+def test_plugin_inexistente_no_ingles_reprova():
+    achados = []
+    rcc._confere_plugins_citados("Run `claude plugin install qa-loop@pedro-plugins`.", achados)
+    assert [a["afirmado"] for a in achados] == ["qa-loop"], achados
+
+
+def test_os_dois_readme_existem_e_o_cobrador_os_le():
+    assert os.path.basename(rcc.README_EN) == "README.md"
+    assert os.path.basename(rcc.README) == "README.pt-BR.md"
+    achados, nao_medidas = rcc.confere()
+    assert achados == [] and nao_medidas == [], (achados, nao_medidas)
+
+
 if __name__ == "__main__":
     for nome, fn in sorted(globals().items()):
         if nome.startswith("test_"):

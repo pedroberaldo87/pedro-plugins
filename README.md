@@ -1,306 +1,414 @@
 # pedro-plugins
 
-Marketplace público de plugins para [Claude Code](https://docs.claude.com/en/docs/claude-code). Monorepo — cada subdiretório em `plugins/` é um plugin independente (skills, hooks e automações), distribuído via `.claude-plugin/marketplace.json`.
+A public marketplace of plugins for [Claude Code](https://code.claude.com/docs/en/overview): skills, hooks and automations written in Markdown, Bash and Python, for people who use Claude Code every day and want to install only what they need.
 
-**24 plugins · Markdown + Shell + Python · sem build, sem package manager.**
+**English** · [Português](README.pt-BR.md)
 
-Os 24 plugins somam **37 skills** — 19 trazem uma só, `visual` traz duas, `2op` traz três, `project-skills` traz treze, e `graphify-guard` e `vision` não trazem nenhuma.
+[![portability](https://github.com/pedroberaldo87/pedro-plugins/actions/workflows/portability.yml/badge.svg)](https://github.com/pedroberaldo87/pedro-plugins/actions/workflows/portability.yml)
+![Platforms: macOS, Linux and Windows](https://img.shields.io/badge/platforms-macOS%20%C2%B7%20Linux%20%C2%B7%20Windows-informational)
+![Runs on Claude Code](https://img.shields.io/badge/runs%20on-Claude%20Code-blueviolet)
 
----
+A monorepo: each subdirectory of `plugins/` is an independent plugin, distributed through the `.claude-plugin/marketplace.json` catalog.
 
-## Índice
+**24 plugins · Markdown + Shell + Python · no build step, no package manager.**
 
-- [Instalação](#instalação)
-  - [Dependência externa](#dependência-externa)
-- [Plugins](#plugins)
-  - [project-skills — o ciclo inteiro de um projeto](#project-skills--o-ciclo-inteiro-de-um-projeto)
-  - [Sessão & continuidade](#sessão--continuidade)
-  - [Planejamento & review](#planejamento--review)
-  - [Documentação & conhecimento](#documentação--conhecimento)
-  - [Dev, deploy & limpeza](#dev-deploy--limpeza)
-  - [Apresentação visual](#apresentação-visual)
-  - [Setup de máquina](#setup-de-máquina)
-- [Hooks automáticos](#hooks-automáticos)
-- [Anatomia de um plugin](#anatomia-de-um-plugin)
-- [Desenvolvendo localmente](#desenvolvendo-localmente)
-- [Publicando uma mudança](#publicando-uma-mudança)
-- [Licença](#licença)
+The 24 plugins add up to **37 skills** — 19 ship exactly one, `visual` ships two, `2op` ships three, `project-skills` ships thirteen, and `graphify-guard` and `vision` ship none.
+
+This is a command-line toolkit with no graphical interface, so there is no screenshot. Installing is two commands in a terminal:
+
+```console
+$ claude plugin marketplace add pedroberaldo87/pedro-plugins
+$ claude plugin install handoff@pedro-plugins
+```
 
 ---
 
-## Instalação
+## Contents
 
-### Pegar só o que quiser
+- [Features](#features)
+- [Installation](#installation)
+  - [Install only what you want](#install-only-what-you-want)
+  - [Restore the whole setup (new machine)](#restore-the-whole-setup-new-machine)
+  - [External dependencies](#external-dependencies)
+  - [Check the state](#check-the-state)
+- [Configuration](#configuration)
+- [Usage: the plugins](#usage-the-plugins)
+  - [project-skills — a project's whole lifecycle](#project-skills--a-projects-whole-lifecycle)
+  - [Session and continuity](#session-and-continuity)
+  - [Planning and review](#planning-and-review)
+  - [Documentation and knowledge](#documentation-and-knowledge)
+  - [Dev, deploy and cleanup](#dev-deploy-and-cleanup)
+  - [Visual presentation](#visual-presentation)
+  - [Machine setup](#machine-setup)
+- [How it works](#how-it-works)
+  - [Automatic hooks](#automatic-hooks)
+  - [Anatomy of a plugin](#anatomy-of-a-plugin)
+  - [Code shared between plugins](#code-shared-between-plugins)
+- [Development](#development)
+  - [Tests and checks](#tests-and-checks)
+  - [Publishing a change](#publishing-a-change)
+- [Project documentation](#project-documentation)
+- [Security](#security)
+- [Contributing](#contributing)
+- [License](#license)
+
+---
+
+## Features
+
+- **Pick and choose:** 24 independent plugins; install only the ones you want.
+- **Project lifecycle (`project-skills`):** concept, plan, autonomous execution, severity-based review and documentation.
+- **Session continuity:** `handoff`, `context-guard` and `intent-guard` keep what matters across sessions.
+- **Review and second opinions:** `grill-me`, `2op`, `gauntlet`, `improve-workflow`, `vistoria`.
+- **Development hygiene:** `ship`, `branches`, `lixeiro`, `fallow`, `guardrails` and `sec` (supply chain).
+- **Visual output:** `visual`, `archify` and `slides` produce interactive HTML, diagrams and slide decks.
+- **New machine in one command:** `bootstrap` installs marketplaces and plugins and applies the versioned global configuration.
+- **No build step:** Markdown, Bash and standard-library Python (the `visual` daemon uses Node).
+
+---
+
+## Installation
+
+You need [Claude Code](https://code.claude.com/docs/en/overview) and Python 3 on your PATH. The commands below use the `claude` CLI; inside a session the equivalents are `/plugin marketplace add …` and `/plugin install …`.
+
+### Install only what you want
 
 ```bash
-# 1. Adicionar o marketplace (uma vez por máquina)
-claude plugin marketplace add https://github.com/pedroberaldo87/pedro-plugins.git
+# 1. Add the marketplace (once per machine)
+claude plugin marketplace add pedroberaldo87/pedro-plugins
 
-# 2. Instalar os plugins desejados
+# 2. Install the plugins you want
 claude plugin install visual@pedro-plugins
 claude plugin install project-skills@pedro-plugins
 claude plugin install handoff@pedro-plugins
 # ...
 ```
 
-> ⚠️ **`qa-loop`, `project-doc` e `sovai` não são mais plugins** — viraram skills do
-> `project-skills` na fusão de 2026-08-09. Instalar por esses nomes falha; o que você quer
-> é `project-skills@pedro-plugins`, e os comandos (`/qa-loop`, `/doc`, `/sprint`) seguem
-> iguais depois de instalado.
+> ⚠️ **`qa-loop`, `project-doc` and `sovai` are no longer plugins** — they became skills of
+> `project-skills` in the 2026-08-09 merge. Installing them by those names fails; what you
+> want is `project-skills@pedro-plugins`, and the commands (`/qa-loop`, `/doc`, `/sprint`)
+> are unchanged once it is installed.
 
-### Restaurar o setup inteiro (máquina nova)
+### Restore the whole setup (new machine)
 
 ```bash
 # 1. Marketplace + bootstrap
-claude plugin marketplace add https://github.com/pedroberaldo87/pedro-plugins.git
+claude plugin marketplace add pedroberaldo87/pedro-plugins
 claude plugin install bootstrap@pedro-plugins
+```
 
-# 2. Instala marketplaces + plugins do manifest E aplica a config global
-#    (env vars, permissões, flags, CLAUDE.md global, output style, statusLine)
+```text
+# 2. Inside a Claude Code session: installs the marketplaces + plugins from the manifest
+#    AND applies the global config (env vars, permissions, flags, global CLAUDE.md,
+#    output style, statusLine)
 /bootstrap:setup
 ```
 
-Resultado esperado numa máquina zerada: **23 plugins ligados + 1 desligado de fábrica**
-(`graphify-guard`), mais os marketplaces de terceiros do manifest.
+Expected result on a blank machine: **23 plugins enabled + 1 disabled by default**
+(`graphify-guard`), plus the third-party marketplaces listed in the manifest.
 
-> ⚠️ **Se aparecer `sync incompleto: N operações falharam`, rode `/bootstrap:setup` de novo.**
-> Medido numa instalação limpa: a primeira rodada deixou um marketplace de terceiro para trás
-> e a segunda o instalou. O script é convergente de propósito (re-rodar é seguro e nunca toca
-> em marketplace que o manifest não declara), e o auto-sync do início de sessão faria isso
-> sozinho — mas o aviso amarelo assusta antes disso acontecer.
+> ⚠️ **If you see `sync incompleto: N operações falharam` ("incomplete sync: N operations failed"), run `/bootstrap:setup` again.**
+> Measured on a clean install: the first run left one third-party marketplace behind and the
+> second one installed it. The script is convergent on purpose (re-running is safe and never
+> touches a marketplace the manifest does not declare), and the auto-sync at session start
+> would do it on its own — but the yellow warning is alarming before that happens.
+> (The script's messages are in Portuguese.)
 
-> `bootstrap` substitui o antigo `bootstrap-third-party`.
+> `bootstrap` replaces the old `bootstrap-third-party`.
 
-**Antes de rodar, saiba o que ele sobrescreve.** O passo 2 copia o `CLAUDE.md` global
-versionado por cima de `~/.claude/CLAUDE.md` (com backup datado ao lado) e fixa o
-`outputStyle` como `Clean Style`. Se você já tem instruções globais suas, rode o
-verificador antes — ele mostra o que existe só de um lado, sem prescrever direção:
+**Know what it overwrites before you run it.** Step 2 copies the versioned global
+`CLAUDE.md` over `~/.claude/CLAUDE.md` (with a dated backup next to it) and sets
+`outputStyle` to `Clean Style`. If you already have global instructions of your own, run
+the checker first — it shows what exists on only one side, without prescribing a direction:
 
 ```bash
 python3 "$(ls -d ~/.claude/plugins/cache/pedro-plugins/bootstrap/*/ | tail -1)lib/conformance.py"
 ```
 
-A cópia anda em **mão única, repo → máquina**: regra escrita direto no seu
-`~/.claude/CLAUDE.md` some no próximo `/bootstrap:setup`. Para ela sobreviver, tem que
-subir para `plugins/bootstrap/config/CLAUDE-global.md`.
+The copy goes **one way, repo → machine**: a rule you write directly in your
+`~/.claude/CLAUDE.md` disappears on the next `/bootstrap:setup`. For it to survive, it has to
+go into `plugins/bootstrap/config/CLAUDE-global.md`.
 
-### Dependência externa
+### External dependencies
 
-Um plugin depende de um binário que o marketplace **não** instala:
+One plugin depends on a binary that the marketplace does **not** install:
 
-| Plugin | Precisa de | Instalar |
+| Plugin | Needs | Install |
 |---|---|---|
-| `graphify-guard` | `graphify` | `uv tool install graphifyy` (ou `pipx install graphifyy`) |
-| 35 hooks — `grep -rl '\bjq\b' plugins/*/hooks/*.sh \| grep -v -e /test_ $(ls _shared/*.sh \| sed -E 's#.*/#-e /#') \| wc -l` | `jq` (**opcional**) | Nada a fazer: os 33 hooks que decidem — `grep -rlE '(jq\|hj_campo\|hj_eh_falso)[^#]*(tool_input\.command\|session_id\|stop_hook_active)' plugins/*/hooks/*.sh \| grep -v -e /test_ $(ls _shared/*.sh \| sed -E 's#.*/#-e /#') \| wc -l` — leem o payload por `python3` quando falta `jq`, e sem os dois eles avisam em vez de sair calados. Quem quiser a saída formatada: `brew install jq` (macOS) · `choco install jq` (Windows) |
-| guards | Python 3 | macOS já traz · Windows: instale o real (o stub da Microsoft Store não executa) |
+| `graphify-guard` | `graphify` | `uv tool install graphifyy` (or `pipx install graphifyy`) |
+| 35 hooks — `grep -rl '\bjq\b' plugins/*/hooks/*.sh \| grep -v -e /test_ $(ls _shared/*.sh \| sed -E 's#.*/#-e /#') \| wc -l` | `jq` (**optional**) | Nothing to do: the 33 hooks that make a decision — `grep -rlE '(jq\|hj_campo\|hj_eh_falso)[^#]*(tool_input\.command\|session_id\|stop_hook_active)' plugins/*/hooks/*.sh \| grep -v -e /test_ $(ls _shared/*.sh \| sed -E 's#.*/#-e /#') \| wc -l` — read the payload with `python3` when `jq` is missing, and without both they warn instead of exiting silently. For formatted output: `brew install jq` (macOS) · `choco install jq` (Windows) |
+| guards | Python 3 | Ships with macOS · Windows: install the real one (the Microsoft Store stub does not run) |
 
-**Instalar não precisa de `jq`.** O `/bootstrap:setup` roda inteiro sobre Python — as
-leituras e o merge de configuração vivem em `plugins/bootstrap/lib/cfgjson.py`, e o teste
-ao lado compara cada saída com a do `jq` de verdade para as duas não divergirem. O único
-lugar que ainda usa `jq` é o `snapshot.sh`, e ele só roda em máquina que **clonou** o
-repositório (grava o estado da máquina de volta no manifesto); quem instala pelo
-marketplace nunca passa por ele.
+**Installing does not need `jq`.** `/bootstrap:setup` runs entirely on Python — the reads and
+the config merge live in `plugins/bootstrap/lib/cfgjson.py`, and the test next to it compares
+each output with the real `jq` so the two cannot drift apart. The only place that still uses
+`jq` is `snapshot.sh`, and it only runs on a machine that **cloned** the repository (it writes
+the machine's state back into the manifest); installing through the marketplace never touches it.
 
-**Windows:** instale o Python do site oficial, não o da Microsoft Store. O sistema traz um
-`python3` de mentira que responde uma propaganda em vez de rodar, e por isso o marketplace
-testa se o Python **executa**, em vez de só existir no caminho.
+**Windows:** install Python from the official site, not from the Microsoft Store. The system
+ships a fake `python3` that prints an ad instead of running, which is why the marketplace
+tests whether Python **executes**, rather than only whether it exists on the path.
 
-Sem ele o guarda procura um `graphify-out/graph.json` que nada cria — fica instalado,
-calado e sem proteger. O verificador acusa isso na área `dependencia`, e só quando o
-plugin que precisa está ligado. Se você não usa grafo, o caminho é desligar o
-`graphify-guard` no manifest, não instalar o binário.
+Without `graphify`, the guard looks for a `graphify-out/graph.json` that nothing creates — it
+stays installed, silent and protecting nothing. The checker reports this in the `dependencia`
+area, and only when the plugin that needs it is enabled. If you do not use a graph, the way out
+is to disable `graphify-guard` in the manifest, not to install the binary.
 
-### Verificar estado
+### Check the state
 
 ```bash
-claude plugin list                       # plugins instalados
-claude plugin marketplace list           # marketplaces conhecidos
-claude plugin details <nome>@pedro-plugins   # diagnóstico canônico (mostra Hooks (N))
+claude plugin list                            # installed plugins
+claude plugin marketplace list                # known marketplaces
+claude plugin details <name>@pedro-plugins    # canonical diagnostic (shows Hooks (N))
 ```
 
 ---
 
-## Plugins
+## Configuration
 
-Plugins marcados com **⚙️** registram hooks que rodam **sozinhos** (sem slash command) — veja [Hooks automáticos](#hooks-automáticos). Os demais são invocados sob demanda via slash command / skill.
+Everything is optional; the defaults work. These are the variables and files the code actually reads:
 
-Um vem **desligado de fábrica** na receita do `bootstrap` e você liga se quiser:
-`graphify-guard` (precisa de um binário externo, veja abaixo).
-Ligar: `claude plugin enable <nome>@pedro-plugins`.
-
-Vinte plugins trazem **uma** skill, com o nome do plugin. Dois não trazem
-nenhuma — `graphify-guard` só tem hooks e `vision` só tem a ferramenta
-`see_image`. E um traz onze, por isso ganha seção própria logo abaixo.
-
-### project-skills — o ciclo inteiro de um projeto
-
-Um plugin só, **doze skills**, cobrindo a vida de um projeto do primeiro acordo
-até a revisão do que foi escrito. Elas conversam entre si por nome de plugin,
-nunca por caminho para a pasta da vizinha, e todas julgam contra a lei e o
-acordo do projeto — lidos do `.claude/docs/` na hora, nunca copiados para
-dentro da skill.
-
-Absorveu `project-doc`, `qa-loop` e `sovai` na fusão de 2026-08-09; os comandos
-não mudaram.
-
-**Conceber**
-
-| Comando | O que faz |
-|---|---|
-| `/start` | Conduz a concepção em seis etapas de acordo — metas de qualidade, arquitetura, interface, jornadas, esquema de funcionamento e lista de funcionalidades —, cada uma num documento próprio, reapresentada até você aprovar, com a aprovação gravada. É **entrevista, não mineração**: pergunta e grava a sua resposta, nunca inventa conteúdo. Também dispara em "vamos conceber". |
-| `/pesquisa-referencias` | Levanta repertório quando uma etapa do `/start` trava por falta dele — muitos agentes lendo projetos abertos e produtos pagos em paralelo. O **custo é declarado antes** de qualquer leitura (quantos agentes, quanto tempo, quantas fontes) e nada começa sem o seu aceite. Para por teto de agentes, de fontes, de tempo, ou quando as fontes novas param de trazer coisa nova. |
-| `/design-md` | Autoria do `DESIGN.md` — o formato aberto do Google para descrever um design system (valores em YAML + seções em markdown). Valida de verdade pelo programa oficial via `npx`, e cai numa conferência manual pela especificação quando o `npx` não está disponível. Exporta os valores para Tailwind/DTCG. |
-
-**Planejar e executar**
-
-| Comando | O que faz |
-|---|---|
-| `/plan` | Vira a spec aprovada em plano ticável. **Antes de criar qualquer plano novo, imprime os que ainda estão abertos** no projeto. A palavra "plano" sozinha, sem mais contexto, já é a invocação — justamente para essa lista aparecer antes de você começar mais um. |
-| `/sprint` | Executa um plano do começo ao fim **sem pausas, checkpoints ou perguntas**, decidindo o que precisar e anotando cada decisão para o relatório final. O motor é determinístico (decompõe → executa → revisa) e isso é cobrado por hook: enquanto a missão está armada, disparo solto de sub-agente é negado e mandado de volta. O gate **desiste depois de 3 negações** e grava a desistência, porque missão longa com o dono ausente não pode morrer parada. Também dispara em "sova", "não me consulte". |
-| `/monitorar` | Imprime o andamento **agora** de toda missão de pé — relógio, o que está executando, quanto tempo de silêncio, placar da última rodada. Lê tudo do disco, sem perguntar nada a ninguém. Serve para quando você volta ao terminal e a barra de status não está contando a história. Também dispara em "tem coisa rodando aí?". |
-| `/qa-loop` | Revisa código num laço que **fecha por SEVERIDADE, não por gasto**: acaba quando uma rodada completa não acha nada acima do piso de severidade, confirmada por um re-sweep independente — nunca por rodada, token ou tempo. Ancora no plano: cada achado é classificado em erro de implementação, desvio do plano ou falha do próprio plano — e só o primeiro vira conserto. Cada conserto passa pela suíte inteira antes do seguinte, e no fim um portão absoluto exige lint, tipos, unidade e integração verdes no repositório todo. Também dispara em "revisa isso", "tá 100%?". |
-| `/completude` | Mede se o trabalho **fecha**, e devolve o que falta **nomeado item a item** — nunca porcentagem. Dois lados na mesma medição: a cadeia inteira (funcionalidade → requisito → tarefa → prova do tique) e os artigos da lei do projeto que nenhuma tarefa representa. Quem conta é o programa, não o olho, e documento que a medição não achou não vira verde. Também dispara em "o que falta pra fechar". |
-
-**Documentar**
-
-| Comando | O que faz |
-|---|---|
-| `/doc` | A rodada completa: minera **toda** a evidência do projeto (arquivos, handoffs, memória, grafo de conhecimento, histórico do git, transcripts) para um journal versionado que só cresce, e projeta em índice `CLAUDE.md` + um `.claude/docs/*.md` por assunto. Um limpador move segredo para um cofre, nunca para o git. Também dispara em "documenta o projeto". |
-| `/doc-touch` | O complemento frequente do `/doc`: olha o que o seu diff tocou, descobre quais documentos aquilo afeta e **re-projeta só esses**, sem minerar tudo de novo. Também dispara em "atualiza a doc do que eu mexi". |
-| `/doc-load` | Diz o que vale como **régua** hoje e por quê: a lei (constituição, metas de qualidade, restrições), o que foi acordado com você (blueprint, funcionalidades, jornadas, desenho) e o mapa minerado — cada um com a marca do texto e o motivo de valer ou não. Roda no começo de toda etapa que especifica, planeja, implementa, testa ou revisa. Também dispara em "qual é a régua deste projeto". |
-| `/project-skills` | O índice da própria família: lê as skills do disco e aponta a certa para o que você quer fazer. Também dispara em "que skill de projeto eu uso aqui". |
-
-### Sessão & continuidade
-
-| Plugin | Trigger | O que faz |
-|---|---|---|
-| `handoff` ⚙️ | `/handoff` · override `/handoff salvar\|retomar` | Continuidade de sessão em um comando: detecta o estado e roteia — contexto cheio → salva um documento de transferência; sessão recém-limpa → retoma de onde parou. Workspace-aware: o handoff pertence ao projeto que a sessão tocou (resolve a fronteira `.git`), funciona em projeto único, monorepo (`HANDOFF-<módulo>.md`) ou pasta guarda-chuva. |
-| `context-guard` ⚙️ | automático (PostToolUse) · setup `/context-guard:setup` | Auto-interrompe o workflow quando o context window passa de um threshold configurável (default 80%) e sugere `/handoff`. Agnóstico de statusLine — encaminha para qualquer comando existente via `CLAUDE_STATUSLINE_FORWARD`. **Use junto com `handoff`.** |
-| `intent-guard` ⚙️ | automático (UserPromptSubmit + Stop + PreToolUse) | Caderno append-only dos pedidos **verbatim** do usuário. Classifica cada mensagem (pedido / correção / restrição / conversa) e mantém a lista de pedidos vivos. No fim do turno, bloqueia declarar entrega sem auditoria independente: despacha um auditor que julga cada pedido e grava veredito com prova. O gate carimba num sidecar `.escopo` **quais** pedidos ele perguntou — sem isso, mensagem nova chegando no meio fazia o veredito nascer impossível de aprovar. |
-
-### Planejamento & review
-
-| Plugin | Trigger | O que faz |
-|---|---|---|
-| `grill-me` | `/grill-me [com-docs]` | Entrevista implacável sobre um plano/design até esgotar a árvore de decisões. Sem argumento, sabatina o plano por ele mesmo; com `com-docs`, confronta contra o domain model existente (CONTEXT.md, ADRs) e atualiza as docs inline conforme as decisões cristalizam. *Por [Matt Pocock](https://github.com/mattpocock/skills).* |
-| `principles` | `/principles [review]` | Carrega princípios de sistema genéricos (`PRINCIPIOS-SISTEMAS.md`), mapeia as categorias relevantes ao contexto e gera um guia com o porquê e o como. Dois modos: antes de implementar, e auditando o que já foi escrito. Nunca decide o que ESTE sistema tem que ser — isso é da constituição do projeto. |
-| `gauntlet` ⚙️ | `/gauntlet` | Agentes disputam contra um produto real que você nomeia, e **nada do que foi construído se julga sozinho**: cada peça ganha um construtor e um juiz cego separado. **A barra é ficar BOQUIABERTO** — o juiz põe a obra inteira ao lado do alvo inteiro, decide qual metade é mais forte antes de conferir os rótulos, e a resposta dele nasce "não". Ganho pequeno não fecha nada: manda o construtor seguinte propor um caminho NOVO. Fecham peça só o juiz impressionado, a sua ordem, ou o orçamento esgotado — e o diretor cobra a mesma barra no conjunto. Roda como **equipe visível** na conversa: você vê cada agente, dirige em voo, veta e para. Cada veredito é arquivo em disco com o par de observações que o prova; uma trava de PreToolUse impede despacho novo enquanto houver entrega sem juiz, e o fecho é recusado por programa quando falta algum. Nasceu de uma falha real — sete construtores lançados prometendo um juiz em cada briefing, zero juízes lançados, ninguém percebeu. |
-| `improve-workflow` | `/improve-workflow` | **Autópsia de uma corrida multi-agente que já terminou.** Lê o transcript inteiro, mede o que cada PAPEL custou (agentes, turnos, tokens, taxa de falha), acende sinais de defeito por contagem em vez de julgamento, e entrega um parecer para você aprovar item a item. Ela **investiga e propõe, e é proibida por desenho de consertar o que achou**. |
-| `improve` | `/improve` | Rodadas de melhoria iterativa lendo o `IMPROVEMENT_PROGRAM.md` do app + issues do GitHub com a etiqueta `autoresearch`. Genérico — funciona com qualquer app que siga a metodologia. |
-| `2op` | `/2op` · `/2op-opus` · `/2op-sonnet` | Segunda opinião de **outro modelo dentro da mesma sessão** — sem subagente, sem re-briefing, sem orquestração. O campo `model` do frontmatter troca o modelo pelo turno inteiro, com o contexto já carregado; o modelo da sessão volta sozinho no próximo prompt. O revisor abre com CONCORDO / CONCORDO COM RESSALVA / DISCORDO, rotula cada afirmação CONFIRMADO ou INFERIDO, e é proibido de editar arquivo. Um comando por cabeça porque o frontmatter não interpola argumento (`model: $0` reprova a invocação). |
-
-### Documentação & conhecimento
-
-| Plugin | Trigger | O que faz |
-|---|---|---|
-| `vistoria` | `/vistoria` | Revisa os **arquivos de instrução do próprio marketplace** — skills, hooks e cobradores — e devolve uma página de achados com a prova colada, onde você marca o que vira plano ticável. Roda os cobradores que já existem num comando só e soma as lentes medidas (afirmação de teste que congelou frase morta, script de hook que ninguém registra). **Achado sem prova é recusado na porta.** |
-| `check-skills` | `/check-skills` | Confere a saúde do que está instalado na máquina em seis lentes: nome de skill repetido, hooks de origens diferentes no mesmo evento, descrições que disputam o mesmo assunto, versões paradas no cache, processo que a skill abre e não fecha, e citação de plugin irmão que não está instalado aqui. A varredura é de programa; o julgamento das contradições exige ler as descrições lado a lado. |
-| `graphify-guard` ⚙️ | automático (SessionStart + PreToolUse) | Garante que os knowledge graphs do `graphify` sejam consultados quando relevante. Aviso no SessionStart quando há grafo; rede no PreToolUse redireciona busca cega para `graphify query` uma vez por sessão. Detecta grafo defasado e oferece atualizar. Defesa em profundidade, fail-open, ciente de monorepo. |
-| `vision` | tool `see_image` | Dá olhos ao Claude delegando a um servidor de visão (API compatível com OpenAI). Quando ele precisa entender uma imagem que não lê, chama `see_image(caminho, pergunta)` e o servidor devolve a descrição em texto. O endpoint é configurado por `QWEN_BASE`/`QWEN_MODEL` ou `~/.claude/vision.json` — quem instala aponta para o próprio backend. |
-
-### Dev, deploy & limpeza
-
-| Plugin | Trigger | O que faz |
-|---|---|---|
-| `ship` ⚙️ | `/ship` · PreToolUse | Fluxo de deploy pra produção: lint → type-check → commit → push → deploy numa sequência disciplinada. |
-| `guardrails` ⚙️ | automático (PostToolUse + PreToolUse) · setup `/guardrails:setup` | Guardrails globais de edição como hooks: lint & type-check pós-edição (JS/TS/Python), um scope-cop LLM que bloqueia edições de UI fora do plano aprovado e um guard de uso indevido de Agent Teams. Portável entre máquinas — substitui hooks hand-rolled no `~/.claude/settings.json`. Rode `/guardrails:setup` uma vez por máquina. |
-| `fallow` | `/fallow` | Roda o Fallow (analisador estático JS/TS — código morto, duplicação, complexidade), classifica achados por tipo e confiança, audita o relatório pra pegar falsos-positivos (cron, rotas HTTP, imports dinâmicos) e entrega um relatório interativo onde você escolhe o que limpar. Limpeza com rede de segurança (preview + build/test). |
-| `branches` ⚙️ | `/branches` · SessionStart | Relatório de branches paradas com prova: quantas, quais já estão contidas na base, e o que dá pra apagar. Antes de apagar, cria uma tag `archive/<branch>-<data>` como rede de resgate. Aviso silencioso no SessionStart quando não há branch parada. |
-| `lixeiro` ⚙️ | `/faxina` · automático (SessionEnd + Stop) | Encerra os processos que a sessão abriu e esqueceu de pé — servidor de desenvolvimento, suíte em modo de observação, túnel. A parte automática colhe **só o que a sessão anotou ter aberto**; o comando `/faxina` é o irmão manual, que mostra **tudo** que está de pé, com ou sem procedência, e encerra apenas o que você marcar. |
-
-### Apresentação visual
-
-| Plugin | Trigger | O que faz |
-|---|---|---|
-| `visual` ⚙️ | `/visual` · automático em planos/diagnósticos (PreToolUse em ExitPlanMode) | Transforma textão do CLI em views HTML dark-theme interativas, abertas no browser com **live sync** de volta pro Claude via daemon local. Modo auto renderiza planos (3+ itens), decisões (2+ opções) e diagnósticos (3+ problemas) sem precisar invocar. **Prosa é recusada pelo programa**: todo campo de texto passa por quatro checagens (≤140 caracteres por bullet, uma frase por bullet, sem conectivo de continuação abrindo, no máximo 6 bullets por bloco) e estourar aborta sem escrever a página. O corpo de cada problema **nasce dobrado** — o título fica visível, a consequência e a proposta abrem com um clique cujo rótulo é derivado do conteúdo, nunca uma etiqueta fixa. |
-| `archify` | `/archify` | Diagramas de arquitetura, fluxo, sequência e ciclo de vida como HTML explorável com SVG: profundidade progressiva de leitura, lente semântica, preview de rota entre dois pontos, navegação por capítulos e export pra PNG/SVG/WebM. Aceita descrição em linguagem natural ou Mermaid colado. |
-| `slides` | `/slides <arquivo.md> [tema]` | Outline em markdown → deck HTML single-file nível keynote. Sistema de temas (Slate default), linguagem de apresentação com tipografia grande, fidelidade estrita ao texto (nunca inventa frase) e output ao lado do `.md` de origem. |
-
-### Setup de máquina
-
-| Plugin | Trigger | O que faz |
-|---|---|---|
-| `bootstrap` ⚙️ | `/bootstrap:setup` · automático no SessionStart + PostToolUse | Prepara uma máquina nova: auto-sincroniza marketplaces e plugins via hooks **e** aplica a config global versionada (env, permissões, flags, `CLAUDE.md` global, output style, statusLine resolvido por máquina). Traz também o **Clean Style** (resultado na primeira linha, teto de prosa, prova colada sem teto) e um **verificador de conformidade** que compara a máquina viva contra o contrato versionado sem escrever nada. Rode `/bootstrap:setup` uma vez por máquina. |
+| Variable / file | Used by | Default | What it does |
+|---|---|---|---|
+| `PEDRO_PLUGINS_REPO` | `bootstrap` | `$HOME/pedro-plugins` | Where the local clone of the repository lives. With a clone, `bootstrap` can also run `snapshot` (machine → manifest); without one, only `apply` (manifest → machine). |
+| `CLAUDE_STATUSLINE_FORWARD` | `context-guard`, `bootstrap` | set by `bootstrap` | The statusLine command `context-guard` forwards the JSON it receives to. Works with any statusLine you already have. |
+| `CLAUDE_CONTEXT_THRESHOLD` | `context-guard` | `85` (also written by `bootstrap`) | Percentage of the context window at which the guard interrupts and suggests `/handoff`. |
+| `CLAUDE_CONTEXT_TOKENS` | `context-guard` | `850000` | The same cut-off, in tokens. Whichever is hit first triggers. |
+| `QWEN_BASE`, `QWEN_MODEL` | `vision` | none | Address and model of the vision server (OpenAI-compatible API). |
+| `QWEN_TIMEOUT` | `vision` | `180` | Maximum wait in seconds (a cold model is slow to answer). |
+| `~/.claude/vision.json` | `vision` | absent | Alternative to the variables: `{"base": "...", "model": "..."}`. |
 
 ---
 
-## Hooks automáticos
+## Usage: the plugins
 
-12 plugins registram hooks que disparam sem slash command — 54 registros no total
-(derivado neste run: `python3 scripts/hook_contract.py`; conferido no commit por
+Plugins marked **⚙️** register hooks that run **on their own** (no slash command) — see [Automatic hooks](#automatic-hooks). The rest are invoked on demand through a slash command / skill.
+
+One ships **disabled by default** in the `bootstrap` recipe and you enable it if you want:
+`graphify-guard` (it needs an external binary, see above).
+Enable: `claude plugin enable <name>@pedro-plugins`.
+
+Nineteen plugins ship **one** skill each (in `lixeiro` it is called `/faxina`). Two ship none —
+`graphify-guard` only has hooks and `vision` only has the `see_image` tool. `visual` ships two
+and `2op` ships three. And `project-skills` ships thirteen, so it gets its own section right below.
+
+Command names, trigger phrases and skill text are in Portuguese (the author's language); the descriptions here are translated.
+
+### project-skills — a project's whole lifecycle
+
+A single plugin with **thirteen skills**, covering a project's life from the first agreement
+to the review of what was written. They talk to each other by plugin name, never by a path to
+the neighbour's folder, and they all judge against the project's law and agreements — read
+from `.claude/docs/` on the spot, never copied into the skill.
+
+It absorbed `project-doc`, `qa-loop` and `sovai` in the 2026-08-09 merge; the commands did
+not change.
+
+**Conceive**
+
+| Command | What it does |
+|---|---|
+| `/start` | Runs the concept phase in six agreement stages — quality goals, architecture, interface, journeys, how the system works, and the feature list —, each in its own document, re-presented until you approve it, with the approval recorded. It is an **interview, not mining**: it asks and records your answer, never invents content. Also triggers on "vamos conceber" ("let's conceive"). |
+| `/pesquisa-referencias` | Builds up reference material when a `/start` stage stalls for lack of it — many agents reading open projects and paid products in parallel. The **cost is declared before** any reading (how many agents, how long, how many sources) and nothing starts without your OK. It stops at a cap on agents, sources or time, or when new sources stop adding anything new. |
+| `/design-md` | Authors `DESIGN.md` — Google's open format for describing a design system (values in YAML + sections in markdown). It validates for real with the official tool via `npx`, and falls back to a manual check against the specification when `npx` is not available. Exports the values to Tailwind/DTCG. |
+
+**Plan and execute**
+
+| Command | What it does |
+|---|---|
+| `/plan` | Turns the approved spec into a checkable plan. **Before creating any new plan, it prints the ones still open** in the project. The word "plano" ("plan") on its own, with no other context, already counts as the invocation — precisely so that list shows up before you start yet another one. |
+| `/sprint` | Executes a plan from start to finish **with no pauses, checkpoints or questions**, deciding what it has to and noting each decision for the final report. The engine is deterministic (decompose → execute → review) and a hook enforces that: while the mission is armed, a loose sub-agent launch is denied and sent back. The gate **gives up after 3 denials** and records that it did, because a long mission with the owner away cannot die standing still. Also triggers on "sova", "não me consulte" ("don't ask me"). |
+| `/reentrada` | For when `/sprint` died overnight and you are back in the morning: it reads the outcome of the last run from the ledger, classifies it (carry on in the engine, fix and relaunch, or wait for the owner) and **re-arms the loop from where it stopped**, instead of starting from zero. Also triggers on "retoma o sprint" ("resume the sprint"). |
+| `/monitorar` | Prints the progress **right now** of every mission that is up — clock, what is running, how long it has been silent, scoreboard of the last round. It reads everything from disk and asks nobody anything. For when you come back to the terminal and the status bar is not telling the story. Also triggers on "tem coisa rodando aí?" ("is anything running?"). |
+| `/qa-loop` | Reviews code in a loop that **closes on SEVERITY, not on spend**: it ends when a full round finds nothing above the severity floor, confirmed by an independent re-sweep — never by round count, tokens or time. It anchors on the plan: each finding is classified as an implementation error, a deviation from the plan, or a flaw in the plan itself — and only the first becomes a fix. Each fix goes through the whole test suite before the next one, and at the end an absolute gate requires lint, types, unit and integration all green across the repository. Also triggers on "revisa isso" ("review this"), "tá 100%?" ("is it 100%?"). |
+| `/completude` | Measures whether the work **closes**, and returns what is missing **named item by item** — never a percentage. Two sides in the same measurement: the whole chain (feature → requirement → task → proof of the tick) and the articles of the project's law that no task represents. A program counts, not the eye, and a document the measurement did not find does not turn green. Also triggers on "o que falta pra fechar" ("what's left to close"). |
+
+**Document**
+
+| Command | What it does |
+|---|---|
+| `/doc` | The full round: mines **all** the project's evidence (files, handoffs, memory, knowledge graph, git history, transcripts) into a versioned journal that only grows, and projects it into a `CLAUDE.md` index + one `.claude/docs/*.md` per subject. A cleaner moves secrets to a vault, never to git. Also triggers on "documenta o projeto" ("document the project"). |
+| `/doc-touch` | The frequent companion of `/doc`: looks at what your diff touched, works out which documents that affects and **re-projects only those**, without mining everything again. Also triggers on "atualiza a doc do que eu mexi" ("update the docs for what I changed"). |
+| `/doc-load` | Says what counts as the **ruler** today and why: the law (constitution, quality goals, constraints), what was agreed with you (blueprint, features, journeys, design) and the mined map — each with the text's stamp and the reason it counts or not. It runs at the start of every stage that specifies, plans, implements, tests or reviews. Also triggers on "qual é a régua deste projeto" ("what's this project's ruler"). |
+| `/project-skills` | The index of the family itself: reads the skills from disk and points to the right one for what you want to do. Also triggers on "que skill de projeto eu uso aqui" ("which project skill do I use here"). |
+
+### Session and continuity
+
+| Plugin | Trigger | What it does |
+|---|---|---|
+| `handoff` ⚙️ | `/handoff` · override `/handoff salvar\|retomar` | Session continuity in one command: it detects the state and routes — full context → saves a transfer document; freshly cleared session → resumes where it left off. Workspace-aware: the handoff belongs to the project the session touched (it resolves the `.git` boundary) and works in a single project, a monorepo (`HANDOFF-<module>.md`) or an umbrella folder. |
+| `context-guard` ⚙️ | automatic (PostToolUse) · setup `/context-guard:setup` | Automatically interrupts the workflow when the context window passes a configurable threshold (default 85%) and suggests `/handoff`. statusLine-agnostic — forwards to any existing command through `CLAUDE_STATUSLINE_FORWARD`. **Use together with `handoff`.** |
+| `intent-guard` ⚙️ | automatic (UserPromptSubmit + Stop + PreToolUse) | An append-only notebook of the user's requests, **verbatim**. Classifies each message (request / correction / constraint / chat) and keeps the list of live requests. At the end of the turn it blocks declaring delivery without an independent audit: it dispatches an auditor that judges each request and records a verdict with proof. The gate stamps a `.escopo` sidecar with **which** requests it asked about — without that, a new message arriving mid-way made the verdict impossible to approve. |
+
+### Planning and review
+
+| Plugin | Trigger | What it does |
+|---|---|---|
+| `grill-me` | `/grill-me [com-docs]` | A relentless interview about a plan/design until the decision tree is exhausted. With no argument it grills the plan on its own; with `com-docs` it confronts it with the existing domain model (CONTEXT.md, ADRs) and updates the docs inline as decisions crystallize. *By [Matt Pocock](https://github.com/mattpocock/skills).* |
+| `principles` | `/principles [review]` | Loads generic system principles (`PRINCIPIOS-SISTEMAS.md`), maps the categories relevant to the context and produces a guide with the why and the how. Two modes: before implementing, and auditing what is already written. It never decides what THIS system has to be — that belongs to the project's constitution. |
+| `gauntlet` ⚙️ | `/gauntlet` | Agents compete against a real product you name, and **nothing that gets built judges itself**: each piece gets a builder and a separate blind judge. **The bar is to leave jaws on the floor** — the judge puts the whole work next to the whole target, decides which half is stronger before checking the labels, and its answer starts out as "no". A small gain closes nothing: it sends the next builder to propose a NEW path. A piece closes only when the judge is impressed, on your order, or when the budget runs out — and the director holds the whole to the same bar. It runs as a **visible team** in the conversation: you see each agent, steer mid-flight, veto and stop. Each verdict is a file on disk with the pair of observations that proves it; a PreToolUse lock prevents new dispatches while any delivery lacks a judge, and a program refuses the close when one is missing. It was born from a real failure — seven builders launched with a judge promised in every briefing, zero judges launched, nobody noticed. |
+| `improve-workflow` | `/improve-workflow` | **Autopsy of a multi-agent run that has already finished.** Reads the whole transcript, measures what each ROLE cost (agents, turns, tokens, failure rate), raises defect signals by counting instead of judging, and delivers an opinion for you to approve item by item. It **investigates and proposes, and by design it is forbidden to fix what it found**. |
+| `improve` | `/improve` | Iterative improvement rounds that read the app's `IMPROVEMENT_PROGRAM.md` + GitHub issues labelled `autoresearch`. Generic — works with any app that follows the methodology. |
+| `2op` | `/2op` · `/2op-opus` · `/2op-sonnet` | A second opinion from **another model inside the same session** — no subagent, no re-briefing, no orchestration. The `model` field in the frontmatter switches the model for the whole turn, with the context already loaded; the session's model comes back on its own at the next prompt. The reviewer opens with CONCORDO / CONCORDO COM RESSALVA / DISCORDO (agree / agree with reservations / disagree), labels each claim CONFIRMADO or INFERIDO (confirmed / inferred), and is forbidden to edit files. One command per model because the frontmatter does not interpolate arguments (`model: $0` fails the invocation). |
+
+### Documentation and knowledge
+
+| Plugin | Trigger | What it does |
+|---|---|---|
+| `vistoria` | `/vistoria` | Reviews the **marketplace's own instruction files** — skills, hooks and checkers — and returns a page of findings with the proof pasted in, where you tick what becomes a checkable plan. It runs the checkers that already exist in one command and adds the measured lenses (a test assertion that froze a dead phrase, a hook script nobody registers). **A finding without proof is refused at the door.** |
+| `check-skills` | `/check-skills` | Checks the health of what is installed on the machine through six lenses: a repeated skill name, hooks from different origins on the same event, descriptions competing for the same subject, versions stuck in the cache, a process a skill opens and does not close, and a mention of a sibling plugin that is not installed here. The sweep is done by a program; judging contradictions between instructions requires reading the descriptions side by side. |
+| `graphify-guard` ⚙️ | automatic (SessionStart + PreToolUse) | Makes sure `graphify` knowledge graphs get consulted when relevant. A SessionStart heads-up when a graph exists; a PreToolUse net redirects blind search to `graphify query` once per session. Detects a stale graph and offers to update it. Defense in depth, fail-open, monorepo-aware. |
+| `vision` | tool `see_image` | Gives Claude eyes by delegating to a vision server (OpenAI-compatible API). When it needs to understand an image it cannot read, it calls `see_image(path, question)` and the server returns a text description. The endpoint is set by `QWEN_BASE`/`QWEN_MODEL` or `~/.claude/vision.json` — whoever installs it points it at their own backend. |
+
+### Dev, deploy and cleanup
+
+| Plugin | Trigger | What it does |
+|---|---|---|
+| `sec` | `/sec` | Checks the supply chain of the open project and of the machine against public databases (OSV and the Aikido Intel malware list), **without reviewing your code**. Project: npm, pnpm, yarn, uv, poetry and pip lockfiles, GitHub Actions and `.mcp.json`. Machine: Claude Code, plugins, MCP, `npm -g`, pipx, Node and Homebrew. Separates poisoned package, known flaw, open door and outdated; delivers a report with checkboxes and fixes only what you tick. A source that did not answer comes out as NOT VERIFIED, never as green. |
+| `ship` ⚙️ | `/ship` · PreToolUse | Production deploy flow: lint → type-check → commit → push → deploy in a disciplined sequence. |
+| `guardrails` ⚙️ | automatic (PostToolUse + PreToolUse) · setup `/guardrails:setup` | Global editing guardrails as hooks: post-edit lint & type-check (JS/TS/Python), an LLM scope-cop that blocks UI edits outside the approved plan, and a guard against misuse of Agent Teams. Portable across machines — replaces hand-rolled hooks in `~/.claude/settings.json`. Run `/guardrails:setup` once per machine. |
+| `fallow` | `/fallow` | Runs Fallow (a JS/TS static analyzer — dead code, duplication, complexity), classifies findings by type and confidence, audits the report to catch false positives (cron, HTTP routes, dynamic imports) and delivers an interactive report where you choose what to clean up. Cleanup with a safety net (preview + build/test). |
+| `branches` ⚙️ | `/branches` · SessionStart | A report of stale branches with proof: how many, which are already contained in the base, and what can be deleted. Before deleting, it creates an `archive/<branch>-<date>` tag as a rescue net. A silent SessionStart notice when there is no stale branch. |
+| `lixeiro` ⚙️ | `/faxina` · automatic (SessionEnd + Stop) | Ends the processes the session opened and left running — dev server, test suite in watch mode, tunnel. The automatic part reaps **only what the session noted it had opened**; the `/faxina` command is the manual sibling, which shows **everything** that is up, with or without provenance, and ends only what you tick. |
+
+### Visual presentation
+
+| Plugin | Trigger | What it does |
+|---|---|---|
+| `visual` ⚙️ | `/visual` · `/andamento` · automatic on plans/diagnoses (PreToolUse on ExitPlanMode) | Turns walls of CLI text into interactive dark-theme HTML views, opened in the browser with **live sync** back to Claude through a local daemon. Auto mode renders plans (3+ items), decisions (2+ options) and diagnoses (3+ problems) without being invoked. **Prose is refused by the program**: every text field goes through four checks (≤140 characters per bullet, one sentence per bullet, no continuation connective at the start, at most 6 bullets per block) and exceeding them aborts without writing the page. The body of each problem **starts folded** — the title stays visible, the consequence and the proposal open with a click whose label is derived from the content, never a fixed tag. The second skill, `/andamento`, shows in the CLI, as a tree, where the current plan's implementation stands. |
+| `archify` | `/archify` | Architecture, flow, sequence and lifecycle diagrams as explorable HTML with SVG: progressive reading depth, semantic lens, route preview between two points, chapter navigation and export to PNG/SVG/WebM. Accepts a plain-language description or pasted Mermaid. |
+| `slides` | `/slides <file.md> [theme]` | A markdown outline → a keynote-grade single-file HTML deck. Theme system (Slate default), a presentation language with large type, strict fidelity to the text (never invents a sentence) and output next to the source `.md`. |
+
+### Machine setup
+
+| Plugin | Trigger | What it does |
+|---|---|---|
+| `bootstrap` ⚙️ | `/bootstrap:setup` · automatic on SessionStart + PostToolUse | Prepares a new machine: auto-syncs marketplaces and plugins through hooks **and** applies the versioned global config (env, permissions, flags, global `CLAUDE.md`, output style, a statusLine resolved per machine). It also ships **Clean Style** (result on the first line, a ceiling on prose, pasted evidence uncapped) and a **conformance checker** that compares the live machine against the versioned contract without writing anything. Run `/bootstrap:setup` once per machine. |
+
+---
+
+## How it works
+
+Each plugin is a self-contained folder: Claude Code reads the catalog, copies the plugin's folder into the machine's cache and loads the skills and hooks it declares. There is no server and no compile step; what runs is Bash and Python (standard library) scripts that the folder itself carries.
+
+### Automatic hooks
+
+12 plugins register hooks that fire without a slash command — 54 registrations in total
+(derived in this run: `python3 scripts/hook_contract.py`; checked at commit time by
 `python3 scripts/readme_counts_check.py`):
 
-| Plugin | Eventos | Papel |
+| Plugin | Events | Role |
 |---|---|---|
-| `bootstrap` | SessionStart×2 · PostToolUse | Auto-sync de marketplaces e plugins, e o aviso depois de um comando de plugin |
-| `branches` | SessionStart×2 · PostToolUse | Aviso de branch parada, silencioso quando não há |
-| `context-guard` | SessionStart×2 · PostToolUse | Vigia o quanto da conversa já foi usado e sugere o handoff |
-| `gauntlet` | SessionStart×2 · PreToolUse | Nega despacho novo enquanto houver entrega sem juiz, e reencontra a disputa no arranque |
-| `graphify-guard` | SessionStart×2 · PreToolUse | Redireciona busca cega para o knowledge graph |
-| `guardrails` | SessionStart · PreToolUse×4 · PostToolUse | Lint e type-check pós-edição, scope-cop de UI, e o gate de pergunta sem apoio |
-| `handoff` | SessionStart×2 · PreToolUse · Stop | Detecta retomada e salva a continuidade da sessão |
-| `intent-guard` | SessionStart · UserPromptSubmit · PostToolUse×2 · Stop | Caderno de pedidos verbatim e gate de entrega |
-| `lixeiro` | SessionStart×2 · PostToolUse · Stop · SessionEnd | Anota quem abriu processo e encerra o que a sessão esqueceu de pé |
-| `project-skills` | SessionStart×4 · UserPromptSubmit · PreToolUse×6 · PostToolUse×2 · Stop×2 | Guarda doc-first, aviso de doc defasada, gate de plano, e o motor autônomo na barra de status |
-| `ship` | SessionStart · PreToolUse | Guarda o fluxo de deploy |
-| `visual` | SessionStart · Stop | Intercepta a saída do modo de plano e ressuscita o plano aberto |
+| `bootstrap` | SessionStart×2 · PostToolUse | Auto-sync of marketplaces and plugins, and the notice after a plugin command |
+| `branches` | SessionStart×2 · PostToolUse | Stale-branch notice, silent when there is none |
+| `context-guard` | SessionStart×2 · PostToolUse | Watches how much of the conversation is used and suggests the handoff |
+| `gauntlet` | SessionStart×2 · PreToolUse | Denies new dispatches while a delivery has no judge, and finds the contest again on startup |
+| `graphify-guard` | SessionStart×2 · PreToolUse | Redirects blind search to the knowledge graph |
+| `guardrails` | SessionStart · PreToolUse×4 · PostToolUse | Post-edit lint and type-check, UI scope-cop, and the unsupported-question gate |
+| `handoff` | SessionStart×2 · PreToolUse · Stop | Detects a resume and saves the session's continuity |
+| `intent-guard` | SessionStart · UserPromptSubmit · PostToolUse×2 · Stop | Verbatim request notebook and delivery gate |
+| `lixeiro` | SessionStart×2 · PostToolUse · Stop · SessionEnd | Notes who opened a process and ends what the session left running |
+| `project-skills` | SessionStart×4 · UserPromptSubmit · PreToolUse×6 · PostToolUse×2 · Stop×2 | Doc-first guard, stale-doc notice, plan gate, and the autonomous engine in the status bar |
+| `ship` | SessionStart · PreToolUse | Guards the deploy flow |
+| `visual` | SessionStart · Stop | Intercepts plan-mode output and revives the open plan |
 
-> ⚠️ **Hook de plugin vai em `hooks/hooks.json` (subpasta), nunca `hooks.json` na raiz.** Na raiz o Claude Code ignora silenciosamente — `claude plugin details` mostra `Hooks (0)` e nada dispara. `claude plugin validate` passa mesmo assim. Diagnóstico canônico = `claude plugin details <plugin>@pedro-plugins`.
+> ⚠️ **A plugin's hook goes in `hooks/hooks.json` (a subfolder), never `hooks.json` at the root.** At the root Claude Code silently ignores it — `claude plugin details` shows `Hooks (0)` and nothing fires. `claude plugin validate` passes anyway. The canonical diagnostic is `claude plugin details <plugin>@pedro-plugins`.
 
----
-
-## Anatomia de um plugin
+### Anatomy of a plugin
 
 ```
-plugins/<nome>/
+plugins/<name>/
 ├── .claude-plugin/
-│   └── plugin.json          # Identidade: nome, versão, descrição, autor
-├── hooks/                   # (opcional) automações
-│   ├── hooks.json           #   ⚠️ AQUI, não na raiz do plugin
-│   └── *.sh / *.py          #   scripts dos hooks
-├── skills/<nome>/
-│   └── SKILL.md             # Instrução completa da skill
-└── lib/                     # (opcional) código auxiliar do plugin (Python stdlib)
+│   └── plugin.json          # Identity: name, version, description, author
+├── hooks/                   # (optional) automations
+│   ├── hooks.json           #   ⚠️ HERE, not at the plugin root
+│   └── *.sh / *.py          #   hook scripts
+├── skills/<name>/
+│   └── SKILL.md             # The skill's full instructions
+└── lib/                     # (optional) the plugin's helper code (Python stdlib)
 ```
 
-O catálogo vive em `.claude-plugin/marketplace.json` na raiz — cada plugin tem uma entrada com `name`, `source`, `description`, `category`, `version` e `tags`.
+Some plugins have extra folders: `bootstrap` has `config/` and `output-styles/`, `visual` has `server/`, and `vision` is an MCP server (`.mcp.json` + `vision_mcp.py`).
 
-### Código compartilhado entre plugins
+The catalog lives in `.claude-plugin/marketplace.json` at the root — each plugin has an entry with `name`, `source`, `description`, `category`, `version` and `tags`.
 
-Código realmente comum mora em `_shared/` na raiz e é **vendorado** pra dentro de cada consumidor via `scripts/sync-shared.sh` — copiado, **não importado em runtime**, porque o Claude Code isola cada plugin no cache. São 12 arquivos compartilhados hoje, espalhados em 60 cópias: `collect_engine.py` (leitura de transcripts, resolução de project-root) vive em `handoff` e `project-skills`; `hook-json.sh` (leitura do payload do hook sem depender de `jq`) em 12 plugins; `regua_texto.py` (a régua que recusa prosa) em 10. `_shared/` é a fonte-da-verdade: edite lá e rode `scripts/sync-shared.sh` (o `--check` pega drift entre a fonte e as cópias).
+### Code shared between plugins
+
+Code that is truly common lives in `_shared/` at the root and is **vendored** into each consumer by `scripts/sync-shared.sh` — copied, **not imported at runtime**, because Claude Code isolates each plugin in the cache. There are 31 source files in `_shared/`, spread over 116 copies in 46 destination folders: `resolve-plugin.sh` (finds a sibling plugin's folder) lives in 18 plugins; `hook-json.sh` (reads the hook payload without depending on `jq`) and `regua_texto.py` (the ruler that refuses prose) in 12 each; `collect_engine.py` (transcript reading, project-root resolution) in `handoff` and `project-skills`. `_shared/` is the source of truth: edit there and run `scripts/sync-shared.sh` (`--check` catches drift between the source and the copies).
 
 ---
 
-## Desenvolvendo localmente
+## Development
+
+You need `git`, `bash` and Python 3 (CI uses 3.12). `jq` and Node are only needed for specific parts (see [External dependencies](#external-dependencies)).
 
 ```bash
 git clone https://github.com/pedroberaldo87/pedro-plugins.git ~/pedro-plugins
+cd ~/pedro-plugins
 ```
 
-O `bootstrap` detecta se o repo está clonado localmente e adapta:
-- **Com repo:** pode fazer `snapshot` (estado da máquina → manifest, commit, push).
-- **Sem repo:** só `apply` (manifest → máquina).
+`bootstrap` detects whether the repo is cloned locally and adapts:
+- **With the repo:** it can run `snapshot` (machine state → manifest, commit, push).
+- **Without the repo:** only `apply` (manifest → machine).
 
-Caminho alternativo:
+To use another path: `export PEDRO_PLUGINS_REPO="/alternative/path/pedro-plugins"`.
+
+To try the local catalog in Claude Code: `claude plugin marketplace add ./`, from the root of the clone.
+
+### Tests and checks
 
 ```bash
-export PEDRO_PLUGINS_REPO="/caminho/alternativo/pedro-plugins"
+bash scripts/suite.sh                          # the whole pipeline, the same one CI runs
+python3 scripts/readme_counts_check.py         # numbers and names in both READMEs against the repository
+python3 scripts/public_repo_check.py           # no personal data in tracked files
+bash scripts/sync-shared.sh --check            # drift between _shared/ and the vendored copies
+claude plugin validate .                       # validates the catalog and the manifests
 ```
 
----
+Individual suites sit next to the code: `python3 plugins/<name>/lib/test_*.py` and `bash plugins/<name>/hooks/test_*.sh`. Always run `scripts/suite.sh`, never `scripts/run_suites.py` with no arguments: without globs it runs zero suites and exits green.
 
-## Publicando uma mudança
+CI (`.github/workflows/portability.yml`) runs the pipeline on Ubuntu, macOS and Windows on every push to `main` and on every pull request. The repository also has a commit gate for people working inside Claude Code (`.claude/hooks/release-gate.sh`, wired up by `.claude/settings.json`).
 
-> ⚠️ **Editar skill/hook sem bumpar `version` no `plugin.json` = clientes nunca recebem a atualização.**
+### Publishing a change
 
-1. Edite o plugin em `plugins/<nome>/`.
-2. **Bumpe `version`** em `plugins/<nome>/.claude-plugin/plugin.json` (e espelhe em `marketplace.json`).
-3. `claude plugin validate` — pega frontmatter inválido (`author` como string, `: `/`<>` em valores) que silenciosamente bloqueia o install.
+> ⚠️ **Editing a skill/hook without bumping `version` in `plugin.json` = clients never get the update.**
+
+1. Edit the plugin in `plugins/<name>/`.
+2. **Bump `version`** with `python3 scripts/bump.py <name>` (`--minor`, `--major` or `--para X.Y.Z`): it updates `plugin.json`, mirrors it in `marketplace.json` and updates the version table in `docs/architecture.md`.
+3. `claude plugin validate .` — catches invalid frontmatter (`author` as a string, `: `/`<>` in values) that silently blocks the install.
 4. Commit + push.
-5. Nos clientes: `/plugin marketplace update` + `claude plugin install <nome>@pedro-plugins` (instalar ≠ atualizar índice).
+5. On the clients: `/plugin marketplace update` + `claude plugin install <name>@pedro-plugins` (installing ≠ refreshing the index).
 
 ---
 
-## Licença
+## Project documentation
 
-Projeto pessoal, publicado como está e sem licença pública.
+The [`docs/`](docs/) folder describes how the repository works inside. It is in **Portuguese** and has no English version. Where to start:
+
+- [`architecture.md`](docs/architecture.md): the architecture, with the plugin and version table.
+- [`constituicao.md`](docs/constituicao.md): the rules the repository's checkers enforce.
+- [`blueprint.md`](docs/blueprint.md), [`solution-strategy.md`](docs/solution-strategy.md) and [`architecture-intent.md`](docs/architecture-intent.md): how the system works and the solution strategy.
+- [`context.md`](docs/context.md), [`features.md`](docs/features.md), [`journeys.md`](docs/journeys.md), [`glossary.md`](docs/glossary.md) and [`constraints.md`](docs/constraints.md): context and scope, features, journeys, glossary and constraints.
+- [`jq-pontos-de-decisao.md`](docs/jq-pontos-de-decisao.md): where a missing `jq` used to silence a gate.
+
+The folder also has the end-to-end flows, the map of where each piece of data lives, durability, quality goals and known pitfalls. [`docs/fluxos/`](docs/fluxos/) has HTML diagrams. Each plugin documents its own behavior in the `SKILL.md` of its skills (in Portuguese); only `graphify-guard` has a `README.md` of its own.
+
+---
+
+## Security
+
+To report a vulnerability, see [SECURITY.md](SECURITY.md). In short: do not open a public issue with the details.
+
+---
+
+## Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md). In short: open an issue before a large change, and run the pipeline and `claude plugin validate .` before the pull request.
+
+---
+
+## License
+
+This repository **does not have a `LICENSE` file yet**. Without a license, the code is published to be read, but nobody has been granted permission to copy, modify or redistribute it. A personal project, published as is.
+
+The `archify` plugin comes from third parties and carries its own MIT license at [`plugins/archify/skills/archify/LICENSE`](plugins/archify/skills/archify/LICENSE). `grill-me` comes from [Matt Pocock](https://github.com/mattpocock/skills), whose source repository is MIT.

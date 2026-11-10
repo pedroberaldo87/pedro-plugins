@@ -76,7 +76,7 @@ INDICES = ("marketplace.json", "manifest.json", "settings-defaults.json",
            "portability.yml", "hooks.json")
 # `.claude/` inteiro descreve ou retrata o repositório: doc, retrato de gate, registro de
 # limite. Acusar um retrato de citar o que ele retrata é acusar o termômetro pela febre.
-DIRS_ISENTOS = (".claude/", "docs/", "README.md", "scripts/")
+DIRS_ISENTOS = (".claude/", "docs/", "README.md", "README.pt-BR.md", "scripts/")
 
 # ...mas a isenção é de NOME, não de NÚMERO. Descrever o repositório obriga a citar os
 # plugins pelo nome; não obriga a cravar quantos são. É justamente na doc que a contagem

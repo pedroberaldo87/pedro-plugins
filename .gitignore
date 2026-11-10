@@ -60,6 +60,10 @@ graphify-out/
 # projeto de quem gerou, não produto deste marketplace.
 .claude/archify/
 .playwright-mcp/
+# Configuração local do Claude Code e worktrees de agente — estado da máquina de quem
+# trabalha aqui, nunca de quem instala.
+.claude/settings.local.json
+.claude/worktrees/
 
 # ─────────────────────────────────────────────────────────────────────────────
 # 4 · LIXO DE FERRAMENTA
@@ -78,6 +82,9 @@ graphify-out/
 *.orig
 __pycache__/
 *.pyc
+# dependências instaladas localmente (a lockfile sobe, a pasta não)
+node_modules/
+.venv/
 
 # ─────────────────────────────────────────────────────────────────────────────
 # 5 · CÓPIA LOCAL DEFASADA de plugins/ — não é fonte (architecture.md §12)
