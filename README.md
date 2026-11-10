@@ -7,6 +7,7 @@ A public marketplace of plugins for [Claude Code](https://code.claude.com/docs/e
 [![portability](https://github.com/pedroberaldo87/pedro-plugins/actions/workflows/portability.yml/badge.svg)](https://github.com/pedroberaldo87/pedro-plugins/actions/workflows/portability.yml)
 ![Platforms: macOS, Linux and Windows](https://img.shields.io/badge/platforms-macOS%20%C2%B7%20Linux%20%C2%B7%20Windows-informational)
 ![Runs on Claude Code](https://img.shields.io/badge/runs%20on-Claude%20Code-blueviolet)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
 A monorepo: each subdirectory of `plugins/` is an independent plugin, distributed through the `.claude-plugin/marketplace.json` catalog.
 
@@ -409,6 +410,8 @@ See [CONTRIBUTING.md](CONTRIBUTING.md). In short: open an issue before a large c
 
 ## License
 
-This repository **does not have a `LICENSE` file yet**. Without a license, the code is published to be read, but nobody has been granted permission to copy, modify or redistribute it. A personal project, published as is.
+[MIT](LICENSE) © 2026 Pedro Beraldo.
 
-The `archify` plugin comes from third parties and carries its own MIT license at [`plugins/archify/skills/archify/LICENSE`](plugins/archify/skills/archify/LICENSE). `grill-me` comes from [Matt Pocock](https://github.com/mattpocock/skills), whose source repository is MIT.
+Third-party plugins keep their own licenses:
+- `archify` — MIT, see [`plugins/archify/skills/archify/LICENSE`](plugins/archify/skills/archify/LICENSE).
+- `grill-me` — MIT © Matt Pocock, from [mattpocock/skills](https://github.com/mattpocock/skills); see [`plugins/grill-me/LICENSE`](plugins/grill-me/LICENSE).

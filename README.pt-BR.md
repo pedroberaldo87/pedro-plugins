@@ -409,6 +409,8 @@ Veja o [CONTRIBUTING.md](CONTRIBUTING.md) (em inglês). Em resumo: abra uma issu
 
 ## Licença
 
-Este repositório **ainda não tem arquivo `LICENSE`**. Sem licença, o código está publicado para leitura, mas ninguém recebeu permissão de copiar, modificar ou redistribuir. Projeto pessoal, publicado como está.
+[MIT](LICENSE) © 2026 Pedro Beraldo.
 
-O plugin `archify` vem de terceiros e carrega a própria licença MIT em [`plugins/archify/skills/archify/LICENSE`](plugins/archify/skills/archify/LICENSE). O `grill-me` vem de [Matt Pocock](https://github.com/mattpocock/skills), cujo repositório de origem é MIT.
+Plugins de terceiros mantêm a própria licença:
+- `archify` — MIT, ver [`plugins/archify/skills/archify/LICENSE`](plugins/archify/skills/archify/LICENSE).
+- `grill-me` — MIT © Matt Pocock, de [mattpocock/skills](https://github.com/mattpocock/skills); ver [`plugins/grill-me/LICENSE`](plugins/grill-me/LICENSE).
