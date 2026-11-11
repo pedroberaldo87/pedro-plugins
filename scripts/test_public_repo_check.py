@@ -273,18 +273,196 @@ if POSIX and hasattr(os, "geteuid") and os.geteuid() != 0:
         os.chmod(os.path.join(rep, "fechado.md"), stat.S_IRUSR | stat.S_IWUSR)
         shutil.rmtree(rep, onerror=_rm)
 
-# (6) test_sem_jq.sh: o sandbox nasce de mktemp -d (0700) e some num trap — nome previsivel
-# em /tmp deixava outra conta plantar bin/<ferramenta> antes do teste montar o PATH.
-with open(os.path.join(os.path.dirname(SCRIPT), "test_sem_jq.sh"), encoding="utf-8") as fh:
-    sem_jq = fh.read()
-atrib = [l for l in sem_jq.splitlines() if re.match(r"\s*SANDBOX=", l)]
-check("test_sem_jq.sh atribui SANDBOX uma vez", len(atrib) == 1)
-check("SANDBOX vem de mktemp -d", "mktemp -d" in atrib[0])
-check("SANDBOX nao carrega o PID ($$) no nome", "$$" not in atrib[0])
-check("existe trap de limpeza do SANDBOX",
-      re.search(r"^\s*trap\s+.*rm -rf.*SANDBOX.*(EXIT|0)", sem_jq, re.M) is not None)
-check("nao ha mais mkdir -p do SANDBOX nu", 'mkdir -p "$SANDBOX" ' not in sem_jq
-      and 'mkdir -p "$SANDBOX"\n' not in sem_jq)
+# (6) arquivo de termos que existe mas não vale: nada de "OK completo".
+import unicodedata  # noqa: E402
+
+
+def termos_cru(raiz, dados):
+    with open(os.path.join(raiz, "scripts", "public_repo_terms"), "wb") as fh:
+        fh.write(dados)
+
+
+rep = repo_de_mentira()
+try:
+    escreve(rep, "seg.md", "fale com %s hoje\n" % TERMO)
+    escreve(rep, "limpo.md", "nada aqui\n")
+    roda_git(rep, "add", "seg.md", "limpo.md")
+
+    # (a) BOM de UTF-8 (Notepad): o cabeçalho tem que ser reconhecido, o termo achado.
+    termos_cru(rep, b"\xef\xbb\xbf# nome-proprio\n" + TERMO.encode() + b"\n")
+    rc, out, err = gate(rep)
+    check("termos com BOM: o cabecalho vale e o termo e achado",
+          rc == 1 and "nome-proprio" in out and "TERMOS NÃO RODARAM" not in out)
+    rc, out, _ = gate(rep, "--json")
+    check("termos com BOM: --json terms_checked=true",
+          json.loads(out)["terms_checked"] is True)
+
+    # (b) cabeçalho errado, (c) arquivo vazio, (d) só comentário: zero regra = termos NÃO rodaram
+    for rotulo, dados in (("cabecalho errado", b"# nome-propio\n" + TERMO.encode() + b"\n"),
+                          ("vazio", b""),
+                          ("so comentario", b"# so um comentario\n")):
+        termos_cru(rep, dados)
+        rc, out, err = gate(rep)
+        check("termos %s, local: aviso alto, sem o OK limpo, exit 0" % rotulo,
+              rc == 0 and "TERMOS NÃO RODARAM" in out and "OK — nenhum" not in out)
+        rc, out, err = gate(rep, CI="true")
+        check("termos %s, em CI: exit 3" % rotulo, rc == 3 and "TERMOS NÃO RODARAM" in out)
+        rc, out, err = gate(rep, "--so-estruturais", CI="true")
+        check("termos %s, --so-estruturais: passa e continua avisando" % rotulo,
+              rc == 0 and "TERMOS NÃO RODARAM" in out)
+        rc, out, _ = gate(rep, "--json", CI="true")
+        dado = json.loads(out)
+        check("termos %s: --json terms_checked=false e ok=false em CI" % rotulo,
+              rc == 3 and dado["terms_checked"] is False and dado["ok"] is False)
+
+    # (e) seção válida + termo sob cabeçalho errado: parcial — avisa o NÚMERO da linha, não o termo
+    termos_cru(rep, b"# nome-proprio\nqualquercoisa\n# cliente-ou-sistem\n"
+               + TERMO.encode() + b"\n")
+    rc, out, err = gate(rep)
+    check("termos parciais: avisa, aponta a linha 4 e nao repete o termo",
+          rc == 0 and "TERMOS NÃO RODARAM" in out and "4" in out and TERMO not in out + err)
+    rc, out, _ = gate(rep, CI="true")
+    check("termos parciais, em CI: exit 3", rc == 3)
+finally:
+    shutil.rmtree(rep, onerror=_rm)
+
+# (7) termos com UTF-8 inválido: erro limpo, exit 2 (1 é "achei dado pessoal"), sem traceback.
+rep = repo_de_mentira()
+try:
+    escreve(rep, "limpo.md", "nada aqui\n")
+    roda_git(rep, "add", "limpo.md")
+    termos_cru(rep, b"# nome-proprio\n\xff\xfe\x80" + TERMO.encode() + b"\n")
+    for args in ((), ("--staged",), ("--so-estruturais",)):
+        rc, out, err = gate(rep, *args)
+        check("termos UTF-8 invalido %s: exit 2 sem traceback e sem OK" % (args,),
+              rc == 2 and "Traceback" not in out + err and "OK — nenhum" not in out
+              and "public_repo_terms" in out)
+    rc, out, err = gate(rep, "--json")
+    dado = json.loads(out)
+    check("termos UTF-8 invalido: --json ok=false, terms_checked=false, exit 2",
+          rc == 2 and dado["ok"] is False and dado["terms_checked"] is False
+          and dado["terms_state"] == "ilegivel")
+    check("termos ilegiveis: nem o termo nem o conteudo saem", TERMO not in out + err)
+finally:
+    shutil.rmtree(rep, onerror=_rm)
+
+# (8) arquivo rastreado que não é UTF-8: varrido, nunca "estruturais OK" calado.
+rep = repo_de_mentira(termos=TERMOS_MIN)
+try:
+    with open(os.path.join(rep, "utf16.md"), "wb") as fh:
+        fh.write(CAMINHO_RUIM.encode("utf-16"))          # com BOM: o que o Windows grava
+    with open(os.path.join(rep, "latin1.md"), "wb") as fh:
+        fh.write(b"caf\xe9 " + CAMINHO_RUIM.encode("ascii"))
+    with open(os.path.join(rep, "limpo-latin1.md"), "wb") as fh:
+        fh.write(b"caf\xe9 com leite\n")
+    with open(os.path.join(rep, "dados.bin"), "wb") as fh:
+        fh.write(b"\x00\x01\xff\xfe\x00")
+    roda_git(rep, "add", "utf16.md", "latin1.md", "limpo-latin1.md", "dados.bin")
+    rc, out, _ = gate(rep, "--json")
+    dado = json.loads(out)
+    achou = {f["file"] for f in dado["findings"]}
+    check("UTF-16 com BOM e latin-1 sao varridos e achados",
+          rc == 1 and achou == {"utf16.md", "latin1.md"})
+    check("--json conta o que leu como latin-1 e o binario ignorado",
+          dado["non_utf8_scanned"] == 2 and dado["binary_skipped"] == 1)
+    rc, out, _ = gate(rep)
+    check("texto: achado nos dois, exit 1", rc == 1 and "utf16.md:1" in out
+          and "latin1.md:1" in out)
+    # só os limpos: passa, mas a saída conta o que não foi lido como UTF-8
+    roda_git(rep, "rm", "-q", "--cached", "utf16.md", "latin1.md")
+    rc, out, _ = gate(rep)
+    check("latin-1 limpo + binario: exit 0, mas a saida conta os dois casos",
+          rc == 0 and "latin-1" in out and "binário" in out)
+    rc, out, _ = gate(rep, "--json")
+    dado = json.loads(out)
+    check("--json de latin-1 limpo carrega os contadores",
+          rc == 0 and dado["non_utf8_scanned"] == 1 and dado["binary_skipped"] == 1)
+finally:
+    shutil.rmtree(rep, onerror=_rm)
+
+# (9) nome com acento nas DUAS normalizações, escritas por escape explícito. Antes o teste
+# gravava o literal digitado no editor e não provava nada sobre NFD.
+NFD_NOME = unicodedata.normalize("NFD", "nfd-relat\u00f3rio.md")
+NFC_NOME = unicodedata.normalize("NFC", "nfc-relat\u00f3rio.md")
+check("os dois nomes de teste diferem de verdade em bytes",
+      NFD_NOME != "nfd-relat\u00f3rio.md" and "o\u0301" in NFD_NOME and "\u00f3" in NFC_NOME)
+rep = repo_de_mentira(termos=TERMOS_MIN)
+try:
+    for nome in (NFD_NOME, NFC_NOME):
+        escreve(rep, nome, CAMINHO_RUIM)
+        roda_git(rep, "add", "--", nome)
+    for args in ((), ("--staged",)):
+        rc, out, _ = gate(rep, "--json", *args)
+        dado = json.loads(out)
+        nomes = {unicodedata.normalize("NFC", f["file"]) for f in dado["findings"]}
+        check("NFD e NFC: os dois arquivos sao varridos %s" % (args,),
+              rc == 1 and nomes == {"nfd-relat\u00f3rio.md", "nfc-relat\u00f3rio.md"})
+finally:
+    shutil.rmtree(rep, onerror=_rm)
+
+# (10) symlink rastreado: o git guarda o texto do alvo, não o arquivo de fora do repo.
+if POSIX:
+    rep = repo_de_mentira(termos=TERMOS_MIN)
+    fora = os.path.join(os.path.dirname(rep), os.path.basename(rep) + "-fora.txt")
+    try:
+        escreve(os.path.dirname(rep), os.path.basename(fora), CAMINHO_RUIM)
+        os.symlink(os.path.join("..", os.path.basename(fora)), os.path.join(rep, "ln.md"))
+        os.symlink("%sfulano/x" % U, os.path.join(rep, "quebrado.md"))   # alvo pendente
+        roda_git(rep, "add", "ln.md", "quebrado.md")
+        rc, out, _ = gate(rep, "--json")
+        dado = json.loads(out)
+        achou = {f["file"] for f in dado["findings"]}
+        check("symlink: o conteudo do alvo de FORA nao e lido", "ln.md" not in achou)
+        check("symlink pendente: o texto do alvo e varrido (e nao some)",
+              achou == {"quebrado.md"} and rc == 1)
+    finally:
+        if os.path.exists(fora):
+            os.unlink(fora)
+        shutil.rmtree(rep, onerror=_rm)
+
+# (11) --staged julga o ÍNDICE, não a pasta (git add -p; vazamento staged e apagado depois).
+rep = repo_de_mentira(termos=TERMOS_MIN)
+try:
+    escreve(rep, "a.md", CAMINHO_RUIM)
+    roda_git(rep, "add", "a.md")
+    escreve(rep, "a.md", "limpo agora\n")            # pasta limpa, índice sujo
+    rc, out, _ = gate(rep, "--staged")
+    check("--staged: vazamento no indice e visto mesmo com a pasta limpa",
+          rc == 1 and "a.md:1" in out)
+    roda_git(rep, "add", "a.md")                      # índice limpo
+    escreve(rep, "a.md", CAMINHO_RUIM)                # pasta suja, fora do commit
+    rc, out, _ = gate(rep, "--staged")
+    check("--staged: sujeira so na pasta nao reprova o commit", rc == 0)
+    rc, out, _ = gate(rep)
+    check("varredura cheia continua olhando a pasta", rc == 1)
+finally:
+    shutil.rmtree(rep, onerror=_rm)
+
+# (12) test_sem_jq.sh EXECUTADO: sandbox privado (mktemp -d), limpo no fim, e um nome
+# previsível plantado não é aproveitado. Antes isto era grep no fonte do script.
+BASH = shutil.which("bash")
+if POSIX and BASH:
+    tmp = tempfile.mkdtemp(prefix="prc-semjq-")
+    try:
+        plantado = os.path.join(tmp, "test-sem-jq-%d" % os.getpid(), "bin")
+        os.makedirs(plantado)
+        with open(os.path.join(plantado, "sed"), "w", encoding="utf-8") as fh:
+            fh.write("#!/bin/sh\necho PLANTADO > \"%s/invadido\"\n" % tmp)
+        os.chmod(os.path.join(plantado, "sed"), 0o755)
+        r = subprocess.run([BASH, os.path.join(os.path.dirname(SCRIPT), "test_sem_jq.sh")],
+                           cwd=os.path.dirname(os.path.dirname(SCRIPT)), capture_output=True,
+                           stdin=subprocess.DEVNULL, timeout=280, env=dict(os.environ, TMPDIR=tmp))
+        saida = r.stdout.decode("utf-8", "replace")
+        check("test_sem_jq.sh roda verde com TMPDIR privado", r.returncode == 0
+              and saida.rstrip().endswith("verde"))
+        sobras = [n for n in os.listdir(tmp) if n.startswith("test-sem-jq.")]
+        check("o sandbox mktemp some no fim (nenhum test-sem-jq.* sobra)", sobras == [])
+        check("nome previsivel plantado nao foi tocado nem executado",
+              os.path.isdir(plantado) and not os.path.exists(os.path.join(tmp, "invadido")))
+        check("o sandbox da prova nao e o nome previsivel (PID) no log",
+              "test-sem-jq-%d" % os.getpid() not in saida)
+    finally:
+        shutil.rmtree(tmp, onerror=_rm)
 
 os.unlink(tmp_terms)
 print("test_public_repo_check: %d asserts ok ✓  (repo: %d ocorrência(s) hoje)"
