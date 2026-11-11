@@ -22,19 +22,23 @@
 #       "projeto sem documentação nenhuma", onde só importa gate e escape
 #       concordarem entre si.
 project_root() {
-  local d="$1" m
+  local d="$1" m up
   [ -n "$d" ] || return 1
   # Barra final é o MESMO modo de falha entrando pelo outro lado: "/a/b" e "/a/b/"
   # dão cksum diferente e o sentinel não casa. Normalizar a barra é a única
   # normalização permitida aqui (não muda o caminho, só a grafia).
   while [ "${d}" != "/" ] && [ "${d%/}" != "${d}" ]; do d="${d%/}"; done
 
+  # PONTO FIXO: `dirname` de "C:/", de "C:" e de "." devolve a si mesmo. No Windows o caminho nunca
+  # vira "/", e o laço girava PARA SEMPRE num projeto sem marcador (test_sessionstart_doc.sh
+  # pendurava 10 min no CI do Windows; no hook real, travava a sessão). Cada volta confere que subiu.
   local walk="$d"
   while [ -n "$walk" ] && [ "$walk" != "/" ] && [ "$walk" != "$HOME" ]; do
     if [ -f "$walk/CLAUDE.md" ] || [ -f "$walk/.claude/CLAUDE.md" ]; then
       printf '%s' "$walk"; return 0
     fi
-    walk=$(dirname "$walk")
+    up=$(dirname "$walk"); [ "$up" = "$walk" ] && break   # ponto fixo (ver nota em project_root)
+    walk=$up
   done
 
   walk="$d"
@@ -42,7 +46,8 @@ project_root() {
     for m in .git package.json pyproject.toml Cargo.toml go.mod .claude; do
       if [ -e "$walk/$m" ]; then printf '%s' "$walk"; return 0; fi
     done
-    walk=$(dirname "$walk")
+    up=$(dirname "$walk"); [ "$up" = "$walk" ] && break   # ponto fixo (ver nota em project_root)
+    walk=$up
   done
 
   return 1
