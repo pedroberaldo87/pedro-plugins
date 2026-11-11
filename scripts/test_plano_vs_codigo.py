@@ -120,6 +120,36 @@ check("o arquivo do disco de mentira continua la",
       os.path.isfile(os.path.join(FAKE_ROOT, "lib", "pronto.py")))
 limpa()
 
+# ─── P7 · achado 45: o texto do `pronto` NÃO passa por shell ─────────────────
+# O `pronto` é texto de plano — numa árvore clonada, texto de terceiro. Com
+# `shell=True`, `;`, `$(...)` e `|` viravam execução arbitrária: o `touch` abaixo
+# não é "perigoso" para o PERIGO (que só conhece rm/mv/curl/...) e rodava. A
+# prova é o marcador no disco: se o shell interpretou, o arquivo existe.
+MARCA = os.path.join(FAKE_ROOT, "executou.marca")
+for i, texto in enumerate((
+        "`test -f lib/pronto.py; touch executou.marca` sai 0",
+        "`test -f $(touch executou.marca; echo lib/pronto.py)` sai 0",
+        "`test -f lib/pronto.py && touch executou.marca` sai 0",
+        "`test -f lib/pronto.py | touch executou.marca` sai 0",
+        "`test -f lib/pronto.py\ntouch executou.marca` sai 0")):
+    plano("injecao-%d" % i, [passo("F7.%d" % i, texto)])
+    a = P.varre(PLANS, FAKE_ROOT)
+    check("injecao %d: o shell não interpreta o pronto (nenhum marcador)" % i,
+          not os.path.exists(MARCA))
+    check("injecao %d: critério com sintaxe de shell é não-verificável" % i,
+          a[0]["veredito"] == "nao-verificavel")
+    limpa()
+
+# o caminho sem shell continua julgando comando simples, com aspas
+plano("argv-simples", [passo("F7.9", "`test -f \"lib/pronto.py\"` sai 0")])
+check("comando simples com aspas continua rodando por argv (divergente)",
+      P.varre(PLANS, FAKE_ROOT)[0]["veredito"] == "divergente")
+limpa()
+plano("argv-ausente", [passo("F7.10", "`binario-que-nao-existe-p7 x` sai 0")])
+check("binário inexistente é não-verificável, não coerente",
+      P.varre(PLANS, FAKE_ROOT)[0]["veredito"] == "nao-verificavel")
+limpa()
+
 # ─── o achado nomeia onde está a divergência ─────────────────────────────────
 plano("nomeia", [passo("F9.9", "lib/pronto.py")])
 a = [x for x in P.varre(PLANS, FAKE_ROOT) if x["veredito"] == "divergente"]
