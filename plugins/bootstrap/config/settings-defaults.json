@@ -57,10 +57,6 @@
       "Bash(whoami*)",
       "Bash(pwd*)",
       "Bash(date*)",
-      "Bash(python3 {{CLAUDE_DIR}}/plugins/cache/pedro-plugins/*)",
-      "Bash(python3 \"{{CLAUDE_DIR}}/plugins/cache/pedro-plugins/*)",
-      "Bash(node {{CLAUDE_DIR}}/plugins/cache/pedro-plugins/*)",
-      "Bash(node \"{{CLAUDE_DIR}}/plugins/cache/pedro-plugins/*)",
       "Bash(pip3*)",
       "Bash(pip install*)",
       "Bash(pip show*)",
@@ -117,10 +113,6 @@
       "mcp__plugin_playwright_playwright__browser_navigate_back"
     ],
     "ask": [
-      "Bash(python3 {{CLAUDE_DIR}}/plugins/cache/pedro-plugins/*..*)",
-      "Bash(python3 \"{{CLAUDE_DIR}}/plugins/cache/pedro-plugins/*..*)",
-      "Bash(node {{CLAUDE_DIR}}/plugins/cache/pedro-plugins/*..*)",
-      "Bash(node \"{{CLAUDE_DIR}}/plugins/cache/pedro-plugins/*..*)",
       "Edit(/{{CLAUDE_DIR}}/plugins/cache/**)"
     ],
     "deny": [

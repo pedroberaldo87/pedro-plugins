@@ -19,6 +19,8 @@
 # Flags (so uma por vez; sem flag o script aplica):
 #   --listar              mostra o que o merge das permissoes acrescentaria e SAI,
 #                         sem escrever nada — e o que o /bootstrap mostra antes do "sim".
+#   --consentir           grava a marca de consentimento: o hash da lista mostrada (e as
+#                         linhas dela). SO o /bootstrap roda isto, depois do "sim".
 #   --remover-retiradas   alem de aplicar, tira do allow as entradas largas que
 #                         ja foram padrao (python3*, node*, WebFetch...) — so a pedido.
 #
@@ -26,12 +28,13 @@
 
 set -uo pipefail
 
-MODO_LISTAR=""; REMOVER_RETIRADAS=""
+MODO_LISTAR=""; REMOVER_RETIRADAS=""; MODO_CONSENTIR=""
 for _a in "$@"; do
   case "$_a" in
     --listar) MODO_LISTAR=1 ;;
     --remover-retiradas) REMOVER_RETIRADAS=1 ;;
-    *) echo "[bootstrap/config] argumento desconhecido: $_a (use --listar ou --remover-retiradas)"; exit 1 ;;
+    --consentir) MODO_CONSENTIR=1 ;;
+    *) echo "[bootstrap/config] argumento desconhecido: $_a (use --listar, --consentir ou --remover-retiradas)"; exit 1 ;;
   esac
 done
 
@@ -75,13 +78,40 @@ mkdir -p "$CLAUDE_DIR"
 # CONSENTIMENTO (Artigo 2 da constituição deste marketplace): o allow dos defaults
 # liga aprovação automática na máquina de quem instala — default de risco não
 # nasce ligado. O merge das permissões só roda com a marca de consentimento
-# gravada, e quem a grava é o /bootstrap:setup, depois de mostrar a lista
-# (`--listar`). NÃO HÁ ANISTIA: já houve uma, que gravava a marca sozinha quando o
-# settings citava UMA ferramenta do Playwright em qualquer lugar do arquivo — um
-# texto solto (num deny, num ask, escrito à mão) valia como "sim" e a lista inteira
-# entrava sem ter sido mostrada. Máquina que já fez o merge e não tem a marca pede
-# o "sim" uma vez; o que ela já tem no settings continua lá.
+# gravada, e quem a grava é o /bootstrap:setup (`--consentir`), depois de mostrar a
+# lista (`--listar`). A marca guarda o HASH da lista que o usuário viu: uma versão
+# nova que acrescenta regra invalida o "sim" antigo, e a marca vazia das versões
+# anteriores não diz o que foi aprovado, então também não vale. NÃO HÁ ANISTIA: já
+# houve uma, que gravava a marca sozinha quando o settings citava UMA ferramenta do
+# Playwright em qualquer lugar do arquivo. Máquina que já fez o merge e não tem a
+# marca pede o "sim" uma vez; o que ela já tem no settings continua lá.
 CONSENT="$CLAUDE_DIR/pedro-plugins-permissions-ok"
+
+if [ -n "$MODO_CONSENTIR" ]; then
+  "$PY" "$CFGJSON" consentimento "$DEFAULTS" > "$CONSENT.tmp" \
+    && mv "$CONSENT.tmp" "$CONSENT" \
+    || { rm -f "$CONSENT.tmp"; echo "[bootstrap/config] não consegui gravar a marca de consentimento"; exit 1; }
+  echo "[bootstrap/config] consentimento gravado: $(sed -n 1p "$CONSENT") ($(($(grep -c . "$CONSENT") - 1)) regras do molde)"
+  exit 0
+fi
+
+# estado da marca: ok | ausente | antiga | mudou (as linhas seguintes são o que mudou)
+ESTADO_OUT="$("$PY" "$CFGJSON" consent-estado "$CONSENT" "$DEFAULTS" 2>/dev/null)" || ESTADO_OUT="ausente"
+ESTADO="$(printf '%s\n' "$ESTADO_OUT" | sed -n 1p)"
+DELTA="$(printf '%s\n' "$ESTADO_OUT" | sed 1d)"
+descreve_estado() {
+  case "$ESTADO" in
+    ok)      echo "gravada, bate com a lista atual" ;;
+    ausente) echo "ausente — grave só depois do sim do usuário (--consentir)" ;;
+    antiga)  echo "desatualizada: é de uma versão anterior, sem a lista do que foi aprovado — vale o sim de novo" ;;
+    mudou)   echo "desatualizada: a lista de permissões mudou desde o seu sim — vale o sim de novo" ;;
+    *)       echo "ausente" ;;
+  esac
+}
+mostra_delta() {
+  [ -n "$DELTA" ] && { echo "[bootstrap/config] o que mudou desde o seu sim (+ entrou · - saiu):"; printf '%s\n' "$DELTA" | sed 's/^/  /'; }
+  return 0
+}
 
 if [ -n "$MODO_LISTAR" ]; then
   echo "[bootstrap/config] o merge das permissões acrescentaria (nada foi escrito):"
@@ -92,16 +122,22 @@ if [ -n "$MODO_LISTAR" ]; then
     echo "[bootstrap/config] já estão no seu allow, de versões antigas dos defaults:"
     printf '%s\n' "$RET" | sed 's/^/  retirada do padrão: /'
   fi
-  [ -f "$CONSENT" ] && echo "[bootstrap/config] marca de consentimento: gravada" \
-                    || echo "[bootstrap/config] marca de consentimento: ausente — grave só depois do sim do usuário"
+  echo "[bootstrap/config] marca de consentimento: $(descreve_estado)"
+  mostra_delta
   exit 0
 fi
 
-if [ ! -f "$CONSENT" ]; then
+if [ "$ESTADO" != "ok" ]; then
   SEM_CONSENT=1
-  echo "[bootstrap/config] ⏸ permissões NÃO aplicadas — falta o consentimento.
+  case "$ESTADO" in
+    antiga) MOTIVO="A marca de consentimento é de uma versão anterior e não traz a lista do que foi aprovado (sem a lista, não há como saber o que valia)." ;;
+    mudou)  MOTIVO="A lista de permissões mudou desde o seu sim." ;;
+    *)      MOTIVO="Falta o consentimento." ;;
+  esac
+  echo "[bootstrap/config] ⏸ permissões NÃO aplicadas — $MOTIVO
 - Os defaults ligam aprovação automática de comandos (a lista vive em config/settings-defaults.json).
 - Rode /bootstrap (setup): ele mostra a lista e grava o de acordo em $CONSENT."
+  mostra_delta
 fi
 DEFAULTS_EFETIVO="$CLAUDE_DIR/.defaults-efetivos.json"
 "$PY" "$CFGJSON" prepara-defaults "$DEFAULTS" "$CLAUDE_DIR" "$([ -n "${SEM_CONSENT:-}" ] && echo sem || echo com)" > "$DEFAULTS_EFETIVO" \
