@@ -141,10 +141,17 @@ check("ENV_READ_PATTERNS lê compose, .env, Dockerfile, systemd e código",
       {"DB_HOST", "SECRET_KEY", "APP_MODE", "UNIT_VAR", "PY_VAR"} <= lidas, "— veio %r" % sorted(lidas))
 
 import precheck_largada as p  # noqa: E402
+from caminho_igual import igual  # noqa: E402
+
+
+def mesmos_caminhos(achados, esperados):
+    return len(achados) == len(esperados) and all(igual(a, b) for a, b in zip(achados, esperados))
+
+
 check("_CAMINHO acha caminho com diretório e extensão",
-      p._CAMINHO.findall("edita lib/a.py e docs/x/y.md hoje") == ["lib/a.py", "docs/x/y.md"])
+      mesmos_caminhos(p._CAMINHO.findall("edita lib/a.py e pkg/x/y.md hoje"), ["lib/a.py", "pkg/x/y.md"]))
 check("_CAMINHO ainda acha o caminho que vem depois de uma barra solta",
-      p._CAMINHO.findall("a//b/c.py") == ["b/c.py"])
+      mesmos_caminhos(p._CAMINHO.findall("a//b/c.py"), ["b/c.py"]))
 check("_PERIODO lê número + unidade", p._periodos("a cada 30 minutos ou 2h") == [1800, 7200])
 check("_PERIODO ignora dígito dentro de palavra", p._periodos("v10x") == [])
 
