@@ -1084,8 +1084,33 @@ def encerra(pid, grace=3.0, procs=None):
     return sinal
 
 
+def _trace_ci(msg):  # DIAGNÓSTICO TEMPORÁRIO
+    f = os.environ.get("LIXEIRO_TRACE_FILE")
+    if not f:
+        return
+    try:
+        with open(f, "a", encoding="utf-8") as fh:
+            fh.write("[%d] %s\n" % (os.getpid(), msg))
+            fh.flush()
+            os.fsync(fh.fileno())
+    except Exception:
+        pass
+
+
 def _sinaliza(pid, grace=3.0):
     """Pede para terminar; só força se ele ignorar. Devolve como morreu, ou None."""
+    try:  # DIAGNÓSTICO TEMPORÁRIO
+        _t = processos()
+        _m = {p["pid"]: p for p in _t}
+        _c, _a, _g = [], pid, 0
+        while _a in _m and _g < 20:
+            _c.append("%d:%s" % (_a, _m[_a]["cmd"][:90]))
+            _a, _g = _m[_a]["ppid"], _g + 1
+        _trace_ci("SINALIZA pid=%s cadeia_do_alvo=%s" % (pid, " <- ".join(_c)))
+        _own = ancestrais(os.getpid(), _t)
+        _trace_ci("  protegidos=%s" % sorted(_own))
+    except Exception as _e:
+        _trace_ci("trace falhou %r" % (_e,))
     try:
         os.kill(pid, signal.SIGTERM)
     except (OSError, ProcessLookupError):

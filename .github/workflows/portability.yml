@@ -53,6 +53,7 @@ jobs:
     # `cfgjson.py` e `conformance.py` chamam `reconfigure(encoding="utf-8")`.
     env:
       PYTHONIOENCODING: utf-8
+      LIXEIRO_TRACE_FILE: ${{ runner.temp }}/lixeiro-trace.log
     strategy:
       # SEM fail-fast: o padrão CANCELA os outros sistemas quando um falha, e o
       # log deles sai como "The operation was canceled" — indistinguível de
@@ -125,7 +126,7 @@ jobs:
           if [ -n "$FPY" ] || [ -n "$FSH" ]; then
             echo "::notice::rodada FILTRADA — py='$FPY' sh='$FSH' (não é a esteira inteira)"
             # shellcheck disable=SC2086
-            "$PY" scripts/run_suites.py --timeout 300 \
+            "$PY" scripts/run_suites.py --timeout 60 \
               ${FPY:+--py $FPY} ${FSH:+--sh $FSH}
           else
             # A esteira INTEIRA mora em `scripts/suite.sh` (F17.3), e o CI a chama
@@ -148,3 +149,8 @@ jobs:
           fi
           "$PY" scripts/hook_contract.py --baseline .claude/hook-contract.baseline.json --fail-on high
           "$PY" scripts/public_repo_check.py
+      - name: DEBUG lixeiro trace
+        if: always()
+        shell: bash
+        run: |
+          echo "== lixeiro trace =="; cat "$LIXEIRO_TRACE_FILE" 2>&1 | cut -c1-1500 || true
