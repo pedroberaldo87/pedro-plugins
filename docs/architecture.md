@@ -378,7 +378,7 @@ improve-workflow  0.16.33  [improve-workflow]           -
 intent-guard       0.8.21  [intent-guard]               HOOKS
 lixeiro             1.6.3  [faxina]                     HOOKS
 principles          1.0.5  [principles]                 -
-project-skills    0.22.235  [completude,design-md,doc,doc-load,doc-touch,monitorar,pesquisa-referencias,plan,project-skills,qa-loop,reentrada,sprint,start] HOOKS
+project-skills    0.22.236  [completude,design-md,doc,doc-load,doc-touch,monitorar,pesquisa-referencias,plan,project-skills,qa-loop,reentrada,sprint,start] HOOKS
 sec                 0.1.1  [sec]                        -
 ship               1.5.10  [ship]                       HOOKS
 slides              1.6.6  [slides]                     -

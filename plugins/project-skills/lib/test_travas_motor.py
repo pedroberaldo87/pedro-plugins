@@ -805,7 +805,8 @@ def main():
     check("no layout do cache do marketplace, o comando ACHA o lixeiro e roda",
           r.get("rc") == 0 and "COLHEU" in r.get("saida", ""))
     check("entre as versoes do cache, resolve a mais ALTA",
-          "/lixeiro/1.10.0/lib/lixeiro.py" in r.get("saida", ""))
+          # O `__file__` que o Python imprime vem com barra invertida no Windows.
+          "/lixeiro/1.10.0/lib/lixeiro.py" in r.get("saida", "").replace("\\", "/"))
     check("o lixeiro recebe colhe-turno e a sessao desta missao",
           "colhe-turno --sessao sessao-de-teste" in r.get("saida", ""))
     # Layout de REPOSITORIO (irmao direto, sem segmento de versao): tem que resolver
