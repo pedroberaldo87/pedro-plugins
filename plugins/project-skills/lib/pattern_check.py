@@ -166,6 +166,80 @@ def doc_set_gen(project_root):
     return None
 
 
+# ---------------------------------------------------------------------------
+# Higiene de entrada: valores que vêm de um repositório que pode ser hostil.
+#   - `last_commit` do ledger.json (versionado) NUNCA vira argumento de git sem
+#     passar por `valid_sha` — um valor `--output=<arquivo>` era lido pelo git como
+#     opção e sobrescrevia um arquivo do usuário;
+#   - toda revisão vai depois de `--end-of-options` quando o git entende (>= 2.24);
+#   - doc a carimbar cujo realpath sai do projeto é recusado, e a gravação é atômica
+#     por mkstemp (nome imprevisível, O_EXCL) + os.replace.
+# ---------------------------------------------------------------------------
+_SHA_RE = re.compile(r"^[0-9a-f]{7,64}$")  # 7-40 (SHA-1) ou até 64 (repo SHA-256)
+_EOO_CACHE = []
+
+
+def valid_sha(value):
+    """True só para uma string hex minúscula de 7-64 caracteres (nada de opção, ref, espaço)."""
+    return isinstance(value, str) and _SHA_RE.match(value) is not None
+
+
+def _end_of_options():
+    """['--end-of-options'] se o git instalado entende (>= 2.24), senão [].
+
+    Sem o separador o git antigo trataria o argumento como opção inválida e falharia;
+    a validação hex de `valid_sha` é a guarda primária, o separador é a segunda.
+    """
+    if not _EOO_CACHE:
+        import subprocess
+        ok = False
+        try:
+            r = subprocess.run(["git", "--version"], capture_output=True, text=True,
+                               encoding="utf-8", errors="replace", timeout=10,
+                               stdin=subprocess.DEVNULL, start_new_session=True)
+            m = re.search(r"(\d+)\.(\d+)", r.stdout)
+            ok = bool(m) and (int(m.group(1)), int(m.group(2))) >= (2, 24)
+        except Exception:
+            ok = False
+        _EOO_CACHE.append(["--end-of-options"] if ok else [])
+    return list(_EOO_CACHE[0])
+
+
+def _grava_atomico(path, texto):
+    """Grava `texto` em `path` por mkstemp (no mesmo dir) + os.replace.
+
+    O `<doc>.tmp` previsível seguia um symlink versionado e escrevia fora do projeto.
+    mkstemp usa O_EXCL e nome aleatório: não há nome para o atacante plantar. O modo
+    do arquivo original é preservado (mkstemp cria 0600). Levanta OSError.
+    """
+    import tempfile
+    try:
+        modo = os.stat(path).st_mode & 0o777
+    except OSError:
+        modo = None
+    fd, tmp = tempfile.mkstemp(prefix=".%s." % os.path.basename(path), suffix=".tmp",
+                               dir=os.path.dirname(path) or ".")
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as fh:
+            fh.write(texto)
+        if modo is not None:
+            os.chmod(tmp, modo)
+        os.replace(tmp, path)
+    except BaseException:
+        try:
+            os.unlink(tmp)
+        except OSError:
+            pass
+        raise
+
+
+def _dentro_do_projeto(project_root, path):
+    """O realpath de `path` está dentro do realpath do projeto? (symlink não escapa)"""
+    raiz = os.path.realpath(project_root)
+    real = os.path.realpath(path)
+    return real == raiz or real.startswith(raiz.rstrip(os.sep) + os.sep)
+
+
 def _carimba_revisao(path, rel, fm, body, head, today, out):
     """Carimbo de REVISÃO de doc autoral: o dono revisou o texto e confirmou.
 
@@ -185,25 +259,23 @@ def _carimba_revisao(path, rel, fm, body, head, today, out):
                 "— reaprove o texto antes de carimbar a revisão")})
             return
     fm2 = fm
-    if re.search(r"^generated-commit:", fm2, re.MULTILINE):
-        fm2 = re.sub(r"^generated-commit:.*$", "generated-commit: %s" % head,
-                     fm2, count=1, flags=re.MULTILINE)
-    else:
-        fm2 = fm2.rstrip("\n") + "\ngenerated-commit: %s\n" % head
-    if re.search(r"^reviewed:", fm2, re.MULTILINE):
-        fm2 = re.sub(r"^reviewed:.*$", "reviewed: %s" % today, fm2, count=1, flags=re.MULTILINE)
-    else:
-        fm2 = fm2.rstrip("\n") + "\nreviewed: %s\n" % today
-    tmp = path + ".tmp"
     try:
-        with open(tmp, "w", encoding="utf-8") as fh:
-            fh.write("---\n" + fm2.strip("\n") + "\n---\n" + body)
-        os.replace(tmp, path)
+        if re.search(r"^generated-commit:", fm2, re.MULTILINE):
+            fm2 = re.sub(r"^generated-commit:.*$", lambda _m: "generated-commit: %s" % head,
+                         fm2, count=1, flags=re.MULTILINE)
+        else:
+            fm2 = fm2.rstrip("\n") + "\ngenerated-commit: %s\n" % head
+        if re.search(r"^reviewed:", fm2, re.MULTILINE):
+            fm2 = re.sub(r"^reviewed:.*$", lambda _m: "reviewed: %s" % today, fm2, count=1,
+                         flags=re.MULTILINE)
+        else:
+            fm2 = fm2.rstrip("\n") + "\nreviewed: %s\n" % today
+    except re.error as exc:
+        out["skipped"].append({"doc": rel, "reason": "carimbo recusado (re.error: %s)" % exc})
+        return
+    try:
+        _grava_atomico(path, "---\n" + fm2.strip("\n") + "\n---\n" + body)
     except OSError as exc:
-        try:
-            os.unlink(tmp)
-        except OSError:
-            pass
         out["skipped"].append({"doc": rel, "reason": "falhou ao gravar: %s" % exc})
         return
     out["stamped"].append({"doc": rel, "reviewed": today, "generated_commit": head,
@@ -262,6 +334,11 @@ def restamp(project_root, docs, today=None, revisado=False):
     for doc in docs:
         path = doc if os.path.isabs(doc) else os.path.join(project_root, doc)
         rel = os.path.relpath(path, project_root).replace(os.sep, "/")
+        if not _dentro_do_projeto(project_root, path):
+            out["skipped"].append({"doc": rel, "reason": "o doc resolve para fora do projeto "
+                                   "(symlink ou caminho externo) — não carimbo"})
+            continue
+        path = os.path.realpath(path)  # grava no alvo real; um symlink interno segue symlink
         try:
             with open(path, encoding="utf-8") as fh:
                 content = fh.read()
@@ -279,36 +356,36 @@ def restamp(project_root, docs, today=None, revisado=False):
             _carimba_revisao(path, rel, fm, body, head, today, out)
             continue
 
-        new_sig = sig(path, project_root)
-        if gen:
-            new_sig = re.sub(r"@gen=[^#]*#", "@gen=%s#" % gen, new_sig, count=1)
+        try:
+            new_sig = sig(path, project_root)
+            if gen:
+                # callable: `gen` vem do CLAUDE.md do projeto; como string seria TEMPLATE
+                new_sig = re.sub(r"@gen=[^#]*#", lambda _m: "@gen=%s#" % gen, new_sig, count=1)
 
-        fm2 = fm
-        fm2 = re.sub(r"^generated:.*$", "generated: %s" % today, fm2, count=1, flags=re.MULTILINE)
-        if re.search(r"^generated-commit:", fm2, re.MULTILINE):
-            fm2 = re.sub(r"^generated-commit:.*$", "generated-commit: %s" % head,
-                         fm2, count=1, flags=re.MULTILINE)
-        else:
-            fm2 = re.sub(r"^generated:.*$",
-                         "generated: %s\ngenerated-commit: %s" % (today, head),
-                         fm2, count=1, flags=re.MULTILINE)
-        if re.search(r"^doc-sig:", fm2, re.MULTILINE):
-            fm2 = re.sub(r"^doc-sig:.*$", "doc-sig: %s" % new_sig,
-                         fm2, count=1, flags=re.MULTILINE)
-        else:
-            fm2 = fm2.rstrip("\n") + "\ndoc-sig: %s\n" % new_sig
+            fm2 = fm
+            fm2 = re.sub(r"^generated:.*$", lambda _m: "generated: %s" % today, fm2, count=1,
+                         flags=re.MULTILINE)
+            if re.search(r"^generated-commit:", fm2, re.MULTILINE):
+                fm2 = re.sub(r"^generated-commit:.*$", lambda _m: "generated-commit: %s" % head,
+                             fm2, count=1, flags=re.MULTILINE)
+            else:
+                fm2 = re.sub(r"^generated:.*$",
+                             lambda _m: "generated: %s\ngenerated-commit: %s" % (today, head),
+                             fm2, count=1, flags=re.MULTILINE)
+            if re.search(r"^doc-sig:", fm2, re.MULTILINE):
+                # new_sig carrega o `project:` do doc: texto do repositório, nunca template
+                fm2 = re.sub(r"^doc-sig:.*$", lambda _m: "doc-sig: %s" % new_sig,
+                             fm2, count=1, flags=re.MULTILINE)
+            else:
+                fm2 = fm2.rstrip("\n") + "\ndoc-sig: %s\n" % new_sig
+        except re.error as exc:
+            out["skipped"].append({"doc": rel, "reason": "carimbo recusado (re.error: %s)" % exc})
+            continue
 
         novo = "---\n" + fm2.strip("\n") + "\n---\n" + body
-        tmp = path + ".tmp"
         try:
-            with open(tmp, "w", encoding="utf-8") as fh:
-                fh.write(novo)
-            os.replace(tmp, path)
+            _grava_atomico(path, novo)
         except OSError as exc:
-            try:
-                os.unlink(tmp)
-            except OSError:
-                pass
             out["skipped"].append({"doc": rel, "reason": "falhou ao gravar: %s" % exc})
             continue
         out["stamped"].append({"doc": rel, "generated": today,
@@ -570,6 +647,8 @@ _GEN_COMMIT_RE = re.compile(r"^generated-commit:\s*[\"']?([0-9a-f]{7,40})", re.M
 
 
 def _git_commit_resolves(root, sha):
+    if not valid_sha(sha):  # nunca entrega ao git um valor com cara de opção
+        return False
     import subprocess
     try:
         r = subprocess.run(["git", "-C", root, "cat-file", "-e", sha + "^{commit}"],
@@ -589,6 +668,7 @@ def _git_diff_names(root, range_or_sha, subtree, added_only=False, cached=False,
     if cached:
         args.append("--cached")
     if range_or_sha and not worktree and not cached:
+        args.extend(_end_of_options())
         args.append(range_or_sha)
     args.append("--")
     args.append(subtree if subtree else ".")
@@ -852,6 +932,9 @@ def touch_plan(root):
         last_commit = journal.load_ledger(root).get("last_commit")
     except Exception:
         pass
+    if last_commit is not None and not valid_sha(last_commit):
+        # defesa em profundidade: mesmo que o leitor do ledger mude, o valor não passa
+        last_commit = None
     res["ledger_last_commit"] = last_commit
     if last_commit and _git_commit_resolves(root, last_commit):
         got = _git_diff_names(root, last_commit + "..HEAD", "")
@@ -949,12 +1032,13 @@ def touch_plan(root):
 
 def _commit_age_days(root, sha):
     """Idade em dias (float) do commit, ou None se não resolvível."""
-    if not sha:
+    if not valid_sha(sha):
         return None
     import subprocess
     import time
     try:
-        r = subprocess.run(["git", "-C", root, "log", "-1", "--format=%ct", sha],
+        r = subprocess.run(["git", "-C", root, "log", "-1", "--format=%ct"]
+                           + _end_of_options() + [sha],
                            capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=10, stdin=subprocess.DEVNULL, start_new_session=True)
         if r.returncode != 0 or not r.stdout.strip():
             return None
