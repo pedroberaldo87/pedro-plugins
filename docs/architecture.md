@@ -363,11 +363,11 @@ Saída desta rodada (nome · versão · skills · tem hook):
 ```
 2op                 1.3.0  [2op,2op-opus,2op-sonnet]    -
 archify            2.14.3  [archify]                    -
-bootstrap         1.17.19  [bootstrap]                  HOOKS
+bootstrap         1.17.24  [bootstrap]                  HOOKS
 branches           1.3.15  [branches]                   HOOKS
 check-skills        0.7.5  [check-skills]               -
 context-guard      1.3.18  [context-guard]              HOOKS
-fallow              1.2.8  [fallow]                     -
+fallow             1.2.10  [fallow]                     -
 gauntlet           0.13.7  [gauntlet]                   HOOKS
 graphify-guard     1.2.16  []                           HOOKS
 grill-me            1.5.4  [grill-me]                   -
@@ -378,13 +378,13 @@ improve-workflow  0.16.30  [improve-workflow]           -
 intent-guard       0.8.18  [intent-guard]               HOOKS
 lixeiro             1.6.1  [faxina]                     HOOKS
 principles          1.0.5  [principles]                 -
-project-skills    0.22.233  [completude,design-md,doc,doc-load,doc-touch,monitorar,pesquisa-referencias,plan,project-skills,qa-loop,reentrada,sprint,start] HOOKS
+project-skills    0.22.234  [completude,design-md,doc,doc-load,doc-touch,monitorar,pesquisa-referencias,plan,project-skills,qa-loop,reentrada,sprint,start] HOOKS
 sec                 0.1.1  [sec]                        -
 ship                1.5.7  [ship]                       HOOKS
 slides              1.6.6  [slides]                     -
 vision              0.1.1  []                           -
 vistoria          0.11.11  [vistoria]                   -
-visual             1.44.2  [andamento,visual]           HOOKS
+visual             1.44.5  [andamento,visual]           HOOKS
 ```
 
 **A rodada anterior moveu onde as skills MORAM; esta apagou as CASAS que tinham ficado
@@ -1752,18 +1752,32 @@ diferença simétrica entre eles é vazia nos dois sentidos).
 
 ⚠️ **Plugin desligado no manifest e LIGADO na máquina é desvio que o `conformance.py` acusa** — era o caso desta máquina de desenvolvimento para `project-skills` e `vistoria` antes do religamento, e por isso o desvio aparecia aqui em vez de no cliente.
 
-⚠️ **Desde 2026-08-21 o merge de permissões pede CONSENTIMENTO.** O `allow` de
-`config/settings-defaults.json` liga aprovação automática de comandos na máquina de quem
-instala — default de risco não nasce ligado (Artigo 2). O bloco `CONSENTIMENTO` de
-`plugins/bootstrap/hooks/lib/apply-config.sh` só mescla o bloco `permissions` quando a marca
-`~/.claude/pedro-plugins-permissions-ok` existe no disco; quem a grava é o `/bootstrap`
-(setup), depois de mostrar a lista. Sem a marca, env + flags seguem aplicados e as
-permissões esperam, com aviso na saída. **Máquina onde o merge JÁ tinha acontecido é
-anistiada**: uma permissão distintiva dos defaults presente no `settings.json` grava a marca
-sozinha (com log) — travar ali não protegeria nada e só cortaria a atualização de quem já
-vive nesse estado. [confirmado — leitura do bloco no arquivo;
-`bash plugins/bootstrap/hooks/test_bootstrap_hooks.sh` tem o bloco *"permissões só entram
-com a marca de consentimento"* verde nesta passada]
+⚠️ **Desde 2026-08-21 o merge de permissões pede CONSENTIMENTO, e desde a correção de segurança
+de 2026-11 não há exceção.** O `allow` de `config/settings-defaults.json` liga aprovação
+automática de comandos na máquina de quem instala — default de risco não nasce ligado
+(Artigo 2). O bloco `CONSENTIMENTO` de `plugins/bootstrap/hooks/lib/apply-config.sh` só
+mescla o bloco `permissions` quando a marca `~/.claude/pedro-plugins-permissions-ok` existe
+no disco **e o hash que ela guarda bate com a lista atual**; quem a grava é o `/bootstrap` (setup), depois de mostrar a lista
+(`apply-config.sh --listar`) e grava a marca com `--consentir`. Sem a marca (ou com ela de uma lista anterior), env + flags seguem aplicados e as permissões
+esperam, com aviso na saída. A anistia antiga (uma permissão do Playwright citada em
+qualquer ponto do `settings.json` gravava a marca sozinha) foi removida.
+
+**O que o allow aprova.** Nada que age fora da máquina nem roda código que o modelo escreveu
+na hora: sem `python*`, `node*`, `perl*`, `bun*`, `env*`, `xargs*`, `timeout*`, `WebFetch` e
+sem `browser_run_code`/`browser_evaluate`/`browser_file_upload`. As únicas exceções são
+`python3` e `node` com o caminho literal de UM script do cache do próprio marketplace, na versão
+mais alta instalada (resolvida para a máquina na hora do merge, sem curinga no meio do caminho),
+só para o script que não executa comando recebido (`lib/script_audit.py` decide; a lista e a
+tabela por script estão em `config/plugin-scripts.baseline.json`). Os
+executores (`precheck_largada.py --suite`, `sec.py`…) ficam sem regra e levam um `ask`; escrita
+dentro do cache também pede aprovação. O teste de allow proibido
+reprova a CLASSE (interpretador, embrulho, rede aberta, JS de navegador), não só os nomes já
+removidos.
+
+**O que o sync do hook instala.** O `session-sync.sh` chama o `apply.sh` sem argumento, e sem
+`--install-new` o apply só liga e desliga o que já está instalado; marketplace de terceiro e
+plugin novo do manifest viram um aviso (`systemMessage` + `additionalContext`) e esperam o
+`/bootstrap`. [confirmado — `bash plugins/bootstrap/hooks/test_bootstrap_hooks.sh`]
 
 ### 10.1 Dependência externa de plugin — a terceira categoria do manifest
 
@@ -2219,9 +2233,10 @@ gate está em `patterns.md` §5.2]
   forma e da régua de bullets saíram da suíte junto com os hooks de `Stop` que eles cobriam
   (§10.2, remoção de 2026-08-09)]. O bloco mais novo é o do **consentimento de permissões**
   (pente fino de 2026-08-21, §10): sem a marca no disco o merge entrega env + flags e deixa
-  o `allow` de fora; com a marca, o `allow` dos defaults entra inteiro; máquina onde o merge
-  já tinha acontecido ganha a anistia — os três casos estão na saída da suíte, sob
-  *"-- permissões só entram com a marca de consentimento"*.
+  o `allow` de fora; com a marca, o `allow` dos defaults entra inteiro; um texto solto no
+  `settings.json` não vale como marca — os casos estão na saída da suíte, sob
+  *"-- permissões só entram com a marca de consentimento"* e *"-- um texto solto no
+  settings.json não vira consentimento"*.
 
 ### 13.2 Contrato dos hooks
 

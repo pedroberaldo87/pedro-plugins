@@ -83,6 +83,34 @@ def ledger_path(project_root):
     return os.path.join(state_dir(project_root), "ledger.json")
 
 
+# O ledger é VERSIONADO: num repositório clonado ele é entrada não confiável. `last_commit`
+# vira argumento de git (`git diff <sha>..HEAD`, `git log <sha>..HEAD`), então um valor
+# `--output=<arquivo>` seria lido como opção e sobrescreveria um arquivo do usuário.
+# Só hex de 7-64 caracteres passa (SHA-1 abreviado/completo e SHA-256).
+_SHA_RE = re.compile(r"[0-9a-f]{7,64}")  # usado com fullmatch: `$` aceitaria "abc1234\n"
+_EOO_CACHE = []
+
+
+def valid_sha(value):
+    return isinstance(value, str) and _SHA_RE.fullmatch(value) is not None
+
+
+def end_of_options():
+    """['--end-of-options'] se o git instalado entende (>= 2.24), senão []."""
+    if not _EOO_CACHE:
+        ok = False
+        try:
+            r = subprocess.run(["git", "--version"], capture_output=True, text=True,
+                               encoding="utf-8", errors="replace", timeout=10,
+                               stdin=subprocess.DEVNULL, start_new_session=True)
+            m = re.search(r"(\d+)\.(\d+)", r.stdout)
+            ok = bool(m) and (int(m.group(1)), int(m.group(2))) >= (2, 24)
+        except Exception:
+            ok = False
+        _EOO_CACHE.append(["--end-of-options"] if ok else [])
+    return list(_EOO_CACHE[0])
+
+
 def load_ledger(project_root):
     try:
         with open(ledger_path(project_root), encoding="utf-8") as fh:
@@ -99,6 +127,10 @@ def load_ledger(project_root):
         ms = {}
     d["mined_sessions"] = ms
     d.setdefault("last_commit", None)
+    if d["last_commit"] is not None and not valid_sha(d["last_commit"]):
+        print("journal: ledger.json tem last_commit que não é um sha hexadecimal (%.60r) — "
+              "ignorado; trato como sem último commit" % (d["last_commit"],), file=sys.stderr)
+        d["last_commit"] = None
     d.setdefault("distilled_hashes", {})
     return d
 
@@ -576,6 +608,9 @@ def git_head(project_root):
 def _commit_reachable(project_root, sha):
     """True se `sha` ainda existe no repo. Um rebase/amend/reset órfana o last_commit do ledger;
     usá-lo como base de range (`orfão..HEAD`) faz o git sair 128 e perderíamos TODOS os commits."""
+    if not valid_sha(sha):
+        return False
+    # rev-parse só aprendeu --end-of-options depois da 2.24; aqui a validação hex acima basta
     return bool(git(project_root, "rev-parse", "--verify", "--quiet", "%s^{commit}" % sha).strip())
 
 
@@ -658,13 +693,14 @@ def collect_commits(project_root, since=None):
     # Delta (since setado): sem teto — o range last..HEAD é pequeno e não pode perder commit.
     # Cold-start (since=None, full history): teto alto + aviso (sem corte silencioso).
     if since:
-        log = git(project_root, "log", "--no-merges", "--pretty=format:" + fmt, rng)
+        log = git(project_root, "log", "--no-merges", "--pretty=format:" + fmt, *end_of_options(), rng)
         entries = [e for e in log.split("\x1e") if e.strip()]
     else:
         CAP = 1000
         # pede CAP+1 p/ saber se truncou DE VERDADE (count==CAP não é truncamento — o fmt põe
         # um \x1e depois de cada commit, inclusive o último).
-        log = git(project_root, "log", "--no-merges", "-n", str(CAP + 1), "--pretty=format:" + fmt, rng)
+        log = git(project_root, "log", "--no-merges", "-n", str(CAP + 1), "--pretty=format:" + fmt,
+                  *end_of_options(), rng)
         entries = [e for e in log.split("\x1e") if e.strip()]
         if len(entries) > CAP:
             entries = entries[:CAP]
@@ -774,7 +810,7 @@ def run_update(project_root, active_session=None, deep=False, rebuild=False):
     stale_ids = []
     changed = set()
     if last_commit and head and last_commit != head:
-        changed |= {f for f in git(project_root, "diff", "%s..HEAD" % last_commit, "--name-only").splitlines() if f.strip()}
+        changed |= {f for f in git(project_root, "diff", "--name-only", *end_of_options(), "%s..HEAD" % last_commit).splitlines() if f.strip()}
     changed |= {f for f in git(project_root, "diff", "--name-only").splitlines() if f.strip()}
     changed |= {f for f in git(project_root, "diff", "--cached", "--name-only").splitlines() if f.strip()}
     if changed:

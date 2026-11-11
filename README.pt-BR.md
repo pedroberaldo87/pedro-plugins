@@ -111,8 +111,9 @@ Resultado esperado numa máquina zerada: **23 plugins ligados + 1 desligado de f
 > ⚠️ **Se aparecer `sync incompleto: N operações falharam`, rode `/bootstrap:setup` de novo.**
 > Medido numa instalação limpa: a primeira rodada deixou um marketplace de terceiro para trás
 > e a segunda o instalou. O script é convergente de propósito (re-rodar é seguro e nunca toca
-> em marketplace que o manifest não declara), e o auto-sync do início de sessão faria isso
-> sozinho — mas o aviso amarelo assusta antes disso acontecer.
+> em marketplace que o manifest não declara). O sync do início de sessão não termina o
+> serviço: ele só lista o que falta, e o `/bootstrap:setup` instala depois que você confirma
+> a lista.
 
 > `bootstrap` substitui o antigo `bootstrap-third-party`.
 
@@ -284,7 +285,7 @@ não mudaram.
 
 | Plugin | Trigger | O que faz |
 |---|---|---|
-| `bootstrap` ⚙️ | `/bootstrap:setup` · automático no SessionStart + PostToolUse | Prepara uma máquina nova: auto-sincroniza marketplaces e plugins via hooks **e** aplica a config global versionada (env, permissões, flags, `CLAUDE.md` global, output style, statusLine resolvido por máquina). Traz também o **Clean Style** (resultado na primeira linha, teto de prosa, prova colada sem teto) e um **verificador de conformidade** que compara a máquina viva contra o contrato versionado sem escrever nada. Rode `/bootstrap:setup` uma vez por máquina. |
+| `bootstrap` ⚙️ | `/bootstrap:setup` · automático no SessionStart + PostToolUse | Prepara uma máquina nova: mantém em dia os marketplaces e plugins já instalados via hooks (nada novo é instalado sem a sua confirmação no `/bootstrap:setup`) **e** aplica a config global versionada (env, permissões, flags, `CLAUDE.md` global, output style, statusLine resolvido por máquina). Traz também o **Clean Style** (resultado na primeira linha, teto de prosa, prova colada sem teto) e um **verificador de conformidade** que compara a máquina viva contra o contrato versionado sem escrever nada. Rode `/bootstrap:setup` uma vez por máquina. Os defaults de permissão aprovam sozinhos o script de um plugin só quando ele é chamado pelo caminho literal do cache e não executa comando recebido; chamada montada com `$VAR` ou `$(…)` pede aprovação (rode `apply-config.sh` de novo depois de atualizar um plugin). |
 
 ---
 
@@ -300,7 +301,7 @@ Cada plugin é uma pasta autocontida: o Claude Code lê o catálogo, copia a pas
 
 | Plugin | Eventos | Papel |
 |---|---|---|
-| `bootstrap` | SessionStart×2 · PostToolUse | Auto-sync de marketplaces e plugins, e o aviso depois de um comando de plugin |
+| `bootstrap` | SessionStart×2 · PostToolUse | Sync do que já está instalado, aviso do que o manifest tem de novo, e o aviso depois de um comando de plugin |
 | `branches` | SessionStart×2 · PostToolUse | Aviso de branch parada, silencioso quando não há |
 | `context-guard` | SessionStart×2 · PostToolUse | Vigia o quanto da conversa já foi usado e sugere o handoff |
 | `gauntlet` | SessionStart×2 · PreToolUse | Nega despacho novo enquanto houver entrega sem juiz, e reencontra a disputa no arranque |

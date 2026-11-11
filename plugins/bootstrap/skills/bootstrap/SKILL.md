@@ -7,7 +7,7 @@ description: Setup de máquina nova em um passo — instala, a partir do manifes
 
 Você está trazendo uma máquina pro baseline de Claude Code deste marketplace. Este plugin tem **duas camadas**:
 
-1. **Sync de plugins** (automático, via hooks) — `config/manifest.json` é a fonte da verdade dos marketplaces de terceiros **e** dos plugins do próprio `pedro-plugins` (dois deles, `graphify-guard` e `intent-guard`, declarados desligados); os hooks SessionStart/PostToolUse convergem o estado local pra ele (pull → apply → snapshot → push). Você não dispara isso à mão; roda sozinho.
+1. **Sync de plugins** (automático, via hooks) — `config/manifest.json` é a fonte da verdade dos marketplaces de terceiros **e** dos plugins do próprio `pedro-plugins` (dois deles, `graphify-guard` e `intent-guard`, declarados desligados); os hooks SessionStart/PostToolUse convergem o estado local pra ele (pull → apply → snapshot → push). Você não dispara isso à mão; roda sozinho. **O hook só sincroniza o que já está instalado (liga e desliga).** Marketplace de terceiro ou plugin que o manifest tem e a máquina não tem fica **pendente**: o hook avisa o usuário e o modelo, e quem instala é o passo 1 abaixo, depois do sim do usuário.
 2. **Camada de config** (sob demanda — esta skill) — aplica a config global versionada que um plugin não consegue carregar sozinho: env vars, permissões, flags de comportamento, o `CLAUDE.md` global, o `outputStyle` e um `statusLine` resolvido pros paths DESTA máquina.
 3. **Contrato de forma** (passivo) — o plugin distribui o output style **Clean Style** (`output-styles/clean-style.md`), ligado por `force-for-plugin: true`. (Os hooks de Stop que julgavam a última resposta foram removidos a pedido do dono em 2026-08-09 — a forma é contrato do output style, não de gate.)
 
@@ -16,9 +16,11 @@ Este setup roda a camada de config (e cutuca o sync de plugins uma vez pra máqu
 ## Pré-requisitos
 
 ```bash
-command -v jq >/dev/null || { echo "jq necessário — instale (brew install jq) e rode de novo"; exit 1; }
+{ command -v python3 || command -v python; } >/dev/null || { echo "python3 necessário — instale e rode de novo"; exit 1; }
 command -v claude >/dev/null || { echo "CLI claude necessária"; exit 1; }
 ```
+
+O `jq` **não** é pré-requisito de instalar nem de aplicar a config: `apply.sh`, `apply-config.sh` e `session-sync.sh` leem JSON com o Python. Ele só é usado pelo `snapshot.sh` (a máquina que tem o repositório-fonte e regenera o manifest) e pela receita de re-snapshot no fim deste arquivo.
 
 `${CLAUDE_PLUGIN_ROOT}` é o dir do plugin `bootstrap` instalado. Resolva a partir do contexto da skill.
 
@@ -26,11 +28,23 @@ command -v claude >/dev/null || { echo "CLI claude necessária"; exit 1; }
 
 ### 1. Instalar marketplaces + plugins do manifest (terceiros e os do próprio repo)
 
+Instalar marketplace de terceiro e plugin roda código de terceiros nesta máquina (hooks, servidores MCP, skills). Por isso é em duas etapas, e a segunda só vem com o sim do usuário.
+
+**1a. Listar o que falta.** Sem flag, o script não instala nada: sincroniza o que já está instalado e imprime uma linha `pendente:` por marketplace e por plugin do manifest que a máquina ainda não tem.
+
 ```bash
 bash "${CLAUDE_PLUGIN_ROOT}/hooks/lib/apply.sh"
 ```
 
-Isso adiciona cada marketplace de `config/manifest.json` e instala os plugins que ele lista — os de terceiros e os do próprio `pedro-plugins` —, deixando cada um ligado ou desligado conforme o `enabled` do manifest. É seguro re-rodar: converge, e marketplace que o manifest não declara nunca é tocado.
+Mostre a lista ao usuário em linguagem humana: o nome de cada marketplace, a origem (URL) e quantos plugins vêm dele. As origens são repositórios de terceiros, seguidos no HEAD deles, sem versão fixada; diga isso.
+
+**1b. Instalar, só depois do sim.**
+
+```bash
+bash "${CLAUDE_PLUGIN_ROOT}/hooks/lib/apply.sh" --install-new   # artigo8-ok: o harness define CLAUDE_PLUGIN_ROOT ao rodar skill de plugin
+```
+
+Adiciona cada marketplace pendente e instala os plugins que o manifest lista — os de terceiros e os do próprio `pedro-plugins` —, deixando cada um ligado ou desligado conforme o `enabled` do manifest. É seguro re-rodar: converge, e marketplace que o manifest não declara nunca é tocado. Se o usuário recusar parte da lista, não rode: ele ajusta o `enabled` ou tira a entrada do manifest primeiro.
 
 **Desinstalar é opt-in.** Plugin que está num marketplace gerenciado mas não aparece no manifest só é removido quando o ambiente tem `BOOTSTRAP_UNINSTALL_UNMANAGED=1` (e aí com `--keep-data`). Sem a variável o script apenas **LISTA** o que seria removido e não mexe em nada. Plugin do `pedro-plugins` fica fora dessa varredura em qualquer caso.
 
@@ -83,42 +97,71 @@ roda ANTES deste passo: ele mostra o que só existe de cada lado, sem prescrever
 bash "${CLAUDE_PLUGIN_ROOT}/hooks/lib/apply-config.sh"
 ```
 
-**As permissões pedem CONSENTIMENTO na primeira vez.** Sem a marca
-`~/.claude/pedro-plugins-permissions-ok`, o apply aplica env, flags e barra de status e
-**segura o allow/deny** — default de risco não nasce ligado (Artigo 2 da constituição
-deste marketplace). O rito: mostre ao usuário o que o allow liga (o comando abaixo diz a
-contagem de hoje; a lista vive em `config/settings-defaults.json`), e **só com o de acordo
-dele** grave a marca e rode o apply de novo:
+**As permissões pedem CONSENTIMENTO, sem exceção, e o consentimento é sobre ESTA lista.** Sem
+uma marca válida em `~/.claude/pedro-plugins-permissions-ok`, o apply aplica env, flags e barra
+de status e **segura o allow/ask/deny** — default de risco não nasce ligado (Artigo 2 da
+constituição deste marketplace). A marca não é um arquivo vazio: guarda o hash (sha256) da lista
+que o usuário viu, e as linhas dela. Release que acrescenta ou tira regra muda o hash, a marca
+deixa de valer e o apply mostra o que mudou (`+` entrou, `-` saiu) antes de pedir o sim de novo.
+A marca vazia das versões anteriores também não vale: ela não diz o que foi aprovado. Não
+existe anistia: um texto parecido no `settings.json` não vale como "sim", e só esta skill grava
+a marca. O rito: rode a listagem, que **não escreve nada** e mostra, entrada por entrada, o que
+o merge acrescenta ao seu `settings.json`, com o caminho já resolvido para esta máquina; leia a
+lista ao usuário; **só com o de acordo dele** grave a marca e rode o apply de novo:
 
 ```bash
-python3 -c "import json;p=json.load(open('${CLAUDE_PLUGIN_ROOT}/config/settings-defaults.json'))['permissions'];print(len(p['allow']),'no allow ·',len(p['deny']),'no deny')"
-touch ~/.claude/pedro-plugins-permissions-ok   # SÓ depois do "sim" do usuário
+bash "${CLAUDE_PLUGIN_ROOT}/hooks/lib/apply-config.sh" --listar   # artigo8-ok: o harness define CLAUDE_PLUGIN_ROOT ao rodar skill de plugin
+bash "${CLAUDE_PLUGIN_ROOT}/hooks/lib/apply-config.sh" --consentir   # artigo8-ok: SÓ depois do "sim" do usuário; grava o hash da lista mostrada
 ```
 
-Máquina onde o merge já tinha acontecido antes desta regra é anistiada com a marca gravada
-automaticamente — o estado dela já era esse, e travar agora só a deixaria sem atualização.
+Máquina que já recebeu os defaults de uma versão antiga passa pelo mesmo rito uma vez. O
+que ela já tem no `settings.json` continua lá. As regras por script (abaixo) dependem de os
+plugins já estarem instalados: rode o apply-config **depois** do passo 1, e de novo depois de
+atualizar plugins.
+
+**Entradas largas de versões antigas.** Os defaults antigos aprovavam `python3*`, `node*`,
+`env*`, `WebFetch` e outras que rodam qualquer comando ou chegam a qualquer endereço, e uma
+versão intermediária liberava a pasta inteira do cache (uma regra `Bash(python3 …/plugins/cache/pedro-plugins/*)`).
+Como o merge é união, elas ficam na máquina depois da atualização. O apply avisa com uma linha
+`retirada do padrão:` por entrada (a listagem também mostra) e **não remove sozinho**. O aviso
+reconhece as grafias que o Claude Code trata como a mesma regra (`Bash(python3:*)`,
+`Bash(python3 *)` e `Bash(python3*)`). Se o usuário quiser tirá-las, rode
+`apply-config.sh --remover-retiradas` (backup antes; o que o usuário escreveu com outro escopo,
+como `Bash(python3 -m pytest*)`, fica). Enquanto uma delas estiver no allow, ela vale por cima de
+tudo o que está escrito abaixo sobre scripts; só o `ask` por script (abaixo) ainda segura os
+executores.
 
 Isso faz merge de `config/settings-defaults.json` em `~/.claude/settings.json`:
 - **env** — seta `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS`, `CLAUDE_CONTEXT_THRESHOLD`, `CLAUDE_STATUSLINE_FORWARD` (os defaults vencem).
-- **permissions** — UNIÃO do allow/deny existente da máquina com os defaults versionados (a máquina mantém os seus, ganha os compartilhados). Isso **liga aprovação automática**. O que entra, o que não entra, e por quê:
+- **permissions** — UNIÃO do allow/ask/deny existente da máquina com os defaults versionados (a máquina mantém os seus, ganha os compartilhados). Isso **liga aprovação automática** só do que está no allow abaixo; o que a skill não lista continua pedindo aprovação. O que entra, o que não entra, e por quê:
 
-  **Entra** — o `allow` e o `deny` inteiros dos defaults (a contagem de hoje sai do comando
-  de consentimento acima, nunca deste texto): ferramentas nativas de leitura, edição, busca,
-  web e subagente · comandos de shell · chamadas do Playwright · padrões destrutivos no `deny`.
+  **Entra** — o `allow`, o `ask` e o `deny` inteiros dos defaults (a contagem de hoje sai do comando
+  de consentimento acima, nunca deste texto): ferramentas nativas de leitura, edição, busca na web
+  e subagente · comandos de shell · chamadas do Playwright que navegam e leem a página · padrões
+  destrutivos no `deny`.
 
   Os de shell, por família:
   - **arquivo local, git sem publicar, teste e inspeção** — o grosso: ler e escrever arquivo, git **sem `push`** (`push --force` está no `deny`), test runner, linter, inspeção de container.
-  - **baixa da rede e instala** — `pip install`, `brew`, `node`, `bun`.
-  - **pergunta à rede, sem agir nem levar credencial** — `ping`, `dig`, `nslookup`, `host`.
-  - **roda script do repositório em que a sessão estiver** — `./scripts/*`, `.venv/*`.
+  - **instala dependência** — `pip install`, `pip3`, `brew`: rodam o script de instalação do pacote (`setup.py`, fórmula). **Mantidos até decisão do dono.**
+  - **pergunta à rede** — `ping`, `dig`, `nslookup`, `host`: não levam credencial por si, mas o nome consultado pode carregar texto (canal de saída por DNS). **Mantidos até decisão do dono** (ver "Lacunas conhecidas").
+  - **roda script do repositório em que a sessão estiver** — `./scripts/*`, `.venv/*`, e os executores de teste e servidor (`pytest*`, `uvicorn*`): rodam o que o repositório clonado traz (um `conftest.py`, um módulo). **Mantidos até decisão do dono.**
+  - **roda os scripts dos próprios plugins, e só eles, um a um** — `python3` e `node` com o caminho **literal** de UM script do cache deste marketplace, na versão instalada mais alta, e só se o script **não executa comando recebido**. Não há regra de pasta: a pasta inteira liberava `precheck_largada.py --suite '<comando>'`, que roda o comando com `bash -c`. A lista dos scripts que as skills chamam, e o que cada um faz, está em `config/plugin-scripts.baseline.json` (gerada por `lib/script_audit.py`; `--tabela` imprime a tabela); só ganha regra o script que não cria processo, não avalia texto como código, não carrega código escolhido em tempo de execução e não usa rede, ele ou qualquer módulo local que importe. O apply refaz essa conferência na cópia que está no cache. Os que ficam de fora pedem aprovação, e levam também uma regra de `ask`, que vale por cima de qualquer allow largo que a máquina ainda tenha. Curinga no meio do caminho foi medido e **não** serve (uma regra `Bash(python3 …/pedro-plugins/*/lib/x.py *)` aprovou um comando com `evil.py` no começo e `x.py` no fim, porque o `*` engole texto), então a versão é resolvida na hora do merge: **atualizou um plugin, rode `apply-config.sh` de novo** para as regras acompanharem (até lá o script na versão nova pede aprovação, que é a falha segura). Escrita dentro do cache pede aprovação (`Edit` no `ask`), para ninguém plantar um script ali.
+  - **Chamada montada por variável ou `$(…)` pede aprovação.** A regra casa pelo texto do comando, e o Claude Code não pré-aprova comando com `$(…)`. Muitas skills chamam o script achando o caminho com o `resolve-plugin.sh` dentro de `$(…)`, ou por uma variável como `$SELADAS`: essas chamadas continuam pedindo aprovação, mesmo para script liberado. É a falha segura, e é esperada; só a chamada com o caminho literal roda sozinha.
 
-  **Não entra, de propósito** — tudo que **age fora desta máquina ou toca credencial**; quem quiser aprova na hora:
+  **Não entra, de propósito** — tudo que **age fora desta máquina, toca credencial ou roda código que o modelo escreveu na hora**; quem quiser aprova na hora:
   - **publica ou entrega** — `git push`, `scp`, `rsync`, `deploy.sh`.
   - **fala com serviço remoto usando o token já guardado** — `gh` (aprovaria `gh repo delete`), `npm` (aprovaria `npm publish` com a credencial do registry), `psql` (age em banco remoto), `ssh`.
-  - **executa código arbitrário baixado na hora** — `npx`, `wget`.
+  - **executa código arbitrário baixado na hora** — `npx`, `wget`, `curl`.
   - **grava credencial** — `ssh-add`, `supabase` (o CLI faz `login` e age no projeto remoto).
+  - **interpretador solto** — `python*`, `node*`, `perl*`, `bun*`: `python3 -c` lê um segredo local e o envia com o cliente HTTP da própria linguagem, e nenhuma regra por nome de comando enxerga isso.
+  - **embrulho que roda o argumento como comando** — `env*`, `printenv*` (lista as variáveis, tokens inclusos), `xargs*`, `timeout*`, e `find*`, `sed*`, `awk*` sem restrição.
+  - **rede e código no navegador, sem destino fixo** — `WebFetch` (a busca na web, `WebSearch`, segue liberada) e, no Playwright, `browser_run_code`, `browser_evaluate` e `browser_file_upload`.
 
   **Não entra porque o casamento é por PREFIXO** — `source` e toda entrada que começa por atribuição de variável (`TOKEN=*`, `SKEY=*`, `URL=*`, `SUPABASE_*`, `PROJECT_REF=*`, `DOCKER_HOST=*`, `PYTHONPATH=*`). `Bash(source*)` aprova `source /qualquer/coisa`, e `Bash(TOKEN=*)` aprova **qualquer** comando escrito depois da atribuição — ou seja, reabre o allow inteiro. Medido em 2026-08-05 num allow que tinha `Bash(TOKEN=*)` e não tinha `sqlite3`: `sqlite3 --version` foi bloqueado e `TOKEN=x sqlite3 --version` rodou sem pedir aprovação.
+
+  O teste `hooks/test_bootstrap_hooks.sh` reprova a volta de qualquer entrada dessas classes, não só das que já saíram.
+
+  **Lacunas conhecidas — ficam no allow de propósito, até o dono decidir.** São equivalentes de execução ou de saída de dados que esta correção NÃO tirou, porque a decisão D-1 só tratava de `python3` e `node`: `./scripts/*` e `.venv/*` (rodam o que o repositório clonado traz), `pytest*` (`conftest.py`), `uvicorn*` (importa módulo do repositório), `pip`/`pip3` (script de instalação), `tar*` (`--checkpoint-action=exec=`), `brew*`, `docker exec*` e `docker build*`, `dig`/`nslookup`/`host`/`ping` (canal DNS/ICMP), e no Playwright `browser_navigate`, `browser_type`, `browser_fill_form`, `browser_network_requests` (um GET a destino aberto é o mesmo canal do `WebFetch` que saiu). A recomendação de lista está no corpo da PR #12 ("Decisões pendentes do dono"). Quem não quiser esperar pode pôr as que quiser no `ask` do próprio `settings.json`: o `ask` vale por cima do allow.
 
   Confira os números antes de rodar:
 
@@ -178,22 +221,20 @@ Diga ao usuário, em linguagem clara:
 Quando o usuário muda as permissões / env / CLAUDE.md global da máquina-fonte e quer propagar, re-snapshote os defaults pro repo:
 
 ```bash
-# Regenera settings-defaults.json a partir do settings atual (descarta qualquer secret).
-# defaultMode fica DE FORA de propósito: modo de aprovação é escolha de cada máquina,
-# não contrato versionado. O que age fora da máquina, mexe em credencial, executa
-# código baixado na hora ou deploya por wildcard (git push, ssh-add, scp, rsync,
-# supabase, npx, wget, ./deploy.sh) também fica de fora: cada máquina aprova na hora.
-# Entrada que começa por atribuição de variável (TOKEN=*, SUPABASE_*, ...) idem: como
-# o casamento é por prefixo, ela aprovaria qualquer comando escrito depois dela.
-jq '{
+# Regenera só env e flags a partir do settings atual (descarta qualquer secret).
+# As PERMISSÕES NÃO são regeneradas: o settings da máquina carrega entradas que não podem
+# virar padrão (interpretador solto, embrulho, WebFetch, git push, ssh-add, scp, rsync,
+# supabase, npx, wget, atribuição de variável...) e o caminho absoluto desta máquina onde
+# os defaults têm {{CLAUDE_DIR}}. O bloco `permissions` do arquivo versionado é editado à
+# mão, e o teste de allow proibido (hooks/test_bootstrap_hooks.sh) cobra o resultado.
+# defaultMode fica de fora de propósito: modo de aprovação é escolha de cada máquina.
+DEFS="$PEDRO_PLUGINS_REPO/plugins/bootstrap/config/settings-defaults.json"   # artigo8-ok: PEDRO_PLUGINS_REPO é o clone do dono, documentado no README
+jq --slurpfile cur "$DEFS" '{
   env: .env,
-  permissions: {
-    allow: [.permissions.allow[] | select(test("SSH_PASSPHRASE|PASSPHRASE|^Bash\\(git push|^Bash\\(ssh-add|^Bash\\(scp|^Bash\\(rsync|^Bash\\(npx|^Bash\\(wget|supabase\\*\\)|^Bash\\(\\./deploy\\.sh|^Bash\\([A-Z][A-Z0-9_]*[=_]";"i") | not)],
-    deny: .permissions.deny
-  },
+  permissions: $cur[0].permissions,
   language: .language, theme: .theme, autoCompactEnabled: .autoCompactEnabled,
   outputStyle: .outputStyle
-}' "$HOME/.claude/settings.json" > "$PEDRO_PLUGINS_REPO/plugins/bootstrap/config/settings-defaults.json"
+}' "$HOME/.claude/settings.json" > "$DEFS.novo" && mv "$DEFS.novo" "$DEFS"
 
 cp "$HOME/.claude/CLAUDE.md" "$PEDRO_PLUGINS_REPO/plugins/bootstrap/config/CLAUDE-global.md"
 ```
