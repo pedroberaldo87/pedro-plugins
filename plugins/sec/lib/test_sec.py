@@ -37,6 +37,44 @@ def check(label, cond):
         FAILS.append(label)
 
 
+def pagina_aikido(registros):
+    """Página de pacote da Aikido Intel no formato do Nuxt (`__NUXT_DATA__`, devalue):
+    lista plana em que objetos e listas apontam por índice. MONTADA aqui, não gravada — o
+    site bloqueia o IP de quem consulta em lote, então o formato vem do que o `sec.py` lê."""
+    arr = []
+
+    def cod(v):
+        i = len(arr)
+        arr.append(None)
+        if isinstance(v, dict):
+            arr[i] = {k: cod(x) for k, x in v.items()}
+        elif isinstance(v, list):
+            arr[i] = [cod(x) for x in v]
+        else:
+            arr[i] = v
+        return i
+    cod({"data": {"pacote": {"vulns": registros}}})
+    return ("<html><body><script type=\"application/json\" id=\"__NUXT_DATA__\">%s</script></body></html>"
+            % json.dumps(arr)).encode()
+
+
+def reg_aikido(cve, faixas, correcoes, relacionado="", gravidade="HIGH", lang="js", nome="lodash"):
+    return {"cve": cve, "package_name": nome, "language": lang, "vulnerable_ranges": faixas,
+            "patch_versions": correcoes, "related_cve_id": relacionado, "severity": gravidade,
+            "desc_short": "falha de teste " + cve}
+
+
+PAGINAS_AIKIDO = {
+    "/packages/npm/lodash": [
+        reg_aikido("AIKIDO-2024-10001", [["4.17.0", "4.17.20"]], ["4.17.21"]),   # corrigida em silêncio
+        reg_aikido("AIKIDO-2024-10002", [["4.17.0", "4.17.20"]], ["4.17.21"],    # o OSV já tem pelo GHSA
+                   relacionado="GHSA-29mw-wpgm-hmr9"),
+        reg_aikido("AIKIDO-2024-10003", [["5.0.0", "*"]], []),                   # outra faixa
+        reg_aikido("AIKIDO-2024-10004", [["4.17.0", "4.17.20"]], ["4.17.21"], lang="python"),  # outra linguagem
+    ],
+}
+
+
 class Falso(http.server.BaseHTTPRequestHandler):
     """OSV + dump de Actions + Aikido, servidos das respostas gravadas."""
 
@@ -78,13 +116,17 @@ class Falso(http.server.BaseHTTPRequestHandler):
         if self.path == "/malware_predictions.json":  # entrada real da lista da Aikido
             return self._json([{"package_name": "jshelperdependenceny", "version": "99.0.0", "reason": "MALWARE"},
                                {"package_name": "@babel/core", "version": "0.0.1", "reason": "MALWARE"}])
+        if self.path.startswith("/packages/"):  # Aikido Intel, uma página por pacote
+            if self.path.endswith("/pacote-quebrado"):
+                return self._json(b"<html>manutencao</html>")  # sem __NUXT_DATA__ = o site mudou
+            return self._json(pagina_aikido(PAGINAS_AIKIDO.get(self.path, [])))
         if self.path == "/malware_pypi.json":
             return self._json([{"package_name": "rich", "version": "*", "reason": "TELEMETRY"}])
         return self._json({}, 404)
 
 
 def apontar(base, cache):
-    sec.OSV_API = sec.OSV_DUMP = sec.AIKIDO = base
+    sec.OSV_API = sec.OSV_DUMP = sec.AIKIDO = sec.AIKIDO_INTEL = base
     sec.CACHE_DIR = cache
 
 
@@ -177,6 +219,39 @@ def main():
         check("tem lockfile → sem aviso de lockfile ausente", "package.json" not in it)
         check("ordem: malicioso antes de falha antes de cadeia",
               [i["nivel"] for i in res["itens"]] == sorted((i["nivel"] for i in res["itens"]), key=sec.NIVEIS.index))
+
+        print("Aikido Intel: falha corrigida em silêncio, sem CVE nem GHSA")
+        regs = sec.aikido_registros(pagina_aikido(PAGINAS_AIKIDO["/packages/npm/lodash"]).decode())
+        check("a página do Nuxt é lida inteira (4 registros, campos certos)",
+              [r["cve"] for r in regs] == ["AIKIDO-2024-10001", "AIKIDO-2024-10002", "AIKIDO-2024-10003", "AIKIDO-2024-10004"]
+              and regs[0]["vulnerable_ranges"] == [["4.17.0", "4.17.20"]] and regs[0]["patch_versions"] == ["4.17.21"])
+        try:
+            sec.aikido_registros("<html>sem json</html>")
+            check("página sem __NUXT_DATA__ é erro, não 'sem falhas'", False)
+        except ValueError:
+            check("página sem __NUXT_DATA__ é erro, não 'sem falhas'", True)
+        check("faixa fechada nas duas pontas", sec.aikido_afeta(regs[0], "4.17.20")
+              and not sec.aikido_afeta(regs[0], "4.17.21") and not sec.aikido_afeta(regs[0], "4.16.9"))
+        check("'*' no teto = sem correção ainda", sec.aikido_afeta(regs[2], "9.9.9"))
+        check("a correção é a menor versão acima da instalada",
+              sec.aikido_correcao(regs[0], "4.17.15") == "4.17.21" and sec.aikido_correcao(regs[0], "4.17.21") is None)
+        lo = it.get("npm lodash 4.17.15", {})
+        check("lodash: a falha silenciosa entra na lista de ids", "AIKIDO-2024-10001" in lo.get("ids", []))
+        check("o registro que o OSV já tem (related_cve_id) não conta duas vezes",
+              "AIKIDO-2024-10002" not in lo.get("ids", []))
+        check("faixa e linguagem que não casam ficam de fora",
+              "AIKIDO-2024-10003" not in lo.get("ids", []) and "AIKIDO-2024-10004" not in lo.get("ids", []))
+        check("o motivo diz quantas ninguém tinha alertado", "1 sem alerta oficial" in lo.get("motivo", ""))
+        check("a fonte sai como ok quando todas as páginas responderam",
+              res["fontes"].get("Aikido Intel (vulnerabilidades)") == "ok")
+        quebrado = os.path.join(tmp, "quebrado")
+        os.makedirs(quebrado)
+        with open(os.path.join(quebrado, "package-lock.json"), "w") as fh:
+            json.dump({"lockfileVersion": 3, "packages": {"": {}, "node_modules/pacote-quebrado": {"version": "1.0.0"}}}, fh)
+        rq = sec.varrer(quebrado, maquina=False)
+        check("página que falha vira NÃO VERIFICADO, com a conta, nunca verde",
+              "Aikido Intel (vulnerabilidades)" in rq["falhas"]
+              and "1 de 1" in rq["falhas"]["Aikido Intel (vulnerabilidades)"])
 
         print("caminhos do relatório saem sempre com '/'")
         # No Windows `normpath` devolve `pnpm\pnpm-lock.yaml` e o relatório (e a chave dos
