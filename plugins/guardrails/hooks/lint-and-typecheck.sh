@@ -55,6 +55,8 @@ esac
 #   · mypy não roda quando o config declara `plugins` (carregaria código do repo).
 FILE_DIR=$(cd "$(dirname "$FILE_PATH")" 2>/dev/null && pwd -P) || FILE_DIR=$(dirname "$FILE_PATH")
 PROJ_ROOT=$(git -C "$FILE_DIR" rev-parse --show-toplevel 2>/dev/null) || PROJ_ROOT="$FILE_DIR"
+# Mesma grafia de FILE_DIR: no Git Bash o git devolve `C:/x` e o `pwd -P` devolve `/c/x`.
+PROJ_ROOT=$(cd "$PROJ_ROOT" 2>/dev/null && pwd -P) || true
 if [ -n "${HOME:-}" ]; then
   _home=$(cd "$HOME" 2>/dev/null && pwd -P) || _home="$HOME"
   case "$FILE_DIR/" in "$_home"/*) case "$PROJ_ROOT/" in "$_home"/*) ;; *) PROJ_ROOT="$_home" ;; esac ;; esac
@@ -72,7 +74,18 @@ real_file() {
   [ -L "$1" ] && return 1
   printf '%s/%s' "$(cd "$(dirname "$1")" && pwd -P)" "$(basename "$1")"
 }
-bin_in_proj() { local r; r=$(real_file "$1") || return 1; case "$r" in "$PROJ_ROOT"/*) return 0 ;; esac; return 1; }
+bin_in_proj() { # o binário resolve (symlink incluso) para dentro da raiz do projeto?
+  local py; py=$(hj_py 2>/dev/null) || py=""
+  if [ -n "$py" ]; then
+    # Comparação no próprio Python: ele normaliza barra, maiúscula (Windows) e symlink dos
+    # dois lados; o bash veria `C:\x` contra `/c/x` e reprovaria o eslint do projeto.
+    "$py" -c 'import os,sys
+r=os.path.normcase(os.path.realpath(sys.argv[1])); p=os.path.normcase(os.path.realpath(sys.argv[2]))
+sys.exit(0 if r.startswith(p.rstrip(os.sep)+os.sep) else 1)' "$1" "$PROJ_ROOT" 2>/dev/null
+    return $?
+  fi
+  local r; r=$(real_file "$1") || return 1; case "$r" in "$PROJ_ROOT"/*) return 0 ;; esac; return 1
+}
 
 ERRORS=""
 

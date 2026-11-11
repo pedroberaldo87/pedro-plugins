@@ -165,7 +165,7 @@
       "source": "./plugins/guardrails",
       "description": "Global editing guardrails as hooks: post-edit lint & type-check (JS/TS/Python), an LLM scope-cop that blocks UI edits drifting from the approved plan, and an Agent Teams misuse guard. Portable across machines — replaces hand-rolled hooks in ~/.claude/settings.json. Run /guardrails:setup once per machine to set the env var and clear the old hooks.",
       "category": "dev-tools",
-      "version": "1.8.15",
+      "version": "1.8.16",
       "tags": [
         "hooks",
         "guardrail",
@@ -220,7 +220,7 @@
       "source": "./plugins/intent-guard",
       "description": "EXPERIMENTAL — Guarda de intenção: caderno append-only dos pedidos verbatim do usuário + gates de plano, checkpoint e ENTREGA (auditoria independente por subagente de contexto virgem, prompt canônico, veredito CONFIRMADO/INFERIDO com evidência). v0.4.0: auditoria dispara no COMMIT (não a cada turno) e ganha escada de custo — pedido com receita mecânica (ex.: 'commit push' → compara hashes) é resolvido por CÓDIGO, sem agente; numa sessão real 4 de 7 pedidos eram isso, ~50k tokens cada. O juiz só ESCOLHE de um catálogo fechado, nunca escreve comando. v0.3.0: pedidos escopados por sessão (sessões paralelas dividiam a lista de vivos). v0.2.0: tree-hash ignora artefato de execução; juízes internos não poluem o caderno. Baixa automática é experimental. Kill-switch: ~/.claude/intent-guard/mode=off.",
       "category": "dev-tools",
-      "version": "0.8.19",
+      "version": "0.8.20",
       "tags": [
         "intent",
         "audit",
@@ -289,7 +289,7 @@
       "source": "./plugins/ship",
       "description": "Production deploy flow: lint, type-check, commit, push, deploy in one disciplined sequence. Triggers on 'ship', 'manda', 'deploya tudo'.",
       "category": "dev-tools",
-      "version": "1.5.8",
+      "version": "1.5.9",
       "tags": [
         "deploy",
         "lint",

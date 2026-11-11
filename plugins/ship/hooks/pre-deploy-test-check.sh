@@ -431,6 +431,9 @@ TEST_DIR=""
 # um package.json / Makefile num ancestral do projeto não é o runner do projeto (achado 54).
 SEARCH_DIR=$(cd "$CWD" 2>/dev/null && pwd -P) || SEARCH_DIR="$CWD"
 BOUND=$(git -C "$SEARCH_DIR" rev-parse --show-toplevel 2>/dev/null) || BOUND="$SEARCH_DIR"
+# Mesma grafia de SEARCH_DIR: no Git Bash o git devolve `C:/x` e o `pwd -P` devolve `/c/x`,
+# e a comparação de igualdade do laço abaixo nunca fecharia (a busca passaria da raiz).
+BOUND=$(cd "$BOUND" 2>/dev/null && pwd -P) || true
 if [ -n "${HOME:-}" ]; then
   _home=$(cd "$HOME" 2>/dev/null && pwd -P) || _home="$HOME"
   case "$SEARCH_DIR/" in "$_home"/*) case "$BOUND/" in "$_home"/*) ;; *) BOUND="$_home" ;; esac ;; esac

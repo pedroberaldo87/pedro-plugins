@@ -49,7 +49,9 @@ check() { # check <nome> <obtido> <esperado>
 }
 argv_tem() { grep -c -x -- "$1" "$FAKE_ARGV" | tr -d ' '; }
 export FAKE_ARGV="$W/claude.argv"
-export PATH="$W/bin:$PATH"
+# No Git Bash, `C:/x` num PATH separado por `:` quebra em `C` e `/x`: o PATH leva a grafia POSIX.
+BIN_POSIX="$(cygpath -u "$W/bin" 2>/dev/null || printf '%s' "$W/bin")"
+export PATH="$BIN_POSIX:$PATH"
 
 repo() { # repo <dir> — repositório mínimo com um commit
   mkdir -p "$1"; git -C "$1" init -q
