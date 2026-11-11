@@ -155,13 +155,27 @@ def test_valores_invalidos_de_last_commit():
     with tempfile.TemporaryDirectory() as d:
         root = _repo(d)
         ruins = ["--output=x", "-n1", "HEAD", "abc", "ABCDEF0123", "g" * 40, "a" * 65,
-                 "abc1234 --output=x", 123456789, ["abc1234"], {"a": 1}, ""]
+                 "abc1234 --output=x", "abc1234\n", "abc1234\n\n", 123456789, ["abc1234"], {"a": 1}, ""]
         for v in ruins:
             _write_ledger(root, v)
             got = journal.load_ledger(root)["last_commit"]
             check("load_ledger(%r) → None" % (v,), got is None)
             check("_commit_age_days(%r) → None" % (v,),
                   pattern_check._commit_age_days(root, v) is None)
+
+
+def test_valid_sha_exige_fullmatch():
+    """`$` aceitava uma quebra de linha final; o contrato é hex puro de 7-64 caracteres."""
+    for mod in (journal, pattern_check):
+        nome = mod.__name__
+        check("%s.valid_sha('abc1234\\n') → False" % nome, mod.valid_sha("abc1234\n") is False)
+        check("%s.valid_sha('abc1234') → True" % nome, mod.valid_sha("abc1234") is True)
+        check("%s.valid_sha('a'*64) → True" % nome, mod.valid_sha("a" * 64) is True)
+    # as duas cópias não podem divergir (cada módulo guarda a sua de propósito)
+    amostras = ["abc1234", "abc1234\n", "ABC1234", "a" * 6, "a" * 7, "a" * 64, "a" * 65, "", " abc1234",
+                "abc1234 ", "--output=x", 7, None]
+    check("journal.valid_sha e pattern_check.valid_sha concordam em todas as amostras",
+          all(journal.valid_sha(v) == pattern_check.valid_sha(v) for v in amostras))
 
 
 def test_revisao_vai_depois_de_end_of_options():
@@ -255,6 +269,68 @@ def test_restamp_recusa_doc_fora_do_projeto():
         check("o alvo recebeu o carimbo", "generated-commit:" in open(real, encoding="utf-8").read())
 
 
+def _fm_sig(texto):
+    for linha in texto.splitlines():
+        if linha.startswith("doc-sig:"):
+            return linha.split(":", 1)[1].strip()
+    return None
+
+
+def test_restamp_sig_de_symlink_usa_o_nome_do_link():
+    """Sem `scope:` o escopo da sig vem do NOME do arquivo. O verificador calcula a sig sobre o
+    caminho do link; o carimbo tem de usar o mesmo nome (não o do alvo), senão nunca casa."""
+    with tempfile.TemporaryDirectory() as d:
+        root = _repo(d)
+        docs = os.path.join(root, ".claude", "docs")
+        sem_scope = "---\ngenerated: 2026-01-01\nproject: P\ndoc-sig: P/x@gen=%s#abcd1234\n---\n\n# doc\n" % (
+            pattern_check.CURRENT_GEN)
+        alvo = os.path.join(docs, "bar.md")
+        link = os.path.join(docs, "foo.md")
+        with open(alvo, "w", encoding="utf-8") as fh:
+            fh.write(sem_scope)
+        os.symlink(alvo, link)
+        out = pattern_check.restamp(root, [".claude/docs/foo.md"])  # casa-ok: fixture de teste
+        check("symlink sem scope: carimbado", len(out["stamped"]) == 1)
+        check("o symlink continua symlink", os.path.islink(link))
+        gravada = _fm_sig(open(alvo, encoding="utf-8").read())
+        check("a sig gravada usa o nome do link (P/foo), não o do alvo", gravada.startswith("P/foo@gen="))
+        check("a sig gravada é a que o verificador calcula sobre o link",
+              gravada == pattern_check.sig(link, root))
+        check("a sig devolvida pelo restamp é a gravada", out["stamped"][0]["doc_sig"] == gravada)
+
+
+def test_restamp_symlink_fica_dentro_da_pasta_de_docs():
+    """Um symlink só é seguido se o alvo for um .md dentro da pasta de docs; apontar para outro
+    arquivo do projeto (ledger.json, README fora da doc) não pode reescrever esse arquivo."""
+    with tempfile.TemporaryDirectory() as d:
+        root = _repo(d)
+        docs = os.path.join(root, ".claude", "docs")
+        alvos_ruins = {
+            "ledger": os.path.join(root, ".claude", ".project-doc", "ledger.json"),
+            "readme": os.path.join(root, "README.md"),
+            "texto": os.path.join(docs, "dados.txt"),
+        }
+        os.makedirs(os.path.dirname(alvos_ruins["ledger"]), exist_ok=True)
+        for nome, alvo in alvos_ruins.items():
+            with open(alvo, "w", encoding="utf-8") as fh:
+                fh.write(_doc())
+            link = os.path.join(docs, "link-%s.md" % nome)
+            os.symlink(alvo, link)
+            out = pattern_check.restamp(root, [".claude/docs/link-%s.md" % nome])  # casa-ok: fixture de teste
+            check("symlink → %s: pulado" % nome, out["stamped"] == [] and len(out["skipped"]) == 1)
+            check("symlink → %s: o alvo fica byte-idêntico" % nome,
+                  open(alvo, encoding="utf-8").read() == _doc())
+        # subpasta da própria pasta de docs continua valendo
+        os.makedirs(os.path.join(docs, "modules"))
+        sub = os.path.join(docs, "modules", "m.md")
+        with open(sub, "w", encoding="utf-8") as fh:
+            fh.write(_doc())
+        os.symlink(sub, os.path.join(docs, "atalho.md"))
+        out = pattern_check.restamp(root, [".claude/docs/atalho.md"])  # casa-ok: fixture de teste
+        check("symlink → .md em subpasta da pasta de docs: carimbado", len(out["stamped"]) == 1)
+        check("o alvo na subpasta recebeu o carimbo", "generated-commit:" in open(sub, encoding="utf-8").read())
+
+
 def test_restamp_preserva_modo_do_arquivo():
     if os.name == "nt":
         return
@@ -322,9 +398,12 @@ if __name__ == "__main__":
     test_ledger_last_commit_nao_injeta_opcao_no_git()
     test_ledger_com_commit_valido_continua_dando_idade()
     test_valores_invalidos_de_last_commit()
+    test_valid_sha_exige_fullmatch()
     test_revisao_vai_depois_de_end_of_options()
     test_restamp_nao_segue_tmp_symlink()
     test_restamp_recusa_doc_fora_do_projeto()
+    test_restamp_sig_de_symlink_usa_o_nome_do_link()
+    test_restamp_symlink_fica_dentro_da_pasta_de_docs()
     test_restamp_preserva_modo_do_arquivo()
     test_restamp_nome_de_projeto_com_barra_invertida()
     test_restamp_re_error_vira_pulado_nao_crash()

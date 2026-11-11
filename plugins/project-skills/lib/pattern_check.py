@@ -175,13 +175,16 @@ def doc_set_gen(project_root):
 #   - doc a carimbar cujo realpath sai do projeto é recusado, e a gravação é atômica
 #     por mkstemp (nome imprevisível, O_EXCL) + os.replace.
 # ---------------------------------------------------------------------------
-_SHA_RE = re.compile(r"^[0-9a-f]{7,64}$")  # 7-40 (SHA-1) ou até 64 (repo SHA-256)
+# 7-40 (SHA-1) ou até 64 (repo SHA-256). Usado com fullmatch: `$` aceitaria "abc1234\n".
+# A cópia em journal.py é de propósito (pattern_check importa journal só em try/except);
+# test_valid_sha_exige_fullmatch trava as duas juntas.
+_SHA_RE = re.compile(r"[0-9a-f]{7,64}")
 _EOO_CACHE = []
 
 
 def valid_sha(value):
     """True só para uma string hex minúscula de 7-64 caracteres (nada de opção, ref, espaço)."""
-    return isinstance(value, str) and _SHA_RE.match(value) is not None
+    return isinstance(value, str) and _SHA_RE.fullmatch(value) is not None
 
 
 def _end_of_options():
@@ -238,6 +241,27 @@ def _dentro_do_projeto(project_root, path):
     raiz = os.path.realpath(project_root)
     real = os.path.realpath(path)
     return real == raiz or real.startswith(raiz.rstrip(os.sep) + os.sep)
+
+
+def _alvo_do_carimbo(project_root, path):
+    """O arquivo que o carimbo escreve, ou None se o symlink aponta para fora do que vale.
+
+    Um doc que é symlink só é seguido quando o alvo é um `.md` DENTRO da pasta de docs do
+    projeto (ou da pasta onde o próprio doc mora). Sem isso, um symlink versionado para
+    qualquer arquivo do projeto com cara de frontmatter (ledger.json, README) era reescrito.
+    Doc que não é symlink devolve o próprio realpath.
+    """
+    real = os.path.realpath(path)
+    canonico = os.path.join(os.path.realpath(os.path.dirname(path)), os.path.basename(path))
+    if real == canonico:
+        return real
+    if not real.lower().endswith(".md"):
+        return None
+    for pasta in (casa_da_doc(project_root), os.path.dirname(path)):
+        base = os.path.realpath(pasta)
+        if real.startswith(base.rstrip(os.sep) + os.sep):
+            return real
+    return None
 
 
 def _carimba_revisao(path, rel, fm, body, head, today, out):
@@ -338,9 +362,14 @@ def restamp(project_root, docs, today=None, revisado=False):
             out["skipped"].append({"doc": rel, "reason": "o doc resolve para fora do projeto "
                                    "(symlink ou caminho externo) — não carimbo"})
             continue
-        path = os.path.realpath(path)  # grava no alvo real; um symlink interno segue symlink
+        alvo = _alvo_do_carimbo(project_root, path)
+        if alvo is None:
+            out["skipped"].append({"doc": rel, "reason": "o doc é um symlink para fora da pasta de "
+                                   "docs (ou para algo que não é .md) — não carimbo"})
+            continue
+        # `path` (o nome que o verificador usa) calcula a sig; `alvo` é onde se lê e grava
         try:
-            with open(path, encoding="utf-8") as fh:
+            with open(alvo, encoding="utf-8") as fh:
                 content = fh.read()
         except OSError as exc:
             out["skipped"].append({"doc": rel, "reason": "ilegível: %s" % exc})
@@ -353,7 +382,7 @@ def restamp(project_root, docs, today=None, revisado=False):
             if not revisado:
                 out["skipped"].append({"doc": rel, "reason": "doc autoral (authored-by: human)"})
                 continue
-            _carimba_revisao(path, rel, fm, body, head, today, out)
+            _carimba_revisao(alvo, rel, fm, body, head, today, out)
             continue
 
         try:
@@ -384,7 +413,7 @@ def restamp(project_root, docs, today=None, revisado=False):
 
         novo = "---\n" + fm2.strip("\n") + "\n---\n" + body
         try:
-            _grava_atomico(path, novo)
+            _grava_atomico(alvo, novo)
         except OSError as exc:
             out["skipped"].append({"doc": rel, "reason": "falhou ao gravar: %s" % exc})
             continue

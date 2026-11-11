@@ -87,12 +87,12 @@ def ledger_path(project_root):
 # vira argumento de git (`git diff <sha>..HEAD`, `git log <sha>..HEAD`), então um valor
 # `--output=<arquivo>` seria lido como opção e sobrescreveria um arquivo do usuário.
 # Só hex de 7-64 caracteres passa (SHA-1 abreviado/completo e SHA-256).
-_SHA_RE = re.compile(r"^[0-9a-f]{7,64}$")
+_SHA_RE = re.compile(r"[0-9a-f]{7,64}")  # usado com fullmatch: `$` aceitaria "abc1234\n"
 _EOO_CACHE = []
 
 
 def valid_sha(value):
-    return isinstance(value, str) and _SHA_RE.match(value) is not None
+    return isinstance(value, str) and _SHA_RE.fullmatch(value) is not None
 
 
 def end_of_options():
