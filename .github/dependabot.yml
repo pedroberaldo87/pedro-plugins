@@ -7,19 +7,25 @@
 # ever point at that tree.
 #
 # Only manifests listed here get version-update PRs; anything not listed is left alone.
-# `exclude-paths` is a second lock for the day someone widens `directory`.
+# The protection is that no entry's `directory` contains the fixture tree.
+#
+# `exclude-paths` patterns are relative to the entry's own `directory` (GitHub's
+# dependabot options reference), not to the repo root. So it is set only where the
+# fixtures sit below `directory`: the github-actions entry (`/`). The npm entry's
+# directory is a sibling of the fixtures, so no pattern could reach them and it has none.
 #
 # LIMIT: this file does not govern Dependabot *alerts* or *security-update* PRs. Alerts
 # come from the dependency graph and cannot be path-filtered from a file; for those, use
-# Settings > Advanced Security > Dependabot > Auto-triage rules (or dismiss the alerts on
-# the fixture manifests as "not used"). See the PR that added this file for the list.
+# Settings > Advanced Security > Dependabot > Auto-triage rules (match path
+# `plugins/sec/lib/fixtures/**`, dismiss as "not used"), or dismiss each alert on the
+# fixture manifests with:
+#   gh api -X PATCH repos/<owner>/<repo>/dependabot/alerts/<n> \
+#     -f state=dismissed -f dismissed_reason=not_used
 version: 2
 updates:
   # The only npm manifest that belongs to shipped code (the archify skill's dev tooling).
   - package-ecosystem: "npm"
     directory: "/plugins/archify/skills/archify"
-    exclude-paths:
-      - "plugins/sec/lib/fixtures/**"
     schedule:
       interval: "monthly"
     open-pull-requests-limit: 2
@@ -29,6 +35,9 @@ updates:
   # The workflow pins actions by commit SHA; this keeps those SHAs from rotting.
   - package-ecosystem: "github-actions"
     directory: "/"
+    # Relative to `directory` ("/"), so this is repo-root relative here.
+    exclude-paths:
+      - "plugins/sec/lib/fixtures/**"
     schedule:
       interval: "monthly"
     open-pull-requests-limit: 2
