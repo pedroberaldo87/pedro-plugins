@@ -203,9 +203,67 @@ if [ ! -x "$APPLY_SH" ]; then
   exit 0
 fi
 
+# SEM --install-new: o hook sincroniza o que já está instalado e LISTA o que o manifest
+# tem de novo. Instalar marketplace de terceiro ou plugin é rodar código de terceiros
+# nesta máquina — só depois de o usuário ver a lista, pelo /bootstrap.
 APPLY_OUTPUT="$(bash "$APPLY_SH" 2>&1)"
 APPLY_EXIT=$?
-echo "$APPLY_OUTPUT"
+# As linhas de pendência saem da saída solta: viram UMA mensagem agrupada, logo abaixo.
+printf '%s\n' "$APPLY_OUTPUT" | grep -av -e 'pendente: ' -e '⏸ [0-9]* item(ns)'
+
+# O que ficou pendente (linhas "pendente: marketplace|plugin ...") vira aviso ao usuário
+# E contexto ao modelo, para ele saber por que o plugin não está lá e o que fazer.
+PENDENTES="$(printf '%s\n' "$APPLY_OUTPUT" | grep -a 'pendente: ' | sed 's/^.*pendente: //')"
+if [ -n "$PENDENTES" ]; then
+  if { command -v python3 >/dev/null 2>&1 && python3 --version >/dev/null 2>&1; }; then
+    printf '%s\n' "$PENDENTES" | python3 -c '
+import json, sys
+mkts, urls, plugs = [], {}, {}
+for l in sys.stdin:
+    l = l.strip()
+    if l.startswith("marketplace "):
+        nome, _, resto = l[len("marketplace "):].partition(" ")
+        mkts.append(nome)
+        urls[nome] = resto.strip("()")
+    elif l.startswith("plugin "):
+        nome, _, mk = l[len("plugin "):].partition("@")
+        plugs.setdefault(mk, []).append(nome)
+n_plug = sum(len(v) for v in plugs.values())
+
+def corta(txt, limite):
+    return txt if len(txt) <= limite else txt[: limite - 1].rstrip(", ") + "…"
+
+def lista(nomes, limite):
+    # tantos nomes quanto cabem na linha; o resto vira "e mais N"
+    usados = []
+    for i, nome in enumerate(nomes):
+        resto = len(nomes) - i - 1
+        cand = ", ".join(usados + [nome]) + (" e mais %d" % resto if resto else "")
+        if len(cand) > limite and usados:
+            return ", ".join(usados) + " e mais %d" % (len(nomes) - len(usados))
+        usados.append(nome)
+    return ", ".join(usados)
+
+msg = ["🔐 %d marketplace(s) e %d plugin(s) do manifest ainda não instalados — nada foi instalado sozinho." % (len(mkts), n_plug)]
+if mkts:
+    msg.append("- Marketplaces: " + lista(mkts, 100))
+if plugs:
+    msg.append("- Plugins de: " + lista(sorted(plugs), 100))
+msg.append("- Para instalar, rode /bootstrap: ele mostra a lista e só instala com o seu sim.")
+
+ctx = ["Itens do manifest do bootstrap NÃO instalados (o hook não instala sozinho):"]
+for nome in mkts:
+    ctx.append(corta("marketplace %s: %s" % (nome, urls[nome]), 190))
+for mk in sorted(plugs):
+    ctx.append(corta("plugins de %s: %s" % (mk, ", ".join(plugs[mk])), 190))
+ctx = ctx[:19]
+ctx.append("Instalar é com o usuário: ele roda /bootstrap e confirma a lista, sem instalar por conta própria")
+print(json.dumps({"systemMessage": "\n".join(msg),
+                  "hookSpecificOutput": {"hookEventName": "SessionStart",
+                                         "additionalContext": "\n".join(ctx)}}))
+'
+  fi
+fi
 
 # 3d. Snapshot + commit + push (only if HAS_SOURCE and apply was clean)
 #
@@ -229,7 +287,11 @@ if [ "$APPLY_EXIT" -ne 0 ]; then
   exit 0
 fi
 
-if [ "$HAS_SOURCE" -eq 1 ] && [ -x "$SNAPSHOT_SH" ]; then
+# Pendência TAMBÉM pula o snapshot, pelo mesmo motivo da falha: o manifest tem itens que esta
+# máquina ainda não instalou, e regenerá-lo a partir do estado local os apagaria do repo.
+if [ -n "$PENDENTES" ]; then
+  verbose "manifest com itens pendentes — snapshot pulado"
+elif [ "$HAS_SOURCE" -eq 1 ] && [ -x "$SNAPSHOT_SH" ]; then
   # Capture stdout only — snapshot.sh prints "changed"/"unchanged" on stdout,
   # log messages on stderr. Merging them creates ordering ambiguity.
   SNAPSHOT_STATUS="$(bash "$SNAPSHOT_SH" 2>/dev/null)"
