@@ -26,6 +26,7 @@ import tempfile
 RAIZ = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.join(RAIZ, "_shared"))
 from bash_posix import bash_posix  # noqa: E402
+from lar_fingido import ambiente  # noqa: E402
 
 TETO = 20  # segundos: um hook que sobe 3 níveis volta em milissegundos
 ok = falhas = 0
@@ -49,8 +50,8 @@ VAZIA = tempfile.mkdtemp(prefix="subida-")
 
 def roda_bash(args, entrada=""):
     """(voltou?, rc, saida). `voltou=False` é o defeito: o laço não terminou no teto."""
-    env = dict(os.environ, HOME=os.path.join(VAZIA, "nao-existe-home"),
-               GIT_CEILING_DIRECTORIES=os.path.dirname(VAZIA))
+    # O lar é fingido pela receita da casa (`_shared/lar_fingido.py`): as quatro variáveis juntas.
+    env = ambiente(os.path.join(VAZIA, "lar"), GIT_CEILING_DIRECTORIES=os.path.dirname(VAZIA))
     args = [os.path.join(RAIZ, a) if a.startswith("plugins/") else a for a in args]
     try:
         r = subprocess.run([BASH, *args], capture_output=True, text=True, encoding="utf-8",
