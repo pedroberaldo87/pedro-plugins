@@ -10,6 +10,8 @@ Origin/Host + Content-Type, e um corpo malformado não derruba o processo.
     python3 plugins/visual/lib/test_visual_server.py
 """
 
+import hashlib
+import hmac
 import http.client
 import json
 import os
@@ -322,6 +324,62 @@ for label, content, want_same in (("solto (0644)", TOKEN + "\n", True),
         stop(pr)
         shutil.rmtree(h, ignore_errors=True)
 
+# ── /shutdown: o start.sh para o NOSSO daemon por aqui (ps/kill não valem no Windows) ──
+# O pedido leva uma assinatura HMAC do token, não o token: um processo que só finge ser o
+# daemon na porta não aprende o segredo.
+print("\n[/shutdown]")
+
+
+def shutdown_sig(token=TOKEN, ts=None):
+    ts = str(int(time.time() * 1000) if ts is None else ts)
+    mac = hmac.new(token.encode(), ("shutdown." + ts).encode(), hashlib.sha256).hexdigest()
+    return {"Content-Type": "application/json", "X-Visual-Shutdown": ts + "." + mac}
+
+
+homeS = tempfile.mkdtemp(prefix="visual-srvS-")
+portS = free_port()
+tokS = os.path.join(homeS, ".claude", "visual-state", ".token")
+os.makedirs(os.path.dirname(tokS))
+with open(tokS, "w") as fh:
+    fh.write(TOKEN + "\n")
+prS = None
+
+
+def refused(label, headers, extra_ok=(403,)):
+    st, hd, _ = req(portS, "POST", "/shutdown", "{}", headers)
+    check(label, st in extra_ok and alive(portS) and "access-control-allow-origin" not in hd,
+          (st, hd))
+
+
+try:
+    prS = start_daemon(homeS, portS)
+    refused("POST /shutdown sem assinatura → 403 e o daemon segue de pé",
+            {"Content-Type": "application/json"})
+    refused("POST /shutdown só com o token cru (X-Visual-Token) → 403: o token não é a credencial",
+            GOOD)
+    refused("POST /shutdown com assinatura de outro token → 403", shutdown_sig("b2" * 32))
+    refused("POST /shutdown com assinatura velha (replay) → 403",
+            shutdown_sig(ts=int(time.time() * 1000) - 120000))
+    refused("POST /shutdown com assinatura malformada → 403",
+            {"Content-Type": "application/json", "X-Visual-Shutdown": "abc"})
+    st, _, _ = req(portS, "GET", "/shutdown", None, shutdown_sig())
+    check("GET /shutdown (mesmo assinado) não desliga", st in (404, 405) and alive(portS), st)
+    refused("POST /shutdown vindo de uma página (Origin) → 403, mesmo assinado",
+            dict(shutdown_sig(), Origin="null"))
+    refused("POST /shutdown com Host estranho → 403", dict(shutdown_sig(), Host="attacker.example.com"))
+    st, _, _ = req(portS, "POST", "/shutdown", "{}", shutdown_sig())
+    check("POST /shutdown com a assinatura certa → 200", st == 200, st)
+    gone = False
+    for _ in range(40):
+        time.sleep(0.1)
+        if prS.poll() is not None:
+            gone = True
+            break
+    check("  …e o processo do daemon termina por conta própria", gone and not alive(portS))
+finally:
+    stop(prS)
+    shutil.rmtree(homeS, ignore_errors=True)
+
 # ── start.sh: gera o token (0600), é idempotente e não gira o token ─────────
 print("\n[start.sh]")
 BASH = bash_posix()
@@ -443,6 +501,54 @@ else:
             sq.kill()
         sq.wait()
         shutil.rmtree(home7, ignore_errors=True)
+
+    # Um impostor que jura exigir token (`auth: true`) não pode receber o segredo: o start.sh
+    # só manda uma assinatura, e ela não vale para outro processo nem fora da janela de tempo.
+    print("\n[start.sh — impostor que diz exigir token não aprende o token]")
+    home9 = tempfile.mkdtemp(prefix="visual-srv9-")
+    port9 = free_port()
+    sd9 = os.path.join(home9, ".claude", "visual-state")
+    os.makedirs(sd9)
+    tp9 = os.path.join(sd9, ".token")
+    with open(tp9, "w") as fh:
+        fh.write(TOKEN + "\n")
+    seen9 = os.path.join(home9, "seen.txt")
+    squat9 = os.path.join(home9, "squat9.py")
+    with open(squat9, "w") as fh:
+        fh.write("import http.server, json, os, sys\n"
+                 "SEEN = %r\n"
+                 "class H(http.server.BaseHTTPRequestHandler):\n"
+                 "    def reply(self):\n"
+                 "        open(SEEN, 'a').write(self.command + ' ' + self.path + '\\n' + str(self.headers) + '\\n')\n"
+                 "        b = json.dumps({'status': 'ok', 'pid': os.getpid(), 'port': %d, 'auth': True}, separators=(',', ':')).encode()\n"
+                 "        self.send_response(200); self.send_header('Content-Length', str(len(b)))\n"
+                 "        self.end_headers(); self.wfile.write(b)\n"
+                 "    do_GET = do_POST = reply\n"
+                 "    def log_message(self, *a): pass\n"
+                 "http.server.HTTPServer(('127.0.0.1', %d), H).serve_forever()\n" % (seen9, port9, port9))
+    sq9 = subprocess.Popen([sys.executable, squat9], stdout=subprocess.DEVNULL,
+                           stderr=subprocess.DEVNULL, stdin=subprocess.DEVNULL)
+    try:
+        for _ in range(40):
+            time.sleep(0.1)
+            if alive(port9):
+                break
+        r = subprocess.run([BASH, START, "--rotate-token"],
+                           env=home_env(home9, CLAUDE_VISUAL_PORT=str(port9)),
+                           capture_output=True, text=True, stdin=subprocess.DEVNULL, timeout=30)
+        seen = open(seen9).read() if os.path.isfile(seen9) else ""
+        check("--rotate-token com impostor `auth:true`: não mata, sai com 1",
+              sq9.poll() is None and r.returncode == 1, (r.returncode, r.stderr))
+        check("  …o impostor recebeu um pedido de shutdown assinado",
+              "POST /shutdown" in seen and "X-Visual-Shutdown" in seen, seen)
+        check("  …e em nenhum cabeçalho dele aparece o token", TOKEN not in seen)
+        check("  …o token do usuário continua o mesmo",
+              open(tp9).read().strip() == TOKEN)
+    finally:
+        if sq9.poll() is None:
+            sq9.kill()
+        sq9.wait()
+        shutil.rmtree(home9, ignore_errors=True)
 
     # start.sh refaz um token corrompido e aperta um solto.
     print("\n[start.sh — token herdado]")

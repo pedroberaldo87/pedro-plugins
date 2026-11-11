@@ -91,6 +91,15 @@ function tokenOk(req) {
   return buf.length === TOKEN_BUF.length && crypto.timingSafeEqual(buf, TOKEN_BUF);
 }
 
+const SHUTDOWN_WINDOW_MS = 30 * 1000;
+function shutdownSigOk(req) {
+  const given = req.headers['x-visual-shutdown'];
+  const m = typeof given === 'string' ? /^(\d{1,15})\.([0-9a-f]{64})$/.exec(given) : null;
+  if (!m || Math.abs(Date.now() - Number(m[1])) > SHUTDOWN_WINDOW_MS) return false;
+  const want = crypto.createHmac('sha256', TOKEN).update(`shutdown.${m[1]}`).digest();
+  return crypto.timingSafeEqual(want, Buffer.from(m[2], 'hex'));
+}
+
 let lastActivity = Date.now();
 
 function corsHeaders(req) {
@@ -180,6 +189,23 @@ async function handle(req, res) {
     } else {
       jsonResponse(res, 200, { status: 'ok' });
     }
+    return;
+  }
+
+  // Stop on request: how start.sh stops OUR daemon (--rotate-token, or a restart) without
+  // `ps`/`kill`, which cannot see or end a native Windows node process from Git Bash. The
+  // request carries a signature of the token (HMAC-SHA256 over a timestamp), not the token:
+  // start.sh sends it to whatever answers on the port, and a squatter must not learn the
+  // secret. The timestamp window bounds a replay, and two daemons never share one port.
+  // A browser page (any Origin, even `null`) is refused: it holds the token but has no
+  // business stopping the daemon.
+  if (url.pathname === '/shutdown' && req.method === 'POST') {
+    if (origin !== undefined || !shutdownSigOk(req)) {
+      jsonResponse(res, 403, { error: 'forbidden' });
+      return;
+    }
+    jsonResponse(res, 200, { status: 'stopping' });
+    res.on('finish', () => setImmediate(shutdown));
     return;
   }
 
@@ -297,8 +323,13 @@ setInterval(() => {
 ['SIGINT', 'SIGTERM'].forEach(sig => {
   process.on(sig, () => {
     console.log(`claude-visual-server: received ${sig}, closing`);
-    server.close(() => process.exit(0));
-    // Keep-alive sockets would hold close() for seconds on old Node; start.sh waits 2 s.
-    server.closeAllConnections?.();
+    shutdown();
   });
 });
+
+function shutdown() {
+  server.close(() => process.exit(0));
+  // Keep-alive sockets would hold close() for seconds on old Node; start.sh waits 2 s.
+  server.closeAllConnections?.();
+  setTimeout(() => process.exit(0), 1000).unref();
+}
