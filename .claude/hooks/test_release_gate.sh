@@ -533,13 +533,15 @@ rm -rf "$R/.claude/plans" "$R/scripts/plano_vs_codigo.py" \
 echo "R-27 — checador apagado aparece na lista NÃO MEDIDO"
 mkdir -p "$R/scripts"
 cp "$HERE/../../scripts/public_repo_check.py" "$R/scripts/"
+# `CI=` de propósito: o CI do GitHub exporta CI=true, que muda o exit 3 do script; o caminho
+# LOCAL (sem CI) é o que estas checagens medem. O caso CI vem abaixo, explícito.
 # com a lista de termos (fictícia) o checador MEDE por inteiro; sem ela ele entra na lista
 printf '# nome-proprio\nzzfulanozz\n' > "$R/scripts/public_repo_terms"
-out=$(gate_out "git commit -m x")
+out=$(CI= gate_out "git commit -m x")
 check "checador PRESENTE e com termos não entra na lista" \
   "$(printf '%s' "$out" | grep 'NÃO MEDIDO' -A 30 | grep -q 'public_repo_check.py' && echo 0 || echo 1)"
 rm -f "$R/scripts/public_repo_terms"
-out=$(gate_out "git commit -m x")
+out=$(CI= gate_out "git commit -m x")
 check "checador presente SEM termos entra na lista NÃO MEDIDO (commit não passa calado)" \
   "$(printf '%s' "$out" | grep 'NÃO MEDIDO' -A 30 | grep -q 'public_repo_check.py' && echo 1 || echo 0)"
 check "...e a lista diz que nome/cliente/máquina não foram procurados" \
@@ -547,12 +549,12 @@ check "...e a lista diz que nome/cliente/máquina não foram procurados" \
 # os códigos de saída do script têm rótulos diferentes: 1 dado pessoal · 2 não mediu · 3 termos/CI
 printf 'x = 1\n' > "$R/vaza.md"; printf 'cd %sfulano/app\n' /Users/ >> "$R/vaza.md"
 git -C "$R" add vaza.md
-out=$(gate_out "git commit -m x")
+out=$(CI= gate_out "git commit -m x")
 check "exit 1 do script: DADO PESSOAL NO COMMIT" \
   "$(printf '%s' "$out" | grep -q 'DADO PESSOAL NO COMMIT' && echo 1 || echo 0)"
 git -C "$R" rm -q --cached vaza.md; rm -f "$R/vaza.md"
 printf '\xff\xfe\x80' > "$R/scripts/public_repo_terms"
-out=$(gate_out "git commit -m x")
+out=$(CI= gate_out "git commit -m x")
 check "exit 2 do script (termos ilegíveis): NÃO MEDIDO, e não 'DADO PESSOAL'" \
   "$(printf '%s' "$out" | grep -q 'o gate de dado pessoal não conseguiu medir' \
      && ! printf '%s' "$out" | grep -q 'DADO PESSOAL NO COMMIT' && echo 1 || echo 0)"
