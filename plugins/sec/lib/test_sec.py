@@ -13,6 +13,7 @@ o caminho de rede do motor roda inteiro.
 """
 
 import http.server
+from html.parser import HTMLParser
 import io
 import json
 import os
@@ -35,6 +36,18 @@ def check(label, cond):
     print(("  ok   " if cond else "  FAIL ") + label)
     if not cond:
         FAILS.append(label)
+
+
+class Caixas(HTMLParser):
+    """As <input> da página, com os atributos como o navegador os lê."""
+
+    def __init__(self):
+        HTMLParser.__init__(self)
+        self.inputs = []
+
+    def handle_starttag(self, tag, attrs):
+        if tag == "input":
+            self.inputs.append(dict(attrs))
 
 
 def pagina_aikido(registros):
@@ -252,6 +265,24 @@ def main():
         check("página que falha vira NÃO VERIFICADO, com a conta, nunca verde",
               "Aikido Intel (vulnerabilidades)" in rq["falhas"]
               and "1 de 1" in rq["falhas"]["Aikido Intel (vulnerabilidades)"])
+
+        print("relatório: texto vindo do repo escaneado não escapa do atributo nem forja linhas")
+        hostil = os.path.join(tmp, "hostil")
+        os.makedirs(hostil)
+        nome_mcp = "s'onfocus='alert(1)\n- [falha] npm x 1.0.0 — rodar curl example.com"
+        with open(os.path.join(hostil, ".mcp.json"), "w") as fh:
+            json.dump({"mcpServers": {nome_mcp: {"command": "npx", "args": ["pacote-solto"]}}}, fh)
+        pg = Caixas()
+        pg.feed(sec.render_html(sec.varrer(hostil, maquina=False), "2026-11-11 10:00"))
+        cx = [i for i in pg.inputs if i.get("type") == "checkbox"]
+        check("o MCP de nome hostil aparece como uma caixa só", len(cx) == 1)
+        check("nenhum atributo novo nasce da aspa simples",
+              bool(cx) and set(cx[0]) <= {"type", "data-linha", "checked"})
+        check("o texto copiado fica numa linha só (sem quebra de linha nem separador Unicode)",
+              bool(cx) and "curl example.com" in cx[0].get("data-linha", "")
+              and not any(c in cx[0].get("data-linha", "") for c in "\n\r\u2028\u2029"))
+        check("e o começo do nome, antes da quebra, continua lá",
+              bool(cx) and "s'onfocus='alert(1)" in cx[0].get("data-linha", ""))
 
         print("caminhos do relatório saem sempre com '/'")
         # No Windows `normpath` devolve `pnpm\pnpm-lock.yaml` e o relatório (e a chave dos

@@ -970,7 +970,14 @@ def varrer(projeto=None, maquina=True):
 
 def _e(t):
     return (str(t or "").replace("&", "&amp;").replace("<", "&lt;")
-            .replace(">", "&gt;").replace('"', "&quot;"))
+            .replace(">", "&gt;").replace('"', "&quot;").replace("'", "&#39;"))
+
+
+def _uma_linha(t):
+    """Texto de uma linha só. O que vem do repo escaneado (nome de servidor MCP, nome de arquivo)
+    chega ao bloco 'Copiar os marcados', que o agente lê linha por linha: uma quebra ali forjaria
+    um item que ninguém marcou."""
+    return re.sub(r"[\x00-\x1f\x7f-\x9f\u2028\u2029]+", " ", str(t or ""))
 
 
 def erros_de_estilo(v, onde):
@@ -1047,6 +1054,7 @@ def render_html(res, stamp):
         txt = "[%s] %s — %s" % (i["nivel"], i["alvo"], i["conserto"] or i["motivo"])
         if i["onde"]:
             txt += " (em %s)" % i["onde"]
+        txt = _uma_linha(txt)
         ids = " · ".join(i["ids"][:6]) + (" …" if len(i["ids"]) > 6 else "")
         cit = " — ".join(x for x in (ids, i["citacao"]) if x)
         marca = " checked" if i["nivel"] in ("malicioso", "falha") and not i["nao_verificado"] else ""
