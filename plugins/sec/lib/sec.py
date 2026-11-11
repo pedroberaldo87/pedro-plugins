@@ -93,10 +93,13 @@ def _http(url, corpo=None, timeout=60):
 
 def _cache(nome, buscar):
     """Bytes de `buscar()`, guardados por CACHE_TTL. Falha de rede sobe — sem cache velho."""
-    raiz = os.path.realpath(CACHE_DIR)
-    caminho = os.path.realpath(os.path.join(raiz, nome))
+    raiz = os.path.abspath(CACHE_DIR)
+    caminho = os.path.abspath(os.path.join(raiz, nome))
     # O nome pode trazer pedaço de resposta de rede (id do OSV): nada resolve para fora da pasta.
-    if caminho == raiz or os.path.commonpath([raiz, caminho]) != raiz:
+    # Conta léxica (sem realpath): no Windows o realpath de pasta que ainda não existe pode
+    # voltar com o nome curto (RUNNER~1) e a comparação acusaria tudo.
+    if os.path.normcase(caminho) == os.path.normcase(raiz) or \
+            os.path.normcase(os.path.commonpath([raiz, caminho])) != os.path.normcase(raiz):
         raise ValueError("nome de cache fora da pasta do cache: %r" % nome)
     try:
         if time.time() - os.path.getmtime(caminho) < CACHE_TTL:

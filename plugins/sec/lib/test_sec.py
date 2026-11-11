@@ -212,6 +212,8 @@ def main():
         apontar(base, os.path.join(tmp, "cache"))
         res = sec.varrer(projeto, maquina=False)
         it = por_alvo(res)
+        if res["falhas"]:
+            print("  falhas:", res["falhas"])
         check("nenhuma fonte falhou", res["falhas"] == {})
         check("event-stream 3.3.6 → malicioso", it.get("npm event-stream 3.3.6", {}).get("nivel") == "malicioso")
         check("Aikido: jshelperdependenceny → malicioso",
