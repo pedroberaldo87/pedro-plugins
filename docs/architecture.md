@@ -369,7 +369,7 @@ check-skills        0.7.5  [check-skills]               -
 context-guard      1.3.19  [context-guard]              HOOKS
 fallow              1.2.8  [fallow]                     -
 gauntlet           0.13.8  [gauntlet]                   HOOKS
-graphify-guard     1.2.16  []                           HOOKS
+graphify-guard     1.2.17  []                           HOOKS
 grill-me            1.5.4  [grill-me]                   -
 guardrails         1.8.15  [guardrails]                 HOOKS
 handoff           1.11.22  [handoff]                    HOOKS
