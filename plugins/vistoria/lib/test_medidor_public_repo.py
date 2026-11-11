@@ -73,8 +73,11 @@ def mede_em(raiz, **env):
     """Roda o cobrador public-repo do medidor sobre `raiz`; devolve (achados, falhas)."""
     antes_root, antes_env = medidor.ROOT, dict(os.environ)
     medidor.ROOT = raiz
+    # Montar o ambiente ANTES de limpar: env_limpo() parte de os.environ, e com ele já
+    # vazio o filho ficava sem PATH/SystemRoot — no Windows o `git` some (WinError 2).
+    limpo = env_limpo(**env)
     os.environ.clear()
-    os.environ.update(env_limpo(**env))
+    os.environ.update(limpo)
     try:
         return medidor.mede(["public-repo"])
     finally:
