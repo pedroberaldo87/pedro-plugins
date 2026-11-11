@@ -332,7 +332,7 @@ def _dentro_de(pasta, caminho):
 def _le_sentinel(cwd):
     """(transcript, session_id) do sentinel do cwd, ou None se faltar ou não merecer confiança.
 
-    Confere: arquivo comum (não symlink) · do usuário que roda · sem escrita de grupo/outros ·
+    Confere: arquivo comum (não symlink) · do usuário que roda · sem escrita de grupo/outros (POSIX) ·
     transcript_path dentro de projects/ e existente · session_id no formato de id (senão cai no
     nome do .jsonl)."""
     alvo = sentinel_path(cwd)
@@ -340,10 +340,13 @@ def _le_sentinel(cwd):
         st = os.lstat(alvo)
         if not stat.S_ISREG(st.st_mode):
             return None
-        if hasattr(os, "getuid") and st.st_uid != os.getuid():
-            return None
-        if st.st_mode & 0o022:
-            return None
+        # Dono e modo são conceitos POSIX. No Windows o st_mode de todo arquivo comum diz 0o666 e
+        # o st_uid é 0: o que protege ali é a ACL da pasta do perfil do usuário, onde o sentinel mora.
+        if os.name != "nt":
+            if st.st_uid != os.getuid():
+                return None
+            if st.st_mode & 0o022:
+                return None
         with open(alvo, encoding="utf-8") as fh:
             data = json.load(fh)
     except (OSError, ValueError):

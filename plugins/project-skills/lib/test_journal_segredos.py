@@ -98,12 +98,12 @@ try:
             "print(journal.scrub('a ' + %r)[0])") % (HERE, valor)
     env = dict(os.environ)
     saida = subprocess.run([sys.executable, "-c", prog], capture_output=True, text=True,
-                           env=env, timeout=60).stdout.strip()
+                           encoding="utf-8", env=env, timeout=60).stdout.strip()
     check("etiqueta estável entre processos (mesmo sal)", saida == t1, "— veio %r" % saida)
 
     env["PROJECT_DOC_SALT_FILE"] = os.path.join(BASE, "outro", "journal.salt")
     saida = subprocess.run([sys.executable, "-c", prog], capture_output=True, text=True,
-                           env=env, timeout=60).stdout.strip()
+                           encoding="utf-8", env=env, timeout=60).stdout.strip()
     check("outro sal → outra etiqueta para o mesmo valor", saida != t1 and "‹cofre:TOKEN:" in saida)
 
     # ── 3. o sal: arquivo 0600, criado só quando preciso, nunca regravado ───────
