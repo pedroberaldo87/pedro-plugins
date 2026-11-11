@@ -28,10 +28,6 @@ RAIZ="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$RAIZ"
 
 PY="${PYTHON:-python3}"
-# DIAGNÓSTICO TEMPORÁRIO — sai no commit seguinte.
-trap 'echo "TRACE suite.sh: EXIT trap rc=$?"' EXIT
-for _s in TERM INT HUP; do trap "echo TRACE suite.sh: sinal $_s; exit 98" $_s; done
-export RUN_SUITES_TRACE=1
 
 # SEM TETO DE RELÓGIO: VIGIA DE PROGRESSO. O teto fixo media a MÁQUINA, não o
 # código — `scripts/test_docguard_scope.sh` levava 349s sozinha e estourava 300s com

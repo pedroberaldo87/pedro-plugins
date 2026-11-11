@@ -134,10 +134,7 @@ jobs:
             # cabeça — e em 2026-08-13 a casca do /sprint reconstruiu ERRADO,
             # passando o rodador pelado ao motor: zero suítes, verde mentiroso,
             # 87 minutos sem marcar um passo.
-            set +e
             PYTHON="$PY" bash scripts/suite.sh
-            echo "TRACE workflow: suite.sh rc=$?"
-            set -e
           fi
           # Rodada filtrada é para DIAGNÓSTICO: ela não vale como esteira verde, e por
           # isso os cobradores abaixo só rodam na completa. Dizer isso em voz alta,
