@@ -93,7 +93,11 @@ def _http(url, corpo=None, timeout=60):
 
 def _cache(nome, buscar):
     """Bytes de `buscar()`, guardados por CACHE_TTL. Falha de rede sobe — sem cache velho."""
-    caminho = os.path.join(CACHE_DIR, nome)
+    raiz = os.path.realpath(CACHE_DIR)
+    caminho = os.path.realpath(os.path.join(raiz, nome))
+    # O nome pode trazer pedaço de resposta de rede (id do OSV): nada resolve para fora da pasta.
+    if caminho == raiz or os.path.commonpath([raiz, caminho]) != raiz:
+        raise ValueError("nome de cache fora da pasta do cache: %r" % nome)
     try:
         if time.time() - os.path.getmtime(caminho) < CACHE_TTL:
             with open(caminho, "rb") as fh:
@@ -214,14 +218,22 @@ def _norm(eco, nome):
 def ler_package_lock(caminho):
     with open(caminho, encoding="utf-8") as fh:
         d = json.load(fh)
+    if not isinstance(d, dict):
+        raise SecError("package-lock sem objeto na raiz")
     if "packages" not in d:
         raise SecError("lockfileVersion %s sem a seção packages (npm 6) — não suportado"
                        % d.get("lockfileVersion"))
+    if not isinstance(d["packages"], dict):
+        raise SecError("package-lock com a seção packages que não é um objeto")
     out = []
     for chave, p in d["packages"].items():
+        if not isinstance(p, dict):
+            raise SecError("package-lock com entrada de packages que não é um objeto (%s)" % chave)
         if "node_modules/" not in chave or p.get("link") or not p.get("version"):
             continue
-        out.append(("npm", chave.rsplit("node_modules/", 1)[1], p["version"]))
+        nome = chave.rsplit("node_modules/", 1)[1]
+        real = p.get("name")   # alias (`"x": "npm:real@1"`): a chave é o apelido, `name` é o pacote
+        out.append(("npm", real if isinstance(real, str) and real else nome, p["version"]))
     return out
 
 
@@ -254,6 +266,9 @@ def ler_pnpm_lock(caminho):
     return out
 
 
+NOME_NPM = re.compile(r"^(@[A-Za-z0-9~._-]+/)?[A-Za-z0-9~._-]+$")
+
+
 def ler_yarn_lock(caminho):
     """yarn v1 (`version "1.2.3"`) e berry (`version: 1.2.3` + `resolution: "x@npm:1.2.3"`)."""
     with open(caminho, encoding="utf-8") as fh:
@@ -274,6 +289,11 @@ def ler_yarn_lock(caminho):
             continue
         primeiro = cab.rstrip()[:-1].split(",")[0].strip().strip('"')
         nv = _nome_versao(primeiro)
+        if nv and "@npm:" in nv[0]:   # `apelido@npm:real@^1`: quem foi instalado é o `real`
+            real = nv[0].split("@npm:", 1)[1]
+            if not NOME_NPM.match(real):
+                raise SecError("yarn.lock: alias que o /sec não sabe ler (%s)" % primeiro)
+            nv = (real, nv[1])
         if nv:
             out.add(("npm", nv[0], mv.group(1)))
     return sorted(out)
@@ -332,7 +352,15 @@ RUNNERS = {"npx": "npm", "bunx": "npm", "uvx": "PyPI", "pipx": "PyPI"}
 def ler_mcp(servidores):
     """Servidor MCP chamado por runner de pacote: (nome, eco, pacote, versão|None)."""
     out = []
-    for nome, s in (servidores or {}).items():
+    if servidores is None:
+        return out
+    if not isinstance(servidores, dict):
+        raise SecError("mcpServers não é um objeto")
+    for nome, s in servidores.items():
+        if not isinstance(s, dict):
+            raise SecError("servidor MCP %r não é um objeto" % nome)
+        if not isinstance(s.get("args", []), list):
+            raise SecError("servidor MCP %r com args que não é uma lista" % nome)
         cmd = os.path.basename(str(s.get("command", "")))
         eco = RUNNERS.get(cmd)
         args = [a for a in s.get("args", []) if isinstance(a, str)]
@@ -382,7 +410,8 @@ def inventario_projeto(raiz):
                                            citacao=", ".join(soltos[:12])))
                 elif rel.replace(os.sep, "/").endswith(".github/workflows") and a.endswith((".yml", ".yaml")):
                     acoes += [(n, r, onde) for n, r in ler_workflow(caminho)]
-            except (SecError, ValueError, KeyError, UnicodeDecodeError, tomllib.TOMLDecodeError) as e:
+            except (SecError, ValueError, KeyError, AttributeError, TypeError, RecursionError,
+                    UnicodeDecodeError, tomllib.TOMLDecodeError) as e:
                 avisos.append(item("projeto", "cadeia", onde,
                                    "Arquivo de pacotes que o /sec não sabe ler: NÃO VERIFICADO.",
                                    onde=onde, citacao=str(e), nao_verificado=True))
@@ -396,10 +425,16 @@ def inventario_projeto(raiz):
     if os.path.exists(mcp):
         try:
             with open(mcp, encoding="utf-8") as fh:
-                servidores = json.load(fh).get("mcpServers", {})
-        except (ValueError, OSError):
-            servidores = {}
-        return pacotes, acoes, avisos, [(n, e, p, v, ".mcp.json") for n, e, p, v in ler_mcp(servidores)]
+                d = json.load(fh)
+            if not isinstance(d, dict):
+                raise SecError(".mcp.json sem objeto na raiz")
+            lidos = ler_mcp(d.get("mcpServers", {}))
+        except (SecError, ValueError, OSError, RecursionError) as e:
+            lidos = []
+            avisos.append(item("projeto", "cadeia", ".mcp.json",
+                               "Arquivo de pacotes que o /sec não sabe ler: NÃO VERIFICADO.",
+                               onde=".mcp.json", citacao=str(e), nao_verificado=True))
+        return pacotes, acoes, avisos, [(n, e, p, v, ".mcp.json") for n, e, p, v in lidos]
     return pacotes, acoes, avisos, []
 
 
@@ -558,10 +593,20 @@ def _osv_ids(fontes, consultas):
     return fontes.usar("OSV", rodar)
 
 
+ID_OSV = re.compile(r"^[A-Za-z0-9._:-]{1,200}$")
+
+
+def _id_osv_valido(i):
+    """GHSA-…, PYSEC-…, MAL-…, CVE-…: letras, dígitos, `.`, `_`, `:` e `-`, sem `..`."""
+    return bool(ID_OSV.match(i)) and ".." not in i
+
+
 def _osv_detalhes(fontes, ids):
     """{id: registro}. Registro que a base apagou (404) fica de fora SÓ ele — o pacote dele sai
     com o id à vista para conferência à mão. Erro de rede continua derrubando o OSV inteiro."""
     def um(i):
+        if not _id_osv_valido(i):   # id vem da rede: nunca vira caminho nem URL
+            return i, None
         try:
             return i, json.loads(_cache("vulns/%s.json" % i, lambda: _http("%s/v1/vulns/%s" % (OSV_API, i))))
         except urllib.error.HTTPError as e:
@@ -904,11 +949,21 @@ def inventario_maquina(fontes):
     itens += cc_itens
     pacotes += cc_pac
     itens += checar_node(fontes)
-    cfg = _json_arquivo(_home(".claude.json")) or {}
-    servidores = [(n, e, p, v, "~/.claude.json") for n, e, p, v in ler_mcp(cfg.get("mcpServers"))]
-    for proj, pc in sorted((cfg.get("projects") or {}).items()):
-        servidores += [(n, e, p, v, "~/.claude.json (projeto %s)" % os.path.basename(proj))
-                       for n, e, p, v in ler_mcp(pc.get("mcpServers"))]
+    cfg = _json_arquivo(_home(".claude.json"))
+    cfg = cfg if isinstance(cfg, dict) else {}
+    blocos = [("~/.claude.json", cfg.get("mcpServers"))]
+    projetos = cfg.get("projects")
+    for proj, pc in sorted((projetos if isinstance(projetos, dict) else {}).items()):
+        blocos.append(("~/.claude.json (projeto %s)" % os.path.basename(proj),
+                       pc.get("mcpServers") if isinstance(pc, dict) else None))
+    servidores = []
+    for onde_cfg, bloco in blocos:
+        try:
+            servidores += [(n, e, p, v, onde_cfg) for n, e, p, v in ler_mcp(bloco)]
+        except SecError as ex:   # arquivo fora do formato: avisa e segue com os outros
+            itens.append(item("maquina", "cadeia", onde_cfg,
+                              "Arquivo de pacotes que o /sec não sabe ler: NÃO VERIFICADO.",
+                              onde=onde_cfg, citacao=str(ex), nao_verificado=True))
     mi, mp = checar_mcp(fontes, "maquina", servidores)
     itens += mi
     pacotes += mp
