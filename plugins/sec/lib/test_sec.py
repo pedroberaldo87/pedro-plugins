@@ -178,6 +178,37 @@ def main():
         check("ordem: malicioso antes de falha antes de cadeia",
               [i["nivel"] for i in res["itens"]] == sorted((i["nivel"] for i in res["itens"]), key=sec.NIVEIS.index))
 
+        print("caminhos do relatório saem sempre com '/'")
+        # No Windows `normpath` devolve `pnpm\pnpm-lock.yaml` e o relatório (e a chave dos
+        # itens) saía com barra invertida; a suíte falhava só lá. Aqui o sistema é
+        # ENCENADO — `normpath` do ntpath e `os.sep` de lá — para o defeito aparecer
+        # também no macOS e no Linux, onde a esteira roda primeiro.
+        import ntpath
+
+        class _CaminhoNt:   # o `os.path` daqui, com o `normpath` do Windows
+            normpath = staticmethod(ntpath.normpath)
+
+            def __getattr__(self, nome):
+                return getattr(os.path, nome)
+
+        class _OsNt:        # o `os` do sec, com o separador do Windows
+            sep = "\\"
+            path = _CaminhoNt()
+
+            def __getattr__(self, nome):
+                return getattr(os, nome)
+
+        os_real = sec.os
+        sec.os = _OsNt()
+        try:
+            pacs, acoes, avisos, _mcp = sec.inventario_projeto(projeto)
+        finally:
+            sec.os = os_real
+        ondes = [p[3] for p in pacs] + [a[2] for a in acoes] + [v["onde"] for v in avisos]
+        check("há caminhos a conferir (a encenação mediu alguma coisa)", len(ondes) > 3)
+        check("nenhum 'onde' leva barra invertida", not any("\\" in o for o in ondes))
+        check("o lockfile de subpasta sai como pnpm/pnpm-lock.yaml", "pnpm/pnpm-lock.yaml" in ondes)
+
         print("relatório")
         html = sec.render_html(res, "2026-10-24 12:00")
         check("marcador de cópia presente", "<!-- sec-corrigir v1 -->" in html)
