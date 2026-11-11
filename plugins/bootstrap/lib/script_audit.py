@@ -22,17 +22,18 @@ O que ela NAO prova: que o script e inofensivo. Um script puro ainda pode ler e
 escrever arquivo no caminho que receber; D-1 aceita isso (e a coluna `escreve`
 do relatorio mostra quais fazem).
 
-COMO O CFGJSON USA. `config/plugin-scripts.json` tem duas listas, geradas por
-`--gravar` (um teste cobra que nao envelhecam): os scripts que as skills chamam
-e passaram na analise (`scripts`, ganham allow) e os que chamam e NAO passaram
-(`pedem_aprovacao`, ganham ask, que vence qualquer allow largo antigo). Na hora do merge, `cfgjson.py` roda `classifica_arquivo`
+COMO O CFGJSON USA. `config/plugin-scripts.baseline.json`, gerado por `--gravar` (um teste
+cobra que nao envelheca), tem tres partes: os scripts que as skills chamam e passaram na
+analise (`scripts`, ganham allow), os que chamam e NAO passaram (`pedem_aprovacao`, ganham
+ask, que vence qualquer allow largo antigo) e `analise`, a tabela de TODOS os scripts com a
+classe e o porque. Na hora do merge, `cfgjson.py` roda `classifica_arquivo`
 de novo sobre a copia que esta de fato no cache da maquina: o que mudou e virou
 executor deixa de ganhar a regra.
 
 Uso:
-  script_audit.py --gravar        regrava config/plugin-scripts.json e o relatorio
-  script_audit.py --confere       sai 1 se algum dos dois envelheceu
-  script_audit.py --tabela        imprime o relatorio (markdown)
+  script_audit.py --gravar        regrava config/plugin-scripts.baseline.json
+  script_audit.py --confere       sai 1 se ele envelheceu
+  script_audit.py --tabela        imprime a tabela da auditoria (markdown)
 """
 import ast
 import json
@@ -43,8 +44,10 @@ import sys
 
 QUI = os.path.dirname(os.path.abspath(__file__))
 BOOTSTRAP = os.path.dirname(QUI)
-LISTA_JSON = os.path.join(BOOTSTRAP, "config", "plugin-scripts.json")
-RELATORIO_MD = os.path.join(BOOTSTRAP, "config", "plugin-scripts-audit.md")
+# `.baseline.json` de proposito: e a MEDIDA GRAVADA de uma auditoria por plugin (a mesma
+# natureza dos outros retratos do repositorio), nao uma enumeracao de plugins reescrita a mao
+# — e e assim que `anti_slop_inventario.py` (classe B) a trata.
+LISTA_JSON = os.path.join(BOOTSTRAP, "config", "plugin-scripts.baseline.json")
 
 # ---- Python -----------------------------------------------------------------
 CHAMADAS_EXEC = frozenset("""
@@ -232,7 +235,8 @@ def classifica_arquivo(caminho, raiz_plugin):
 
 # ---- o repositorio ------------------------------------------------------------
 def _git_ls(raiz_repo):
-    r = subprocess.run(["git", "-C", raiz_repo, "ls-files", "plugins"],
+    # rastreados + novos nao ignorados: o resultado e o mesmo antes e depois do `git add`
+    r = subprocess.run(["git", "-C", raiz_repo, "ls-files", "--cached", "--others", "--exclude-standard", "plugins"],
                        capture_output=True, text=True, encoding="utf-8")
     return [l for l in r.stdout.splitlines() if l]
 
@@ -318,10 +322,14 @@ def lista_que_pede(linhas):
 
 
 def _json_da_lista(linhas):
+    analise = [{"plugin": l["plugin"], "script": l["script"], "citado": l["citado"],
+                "classe": l["classe"], "escreve": l["escreve"], "motivos": l["motivos"]}
+               for l in linhas]
     return json.dumps({"_": "gerado por lib/script_audit.py --gravar; nao edite a mao",
                        "scripts": lista_permitida(linhas),
-                       "pedem_aprovacao": lista_que_pede(linhas)},
-                      ensure_ascii=False, indent=2) + "\n"
+                       "pedem_aprovacao": lista_que_pede(linhas),
+                       "analise": analise},
+                      ensure_ascii=False, indent=1) + "\n"
 
 
 def main(argv):
@@ -334,28 +342,22 @@ def main(argv):
         print("script_audit: preciso do repositorio (plugins/ + _shared/) ao lado", file=sys.stderr)
         return 2
     linhas = varre_repo(raiz)
-    lista, tabela = _json_da_lista(linhas), _tabela(linhas)
+    lista = _json_da_lista(linhas)
     if modo == "--tabela":
-        sys.stdout.write(tabela)
+        sys.stdout.write(_tabela(linhas))
         return 0
     if modo == "--gravar":
-        for caminho, conteudo in ((LISTA_JSON, lista), (RELATORIO_MD, tabela)):
-            with open(caminho, "w", encoding="utf-8", newline="\n") as f:
-                f.write(conteudo)
-        print("gravado: %s e %s (%d liberados)" % (os.path.relpath(LISTA_JSON, raiz),
-                                                   os.path.relpath(RELATORIO_MD, raiz),
-                                                   len(lista_permitida(linhas))))
+        with open(LISTA_JSON, "w", encoding="utf-8", newline="\n") as f:
+            f.write(lista)
+        print("gravado: %s (%d liberados)" % (os.path.relpath(LISTA_JSON, raiz), len(lista_permitida(linhas))))
         return 0
-    velho = []
-    for caminho, conteudo in ((LISTA_JSON, lista), (RELATORIO_MD, tabela)):
-        try:
-            atual = _le(caminho)
-        except OSError:
-            atual = None
-        if atual != conteudo:
-            velho.append(os.path.relpath(caminho, raiz))
-    if velho:
-        print("desatualizado: %s — rode: python3 plugins/bootstrap/lib/script_audit.py --gravar" % ", ".join(velho))
+    try:
+        atual = _le(LISTA_JSON)
+    except OSError:
+        atual = None
+    if atual != lista:
+        print("desatualizado: %s — rode: python3 plugins/bootstrap/lib/script_audit.py --gravar"
+              % os.path.relpath(LISTA_JSON, raiz))
         return 1
     return 0
 

@@ -275,7 +275,7 @@ with tempfile.TemporaryDirectory() as t:
     pluginfile("p", "1.10.0", "lib/novo.py", "print(2)\n")                      # nao esta na lista
     pluginfile("q", "2.0.0", "app/run.mjs", "console.log(1)\n")
     os.makedirs(os.path.join(cache, "p", ".in_use"), exist_ok=True)
-    escreve(os.path.join(t, "plugin-scripts.json"), {
+    escreve(os.path.join(t, "plugin-scripts.baseline.json"), {
         "scripts": [
             {"plugin": "p", "script": "lib/puro.py", "interprete": "python3"},
             {"plugin": "p", "script": "lib/virou.py", "interprete": "python3"},
@@ -310,7 +310,7 @@ with tempfile.TemporaryDirectory() as t:
 
 print("── consentimento: a marca guarda o hash da lista que o usuario viu ──")
 with tempfile.TemporaryDirectory() as t:
-    escreve(os.path.join(t, "plugin-scripts.json"), {
+    escreve(os.path.join(t, "plugin-scripts.baseline.json"), {
         "scripts": [{"plugin": "p", "script": "lib/a.py", "interprete": "python3"}],
         "pedem_aprovacao": [{"plugin": "p", "script": "lib/b.py"}]})
     defaults = escreve(os.path.join(t, "d.json"), {"permissions": {"allow": ["Bash(ls*)"], "ask": [], "deny": ["Bash(dd*)"]}})
@@ -336,8 +336,8 @@ with tempfile.TemporaryDirectory() as t:
         f.write(saida)
     # o release acrescenta uma regra e tira outra
     defaults2 = escreve(os.path.join(t, "d2.json"), {"permissions": {"allow": ["Bash(ls*)", "Bash(novo*)"], "ask": [], "deny": []}})
-    os.replace(os.path.join(t, "plugin-scripts.json"), os.path.join(t, "plugin-scripts.json.bak"))
-    escreve(os.path.join(t, "plugin-scripts.json"), {
+    os.replace(os.path.join(t, "plugin-scripts.baseline.json"), os.path.join(t, "plugin-scripts.baseline.json.bak"))
+    escreve(os.path.join(t, "plugin-scripts.baseline.json"), {
         "scripts": [{"plugin": "p", "script": "lib/a.py", "interprete": "python3"}],
         "pedem_aprovacao": [{"plugin": "p", "script": "lib/b.py"}]})
     saida, rc = roda("consent-estado", marca, defaults2)
@@ -345,7 +345,7 @@ with tempfile.TemporaryDirectory() as t:
     check("defaults que mudaram: mudou, com o que entrou (+) e o que saiu (-)",
           linhas[0] == "mudou" and "+ allow + Bash(novo*)" in linhas and "- deny + Bash(dd*)" in linhas, linhas)
     # script novo na lista de liberados tambem invalida o sim
-    escreve(os.path.join(t, "plugin-scripts.json"), {
+    escreve(os.path.join(t, "plugin-scripts.baseline.json"), {
         "scripts": [{"plugin": "p", "script": "lib/a.py", "interprete": "python3"},
                     {"plugin": "p", "script": "lib/c.py", "interprete": "python3"}],
         "pedem_aprovacao": [{"plugin": "p", "script": "lib/b.py"}]})

@@ -106,7 +106,7 @@ RE_PASTA_INTEIRA = re.compile(r'^Bash\((?:python3?|node) "?[^*"]*/plugins/cache/
 MARCA_DIR = "{{CLAUDE_DIR}}"
 MARCA_VERSAO = "{{VERSION}}"
 LISTAS = ("allow", "ask", "deny")
-LISTA_SCRIPTS = "plugin-scripts.json"
+LISTA_SCRIPTS = "plugin-scripts.baseline.json"
 MKT_CACHE = "pedro-plugins"
 
 
@@ -138,7 +138,7 @@ def _e_retirada(x):
 
 
 def _lista_de_scripts(caminho_defaults):
-    """`plugin-scripts.json` ao lado dos defaults: {"scripts": [...], "pedem_aprovacao": [...]}."""
+    """`plugin-scripts.baseline.json` ao lado dos defaults: {"scripts": [...], "pedem_aprovacao": [...]}."""
     try:
         d = _carrega(os.path.join(os.path.dirname(os.path.abspath(caminho_defaults)), LISTA_SCRIPTS))
     except (OSError, ValueError):

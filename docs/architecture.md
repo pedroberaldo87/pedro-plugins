@@ -363,7 +363,7 @@ Saída desta rodada (nome · versão · skills · tem hook):
 ```
 2op                 1.3.0  [2op,2op-opus,2op-sonnet]    -
 archify            2.14.3  [archify]                    -
-bootstrap         1.17.21  [bootstrap]                  HOOKS
+bootstrap         1.17.22  [bootstrap]                  HOOKS
 branches           1.3.15  [branches]                   HOOKS
 check-skills        0.7.5  [check-skills]               -
 context-guard      1.3.18  [context-guard]              HOOKS
@@ -1768,7 +1768,7 @@ sem `browser_run_code`/`browser_evaluate`/`browser_file_upload`. As únicas exce
 `python3` e `node` com o caminho literal de UM script do cache do próprio marketplace, na versão
 mais alta instalada (resolvida para a máquina na hora do merge, sem curinga no meio do caminho),
 só para o script que não executa comando recebido (`lib/script_audit.py` decide; a lista e a
-tabela por script estão em `config/plugin-scripts.json` e `config/plugin-scripts-audit.md`). Os
+tabela por script estão em `config/plugin-scripts.baseline.json`). Os
 executores (`precheck_largada.py --suite`, `sec.py`…) ficam sem regra e levam um `ask`; escrita
 dentro do cache também pede aprovação. O teste de allow proibido
 reprova a CLASSE (interpretador, embrulho, rede aberta, JS de navegador), não só os nomes já

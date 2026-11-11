@@ -209,7 +209,7 @@ ferramenta = (r"^WebFetch$|^WebFetch\(\*?\)$|^WebFetch\(domain:\*\)$"
 # versao resolvida, com o curinga so nos argumentos. Pasta inteira (`.../pedro-plugins/*`)
 # NAO passa: liberava todo script de todo plugin, inclusive os que executam o comando que
 # recebem (precheck_largada.py --suite). Os defaults nem trazem essa forma: as regras por
-# script nascem no apply-config, a partir de config/plugin-scripts.json.
+# script nascem no apply-config, a partir de config/plugin-scripts.baseline.json.
 preso = re.compile(r'^Bash\((?:python3|node) "?[^*"]+/plugins/cache/pedro-plugins/[^*"/]+/[^*"/]+/[^*"]+\.(?:py|mjs|js)"? \*\)$')
 def proibida(x):
     if preso.match(x):
@@ -663,7 +663,7 @@ check "o allow dos defaults nao traz regra de pasta inteira" "0" \
 
 # a lista gravada e a analise nao podem envelhecer (script novo que executa comando
 # nao ganha regra por esquecimento, e um que deixou de executar e liberado de proposito)
-check "config/plugin-scripts.json e o relatorio batem com a analise" "0" \
+check "config/plugin-scripts.baseline.json bate com a analise" "0" \
   "$(python3 "$AQUI/../lib/script_audit.py" --confere >/dev/null 2>&1; echo $?)"
 
 # ── I1: O PostToolUse NAO REESCREVE O MANIFEST COM ITEM PENDENTE ──────────────
