@@ -77,6 +77,62 @@ def expande(padroes):
     return fora
 
 
+# ── SUÍTE PULADA POR SISTEMA: SÓ COM MOTIVO, SEMPRE EM VOZ ALTA ─────────────
+#
+# Esta tabela existe por causa de UMA suíte, e de um dano medido. No Windows do CI,
+# `plugins/lixeiro/hooks/test_lixeiro_hooks.sh` MATAVA A ESTEIRA INTEIRA: o hook de
+# fim de sessão do lixeiro acha a raiz "órfã" do servidor de teste subindo pela
+# árvore de processos, e só para nos ancestrais DO PRÓPRIO HOOK. Lá a cadeia do hook
+# se quebra no primeiro salto (o pai MSYS já morreu: o `ppid` aponta para um pid que
+# não existe mais), a subida atravessa o rodador, o bash do passo, o `Runner.Worker`
+# e chega à raiz da máquina — e o SIGTERM cai em cada um. Medido com a morte
+# desligada (sonda `debug/win-lixeiro-ancestry`, run 42971755541): os alvos eram o
+# `bash scripts/suite.sh`, o `run_suites.py` e, por fim, `lsass.exe`/`svchost.exe`. O
+# job saía "verde" sem placar, sem `rc=`, com as ~30 suítes seguintes nunca contadas.
+#
+# O conserto é do PRODUTO (`lixeiro.py:raiz_orfa`: não subir quando a cadeia do hook
+# está quebrada), não do rodador nem do teste — fica fora desta passada e RASTREADO na
+# descrição do PR #10 (nota W1). Até lá a suíte não roda no Windows, e o rodador diz
+# isso de três jeitos: linha `↷ PULADA`, anotação `::warning::` e a contagem no placar.
+# Não é "teste ignorado": entra aqui só quem tem o motivo escrito e o arquivo no disco
+# (`test_run_suites_pulas_por_so.py` cobra os dois). `RUN_SUITES_NAO_PULA=1` roda tudo,
+# para quem for medir o conserto do produto numa máquina Windows descartável.
+PULA_NO_SO = {
+    "nt": {
+        "plugins/lixeiro/hooks/test_lixeiro_hooks.sh":
+            "o lixeiro sobe pela árvore de processos até a raiz órfã do servidor de teste e, no "
+            "Windows, a cadeia de ancestrais do hook vem quebrada: o SIGTERM atinge o rodador, o "
+            "runner do CI e processos do sistema, e derruba a esteira sem placar (PR #10, nota W1)",
+    },
+}
+
+
+def so_atual():
+    """`nt` ou `posix`. `RUN_SUITES_SO` existe só para a suíte do rodador encenar o outro
+    sistema sem precisar dele."""
+    return os.environ.get("RUN_SUITES_SO") or os.name
+
+
+def pulas_do_so(so=None):
+    """alvo normalizado (com `/`) -> motivo, para o sistema dado. POSIX nunca pula nada."""
+    if os.environ.get("RUN_SUITES_NAO_PULA"):
+        return {}
+    return PULA_NO_SO.get(so or so_atual(), {})
+
+
+def separa_puladas(alvos, so=None):
+    """([alvos que rodam], [(alvo, motivo) dos pulados]) — na ordem recebida."""
+    pulas = pulas_do_so(so)
+    rodam, puladas = [], []
+    for a in alvos:
+        motivo = pulas.get(a.replace("\\", "/"))
+        if motivo:
+            puladas.append((a, motivo))
+        else:
+            rodam.append(a)
+    return rodam, puladas
+
+
 VIVO = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "_shared",
                     "vivo-ou-dormindo.sh")
 
@@ -323,8 +379,13 @@ def main(argv=None):
     # no PATH, é RESPONDER, e o repositório já tinha a receita (`_shared/bash_posix.py`).
     # Sem nenhum bash que responda, as suítes de shell PULAM declarando: comando de
     # shell sem shell não é falha de quem escreveu o comando.
-    sh_alvos = expande(a.sh)
-    tarefas = [([py], t) for t in expande(a.py)]
+    py_alvos, puladas = separa_puladas(expande(a.py))
+    sh_alvos, puladas_sh = separa_puladas(expande(a.sh))
+    puladas += puladas_sh
+    for alvo, motivo in puladas:
+        print("  ↷ PULADA no %s: %s\n      motivo: %s" % (so_atual(), alvo, motivo), flush=True)
+        print("::warning::suíte pulada no %s: %s — %s" % (so_atual(), alvo, motivo), flush=True)
+    tarefas = [([py], t) for t in py_alvos]
     bash = bash_posix()
     if sh_alvos and bash is None:
         print("  ↷ %d suíte(s) de shell puladas: nenhum bash funcional nesta máquina" % len(sh_alvos))
@@ -372,6 +433,9 @@ def main(argv=None):
     # inteiro (runs 32491657813 · 32493288667 · 32494014937 — as suítes saíam, o
     # placar não, e o passo seguia como se o rc fosse 0).
     print("\n%d suíte(s) · %d problema(s)" % (len(tarefas), len(ruins)), flush=True)
+    if puladas:
+        print("%d suíte(s) PULADA(S) neste sistema, com motivo (linhas '↷ PULADA' acima): %s"
+              % (len(puladas), ", ".join(a for a, _ in puladas)), flush=True)
     for estado, alvo, saida in ruins:
         print("\n───────── %s: %s" % (estado, alvo), flush=True)
         if saida is None:
@@ -384,4 +448,8 @@ def main(argv=None):
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    rc = main()
+    # A última palavra do rodador, dita por ele mesmo: quem lê o log sabe que o
+    # processo CHEGOU ao fim (no Windows do CI ele morria no meio sem dizer nada).
+    print("run_suites: veredito rc=%d" % rc, flush=True)
+    sys.exit(rc)
