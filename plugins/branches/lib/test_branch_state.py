@@ -381,6 +381,38 @@ def main():
     finally:
         r.close()
 
+    print("relatório HTML — aspa simples no nome da branch")
+    # `data-br='...'` usa aspa simples: um `'` no nome fechava o atributo e deixava
+    # o resto virar atributo novo (onfocus=...) na página que o usuário abre.
+    from html.parser import HTMLParser
+
+    class Entradas(HTMLParser):
+        def __init__(self):
+            HTMLParser.__init__(self)
+            self.inputs = []
+
+        def handle_starttag(self, tag, attrs):
+            if tag == "input":
+                self.inputs.append(dict(attrs))
+
+    r = Repo()
+    nome = "x'onfocus='alert(1)"
+    r.branch(nome)
+    r.co("main")
+    r.g("merge", "-q", "--no-ff", "-m", "m", nome)
+    check("o git aceitou o nome com aspa simples (o teste mede alguma coisa)",
+          nome in r.g("branch").stdout)
+    pagina = bs.render_html(bs.classify(r.path), "2026-11-11 10:00")
+    parser = Entradas()
+    parser.feed(pagina)
+    caixas = [i for i in parser.inputs if i.get("type") == "checkbox"]
+    check("a página tem a caixa da branch", len(caixas) == 1)
+    check("o data-br sai com o nome inteiro, aspa e tudo",
+          bool(caixas) and caixas[0].get("data-br") == nome)
+    check("e nenhum atributo extra nasce da aspa",
+          bool(caixas) and set(caixas[0]) <= {"type", "data-br", "checked", "disabled"})
+    r.close()
+
     print()
     if FAILS:
         print("FALHOU: %d" % len(FAILS))
