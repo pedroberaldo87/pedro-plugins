@@ -111,6 +111,31 @@ def cpu_viva(bash, pgid, amostra):
     return None
 
 
+_TEMP_MACOS = []
+
+
+def _temporario_do_macos():
+    """O temporário que o `mktemp -d` do macOS usa mesmo com `TMPDIR` trocado, ou "".
+
+    `getconf DARWIN_USER_TEMP_DIR` é a pergunta que o próprio `mktemp` faz; o `os` do
+    Python não a expõe. Só o macOS responde; nos outros sistemas não há o que perguntar.
+    Perguntado uma vez só: o rodador chama `tetos_de_git` a cada suíte.
+    """
+    if not _TEMP_MACOS:
+        achado = ""
+        if sys.platform == "darwin":
+            try:
+                r = subprocess.run(["getconf", "DARWIN_USER_TEMP_DIR"], capture_output=True,
+                                   text=True, timeout=10, stdin=subprocess.DEVNULL,
+                                   start_new_session=True)
+                if r.returncode == 0:
+                    achado = r.stdout.strip()
+            except Exception:
+                pass
+        _TEMP_MACOS.append(achado)
+    return _TEMP_MACOS[0]
+
+
 def tetos_de_git(casa):
     """Os diretórios acima dos quais o git NÃO procura repositório (GIT_CEILING_DIRECTORIES).
 
@@ -127,11 +152,7 @@ def tetos_de_git(casa):
     resolvido (`realpath`) porque o git compara com o caminho real, e `/var` no macOS é
     link para `/private/var`.
     """
-    candidatos = [os.path.dirname(casa), tempfile.gettempdir()]
-    try:
-        candidatos.append(os.confstr("CS_DARWIN_USER_TEMP_DIR"))
-    except (AttributeError, ValueError, OSError):
-        pass   # só o macOS tem essa pergunta
+    candidatos = [os.path.dirname(casa), tempfile.gettempdir(), _temporario_do_macos()]
     tetos = []
     for c in candidatos:
         if c:

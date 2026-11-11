@@ -1,0 +1,36 @@
+# Dependabot version updates: real code only.
+#
+# plugins/sec/lib/fixtures/projeto/** holds lockfiles that are INTENTIONALLY vulnerable
+# (old lodash, requests, PyYAML, event-stream...). They are the test data for the /sec
+# scanner: the suite asserts that it reports those exact advisories. Bumping them would
+# silently break the tests that exist to prove the scanner works, so nothing below may
+# ever point at that tree.
+#
+# Only manifests listed here get version-update PRs; anything not listed is left alone.
+# `exclude-paths` is a second lock for the day someone widens `directory`.
+#
+# LIMIT: this file does not govern Dependabot *alerts* or *security-update* PRs. Alerts
+# come from the dependency graph and cannot be path-filtered from a file; for those, use
+# Settings > Advanced Security > Dependabot > Auto-triage rules (or dismiss the alerts on
+# the fixture manifests as "not used"). See the PR that added this file for the list.
+version: 2
+updates:
+  # The only npm manifest that belongs to shipped code (the archify skill's dev tooling).
+  - package-ecosystem: "npm"
+    directory: "/plugins/archify/skills/archify"
+    exclude-paths:
+      - "plugins/sec/lib/fixtures/**"
+    schedule:
+      interval: "monthly"
+    open-pull-requests-limit: 2
+    commit-message:
+      prefix: "chore(deps)"
+
+  # The workflow pins actions by commit SHA; this keeps those SHAs from rotting.
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "monthly"
+    open-pull-requests-limit: 2
+    commit-message:
+      prefix: "chore(deps)"

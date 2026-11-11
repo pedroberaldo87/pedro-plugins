@@ -60,11 +60,14 @@ if r.returncode != 0:
 
 SUITE_TETO_DO_SISTEMA = r'''
 import os, sys
-esperado = os.path.realpath(os.environ["TESTE_TMP_DO_SISTEMA"])
 tetos = [os.path.realpath(t) for t in os.environ.get("GIT_CEILING_DIRECTORIES", "").split(os.pathsep) if t]
-if esperado not in tetos:
-    print("GIT_CEILING_DIRECTORIES=%r não inclui o temporário do sistema %r" % (tetos, esperado))
-    sys.exit(1)
+for var in ("TESTE_TMP_DO_SISTEMA", "TESTE_TMP_DO_MACOS"):
+    if not os.environ.get(var):
+        continue
+    esperado = os.path.realpath(os.environ[var])
+    if esperado not in tetos:
+        print("GIT_CEILING_DIRECTORIES=%r não inclui %s=%r" % (tetos, var, esperado))
+        sys.exit(1)
 '''
 
 
@@ -97,8 +100,18 @@ try:
     suite_b = os.path.join(obra, "test_teto_sistema.py")
     with open(suite_b, "w", encoding="utf-8") as fh:
         fh.write(SUITE_TETO_DO_SISTEMA)
-    codigo, saida = roda_rodador(suite_b, {"TESTE_TMP_DO_SISTEMA": tempfile.gettempdir()})
-    check("o teto inclui o temporário do sistema", codigo == 0, saida[-400:])
+    # TMPDIR aponta para outra pasta de propósito: se o teto só olhasse o TMPDIR, o
+    # temporário "de verdade" do macOS ficaria de fora e este caso reprovaria.
+    outro = os.path.join(obra, "outro-tmp")
+    os.makedirs(outro)
+    env_b = {"TMPDIR": outro, "TMP": outro, "TEMP": outro, "TESTE_TMP_DO_SISTEMA": outro}
+    if sys.platform == "darwin":
+        # É o `mktemp -d` sem modelo que ignora o TMPDIR; quem responde é o getconf.
+        env_b["TESTE_TMP_DO_MACOS"] = subprocess.run(
+            ["getconf", "DARWIN_USER_TEMP_DIR"], capture_output=True, text=True,
+            stdin=subprocess.DEVNULL).stdout.strip()
+    codigo, saida = roda_rodador(suite_b, env_b)
+    check("o teto inclui o temporário do sistema (o do TMPDIR e, no macOS, o do getconf)", codigo == 0, saida[-400:])
 
     # C) Teto que o dono já pôs não é pisado: o do rodador entra junto.
     suite_c = os.path.join(obra, "test_teto_do_dono.py")
