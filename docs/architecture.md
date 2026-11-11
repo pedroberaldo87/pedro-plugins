@@ -383,7 +383,7 @@ sec                 0.1.0  [sec]                        -
 ship                1.5.7  [ship]                       HOOKS
 slides              1.6.6  [slides]                     -
 vision              0.1.1  []                           -
-vistoria           0.11.9  [vistoria]                   -
+vistoria          0.11.10  [vistoria]                   -
 visual             1.44.2  [andamento,visual]           HOOKS
 ```
 
