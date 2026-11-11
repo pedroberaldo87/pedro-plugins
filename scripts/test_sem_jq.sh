@@ -218,7 +218,10 @@ else
     printf 'test:\n\t@exit 1\n' > "$APP/Makefile"
     printf '#!/bin/sh\necho deploy\n' > "$APP/deploy.sh"; chmod +x "$APP/deploy.sh"
     PAY="$(printf '{"session_id":"s","cwd":"%s","tool_input":{"command":"bash deploy.sh"}}' "$APP")"
-    printf '%s' "$PAY" | PATH="$PROVA_PATH" bash "$SHIP" >/dev/null 2>&1
+    # O gate só roda o teste do repo com o aval do dono (P7): o aval vai pra um
+    # CLAUDE_CONFIG_DIR do sandbox, nunca pro ~/.claude de verdade.
+    CLAUDE_CONFIG_DIR="$SANDBOX/cfg" bash "$SHIP" --trust "$APP" >/dev/null 2>&1
+    printf '%s' "$PAY" | CLAUDE_CONFIG_DIR="$SANDBOX/cfg" PATH="$PROVA_PATH" bash "$SHIP" >/dev/null 2>&1
     if [ "$?" = "2" ]; then
       ok "sem jq, o gate de deploy ainda BARRA deploy com teste vermelho (exit 2)"
     else

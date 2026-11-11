@@ -100,7 +100,7 @@ O relatório de lista com checkboxes cobre **qualquer volume** (1 item ou dezena
 **Antes de qualquer escrita:** garantir git limpo ou `git stash`/commit do estado atual (a skill avisa e faz). Trabalhar num branch se o projeto estiver no default.
 
 1. **Deps não usadas** → `npx --yes --ignore-scripts fallow@3.42.0 fix -r <projeto> --dry-run` (preview) → mostrar o diff → `npx --yes --ignore-scripts fallow@3.42.0 fix -r <projeto> --yes` (escopo deps).
-2. **Exports 100% dead** → para cada um, `npx --yes --ignore-scripts fallow@3.42.0 dead-code -r <projeto> --trace <file>:<export>` confirma 0 referências → `fallow fix`.
+2. **Exports 100% dead** → para cada um, `npx --yes --ignore-scripts fallow@3.42.0 dead-code -r <projeto> --trace <file>:<export>` confirma 0 referências → `fallow fix`. O `<file>` é o arquivo do export e o `<export>` é o nome dele.
 3. **Arquivos órfãos** → confirmar via `--trace`/grep + olhar `git log` do arquivo; deletar; rodar build/test **do app afetado**.
 4. **Duplicação / complexidade** → refactor manual dos maiores; nunca auto.
 
