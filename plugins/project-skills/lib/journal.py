@@ -31,7 +31,9 @@ CLI:
 """
 import argparse
 import bisect
+import binascii
 import hashlib
+import hmac
 import json
 import math
 import os
@@ -279,7 +281,8 @@ JSON_PAIR_RE = re.compile(
 PROVIDER_RE = re.compile(
     r"(?:AKIA[0-9A-Z]{16}|ASIA[0-9A-Z]{16}"
     r"|gh[posu]_[A-Za-z0-9]{20,}|github_pat_[A-Za-z0-9_]{20,}"
-    r"|sk-[A-Za-z0-9]{20,}|sk_live_[A-Za-z0-9]{16,}|sk_test_[A-Za-z0-9]{16,}|rk_live_[A-Za-z0-9]{16,}"
+    r"|sk-[A-Za-z0-9]{20,}|sk-(?:ant|proj)-[A-Za-z0-9_-]{20,}"
+    r"|(?<![A-Za-z0-9_])hf_[A-Za-z0-9]{30,}|sk_live_[A-Za-z0-9]{16,}|sk_test_[A-Za-z0-9]{16,}|rk_live_[A-Za-z0-9]{16,}"
     r"|xox[baprs]-[A-Za-z0-9-]{10,}|glpat-[A-Za-z0-9_-]{16,}|AIza[A-Za-z0-9_-]{20,}|ya29\.[A-Za-z0-9_-]{20,}"
     # GOCSPX- = Google OAuth client secret. Escapou em produção (medido em 2026-08-27:
     # dois findings de memória carregaram o valor real pro journal versionado).
@@ -353,8 +356,72 @@ def _is_placeholder(v):
     return not v or bool(PLACEHOLDER_RE.match(v))
 
 
+# Sal por instalação da etiqueta `‹cofre:LABEL:xxxxxxxx›`. A etiqueta vai para o journal
+# VERSIONADO; com SHA-1 nu de 32 bits, quem tivesse o journal testava palpites offline.
+# HMAC com um sal que nunca sai da máquina tira isso: sem o sal, a etiqueta não se confere.
+_SAL_CACHE = {}
+
+
+def _sal_path():
+    env = os.environ.get("PROJECT_DOC_SALT_FILE")
+    if env:
+        return env
+    base = os.environ.get("CLAUDE_CONFIG_DIR") or os.path.join(os.path.expanduser("~"), ".claude")
+    return os.path.join(base, "project-skills", "journal.salt")
+
+
+def _le_sal(path):
+    try:
+        with open(path, "rb") as fh:
+            sal = fh.read().strip()
+    except OSError:
+        return None
+    return sal if len(sal) >= 32 else None      # arquivo vazio/truncado não vale como sal
+
+
+def _sal():
+    """O sal desta instalação: 32 bytes aleatórios (hex), arquivo 0600, criado na 1ª necessidade.
+
+    Se nem gravar der (disco só-leitura), vale um sal só deste processo: a etiqueta deixa de ser
+    estável entre execuções, mas nunca volta a ser um hash sem chave do valor.
+    """
+    path = _sal_path()
+    if path in _SAL_CACHE:
+        return _SAL_CACHE[path]
+    sal = _le_sal(path)
+    if sal is None:
+        sal = binascii.hexlify(os.urandom(32))
+        try:
+            pasta = os.path.dirname(path) or "."
+            nova = not os.path.isdir(pasta)
+            os.makedirs(pasta, mode=0o700, exist_ok=True)
+            if nova:
+                os.chmod(pasta, 0o700)             # o mode do makedirs passa pelo umask
+            flags = os.O_WRONLY | os.O_CREAT | getattr(os, "O_NOFOLLOW", 0)
+            try:
+                fd = os.open(path, flags | os.O_EXCL, 0o600)
+            except FileExistsError:
+                # outro processo criou agora (usa o dele) ou o arquivo está vazio (reescreve)
+                outro = _le_sal(path)
+                if outro is not None:
+                    sal, fd = outro, None
+                else:
+                    fd = os.open(path, flags | os.O_TRUNC, 0o600)
+            if fd is not None:
+                with os.fdopen(fd, "wb") as fh:
+                    fh.write(sal)
+        except OSError:
+            pass
+    try:
+        os.chmod(path, 0o600)                       # sal pré-existente e frouxo é apertado
+    except OSError:
+        pass
+    _SAL_CACHE[path] = sal
+    return sal
+
+
 def _vhash(val):
-    return hashlib.sha1(val.encode("utf-8")).hexdigest()[:8]
+    return hmac.new(_sal(), val.encode("utf-8"), hashlib.sha256).hexdigest()[:8]
 
 
 def _is_secret_key(key):
@@ -605,6 +672,30 @@ def ensure_gitignore(project_root, entry):
         fh.write(sep + entry + "\n")
 
 
+def _pasta_privada(pasta):
+    """Cria a pasta do cofre sem acesso de grupo/outros e aperta a que já existia."""
+    nova = not os.path.isdir(pasta)
+    os.makedirs(pasta, mode=0o700, exist_ok=True)
+    try:
+        if nova:
+            os.chmod(pasta, 0o700)
+        else:
+            os.chmod(pasta, os.stat(pasta).st_mode & 0o700)      # só tira bits; nunca dá
+    except OSError:
+        pass
+
+
+def _abre_privado(caminho):
+    """Abre o cofre para acrescentar, 0600 desde a criação (o umask do processo não alarga)."""
+    flags = os.O_WRONLY | os.O_APPEND | os.O_CREAT
+    fd = os.open(caminho, flags, 0o600)
+    try:
+        os.chmod(caminho, 0o600)                    # arquivo antigo 0644 é apertado
+    except OSError:
+        pass
+    return os.fdopen(fd, "a", encoding="utf-8")
+
+
 def stash_secrets(secrets, project_root):
     """Desvia valores pro cofre, dedup por (label,valor). Garante o gitignore ANTES de escrever."""
     if not secrets:
@@ -612,7 +703,7 @@ def stash_secrets(secrets, project_root):
     # Protege primeiro: no fallback local o cofre cai dentro do repo — gitignore antes da escrita.
     ensure_gitignore(project_root, ".claude/secrets/")
     base, cofre = cofre_paths(project_root)
-    os.makedirs(base, exist_ok=True)
+    _pasta_privada(base)
     existing = set()
     if os.path.exists(cofre):
         try:
@@ -621,7 +712,7 @@ def stash_secrets(secrets, project_root):
                     existing.add(line.split("=", 1)[0].strip())
         except OSError:
             pass
-    with open(cofre, "a", encoding="utf-8") as fh:
+    with _abre_privado(cofre) as fh:
         for key, val in secrets:
             if key in existing:
                 continue

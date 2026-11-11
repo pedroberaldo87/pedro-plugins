@@ -15,9 +15,13 @@ import random
 import string
 import subprocess
 import sys
+import tempfile
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
+# o scrub etiqueta segredos com o sal da instalação: aqui ele mora num arquivo descartável
+os.environ["PROJECT_DOC_SALT_FILE"] = os.path.join(
+    tempfile.mkdtemp(prefix="pdregex-"), "journal.salt")
 
 TETO_S = 1.0          # cada entrada hostil tem que terminar abaixo disto
 LIMITE_FILHO_S = 8    # o filho é morto aqui: padrão lento reprova, não pendura
