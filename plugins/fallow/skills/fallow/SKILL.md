@@ -55,7 +55,7 @@ A skill tem motores prontos e testados. O caminho normal é **rodá-los**, não 
 - **`lib/report.py <projeto> [session]`** — roda os 3 fallow + a auditoria, classifica, e gera o HTML interativo **dentro do projeto** (`<projeto>/.claude/visual/`, fallback `~/Desktop/claude-visual/` fora de projeto — mesma cascata da skill `visual`, replicada em `resolve_visual_dir()`). Imprime o path + um resumo JSON dos baldes.
 - **`lib/audit.py <projeto> [--json]`** — auditoria isolada (o `report.py` já a chama internamente). Útil pra rodar/inspecionar só a auditoria.
 
-Antes de abrir o HTML: rodar `plugins/visual/server/start.sh` (live-sync). Depois `open` o arquivo.
+Antes de abrir o HTML: rodar `plugins/visual/server/start.sh` (live-sync). Depois `open` o arquivo. O `report.py` cria o token do live-sync se ainda não existir (primeiro relatório da máquina) e grava a página com permissão 0600, porque o token vai embutido nela.
 
 ### 3. Auditoria — o goal (confirmar cada afirmação do Fallow)
 

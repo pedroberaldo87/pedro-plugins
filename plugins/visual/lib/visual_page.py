@@ -1267,29 +1267,85 @@ def _read_token(path):
 
 
 def ensure_token():
-    """Lê o token do live-sync; cria (0600, exclusivo) se ainda não existe.
+    """Lê o token do live-sync; cria (0600, atômico) se não existe ou está corrompido.
 
-    Devolve None quando não dá para ter token (disco sem permissão): a página sai
-    sem sync e cai no copy/paste, nunca com segredo frouxo.
+    O token nasce num arquivo temporário 0600 e entra no lugar por `link` (o primeiro
+    a chegar vence, nunca fica meio escrito); um arquivo ali que não é token válido é
+    corrompido e é trocado por `rename`. Um token solto (0644, de versão antiga) volta
+    a 0600. Devolve None quando não dá para ter token (disco sem permissão): a página
+    sai sem sync e cai no copy/paste, nunca com segredo frouxo.
     """
     path = token_path()
-    for _ in range(3):
+    d = os.path.dirname(path)
+    try:
+        os.makedirs(d, mode=0o700, exist_ok=True)
+        os.chmod(d, 0o700)
+    except OSError:
+        pass
+    for _ in range(5):
         t = _read_token(path)
         if t:
+            try:
+                os.chmod(path, 0o600)
+            except OSError:
+                pass
             return t
+        t = secrets.token_hex(32)
+        tmp = "%s.%d.%s" % (path, os.getpid(), secrets.token_hex(4))
         try:
-            os.makedirs(os.path.dirname(path), exist_ok=True)
-            fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
-        except FileExistsError:
-            time.sleep(0.05)  # outro criador está escrevendo; relê
-            continue
+            fd = os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
         except OSError:
             return None
-        t = secrets.token_hex(32)
-        with os.fdopen(fd, "w", encoding="utf-8") as fh:
-            fh.write(t + "\n")
-        return t
+        try:
+            with os.fdopen(fd, "w", encoding="utf-8") as fh:
+                fh.write(t + "\n")
+            try:
+                os.link(tmp, path)
+                return t
+            except FileExistsError:
+                if not _read_token(path):  # corrompido: troca de forma atômica
+                    os.replace(tmp, path)
+                    return t
+                # outro criador venceu: relê no próximo giro
+            except OSError:
+                # sem hard link neste disco: cria no lugar, de forma exclusiva
+                try:
+                    fd2 = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+                except FileExistsError:
+                    continue
+                except OSError:
+                    return None
+                with os.fdopen(fd2, "w", encoding="utf-8") as fh:
+                    fh.write(t + "\n")
+                return t
+        except OSError:
+            return None
+        finally:
+            try:
+                os.remove(tmp)
+            except OSError:
+                pass
     return None
+
+
+def write_private(path, text):
+    """Grava a página em 0600: ela leva o token do daemon embutido.
+
+    `os.open(…, 0o600)` só vale na criação; um arquivo antigo (0644) é reaberto,
+    então o modo é forçado também. No Windows o chmod é parcial, mas não quebra.
+    """
+    fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+    try:
+        try:
+            os.chmod(path, 0o600)
+        except OSError:
+            pass
+        with os.fdopen(fd, "w", encoding="utf-8") as fh:
+            fd = None
+            fh.write(text)
+    finally:
+        if fd is not None:
+            os.close(fd)
 
 
 def build_page(spec, tpl=None, sync_token=None):
@@ -1357,8 +1413,7 @@ def cmd_build(args):
     page, ctx = build_page(spec, sync_token=ensure_token())
     out = args.out or default_out(spec)
     os.makedirs(os.path.dirname(os.path.abspath(out)), exist_ok=True)
-    with open(out, "w", encoding="utf-8") as fh:
-        fh.write(page)
+    write_private(out, page)
     print(out)
     sys.stderr.write("✅ %d bytes · %d itens revisáveis · %d decisões\n"
                      % (len(page), ctx["n_items"], ctx["n_decisions"]))

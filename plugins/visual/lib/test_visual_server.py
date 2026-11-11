@@ -248,6 +248,20 @@ try:
           info.get("auth") is True, info)
     check("nenhuma resposta usa Access-Control-Allow-Origin: *",
           hd.get("access-control-allow-origin") != "*")
+    check("/ping sem Origin não manda cabeçalho CORS", "access-control-allow-origin" not in hd, hd)
+    st, hd, data = req(port, "GET", "/ping", headers={"Origin": "null"})
+    check("/ping com Origin `null` (iframe sandbox/data:) → sem CORS, página não lê a resposta",
+          st == 200 and "access-control-allow-origin" not in hd, (st, hd))
+    check("/ping com Origin não vaza o pid", "pid" not in json.loads(data), data)
+
+    print("\n[erro interno → 500, não 400]")
+    # `//` faz `new URL(...)` lançar dentro do handler: falha interna, não culpa do corpo.
+    c = socket.create_connection(("127.0.0.1", port), timeout=5)
+    c.sendall(("GET // HTTP/1.1\r\nHost: 127.0.0.1:%d\r\nConnection: close\r\n\r\n" % port).encode())
+    line = c.recv(200).split(b"\r\n")[0]
+    c.close()
+    check("falha interna do handler → 500", b" 500 " in line, line)
+    check("  …e o daemon segue de pé", alive(port))
 finally:
     stop(proc)
 
@@ -271,6 +285,42 @@ try:
 finally:
     stop(proc2)
     shutil.rmtree(home2, ignore_errors=True)
+
+# ── token já existente: permissão frouxa vira 0600; corrompido é refeito ────
+print("\n[token — herdado de versão antiga]")
+for label, content, want_same in (("solto (0644)", TOKEN + "\n", True),
+                                  ("corrompido", "lixo\n", False),
+                                  ("vazio", "", False)):
+    h = tempfile.mkdtemp(prefix="visual-srv5-")
+    sd = os.path.join(h, ".claude", "visual-state")
+    os.makedirs(sd, mode=0o755)
+    tp = os.path.join(sd, ".token")
+    with open(tp, "w") as fh:
+        fh.write(content)
+    os.chmod(tp, 0o644)
+    os.chmod(sd, 0o755)
+    prt = free_port()
+    pr = None
+    try:
+        pr = start_daemon(h, prt)
+        tok = open(tp).read().strip()
+        check("%s: o daemon deixa um token de 64 hex" % label,
+              len(tok) == 64 and all(c in "0123456789abcdef" for c in tok), tok)
+        if want_same:
+            check("%s: o token válido é mantido" % label, tok == TOKEN)
+        if os.name == "posix":
+            check("%s: .token vira 0600" % label, stat.S_IMODE(os.stat(tp).st_mode) == 0o600,
+                  oct(os.stat(tp).st_mode))
+            check("%s: a pasta de estado vira 0700" % label,
+                  stat.S_IMODE(os.stat(sd).st_mode) == 0o700, oct(os.stat(sd).st_mode))
+        st, _, _ = req(prt, "POST", "/state", json.dumps({"session": "abcd1234", "state": {}}),
+                       {"Content-Type": "application/json", "X-Visual-Token": tok})
+        check("%s: o token que ficou autoriza" % label, st == 200, st)
+        check("%s: nenhum temporário sobra na pasta" % label,
+              not [n for n in os.listdir(sd) if n.startswith(".token.")], os.listdir(sd))
+    finally:
+        stop(pr)
+        shutil.rmtree(h, ignore_errors=True)
 
 # ── start.sh: gera o token (0600), é idempotente e não gira o token ─────────
 print("\n[start.sh]")
@@ -311,11 +361,121 @@ else:
         time.sleep(0.3)
         shutil.rmtree(home3, ignore_errors=True)
 
+    # Rotação explícita: --rotate-token troca o segredo e sobe um daemon novo.
+    print("\n[start.sh --rotate-token]")
+    home6 = tempfile.mkdtemp(prefix="visual-srv6-")
+    port6 = free_port()
+    env6 = home_env(home6, CLAUDE_VISUAL_PORT=str(port6))
+    tok6 = os.path.join(home6, ".claude", "visual-state", ".token")
+    try:
+        subprocess.run([BASH, START], env=env6, capture_output=True, text=True,
+                       stdin=subprocess.DEVNULL, timeout=30)
+        before = open(tok6).read().strip() if os.path.isfile(tok6) else ""
+        st, _, data = req(port6, "GET", "/ping")
+        pid_before = json.loads(data).get("pid") if st == 200 else None
+        r = subprocess.run([BASH, START, "--rotate-token"], env=env6, capture_output=True,
+                           text=True, stdin=subprocess.DEVNULL, timeout=30)
+        after = open(tok6).read().strip() if os.path.isfile(tok6) else ""
+        st, _, data = req(port6, "GET", "/ping")
+        pid_after = json.loads(data).get("pid") if st == 200 else None
+        check("--rotate-token troca o token", r.returncode == 0 and len(after) == 64
+              and after != before, r.stdout + r.stderr)
+        check("  …e sobe um daemon novo", pid_after is not None and pid_after != pid_before)
+        hdr = {"Content-Type": "application/json"}
+        body = json.dumps({"session": "abcd1234", "state": {}})
+        st_old, _, _ = req(port6, "POST", "/state", body, dict(hdr, **{"X-Visual-Token": before}))
+        st_new, _, _ = req(port6, "POST", "/state", body, dict(hdr, **{"X-Visual-Token": after}))
+        check("  …o token antigo passa a dar 403 e o novo 200", st_old == 403 and st_new == 200,
+              (st_old, st_new))
+        if os.name == "posix":
+            check("  …o token novo é 0600", stat.S_IMODE(os.stat(tok6).st_mode) == 0o600)
+        r = subprocess.run([BASH, START, "--nao-existe"], env=env6, capture_output=True,
+                           text=True, stdin=subprocess.DEVNULL, timeout=30)
+        check("argumento desconhecido → uso e saída 2", r.returncode == 2, r.stderr)
+    finally:
+        st, _, data = req(port6, "GET", "/ping")
+        if st == 200:
+            try:
+                os.kill(json.loads(data)["pid"], 15)
+            except (OSError, KeyError, ValueError):
+                pass
+        time.sleep(0.3)
+        shutil.rmtree(home6, ignore_errors=True)
+
+    # Quem ocupa a porta e NÃO é `node …/visual_server.mjs` não pode levar SIGTERM do start.sh,
+    # mesmo que tenha "visual_server" na linha de comando.
+    print("\n[start.sh — processo qualquer na porta não é morto]")
+    home7 = tempfile.mkdtemp(prefix="visual-srv7-")
+    port7 = free_port()
+    squat = os.path.join(home7, "squat.py")
+    with open(squat, "w") as fh:
+        fh.write("import http.server, json, os, sys\n"
+                 "class H(http.server.BaseHTTPRequestHandler):\n"
+                 "    def do_GET(self):\n"
+                 "        b = json.dumps({'status': 'ok', 'pid': os.getpid(), 'port': %d}).encode()\n"
+                 "        self.send_response(200); self.send_header('Content-Length', str(len(b)))\n"
+                 "        self.end_headers(); self.wfile.write(b)\n"
+                 "    def log_message(self, *a): pass\n"
+                 "http.server.HTTPServer(('127.0.0.1', %d), H).serve_forever()\n" % (port7, port7))
+    sq = subprocess.Popen([sys.executable, squat, "x/visual_server.mjs"], stdout=subprocess.DEVNULL,
+                          stderr=subprocess.DEVNULL, stdin=subprocess.DEVNULL)
+    try:
+        for _ in range(40):
+            time.sleep(0.1)
+            if alive(port7):
+                break
+        r = subprocess.run([BASH, START], env=home_env(home7, CLAUDE_VISUAL_PORT=str(port7)),
+                           capture_output=True, text=True, stdin=subprocess.DEVNULL, timeout=30)
+        check("o start.sh não mata o processo que só tem visual_server na linha de comando",
+              sq.poll() is None and alive(port7), r.stdout + r.stderr)
+        check("  …e avisa que o live sync fica desligado", "could not be replaced" in r.stderr, r.stderr)
+        tp7 = os.path.join(home7, ".claude", "visual-state", ".token")
+        before7 = open(tp7).read().strip() if os.path.isfile(tp7) else ""
+        r = subprocess.run([BASH, START, "--rotate-token"],
+                           env=home_env(home7, CLAUDE_VISUAL_PORT=str(port7)),
+                           capture_output=True, text=True, stdin=subprocess.DEVNULL, timeout=30)
+        check("--rotate-token com processo estranho na porta: não mata e sai com 1",
+              sq.poll() is None and r.returncode == 1, (r.returncode, r.stderr))
+        check("  …e não troca o token (o daemon dele não seria o nosso)",
+              os.path.isfile(tp7) and open(tp7).read().strip() == before7 and len(before7) == 64)
+    finally:
+        if sq.poll() is None:
+            sq.kill()
+        sq.wait()
+        shutil.rmtree(home7, ignore_errors=True)
+
+    # start.sh refaz um token corrompido e aperta um solto.
+    print("\n[start.sh — token herdado]")
+    home8 = tempfile.mkdtemp(prefix="visual-srv8-")
+    port8 = free_port()
+    sd8 = os.path.join(home8, ".claude", "visual-state")
+    os.makedirs(sd8)
+    tp8 = os.path.join(sd8, ".token")
+    with open(tp8, "w") as fh:
+        fh.write("x" * 80 + "\n")   # comprido, mas não é hex: o teste antigo por tamanho aceitava
+    os.chmod(tp8, 0o644)
+    try:
+        subprocess.run([BASH, START], env=home_env(home8, CLAUDE_VISUAL_PORT=str(port8)),
+                       capture_output=True, text=True, stdin=subprocess.DEVNULL, timeout=30)
+        t8 = open(tp8).read().strip()
+        check("token corrompido (80 'x') é refeito como 64 hex",
+              len(t8) == 64 and all(c in "0123456789abcdef" for c in t8), t8)
+    finally:
+        st, _, data = req(port8, "GET", "/ping")
+        if st == 200:
+            try:
+                os.kill(json.loads(data)["pid"], 15)
+            except (OSError, KeyError, ValueError):
+                pass
+        time.sleep(0.3)
+        shutil.rmtree(home8, ignore_errors=True)
+
     # daemon de antes do token: /ping sem `auth` e aceita qualquer um — start.sh troca.
     print("\n[start.sh — daemon antigo sem token]")
     home4 = tempfile.mkdtemp(prefix="visual-srv4-")
     port4 = free_port()
-    old = os.path.join(home4, "visual_server_old.mjs")
+    os.makedirs(os.path.join(home4, "old-plugin", "server"))
+    old = os.path.join(home4, "old-plugin", "server", "visual_server.mjs")
     with open(old, "w") as fh:
         fh.write("import http from 'node:http';\n"
                  "http.createServer((q, r) => { r.writeHead(200, {'Access-Control-Allow-Origin': '*'});"

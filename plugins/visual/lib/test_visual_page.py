@@ -388,6 +388,45 @@ with tempfile.TemporaryDirectory() as td:
           os.path.exists(out) and os.path.getsize(out) > 40000, os.path.getsize(out)
           if os.path.exists(out) else "ausente")
 
+    check("a página sai 0600 (leva o token e pode cair numa Desktop sincronizada)",
+          os.name != "posix" or (os.stat(out).st_mode & 0o777) == 0o600, oct(os.stat(out).st_mode))
+    if os.name == "posix":
+        os.chmod(out, 0o644)
+        subprocess.run([sys.executable, os.path.join(HERE, "visual_page.py"), "build", "--spec", sp,
+                        "--out", out], capture_output=True, text=True, env=_env,
+                       stdin=subprocess.DEVNULL, start_new_session=True)
+        check("página antiga 0644 reescrita volta a 0600", (os.stat(out).st_mode & 0o777) == 0o600)
+
+    print("\n[ensure_token — token herdado]")
+    _h = os.path.join(td, "home-tok")
+    _sd = os.path.join(_h, ".claude", "visual-state")
+    os.makedirs(_sd, mode=0o755)
+    _tp2 = os.path.join(_sd, ".token")
+    _probe = ("import sys; sys.path.insert(0, %r); import visual_page as V; "
+              "t = V.ensure_token(); print(t)" % HERE)
+
+    def _ensure():
+        r = subprocess.run([sys.executable, "-c", _probe], capture_output=True, text=True,
+                           env=ambiente(_h), stdin=subprocess.DEVNULL, start_new_session=True)
+        return r.stdout.strip(), r.stderr
+    _good = "ab" * 32
+    with open(_tp2, "w") as fh:
+        fh.write(_good + "\n")
+    os.chmod(_tp2, 0o644)
+    _t, _e = _ensure()
+    check("token válido e solto é mantido", _t == _good, (_t, _e))
+    if os.name == "posix":
+        check("  …e volta a 0600", (os.stat(_tp2).st_mode & 0o777) == 0o600, oct(os.stat(_tp2).st_mode))
+        check("  …a pasta de estado vira 0700", (os.stat(_sd).st_mode & 0o777) == 0o700)
+    for _label, _bad in (("corrompido", "lixo\n"), ("vazio", ""), ("comprido mas não hex", "x" * 80)):
+        with open(_tp2, "w") as fh:
+            fh.write(_bad)
+        _t, _e = _ensure()
+        check("token %s é refeito (antes: None e a página saía sem sync)" % _label,
+              bool(re.fullmatch(r"[0-9a-f]{64}", _t)) and open(_tp2).read().strip() == _t, (_t, _e))
+    check("nenhum temporário sobra ao lado do token",
+          not [n for n in os.listdir(_sd) if n.startswith(".token.")], os.listdir(_sd))
+
     bad = os.path.join(td, "bad.json")
     with open(bad, "w", encoding="utf-8") as fh:
         json.dump({"title": "x", "ident": {"projeto": "p", "artefato": "a"},

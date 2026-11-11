@@ -32,25 +32,51 @@ const RESERVED_SESSIONS = new Set(['latest', 'config', 'licoes-clareza']);
 const ALLOWED_ORIGINS = new Set(['null', `http://127.0.0.1:${PORT}`, `http://localhost:${PORT}`]);
 const ALLOWED_HOSTS = new Set([`127.0.0.1:${PORT}`, `localhost:${PORT}`]);
 
-await fs.mkdir(STATE_DIR, { recursive: true });
+// The state dir now holds a secret: owner only (it was created 0755 by older versions).
+await fs.mkdir(STATE_DIR, { recursive: true, mode: 0o700 });
+await fs.chmod(STATE_DIR, 0o700).catch(() => {});
 
-// The token is created by start.sh / visual_page.py / here — whoever comes first —
-// with mode 0600 and 'wx', so a concurrent creator never overwrites another's token.
+// The token is created by start.sh / visual_page.py / here — whoever comes first.
+// It is written to a private temp file (0600) and then hard-linked into place, so
+// the token file never exists half-written and a concurrent creator never overwrites
+// another's token (link fails with EEXIST: the first one wins). A file that is there
+// but is not a valid token is corrupt: it is replaced, atomically.
+async function readValidToken() {
+  try {
+    const t = (await fs.readFile(TOKEN_FILE, 'utf8')).trim();
+    return TOKEN_RE.test(t) ? t : null;
+  } catch { return null; }
+}
+
 async function loadToken() {
   for (let attempt = 0; attempt < 5; attempt++) {
-    try {
-      const t = (await fs.readFile(TOKEN_FILE, 'utf8')).trim();
-      if (TOKEN_RE.test(t)) return t;
-    } catch { /* missing — create below */ }
+    const existing = await readValidToken();
+    if (existing) {
+      // An older version (or a hand-made file) may have left it world-readable.
+      await fs.chmod(TOKEN_FILE, 0o600).catch(() => {});
+      return existing;
+    }
     const fresh = crypto.randomBytes(32).toString('hex');
+    const tmp = path.join(STATE_DIR, `.token.${process.pid}.${crypto.randomBytes(4).toString('hex')}`);
     try {
-      await fs.writeFile(TOKEN_FILE, fresh + '\n', { mode: 0o600, flag: 'wx' });
-      return fresh;
-    } catch (err) {
-      if (err.code !== 'EEXIST') throw err;
-      // Another process is creating it (or it is corrupt): re-read, then replace.
-      await new Promise(r => setTimeout(r, 50));
-      if (attempt === 3) await fs.rm(TOKEN_FILE, { force: true });
+      await fs.writeFile(tmp, fresh + '\n', { mode: 0o600, flag: 'wx' });
+      try {
+        await fs.link(tmp, TOKEN_FILE);
+        return fresh;
+      } catch (err) {
+        if (err.code !== 'EEXIST') {
+          // No hard links here (some Windows/exFAT volumes): create it in place, exclusively.
+          await fs.writeFile(TOKEN_FILE, fresh + '\n', { mode: 0o600, flag: 'wx' });
+          return fresh;
+        }
+        // Lost the race, or the file there is corrupt. Valid → next loop reads it.
+        if (!(await readValidToken())) {
+          await fs.rename(tmp, TOKEN_FILE);   // replaces the corrupt file atomically
+          return fresh;
+        }
+      }
+    } finally {
+      await fs.rm(tmp, { force: true }).catch(() => {});
     }
   }
   throw new Error('could not create the token file');
@@ -145,9 +171,15 @@ async function handle(req, res) {
 
   // Liveness check — used by start.sh to decide whether to spawn. `auth: true` tells
   // start.sh this daemon enforces the token (an older one does not and gets replaced).
+  // No CORS headers here, and no pid for a request that carries an Origin: a sandboxed
+  // iframe or data: page (Origin `null`) must not learn the daemon is there or its pid.
   if (url.pathname === '/ping') {
-    if (origin === undefined) lastActivity = Date.now();
-    jsonResponse(res, 200, { status: 'ok', pid: process.pid, port: PORT, auth: true }, cors);
+    if (origin === undefined) {
+      lastActivity = Date.now();
+      jsonResponse(res, 200, { status: 'ok', pid: process.pid, port: PORT, auth: true });
+    } else {
+      jsonResponse(res, 200, { status: 'ok' });
+    }
     return;
   }
 
@@ -228,7 +260,7 @@ const server = http.createServer((req, res) => {
   handle(req, res).catch((err) => {
     console.error('claude-visual-server: request failed:', err);
     try {
-      if (!res.headersSent) jsonResponse(res, 400, { error: 'bad-request' });
+      if (!res.headersSent) jsonResponse(res, 500, { error: 'internal-error' });
       else res.end();
     } catch { /* socket already gone */ }
   });
@@ -266,5 +298,7 @@ setInterval(() => {
   process.on(sig, () => {
     console.log(`claude-visual-server: received ${sig}, closing`);
     server.close(() => process.exit(0));
+    // Keep-alive sockets would hold close() for seconds on old Node; start.sh waits 2 s.
+    server.closeAllConnections?.();
   });
 });
