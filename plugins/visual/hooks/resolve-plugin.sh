@@ -79,7 +79,8 @@ VERSAO='^[0-9]+(\.[0-9]+){1,3}([-+][0-9A-Za-z.-]+)?$'
 # marketplace no cache (`<config>/plugins/cache/pedro-plugins`); o registro mora dois níveis
 # acima. Sem jq (nem python) de propósito: o resolvedor roda em hook, e hook não pode
 # depender de interpretador extra. Só o ÚLTIMO segmento do `installPath` é aproveitado, e só
-# se for versão — o caminho vem sempre da pasta cravada, nunca do texto do registro.
+# se for versão — o caminho vem sempre da pasta cravada, nunca do texto do registro. No
+# Windows o registro escapa a barra invertida (`C:\\Users\\…`): vira `/` antes de comparar.
 versao_instalada() {
   local reg="${1%/cache/$MERCADO}/installed_plugins.json" v
   [ -f "$reg" ] || return 0
@@ -87,7 +88,7 @@ versao_instalada() {
       | sed -n "s/.*\"$NOME@$MERCADO\"[[:space:]]*:[[:space:]]*\\[//p" \
       | sed 's/\].*//' \
       | grep -o '"installPath"[[:space:]]*:[[:space:]]*"[^"]*"' | head -1 \
-      | sed 's/.*:[[:space:]]*"\(.*\)"$/\1/')
+      | sed 's/.*:[[:space:]]*"\(.*\)"$/\1/' | sed 's/\\\\/\//g')
   case "$v" in */"$MERCADO"/"$NOME"/*) v="${v##*/}" ;; *) return 0 ;; esac
   [[ "$v" =~ $VERSAO ]] && printf '%s\n' "$v"
 }
@@ -128,6 +129,9 @@ catalogo_nosso() {
 ACHADO=""
 if [ -n "$RAIZ" ]; then
   R=$(cd "$RAIZ" 2>/dev/null && pwd -P)
+  # Git Bash devolve `/c/Users/…`, que o Python do chamador não abre: no Windows o caminho
+  # sai na forma mista (`C:/Users/…`), que o bash e o Python aceitam. Sem `cygpath`, é POSIX.
+  if [ -n "$R" ] && command -v cygpath >/dev/null 2>&1; then R=$(cygpath -m "$R"); fi
   case "$R" in
     */plugins/cache/"$MERCADO"/*)
       # Dentro do cache do NOSSO marketplace: só ele, nunca o vizinho de outro.
@@ -142,8 +146,9 @@ if [ -n "$RAIZ" ]; then
           fi
           break
         fi
-        [ "$D" = "/" ] && break
-        D="${D%/*}"; [ -n "$D" ] || D="/"; N=$((N + 1))
+        P="${D%/*}"
+        [ "$P" = "$D" ] || [ "$D" = "/" ] && break     # `C:` e `/` não têm pai
+        D="${P:-/}"; N=$((N + 1))
       done ;;
   esac
 fi
