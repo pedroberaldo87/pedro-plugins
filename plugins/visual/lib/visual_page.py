@@ -42,6 +42,7 @@ import string
 import subprocess
 import sys
 import time
+import secrets
 
 # CANAIS DE TEXTO EM UTF-8, SEMPRE. No Windows eles nascem na codificação do sistema
 # (cp1252) e o payload do evento — que chega por stdin — é UTF-8: sem isto, todo
@@ -1246,7 +1247,52 @@ def _integral_presente(page, texto):
     return False
 
 
-def build_page(spec, tpl=None):
+# O daemon (server/visual_server.mjs) só aceita quem manda este segredo no header
+# X-Visual-Token. Ele mora em ~/.claude/visual-state/.token (0600), nasce uma vez
+# (start.sh, o daemon ou aqui — quem vier primeiro) e a página o carrega embutido.
+TOKEN_RE = re.compile(r"^[0-9a-f]{64}$")
+
+
+def token_path():
+    return os.path.join(os.path.expanduser("~"), ".claude", "visual-state", ".token")
+
+
+def _read_token(path):
+    try:
+        with open(path, encoding="utf-8") as fh:
+            t = fh.read().strip()
+    except OSError:
+        return None
+    return t if TOKEN_RE.match(t) else None
+
+
+def ensure_token():
+    """Lê o token do live-sync; cria (0600, exclusivo) se ainda não existe.
+
+    Devolve None quando não dá para ter token (disco sem permissão): a página sai
+    sem sync e cai no copy/paste, nunca com segredo frouxo.
+    """
+    path = token_path()
+    for _ in range(3):
+        t = _read_token(path)
+        if t:
+            return t
+        try:
+            os.makedirs(os.path.dirname(path), exist_ok=True)
+            fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+        except FileExistsError:
+            time.sleep(0.05)  # outro criador está escrevendo; relê
+            continue
+        except OSError:
+            return None
+        t = secrets.token_hex(32)
+        with os.fdopen(fd, "w", encoding="utf-8") as fh:
+            fh.write(t + "\n")
+        return t
+    return None
+
+
+def build_page(spec, tpl=None, sync_token=None):
     errs = validate(spec)
     if errs:
         raise SpecError("spec inválido:\n  - " + "\n  - ".join(errs))
@@ -1261,7 +1307,11 @@ def build_page(spec, tpl=None):
         "".join(random.choice(string.ascii_lowercase + string.digits) for _ in range(6)))
     i = tpl.index("<body>")
     j = tpl.index("<script>", i)
-    page = (tpl[:i] + '<body>\n<script>window.VISUAL_SESSION = "%s";</script>\n' % token
+    # sync_token só entra se for hex de 64: vai para dentro de um <script>.
+    tok_js = ('window.VISUAL_TOKEN = "%s";' % sync_token
+              if sync_token and TOKEN_RE.match(sync_token) else "")
+    page = (tpl[:i] + '<body>\n<script>window.VISUAL_SESSION = "%s";%s</script>\n'
+            % (token, (" " + tok_js) if tok_js else "")
             + body + tpl[j:])
     page = re.sub(r"<title>.*?</title>",
                   "<title>%s</title>" % _e(spec.get("doc_title") or
@@ -1304,7 +1354,7 @@ def cmd_build(args):
         spec = json.loads(raw)
     except ValueError as e:
         raise SpecError("JSON inválido: %s" % e)
-    page, ctx = build_page(spec)
+    page, ctx = build_page(spec, sync_token=ensure_token())
     out = args.out or default_out(spec)
     os.makedirs(os.path.dirname(os.path.abspath(out)), exist_ok=True)
     with open(out, "w", encoding="utf-8") as fh:

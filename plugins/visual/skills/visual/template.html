@@ -2130,7 +2130,10 @@ function postState() {
     try {
       fetch(VISUAL_SERVER_URL, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        // The daemon refuses requests without the secret the generator embedded:
+        // a web page the user visits cannot read or overwrite the synced state.
+        headers: Object.assign({ 'Content-Type': 'application/json' },
+          window.VISUAL_TOKEN ? { 'X-Visual-Token': window.VISUAL_TOKEN } : {}),
         body: JSON.stringify({
           session: window.VISUAL_SESSION,
           docTitle: document.title,

@@ -3,34 +3,90 @@
 // Receives state from the browser (via fetch POST) and writes to ~/.claude/visual-state/.
 // Binds ONLY on 127.0.0.1. Auto-shuts down after IDLE_TIMEOUT.
 // Zero external deps — uses Node stdlib only.
+//
+// Binding to loopback does not keep the user's own browser out: any web page can
+// fetch http://127.0.0.1:7755. So every request to /state must carry the secret in
+// ~/.claude/visual-state/.token (header X-Visual-Token), come from an expected
+// Origin/Host, and POST must be application/json (text/plain would skip the CORS
+// preflight). The generated /visual page embeds the token; web pages cannot read it.
 
 import http from 'node:http';
 import fs from 'node:fs/promises';
+import crypto from 'node:crypto';
 import path from 'node:path';
 import os from 'node:os';
 
 const PORT = Number(process.env.CLAUDE_VISUAL_PORT || 7755);
 const HOST = '127.0.0.1';
 const STATE_DIR = path.join(os.homedir(), '.claude', 'visual-state');
+const TOKEN_FILE = path.join(STATE_DIR, '.token');
+const TOKEN_RE = /^[0-9a-f]{64}$/;
 const IDLE_TIMEOUT_MS = 30 * 60 * 1000;   // 30 min auto-shutdown
 const MAX_BODY_SIZE = 256 * 1024;         // 256 KB plenty for decisions state
 const SESSION_RE = /^[a-zA-Z0-9_-]{4,64}$/;
+// Files that share the state dir with <session>.json. A session with one of these
+// names would overwrite them (compared lowercase: macOS/Windows are case-insensitive).
+const RESERVED_SESSIONS = new Set(['latest', 'config', 'licoes-clareza']);
+// Origins that may talk to the daemon: the page opened from disk (`null`) and the
+// daemon's own address. A request with no Origin is not a browser cross-site request.
+const ALLOWED_ORIGINS = new Set(['null', `http://127.0.0.1:${PORT}`, `http://localhost:${PORT}`]);
+const ALLOWED_HOSTS = new Set([`127.0.0.1:${PORT}`, `localhost:${PORT}`]);
 
 await fs.mkdir(STATE_DIR, { recursive: true });
 
+// The token is created by start.sh / visual_page.py / here — whoever comes first —
+// with mode 0600 and 'wx', so a concurrent creator never overwrites another's token.
+async function loadToken() {
+  for (let attempt = 0; attempt < 5; attempt++) {
+    try {
+      const t = (await fs.readFile(TOKEN_FILE, 'utf8')).trim();
+      if (TOKEN_RE.test(t)) return t;
+    } catch { /* missing — create below */ }
+    const fresh = crypto.randomBytes(32).toString('hex');
+    try {
+      await fs.writeFile(TOKEN_FILE, fresh + '\n', { mode: 0o600, flag: 'wx' });
+      return fresh;
+    } catch (err) {
+      if (err.code !== 'EEXIST') throw err;
+      // Another process is creating it (or it is corrupt): re-read, then replace.
+      await new Promise(r => setTimeout(r, 50));
+      if (attempt === 3) await fs.rm(TOKEN_FILE, { force: true });
+    }
+  }
+  throw new Error('could not create the token file');
+}
+const TOKEN = await loadToken();
+const TOKEN_BUF = Buffer.from(TOKEN);
+
+function tokenOk(req) {
+  const given = req.headers['x-visual-token'];
+  if (typeof given !== 'string') return false;
+  const buf = Buffer.from(given);
+  return buf.length === TOKEN_BUF.length && crypto.timingSafeEqual(buf, TOKEN_BUF);
+}
+
 let lastActivity = Date.now();
 
-function jsonResponse(res, code, body) {
+function corsHeaders(req) {
+  // Only echo an origin that was already accepted; never `*`.
+  const origin = req.headers.origin;
+  if (typeof origin !== 'string') return {};
+  return {
+    'Access-Control-Allow-Origin': origin,
+    'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+    'Access-Control-Allow-Headers': 'Content-Type, X-Visual-Token',
+    'Access-Control-Max-Age': '600',
+    'Vary': 'Origin'
+  };
+}
+
+function jsonResponse(res, code, body, extra = {}) {
   res.writeHead(code, {
     'Content-Type': 'application/json',
-    // Allow any origin — only listens on 127.0.0.1 so only local contexts reach it.
-    // `file://` shows up as origin `null`, handled by '*'.
-    'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-    'Access-Control-Allow-Headers': 'Content-Type',
-    'Cache-Control': 'no-store'
+    'Cache-Control': 'no-store',
+    ...extra
   });
-  res.end(JSON.stringify(body));
+  res.end(code === 204 ? undefined : JSON.stringify(body));
 }
 
 function readBody(req) {
@@ -51,44 +107,90 @@ function readBody(req) {
   });
 }
 
-const server = http.createServer(async (req, res) => {
-  lastActivity = Date.now();
-  const url = new URL(req.url, `http://${HOST}:${PORT}`);
+function isPlainObject(v) {
+  return v !== null && typeof v === 'object' && !Array.isArray(v);
+}
 
+// Returns the validated session id, or null after answering 400.
+function sessionOrReject(res, cors, raw) {
+  const session = typeof raw === 'string' ? raw.trim() : '';
+  if (!SESSION_RE.test(session) || RESERVED_SESSIONS.has(session.toLowerCase())) {
+    jsonResponse(res, 400, { error: 'invalid-session' }, cors);
+    return null;
+  }
+  return session;
+}
+
+async function handle(req, res) {
+  const url = new URL(req.url, `http://${HOST}:${PORT}`);
+  const origin = req.headers.origin;
+
+  // Foreign page (Origin) or DNS-rebinding (Host): refuse, with no CORS headers so
+  // the browser does not hand the response to the page either.
+  if (!ALLOWED_HOSTS.has(String(req.headers.host || '').toLowerCase())) {
+    jsonResponse(res, 403, { error: 'forbidden-host' });
+    return;
+  }
+  if (origin !== undefined && !ALLOWED_ORIGINS.has(origin)) {
+    jsonResponse(res, 403, { error: 'forbidden-origin' });
+    return;
+  }
+  const cors = corsHeaders(req);
+
+  // Preflight (a file:// page sending X-Visual-Token + JSON). Cannot carry the token.
   if (req.method === 'OPTIONS') {
-    jsonResponse(res, 204, {});
+    jsonResponse(res, 204, {}, cors);
     return;
   }
 
-  // Liveness check — used by start.sh to decide whether to spawn.
+  // Liveness check — used by start.sh to decide whether to spawn. `auth: true` tells
+  // start.sh this daemon enforces the token (an older one does not and gets replaced).
   if (url.pathname === '/ping') {
-    jsonResponse(res, 200, { status: 'ok', pid: process.pid, port: PORT });
+    if (origin === undefined) lastActivity = Date.now();
+    jsonResponse(res, 200, { status: 'ok', pid: process.pid, port: PORT, auth: true }, cors);
     return;
+  }
+
+  if (url.pathname === '/state' && (req.method === 'POST' || req.method === 'GET')) {
+    if (!tokenOk(req)) {
+      jsonResponse(res, 403, { error: 'forbidden' }, cors);
+      return;
+    }
+    lastActivity = Date.now();
   }
 
   // Receive state snapshot from browser.
   if (req.method === 'POST' && url.pathname === '/state') {
+    const ctype = String(req.headers['content-type'] || '').split(';')[0].trim().toLowerCase();
+    if (ctype !== 'application/json') {
+      jsonResponse(res, 415, { error: 'unsupported-media-type' }, cors);
+      return;
+    }
     let raw;
     try {
       raw = await readBody(req);
     } catch (err) {
-      jsonResponse(res, 413, { error: err.message });
+      jsonResponse(res, 413, { error: err.message }, cors);
       return;
     }
     let payload;
     try { payload = JSON.parse(raw); }
-    catch { jsonResponse(res, 400, { error: 'invalid-json' }); return; }
-
-    const session = (payload.session || '').trim();
-    if (!SESSION_RE.test(session)) {
-      jsonResponse(res, 400, { error: 'invalid-session' });
+    catch { jsonResponse(res, 400, { error: 'invalid-json' }, cors); return; }
+    if (!isPlainObject(payload)) {
+      jsonResponse(res, 400, { error: 'invalid-payload' }, cors);
+      return;
+    }
+    const session = sessionOrReject(res, cors, payload.session);
+    if (session === null) return;
+    if (payload.state !== undefined && payload.state !== null && !isPlainObject(payload.state)) {
+      jsonResponse(res, 400, { error: 'invalid-state' }, cors);
       return;
     }
     const stateFile = path.join(STATE_DIR, `${session}.json`);
     const record = {
       session,
       timestamp: new Date().toISOString(),
-      docTitle: payload.docTitle || null,
+      docTitle: typeof payload.docTitle === 'string' ? payload.docTitle : null,
       state: payload.state || {}
     };
     try {
@@ -98,30 +200,43 @@ const server = http.createServer(async (req, res) => {
       // to the per-session file.
       const latest = { ...record, stateFile };
       await fs.writeFile(path.join(STATE_DIR, 'latest.json'), JSON.stringify(latest, null, 2), 'utf8');
-      jsonResponse(res, 200, { ok: true });
+      jsonResponse(res, 200, { ok: true }, cors);
     } catch (err) {
-      jsonResponse(res, 500, { error: err.message });
+      jsonResponse(res, 500, { error: err.message }, cors);
     }
     return;
   }
 
-  // Read state (useful for debugging or pulling a past session).
+  // Read state (useful for debugging or pulling a past session). Agents read
+  // latest.json from disk; there is no `latest` alias over HTTP.
   if (req.method === 'GET' && url.pathname === '/state') {
-    const session = (url.searchParams.get('session') || '').trim();
-    if (!SESSION_RE.test(session)) {
-      jsonResponse(res, 400, { error: 'invalid-session' });
-      return;
-    }
+    const session = sessionOrReject(res, cors, url.searchParams.get('session') || '');
+    if (session === null) return;
     try {
       const raw = await fs.readFile(path.join(STATE_DIR, `${session}.json`), 'utf8');
-      jsonResponse(res, 200, JSON.parse(raw));
+      jsonResponse(res, 200, JSON.parse(raw), cors);
     } catch {
-      jsonResponse(res, 404, { error: 'not-found' });
+      jsonResponse(res, 404, { error: 'not-found' }, cors);
     }
     return;
   }
 
-  jsonResponse(res, 404, { error: 'not-found' });
+  jsonResponse(res, 404, { error: 'not-found' }, cors);
+}
+
+const server = http.createServer((req, res) => {
+  handle(req, res).catch((err) => {
+    console.error('claude-visual-server: request failed:', err);
+    try {
+      if (!res.headersSent) jsonResponse(res, 400, { error: 'bad-request' });
+      else res.end();
+    } catch { /* socket already gone */ }
+  });
+});
+
+// A bug in one request must never take the daemon (and the live sync) down.
+process.on('unhandledRejection', (err) => {
+  console.error('claude-visual-server: unhandled rejection:', err);
 });
 
 server.on('error', (err) => {

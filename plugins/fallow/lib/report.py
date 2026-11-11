@@ -307,7 +307,23 @@ def esc(s):
     return _html.escape(str(s))
 
 
-def render_html(project_name, buckets, health, session, stamp, audit=None):
+def visual_sync_token(path=None):
+    """Segredo do live-sync do daemon do /visual (header X-Visual-Token).
+
+    O daemon recusa quem não o manda. Só LÊ ~/.claude/visual-state/.token (o start.sh
+    do visual o cria, 0600); sem ele a página sai com "" e cai no copy/paste.
+    """
+    try:
+        with open(path or os.path.join(os.path.expanduser("~"), ".claude", "visual-state", ".token"),
+                  encoding="utf-8") as fh:
+            t = fh.read().strip()
+    except OSError:
+        return ""
+    return t if re.fullmatch(r"[0-9a-f]{64}", t) else ""
+
+
+def render_html(project_name, buckets, health, session, stamp, audit=None, token=None):
+    token = visual_sync_token() if token is None else token
     # O nível 0 de cada achado é redação DESTE programa, e é ele que decide se o
     # achado vale abrir. Violação aqui é defeito deste arquivo: o relatório é
     # RECUSADO com os motivos. Aviso no stderr deixava o achado torto chegar na
@@ -517,6 +533,7 @@ background:var(--deep);border:1px solid var(--border);border-radius:999px;font-s
 </div>
 <script>
 window.VISUAL_SESSION={json.dumps(session)};
+window.VISUAL_TOKEN={json.dumps(token)};
 function boxes(){{return[...document.querySelectorAll('.row input')]}}
 function upd(){{document.getElementById('n').textContent=boxes().filter(b=>b.checked).length;post()}}
 function pick(c){{boxes().forEach(b=>{{b.checked=b.closest('.row').dataset.conf===c}});upd()}}
@@ -535,7 +552,7 @@ function cp(btn){{const t=collect();navigator.clipboard.writeText(t).then(()=>{{
 var pt=null;
 function post(){{if(!window.VISUAL_SESSION)return;clearTimeout(pt);pt=setTimeout(()=>{{
  const by={{}};boxes().filter(b=>b.checked).forEach(b=>(by[b.dataset.bucket]=by[b.dataset.bucket]||[]).push(b.dataset.label));
- fetch('http://127.0.0.1:7755/state',{{method:'POST',headers:{{'Content-Type':'application/json'}},
+ fetch('http://127.0.0.1:7755/state',{{method:'POST',headers:Object.assign({{'Content-Type':'application/json'}},window.VISUAL_TOKEN?{{'X-Visual-Token':window.VISUAL_TOKEN}}:{{}}),
   body:JSON.stringify({{session:window.VISUAL_SESSION,docTitle:document.title,state:{{selection:by}}}}),keepalive:true}})
   .then(r=>document.getElementById('live').className='live '+(r.ok?'ok':'err'))
   .catch(()=>document.getElementById('live').className='live err')}},400)}}

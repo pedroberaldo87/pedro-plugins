@@ -87,6 +87,26 @@ def main():
     print("perfil e régua")
     check("o perfil declarado é o de página", R.PERFIL == "pagina")
 
+    print("o live-sync manda o segredo do daemon do /visual")
+    tok = "cd" * 32
+    pg = R.render_html("proj", bucket("Texto curto."), HEALTH, "sessao", "2026-01-01", AUDIT, token=tok)
+    check("a página embute o token recebido", 'window.VISUAL_TOKEN="%s"' % tok in pg)
+    check("o fetch manda X-Visual-Token", "'X-Visual-Token':window.VISUAL_TOKEN" in pg)
+    pg0 = R.render_html("proj", bucket("Texto curto."), HEALTH, "sessao", "2026-01-01", AUDIT, token="")
+    check("sem token a página sai com VISUAL_TOKEN vazio (copy/paste)", 'window.VISUAL_TOKEN=""' in pg0)
+    tmpd = tempfile.mkdtemp(prefix="fallow-tok-")
+    try:
+        tf = os.path.join(tmpd, ".token")
+        with open(tf, "w") as fh:
+            fh.write(tok + "\n")
+        check("visual_sync_token lê o arquivo de 64 hex", R.visual_sync_token(tf) == tok)
+        with open(tf, "w") as fh:
+            fh.write('x"</script>')
+        check("conteúdo que não é hex de 64 é descartado", R.visual_sync_token(tf) == "")
+        check("arquivo ausente dá vazio", R.visual_sync_token(os.path.join(tmpd, "nope")) == "")
+    finally:
+        shutil.rmtree(tmpd, ignore_errors=True)
+
     print("os textos que o programa REALMENTE escreve passam na régua")
     buckets = R.build_buckets(DEAD, DUPES, HEALTH, AUDIT)
     check("os 5 baldes saem preenchidos",
