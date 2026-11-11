@@ -30,6 +30,7 @@ import os
 import re
 import subprocess
 import sys
+import tempfile
 
 # O rito da abertura, ENXUTO por decisão do dono (2026-08-09): a versão de 9 campos
 # nasceu do ritual de uma sessão que falhou, e ele mandou reduzir ao essencial. O que
@@ -455,6 +456,10 @@ def erros_do_gasto(rito):
 
 def _le(caminho):
     """Lê JSON e devolve (dado, erro). Arquivo ausente NÃO é exceção: é achado."""
+    if os.path.islink(caminho):
+        # Arquivo de missão que é symlink: ninguém do gauntlet cria isso, e seguir o link
+        # leria (e depois o mapa reescreveria) o que o repositório apontou (P6 · hsf_93ff22cd).
+        return None, "ilegível: %s (é um symlink — o gauntlet só lê arquivo comum)" % caminho
     if not os.path.isfile(caminho):
         return None, "não existe: %s" % caminho
     try:
@@ -466,7 +471,7 @@ def _le(caminho):
 
 def _linhas(caminho):
     """Lê um arquivo de uma-linha-por-registro. Ausente = vazio, não erro."""
-    if not os.path.isfile(caminho):
+    if os.path.islink(caminho) or not os.path.isfile(caminho):
         return []
     fora = []
     with open(caminho, encoding="utf-8") as fh:
@@ -542,6 +547,43 @@ def ancora_leis(missao):
     marcas = {entrada: marca(cam) for entrada, cam in _leis_em_arquivo(rito, missao)}
     with open(os.path.join(missao, "lei-aprovada.marca"), "w", encoding="utf-8") as fh:
         json.dump(marcas, fh, ensure_ascii=False, indent=1)
+
+
+def _dir_da_peca(missao, nome):
+    """A pasta de uma peça, ou uma pasta que NÃO existe se o nome não é um nome simples.
+
+    O nome da peça sai da decomposição e entra num caminho: com `/` ou `..` ele escolheria
+    uma pasta fora de `pecas/` (P6 · hsf_93ff22cd). Nome inválido vira "peça sem rodada".
+    """
+    if (not isinstance(nome, str) or not nome or nome in (".", "..")
+            or any(c in nome for c in "/\\:\0")):
+        return os.path.join(missao, "pecas", ".peca-com-nome-invalido")
+    return os.path.join(missao, "pecas", nome)
+
+
+def _linha(texto):
+    """Um campo do rito num trecho de UMA linha. O mapa vai para o contexto do agente na
+    volta da sessão; quebra de linha num campo do rito escreveria linhas do mapa à vontade."""
+    return " ".join(str(texto).split())
+
+
+def _grava_mapa(destino, texto):
+    """Grava o MAPA.md sem seguir symlink: temporário por `mkstemp` + `os.replace`, e um
+    MAPA.md que já é symlink é recusado (devolve False). Falha de disco também devolve False."""
+    if os.path.islink(destino):
+        return False
+    fd, tmp = tempfile.mkstemp(prefix=".MAPA.", suffix=".tmp", dir=os.path.dirname(destino) or ".")
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as fh:
+            fh.write(texto)
+        os.replace(tmp, destino)
+        return True
+    except OSError:
+        try:
+            os.unlink(tmp)
+        except OSError:
+            pass
+        return False
 
 
 def _rodadas(dir_peca):
@@ -947,7 +989,7 @@ def erros_do_fecho(missao):
     aprovadas = {}
     for peca in pecas:
         nome = peca.get("id") or peca.get("nome")
-        dir_peca = os.path.join(missao, "pecas", nome)
+        dir_peca = _dir_da_peca(missao, nome)
         ultima = _ultima_rodada(dir_peca)
         if ultima is None:
             # É esta linha que pega "sete construtores, zero juízes".
@@ -1096,8 +1138,8 @@ def desenha_mapa(missao):
     if erro:
         return "\n".join(linhas + ["A missão não tem rito no disco.", ""])
 
-    linhas.append("**Objetivo:** %s" % rito.get("objetivo", "—"))
-    linhas.append("**Alvos:** %s" % " · ".join(rito.get("alvos") or ["—"]))
+    linhas.append("**Objetivo:** %s" % _linha(rito.get("objetivo", "—")))
+    linhas.append("**Alvos:** %s" % " · ".join(_linha(a) for a in (rito.get("alvos") or ["—"])))
     linhas.append("")
 
     decomp, erro = _le(os.path.join(missao, "decomposicao.json"))
@@ -1108,8 +1150,8 @@ def desenha_mapa(missao):
         linhas.append("| peça | rodadas | estado | o maior gap aberto |")
         linhas.append("|---|---|---|---|")
         for peca in pecas:
-            nome = peca.get("id") or peca.get("nome")
-            rodadas = _rodadas(os.path.join(missao, "pecas", nome))
+            nome = _linha(peca.get("id") or peca.get("nome"))
+            rodadas = _rodadas(_dir_da_peca(missao, peca.get("id") or peca.get("nome")))
             if not rodadas:
                 linhas.append("| %s | 0 | **nunca julgada** | — |" % nome)
                 continue
@@ -1120,10 +1162,10 @@ def desenha_mapa(missao):
                 estado, gap = "aprovada", "—"
             elif ver.get("status") == "marginal":
                 estado = "ganho pequeno declarado — segue aberta até impressionar"
-                gap = ver.get("gap", "—")
+                gap = _linha(ver.get("gap", "—"))
             else:
                 estado = "reprovada"
-                gap = "%s — %s" % (ver.get("eixo", "?"), ver.get("gap", "?"))
+                gap = "%s — %s" % (_linha(ver.get("eixo", "?")), _linha(ver.get("gap", "?")))
             linhas.append("| %s | %d | %s | %s |" % (nome, len(rodadas), estado, gap))
         linhas.append("")
 
@@ -1145,14 +1187,14 @@ def desenha_mapa(missao):
                     "nao-sei": "o saldo do provedor não pôde ser lido",
                 }[conta["estado"]]))
             for tipo, c in sorted(conta["por_tipo"].items(), key=lambda x: -x[1]):
-                linhas.append("- %s: %d créditos" % (tipo, c))
+                linhas.append("- %s: %d créditos" % (_linha(tipo), c))
         linhas.append("")
 
     vetos = _linhas(os.path.join(missao, "vetos.jsonl"))
     if vetos:
         linhas.append("## Os seus vetos")
         for v in vetos:
-            linhas.append("- **%s** — %s" % (v.get("quando", "?"), v.get("o_que", "?")))
+            linhas.append("- **%s** — %s" % (_linha(v.get("quando", "?")), _linha(v.get("o_que", "?"))))
         linhas.append("")
 
     furos = erros_do_fecho(missao)
@@ -1186,7 +1228,7 @@ def pecas_pendentes(missao):
         return fora
     for peca in decomp.get("pecas") or []:
         nome = peca.get("id") or peca.get("nome")
-        for rodada in _rodadas(os.path.join(missao, "pecas", nome)):
+        for rodada in _rodadas(_dir_da_peca(missao, nome)):
             if not os.path.isfile(os.path.join(rodada, "entrega.json")):
                 continue
             ver, erro_v = _le(os.path.join(rodada, "veredito.json"))
@@ -1218,7 +1260,7 @@ def grava_veto(missao, o_que, pecas):
         if conhecidas and peca not in conhecidas:
             desconhecidas.append(peca)
             continue
-        ultima = _ultima_rodada(os.path.join(missao, "pecas", peca))
+        ultima = _ultima_rodada(_dir_da_peca(missao, peca))
         sha = marca(os.path.join(ultima, "entrega.json")) if ultima else None
         toca[peca] = sha
         if ultima:
@@ -1350,11 +1392,12 @@ def main(argv=None):
     if args.comando == "mapa":
         texto = desenha_mapa(args.missao)
         destino = os.path.join(args.missao, "MAPA.md")
-        try:
-            with open(destino, "w", encoding="utf-8") as fh:
-                fh.write(texto)
-        except OSError:
-            pass
+        if not _grava_mapa(destino, texto):
+            # O mapa em disco é conveniência; o texto vai à tela de qualquer jeito. Mas um
+            # MAPA.md que é symlink NÃO é reescrito, e isso se diz (P6 · hsf_93ff22cd).
+            if os.path.islink(destino):
+                print("⚠️  MAPA.md é um symlink — não o reescrevo (o mapa vai só para a tela).",
+                      file=sys.stderr)
         sys.stdout.write(texto)
         return 0
 

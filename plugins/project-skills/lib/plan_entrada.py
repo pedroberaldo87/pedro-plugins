@@ -37,6 +37,8 @@ import os
 import shutil
 import sys
 
+from plan_state import PlanError, grava_json_seguro, id_de_arquivo_ok
+
 
 def carrega(caminho):
     with open(caminho, encoding="utf-8") as fh:
@@ -123,7 +125,20 @@ def main():
             print("⛔ %s: sem `para_o_plano` e sem --plano" % os.path.basename(caminho))
             total_err += 1
             continue
+        # O id sai de um arquivo do repositório e vira nome de arquivo: `../x`, caminho
+        # absoluto ou barra escolheriam um plano FORA da pasta, para ler e reescrever
+        # (P6 · hsf_61796229). Mesma régua do plan_state, que também grava.
+        if not id_de_arquivo_ok(pid):
+            print("⛔ %s: `para_o_plano` inválido (%r) — o id é nome de arquivo: letras, dígitos,"
+                  " ponto, sublinhado e hífen, sem barra e sem `..`" % (os.path.basename(caminho), pid))
+            total_err += 1
+            continue
         pcaminho = os.path.join(a.dir, "%s.plan.json" % pid)
+        if os.path.islink(pcaminho):
+            print("⛔ %s: o plano '%s' é um symlink — não reescrevo através dele"
+                  % (os.path.basename(caminho), pid))
+            total_err += 1
+            continue
         if not os.path.exists(pcaminho):
             print("⛔ %s: plano '%s' nao existe" % (os.path.basename(caminho), pid))
             total_err += 1
@@ -147,10 +162,12 @@ def main():
             print("   nao gravei: conserte os erros acima e rode de novo")
             continue
         if acresc:
-            tmp = pcaminho + ".tmp"
-            with open(tmp, "w", encoding="utf-8") as fh:
-                json.dump(plano, fh, ensure_ascii=False, indent=2)
-            os.replace(tmp, pcaminho)
+            try:
+                grava_json_seguro(pcaminho, plano, fim="")
+            except (OSError, PlanError) as exc:
+                print("   ⛔ nao gravei: %s" % exc)
+                total_err += 1
+                continue
             total_acresc += len(acresc)
         # Move mesmo sem acrescentar nada: entrada ja incorporada nao volta pra fila.
         destino = os.path.join(entrada_dir, "incorporados")

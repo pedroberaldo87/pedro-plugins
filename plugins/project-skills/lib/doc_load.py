@@ -246,16 +246,51 @@ def _arquivos_do_sidecar(caminho):
     return lista
 
 
+# Teto de um arquivo do sidecar: a marca do conjunto lê o arquivo INTEIRO, byte a byte, em
+# Python. 8 MiB cobre protótipo de verdade (HTML com folga) e fecha a porta de um arquivo
+# gigante plantado na lista.
+TETO_ARQUIVO_SIDECAR = 8 * 1024 * 1024
+
+
+def _nome_simples(nome):
+    """`anexo-de` é o NOME de um documento da casa: sem barra, sem `..`, não absoluto."""
+    return (isinstance(nome, str) and bool(nome) and nome not in (".", "..")
+            and not any(c in nome for c in "/\\:\0"))
+
+
+def _le_do_projeto(raiz, rel):
+    """Os bytes do arquivo `rel` do sidecar, ou None se ele não pode ser lido (P6).
+
+    A lista `## Arquivos` é texto do repositório. Cada entrada tem que ficar DENTRO do
+    projeto (nada de caminho absoluto, `..` ou symlink que sai), ser arquivo comum — um FIFO
+    ou dispositivo trava o `open()` ou nunca acaba — e caber no teto.
+    """
+    partes = rel.replace("\\", "/").split("/") if isinstance(rel, str) else []
+    if (not partes or os.path.isabs(rel) or rel.startswith(("/", "\\")) or ".." in partes
+            or ":" in partes[0] or "\0" in rel):
+        return None
+    real_raiz = os.path.realpath(raiz)
+    real = os.path.realpath(os.path.join(raiz, *partes))
+    if real != real_raiz and not real.startswith(real_raiz.rstrip(os.sep) + os.sep):
+        return None
+    try:
+        if not os.path.isfile(real) or os.path.getsize(real) > TETO_ARQUIVO_SIDECAR:
+            return None
+        with open(real, "rb") as fh:
+            dados = fh.read(TETO_ARQUIVO_SIDECAR + 1)      # o arquivo pode crescer entre o stat e o read
+    except OSError:
+        return None
+    return dados if len(dados) <= TETO_ARQUIVO_SIDECAR else None
+
+
 def _conjunto_sig(raiz, lista):
     """A marca do CONJUNTO: `cksum` POSIX da emenda dos arquivos, na ordem do corpo
     (o `cat a b | cksum` do FORMATO). Arquivo ausente devolve None — sem conjunto inteiro
     não há marca a comparar, e fingir uma inventaria divergência ou acordo falso."""
     crc, n = 0, 0
     for rel in lista:
-        try:
-            with open(os.path.join(raiz, *rel.split("/")), "rb") as fh:
-                dados = fh.read()
-        except OSError:
+        dados = _le_do_projeto(raiz, rel)
+        if dados is None:
             return None
         for b in dados:
             crc = _crc_byte(crc, b)
@@ -291,11 +326,16 @@ def le_anexos(raiz):
         gravada = fm.get("conjunto-sig", "")
         diverge = bool(gravada) and (conjunto_hoje is None or str(conjunto_hoje) != gravada)
         design_sig = fm.get("design-sig", "")
-        design_hoje = cksum(casa_da_doc(raiz, anexo_de)) if anexo_de else None
+        # `anexo-de` é texto do repositório que vira caminho: só nome simples (hsf_263e796b).
+        anexo_invalido = bool(anexo_de) and not _nome_simples(anexo_de)
+        design_hoje = (cksum(casa_da_doc(raiz, anexo_de))
+                       if anexo_de and not anexo_invalido else None)
         regravado = bool(design_sig) and design_hoje is not None and str(design_hoje) != design_sig
         reaberto = diverge or regravado
-        vale = status == "approved" and not reaberto
-        if reaberto:
+        vale = status == "approved" and not reaberto and not anexo_invalido
+        if anexo_invalido:
+            motivo = ("o `anexo-de` não é um nome de arquivo simples — não vale como acordo")
+        elif reaberto:
             motivo = ("o conjunto de hoje diverge do `conjunto-sig` gravado — protótipo mudado"
                       if diverge else
                       "o de acordo do design foi regravado — o `design-sig` não bate mais")

@@ -362,23 +362,23 @@ Saída desta rodada (nome · versão · skills · tem hook):
 
 ```
 2op                 1.3.0  [2op,2op-opus,2op-sonnet]    -
-archify            2.14.3  [archify]                    -
+archify            2.14.4  [archify]                    -
 bootstrap         1.17.24  [bootstrap]                  HOOKS
 branches           1.3.15  [branches]                   HOOKS
 check-skills        0.7.5  [check-skills]               -
 context-guard      1.3.18  [context-guard]              HOOKS
 fallow             1.2.10  [fallow]                     -
-gauntlet           0.13.7  [gauntlet]                   HOOKS
+gauntlet           0.13.8  [gauntlet]                   HOOKS
 graphify-guard     1.2.16  []                           HOOKS
 grill-me            1.5.4  [grill-me]                   -
 guardrails         1.8.14  [guardrails]                 HOOKS
-handoff           1.11.21  [handoff]                    HOOKS
+handoff           1.11.22  [handoff]                    HOOKS
 improve             1.1.6  [improve]                    -
 improve-workflow  0.16.30  [improve-workflow]           -
 intent-guard       0.8.18  [intent-guard]               HOOKS
 lixeiro             1.6.1  [faxina]                     HOOKS
 principles          1.0.5  [principles]                 -
-project-skills    0.22.234  [completude,design-md,doc,doc-load,doc-touch,monitorar,pesquisa-referencias,plan,project-skills,qa-loop,reentrada,sprint,start] HOOKS
+project-skills    0.22.235  [completude,design-md,doc,doc-load,doc-touch,monitorar,pesquisa-referencias,plan,project-skills,qa-loop,reentrada,sprint,start] HOOKS
 sec                 0.1.1  [sec]                        -
 ship                1.5.7  [ship]                       HOOKS
 slides              1.6.6  [slides]                     -

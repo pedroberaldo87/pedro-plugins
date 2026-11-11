@@ -14,8 +14,48 @@ export function loadDiagram({ rendererDir, diagramType, defaultExample, argv = p
   const template = fs.readFileSync(path.join(skillRoot, 'assets/template.html'), 'utf8');
   // Optional chaining: in degraded mode (no ajv) malformed input must still
   // reach the renderer's friendly layout checks instead of crashing here.
-  const outPath = path.resolve(process.cwd(), argv[3] || diagram.meta?.output || `${diagramType}.html`);
+  // An explicit output argument is the caller's own choice. `meta.output` is NOT: it is text
+  // inside a diagram file that may come from a cloned repository, so it may only name a
+  // plain `.html` file under the current directory (see safeMetaOutput).
+  const outPath = argv[3]
+    ? path.resolve(process.cwd(), argv[3])
+    : safeMetaOutput(diagram.meta?.output, `${diagramType}.html`);
   return { diagram, template, outPath };
+}
+
+// Resolve `meta.output` to a path that stays inside the current directory: relative, no `..`,
+// an `.html` name, and no symlink on the way (an existing link, or a parent directory whose
+// real path leaves the working directory, would redirect the overwrite elsewhere).
+function safeMetaOutput(requested, fallback) {
+  const cwd = process.cwd();
+  if (requested === undefined || requested === null || requested === '') {
+    return path.resolve(cwd, fallback);
+  }
+  const reject = (why) => {
+    throw new Error(`Refusing meta.output ${JSON.stringify(requested)}: ${why}. `
+      + 'Pass the output path as the 4th argument to write elsewhere.');
+  };
+  if (typeof requested !== 'string' || requested.includes('\0')) reject('not a plain string');
+  if (path.isAbsolute(requested) || /^[A-Za-z]:|^[\\/]/.test(requested)) reject('absolute path');
+  if (requested.split(/[\\/]/).includes('..')) reject('contains ".."');
+  if (!/\.html$/i.test(requested)) reject('not an .html file');
+  const target = path.resolve(cwd, requested);
+  const rel = path.relative(cwd, target);
+  if (!rel || rel.startsWith('..') || path.isAbsolute(rel)) reject('outside the current directory');
+  try {
+    if (fs.lstatSync(target).isSymbolicLink()) reject('the target is a symlink');
+  } catch (err) {
+    if (err.code !== 'ENOENT') throw err;
+  }
+  // Walk up to the nearest directory that exists and make sure its real path is still inside.
+  let probe = path.dirname(target);
+  while (!fs.existsSync(probe)) probe = path.dirname(probe);
+  const realCwd = fs.realpathSync(cwd);
+  const realProbe = fs.realpathSync(probe);
+  if (realProbe !== realCwd && !realProbe.startsWith(realCwd + path.sep)) {
+    reject('a parent directory is a symlink that leaves the current directory');
+  }
+  return target;
 }
 
 // Common CLI tail: fill the template and write the standalone HTML file.
