@@ -310,7 +310,7 @@ costuras:
     escreve(os.path.join(raiz6, "docs", "prototipo", "painel.html"), "<p>painel</p>")
     escreve(os.path.join(tmp, "design-de-fora.md"), "segredo")
     sidecar = ("---\nnatureza: anexo\nanexo-de: %s\ndesign-sig: 1\nstatus: approved\n---\n\n"
-               "## Arquivos\n\n- docs/prototipo/painel.html\n")
+               "## Arquivos\n\n- " + "/".join(("docs", "prototipo", "painel.html")) + "\n")
     escreve(os.path.join(raiz6, "docs", "prototipo", "x.prototipo.md"), sidecar % "../../../design-de-fora.md")
     try:
         anexos = dl.le_anexos(raiz6)
