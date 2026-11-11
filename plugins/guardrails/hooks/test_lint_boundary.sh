@@ -56,7 +56,13 @@ mkrepo "$W/link"; mkdir -p "$W/link/node_modules/.bin"
 fake "$W/alvo-externo/eslint" "$M/eslint-symlink"
 ln -s "$W/alvo-externo/eslint" "$W/link/node_modules/.bin/eslint"
 echo 'var a = 1;' > "$W/link/a.js"
-check "eslint que é symlink pra fora do projeto NÃO roda" nao "$(roda "$W/link/a.js" >/dev/null; rodou eslint-symlink)"
+# No Git Bash do Windows, `ln -s` sem privilégio COPIA o arquivo: não há symlink pra testar.
+# O caso é pulado COM aviso, nunca em silêncio — e só quando o link não nasceu de verdade.
+if [ -L "$W/link/node_modules/.bin/eslint" ]; then
+  check "eslint que é symlink pra fora do projeto NÃO roda" nao "$(roda "$W/link/a.js" >/dev/null; rodou eslint-symlink)"
+else
+  printf '  skip eslint que é symlink pra fora do projeto (este sistema não cria symlink com ln -s)\n'
+fi
 
 # arquivo fora de qualquer git: só o diretório do próprio arquivo vale, nunca o pai.
 mkdir -p "$W/semgit/pai"; fake "$W/semgit/node_modules/.bin/eslint" "$M/eslint-semgit"
