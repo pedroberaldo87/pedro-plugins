@@ -155,9 +155,11 @@ try:
     stubs, saida = monta_stubs(tmp)
     # A raiz do repositório tem espaço E apóstrofo — o caso que quebra aspas ingênuas.
     raiz = os.path.join(tmp, "r o'ot")
-    plans = os.path.join(raiz, ".claude", "plans")
+    # O motor divide o caminho do plano em `/` (planIdDe/dirDe): é a forma em que o caminho chega a
+    # ele em qualquer sistema, então o plano daqui também usa `/` (no Windows o os.path.join daria `\\`).
+    plans = os.path.join(raiz, ".claude", "plans").replace(os.sep, "/")
     os.makedirs(plans)
-    plano = os.path.join(plans, "x;touch PWNED-plano $(touch PWNED-sub).plan.json")
+    plano = plans + "/x;touch PWNED-plano $(touch PWNED-sub).plan.json"
     args = {"repoRoot": raiz, "planPath": plano, "sessionId": "sess1", "motorId": "mot1",
             "resolvePlugin": os.path.join(stubs, "resolve-plugin.sh"),
             "resolveSkill": os.path.join(stubs, "resolve-plugin.sh"),

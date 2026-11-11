@@ -301,7 +301,7 @@ try:
     check("casa(raiz, 'design.md') segue devolvendo o arquivo da casa",
           casa_da_doc.casa(raiz6, "design.md") == os.path.join(raiz6, "docs", "design.md"))
     check("casa(raiz, 'sub/arq.md') (barra interna) segue valendo",
-          casa_da_doc.casa(raiz6, "sub/arq.md").endswith(os.path.join("docs", "sub", "arq.md")))
+          casa_da_doc.casa(raiz6, "sub/arq.md").replace("\\", "/").endswith("/".join(("docs", "sub", "arq.md"))))
     for ruim in ("../fora.md", "../../etc/passwd", "/etc/passwd", "a/../../b", "..\\fora.md", "C:\\x"):
         try:
             casa_da_doc.casa(raiz6, ruim)
