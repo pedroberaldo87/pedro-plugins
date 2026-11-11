@@ -412,7 +412,7 @@ function buildStateSnapshot() {
 function saveState(){ try{ localStorage.setItem(STORAGE_KEY, JSON.stringify(buildStateSnapshot())); }catch(e){} postState(); }
 var _t=null; var URL_ = (window.VISUAL_SERVER_URL||'http://127.0.0.1:7755')+'/state';
 function postState(){ if(!window.VISUAL_SESSION) return; if(_t) clearTimeout(_t);
-  _t=setTimeout(function(){ try{ fetch(URL_,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({session:window.VISUAL_SESSION,docTitle:document.title,state:buildStateSnapshot()}),keepalive:true})
+  _t=setTimeout(function(){ try{ fetch(URL_,{method:'POST',headers:Object.assign({'Content-Type':'application/json'},window.VISUAL_TOKEN?{'X-Visual-Token':window.VISUAL_TOKEN}:{}),body:JSON.stringify({session:window.VISUAL_SESSION,docTitle:document.title,state:buildStateSnapshot()}),keepalive:true})
     .then(function(r){ var i=document.getElementById('live-indicator'); if(i) i.className=r.ok?'live-indicator ok':'live-indicator err'; })
     .catch(function(){ var i=document.getElementById('live-indicator'); if(i) i.className='live-indicator err'; }); }catch(e){} }, 400); }
 function restoreState(){ try{ var raw=localStorage.getItem(STORAGE_KEY); if(!raw) return; var s=JSON.parse(raw);
