@@ -237,7 +237,7 @@ python3 -c "import json;print(len(json.load(open('.claude-plugin/marketplace.jso
 ```
 .claude-plugin/marketplace.json   catálogo único — nome, source, version, tags, category
 plugins/<nome>/                   um dir por entrada do catálogo, sem sobra (§2)
-_shared/                          fonte-da-verdade do compartilhado (31 arquivos-fonte)
+_shared/                          fonte-da-verdade do compartilhado (32 arquivos-fonte)
 scripts/sync-shared.sh            o "build": vendora _shared/ → 116 cópias em 46 pastas  <!-- acopla-ok: §7 traz o comando que produz os dois números -->
 scripts/hook_contract.py          mede o contrato dos registros de hook (§11)
 scripts/public_repo_check.py      cobra a regra de repo público (checagem H do gate)
@@ -363,28 +363,28 @@ Saída desta rodada (nome · versão · skills · tem hook):
 ```
 2op                 1.3.0  [2op,2op-opus,2op-sonnet]    -
 archify            2.14.3  [archify]                    -
-bootstrap         1.17.24  [bootstrap]                  HOOKS
-branches           1.3.15  [branches]                   HOOKS
+bootstrap         1.17.26  [bootstrap]                  HOOKS
+branches           1.3.18  [branches]                   HOOKS
 check-skills        0.7.5  [check-skills]               -
-context-guard      1.3.18  [context-guard]              HOOKS
+context-guard      1.3.21  [context-guard]              HOOKS
 fallow             1.2.10  [fallow]                     -
-gauntlet           0.13.7  [gauntlet]                   HOOKS
-graphify-guard     1.2.16  []                           HOOKS
+gauntlet          0.13.10  [gauntlet]                   HOOKS
+graphify-guard     1.2.19  []                           HOOKS
 grill-me            1.5.4  [grill-me]                   -
-guardrails         1.8.14  [guardrails]                 HOOKS
-handoff           1.11.21  [handoff]                    HOOKS
+guardrails         1.8.17  [guardrails]                 HOOKS
+handoff           1.11.24  [handoff]                    HOOKS
 improve             1.1.6  [improve]                    -
-improve-workflow  0.16.30  [improve-workflow]           -
-intent-guard       0.8.18  [intent-guard]               HOOKS
-lixeiro             1.6.1  [faxina]                     HOOKS
+improve-workflow  0.16.33  [improve-workflow]           -
+intent-guard       0.8.21  [intent-guard]               HOOKS
+lixeiro             1.6.3  [faxina]                     HOOKS
 principles          1.0.5  [principles]                 -
-project-skills    0.22.234  [completude,design-md,doc,doc-load,doc-touch,monitorar,pesquisa-referencias,plan,project-skills,qa-loop,reentrada,sprint,start] HOOKS
+project-skills    0.22.237  [completude,design-md,doc,doc-load,doc-touch,monitorar,pesquisa-referencias,plan,project-skills,qa-loop,reentrada,sprint,start] HOOKS
 sec                 0.1.1  [sec]                        -
-ship                1.5.7  [ship]                       HOOKS
+ship               1.5.10  [ship]                       HOOKS
 slides              1.6.6  [slides]                     -
 vision              0.1.1  []                           -
-vistoria          0.11.11  [vistoria]                   -
-visual             1.44.5  [andamento,visual]           HOOKS
+vistoria          0.11.13  [vistoria]                   -
+visual             1.44.6  [andamento,visual]           HOOKS
 ```
 
 **A rodada anterior moveu onde as skills MORAM; esta apagou as CASAS que tinham ficado
@@ -914,7 +914,7 @@ sed -n '/^SPECS=(/,/^)/p' scripts/sync-shared.sh | grep '::' \
   | sed 's/.*"\(.*\)::.*/\1/' | sort -u | wc -l                        # nº de pastas
 ```
 
-**116 cópias, em 46 pastas de destino, de 31 arquivos-fonte** — contra 19 cópias em 14 pastas <!-- acopla-ok: os dois comandos que produzem os números estão no bloco imediatamente acima; "19" é narrativa histórica -->
+**116 cópias, em 46 pastas de destino, de 32 arquivos-fonte** — contra 19 cópias em 14 pastas <!-- acopla-ok: os dois comandos que produzem os números estão no bloco imediatamente acima; "19" é narrativa histórica -->
 na passada anterior [medido nesta rodada: os dois comandos acima devolvem `116` e `46` — a cópia mais nova é `regua_texto.py` no `sec` (2026-10-24, pasta nova); antes disso o salto foi de 113 para 115 cópias (45 pastas nas duas) <!-- acopla-ok: narrativa do salto medido na rodada; os comandos que produzem os números estão no bloco acima -->, e as **duas** cópias novas são do pente fino de 2026-08-21: `casa_da_doc.py` no `handoff` (o extrator passou a resolver a casa da doc pela cascata) e `resolve-dir.sh` no `fallow` (a réplica em Python virou reserva da cópia vendorada). A rodada anterior tinha trazido o classificador do **grão de módulo** (`grao-de-modulo.py`), vendorado em `archify` e no `doc-touch`. A rodada anterior tinha trazido a família da **casa da doc** (`casa_da_doc.py` + `lib-casa-da-doc.sh`), o resolvedor único de onde mora a documentação. A família do **lar fingido** (F4.3) — a receita única de fingir o HOME em teste (`lar-fingido.md` + `lar_fingido.py` + `lib-lar-fingido.sh`, com cobrador próprio), que nasceu em `_shared/` e foi vendorada em todo consumidor que fingia o lar à mão, cada um do seu jeito e três deles quebrando no Windows — segue com **nove** cópias (4 de `lar_fingido.py`, 5 de `lib-lar-fingido.sh`), a última em `plugins/project-skills/lib/`].
 Os quatro maiores contribuintes, todos vendorados por consumidor:
 `resolve-plugin.sh` (18), `regua_texto.py` (12), `hook-json.sh` (12), `lib-tmpdir.sh` (11).
@@ -1757,20 +1757,17 @@ de 2026-11 não há exceção.** O `allow` de `config/settings-defaults.json` li
 automática de comandos na máquina de quem instala — default de risco não nasce ligado
 (Artigo 2). O bloco `CONSENTIMENTO` de `plugins/bootstrap/hooks/lib/apply-config.sh` só
 mescla o bloco `permissions` quando a marca `~/.claude/pedro-plugins-permissions-ok` existe
-no disco **e o hash que ela guarda bate com a lista atual**; quem a grava é o `/bootstrap` (setup), depois de mostrar a lista
-(`apply-config.sh --listar`) e grava a marca com `--consentir`. Sem a marca (ou com ela de uma lista anterior), env + flags seguem aplicados e as permissões
+no disco; quem a grava é o `/bootstrap` (setup), depois de mostrar a lista
+(`apply-config.sh --listar`). Sem a marca, env + flags seguem aplicados e as permissões
 esperam, com aviso na saída. A anistia antiga (uma permissão do Playwright citada em
 qualquer ponto do `settings.json` gravava a marca sozinha) foi removida.
 
 **O que o allow aprova.** Nada que age fora da máquina nem roda código que o modelo escreveu
 na hora: sem `python*`, `node*`, `perl*`, `bun*`, `env*`, `xargs*`, `timeout*`, `WebFetch` e
 sem `browser_run_code`/`browser_evaluate`/`browser_file_upload`. As únicas exceções são
-`python3` e `node` com o caminho literal de UM script do cache do próprio marketplace, na versão
-mais alta instalada (resolvida para a máquina na hora do merge, sem curinga no meio do caminho),
-só para o script que não executa comando recebido (`lib/script_audit.py` decide; a lista e a
-tabela por script estão em `config/plugin-scripts.baseline.json`). Os
-executores (`precheck_largada.py --suite`, `sec.py`…) ficam sem regra e levam um `ask`; escrita
-dentro do cache também pede aprovação. O teste de allow proibido
+`python3` e `node` com o caminho do script preso ao cache do próprio marketplace
+(`<config>/plugins/cache/pedro-plugins/*`, resolvido para a máquina na hora do merge), mais
+duas guardas no `ask`: `..` no caminho e escrita dentro do cache. O teste de allow proibido
 reprova a CLASSE (interpretador, embrulho, rede aberta, JS de navegador), não só os nomes já
 removidos.
 

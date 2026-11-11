@@ -336,7 +336,7 @@ The catalog lives in `.claude-plugin/marketplace.json` at the root — each plug
 
 ### Code shared between plugins
 
-Code that is truly common lives in `_shared/` at the root and is **vendored** into each consumer by `scripts/sync-shared.sh` — copied, **not imported at runtime**, because Claude Code isolates each plugin in the cache. There are 31 source files in `_shared/`, spread over 116 copies in 46 destination folders: `resolve-plugin.sh` (finds a sibling plugin's folder) lives in 18 plugins; `hook-json.sh` (reads the hook payload without depending on `jq`) and `regua_texto.py` (the ruler that refuses prose) in 12 each; `collect_engine.py` (transcript reading, project-root resolution) in `handoff` and `project-skills`. `_shared/` is the source of truth: edit there and run `scripts/sync-shared.sh` (`--check` catches drift between the source and the copies).
+Code that is truly common lives in `_shared/` at the root and is **vendored** into each consumer by `scripts/sync-shared.sh` — copied, **not imported at runtime**, because Claude Code isolates each plugin in the cache. There are 32 source files in `_shared/`, spread over 116 copies in 46 destination folders: `resolve-plugin.sh` (finds a sibling plugin's folder) lives in 18 plugins; `hook-json.sh` (reads the hook payload without depending on `jq`) and `regua_texto.py` (the ruler that refuses prose) in 12 each; `collect_engine.py` (transcript reading, project-root resolution) in `handoff` and `project-skills`. `_shared/` is the source of truth: edit there and run `scripts/sync-shared.sh` (`--check` catches drift between the source and the copies).
 
 ---
 
