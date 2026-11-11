@@ -77,6 +77,67 @@ def expande(padroes):
     return fora
 
 
+# ── SUÍTE PULADA POR SISTEMA: SÓ COM MOTIVO, SEMPRE EM VOZ ALTA ─────────────
+#
+# Esta tabela existe por causa de um dano medido (duas suítes entram hoje; a primeira é o caso
+# que a criou). No Windows do CI,
+# `plugins/lixeiro/hooks/test_lixeiro_hooks.sh` MATAVA A ESTEIRA INTEIRA: o hook de
+# fim de sessão do lixeiro acha a raiz "órfã" do servidor de teste subindo pela
+# árvore de processos, e só para nos ancestrais DO PRÓPRIO HOOK. Lá a cadeia do hook
+# se quebra no primeiro salto (o pai MSYS já morreu: o `ppid` aponta para um pid que
+# não existe mais), a subida atravessa o rodador, o bash do passo, o `Runner.Worker`
+# e chega à raiz da máquina — e o SIGTERM cai em cada um. Medido com a morte
+# desligada (sonda `debug/win-lixeiro-ancestry`, run 42971755541): os alvos eram o
+# `bash scripts/suite.sh`, o `run_suites.py` e, por fim, `lsass.exe`/`svchost.exe`. O
+# job saía "verde" sem placar, sem `rc=`, com as ~30 suítes seguintes nunca contadas.
+#
+# O conserto é do PRODUTO (`lixeiro.py:raiz_orfa`: não subir quando a cadeia do hook
+# está quebrada), não do rodador nem do teste — fica fora desta passada e RASTREADO na
+# descrição do PR #10 (nota W1). Até lá a suíte não roda no Windows, e o rodador diz
+# isso de três jeitos: linha `↷ PULADA`, anotação `::warning::` e a contagem no placar.
+# Não é "teste ignorado": entra aqui só quem tem o motivo escrito e o arquivo no disco
+# (`test_run_suites_pulas_por_so.py` cobra os dois). `RUN_SUITES_NAO_PULA=1` roda tudo,
+# para quem for medir o conserto do produto numa máquina Windows descartável.
+PULA_NO_SO = {
+    "nt": {
+        "plugins/lixeiro/hooks/test_lixeiro_hooks.sh":
+            "o lixeiro sobe pela árvore de processos até a raiz órfã do servidor de teste e, no "
+            "Windows, a cadeia de ancestrais do hook vem quebrada: o SIGTERM atinge o rodador, o "
+            "runner do CI e processos do sistema, e derruba a esteira sem placar (PR #10, nota W1)",
+        "scripts/test_sem_jq.sh":
+            "no Windows do CI a suíte fica mais de 10 minutos sem imprimir nada, no passo que monta o "
+            "PATH sem jq ligando UM A UM cada executável do PATH (`ln -s`; hipótese não perfilada: no "
+            "Git Bash isso copia o arquivo, e são milhares), e o vigia a mata como TRAVOU (PR #10, nota W2)",
+    },
+}
+
+
+def so_atual():
+    """`nt` ou `posix`. `RUN_SUITES_SO` existe só para a suíte do rodador encenar o outro
+    sistema sem precisar dele."""
+    return os.environ.get("RUN_SUITES_SO") or os.name
+
+
+def pulas_do_so(so=None):
+    """alvo normalizado (com `/`) -> motivo, para o sistema dado. POSIX nunca pula nada."""
+    if os.environ.get("RUN_SUITES_NAO_PULA"):
+        return {}
+    return PULA_NO_SO.get(so or so_atual(), {})
+
+
+def separa_puladas(alvos, so=None):
+    """([alvos que rodam], [(alvo, motivo) dos pulados]) — na ordem recebida."""
+    pulas = pulas_do_so(so)
+    rodam, puladas = [], []
+    for a in alvos:
+        motivo = pulas.get(a.replace("\\", "/"))
+        if motivo:
+            puladas.append((a, motivo))
+        else:
+            rodam.append(a)
+    return rodam, puladas
+
+
 VIVO = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "_shared",
                     "vivo-ou-dormindo.sh")
 
@@ -109,6 +170,61 @@ def cpu_viva(bash, pgid, amostra):
     if fala == "dormindo":
         return False
     return None
+
+
+_TEMP_MACOS = []
+
+
+def _temporario_do_macos():
+    """O temporário que o `mktemp -d` do macOS usa mesmo com `TMPDIR` trocado, ou "".
+
+    `getconf DARWIN_USER_TEMP_DIR` é a pergunta que o próprio `mktemp` faz; o `os` do
+    Python não a expõe. Só o macOS responde; nos outros sistemas não há o que perguntar.
+    Perguntado uma vez só: o rodador chama `tetos_de_git` a cada suíte.
+    """
+    if not _TEMP_MACOS:
+        achado = ""
+        if sys.platform == "darwin":
+            try:
+                r = subprocess.run(["getconf", "DARWIN_USER_TEMP_DIR"], capture_output=True,
+                                   text=True, timeout=10, stdin=subprocess.DEVNULL,
+                                   start_new_session=True)
+                if r.returncode == 0:
+                    achado = r.stdout.strip()
+            except Exception:
+                pass
+        _TEMP_MACOS.append(achado)
+    return _TEMP_MACOS[0]
+
+
+def tetos_de_git(casa):
+    """Os diretórios acima dos quais o git NÃO procura repositório (GIT_CEILING_DIRECTORIES).
+
+    Suíte que cria uma pasta temporária e pergunta ao git onde está o projeto espera
+    "em lugar nenhum". Se algum ancestral do temporário for um repositório — um `.git`
+    esquecido na pasta de temporários do sistema, um `TMPDIR` dentro de um clone — o git
+    sobe até lá e responde com ele, e a suíte passa a depender do que existe fora do
+    repositório de quem roda. Medido numa máquina de trabalho: onze suítes vermelhas por
+    um `.git` solto no temporário do usuário, todas verdes no CI.
+
+    O teto vale para o temporário do sistema (que o `mktemp -d` do macOS usa mesmo com
+    `TMPDIR` trocado) e para a pasta-mãe da casa própria da suíte. Repositório criado
+    DENTRO deles continua achado: o teto fecha a subida, não o git. O caminho vai
+    resolvido (`realpath`) porque o git compara com o caminho real, e `/var` no macOS é
+    link para `/private/var`.
+    """
+    candidatos = [os.path.dirname(casa), tempfile.gettempdir(), _temporario_do_macos()]
+    tetos = []
+    for c in candidatos:
+        if c:
+            real = os.path.realpath(c)
+            if real not in tetos:
+                tetos.append(real)
+    # O teto que o dono já tinha continua valendo: o do rodador entra junto, não no lugar.
+    antigo = os.environ.get("GIT_CEILING_DIRECTORIES")
+    if antigo:
+        tetos.insert(0, antigo)
+    return os.pathsep.join(tetos)
 
 
 def roda(cmd, alvo, janela, bash):
@@ -148,7 +264,10 @@ def roda(cmd, alvo, janela, bash):
     # sexto — aqui a casa é que passa a ser própria, e o id fixo deixa de importar.
     # As três variáveis andam juntas porque o Windows lê TMP/TEMP e não TMPDIR.
     casa = tempfile.mkdtemp(prefix="suite-")
-    ambiente = dict(os.environ, TMPDIR=casa, TMP=casa, TEMP=casa)
+    # O git também não pode subir do temporário para um repositório alheio (ver
+    # `tetos_de_git`): sem isso, a suíte lê o que existe FORA do repositório de quem roda.
+    ambiente = dict(os.environ, TMPDIR=casa, TMP=casa, TEMP=casa,
+                    GIT_CEILING_DIRECTORIES=tetos_de_git(casa))
     try:
         p = subprocess.Popen(cmd + [alvo], stdout=tmp, stderr=subprocess.STDOUT,
                              stdin=subprocess.DEVNULL, start_new_session=True,
@@ -175,7 +294,11 @@ def roda(cmd, alvo, janela, bash):
             # Sem CPU medível (máquina sem bash, `ps` mudo), a saída decide
             # sozinha — e aí com o dobro da paciência, porque é meio sinal.
             if paradas >= (2 if viva is False else 4):
-                return "TRAVOU", time.time() - t0, None
+                # O que ela já tinha dito antes de parar é a única pista de ONDE parou:
+                # a suíte morta pelo vigia voltava sem uma linha, e no Windows do CI três
+                # delas penduraram dez minutos cada sem que o log mostrasse em que caso.
+                tmp.seek(0)
+                return "TRAVOU", time.time() - t0, tmp.read()
         tmp.seek(0)
         return ("ok" if p.returncode == 0 else "FALHOU"), time.time() - t0, tmp.read()
     finally:
@@ -265,8 +388,13 @@ def main(argv=None):
     # no PATH, é RESPONDER, e o repositório já tinha a receita (`_shared/bash_posix.py`).
     # Sem nenhum bash que responda, as suítes de shell PULAM declarando: comando de
     # shell sem shell não é falha de quem escreveu o comando.
-    sh_alvos = expande(a.sh)
-    tarefas = [([py], t) for t in expande(a.py)]
+    py_alvos, puladas = separa_puladas(expande(a.py))
+    sh_alvos, puladas_sh = separa_puladas(expande(a.sh))
+    puladas += puladas_sh
+    for alvo, motivo in puladas:
+        print("  ↷ PULADA no %s: %s\n      motivo: %s" % (so_atual(), alvo, motivo), flush=True)
+        print("::warning::suíte pulada no %s: %s — %s" % (so_atual(), alvo, motivo), flush=True)
+    tarefas = [([py], t) for t in py_alvos]
     bash = bash_posix()
     if sh_alvos and bash is None:
         print("  ↷ %d suíte(s) de shell puladas: nenhum bash funcional nesta máquina" % len(sh_alvos))
@@ -314,11 +442,20 @@ def main(argv=None):
     # inteiro (runs 32491657813 · 32493288667 · 32494014937 — as suítes saíam, o
     # placar não, e o passo seguia como se o rc fosse 0).
     print("\n%d suíte(s) · %d problema(s)" % (len(tarefas), len(ruins)), flush=True)
+    if puladas:
+        print("%d suíte(s) PULADA(S) neste sistema, com motivo (linhas '↷ PULADA' acima): %s"
+              % (len(puladas), ", ".join(a for a, _ in puladas)), flush=True)
     for estado, alvo, saida in ruins:
         print("\n───────── %s: %s" % (estado, alvo), flush=True)
-        if saida is None:
+        if estado == "TRAVOU":
             print("   (TRAVOU: sem CPU na árvore e sem saída nova por 2 janelas "
                   "de %.0fs — morta pelo vigia)" % a.janela, flush=True)
+            if not saida or not saida.strip():
+                print("   (e não tinha dito nada antes de parar)", flush=True)
+                continue
+            print("   o que ela tinha dito até parar (as últimas linhas):", flush=True)
+            for ln in saida.strip().splitlines()[-25:]:
+                print("   | " + ln[:200], flush=True)
             continue
         for ln in linhas_que_importam(saida):
             print("   " + ln[:200], flush=True)
@@ -326,4 +463,8 @@ def main(argv=None):
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    rc = main()
+    # A última palavra do rodador, dita por ele mesmo: quem lê o log sabe que o
+    # processo CHEGOU ao fim (no Windows do CI ele morria no meio sem dizer nada).
+    print("run_suites: veredito rc=%d" % rc, flush=True)
+    sys.exit(rc)

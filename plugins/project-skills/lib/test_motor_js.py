@@ -20,12 +20,33 @@ import re
 import shutil
 import subprocess
 import sys
+import tempfile
 
 AQUI = os.path.dirname(os.path.abspath(__file__))
 PLUGIN = os.path.dirname(AQUI)
 MOTOR = os.path.join(PLUGIN, "skills", "sprint", "references", "motor.js")
 SKILL = os.path.join(PLUGIN, "skills", "sprint", "SKILL.md")
 TIERS = os.path.join(PLUGIN, "skills", "sprint", "references", "r8-tiers.json")
+
+# O motor NÃO é um módulo nem um script solto: a tool Workflow o recebe como CORPO de uma
+# função assíncrona (por isso tem `return` e `await` no topo; o `export const meta` é lido
+# à parte). `node --check arquivo.js` julga o arquivo como módulo/CJS e depende da versão do
+# Node: as com detecção de módulo (as do runner do CI e o Node 26.12) leem o `export` e acusam
+# "Illegal return statement" num arquivo que está certo. A checagem de sintaxe compila o
+# arquivo do jeito que o disparo o usa — mesmo `replace` e mesmos parâmetros do arnês dos testes.
+SINTAXE_JS = (
+    "const fs = require('fs');"
+    "const src = fs.readFileSync(process.argv[1], 'utf8').replace('export const meta', 'const meta');"
+    "const AsyncFunction = Object.getPrototypeOf(async function () {}).constructor;"
+    "new AsyncFunction('args', 'agent', 'phase', 'log', src);"  # compila, não executa
+)
+
+
+def sintaxe_motor(caminho):
+    return subprocess.run(["node", "-e", SINTAXE_JS, caminho], capture_output=True, text=True,
+                          encoding="utf-8", errors="replace", stdin=subprocess.DEVNULL,
+                          start_new_session=True)
+
 
 ok = falhas = 0
 
@@ -525,11 +546,15 @@ check("o esqueleto do SKILL.md carrega o mesmo filtro",
 
 # sintaxe: o arquivo tem que ser JavaScript válido (quando node existe na máquina).
 if shutil.which("node"):
-    r = subprocess.run(["node", "--check", MOTOR], capture_output=True, text=True, encoding="utf-8", errors="replace",
-                       stdin=subprocess.DEVNULL, start_new_session=True)
-    check("node --check passa", r.returncode == 0, r.stderr.strip()[:120])
+    r = sintaxe_motor(MOTOR)
+    check("o motor compila como corpo de função assíncrona (node)", r.returncode == 0, r.stderr.strip()[:120])
+    # controle negativo: a checagem tem que reprovar sintaxe quebrada, senão ela não mede nada.
+    with tempfile.TemporaryDirectory() as _d:
+        _ruim = os.path.join(_d, "quebrado.js")
+        open(_ruim, "w", encoding="utf-8").write("export const meta = {}\nconst x = (\nreturn 1\n")
+        check("a checagem de sintaxe reprova um motor quebrado", sintaxe_motor(_ruim).returncode != 0)
 else:
-    print("  skip node --check (node ausente)")
+    print("  skip sintaxe do motor (node ausente)")
 
 print()
 if falhas:
