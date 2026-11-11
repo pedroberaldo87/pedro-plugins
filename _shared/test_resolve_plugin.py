@@ -276,7 +276,7 @@ def casos_que_executam():
         check("%s: versao instalada que nao existe mais em disco: cai na mais alta valida" % rotulo,
               rc == 0 and existe and saida.replace("\\", "/").endswith("/lixeiro/1.10.0/lib/lixeiro.py"))
         rc, saida, existe = resolve(camada, versoes=["1.9.0", "1.10.0"],
-                                    instalado="C:\\Users\\x\\.claude\\plugins\\cache\\pedro-plugins\\lixeiro\\1.9.0")
+                                    instalado="D:\\cfg\\plugins\\cache\\pedro-plugins\\lixeiro\\1.9.0")
         check("%s: installPath com barra invertida (registro do Windows) tambem vale" % rotulo,
               rc == 0 and existe and saida.replace("\\", "/").endswith("/lixeiro/1.9.0/lib/lixeiro.py"))
         rc, saida, _ = resolve(camada, versoes=["1.9.0", "1.10.0"],
