@@ -16,9 +16,24 @@
 #   enabledPlugins / extraKnownMarketplaces / hooks → UNTOUCHED (owned by plugin sync)
 #   settings.local.json     → NEVER touched
 #
+# Flags (so uma por vez; sem flag o script aplica):
+#   --listar              mostra o que o merge das permissoes acrescentaria e SAI,
+#                         sem escrever nada — e o que o /bootstrap mostra antes do "sim".
+#   --remover-retiradas   alem de aplicar, tira do allow as entradas largas que
+#                         ja foram padrao (python3*, node*, WebFetch...) — so a pedido.
+#
 # Exit: 0 ok, 1 error.
 
 set -uo pipefail
+
+MODO_LISTAR=""; REMOVER_RETIRADAS=""
+for _a in "$@"; do
+  case "$_a" in
+    --listar) MODO_LISTAR=1 ;;
+    --remover-retiradas) REMOVER_RETIRADAS=1 ;;
+    *) echo "[bootstrap/config] argumento desconhecido: $_a (use --listar ou --remover-retiradas)"; exit 1 ;;
+  esac
+done
 
 # O PYTHON, NAO O JQ. O jq nao vem no Windows nem no macOS de fabrica, e era
 # aqui que a instalacao morria: sem ele este script saia 1 e a maquina ficava
@@ -60,31 +75,45 @@ mkdir -p "$CLAUDE_DIR"
 # CONSENTIMENTO (Artigo 2 da constituição deste marketplace): o allow dos defaults
 # liga aprovação automática na máquina de quem instala — default de risco não
 # nasce ligado. O merge das permissões só roda com a marca de consentimento
-# gravada (é o /bootstrap:setup quem a grava, depois de mostrar a lista).
-# Máquina onde o merge JÁ aconteceu (uma permissão distintiva dos defaults está
-# no settings) é anistiada: o estado dela já é esse, e travar agora só a
-# deixaria sem atualização — a marca é gravada e o fluxo segue, com log.
+# gravada, e quem a grava é o /bootstrap:setup, depois de mostrar a lista
+# (`--listar`). NÃO HÁ ANISTIA: já houve uma, que gravava a marca sozinha quando o
+# settings citava UMA ferramenta do Playwright em qualquer lugar do arquivo — um
+# texto solto (num deny, num ask, escrito à mão) valia como "sim" e a lista inteira
+# entrava sem ter sido mostrada. Máquina que já fez o merge e não tem a marca pede
+# o "sim" uma vez; o que ela já tem no settings continua lá.
 CONSENT="$CLAUDE_DIR/pedro-plugins-permissions-ok"
+
+if [ -n "$MODO_LISTAR" ]; then
+  echo "[bootstrap/config] o merge das permissões acrescentaria (nada foi escrito):"
+  "$PY" "$CFGJSON" lista-novas "$SETTINGS" "$DEFAULTS" "$CLAUDE_DIR" \
+    || { echo "[bootstrap/config] não consegui montar a lista"; exit 1; }
+  RET="$("$PY" "$CFGJSON" retiradas "$SETTINGS" 2>/dev/null)"
+  if [ -n "$RET" ]; then
+    echo "[bootstrap/config] já estão no seu allow, de versões antigas dos defaults:"
+    printf '%s\n' "$RET" | sed 's/^/  retirada do padrão: /'
+  fi
+  [ -f "$CONSENT" ] && echo "[bootstrap/config] marca de consentimento: gravada" \
+                    || echo "[bootstrap/config] marca de consentimento: ausente — grave só depois do sim do usuário"
+  exit 0
+fi
+
 if [ ! -f "$CONSENT" ]; then
-  if [ -f "$SETTINGS" ] && grep -q 'mcp__plugin_playwright_playwright__browser_navigate' "$SETTINGS" 2>/dev/null; then
-    printf 'anistia: merge anterior detectado em %s\n' "$(date +%Y-%m-%d)" > "$CONSENT" 2>/dev/null
-    echo "[bootstrap/config] consentimento gravado por anistia — o allow destes defaults já vivia no settings"
-  else
-    SEM_CONSENT=1
-    echo "[bootstrap/config] ⏸ permissões NÃO aplicadas — falta o consentimento.
+  SEM_CONSENT=1
+  echo "[bootstrap/config] ⏸ permissões NÃO aplicadas — falta o consentimento.
 - Os defaults ligam aprovação automática de comandos (a lista vive em config/settings-defaults.json).
 - Rode /bootstrap (setup): ele mostra a lista e grava o de acordo em $CONSENT."
-  fi
 fi
-DEFAULTS_EFETIVO="$DEFAULTS"
-if [ -n "${SEM_CONSENT:-}" ]; then
-  # o resto dos defaults (env, flags, barra) segue valendo — só permissão espera o de acordo
-  DEFAULTS_EFETIVO="$CLAUDE_DIR/.defaults-sem-permissoes.json"
-  "$PY" -c 'import json,sys; d=json.load(open(sys.argv[1])); d.pop("permissions", None); json.dump(d, open(sys.argv[2], "w"), indent=2)' "$DEFAULTS" "$DEFAULTS_EFETIVO"     || { echo "[bootstrap/config] falha ao recortar permissões — nada aplicado"; exit 1; }
+DEFAULTS_EFETIVO="$CLAUDE_DIR/.defaults-efetivos.json"
+"$PY" "$CFGJSON" prepara-defaults "$DEFAULTS" "$CLAUDE_DIR" "$([ -n "${SEM_CONSENT:-}" ] && echo sem || echo com)" > "$DEFAULTS_EFETIVO" \
+  || { rm -f "$DEFAULTS_EFETIVO"; echo "[bootstrap/config] falha ao preparar os defaults — nada aplicado"; exit 1; }
+if [ -z "${SEM_CONSENT:-}" ]; then
+  # o que vai ser acrescentado, linha a linha, ANTES de gravar (o resumo de baixo só conta)
+  echo "[bootstrap/config] permissões que este merge acrescenta ao settings.json:"
+  "$PY" "$CFGJSON" lista-novas "$SETTINGS" "$DEFAULTS" "$CLAUDE_DIR" | sed 's/^/  /'
 fi
 CURRENT="{}"
 if [ -f "$SETTINGS" ]; then
-  "$PY" "$CFGJSON" valida "$SETTINGS" 2>/dev/null || { echo "[bootstrap/config] settings.json local inválido — abortando (não sobrescrevo)"; exit 1; }
+  "$PY" "$CFGJSON" valida "$SETTINGS" 2>/dev/null || { rm -f "$DEFAULTS_EFETIVO"; echo "[bootstrap/config] settings.json local inválido — abortando (não sobrescrevo)"; exit 1; }
   CURRENT="$(cat "$SETTINGS")"
   cp "$SETTINGS" "$SETTINGS.bak.$(date +%Y%m%d%H%M%S)"
 fi
@@ -93,8 +122,24 @@ printf '%s' "$CURRENT" > "$SETTINGS.cur" \
   && "$PY" "$CFGJSON" merge-settings "$SETTINGS.cur" "$DEFAULTS_EFETIVO" > "$SETTINGS.tmp" \
   && mv "$SETTINGS.tmp" "$SETTINGS" \
   && rm -f "$SETTINGS.cur" \
-  || { rm -f "$SETTINGS.tmp" "$SETTINGS.cur"; echo "[bootstrap/config] merge falhou — settings.json intacto"; exit 1; }
-rm -f "$CLAUDE_DIR/.defaults-sem-permissoes.json"
+  || { rm -f "$SETTINGS.tmp" "$SETTINGS.cur" "$DEFAULTS_EFETIVO"; echo "[bootstrap/config] merge falhou — settings.json intacto"; exit 1; }
+rm -f "$DEFAULTS_EFETIVO"
+
+# Entradas largas de versões antigas dos defaults: o merge é união, então elas ficam.
+RET="$("$PY" "$CFGJSON" retiradas "$SETTINGS" 2>/dev/null)"
+if [ -n "$RET" ]; then
+  if [ -n "$REMOVER_RETIRADAS" ]; then
+    "$PY" "$CFGJSON" remove-retiradas "$SETTINGS" > "$SETTINGS.tmp" \
+      && mv "$SETTINGS.tmp" "$SETTINGS" \
+      && printf '%s\n' "$RET" | sed 's/^/[bootstrap\/config] removida do allow: /' \
+      || { rm -f "$SETTINGS.tmp"; echo "[bootstrap/config] não consegui remover as entradas antigas — settings.json intacto"; }
+  else
+    echo "[bootstrap/config] ⚠ o allow desta máquina ainda tem entradas que aprovam qualquer comando ou rede:"
+    printf '%s\n' "$RET" | sed 's/^/  retirada do padrão: /'
+    echo "- Para tirá-las: rode este script de novo com --remover-retiradas (backup antes)."
+  fi
+fi
+
 if [ -n "${SEM_CONSENT:-}" ]; then
   echo "[bootstrap/config] ✓ settings.json: env + flags aplicados (permissões aguardando consentimento)"
 else

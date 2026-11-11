@@ -176,6 +176,64 @@ with tempfile.TemporaryDirectory() as t:
     check("JSON quebrado → 1", roda("valida", ruim)[1] == 1)
     check("arquivo inexistente → 1", roda("valida", os.path.join(t, "nao-existe"))[1] == 1)
 
+print("── permissoes com caminho resolvido, lista do que entra e retiradas ──")
+with tempfile.TemporaryDirectory() as t:
+    defaults = escreve(os.path.join(t, "d.json"), {
+        "permissions": {
+            "allow": ["Bash(ls*)", "Bash(python3 {{CLAUDE_DIR}}/plugins/cache/pedro-plugins/*)"],
+            "ask": ["Edit(/{{CLAUDE_DIR}}/plugins/cache/**)"],
+            "deny": ["Bash(dd*)"]},
+        "language": "Brazilian Portuguese"})
+    cd = os.path.join(t, "casa", ".claude")
+
+    saida, rc = roda("prepara-defaults", defaults, cd, "com")
+    got = json.loads(saida)
+    check("prepara-defaults troca {{CLAUDE_DIR}} pelo caminho da maquina",
+          got["permissions"]["allow"][1] == "Bash(python3 %s/plugins/cache/pedro-plugins/*)" % cd,
+          got["permissions"]["allow"])
+    check("prepara-defaults resolve o caminho do Edit com a barra dupla",
+          got["permissions"]["ask"] == ["Edit(/%s/plugins/cache/**)" % cd], got["permissions"]["ask"])
+    check("prepara-defaults nao deixa placeholder em lugar nenhum", "{{" not in saida, saida)
+    saida, rc = roda("prepara-defaults", defaults, cd, "sem")
+    got = json.loads(saida)
+    check("prepara-defaults 'sem' corta o bloco permissions e guarda o resto",
+          "permissions" not in got and got["language"] == "Brazilian Portuguese", got)
+
+    atual = escreve(os.path.join(t, "a.json"), {
+        "permissions": {"allow": ["Bash(ls*)"], "ask": ["Bash(rm *)"]}})
+    saida, rc = roda("lista-novas", atual, defaults, cd)
+    linhas = saida.strip().split("\n")
+    check("lista-novas nao repete o que a maquina ja tem",
+          not any(l == "allow + Bash(ls*)" for l in linhas), linhas)
+    check("lista-novas mostra o interprete com o caminho resolvido",
+          "allow + Bash(python3 %s/plugins/cache/pedro-plugins/*)" % cd in linhas, linhas)
+    check("lista-novas mostra o ask e o deny novos",
+          "ask + Edit(/%s/plugins/cache/**)" % cd in linhas and "deny + Bash(dd*)" in linhas, linhas)
+    check("lista-novas fecha com a contagem", linhas[-1].startswith("3 entradas novas (allow 1 · ask 1 · deny 1)"), linhas[-1])
+    saida, rc = roda("lista-novas", os.path.join(t, "nao-existe.json"), defaults, cd)
+    check("lista-novas sem settings trata como vazio", "allow + Bash(ls*)" in saida.split("\n"), saida)
+
+    amplo = escreve(os.path.join(t, "amplo.json"), {"permissions": {"allow": [
+        "Bash(python3*)", "Bash(node*)", "WebFetch", "Bash(ls*)", "Bash(meu-script*)",
+        "mcp__plugin_playwright_playwright__browser_run_code"]}})
+    saida, rc = roda("retiradas", amplo)
+    check("retiradas lista as largas e ignora as do usuario",
+          saida.split() == ["Bash(python3*)", "Bash(node*)", "WebFetch",
+                            "mcp__plugin_playwright_playwright__browser_run_code"], saida)
+    saida, rc = roda("remove-retiradas", amplo)
+    got = json.loads(saida)
+    check("remove-retiradas deixa so o que o usuario escreveu",
+          got["permissions"]["allow"] == ["Bash(ls*)", "Bash(meu-script*)"], got)
+
+    # o ask tambem e UNIAO no merge, e a chave so nasce quando alguem a tem
+    saida, rc = roda("merge-settings", atual, defaults)
+    got = json.loads(saida)
+    check("merge-settings une o ask", got["permissions"]["ask"] == ["Bash(rm *)", "Edit(/{{CLAUDE_DIR}}/plugins/cache/**)"], got["permissions"])
+    vazio = escreve(os.path.join(t, "v.json"), {})
+    sem_ask = escreve(os.path.join(t, "sa.json"), {"permissions": {"allow": ["x"]}})
+    saida, rc = roda("merge-settings", vazio, sem_ask)
+    check("sem ask dos dois lados a chave nem aparece", "ask" not in json.loads(saida)["permissions"], saida)
+
 print("\n%d ok · %d FAIL%s" % (casos - falhas, falhas,
                                "" if JQ else "   (sem jq: comparacao direta com o jq foi pulada)"))
 sys.exit(1 if falhas else 0)

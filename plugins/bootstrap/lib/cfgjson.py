@@ -74,13 +74,113 @@ def cmd_valida(args):
     return 0
 
 
+# O QUE DEIXOU DE SER PADRAO. Estas entradas ja viveram no allow dos defaults e
+# aprovavam, sem pedir nada, programas que rodam qualquer coisa ou saem para a
+# rede (um interprete roda o proprio cliente HTTP; `env`/`xargs`/`timeout` rodam o
+# argumento como comando). Sair dos defaults NAO tira a entrada de quem ja recebeu:
+# o merge e uniao. Por isso a lista mora aqui — o apply-config avisa da que ainda
+# esta na maquina e so remove quando a pessoa pede. Comparacao EXATA: entrada que
+# o usuario escreveu com outra forma (`Bash(python3 meu.py)`) nunca e tocada.
+RETIRADAS = (
+    "Bash(python3*)", "Bash(python*)", "Bash(node*)", "Bash(perl*)", "Bash(bun*)",
+    "Bash(env*)", "Bash(printenv*)", "Bash(xargs*)", "Bash(timeout*)",
+    "Bash(find*)", "Bash(sed*)", "Bash(awk*)",
+    "WebFetch",
+    "mcp__plugin_playwright_playwright__browser_evaluate",
+    "mcp__plugin_playwright_playwright__browser_run_code",
+    "mcp__plugin_playwright_playwright__browser_file_upload",
+)
+
+# Onde o caminho desta maquina entra nas regras dos defaults.
+MARCA_DIR = "{{CLAUDE_DIR}}"
+LISTAS = ("allow", "ask", "deny")
+
+
+def _resolve(defaults, claude_dir):
+    """Troca {{CLAUDE_DIR}} nas regras de permissao pelo caminho desta maquina."""
+    perms = defaults.get("permissions")
+    if not isinstance(perms, dict):
+        return defaults
+    saida = dict(defaults)
+    saida["permissions"] = dict(perms)
+    for lista in LISTAS:
+        if isinstance(perms.get(lista), list):
+            saida["permissions"][lista] = [
+                x.replace(MARCA_DIR, claude_dir) if isinstance(x, str) else x
+                for x in perms[lista]]
+    return saida
+
+
+def cmd_prepara_defaults(args):
+    """`prepara-defaults <defaults> <claude_dir> <com|sem>`: os defaults prontos para o merge.
+
+    `com` resolve o caminho nas regras; `sem` corta o bloco `permissions` inteiro
+    (o consentimento ainda nao foi dado) e deixa o resto valer.
+    """
+    defaults = _carrega(args[0])
+    claude_dir = args[1].rstrip("/\\")
+    if args[2] == "sem":
+        defaults = dict(defaults)
+        defaults.pop("permissions", None)
+    else:
+        defaults = _resolve(defaults, claude_dir)
+    _escreve(defaults)
+    return 0
+
+
+def cmd_lista_novas(args):
+    """`lista-novas <settings> <defaults> <claude_dir>`: o que o merge acrescentaria.
+
+    Uma entrada por linha, `<lista> + <regra>`, ja com o caminho resolvido, e a
+    contagem na ultima. Arquivo de settings ausente conta como vazio.
+    """
+    try:
+        atual = _carrega(args[0])
+    except OSError:
+        atual = {}
+    defaults = _resolve(_carrega(args[1]), args[2].rstrip("/\\"))
+    ja = atual.get("permissions") or {}
+    novas = {}
+    for lista in LISTAS:
+        tem = set(ja.get(lista) or [])
+        novas[lista] = [x for x in (defaults.get("permissions") or {}).get(lista) or [] if x not in tem]
+        for x in novas[lista]:
+            print("%s + %s" % (lista, x))
+    total = sum(len(v) for v in novas.values())
+    print("%d entradas novas (allow %d · ask %d · deny %d)"
+          % (total, len(novas["allow"]), len(novas["ask"]), len(novas["deny"])))
+    return 0
+
+
+def cmd_retiradas(args):
+    """`retiradas <settings>`: as entradas largas de antes que ainda estao no allow."""
+    try:
+        atual = _carrega(args[0])
+    except OSError:
+        return 0
+    for x in (atual.get("permissions") or {}).get("allow") or []:
+        if x in RETIRADAS:
+            print(x)
+    return 0
+
+
+def cmd_remove_retiradas(args):
+    """`remove-retiradas <settings>`: o settings sem as entradas largas de antes."""
+    atual = _carrega(args[0])
+    perms = atual.get("permissions")
+    if isinstance(perms, dict) and isinstance(perms.get("allow"), list):
+        perms["allow"] = [x for x in perms["allow"] if x not in RETIRADAS]
+    _escreve(atual)
+    return 0
+
+
 def cmd_merge_settings(args):
     """O merge de settings do apply-config.sh.
 
     A politica esta escrita no cabecalho daquele script e e repetida aqui de
     proposito, porque quem le este arquivo precisa dela junto:
       env                                   → defaults vencem (merge)
-      permissions.allow/deny                → UNIAO (a maquina mantem as dela)
+      permissions.allow/ask/deny            → UNIAO (a maquina mantem as dela)
       permissions.defaultMode               → o local, senao o default
       language/theme/autoCompact/outputStyle→ defaults vencem
     """
@@ -95,6 +195,12 @@ def cmd_merge_settings(args):
                             | set(pd.get("allow") or []))
     perms["deny"] = sorted(set((atual.get("permissions") or {}).get("deny") or [])
                            | set(pd.get("deny") or []))
+    # `ask` tambem e UNIAO, e a chave so nasce quando alguem a tem (uma maquina
+    # sem nenhuma regra de ask nao ganha `"ask": []` de brinde).
+    ask = sorted(set((atual.get("permissions") or {}).get("ask") or [])
+                 | set(pd.get("ask") or []))
+    if ask:
+        perms["ask"] = ask
     modo = _alternativa((atual.get("permissions") or {}).get("defaultMode"),
                         pd.get("defaultMode"))
     if modo is None:
@@ -178,6 +284,10 @@ def cmd_tem_chave(args):
 COMANDOS = {
     "valida": cmd_valida,
     "merge-settings": cmd_merge_settings,
+    "prepara-defaults": cmd_prepara_defaults,
+    "lista-novas": cmd_lista_novas,
+    "retiradas": cmd_retiradas,
+    "remove-retiradas": cmd_remove_retiradas,
     "statusline": cmd_statusline,
     "mkts": cmd_mkts,
     "mkt-names": cmd_mkt_names,
