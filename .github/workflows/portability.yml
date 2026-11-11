@@ -26,6 +26,10 @@ on:
         description: "janela do vigia em segundos (a suíte parada 2 janelas seguidas é morta); vazio = 300"
         required: false
         default: ""
+      xtrace:
+        description: "diagnóstico: 'true' roda os bash das suítes com xtrace (o fim do rastro aparece nas suítes travadas)"
+        required: false
+        default: ""
       os:
         description: "sistema a rodar"
         required: false
@@ -129,7 +133,8 @@ jobs:
           if [ -n "$FPY" ] || [ -n "$FSH" ]; then
             echo "::notice::rodada FILTRADA — py='$FPY' sh='$FSH' (não é a esteira inteira)"
             # shellcheck disable=SC2086
-            "$PY" scripts/run_suites.py --timeout "${{ inputs.janela || 300 }}" \
+            XT=""; [ "${{ inputs.xtrace }}" = "true" ] && XT="SHELLOPTS=xtrace"
+            env $XT "$PY" scripts/run_suites.py --timeout "${{ inputs.janela || 300 }}" \
               ${FPY:+--py $FPY} ${FSH:+--sh $FSH}
           else
             # A esteira INTEIRA mora em `scripts/suite.sh` (F17.3), e o CI a chama

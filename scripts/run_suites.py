@@ -449,7 +449,7 @@ def main(argv=None):
                 print("   (e não tinha dito nada antes de parar)", flush=True)
                 continue
             print("   o que ela tinha dito até parar (as últimas linhas):", flush=True)
-            for ln in saida.strip().splitlines()[-15:]:
+            for ln in saida.strip().splitlines()[-25:]:
                 print("   | " + ln[:200], flush=True)
             continue
         for ln in linhas_que_importam(saida):
