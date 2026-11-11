@@ -69,7 +69,7 @@ CL=$(jq -r '.anotacoes[0].classe' "$TMP/lixeiro/sessao-s2.json" 2>/dev/null)
 [ "$CL" = "servico" ] && ok "o servidor foi classificado como serviço" || bad "classe do servidor" "servico" "$CL"
 
 # Fim de sessão colhe tudo que a sessão anotou, ocioso ou não.
-printf '{"session_id":"s2"}' | bash "$SCRIPT_DIR/sessionend-colhe.sh" >/dev/null 2>&1
+bash "$SCRIPT_DIR/sessionend-colhe.sh" <<<'{"session_id":"s2"}' >/dev/null 2>&1
 sleep 0.5
 if kill -0 "$ALVO" 2>/dev/null; then
   bad "o fim de sessão encerrou o servidor anotado" "processo morto" "ainda vivo (pid $ALVO)"
@@ -90,7 +90,7 @@ sleep 1.2
 rm -f "$TMP/lixeiro/sessao-s-clear.json"
 printf '{"session_id":"s-clear","cwd":"%s","tool_input":{"command":"python3 -m http.server 0"}}' "$PROJ" \
   | bash "$SCRIPT_DIR/posttooluse-anota.sh" >/dev/null 2>&1
-printf '{"session_id":"s-clear","reason":"clear"}' | bash "$SCRIPT_DIR/sessionend-colhe.sh" >/dev/null 2>&1
+bash "$SCRIPT_DIR/sessionend-colhe.sh" <<<'{"session_id":"s-clear","reason":"clear"}' >/dev/null 2>&1
 sleep 0.5
 if kill -0 "$NO_CLEAR" 2>/dev/null; then
   ok "o /clear NÃO encerrou o que a sessão tinha aberto"
@@ -100,8 +100,7 @@ fi
 [ -f "$TMP/lixeiro/sessao-s-clear.json" ] && ok "…e o registro sobreviveu ao /clear" \
   || bad "o registro sobrevive ao /clear" "arquivo presente" "apagado — procedência perdida"
 # E o fim de verdade, na mesma sessão, ainda encerra.
-printf '{"session_id":"s-clear","reason":"prompt_input_exit"}' \
-  | bash "$SCRIPT_DIR/sessionend-colhe.sh" >/dev/null 2>&1
+bash "$SCRIPT_DIR/sessionend-colhe.sh" <<<'{"session_id":"s-clear","reason":"prompt_input_exit"}' >/dev/null 2>&1
 sleep 0.5
 if kill -0 "$NO_CLEAR" 2>/dev/null; then
   bad "o fim de verdade ainda encerra" "processo morto" "ainda vivo"
@@ -118,7 +117,7 @@ sleep 1.2
 rm -f "$TMP/lixeiro/sessao-s3.json"
 printf '{"session_id":"s3","cwd":"%s","tool_input":{"command":"python3 -m http.server 0"}}' "$PROJ" \
   | bash "$SCRIPT_DIR/posttooluse-anota.sh" >/dev/null 2>&1
-printf '{"session_id":"s3"}' | bash "$SCRIPT_DIR/sessionend-colhe.sh" >/dev/null 2>&1
+bash "$SCRIPT_DIR/sessionend-colhe.sh" <<<'{"session_id":"s3"}' >/dev/null 2>&1
 sleep 0.5
 if kill -0 "$ALHEIO" 2>/dev/null; then
   ok "servidor de outro projeto NÃO foi tocado"
@@ -161,14 +160,14 @@ printf '{"session_id":"s-turno","cwd":"%s","tool_input":{"command":"python3 pyte
 # janela de ocioso encolhe para 1 segundo só aqui — uma suíte não pode levar dois
 # minutos para provar a colheita.
 export LIXEIRO_OCIOSO_MIN=1
-printf '{"session_id":"s-turno"}' | bash "$SCRIPT_DIR/stop-colhe-turno.sh" >/dev/null 2>&1
+bash "$SCRIPT_DIR/stop-colhe-turno.sh" <<<'{"session_id":"s-turno"}' >/dev/null 2>&1
 if kill -0 "$OCUPADA" 2>/dev/null && kill -0 "$PARADA" 2>/dev/null; then
   ok "no primeiro turno nada morre — ainda não há foto contra o que comparar"
 else
   bad "no primeiro turno nada morre" "as duas vivas" "alguma foi encerrada sem foto"
 fi
 sleep 2.5
-printf '{"session_id":"s-turno"}' | bash "$SCRIPT_DIR/stop-colhe-turno.sh" >/dev/null 2>&1
+bash "$SCRIPT_DIR/stop-colhe-turno.sh" <<<'{"session_id":"s-turno"}' >/dev/null 2>&1
 unset LIXEIRO_OCIOSO_MIN
 sleep 0.5
 if kill -0 "$OCUPADA" 2>/dev/null; then
@@ -207,7 +206,7 @@ else
     && ok "nada ficou preso num registro que só o agente enxerga" \
     || bad "registro só do agente" "não existe" "$(jq -c '.anotacoes' "$TMP/lixeiro/sessao-agente-de-bancada.json" 2>/dev/null)"
   # A prova que importa: quem colhe é a DONA, sem nunca ter visto o comando.
-  printf '{"session_id":"dona"}' | bash "$SCRIPT_DIR/sessionend-colhe.sh" >/dev/null 2>&1
+  bash "$SCRIPT_DIR/sessionend-colhe.sh" <<<'{"session_id":"dona"}' >/dev/null 2>&1
   sleep 0.5
   if kill -0 "$BANCADA" 2>/dev/null; then
     bad "a sessão dona colhe o servidor que o agente subiu" "processo morto" "ainda vivo (pid $BANCADA)"
