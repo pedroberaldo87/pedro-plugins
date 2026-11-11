@@ -21,7 +21,7 @@ Uso:
                  --session <id> --out-log <LOG.md> --out-manifest <MANIFEST.json> \\
                  [--cwd <dir>] [--quiet]
   extract_ata.py --auto --cwd <dir> --out-log ... --out-manifest ...
-      (auto: descobre o transcript via sentinel /tmp do hook de discovery; fallback = .jsonl mais
+      (auto: descobre o transcript via sentinel do hook de discovery (~/.claude/handoff/); fallback = .jsonl mais
        recente da pasta projects do cwd; agrega transcripts de teammates se houver clã)
 """
 import argparse
@@ -37,7 +37,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 try:
     from collect_engine import (  # noqa: E402
         anchor_of, collect, collect_edited_paths, detect_modules, discover_transcript,
-        find_team_transcripts, infer_scope, read_jsonl,
+        find_team_transcripts, infer_scope, read_jsonl, valid_session_id,
         _is_project_root,
     )
 except ImportError as e:
@@ -57,7 +57,8 @@ def write_gate_sentinel(session_id, scope, manifest_path=None):
     {project_root}/.claude/ata/manifest-<sid>.json) deixa o vínculo robusto a
     --out-dir custom e a qualquer divergência de localização.
     """
-    if not session_id:
+    # O id vira nome de arquivo no temporário compartilhado: separador ou `..` escapariam da pasta.
+    if not valid_session_id(session_id):
         return
     try:
         # Diretório temporário DO SISTEMA — perguntado, nunca assumido.

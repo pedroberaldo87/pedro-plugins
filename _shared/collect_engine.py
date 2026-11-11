@@ -26,8 +26,8 @@ import hashlib
 import json
 import os
 import re
+import stat
 import sys
-import tempfile
 
 HOME = os.path.expanduser("~")
 PROJECTS_DIR = os.path.join(HOME, ".claude", "projects")
@@ -297,6 +297,70 @@ def read_jsonl(path):
     return out
 
 
+# --- sentinel de descoberta (hook SessionStart → extract_ata --auto) ----------------------------
+# O hook `sessionstart-ata.sh` grava ali o transcript da sessão; a skill (que não recebe
+# session_id) o lê de volta. O sentinel é um PONTEIRO: quem o planta escolhe o que /handoff lê.
+SESSION_ID_RE = re.compile(r"^[A-Za-z0-9_-]{1,128}$")
+
+
+def valid_session_id(sid):
+    """Id de sessão serve de nome de arquivo (LOG-<sid>.md, sentinel do gate): só [A-Za-z0-9_-]."""
+    return isinstance(sid, str) and bool(SESSION_ID_RE.match(sid))
+
+
+def sentinel_dir():
+    base = os.environ.get("CLAUDE_CONFIG_DIR") or os.path.join(HOME, ".claude")
+    return os.path.join(base, "handoff")
+
+
+def sentinel_path(cwd):
+    h = hashlib.sha1(cwd.encode("utf-8")).hexdigest()[:12]
+    return os.path.join(sentinel_dir(), "claude-ata-session-%s" % h)
+
+
+def _dentro_de(pasta, caminho):
+    """`caminho` (resolvido, sem .. nem symlink) está dentro de `pasta`? Compara por componente,
+    não por prefixo de texto: `projects-evil/` não está dentro de `projects/`."""
+    try:
+        pasta = os.path.realpath(pasta)
+        caminho = os.path.realpath(caminho)
+        return os.path.commonpath([pasta, caminho]) == pasta and caminho != pasta
+    except ValueError:      # outro drive no Windows
+        return False
+
+
+def _le_sentinel(cwd):
+    """(transcript, session_id) do sentinel do cwd, ou None se faltar ou não merecer confiança.
+
+    Confere: arquivo comum (não symlink) · do usuário que roda · sem escrita de grupo/outros ·
+    transcript_path dentro de projects/ e existente · session_id no formato de id (senão cai no
+    nome do .jsonl)."""
+    alvo = sentinel_path(cwd)
+    try:
+        st = os.lstat(alvo)
+        if not stat.S_ISREG(st.st_mode):
+            return None
+        if hasattr(os, "getuid") and st.st_uid != os.getuid():
+            return None
+        if st.st_mode & 0o022:
+            return None
+        with open(alvo, encoding="utf-8") as fh:
+            data = json.load(fh)
+    except (OSError, ValueError):
+        return None
+    if not isinstance(data, dict):
+        return None
+    tp = data.get("transcript_path")
+    if not isinstance(tp, str) or not tp or not os.path.isfile(tp) or not _dentro_de(PROJECTS_DIR, tp):
+        return None
+    sid = data.get("session_id")
+    if not valid_session_id(sid):
+        sid = os.path.splitext(os.path.basename(tp))[0]
+        if not valid_session_id(sid):
+            return None
+    return tp, sid
+
+
 def discover_transcript(cwd, session_id=None):
     """sid-first (determinístico) → sentinel por-cwd → .jsonl mais recente do cwd.
 
@@ -313,19 +377,13 @@ def discover_transcript(cwd, session_id=None):
         hits = glob.glob(os.path.join(PROJECTS_DIR, "*", "%s.jsonl" % session_id))
         if hits:
             return hits[0], session_id
-    # 2) legado: sentinel por-cwd do hook de discovery
+    # 2) sentinel por-cwd do hook de discovery. Mora no diretório DO USUÁRIO (não no temporário
+    #    compartilhado, onde outro usuário local previa o nome e plantava o arquivo) e só vale
+    #    depois de conferido: ver `_le_sentinel`.
     if cwd:
-        h = hashlib.sha1(cwd.encode("utf-8")).hexdigest()[:12]
-        # Diretório temporário DO SISTEMA — o mesmo que sessionstart-ata.sh usa.
-        sentinel = os.path.join(tempfile.gettempdir(), f"claude-ata-session-{h}")
-        try:
-            with open(sentinel, encoding="utf-8") as fh:
-                data = json.load(fh)
-            tp = data.get("transcript_path")
-            if tp and os.path.exists(tp):
-                return tp, data.get("session_id")
-        except (OSError, json.JSONDecodeError):
-            pass
+        lido = _le_sentinel(cwd)
+        if lido:
+            return lido
         # 3) fallback: .jsonl mais recente do cwd. getmtime guard: um .jsonl pode ser
         # rotacionado entre o glob e o stat (Claude Code poda sessões) — não derrubar a rodada.
         sub = cwd_to_projects_subdir(cwd)
@@ -462,8 +520,17 @@ def is_human_prompt(rec):
     return not any(s.startswith(p) for p in SYSTEM_TAG_PREFIXES)
 
 
+# A rejeição do harness abre SEMPRE assim ("The user doesn't want to proceed with this tool use…
+# To tell you how to proceed, the user said:"). Texto de ferramenta que por acaso contém "the user
+# said:" (erro que ecoa arquivo, página, saída de comando de repo alheio) não abre assim.
+_REJEICAO_RE = re.compile(r"\A\s*The user (?:doesn['\u2019]t want to|rejected)\b", re.I)
+
+
 def extract_rejection_speech(tur_str):
-    """A fala do humano numa rejeição de tool fica após 'the user said:'."""
+    """A fala do humano numa rejeição de tool fica após 'the user said:' — mas só na mensagem
+    de rejeição do próprio harness; texto de ferramenta qualquer não é fala do humano."""
+    if not isinstance(tur_str, str) or not _REJEICAO_RE.match(tur_str):
+        return None
     if "the user said:" not in tur_str:
         return None
     tail = tur_str.split("the user said:", 1)[1]

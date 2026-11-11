@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # SessionStart hook (rito ATA) — grava o caminho do transcript da sessão num
-# sentinel no temporário do sistema para a skill handoff (que NÃO recebe session_id, pois skill ≠ hook)
+# sentinel no diretório do usuário (~/.claude/handoff/) para a skill handoff (que NÃO recebe session_id, pois skill ≠ hook)
 # achar o .jsonl certo via extract_ata.py --auto.
 # Fail-open: qualquer erro → exit 0, nunca atrapalha o início da sessão.
 # Sem python3 não há o que rodar aqui — o corpo inteiro do hook é Python.
@@ -13,7 +13,7 @@ fi
 set -uo pipefail
 INPUT="$(cat 2>/dev/null || true)"
 python3 -c "$(cat <<'PY'
-import json, sys, os, hashlib, tempfile
+import json, sys, os, hashlib
 try:
     data = json.loads(sys.argv[1]) if len(sys.argv) > 1 and sys.argv[1].strip() else {}
 except Exception:
@@ -28,10 +28,20 @@ rec = {
     "source": data.get("source", ""),
 }
 try:
-    # Diretório temporário DO SISTEMA — perguntado, nunca assumido.
-    alvo = os.path.join(tempfile.gettempdir(), "claude-ata-session-%s" % h)
-    with open(alvo, "w") as fh:
+    # O sentinel é um PONTEIRO que o /handoff --auto segue: mora no diretório do USUÁRIO
+    # (0700, arquivo 0600), nunca no temporário compartilhado, onde outro usuário local
+    # previa o nome e plantava o arquivo. Mesmo caminho de collect_engine.sentinel_path().
+    base = os.environ.get("CLAUDE_CONFIG_DIR") or os.path.join(os.path.expanduser("~"), ".claude")
+    pasta = os.path.join(base, "handoff")
+    os.makedirs(pasta, mode=0o700, exist_ok=True)
+    os.chmod(pasta, 0o700)          # o mode do makedirs passa pelo umask; pasta antiga é apertada
+    alvo = os.path.join(pasta, "claude-ata-session-%s" % h)
+    # temp + rename: nunca segue um symlink plantado no lugar do alvo, e o arquivo nasce 0600
+    tmp = "%s.%d.tmp" % (alvo, os.getpid())
+    fd = os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+    with os.fdopen(fd, "w") as fh:
         json.dump(rec, fh)
+    os.replace(tmp, alvo)
 except OSError:
     pass
 PY
