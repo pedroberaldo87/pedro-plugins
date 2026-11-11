@@ -379,7 +379,7 @@ intent-guard       0.8.18  [intent-guard]               HOOKS
 lixeiro             1.6.0  [faxina]                     HOOKS
 principles          1.0.5  [principles]                 -
 project-skills    0.22.231  [completude,design-md,doc,doc-load,doc-touch,monitorar,pesquisa-referencias,plan,project-skills,qa-loop,reentrada,sprint,start] HOOKS
-sec                 0.1.0  [sec]                        -
+sec                 0.1.1  [sec]                        -
 ship                1.5.7  [ship]                       HOOKS
 slides              1.6.6  [slides]                     -
 vision              0.1.1  []                           -
