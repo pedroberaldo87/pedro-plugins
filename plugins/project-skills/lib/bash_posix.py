@@ -34,10 +34,40 @@ Uso
 """
 
 import os
-import shutil
 import subprocess
 
 _BASH = None
+
+
+def _igual(a, b):
+    return os.path.normcase(os.path.realpath(a)) == os.path.normcase(os.path.realpath(b))
+
+
+def _bash_do_path():
+    """Os `bash` das pastas ABSOLUTAS do PATH, na ordem — NUNCA o da pasta corrente.
+
+    `shutil.which` não serve aqui (scan 8e9a3ff2, achado 39): no Windows ele consulta a
+    pasta corrente ANTES do PATH, e no POSIX uma entrada vazia ou relativa (`:`, `.`,
+    `bin`) vale como cwd. A pasta corrente é a do repositório que o usuário abriu — um
+    `bash.exe`/`bash.bat` ali seria executado, e o único crivo do chamador, imprimir
+    `VIVO`, um programa plantado imprime. Por isso o PATH é percorrido à mão: entrada
+    vazia, relativa ou que resolve para o cwd é descartada, e `which` não é chamado.
+    """
+    cwd = os.getcwd()
+    exts = [""]
+    if os.name == "nt":
+        exts = [e.lower() for e in os.environ.get("PATHEXT", ".COM;.EXE;.BAT;.CMD").split(";") if e]
+    achados = []
+    for pasta in os.environ.get("PATH", "").split(os.pathsep):
+        pasta = pasta.strip('"')
+        if not pasta or not os.path.isabs(pasta) or _igual(pasta, cwd):
+            continue
+        for ext in exts:
+            c = os.path.join(pasta, "bash" + ext)
+            if os.path.isfile(c) and os.access(c, os.X_OK):
+                achados.append(c)
+                break
+    return achados
 
 
 def bash_posix():
@@ -45,7 +75,7 @@ def bash_posix():
     global _BASH
     if _BASH is not None:
         return _BASH or None
-    candidatos = [shutil.which("bash")]
+    candidatos = _bash_do_path()
     if os.name == "nt":
         # Barra NORMAL de propósito: o Windows aceita as duas, e a invertida em
         # literal Python é campo minado (`\b` de `\bin` vira backspace).
@@ -53,7 +83,7 @@ def bash_posix():
                        "C:/Program Files/Git/usr/bin/bash.exe",
                        "C:/Program Files (x86)/Git/bin/bash.exe"]
     for c in candidatos:
-        if not c or not os.path.exists(c):
+        if not os.path.exists(c):
             continue
         try:
             r = subprocess.run([c, "-c", "echo VIVO"], capture_output=True, text=True,
