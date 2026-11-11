@@ -289,7 +289,11 @@ def roda(cmd, alvo, janela, bash):
             # Sem CPU medível (máquina sem bash, `ps` mudo), a saída decide
             # sozinha — e aí com o dobro da paciência, porque é meio sinal.
             if paradas >= (2 if viva is False else 4):
-                return "TRAVOU", time.time() - t0, None
+                # O que ela já tinha dito antes de parar é a única pista de ONDE parou:
+                # a suíte morta pelo vigia voltava sem uma linha, e no Windows do CI três
+                # delas penduraram dez minutos cada sem que o log mostrasse em que caso.
+                tmp.seek(0)
+                return "TRAVOU", time.time() - t0, tmp.read()
         tmp.seek(0)
         return ("ok" if p.returncode == 0 else "FALHOU"), time.time() - t0, tmp.read()
     finally:
@@ -438,9 +442,15 @@ def main(argv=None):
               % (len(puladas), ", ".join(a for a, _ in puladas)), flush=True)
     for estado, alvo, saida in ruins:
         print("\n───────── %s: %s" % (estado, alvo), flush=True)
-        if saida is None:
+        if estado == "TRAVOU":
             print("   (TRAVOU: sem CPU na árvore e sem saída nova por 2 janelas "
                   "de %.0fs — morta pelo vigia)" % a.janela, flush=True)
+            if not saida or not saida.strip():
+                print("   (e não tinha dito nada antes de parar)", flush=True)
+                continue
+            print("   o que ela tinha dito até parar (as últimas linhas):", flush=True)
+            for ln in saida.strip().splitlines()[-15:]:
+                print("   | " + ln[:200], flush=True)
             continue
         for ln in linhas_que_importam(saida):
             print("   " + ln[:200], flush=True)

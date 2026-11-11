@@ -22,6 +22,10 @@ on:
         description: "globs das suítes de shell (espaço entre eles); vazio = todas"
         required: false
         default: ""
+      janela:
+        description: "janela do vigia em segundos (a suíte parada 2 janelas seguidas é morta); vazio = 300"
+        required: false
+        default: ""
       os:
         description: "sistema a rodar"
         required: false
@@ -125,7 +129,7 @@ jobs:
           if [ -n "$FPY" ] || [ -n "$FSH" ]; then
             echo "::notice::rodada FILTRADA — py='$FPY' sh='$FSH' (não é a esteira inteira)"
             # shellcheck disable=SC2086
-            "$PY" scripts/run_suites.py --timeout 300 \
+            "$PY" scripts/run_suites.py --timeout "${{ inputs.janela || 300 }}" \
               ${FPY:+--py $FPY} ${FSH:+--sh $FSH}
           else
             # A esteira INTEIRA mora em `scripts/suite.sh` (F17.3), e o CI a chama
