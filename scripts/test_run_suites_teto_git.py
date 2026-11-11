@@ -95,6 +95,29 @@ try:
     check("temporário dentro de um repo alheio: a suíte não enxerga o repo", codigo == 0,
           saida[-400:])
 
+    # D) `realpath` do teto. Com TMPDIR que é LINK para um repo alheio (no macOS o `/var`
+    # do temporário é link para `/private/var`), o git resolve sozinho os tetos que vêm
+    # antes de qualquer entrada vazia; mas quem tem uma entrada vazia na lista (o git a
+    # trata como "não resolva os links dos seguintes") faz o teto do rodador valer
+    # SEM resolução. Só o `realpath` do rodador fecha esse caso: sem ele o git sobe pelo
+    # link até o repo alheio. Medido com git 2.50.1; sem entrada vazia o git já resolveria
+    # sozinho e o `realpath` seria invisível.
+    elo = os.path.join(obra, "elo-para-alheio")
+    try:
+        if os.name != "posix":
+            raise NotImplementedError                # a semântica da entrada vazia é de POSIX
+        os.symlink(alheio, elo)
+    except (OSError, NotImplementedError):
+        elo = None
+    if elo:
+        env = dict(os.environ, TMPDIR=elo, TMP=elo, TEMP=elo, GIT_CEILING_DIRECTORIES=os.pathsep)
+        r = subprocess.run([sys.executable, RODADOR, "--py", suite_a], capture_output=True,
+                           text=True, encoding="utf-8", errors="replace",
+                           stdin=subprocess.DEVNULL, start_new_session=True, cwd=RAIZ, env=env)
+        check("TMPDIR que é link para um repo alheio, com entrada vazia no teto do dono: "
+              "o teto do rodador vale resolvido (realpath)", r.returncode == 0,
+              (r.stdout + r.stderr)[-400:])
+
     # B) O teto inclui o temporário do SISTEMA, não só o da esteira: no macOS o
     # `mktemp -d` sem modelo ignora o TMPDIR e cai nele.
     suite_b = os.path.join(obra, "test_teto_sistema.py")
