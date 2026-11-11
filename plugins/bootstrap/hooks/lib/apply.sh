@@ -17,6 +17,11 @@
 # ("pendente: ..."). Quem instala e o /bootstrap, depois de mostrar a lista ao
 # usuario, rodando com `--install-new`.
 #
+# `--listar-pendentes` e so leitura: imprime as linhas "pendente: ..." e sai 0, SEM
+# ligar, desligar nem instalar nada. Quem so precisa SABER se ha item pendente (o hook
+# do PostToolUse, antes de regenerar o manifest) usa esta, porque o sync normal
+# desfaria na hora o `claude plugin enable/disable` que o usuario acabou de rodar.
+#
 # Operations (in order):
 #   1. Add missing marketplaces            (so com --install-new)
 #   2. Install missing plugins             (so com --install-new)
@@ -44,11 +49,12 @@
 
 set -uo pipefail
 
-INSTALL_NEW=""
+INSTALL_NEW=""; SO_PENDENTES=""
 for _a in "$@"; do
   case "$_a" in
     --install-new) INSTALL_NEW=1 ;;
-    *) echo "[pedro-plugins/apply] argumento desconhecido: $_a (use --install-new)" >&2; exit 255 ;;
+    --listar-pendentes) SO_PENDENTES=1 ;;
+    *) echo "[pedro-plugins/apply] argumento desconhecido: $_a (use --install-new ou --listar-pendentes)" >&2; exit 255 ;;
   esac
 done
 
@@ -209,6 +215,12 @@ while IFS=$'\t' read -r plugin_ref want_enabled; do
     fi
   fi
 done <<< "$MANIFEST_PLUGINS"
+
+# So listar: a pendencia ja foi impressa acima; nada daqui para baixo roda.
+if [ -n "$SO_PENDENTES" ]; then
+  [ -n "$INSTALL_NEW" ] && { log "error: --listar-pendentes nao combina com --install-new"; exit 255; }
+  exit 0
+fi
 
 # Refresh state after installs
 CURRENT_STATE="$(claude plugin list 2>/dev/null | awk '
