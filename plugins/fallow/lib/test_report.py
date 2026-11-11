@@ -152,6 +152,10 @@ def main():
     print("o `main` recusa: sai 2 e não deixa arquivo pra trás")
     raiz = tempfile.mkdtemp(prefix="fallow-report-test-")
     fallow_real, audit_real, buckets_real = R.run_fallow, R.run_audit_engine, R.build_buckets
+    # O `main` agora cria o token do live-sync em ~/.claude: nunca no HOME de verdade.
+    lar = tempfile.mkdtemp(prefix="fallow-report-home-")
+    env_real = {k: os.environ.get(k) for k in ("HOME", "USERPROFILE")}
+    os.environ["HOME"] = os.environ["USERPROFILE"] = lar
     try:
         os.makedirs(os.path.join(raiz, ".git"))
         R.run_fallow = lambda cmd, root: {}
@@ -172,11 +176,46 @@ def main():
 
         R.build_buckets = lambda d, u, h, a=None: bucket("Órfão confirmado — 0 referências.")
         R.main()
-        check("e o HTML sai quando a régua passa",
-              [f for f in os.listdir(saida) if f.endswith(".html")] != [])
+        paginas = [f for f in os.listdir(saida) if f.endswith(".html")]
+        check("e o HTML sai quando a régua passa", paginas != [])
+        tp = os.path.join(lar, ".claude", "visual-state", ".token")
+        check("primeiro relatório da máquina: o `main` cria o token (64 hex)",
+              R.visual_sync_token(tp) != "")
+        if paginas:
+            conteudo = open(os.path.join(saida, paginas[0]), encoding="utf-8").read()
+            check("  …e a página já sai com ele embutido",
+                  'window.VISUAL_TOKEN="%s"' % R.visual_sync_token(tp) in conteudo)
+            if os.name == "posix":
+                check("a página sai 0600 (leva o token e pode cair numa Desktop sincronizada)",
+                      (os.stat(os.path.join(saida, paginas[0])).st_mode & 0o777) == 0o600,
+                      oct(os.stat(os.path.join(saida, paginas[0])).st_mode))
+                check("  …o token criado é 0600", (os.stat(tp).st_mode & 0o777) == 0o600)
+                # rodar de novo sobre uma página 0644 de antes: volta a 0600 e o token não gira
+                os.chmod(os.path.join(saida, paginas[0]), 0o644)
+                tok1 = R.visual_sync_token(tp)
+                R.main()
+                check("  …página antiga 0644 reescrita volta a 0600",
+                      (os.stat(os.path.join(saida, paginas[0])).st_mode & 0o777) == 0o600)
+                check("  …e o token não é girado pelo `main`", R.visual_sync_token(tp) == tok1)
+        # token solto e token corrompido
+        if os.name == "posix":
+            os.chmod(tp, 0o644)
+            R.ensure_sync_token(tp)
+            check("token solto (0644) volta a 0600", (os.stat(tp).st_mode & 0o777) == 0o600)
+        with open(tp, "w") as fh:
+            fh.write("lixo\n")
+        novo = R.ensure_sync_token(tp)
+        check("token corrompido é refeito (64 hex) e gravado",
+              len(novo) == 64 and R.visual_sync_token(tp) == novo)
     finally:
         R.run_fallow, R.run_audit_engine, R.build_buckets = fallow_real, audit_real, buckets_real
+        for k, v in env_real.items():
+            if v is None:
+                os.environ.pop(k, None)
+            else:
+                os.environ[k] = v
         shutil.rmtree(raiz, ignore_errors=True)
+        shutil.rmtree(lar, ignore_errors=True)
 
     print()
     if FAILS:
