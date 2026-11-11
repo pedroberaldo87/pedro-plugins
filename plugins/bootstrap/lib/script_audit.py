@@ -122,7 +122,7 @@ def _modulos_locais(raiz, nomes):
         for f in fn:
             if f.endswith(".py") and f[:-3] in alvo:
                 achados.append(os.path.join(dp, f))
-    return achados
+    return sorted(achados)
 
 
 def _escaneia_py(caminho):
@@ -222,6 +222,10 @@ def classifica_arquivo(caminho, raiz_plugin):
         motivos += [rotulo + m for m in sorted(ex)]
         rede_total += [rotulo + m for m in sorted(rede)]
         escreve = escreve or esc
+    # a ordem de visita depende do sistema de arquivos (APFS ordena, ext4 nao): o relatorio
+    # gravado tem que sair igual em qualquer maquina
+    motivos = sorted(set(motivos))
+    rede_total = sorted(set(rede_total))
     if ilegivel:
         classe = "ilegivel"
     elif motivos:

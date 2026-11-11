@@ -118,7 +118,8 @@ raiz = script_audit.raiz_do_repo()
 if raiz is None:
     print("  skip  sem o repositorio ao lado (rodando de dentro do cache)")
 else:
-    linhas = {(l["plugin"], l["script"]): l for l in script_audit.varre_repo(raiz)}
+    linhas_repo = script_audit.varre_repo(raiz)
+    linhas = {(l["plugin"], l["script"]): l for l in linhas_repo}
     pre = linhas[("project-skills", "lib/precheck_largada.py")]
     check("precheck_largada.py (bash -c do --suite/--gate) → executa", pre["classe"] == "executa", pre)
     check("quem importa o precheck herda: completude.py → executa",
@@ -129,9 +130,27 @@ else:
     check("quem_serviu.py (stdlib, sem processo) → puro", linhas[("2op", "lib/quem_serviu.py")]["classe"] == "puro")
     check("cfgjson.py importa o analisador (que chama git) → executa, e nao e liberado",
           linhas[("bootstrap", "lib/cfgjson.py")]["classe"] == "executa")
-    liberados = script_audit.lista_permitida(script_audit.varre_repo(raiz))
+    liberados = script_audit.lista_permitida(linhas_repo)
     check("nenhum liberado e executor", all(linhas[(e["plugin"], e["script"])]["classe"] == "puro" for e in liberados))
     check("ha liberados (a lista nao ficou vazia)", len(liberados) >= 10, len(liberados))
+
+    # a ordem em que o sistema de arquivos lista as pastas muda de maquina para maquina
+    # (APFS ordena, ext4 nao): a CI do Ubuntu reprovou o baseline gravado no Mac por isso
+    orig_walk = os.walk
+
+    def walk_ao_contrario(topo, *a, **k):
+        for dp, dn, fn in orig_walk(topo, *a, **k):
+            dn.reverse()
+            fn.reverse()
+            yield dp, dn, fn
+
+    normal = script_audit._json_da_lista(linhas_repo)
+    os.walk = walk_ao_contrario
+    try:
+        invertido = script_audit._json_da_lista(script_audit.varre_repo(raiz))
+    finally:
+        os.walk = orig_walk
+    check("o baseline sai igual com a listagem de pastas em ordem inversa", normal == invertido)
 
 print("\n%d ok · %d FAIL" % (casos - falhas, falhas))
 sys.exit(1 if falhas else 0)

@@ -904,9 +904,9 @@
    "classe": "executa",
    "escreve": true,
    "motivos": [
+    "lib/bash_posix.py: import subprocess",
     "lib/plan_state.py: import subprocess",
-    "lib/precheck_largada.py: import subprocess",
-    "lib/bash_posix.py: import subprocess"
+    "lib/precheck_largada.py: import subprocess"
    ]
   },
   {
@@ -941,10 +941,10 @@
    "escreve": true,
    "motivos": [
     "import subprocess",
-    "lib/pattern_check.py: import subprocess",
     "lib/doc_load.py: import subprocess",
+    "lib/journal.py: import subprocess",
     "lib/organism.py: import subprocess",
-    "lib/journal.py: import subprocess"
+    "lib/pattern_check.py: import subprocess"
    ]
   },
   {
@@ -1028,8 +1028,8 @@
    "motivos": [
     "import subprocess",
     "lib/doc_load.py: import subprocess",
-    "lib/organism.py: import subprocess",
-    "lib/journal.py: import subprocess"
+    "lib/journal.py: import subprocess",
+    "lib/organism.py: import subprocess"
    ]
   },
   {
@@ -1048,8 +1048,8 @@
    "escreve": true,
    "motivos": [
     "import subprocess",
-    "lib/precheck_largada.py: import subprocess",
-    "lib/bash_posix.py: import subprocess"
+    "lib/bash_posix.py: import subprocess",
+    "lib/precheck_largada.py: import subprocess"
    ]
   },
   {
@@ -1060,8 +1060,8 @@
    "escreve": true,
    "motivos": [
     "import subprocess",
-    "lib/plan_state.py: import subprocess",
-    "lib/bash_posix.py: import subprocess"
+    "lib/bash_posix.py: import subprocess",
+    "lib/plan_state.py: import subprocess"
    ]
   },
   {
@@ -1331,9 +1331,9 @@
    "classe": "executa",
    "escreve": true,
    "motivos": [
+    "hooks/bash_posix.py: import subprocess",
     "import subprocess",
-    "lib/bash_posix.py: import subprocess",
-    "hooks/bash_posix.py: import subprocess"
+    "lib/bash_posix.py: import subprocess"
    ]
   },
   {
@@ -1361,10 +1361,10 @@
    "classe": "executa",
    "escreve": true,
    "motivos": [
+    "hooks/bash_posix.py: import subprocess",
     "import subprocess",
-    "lib/visual_page.py: import subprocess",
     "lib/bash_posix.py: import subprocess",
-    "hooks/bash_posix.py: import subprocess"
+    "lib/visual_page.py: import subprocess"
    ]
   },
   {
@@ -1382,9 +1382,9 @@
    "classe": "executa",
    "escreve": true,
    "motivos": [
+    "hooks/bash_posix.py: import subprocess",
     "import subprocess",
-    "lib/bash_posix.py: import subprocess",
-    "hooks/bash_posix.py: import subprocess"
+    "lib/bash_posix.py: import subprocess"
    ]
   },
   {
