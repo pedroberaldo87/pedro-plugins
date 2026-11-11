@@ -79,7 +79,8 @@ def expande(padroes):
 
 # ── SUÍTE PULADA POR SISTEMA: SÓ COM MOTIVO, SEMPRE EM VOZ ALTA ─────────────
 #
-# Esta tabela existe por causa de UMA suíte, e de um dano medido. No Windows do CI,
+# Esta tabela existe por causa de um dano medido (duas suítes entram hoje; a primeira é o caso
+# que a criou). No Windows do CI,
 # `plugins/lixeiro/hooks/test_lixeiro_hooks.sh` MATAVA A ESTEIRA INTEIRA: o hook de
 # fim de sessão do lixeiro acha a raiz "órfã" do servidor de teste subindo pela
 # árvore de processos, e só para nos ancestrais DO PRÓPRIO HOOK. Lá a cadeia do hook
@@ -103,6 +104,10 @@ PULA_NO_SO = {
             "o lixeiro sobe pela árvore de processos até a raiz órfã do servidor de teste e, no "
             "Windows, a cadeia de ancestrais do hook vem quebrada: o SIGTERM atinge o rodador, o "
             "runner do CI e processos do sistema, e derruba a esteira sem placar (PR #10, nota W1)",
+        "scripts/test_sem_jq.sh":
+            "no Windows do CI a suíte fica mais de 10 minutos sem imprimir nada, no passo que monta o "
+            "PATH sem jq ligando UM A UM cada executável do PATH (`ln -s`; hipótese não perfilada: no "
+            "Git Bash isso copia o arquivo, e são milhares), e o vigia a mata como TRAVOU (PR #10, nota W2)",
     },
 }
 
