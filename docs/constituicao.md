@@ -73,13 +73,17 @@ permissão automática para comando destrutivo, plugin ligado de fábrica com de
 externa não instalada, e caminho padrão apontando para uma pasta do autor.
 
 **Prova de que vale hoje** — `plugins/bootstrap/config/settings-defaults.json` continua
-ligando aprovação automática na máquina de quem instala: **121** permissões no `allow`
-(`python3 -c "import json;print(len(json.load(open('plugins/bootstrap/config/settings-defaults.json'))['permissions']['allow']))"`).
-O que saiu desse allow nesta rodada — `Bash(git push*)`, `Bash(ssh-add*)`, `Bash(supabase*)`
-e os prefixos de atribuição com curinga (`Bash(TOKEN=*)`, `Bash(SUPABASE_*)`), que reabriam
-qualquer comando — saiu por revisão manual, não por gate: nada impede a próxima entrada
-igual. `plugins/bootstrap/skills/bootstrap/SKILL.md:88` hoje diz o que o setup de fato faz —
-"Isso **liga aprovação automática**" — e enumera família por família o que entra.
+ligando aprovação automática na máquina de quem instala, mas só do que não age fora dela:
+`python3 -c "import json;print(len(json.load(open('plugins/bootstrap/config/settings-defaults.json'))['permissions']['allow']))"`
+dá o tamanho do allow de hoje. O que saiu desse allow — `Bash(git push*)`, `Bash(ssh-add*)`,
+`Bash(supabase*)`, os prefixos de atribuição com curinga (`Bash(TOKEN=*)`, `Bash(SUPABASE_*)`),
+e, na correção de segurança de 2026-11, os interpretadores soltos (`python*`, `node*`,
+`perl*`, `bun*`), os embrulhos (`env*`, `xargs*`, `timeout*`), `WebFetch` e os três recursos
+do Playwright que rodam código ou enviam arquivo — hoje é cobrado por teste:
+`hooks/test_bootstrap_hooks.sh` reprova a CLASSE, não só os nomes. `python3` e `node` ficam
+apenas com o caminho do script preso ao cache do marketplace.
+`plugins/bootstrap/skills/bootstrap/SKILL.md` diz o que o setup de fato faz — "Isso **liga
+aprovação automática**" — e enumera família por família o que entra e o que não entra.
 
 ---
 

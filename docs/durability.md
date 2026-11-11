@@ -632,11 +632,11 @@ Entrou no inventário em 2026-08-21. Escrito por `plugins/project-skills/lib/pre
 
 ### 3.16h · A marca de consentimento das permissões — `~/.claude/pedro-plugins-permissions-ok`
 
-Entrou no inventário em 2026-08-21 (commit `bfbe936`, o pente fino). Escrita pelo `/bootstrap:setup` (só depois do "sim" do usuário) ou por anistia do próprio `apply-config.sh` quando detecta que o merge já tinha acontecido antes da regra existir; lida por `plugins/bootstrap/hooks/lib/apply-config.sh` a cada SessionStart.
+Entrou no inventário em 2026-08-21 (commit `bfbe936`, o pente fino). Escrita **só** pelo `/bootstrap:setup`, depois do "sim" do usuário; lida por `plugins/bootstrap/hooks/lib/apply-config.sh` quando o `/bootstrap:setup` o roda (sob demanda — nenhum hook de SessionStart o chama).
 
 - **Cobertura: NENHUMA — e a perda é declarada barata.** Um arquivo-texto pequeno fora de qualquer repositório, sem cópia, sem backup. [confirmado — `apply-config.sh:CONSENT`, e o caminho mora em `~/.claude/`, o bloco (B) inteiro sem cobertura]
-- **O que se perde se sumir:** só o *de acordo gravado*. O próximo SessionStart segura o merge de permissões dos defaults (env, flags e barra seguem aplicados) e avisa em vez de aplicar — nenhum dado some, nenhum comportamento inverte em silêncio: a mensagem do apply diz o que falta e como resolver. **A anistia ainda pega o caso comum:** máquina onde o merge já aconteceu tem uma permissão distintiva no `settings.json`, e o apply regrava a marca sozinho na próxima sessão.
-- **RPO: irrelevante. RTO: um comando** — o `/bootstrap:setup` mostra a lista do allow (a contagem sai do comando no `SKILL.md` do bootstrap, nunca de texto) e regrava a marca com o de acordo.
+- **O que se perde se sumir:** só o *de acordo gravado*. O próximo `/bootstrap:setup` segura o merge de permissões dos defaults (env, flags e barra seguem aplicados) e avisa em vez de aplicar — nenhum dado some, nenhum comportamento inverte em silêncio: a mensagem do apply diz o que falta e como resolver. **Não há anistia:** máquina com o allow já mesclado, mas sem a marca, também pede o "sim" de novo; o que ela tem no `settings.json` continua lá.
+- **RPO: irrelevante. RTO: um comando** — o `/bootstrap:setup` mostra a lista do que o merge acrescenta (`apply-config.sh --listar`) e regrava a marca com o de acordo.
 - **Por que ela existe fora do repo, e é correto assim:** a marca é o consentimento de *quem instala*, por máquina — versioná-la no marketplace seria distribuir o "sim" de uma pessoa como default de todas. Mesma lógica do `arsenal.md` (§3.16c).
 
 ### 3.17 · Cofre de secrets — iCloud

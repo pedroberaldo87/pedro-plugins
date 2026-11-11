@@ -118,8 +118,8 @@ Fora do recorte das tabelas (não lê o payload do evento, e mora em `hooks/lib/
 **portão de consentimento de permissões**. O merge do bloco `permissions` dos defaults só
 roda com a marca `~/.claude/pedro-plugins-permissions-ok` gravada (quem a grava é o
 `/bootstrap` setup, depois de mostrar a lista); sem ela, env + flags entram e as
-permissões esperam — com anistia para a máquina onde o merge já tinha acontecido. Quem
-decide ali é `grep` sobre o settings + a existência do arquivo de marca, não `jq` nem
+permissões esperam — sem anistia: nenhum texto do settings substitui a marca. Quem
+decide ali é a existência do arquivo de marca, não `jq` nem
 `hook-json.sh`.
 
 ## Classe B1 — lê o campo que decide BLOQUEAR (o dano máximo do issue #5)

@@ -578,11 +578,10 @@ ls -1 ~/.claude/lixeiro | sed 's/-[0-9a-f-]\{8\}.*//' | sort | uniq -c
 
 ### B18 · `~/.claude/pedro-plugins-permissions-ok` — a marca de consentimento das permissões
 
-- **Nasceu em 2026-08-21** (commit `bfbe936`, o pente fino). Um arquivo pequeno, e **o que importa é existir**: sem ele, o `apply-config.sh` do bootstrap aplica env, flags e barra de status a cada `SessionStart` e **segura o merge de `permissions`** — o allow dos defaults liga aprovação automática na máquina de quem instala, e default de risco não nasce ligado (Artigo 2 da constituição do marketplace).
-- **Dois escritores, duas naturezas:** o `/bootstrap:setup` grava por `touch` **só depois do "sim" do dono**, com a lista do que o allow liga mostrada antes; e o próprio `apply-config.sh` grava por **anistia** quando detecta que o merge já aconteceu antes da regra existir (uma permissão distintiva dos defaults presente no `settings.json`) — o conteúdo aí é a linha `anistia: merge anterior detectado em <data>`, e o motivo é declarado no script: travar uma máquina que já vive nesse estado só a deixaria sem atualização. [confirmado — `plugins/bootstrap/hooks/lib/apply-config.sh` e `skills/bootstrap/SKILL.md`]
-- **Um leitor:** o mesmo `apply-config.sh`, a cada `SessionStart`. Marca ausente não trava a sessão — o apply segue com o resto dos defaults e avisa que as permissões esperam o de acordo.
-- ⚠️ **Nesta máquina o arquivo ainda NÃO existe**, embora a condição de anistia já seja verdadeira (`grep -c 'mcp__plugin_playwright_playwright__browser_navigate' ~/.claude/settings.json` → 2): a anistia só roda no próximo `SessionStart`, e nenhum aconteceu desde o commit. [confirmado nesta rodada]
-- **Natureza: acordo com o dono, sem backup — e barato de refazer.** Apagá-lo não perde dado: re-trava o merge de permissões até um novo "sim" (ou até a anistia notar o settings já mesclado). É a versão de-máquina do que A12 é no repo: a fala do dono virando arquivo que um programa consulta.
+- **Nasceu em 2026-08-21** (commit `bfbe936`, o pente fino). Um arquivo pequeno, e **o que importa é existir**: sem ele, o `apply-config.sh` do bootstrap aplica env, flags e barra de status e **segura o merge de `permissions`** (allow, ask e deny) — o allow dos defaults liga aprovação automática na máquina de quem instala, e default de risco não nasce ligado (Artigo 2 da constituição do marketplace).
+- **Um escritor só:** o `/bootstrap:setup` grava por `touch`, **só depois do "sim" do usuário**, com a lista do que o merge acrescenta mostrada antes (`apply-config.sh --listar`, que não escreve nada). Não há anistia: até a correção de segurança de 2026-11 o próprio `apply-config.sh` também gravava a marca quando o `settings.json` citava uma ferramenta do Playwright em qualquer lugar do arquivo, e um texto solto (num deny, num ask) valia como consentimento. Foi removida. [confirmado — `plugins/bootstrap/hooks/lib/apply-config.sh` e `skills/bootstrap/SKILL.md`; o teste `test_bootstrap_hooks.sh` cobre o caso com o nome no deny]
+- **Um leitor, e não é o SessionStart:** o `apply-config.sh`, que roda **sob demanda**, chamado pelo `/bootstrap:setup` (o cabeçalho do arquivo diz "run on demand"). Nenhum hook de sessão o chama — o `session-sync.sh` só roda o `apply.sh`, que não toca em permissões. Marca ausente não trava nada: o apply segue com o resto dos defaults e avisa que as permissões esperam o de acordo.
+- **Natureza: acordo do usuário, sem backup — e barato de refazer.** Apagá-lo não perde dado: re-trava o merge de permissões até um novo "sim" no `/bootstrap:setup`. O que a máquina já tem no `settings.json` não é desfeito por isso. É a versão de-máquina do que A12 é no repo: a fala do dono virando arquivo que um programa consulta.
 
 ---
 
@@ -1031,8 +1030,7 @@ plugins/bootstrap/config/manifest.json  regenerado no SessionStart, MENOS as cha
                                        ~/.claude/projects; run já rotacionado não volta
 .claude/.sprint/precheck.json          as 4 passadas refazem do plano + registro selado;
                                        a resposta do dono, quando selada, mora no A12
-~/.claude/pedro-plugins-permissions-ok  volta com um novo "sim" no /bootstrap:setup
-                                       (ou pela anistia sobre settings já mesclado);
+~/.claude/pedro-plugins-permissions-ok  volta com um novo "sim" no /bootstrap:setup;
                                        sem ela o merge de permissões não roda
 ```
 

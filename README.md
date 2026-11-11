@@ -111,8 +111,9 @@ Expected result on a blank machine: **23 plugins enabled + 1 disabled by default
 > ⚠️ **If you see `sync incompleto: N operações falharam` ("incomplete sync: N operations failed"), run `/bootstrap:setup` again.**
 > Measured on a clean install: the first run left one third-party marketplace behind and the
 > second one installed it. The script is convergent on purpose (re-running is safe and never
-> touches a marketplace the manifest does not declare), and the auto-sync at session start
-> would do it on its own — but the yellow warning is alarming before that happens.
+> touches a marketplace the manifest does not declare). The session-start sync no longer
+> finishes the job: it only lists what is still missing, and `/bootstrap:setup` installs it
+> after you confirm the list.
 > (The script's messages are in Portuguese.)
 
 > `bootstrap` replaces the old `bootstrap-third-party`.
@@ -284,7 +285,7 @@ not change.
 
 | Plugin | Trigger | What it does |
 |---|---|---|
-| `bootstrap` ⚙️ | `/bootstrap:setup` · automatic on SessionStart + PostToolUse | Prepares a new machine: auto-syncs marketplaces and plugins through hooks **and** applies the versioned global config (env, permissions, flags, global `CLAUDE.md`, output style, a statusLine resolved per machine). It also ships **Clean Style** (result on the first line, a ceiling on prose, pasted evidence uncapped) and a **conformance checker** that compares the live machine against the versioned contract without writing anything. Run `/bootstrap:setup` once per machine. |
+| `bootstrap` ⚙️ | `/bootstrap:setup` · automatic on SessionStart + PostToolUse | Prepares a new machine: keeps installed marketplaces and plugins in sync through hooks (it installs nothing new without your confirmation in `/bootstrap:setup`) **and** applies the versioned global config (env, permissions, flags, global `CLAUDE.md`, output style, a statusLine resolved per machine). It also ships **Clean Style** (result on the first line, a ceiling on prose, pasted evidence uncapped) and a **conformance checker** that compares the live machine against the versioned contract without writing anything. Run `/bootstrap:setup` once per machine. |
 
 ---
 
@@ -300,7 +301,7 @@ Each plugin is a self-contained folder: Claude Code reads the catalog, copies th
 
 | Plugin | Events | Role |
 |---|---|---|
-| `bootstrap` | SessionStart×2 · PostToolUse | Auto-sync of marketplaces and plugins, and the notice after a plugin command |
+| `bootstrap` | SessionStart×2 · PostToolUse | Sync of what is already installed, a notice about what the manifest adds, and the notice after a plugin command |
 | `branches` | SessionStart×2 · PostToolUse | Stale-branch notice, silent when there is none |
 | `context-guard` | SessionStart×2 · PostToolUse | Watches how much of the conversation is used and suggests the handoff |
 | `gauntlet` | SessionStart×2 · PreToolUse | Denies new dispatches while a delivery has no judge, and finds the contest again on startup |
