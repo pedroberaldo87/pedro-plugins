@@ -26,7 +26,7 @@ cd pedro-plugins
 ```bash
 bash scripts/suite.sh                    # the whole pipeline (CI runs the same file)
 python3 scripts/readme_counts_check.py   # counts and names in both READMEs
-python3 scripts/public_repo_check.py     # no personal data in tracked files
+python3 scripts/public_repo_check.py     # no personal data in tracked files (reports file:line:col + rule, never the matched text)
 bash scripts/sync-shared.sh --check      # vendored copies match _shared/
 claude plugin validate .                 # catalog and manifests
 ```

@@ -144,4 +144,9 @@ jobs:
             exit 0
           fi
           "$PY" scripts/hook_contract.py --baseline .claude/hook-contract.baseline.json --fail-on high
-          "$PY" scripts/public_repo_check.py
+          # `--so-estruturais`: a lista de termos (nome do dono, clientes, máquinas) é
+          # gitignorada DE PROPÓSITO e nunca chega a este repositório público — pô-la no
+          # CI seria o vazamento que o gate existe pra impedir. Sem a flag, `CI=true` + lista
+          # ausente reprova (exit 3); com ela o pedido é explícito e a saída ainda diz
+          # "TERMOS NÃO RODARAM". A varredura de termos acontece no commit, na máquina do dono.
+          "$PY" scripts/public_repo_check.py --so-estruturais

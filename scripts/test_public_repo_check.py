@@ -8,8 +8,12 @@ Os termos de teste são fictícios, gravados num arquivo temporário e carregado
 As strings que casam as regras ESTRUTURAIS são montadas por concatenação — o gate lê
 linha a linha, então "fulano@" + "g" + "mail.com" não dispara ao varrer este próprio arquivo.
 """
+import json
 import os
 import re
+import shutil
+import stat
+import subprocess
 import sys
 import tempfile
 
@@ -111,7 +115,163 @@ achados = G.varre()
 check("varre() devolve lista", isinstance(achados, list))
 if achados:
     check("achado tem os campos que o conserto exige",
-          all(k in achados[0] for k in ("file", "line", "rule", "fix", "excerpt")))
+          all(k in achados[0] for k in ("file", "line", "rule", "fix")))
+    check("achado NAO carrega o trecho nem o casado (nada de segredo ecoado)",
+          "excerpt" not in achados[0] and "match" not in achados[0])
+
+# ─── o gate de ponta a ponta, num repositório descartável ────────────────────
+# A cópia do script vai para <repo>/scripts/ — a raiz do gate é a pasta do script, então
+# ele varre ESTE repositório de mentira e não o verdadeiro. Todo conteúdo que casa uma
+# regra é montado por concatenação (o gate lê linha a linha).
+SCRIPT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "public_repo_check.py")
+POSIX = os.name != "nt"
+
+
+def _rm(func, path, _exc):  # git deixa objeto somente-leitura (Windows)
+    os.chmod(path, stat.S_IWRITE)
+    func(path)
+
+
+def repo_de_mentira(com_git=True, termos=None):
+    raiz = tempfile.mkdtemp(prefix="prc-")
+    os.makedirs(os.path.join(raiz, "scripts"))
+    shutil.copy(SCRIPT, os.path.join(raiz, "scripts", "public_repo_check.py"))
+    if termos is not None:
+        with open(os.path.join(raiz, "scripts", "public_repo_terms"), "w",
+                  encoding="utf-8") as fh:
+            fh.write(termos)
+    if com_git:
+        roda_git(raiz, "init", "-q")
+        roda_git(raiz, "config", "core.quotePath", "true")  # o default, dito em voz alta
+    return raiz
+
+
+def env_limpo(**extra):
+    env = dict(os.environ, PYTHONIOENCODING="utf-8", GIT_CONFIG_NOSYSTEM="1",
+               GIT_CONFIG_GLOBAL=os.devnull)
+    env.pop("CI", None)
+    env.update(extra)
+    return env
+
+
+def roda_git(raiz, *args):
+    subprocess.run(["git", "-C", raiz] + list(args), check=True, capture_output=True,
+                   env=env_limpo(), stdin=subprocess.DEVNULL)
+
+
+def escreve(raiz, nome, texto):
+    with open(os.path.join(raiz, nome), "w", encoding="utf-8") as fh:
+        fh.write(texto)
+
+
+def gate(raiz, *args, **env):
+    r = subprocess.run([sys.executable, os.path.join(raiz, "scripts", "public_repo_check.py")]
+                       + list(args), cwd=raiz, capture_output=True, stdin=subprocess.DEVNULL,
+                       env=env_limpo(**env), timeout=120)
+    return r.returncode, r.stdout.decode("utf-8", "replace"), r.stderr.decode("utf-8", "replace")
+
+
+CAMINHO_RUIM = "cd %sfulano/app\n" % H  # casa "caminho-de-maquina"
+TOKEN = "gh" + "p_" + "a" * 36
+TERMO = "zzfulanozz"
+TERMOS_MIN = "# nome-proprio\n%s\n" % TERMO
+
+# (1) caminho com caractere não-ASCII: o git cita (relat\303\263rio.md) e o gate pulava.
+rep = repo_de_mentira(termos=TERMOS_MIN)
+try:
+    escreve(rep, "relatório.md", CAMINHO_RUIM)
+    roda_git(rep, "add", "relatório.md")
+    rc, out, _ = gate(rep)
+    check("caminho nao-ASCII: varredura cheia acha o achado", rc == 1 and "caminho-de-maquina" in out)
+    rc, out, _ = gate(rep, "--staged")
+    check("caminho nao-ASCII: --staged acha o achado", rc == 1 and "caminho-de-maquina" in out)
+    if POSIX:
+        escreve(rep, "com\ttab.md", CAMINHO_RUIM)
+        roda_git(rep, "add", "com\ttab.md")
+        rc, out, _ = gate(rep)
+        check("caminho com TAB tambem e varrido", out.count("caminho-de-maquina") >= 1
+              and "2 ocorr" in out)
+finally:
+    shutil.rmtree(rep, onerror=_rm)
+
+# (2) arquivo de termos ausente: o gate NAO pode dizer so "OK".
+rep = repo_de_mentira()
+try:
+    escreve(rep, "limpo.md", "nada aqui\n")
+    roda_git(rep, "add", "limpo.md")
+    rc, out, err = gate(rep, CI="true")
+    check("sem termos, em CI: falha (exit != 0)", rc != 0)
+    check("sem termos, em CI: diz na saida padrao que os termos NAO rodaram",
+          "TERMOS NÃO RODARAM" in out and "OK — nenhum" not in out)
+    rc, out, err = gate(rep)
+    check("sem termos, local: nao falha", rc == 0)
+    check("sem termos, local: aviso ALTO na saida padrao, sem o OK limpo",
+          "TERMOS NÃO RODARAM" in out and "OK — nenhum" not in out)
+    rc, out, err = gate(rep, "--so-estruturais", CI="true")
+    check("--so-estruturais em CI: passa", rc == 0)
+    check("--so-estruturais em CI: a saida ainda diz que os termos nao rodaram",
+          "TERMOS NÃO RODARAM" in out and "--so-estruturais" in out)
+    rc, out, _ = gate(rep, "--json", CI="true")
+    dado = json.loads(out)
+    check("--json sem termos em CI: ok=false e terms_checked=false",
+          rc != 0 and dado["ok"] is False and dado["terms_checked"] is False)
+    escreve(rep, "scripts/public_repo_terms", TERMOS_MIN)
+    rc, out, _ = gate(rep, CI="true")
+    check("com termos, em CI: passa sem aviso", rc == 0 and "NÃO RODARAM" not in out
+          and "OK — nenhum" in out)
+finally:
+    shutil.rmtree(rep, onerror=_rm)
+
+# (3) o gate nunca ecoa o segredo nem o termo: arquivo:linha e nome da regra, só.
+rep = repo_de_mentira(termos=TERMOS_MIN)
+try:
+    escreve(rep, "seg.txt", "T=%s\nfale com %s hoje\n" % (TOKEN, TERMO))
+    roda_git(rep, "add", "seg.txt")
+    for args in ((), ("--staged",)):
+        rc, out, err = gate(rep, *args)
+        tudo = out + err
+        check("segredo achado: exit 1", rc == 1)
+        check("segredo: arquivo:linha e regra aparecem",
+              "seg.txt:1" in tudo and "credencial" in tudo and "seg.txt:2" in tudo
+              and "nome-proprio" in tudo)
+        check("segredo NAO e ecoado", "a" * 10 not in tudo and "T=" not in tudo)
+        check("termo NAO e ecoado", TERMO not in tudo and "fale com" not in tudo)
+    rc, out, err = gate(rep, "--json")
+    check("--json: sem segredo, sem termo, sem texto da linha",
+          TOKEN not in out and "a" * 10 not in out and TERMO not in out
+          and "fale com" not in out and "excerpt" not in out and '"match"' not in out)
+    dado = json.loads(out)
+    check("--json: continua dizendo onde", dado["count"] == 2
+          and {(f["file"], f["line"], f["rule"]) for f in dado["findings"]}
+          == {("seg.txt", 1, "credencial"), ("seg.txt", 2, "nome-proprio")})
+finally:
+    shutil.rmtree(rep, onerror=_rm)
+
+# (4) git falhando não vira "OK": sem repositório (e sem subir para um repo de fora).
+rep = repo_de_mentira(com_git=False, termos=TERMOS_MIN)
+try:
+    teto = os.path.dirname(rep)  # git nao procura .git acima da pasta do pai
+    for args in ((), ("--staged",), ("--json",)):
+        rc, out, err = gate(rep, *args, GIT_CEILING_DIRECTORIES=teto)
+        check("git falhou %s: exit != 0 e sem OK" % (args,),
+              rc != 0 and "OK — nenhum" not in out and '"ok": true' not in out)
+        check("git falhou %s: a falha e dita" % (args,), "git" in (out + err).lower())
+finally:
+    shutil.rmtree(rep, onerror=_rm)
+
+# (5) arquivo que existe mas nao abre: nao pode sumir da conta.
+if POSIX and hasattr(os, "geteuid") and os.geteuid() != 0:
+    rep = repo_de_mentira(termos=TERMOS_MIN)
+    try:
+        escreve(rep, "fechado.md", "nada\n")
+        roda_git(rep, "add", "fechado.md")
+        os.chmod(os.path.join(rep, "fechado.md"), 0)
+        rc, out, err = gate(rep)
+        check("arquivo ilegivel: exit != 0 e nome na saida",
+              rc != 0 and "fechado.md" in out and "OK — nenhum" not in out)
+    finally:
+        os.chmod(os.path.join(rep, "fechado.md"), stat.S_IRUSR | stat.S_IWUSR)
+        shutil.rmtree(rep, onerror=_rm)
 
 os.unlink(tmp_terms)
 print("test_public_repo_check: %d asserts ok ✓  (repo: %d ocorrência(s) hoje)"

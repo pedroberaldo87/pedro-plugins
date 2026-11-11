@@ -96,6 +96,6 @@ A pergunta que decide se algo entra no git não é *"isso é útil?"* — é **"
 
 **Registro de trabalho não é produto.** Transcrição de sessão, plano em execução, handoff, achado de mineração e saída de ferramenta ficam no disco e fora do git — a seção 1 do `.gitignore` é essa regra, e ela existe porque foi por aí que nome de cliente vazou para um repositório público.
 
-**Quem cobra:** `scripts/public_repo_check.py` (checagem H do `release-gate.sh`, roda no `git commit` sobre o que está staged). Régua manual: `python3 scripts/public_repo_check.py`. Isenção legítima ganha `public-ok: <motivo>` na linha, ou um glob em `scripts/public_repo_allow.txt` — sempre com o motivo escrito. Regra em prosa não pegou: 368 ocorrências do nome do dono entraram enquanto isto era só um parágrafo.
+**Quem cobra:** `scripts/public_repo_check.py` (checagem H do `release-gate.sh`, roda no `git commit` sobre o que está staged). Régua manual: `python3 scripts/public_repo_check.py`. Isenção legítima ganha `public-ok: <motivo>` na linha, ou um glob em `scripts/public_repo_allow.txt` — sempre com o motivo escrito. Regra em prosa não pegou: 368 ocorrências do nome do dono entraram enquanto isto era só um parágrafo. O relatório diz só `arquivo:linha:coluna` e a regra (nunca o trecho). Sem `scripts/public_repo_terms` os termos NÃO rodam: o gate diz isso na saída padrão, e com `CI` definido reprova (exit 3) salvo `--so-estruturais` — o que o CI público passa, porque a lista nunca sobe. `git` falho ou arquivo ilegível dá exit 2, nunca OK.
 
 <!-- project-doc:v2:end -->
