@@ -48,6 +48,38 @@ for _canal in (sys.stdout, sys.stderr):
             pass
 
 
+# DIAGNÓSTICO TEMPORÁRIO (RUN_SUITES_TRACE=1) — vai sair no commit seguinte.
+_ATIVAS = {}
+if os.environ.get("RUN_SUITES_TRACE"):
+    import atexit
+    import threading
+    import traceback
+
+    def _tr(msg):
+        print("TRACE[%d ppid=%d %.1f] %s" % (os.getpid(), os.getppid(), time.time() % 10000, msg), file=sys.stderr, flush=True)
+
+    def _sig(num, _frame):
+        _tr("SINAL %s recebido; ativas=%s" % (num, sorted(_ATIVAS)))
+        traceback.print_stack(file=sys.stderr)
+        sys.stderr.flush()
+        os._exit(99)
+
+    for _nome in ("SIGTERM", "SIGINT", "SIGBREAK", "SIGABRT", "SIGHUP"):
+        if hasattr(signal, _nome):
+            try:
+                signal.signal(getattr(signal, _nome), _sig)
+            except Exception as _e:
+                _tr("nao pude instalar %s: %r" % (_nome, _e))
+    atexit.register(lambda: _tr("atexit; ativas=%s" % sorted(_ATIVAS)))
+
+    def _bate():
+        while True:
+            time.sleep(15)
+            _tr("vivo; ativas(%d)=%s" % (len(_ATIVAS), sorted(_ATIVAS)))
+    threading.Thread(target=_bate, daemon=True).start()
+    _tr("trace ligado; argv=%r" % (sys.argv,))
+
+
 def expande(padroes):
     """Um glob por padrão, e padrão que não casa NADA é erro — foi assim que a
     esteira 'passou' sem executar suíte nenhuma.
@@ -185,6 +217,7 @@ def roda(cmd, alvo, janela, bash):
     """
     t0 = time.time()
     p = None
+    _ATIVAS[alvo] = t0
     # A saída vai para um ARQUIVO, não para um cano. Com cano, a leitura só termina
     # quando o último descendente que herdou o descritor o fecha — uma suíte que
     # deixa um neto vivo pendura a leitura DEPOIS de já ter terminado, e o placar
@@ -237,6 +270,7 @@ def roda(cmd, alvo, janela, bash):
         tmp.seek(0)
         return ("ok" if p.returncode == 0 else "FALHOU"), time.time() - t0, tmp.read()
     finally:
+        _ATIVAS.pop(alvo, None)
         tmp.close()
         if p is not None and p.poll() is None:
             try:                       # Windows não tem killpg/getpgid nem SIGKILL:
@@ -384,4 +418,12 @@ def main(argv=None):
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    try:
+        _rc = main()
+    except BaseException:
+        import traceback as _t
+        _t.print_exc()
+        sys.stderr.flush()
+        raise
+    print("TRACE main devolveu rc=%r" % (_rc,), file=sys.stderr, flush=True)
+    sys.exit(_rc)
