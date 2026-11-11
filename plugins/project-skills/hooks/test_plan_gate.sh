@@ -19,7 +19,7 @@ bad()  { FAIL=$((FAIL+1)); printf '  ✗ %s\n     esperado: %s\n     obtido:   %
 TMP=$(mktemp -d)
 # Cache falso de plugin: o nome de invocação da rodada se DESCOBRE (resolve-skill.sh),
 # e a suíte não pode depender do que ESTA máquina tem instalado.
-FAKE_CACHE="$TMP/cfg/plugins/cache/mkt/project-skills/1.0.0"
+FAKE_CACHE="$TMP/cfg/plugins/cache/pedro-plugins/project-skills/1.0.0"
 mkdir -p "$FAKE_CACHE/lib" "$FAKE_CACHE/skills/doc" "$FAKE_CACHE/skills/doc-touch"
 # ...e o IRMÃO de onde ela vem também se acha por NOME (Artigo 9), nunca por posição.
 RS_SRC=$(CLAUDE_PLUGIN_ROOT="$SCRIPT_DIR/.." "$SCRIPT_DIR/resolve-plugin.sh" \
