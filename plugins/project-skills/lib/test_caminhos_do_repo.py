@@ -217,45 +217,48 @@ try:
 
     # ── hsf_f23c89f7 · organism-gate ───────────────────────────────────────────────
     print("hsf_f23c89f7 — organism-gate: o id da costura não escolhe o nome do arquivo")
-    GATE = os.path.join(PLUGIN, "hooks", "pretooluse-organism-gate.sh")
-    raiz4 = os.path.join(tmp, "g1")
-    tmpd = os.path.join(raiz4, "t")
-    os.makedirs(tmpd)
-    escreve(os.path.join(raiz4, ".claude", "organism.yaml"), """
-name: GATE-TEST
-modulos: [alpha, beta]
-costuras:
-  - id: "../../escapou-gate"
-    severidade: block
-    grep_verificavel: true
-    aresta_msg: alpha muda, beta quebra
-    pontas:
-      - modulo: alpha
-        globs: ["alpha/api.py"]
-        simbolos: ["X"]
-      - modulo: beta
-        globs: ["beta/c.py"]
-        simbolos: ["X"]
-""")
-    escreve(os.path.join(raiz4, "alpha", "api.py"), "X = 1\n")
-    payload = json.dumps({"tool_name": "Edit", "session_id": "sessgate", "cwd": raiz4,
-                          "tool_input": {"file_path": os.path.join(raiz4, "alpha", "api.py")}})
-    env = dict(os.environ, TMPDIR=tmpd, TMP=tmpd, TEMP=tmpd)
-    env.pop("ORGANISM_GATE", None)
-    r = subprocess.run([BASH, GATE], input=payload, capture_output=True, text=True,
-                       encoding="utf-8", errors="replace", env=env, cwd=raiz4, timeout=60)
-    achados = []
-    for dp, _, fs in os.walk(raiz4):
-        achados += [os.path.join(dp, f) for f in fs if f.endswith(".denied")]
-    check("o gate negou na costura (a fixture exercita o caminho do deny)",
-          "deny" in r.stdout, "rc=%d out=%r err=%r" % (r.returncode, r.stdout[:200], r.stderr[:200]))
-    check("o marcador `.denied` nasce DENTRO do estado do gate, nunca fora dele",
-          achados and all(os.sep + "claude-organism-gate-sessgate" + os.sep in a for a in achados),
-          repr(achados))
-    check("nada nasceu no pai do estado (`escapou-gate.denied`)",
-          not any(os.path.basename(a).startswith("escapou-gate") and
-                  os.path.dirname(a) != os.path.join(tmpd, "claude-organism-gate-sessgate")
-                  for a in achados), repr(achados))
+    # O gate é bash com caminho POSIX (`case "$FP" in /*`); no Windows ele liberta (fail-open) por
+    # desenho e a fixture não exercita o deny — o caso vale onde o gate de fato roda.
+    if sys.platform != "win32":
+        GATE = os.path.join(PLUGIN, "hooks", "pretooluse-organism-gate.sh")
+        raiz4 = os.path.join(tmp, "g1")
+        tmpd = os.path.join(raiz4, "t")
+        os.makedirs(tmpd)
+        escreve(os.path.join(raiz4, ".claude", "organism.yaml"), """
+    name: GATE-TEST
+    modulos: [alpha, beta]
+    costuras:
+      - id: "../../escapou-gate"
+        severidade: block
+        grep_verificavel: true
+        aresta_msg: alpha muda, beta quebra
+        pontas:
+          - modulo: alpha
+            globs: ["alpha/api.py"]
+            simbolos: ["X"]
+          - modulo: beta
+            globs: ["beta/c.py"]
+            simbolos: ["X"]
+    """)
+        escreve(os.path.join(raiz4, "alpha", "api.py"), "X = 1\n")
+        payload = json.dumps({"tool_name": "Edit", "session_id": "sessgate", "cwd": raiz4,
+                              "tool_input": {"file_path": os.path.join(raiz4, "alpha", "api.py")}})
+        env = dict(os.environ, TMPDIR=tmpd, TMP=tmpd, TEMP=tmpd)
+        env.pop("ORGANISM_GATE", None)
+        r = subprocess.run([BASH, GATE], input=payload, capture_output=True, text=True,
+                           encoding="utf-8", errors="replace", env=env, cwd=raiz4, timeout=60)
+        achados = []
+        for dp, _, fs in os.walk(raiz4):
+            achados += [os.path.join(dp, f) for f in fs if f.endswith(".denied")]
+        check("o gate negou na costura (a fixture exercita o caminho do deny)",
+              "deny" in r.stdout, "rc=%d out=%r err=%r" % (r.returncode, r.stdout[:200], r.stderr[:200]))
+        check("o marcador `.denied` nasce DENTRO do estado do gate, nunca fora dele",
+              achados and all(os.sep + "claude-organism-gate-sessgate" + os.sep in a for a in achados),
+              repr(achados))
+        check("nada nasceu no pai do estado (`escapou-gate.denied`)",
+              not any(os.path.basename(a).startswith("escapou-gate") and
+                      os.path.dirname(a) != os.path.join(tmpd, "claude-organism-gate-sessgate")
+                      for a in achados), repr(achados))
 
     # ── hsf_2a7e522a · doc_load: a lista de arquivos do sidecar ────────────────────
     print("hsf_2a7e522a — doc_load: a lista do sidecar fica dentro do projeto, é arquivo e tem teto")
@@ -272,19 +275,20 @@ costuras:
     check("caminho absoluto não é lido", dl._conjunto_sig(raiz5, [fora_txt]) is None)
     check("symlink que aponta para fora não é lido", dl._conjunto_sig(raiz5, ["elo.txt"]) is None)
     check("pasta não é arquivo", dl._conjunto_sig(raiz5, ["pasta"]) is None)
-    fifo = os.path.join(raiz5, "cano")
-    os.mkfifo(fifo)
-    # Um FIFO sem escritor trava o `open()` para sempre: o teste roda num processo com prazo.
-    codigo = ("import sys; sys.path.insert(0, %r); import doc_load as dl;"
-              "print(dl._conjunto_sig(%r, ['cano']))" % (AQUI, raiz5))
-    try:
-        r = subprocess.run([sys.executable, "-c", codigo], capture_output=True, text=True,
-                           timeout=8, stdin=subprocess.DEVNULL)
-        check("dispositivo/FIFO não é aberto (a leitura não trava e devolve None)",
-              r.stdout.strip() == "None", r.stdout + r.stderr)
-    except subprocess.TimeoutExpired:
-        check("dispositivo/FIFO não é aberto (a leitura não trava e devolve None)", False,
-              "travou no open() de um FIFO")
+    if hasattr(os, "mkfifo"):           # FIFO não existe no Windows
+        fifo = os.path.join(raiz5, "cano")
+        os.mkfifo(fifo)
+        # Um FIFO sem escritor trava o `open()` para sempre: o teste roda num processo com prazo.
+        codigo = ("import sys; sys.path.insert(0, %r); import doc_load as dl;"
+                  "print(dl._conjunto_sig(%r, ['cano']))" % (AQUI, raiz5))
+        try:
+            r = subprocess.run([sys.executable, "-c", codigo], capture_output=True, text=True,
+                               timeout=8, stdin=subprocess.DEVNULL)
+            check("dispositivo/FIFO não é aberto (a leitura não trava e devolve None)",
+                  r.stdout.strip() == "None", r.stdout + r.stderr)
+        except subprocess.TimeoutExpired:
+            check("dispositivo/FIFO não é aberto (a leitura não trava e devolve None)", False,
+                  "travou no open() de um FIFO")
     grande = os.path.join(raiz5, "grande.bin")
     with open(grande, "wb") as fh:
         fh.truncate(TETO_SIDECAR + 1)

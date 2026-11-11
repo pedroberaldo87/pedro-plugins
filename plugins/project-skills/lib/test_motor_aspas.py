@@ -136,6 +136,12 @@ def argvs(saida, quem):
         return [json.loads(l) for l in fh if l.strip()]
 
 
+def barras(lista):
+    """No Windows o motor monta a pasta com `/` (ele divide o caminho do plano em `/`):
+    o que importa aqui é a palavra de shell, não a barra — compara sem ela."""
+    return [[a.replace("\\", "/") for a in linha] for linha in lista]
+
+
 def marcadores(*pastas):
     return sorted(n for p in pastas for n in os.listdir(p) if n.startswith("PWNED"))
 
@@ -248,7 +254,7 @@ try:
         esperado = [["--dir", plans, "tick", stem, "F1.1", "--evidencia", EVID],
                     ["--dir", plans, "tick", stem, "F1.2", "--evidencia", "outra", "--retomada"]]
         check("cada tique chega com dir, id, tarefa e prova como argumentos inteiros",
-              novos == esperado, "%r | %s" % (novos, r.stderr[:200]))
+              barras(novos) == barras(esperado), "%r | %s" % (novos, r.stderr[:200]))
         check("nenhum comando embutido no plano ou na prova rodou (tick)",
               marcadores(raiz, plans, tmp, saida) == [], repr(marcadores(raiz, plans, tmp, saida)))
 
@@ -261,7 +267,7 @@ try:
         novos = argvs(saida, "plan_state")[antes:]
         stem = os.path.basename(plano)[:-len(".plan.json")]
         check("a pendência chega como UM argumento",
-              novos == [["--dir", plans, "pendencia", stem, "F1.1", PEND]], "%r | %s" % (novos, r.stderr[:200]))
+              barras(novos) == barras([["--dir", plans, "pendencia", stem, "F1.1", PEND]]), "%r | %s" % (novos, r.stderr[:200]))
         check("nenhum comando embutido na pendência rodou",
               marcadores(raiz, plans, tmp, saida) == [], repr(marcadores(raiz, plans, tmp, saida)))
 
