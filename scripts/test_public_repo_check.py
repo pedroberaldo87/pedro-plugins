@@ -273,6 +273,19 @@ if POSIX and hasattr(os, "geteuid") and os.geteuid() != 0:
         os.chmod(os.path.join(rep, "fechado.md"), stat.S_IRUSR | stat.S_IWUSR)
         shutil.rmtree(rep, onerror=_rm)
 
+# (6) test_sem_jq.sh: o sandbox nasce de mktemp -d (0700) e some num trap — nome previsivel
+# em /tmp deixava outra conta plantar bin/<ferramenta> antes do teste montar o PATH.
+with open(os.path.join(os.path.dirname(SCRIPT), "test_sem_jq.sh"), encoding="utf-8") as fh:
+    sem_jq = fh.read()
+atrib = [l for l in sem_jq.splitlines() if re.match(r"\s*SANDBOX=", l)]
+check("test_sem_jq.sh atribui SANDBOX uma vez", len(atrib) == 1)
+check("SANDBOX vem de mktemp -d", "mktemp -d" in atrib[0])
+check("SANDBOX nao carrega o PID ($$) no nome", "$$" not in atrib[0])
+check("existe trap de limpeza do SANDBOX",
+      re.search(r"^\s*trap\s+.*rm -rf.*SANDBOX.*(EXIT|0)", sem_jq, re.M) is not None)
+check("nao ha mais mkdir -p do SANDBOX nu", 'mkdir -p "$SANDBOX" ' not in sem_jq
+      and 'mkdir -p "$SANDBOX"\n' not in sem_jq)
+
 os.unlink(tmp_terms)
 print("test_public_repo_check: %d asserts ok ✓  (repo: %d ocorrência(s) hoje)"
       % (ok, len(achados)))
