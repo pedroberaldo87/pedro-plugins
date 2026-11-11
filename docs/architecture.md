@@ -363,7 +363,7 @@ Saída desta rodada (nome · versão · skills · tem hook):
 ```
 2op                 1.3.0  [2op,2op-opus,2op-sonnet]    -
 archify            2.14.3  [archify]                    -
-bootstrap         1.17.24  [bootstrap]                  HOOKS
+bootstrap         1.17.25  [bootstrap]                  HOOKS
 branches           1.3.15  [branches]                   HOOKS
 check-skills        0.7.5  [check-skills]               -
 context-guard      1.3.18  [context-guard]              HOOKS
