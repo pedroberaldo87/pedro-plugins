@@ -1111,6 +1111,9 @@ def _sinaliza(pid, grace=3.0):
         _trace_ci("  protegidos=%s" % sorted(_own))
     except Exception as _e:
         _trace_ci("trace falhou %r" % (_e,))
+    if os.environ.get("LIXEIRO_TRACE_FILE"):  # DIAGNÓSTICO: nada é morto na sonda
+        _trace_ci("  (dry-run: NAO sinalizado)")
+        return None
     try:
         os.kill(pid, signal.SIGTERM)
     except (OSError, ProcessLookupError):
