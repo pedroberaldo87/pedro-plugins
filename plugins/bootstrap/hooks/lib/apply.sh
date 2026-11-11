@@ -10,9 +10,21 @@
 #
 # Compares with current state and runs claude plugin * commands to converge.
 #
+# INSTALAR ALGO NOVO EXIGE PEDIDO EXPLICITO. Marketplace de terceiro e plugin que
+# o manifest tem e a maquina nao tem trazem hooks, servidores MCP e skills que
+# rodam aqui. O SessionStart chama este script sem argumento — entao, sem a flag,
+# ele so SINCRONIZA o que ja esta instalado (liga/desliga) e LISTA o que falta
+# ("pendente: ..."). Quem instala e o /bootstrap, depois de mostrar a lista ao
+# usuario, rodando com `--install-new`.
+#
+# `--listar-pendentes` e so leitura: imprime as linhas "pendente: ..." e sai 0, SEM
+# ligar, desligar nem instalar nada. Quem so precisa SABER se ha item pendente (o hook
+# do PostToolUse, antes de regenerar o manifest) usa esta, porque o sync normal
+# desfaria na hora o `claude plugin enable/disable` que o usuario acabou de rodar.
+#
 # Operations (in order):
-#   1. Add missing marketplaces
-#   2. Install missing plugins
+#   1. Add missing marketplaces            (so com --install-new)
+#   2. Install missing plugins             (so com --install-new)
 #   3. Uninstall plugins that are in a managed marketplace but not in manifest
 #      — OFF BY DEFAULT. Only runs with BOOTSTRAP_UNINSTALL_UNMANAGED=1 in the
 #      environment; otherwise it just prints what it would have removed.
@@ -36,6 +48,15 @@
 # intent and should NOT be used as a source of truth for snapshots.
 
 set -uo pipefail
+
+INSTALL_NEW=""; SO_PENDENTES=""
+for _a in "$@"; do
+  case "$_a" in
+    --install-new) INSTALL_NEW=1 ;;
+    --listar-pendentes) SO_PENDENTES=1 ;;
+    *) echo "[pedro-plugins/apply] argumento desconhecido: $_a (use --install-new ou --listar-pendentes)" >&2; exit 255 ;;
+  esac
+done
 
 PEDRO_PLUGINS_REPO="${PEDRO_PLUGINS_REPO:-$HOME/pedro-plugins}"
 KNOWN_MARKETPLACES="$HOME/.claude/plugins/known_marketplaces.json"
@@ -106,6 +127,8 @@ fi
 
 # Counters for summary
 ADDED_MKT=0
+PENDING_MKT=0
+PENDING_PLUGINS=0
 INSTALLED=0
 UNINSTALLED=0
 ENABLED=0
@@ -151,7 +174,10 @@ KNOWN_MKT_NAMES="$("$PY" "$CFGJSON" chaves "$KNOWN_MARKETPLACES")"
 while IFS='|' read -r mkt_name mkt_source; do
   [ -z "$mkt_name" ] && continue
   if ! echo "$KNOWN_MKT_NAMES" | grep -qx "$mkt_name"; then
-    if run_claude "add marketplace $mkt_name" claude plugin marketplace add "$mkt_source"; then
+    if [ -z "$INSTALL_NEW" ]; then
+      info "⏸ pendente: marketplace $mkt_name ($mkt_source)"
+      PENDING_MKT=$((PENDING_MKT + 1))
+    elif run_claude "add marketplace $mkt_name" claude plugin marketplace add "$mkt_source"; then
       ADDED_MKT=$((ADDED_MKT + 1))
     fi
   fi
@@ -181,11 +207,20 @@ MANAGED_MKTS="$("$PY" "$CFGJSON" mkt-names "$MANIFEST")"
 while IFS=$'\t' read -r plugin_ref want_enabled; do
   [ -z "$plugin_ref" ] && continue
   if ! echo "$CURRENT_STATE" | awk -F'\t' -v p="$plugin_ref" '$1 == p { found=1 } END { exit !found }'; then
-    if run_claude "install $plugin_ref" claude plugin install "$plugin_ref"; then
+    if [ -z "$INSTALL_NEW" ]; then
+      info "⏸ pendente: plugin $plugin_ref"
+      PENDING_PLUGINS=$((PENDING_PLUGINS + 1))
+    elif run_claude "install $plugin_ref" claude plugin install "$plugin_ref"; then
       INSTALLED=$((INSTALLED + 1))
     fi
   fi
 done <<< "$MANIFEST_PLUGINS"
+
+# So listar: a pendencia ja foi impressa acima; nada daqui para baixo roda.
+if [ -n "$SO_PENDENTES" ]; then
+  [ -n "$INSTALL_NEW" ] && { log "error: --listar-pendentes nao combina com --install-new"; exit 255; }
+  exit 0
+fi
 
 # Refresh state after installs
 CURRENT_STATE="$(claude plugin list 2>/dev/null | awk '
@@ -269,10 +304,17 @@ SUMMARY=""
 [ "$DISABLED"   -gt 0 ] && SUMMARY="$SUMMARY +$DISABLED disabled,"
 SUMMARY="${SUMMARY%,}"
 
+PENDING_TOTAL=$((PENDING_MKT + PENDING_PLUGINS))
+if [ "$PENDING_TOTAL" -gt 0 ]; then
+  info "⏸ $PENDING_TOTAL item(ns) do manifest ainda não instalado(s) ($PENDING_MKT marketplace(s), $PENDING_PLUGINS plugin(s)) — nada foi instalado. Para instalar: /bootstrap"
+fi
+
 if [ "$FAILURES" -gt 0 ]; then
   # Houve falha: a primeira linha NÃO pode dizer que deu certo.
   log "⚠ sync incompleto: $FAILURES operações falharam — veja o log acima"
   [ "$TOTAL_CHANGES" -gt 0 ] && info "  aplicado mesmo assim:$SUMMARY"
+elif [ "$TOTAL_CHANGES" -eq 0 ] && [ "$PENDING_TOTAL" -gt 0 ]; then
+  info "✓ o que já estava instalado está em dia"
 elif [ "$TOTAL_CHANGES" -eq 0 ]; then
   info "✓ plugins em dia (nada a fazer)"
 else

@@ -1,0 +1,1401 @@
+{
+ "_": "gerado por lib/script_audit.py --gravar; nao edite a mao",
+ "scripts": [
+  {
+   "plugin": "2op",
+   "script": "lib/quem_serviu.py",
+   "interprete": "python3"
+  },
+  {
+   "plugin": "archify",
+   "script": "skills/archify/renderers/architecture/render-architecture.mjs",
+   "interprete": "node"
+  },
+  {
+   "plugin": "archify",
+   "script": "skills/archify/renderers/dataflow/render-dataflow.mjs",
+   "interprete": "node"
+  },
+  {
+   "plugin": "archify",
+   "script": "skills/archify/renderers/lifecycle/render-lifecycle.mjs",
+   "interprete": "node"
+  },
+  {
+   "plugin": "archify",
+   "script": "skills/archify/renderers/sequence/render-sequence.mjs",
+   "interprete": "node"
+  },
+  {
+   "plugin": "archify",
+   "script": "skills/archify/renderers/shared/generated-validators.mjs",
+   "interprete": "node"
+  },
+  {
+   "plugin": "archify",
+   "script": "skills/archify/renderers/shared/validator.mjs",
+   "interprete": "node"
+  },
+  {
+   "plugin": "archify",
+   "script": "skills/archify/renderers/workflow/render-workflow.mjs",
+   "interprete": "node"
+  },
+  {
+   "plugin": "archify",
+   "script": "skills/archify/scripts/check-render-output.mjs",
+   "interprete": "node"
+  },
+  {
+   "plugin": "archify",
+   "script": "skills/archify/scripts/generate-validators.mjs",
+   "interprete": "node"
+  },
+  {
+   "plugin": "bootstrap",
+   "script": "lib/conformance.py",
+   "interprete": "python3"
+  },
+  {
+   "plugin": "branches",
+   "script": "lib/regua_texto.py",
+   "interprete": "python3"
+  },
+  {
+   "plugin": "graphify-guard",
+   "script": "lib/regua_texto.py",
+   "interprete": "python3"
+  },
+  {
+   "plugin": "guardrails",
+   "script": "lib/askq_lint.py",
+   "interprete": "python3"
+  },
+  {
+   "plugin": "guardrails",
+   "script": "lib/regua_texto.py",
+   "interprete": "python3"
+  },
+  {
+   "plugin": "handoff",
+   "script": "lib/extract_ata.py",
+   "interprete": "python3"
+  },
+  {
+   "plugin": "improve-workflow",
+   "script": "lib/medidor.py",
+   "interprete": "python3"
+  },
+  {
+   "plugin": "improve-workflow",
+   "script": "lib/proposta.py",
+   "interprete": "python3"
+  },
+  {
+   "plugin": "improve-workflow",
+   "script": "lib/registro.py",
+   "interprete": "python3"
+  },
+  {
+   "plugin": "improve-workflow",
+   "script": "lib/sobras.py",
+   "interprete": "python3"
+  },
+  {
+   "plugin": "project-skills",
+   "script": "lib/andamento.py",
+   "interprete": "python3"
+  },
+  {
+   "plugin": "project-skills",
+   "script": "lib/auditoria_plano.py",
+   "interprete": "python3"
+  },
+  {
+   "plugin": "project-skills",
+   "script": "lib/casa_da_doc.py",
+   "interprete": "python3"
+  },
+  {
+   "plugin": "project-skills",
+   "script": "lib/cobertura.py",
+   "interprete": "python3"
+  },
+  {
+   "plugin": "project-skills",
+   "script": "lib/collect_engine.py",
+   "interprete": "python3"
+  },
+  {
+   "plugin": "project-skills",
+   "script": "lib/curadoria_features.py",
+   "interprete": "python3"
+  },
+  {
+   "plugin": "project-skills",
+   "script": "lib/decisoes_estruturais.py",
+   "interprete": "python3"
+  },
+  {
+   "plugin": "project-skills",
+   "script": "lib/decisoes_seladas.py",
+   "interprete": "python3"
+  },
+  {
+   "plugin": "project-skills",
+   "script": "lib/graph_map.py",
+   "interprete": "python3"
+  },
+  {
+   "plugin": "project-skills",
+   "script": "lib/historico.py",
+   "interprete": "python3"
+  },
+  {
+   "plugin": "project-skills",
+   "script": "lib/ledger_corridas.py",
+   "interprete": "python3"
+  },
+  {
+   "plugin": "project-skills",
+   "script": "lib/plan_entrada.py",
+   "interprete": "python3"
+  },
+  {
+   "plugin": "project-skills",
+   "script": "lib/rastreio_etapas.py",
+   "interprete": "python3"
+  },
+  {
+   "plugin": "project-skills",
+   "script": "lib/regua_pronto.py",
+   "interprete": "python3"
+  },
+  {
+   "plugin": "project-skills",
+   "script": "lib/regua_texto.py",
+   "interprete": "python3"
+  },
+  {
+   "plugin": "project-skills",
+   "script": "lib/retomada.py",
+   "interprete": "python3"
+  },
+  {
+   "plugin": "project-skills",
+   "script": "skills/qa-loop/references/motor.js",
+   "interprete": "node"
+  },
+  {
+   "plugin": "project-skills",
+   "script": "skills/qa-loop/references/r8_tiers.py",
+   "interprete": "python3"
+  },
+  {
+   "plugin": "project-skills",
+   "script": "skills/sprint/references/motor.js",
+   "interprete": "node"
+  },
+  {
+   "plugin": "project-skills",
+   "script": "skills/sprint/references/r8_tiers.py",
+   "interprete": "python3"
+  },
+  {
+   "plugin": "ship",
+   "script": "lib/regua_texto.py",
+   "interprete": "python3"
+  },
+  {
+   "plugin": "slides",
+   "script": "lib/md2deck.py",
+   "interprete": "python3"
+  },
+  {
+   "plugin": "slides",
+   "script": "skills/slides/scripts/check_fidelity.py",
+   "interprete": "python3"
+  },
+  {
+   "plugin": "slides",
+   "script": "skills/slides/scripts/check_provenance.py",
+   "interprete": "python3"
+  },
+  {
+   "plugin": "vistoria",
+   "script": "lib/achado.py",
+   "interprete": "python3"
+  },
+  {
+   "plugin": "vistoria",
+   "script": "lib/fio_morto.py",
+   "interprete": "python3"
+  },
+  {
+   "plugin": "vistoria",
+   "script": "lib/inventario.py",
+   "interprete": "python3"
+  },
+  {
+   "plugin": "vistoria",
+   "script": "lib/pagina.py",
+   "interprete": "python3"
+  },
+  {
+   "plugin": "vistoria",
+   "script": "lib/suite_congela.py",
+   "interprete": "python3"
+  },
+  {
+   "plugin": "visual",
+   "script": "lib/clareza.py",
+   "interprete": "python3"
+  }
+ ],
+ "pedem_aprovacao": [
+  {
+   "plugin": "archify",
+   "script": "skills/archify/bin/archify.mjs"
+  },
+  {
+   "plugin": "archify",
+   "script": "skills/archify/grao-de-modulo.py"
+  },
+  {
+   "plugin": "archify",
+   "script": "skills/archify/scripts/render-examples.mjs"
+  },
+  {
+   "plugin": "bootstrap",
+   "script": "lib/cfgjson.py"
+  },
+  {
+   "plugin": "bootstrap",
+   "script": "lib/script_audit.py"
+  },
+  {
+   "plugin": "branches",
+   "script": "lib/branch_state.py"
+  },
+  {
+   "plugin": "check-skills",
+   "script": "lib/varredura.py"
+  },
+  {
+   "plugin": "fallow",
+   "script": "lib/audit.py"
+  },
+  {
+   "plugin": "fallow",
+   "script": "lib/report.py"
+  },
+  {
+   "plugin": "gauntlet",
+   "script": "lib/fecho_check.py"
+  },
+  {
+   "plugin": "guardrails",
+   "script": "hooks/pretooluse-artefato-regua.py"
+  },
+  {
+   "plugin": "improve-workflow",
+   "script": "lib/plano_saida.py"
+  },
+  {
+   "plugin": "intent-guard",
+   "script": "lib/ledger.py"
+  },
+  {
+   "plugin": "lixeiro",
+   "script": "lib/causa.py"
+  },
+  {
+   "plugin": "lixeiro",
+   "script": "lib/lixeiro.py"
+  },
+  {
+   "plugin": "project-skills",
+   "script": "lib/completude.py"
+  },
+  {
+   "plugin": "project-skills",
+   "script": "lib/doc_lint.py"
+  },
+  {
+   "plugin": "project-skills",
+   "script": "lib/doc_load.py"
+  },
+  {
+   "plugin": "project-skills",
+   "script": "lib/journal.py"
+  },
+  {
+   "plugin": "project-skills",
+   "script": "lib/orfaos.py"
+  },
+  {
+   "plugin": "project-skills",
+   "script": "lib/organism.py"
+  },
+  {
+   "plugin": "project-skills",
+   "script": "lib/pattern_check.py"
+  },
+  {
+   "plugin": "project-skills",
+   "script": "lib/plan_state.py"
+  },
+  {
+   "plugin": "project-skills",
+   "script": "lib/precheck_largada.py"
+  },
+  {
+   "plugin": "project-skills",
+   "script": "skills/doc-touch/grao-de-modulo.py"
+  },
+  {
+   "plugin": "sec",
+   "script": "lib/sec.py"
+  },
+  {
+   "plugin": "vistoria",
+   "script": "lib/medidor.py"
+  },
+  {
+   "plugin": "vistoria",
+   "script": "lib/plano_saida.py"
+  },
+  {
+   "plugin": "visual",
+   "script": "hooks/stop-anuncio-sem-acao.py"
+  },
+  {
+   "plugin": "visual",
+   "script": "lib/visual_page.py"
+  },
+  {
+   "plugin": "visual",
+   "script": "server/visual_server.mjs"
+  }
+ ],
+ "analise": [
+  {
+   "plugin": "2op",
+   "script": "lib/quem_serviu.py",
+   "citado": true,
+   "classe": "puro",
+   "escreve": false,
+   "motivos": []
+  },
+  {
+   "plugin": "archify",
+   "script": "skills/archify/bin/archify.mjs",
+   "citado": true,
+   "classe": "executa",
+   "escreve": true,
+   "motivos": [
+    "child_process",
+    "import(`",
+    "import(p",
+    "spawnSync"
+   ]
+  },
+  {
+   "plugin": "archify",
+   "script": "skills/archify/grao-de-modulo.py",
+   "citado": true,
+   "classe": "executa",
+   "escreve": false,
+   "motivos": [
+    "import subprocess"
+   ]
+  },
+  {
+   "plugin": "archify",
+   "script": "skills/archify/recipes/scenarios.mjs",
+   "citado": false,
+   "classe": "executa",
+   "escreve": false,
+   "motivos": [
+    "'cluster'"
+   ]
+  },
+  {
+   "plugin": "archify",
+   "script": "skills/archify/renderers/architecture/grid.mjs",
+   "citado": false,
+   "classe": "puro",
+   "escreve": false,
+   "motivos": []
+  },
+  {
+   "plugin": "archify",
+   "script": "skills/archify/renderers/architecture/render-architecture.mjs",
+   "citado": true,
+   "classe": "puro",
+   "escreve": true,
+   "motivos": []
+  },
+  {
+   "plugin": "archify",
+   "script": "skills/archify/renderers/dataflow/render-dataflow.mjs",
+   "citado": true,
+   "classe": "puro",
+   "escreve": true,
+   "motivos": []
+  },
+  {
+   "plugin": "archify",
+   "script": "skills/archify/renderers/lifecycle/render-lifecycle.mjs",
+   "citado": true,
+   "classe": "puro",
+   "escreve": true,
+   "motivos": []
+  },
+  {
+   "plugin": "archify",
+   "script": "skills/archify/renderers/sequence/render-sequence.mjs",
+   "citado": true,
+   "classe": "puro",
+   "escreve": true,
+   "motivos": []
+  },
+  {
+   "plugin": "archify",
+   "script": "skills/archify/renderers/shared/cli.mjs",
+   "citado": false,
+   "classe": "puro",
+   "escreve": true,
+   "motivos": []
+  },
+  {
+   "plugin": "archify",
+   "script": "skills/archify/renderers/shared/generated-validators.mjs",
+   "citado": true,
+   "classe": "puro",
+   "escreve": false,
+   "motivos": []
+  },
+  {
+   "plugin": "archify",
+   "script": "skills/archify/renderers/shared/geometry.mjs",
+   "citado": false,
+   "classe": "puro",
+   "escreve": false,
+   "motivos": []
+  },
+  {
+   "plugin": "archify",
+   "script": "skills/archify/renderers/shared/layout-report.mjs",
+   "citado": false,
+   "classe": "puro",
+   "escreve": false,
+   "motivos": []
+  },
+  {
+   "plugin": "archify",
+   "script": "skills/archify/renderers/shared/utils.mjs",
+   "citado": false,
+   "classe": "puro",
+   "escreve": false,
+   "motivos": []
+  },
+  {
+   "plugin": "archify",
+   "script": "skills/archify/renderers/shared/validator.mjs",
+   "citado": true,
+   "classe": "puro",
+   "escreve": false,
+   "motivos": []
+  },
+  {
+   "plugin": "archify",
+   "script": "skills/archify/renderers/workflow/render-workflow.mjs",
+   "citado": true,
+   "classe": "puro",
+   "escreve": true,
+   "motivos": []
+  },
+  {
+   "plugin": "archify",
+   "script": "skills/archify/scripts/check-render-output.mjs",
+   "citado": true,
+   "classe": "puro",
+   "escreve": false,
+   "motivos": []
+  },
+  {
+   "plugin": "archify",
+   "script": "skills/archify/scripts/generate-validators.mjs",
+   "citado": true,
+   "classe": "puro",
+   "escreve": true,
+   "motivos": []
+  },
+  {
+   "plugin": "archify",
+   "script": "skills/archify/scripts/render-examples.mjs",
+   "citado": true,
+   "classe": "executa",
+   "escreve": false,
+   "motivos": [
+    "child_process"
+   ]
+  },
+  {
+   "plugin": "bootstrap",
+   "script": "lib/bash_posix.py",
+   "citado": false,
+   "classe": "executa",
+   "escreve": true,
+   "motivos": [
+    "import subprocess"
+   ]
+  },
+  {
+   "plugin": "bootstrap",
+   "script": "lib/cfgjson.py",
+   "citado": true,
+   "classe": "executa",
+   "escreve": true,
+   "motivos": [
+    "lib/script_audit.py: import subprocess"
+   ]
+  },
+  {
+   "plugin": "bootstrap",
+   "script": "lib/conformance.py",
+   "citado": true,
+   "classe": "puro",
+   "escreve": true,
+   "motivos": []
+  },
+  {
+   "plugin": "bootstrap",
+   "script": "lib/lar_fingido.py",
+   "citado": false,
+   "classe": "puro",
+   "escreve": false,
+   "motivos": []
+  },
+  {
+   "plugin": "bootstrap",
+   "script": "lib/regua_texto.py",
+   "citado": false,
+   "classe": "puro",
+   "escreve": false,
+   "motivos": []
+  },
+  {
+   "plugin": "bootstrap",
+   "script": "lib/script_audit.py",
+   "citado": true,
+   "classe": "executa",
+   "escreve": true,
+   "motivos": [
+    "import subprocess"
+   ]
+  },
+  {
+   "plugin": "branches",
+   "script": "lib/branch_state.py",
+   "citado": true,
+   "classe": "executa",
+   "escreve": true,
+   "motivos": [
+    "import subprocess"
+   ]
+  },
+  {
+   "plugin": "branches",
+   "script": "lib/regua_texto.py",
+   "citado": true,
+   "classe": "puro",
+   "escreve": false,
+   "motivos": []
+  },
+  {
+   "plugin": "check-skills",
+   "script": "lib/padroes_vazamento.py",
+   "citado": false,
+   "classe": "puro",
+   "escreve": false,
+   "motivos": []
+  },
+  {
+   "plugin": "check-skills",
+   "script": "lib/varredura.py",
+   "citado": true,
+   "classe": "executa",
+   "escreve": false,
+   "motivos": [
+    "import subprocess"
+   ]
+  },
+  {
+   "plugin": "fallow",
+   "script": "lib/audit.py",
+   "citado": true,
+   "classe": "executa",
+   "escreve": false,
+   "motivos": [
+    "import subprocess"
+   ]
+  },
+  {
+   "plugin": "fallow",
+   "script": "lib/regua_texto.py",
+   "citado": false,
+   "classe": "puro",
+   "escreve": false,
+   "motivos": []
+  },
+  {
+   "plugin": "fallow",
+   "script": "lib/report.py",
+   "citado": true,
+   "classe": "executa",
+   "escreve": true,
+   "motivos": [
+    "import subprocess"
+   ]
+  },
+  {
+   "plugin": "gauntlet",
+   "script": "lib/fecho_check.py",
+   "citado": true,
+   "classe": "executa",
+   "escreve": true,
+   "motivos": [
+    "import subprocess"
+   ]
+  },
+  {
+   "plugin": "graphify-guard",
+   "script": "lib/regua_texto.py",
+   "citado": true,
+   "classe": "puro",
+   "escreve": false,
+   "motivos": []
+  },
+  {
+   "plugin": "guardrails",
+   "script": "hooks/pretooluse-artefato-regua.py",
+   "citado": true,
+   "classe": "executa",
+   "escreve": false,
+   "motivos": [
+    "import importlib"
+   ]
+  },
+  {
+   "plugin": "guardrails",
+   "script": "lib/askq_lint.py",
+   "citado": true,
+   "classe": "puro",
+   "escreve": false,
+   "motivos": []
+  },
+  {
+   "plugin": "guardrails",
+   "script": "lib/regua_texto.py",
+   "citado": true,
+   "classe": "puro",
+   "escreve": false,
+   "motivos": []
+  },
+  {
+   "plugin": "handoff",
+   "script": "lib/bash_posix.py",
+   "citado": false,
+   "classe": "executa",
+   "escreve": true,
+   "motivos": [
+    "import subprocess"
+   ]
+  },
+  {
+   "plugin": "handoff",
+   "script": "lib/casa_da_doc.py",
+   "citado": false,
+   "classe": "puro",
+   "escreve": false,
+   "motivos": []
+  },
+  {
+   "plugin": "handoff",
+   "script": "lib/collect_engine.py",
+   "citado": false,
+   "classe": "puro",
+   "escreve": false,
+   "motivos": []
+  },
+  {
+   "plugin": "handoff",
+   "script": "lib/extract_ata.py",
+   "citado": true,
+   "classe": "puro",
+   "escreve": true,
+   "motivos": []
+  },
+  {
+   "plugin": "improve-workflow",
+   "script": "lib/bash_posix.py",
+   "citado": false,
+   "classe": "executa",
+   "escreve": true,
+   "motivos": [
+    "import subprocess"
+   ]
+  },
+  {
+   "plugin": "improve-workflow",
+   "script": "lib/lar_fingido.py",
+   "citado": false,
+   "classe": "puro",
+   "escreve": false,
+   "motivos": []
+  },
+  {
+   "plugin": "improve-workflow",
+   "script": "lib/medidor.py",
+   "citado": true,
+   "classe": "puro",
+   "escreve": false,
+   "motivos": []
+  },
+  {
+   "plugin": "improve-workflow",
+   "script": "lib/plano_saida.py",
+   "citado": true,
+   "classe": "executa",
+   "escreve": true,
+   "motivos": [
+    "import importlib",
+    "import subprocess",
+    "lib/bash_posix.py: import subprocess"
+   ]
+  },
+  {
+   "plugin": "improve-workflow",
+   "script": "lib/proposta.py",
+   "citado": true,
+   "classe": "puro",
+   "escreve": false,
+   "motivos": []
+  },
+  {
+   "plugin": "improve-workflow",
+   "script": "lib/registro.py",
+   "citado": true,
+   "classe": "puro",
+   "escreve": true,
+   "motivos": []
+  },
+  {
+   "plugin": "improve-workflow",
+   "script": "lib/sobras.py",
+   "citado": true,
+   "classe": "puro",
+   "escreve": false,
+   "motivos": []
+  },
+  {
+   "plugin": "intent-guard",
+   "script": "lib/ledger.py",
+   "citado": true,
+   "classe": "executa",
+   "escreve": true,
+   "motivos": [
+    "import subprocess"
+   ]
+  },
+  {
+   "plugin": "lixeiro",
+   "script": "lib/causa.py",
+   "citado": true,
+   "classe": "executa",
+   "escreve": false,
+   "motivos": [
+    "import subprocess"
+   ]
+  },
+  {
+   "plugin": "lixeiro",
+   "script": "lib/lixeiro.py",
+   "citado": true,
+   "classe": "executa",
+   "escreve": true,
+   "motivos": [
+    "import ctypes",
+    "import subprocess"
+   ]
+  },
+  {
+   "plugin": "lixeiro",
+   "script": "lib/padroes_vazamento.py",
+   "citado": false,
+   "classe": "puro",
+   "escreve": false,
+   "motivos": []
+  },
+  {
+   "plugin": "project-skills",
+   "script": "lib/andamento.py",
+   "citado": true,
+   "classe": "puro",
+   "escreve": true,
+   "motivos": []
+  },
+  {
+   "plugin": "project-skills",
+   "script": "lib/auditoria_plano.py",
+   "citado": true,
+   "classe": "puro",
+   "escreve": false,
+   "motivos": []
+  },
+  {
+   "plugin": "project-skills",
+   "script": "lib/bash_posix.py",
+   "citado": false,
+   "classe": "executa",
+   "escreve": true,
+   "motivos": [
+    "import subprocess"
+   ]
+  },
+  {
+   "plugin": "project-skills",
+   "script": "lib/caminho_igual.py",
+   "citado": false,
+   "classe": "puro",
+   "escreve": false,
+   "motivos": []
+  },
+  {
+   "plugin": "project-skills",
+   "script": "lib/casa_da_doc.py",
+   "citado": true,
+   "classe": "puro",
+   "escreve": false,
+   "motivos": []
+  },
+  {
+   "plugin": "project-skills",
+   "script": "lib/cobertura.py",
+   "citado": true,
+   "classe": "puro",
+   "escreve": false,
+   "motivos": []
+  },
+  {
+   "plugin": "project-skills",
+   "script": "lib/collect_engine.py",
+   "citado": true,
+   "classe": "puro",
+   "escreve": false,
+   "motivos": []
+  },
+  {
+   "plugin": "project-skills",
+   "script": "lib/completude.py",
+   "citado": true,
+   "classe": "executa",
+   "escreve": true,
+   "motivos": [
+    "lib/bash_posix.py: import subprocess",
+    "lib/plan_state.py: import subprocess",
+    "lib/precheck_largada.py: import subprocess"
+   ]
+  },
+  {
+   "plugin": "project-skills",
+   "script": "lib/curadoria_features.py",
+   "citado": true,
+   "classe": "puro",
+   "escreve": true,
+   "motivos": []
+  },
+  {
+   "plugin": "project-skills",
+   "script": "lib/decisoes_estruturais.py",
+   "citado": true,
+   "classe": "puro",
+   "escreve": false,
+   "motivos": []
+  },
+  {
+   "plugin": "project-skills",
+   "script": "lib/decisoes_seladas.py",
+   "citado": true,
+   "classe": "puro",
+   "escreve": true,
+   "motivos": []
+  },
+  {
+   "plugin": "project-skills",
+   "script": "lib/doc_lint.py",
+   "citado": true,
+   "classe": "executa",
+   "escreve": true,
+   "motivos": [
+    "import subprocess",
+    "lib/doc_load.py: import subprocess",
+    "lib/journal.py: import subprocess",
+    "lib/organism.py: import subprocess",
+    "lib/pattern_check.py: import subprocess"
+   ]
+  },
+  {
+   "plugin": "project-skills",
+   "script": "lib/doc_load.py",
+   "citado": true,
+   "classe": "executa",
+   "escreve": false,
+   "motivos": [
+    "import subprocess"
+   ]
+  },
+  {
+   "plugin": "project-skills",
+   "script": "lib/graph_map.py",
+   "citado": true,
+   "classe": "puro",
+   "escreve": false,
+   "motivos": []
+  },
+  {
+   "plugin": "project-skills",
+   "script": "lib/historico.py",
+   "citado": true,
+   "classe": "puro",
+   "escreve": true,
+   "motivos": []
+  },
+  {
+   "plugin": "project-skills",
+   "script": "lib/journal.py",
+   "citado": true,
+   "classe": "executa",
+   "escreve": true,
+   "motivos": [
+    "import subprocess"
+   ]
+  },
+  {
+   "plugin": "project-skills",
+   "script": "lib/lar_fingido.py",
+   "citado": false,
+   "classe": "puro",
+   "escreve": false,
+   "motivos": []
+  },
+  {
+   "plugin": "project-skills",
+   "script": "lib/ledger_corridas.py",
+   "citado": true,
+   "classe": "puro",
+   "escreve": true,
+   "motivos": []
+  },
+  {
+   "plugin": "project-skills",
+   "script": "lib/orfaos.py",
+   "citado": true,
+   "classe": "executa",
+   "escreve": false,
+   "motivos": [
+    "import subprocess"
+   ]
+  },
+  {
+   "plugin": "project-skills",
+   "script": "lib/organism.py",
+   "citado": true,
+   "classe": "executa",
+   "escreve": false,
+   "motivos": [
+    "import subprocess"
+   ]
+  },
+  {
+   "plugin": "project-skills",
+   "script": "lib/pattern_check.py",
+   "citado": true,
+   "classe": "executa",
+   "escreve": true,
+   "motivos": [
+    "import subprocess",
+    "lib/doc_load.py: import subprocess",
+    "lib/journal.py: import subprocess",
+    "lib/organism.py: import subprocess"
+   ]
+  },
+  {
+   "plugin": "project-skills",
+   "script": "lib/plan_entrada.py",
+   "citado": true,
+   "classe": "puro",
+   "escreve": true,
+   "motivos": []
+  },
+  {
+   "plugin": "project-skills",
+   "script": "lib/plan_state.py",
+   "citado": true,
+   "classe": "executa",
+   "escreve": true,
+   "motivos": [
+    "import subprocess",
+    "lib/bash_posix.py: import subprocess",
+    "lib/precheck_largada.py: import subprocess"
+   ]
+  },
+  {
+   "plugin": "project-skills",
+   "script": "lib/precheck_largada.py",
+   "citado": true,
+   "classe": "executa",
+   "escreve": true,
+   "motivos": [
+    "import subprocess",
+    "lib/bash_posix.py: import subprocess",
+    "lib/plan_state.py: import subprocess"
+   ]
+  },
+  {
+   "plugin": "project-skills",
+   "script": "lib/rastreio_etapas.py",
+   "citado": true,
+   "classe": "puro",
+   "escreve": false,
+   "motivos": []
+  },
+  {
+   "plugin": "project-skills",
+   "script": "lib/regua_pronto.py",
+   "citado": true,
+   "classe": "puro",
+   "escreve": false,
+   "motivos": []
+  },
+  {
+   "plugin": "project-skills",
+   "script": "lib/regua_texto.py",
+   "citado": true,
+   "classe": "puro",
+   "escreve": false,
+   "motivos": []
+  },
+  {
+   "plugin": "project-skills",
+   "script": "lib/retomada.py",
+   "citado": true,
+   "classe": "puro",
+   "escreve": false,
+   "motivos": []
+  },
+  {
+   "plugin": "project-skills",
+   "script": "skills/doc-touch/grao-de-modulo.py",
+   "citado": true,
+   "classe": "executa",
+   "escreve": false,
+   "motivos": [
+    "import subprocess"
+   ]
+  },
+  {
+   "plugin": "project-skills",
+   "script": "skills/qa-loop/references/motor.js",
+   "citado": true,
+   "classe": "puro",
+   "escreve": false,
+   "motivos": []
+  },
+  {
+   "plugin": "project-skills",
+   "script": "skills/qa-loop/references/r8_tiers.py",
+   "citado": true,
+   "classe": "puro",
+   "escreve": true,
+   "motivos": []
+  },
+  {
+   "plugin": "project-skills",
+   "script": "skills/sprint/references/motor.js",
+   "citado": true,
+   "classe": "puro",
+   "escreve": false,
+   "motivos": []
+  },
+  {
+   "plugin": "project-skills",
+   "script": "skills/sprint/references/r8_tiers.py",
+   "citado": true,
+   "classe": "puro",
+   "escreve": true,
+   "motivos": []
+  },
+  {
+   "plugin": "sec",
+   "script": "lib/regua_texto.py",
+   "citado": false,
+   "classe": "puro",
+   "escreve": false,
+   "motivos": []
+  },
+  {
+   "plugin": "sec",
+   "script": "lib/sec.py",
+   "citado": true,
+   "classe": "executa",
+   "escreve": true,
+   "motivos": [
+    "import subprocess",
+    "import urllib.error",
+    "import urllib.request"
+   ]
+  },
+  {
+   "plugin": "ship",
+   "script": "lib/regua_texto.py",
+   "citado": true,
+   "classe": "puro",
+   "escreve": false,
+   "motivos": []
+  },
+  {
+   "plugin": "slides",
+   "script": "lib/md2deck.py",
+   "citado": true,
+   "classe": "puro",
+   "escreve": true,
+   "motivos": []
+  },
+  {
+   "plugin": "slides",
+   "script": "lib/regua_texto.py",
+   "citado": false,
+   "classe": "puro",
+   "escreve": false,
+   "motivos": []
+  },
+  {
+   "plugin": "slides",
+   "script": "skills/slides/scripts/check_fidelity.py",
+   "citado": true,
+   "classe": "puro",
+   "escreve": false,
+   "motivos": []
+  },
+  {
+   "plugin": "slides",
+   "script": "skills/slides/scripts/check_provenance.py",
+   "citado": true,
+   "classe": "puro",
+   "escreve": false,
+   "motivos": []
+  },
+  {
+   "plugin": "vision",
+   "script": "vision_mcp.py",
+   "citado": false,
+   "classe": "rede",
+   "escreve": false,
+   "motivos": [
+    "import urllib.error",
+    "import urllib.request"
+   ]
+  },
+  {
+   "plugin": "vistoria",
+   "script": "fixtures/e/exemplo.py",
+   "citado": false,
+   "classe": "puro",
+   "escreve": false,
+   "motivos": []
+  },
+  {
+   "plugin": "vistoria",
+   "script": "fixtures/e/exemplo_test.py",
+   "citado": false,
+   "classe": "puro",
+   "escreve": false,
+   "motivos": []
+  },
+  {
+   "plugin": "vistoria",
+   "script": "lib/achado.py",
+   "citado": true,
+   "classe": "puro",
+   "escreve": false,
+   "motivos": []
+  },
+  {
+   "plugin": "vistoria",
+   "script": "lib/bash_posix.py",
+   "citado": false,
+   "classe": "executa",
+   "escreve": true,
+   "motivos": [
+    "import subprocess"
+   ]
+  },
+  {
+   "plugin": "vistoria",
+   "script": "lib/fio_morto.py",
+   "citado": true,
+   "classe": "puro",
+   "escreve": true,
+   "motivos": []
+  },
+  {
+   "plugin": "vistoria",
+   "script": "lib/inventario.py",
+   "citado": true,
+   "classe": "puro",
+   "escreve": false,
+   "motivos": []
+  },
+  {
+   "plugin": "vistoria",
+   "script": "lib/medidor.py",
+   "citado": true,
+   "classe": "executa",
+   "escreve": false,
+   "motivos": [
+    "import importlib",
+    "import subprocess"
+   ]
+  },
+  {
+   "plugin": "vistoria",
+   "script": "lib/pagina.py",
+   "citado": true,
+   "classe": "puro",
+   "escreve": true,
+   "motivos": []
+  },
+  {
+   "plugin": "vistoria",
+   "script": "lib/plano_saida.py",
+   "citado": true,
+   "classe": "executa",
+   "escreve": true,
+   "motivos": [
+    "import importlib",
+    "import subprocess",
+    "lib/bash_posix.py: import subprocess"
+   ]
+  },
+  {
+   "plugin": "vistoria",
+   "script": "lib/regua_texto.py",
+   "citado": false,
+   "classe": "puro",
+   "escreve": false,
+   "motivos": []
+  },
+  {
+   "plugin": "vistoria",
+   "script": "lib/suite_congela.py",
+   "citado": true,
+   "classe": "puro",
+   "escreve": true,
+   "motivos": []
+  },
+  {
+   "plugin": "visual",
+   "script": "hooks/bash_posix.py",
+   "citado": false,
+   "classe": "executa",
+   "escreve": true,
+   "motivos": [
+    "import subprocess"
+   ]
+  },
+  {
+   "plugin": "visual",
+   "script": "hooks/lar_fingido.py",
+   "citado": false,
+   "classe": "puro",
+   "escreve": false,
+   "motivos": []
+  },
+  {
+   "plugin": "visual",
+   "script": "hooks/stop-anuncio-sem-acao.py",
+   "citado": true,
+   "classe": "executa",
+   "escreve": true,
+   "motivos": [
+    "hooks/bash_posix.py: import subprocess",
+    "import subprocess",
+    "lib/bash_posix.py: import subprocess"
+   ]
+  },
+  {
+   "plugin": "visual",
+   "script": "lib/bash_posix.py",
+   "citado": false,
+   "classe": "executa",
+   "escreve": true,
+   "motivos": [
+    "import subprocess"
+   ]
+  },
+  {
+   "plugin": "visual",
+   "script": "lib/clareza.py",
+   "citado": true,
+   "classe": "puro",
+   "escreve": true,
+   "motivos": []
+  },
+  {
+   "plugin": "visual",
+   "script": "lib/regua_audit.py",
+   "citado": false,
+   "classe": "executa",
+   "escreve": true,
+   "motivos": [
+    "hooks/bash_posix.py: import subprocess",
+    "import subprocess",
+    "lib/bash_posix.py: import subprocess",
+    "lib/visual_page.py: import subprocess"
+   ]
+  },
+  {
+   "plugin": "visual",
+   "script": "lib/regua_texto.py",
+   "citado": false,
+   "classe": "puro",
+   "escreve": false,
+   "motivos": []
+  },
+  {
+   "plugin": "visual",
+   "script": "lib/visual_page.py",
+   "citado": true,
+   "classe": "executa",
+   "escreve": true,
+   "motivos": [
+    "hooks/bash_posix.py: import subprocess",
+    "import subprocess",
+    "lib/bash_posix.py: import subprocess"
+   ]
+  },
+  {
+   "plugin": "visual",
+   "script": "server/visual_server.mjs",
+   "citado": true,
+   "classe": "rede",
+   "escreve": true,
+   "motivos": [
+    "from 'node:http'"
+   ]
+  }
+ ]
+}
