@@ -367,7 +367,7 @@ bootstrap         1.17.18  [bootstrap]                  HOOKS
 branches           1.3.15  [branches]                   HOOKS
 check-skills        0.7.4  [check-skills]               -
 context-guard      1.3.17  [context-guard]              HOOKS
-fallow              1.2.9  [fallow]                     -
+fallow             1.2.10  [fallow]                     -
 gauntlet           0.13.7  [gauntlet]                   HOOKS
 graphify-guard     1.2.14  []                           HOOKS
 grill-me            1.5.3  [grill-me]                   -
@@ -378,13 +378,13 @@ improve-workflow  0.16.30  [improve-workflow]           -
 intent-guard       0.8.17  [intent-guard]               HOOKS
 lixeiro             1.6.0  [faxina]                     HOOKS
 principles          1.0.5  [principles]                 -
-project-skills    0.22.230  [completude,design-md,doc,doc-load,doc-touch,monitorar,pesquisa-referencias,plan,project-skills,qa-loop,reentrada,sprint,start] HOOKS
+project-skills    0.22.231  [completude,design-md,doc,doc-load,doc-touch,monitorar,pesquisa-referencias,plan,project-skills,qa-loop,reentrada,sprint,start] HOOKS
 sec                 0.1.0  [sec]                        -
 ship                1.5.7  [ship]                       HOOKS
 slides              1.6.6  [slides]                     -
 vision              0.1.1  []                           -
 vistoria           0.11.9  [vistoria]                   -
-visual             1.44.3  [andamento,visual]           HOOKS
+visual             1.44.4  [andamento,visual]           HOOKS
 ```
 
 **A rodada anterior moveu onde as skills MORAM; esta apagou as CASAS que tinham ficado
