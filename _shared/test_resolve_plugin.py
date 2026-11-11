@@ -46,8 +46,16 @@ def poe(caminho):
         f.write("alvo\n")
 
 
+def escreve_catalogo(raiz, nome_mkt):
+    """O `.claude-plugin/marketplace.json` na raiz de um checkout (o nome vem primeiro)."""
+    caminho = os.path.join(raiz, ".claude-plugin", "marketplace.json")
+    os.makedirs(os.path.dirname(caminho), exist_ok=True)
+    with open(caminho, "w", encoding="utf-8") as f:
+        json.dump({"name": nome_mkt, "plugins": []}, f)
+
+
 def resolve(layout, nome="lixeiro", rel="lib/lixeiro.py", pede=None, via_home=False,
-            sem_raiz=False):
+            sem_raiz=False, versoes=None, instalado=None):
     """Monta a arvore, roda o script, devolve (codigo, stdout limpo, o caminho existe?).
 
     `nome`/`rel` sao o que a arvore CONTEM; `pede` e o par que o script vai PROCURAR
@@ -58,20 +66,44 @@ def resolve(layout, nome="lixeiro", rel="lib/lixeiro.py", pede=None, via_home=Fa
     p_nome, p_rel = pede or (nome, rel)
     raiz = tempfile.mkdtemp(prefix="resolve-plugin-")
     try:
+        cache_nosso = os.path.join(raiz, "config", "plugins", "cache", "pedro-plugins")
         if layout == "repo":
+            # Checkout deste repositorio: o catalogo na raiz e o que o identifica.
             root = os.path.join(raiz, "plugins", "sprint")
             poe(os.path.join(raiz, "plugins", nome, rel))
+            escreve_catalogo(raiz, "pedro-plugins")
+        elif layout in ("repo-de-outro", "repo-sem-catalogo"):
+            # Checkout de OUTRO repositorio (catalogo com outro nome, ou nenhum): o irmao
+            # direto existe, mas `CLAUDE_PLUGIN_ROOT` ali dentro nao e a casa do nosso.
+            root = os.path.join(raiz, "plugins", "sprint")
+            poe(os.path.join(raiz, "plugins", nome, rel))
+            if layout == "repo-de-outro":
+                escreve_catalogo(raiz, "outro-mercado")
         elif layout == "cache":
-            root = os.path.join(raiz, "pedro-plugins", "sprint", "1.13.0")
+            root = os.path.join(cache_nosso, "sprint", "1.13.0")
             for v in ("1.9.0", "1.10.0", "1.8.2"):
-                poe(os.path.join(raiz, "pedro-plugins", nome, v, rel))
+                poe(os.path.join(cache_nosso, nome, v, rel))
         elif layout == "outro-marketplace":
             # O irmao existe, mas veio de OUTRO marketplace: nem o irmao direto nem o
             # `../../` do proprio marketplace o alcancam — so a varredura do cache. A
             # varredura so vale para o marketplace DESTE repositorio (Achado 9).
-            root = os.path.join(raiz, "pedro-plugins", "sprint", "1.13.0")
+            root = os.path.join(cache_nosso, "sprint", "1.13.0")
             poe(os.path.join(raiz, "config", "plugins", "cache",
                              "outro", nome, "2.0.0", rel))
+        elif layout in ("raiz-em-alheio", "raiz-em-alheio-e-nosso", "raiz-com-dotdot"):
+            # Revisao 1 do PR 14: `CLAUDE_PLUGIN_ROOT` dentro do cache de OUTRO
+            # marketplace nao pode escolher o irmao DALI. So o nosso marketplace vale.
+            alheio = os.path.join(raiz, "config", "plugins", "cache", "evil")
+            poe(os.path.join(alheio, nome, "9.9.9", rel))
+            poe(os.path.join(alheio, nome, rel))  # tambem o "irmao direto" do alheio
+            if layout == "raiz-com-dotdot":
+                root = os.path.join(cache_nosso, "sprint", "1.0.0", "..", "..", "..",
+                                    "evil", "sprint", "1.0.0")
+                os.makedirs(os.path.join(alheio, "sprint", "1.0.0"), exist_ok=True)
+            else:
+                root = os.path.join(alheio, "sprint", "1.0.0")
+            if layout == "raiz-em-alheio-e-nosso":
+                poe(os.path.join(cache_nosso, nome, "1.0.0", rel))
         elif layout in ("cache-nosso-e-alheio", "cache-so-alheio-mais-alto",
                         "cache-so-nosso", "cache-nome-parecido"):
             # A raiz do chamador NAO esta no cache (rodando de fora do harness, ou
@@ -87,8 +119,28 @@ def resolve(layout, nome="lixeiro", rel="lib/lixeiro.py", pede=None, via_home=Fa
                 # marketplace de nome PARECIDO com o nosso nao e o nosso
                 poe(os.path.join(cache, "pedro-plugins-fork", nome, "9.9.9", rel))
                 poe(os.path.join(cache, "xpedro-plugins", nome, "9.9.9", rel))
+        elif layout == "versoes":
+            # So versoes escolhidas pelo teste dentro do NOSSO cache (raiz tambem nele).
+            root = os.path.join(cache_nosso, "sprint", "1.13.0")
+            for v in versoes or ():
+                poe(os.path.join(cache_nosso, nome, v, rel))
+        elif layout == "versoes-varredura":
+            # Idem, mas a raiz esta fora do cache: so a 3a tentativa (varredura) alcanca.
+            root = os.path.join(raiz, "solto", "sprint")
+            for v in versoes or ():
+                poe(os.path.join(cache_nosso, nome, v, rel))
         else:
-            root = os.path.join(raiz, "pedro-plugins", "sprint", "1.13.0")
+            root = os.path.join(cache_nosso, "sprint", "1.13.0")
+        if instalado is not None:
+            # O `installed_plugins.json` do harness: {"version":2,"plugins":{"<n>@<m>":[{installPath,..}]}}
+            # `{cache}` vira o cache do marketplace da arvore de mentira.
+            rotulo = instalado.replace("{cache}", cache_nosso)
+            caminho_instalado = os.path.join(raiz, "config", "plugins", "installed_plugins.json")
+            os.makedirs(os.path.dirname(caminho_instalado), exist_ok=True)
+            with open(caminho_instalado, "w", encoding="utf-8") as f:
+                json.dump({"version": 2, "plugins": {
+                    "%s@pedro-plugins" % nome: [{"scope": "user", "installPath": rotulo,
+                                                 "version": "x"}]}}, f)
         os.makedirs(root, exist_ok=True)
         amb = dict(os.environ)
         casa = os.path.join(raiz, "home")
@@ -178,6 +230,63 @@ def casos_que_executam():
         rc, saida, _ = resolve("repo", pede=par)
         check("%s e recusado (sai com 2, sem caminho)" % rotulo, rc == 2 and saida == "")
 
+    # ---- Revisao 1 do PR 14 -------------------------------------------------------
+    # (1) As tentativas 1 e 2 confiavam em CLAUDE_PLUGIN_ROOT, seja la onde ele aponte.
+    # So vale irmao de raiz dentro do cache do NOSSO marketplace ou de um checkout DESTE
+    # repositorio (catalogo `pedro-plugins` na raiz).
+    rc, saida, _ = resolve("raiz-em-alheio")
+    check("raiz no cache de OUTRO marketplace: o irmao dali NAO e devolvido",
+          saida == "" and rc == 3)
+    rc, saida, _ = resolve("raiz-com-dotdot")
+    check("raiz que sai do nosso cache por '..' para o alheio: NAO e devolvido",
+          saida == "" and rc == 3)
+    rc, saida, existe = resolve("raiz-em-alheio-e-nosso")
+    check("raiz no alheio, mas o plugin existe no NOSSO cache: cai na varredura e acha o nosso",
+          rc == 0 and existe and "/cache/pedro-plugins/lixeiro/1.0.0/" in saida.replace("\\", "/"))
+    rc, saida, _ = resolve("repo-de-outro")
+    check("checkout com catalogo de OUTRO nome: o irmao direto NAO vale",
+          saida == "" and rc == 3)
+    rc, saida, _ = resolve("repo-sem-catalogo")
+    check("pasta de plugins sem catalogo na raiz: o irmao direto NAO vale",
+          saida == "" and rc == 3)
+
+    # (2) Versao: so diretorio que e versao de verdade; o que o harness instalou ganha.
+    for rotulo, camada in (("pela tentativa 2 (raiz no cache)", "versoes"),
+                           ("pela varredura (raiz fora do cache)", "versoes-varredura")):
+        rc, saida, existe = resolve(camada, versoes=["1.2.0", "1.9.0", "1.10.0", "unknown",
+                                                     "abc123", "latest", "99", "9.9.9.9.9"])
+        check("%s: 'unknown', SHA, 'latest' e nome sem ponto NAO vencem versao real" % rotulo,
+              rc == 0 and existe and saida.replace("\\", "/").endswith("/lixeiro/1.10.0/lib/lixeiro.py"))
+        rc, saida, _ = resolve(camada, versoes=["unknown", "abc123", "latest"])
+        check("%s: so diretorio que nao e versao: nada resolve" % rotulo,
+              rc == 3 and saida == "")
+        rc, saida, existe = resolve(camada, versoes=["1.10.0", "1.10.0-beta", "1.2.0"])
+        check("%s: pre-release nao passa a frente da versao final" % rotulo,
+              rc == 0 and saida.replace("\\", "/").endswith("/lixeiro/1.10.0/lib/lixeiro.py"))
+        rc, saida, existe = resolve(camada, versoes=["1.9.0", "1.10.0-beta"])
+        check("%s: pre-release de versao mais alta ainda e versao (1.10.0-beta > 1.9.0)" % rotulo,
+              rc == 0 and existe and saida.replace("\\", "/").endswith("/lixeiro/1.10.0-beta/lib/lixeiro.py"))
+
+        rc, saida, existe = resolve(camada, versoes=["1.9.0", "1.10.0"],
+                                    instalado="{cache}/lixeiro/1.9.0")
+        check("%s: installed_plugins.json nomeia 1.9.0 -> sai 1.9.0, nao a mais alta em disco" % rotulo,
+              rc == 0 and existe and saida.replace("\\", "/").endswith("/lixeiro/1.9.0/lib/lixeiro.py"))
+        rc, saida, existe = resolve(camada, versoes=["1.9.0", "1.10.0"],
+                                    instalado="{cache}/lixeiro/1.8.0")
+        check("%s: versao instalada que nao existe mais em disco: cai na mais alta valida" % rotulo,
+              rc == 0 and existe and saida.replace("\\", "/").endswith("/lixeiro/1.10.0/lib/lixeiro.py"))
+        rc, saida, _ = resolve(camada, versoes=["1.9.0", "1.10.0"],
+                               instalado="{cache}/lixeiro/../../../evil/9.9.9")
+        check("%s: installPath com '..' no registro nao escolhe nada fora" % rotulo,
+              rc == 0 and saida.replace("\\", "/").endswith("/lixeiro/1.10.0/lib/lixeiro.py"))
+        rc, saida, _ = resolve(camada, versoes=["1.9.0", "1.10.0"], instalado="{cache}/lixeiro/unknown")
+        check("%s: registro que nomeia versao que nao e versao e ignorado" % rotulo,
+              rc == 0 and saida.replace("\\", "/").endswith("/lixeiro/1.10.0/lib/lixeiro.py"))
+    rc, saida, existe = resolve("versoes-varredura", versoes=["1.9.0", "1.10.0"],
+                                instalado="{cache}/lixeiro/1.9.0", via_home=True)
+    check("HOME de mentira (sem CLAUDE_CONFIG_DIR): o registro em $HOME/.claude tambem vale",
+          rc == 0 and saida.replace("\\", "/").endswith("/home/.claude/plugins/cache/pedro-plugins/lixeiro/1.9.0/lib/lixeiro.py"))
+
     rc, saida, _ = resolve("ausente")
     check("plugin fora da maquina nao devolve caminho nenhum", saida == "")
     check("...e sinaliza a ausencia no codigo de saida (3), sem gritar", rc == 3)
@@ -211,6 +320,11 @@ def main():
     corpo_fonte = open(FONTE, encoding="utf-8").read()
     check("MERCADO=\"%s\" no resolvedor bate com .claude-plugin/marketplace.json" % nome_mkt,
           'MERCADO="%s"' % nome_mkt in corpo_fonte)
+    # O resolvedor reconhece o checkout pelo `"name"` PRIMEIRO do catalogo: se o catalogo
+    # real mudar de forma, o modo repositorio some em silencio — aqui avisa.
+    with open(os.path.join(RAIZ, ".claude-plugin", "marketplace.json"), encoding="utf-8") as fh:
+        check("o catalogo real traz \"name\" como primeira chave (e como o checkout e reconhecido)",
+              next(iter(json.load(fh))) == "name")
 
     print("as copias vendoradas — sem elas o resolvedor nao existe na maquina instalada")
     corpo = open(FONTE, encoding="utf-8").read()

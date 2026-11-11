@@ -267,15 +267,23 @@ def planta_o_lixeiro(raiz, layout, quebra=False):
         with open(caminho, "w", encoding="utf-8") as f:
             f.write(stub)
 
+    # O resolvedor so aceita irmao quando a raiz esta no cache do marketplace
+    # `pedro-plugins` (`<config>/plugins/cache/pedro-plugins/`) ou num checkout deste
+    # repositorio (catalogo `pedro-plugins` na raiz): e o layout real em ambos.
+    mercado = os.path.join(raiz, "config", "plugins", "cache", "pedro-plugins")
     if layout == "cache":
-        root = os.path.join(raiz, "pedro-plugins", "sprint", "1.13.0")
+        root = os.path.join(mercado, "sprint", "1.13.0")
         for v in ("1.9.0", "1.10.0", "1.8.2"):
-            poe(os.path.join(raiz, "pedro-plugins", "lixeiro", v, "lib", "lixeiro.py"))
+            poe(os.path.join(mercado, "lixeiro", v, "lib", "lixeiro.py"))
     elif layout == "repo":
         root = os.path.join(raiz, "plugins", "sprint")
         poe(os.path.join(raiz, "plugins", "lixeiro", "lib", "lixeiro.py"))
+        os.makedirs(os.path.join(raiz, ".claude-plugin"), exist_ok=True)
+        with open(os.path.join(raiz, ".claude-plugin", "marketplace.json"), "w",
+                  encoding="utf-8") as f:
+            f.write('{"name": "pedro-plugins", "plugins": []}')
     else:
-        root = os.path.join(raiz, "pedro-plugins", "sprint", "1.13.0")
+        root = os.path.join(mercado, "sprint", "1.13.0")
     os.makedirs(root, exist_ok=True)
     destino = os.path.join(root, "skills", "sprint", "resolve-plugin.sh")
     os.makedirs(os.path.dirname(destino), exist_ok=True)

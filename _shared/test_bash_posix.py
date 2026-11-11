@@ -96,6 +96,22 @@ def main():
             achado = escolhe(projeto, os.pathsep.join([".", absoluta]))
             check("com '.' antes, o bash legitimo do PATH ainda e achado",
                   bool(achado) and mesmo(achado, valido, projeto))
+        # Revisao 1 do PR 14: o bash de SISTEMA nunca some. Com o cwd sendo a propria
+        # pasta do bash (ou o PATH sem nenhuma pasta usavel), a lista fixa devolve um
+        # bash absoluto — maquina normal nunca recebe None.
+        if not NT:
+            sistema = [c for c in ("/bin/bash", "/usr/bin/bash") if os.path.isfile(c)]
+            if sistema:
+                for rotulo, cwd_, path in (
+                        ("cwd e a unica pasta do PATH com bash", os.path.dirname(sistema[0]),
+                         os.path.dirname(sistema[0])),
+                        ("PATH vazio", projeto, ""),
+                        ("PATH so com pasta relativa", projeto, "bin-local")):
+                    achado = escolhe(cwd_, path)
+                    check("%s: ainda ha bash (de sistema), nao None" % rotulo,
+                          bool(achado) and any(mesmo(achado, c, cwd_) for c in sistema))
+                    check("%s: e o bash plantado no cwd continua fora" % rotulo,
+                          not mesmo(achado or "", plantado, cwd_) if achado else True)
     finally:
         import shutil
         shutil.rmtree(raiz, ignore_errors=True)

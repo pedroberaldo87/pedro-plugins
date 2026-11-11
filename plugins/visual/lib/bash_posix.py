@@ -52,6 +52,10 @@ def _bash_do_path():
     `bash.exe`/`bash.bat` ali seria executado, e o único crivo do chamador, imprimir
     `VIVO`, um programa plantado imprime. Por isso o PATH é percorrido à mão: entrada
     vazia, relativa ou que resolve para o cwd é descartada, e `which` não é chamado.
+    Uma entrada ABSOLUTA que é o próprio cwd também cai (o cwd é o do repositório aberto) —
+    por isso `bash_posix` fecha a lista com `/bin/bash` e `/usr/bin/bash` no POSIX. Limite
+    conhecido: pasta absoluta DENTRO do cwd que o usuário ou uma ferramenta pôs no PATH
+    (`node_modules/.bin`, venv) ainda conta; o crivo é o `VIVO` + o PATH ser dele.
     """
     cwd = os.getcwd()
     exts = [""]
@@ -82,6 +86,13 @@ def bash_posix():
         candidatos += ["C:/Program Files/Git/bin/bash.exe",
                        "C:/Program Files/Git/usr/bin/bash.exe",
                        "C:/Program Files (x86)/Git/bin/bash.exe"]
+    else:
+        # Rede do POSIX (revisão 1 do PR 14): `_bash_do_path` descarta a entrada do PATH que
+        # é o cwd — correto contra bash plantado, mas com o cwd em `/bin` (ou o PATH sem
+        # nenhuma pasta usável) sobraria `None` numa máquina que TEM bash. Estes dois
+        # caminhos são de sistema e fixos: nunca dependem do cwd nem do PATH.
+        candidatos += [c for c in ("/bin/bash", "/usr/bin/bash")
+                       if not any(_igual(c, x) for x in candidatos)]
     for c in candidatos:
         if not os.path.exists(c):
             continue
