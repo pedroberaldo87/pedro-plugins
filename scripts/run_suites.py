@@ -111,6 +111,40 @@ def cpu_viva(bash, pgid, amostra):
     return None
 
 
+def tetos_de_git(casa):
+    """Os diretórios acima dos quais o git NÃO procura repositório (GIT_CEILING_DIRECTORIES).
+
+    Suíte que cria uma pasta temporária e pergunta ao git onde está o projeto espera
+    "em lugar nenhum". Se algum ancestral do temporário for um repositório — um `.git`
+    esquecido na pasta de temporários do sistema, um `TMPDIR` dentro de um clone — o git
+    sobe até lá e responde com ele, e a suíte passa a depender do que existe fora do
+    repositório de quem roda. Medido numa máquina de trabalho: onze suítes vermelhas por
+    um `.git` solto no temporário do usuário, todas verdes no CI.
+
+    O teto vale para o temporário do sistema (que o `mktemp -d` do macOS usa mesmo com
+    `TMPDIR` trocado) e para a pasta-mãe da casa própria da suíte. Repositório criado
+    DENTRO deles continua achado: o teto fecha a subida, não o git. O caminho vai
+    resolvido (`realpath`) porque o git compara com o caminho real, e `/var` no macOS é
+    link para `/private/var`.
+    """
+    candidatos = [os.path.dirname(casa), tempfile.gettempdir()]
+    try:
+        candidatos.append(os.confstr("CS_DARWIN_USER_TEMP_DIR"))
+    except (AttributeError, ValueError, OSError):
+        pass   # só o macOS tem essa pergunta
+    tetos = []
+    for c in candidatos:
+        if c:
+            real = os.path.realpath(c)
+            if real not in tetos:
+                tetos.append(real)
+    # O teto que o dono já tinha continua valendo: o do rodador entra junto, não no lugar.
+    antigo = os.environ.get("GIT_CEILING_DIRECTORIES")
+    if antigo:
+        tetos.insert(0, antigo)
+    return os.pathsep.join(tetos)
+
+
 def roda(cmd, alvo, janela, bash):
     """Uma suíte, sob VIGIA DE PROGRESSO — não sob teto de relógio.
 
@@ -148,7 +182,10 @@ def roda(cmd, alvo, janela, bash):
     # sexto — aqui a casa é que passa a ser própria, e o id fixo deixa de importar.
     # As três variáveis andam juntas porque o Windows lê TMP/TEMP e não TMPDIR.
     casa = tempfile.mkdtemp(prefix="suite-")
-    ambiente = dict(os.environ, TMPDIR=casa, TMP=casa, TEMP=casa)
+    # O git também não pode subir do temporário para um repositório alheio (ver
+    # `tetos_de_git`): sem isso, a suíte lê o que existe FORA do repositório de quem roda.
+    ambiente = dict(os.environ, TMPDIR=casa, TMP=casa, TEMP=casa,
+                    GIT_CEILING_DIRECTORIES=tetos_de_git(casa))
     try:
         p = subprocess.Popen(cmd + [alvo], stdout=tmp, stderr=subprocess.STDOUT,
                              stdin=subprocess.DEVNULL, start_new_session=True,
