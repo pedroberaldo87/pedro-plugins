@@ -359,7 +359,9 @@ def inventario_projeto(raiz):
         rel = os.path.relpath(d, raiz)
         for a in arqs:
             caminho = os.path.join(d, a)
-            onde = os.path.normpath(os.path.join(rel, a))
+            # "onde" é texto do relatório e entra na chave dos itens: sempre com "/",
+            # como o resto da saída. `normpath` no Windows devolveria `pnpm\pnpm-lock.yaml`.
+            onde = os.path.normpath(os.path.join(rel, a)).replace(os.sep, "/")
             try:
                 if a in lockfiles:
                     pacotes += [(e, n, v, onde) for e, n, v in lockfiles[a](caminho)]

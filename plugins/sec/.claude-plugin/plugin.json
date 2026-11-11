@@ -1,6 +1,6 @@
 {
   "name": "sec",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "O que você baixa de fora está limpo? Faz o inventário da cadeia de suprimentos do projeto aberto (lockfiles de npm, pnpm, yarn, uv, poetry e pip, ações do GitHub, servidores MCP) e da máquina (Claude Code, plugins, MCP, npm global, pipx, Node, Homebrew) e confere cada item contra o OSV e a lista de malware da Aikido Intel. Separa pacote envenenado, falha conhecida, porta aberta e desatualizado, entrega um relatório com checkbox e corrige só o que você marcar. Não revisa seu código. Fonte que não respondeu sai como NÃO VERIFICADO, nunca como verde.",
   "author": {
     "name": "pedroberaldo87",

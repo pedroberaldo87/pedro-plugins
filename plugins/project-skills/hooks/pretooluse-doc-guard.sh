@@ -73,7 +73,7 @@ $P"
     case "$CMD" in
       cd[[:space:]]*)
         D=$(printf '%s' "$CMD" | sed -E 's/^cd[[:space:]]+//; s/[;&|[:space:]].*//; s/^["'\'']//; s/["'\'']$//')
-        case "$D" in "~"|"~/"*) D="$HOME${D#\~}" ;; /*) : ;; *) D="$CWD/$D" ;; esac
+        case "$D" in "~"|"~/"*) D="$HOME${D#\~}" ;; /*|[A-Za-z]:[/\\]*) : ;; *) D="$CWD/$D" ;; esac
         [ -d "$D" ] && { CWD="$D"; CANDS="$D"; }
         ;;
     esac
@@ -83,7 +83,7 @@ $P"
     set -f
     for tok in $CMD; do
       case "$tok" in -*) continue ;; esac
-      cand="$tok"; case "$cand" in /*) : ;; *) cand="$CWD/$tok" ;; esac
+      cand="$tok"; case "$cand" in /*|[A-Za-z]:[/\\]*) : ;; *) cand="$CWD/$tok" ;; esac
       [ -e "$cand" ] && CANDS="$CANDS
 $cand"
     done
@@ -111,14 +111,15 @@ esac
 # the older nested .claude/CLAUDE.md) so it stops at the project itself instead
 # of overshooting to an unrelated ancestor (e.g. $HOME) when CLAUDE.md is at root.
 find_doc_up() {
-  local d="$1"
-  case "$d" in /*) : ;; *) d="$CWD/$d" ;; esac
+  local d="$1" up
+  case "$d" in /*|[A-Za-z]:[/\\]*) : ;; *) d="$CWD/$d" ;; esac
   while [ -n "$d" ] && [ "$d" != "/" ]; do
     # ~/.claude/CLAUDE.md é a instrução GLOBAL do usuário, não doc de projeto:
     # a pasta pessoal e a de configuração nunca contam como projeto.
     case "$d" in "$HOME"|"${CLAUDE_CONFIG_DIR:-$HOME/.claude}") return 1 ;; esac
     { [ -f "$d/CLAUDE.md" ] || [ -f "$d/.claude/CLAUDE.md" ]; } && { printf '%s' "$d"; return 0; }
-    d=$(dirname "$d")
+    up=$(dirname "$d"); [ "$up" = "$d" ] && break   # ponto fixo: "C:/" ou "." — sem isto, laço eterno no Windows
+    d=$up
   done
   return 1
 }

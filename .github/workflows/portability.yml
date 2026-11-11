@@ -22,6 +22,14 @@ on:
         description: "globs das suítes de shell (espaço entre eles); vazio = todas"
         required: false
         default: ""
+      janela:
+        description: "janela do vigia em segundos (a suíte parada 2 janelas seguidas é morta); vazio = 300"
+        required: false
+        default: ""
+      xtrace:
+        description: "diagnóstico: 'true' roda os bash das suítes com xtrace (o fim do rastro aparece nas suítes travadas)"
+        required: false
+        default: ""
       os:
         description: "sistema a rodar"
         required: false
@@ -125,7 +133,8 @@ jobs:
           if [ -n "$FPY" ] || [ -n "$FSH" ]; then
             echo "::notice::rodada FILTRADA — py='$FPY' sh='$FSH' (não é a esteira inteira)"
             # shellcheck disable=SC2086
-            "$PY" scripts/run_suites.py --timeout 300 \
+            XT=""; [ "${{ inputs.xtrace }}" = "true" ] && XT="SHELLOPTS=xtrace"
+            env $XT "$PY" scripts/run_suites.py --timeout "${{ inputs.janela || 300 }}" \
               ${FPY:+--py $FPY} ${FSH:+--sh $FSH}
           else
             # A esteira INTEIRA mora em `scripts/suite.sh` (F17.3), e o CI a chama
@@ -134,7 +143,15 @@ jobs:
             # cabeça — e em 2026-08-13 a casca do /sprint reconstruiu ERRADO,
             # passando o rodador pelado ao motor: zero suítes, verde mentiroso,
             # 87 minutos sem marcar um passo.
-            PYTHON="$PY" bash scripts/suite.sh
+            #
+            # A SAÍDA VAI TAMBÉM PARA UM ARQUIVO (tee) — o passo "Guarda do veredito",
+            # logo abaixo, a lê. No Windows este passo já terminou "verde" com suítes
+            # FALHOU no log e SEM o placar, o `rc=` nem o "saindo com": o processo da
+            # esteira morria no meio da rodada e o `bash` do passo seguia como se o exit
+            # fosse 0 (a causa está no PR #10). `pipefail` (o `bash -e -o pipefail`
+            # do runner) mantém o exit da esteira atravessando o tee.
+            SUITE_OUT="$(cygpath -u "$RUNNER_TEMP" 2>/dev/null || printf '%s' "$RUNNER_TEMP")/suite.out"
+            PYTHONUNBUFFERED=1 PYTHON="$PY" bash scripts/suite.sh 2>&1 | tee "$SUITE_OUT"
           fi
           # Rodada filtrada é para DIAGNÓSTICO: ela não vale como esteira verde, e por
           # isso os cobradores abaixo só rodam na completa. Dizer isso em voz alta,
@@ -150,3 +167,41 @@ jobs:
           # ausente reprova (exit 3); com ela o pedido é explícito e a saída ainda diz
           # "TERMOS NÃO RODARAM". A varredura de termos acontece no commit, na máquina do dono.
           "$PY" scripts/public_repo_check.py --so-estruturais
+
+      # GUARDA DO VEREDITO. Existe porque o exit code sozinho já mentiu: no Windows a
+      # esteira inteira morria sem avisar (ver o passo acima) e o job saía verde. O
+      # que prova que a esteira TERMINOU não é o exit, é ela ter DITO o veredito —
+      # placar, `rc=` e a linha final do `suite.sh` — e ter contado um veredito para
+      # CADA suíte que anunciou. Faltou qualquer um: job vermelho, com o que faltou.
+      - name: Guarda do veredito (a esteira terminou e disse o placar?)
+        if: ${{ inputs.py == '' && inputs.sh == '' }}
+        shell: bash
+        run: |
+          SUITE_OUT="$(cygpath -u "$RUNNER_TEMP" 2>/dev/null || printf '%s' "$RUNNER_TEMP")/suite.out"
+          if [ ! -s "$SUITE_OUT" ]; then
+            echo "::error::a esteira não deixou saída ($SUITE_OUT): ela não rodou ou morreu antes de falar."
+            exit 1
+          fi
+          LIMPO="$SUITE_OUT.limpo"
+          tr -d '\r' < "$SUITE_OUT" > "$LIMPO"      # o Windows termina linha com CRLF
+          FALTA=0
+          grep -qE '^[0-9]+ suíte\(s\) · [0-9]+ problema\(s\)$' "$LIMPO" \
+            || { echo "::error::falta o placar ('N suíte(s) · N problema(s)'): o rodador morreu antes de fechar."; FALTA=1; }
+          grep -qE '^run_suites devolveu rc=[0-9]+$' "$LIMPO" \
+            || { echo "::error::falta 'run_suites devolveu rc=': o suite.sh não viu o fim do rodador."; FALTA=1; }
+          grep -qE '^suite\.sh: saindo com rc=[0-9]+$' "$LIMPO" \
+            || { echo "::error::falta 'suite.sh: saindo com rc=': o suite.sh não chegou à última linha."; FALTA=1; }
+          grep -qE '^suite\.sh: saindo com rc=0$' "$LIMPO" \
+            || { echo "::error::a esteira não saiu com rc=0."; FALTA=1; }
+          ANUNCIADAS="$(sed -n 's/^  rodando \([0-9][0-9]*\) suíte.*/\1/p' "$LIMPO" | head -n 1)"
+          VEREDITOS="$(grep -cE '^  (ok|FALHOU|TRAVOU) ' "$LIMPO" || true)"
+          echo "suítes anunciadas: ${ANUNCIADAS:-?} · com veredito no log: $VEREDITOS"
+          if [ -z "$ANUNCIADAS" ] || [ "$ANUNCIADAS" != "$VEREDITOS" ]; then
+            echo "::error::o log anuncia ${ANUNCIADAS:-nenhuma} suíte(s) e traz veredito de $VEREDITOS: faltam as que o processo morto não contou."
+            FALTA=1
+          fi
+          if grep -qE '^  (FALHOU|TRAVOU) ' "$LIMPO"; then
+            echo "::error::há suíte FALHOU/TRAVOU no log:"; grep -E '^  (FALHOU|TRAVOU) ' "$LIMPO"
+            FALTA=1
+          fi
+          exit $FALTA
