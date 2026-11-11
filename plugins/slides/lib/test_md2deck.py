@@ -14,6 +14,7 @@ import re
 import subprocess
 import sys
 import tempfile
+from html.parser import HTMLParser
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import md2deck as M  # noqa: E402
@@ -318,6 +319,43 @@ check("o deck de exemplo, que respeita a régua, não gera desvio nenhum",
       M.desvios_de_estilo(M.plano(M.agrupar(M.parse_md(MD)), {})) == [],
       M.desvios_de_estilo(M.plano(M.agrupar(M.parse_md(MD)), {})))
 
+
+# ── links: só http, https, mailto e relativo; aspa não escapa do atributo ────
+
+print("\n[links do markdown]")
+
+
+class Ancoras(HTMLParser):
+    def __init__(self):
+        HTMLParser.__init__(self)
+        self.a = []
+
+    def handle_starttag(self, tag, attrs):
+        if tag == "a":
+            self.a.append(dict(attrs))
+
+
+def ancoras(md):
+    p = Ancoras()
+    out = M.inline(md)
+    p.feed(out)
+    return p.a, out
+
+
+for esquema in ("javascript:alert1", "JaVaScRiPt:alert1", "data:text/html,x", "vbscript:x", "file:///etc/passwd"):
+    a, out = ancoras("[clique](%s)" % esquema)
+    check("esquema %s não vira link" % esquema.split(":")[0], a == [] and "clique" in out and "href" not in out, out)
+a, out = ancoras("[ok](https://example.com/p?q=1&r=2)")
+check("https segue link, com & escapado", a and a[0].get("href") == "https://example.com/p?q=1&r=2", out)
+check("e o link abre sem passar o window.opener", a and "noopener" in a[0].get("rel", ""), out)
+for ok in ("http://example.com/a", "mailto:alguem@example.com", "#secao", "paginas/x.md", "../x.html", "//example.com/x"):
+    a, out = ancoras("[ok](%s)" % ok)
+    check("%s continua link" % ok, a and a[0].get("href") == ok, out)
+a, out = ancoras('[ok](https://example.com/"onmouseover="alert1)')
+check("aspa dupla na URL não abre atributo novo",
+      len(a) == 1 and set(a[0]) <= {"href", "rel"} and a[0].get("href") == 'https://example.com/"onmouseover="alert1', out)
+a, out = ancoras("[ok](https://example.com/'onmouseover='alert1)")
+check("aspa simples na URL também não", len(a) == 1 and set(a[0]) <= {"href", "rel"}, out)
 
 # ── o gate que a skill sempre rodou à mão ──────────────────────────────────
 
