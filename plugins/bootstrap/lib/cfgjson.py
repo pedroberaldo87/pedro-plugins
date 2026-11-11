@@ -255,12 +255,26 @@ def _hash_das_linhas(linhas):
     return hashlib.sha256(("\n".join(linhas) + "\n").encode("utf-8")).hexdigest()
 
 
+def _saida_lf(linhas):
+    """Escreve as linhas terminadas em \\n, sem a traducao do Windows para \\r\\n.
+
+    O shell compara a 1a linha com `ok` e grava a marca num arquivo que o proprio
+    cfgjson le de volta; um \\r no fim faria `ok` nunca ser igual a `ok`.
+    """
+    sys.stdout.flush()
+    dados = "".join(l + "\n" for l in linhas).encode("utf-8")
+    out = getattr(sys.stdout, "buffer", None)
+    if out is not None:
+        out.write(dados)
+        out.flush()
+    else:
+        sys.stdout.write(dados.decode("utf-8"))
+
+
 def cmd_consentimento(args):
     """`consentimento <defaults>`: o texto da marca (hash + linhas) para o usuario que disse sim."""
     linhas = _linhas_do_molde(_carrega(args[0]), _lista_de_scripts(args[0]))
-    sys.stdout.write("sha256:%s\n" % _hash_das_linhas(linhas))
-    for l in linhas:
-        sys.stdout.write(l + "\n")
+    _saida_lf(["sha256:%s" % _hash_das_linhas(linhas)] + linhas)
     return 0
 
 
@@ -275,23 +289,21 @@ def cmd_consent_estado(args):
         with open(args[0], encoding="utf-8") as f:
             texto = f.read()
     except OSError:
-        print("ausente")
+        _saida_lf(["ausente"])
         return 0
     linhas = texto.splitlines()
     cab = linhas[0].strip() if linhas else ""
     guardadas = [l for l in linhas[1:] if l.strip()]
     if not re.fullmatch(r"sha256:[0-9a-f]{64}", cab) or cab != "sha256:" + _hash_das_linhas(guardadas):
         # arquivo vazio (a marca das versoes antigas) ou adulterado: nao diz o que foi aprovado
-        print("antiga")
+        _saida_lf(["antiga"])
         return 0
     if cab == "sha256:" + _hash_das_linhas(atuais):
-        print("ok")
+        _saida_lf(["ok"])
         return 0
-    print("mudou")
-    for l in sorted(set(atuais) - set(guardadas)):
-        print("+ " + l)
-    for l in sorted(set(guardadas) - set(atuais)):
-        print("- " + l)
+    _saida_lf(["mudou"]
+              + ["+ " + l for l in sorted(set(atuais) - set(guardadas))]
+              + ["- " + l for l in sorted(set(guardadas) - set(atuais))])
     return 0
 
 

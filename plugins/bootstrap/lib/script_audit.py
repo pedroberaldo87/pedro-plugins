@@ -200,7 +200,8 @@ def classifica_arquivo(caminho, raiz_plugin):
         if atual in visto:
             continue
         visto.add(atual)
-        rotulo = "" if atual == os.path.abspath(caminho) else os.path.relpath(atual, raiz_plugin) + ": "
+        # o rotulo vai para o baseline gravado: barra normal, senao o Windows reprova o do Mac
+        rotulo = "" if atual == os.path.abspath(caminho) else os.path.relpath(atual, raiz_plugin).replace(os.sep, "/") + ": "
         try:
             if atual.endswith(".py"):
                 ex, rede, imps, esc = _escaneia_py(atual)
