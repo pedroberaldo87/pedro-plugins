@@ -363,7 +363,7 @@ Saída desta rodada (nome · versão · skills · tem hook):
 ```
 2op                 1.3.0  [2op,2op-opus,2op-sonnet]    -
 archify            2.14.3  [archify]                    -
-bootstrap         1.17.20  [bootstrap]                  HOOKS
+bootstrap         1.17.21  [bootstrap]                  HOOKS
 branches           1.3.15  [branches]                   HOOKS
 check-skills        0.7.5  [check-skills]               -
 context-guard      1.3.18  [context-guard]              HOOKS
@@ -1757,17 +1757,20 @@ de 2026-11 não há exceção.** O `allow` de `config/settings-defaults.json` li
 automática de comandos na máquina de quem instala — default de risco não nasce ligado
 (Artigo 2). O bloco `CONSENTIMENTO` de `plugins/bootstrap/hooks/lib/apply-config.sh` só
 mescla o bloco `permissions` quando a marca `~/.claude/pedro-plugins-permissions-ok` existe
-no disco; quem a grava é o `/bootstrap` (setup), depois de mostrar a lista
-(`apply-config.sh --listar`). Sem a marca, env + flags seguem aplicados e as permissões
+no disco **e o hash que ela guarda bate com a lista atual**; quem a grava é o `/bootstrap` (setup), depois de mostrar a lista
+(`apply-config.sh --listar`) e grava a marca com `--consentir`. Sem a marca (ou com ela de uma lista anterior), env + flags seguem aplicados e as permissões
 esperam, com aviso na saída. A anistia antiga (uma permissão do Playwright citada em
 qualquer ponto do `settings.json` gravava a marca sozinha) foi removida.
 
 **O que o allow aprova.** Nada que age fora da máquina nem roda código que o modelo escreveu
 na hora: sem `python*`, `node*`, `perl*`, `bun*`, `env*`, `xargs*`, `timeout*`, `WebFetch` e
 sem `browser_run_code`/`browser_evaluate`/`browser_file_upload`. As únicas exceções são
-`python3` e `node` com o caminho do script preso ao cache do próprio marketplace
-(`<config>/plugins/cache/pedro-plugins/*`, resolvido para a máquina na hora do merge), mais
-duas guardas no `ask`: `..` no caminho e escrita dentro do cache. O teste de allow proibido
+`python3` e `node` com o caminho literal de UM script do cache do próprio marketplace, na versão
+mais alta instalada (resolvida para a máquina na hora do merge, sem curinga no meio do caminho),
+só para o script que não executa comando recebido (`lib/script_audit.py` decide; a lista e a
+tabela por script estão em `config/plugin-scripts.json` e `config/plugin-scripts-audit.md`). Os
+executores (`precheck_largada.py --suite`, `sec.py`…) ficam sem regra e levam um `ask`; escrita
+dentro do cache também pede aprovação. O teste de allow proibido
 reprova a CLASSE (interpretador, embrulho, rede aberta, JS de navegador), não só os nomes já
 removidos.
 
