@@ -44,10 +44,13 @@ def state_dir():
     return d
 
 
+_O_BINARY = os.O_BINARY if hasattr(os, "O_BINARY") else 0     # só existe no Windows
+
+
 def _abre_privado(caminho, modo_abertura):
     """Abre para escrita com o arquivo 0600 desde a criação; um arquivo antigo e frouxo é apertado."""
     # O_BINARY: no Windows o CRT traduziria \n por cima da tradução do modo texto do fdopen.
-    fd = os.open(caminho, modo_abertura | getattr(os, "O_BINARY", 0), 0o600)
+    fd = os.open(caminho, modo_abertura | _O_BINARY, 0o600)
     try:
         os.chmod(caminho, 0o600)
     except OSError:

@@ -360,6 +360,9 @@ def _is_placeholder(v):
 # VERSIONADO; com SHA-1 nu de 32 bits, quem tivesse o journal testava palpites offline.
 # HMAC com um sal que nunca sai da máquina tira isso: sem o sal, a etiqueta não se confere.
 _SAL_CACHE = {}
+# Só existem no POSIX (O_BINARY só no Windows): ausente vale 0.
+_O_NOFOLLOW = os.O_NOFOLLOW if hasattr(os, "O_NOFOLLOW") else 0
+_O_BINARY = os.O_BINARY if hasattr(os, "O_BINARY") else 0
 
 
 def _sal_path():
@@ -397,7 +400,7 @@ def _sal():
             os.makedirs(pasta, mode=0o700, exist_ok=True)
             if nova:
                 os.chmod(pasta, 0o700)             # o mode do makedirs passa pelo umask
-            flags = os.O_WRONLY | os.O_CREAT | getattr(os, "O_NOFOLLOW", 0)
+            flags = os.O_WRONLY | os.O_CREAT | _O_NOFOLLOW
             try:
                 fd = os.open(path, flags | os.O_EXCL, 0o600)
             except FileExistsError:
@@ -688,7 +691,7 @@ def _pasta_privada(pasta):
 def _abre_privado(caminho):
     """Abre o cofre para acrescentar, 0600 desde a criação (o umask do processo não alarga)."""
     # O_BINARY: no Windows o CRT traduziria \n por cima da tradução do modo texto do fdopen.
-    flags = os.O_WRONLY | os.O_APPEND | os.O_CREAT | getattr(os, "O_BINARY", 0)
+    flags = os.O_WRONLY | os.O_APPEND | os.O_CREAT | _O_BINARY
     fd = os.open(caminho, flags, 0o600)
     try:
         os.chmod(caminho, 0o600)                    # arquivo antigo 0644 é apertado
