@@ -367,7 +367,7 @@ bootstrap         1.17.25  [bootstrap]                  HOOKS
 branches           1.3.15  [branches]                   HOOKS
 check-skills        0.7.5  [check-skills]               -
 context-guard      1.3.18  [context-guard]              HOOKS
-fallow             1.2.11  [fallow]                     -
+fallow             1.2.12  [fallow]                     -
 gauntlet           0.13.7  [gauntlet]                   HOOKS
 graphify-guard     1.2.16  []                           HOOKS
 grill-me            1.5.4  [grill-me]                   -
