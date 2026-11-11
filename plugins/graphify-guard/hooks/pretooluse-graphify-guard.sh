@@ -69,14 +69,14 @@ $P"
     case "$CMD" in
       cd[[:space:]]*)
         D=$(printf '%s' "$CMD" | sed -E 's/^cd[[:space:]]+//; s/[;&|[:space:]].*//; s/^["'\'']//; s/["'\'']$//')
-        case "$D" in "~"|"~/"*) D="$HOME${D#\~}" ;; /*) : ;; *) D="$CWD/$D" ;; esac
+        case "$D" in "~"|"~/"*) D="$HOME${D#\~}" ;; /*|[A-Za-z]:[/\\]*) : ;; *) D="$CWD/$D" ;; esac
         [ -d "$D" ] && { CWD="$D"; CANDS="$D"; }
         ;;
     esac
     # add command tokens that exist as paths, so `grep -r x subprojeto/` fires from the parent dir
     for tok in $CMD; do
       case "$tok" in -*) continue ;; esac
-      cand="$tok"; case "$cand" in /*) : ;; *) cand="$CWD/$tok" ;; esac
+      cand="$tok"; case "$cand" in /*|[A-Za-z]:[/\\]*) : ;; *) cand="$CWD/$tok" ;; esac
       [ -e "$cand" ] && CANDS="$CANDS
 $cand"
     done
@@ -123,11 +123,12 @@ find "$SENTINEL_DIR/" -maxdepth 1 -type f -mtime +1 -delete 2>/dev/null
 
 # Nearest ancestor of a dir that owns a graph (cheap: stat while walking up).
 find_graph_up() {
-  local d="$1"
-  case "$d" in /*) : ;; *) d="$CWD/$d" ;; esac
+  local d="$1" up
+  case "$d" in /*|[A-Za-z]:[/\\]*) : ;; *) d="$CWD/$d" ;; esac
   while [ -n "$d" ] && [ "$d" != "/" ]; do
     [ -f "$d/graphify-out/graph.json" ] && { printf '%s' "$d"; return 0; }
-    d=$(dirname "$d")
+    up=$(dirname "$d"); [ "$up" = "$d" ] && break   # ponto fixo: "C:/" ou "." — sem isto, laço eterno no Windows
+    d=$up
   done
   return 1
 }

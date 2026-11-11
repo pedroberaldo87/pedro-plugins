@@ -33,7 +33,8 @@ CWD=$(hj_campo "$INPUT" cwd)
 PROJ="$CWD"
 while [ -n "$PROJ" ] && [ "$PROJ" != "/" ]; do
   [ -d "$PROJ/docs" ] || [ -d "$PROJ/.claude/docs" ] && break  # casa-ok: sobe a árvore ATRÁS da casa; o resolvedor pressupõe a raiz já achada
-  PROJ=$(dirname "$PROJ")
+  UP=$(dirname "$PROJ"); [ "$UP" = "$PROJ" ] && break   # ponto fixo ("C:/", "."): sem isto, laço eterno no Windows
+  PROJ=$UP
 done
 { [ -d "$PROJ/docs" ] || [ -d "$PROJ/.claude/docs" ]; } || exit 0  # casa-ok: idem — detecção de raiz, não escolha de casa
 

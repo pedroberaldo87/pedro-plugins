@@ -1,0 +1,45 @@
+# Dependabot version updates: real code only.
+#
+# plugins/sec/lib/fixtures/projeto/** holds lockfiles that are INTENTIONALLY vulnerable
+# (old lodash, requests, PyYAML, event-stream...). They are the test data for the /sec
+# scanner: the suite asserts that it reports those exact advisories. Bumping them would
+# silently break the tests that exist to prove the scanner works, so nothing below may
+# ever point at that tree.
+#
+# Only manifests listed here get version-update PRs; anything not listed is left alone.
+# The protection is that no entry's `directory` contains the fixture tree.
+#
+# `exclude-paths` patterns are relative to the entry's own `directory` (GitHub's
+# dependabot options reference), not to the repo root. So it is set only where the
+# fixtures sit below `directory`: the github-actions entry (`/`). The npm entry's
+# directory is a sibling of the fixtures, so no pattern could reach them and it has none.
+#
+# LIMIT: this file does not govern Dependabot *alerts* or *security-update* PRs. Alerts
+# come from the dependency graph and cannot be path-filtered from a file; for those, use
+# Settings > Advanced Security > Dependabot > Auto-triage rules (match path
+# `plugins/sec/lib/fixtures/**`, dismiss as "not used"), or dismiss each alert on the
+# fixture manifests with:
+#   gh api -X PATCH repos/<owner>/<repo>/dependabot/alerts/<n> \
+#     -f state=dismissed -f dismissed_reason=not_used
+version: 2
+updates:
+  # The only npm manifest that belongs to shipped code (the archify skill's dev tooling).
+  - package-ecosystem: "npm"
+    directory: "/plugins/archify/skills/archify"
+    schedule:
+      interval: "monthly"
+    open-pull-requests-limit: 2
+    commit-message:
+      prefix: "chore(deps)"
+
+  # The workflow pins actions by commit SHA; this keeps those SHAs from rotting.
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    # Relative to `directory` ("/"), so this is repo-root relative here.
+    exclude-paths:
+      - "plugins/sec/lib/fixtures/**"
+    schedule:
+      interval: "monthly"
+    open-pull-requests-limit: 2
+    commit-message:
+      prefix: "chore(deps)"

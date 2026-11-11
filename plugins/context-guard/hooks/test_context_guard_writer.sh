@@ -21,6 +21,9 @@ command -v jq >/dev/null 2>&1 || { echo "jq ausente — o writer é fail-open se
 # O encaminhamento para a barra original não é objeto deste teste; sem desligar,
 # o comando do ambiente real vaza para dentro da suíte e polui a saída.
 unset CLAUDE_STATUSLINE_FORWARD
+# Os tetos do guard saem do ambiente de quem roda: a suíte mede o PADRÃO (85% / 850 mil
+# tokens), então um CLAUDE_CONTEXT_* exportado no shell não pode mudar o veredito.
+unset CLAUDE_CONTEXT_THRESHOLD CLAUDE_CONTEXT_TOKENS
 
 # O writer grava no temporário DO SISTEMA — a suíte pergunta pelo mesmo caminho
 # que ele, em vez de assumir /tmp (que nem sempre é o temporário da máquina).
@@ -107,21 +110,23 @@ esac
 
 echo "── o guard dispara por tokens absolutos, não só por percentual ──"
 novo_tmp
-roda '{"session_id":"sess-tok","context_window":{"used_percentage":46,"total_input_tokens":460000}}'
+# O teto padrão é 850 mil tokens (85% de uma janela de 1M, e5afe78: antes eram 450 mil).
+# O percentual fica baixo de propósito (46%) para que só o caminho dos tokens possa disparar.
+roda '{"session_id":"sess-tok","context_window":{"used_percentage":46,"total_input_tokens":860000}}'
 T=$(cat "$TMPD/claude-context-tok-sess-tok" 2>/dev/null)
-[ "$T" = "460000" ] && ok "o writer grava os tokens da sessão" || bad "tokens gravados" "460000" "${T:-nada}"
+[ "$T" = "860000" ] && ok "o writer grava os tokens da sessão" || bad "tokens gravados" "860000" "${T:-nada}"
 G="$SCRIPT_DIR/context-guard.sh"
 guard() { rm -f "$TMPD/claude-context-warned-$1"; printf '{"session_id":"%s","tool_input":{}}' "$1" | bash "$G" 2>/dev/null; }
 OUT=$(guard sess-tok)
-case "$OUT" in *'"decision":"block"'*) ok "460 mil tokens a 46% → pede o /handoff" ;; *) bad "460k tokens" "block" "${OUT:-silêncio}" ;; esac
-roda '{"session_id":"sess-low","context_window":{"used_percentage":30,"total_input_tokens":300000}}'
+case "$OUT" in *'"decision":"block"'*) ok "860 mil tokens a 46% → pede o /handoff" ;; *) bad "860k tokens" "block" "${OUT:-silêncio}" ;; esac
+roda '{"session_id":"sess-low","context_window":{"used_percentage":46,"total_input_tokens":840000}}'
 OUT=$(guard sess-low)
-[ -z "$OUT" ] && ok "300 mil tokens a 30% → silêncio" || bad "300k tokens" "silêncio" "$OUT"
+[ -z "$OUT" ] && ok "840 mil tokens a 46% → silêncio (abaixo do teto)" || bad "840k tokens" "silêncio" "$OUT"
 roda '{"session_id":"sess-pct","context_window":{"used_percentage":85,"total_input_tokens":170000}}'
 OUT=$(guard sess-pct)
 case "$OUT" in *'"decision":"block"'*) ok "janela pequena a 85% → continua disparando pelo percentual" ;; *) bad "85%" "block" "${OUT:-silêncio}" ;; esac
 # Depois do /compact o reset tem que levar os tokens velhos junto — senão um
-# 460 mil antigo dispara o guard antes da barra regravar o número novo.
+# 860 mil antigo dispara o guard antes da barra regravar o número novo.
 printf '{"session_id":"sess-tok"}' | bash "$SCRIPT_DIR/context-guard-reset.sh" >/dev/null 2>&1
 [ ! -e "$TMPD/claude-context-tok-sess-tok" ] && ok "o reset da sessão apaga os tokens dela" || bad "reset dos tokens" "arquivo apagado" "arquivo ficou"
 rm -f "$TMPD"/claude-context-{pct,tok,warned}-sess-{tok,low,pct}
