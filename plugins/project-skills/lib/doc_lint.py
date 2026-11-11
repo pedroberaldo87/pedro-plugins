@@ -58,9 +58,11 @@ ENV_READ_PATTERNS = [
     re.compile(r"\bgetenv\(\s*[\"']([A-Z][A-Z0-9_]+)[\"']"),
     re.compile(r"import\.meta\.env\.([A-Z][A-Z0-9_]+)"),
     re.compile(r"\$\{([A-Z][A-Z0-9_]+)[}:\-]"),
-    re.compile(r"^\s*(?:-\s*)?([A-Z][A-Z0-9_]+)=", re.MULTILINE),      # compose env / .env / shell
-    re.compile(r"^\s*ENV\s+([A-Z][A-Z0-9_]+)", re.MULTILINE),          # Dockerfile
-    re.compile(r"^\s*Environment=\"?([A-Z][A-Z0-9_]+)=", re.MULTILINE),  # systemd
+    # Espaço SEM quebra de linha ([^\S\n]): com `\s*` cada `^` de um arquivo só de linhas em branco
+    # engolia o resto do arquivo (quadrático). O nome lido é o mesmo — a linha seguinte tem o seu `^`.
+    re.compile(r"^[^\S\n]*(?:-[^\S\n]*)?([A-Z][A-Z0-9_]+)=", re.MULTILINE),      # compose env / .env / shell
+    re.compile(r"^[^\S\n]*ENV[^\S\n]+([A-Z][A-Z0-9_]+)", re.MULTILINE),          # Dockerfile
+    re.compile(r"^[^\S\n]*Environment=\"?([A-Z][A-Z0-9_]+)=", re.MULTILINE),  # systemd
 ]
 # Aceita QUALQUER token (hash minúsculo, path com / e .), não só UPPER_SNAKE —
 # o escape hatch é prometido no SKILL para os 3 checks, e o char class antigo
@@ -84,14 +86,18 @@ NON_COMMIT_OBJ_RE = re.compile(r"(?i)\b(?:blob|tree|árvore|objeto)\b")
 # `Node.js:20` / `Next.js:14` (tecnologia:versão) viravam FAIL "arquivo não existe".
 # A validação final de existência acontece no check; aqui só evitamos o ruído
 # óbvio de nome capitalizado sem diretório.
+# Linear: o padrão só nasce no INÍCIO de um token (nada de [\w/.\[\]-] antes).
+# Antes, cada `.` ou `-` dentro de uma linha longa abria um início novo que varria a linha inteira
+# (quadrático numa linha pontilhada de 300 KB). Só muda o caso torto: um path absoluto cujo
+# 1º segmento começa em `.` deixa de render o pedaço depois do ponto.
 POINTER_RE = re.compile(
-    r"(?<![\w/])((?:[\w.\[\]-]+/)+[\w.\[\]-]+\.(?:py|ts|tsx|js|mjs|yml|yaml|sh|conf|json|sql|prisma|md|toml|alloy|service|timer)"
+    r"(?<![\w/.\[\]-])((?:[\w.\[\]-]+/)+[\w.\[\]-]+\.(?:py|ts|tsx|js|mjs|yml|yaml|sh|conf|json|sql|prisma|md|toml|alloy|service|timer)"
     r"|[a-z_][\w.\[\]-]*\.(?:py|ts|tsx|mjs|yml|yaml|sh|conf|sql|prisma|toml|alloy|service|timer)):(\d+)")
 
 # --- check 4: contagem vs lista ---
 # Negrito é OPCIONAL — a docstring promete "N declarado vs M itens", e exigir
 # `**` fazia o check ignorar `3 checks: ...` em texto normal.
-COUNT_RE = re.compile(r"(?:\*\*)?(\d+)\s+([a-zA-Zçãõéáíóú-]+)(?:\*\*)?\s*[—:(]")
+COUNT_RE = re.compile(r"(?<!\d)(?:\*\*)?(\d+)\s+([a-zA-Zçãõéáíóú-]+)(?:\*\*)?\s*[—:(]")
 
 TEXT_EXTS = {".py", ".ts", ".tsx", ".js", ".mjs", ".jsx", ".json", ".yml", ".yaml",
              ".sh", ".bash", ".zsh", ".conf", ".env", ".example", ".sample", ".toml",

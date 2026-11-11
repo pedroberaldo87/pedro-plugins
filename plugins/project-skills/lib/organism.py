@@ -235,10 +235,11 @@ def find_organism(start_path):
         d = parent
 
 
-def _glob_to_re(glob):
-    """Converte um glob (com ** e *) numa regex ancorada contra um path relativo POSIX.
+def _glob_tokens(glob):
+    """Quebra o glob em tokens: ('lit', c) · ('seg',) = `*` (sem '/') · ('any',) = `**`.
 
-    ** casa qualquer coisa incl. '/'; * casa qualquer coisa menos '/'.
+    `**/` vale o mesmo que `**`: a regex antiga era `.*(?:.*/)?`, e o grupo opcional não aceita
+    nada que o `.*` da frente já não aceitasse. Dois `**` seguidos também colapsam em um.
     """
     out = []
     i = 0
@@ -246,23 +247,55 @@ def _glob_to_re(glob):
         c = glob[i]
         if c == "*":
             if glob[i + 1:i + 2] == "*":
-                out.append(".*")
                 i += 2
-                # consome uma '/' logo após ** pra 'a/**/b' casar 'a/b'
-                if glob[i:i + 1] == "/":
+                if glob[i:i + 1] == "/":   # 'a/**/b' casa 'a/b'
                     i += 1
-                    out.append("(?:.*/)?")
+                if not out or out[-1] != ("any",):
+                    out.append(("any",))
                 continue
-            out.append("[^/]*")
+            out.append(("seg",))
             i += 1
             continue
-        out.append(re.escape(c))
+        out.append(("lit", c))
         i += 1
-    return re.compile("^" + "".join(out) + "$")
+    return out
 
 
 def _matches(glob, relpath):
-    return _glob_to_re(glob).match(relpath) is not None
+    """O glob (com ** e *) casa o path relativo POSIX inteiro?
+
+    ** casa qualquer coisa incl. '/'; * casa qualquer coisa menos '/'. Como a regex antiga, `**`
+    não atravessa '\\n' e um '\\n' final é tolerado.
+
+    Por que não regex: cada `**/` virava `.*(?:.*/)?`, e N deles contra um path que não casa levava
+    tempo exponencial (um organism.yaml de repo clonado travava o gate de edição). Aqui é um autômato
+    por conjunto de posições: O(tokens x tamanho do path), sem retrocesso.
+    """
+    n = len(relpath)
+    # alive[j] = o prefixo do glob já consumido casa relpath[:j]
+    alive = bytearray(n + 1)
+    alive[0] = 1
+    for tok in _glob_tokens(glob):
+        nxt = bytearray(n + 1)
+        kind = tok[0]
+        if kind == "lit":
+            c = tok[1]
+            for j in range(n):
+                if alive[j] and relpath[j] == c:
+                    nxt[j + 1] = 1
+        else:
+            stop = "/" if kind == "seg" else "\n"   # `*` para em '/', `**` só em quebra de linha
+            on = 0
+            for j in range(n + 1):
+                if alive[j]:
+                    on = 1
+                nxt[j] = on
+                if j < n and relpath[j] == stop:
+                    on = 0
+        alive = nxt
+        if not any(alive):
+            return False
+    return bool(alive[n]) or (n > 0 and relpath[n - 1] == "\n" and bool(alive[n - 1]))
 
 
 def _excluded(relpath, excludes):

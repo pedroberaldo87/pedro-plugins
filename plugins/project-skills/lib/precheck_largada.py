@@ -102,7 +102,11 @@ BLOQUEANTE = "BLOQUEANTE-AGORA"
 ADIAVEL = "ADIÁVEL"
 
 # Caminho de arquivo dentro do texto do passo: tem barra e extensão curta.
-_CAMINHO = re.compile(r"[A-Za-z0-9_.-]+(?:/[A-Za-z0-9_.-]+)+\.[A-Za-z0-9]{1,5}")
+# Linear: só começa onde um caminho de verdade começa (não no meio de um nome, nem no meio de uma
+# cadeia `a/b/c`, que o início da cadeia já cobre). Sem os dois lookbehinds, cada letra de um passo de
+# plano sem teto abria um início novo que varria o resto do texto (quadrático).
+_CAMINHO = re.compile(
+    r"(?<![A-Za-z0-9_.-])(?<![A-Za-z0-9_.-]/)[A-Za-z0-9_.-]+(?:/[A-Za-z0-9_.-]+)+\.[A-Za-z0-9]{1,5}")
 
 # O passo CONSOME o caminho (ele tem que existir antes) em vez de produzi-lo.
 _CONSOME = re.compile(
@@ -123,7 +127,7 @@ _UNIDADE = {"s": 1, "seg": 1, "segundo": 1, "segundos": 1,
             "m": 60, "min": 60, "minuto": 60, "minutos": 60,
             "h": 3600, "hora": 3600, "horas": 3600,
             "d": 86400, "dia": 86400, "dias": 86400}
-_PERIODO = re.compile(r"(\d+)\s*(segundos?|seg|minutos?|min|horas?|dias?|[smhd])\b", re.I)
+_PERIODO = re.compile(r"(?<!\d)(\d+)\s*(segundos?|seg|minutos?|min|horas?|dias?|[smhd])\b", re.I)
 
 
 def _periodos(texto):
@@ -455,7 +459,7 @@ def passada2(plano, raiz):
 GREEN = os.path.join(os.path.dirname(os.path.abspath(__file__)), "green-cache.sh")
 
 # "155 suíte(s) · 0 problema(s)" — quantas suítes a esteira REALMENTE mediu.
-_MEDIDAS = re.compile(r"(\d+)\s*su[íi]te", re.I)
+_MEDIDAS = re.compile(r"(?<!\d)(\d+)\s*su[íi]te", re.I)
 
 
 def _roda(cmd, raiz, teto):
