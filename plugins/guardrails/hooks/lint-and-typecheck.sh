@@ -44,6 +44,36 @@ case "$FILE_PATH" in
 esac
 [ -n "${TMPDIR:-}" ] && case "$FILE_PATH" in "${TMPDIR%/}"/*) exit 0 ;; esac
 
+# ============================================================
+# Fronteira do projeto (P7 · achado 3 do scan de segurança)
+# ============================================================
+# Este hook roda depois de CADA edição, sem passar pelo prompt do Bash. Linter é código:
+# o eslint carrega o config JS do repo, o mypy carrega `plugins = ...`. Por isso:
+#   · a busca por node_modules/.bin/{eslint,tsc} e por config sobe só até a RAIZ do git
+#     do arquivo (sem git: só o diretório do arquivo) e nunca passa de $HOME;
+#   · o binário achado tem que RESOLVER (symlink incluso) para dentro dessa raiz;
+#   · mypy não roda quando o config declara `plugins` (carregaria código do repo).
+FILE_DIR=$(cd "$(dirname "$FILE_PATH")" 2>/dev/null && pwd -P) || FILE_DIR=$(dirname "$FILE_PATH")
+PROJ_ROOT=$(git -C "$FILE_DIR" rev-parse --show-toplevel 2>/dev/null) || PROJ_ROOT="$FILE_DIR"
+if [ -n "${HOME:-}" ]; then
+  _home=$(cd "$HOME" 2>/dev/null && pwd -P) || _home="$HOME"
+  case "$FILE_DIR/" in "$_home"/*) case "$PROJ_ROOT/" in "$_home"/*) ;; *) PROJ_ROOT="$_home" ;; esac ;; esac
+fi
+
+# sobe de $1 até PROJ_ROOT (inclusive)
+up_dir() { # up_dir <dir> -> pai; vazio quando já está na raiz do projeto
+  [ "$1" = "$PROJ_ROOT" ] && return 1
+  local u; u=$(dirname "$1"); [ "$u" = "$1" ] && return 1
+  printf '%s' "$u"
+}
+# caminho físico de um arquivo, resolvendo symlink (python3 do próprio hook-json.sh)
+real_file() {
+  local py; py=$(hj_py 2>/dev/null) && "$py" -c 'import os,sys;print(os.path.realpath(sys.argv[1]))' "$1" 2>/dev/null && return 0
+  [ -L "$1" ] && return 1
+  printf '%s/%s' "$(cd "$(dirname "$1")" && pwd -P)" "$(basename "$1")"
+}
+bin_in_proj() { local r; r=$(real_file "$1") || return 1; case "$r" in "$PROJ_ROOT"/*) return 0 ;; esac; return 1; }
+
 ERRORS=""
 
 # ============================================================
@@ -52,14 +82,14 @@ ERRORS=""
 if [[ "$FILE_PATH" =~ \.(ts|tsx|js|jsx|mjs|cjs)$ ]]; then
 
   # --- ESLint: walk up to find nearest eslint binary ---
-  DIR=$(dirname "$FILE_PATH")
+  DIR="$FILE_DIR"
   ESLINT_BIN=""
-  while [ "$DIR" != "/" ]; do
+  while [ -n "$DIR" ]; do
     if [ -f "$DIR/node_modules/.bin/eslint" ]; then
-      ESLINT_BIN="$DIR/node_modules/.bin/eslint"
+      bin_in_proj "$DIR/node_modules/.bin/eslint" && ESLINT_BIN="$DIR/node_modules/.bin/eslint"
       break
     fi
-    DIR=$(dirname "$DIR")
+    DIR=$(up_dir "$DIR")
   done
 
   if [ -n "$ESLINT_BIN" ]; then
@@ -76,10 +106,10 @@ if [[ "$FILE_PATH" =~ \.(ts|tsx|js|jsx|mjs|cjs)$ ]]; then
   fi
 
   # --- Type checking: walk up to find nearest tsconfig.json or jsconfig.json ---
-  DIR=$(dirname "$FILE_PATH")
+  DIR="$FILE_DIR"
   TSC_CONFIG=""
   TSC_ROOT=""
-  while [ "$DIR" != "/" ]; do
+  while [ -n "$DIR" ]; do
     if [ -f "$DIR/tsconfig.json" ]; then
       TSC_CONFIG="tsconfig.json"
       TSC_ROOT="$DIR"
@@ -89,18 +119,18 @@ if [[ "$FILE_PATH" =~ \.(ts|tsx|js|jsx|mjs|cjs)$ ]]; then
       TSC_ROOT="$DIR"
       break
     fi
-    DIR=$(dirname "$DIR")
+    DIR=$(up_dir "$DIR")
   done
 
   # Find tsc binary: walk up from TSC_ROOT (or file dir if no config)
   TSC_BIN=""
-  SEARCH_DIR="${TSC_ROOT:-$(dirname "$FILE_PATH")}"
-  while [ "$SEARCH_DIR" != "/" ]; do
+  SEARCH_DIR="${TSC_ROOT:-$FILE_DIR}"
+  while [ -n "$SEARCH_DIR" ]; do
     if [ -f "$SEARCH_DIR/node_modules/.bin/tsc" ]; then
-      TSC_BIN="$SEARCH_DIR/node_modules/.bin/tsc"
+      bin_in_proj "$SEARCH_DIR/node_modules/.bin/tsc" && TSC_BIN="$SEARCH_DIR/node_modules/.bin/tsc"
       break
     fi
-    SEARCH_DIR=$(dirname "$SEARCH_DIR")
+    SEARCH_DIR=$(up_dir "$SEARCH_DIR")
   done
 
   if [ -n "$TSC_BIN" ] && [ -n "$TSC_CONFIG" ]; then
@@ -127,18 +157,32 @@ if [[ "$FILE_PATH" =~ \.py$ ]]; then
   fi
 
   # --- Mypy: type check (only if mypy is installed and config exists) ---
-  DIR=$(dirname "$FILE_PATH")
+  DIR="$FILE_DIR"
   HAS_MYPY_CONFIG=false
-  while [ "$DIR" != "/" ]; do
+  MYPY_ROOT=""
+  while [ -n "$DIR" ]; do
     if [ -f "$DIR/mypy.ini" ] || [ -f "$DIR/setup.cfg" ] || [ -f "$DIR/pyproject.toml" ]; then
       HAS_MYPY_CONFIG=true
+      MYPY_ROOT="$DIR"
       break
     fi
-    DIR=$(dirname "$DIR")
+    DIR=$(up_dir "$DIR")
   done
 
+  # `plugins = ...` no config faz o mypy IMPORTAR código do repo: nesse caso o hook não roda
+  # mypy (o dono roda à mão, ciente). Olha os três arquivos que o mypy lê, não só o achado.
+  if [ "$HAS_MYPY_CONFIG" = true ]; then
+    for _cfg in mypy.ini setup.cfg pyproject.toml; do
+      if [ -f "$MYPY_ROOT/$_cfg" ] && grep -qE '^[[:space:]]*plugins[[:space:]]*=' "$MYPY_ROOT/$_cfg" 2>/dev/null; then
+        HAS_MYPY_CONFIG=false
+        break
+      fi
+    done
+  fi
+
   if [ "$HAS_MYPY_CONFIG" = true ] && command -v mypy &>/dev/null; then
-    MYPY_RAW=$(mypy "$FILE_PATH" --no-error-summary 2>&1); RC=$?
+    # cwd = a pasta do config: é onde o mypy o procura, igual ao que acabamos de ler
+    MYPY_RAW=$(cd "$MYPY_ROOT" && mypy "$FILE_PATH" --no-error-summary 2>&1); RC=$?
     MYPY_OUTPUT=$(printf '%s\n' "$MYPY_RAW" | head -30)
     if [ "$RC" -ne 0 ] && [ -n "$MYPY_OUTPUT" ]; then
       ERRORS="${ERRORS}--- Mypy ---\n${MYPY_OUTPUT}\n"
