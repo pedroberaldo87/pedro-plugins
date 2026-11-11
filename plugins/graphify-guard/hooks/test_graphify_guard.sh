@@ -28,7 +28,10 @@ TMPD=$(td_tmpdir)
 # os casos de poda abaixo param de achar o que checar e reprovam.
 GG_DIR="$TMPD/claude-graphify-guard"
 mkdir -p "$GG_DIR" 2>/dev/null || true
-TMP="$(mktemp -d)"
+# O projeto falso nasce no temporário NATIVO (`td_tmpdir`), não no `/tmp` do shell: o `mktemp -d`
+# pelado devolve `/tmp/tmp.XXXX`, caminho do Git Bash que o hook (e o `jq`) devolvem na
+# forma do Windows — e as asserções "aponta o projeto do grafo" comparavam as duas formas.
+TMP="$(mktemp -d "$TMPD/gg-proj-XXXXXX")"
 SESSIONS=""
 SESS=""
 # O id da sessão nasce AQUI, no shell pai. Dentro de run() ele morria: run é chamada

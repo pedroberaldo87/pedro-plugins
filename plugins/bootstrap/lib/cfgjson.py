@@ -22,7 +22,10 @@ com a MESMA semantica — inclusive as pegadinhas do jq que importam aqui:
 `test_cfgjson.py` compara a saida de cada subcomando com a do `jq` de verdade
 quando ha `jq` na maquina; sem ele, confere o valor esperado direto.
 """
+import hashlib
 import json
+import os
+import re
 import sys
 
 # CANAIS DE TEXTO EM UTF-8, SEMPRE. No Windows eles nascem na codificação do sistema
@@ -79,8 +82,10 @@ def cmd_valida(args):
 # rede (um interprete roda o proprio cliente HTTP; `env`/`xargs`/`timeout` rodam o
 # argumento como comando). Sair dos defaults NAO tira a entrada de quem ja recebeu:
 # o merge e uniao. Por isso a lista mora aqui — o apply-config avisa da que ainda
-# esta na maquina e so remove quando a pessoa pede. Comparacao EXATA: entrada que
-# o usuario escreveu com outra forma (`Bash(python3 meu.py)`) nunca e tocada.
+# esta na maquina e so remove quando a pessoa pede. A comparacao e pela FORMA
+# CANONICA (`_canon`): `Bash(python3:*)`, `Bash(python3 *)` e `Bash(python3*)` sao
+# a mesma regra para o Claude Code, e quem escreveu uma delas tem o mesmo risco.
+# Entrada com outro escopo (`Bash(python3 -m pytest*)`) nunca e tocada.
 RETIRADAS = (
     "Bash(python3*)", "Bash(python*)", "Bash(node*)", "Bash(perl*)", "Bash(bun*)",
     "Bash(env*)", "Bash(printenv*)", "Bash(xargs*)", "Bash(timeout*)",
@@ -91,24 +96,215 @@ RETIRADAS = (
     "mcp__plugin_playwright_playwright__browser_file_upload",
 )
 
+# A regra de PASTA INTEIRA que a primeira versao desta correcao distribuiu:
+# `python3 <config>/plugins/cache/pedro-plugins/*` libera todo script de todo plugin
+# (inclusive os que executam o comando que recebem). Tem o caminho da maquina, entao
+# nao cabe numa lista fixa: casa por forma.
+RE_PASTA_INTEIRA = re.compile(r'^Bash\((?:python3?|node) "?[^*"]*/plugins/cache/pedro-plugins/\*\)$')
+
 # Onde o caminho desta maquina entra nas regras dos defaults.
 MARCA_DIR = "{{CLAUDE_DIR}}"
+MARCA_VERSAO = "{{VERSION}}"
 LISTAS = ("allow", "ask", "deny")
+LISTA_SCRIPTS = "plugin-scripts.baseline.json"
+MKT_CACHE = "pedro-plugins"
 
 
-def _resolve(defaults, claude_dir):
-    """Troca {{CLAUDE_DIR}} nas regras de permissao pelo caminho desta maquina."""
+def _canon(x):
+    """A forma canonica de uma regra, para comparar grafias que valem o mesmo.
+
+    `Bash(python3:*)` (sintaxe antiga), `Bash(python3 *)` e `Bash(python3*)` viram
+    `Bash(python3*)`; `WebFetch(*)` vira `WebFetch`. O resto passa como veio.
+    """
+    if not isinstance(x, str):
+        return x
+    t = x.strip()
+    m = re.fullmatch(r"(\w+)\((.*)\)", t, re.S)
+    if not m:
+        return t
+    ferramenta, interno = m.group(1), m.group(2).strip()
+    if ferramenta == "Bash":
+        return "Bash(%s)" % re.sub(r"\s*(?::\*|\*)$", "*", interno)
+    if interno in ("", "*"):
+        return ferramenta
+    return t
+
+
+RETIRADAS_CANON = frozenset(_canon(r) for r in RETIRADAS)
+
+
+def _e_retirada(x):
+    return _canon(x) in RETIRADAS_CANON or bool(isinstance(x, str) and RE_PASTA_INTEIRA.match(x.strip()))
+
+
+def _lista_de_scripts(caminho_defaults):
+    """`plugin-scripts.baseline.json` ao lado dos defaults: {"scripts": [...], "pedem_aprovacao": [...]}."""
+    try:
+        d = _carrega(os.path.join(os.path.dirname(os.path.abspath(caminho_defaults)), LISTA_SCRIPTS))
+    except (OSError, ValueError):
+        return {"scripts": [], "pedem_aprovacao": []}
+    return {"scripts": [e for e in d.get("scripts") or [] if isinstance(e, dict)],
+            "pedem_aprovacao": [e for e in d.get("pedem_aprovacao") or [] if isinstance(e, dict)]}
+
+
+def _audit():
+    # o analisador mora ao lado; o caminho entra explicito porque `python3 -I` nao poe a
+    # pasta do script no sys.path. Import preguicoso: so quem gera regra de script paga.
+    aqui = os.path.dirname(os.path.abspath(__file__))
+    if aqui not in sys.path:
+        sys.path.append(aqui)
+    import script_audit
+    return script_audit
+
+
+def _chave_versao(nome):
+    return tuple(int(n) for n in re.findall(r"\d+", nome)) + (nome,)
+
+
+def _versao_mais_alta(dir_plugin):
+    """A pasta de versao mais alta de um plugin no cache (ignora `.in_use` e arquivos)."""
+    try:
+        nomes = [n for n in os.listdir(dir_plugin)
+                 if not n.startswith(".") and os.path.isdir(os.path.join(dir_plugin, n))]
+    except OSError:
+        return None
+    return max(nomes, key=_chave_versao) if nomes else None
+
+
+def _regras_de_scripts(claude_dir, lista):
+    """As regras de allow POR SCRIPT, para o que esta de fato no cache desta maquina.
+
+    Uma por script e interprete (com o caminho puro e com ele entre aspas), com a
+    versao MAIS ALTA instalada no caminho e o curinga so no fim, nos argumentos:
+    medido num Claude Code real, um `*` no meio do caminho engole texto, inclusive
+    outro script (`python3 <cache>/*/lib/x.py *` aprovou `evil.py ... x.py`). Por
+    isso a versao e resolvida aqui, na hora do merge, e nao deixada a um curinga.
+    So ganha regra o script que a analise reconfirma como puro na copia instalada.
+    """
+    audit = _audit()
+    cache_fs = os.path.join(claude_dir, "plugins", "cache", MKT_CACHE)
+    cache_regra = claude_dir + "/plugins/cache/" + MKT_CACHE
+    regras = set()
+    for e in lista:
+        plugin, script, interp = e.get("plugin"), e.get("script"), e.get("interprete")
+        if not (isinstance(plugin, str) and isinstance(script, str) and interp in ("python3", "node")):
+            continue
+        base = os.path.join(cache_fs, plugin)
+        versao = _versao_mais_alta(base)
+        if versao is None:
+            continue
+        arquivo = os.path.join(base, versao, *script.split("/"))
+        if not os.path.isfile(arquivo):
+            continue
+        if audit.classifica_arquivo(arquivo, os.path.join(base, versao))["classe"] != "puro":
+            continue
+        caminho = "%s/%s/%s/%s" % (cache_regra, plugin, versao, script)
+        if any(c in caminho for c in '*"\n\r?'):
+            continue
+        regras.add("Bash(%s %s *)" % (interp, caminho))
+        regras.add('Bash(%s "%s" *)' % (interp, caminho))
+    return sorted(regras)
+
+
+def _regras_de_ask(pedem):
+    """Ask para os scripts citados que executam comando: vence um allow largo antigo."""
+    return sorted("Bash(*%s/plugins/cache/%s/%s/*/%s*)" % (MARCA_DIR, MKT_CACHE, e["plugin"], e["script"])
+                  for e in pedem if isinstance(e.get("plugin"), str) and isinstance(e.get("script"), str))
+
+
+def _resolve(defaults, claude_dir, caminho_defaults=None):
+    """Troca {{CLAUDE_DIR}} nas regras e acrescenta as regras POR SCRIPT desta maquina."""
     perms = defaults.get("permissions")
     if not isinstance(perms, dict):
         return defaults
     saida = dict(defaults)
     saida["permissions"] = dict(perms)
-    for lista in LISTAS:
-        if isinstance(perms.get(lista), list):
-            saida["permissions"][lista] = [
-                x.replace(MARCA_DIR, claude_dir) if isinstance(x, str) else x
-                for x in perms[lista]]
+    lista = _lista_de_scripts(caminho_defaults) if caminho_defaults else {"scripts": [], "pedem_aprovacao": []}
+    extra = {"allow": _regras_de_scripts(claude_dir, lista["scripts"]),
+             "ask": _regras_de_ask(lista["pedem_aprovacao"])}
+    for nome in LISTAS:
+        if isinstance(perms.get(nome), list) or extra.get(nome):
+            base = perms.get(nome) if isinstance(perms.get(nome), list) else []
+            resolvido = [x.replace(MARCA_DIR, claude_dir) if isinstance(x, str) else x for x in base]
+            resolvido += [x.replace(MARCA_DIR, claude_dir) for x in extra.get(nome, ())]
+            saida["permissions"][nome] = list(dict.fromkeys(resolvido))
     return saida
+
+
+# O CONSENTIMENTO. A marca que o /bootstrap grava depois do "sim" nao e um arquivo
+# vazio: guarda o hash (e as linhas) da lista que o usuario viu. A lista e o MOLDE
+# das regras — as dos defaults como escritas, e uma regra por script da lista de
+# scripts com `{{CLAUDE_DIR}}` e `{{VERSION}}` no lugar do que muda por maquina e por
+# atualizacao. Assim a marca vale em qualquer maquina e sobrevive a um plugin que
+# subiu de versao, mas NAO sobrevive a um release que acrescenta regra.
+def _linhas_do_molde(defaults, lista):
+    linhas = set()
+    for nome in LISTAS:
+        for x in (defaults.get("permissions") or {}).get(nome) or []:
+            linhas.add("%s + %s" % (nome, x))
+    for e in lista["scripts"]:
+        caminho = "%s/plugins/cache/%s/%s/%s/%s" % (MARCA_DIR, MKT_CACHE, e.get("plugin"), MARCA_VERSAO, e.get("script"))
+        linhas.add("allow + Bash(%s %s *)" % (e.get("interprete"), caminho))
+        linhas.add('allow + Bash(%s "%s" *)' % (e.get("interprete"), caminho))
+    for x in _regras_de_ask(lista["pedem_aprovacao"]):
+        linhas.add("ask + " + x)
+    return sorted(linhas)
+
+
+def _hash_das_linhas(linhas):
+    return hashlib.sha256(("\n".join(linhas) + "\n").encode("utf-8")).hexdigest()
+
+
+def _saida_lf(linhas):
+    """Escreve as linhas terminadas em \\n, sem a traducao do Windows para \\r\\n.
+
+    O shell compara a 1a linha com `ok` e grava a marca num arquivo que o proprio
+    cfgjson le de volta; um \\r no fim faria `ok` nunca ser igual a `ok`.
+    """
+    sys.stdout.flush()
+    dados = "".join(l + "\n" for l in linhas).encode("utf-8")
+    out = getattr(sys.stdout, "buffer", None)
+    if out is not None:
+        out.write(dados)
+        out.flush()
+    else:
+        sys.stdout.write(dados.decode("utf-8"))
+
+
+def cmd_consentimento(args):
+    """`consentimento <defaults>`: o texto da marca (hash + linhas) para o usuario que disse sim."""
+    linhas = _linhas_do_molde(_carrega(args[0]), _lista_de_scripts(args[0]))
+    _saida_lf(["sha256:%s" % _hash_das_linhas(linhas)] + linhas)
+    return 0
+
+
+def cmd_consent_estado(args):
+    """`consent-estado <marca> <defaults>`: ok | ausente | antiga | mudou (+ o que mudou).
+
+    Primeira linha = o estado. Em `mudou`, vem uma linha `+ <regra>` por regra nova
+    e `- <regra>` por regra que saiu da lista desde o sim do usuario.
+    """
+    atuais = _linhas_do_molde(_carrega(args[1]), _lista_de_scripts(args[1]))
+    try:
+        with open(args[0], encoding="utf-8") as f:
+            texto = f.read()
+    except OSError:
+        _saida_lf(["ausente"])
+        return 0
+    linhas = texto.splitlines()
+    cab = linhas[0].strip() if linhas else ""
+    guardadas = [l for l in linhas[1:] if l.strip()]
+    if not re.fullmatch(r"sha256:[0-9a-f]{64}", cab) or cab != "sha256:" + _hash_das_linhas(guardadas):
+        # arquivo vazio (a marca das versoes antigas) ou adulterado: nao diz o que foi aprovado
+        _saida_lf(["antiga"])
+        return 0
+    if cab == "sha256:" + _hash_das_linhas(atuais):
+        _saida_lf(["ok"])
+        return 0
+    _saida_lf(["mudou"]
+              + ["+ " + l for l in sorted(set(atuais) - set(guardadas))]
+              + ["- " + l for l in sorted(set(guardadas) - set(atuais))])
+    return 0
 
 
 def cmd_prepara_defaults(args):
@@ -123,7 +319,7 @@ def cmd_prepara_defaults(args):
         defaults = dict(defaults)
         defaults.pop("permissions", None)
     else:
-        defaults = _resolve(defaults, claude_dir)
+        defaults = _resolve(defaults, claude_dir, args[0])
     _escreve(defaults)
     return 0
 
@@ -138,7 +334,7 @@ def cmd_lista_novas(args):
         atual = _carrega(args[0])
     except OSError:
         atual = {}
-    defaults = _resolve(_carrega(args[1]), args[2].rstrip("/\\"))
+    defaults = _resolve(_carrega(args[1]), args[2].rstrip("/\\"), args[1])
     ja = atual.get("permissions") or {}
     novas = {}
     for lista in LISTAS:
@@ -159,7 +355,7 @@ def cmd_retiradas(args):
     except OSError:
         return 0
     for x in (atual.get("permissions") or {}).get("allow") or []:
-        if x in RETIRADAS:
+        if _e_retirada(x):
             print(x)
     return 0
 
@@ -169,7 +365,7 @@ def cmd_remove_retiradas(args):
     atual = _carrega(args[0])
     perms = atual.get("permissions")
     if isinstance(perms, dict) and isinstance(perms.get("allow"), list):
-        perms["allow"] = [x for x in perms["allow"] if x not in RETIRADAS]
+        perms["allow"] = [x for x in perms["allow"] if not _e_retirada(x)]
     _escreve(atual)
     return 0
 
@@ -286,6 +482,8 @@ COMANDOS = {
     "merge-settings": cmd_merge_settings,
     "prepara-defaults": cmd_prepara_defaults,
     "lista-novas": cmd_lista_novas,
+    "consentimento": cmd_consentimento,
+    "consent-estado": cmd_consent_estado,
     "retiradas": cmd_retiradas,
     "remove-retiradas": cmd_remove_retiradas,
     "statusline": cmd_statusline,

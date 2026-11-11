@@ -105,6 +105,28 @@ if echo "$COMMAND" | grep -q 'pedro-plugins'; then
   exit 0
 fi
 
+# Item pendente do manifest (marketplace ou plugin que esta máquina ainda não instalou)
+# impede o snapshot: ele regenera o manifest a partir do que ESTA máquina tem, e o
+# git-sync empurraria o resultado — os itens pendentes sairiam do repositório de
+# todas as máquinas. É o mesmo gate do session-sync.sh. Lê o estado sem mexer em nada
+# (`--listar-pendentes`: sem enable/disable/install). Não conseguir ler também
+# bloqueia: sem saber o que falta, não se reescreve o manifest.
+APPLY_SH="$LIB_DIR/apply.sh"
+if [ ! -f "$APPLY_SH" ]; then
+  log "⚠ apply.sh não encontrado em $APPLY_SH — snapshot pulado (não sei o que está pendente)"
+  exit 0
+fi
+PENDENTES_SAIDA="$(bash "$APPLY_SH" --listar-pendentes 2>/dev/null)"
+PENDENTES_RC=$?
+if [ "$PENDENTES_RC" -ne 0 ]; then
+  log "⚠ não consegui listar os itens pendentes do manifest (rc=$PENDENTES_RC) — snapshot pulado"
+  exit 0
+fi
+if printf '%s\n' "$PENDENTES_SAIDA" | grep -aq 'pendente: '; then
+  log "⏸ manifest com itens pendentes (nada instalado nesta máquina) — snapshot e push pulados; rode /bootstrap"
+  exit 0
+fi
+
 # Run snapshot
 if [ ! -x "$SNAPSHOT_SH" ]; then
   log "⚠ snapshot.sh não encontrado em $SNAPSHOT_SH"

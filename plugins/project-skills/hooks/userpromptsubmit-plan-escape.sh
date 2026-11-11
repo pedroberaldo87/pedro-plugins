@@ -51,15 +51,19 @@ CWD=$(hj_campo "$INPUT" cwd)
 [ -z "$PROMPT" ] && exit 0
 [ -z "$CWD" ] && CWD="$PWD"
 
+# ALTERNÂNCIA `(ç|c)(ã|a)`, NÃO colchete `[çc][ãa]`: no Git Bash do Windows o `grep` roda em
+# locale C, onde `ç` e `ã` são DOIS bytes e o colchete vira um conjunto de bytes soltos — "pula a
+# documentação" não casava e o escape verbal nunca liberava o gate (test_plan_gate.sh, CI do
+# Windows). A alternância casa a sequência de bytes em qualquer locale.
 B='(^|[^[:alnum:]])'                                   # fronteira de palavra à esquerda
-DOC='(doc|docs|documenta[çc][ãa]o|documentacao)([^[:alnum:]]|$)'
+DOC='(doc|docs|documenta(ç|c)(ã|a)o|documentacao)([^[:alnum:]]|$)'
 ART='(a|o|as|os|essa|esse|esta|este|minha|nossa)[[:space:]]+'
 
 # imperativo + doc     |  verbo de andamento + "sem" + doc      |  token explícito
 ESCAPE_RE="${B}(ignor(a|ar|e)|pul(a|ar|e)|dispens(a|ar|e)|desconsider(a|ar|e)|esquec(e|er|a)|deixa)[[:space:]]+(${ART})?${DOC}|${B}(planej(a|ar|e)|faz(er)?[[:space:]]+o[[:space:]]+plano|seg(ue|uir)|vai|toca|manda)[[:space:]]+sem[[:space:]]+(${ART})?${DOC}|(--sem-doc)|(#sem-doc)"
 
 # doc de TERCEIRO ("a doc do React") — nunca é ordem sobre a doc DESTE projeto.
-EXTERNAL_RE="(doc|docs|documenta[çc][ãa]o|documentacao)[[:space:]]+(do|da|dos|das|de)[[:space:]]+[[:alnum:]]"
+EXTERNAL_RE="(doc|docs|documenta(ç|c)(ã|a)o|documentacao)[[:space:]]+(do|da|dos|das|de)[[:space:]]+[[:alnum:]]"
 
 # REVOGAÇÃO — a válvula pra um falso-positivo que sobrou. Sem ela, uma frase mal
 # interpretada desligaria o gate pelo resto da sessão sem volta.

@@ -225,6 +225,16 @@ for P in "planeja sem a documentação" "pode planejar sem a doc" "esquece a doc
                        || bad "escape reconhece \"$P\"" "sentinel criado" "nada"
 done
 
+# R3b) LOCALE C. No Git Bash do Windows o `grep` não roda em UTF-8: `ç` e `ã` são dois bytes
+# cada, e um colchete `[çc][ãa]` vira um conjunto de bytes soltos — \"pula a documentação\"
+# não casava e o escape verbal nunca liberava o gate. A suíte falhava SÓ lá; forçar o
+# locale C faz o defeito aparecer também no macOS e no Linux.
+for P in "pula a documentação" "planeja sem a documentação" "ignora a documentação"; do
+  rm -f "$(esc_file)"; LC_ALL=C escape "$P" "$BARE" >/dev/null
+  [ -f "$(esc_file)" ] && ok "escape reconhece em locale C: \"$P\"" \
+                       || bad "escape reconhece em locale C \"$P\"" "sentinel criado" "nada"
+done
+
 # R4) --sem-doc vence a ambiguidade (é o token garantido citado na mensagem do deny).
 rm -f "$(esc_file)"; escape "ignora a doc do React --sem-doc" "$BARE" >/dev/null
 [ -f "$(esc_file)" ] && ok "--sem-doc vence a ambiguidade" || bad "--sem-doc vence" "sentinel" "nada"

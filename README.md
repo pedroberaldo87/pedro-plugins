@@ -285,7 +285,7 @@ not change.
 
 | Plugin | Trigger | What it does |
 |---|---|---|
-| `bootstrap` ⚙️ | `/bootstrap:setup` · automatic on SessionStart + PostToolUse | Prepares a new machine: keeps installed marketplaces and plugins in sync through hooks (it installs nothing new without your confirmation in `/bootstrap:setup`) **and** applies the versioned global config (env, permissions, flags, global `CLAUDE.md`, output style, a statusLine resolved per machine). It also ships **Clean Style** (result on the first line, a ceiling on prose, pasted evidence uncapped) and a **conformance checker** that compares the live machine against the versioned contract without writing anything. Run `/bootstrap:setup` once per machine. |
+| `bootstrap` ⚙️ | `/bootstrap:setup` · automatic on SessionStart + PostToolUse | Prepares a new machine: keeps installed marketplaces and plugins in sync through hooks (it installs nothing new without your confirmation in `/bootstrap:setup`) **and** applies the versioned global config (env, permissions, flags, global `CLAUDE.md`, output style, a statusLine resolved per machine). It also ships **Clean Style** (result on the first line, a ceiling on prose, pasted evidence uncapped) and a **conformance checker** that compares the live machine against the versioned contract without writing anything. Run `/bootstrap:setup` once per machine. The permission defaults auto-approve a plugin script only when it is called by its literal cache path and the script runs no command it receives; calls built with `$VAR` or `$(…)` ask for approval (re-run `apply-config.sh` after a plugin update). |
 
 ---
 

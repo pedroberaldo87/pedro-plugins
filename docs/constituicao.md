@@ -81,7 +81,8 @@ e, na correção de segurança de 2026-11, os interpretadores soltos (`python*`,
 `perl*`, `bun*`), os embrulhos (`env*`, `xargs*`, `timeout*`), `WebFetch` e os três recursos
 do Playwright que rodam código ou enviam arquivo — hoje é cobrado por teste:
 `hooks/test_bootstrap_hooks.sh` reprova a CLASSE, não só os nomes. `python3` e `node` ficam
-apenas com o caminho do script preso ao cache do marketplace.
+apenas com o caminho literal de cada script do cache do marketplace que não executa comando
+recebido (uma regra por script; o analisador e a tabela estão no `bootstrap`).
 `plugins/bootstrap/skills/bootstrap/SKILL.md` diz o que o setup de fato faz — "Isso **liga
 aprovação automática**" — e enumera família por família o que entra e o que não entra.
 
