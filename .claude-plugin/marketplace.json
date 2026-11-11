@@ -41,7 +41,7 @@
       "source": "./plugins/bootstrap",
       "description": "Bootstraps a new machine to this versioned Claude Code setup. Two layers: (1) auto-syncs third-party marketplaces & plugins via hooks (manifest-driven convergence), and (2) applies the versioned global config — env vars, permissions, behavior flags, the global CLAUDE.md, and a machine-resolved statusLine. Replaces bootstrap-third-party. Run /bootstrap:setup once per new machine. Ships the 'Clean Style' output style (single prose ceiling, pasted evidence exempt) and a report-only conformance checker that diffs the live machine against the versioned contract.",
       "category": "productivity",
-      "version": "1.17.18",
+      "version": "1.17.19",
       "tags": [
         "sync",
         "bootstrap",
@@ -71,7 +71,7 @@
       "source": "./plugins/check-skills",
       "description": "Confere a saúde do que está instalado na máquina em seis lentes: nome de skill repetido, hooks de origens diferentes no mesmo evento, descrições que disputam o mesmo assunto, versões paradas no cache, processo que a skill abre e não fecha, e citação de plugin irmão que não está instalado nesta máquina. A varredura é de programa; o julgamento das contradições de instrução exige ler as descrições lado a lado.",
       "category": "productivity",
-      "version": "0.7.4",
+      "version": "0.7.5",
       "tags": [
         "sync",
         "bootstrap",
@@ -87,7 +87,7 @@
       "source": "./plugins/context-guard",
       "description": "Dispara o handoff quando o contexto DESTA sessão passa do threshold (default 80%). Estado por-sessão (v1.2.0) — uma sessão cheia não bloqueia as concorrentes. v1.3.0: não interrompe se já estiver no meio de um handoff, e faz o Claude EXECUTAR o /handoff (decision:block) em vez de só parar. Kill-switch: ~/.claude/context-guard/mode=off.",
       "category": "productivity",
-      "version": "1.3.17",
+      "version": "1.3.18",
       "tags": [
         "context",
         "guard",
@@ -131,7 +131,7 @@
       "source": "./plugins/graphify-guard",
       "description": "Ensures graphify knowledge graphs get consulted when relevant. SessionStart heads-up when a project has a graph; PreToolUse net redirects blind grep/glob/find to `graphify query` once per session. Detects stale graphs and offers `graphify --update`. Defense in depth, fail-open, monorepo-aware.",
       "category": "productivity",
-      "version": "1.2.14",
+      "version": "1.2.15",
       "tags": [
         "graphify",
         "knowledge-graph",
@@ -149,7 +149,7 @@
         "homepage": "https://github.com/mattpocock/skills"
       },
       "category": "dev-tools",
-      "version": "1.5.3",
+      "version": "1.5.4",
       "tags": [
         "design-review",
         "planning",
@@ -165,7 +165,7 @@
       "source": "./plugins/guardrails",
       "description": "Global editing guardrails as hooks: post-edit lint & type-check (JS/TS/Python), an LLM scope-cop that blocks UI edits drifting from the approved plan, and an Agent Teams misuse guard. Portable across machines — replaces hand-rolled hooks in ~/.claude/settings.json. Run /guardrails:setup once per machine to set the env var and clear the old hooks.",
       "category": "dev-tools",
-      "version": "1.8.13",
+      "version": "1.8.14",
       "tags": [
         "hooks",
         "guardrail",
@@ -220,7 +220,7 @@
       "source": "./plugins/intent-guard",
       "description": "EXPERIMENTAL — Guarda de intenção: caderno append-only dos pedidos verbatim do usuário + gates de plano, checkpoint e ENTREGA (auditoria independente por subagente de contexto virgem, prompt canônico, veredito CONFIRMADO/INFERIDO com evidência). v0.4.0: auditoria dispara no COMMIT (não a cada turno) e ganha escada de custo — pedido com receita mecânica (ex.: 'commit push' → compara hashes) é resolvido por CÓDIGO, sem agente; numa sessão real 4 de 7 pedidos eram isso, ~50k tokens cada. O juiz só ESCOLHE de um catálogo fechado, nunca escreve comando. v0.3.0: pedidos escopados por sessão (sessões paralelas dividiam a lista de vivos). v0.2.0: tree-hash ignora artefato de execução; juízes internos não poluem o caderno. Baixa automática é experimental. Kill-switch: ~/.claude/intent-guard/mode=off.",
       "category": "dev-tools",
-      "version": "0.8.17",
+      "version": "0.8.18",
       "tags": [
         "intent",
         "audit",
@@ -260,7 +260,7 @@
       "source": "./plugins/project-skills",
       "description": "A casa das skills de projeto — documentacao, concepcao, plano, execucao e revisao moram sob um teto so, e conversam entre si por nome de plugin, nunca por caminho relativo para a pasta do vizinho. Traz tambem o motor de execucao autonoma (/sprint): decompoe -> executa -> revisa em Workflow deterministico, com os hooks que o guardam — a reserva de arquivos entre motores, o guarda de espera, o narrador de andamento na statusline e o gate que nega sub-agente com a missao armada (o apelido \"sovai\" segue evocando a skill sprint). O indice da familia se descobre lendo a pasta skills/ do plugin, nunca de cor.",
       "category": "productivity",
-      "version": "0.22.230",
+      "version": "0.22.231",
       "tags": [
         "project",
         "scaffolding",
