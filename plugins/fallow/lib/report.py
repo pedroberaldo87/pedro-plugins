@@ -15,6 +15,7 @@ Não escreve nada no projeto-alvo (só lê via fallow) e nada destrutivo.
 import json
 import os
 import re
+import secrets
 import subprocess
 import sys
 import html as _html
@@ -307,7 +308,85 @@ def esc(s):
     return _html.escape(str(s))
 
 
-def render_html(project_name, buckets, health, session, stamp, audit=None):
+def visual_sync_token(path=None):
+    """Segredo do live-sync do daemon do /visual (header X-Visual-Token).
+
+    O daemon recusa quem não o manda. Só LÊ ~/.claude/visual-state/.token (o start.sh
+    do visual o cria, 0600); sem ele a página sai com "" e cai no copy/paste.
+    """
+    try:
+        with open(path or os.path.join(os.path.expanduser("~"), ".claude", "visual-state", ".token"),
+                  encoding="utf-8") as fh:
+            t = fh.read().strip()
+    except OSError:
+        return ""
+    return t if re.fullmatch(r"[0-9a-f]{64}", t) else ""
+
+
+def ensure_sync_token(path=None):
+    """Como `visual_sync_token`, mas CRIA o token se ainda não existe (1º relatório da máquina).
+
+    Sem isto a primeira página nascia com "" e ficava com o live-sync vermelho para
+    sempre, porque o start.sh só roda depois de a página sair. Mesma receita do
+    `visual_page.ensure_token`: arquivo temporário 0600 + `link` (o primeiro vence);
+    um arquivo corrompido é trocado por `rename`; um token solto volta a 0600.
+    """
+    path = path or os.path.join(os.path.expanduser("~"), ".claude", "visual-state", ".token")
+    for _ in range(5):
+        t = visual_sync_token(path)
+        if t:
+            try:
+                os.chmod(path, 0o600)
+            except OSError:
+                pass
+            return t
+        t = secrets.token_hex(32)
+        tmp = "%s.%d.%s" % (path, os.getpid(), secrets.token_hex(4))
+        try:
+            os.makedirs(os.path.dirname(path), mode=0o700, exist_ok=True)
+            fd = os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+        except OSError:
+            return ""
+        try:
+            with os.fdopen(fd, "w", encoding="utf-8") as fh:
+                fh.write(t + "\n")
+            try:
+                os.link(tmp, path)
+                return t
+            except FileExistsError:
+                if not visual_sync_token(path):
+                    os.replace(tmp, path)
+                    return t
+            except OSError:
+                return ""
+        except OSError:
+            return ""
+        finally:
+            try:
+                os.remove(tmp)
+            except OSError:
+                pass
+    return ""
+
+
+def write_private(path, text):
+    """Grava a página em 0600: ela leva o token do daemon embutido (e pode cair numa Desktop sincronizada)."""
+    fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+    try:
+        try:
+            os.chmod(path, 0o600)  # os.open só aplica o modo na criação
+        except OSError:
+            pass
+        with os.fdopen(fd, "w", encoding="utf-8") as fh:
+            fd = None
+            fh.write(text)
+    finally:
+        if fd is not None:
+            os.close(fd)
+
+
+def render_html(project_name, buckets, health, session, stamp, audit=None, token=None):
+    token = visual_sync_token() if token is None else token
     # O nível 0 de cada achado é redação DESTE programa, e é ele que decide se o
     # achado vale abrir. Violação aqui é defeito deste arquivo: o relatório é
     # RECUSADO com os motivos. Aviso no stderr deixava o achado torto chegar na
@@ -517,6 +596,7 @@ background:var(--deep);border:1px solid var(--border);border-radius:999px;font-s
 </div>
 <script>
 window.VISUAL_SESSION={json.dumps(session)};
+window.VISUAL_TOKEN={json.dumps(token)};
 function boxes(){{return[...document.querySelectorAll('.row input')]}}
 function upd(){{document.getElementById('n').textContent=boxes().filter(b=>b.checked).length;post()}}
 function pick(c){{boxes().forEach(b=>{{b.checked=b.closest('.row').dataset.conf===c}});upd()}}
@@ -535,7 +615,7 @@ function cp(btn){{const t=collect();navigator.clipboard.writeText(t).then(()=>{{
 var pt=null;
 function post(){{if(!window.VISUAL_SESSION)return;clearTimeout(pt);pt=setTimeout(()=>{{
  const by={{}};boxes().filter(b=>b.checked).forEach(b=>(by[b.dataset.bucket]=by[b.dataset.bucket]||[]).push(b.dataset.label));
- fetch('http://127.0.0.1:7755/state',{{method:'POST',headers:{{'Content-Type':'application/json'}},
+ fetch('http://127.0.0.1:7755/state',{{method:'POST',headers:Object.assign({{'Content-Type':'application/json'}},window.VISUAL_TOKEN?{{'X-Visual-Token':window.VISUAL_TOKEN}}:{{}}),
   body:JSON.stringify({{session:window.VISUAL_SESSION,docTitle:document.title,state:{{selection:by}}}}),keepalive:true}})
   .then(r=>document.getElementById('live').className='live '+(r.ok?'ok':'err'))
   .catch(()=>document.getElementById('live').className='live err')}},400)}}
@@ -604,15 +684,14 @@ def main():
     # Renderiza ANTES de abrir o arquivo: `open(…, "w")` trunca na hora, então
     # recusa da régua com o arquivo já aberto deixaria um HTML vazio no lugar.
     try:
-        page = render_html(name, buckets, health, session, stamp, audit)
+        page = render_html(name, buckets, health, session, stamp, audit, token=ensure_sync_token())
     except ReportError as e:
         print(f"⛔ {e}", file=sys.stderr)
         sys.exit(2)
     # `encoding` EXPLÍCITO, como o irmão `branches/lib/branch_state.py` já fazia: sem
     # ele o Python grava na codificação do sistema, que no Windows é cp1252, e a
     # página tem emoji — o relatório inteiro morria com UnicodeEncodeError na escrita.
-    with open(out_path, "w", encoding="utf-8") as f:
-        f.write(page)
+    write_private(out_path, page)
 
     summary = {b["title"]: len(b["items"]) for b in buckets}
     print(out_path)

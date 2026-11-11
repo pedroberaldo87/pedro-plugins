@@ -16,7 +16,9 @@ import sys
 import tempfile
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "hooks"))
 import visual_page as V  # noqa: E402
+from lar_fingido import ambiente  # noqa: E402
 
 PASS = FAIL = 0
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -173,6 +175,21 @@ check("o handler é o selectOpt real do template", 'onclick="selectOpt(this)"' i
 check("a decisão tem a linha de contexto", 'class="decision-context"' in page2)
 
 check("token de sessão do live-sync injetado", "window.VISUAL_SESSION" in page2)
+TOK = "ab" * 32
+page_t, _ = V.build_page(s2, T, sync_token=TOK)
+check("o token do daemon vai embutido na página (window.VISUAL_TOKEN)",
+      'window.VISUAL_TOKEN = "%s"' % TOK in page_t)
+check("o token entra no <script> junto da sessão, antes do corpo",
+      page_t.index("window.VISUAL_TOKEN") < page_t.index('class="decisions-box"'))
+check("sem token a página não leva VISUAL_TOKEN (cai no copy/paste)",
+      "window.VISUAL_TOKEN =" not in page2)
+page_bad, _ = V.build_page(s2, T, sync_token='x"</script><script>alert(1)')
+check("token que não é hex de 64 é descartado (nunca vira script)",
+      "alert(1)" not in page_bad and "window.VISUAL_TOKEN =" not in page_bad)
+check("o postState do template manda X-Visual-Token",
+      "'X-Visual-Token': window.VISUAL_TOKEN" in T)
+check("o postState não manda o header quando não há token",
+      "window.VISUAL_TOKEN ? { 'X-Visual-Token'" in T)
 check("CSS e JS do template intactos",
       page2.count("function selectOpt") == 1 and page2.count("function onFbChange") == 1)
 
@@ -348,9 +365,67 @@ with tempfile.TemporaryDirectory() as td:
                        capture_output=True, text=True, encoding="utf-8", errors="replace", stdin=subprocess.DEVNULL, start_new_session=True)
     check("build sai 0 e imprime o caminho", r.returncode == 0 and out in r.stdout,
           (r.returncode, r.stdout, r.stderr))
+    with open(out, encoding="utf-8") as fh:
+        _built = fh.read()
+    _tok = re.search(r'window.VISUAL_TOKEN = "([0-9a-f]{64})"', _built)
+    check("o CLI embute o token do daemon na página", bool(_tok))
+    _tp = os.path.join(td, "home", ".claude", "visual-state", ".token")
+    _env = ambiente(os.path.join(td, "home"))
+    subprocess.run([sys.executable, os.path.join(HERE, "visual_page.py"), "build", "--spec", sp,
+                    "--out", out], capture_output=True, text=True, env=_env,
+                   stdin=subprocess.DEVNULL, start_new_session=True)
+    _mode_ok = os.name != "posix" or (os.stat(_tp).st_mode & 0o777) == 0o600
+    with open(_tp, encoding="utf-8") as fh:
+        _first = fh.read().strip()
+    subprocess.run([sys.executable, os.path.join(HERE, "visual_page.py"), "build", "--spec", sp,
+                    "--out", out], capture_output=True, text=True, env=_env,
+                   stdin=subprocess.DEVNULL, start_new_session=True)
+    with open(_tp, encoding="utf-8") as fh:
+        _second = fh.read().strip()
+    check("o CLI cria ~/.claude/visual-state/.token (64 hex, 0600) e não o gira",
+          bool(re.fullmatch(r"[0-9a-f]{64}", _first)) and _mode_ok and _first == _second)
     check("o arquivo saiu com a página inteira",
           os.path.exists(out) and os.path.getsize(out) > 40000, os.path.getsize(out)
           if os.path.exists(out) else "ausente")
+
+    check("a página sai 0600 (leva o token e pode cair numa Desktop sincronizada)",
+          os.name != "posix" or (os.stat(out).st_mode & 0o777) == 0o600, oct(os.stat(out).st_mode))
+    if os.name == "posix":
+        os.chmod(out, 0o644)
+        subprocess.run([sys.executable, os.path.join(HERE, "visual_page.py"), "build", "--spec", sp,
+                        "--out", out], capture_output=True, text=True, env=_env,
+                       stdin=subprocess.DEVNULL, start_new_session=True)
+        check("página antiga 0644 reescrita volta a 0600", (os.stat(out).st_mode & 0o777) == 0o600)
+
+    print("\n[ensure_token — token herdado]")
+    _h = os.path.join(td, "home-tok")
+    _sd = os.path.join(_h, ".claude", "visual-state")
+    os.makedirs(_sd, mode=0o755)
+    _tp2 = os.path.join(_sd, ".token")
+    _probe = ("import sys; sys.path.insert(0, %r); import visual_page as V; "
+              "t = V.ensure_token(); print(t)" % HERE)
+
+    def _ensure():
+        r = subprocess.run([sys.executable, "-c", _probe], capture_output=True, text=True,
+                           env=ambiente(_h), stdin=subprocess.DEVNULL, start_new_session=True)
+        return r.stdout.strip(), r.stderr
+    _good = "ab" * 32
+    with open(_tp2, "w") as fh:
+        fh.write(_good + "\n")
+    os.chmod(_tp2, 0o644)
+    _t, _e = _ensure()
+    check("token válido e solto é mantido", _t == _good, (_t, _e))
+    if os.name == "posix":
+        check("  …e volta a 0600", (os.stat(_tp2).st_mode & 0o777) == 0o600, oct(os.stat(_tp2).st_mode))
+        check("  …a pasta de estado vira 0700", (os.stat(_sd).st_mode & 0o777) == 0o700)
+    for _label, _bad in (("corrompido", "lixo\n"), ("vazio", ""), ("comprido mas não hex", "x" * 80)):
+        with open(_tp2, "w") as fh:
+            fh.write(_bad)
+        _t, _e = _ensure()
+        check("token %s é refeito (antes: None e a página saía sem sync)" % _label,
+              bool(re.fullmatch(r"[0-9a-f]{64}", _t)) and open(_tp2).read().strip() == _t, (_t, _e))
+    check("nenhum temporário sobra ao lado do token",
+          not [n for n in os.listdir(_sd) if n.startswith(".token.")], os.listdir(_sd))
 
     bad = os.path.join(td, "bad.json")
     with open(bad, "w", encoding="utf-8") as fh:
