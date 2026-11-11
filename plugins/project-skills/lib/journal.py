@@ -687,7 +687,8 @@ def _pasta_privada(pasta):
 
 def _abre_privado(caminho):
     """Abre o cofre para acrescentar, 0600 desde a criação (o umask do processo não alarga)."""
-    flags = os.O_WRONLY | os.O_APPEND | os.O_CREAT
+    # O_BINARY: no Windows o CRT traduziria \n por cima da tradução do modo texto do fdopen.
+    flags = os.O_WRONLY | os.O_APPEND | os.O_CREAT | getattr(os, "O_BINARY", 0)
     fd = os.open(caminho, flags, 0o600)
     try:
         os.chmod(caminho, 0o600)                    # arquivo antigo 0644 é apertado

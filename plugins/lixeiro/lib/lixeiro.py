@@ -35,8 +35,24 @@ import time
 def state_dir():
     base = os.environ.get("CLAUDE_CONFIG_DIR") or os.path.join(os.path.expanduser("~"), ".claude")
     d = os.path.join(base, "lixeiro")
-    os.makedirs(d, exist_ok=True)
+    # O estado guarda linhas de comando (podem trazer segredo de flag): só o dono entra.
+    os.makedirs(d, mode=0o700, exist_ok=True)
+    try:
+        os.chmod(d, 0o700)             # o mode do makedirs passa pelo umask; pasta antiga é apertada
+    except OSError:
+        pass
     return d
+
+
+def _abre_privado(caminho, modo_abertura):
+    """Abre para escrita com o arquivo 0600 desde a criação; um arquivo antigo e frouxo é apertado."""
+    # O_BINARY: no Windows o CRT traduziria \n por cima da tradução do modo texto do fdopen.
+    fd = os.open(caminho, modo_abertura | getattr(os, "O_BINARY", 0), 0o600)
+    try:
+        os.chmod(caminho, 0o600)
+    except OSError:
+        pass
+    return os.fdopen(fd, "a" if modo_abertura & os.O_APPEND else "w", encoding="utf-8")
 
 
 def registro_path(session_id):
@@ -534,7 +550,7 @@ def le_registro(session_id):
 def grava_registro(reg):
     p = registro_path(reg.get("session_id"))
     tmp = p + ".tmp"
-    with open(tmp, "w", encoding="utf-8") as fh:
+    with _abre_privado(tmp, os.O_WRONLY | os.O_CREAT | os.O_TRUNC) as fh:
         json.dump(reg, fh, ensure_ascii=False)
     os.replace(tmp, p)
 
@@ -1114,7 +1130,7 @@ def registra_colheita(itens):
     if not itens:
         return
     try:
-        with open(log_path(), "a", encoding="utf-8") as fh:
+        with _abre_privado(log_path(), os.O_WRONLY | os.O_CREAT | os.O_APPEND) as fh:
             for it in itens:
                 fh.write(json.dumps(it, ensure_ascii=False) + "\n")
     except OSError:

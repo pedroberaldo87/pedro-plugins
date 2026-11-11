@@ -89,6 +89,28 @@ check "o log guarda o tool_input cru" "$R" "sim"
 case "$(cat "$LOGF" 2>/dev/null)" in *"$SID-limpa"*) R=sim ;; *) R=nao ;; esac
 check "loga também a pergunta LIMPA (é a prova de que o evento dispara)" "$R" "sim"
 
+echo "── permissões do log (P12) ──"
+# O log guarda o tool_input CRU (pergunta, prévia de código, texto colado): só o dono lê.
+# Modo POSIX não se mede no Git Bash do Windows (o chmod ali é só o bit de leitura).
+perm() { stat -c %a "$1" 2>/dev/null || stat -f %Lp "$1" 2>/dev/null; }
+case "$(uname -s)" in
+  MINGW*|MSYS*|CYGWIN*) echo "  (Windows: modos POSIX não se medem — pulado)" ;;
+  *)
+    check "o log nasce 0600" "$(perm "$LOGF")" "600"
+    check "a pasta do log nasce 0700" "$(perm "$FAKE_HOME/.claude/guardrails")" "700"
+    CNT="$(ls "$FAKE_HOME/.claude/guardrails"/askq.count.* 2>/dev/null | head -n 1)"
+    check "o contador de sessão nasce 0600" "$(perm "$CNT")" "600"
+    # lar com log e pasta antigos, frouxos, e umask aberto: o hook aperta o que já existia
+    FH2="$(mktemp -d)"; mkdir -p "$FH2/.claude/guardrails"
+    : > "$FH2/.claude/guardrails/askq.log"
+    chmod 644 "$FH2/.claude/guardrails/askq.log"; chmod 755 "$FH2/.claude/guardrails"
+    ( umask 000; printf '%s' "$SUJA" | lar_fingido "$FH2" env ASKQ_GATE=1 bash "$HOOK" >/dev/null 2>&1 )
+    check "log antigo 0644 é apertado para 0600" "$(perm "$FH2/.claude/guardrails/askq.log")" "600"
+    check "pasta antiga 0755 é apertada para 0700" "$(perm "$FH2/.claude/guardrails")" "700"
+    rm -rf "$FH2"
+    ;;
+esac
+
 echo "── anti-tautologia ──"
 # Sabota a régua e exige que a suite sinta. Sem isto, um hook que sempre liberasse
 # passaria em todos os casos "allow" acima.
