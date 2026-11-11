@@ -98,6 +98,7 @@ jobs:
       # Commit parcial ainda faz a esteira nascer vermelha: os globs rodam o que
       # foi COMMITADO, e suíte cujo conserto ficou na árvore reprova no runner.
       - name: Release-gate checks (mesmos do hook de commit)
+        timeout-minutes: 7
         shell: bash
         run: |
           set -e
@@ -154,3 +155,5 @@ jobs:
         shell: bash
         run: |
           echo "== lixeiro trace =="; cat "$LIXEIRO_TRACE_FILE" 2>&1 | cut -c1-1500 || true
+          echo "== process table =="
+          powershell -NoProfile -Command "Get-CimInstance Win32_Process | Where-Object { \$_.Name -match 'bash|python|sh|sleep|powershell' } | ForEach-Object { \"\$(\$_.ProcessId) <- \$(\$_.ParentProcessId) \$(\$_.CommandLine)\" }" 2>&1 | cut -c1-260 || true
