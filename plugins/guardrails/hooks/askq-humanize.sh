@@ -56,8 +56,14 @@ SESSION_ID="$(hj_campo "$INPUT" session_id)"
 [ -n "$SESSION_ID" ] || exit 0
 
 HOOK_DIR="$HOME/.claude/guardrails"
+# O log guarda o tool_input CRU (pergunta, prévia de código, texto colado): só o dono lê.
+# `umask 077` vale para tudo que este hook cria (log, rotação, contador); o chmod aperta o
+# que já existia com modo frouxo. (No Windows o chmod só mexe no bit de leitura: inofensivo.)
+umask 077
 mkdir -p "$HOOK_DIR" 2>/dev/null
+chmod 700 "$HOOK_DIR" 2>/dev/null
 LOG_FILE="$HOOK_DIR/askq.log"
+[ -f "$LOG_FILE" ] && chmod 600 "$LOG_FILE" 2>/dev/null
 
 # Rotação, no molde do scope-cop (o log dele já passou de 450 KB).
 if [ -f "$LOG_FILE" ]; then

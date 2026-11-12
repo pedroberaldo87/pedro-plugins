@@ -127,7 +127,7 @@ Strings que entram na lista `PLACEHOLDERS` do gate (substring, COM as chaves): `
 - `lib/extract_ata.py` (14 KB) — extrator read-only do transcript. Gera o LOG verbatim + manifest. `collect()` classifica os records; `KIND_PREFIX`/`KIND_LABEL` em `:208-212`; `gate:True` só nos 3 tipos retrospectivos. **Não precisa mudar pra A1-A5**, mas é a prova de §2.
 - `hooks/handoff-completeness-gate.sh` — **Stop hook** (gate de completude). Confere `[id]` fortes + placeholders. **É aqui que vivem A3, A4.** Fail-open.
 - `hooks/hooks.json` — registra: `SessionStart` → `sessionstart-ata.sh`; `Stop` → o gate; `PreToolUse(TeamCreate)` → nudge.
-- `hooks/sessionstart-ata.sh` — discovery do transcript (grava o sentinel `/tmp/claude-ata-session-*` que o `--auto` lê).
+- `hooks/sessionstart-ata.sh` — discovery do transcript (grava o sentinel `~/.claude/handoff/claude-ata-session-*` que o `--auto` lê).
 - `hooks/teamcreate-nudge.sh` — nudge ao criar clã (agrega transcripts de teammates no LOG).
 
 ---

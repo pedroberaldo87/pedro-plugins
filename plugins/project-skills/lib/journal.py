@@ -30,7 +30,10 @@ CLI:
   journal.py scrub-test                                # smoke test do scrubber (stdin)
 """
 import argparse
+import bisect
+import binascii
 import hashlib
+import hmac
 import json
 import math
 import os
@@ -278,7 +281,8 @@ JSON_PAIR_RE = re.compile(
 PROVIDER_RE = re.compile(
     r"(?:AKIA[0-9A-Z]{16}|ASIA[0-9A-Z]{16}"
     r"|gh[posu]_[A-Za-z0-9]{20,}|github_pat_[A-Za-z0-9_]{20,}"
-    r"|sk-[A-Za-z0-9]{20,}|sk_live_[A-Za-z0-9]{16,}|sk_test_[A-Za-z0-9]{16,}|rk_live_[A-Za-z0-9]{16,}"
+    r"|sk-[A-Za-z0-9]{20,}|sk-(?:ant|proj)-[A-Za-z0-9_-]{20,}"
+    r"|(?<![A-Za-z0-9_])hf_[A-Za-z0-9]{30,}|sk_live_[A-Za-z0-9]{16,}|sk_test_[A-Za-z0-9]{16,}|rk_live_[A-Za-z0-9]{16,}"
     r"|xox[baprs]-[A-Za-z0-9-]{10,}|glpat-[A-Za-z0-9_-]{16,}|AIza[A-Za-z0-9_-]{20,}|ya29\.[A-Za-z0-9_-]{20,}"
     # GOCSPX- = Google OAuth client secret. Escapou em produção (medido em 2026-08-27:
     # dois findings de memória carregaram o valor real pro journal versionado).
@@ -313,11 +317,15 @@ def _is_context_token(core):
     # cai como não-cred e é preservado de qualquer forma.
     if _UUID_RE.match(core) or _IPV4_RE.match(core) or _NUMVER_RE.match(core):
         return True
-    m = re.search(r"\.([A-Za-z0-9]{1,6})$", core)
+    m = _EXT_FINAL_RE.search(core)
     return bool(m and m.group(1).lower() in KNOWN_EXT)
 # Token candidato na prosa: começa em alfanumérico (sem pontuação à esquerda), permite
 # caracteres especiais internos (p@ssw0rd!), mín. 4 chars.
 PROSE_TOK_RE = re.compile(r"[A-Za-z0-9][A-Za-z0-9@!#$%^&*_+./=~-]{3,}")
+_NAO_ALNUM_BARRA_RE = re.compile(r"[^A-Za-z0-9/]")
+_DIGITO_RE = re.compile(r"\d")
+_LETRA_RE = re.compile(r"[A-Za-z]")
+_EXT_FINAL_RE = re.compile(r"\.([A-Za-z0-9]{1,6})$")
 LONGTOK_RE = re.compile(r"[^\s\"'`,;‹›]{16,}")  # candidato à marcação por dúvida (exclui ‹› de placeholder)
 # Stopwords (PT+EN) puladas ao procurar o valor depois da palavra-sinal.
 STOPWORDS = {"de", "do", "da", "is", "e", "the", "a", "o", "and", "or", "to", "for",
@@ -336,7 +344,7 @@ def _shannon(s):
 
 def _looks_random(tok):
     return (len(tok) >= 16 and _shannon(tok) >= 3.5
-            and bool(re.search(r"[A-Za-z]", tok)) and bool(re.search(r"\d", tok)))
+            and bool(_LETRA_RE.search(tok)) and bool(_DIGITO_RE.search(tok)))
 
 
 def _is_benign(tok):
@@ -348,8 +356,75 @@ def _is_placeholder(v):
     return not v or bool(PLACEHOLDER_RE.match(v))
 
 
+# Sal por instalação da etiqueta `‹cofre:LABEL:xxxxxxxx›`. A etiqueta vai para o journal
+# VERSIONADO; com SHA-1 nu de 32 bits, quem tivesse o journal testava palpites offline.
+# HMAC com um sal que nunca sai da máquina tira isso: sem o sal, a etiqueta não se confere.
+_SAL_CACHE = {}
+# Só existem no POSIX (O_BINARY só no Windows): ausente vale 0.
+_O_NOFOLLOW = os.O_NOFOLLOW if hasattr(os, "O_NOFOLLOW") else 0
+_O_BINARY = os.O_BINARY if hasattr(os, "O_BINARY") else 0
+
+
+def _sal_path():
+    env = os.environ.get("PROJECT_DOC_SALT_FILE")
+    if env:
+        return env
+    base = os.environ.get("CLAUDE_CONFIG_DIR") or os.path.join(os.path.expanduser("~"), ".claude")
+    return os.path.join(base, "project-skills", "journal.salt")
+
+
+def _le_sal(path):
+    try:
+        with open(path, "rb") as fh:
+            sal = fh.read().strip()
+    except OSError:
+        return None
+    return sal if len(sal) >= 32 else None      # arquivo vazio/truncado não vale como sal
+
+
+def _sal():
+    """O sal desta instalação: 32 bytes aleatórios (hex), arquivo 0600, criado na 1ª necessidade.
+
+    Se nem gravar der (disco só-leitura), vale um sal só deste processo: a etiqueta deixa de ser
+    estável entre execuções, mas nunca volta a ser um hash sem chave do valor.
+    """
+    path = _sal_path()
+    if path in _SAL_CACHE:
+        return _SAL_CACHE[path]
+    sal = _le_sal(path)
+    if sal is None:
+        sal = binascii.hexlify(os.urandom(32))
+        try:
+            pasta = os.path.dirname(path) or "."
+            nova = not os.path.isdir(pasta)
+            os.makedirs(pasta, mode=0o700, exist_ok=True)
+            if nova:
+                os.chmod(pasta, 0o700)             # o mode do makedirs passa pelo umask
+            flags = os.O_WRONLY | os.O_CREAT | _O_NOFOLLOW
+            try:
+                fd = os.open(path, flags | os.O_EXCL, 0o600)
+            except FileExistsError:
+                # outro processo criou agora (usa o dele) ou o arquivo está vazio (reescreve)
+                outro = _le_sal(path)
+                if outro is not None:
+                    sal, fd = outro, None
+                else:
+                    fd = os.open(path, flags | os.O_TRUNC, 0o600)
+            if fd is not None:
+                with os.fdopen(fd, "wb") as fh:
+                    fh.write(sal)
+        except OSError:
+            pass
+    try:
+        os.chmod(path, 0o600)                       # sal pré-existente e frouxo é apertado
+    except OSError:
+        pass
+    _SAL_CACHE[path] = sal
+    return sal
+
+
 def _vhash(val):
-    return hashlib.sha1(val.encode("utf-8")).hexdigest()[:8]
+    return hmac.new(_sal(), val.encode("utf-8"), hashlib.sha256).hexdigest()[:8]
 
 
 def _is_secret_key(key):
@@ -370,6 +445,31 @@ def _is_secret_key(key):
     if "KEY" in toks and any(t in KEY_QUALIFIER for t in toks):   # API_KEY, ACCESS_KEY, ...
         return True
     return False
+
+
+class _Faixas:
+    """Faixas [início, fim) que não se sobrepõem, ordenadas — `toca` em O(log n).
+
+    O `_covered` antigo percorria TODOS os spans a cada token: N tokens de alta entropia viravam
+    N²/2 comparações (um commit de 300 KB travava o scrubber). Aqui toda faixa nova já foi
+    checada com `toca` antes de entrar (a invariante do scrub), então as faixas ficam disjuntas e
+    os fins crescem junto com os inícios: só a última faixa que começa antes de `e` pode tocar.
+    """
+
+    def __init__(self, faixas=()):
+        self.ini = []
+        self.fim = []
+        for s, e in faixas:
+            self.add(s, e)
+
+    def add(self, s, e):
+        i = bisect.bisect_left(self.ini, s)
+        self.ini.insert(i, s)
+        self.fim.insert(i, e)
+
+    def toca(self, s, e):
+        k = bisect.bisect_left(self.ini, e)   # faixas com início < e
+        return k > 0 and self.fim[k - 1] > s
 
 
 def scrub(text):
@@ -436,14 +536,22 @@ def scrub(text):
     # Mascara os ‹…› já redigidos (senão a palavra-sinal dentro de ‹cofre:API_KEY:…›
     # dispararia em cima do próprio hash). _covered = dentro de placeholder OU de span já criado
     # (impede dois sinais reivindicarem o mesmo token → corrupção/duplicação).
-    protected = [(m.start(), m.end()) for m in re.finditer(r"‹[^›]*›", text)]
+    # `[^›‹]`: um `‹` sem fecho não pode mais abrir um varrimento até o fim do texto (quadrático
+    # em 300 KB de `‹ `); um placeholder de verdade nunca tem `‹` dentro.
+    protected = _Faixas(m.span() for m in re.finditer(r"‹[^›‹]*›", text))
+    taken = _Faixas()   # faixas dos spans já criados (o texto de cada um fica em `spans`)
 
     def _covered(s, e):
-        return (any(not (e <= ps or s >= pe) for ps, pe in protected)
-                or any(not (e <= ss or s >= ee) for ss, ee, _ in spans))
+        return protected.toca(s, e) or taken.toca(s, e)
+
+    def _add_span(s, e, rep):
+        spans.append((s, e, rep))
+        taken.add(s, e)
 
     # 3) prosa: por palavra-sinal, acha o VALOR na janela. Prefere token credencial-shaped
     #    (redige → cofre); se só houver palavra comum longa, marca ‹revisar?› (na dúvida).
+    scanned_to = 0                 # tokens até aqui já foram avaliados por alguma janela, sem credencial
+    plains, plain_ini = [], []     # candidatos a "palavra longa" dessa região, em ordem de início
     for sm in SIGNAL_RE.finditer(text):
         if _covered(sm.start(), sm.end()):
             continue
@@ -464,15 +572,30 @@ def scrub(text):
         # escondia o secret seguinte.
         wend = wstart + 160
         cred = plain = None
-        for tm in PROSE_TOK_RE.finditer(text[wstart:wend]):
+        # Janelas de sinais vizinhos se sobrepõem: sem isto, N palavras-sinal seguidas reavaliavam
+        # os mesmos ~26 tokens N vezes. O que uma janela anterior já avaliou (e não era credencial)
+        # só volta como candidato a "palavra longa" (`plain`); não é reavaliado.
+        begin = max(wstart, scanned_to)
+        if wstart < scanned_to:
+            for ps, pe, pcore in plains[bisect.bisect_left(plain_ini, wstart):]:
+                if ps >= scanned_to or pe > wend:
+                    break
+                if not _covered(ps, ps + len(pcore)):
+                    plain = (ps, ps + len(pcore), pcore)
+                    break
+        fresh = []          # candidatos a `plain` avaliados agora: (início, fim do token, miolo)
+        last_full = None    # fim do último token que a janela NÃO cortou
+        for tm in PROSE_TOK_RE.finditer(text, begin, wend):
             core = tm.group(0).rstrip(".,:;")
-            s = wstart + tm.start()
+            s = tm.start()
             e = s + len(core)
+            if tm.end() < wend:
+                last_full = tm.end()
             if (not core or core.lower() in STOPWORDS or _is_context_token(core)
                     or _covered(s, e) or "://" in core or core[:1] == "/" or core[:2] in ("./", "~/")):
                 continue
-            has_special = bool(re.search(r"[^A-Za-z0-9/]", core))
-            mixed = bool(re.search(r"\d", core)) and bool(re.search(r"[A-Za-z]", core))
+            has_special = bool(_NAO_ALNUM_BARRA_RE.search(core))
+            mixed = bool(_DIGITO_RE.search(core)) and bool(_LETRA_RE.search(core))
             if "/" in core:
                 is_cred = _looks_random(core)        # slash só é secret se for de fato aleatório (não path)
             else:
@@ -480,12 +603,20 @@ def scrub(text):
             if is_cred:
                 cred = (s, e, core)
                 break
-            if plain is None and len(core) >= 12 and "/" not in core:
-                plain = (s, e, core)
+            if len(core) >= 12 and "/" not in core:
+                fresh.append((s, tm.end(), core))
+                if plain is None:
+                    plain = (s, e, core)
+        if cred is None and last_full is not None:
+            scanned_to = max(scanned_to, last_full)
+            for item in fresh:
+                if item[1] <= scanned_to:
+                    plains.append(item)
+                    plain_ini.append(item[0])
         if cred:
-            spans.append((cred[0], cred[1], stash(sm.group(0).lower(), cred[2])))
+            _add_span(cred[0], cred[1], stash(sm.group(0).lower(), cred[2]))
         elif plain:                                  # palavra longa após o sinal: flag, não vault
-            spans.append((plain[0], plain[1], plain[2] + "‹revisar?›"))
+            _add_span(plain[0], plain[1], plain[2] + "‹revisar?›")
 
     # 4) na dúvida: token de alta entropia (≥16) não coberto → marca (não apaga, não vaza).
     # Não pula '/' em bloco (path de baixa entropia já cai fora por _is_benign / _looks_random);
@@ -496,11 +627,18 @@ def scrub(text):
         if _is_benign(core) or "://" in core or _covered(s, e):
             continue
         if _looks_random(core):
-            spans.append((s, e, core + "‹revisar?›"))
+            _add_span(s, e, core + "‹revisar?›")
 
-    for s, e, rep in sorted(spans, key=lambda x: x[0], reverse=True):
-        text = text[:s] + rep + text[e:]
-    return text, secrets
+    # Um passe só (join), em ordem de início: o `text[:s] + rep + text[e:]` por span copiava o texto
+    # inteiro a cada troca — N spans em 300 KB eram N cópias de 300 KB. Os spans são disjuntos.
+    partes = []
+    pos = 0
+    for s, e, rep in sorted(spans, key=lambda x: x[0]):
+        partes.append(text[pos:s])
+        partes.append(rep)
+        pos = e
+    partes.append(text[pos:])
+    return "".join(partes), secrets
 
 
 def cofre_paths(project_root):
@@ -537,6 +675,31 @@ def ensure_gitignore(project_root, entry):
         fh.write(sep + entry + "\n")
 
 
+def _pasta_privada(pasta):
+    """Cria a pasta do cofre sem acesso de grupo/outros e aperta a que já existia."""
+    nova = not os.path.isdir(pasta)
+    os.makedirs(pasta, mode=0o700, exist_ok=True)
+    try:
+        if nova:
+            os.chmod(pasta, 0o700)
+        else:
+            os.chmod(pasta, os.stat(pasta).st_mode & 0o700)      # só tira bits; nunca dá
+    except OSError:
+        pass
+
+
+def _abre_privado(caminho):
+    """Abre o cofre para acrescentar, 0600 desde a criação (o umask do processo não alarga)."""
+    # O_BINARY: no Windows o CRT traduziria \n por cima da tradução do modo texto do fdopen.
+    flags = os.O_WRONLY | os.O_APPEND | os.O_CREAT | _O_BINARY
+    fd = os.open(caminho, flags, 0o600)
+    try:
+        os.chmod(caminho, 0o600)                    # arquivo antigo 0644 é apertado
+    except OSError:
+        pass
+    return os.fdopen(fd, "a", encoding="utf-8")
+
+
 def stash_secrets(secrets, project_root):
     """Desvia valores pro cofre, dedup por (label,valor). Garante o gitignore ANTES de escrever."""
     if not secrets:
@@ -544,7 +707,7 @@ def stash_secrets(secrets, project_root):
     # Protege primeiro: no fallback local o cofre cai dentro do repo — gitignore antes da escrita.
     ensure_gitignore(project_root, ".claude/secrets/")
     base, cofre = cofre_paths(project_root)
-    os.makedirs(base, exist_ok=True)
+    _pasta_privada(base)
     existing = set()
     if os.path.exists(cofre):
         try:
@@ -553,7 +716,7 @@ def stash_secrets(secrets, project_root):
                     existing.add(line.split("=", 1)[0].strip())
         except OSError:
             pass
-    with open(cofre, "a", encoding="utf-8") as fh:
+    with _abre_privado(cofre) as fh:
         for key, val in secrets:
             if key in existing:
                 continue

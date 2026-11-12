@@ -371,18 +371,18 @@ fallow             1.2.13  [fallow]                     -
 gauntlet          0.13.11  [gauntlet]                   HOOKS
 graphify-guard     1.2.19  []                           HOOKS
 grill-me            1.5.4  [grill-me]                   -
-guardrails         1.8.18  [guardrails]                 HOOKS
-handoff           1.11.25  [handoff]                    HOOKS
+guardrails         1.8.19  [guardrails]                 HOOKS
+handoff           1.11.26  [handoff]                    HOOKS
 improve             1.1.6  [improve]                    -
 improve-workflow  0.16.33  [improve-workflow]           -
 intent-guard       0.8.22  [intent-guard]               HOOKS
-lixeiro             1.6.4  [faxina]                     HOOKS
+lixeiro             1.6.5  [faxina]                     HOOKS
 principles          1.0.5  [principles]                 -
-project-skills    0.22.239  [completude,design-md,doc,doc-load,doc-touch,monitorar,pesquisa-referencias,plan,project-skills,qa-loop,reentrada,sprint,start] HOOKS
+project-skills    0.22.240  [completude,design-md,doc,doc-load,doc-touch,monitorar,pesquisa-referencias,plan,project-skills,qa-loop,reentrada,sprint,start] HOOKS
 sec                 0.1.4  [sec]                        -
 ship               1.5.11  [ship]                       HOOKS
 slides              1.6.8  [slides]                     -
-vision              0.1.1  []                           -
+vision              0.1.3  []                           -
 vistoria          0.11.13  [vistoria]                   -
 visual             1.44.6  [andamento,visual]           HOOKS
 ```

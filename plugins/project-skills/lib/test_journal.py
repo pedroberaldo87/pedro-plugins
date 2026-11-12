@@ -36,6 +36,7 @@ def _t(nome):
 
 
 os.environ["PROJECT_DOC_COFRE_DIR"] = _t("cofre")
+os.environ["PROJECT_DOC_SALT_FILE"] = _t("journal.salt")   # o sal real da instalação não é tocado
 shutil.rmtree(_t("cofre"), ignore_errors=True)
 import journal  # noqa: E402
 

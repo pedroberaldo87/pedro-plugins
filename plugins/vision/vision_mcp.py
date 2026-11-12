@@ -14,6 +14,9 @@ Três fontes, nesta ordem:
   2. Config   ~/.claude/vision.json  com {"base": "...", "model": "..."}
   3. Falha com mensagem clara pedindo a config — nunca um endpoint chutado.
 
+Só imagem: extensão (png/jpg/gif/webp) E assinatura conferem, teto de 20 MB, e uma raiz opcional
+(`VISION_ROOT` ou "root" em vision.json) confina o caminho já resolvido.
+
 Transporte: MCP stdio = JSON-RPC 2.0 newline-delimited no stdin/stdout, só stdlib.
 """
 import base64
@@ -55,17 +58,71 @@ def _config():
 BASE, MODEL, TIMEOUT = _config()
 
 
+# Só imagem: a tool NÃO é um leitor de arquivos. Extensão E assinatura têm que concordar com
+# "imagem" — um .env, uma chave privada ou um dump renomeado para .png não passam.
+IMAGE_EXTS = {".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg",
+              ".gif": "image/gif", ".webp": "image/webp"}
+MAX_BYTES = 20 * 1024 * 1024          # teto do que sobe para o servidor de visão
+
+
 def _mime(path):
-    p = path.lower()
-    if p.endswith(".png"):
-        return "image/png"
-    if p.endswith((".jpg", ".jpeg")):
-        return "image/jpeg"
-    if p.endswith(".gif"):
-        return "image/gif"
-    if p.endswith(".webp"):
-        return "image/webp"
-    return "image/png"
+    return IMAGE_EXTS.get(os.path.splitext(path)[1].lower(), "image/png")
+
+
+def _assinatura_ok(head, ext):
+    """Os primeiros bytes são os de uma imagem do tipo que a extensão diz?"""
+    if ext == ".png":
+        return head.startswith(b"\x89PNG\r\n\x1a\n")
+    if ext in (".jpg", ".jpeg"):
+        return head.startswith(b"\xff\xd8\xff")
+    if ext == ".gif":
+        return head[:6] in (b"GIF87a", b"GIF89a")
+    if ext == ".webp":
+        return head[:4] == b"RIFF" and head[8:12] == b"WEBP"
+    return False
+
+
+def _raiz():
+    """Raiz opcional que confina o caminho: VISION_ROOT ou {"root": ...} em vision.json."""
+    raiz = os.environ.get("VISION_ROOT", "")
+    if not raiz:
+        try:
+            with open(CONFIG_PATH, encoding="utf-8") as fh:
+                raiz = str(json.load(fh).get("root", "") or "")
+        except (OSError, ValueError, AttributeError):
+            raiz = ""
+    return os.path.realpath(os.path.expanduser(raiz)) if raiz else ""
+
+
+def _dentro(raiz, caminho):
+    try:
+        return os.path.commonpath([raiz, caminho]) == raiz
+    except ValueError:             # outro drive no Windows
+        return False
+
+
+def _confere_imagem(path):
+    """(caminho_real, None) se for imagem permitida; (None, motivo) se a tool deve recusar."""
+    real = os.path.realpath(os.path.expanduser(path))
+    if not os.path.isfile(real):
+        return None, "arquivo não existe: %s" % path
+    raiz = _raiz()
+    if raiz and not _dentro(raiz, real):
+        return None, "fora da pasta permitida (%s): %s" % (raiz, path)
+    ext = os.path.splitext(real)[1].lower()
+    if ext not in IMAGE_EXTS:
+        return None, "só imagens (%s): %s" % (", ".join(sorted(IMAGE_EXTS)), path)
+    try:
+        tam = os.path.getsize(real)
+        if tam > MAX_BYTES:
+            return None, "imagem grande demais (%d bytes; teto %d): %s" % (tam, MAX_BYTES, path)
+        with open(real, "rb") as fh:
+            head = fh.read(16)
+    except OSError as e:
+        return None, "não consegui ler %s: %s" % (path, e)
+    if not _assinatura_ok(head, ext):
+        return None, "o arquivo não é uma imagem %s de verdade: %s" % (ext, path)
+    return real, None
 
 
 TOOL = {
@@ -78,7 +135,7 @@ TOOL = {
         "type": "object",
         "properties": {
             "path": {"type": "string",
-                     "description": "Absolute path to the image file (png/jpg)."},
+                     "description": "Absolute path to the image file (png/jpg/gif/webp)."},
             "question": {"type": "string",
                          "description": "What to ask about the image. Defaults to "
                                         "a full description."},
@@ -99,10 +156,15 @@ def see_image(args):
         "question",
         "O que exatamente esta imagem mostra? Descreva em detalhe, "
         "transcrevendo o texto visível.")
-    if not path or not os.path.isfile(path):
+    if not path or not isinstance(path, str):
         return _err("arquivo não existe: %s" % path)
+    real, motivo = _confere_imagem(path)
+    if motivo:
+        return _err(motivo)
+    sys.stderr.write("vision: see_image %s\n" % real)       # rastro do que subiu (stderr do MCP)
     try:
-        b64 = base64.b64encode(open(path, "rb").read()).decode()
+        with open(real, "rb") as fh:
+            b64 = base64.b64encode(fh.read(MAX_BYTES + 1)).decode()
     except OSError as e:
         return _err("não consegui ler %s: %s" % (path, e))
 
@@ -110,7 +172,7 @@ def see_image(args):
         "model": MODEL,
         "messages": [{"role": "user", "content": [
             {"type": "image_url",
-             "image_url": {"url": "data:%s;base64,%s" % (_mime(path), b64)}},
+             "image_url": {"url": "data:%s;base64,%s" % (_mime(real), b64)}},
             {"type": "text", "text": question},
         ]}],
         "max_tokens": 1024,
