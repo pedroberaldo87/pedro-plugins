@@ -2,9 +2,10 @@
 """Suíte das PULAS POR SISTEMA do run_suites.py — pular suíte só com motivo e em voz alta.
 
 Por que existe: no Windows do CI uma suíte (`test_lixeiro_hooks.sh`) derrubava a esteira
-inteira, e o job saía verde sem placar. A saída honesta é o rodador PULAR essa suíte
-no Windows — mas pular é a porta por onde o "verde mentiroso" volta, então a pula tem
-regras e este arquivo as cobra:
+inteira, e o job saía verde sem placar. A saída honesta, enquanto o produto não era
+consertado, foi o rodador PULAR essa suíte no Windows — e pular é a porta por onde o
+"verde mentiroso" volta, então a pula tem regras e este arquivo as cobra. O produto foi
+consertado e a suíte do lixeiro voltou a rodar lá (`LIXEIRO` abaixo); as regras ficam:
 
   * só o Windows pula; POSIX nunca pula nada;
   * toda entrada da tabela tem o arquivo no disco (pula de suíte que já morreu é lixo);
@@ -42,10 +43,17 @@ spec = importlib.util.spec_from_file_location("run_suites_sob_teste", RODADOR)
 rs = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(rs)
 
-ALVO = "plugins/lixeiro/hooks/test_lixeiro_hooks.sh"
+# A suíte do lixeiro NÃO é mais pulada em sistema nenhum (o produto foi consertado).
+LIXEIRO = "plugins/lixeiro/hooks/test_lixeiro_hooks.sh"
+# O alvo de mentira da prova do rodador: a entrada que ainda está na tabela (nota W2 do PR #10).
+ALVO = "scripts/test_sem_jq.sh"
 
 print("a tabela")
-check("o Windows pula o test_lixeiro_hooks.sh", ALVO in rs.pulas_do_so("nt"))
+check("o Windows NÃO pula mais o test_lixeiro_hooks.sh (conserto do raiz_orfa)",
+      LIXEIRO not in rs.pulas_do_so("nt"))
+check("…nem com a barra invertida do Windows",
+      rs.separa_puladas([LIXEIRO.replace("/", "\\")], "nt")[1] == [])
+check("o Windows ainda pula o ALVO da tabela (a pula continua funcionando)", ALVO in rs.pulas_do_so("nt"))
 check("POSIX não pula NADA", rs.pulas_do_so("posix") == {})
 for alvo, motivo in rs.PULA_NO_SO["nt"].items():
     check("o arquivo pulado existe no disco: %s" % alvo,
@@ -54,8 +62,8 @@ for alvo, motivo in rs.PULA_NO_SO["nt"].items():
     check("o motivo aponta onde está rastreado", "PR #10" in motivo)
 
 print("separa_puladas")
-rodam, puladas = rs.separa_puladas(["plugins\\lixeiro\\hooks\\test_lixeiro_hooks.sh", "scripts/outra.py"], "nt")
-check("aceita o caminho do Windows (barra invertida)", [a for a, _ in puladas] == ["plugins\\lixeiro\\hooks\\test_lixeiro_hooks.sh"])
+rodam, puladas = rs.separa_puladas(["scripts\\test_sem_jq.sh", "scripts/outra.py"], "nt")
+check("aceita o caminho do Windows (barra invertida)", [a for a, _ in puladas] == ["scripts\\test_sem_jq.sh"])
 check("o resto continua na lista que roda", rodam == ["scripts/outra.py"])
 rodam, puladas = rs.separa_puladas([ALVO, "scripts/outra.py"], "posix")
 check("no POSIX nada sai da lista", puladas == [] and rodam == [ALVO, "scripts/outra.py"])

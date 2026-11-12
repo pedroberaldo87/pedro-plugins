@@ -79,31 +79,23 @@ def expande(padroes):
 
 # ── SUÍTE PULADA POR SISTEMA: SÓ COM MOTIVO, SEMPRE EM VOZ ALTA ─────────────
 #
-# Esta tabela existe por causa de um dano medido (duas suítes entram hoje; a primeira é o caso
-# que a criou). No Windows do CI,
-# `plugins/lixeiro/hooks/test_lixeiro_hooks.sh` MATAVA A ESTEIRA INTEIRA: o hook de
-# fim de sessão do lixeiro acha a raiz "órfã" do servidor de teste subindo pela
-# árvore de processos, e só para nos ancestrais DO PRÓPRIO HOOK. Lá a cadeia do hook
-# se quebra no primeiro salto (o pai MSYS já morreu: o `ppid` aponta para um pid que
-# não existe mais), a subida atravessa o rodador, o bash do passo, o `Runner.Worker`
-# e chega à raiz da máquina — e o SIGTERM cai em cada um. Medido com a morte
-# desligada (sonda `debug/win-lixeiro-ancestry`, run 42971755541): os alvos eram o
-# `bash scripts/suite.sh`, o `run_suites.py` e, por fim, `lsass.exe`/`svchost.exe`. O
-# job saía "verde" sem placar, sem `rc=`, com as ~30 suítes seguintes nunca contadas.
+# Esta tabela existe por causa de um dano medido. No Windows do CI,
+# `plugins/lixeiro/hooks/test_lixeiro_hooks.sh` MATAVA A ESTEIRA INTEIRA (nota W1 do PR #10):
+# o hook de fim de sessão do lixeiro subia pela árvore de processos atrás da raiz "órfã" do
+# servidor de teste, e lá a cadeia de ancestrais dele vem quebrada — a subida atravessava o
+# rodador, o runner e chegava a `lsass.exe`/`svchost.exe`. A suíte ficou aqui pulada até o
+# PRODUTO ser consertado (`lixeiro.py:raiz_orfa`: nunca sobe por ancestral, por outro grupo
+# de processos, por pid reutilizado nem por sistema). Foi consertado, e a entrada SAIU da
+# tabela: a suíte roda no Windows como no resto, e `test_run_suites_pulas_por_so.py` cobra
+# que ela não volte a ser pulada em silêncio.
 #
-# O conserto é do PRODUTO (`lixeiro.py:raiz_orfa`: não subir quando a cadeia do hook
-# está quebrada), não do rodador nem do teste — fica fora desta passada e RASTREADO na
-# descrição do PR #10 (nota W1). Até lá a suíte não roda no Windows, e o rodador diz
-# isso de três jeitos: linha `↷ PULADA`, anotação `::warning::` e a contagem no placar.
-# Não é "teste ignorado": entra aqui só quem tem o motivo escrito e o arquivo no disco
-# (`test_run_suites_pulas_por_so.py` cobra os dois). `RUN_SUITES_NAO_PULA=1` roda tudo,
-# para quem for medir o conserto do produto numa máquina Windows descartável.
+# A tabela continua sendo a única porta para pular uma suíte por sistema, e continua
+# em voz alta de três jeitos: linha `↷ PULADA`, anotação `::warning::` e a contagem no
+# placar. Não é "teste ignorado": entra aqui só quem tem o motivo escrito e o arquivo no
+# disco (`test_run_suites_pulas_por_so.py` cobra os dois). `RUN_SUITES_NAO_PULA=1` roda
+# tudo, para quem for medir o conserto do produto numa máquina Windows descartável.
 PULA_NO_SO = {
     "nt": {
-        "plugins/lixeiro/hooks/test_lixeiro_hooks.sh":
-            "o lixeiro sobe pela árvore de processos até a raiz órfã do servidor de teste e, no "
-            "Windows, a cadeia de ancestrais do hook vem quebrada: o SIGTERM atinge o rodador, o "
-            "runner do CI e processos do sistema, e derruba a esteira sem placar (PR #10, nota W1)",
         "scripts/test_sem_jq.sh":
             "no Windows do CI a suíte fica mais de 10 minutos sem imprimir nada, no passo que monta o "
             "PATH sem jq ligando UM A UM cada executável do PATH (`ln -s`; hipótese não perfilada: no "
