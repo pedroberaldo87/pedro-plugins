@@ -25,7 +25,7 @@ trap 'rm -rf "$ROOT"; rm -f "${TMPDIR:-/tmp}"/claude-doc-touch-"$(id -u)"-"$SESS
 
 # Cache falso de plugin: o nome de invocação da rodada se DESCOBRE (resolve-skill.sh),
 # e a suíte não pode depender do que ESTA máquina tem instalado.
-FAKE="$ROOT/cfg/plugins/cache/mkt/project-skills/1.0.0"
+FAKE="$ROOT/cfg/plugins/cache/pedro-plugins/project-skills/1.0.0"
 mkdir -p "$FAKE/lib" "$FAKE/skills/doc" "$FAKE/skills/doc-touch"
 # ...e o IRMÃO de onde ela vem também se acha por NOME (Artigo 9), nunca por posição.
 RS_SRC=$(CLAUDE_PLUGIN_ROOT="$HERE/.." "$HERE/resolve-plugin.sh" \

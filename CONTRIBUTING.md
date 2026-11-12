@@ -26,10 +26,12 @@ cd pedro-plugins
 ```bash
 bash scripts/suite.sh                    # the whole pipeline (CI runs the same file)
 python3 scripts/readme_counts_check.py   # counts and names in both READMEs
-python3 scripts/public_repo_check.py     # no personal data in tracked files
+python3 scripts/public_repo_check.py     # no personal data in tracked files (reports file:line:col + rule, never the matched text)
 bash scripts/sync-shared.sh --check      # vendored copies match _shared/
 claude plugin validate .                 # catalog and manifests
 ```
+
+`public_repo_check.py` exit codes: `0` measured and clean; `1` personal data found; `2` NOT MEASURED (git failed, a tracked file could not be read, or the terms file is unreadable); `3` the name/client/machine rules did not run and `CI` is set. Those rules read `scripts/public_repo_terms`, a private, gitignored list that only the owner has, so a plain checkout runs the structural rules only and says so (exit `0`, "not a complete OK"). Pass `--so-estruturais` to ask for that explicitly, as the public CI does; without it, `CI=1` and no terms file exit `3`. `--staged` checks the index (what the commit will contain), `--json` carries `terms_checked`, `unreadable` and the non-UTF-8 counters, and a finding is always reported as `file:line:col` plus a rule, never the matched text.
 
 Do not run `scripts/run_suites.py` without arguments: with no globs it runs zero suites and exits green. Use `scripts/suite.sh`.
 

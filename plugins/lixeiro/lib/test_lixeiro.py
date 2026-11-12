@@ -805,7 +805,10 @@ if _ABRE in _TXT and _FECHA in _TXT:
     # Uma máquina plantada que produz os quatro caminhos de procedência e as
     # cinco classes de uma vez. Nenhum processo de verdade participa.
     SID_C = "sessao-contrato"
-    DONO_C = 7300
+    # Dono que NÃO existe de verdade: pid ímpar (o Windows só numera múltiplos de 4) e conferido
+    # vivo=falso. Com 7300 fixo, um processo real do runner podia ter esse número e a sessão
+    # "morta" passava a viver, sumindo a procedência de rascunho órfão.
+    DONO_C = next(x for x in range(7399, 9399, 4) if not lixeiro.vivo(x))
     lixeiro.grava_registro({"session_id": SID_C, "dono_pid": DONO_C, "anotacoes": [
         {"cmd": "python -m pytest tests/ -q", "cwd": "/proj/contrato",
          "classe": "efemero", "em": time.time() - 30, "cpu_ultimo_turno": None},
@@ -875,6 +878,155 @@ eq([c[1]["pid"] for c in lixeiro.candidatos(SID_M, "turno", procs=velhos_m, agor
    "parado há mais de 30 min, o app marcado é colhido pelo lançador")
 eq([c[1]["pid"] for c in lixeiro.candidatos(SID_M, "sessao", procs=[lanc_m, filho_m], agora=t0)], [300],
    "no fim da sessão o app marcado é colhido, como todo o resto")
+
+print("── raiz órfã: nunca sobe por ancestral, por outro grupo de processos nem por sistema ──")
+# O dano medido no Windows do CI: a cadeia de ancestrais do hook vem QUEBRADA (o pai MSYS
+# morreu e o `ppid` aponta para pid que não existe mais), então `protegidos` não tem o
+# rodador nem o runner, e a subida em busca da "raiz órfã" atravessava tudo até
+# `lsass.exe`/`svchost.exe`. As tabelas abaixo reproduzem a árvore inteira de mentira.
+def p2(pid, ppid, cmd, idade, pgid=None):
+    d = proc(pid, cmd, idade=idade, ppid=ppid)
+    if pgid is not None:
+        d["pgid"] = pgid
+    return d
+
+
+ARVORE_CI = [
+    p2(4, 0, "", 9000),
+    p2(500, 4, "C:\\Windows\\System32\\smss.exe", 9000),
+    p2(600, 500, "wininit.exe", 8900),
+    p2(700, 600, "C:\\Windows\\system32\\services.exe", 8900),
+    p2(710, 600, "C:\\Windows\\system32\\lsass.exe", 8900),
+    p2(800, 700, "C:\\Windows\\system32\\svchost.exe -k netsvcs -p", 8800),
+    p2(1500, 800, "C:\\actions-runner\\bin\\Runner.Worker.exe spawnclient 1 2", 500),
+    p2(2000, 1500, "bash -e /d/a/_temp/step.sh", 450),
+    p2(3000, 2000, "python scripts/run_suites.py --fase paralela", 440),
+    p2(4000, 3000, "bash plugins/lixeiro/hooks/test_lixeiro_hooks.sh", 100),
+    p2(5000, 4000, "python3 -m http.server 0", 90),
+    # o hook em execução: o pai dele sumiu da tabela (cadeia quebrada)
+    p2(9100, 77777, "python3 plugins/lixeiro/lib/lixeiro.py colhe-sessao --sessao s2", 5),
+]
+eq(lixeiro.raiz_orfa(5000, ARVORE_CI, protegidos=set()), 5000,
+   "cadeia do hook quebrada: o servidor NÃO sobe pelo rodador, pelo runner nem pelo sistema")
+for ancestral in (4000, 3000, 2000, 1500, 800, 700, 710, 600, 500):
+    eq(lixeiro.raiz_orfa(ancestral, ARVORE_CI, protegidos=set()) == 5000, False,
+       "a subida nunca devolve o servidor quando o alvo é %d" % ancestral)
+eq(lixeiro.raiz_orfa(800, ARVORE_CI, protegidos=set()), 800,
+   "o svchost não sobe para o services.exe")
+eq(lixeiro.raiz_orfa(5000, ARVORE_CI), 5000, "…e com a protegida real (padrão) o resultado é o mesmo")
+
+# Mesma árvore, vista do POSIX: pid 1 no topo, tudo no mesmo grupo de processos do servidor
+# MENOS o rodador do CI (outro grupo). Sem classe de comando em nenhum degrau, só a identidade
+# do grupo autoriza subir — e ela não atravessa para o outro grupo.
+ARVORE_POSIX = [
+    p2(1, 0, "/sbin/launchd", 9000, pgid=1),
+    p2(200, 1, "/usr/sbin/sshd -D", 8000, pgid=200),
+    p2(300, 200, "bash -e step.sh", 450, pgid=300),
+    p2(400, 300, "bash plugins/lixeiro/hooks/test_lixeiro_hooks.sh", 100, pgid=400),
+    p2(500, 400, "bash plugins/lixeiro/hooks/test_lixeiro_hooks.sh", 99, pgid=400),
+    p2(600, 500, "python3 -m http.server 0", 90, pgid=400),
+]
+eq(lixeiro.raiz_orfa(600, ARVORE_POSIX, protegidos=set()), 600,
+   "POSIX: a subida para na fronteira do grupo de processos, e então o alvo é o próprio servidor")
+ARVORE_POSIX_SOLTA = [
+    p2(1, 0, "/sbin/launchd", 9000, pgid=1),
+    p2(700, 1, "bash -c nohup lançador", 300, pgid=700),
+    p2(710, 700, "sleep 300", 299, pgid=700),
+]
+eq(lixeiro.raiz_orfa(710, ARVORE_POSIX_SOLTA, protegidos=set()), 700,
+   "POSIX: a raiz órfã de verdade (pai = pid 1, mesmo grupo) continua sendo alcançada")
+
+# O pai com pid reutilizado é MAIS NOVO que o filho: não é pai.
+REUSO = [
+    p2(6000, 1, "C:\\Windows\\system32\\lsass.exe", 5),
+    p2(6001, 6000, "npm run dev", 500),
+]
+eq(lixeiro.raiz_orfa(6001, REUSO, protegidos=set()), 6001,
+   "pai mais novo que o filho (pid reutilizado) não é pai")
+
+# O que a subida AINDA tem que fazer: a cadeia de lançadores do próprio servidor, reconhecida
+# pela lista de ferramentas do lixeiro, mesmo sem identidade de grupo (Windows não tem).
+LANCADORES = [
+    p2(7000, 1, "node C:/proj/loja/node_modules/.bin/vite --port 5199", 900),
+    p2(7001, 7000, "sh -c vite --port 5199", 899),
+    p2(7002, 7001, "node C:/proj/loja/node_modules/vite/bin/vite.js", 898),
+]
+eq(lixeiro.raiz_orfa(7002, LANCADORES, protegidos=set()), 7000,
+   "a cadeia de lançadores do servidor (todos na lista de ferramentas) sobe até a raiz órfã")
+OUTRO_GRUPO = [
+    p2(7100, 1, "npm run dev", 900, pgid=7100),
+    p2(7101, 7100, "node C:/proj/loja/node_modules/vite/bin/vite.js", 898, pgid=7101),
+]
+eq(lixeiro.raiz_orfa(7101, OUTRO_GRUPO, protegidos=set()), 7101,
+   "POSIX: pai em OUTRO grupo de processos não é cruzado, nem quando é da lista de ferramentas")
+
+print("── sistema e ancestral: nunca recebem sinal ──")
+for cmd in ("C:\\Windows\\system32\\lsass.exe", "\"C:\\Windows\\System32\\svchost.exe\" -k netsvcs",
+            "wininit.exe", "csrss.exe ObjectDirectory=\\Windows", "services.exe", "winlogon.exe",
+            "smss.exe", "/sbin/launchd", "/usr/lib/systemd/systemd --user", "/sbin/init splash",
+            "init", "/usr/sbin/sshd -D", "C:\\actions-runner\\bin\\Runner.Worker.exe spawnclient 1 2",
+            "", "   "):
+    eq(lixeiro.eh_do_sistema(cmd), True, "é de sistema: %r" % cmd)
+for cmd in ("python3 -m http.server 0", "node C:/proj/loja/node_modules/.bin/vite", "bash -c 'sleep 3'",
+            "npm run dev", "C:\\proj\\Windows\\app.exe", "/usr/bin/initdb -D /x"):
+    eq(lixeiro.eh_do_sistema(cmd), False, "NÃO é de sistema: %r" % cmd)
+
+_sinais = []
+_sinaliza_real = lixeiro._sinaliza
+lixeiro._sinaliza = lambda pid, grace=3.0: _sinais.append(pid)
+try:
+    HOOK = [
+        p2(meu_pid, 1200, "python3 test_lixeiro.py", 5),
+        p2(1200, 1100, "bash -c hook", 6),
+        p2(1100, 1, "npm run dev", 7),
+        p2(710, 600, "C:\\Windows\\system32\\lsass.exe", 8900),
+        p2(800, 700, "C:\\Windows\\system32\\svchost.exe -k netsvcs -p", 8800),
+        p2(3, 0, "python3 -m http.server 0", 9000),
+        p2(1, 0, "/sbin/launchd", 9000),
+    ]
+    for alvo_proibido in (meu_pid, 1200, 1100, 710, 800, 3, 1, 4, 0):
+        _sinais.clear()
+        lixeiro.encerra(alvo_proibido, procs=HOOK)
+        eq(_sinais, [], "encerra(%d) não sinaliza ninguém (ancestral, sistema ou pid <= 4)" % alvo_proibido)
+
+    # descendente de sistema/ancestral também não: a varredura de filhos respeita as mesmas travas
+    SOB_ALVO = [
+        p2(meu_pid, 1200, "python3 test_lixeiro.py", 5),
+        p2(1200, 1, "bash -c hook", 6),
+        p2(8000, 1, "node C:/proj/loja/node_modules/.bin/vite --port 5199", 900),
+        p2(8001, 8000, "C:\\Windows\\system32\\svchost.exe -k x", 899),
+        p2(8002, 8000, "node C:/proj/loja/node_modules/vite/bin/vite.js", 898),
+    ]
+    _sinais.clear()
+    _vivo_real = lixeiro.vivo
+    lixeiro.vivo = lambda pid: True
+    try:
+        lixeiro.encerra(8002, procs=SOB_ALVO)
+    finally:
+        lixeiro.vivo = _vivo_real
+    eq(sorted(set(_sinais)), [8000, 8002],
+       "encerra sinaliza a raiz e o filho da lista de ferramentas — e não o svchost pendurado nela")
+
+    # seleção: nenhum caminho de colheita escolhe ancestral nem sistema
+    SID_S = "sessao-sistema"
+    lixeiro.grava_registro({"session_id": SID_S, "dono_pid": meu_pid, "anotacoes": [
+        {"cmd": "python3 -m http.server 0", "cwd": "/proj/seguro", "classe": "servico",
+         "em": time.time() - 60, "cpu_ultimo_turno": None}]})
+    SELECAO = [
+        p2(meu_pid, 1200, "python3 test_lixeiro.py", 5),
+        p2(1200, 1100, "python3 -m http.server 0 /proj/seguro", 6),            # ancestral do hook
+        p2(2, 0, "python3 -m http.server 0 /proj/seguro", 50),                  # pid <= 4
+        p2(3300, 700, "C:\\Windows\\system32\\svchost.exe -k x http.server /proj/seguro", 50),
+        p2(3400, 1, "python3 -m http.server 0 /proj/seguro", 50),              # o legítimo
+    ]
+    escolhidos = sorted(c[1]["pid"] for c in lixeiro.candidatos(SID_S, "sessao", procs=SELECAO))
+    eq(escolhidos, [3400], "candidatos: ancestral do hook, pid <= 4 e sistema nunca são escolhidos")
+    try:
+        os.remove(lixeiro.registro_path(SID_S))
+    except OSError:
+        pass
+finally:
+    lixeiro._sinaliza = _sinaliza_real
 
 print("── prova anti-tautologia ──")
 # Sabota a trava de intocável e exige que a decisão MUDE. Sem isto, a suíte pode
