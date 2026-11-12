@@ -42,6 +42,7 @@ import html
 import json
 import os
 import re
+import shlex
 import subprocess
 import sys
 import tempfile
@@ -189,8 +190,56 @@ def visual_page_path():
     return irmao if os.path.exists(irmao) else ""
 
 
+# O id do plano vira NOME DE ARQUIVO (`<id>.plan.json`), e o id sai de um arquivo do repositório
+# (o `para_o_plano` da fila de entrada, o campo `id` dentro do `.plan.json`). Letra, dígito,
+# `.`, `_` e `-`, sem começar por ponto e sem `..`: nada que tenha barra, que seja absoluto ou
+# que suba de pasta. É mais larga que o SLUG_RE de propósito — o SLUG_RE é a régua de quem CRIA
+# um plano; esta é só a de quem decide em que arquivo se lê e se grava (P6 · hsf_f3e6b56f).
+ID_DE_ARQUIVO_RE = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]{0,127}")
+
+
+def id_de_arquivo_ok(plan_id):
+    return (isinstance(plan_id, str) and ID_DE_ARQUIVO_RE.fullmatch(plan_id) is not None
+            and ".." not in plan_id)
+
+
 def plan_path(directory, plan_id):
+    if not id_de_arquivo_ok(plan_id):
+        raise PlanError("⛔ id de plano inválido: %r. O id vira nome de arquivo — só letras,\n"
+                        "   dígitos, ponto, sublinhado e hífen; sem barra e sem `..`." % (plan_id,))
     return os.path.join(directory, "%s.plan.json" % plan_id)
+
+
+def grava_json_seguro(path, dado, indent=2, fim="\n"):
+    """Grava `dado` como JSON em `path` SEM seguir symlink (P6 · hsf_38d27434).
+
+    O `<plano>.tmp` de nome previsível era aberto com `open(…, "w")`: um symlink versionado
+    com esse nome fazia a gravação cair fora do projeto. Aqui o temporário nasce por
+    `mkstemp` (nome aleatório, O_EXCL) na mesma pasta e entra no lugar por `os.replace`; e
+    um destino que JÁ é symlink é recusado, dito em voz alta — não se escreve "através".
+    O modo do arquivo antigo é preservado (o `mkstemp` cria 0600).
+    """
+    if os.path.islink(path):
+        raise PlanError("⛔ %s é um symlink — não grava através dele. O plano é um arquivo\n"
+                        "   comum do projeto; troque o link por um arquivo." % path)
+    try:
+        modo = os.stat(path).st_mode & 0o777
+    except OSError:
+        modo = 0o644
+    fd, tmp = tempfile.mkstemp(prefix=".%s." % os.path.basename(path), suffix=".tmp",
+                               dir=os.path.dirname(path) or ".")
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as fh:
+            json.dump(dado, fh, ensure_ascii=False, indent=indent)
+            fh.write(fim)
+        os.chmod(tmp, modo)
+        os.replace(tmp, path)
+    except BaseException:
+        try:
+            os.unlink(tmp)
+        except OSError:
+            pass
+        raise
 
 
 def list_plans(directory):
@@ -202,9 +251,16 @@ def list_plans(directory):
             continue
         try:
             with open(os.path.join(directory, name), encoding="utf-8") as fh:
-                out.append(json.load(fh))
+                plan = json.load(fh)
         except (OSError, ValueError):
             continue  # arquivo corrompido não derruba a listagem
+        # O `id` de dentro tem que ser o nome do arquivo: quem grava depois deriva o caminho
+        # do id, e um id que difere do arquivo lido escolheria onde o plano cai (hsf_f3e6b56f).
+        if not isinstance(plan, dict) or plan.get("id") != name[:-len(".plan.json")]:
+            print("⚠️  %s ignorado: o `id` de dentro não é o nome do arquivo." % name,
+                  file=sys.stderr)
+            continue
+        out.append(plan)
     return out
 
 
@@ -234,7 +290,12 @@ def pick_plan(directory, plan_id=None):
         path = plan_path(directory, plan_id)
         if not os.path.exists(path):
             raise PlanError("plano '%s' não existe em %s" % (plan_id, directory))
-        return le_plano(path)
+        plan = le_plano(path)
+        if not isinstance(plan, dict) or plan.get("id") != plan_id:
+            raise PlanError("⛔ %s: o `id` de dentro (%r) não é o nome do arquivo (%r). Quem grava\n"
+                            "   o plano deriva o caminho do id — corrija o campo `id` à mão."
+                            % (path, plan.get("id") if isinstance(plan, dict) else None, plan_id))
+        return plan
     active = [p for p in list_plans(directory) if p.get("status") == "active"]
     if not active:
         raise PlanError("nenhum plano ativo em %s" % directory)
@@ -256,11 +317,7 @@ def save(directory, plan):
                 if isinstance(it, dict):
                     it.setdefault("status", "todo")
     path = plan_path(directory, plan["id"])
-    tmp = path + ".tmp"
-    with open(tmp, "w", encoding="utf-8") as fh:
-        json.dump(plan, fh, ensure_ascii=False, indent=2)
-        fh.write("\n")
-    os.replace(tmp, path)
+    grava_json_seguro(path, plan)
     # Toda escrita de plano é uma sessão dizendo "estou NESTE". A marca fica aqui, e
     # não em cada comando, porque `tick`, `state`, `init` e `close` passam todos por
     # este ponto — pendurar em cada um deixaria o próximo comando novo de fora.
@@ -1059,8 +1116,12 @@ def _gate_precheck(directory, plan):
         return None
     import precheck_largada as pl
     raiz = os.path.dirname(os.path.dirname(os.path.abspath(directory)))
+    # O comando é para o dono COPIAR e rodar, e o caminho do plano e a raiz saem do
+    # repositório: cada pedaço entra por `shlex.quote`, senão um `;` ou `$(...)` no nome
+    # de uma pasta vira comando (P5 · hsf_d8f1134d).
     renova = ("python3 %s %s --raiz %s --relatorio"
-              % (os.path.abspath(pl.__file__), plan_path(directory, plan["id"]), raiz))
+              % (shlex.quote(os.path.abspath(pl.__file__)),
+                 shlex.quote(plan_path(directory, plan["id"])), shlex.quote(raiz)))
     v = pl.confere_largada(raiz, plan)
     if v.get("motivo") == "ausente":
         print("⚠️  sem relatório de pré-check no disco — o tique passa (fail-open "
@@ -1079,9 +1140,8 @@ def _gate_precheck(directory, plan):
             with open(alvo, encoding="utf-8") as f:
                 rel = json.load(f)
             rel["marca"] = pl.marca(plan, raiz)
-            with open(alvo, "w", encoding="utf-8") as f:
-                json.dump(rel, f, ensure_ascii=False, indent=1)
-        except (OSError, ValueError):
+            grava_json_seguro(alvo, rel, indent=1, fim="")
+        except (OSError, ValueError, PlanError):
             pass
     return _ressela
 
@@ -2216,8 +2276,12 @@ def render_html(plan, mode="track", reqs=None, vista="execucao"):
         parts.append('    <b>🌿 frente aberta: %s</b>' % b)
         parts.append('    <p>worktree: %s</p>' % w)
         parts.append('    <p>%s</p>' % FRENTE_DECIDA)
+        # Os comandos são para o dono copiar: o valor entra por `shlex.quote` e só então
+        # é escapado para o HTML (P5 · hsf_d8f1134d). O escape de HTML não protege o shell.
         parts.append('    <p><code>git worktree remove %s</code> · '
-                     '<code>git branch -d %s</code></p>' % (w, b))
+                     '<code>git branch -d %s</code></p>'
+                     % (_e(shlex.quote(str(fr.get("worktree", "") or ""))),
+                        _e(shlex.quote(str(fr["branch"])))))
         parts.append('  </div>')
 
     for n, ph in enumerate(plan["phases"], 1):

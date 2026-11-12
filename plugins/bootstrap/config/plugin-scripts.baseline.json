@@ -158,11 +158,6 @@
   },
   {
    "plugin": "project-skills",
-   "script": "lib/plan_entrada.py",
-   "interprete": "python3"
-  },
-  {
-   "plugin": "project-skills",
    "script": "lib/rastreio_etapas.py",
    "interprete": "python3"
   },
@@ -344,6 +339,10 @@
   {
    "plugin": "project-skills",
    "script": "lib/pattern_check.py"
+  },
+  {
+   "plugin": "project-skills",
+   "script": "lib/plan_entrada.py"
   },
   {
    "plugin": "project-skills",
@@ -1052,9 +1051,13 @@
    "plugin": "project-skills",
    "script": "lib/plan_entrada.py",
    "citado": true,
-   "classe": "puro",
+   "classe": "executa",
    "escreve": true,
-   "motivos": []
+   "motivos": [
+    "lib/bash_posix.py: import subprocess",
+    "lib/plan_state.py: import subprocess",
+    "lib/precheck_largada.py: import subprocess"
+   ]
   },
   {
    "plugin": "project-skills",

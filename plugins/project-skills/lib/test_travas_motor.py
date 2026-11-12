@@ -455,7 +455,7 @@ def main():
     # papel de marcacao e mecanico e roda o que esta escrito, nao interpreta parenteses.
     motor = open(MOTOR_JS, encoding="utf-8").read()
     check("o motor injeta o id do plano no comando de marcacao",
-          "planIdDe" in motor and "tick ${planIdDe(planPath)} <taskId>" in motor)
+          "planIdDe" in motor and "tick ${sq(planIdDe(planPath))} ${sq(p.taskId)}" in motor)
     check("a prova gravada e a do executor, nao redigida por quem marca",
           "nunca redigida por quem marca" in texto)
 

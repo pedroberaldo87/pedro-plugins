@@ -115,6 +115,29 @@ def caso_precedencia():
         check("precedência: B antes de A", r["classe"] == "B", json.dumps(r))
 
 
+def caso_workspace_hostil():
+    """P6 · hsf_9466794d — o glob de workspace vem do repositório escaneado e não sai dele."""
+    with tempfile.TemporaryDirectory() as base:
+        raiz = os.path.join(base, "repo")
+        fora = os.path.join(base, "fora")
+        toca(raiz, "packages/ok/package.json")
+        toca(fora, "alvo1/package.json", "alvo2/package.json")
+        os.symlink(os.path.join(fora, "alvo2"), os.path.join(raiz, "packages", "elo"))
+        with open(os.path.join(raiz, "package.json"), "w") as f:
+            json.dump({"workspaces": ["../fora/*", os.path.join(fora, "*"), "packages/*"]}, f)
+        unidades = _mod._workspace(raiz)
+        check("workspace hostil: só a unidade de dentro do repositório entra",
+              unidades == ["packages/ok"], json.dumps(unidades))
+        check("workspace hostil: `..` no glob não escolhe pasta de fora",
+              not any("fora" in u or "alvo" in u for u in (unidades or [])), json.dumps(unidades))
+        with open(os.path.join(raiz, "pnpm-workspace.yaml"), "w") as f:
+            f.write("packages:\n  - '../fora/*'\n")
+        with open(os.path.join(raiz, "package.json"), "w") as f:
+            json.dump({"name": "x"}, f)
+        check("workspace hostil (pnpm): glob com `..` não entra",
+              _mod._workspace(raiz) is None, json.dumps(_mod._workspace(raiz)))
+
+
 def caso_cli():
     """A linha de comando devolve o mesmo JSON — é assim que as skills consomem."""
     with tempfile.TemporaryDirectory() as raiz:
@@ -131,7 +154,7 @@ def caso_cli():
               out.stdout)
 
 
-for caso in (caso_A, caso_B, caso_C, caso_D, caso_E, caso_precedencia, caso_cli):
+for caso in (caso_A, caso_B, caso_C, caso_D, caso_E, caso_precedencia, caso_workspace_hostil, caso_cli):
     print(caso.__name__)
     caso()
 

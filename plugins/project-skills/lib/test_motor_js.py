@@ -237,7 +237,7 @@ check("a corrida sem teto de rodadas continua sendo o padrão",
       "const maxRounds = ARGS.maxRounds || Infinity" in motor)
 
 check("o prompt chama o subcomando `pendencia` do plan_state.py",
-      "pendencia ${planIdDe(planPath)} <taskId>" in motor)
+      "pendencia ${sq(planIdDe(planPath))} ${sq(p.taskId)}" in motor)
 # o programa que a gravação chama tem que existir com esse nome — prompt apontando
 # para subcomando inexistente falharia calado, uma recusa por passo, corrida afora.
 _plan_state = open(os.path.join(PLUGIN, "lib", "plan_state.py"), encoding="utf-8").read()

@@ -117,6 +117,19 @@ const DOC_TOUCH = { type:'object', required:['docs'], properties:{
 // ───────────────────────── PROMPTS ─────────────────────────
 const J = o => JSON.stringify(o, null, 1)
 
+// ── ASPAS DE SHELL (P5 · hsf_bdf8f754 · hsf_bfa6322d · hsf_3849dde4) ─────────────
+// Os prompts dos papéis mecânicos carregam COMANDOS DE SHELL, e parte do texto que
+// entra neles não é do motor: o nome de arquivo que a decomposição devolve, o nome do
+// arquivo do plano (que pode vir de um repositório clonado) e a prova que o executor
+// colou no `summary` (saída crua de comando). Tudo isso entra num comando por UM só
+// escapador: aspas simples, e a aspa simples de dentro vira `'\\''`. Entre aspas
+// simples o shell não expande nada — nem `$(...)`, nem crase, nem `;`, nem quebra de
+// linha. Aspas duplas (como era com `--evidencia "<evidencia>"`) NÃO bastam.
+const sq = s => "'" + String(s ?? '').replace(/'/g, "'\\''") + "'"
+// Caractere de controle (quebra de linha, tab, NUL…) não é nome de arquivo que este
+// motor aceite: a tarefa que o carrega sai da decomposição, com blocker nomeado.
+const nomeDeArquivoSujo = f => /[\u0000-\u001f\u007f]/.test(String(f))
+
 // A régua do projeto vem da CASCA (o doc-load roda antes do disparo e passa `regua`
 // em args). Sem ela, a instrução é genérica e fail-open: régua ausente não é achado.
 const REGUA_DO_PROJETO = (ARGS.regua && ARGS.regua.length)
@@ -294,7 +307,7 @@ ANTES DE TUDO, marque na BARRA que esta rodada começou — um comando, e falhar
 derruba nada:
 
   ANDAMENTO="$(bash "${RESOLVE}" project-skills lib/andamento.py)"
-  python3 "$ANDAMENTO" onda ${ARGS.sessionId} ${round} ${ARGS.planPath || ''} --etapa "separando o trabalho" || true${RODAPE_MECANICO(repoRoot)}`
+  python3 "$ANDAMENTO" onda ${sq(ARGS.sessionId)} ${round} ${ARGS.planPath ? sq(ARGS.planPath) : ''} --etapa "separando o trabalho" || true${RODAPE_MECANICO(repoRoot)}`
 
 const orfaosPrompt = ({ repoRoot, planPath }) => `PAPEL: MECANICO
 Rodada 1. Papel mecânico e SÓ: rode o detector de trabalho órfão a partir de ${repoRoot}
@@ -302,7 +315,7 @@ e devolva o que ele imprimir. Não julgue, não conserte, não marque passo nenh
 lista só vai para a tela.
 
   ORFAOS="$(bash "${RESOLVE}" project-skills lib/orfaos.py)"
-  python3 "$ORFAOS" ${planPath} --root ${repoRoot}
+  python3 "$ORFAOS" ${sq(planPath)} --root ${sq(repoRoot)}
 
 A saída é JSON: {"orfaos":[{"id","title","status","paths","commits"}]}. Devolva em \`orfaos\` os
 ids (só os ids, na ordem da saída) e em \`saida\` o JSON cru.
@@ -379,7 +392,7 @@ ANTES DE DEVOLVER: rode a verificação que o \`pronto\` nomeia e cole a saída 
 const reservaPrompt = ({ verbo, sessionId, motorId, files }) => `PAPEL: MECANICO
 Papel mecânico e SÓ. Rode, a partir de ${RAIZ}:
 
-  bash "$(bash "${RESOLVE}" project-skills hooks/reserva-de-arquivos.sh)" ${verbo} ${sessionId} ${motorId} ${files.map(f => `'${f}'`).join(' ')}
+  bash "$(bash "${RESOLVE}" project-skills hooks/reserva-de-arquivos.sh)" ${verbo} ${sq(sessionId)} ${sq(motorId)} ${files.map(f => sq(f)).join(' ')}
 
 Devolva o veredito do JSON que saiu: \`recusado: true\` quando veio \`permissionDecision: "deny"\`,
 com \`arquivos\` = os caminhos em disputa que a recusa nomeou. Script mudo ou ausente ⇒ \`recusado: false\`.
@@ -633,7 +646,7 @@ DENTRO da onda, e não só a cada onda nova (pedido do dono, 2026-08-09: uma ond
 três blocos deixava a barra parada quinze minutos no mesmo texto):
 
   ANDAMENTO="$(bash "${RESOLVE}" project-skills lib/andamento.py)"
-  python3 "$ANDAMENTO" onda ${ARGS.sessionId} ${round} ${ARGS.planPath || ''} --bloco ${bloco} --etapa "suíte" || true${RODAPE_MECANICO(repoRoot)}`
+  python3 "$ANDAMENTO" onda ${sq(ARGS.sessionId)} ${round} ${ARGS.planPath ? sq(ARGS.planPath) : ''} --bloco ${bloco} --etapa "suíte" || true${RODAPE_MECANICO(repoRoot)}`
 
 // O id do plano vai NO COMANDO, não numa observação ao lado: `tick` recebe o plano como
 // primeiro posicional, e sem ele o programa recusa quando há 2+ planos ativos na pasta —
@@ -645,30 +658,41 @@ const planIdDe = (planPath) => String(planPath || '').split('/').pop().replace(/
 // 2026-08-20: 13 passos entregues, zero marcados). A pasta sai do próprio caminho do plano.
 const dirDe = (planPath) => String(planPath || '').split('/').slice(0, -1).join('/') || `${RAIZ}/.claude/plans`
 
+// O comando de cada passo nasce AQUI, com todo texto variável entre aspas simples (`sq`),
+// e não no agente: o agente mecânico só roda o que está escrito. `planIdDe` e `dirDe`
+// devolvem pedaços CRUS do caminho do plano — que pode ter `;`, `$(`, espaço — e só
+// viram palavra de shell dentro do `sq`.
+const blocoDeComandos = (comandos) => '```bash\nMARCADOR="$(bash "' + RESOLVE + '" project-skills lib/plan_state.py)"\n' +
+  comandos.join('\n') + '\n```'
+const comandoDeTique = (planPath, p) =>
+  `cd ${sq(RAIZ)} && python3 "$MARCADOR" --dir ${sq(dirDe(planPath))} tick ${sq(planIdDe(planPath))} ${sq(p.taskId)} --evidencia ${sq(p.evidencia)}${p.retomada ? ' --retomada' : ''}`
+const comandoDePendencia = (planPath, p) =>
+  `cd ${sq(RAIZ)} && python3 "$MARCADOR" --dir ${sq(dirDe(planPath))} pendencia ${sq(planIdDe(planPath))} ${sq(p.taskId)} ${sq(p.pendencia)}`
+
 const tickPlanPrompt = ({ planPath, passos }) => `PAPEL: MARCAR
 Papel mecânico e SÓ: gravar no plano os passos que acabaram de sair.
 
-PASSOS (a \`evidencia\` é a do executor — COPIE, não redija):
-${J(passos)}
+OS COMANDOS ABAIXO JÁ ESTÃO ESCRITOS PELO MOTOR — um por passo, na ordem. O id do plano, a
+pasta, o passo e a \`evidencia\` (a do executor, literal) vão cada um ENTRE ASPAS SIMPLES:
+entre aspas simples o shell não expande \`$(...)\`, crase nem \`;\`. Rode o bloco como está.
+NÃO redija a prova, NÃO troque as aspas, NÃO reescreva nada — mexer nas aspas reabre a
+injeção, e mexer no texto adultera a prova.
 
-Rode UM COMANDO POR PASSO, em sequência:
+${blocoDeComandos(passos.map(p => comandoDeTique(planPath, p)))}
 
-  MARCADOR="$(bash "${RESOLVE}" project-skills lib/plan_state.py)"
-  cd ${RAIZ} && python3 "$MARCADOR" --dir ${dirDe(planPath)} tick ${planIdDe(planPath)} <taskId> --evidencia "<evidencia>"
+(o plano é ${planPath} — o id e a pasta já estão em cada comando; não os omita)
 
-(o plano é ${planPath} — o id \`${planIdDe(planPath)}\` já está no comando acima; não o omita)
-
-PASSO COM \`retomada: true\` LEVA \`--retomada\` NO FIM DO COMANDO (F18.3 · R-28). Ele veio
-de trabalho ÓRFÃO — obra que estava no disco antes desta corrida, que ninguém viu sair —,
+PASSO DE TRABALHO ÓRFÃO (\`retomada: true\`) JÁ LEVA \`--retomada\` NO FIM DO COMANDO (F18.3 ·
+R-28). Ele veio de obra que estava no disco antes desta corrida, que ninguém viu sair —,
 e aí o programa cobra as duas provas do rito: o veredito de quem revisou e o sha do
-commit. As duas já estão na \`evidencia\` que você recebeu; COPIE-A inteira, não a resuma.
+commit. As duas já estão dentro da \`evidencia\` do comando.
 
 Falha de um passo NÃO interrompe os seguintes. Recusa do tick é resultado legítimo: entra no
 veredito daquele passo com \`ok: false\` e o \`motivo\` = a linha que o programa imprimiu.
 
 Terminado, registre a volta:
   ANDAMENTO="$(bash "${RESOLVE}" project-skills lib/andamento.py)"
-  python3 "$ANDAMENTO" onda ${ARGS.sessionId} <rodada> ${planPath}
+  python3 "$ANDAMENTO" onda ${sq(ARGS.sessionId)} <rodada> ${sq(planPath)}
 Falhar aqui não derruba nada.${RODAPE_MECANICO(ARGS.repoRoot)}`
 
 // ── O BLOCKER DE DECISÃO VIRA PENDÊNCIA NO PASSO (F12.5 · R-21) ───────────────
@@ -679,38 +703,60 @@ Falhar aqui não derruba nada.${RODAPE_MECANICO(ARGS.repoRoot)}`
 const pendenciaPrompt = ({ planPath, passos }) => `PAPEL: MARCAR
 Papel mecânico e SÓ: gravar no plano a decisão que trava cada passo.
 
-PASSOS (a \`pendencia\` é a pergunta que o dono tem que responder — COPIE, não redija):
-${J(passos)}
+OS COMANDOS ABAIXO JÁ ESTÃO ESCRITOS PELO MOTOR — um por passo, na ordem. A \`pendencia\` é a
+pergunta que o dono tem que responder, literal, ENTRE ASPAS SIMPLES (o shell não expande
+nada dentro delas). Rode o bloco como está; NÃO troque as aspas e NÃO reescreva o texto.
 
-Rode UM COMANDO POR PASSO, em sequência:
+${blocoDeComandos(passos.map(p => comandoDePendencia(planPath, p)))}
 
-  MARCADOR="$(bash "${RESOLVE}" project-skills lib/plan_state.py)"
-  cd ${RAIZ} && python3 "$MARCADOR" --dir ${dirDe(planPath)} pendencia ${planIdDe(planPath)} <taskId> "<pendencia>"
-
-(o plano é ${planPath} — o id \`${planIdDe(planPath)}\` já está no comando acima; não o omita)
+(o plano é ${planPath} — o id e a pasta já estão em cada comando; não os omita)
 
 Falha de um passo NÃO interrompe os seguintes. Recusa do programa é resultado legítimo:
 entra no veredito daquele passo com \`ok: false\` e o \`motivo\` = a linha que ele imprimiu.
 Não reescreva a pendência para driblar uma recusa — o texto é o que o motor mandou.${RODAPE_MECANICO(ARGS.repoRoot)}`
 
+// Os ARQUIVOS do checkpoint: a união dos `files_touched` mais o plano. Os nomes entram no
+// comando por `sq` — um nome com `'`, `$(`, crase, `;` ou espaço vira UMA palavra.
+const arquivosDoCheckpoint = ({ results, planPath, repoRoot }) =>
+  [...new Set(results.flatMap(x => x?.files_touched || []))]
+    .concat(planPath && planPath.endsWith('.plan.json') && planPath.startsWith(repoRoot) ? [planPath] : [])
+// O fecho por import e o commit são UM script, escrito aqui. Antes eram dois comandos e o
+// agente copiava a saída do primeiro (caminhos lidos de `import` do repositório) para
+// dentro do segundo: texto do repositório virando comando, à mão. Agora a lista do passo 1
+// entra no mesmo laço por stdin (`read -r`), e o `git commit` recebe os caminhos como
+// "$@" — nunca como `$OK` sem aspas, que fatiava nome com espaço. POSIX puro (sh/dash).
+const scriptDoCheckpoint = ({ repoRoot, round, bloco, arquivos }) => {
+  const lista = arquivos.length ? arquivos.map(f => sq(f)).join(' ') : "''"
+  return '```bash\n' +
+`cd ${sq(repoRoot)} || exit 1
+FECHO="$(for f in ${lista}; do base=$(echo "$f" | sed "s|/src/.*|/src|"); grep -hoE "from '@/[^']+'" "$f" 2>/dev/null | sed "s|from '@/||;s|'||" | while read l; do for e in .ts .tsx; do p="$base/$l$e"; [ -f "$p" ] && git status --porcelain -- "$p" | grep -q . && echo "$p"; done; done; done | sort -u)"
+[ -n "$FECHO" ] && printf 'fecho por import:\\n%s\\n' "$FECHO"
+set --
+for f in ${lista}; do git add -- "$f" && set -- "$@" "$f" || echo "sprint: o git recusou $f — fica fora do ponto de salvamento da onda ${round}"; done
+while IFS= read -r f; do [ -n "$f" ] || continue; git add -- "$f" && set -- "$@" "$f" || echo "sprint: o git recusou $f — fica fora do ponto de salvamento da onda ${round}"; done <<EOF
+$FECHO
+EOF
+[ $# -gt 0 ] && git commit -q -m "sprint: onda ${round} bloco ${bloco} verde" -- "$@" || true` + '\n```'
+}
+
 const checkpointPrompt = ({ repoRoot, round, bloco, results, planPath }) => `PAPEL: MECANICO
 Papel mecânico e SÓ: gravar no histórico do git o que o bloco ${bloco} da onda ${round} produziu.
 
 ARQUIVOS (a união dos \`files_touched\` das entregas aprovadas, MAIS o plano):
-${J([...new Set(results.flatMap(x => x?.files_touched || []))].concat(planPath && planPath.endsWith('.plan.json') && planPath.startsWith(repoRoot) ? [planPath] : []))}
+${J(arquivosDoCheckpoint({ results, planPath, repoRoot }))}
 
-Rode, a partir de ${repoRoot}, DOIS comandos em sequência.
+Rode, a partir de ${repoRoot}, o bloco abaixo COMO ESTÁ. O motor já escreveu cada nome de arquivo
+ENTRE ASPAS SIMPLES — é isso que impede um nome com \`'\`, \`$(\`, crase ou \`;\` de virar comando. NÃO
+troque as aspas e NÃO cole nada dentro dele; os dois passos moram no mesmo script:
 
 1) FECHO POR IMPORT — o bloco é uma fatia por tarefa, não por dependência: arquivo novo que
 importa helper que a tarefa não nomeou fica de fora e o commit não builda (a suíte roda ANTES,
-na árvore inteira, e fica verde sempre). Este comando imprime os caminhos SUJOS que os arquivos
-da onda importam e que não estão na lista acima — eles entram no commit junto:
+na árvore inteira, e fica verde sempre). O script acha os caminhos SUJOS que os arquivos da onda
+importam e que não estão na lista acima — eles entram no commit junto.
 
-  cd ${repoRoot} && for f in <arquivo...>; do base=$(echo "$f" | sed "s|/src/.*|/src|"); grep -hoE "from '@/[^']+'" "$f" 2>/dev/null | sed "s|from '@/||;s|'||" | while read l; do for e in .ts .tsx; do p="$base/$l$e"; [ -f "$p" ] && git status --porcelain -- "$p" | grep -q . && echo "$p"; done; done; done | sort -u
+2) COMMIT — a lista é a união: os ARQUIVOS acima MAIS o que o passo 1 achou. O script faz a união.
 
-2) COMMIT — a lista é a união: os ARQUIVOS acima MAIS o que o passo 1 imprimiu.
-
-  OK=""; for f in <arquivo...>; do git -C ${repoRoot} add -- "$f" && OK="$OK $f" || echo "sprint: o git recusou $f — fica fora do ponto de salvamento da onda ${round}"; done; [ -n "$OK" ] && git -C ${repoRoot} commit -q -m "sprint: onda ${round} bloco ${bloco} verde" -- $OK || true
+${scriptDoCheckpoint({ repoRoot, round, bloco, arquivos: arquivosDoCheckpoint({ results, planPath, repoRoot }) })}
 
 ⚠️ A chamada de Bash deste comando vai com \`timeout: 600000\` NO PARÂMETRO da ferramenta.
 O gate de commit re-mede a árvore quando não encontra a prova da esteira e pode levar
@@ -1063,6 +1109,18 @@ while (!built && r < maxRounds) {
     }
     decomp.tasks = decomp.tasks.filter(t => idsDoPlano.has(t.id))
   }
+
+  // ── NOME DE ARQUIVO COM CARACTERE DE CONTROLE NÃO CHEGA AO DESPACHO (hsf_bdf8f754) ──
+  // `files` é string livre no schema, escrita pelo decompositor a partir do plano e do
+  // repositório. Quebra de linha ou NUL num nome não é nome de arquivo que o motor aceite:
+  // a tarefa sai da decomposição e vira blocker nomeado, antes da reserva e do executor.
+  const sujas = decomp.tasks.filter(t => (t.files || []).some(f => nomeDeArquivoSujo(f)))
+  for (const t of sujas) {
+    blockers.push({ taskId: t.id, kind: 'nome-de-arquivo-invalido',
+      what: `a tarefa ${t.id} nomeia arquivo com caractere de controle (quebra de linha, tab ou NUL)`,
+      whyNeedsYou: 'nenhum executor foi solto nela — o nome do arquivo no plano precisa ser um caminho comum, numa linha só' })
+  }
+  if (sujas.length) decomp.tasks = decomp.tasks.filter(t => !sujas.includes(t))
 
   // ── QUEM ESPERA O DONO SAI DA DECOMPOSIÇÃO, NÃO SÓ DA FILA (F9.59) ──────────
   const congeladas = decomp.tasks.filter(t => t.esperaDono)
