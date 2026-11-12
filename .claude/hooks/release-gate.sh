@@ -416,13 +416,39 @@ portao_prazo "E+G (contrato dos hooks, gen das skills)"
 # Só olha o que ESTE commit traz, não o repo inteiro: dívida antiga não trava ninguém,
 # mas ocorrência nova é barrada na porta.
 PRC="$ROOT/scripts/public_repo_check.py"
+NAO_MEDIDO_RT=""
 if [ -f "$PRC" ]; then
-  if ! POUT=$(cd "$ROOT" && python3 "$PRC" --staged 2>&1); then
-    VIOL="${VIOL}
+  # Código de saída do script (ver o docstring dele): 0 = mediu · 1 = dado pessoal ·
+  # 2 = NÃO MEDIDO (git falhou, arquivo ilegível, termos ilegíveis) · 3 = termos não
+  # rodaram sob CI. Antes, qualquer não-zero virava "DADO PESSOAL NO COMMIT" e o zero
+  # jogava a saída fora — o aviso "TERMOS NÃO RODARAM" nunca chegava a quem commita.
+  POUT=$(cd "$ROOT" && python3 "$PRC" --staged 2>&1); PRC_RC=$?
+  case "$PRC_RC" in
+    0)
+      if printf '%s' "$POUT" | grep -q 'TERMOS NÃO RODARAM'; then
+        NAO_MEDIDO_RT="${NAO_MEDIDO_RT}
+   • check H — scripts/public_repo_check.py (só as regras estruturais rodaram: nome de pessoa, cliente e máquina NÃO foram procurados; falta scripts/public_repo_terms)"
+      fi
+      ;;
+    1)
+      VIOL="${VIOL}
 ❌ DADO PESSOAL NO COMMIT — o repositório é público:
 $(printf '%s' "$POUT" | head -20)
    → régua: python3 scripts/public_repo_check.py --staged"
-  fi
+      ;;
+    3)
+      VIOL="${VIOL}
+❌ TERMOS DO GATE DE DADO PESSOAL NÃO RODARAM (CI definido):
+$(printf '%s' "$POUT" | head -20)
+   → crie scripts/public_repo_terms (modelo: scripts/public_repo_terms.example)"
+      ;;
+    *)
+      VIOL="${VIOL}
+❌ NÃO MEDIDO — o gate de dado pessoal não conseguiu medir (exit $PRC_RC), então não há como dizer que o commit está limpo:
+$(printf '%s' "$POUT" | head -20)
+   → régua: python3 scripts/public_repo_check.py --staged"
+      ;;
+  esac
 fi
 
 # I · gerador de página que não passa pela régua de estilo.
@@ -432,7 +458,6 @@ fi
 # Só olha o que ESTE commit traz: os 4 geradores que já estavam fora não travam
 # ninguém (mesma regra do check H), mas gerador tocado agora é barrado na porta.
 RCC="$ROOT/scripts/regua_call_check.py"
-NAO_MEDIDO_RT=""
 if [ -f "$RCC" ]; then
   if ! ROUT=$(cd "$ROOT" && python3 "$RCC" --staged 2>&1); then
     VIOL="${VIOL}

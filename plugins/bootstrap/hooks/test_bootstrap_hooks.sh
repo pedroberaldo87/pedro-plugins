@@ -334,9 +334,14 @@ CT="$TMP/ct-inchado"
 mkdir -p "$CT/plugins/cache/mkt/alfa/1.0.0" "$CT/plugins/cache/mkt/alfa/1.9.0" \
          "$CT/plugins/cache/mkt/alfa/1.10.0"
 
+# O hook inteiro roda na máquina de mentira (lar fingido + `claude` falso): sem isso o
+# apply.sh do hook lê o lar REAL, soma o aviso "do manifest ainda não instalados" de quem
+# roda a suíte (2 mensagens em vez de 1) e ainda escreve no ~/.claude real. E conta só o
+# aviso do cache parado, que é o que este bloco prova — não "qualquer systemMessage".
 roda_sessao() { # config-dir, env extra
-  env $2 CLAUDE_CONFIG_DIR="$1" CLAUDE_PLUGIN_ROOT="$AQUI/.." \
-    bash "$SESSAO" 2>/dev/null | grep -c systemMessage | tr -d " "
+  lar_fingido "$FAKEHOME" env PATH="$BIN:$PATH" FAKE_LIST="$LISTA" FAKE_LOG="$LOG" \
+    $2 CLAUDE_CONFIG_DIR="$1" CLAUDE_PLUGIN_ROOT="$AQUI/.." \
+    bash "$SESSAO" 2>/dev/null | grep -c 'paradas no cache' | tr -d " "
 }
 check "a abertura de sessao avisa o cache parado" "1" "$(roda_sessao "$CT" '')"
 check "no mesmo dia ela cala (relogio proprio)"   "0" "$(roda_sessao "$CT" '')"

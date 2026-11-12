@@ -9,7 +9,9 @@
 # `Fulano!-plugins` pega "Fulano" mas deixa passar "Fulano-plugins".
 #
 # Sem este arquivo o gate roda só as regras estruturais (caminho de máquina,
-# e-mail pessoal, credencial) e avisa que está sem a lista de termos.
+# e-mail pessoal, credencial) e diz, na saída padrão, que os termos NÃO rodaram.
+# Com a variável CI definida isso reprova (exit 3), a menos que se passe
+# `--so-estruturais` — o pedido explícito do CI do repositório público.
 
 # nome-proprio
 Fulano!-plugins

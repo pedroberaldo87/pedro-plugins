@@ -130,7 +130,12 @@ def main():
 
     # --- a medição ----------------------------------------------------------------
     achados, falhas_cob = medidor.mede()
-    checa("nenhum cobrador ficou sem medir", not falhas_cob, repr(falhas_cob))
+    # Sem scripts/public_repo_terms (gitignorado: só o dono tem) o public-repo mede só as
+    # regras estruturais — e isso é NÃO MEDIDO, nunca limpo. Todo o resto tem que medir.
+    tem_termos = os.path.isfile(os.path.join(ROOT, "scripts", "public_repo_terms"))
+    esperadas = set() if tem_termos else {"public-repo"}
+    checa("nenhum cobrador ficou sem medir (fora o public-repo sem lista de termos)",
+          set(falhas_cob) == esperadas, repr(falhas_cob))
     checa("a medição devolve N>0 achados", len(achados) > 0, str(len(achados)))
     ruins = [a for a in achados if erros_de_achado(a)]
     checa("todo achado sai válido", not ruins, repr(ruins[:2]))

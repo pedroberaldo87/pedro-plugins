@@ -48,8 +48,19 @@ REENTRANCIA = "PLANO_VS_CODIGO_RODANDO"
 TIMEOUT = 90
 
 
-def _json_de(*args):
+class NaoMedido(Exception):
+    """O cobrador rodou mas não mediu (saída 2/3, termos que não rodaram, arquivo ilegível).
+
+    Cai em `falhas` de `mede()` — "não medido" —, nunca em "0 achados": lista vazia só
+    pode significar limpo quando o cobrador diz que mediu.
+    """
+
+
+def _json_de(*args, com_rc=False):
     """Roda um script do repo e devolve o JSON que ele imprime.
+
+    `com_rc=True` devolve `(código_de_saída, json)`: o cobrador cujo código de saída
+    carrega significado (public-repo: 2/3 = não mediu) não pode perdê-lo.
 
     `stdin` fechado, sessão própria e `killpg` pelo mesmo motivo do outro lado: o
     `timeout` do subprocess mata o filho direto e deixa o NETO vivo, e comando que
@@ -62,7 +73,8 @@ def _json_de(*args):
                              stdout=subprocess.PIPE, stderr=subprocess.PIPE,
                              text=True, encoding="utf-8", errors="replace", start_new_session=True)
         out, _ = p.communicate(timeout=TIMEOUT)
-        return json.loads(out)
+        dado = json.loads(out)
+        return (p.returncode, dado) if com_rc else dado
     finally:
         if p is not None and p.poll() is None:
             try:                       # Windows não tem killpg/getpgid nem SIGKILL:
@@ -128,11 +140,29 @@ def desacoplamento():
 
 
 def public_repo():
-    d = _json_de("scripts/public_repo_check.py", "--json")
-    return [achado(cobrador="public-repo", regra=f["rule"], gravidade="alta",
-                   onde="%s:%s" % (f["file"], f["line"]),
-                   o_que=f["what"], prova=f["excerpt"])
-            for f in d["findings"]]
+    """Contrato de `scripts/public_repo_check.py --json` (sem trecho; exit 0/1/2/3).
+
+    1 = achados (o lugar e a regra, nunca o trecho). 2 = não mediu. 3 = termos não
+    rodaram sob CI. 0 com `terms_checked:false` = só as regras estruturais rodaram.
+    Tudo que não é "mediu por inteiro" sobe como NaoMedido, não como lista vazia.
+    """
+    rc, d = _json_de("scripts/public_repo_check.py", "--json", com_rc=True)
+    if rc == 1 and d.get("findings"):
+        return [achado(cobrador="public-repo", regra=f["rule"], gravidade="alta",
+                       onde="%s:%s" % (f["file"], f["line"]),
+                       o_que=f["what"],
+                       prova="%s:%s:%s (%s)" % (f["file"], f["line"], f.get("col", 1),
+                                                f["rule"]))
+                for f in d["findings"]]
+    if rc != 0:
+        raise NaoMedido("public_repo_check saiu com %s (%s)" % (
+            rc, d.get("error") or "ok=%s" % d.get("ok")))
+    if d.get("unreadable"):
+        raise NaoMedido("%d arquivo(s) rastreado(s) não abriu(ram)" % len(d["unreadable"]))
+    if not d.get("ok") or not d.get("terms_checked"):
+        raise NaoMedido("termos não rodaram (terms_state=%s): só as regras estruturais "
+                        "mediram" % d.get("terms_state", "?"))
+    return []
 
 
 def regua_call():
@@ -256,7 +286,9 @@ def main(argv=None):
 
     if quer_json:
         # Envelope, não lista crua: é por `_descartes` que a página monta o rodapé.
-        print(json.dumps({"achados": achados, "_descartes": DESCARTES},
+        # `_nao_medidos`: sem ele quem lê só `achados` veria cobrador quebrado como limpo.
+        print(json.dumps({"achados": achados, "_descartes": DESCARTES,
+                          "_nao_medidos": falhas},
                          ensure_ascii=False, indent=1))
         return 0
 

@@ -153,8 +153,11 @@ done
 # PATH de verdade. Onde ele existe, monta-se um sandbox: uma pasta com link para
 # todo executável do PATH, menos o `jq`. Mascarar por variável não provaria nada —
 # quem o hook consulta é o `command -v jq`.
-SANDBOX="${TMPDIR:-/tmp}/test-sem-jq-$$"
-mkdir -p "$SANDBOX" 2>/dev/null
+# mktemp -d (modo 0700, nome aleatório) + trap: o nome antigo, "<tmp>/test-sem-jq-<pid>", era
+# previsível — outra conta plantava <nome>/bin/sed antes, o laço de links abaixo PULA nome que
+# já existe, e o hook rodava o executável plantado com o PATH da prova.
+SANDBOX="$(mktemp -d "${TMPDIR:-/tmp}/test-sem-jq.XXXXXX")" || { bad "mktemp -d falhou — sem sandbox privado a prova não roda"; exit 1; }
+trap 'rm -rf "$SANDBOX" 2>/dev/null' EXIT
 PROVA_PATH=""
 if ! command -v jq >/dev/null 2>&1; then
   PROVA_PATH="$PATH"
@@ -247,8 +250,6 @@ else
     bad "sem jq nem python3 o hook saiu calado — é exatamente o issue #5"
   fi
 fi
-rm -rf "$SANDBOX" 2>/dev/null
-
 echo "---"
 [ "$FAIL" = 0 ] && echo "verde" || echo "vermelho"
 exit $FAIL

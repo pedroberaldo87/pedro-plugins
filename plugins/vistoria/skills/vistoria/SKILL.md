@@ -52,6 +52,10 @@ python3 plugins/vistoria/lib/medidor.py --json     # {achados, _descartes}
 Um comando roda os cobradores que já existem no repo e transforma as saídas diferentes
 deles na MESMA coisa: uma lista de achados. Cobrador que quebra sai do JSON e aparece no
 resumo como *não medido* — medição incompleta não derruba a rodada, mas também não some.
+O mesmo vale para cobrador que roda e confessa que não mediu: o `public-repo` sai como
+*não medido* quando o gate dá saída 2 ou 3, quando um arquivo não abriu ou quando a lista de
+termos não rodou (só as regras estruturais mediram). Lista vazia nunca quer dizer limpo
+sem o cobrador dizer que mediu. O JSON leva esses cobradores em `_nao_medidos`.
 
 Cobrador que acusou sem trecho próprio não vira achado: o item sai do lote e entra em
 `_descartes`, que a página lista no rodapé. Prova que repete a acusação não é prova.
