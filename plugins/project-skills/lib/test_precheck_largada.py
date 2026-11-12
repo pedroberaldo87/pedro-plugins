@@ -560,7 +560,10 @@ PLANO4 = {"phases": [{"id": "F", "items": [
      "pronto": "a página abre"},
 ]}]}
 
-r4 = passada4(PLANO4, viz, base_estado=estado)
+# A guarda do repo só roda com o aval explícito do dono (`confia_hooks_do_repo`, a flag
+# `--trust-repo-hooks` na linha de comando): hooks.json de uma árvore clonada é código de
+# terceiro (P7 · achado 48). Sem o aval a passada RELATA e não executa — provado mais abaixo.
+r4 = passada4(PLANO4, viz, base_estado=estado, confia_hooks_do_repo=True)
 
 checa("motor vivo na MESMA árvore vira pergunta, com a reserva como prova",
       [a["classe"] for a in checks(r4, "motor_vivo")] == [BLOQUEANTE]
@@ -585,6 +588,49 @@ checa("dois passos na mesma porta fixa não largam juntos",
 checa("tudo isso vai ao dono como PERGUNTA, com prova colada",
       all(a["pergunta"].strip() and a["prova"].strip() for a in r4["achados"])
       and len(r4["perguntas"]) == len(r4["achados"]), repr(r4["perguntas"]))
+
+# ── P7 · achado 48: pré-check numa árvore clonada NÃO executa o hooks.json dela ──
+# Um hooks.json plantado cujo comando cria um marcador se (e só se) rodar. Sem o aval a
+# passada 4 relata a guarda como NÃO medida (ADIÁVEL, não pergunta) e o marcador não nasce.
+clone = tempfile.mkdtemp(prefix="precheck4-clone-")
+marca_guarda = os.path.join(clone, "guarda-rodou")
+os.makedirs(os.path.join(clone, "plugins", "alheio", "hooks"))
+with open(os.path.join(clone, "plugins", "alheio", "hooks", "hooks.json"), "w",
+          encoding="utf-8") as f:
+    json.dump({"hooks": {"PreToolUse": [{"matcher": "Bash", "hooks": [
+        {"type": "command", "command": 'touch "%s"' % marca_guarda}]}]}}, f)
+PLANO4C = {"phases": [{"id": "F", "items": [
+    {"id": "C.1", "status": "todo", "desc": "roda `bash scripts/suite.sh`",
+     "pronto": "a esteira sai verde"}]}]}
+rc4 = passada4(PLANO4C, clone, base_estado=estado)
+checa("repo clonado: o hooks.json do repo NÃO é executado pela passada 4",
+      not os.path.exists(marca_guarda), "o comando do hooks.json rodou")
+checa("repo clonado: a guarda não medida é RELATADA como ADIÁVEL, nomeando o hooks.json",
+      [a["classe"] for a in checks(rc4, "guarda_nao_executada")] == [ADIAVEL]
+      and "hooks.json" in checks(rc4, "guarda_nao_executada")[0]["prova"]
+      and "--trust-repo-hooks" in checks(rc4, "guarda_nao_executada")[0]["pergunta"],
+      repr(checks(rc4, "guarda_nao_executada")))
+checa("repo clonado: a guarda não medida não vira pergunta ao dono",
+      checks(rc4, "guarda_nao_executada")[0] not in rc4["perguntas"] if checks(
+          rc4, "guarda_nao_executada") else False)
+with open(os.path.join(clone, "p.json"), "w", encoding="utf-8") as f:
+    json.dump(PLANO4C, f)
+rcl = subprocess.run([sys.executable, MODULO, os.path.join(clone, "p.json"), "--raiz", clone,
+                      "--passada", "4"], capture_output=True, text=True, encoding="utf-8",
+                     errors="replace", stdin=subprocess.DEVNULL, start_new_session=True)
+checa("a linha de comando também não executa o hooks.json do repo por padrão",
+      not os.path.exists(marca_guarda), rcl.stdout[-200:] + rcl.stderr[-200:])
+# controle: com o aval explícito a guarda roda (a medição continua existindo)
+passada4(PLANO4C, clone, base_estado=estado, confia_hooks_do_repo=True)
+checa("com o aval explícito (confia_hooks_do_repo) a guarda roda",
+      os.path.exists(marca_guarda))
+os.remove(marca_guarda)
+subprocess.run([sys.executable, MODULO, os.path.join(clone, "p.json"), "--raiz", clone,
+                "--passada", "4", "--trust-repo-hooks"], capture_output=True, text=True,
+               encoding="utf-8", errors="replace", stdin=subprocess.DEVNULL,
+               start_new_session=True)
+checa("com --trust-repo-hooks na linha de comando a guarda roda",
+      os.path.exists(marca_guarda))
 
 # Com o passo já declarando a espera, o recurso externo para de perguntar.
 PLANO4E = json.loads(json.dumps(PLANO4))

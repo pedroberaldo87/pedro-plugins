@@ -287,6 +287,10 @@
   },
   {
    "plugin": "fallow",
+   "script": "lib/fallow_cmd.py"
+  },
+  {
+   "plugin": "fallow",
    "script": "lib/report.py"
   },
   {
@@ -639,6 +643,17 @@
    "classe": "executa",
    "escreve": false,
    "motivos": [
+    "import subprocess",
+    "lib/fallow_cmd.py: import subprocess"
+   ]
+  },
+  {
+   "plugin": "fallow",
+   "script": "lib/fallow_cmd.py",
+   "citado": true,
+   "classe": "executa",
+   "escreve": false,
+   "motivos": [
     "import subprocess"
    ]
   },
@@ -657,7 +672,8 @@
    "classe": "executa",
    "escreve": true,
    "motivos": [
-    "import subprocess"
+    "import subprocess",
+    "lib/fallow_cmd.py: import subprocess"
    ]
   },
   {

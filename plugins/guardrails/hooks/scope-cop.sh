@@ -370,7 +370,12 @@ ${USER_REQ:-(sem mensagem de texto recente)}
 EDIÇÃO PROPOSTA:
 $EDIT_DESC"
 
-RAW="$("$CLAUDE_BIN" -p --model haiku --system-prompt "$JUDGE_SYS" --exclude-dynamic-system-prompt-sections "$JUDGE_INPUT" </dev/null 2>/dev/null)"
+# O juiz só devolve um veredito: roda SEM ferramentas e sem servidores MCP (P10). O prompt
+# leva texto não confiável (o arquivo editado, a edição, o chat); "responda só o JSON" é
+# instrução, e instrução não é fronteira — sem ferramentas, uma injeção no texto não tem
+# o que executar, só consegue errar o veredito (que é consultivo).
+JUDGE_SEM_FERRAMENTAS=(--tools "" --strict-mcp-config)
+RAW="$("$CLAUDE_BIN" -p --model haiku --system-prompt "$JUDGE_SYS" --exclude-dynamic-system-prompt-sections "${JUDGE_SEM_FERRAMENTAS[@]}" "$JUDGE_INPUT" </dev/null 2>/dev/null)"
 RC=$?
 
 # Fail-open: juiz indisponível/timeout → libera, registra que não houve proteção.

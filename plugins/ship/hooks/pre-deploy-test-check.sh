@@ -17,6 +17,34 @@
 # num momento ruim, a saída não pode ser editar o script.
 [ "${SHIP_GATE:-1}" = "0" ] && exit 0
 
+# ============================================================
+# Lista de confiança (P7 · achados 50 e 54 do scan de segurança)
+# ============================================================
+# Este hook roda ANTES do prompt de permissão e executaria o `npm test` / `make test` /
+# `scripts/run_app_tests.sh` do repositório — código de terceiro, com os poderes do dono,
+# antes de ele aprovar qualquer coisa. Por isso o gate só executa teste de projeto que o
+# DONO pôs na lista; fora dela ele PEDE confirmação (permissionDecision=ask) e diz o
+# que rodaria. A lista mora no config do usuário, nunca dentro do repositório.
+#   bash pre-deploy-test-check.sh --trust [dir]   # confia na raiz do git de `dir` (padrão: $PWD)
+SHIP_TRUST_FILE="${CLAUDE_CONFIG_DIR:-$HOME/.claude}/ship-trusted-projects"
+
+# A raiz que vale como "o projeto": a do git; sem git, o próprio diretório (físico).
+ship_root() {
+  local d top
+  d=$(cd "$1" 2>/dev/null && pwd -P) || d="$1"
+  top=$(git -C "$d" rev-parse --show-toplevel 2>/dev/null) && d="$top"
+  printf '%s' "$d"
+}
+ship_trusted() { [ -f "$SHIP_TRUST_FILE" ] && grep -qxF -- "$(ship_root "$1")" "$SHIP_TRUST_FILE" 2>/dev/null; }
+
+if [ "${1:-}" = "--trust" ]; then
+  _root=$(ship_root "${2:-$PWD}")
+  mkdir -p "$(dirname "$SHIP_TRUST_FILE")" 2>/dev/null
+  ship_trusted "$_root" || printf '%s\n' "$_root" >> "$SHIP_TRUST_FILE"
+  echo "✅ ship: gate de deploy confia em $_root ($SHIP_TRUST_FILE)"
+  exit 0
+fi
+
 # Leitor do payload: `jq` quando existe, `python3` (stdlib json) quando não.
 # Sem os dois o gate não julga — e aí ele AVISA, nunca sai calado (issue #5).
 # `${0%/*}` e não `dirname`: o probe roda antes de saber se há PATH utilizável.
@@ -91,6 +119,19 @@ allow_with_notes() {
   [ -n "$NOTES" ] && [ -n "$PY3" ] && [ -f "$REGUA" ] && \
     printf '%s\n' "$NOTES" | "$PY3" "$REGUA" --perfil hook --onde "nota do gate de deploy" - || :
   [ -n "$NOTES" ] && hj_msg_ctx PreToolUse "$NOTES"
+  exit 0
+}
+
+# Projeto fora da lista: NÃO executa nada do repositório. Devolve a pergunta ao harness
+# (o dono decide) e diz qual comando rodaria e como confiar. Exit 0 + JSON no stdout.
+ask_untrusted() { # ask_untrusted <dir> <comando que rodaria>
+  local root why r
+  root=$(ship_root "$1")
+  why="🔒 Gate de deploy NÃO rodou os testes: $root não está na lista de confiança e \`$2\` executaria código do próprio repositório antes de você aprovar.
+• Para o gate rodar os testes antes do deploy: bash \"\${CLAUDE_PLUGIN_ROOT:-<plugin ship>}/hooks/pre-deploy-test-check.sh\" --trust \"$root\"
+• Aprovar este comando agora segue o deploy SEM teste."
+  r=$(hj_esc "$why") || exit 0
+  printf '{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"ask","permissionDecisionReason":%s}}\n' "$r"
   exit 0
 }
 
@@ -348,6 +389,8 @@ if [ -x "$GATE" ] && echo "$COMMAND" | grep -qE 'deploy\.sh'; then
       RAN="$RAN $app(cache)"
       continue
     fi
+    # Fora da lista de confiança o run_app_tests.sh do repo NÃO roda (achado 50).
+    ship_trusted "$PROJ" || ask_untrusted "$PROJ" "bash scripts/run_app_tests.sh $app"
     RAN="$RAN $app"
     if ! ( cd "$PROJ" && bash scripts/run_app_tests.sh "$app" ); then
       FAILED="$FAILED $app"
@@ -384,9 +427,19 @@ fi
 TEST_CMD=""
 TEST_RUNNER=""
 TEST_DIR=""
-SEARCH_DIR="$CWD"
+# A busca para na raiz do git do CWD (sem git: no próprio CWD) e nunca passa de $HOME —
+# um package.json / Makefile num ancestral do projeto não é o runner do projeto (achado 54).
+SEARCH_DIR=$(cd "$CWD" 2>/dev/null && pwd -P) || SEARCH_DIR="$CWD"
+BOUND=$(git -C "$SEARCH_DIR" rev-parse --show-toplevel 2>/dev/null) || BOUND="$SEARCH_DIR"
+# Mesma grafia de SEARCH_DIR: no Git Bash o git devolve `C:/x` e o `pwd -P` devolve `/c/x`,
+# e a comparação de igualdade do laço abaixo nunca fecharia (a busca passaria da raiz).
+BOUND=$(cd "$BOUND" 2>/dev/null && pwd -P) || true
+if [ -n "${HOME:-}" ]; then
+  _home=$(cd "$HOME" 2>/dev/null && pwd -P) || _home="$HOME"
+  case "$SEARCH_DIR/" in "$_home"/*) case "$BOUND/" in "$_home"/*) ;; *) BOUND="$_home" ;; esac ;; esac
+fi
 
-while [ "$SEARCH_DIR" != "/" ]; do
+while :; do
   # package.json with a real test script
   if [ -f "$SEARCH_DIR/package.json" ]; then
     HAS_TEST=$(hj_campo "$(cat "$SEARCH_DIR/package.json" 2>/dev/null)" scripts.test)
@@ -446,7 +499,10 @@ while [ "$SEARCH_DIR" != "/" ]; do
     break
   fi
 
-  SEARCH_DIR=$(dirname "$SEARCH_DIR")
+  [ "$SEARCH_DIR" = "$BOUND" ] && break
+  _up=$(dirname "$SEARCH_DIR")
+  [ "$_up" = "$SEARCH_DIR" ] && break
+  SEARCH_DIR="$_up"
 done
 
 if [ -z "$TEST_CMD" ]; then
@@ -459,6 +515,9 @@ if type green_cache_check >/dev/null 2>&1 && green_cache_check "$TEST_DIR" full;
   note "✅ Cache verde: suite já passou 100% neste tree-hash — deploy liberado sem re-execução."
   allow_with_notes
 fi
+
+# Fora da lista de confiança o runner do repo NÃO roda (achado 50).
+ship_trusted "$TEST_DIR" || ask_untrusted "$TEST_DIR" "$TEST_RUNNER"
 
 # Run the tests
 TEST_OUTPUT=$(cd "$TEST_DIR" && eval "$TEST_CMD" 2>&1)

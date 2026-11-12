@@ -226,6 +226,8 @@ PRECHECK="$(bash "${CLAUDE_PLUGIN_ROOT}/lib/resolve-plugin.sh" project-skills li
 python3 "$PRECHECK" "$PLAN_PATH" --raiz "$REPO_ROOT" --relatorio --suite "$SUITE_CMD"
 ```
 
+A passada 4 **não executa** os `plugins/*/hooks/hooks.json` da árvore: o comando vem do repositório e rodaria com os seus poderes. Ela relata a guarda como não medida. Em árvore que é sua, acrescente `--trust-repo-hooks` ao comando acima.
+
 O relatório carrega a **marca do plano**, e a marca cobre `id` + `pronto` + `desc`
 dos passos **ABERTOS** mais o registro selado — e **nada da árvore**, porque cada tique mexe no
 disco e venceria o relatório por conta própria. Por isso ela é imune ao próprio progresso:

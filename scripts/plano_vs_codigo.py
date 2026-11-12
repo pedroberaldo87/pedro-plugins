@@ -41,6 +41,7 @@ import glob
 import json
 import os
 import re
+import shlex
 import signal
 import subprocess
 import sys
@@ -60,6 +61,12 @@ PERIGO = re.compile(
     r"(^|[;&|\s])(rm|mv|cp|install|curl|wget|ssh|scp|npm|pip|claude)\b"
     r"|>\s*\S|\bgit\s+(commit|push|add|checkout|reset|clean|rebase|merge|tag)\b"
 )
+
+# Sintaxe de shell. O texto do `pronto` NUNCA passa por um shell (P7): o comando roda
+# como argv, e o que só um shell entenderia — encadeamento, pipe, redirecionamento,
+# substituição, subshell, quebra de linha — deixa o critério "não verificável" em vez
+# de ser interpretado. Quem escreve o plano não executa código por escrever o plano.
+SINTAXE_SHELL = re.compile(r"[;&|<>`$(){}\n\r]")
 
 TIMEOUT = 30
 
@@ -132,7 +139,13 @@ def cumprido_comando(cmd, root):
                              pai (Ctrl-C, workflow morto), que não passa pelo except
                              do timeout e deixava o mesmo órfão por outra porta.
     """
-    if PERIGO.search(cmd):
+    if PERIGO.search(cmd) or SINTAXE_SHELL.search(cmd):
+        return None
+    try:
+        argv = shlex.split(cmd)
+    except ValueError:               # aspas abertas: não é um comando que dê para julgar
+        return None
+    if not argv:
         return None
     # Já estamos dentro de uma execução destas: o comando que nos chamou saiu de um
     # critério, e rodar mais um fecharia o ciclo. Devolve None — "não deu para julgar"
@@ -142,7 +155,7 @@ def cumprido_comando(cmd, root):
     filho = dict(os.environ, **{REENTRANCIA: "1"})
     p = None
     try:
-        p = subprocess.Popen(cmd, shell=True, cwd=root, env=filho,
+        p = subprocess.Popen(argv, shell=False, cwd=root, env=filho,
                              stdin=subprocess.DEVNULL,
                              stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
                              start_new_session=True)

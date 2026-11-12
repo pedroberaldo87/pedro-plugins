@@ -29,6 +29,9 @@ import subprocess
 import sys
 import hashlib
 
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import fallow_cmd
+
 ROOT = os.path.abspath(sys.argv[1]) if len(sys.argv) > 1 else "."
 # .svelte/.vue/.astro incluídos: o Fallow (parser JS/TS puro) não enxerga import
 # dentro de componente, então a auditoria PRECISA grepar neles pra pegar o uso real.
@@ -64,8 +67,16 @@ def exists(rel):
     return os.path.exists(os.path.join(ROOT, rel))
 
 
+def run_fallow(args):
+    """`fallow <args>` pelo `fallow_cmd`: versão fixada, fora do projeto (P7 · achado 4)."""
+    try:
+        return fallow_cmd.run_fallow(args, 180).stdout
+    except Exception:
+        return ""
+
+
 def fallow_unused_files():
-    out = run(["npx", "-y", "fallow", "dead-code", "-r", ".", "--unused-files", "--format", "json"])
+    out = run_fallow(["dead-code", "-r", ROOT, "--unused-files", "--format", "json"])
     try:
         d = json.loads(out)
     except json.JSONDecodeError:
@@ -229,7 +240,7 @@ def converge(dead, max_rounds=12):
 
 # ---- auditoria de EXPORTS e TIPOS (o Fallow erra muito aqui em projeto Svelte/Vue) ----
 def fallow_unused_exports():
-    out = run(["npx", "-y", "fallow", "dead-code", "-r", ".", "--format", "json"])
+    out = run_fallow(["dead-code", "-r", ROOT, "--format", "json"])
     try:
         d = json.loads(out)
     except json.JSONDecodeError:
