@@ -27,9 +27,13 @@ Roda o Fallow, transforma a saída crua num **relatório que o usuário escaneia
 
 ## Fluxo
 
+### 0. Como o fallow roda (versão fixada, fora do projeto)
+
+Todo comando `npx` desta skill usa `fallow@3.42.0` (a versão que o `lib/fallow_cmd.py` fixa) e `--ignore-scripts`. **Rode-os a partir de um diretório vazio fora do projeto**, passando o projeto só em `-r <projeto>`: dentro do projeto, o npm lê o `.npmrc` dele e prefere um `node_modules/.bin/fallow` dele, e um repositório de terceiro escolheria o binário. Em checkout que não é seu, avise o usuário antes de rodar.
+
 ### 1. Pré-check da config (BLOQUEANTE para dead-code)
 
-- Checar se existe `<projeto>/.fallowrc.json` (ou `.fallowrc.jsonc`/`fallow.toml`). Rodar `npx -y fallow config -r <projeto>` e ver se carrega.
+- Checar se existe `<projeto>/.fallowrc.json` (ou `.fallowrc.jsonc`/`fallow.toml`). Rodar `npx --yes --ignore-scripts fallow@3.42.0 config -r <projeto>` e ver se carrega.
 - **Se NÃO houver config**: avisar o usuário que o relatório de **código morto** virá com falsos-positivos (entry points / bibliotecas), e oferecer calibrar primeiro (ver "Calibrar config" abaixo). Duplicação e complexidade seguem confiáveis mesmo sem config.
 - **Se houver**: seguir.
 
@@ -38,9 +42,9 @@ Roda o Fallow, transforma a saída crua num **relatório que o usuário escaneia
 Rodar e capturar JSON (nunca parsear texto, nunca assumir formato):
 
 ```bash
-npx -y fallow dead-code -r <projeto> --format json
-npx -y fallow dupes     -r <projeto> --format json
-npx -y fallow health    -r <projeto> --format json
+npx --yes --ignore-scripts fallow@3.42.0 dead-code -r <projeto> --format json
+npx --yes --ignore-scripts fallow@3.42.0 dupes     -r <projeto> --format json
+npx --yes --ignore-scripts fallow@3.42.0 health    -r <projeto> --format json
 ```
 
 Chaves reais dos JSON (confirmadas rodando — **não chutar**):
@@ -95,8 +99,8 @@ O relatório de lista com checkboxes cobre **qualquer volume** (1 item ou dezena
 
 **Antes de qualquer escrita:** garantir git limpo ou `git stash`/commit do estado atual (a skill avisa e faz). Trabalhar num branch se o projeto estiver no default.
 
-1. **Deps não usadas** → `npx fallow fix -r <projeto> --dry-run` (preview) → mostrar o diff → `npx fallow fix -r <projeto> --yes` (escopo deps).
-2. **Exports 100% dead** → para cada um, `npx fallow dead-code -r <projeto> --trace <file>:<export>` confirma 0 referências → `fallow fix`.
+1. **Deps não usadas** → `npx --yes --ignore-scripts fallow@3.42.0 fix -r <projeto> --dry-run` (preview) → mostrar o diff → `npx --yes --ignore-scripts fallow@3.42.0 fix -r <projeto> --yes` (escopo deps).
+2. **Exports 100% dead** → para cada um, `npx --yes --ignore-scripts fallow@3.42.0 dead-code -r <projeto> --trace <file>:<export>` confirma 0 referências → `fallow fix`. O `<file>` é o arquivo do export e o `<export>` é o nome dele.
 3. **Arquivos órfãos** → confirmar via `--trace`/grep + olhar `git log` do arquivo; deletar; rodar build/test **do app afetado**.
 4. **Duplicação / complexidade** → refactor manual dos maiores; nunca auto.
 

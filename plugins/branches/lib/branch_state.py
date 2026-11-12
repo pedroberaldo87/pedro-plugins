@@ -310,7 +310,7 @@ def resolve_visual_dir(repo):
 
 def _e(t):
     return (str(t or "").replace("&", "&amp;").replace("<", "&lt;")
-            .replace(">", "&gt;").replace('"', "&quot;"))
+            .replace(">", "&gt;").replace('"', "&quot;").replace("'", "&#39;"))
 
 
 HTML_CSS = """

@@ -90,20 +90,25 @@ NHITS=$(hj_tamanho "$MATCH" hits)
 i=0
 while [ "$i" -lt "$NHITS" ]; do
   ID=$(hj_campo "$MATCH" "hits.$i.id")
+  # O id vem do organism.yaml do repositório e vira NOME de arquivo no estado do gate
+  # (`<id>.denied`, `.resolved`, `.cite`): com `../` ele criava arquivo fora do estado.
+  # Para o nome de arquivo, só letra, dígito, `.`, `_` e `-` (o que o reserva-de-arquivos.sh
+  # também faz); o ID cru segue para o organism.py e para a mensagem.
+  IDF=$(printf '%s' "$ID" | LC_ALL=C tr -c 'A-Za-z0-9._-' '_')
   SEV=$(hj_campo "$MATCH" "hits.$i.severidade")
   MSG=$(hj_campo "$MATCH" "hits.$i.aresta_msg")
   BLAST=$(hj_lista "$MATCH" "hits.$i.blast_radius")
   i=$((i + 1))
 
   # Already resolved this session (endereçou ou refutou com citação válida)?
-  [ -f "$STATE_DIR/${ID}.resolved" ] && { log_line "$ID" "$SEV" "resolved-skip"; continue; }
+  [ -f "$STATE_DIR/${IDF}.resolved" ] && { log_line "$ID" "$SEV" "resolved-skip"; continue; }
 
   # Refutation channel: a .cite file the agent wrote → verify by grep.
-  if [ -f "$STATE_DIR/${ID}.cite" ]; then
-    CITE=$(cat "$STATE_DIR/${ID}.cite" 2>/dev/null)
+  if [ -f "$STATE_DIR/${IDF}.cite" ]; then
+    CITE=$(cat "$STATE_DIR/${IDF}.cite" 2>/dev/null)
     VRES=$(python3 "$ORGANISM_PY" verify-cite "$ROOT" "$ID" "$CITE" 2>/dev/null)
     if [ "$(hj_campo "$VRES" valid)" = "true" ]; then
-      touch "$STATE_DIR/${ID}.resolved" 2>/dev/null
+      touch "$STATE_DIR/${IDF}.resolved" 2>/dev/null
       log_line "$ID" "$SEV" "refuted-valid"
       continue
     else
@@ -118,13 +123,13 @@ while [ "$i" -lt "$NHITS" ]; do
   fi
 
   # block: ANTI-LOOP — at most one deny per (costura, session).
-  if [ -f "$STATE_DIR/${ID}.denied" ]; then
+  if [ -f "$STATE_DIR/${IDF}.denied" ]; then
     log_line "$ID" "$SEV" "pass-after-deny"
     continue
   fi
 
   # First block hit → this is THE deny for this costura this session.
-  touch "$STATE_DIR/${ID}.denied" 2>/dev/null
+  touch "$STATE_DIR/${IDF}.denied" 2>/dev/null
   log_line "$ID" "$SEV" "deny"
   DENY_MSG="${DENY_MSG}
 • [${ID}] ${MSG}

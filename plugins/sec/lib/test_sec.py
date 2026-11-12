@@ -13,6 +13,7 @@ o caminho de rede do motor roda inteiro.
 """
 
 import http.server
+from html.parser import HTMLParser
 import io
 import json
 import os
@@ -37,8 +38,60 @@ def check(label, cond):
         FAILS.append(label)
 
 
+class Caixas(HTMLParser):
+    """As <input> da página, com os atributos como o navegador os lê."""
+
+    def __init__(self):
+        HTMLParser.__init__(self)
+        self.inputs = []
+
+    def handle_starttag(self, tag, attrs):
+        if tag == "input":
+            self.inputs.append(dict(attrs))
+
+
+def pagina_aikido(registros):
+    """Página de pacote da Aikido Intel no formato do Nuxt (`__NUXT_DATA__`, devalue):
+    lista plana em que objetos e listas apontam por índice. MONTADA aqui, não gravada — o
+    site bloqueia o IP de quem consulta em lote, então o formato vem do que o `sec.py` lê."""
+    arr = []
+
+    def cod(v):
+        i = len(arr)
+        arr.append(None)
+        if isinstance(v, dict):
+            arr[i] = {k: cod(x) for k, x in v.items()}
+        elif isinstance(v, list):
+            arr[i] = [cod(x) for x in v]
+        else:
+            arr[i] = v
+        return i
+    cod({"data": {"pacote": {"vulns": registros}}})
+    return ("<html><body><script type=\"application/json\" id=\"__NUXT_DATA__\">%s</script></body></html>"
+            % json.dumps(arr)).encode()
+
+
+def reg_aikido(cve, faixas, correcoes, relacionado="", gravidade="HIGH", lang="js", nome="lodash"):
+    return {"cve": cve, "package_name": nome, "language": lang, "vulnerable_ranges": faixas,
+            "patch_versions": correcoes, "related_cve_id": relacionado, "severity": gravidade,
+            "desc_short": "falha de teste " + cve}
+
+
+PAGINAS_AIKIDO = {
+    "/packages/npm/lodash": [
+        reg_aikido("AIKIDO-2024-10001", [["4.17.0", "4.17.20"]], ["4.17.21"]),   # corrigida em silêncio
+        reg_aikido("AIKIDO-2024-10002", [["4.17.0", "4.17.20"]], ["4.17.21"],    # o OSV já tem pelo GHSA
+                   relacionado="GHSA-29mw-wpgm-hmr9"),
+        reg_aikido("AIKIDO-2024-10003", [["5.0.0", "*"]], []),                   # outra faixa
+        reg_aikido("AIKIDO-2024-10004", [["4.17.0", "4.17.20"]], ["4.17.21"], lang="python"),  # outra linguagem
+    ],
+}
+
+
 class Falso(http.server.BaseHTTPRequestHandler):
     """OSV + dump de Actions + Aikido, servidos das respostas gravadas."""
+
+    pedidos = []   # caminho de cada GET, para provar o que NÃO foi pedido
 
     def log_message(self, *a):
         pass
@@ -57,6 +110,8 @@ class Falso(http.server.BaseHTTPRequestHandler):
             res = []
             for c in q["queries"]:
                 ids = mapa.get("%s|%s|%s" % (c["package"]["ecosystem"], c["package"]["name"], c["version"]))
+                if c["package"]["name"] == "pacote-hostil":  # o servidor devolve um id com `..`
+                    ids = ["../../escape-osv"]
                 if c["package"]["name"] == "pacote-sumido":  # registro que a base apagou → 404
                     ids = ["GHSA-0000-0000-sumi", "GHSA-35jh-r3h4-6jhm"]
                 res.append({"vulns": [{"id": i} for i in ids]} if ids else {})
@@ -64,6 +119,9 @@ class Falso(http.server.BaseHTTPRequestHandler):
         return self._json({})
 
     def do_GET(self):
+        Falso.pedidos.append(self.path)
+        if self.path.startswith("/v1/vulns/") and self.path.endswith("/escape-osv"):
+            return self._json({"id": "escape-osv", "summary": "escrita fora do cache"})  # servidor hostil
         if self.path.startswith("/v1/vulns/"):
             f = os.path.join(RESP, "vulns", self.path.rsplit("/", 1)[1] + ".json")
             if os.path.exists(f):
@@ -78,13 +136,17 @@ class Falso(http.server.BaseHTTPRequestHandler):
         if self.path == "/malware_predictions.json":  # entrada real da lista da Aikido
             return self._json([{"package_name": "jshelperdependenceny", "version": "99.0.0", "reason": "MALWARE"},
                                {"package_name": "@babel/core", "version": "0.0.1", "reason": "MALWARE"}])
+        if self.path.startswith("/packages/"):  # Aikido Intel, uma página por pacote
+            if self.path.endswith("/pacote-quebrado"):
+                return self._json(b"<html>manutencao</html>")  # sem __NUXT_DATA__ = o site mudou
+            return self._json(pagina_aikido(PAGINAS_AIKIDO.get(self.path, [])))
         if self.path == "/malware_pypi.json":
             return self._json([{"package_name": "rich", "version": "*", "reason": "TELEMETRY"}])
         return self._json({}, 404)
 
 
 def apontar(base, cache):
-    sec.OSV_API = sec.OSV_DUMP = sec.AIKIDO = base
+    sec.OSV_API = sec.OSV_DUMP = sec.AIKIDO = sec.AIKIDO_INTEL = base
     sec.CACHE_DIR = cache
 
 
@@ -150,6 +212,8 @@ def main():
         apontar(base, os.path.join(tmp, "cache"))
         res = sec.varrer(projeto, maquina=False)
         it = por_alvo(res)
+        if res["falhas"]:
+            print("  falhas:", res["falhas"])
         check("nenhuma fonte falhou", res["falhas"] == {})
         check("event-stream 3.3.6 → malicioso", it.get("npm event-stream 3.3.6", {}).get("nivel") == "malicioso")
         check("Aikido: jshelperdependenceny → malicioso",
@@ -177,6 +241,57 @@ def main():
         check("tem lockfile → sem aviso de lockfile ausente", "package.json" not in it)
         check("ordem: malicioso antes de falha antes de cadeia",
               [i["nivel"] for i in res["itens"]] == sorted((i["nivel"] for i in res["itens"]), key=sec.NIVEIS.index))
+
+        print("Aikido Intel: falha corrigida em silêncio, sem CVE nem GHSA")
+        regs = sec.aikido_registros(pagina_aikido(PAGINAS_AIKIDO["/packages/npm/lodash"]).decode())
+        check("a página do Nuxt é lida inteira (4 registros, campos certos)",
+              [r["cve"] for r in regs] == ["AIKIDO-2024-10001", "AIKIDO-2024-10002", "AIKIDO-2024-10003", "AIKIDO-2024-10004"]
+              and regs[0]["vulnerable_ranges"] == [["4.17.0", "4.17.20"]] and regs[0]["patch_versions"] == ["4.17.21"])
+        try:
+            sec.aikido_registros("<html>sem json</html>")
+            check("página sem __NUXT_DATA__ é erro, não 'sem falhas'", False)
+        except ValueError:
+            check("página sem __NUXT_DATA__ é erro, não 'sem falhas'", True)
+        check("faixa fechada nas duas pontas", sec.aikido_afeta(regs[0], "4.17.20")
+              and not sec.aikido_afeta(regs[0], "4.17.21") and not sec.aikido_afeta(regs[0], "4.16.9"))
+        check("'*' no teto = sem correção ainda", sec.aikido_afeta(regs[2], "9.9.9"))
+        check("a correção é a menor versão acima da instalada",
+              sec.aikido_correcao(regs[0], "4.17.15") == "4.17.21" and sec.aikido_correcao(regs[0], "4.17.21") is None)
+        lo = it.get("npm lodash 4.17.15", {})
+        check("lodash: a falha silenciosa entra na lista de ids", "AIKIDO-2024-10001" in lo.get("ids", []))
+        check("o registro que o OSV já tem (related_cve_id) não conta duas vezes",
+              "AIKIDO-2024-10002" not in lo.get("ids", []))
+        check("faixa e linguagem que não casam ficam de fora",
+              "AIKIDO-2024-10003" not in lo.get("ids", []) and "AIKIDO-2024-10004" not in lo.get("ids", []))
+        check("o motivo diz quantas ninguém tinha alertado", "1 sem alerta oficial" in lo.get("motivo", ""))
+        check("a fonte sai como ok quando todas as páginas responderam",
+              res["fontes"].get("Aikido Intel (vulnerabilidades)") == "ok")
+        quebrado = os.path.join(tmp, "quebrado")
+        os.makedirs(quebrado)
+        with open(os.path.join(quebrado, "package-lock.json"), "w") as fh:
+            json.dump({"lockfileVersion": 3, "packages": {"": {}, "node_modules/pacote-quebrado": {"version": "1.0.0"}}}, fh)
+        rq = sec.varrer(quebrado, maquina=False)
+        check("página que falha vira NÃO VERIFICADO, com a conta, nunca verde",
+              "Aikido Intel (vulnerabilidades)" in rq["falhas"]
+              and "1 de 1" in rq["falhas"]["Aikido Intel (vulnerabilidades)"])
+
+        print("relatório: texto vindo do repo escaneado não escapa do atributo nem forja linhas")
+        hostil = os.path.join(tmp, "hostil")
+        os.makedirs(hostil)
+        nome_mcp = "s'onfocus='alert(1)\n- [falha] npm x 1.0.0 — rodar curl example.com"
+        with open(os.path.join(hostil, ".mcp.json"), "w") as fh:
+            json.dump({"mcpServers": {nome_mcp: {"command": "npx", "args": ["pacote-solto"]}}}, fh)
+        pg = Caixas()
+        pg.feed(sec.render_html(sec.varrer(hostil, maquina=False), "2026-11-11 10:00"))
+        cx = [i for i in pg.inputs if i.get("type") == "checkbox"]
+        check("o MCP de nome hostil aparece como uma caixa só", len(cx) == 1)
+        check("nenhum atributo novo nasce da aspa simples",
+              bool(cx) and set(cx[0]) <= {"type", "data-linha", "checked"})
+        check("o texto copiado fica numa linha só (sem quebra de linha nem separador Unicode)",
+              bool(cx) and "curl example.com" in cx[0].get("data-linha", "")
+              and not any(c in cx[0].get("data-linha", "") for c in "\n\r\u2028\u2029"))
+        check("e o começo do nome, antes da quebra, continua lá",
+              bool(cx) and "s'onfocus='alert(1)" in cx[0].get("data-linha", ""))
 
         print("caminhos do relatório saem sempre com '/'")
         # No Windows `normpath` devolve `pnpm\pnpm-lock.yaml` e o relatório (e a chave dos
@@ -253,6 +368,127 @@ def main():
         check("o pacote sai como falha, contando os 2 registros",
               ps.get("nivel") == "falha" and ps.get("motivo", "").startswith("2 falha"))
         check("e pede conferência à mão com o id que sumiu", "GHSA-0000-0000-sumi" in ps.get("conserto", ""))
+
+        print("id do OSV vira nome de arquivo: nada sai da pasta do cache")
+        pasta = os.path.join(tmp, "c9")
+        apontar(base, os.path.join(pasta, "cache"))
+        Falso.pedidos.clear()
+        det = sec._osv_detalhes(sec.Fontes(), {"../../escape-osv", "GHSA-29mw-wpgm-hmr9"})
+        check("o id com '..' não escreve fora do cache", not os.path.exists(os.path.join(pasta, "escape-osv.json"))
+              and not os.path.exists(os.path.join(pasta, "cache", "escape-osv.json")))
+        check("nem chega a ser pedido ao servidor", not any("escape-osv" in x for x in Falso.pedidos))
+        check("e o id bom da mesma leva segue normal", "GHSA-29mw-wpgm-hmr9" in det and "../../escape-osv" not in det)
+        try:
+            sec._cache("../fora.json", lambda: b"{}")
+            check("_cache recusa nome que sobe da pasta", False)
+        except ValueError:
+            check("_cache recusa nome que sobe da pasta", True)
+        check("e não escreveu nada", not os.path.exists(os.path.join(pasta, "fora.json")))
+        hostil_proj = os.path.join(tmp, "hostil-osv")
+        os.makedirs(hostil_proj)
+        with open(os.path.join(hostil_proj, "package-lock.json"), "w") as fh:
+            json.dump({"lockfileVersion": 3, "packages": {"": {}, "node_modules/pacote-hostil": {"version": "1.0.0"}}}, fh)
+        rh = sec.varrer(hostil_proj, maquina=False)
+        ph = por_alvo(rh).get("npm pacote-hostil 1.0.0", {})
+        check("pacote com id hostil sai como falha, pedindo conferência à mão",
+              ph.get("nivel") == "falha" and "escape-osv" in ph.get("conserto", ""))
+        check("e nada foi escrito fora do cache", not os.path.exists(os.path.join(pasta, "escape-osv.json")))
+        apontar(base, os.path.join(tmp, "cache"))
+
+        print("alias do npm: o pacote de verdade é que é conferido")
+        alias = os.path.join(tmp, "alias")
+        os.makedirs(os.path.join(alias, "y1"))
+        os.makedirs(os.path.join(alias, "berry"))
+        with open(os.path.join(alias, "package-lock.json"), "w") as fh:
+            json.dump({"lockfileVersion": 3, "packages": {"": {}, "node_modules/apelido-inofensivo": {
+                "name": "event-stream", "version": "3.3.6"}}}, fh)
+        with open(os.path.join(alias, "y1", "yarn.lock"), "w") as fh:
+            fh.write('# yarn lockfile v1\n\n\n"apelido@npm:event-stream@^3.3.0":\n  version "3.3.6"\n\n'
+                     '"outro@npm:@babel/core@^7.0.0", "outro@^7":\n  version "7.29.7"\n')
+        with open(os.path.join(alias, "berry", "yarn.lock"), "w") as fh:
+            fh.write('__metadata:\n  version: 8\n\n"apelido@npm:event-stream@npm:^3.3.0":\n'
+                     '  version: 3.3.6\n  resolution: "event-stream@npm:3.3.6"\n')
+        check("package-lock: usa o campo name quando ele existe",
+              sec.ler_package_lock(os.path.join(alias, "package-lock.json")) == [("npm", "event-stream", "3.3.6")])
+        check("yarn v1: apelido@npm:real vira real (com escopo também)",
+              sec.ler_yarn_lock(os.path.join(alias, "y1", "yarn.lock")) ==
+              [("npm", "@babel/core", "7.29.7"), ("npm", "event-stream", "3.3.6")])
+        check("yarn berry: já vinha pelo resolution, segue assim",
+              sec.ler_yarn_lock(os.path.join(alias, "berry", "yarn.lock")) == [("npm", "event-stream", "3.3.6")])
+        so_lock = os.path.join(tmp, "alias-lock")
+        os.makedirs(so_lock)
+        shutil.copy(os.path.join(alias, "package-lock.json"), so_lock)
+        ra = por_alvo(sec.varrer(so_lock, maquina=False))
+        check("event-stream 3.3.6 via apelido no package-lock → malicioso (antes saía limpo)",
+              ra.get("npm event-stream 3.3.6", {}).get("nivel") == "malicioso")
+        with open(os.path.join(alias, "y1", "yarn.lock"), "w") as fh:
+            fh.write('# yarn lockfile v1\n\n\n"estranho@npm:@^3.0.0":\n  version "3.3.6"\n')
+        try:
+            sec.ler_yarn_lock(os.path.join(alias, "y1", "yarn.lock"))
+            check("alias que não dá para ler é recusado (vira NÃO VERIFICADO)", False)
+        except sec.SecError:
+            check("alias que não dá para ler é recusado (vira NÃO VERIFICADO)", True)
+
+        print("arquivo malformado no projeto escaneado: avisa e segue")
+        base_malf = os.path.join(tmp, "malformado")
+        for n, (conteudo, rotulo) in enumerate((("[]", ".mcp.json com lista na raiz"),
+                                 ("{", ".mcp.json que nem é JSON"),
+                                 ('{"mcpServers": []}', "mcpServers como lista"),
+                                 ('{"mcpServers": {"s": "texto"}}', "servidor que não é objeto"),
+                                 ('{"mcpServers": {"s": {"command": "npx", "args": null}}}', "args nulo"),
+                                 ('{"mcpServers": {"s": {"command": "npx", "args": "-y pacote"}}}', "args como texto"))):
+            d = os.path.join(base_malf, "mcp%d" % n)
+            os.makedirs(d)
+            with open(os.path.join(d, ".mcp.json"), "w") as fh:
+                fh.write(conteudo)
+            shutil.copy(os.path.join(projeto, "pnpm", "pnpm-lock.yaml"), d)
+            try:
+                pacs, acoes, avisos, mcp = sec.inventario_projeto(d)
+                nv = [a for a in avisos if a["onde"] == ".mcp.json" and a["nao_verificado"]]
+                check("%s: não derruba, avisa NÃO VERIFICADO e o resto do projeto é lido" % rotulo,
+                      len(nv) == 1 and len(pacs) == 4)
+            except Exception as ex:
+                check("%s: não derruba (levantou %s)" % (rotulo, type(ex).__name__), False)
+        for n, (conteudo, rotulo) in enumerate((("[]", "package-lock com lista na raiz"),
+                                 ('{"packages": []}', "packages como lista"),
+                                 ('{"packages": {"node_modules/a": "x"}}', "pacote que não é objeto"))):
+            d = os.path.join(base_malf, "lock%d" % n)
+            os.makedirs(d)
+            with open(os.path.join(d, "package-lock.json"), "w") as fh:
+                fh.write(conteudo)
+            shutil.copy(os.path.join(projeto, "pnpm", "pnpm-lock.yaml"), d)
+            try:
+                pacs, acoes, avisos, mcp = sec.inventario_projeto(d)
+                nv = [a for a in avisos if a["onde"] == "package-lock.json" and a["nao_verificado"]]
+                check("%s: não derruba, avisa NÃO VERIFICADO e o pnpm-lock é lido" % rotulo,
+                      len(nv) == 1 and len(pacs) == 4)
+            except Exception as ex:
+                check("%s: não derruba (levantou %s)" % (rotulo, type(ex).__name__), False)
+
+        print("~/.claude.json fora do formato não derruba a varredura da máquina")
+        casa_mcp = os.path.join(tmp, "casa-mcp")
+        os.makedirs(casa_mcp)
+        with open(os.path.join(casa_mcp, ".claude.json"), "w") as fh:
+            json.dump({"mcpServers": [], "projects": {"/tmp/p": {"mcpServers": {"s": {
+                "command": "npx", "args": ["pacote-solto"]}}}, "/tmp/q": "texto"}}, fh)
+        antigo_mcp = os.environ.get("HOME"), os.environ.get("USERPROFILE")
+        real_rodar_mcp = sec._rodar
+        os.environ["HOME"] = os.environ["USERPROFILE"] = casa_mcp
+        sec._rodar = lambda *a, **k: None
+        try:
+            itens_maq, _pacs = sec.inventario_maquina(sec.Fontes())[:2]
+            check("mcpServers como lista → NÃO VERIFICADO, e o servidor do projeto ainda é lido",
+                  any(i["nao_verificado"] and i["onde"] == "~/.claude.json" for i in itens_maq)
+                  and any("pacote-solto" in i["alvo"] for i in itens_maq))
+        except Exception as ex:
+            check("~/.claude.json malformado não derruba (levantou %s)" % type(ex).__name__, False)
+        finally:
+            sec._rodar = real_rodar_mcp
+            for k, v in zip(("HOME", "USERPROFILE"), antigo_mcp):
+                if v is None:
+                    os.environ.pop(k, None)
+                else:
+                    os.environ[k] = v
 
         print("comando que estoura o tempo não derruba a varredura")
         real_run = sec.subprocess.run

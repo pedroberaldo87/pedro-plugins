@@ -100,7 +100,10 @@ $(printf '%s' "$STATE" | head -c 20000)"
   else
     CLAUDE_BIN="$(command -v claude 2>/dev/null)"
     if [ -n "$CLAUDE_BIN" ]; then
-      CRAW="$(printf '%s' "$CLASSIFY_IN" | "$CLAUDE_BIN" -p --model haiku --system-prompt "$CLASSIFY_SYS" --exclude-dynamic-system-prompt-sections 2>/dev/null)"; CRC=$?
+      # O juiz só devolve um veredito: roda SEM ferramentas e sem servidores MCP (P10). O
+      # prompt leva texto não confiável (caderno, diff, plano); "responda só o JSON" é
+      # instrução, não fronteira. Sem ferramentas a injeção não tem o que executar.
+      CRAW="$(printf '%s' "$CLASSIFY_IN" | "$CLAUDE_BIN" -p --model haiku --system-prompt "$CLASSIFY_SYS" --exclude-dynamic-system-prompt-sections --tools "" --strict-mcp-config 2>/dev/null)"; CRC=$?
     else
       CRAW=""; CRC=1
     fi

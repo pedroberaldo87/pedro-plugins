@@ -31,6 +31,14 @@ case "$NOME" in
   *) printf 'nome fora da régua do archify: %s (use organismo.html ou fluxo-<slug>.html)\n' "$NOME" >&2
      exit 2 ;;
 esac
+# O `*` do `case` acima também casa `/` e `..`: `fluxo-x/../../y.html` passava e o HTML
+# saía da pasta do archify. O slug é nome de arquivo e mais nada: letra, dígito, `.`, `_`
+# e `-`. A lista é escrita por extenso (e não `a-z`) para não depender do locale.
+case "$NOME" in
+  *[!abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789._-]*|*..*)
+     printf 'nome fora da régua do archify: %s (só letras, dígitos, ponto, sublinhado e hífen; sem barra nem "..")\n' "$NOME" >&2
+     exit 2 ;;
+esac
 
 BIN=$("$BASH" "$AQUI/resolve-plugin.sh" archify skills/archify/bin/archify.mjs 2>/dev/null)
 DIR_SH=$("$BASH" "$AQUI/resolve-plugin.sh" archify skills/archify/resolve-dir.sh 2>/dev/null)

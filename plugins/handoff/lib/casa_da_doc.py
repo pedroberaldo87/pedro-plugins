@@ -78,6 +78,15 @@ def casa(raiz, *partes):
        responde a casa que tem documento DESTA família (frontmatter com `project:`).
     """
     raiz = str(raiz)
+    # As `partes` às vezes saem de um campo de documento do repositório (o `anexo-de` de um
+    # sidecar). Parte absoluta ou com um segmento `..` escolheria um arquivo FORA da casa
+    # (P6 · hsf_263e796b). Barra interna segue valendo (`sub/arq.md`).
+    for parte in partes:
+        parte = str(parte)
+        segmentos = parte.replace("\\", "/").split("/")
+        if (os.path.isabs(parte) or parte.startswith(("/", "\\")) or ":" in segmentos[0]
+                or ".." in segmentos):
+            raise ValueError("parte do caminho fora da casa da doc: %r" % parte)
     nova = os.path.join(raiz, *NOVA)
     velha = os.path.join(raiz, *VELHA)
     if not os.path.isdir(nova):

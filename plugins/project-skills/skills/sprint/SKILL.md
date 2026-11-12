@@ -226,6 +226,8 @@ PRECHECK="$(bash "${CLAUDE_PLUGIN_ROOT}/lib/resolve-plugin.sh" project-skills li
 python3 "$PRECHECK" "$PLAN_PATH" --raiz "$REPO_ROOT" --relatorio --suite "$SUITE_CMD"
 ```
 
+A passada 4 **não executa** os `plugins/*/hooks/hooks.json` da árvore: o comando vem do repositório e rodaria com os seus poderes. Ela relata a guarda como não medida. Em árvore que é sua, acrescente `--trust-repo-hooks` ao comando acima.
+
 O relatório carrega a **marca do plano**, e a marca cobre `id` + `pronto` + `desc`
 dos passos **ABERTOS** mais o registro selado — e **nada da árvore**, porque cada tique mexe no
 disco e venceria o relatório por conta própria. Por isso ela é imune ao próprio progresso:
@@ -2159,6 +2161,8 @@ ausente ou função inexistente nunca impede a suíte de rodar.
   MARCADOR="$(bash "${CLAUDE_PLUGIN_ROOT}/lib/resolve-plugin.sh" project-skills lib/plan_state.py)"
   cd <raiz> && python3 "$MARCADOR" --dir <raiz>/.claude/plans tick <plano> <taskId> --evidencia "<evidencia>"
   ```
+
+  ⚠️ **As aspas são do motor, não do agente.** Nos prompts de `motor.js` o comando de cada passo já chega escrito, com `<plano>`, a pasta, `<taskId>` e a `<evidencia>` (e a `<pendencia>`, no subcomando `pendencia`) cada um ENTRE ASPAS SIMPLES, pelo escapador `sq`. Aspas duplas não bastam: dentro delas o shell ainda expande `$(...)` e crase, e a prova do executor é saída crua de comando. O mesmo vale para os nomes de arquivo da reserva e do checkpoint, e para o caminho do plano nos comandos de andamento e de órfãos. O bloco acima é a FORMA do comando; quem o escreve com os textos é o motor.
 
   ⚠️ **O `<plano>` vai NO COMANDO, nunca numa observação ao lado.** `tick` recebe o id do plano como primeiro posicional, e sem ele o programa recusa assim que a pasta tem 2+ planos `active` (`há N planos ativos (…) — diga qual`). Em 2026-08-14 isso matou **três corridas seguidas** pela mesma porta: a marcação falhava, o bloco não fechava e a rodada seguinte lia `todo` de novo — 12 passos tiveram de ser marcados à mão depois. A receita correta chegou a ser escrita no `planText` em duas corridas e **nunca alcançou o marcador**: o texto da missão vai ao orquestrador e aos revisores, jamais aos papéis mecânicos. Por isso o id nasce no próprio comando, derivado do `planPath`.
 

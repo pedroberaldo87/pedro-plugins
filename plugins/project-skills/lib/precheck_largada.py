@@ -69,6 +69,8 @@ Uso:
                                    # decorrência devolve `fechou: True`.
 
     python3 precheck_largada.py <plano.json> [--raiz .] [--passada 1|2|3|4]
+                                   # [--trust-repo-hooks]: a passada 4 só executa os
+                                   # hooks.json da árvore com esta flag (P7)
                                    # exit 1 = há pergunta
     python3 precheck_largada.py <plano.json> --relatorio   # grava a prova das 4 passadas
     python3 precheck_largada.py <plano.json> --confere     # a casca antes de largar (exit 3 = recusa)
@@ -769,10 +771,17 @@ def _ancestrais():
     return pids
 
 
-def passada4(plano, raiz, base_estado=None, teto_guarda=15, agora=None):
+def passada4(plano, raiz, base_estado=None, teto_guarda=15, agora=None,
+             confia_hooks_do_repo=False):
     """A passada sobre a VIZINHANÇA — quem mais está de pé em volta desta largada.
 
     Mesma saída das outras: `perguntas` e `registrados`. Não escreve nada.
+
+    `confia_hooks_do_repo` (CLI: `--trust-repo-hooks`): o item 2 mede a guarda de verdade,
+    EXECUTANDO o comando de cada `plugins/*/hooks/hooks.json` da árvore. Numa árvore
+    clonada isso é código de terceiro rodando com os poderes do dono, então o padrão é
+    NÃO executar: a guarda sai relatada como ADIÁVEL ("não medida") e o dono liga a
+    medição por conta própria, sabendo o que está rodando (P7 · achado 48).
     """
     agora = time.time() if agora is None else agora
     base_estado = base_estado or andamento.ESTADO
@@ -797,6 +806,17 @@ def passada4(plano, raiz, base_estado=None, teto_guarda=15, agora=None):
 
     # 2 · guarda de PreToolUse que NEGA, medida com o payload dos passos abertos.
     guardas = _guardas(raiz)
+    if guardas and not confia_hooks_do_repo:
+        # Relata em vez de executar: o comando vem do hooks.json DA ÁRVORE medida.
+        achados.append(_achado(
+            {"id": "largada"}, "guarda_nao_executada", ADIAVEL,
+            "a árvore traz %d guarda(s) de PreToolUse em plugins/*/hooks/hooks.json e a "
+            "passada 4 NÃO as executou (código do repo) — a guarda que nega comando do "
+            "passo não foi medida; confere à mão, ou roda de novo com --trust-repo-hooks "
+            "se a árvore é sua?" % len(guardas),
+            "; ".join("%s (%s): %s" % (os.path.basename(pr), t, c.split(";")[-1].strip()[:80])
+                      for pr, c, t in guardas[:5]) + " · hooks.json não executado"))
+        guardas = []
     vistos = set()
     for p in passos:
         pid = str(p.get("id") or "?")
@@ -1310,6 +1330,10 @@ def main(argv=None):
     ap.add_argument("--respostas", default="",
                     help="o JSON com as RESPOSTAS do dono à rodada anterior: roda a "
                          "rodada N+1 e REGRAVA o relatório com as propostas (F22.8)")
+    ap.add_argument("--trust-repo-hooks", action="store_true", dest="confia_hooks",
+                    help="passada 4: EXECUTA os comandos dos plugins/*/hooks/hooks.json da "
+                         "árvore (código do repo — só em árvore que é sua); sem a flag a "
+                         "guarda é relatada como não medida")
     ap.add_argument("--confere", action="store_true",
                     help="confere o relatório antes de armar o motor; sai 3 se recusa")
     args = ap.parse_args(argv)
@@ -1341,7 +1365,7 @@ def main(argv=None):
             "3": passada3(args.raiz, suite_cmd=args.suite, gate_cmd=args.gate,
                           planos=os.path.dirname(os.path.abspath(args.plano)),
                           alvo=plano.get("id")),
-            "4": passada4(plano, args.raiz),
+            "4": passada4(plano, args.raiz, confia_hooks_do_repo=args.confia_hooks),
         })
         print(json.dumps(rel, ensure_ascii=False, indent=1))
         return 1 if rel["abertas"] else 0
@@ -1350,7 +1374,7 @@ def main(argv=None):
                      planos=os.path.dirname(os.path.abspath(args.plano)),
                      alvo=plano.get("id"))
     elif args.passada == "4":
-        r = passada4(plano, args.raiz)
+        r = passada4(plano, args.raiz, confia_hooks_do_repo=args.confia_hooks)
     else:
         r = (passada1 if args.passada == "1" else passada2)(plano, args.raiz)
     print(json.dumps(r, ensure_ascii=False, indent=1))

@@ -95,8 +95,18 @@ def _workspace(raiz):
         globs = ["apps/*", "packages/*"]  # convenção do turborepo quando só há turbo.json
     unidades = []
     import glob as _glob
+    real_raiz = os.path.realpath(raiz)
     for g in globs:
+        # O glob vem do package.json / pnpm-workspace.yaml DO REPOSITÓRIO escaneado. Absoluto
+        # ou com `..` escolheria pastas fora dele; e um symlink dentro dele pode apontar
+        # para fora — por isso o realpath de cada achado tem de ficar sob a raiz (P6).
+        if not isinstance(g, str) or not g or os.path.isabs(g) or g.startswith(("/", "\\")) \
+                or ".." in g.replace("\\", "/").split("/"):
+            continue
         for p in sorted(_glob.glob(os.path.join(raiz, g))):
+            real = os.path.realpath(p)
+            if real != real_raiz and not real.startswith(real_raiz.rstrip(os.sep) + os.sep):
+                continue
             if os.path.isdir(p) and any(
                 os.path.isfile(os.path.join(p, m)) for m in MANIFESTOS
             ):
