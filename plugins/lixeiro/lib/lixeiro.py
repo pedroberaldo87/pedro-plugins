@@ -245,6 +245,36 @@ def eh_intocavel(cmd):
     return any(re.search(p, cmd, re.I) for p in INTOCAVEL)
 
 
+# Processo de SISTEMA: o que o lixeiro jamais sinaliza nem atravessa, em nenhum caminho.
+# No Windows, a cadeia de pais de qualquer processo do CI termina em
+# `services.exe`/`wininit.exe`/`lsass.exe`/`svchost.exe`, e derrubar um deles é derrubar a
+# máquina; no POSIX, o topo é o pid 1 (`launchd`, `systemd`, `init`). O critério é o NOME do
+# executável (a cabeça da linha de comando) e o LUGAR (`C:\Windows\…`), nunca um trecho
+# qualquer da linha — `python3 -m http.server C:\Windows` não vira sistema.
+# Linha de comando VAZIA também entra: o Windows não entrega a de processo protegido, e quem
+# não se sabe o que é, não se sinaliza.
+_SISTEMA_NOMES = (
+    r"smss|csrss|wininit|winlogon|services|lsass|lsm|svchost|fontdrvhost|dwm|explorer|"
+    r"System|Idle|Registry|launchd|systemd|init|kernel_task|kthreadd|loginwindow|"
+    r"WindowServer|sshd|Runner\.Worker|Runner\.Listener"
+)
+_SISTEMA_CABECA = re.compile(
+    r"""^\s*["']?(?:[^"'\s]*[\\/])?(?:%s)(?:\.exe)?(?:["':]|\s|$)""" % _SISTEMA_NOMES, re.I)
+_SISTEMA_LUGAR_NT = re.compile(r"""^\s*["']?[A-Za-z]:[\\/]Windows[\\/]""", re.I)
+# Os pids reservados: 0 e 4 no Windows (Idle, System), 1 no POSIX; 2 e 3 por folga.
+PID_SISTEMA_MAX = 4
+
+
+@functools.lru_cache(maxsize=4096)
+def eh_do_sistema(cmd, pid=None):
+    """Sistema operacional ou serviço do runner? `pid` opcional: ≤ 4 é sempre sistema."""
+    if pid is not None and pid <= PID_SISTEMA_MAX:
+        return True
+    if not cmd or not cmd.strip():
+        return True
+    return bool(_SISTEMA_CABECA.match(cmd) or _SISTEMA_LUGAR_NT.match(cmd))
+
+
 @functools.lru_cache(maxsize=4096)
 def _real(caminho):
     """`os.path.realpath` memoizado. Ele toca o disco a cada chamada, e `casa` o
@@ -325,13 +355,14 @@ def _processos_nt():
 
 
 def processos():
-    """Lista de dicts {pid, ppid, idade, cpu, rss, cmd}. Lista vazia = não sei ler,
+    """Lista de dicts {pid, ppid, idade, cpu, rss, cmd} (+ `pgid` no POSIX; o
+    Windows não tem grupo de processos e a chave não existe). Lista vazia = não sei ler,
     e não saber ler significa não encerrar nada (fail-safe, não fail-open cego)."""
     if os.name == "nt":
         return _processos_nt()
     try:
         out = subprocess.run(
-            ["ps", "-eo", "pid=,ppid=,etime=,time=,rss=,args="],
+            ["ps", "-eo", "pid=,ppid=,pgid=,etime=,time=,rss=,args="],
             capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=10,
             stdin=subprocess.DEVNULL, start_new_session=True)
     except (OSError, subprocess.SubprocessError):
@@ -340,13 +371,13 @@ def processos():
         return []
     procs = []
     for linha in out.stdout.splitlines():
-        campos = linha.split(None, 5)
-        if len(campos) < 6:
+        campos = linha.split(None, 6)
+        if len(campos) < 7:
             continue
-        pid, ppid, etime, cputime, rss, cmd = campos
+        pid, ppid, pgid, etime, cputime, rss, cmd = campos
         try:
             procs.append({
-                "pid": int(pid), "ppid": int(ppid),
+                "pid": int(pid), "ppid": int(ppid), "pgid": int(pgid),
                 "idade": _seg_etime(etime), "cpu": _seg_cputime(cputime),
                 "rss": int(rss), "cmd": cmd.strip(),
             })
@@ -909,6 +940,8 @@ def candidatos(session_id, modo, procs=None, agora=None):
         for p in procs:
             if p["pid"] in eu:
                 continue                      # trava de suicídio
+            if p["pid"] <= PID_SISTEMA_MAX or eh_do_sistema(p["cmd"], p["pid"]):
+                continue                      # sistema nunca é colhido, case o que casar
             if anot.get("classe") == "efemero" and p["pid"] in do_servico:
                 continue
             if not casa(anot, p):
@@ -1013,17 +1046,44 @@ def trabalhando(pids, procs=None, espera=None):
     return {p for p in pids if depois.get(p, 0.0) > antes.get(p, 0.0) + 0.05}
 
 
+def _pode_subir(filho, pai, protegidos):
+    """Pode a subida da raiz órfã atravessar de `filho` para `pai`? Só quando TODAS valem:
+
+      · o pai não é ancestral do motor, nem sistema (pid ≤ 4, `lsass`/`svchost`/`launchd`…);
+      · o pai não é mais NOVO que o filho: pai mais novo é pid REUTILIZADO — o `ppid` do
+        filho aponta para um número que hoje é de outro programa (é o que o Windows faz
+        com o pai MSYS que já morreu), e nenhum dos dois é o que a tabela diz;
+      · mesmo grupo de processos quando o sistema informa (POSIX): grupo/sessão diferente é
+        OUTRA árvore, de outro dono, e a fronteira nunca se cruza, nem para ferramenta;
+      · sem informação de grupo (Windows), o pai tem que estar na lista de ferramentas do
+        lixeiro (`classifica`: efêmero ou serviço) — lançador de servidor, nunca shell nem
+        rodador qualquer.
+    """
+    if pai["pid"] in protegidos or pai["pid"] <= PID_SISTEMA_MAX:
+        return False
+    if eh_intocavel(pai["cmd"]) or eh_do_sistema(pai["cmd"], pai["pid"]):
+        return False
+    if pai["idade"] + 1 < filho["idade"]:        # 1s de folga: as leituras não são do mesmo instante
+        return False
+    g_filho, g_pai = filho.get("pgid"), pai.get("pgid")
+    if g_filho is not None and g_pai is not None:
+        return g_filho == g_pai
+    return classifica(pai["cmd"]) in ("efemero", "servico")
+
+
 def raiz_orfa(pid, procs=None, protegidos=None):
     """O topo da árvore a que o pid pertence, quando esse topo é ÓRFÃO — pai
     igual a 1 ou pai que nem consta na tabela. Senão, o próprio pid.
 
     Matar a folha não resolve: o lançador que continua de pé sobe outra no lugar
     (sete sinais na folha derrubaram setenta e oito processos e a árvore voltou).
-    Quem cai é a raiz. A subida para ANTES de qualquer processo protegido — a
-    trava de ancestral continua valendo, e nada acima do próprio motor recebe
-    sinal — e antes de máquina virtual ou contêiner. E se a subida parou por uma
-    dessas barreiras, a raiz encontrada não é órfã: aí o alvo volta a ser o pid
-    original, para nunca sinalizar o pai vivo de outra árvore."""
+    Quem cai é a raiz. Mas a subida só atravessa o que `_pode_subir` autoriza: a
+    trava de ancestral continua valendo, e a ela se somam o sistema, o pid
+    reutilizado, a fronteira de grupo de processos e a lista de ferramentas — a
+    cadeia de ancestrais do motor pode vir QUEBRADA (Windows), e então `protegidos`
+    não basta: foi assim que a subida chegou ao rodador, ao runner e ao `lsass.exe`.
+    E se a subida parou por uma dessas barreiras, a raiz encontrada não é órfã: aí o
+    alvo volta a ser o pid original, para nunca sinalizar o pai vivo de outra árvore."""
     procs = processos() if procs is None else procs
     if not procs:
         return pid
@@ -1038,7 +1098,7 @@ def raiz_orfa(pid, procs=None, protegidos=None):
         pai = por_pid.get(ppid)
         if ppid <= 1 or pai is None:
             return raiz          # chegou no topo: a raiz é órfã
-        if ppid in protegidos or eh_intocavel(pai["cmd"]):
+        if not _pode_subir(por_pid[raiz], pai, protegidos):
             break
         raiz = ppid
     return pid
@@ -1046,7 +1106,8 @@ def raiz_orfa(pid, procs=None, protegidos=None):
 
 def _descendentes(pid, procs):
     """Todo processo abaixo do pid na árvore."""
-    filhos = {}
+    filhos, por_pid = {}, {p["pid"]: p for p in procs}
+    por_pid.setdefault(pid, {"idade": float("inf")})
     for p in procs:
         filhos.setdefault(p["ppid"], []).append(p)
     fila, achados, vistos, guarda = [pid], [], {pid}, 0
@@ -1056,10 +1117,19 @@ def _descendentes(pid, procs):
         for f in filhos.get(atual, []):
             if f["pid"] in vistos:
                 continue
+            # filho mais VELHO que o pai é `ppid` de pid reutilizado: não é descendente
+            if f["idade"] > por_pid[atual]["idade"] + 1:
+                continue
             vistos.add(f["pid"])
             achados.append(f)
             fila.append(f["pid"])
     return achados
+
+
+def _proibido(p, protegidos):
+    """Este processo nunca recebe sinal, em nenhuma rota (alvo, raiz ou descendente)."""
+    return (p["pid"] in protegidos or p["pid"] <= PID_SISTEMA_MAX
+            or eh_do_sistema(p["cmd"], p["pid"]) or eh_intocavel(p["cmd"]))
 
 
 def encerra(pid, grace=3.0, procs=None):
@@ -1072,12 +1142,19 @@ def encerra(pid, grace=3.0, procs=None):
     reconhece. Intocável e protegido nunca recebem sinal, nem como descendente."""
     procs = processos() if procs is None else procs
     protegidos = ancestrais(os.getpid(), procs)
+    # Nunca sinaliza: pid reservado, ancestral do motor, sistema, intocável — e quem a
+    # tabela não conhece (já morreu, ou o número é de outro): sem prova, sem sinal.
+    por_pid = {p["pid"]: p for p in procs}
+    if pid not in por_pid or _proibido(por_pid[pid], protegidos):
+        return None
     alvo = raiz_orfa(pid, procs, protegidos)
+    if alvo != pid and _proibido(por_pid[alvo], protegidos):
+        alvo = pid
     sinal = _sinaliza(alvo, grace)
     if sinal is None and alvo != pid:
         sinal = _sinaliza(pid, grace)
     for f in _descendentes(alvo, procs):
-        if f["pid"] in protegidos or eh_intocavel(f["cmd"]):
+        if _proibido(f, protegidos):
             continue
         if vivo(f["pid"]):
             _sinaliza(f["pid"], grace)

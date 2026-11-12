@@ -71,7 +71,10 @@ if [ -n "${INTENT_GUARD_JUDGE_CMD:-}" ]; then
 else
   CLAUDE_BIN="$(command -v claude 2>/dev/null)"
   [ -z "$CLAUDE_BIN" ] && exit 0
-  RAW="$(printf '%s' "$JUDGE_IN" | "$CLAUDE_BIN" -p --model haiku --system-prompt "$JUDGE_SYS" --exclude-dynamic-system-prompt-sections 2>/dev/null)"; RC=$?
+  # O juiz só devolve um veredito: roda SEM ferramentas e sem servidores MCP (P10). O
+  # prompt leva texto não confiável (caderno, diff, plano); "responda só o JSON" é
+  # instrução, não fronteira. Sem ferramentas a injeção não tem o que executar.
+  RAW="$(printf '%s' "$JUDGE_IN" | "$CLAUDE_BIN" -p --model haiku --system-prompt "$JUDGE_SYS" --exclude-dynamic-system-prompt-sections --tools "" --strict-mcp-config 2>/dev/null)"; RC=$?
 fi
 { [ $RC -ne 0 ] || [ -z "$RAW" ]; } && exit 0
 

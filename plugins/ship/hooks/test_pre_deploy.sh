@@ -70,6 +70,13 @@ NORUNNER="$TMP/norunner"                # nenhum test runner: o caminho do aviso
 mkdir -p "$NORUNNER"
 (cd "$NORUNNER" && git init -q . && git -c user.email=ship@exemplo.invalido -c user.name=bancada commit -q --allow-empty -m x 2>/dev/null)
 
+# Lista de confiança ISOLADA (o gate lê ${CLAUDE_CONFIG_DIR:-$HOME/.claude}/ship-trusted-projects).
+# Os fixtures abaixo são projetos do dono: entram na lista, como entrariam via `--trust`.
+export CLAUDE_CONFIG_DIR="$TMP/cfg"; mkdir -p "$CLAUDE_CONFIG_DIR"
+trust_dir() { git -C "$1" rev-parse --show-toplevel 2>/dev/null >> "$CLAUDE_CONFIG_DIR/ship-trusted-projects" \
+  || printf '%s\n' "$1" >> "$CLAUDE_CONFIG_DIR/ship-trusted-projects"; }
+for _d in "$PROBE" "$MODE1" "$MONO" "$MONO_RED" "$GREEN" "$NORUNNER"; do trust_dir "$_d"; done
+
 hook() { # hook <command> [cwd] -> imprime o exit code do hook
   local cmd="$1" cwd="${2:-$PROBE}"
   printf '{"cwd":%s,"tool_input":{"command":%s}}' \
@@ -434,6 +441,60 @@ case "$NOTA_STUB" in
   *) bad "python3 que não executa · o aviso de deploy sem gate AINDA sai" \
          "additionalContext citando 'sem verificação'" "'${NOTA_STUB:-<vazio>}'" ;;
 esac
+
+echo "── Confiança e fronteira: o gate não roda código do repo sem aval (P7 · achados 50/54) ──"
+# O gate roda ANTES do prompt de permissão: o `make test` / `npm test` / run_app_tests.sh
+# do repositório é código de terceiro. Duas regras, as duas medidas aqui com um marcador
+# que o "teste" do repo cria se (e só se) for executado:
+#   1. projeto fora da lista de confiança → o gate NÃO executa; pede confirmação ao dono
+#      (permissionDecision=ask) dizendo qual comando rodaria e como confiar;
+#   2. a busca pelo runner para na raiz do git (nunca sobe até `/`, nunca passa de $HOME).
+MARCA="$TMP/marcas"; mkdir -p "$MARCA"
+mkrepo() { mkdir -p "$1"; (cd "$1" && git init -q . && git -c user.email=ship@exemplo.invalido -c user.name=bancada commit -q --allow-empty -m x 2>/dev/null); }
+
+SEMAVAL="$TMP/semaval"; mkrepo "$SEMAVAL"
+printf 'test:\n\t@touch "%s/semaval"\n' "$MARCA" > "$SEMAVAL/Makefile"
+SAIDA=$(hook_json 'pm2 restart app' "$SEMAVAL"); E=$(hook 'pm2 restart app' "$SEMAVAL")
+[ ! -e "$MARCA/semaval" ] && ok "Modo 2 · repo sem aval: o make test do repo NÃO rodou" \
+  || bad "Modo 2 · repo sem aval" "marcador ausente" "o teste do repo rodou antes de qualquer aprovação"
+[ "$(printf '%s' "$SAIDA" | jq -r '.hookSpecificOutput.permissionDecision // empty' 2>/dev/null)" = ask ] && [ "$E" = 0 ] \
+  && ok "Modo 2 · repo sem aval: pede confirmação (ask, exit 0)" \
+  || bad "Modo 2 · repo sem aval: ask" "exit 0 + permissionDecision=ask" "exit $E — '${SAIDA:-<vazio>}'"
+case "$SAIDA" in *"make test"*) ok "Modo 2 · o pedido de confirmação nomeia o comando (make test)" ;;
+  *) bad "Modo 2 · o pedido nomeia o comando" "texto com 'make test'" "'${SAIDA:-<vazio>}'" ;; esac
+
+SEMAVAL1="$TMP/semaval1"; mkrepo "$SEMAVAL1"; mkdir -p "$SEMAVAL1/scripts"
+printf '#!/bin/bash\ntouch "%s/semaval1"\n' "$MARCA" > "$SEMAVAL1/scripts/run_app_tests.sh"; chmod +x "$SEMAVAL1/scripts/run_app_tests.sh"
+mkdir -p "$SEMAVAL1/tests/crm"
+SAIDA1=$(hook_json 'bash deploy.sh crm' "$SEMAVAL1")
+[ ! -e "$MARCA/semaval1" ] && ok "Modo 1 · repo sem aval: o run_app_tests.sh do repo NÃO rodou" \
+  || bad "Modo 1 · repo sem aval" "marcador ausente" "o run_app_tests.sh rodou antes de qualquer aprovação"
+[ "$(printf '%s' "$SAIDA1" | jq -r '.hookSpecificOutput.permissionDecision // empty' 2>/dev/null)" = ask ] \
+  && ok "Modo 1 · repo sem aval: pede confirmação (ask)" \
+  || bad "Modo 1 · repo sem aval: ask" "permissionDecision=ask" "'${SAIDA1:-<vazio>}'"
+
+# O aval é do DONO e mora fora do repo: `--trust` grava a raiz do git na lista.
+bash "$HOOK" --trust "$SEMAVAL/." >/dev/null 2>&1
+grep -qxF "$(git -C "$SEMAVAL" rev-parse --show-toplevel)" "$CLAUDE_CONFIG_DIR/ship-trusted-projects" 2>/dev/null \
+  && ok "--trust grava a raiz do git do projeto na lista de confiança" \
+  || bad "--trust grava a raiz" "raiz do git na lista" "lista: '$(cat "$CLAUDE_CONFIG_DIR/ship-trusted-projects" 2>/dev/null)'"
+hook 'pm2 restart app' "$SEMAVAL" >/dev/null
+[ -e "$MARCA/semaval" ] && ok "Modo 2 · depois do --trust o gate roda os testes" \
+  || bad "Modo 2 · depois do --trust" "marcador criado" "o gate continuou sem rodar"
+
+# Fronteira: um Makefile num ANCESTRAL do repo não pode ser o runner do projeto.
+PAI="$TMP/pai"; mkdir -p "$PAI"; printf 'test:\n\t@touch "%s/pai"\n' "$MARCA" > "$PAI/Makefile"
+FILHO="$PAI/filho"; mkrepo "$FILHO"; trust_dir "$FILHO"
+NOTA=$(hook_note 'pm2 restart app' "$FILHO"); E=$(hook 'pm2 restart app' "$FILHO")
+[ ! -e "$MARCA/pai" ] && ok "walk-up · Makefile fora da raiz do git NÃO é executado" \
+  || bad "walk-up · ancestral fora do git" "marcador ausente" "o Makefile do diretório pai rodou"
+case "$NOTA" in *"nenhum test runner"*) [ "$E" = 0 ] && ok "walk-up · sem runner dentro do repo: avisa 'nenhum test runner' (exit 0)" ;;
+  *) bad "walk-up · aviso" "'nenhum test runner detectado'" "exit $E — '${NOTA:-<vazio>}'" ;; esac
+
+SEMGIT="$TMP/pai/semgit/sub"; mkdir -p "$SEMGIT"; trust_dir "$SEMGIT"
+hook 'pm2 restart app' "$SEMGIT" >/dev/null
+[ ! -e "$MARCA/pai" ] && ok "walk-up · cwd fora de qualquer git: não sobe até o pai" \
+  || bad "walk-up · cwd sem git" "marcador ausente" "o Makefile do pai rodou"
 
 # --- prova anti-tautologia -------------------------------------------------
 # Sabota UMA detecção numa cópia do hook e exige que a suíte REPROVE. Sem isto a

@@ -18,6 +18,10 @@ cada item contra bases públicas:
                                       (testado: tj-actions 45.0.7 volta vazio), o
                                       dump traz as faixas e a conta é feita aqui
     Aikido Intel (malware-list)       malware recém-detectado, antes de virar GHSA
+    Aikido Intel (intel.aikido.dev)   falha corrigida em silêncio, sem CVE nem GHSA —
+                                      o OSV não tem (testado: AIKIDO-2024-10001 → 404).
+                                      Sem API aberta: lê o JSON embutido na página de
+                                      cada pacote (/packages/<npm|pypi>/<nome>)
     nodejs.org/dist/index.json        correção de segurança do Node na mesma linha
     registro npm                      última versão publicada do Claude Code
 
@@ -35,6 +39,7 @@ com código 2. Só stdlib. Nada aqui instala, atualiza ou apaga — só mede.
 import argparse
 import concurrent.futures
 import fnmatch
+import gzip
 import json
 import os
 import re
@@ -44,6 +49,7 @@ import sys
 import time
 import tomllib
 import urllib.error
+import urllib.parse
 import urllib.request
 import zipfile
 import io
@@ -56,6 +62,7 @@ PERFIL = "pagina"
 OSV_API = os.environ.get("SEC_OSV_API", "https://api.osv.dev")
 OSV_DUMP = os.environ.get("SEC_OSV_DUMP", "https://osv-vulnerabilities.storage.googleapis.com")
 AIKIDO = os.environ.get("SEC_AIKIDO", "https://malware-list.aikido.dev")
+AIKIDO_INTEL = os.environ.get("SEC_AIKIDO_INTEL", "https://intel.aikido.dev")
 NODE_INDEX = os.environ.get("SEC_NODE_INDEX", "https://nodejs.org/dist/index.json")
 NPM_REGISTRY = os.environ.get("SEC_NPM_REGISTRY", "https://registry.npmjs.org")
 CACHE_DIR = os.environ.get("SEC_CACHE_DIR", os.path.join(os.path.expanduser("~"), ".claude", "sec-cache"))
@@ -86,7 +93,14 @@ def _http(url, corpo=None, timeout=60):
 
 def _cache(nome, buscar):
     """Bytes de `buscar()`, guardados por CACHE_TTL. Falha de rede sobe — sem cache velho."""
-    caminho = os.path.join(CACHE_DIR, nome)
+    raiz = os.path.abspath(CACHE_DIR)
+    caminho = os.path.abspath(os.path.join(raiz, nome))
+    # O nome pode trazer pedaço de resposta de rede (id do OSV): nada resolve para fora da pasta.
+    # Conta léxica (sem realpath): no Windows o realpath de pasta que ainda não existe pode
+    # voltar com o nome curto (RUNNER~1) e a comparação acusaria tudo.
+    if os.path.normcase(caminho) == os.path.normcase(raiz) or \
+            os.path.normcase(os.path.commonpath([raiz, caminho])) != os.path.normcase(raiz):
+        raise ValueError("nome de cache fora da pasta do cache: %r" % nome)
     try:
         if time.time() - os.path.getmtime(caminho) < CACHE_TTL:
             with open(caminho, "rb") as fh:
@@ -207,14 +221,22 @@ def _norm(eco, nome):
 def ler_package_lock(caminho):
     with open(caminho, encoding="utf-8") as fh:
         d = json.load(fh)
+    if not isinstance(d, dict):
+        raise SecError("package-lock sem objeto na raiz")
     if "packages" not in d:
         raise SecError("lockfileVersion %s sem a seção packages (npm 6) — não suportado"
                        % d.get("lockfileVersion"))
+    if not isinstance(d["packages"], dict):
+        raise SecError("package-lock com a seção packages que não é um objeto")
     out = []
     for chave, p in d["packages"].items():
+        if not isinstance(p, dict):
+            raise SecError("package-lock com entrada de packages que não é um objeto (%s)" % chave)
         if "node_modules/" not in chave or p.get("link") or not p.get("version"):
             continue
-        out.append(("npm", chave.rsplit("node_modules/", 1)[1], p["version"]))
+        nome = chave.rsplit("node_modules/", 1)[1]
+        real = p.get("name")   # alias (`"x": "npm:real@1"`): a chave é o apelido, `name` é o pacote
+        out.append(("npm", real if isinstance(real, str) and real else nome, p["version"]))
     return out
 
 
@@ -247,6 +269,9 @@ def ler_pnpm_lock(caminho):
     return out
 
 
+NOME_NPM = re.compile(r"^(@[A-Za-z0-9~._-]+/)?[A-Za-z0-9~._-]+$")
+
+
 def ler_yarn_lock(caminho):
     """yarn v1 (`version "1.2.3"`) e berry (`version: 1.2.3` + `resolution: "x@npm:1.2.3"`)."""
     with open(caminho, encoding="utf-8") as fh:
@@ -267,6 +292,11 @@ def ler_yarn_lock(caminho):
             continue
         primeiro = cab.rstrip()[:-1].split(",")[0].strip().strip('"')
         nv = _nome_versao(primeiro)
+        if nv and "@npm:" in nv[0]:   # `apelido@npm:real@^1`: quem foi instalado é o `real`
+            real = nv[0].split("@npm:", 1)[1]
+            if not NOME_NPM.match(real):
+                raise SecError("yarn.lock: alias que o /sec não sabe ler (%s)" % primeiro)
+            nv = (real, nv[1])
         if nv:
             out.add(("npm", nv[0], mv.group(1)))
     return sorted(out)
@@ -325,7 +355,15 @@ RUNNERS = {"npx": "npm", "bunx": "npm", "uvx": "PyPI", "pipx": "PyPI"}
 def ler_mcp(servidores):
     """Servidor MCP chamado por runner de pacote: (nome, eco, pacote, versão|None)."""
     out = []
-    for nome, s in (servidores or {}).items():
+    if servidores is None:
+        return out
+    if not isinstance(servidores, dict):
+        raise SecError("mcpServers não é um objeto")
+    for nome, s in servidores.items():
+        if not isinstance(s, dict):
+            raise SecError("servidor MCP %r não é um objeto" % nome)
+        if not isinstance(s.get("args", []), list):
+            raise SecError("servidor MCP %r com args que não é uma lista" % nome)
         cmd = os.path.basename(str(s.get("command", "")))
         eco = RUNNERS.get(cmd)
         args = [a for a in s.get("args", []) if isinstance(a, str)]
@@ -375,7 +413,8 @@ def inventario_projeto(raiz):
                                            citacao=", ".join(soltos[:12])))
                 elif rel.replace(os.sep, "/").endswith(".github/workflows") and a.endswith((".yml", ".yaml")):
                     acoes += [(n, r, onde) for n, r in ler_workflow(caminho)]
-            except (SecError, ValueError, KeyError, UnicodeDecodeError, tomllib.TOMLDecodeError) as e:
+            except (SecError, ValueError, KeyError, AttributeError, TypeError, RecursionError,
+                    UnicodeDecodeError, tomllib.TOMLDecodeError) as e:
                 avisos.append(item("projeto", "cadeia", onde,
                                    "Arquivo de pacotes que o /sec não sabe ler: NÃO VERIFICADO.",
                                    onde=onde, citacao=str(e), nao_verificado=True))
@@ -389,10 +428,16 @@ def inventario_projeto(raiz):
     if os.path.exists(mcp):
         try:
             with open(mcp, encoding="utf-8") as fh:
-                servidores = json.load(fh).get("mcpServers", {})
-        except (ValueError, OSError):
-            servidores = {}
-        return pacotes, acoes, avisos, [(n, e, p, v, ".mcp.json") for n, e, p, v in ler_mcp(servidores)]
+                d = json.load(fh)
+            if not isinstance(d, dict):
+                raise SecError(".mcp.json sem objeto na raiz")
+            lidos = ler_mcp(d.get("mcpServers", {}))
+        except (SecError, ValueError, OSError, RecursionError) as e:
+            lidos = []
+            avisos.append(item("projeto", "cadeia", ".mcp.json",
+                               "Arquivo de pacotes que o /sec não sabe ler: NÃO VERIFICADO.",
+                               onde=".mcp.json", citacao=str(e), nao_verificado=True))
+        return pacotes, acoes, avisos, [(n, e, p, v, ".mcp.json") for n, e, p, v in lidos]
     return pacotes, acoes, avisos, []
 
 
@@ -420,6 +465,115 @@ def _aikido(fontes, eco):
     return fontes.usar("Aikido Intel (%s)" % eco, baixar)
 
 
+# ── Aikido Intel: as falhas que o OSV não tem ───────────────────────────────
+#
+# A página de cada pacote (`/packages/npm/<nome>`, `/packages/pypi/<nome>`) traz, no
+# JSON que o Nuxt embute (`__NUXT_DATA__`), o registro completo de cada falha: faixas
+# vulneráveis, versão que corrige e o CVE/GHSA relacionado — vazio nas corrigidas em
+# silêncio (11 de 31 numa amostra de 2026-10-26). Uma página por pacote USADO, não as
+# 6.626 do site: a carga completa custava ~21 min e ~625 MB por máquina (medido).
+
+AIKIDO_ECO = {"npm": ("npm", "js"), "PyPI": ("pypi", "python")}  # caminho na URL, `language` do registro
+AIKIDO_CAMPOS = ("cve", "package_name", "language", "vulnerable_ranges", "patch_versions",
+                 "related_cve_id", "severity", "desc_short")
+
+
+def _desachata(arr):
+    """O formato `devalue` do Nuxt: lista plana em que objetos apontam por índice."""
+    memo = {}
+
+    def h(i):
+        if i in memo:
+            return memo[i]
+        v = arr[i]
+        if isinstance(v, dict):
+            r = memo[i] = {}
+            for k, x in v.items():
+                r[k] = h(x) if isinstance(x, int) else x
+            return r
+        if isinstance(v, list):
+            if v and v[0] in ("Reactive", "ShallowReactive", "Ref", "ShallowRef", "EmptyRef", "EmptyShallowRef"):
+                r = h(v[1]) if len(v) > 1 else None
+            elif v and v[0] in ("Set", "Map", "Date", "RegExp", "BigInt", "null", "NuxtError"):
+                r = None
+            else:
+                r = [h(x) if isinstance(x, int) else x for x in v]
+        else:
+            r = v
+        memo[i] = r
+        return r
+    return h(0)
+
+
+def aikido_registros(html):
+    """Os registros AIKIDO-… de uma página. Página sem o JSON embutido = o site mudou → ValueError."""
+    m = re.search(r'<script[^>]*id="__NUXT_DATA__"[^>]*>(.*?)</script>', html, re.S)
+    if not m:
+        raise ValueError("página sem __NUXT_DATA__ — o formato do site mudou")
+    out, pilha = {}, [_desachata(json.loads(m.group(1)))]
+    while pilha:
+        o = pilha.pop()
+        if isinstance(o, dict):
+            if str(o.get("cve", "")).startswith("AIKIDO-") and "vulnerable_ranges" in o:
+                out[o["cve"]] = {k: o.get(k) for k in AIKIDO_CAMPOS}
+            pilha.extend(o.values())
+        elif isinstance(o, list):
+            pilha.extend(o)
+    return sorted(out.values(), key=lambda r: r["cve"])
+
+
+def _http_pagina(url):
+    req = urllib.request.Request(url, headers={"User-Agent": "pedro-plugins-sec", "Accept-Encoding": "gzip"})
+    with urllib.request.urlopen(req, timeout=60) as r:
+        corpo = r.read()
+        if r.headers.get("Content-Encoding") == "gzip":
+            corpo = gzip.decompress(corpo)
+    return corpo.decode("utf-8")
+
+
+def _aikido_vulns(fontes, pacotes):
+    """{(eco, nome_norm): [registros]} das páginas dos pacotes usados. Página que falha fica
+    de fora SÓ ela, e a fonte sai como NÃO VERIFICADO com a contagem — nunca verde."""
+    alvos = sorted({(e, _norm(e, n)) for e, n in pacotes if e in AIKIDO_ECO})
+
+    def um(alvo):
+        e, n = alvo
+        caminho, _ = AIKIDO_ECO[e]
+        url = "%s/packages/%s/%s" % (AIKIDO_INTEL, caminho, urllib.parse.quote(n, safe="@/"))
+        nome_cache = "aikido-intel/%s/%s.json" % (caminho, urllib.parse.quote(n, safe=""))
+        try:
+            return alvo, json.loads(_cache(nome_cache, lambda: json.dumps(
+                aikido_registros(_http_pagina(url))).encode())), None
+        except (urllib.error.URLError, OSError, ValueError) as ex:
+            return alvo, [], "%s: %s" % (n, getattr(ex, "reason", None) or ex)
+
+    with concurrent.futures.ThreadPoolExecutor(max_workers=8) as ex:
+        res = list(ex.map(um, alvos))
+    erros = [err for _, _, err in res if err]
+    if erros:
+        fontes.status["Aikido Intel (vulnerabilidades)"] = "%d de %d pacotes sem resposta (%s)" % (
+            len(erros), len(alvos), "; ".join(erros[:3]))
+    elif alvos:
+        fontes.status.setdefault("Aikido Intel (vulnerabilidades)", "ok")
+    return {alvo: regs for alvo, regs, _ in res}
+
+
+def aikido_afeta(reg, versao):
+    """Faixas da Aikido são fechadas nas duas pontas; `*` no teto = sem correção ainda."""
+    for faixa in reg.get("vulnerable_ranges") or []:
+        if len(faixa) != 2:
+            continue
+        lo, hi = faixa
+        if cmp_ver(versao, lo) >= 0 and (hi == "*" or cmp_ver(versao, hi) <= 0):
+            return True
+    return False
+
+
+def aikido_correcao(reg, versao):
+    acima = [p for p in reg.get("patch_versions") or [] if cmp_ver(p, versao) > 0]
+    return min(acima, key=lambda p: _vt(p)) if acima else None
+
+
 def _osv_ids(fontes, consultas):
     """{(eco, nome, versão): [ids]} via /v1/querybatch em lotes, seguindo paginação."""
     def rodar():
@@ -442,10 +596,20 @@ def _osv_ids(fontes, consultas):
     return fontes.usar("OSV", rodar)
 
 
+ID_OSV = re.compile(r"^[A-Za-z0-9._:-]{1,200}$")
+
+
+def _id_osv_valido(i):
+    """GHSA-…, PYSEC-…, MAL-…, CVE-…: letras, dígitos, `.`, `_`, `:` e `-`, sem `..`."""
+    return bool(ID_OSV.match(i)) and ".." not in i
+
+
 def _osv_detalhes(fontes, ids):
     """{id: registro}. Registro que a base apagou (404) fica de fora SÓ ele — o pacote dele sai
     com o id à vista para conferência à mão. Erro de rede continua derrubando o OSV inteiro."""
     def um(i):
+        if not _id_osv_valido(i):   # id vem da rede: nunca vira caminho nem URL
+            return i, None
         try:
             return i, json.loads(_cache("vulns/%s.json" % i, lambda: _http("%s/v1/vulns/%s" % (OSV_API, i))))
         except urllib.error.HTTPError as e:
@@ -505,10 +669,23 @@ def checar_pacotes(fontes, frente, pacotes):
                                   onde=", ".join(os_), ids=["aikido:" + motivo],
                                   conserto="avaliar troca por alternativa"))
     ids = _osv_ids(fontes, sorted(onde))
-    if ids is None:
-        return itens
-    detalhes = _osv_detalhes(fontes, {i for lista in ids.values() for i in lista})
-    for (e, n, v), lista in sorted(ids.items()):
+    detalhes = _osv_detalhes(fontes, {i for lista in ids.values() for i in lista}) if ids else {}
+    ids = ids or {}
+    # Aikido: só o que o OSV não trouxe pelo mesmo id (o registro AIKIDO- costuma citar o CVE/GHSA).
+    av = _aikido_vulns(fontes, {(e, n) for e, n, _ in onde})
+    extras = {}
+    for (e, n, v) in onde:
+        conhecidos = set(ids.get((e, n, v), []))
+        for x in (detalhes.get(i) for i in ids.get((e, n, v), [])):
+            conhecidos.update((x or {}).get("aliases") or [])
+        novos = [r for r in av.get((e, _norm(e, n)), [])
+                 if (r.get("language") or "").lower() == AIKIDO_ECO[e][1] and aikido_afeta(r, v)
+                 and r["cve"] not in conhecidos and (r.get("related_cve_id") or "") not in conhecidos]
+        if novos:
+            extras[(e, n, v)] = novos
+    for (e, n, v) in sorted(set(ids) | set(extras)):
+        lista = ids.get((e, n, v), [])
+        novos = extras.get((e, n, v), [])
         vulns = [detalhes[i] for i in lista if i in detalhes]
         mal = [x for x in vulns if _malicioso(x)]
         alvo = "%s %s %s" % (e, n, v)
@@ -520,14 +697,15 @@ def checar_pacotes(fontes, frente, pacotes):
                               citacao=mal[0].get("summary") or "",
                               conserto="remover; trocar senhas e tokens desta máquina"))
             continue
-        fixes = [versao_corrigida(x, e, n, v) for x in vulns]
+        fixes = [versao_corrigida(x, e, n, v) for x in vulns] + [aikido_correcao(r, v) for r in novos]
         alvo_fix = None
         if fixes and all(fixes):
             alvo_fix = fixes[0]
             for f in fixes[1:]:
                 if cmp_ver(f, alvo_fix) > 0:
                     alvo_fix = f
-        sev = max((SEV.get((x.get("database_specific") or {}).get("severity", "").upper(), 0) for x in vulns), default=0)
+        sev = max([SEV.get((x.get("database_specific") or {}).get("severity", "").upper(), 0) for x in vulns]
+                  + [SEV.get((r.get("severity") or "").upper(), 0) for r in novos], default=0)
         nome_sev = {4: "crítica", 3: "alta", 2: "média", 1: "baixa"}.get(sev, "sem nota")
         faltam = [i for i in lista if i not in detalhes]
         if faltam:
@@ -536,10 +714,15 @@ def checar_pacotes(fontes, frente, pacotes):
             conserto = "subir para %s" % alvo_fix
         else:
             conserto = "sem versão corrigida publicada para todas: avaliar troca"
-        itens.append(item(frente, "falha", alvo,
-                          "%d falha(s) conhecida(s), pior gravidade %s." % (len(lista), nome_sev),
-                          onde=", ".join(onde[(e, n, v)]), ids=lista,
-                          citacao=" · ".join((x.get("summary") or x["id"]) for x in vulns[:3]),
+        silenciosas = sum(1 for r in novos if not r.get("related_cve_id"))
+        motivo = "%d falha(s) conhecida(s), pior gravidade %s." % (len(lista) + len(novos), nome_sev)
+        if silenciosas:
+            motivo = "%d falha(s) conhecida(s), %d sem alerta oficial (achada pela Aikido), pior gravidade %s." % (
+                len(lista) + len(novos), silenciosas, nome_sev)
+        itens.append(item(frente, "falha", alvo, motivo,
+                          onde=", ".join(onde[(e, n, v)]), ids=lista + [r["cve"] for r in novos],
+                          citacao=" · ".join(([(x.get("summary") or x["id"]) for x in vulns]
+                                              + [r.get("desc_short") or r["cve"] for r in novos])[:3]),
                           conserto=conserto))
     return itens
 
@@ -769,11 +952,21 @@ def inventario_maquina(fontes):
     itens += cc_itens
     pacotes += cc_pac
     itens += checar_node(fontes)
-    cfg = _json_arquivo(_home(".claude.json")) or {}
-    servidores = [(n, e, p, v, "~/.claude.json") for n, e, p, v in ler_mcp(cfg.get("mcpServers"))]
-    for proj, pc in sorted((cfg.get("projects") or {}).items()):
-        servidores += [(n, e, p, v, "~/.claude.json (projeto %s)" % os.path.basename(proj))
-                       for n, e, p, v in ler_mcp(pc.get("mcpServers"))]
+    cfg = _json_arquivo(_home(".claude.json"))
+    cfg = cfg if isinstance(cfg, dict) else {}
+    blocos = [("~/.claude.json", cfg.get("mcpServers"))]
+    projetos = cfg.get("projects")
+    for proj, pc in sorted((projetos if isinstance(projetos, dict) else {}).items()):
+        blocos.append(("~/.claude.json (projeto %s)" % os.path.basename(proj),
+                       pc.get("mcpServers") if isinstance(pc, dict) else None))
+    servidores = []
+    for onde_cfg, bloco in blocos:
+        try:
+            servidores += [(n, e, p, v, onde_cfg) for n, e, p, v in ler_mcp(bloco)]
+        except SecError as ex:   # arquivo fora do formato: avisa e segue com os outros
+            itens.append(item("maquina", "cadeia", onde_cfg,
+                              "Arquivo de pacotes que o /sec não sabe ler: NÃO VERIFICADO.",
+                              onde=onde_cfg, citacao=str(ex), nao_verificado=True))
     mi, mp = checar_mcp(fontes, "maquina", servidores)
     itens += mi
     pacotes += mp
@@ -835,7 +1028,14 @@ def varrer(projeto=None, maquina=True):
 
 def _e(t):
     return (str(t or "").replace("&", "&amp;").replace("<", "&lt;")
-            .replace(">", "&gt;").replace('"', "&quot;"))
+            .replace(">", "&gt;").replace('"', "&quot;").replace("'", "&#39;"))
+
+
+def _uma_linha(t):
+    """Texto de uma linha só. O que vem do repo escaneado (nome de servidor MCP, nome de arquivo)
+    chega ao bloco 'Copiar os marcados', que o agente lê linha por linha: uma quebra ali forjaria
+    um item que ninguém marcou."""
+    return re.sub(r"[\x00-\x1f\x7f-\x9f\u2028\u2029]+", " ", str(t or ""))
 
 
 def erros_de_estilo(v, onde):
@@ -912,6 +1112,7 @@ def render_html(res, stamp):
         txt = "[%s] %s — %s" % (i["nivel"], i["alvo"], i["conserto"] or i["motivo"])
         if i["onde"]:
             txt += " (em %s)" % i["onde"]
+        txt = _uma_linha(txt)
         ids = " · ".join(i["ids"][:6]) + (" …" if len(i["ids"]) > 6 else "")
         cit = " — ".join(x for x in (ids, i["citacao"]) if x)
         marca = " checked" if i["nivel"] in ("malicioso", "falha") and not i["nao_verificado"] else ""

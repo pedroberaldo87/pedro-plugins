@@ -23,6 +23,7 @@ from datetime import datetime, timezone
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from regua_texto import erros_de_estilo as _erros_de_estilo  # noqa: E402
+import fallow_cmd
 
 # A régua de estilo (quality-goals.md, regime "informação rápida"): este relatório
 # é lido com pressa, então vale a mesma régua do gerador de página. As quatro
@@ -49,10 +50,7 @@ def erros_de_estilo(texto, onde):
 def run_fallow(cmd, root):
     """Roda um subcomando fallow --format json e devolve o dict, ou {} se falhar."""
     try:
-        p = subprocess.run(
-            ["npx", "-y", "fallow", cmd, "-r", root, "--format", "json"],
-            capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=300,
-            stdin=subprocess.DEVNULL, start_new_session=True)
+        p = fallow_cmd.run_fallow([cmd, "-r", os.path.abspath(root), "--format", "json"], 300)
         # fallow sai 1 quando acha findings; a saída JSON ainda é válida.
         return json.loads(p.stdout) if p.stdout.strip() else {}
     except (subprocess.TimeoutExpired, json.JSONDecodeError, FileNotFoundError) as e:

@@ -60,6 +60,27 @@ class DeckError(Exception):
 
 # ── inline markdown → html (subconjunto fechado) ───────────────────────────
 
+ESQUEMAS_OK = ("http", "https", "mailto")
+
+
+def url_segura(url):
+    """http, https, mailto ou relativo. Qualquer outro esquema (javascript:, data:,
+    vbscript:, file:…) fica de fora: o navegador tira espaço e controle antes de ler o
+    esquema e ignora maiúsculas, então a conferência faz o mesmo.
+    """
+    limpa = "".join(c for c in html.unescape(url) if c > " " and c != "\x7f")
+    m = re.match(r"^([^/?#]*?):", limpa)
+    return m is None or m.group(1).lower() in ESQUEMAS_OK
+
+
+def _link(m):
+    texto, url = m.group(1), m.group(2)
+    if not url_segura(url):
+        return texto  # sem destino perigoso, a frase continua a mesma
+    url = url.replace('"', "&quot;").replace("'", "&#39;")
+    return '<a href="%s" rel="noopener noreferrer">%s</a>' % (url, texto)
+
+
 def inline(s):
     """Escapa e reabre só **negrito**, *itálico*, `código` e [link](url).
 
@@ -67,7 +88,7 @@ def inline(s):
     """
     out = html.escape(s, quote=False)
     out = re.sub(r"`([^`]+)`", r"<code>\1</code>", out)
-    out = re.sub(r"\[([^\]]+)\]\(([^)\s]+)\)", r'<a href="\2">\1</a>', out)
+    out = re.sub(r"\[([^\]]+)\]\(([^)\s]+)\)", _link, out)
     out = re.sub(r"\*\*([^*]+)\*\*", r"<strong>\1</strong>", out)
     out = re.sub(r"(?<![\*\w])\*([^*\n]+)\*(?!\*)", r"<em>\1</em>", out)
     return out
