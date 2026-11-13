@@ -109,6 +109,110 @@ check "hook alheio continua intacto" "$(sed -n 2p "$H/.git/hooks/pre-push")" "ec
 ( cd "$H" && git config core.hooksPath ganchos && devgit-trava >/dev/null )
 check "com core.hooksPath, instala na pasta configurada" "$( [ -x "$H/ganchos/pre-commit" ] && echo sim)" "sim"
 
+# com_remoto <pasta> — dá ao projeto um remoto `origin` em pasta local, com a main enviada
+com_remoto() {
+  git init -q --bare "$1.remoto.git"
+  ( cd "$1" && git remote add origin "$1.remoto.git" && git push -q -u origin main 2>/dev/null )
+}
+# no_remoto <pasta> <ref> — quantos caminhos de .claude/ ou .env a ref do remoto já viu
+no_remoto() {
+  git --git-dir="$1.remoto.git" log "$2" --name-only --format= 2>/dev/null | grep -cE '^(\.claude/|\.env$)'
+}
+
+echo
+echo "[devgit chamado por um hook do público]"
+# O git exporta GIT_INDEX_FILE para o hook. Herdado, o privado gravava na área de
+# preparação do público e o commit do público abortava com "invalid object".
+K="$BASE/p4"; novo_projeto "$K" ".claude/"; echo interno > "$K/.claude/notas/s.md"
+printf '#!/bin/sh\ndevgit add -A\n' > "$K/.git/hooks/pre-commit"; chmod +x "$K/.git/hooks/pre-commit"
+( cd "$K" && echo x >> src/app.js && git commit -qam "muda" >/dev/null 2>&1 ); check "o commit do público passa" "$?" "0"
+check "o público não ganhou arquivo interno" "$(cd "$K" && git ls-tree -r --name-only HEAD | tr '\n' ' ')" ".gitignore src/app.js "
+check "o privado recebeu o arquivo" "$(cd "$K" && devgit ls-files | tr '\n' ' ')" "notas/s.md "
+check "com GIT_DIR e GIT_INDEX_FILE no ambiente, devgit segue no privado" \
+  "$(cd "$K" && GIT_DIR=.git GIT_INDEX_FILE="$K/.git/index" devgit ls-files | tr '\n' ' ')" "notas/s.md "
+
+echo
+echo "[exceção pública escrita com barra inicial]"
+E="$BASE/p5"; novo_projeto "$E" "/.claude/*
+!/.claude/CLAUDE.md"
+echo pub > "$E/.claude/CLAUDE.md"; echo d > "$E/.claude/notas/a.md"
+( cd "$E" && git add .claude/CLAUDE.md && git commit -qm idx && devgit add -A )
+check "nenhum arquivo com dois donos" \
+  "$(cd "$E" && comm -12 <(git ls-files .claude | sed 's|^\.claude/||' | sort) <(devgit ls-files | sort))" ""
+
+
+echo
+echo "[projeto sem .claude/.gitignore: segredo e worktree ficam fora mesmo assim]"
+S="$BASE/p8"; novo_projeto "$S" ".claude/"
+mkdir -p "$S/.claude/secrets"; echo "SENHA=abc12345" > "$S/.claude/secrets/ops.env"; echo d > "$S/.claude/notas/a.md"
+( cd "$S" && git worktree add -q .claude/worktrees/w -b w && devgit add -A 2>/dev/null )
+check "devgit add -A pega só o material interno" "$(cd "$S" && devgit ls-files --cached | tr '\n' ' ')" "notas/a.md "
+
+echo
+echo "[caminho escrito a partir da raiz do projeto]"
+aviso=$(cd "$E" && devgit add .claude/notas/a.md 2>&1 >/dev/null | head -1)
+check "avisa que o caminho é relativo a .claude/" "$aviso" "devgit: caminho é relativo a .claude/ — escreva 'notas/a.md', não '.claude/notas/a.md'"
+
+echo
+echo "[trava de saída confere o que está sendo ENVIADO, não a branch em uso]"
+T="$BASE/p6"; novo_projeto "$T" ".claude/
+.env"; com_remoto "$T"; ( cd "$T" && devgit-trava >/dev/null )
+( cd "$T" && echo "SENHA=abc12345" > .env && git add -f .env && git commit -qm entra --no-verify \
+  && git rm -q --cached .env && git commit -qm sai --no-verify && git push -q origin main >/dev/null 2>&1 )
+check "arquivo ignorado que entrou e saiu antes do push: recusado" "$?" "1"
+check "o remoto não recebeu" "$(no_remoto "$T" main)" "0"
+( cd "$T" && git reset -q --hard origin/main )
+( cd "$T" && git switch -q -c lateral && echo n > .claude/notas/a.md && git add -f .claude/notas/a.md \
+  && git commit -qm interno --no-verify && git switch -q main && git push -q origin lateral >/dev/null 2>&1 )
+check "branch que não é a atual, com arquivo interno: recusada" "$?" "1"
+check "o remoto não ganhou a branch" "$(git --git-dir="$T.remoto.git" rev-parse -q --verify lateral >/dev/null && echo tem || echo nao)" "nao"
+( cd "$T" && echo ok > src/b.js && git add src/b.js && git commit -qm limpo >/dev/null && git push -q origin main >/dev/null 2>&1 )
+check "push limpo passa mesmo com outra branch local suja" "$?" "0"
+( cd "$T" && git push -q origin main >/dev/null 2>&1 ); check "push sem nada a enviar passa" "$?" "0"
+( cd "$T" && sh .git/hooks/pre-push </dev/null >/dev/null 2>&1 ); check "rodada à mão, acusa a branch suja não enviada" "$?" "1"
+( cd "$T" && git branch -q -D lateral && sh .git/hooks/pre-push </dev/null >/dev/null 2>&1 ); check "rodada à mão, sem pendência, passa" "$?" "0"
+( cd "$T" && mkdir -p .claude/notas && echo n > ".claude/notas/ação nova.md" && git add -f ".claude/notas/ação nova.md" && git commit -qm x >/dev/null 2>&1 )
+check "nome com espaço e acento: commit recusado" "$?" "1"
+( cd "$T" && git commit -qm x --no-verify && git push -q origin main >/dev/null 2>&1 )
+check "nome com espaço e acento: push recusado" "$?" "1"
+( cd "$T" && git reset -q --hard origin/main )
+
+echo
+echo "[trava de saída: termo privado fora do conteúdo da branch atual]"
+mkdir -p "$T/.claude"   # o reset acima levou a pasta junto com o arquivo forçado
+printf '# termos\r\nservidor-secreto.exemplo\r\n' > "$T/.claude/public-terms.txt"
+( cd "$T" && echo y >> src/app.js && git commit -qam "deploy em servidor-secreto.exemplo" >/dev/null && git push -q origin main >/dev/null 2>&1 )
+check "termo na mensagem do commit: push recusado (lista com fim de linha do Windows)" "$?" "1"
+( cd "$T" && git reset -q --hard origin/main && git checkout -q --detach \
+  && echo "url=servidor-secreto.exemplo" > src/cfg.js && git add src/cfg.js && git commit -qm cfg --no-verify \
+  && git push -q origin HEAD:main >/dev/null 2>&1 )
+check "commit sem branch: push recusado" "$?" "1"
+( cd "$T" && git switch -q main && git reset -q --hard origin/main \
+  && git switch -q -c lado && echo lado > src/app.js && git commit -qam lado \
+  && git switch -q main && echo principal > src/app.js && git commit -qam principal )
+( cd "$T" && git merge -q lado >/dev/null 2>&1; echo "url=servidor-secreto.exemplo" > src/app.js \
+  && git add src/app.js && git commit -qm merge --no-verify && git push -q origin main >/dev/null 2>&1 )
+check "termo escrito na resolução de um merge: push recusado" "$?" "1"
+( cd "$T" && git reset -q --hard HEAD~1 && git merge -q lado >/dev/null 2>&1; echo resolvido > src/app.js \
+  && git add src/app.js && git commit -qm merge >/dev/null && git push -q origin main >/dev/null 2>&1 )
+check "merge limpo passa" "$?" "0"
+printf '# só comentário\n\n' > "$T/.claude/public-terms.txt"
+( cd "$T" && echo z >> src/b.js && git commit -qam "lista sem termo" >/dev/null 2>&1 && git push -q origin main >/dev/null 2>&1 )
+check "lista de termos só com comentário não recusa nada" "$?" "0"
+
+echo
+echo "[trava não se instala onde já há arquivo ignorado rastreado]"
+G="$BASE/p7"; novo_projeto "$G" ".claude/
+*.log"; com_remoto "$G"
+# o arquivo já estava no remoto antes de a trava existir — o caso de quem adota o modelo
+( cd "$G" && echo amostra > a.log && git add -f a.log && git commit -qm "de proposito" && git push -q origin main 2>/dev/null )
+( cd "$G/src" && devgit-trava >/dev/null 2>&1 ); check "recusa instalar, mesmo chamada de subpasta" "$?" "1"
+check "não deixou hook nenhum" "$(ls "$G/.git/hooks" | grep -cE '^pre-(commit|push)$')" "0"
+( cd "$G" && git rm -q --cached a.log && git commit -qm limpa && cd src && devgit-trava >/dev/null )
+check "depois de resolvido, instala na raiz a partir da subpasta" "$( [ -x "$G/.git/hooks/pre-push" ] && echo sim)" "sim"
+( cd "$G" && git push -q origin main >/dev/null 2>&1 )
+check "o commit que só REMOVE o arquivo ignorado passa no push" "$?" "0"
+
 if command -v zsh >/dev/null 2>&1; then
   echo
   echo "[chamado a partir do zsh]"

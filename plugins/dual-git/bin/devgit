@@ -7,22 +7,37 @@
 #
 # Uso: igual ao git. Caminho de arquivo é relativo a `.claude/`, de qualquer pasta:
 #   devgit status -sb
-#   devgit add docs/x.md        (da raiz ou de src/)
-#   devgit add x.md             (de dentro de .claude/docs)
+#   devgit add notas/x.md       (da raiz ou de src/)
+#   devgit add x.md             (de dentro de .claude/notas)
 #
 # Sai com 2, sem tocar em nada, fora de um repositório, em projeto sem privado, e
 # dentro de um worktree (lá `.git` é arquivo, não pasta, e o privado não existe).
+
+# Dentro de um hook do público o git exporta GIT_INDEX_FILE, GIT_DIR e companhia.
+# Herdadas, o privado gravaria na área de preparação do PÚBLICO e o commit dele quebra.
+# shellcheck disable=SC2046
+unset $(git rev-parse --local-env-vars 2>/dev/null)
+
 r=$(git rev-parse --show-toplevel 2>/dev/null) || { echo "devgit: fora de um repositório" >&2; exit 2; }
 [ -d "$r/.git/dev.git" ] || { echo "devgit: este projeto não tem repositório privado (ou você está num worktree)" >&2; exit 2; }
 
-# Um dono só por arquivo: o que o público rastreia em .claude/ (linhas `!.claude/…`
-# do .gitignore dele) o privado não pega. Derivado a cada chamada, nunca mantido à mão.
+# Um dono só por arquivo: o que o público rastreia em .claude/ (linhas `!.claude/…` ou
+# `!/.claude/…` do .gitignore dele) o privado não pega. Derivado a cada chamada, nunca
+# mantido à mão; troca atômica, para um devgit ao lado nunca ler a lista pela metade.
+# `secrets/` e `worktrees/` ficam fora SEMPRE, mesmo sem .claude/.gitignore: segredo não
+# entra em texto claro, e worktree é uma cópia inteira do código do público.
+ex="$r/.git/dev.git/info/exclude"
 mkdir -p "$r/.git/dev.git/info"
-grep '^!\.claude/' "$r/.gitignore" 2>/dev/null | sed 's|^!\.claude||' > "$r/.git/dev.git/info/exclude"
+{ printf '/secrets/\n/worktrees/\n'
+  grep -E '^!/?\.claude/' "$r/.gitignore" 2>/dev/null | sed -E 's|^!/?\.claude||'; } > "$ex.$$" && mv -f "$ex.$$" "$ex"
 
 # Fora de .claude/, todo caminho passa a ser relativo a .claude/.
 case "$(git rev-parse --show-prefix)" in
   .claude/*) ;;
-  *) set -- -C "$r/.claude" "$@" ;;
+  *)
+    for a in "$@"; do
+      case "$a" in .claude/*) echo "devgit: caminho é relativo a .claude/ — escreva '${a#.claude/}', não '$a'" >&2 ;; esac
+    done
+    set -- -C "$r/.claude" "$@" ;;
 esac
 exec git --git-dir="$r/.git/dev.git" --work-tree="$r/.claude" "$@"

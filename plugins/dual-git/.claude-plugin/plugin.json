@@ -1,6 +1,6 @@
 {
   "name": "dual-git",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Dois repositórios na mesma pasta: o código no público, o material interno de `.claude/` num privado. `git` continua sendo sempre o público; o privado só responde a `devgit`, que roda de qualquer pasta do projeto sem deixar `.git` dentro de `.claude/` (o controle mora em `.git/dev.git`). `devgit-trava` instala no público dois hooks, pre-commit e pre-push, que recusam arquivo que o `.gitignore` manda ignorar e texto com termo de `.claude/public-terms.txt`.",
   "author": {
     "name": "pedroberaldo87",

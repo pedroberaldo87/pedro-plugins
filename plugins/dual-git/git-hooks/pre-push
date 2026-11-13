@@ -1,16 +1,45 @@
 #!/bin/sh
 # dual-git-trava — instalado por `devgit-trava`; reinstalar sobrescreve este arquivo.
-# Trava contra vazamento, na saída: pega commit feito com --no-verify e commit de merge.
+# Trava contra vazamento, na saída. Confere os COMMITS que estão sendo enviados — nome
+# de arquivo, conteúdo e mensagem — e não a branch que por acaso está em uso. Pega o que
+# a trava de entrada não vê: commit feito com --no-verify, resolução de merge, branch
+# que não é a atual, commit sem branch, e arquivo que entrou e saiu antes do push.
 ign=$(git ls-files -ci --exclude-standard)
 if [ -n "$ign" ]; then
   echo "⛔ trava: o repositório público rastreia arquivo que devia ignorar:" >&2; echo "$ign" >&2; exit 1
 fi
+
+lista=$(mktemp); novo=$(mktemp); trap 'rm -f "$lista" "$novo"' EXIT
+if [ $# -eq 0 ]; then
+  # rodado à mão, sem push: tudo que ainda não foi enviado a remoto nenhum
+  git rev-list HEAD --branches --tags --not --remotes > "$lista"
+else
+  # o git entrega, uma por linha: <ref local> <commit local> <ref remota> <commit remoto>
+  while read -r _lref lsha _rref rsha; do
+    case "$lsha" in *[!0]*) ;; *) continue ;; esac   # apagar uma ref não envia commit
+    case "$rsha" in
+      *[!0]*) git rev-list "$rsha..$lsha" 2>/dev/null || git rev-list "$lsha" --not --remotes="$1" ;;
+      *)      git rev-list "$lsha" --not --remotes="$1" ;;
+    esac
+  done > "$lista"
+fi
+[ -s "$lista" ] || exit 0
+
+# --cc faz a resolução de um merge aparecer; sem ele o git não mostra diff de merge.
+vazou=$(git log --no-walk --stdin --cc --name-only --format= --diff-filter=ACMRT < "$lista" \
+        | grep . | git check-ignore --no-index --stdin | sort -u)
+if [ -n "$vazou" ]; then
+  echo "⛔ trava: commit a enviar carrega arquivo que o .gitignore manda ignorar:" >&2
+  echo "$vazou" >&2; exit 1
+fi
+
 principal=$(cd "$(git rev-parse --git-common-dir)/.." && pwd)
 terms="$principal/.claude/public-terms.txt"
 if [ -s "$terms" ]; then
-  novo=$(mktemp); git log -p --branches --not --remotes | grep '^+' > "$novo"
-  if grep -vE '^[[:space:]]*(#|$)' "$terms" | grep -qiFf - "$novo"; then
-    rm -f "$novo"; echo "⛔ trava: termo da lista privada em commit ainda não enviado" >&2; exit 1
+  { git log --no-walk --stdin --cc -p --format= < "$lista" | grep '^+'
+    git log --no-walk --stdin --format=%B < "$lista"; } > "$novo"
+  if grep -vE '^[[:space:]]*(#|$)' "$terms" | tr -d '\r' | grep -qiFf - "$novo"; then
+    echo "⛔ trava: termo da lista privada em commit a enviar (conteúdo, nome de arquivo ou mensagem)" >&2; exit 1
   fi
-  rm -f "$novo"
 fi
+exit 0
