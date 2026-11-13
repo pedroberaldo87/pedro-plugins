@@ -285,12 +285,19 @@ rm -f "$HTMP/claude-graphify-guard" "$HTMP/claude-graphify-guard-$GG_UID"
 busca_hostil "gg-priv-$$"
 PRIV="$HTMP/claude-graphify-guard-$GG_UID"
 check "a pasta de estado nasce por usuário (uid no nome)" "$([ -d "$PRIV" ] && echo sim || echo nao)" "sim"
-check "a pasta de estado nasce 0700" \
-  "$(ls -ld "$PRIV" 2>/dev/null | cut -c1-10)" "drwx------"
-chmod 777 "$PRIV"
-busca_hostil "gg-priv2-$$"
-check "pasta própria frouxa (0777) é apertada para 0700" \
-  "$(ls -ld "$PRIV" 2>/dev/null | cut -c1-10)" "drwx------"
+# No Git Bash do Windows o `ls -ld` mostra o modo sintético do NTFS (drwxr-xr-x) e o chmod não
+# o muda: o modo só é medido onde existe modo de verdade.
+case "$(uname -s)" in
+  MINGW*|MSYS*|CYGWIN*) echo "  (Windows: modo 0700 não se mede aqui)" ;;
+  *)
+    check "a pasta de estado nasce 0700" \
+      "$(ls -ld "$PRIV" 2>/dev/null | cut -c1-10)" "drwx------"
+    chmod 777 "$PRIV"
+    busca_hostil "gg-priv2-$$"
+    check "pasta própria frouxa (0777) é apertada para 0700" \
+      "$(ls -ld "$PRIV" 2>/dev/null | cut -c1-10)" "drwx------"
+    ;;
+esac
 rm -rf "$HTMP"
 
 printf '── %d passou · %d falhou ──\n' "$PASS" "$FAIL"
