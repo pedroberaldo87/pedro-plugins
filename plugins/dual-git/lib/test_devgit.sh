@@ -59,7 +59,9 @@ check "status porcelana igual da raiz, de src/ e de .claude/notas" \
   "$(cd "$P" && devgit status --porcelain)|$(cd "$P/src" && devgit status --porcelain)|$(cd "$P/.claude/notas" && devgit status --porcelain)" "||"
 check "status -sb igual da raiz e de .claude/notas" \
   "$(cd "$P" && devgit status -sb)" "$(cd "$P/.claude/notas" && devgit status -sb)"
-check "de dentro de .claude/notas, git acha a raiz do público" "$(cd "$P/.claude/notas" && git rev-parse --show-toplevel)" "$P"
+# comparado com o que o próprio git diz da raiz: no Windows ele responde C:/…, não /tmp/…
+check "de dentro de .claude/notas, git acha a raiz do público" \
+  "$(cd "$P/.claude/notas" && git rev-parse --show-toplevel)" "$(cd "$P" && git rev-parse --show-toplevel)"
 check "o público não rastreia nada de .claude/" "$(cd "$P" && git ls-files .claude | wc -l | tr -d ' ')" "0"
 check "o público segue limpo" "$(cd "$P" && git status --porcelain)" ""
 
