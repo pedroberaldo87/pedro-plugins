@@ -97,6 +97,7 @@ import andamento  # noqa: E402
 from auditoria_plano import ATO_DO_DONO  # noqa: E402
 from decisoes_seladas import caminho as decisoes_caminho  # noqa: E402
 from decisoes_seladas import consultar  # noqa: E402
+from escrita_segura import anexa_texto_seguro, grava_texto_seguro  # noqa: E402
 from plan_state import pick_plan  # noqa: E402
 from regua_pronto import criterio_cortado, erros_de_pronto  # noqa: E402
 
@@ -990,10 +991,8 @@ def anotar_neblina(raiz, suspeita, motivo, passo="?", data=None):
     arq = casa_da_neblina(raiz)
     os.makedirs(os.path.dirname(arq), exist_ok=True)
     novo = not os.path.isfile(arq)
-    with open(arq, "a", encoding="utf-8") as f:
-        if novo:
-            f.write(CABECALHO_NEBLINA + "\n")
-        f.write(linha + "\n")
+    # symlink versionado no nome do arquivo não pode redirecionar a gravação (cf35688f)
+    anexa_texto_seguro(arq, (CABECALHO_NEBLINA + "\n" if novo else "") + linha + "\n", raiz=raiz)
     return linha
 
 
@@ -1018,8 +1017,7 @@ def declarar_fora_de_escopo(raiz, suspeita, motivo):
             linhas[i] = ln.rstrip("\n") + _FORA + str(motivo).strip() + "\n"
             achou = True
     if achou:
-        with open(arq, "w", encoding="utf-8") as f:
-            f.writelines(linhas)
+        grava_texto_seguro(arq, "".join(linhas), raiz=raiz)
     return achou
 
 
@@ -1189,6 +1187,12 @@ def marca(plano, raiz):
     return {"plano": hashlib.sha256((corpo + "\n" + selado).encode("utf-8")).hexdigest()[:16]}
 
 
+def _grava_relatorio(alvo, rel, raiz):
+    """Grava o relatório SEM seguir symlink, nem de arquivo nem de pasta (cf35688f)."""
+    os.makedirs(os.path.dirname(alvo), exist_ok=True)
+    grava_texto_seguro(alvo, json.dumps(rel, ensure_ascii=False, indent=1), raiz=raiz)
+
+
 def grava_relatorio(raiz, plano, passadas):
     """As 4 passadas viram artefato: veredito, decisões TOMADAS e o que ficou aberto.
 
@@ -1223,9 +1227,7 @@ def grava_relatorio(raiz, plano, passadas):
            "propostas": propostas, "adiadas": adiadas,
            "veredito": "livre" if not abertas else "em-aberto"}
     alvo = casa_do_relatorio(raiz)
-    os.makedirs(os.path.dirname(alvo), exist_ok=True)
-    with open(alvo, "w", encoding="utf-8") as f:
-        json.dump(rel, f, ensure_ascii=False, indent=1)
+    _grava_relatorio(alvo, rel, raiz)
     return rel
 
 
@@ -1255,8 +1257,7 @@ def aplica_rodada_seguinte(raiz, plano, r, respostas):
     rel["marca"] = marca(plano, raiz)
     rel["gravado_em"] = time.time()
     rel["veredito"] = "livre" if not rel["abertas"] else "em-aberto"
-    with open(casa_do_relatorio(raiz), "w", encoding="utf-8") as f:
-        json.dump(rel, f, ensure_ascii=False, indent=1)
+    _grava_relatorio(casa_do_relatorio(raiz), rel, raiz)
     return rel
 
 

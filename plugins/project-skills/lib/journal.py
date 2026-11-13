@@ -53,6 +53,7 @@ for _canal in (sys.stdin, sys.stdout, sys.stderr):
             pass
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from escrita_segura import anexa_texto_seguro, grava_texto_seguro  # noqa: E402
 try:
     from collect_engine import (  # noqa: E402
         anchor_of, collect, cwd_to_projects_subdir, discover_all_transcripts,
@@ -139,9 +140,11 @@ def load_ledger(project_root):
 
 
 def save_ledger(project_root, ledger):
+    # versionado e em caminho previsível: um symlink no nome não pode redirecionar a
+    # gravação para fora do projeto (cf35688f)
     os.makedirs(state_dir(project_root), exist_ok=True)
-    with open(ledger_path(project_root), "w", encoding="utf-8") as fh:
-        json.dump(ledger, fh, ensure_ascii=False, indent=2)
+    grava_texto_seguro(ledger_path(project_root),
+                       json.dumps(ledger, ensure_ascii=False, indent=2), raiz=project_root)
 
 
 def read_events(project_root):
@@ -168,9 +171,9 @@ def append_events(project_root, events):
     if not events:
         return 0
     os.makedirs(state_dir(project_root), exist_ok=True)
-    with open(journal_path(project_root), "a", encoding="utf-8") as fh:
-        for e in events:
-            fh.write(json.dumps(e, ensure_ascii=False) + "\n")
+    anexa_texto_seguro(journal_path(project_root),
+                       "".join(json.dumps(e, ensure_ascii=False) + "\n" for e in events),
+                       raiz=project_root)
     return len(events)
 
 
@@ -286,7 +289,14 @@ PROVIDER_RE = re.compile(
     r"|xox[baprs]-[A-Za-z0-9-]{10,}|glpat-[A-Za-z0-9_-]{16,}|AIza[A-Za-z0-9_-]{20,}|ya29\.[A-Za-z0-9_-]{20,}"
     # GOCSPX- = Google OAuth client secret. Escapou em produção (medido em 2026-08-27:
     # dois findings de memória carregaram o valor real pro journal versionado).
-    r"|GOCSPX-[A-Za-z0-9_-]{16,})")
+    r"|GOCSPX-[A-Za-z0-9_-]{16,}"
+    # npm: token de acesso `npm_` + 36 alfanuméricos (aceita >= 30, como o `hf_` acima).
+    r"|(?<![A-Za-z0-9_])npm_[A-Za-z0-9]{30,}"
+    # Webhook: o segredo mora no CAMINHO da URL, e as camadas 3/4 pulam token com `://` — só
+    # esta camada o pega. A URL inteira vai para o cofre. Âncoras literais e classes sem
+    # sobreposição entre `/`: linear, sem retrocesso aninhado.
+    r"|https?://hooks\.slack\.com/(?:services|workflows|triggers)/[A-Za-z0-9]+(?:/[A-Za-z0-9_-]+){1,3}"
+    r"|https?://(?:canary\.|ptb\.)?discord(?:app)?\.com/api/(?:v[0-9]{1,2}/)?webhooks/[0-9]{5,25}/[A-Za-z0-9_-]{20,})")
 # Camada 3 (prosa): palavra que sinaliza segredo logo antes do valor.
 SIGNAL_RE = re.compile(
     r"\b(senhas?|passwords?|passwd|secrets?|tokens?|api[\s_-]?keys?|"
