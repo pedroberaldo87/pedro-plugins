@@ -23,7 +23,7 @@ token em `.claude/.project-doc/lint-allow.txt`. Contagem (check 4) usa o token
 
 CLI:
   python3 doc_lint.py --project-root <root> [--docs a.md b.md] [--json]
-Exit 1 se houver FAIL.
+Exit 1 se houver FAIL; exit 2 ("NÃO LIDO") se algum `--docs` não abriu ou não há doc para ler.
 
 Roda só sobre o BODY (frontmatter fora — o hash8 da doc-sig confundiria o
 check 2). Stdlib-puro.
@@ -279,13 +279,13 @@ def _commit_batch_check(root, tokens):
 
 def lint_doc(root, doc_rel, env_read, defined, allow, all_files=None,
              journal_ids=None, head_files=None):
-    """Findings de UM doc: [{check, severity, line, token, msg}]."""
+    """Findings de UM doc: [{check, severity, line, token, msg}]; `None` se o doc não abriu."""
     p = os.path.join(root, doc_rel)
     try:
         with open(p, encoding="utf-8", errors="replace") as fh:
             content = fh.read()
     except OSError:
-        return []
+        return None          # NÃO LIDO: quem chama conta como tal, nunca como "0 FAIL"
     _fm, body = _extract_frontmatter_and_body(content)
     fm_lines = content[:len(content) - len(body)].count("\n")
     lines = body.splitlines()
@@ -498,16 +498,20 @@ def lint(root, docs=None):
     doc_list = docs if docs else [d for d in _enumerate_scoped_docs(root)
                                   if not d.endswith(".historico.md")]
     results = []
+    unread = []
     fails = warns = 0
     for doc_rel in doc_list:
         fnd = lint_doc(root, doc_rel, env_read, defined, allow, all_files,
                        journal_ids, head_files)
+        if fnd is None:
+            unread.append(doc_rel)
+            continue
         if fnd:
             results.append({"path": doc_rel, "findings": fnd})
             fails += sum(1 for f in fnd if f["severity"] == "FAIL")
             warns += sum(1 for f in fnd if f["severity"] == "WARN")
     return {"docs": results, "fails": fails, "warns": warns,
-            "docs_checked": len(doc_list)}
+            "docs_checked": len(doc_list) - len(unread), "unread": unread}
 
 
 def main():
@@ -528,6 +532,15 @@ def main():
             print("  %s" % d["path"])
             for f in d["findings"]:
                 print("    [%s] %s L%d — %s" % (f["severity"], f["check"], f["line"], f["msg"]))
+    # Verde só vale para o que foi LIDO (3ba4b516): caminho que não abriu, ou escopo sem doc
+    # nenhum, é medição que não aconteceu — exit 2, com a frase dita em voz alta (stderr).
+    if out["unread"]:
+        print("NÃO LIDO: %s — o doc não abriu; a medição não aconteceu." % ", ".join(out["unread"]),
+              file=sys.stderr)
+    if not out["docs_checked"] and not out["unread"]:
+        print("NÃO LIDO: nenhum doc no escopo — a medição não aconteceu.", file=sys.stderr)
+    if out["unread"] or not out["docs_checked"]:
+        return 2
     return 1 if out["fails"] else 0
 
 
