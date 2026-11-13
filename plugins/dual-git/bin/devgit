@@ -1,0 +1,28 @@
+#!/usr/bin/env bash
+# devgit — o git do repositório PRIVADO de um projeto dual git.
+#
+# O público é o `git` de sempre. O privado guarda `.claude/` e tem o controle em
+# `.git/dev.git` — nunca um `.git` dentro de `.claude/`, porque ferramenta que acha a
+# raiz do projeto procurando o `.git` mais próximo deixaria de achar.
+#
+# Uso: igual ao git. Caminho de arquivo é relativo a `.claude/`, de qualquer pasta:
+#   devgit status -sb
+#   devgit add docs/x.md        (da raiz ou de src/)
+#   devgit add x.md             (de dentro de .claude/docs)
+#
+# Sai com 2, sem tocar em nada, fora de um repositório, em projeto sem privado, e
+# dentro de um worktree (lá `.git` é arquivo, não pasta, e o privado não existe).
+r=$(git rev-parse --show-toplevel 2>/dev/null) || { echo "devgit: fora de um repositório" >&2; exit 2; }
+[ -d "$r/.git/dev.git" ] || { echo "devgit: este projeto não tem repositório privado (ou você está num worktree)" >&2; exit 2; }
+
+# Um dono só por arquivo: o que o público rastreia em .claude/ (linhas `!.claude/…`
+# do .gitignore dele) o privado não pega. Derivado a cada chamada, nunca mantido à mão.
+mkdir -p "$r/.git/dev.git/info"
+grep '^!\.claude/' "$r/.gitignore" 2>/dev/null | sed 's|^!\.claude||' > "$r/.git/dev.git/info/exclude"
+
+# Fora de .claude/, todo caminho passa a ser relativo a .claude/.
+case "$(git rev-parse --show-prefix)" in
+  .claude/*) ;;
+  *) set -- -C "$r/.claude" "$@" ;;
+esac
+exec git --git-dir="$r/.git/dev.git" --work-tree="$r/.claude" "$@"

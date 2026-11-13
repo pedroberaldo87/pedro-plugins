@@ -11,9 +11,9 @@ Marketplace público de plugins para [Claude Code](https://code.claude.com/docs/
 
 Monorepo: cada subdiretório de `plugins/` é um plugin independente, distribuído pelo catálogo `.claude-plugin/marketplace.json`.
 
-**24 plugins · Markdown + Shell + Python · sem build, sem package manager.**
+**25 plugins · Markdown + Shell + Python · sem build, sem package manager.**
 
-Os 24 plugins somam **37 skills** — 19 trazem uma só, `visual` traz duas, `2op` traz três, `project-skills` traz treze, e `graphify-guard` e `vision` não trazem nenhuma.
+Os 25 plugins somam **37 skills** — 19 trazem uma só, `visual` traz duas, `2op` traz três, `project-skills` traz treze, e `graphify-guard`, `vision` e `dual-git` não trazem nenhuma.
 
 Este é um repositório de ferramentas, sem interface gráfica, então não há screenshot. A instalação é um comando no terminal:
 
@@ -57,11 +57,11 @@ $ claude plugin install handoff@pedro-plugins
 
 ## Funcionalidades
 
-- **Instalação à la carte:** 24 plugins independentes; instale só os que quiser.
+- **Instalação à la carte:** 25 plugins independentes; instale só os que quiser.
 - **Ciclo de projeto (`project-skills`):** concepção, plano, execução autônoma, revisão por severidade e documentação.
 - **Continuidade de sessão:** `handoff`, `context-guard` e `intent-guard` preservam o que importa entre sessões.
 - **Revisão e segunda opinião:** `grill-me`, `2op`, `gauntlet`, `improve-workflow`, `vistoria`.
-- **Higiene de desenvolvimento:** `ship`, `branches`, `lixeiro`, `fallow`, `guardrails` e `sec` (cadeia de suprimentos).
+- **Higiene de desenvolvimento:** `ship`, `branches`, `lixeiro`, `fallow`, `guardrails`, `sec` (cadeia de suprimentos) e `dual-git` (repositório privado para a documentação interna).
 - **Saída visual:** `visual`, `archify` e `slides` geram HTML interativo, diagramas e apresentações.
 - **Máquina nova em um comando:** `bootstrap` instala marketplaces e plugins e aplica a configuração global versionada.
 - **Sem build:** Markdown, Bash e Python da biblioteca padrão (o daemon do `visual` usa Node).
@@ -105,7 +105,7 @@ claude plugin install bootstrap@pedro-plugins
 /bootstrap:setup
 ```
 
-Resultado esperado numa máquina zerada: **23 plugins ligados + 1 desligado de fábrica**
+Resultado esperado numa máquina zerada: **24 plugins ligados + 1 desligado de fábrica**
 (`graphify-guard`), mais os marketplaces de terceiros do manifest.
 
 > ⚠️ **Se aparecer `sync incompleto: N operações falharam`, rode `/bootstrap:setup` de novo.**
@@ -190,9 +190,9 @@ Um vem **desligado de fábrica** na receita do `bootstrap` e você liga se quise
 `graphify-guard` (precisa de um binário externo, veja acima).
 Ligar: `claude plugin enable <nome>@pedro-plugins`.
 
-Dezenove plugins trazem **uma** skill cada (no `lixeiro` ela se chama `/faxina`). Dois não trazem
-nenhuma — `graphify-guard` só tem hooks e `vision` só tem a ferramenta
-`see_image`. `visual` traz duas e `2op` traz três. E `project-skills` traz treze, por isso ganha
+Dezenove plugins trazem **uma** skill cada (no `lixeiro` ela se chama `/faxina`). Três não trazem
+nenhuma — `graphify-guard` só tem hooks, `vision` só tem a ferramenta
+`see_image` e `dual-git` só tem os comandos `devgit` e `devgit-trava`. `visual` traz duas e `2op` traz três. E `project-skills` traz treze, por isso ganha
 seção própria logo abaixo.
 
 ### project-skills — o ciclo inteiro de um projeto
@@ -272,6 +272,7 @@ não mudaram.
 | `fallow` | `/fallow` | Roda o Fallow (analisador estático JS/TS — código morto, duplicação, complexidade), classifica achados por tipo e confiança, audita o relatório pra pegar falsos-positivos (cron, rotas HTTP, imports dinâmicos) e entrega um relatório interativo onde você escolhe o que limpar. Limpeza com rede de segurança (preview + build/test). |
 | `branches` ⚙️ | `/branches` · SessionStart | Relatório de branches paradas com prova: quantas, quais já estão contidas na base, e o que dá pra apagar. Antes de apagar, cria uma tag `archive/<branch>-<data>` como rede de resgate. Aviso silencioso no SessionStart quando não há branch parada. |
 | `lixeiro` ⚙️ | `/faxina` · automático (SessionEnd + Stop) | Encerra os processos que a sessão abriu e esqueceu de pé — servidor de desenvolvimento, suíte em modo de observação, túnel. A parte automática colhe **só o que a sessão anotou ter aberto**; o comando `/faxina` é o irmão manual, que mostra **tudo** que está de pé, com ou sem procedência, e encerra apenas o que você marcar. |
+| `dual-git` | comandos `devgit` · `devgit-trava` | Dois repositórios na mesma pasta: o código no público, o material interno de `.claude/` num privado. `git` continua sendo o público; `devgit` roda o privado de qualquer pasta do projeto, com o controle em `.git/dev.git`, para nunca nascer `.git` dentro de `.claude/`. `devgit-trava` instala `pre-commit` e `pre-push` no público, que recusam arquivo que o `.gitignore` manda ignorar e texto com termo de `.claude/public-terms.txt`. |
 
 ### Apresentação visual
 
@@ -330,7 +331,7 @@ plugins/<nome>/
 └── lib/                     # (opcional) código auxiliar do plugin (Python stdlib)
 ```
 
-Alguns plugins têm mais pastas: `bootstrap` traz `config/` e `output-styles/`, `visual` traz `server/`, e `vision` é um servidor MCP (`.mcp.json` + `vision_mcp.py`).
+Alguns plugins têm mais pastas: `bootstrap` traz `config/` e `output-styles/`, `visual` traz `server/`, `dual-git` traz `bin/` e `git-hooks/`, e `vision` é um servidor MCP (`.mcp.json` + `vision_mcp.py`).
 
 O catálogo vive em `.claude-plugin/marketplace.json` na raiz — cada plugin tem uma entrada com `name`, `source`, `description`, `category`, `version` e `tags`.
 

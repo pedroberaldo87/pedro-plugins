@@ -1,0 +1,16 @@
+#!/bin/sh
+# dual-git-trava — instalado por `devgit-trava`; reinstalar sobrescreve este arquivo.
+# Trava contra vazamento, na saída: pega commit feito com --no-verify e commit de merge.
+ign=$(git ls-files -ci --exclude-standard)
+if [ -n "$ign" ]; then
+  echo "⛔ trava: o repositório público rastreia arquivo que devia ignorar:" >&2; echo "$ign" >&2; exit 1
+fi
+principal=$(cd "$(git rev-parse --git-common-dir)/.." && pwd)
+terms="$principal/.claude/public-terms.txt"
+if [ -s "$terms" ]; then
+  novo=$(mktemp); git log -p --branches --not --remotes | grep '^+' > "$novo"
+  if grep -vE '^[[:space:]]*(#|$)' "$terms" | grep -qiFf - "$novo"; then
+    rm -f "$novo"; echo "⛔ trava: termo da lista privada em commit ainda não enviado" >&2; exit 1
+  fi
+  rm -f "$novo"
+fi

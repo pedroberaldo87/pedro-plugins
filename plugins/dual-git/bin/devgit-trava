@@ -1,0 +1,22 @@
+#!/usr/bin/env bash
+# devgit-trava — instala a trava contra vazamento no repositório PÚBLICO onde você está.
+#
+# Copia `pre-commit` e `pre-push` para a pasta de hooks do git (respeita
+# `core.hooksPath`). Cópia, não atalho: o hook roda no terminal de qualquer pessoa,
+# fora do Claude Code, onde a pasta do plugin não está no PATH e muda a cada versão.
+# Rodar de novo atualiza a cópia. Hook que já existe e não é desta trava é de outra
+# ferramenta: recusa e sai com 1, sem sobrescrever.
+set -u
+fonte="$(cd "$(dirname "${BASH_SOURCE[0]}")/../git-hooks" && pwd)" || exit 2
+git rev-parse --git-dir >/dev/null 2>&1 || { echo "devgit-trava: fora de um repositório" >&2; exit 2; }
+destino=$(git rev-parse --git-path hooks)
+mkdir -p "$destino"
+for h in pre-commit pre-push; do
+  if [ -e "$destino/$h" ] && ! grep -q 'dual-git-trava' "$destino/$h"; then
+    echo "devgit-trava: $destino/$h já existe e não é desta trava; não sobrescrevi" >&2; exit 1
+  fi
+done
+for h in pre-commit pre-push; do
+  cp "$fonte/$h" "$destino/$h" && chmod +x "$destino/$h" || exit 1
+done
+echo "trava instalada em $destino (pre-commit, pre-push)"

@@ -97,6 +97,18 @@
       ]
     },
     {
+      "name": "dual-git",
+      "source": "./plugins/dual-git",
+      "description": "Dois repositórios na mesma pasta: o código no público, o material interno de `.claude/` num privado. `git` continua sendo sempre o público; o privado só responde a `devgit`, que roda de qualquer pasta do projeto sem deixar `.git` dentro de `.claude/` (o controle mora em `.git/dev.git`). `devgit-trava` instala no público dois hooks, pre-commit e pre-push, que recusam arquivo que o `.gitignore` manda ignorar e texto com termo de `.claude/public-terms.txt`.",
+      "category": "dev-tools",
+      "version": "0.1.0",
+      "tags": [
+        "git",
+        "private-docs",
+        "leak-guard"
+      ]
+    },
+    {
       "name": "fallow",
       "source": "./plugins/fallow",
       "description": "Runs Fallow (static JS/TS analyzer — dead code, duplication, complexity), classifies findings by type and confidence, and delivers an interactive report where you pick what to clean. Audits the Fallow report (convergence goal + liveness propagation) to catch false-positives the static analysis misses — cron/systemd, HTTP routes, dynamic imports — framed as tool limitations, not code bugs. Cleanup with a safety net (preview + build/test).",
