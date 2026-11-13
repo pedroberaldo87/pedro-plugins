@@ -22,7 +22,7 @@ class EscritaRecusada(OSError):
     """O destino é um symlink, ou a pasta dele sai da raiz do projeto."""
 
 
-_O_NOFOLLOW = getattr(os, "O_NOFOLLOW", 0)
+_O_NOFOLLOW = os.O_NOFOLLOW if hasattr(os, "O_NOFOLLOW") else 0   # Windows não tem
 
 
 def _dentro(raiz, pasta):

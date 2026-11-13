@@ -974,6 +974,14 @@
   },
   {
    "plugin": "project-skills",
+   "script": "lib/escrita_segura.py",
+   "citado": false,
+   "classe": "puro",
+   "escreve": true,
+   "motivos": []
+  },
+  {
+   "plugin": "project-skills",
    "script": "lib/graph_map.py",
    "citado": true,
    "classe": "puro",

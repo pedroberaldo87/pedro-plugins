@@ -43,29 +43,29 @@ def doc(raiz, rel, corpo):
 
 
 with tempfile.TemporaryDirectory(prefix="dlnl-") as td:
-    doc(td, "docs/bom.md", "# Limpo\n\nsem ponteiro nem variável.\n")
+    doc(td, "notas/bom.md", "# Limpo\n\nsem ponteiro nem variável.\n")
 
-    rc, out, err = roda(td, "--docs", "docs/bom.md")
+    rc, out, err = roda(td, "--docs", "notas/bom.md")
     checa("doc lido e limpo: exit 0", rc == 0, "— rc=%s %s" % (rc, out))
 
-    rc, out, err = roda(td, "--docs", "docs/nao-existe.md")
+    rc, out, err = roda(td, "--docs", "notas/nao-existe.md")
     checa("--docs que não abre: exit 2 (não 0)", rc == 2, "— rc=%s %s" % (rc, out))
     checa("--docs que não abre: diz NÃO LIDO e o caminho",
-          "NÃO LIDO" in out + err and "docs/nao-existe.md" in out + err, "— %r %r" % (out, err))
+          "NÃO LIDO" in out + err and "notas/nao-existe.md" in out + err, "— %r %r" % (out, err))
 
-    rc, out, err = roda(td, "--docs", "docs/bom.md", "docs/nao-existe.md")
+    rc, out, err = roda(td, "--docs", "notas/bom.md", "notas/nao-existe.md")
     checa("um lido e um que não abre: exit 2", rc == 2, "— rc=%s" % rc)
 
-    rc, out, err = roda(td, "--docs", "docs/nao-existe.md", "--json")
+    rc, out, err = roda(td, "--docs", "notas/nao-existe.md", "--json")
     try:
         dado = json.loads(out)
     except ValueError:
         dado = {}
     checa("--json: exit 2 e o caminho em `unread`",
-          rc == 2 and dado.get("unread") == ["docs/nao-existe.md"], "— rc=%s %r" % (rc, out))
+          rc == 2 and dado.get("unread") == ["notas/nao-existe.md"], "— rc=%s %r" % (rc, out))
 
     os.makedirs(os.path.join(td, "docs", "pasta.md"))
-    rc, out, err = roda(td, "--docs", "docs/pasta.md")
+    rc, out, err = roda(td, "--docs", "notas/pasta.md")
     checa("--docs que é pasta: exit 2", rc == 2, "— rc=%s" % rc)
 
 with tempfile.TemporaryDirectory(prefix="dlnl-vazio-") as td:
