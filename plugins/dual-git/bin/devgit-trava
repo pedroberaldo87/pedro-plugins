@@ -1,0 +1,33 @@
+#!/usr/bin/env bash
+# devgit-trava — instala a trava contra vazamento no repositório PÚBLICO onde você está.
+#
+# Copia `pre-commit` e `pre-push` para a pasta de hooks do git (respeita
+# `core.hooksPath`). Cópia, não atalho: o hook roda no terminal de qualquer pessoa,
+# fora do Claude Code, onde a pasta do plugin não está no PATH e muda a cada versão.
+# Rodar de novo atualiza a cópia. Recusa e sai com 1, sem instalar nada, em dois casos:
+# hook que já existe e não é desta trava (é de outra ferramenta), e repositório que já
+# rastreia arquivo que o .gitignore manda ignorar (a trava recusaria todo push).
+set -u
+fonte="$(cd "$(dirname "${BASH_SOURCE[0]}")/../git-hooks" && pwd)" || exit 2
+raiz=$(git rev-parse --show-toplevel 2>/dev/null) || { echo "devgit-trava: fora de um repositório" >&2; exit 2; }
+cd "$raiz" || exit 2
+
+ja=$(git ls-files -ci --exclude-standard)
+if [ -n "$ja" ]; then
+  echo "devgit-trava: este repositório já rastreia arquivo que o .gitignore manda ignorar." >&2
+  echo "Com a trava, todo push seria recusado. Resolva antes — \`git rm --cached <arquivo>\`" >&2
+  echo "(não apaga do disco) ou ajuste o .gitignore — e rode de novo:" >&2
+  echo "$ja" >&2; exit 1
+fi
+
+destino=$(git rev-parse --git-path hooks)
+mkdir -p "$destino"
+for h in pre-commit pre-push; do
+  if [ -e "$destino/$h" ] && ! grep -q 'dual-git-trava' "$destino/$h"; then
+    echo "devgit-trava: $destino/$h já existe e não é desta trava; não sobrescrevi" >&2; exit 1
+  fi
+done
+for h in pre-commit pre-push; do
+  cp "$fonte/$h" "$destino/$h" && chmod +x "$destino/$h" || exit 1
+done
+echo "trava instalada em $destino (pre-commit, pre-push)"

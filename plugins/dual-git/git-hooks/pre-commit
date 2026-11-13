@@ -1,0 +1,17 @@
+#!/bin/sh
+# dual-git-trava — instalado por `devgit-trava`; reinstalar sobrescreve este arquivo.
+# Trava contra vazamento, na entrada: o repositório público recusa material interno.
+vazou=$(git diff --cached --name-only --diff-filter=ACMRT | git check-ignore --no-index --stdin)
+if [ -n "$vazou" ]; then
+  echo "⛔ trava: arquivo que o .gitignore manda ignorar, num commit do repositório público:" >&2
+  echo "$vazou" >&2; exit 1
+fi
+principal=$(cd "$(git rev-parse --git-common-dir)/.." && pwd)
+terms="$principal/.claude/public-terms.txt"
+if [ -s "$terms" ]; then
+  added=$(mktemp); git diff --cached -U0 | grep '^+' > "$added"
+  if grep -vE '^[[:space:]]*(#|$)' "$terms" | tr -d '\r' | grep -qiFf - "$added"; then
+    rm -f "$added"; echo "⛔ trava: termo da lista privada num commit do repositório público" >&2; exit 1
+  fi
+  rm -f "$added"
+fi

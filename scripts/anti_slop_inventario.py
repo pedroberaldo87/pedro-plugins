@@ -55,7 +55,8 @@ RAIZ = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 # D subiu de 24 para 25 por decisão do dono em 2026-10-24: plugin novo `sec`. A classe D
 # conta um `plugin.json` por plugin (cada um guarda a própria versão), então todo plugin
 # novo soma um ponto — não é cópia solta. A decisão está escrita em SITUACAO["D"].
-TETO = {"A": 0, "B": 42, "C": 138, "D": 25}
+# D subiu de 25 para 26 por decisão do dono em 2026-11-13: plugin novo `dual-git`.
+TETO = {"A": 0, "B": 42, "C": 138, "D": 26}
 
 # A SITUAÇÃO DE CADA CLASSE (F15.7): ou a fonte única existe em código, ou a dívida está
 # declarada com dono nomeado. Não há terceira opção — classe sem uma das duas é o próprio
@@ -72,7 +73,7 @@ SITUACAO = {
     "D": ("fonte única IMPLEMENTADA e cobrada — `scripts/bump.py` espelha a versão, "
           "`scripts/sync-shared.sh --check` acusa cópia defasada, e o release-gate morde; "
           "teto 24 → 25 por decisão do dono em 2026-10-24 (plugin novo `sec`: um plugin.json "
-          "por plugin, todo plugin novo soma um)"),
+          "por plugin, todo plugin novo soma um); 25 → 26 em 2026-11-13 (plugin novo `dual-git`)"),
 }
 # README.pt-BR.md é o ESPELHO traduzido do README.md (mesma lista, mesmos números): contá-lo
 # dobraria a dívida sem criar uma fonte nova. Quem o mantém igual é o `readme_counts_check.py`,

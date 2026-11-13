@@ -186,6 +186,7 @@ SPECS=(
   "plugins/guardrails/hooks::lib-lar-fingido.sh"
   "plugins/project-skills/hooks::lib-lar-fingido.sh"
   "plugins/intent-guard/hooks::lib-lar-fingido.sh"
+  "plugins/dual-git/lib::lib-lar-fingido.sh"
   "plugins/visual/skills/visual::lib-lar-fingido.sh"
   # O resolvedor da CASA DA DOC (contrato em _shared/casa-da-doc.md): quem precisa
   # do caminho da doc pergunta a ele — `docs/` na raiz primeiro, `.claude/docs/`  # casa-ok: o comentário descreve o próprio resolvedor

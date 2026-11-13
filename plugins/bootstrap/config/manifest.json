@@ -150,6 +150,10 @@
           "enabled": true
         },
         {
+          "name": "dual-git",
+          "enabled": true
+        },
+        {
           "name": "fallow",
           "enabled": true
         },
