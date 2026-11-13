@@ -12,6 +12,7 @@ Estado vivo = fold dos eventos. Stdlib only. Consumido pelos hooks shell via CLI
 """
 import argparse
 import contextlib
+import hashlib
 
 try:
     import fcntl                       # POSIX
@@ -20,6 +21,7 @@ except ImportError:                    # Windows não tem fcntl (ver `locked`)
 import json
 import os
 import re
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -70,47 +72,75 @@ def project_root(cwd):
     return None
 
 
+def _config_dir():
+    return os.environ.get("CLAUDE_CONFIG_DIR") or os.path.expanduser("~/.claude")
+
+
+def _estado_do_projeto(root):
+    """Pasta de estado do projeto, POR USUÁRIO e fora da árvore dele (db6d37c1).
+
+    Chave = realpath da raiz: o mesmo repositório visto por um symlink cai na mesma pasta, e
+    dois projetos de mesmo nome em lugares diferentes não colidem (o hash).
+    """
+    real = os.path.normcase(os.path.realpath(root))
+    nome = re.sub(r"[^a-zA-Z0-9._-]+", "-", os.path.basename(real)).strip("-.") or "projeto"
+    chave = hashlib.sha256(real.encode("utf-8")).hexdigest()[:12]
+    return os.path.join(_config_dir(), "intent-guard", "state", "%s-%s" % (nome[:40], chave))
+
+
+def _mkdir_privado(d):
+    """Cria a pasta de estado 0700 (o umask do processo não alarga)."""
+    nova = not os.path.isdir(d)
+    os.makedirs(d, mode=0o700, exist_ok=True)
+    if nova:
+        try:
+            os.chmod(d, 0o700)
+        except OSError:
+            pass
+
+
+# O que as versões anteriores gravavam DENTRO do repositório e que ainda vale levar junto.
+# `audit-*.json` fica de fora: é carimbado com o tree-hash do momento e se refaz.
+_LEGADO = ("ledger.jsonl", "off")
+
+
+def _migra_legado(root, d):
+    """Leva, UMA vez, o estado que a versão anterior deixou em `<raiz>/.claude/intent/`.
+
+    O lugar antigo é do repositório, e um clone pode trazer ali o que quiser: só migra o que o
+    git NÃO rastreia (o plugin gravava e escondia por `.git/info/exclude`; o que um commit
+    traz é rastreado). Sem git para conferir, não migra. A pasta antiga fica como está.
+    """
+    if os.path.isdir(d):
+        return
+    velho = os.path.join(root, ".claude", "intent")
+    nomes = [n for n in _LEGADO if os.path.isfile(os.path.join(velho, n))
+             and not os.path.islink(os.path.join(velho, n))]
+    if not nomes:
+        return
+    try:
+        r = subprocess.run(["git", "-C", root, "ls-files", "--"] + [".claude/intent/" + n for n in nomes],
+                           capture_output=True, text=True, encoding="utf-8", errors="replace",
+                           timeout=GIT_TIMEOUT_S, stdin=subprocess.DEVNULL, start_new_session=True)
+        if r.returncode != 0:
+            return
+        rastreados = {ln.strip() for ln in r.stdout.splitlines()}
+        _mkdir_privado(d)
+        for n in nomes:
+            if ".claude/intent/" + n not in rastreados:
+                shutil.copyfile(os.path.join(velho, n), os.path.join(d, n))
+    except Exception:
+        pass                       # migrar é cortesia; falhar nunca derruba o gate
+
+
 def intent_dir(cwd):
     root = project_root(cwd)
     if root:
-        # If git returned the real path different from cwd, reconcile by checking
-        # if cwd itself is a git root
-        if os.path.realpath(cwd) == os.path.realpath(root):
-            # cwd is the git root, return with cwd form (preserves original path)
-            return os.path.join(cwd, ".claude", "intent")
-        return os.path.join(root, ".claude", "intent")
+        d = _estado_do_projeto(root)
+        _migra_legado(root, d)
+        return d
     slug = re.sub(r"[^a-zA-Z0-9]+", "-", os.path.abspath(cwd)).strip("-")
     return os.path.join(os.path.expanduser("~/.claude/intent"), slug)
-
-
-def ensure_exclude(cwd):
-    """Ignore LOCAL (.git/info/exclude) — nunca toca arquivo versionado do repo.
-    Usa `git rev-parse --git-path` em vez de isdir(.git/): num worktree, .git é
-    um FILE apontando pro gitdir real, não um diretório."""
-    root = project_root(cwd)
-    if not root:
-        return
-    try:
-        r = subprocess.run(["git", "-C", root, "rev-parse", "--git-path", "info/exclude"],
-                           capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=GIT_TIMEOUT_S, stdin=subprocess.DEVNULL, start_new_session=True)
-        if r.returncode != 0 or not r.stdout.strip():
-            return
-        p = r.stdout.strip()
-        if not os.path.isabs(p):
-            p = os.path.join(root, p)
-    except Exception:
-        return
-    line = ".claude/intent/"
-    try:
-        os.makedirs(os.path.dirname(p), exist_ok=True)
-        cur = open(p, encoding="utf-8").read() if os.path.exists(p) else ""
-        if line not in cur:
-            with open(p, "a", encoding="utf-8") as f:
-                if cur and not cur.endswith("\n"):
-                    f.write("\n")
-                f.write(line + "\n")
-    except OSError:
-        pass
 
 
 def load(d):
@@ -151,7 +181,7 @@ def locked(d):
     do teto, segue SEM a trava — id duplicado é incômodo visível, missão pendurada é
     dano. O invariante que isto protege está em `test_ledger.py:test_concurrent_record_raw`.
     """
-    os.makedirs(d, exist_ok=True)
+    _mkdir_privado(d)
     if fcntl is not None:
         with open(os.path.join(d, "ledger.lock"), "a+", encoding="utf-8") as lf:
             fcntl.flock(lf.fileno(), fcntl.LOCK_EX)
@@ -192,7 +222,7 @@ def locked(d):
 
 
 def append(d, ev):
-    os.makedirs(d, exist_ok=True)
+    _mkdir_privado(d)
     ev.setdefault("ts", int(time.time()))
     with open(os.path.join(d, "ledger.jsonl"), "a", encoding="utf-8") as f:
         f.write(json.dumps(ev, ensure_ascii=False) + "\n")
@@ -650,7 +680,6 @@ def main(argv=None):
         elif a.cmd == "record-raw":
             text = sys.stdin.read() if a.text_stdin else ""
             if text.strip():
-                ensure_exclude(a.cwd)
                 with locked(d):
                     append(d, {"ev": "raw", "id": next_id(load(d), "r"),
                                "session": a.session, "text": text})

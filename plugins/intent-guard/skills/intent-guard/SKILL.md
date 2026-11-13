@@ -5,8 +5,12 @@ description: "Use quando o usuário digitar /intent-guard (status, baixa N, off,
 
 # intent-guard — comandos e obrigações
 
-O ledger fica em `<projeto>/.claude/intent/ledger.jsonl` (invisível pro git via
-`.git/info/exclude`). Toda operação passa pelo CLI:
+O estado dos gates (ledger, `off` do projeto, vereditos `audit-*.json`) fica numa pasta POR USUÁRIO,
+fora da árvore do projeto: `<config>/intent-guard/state/<nome>-<hash>/`, onde `<config>` é
+`$CLAUDE_CONFIG_DIR` ou `~/.claude`. Quem diz o caminho é `ledger.py resolve-dir --cwd <projeto>`.
+Um repositório clonado não consegue desligar nem pré-satisfazer os gates com arquivo versionado. O
+que a versão anterior gravou em `<projeto>/.claude/intent/` e o git não rastreia é migrado na
+primeira chamada. Toda operação passa pelo CLI:
 `python3 ${CLAUDE_PLUGIN_ROOT}/lib/ledger.py <cmd> --cwd <projeto>`.
 
 ## Comandos
@@ -16,7 +20,7 @@ O ledger fica em `<projeto>/.claude/intent/ledger.jsonl` (invisível pro git via
 | `/intent-guard status` | Rode `ledger.py status --cwd $PWD` e mostre TUDO: vivos, resolvidos E os descartados como conversa (pra o usuário pescar erro de classificação). Passou de 10 linhas → renderize via /visual. |
 | `/intent-guard baixa <n>` | `ledger.py baixa --cwd $PWD --id p-<n> --by usuario --reason "<motivo que ele deu>"`. Confirme em 1 linha o que foi arquivado. |
 | `/intent-guard off` / `on` | Escreva `off` em `~/.claude/intent-guard/mode` (ou remova o arquivo). Vale pra TODAS as sessões e projetos, sem reload. |
-| `/intent-guard projeto-off` / `projeto-on` | Crie/remova o arquivo `.claude/intent/off` no projeto atual. |
+| `/intent-guard projeto-off` / `projeto-on` | Crie/remova o arquivo `off` na pasta que `ledger.py resolve-dir --cwd $PWD` imprime. |
 
 ## Quando o gate de entrega bloquear o Stop
 

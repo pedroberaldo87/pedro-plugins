@@ -121,12 +121,12 @@ grep -q 'faz X' <<< "$OUT"
 
 # 4. audit válido no tree atual → libera, TRANSCREVE e avança o marco
 H="$(python3 "$L" tree-hash --cwd "$REPO")"
-python3 - "$REPO" "$H" <<'EOF'
+python3 - "$REPO" "$H" "$(python3 "$L" resolve-dir --cwd "$REPO")" <<'EOF'
 import json, sys
 json.dump({"tree_hash": sys.argv[2], "generated_ts": 1, "verdicts": [
   {"entry": "p-1", "verdict": "feito", "mode": "confirmado",
    "evidence": "rodei X e conferi a saída real"}]},
-  open(sys.argv[1] + "/.claude/intent/audit-t.json", "w"))
+  open(sys.argv[3] + "/audit-t.json", "w"))
 EOF
 OUT="$(mkin | bash "$HERE/delivery-audit.sh")"; [ -z "$OUT" ]
 python3 "$L" state --cwd "$REPO" | grep -q 'baixado:auditor'
@@ -211,12 +211,12 @@ PS_() { printf '{"session_id":"spacesid","cwd":"%s"}' "$REPO_SPACE"; }
 OUT="$(PS_ | bash "$HERE/delivery-audit.sh")"; [ -z "$OUT" ]
 commit_new "$REPO_SPACE" c1
 H="$(python3 "$L" tree-hash --cwd "$REPO_SPACE")"
-python3 - "$REPO_SPACE" "$H" <<'EOF'
+python3 - "$REPO_SPACE" "$H" "$(python3 "$L" resolve-dir --cwd "$REPO_SPACE")" <<'EOF'
 import json, sys
 json.dump({"tree_hash": sys.argv[2], "generated_ts": 1, "verdicts": [
   {"entry": "p-1", "verdict": "feito", "mode": "confirmado",
    "evidence": "rodei Z com espaço no path e funcionou"}]},
-  open(sys.argv[1] + "/.claude/intent/audit-space.json", "w"))
+  open(sys.argv[3] + "/audit-space.json", "w"))
 EOF
 OUT="$(PS_ | bash "$HERE/delivery-audit.sh")"; [ -z "$OUT" ]
 python3 "$L" state --cwd "$REPO_SPACE" | grep -q 'baixado:auditor'
