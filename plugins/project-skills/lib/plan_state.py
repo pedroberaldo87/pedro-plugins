@@ -60,6 +60,7 @@ for _canal in (sys.stdin, sys.stdout, sys.stderr):
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from bash_posix import bash_posix  # noqa: E402
+from escrita_segura import EscritaRecusada, grava_texto_seguro  # noqa: E402
 from regua_pronto import criterio_cortado, erros_de_pronto  # noqa: E402
 from regua_texto import BULLET_MAX  # noqa: E402
 from regua_texto import erros_de_estilo as _erros_de_estilo  # noqa: E402
@@ -219,27 +220,10 @@ def grava_json_seguro(path, dado, indent=2, fim="\n"):
     um destino que JÁ é symlink é recusado, dito em voz alta — não se escreve "através".
     O modo do arquivo antigo é preservado (o `mkstemp` cria 0600).
     """
-    if os.path.islink(path):
-        raise PlanError("⛔ %s é um symlink — não grava através dele. O plano é um arquivo\n"
-                        "   comum do projeto; troque o link por um arquivo." % path)
     try:
-        modo = os.stat(path).st_mode & 0o777
-    except OSError:
-        modo = 0o644
-    fd, tmp = tempfile.mkstemp(prefix=".%s." % os.path.basename(path), suffix=".tmp",
-                               dir=os.path.dirname(path) or ".")
-    try:
-        with os.fdopen(fd, "w", encoding="utf-8") as fh:
-            json.dump(dado, fh, ensure_ascii=False, indent=indent)
-            fh.write(fim)
-        os.chmod(tmp, modo)
-        os.replace(tmp, path)
-    except BaseException:
-        try:
-            os.unlink(tmp)
-        except OSError:
-            pass
-        raise
+        grava_texto_seguro(path, json.dumps(dado, ensure_ascii=False, indent=indent) + fim)
+    except EscritaRecusada as exc:
+        raise PlanError(str(exc))
 
 
 def list_plans(directory):
@@ -1689,8 +1673,9 @@ def _marca_sessao(directory, plan_id, sid=None):
     if not caminho:
         return
     try:
-        with open(caminho, "w", encoding="utf-8") as fh:
-            fh.write(plan_id + "\n")
+        # /tmp é compartilhado: outro usuário pode plantar um symlink neste nome previsível
+        # (cf35688f). O gravador seguro recusa o link; a recusa é um OSError e cai no `except`.
+        grava_texto_seguro(caminho, plan_id + "\n", modo_novo=0o600)
     except OSError:
         pass          # marca é otimização de precisão; perdê-la degrada, não quebra
 

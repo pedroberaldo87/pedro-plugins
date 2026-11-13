@@ -110,6 +110,12 @@ rapido("journal.scrub: 60 mil palavras-sinal seguidas",
        "journal.scrub('token ' * 60000)")
 rapido("journal.scrub: 300 KB de marcadores de abertura sem fecho",
        "journal.scrub('\\u2039 ' * 150000)")
+rapido("journal.PROVIDER_RE: 300 KB de prefixos npm_ colados",
+       "journal.PROVIDER_RE.findall('npm_' * 75000)")
+rapido("journal.PROVIDER_RE: 300 KB de início de webhook Slack sem fim",
+       "journal.PROVIDER_RE.findall('https://hooks.slack.com/services/' + 'a/' * 150000)")
+rapido("journal.PROVIDER_RE: 300 KB de início de webhook Discord sem fim",
+       "journal.PROVIDER_RE.findall('https://discord.com/api/webhooks/' + '1' * 300000)")
 
 # ── semântica: o que o padrão reconhecia em texto normal continua reconhecido ──
 print("  — semântica preservada —")

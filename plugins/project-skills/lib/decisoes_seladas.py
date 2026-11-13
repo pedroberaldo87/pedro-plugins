@@ -36,6 +36,8 @@ import re
 import sys
 import unicodedata
 
+from escrita_segura import anexa_texto_seguro
+
 ARQUIVO = os.path.join(".claude", "decisoes-seladas.md")
 
 CABECALHO = """\
@@ -100,39 +102,54 @@ def selar(raiz, fala, fonte, data=None):
     arq = caminho(raiz)
     os.makedirs(os.path.dirname(arq), exist_ok=True)
     novo = not os.path.isfile(arq)
-    with open(arq, "a", encoding="utf-8") as f:
-        if novo:
-            f.write(CABECALHO + "\n")
-        f.write(linha + "\n")
+    # o registro é versionado: um symlink no nome dele não redireciona a gravação (cf35688f)
+    anexa_texto_seguro(arq, (CABECALHO + "\n" if novo else "") + linha + "\n", raiz=raiz)
     return linha
+
+
+def _contem(texto, frase):
+    """`frase` aparece em `texto` INTEIRA e em fronteira de palavra (log ≠ catalog)."""
+    return re.search(r"(?<![a-z0-9])%s(?![a-z0-9])" % re.escape(frase), texto) is not None
 
 
 def consultar(raiz, pergunta):
     """As linhas que já respondem a pergunta, mais forte primeiro. [] = pergunta segue.
 
-    Casa por frase inteira (a pergunta contém a frase-chave, ou vice-versa) ou por
-    sobreposição de palavras significativas — a pergunta re-escrita com outras
-    palavras de enchimento ainda acha a mesma decisão.
+    O registro é um arquivo do REPOSITÓRIO — num clone ele chega de fora, então a consulta
+    não casa frouxo (7fab4b4e). Casa por:
+      1. a frase-chave inteira dentro da pergunta, em fronteira de palavra, e com pelo menos
+         2 palavras que contam (uma fala de uma palavra não responde nada);
+      2. a pergunta inteira dentro da fala, nas mesmas condições e sem ser um pedaço pequeno
+         de uma fala longa (as palavras da pergunta têm que ser metade ou mais das da fala);
+      3. sobreposição de radicais — a pergunta reescrita com outras palavras de enchimento
+         ainda acha a mesma decisão —, medida nos DOIS sentidos: a pergunta tem que trazer
+         pelo menos metade da fala (fala inchada de palavras não cobre qualquer coisa).
     """
     alvo = _radicais(pergunta)
     perg_norm = _normaliza(pergunta)
+    perg_tok = _tokens(pergunta)
     achadas = []
     for linha in _linhas_de_decisao(raiz):
         fala = re.search(r'"(.*)"', linha)
         fala = fala.group(1) if fala else linha
         fala_norm = _normaliza(fala)
-        if fala_norm and (fala_norm in perg_norm or perg_norm in fala_norm):
+        fala_tok = _tokens(fala)
+        if fala_norm and len(fala_tok) >= 2 and _contem(perg_norm, fala_norm):
+            achadas.append((1.0, linha))
+            continue
+        if (perg_norm and len(perg_tok) >= 2 and len(perg_tok) * 2 >= len(fala_tok)
+                and _contem(fala_norm, perg_norm)):
             achadas.append((1.0, linha))
             continue
         seus = _radicais(fala)
         if not alvo or not seus:
             continue
         comum = len(alvo & seus)
-        # ponytail: limiar fixo de 2 radicais e 30% da pergunta; falso-positivo
+        # ponytail: limiar fixo de 2 radicais, 30% da pergunta e 50% da fala; falso-positivo
         # aqui custa barato (mostra ao perguntador a fala do próprio dono, que ele
         # julga), falso-negativo custa a pergunta repetida. Aperte se registro
         # grande começar a casar tudo.
-        if comum >= 2 and comum / len(alvo) >= 0.3:
+        if comum >= 2 and comum / len(alvo) >= 0.3 and comum / len(seus) >= 0.5:
             achadas.append((comum / len(alvo), linha))
     achadas.sort(key=lambda par: -par[0])
     return [linha for _, linha in achadas]

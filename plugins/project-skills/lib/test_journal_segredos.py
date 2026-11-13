@@ -153,6 +153,31 @@ try:
               "— é %o" % modo(cofre))
         check("com umask 000 a pasta nova ainda nasce 0700", modo(cofre_base) == 0o700,
               "— é %o" % modo(cofre_base))
+    # ── 5. webhooks (o segredo mora no caminho da URL) e tokens npm_ ────────────
+    # Montados em pedaços, como acima. Camadas 3 e 4 pulam tokens com `://`, então a URL
+    # tem que ser pega pela camada de provider.
+    SLACK = "https://" + "hooks.slack" + ".com/services/" + "T" + rand(10, 6) + "/B" + rand(10, 7) + "/" + rand(24, 8)
+    DISCORD = "https://" + "discord" + ".com/api/webhooks/" + "1234567890123456789" + "/" + rand(68, 9)
+    DISCORDAPP = "https://" + "discordapp" + ".com/api/v10/webhooks/" + "1234567890123456789" + "/" + rand(68, 10)
+    NPM = "np" + "m_" + rand(36, 11)
+    for nome, valor in (("webhook Slack", SLACK), ("webhook Discord", DISCORD),
+                        ("webhook discordapp", DISCORDAPP), ("npm_", NPM)):
+        texto, segredos = journal.scrub("o hook ficou assim: %s e fim" % valor)
+        check("scrub: %s sai do texto" % nome, valor not in texto, "— veio %r" % texto)
+        check("scrub: %s vai para o cofre" % nome, any(v == valor for _, v in segredos))
+    # a parte secreta nunca sobra, nem quando o scrub pega só um pedaço da URL
+    texto, _ = journal.scrub("curl -X POST " + SLACK + " -d '{}'")
+    check("scrub: o segredo do webhook Slack não sobra no texto", SLACK.rsplit("/", 1)[1] not in texto,
+          "— veio %r" % texto)
+    texto, _ = journal.scrub("POST " + DISCORD)
+    check("scrub: o segredo do webhook Discord não sobra no texto", DISCORD.rsplit("/", 1)[1] not in texto,
+          "— veio %r" % texto)
+    # URLs de docs e nomes parecidos seguem intactos
+    for banal in ("https://api.slack.com/messaging/webhooks", "https://hooks.slack.com/services/",
+                  "https://discord.com/developers/docs/resources/webhook", "npm_config_cache",
+                  "rode npm_ e depois npm install", "https://www.npmjs.com/package/left-pad"):
+        texto, segredos = journal.scrub(banal)
+        check("scrub preserva %r" % banal, texto == banal and not segredos, "— veio %r" % texto)
 finally:
     shutil.rmtree(BASE, ignore_errors=True)
 

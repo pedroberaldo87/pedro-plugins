@@ -11,6 +11,16 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 import ledger  # noqa: E402
 
+# O estado dos gates mora fora do repositório (db6d37c1), sob a pasta de configuração do usuário:
+# a suíte aponta essa pasta para uma descartável e nunca toca a de verdade.
+_CFG = tempfile.mkdtemp(prefix="ig-cfg-")
+os.environ["CLAUDE_CONFIG_DIR"] = _CFG
+
+
+def idir(repo):
+    """Onde o ledger guarda o estado deste projeto (o que `resolve-dir` imprime)."""
+    return ledger.intent_dir(repo)
+
 
 def make_repo():
     d = tempfile.mkdtemp(prefix="ig-test-")
@@ -51,7 +61,7 @@ def test_concurrent_record_raw():
         finally:
             for f in opened:
                 f.close()
-        evs = ledger.load(os.path.join(repo, ".claude", "intent"))
+        evs = ledger.load(idir(repo))
         raw_ids = [e["id"] for e in evs if e.get("ev") == "raw" and e.get("session") == "race"]
         assert len(raw_ids) == 8, raw_ids
         assert len(set(raw_ids)) == 8, "ids r-N duplicados: %r" % raw_ids
@@ -65,27 +75,27 @@ def main():
     test_concurrent_record_raw()
     repo = make_repo()
     try:
-        # resolve-dir: dentro de git repo → <root>/.claude/intent
+        # resolve-dir: dentro de git repo → pasta de estado por usuário, FORA do repo (db6d37c1;
+        # o detalhe está em test_estado_fora_do_repo.py)
         r = run(["resolve-dir", "--cwd", repo])
-        assert r.stdout.strip() == os.path.join(repo, ".claude", "intent"), r.stdout
+        assert r.stdout.strip() == idir(repo), r.stdout
 
-        # record-raw: grava verbatim (com acento, aspas, multiline) + exclude
+        # record-raw: grava verbatim (com acento, aspas, multiline)
         texto = 'adiciona export CSV\ncom separador ";" — não mexe no layout'
         r = run(["record-raw", "--cwd", repo, "--session", "sess1", "--text-stdin"], stdin=texto)
         assert r.returncode == 0, r.stderr
-        evs = ledger.load(os.path.join(repo, ".claude", "intent"))
+        evs = ledger.load(idir(repo))
         assert len(evs) == 1 and evs[0]["ev"] == "raw" and evs[0]["text"] == texto
         assert evs[0]["id"] == "r-1" and evs[0]["session"] == "sess1"
-        excl = open(os.path.join(repo, ".git", "info", "exclude"), encoding="utf-8").read()
-        assert ".claude/intent/" in excl
-        # git não enxerga o ledger
+        # o ledger nem está na árvore do repo: git não o enxerga
         st = subprocess.run(["git", "-C", repo, "status", "--porcelain"],
                             capture_output=True, text=True, encoding="utf-8", errors="replace", stdin=subprocess.DEVNULL, start_new_session=True).stdout
         assert ".claude/intent" not in st, st
+        assert not os.path.exists(os.path.join(repo, ".claude", "intent"))
 
         # texto vazio não grava
         run(["record-raw", "--cwd", repo, "--session", "sess1", "--text-stdin"], stdin="   ")
-        assert len(ledger.load(os.path.join(repo, ".claude", "intent"))) == 1
+        assert len(ledger.load(idir(repo))) == 1
 
         # state: 1 pending, 0 live
         st = json.loads(run(["state", "--cwd", repo]).stdout)
@@ -121,7 +131,7 @@ def main():
         # audit-check + apply-audit
         audit = {"tree_hash": h2, "generated_ts": 1, "verdicts": [
             {"entry": "p-2", "verdict": "feito", "mode": "confirmado", "evidence": "rodei o export, saiu com tab"}]}
-        ap = os.path.join(repo, ".claude", "intent", "audit-1.json")
+        ap = os.path.join(idir(repo), "audit-1.json")
         json.dump(audit, open(ap, "w"))
         chk = json.loads(run(["audit-check", "--cwd", repo, "--file", ap]).stdout)
         assert chk["ok"] is True, chk
@@ -133,13 +143,13 @@ def main():
         # evidência vazia → falha
         bad = dict(audit)
         bad["verdicts"] = [dict(audit["verdicts"][0], evidence="")]
-        bp = os.path.join(repo, ".claude", "intent", "audit-2.json")
+        bp = os.path.join(idir(repo), "audit-2.json")
         json.dump(bad, open(bp, "w"))
         chk = json.loads(run(["audit-check", "--cwd", repo, "--file", bp]).stdout)
         assert chk["ok"] is False
         # não cobre todos os vivos → falha
         empty = {"tree_hash": h2, "generated_ts": 1, "verdicts": []}
-        ep = os.path.join(repo, ".claude", "intent", "audit-3.json")
+        ep = os.path.join(idir(repo), "audit-3.json")
         json.dump(empty, open(ep, "w"))
         chk = json.loads(run(["audit-check", "--cwd", repo, "--file", ep]).stdout)
         assert chk["ok"] is False
@@ -153,7 +163,7 @@ def main():
         cat = {"tree_hash": h3, "generated_ts": 1, "verdicts": [
             {"entry": "p-2", "verdict": "feito", "mode": "confirmado",
              "evidence": "rodei o export, saiu com tab"}]}
-        cp = os.path.join(repo, ".claude", "intent", "audit-cat.json")
+        cp = os.path.join(idir(repo), "audit-cat.json")
         json.dump(cat, open(cp, "w"))
         json.dump(["p-2"], open(cp + ".escopo", "w"))   # o gate perguntou so por p-2
         assert json.loads(run(["audit-check", "--cwd", repo, "--file", cp]).stdout)["ok"] is True
@@ -161,7 +171,7 @@ def main():
         # chega pedido novo DEPOIS da auditoria
         run(["record-raw", "--cwd", repo, "--session", "s1", "--text-stdin"],
             stdin="agora faz outra coisa")
-        evs4 = ledger.load(os.path.join(repo, ".claude", "intent"))
+        evs4 = ledger.load(idir(repo))
         novo_raw = [e for e in evs4 if e.get("ev") == "raw"][-1]["id"]
         run(["apply", "--cwd", repo], stdin=json.dumps(
             {"ev": "classify", "raw": novo_raw, "class": "pedido",
@@ -186,7 +196,7 @@ def main():
         aud5 = {"tree_hash": h5, "generated_ts": 1, "verdicts": [
             {"entry": "p-2", "verdict": "feito", "mode": "confirmado",
              "evidence": "conferi alvo.py e o comportamento bate"}]}
-        p5 = os.path.join(repo, ".claude", "intent", "audit-5.json")
+        p5 = os.path.join(idir(repo), "audit-5.json")
         json.dump(aud5, open(p5, "w"))
         json.dump(["p-2"], open(p5 + ".escopo", "w"))
         assert json.loads(run(["audit-check", "--cwd", repo, "--file", p5]).stdout)["ok"] is True
@@ -216,9 +226,9 @@ def main():
         run(["apply-audit", "--cwd", repo, "--file", ap])
         st = json.loads(run(["state", "--cwd", repo]).stdout)
         assert st["live"] == [] and st["entries"]["p-2"]["status"] == "baixado:auditor"
-        n = len(ledger.load(os.path.join(repo, ".claude", "intent")))
+        n = len(ledger.load(idir(repo)))
         run(["apply-audit", "--cwd", repo, "--file", ap])  # 2ª vez: no-op
-        assert len(ledger.load(os.path.join(repo, ".claude", "intent"))) == n
+        assert len(ledger.load(idir(repo))) == n
 
         # baixa manual
         run(["record-raw", "--cwd", repo, "--session", "s2", "--text-stdin"], stdin="faz X")
@@ -265,7 +275,7 @@ def main():
         # Skip se root (ignora modo de arquivo) e no Windows (não tem getuid, e
         # chmod 0o555 não torna diretório read-only lá — a premissa nem se monta).
         if hasattr(os, "getuid") and os.getuid() != 0:
-            intent = os.path.join(repo, ".claude", "intent")
+            intent = idir(repo)
             orig_mode = os.stat(intent).st_mode
             os.chmod(intent, 0o555)  # read-only
             r = run(["record-raw", "--cwd", repo, "--session", "s3", "--text-stdin"],
@@ -326,7 +336,7 @@ def main():
 
             # a auditoria da sessão A cobre só o pedido de A — e o gate ACEITA
             hh = run(["tree-hash", "--cwd", iso]).stdout.strip()
-            ap = os.path.join(iso, ".claude", "intent", "audit-iso.json")
+            ap = os.path.join(idir(iso), "audit-iso.json")
             json.dump({"tree_hash": hh, "generated_ts": 1, "verdicts": [
                 {"entry": la[0]["id"], "verdict": "feito", "mode": "confirmado",
                  "evidence": "rodei o prisma e conferi o schema"}]}, open(ap, "w"))
@@ -380,7 +390,7 @@ def main():
             run(["apply", "--cwd", esc],
                 stdin='{"ev":"classify","raw":"r-3","class":"pedido","resumo":"x",'
                       '"substitui":null,"verify":"rm -rf / ; echo pwned"}\n')
-            evs2 = ledger.load(os.path.join(esc, ".claude", "intent"))
+            evs2 = ledger.load(idir(esc))
             inj = [e for e in evs2 if e.get("ev") == "classify" and e.get("raw") == "r-3"][0]
             assert inj["verify"] is None, "comando arbitrário NÃO pode virar receita"
         finally:

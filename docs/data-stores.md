@@ -301,6 +301,8 @@ du -sh ~/.claude/state/*
 
 ### B6 · `~/.claude/intent/` — 264K · **fallback**, não o depósito principal
 
+> ⚠️ Atualização (db6d37c1): para projeto com raiz, `intent_dir` devolve agora `<config>/intent-guard/state/<nome>-<hash>` (ver a seção do caderno em `.claude/intent/` acima); o trecho abaixo descreve a versão anterior. O fallback `~/.claude/intent/<slug>` para cwd sem raiz continua o mesmo.
+
 O ledger do intent-guard **deste projeto não está aqui**. `plugins/intent-guard/lib/ledger.py:intent_dir` resolve assim: [confirmado, corpo lido]
 
 ```python
@@ -859,6 +861,8 @@ Os quatro que entraram, com o que cada um congela [confirmado — leitura dos ar
 - **Natureza: registro de trabalho, insubstituível, sem cobertura.** É a mesma classe do journal — e a mesma razão de estar fora do git: é onde nome de cliente e caminho de máquina se acumulam sem ninguém revisar.
 
 ### `.claude/intent/` — 716K · o caderno de pedidos DESTE projeto
+
+- ⚠️ **Mudou de lugar (db6d37c1).** Desde a correção de segurança o estado dos gates não mora mais em `<repo>/.claude/intent/`, e sim em `<config>/intent-guard/state/<nome>-<hash do realpath da raiz>/` (`<config>` = `$CLAUDE_CONFIG_DIR` ou `~/.claude`), 0700, por usuário. Motivo: um repositório clonado podia trazer `off`, `audit-*.json` ou `ledger.jsonl` versionados ali e desligar ou pré-satisfazer os gates. O que a versão anterior gravou aqui e o git não rastreia é copiado (`ledger.jsonl`, `off`) na primeira chamada; o resto desta seção descreve o conteúdo, que não mudou, no lugar antigo.
 
 - Gitignorado por `.gitignore:22`, **e por um segundo mecanismo**: `ledger.py:ensure_exclude` escreve `.claude/intent/` no `.git/info/exclude` **local**, via `git rev-parse --git-path info/exclude` — nunca toca arquivo versionado do repo (e usa `--git-path` porque num worktree o `.git` é arquivo, não diretório). [confirmado]
 - **`ledger.jsonl`** — 429.127 bytes, **622 linhas**. Composição derivada: [confirmado]

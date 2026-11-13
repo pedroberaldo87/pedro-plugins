@@ -15,6 +15,9 @@ export CLAUDE_PLUGIN_ROOT="$(dirname "$HERE")"
 REPO="$(mktemp -d "$(td_tmpdir)"/ig-pg-XXXXXX)"; git -C "$REPO" init -q
 # Mocks do juiz em temporário POR EXECUÇÃO — ver test_task_checkpoint.sh.
 MOCKD="$(mktemp -d "$(td_tmpdir)"/ig-pg-mock-XXXXXX)"
+# O estado dos gates mora na pasta de configuração do usuário (db6d37c1): esta suíte usa uma
+# PRÓPRIA, para nunca escrever no `~/.claude` de quem a roda.
+export CLAUDE_CONFIG_DIR="$MOCKD/config-claude"
 trap 'rm -rf "$REPO" "$MOCKD" "$TMPD"/intent-guard-plandeny-pgsid' EXIT
 L="$CLAUDE_PLUGIN_ROOT/lib/ledger.py"
 printf 'export CSV com ;' | python3 "$L" record-raw --cwd "$REPO" --session pgsid --text-stdin
