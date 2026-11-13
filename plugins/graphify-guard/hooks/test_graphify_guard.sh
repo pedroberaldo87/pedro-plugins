@@ -26,7 +26,7 @@ TMPD=$(td_tmpdir)
 # temporário tinha 343.936 entradas nesta máquina — 16s por chamada, num PreToolUse.
 # O teste aponta para a mesma pasta que o hook usa; se o hook voltar a escrever solto,
 # os casos de poda abaixo param de achar o que checar e reprovam.
-GG_DIR="$TMPD/claude-graphify-guard"
+GG_DIR="$TMPD/claude-graphify-guard-$(id -u)"   # por usuário (98867258)
 mkdir -p "$GG_DIR" 2>/dev/null || true
 # O projeto falso nasce no temporário NATIVO (`td_tmpdir`), não no `/tmp` do shell: o `mktemp -d`
 # pelado devolve `/tmp/tmp.XXXX`, caminho do Git Bash que o hook (e o `jq`) devolvem na
@@ -258,6 +258,40 @@ echo "── higiene da própria suíte: o trap precisa ter o que podar ──"
 check "o cleanup conhece TODO sentinel que esta rodada criou" \
   "$(set -- $SESSIONS; echo $#)" \
   "$(ls -d "$GG_DIR"/gg-$$-* 2>/dev/null | wc -l | tr -d ' ')"
+
+echo "── pasta de estado: própria do usuário, privada, e nunca através de symlink (98867258) ──"
+# Num /tmp compartilhado outro usuário cria o nome previsível ANTES: como symlink para uma pasta
+# da vítima, a poda (`find <pasta>/ -mtime +1 -delete`, com a barra que segue o link) apagava
+# arquivos velhos do alvo. Aqui o hook roda com um temporário PRÓPRIO desta prova.
+GG_UID=$(id -u)
+HTMP="$(mktemp -d "$TMPD/gg-hostil-XXXXXX")"
+VITIMA="$HTMP/vitima"; mkdir -p "$VITIMA"
+: > "$VITIMA/importante.txt"; touch -t "$(old_mtime)" "$VITIMA/importante.txt"
+ln -s "$VITIMA" "$HTMP/claude-graphify-guard"               # o nome que a versão antiga usava
+ln -s "$VITIMA" "$HTMP/claude-graphify-guard-$GG_UID"       # e o nome por usuário
+NOGRAPH_H="$HTMP/sem-grafo"; mkdir -p "$NOGRAPH_H"
+busca_hostil() { # $1=session_id
+  jq -nc --arg s "$1" --arg c "$NOGRAPH_H" \
+    '{session_id:$s, cwd:$c, tool_name:"Grep", tool_input:{pattern:"foo", path:$c}}' \
+    | TMPDIR="$HTMP" GRAPHIFY_DENY=0 bash "$HOOK" >/dev/null 2>&1
+}
+busca_hostil "gg-hostil-$$"
+check "pasta de estado que é symlink: a poda NÃO apaga arquivo velho do alvo" \
+  "$(existe "$VITIMA/importante.txt")" "ficou"
+check "pasta de estado que é symlink: nada é gravado através dele" \
+  "$(ls "$VITIMA" | tr '\n' ' ')" "importante.txt "
+
+rm -f "$HTMP/claude-graphify-guard" "$HTMP/claude-graphify-guard-$GG_UID"
+busca_hostil "gg-priv-$$"
+PRIV="$HTMP/claude-graphify-guard-$GG_UID"
+check "a pasta de estado nasce por usuário (uid no nome)" "$([ -d "$PRIV" ] && echo sim || echo nao)" "sim"
+check "a pasta de estado nasce 0700" \
+  "$(ls -ld "$PRIV" 2>/dev/null | cut -c1-10)" "drwx------"
+chmod 777 "$PRIV"
+busca_hostil "gg-priv2-$$"
+check "pasta própria frouxa (0777) é apertada para 0700" \
+  "$(ls -ld "$PRIV" 2>/dev/null | cut -c1-10)" "drwx------"
+rm -rf "$HTMP"
 
 printf '── %d passou · %d falhou ──\n' "$PASS" "$FAIL"
 [ "$FAIL" -eq 0 ]

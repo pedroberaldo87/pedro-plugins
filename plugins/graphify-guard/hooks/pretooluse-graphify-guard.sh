@@ -97,8 +97,20 @@ esac
 # desta ferramenta (um por sessão), e a mesma poda passa a custar milissegundos.
 # Sentinela do formato antigo (solto no temporário) fica órfã e o sistema a recolhe;
 # varrer o topo para apagá-la reintroduziria exatamente o custo que este conserto tira.
-SENTINEL_DIR="${TMPD}/claude-graphify-guard"
-mkdir -p "$SENTINEL_DIR" 2>/dev/null || true
+#
+# ⚠️ A PASTA É DO USUÁRIO, NÃO DO NOME (98867258). Num temporário compartilhado qualquer outro
+# usuário pode criar o nome previsível ANTES — inclusive como symlink para uma pasta da vítima,
+# e a poda abaixo apagava os arquivos velhos do alvo. Por isso: o uid entra no nome (dois usuários
+# do mesmo host não disputam a pasta), ela nasce 0700 (umask 077), e só é usada se NÃO for symlink
+# e for NOSSA. Pasta alheia ou link: o hook sai sem fazer nada (fail-open) — perde-se o aviso de
+# uma sessão, nunca se escreve nem se apaga em lugar que não é do usuário.
+GG_UID=$(id -u 2>/dev/null) || exit 0
+SENTINEL_DIR="${TMPD}/claude-graphify-guard-${GG_UID}"
+if [ ! -e "$SENTINEL_DIR" ] && [ ! -L "$SENTINEL_DIR" ]; then
+  ( umask 077; mkdir "$SENTINEL_DIR" 2>/dev/null )
+fi
+{ [ -d "$SENTINEL_DIR" ] && [ ! -L "$SENTINEL_DIR" ] && [ -O "$SENTINEL_DIR" ]; } || exit 0
+chmod 700 "$SENTINEL_DIR" 2>/dev/null     # pasta nossa e frouxa (0755/0777) é apertada
 SENTINEL="${SENTINEL_DIR}/${SESSION}"
 [ -f "$SENTINEL" ] && exit 0
 
@@ -116,10 +128,12 @@ SENTINEL="${SENTINEL_DIR}/${SESSION}"
 # quando foi feito; ele envelheceu junto com a máquina, e nada remedia. Custo agora
 # é o da própria pasta, que tem um arquivo por sessão.
 #
-# A barra final no diretório é obrigatória: no macOS o temporário é symlink e
-# o find físico (-P, o default) não desce por um symlink dado como ponto de partida —
-# sem a barra ele casa zero arquivo e a poda vira no-op silencioso.
-find "$SENTINEL_DIR/" -maxdepth 1 -type f -mtime +1 -delete 2>/dev/null
+# SEM barra final no diretório (98867258): a barra fazia o `find` descer por um symlink dado
+# como ponto de partida, e era essa barra que levava a poda para fora do temporário. A pasta já
+# foi conferida (não é link, é nossa); se alguém a trocar por um link depois da conferência, o
+# `find -P` não desce nele e a poda vira no-op. O `/var → /private/var` do macOS fica no MEIO do
+# caminho, que o sistema resolve normalmente — o que o `find` não segue é o último componente.
+find -P "$SENTINEL_DIR" -maxdepth 1 -type f -mtime +1 -delete 2>/dev/null
 
 # Nearest ancestor of a dir that owns a graph (cheap: stat while walking up).
 find_graph_up() {
