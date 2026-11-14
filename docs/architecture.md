@@ -371,21 +371,21 @@ dual-git            0.4.0  []                           -
 fallow             1.2.13  [fallow]                     -
 gauntlet          0.13.11  [gauntlet]                   HOOKS
 graphify-guard     1.2.21  []                           HOOKS
-grill-me            1.5.4  [grill-me]                   -
+grill-me            1.5.5  [grill-me]                   -
 guardrails         1.8.19  [guardrails]                 HOOKS
-handoff           1.11.26  [handoff]                    HOOKS
-improve             1.1.6  [improve]                    -
+handoff           1.11.27  [handoff]                    HOOKS
+improve             1.1.7  [improve]                    -
 improve-workflow  0.16.33  [improve-workflow]           -
 intent-guard       0.8.23  [intent-guard]               HOOKS
-lixeiro             1.6.5  [faxina]                     HOOKS
+lixeiro             1.6.6  [faxina]                     HOOKS
 principles          1.0.5  [principles]                 -
-project-skills    0.22.241  [completude,design-md,doc,doc-load,doc-touch,monitorar,pesquisa-referencias,plan,project-skills,qa-loop,reentrada,sprint,start] HOOKS
+project-skills    0.22.242  [completude,design-md,doc,doc-load,doc-touch,monitorar,pesquisa-referencias,plan,project-skills,qa-loop,reentrada,sprint,start] HOOKS
 sec                 0.1.4  [sec]                        -
 ship               1.5.11  [ship]                       HOOKS
-slides              1.6.8  [slides]                     -
+slides              1.6.9  [slides]                     -
 vision              0.1.3  []                           -
 vistoria          0.11.13  [vistoria]                   -
-visual             1.44.6  [andamento,visual]           HOOKS
+visual             1.44.7  [andamento,visual]           HOOKS
 ```
 
 **A rodada anterior moveu onde as skills MORAM; esta apagou as CASAS que tinham ficado

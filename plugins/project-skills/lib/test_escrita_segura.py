@@ -231,7 +231,7 @@ os.makedirs(os.path.join(raiz, "docs"))
 doc = os.path.join(raiz, "docs", "qg.md")
 with open(doc, "w", encoding="utf-8") as fh:
     fh.write("# Metas\n\n- item velho\n")
-alvo = planta_link(raiz, "docs/qg.historico.md", fora)
+alvo = planta_link(raiz, os.path.join("docs", "qg.historico.md"), fora)
 checa("historico.reescrever recusa o link do histórico",
       recusa(lambda: historico.reescrever(doc, "- item velho", "- item novo", "ctx", "dec")))
 checa("historico.reescrever: alvo intacto", alvo_intacto(alvo))

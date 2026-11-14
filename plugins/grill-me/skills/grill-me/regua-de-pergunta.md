@@ -50,9 +50,13 @@ skill). Vazio ou ausente = project-skills fora desta máquina: siga sem o regist
 
 ```bash
 SELADAS="$(bash "<resolve-plugin>" project-skills lib/decisoes_seladas.py)"
-python3 "$SELADAS" consultar <raiz> "<a pergunta que você ia fazer>"   # saída 0 = a chave exata responde; saída 1 = pergunte (linhas SUGESTÃO: mostre ao dono, não aplique)
+python3 "$SELADAS" consultar <raiz> "<a pergunta que você ia fazer>"   # saída 1 = nenhuma, pergunte
 python3 "$SELADAS" indice    <raiz>                                    # o registro inteiro
 ```
+
+Saída 0: a chave exata responde, e a linha impressa é a resposta. Saída 1: pergunte ao dono. As
+linhas que o comando imprime antes de sair com 1 começam por `SUGESTÃO` e **não são resposta**:
+mostre-as ao dono junto da pergunta.
 
 **Decisão nova entra no registro na hora em que o dono responde** — na mesma volta, não no fim:
 
