@@ -373,7 +373,7 @@ gauntlet          0.13.11  [gauntlet]                   HOOKS
 graphify-guard     1.2.21  []                           HOOKS
 grill-me            1.5.5  [grill-me]                   -
 guardrails         1.8.19  [guardrails]                 HOOKS
-handoff           1.11.27  [handoff]                    HOOKS
+handoff           1.11.28  [handoff]                    HOOKS
 improve             1.1.7  [improve]                    -
 improve-workflow  0.16.33  [improve-workflow]           -
 intent-guard       0.8.23  [intent-guard]               HOOKS
