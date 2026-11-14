@@ -432,7 +432,7 @@ I3="$BASE/i3"; mkdir -p "$I3"; ( cd "$I3" && git init -q -b main )
 
 echo
 echo "[aviso de início de sessão]"
-AV="$(cd "$HERE/../hooks" && pwd)/sessionstart-devgit.sh"
+AV="$(cd "$HERE/../hooks" && pwd)/sessionstart-avisa-privado.sh"
 echo e > "$F/.claude/notas/b.md"
 out=$(cd "$F" && echo '{}' | bash "$AV")
 check "aviso: JSON válido" "$(printf '%s' "$out" | python3 -c 'import json,sys; json.load(sys.stdin); print("ok")' 2>/dev/null)" "ok"

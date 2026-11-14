@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# sessionstart-devgit.sh — uma linha, no começo da sessão, com o estado do privado.
+# sessionstart-avisa-privado.sh — uma linha, no começo da sessão, com o estado do privado.
 #
 # Esquecer o privado sujo entre sessões é o defeito: a documentação fica escrita só neste
 # disco, e a próxima máquina (ou o projeto estacionado) não a tem. A linha diz quantos

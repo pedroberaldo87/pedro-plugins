@@ -6,7 +6,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "CLAUDE_PLUGIN_ROOT=$(printf '%s' \"$CLAUDE_PLUGIN_ROOT\" | tr '\\\\' /); export CLAUDE_PLUGIN_ROOT; bash \"$CLAUDE_PLUGIN_ROOT\"/hooks/sessionstart-devgit.sh",
+            "command": "CLAUDE_PLUGIN_ROOT=$(printf '%s' \"$CLAUDE_PLUGIN_ROOT\" | tr '\\\\' /); export CLAUDE_PLUGIN_ROOT; bash \"$CLAUDE_PLUGIN_ROOT\"/hooks/sessionstart-avisa-privado.sh",
             "timeout": 10
           }
         ]
