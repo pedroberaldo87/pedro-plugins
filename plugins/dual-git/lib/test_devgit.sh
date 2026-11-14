@@ -315,6 +315,46 @@ check "ficha gravada fora do projeto" "$( [ -n "$ficha" ] && echo sim)" "sim"
 check "a ficha tem o endereço do público" "$(grep -c "e4.pub.git" "$ficha")" "1"
 check "a ficha tem o endereço do privado" "$(grep -c "e4.priv.git" "$ficha")" "1"
 check "a ficha tem o destino do segredo" "$(grep -c 'cofre:e4/.env' "$ficha")" "1"
+E6="$BASE/e6"; completo "$E6"; rm -f "$E6/.env"
+est "$E6" --mover >/dev/null
+check "segredo ausente do disco: o destino entra na ficha mesmo assim" "$(grep -c 'cofre:e6/.env' "$BASE/home/.claude/dual-git/estacionados/"e6-*.md)" "1"
+
+echo
+echo "[voltar: o projeto estacionado volta inteiro, segredos incluídos]"
+# Bitwarden de mentira: itens em itens.tsv (id<TAB>nome), conteúdo em notas/<id>
+COFRE="$BASE/cofre"; mkdir -p "$COFRE/notas"
+printf 'id-e5\te5/.env\n' > "$COFRE/itens.tsv"; printf 'SENHA=abc12345\n' > "$COFRE/notas/id-e5"
+cat > "$BASE/bin-falso/bw" <<EOF
+#!/bin/sh
+case "\$1" in
+  status) [ -n "\${BW_SESSION:-}" ] && echo '{"status":"unlocked"}' || echo '{"status":"locked"}' ;;
+  sync) echo ok ;;
+  list) awk -F'\t' 'BEGIN{printf "["} NR>1{printf ","} {printf "{\"id\":\"%s\",\"name\":\"%s\"}",\$1,\$2} END{print "]"}' "$COFRE/itens.tsv" ;;
+  get) cat "$COFRE/notas/\$3" ;;
+esac
+EOF
+chmod +x "$BASE/bin-falso/bw"
+E5="$BASE/e5"; completo "$E5"
+( cd "$E5" && printf '.env segredo bitwarden:e5/.env\n' > .claude/inventario.txt && devgit add -A && devgit commit -qm destino && devgit push -q 2>/dev/null )
+est "$E5" --mover >/dev/null
+F5=$(ls "$BASE/home/.claude/dual-git/estacionados/"e5-*.md | head -1)
+volta() { ( cd "$BASE" && PATH="$BASE/bin-falso:$PATH" "$@" >/dev/null 2>&1 ); echo $?; }
+check "travado: volta o resto e sai com 3" "$(volta devgit-voltar "$F5" "$BASE/e5-travado")" "3"
+check "travado: o segredo não aparece" "$( [ -e "$BASE/e5-travado/.env" ] && echo tem || echo nao)" "nao"
+check "travado: a documentação voltou" "$(cat "$BASE/e5-travado/.claude/notas/a.md")" "n"
+check "destravado: tudo volta, sai com 0" "$(BW_SESSION=x volta devgit-voltar "$F5" "$BASE/e5-volta")" "0"
+check "o segredo voltou igual" "$(cat "$BASE/e5-volta/.env")" "SENHA=abc12345"
+# permissão só onde o sistema tem permissão: no Windows (Git Bash) chmod não muda nada
+sonda="$BASE/sonda-modo"; : > "$sonda"; chmod 600 "$sonda"
+if [ "$(ls -l "$sonda" | cut -c1-10)" = "-rw-------" ]; then
+  check "e só o dono lê" "$(ls -l "$BASE/e5-volta/.env" | cut -c1-10)" "-rw-------"
+else echo "  --   e só o dono lê (sistema sem permissão de arquivo: não medido)"; fi
+check "o privado responde" "$(cd "$BASE/e5-volta" && devgit status -sb | head -1)" "## main...origin/main"
+check "o público está limpo" "$(cd "$BASE/e5-volta" && git status --porcelain)" ""
+check "a trava voltou" "$( [ -x "$BASE/e5-volta/.git/hooks/pre-push" ] && echo sim)" "sim"
+check "não há .git dentro de .claude/" "$(ls -a "$BASE/e5-volta/.claude" | grep -c '^\.git$')" "0"
+check "pasta que já existe: recusa sem tocar (rc 1)" "$(BW_SESSION=x volta devgit-voltar "$F5" "$BASE/e5-volta")" "1"
+check "ficha que não existe: rc 1" "$(volta devgit-voltar "$BASE/nao-existe.md")" "1"
 
 if command -v zsh >/dev/null 2>&1; then
   echo
