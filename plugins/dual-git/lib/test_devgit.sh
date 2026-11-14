@@ -414,6 +414,7 @@ check "aberto: o privado tem um commit" "$(git -C "$I" --git-dir=.git/dev.git re
 check "aberto: o público passa a ignorar .claude/" "$(cd "$I" && git check-ignore -q .claude/x && echo ignora)" "ignora"
 check "aberto: nenhum .git dentro de .claude/" "$(ls -a "$I/.claude" | grep -c '^\.git$')" "0"
 check "aberto: secrets/ fora do privado" "$(grep -c '^secrets/$' "$I/.claude/.gitignore")" "1"
+check "aberto: lixo do Finder e trava do Claude Code fora do privado" "$(grep -cE '^(\.DS_Store|scheduled_tasks\.lock)$' "$I/.claude/.gitignore")" "2"
 check "aberto: a trava foi instalada" "$(grep -l dual-git-trava "$I/.git/hooks/pre-commit" "$I/.git/hooks/pre-push" | wc -l | tr -d ' ')" "2"
 check "aberto: o remoto recebeu o privado" "$(cd "$I" && devgit status -sb | head -1)" "## main...origin/main"
 ( cd "$I" && devgit-iniciar aberto >/dev/null 2>&1 ); check "rodar de novo: rc 0, nada muda" "$?|$(git -C "$I" --git-dir=.git/dev.git rev-list --count HEAD)" "0|1"

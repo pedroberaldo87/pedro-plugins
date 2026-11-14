@@ -367,7 +367,7 @@ bootstrap         1.17.31  [bootstrap]                  HOOKS
 branches           1.3.19  [branches]                   HOOKS
 check-skills        0.7.5  [check-skills]               -
 context-guard      1.3.21  [context-guard]              HOOKS
-dual-git            0.7.1  []                           HOOKS
+dual-git            0.7.2  []                           HOOKS
 fallow             1.2.13  [fallow]                     -
 gauntlet          0.13.11  [gauntlet]                   HOOKS
 graphify-guard     1.2.21  []                           HOOKS

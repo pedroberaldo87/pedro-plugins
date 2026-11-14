@@ -50,7 +50,7 @@ if ! git -C "$r" check-ignore -q .claude/x 2>/dev/null; then
 fi
 
 mkdir -p "$r/.claude"
-[ -f "$r/.claude/.gitignore" ] || printf 'secrets/\nworktrees/\nvisual/\nprints/\n*.local.json\n' > "$r/.claude/.gitignore"
+[ -f "$r/.claude/.gitignore" ] || printf 'secrets/\nworktrees/\nvisual/\nprints/\n*.local.json\n.DS_Store\nscheduled_tasks.lock\n' > "$r/.claude/.gitignore"
 
 if [ ! -d "$r/.git/dev.git" ]; then
   git init -q -b main --bare "$r/.git/dev.git" || exit 2
