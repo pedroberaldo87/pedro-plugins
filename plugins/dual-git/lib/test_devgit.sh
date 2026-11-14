@@ -266,6 +266,56 @@ inv=$(cd "$I" && devgit inventario); rc=$?
 check "tudo com destino ou descartável: sai com 0" "$rc" "0"
 check "e diz que pode sair do disco" "$(printf '%s\n' "$inv" | tail -1 | cut -c1-24)" "pode sair do disco: sim "
 
+echo
+echo "[estacionar: a pasta só sai do disco se nada se perder]"
+# Lixeira de mentira: o teste nunca encosta na Lixeira de quem roda a suíte
+mkdir -p "$BASE/bin-falso" "$BASE/lixeira"
+printf '#!/bin/sh\n[ "$1" = -s ] && shift\nmv "$1" "%s/"\n' "$BASE/lixeira" > "$BASE/bin-falso/trash"; chmod +x "$BASE/bin-falso/trash"
+# completo <pasta> — projeto com os dois remotos, tudo enviado e inventário limpo
+completo() {
+  novo_projeto "$1" ".claude/
+.env"
+  echo s > "$1/.env"; echo n > "$1/.claude/notas/a.md"
+  printf '.env segredo cofre:%s/.env\n' "$(basename "$1")" > "$1/.claude/inventario.txt"
+  git init -q --bare "$1.pub.git"; git init -q --bare "$1.priv.git"
+  ( cd "$1" && git remote add origin "$1.pub.git" && git push -q -u origin main 2>/dev/null \
+    && devgit add -A && devgit commit -qm docs && devgit remote add origin "$1.priv.git" && devgit push -q -u origin main 2>/dev/null )
+}
+est() { ( cd "$1" && PATH="$BASE/bin-falso:$PATH" devgit estacionar "${@:2}" >/dev/null 2>&1 ); echo $?; }
+E1="$BASE/e1"; completo "$E1"
+check "tudo enviado e inventário limpo: pode sair (rc 0)" "$(est "$E1")" "0"
+check "sem --mover, a pasta continua" "$( [ -d "$E1" ] && echo sim)" "sim"
+check "opção desconhecida: rc 2" "$(est "$E1" --forca)" "2"
+( cd "$E1" && echo x >> src/app.js && git commit -qam local )
+check "commit não enviado no público: recusa (rc 1)" "$(est "$E1" --mover)" "1"
+check "e a pasta continua no lugar" "$( [ -d "$E1" ] && echo sim)" "sim"
+( cd "$E1" && git push -q 2>/dev/null && echo y > .claude/notas/b.md && devgit add -A && devgit commit -qm b )
+check "commit não enviado no privado: recusa" "$(est "$E1")" "1"
+( cd "$E1" && devgit push -q 2>/dev/null && echo z >> src/app.js )
+check "mudança fora de commit: recusa" "$(est "$E1")" "1"
+( cd "$E1" && git stash -q )
+check "stash guardado: recusa" "$(est "$E1")" "1"
+( cd "$E1" && git stash drop -q && git checkout -q --detach && echo w >> src/app.js && git commit -qam solto )
+check "parado sem branch, com commit novo: recusa" "$(est "$E1")" "1"
+( cd "$E1" && git checkout -q main 2>/dev/null && git worktree add -q "$BASE/e1-wt" -b frente )
+check "worktree extra: recusa" "$(est "$E1")" "1"
+( cd "$E1" && git worktree remove "$BASE/e1-wt" && git branch -q -D frente && sed -i.bak '/^\.env/d' .claude/inventario.txt && rm -f .claude/inventario.txt.bak \
+  && devgit add -A && devgit commit -qm sem-destino && devgit push -q 2>/dev/null )
+check "segredo sem destino: recusa" "$(est "$E1")" "1"
+E2="$BASE/e2"; completo "$E2"; ( cd "$E2" && devgit remote remove origin )
+check "privado sem remoto: recusa" "$(est "$E2")" "1"
+E3="$BASE/e3"; completo "$E3"; rm -rf "$E3.pub.git"
+check "remoto inalcançável: não dá para conferir (rc 2)" "$(est "$E3")" "2"
+E4="$BASE/e4"; completo "$E4"
+check "com --mover e tudo limpo: rc 0" "$(est "$E4" --mover)" "0"
+check "a pasta saiu do disco" "$( [ -e "$E4" ] && echo ainda-la || echo saiu)" "saiu"
+check "e foi para a Lixeira, inteira" "$( [ -f "$BASE/lixeira/e4/src/app.js" ] && echo sim)" "sim"
+ficha=$(ls "$BASE/home/.claude/dual-git/estacionados/"e4-*.md 2>/dev/null | head -1)
+check "ficha gravada fora do projeto" "$( [ -n "$ficha" ] && echo sim)" "sim"
+check "a ficha tem o endereço do público" "$(grep -c "e4.pub.git" "$ficha")" "1"
+check "a ficha tem o endereço do privado" "$(grep -c "e4.priv.git" "$ficha")" "1"
+check "a ficha tem o destino do segredo" "$(grep -c 'cofre:e4/.env' "$ficha")" "1"
+
 if command -v zsh >/dev/null 2>&1; then
   echo
   echo "[chamado a partir do zsh]"
