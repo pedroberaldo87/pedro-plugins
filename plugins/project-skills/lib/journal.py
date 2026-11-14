@@ -32,6 +32,7 @@ CLI:
 import argparse
 import bisect
 import binascii
+import collections
 import hashlib
 import hmac
 import json
@@ -347,14 +348,19 @@ STOPWORDS = {"de", "do", "da", "is", "e", "the", "a", "o", "and", "or", "to", "f
              "was", "são", "será", "em", "no", "na", "que", "of", "um", "uma", "with", "are"}
 
 
+# c·log2(c) pré-calculado: H = log2(n) − Σ c·log2(c) / n, a mesma entropia de Shannon sem uma
+# divisão e um log por caractere distinto (a camada 4 mede toda palavra longa do texto).
+_CLOG2 = [0.0] + [c * math.log2(c) for c in range(1, 1025)]
+
+
 def _shannon(s):
     if not s:
         return 0.0
-    counts = {}
-    for c in s:
-        counts[c] = counts.get(c, 0) + 1
     n = len(s)
-    return -sum((c / n) * math.log2(c / n) for c in counts.values())
+    soma = 0.0
+    for c in collections.Counter(s).values():
+        soma += _CLOG2[c] if c < 1025 else c * math.log2(c)
+    return math.log2(n) - soma / n
 
 
 def _looks_random(tok):
@@ -370,6 +376,7 @@ def _is_benign(tok):
 _URL_RE = re.compile(r"[A-Za-z][A-Za-z0-9+.\-]*://[^/?#]*")
 _SEG_URL_RE = re.compile(r"[^/?#&=;]+")
 _SEP_SLUG_RE = re.compile(r"[-_./]")
+
 # O que um segredo solto é feito de: base64, base64 de URL, hex. Qualquer outro caractere
 # (`$ { } ( ) [ ] | : @ \\ ~ .`) marca código, caminho com ponto, e-mail ou URL — texto de gente.
 _ALFABETO_SEGREDO_RE = re.compile(r"^[A-Za-z0-9+/_=-]+$")
@@ -384,6 +391,8 @@ def _e_slug(seg):
 
     Slug e caminho são texto escrito por gente; um segredo aleatório mistura letras e dígitos na
     mesma parte. Sem separador não é slug."""
+    if not _SEP_SLUG_RE.search(seg):
+        return False
     partes = _SEP_SLUG_RE.split(seg.rstrip("="))        # `NOME_DA_VAR=` (sem valor) também é nome
     return len(partes) >= 2 and all(_PARTE_NATURAL_RE.match(p) for p in partes if p)
 
@@ -399,7 +408,7 @@ def _segredo_confiante(tok):
         return False
     if not _looks_random(tok) or not _ALFABETO_SEGREDO_RE.match(tok) or _e_slug(tok):
         return False
-    return sum(len(m.group(0)) for m in _PALAVRA_RE.finditer(tok)) * 2 < len(tok)
+    return sum(map(len, _PALAVRA_RE.findall(tok))) * 2 < len(tok)
 
 
 def _segredos_de_url(core, base):
@@ -489,8 +498,11 @@ def _sal():
     return sal
 
 
-def _vhash(val):
-    return hmac.new(_sal(), val.encode("utf-8"), hashlib.sha256).hexdigest()[:8]
+def _vhash(val, sal=None):
+    # `hmac.digest` é a forma de uma chamada só (mesmo HMAC-SHA256 que `hmac.new(...).hexdigest()`),
+    # bem mais barata: a camada 4 etiqueta um token por palavra aleatória do texto. `sal` já lido
+    # evita reabrir o caminho do sal a cada token.
+    return hmac.digest(sal or _sal(), val.encode("utf-8"), "sha256").hex()[:8]
 
 
 def _is_secret_key(key):
@@ -547,9 +559,12 @@ def scrub(text):
     """
     text = text or ""   # None guard — candidato malformado não derruba o scrub
     secrets = []
+    sal = []                       # o sal é lido na 1ª etiqueta (só nasce quando há segredo)
 
     def stash(label, val):
-        key = "%s:%s" % (label, _vhash(val))
+        if not sal:
+            sal.append(_sal())
+        key = "%s:%s" % (label, _vhash(val, sal[0]))
         secrets.append((key, val))
         return "‹cofre:%s›" % key
 
@@ -699,7 +714,7 @@ def scrub(text):
             continue
         # `CHAVE=valor`: quem se avalia é o VALOR (um nome de variável longo não é segredo, e
         # esconder o nome estragaria o contexto — nomes e contexto SIM, valores NÃO).
-        if "=" in core.strip("="):
+        if "=" in core and "=" in core.strip("="):
             ate, _, valor = core.partition("=")
             s, core = s + len(ate) + 1, valor
             e = s + len(core)
