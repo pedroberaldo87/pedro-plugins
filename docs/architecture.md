@@ -363,7 +363,7 @@ Saída desta rodada (nome · versão · skills · tem hook):
 ```
 2op                 1.3.0  [2op,2op-opus,2op-sonnet]    -
 archify            2.14.6  [archify]                    -
-bootstrap         1.17.30  [bootstrap]                  HOOKS
+bootstrap         1.17.31  [bootstrap]                  HOOKS
 branches           1.3.19  [branches]                   HOOKS
 check-skills        0.7.5  [check-skills]               -
 context-guard      1.3.21  [context-guard]              HOOKS
@@ -1740,7 +1740,6 @@ obsidian-skills            1
 openai-codex               1
 pedro-plugins             23 plugins   desligados: graphify-guard  <!-- acopla-ok: saída derivada do próprio manifest, que é o ÍNDICE -->
 
-ponytail                   1
 voltagent-subagents       10 plugins   TODOS desligados
 ```
 
