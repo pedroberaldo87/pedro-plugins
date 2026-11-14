@@ -12,6 +12,10 @@
 #
 # Sai com 2, sem tocar em nada, fora de um repositório, em projeto sem privado, e
 # dentro de um worktree (lá `.git` é arquivo, não pasta, e o privado não existe).
+#
+# Subcomando próprio (o git não tem um com esse nome):
+#   devgit inventario           o que NENHUM dos dois repositórios guarda, por classe —
+#                               ver lib/inventario.sh
 
 # Dentro de um hook do público o git exporta GIT_INDEX_FILE, GIT_DIR e companhia.
 # Herdadas, o privado gravaria na área de preparação do PÚBLICO e o commit dele quebra.
@@ -30,6 +34,11 @@ ex="$r/.git/dev.git/info/exclude"
 mkdir -p "$r/.git/dev.git/info"
 { printf '/secrets/\n/worktrees/\n'
   grep -E '^!/?\.claude/' "$r/.gitignore" 2>/dev/null | sed -E 's|^!/?\.claude||'; } > "$ex.$$" && mv -f "$ex.$$" "$ex"
+
+if [ "${1:-}" = inventario ]; then
+  shift
+  exec bash "$(cd "$(dirname "${BASH_SOURCE[0]}")/../lib" && pwd)/inventario.sh" "$r" "$@"
+fi
 
 # Fora de .claude/, todo caminho passa a ser relativo a .claude/.
 case "$(git rev-parse --show-prefix)" in

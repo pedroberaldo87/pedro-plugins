@@ -215,6 +215,44 @@ check "depois de resolvido, instala na raiz a partir da subpasta" "$( [ -x "$G/.
 ( cd "$G" && git push -q origin main >/dev/null 2>&1 )
 check "o commit que só REMOVE o arquivo ignorado passa no push" "$?" "0"
 
+echo
+echo "[inventário: o que nenhum dos dois repositórios guarda]"
+I="$BASE/p9"; novo_projeto "$I" ".claude/
+.env
+*.db
+node_modules/
+*.png
+AGENTS.md
+.github/copilot-instructions.md
+misterio/
+nota de ação.txt"
+( cd "$I" && mkdir -p node_modules/x .github misterio .claude/secrets .claude/visual \
+  && echo s > .env && echo d > app.db && echo m > node_modules/x/i.js && echo p > print.png \
+  && echo a > AGENTS.md && echo c > .github/copilot-instructions.md && echo ? > misterio/coisa.bin \
+  && echo e > "nota de ação.txt" && echo k > .claude/secrets/ops.env && echo v > .claude/visual/p.html \
+  && printf 'visual/\n' > .claude/.gitignore )
+inv=$(cd "$I/src" && devgit inventario); rc=$?
+linha() { printf '%s\n' "$inv" | awk -v p="$1" '{c=$1; $1=""; sub(/^ +/,""); if ($0==p) print c}'; }
+check ".env é segredo" "$(linha .env)" "segredo"
+check "banco é dado" "$(linha app.db)" "dado"
+check "node_modules é regenerável" "$(linha node_modules/)" "regenerável"
+check "print é rascunho" "$(linha print.png)" "rascunho"
+check "AGENTS.md é ponteiro" "$(linha AGENTS.md)" "ponteiro"
+check "pasta ignorada sem regra é aberta: o arquivo de dentro é ponteiro" "$(linha .github/copilot-instructions.md)" "ponteiro"
+check "arquivo sem regra é desconhecido" "$(linha misterio/coisa.bin)" "desconhecido"
+check "nome com espaço e acento sai inteiro" "$(linha 'nota de ação.txt')" "desconhecido"
+check "segredo do privado aparece com o caminho a partir da raiz" "$(linha .claude/secrets/)" "segredo"
+check "página de decisão do privado é rascunho" "$(linha .claude/visual/)" "rascunho"
+check "a pasta do privado não aparece como ignorada do público" "$(linha .claude/)" ""
+check "com segredo, dado e desconhecido: sai com 1" "$rc" "1"
+check "desconhecido vem primeiro" "$(printf '%s\n' "$inv" | head -1 | awk '{print $1}')" "desconhecido"
+printf '# classes deste projeto\n\napp.db regenerável\nmisterio/* rascunho\nnota*.txt rascunho\n.env regenerável\n.claude/secrets/ regenerável\n' > "$I/.claude/inventario.txt"
+inv=$(cd "$I" && devgit inventario); rc=$?
+check "o arquivo do projeto reclassifica antes das regras" "$(linha app.db)" "regenerável"
+check "padrão com curinga classifica a pasta inteira de uma vez" "$(linha misterio/)" "rascunho"
+check "tudo pode sumir: sai com 0" "$rc" "0"
+check "e diz que pode sair do disco" "$(printf '%s\n' "$inv" | tail -1 | cut -c1-24)" "pode sair do disco: sim "
+
 if command -v zsh >/dev/null 2>&1; then
   echo
   echo "[chamado a partir do zsh]"
