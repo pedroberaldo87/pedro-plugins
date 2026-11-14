@@ -1254,8 +1254,9 @@ quando ele falta, com comentário explícito de que qualquer divergência re-cha
   ⚠️ Depois do reset de história desta rodada é exatamente esse ramo que vale.
 - **Scrubber em 4 camadas**, a barreira entre conversa-verbatim e git: (1) estruturado
   (PEM → connection string → JWT → prefixos de provider), (2) `chave=valor` de uma linha +
-  pares JSON aninhados, (3) prosa (palavra-sinal + token de alta entropia), (4) na dúvida,
-  marca `‹revisar?›` — preserva, não vaza. Política escrita no arquivo: **nomes e contexto SIM,
+  pares JSON aninhados, (3) prosa (palavra-sinal + token de alta entropia), (4) token de alta entropia sem
+  rótulo — inclusive no caminho ou na consulta de uma URL — vai para o cofre; só o que tem
+  cara de código (pontuação fora do alfabeto de segredo) fica marcado `‹revisar?›`. Política escrita no arquivo: **nomes e contexto SIM,
   valores NÃO**; host/IP/porta/path/sha/uuid preservados. O valor vai pro cofre e o doc fica
   com `‹cofre:LABEL:hash8›`.
 - **Cofre**: `PROJECT_DOC_COFRE_DIR` (override explícito) > iCloud
