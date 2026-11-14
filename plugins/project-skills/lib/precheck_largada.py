@@ -96,13 +96,29 @@ from bash_posix import bash_posix  # noqa: E402
 import andamento  # noqa: E402
 from auditoria_plano import ATO_DO_DONO  # noqa: E402
 from decisoes_seladas import caminho as decisoes_caminho  # noqa: E402
-from decisoes_seladas import consultar  # noqa: E402
+from decisoes_seladas import consultar, sugerir  # noqa: E402
 from escrita_segura import anexa_texto_seguro, grava_texto_seguro  # noqa: E402
 from plan_state import pick_plan  # noqa: E402
 from regua_pronto import criterio_cortado, erros_de_pronto  # noqa: E402
 
 BLOQUEANTE = "BLOQUEANTE-AGORA"
 ADIAVEL = "ADIÁVEL"
+
+
+def _responde_selada(raiz, achado):
+    """O registro selado responde a pergunta do achado? Só a chave exata responde (7fab4b4e).
+
+    Responde ⇒ grava `respondida_por` e devolve True. Não responde ⇒ devolve False, e a fala que
+    só PARECE tratar do assunto vai no achado como `sugestao_selada`: o dono a vê junto da
+    pergunta e decide. Sugestão nunca dispensa pergunta."""
+    seladas = consultar(raiz, achado["pergunta"])
+    if seladas:
+        achado["respondida_por"] = seladas[0]
+        return True
+    sugestoes = sugerir(raiz, achado["pergunta"])
+    if sugestoes:
+        achado["sugestao_selada"] = sugestoes[:3]
+    return False
 
 # Caminho de arquivo dentro do texto do passo: tem barra e extensão curta.
 # Linear: só começa onde um caminho de verdade começa (não no meio de um nome, nem no meio de uma
@@ -270,9 +286,7 @@ def passada1(plano, raiz, hoje=None):
 
     perguntas, registrados = [], []
     for a in achados:
-        seladas = consultar(raiz, a["pergunta"])
-        if seladas:
-            a["respondida_por"] = seladas[0]
+        if _responde_selada(raiz, a):
             registrados.append(a)
         elif a["classe"] == BLOQUEANTE:
             perguntas.append(a)
@@ -440,9 +454,7 @@ def passada2(plano, raiz):
 
     perguntas, registrados = [], []
     for a in achados:
-        seladas = consultar(raiz, a["pergunta"])
-        if seladas:
-            a["respondida_por"] = seladas[0]
+        if _responde_selada(raiz, a):
             registrados.append(a)
         elif a["classe"] == BLOQUEANTE:
             perguntas.append(a)
@@ -621,9 +633,7 @@ def passada3(raiz, suite_cmd=None, gate_cmd=None, planos=None, alvo=None,
 
     perguntas, registrados = [], []
     for a in achados:
-        seladas = consultar(raiz, a["pergunta"])
-        if seladas:
-            a["respondida_por"] = seladas[0]
+        if _responde_selada(raiz, a):
             registrados.append(a)
         elif a["classe"] == BLOQUEANTE:
             perguntas.append(a)
@@ -916,9 +926,7 @@ def passada4(plano, raiz, base_estado=None, teto_guarda=15, agora=None,
 
     perguntas, registrados = [], []
     for a in achados:
-        seladas = consultar(raiz, a["pergunta"])
-        if seladas:
-            a["respondida_por"] = seladas[0]
+        if _responde_selada(raiz, a):
             registrados.append(a)
         elif a["classe"] == BLOQUEANTE:
             perguntas.append(a)
@@ -1142,9 +1150,7 @@ def rodada_seguinte(raiz, respostas):
 
     perguntas, registrados = [], []
     for a in achados:
-        seladas = consultar(raiz, a["pergunta"])
-        if seladas:
-            a["respondida_por"] = seladas[0]
+        if _responde_selada(raiz, a):
             registrados.append(a)
         else:
             perguntas.append(a)

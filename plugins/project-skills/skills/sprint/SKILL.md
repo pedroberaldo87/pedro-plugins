@@ -238,6 +238,9 @@ vencem. O `--confere` do bloco 1 **recusa a largada** em quatro casos e sai 3: r
 nomeia a pergunta que falta responder, porque "tem coisa em aberto" não diz o que fazer.
 Quando ele **aceita**, o texto ainda nomeia os achados **adiados** que o relatório gravou
 (o que não deu para medir): adiável não fecha porta, mas quem larga tem que ler.
+Pergunta que traz `sugestao_selada` vai ao dono **com a fala selada ao lado**: o registro só
+responde pela chave exata (`respondida_por`), e o que apenas se parece com a pergunta é sugestão
+para o dono julgar, nunca uma resposta aplicada pela casca.
 
 **A esteira é MEDIDA aqui, e a prova NÃO é gravada aqui.** A passada 3 roda a esteira
 inteira; se já existe prova de verde para esta MESMA árvore, ela reaproveita e diz que

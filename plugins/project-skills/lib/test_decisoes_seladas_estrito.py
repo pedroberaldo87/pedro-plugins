@@ -4,8 +4,8 @@
 O registro é um arquivo do repositório; num clone ele chega de fora. A consulta casava por
 substring crua (uma fala de uma palavra, ou um pedaço de palavra, "respondia" qualquer pergunta)
 e por sobreposição que só media a PERGUNTA (uma fala inchada de palavras cobria qualquer coisa).
-Aqui cada porta frouxa é fechada, e os casos legítimos — a frase exata e a pergunta reescrita —
-seguem respondidos.
+Aqui cada porta frouxa é fechada, e os casos legítimos — a frase exata responde, a pergunta reescrita
+vira sugestão.
 
 Roda com:  python3 plugins/project-skills/lib/test_decisoes_seladas_estrito.py
 """
@@ -14,7 +14,7 @@ import sys
 import tempfile
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from decisoes_seladas import consultar, selar  # noqa: E402
+from decisoes_seladas import consultar, selar, sugerir  # noqa: E402
 
 ok = falhas = 0
 
@@ -60,10 +60,14 @@ r = com_fala(FALA)
 checa("a frase exata responde", len(consultar(r, FALA)) == 1)
 checa("a frase exata, em maiúsculas e sem acento, responde",
       len(consultar(r, "TUDO QUE PUDER DECIDIR NO FINAL, DECIDO NO FINAL")) == 1)
-checa("a pergunta reescrita com outras palavras responde",
-      len(consultar(r, "essa decisão do destino de deploy pode ficar para o final?")) == 1)
-checa("a frase dentro de uma pergunta maior responde",
-      len(consultar(r, "lembra que tudo que puder decidir no final, decido no final? posso adiar?")) == 1)
+# 7fab4b4e: só a chave exata RESPONDE; a reescrita e a frase dentro de pergunta maior são
+# SUGESTÃO (o dono vê e decide) — a prova está em test_decisoes_seladas_chave_exata.py.
+checa("a pergunta reescrita com outras palavras é sugerida, não respondida",
+      consultar(r, "essa decisão do destino de deploy pode ficar para o final?") == []
+      and len(sugerir(r, "essa decisão do destino de deploy pode ficar para o final?")) == 1)
+checa("a frase dentro de uma pergunta maior é sugerida, não respondida",
+      consultar(r, "lembra que tudo que puder decidir no final, decido no final? posso adiar?") == []
+      and len(sugerir(r, "lembra que tudo que puder decidir no final, decido no final? posso adiar?")) == 1)
 checa("pergunta sem relação continua indo ao dono",
       consultar(r, "quantos servidores o cliente contratou?") == [])
 
