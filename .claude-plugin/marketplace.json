@@ -101,7 +101,7 @@
       "source": "./plugins/dual-git",
       "description": "Dois repositórios na mesma pasta: o código no público, o material interno de `.claude/` num privado. `git` continua sendo sempre o público; o privado só responde a `devgit`, que roda de qualquer pasta do projeto sem deixar `.git` dentro de `.claude/` (o controle mora em `.git/dev.git`). `devgit-trava` instala no público dois hooks, pre-commit e pre-push, que recusam arquivo que o `.gitignore` manda ignorar e texto com termo de `.claude/public-terms.txt`. `devgit inventario` lista o que nenhum dos dois guarda — segredo, dado, regenerável, ponteiro, rascunho ou desconhecido — e sai com 0 só quando a pasta pode sair do disco. `devgit estacionar --mover` confere que os dois repositórios estão inteiros no remoto e o inventário limpo, grava uma ficha com os endereços e manda a pasta para a Lixeira. `devgit-voltar <ficha>` traz de volta: clona os dois, reinstala a trava, devolve os segredos guardados no Bitwarden e instala as dependências. Projeto que não publica código declara `git config devgit.modo unico` e usa os mesmos comandos com um repositório só.",
       "category": "dev-tools",
-      "version": "0.6.1",
+      "version": "0.7.0",
       "tags": [
         "git",
         "private-docs",
@@ -192,7 +192,7 @@
       "source": "./plugins/handoff",
       "description": "Session continuity in a single command — /handoff detects the session state and routes: full context → saves a complete knowledge-transfer document; freshly cleared session → resumes from it. Workspace-aware: the handoff belongs to the project the session touched (resolves the .git boundary of the edited files), so it works for a standalone project, a monorepo (one HANDOFF-<module>.md per module), or an umbrella folder with nested projects — no more clobbering between parallel sessions on the same root. Optional [salvar|retomar] argument forces the mode.",
       "category": "productivity",
-      "version": "1.11.26",
+      "version": "1.11.27",
       "tags": [
         "session",
         "continuity",
@@ -272,7 +272,7 @@
       "source": "./plugins/project-skills",
       "description": "A casa das skills de projeto — documentacao, concepcao, plano, execucao e revisao moram sob um teto so, e conversam entre si por nome de plugin, nunca por caminho relativo para a pasta do vizinho. Traz tambem o motor de execucao autonoma (/sprint): decompoe -> executa -> revisa em Workflow deterministico, com os hooks que o guardam — a reserva de arquivos entre motores, o guarda de espera, o narrador de andamento na statusline e o gate que nega sub-agente com a missao armada (o apelido \"sovai\" segue evocando a skill sprint). O indice da familia se descobre lendo a pasta skills/ do plugin, nunca de cor.",
       "category": "productivity",
-      "version": "0.22.241",
+      "version": "0.22.242",
       "tags": [
         "project",
         "scaffolding",
@@ -301,7 +301,7 @@
       "source": "./plugins/ship",
       "description": "Production deploy flow: lint, type-check, commit, push, deploy in one disciplined sequence. Triggers on 'ship', 'manda', 'deploya tudo'.",
       "category": "dev-tools",
-      "version": "1.5.11",
+      "version": "1.5.12",
       "tags": [
         "deploy",
         "lint",

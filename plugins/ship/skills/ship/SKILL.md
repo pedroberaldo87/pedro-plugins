@@ -92,6 +92,8 @@ Siga o fluxo de commit padrão:
 5. Escreva uma mensagem de commit concisa (foco no "porquê")
 6. `git push` pra branch de tracking atual
 
+**Nunca `--no-verify`, nem no commit nem no push.** Em projeto com repositório privado (`.git/dev.git`) o público tem uma trava instalada nos hooks do git (`pre-commit` e `pre-push`, do plugin `dual-git`): ela recusa arquivo que o `.gitignore` manda ignorar e texto com termo da lista privada. Recusa da trava é vazamento evitado — conserte o commit, não pule a trava.
+
 **Se não houver branch de tracking**, pergunte ao usuário antes de dar push pra uma branch remota nova.
 
 ### 4. Deploy
@@ -122,6 +124,16 @@ Depois do deploy, verifique que o serviço está rodando:
 - **Gerenciador de processos** — restaure o último processo bom (`pm2 reload <app>` pro build anterior, ou `pm2 resurrect`).
 - **Deploy via git** — `git revert` no commit de deploy (ou resete o servidor pra a última tag boa) e re-deploye o último bom-conhecido.
 - Só tente o deploy de novo depois de entender a causa. Não reporte como pronto enquanto a produção está quebrada.
+
+### 5.5. Fechar o Privado
+
+Projeto com repositório privado (`.git/dev.git`, ou `git config devgit.modo unico`) guarda em `.claude/` o que o ciclo escreveu — plano, doc de desenvolvimento, registro. Depois do deploy verificado (ou do push, numa mudança sem deploy), feche-o num comando, da raiz do projeto:
+
+```bash
+command -v devgit >/dev/null && devgit fechar "ship: $(git log -1 --format=%s)"
+```
+
+`devgit` fora do caminho de comandos = plugin `dual-git` ausente (ou instalado depois que a sessão abriu): siga. Sai 0 com o privado em dia, 1 quando sobrou algo (sem remoto, push recusado — mostre a linha ao usuário junto da evidência do deploy), 2 em projeto sem privado (siga calado).
 
 ### 6. Finalizar a Branch (Oferta)
 

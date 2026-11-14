@@ -192,7 +192,7 @@ Ligar: `claude plugin enable <nome>@pedro-plugins`.
 
 Dezenove plugins trazem **uma** skill cada (no `lixeiro` ela se chama `/faxina`). Três não trazem
 nenhuma — `graphify-guard` só tem hooks, `vision` só tem a ferramenta
-`see_image` e `dual-git` só tem os comandos `devgit` e `devgit-trava`. `visual` traz duas e `2op` traz três. E `project-skills` traz treze, por isso ganha
+`see_image` e `dual-git` só tem comandos (`devgit`, `devgit-trava`, `devgit-iniciar`, `devgit-voltar`) e um aviso de início de sessão. `visual` traz duas e `2op` traz três. E `project-skills` traz treze, por isso ganha
 seção própria logo abaixo.
 
 ### project-skills — o ciclo inteiro de um projeto
@@ -272,7 +272,7 @@ não mudaram.
 | `fallow` | `/fallow` | Roda o Fallow (analisador estático JS/TS — código morto, duplicação, complexidade), classifica achados por tipo e confiança, audita o relatório pra pegar falsos-positivos (cron, rotas HTTP, imports dinâmicos) e entrega um relatório interativo onde você escolhe o que limpar. Limpeza com rede de segurança (preview + build/test). |
 | `branches` ⚙️ | `/branches` · SessionStart | Relatório de branches paradas com prova: quantas, quais já estão contidas na base, e o que dá pra apagar. Antes de apagar, cria uma tag `archive/<branch>-<data>` como rede de resgate. Aviso silencioso no SessionStart quando não há branch parada. |
 | `lixeiro` ⚙️ | `/faxina` · automático (SessionEnd + Stop) | Encerra os processos que a sessão abriu e esqueceu de pé — servidor de desenvolvimento, suíte em modo de observação, túnel. A parte automática colhe **só o que a sessão anotou ter aberto**; o comando `/faxina` é o irmão manual, que mostra **tudo** que está de pé, com ou sem procedência, e encerra apenas o que você marcar. |
-| `dual-git` | comandos `devgit` · `devgit-trava` | Dois repositórios na mesma pasta: o código no público, o material interno de `.claude/` num privado. `git` continua sendo o público; `devgit` roda o privado de qualquer pasta do projeto, com o controle em `.git/dev.git`, para nunca nascer `.git` dentro de `.claude/`. `devgit-trava` instala `pre-commit` e `pre-push` no público, que recusam arquivo que o `.gitignore` manda ignorar e texto com termo de `.claude/public-terms.txt`. `devgit inventario` lista o que nenhum dos dois guarda — segredo, dado, regenerável, ponteiro, rascunho ou desconhecido — e sai com 0 só quando a pasta pode sair do disco. `devgit estacionar --mover` confere que os dois repositórios estão inteiros no remoto e o inventário limpo, grava uma ficha com os endereços e manda a pasta para a Lixeira. `devgit-voltar <ficha>` traz de volta: clona os dois, reinstala a trava, devolve os segredos guardados no Bitwarden e instala as dependências. Projeto que não publica código declara `git config devgit.modo unico` e usa os mesmos comandos com um repositório só. |
+| `dual-git` ⚙️ | comandos `devgit` · `devgit-trava` · `devgit-iniciar` · `devgit-voltar` · automático (SessionStart) | Dois repositórios na mesma pasta: o código no público, o material interno de `.claude/` num privado. `git` continua sendo o público; `devgit` roda o privado de qualquer pasta do projeto, com o controle em `.git/dev.git`, para nunca nascer `.git` dentro de `.claude/`. `devgit-trava` instala `pre-commit` e `pre-push` no público, que recusam arquivo que o `.gitignore` manda ignorar e texto com termo de `.claude/public-terms.txt`. `devgit inventario` lista o que nenhum dos dois guarda — segredo, dado, regenerável, ponteiro, rascunho ou desconhecido — e sai com 0 só quando a pasta pode sair do disco. `devgit estacionar --mover` confere que os dois repositórios estão inteiros no remoto e o inventário limpo, grava uma ficha com os endereços e manda a pasta para a Lixeira. `devgit-voltar <ficha>` traz de volta: clona os dois, reinstala a trava, devolve os segredos guardados no Bitwarden e instala as dependências. Projeto que não publica código declara `git config devgit.modo unico` e usa os mesmos comandos com um repositório só. `devgit-iniciar aberto` ou `fechado` põe um projeto novo no modelo (é o que a concepção do projeto roda), `devgit fechar "<mensagem>"` grava e envia o que mudou em `.claude/` (é o que documentação, registro de sessão e publicação rodam no fim), e cada sessão abre com uma linha dizendo quantos arquivos do privado estão sem commit e quantos commits sem push. |
 
 ### Apresentação visual
 
@@ -296,7 +296,7 @@ Cada plugin é uma pasta autocontida: o Claude Code lê o catálogo, copia a pas
 
 ### Hooks automáticos
 
-12 plugins registram hooks que disparam sem slash command — 54 registros no total
+13 plugins registram hooks que disparam sem slash command — 55 registros no total
 (derivado neste run: `python3 scripts/hook_contract.py`; conferido no commit por
 `python3 scripts/readme_counts_check.py`):
 
@@ -305,6 +305,7 @@ Cada plugin é uma pasta autocontida: o Claude Code lê o catálogo, copia a pas
 | `bootstrap` | SessionStart×2 · PostToolUse | Sync do que já está instalado, aviso do que o manifest tem de novo, e o aviso depois de um comando de plugin |
 | `branches` | SessionStart×2 · PostToolUse | Aviso de branch parada, silencioso quando não há |
 | `context-guard` | SessionStart×2 · PostToolUse | Vigia o quanto da conversa já foi usado e sugere o handoff |
+| `dual-git` | SessionStart | Uma linha com quantos arquivos do privado estão sem commit e quantos commits sem push |
 | `gauntlet` | SessionStart×2 · PreToolUse | Nega despacho novo enquanto houver entrega sem juiz, e reencontra a disputa no arranque |
 | `graphify-guard` | SessionStart×2 · PreToolUse | Redireciona busca cega para o knowledge graph |
 | `guardrails` | SessionStart · PreToolUse×4 · PostToolUse | Lint e type-check pós-edição, scope-cop de UI, e o gate de pergunta sem apoio |
@@ -331,7 +332,7 @@ plugins/<nome>/
 └── lib/                     # (opcional) código auxiliar do plugin (Python stdlib)
 ```
 
-Alguns plugins têm mais pastas: `bootstrap` traz `config/` e `output-styles/`, `visual` traz `server/`, `dual-git` traz `bin/` e `git-hooks/`, e `vision` é um servidor MCP (`.mcp.json` + `vision_mcp.py`).
+Alguns plugins têm mais pastas: `bootstrap` traz `config/` e `output-styles/`, `visual` traz `server/`, `dual-git` traz `bin/` e `git-hooks/` (além de `hooks/`), e `vision` é um servidor MCP (`.mcp.json` + `vision_mcp.py`).
 
 O catálogo vive em `.claude-plugin/marketplace.json` na raiz — cada plugin tem uma entrada com `name`, `source`, `description`, `category`, `version` e `tags`.
 

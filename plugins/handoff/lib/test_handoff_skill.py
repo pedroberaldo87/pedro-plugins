@@ -300,6 +300,13 @@ def main():
     check("a seção nomeia etapa aberta, lei e desenho",
           "abertas" in sec_conc and "constituicao.md" in sec_conc and "blueprint.md" in sec_conc)
 
+    # F3.4 do dual git — o SALVAR fecha o privado, e a sessão de dois projetos pergunta
+    texto_df = open(SKILL_MD, encoding="utf-8").read()
+    check("o SALVAR fecha o privado com devgit fechar, no projeto-raiz",
+          'cd "<scope.project_root>" && devgit fechar' in texto_df)
+    check("o fechamento vem antes de mostrar o resumo",
+          texto_df.index("4b. **Feche o privado.**") < texto_df.index("5. **Mostre o resumo ao usuário.**"))
+    check("projeto ambíguo vira pergunta", "scope.project_ambiguous == true" in texto_df)
     print()
     if FAILS:
         print("FALHOU: %d" % len(FAILS))

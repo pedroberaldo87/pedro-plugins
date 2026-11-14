@@ -905,6 +905,17 @@ def main():
           "subcomando `schema`" in corrido
           and "quality-goals.md" not in corrido.split("### 5 ·")[-1][:4000])
 
+    # F3.2 do dual git — a concepção pergunta a classe e o privado nasce na resposta
+    print("a classe do repositorio e perguntada e executada na etapa 1 (dual git F3.2)")
+    cru_start = open(SKILL, encoding="utf-8").read()
+    check("a pergunta da classe vive dentro da entrevista (passo 3)",
+          em_ordem(cru_start, ["### 3 · Entrevistar", "#### A classe do repositório", "### 4 · Escrever"]))
+    check("as tres classes estao nomeadas", all(c in cru_start for c in ("- **aberto**", "- **fechado**", "- **local**")))
+    check("a classe vai para constraints.md", "escrita em `constraints.md`" in cru_start)
+    check("o privado nasce por comando resolvido pelo nome do plugin",
+          "devgit-iniciar aberto" in cru_start and "command -v devgit-iniciar" in cru_start)
+    check("o fechamento guarda a concepcao no privado",
+          'fechar "docs: concepção do projeto"' in cru_start)
     print()
     if FAILS:
         print("FALHOU: %d" % len(FAILS))

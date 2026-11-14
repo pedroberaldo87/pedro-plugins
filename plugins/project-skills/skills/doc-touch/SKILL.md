@@ -121,6 +121,14 @@ O `--restamp` faz o que antes era receita de `sed` pra lembrar: `generated:` = h
 
 Push seguro: `git fetch` antes, confirme fast-forward (`git merge-base --is-ancestor origin/<branch> HEAD`), **nunca `--force`** — o `session-sync` do bootstrap disputa esse push.
 
+**Projeto com repositório privado** (`.git/dev.git` existe, ou `git config devgit.modo` diz `unico`): os docs de `.claude/` não entram no `git add` do público — ele os ignora, e caminho ignorado faz o `git add` recusar o comando inteiro. O 1º commit leva só o código (e o grafo, se for do público); o carimbo aponta pro HEAD do **público**, que é o commit que a doc descreve. Depois do `--restamp`, o privado fecha num comando:
+
+```bash
+command -v devgit >/dev/null && devgit fechar "docs: re-projeta a doc do que mudou"
+```
+
+Sai 0 com o privado em dia, 1 quando sobrou algo (sem remoto, push recusado — a linha vai pro report), 2 em projeto sem privado (siga calado).
+
 O que entra nos commits: só os artefatos de doc — docs tocados, `findings.jsonl` e **`graphify-out/` se existir** (o `.gitignore` do projeto é quem exclui `cache/` e os paths de máquina; o `graph.json` é versionado) — mais o código, se esta rodada mexeu em código. **Nunca `git add -A`.** O touch preserva o resto do doc, inclusive erro pré-existente: é complemento do FULL, não substituto.
 
 ## Invariantes (não-negociáveis)
@@ -157,5 +165,5 @@ O que entra nos commits: só os artefatos de doc — docs tocados, `findings.jso
 **Touch 2/5:** re-projeção → {doc}: {seções atualizadas}
 **Touch 3/5:** doc-lint → {ok | X FAILs corrigidos | FAIL persistente: ...}
 **Touch 4/5:** journal ({adopts} adoções, {invs} invalidações) · ledger intocado
-**Touch 5/5:** conteúdo <hash1> + carimbo <hash2> ({M} doc(s) via --restamp) · staleness: por-doc {X} · agregado {Y} · último FULL há {N} dias{ — sugerir /doc se >30}
+**Touch 5/5:** conteúdo <hash1> + carimbo <hash2> ({M} doc(s) via --restamp) · privado: {linha do devgit fechar | sem privado} · staleness: por-doc {X} · agregado {Y} · último FULL há {N} dias{ — sugerir /doc se >30}
 ```

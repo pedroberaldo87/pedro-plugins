@@ -18,6 +18,8 @@
 #                               ver lib/inventario.sh
 #   devgit estacionar [--mover] confere se a pasta pode sair do disco e, com --mover,
 #                               manda para a Lixeira — ver lib/estacionar.sh
+#   devgit fechar "<mensagem>"  grava e envia o que mudou em .claude/ — o fechamento
+#                               que as skills rodam no fim; ver lib/fechar.sh
 #
 # Projeto que não publica código (repositório único, ação A3) guarda .claude/ no
 # próprio git e não tem .git/dev.git. Ele é DECLARADO, nunca adivinhado:
@@ -55,7 +57,7 @@ if [ "$unico" -eq 0 ]; then
 fi
 
 case "${1:-}" in
-  inventario|estacionar)
+  inventario|estacionar|fechar)
     sub="$1"; shift
     exec bash "$(cd "$(dirname "${BASH_SOURCE[0]}")/../lib" && pwd)/$sub.sh" "$r" "$@" ;;
 esac

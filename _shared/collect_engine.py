@@ -214,6 +214,18 @@ def collect_edited_paths(records):
     return out
 
 
+def _tem_plano_aberto(project_root):
+    """True se `.claude/plans/` tem plano ticável com `status: active`."""
+    for f in glob.glob(os.path.join(project_root, ".claude", "plans", "*.plan.json")):
+        try:
+            with open(f, encoding="utf-8") as fh:
+                if json.load(fh).get("status") == "active":
+                    return True
+        except (OSError, ValueError, AttributeError):
+            continue
+    return False
+
+
 def infer_scope(edited_paths, cwd):
     """Projeto-raiz dominante dos arquivos editados (+ módulo se monorepo).
 
@@ -235,8 +247,25 @@ def infer_scope(edited_paths, cwd):
         if root_cache[ap]:
             by_proj[root_cache[ap]] = by_proj.get(root_cache[ap], 0) + 1
     from_edits = bool(by_proj)
+    # Sessão que edita MAIS de um projeto: a contagem de edições não diz de quem é a
+    # missão — quem conserta a ferramenta (o plugin) edita muito mais nela do que no
+    # projeto que pediu o conserto. Medido no handoff do dual git (2026-11-14): 24
+    # edições no marketplace, 3 no projeto da missão, e o handoff caiu no marketplace.
+    # Ordem: o projeto onde a sessão foi aberta (o cwd), depois o único editado com
+    # plano aberto, e só então a contagem — e aí `project_ambiguous` manda perguntar.
+    project_ambiguous = False
     if from_edits:
-        project_root = max(by_proj, key=lambda k: by_proj[k])
+        cwd_root = resolve_project_root(cwd)
+        abertos = [k for k in by_proj if _tem_plano_aberto(k)]
+        if len(by_proj) == 1:
+            project_root = next(iter(by_proj))
+        elif cwd_root in by_proj:
+            project_root = cwd_root
+        elif len(abertos) == 1:
+            project_root = abertos[0]
+        else:
+            project_root = max(by_proj, key=lambda k: by_proj[k])
+            project_ambiguous = True
     else:
         project_root = resolve_project_root(cwd) or cwd
 
@@ -272,6 +301,8 @@ def infer_scope(edited_paths, cwd):
         "from_edits": from_edits,
         "project_root_is_boundary": _is_project_root(project_root),
         "module_ambiguous": module_ambiguous,
+        # mais de um projeto editado e nem o cwd nem um plano aberto decidiram → a skill pergunta
+        "project_ambiguous": project_ambiguous,
         "edits_by_project": by_proj,
         "edits_by_module": edits_by_module,
         "reason": det["reason"],

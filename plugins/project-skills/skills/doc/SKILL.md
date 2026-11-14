@@ -223,6 +223,7 @@ Report each step to the user as you execute. Don't skip steps or batch them sile
     - **Commit** na branch atual, mensagem `docs(project-doc): regenera CLAUDE.md + .claude/docs + journal`. Nada staged (doc não mudou) → pula e anota "nada a commitar".
     - **Push seguro:** `git fetch` antes; **nunca `--force`**; divergiu de `origin` → tenta `pull --rebase` e re-push, senão reporta. Sem remote/upstream → commita e **pula o push**. Não é repo git → pula commit+push.
     - **Falha de push** (conflito/permissão) → reporta o erro real e segue (commit local feito; doc no disco).
+    - **Projeto com repositório privado** (`.git/dev.git` existe, ou `git config devgit.modo` diz `unico`): o que mora em `.claude/` fecha pelo privado, num comando — `devgit fechar "docs(project-doc): regenera a doc"` (o `devgit` vem do plugin `dual-git`; fora do caminho de comandos, o plugin está ausente ou foi instalado depois que a sessão abriu). Com `.git/dev.git`, **tire os caminhos de `.claude/` do `git add` acima**: o público os ignora, e `git add` de caminho ignorado recusa o comando INTEIRO — o grafo e os ponteiros também ficariam de fora. O `fechar` sai 0 com o privado em dia, 1 quando sobrou algo (a linha dele vai pro report), 2 em projeto sem privado (siga calado).
 15. **Report to user:**
     - **Discurso capturado (Tier 0, echo-back):** `→ N fato(s) persistido(s) no journal · M direção(ões) guiando este run` + lista curta de cada um (fato: o texto; direção: a ordem) — é a garantia visível de que nada do que o humano falou foi descartado. Omita a linha se não houve prosa na invocação.
     - Token impact (before/after comparison)
@@ -231,6 +232,7 @@ Report each step to the user as you execute. Don't skip steps or batch them sile
     - Any `[TODO: ...]` gaps found
     - Verification results
     - **Commit + push:** `commitado {hash} + pushado` | `commitado, push pulado: {motivo}` | `nada a commitar`
+    - **Privado:** a linha que o `devgit fechar` imprimiu | `sem privado`
     - Knowledge graph status + suggestion (see Knowledge Graph Integration section)
     - Stale test artifacts detected: {N} ({breakdown}). Offer `/doc clean` (see `references/artifact-cleanup.md`) — detect & report only, never delete here
     - Ask: "Quer preencher os TODOs agora?"
