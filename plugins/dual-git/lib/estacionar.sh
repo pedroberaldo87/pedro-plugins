@@ -79,7 +79,9 @@ ficha="$fichas/$nome-$quando.md"
   echo "- privado: $(priv remote get-url origin 2>/dev/null) · branch $(priv branch --show-current) · commit $(priv rev-parse --short HEAD)"
   echo
   echo "## Destinos de segredo e dado"
-  printf '%s\n' "$inv" | grep '→' | sed 's/^/    /'
+  # do arquivo de regras, não da saída do inventário: um segredo ausente do disco agora
+  # (ex.: clone novo) não aparece no inventário, mas o destino dele continua valendo
+  [ -f "$r/.claude/inventario.txt" ] && awk '$1 !~ /^#/ && ($2=="segredo" || $2=="dado") && NF>=3 {d=$0; sub(/^[^ \t]+[ \t]+[^ \t]+[ \t]+/,"",d); print "    " $1 "  →  " d}' "$r/.claude/inventario.txt"
   echo
   echo "## Trazer de volta"
   echo "Receita A5 do modelo dual git (clone do público, privado em .git/dev.git), \`devgit-trava\`, e cada destino acima devolvido ao seu caminho."

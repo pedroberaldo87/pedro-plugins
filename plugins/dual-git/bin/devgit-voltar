@@ -1,0 +1,90 @@
+#!/usr/bin/env bash
+# devgit-voltar — traz de volta ao disco um projeto que `devgit estacionar` tirou.
+#
+#   devgit-voltar <ficha.md> [pasta]
+#
+# Lê a ficha (gravada em ~/.claude/dual-git/estacionados/) e:
+#   1. clona o público na branch da ficha, na pasta pedida (padrão: a pasta original);
+#   2. restaura o privado em .git/dev.git com a receita que não sobrescreve nada;
+#   3. reinstala a trava (`devgit-trava`), que não viaja com o clone;
+#   4. devolve cada segredo e dado que o `.claude/inventario.txt` manda buscar fora:
+#      destino `bitwarden:<projeto>/<caminho>` é baixado da nota segura de mesmo nome
+#      para <caminho>; qualquer outro destino é listado para devolver à mão;
+#   5. instala as dependências pelo arquivo de trava que existir (npm, pnpm, yarn, uv).
+#
+# O Bitwarden precisa estar destravado: `BW_SESSION` no ambiente, ou `--session` no
+# arquivo apontado por `DEVGIT_BW_SESSION_FILE`. Travado, os passos 1–3 e 5 acontecem e
+# o comando sai com 3, listando o que faltou devolver.
+#
+# Sai com 0 com tudo devolvido; 1 com a pasta de destino já existente ou a ficha
+# ilegível (nada é tocado); 2 quando um clone falha; 3 com segredo ou dependência
+# pendente.
+set -u
+ficha="${1:-}"; [ -f "$ficha" ] || { echo "uso: devgit-voltar <ficha.md> [pasta]" >&2; exit 1; }
+campo() { sed -n "s/^- $1: //p" "$ficha" | head -1; }
+original=$(campo "pasta original")
+pub_url=$(campo "público" | sed 's/ · .*//'); pub_br=$(campo "público" | sed -n 's/.* · branch \([^ ]*\) · .*/\1/p')
+priv_url=$(campo "privado" | sed 's/ · .*//'); priv_br=$(campo "privado" | sed -n 's/.* · branch \([^ ]*\) · .*/\1/p')
+[ -n "$pub_url" ] && [ -n "$priv_url" ] || { echo "devgit-voltar: a ficha não tem os dois endereços" >&2; exit 1; }
+destino="${2:-$original}"
+[ -e "$destino" ] && { echo "devgit-voltar: $destino já existe; não sobrescrevo. Passe outra pasta." >&2; exit 1; }
+bin="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+echo "[1] público ← $pub_url"
+git clone -q ${pub_br:+--branch "$pub_br"} "$pub_url" "$destino" || exit 2
+cd "$destino" || exit 2
+echo "[2] privado ← $priv_url"
+# a branch vem da ficha: sem ela, um remoto cuja branch padrão não existe vem vazio
+git clone -q --no-checkout ${priv_br:+--branch "$priv_br"} "$priv_url" .dev-tmp || exit 2
+mv .dev-tmp/.git .git/dev.git && rmdir .dev-tmp
+git --git-dir=.git/dev.git config core.worktree ../../.claude
+mkdir -p .claude
+git --git-dir=.git/dev.git reset -q
+git --git-dir=.git/dev.git checkout-index -a
+echo "[3] trava"
+"$bin/devgit-trava" | sed 's/^/    /'
+
+echo "[4] segredos e dados"
+pendente=0
+[ -n "${BW_SESSION:-}" ] || { [ -n "${DEVGIT_BW_SESSION_FILE:-}" ] && [ -s "$DEVGIT_BW_SESSION_FILE" ] && BW_SESSION=$(cat "$DEVGIT_BW_SESSION_FILE") && export BW_SESSION; }
+bw_ok=0
+if command -v bw >/dev/null 2>&1 && [ -n "${BW_SESSION:-}" ] \
+   && [ "$(bw status --nointeraction 2>/dev/null | sed -n 's/.*"status":"\([a-z]*\)".*/\1/p')" = unlocked ]; then
+  bw_ok=1; bw sync --nointeraction >/dev/null 2>&1
+fi
+if [ -f .claude/inventario.txt ]; then
+  while read -r pat cl dest; do
+    case "$pat" in ''|'#'*) continue ;; esac
+    case "$cl" in segredo|dado) ;; *) continue ;; esac
+    [ -n "$dest" ] || continue
+    case "$dest" in
+      bitwarden:*)
+        nome="${dest#bitwarden:}"; alvo="${nome#*/}"
+        if [ "$bw_ok" -ne 1 ]; then echo "    ⛔ $alvo ← $dest (Bitwarden travado)"; pendente=$((pendente+1)); continue; fi
+        id=$(bw list items --search "$nome" --nointeraction | python3 -c "import json,sys
+n=sys.argv[1]; m=[i['id'] for i in json.load(sys.stdin) if i.get('name')==n]
+print(m[0] if len(m)==1 else '')" "$nome")
+        if [ -z "$id" ]; then echo "    ⛔ $alvo ← $dest (nota não encontrada, ou mais de uma com esse nome)"; pendente=$((pendente+1)); continue; fi
+        mkdir -p "$(dirname "$alvo")"
+        if (umask 077; bw get notes "$id" --nointeraction > "$alvo.tmp$$") && mv -f "$alvo.tmp$$" "$alvo"; then
+          echo "    ✓ $alvo ← $dest"
+        else rm -f "$alvo.tmp$$"; echo "    ⛔ $alvo ← $dest (falhou ao baixar)"; pendente=$((pendente+1)); fi ;;
+      *) echo "    ⛔ $pat ← $dest (devolva à mão)"; pendente=$((pendente+1)) ;;
+    esac
+  done < .claude/inventario.txt
+fi
+
+echo "[5] dependências"
+if   [ -f package-lock.json ]; then npm ci --silent || pendente=$((pendente+1))
+elif [ -f pnpm-lock.yaml ];   then pnpm install --frozen-lockfile --silent || pendente=$((pendente+1))
+elif [ -f yarn.lock ];        then yarn install --frozen-lockfile --silent || pendente=$((pendente+1))
+elif [ -f uv.lock ];          then uv sync -q || pendente=$((pendente+1))
+else echo "    (nenhum arquivo de trava de dependências)"; fi
+
+echo
+if [ "$pendente" -gt 0 ]; then
+  echo "de volta em $destino, com $pendente pendência(s) acima."
+  exit 3
+fi
+echo "de volta em $destino, inteiro."
+exit 0
