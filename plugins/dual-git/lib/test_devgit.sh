@@ -251,6 +251,19 @@ inv=$(cd "$I" && devgit inventario); rc=$?
 check "o arquivo do projeto reclassifica antes das regras" "$(linha app.db)" "regenerável"
 check "padrão com curinga classifica a pasta inteira de uma vez" "$(linha misterio/)" "rascunho"
 check "tudo pode sumir: sai com 0" "$rc" "0"
+# destino: segredo e dado com cópia fora do disco deixam de travar a saída
+printf '.env segredo cofre:meu-app/.env\n.claude/secrets/ segredo cofre:meu-app/ops env\napp.db dado\nmisterio/* rascunho\nnota*.txt rascunho\n' > "$I/.claude/inventario.txt"
+inv=$(cd "$I" && devgit inventario); rc=$?
+check "segredo com destino mostra para onde vai" "$(printf '%s\n' "$inv" | grep '^segredo  *\.env ')" "segredo       .env  → cofre:meu-app/.env"
+check "destino com espaço sai inteiro" "$(printf '%s\n' "$inv" | grep -c 'cofre:meu-app/ops env$')" "1"
+check "dado sem destino ainda trava: sai com 1" "$rc" "1"
+check "e a última linha conta o que falta" "$(printf '%s\n' "$inv" | tail -1)" "pode sair do disco: NÃO — 0 segredo(s) e 1 dado(s) sem destino, 0 desconhecido(s) sem classe (.claude/inventario.txt)"
+printf 'app.db dado backup:servidor/app.db\n' >> "$I/.claude/inventario.txt"
+inv=$(cd "$I" && devgit inventario); rc=$?
+check "regra que vem antes vence: app.db sem destino continua travando" "$rc" "1"
+sed -i.bak '/^app.db dado$/d' "$I/.claude/inventario.txt" && rm -f "$I/.claude/inventario.txt.bak"
+inv=$(cd "$I" && devgit inventario); rc=$?
+check "tudo com destino ou descartável: sai com 0" "$rc" "0"
 check "e diz que pode sair do disco" "$(printf '%s\n' "$inv" | tail -1 | cut -c1-24)" "pode sair do disco: sim "
 
 if command -v zsh >/dev/null 2>&1; then
