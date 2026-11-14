@@ -344,7 +344,11 @@ check "travado: o segredo não aparece" "$( [ -e "$BASE/e5-travado/.env" ] && ec
 check "travado: a documentação voltou" "$(cat "$BASE/e5-travado/.claude/notas/a.md")" "n"
 check "destravado: tudo volta, sai com 0" "$(BW_SESSION=x volta devgit-voltar "$F5" "$BASE/e5-volta")" "0"
 check "o segredo voltou igual" "$(cat "$BASE/e5-volta/.env")" "SENHA=abc12345"
-check "e só o dono lê" "$(ls -l "$BASE/e5-volta/.env" | cut -c1-10)" "-rw-------"
+# permissão só onde o sistema tem permissão: no Windows (Git Bash) chmod não muda nada
+sonda="$BASE/sonda-modo"; : > "$sonda"; chmod 600 "$sonda"
+if [ "$(ls -l "$sonda" | cut -c1-10)" = "-rw-------" ]; then
+  check "e só o dono lê" "$(ls -l "$BASE/e5-volta/.env" | cut -c1-10)" "-rw-------"
+else echo "  --   e só o dono lê (sistema sem permissão de arquivo: não medido)"; fi
 check "o privado responde" "$(cd "$BASE/e5-volta" && devgit status -sb | head -1)" "## main...origin/main"
 check "o público está limpo" "$(cd "$BASE/e5-volta" && git status --porcelain)" ""
 check "a trava voltou" "$( [ -x "$BASE/e5-volta/.git/hooks/pre-push" ] && echo sim)" "sim"
