@@ -172,6 +172,8 @@ python3 "$(bash "${CLAUDE_PLUGIN_ROOT}/lib/resolve-plugin.sh" project-skills lib
   iterações; a evidência do próprio lint diz o que corrigir). Falso-positivo legítimo (var
   dinâmica f-string, config de infra externa) → `lint:ignore` inline ou `lint-allow.txt`, com
   justificativa no relatório — nunca silenciado sem registro.
+- **exit 2 (`NÃO LIDO`)** — um doc não abriu ou o escopo veio vazio: o lint não mediu nada, e isso
+  não é PASS. Reportar "doc-lint não rodou" e corrigir o caminho; nunca "0 FAIL".
 - `warns` → reportar contagem no output (não bloqueia).
 
 **24. Cobertura ativo × durabilidade (gen 3.8) — CRITICAL. Condicional: só quando `data-stores.md` existe.**
