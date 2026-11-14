@@ -383,6 +383,65 @@ check "voltar: rc 3 (segredos em cofre que não é o Bitwarden)" "$(volta devgit
 check "voltar declara o modo de novo" "$(git -C "$BASE/u1-volta" config --get devgit.modo)" "unico"
 check "e o devgit responde no projeto que voltou" "$(cd "$BASE/u1-volta" && devgit ls-files notas 2>/dev/null)" "notas/x.md"
 
+echo
+echo "[devgit fechar: o fechamento das skills]"
+F="$BASE/f1"; novo_projeto "$F" ".claude/"
+git init -q --bare -b main "$BASE/f1-dev.git"
+( cd "$F" && devgit remote add origin "$BASE/f1-dev.git" )
+echo d > "$F/.claude/notas/a.md"
+( cd "$F/src" && devgit fechar "docs: nota" >/dev/null 2>&1 ); check "fechar com remoto: rc 0" "$?" "0"
+check "fechar: nada sem commit" "$(cd "$F" && devgit status --short | wc -l | tr -d ' ')" "0"
+check "fechar: nada sem push" "$(cd "$F" && devgit rev-list --count '@{u}..HEAD')" "0"
+check "fechar: o remoto tem a nota" "$(git --git-dir="$BASE/f1-dev.git" ls-tree -r --name-only main)" "notas/a.md"
+( cd "$F" && devgit fechar "docs: nada" >/dev/null 2>&1 ); check "fechar sem mudança: rc 0, sem commit novo" "$?|$(git --git-dir="$BASE/f1-dev.git" rev-list --count main)" "0|1"
+( cd "$F" && devgit fechar >/dev/null 2>&1 ); check "fechar sem mensagem: rc 2" "$?" "2"
+F2="$BASE/f2"; novo_projeto "$F2" ".claude/"; echo d > "$F2/.claude/notas/a.md"
+( cd "$F2" && devgit fechar "docs: x" >/dev/null 2>&1 ); check "fechar sem remoto: rc 1 (o commit fica local)" "$?|$(cd "$F2" && devgit rev-list --count HEAD)" "1|1"
+FU="$BASE/fu"; mkdir -p "$FU/.claude/notas" "$FU/src"; git init -q --bare -b main "$BASE/fu.git"
+( cd "$FU" && git init -q -b main && git config devgit.modo unico && echo c > src/a.js && git add -A && git commit -qm i \
+  && git remote add origin "$BASE/fu.git" && git push -q -u origin main 2>/dev/null )
+echo n > "$FU/.claude/notas/x.md"; echo c2 > "$FU/src/a.js"; ( cd "$FU" && git add src/a.js )
+( cd "$FU" && devgit fechar "docs: x" >/dev/null 2>&1 ); check "fechar no repositório único: rc 0" "$?" "0"
+check "único: o commit leva só .claude/" "$(git -C "$FU" show --name-only --format= HEAD)" ".claude/notas/x.md"
+check "único: o código preparado continua preparado, fora do commit" "$(git -C "$FU" diff --cached --name-only)" "src/a.js"
+
+echo
+echo "[devgit-iniciar: a concepção cria o privado]"
+I="$BASE/i1"; mkdir -p "$I/src"; git init -q --bare -b main "$BASE/i1-dev.git"
+( cd "$I" && git init -q -b main && echo c > src/a.js && git add -A && git commit -qm i )
+( cd "$I" && devgit-iniciar aberto "$BASE/i1-dev.git" >/dev/null 2>&1 ); check "aberto com url: rc 0" "$?" "0"
+check "aberto: o privado tem um commit" "$(git -C "$I" --git-dir=.git/dev.git rev-parse -q --verify HEAD >/dev/null && echo commit)" "commit"
+check "aberto: o público passa a ignorar .claude/" "$(cd "$I" && git check-ignore -q .claude/x && echo ignora)" "ignora"
+check "aberto: nenhum .git dentro de .claude/" "$(ls -a "$I/.claude" | grep -c '^\.git$')" "0"
+check "aberto: secrets/ fora do privado" "$(grep -c '^secrets/$' "$I/.claude/.gitignore")" "1"
+check "aberto: a trava foi instalada" "$(grep -l dual-git-trava "$I/.git/hooks/pre-commit" "$I/.git/hooks/pre-push" | wc -l | tr -d ' ')" "2"
+check "aberto: o remoto recebeu o privado" "$(cd "$I" && devgit status -sb | head -1)" "## main...origin/main"
+( cd "$I" && devgit-iniciar aberto >/dev/null 2>&1 ); check "rodar de novo: rc 0, nada muda" "$?|$(git -C "$I" --git-dir=.git/dev.git rev-list --count HEAD)" "0|1"
+I2="$BASE/i2"; mkdir -p "$I2/.claude"; ( cd "$I2" && git init -q -b main && echo x > .claude/CLAUDE.md && git add -A && git commit -qm i )
+( cd "$I2" && devgit-iniciar aberto >/dev/null 2>&1 ); check "público que já guarda .claude/: rc 1, nada criado" "$?|$( [ -e "$I2/.git/dev.git" ] && echo criou || echo nada)" "1|nada"
+I4="$BASE/i4"; mkdir -p "$I4/.claude/notas"; ( cd "$I4" && git init -q -b main && printf 'TOKEN=abcd1234efgh\n' > .env && printf '.env\n' > .gitignore && git add .gitignore && git commit -qm i )
+echo "usa abcd1234efgh" > "$I4/.claude/notas/vaza.md"; echo ok > "$I4/.claude/notas/limpa.md"
+err=$(cd "$I4" && devgit-iniciar aberto 2>&1 >/dev/null); rc=$?
+check "valor do .env dentro de .claude/: rc 1, sem commit" "$rc|$(git -C "$I4" --git-dir=.git/dev.git rev-parse -q --verify HEAD >/dev/null && echo commit || echo nada)" "1|nada"
+check "a recusa nomeia o arquivo" "$(printf '%s\n' "$err" | grep -c '^notas/vaza.md$')" "1"
+rm "$I4/.claude/notas/vaza.md"
+( cd "$I4" && devgit-iniciar aberto >/dev/null 2>&1 ); check "sem a credencial, o mesmo projeto entra: rc 0" "$?" "0"
+I3="$BASE/i3"; mkdir -p "$I3"; ( cd "$I3" && git init -q -b main )
+( cd "$I3" && devgit-iniciar fechado >/dev/null 2>&1 ); check "fechado: rc 0 e repositório único declarado" "$?|$(git -C "$I3" config --get devgit.modo)" "0|unico"
+( cd "$I3" && devgit-iniciar local >/dev/null 2>&1 ); check "classe desconhecida: rc 2" "$?" "2"
+
+echo
+echo "[aviso de início de sessão]"
+AV="$(cd "$HERE/../hooks" && pwd)/sessionstart-avisa-privado.sh"
+echo e > "$F/.claude/notas/b.md"
+out=$(cd "$F" && echo '{}' | bash "$AV")
+check "aviso: JSON válido" "$(printf '%s' "$out" | python3 -c 'import json,sys; json.load(sys.stdin); print("ok")' 2>/dev/null)" "ok"
+check "aviso: conta o arquivo sem commit" "$(printf '%s' "$out" | grep -c 'privado com 1 arquivo(s) sem commit e 0 commit(s) sem push')" "1"
+( cd "$F" && devgit fechar "docs: b" >/dev/null 2>&1 )
+check "aviso: privado em dia depois do fechar" "$(cd "$F" && echo '{}' | bash "$AV" | grep -c 'privado em dia')" "1"
+check "aviso: projeto sem privado fica calado" "$(cd "$BASE/sem" && echo '{}' | bash "$AV" | wc -c | tr -d ' ')" "0"
+check "aviso: DEVGIT_AVISO=0 desliga" "$(cd "$F2" && echo '{}' | DEVGIT_AVISO=0 bash "$AV" | wc -c | tr -d ' ')" "0"
+
 if command -v zsh >/dev/null 2>&1; then
   echo
   echo "[chamado a partir do zsh]"

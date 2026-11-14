@@ -365,6 +365,33 @@ mais honesto do que redigir. Então a pergunta abre assim, sempre nesta forma:
 - Em `AskUserQuestion`, o palpite é a opção que você marca como aposta no texto da pergunta, com o
   percentual ao lado; as outras opções continuam inteiras, sem sugestão de que já perderam.
 
+#### A classe do repositório — o privado nasce na resposta
+
+Dentro da etapa 1, junto das restrições, uma pergunta a mais: **este projeto publica código?** São
+três respostas, e a classe vai escrita em `constraints.md` como restrição dura:
+
+- **aberto** — o código é (ou vai ser) público. O material interno de `.claude/` (documentação de
+  desenvolvimento, plano, registro de sessão) vai para um repositório **privado** à parte.
+- **fechado** — nada é publicado. Um repositório só, privado, que guarda `.claude/` junto do código.
+- **local** — sem repositório remoto. Fica fora do modelo; nada a criar.
+
+A pista é o remoto: `gh repo view --json visibility -q .visibility` (`PUBLIC`/`PRIVATE`, ou erro
+quando não há remoto). Gravada a resposta, **execute a classe na hora** — antes de escrever
+documento nenhum, para os documentos da concepção já nascerem guardados:
+
+```bash
+command -v devgit-iniciar                    # vazio = plugin dual-git fora do caminho de comandos
+devgit-iniciar aberto "<url-do-privado>"     # classe aberto
+devgit-iniciar fechado                       # classe fechado
+```
+
+O `<url-do-privado>` sai de `gh repo create <projeto>-dev --private` — criar repositório no GitHub
+é ato para fora, então pergunte ao dono antes; sem o remoto, rode `aberto` sem url e diga no
+relatório que o privado ainda não tem cópia fora do disco. `devgit-iniciar` recusa (sai 1) quando o
+público já guarda arquivos de `.claude/`: a forma do `.gitignore` é escolha do dono, e a pergunta
+vai a ele com a lista que o comando imprimiu. Plugin `dual-git` ausente ⇒ a classe fica gravada em
+`constraints.md`, o privado não nasce, e o relatório diz isso em voz alta. Os comandos do plugin entram no caminho de comandos quando a sessão abre — instalado no meio dela, só valem depois de reiniciar.
+
 #### As sete pautas transversais — cada uma na etapa dela
 
 Sete pautas atravessam qualquer projeto e a prática sempre esquece de perguntar. Elas **não viram
@@ -667,6 +694,16 @@ e **nunca** os markers `project-doc:v2` — escrever `v2` à mão deixaria o pro
 na hora (o contrato exige também journal e `doc-sig`, que só a mineração produz) e todo hook do
 plugin passaria a acusar "fora do padrão". O `/doc` FULL **substitui o bloco inteiro** pelo
 índice dele quando rodar.
+
+**Guarde a concepção no privado.** Projeto de classe aberto ou fechado fecha com um comando, que
+grava e envia o que mudou em `.claude/`:
+
+```bash
+command -v devgit >/dev/null && devgit fechar "docs: concepção do projeto"
+```
+
+Sai 2 em projeto sem privado (classe local): siga calado. Sai 1 quando sobrou algo (sem remoto,
+push recusado): a linha que ele imprimiu vai para o relatório.
 
 Depois, ofereça o próximo passo:
 

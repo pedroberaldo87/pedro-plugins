@@ -47,7 +47,13 @@ def main():
     check("nada se move sem o dono responder",
           "nada se move" in passo)
 
-    print("\n%d check(s), %d falha(s)" % (8, len(FAILS)))
+    # F3.3 do dual git — doc em .claude/ fecha pelo privado, e o git add do público não a leva
+    check("projeto com privado fecha .claude/ com devgit fechar",
+          'devgit fechar "docs(project-doc)' in texto)
+    check("com .git/dev.git, .claude/ sai do git add do público",
+          "tire os caminhos de `.claude/` do `git add`" in texto)
+
+    print("\n%d check(s), %d falha(s)" % (10, len(FAILS)))
     return 1 if FAILS else 0
 
 

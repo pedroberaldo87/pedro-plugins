@@ -81,6 +81,7 @@ Por que o extrator gera o LOG e não você: o seu julgamento não entra no LOG �
    - `scope.multi == true` com um `scope.module` → `{project_root}/.claude/HANDOFF-<módulo>.md` (monorepo: um por módulo).
    - **Antes de sobrescrever, cheque o escopo** (não escreva cego):
      - Se `scope.from_edits == false` (a sessão não editou arquivos — planejamento puro), o projeto-raiz foi **chutado pelo cwd**, não inferido do trabalho. **Confirme o destino com o usuário** antes de gravar — sobretudo se `scope.project_root_is_boundary == false` (o cwd é uma pasta guarda-chuva, então o handoff cairia nela, não num projeto real).
+     - Se `scope.project_ambiguous == true` (a sessão editou mais de um projeto, o cwd não é nenhum deles e nenhum tem plano aberto só dele — a escolha caiu na contagem de edições) → **pergunte** ao usuário a qual projeto este handoff pertence, mostrando o `scope.edits_by_project`. Quem conserta a ferramenta edita mais nela do que no projeto da missão; a contagem sozinha erra.
      - Se `scope.module` é `null` mas `scope.multi == true` (monorepo sem edits claros num módulo), **ou** `scope.module_ambiguous == true` (empate de edits entre dois módulos) → **pergunte** ao usuário a qual módulo este handoff pertence.
      - **Guardrail anti-sobrescrita:** se o `scope.handoff_path` já existe e foi escrito **< 5 min atrás** (ou é de uma frente claramente diferente do mesmo módulo) → suspeito (salvar dois handoffs seguidos não é o fluxo normal) → **confirme** antes de sobrescrever.
    - O PRD agrupa por tema o que está no LOG. Para CADA id em `gate_items`, referencia `[id]` no ponto onde aquela fala/decisão é tratada (o gate confirma que nada se perdeu). Findings e gotchas: ver a regra "verbatim" nas Regras do SALVAR.
@@ -114,6 +115,12 @@ Por que o extrator gera o LOG e não você: o seu julgamento não entra no LOG �
      - Refine o que o extrator deu; não o ignore.
 
 4. **Atualize o índice** no MESMO projeto-raiz do LOG/PRD — `<scope.project_root>/.claude/ata/INDEX.md` (não no cwd) — uma linha por sessão: data, `<sid>`, módulo (se houver), link pro `LOG-<sid>.md`, e uma frase do que foi a sessão.
+
+4b. **Feche o privado.** O PRD, o LOG e o índice moram em `.claude/`; em projeto com repositório privado (`.git/dev.git`, ou `git config devgit.modo unico`) eles só ficam fora do disco depois de um commit e um push nele — um comando, rodado **no projeto-raiz**:
+   ```bash
+   command -v devgit >/dev/null && ( cd "<scope.project_root>" && devgit fechar "handoff: sessão <sid>" )
+   ```
+   `devgit` fora do caminho de comandos = plugin `dual-git` ausente (ou instalado depois que a sessão abriu): siga. Sai 0 com o privado em dia, 1 quando sobrou algo (sem remoto, push recusado — mostre a linha ao usuário), 2 em projeto sem privado (siga calado). Se o gate de completude mandar completar o PRD, rode de novo depois da correção.
 
 5. **Mostre o resumo ao usuário.** O gate de completude verifica o PRD contra o manifest; se faltar algum `gate_items`, ele te diz e você completa antes de declarar pronto.
 

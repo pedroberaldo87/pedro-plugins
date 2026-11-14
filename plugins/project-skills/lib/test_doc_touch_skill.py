@@ -79,6 +79,10 @@ def main():
     check("o git add do conteudo inclui .claude/docs/fluxos/",  # casa-ok: fixture de teste, o literal e o dado do caso
           ".claude/docs/fluxos/" in passo_5)  # casa-ok: fixture de teste, o literal e o dado do caso
 
+    # F3.3 do dual git — o touch fecha o privado depois do carimbo
+    check("projeto com privado fecha .claude/ com devgit fechar depois do --restamp",
+          "command -v devgit" in texto and texto.index("devgit fechar \"docs: re-projeta") > texto.index("python3 $PC --project-root . --restamp"))
+    check("o relatorio do touch diz o estado do privado", "privado: {linha do devgit fechar" in texto)
     print()
     if FAILS:
         print("%d FALHA(S):" % len(FAILS))

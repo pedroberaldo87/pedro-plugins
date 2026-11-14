@@ -1,0 +1,86 @@
+#!/usr/bin/env bash
+# devgit-iniciar — põe o projeto onde você está no modelo dual git, pela classe dele.
+#
+# Uso (da pasta do projeto, que já tem `git init` feito):
+#   devgit-iniciar aberto [<url-do-privado>]   o código é publicado: cria o privado em
+#                                              .git/dev.git, o .claude/.gitignore, o
+#                                              primeiro commit e a trava; com a url,
+#                                              liga o remoto e envia
+#   devgit-iniciar fechado                     nada é publicado: declara o repositório
+#                                              único (git config devgit.modo unico)
+#
+# É o passo que a concepção do projeto (`/start`) roda depois de perguntar a classe — um
+# comando, para a skill não carregar a receita em prosa (ações A2 e A3 do modelo).
+# Rodar de novo num projeto já iniciado não muda nada e sai com 0.
+#
+# Sai com 0 quando o projeto ficou no modelo, 1 quando recusa (o público já guarda parte
+# de .claude/ e a forma do .gitignore é escolha sua; push recusado), 2 quando não dá nem
+# para começar (fora de repositório, classe desconhecida).
+set -u
+# shellcheck disable=SC2046
+unset $(git rev-parse --local-env-vars 2>/dev/null)
+classe="${1:-}"; url="${2:-}"
+r=$(git rev-parse --show-toplevel 2>/dev/null) || { echo "devgit-iniciar: fora de um repositório — rode git init antes" >&2; exit 2; }
+[ -d "$r/.git" ] || { echo "devgit-iniciar: rode na pasta principal do projeto, não num worktree" >&2; exit 2; }
+bin="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+case "$classe" in
+  fechado)
+    git -C "$r" config devgit.modo unico
+    if git -C "$r" check-ignore -q .claude/x 2>/dev/null; then
+      echo "devgit-iniciar: atenção — o .gitignore do projeto ignora .claude/; tire essa linha para o git guardar o material interno" >&2
+    fi
+    echo "devgit-iniciar: repositório único declarado — devgit é o git deste projeto, com caminho relativo a .claude/"
+    exit 0 ;;
+  aberto) ;;
+  *) echo "devgit-iniciar: classe '$classe' desconhecida — use aberto ou fechado (projeto local, sem remoto, fica fora do modelo)" >&2; exit 2 ;;
+esac
+
+priv() { git --git-dir="$r/.git/dev.git" --work-tree="$r/.claude" -C "$r/.claude" "$@"; }
+
+# Um dono só por arquivo: o público tem que ignorar .claude/. Se ele não ignora e não
+# guarda nada lá, a forma simples entra sozinha; se já guarda, a forma mista é escolha.
+if ! git -C "$r" check-ignore -q .claude/x 2>/dev/null; then
+  if [ -n "$(git -C "$r" ls-files .claude)" ]; then
+    echo "devgit-iniciar: o público já guarda arquivos de .claude/ — escolha a forma mista no .gitignore (ação A2, passo 1) e rode de novo:" >&2
+    git -C "$r" ls-files .claude >&2; exit 1
+  fi
+  printf '\n# material interno: repositório privado (devgit)\n.claude/\n' >> "$r/.gitignore"
+  echo "devgit-iniciar: .claude/ entrou no .gitignore do público (forma simples)"
+fi
+
+mkdir -p "$r/.claude"
+[ -f "$r/.claude/.gitignore" ] || printf 'secrets/\nworktrees/\nvisual/\nprints/\n*.local.json\n' > "$r/.claude/.gitignore"
+
+if [ ! -d "$r/.git/dev.git" ]; then
+  git init -q -b main --bare "$r/.git/dev.git" || exit 2
+  git --git-dir="$r/.git/dev.git" config core.bare false
+  git --git-dir="$r/.git/dev.git" config core.worktree ../../.claude
+fi
+if ! priv rev-parse -q --verify HEAD >/dev/null 2>&1; then
+  "$bin/devgit" add -A -- . || exit 1
+  # Projeto que já existe traz .claude/ cheia: credencial que entrar aqui viaja para o
+  # remoto. Chave privada e os valores do .env (8+ caracteres) recusam o primeiro commit.
+  achados=$(priv grep --cached -lIE 'BEGIN [A-Z ]*PRIVATE KEY' 2>/dev/null)
+  if [ -f "$r/.env" ]; then
+    v=$(mktemp); grep -vE '^[[:space:]]*(#|$)' "$r/.env" | cut -d= -f2- | sed -E "s/^[\"']//; s/[\"']\$//" | grep -E '.{8,}' > "$v"
+    [ -s "$v" ] && achados=$(printf '%s\n%s' "$achados" "$(priv grep --cached -lIFf "$v" 2>/dev/null)")
+    rm -f "$v"
+  fi
+  achados=$(printf '%s\n' "$achados" | grep . | sort -u)
+  if [ -n "$achados" ]; then
+    priv reset -q
+    echo "devgit-iniciar: credencial em .claude/ — tire do arquivo ou ponha no .claude/.gitignore, e rode de novo:" >&2
+    printf '%s\n' "$achados" >&2; exit 1
+  fi
+  "$bin/devgit" commit -q -m "docs: primeiro commit do repositório privado" || exit 1
+fi
+echo "devgit-iniciar: privado em .git/dev.git — commit $(priv rev-parse --short HEAD)"
+
+"$bin/devgit-trava" || echo "devgit-iniciar: a trava não foi instalada (motivo acima) — resolva e rode devgit-trava" >&2
+
+if [ -n "$url" ]; then
+  [ -n "$(priv remote)" ] || priv remote add origin "$url"
+  priv push -q -u origin main || { echo "devgit-iniciar: o push do privado foi recusado" >&2; exit 1; }
+  echo "devgit-iniciar: privado enviado para $url"
+fi

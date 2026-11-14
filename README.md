@@ -191,7 +191,7 @@ One ships **disabled by default** in the `bootstrap` recipe and you enable it if
 Enable: `claude plugin enable <name>@pedro-plugins`.
 
 Nineteen plugins ship **one** skill each (in `lixeiro` it is called `/faxina`). Three ship none —
-`graphify-guard` only has hooks, `vision` only has the `see_image` tool and `dual-git` only has the `devgit` and `devgit-trava` commands. `visual` ships two
+`graphify-guard` only has hooks, `vision` only has the `see_image` tool and `dual-git` only has commands (`devgit`, `devgit-trava`, `devgit-iniciar`, `devgit-voltar`) and a session-start notice. `visual` ships two
 and `2op` ships three. And `project-skills` ships thirteen, so it gets its own section right below.
 
 Command names, trigger phrases and skill text are in Portuguese (the author's language); the descriptions here are translated.
@@ -272,7 +272,7 @@ not change.
 | `fallow` | `/fallow` | Runs Fallow (a JS/TS static analyzer — dead code, duplication, complexity), classifies findings by type and confidence, audits the report to catch false positives (cron, HTTP routes, dynamic imports) and delivers an interactive report where you choose what to clean up. Cleanup with a safety net (preview + build/test). |
 | `branches` ⚙️ | `/branches` · SessionStart | A report of stale branches with proof: how many, which are already contained in the base, and what can be deleted. Before deleting, it creates an `archive/<branch>-<date>` tag as a rescue net. A silent SessionStart notice when there is no stale branch. |
 | `lixeiro` ⚙️ | `/faxina` · automatic (SessionEnd + Stop) | Ends the processes the session opened and left running — dev server, test suite in watch mode, tunnel. The automatic part reaps **only what the session noted it had opened**; the `/faxina` command is the manual sibling, which shows **everything** that is up, with or without provenance, and ends only what you tick. |
-| `dual-git` | commands `devgit` · `devgit-trava` | Two repositories in the same folder: code in the public one, the internal material in `.claude/` in a private one. `git` keeps meaning the public repository; `devgit` runs the private one from any folder of the project, with its control directory in `.git/dev.git` so no `.git` ever appears inside `.claude/`. `devgit-trava` installs `pre-commit` and `pre-push` in the public repository, refusing any file the `.gitignore` says to ignore and any text containing a term from `.claude/public-terms.txt`. `devgit inventario` lists what neither repository keeps — secret, data, regenerable, pointer, draft or unknown — and exits 0 only when the folder can leave the disk. `devgit estacionar --mover` checks that both repositories are fully pushed and the inventory is clean, writes a card with both addresses, and moves the folder to the Trash. `devgit-voltar <card>` brings it back: clones both, reinstalls the guard, restores secrets kept in Bitwarden and installs dependencies. A project that publishes no code declares `git config devgit.modo unico` and uses the same commands with a single repository. |
+| `dual-git` ⚙️ | commands `devgit` · `devgit-trava` · `devgit-iniciar` · `devgit-voltar` · automatic (SessionStart) | Two repositories in the same folder: code in the public one, the internal material in `.claude/` in a private one. `git` keeps meaning the public repository; `devgit` runs the private one from any folder of the project, with its control directory in `.git/dev.git` so no `.git` ever appears inside `.claude/`. `devgit-trava` installs `pre-commit` and `pre-push` in the public repository, refusing any file the `.gitignore` says to ignore and any text containing a term from `.claude/public-terms.txt`. `devgit inventario` lists what neither repository keeps — secret, data, regenerable, pointer, draft or unknown — and exits 0 only when the folder can leave the disk. `devgit estacionar --mover` checks that both repositories are fully pushed and the inventory is clean, writes a card with both addresses, and moves the folder to the Trash. `devgit-voltar <card>` brings it back: clones both, reinstalls the guard, restores secrets kept in Bitwarden and installs dependencies. A project that publishes no code declares `git config devgit.modo unico` and uses the same commands with a single repository. `devgit-iniciar aberto` or `fechado` puts a new project in the model (the project-conception skill runs it), `devgit fechar "<message>"` commits and pushes what changed in `.claude/` (documentation, session handoff and shipping run it at the end), and every session opens with one line saying how many private files are uncommitted and how many commits are unpushed. |
 
 ### Visual presentation
 
@@ -296,7 +296,7 @@ Each plugin is a self-contained folder: Claude Code reads the catalog, copies th
 
 ### Automatic hooks
 
-12 plugins register hooks that fire without a slash command — 54 registrations in total
+13 plugins register hooks that fire without a slash command — 55 registrations in total
 (derived in this run: `python3 scripts/hook_contract.py`; checked at commit time by
 `python3 scripts/readme_counts_check.py`):
 
@@ -305,6 +305,7 @@ Each plugin is a self-contained folder: Claude Code reads the catalog, copies th
 | `bootstrap` | SessionStart×2 · PostToolUse | Sync of what is already installed, a notice about what the manifest adds, and the notice after a plugin command |
 | `branches` | SessionStart×2 · PostToolUse | Stale-branch notice, silent when there is none |
 | `context-guard` | SessionStart×2 · PostToolUse | Watches how much of the conversation is used and suggests the handoff |
+| `dual-git` | SessionStart | One line with how many private-repository files are uncommitted and how many commits are unpushed |
 | `gauntlet` | SessionStart×2 · PreToolUse | Denies new dispatches while a delivery has no judge, and finds the contest again on startup |
 | `graphify-guard` | SessionStart×2 · PreToolUse | Redirects blind search to the knowledge graph |
 | `guardrails` | SessionStart · PreToolUse×4 · PostToolUse | Post-edit lint and type-check, UI scope-cop, and the unsupported-question gate |
@@ -331,7 +332,7 @@ plugins/<name>/
 └── lib/                     # (optional) the plugin's helper code (Python stdlib)
 ```
 
-Some plugins have extra folders: `bootstrap` has `config/` and `output-styles/`, `visual` has `server/`, `dual-git` has `bin/` and `git-hooks/`, and `vision` is an MCP server (`.mcp.json` + `vision_mcp.py`).
+Some plugins have extra folders: `bootstrap` has `config/` and `output-styles/`, `visual` has `server/`, `dual-git` has `bin/` and `git-hooks/` (besides `hooks/`), and `vision` is an MCP server (`.mcp.json` + `vision_mcp.py`).
 
 The catalog lives in `.claude-plugin/marketplace.json` at the root — each plugin has an entry with `name`, `source`, `description`, `category`, `version` and `tags`.
 
