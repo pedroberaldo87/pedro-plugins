@@ -85,7 +85,8 @@ pub status --porcelain -z --ignored | while IFS= read -r -d '' e; do
   [ "$p" = ".claude/" ] && continue          # é a pasta de trabalho do privado
   anota "$p" pub
 done
-priv status --porcelain -z --ignored | while IFS= read -r -d '' e; do
+# repositório único: o .claude/ já entrou na lista de cima, pelo próprio git
+[ "${DUALGIT_UNICO:-0}" = 1 ] || priv status --porcelain -z --ignored | while IFS= read -r -d '' e; do
   case "$e" in '!! '*) ;; *) continue ;; esac
   anota ".claude/${e#!! }" priv
 done

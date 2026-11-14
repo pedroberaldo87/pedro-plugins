@@ -51,7 +51,8 @@ antes=0; portao público pub
 if [ "$(pub worktree list --porcelain | grep -c '^worktree ')" -gt 1 ]; then
   recusa "o público tem worktree extra (o trabalho dele não sai com esta pasta):" "$(pub worktree list | sed 1d)"
 fi
-antes=$recusas; portao privado priv
+if [ "${DUALGIT_UNICO:-0}" = 1 ]; then echo "[privado]"; echo "  (repositório único: .claude/ foi conferida junto com o público)"
+else antes=$recusas; portao privado priv; fi
 
 echo "[inventário]"
 inv=$(bash "$aqui/inventario.sh" "$r"); rc=$?
@@ -76,7 +77,8 @@ ficha="$fichas/$nome-$quando.md"
   echo
   echo "- pasta original: $r"
   echo "- público: $(pub remote get-url origin 2>/dev/null) · branch $(pub branch --show-current) · commit $(pub rev-parse --short HEAD)"
-  echo "- privado: $(priv remote get-url origin 2>/dev/null) · branch $(priv branch --show-current) · commit $(priv rev-parse --short HEAD)"
+  if [ "${DUALGIT_UNICO:-0}" = 1 ]; then echo "- privado: (repositório único)"
+  else echo "- privado: $(priv remote get-url origin 2>/dev/null) · branch $(priv branch --show-current) · commit $(priv rev-parse --short HEAD)"; fi
   echo
   echo "## Destinos de segredo e dado"
   # do arquivo de regras, não da saída do inventário: um segredo ausente do disco agora

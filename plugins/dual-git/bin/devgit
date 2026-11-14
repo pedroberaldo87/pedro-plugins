@@ -18,6 +18,13 @@
 #                               ver lib/inventario.sh
 #   devgit estacionar [--mover] confere se a pasta pode sair do disco e, com --mover,
 #                               manda para a Lixeira — ver lib/estacionar.sh
+#
+# Projeto que não publica código (repositório único, ação A3) guarda .claude/ no
+# próprio git e não tem .git/dev.git. Ele é DECLARADO, nunca adivinhado:
+#   git config devgit.modo unico
+# Adivinhar pela .claude/ não ignorada confundiria um repositório público que guarda
+# parte da .claude/ de propósito — e o devgit passaria a escrever nele. Declarado, o
+# devgit vira o git do próprio projeto, com caminho relativo a .claude/.
 
 # Dentro de um hook do público o git exporta GIT_INDEX_FILE, GIT_DIR e companhia.
 # Herdadas, o privado gravaria na área de preparação do PÚBLICO e o commit dele quebra.
@@ -25,17 +32,27 @@
 unset $(git rev-parse --local-env-vars 2>/dev/null)
 
 r=$(git rev-parse --show-toplevel 2>/dev/null) || { echo "devgit: fora de um repositório" >&2; exit 2; }
-[ -d "$r/.git/dev.git" ] || { echo "devgit: este projeto não tem repositório privado (ou você está num worktree)" >&2; exit 2; }
+unico=0
+if [ ! -d "$r/.git/dev.git" ]; then
+  if [ "$(git -C "$r" config --get devgit.modo)" = unico ]; then
+    unico=1; echo "devgit: repositório único — .claude/ é guardada pelo próprio git deste projeto" >&2
+  else
+    echo "devgit: este projeto não tem repositório privado (ou você está num worktree). Projeto que não publica código: git config devgit.modo unico" >&2; exit 2
+  fi
+fi
+export DUALGIT_UNICO=$unico
 
 # Um dono só por arquivo: o que o público rastreia em .claude/ (linhas `!.claude/…` ou
 # `!/.claude/…` do .gitignore dele) o privado não pega. Derivado a cada chamada, nunca
 # mantido à mão; troca atômica, para um devgit ao lado nunca ler a lista pela metade.
 # `secrets/` e `worktrees/` ficam fora SEMPRE, mesmo sem .claude/.gitignore: segredo não
 # entra em texto claro, e worktree é uma cópia inteira do código do público.
-ex="$r/.git/dev.git/info/exclude"
-mkdir -p "$r/.git/dev.git/info"
-{ printf '/secrets/\n/worktrees/\n'
-  grep -E '^!/?\.claude/' "$r/.gitignore" 2>/dev/null | sed -E 's|^!/?\.claude||'; } > "$ex.$$" && mv -f "$ex.$$" "$ex"
+if [ "$unico" -eq 0 ]; then
+  ex="$r/.git/dev.git/info/exclude"
+  mkdir -p "$r/.git/dev.git/info"
+  { printf '/secrets/\n/worktrees/\n'
+    grep -E '^!/?\.claude/' "$r/.gitignore" 2>/dev/null | sed -E 's|^!/?\.claude||'; } > "$ex.$$" && mv -f "$ex.$$" "$ex"
+fi
 
 case "${1:-}" in
   inventario|estacionar)
@@ -52,4 +69,5 @@ case "$(git rev-parse --show-prefix)" in
     done
     set -- -C "$r/.claude" "$@" ;;
 esac
+[ "$unico" -eq 1 ] && exec git "$@"
 exec git --git-dir="$r/.git/dev.git" --work-tree="$r/.claude" "$@"
