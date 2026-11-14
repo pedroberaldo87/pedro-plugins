@@ -26,6 +26,7 @@ original=$(campo "pasta original")
 pub_url=$(campo "público" | sed 's/ · .*//'); pub_br=$(campo "público" | sed -n 's/.* · branch \([^ ]*\) · .*/\1/p')
 priv_url=$(campo "privado" | sed 's/ · .*//'); priv_br=$(campo "privado" | sed -n 's/.* · branch \([^ ]*\) · .*/\1/p')
 [ -n "$pub_url" ] && [ -n "$priv_url" ] || { echo "devgit-voltar: a ficha não tem os dois endereços" >&2; exit 1; }
+unico=0; [ "$priv_url" = "(repositório único)" ] && unico=1
 destino="${2:-$original}"
 [ -e "$destino" ] && { echo "devgit-voltar: $destino já existe; não sobrescrevo. Passe outra pasta." >&2; exit 1; }
 bin="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -33,14 +34,19 @@ bin="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 echo "[1] público ← $pub_url"
 git clone -q ${pub_br:+--branch "$pub_br"} "$pub_url" "$destino" || exit 2
 cd "$destino" || exit 2
-echo "[2] privado ← $priv_url"
-# a branch vem da ficha: sem ela, um remoto cuja branch padrão não existe vem vazio
-git clone -q --no-checkout ${priv_br:+--branch "$priv_br"} "$priv_url" .dev-tmp || exit 2
-mv .dev-tmp/.git .git/dev.git && rmdir .dev-tmp
-git --git-dir=.git/dev.git config core.worktree ../../.claude
-mkdir -p .claude
-git --git-dir=.git/dev.git reset -q
-git --git-dir=.git/dev.git checkout-index -a
+if [ "$unico" -eq 1 ]; then
+  echo "[2] repositório único: .claude/ veio com o clone"
+  git config devgit.modo unico
+else
+  echo "[2] privado ← $priv_url"
+  # a branch vem da ficha: sem ela, um remoto cuja branch padrão não existe vem vazio
+  git clone -q --no-checkout ${priv_br:+--branch "$priv_br"} "$priv_url" .dev-tmp || exit 2
+  mv .dev-tmp/.git .git/dev.git && rmdir .dev-tmp
+  git --git-dir=.git/dev.git config core.worktree ../../.claude
+  mkdir -p .claude
+  git --git-dir=.git/dev.git reset -q
+  git --git-dir=.git/dev.git checkout-index -a
+fi
 echo "[3] trava"
 "$bin/devgit-trava" | sed 's/^/    /'
 

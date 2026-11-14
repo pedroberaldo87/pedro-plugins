@@ -352,6 +352,33 @@ check "não há .git dentro de .claude/" "$(ls -a "$BASE/e5-volta/.claude" | gre
 check "pasta que já existe: recusa sem tocar (rc 1)" "$(BW_SESSION=x volta devgit-voltar "$F5" "$BASE/e5-volta")" "1"
 check "ficha que não existe: rc 1" "$(volta devgit-voltar "$BASE/nao-existe.md")" "1"
 
+echo
+echo "[repositório único: projeto que não publica código]"
+U="$BASE/u1"; mkdir -p "$U/src" "$U/.claude/notas" "$U/.claude/secrets"
+( cd "$U" && git init -q -b main && printf '.env\n.claude/secrets/\n' > .gitignore && echo c > src/a.js \
+  && echo idx > .claude/CLAUDE.md && echo s > .env && echo k > .claude/secrets/ops.env && git add -A && git commit -qm init )
+git init -q --bare "$U.git"; ( cd "$U" && git remote add origin "$U.git" && git push -q -u origin main 2>/dev/null )
+( cd "$U" && devgit status >/dev/null 2>&1 ); check "público que guarda .claude/ sem declarar: recusa (rc 2)" "$?" "2"
+check "e não cria nada em .git/" "$( [ -e "$U/.git/dev.git" ] && echo criou || echo nada)" "nada"
+( cd "$U" && git config devgit.modo unico )
+saida=$(cd "$U" && devgit status 2>&1); rc=$?
+check "declarado: devgit status sai com 0" "$rc" "0"
+check "e diz que é repositório único" "$(printf '%s\n' "$saida" | grep -c 'repositório único')" "1"
+echo n > "$U/.claude/notas/x.md"
+( cd "$U" && devgit add notas/x.md 2>/dev/null && devgit commit -qm nota 2>/dev/null )
+check "caminho relativo a .claude/ cai no próprio git do projeto" "$(cd "$U" && git ls-files .claude/notas)" ".claude/notas/x.md"
+check "sem .git/dev.git" "$( [ -e "$U/.git/dev.git" ] && echo criou || echo nada)" "nada"
+inv=$(cd "$U" && devgit inventario 2>/dev/null)
+check "inventário enxerga o segredo dentro de .claude/" "$(printf '%s\n' "$inv" | grep -c '^segredo  *\.claude/secrets/')" "1"
+printf '.env segredo cofre:u1/.env\n.claude/secrets/ segredo cofre:u1/ops\n' > "$U/.claude/inventario.txt"
+( cd "$U" && git add .claude/inventario.txt && git commit -qm inv && git push -q 2>/dev/null )
+check "estacionar com tudo enviado: rc 0" "$(est "$U" --mover)" "0"
+FU=$(ls "$BASE/home/.claude/dual-git/estacionados/"u1-*.md | head -1)
+check "a ficha registra repositório único" "$(grep -c 'privado: (repositório único)' "$FU")" "1"
+check "voltar: rc 3 (segredos em cofre que não é o Bitwarden)" "$(volta devgit-voltar "$FU" "$BASE/u1-volta")" "3"
+check "voltar declara o modo de novo" "$(git -C "$BASE/u1-volta" config --get devgit.modo)" "unico"
+check "e o devgit responde no projeto que voltou" "$(cd "$BASE/u1-volta" && devgit ls-files notas 2>/dev/null)" "notas/x.md"
+
 if command -v zsh >/dev/null 2>&1; then
   echo
   echo "[chamado a partir do zsh]"

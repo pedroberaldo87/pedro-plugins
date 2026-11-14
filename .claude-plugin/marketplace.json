@@ -99,9 +99,9 @@
     {
       "name": "dual-git",
       "source": "./plugins/dual-git",
-      "description": "Dois repositórios na mesma pasta: o código no público, o material interno de `.claude/` num privado. `git` continua sendo sempre o público; o privado só responde a `devgit`, que roda de qualquer pasta do projeto sem deixar `.git` dentro de `.claude/` (o controle mora em `.git/dev.git`). `devgit-trava` instala no público dois hooks, pre-commit e pre-push, que recusam arquivo que o `.gitignore` manda ignorar e texto com termo de `.claude/public-terms.txt`. `devgit inventario` lista o que nenhum dos dois guarda — segredo, dado, regenerável, ponteiro, rascunho ou desconhecido — e sai com 0 só quando a pasta pode sair do disco. `devgit estacionar --mover` confere que os dois repositórios estão inteiros no remoto e o inventário limpo, grava uma ficha com os endereços e manda a pasta para a Lixeira. `devgit-voltar <ficha>` traz de volta: clona os dois, reinstala a trava, devolve os segredos guardados no Bitwarden e instala as dependências.",
+      "description": "Dois repositórios na mesma pasta: o código no público, o material interno de `.claude/` num privado. `git` continua sendo sempre o público; o privado só responde a `devgit`, que roda de qualquer pasta do projeto sem deixar `.git` dentro de `.claude/` (o controle mora em `.git/dev.git`). `devgit-trava` instala no público dois hooks, pre-commit e pre-push, que recusam arquivo que o `.gitignore` manda ignorar e texto com termo de `.claude/public-terms.txt`. `devgit inventario` lista o que nenhum dos dois guarda — segredo, dado, regenerável, ponteiro, rascunho ou desconhecido — e sai com 0 só quando a pasta pode sair do disco. `devgit estacionar --mover` confere que os dois repositórios estão inteiros no remoto e o inventário limpo, grava uma ficha com os endereços e manda a pasta para a Lixeira. `devgit-voltar <ficha>` traz de volta: clona os dois, reinstala a trava, devolve os segredos guardados no Bitwarden e instala as dependências. Projeto que não publica código declara `git config devgit.modo unico` e usa os mesmos comandos com um repositório só.",
       "category": "dev-tools",
-      "version": "0.5.0",
+      "version": "0.6.0",
       "tags": [
         "git",
         "private-docs",
