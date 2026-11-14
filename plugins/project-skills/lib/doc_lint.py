@@ -526,8 +526,17 @@ def main():
     if args.json:
         print(json.dumps(out, ensure_ascii=False, indent=2))
     else:
-        print("doc-lint — %d doc(s), %d FAIL, %d WARN" % (
-            out["docs_checked"], out["fails"], out["warns"]))
+        # Sem nada lido, "0 FAIL, 0 WARN" seria um verde que não houve (quem só vê o stdout o leria
+        # como doc limpo): o resumo vira o aviso (3ba4b516).
+        if not out["docs_checked"]:
+            print("doc-lint — NÃO LIDO: %s — a medição não aconteceu; o '0 FAIL' não vale."
+                  % (", ".join(out["unread"]) or "nenhum doc no escopo"))
+        else:
+            print("doc-lint — %d doc(s), %d FAIL, %d WARN" % (
+                out["docs_checked"], out["fails"], out["warns"]))
+            if out["unread"]:
+                print("NÃO LIDO: %s — o doc não abriu; só vale o que foi lido acima."
+                      % ", ".join(out["unread"]))
         for d in out["docs"]:
             print("  %s" % d["path"])
             for f in d["findings"]:

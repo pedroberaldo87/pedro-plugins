@@ -644,7 +644,7 @@ Entrou no inventário em 2026-08-21 (commit `bfbe936`, o pente fino). Escrita **
 - [confirmado] `cofre_paths()` em `plugins/project-skills/lib/journal.py` resolve nesta ordem: `PROJECT_DOC_COFRE_DIR` (override explícito) → `~/Library/Mobile Documents/com~apple~CloudDocs/Cofre` → fallback local `<projeto>/.claude/secrets/_local_cofre`. O nome do arquivo é `<basename>-<8 hex do sha1 do path absoluto>.env`, para dois projetos homônimos não colidirem.
 - [confirmado] O diretório do iCloud existe nesta máquina e tem **25** entradas.
 - **É o único depósito deste documento com cópia offsite que não é o GitHub** — e é offsite por acidente de local, não por política de backup. `stash_secrets()` chama `ensure_gitignore(project_root, ".claude/secrets/")` **antes** de escrever, justamente porque no caminho de fallback o cofre cai dentro do repo.
-- O símbolo `scrub()` é o que alimenta o cofre: scorer em camadas (PEM → connection string → JWT → prefixos de provider → par JSON → `chave=valor` → prosa perto de token de alta entropia → marcação `‹revisar?›` na dúvida). Política declarada no código: *nomes e contexto SIM, valores NÃO*.
+- O símbolo `scrub()` é o que alimenta o cofre: scorer em camadas (PEM → connection string → JWT → prefixos de provider → par JSON → `chave=valor` → prosa perto de token de alta entropia → token de alta entropia sem rótulo → cofre; `‹revisar?›` só para o de cara de código). Política declarada no código: *nomes e contexto SIM, valores NÃO*.
 - Coberto por teste [confirmado, rodado nesta sessão]: `python3 plugins/project-skills/lib/test_journal.py` → `TODOS OS 123 CHECKS PASSARAM`.
 
 ### 3.18 · Estado por-sessão em `/tmp` e sentinelas de sync

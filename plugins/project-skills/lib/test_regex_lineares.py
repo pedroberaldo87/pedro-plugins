@@ -197,8 +197,9 @@ random.seed(3)
 al = string.ascii_letters + string.digits
 tok = "".join(random.choice(al) for _ in range(24))
 s, _ = journal.scrub("a x %s y %s z" % (tok, tok))
-check("scrub continua marcando token opaco duas vezes, sem sobrepor",
-      s == "a x %s‹revisar?› y %s‹revisar?› z" % (tok, tok), "— veio %r" % s)
+check("scrub continua tirando token opaco duas vezes (mesmo cofre), sem sobrepor",
+      tok not in s and s.count("‹cofre:TOKEN:") == 2 and s.startswith("a x ‹cofre:TOKEN:")
+      and s.endswith("› z"), "— veio %r" % s)
 
 s, sec = journal.scrub("\u2039 is a token hunter2xyz! \u2039cofre:X:1\u203a")
 check("scrub: um `\u2039` solto não esconde o segredo que vem depois", "hunter2xyz!" not in s and sec, "— veio %r" % s)

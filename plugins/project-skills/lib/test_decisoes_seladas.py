@@ -6,9 +6,11 @@ decisão, e quem vai perguntar o consulta antes — coberto por PERGUNTA REPETID
 reproduzida, onde a segunda volta respondida do registro, sem chegar ao dono.
 
 A jornada reproduzida aqui é a que parou 4 corridas em dias diferentes: alguém
-pergunta, o dono responde, a resposta é selada — e a MESMA pergunta, reescrita
-com outras palavras, é respondida do disco. O contador `foi_ao_dono` é a prova:
-ele só sobe quando a pergunta atravessa o registro.
+pergunta, o dono responde, a resposta é selada — e a MESMA pergunta volta. Só a
+chave exata (a frase selada, normalizada) é respondida do disco; a pergunta
+reescrita vai ao dono COM a sugestão da fala selada ao lado (7fab4b4e: o registro
+é um arquivo do repositório e não decide por casamento frouxo). O contador
+`foi_ao_dono` é a prova: ele sobe quando a pergunta atravessa o registro.
 
     python3 plugins/project-skills/lib/test_decisoes_seladas.py
 """
@@ -21,7 +23,7 @@ AQUI = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, AQUI)
 REGISTRO = os.path.join(AQUI, "decisoes_seladas.py")
 
-from decisoes_seladas import caminho, consultar, selar  # noqa: E402
+from decisoes_seladas import caminho, consultar, selar, sugerir  # noqa: E402
 
 ok = falhas = 0
 
@@ -50,11 +52,16 @@ raiz = tempfile.mkdtemp(prefix="seladas-")
 foi_ao_dono = []
 
 
+sugestoes_vistas = []
+
+
 def perguntar(pergunta, resposta_do_dono, fonte):
-    """O rito completo: consulta o registro ANTES; só o que não achou vai ao dono."""
+    """O rito completo: consulta o registro ANTES; só a chave exata responde. O que não achou
+    vai ao dono — com as sugestões do registro na tela, para ele decidir."""
     achadas = consultar(raiz, pergunta)
     if achadas:
         return achadas[0], False
+    sugestoes_vistas.append(sugerir(raiz, pergunta))
     foi_ao_dono.append(pergunta)
     selar(raiz, fala=resposta_do_dono, fonte=fonte, data="2026-08-19")
     return resposta_do_dono, True
@@ -70,9 +77,14 @@ checa("1ª pergunta chega ao dono (o registro está vazio)", subiu1, repr(primei
 segunda, subiu2 = perguntar(
     "essa decisão do destino de deploy pode ficar para o final?",
     FALA, "outra corrida")
-checa("2ª pergunta NÃO chega ao dono", not subiu2, repr(segunda))
-checa("a 2ª é respondida pela linha do registro", FALA in segunda, repr(segunda))
-checa("o dono foi incomodado UMA vez só", len(foi_ao_dono) == 1, repr(foi_ao_dono))
+checa("2ª pergunta (reescrita) chega ao dono: o registro não responde por casamento frouxo",
+      subiu2, repr(segunda))
+checa("mas chega COM a fala selada como sugestão",
+      len(sugestoes_vistas[-1]) == 1 and FALA in sugestoes_vistas[-1][0], repr(sugestoes_vistas))
+terceira, subiu3 = perguntar(FALA, FALA, "a mesma frase, pela terceira vez")
+checa("a chave exata NÃO chega ao dono", not subiu3, repr(terceira))
+checa("a 3ª é respondida pela linha do registro", FALA in terceira, repr(terceira))
+checa("o dono foi incomodado duas vezes, não três", len(foi_ao_dono) == 2, repr(foi_ao_dono))
 
 # ── 2 · UMA LINHA POR DECISÃO, E A FRASE-CHAVE INTEIRA NELA ──────────────────
 with open(caminho(raiz), encoding="utf-8") as fh:
@@ -96,16 +108,22 @@ except ValueError as e:
 checa("fala partida em duas linhas é recusada", erro is not None, repr(erro))
 
 # ── 3 · PERGUNTA NOVA CONTINUA INDO AO DONO ─────────────────────────────────
-nova, subiu3 = perguntar("qual paleta de cor a tela de placar usa?",
-                         "azul e branco", "conversa de hoje")
-checa("pergunta que o registro não cobre chega ao dono", subiu3, repr(nova))
+nova, subiu_nova = perguntar("qual paleta de cor a tela de placar usa?",
+                             "azul e branco", "conversa de hoje")
+checa("pergunta que o registro não cobre chega ao dono", subiu_nova, repr(nova))
+checa("e vai sem sugestão nenhuma", sugestoes_vistas[-1] == [], repr(sugestoes_vistas[-1]))
 checa("duas decisões, duas linhas",
       len([ln for ln in open(caminho(raiz), encoding="utf-8") if ln.startswith("- [")]) == 2)
 
 # ── 4 · A LINHA DE COMANDO (é por ela que hook e prompt consultam) ──────────
-rc, saida, _ = cli("consultar", raiz, "dá pra decidir isso no final da corrida?")
-checa("consultar por comando devolve 0 quando já há decisão", rc == 0, saida)
+rc, saida, _ = cli("consultar", raiz, FALA)
+checa("consultar por comando devolve 0 quando a chave exata já tem decisão", rc == 0, saida)
 checa("e imprime a linha selada", FALA in saida, saida)
+
+rc, saida, _ = cli("consultar", raiz, "dá pra decidir isso no final da corrida?")
+checa("consultar por comando devolve 1 quando só há sugestão", rc == 1, saida)
+checa("e imprime a sugestão marcada, sem passar por resposta",
+      "SUGESTÃO" in saida and FALA in saida, saida)
 
 rc, _, err = cli("consultar", raiz, "quantos servidores o cliente contratou?")
 checa("consultar sem decisão devolve 1 (a pergunta segue ao dono)", rc == 1, err)

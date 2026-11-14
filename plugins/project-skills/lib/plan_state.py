@@ -60,7 +60,7 @@ for _canal in (sys.stdin, sys.stdout, sys.stderr):
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from bash_posix import bash_posix  # noqa: E402
-from escrita_segura import EscritaRecusada, grava_texto_seguro  # noqa: E402
+from escrita_segura import EscritaRecusada, anexa_texto_seguro, grava_texto_seguro  # noqa: E402
 from regua_pronto import criterio_cortado, erros_de_pronto  # noqa: E402
 from regua_texto import BULLET_MAX  # noqa: E402
 from regua_texto import erros_de_estilo as _erros_de_estilo  # noqa: E402
@@ -1756,8 +1756,8 @@ def cmd_brief(args):
     if seen_path and novos:
         try:
             os.makedirs(os.path.dirname(os.path.abspath(seen_path)), exist_ok=True)
-            with open(seen_path, "a", encoding="utf-8") as fh:
-                fh.write("".join(i + "\n" for i in novos))
+            # nome previsível em pasta temporária compartilhada: não segue symlink (cf35688f)
+            anexa_texto_seguro(seen_path, "".join(i + "\n" for i in novos))
         except OSError:
             pass  # não conseguiu lembrar → repete; melhor que sumir
     # Quem cabe no teto é o plano DESTA sessão. `list_plans` entrega em ordem

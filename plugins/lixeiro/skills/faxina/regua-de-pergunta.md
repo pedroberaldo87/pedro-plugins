@@ -33,8 +33,12 @@ use o padrão.
 **Pergunta repetida é falha do processo, não pedido novo.** A mesma pergunta parou quatro corridas
 em dias diferentes, e a resposta ("tudo que puder decidir no final, decido no final") já estava dita.
 Por isso **todo papel que vai perguntar — o pré-check de largada, o motor do /sprint, a casca —
-consulta o registro ANTES de levar qualquer coisa ao dono**, e a linha achada É a resposta: a
-pergunta morre ali, com a fala dele citada literal e a data.
+consulta o registro ANTES de levar qualquer coisa ao dono**. Só a **chave exata** responde: a linha
+cuja frase, sem contar caixa, acento e pontuação, é a própria pergunta. Nesse caso a pergunta morre
+ali, com a fala dele citada literal e a data. O registro é um arquivo do repositório e chega de
+fora num clone, então uma fala que só se parece com a pergunta **não é resposta**: ela vem como
+**SUGESTÃO**, e você a mostra ao dono ao lado da pergunta para ele decidir. Nunca aplique uma
+sugestão sozinho.
 
 O registro é `.claude/decisoes-seladas.md` na raiz do projeto: uma linha por decisão, com a
 frase-chave inteira NA MESMA LINHA (partida em duas, o `grep` não acha). Quem lê e escreve é
@@ -49,6 +53,10 @@ SELADAS="$(bash "<resolve-plugin>" project-skills lib/decisoes_seladas.py)"
 python3 "$SELADAS" consultar <raiz> "<a pergunta que você ia fazer>"   # saída 1 = nenhuma, pergunte
 python3 "$SELADAS" indice    <raiz>                                    # o registro inteiro
 ```
+
+Saída 0: a chave exata responde, e a linha impressa é a resposta. Saída 1: pergunte ao dono. As
+linhas que o comando imprime antes de sair com 1 começam por `SUGESTÃO` e **não são resposta**:
+mostre-as ao dono junto da pergunta.
 
 **Decisão nova entra no registro na hora em que o dono responde** — na mesma volta, não no fim:
 

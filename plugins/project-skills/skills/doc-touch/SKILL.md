@@ -89,7 +89,7 @@ versione diagrama de documentação viva por data — ver a tabela de nomes na s
 ```bash
 python3 "$(bash "${CLAUDE_PLUGIN_ROOT}/lib/resolve-plugin.sh" project-skills lib/doc_lint.py)" --project-root "<root>" --docs <docs tocados> --json
 ```
-FAIL → corrigir com a evidência que o próprio lint dá e re-rodar (máx 2 iterações; persiste → reportar FAIL, não silenciar). Falso-positivo legítimo (var dinâmica, config externa) → `<!-- lint:ignore TOKEN -->` ou `.claude/.project-doc/lint-allow.txt`, com justificativa no report.
+FAIL → corrigir com a evidência que o próprio lint dá e re-rodar (máx 2 iterações; persiste → reportar FAIL, não silenciar). **exit 2 = `NÃO LIDO`**: um `--docs` não abriu ou não havia doc no escopo — o lint não mediu nada, então não é verde: corrija o caminho e re-rode, ou reporte "doc-lint não rodou", nunca "0 FAIL". Falso-positivo legítimo (var dinâmica, config externa) → `<!-- lint:ignore TOKEN -->` ou `.claude/.project-doc/lint-allow.txt`, com justificativa no report.
 
 ### 4 · Journal
 - Journal (disciplina do FULL, nunca relaxar): `journal.py adopt` **só** de fato durável genuinamente novo (nunca adopt do que já está vivo); `journal.py invalidate` **só** contradição frontal com evidência arquivo:linha.

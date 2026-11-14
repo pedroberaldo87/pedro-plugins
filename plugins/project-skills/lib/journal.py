@@ -32,6 +32,7 @@ CLI:
 import argparse
 import bisect
 import binascii
+import collections
 import hashlib
 import hmac
 import json
@@ -306,7 +307,12 @@ BENIGN_RE = re.compile(
     r"^(?:[0-9a-fA-F]{7,40}"
     r"|[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}"
     r"|\d{1,3}(?:\.\d{1,3}){3}"
-    r"|[\w.\-/]+\.[A-Za-z0-9]{1,6}"
+    r"|[\w.\-/]+\.[A-Za-z0-9]{1,6}(?::\d+){0,2}"            # arquivo, com :linha[:coluna] opcional
+    # versão: 1.2.3, v1.2.3-rc.1, 1.2.3-rc.1+build.5678 (o sufixo é palavra + número, nunca um valor livre)
+    r"|v?\d+(?:\.\d+){1,3}(?:-[A-Za-z]+(?:[.-]?\d+)*)?(?:\+[A-Za-z]*[.-]?\d+)?"
+    # id público: aviso de segurança do GitHub e hash de integridade (SRI) de pacote — nenhum é segredo
+    r"|GHSA(?:-[a-z0-9]{4}){3}"
+    r"|sha(?:1|256|384|512)-[A-Za-z0-9+/]+=*"
     r"|\d[\d.,:_-]*)$")
 # Contexto a preservar MESMO logo após uma palavra-sinal (camada 3): path, arquivo de extensão
 # CONHECIDA, IP, uuid, versão/número. Hex-puro-com-letras NÃO entra: depois de "token is" ele é
@@ -342,14 +348,19 @@ STOPWORDS = {"de", "do", "da", "is", "e", "the", "a", "o", "and", "or", "to", "f
              "was", "são", "será", "em", "no", "na", "que", "of", "um", "uma", "with", "are"}
 
 
+# c·log2(c) pré-calculado: H = log2(n) − Σ c·log2(c) / n, a mesma entropia de Shannon sem uma
+# divisão e um log por caractere distinto (a camada 4 mede toda palavra longa do texto).
+_CLOG2 = [0.0] + [c * math.log2(c) for c in range(1, 1025)]
+
+
 def _shannon(s):
     if not s:
         return 0.0
-    counts = {}
-    for c in s:
-        counts[c] = counts.get(c, 0) + 1
     n = len(s)
-    return -sum((c / n) * math.log2(c / n) for c in counts.values())
+    soma = 0.0
+    for c in collections.Counter(s).values():
+        soma += _CLOG2[c] if c < 1025 else c * math.log2(c)
+    return math.log2(n) - soma / n
 
 
 def _looks_random(tok):
@@ -359,6 +370,60 @@ def _looks_random(tok):
 
 def _is_benign(tok):
     return bool(BENIGN_RE.match(tok))
+
+
+# URL: scheme://autoridade, e depois caminho/consulta em segmentos (/ ? # & = ;).
+_URL_RE = re.compile(r"[A-Za-z][A-Za-z0-9+.\-]*://[^/?#]*")
+_SEG_URL_RE = re.compile(r"[^/?#&=;]+")
+_SEP_SLUG_RE = re.compile(r"[-_./]")
+
+# O que um segredo solto é feito de: base64, base64 de URL, hex. Qualquer outro caractere
+# (`$ { } ( ) [ ] | : @ \\ ~ .`) marca código, caminho com ponto, e-mail ou URL — texto de gente.
+_ALFABETO_SEGREDO_RE = re.compile(r"^[A-Za-z0-9+/_=-]+$")
+_PALAVRA_RE = re.compile(r"[A-Z]?[a-z]{3,}")      # `get`, `User` (CamelCase) — não `KEY`
+# Parte de slug/branch/caminho escrita por gente: palavra com número no fim (`p11`, `pedro87`),
+# ou número com unidade (`600s`). Letras e dígitos embaralhados (`aB3dE6`) não casam.
+_PARTE_NATURAL_RE = re.compile(r"^(?:[A-Za-z]+\d{0,4}|\d+[A-Za-z]{0,3})$")
+
+
+def _e_slug(seg):
+    """`getting-started-2026`: palavras e números separados por `-`/`_`/`.`/`/`, nenhuma parte EMBARALHADA.
+
+    Slug e caminho são texto escrito por gente; um segredo aleatório mistura letras e dígitos na
+    mesma parte. Sem separador não é slug."""
+    if not _SEP_SLUG_RE.search(seg):
+        return False
+    partes = _SEP_SLUG_RE.split(seg.rstrip("="))        # `NOME_DA_VAR=` (sem valor) também é nome
+    return len(partes) >= 2 and all(_PARTE_NATURAL_RE.match(p) for p in partes if p)
+
+
+def _segredo_confiante(tok):
+    """Alta entropia E cara de segredo — a barra para MOVER ao cofre (a de marcar é `_looks_random`).
+
+    Marcar errado só põe um aviso; mover errado apaga do journal um identificador, um caminho ou
+    uma variável que o leitor precisava. Por isso, além da entropia: só o alfabeto de segredo (sem
+    pontuação de código), não é slug, e palavras de dicionário-ish (corridas de letras de caixa
+    consistente) não cobrem metade do token — um segredo aleatório quase não tem corrida longa."""
+    if tok[:1] == "/" or tok[:2] in ("./", "~/"):       # caminho (mesma exceção da camada 3)
+        return False
+    if not _looks_random(tok) or not _ALFABETO_SEGREDO_RE.match(tok) or _e_slug(tok):
+        return False
+    return sum(map(len, _PALAVRA_RE.findall(tok))) * 2 < len(tok)
+
+
+def _segredos_de_url(core, base):
+    """(início, fim, segmento) de cada segmento de caminho/consulta de `core` que parece segredo.
+
+    A autoridade (`host`, `user:senha@host`) não entra: a senha é da CONN_RE. `base` é o offset de
+    `core` no texto."""
+    m = _URL_RE.match(core)
+    if not m:
+        return
+    for sm in _SEG_URL_RE.finditer(core, m.end()):
+        seg = sm.group(0)
+        if _is_benign(seg) or not _segredo_confiante(seg):
+            continue
+        yield base + sm.start(), base + sm.end(), seg
 
 
 def _is_placeholder(v):
@@ -433,8 +498,11 @@ def _sal():
     return sal
 
 
-def _vhash(val):
-    return hmac.new(_sal(), val.encode("utf-8"), hashlib.sha256).hexdigest()[:8]
+def _vhash(val, sal=None):
+    # `hmac.digest` é a forma de uma chamada só (mesmo HMAC-SHA256 que `hmac.new(...).hexdigest()`),
+    # bem mais barata: a camada 4 etiqueta um token por palavra aleatória do texto. `sal` já lido
+    # evita reabrir o caminho do sal a cada token.
+    return hmac.digest(sal or _sal(), val.encode("utf-8"), "sha256").hex()[:8]
 
 
 def _is_secret_key(key):
@@ -491,9 +559,12 @@ def scrub(text):
     """
     text = text or ""   # None guard — candidato malformado não derruba o scrub
     secrets = []
+    sal = []                       # o sal é lido na 1ª etiqueta (só nasce quando há segredo)
 
     def stash(label, val):
-        key = "%s:%s" % (label, _vhash(val))
+        if not sal:
+            sal.append(_sal())
+        key = "%s:%s" % (label, _vhash(val, sal[0]))
         secrets.append((key, val))
         return "‹cofre:%s›" % key
 
@@ -628,15 +699,32 @@ def scrub(text):
         elif plain:                                  # palavra longa após o sinal: flag, não vault
             _add_span(plain[0], plain[1], plain[2] + "‹revisar?›")
 
-    # 4) na dúvida: token de alta entropia (≥16) não coberto → marca (não apaga, não vaza).
+    # 4) token de alta entropia (≥16) não coberto, sem palavra-sinal por perto → cofre, igual ao
+    # token de prefixo conhecido (antes ficava no texto com ‹revisar?›, e o texto é versionado).
     # Não pula '/' em bloco (path de baixa entropia já cai fora por _is_benign / _looks_random);
     # senão um slash-secret de alta entropia sem sinal por perto (wJalr/K7.../...) passava batido.
+    # URL: o host fica; cada segmento do caminho/consulta é conferido (webhook sem padrão próprio).
     for tm in LONGTOK_RE.finditer(text):
         core = tm.group(0).rstrip(".,:;)]}")
         s, e = tm.start(), tm.start() + len(core)
-        if _is_benign(core) or "://" in core or _covered(s, e):
+        if "://" in core:
+            for us, ue, seg in _segredos_de_url(core, s):
+                if not _covered(us, ue):
+                    _add_span(us, ue, stash("TOKEN", seg))
             continue
-        if _looks_random(core):
+        # `CHAVE=valor`: quem se avalia é o VALOR (um nome de variável longo não é segredo, e
+        # esconder o nome estragaria o contexto — nomes e contexto SIM, valores NÃO).
+        if "=" in core and "=" in core.strip("="):
+            ate, _, valor = core.partition("=")
+            s, core = s + len(ate) + 1, valor
+            e = s + len(core)
+            if not core:
+                continue
+        if _is_benign(core) or _covered(s, e):
+            continue
+        if _segredo_confiante(core):
+            _add_span(s, e, stash("TOKEN", core))
+        elif _looks_random(core) and not _e_slug(core):   # cara de código: só marca (slug é texto)
             _add_span(s, e, core + "‹revisar?›")
 
     # Um passe só (join), em ordem de início: o `text[:s] + rep + text[e:]` por span copiava o texto
@@ -681,8 +769,9 @@ def ensure_gitignore(project_root, entry):
     if entry in content.splitlines():
         return
     sep = "" if (content == "" or content.endswith("\n")) else "\n"
-    with open(gi, "a", encoding="utf-8") as fh:
-        fh.write(sep + entry + "\n")
+    # `.gitignore` é um nome previsível do repo: um symlink versionado não redireciona o append
+    # (cf35688f). A recusa (EscritaRecusada) sobe: sem a proteção o cofre local não grava.
+    anexa_texto_seguro(gi, sep + entry + "\n", raiz=project_root)
 
 
 def _pasta_privada(pasta):

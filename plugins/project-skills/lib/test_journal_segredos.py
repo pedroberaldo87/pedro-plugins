@@ -178,6 +178,62 @@ try:
                   "rode npm_ e depois npm install", "https://www.npmjs.com/package/left-pad"):
         texto, segredos = journal.scrub(banal)
         check("scrub preserva %r" % banal, texto == banal and not segredos, "— veio %r" % texto)
+
+    # ── 6. camada 4: token de alta entropia sem rótulo vai para o cofre (não fica com ‹revisar?›) ──
+    # e o caminho/consulta de uma URL qualquer também é conferido (webhook de serviço que não
+    # tem padrão próprio). Montados em pedaços, como acima.
+    OPACO = rand(24, 20)                              # letras e dígitos, sem prefixo de provider
+    AWSLIKE = rand(10, 21) + "/" + rand(12, 22) + "/" + rand(16, 23)
+    for nome, texto_in, valor in (
+            ("token solto na prosa", "blob aleatório %s no meio" % OPACO, OPACO),
+            ("token solto com ponto final", "o valor era %s." % OPACO, OPACO),
+            ("segredo com barras sem rótulo", "blob %s no fim" % AWSLIKE, AWSLIKE),
+            ("segredo no caminho de uma URL",
+             "https://" + "hooks.example" + ".com/services/" + OPACO + " fim", OPACO),
+            ("segredo no caminho, entre segmentos banais",
+             "curl https://" + "api.example" + ".com/v1/hooks/" + OPACO + "/trigger", OPACO),
+            ("segredo na consulta de uma URL",
+             "GET https://" + "api.example" + ".com/v1/x?key=" + OPACO + "&a=1", OPACO)):
+        texto, segredos = journal.scrub(texto_in)
+        check("camada 4: %s sai do texto" % nome, valor not in texto, "— veio %r" % texto)
+        check("camada 4: %s vai para o cofre" % nome, any(v == valor for _, v in segredos))
+        check("camada 4: %s não fica marcado ‹revisar?›" % nome, "‹revisar?›" not in texto,
+              "— veio %r" % texto)
+    # cara de código (pontuação fora do alfabeto de segredo): não vai para o cofre — no máximo ganha o aviso
+    for codigo in ("dev.example.com:8443/path-numero-2", "veja ${CLAUDE_PLUGIN_ROOT}/lib/journal.py:12 ok",
+                   "git@github.com:example/pedro-plugins.git", "lib getUserByAccountId2 chamada"):
+        texto, segredos = journal.scrub(codigo)
+        check("camada 4 não move %r para o cofre" % codigo, not segredos, "— veio %r" % texto)
+    # `CHAVE=valor` sem palavra-sinal: o nome fica, o valor sai
+    texto, segredos = journal.scrub("export SERVICE_REF=" + OPACO + " e rode")
+    check("camada 4: CHAVE=valor — o valor vai para o cofre e o nome fica",
+          OPACO not in texto and "SERVICE_REF=" in texto and any(v == OPACO for _, v in segredos),
+          "— veio %r" % texto)
+    # o resto da URL fica legível: só o segmento secreto sai
+    texto, _ = journal.scrub("https://" + "hooks.example" + ".com/services/" + OPACO + " fim")
+    check("camada 4: a URL mantém o host e o caminho banal",
+          texto.startswith("https://hooks.example.com/services/") and texto.endswith(" fim"),
+          "— veio %r" % texto)
+    # o que NÃO é segredo segue intacto: sha, uuid, caminho, versão, URL comum
+    SHA40 = "9f8c2a1b3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f80"
+    UUID = "123e4567-e89b-12d3-a456-426614174000"
+    for banal in ("commit " + SHA40 + " fechou", "abrev 9f8c2a1 fechou", "id " + UUID + " ok",
+                  "veja src/components/Widget.tsx para detalhe",
+                  "veja plugins/project-skills/lib/journal.py:620 agora",
+                  "caminho ~/workspace/public-docs/pedro-plugins/docs/architecture.md ok",
+                  "versão v1.2.3-rc.1+build.5678 saiu", "pacote 2026.11.14-build.20261114 ok",
+                  "https://github.com/example/pedro-plugins/pull/24",
+                  "https://github.com/example/pedro-plugins/commit/" + SHA40,
+                  "https://example.com/docs/getting-started-with-the-journal-scrubber-2026",
+                  "https://example.com/a/b/c?page=2&sort=name&q=journal+scrubber",
+                  "https://example.com/files/relatorio-final-de-2026.pdf",
+                  "http://127.0.0.1:8080/health", "mailto:ninguem@example.com",
+                  # nomes e identificadores longos de texto corrente (antes só ganhavam um aviso)
+                  "export MSYS2_ARG_CONV_EXCL=* e rode", "branch fix/sec-p11-p12-residuals saiu",
+                  "advisory GHSA-abcd-1234-wxyz aberto",
+                  "prazo TIMEOUT-600s estourou"):
+        texto, segredos = journal.scrub(banal)
+        check("camada 4 preserva %r" % banal, texto == banal and not segredos, "— veio %r" % texto)
 finally:
     shutil.rmtree(BASE, ignore_errors=True)
 

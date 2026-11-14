@@ -83,9 +83,11 @@ def test_scrubber():
     s, _ = journal.scrub("commit 9f8c2a1b3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f80 fechou")
     check("sha preservado (não vira cofre nem revisar)", "9f8c2a1b3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f80" in s and "‹" not in s)
 
-    print("== scrubber — na dúvida marca ==")
-    s, _ = journal.scrub("blob aleatório Zk9bQ2mX7vL4pR8tW1nC6yH3 no meio")
-    check("token de alta entropia → ‹revisar?›", "‹revisar?›" in s)
+    print("== scrubber — na dúvida vai para o cofre (ba36d45a) ==")
+    s, sec = journal.scrub("blob aleatório Zk9bQ2mX7vL4pR8tW1nC6yH3 no meio")
+    check("token de alta entropia → cofre, não fica no texto",
+          "Zk9bQ2mX7vL4pR8tW1nC6yH3" not in s and "‹revisar?›" not in s
+          and any(v == "Zk9bQ2mX7vL4pR8tW1nC6yH3" for _, v in sec))
 
 
 # ---------------------------------------------------------------------------
@@ -111,9 +113,10 @@ def test_scrubber_r2():
     s, sec = journal.scrub(None)
     check("scrub(None) não quebra", s == "" and sec == [])
 
-    # boundary 19 chars: marca ‹revisar?›
-    s, _ = journal.scrub("blob aB3dE6gH9jK2mN5pQ8r solto")  # 19 chars mixed
-    check("token 19-char bare → ‹revisar?›", "‹revisar?›" in s)
+    # boundary 19 chars: cofre
+    s, sec = journal.scrub("blob aB3dE6gH9jK2mN5pQ8r solto")  # 19 chars mixed
+    check("token 19-char bare → cofre", "aB3dE6gH9jK2mN5pQ8r" not in s
+          and any(v == "aB3dE6gH9jK2mN5pQ8r" for _, v in sec))
 
     # anti-corrupção: dois sinais antes do mesmo token → 1 span só, valor some, sem ›› duplo
     s, sec = journal.scrub("password secret aB3xK9mPq2LwZ7vT4n agora")
@@ -258,9 +261,9 @@ def test_scrubber_r6():
         "aws secret access key AKIAIOSFODNN7EXAMPLE " + AWS + " done", AWS)
     red("sk- antes do slash-secret não esconde",
         "credentials sk-abcdefghij0123456789ABCDxyz " + AWS, AWS)
-    # slash-secret de alta entropia SEM sinal por perto → ao menos marca ‹revisar?› (não some)
-    s, _ = journal.scrub("blob " + AWS + " no fim")
-    check("slash-secret sem sinal → ‹revisar?›", "‹revisar?›" in s)
+    # slash-secret de alta entropia SEM sinal por perto → vai para o cofre (não fica no texto)
+    s, sec = journal.scrub("blob " + AWS + " no fim")
+    check("slash-secret sem sinal → cofre", AWS not in s and any(v == AWS for _, v in sec))
     # path de código (baixa entropia) NÃO é marcado
     keep("path de código preservado (sem flag)", "see src/components/Widget.tsx for detail", "src/components/Widget.tsx")
 
