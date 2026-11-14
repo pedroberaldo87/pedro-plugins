@@ -188,6 +188,24 @@ grep -q "^conjunto-sig: $ESPERADA2$" "$SC2" \
   && ok "casa nova (docs/ na raiz): o rito acha a raiz e grava conjunto-sig" \
   || bad "casa nova (docs/ na raiz): o rito acha a raiz e grava conjunto-sig" "conjunto-sig: $ESPERADA2" "$OUT"
 
+# 6) o intermediário `<doc>.aprovando` fica num caminho previsível DENTRO do repositório: um symlink
+#    versionado com esse nome não pode redirecionar a gravação (cf35688f)
+FORA="$TMP/fora-do-repo.txt"
+printf 'NAO-MEXER\n' > "$FORA"
+DOC3="$TMP/seguro.md"
+printf -- '---\nauthored-by: human\nstatus: draft\nscope: []\n---\n# Jornadas\nO visitante entra.\n' > "$DOC3"
+ln -s "$FORA" "$DOC3.aprovando"
+OUT=$(bash "$APROVAR" "$DOC3" 2>&1)
+[ "$(cat "$FORA")" = "NAO-MEXER" ] \
+  && ok "doc-aprovar não grava através de um symlink <doc>.aprovando" \
+  || bad "doc-aprovar não grava através de um symlink <doc>.aprovando" "NAO-MEXER" "$(head -c 80 "$FORA")"
+grep -q '^status: approved$' "$DOC3" \
+  && ok "doc-aprovar aprova mesmo com o symlink plantado" \
+  || bad "doc-aprovar aprova mesmo com o symlink plantado" "status: approved" "$OUT"
+[ ! -e "$DOC3.aprovando" ] && [ ! -L "$DOC3.aprovando" ] \
+  && ok "doc-aprovar não deixa o intermediário para trás" \
+  || bad "doc-aprovar não deixa o intermediário para trás" "sem $DOC3.aprovando" "ainda existe"
+
 echo
 printf '%s passaram · %s falharam\n' "$PASS" "$FAIL"
 [ "$FAIL" -eq 0 ]

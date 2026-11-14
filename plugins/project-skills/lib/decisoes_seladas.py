@@ -16,14 +16,18 @@ O registro vive em `.claude/decisoes-seladas.md` na raiz do PROJETO consumidor �
 nunca dentro do plugin (cache reescrito a cada bump) — e é doc: entra no commit.
 
 Uso:
-    from decisoes_seladas import selar, consultar, caminho
-    selar(raiz, fala="tudo que puder decidir no final, decido no final",
+    from decisoes_seladas import selar, consultar, sugerir, caminho
+    selar(raiz, fala="posso adiar a escolha do provedor para o final?",
           fonte="colheita da execução 12", data="2026-08-19")
-    achadas = consultar(raiz, "posso adiar essa decisão para o final?")
-    # achadas != [] ⇒ a pergunta NÃO vai ao dono: a linha achada É a resposta.
+    achadas = consultar(raiz, "Posso adiar a escolha do provedor para o final?")
+    # achadas != [] ⇒ a pergunta NÃO vai ao dono: a linha achada É a resposta. Só a CHAVE EXATA
+    # (a fala, normalizada, é a própria pergunta) responde — o registro é um arquivo do repositório.
+    parecidas = sugerir(raiz, "essa decisão do provedor pode ficar para o final?")
+    # parecidas: SUGESTÃO. Mostre a fala ao dono ao lado da pergunta; nunca aplique sozinho.
 
     python3 decisoes_seladas.py selar <raiz> --fala F --fonte S [--data AAAA-MM-DD]
-    python3 decisoes_seladas.py consultar <raiz> "<pergunta>"   # exit 1 = sem linha
+    python3 decisoes_seladas.py consultar <raiz> "<pergunta>"
+        # exit 0 = a linha responde · exit 1 = nenhuma; linhas "SUGESTÃO" (stdout) não são resposta
     python3 decisoes_seladas.py indice <raiz>
 
 stdlib only (requisito do repo).
@@ -107,31 +111,56 @@ def selar(raiz, fala, fonte, data=None):
     return linha
 
 
+def _chave(texto):
+    """A frase-chave normalizada: minúsculas, sem acento, só palavras e números, um espaço entre elas."""
+    return " ".join(re.findall(r"[a-z0-9]+", _normaliza(texto)))
+
+
 def _contem(texto, frase):
     """`frase` aparece em `texto` INTEIRA e em fronteira de palavra (log ≠ catalog)."""
     return re.search(r"(?<![a-z0-9])%s(?![a-z0-9])" % re.escape(frase), texto) is not None
 
 
-def consultar(raiz, pergunta):
-    """As linhas que já respondem a pergunta, mais forte primeiro. [] = pergunta segue.
+def _fala_da(linha):
+    fala = re.search(r'"(.*)"', linha)
+    return fala.group(1) if fala else linha
 
-    O registro é um arquivo do REPOSITÓRIO — num clone ele chega de fora, então a consulta
-    não casa frouxo (7fab4b4e). Casa por:
+
+def consultar(raiz, pergunta):
+    """As linhas que RESPONDEM a pergunta. [] = a pergunta segue ao dono.
+
+    O registro é um arquivo do REPOSITÓRIO — num clone ele chega de fora, então uma linha dele não
+    pode decidir por casamento frouxo o que o dono ainda não respondeu (7fab4b4e). Só responde a
+    linha cuja frase-chave, normalizada (caixa, acento, pontuação), é a própria pergunta. O que
+    casa de leve sai de `sugerir`: o chamador MOSTRA ao dono, nunca aplica.
+    """
+    alvo = _chave(pergunta)
+    if not alvo:
+        return []
+    return [linha for linha in _linhas_de_decisao(raiz) if _chave(_fala_da(linha)) == alvo]
+
+
+def sugerir(raiz, pergunta):
+    """As linhas que PARECEM tratar da pergunta, mais forte primeiro — sugestão, nunca resposta.
+
+    Quem chama mostra a fala ao dono ao lado da pergunta e deixa ele decidir. Não inclui as linhas
+    que `consultar` já devolve. Casa por:
       1. a frase-chave inteira dentro da pergunta, em fronteira de palavra, e com pelo menos
-         2 palavras que contam (uma fala de uma palavra não responde nada);
+         2 palavras que contam (uma fala de uma palavra não parece com nada);
       2. a pergunta inteira dentro da fala, nas mesmas condições e sem ser um pedaço pequeno
          de uma fala longa (as palavras da pergunta têm que ser metade ou mais das da fala);
-      3. sobreposição de radicais — a pergunta reescrita com outras palavras de enchimento
-         ainda acha a mesma decisão —, medida nos DOIS sentidos: a pergunta tem que trazer
-         pelo menos metade da fala (fala inchada de palavras não cobre qualquer coisa).
+      3. sobreposição de radicais — a pergunta reescrita com outras palavras de enchimento —,
+         medida nos DOIS sentidos: a pergunta tem que trazer pelo menos metade da fala.
     """
     alvo = _radicais(pergunta)
     perg_norm = _normaliza(pergunta)
     perg_tok = _tokens(pergunta)
+    exatas = set(consultar(raiz, pergunta))
     achadas = []
     for linha in _linhas_de_decisao(raiz):
-        fala = re.search(r'"(.*)"', linha)
-        fala = fala.group(1) if fala else linha
+        if linha in exatas:
+            continue
+        fala = _fala_da(linha)
         fala_norm = _normaliza(fala)
         fala_tok = _tokens(fala)
         if fala_norm and len(fala_tok) >= 2 and _contem(perg_norm, fala_norm):
@@ -145,10 +174,9 @@ def consultar(raiz, pergunta):
         if not alvo or not seus:
             continue
         comum = len(alvo & seus)
-        # ponytail: limiar fixo de 2 radicais, 30% da pergunta e 50% da fala; falso-positivo
-        # aqui custa barato (mostra ao perguntador a fala do próprio dono, que ele
-        # julga), falso-negativo custa a pergunta repetida. Aperte se registro
-        # grande começar a casar tudo.
+        # ponytail: limiar fixo de 2 radicais, 30% da pergunta e 50% da fala. Aqui o falso-positivo
+        # custa só uma linha a mais na tela do dono (ele julga); o falso-negativo, a pergunta
+        # repetida. Aperte se registro grande começar a sugerir tudo.
         if comum >= 2 and comum / len(alvo) >= 0.3 and comum / len(seus) >= 0.5:
             achadas.append((comum / len(alvo), linha))
     achadas.sort(key=lambda par: -par[0])
@@ -165,7 +193,7 @@ def main(argv=None):
     p.add_argument("--fonte", required=True, help="onde a fala foi dita")
     p.add_argument("--data", help="AAAA-MM-DD; default hoje")
 
-    p = sub.add_parser("consultar", help="acha decisão já tomada; exit 1 = nenhuma")
+    p = sub.add_parser("consultar", help="a decisão que responde a pergunta (chave exata); exit 1 = nenhuma, com sugestões marcadas")
     p.add_argument("raiz")
     p.add_argument("pergunta")
 
@@ -185,7 +213,10 @@ def main(argv=None):
         for linha in achadas:
             print(linha)
         if not achadas:
-            print("nenhuma decisão selada cobre — a pergunta segue ao dono",
+            # sugestão não é resposta: sai marcada, e o exit 1 manda a pergunta ao dono
+            for linha in sugerir(args.raiz, args.pergunta):
+                print("SUGESTÃO (não é resposta — mostre ao dono, que decide): %s" % linha)
+            print("nenhuma decisão selada responde — a pergunta segue ao dono",
                   file=sys.stderr)
             return 1
         return 0

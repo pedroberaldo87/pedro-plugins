@@ -92,7 +92,7 @@ Ledger **`.claude/.project-doc/ledger.json`** versionado: `{mined_sessions:[uuid
 ### RF5 — Scrubber + Cofre Operacional
 **Scrubber** roda na escrita do journal (barreira crítica, já que o journal vai pro git):
 - **Detecta:** `KEY=valor` não-placeholder, base64 longo, JWT (`eyJ…`), `AKIA…`, `-----BEGIN…`, connection strings com senha embutida.
-- **Política "nomes e contexto sim, valores não":** preserva nome de var, host, porta, path; redige só o valor-secreto. Hosts/IPs internos: **preserva** (contexto de infra). Na dúvida: **preserva e marca** `‹revisar?›`.
+- **Política "nomes e contexto sim, valores não":** preserva nome de var, host, porta, path; redige só o valor-secreto. Hosts/IPs internos: **preserva** (contexto de infra). Token de alta entropia sem rótulo: **vai para o cofre**; só o de cara de código fica **marcado** `‹revisar?›`.
 
 **Cofre:** o valor-secreto não é descartado — é **desviado**. Vai para `iCloud Drive/Cofre/<projeto>.env`; o repo tem `.claude/secrets/ops.env` (symlink gitignored) → cofre; a doc referencia (`SSH_HOST → ver cofre`).
 

@@ -8,6 +8,7 @@ com o texto que o repositório escolheu. Este módulo é o único lugar que sabe
 - `grava_texto_seguro` — temporário aleatório (`mkstemp`, O_EXCL) na mesma pasta + `os.replace`;
   um destino que JÁ é symlink é recusado, dito em voz alta;
 - `anexa_texto_seguro` — append com O_NOFOLLOW;
+- `cria_pasta_segura` — `makedirs` que recusa antes de criar, se a pasta sai da raiz;
 - `raiz=` (opcional) — recusa também quando a PASTA do destino sai da raiz do projeto por um
   symlink de diretório (`.claude/.sprint -> /fora`).
 
@@ -41,6 +42,15 @@ def _confere(path, raiz):
     if raiz is not None and not _dentro(raiz, os.path.dirname(os.path.abspath(path))):
         raise EscritaRecusada("⛔ %s fica fora de %s (um symlink de pasta aponta para fora do\n"
                               "   projeto) — não grava." % (path, raiz))
+
+
+def cria_pasta_segura(pasta, raiz=None):
+    """`os.makedirs(pasta, exist_ok=True)`, mas recusa antes de criar qualquer coisa se `pasta` sai
+    de `raiz` por um symlink de diretório (a pasta nova nasceria do lado de fora)."""
+    if raiz is not None and not _dentro(raiz, os.path.abspath(pasta)):
+        raise EscritaRecusada("⛔ %s fica fora de %s (um symlink de pasta aponta para fora do\n"
+                              "   projeto) — não cria." % (pasta, raiz))
+    os.makedirs(pasta, exist_ok=True)
 
 
 def grava_texto_seguro(path, texto, raiz=None, modo_novo=0o644):

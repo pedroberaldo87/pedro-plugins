@@ -40,6 +40,8 @@ import os
 import sys
 import time
 
+from escrita_segura import anexa_texto_seguro, cria_pasta_segura, grava_texto_seguro
+
 for _canal in (sys.stdin, sys.stdout, sys.stderr):
     if hasattr(_canal, "reconfigure"):
         try:
@@ -108,7 +110,7 @@ def dir_largadas(project_root):
     return os.path.join(project_root, ".claude", ".sprint", "em-curso")
 
 
-def _acrescenta(alvo, entrada, campos, opcionais=()):
+def _acrescenta(alvo, entrada, campos, opcionais=(), raiz=None):
     """Valida os campos e acrescenta UMA linha ao arquivo. Devolve a linha gravada."""
     faltando = [c for c in campos if c not in opcionais and not entrada.get(c)]
     # Vazio de DENTRO também reprova: `progresso` cheio de None é dict verdadeiro e
@@ -122,9 +124,9 @@ def _acrescenta(alvo, entrada, campos, opcionais=()):
         raise ValueError("campo obrigatorio vazio: " + ", ".join(faltando))
     linha = dict(entrada)
     linha["gravado_em"] = time.time()
-    os.makedirs(os.path.dirname(alvo), exist_ok=True)
-    with open(alvo, "a", encoding="utf-8") as f:
-        f.write(json.dumps(linha, ensure_ascii=False) + "\n")
+    cria_pasta_segura(os.path.dirname(alvo), raiz)
+    # caminho previsível DENTRO do repo: um symlink versionado não redireciona a gravação (cf35688f)
+    anexa_texto_seguro(alvo, json.dumps(linha, ensure_ascii=False) + "\n", raiz=raiz)
     return linha
 
 
@@ -132,7 +134,7 @@ def registra(project_root, entrada):
     """Acrescenta UMA entrada ao ledger. Devolve a entrada gravada."""
     # `causa` é o único campo legitimamente VAZIO: corrida que terminou o que foi
     # fazer não bateu em pedra nenhuma, e exigir uma inventaria a pedra.
-    return _acrescenta(caminho(project_root), entrada, CAMPOS, OPCIONAIS)
+    return _acrescenta(caminho(project_root), entrada, CAMPOS, OPCIONAIS, raiz=project_root)
 
 
 def registra_parada(project_root, entrada):
@@ -144,7 +146,7 @@ def registra_parada(project_root, entrada):
     virar commit, e é dele que a seção de problemas do relatório final é derivada —
     nunca da memória da sessão.
     """
-    return _acrescenta(caminho_paradas(project_root), entrada, CAMPOS_PARADA)
+    return _acrescenta(caminho_paradas(project_root), entrada, CAMPOS_PARADA, raiz=project_root)
 
 
 def le_paradas(project_root):
@@ -197,10 +199,10 @@ def abre(project_root, run_id, missao, total, inicio):
     fracassou. A marca é solta pelo `registra-run`; o que sobrar vira linha no `colhe`.
     """
     alvo = os.path.join(dir_largadas(project_root), "%s.json" % run_id.replace("/", "_"))
-    os.makedirs(os.path.dirname(alvo), exist_ok=True)
-    with open(alvo, "w", encoding="utf-8") as f:
-        json.dump({"run_id": run_id, "missao": missao, "total": total,
-                   "inicio": inicio}, f, ensure_ascii=False)
+    cria_pasta_segura(os.path.dirname(alvo), project_root)
+    grava_texto_seguro(alvo, json.dumps({"run_id": run_id, "missao": missao, "total": total,
+                                         "inicio": inicio}, ensure_ascii=False),
+                       raiz=project_root)
     return alvo
 
 
