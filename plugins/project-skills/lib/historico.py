@@ -37,6 +37,8 @@ import os
 import re
 import sys
 
+from escrita_segura import anexa_texto_seguro
+
 # ── a forma do arquivo (o contrato) ────────────────────────────────────────
 SUFIXO = ".historico.md"
 _SAIU = "**Saiu do canônico:**"
@@ -184,10 +186,10 @@ def reescrever(doc_path, antigo, novo, contexto, decisao, data=None):
 
     # Histórico primeiro: se a escrita do canônico falhar, sobra registro a mais,
     # nunca item perdido.
-    with open(hist_path, "a", encoding="utf-8") as fh:
-        if nasceu:
-            fh.write(_preambulo(doc_path))
-        fh.write(entrada_markdown(data, contexto, decisao, antigo, novo))
+    # `<doc>.historico.md` é um nome previsível ao lado do doc: um symlink versionado com ele não
+    # redireciona a gravação (cf35688f)
+    anexa_texto_seguro(hist_path, (_preambulo(doc_path) if nasceu else "")
+                       + entrada_markdown(data, contexto, decisao, antigo, novo))
 
     trocado, reabriu = _reabrir_aprovacao(canonico.replace(antigo, novo, 1))
     with open(doc_path, "w", encoding="utf-8") as fh:

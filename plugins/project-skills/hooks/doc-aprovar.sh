@@ -18,6 +18,15 @@
 # letras, que está satisfeito. O corpo não é tocado — a marca mediria outro texto.
 set -u
 
+# O intermediário `<doc>.aprovando` mora num caminho previsível dentro do repositório: um symlink
+# versionado com esse nome faria o `>` gravar fora do projeto (cf35688f). Apaga o que houver ali e liga
+# o noclobber (O_EXCL: não segue link, nem cria em cima de nada) até o `mv` terminar; o `set +C` vem logo
+# depois de cada gravação.
+intermediario_novo() {
+  rm -f "$DOC.aprovando"
+  set -C
+}
+
 SO_IMPRIME=0
 [ "${1:-}" = "--marca" ] && { SO_IMPRIME=1; shift; }
 DOC="${1:-}"
@@ -70,6 +79,7 @@ if [ "$EH_ANEXO" -eq 1 ]; then
     RAIZ=$(project_root "$(dirname "$DOC")")
     [ -f "$(casa_da_doc "$RAIZ" "$ANEXO_DE")" ] && DSIG=$(doc_marca "$(casa_da_doc "$RAIZ" "$ANEXO_DE")")
   fi
+  intermediario_novo
   awk -v marca="$MARCA" -v dsig="$DSIG" '
     NR == 1 && $0 == "---" { print; dentro = 1; next }
     dentro && $0 == "---" {
@@ -83,6 +93,7 @@ if [ "$EH_ANEXO" -eq 1 ]; then
     dentro && /^design-sig:/ && dsig != "" { print "design-sig: " dsig; visto["design-sig"] = 1; next }
     { print }
   ' "$DOC" > "$DOC.aprovando" && mv "$DOC.aprovando" "$DOC"
+  set +C
   printf 'de acordo gravado em %s — status: approved · conjunto-sig: %s%s\n' \
     "$DOC" "$MARCA" "${DSIG:+ · design-sig: $DSIG}"
   exit 0
@@ -92,6 +103,7 @@ MARCA=$(doc_marca "$DOC")
 [ -n "$MARCA" ] || { echo "não deu para calcular a marca de $DOC" >&2; exit 2; }
 if [ "$SO_IMPRIME" -eq 1 ]; then printf '%s\n' "$MARCA"; exit 0; fi
 
+intermediario_novo
 awk -v hoje="$(date +%F)" -v marca="$MARCA" '
   NR == 1 && $0 == "---" { print; dentro = 1; next }
   dentro && $0 == "---" {
@@ -105,5 +117,6 @@ awk -v hoje="$(date +%F)" -v marca="$MARCA" '
   dentro && /^approved-sig:/ { print "approved-sig: " marca; visto["approved-sig"] = 1; next }
   { print }
 ' "$DOC" > "$DOC.aprovando" && mv "$DOC.aprovando" "$DOC"
+set +C
 
 printf 'de acordo gravado em %s — status: approved · approved-sig: %s\n' "$DOC" "$MARCA"
