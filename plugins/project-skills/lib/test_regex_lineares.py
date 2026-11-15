@@ -23,7 +23,10 @@ sys.path.insert(0, HERE)
 os.environ["PROJECT_DOC_SALT_FILE"] = os.path.join(
     tempfile.mkdtemp(prefix="pdregex-"), "journal.salt")
 
-TETO_S = 1.0          # cada entrada hostil tem que terminar abaixo disto
+# cada entrada hostil tem que terminar abaixo disto. No Windows do CI a mesma entrada
+# levou 1.08s (PR #29) e derrubou a main sem defeito nenhum; backtracking de verdade
+# estoura o LIMITE_FILHO_S, então 2s ali ainda pega o defeito que o teste existe pra pegar.
+TETO_S = 2.0 if os.name == "nt" else 1.0
 LIMITE_FILHO_S = 8    # o filho é morto aqui: padrão lento reprova, não pendura
 PASSED = 0
 FALHAS = []
