@@ -194,6 +194,10 @@
           "enabled": true
         },
         {
+          "name": "pr-externo",
+          "enabled": true
+        },
+        {
           "name": "principles",
           "enabled": true
         },

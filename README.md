@@ -11,9 +11,9 @@ A public marketplace of plugins for [Claude Code](https://code.claude.com/docs/e
 
 A monorepo: each subdirectory of `plugins/` is an independent plugin, distributed through the `.claude-plugin/marketplace.json` catalog.
 
-**25 plugins · Markdown + Shell + Python · no build step, no package manager.**
+**26 plugins · Markdown + Shell + Python · no build step, no package manager.**
 
-The 25 plugins add up to **37 skills** — 19 ship exactly one, `visual` ships two, `2op` ships three, `project-skills` ships thirteen, and `graphify-guard`, `vision` and `dual-git` ship none.
+The 26 plugins add up to **38 skills** — 20 ship exactly one, `visual` ships two, `2op` ships three, `project-skills` ships thirteen, and `graphify-guard`, `vision` and `dual-git` ship none.
 
 This is a command-line toolkit with no graphical interface, so there is no screenshot. Installing is two commands in a terminal:
 
@@ -61,7 +61,7 @@ $ claude plugin install handoff@pedro-plugins
 - **Project lifecycle (`project-skills`):** concept, plan, autonomous execution, severity-based review and documentation.
 - **Session continuity:** `handoff`, `context-guard` and `intent-guard` keep what matters across sessions.
 - **Review and second opinions:** `grill-me`, `2op`, `gauntlet`, `improve-workflow`, `vistoria`.
-- **Development hygiene:** `ship`, `branches`, `lixeiro`, `fallow`, `guardrails`, `sec` (supply chain) and `dual-git` (private repository for internal docs).
+- **Development hygiene:** `ship`, `pr-externo`, `branches`, `lixeiro`, `fallow`, `guardrails`, `sec` (supply chain) and `dual-git` (private repository for internal docs).
 - **Visual output:** `visual`, `archify` and `slides` produce interactive HTML, diagrams and slide decks.
 - **New machine in one command:** `bootstrap` installs marketplaces and plugins and applies the versioned global configuration.
 - **No build step:** Markdown, Bash and standard-library Python (the `visual` daemon uses Node).
@@ -105,7 +105,7 @@ claude plugin install bootstrap@pedro-plugins
 /bootstrap:setup
 ```
 
-Expected result on a blank machine: **24 plugins enabled + 1 disabled by default**
+Expected result on a blank machine: **25 plugins enabled + 1 disabled by default**
 (`graphify-guard`), plus the third-party marketplaces listed in the manifest.
 
 > ⚠️ **If you see `sync incompleto: N operações falharam` ("incomplete sync: N operations failed"), run `/bootstrap:setup` again.**
@@ -271,6 +271,7 @@ not change.
 | `guardrails` ⚙️ | automatic (PostToolUse + PreToolUse) · setup `/guardrails:setup` | Global editing guardrails as hooks: post-edit lint & type-check (JS/TS/Python), an LLM scope-cop that blocks UI edits outside the approved plan, and a guard against misuse of Agent Teams. Portable across machines — replaces hand-rolled hooks in `~/.claude/settings.json`. Run `/guardrails:setup` once per machine. |
 | `fallow` | `/fallow` | Runs Fallow (a JS/TS static analyzer — dead code, duplication, complexity), classifies findings by type and confidence, audits the report to catch false positives (cron, HTTP routes, dynamic imports) and delivers an interactive report where you choose what to clean up. Cleanup with a safety net (preview + build/test). |
 | `branches` ⚙️ | `/branches` · SessionStart | A report of stale branches with proof: how many, which are already contained in the base, and what can be deleted. Before deleting, it creates an `archive/<branch>-<date>` tag as a rescue net. A silent SessionStart notice when there is no stale branch. |
+| `pr-externo` ⚙️ | `/pr-externo` · automatic (PreToolUse) | Prepares a pull request for someone else's repository. Builds a dossier with six proofs before opening: the change may go through a public PR at all (security flaws and unrequested features may not), nobody already solved it (issues and PRs, open and closed), the repository's rules were read, each of its CI checks ran on your branch and on the original code, the diff follows a precedent the project itself accepted, and the description links the issue without leaking your data. A gate blocks `gh pr create` until the dossier clears. |
 | `lixeiro` ⚙️ | `/faxina` · automatic (SessionEnd + Stop) | Ends the processes the session opened and left running — dev server, test suite in watch mode, tunnel. The automatic part reaps **only what the session noted it had opened**; the `/faxina` command is the manual sibling, which shows **everything** that is up, with or without provenance, and ends only what you tick. |
 | `dual-git` ⚙️ | commands `devgit` · `devgit-trava` · `devgit-iniciar` · `devgit-voltar` · automatic (SessionStart) | Two repositories in the same folder: code in the public one, the internal material in `.claude/` in a private one. `git` keeps meaning the public repository; `devgit` runs the private one from any folder of the project, with its control directory in `.git/dev.git` so no `.git` ever appears inside `.claude/`. `devgit-trava` installs `pre-commit` and `pre-push` in the public repository, refusing any file the `.gitignore` says to ignore and any text containing a term from `.claude/public-terms.txt`. `devgit inventario` lists what neither repository keeps — secret, data, regenerable, pointer, draft or unknown — and exits 0 only when the folder can leave the disk. `devgit estacionar --mover` checks that both repositories are fully pushed and the inventory is clean, writes a card with both addresses, and moves the folder to the Trash. `devgit-voltar <card>` brings it back: clones both, reinstalls the guard, restores secrets kept in Bitwarden and installs dependencies. A project that publishes no code declares `git config devgit.modo unico` and uses the same commands with a single repository. `devgit-iniciar aberto` or `fechado` puts a new project in the model (the project-conception skill runs it), `devgit fechar "<message>"` commits and pushes what changed in `.claude/` (documentation, session handoff and shipping run it at the end), and every session opens with one line saying how many private files are uncommitted and how many commits are unpushed. |
 
@@ -296,7 +297,7 @@ Each plugin is a self-contained folder: Claude Code reads the catalog, copies th
 
 ### Automatic hooks
 
-13 plugins register hooks that fire without a slash command — 55 registrations in total
+14 plugins register hooks that fire without a slash command — 56 registrations in total
 (derived in this run: `python3 scripts/hook_contract.py`; checked at commit time by
 `python3 scripts/readme_counts_check.py`):
 
@@ -304,6 +305,7 @@ Each plugin is a self-contained folder: Claude Code reads the catalog, copies th
 |---|---|---|
 | `bootstrap` | SessionStart×2 · PostToolUse | Sync of what is already installed, a notice about what the manifest adds, and the notice after a plugin command |
 | `branches` | SessionStart×2 · PostToolUse | Stale-branch notice, silent when there is none |
+| `pr-externo` | PreToolUse | Blocks `gh pr create` to a repository you cannot push to until the dossier clears it |
 | `context-guard` | SessionStart×2 · PostToolUse | Watches how much of the conversation is used and suggests the handoff |
 | `dual-git` | SessionStart | One line with how many private-repository files are uncommitted and how many commits are unpushed |
 | `gauntlet` | SessionStart×2 · PreToolUse | Denies new dispatches while a delivery has no judge, and finds the contest again on startup |
@@ -413,7 +415,7 @@ See [CONTRIBUTING.md](CONTRIBUTING.md). In short: open an issue before a large c
 
 ## License
 
-[MIT](LICENSE) © 2026 Pedro Beraldo.
+[MIT](LICENSE) © 2026 Pedro Beraldo. <!-- public-ok: linha de copyright da licença, o nome do titular é público por definição -->
 
 Third-party plugins keep their own licenses:
 - `archify` — MIT, see [`plugins/archify/skills/archify/LICENSE`](plugins/archify/skills/archify/LICENSE).

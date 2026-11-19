@@ -11,9 +11,9 @@ Marketplace público de plugins para [Claude Code](https://code.claude.com/docs/
 
 Monorepo: cada subdiretório de `plugins/` é um plugin independente, distribuído pelo catálogo `.claude-plugin/marketplace.json`.
 
-**25 plugins · Markdown + Shell + Python · sem build, sem package manager.**
+**26 plugins · Markdown + Shell + Python · sem build, sem package manager.**
 
-Os 25 plugins somam **37 skills** — 19 trazem uma só, `visual` traz duas, `2op` traz três, `project-skills` traz treze, e `graphify-guard`, `vision` e `dual-git` não trazem nenhuma.
+Os 26 plugins somam **38 skills** — 20 trazem uma só, `visual` traz duas, `2op` traz três, `project-skills` traz treze, e `graphify-guard`, `vision` e `dual-git` não trazem nenhuma.
 
 Este é um repositório de ferramentas, sem interface gráfica, então não há screenshot. A instalação é um comando no terminal:
 
@@ -61,7 +61,7 @@ $ claude plugin install handoff@pedro-plugins
 - **Ciclo de projeto (`project-skills`):** concepção, plano, execução autônoma, revisão por severidade e documentação.
 - **Continuidade de sessão:** `handoff`, `context-guard` e `intent-guard` preservam o que importa entre sessões.
 - **Revisão e segunda opinião:** `grill-me`, `2op`, `gauntlet`, `improve-workflow`, `vistoria`.
-- **Higiene de desenvolvimento:** `ship`, `branches`, `lixeiro`, `fallow`, `guardrails`, `sec` (cadeia de suprimentos) e `dual-git` (repositório privado para a documentação interna).
+- **Higiene de desenvolvimento:** `ship`, `pr-externo`, `branches`, `lixeiro`, `fallow`, `guardrails`, `sec` (cadeia de suprimentos) e `dual-git` (repositório privado para a documentação interna).
 - **Saída visual:** `visual`, `archify` e `slides` geram HTML interativo, diagramas e apresentações.
 - **Máquina nova em um comando:** `bootstrap` instala marketplaces e plugins e aplica a configuração global versionada.
 - **Sem build:** Markdown, Bash e Python da biblioteca padrão (o daemon do `visual` usa Node).
@@ -105,7 +105,7 @@ claude plugin install bootstrap@pedro-plugins
 /bootstrap:setup
 ```
 
-Resultado esperado numa máquina zerada: **24 plugins ligados + 1 desligado de fábrica**
+Resultado esperado numa máquina zerada: **25 plugins ligados + 1 desligado de fábrica**
 (`graphify-guard`), mais os marketplaces de terceiros do manifest.
 
 > ⚠️ **Se aparecer `sync incompleto: N operações falharam`, rode `/bootstrap:setup` de novo.**
@@ -271,6 +271,7 @@ não mudaram.
 | `guardrails` ⚙️ | automático (PostToolUse + PreToolUse) · setup `/guardrails:setup` | Guardrails globais de edição como hooks: lint & type-check pós-edição (JS/TS/Python), um scope-cop LLM que bloqueia edições de UI fora do plano aprovado e um guard de uso indevido de Agent Teams. Portável entre máquinas — substitui hooks hand-rolled no `~/.claude/settings.json`. Rode `/guardrails:setup` uma vez por máquina. |
 | `fallow` | `/fallow` | Roda o Fallow (analisador estático JS/TS — código morto, duplicação, complexidade), classifica achados por tipo e confiança, audita o relatório pra pegar falsos-positivos (cron, rotas HTTP, imports dinâmicos) e entrega um relatório interativo onde você escolhe o que limpar. Limpeza com rede de segurança (preview + build/test). |
 | `branches` ⚙️ | `/branches` · SessionStart | Relatório de branches paradas com prova: quantas, quais já estão contidas na base, e o que dá pra apagar. Antes de apagar, cria uma tag `archive/<branch>-<data>` como rede de resgate. Aviso silencioso no SessionStart quando não há branch parada. |
+| `pr-externo` ⚙️ | `/pr-externo` · automático (PreToolUse) | Prepara um pull request para repositório de terceiro. Monta um dossiê com seis provas antes de abrir: a mudança pode ir por PR público (falha de segurança e funcionalidade sem aval não vão), ninguém já resolveu (issues e PRs, abertos e fechados), as regras do repositório foram lidas, cada verificação automática dele rodou na sua branch e no código original, o diff segue um precedente aceito pelo próprio projeto, e a descrição liga à issue sem vazar dado seu. Uma trava barra o `gh pr create` enquanto o dossiê não libera. |
 | `lixeiro` ⚙️ | `/faxina` · automático (SessionEnd + Stop) | Encerra os processos que a sessão abriu e esqueceu de pé — servidor de desenvolvimento, suíte em modo de observação, túnel. A parte automática colhe **só o que a sessão anotou ter aberto**; o comando `/faxina` é o irmão manual, que mostra **tudo** que está de pé, com ou sem procedência, e encerra apenas o que você marcar. |
 | `dual-git` ⚙️ | comandos `devgit` · `devgit-trava` · `devgit-iniciar` · `devgit-voltar` · automático (SessionStart) | Dois repositórios na mesma pasta: o código no público, o material interno de `.claude/` num privado. `git` continua sendo o público; `devgit` roda o privado de qualquer pasta do projeto, com o controle em `.git/dev.git`, para nunca nascer `.git` dentro de `.claude/`. `devgit-trava` instala `pre-commit` e `pre-push` no público, que recusam arquivo que o `.gitignore` manda ignorar e texto com termo de `.claude/public-terms.txt`. `devgit inventario` lista o que nenhum dos dois guarda — segredo, dado, regenerável, ponteiro, rascunho ou desconhecido — e sai com 0 só quando a pasta pode sair do disco. `devgit estacionar --mover` confere que os dois repositórios estão inteiros no remoto e o inventário limpo, grava uma ficha com os endereços e manda a pasta para a Lixeira. `devgit-voltar <ficha>` traz de volta: clona os dois, reinstala a trava, devolve os segredos guardados no Bitwarden e instala as dependências. Projeto que não publica código declara `git config devgit.modo unico` e usa os mesmos comandos com um repositório só. `devgit-iniciar aberto` ou `fechado` põe um projeto novo no modelo (é o que a concepção do projeto roda), `devgit fechar "<mensagem>"` grava e envia o que mudou em `.claude/` (é o que documentação, registro de sessão e publicação rodam no fim), e cada sessão abre com uma linha dizendo quantos arquivos do privado estão sem commit e quantos commits sem push. |
 
@@ -296,7 +297,7 @@ Cada plugin é uma pasta autocontida: o Claude Code lê o catálogo, copia a pas
 
 ### Hooks automáticos
 
-13 plugins registram hooks que disparam sem slash command — 55 registros no total
+14 plugins registram hooks que disparam sem slash command — 56 registros no total
 (derivado neste run: `python3 scripts/hook_contract.py`; conferido no commit por
 `python3 scripts/readme_counts_check.py`):
 
@@ -304,6 +305,7 @@ Cada plugin é uma pasta autocontida: o Claude Code lê o catálogo, copia a pas
 |---|---|---|
 | `bootstrap` | SessionStart×2 · PostToolUse | Sync do que já está instalado, aviso do que o manifest tem de novo, e o aviso depois de um comando de plugin |
 | `branches` | SessionStart×2 · PostToolUse | Aviso de branch parada, silencioso quando não há |
+| `pr-externo` | PreToolUse | Barra `gh pr create` para repositório em que você não tem escrita enquanto o dossiê não libera |
 | `context-guard` | SessionStart×2 · PostToolUse | Vigia o quanto da conversa já foi usado e sugere o handoff |
 | `dual-git` | SessionStart | Uma linha com quantos arquivos do privado estão sem commit e quantos commits sem push |
 | `gauntlet` | SessionStart×2 · PreToolUse | Nega despacho novo enquanto houver entrega sem juiz, e reencontra a disputa no arranque |
@@ -413,7 +415,7 @@ Veja o [CONTRIBUTING.md](CONTRIBUTING.md) (em inglês). Em resumo: abra uma issu
 
 ## Licença
 
-[MIT](LICENSE) © 2026 Pedro Beraldo.
+[MIT](LICENSE) © 2026 Pedro Beraldo. <!-- public-ok: linha de copyright da licença, o nome do titular é público por definição -->
 
 Plugins de terceiros mantêm a própria licença:
 - `archify` — MIT, ver [`plugins/archify/skills/archify/LICENSE`](plugins/archify/skills/archify/LICENSE).

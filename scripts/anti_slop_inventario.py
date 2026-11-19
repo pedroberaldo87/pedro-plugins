@@ -56,7 +56,8 @@ RAIZ = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 # conta um `plugin.json` por plugin (cada um guarda a própria versão), então todo plugin
 # novo soma um ponto — não é cópia solta. A decisão está escrita em SITUACAO["D"].
 # D subiu de 25 para 26 por decisão do dono em 2026-11-13: plugin novo `dual-git`.
-TETO = {"A": 0, "B": 42, "C": 138, "D": 26}
+# D subiu de 26 para 27 por decisão do dono em 2026-11-19: plugin novo `pr-externo`.
+TETO = {"A": 0, "B": 42, "C": 138, "D": 27}
 
 # A SITUAÇÃO DE CADA CLASSE (F15.7): ou a fonte única existe em código, ou a dívida está
 # declarada com dono nomeado. Não há terceira opção — classe sem uma das duas é o próprio

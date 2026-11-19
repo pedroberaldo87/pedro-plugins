@@ -1,0 +1,10 @@
+{
+  "name": "pr-externo",
+  "version": "0.1.1",
+  "description": "Prepara um pull request para repositório de TERCEIRO sem dar trabalho a quem mantém o projeto. Antes de abrir, monta um dossiê com seis provas: a mudança pode ir por PR público (falha de segurança e funcionalidade sem aval não vão), ninguém já resolveu o mesmo problema (issues e PRs, abertos e fechados), as regras do repositório foram lidas (guia de contribuição, modelo de PR, política de IA, instruções para agentes), cada verificação automática do projeto foi rodada na sua branch e no código original, o diff é mínimo e segue um precedente aceito pelo próprio projeto, e a descrição liga à issue sem vazar dado seu. Uma trava barra a abertura do PR em repositório alheio enquanto algum portão estiver fechado.",
+  "author": {
+    "name": "pedroberaldo87",
+    "email": "134068505+pedroberaldo87@users.noreply.github.com"
+  },
+  "homepage": "https://github.com/pedroberaldo87/pedro-plugins"
+}
