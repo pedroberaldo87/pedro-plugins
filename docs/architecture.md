@@ -363,7 +363,7 @@ Saída desta rodada (nome · versão · skills · tem hook):
 ```
 2op                 1.3.0  [2op,2op-opus,2op-sonnet]    -
 archify            2.14.6  [archify]                    -
-bootstrap         1.17.31  [bootstrap]                  HOOKS
+bootstrap         1.17.32  [bootstrap]                  HOOKS
 branches           1.3.19  [branches]                   HOOKS
 check-skills        0.7.5  [check-skills]               -
 context-guard      1.3.21  [context-guard]              HOOKS
@@ -378,6 +378,7 @@ improve             1.1.7  [improve]                    -
 improve-workflow  0.16.33  [improve-workflow]           -
 intent-guard       0.8.23  [intent-guard]               HOOKS
 lixeiro             1.6.6  [faxina]                     HOOKS
+pr-externo          0.1.0  [pr-externo]                 HOOKS
 principles          1.0.5  [principles]                 -
 project-skills    0.22.245  [completude,design-md,doc,doc-load,doc-touch,monitorar,pesquisa-referencias,plan,project-skills,qa-loop,reentrada,sprint,start] HOOKS
 sec                 0.1.4  [sec]                        -

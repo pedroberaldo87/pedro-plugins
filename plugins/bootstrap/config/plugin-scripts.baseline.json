@@ -313,6 +313,10 @@
    "script": "lib/lixeiro.py"
   },
   {
+   "plugin": "pr-externo",
+   "script": "lib/pr_externo.py"
+  },
+  {
    "plugin": "project-skills",
    "script": "lib/completude.py"
   },
@@ -853,6 +857,16 @@
    "classe": "puro",
    "escreve": false,
    "motivos": []
+  },
+  {
+   "plugin": "pr-externo",
+   "script": "lib/pr_externo.py",
+   "citado": true,
+   "classe": "executa",
+   "escreve": true,
+   "motivos": [
+    "import subprocess"
+   ]
   },
   {
    "plugin": "project-skills",
