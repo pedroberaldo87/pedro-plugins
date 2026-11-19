@@ -14,6 +14,7 @@ detector de segredo.
 Roda com:  python3 plugins/project-skills/lib/test_journal_segredos.py
 """
 import hashlib
+import json
 import os
 import random
 import shutil
@@ -30,6 +31,8 @@ BASE = tempfile.mkdtemp(prefix="pdsegredos-")
 COFRE = os.path.join(BASE, "cofre")
 SAL = os.path.join(BASE, "estado", "journal.salt")
 os.environ["PROJECT_DOC_COFRE_DIR"] = COFRE
+# o cofre agora é opt-in: estas suítes exercitam o modo arquivo-local (fora do repo, 0600)
+os.environ["PROJECT_DOC_SEGREDOS_MODO"] = "arquivo-local"
 os.environ["PROJECT_DOC_SALT_FILE"] = SAL
 POSIX = os.name != "nt"          # no Windows o chmod só mexe no bit de leitura
 
@@ -234,6 +237,79 @@ try:
                   "prazo TIMEOUT-600s estourou"):
         texto, segredos = journal.scrub(banal)
         check("camada 4 preserva %r" % banal, texto == banal and not segredos, "— veio %r" % texto)
+
+    # ── 7. falsos positivos medidos no Cofre real (2026-11): palavra, identificador e caminho ficam ──
+    for frase, palavra in (("rotina sem destino não chama o credencial pg_dump", "pg_dump"),
+                           ("o papel lo_core só tem SELECT,INSERT; a chave lo_core", "lo_core"),
+                           ("Outras senhas: `~/.crm-prod/secrets.env`.", "~/.crm-prod/secrets.env"),
+                           ("a chave dias_desde_ultimo vem da coluna", "dias_desde_ultimo"),
+                           ("chave: pg_dump", "pg_dump"),
+                           ("o token vive em ~/.config/app/token.json", "~/.config/app/token.json"),
+                           ("a chave api_v2 do roteador", "api_v2")):
+        texto, segredos = journal.scrub(frase)
+        check("falso positivo fica intacto (nem ‹revisar?›): %r" % palavra, texto == frase and not segredos,
+              "— veio %r" % texto)
+    # …e o segredo de verdade continua saindo
+    GH = "ghp" + "_" + rand(36, 11)
+    for frase, valor in (("token " + GH + " vazou", GH),
+                         ("senha do banco: hunter2xyz", "hunter2xyz"),
+                         ("senha: pg_dump", "pg_dump"),          # rótulo FORTE: identificador ainda é a senha
+                         ("password: hunter", "hunter"),
+                         ("DB_PASSWORD=/srv/arquivo", "/srv/arquivo"),  # rótulo de config: qualquer valor
+                         ("a senha p@ssw0rd! foi trocada", "p@ssw0rd!")):
+        texto, segredos = journal.scrub(frase)
+        check("segredo real sai do texto: %r" % frase, valor not in texto and any(v == valor for _, v in segredos),
+              "— veio %r" % texto)
+
+    # ── 8. destino é política do usuário: padrão descarta; nunca iCloud; nunca dentro do repo ──
+    modo_antes = os.environ.pop("PROJECT_DOC_SEGREDOS_MODO", None)
+    cofre_antes = os.environ.get("PROJECT_DOC_COFRE_DIR")
+    os.environ["PROJECT_DOC_SEGREDOS_CFG"] = os.path.join(BASE, "cfg", "segredos.json")
+    try:
+        proj = os.path.join(BASE, "proj-politica")
+        os.makedirs(proj)
+        _, segs = journal.scrub("token " + GH + " vazou")
+        os.environ["PROJECT_DOC_COFRE_DIR"] = os.path.join(BASE, "cofre-politica")
+        r = journal.stash_secrets(segs, proj)
+        check("sem política: descarta e marca pendente", r["modo"] == "descartar" and r["pendente"] is True)
+        check("sem política: nada gravado", not os.path.exists(os.path.join(BASE, "cofre-politica")))
+        check("resumo não carrega o valor", GH not in json.dumps(r))
+        check("nunca cria .claude/secrets/ops.env", not os.path.lexists(os.path.join(proj, ".claude", "secrets", "ops.env")))
+
+        journal.definir_politica_segredos("gerenciador", "Bitwarden")
+        check("política gravada 0600", (not POSIX) or modo(os.environ["PROJECT_DOC_SEGREDOS_CFG"]) == 0o600)
+        r = journal.stash_secrets(segs, proj)
+        check("gerenciador: nada no disco, aponta o gerenciador",
+              r["modo"] == "gerenciador" and not r["pendente"] and r.get("gerenciador") == "Bitwarden"
+              and not os.path.exists(os.path.join(BASE, "cofre-politica")))
+
+        journal.definir_politica_segredos("arquivo-local")
+        os.environ["PROJECT_DOC_COFRE_DIR"] = os.path.join(proj, ".claude", "segredos")
+        r = journal.stash_secrets(segs, proj)
+        check("arquivo-local dentro do repo é recusado", r["modo"] == "descartar" and "aviso" in r
+              and not os.path.exists(os.path.join(proj, ".claude", "segredos")))
+        icloud = os.path.join(BASE, "Library", "Mobile Documents", "com~apple~CloudDocs", "Cofre")
+        os.environ["PROJECT_DOC_COFRE_DIR"] = icloud
+        r = journal.stash_secrets(segs, proj)
+        check("arquivo-local no iCloud é recusado", r["modo"] == "descartar" and not os.path.exists(icloud))
+        os.environ["PROJECT_DOC_COFRE_DIR"] = os.path.join(BASE, "cofre-politica")
+        r = journal.stash_secrets(segs, proj)
+        check("arquivo-local fora do repo grava 0600", r["modo"] == "arquivo-local" and os.path.isfile(r["arquivo"])
+              and ((not POSIX) or modo(r["arquivo"]) == 0o600))
+        os.environ.pop("PROJECT_DOC_COFRE_DIR")
+        base_padrao, _ = journal.cofre_paths(proj)
+        check("destino padrão não é iCloud", "Mobile Documents" not in base_padrao and not journal._pasta_sincronizada(base_padrao))
+
+        saida = subprocess.run([sys.executable, os.path.join(HERE, "journal.py"), "segredos", "--set", "descartar"],
+                               capture_output=True, text=True, env=dict(os.environ))
+        check("CLI segredos --set grava a política", saida.returncode == 0
+              and json.loads(saida.stdout)["politica"]["modo"] == "descartar", "— " + saida.stderr[-200:])
+    finally:
+        os.environ.pop("PROJECT_DOC_SEGREDOS_CFG", None)
+        if cofre_antes is not None:
+            os.environ["PROJECT_DOC_COFRE_DIR"] = cofre_antes
+        if modo_antes is not None:
+            os.environ["PROJECT_DOC_SEGREDOS_MODO"] = modo_antes
 finally:
     shutil.rmtree(BASE, ignore_errors=True)
 

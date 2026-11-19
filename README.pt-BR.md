@@ -229,7 +229,7 @@ não mudaram.
 
 | Comando | O que faz |
 |---|---|
-| `/doc` | A rodada completa: minera **toda** a evidência do projeto (arquivos, handoffs, memória, grafo de conhecimento, histórico do git, transcripts) para um journal versionado que só cresce, e projeta em índice `CLAUDE.md` + um `.claude/docs/*.md` por assunto. Um limpador move segredo para um cofre, nunca para o git. Também dispara em "documenta o projeto". |
+| `/doc` | A rodada completa: minera **toda** a evidência do projeto (arquivos, handoffs, memória, grafo de conhecimento, histórico do git, transcripts) para um journal versionado que só cresce, e projeta em índice `CLAUDE.md` + um `.claude/docs/*.md` por assunto. Um limpador tira segredo do texto antes do git; o destino do valor é escolha sua (gerenciador de segredos, descartar ou arquivo local), nunca a nuvem. Também dispara em "documenta o projeto". |
 | `/doc-touch` | O complemento frequente do `/doc`: olha o que o seu diff tocou, descobre quais documentos aquilo afeta e **re-projeta só esses**, sem minerar tudo de novo. Também dispara em "atualiza a doc do que eu mexi". |
 | `/doc-load` | Diz o que vale como **régua** hoje e por quê: a lei (constituição, metas de qualidade, restrições), o que foi acordado com você (blueprint, funcionalidades, jornadas, desenho) e o mapa minerado — cada um com a marca do texto e o motivo de valer ou não. Roda no começo de toda etapa que especifica, planeja, implementa, testa ou revisa. Também dispara em "qual é a régua deste projeto". |
 | `/project-skills` | O índice da própria família: lê as skills do disco e aponta a certa para o que você quer fazer. Também dispara em "que skill de projeto eu uso aqui". |

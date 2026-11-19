@@ -14,8 +14,10 @@ A PARTE MECÂNICA da doc (a projeção/julgamento fica no SKILL.md):
       forward  = sessões novas + commits novos → discovered
       backward = git diff → findings cujas anchors mudaram → marcados `stale`
                  (re-validação é JULGAMENTO do agente; o lib não auto-invalida)
-  • Scrubber + cofre (RF5): roda na escrita do journal (barreira p/ o git). Move o
-    VALOR-secreto pro cofre (iCloud), preserva nome/host/porta/contexto.
+  • Scrubber (RF5): roda na escrita do journal (barreira p/ o git). Tira o VALOR-secreto do
+    texto, preserva nome/host/porta/contexto. O destino do valor é uma POLÍTICA do usuário
+    (`journal.py segredos`): descartar (padrão), gerenciador de segredos, ou arquivo local
+    0600 fora do repo. Nunca iCloud, nunca dentro do repo.
 
 A camada de transcript vem de collect_engine.py (vendorado como sibling por
 scripts/sync-shared.sh). Degrada graciosamente: sem a engine, pula o tier 4.
@@ -339,6 +341,14 @@ def _is_context_token(core):
 # caracteres especiais internos (p@ssw0rd!), mín. 4 chars.
 PROSE_TOK_RE = re.compile(r"[A-Za-z0-9][A-Za-z0-9@!#$%^&*_+./=~-]{3,}")
 _NAO_ALNUM_BARRA_RE = re.compile(r"[^A-Za-z0-9/]")
+_ESPECIAL_SENHA_RE = re.compile(r"[@!#$%^&*+=~]")
+# Rótulos de PROSA (minúsculos, sem `_`): `senha:`, `chave:`. Um rótulo de config
+# (`DB_PASSWORD=`, `apiKey:`) continua redigindo qualquer valor.
+_ROTULO_FORTE = frozenset({"senha", "senhas", "password", "passwords", "passwd", "pass",
+                           "secret", "secrets", "passphrase"})
+_ROTULO_AMBIGUO = frozenset({"chave", "chaves", "key", "keys", "token", "tokens", "credencial",
+                             "credenciais", "credential", "credentials", "auth"})
+_IDENTIFICADOR_RE = re.compile(r"^[A-Za-z][a-z]*(?:[_.-][A-Za-z][a-z]*)*$")
 _DIGITO_RE = re.compile(r"\d")
 _LETRA_RE = re.compile(r"[A-Za-z]")
 _EXT_FINAL_RE = re.compile(r"\.([A-Za-z0-9]{1,6})$")
@@ -429,6 +439,26 @@ def _segredos_de_url(core, base):
 def _is_placeholder(v):
     v = (v or "").strip()
     return not v or bool(PLACEHOLDER_RE.match(v))
+
+
+def _valor_de_prosa_e_contexto(key, valor):
+    """True quando `key: valor` é PROSA (rótulo minúsculo de palavra comum) e o valor é contexto.
+
+    Caminho, arquivo de extensão conhecida, URL sem credencial: contexto para qualquer rótulo de
+    prosa. Identificador sem dígito (`pg_dump`, `dias_desde_ultimo`): contexto só depois de rótulo
+    AMBÍGUO (`chave` é também chave de dicionário/JSON); depois de `senha:` ele ainda é redigido."""
+    k = key.lower()
+    if key != k or (k not in _ROTULO_FORTE and k not in _ROTULO_AMBIGUO):
+        return False
+    v = valor.strip().strip("`*").rstrip(".,;:)")
+    if not v:
+        return False
+    # número puro NÃO é contexto aqui (`senha: 123456` é o PIN); só caminho/arquivo/URL/IP/uuid.
+    ext = _EXT_FINAL_RE.search(v)
+    if (v[:1] == "/" or v[:2] in ("./", "~/") or ("://" in v and "@" not in v)
+            or (ext and ext.group(1).lower() in KNOWN_EXT) or _UUID_RE.match(v) or _IPV4_RE.match(v)):
+        return True
+    return k in _ROTULO_AMBIGUO and bool(_IDENTIFICADOR_RE.match(v))
 
 
 # Sal por instalação da etiqueta `‹cofre:LABEL:xxxxxxxx›`. A etiqueta vai para o journal
@@ -609,6 +639,10 @@ def scrub(text):
         # inner = palavra-esquema (Bearer) OU placeholder/markdown (**) → deixa a camada 3 pegar.
         if SCHEME_WORD_RE.fullmatch(inner) or _is_placeholder(inner):
             return m.group(0)
+        # `senhas: \`/caminho/secrets.env\`` — rótulo de PROSA seguido de caminho/arquivo/identificador:
+        # é contexto que o leitor precisa, não o valor (medido em 2026-11: o Cofre tinha 2/3 disso).
+        if _valor_de_prosa_e_contexto(key, inner):
+            return m.group(0)
         return "%s%s%s%s" % (m.group("pre"), q, stash(key, inner), q)
     text = ASSIGN_RE.sub(repl_assign, text)
 
@@ -675,12 +709,16 @@ def scrub(text):
             if (not core or core.lower() in STOPWORDS or _is_context_token(core)
                     or _covered(s, e) or "://" in core or core[:1] == "/" or core[:2] in ("./", "~/")):
                 continue
-            has_special = bool(_NAO_ALNUM_BARRA_RE.search(core))
+            # `_`, `-` e `.` são pontuação de IDENTIFICADOR (`pg_dump`, `lo_core`, `ts.net`), não de
+            # senha: só `@!#$%^&*+=~` contam como "caractere especial". Slug com número
+            # (`api_v2`, `rodada-2026`) também é texto de gente, não credencial.
+            has_special = bool(_ESPECIAL_SENHA_RE.search(core))
             mixed = bool(_DIGITO_RE.search(core)) and bool(_LETRA_RE.search(core))
             if "/" in core:
                 is_cred = _looks_random(core)        # slash só é secret se for de fato aleatório (não path)
             else:
-                is_cred = _looks_random(core) or has_special or (mixed and len(core) >= 6)
+                is_cred = (_looks_random(core) or has_special
+                           or (mixed and len(core) >= 6 and not _e_slug(core)))
             if is_cred:
                 cred = (s, e, core)
                 break
@@ -696,7 +734,9 @@ def scrub(text):
                     plain_ini.append(item[0])
         if cred:
             _add_span(cred[0], cred[1], stash(sm.group(0).lower(), cred[2]))
-        elif plain:                                  # palavra longa após o sinal: flag, não vault
+        elif plain and not (_IDENTIFICADOR_RE.match(plain[2]) and re.search(r"[_.-]", plain[2])):
+            # palavra longa após o sinal: flag, não vault. Identificador composto
+            # (`dias_desde_ultimo`, `lo_core`) é nome de coisa: nem flag.
             _add_span(plain[0], plain[1], plain[2] + "‹revisar?›")
 
     # 4) token de alta entropia (≥16) não coberto, sem palavra-sinal por perto → cofre, igual ao
@@ -739,16 +779,69 @@ def scrub(text):
     return "".join(partes), secrets
 
 
+# ---------------------------------------------------------------------------
+# Destino do valor-secreto — POLÍTICA do usuário, não do plugin.
+#   descartar     (padrão): o valor sai do texto e não é gravado em lugar nenhum.
+#   gerenciador   : idem no disco; a doc aponta para o item `<projeto> · <RÓTULO>` no gerenciador
+#                   que o usuário escolheu (Bitwarden/Hermes Warden, 1Password…), e a skill oferece
+#                   guardar lá.
+#   arquivo-local : arquivo 0600 em `~/.claude/project-skills/segredos/` (o usuário assume o risco).
+# Nunca grava em pasta sincronizada (iCloud Drive) nem dentro do repo.
+# ---------------------------------------------------------------------------
+MODOS_SEGREDO = ("descartar", "gerenciador", "arquivo-local")
+
+
+def _config_base():
+    return os.path.join(os.environ.get("CLAUDE_CONFIG_DIR") or os.path.join(os.path.expanduser("~"), ".claude"),
+                        "project-skills")
+
+
+def _politica_path():
+    return os.environ.get("PROJECT_DOC_SEGREDOS_CFG") or os.path.join(_config_base(), "segredos.json")
+
+
+def politica_segredos():
+    """{"modo": ..., "gerenciador": ...} escolhida pelo usuário, ou None se ele ainda não escolheu."""
+    env = os.environ.get("PROJECT_DOC_SEGREDOS_MODO")
+    if env in MODOS_SEGREDO:
+        return {"modo": env, "gerenciador": None}
+    try:
+        with open(_politica_path(), encoding="utf-8") as fh:
+            d = json.load(fh)
+    except (OSError, ValueError):
+        return None
+    if not isinstance(d, dict) or d.get("modo") not in MODOS_SEGREDO:
+        return None
+    return {"modo": d["modo"], "gerenciador": d.get("gerenciador") or None}
+
+
+def definir_politica_segredos(modo, gerenciador=None):
+    if modo not in MODOS_SEGREDO:
+        raise ValueError("modo inválido: %r (use %s)" % (modo, ", ".join(MODOS_SEGREDO)))
+    caminho = _politica_path()
+    _pasta_privada(os.path.dirname(caminho))
+    fd = os.open(caminho, os.O_WRONLY | os.O_CREAT | os.O_TRUNC | _O_BINARY, 0o600)
+    with os.fdopen(fd, "w", encoding="utf-8") as fh:
+        json.dump({"modo": modo, "gerenciador": gerenciador or None}, fh, ensure_ascii=False)
+    return politica_segredos()
+
+
+def _pasta_sincronizada(caminho):
+    """iCloud Drive / Dropbox / OneDrive / Google Drive: o valor sairia da máquina."""
+    c = os.path.realpath(caminho).replace("\\", "/").lower()
+    return any(p in c for p in ("/library/mobile documents/", "/library/cloudstorage/", "/dropbox/",
+                                "/onedrive", "/google drive/", "/icloud"))
+
+
+def _dentro_de(caminho, raiz):
+    c, r = os.path.realpath(caminho), os.path.realpath(raiz)
+    return c == r or c.startswith(r.rstrip(os.sep) + os.sep)
+
+
 def cofre_paths(project_root):
-    # Override explícito (testes + máquina sem iCloud) > iCloud > fallback local gitignored.
+    # Só o modo arquivo-local usa: override explícito (testes) > ~/.claude/project-skills/segredos.
     env = os.environ.get("PROJECT_DOC_COFRE_DIR")
-    icloud = os.path.expanduser("~/Library/Mobile Documents/com~apple~CloudDocs")
-    if env:
-        base = env
-    elif os.path.isdir(icloud):
-        base = os.path.join(icloud, "Cofre")
-    else:
-        base = os.path.join(project_root, ".claude", "secrets", "_local_cofre")
+    base = env or os.path.join(_config_base(), "segredos")
     # Nome pelo PATH COMPLETO (não só basename) — dois projetos de mesmo nome não colidem.
     pr = os.path.abspath(project_root)
     slug = "%s-%s" % (os.path.basename(pr) or "projeto", hashlib.sha1(pr.encode("utf-8")).hexdigest()[:8])
@@ -800,12 +893,24 @@ def _abre_privado(caminho):
 
 
 def stash_secrets(secrets, project_root):
-    """Desvia valores pro cofre, dedup por (label,valor). Garante o gitignore ANTES de escrever."""
+    """Aplica a política do usuário aos valores tirados do texto. Devolve um resumo SEM valores:
+    {"modo", "pendente", "rotulos", "n", ["arquivo"], ["aviso"]}. `pendente` = o usuário ainda não
+    escolheu a política — a skill pergunta (ver skills/doc/SKILL.md, "Segredos encontrados")."""
     if not secrets:
         return None
-    # Protege primeiro: no fallback local o cofre cai dentro do repo — gitignore antes da escrita.
-    ensure_gitignore(project_root, ".claude/secrets/")
+    pol = politica_segredos()
+    modo = pol["modo"] if pol else "descartar"
+    resumo = {"modo": modo, "pendente": pol is None, "n": len(secrets),
+              "rotulos": sorted({k.split(":", 1)[0] for k, _ in secrets})}
+    if pol and pol.get("gerenciador"):
+        resumo["gerenciador"] = pol["gerenciador"]
+    if modo != "arquivo-local":
+        return resumo                       # descartar / gerenciador: nada vai para o disco
     base, cofre = cofre_paths(project_root)
+    if _pasta_sincronizada(base) or _dentro_de(base, project_root):
+        resumo.update(modo="descartar", aviso="destino recusado (pasta sincronizada ou dentro do "
+                      "repo): %s — nada gravado" % base)
+        return resumo
     _pasta_privada(base)
     existing = set()
     if os.path.exists(cofre):
@@ -823,20 +928,22 @@ def stash_secrets(secrets, project_root):
             esc = val.replace("\\", "\\\\").replace("\n", "\\n")
             fh.write("%s=%s\n" % (key, esc))
             existing.add(key)
-    # symlink no repo (gitignored) → cofre; recria se stale (cofre mudou de lugar).
-    secrets_dir = os.path.join(project_root, ".claude", "secrets")
-    os.makedirs(secrets_dir, exist_ok=True)
-    link = os.path.join(secrets_dir, "ops.env")
-    try:
-        if os.path.lexists(link):
-            if not os.path.islink(link) or os.readlink(link) != cofre:
-                os.unlink(link)
-                os.symlink(cofre, link)
-        else:
-            os.symlink(cofre, link)
-    except OSError:
-        pass
-    return cofre
+    resumo["arquivo"] = cofre
+    return resumo
+
+
+def _junta_segredos(acc, resumo):
+    """Acumula resumos de stash_secrets numa rodada (sem valores)."""
+    if not resumo:
+        return acc
+    if acc is None:
+        return dict(resumo, rotulos=list(resumo["rotulos"]))
+    acc["n"] += resumo["n"]
+    acc["rotulos"] = sorted(set(acc["rotulos"]) | set(resumo["rotulos"]))
+    for k in ("arquivo", "aviso"):
+        if k in resumo:
+            acc[k] = resumo[k]
+    return acc
 
 
 # ---------------------------------------------------------------------------
@@ -1054,12 +1161,13 @@ def run_update(project_root, active_session=None, deep=False, rebuild=False):
     now = int(time.time())
     new_events = []
     added_ids = set()
+    segredos = None
     for c in candidates:
         if c["id"] in known_ids or c["id"] in added_ids:
             continue
         scrubbed_text, secrets = scrub(c["text"])
         if secrets:
-            stash_secrets(secrets, project_root)
+            segredos = _junta_segredos(segredos, stash_secrets(secrets, project_root))
         new_events.append({"ev": "discovered", "id": c["id"], "raw_kind": c["raw_kind"],
                            "text": scrubbed_text, "anchors": c["anchors"], "source": c["source"],
                            "scrubbed": bool(secrets), "ts": now})
@@ -1094,8 +1202,11 @@ def run_update(project_root, active_session=None, deep=False, rebuild=False):
     # o journal do disco (era a 3ª leitura/2º fold por rodada).
     final_state = fold(events_existing + new_events)
     live = live_findings(final_state)
-    return {"mode": "deep" if deep else "update", "new_events": len(new_events),
-            "live_count": len(live), "stale_ids": stale_ids, "live": live}
+    res = {"mode": "deep" if deep else "update", "new_events": len(new_events),
+           "live_count": len(live), "stale_ids": stale_ids, "live": live}
+    if segredos:
+        res["segredos"] = segredos
+    return res
 
 
 def self_path_match(anchor, changed_paths):
@@ -1124,13 +1235,15 @@ def run_invalidate(project_root, fid, reason):
         return {"mode": "invalidate", "error": "id não encontrado no journal", "id": fid}
     # reason vai pro journal git-tracked → passa pelo scrubber (mesma barreira do discovered).
     reason_scrubbed, secrets = scrub(reason or "agente: contradito pelo código")
-    if secrets:
-        stash_secrets(secrets, project_root)
+    segredos = stash_secrets(secrets, project_root) if secrets else None
     append_events(project_root, [{"ev": "invalidated", "target": fid,
                                   "reason": reason_scrubbed, "ts": int(time.time())}])
     state = fold(read_events(project_root))
-    return {"mode": "invalidate", "id": fid, "alive": (state.get(fid, {}).get("status") == "live"),
-            "live_count": len(live_findings(state))}
+    res = {"mode": "invalidate", "id": fid, "alive": (state.get(fid, {}).get("status") == "live"),
+           "live_count": len(live_findings(state))}
+    if segredos:
+        res["segredos"] = segredos
+    return res
 
 
 def run_curate(project_root, fid, text):
@@ -1139,11 +1252,13 @@ def run_curate(project_root, fid, text):
         return {"mode": "curate", "error": "id não encontrado no journal", "id": fid}
     # texto curado vai pro journal git-tracked → MESMA barreira do scrubber que o discovered.
     text_scrubbed, secrets = scrub(text)
-    if secrets:
-        stash_secrets(secrets, project_root)
+    segredos = stash_secrets(secrets, project_root) if secrets else None
     append_events(project_root, [{"ev": "curated", "target": fid, "text": text_scrubbed, "ts": int(time.time())}])
     state = fold(read_events(project_root))
-    return {"mode": "curate", "id": fid, "live_count": len(live_findings(state))}
+    res = {"mode": "curate", "id": fid, "live_count": len(live_findings(state))}
+    if segredos:
+        res["segredos"] = segredos
+    return res
 
 
 def run_adopt(project_root, text, raw_kind="doc_nuance", ref=None):
@@ -1161,14 +1276,16 @@ def run_adopt(project_root, text, raw_kind="doc_nuance", ref=None):
     if c["id"] in state:
         return {"mode": "adopt", "id": c["id"], "new": False, "live_count": len(live_findings(state))}
     text_scrubbed, secrets = scrub(c["text"])
-    if secrets:
-        stash_secrets(secrets, project_root)
+    segredos = stash_secrets(secrets, project_root) if secrets else None
     append_events(project_root, [{"ev": "discovered", "id": c["id"], "raw_kind": c["raw_kind"],
                                   "text": text_scrubbed, "anchors": c["anchors"], "source": c["source"],
                                   "scrubbed": bool(secrets), "ts": int(time.time())}])
     state = fold(read_events(project_root))
-    return {"mode": "adopt", "id": c["id"], "new": True, "scrubbed": bool(secrets),
-            "live_count": len(live_findings(state))}
+    res = {"mode": "adopt", "id": c["id"], "new": True, "scrubbed": bool(secrets),
+           "live_count": len(live_findings(state))}
+    if segredos:
+        res["segredos"] = segredos
+    return res
 
 
 def run_fuse(project_root, module_names):
@@ -1212,7 +1329,10 @@ def run_fuse(project_root, module_names):
 
 def main():
     ap = argparse.ArgumentParser(description="project-doc journal/delta")
-    ap.add_argument("mode", choices=["update", "deep", "rebuild", "fold", "invalidate", "curate", "adopt", "fuse", "scrub-test"])
+    ap.add_argument("mode", choices=["update", "deep", "rebuild", "fold", "invalidate", "curate", "adopt", "fuse", "scrub-test", "segredos"])
+    ap.add_argument("--set", dest="set_modo", default=None, choices=list(MODOS_SEGREDO),
+                    help="segredos: grava a política do usuário")
+    ap.add_argument("--gerenciador", default=None, help="segredos: nome do gerenciador (ex.: Bitwarden)")
     ap.add_argument("--modules", default=None, help="fuse: nomes de módulos separados por vírgula")
     ap.add_argument("--project-root", default=None)
     ap.add_argument("--cwd", default=os.getcwd())
@@ -1222,6 +1342,13 @@ def main():
     ap.add_argument("--text", default=None)
     ap.add_argument("--raw-kind", default="doc_nuance")
     args = ap.parse_args()
+
+    if args.mode == "segredos":
+        pol = definir_politica_segredos(args.set_modo, args.gerenciador) if args.set_modo else politica_segredos()
+        print(json.dumps({"mode": "segredos", "politica": pol, "pendente": pol is None,
+                          "arquivo_da_politica": _politica_path(), "modos": list(MODOS_SEGREDO)},
+                         ensure_ascii=False, indent=2))
+        return 0
 
     if args.mode == "scrub-test":
         text = sys.stdin.read()

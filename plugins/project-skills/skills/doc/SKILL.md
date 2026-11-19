@@ -694,9 +694,14 @@ Vale para `CLAUDE.md`, todo `.claude/docs/*.md` e todo ponteiro — no FULL, no 
 
 ### Regras gerais
 
-- **NEVER include secret values** — só nomes de variável. Escreva `DB_PASSWORD`, nunca `DB_PASSWORD=hunter2`. **Defense-in-depth:** o **scrubber** do lib já é a 1ª barreira (move valores-secreto pro cofre na escrita do journal — ver Collect & Project / check #10); a projeção é a 2ª barreira — não reintroduza um valor que o scrubber pegaria.
-- **Cofre operacional** — valores-secreto NÃO são perdidos, são **desviados** pro cofre (iCloud `Cofre/<projeto>.env`; o repo tem o symlink **gitignored** `.claude/secrets/ops.env`). Na doc, **referencie** em vez do valor: `SSH_HOST → ver cofre (.claude/secrets/ops.env)`.
-- **Nomes e contexto SIM, valores NÃO** — hosts, IPs, portas e paths são contexto de infra: **preserve**. Só o valor-secreto vai pro cofre.
+- **NEVER include secret values** — só nomes de variável. Escreva `DB_PASSWORD`, nunca `DB_PASSWORD=hunter2`. **Defense-in-depth:** o **scrubber** do lib já é a 1ª barreira (tira valores-secreto do texto na escrita do journal — ver Collect & Project / check #10); a projeção é a 2ª barreira — não reintroduza um valor que o scrubber pegaria.
+- **Segredos encontrados — o destino é do USUÁRIO, não do plugin.** O scrubber tira o valor do texto e deixa `‹cofre:RÓTULO:hash›` (marca de "valor removido"; o nome é histórico). O que acontece com o valor segue a política em `~/.claude/project-skills/segredos.json` (`journal.py segredos` mostra; `journal.py segredos --set <modo> [--gerenciador <nome>]` grava):
+  - **`gerenciador`** — nada vai para o disco. Na doc, aponte o item: `DB_PASSWORD → <gerenciador>: "<projeto> · DB_PASSWORD"`. Se o usuário tiver um gerenciador acessível (Hermes Warden/`bw`, `op`…), **ofereça** guardar o valor lá; nunca guarde sem ele dizer sim.
+  - **`descartar`** (padrão enquanto ninguém escolheu) — o valor some; ele continua só onde já estava (o `.env`, o servidor, o painel do serviço). Na doc: `DB_PASSWORD → valor fora do repo (ver o .env do servidor)`.
+  - **`arquivo-local`** — arquivo `0600` em `~/.claude/project-skills/segredos/<projeto>-<hash>.env`. O usuário **assume o risco**: é um segredo em texto puro no disco, sem cópia, que qualquer processo do usuário lê. O lib recusa pasta sincronizada (iCloud Drive, Dropbox, OneDrive, Google Drive) e pasta dentro do repo.
+  - **Quando a saída do `journal.py` trouxer `"segredos": {"pendente": true, ...}`** (só rótulos e contagem, nunca valores): **antes de perguntar**, procure a política no contexto do próprio usuário (CLAUDE.md global, memória). Achou → grave com `--set` e siga. Não achou → **pergunte uma vez**, com as três opções e a consequência de cada uma em uma linha, recomendando `gerenciador` se ele tiver um; grave a resposta com `--set`.
+  - **Nunca** grave valor em iCloud, em `.claude/secrets/` nem em qualquer pasta do repo; nunca crie symlink para segredo.
+- **Nomes e contexto SIM, valores NÃO** — hosts, IPs, portas, paths, nomes de programa e identificadores (`pg_dump`, `lo_core`) são contexto: **preserve**. Só o valor-secreto sai.
 - **NEVER include API keys, tokens, or passwords** — even if found in config files
 - **SSH key paths are OK** — key file contents are NEVER OK
 - **Seções condicionais** — if detection found nothing for a section, omit it entirely. Don't generate empty doc files.

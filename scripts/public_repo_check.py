@@ -73,7 +73,7 @@ REGRAS_ESTRUTURAIS = [
      r"-----BEGIN [A-Z ]*PRIVATE KEY|"
      r"(postgres|postgresql|mysql|mongodb\+srv|redis|amqp)://[^:/@ \n]+:[^@ \n]+@",
      "credencial",
-     "nunca versionar — mover para o cofre"),
+     "nunca versionar — mover para o gerenciador de segredos"),
 ]
 
 # ponytail: AKIA fora da lista de credencial — o exemplo publicado pela AWS

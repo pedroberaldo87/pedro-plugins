@@ -380,7 +380,7 @@ intent-guard       0.8.23  [intent-guard]               HOOKS
 lixeiro             1.6.6  [faxina]                     HOOKS
 pr-externo          0.1.0  [pr-externo]                 HOOKS
 principles          1.0.5  [principles]                 -
-project-skills    0.22.245  [completude,design-md,doc,doc-load,doc-touch,monitorar,pesquisa-referencias,plan,project-skills,qa-loop,reentrada,sprint,start] HOOKS
+project-skills    0.23.0    [completude,design-md,doc,doc-load,doc-touch,monitorar,pesquisa-referencias,plan,project-skills,qa-loop,reentrada,sprint,start] HOOKS
 sec                 0.1.4  [sec]                        -
 ship               1.5.12  [ship]                       HOOKS
 slides              1.6.9  [slides]                     -
@@ -1256,14 +1256,13 @@ quando ele falta, com comentário explícito de que qualquer divergência re-cha
 - **Scrubber em 4 camadas**, a barreira entre conversa-verbatim e git: (1) estruturado
   (PEM → connection string → JWT → prefixos de provider), (2) `chave=valor` de uma linha +
   pares JSON aninhados, (3) prosa (palavra-sinal + token de alta entropia), (4) token de alta entropia sem
-  rótulo — inclusive no caminho ou na consulta de uma URL — vai para o cofre; só o que tem
+  rótulo — inclusive no caminho ou na consulta de uma URL — sai do texto; só o que tem
   cara de código (pontuação fora do alfabeto de segredo) fica marcado `‹revisar?›`. Política escrita no arquivo: **nomes e contexto SIM,
-  valores NÃO**; host/IP/porta/path/sha/uuid preservados. O valor vai pro cofre e o doc fica
-  com `‹cofre:LABEL:hash8›`.
-- **Cofre**: `PROJECT_DOC_COFRE_DIR` (override explícito) > iCloud
-  (`~/Library/Mobile Documents/com~apple~CloudDocs/Cofre`) > fallback local
-  `.claude/secrets/_local_cofre`. `ensure_gitignore()` roda **antes** da escrita, porque no
-  fallback o cofre cai dentro do repo.
+  valores NÃO**; host/IP/porta/path/sha/uuid e identificadores (`pg_dump`) preservados. O valor
+  sai e o doc fica com `‹cofre:LABEL:hash8›` (marca de "valor removido"; nome histórico).
+- **Destino do valor**: política do usuário (`~/.claude/project-skills/segredos.json`, `journal.py segredos`): `descartar` (padrão), `gerenciador` (nada no disco; a doc aponta o item) ou `arquivo-local` (0600 em `~/.claude/project-skills/segredos/`, recusa pasta sincronizada e pasta do repo). Até 2026-11 o valor ia para o iCloud
+  (`Cofre/<projeto>.env` + symlink `.claude/secrets/ops.env`); saiu porque era cópia em texto
+  puro, sincronizada, que ninguém lia.
 
 ### 8.2 `pattern_check.py` — o contrato de "doc no padrão"
 

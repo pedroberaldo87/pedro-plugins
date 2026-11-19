@@ -54,8 +54,8 @@ After writing all files, run this verification checklist. Report results to the 
 **10. Security — Scrubber + No Leaked Secrets**
 - O **scrubber** (lib) é a 1ª barreira na escrita do journal; este check é a 2ª, na doc final (defense-in-depth — repo privado NÃO é controle de secret).
 - Scan ALL generated files for secret-looking values, **em paridade com o gate 5 do Stitch e o `PROVIDER_RE` do `journal.py`** (fonte única): atribuição `(?i)(password|senha|passwd|pwd|secret|token|api[_-]?key|credential)\s*[:=]\s*<valor>` cujo `<valor>` seja **credencial-shaped** (≥16 chars de classe mista **ou** Shannon ≥3.5, como a Camada 4 do `journal.py` — **NÃO bare `\S+`**, pra não marcar prosa tipo `secret = barreira`), base64 longo, JWT (`eyJ…`), AWS `AKIA…`/`ASIA…`, **Google `AIza…` e `ya29.…`**, GitHub `gh[posu]_…`/`github_pat_…`, `sk-…`/`sk_live_`/`sk_test_`, Slack `xox…`, GitLab `glpat-…`, blocos PEM, connection strings com senha embutida.
-- Garanta que valores de .env NUNCA entram — só nomes. Onde havia um secret, a doc deve **referenciar o cofre** (`.claude/secrets/ops.env`), não o valor.
-- Confirme que `.claude/secrets/` está no `.gitignore` (o lib adiciona; verifique).
+- Garanta que valores de .env NUNCA entram — só nomes. Onde havia um secret, a doc **aponta onde o valor mora** conforme a política do usuário (`journal.py segredos`): o item do gerenciador, ou "fora do repo (o .env do servidor)". Nunca o valor, nunca um caminho de iCloud.
+- Confirme que nenhum arquivo de segredo foi criado dentro do repo (`.claude/secrets/` não deve mais existir; se existir, é resto da versão antiga — avise o usuário).
 - Qualquer vazamento potencial = **CRITICAL FAIL** — corrija antes de declarar pronto.
 
 **11. Deploy Flow Accuracy**
