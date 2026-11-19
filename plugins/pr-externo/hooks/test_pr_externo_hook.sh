@@ -37,6 +37,16 @@ CRIAR='gh pr create --repo dono/projeto --head eu:fix/x'
 
 confere "comando comum sai 0" 0 "$(roda 'git status')"
 confere "comando comum não escreve nada" "" "$(cat "$TMP/err" "$TMP/out")"
+
+# No Windows o motor (Python) não consegue executar um `gh` de mentira escrito em shell:
+# lá só um .exe é achado. Sem resposta do gh a trava pede confirmação (provado abaixo, com
+# o gh quebrado), então os casos que dependem da RESPOSTA do gh ficam para macOS e Linux.
+case "$(uname -s 2>/dev/null)" in MINGW*|MSYS*|CYGWIN*) SEM_GH_FALSO=1 ;; *) SEM_GH_FALSO=0 ;; esac
+if [ "$SEM_GH_FALSO" = "1" ]; then
+  echo "  pulado: 8 casos que dependem do gh de mentira (Windows não executa script sem .exe)"
+  confere "sem resposta do gh: sai 0…" 0 "$(roda "$CRIAR" w1)"
+  confere "…pedindo confirmação, nunca liberando calado" 0 "$(pediu)"
+else
 confere "abertura de PR para terceiro sem dossiê sai 2" 2 "$(roda "$CRIAR")"
 grep -q "dono/projeto" "$TMP/err"; confere "a mensagem nomeia o repositório" 0 $?
 confere "segunda tentativa na mesma sessão ainda sai 2" 2 "$(roda "$CRIAR")"
@@ -45,6 +55,8 @@ confere "…e entrega a decisão ao usuário, não libera calada" 0 "$(pediu)"
 grep -q "dono/projeto" "$TMP/out"; confere "…com o motivo dentro do pedido" 0 $?
 confere "outra sessão tem o próprio teto" 2 "$(roda "$CRIAR" s2)"
 confere "outro motivo (outra branch) na mesma sessão volta a barrar" 2 "$(roda 'gh pr create --repo dono/projeto --head eu:outra')"
+
+fi
 
 touch "$TMP/quebrado"
 confere "GitHub fora do ar: sai 0…" 0 "$(roda "$CRIAR" s3)"

@@ -357,7 +357,10 @@ def hook(comando):
         sys.stdin, sys.stderr = velho_in, velho_err
 
 
-CRIAR = "gh pr create --repo dono/projeto --head eu:fix/x --title t --body-file " + corpo
+# No Windows o caminho vem com barra invertida, que o shell come: quem digita o comando
+# (Git Bash) usa barra normal, e é assim que ele chega à trava.
+corpo_cmd, outro_cmd = corpo.replace("\\", "/"), os.path.join(tmp, "outro.md").replace("\\", "/")
+CRIAR = "gh pr create --repo dono/projeto --head eu:fix/x --title t --body-file " + corpo_cmd
 check("comando que não abre PR passa calado", hook("git status") == (pe.SEGUE, ""))
 check("menção em texto passa calada", hook("echo 'rode gh pr create'") == (pe.SEGUE, ""))
 cod, msg = hook(CRIAR)
@@ -382,13 +385,13 @@ check("--body escrito na linha barra", hook("gh pr create --repo dono/projeto --
 outro = os.path.join(tmp, "outro.md")
 with open(outro, "w") as f:
     f.write(BOM + "linha a mais\n")
-check("--body-file de OUTRO arquivo barra", hook(CRIAR.replace(corpo, outro))[0] == pe.BARRA)
+check("--body-file de OUTRO arquivo barra", hook(CRIAR.replace(corpo_cmd, outro_cmd))[0] == pe.BARRA)
 check("gh api criando o PR barra (não dá para conferir a descrição)", hook("gh api repos/dono/projeto/pulls -f title=t -f head=eu:fix/x -f base=main")[0] == pe.BARRA)
 check("título com dado pessoal barra", hook(CRIAR.replace("--title t", "--title /Users/" + "fulano/x"))[0] == pe.BARRA)
 VISTO.clear()
-check("sem --repo: descobre o alvo pelo fork e libera igual", hook("gh pr create --head eu:fix/x --body-file " + corpo)[0] == pe.SEGUE)
+check("sem --repo: descobre o alvo pelo fork e libera igual", hook("gh pr create --head eu:fix/x --body-file " + corpo_cmd)[0] == pe.SEGUE)
 check("…e pergunta ao gh na pasta do COMANDO, não na do hook", VISTO.get("cwd") == R)
-hook("cd sub && gh pr create --head eu:fix/x --body-file " + corpo)
+hook("cd sub && gh pr create --head eu:fix/x --body-file " + corpo_cmd)
 check("cd antes do comando muda a pasta da pergunta", VISTO.get("cwd") == os.path.join(R, "sub"))
 
 d = pe.le("dono/projeto", "fix/x")
