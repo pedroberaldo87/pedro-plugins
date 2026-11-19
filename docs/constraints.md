@@ -38,7 +38,7 @@ approved-sig: 881584814
 ## Legais / regulatórias
 - **Sem licença pública** — o repositório é público e publicado como está; nenhum direito de redistribuição foi concedido. · **dura** · [ESCRITO: README.md · Licença]
 - **Registro de trabalho não é produto** — transcrição, plano em execução, handoff e saída de ferramenta ficam no disco e fora do git; foi por aí que nome de cliente vazou. · **dura** · [ESCRITO: .claude/CLAUDE.md · Custom Rules]
-- **Nenhum dado de QUEM INSTALA sai da máquina dele** — a biblioteca opera local; segredo capturado do dono vai ao cofre local/iCloud, com scrubber na escrita. · **dura** · [ESCRITO: data-stores.md:65 (o cofre) e :592 (o scrubber na escrita)]
+- **Nenhum dado de QUEM INSTALA sai da máquina dele** — a biblioteca opera local; segredo capturado sai do texto na escrita e segue a política do dono (descartar / gerenciador / arquivo local 0600) — nunca pasta sincronizada. · **dura** · [ESCRITO: data-stores.md:65 (o cofre) e :592 (o scrubber na escrita)]
 
 ## Limites aceitos — o que a régua reprova e decidimos não consertar
 > Desacordo entre a régua e a obra tem três destinos e só três: conserto, revogação da régua,

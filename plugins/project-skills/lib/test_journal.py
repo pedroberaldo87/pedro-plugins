@@ -36,6 +36,8 @@ def _t(nome):
 
 
 os.environ["PROJECT_DOC_COFRE_DIR"] = _t("cofre")
+# o cofre agora é opt-in: estas suítes exercitam o modo arquivo-local (fora do repo, 0600)
+os.environ["PROJECT_DOC_SEGREDOS_MODO"] = "arquivo-local"
 os.environ["PROJECT_DOC_SALT_FILE"] = _t("journal.salt")   # o sal real da instalação não é tocado
 shutil.rmtree(_t("cofre"), ignore_errors=True)
 import journal  # noqa: E402

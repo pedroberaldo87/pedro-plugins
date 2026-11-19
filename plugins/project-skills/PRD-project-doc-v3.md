@@ -89,14 +89,14 @@ Ledger **`.claude/.project-doc/ledger.json`** versionado: `{mined_sessions:[uuid
 
 **Critério de aceite:** 2ª rodada sem mudança = delta vazio (nada re-minerado); commit que altera a regra X → o gotcha de X é invalidado e some da doc.
 
-### RF5 — Scrubber + Cofre Operacional
+### RF5 — Scrubber + destino do segredo (política do usuário)
 **Scrubber** roda na escrita do journal (barreira crítica, já que o journal vai pro git):
 - **Detecta:** `KEY=valor` não-placeholder, base64 longo, JWT (`eyJ…`), `AKIA…`, `-----BEGIN…`, connection strings com senha embutida.
-- **Política "nomes e contexto sim, valores não":** preserva nome de var, host, porta, path; redige só o valor-secreto. Hosts/IPs internos: **preserva** (contexto de infra). Token de alta entropia sem rótulo: **vai para o cofre**; só o de cara de código fica **marcado** `‹revisar?›`.
+- **Política "nomes e contexto sim, valores não":** preserva nome de var, host, porta, path; redige só o valor-secreto. Hosts/IPs internos: **preserva** (contexto de infra). Token de alta entropia sem rótulo: **sai do texto**; só o de cara de código fica **marcado** `‹revisar?›`. Identificador (`pg_dump`), caminho e arquivo depois de palavra-sinal ficam (medido em 2026-11: 2/3 do que a versão anterior guardava eram isso).
 
-**Cofre:** o valor-secreto não é descartado — é **desviado**. Vai para `iCloud Drive/Cofre/<projeto>.env`; o repo tem `.claude/secrets/ops.env` (symlink gitignored) → cofre; a doc referencia (`SSH_HOST → ver cofre`).
+**Destino (revisto em 2026-11):** a versão anterior desviava o valor para `iCloud Drive/Cofre/<projeto>.env` + symlink `.claude/secrets/ops.env` — cópia de segredo em texto puro, sincronizada na nuvem, que ninguém lia. Agora o destino é **política do usuário** (`~/.claude/project-skills/segredos.json`): `gerenciador` (nada no disco; a doc aponta o item e a skill oferece guardar lá), `descartar` (padrão; o valor fica só onde já estava) ou `arquivo-local` (0600 fora do repo; o usuário assume o risco). Sem política, a skill procura no contexto do usuário e, se não achar, pergunta. Nunca iCloud, nunca dentro do repo.
 
-**Critério de aceite:** input mock com `SSH_HOST=1.2.3.4` e `DB_PASSWORD=x` → zero valor no git; valores no cofre; doc referencia. Reaproveita o guard de secret existente (verification check #10) na doc final.
+**Critério de aceite:** input mock com `SSH_HOST=1.2.3.4` e `DB_PASSWORD=x` → zero valor no git; nada gravado sem política; `arquivo-local` só fora do repo e fora de pasta sincronizada; doc aponta onde o valor mora. Reaproveita o guard de secret existente (verification check #10) na doc final.
 
 ### RF6 — Engine de extração compartilhada (vendoring)
 **`_shared/`** (source-only, **não** é plugin instalável) nasce de `plugins/handoff/lib/extract_ata.py` — que já tem o **schema do `.jsonl` verificado em dados reais** (o ativo caro, não-duplicável).
@@ -149,7 +149,7 @@ Documentação só rende se for **consultada**. Um hook do project-doc garante q
 
 1. **Cobertura de fonte:** rodar no `pedro-plugins` → a doc cita um gotcha que só existe em sessão/handoff.
 2. **Multi-slug:** apontar para o project_root do tools → a engine varre os 11 slugs (303 sessões).
-3. **Segurança:** secret mock → zero valor no git; valor no cofre; referência na doc.
+3. **Segurança:** secret mock → zero valor no git; destino conforme a política; referência na doc.
 4. **Reconciliação:** a doc não tem gotcha que o código atual contradiz.
 5. **Delta idempotente:** 2ª rodada sem mudança → nada re-minerado.
 6. **Backward:** commit que contradiz um gotcha → `invalidated` no journal, some da doc, `discovered` original preservado.

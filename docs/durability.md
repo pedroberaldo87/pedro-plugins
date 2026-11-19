@@ -284,7 +284,7 @@ Cada bloco abaixo diz o mesmo em variações: existe no disco desta máquina, n�
 - Natureza (de `plugins/project-skills/lib/journal.py`): append-only. `append_events()` só escreve linhas novas; `fold()` reconstrói o estado vivo por id, em ordem cronológica — `discovered` cria, `invalidated` mata sem apagar, `curated` sobrepõe o texto; `live_findings()` filtra o que sobrou vivo e aplica a curadoria.
 - Isso corta pela raiz a perda *parcial* (nada é reescrito) e não faz nada contra a perda *total* do arquivo.
 - ⚠️ O docstring do módulo ainda descreve o journal como "versionado — é o veículo do conhecimento" (`state_dir()`); [confirmado] no `.gitignore` de hoje ele **não é**. A intenção do código e a regra do repo divergem, e a regra é que vale.
-- O scrubber (`scrub()`) existe justamente porque o journal *era* a barreira para o git: ele move valor-secreto para o cofre (§3.11) e preserva nome/host/porta. Com o journal fora do índice, o scrubber virou defesa em profundidade, não a única barreira.
+- O scrubber (`scrub()`) existe justamente porque o journal *era* a barreira para o git: ele tira o valor-secreto do texto (§3.17) e preserva nome/host/porta. Com o journal fora do índice, o scrubber virou defesa em profundidade, não a única barreira.
 
 ### 3.3 · Grafo do graphify — `graphify-out/`
 
@@ -639,12 +639,11 @@ Entrou no inventário em 2026-08-21 (commit `bfbe936`, o pente fino). Escrita **
 - **RPO: irrelevante. RTO: um comando** — o `/bootstrap:setup` mostra a lista do que o merge acrescenta (`apply-config.sh --listar`) e regrava a marca com o de acordo.
 - **Por que ela existe fora do repo, e é correto assim:** a marca é o consentimento de *quem instala*, por máquina — versioná-la no marketplace seria distribuir o "sim" de uma pessoa como default de todas. Mesma lógica do `arsenal.md` (§3.16c).
 
-### 3.17 · Cofre de secrets — iCloud
+### 3.17 · Destino dos secrets — política do usuário
 
-- [confirmado] `cofre_paths()` em `plugins/project-skills/lib/journal.py` resolve nesta ordem: `PROJECT_DOC_COFRE_DIR` (override explícito) → `~/Library/Mobile Documents/com~apple~CloudDocs/Cofre` → fallback local `<projeto>/.claude/secrets/_local_cofre`. O nome do arquivo é `<basename>-<8 hex do sha1 do path absoluto>.env`, para dois projetos homônimos não colidirem.
-- [confirmado] O diretório do iCloud existe nesta máquina e tem **25** entradas.
-- **É o único depósito deste documento com cópia offsite que não é o GitHub** — e é offsite por acidente de local, não por política de backup. `stash_secrets()` chama `ensure_gitignore(project_root, ".claude/secrets/")` **antes** de escrever, justamente porque no caminho de fallback o cofre cai dentro do repo.
-- O símbolo `scrub()` é o que alimenta o cofre: scorer em camadas (PEM → connection string → JWT → prefixos de provider → par JSON → `chave=valor` → prosa perto de token de alta entropia → token de alta entropia sem rótulo → cofre; `‹revisar?›` só para o de cara de código). Política declarada no código: *nomes e contexto SIM, valores NÃO*.
+- [confirmado] Revisto em 2026-11: o cofre no iCloud saiu. O destino agora é política do usuário (`~/.claude/project-skills/segredos.json`, `journal.py segredos`): `descartar` (padrão), `gerenciador` (nada no disco; a doc aponta o item) ou `arquivo-local` (0600 em `~/.claude/project-skills/segredos/`, recusa pasta sincronizada e pasta do repo). O nome do arquivo (só `arquivo-local`) é `<basename>-<8 hex do sha1 do path absoluto>.env`, para dois projetos homônimos não colidirem.
+- **Sem backup, de propósito.** O arquivo é cópia; a fonte do valor é o `.env`/servidor/gerenciador. Pasta sincronizada é recusada para o segredo não sair da máquina.
+- O símbolo `scrub()` é o que alimenta o destino: scorer em camadas (PEM → connection string → JWT → prefixos de provider → par JSON → `chave=valor` → prosa perto de token de alta entropia → token de alta entropia sem rótulo → cofre; `‹revisar?›` só para o de cara de código). Política declarada no código: *nomes e contexto SIM, valores NÃO*.
 - Coberto por teste [confirmado, rodado nesta sessão]: `python3 plugins/project-skills/lib/test_journal.py` → `TODOS OS 123 CHECKS PASSARAM`.
 
 ### 3.18 · Estado por-sessão em `/tmp` e sentinelas de sync
@@ -675,7 +674,7 @@ Números por classe, todos derivados dos mecanismos acima. [inferido] onde não 
 - **Contrato de tier e registro de limites (§2.5, §2.6)** — mesma classe acima: RPO = *desde o último push manual*, RTO = um `git clone`. Nenhum dos dois tem push automático; o `r8-tiers.json` tem, em compensação, dois verificadores que acusam divergência entre as cópias antes do commit.
 - **História anterior do repo (§3.1)** — RPO = ∞. Não há segunda cópia. RTO = irrecuperável se a máquina morrer.
 - **Journal, ledger, atas, planos, grafo, `~/.claude/**`** — RPO = ∞ para todos. Nenhum tem cópia.
-- **Cofre (§3.17)** — RPO = latência de sincronização do iCloud [inferido, não medido nesta sessão]. É o único com replicação real.
+- **Destino dos secrets (§3.17)** — sem RPO: é cópia; a fonte do valor mora fora deste projeto.
 - **Green-cache (§3.8)** — RPO irrelevante: a perda é um cache MISS e a suite roda.
 
 ## 5 · Restauração testada
@@ -717,4 +716,4 @@ Ordenado por custo da perda, do pior para o mais barato:
 - 🟢 **Contrato de tier e registro de limites** (`_shared/r8-tiers.json`, `.claude/limites-aceitos.md`) — rastreados e cobertos pelo remote (§2.5, §2.6). O valor volta com um `git checkout`; o **julgamento escrito ao lado dele** (o `porque` de cada tier, o motivo de aceitar cada limite) não sai de comando nenhum.
 - 🟢 **Green-cache e sentinelas de `/tmp`** — perda é não-evento; o próprio código já poda (§3.8, §3.18).
   ⚠️ **Com uma ressalva desde 2026-08-03:** a sentinela `claude-plan-sessao-*` guarda **conteúdo** (o id do plano daquela sessão), não um sim/não. Perdê-la não perde trabalho — o resumo de fim de turno apenas volta a **relatar** em vez de afirmar, e a marca renasce no próximo passo marcado. Degrada a precisão, nunca o dado. `[confirmado — `plan_state.py:_plano_da_sessao` devolve `None` em qualquer erro de leitura, e o `brief` trata `None` como "não sei"]`
-- 🔵 **Cofre no iCloud** — único com replicação de verdade, e por acidente de local, não por política (§3.17).
+- 🔵 **Destino dos secrets** — sem replicação, de propósito; o valor tem fonte própria (§3.17).

@@ -32,9 +32,9 @@ approved-sig: 3076870558
 - **Python 3 do sistema** — entra: chamadas dos hooks e skills · sai: toda a mecânica (planos, gates, medidores)
   - **Se cair:** os motores param; skills de prosa seguem.
   - **Evidência:** patterns.md, convenção stdlib
-- **iCloud** — entra: segredos capturados do dono · sai: o cofre replicado · protocolo: pasta sincronizada no disco
-  - **Se cair:** máquina nova fica sem os secrets; é o único depósito com replicação real.
-  - **Evidência:** data-stores.md (cofre) e durability.md (cobertura)
+- **Gerenciador de segredos do usuário** (opcional: Bitwarden/Hermes Warden, 1Password…) — entra: nada automático; a skill `/doc` só **oferece** guardar o valor encontrado e aponta o item na doc · protocolo: o CLI do gerenciador, com o sim do usuário
+  - **Se cair:** nada no plugin quebra; a doc só aponta o nome do item.
+  - **Evidência:** data-stores.md §(D) e skills/doc/SKILL.md ("Segredos encontrados")
 
 ## Fora do escopo — explicitamente NÃO é nosso
 - **Os hóspedes do host** — browser e MCPs de terceiros chegam pelo Claude Code; são fronteira dele, não peça nossa.

@@ -64,7 +64,7 @@ Sem banco, sem ORM, sem migrations, sem `docker-compose`. Todo depósito é arqu
 - **(A) no repo e rastreado** — cobertura = git + `origin`. É o que viaja pra outra máquina.
 - **(B) fora do repo, em `~/.claude/`** — escrito por hooks e pelo daemon do `/visual`. Zero backup.
 - **(C) no repo, mas gitignorado** — mora na árvore de trabalho, parece protegido, está fora do índice. Zero backup.
-- **(D) o cofre** — fora do repo, no iCloud. É o único depósito de (B)/(C)/(D) com cobertura de terceiro.
+- **(D) o destino do segredo** — fora do repo; só existe se o usuário escolher `arquivo-local`. Ver §(D).
 
 ⚠️ **O repositório foi recriado hoje como história nova de UM commit órfão.** Isso mudou o que a região (A) protege, e mudou de um jeito que não aparece no `git status`: [confirmado]
 
@@ -931,22 +931,21 @@ Os quatro que entraram, com o que cada um congela [confirmado — leitura dos ar
 
 ---
 
-## (D) O cofre — o único depósito com cobertura de terceiro
+## (D) O destino do segredo — política do usuário
 
-- **Onde:** `~/Library/Mobile Documents/com~apple~CloudDocs/Cofre/<projeto>-<8hex>.env`, resolvido por `journal.py:cofre_paths` nesta cascata: [confirmado]
+- **Revisto em 2026-11.** Antes: `~/Library/Mobile Documents/com~apple~CloudDocs/Cofre/<projeto>-<8hex>.env` + symlink `.claude/secrets/ops.env`. Saiu: segredo em texto puro sincronizado na nuvem, que nenhum código lia, e 2/3 do conteúdo eram palavras comuns que o scrubber confundia.
+- **Agora:** política do usuário (`~/.claude/project-skills/segredos.json`, `journal.py segredos`): `descartar` (padrão), `gerenciador` (nada no disco; a doc aponta o item) ou `arquivo-local` (0600 em `~/.claude/project-skills/segredos/`, recusa pasta sincronizada e pasta do repo). Sem política gravada, `stash_secrets` descarta e devolve `{"pendente": true, "rotulos": [...]}` (sem valores); a skill `/doc` procura a escolha no contexto do usuário e, se não achar, pergunta.
+- **Onde (só `arquivo-local`):** `journal.py:cofre_paths`: [confirmado]
 
   ```python
-  env = os.environ.get("PROJECT_DOC_COFRE_DIR")     # override (testes / máquina sem iCloud)
-  icloud = "~/Library/Mobile Documents/com~apple~CloudDocs"
-  base = env or (icloud + "/Cofre" se existir) or "<repo>/.claude/secrets/_local_cofre"
+  base = os.environ.get("PROJECT_DOC_COFRE_DIR") or "~/.claude/project-skills/segredos"
   slug = "<basename>-<sha1(abspath)[:8]>"           # PATH completo, não só o nome
   ```
 
   O slug usa o caminho completo de propósito: **dois projetos de mesmo nome não colidem**.
-- **O arquivo deste projeto tem 39 linhas.** Formato: uma linha `LABEL:8hex=valor` por segredo, com `\n` escapado (PEM é multilinha e quebraria o `.env`). O `8hex` é `sha1(valor)[:8]`, então o mapeamento placeholder→valor é sempre exato: mesma chave com dois valores não colide, mesmo valor dedupa. Os rótulos vistos são os das palavras-sinal que o scrubber usa (`token`, `tokens`, `secret`, `secrets`, `chaves`, `credenciais`, …). **Nenhum valor foi lido nem transcrito.**
-- **A ordem de escrita importa:** `stash_secrets` chama `ensure_gitignore(project_root, ".claude/secrets/")` **antes** de escrever — porque no fallback local o cofre cai dentro do repo, e proteger depois seria tarde.
-- **Ponte no repo:** `.claude/secrets/ops.env` é um **symlink** para o arquivo do iCloud, recriado se ficar stale. `.claude/secrets/` está no `.gitignore:31` (seção SEGREDO). [confirmado por `ls -la`]
-- **Natureza: insubstituível e sincronizado.** É o único depósito fora de (A) que tem cópia em outro lugar — e a cópia é do iCloud, não deste projeto.
+- **Formato:** uma linha `LABEL:8hex=valor` por segredo, com `\n` escapado (PEM é multilinha e quebraria o `.env`). O `8hex` é `sha1(valor)[:8]`, então o mapeamento placeholder→valor é sempre exato: mesma chave com dois valores não colide, mesmo valor dedupa. Os rótulos vistos são os das palavras-sinal que o scrubber usa (`token`, `tokens`, `secret`, `secrets`, `chaves`, `credenciais`, …). **Nenhum valor foi lido nem transcrito.**
+- **Recusas:** `stash_secrets` não grava se a base resolver para pasta sincronizada (iCloud Drive, Dropbox, OneDrive, Google Drive) ou para dentro do repo — cai em `descartar` com `aviso`. Nenhum symlink no repo. `.claude/secrets/` segue no `.gitignore` só por causa de instalações antigas.
+- **Natureza: cópia, não fonte.** O valor continua onde já estava (`.env`, servidor, painel do serviço); este arquivo é conveniência do usuário, sem backup.
 
 ---
 
@@ -1053,7 +1052,7 @@ plugins/bootstrap/config/manifest.json  regenerado no SessionStart, MENOS as cha
 .claude/vistoria/vistoria-*     3 páginas + JSON de achados; voltam com o medidor
 ```
 
-**Com cobertura de terceiro:** só o cofre, no iCloud.
+**Com cobertura de terceiro:** nenhum (o antigo cofre no iCloud saiu em 2026-11).
 
 ---
 
